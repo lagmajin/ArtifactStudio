@@ -1,4 +1,11 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.30)
+
+# ---------------------------------------------------------------------------
+# import std; サポート設定 (project() より前に記述が必須)
+# ---------------------------------------------------------------------------
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_MODULE_STD ON)
 
 # ---------------------------------------------------------------------------
 # vcpkg ツールチェーンの自動読み込み (project() の前に記述が必要)
@@ -9,20 +16,11 @@ endif()
 
 project(ArtifactSuite LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 # ---------------------------------------------------------------------------
 # 共通パス構成 (全サブプロジェクトで共有)
 # ---------------------------------------------------------------------------
 set(VCPKG_ROOT        "C:/vcpkg"                               CACHE PATH "vcpkg root dir")
 set(VCPKG_INSTALLED   "${VCPKG_ROOT}/installed/x64-windows"    CACHE PATH "vcpkg install dir")
-set(OPENCV_BUILD_DIR  "X:/opencv/build"                          CACHE PATH "OpenCV build dir")
-set(VLC_DIR           "X:/vlc-3.0.21/sdk"                       CACHE PATH "VLC SDK dir")
-set(BOX2D_DIR         "X:/box2d"                                 CACHE PATH "Box2D dir")
-set(FMT_DIR           "X:/fmt/fmt"                               CACHE PATH "fmt dir")
-set(SDL2_DIR          "X:/SDL2"                                  CACHE PATH "SDL2 dir")
-set(LIBSND_DIR        "X:/libsnd"                                CACHE PATH "libsndfile dir")
 set(THIRD_PARTY_DIR   "${CMAKE_CURRENT_SOURCE_DIR}/third_party" CACHE PATH "local third_party dir")
 
 # Artifact 本体のディレクトリ
