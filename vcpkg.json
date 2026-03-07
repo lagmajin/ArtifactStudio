@@ -10,7 +10,7 @@
     "qt-advanced-docking-system",
     {
       "name": "opencv4",
-      "features": ["ffmpeg", "png", "jpeg", "quirc"]
+      "features": ["ffmpeg", "png", "jpeg", "quirc", "gapi", "ade", "dnn", "opencl"]
     },
     "sdl2",
     "boost-system",
