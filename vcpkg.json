@@ -17,6 +17,7 @@
     "box2d",
     "fmt",
     "tbb",
-    "openimageio"
+    "openimageio",
+    "glm"
   ]
 }
