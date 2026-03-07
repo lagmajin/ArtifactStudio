@@ -15,6 +15,7 @@
     "boost-uuid",
     "vulkan",
     "box2d",
-    "fmt"
+    "fmt",
+    "tbb"
   ]
 }
