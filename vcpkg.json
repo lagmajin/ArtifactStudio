@@ -16,6 +16,7 @@
     "vulkan",
     "box2d",
     "fmt",
-    "tbb"
+    "tbb",
+    "openimageio"
   ]
 }
