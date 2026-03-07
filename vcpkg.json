@@ -25,6 +25,7 @@
     "stb",
     "boost-iostreams",
     "assimp",
-    "entt"
+    "entt",
+    "magic-enum"
   ]
 }
