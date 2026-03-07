@@ -4,7 +4,9 @@ cmake_minimum_required(VERSION 3.30)
 # import std; サポートの有効化 (project() より前に記述が必須)
 # ---------------------------------------------------------------------------
 # ツールチェーン検出時に標準ライブラリモジュールのビルド機能を有効にします
-set(CMAKE_CXX_MODULE_STD ON)
+set(CMAKE_CXX_STANDARD 23 CACHE STRING "C++ standard" FORCE)
+set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "" FORCE)
+set(CMAKE_CXX_MODULE_STD ON CACHE BOOL "Enable import std support" FORCE)
 
 # ---------------------------------------------------------------------------
 # vcpkg ツールチェーンの自動読み込み
