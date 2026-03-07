@@ -18,6 +18,8 @@
     "fmt",
     "tbb",
     "openimageio",
-    "glm"
+    "glm",
+    "stb",
+    "boost-iostreams"
   ]
 }
