@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.30)
 # import std; サポートの有効化 (project() より前に記述が必須)
 # ---------------------------------------------------------------------------
 # CMake 3.30+ では import std は実験的機能のため、特定の UUID を設定する必要があります
-set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "2182bf5c-ef0d-408a-9240-61948ee1a1c7" CACHE STRING "Required for import std" FORCE)
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444" CACHE STRING "Required for import std" FORCE)
 
 # ツールチェーン検出時に機能を有効化するために一時的に ON にします
 # (これがないと __CMAKE::CXX23 ターゲットが作成されません)
