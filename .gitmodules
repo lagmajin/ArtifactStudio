@@ -1,0 +1,9 @@
+[submodule "ArtifactCore"]
+	path = ArtifactCore
+	url = https://github.com/lagmajin/ArtifactCore
+[submodule "ArtifactWidgets"]
+	path = ArtifactWidgets
+	url = https://github.com/lagmajin/ArtifactWidgets
+[submodule "Artifact"]
+	path = Artifact
+	url = https://github.com/lagmajin/Artifact
