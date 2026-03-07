@@ -7,3 +7,9 @@
 [submodule "Artifact"]
 	path = Artifact
 	url = https://github.com/lagmajin/Artifact
+[submodule "libs/DiligentEngine"]
+	path = libs/DiligentEngine
+	url = https://github.com/DiligentGraphics/DiligentEngine.git
+[submodule "third_party/verdigris"]
+	path = third_party/verdigris
+	url = https://github.com/woboq/verdigris
