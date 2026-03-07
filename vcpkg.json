@@ -20,6 +20,7 @@
     "openimageio",
     "glm",
     "stb",
-    "boost-iostreams"
+    "boost-iostreams",
+    "assimp"
   ]
 }
