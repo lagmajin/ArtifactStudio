@@ -1,0 +1,20 @@
+{
+  "name": "artifact-suite",
+  "version-string": "1.0.0",
+  "dependencies": [
+    {
+      "name": "qtbase",
+      "features": ["widgets", "network", "concurrent"]
+    },
+    "qtmultimedia",
+    "qt-advanced-docking-system",
+    "opencv4",
+    "sdl2",
+    "boost-system",
+    "boost-asio",
+    "boost-uuid",
+    "vulkan",
+    "box2d",
+    "fmt"
+  ]
+}
