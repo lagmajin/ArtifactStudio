@@ -1,0 +1,42 @@
+# IDE
+.vs/
+.vscode/
+*.swp
+*.suo
+*.user
+*.user.gwebcfg
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.slnx
+
+# Build
+out/
+build/
+bin/
+obj/
+x64/
+x86/
+ARM64/
+Release/
+Debug/
+vcpkg_installed/
+
+# Submodules temporary
+stashed_broken_modules/
+disabled_modules/
+
+# Files
+*.pdb
+*.bak
+*.old
+vc140.pdb
+CMakeSettings.json
+CMakeCache.txt
+CMakeFiles/
+CMakeLists.txt.user
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
