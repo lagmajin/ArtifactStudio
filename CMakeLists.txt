@@ -3,10 +3,14 @@ cmake_minimum_required(VERSION 3.30)
 # ---------------------------------------------------------------------------
 # import std; サポートの有効化 (project() より前に記述が必須)
 # ---------------------------------------------------------------------------
-# ツールチェーン検出時に標準ライブラリモジュールのビルド機能を有効にします
-set(CMAKE_CXX_STANDARD 23 CACHE STRING "C++ standard" FORCE)
-set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "" FORCE)
+# CMake 3.30+ では import std は実験的機能のため、特定の UUID を設定する必要があります
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "2182bf5c-ef0d-408a-9240-61948ee1a1c7" CACHE STRING "Required for import std" FORCE)
+
+# ツールチェーン検出時に機能を有効化するために一時的に ON にします
+# (これがないと __CMAKE::CXX23 ターゲットが作成されません)
 set(CMAKE_CXX_MODULE_STD ON CACHE BOOL "Enable import std support" FORCE)
+set(CMAKE_CXX_STANDARD 23 CACHE STRING "Required for import std detection" FORCE)
+set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "" FORCE)
 
 # ---------------------------------------------------------------------------
 # vcpkg ツールチェーンの自動読み込み
@@ -17,13 +21,18 @@ endif()
 
 project(ArtifactSuite LANGUAGES CXX)
 
-# ツールチェーンでの有効化が終わったら、外部ライブラリ（Diligent等）を壊さないよう
-# 全体のデフォルト値としては一旦 OFF に戻します。
-set(CMAKE_CXX_MODULE_STD OFF)
+message(STATUS "CMAKE_EXPERIMENTAL_CXX_IMPORT_STD: ${CMAKE_EXPERIMENTAL_CXX_IMPORT_STD}")
 
-# 全体のデフォルト C++ 規格は 20 に戻しておきます（外部ライブラリ用）
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# ---------------------------------------------------------------------------
+# グローバル設定のリセット (外部ライブラリへの波及を防止)
+# ---------------------------------------------------------------------------
+# ツールチェーン検出が終わったので、以降のターゲットがデフォルトで ON にならないよう OFF に戻す
+# 必要なターゲット（ArtifactCore等）でのみ個別に ON に設定します。
+set(CMAKE_CXX_MODULE_STD OFF CACHE BOOL "" FORCE)
+
+# 全体のデフォルト C++ 規格は 20 に戻します（互換性のため）
+set(CMAKE_CXX_STANDARD 20 CACHE STRING "" FORCE)
+set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "" FORCE)
 
 # ---------------------------------------------------------------------------
 # 共通パス構成
