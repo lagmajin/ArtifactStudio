@@ -61,11 +61,51 @@ if(ARTIFACT_USE_SCCACHE)
 endif()
 
 # ---------------------------------------------------------------------------
+# Strict compiler/frontend detection
+# ---------------------------------------------------------------------------
+set(ARTIFACT_COMPILER_MSVC_CL OFF)
+set(ARTIFACT_COMPILER_CLANG_CL OFF)
+set(ARTIFACT_COMPILER_INTELLLVM_CL OFF)
+set(ARTIFACT_COMPILER_INTELLLVM_GNU OFF)
+set(ARTIFACT_FRONTEND_MSVC OFF)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set(ARTIFACT_COMPILER_MSVC_CL ON)
+    set(ARTIFACT_FRONTEND_MSVC ON)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
+       CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+    set(ARTIFACT_COMPILER_CLANG_CL ON)
+    set(ARTIFACT_FRONTEND_MSVC ON)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM" AND
+       CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+    set(ARTIFACT_COMPILER_INTELLLVM_CL ON)
+    set(ARTIFACT_FRONTEND_MSVC ON)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+    set(ARTIFACT_COMPILER_INTELLLVM_GNU ON)
+endif()
+
+message(STATUS "Compiler ID: ${CMAKE_CXX_COMPILER_ID}")
+message(STATUS "Compiler frontend variant: ${CMAKE_CXX_COMPILER_FRONTEND_VARIANT}")
+message(STATUS "ARTIFACT_COMPILER_MSVC_CL=${ARTIFACT_COMPILER_MSVC_CL}")
+message(STATUS "ARTIFACT_COMPILER_CLANG_CL=${ARTIFACT_COMPILER_CLANG_CL}")
+message(STATUS "ARTIFACT_COMPILER_INTELLLVM_CL=${ARTIFACT_COMPILER_INTELLLVM_CL}")
+message(STATUS "ARTIFACT_COMPILER_INTELLLVM_GNU=${ARTIFACT_COMPILER_INTELLLVM_GNU}")
+
+# ---------------------------------------------------------------------------
 # ビルドオプション
 # ---------------------------------------------------------------------------
-if(MSVC)
+if(ARTIFACT_COMPILER_MSVC_CL)
     add_compile_options(/Zf /Zc:__cplusplus /utf-8 /openmp /MP)
     add_definitions(-D_GUARDOVERFLOW_CRT_ALLOCATORS=1)
+elseif(ARTIFACT_COMPILER_CLANG_CL)
+    # clang-cl: keep MSVC-compatible baseline flags only
+    add_compile_options(/Zc:__cplusplus /utf-8)
+elseif(ARTIFACT_COMPILER_INTELLLVM_CL)
+    # icx-cl: MSVC-style frontend
+    add_compile_options(/Zc:__cplusplus /utf-8)
+elseif(ARTIFACT_COMPILER_INTELLLVM_GNU)
+    # icx/icpx GNU-like frontend
+    add_compile_options(-fopenmp)
 endif()
 
 # ---------------------------------------------------------------------------
