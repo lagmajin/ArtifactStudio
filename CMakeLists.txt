@@ -42,6 +42,23 @@ set(VCPKG_INSTALLED   "${VCPKG_ROOT}/installed/x64-windows"    CACHE PATH "vcpkg
 set(THIRD_PARTY_DIR   "${CMAKE_CURRENT_SOURCE_DIR}/third_party" CACHE PATH "local third_party dir")
 set(ARTIFACT_APP_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/Artifact"  CACHE PATH "Artifact app dir")
 set(ARTIFACT_DEPLOY_DIR "" CACHE PATH "Optional output directory for copying Artifact exe and runtime dlls")
+option(ARTIFACT_USE_SCCACHE "Use sccache compiler launcher when available" ON)
+
+if(ARTIFACT_USE_SCCACHE)
+    find_program(SCCACHE_PROGRAM
+        NAMES sccache sccache.exe
+        HINTS
+            "${VCPKG_INSTALLED}/tools/sccache"
+            "${VCPKG_ROOT}/installed/x64-windows/tools/sccache"
+            "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/tools/sccache"
+    )
+    if(SCCACHE_PROGRAM)
+        set(CMAKE_CXX_COMPILER_LAUNCHER "${SCCACHE_PROGRAM}" CACHE STRING "" FORCE)
+        message(STATUS "sccache enabled: ${SCCACHE_PROGRAM}")
+    else()
+        message(STATUS "sccache not found; building without compiler cache")
+    endif()
+endif()
 
 # ---------------------------------------------------------------------------
 # ビルドオプション
