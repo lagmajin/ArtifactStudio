@@ -81,6 +81,21 @@
 
 ## Project / Asset
 
+### M-PV-1 Project View Basic Operations
+- Project View selection と current composition の同期
+- rename / delete / double-click
+- 基本検索と filter
+
+### M-PV-2 Project View Asset Presentation
+- thumbnail
+- type icon
+- size / duration / fps / missing 状態
+
+### M-PV-3 Project View Organization
+- folder / bin 整理
+- expand / collapse
+- unused / tag / virtual view
+
 ### M-AS-1 Asset Import Flow
 - 読み込み
 - 再リンク
