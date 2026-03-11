@@ -122,6 +122,11 @@
 ### M-AS-3 Save / Load Integrity
 - 保存再読込で composition / layer / effect が落ちない
 
+### M-AS-4 Asset System Integration
+- `AssetBrowser` と `Project View` の同期
+- import / metadata / relink / missing / unused の統合
+- 詳細は `Artifact/docs/MILESTONE_ASSET_SYSTEM_2026-03-12.md`
+
 ## Core / Architecture
 
 ### M-AR-1 Service Boundary Cleanup
