@@ -34,6 +34,17 @@
 
 ## Render
 
+### M-IR-1 ArtifactIRender API Cleanup
+- viewport / canvas / pan / zoom の整理
+- primitive API の責務固定
+
+### M-IR-2 ArtifactIRender Software Backend
+- Qt painter fallback の強化
+- overlay / gizmo 用 2D 描画
+
+### M-IR-3 ArtifactIRender Backend Parity
+- software と Diligent の primitive 差分を縮める
+
 ### M-RD-1 Software Render Pipeline
 - コンポ作成
 - Solid 追加

@@ -10,6 +10,8 @@ AI が UI 名称やウィジェット責務で迷ったら、まず [docs/WIDGET
 
 Project View 専用の実装段階は [Artifact/docs/MILESTONE_PROJECT_VIEW_2026-03-12.md](Artifact/docs/MILESTONE_PROJECT_VIEW_2026-03-12.md) を参照してください。
 
+`ArtifactIRenderer` の整理段階は [Artifact/docs/MILESTONE_ARTIFACT_IRENDER_2026-03-12.md](Artifact/docs/MILESTONE_ARTIFACT_IRENDER_2026-03-12.md) を参照してください。
+
 `ArtifactCore` 専用のバックログは [ArtifactCore/docs/MILESTONES_CORE_BACKLOG.md](ArtifactCore/docs/MILESTONES_CORE_BACKLOG.md) を参照してください。
 
 Property 系 UI の残骸と再整理方針は [Artifact/docs/PROPERTY_EDITOR_AUDIT_2026-03-11.md](Artifact/docs/PROPERTY_EDITOR_AUDIT_2026-03-11.md) を参照してください。
