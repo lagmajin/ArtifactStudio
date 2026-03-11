@@ -19,6 +19,9 @@ if(NOT CMAKE_TOOLCHAIN_FILE)
     set(CMAKE_TOOLCHAIN_FILE "C:/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE FILEPATH "")
 endif()
 
+# Force 64-bit dependency resolution by default.
+set(VCPKG_TARGET_TRIPLET "x64-windows" CACHE STRING "vcpkg triplet" FORCE)
+
 project(ArtifactSuite LANGUAGES CXX)
 
 message(STATUS "CMAKE_EXPERIMENTAL_CXX_IMPORT_STD: ${CMAKE_EXPERIMENTAL_CXX_IMPORT_STD}")
@@ -30,8 +33,8 @@ message(STATUS "CMAKE_EXPERIMENTAL_CXX_IMPORT_STD: ${CMAKE_EXPERIMENTAL_CXX_IMPO
 # 必要なターゲット（ArtifactCore等）でのみ個別に ON に設定します。
 set(CMAKE_CXX_MODULE_STD OFF CACHE BOOL "" FORCE)
 
-# 全体のデフォルト C++ 規格は 20 に戻します（互換性のため）
-set(CMAKE_CXX_STANDARD 20 CACHE STRING "" FORCE)
+# 全体のデフォルト C++ 規格も 23 を維持します
+set(CMAKE_CXX_STANDARD 23 CACHE STRING "" FORCE)
 set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "" FORCE)
 
 # ---------------------------------------------------------------------------
@@ -43,6 +46,7 @@ set(THIRD_PARTY_DIR   "${CMAKE_CURRENT_SOURCE_DIR}/third_party" CACHE PATH "loca
 set(ARTIFACT_APP_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/Artifact"  CACHE PATH "Artifact app dir")
 set(ARTIFACT_DEPLOY_DIR "" CACHE PATH "Optional output directory for copying Artifact exe and runtime dlls")
 option(ARTIFACT_USE_SCCACHE "Use sccache compiler launcher when available" ON)
+option(ARTIFACT_ENABLE_SYCL "Enable Intel oneAPI DPC++/SYCL build flags" OFF)
 
 if(ARTIFACT_USE_SCCACHE)
     find_program(SCCACHE_PROGRAM
@@ -92,6 +96,25 @@ message(STATUS "ARTIFACT_COMPILER_INTELLLVM_CL=${ARTIFACT_COMPILER_INTELLLVM_CL}
 message(STATUS "ARTIFACT_COMPILER_INTELLLVM_GNU=${ARTIFACT_COMPILER_INTELLLVM_GNU}")
 
 # ---------------------------------------------------------------------------
+# Architecture guard (prevent x86/x64 mixing)
+# ---------------------------------------------------------------------------
+if(WIN32)
+    if(CMAKE_SIZEOF_VOID_P AND NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+        message(FATAL_ERROR "ArtifactSuite requires x64 build. Detected pointer size=${CMAKE_SIZEOF_VOID_P}.")
+    endif()
+
+    if(DEFINED CMAKE_GENERATOR_PLATFORM AND
+       NOT CMAKE_GENERATOR_PLATFORM STREQUAL "" AND
+       NOT CMAKE_GENERATOR_PLATFORM STREQUAL "x64")
+        message(FATAL_ERROR "ArtifactSuite requires -A x64. Current CMAKE_GENERATOR_PLATFORM='${CMAKE_GENERATOR_PLATFORM}'.")
+    endif()
+
+    if(NOT VCPKG_TARGET_TRIPLET STREQUAL "x64-windows")
+        message(FATAL_ERROR "ArtifactSuite requires VCPKG_TARGET_TRIPLET=x64-windows. Current='${VCPKG_TARGET_TRIPLET}'.")
+    endif()
+endif()
+
+# ---------------------------------------------------------------------------
 # ビルドオプション
 # ---------------------------------------------------------------------------
 if(ARTIFACT_COMPILER_MSVC_CL)
@@ -106,6 +129,24 @@ elseif(ARTIFACT_COMPILER_INTELLLVM_CL)
 elseif(ARTIFACT_COMPILER_INTELLLVM_GNU)
     # icx/icpx GNU-like frontend
     add_compile_options(-fopenmp)
+endif()
+
+# ---------------------------------------------------------------------------
+# Optional Intel DPC++ / SYCL enablement
+# ---------------------------------------------------------------------------
+if(ARTIFACT_ENABLE_SYCL)
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+        message(FATAL_ERROR "ARTIFACT_ENABLE_SYCL=ON requires IntelLLVM compiler (dpcpp/icpx).")
+    endif()
+
+    if(ARTIFACT_FRONTEND_MSVC)
+        message(FATAL_ERROR "ARTIFACT_ENABLE_SYCL currently supports IntelLLVM GNU-like frontend (dpcpp/icpx), not MSVC-like frontend.")
+    endif()
+
+    message(STATUS "ARTIFACT_ENABLE_SYCL=ON (enabling -fsycl)")
+    add_compile_options(-fsycl)
+    add_link_options(-fsycl)
+    add_compile_definitions(ARTIFACT_HAS_SYCL=1)
 endif()
 
 # ---------------------------------------------------------------------------
