@@ -6,6 +6,12 @@ cmake_minimum_required(VERSION 3.30)
 # CMake 3.30+ では import std は実験的機能のため、特定の UUID を設定する必要があります
 set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444" CACHE STRING "Required for import std" FORCE)
 
+# VS 18.3 / Ninja では std.compat を同時に載せると dyndep が壊れるため、
+# std.ixx のみを列挙した metadata を使って import std を構成します。
+set(CMAKE_CXX_STDLIB_MODULES_JSON
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/msvc-stdlib-modules.json"
+    CACHE FILEPATH "MSVC standard library module metadata override" FORCE)
+
 # ツールチェーン検出時に機能を有効化するために一時的に ON にします
 # (これがないと __CMAKE::CXX23 ターゲットが作成されません)
 set(CMAKE_CXX_MODULE_STD ON CACHE BOOL "Enable import std support" FORCE)
