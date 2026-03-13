@@ -127,6 +127,11 @@
 - import / metadata / relink / missing / unused の統合
 - 詳細は `Artifact/docs/MILESTONE_ASSET_SYSTEM_2026-03-12.md`
 
+### M-AS-5 Video Layer Unification
+- `Video` 縺ｫ荳譛ｬ蛹・
+- layer factory / serialization / property / project presentation 縺ｮ豕ｨ諢丈ｺ・
+- 隧ｳ邏ｰ縺ｯ `Artifact/docs/MILESTONE_VIDEO_LAYER_UNIFICATION_2026-03-13.md`
+
 ## Core / Architecture
 
 ### M-AR-1 Service Boundary Cleanup
