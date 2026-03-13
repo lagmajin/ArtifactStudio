@@ -132,6 +132,21 @@
 - layer factory / serialization / property / project presentation 縺ｮ豕ｨ諢丈ｺ・
 - 隧ｳ邏ｰ縺ｯ `Artifact/docs/MILESTONE_VIDEO_LAYER_UNIFICATION_2026-03-13.md`
 
+### M-AS-6 File Menu Workflow
+- project create / open / save / close / restart / quit 縺ｮ謨ｴ逅・
+- recent projects / unsaved changes / import / composition create 縺ｮ邨ｱ蜷・
+- 隧ｳ邏ｰ縺ｯ `Artifact/docs/MILESTONE_FILE_MENU_2026-03-13.md`
+
+### M-AS-7 Edit Menu Workflow
+- undo / redo / copy / cut / paste / delete / duplicate の実コマンド接続
+- split / trim / select all / find / preferences の context-aware menu state
+- 詳細は `Artifact/docs/MILESTONE_EDIT_MENU_2026-03-13.md`
+
+### M-AS-8 Composition Menu Workflow
+- composition create / preset / duplicate / rename / delete / settings の整理
+- current composition sync / background color / development-only action cleanup
+- 詳細は `Artifact/docs/MILESTONE_COMPOSITION_MENU_2026-03-13.md`
+
 ## Core / Architecture
 
 ### M-AR-1 Service Boundary Cleanup
