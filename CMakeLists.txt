@@ -7,14 +7,73 @@ cmake_minimum_required(VERSION 3.30)
 set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444" CACHE STRING "Required for import std" FORCE)
 
 # VS 18.3 / Ninja では std.compat を同時に載せると dyndep が壊れるため、
-# std.ixx のみを列挙した metadata を使って import std を構成します。
-set(CMAKE_CXX_STDLIB_MODULES_JSON
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/msvc-stdlib-modules.json"
-    CACHE FILEPATH "MSVC standard library module metadata override" FORCE)
+# 実在する std.ixx だけを列挙した metadata を configure 時に生成します。
+set(ARTIFACT_USING_CLANG_LIKE_PREPROJECT OFF)
+if(CMAKE_CXX_COMPILER)
+    string(TOLOWER "${CMAKE_CXX_COMPILER}" _artifact_cxx_compiler_lower)
+    if(_artifact_cxx_compiler_lower MATCHES "clang-cl(\\.exe)?$" OR
+       _artifact_cxx_compiler_lower MATCHES "icx-cl(\\.exe)?$" OR
+       _artifact_cxx_compiler_lower MATCHES "icx(\\.exe)?$" OR
+       _artifact_cxx_compiler_lower MATCHES "icpx(\\.exe)?$")
+        set(ARTIFACT_USING_CLANG_LIKE_PREPROJECT ON)
+    endif()
+endif()
+
+set(ARTIFACT_MSVC_STD_IXX "")
+if(NOT ARTIFACT_USING_CLANG_LIKE_PREPROJECT)
+if(DEFINED ENV{VCToolsInstallDir} AND EXISTS "$ENV{VCToolsInstallDir}/modules/std.ixx")
+    file(TO_CMAKE_PATH "$ENV{VCToolsInstallDir}/modules/std.ixx" ARTIFACT_MSVC_STD_IXX)
+elseif(DEFINED ENV{VCINSTALLDIR})
+    file(GLOB_RECURSE ARTIFACT_MSVC_STD_IXX_CANDIDATES
+        LIST_DIRECTORIES FALSE
+        "$ENV{VCINSTALLDIR}/Tools/MSVC/*/modules/std.ixx")
+    list(SORT ARTIFACT_MSVC_STD_IXX_CANDIDATES ORDER DESCENDING)
+    list(LENGTH ARTIFACT_MSVC_STD_IXX_CANDIDATES ARTIFACT_MSVC_STD_IXX_COUNT)
+    if(ARTIFACT_MSVC_STD_IXX_COUNT GREATER 0)
+        list(GET ARTIFACT_MSVC_STD_IXX_CANDIDATES 0 ARTIFACT_MSVC_STD_IXX)
+    endif()
+endif()
+
+if(NOT ARTIFACT_MSVC_STD_IXX)
+    file(GLOB_RECURSE ARTIFACT_MSVC_STD_IXX_CANDIDATES
+        LIST_DIRECTORIES FALSE
+        "C:/Program Files/Microsoft Visual Studio/*/*/VC/Tools/MSVC/*/modules/std.ixx")
+    list(SORT ARTIFACT_MSVC_STD_IXX_CANDIDATES ORDER DESCENDING)
+    list(LENGTH ARTIFACT_MSVC_STD_IXX_CANDIDATES ARTIFACT_MSVC_STD_IXX_COUNT)
+    if(ARTIFACT_MSVC_STD_IXX_COUNT GREATER 0)
+        list(GET ARTIFACT_MSVC_STD_IXX_CANDIDATES 0 ARTIFACT_MSVC_STD_IXX)
+    endif()
+endif()
+
+if(ARTIFACT_MSVC_STD_IXX)
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/msvc-stdlib-modules.json.in"
+        "${CMAKE_BINARY_DIR}/msvc-stdlib-modules.json"
+        @ONLY)
+    set(CMAKE_CXX_STDLIB_MODULES_JSON
+        "${CMAKE_BINARY_DIR}/msvc-stdlib-modules.json"
+        CACHE FILEPATH "MSVC standard library module metadata override" FORCE)
+else()
+    message(WARNING "MSVC std.ixx was not found; import std metadata override is disabled.")
+endif()
+else()
+    message(STATUS "Skipping MSVC stdlib module metadata for compiler: ${CMAKE_CXX_COMPILER}")
+endif()
 
 # ツールチェーン検出時に機能を有効化するために一時的に ON にします
 # (これがないと __CMAKE::CXX23 ターゲットが作成されません)
-set(CMAKE_CXX_MODULE_STD ON CACHE BOOL "Enable import std support" FORCE)
+# ただし clang-cl / IntelLLVM 系では CMake の feature try_compile と衝突するため
+# project() 前の強制 ON は避けます。
+set(ARTIFACT_ENABLE_PREPROJECT_IMPORT_STD ON)
+if(ARTIFACT_USING_CLANG_LIKE_PREPROJECT)
+    set(ARTIFACT_ENABLE_PREPROJECT_IMPORT_STD OFF)
+endif()
+
+if(ARTIFACT_ENABLE_PREPROJECT_IMPORT_STD)
+    set(CMAKE_CXX_MODULE_STD ON CACHE BOOL "Enable import std support" FORCE)
+else()
+    set(CMAKE_CXX_MODULE_STD OFF CACHE BOOL "Disable pre-project import std for non-MSVC frontends" FORCE)
+endif()
 set(CMAKE_CXX_STANDARD 23 CACHE STRING "Required for import std detection" FORCE)
 set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "" FORCE)
 
@@ -31,6 +90,29 @@ set(VCPKG_TARGET_TRIPLET "x64-windows" CACHE STRING "vcpkg triplet" FORCE)
 project(ArtifactSuite LANGUAGES CXX)
 
 message(STATUS "CMAKE_EXPERIMENTAL_CXX_IMPORT_STD: ${CMAKE_EXPERIMENTAL_CXX_IMPORT_STD}")
+
+# clang-cl + C++20 modules: ensure clang-scan-deps is configured so CMake can
+# build module import graphs.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
+   CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+    if(NOT CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS)
+        find_program(ARTIFACT_CLANG_SCAN_DEPS
+            NAMES clang-scan-deps.exe clang-scan-deps
+            HINTS
+                "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin"
+                "C:/Program Files/Microsoft Visual Studio/18/Insiders/VC/Tools/Llvm/x64/bin"
+                "C:/Program Files/LLVM/bin"
+        )
+        if(ARTIFACT_CLANG_SCAN_DEPS)
+            set(CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS
+                "${ARTIFACT_CLANG_SCAN_DEPS}"
+                CACHE FILEPATH "clang-scan-deps executable for C++ modules" FORCE)
+        else()
+            message(WARNING "clang-cl is selected but clang-scan-deps was not found. C++ module dependency scanning may fail.")
+        endif()
+    endif()
+    set(CMAKE_CXX_SCAN_FOR_MODULES ON CACHE BOOL "Enable C++ modules scan for clang-cl" FORCE)
+endif()
 
 # ---------------------------------------------------------------------------
 # グローバル設定のリセット (外部ライブラリへの波及を防止)
@@ -53,20 +135,35 @@ set(ARTIFACT_APP_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/Artifact"  CACHE PATH "Artifa
 set(ARTIFACT_DEPLOY_DIR "" CACHE PATH "Optional output directory for copying Artifact exe and runtime dlls")
 option(ARTIFACT_USE_SCCACHE "Use sccache compiler launcher when available" ON)
 option(ARTIFACT_ENABLE_SYCL "Enable Intel oneAPI DPC++/SYCL build flags" OFF)
+option(ARTIFACT_USE_LOCAL_QADS "Prefer vendored Qt Advanced Docking System source over vcpkg package" ON)
+
+set(ARTIFACT_QADS_SOURCE_DIR "${THIRD_PARTY_DIR}/Qt-Advanced-Docking-System")
+set(ARTIFACT_HAS_LOCAL_QADS OFF)
+if(ARTIFACT_USE_LOCAL_QADS AND EXISTS "${ARTIFACT_QADS_SOURCE_DIR}/CMakeLists.txt")
+    set(ARTIFACT_HAS_LOCAL_QADS ON)
+endif()
 
 if(ARTIFACT_USE_SCCACHE)
-    find_program(SCCACHE_PROGRAM
-        NAMES sccache sccache.exe
-        HINTS
-            "${VCPKG_INSTALLED}/tools/sccache"
-            "${VCPKG_ROOT}/installed/x64-windows/tools/sccache"
-            "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/tools/sccache"
-    )
-    if(SCCACHE_PROGRAM)
-        set(CMAKE_CXX_COMPILER_LAUNCHER "${SCCACHE_PROGRAM}" CACHE STRING "" FORCE)
-        message(STATUS "sccache enabled: ${SCCACHE_PROGRAM}")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR
+       CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+        unset(CMAKE_C_COMPILER_LAUNCHER CACHE)
+        unset(CMAKE_CXX_COMPILER_LAUNCHER CACHE)
+        message(STATUS "sccache disabled for MSVC-style frontends to avoid module scan/PDB contention.")
     else()
-        message(STATUS "sccache not found; building without compiler cache")
+        find_program(SCCACHE_PROGRAM
+            NAMES sccache sccache.exe
+            HINTS
+                "${VCPKG_INSTALLED}/tools/sccache"
+                "${VCPKG_ROOT}/installed/x64-windows/tools/sccache"
+                "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/tools/sccache"
+        )
+        if(SCCACHE_PROGRAM)
+            set(CMAKE_C_COMPILER_LAUNCHER "${SCCACHE_PROGRAM}" CACHE STRING "" FORCE)
+            set(CMAKE_CXX_COMPILER_LAUNCHER "${SCCACHE_PROGRAM}" CACHE STRING "" FORCE)
+            message(STATUS "sccache enabled: ${SCCACHE_PROGRAM}")
+        else()
+            message(STATUS "sccache not found; building without compiler cache")
+        endif()
     endif()
 endif()
 
@@ -123,6 +220,12 @@ endif()
 # ---------------------------------------------------------------------------
 # ビルドオプション
 # ---------------------------------------------------------------------------
+if(ARTIFACT_FRONTEND_MSVC)
+    # C++ modules + dyndep with a shared target PDB frequently hit C2471.
+    # Use embedded debug info (/Z7) to avoid compile-time PDB write contention.
+    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "Embedded" CACHE STRING "" FORCE)
+endif()
+
 if(ARTIFACT_COMPILER_MSVC_CL)
     add_compile_options(/Zf /Zc:__cplusplus /utf-8 /openmp /MP)
     add_definitions(-D_GUARDOVERFLOW_CRT_ALLOCATORS=1)
@@ -163,11 +266,22 @@ set(DILIGENT_BUILD_DEMOS OFF CACHE BOOL "" FORCE)
 set(DILIGENT_BUILD_UNITY OFF CACHE BOOL "" FORCE)
 set(DILIGENT_NO_OPENGL ON CACHE BOOL "" FORCE)
 
+# Third-party trees are non-modular and occasionally emit malformed .ddi during
+# MSVC dependency scanning. Disable module scan in this subtree only.
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 add_subdirectory(libs/DiligentEngine EXCLUDE_FROM_ALL)
+if(ARTIFACT_HAS_LOCAL_QADS)
+    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(BUILD_STATIC OFF CACHE BOOL "" FORCE)
+    set(ADS_VERSION "4.4.0" CACHE STRING "Vendored QADS version" FORCE)
+    add_subdirectory(third_party/Qt-Advanced-Docking-System EXCLUDE_FROM_ALL)
+endif()
 
 # ---------------------------------------------------------------------------
 # サブプロジェクトの追加
 # ---------------------------------------------------------------------------
+# Project targets use C++ modules heavily; re-enable scanning for local code.
+set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 add_subdirectory(ArtifactCore)
 add_subdirectory(ArtifactWidgets)
 add_subdirectory(Artifact)

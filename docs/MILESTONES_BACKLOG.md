@@ -77,6 +77,11 @@
 - Pixelate
 - Mirror などを接続
 
+### M-FX-4 Creative Workflow & Inspector Refinement
+- Creative Effect Pack (Halftone, etc.) 縺ｮ謗･邯・
+- Inspector (Effect Stack) 縺ｨ Property Editor 縺ｮ驕｣蜍輔・蜷梧悄
+- 隧ｳ邏ｰ縺ｯ `Artifact/docs/MILESTONE_CREATIVE_WORKFLOW_REFINEMENT_2026-03-13.md`
+
 ## Audio
 
 ### M-AU-1 Composition Audio Mixer
@@ -178,3 +183,4 @@
 - `M-QA-1 Software Test Windows`
 - `M-FX-2 Solid Color Effects`
 - `M-AS-3 Save / Load Integrity`
+- `M-FX-4 Creative Workflow (Bridge only)`
