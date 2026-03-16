@@ -1,0 +1,85 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "default",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "installDir": "${sourceDir}/out/install/${presetName}",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "x64-Debug",
+            "displayName": "x64 Debug (MSVC v143)",
+            "inherits": "default",
+            "toolchainFile": "${sourceDir}/cmake/toolchain-msvc-v143.cmake",
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            },
+            "cacheVariables": {
+                "ARTIFACT_DEPLOY_DIR": "C:/Users/lagma/Desktop/Artifact"
+            }
+        },
+        {
+            "name": "x64-Release",
+            "displayName": "x64 Release (MSVC v143)",
+            "inherits": "x64-Debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "x64-Debug-ClangCL",
+            "displayName": "x64 Debug (clang-cl)",
+            "inherits": "default",
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            },
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe",
+                "CMAKE_CXX_COMPILER": "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin/clang-cl.exe",
+                "CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS": "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin/clang-scan-deps.exe",
+                "CMAKE_CXX_SCAN_FOR_MODULES": "ON",
+                "ARTIFACT_DEPLOY_DIR": "C:/Users/lagma/Desktop/Artifact"
+            },
+            "environment": {
+                "PATH": "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin;$penv{PATH}"
+            }
+        },
+        {
+            "name": "x64-Debug-IntelLLVM",
+            "displayName": "x64 Debug (Intel LLVM)",
+            "inherits": "default",
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            },
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "C:/Program Files (x86)/Intel/oneAPI/compiler/2025.3/bin/icx-cl.exe",
+                "CMAKE_CXX_COMPILER": "C:/Program Files (x86)/Intel/oneAPI/compiler/2025.3/bin/icx-cl.exe",
+                "CMAKE_EXE_LINKER_FLAGS": "/Qoption,link,/LIBPATH:C:/PROGRA~2/Intel/oneAPI/compiler/2025.3/lib",
+                "CMAKE_SHARED_LINKER_FLAGS": "/Qoption,link,/LIBPATH:C:/PROGRA~2/Intel/oneAPI/compiler/2025.3/lib",
+                "CMAKE_MODULE_LINKER_FLAGS": "/Qoption,link,/LIBPATH:C:/PROGRA~2/Intel/oneAPI/compiler/2025.3/lib",
+                "CMAKE_CXX_STANDARD_LIBRARIES": "libircmt.lib kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib",
+                "CMAKE_C_STANDARD_LIBRARIES": "libircmt.lib kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib",
+                "ARTIFACT_DEPLOY_DIR": "C:/Users/lagma/Desktop/Artifact"
+            },
+            "environment": {
+                "ONEAPI_ROOT": "C:/Program Files (x86)/Intel/oneAPI",
+                "PATH": "C:/PROGRA~2/Intel/oneAPI/compiler/2025.3/bin;$penv{PATH}",
+                "LIB": "C:/PROGRA~2/Intel/oneAPI/compiler/2025.3/lib;$penv{LIB}",
+                "INCLUDE": "C:/PROGRA~2/Intel/oneAPI/compiler/2025.3/include;$penv{INCLUDE}"
+            }
+        }
+    ]
+}

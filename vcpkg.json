@@ -1,6 +1,7 @@
 {
   "name": "artifact-suite",
   "version-string": "1.0.0",
+  "builtin-baseline": "1e199d32ad53aab1defda61ce41c380302e3f95c",
   "dependencies": [
     {
       "name": "qtbase",
@@ -24,7 +25,6 @@
     "glm",
     "stb",
     "boost-iostreams",
-    "assimp",
     "entt",
     "magic-enum"
   ]
