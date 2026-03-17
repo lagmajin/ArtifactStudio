@@ -341,7 +341,7 @@ constexpr void handleType(State& s, TypeStr = {}, std::enable_if_t<MetaTypeIdIsB
 template<typename T, typename State, typename TypeStr = int>
 constexpr void handleType(State& s, TypeStr = {}, std::enable_if_t<!MetaTypeIdIsBuiltIn<T>::value>* = {}) {
     s.addTypeString(W_TypeRegistery<T>::name);
-    static_assert(W_TypeRegistery<T>::registered, "Please Register T with W_REGISTER_ARGTYPE");
+    static_assert(W_TypeRegistery_Check<T>::value);
 }
 template<typename T, typename State>
 constexpr void handleType(State& s, StringView v, std::enable_if_t<!MetaTypeIdIsBuiltIn<T>::value>* = {}) {

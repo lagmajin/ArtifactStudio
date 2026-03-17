@@ -31,6 +31,7 @@
 - work area
 - seek
 - render 範囲の一本化
+- 詳細は `Artifact/docs/MILESTONE_TIMELINE_RANGE_UNIFICATION_2026-03-17.md`
 
 ## Render
 

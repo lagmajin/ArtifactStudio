@@ -1012,7 +1012,14 @@ struct InterfaceStateTag {};
 /// Registers TYPE so it can be used as a parameter of a signal/slot or return value.
 /// The normalized signature must be used.
 /// Note: This does not imply Q_DECLARE_METATYPE, and Q_DECLARE_METATYPE does not imply this
-namespace w_internal { template<typename T> struct W_TypeRegistery { enum { registered = false }; }; }
+namespace w_internal { template<typename T> struct W_TypeRegistery { enum { registered = false }; };
+template<typename T> struct W_TypeRegistery_Check {
+    static_assert(W_TypeRegistery<T>::registered,
+        "Please register this type with W_REGISTER_ARGTYPE. "
+        "Look for W_TypeRegistery_Check<T> in the error context to see which type T is unregistered.");
+    static constexpr bool value = W_TypeRegistery<T>::registered;
+};
+}
 #define W_REGISTER_ARGTYPE(...) namespace w_internal { \
     template<> struct W_TypeRegistery<__VA_ARGS__> { \
     enum { registered = true }; \
