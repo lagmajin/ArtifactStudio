@@ -68,7 +68,7 @@ if(NOT CMAKE_TOOLCHAIN_FILE)
     endif()
 endif()
 
-project(ArtifactSuite LANGUAGES CXX)
+project(ArtifactSuite LANGUAGES C CXX)
 
 # Re-assert v143 compiler if toolchain was used, in case vcpkg reset it
 if(CMAKE_TOOLCHAIN_FILE MATCHES "toolchain-msvc-v143")
@@ -331,6 +331,7 @@ if(ARTIFACT_HAS_LOCAL_QADS)
     set(ADS_VERSION "4.4.0" CACHE STRING "Vendored QADS version" FORCE)
     add_subdirectory(third_party/Qt-Advanced-Docking-System EXCLUDE_FROM_ALL)
 endif()
+add_subdirectory(third_party/ufbx EXCLUDE_FROM_ALL)
 
 # ---------------------------------------------------------------------------
 # サブプロジェクトの追加

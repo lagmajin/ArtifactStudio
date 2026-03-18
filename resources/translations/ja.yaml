@@ -1,0 +1,26 @@
+# Artifact Studio 日本語翻訳ファイル
+# Language: ja
+
+menu.file: "ファイル"
+menu.edit: "編集"
+menu.view: "表示"
+menu.help: "ヘルプ"
+
+layer.name: "レイヤー名"
+layer.visible: "表示"
+layer.locked: "ロック"
+layer.guide: "ガイド"
+layer.solo: "ソロ"
+layer.shy: "シャイ"
+layer.opacity: "不透明度"
+
+time.inPoint: "インポイント"
+time.outPoint: "アウトポイント"
+time.startTime: "開始時間"
+
+source.width: "ソース幅"
+source.height: "ソース高さ"
+
+dialog.ok: "OK"
+dialog.cancel: "キャンセル"
+dialog.save: "保存"

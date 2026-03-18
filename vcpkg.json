@@ -26,6 +26,7 @@
     "stb",
     "boost-iostreams",
     "entt",
-    "magic-enum"
+    "magic-enum",
+    "llama-cpp"
   ]
 }
