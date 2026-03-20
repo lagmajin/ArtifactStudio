@@ -177,6 +177,19 @@
 
 ### M-QA-3 Crash / Diagnostics
 - recovery
+
+---
+
+## App Layer Completeness
+
+### M-APP ApplicationLayer completeness
+- 詳細は `docs/planned/MILESTONE_APP_LAYER_COMPLETENESS.md`
+- Phase 1: サービス層の穴埋め (EffectService, AudioService, TranslationManager)
+- Phase 2: Undo Add/RemoveLayerCommand の実装
+- Phase 3: EditMode / DisplayMode の UI 接続
+- Phase 4: エフェクトパイプライン接続 (Generator::apply, DAG eval, renderFrame)
+- Phase 5: データ/永続化 (PreCompose 時間変換, VideoProxy, AspectRatio)
+- Phase 6: 拡張 (OFX ホスト, WebBridge)
 - ログ
 - 診断導線
 
