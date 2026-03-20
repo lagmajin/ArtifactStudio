@@ -19,18 +19,21 @@
 
 ## Timeline / Layer
 
-### M-TL-1 Layer Basic Operations
+### M-TL-1 Layer Basic Operations ✅ 完了
 - 追加、削除、複製、rename、親子、並び替え
+- 残差分: Undo スタブ実装 (M-AS-7 側), track matte mode (未定義)
 
-### M-TL-2 Layer View Sync
+### M-TL-2 Layer View Sync ✅ 完了
 - 左ツリー展開と右トラック行の同期
 - 1レイヤー1クリップの維持
+- 残差分: track matte 表示, audio state 連携 (M-AU 側), スクロール双方向同期
 
-### M-TL-3 Work Area / Range Unification
+### M-TL-3 Work Area / Range Unification ✅ 完了
 - in / out
 - work area
 - seek
 - render 範囲の一本化
+- 残差分: レンジプリセット UI (M-RD-2 側), 共通レンジサービス (M-RANGE-2)
 - 詳細は `Artifact/docs/MILESTONE_TIMELINE_RANGE_UNIFICATION_2026-03-17.md`
 
 ## Render
