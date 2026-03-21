@@ -36,6 +36,13 @@
 - 残差分: レンジプリセット UI (M-RD-2 側), 共通レンジサービス (M-RANGE-2)
 - 詳細は `Artifact/docs/MILESTONE_TIMELINE_RANGE_UNIFICATION_2026-03-17.md`
 
+### M-PH Playhead 整備
+- 詳細は `docs/planned/MILESTONE_PLAYHEAD.md`
+- Phase 1: 状態統一 (position_ を唯一の権威に集約)
+- Phase 2: シーク UX 改善 (不感帯、スナップ、再生中シーク、スクロール追従)
+- Phase 3: 表示品質 (F<n>/HH:MM:SS:FF 同期、高DPI、コンポジションビュー連携)
+- Phase 4: 操作拡充 (J/K/L シャトル、タイムコード入力、ホイールシーク、ドラッグシーク)
+
 ## Render
 
 ### M-IR-1 ArtifactIRender API Cleanup
@@ -203,6 +210,26 @@
   - (4) ユーザ向け回復案内（セーフモード起動、ログ送信）の実装
   - (5) CI/QA 向け再現手順と小規模回帰テストを用意
 - 見積: 4-12時間（段階的実装を想定）
+
+---
+
+## Composition Editor & Layer View
+
+### M-CE Composition Editor & Layer View
+- 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_LAYER_VIEW.md`
+- Phase 1: ビューポート変換の完成 (回転ハンドル、アンカー、解像度/プレビュー接続)
+- Phase 2: ガイド & オーバーレイ (ガイド線、GridRenderer、ルーラー、フレーム情報)
+- Phase 3: レイヤービュー強化 (バウンディングボックス、edit/display mode、情報表示)
+- Phase 4: 3D ビューポート基盤 (3D カメラ、3D ギズモ、Z-depth)
+- Phase 5: 品質 & マルチビュー (品質設定、スプリットビュー、背景オプション)
+
+### M-AB Asset Browser Improvement (Unity 風)
+- 詳細は `docs/planned/MILESTONE_ASSET_BROWSER_IMPROVEMENT.md`
+- Phase 1: ビュー切替 & ソート (リストビュー、ソートドロップダウン)
+- Phase 2: キーボード操作 & ステータス表示 (矢印/Delete、サムネイルバッジ)
+- Phase 3: ナビゲーション & プレビュー (ブレッドクラム、ホバープレビュー、お気に入り)
+- Phase 4: 同期 & インスペクタ (Browser↔Project 同期、右パネル)
+- Phase 5: 高度な機能 (依存関係追跡、Find References、再リンク)
 
 ## Good Small Tasks
 

@@ -69,6 +69,16 @@
 - 右下の編集面
   UI 用語では `タイムライン本体` または `レイヤー編集領域`。コード上では `TimelineTrackView`。
 
+## Timeline Range Notes
+
+- `time.inPoint` / `time.outPoint`
+  タイムライン上でのレイヤーの有効範囲。右側のバー編集はこの 2 つを書き換える。
+- `time.startTime`
+  レイヤー内容のソース側オフセット。タイムライン上の表示可否そのものではなく、必要に応じて開始位置の調整に使う。
+- 右側のクリップ移動は `inPoint/outPoint` の移動、端のリサイズは `inPoint/outPoint` のトリムとして扱う。
+- `isActiveAt()`
+  現在は `inPoint <= frame < outPoint` で判定する。描画経路はこの判定に従う前提。
+
 ## Primary Entry Points
 
 - `Artifact/src/AppMain.cppm`
