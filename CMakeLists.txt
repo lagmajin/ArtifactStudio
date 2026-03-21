@@ -308,6 +308,30 @@ if(ARTIFACT_ENABLE_SYCL)
 endif()
 
 # ---------------------------------------------------------------------------
+# ATL include path (Diligent より前に設定が必要)
+# ---------------------------------------------------------------------------
+if(MSVC)
+    # cl.exe のパス: .../MSVC/<ver>/bin/Hostx64/x64/cl.exe
+    # atlmfc のパス: .../MSVC/<ver>/atlmfc/include
+    get_filename_component(_MSVC_TOOLCHAIN_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)  # x64
+    get_filename_component(_MSVC_TOOLCHAIN_DIR "${_MSVC_TOOLCHAIN_DIR}" DIRECTORY)  # Hostx64
+    get_filename_component(_MSVC_TOOLCHAIN_DIR "${_MSVC_TOOLCHAIN_DIR}" DIRECTORY)  # bin
+    get_filename_component(_MSVC_TOOLCHAIN_DIR "${_MSVC_TOOLCHAIN_DIR}" DIRECTORY)  # <ver>
+    set(_ATL_INCLUDE_DIR "${_MSVC_TOOLCHAIN_DIR}/atlmfc/include")
+    if(EXISTS "${_ATL_INCLUDE_DIR}")
+        include_directories("${_ATL_INCLUDE_DIR}")
+        # Diligent の check_include_file 用
+        set(CMAKE_REQUIRED_INCLUDES "${_ATL_INCLUDE_DIR}")
+        # Diligent の Approach 2 用: VCToolsInstallDir 環境変数を設定
+        set(ENV{VCToolsInstallDir} "${_MSVC_TOOLCHAIN_DIR}/")
+        message(STATUS "ATL include (global): ${_ATL_INCLUDE_DIR}")
+        message(STATUS "VCToolsInstallDir: ${_MSVC_TOOLCHAIN_DIR}/")
+    else()
+        message(WARNING "ATL include not found at ${_ATL_INCLUDE_DIR}. Install 'C++ 用の ATL' via VS Installer.")
+    endif()
+endif()
+
+# ---------------------------------------------------------------------------
 # DiligentEngine (Submodule)
 # ---------------------------------------------------------------------------
 set(DILIGENT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
@@ -330,6 +354,9 @@ if(ARTIFACT_HAS_LOCAL_QADS)
     set(BUILD_STATIC OFF CACHE BOOL "" FORCE)
     set(ADS_VERSION "4.4.0" CACHE STRING "Vendored QADS version" FORCE)
     add_subdirectory(third_party/Qt-Advanced-Docking-System EXCLUDE_FROM_ALL)
+    if(TARGET qtadvanceddocking-qt6 AND MSVC)
+        target_compile_options(qtadvanceddocking-qt6 PRIVATE /Zm200 /bigobj)
+    endif()
 endif()
 add_subdirectory(third_party/ufbx EXCLUDE_FROM_ALL)
 

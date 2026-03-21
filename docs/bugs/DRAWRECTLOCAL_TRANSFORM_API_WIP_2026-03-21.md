@@ -6,6 +6,8 @@
 - 回転・拡縮対応は新API `drawSolidRectTransformed()` に切り出した。
 - 新APIは専用の CB `CBSolidRectTransform2D` と専用 VS `drawSolidRectTransformVSSource` を使う。
 - 座標変換は CPU 側で 1 回だけ合成し、shader はその行列をそのまま読む。
+- `drawSolidRectTransformed()` は `x,y,w,h` のローカル矩形に、渡した `QTransform` を重ねたものを描く。
+- viewport の `zoom/pan` は CPU 側で CB に反映する。
 
 ## いまの構成
 
@@ -57,6 +59,7 @@ zoom も pan も含まれない
 
 `viewportCB.zoom` と `viewportCB.offset` を読み取っているが**全く使っていない**。
 zoom≠1 または pan≠{0,0} の場合、描画位置がビューポート外に飛ぶ。
+→ これは修正済み。`drawSolidRectTransformed()` の CB に `zoom/pan` を反映するように変更した。
 
 ### 仮説2 (高): NDC 変換方式が旧APIと不整合
 
