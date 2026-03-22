@@ -64,6 +64,7 @@
 - 静止画シーケンス
 
 ### M-RD-2 Render Queue Hardening
+→ 詳細: [MILESTONE_RENDER_QUEUE_2026-03-22.md](MILESTONE_RENDER_QUEUE_2026-03-22.md)
 - job 編集
 - 範囲指定
 - 失敗理由表示
