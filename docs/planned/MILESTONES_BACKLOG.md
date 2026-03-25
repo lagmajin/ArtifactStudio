@@ -144,6 +144,11 @@
 - import / metadata / relink / missing / unused の統合
 - 詳細は `Artifact/docs/MILESTONE_ASSET_SYSTEM_2026-03-12.md`
 
+### M-AS-4b Vector / SVG Layer Import
+- SVG などの vector asset を layer として取り込む
+- source 保持 / raster preview / relink / persistence
+- 詳細は `docs/planned/MILESTONE_VECTOR_LAYER_IMPORT_2026-03-25.md`
+
 ### M-AS-5 Video Layer Unification
 - `Video` 縺ｫ荳譛ｬ蛹・
 - layer factory / serialization / property / project presentation 縺ｮ豕ｨ諢丈ｺ・
