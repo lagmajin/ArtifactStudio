@@ -73,6 +73,13 @@
 ### M-RD-3 Dual Backend Parity
 - software と Diligent の見た目差分を減らす
 
+### M-LV-1 Layer Solo View (Diligent)
+- 詳細は `docs/planned/MILESTONE_LAYER_SOLO_VIEW_DILIGENT_2026-03-26.md`
+- current composition / current layer の追従
+- solo 表示の安定化
+- mask / roto 入口の整理
+- software test widget との見え方差分縮小
+
 ## Effects
 
 ### M-FX-1 Inspector Effect Stack Bridge
@@ -228,6 +235,13 @@
 - Phase 3: レイヤービュー強化 (バウンディングボックス、edit/display mode、情報表示)
 - Phase 4: 3D ビューポート基盤 (3D カメラ、3D ギズモ、Z-depth)
 - Phase 5: 品質 & マルチビュー (品質設定、スプリットビュー、背景オプション)
+
+### M-CE-SEL-1 Rubber Band Multi-Selection
+- 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_RUBBER_BAND_MULTI_SELECTION_2026-03-26.md`
+- composition editor 上の矩形選択
+- 複数レイヤーの hit test / selection sync
+- Shift / Ctrl を含む複数選択操作
+- timeline / inspector との current selection 一致
 
 ### M-AB Asset Browser Improvement (Unity 風)
 - 詳細は `docs/planned/MILESTONE_ASSET_BROWSER_IMPROVEMENT.md`
