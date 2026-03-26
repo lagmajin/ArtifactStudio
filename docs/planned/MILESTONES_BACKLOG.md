@@ -204,6 +204,15 @@
 - custom dictionary / ignore list
 - `ArtifactProjectHealthDashboard` への統合
 
+## Render / Playback
+
+### M-RP-1 RAM Preview Cache
+- frame cache を RAM preview の主経路として扱う
+- prewarm / fill / cache range
+- playback / scrub / loop との連動
+- hit rate / stale cache / dropped frame の可視化
+- 詳細は `docs/planned/MILESTONE_RAM_PREVIEW_CACHE_2026-03-26.md`
+
 ## Matte
 
 ### M-LYR-1 Matte Stack / Child Matte Nodes
