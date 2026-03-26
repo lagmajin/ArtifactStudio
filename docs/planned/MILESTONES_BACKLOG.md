@@ -198,6 +198,12 @@
 ### M-QA-3 Crash / Diagnostics
 - recovery
 
+### M-QA-4 Project File Validation / Spell Check
+- project / composition / layer / asset name の typo 検出
+- tags / notes / ai metadata の表記ゆれ検査
+- custom dictionary / ignore list
+- `ArtifactProjectHealthDashboard` への統合
+
 ---
 
 ## App Layer Completeness
