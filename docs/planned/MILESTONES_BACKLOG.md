@@ -204,6 +204,15 @@
 - custom dictionary / ignore list
 - `ArtifactProjectHealthDashboard` への統合
 
+## Matte
+
+### M-LYR-1 Matte Stack / Child Matte Nodes
+- matte を layer の child / attached node として扱う
+- Add / Common / Subtract の複数 matte 合成
+- Alpha / Luminance / Inverted の評価
+- dependency order / cycle check / diagnostics
+- 詳細は `ArtifactCore/docs/MILESTONE_TRACK_MATTE_CORE_2026-03-26.md`
+
 ---
 
 ## App Layer Completeness
