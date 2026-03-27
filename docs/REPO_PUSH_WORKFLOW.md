@@ -119,6 +119,49 @@ git submodule update --init --recursive
 - `.gitmodules` にない gitlink を「なんとなく submodule」として push しない
 - 親 repo のみを push しても、他人の環境では再現できない
 
+### fork を持っている場合
+
+`Qt-Advanced-Docking-System` が自分の fork であれば、その repo 自体は更新してよい。  
+ただし、親 repo との整合は別問題なので、次の順番を守る。
+
+1. `third_party/Qt-Advanced-Docking-System` 側で変更を commit する
+2. fork の remote に push する
+3. 親 repo の gitlink をその commit に更新する
+4. 親 repo を push する
+
+このときの注意:
+
+- upstream 本体には push しない
+- fork 以外の外部依存と混同しない
+- 親 repo は fork の特定 commit を参照するだけにする
+
+#### qads の実行手順
+
+1. `third_party/Qt-Advanced-Docking-System` に移動する
+2. `git branch --show-current` で branch を確認する
+3. `git pull --rebase` で fork 側の最新を取り込む
+4. 変更を commit する
+5. fork の remote に push する
+6. 親 repo に戻って gitlink を更新する
+7. 親 repo を commit して push する
+
+ここでの原則:
+
+- qads の変更は qads の fork にだけ push する
+- upstream 本体へは push しない
+- 親 repo は qads の commit SHA だけを持つ
+
+### DiligentEngine の扱い
+
+`libs/DiligentEngine` は外部依存として扱う。  
+自分の repo ではないので、原則として履歴を改変しない。
+
+運用方針:
+
+- 必要な場合でも、まず親 repo 側で参照 SHA の整合を確認する
+- fork 運用でない限り、DiligentEngine 自体を更新対象にしない
+- 親 repo は「公開済みで再現可能な commit」だけを参照する
+
 ## 最終チェック
 
 push 前に次を確認する。
@@ -134,6 +177,7 @@ git submodule status --recursive
 - submodule はそれぞれ push 済み
 - `.gitmodules` と gitlink の整合が取れている
 - 不明な nested repo が残っていない
+- fork 管理の repo と外部依存の repo を混同していない
 
 ## 実運用の判断基準
 
@@ -145,5 +189,6 @@ git submodule status --recursive
 4. `.gitmodules` に載っていない repo を混ぜていないか
 5. 各 repo で `pull --rebase` 済みか
 6. 可能なら別 clone で `submodule update --init --recursive` を通したか
+7. fork 管理の repo は fork の remote にだけ push しているか
 
-この 6 点を満たしていれば、親と submodule を壊さずに push できる。
+この 7 点を満たしていれば、親と submodule を壊さずに push できる。
