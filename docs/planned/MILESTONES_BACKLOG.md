@@ -36,6 +36,18 @@
 - 残差分: レンジプリセット UI (M-RD-2 側), 共通レンジサービス (M-RANGE-2)
 - 詳細は `Artifact/docs/MILESTONE_TIMELINE_RANGE_UNIFICATION_2026-03-17.md`
 
+### M-TL-4 Timeline TrackView Owner-Draw Migration
+- 右ペインを `QGraphicsView` から owner-draw へ段階移行する
+- 詳細は `docs/planned/MILESTONE_TIMELINE_TRACKVIEW_OWNER_DRAW_MIGRATION_2026-03-27.md`
+
+### M-TL-5 Timeline Keyframe Editing
+- Timeline 上で property keyframe を見て、打って、移動できるようにする
+- 詳細は `docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md`
+
+### M-LG-1 Layer Group System
+- レイヤーグループの保存 / 表示 / 親子 / 可視性 / 操作単位を整理する
+- 詳細は `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_2026-03-27.md`
+
 ### M-PH Playhead 整備
 - 詳細は `docs/planned/MILESTONE_PLAYHEAD.md`
 - Phase 1: 状態統一 (position_ を唯一の権威に集約)
@@ -72,6 +84,12 @@
 
 ### M-RD-3 Dual Backend Parity
 - software と Diligent の見た目差分を減らす
+
+### M-RD-4 Render / Output Feel Refinement
+- 途中失敗からの再開
+- frame / layer / effect cost の可視化
+- rename / history / visibility inspector
+- 詳細は `docs/planned/MILESTONE_RENDER_OUTPUT_FEEL_REFINEMENT_2026-03-27.md`
 
 ### M-LV-1 Layer Solo View (Diligent)
 - 詳細は `docs/planned/MILESTONE_LAYER_SOLO_VIEW_DILIGENT_2026-03-26.md`
@@ -121,6 +139,11 @@
 - waveform
 - meter
 - 簡易可視化
+
+### M-AU-4 Audio Layer Integration & UX
+- Audio Layer の source / mute / volume / loaded state を inspector と timeline に自然に接続する
+- 詳細は `docs/planned/MILESTONE_AUDIO_LAYER_INTEGRATION_2026-03-27.md`
+- `MILESTONE_AUDIO_ENGINE_2026-03.md` の再生基盤とは分けて、layer 側の見え方と導線を詰める
 
 ## Project / Asset
 
@@ -272,6 +295,14 @@
 - Phase 4: 3D ビューポート基盤 (3D カメラ、3D ギズモ、Z-depth)
 - Phase 5: 品質 & マルチビュー (品質設定、スプリットビュー、背景オプション)
 
+### M-CE-TEXT-1 Text Layer Inline Editing
+- コンポジットエディタ上で text layer を直接編集する
+- caret / selection / IME / commit / cancel を layer モデルに接続する
+- 詳細は `docs/planned/MILESTONE_TEXT_LAYER_INLINE_EDIT_2026-03-27.md`
+- 編集導線の最小入り口は実装済みで、Phase 2 以降の in-canvas input を残す
+- `Ctrl+Enter` の commit shortcut を追加し、Phase 1 の確定導線を少し強化した
+- 起動時に全文選択するようにして、置き換え入力の初動を軽くした
+
 ### M-CE-SEL-1 Rubber Band Multi-Selection
 - 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_RUBBER_BAND_MULTI_SELECTION_2026-03-26.md`
 - composition editor 上の矩形選択
@@ -288,6 +319,7 @@
 - Phase 4: 同期 & インスペクタ (Browser↔Project 同期、右パネル)
 - Phase 5: 高度な機能 (依存関係追跡、Find References、再リンク)
 - Phase 6: 右ペイン owner-draw 拡張を将来検討
+- 進捗: 状態バー、Icon/List 切替、Name/Type ソート切替は実装済み、owner-draw へ段階移行中
 
 ## Good Small Tasks
 

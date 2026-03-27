@@ -10,6 +10,41 @@
 
 修正後も重い原因を再調査。readback は削除済みだが、以下の問題が残っている。
 
+---
+
+## 調査更新 (2026-03-27)
+
+**誤り訂正:** 「readback は削除済み」とあったが、**実際には削除されていない**。
+
+`ArtifactIRenderer.cppm:354-416` に `readbackToImage()` が生存し、`ArtifactRenderQueueService.cppm:1380` から呼び出し中。
+
+### 未修正の問題一覧 (2026-03-27 現在)
+
+| # | 問題 | 深刻度 | 状態 | 場所 |
+|---|------|--------|------|------|
+| 1 | QImage::cacheKey() ベースのテクスチャキャッシュが毎回ミス | ★★★ | **未修正** | `PrimitiveRenderer2D.cppm:1254` |
+| 2 | サーフェスキャッシュキーも surface.cacheKey() に依存 | ★★★ | **未修正** | `CompositionRenderController.cppm:133-172` |
+| 3 | drawCircle(filled) の過剰描画 (128 GPU サイクル) | ★★★ | **未修正** | `PrimitiveRenderer2D.cppm:867-877` |
+| 4 | GPU Readback ストール | ★★★ | **未修正** | `ArtifactIRenderer.cppm:354-416` |
+| 5 | シグナルストーム / 二重レンダリング | ★★ | **未修正** | `CompositionRenderController.cppm:675,780,783` |
+| 6 | renderOneFrame() の過剰呼び出し | ★★ | **未修正** | `CompositionRenderController.cppm` 全体 |
+| 7 | drawRectOutline の個別描画 (32 GPU サイクル) | ★★ | **未修正** | `PrimitiveRenderer2D.cppm:1042` |
+| 8 | drawCrosshair の過剰描画 (28 GPU サイクル) | ★★ | **未修正** | `PrimitiveRenderer2D.cppm:894-905` |
+| 9 | ビデオレイヤーが毎フレーム QImage アロケーション | ★ | **未修正** | `drawLayerForCompositionView()` line 519 |
+| 10 | OpenCV CPU 処理がホットパス | ★ | **未修正** | `CompositionRenderController.cppm:335-367` |
+
+### 実装済み対策
+
+| 対策 | 状態 |
+|------|------|
+| Surface Cache | ✅ 実装済み |
+| Redundant Composite Suppression | ✅ 実装済み |
+| CS Blend Fast Path | ✅ 実装済み |
+| GPU Blend 時の preview downsample floor | ✅ 実装済み |
+| renderOneFrame() のコアレシング (renderScheduled_) | ✅ 実装済み |
+
+→ キャッシュ機構は一部導入されたが、**根本的なキャッシュキーの不安定性**により効果が薄れている。
+
 ### ★★★ 1. QImage::cacheKey() ベースのテクスチャキャッシュが毎回ミス
 
 **場所:** `PrimitiveRenderer2D.cppm:1254-1262`

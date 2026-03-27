@@ -4,6 +4,28 @@
 
 コンポジットエディタが重い。原因はレイヤー描画ではなくギズモ描画。
 
+---
+
+## 調査更新 (2026-03-27)
+
+**状態:** 記載された問題は**全て未修正**。
+
+### 未修正の問題一覧
+
+| # | 問題 | 深刻度 | 状態 | 場所 |
+|---|------|--------|------|------|
+| 1 | drawCircle(filled) の過剰描画 (128 GPU サイクル) | ★★★ | **未修正** | `PrimitiveRenderer2D.cppm:867-877` |
+| 2 | drawRectOutline の個別描画 (32 GPU サイクル) | ★★ | **未修正** | `PrimitiveRenderer2D.cppm:1042` |
+| 3 | drawCrosshair の過剰描画 (28 GPU サイクル) | ★★ | **未修正** | `PrimitiveRenderer2D.cppm:894-905` |
+| 4 | drawBezierLocal のサブディビジョン (112 GPU サイクル) | ★★ | **未修正** | `PrimitiveRenderer2D.cppm:803-818` |
+| 5 | drawThickLineLocal のフル GPU サイクル | ★★ | **未修正** | `PrimitiveRenderer2D.cppm:658` |
+
+### 実装状況
+
+記載された対策案 (drawSolidCircle, drawRectOutline 統合，drawCrosshair 近似，ギズモバッチ描画) は**全て未実装**。
+
+---
+
 ## ボトルネック: drawThickLineLocal のフル GPU サイクル
 
 **場所:** `PrimitiveRenderer2D.cppm:658` (drawThickLineLocal)

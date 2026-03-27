@@ -147,6 +147,10 @@ v1 では、少なくとも次の表示・切替を備える。
 - 2026-03-26 時点では、Diligent Layer Solo View は「表示と操作の核」を詰める前段階
 - mask 編集は composition 側に実体があり、Layer Solo View にはまだ直接つながっていない
 - そのため、まずは view の責務整理と mask 入口の設計から入るのが安全
+- 2026-03-27 時点で、`ArtifactLayerEditorWidgetV2` の `paintEvent()` / `setEditMode()` / `setDisplayMode()` / `setPan()` / `resetView()` / `fitToViewport()` / `zoomAroundPoint()` を実装し、`ArtifactRenderLayerEditor` に mode 切替 UI も足し始めた
+- 2026-03-27 時点で、`ArtifactLayerEditorWidgetV2` に `Final / Source / Compare` を見分けやすくする mode badge を追加した
+- 2026-03-27 時点で、`layerInfoText` を追加し、`Inspect` 用に layer 名 / 2D or 3D / opacity / source size / bounds を 1 画面で読めるようにした
+- 2026-03-27 時点で、`Vis / Lock / Solo / Active` の状態を layer info に追加し、`Hidden / OutOfRange / Transparent / Ready` の簡易 state も読めるようにした
 
 ## Phase 1 Notes
 
@@ -161,3 +165,4 @@ v1 では、少なくとも次の表示・切替を備える。
 - `cache / debug` は UI の主役にしないが、render state の判定に使える短文で出せるようにする
 - `Pivot / Bounds` は selection / transform の可視化としてまとめ、overlay の責務から外しすぎない
 - wrapper 側に v1 の表示ロジックを増やさず、表示面は V2 に閉じる
+- 2026-03-27 時点で、上記の state hooks と HUD overlay を一度入れた。`Final / Source` の実画像差分と wrapper 側の mode 切替 UI も追加済み。次は `Inspect / Impact` の情報密度を詰める

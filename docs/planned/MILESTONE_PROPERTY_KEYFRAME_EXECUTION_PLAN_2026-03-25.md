@@ -103,6 +103,11 @@ Inspector が参照する property を、毎回作り直す状態から脱却す
 
 Timeline 上で property key を可視化・操作できるようにする。
 
+#### 関連
+
+- Timeline の具体的な編集 UI は `docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md` に分離した
+- この文書では property / core 側の source of truth と lane の前提を固定する
+
 #### 作業
 
 - lane の表示単位を property path にする
