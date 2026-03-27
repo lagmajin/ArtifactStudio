@@ -12,6 +12,9 @@
 
 このマイルストーンは、`MILESTONE_AUDIO_ENGINE_2026-03.md` が扱う再生基盤とは分けて、**Audio Layer を composition / timeline / inspector に自然に載せること** に絞る。
 
+`MILESTONE_FEATURE_EXPANSION_2026-03-25.md` では Phase 2 の Audio Production に対応する詳細ワークストリームとして扱う。
+Feature Expansion 側で「音声を制作能力として増やす」と定義し、本書では layer presentation と workflow 接続を詰める。
+
 ---
 
 ## Scope
@@ -56,6 +59,10 @@
   - Audio Layer の source / mute / volume が明確に見える
   - 未ロード / ミッシング / ミュートの違いが追える
 
+- 進捗メモ:
+  - 2026-03-27: layer panel に audio state chip を追加し、Muted / Volume を見える化
+  - 2026-03-27: 既存の audio icon 表示とあわせて、layer row 上で audio layer を識別しやすくした
+
 ## Phase 2: Timeline / Playback Integration
 
 - 目的:
@@ -71,6 +78,12 @@
   - Audio Layer を再生対象として把握できる
   - mute / solo / active state の UX が他 layer と揃う
 
+- 進捗メモ:
+  - 2026-03-27: playback engine 側で audio を先読みバッファに積むようにして、再生時の underrun を減らす方向に入った
+  - 2026-03-27: renderer の buffer 水位を見て供給を継続する形に寄せた
+  - 2026-03-27: timeline 左ペインの layer row に再生中の audio output indicator を追加し、音が出る layer を green blink で示すようにした
+  - 2026-03-27: indicator は icon 列と重ならないよう左端の color bar 内に収めた
+
 ## Phase 3: Visualization / Diagnostics
 
 - 目的:
@@ -78,6 +91,7 @@
 
 - 作業項目:
   - wave / peak / clip の簡易表示
+  - mixer strip で 0dBFS 超過時に赤い `CLIP` 警告を表示
   - missing source / decode failure / empty source の表示
   - duration / sample rate / channels の表示整理
   - 音声レイヤーの種類アイコンや色分け
@@ -85,6 +99,9 @@
 - 完了条件:
   - Audio Layer の中身が最低限見える
   - 異常系の切り分けがしやすい
+
+- 進捗メモ:
+  - 2026-03-27: mixer strip に 0dBFS 超過時の赤い `CLIP` 警告を追加
 
 ## Phase 4: Import / Relink / Workflow
 
@@ -119,3 +136,12 @@
 - [ ] mute / solo / playback state が timeline と一致する
 - [ ] missing / unloaded / muted の違いが表示される
 - [ ] source 差し替えが project workflow に自然に繋がる
+
+---
+
+## Recommended Execution Order
+
+1. Property / Presentation Sync
+2. Timeline / Playback Integration
+3. Visualization / Diagnostics
+4. Import / Relink / Workflow

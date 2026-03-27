@@ -70,6 +70,8 @@
 - 確定操作を `Ctrl+Enter` からも受けられるようにして、Text Layer 編集の commit flow を少し強めた
 - 編集ダイアログ起動時に全文選択するようにして、置き換え入力の初動を軽くした
 - `Escape` で明示的に cancel できるようにして、ダイアログの終了操作を commit / cancel の2系統に整理した
+- 2026-03-27 時点で、Composition Editor の toolbar からも Text Layer 編集を開始できるようにした
+- 2026-03-27 時点で、Composition Editor の viewport context menu からも Text Layer 編集を開始できるようにした
 
 ## Phase 2: In-Canvas Text Input
 

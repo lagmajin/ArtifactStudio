@@ -22,6 +22,9 @@
 - 2026-03-27 時点で、`ArtifactTimelineTrackPainterView` から `clipSelected` / `clipDeselected` を出し、選択起点も painter 側へ寄せ始めた
 - 2026-03-27 時点で、`ArtifactLayerSelectionManager::selectionChanged` を使って painter 側の selected 表示を追従させ始めた
 - 2026-03-27 時点で、`ArtifactTimelineTrackPainterView` の HUD に選択数とホバー中クリップ名を出し、状態把握を少し強めた
+- 2026-03-27 時点で、hover / selection / drag の再描画を局所更新に寄せ、右ペインの repaint 粒度を下げ始めた
+- 2026-03-27 時点で、selected layer の keyframe marker を painter 側に重ね描きし、右ペインを keyframe visibility の入口としても使い始めた
+- 2026-03-27 時点で、keyframe marker を左クリックするとその frame へ seek できるようにし、右ペインを編集導線の入口へ近づけた
 
 ## Definition Of Done
 
@@ -72,6 +75,7 @@
 
 - 画面上で見た目差がほぼなくなる
 - 主要な表示が painter 側だけでも成立する
+- hover / selection の切り替えで全体再描画を避けられる
 
 ### Phase 3: Input Parity
 

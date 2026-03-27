@@ -127,6 +127,7 @@ v1 では、少なくとも次の表示・切替を備える。
 - layer selection から mask editor を開く導線を作る
 - mask overlay の表示順を gizmo と衝突しないように整理する
 - `RotoMaskEditor` と Layer Solo View の責務境界を決める
+- 既存の `LayerMask / MaskPath` を直接編集できる最小導線を Layer Solo View に載せる
 
 ### Phase 4: Editing Parity
 
@@ -151,6 +152,8 @@ v1 では、少なくとも次の表示・切替を備える。
 - 2026-03-27 時点で、`ArtifactLayerEditorWidgetV2` に `Final / Source / Compare` を見分けやすくする mode badge を追加した
 - 2026-03-27 時点で、`layerInfoText` を追加し、`Inspect` 用に layer 名 / 2D or 3D / opacity / source size / bounds を 1 画面で読めるようにした
 - 2026-03-27 時点で、`Vis / Lock / Solo / Active` の状態を layer info に追加し、`Hidden / OutOfRange / Transparent / Ready` の簡易 state も読めるようにした
+- 2026-03-27 時点で、`Playback / Frame` を inspect HUD に追加し、ソロビューが再生系の state に追従しているか分かるようにした
+- 2026-03-27 時点で、Mask edit mode で `LayerMask / MaskPath` を直接編集する最小導線を入れ始めた
 
 ## Phase 1 Notes
 

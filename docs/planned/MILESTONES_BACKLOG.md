@@ -2,6 +2,54 @@
 
 空いている時間に進めやすいよう、分野別に小さめのマイルストーンへ分割したバックログ。
 
+## Application
+
+### M-APP-1 Application Cross-Cutting Improvement
+- menu / toolbar / shortcut / view / diagnostics / workflow を横断で揃える
+- 詳細は `docs/planned/MILESTONE_APP_CROSS_CUTTING_IMPROVEMENT_2026-03-27.md`
+
+### M-APP-2 Deferred UI Initialization / Lazy Load
+- icon / thumbnail / viewer / dock の eager load を減らして初回体感を軽くする
+- 詳細は `docs/planned/MILESTONE_DEFERRED_UI_INITIALIZATION_2026-03-27.md`
+
+## Feature Expansion Support
+
+### M-FE-1 Onboarding / Empty States
+- empty project / empty selection / empty asset / empty timeline の案内
+- 詳細は `docs/planned/MILESTONE_ONBOARDING_EMPTY_STATES_2026-03-27.md`
+
+### M-FE-2 Export / Review / Share
+- export 後の quick review / reveal / share を短くする
+- 詳細は `docs/planned/MILESTONE_EXPORT_REVIEW_SHARE_2026-03-27.md`
+
+### M-FE-3 Automation Helpers
+- command palette / batch / preset / macro entry を増やす
+- 詳細は `docs/planned/MILESTONE_AUTOMATION_HELPERS_2026-03-27.md`
+
+### M-FE-4 Workspace / Layout / Session
+- workspace 保存 / 読み込み、dock layout preset、window state 復元
+- 詳細は `docs/planned/MILESTONE_FEATURE_EXPANSION_2026-03-25.md`
+
+### M-FE-5 Templates / Presets / Starter Kits
+- project / composition / layer / effect の preset と starter project
+- 詳細は `docs/planned/MILESTONE_FEATURE_EXPANSION_2026-03-25.md`
+
+### M-FE-6 Batch / Macro / Script Entry
+- batch rename / relink / export、macro、script hook
+- 詳細は `docs/planned/MILESTONE_FEATURE_EXPANSION_2026-03-25.md`
+
+### M-FE-7 Review / Compare / Annotation
+- compare view / side-by-side review / note / bookmark
+- 詳細は `docs/planned/MILESTONE_FEATURE_EXPANSION_2026-03-25.md`
+
+### M-FE-8 Search / Collections / Smart Organization
+- global search / smart bin / tag / dependency / missing / duplicate detection
+- 詳細は `docs/planned/MILESTONE_SEARCH_COLLECTIONS_SMART_ORGANIZATION_2026-03-28.md`
+
+### M-FE-9 Motion Tracking Workflow
+- tracker editor / overlay / stabilize / bake を制作導線としてまとめる
+- 詳細は `docs/planned/MILESTONE_MOTION_TRACKING_SYSTEM_2026-03-25.md`
+
 ## UI / UX
 
 ### M-UI-1 Timeline Finish
@@ -16,6 +64,15 @@
 - effect / property の見つけやすさ
 - 空状態の整理
 - 選択同期とラベル整理
+
+### M-UI-4 Menu-to-App Command Routing
+- File / Composition / Edit / View / Layer / Render / Help の menu を app service / command に正しく接続する
+- 詳細は `docs/planned/MILESTONE_MENU_APP_INTEGRATION_2026-03-27.md`
+
+### M-UI-5 Contents Viewer Expansion
+- image / video / 3D model / source / final / compare を横断する viewer の拡充
+- 詳細は `docs/planned/MILESTONE_CONTENTS_VIEWER_EXPANSION_2026-03-27.md`
+- 追加の review / compare / annotation 方向は `docs/planned/MILESTONE_REVIEW_COMPARE_ANNOTATION_2026-03-28.md`
 
 ## Timeline / Layer
 
@@ -44,9 +101,21 @@
 - Timeline 上で property keyframe を見て、打って、移動できるようにする
 - 詳細は `docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md`
 
+### M-TL-6 Timeline Layer Search
+- タイムライン上部の検索バーで layer / effect / tag / state をインクリメンタルに絞り込む
+- 詳細は `docs/planned/MILESTONE_TIMELINE_LAYER_SEARCH_2026-03-28.md`
+
+### M-TL-7 Timeline Search / Keyframe Integration
+- search 結果から keyframe へ素早く飛べるようにし、header / status / highlight を統合する
+- 詳細は `docs/planned/MILESTONE_TIMELINE_SEARCH_KEYFRAME_INTEGRATION_2026-03-28.md`
+
 ### M-LG-1 Layer Group System
 - レイヤーグループの保存 / 表示 / 親子 / 可視性 / 操作単位を整理する
 - 詳細は `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_2026-03-27.md`
+
+### M-LG-2 Layer Components: Physics / Behavior
+- layer 側に Physics / Behavior の component group を追加し、追従・減衰・トリガーの受け皿を作る
+- 詳細は `docs/planned/MILESTONE_LAYER_COMPONENTS_PHYSICS_BEHAVIOR_2026-03-28.md`
 
 ### M-PH Playhead 整備
 - 詳細は `docs/planned/MILESTONE_PLAYHEAD.md`
@@ -91,6 +160,10 @@
 - rename / history / visibility inspector
 - 詳細は `docs/planned/MILESTONE_RENDER_OUTPUT_FEEL_REFINEMENT_2026-03-27.md`
 
+### M-RD-5 Animated Image Export
+- GIF / APNG / Animated WebP などの web 向け animated image 出力
+- 詳細は `docs/planned/MILESTONE_ANIMATED_IMAGE_EXPORT_2026-03-27.md`
+
 ### M-LV-1 Layer Solo View (Diligent)
 - 詳細は `docs/planned/MILESTONE_LAYER_SOLO_VIEW_DILIGENT_2026-03-26.md`
 - current composition / current layer の追従
@@ -127,6 +200,14 @@
 - Inspector (Effect Stack) 縺ｨ Property Editor 縺ｮ驕｣蜍輔・蜷梧悄
 - 隧ｳ邏ｰ縺ｯ `Artifact/docs/MILESTONE_CREATIVE_WORKFLOW_REFINEMENT_2026-03-13.md`
 
+### M-FX-5 GPU Effect Parity
+- CPU effect は reference として残しつつ、GPU equivalent effect を順に実装する
+- 詳細は `docs/planned/MILESTONE_GPU_EFFECT_PARITY_2026-03-27.md`
+
+### M-FX-6 Color Correction / Grading
+- CPU reference を残しつつ、GPU 側の color correction / grading を実装する
+- 詳細は `docs/planned/MILESTONE_COLOR_CORRECTION_2026-03-27.md`
+
 ## Audio
 
 ### M-AU-1 Composition Audio Mixer
@@ -144,6 +225,10 @@
 - Audio Layer の source / mute / volume / loaded state を inspector と timeline に自然に接続する
 - 詳細は `docs/planned/MILESTONE_AUDIO_LAYER_INTEGRATION_2026-03-27.md`
 - `MILESTONE_AUDIO_ENGINE_2026-03.md` の再生基盤とは分けて、layer 側の見え方と導線を詰める
+
+### M-AU-5 Audio Playback Stabilization
+- start-up pre-roll, stop/seek hygiene, buffer diagnostics, format normalization
+- 詳細は `docs/planned/MILESTONE_AUDIO_PLAYBACK_STABILIZATION_2026-03-28.md`
 
 ## Project / Asset
 
@@ -181,6 +266,12 @@
 - `AssetBrowser` と `Project View` の同期
 - import / metadata / relink / missing / unused の統合
 - 詳細は `Artifact/docs/MILESTONE_ASSET_SYSTEM_2026-03-12.md`
+
+### M-AS-9 Project / Asset Workflow Bridge
+- Project View / Asset Browser / Contents Viewer / Render Queue を一続きにする
+- import / relink / recent / favorite / missing / dependency の導線整理
+- 詳細は `docs/planned/MILESTONE_PROJECT_ASSET_WORKFLOW_2026-03-27.md`
+- search / collections / review の派生詳細は別文書へ分割
 
 ### M-AS-4b Vector / SVG Layer Import
 - SVG などの vector asset を layer として取り込む

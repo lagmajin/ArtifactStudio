@@ -13,6 +13,9 @@
 3. UI と処理を分離し、長時間処理を扱いやすくする
 4. 将来の自動化・解析・ロトスコープ機能へつなぐ
 
+この文書は `MILESTONE_FEATURE_EXPANSION_2026-03-25.md` の Phase 1 に対応する詳細ワークストリームでもある。
+Feature Expansion 側で「追跡を制作能力として増やす」と定義し、本書では実装順と連携先を詰める。
+
 ---
 
 ## 現状
@@ -304,6 +307,43 @@ UI から次を実行できるようにする。
 
 ---
 
+## Phase 7: Project / Asset / Export Bridges
+
+### 7-1. Project / Asset への接続
+
+追跡セッションを project asset の一種として扱えるようにする。
+
+対象:
+
+- tracker preset
+- tracked region template
+- motion path session
+- recent tracking project
+
+### 7-2. Review / Export への接続
+
+追跡結果を確認・共有しやすい形にする。
+
+対象:
+
+- tracked overlay の review
+- stabilize before/after compare
+- tracked keyframe の export
+- session summary の共有
+
+### 7-3. 再利用導線
+
+追跡結果を一度作って終わりにしない。
+
+対象:
+
+- recent tracker session
+- preset recall
+- per shot tracking template
+- relink / reuse / duplicate
+
+---
+
 ## 優先順位
 
 ### 最優先
@@ -348,3 +388,13 @@ UI から次を実行できるようにする。
 1. `MotionTracker` の保存形式と import/export を確定する
 2. `AbstractProperty` へ変換する bridge を決める
 3. トラッカー編集 UI の最小版を作る
+
+---
+
+## Recommended Execution Order
+
+1. Core の追跡結果保存形式を安定化する
+2. `AbstractProperty` へ変換する bridge を決める
+3. トラッカー編集 UI の最小版を作る
+4. Layer / mask / camera への適用を整える
+5. App 層の TrackingService を詰める
