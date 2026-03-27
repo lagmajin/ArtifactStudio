@@ -80,6 +80,14 @@
 - mask / roto 入口の整理
 - software test widget との見え方差分縮小
 
+### M-CE-1 Composition Editor Cache System
+- `Composition Viewer` の surface cache / render key / GPU blend fast path を整理
+- 詳細は `Artifact/docs/MILESTONE_COMPOSITION_EDITOR_CACHE_SYSTEM_2026-03-26.md`
+
+### M-CE-2 Static Layer GPU Cache
+- 静止レイヤーの GPU texture を長く使い回す cache 層
+- 詳細は `Artifact/docs/MILESTONE_STATIC_LAYER_GPU_CACHE_2026-03-26.md`
+
 ## Effects
 
 ### M-FX-1 Inspector Effect Stack Bridge
@@ -213,6 +221,10 @@
 - hit rate / stale cache / dropped frame の可視化
 - 詳細は `docs/planned/MILESTONE_RAM_PREVIEW_CACHE_2026-03-26.md`
 
+### M-RP-2 Disk Cache System
+- 永続 preview cache / manifest / eviction / diagnostics
+- 詳細は `docs/planned/MILESTONE_DISK_CACHE_SYSTEM_2026-03-26.md`
+
 ## Matte
 
 ### M-LYR-1 Matte Stack / Child Matte Nodes
@@ -269,11 +281,13 @@
 
 ### M-AB Asset Browser Improvement (Unity 風)
 - 詳細は `docs/planned/MILESTONE_ASSET_BROWSER_IMPROVEMENT.md`
+- Phase 0: 左ペイン owner-draw 化の基盤作り
 - Phase 1: ビュー切替 & ソート (リストビュー、ソートドロップダウン)
 - Phase 2: キーボード操作 & ステータス表示 (矢印/Delete、サムネイルバッジ)
 - Phase 3: ナビゲーション & プレビュー (ブレッドクラム、ホバープレビュー、お気に入り)
 - Phase 4: 同期 & インスペクタ (Browser↔Project 同期、右パネル)
 - Phase 5: 高度な機能 (依存関係追跡、Find References、再リンク)
+- Phase 6: 右ペイン owner-draw 拡張を将来検討
 
 ## Good Small Tasks
 

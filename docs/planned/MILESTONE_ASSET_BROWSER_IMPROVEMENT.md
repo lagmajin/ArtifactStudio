@@ -8,7 +8,17 @@
 
 主な欠落: リストビュー、ソート、キーボード操作、ブラウザ↔Project 同期、お気に入り、ホバープレビュー、内部 D&D。
 
+UI 面では、Qt 標準ウィジェットのままだとレイアウトと操作感の自由度が足りないため、左ペインは owner-draw 化を優先し、右ペインも将来的に同じ方向へ寄せる前提で設計する。
+
 ---
+
+## Phase 0: Owner-Draw 基盤 (P0)
+
+| タスク | 対象ファイル | 見積 |
+|---|---|---|
+| 左ペインの完全 owner-draw 化 (ヘッダー/行/選択/ホバー) | `ArtifactAssetBrowser.cppm` | +180行 |
+| 左ペインの D&D / インライン操作を owner-draw へ集約 | `ArtifactAssetBrowser.cppm` | +120行 |
+| Qt 標準ビュー依存の削減方針を固定 | `ArtifactAssetBrowser.cppm` + `AssetMenuModel.cppm` | +40行 |
 
 ## Phase 1: ビュー切替 & ソート (P0)
 
@@ -65,15 +75,27 @@
 
 ---
 
+## Phase 6: 右ペイン owner-draw 拡張 (P2 / 将来)
+
+| タスク | 対象ファイル | 見積 |
+|---|---|---|
+| 右ペインのメタデータ表示を owner-draw 化 | `ArtifactAssetBrowser.cppm` | +120行 |
+| 依存関係 / プレビュー / アクション領域の描画統一 | `ArtifactAssetBrowser.cppm` | +160行 |
+| Qt 標準コンテキストに残す箇所の最小化 | `ArtifactAssetBrowser.cppm` | +60行 |
+
+---
+
 ## 優先度マトリクス
 
 | 優先 | タスク | 理由 |
 |---|---|---|
+| **最優先** | Phase 0: Owner-Draw 基盤 | Qt 標準 UI の制約を外すための土台 |
 | **最優先** | Phase 1: ビュー切替 & ソート | 基本的な見やすさに直結 |
 | **最優先** | Phase 2: キーボード操作 | 操作効率の最低限 |
 | **高** | Phase 3: ナビゲーション & プレビュー | UX 品質 |
 | **高** | Phase 4: 同期 & インスペクタ | ワークフロー統合 |
 | **中** | Phase 5: 高度な機能 | プロ仕様の効率化 |
+| **中** | Phase 6: 右ペイン owner-draw 拡張 | 将来的な UI 一貫性確保 |
 
 ---
 
