@@ -14,6 +14,12 @@
 
 ## Feature Expansion Support
 
+### Priority Execution Trio
+- `M-FE-9 Motion Tracking Workflow`
+- `M-AS-4b Vector / SVG Layer Import`
+- `M-RD-5 Animated Image Export`
+- 詳細は `docs/planned/MILESTONE_FEATURE_EXPANSION_FOCUS_TRIO_2026-03-28.md`
+
 ### M-FE-1 Onboarding / Empty States
 - empty project / empty selection / empty asset / empty timeline の案内
 - 詳細は `docs/planned/MILESTONE_ONBOARDING_EMPTY_STATES_2026-03-27.md`
@@ -49,6 +55,15 @@
 ### M-FE-9 Motion Tracking Workflow
 - tracker editor / overlay / stabilize / bake を制作導線としてまとめる
 - 詳細は `docs/planned/MILESTONE_MOTION_TRACKING_SYSTEM_2026-03-25.md`
+- Phase 1 実装順は `docs/planned/MILESTONE_MOTION_TRACKING_PHASE1_EXECUTION_2026-03-28.md`
+
+### M-FE-10 Animation Dynamics Core
+- Physics2D とは別に、animation 用の spring / damping / follow-through を Core に置く
+- 詳細は `docs/planned/MILESTONE_ANIMATION_DYNAMICS_CORE_2026-03-28.md`
+
+### M-FE-11 Virtual Pointer Core
+- モーショングラフィック向けの仮想マウス演出を Core の再生可能データとして定義する
+- 詳細は `docs/planned/MILESTONE_VIRTUAL_POINTER_CORE_2026-03-28.md`
 
 ## UI / UX
 
@@ -65,6 +80,18 @@
 - 空状態の整理
 - 選択同期とラベル整理
 
+### M-UI-8 Animation Dynamics UI Surface
+- Physics2D とは別に、animation 用の spring / damping / follow-through を Inspector / Layer Panel から触れるようにする
+- 詳細は `docs/planned/MILESTONE_ANIMATION_DYNAMICS_UI_2026-03-28.md`
+
+### M-UI-6 Composition Motion Path Overlay
+- composition viewport 上で selected layer の motion path と keyframe dot を重ね描きする
+- 詳細は `docs/planned/MILESTONE_COMPOSITION_MOTION_PATH_OVERLAY_2026-03-28.md`
+
+### M-UI-7 Composition Editor Mask / Roto Editing
+- composition editor 上で layer mask / roto を直接編集できるようにする
+- 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md`
+
 ### M-UI-4 Menu-to-App Command Routing
 - File / Composition / Edit / View / Layer / Render / Help の menu を app service / command に正しく接続する
 - 詳細は `docs/planned/MILESTONE_MENU_APP_INTEGRATION_2026-03-27.md`
@@ -73,6 +100,10 @@
 - image / video / 3D model / source / final / compare を横断する viewer の拡充
 - 詳細は `docs/planned/MILESTONE_CONTENTS_VIEWER_EXPANSION_2026-03-27.md`
 - 追加の review / compare / annotation 方向は `docs/planned/MILESTONE_REVIEW_COMPARE_ANNOTATION_2026-03-28.md`
+
+### M-UI-9 3D Model Review in Contents Viewer
+- OBJ / FBX を Contents Viewer で確認し、model inspection の導線を固める
+- 詳細は `docs/planned/MILESTONE_3D_MODEL_REVIEW_IN_CONTENTS_VIEWER_2026-03-28.md`
 
 ## Timeline / Layer
 
@@ -143,6 +174,18 @@
 - preview
 - effect
 - 静止画シーケンス
+
+### M-RD-6 FFmpeg GPU Decode Backend
+- CPU decode とは別に FFmpeg hwaccel backend を持ち、video layer / playback / preview から選べるようにする
+- 詳細は `docs/planned/MILESTONE_FFMPEG_GPU_DECODE_BACKEND_2026-03-28.md`
+
+### M-RD-7 Unified Audio / Video Render Output
+- video render の後段で audio を mux し、音声付き出力を render queue から扱えるようにする
+- 詳細は `docs/planned/MILESTONE_UNIFIED_AUDIO_VIDEO_RENDER_OUTPUT_2026-03-28.md`
+
+### M-RD-8 Integrated Rendering Engine
+- video / audio を同一 job として扱う render 本体の統合骨格を作る
+- 詳細は `docs/planned/MILESTONE_INTEGRATED_RENDERING_ENGINE_2026-03-28.md`
 
 ### M-RD-2 Render Queue Hardening
 → 詳細: [MILESTONE_RENDER_QUEUE_2026-03-22.md](MILESTONE_RENDER_QUEUE_2026-03-22.md)
@@ -246,6 +289,10 @@
 - folder / bin 整理
 - expand / collapse
 - unused / tag / virtual view
+
+### M-PV-4 Project View Interaction Polish
+- selection center / quick actions / open-reveal-rename-delete-relink の整理
+- 詳細は `docs/planned/MILESTONE_PROJECT_VIEW_INTERACTION_POLISH_2026-03-28.md`
 
 ### M-AS-1 Asset Import Flow
 - 読み込み
@@ -400,6 +447,7 @@
 - 複数レイヤーの hit test / selection sync
 - Shift / Ctrl を含む複数選択操作
 - timeline / inspector との current selection 一致
+- 進捗: 2026-03-28 時点で、rubber band 選択の入り口と複数ハイライトを実装中
 
 ### M-AB Asset Browser Improvement (Unity 風)
 - 詳細は `docs/planned/MILESTONE_ASSET_BROWSER_IMPROVEMENT.md`

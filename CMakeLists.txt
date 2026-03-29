@@ -307,6 +307,25 @@ if(ARTIFACT_ENABLE_SYCL)
     add_compile_definitions(ARTIFACT_HAS_SYCL=1)
 endif()
 
+function(artifact_enable_delay_load target)
+    if(NOT WIN32 OR NOT ARTIFACT_FRONTEND_MSVC)
+        return()
+    endif()
+
+    cmake_parse_arguments(AEDL "" "" "DEBUG_DLLS;RELEASE_DLLS" ${ARGN})
+    if(NOT AEDL_DEBUG_DLLS AND NOT AEDL_RELEASE_DLLS)
+        return()
+    endif()
+
+    target_link_libraries(${target} PRIVATE delayimp)
+    foreach(dllName IN LISTS AEDL_DEBUG_DLLS)
+        target_link_options(${target} PRIVATE "$<$<CONFIG:Debug>:/DELAYLOAD:${dllName}>")
+    endforeach()
+    foreach(dllName IN LISTS AEDL_RELEASE_DLLS)
+        target_link_options(${target} PRIVATE "$<$<NOT:$<CONFIG:Debug>>:/DELAYLOAD:${dllName}>")
+    endforeach()
+endfunction()
+
 # ---------------------------------------------------------------------------
 # ATL include path (Diligent より前に設定が必要)
 # ---------------------------------------------------------------------------

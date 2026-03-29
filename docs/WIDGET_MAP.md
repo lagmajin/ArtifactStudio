@@ -44,6 +44,8 @@
 
 - `RenderQueueManagerWidget`
   レンダーキュー管理パネル。ジョブ一覧、出力先、フレーム範囲、詳細設定ダイアログ導線を持つ。
+- `ArtifactRenderCenterWindow`
+  Render Queue を独立ウィンドウとして扱うトップレベル画面。現状は `RenderQueueManagerWidget` を内包するシェル。
 - `ArtifactRenderOutputSettingDialog`
   コーデック、解像度、fps、ビットレートなどの詳細出力設定ダイアログ。
 

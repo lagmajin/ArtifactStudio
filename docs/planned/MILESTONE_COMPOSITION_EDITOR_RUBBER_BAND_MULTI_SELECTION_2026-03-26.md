@@ -65,7 +65,8 @@ Composition Editor 側には `selection` と `hit test` の前提がすでにあ
 
 ## Current Status
 
-- 2026-03-26 時点で、composition editor は単体 selection と hit test の基盤を持つ
-- ただし rubber band による複数選択は専用の導線としてまだ明示されていない
-- そのため、まず gesture と selection sync の責務を分けるのが安全
+- 2026-03-28 時点で、composition editor は単体 selection と hit test の基盤に加えて、rubber band 選択の入り口を持つ
+- `Shift` / `Ctrl` を使った追加選択とトグル選択を selection manager に流せる
+- 選択中レイヤーは composition editor 上で複数ハイライトされ、current layer は主選択として残る
+- まだ group transform / batch property edit / marquee cancel の細部は残っているので、Phase 4 の UX polish は継続課題
 
