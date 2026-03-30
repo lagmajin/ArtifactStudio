@@ -2,6 +2,23 @@
 
 空いている時間に進めやすいよう、分野別に小さめのマイルストーンへ分割したバックログ。
 
+## 📋 最近の実装完了状況 (2026-03-29 更新)
+
+| カテゴリ | 完了項目 | ステータス |
+|----------|----------|-----------|
+| **UI/UX** | テキストレイヤーインライン編集 | ✅ |
+| **UI/UX** | キーボードショートカット追加 | ✅ |
+| **UI/UX** | ステータスバーコンポジション情報 | ✅ |
+| **UI/UX** | レイヤーラベルカラー機能 | ✅ |
+| **UI/UX** | レイヤー整列・分布機能 | ✅ |
+| **UI/UX** | コマンドパレット (Ctrl+F) | ✅ |
+| **Layer** | Undo/Redo統合 | ✅ |
+| **Render** | ROIシステム実装 | ✅ |
+| **Render** | ギズモ描画最適化 | ✅ |
+| **Core** | Expression Evaluator修正 | ✅ |
+
+---
+
 ## Application
 
 ### M-APP-1 Application Cross-Cutting Improvement
@@ -30,6 +47,7 @@
 
 ### M-FE-3 Automation Helpers
 - command palette / batch / preset / macro entry を増やす
+- ✅ レイヤーエディタ用コマンドパレット (Ctrl+F)
 - 詳細は `docs/planned/MILESTONE_AUTOMATION_HELPERS_2026-03-27.md`
 
 ### M-FE-4 Workspace / Layout / Session
@@ -43,6 +61,12 @@
 ### M-FE-6 Batch / Macro / Script Entry
 - batch rename / relink / export、macro、script hook
 - 詳細は `docs/planned/MILESTONE_FEATURE_EXPANSION_2026-03-25.md`
+
+### M-PY-1 Python API & Scripting Console ⭐ **新規追加**
+- プロ向け自動化基盤と組み込みコンソール
+- **機能:** Python ブリッジ (pybind11)・プラグインマネージャー・REPL ウィジェット
+- **見積:** 40-50h
+- **詳細:** `docs/planned/MILESTONE_PYTHON_API_SCRIPTING_2026-03-30.md`
 
 ### M-FE-7 Review / Compare / Annotation
 - compare view / side-by-side review / note / bookmark
@@ -79,6 +103,10 @@
 - effect / property の見つけやすさ
 - 空状態の整理
 - 選択同期とラベル整理
+- ✅ キーボードショートカット追加 (Home/End/Ctrl+A/Ctrl+D)
+- ✅ ステータスバーコンポジション情報表示
+- ✅ レイヤーラベルカラー機能
+- ✅ レイヤー整列・分布機能
 
 ### M-UI-8 Animation Dynamics UI Surface
 - Physics2D とは別に、animation 用の spring / damping / follow-through を Inspector / Layer Panel から触れるようにする
@@ -98,6 +126,7 @@
 
 ### M-UI-5 Contents Viewer Expansion
 - image / video / 3D model / source / final / compare を横断する viewer の拡充
+- ✅ テキストレイヤーインライン編集 (実装済み)
 - 詳細は `docs/planned/MILESTONE_CONTENTS_VIEWER_EXPANSION_2026-03-27.md`
 - 追加の review / compare / annotation 方向は `docs/planned/MILESTONE_REVIEW_COMPARE_ANNOTATION_2026-03-28.md`
 
@@ -105,11 +134,34 @@
 - OBJ / FBX を Contents Viewer で確認し、model inspection の導線を固める
 - 詳細は `docs/planned/MILESTONE_3D_MODEL_REVIEW_IN_CONTENTS_VIEWER_2026-03-28.md`
 
+### M-UI-10 3D Model Import and Contents Viewer Integration
+- `ufbx` / `tinyobjloader` を使った 3D model 読み込み経路を整え、Contents Viewer へ正式に接続する
+- 詳細は `docs/planned/MILESTONE_3D_MODEL_IMPORT_AND_CONTENTS_VIEWER_2026-03-29.md`
+
+### M-TY-1 Advanced Typography Engine ⭐
+- **詳細:** `docs/planned/MILESTONE_ADVANCED_TYPOGRAPHY_ENGINE_2026-03-29.md` (Core 実装)
+
+### M-TY-2 Typography Preset & Motion Style UI ⭐ **新規提案**
+- 高度なタイポグラフィ制御とアニメーションシステムを UI/プリセット化
+- **機能:** プリセットライブラリ・文字単位インスペクタ・パス追従 UI
+- **見積:** 30-40h
+- **詳細:** `docs/planned/MILESTONE_TYPOGRAPHY_PRESET_UI_2026-03-30.md`
+
+### M-CS-1 Advanced Color Science Pipeline
+- **詳細:** `docs/planned/MILESTONE_ADVANCED_COLOR_SCIENCE_PIPELINE_2026-03-29.md`
+
+### M-SC-3 Color Grading Workspace ⭐ **新規提案**
+- プロフェッショナルなグレーディング環境の構築
+- **機能:** リアルタイムスコープ (Waveform/RGB Parade/Vectorscope)・比較表示・専用パネル
+- **見積:** 32h
+- **詳細:** `docs/planned/MILESTONE_COLOR_GRADING_WORKSPACE_2026-03-30.md`
+
 ## Timeline / Layer
 
 ### M-TL-1 Layer Basic Operations ✅ 完了
 - 追加、削除、複製、rename、親子、並び替え
-- 残差分: Undo スタブ実装 (M-AS-7 側), track matte mode (未定義)
+- ✅ Undo/Redo 統合 (実装済み)
+- 残差分: track matte mode (未定義)
 
 ### M-TL-2 Layer View Sync ✅ 完了
 - 左ツリー展開と右トラック行の同期
@@ -213,13 +265,17 @@
 - solo 表示の安定化
 - mask / roto 入口の整理
 - software test widget との見え方差分縮小
+- context / impact / before-after の可視化
+- effect の部分適用 (Rect / Mask) の可視化
 
 ### M-CE-1 Composition Editor Cache System
 - `Composition Viewer` の surface cache / render key / GPU blend fast path を整理
+- ✅ ROI (Region of Interest) システム実装済み
 - 詳細は `Artifact/docs/MILESTONE_COMPOSITION_EDITOR_CACHE_SYSTEM_2026-03-26.md`
 
 ### M-CE-2 Static Layer GPU Cache
 - 静止レイヤーの GPU texture を長く使い回す cache 層
+- ✅ ギズモ描画最適化 (Phase 2) 完了
 - 詳細は `Artifact/docs/MILESTONE_STATIC_LAYER_GPU_CACHE_2026-03-26.md`
 
 ## Effects
@@ -251,6 +307,22 @@
 - CPU reference を残しつつ、GPU 側の color correction / grading を実装する
 - 詳細は `docs/planned/MILESTONE_COLOR_CORRECTION_2026-03-27.md`
 
+### M-FX-7 Partial Application
+- `Rect` / `Mask` などの部分適用をエフェクトに導入する
+- 全体適用と局所適用の両方を同じ stack で扱えるようにする
+- 詳細は `docs/planned/MILESTONE_EFFECT_SYSTEM_IMPROVEMENT_2026-03-28.md`
+
+### M-FX-8 Composition Final Effect
+- composition 全体の最後に掛かる final effect / end-stage effect を検討する
+- layer / effect stack の後段で、出力直前に 1 回だけ効く処理を想定する
+- before / after の比較や render output 調整と合わせて扱う
+
+### M-VFX-1 Real-time Particle & Fluid Simulation ⭐ **新規追加**
+- Compute Shader ベースの高性能視覚効果
+- **機能:** GPU パーティクル・2D 流体ソルバー (Smoke/Fire)・インタラクティブ・シミュレーション
+- **見積:** 40-60h
+- **詳細:** `docs/planned/MILESTONE_VFX_PARTICLE_FLUID_2026-03-30.md`
+
 ## Audio
 
 ### M-AU-1 Composition Audio Mixer
@@ -260,9 +332,14 @@
 - 再生位置と音の同期
 
 ### M-AU-3 Audio Visualization
-- waveform
-- meter
-- 簡易可視化
+- waveform / meter
+- 詳細は `docs/planned/MILESTONE_AUDIO_WAVEFORM_2026-03-29.md`
+
+### M-AU-6 Audio Reactor System ⭐ **新規提案**
+- オーディオ解析による自動アニメーションシステム
+- **機能:** リアルタイム FFT 解析・オーディオ駆動プロパティリンク・スムージング制御
+- **見積:** 36h
+- **詳細:** `docs/planned/MILESTONE_AUDIO_REACTOR_SYSTEM_2026-03-30.md`
 
 ### M-AU-4 Audio Layer Integration & UX
 - Audio Layer の source / mute / volume / loaded state を inspector と timeline に自然に接続する
@@ -398,6 +475,12 @@
 ---
 
 ## App Layer Completeness
+
+### M-RV-1 Reactive Event Editor Window
+- 独立ウィンドウで reactive event ルールを編集する
+- Target Tree は owner-draw、他は既存 Qt widget を使う
+- Target Tree / Event Rules / Inspector / Event Log を 1 画面にまとめる
+- 詳細は `docs/planned/MILESTONE_REACTIVE_EVENT_EDITOR_WINDOW_2026-03-29.md`
 
 ### M-APP ApplicationLayer completeness
 - 詳細は `docs/planned/MILESTONE_APP_LAYER_COMPLETENESS.md`

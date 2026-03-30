@@ -1,7 +1,8 @@
 # アプリ層改善 Milestone
 
-**作成日:** 2026-03-28  
-**ステータス:** 計画中  
+**作成日:** 2026-03-28
+**更新日:** 2026-03-28
+**ステータス:** 一部実装済み ✅
 **関連コンポーネント:** Artifact アプリケーション層（ArtifactCore ではない）
 
 ---
@@ -12,7 +13,50 @@
 
 ---
 
-## 発見された問題点（TODO/FIXME ベース）
+## 実装済み機能 ✅
+
+### ✅ Undo/Redo 統合 段階 1
+
+**実装場所:** 
+- `Artifact/src/Widgets/Menu/ArtifactEditMenu.cppm`
+- `Artifact/include/Undo/UndoManager.ixx`
+- `Artifact/src/Undo/UndoManager.cppm`
+
+**実装内容:**
+- Edit メニューの UI 状態同期
+- 新規コマンドクラス（3 つ）:
+  - `MoveLayerIndexCommand` - レイヤーインデックス移動
+  - `RenameLayerCommand` - レイヤー名変更
+  - `ChangeLayerOpacityCommand` - 不透明度変更
+
+**効果:**
+- ✅ レイヤー名変更が Undo 可能に
+- ✅ インデックス移動が Undo 可能に
+- ✅ 不透明度変更が Undo 可能に
+- ✅ Undo 後の UI 同期が改善
+
+**ステータス:** ✅ 段階 1 完了（135 行追加）
+
+---
+
+### ✅ ASIO スタブバックエンド
+
+**実装場所:**
+- `ArtifactCore/include/Audio/ASIOBackendStub.ixx`
+- `ArtifactCore/src/Audio/ASIOBackendStub.cppm`
+- `ArtifactCore/include/Audio/AudioRenderer.ixx`
+- `ArtifactCore/src/Audio/AudioRenderer.cppm`
+
+**実装内容:**
+- `ASIOBackendStub` クラス（WASAPI 委譲）
+- `AudioBackendType` 列挙型
+- バックエンド切り替え API
+
+**ステータス:** ✅ 実装完了（195 行追加）
+
+---
+
+## 発見された問題点（未実装）
 
 ### ★★★ 問題 1: WebUI ブリッジの未実装機能
 
@@ -33,11 +77,7 @@
 // TODO: Get current selected layer and serialize its effects/properties to JSON
 ```
 
-**影響:**
-- WebUI からのレイヤー選択が機能しない
-- エフェクトプロパティの Web 制御ができない
-- プロジェクト統計情報が不完全
-
+**ステータス:** ❌ 未実装  
 **工数:** 4-6 時間
 
 ---
@@ -53,11 +93,7 @@ void ArtifactVideoLayer::generateProxy() {
 }
 ```
 
-**影響:**
-- プロキシ機能が使えない
-- 高解像度動画の編集が重い
-- ワークフローの効率化ができない
-
+**ステータス:** ❌ 未実装  
 **工数:** 6-8 時間
 
 ---
@@ -78,12 +114,22 @@ void ArtifactVideoLayer::generateProxy() {
 // void ArtifactProject::setDirty(bool dirty) - TODO: impl_->setDirty not available
 ```
 
-**影響:**
-- コンポジションの削除が不完全
-- 未保存検出が機能しない
-- 自動保存が正しく動作しない
-
+**ステータス:** ❌ 未実装  
 **工数:** 4-6 時間
+
+---
+
+## 実装済みサマリー
+
+| 機能 | ステータス | 工数 |
+|------|-----------|------|
+| **Undo/Redo 統合 段階 1** | ✅ 完了 | 20-30h（うち段階 1:10h） |
+| **ASIO スタブバックエンド** | ✅ 完了 | 12-18h |
+| **WebUI ブリッジ** | ❌ 未着手 | 4-6h |
+| **VideoLayer Proxy** | ❌ 未着手 | 6-8h |
+| **プロジェクト管理** | ❌ 未着手 | 4-6h |
+
+**完了率:** 約 40%
 
 ---
 
