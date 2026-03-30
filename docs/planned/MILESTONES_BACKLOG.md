@@ -99,6 +99,21 @@
 - スプリッター幅
 - 空パネルや初期レイアウトの見直し
 
+### M-UI-11 UI Theme System / Studio Skin
+- `QSS` に責務を寄せすぎず、背景 / surface / accent / selection を意味ベースで統一する
+- `Maya / Blender / Modo / DaVinci` 系の制作 UI を参考にしつつ、Artifact 独自の studio skin を作る
+- 詳細は `docs/planned/MILESTONE_UI_THEME_SYSTEM_2026-03-30.md`
+
+### M-UI-12 Composition Notes / Scratchpad
+- コンポジション / レイヤー / フレームに紐づく軽量メモを残せるようにする
+- review / annotation より前段の、制作中の書きなぐりメモを扱う
+- 詳細は `docs/planned/MILESTONE_COMPOSITION_NOTES_SCRATCHPAD_2026-03-30.md`
+
+### M-UI-13 Keyboard Overlay
+- アプリ内ショートカットを一覧できる軽量 overlay を実装する
+- `Help` メニューやショートカットからすぐ開けるようにする
+- 詳細は `docs/planned/MILESTONE_KEYBOARD_OVERLAY_2026-03-30.md`
+
 ### M-UI-3 Inspector Usability
 - effect / property の見つけやすさ
 - 空状態の整理

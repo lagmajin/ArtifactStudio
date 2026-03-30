@@ -20,6 +20,7 @@
 - `ArtifactCore/src/UI/RotoMaskEditor.cppm`
 - `ArtifactCore/include/UI/RotoMaskEditor.ixx`
 - `Artifact/src/Mask`
+- `ArtifactCore/src/Mask`
 - `Artifact/src/Layer/ArtifactAbstractLayer.cppm`
 
 ## Non-Goals
@@ -45,6 +46,13 @@
 - path close / open / feather / expansion / invert を編集できるようにする
 - hovered / dragged vertex の可視化を安定させる
 
+### M-CE-MASK-2B Bezier Handle Editing
+
+- mask path の各 vertex に対して in / out tangent を編集できるようにする
+- anchor point と bezier handle を分離して表示・ドラッグできるようにする
+- rotopath / maskpath の保存・復元で tangent 情報を落とさない
+- ベジェ曲線の編集結果が rasterize / preview / render queue に一致するようにする
+
 ### M-CE-MASK-3 Undo / Redo And Selection Sync
 
 - mask 編集を undoable command として扱う
@@ -63,8 +71,9 @@
 
 1. `M-CE-MASK-1 Entry Bridge And Mode Routing`
 2. `M-CE-MASK-2 Path Creation And Vertex Editing`
-3. `M-CE-MASK-3 Undo / Redo And Selection Sync`
-4. `M-CE-MASK-4 Inspector And Diagnostics`
+3. `M-CE-MASK-2B Bezier Handle Editing`
+4. `M-CE-MASK-3 Undo / Redo And Selection Sync`
+5. `M-CE-MASK-4 Inspector And Diagnostics`
 
 ## Current Status
 
@@ -81,4 +90,3 @@
 - mask 編集の結果が layer の render に反映される
 - undo / redo で mask 編集が戻せる
 - inspector で mask 状態を確認できる
-
