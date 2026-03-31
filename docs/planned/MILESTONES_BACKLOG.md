@@ -153,6 +153,18 @@
 - `ufbx` / `tinyobjloader` を使った 3D model 読み込み経路を整え、Contents Viewer へ正式に接続する
 - 詳細は `docs/planned/MILESTONE_3D_MODEL_IMPORT_AND_CONTENTS_VIEWER_2026-03-29.md`
 
+### M-CP-1 Camera Projection Integration ⭐ **新規追加**
+- 3D rendering のために camera の projection を適切に扱う
+- **機能:** Perspective/Orthographic projection, viewport sync, matrix calculation
+- **見積:** 20-30h
+- **詳細:** `docs/planned/MILESTONE_CAMERA_PROJECTION_2026-03-31.md`
+
+### M-LL-1 Light Linking System ⭐ **新規追加**
+- 3D scene での light の影響を layer ごとに制御する
+- **機能:** Light-to-Object linking, include/exclude lists, per-layer light influence
+- **見積:** 25-35h
+- **詳細:** `docs/planned/MILESTONE_LIGHT_LINKING_2026-03-31.md`
+
 ### M-TY-1 Advanced Typography Engine ⭐
 - **詳細:** `docs/planned/MILESTONE_ADVANCED_TYPOGRAPHY_ENGINE_2026-03-29.md` (Core 実装)
 
@@ -241,6 +253,11 @@
 - preview
 - effect
 - 静止画シーケンス
+
+### M-RD-9 Render Path Decomposition / Buffer Migration
+- `QImage` を render path の内部から段階的に追放し、typed buffer ベースへ寄せる
+- `RawImage` は I/O 境界、内部は `ImageF32x4_RGBA` 系に分離する
+- 詳細は `docs/planned/MILESTONE_RENDER_PATH_DECOMPOSITION_2026-03-31.md`
 
 ### M-RD-6 FFmpeg GPU Decode Backend
 - CPU decode とは別に FFmpeg hwaccel backend を持ち、video layer / playback / preview から選べるようにする
