@@ -74,6 +74,7 @@ Qt の `signal/slot` は当面次の用途だけ残す。
 - `LayerAdded`
 - `LayerRemoved`
 - `LayerSelected`
+- `LayerSelectionChanged`
 - `FrameChanged`
 - `PlaybackStateChanged`
 - `PropertyChanged`
@@ -96,6 +97,43 @@ widget は service の `signal` を直接多数つなぐのではなく、
 - composition viewer redraw
 - inspector refresh
 
+### まず EventBus 化する widget 群
+
+最初から全 widget を置き換えず、fan-out が大きい箇所から段階移行する。
+
+#### 第一候補
+
+- `ArtifactProjectManagerWidget`
+  - composition / layer 追加削除
+  - thumbnail 更新
+  - selection 要約表示
+- `ArtifactTimelineWidget`
+  - composition / layer / work area / keyframe の状態変化
+  - search / selection / history の再集約
+- `ArtifactCompositionEditor`
+  - layer / keyframe / effect の変更通知
+  - smart guide や range change の広域反映
+- `ArtifactInspectorWidget`
+  - selection / property change の再読込
+- `ArtifactRenderQueueManagerWidget`
+  - queue state / history / log / background task 完了
+
+#### 第二候補
+
+- `ArtifactPlaybackControlWidget`
+  - playback state / frame change の反映
+- `ArtifactProjectHealthDashboard`
+  - validation / diagnostics / recovery 状態の再集約
+- `ArtifactAssetBrowser`
+  - asset index / proxy / thumbnail 更新
+
+#### 変換ルール
+
+- 高頻度入力は Qt signal のまま残す
+- 広域反映だけ EventBus に出す
+- UI thread でしか扱えない処理は bridge 側で Qt に戻す
+- 1 つの操作から複数 widget が更新される箇所を優先する
+
 ### Phase 4: 重要経路の直結
 
 まずは以下の経路を event 化する。
@@ -106,6 +144,23 @@ widget は service の `signal` を直接多数つなぐのではなく、
 - audio state change
 
 その後に view 専用イベントを追加する。
+
+### 追加の実装順
+
+1. `CompositionChanged` / `LayerChanged` を project / timeline / inspector に接続する
+2. `ThumbnailUpdated` を project manager / asset browser に接続する
+3. `RenderQueueChanged` を render queue widget に接続する
+4. `SelectionChanged` を timeline / inspector / composition editor に接続する
+5. `FrameChanged` を playback / timeline の表示同期に限定して接続する
+
+### Widget Migration Matrix
+
+具体的な widget 別の切り替え表は `docs/planned/MILESTONE_EVENT_BUS_WIDGET_MIGRATION_2026-04-01.md` に分離した。
+
+- Project Manager / Timeline / Inspector / Render Queue を第一群として扱う
+- Playback Control / Asset Browser / Project Health Dashboard を第二群として扱う
+- Composition Editor は overlay と selection sync を中心に後追いで移行する
+- 高頻度入力は Qt signal に残し、状態変化の fan-out だけ EventBus に載せる
 
 ---
 

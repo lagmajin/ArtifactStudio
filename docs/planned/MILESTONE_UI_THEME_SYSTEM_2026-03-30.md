@@ -77,6 +77,8 @@
 - 既に一部 widget は独自描画に寄っている
 - ただし theme の意味定義はまだ弱く、`QSS` と個別実装が混在している
 - まずは背景色を起点に、共通 surface と accent の設計を固めるのが最短
+- `applyDCCTheme()` が現在テーマを保持し、Dock / TimeCode / Render Center はその accent / text / surface を参照し始めている
+- `StatusBar` / `Undo History` / `Project Health Dashboard` / `Performance Profiler` / `Secondary Preview` も palette ベースに寄せ始めている
 
 ## Validation Checklist
 
