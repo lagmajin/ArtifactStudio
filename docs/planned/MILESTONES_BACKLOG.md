@@ -129,6 +129,16 @@
 - search / filter / export / stats / event log integration / theme ownership をまとめる
 - 詳細は `docs/planned/MILESTONE_CONSOLE_WIDGET_ENHANCEMENT_2026-03-31.md`
 
+### M-UI-18 Property Widget Update / Cleanup / Theme Ownership
+- `ArtifactPropertyWidget` / `PropertyEditor` / `Inspector` の責務を整理し、property UI の見た目と構造を揃える
+- `QSS` 依存を減らし、theme / palette / widget ownership を property pane に反映する
+- 隧ｳ邏ｰ縺ｯ `docs/planned/MILESTONE_PROPERTY_WIDGET_UPDATE_CLEANUP_THEME_2026-04-02.md`
+
+### M-UI-19 QSS Exorcism / Property Theme Ownership
+- property / inspector / dock / queue 周辺の `QSS` を段階的に追放し、theme token と owner-draw に寄せる
+- `M-UI-14` と `M-UI-18` をつなぐ実行 milestone
+- 隧ｳ邏ｰ縺ｯ `docs/planned/MILESTONE_QSS_EXORCISM_PROPERTY_THEME_2026-04-02.md`
+
 ### Composition Editor Suggested Order
 - `M-UI-7 Composition Editor Mask / Roto Editing`
 - `M-UI-15 Inline Interaction Surfaces`
@@ -607,6 +617,11 @@
 - 永続 preview cache / manifest / eviction / diagnostics
 - 詳細は `docs/planned/MILESTONE_DISK_CACHE_SYSTEM_2026-03-26.md`
 
+### M-RP-3 GPU-Driven MDI Render
+- GPU 側で visibility / compaction / batch formation を行い、MDI submission に繋げる
+- 既存の CPU render queue を壊さず、fallback 付きで段階導入する
+- 隧ｳ邏ｰ縺ｯ `docs/planned/MILESTONE_GPU_DRIVEN_MDI_RENDER_2026-04-02.md`
+
 ## Matte
 
 ### M-LYR-1 Matte Stack / Child Matte Nodes
@@ -704,6 +719,21 @@
 - `image_0001.png` 〜 `image_0100.png` のような連番を 1 アセットとして自動グルーピングする
 - 正規表現ベースで basename / frame / padding を検出し、展開可能な論理 item として扱う
 - 詳細は `docs/planned/MILESTONE_ASSET_BROWSER_SEQUENCE_GROUPING_2026-03-31.md`
+
+### M-CP-2 Camera Overlay Experiment ⭐ **新規追加**
+- Composition Editor 縺ｧ camera frustum / frame overlay 繧帝∈謚槭〒縺阪ｋ experimental mode
+- 2D composition view 縺ｯ縺ｿ縺ｿ螳夂ｾ｡縲・3D editing 縺ｯ縺ゅｊ縺ｪ縺・
+- **隧ｳ邏ｰ:** `docs/planned/MILESTONE_CAMERA_OVERLAY_EXPERIMENT_2026-04-02.md`
+
+### M-UI-11a UI Theme System Rollout
+- `UI Theme System` 繧貞ｫｸ蜿ｳ縺ｮ螳御ｺ・task 繧定ｵｷ繧後ｋ
+- `ArtifactInspectorWidget` / `ArtifactPropertyWidget` / `Render Queue` / `Dock` 縺ｮ謨ｴ逅・priorities 繧偵ｃ縺九■繧阪ｋ
+- 隧ｳ邏ｰ縺ｯ `docs/planned/MILESTONE_UI_THEME_SYSTEM_ROLLOUT_2026-04-02.md`
+
+### M-PY-2 Script Menu / menu.py Loader
+- `Script` menu を固定入口として保ちつつ、`scripts/menu.py` から command を追加できるようにする
+- Nuke 風の menu script 拡張を将来の安全な入口として準備する
+- 詳細: `docs/planned/MILESTONE_SCRIPT_MENU_PY_LOADER_2026-04-02.md`
 
 ## Good Small Tasks
 
