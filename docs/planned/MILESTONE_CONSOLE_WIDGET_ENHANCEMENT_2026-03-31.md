@@ -1,9 +1,12 @@
 # マイルストーン: デバッグコンソールウィジェットの拡充
 > 2026-03-31 作成
+> 2026-04-01 更新: theme/palette 連携とログ可読性改善を反映
 
 ## 現状サマリー
 
 `ArtifactConsoleWidget` はログ表示、フィルタリング、検索、保存機能を備えているが、デバッグ作業の効率化のためにさらなる拡充が必要。
+現在は `QSS` 依存を減らし、theme/palette ベースの見た目へ寄せる途中段階にある。
+2026-04-01 時点では、ログ総数の可視化とフィルタ状態サマリの追加を進めている。
 
 ## Scope
 
@@ -12,9 +15,21 @@
 
 ## Goals
 
-デバッグコンソールを開発・運用時の強力なツールに進化させる。
+- デバッグコンソールを開発・運用時の強力なツールに進化させる
+- 大量ログでも流れを見失いにくくする
+- 表示状態と検索状態を次回起動へ復元する
+- `Clear on Play` / `Follow` / `Collapse` などの主要トグルを次回起動へ復元する
+- ログの原因、重要度、関連対象を追いやすくする
+- QSS 依存を減らして theme tokens へ寄せる
 
-## Phase 1: 高度なフィルタリングと検索
+## Phase 1: Theme / Surface Consolidation
+
+- 背景、surface、border、selection、accent を theme から供給する
+- toolbar / search / list / detail の palette を揃える
+- `QSS` を例外に寄せる
+- フォントサイズや状態ラベルを共通化する
+
+## Phase 2: 高度なフィルタリングと検索
 
 - 目的: ログの絞り込みを強化し、大量ログの中から必要な情報を素早く見つける
 
@@ -29,7 +44,7 @@
   - 大量ログ（10000件以上）でも即時検索可能
   - 複雑な条件でログを効果的に絞り込める
 
-## Phase 2: ログ分析と統計
+## Phase 3: ログ分析と統計
 
 - 目的: ログから有用な情報を抽出・可視化
 
@@ -43,7 +58,7 @@
   - ログから問題パターンを自動検出可能
   - 統計情報がリアルタイム更新
 
-## Phase 3: 拡張エクスポート機能
+## Phase 4: 拡張エクスポート機能
 
 - 目的: ログデータの外部活用を容易に
 
@@ -57,7 +72,7 @@
   - 様々な形式でログをエクスポート可能
   - エクスポートがバックグラウンドで実行
 
-## Phase 4: インタラクティブ機能
+## Phase 5: インタラクティブ機能
 
 - 目的: コンソールを双方向ツールに
 
@@ -71,7 +86,7 @@
   - コンソールから直接デバッグ操作可能
   - ログとコードの連携がスムーズ
 
-## Phase 5: パフォーマンスとUX改善
+## Phase 6: パフォーマンスとUX改善
 
 - 目的: 大規模ログでも快適に使用可能に
 
@@ -85,20 +100,33 @@
   - 100万件ログでも操作が快適
   - メモリ使用量を最適化
 
-## Recommended Order
+## Phase 7: Diagnostics Workflow
 
-1. Phase 1: 高度なフィルタリングと検索
-2. Phase 3: 拡張エクスポート機能
-3. Phase 5: パフォーマンスとUX改善
-4. Phase 2: ログ分析と統計
-5. Phase 4: インタラクティブ機能
+- 目的: コンソールを単体表示ではなく、診断導線のハブとして扱う
+
+- 作業項目:
+- `RenderQueueLogEvent` や background task completion を購読して横断表示する
+- エラー発生時に関連 project / composition / layer を辿れるようにする
+- 重要ログを status bar / project manager と共有する
+- 「ログから原因へ」移動しやすいコンテキストメニューを整備する
+  - 同一 `context` へその場で絞り込める操作を含む
+
+## Suggested Order
+
+1. Phase 1: Theme / Surface Consolidation
+2. Phase 2: 高度なフィルタリングと検索
+3. Phase 6: パフォーマンスとUX改善
+4. Phase 4: 拡張エクスポート機能
+5. Phase 7: Diagnostics Workflow
+6. Phase 3: ログ分析と統計
+7. Phase 5: インタラクティブ機能
 
 ## Validation Checklist
 
+- [ ] theme/palette ベースで背景と文字色が揃う
 - [ ] 正規表現でログ検索可能
 - [ ] 時間範囲フィルタリング機能
 - [ ] ログ統計がリアルタイム表示
 - [ ] JSON/CSVエクスポート可能
 - [ ] 100万件ログで快適動作
 - [ ] コマンド実行インターフェース実装</content>
-<parameter name="filePath">docs/planned/MILESTONE_CONSOLE_WIDGET_ENHANCEMENT_2026-03-31.md

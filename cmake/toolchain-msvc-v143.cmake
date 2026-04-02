@@ -1,4 +1,6 @@
 set(VCPKG_TARGET_TRIPLET "x64-windows" CACHE STRING "vcpkg triplet")
+set(_artifact_vcpkg_installed_dir "${CMAKE_BINARY_DIR}/vcpkg_installed_v144")
+set(VCPKG_INSTALLED_DIR "${_artifact_vcpkg_installed_dir}" CACHE STRING "vcpkg installed dir" FORCE)
 
 # Find cl.exe for MSVC v143
 set(_v143_found_cl "")

@@ -79,6 +79,7 @@
 - まずは背景色を起点に、共通 surface と accent の設計を固めるのが最短
 - `applyDCCTheme()` が現在テーマを保持し、Dock / TimeCode / Render Center はその accent / text / surface を参照し始めている
 - `StatusBar` / `Undo History` / `Project Health Dashboard` / `Performance Profiler` / `Secondary Preview` も palette ベースに寄せ始めている
+- `ProjectManager` / `Inspector` / `Console` の直書き `QSS` をさらに削減し、検索欄・ログ一覧・プレビュー・ステータス表示を palette / paintEvent へ寄せ始めている
 
 ## Validation Checklist
 
