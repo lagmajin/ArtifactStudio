@@ -1,4 +1,4 @@
-# Milestones Backlog
+﻿# Milestones Backlog
 
 空いている時間に進めやすいよう、分野別に小さめのマイルストーンへ分割したバックログ。
 
@@ -288,6 +288,11 @@
 ### M-TL-7 Timeline Search / Keyframe Integration
 - search 結果から keyframe へ素早く飛べるようにし、header / status / highlight を統合する
 - 詳細は `docs/planned/MILESTONE_TIMELINE_SEARCH_KEYFRAME_INTEGRATION_2026-03-28.md`
+
+### M-TL-10 Timeline Flat Keyframe View / U-Key Style Filter
+- AEの `U` キーのように、キーフレームのあるプロパティだけをフラットに抽出して表示するモードを用意し、階層の深さとノイズを吸収する
+- `All Properties` / `Keyframes Only` の切り替えを用意し、既定は `Keyframes Only` にする
+- 詳細は `docs/planned/MILESTONE_TIMELINE_FLAT_KEYFRAME_VIEW_2026-04-03.md`
 
 ### M-LG-1 Layer Group System
 - レイヤーグループの保存 / 表示 / 親子 / 可視性 / 操作単位を整理する
@@ -751,3 +756,4 @@
 - ~~`M-UI-13 Keyboard Overlay`~~ ✅ 完了
 - ~~`M-QA-4 Project File Validation / Spell Check`~~ ✅ Phase 1 完了
 - ~~`M-SHAPE-1 Shape Layers`~~ ✅ Phase 1+3 完了
+
