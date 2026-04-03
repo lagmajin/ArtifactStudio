@@ -200,6 +200,11 @@
 - 詳細は `docs/planned/MILESTONE_CONTENTS_VIEWER_EXPANSION_2026-03-27.md`
 - 追加の review / compare / annotation 方向は `docs/planned/MILESTONE_REVIEW_COMPARE_ANNOTATION_2026-03-28.md`
 
+### M-UI-20 Contents Viewer DCC Surface Layout / A-B / Wipe
+- viewer を 4 段構成の DCC surface として整理し、title / viewer badge / transport / channel-meta を統一する
+- recent source dropdown / multi-viewer assignment / wipe compare を 1 つの導線として扱う
+- 詳細は `docs/planned/MILESTONE_CONTENTS_VIEWER_DCC_SURFACE_LAYOUT_2026-04-03.md`
+
 ### M-UI-9 3D Model Review in Contents Viewer
 - OBJ / FBX を Contents Viewer で確認し、model inspection の導線を固める
 - 詳細は `docs/planned/MILESTONE_3D_MODEL_REVIEW_IN_CONTENTS_VIEWER_2026-03-28.md`
@@ -355,6 +360,12 @@
 ### M-RD-7 Unified Audio / Video Render Output
 - video render の後段で audio を mux し、音声付き出力を render queue から扱えるようにする
 - 詳細は `docs/planned/MILESTONE_UNIFIED_AUDIO_VIDEO_RENDER_OUTPUT_2026-03-28.md`
+
+### M-RD-12 FFmpeg GPU Encode Backend ⭐ **新規追加**
+- FFmpeg の hardware-accelerated encode backend を追加し、Render Queue から backend 選択できるようにする
+- **機能:** NVENC/QSV/AMF/VAAPI 対応、自動検出、手動選択、品質/性能プリセット
+- **見積:** 30-40h
+- **詳細:** `docs/planned/MILESTONE_FFMPEG_GPU_ENCODE_BACKEND_2026-04-03.md`
 
 ### M-RD-8 Integrated Rendering Engine
 - video / audio を同一 job として扱う render 本体の統合骨格を作る
