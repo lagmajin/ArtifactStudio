@@ -85,6 +85,24 @@
 - **AE差別化:** インクリメンタルサーチ、メタデータ（解像度/fps/デュレーション）でフィルタ可能
 - 詳細は `docs/planned/MILESTONE_SEARCH_COLLECTIONS_SMART_ORGANIZATION_2026-03-28.md`
 
+### M-UI-21 Asset Browser Navigator / Search / Presentation Surface
+- Asset Browser を Unity 風のナビゲータとして整理し、search / breadcrumb / favorites / grid-list / thumbnail slider / workflow bridge を段階導入する
+- 既存の search / thumbnail / unused / DnD を土台にして、探索と presentation を揃える
+- 詳細は `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_SEARCH_PRESENTATION_2026-04-03.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_PHASE1_EXECUTION_2026-04-03.md`
+- Phase 2 実行メモ: `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_PHASE2_EXECUTION_2026-04-03.md`
+- Phase 3 実行メモ: `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_PHASE3_EXECUTION_2026-04-03.md`
+- Phase 4 実行メモ: `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_PHASE4_EXECUTION_2026-04-03.md`
+
+### M-TL-10 Timeline Feature Implementation / Interaction Surface
+- Timeline の layer / clip / keyframe / search / visual language / owner-draw を一つの実行計画として束ねる
+- 既存の timeline milestone を置き換えず、順序と責務をまとめる
+- 詳細は `docs/planned/MILESTONE_TIMELINE_FEATURE_IMPLEMENTATION_2026-04-03.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_TIMELINE_FEATURE_PHASE1_EXECUTION_2026-04-03.md`
+- Phase 2 実行メモ: `docs/planned/MILESTONE_TIMELINE_FEATURE_PHASE2_EXECUTION_2026-04-03.md`
+- Phase 3 実行メモ: `docs/planned/MILESTONE_TIMELINE_FEATURE_PHASE3_EXECUTION_2026-04-03.md`
+- Phase 4 実行メモ: `docs/planned/MILESTONE_TIMELINE_FEATURE_PHASE4_EXECUTION_2026-04-03.md`
+
 ### M-FE-9 Motion Tracking Workflow
 - tracker editor / overlay / stabilize / bake を制作導線としてまとめる
 - 詳細は `docs/planned/MILESTONE_MOTION_TRACKING_SYSTEM_2026-03-25.md`
@@ -132,6 +150,11 @@
 - search / filter / export / stats / event log integration / theme ownership をまとめる
 - 詳細は `docs/planned/MILESTONE_CONSOLE_WIDGET_ENHANCEMENT_2026-03-31.md`
 
+### M-RQ-1 Render Queue GPU Backend Selection / Fallback
+- Render Queue から GPU backend を選べるようにし、CPU backend と fallback を並行運用できる状態にする
+- backend contract / GPU encode path / UI diagnostics を段階導入する
+- 詳細は `docs/planned/MILESTONE_RENDER_QUEUE_GPU_BACKEND_2026-04-03.md`
+
 ### M-UI-18 Property Widget Update / Cleanup / Theme Ownership
 - `ArtifactPropertyWidget` / `PropertyEditor` / `Inspector` の責務を整理し、property UI の見た目と構造を揃える
 - `QSS` 依存を減らし、theme / palette / widget ownership を property pane に反映する
@@ -141,6 +164,18 @@
 - property / inspector / dock / queue 周辺の `QSS` を段階的に追放し、theme token と owner-draw に寄せる
 - `M-UI-14` と `M-UI-18` をつなぐ実行 milestone
 - 隧ｳ邏ｰ縺ｯ `docs/planned/MILESTONE_QSS_EXORCISM_PROPERTY_THEME_2026-04-02.md`
+
+### M-UI-23 Property Widget Row Alignment / Inspector Layout
+- `ArtifactPropertyWidget` の行揃え、keyframe / reset / badge / value column の位置を揃え、インスペクタらしい整列レイアウトへ段階移行する
+- `PropertyEditor` row widget に layout 責務を寄せ、見た目の整いを構造の統一へつなげる
+- 詳細は `docs/planned/MILESTONE_PROPERTY_WIDGET_ROW_ALIGNMENT_INSPECTOR_LAYOUT_2026-04-03.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_PROPERTY_WIDGET_ROW_ALIGNMENT_PHASE1_EXECUTION_2026-04-03.md`
+- Phase 2 実行メモ: `docs/planned/MILESTONE_PROPERTY_WIDGET_ROW_ALIGNMENT_PHASE2_EXECUTION_2026-04-03.md`
+
+### M-UI-22 QSS Decommission / CommonStyle Path to QCommonStyle
+- `QSS` を新規追加しない方針へ切り替え、theme / palette / common widget / owner-draw を経由して最終的に `QCommonStyle` ベースへ寄せる
+- 既存の `QSS Reduction` と `Theme System Rollout` の実行計画をまとめ直す
+- 詳細は `docs/planned/MILESTONE_QSS_DECOMMISSION_COMMONSTYLE_2026-04-03.md`
 
 ### Composition Editor Suggested Order
 - `M-UI-7 Composition Editor Mask / Roto Editing`
@@ -198,7 +233,7 @@
 - 詳細は `docs/planned/MILESTONE_MENU_APP_INTEGRATION_2026-03-27.md`
 
 ### M-UI-5 Contents Viewer Expansion
-- image / video / 3D model / source / final / compare を横断する viewer の拡充
+- image / video / audio / 3D model / source / final / compare を横断する viewer の拡充
 - ✅ テキストレイヤーインライン編集 (実装済み)
 - 詳細は `docs/planned/MILESTONE_CONTENTS_VIEWER_EXPANSION_2026-03-27.md`
 - 追加の review / compare / annotation 方向は `docs/planned/MILESTONE_REVIEW_COMPARE_ANNOTATION_2026-03-28.md`

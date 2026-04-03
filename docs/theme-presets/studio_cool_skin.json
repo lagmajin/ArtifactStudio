@@ -1,0 +1,12 @@
+{
+  "base": "Studio",
+  "accentColor": "#6EA8D8",
+  "textColor": "#D7DDE3",
+  "backgroundColor": "#1E2127",
+  "secondaryBackgroundColor": "#2A2F36",
+  "selectionColor": "#314D66",
+  "borderColor": "#404754",
+  "buttonColor": "#2B3038",
+  "buttonHoverColor": "#353B44",
+  "buttonPressedColor": "#20242A"
+}
