@@ -294,6 +294,10 @@
 - `All Properties` / `Keyframes Only` の切り替えを用意し、既定は `Keyframes Only` にする
 - 詳細は `docs/planned/MILESTONE_TIMELINE_FLAT_KEYFRAME_VIEW_2026-04-03.md`
 
+### M-TL-11 Timeline Operation Feel Refinement / AE-Style Editing Flow
+- ラバーバンド選択、Shift / Ctrl 修飾、スクロール / ズームの境界、原点復帰、inline property surface、複数レイヤー keyframe batch edit をまとめて整理する
+- 詳細は `docs/planned/MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03.md`
+
 ### M-LG-1 Layer Group System
 - レイヤーグループの保存 / 表示 / 親子 / 可視性 / 操作単位を整理する
 - 詳細は `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_2026-03-27.md`
