@@ -73,9 +73,12 @@
 - **見積:** 40-50h
 - **詳細:** `docs/planned/MILESTONE_PYTHON_API_SCRIPTING_2026-03-30.md`
 
-### M-FE-7 Review / Compare / Annotation
-- compare view / side-by-side review / note / bookmark
-- 詳細は `docs/planned/MILESTONE_FEATURE_EXPANSION_2026-03-25.md`
+### M-FE-7 Review Workspace: Frame-Accurate Compare & Annotation ⭐ **再定義**
+- 正確な再生 (frame-accurate, LUT/OCIO, タイムコード固定)
+- A/B比較 (swap/wipe/diff), ショット管理 (versions), 注釈 (vector annotation), JKLナビ
+- **目標:** レビュー作業専用の独立 workspace を構築し、確認精度を向上させる
+- **見積:** 40-50h
+- **詳細:** `docs/planned/MILESTONE_REVIEW_WORKSPACE_2026-04-03.md`
 
 ### M-FE-8 Search / Collections / Smart Organization
 - global search / smart bin / tag / dependency / missing / duplicate detection
@@ -199,6 +202,11 @@
 - ✅ テキストレイヤーインライン編集 (実装済み)
 - 詳細は `docs/planned/MILESTONE_CONTENTS_VIEWER_EXPANSION_2026-03-27.md`
 - 追加の review / compare / annotation 方向は `docs/planned/MILESTONE_REVIEW_COMPARE_ANNOTATION_2026-03-28.md`
+
+### M-UI-20 Contents Viewer DCC Surface Layout / A-B / Wipe
+- viewer を 4 段構成の DCC surface として整理し、title / viewer badge / transport / channel-meta を統一する
+- recent source dropdown / multi-viewer assignment / wipe compare を 1 つの導線として扱う
+- 詳細は `docs/planned/MILESTONE_CONTENTS_VIEWER_DCC_SURFACE_LAYOUT_2026-04-03.md`
 
 ### M-UI-9 3D Model Review in Contents Viewer
 - OBJ / FBX を Contents Viewer で確認し、model inspection の導線を固める
@@ -346,6 +354,12 @@
 ### M-RD-7 Unified Audio / Video Render Output
 - video render の後段で audio を mux し、音声付き出力を render queue から扱えるようにする
 - 詳細は `docs/planned/MILESTONE_UNIFIED_AUDIO_VIDEO_RENDER_OUTPUT_2026-03-28.md`
+
+### M-RD-12 FFmpeg GPU Encode Backend ⭐ **新規追加**
+- FFmpeg の hardware-accelerated encode backend を追加し、Render Queue から backend 選択できるようにする
+- **機能:** NVENC/QSV/AMF/VAAPI 対応、自動検出、手動選択、品質/性能プリセット
+- **見積:** 30-40h
+- **詳細:** `docs/planned/MILESTONE_FFMPEG_GPU_ENCODE_BACKEND_2026-04-03.md`
 
 ### M-RD-8 Integrated Rendering Engine
 - video / audio を同一 job として扱う render 本体の統合骨格を作る
@@ -518,6 +532,10 @@
 - selection center / quick actions / open-reveal-rename-delete-relink の整理
 - **AE差別化:** 最近使ったアセット履歴（プロジェクト跨ぎ）、未使用アセット検出ハイライト、賢いD&D（自動レイヤー生成・複数整列オプション）、構造化クエリ検索（type:comp duration:>30s used:false などのメタデータ検索）
 - 詳細は `docs/planned/MILESTONE_PROJECT_VIEW_INTERACTION_POLISH_2026-03-28.md`
+
+### M-PV-5 Project View Search / Filter / Presentation
+- incremental search / multi filter pills / unused emphasis / list-grid presentation / status bar を Project View surface にまとめる
+- 詳細は `docs/planned/MILESTONE_PROJECT_VIEW_SEARCH_FILTER_PRESENTATION_2026-04-03.md`
 
 ### M-AS-1 Asset Import Flow
 - 読み込み
