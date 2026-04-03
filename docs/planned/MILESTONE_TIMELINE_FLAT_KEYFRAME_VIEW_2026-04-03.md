@@ -9,7 +9,8 @@
 
 - Timeline header now exposes `All Properties` / `Keyframes Only`.
 - `ArtifactLayerPanelWidget` now defaults to `Keyframes Only`, flattens visible property labels to keyframed properties, and prefers humanized/display labels.
-- Phase 1 and Phase 2 are started in code; Phase 3+ remain for deeper expand/collapse behavior and broader property coverage.
+- Phase 1 and Phase 2 are started in code; Phase 3 has started with selected-layer path expansion so the active branch stays visible while editing.
+- Phase 4 still remains for broader property coverage and more AE-like lane granularity.
 ## Goal
 
 - キーフレームが存在する property だけを timeline にフラット表示する
