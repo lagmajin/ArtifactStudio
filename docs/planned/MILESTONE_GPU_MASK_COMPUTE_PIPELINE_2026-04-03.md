@@ -1,6 +1,6 @@
 # Milestone: GPU Mask Cutout Compute Pipeline (2026-04-03)
 
-**Status:** Draft
+**Status:** In Progress
 **Goal:** レイヤーマスクの適用を compute shader 経由に寄せ、`cv::Mat` 前提の CPU 切り抜きを段階的に減らす。
 
 ---
