@@ -334,6 +334,11 @@
 - flat RGBA compositing と分離し、deep 用 buffer と IO を別系統で持つ
 - 詳細は `docs/planned/MILESTONE_DEEP_COMPOSITING_2026-03-31.md`
 
+### M-RD-11 GPU Mask Cutout Compute Pipeline
+- layer mask の cutout を compute shader 経由に寄せ、CPU の `cv::Mat` 切り抜きを段階的に減らす
+- CPU fallback を残しつつ、mask texture を GPU 側の中間資源として扱えるようにする
+- 詳細は `docs/planned/MILESTONE_GPU_MASK_COMPUTE_PIPELINE_2026-04-03.md`
+
 ### M-RD-6 FFmpeg GPU Decode Backend
 - CPU decode とは別に FFmpeg hwaccel backend を持ち、video layer / playback / preview から選べるようにする
 - 詳細は `docs/planned/MILESTONE_FFMPEG_GPU_DECODE_BACKEND_2026-03-28.md`
