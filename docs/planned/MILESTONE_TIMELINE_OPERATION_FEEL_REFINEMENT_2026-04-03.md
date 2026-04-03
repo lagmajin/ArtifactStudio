@@ -129,3 +129,13 @@
 - この milestone は `M-TL-5 Timeline Keyframe Editing` と重なるが、こちらは「操作感」と「行き来のしやすさ」に寄せる
 - `M-TL-10 Timeline Flat Keyframe View / U-Key Style Filter` と組み合わせると、編集対象の見通しがかなり上がる
 - `M-TL-4` / `M-TL-8` の owner-draw / scene elimination が進んでいる前提で、入力周りの polish を積みやすい
+
+## Progress
+
+- Phase 1 has started in code:
+  - keyframe marker selection now supports click modifiers and rectangle selection
+  - selected keyframes are highlighted and can batch-move when multiple selected markers are dragged together
+  - timeline clip selection now receives modifier state from the painter view
+- Remaining Phase 1 polish:
+  - rubber-band behavior for layer clips and keyframes can still be tuned
+  - selection clearing and additive semantics may need a final UX pass
