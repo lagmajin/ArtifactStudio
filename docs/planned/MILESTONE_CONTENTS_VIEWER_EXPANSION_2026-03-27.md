@@ -95,6 +95,7 @@
 - 2026-03-27: video 用の scrub slider を追加し、再生位置を確認・操作できるようにした
 - 2026-04-03: audio playback を Contents Viewer の対象として扱う追加方針を入れ、再生系の scope を拡張した
 - 2026-04-03: audio playback を `MediaPlaybackController` / FFmpeg backend で実際に動かす実装に着手した
+- 2026-04-04: audio file で live waveform preview surface を追加し、再生だけでなく確認面としての見え方を強めた
 - 2026-03-27: `Reset` 操作を追加し、image / video / 3D model の表示状態を各タイプごとに戻せるようにした
 - 2026-03-27: AppMain から `Contents Viewer` を dock として開けるようにし、Asset Browser の double-click で file を直接送れるようにした
 - 2026-03-27: Project View の double-click からも footage を `Contents Viewer` へ送れるようにし、project / asset / viewer の接続を強めた
@@ -188,6 +189,7 @@ Project / Asset から Contents Viewer へ自然に飛べるようにする。
 - 3D model camera state の記録
 - error diagnostics の文言整理
 - screenshot / export の補助導線
+- audio waveform / live preview の整理
 
 ### 完了条件
 

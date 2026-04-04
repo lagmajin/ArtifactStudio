@@ -234,6 +234,7 @@
 
 ### M-UI-5 Contents Viewer Expansion
 - image / video / audio / 3D model / source / final / compare を横断する viewer の拡充
+- audio playback と live waveform preview を同一 surface で確認できるようにする
 - ✅ テキストレイヤーインライン編集 (実装済み)
 - 詳細は `docs/planned/MILESTONE_CONTENTS_VIEWER_EXPANSION_2026-03-27.md`
 - 追加の review / compare / annotation 方向は `docs/planned/MILESTONE_REVIEW_COMPARE_ANNOTATION_2026-03-28.md`
