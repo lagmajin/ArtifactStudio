@@ -146,7 +146,7 @@
 - 詳細は `docs/planned/MILESTONE_UI_EVENT_BUS_ADOPTION_2026-04-01.md`
 
 ### M-UI-17 Console Widget Enhancement
-- `ArtifactConsoleWidget` をログ診断のハブとして強化する
+- `ArtifactDebugConsoleWidget` をログ診断のハブとして強化する
 - search / filter / export / stats / event log integration / theme ownership をまとめる
 - 詳細は `docs/planned/MILESTONE_CONSOLE_WIDGET_ENHANCEMENT_2026-03-31.md`
 
