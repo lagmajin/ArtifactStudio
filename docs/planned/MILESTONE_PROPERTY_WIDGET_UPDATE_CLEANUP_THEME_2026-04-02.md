@@ -151,3 +151,8 @@
 
 Property UI は動いているが、責務が散りやすい。  
 この milestone では、見た目の更新と同時に「どこが theme を所有するか」を明確にする。
+
+進捗:
+- `ArtifactPropertyWidget` の section / search / empty state を theme palette へ寄せた
+- `PropertyEditor` の row をカード風に再描画し、hover / focus / keyframe state を可視化した
+- まだ `copy-paste` / `legacy remnant` の整理は残っている

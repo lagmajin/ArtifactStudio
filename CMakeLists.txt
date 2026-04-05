@@ -273,7 +273,17 @@ if(ARTIFACT_FRONTEND_MSVC)
 endif()
 
 if(ARTIFACT_COMPILER_MSVC_CL)
-    add_compile_options(/Zf /Zc:__cplusplus /utf-8 /openmp /MP)
+    add_compile_options(
+        $<$<COMPILE_LANGUAGE:C>:/Zf>
+        $<$<COMPILE_LANGUAGE:CXX>:/Zf>
+        $<$<COMPILE_LANGUAGE:C>:/Zc:__cplusplus>
+        $<$<COMPILE_LANGUAGE:CXX>:/Zc:__cplusplus>
+        $<$<COMPILE_LANGUAGE:C>:/utf-8>
+        $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
+        $<$<COMPILE_LANGUAGE:C>:/openmp>
+        $<$<COMPILE_LANGUAGE:CXX>:/openmp>
+        $<$<COMPILE_LANGUAGE:C>:/MP>
+        $<$<COMPILE_LANGUAGE:CXX>:/MP>)
     add_definitions(-D_GUARDOVERFLOW_CRT_ALLOCATORS=1)
     # Override /std:c++23 with /std:c++latest to enable C++26 draft features
     set(CMAKE_CXX23_STANDARD_COMPILE_OPTION   "/std:c++latest" CACHE STRING "" FORCE)

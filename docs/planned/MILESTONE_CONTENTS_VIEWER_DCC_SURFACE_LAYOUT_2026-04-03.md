@@ -195,6 +195,16 @@ Nuke っぽい複数 viewer 運用を本格化する。
 - 1 画面で比較できる
 - source 割り当ての導線が短い
 
+### 進捗メモ
+
+- 2026-04-05: compare view に `A / B` バッジ、`Swap`、`Tab` 切り替え、wipe slider を実装した
+- 2026-04-05: `CompareWipePercent` / `CompareSidesSwapped` を `QSettings` に永続化し、比較状態を再起動後も保持するようにした
+- 2026-04-05: recent source dropdown をタイトルバーへ置き、source 履歴の再選択導線を維持している
+- 2026-04-05: viewer assignment combo と compare A/B assign ボタンを追加し、compare source routing を UI から直接触れるようにした
+- 2026-04-05: viewer badge が focus と slot を示すようになり、割り当て状態が見える化された
+- 2026-04-05: viewer badge / surface meta の文言を Project View / Timeline の selection summary と同じ「状態チップ」系の読み方に寄せている
+- 2026-04-05: Phase 5 は現行の主戦場で、次の焦点は viewer assignment / focus routing / compare source routing の整理
+
 ---
 
 ## 推奨順

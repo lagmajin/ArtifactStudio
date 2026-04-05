@@ -13,6 +13,8 @@
 
 - `ArtifactProjectManagerWidget`
   左側の Project パネル。コンポジションやアセットの一覧管理。
+- `ArtifactAssetBrowser`
+  左側の Asset Browser。ファイル探索、サムネイル、favorites、recent sources、Project View への選択同期を担当する。
 - `ArtifactInspectorWidget`
   右側の Inspector パネル。現在のコンポジション / レイヤー / エフェクト情報を編集する。
 - `ArtifactCompositionAudioMixerWidget`
@@ -20,8 +22,27 @@
 
 ## Composition Viewer
 
+- `ArtifactContentsViewer`
+  画像 / 動画 / 音声 / 3D model / source-final-compare を横断する閲覧 surface。比較・履歴・inspection はここで扱うが、composition 編集本体ではない。
 - `ArtifactCompositionEditor`
   コンポジションビューア本体。再生、停止、ズーム、フィットなどを持つ。
+
+## Responsibility Boundaries
+
+- `ArtifactContentsViewer`
+  内容閲覧と比較の担当。composition editor の代替ではない。
+- `ArtifactAssetBrowser`
+  ファイル探索とプロジェクト素材の参照窓口。Project View との selection sync までは担当するが、composition 編集責務は持たない。
+- `ArtifactCompositionEditor`
+  composition 編集と viewport 操作の担当。Contents Viewer の比較導線とは別責務。
+- `ArtifactTimelineWidget`
+  タイムライン全体の orchestration 担当。左ペインの `ArtifactLayerPanelWidget` と右ペインの track 表示を束ねる。
+- `ArtifactLayerPanelWidget`
+  タイムライン左ペインの担当。レイヤー列と行操作に限定し、composition/preview の責務は持たない。
+- `ArtifactPropertyWidget` / `PropertyEditor`
+  property row と編集 UI の担当。Inspector は summary / selection / effect stack の窓口で、row chrome はここへ寄せる。
+- `ArtifactRenderLayerWidgetv2`
+  layer editor view wrapper。内部の実描画と widget shell を分けて扱う。
 
 ## Timeline
 

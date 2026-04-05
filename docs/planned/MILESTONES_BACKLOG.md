@@ -2,6 +2,20 @@
 
 空いている時間に進めやすいよう、分野別に小さめのマイルストーンへ分割したバックログ。
 
+## Widget Ownership Guardrails
+
+このバックログで milestone を触るときは、まず次の責務境界を確認する。
+
+- `ArtifactContentsViewer`: 内容閲覧 / compare / recent sources / mode routing
+- `ArtifactAssetBrowser`: ファイル探索 / サムネイル / favorites / project bridge
+- `ArtifactCompositionEditor`: composition 編集 / viewport 操作 / playback
+- `ArtifactTimelineWidget`: タイムライン全体の orchestration
+- `ArtifactLayerPanelWidget`: タイムライン左ペインの行操作
+- `ArtifactPropertyWidget` / `PropertyEditor`: property row の編集
+- `ArtifactInspectorWidget`: summary / selection / effect stack の窓口
+
+境界が曖昧な場合は、`docs/WIDGET_MAP.md` を先に更新してから milestone を触る。
+
 ## 📋 最近の実装完了状況 (2026-03-29 更新)
 
 | カテゴリ | 完了項目 | ステータス |
@@ -158,6 +172,7 @@
 ### M-UI-18 Property Widget Update / Cleanup / Theme Ownership
 - `ArtifactPropertyWidget` / `PropertyEditor` / `Inspector` の責務を整理し、property UI の見た目と構造を揃える
 - `QSS` 依存を減らし、theme / palette / widget ownership を property pane に反映する
+- 進捗: section / search / row chrome を palette ベースへ移行中
 - 隧ｳ邏ｰ縺ｯ `docs/planned/MILESTONE_PROPERTY_WIDGET_UPDATE_CLEANUP_THEME_2026-04-02.md`
 
 ### M-UI-19 QSS Exorcism / Property Theme Ownership
@@ -168,6 +183,7 @@
 ### M-UI-23 Property Widget Row Alignment / Inspector Layout
 - `ArtifactPropertyWidget` の行揃え、keyframe / reset / badge / value column の位置を揃え、インスペクタらしい整列レイアウトへ段階移行する
 - `PropertyEditor` row widget に layout 責務を寄せ、見た目の整いを構造の統一へつなげる
+- 進捗: row bg / hover / keyframe chrome を owner-draw 化した
 - 詳細は `docs/planned/MILESTONE_PROPERTY_WIDGET_ROW_ALIGNMENT_INSPECTOR_LAYOUT_2026-04-03.md`
 - Phase 1 実行メモ: `docs/planned/MILESTONE_PROPERTY_WIDGET_ROW_ALIGNMENT_PHASE1_EXECUTION_2026-04-03.md`
 - Phase 2 実行メモ: `docs/planned/MILESTONE_PROPERTY_WIDGET_ROW_ALIGNMENT_PHASE2_EXECUTION_2026-04-03.md`
@@ -698,6 +714,8 @@
 - 独立ウィンドウで reactive event ルールを編集する
 - Target Tree は owner-draw、他は既存 Qt widget を使う
 - Target Tree / Event Rules / Inspector / Event Log を 1 画面にまとめる
+- ルールはフレーム末キュー前提で、`PropertyOverlay` と `ContactSubscription` を編集対象にする
+- `TimelineReaction` / `TriggerReaction` / `PhysicsReaction` の編集導線を整理する
 - 詳細は `docs/planned/MILESTONE_REACTIVE_EVENT_EDITOR_WINDOW_2026-03-29.md`
 
 ### M-APP ApplicationLayer completeness
