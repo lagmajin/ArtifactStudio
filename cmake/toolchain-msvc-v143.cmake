@@ -4,13 +4,18 @@ set(VCPKG_INSTALLED_DIR "${_artifact_vcpkg_installed_dir}" CACHE STRING "vcpkg i
 
 # Find cl.exe for MSVC v143
 set(_v143_found_cl "")
-foreach(_ed IN ITEMS Enterprise Professional Community Preview)
-    file(GLOB _v143_cands
-        "C:/Program Files/Microsoft Visual Studio/2022/${_ed}/VC/Tools/MSVC/14.*/bin/Hostx64/x64/cl.exe"
-        "C:/Program Files/Microsoft Visual Studio/2022/${_ed}/VC/Tools/MSVC/14.*/bin/HostX64/x64/cl.exe")
-    if(_v143_cands)
-        list(SORT _v143_cands ORDER DESCENDING)
-        list(GET _v143_cands 0 _v143_found_cl)
+foreach(_vs_major IN ITEMS 18 2022)
+    foreach(_ed IN ITEMS Insiders Community Enterprise Professional Preview)
+        file(GLOB _v143_cands
+            "C:/Program Files/Microsoft Visual Studio/${_vs_major}/${_ed}/VC/Tools/MSVC/14.*/bin/Hostx64/x64/cl.exe"
+            "C:/Program Files/Microsoft Visual Studio/${_vs_major}/${_ed}/VC/Tools/MSVC/14.*/bin/HostX64/x64/cl.exe")
+        if(_v143_cands)
+            list(SORT _v143_cands ORDER DESCENDING)
+            list(GET _v143_cands 0 _v143_found_cl)
+            break()
+        endif()
+    endforeach()
+    if(_v143_found_cl)
         break()
     endif()
 endforeach()

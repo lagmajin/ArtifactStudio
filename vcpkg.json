@@ -26,6 +26,11 @@
     "stb",
     "boost-iostreams",
     "entt",
-    "magic-enum"
+    "magic-enum",
+    {
+      "name": "onnxruntime",
+      "features": ["directml"]
+    },
+    "sentencepiece"
   ]
 }

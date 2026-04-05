@@ -97,6 +97,10 @@
 - 2026-04-03: audio playback を `MediaPlaybackController` / FFmpeg backend で実際に動かす実装に着手した
 - 2026-04-04: audio file で live waveform preview surface を追加し、再生だけでなく確認面としての見え方を強めた
 - 2026-04-05: compare mode の wipe / swap 状態を永続化し、A/B 比較を再訪時に維持できるようにした
+- 2026-04-05: viewer assignment の `Ctrl+1..4` と compare A/B の `Ctrl+Shift+A/B` を追加し、Phase 5 の routing を操作しやすくした
+- 2026-04-05: channel / meta surface を追加し、image の hover probe で RGBA / XY / hex を確認できるようにした
+- 2026-04-05: 3D viewer の zoom / yaw / pitch / camera position を surface meta へ反映し、inspection surface としての説明力を強めた
+- 2026-04-05: compare の A/B header をクリックで source に戻れるようにして、compare routing を短縮した
 - 2026-03-27: `Reset` 操作を追加し、image / video / 3D model の表示状態を各タイプごとに戻せるようにした
 - 2026-03-27: AppMain から `Contents Viewer` を dock として開けるようにし、Asset Browser の double-click で file を直接送れるようにした
 - 2026-03-27: Project View の double-click からも footage を `Contents Viewer` へ送れるようにし、project / asset / viewer の接続を強めた

@@ -118,6 +118,16 @@ widget は service の `signal` を直接多数つなぐのではなく、
 - `ArtifactRenderQueueManagerWidget`
   - queue state / history / log / background task 完了
 
+### 進行メモ
+
+- 2026-04-05: `frameChanged` / `playbackStateChanged` / `playback speed` / `looping` を `EventBus` 経由で Timeline と Playback Control に接続し始めた
+- 2026-04-05: `ProjectChanged` / `CurrentCompositionChanged` / `SelectionChanged` / `LayerSelectionChanged` を `CompositionEditor` で `EventBus` 受信に寄せ始めた
+- 2026-04-05: `previewQualityPresetChanged` を `EventBus` に載せ、`CompositionEditor` / `ViewMenu` / `CompositionRenderController` 側の signal 直結を減らし始めた
+- 2026-04-05: `LayerChangedEvent` を使って `CompositionRenderController` の layer 再接続を bus から復元する流れに寄せ始めた
+- 2026-04-05: `ArtifactInspectorWidget` の selection / composition 更新を service signal から bus 受信へ寄せ始めた
+- 2026-04-05: `AppMain` の project / composition / layer fan-out を bus 受信へ寄せ始めた
+- 2026-04-05: `MarkdownNoteEditor` / `WebBridge` / `RenderLayerWidgetV2` / `SoftwareRenderInspectors` / `AudioMixer` の残り direct connect を bus 受信へ寄せ始めた
+
 #### 第二候補
 
 - `ArtifactPlaybackControlWidget`

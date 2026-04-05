@@ -203,6 +203,11 @@ Nuke っぽい複数 viewer 運用を本格化する。
 - 2026-04-05: viewer assignment combo と compare A/B assign ボタンを追加し、compare source routing を UI から直接触れるようにした
 - 2026-04-05: viewer badge が focus と slot を示すようになり、割り当て状態が見える化された
 - 2026-04-05: viewer badge / surface meta の文言を Project View / Timeline の selection summary と同じ「状態チップ」系の読み方に寄せている
+- 2026-04-05: viewer assignment に `Ctrl+1..4`、compare A/B に `Ctrl+Shift+A/B` を追加し、Phase 5 の routing をキーボードでも触れるようにした
+- 2026-04-05: channel / meta surface を追加し、image では hover probe で RGBA / XY / hex を見られるようにした
+- 2026-04-05: 3D viewer の zoom / yaw / pitch / camera position を meta に出し、camera state が見えるようにした
+- 2026-04-05: compare の A/B header をクリックで各 source に戻れるようにして、routing をさらに短くした
+- 2026-04-05: compare mode の surface/meta に tooltip を付け、A/B 比較の操作意図が見えるようにした
 - 2026-04-05: Phase 5 は現行の主戦場で、次の焦点は viewer assignment / focus routing / compare source routing の整理
 
 ---
