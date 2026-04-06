@@ -812,6 +812,12 @@
 - Nuke 風の menu script 拡張を将来の安全な入口として準備する
 - 詳細: `docs/planned/MILESTONE_SCRIPT_MENU_PY_LOADER_2026-04-02.md`
 
+### M-PY-3 ExtendScript-Style Script Runtime
+- `app / project / selection` を中心にした、アプリ内自動化用の script runtime を作る
+- AE ExtendScript 風の操作感で、automation / batch / macro / console 実行を扱えるようにする
+- 詳細: `docs/planned/MILESTONE_EXTENDSCRIPT_STYLE_SCRIPT_RUNTIME_2026-04-06.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_EXTENDSCRIPT_STYLE_SCRIPT_RUNTIME_PHASE1_EXECUTION_2026-04-06.md`
+
 ## Good Small Tasks
 
 - `M-AR-2 import std Rollout`
@@ -823,3 +829,10 @@
 - ~~`M-UI-13 Keyboard Overlay`~~ ✅ 完了
 - ~~`M-QA-4 Project File Validation / Spell Check`~~ ✅ Phase 1 完了
 - ~~`M-SHAPE-1 Shape Layers`~~ ✅ Phase 1+3 完了
+
+## Terminal / Shell
+
+### M-UI-24 Terminal Shell / Command Surface
+- debug console とは別の、power user 向けの command terminal surface を用意する
+- `PowerShellWidget` を使って command / history / working dir / exit code を扱う
+- 詳細は `docs/planned/MILESTONE_TERMINAL_SHELL_2026-04-06.md`
