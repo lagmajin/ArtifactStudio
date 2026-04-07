@@ -2,7 +2,7 @@
 
 artifact_add_test(ArtifactCoreTest
     SOURCES
-        StringTest.cpp
+        UtilsTest.cpp
     LIBS
         ArtifactCore
 )
