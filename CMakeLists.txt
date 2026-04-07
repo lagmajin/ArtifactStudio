@@ -428,3 +428,13 @@ set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 add_subdirectory(ArtifactCore)
 add_subdirectory(ArtifactWidgets)
 add_subdirectory(Artifact)
+
+# ---------------------------------------------------------------------------
+# テスト設定
+# ---------------------------------------------------------------------------
+option(ARTIFACT_BUILD_TESTS "Build unit tests" ON)
+if(ARTIFACT_BUILD_TESTS)
+    enable_testing()
+    find_package(GTest CONFIG REQUIRED)
+    add_subdirectory(tests)
+endif()

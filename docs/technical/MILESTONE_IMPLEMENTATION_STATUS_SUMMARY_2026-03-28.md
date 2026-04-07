@@ -201,16 +201,15 @@
 
 ## 未着手マイルストーン（主要なもの）
 
-### 🔴 優先度高（6 件）
+### 🔴 優先度高（5 件）
 
 | # | マイルストーン | 工数 | 効果 |
 |---|--------------|------|------|
-| 1 | **テスト・QA 基盤** | 76-102h | 品質・信頼性向上 |
-| 2 | **セキュリティ強化** | 64-82h | データ保護 |
-| 3 | **VideoLayer Proxy** | 16-24h | 高解像度動画編集 |
-| 4 | **WebUI ブリッジ** | 8-12h | Web 制御 |
-| 5 | **プロジェクト管理** | 4-6h | 安定性向上 |
-| 6 | **テクスチャキャッシュ改善** | 4-6h | メモリ帯域削減 |
+| 1 | **セキュリティ強化** | 64-82h | データ保護 |
+| 2 | **VideoLayer Proxy** | 16-24h | 高解像度動画編集 |
+| 3 | **WebUI ブリッジ** | 8-12h | Web 制御 |
+| 4 | **プロジェクト管理** | 4-6h | 安定性向上 |
+| 5 | **テクスチャキャッシュ改善** | 4-6h | メモリ帯域削減 |
 
 ---
 
@@ -245,7 +244,7 @@
 
 ## 実装済み機能の詳細
 
-### 新規ファイル（11 件）
+### 新規ファイル（16 件）
 
 | ファイル | 行数 | 内容 |
 |---------|------|------|
@@ -260,8 +259,13 @@
 | `Artifact/src/Widgets/ArtifactStatusBar.cpp` | +13 | コンポジション情報 |
 | `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cpp` | +60 | キーボードショートカット |
 | `Artifact/src/Widgets/Menu/ArtifactEditMenu.cppm` | +20 | UI 状態同期 |
+| `tests/CMakeLists.txt` | 40 | テスト共通設定 |
+| `tests/ArtifactCore/CMakeLists.txt` | 10 | ArtifactCore テスト設定 |
+| `tests/ArtifactCore/StringTest.cpp` | 30 | Levenshtein 距離テスト |
+| `tests/README.md` | 30 | テストガイド |
+| `docs/technical/MILESTONE_IMPLEMENTATION_STATUS_SUMMARY_2026-03-28.md` | +20 | 実装状況更新 |
 
-**合計:** 1,073 行（新規）
+**合計:** 1,203 行（新規）
 
 ---
 
