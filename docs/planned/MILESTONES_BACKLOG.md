@@ -122,6 +122,12 @@
 - clip / keyframe / playhead / selection / input の責務を painter 側へ寄せ、右ペインを完全 owner-draw surface にする
 - 詳細は `docs/planned/MILESTONE_TIMELINE_RIGHT_PANE_FULL_OWNER_DRAW_2026-04-08.md`
 
+### M-TL-12 DAW-Style Input Surface
+- timeline / inspector を DAW 風に、real-time input と step input の 2 系統で扱えるようにする
+- playback 中の live capture と停止中の 1-frame step entry を同じ property / keyframe model に書き込む
+- 詳細は `docs/planned/MILESTONE_DAW_STYLE_INPUT_SURFACE_2026-04-08.md`
+- 進捗: Core 側の `InputSurfaceManager` と `InputSurfaceStateChangedEvent` を実装済み
+
 ### M-FE-9 Motion Tracking Workflow
 - tracker editor / overlay / stabilize / bake を制作導線としてまとめる
 - 詳細は `docs/planned/MILESTONE_MOTION_TRACKING_SYSTEM_2026-03-25.md`
@@ -173,6 +179,16 @@
 - Render Queue から GPU backend を選べるようにし、CPU backend と fallback を並行運用できる状態にする
 - backend contract / GPU encode path / UI diagnostics を段階導入する
 - 詳細は `docs/planned/MILESTONE_RENDER_QUEUE_GPU_BACKEND_2026-04-03.md`
+
+### M-RD-13 Multi-Frame Rendering (MFR) for Render Queue
+- Render Queue の export を複数フレーム並列で進められるようにし、直列 render の待ち時間を埋める
+- まずは export-only で導入し、live preview は対象外にする
+- 詳細は `docs/planned/MILESTONE_MULTI_FRAME_RENDERING_2026-04-09.md`
+
+### M-APP-4 Session Ledger / Recovery Workspace
+- project / render job / failed task / recovery point を一つの作業台帳にまとめる
+- crash 後復帰、長時間 render、未保存作業の回収導線を統合する
+- 詳細は `docs/planned/MILESTONE_SESSION_LEDGER_RECOVERY_WORKSPACE_2026-04-09.md`
 
 ### M-UI-18 Property Widget Update / Cleanup / Theme Ownership
 - `ArtifactPropertyWidget` / `PropertyEditor` / `Inspector` の責務を整理し、property UI の見た目と構造を揃える
