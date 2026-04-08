@@ -28,7 +28,7 @@
             "cacheVariables": {
                 "CMAKE_C_COMPILER": "C:/Program Files/Microsoft Visual Studio/18/Insiders/VC/Tools/MSVC/14.51.36223/bin/Hostx64/x64/cl.exe",
                 "CMAKE_CXX_COMPILER": "C:/Program Files/Microsoft Visual Studio/18/Insiders/VC/Tools/MSVC/14.51.36223/bin/Hostx64/x64/cl.exe",
-                "VCPKG_INSTALLED_DIR": "${sourceDir}/out/vcpkg_installed/x64-windows",
+                "VCPKG_INSTALLED_DIR": "${sourceDir}/out/vcpkg_installed",
                 "ARTIFACT_DEPLOY_DIR": "C:/Users/lagma/Desktop/Artifact"
             },
             "environment": {

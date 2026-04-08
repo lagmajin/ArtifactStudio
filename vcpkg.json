@@ -27,6 +27,7 @@
     "boost-iostreams",
     "entt",
     "magic-enum",
+    "gtest",
     {
       "name": "onnxruntime",
       "features": ["directml"]
