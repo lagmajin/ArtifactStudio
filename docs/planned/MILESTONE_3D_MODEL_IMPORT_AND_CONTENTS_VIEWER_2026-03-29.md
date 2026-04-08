@@ -160,3 +160,21 @@ Project / Asset から 3D review までの導線を短くする。
 3. Phase 3
 4. Phase 4
 5. Phase 5
+
+## Current Status
+
+- `MeshImporter` は `ufbx` 本線 + OBJ fallback まで入っている
+- `Contents Viewer` 側は `Model3D` を `Artifact3DModelViewer` に渡せる
+- Project View / Asset Browser からの open は既存の Contents Viewer 経路でそのまま使える
+- Asset Browser には `Preview in Contents Viewer` の明示操作を足した
+- Project View の footage context menu からも preview を開ける
+- Project View の `Open` も footage では preview と同じ導線に揃えた
+- Project View の selection summary に preview の案内を足した
+- 3D モデル表示時に、preview 用の状態表示と mesh stats を出しやすくする初期整備を進めた
+- Contents Viewer の 3D Source 表示は solid preview 寄りにして、開いた瞬間の見え方を軽くした
+- viewer の mode 変更を外へ通知して、header / chip の表示が追従しやすいようにした
+- preview 失敗時は `Preview unavailable` と backend / error を見せられるようにした
+- Contents Viewer の 3D preview は `Reset 3D` ボタンと `Ctrl+0` で戻しやすくした
+- 3D status は camera / bounds の細部を削って短くした
+- glTF / glb は ufbx 経由で読む前提だと分かるようにした
+- 次の焦点は、model review の導線をもう少し軽くすることと、`gltf` / `glb` の扱いを明確化すること

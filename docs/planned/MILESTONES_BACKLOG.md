@@ -118,7 +118,7 @@
 - Phase 4 実行メモ: `docs/planned/MILESTONE_TIMELINE_FEATURE_PHASE4_EXECUTION_2026-04-03.md`
 
 ### M-TL-11 Timeline Right Pane Full Owner-Draw
-- `ArtifactTimelineWidget` の右ペインを `ArtifactTimelineTrackPainterView` 正規経路へ固定し、`TimelineTrackView / TimelineScene / ClipItem` を互換層へ縮退させる
+- `ArtifactTimelineWidget` の右ペインを `ArtifactTimelineTrackPainterView` 正規経路へ固定し、`TimelineTrackView / TimelineScene / ClipItem` を退役させる
 - clip / keyframe / playhead / selection / input の責務を painter 側へ寄せ、右ペインを完全 owner-draw surface にする
 - 詳細は `docs/planned/MILESTONE_TIMELINE_RIGHT_PANE_FULL_OWNER_DRAW_2026-04-08.md`
 
@@ -334,7 +334,7 @@
 - 詳細は `docs/planned/MILESTONE_TIMELINE_TRACKVIEW_OWNER_DRAW_MIGRATION_2026-03-27.md`
 
 ### M-TL-8 Timeline QGraphicsScene Elimination
-- 右タイムラインの `QGraphicsScene` 依存を painter 側へ段階的に外していく
+- 右タイムラインの `QGraphicsScene` 依存を painter 側へ外し切る
 - 詳細は `docs/planned/MILESTONE_TIMELINE_QGRAPHICSSCENE_ELIMINATION_2026-03-31.md`
 
 ### M-TL-9 Timeline Visual Language

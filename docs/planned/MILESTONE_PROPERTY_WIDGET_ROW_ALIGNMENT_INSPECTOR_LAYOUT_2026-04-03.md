@@ -150,3 +150,15 @@
 
 Property UI の課題は、単なる配色ではなく「どの要素がどこに並ぶか」まで含めた整列に移っている。  
 この milestone は、見た目の揃いを責務整理の出口として扱う。
+
+進捗メモ:
+- `ArtifactPropertyWidget` の rebuild 時に、再利用 row を先に親から切り離して group box の破棄に巻き込まれないようにした
+- `PropertyEditor` 側は icon cache が既に入っており、次の焦点は row geometry の固定と section header の整列に移っている
+- row の最小高さ、ボタン寸法、label 幅の基準値を定数化して、Property / Inspector の見た目調整を一箇所へ寄せ始めた
+- Inspector 側の note / rack / effect section の余白を共通定数に寄せた
+- `ArtifactPropertyWidget` に rebuild signature を入れて、visible structure が変わっていない full rebuild を update-only に落とせるようにした
+- `ArtifactInspectorWidget` 側も layer info / effects list の signature を入れて、同じ内容なら再構築を避けるようにした
+- `ArtifactInspectorWidget` の project / composition / layer 更新を 0ms の queued refresh に寄せて、連続イベントを 1 回に束ねるようにした
+- `ArtifactInspectorWidget` の refresh を dirty-bit 化して、composition note / layer note / layer info / effects list を必要なものだけ更新するようにした
+- `ArtifactPropertyWidget` の filter 入力は即時 rebuild ではなく debounce rebuild に寄せた
+- `ArtifactPropertyWidget` の animated value 更新は frame cache を持ち、同じフレームの再計算を飛ばせるようにした

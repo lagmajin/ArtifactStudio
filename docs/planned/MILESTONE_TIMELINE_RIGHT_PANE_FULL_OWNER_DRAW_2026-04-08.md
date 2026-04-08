@@ -25,6 +25,23 @@
 
 ---
 
+## 進捗メモ
+
+- `ArtifactTimelineWidget` の右ペインは `ArtifactTimelineTrackPainterView` を直接ぶら下げる owner-draw 構成に寄せた
+- 右ペインの枠描画は `TimelineRightPanelWidget` に集約した
+- `ArtifactTimelineTrackPainterView` では playhead を最後に描画し、上端の三角ヘッドも追加済み
+- `ArtifactTimelineWidget.cpp` から `QGraphicsView` 前提の補助関数を削除し、scene 由来の足場を減らした
+- `ArtifactTimelineTrackPainterView` の clips / markers / selection 更新に no-op ガードを追加した
+- `ArtifactTimelineWidget.cpp` の scrub/playhead 経路を一本化して、右ペインの更新要求を減らした
+- `refreshTracks()` から毎回の `clearClips()` と重複 `update()` を外して、clip 再構築を差分ベースに寄せた
+- `ArtifactTimelineTrackPainterView` の selection sync に入力キャッシュを入れて、同一状態での marker 再計算を避けるようにした
+- `ArtifactTimelineTrackPainterView` の hover 更新を 1 回の `update()` にまとめて、マウス移動時の再描画を軽くした
+- `ArtifactTimelineWidget.cpp` から track 高さの行ごとの更新を外して、bulk 更新に寄せた
+- `ArtifactTimelineWidget.cpp` の viewport sync を helper 化して、ズームと横オフセットの反映を共通化した
+- `ArtifactTimelineScene.cppm` と `ArtifactTimelineObjects.cpp` は削除して、右ペインの正規経路を painter 側に固定した
+
+---
+
 ## 対象
 
 - `ArtifactTimelineTrackPainterView`
@@ -51,7 +68,6 @@
 
 - `Artifact/src/Widgets/ArtifactTimelineWidget.cpp`
 - `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cpp`
-- `Artifact/src/Widgets/Timeline/ArtifactTimelineScene.cppm`
 - `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackView.cpp`
 - `docs/planned/MILESTONE_TIMELINE_TRACKVIEW_OWNER_DRAW_MIGRATION_2026-03-27.md`
 - `docs/planned/MILESTONE_TIMELINE_QGRAPHICSSCENE_ELIMINATION_2026-03-31.md`
@@ -124,7 +140,7 @@
 
 ### 目的
 
-`TimelineScene` と `ClipItem` を、残す理由がある最小限の互換層へ縮める。
+`TimelineScene` と `ClipItem` を削除して、右ペインの scene 互換層を退役させる。
 
 ### 作業項目
 
@@ -132,11 +148,12 @@
 - resize handle / selection state / playhead state を painter 側へ移す
 - scene 固有の管理を順次削る
 - `TimelineTrackView` の依存先を減らす
+- `ArtifactTimelineScene.cppm` / `ArtifactTimelineObjects.cpp` を削除済みであることを前提に整理する
 
 ### 完了条件
 
-- scene は互換 API だけが残る
-- `QGraphicsScene` の存在理由がかなり薄くなる
+- scene 由来の右ペイン互換層が消えた
+- `QGraphicsScene` の存在理由が右ペインから消えた
 
 ---
 
@@ -149,7 +166,7 @@
 ### 作業項目
 
 - `TimelineTrackView` から `QGraphicsView` 依存を外す
-- `TimelineScene` / `ClipItem` を削除または別用途へ分離する
+- `TimelineScene` / `ClipItem` は既に削除済みなので、残る参照の棚卸しをする
 - regression を確認する
 
 ### 完了条件
