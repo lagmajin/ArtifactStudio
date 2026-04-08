@@ -42,6 +42,7 @@
 
 ### M-APP-1 Application Cross-Cutting Improvement
 - menu / toolbar / shortcut / view / diagnostics / workflow を横断で揃える
+- central widget の横幅不足と下部パネルの高さ不足を layout issue として追跡
 - 詳細は `docs/planned/MILESTONE_APP_CROSS_CUTTING_IMPROVEMENT_2026-03-27.md`
 
 ### M-APP-2 Deferred UI Initialization / Lazy Load
@@ -560,6 +561,10 @@
 - waveform / meter
 - 詳細は `docs/planned/MILESTONE_AUDIO_WAVEFORM_2026-03-29.md`
 
+### M-AU-8 Audio Widget Enhancement / Mixer Surface
+- `ArtifactCompositionAudioMixerWidget` を中心に、mute / solo / volume / pan / waveform / meter / state badge をまとめる
+- 詳細は `docs/planned/MILESTONE_AUDIO_WIDGET_ENHANCEMENT_2026-04-09.md`
+
 ### M-AU-7 Audio Waveform Thumbnail Preview
 - audio file の thumbnail として waveform を表示する
 - Asset Browser / inspector / detail panel で見た目の判別力を上げる
@@ -587,12 +592,15 @@
 - Project View selection と current composition の同期
 - rename / delete / double-click
 - 基本検索と filter
+- footage selection を Asset Browser に返す往復同期を追加し、Project View 起点の探索を短くした
+- selection chrome に Asset Browser linked の sync chip を出して、同期状態を読めるようにした
 - **AE差別化:** コンポジションとアセットの明確な分離（混在しない構造）、仮想フォルダ vs 実フォルダの分離（実FS同期＋スマートコレクション）
 
 ### M-PV-2 Project View Asset Presentation
 - thumbnail
 - type icon
 - size / duration / fps / missing 状態
+- selection summary と selection detail を使って、現在選択中 item の path / status を読めるようにしている
 - **AE差別化:** ホバープレビュー（サムネイルホバーで動画パラパラ再生、Finder風）、コンポのサムネイルプレビュー、レンダリング状態バッジ（レンダー済み/未レンダー/キャッシュあり）、依存関係の可視化（コンポの依存ツリー表示・逆引き検索）
 
 ### M-PV-3 Project View Organization
@@ -633,6 +641,8 @@
 ### M-AS-4 Asset System Integration
 - `AssetBrowser` と `Project View` の同期
 - import / metadata / relink / missing / unused の統合
+- Project View の footage selection から Asset Browser への追従もつなぎ、往復同期へ前進
+- Asset Browser / Project View の両方に sync chip を置き、連動状態を見える化
 - 詳細は `Artifact/docs/MILESTONE_ASSET_SYSTEM_2026-03-12.md`
 
 ### M-AS-9 Project / Asset Workflow Bridge
