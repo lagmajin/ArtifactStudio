@@ -54,6 +54,7 @@
 - 2026-03-27 時点で、いくつかの widget で delayed icon load の方向に寄せ始めた
 - 2026-03-27 時点で、`ArtifactContentsViewer` の video / 3D model page を first use まで遅延生成するようにした
 - 2026-03-27 時点で、`ArtifactPropertyWidget` の初回 rebuild を show 後の event loop に遅延するようにした
+- 2026-04-08 時点で、`Playback Control` / `Debug Console` / `AI Chat` を lazy floating dock に寄せた
 
 ### 2. Thumbnail / Preview Deferral
 
@@ -86,6 +87,7 @@
 - panel 初回表示まで heavy widget を作らない
 - hidden panel の data refresh を遅延する
 - パネル切替時だけ必要な state を構築する
+- `Debug Console` / `AI Chat` / `Playback Control` のような非必須 dock は first show まで構築しない
 
 ### 4. Deferred Playback / Render Bootstrap
 
@@ -122,6 +124,9 @@
 5. State Sync Safety
 
 ## Notes
+
+`Asset Browser`、`Contents Viewer`、`Timeline`、`Console` のような高頻度 UI から効く。
+非必須 dock は first show / first use まで遅延して、初回表示を軽くする。
 
 このマイルストーンは「見た目を変える」より「最初の体感を軽くする」ためのもの。
 `Asset Browser`、`Contents Viewer`、`Timeline`、`Console` のような高頻度 UI から効く。
