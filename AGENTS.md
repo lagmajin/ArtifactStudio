@@ -26,6 +26,8 @@ Text 系の Core 整備段階は [ArtifactCore/docs/MILESTONE_TEXT_SYSTEM_2026-0
 
 Property 系 UI の残骸と再整理方針は [Artifact/docs/PROPERTY_EDITOR_AUDIT_2026-03-11.md](Artifact/docs/PROPERTY_EDITOR_AUDIT_2026-03-11.md) を参照してください。
 
+QtCSS / `setStyleSheet()` は原則として新規追加しないこと。見た目の調整は `QPalette`、owner-draw、`QProxyStyle`、既存の theme token で解決し、QtCSS は移行不能な例外に限って使うこと。
+
 サブモジュール（例: `ArtifactWidgets` / `libs/DiligentEngine` / `third_party/*`）は、ユーザーが明示的に依頼した場合を除き変更・コミット・push しないこと。
 
 サブモジュールに修正が必要な場合は、まず親リポジトリ側で代替可能か確認し、不可なら「fork 運用」または「パッチ運用」を提案してから進めること。

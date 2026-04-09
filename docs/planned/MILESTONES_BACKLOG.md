@@ -790,6 +790,13 @@
 - ⚠️ Phase 5: 品質＆マルチビュー (一部実装済み)
 - **AE差別化:** アセットブラウザからD&Dでダイレクトにレイヤー追加（ゴーストつき）
 
+### M-CE-GZ-1 ImGuizmo Direct Code Port
+- 詳細は `Artifact/docs/MILESTONE_IMGUIZMO_DIRECT_CODE_2026-04-09.md`
+- `ImGuizmo` を外部ライブラリとして使うのではなく、描画プリミティブと操作ロジックを Artifact のコードとして移植する
+- `TransformGizmo` / `ArtifactIRenderer` / composition overlay へ直接接続する
+- translation / rotation / scale を direct code で順に移す
+- hit test と draw の座標系を一致させ、backend parity を確認する
+
 ### M-CE-SEL-1 Rubber Band Multi-Selection ✅ 完了
 - 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_RUBBER_BAND_MULTI_SELECTION_2026-03-26.md`
 - ✅ composition editor 上の矩形選択

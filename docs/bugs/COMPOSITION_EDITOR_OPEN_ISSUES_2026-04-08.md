@@ -103,6 +103,7 @@ Issue 1 と見た目が似るが、こちらは「色は合っていても描画
 1. Issue 3: 背景色が描画されない
 2. Issue 2: 初期化が重い
 3. Issue 1: 背景色が変わらない
+4. Issue 4: DiligentEngine で作った layer solo view が表示されない
 
 ---
 
@@ -111,4 +112,36 @@ Issue 1 と見た目が似るが、こちらは「色は合っていても描画
 - Issue 1 と Issue 3 は、見た目は近いが根っこが違う可能性がある
 - Issue 2 は別軸の UX 問題として扱った方がよい
 - 3 件とも共通の担当領域は `CompositionEditor` / `CompositionRenderController`
+- Issue 4 は `Layer Solo View` 側の表示経路と `DiligentEngine` 連携の切り分けが必要
 
+---
+
+## Issue 4: DiligentEngine で作った layer solo view が表示されない
+
+### 症状
+
+`DiligentEngine` を使う layer solo view を開いても、期待したソロ表示が出ない、または表示領域が空のままになる。
+
+### 観点
+
+- `ArtifactRenderLayerEditor` と `ArtifactLayerEditorWidgetV2` の責務境界が崩れていないか
+- layer solo view の表示条件が `show` / `current layer` / `target layer` の state と一致しているか
+- Diligent の描画結果が viewport まで届いているか
+- software 側の診断ビューと Diligent 側の solo view が混線していないか
+
+### 優先度
+
+- 高
+
+### 関連候補
+
+- `Artifact/src/Widgets/Render/ArtifactRenderLayerEditor.cppm`
+- `Artifact/src/Widgets/Render/ArtifactRenderLayerWidgetv2.cppm`
+- `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- `docs/planned/MILESTONE_LAYER_SOLO_VIEW_DILIGENT_2026-03-26.md`
+- `docs/bugs/BUG_INVESTIGATION_COMPOSITION_VIEW_DILIGENT.md`
+
+### 備考
+
+見た目上は「何も出ていない」ように見えるので、背景色系の Issue と混同しやすい。  
+ただしこちらは `CompositionEditor` ではなく `Layer Solo View` の表示経路を優先して疑う。
