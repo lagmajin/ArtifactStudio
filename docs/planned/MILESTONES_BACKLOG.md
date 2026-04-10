@@ -351,6 +351,7 @@
 ### M-LG-1 Layer Group System
 - レイヤーグループの保存 / 表示 / 親子 / 可視性 / 操作単位を整理する
 - 詳細は `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_2026-03-27.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_PHASE1_EXECUTION_2026-04-10.md`
 
 ### M-LG-2 Layer Components: Physics / Behavior
 - layer 側に軽量 component system を追加し、追従・減衰・トリガーの受け皿を作る
@@ -778,6 +779,11 @@
 - 詳細: `docs/planned/MILESTONE_EXTENDSCRIPT_STYLE_SCRIPT_RUNTIME_2026-04-06.md`
 - Phase 1 実行メモ: `docs/planned/MILESTONE_EXTENDSCRIPT_STYLE_SCRIPT_RUNTIME_PHASE1_EXECUTION_2026-04-06.md`
 
+### M-TL-13 Timeline Curve Editor Mode
+- `ArtifactTimelineWidget` 繧帝ｸ縺､縺ｮ mode 縺ｫ縺吶ｋ縲ゅΝ繝ｼ繝・ヨ timeline / curve editor 繧偵→縺ｪ縺｣縺ｦ縺ｯ縺薙→縺後ｒ謹ｭ縺｣縺励※縺上□縺輔＞
+- `U` / `Tab` 繧ｷ繝ｧ繝ｼ繝･縺ｧ playhead / selection / zoom 繧堤舌・縺励※遉ｾ縺ｦ縺薙・繧ｹ繝医Ο繝・ヱ繝ｫ
+- 隧ｳ邏ｰ縺ｯ `docs/planned/MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md`
+
 ## Good Small Tasks
 
 - `M-AR-2 import std Rollout`
@@ -785,6 +791,11 @@
 - `M-QA-1 Software Test Windows`
 - `M-FX-2 Solid Color Effects`
 - `M-FX-4 Creative Workflow (Bridge only)`
+
+### M-TL-13 Timeline Curve Editor Mode
+- `ArtifactTimelineWidget` 縺ｧ normal timeline / curve editor 繧偵→縺ｪ縺｣縺ｦ縺ｯ縺薙→縺後ｒ謹ｭ縺｣縺励※縺上□縺輔＞
+- `U` 繧ｷ繝ｧ繝ｼ繝･縺ｧ mode toggle, `Tab` / `Shift+Tab` 縺ｧ curve editor 内 focus traversal
+- 隧ｳ邏ｰ縺ｯ `docs/planned/MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md`
 
 ## Terminal / Shell
 
