@@ -29,10 +29,16 @@
 
 ## AI / Tooling
 
+### M-AI-2 AI Command Sandbox / CLI Execution
+- AI 縺ｫ縺ｯ shell string 縺ｧ縺ｪ縺上↑繧峨〒縺・、program + argv 繧帝攝縺励※謇薙∴繧・
+- allowlist / timeout / working directory / output cap 繧定ｨ倬鹸縺励※縲∝ｧ・ｭｷ螟夜Κ繧ｳ繝槭Φ繝峨ｒ縺ｾ縺・☆繧・
+- 隧ｳ邏ｰ縺ｯ `docs/planned/MILESTONE_AI_COMMAND_SANDBOX_2026-04-10.md`
+
 ### M-AI-1 MCP / Tool Bridge Foundation
 - `DescriptionRegistry` / `AIToolExecutor` / `AIContext` を使って AI tool schema を安定化する
 - local / cloud / 将来の MCP bridge から共通で使える tool 境界を切る
 - 詳細は `docs/planned/MILESTONE_AI_MCP_TOOL_BRIDGE_2026-04-10.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_AI_MCP_TOOL_BRIDGE_PHASE1_EXECUTION_2026-04-10.md`
 
 ## Feature Expansion Support
 

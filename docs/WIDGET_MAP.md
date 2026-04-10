@@ -110,3 +110,7 @@
   タイムライン構造と相互同期の中枢。
 - `Artifact/src/Widgets/Menu/ArtifactTestMenu.cppm`
   テスト系ウィジェットの起動メニュー。
+## Timing Event View
+
+- `TimingEventView`
+  Lightweight event and timing editor view for cue strips, playhead scrubbing, and compact selection. Use this when the task is event timing rather than full layer/timeline orchestration.
