@@ -16,28 +16,6 @@
 
 境界が曖昧な場合は、`docs/WIDGET_MAP.md` を先に更新してから milestone を触る。
 
-## 📋 最近の実装完了状況 (2026-03-29 更新)
-
-| カテゴリ | 完了項目 | ステータス |
-|----------|----------|-----------|
-| **UI/UX** | テキストレイヤーインライン編集 | ✅ |
-| **UI/UX** | キーボードショートカット追加 | ✅ |
-| **UI/UX** | ステータスバーコンポジション情報 | ✅ |
-| **UI/UX** | レイヤーラベルカラー機能 | ✅ |
-| **UI/UX** | レイヤー整列・分布機能 | ✅ |
-| **UI/UX** | コマンドパレット (Ctrl+F) | ✅ |
-| **Layer** | Undo/Redo統合 | ✅ |
-| **Render** | ROIシステム実装 | ✅ |
-| **Render** | ギズモ描画最適化 | ✅ |
-| **Core** | Expression Evaluator修正 | ✅ |
-| **QA** | Project File Validation Phase 1 (命名検査) | ✅ |
-| **UI** | Keyboard Overlay (Ctrl+/ ショートカット) | ✅ |
-| **QA** | Project File Validation Phase 2 (スペルチェック) | ✅ |
-| **AS** | Save/Load Integrity Phase 1+2 (原子操作的保存+バージョン管理) | ✅ |
-| **AS** | Save/Load Integrity Phase 3-5 (参照切れ検出+バリデーション+増分保存) | ✅ |
-
----
-
 ## Application
 
 ### M-APP-1 Application Cross-Cutting Improvement
@@ -48,6 +26,13 @@
 ### M-APP-2 Deferred UI Initialization / Lazy Load
 - icon / thumbnail / viewer / dock の eager load を減らして初回体感を軽くする
 - 詳細は `docs/planned/MILESTONE_DEFERRED_UI_INITIALIZATION_2026-03-27.md`
+
+## AI / Tooling
+
+### M-AI-1 MCP / Tool Bridge Foundation
+- `DescriptionRegistry` / `AIToolExecutor` / `AIContext` を使って AI tool schema を安定化する
+- local / cloud / 将来の MCP bridge から共通で使える tool 境界を切る
+- 詳細は `docs/planned/MILESTONE_AI_MCP_TOOL_BRIDGE_2026-04-10.md`
 
 ## Feature Expansion Support
 
@@ -128,6 +113,11 @@
 - playback 中の live capture と停止中の 1-frame step entry を同じ property / keyframe model に書き込む
 - 詳細は `docs/planned/MILESTONE_DAW_STYLE_INPUT_SURFACE_2026-04-08.md`
 - 進捗: Core 側の `InputSurfaceManager` と `InputSurfaceStateChangedEvent` を実装済み
+
+### M-TL-13 Timeline Scrub Bar Frame Cache Overlay
+- `ArtifactTimelineScrubBar` 上に AE 風の cache range 可視化を追加し、frame cache / RAM preview の有効範囲を緑の帯で見せる
+- 現在フレームの赤い進捗表示と共存させ、playback / scrub / seek の状態を読み取りやすくする
+- 詳細は `docs/planned/MILESTONE_TIMELINE_SCRUBBAR_FRAME_CACHE_OVERLAY_2026-04-10.md`
 
 ### M-FE-9 Motion Tracking Workflow
 - tracker editor / overlay / stabilize / bake を制作導線としてまとめる
@@ -236,12 +226,6 @@
 - review / annotation より前段の、制作中の書きなぐりメモを扱う
 - 詳細は `docs/planned/MILESTONE_COMPOSITION_NOTES_SCRATCHPAD_2026-03-30.md`
 
-### M-UI-13 Keyboard Overlay ✅ 完了
-- アプリ内ショートカットを一覧できる軽量 overlay を実装する
-- `Help` メニューやショートカットからすぐ開けるようにする
-- 詳細は `docs/planned/MILESTONE_KEYBOARD_OVERLAY_2026-03-30.md`
-- ✅ `KeyboardOverlayDialog` 実装済み（検索、コンパクトモード、Ctrl+/ ショートカット、Helpメニュー接続）
-
 ### M-UI-3 Inspector Usability
 - effect / property の見つけやすさ
 - 空状態の整理
@@ -296,6 +280,11 @@
 - **見積:** 20-30h
 - **詳細:** `docs/planned/MILESTONE_CAMERA_PROJECTION_2026-03-31.md`
 
+### M-CP-2 3D Viewport Stabilization / Solid / Overlay
+- 3D 表示を「読める」状態へ寄せ、solid shading / camera / overlay の責務を分けて安定化する
+- gizmo / bounds / HUD の重なり順を固定し、wireframe と solid の両方で破綻しにくくする
+- 詳細は `docs/planned/MILESTONE_3D_VIEWPORT_SOLID_CAMERA_OVERLAY_2026-04-10.md`
+
 ### M-LL-1 Light Linking System ⭐ **新規追加**
 - 3D scene での light の影響を layer ごとに制御する
 - **機能:** Light-to-Object linking, include/exclude lists, per-layer light influence
@@ -327,24 +316,6 @@
 - **詳細:** `docs/planned/MILESTONE_COLOR_GRADING_WORKSPACE_2026-03-30.md`
 
 ## Timeline / Layer
-
-### M-TL-1 Layer Basic Operations ✅ 完了
-- 追加、削除、複製、rename、親子、並び替え
-- ✅ Undo/Redo 統合 (実装済み)
-- 残差分: track matte mode (未定義)
-
-### M-TL-2 Layer View Sync ✅ 完了
-- 左ツリー展開と右トラック行の同期
-- 1レイヤー1クリップの維持
-- 残差分: track matte 表示, audio state 連携 (M-AU 側), スクロール双方向同期
-
-### M-TL-3 Work Area / Range Unification ✅ 完了
-- in / out
-- work area
-- seek
-- render 範囲の一本化
-- 残差分: レンジプリセット UI (M-RD-2 側), 共通レンジサービス (M-RANGE-2)
-- 詳細は `Artifact/docs/MILESTONE_TIMELINE_RANGE_UNIFICATION_2026-03-17.md`
 
 ### M-TL-4 Timeline TrackView Owner-Draw Migration
 - 右ペインを `QGraphicsView` から owner-draw へ段階移行する
@@ -453,14 +424,6 @@
 
 ### M-RD-3 Dual Backend Parity
 - software と Diligent の見た目差分を減らす
-
-### M-RD-4 Render / Output Feel Refinement ✅ 完了
-- 途中失敗からの再開
-- frame / layer / effect cost の可視化
-- rename / history / visibility inspector
-- 詳細は `docs/planned/MILESTONE_RENDER_OUTPUT_FEEL_REFINEMENT_2026-03-27.md`
-- ✅ Phase 1: 失敗フレーム検出 + 再レンダリング（`detectFailedFrames`, `rerenderFailedFrames`）
-- ✅ Phase 3: ジョブ名編集（`jobName` フィールド + `setJobNameAt`）+ 設定記憶（`toJson`/`fromJson` に jobName 追加）
 
 ### M-RD-5 Animated Image Export
 - GIF / APNG / Animated WebP などの web 向け animated image 出力
@@ -630,14 +593,6 @@
 - 並び
 - タグ
 
-### M-AS-3 Save / Load Integrity ✅ 完了
-- 保存再読込で composition / layer / effect が落ちない
-- ✅ Phase 1: 原子操作的保存（テンポラリファイル保存→バックアップ→リネーム）
-- ✅ Phase 2: バージョン管理（minVersion互換性チェック、savedAtタイムスタンプ）
-- ✅ Phase 3: 参照切れ検出（保存前のヘルスチェック統合、BrokenReference/MissingAsset警告）
-- ✅ Phase 4: バリデーション強化（Composition/Layer整合性チェック、空プロジェクト警告）
-- ✅ Phase 5: 増分保存（`saveIncremental()` — バージョン番号自動インクリメント）
-
 ### M-AS-4 Asset System Integration
 - `AssetBrowser` と `Project View` の同期
 - import / metadata / relink / missing / unused の統合
@@ -672,13 +627,6 @@
 - split / trim / select all / find / preferences の context-aware menu state
 - 詳細は `Artifact/docs/MILESTONE_EDIT_MENU_2026-03-13.md`
 
-### M-AS-8 Composition Menu Workflow ✅ 完了
-- composition create / preset / duplicate / rename / delete / settings の整理
-- current composition sync / background color / development-only action cleanup
-- 詳細は `Artifact/docs/MILESTONE_COMPOSITION_MENU_2026-03-13.md`
-- ✅ 新規/プリセット/複製/名前変更/削除/背景色変更 実装済み
-- ✅ enabled/disabled state 管理実装済み
-
 ## Core / Architecture
 
 ### M-AR-1 Service Boundary Cleanup
@@ -700,15 +648,6 @@
 
 ### M-QA-3 Crash / Diagnostics
 - recovery
-
-### M-QA-4 Project File Validation / Spell Check ✅ 完了
-- project / composition / layer / asset name の typo 検出
-- tags / notes / ai metadata の表記ゆれ検査
-- custom dictionary / ignore list
-- `ArtifactProjectHealthDashboard` への統合
-- ✅ Phase 1: 命名規則検査（空名前、プレースホルダー名、不正文字）実装済み
-- ✅ Phase 2: 辞書ベースのスペルチェック（英単語辞書、typoパターン、トークン解析）実装済み
-- ✅ Phase 2: 辞書ベースのスペルチェック（英単語辞書、typoパターン、トークン解析）実装済み
 
 ## Render / Playback
 
@@ -781,28 +720,12 @@
 
 ## Composition Editor & Layer View
 
-### M-CE Composition Editor & Layer View ✅ 完了
-- 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_LAYER_VIEW.md`
-- ✅ Phase 1: ビューポート変換の完成 (gizmo mode切替実装済み)
-- ✅ Phase 2: ガイド＆オーバーレイ (ガイド線描画、GridRenderer、フレーム情報)
-- ✅ Phase 3: レイヤービュー強化 (バウンディングボックス、effect範囲可視化)
-- ⚠️ Phase 4: 3Dビューポート基盤 (一部実装済み)
-- ⚠️ Phase 5: 品質＆マルチビュー (一部実装済み)
-- **AE差別化:** アセットブラウザからD&Dでダイレクトにレイヤー追加（ゴーストつき）
-
 ### M-CE-GZ-1 ImGuizmo Direct Code Port
 - 詳細は `Artifact/docs/MILESTONE_IMGUIZMO_DIRECT_CODE_2026-04-09.md`
 - `ImGuizmo` を外部ライブラリとして使うのではなく、描画プリミティブと操作ロジックを Artifact のコードとして移植する
 - `TransformGizmo` / `ArtifactIRenderer` / composition overlay へ直接接続する
 - translation / rotation / scale を direct code で順に移す
 - hit test と draw の座標系を一致させ、backend parity を確認する
-
-### M-CE-SEL-1 Rubber Band Multi-Selection ✅ 完了
-- 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_RUBBER_BAND_MULTI_SELECTION_2026-03-26.md`
-- ✅ composition editor 上の矩形選択
-- ✅ 複数レイヤーの hit test / selection sync
-- ✅ Shift / Ctrl を含む複数選択操作 (Replace/Toggle モード)
-- ✅ timeline / inspector との current selection 一致
 
 ### M-CE-TEXT-1 Text Layer Inline Editing
 - コンポジットエディタ上で text layer を直接編集する
@@ -811,13 +734,6 @@
 - 編集導線の最小入り口は実装済みで、Phase 2 以降の in-canvas input を残す
 - `Ctrl+Enter` の commit shortcut を追加し、Phase 1 の確定導線を少し強化した
 - 起動時に全文選択するようにして、置き換え入力の初動を軽くした
-
-### M-CE-SEL-1 Rubber Band Multi-Selection ✅ 完了
-- 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_RUBBER_BAND_MULTI_SELECTION_2026-03-26.md`
-- ✅ composition editor 上の矩形選択 (Replace/Toggle モード)
-- ✅ 複数レイヤーの hit test / selection sync
-- ✅ Shift / Ctrl を含む複数選択操作
-- ✅ timeline / inspector との current selection 一致
 
 ### M-AB Asset Browser Improvement (Unity 風)
 - 詳細は `docs/planned/MILESTONE_ASSET_BROWSER_IMPROVEMENT.md`
@@ -862,11 +778,7 @@
 - `M-UI-2 Dock / Tab Polish`
 - `M-QA-1 Software Test Windows`
 - `M-FX-2 Solid Color Effects`
-- `M-AS-3 Save / Load Integrity` ✅ 完了 ✅ 完了
 - `M-FX-4 Creative Workflow (Bridge only)`
-- ~~`M-UI-13 Keyboard Overlay`~~ ✅ 完了
-- ~~`M-QA-4 Project File Validation / Spell Check`~~ ✅ Phase 1 完了
-- ~~`M-SHAPE-1 Shape Layers`~~ ✅ Phase 1+3 完了
 
 ## Terminal / Shell
 
