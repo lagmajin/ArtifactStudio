@@ -34,6 +34,11 @@
 - local / cloud / 将来の MCP bridge から共通で使える tool 境界を切る
 - 詳細は `docs/planned/MILESTONE_AI_MCP_TOOL_BRIDGE_2026-04-10.md`
 
+### M-AI-2 Cloud UI Compact View / Settings Split
+- Cloud AI の詳細設定を dialog 側へ寄せ、常時表示を減らす
+- `ArtifactAICloudWidget` を compact view と advanced panel に分ける
+- 詳細は `Artifact/docs/MILESTONE_AI_CLOUD_UI_2026-04-09.md`
+
 ## Feature Expansion Support
 
 ### Priority Execution Trio
@@ -296,6 +301,12 @@
 - **機能:** Basic materials (diffuse/specular), texture mapping, material assignment
 - **見積:** 30-40h
 - **詳細:** `docs/planned/MILESTONE_3D_MATERIAL_SYSTEM_2026-03-31.md`
+
+### M-MAT-2 MaterialX Document / Exchange Bridge
+- MaterialX XML を Material asset / inspector / export の橋渡しにする
+- **機能:** document presence, canonical storage, import/export, preview summary
+- **見積:** 18-28h
+- **詳細:** `docs/planned/MILESTONE_MATERIALX_DOCUMENT_EXCHANGE_2026-04-10.md`
 
 ### M-TY-1 Advanced Typography Engine ⭐
 - **詳細:** `docs/planned/MILESTONE_ADVANCED_TYPOGRAPHY_ENGINE_2026-03-29.md` (Core 実装)
