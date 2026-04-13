@@ -34,3 +34,4 @@
 - Artifact/include/Widgets/Timeline/ArtifactTimelineKeyframeModel.ixx を追加し、UI 向けの Keyframe 集約モデルを定義しました。
 - Artifact/src/Widgets/Timeline/ArtifactTimelineKeyframeModel.cppm に簡易実装を追加しました（プロジェクトサービス経由でレイヤー/プロパティを取得し、AbstractProperty の add/remove/getKeyFrames を呼ぶ）。
 - まだ統合は行っていません。次は UI 側でこのモデルを利用して marker の集約と編集アクション経路を実装します。
+- 具体的な実装マイルストーンは Artifact/docs/MILESTONE_TIMELINE_TRANSFORM_KEYFRAME_EDITING_2026-04-12.md に分離しました。Position/Rotation/Scale の channel 分解はそこを基準に進めます。

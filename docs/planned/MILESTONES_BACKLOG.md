@@ -39,6 +39,27 @@
 - `ArtifactAICloudWidget` を compact view と advanced panel に分ける
 - 詳細は `Artifact/docs/MILESTONE_AI_CLOUD_UI_2026-04-09.md`
 
+### M-AI-3 AI Assisted Keyframe Generation ⭐ **新規追加**
+- 軌跡解析と自動キーフレーム生成でアニメーション作成を支援
+- `AIKeyframeGenerator` で動きのパターンを学習し、スムーズなキーフレームを提案
+- **機能:** 軌跡データからのキーフレーム自動生成、タイムライン統合
+- **見積:** 45-60h
+- **詳細:** `docs/planned/MILESTONE_AI_ASSISTED_KEYFRAME_GENERATION_2026-04-11.md`
+
+### M-AI-4 AI Color Grading Suggestion ⭐ **新規追加**
+- シーン分析と自動カラーグレーディング提案で色調整を支援
+- `AIColorAnalyzer` / `ColorGradingSuggester` で画像を解析し、LUTやパラメータを提案
+- **機能:** 画像分析からの色調整提案、LUT統合
+- **見積:** 60-75h
+- **詳細:** `docs/planned/MILESTONE_AI_COLOR_GRADING_SUGGESTION_2026-04-11.md`
+
+### M-AI-5 AI Basic Assistant ⭐ **新規追加**
+- 基本的なAIアシスタント機能で質問応答とプロジェクト情報提供
+- `AIBasicAssistant` でクエリに応答し、MCP経由で外部AIと連携
+- **機能:** 質問応答、ドキュメント/コード検索、UI統合
+- **見積:** 35-50h
+- **詳細:** `docs/planned/MILESTONE_AI_BASIC_ASSISTANT_2026-04-11.md`
+
 ## Feature Expansion Support
 
 ### Priority Execution Trio

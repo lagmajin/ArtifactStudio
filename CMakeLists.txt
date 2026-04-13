@@ -419,6 +419,12 @@ if(ARTIFACT_HAS_LOCAL_QADS)
     endif()
 endif()
 add_subdirectory(third_party/ufbx EXCLUDE_FROM_ALL)
+set(TF_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+set(TF_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(TF_BUILD_PROFILER OFF CACHE BOOL "" FORCE)
+set(TF_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(TF_BUILD_MODULES OFF CACHE BOOL "" FORCE)
+add_subdirectory(third_party/taskflow EXCLUDE_FROM_ALL)
 
 # ---------------------------------------------------------------------------
 # サブプロジェクトの追加

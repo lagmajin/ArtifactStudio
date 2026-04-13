@@ -27,6 +27,11 @@
 - `ArtifactCompositionEditor`
   コンポジションビューア本体。再生、停止、ズーム、フィットなどを持つ。
 
+## AI / Assistant
+
+- `ArtifactAICloudWidget`
+  Cloud AI の会話 UI。右側で送信や会話履歴を扱い、左側には接続設定・ツール・MCP の詳細をまとめる。既定では左ペインを隠し、必要時だけ表示する。
+
 ## Responsibility Boundaries
 
 - `ArtifactContentsViewer`
@@ -53,7 +58,7 @@
 - `ArtifactTimelineNavigatorWidget`
   タイムライン右上の細いバー。表示範囲を調整するタイムナビゲーター。
 - `ArtifactTimelineScrubBar`
-  タイムナビゲーターの下にある `F0 / 00:00:00:00` を表示するスクラブバー。クリック/ドラッグで現在フレームを動かす。
+  タイムナビゲーターの下にある RAM preview cache の可視化バー。緑色でキャッシュ済み範囲を示す。旧スクラブ用途は現在は使わない。
 - `ArtifactWorkAreaControlWidget`
   ワークエリアの IN/OUT 範囲を編集するバー。
 - `TimelineTrackView`
@@ -85,8 +90,8 @@
   UI 用語では `シークバー`。コード上では主に `playhead` として扱う。
 - タイムライン右上の細いバー
   UI 用語では `タイムナビゲーター`。
-- `F0 / 00:00:00:00` の段
-  UI 用語では `スクラブバー`。
+- タイムナビゲーターの下の横棒
+  UI 用語では `キャッシュバー`。旧名は `スクラブバー`。
 - 太い範囲バー
   UI 用語では `ワークエリアバー`。実体は `ArtifactWorkAreaControlWidget`。
 - 右下の編集面
