@@ -31,3 +31,10 @@ QtCSS / `setStyleSheet()` は原則として新規追加しないこと。見た
 サブモジュール（例: `ArtifactWidgets` / `libs/DiligentEngine` / `third_party/*`）は、ユーザーが明示的に依頼した場合を除き変更・コミット・push しないこと。
 
 サブモジュールに修正が必要な場合は、まず親リポジトリ側で代替可能か確認し、不可なら「fork 運用」または「パッチ運用」を提案してから進めること。
+
+## Shell Command Execution Rules
+
+* **Keep commands short:** PowerShell often fails with long/complex chains. Keep commands short and simple.
+* **Script files for complex logic:** If a command involves loops, conditions, or is very long, **write it to a temporary script file first** (e.g., `_temp.ps1`), execute it, and then delete it.
+* **Use absolute paths:** Always use full absolute paths (e.g., `X:\dev\artifactstudio\...`). Do not rely on `cd`.
+* **Run sequentially:** Avoid chaining multiple commands with `&&` or `;`. Run them one by one to catch errors easily.
