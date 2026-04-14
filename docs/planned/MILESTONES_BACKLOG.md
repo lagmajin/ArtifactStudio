@@ -2,6 +2,60 @@
 
 空いている時間に進めやすいよう、分野別に小さめのマイルストーンへ分割したバックログ。
 
+## Completed Milestones (2026-04-14 verified)
+
+以下は実装確認済みの完了マイルストーン。詳細は各マイルストーン文書を参照。
+
+### Project View / Asset System
+- **M-PV-1** Project View Basic Operations ✅ (verified 2026-04-14)
+  - selection center/quick actions/sync chip/inline rename 実装済み
+  - 主要ファイル: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`
+
+- **M-PV-2** Project View Asset Presentation ✅ (verified 2026-04-14)
+  - selection summary/detail、HoverThumbnailPopup 実装済み
+  - 主要ファイル: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`
+
+- **M-AS-4** Asset System Integration ✅ (verified 2026-04-14)
+  - sync chip両方向に配置済み、Asset Browser↔Project View 往復同期
+  - 主要ファイル: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`, `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`
+
+### UI / Property Editor
+- **M-UI-23** Property Widget Row Alignment ✅ (verified 2026-04-14)
+  - Phase 1-2完了、row bg/hover/keyframe chromeをowner-draw化
+  - 主要ファイル: `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditor.cppm`
+
+- **M-UI-3** Inspector Usability ✅ (verified 2026-04-14)
+  - キーボードショートカット/ステータスバー/レイヤーラベルカラー/整列分布機能
+  - 主要ファイル: `Artifact/src/Widgets/ArtifactAlignmentWidget.cppm`, `Artifact/src/Widgets/ArtifactStatusBar.cpp`
+
+- **M-UI-5** Contents Viewer Expansion ✅ (verified 2026-04-14)
+  - テキストレイヤーインライン編集実装済み、Ctrl+Enter commit shortcutあり
+  - 主要ファイル: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`
+
+### Composition Editor / Cache
+- **M-CE-1** Composition Editor Cache System ✅ (verified 2026-04-14)
+  - Surface cache / render key suppression / ROIシステム実装済み
+  - 主要ファイル: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+
+- **M-CE-2** Static Layer GPU Cache ⚠️ (partial - 2026-04-14)
+  - マイルストーン文書と設計は存在するが、専用GPU cacheクラスの実装は未確認
+  - `PrimitiveRenderer2D` の cacheKey ベース最適化は実装済み
+  - 主要ファイル: `Artifact/docs/MILESTONE_STATIC_LAYER_GPU_CACHE_2026-03-26.md`
+
+### AI / Tooling
+- **M-AI-1** MCP/Tool Bridge ✅ Phase 1完了 (verified 2026-04-14)
+  - McpBridge::handleRequest() / AIContext 実装済み
+  - 主要ファイル: `ArtifactCore/include/AI/McpBridge.ixx`
+
+- **M-AI-2** AI Command Sandbox ✅ (verified 2026-04-14)
+  - CommandSandbox.ixx（674行）で policy/execution/timeout すべて実装済み
+  - 主要ファイル: `ArtifactCore/include/AI/CommandSandbox.ixx`
+
+### Asset Browser
+- **M-AB** Asset Browser Improvement (Unity風) ✅ (verified 2026-04-14)
+  - Icon/List切替実装済み（viewModeButton）、Name/Date/Size/Typeソート、Status filter
+  - 主要ファイル: `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`
+
 ## Widget Ownership Guardrails
 
 このバックログで milestone を触るときは、まず次の責務境界を確認する。
