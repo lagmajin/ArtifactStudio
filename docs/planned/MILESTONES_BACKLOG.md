@@ -2,6 +2,60 @@
 
 空いている時間に進めやすいよう、分野別に小さめのマイルストーンへ分割したバックログ。
 
+## Completed Milestones (2026-04-14 verified)
+
+以下は実装確認済みの完了マイルストーン。詳細は各マイルストーン文書を参照。
+
+### Project View / Asset System
+- **M-PV-1** Project View Basic Operations ✅ (verified 2026-04-14)
+  - selection center/quick actions/sync chip/inline rename 実装済み
+  - 主要ファイル: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`
+
+- **M-PV-2** Project View Asset Presentation ✅ (verified 2026-04-14)
+  - selection summary/detail、HoverThumbnailPopup 実装済み
+  - 主要ファイル: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`
+
+- **M-AS-4** Asset System Integration ✅ (verified 2026-04-14)
+  - sync chip両方向に配置済み、Asset Browser↔Project View 往復同期
+  - 主要ファイル: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`, `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`
+
+### UI / Property Editor
+- **M-UI-23** Property Widget Row Alignment ✅ (verified 2026-04-14)
+  - Phase 1-2完了、row bg/hover/keyframe chromeをowner-draw化
+  - 主要ファイル: `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditor.cppm`
+
+- **M-UI-3** Inspector Usability ✅ (verified 2026-04-14)
+  - キーボードショートカット/ステータスバー/レイヤーラベルカラー/整列分布機能
+  - 主要ファイル: `Artifact/src/Widgets/ArtifactAlignmentWidget.cppm`, `Artifact/src/Widgets/ArtifactStatusBar.cpp`
+
+- **M-UI-5** Contents Viewer Expansion ✅ (verified 2026-04-14)
+  - テキストレイヤーインライン編集実装済み、Ctrl+Enter commit shortcutあり
+  - 主要ファイル: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`
+
+### Composition Editor / Cache
+- **M-CE-1** Composition Editor Cache System ✅ (verified 2026-04-14)
+  - Surface cache / render key suppression / ROIシステム実装済み
+  - 主要ファイル: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+
+- **M-CE-2** Static Layer GPU Cache ⚠️ (partial - 2026-04-14)
+  - マイルストーン文書と設計は存在するが、専用GPU cacheクラスの実装は未確認
+  - `PrimitiveRenderer2D` の cacheKey ベース最適化は実装済み
+  - 主要ファイル: `Artifact/docs/MILESTONE_STATIC_LAYER_GPU_CACHE_2026-03-26.md`
+
+### AI / Tooling
+- **M-AI-1** MCP/Tool Bridge ✅ Phase 1完了 (verified 2026-04-14)
+  - McpBridge::handleRequest() / AIContext 実装済み
+  - 主要ファイル: `ArtifactCore/include/AI/McpBridge.ixx`
+
+- **M-AI-2** AI Command Sandbox ✅ (verified 2026-04-14)
+  - CommandSandbox.ixx（674行）で policy/execution/timeout すべて実装済み
+  - 主要ファイル: `ArtifactCore/include/AI/CommandSandbox.ixx`
+
+### Asset Browser
+- **M-AB** Asset Browser Improvement (Unity風) ✅ (verified 2026-04-14)
+  - Icon/List切替実装済み（viewModeButton）、Name/Date/Size/Typeソート、Status filter
+  - 主要ファイル: `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`
+
 ## Widget Ownership Guardrails
 
 このバックログで milestone を触るときは、まず次の責務境界を確認する。
@@ -29,10 +83,16 @@
 
 ## AI / Tooling
 
+### M-AI-2 AI Command Sandbox / CLI Execution
+- AI 縺ｫ縺ｯ shell string 縺ｧ縺ｪ縺上↑繧峨〒縺・、program + argv 繧帝攝縺励※謇薙∴繧・
+- allowlist / timeout / working directory / output cap 繧定ｨ倬鹸縺励※縲∝ｧ・ｭｷ螟夜Κ繧ｳ繝槭Φ繝峨ｒ縺ｾ縺・☆繧・
+- 隧ｳ邏ｰ縺ｯ `docs/planned/MILESTONE_AI_COMMAND_SANDBOX_2026-04-10.md`
+
 ### M-AI-1 MCP / Tool Bridge Foundation
 - `DescriptionRegistry` / `AIToolExecutor` / `AIContext` を使って AI tool schema を安定化する
 - local / cloud / 将来の MCP bridge から共通で使える tool 境界を切る
 - 詳細は `docs/planned/MILESTONE_AI_MCP_TOOL_BRIDGE_2026-04-10.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_AI_MCP_TOOL_BRIDGE_PHASE1_EXECUTION_2026-04-10.md`
 
 ### M-AI-2 Cloud UI Compact View / Settings Split
 - Cloud AI の詳細設定を dialog 側へ寄せ、常時表示を減らす
@@ -377,6 +437,7 @@
 ### M-LG-1 Layer Group System
 - レイヤーグループの保存 / 表示 / 親子 / 可視性 / 操作単位を整理する
 - 詳細は `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_2026-03-27.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_PHASE1_EXECUTION_2026-04-10.md`
 
 ### M-LG-2 Layer Components: Physics / Behavior
 - layer 側に軽量 component system を追加し、追従・減衰・トリガーの受け皿を作る
@@ -804,6 +865,11 @@
 - 詳細: `docs/planned/MILESTONE_EXTENDSCRIPT_STYLE_SCRIPT_RUNTIME_2026-04-06.md`
 - Phase 1 実行メモ: `docs/planned/MILESTONE_EXTENDSCRIPT_STYLE_SCRIPT_RUNTIME_PHASE1_EXECUTION_2026-04-06.md`
 
+### M-TL-13 Timeline Curve Editor Mode
+- `ArtifactTimelineWidget` 繧帝ｸ縺､縺ｮ mode 縺ｫ縺吶ｋ縲ゅΝ繝ｼ繝・ヨ timeline / curve editor 繧偵→縺ｪ縺｣縺ｦ縺ｯ縺薙→縺後ｒ謹ｭ縺｣縺励※縺上□縺輔＞
+- `U` / `Tab` 繧ｷ繝ｧ繝ｼ繝･縺ｧ playhead / selection / zoom 繧堤舌・縺励※遉ｾ縺ｦ縺薙・繧ｹ繝医Ο繝・ヱ繝ｫ
+- 隧ｳ邏ｰ縺ｯ `docs/planned/MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md`
+
 ## Good Small Tasks
 
 - `M-AR-2 import std Rollout`
@@ -811,6 +877,11 @@
 - `M-QA-1 Software Test Windows`
 - `M-FX-2 Solid Color Effects`
 - `M-FX-4 Creative Workflow (Bridge only)`
+
+### M-TL-13 Timeline Curve Editor Mode
+- `ArtifactTimelineWidget` 縺ｧ normal timeline / curve editor 繧偵→縺ｪ縺｣縺ｦ縺ｯ縺薙→縺後ｒ謹ｭ縺｣縺励※縺上□縺輔＞
+- `U` 繧ｷ繝ｧ繝ｼ繝･縺ｧ mode toggle, `Tab` / `Shift+Tab` 縺ｧ curve editor 内 focus traversal
+- 隧ｳ邏ｰ縺ｯ `docs/planned/MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md`
 
 ## Terminal / Shell
 
