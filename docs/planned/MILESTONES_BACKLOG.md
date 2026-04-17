@@ -6,6 +6,18 @@
 
 以下は実装確認済みの完了マイルストーン。詳細は各マイルストーン文書を参照。
 
+### Diagnostics / Profiling
+- **M-DIAG-1** Audio Engine Profiler ✅ (2026-04-15)
+  - `AudioEngineProfiler` lock-free singleton, callback timing, fill-loop timing, buffer level
+  - `ProfilerPanelWidget` に "Audio Engine" セクション + Reset ボタン追加 (Ctrl+Shift+D)
+  - 主要ファイル: `ArtifactCore/include/Utils/PerformanceProfiler.ixx`, `Artifact/src/Widgets/Diagnostics/ProfilerPanelWidget.cppm`
+
+- **M-DIAG-2** EventBus Debugger ✅ (2026-04-15)
+  - `EventBus`: PublishHook, type-name registry, `forEachRegisteredType`, `registerTypeNameRaw`
+  - `EventBusDebugger`: attach/detach, fire log (ring buffer), subscriber snapshot, frequency snapshot
+  - `EventBusDebuggerWidget`: 3-tab UI — Fire Log / Subscribers / Frequency (Ctrl+Shift+E)
+  - 主要ファイル: `ArtifactCore/include/Event/EventBusDebugger.ixx`, `Artifact/src/Widgets/Diagnostics/EventBusDebuggerWidget.cppm`
+
 ### Project View / Asset System
 - **M-PV-1** Project View Basic Operations ✅ (verified 2026-04-14)
   - selection center/quick actions/sync chip/inline rename 実装済み
@@ -339,6 +351,11 @@
 ### M-UI-4 Menu-to-App Command Routing
 - File / Composition / Edit / View / Layer / Render / Help の menu を app service / command に正しく接続する
 - 詳細は `docs/planned/MILESTONE_MENU_APP_INTEGRATION_2026-03-27.md`
+
+### M-UI-4b Toolbar / App Integration
+- `ArtifactToolBar` を app command surface として整理し、menu / shortcut / workspace state と揃える
+- Qt の新規 signal / slot は増やさず、既存 service / event / 明示 refresh で同期する
+- 詳細は `docs/planned/MILESTONE_TOOLBAR_APP_INTEGRATION_2026-04-17.md`
 
 ### M-UI-5 Contents Viewer Expansion
 - image / video / audio / 3D model / source / final / compare を横断する viewer の拡充
