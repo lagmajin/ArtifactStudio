@@ -6,3 +6,10 @@ artifact_add_test(ArtifactCoreTest
     LIBS
         ArtifactCore
 )
+
+artifact_add_test(HueSaturationTest
+    SOURCES
+        Color/HueSaturationTest.cpp
+    LIBS
+        ArtifactCore
+)
