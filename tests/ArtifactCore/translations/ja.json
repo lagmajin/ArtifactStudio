@@ -1,0 +1,14 @@
+{
+    "app.title": "アーティファクト スタジオ",
+    "menu.file": "ファイル",
+    "menu.edit": "編集",
+    "menu.view": "表示",
+    "menu.help": "ヘルプ",
+    "file.new": "新規プロジェクト",
+    "file.open": "開く...",
+    "file.save": "保存",
+    "file.save_as": "名前を付けて保存...",
+    "greeting": "こんにちは {0}！",
+    "items.count": "{count} 个项目",
+    "items.count_plural": "{count} 个项目"
+}

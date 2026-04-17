@@ -1,16 +1,23 @@
-#include <gtest/gtest.h>
-#include <QString>
-#include <string>
-#include <string_view>
+ #include <gtest/gtest.h>
+ #include <QString>
+ #include <string>
+ #include <string_view>
 
-import Utils.String;
-import Utils.Path;
-import Utils.Convertor.String;
-import Utils.String.Like;
+ import Utils.String;
+ import Utils.Path;
+ import Utils.Convertor.String;
+ import Utils.String.Like;
+ import Core.Localization;
 
-using namespace ArtifactCore;
+ using namespace ArtifactCore;
 
-TEST(UtilsTest, LevenshteinDistance) {
+ // getExeDir() がプロダクションでは利用可能だが、
+ // テスト環境ではカレントディレクトリを使用
+ static QString getTestTranslationsDir() {
+     return QCoreApplication::applicationDirPath() + "/translations";
+ }
+
+ TEST(UtilsTest, LevenshteinDistance) {
     // 完全一致
     EXPECT_EQ(calculateLevenshteinDistance("test", "test"), 0);
     
@@ -49,8 +56,90 @@ TEST(UtilsTest, PathUtils) {
     EXPECT_TRUE(resolveIconResourcePath("visibility.svg").startsWith(":/icons"));
 }
 
-TEST(UtilsTest, StringLike) {
-    EXPECT_EQ(toQString("test"), "test");
-    EXPECT_EQ(toQString(std::string("test")), "test");
-    EXPECT_EQ(toQString(std::string_view("test")), "test");
-}
+ TEST(UtilsTest, StringLike) {
+     EXPECT_EQ(toQString("test"), "test");
+     EXPECT_EQ(toQString(std::string("test")), "test");
+     EXPECT_EQ(toQString(std::string_view("test")), "test");
+ }
+
+ TEST(Localization, BasicTranslation) {
+     auto& loc = LocalizationManager::instance();
+     loc.resetStats();
+
+     // 翻訳ファイルをロード
+     QString testDir = QString::fromStdString(getExeDir().toStdString() + "/../tests/ArtifactCore/translations");
+     EXPECT_TRUE(loc.loadFromDirectory(testDir));
+
+     // 英語翻訳
+     loc.setLanguage(LocaleLanguage::English);
+     EXPECT_EQ(loc.translate("app.title"), "Artifact Studio");
+     EXPECT_EQ(loc.translate("menu.file"), "File");
+
+     // 日本語翻訳
+     loc.setLanguage(LocaleLanguage::Japanese);
+     EXPECT_EQ(loc.translate("app.title"), "アーティファクト スタジオ");
+     EXPECT_EQ(loc.translate("menu.file"), "ファイル");
+
+     // 英語に戻す
+     loc.setLanguage(LocaleLanguage::English);
+ }
+
+ TEST(Localization, PlaceholderSubstitution) {
+     auto& loc = LocalizationManager::instance();
+
+     // プレースホルダー付き翻訳
+     QString result = loc.translate("greeting", {"World"});
+     EXPECT_EQ(result, "Hello World!");
+
+     // 日本語
+     loc.setLanguage(LocaleLanguage::Japanese);
+     result = loc.translate("greeting", {"世界"});
+     EXPECT_EQ(result, "こんにちは 世界！");
+
+     loc.setLanguage(LocaleLanguage::English);
+ }
+
+ TEST(Localization, MissingKeyTracking) {
+     auto& loc = LocalizationManager::instance();
+     loc.resetStats();
+
+     // 存在しないキー
+     QString result = loc.translate("nonexistent.key");
+     EXPECT_EQ(result, "nonexistent.key");
+
+     // 統計で欠落キーが追跡されている
+     LocalizationStats stats = loc.getStats();
+     EXPECT_EQ(stats.missingKeyCount, 1);
+     EXPECT_TRUE(stats.missingKeys.contains("nonexistent.key"));
+     EXPECT_EQ(stats.missingKeys["nonexistent.key"], 1);
+ }
+
+ TEST(Localization, CachePerformance) {
+     auto& loc = LocalizationManager::instance();
+     loc.resetStats();
+     loc.clearCache();
+
+     // 同じキーを複数回呼び出し
+     loc.translate("app.title");
+     loc.translate("app.title");
+     loc.translate("app.title");
+
+     LocalizationStats stats = loc.getStats();
+     // 2回のキャッシュヒットがある
+     EXPECT_GE(stats.cacheHits, 2);
+     EXPECT_LE(stats.cacheMisses, 1);
+ }
+
+ TEST(Localization, CacheClear) {
+     auto& loc = LocalizationManager::instance();
+     loc.resetStats();
+
+     // キャッシュ生成
+     loc.translate("app.title");
+     EXPECT_GT(loc.cacheSize(), 0);
+
+     // キャッシュクリア
+     loc.clearCache();
+     EXPECT_EQ(loc.cacheSize(), 0);
+ }
+

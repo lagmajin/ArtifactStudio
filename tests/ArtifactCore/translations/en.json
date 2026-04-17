@@ -1,0 +1,14 @@
+{
+    "app.title": "Artifact Studio",
+    "menu.file": "File",
+    "menu.edit": "Edit",
+    "menu.view": "View",
+    "menu.help": "Help",
+    "file.new": "New Project",
+    "file.open": "Open...",
+    "file.save": "Save",
+    "file.save_as": "Save As...",
+    "greeting": "Hello {0}!",
+    "items.count": "{count} item",
+    "items.count_plural": "{count} items"
+}
