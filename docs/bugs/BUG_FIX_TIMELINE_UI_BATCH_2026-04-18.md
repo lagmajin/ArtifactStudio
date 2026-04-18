@@ -185,3 +185,56 @@ Selecting an audio file in the content viewer spawned many worker threads all at
 | `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm` | Issue 5 — RGBA8888 format, grayscale channel fix |
 | `ArtifactCore/src/Media/MediaPlaybackController.cppm` | Issue 6 — non-blocking `getNextAudioFrame()`, removed TBB re-spawn |
 
+
+---
+
+# Bug Fix Report — UI Batch 4 (2026-04-18)
+
+3 additional issues reported after batch 3, plus 1 investigation question.
+
+---
+
+## Issue A — Tab Font Not Applied Until Activated ✅
+
+**Symptom**  
+QADS tab labels displayed at the small system default font on startup; after clicking a tab (activating it), the 16 pt font appeared correctly.
+
+**Root Cause**  
+efreshDockDecorations() called pplyTabLabelColors() only inside the if (tabChanged) block. On first startup, epolishWidget(tab) (called to set palette) sends StyleChange to the tab, which Qt propagates to child QLabel widgets via QEvent::FontChange. This async propagation can reset the label's explicitly-set font back to the style default AFTER pplyTabLabelColors() returns. On the next focus/click event that triggers a refresh, 	abChanged = false (properties already set), so pplyTabLabelColors() is skipped and the corrected font is never re-applied until the user activates the tab (triggering a state change).
+
+**Fix**  
+Artifact/src/Widgets/Dock/DockStyleManager.cppm — efreshDockDecorations()  
+Moved pplyTabLabelColors() outside the if (tabChanged) guard. It is now called unconditionally for every tab on every refresh. The overhead is negligible (iterates 1–2 QLabel children per tab, fired only on focus/input events).
+
+---
+
+## Issue B — Menu Font Still Too Small (+10 % More) ✅
+
+**Symptom**  
+Menu bar and popup menus were still slightly small after the ×1.2 scaling from batch 3.
+
+**Fix**  
+Artifact/src/Widgets/ArtifactMenuBar.cppm — constructor  
+Changed multiplier from 1.2 to 1.32 (i.e., ×1.2 × ×1.1).
+
+---
+
+## Issue C — Composition Editor Zoom Resets on Focus Cycle ✅
+
+**Symptom**  
+Switching focus away from the Composition Editor and back caused the viewport zoom to snap back to the default (fill/fit), losing any manual zoom the user had set.
+
+**Root Cause**  
+CompositionViewport::showEvent fires on every QADS panel show/activate cycle. When the controller was already initialized, showEvent called syncPreferredComposition(). syncPreferredComposition() always called equestInitialFit() regardless of whether the composition had actually changed, triggering controller_->zoomFill() and resetting the zoom.
+
+**Fix**  
+Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm — syncPreferredComposition()  
+Added a compositionChanged = (controller_->composition() != comp) check **before** setComposition(). equestInitialFit() (and utoStartPending_) is now only set when the composition pointer actually changes. Re-focus events that find the same composition already loaded are a no-op for zoom.
+
+---
+
+## Issue D — Layer Garbage in Composition Editor (Investigation) ℹ️
+
+**Question**: Is the garbage rendering around layers caused by the native text rendering currently being implemented?
+
+**Answer**: No. PrimitiveRenderer2D / GlyphAtlas (the DX12 native text rendering path) is not yet wired into ArtifactCompositionRenderController. Text layers still render via ArtifactTextLayer::toQImage() (CPU path). The garbage is unrelated to text rendering. Likely candidates: SDF Raymarch layer implementation (4def313), GPU blend pipeline timing, or stale surface cache entries. Separate investigation required.
