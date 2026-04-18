@@ -1,78 +1,107 @@
 # Bug Fix Report — Timeline UI Batch (2026-04-18)
 
-4 issues reported from screenshot review.  All fixes are surgical, no QSS added.
+6 issues reported from screenshot review (batch 1) and follow-up review (batch 2).
+All fixes are surgical; no QSS added, no new signals/slots.
 
 ---
 
-## Issue 1 — QADS Tab Title Font Too Small
+## Issue 1 — QADS Tab Title Font Too Small ✅
 
 **Symptom**  
 Panel tab labels (e.g. "Comp 1") rendered at the system default font size (~8–9 pt), making them hard to read.
 
 **Root Cause**  
-`DockStyleManager::applyTabLabelColors()` iterated the QLabel children of each tab and applied palette + bold/normal font weight, but never set an explicit point size.  The QFont size was left at whatever the application default was.
+`DockStyleManager::applyTabLabelColors()` iterated the QLabel children of each tab and applied palette + bold/normal font weight, but never set an explicit point size.
 
-**Fix**  
+**Fix** *(corrected in batch 2)*  
 `Artifact/src/Widgets/Dock/DockStyleManager.cppm` — `applyTabLabelColors()`  
-Added `font.setPointSize(10)` before applying the font object to the label.
+Set `font.setPointSize(12)` (initial batch 1 attempt used 10 pt, which was still too small; corrected to 12 pt in batch 2).
 
 ---
 
-## Issue 2 — Timecode Label Background Colour Mismatch
+## Issue 2 — Timecode Label Background Colour Mismatch ✅
 
 **Symptom**  
-The QLabel widgets inside `ArtifactTimeCodeWidget` (timecode line and frame-number line) had a noticeably different background colour from the rest of the left panel, creating a visible seam.
+`ArtifactTimeCodeWidget` rendered with a visibly different background colour from the surrounding left-panel header, creating a visible seam.
 
 **Root Cause**  
-`ArtifactTimeCodeWidget` set its own `QPalette::Window` to `secondaryBackgroundColor` (a theme token), but the QLabel palette objects were copied from the application palette at construction time and therefore carried the application's default `Window`/`Base` colours.  Some paths in `ArtifactCommonStyle` (or its base) use the `Window`/`Base` role for background fill even when `autoFillBackground` is false, producing the mismatch.
+The widget set its own `QPalette::Window` to `secondaryBackgroundColor`, which differed from the parent container's inherited theme background.
 
-**Fix**  
+**Fix** *(corrected in batch 2)*  
 `Artifact/src/Widgets/Timeline/ArtifactTimeCodeWidget.cppm` — constructor  
-Both label palettes now have `QPalette::Window` and `QPalette::Base` explicitly set to `widgetBg` (= `secondaryBackgroundColor`) before being assigned to the labels.
+Removed `setAutoFillBackground(true)` and the explicit `QPalette::Window` palette override from the widget entirely.  Set `setAutoFillBackground(false)` so the widget is fully transparent and inherits the container's background.  Label text colours (WindowText/Text) are still applied; only the background overrides were removed.
 
 ---
 
-## Issue 3 — Timecode and Frame Number on Same Line
+## Issue 3 — Timecode and Frame Number on Same Line ✅
 
 **Symptom**  
-The display showed "00:00:00:00 0f" on a single row.  The frame number was too large and visually dominated.
+The display showed "00:00:00:00 0f" on a single row.
 
 **Root Cause**  
-`ArtifactTimeCodeWidget` used a `QHBoxLayout`, placing the timecode and frame labels side-by-side.
+`ArtifactTimeCodeWidget` used a `QHBoxLayout`.
 
-**Fix**  
+**Fix** *(batch 1)*  
 `Artifact/src/Widgets/Timeline/ArtifactTimeCodeWidget.cppm` — constructor  
-Replaced `QHBoxLayout` with `QVBoxLayout` so the timecode label is on top and the frame-number label is below.  Secondary changes:
-- Frame font reduced from 16 pt bold → 10 pt non-bold (secondary info).
-- Fixed height increased from 42 → 54 px to accommodate two lines.
-- `minimumWidth` calculation simplified to timecode text width only.
+Replaced `QHBoxLayout` with `QVBoxLayout`.  Frame font reduced to 10 pt non-bold.  Fixed height set to 54 px.
 
 ---
 
-## Issue 4 — Playhead Paint Artifacts (Ghost Pixels)
+## Issue 4 — Playhead Paint Artifacts (Ghost Pixels) ✅
 
 **Symptom**  
-When the playhead moved during playback or scrubbing, the previous position was not erased: a ghost line/arrowhead remained at the old x-coordinate until something else happened to invalidate that region.
+Previous playhead position left ghost pixels.  The batch-1 "fix" of calling `parent->update(strip)` alone made things worse — the new playhead stopped appearing entirely.
+
+**Root Cause (revised)**  
+`TimelinePlayheadOverlayWidget` has `WA_NoSystemBackground`, so Qt does not erase the overlay's backing-store region before `paintEvent`.  The backing-store model for the single top-level window works as follows:
+
+1. When `parent->update(strip)` is called, Qt schedules the parent's `paintEvent` for that strip.
+2. The parent repaints → fresh background pixels written to the shared backing store.
+3. **However**, the overlay is NOT added to the dirty list.  Its `paintEvent` is NOT called.  The old playhead pixels (from the overlay's last `paintEvent`) are composited on top of the fresh background — ghost remains.
+4. Because the new playhead is never redrawn, the playhead disappears entirely.
+
+**Fix** *(batch 2)*  
+`Artifact/src/Widgets/ArtifactTimelineWidget.cpp` — `syncPlayheadOverlay()`  
+Call **both** `parent->update(strip)` AND `overlay->update(strip)`:
+- Parent repaints first → clears old playhead from the backing store (erases ghost).
+- Overlay repaints second → draws new playhead on top of the fresh background.
+
+`WA_NoSystemBackground` is preserved on the overlay (no opaque background fill).  The union strip covers both `lastPlayheadParentX_` (old) and the new position, ensuring the ghost is erased.
+
+---
+
+## Issue 5 — OIIO Thumbnail Colours Wrong (Asset Browser) ✅
+
+**Symptom**  
+After migrating from `QImage`/`QMediaPlayer` to OIIO for thumbnail loading, thumbnails displayed in the asset browser showed incorrect colours (red↔blue swapped, dark edges on transparent images).
 
 **Root Cause**  
-`TimelinePlayheadOverlayWidget` has `WA_NoSystemBackground` set, which tells Qt **not** to erase the backing store region before calling `paintEvent`.  The overlay's `paintEvent` only draws the new playhead line; it does not clear the previous pixels.
+`loadImageThumbnailViaOIIO()` allocated a `QImage::Format_ARGB32_Premultiplied` image and called `rgba.get_pixels(…, UINT8, image.bits())`.  OIIO writes pixels in RGBA byte order (R at byte 0, G at byte 1, B at byte 2, A at byte 3).  `Format_ARGB32_Premultiplied` on little-endian x86 expects BGRA memory layout → red and blue channels are swapped, and premultiplied alpha is applied to straight-alpha data.
 
-Previously `syncPlayheadOverlay()` called `overlay->update()`.  This schedules only the overlay's own `paintEvent`.  Because the overlay's backing-store region is not erased (due to `WA_NoSystemBackground`), old pixels from the previous playhead position persisted behind the freshly drawn line.
+Secondary issue: for 1-channel (grayscale) images the channel order `{0,1,2,3}` attempted to read channels 1–3 from a 1-channel image, producing garbage colour.
 
 **Fix**  
-`Artifact/src/Widgets/ArtifactTimelineWidget.cpp` — `syncPlayheadOverlay()`
+`Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm` — `loadImageThumbnailViaOIIO()`
+- Changed `QImage::Format_ARGB32_Premultiplied` → `QImage::Format_RGBA8888` (expects RGBA byte order, straight alpha — matches OIIO output).
+- For the 1-channel grayscale case: changed `channelOrder` to `{0, 0, 0, -1}` with `channelValues[3] = 1.0f` so the single channel is replicated into R, G, and B; alpha is set to opaque.
 
-Instead of calling `overlay->update()`, we call `parent->update(strip)` where `strip` is a narrow vertical rectangle that covers both the **previous** and **current** playhead x-positions (± 12 px margin).
+---
 
-When the parent widget is dirtied, Qt re-composites the full z-stack in that region from bottom to top:
-1. `TimelineRightPanelWidget` (parent) repaints its background in the strip.
-2. All sibling children (track view, scrub bar, etc.) that overlap the strip repaint their portion.
-3. The overlay's `paintEvent` then draws the new playhead on top of clean pixels.
+## Issue 6 — Audio Playback Spawns Many Worker Threads, Slow to Start ✅
 
-The previous playhead position is tracked in `Impl::lastPlayheadParentX_` so the union strip can be computed without storing the old frame number separately.
+**Symptom**  
+Selecting an audio file in the content viewer spawned many worker threads all at once and playback was slow to start.
 
-**Performance note**  
-The strip width is typically ≤ 30 px wide during normal playback (adjacent frames).  The full-height strip repaint is comparable in cost to what `ArtifactTimelineTrackPainterView::setCurrentFrame()` already schedules for the track area on every frame change.
+**Root Cause**  
+`MediaPlaybackController::getNextAudioFrame()` (called every pump tick, ~60 Hz) contained two problems:
+1. It called `impl_->mediaReader_->start()` on every invocation.  `start()` calls `tbb::task_group::run()` to schedule a TBB task.  On the **first** call, TBB initialises its global thread pool by creating `hardware_concurrency()` threads simultaneously — the visible "many worker threads" burst.  On subsequent calls (e.g. after the reader hits EOF and resets `isRunning_`), additional TBB tasks are queued.
+2. It held `directDecodeMutex_` for the duration of a **spin-wait loop** (up to 500 iterations × 1 ms sleep = up to 125 ms) waiting for an audio packet.  This blocked the UI/audio-pump thread.
+
+**Fix**  
+`ArtifactCore/src/Media/MediaPlaybackController.cppm` — `getNextAudioFrame()`
+- Removed `impl_->mediaReader_->start()` from inside `getNextAudioFrame()`.  The reader is already started by `play()`.
+- Removed the spin-wait loop entirely; replaced with a single non-blocking `try_pop` on the audio queue.
+- If no packet is available (reader hasn't produced one yet), the method returns an empty `QByteArray`.  The audio pump timer (16 ms) retries on the next tick with no extra cost.
 
 ---
 
@@ -80,6 +109,9 @@ The strip width is typically ≤ 30 px wide during normal playback (adjacent fra
 
 | File | Change |
 |---|---|
-| `Artifact/src/Widgets/Dock/DockStyleManager.cppm` | Issue 1 — explicit 10 pt font in `applyTabLabelColors()` |
-| `Artifact/src/Widgets/Timeline/ArtifactTimeCodeWidget.cppm` | Issues 2 & 3 — VBox layout, palette bg fix, font/height adjustments |
-| `Artifact/src/Widgets/ArtifactTimelineWidget.cpp` | Issue 4 — parent-strip update in `syncPlayheadOverlay()`, added `lastPlayheadParentX_` to `Impl` |
+| `Artifact/src/Widgets/Dock/DockStyleManager.cppm` | Issue 1 — 12 pt font in `applyTabLabelColors()` |
+| `Artifact/src/Widgets/Timeline/ArtifactTimeCodeWidget.cppm` | Issues 2 & 3 — transparent bg (no autoFill), VBox layout, font/height |
+| `Artifact/src/Widgets/ArtifactTimelineWidget.cpp` | Issue 4 — dual `parent->update` + `overlay->update` in `syncPlayheadOverlay()` |
+| `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm` | Issue 5 — RGBA8888 format, grayscale channel fix |
+| `ArtifactCore/src/Media/MediaPlaybackController.cppm` | Issue 6 — non-blocking `getNextAudioFrame()`, removed TBB re-spawn |
+
