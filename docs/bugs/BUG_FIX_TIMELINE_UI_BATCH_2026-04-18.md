@@ -292,7 +292,49 @@ The selectedLayer pointer is guaranteed non-null at this point (guarded by the e
 
 ---
 
-## Batch 6 — Menu Transparency, Dialog Rounded Corners, Gizmo Mode::None (2026-04-18)
+## Batch 6c — Dialog Transparency Regression, 3D Gizmo Stealing 2D Input (2026-04-18)
+
+### Issue 2 (regression from 6b) — Dialog Shows Checkerboard Transparent Areas
+
+**Symptom**
+After batch 6b, the header area and name-row of `CreateCompositionDialog` showed checkerboard transparency. The `QTabWidget` content area was solid. Same issue in plane-layer dialogs.
+
+**Root Cause**
+`WA_TranslucentBackground` on the top-level dialog makes the entire HWND use DWM per-pixel alpha. Child `QWidget` containers (header bar, name row) have no explicit background fill at the Qt paint level, so their areas render as fully transparent (alpha=0) against the DWM compositing buffer → checkerboard.
+
+**Fix (Batch 6c)**
+`Artifact/src/Widgets/CommonStyle.cppm` — `RoundedWindowMaskFilter`:
+- Added `bool onlyIfFrameless` constructor parameter (default `false`).
+- At `QEvent::Show`/`QEvent::Resize` time, if `onlyIfFrameless_` is true, checks `Qt::FramelessWindowHint` before applying mask. Dialogs that are NOT frameless receive no mask.
+- `polish()` now installs the filter on every `QDialog` with property guard `artifactDialogMaskInstalled`.
+
+`Artifact/src/Widgets/Dialog/ArtifactCreateCompositionDialog.cppm` — constructor:
+`Artifact/src/Widgets/Dialog/CreatePlaneLayerDialog.cppm` — `buildDialogChrome()`:
+- Removed `setAttribute(WA_TranslucentBackground, true)` and `setAttribute(WA_NoSystemBackground, true)`.
+
+The dialog window is now opaque (no per-pixel alpha). The mask clips corners at the OS level, giving rounded appearance without any child-widget transparency.
+
+---
+
+### Issue 3 (regression from all batch 6) — Gizmo Cannot Move 2D Layers; 3D Gizmo Steals Mouse Input
+
+**Symptom**
+Selecting a 2D layer and attempting to drag it via the gizmo had no effect. The bounding box showed (Mode::None fix from 6a) but dragging was impossible.
+
+**Root Cause**
+In `handleMousePress()` and `handleMouseMove()`, the 3D gizmo hit-test/interaction block ran for **all** selected layers, not just 3D layers:
+- `handleMousePress()` line ~2348: `if (selectedLayer && impl_->gizmo3D_)` — no `is3D()` guard. The 3D gizmo `hitTest()` was called with a ray for 2D layers. If the ray intersected the 3D gizmo's plane (which may contain stale geometry from a previously selected 3D layer), `beginDrag()` was called and the function returned early — the 2D `TransformGizmo::handleMousePress()` was **never reached**.
+- `handleMouseMove()` line ~2786: `if (impl_->gizmo3D_->isDragging())` — because `beginDrag()` was called at press time for 2D layers, `isDragging()` returned true during drag. `updateDrag()` ran and returned early before the 2D gizmo could process the move.
+
+**Fix (Batch 6c)**
+`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`:
+- `handleMousePress()`: Changed guard to `if (selectedLayer && impl_->gizmo3D_ && selectedLayer->is3D())`.
+- `handleMouseMove()`: Wrapped the entire 3D gizmo block inside `if (sel3DLayer && sel3DLayer->is3D())`, fetching the selected layer via `selectedLayerId_`.
+
+Result: 3D gizmo interaction only activates for layers where `is3D()` is true. 2D layers always fall through to the `TransformGizmo` path. Both 2D movement and 3D gizmo remain fully functional.
+
+---
+
 
 ### Issue 1 — QMenu Rounded Corners Not Transparent
 
