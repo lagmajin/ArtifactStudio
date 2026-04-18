@@ -238,3 +238,54 @@ Added a compositionChanged = (controller_->composition() != comp) check **before
 **Question**: Is the garbage rendering around layers caused by the native text rendering currently being implemented?
 
 **Answer**: No. PrimitiveRenderer2D / GlyphAtlas (the DX12 native text rendering path) is not yet wired into ArtifactCompositionRenderController. Text layers still render via ArtifactTextLayer::toQImage() (CPU path). The garbage is unrelated to text rendering. Likely candidates: SDF Raymarch layer implementation (4def313), GPU blend pipeline timing, or stale surface cache entries. Separate investigation required.
+
+
+---
+
+## Batch 5 — Menu Rounded Corners, QADS Tab Rounded Corners, 3D Gizmo Garbage ✅
+
+### Issue 1 — QMenu Dropdown Has Square Corners
+
+**Symptom**  
+Popup menus opened from the menu bar had square corners, inconsistent with the DCC tool aesthetic.
+
+**Root Cause**  
+ArtifactCommonStyle did not override PE_PanelMenu / PE_FrameMenu, so Fusion's default square panel was used. The QMenu popup window had no transparent alpha channel for corner cut-out.
+
+**Fix**  
+Artifact/src/Widgets/CommonStyle.cppm — polish(QWidget*) and drawPrimitive()  
+- In polish(): for QMenu* widgets, set WA_TranslucentBackground and WA_NoSystemBackground to give the popup window an alpha channel.  
+- In drawPrimitive(): override PE_PanelMenu to fill a rounded rect (radius 6 px) with 	heme.secondaryBackgroundColor and draw a 1 px border using 	heme.borderColor.  
+- Override PE_FrameMenu as a no-op (background + border handled in PE_PanelMenu).
+
+---
+
+### Issue 2 — QADS Tabs Have Square Corners
+
+**Symptom**  
+Individual dock panel tabs (CDockWidgetTab) had sharp 90° corners.
+
+**Root Cause**  
+DockStyleManager::applyTabLabelColors() set WA_StyledBackground on each tab (causing drawPrimitive(PE_Widget) to be called for the background), but ArtifactCommonStyle::drawPrimitive() had no PE_Widget override so Fusion's flat rectangle fill was used.
+
+**Fix**  
+- Artifact/src/Widgets/Dock/DockStyleManager.cppm — pplyTabLabelColors(): set 	ab->setProperty("artifactDockTab", true) to mark each tab.  
+- Artifact/src/Widgets/CommonStyle.cppm — drawPrimitive(): added PE_Widget case; when widget->property("artifactDockTab").toBool() is true, draw a rounded rect (radius 4 px) using option->palette.color(QPalette::Window).  
+Style chain: CDockWidgetTab.style() = DockGlowStyle(base=ArtifactCommonStyle) → our PE_Widget override is reachable through QProxyStyle delegation.
+
+---
+
+### Issue 3 — 3D Gizmo Drawn Over 2D Layers (Layer Garbage)
+
+**Symptom**  
+Selecting a 2D layer in the composition editor caused large X/Y/Z axis arrows to appear overlaid on the layer, overlapping the 2D gizmo's move handles. The artifacts moved with the layer and changed color on selection.
+
+**Root Cause**  
+enderOneFrameImpl() called gizmo3D_->draw() for **all** selected layers regardless of layer->is3D(). For a 2D layer with z=0, Artifact3DGizmo::draw() calculated s = max(|viewPos.z| * 0.63, 126) = 126 canvas units and drew full X/Y/Z axis arrows at the layer center. These overlapped the 2D gizmo arrows, producing the "garbage" visual.  
+Artifact3DGizmo::draw() itself correctly resets setUseExternalMatrices(false) at the end of every call, so there was no secondary matrix state leak.
+
+**Fix**  
+Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm — enderOneFrameImpl() line ~3891:  
+Changed guard from if (gizmo3D_) to if (gizmo3D_ && selectedLayer->is3D()).  
+The selectedLayer pointer is guaranteed non-null at this point (guarded by the enclosing if (selectedLayer && selectedLayer->isVisible()) block).
+
