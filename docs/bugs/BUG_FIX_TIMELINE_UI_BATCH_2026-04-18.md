@@ -383,3 +383,113 @@ After the batch 6 bounding-box fix, the selection outline was visible in Mode::N
 Added `case Mode::None: return handle == HandleType::Move;`
 
 Result: In Mode::None, clicking inside the layer bounding box returns `HandleType::Move`, enabling layer repositioning by drag. Scale and rotate handles remain non-interactive, consistent with selection-tool semantics.
+
+
+---
+
+# Bug Fix Report — Batch 7 (2026-04-18)
+
+4 issues reported after batch 6c.
+
+---
+
+## Issue 1 — Rounded Corners Jagged / Aliased ✅
+
+**Symptom**
+QMenu and QDialog rounded corners appeared jagged (ギザギザ). The outline was noticeably stepped instead of smooth.
+
+**Root Cause**
+`RoundedWindowMaskFilter` uses a `QBitmap` (1-bit depth) as the window mask. `QPainter::Antialiasing` has **zero effect** on 1-bit bitmaps — each pixel is either on (color1) or off (color0). There is no partial transparency to smooth the curve. This is a fundamental limitation of the `setMask()` approach.
+
+**Fix**
+`Artifact/src/Widgets/CommonStyle.cppm` — `RoundedWindowMaskFilter`:
+- On Windows 11 (Build 22000+), the filter now uses **DWM native rounded corners** via `DwmSetWindowAttribute(DWMWA_WINDOW_CORNER_PREFERENCE = 33, DWMWCP_ROUNDSMALL = 3)`.
+- DWM compositing applies sub-pixel anti-aliasing at the compositor level, producing perfectly smooth corners.
+- `dwmapi.dll` is loaded dynamically (`LoadLibraryW` + `GetProcAddress`) — same pattern already used in `ArtifactMainWindow.cppm` and `NativeHelper.cpp`.
+- If DWM attribute fails (Windows 10 or older), falls back to the existing `QBitmap` mask.
+- `dwmApplied_` flag prevents redundant calls and skips mask application when DWM is active.
+
+---
+
+## Issue 2 — Property Widget Not Showing Selection After Plane Layer Creation ✅
+
+**Symptom**
+After adding a plane layer via the dialog, the layer appeared selected in the timeline/composition editor, but the Property Widget remained empty — not showing the layer's properties.
+
+**Root Cause**
+The selection notification flow is: `addLayerToCurrentComposition()` → `selectLayer(id)` → `selectionManager->selectLayer()` → `selectionChanged` signal + `LayerSelectionChangedEvent` → `syncPropertyPanelLayer()` → `resolveLayerForUi()` → `propertyPanel->setLayer()`.
+
+The existing `QTimer::singleShot(0)` deferred retry sometimes fails because the layer is not yet fully wired into the composition's layer map at the next event-loop tick (particularly when the dialog close event, undo command push, and layer creation all happen in rapid succession within the same event-loop frame).
+
+**Fix**
+`Artifact/src/AppMain.cppm` — `syncPropertyPanelLayer` lambda:
+- Refactored into a `deferredResolve` closure that accepts a retry delay parameter.
+- The initial `QTimer::singleShot(0)` invokes `deferredResolve(100)`.
+- If the first resolution attempt fails and a retry delay was specified (100 ms), a secondary `QTimer::singleShot(100ms)` fires and reattempts `resolveLayerForUi()`.
+- This two-tier retry (0 ms → 100 ms) catches the timing window where the layer is not yet resolvable on the immediate next tick but is ready within ~100 ms.
+
+---
+
+## Issue 3 — Opacity Changes Not Affecting Rendered Transparency ✅
+
+**Symptom**
+Adjusting a layer's Opacity slider in the Property Widget changed the numeric value but the composition viewport showed no visual change — the layer remained fully opaque.
+
+**Root Cause**
+`ArtifactAbstractLayer::setOpacity()` calls `notifyLayerMutation()`, which publishes a `LayerChangedEvent` with `compositionId = comp->id().toString()` where `comp = layer->composition()`. For freshly created layers (or layers whose composition back-pointer is cleared during undo/redo), `composition()` returns `nullptr` → `compositionId` is empty.
+
+The render controller's `LayerChangedEvent` handler (line 1530-1534) had a guard:
+```cpp
+if (!comp || event.compositionId.isEmpty() ||
+    comp->id().toString() != event.compositionId) {
+  return;
+}
+```
+When `event.compositionId` is empty, this guard returned early — the render was **silently skipped**.
+
+**Fix**
+`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` — `LayerChangedEvent` handler:
+- Changed the guard to:
+```cpp
+if (!comp) return;
+if (!event.compositionId.isEmpty() &&
+    comp->id().toString() != event.compositionId) return;
+```
+- Events with an empty `compositionId` are now treated as applying to the **current** composition (the only reasonable assumption — the user is editing a layer that's visible in the viewport).
+- Events with a non-empty `compositionId` that doesn't match are still filtered out.
+
+---
+
+## Issue 4 — Video Layer Frame Decoding Broken ✅
+
+**Symptom**
+Video layers displayed no frames. The decode process silently failed with `sendPacket failed` warnings in logs.
+
+**Root Cause**
+`MediaPlaybackController::decodeVideoFrameDirectAtFrame()` (FFmpeg path) had a critical bug in packet processing at line 183-188:
+```cpp
+const int ret = videoDecoder_->sendPacket(pkt);
+if (ret < 0) { break; }  // treated ALL errors as fatal
+```
+`avcodec_send_packet()` returns `AVERROR(EAGAIN)` when the decoder's internal buffer is full and frames must be drained first (via `avcodec_receive_frame()`). This is a **normal flow control signal**, not an error. The old code treated it as fatal and broke out of the decode loop — no frames were ever decoded for streams where the decoder's input buffer filled before the first output frame was ready.
+
+Additionally, when `av_read_frame()` returned `AVERROR_EOF`, the remaining buffered frames in the decoder were never flushed (the loop simply broke without draining).
+
+**Fix**
+`ArtifactCore/src/Media/MediaPlaybackController.cppm` — `decodeVideoFrameDirectAtFrame()`:
+1. Extracted frame-draining logic into a `drainFrames` lambda for reuse.
+2. `AVERROR(EAGAIN)` from `sendPacket`: drain frames first, then continue the read loop (packet data was already consumed/unref'd).
+3. `AVERROR_EOF` from `av_read_frame`: flush the decoder with `sendPacket(nullptr)` + `drainFrames()` to retrieve remaining buffered frames.
+4. Added `<cerrno>` include for `EAGAIN` constant availability.
+5. The outer loop now also checks `result.isNull()` to exit early once a target frame is found.
+
+---
+
+## Files Changed (Batch 7)
+
+| File | Change |
+|---|---|
+| `Artifact/src/Widgets/CommonStyle.cppm` | Issue 1 — DWM native rounded corners on Win11+, fallback to QBitmap mask |
+| `Artifact/src/AppMain.cppm` | Issue 2 — Two-tier deferred retry (0ms + 100ms) for property panel layer resolution |
+| `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` | Issue 3 — Accept LayerChangedEvent with empty compositionId for current composition |
+| `ArtifactCore/src/Media/MediaPlaybackController.cppm` | Issue 4 — Handle EAGAIN from sendPacket, flush decoder on EOF |
