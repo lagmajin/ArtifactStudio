@@ -78,6 +78,76 @@ After migrating from `QImage`/`QMediaPlayer` to OIIO for thumbnail loading, thum
 **Root Cause**  
 `loadImageThumbnailViaOIIO()` allocated a `QImage::Format_ARGB32_Premultiplied` image and called `rgba.get_pixels(…, UINT8, image.bits())`.  OIIO writes pixels in RGBA byte order (R at byte 0, G at byte 1, B at byte 2, A at byte 3).  `Format_ARGB32_Premultiplied` on little-endian x86 expects BGRA memory layout → red and blue channels are swapped, and premultiplied alpha is applied to straight-alpha data.
 
+---
+
+# Bug Fix Report — UI Batch 3 (2026-04-18)
+
+4 additional issues reported after batch 2 fixes.  
+All fixes are surgical; no QSS added, no new signals/slots.
+
+---
+
+## Issue A — QADS Tab Title Font Still Too Small (batch 3 correction) ✅
+
+**Symptom**  
+Tab labels were still hard to read at 12 pt (set in batch 2).
+
+**Root Cause**  
+12 pt is still below comfortable reading size for the panel header style.
+
+**Fix**  
+`Artifact/src/Widgets/Dock/DockStyleManager.cppm` — `applyTabLabelColors()`  
+Changed `font.setPointSize(12)` → `font.setPointSize(16)`.
+
+---
+
+## Issue B — Menu Bar / Action Text Too Small ✅
+
+**Symptom**  
+Menu bar and popup menu item text inherited the application default font size, which was noticeably smaller than desired.
+
+**Root Cause**  
+`ArtifactMenuBar` constructor did not set an explicit font size; it relied entirely on the inherited app font.
+
+**Fix**  
+`Artifact/src/Widgets/ArtifactMenuBar.cppm` — constructor body  
+After construction, reads `font()` (inherited app font), scales `pointSizeF` × 1.2, and applies via `setFont(f)` plus iterates `findChildren<QMenu*>()` to propagate to all popup menus.  No QSS used.
+
+---
+
+## Issue C — Composition Editor Not Displayed After Lazy-Init Change ✅
+
+**Symptom**  
+After commit `71845df` wrapped all dock widget setup in a `QTimer::singleShot(0, …)`, the Composition Editor (main Diligent DX12 viewport) stopped appearing on startup.
+
+**Root Cause**  
+`ArtifactCompositionEditor` owns a `CompositionViewport` which has `WA_NativeWindow`; Qt creates the underlying HWND lazily on the first `show()`.  
+When `addDockedWidget("Composition Viewer", CenterDockWidgetArea, compositionEditor)` was deferred inside `singleShot(0)` — fired after `mw->show()` — QADS called `setWidget()` on an already-shown layout.  
+Depending on the QADS version, this may not fire a `showEvent` on the newly added child widget.  Even when `showEvent` was invoked, the `!isVisible()` guard in `CompositionViewport::showEvent` (backed by a 16 ms timer) could evaluate while the dock was still processing its layout pass, causing the Diligent renderer never to initialize.
+
+**Fix**  
+`Artifact/src/AppMain.cppm`  
+Moved `new ArtifactCompositionEditor(mw)` and its `addDockedWidget` / `connect` calls to execute **synchronously** before the `QTimer::singleShot(0, …)` block — i.e. before `mw->show()`.  
+The singleShot lambda still handles all other dock widgets and workspace-restore steps (layout settings, `setDockVisible`, `activateDock`), which correctly remain deferred.
+
+---
+
+## Issue D — Composition Editor Initialization Too Slow (Shader Compilation on Render Path) ✅
+
+**Symptom**  
+After opening a project or loading a composition, the editor was noticeably sluggish for 1–2 s and then suddenly became responsive.  Application profiling showed bursts of worker threads at startup.
+
+**Root Cause**  
+Commit `6fc6295` moved `LayerBlendPipeline::initialize()` (GPU shader compilation, potentially 100–300 ms) from `CompositionRenderController::initialize()` into `renderOneFrameImpl()` behind a 1.2 s elapsed-time gate.  
+This caused the **render timer callback** to block mid-frame, producing visible frame drops at exactly the 1.2 s mark.  
+Additionally, `QtConcurrent::run` calls for MayaGradient warmup and layer prefetch fire simultaneously with the timer-deferred dock setup, creating a burst of 4+ background threads at startup.
+
+**Fix**  
+`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`  
+- In `initialize()`, added `QTimer::singleShot(1500, this, [this]() { … })` to initialize `GpuContext` and `LayerBlendPipeline` completely off the render path, 1.5 s after Diligent init.  
+- Removed the entire lazy-init block from `renderOneFrameImpl()` (the `startupTimer_.elapsed() >= 1200` branch).  
+- The render path now reads only the already-set `blendPipelineReady_` flag — zero blocking cost per frame.
+
 Secondary issue: for 1-channel (grayscale) images the channel order `{0,1,2,3}` attempted to read channels 1–3 from a 1-channel image, producing garbage colour.
 
 **Fix**  
