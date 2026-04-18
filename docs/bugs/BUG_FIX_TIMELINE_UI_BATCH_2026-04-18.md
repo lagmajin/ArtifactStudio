@@ -297,48 +297,47 @@ The selectedLayer pointer is guaranteed non-null at this point (guarded by the e
 ### Issue 1 — QMenu Rounded Corners Not Transparent
 
 **Symptom**
-QMenu corner areas outside the rounded rect appeared as opaque background color instead of showing through to the desktop.
+QMenu corner areas outside the rounded rect appeared as opaque background color instead of showing through to the desktop. Adding `Qt::NoDropShadowWindowHint` (first attempt) had no effect.
 
 **Root Cause**
-On Windows, Qt::Popup windows are assigned the CS_DROPSHADOW window class which uses the standard system drop shadow. This shadow mechanism prevents per-pixel alpha compositing (WA_TranslucentBackground) from working: the compositor applies the opaque shadow layer over the entire window area, including the corners, filling them with the background color rather than leaving them transparent.
+On Windows, Qt::Popup windows use the `CS_DROPSHADOW` window class which is registered once and shared. `NoDropShadowWindowHint` cannot change a window class already registered. Even with the flag, DWM per-pixel alpha compositing does not reliably work for popup windows with system drop shadows.
 
-**Fix**
-Artifact/src/Widgets/CommonStyle.cppm — polish(QWidget*):
-Added menu->setWindowFlag(Qt::NoDropShadowWindowHint, true) before setting WA_TranslucentBackground. Removing the system drop shadow switches the window to DWM per-pixel alpha compositing, which correctly renders the areas outside the rounded rect as transparent.
+**Fix (revised)**
+`Artifact/src/Widgets/CommonStyle.cppm`:
+- Removed `NoDropShadowWindowHint`, `WA_TranslucentBackground`, `WA_NoSystemBackground` from the QMenu block in `polish()`.
+- Added `RoundedWindowMaskFilter` (QObject event filter, anonymous namespace): intercepts `QEvent::Show` and `QEvent::Resize`, generates a QBitmap with antialiased rounded corners, calls `widget->setMask()`.
+- Installs the filter on each QMenu once (property guard `artifactMenuMaskInstalled`).
+- `setMask()` clips corner pixels at the OS window compositor level — no DWM per-pixel alpha required.
 
 ---
 
-### Issue 2 — Dialog Rounded Corners (CreateCompositionDialog, CreateSolidLayerSettingDialog)
+### Issue 2 — Dialog Rounded Corners: Black Background Regression
 
 **Symptom**
-Composition-creation and solid-layer-creation dialogs used frameless windows but had no rounded corners or transparency.
+After first attempt, frameless dialogs showed black widget backgrounds; rounded corners were not visible. Caused by setting `WA_TranslucentBackground` in `polish()` after HWND creation.
 
 **Root Cause**
-Both dialogs set Qt::FramelessWindowHint in their constructors but did not enable WA_TranslucentBackground. The dialog backgrounds were opaque rectangles.
+`polish(QWidget*)` is called during `QWidget` construction before subclass constructors run `setWindowFlags()`. The frameless flag check therefore never triggers for fresh dialog construction. When style reapplication calls `polish()` on already-alive widgets, setting `WA_TranslucentBackground` on a widget with an existing native HWND (allocated as opaque 24-bit RGB) causes transparent drawing to composite against a black buffer.
 
-**Fix**
-Artifact/src/Widgets/CommonStyle.cppm:
-1. Added #include <QDialog> to the global module fragment.
-2. In polish(QWidget*): detect QDialog* widgets with Qt::FramelessWindowHint, then set WA_TranslucentBackground, WA_NoSystemBackground, and setAutoFillBackground(false).
-3. In drawPrimitive(), PE_Widget case: detect frameless QDialog* and draw a rounded-rect background (r=8, theme ackgroundColor fill + orderColor border stroke). The per-pixel alpha from WA_TranslucentBackground leaves corner areas fully transparent.
-
-This applies to every frameless dialog in the application consistently.
+**Fix (revised)**
+- Removed the `WA_TranslucentBackground`/`WA_NoSystemBackground` QDialog block from `polish()` entirely.
+- Added `setAttribute(Qt::WA_TranslucentBackground, true)` and `setAttribute(Qt::WA_NoSystemBackground, true)` directly in each dialog constructor **after** `setWindowFlags()` and **before** HWND creation:
+  - `CreateCompositionDialog` constructor (`ArtifactCreateCompositionDialog.cppm`)
+  - `buildDialogChrome()` helper (`CreatePlaneLayerDialog.cppm`) — applies to both `CreateSolidLayerSettingDialog` and `EditPlaneLayerSettingDialog`
+- `drawPrimitive(PE_Widget)` rounded-rect background handler in `CommonStyle` is retained.
 
 ---
 
-### Issue 3 — Mode::None Hides Selection Bounding Box
+### Issue 3 — Mode::None Bounding Box Visible But Non-Interactive
 
 **Symptom**
-Switching to a non-transform tool (pan, draw, etc.) triggers setGizmoMode(Mode::None). With Mode::None, the 2D selection bounding box also disappeared, leaving no visual selection indicator on the canvas.
+After the batch 6 bounding-box fix, the selection outline was visible in Mode::None but clicking/dragging had no effect. Users could not move layers without switching to a transform tool.
 
 **Root Cause**
-TransformGizmo::draw() used showScale = (mode == All || mode == Scale) to gate both the bounding box outline AND the scale handle squares. When mode == None, showScale = false, so the four edge lines were never drawn.
+`TransformGizmo::allowsHandle()` had no case for `Mode::None`, falling through to `return false`. All handles were rejected, so `hitTest()` never returned a valid handle and `handleMousePress()` never started a drag.
 
 **Fix**
-Artifact/src/Widgets/Render/TransformGizmo.cppm:
-Added showBBox = showScale || mode_ == Mode::None. Split the original if (showScale) block into:
-1. if (showBBox) — draws only the four bounding box edge lines (selection outline).
-2. if (showScale) — draws the corner + edge handle squares (interactive scale handles).
+`Artifact/src/Widgets/Render/TransformGizmo.cppm` — `allowsHandle()`:
+Added `case Mode::None: return handle == HandleType::Move;`
 
-Result: Mode::None now shows a thin selection outline without interactive handles, matching standard DCC tool behavior.
-
+Result: In Mode::None, clicking inside the layer bounding box returns `HandleType::Move`, enabling layer repositioning by drag. Scale and rotate handles remain non-interactive, consistent with selection-tool semantics.
