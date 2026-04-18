@@ -289,3 +289,56 @@ Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm — enderO
 Changed guard from if (gizmo3D_) to if (gizmo3D_ && selectedLayer->is3D()).  
 The selectedLayer pointer is guaranteed non-null at this point (guarded by the enclosing if (selectedLayer && selectedLayer->isVisible()) block).
 
+
+---
+
+## Batch 6 — Menu Transparency, Dialog Rounded Corners, Gizmo Mode::None (2026-04-18)
+
+### Issue 1 — QMenu Rounded Corners Not Transparent
+
+**Symptom**
+QMenu corner areas outside the rounded rect appeared as opaque background color instead of showing through to the desktop.
+
+**Root Cause**
+On Windows, Qt::Popup windows are assigned the CS_DROPSHADOW window class which uses the standard system drop shadow. This shadow mechanism prevents per-pixel alpha compositing (WA_TranslucentBackground) from working: the compositor applies the opaque shadow layer over the entire window area, including the corners, filling them with the background color rather than leaving them transparent.
+
+**Fix**
+Artifact/src/Widgets/CommonStyle.cppm — polish(QWidget*):
+Added menu->setWindowFlag(Qt::NoDropShadowWindowHint, true) before setting WA_TranslucentBackground. Removing the system drop shadow switches the window to DWM per-pixel alpha compositing, which correctly renders the areas outside the rounded rect as transparent.
+
+---
+
+### Issue 2 — Dialog Rounded Corners (CreateCompositionDialog, CreateSolidLayerSettingDialog)
+
+**Symptom**
+Composition-creation and solid-layer-creation dialogs used frameless windows but had no rounded corners or transparency.
+
+**Root Cause**
+Both dialogs set Qt::FramelessWindowHint in their constructors but did not enable WA_TranslucentBackground. The dialog backgrounds were opaque rectangles.
+
+**Fix**
+Artifact/src/Widgets/CommonStyle.cppm:
+1. Added #include <QDialog> to the global module fragment.
+2. In polish(QWidget*): detect QDialog* widgets with Qt::FramelessWindowHint, then set WA_TranslucentBackground, WA_NoSystemBackground, and setAutoFillBackground(false).
+3. In drawPrimitive(), PE_Widget case: detect frameless QDialog* and draw a rounded-rect background (r=8, theme ackgroundColor fill + orderColor border stroke). The per-pixel alpha from WA_TranslucentBackground leaves corner areas fully transparent.
+
+This applies to every frameless dialog in the application consistently.
+
+---
+
+### Issue 3 — Mode::None Hides Selection Bounding Box
+
+**Symptom**
+Switching to a non-transform tool (pan, draw, etc.) triggers setGizmoMode(Mode::None). With Mode::None, the 2D selection bounding box also disappeared, leaving no visual selection indicator on the canvas.
+
+**Root Cause**
+TransformGizmo::draw() used showScale = (mode == All || mode == Scale) to gate both the bounding box outline AND the scale handle squares. When mode == None, showScale = false, so the four edge lines were never drawn.
+
+**Fix**
+Artifact/src/Widgets/Render/TransformGizmo.cppm:
+Added showBBox = showScale || mode_ == Mode::None. Split the original if (showScale) block into:
+1. if (showBBox) — draws only the four bounding box edge lines (selection outline).
+2. if (showScale) — draws the corner + edge handle squares (interactive scale handles).
+
+Result: Mode::None now shows a thin selection outline without interactive handles, matching standard DCC tool behavior.
+
