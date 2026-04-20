@@ -84,6 +84,19 @@
 
 ## Application
 
+### M-ARCH-1 Host / Context / ROI / Property Core
+- render context / property registry / effect host contract / ROI partial evaluation を段階導入する
+- まずは無挙動変更で入れやすい read-only registry / adapter を優先する
+- 詳細は `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_2026-04-20.md`
+- AE 1.0 向けの必須/重要/後回し仕分けと 6 か月順は `docs/planned/MILESTONE_AE1_0_PRIORITY_AND_ROADMAP_2026-04-20.md`
+- Month 1 の実行順は `docs/planned/MILESTONE_AE1_0_MONTH1_EXECUTION_2026-04-20.md`
+- Phase 2 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE2_EXECUTION_2026-04-20.md`
+- Phase 3 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE3_EXECUTION_2026-04-20.md`
+- Phase 4 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE4_EXECUTION_2026-04-20.md`
+- Phase 5 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE5_EXECUTION_2026-04-20.md`
+- Phase 6 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE6_EXECUTION_2026-04-20.md`
+- Phase 7 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE7_EXECUTION_2026-04-20.md`
+
 ### M-APP-1 Application Cross-Cutting Improvement
 - menu / toolbar / shortcut / view / diagnostics / workflow を横断で揃える
 - central widget の横幅不足と下部パネルの高さ不足を layout issue として追跡
@@ -92,6 +105,10 @@
 ### M-APP-2 Deferred UI Initialization / Lazy Load
 - icon / thumbnail / viewer / dock の eager load を減らして初回体感を軽くする
 - 詳細は `docs/planned/MILESTONE_DEFERRED_UI_INITIALIZATION_2026-03-27.md`
+
+### M-APP-3 Frame Debug View / Simple RenderDoc-like
+- 1 フレームを固定して pass / resource / attachment / compare / step を追える内蔵フレームデバッグビューを作る
+- 詳細は `docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_2026-04-20.md`
 
 ## AI / Tooling
 

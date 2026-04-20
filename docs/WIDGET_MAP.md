@@ -75,6 +75,19 @@
 - `ArtifactRenderOutputSettingDialog`
   コーデック、解像度、fps、ビットレートなどの詳細出力設定ダイアログ。
 
+## Debug / Diagnostics
+
+- `ArtifactDebugConsoleWidget`
+  低コストな診断テキストの受け皿。frame summary、queue summary、error report の fallback 表示を担当する。
+- `ProfilerPanelWidget`
+  パフォーマンス要約と補助トレースの表示面。frame debug の timing summary を載せる候補。
+- `FrameDebugViewWidget`
+  1 フレーム固定、pass / resource / attachment の検査、compare / step / export を扱う内蔵フレームデバッグ面。`App Internal Debugger` の frame タブに対応する。
+- `FrameDebugDock`
+  `FrameDebugViewWidget` を dock 化したもの。既存の app debugger surface から開ける前提。
+- `FrameDebugController`
+  capture / compare / bundle export の状態をまとめる制御層。表示責務は持たない。
+
 ## Software Render Test
 
 - `ArtifactSoftwareRenderTestWidget`
@@ -115,6 +128,17 @@
   タイムライン構造と相互同期の中枢。
 - `Artifact/src/Widgets/Menu/ArtifactTestMenu.cppm`
   テスト系ウィジェットの起動メニュー。
+
+## Responsibility Boundaries Addendum
+
+- `ArtifactDebugConsoleWidget`
+  テキストベースの診断窓口。詳細な frame inspection そのものは持たない。
+- `ProfilerPanelWidget`
+  timing / performance の要約窓口。pass / resource の完全検査は `FrameDebugViewWidget` 側に寄せる。
+- `FrameDebugViewWidget`
+  frame 固定、pass / resource / attachment 検査、compare / scrub / step / export を担当する。
+- `FrameDebugController`
+  capture 状態、比較対象、bundle export を管理する。レンダリング自体は担当しない。
 ## Timing Event View
 
 - `TimingEventView`
