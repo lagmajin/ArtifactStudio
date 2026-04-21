@@ -40,6 +40,33 @@
   ファイル探索とプロジェクト素材の参照窓口。Project View との selection sync までは担当するが、composition 編集責務は持たない。
 - `ArtifactCompositionEditor`
   composition 編集と viewport 操作の担当。Contents Viewer の比較導線とは別責務。
+- `ArtifactCompositionEditor`
+  editor shell / playback controls / surface orchestration の担当。
+
+## Composition Subregions
+
+- `ArtifactCompositionEditor`
+  - shell / playback / surface routing
+- `ArtifactCompositionRenderWidget`
+  - viewport drawing / overlay drawing / direct manipulation surface
+- `ArtifactContentsViewer`
+  - compare / inspect / presentation surface
+- `ArtifactCompositionAudioMixerWidget`
+  - audio lane / meter / gain / mute surface
+- `Viewport.Composition`
+  - select / move / rotate / scale / fit / pan / zoom
+- `Overlay.Composition`
+  - guides / HUD / snap hints / transform handles
+- `Modal.Transform`
+  - drag-based transform session
+- `Modal.Mask`
+  - mask edit session
+- `Modal.Pen`
+  - roto / pen edit session
+- `Modal.PlaybackScrub`
+  - scrub / frame step session
+- `Modal.ViewportNavigate`
+  - pan / zoom navigation session
 - `ArtifactTimelineWidget`
   タイムライン全体の orchestration 担当。左ペインの `ArtifactLayerPanelWidget` と右ペインの track 表示を束ねる。
 - `ArtifactLayerPanelWidget`
@@ -65,6 +92,21 @@
   タイムライン右下の本体。クリップアイテム、赤いシークバー、行グリッドを表示する。
 - `TimelinePlayheadOverlay`
   右ペイン上に重なる赤い縦棒のオーバーレイ。
+
+## Timeline Subregions
+
+- `ArtifactTimelineWidget`
+  orchestration / routing / playhead sync / subregion registration の親。
+- `ArtifactLayerPanelWidget`
+  left tree / row operations / mask / matte / shy / hide の担当。
+- `ArtifactTimelineNavigatorWidget`
+  visible range / zoom window / viewport navigation の担当。
+- `ArtifactTimelineScrubBar`
+  RAM preview cache range / cache occupancy の担当。
+- `ArtifactWorkAreaControlWidget`
+  in/out range editing / work area span の担当。
+- `TimelineTrackView`
+  right-side editing surface / track content / keyframe lane の担当。
 
 ## Render / Queue
 
@@ -159,7 +201,141 @@
   フレーム差分と change log を担当する。壊れた瞬間の当たりを付ける。
 - `TraceTimelineWidget`
   スレッド lane ごとの trace event 可視化を担当する。`TraceRecorder` の出力を生で読む。mutex chain と crash の確認窓口も兼ねる。
+
+## Shortcut Context Notes
+
+- `ArtifactTimelineWidget`
+  タイムラインの context router。左ペイン / 右ペイン / ナビゲータ / スクラブ / ワークエリアをまとめる。
+- `ArtifactLayerPanelWidget`
+  left-side keymap の owner。row select / rename / hide / mask / matte を担当する。
+- `ArtifactTimelineNavigatorWidget`
+  visible range drag の owner。zoom window と viewport navigation を担当する。
+- `ArtifactTimelineScrubBar`
+  preview cache visibility の owner。scrub 導線はここではなく track / timeline 側に寄せる。
+- `ArtifactWorkAreaControlWidget`
+  work area in/out の owner。drag で範囲を詰める操作を担当する。
+- `TimelineTrackView`
+  right-side timeline keymap の owner。clip / keyframe / playhead / selection の直接操作を担当する。
+
+## Composition Shortcut Notes
+
+- `ArtifactCompositionEditor`
+  editor shell / playback / toolbar / transport の context router。
+- `ArtifactCompositionRenderWidget`
+  viewport / overlay / direct manipulation の owner。
+- `ArtifactCompositionAudioMixerWidget`
+  audio lane / gain / mute / solo の owner。
+- `Viewport.Composition`
+  direct manipulation の基本 context。
+- `Overlay.Composition`
+  guides / HUD / snap hints の context。
+- `Modal.Transform`
+  変形中の一時 context。
+- `Modal.Mask`
+  mask edit 中の一時 context。
+- `Modal.Pen`
+  roto / pen edit 中の一時 context。
+- `Modal.PlaybackScrub`
+  playback scrub 中の一時 context。
+- `Modal.ViewportNavigate`
+  pan / zoom / view navigation 中の一時 context。
 ## Timing Event View
 
 - `TimingEventView`
   Lightweight event and timing editor view for cue strips, playhead scrubbing, and compact selection. Use this when the task is event timing rather than full layer/timeline orchestration.
+
+## Shortcut Context Map
+
+Blender 風の keymap routing を進めるときは、以下の context 名を基準にする。
+
+### Composition
+
+- `ArtifactCompositionEditor`
+  - `Workspace.Composition`
+  - `Viewport.Composition`
+  - `Overlay.Composition`
+  - `Modal.Transform`
+  - `Modal.Mask`
+  - `Modal.Pen`
+- `ArtifactCompositionRenderWidget`
+  - `Viewport.Composition`
+  - `Overlay.Composition`
+  - `Modal.Transform`
+
+### Timeline
+
+- `ArtifactTimelineWidget`
+  - `Workspace.Timeline`
+  - `Panel.Timeline.Left`
+  - `Panel.Timeline.Right`
+  - `Modal.Scrub`
+  - `Modal.KeyframeEdit`
+- `ArtifactLayerPanelWidget`
+  - `Panel.Timeline.Left`
+  - `Panel.LayerTree`
+  - `Modal.Mask`
+  - `Modal.Matte`
+- `ArtifactTimelineNavigatorWidget`
+  - `Panel.Timeline.Navigator`
+- `ArtifactTimelineScrubBar`
+  - `Panel.Timeline.Scrub`
+- `ArtifactWorkAreaControlWidget`
+  - `Panel.Timeline.WorkArea`
+
+### Project / Asset / Inspector
+
+- `ArtifactAssetBrowser`
+  - `Panel.AssetBrowser`
+  - `Modal.Rename`
+  - `Modal.Import`
+- `ArtifactProjectManagerWidget`
+  - `Workspace.Project`
+  - `Panel.ProjectTree`
+- `ArtifactInspectorWidget`
+  - `Panel.Inspector`
+  - `Modal.PropertyEdit`
+  - `Modal.EffectEdit`
+
+### Playback / Global
+
+- `ArtifactPlaybackShortcuts`
+  - `Workspace.Playback`
+  - `Modal.PlaybackScrub`
+- `Global`
+  - `Global`
+  - `Dialog.ShortcutEditor`
+
+## Shortcut Baseline
+
+Blender 風の routing を最初に導入するときの代表キー。
+
+- `Global`
+  - `Ctrl+Z` / `Ctrl+Shift+Z`
+  - `Ctrl+S` / `Ctrl+Shift+S`
+  - `Ctrl+O`
+- `Workspace.Composition`
+  - `Space`
+  - `Home` / `End`
+  - `M` / `Alt+M`
+- `Viewport.Composition`
+  - `G`
+  - `R`
+  - `S`
+  - `F`
+- `Workspace.Timeline`
+  - `Space`
+  - `J` / `K` / `L`
+  - `I` / `O`
+- `Panel.Timeline.Left`
+  - `Delete`
+  - `F2`
+  - `H`
+- `Panel.AssetBrowser`
+  - `Enter`
+  - `F2`
+  - `Delete`
+  - `Ctrl+N`
+- `Panel.Inspector`
+  - `Ctrl+F`
+  - `Tab`
+  - `Delete`

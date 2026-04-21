@@ -174,6 +174,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "" FORCE)
 # ---------------------------------------------------------------------------
 # vcpkg パッケージの探索とリンク
 # ---------------------------------------------------------------------------
+# Prefer the toolchain-provided out/vcpkg_installed tree when available.
+if(NOT DEFINED VCPKG_ROOT)
+    set(VCPKG_ROOT "C:/vcpkg" CACHE PATH "vcpkg root dir")
+endif()
+if(DEFINED VCPKG_INSTALLED_DIR AND EXISTS "${VCPKG_INSTALLED_DIR}")
+    set(VCPKG_INSTALLED "${VCPKG_INSTALLED_DIR}/x64-windows" CACHE PATH "vcpkg install dir" FORCE)
+else()
+    set(VCPKG_INSTALLED "${VCPKG_ROOT}/installed/x64-windows" CACHE PATH "vcpkg install dir")
+endif()
+
 # nanosvg
 find_package(nanosvg CONFIG QUIET)
 if(nanosvg_FOUND)
@@ -191,8 +201,6 @@ else()
         message(STATUS "Found nanosvg headers: ${NANOSVG_INCLUDE_DIRS}")
     endif()
 endif()
-set(VCPKG_ROOT        "C:/vcpkg"                               CACHE PATH "vcpkg root dir")
-set(VCPKG_INSTALLED   "${VCPKG_ROOT}/installed/x64-windows"    CACHE PATH "vcpkg install dir")
 set(THIRD_PARTY_DIR   "${CMAKE_CURRENT_SOURCE_DIR}/third_party" CACHE PATH "local third_party dir")
 set(ARTIFACT_APP_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/Artifact"  CACHE PATH "Artifact app dir")
 set(ARTIFACT_DEPLOY_DIR "" CACHE PATH "Optional output directory for copying Artifact exe and runtime dlls")

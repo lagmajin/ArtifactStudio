@@ -1,7 +1,7 @@
 {
   "name": "artifact-suite",
   "version-string": "1.0.0",
-  "builtin-baseline": "1e199d32ad53aab1defda61ce41c380302e3f95c",
+  "builtin-baseline": "c2a21b787cc505d5960d0292d30fd14306b07dd4",
   "dependencies": [
     {
       "name": "qtbase",
