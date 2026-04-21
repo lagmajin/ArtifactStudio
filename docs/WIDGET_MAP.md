@@ -80,9 +80,19 @@
 - `ArtifactDebugConsoleWidget`
   低コストな診断テキストの受け皿。frame summary、queue summary、error report の fallback 表示を担当する。
 - `ProfilerPanelWidget`
-  パフォーマンス要約と補助トレースの表示面。frame debug の timing summary を載せる候補。
+  パフォーマンス要約と補助トレースの表示面。frame debug の timing summary に加えて trace hotspots / lock depth / mutex chains を読む窓口。
+- `AppDebuggerWidget`
+  state / trace / frame / diagnostics / export を束ねる内蔵デバッガの総合 surface。`App Internal Debugger` の入口。
 - `FrameDebugViewWidget`
   1 フレーム固定、pass / resource / attachment の検査、compare / step / export を扱う内蔵フレームデバッグ面。`App Internal Debugger` の frame タブに対応する。
+- `FramePipelineViewWidget`
+  フレームごとの Pass DAG / lifetime / hazard を常時見る構造可視化ビュー。RenderDoc よりも構造追跡寄りの面。
+- `FrameResourceInspectorWidget`
+  任意テクスチャ / RT / buffer をライブ表示する常時 inspector。MIP / slice / pixel inspect を担当する。
+- `FrameStateDiffWidget`
+  前フレームとの差分と壊れ始めた瞬間を読む差分ビュー。
+- `TraceTimelineWidget`
+  `TraceRecorder` の生イベントを thread lane で描くタイムラインビュー。lock / scope / crash の流れと mutex chain を見るための面。
 - `FrameDebugDock`
   `FrameDebugViewWidget` を dock 化したもの。既存の app debugger surface から開ける前提。
 - `FrameDebugController`
@@ -134,11 +144,21 @@
 - `ArtifactDebugConsoleWidget`
   テキストベースの診断窓口。詳細な frame inspection そのものは持たない。
 - `ProfilerPanelWidget`
-  timing / performance の要約窓口。pass / resource の完全検査は `FrameDebugViewWidget` 側に寄せる。
+  timing / performance の要約窓口。pass / resource の完全検査は `FrameDebugViewWidget` 側に寄せる。trace hotspots と mutex chains もここに集約する。
+- `AppDebuggerWidget`
+  app-level の統合診断 surface。state / trace / frame / diagnostics を1画面で読む。
 - `FrameDebugViewWidget`
   frame 固定、pass / resource / attachment 検査、compare / scrub / step / export を担当する。
 - `FrameDebugController`
   capture 状態、比較対象、bundle export を管理する。レンダリング自体は担当しない。
+- `FramePipelineViewWidget`
+  pass DAG / lifetime / hazard の構造可視化を担当する。結果画像は主題ではない。
+- `FrameResourceInspectorWidget`
+  ライブ resource の常時監視を担当する。snapshot 専用ではない。
+- `FrameStateDiffWidget`
+  フレーム差分と change log を担当する。壊れた瞬間の当たりを付ける。
+- `TraceTimelineWidget`
+  スレッド lane ごとの trace event 可視化を担当する。`TraceRecorder` の出力を生で読む。mutex chain と crash の確認窓口も兼ねる。
 ## Timing Event View
 
 - `TimingEventView`

@@ -18,6 +18,27 @@
   - `EventBusDebuggerWidget`: 3-tab UI — Fire Log / Subscribers / Frequency (Ctrl+Shift+E)
   - 主要ファイル: `ArtifactCore/include/Event/EventBusDebugger.ixx`, `Artifact/src/Widgets/Diagnostics/EventBusDebuggerWidget.cppm`
 
+- **M-DIAG-3** Lightweight Tracer / Frame Timeline
+  - crash stack / scope tracer / frame timeline / thread trace を超軽量でまとめる
+  - `Render / Decode / UI / Event` を frame ごとに並べる
+  - 主要ファイル: `ArtifactCore/include/Diagnostics/*`, `Artifact/src/Widgets/Diagnostics/ProfilerPanelWidget.cppm`
+  - 詳細: `docs/planned/MILESTONE_LIGHTWEIGHT_TRACER_FRAME_TIMELINE_2026-04-21.md`
+  - Phase 1 実行メモ: `docs/planned/MILESTONE_LIGHTWEIGHT_TRACER_FRAME_TIMELINE_PHASE1_2026-04-21.md`
+  - Phase 2 実行メモ: `docs/planned/MILESTONE_LIGHTWEIGHT_TRACER_FRAME_TIMELINE_PHASE2_2026-04-21.md`
+  - Phase 3 実行メモ: `docs/planned/MILESTONE_LIGHTWEIGHT_TRACER_FRAME_TIMELINE_PHASE3_2026-04-21.md`
+  - Phase 4 実行メモ: `docs/planned/MILESTONE_LIGHTWEIGHT_TRACER_FRAME_TIMELINE_PHASE4_2026-04-21.md`
+
+- **M-DIAG-4** Live Frame Pipeline / Resource Watcher / State Diff Tracker
+  - Pass DAG / RT・Texture・Buffer lifetime / barrier hazard を常時追う
+  - 任意 resource のライブ inspector と pixel inspect を持つ
+  - 前フレームとの差分から壊れ始めた瞬間を自動検出する
+  - 主要ファイル: `ArtifactCore/include/Render/*`, `Artifact/src/Widgets/Diagnostics/*`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+  - 詳細: `docs/planned/MILESTONE_LIVE_FRAME_PIPELINE_RESOURCE_DIFF_2026-04-21.md`
+  - Phase 1 実行メモ: `docs/planned/MILESTONE_LIVE_FRAME_PIPELINE_RESOURCE_DIFF_PHASE1_EXECUTION_2026-04-21.md`
+  - Phase 2 実行メモ: `docs/planned/MILESTONE_LIVE_FRAME_PIPELINE_RESOURCE_DIFF_PHASE2_EXECUTION_2026-04-21.md`
+  - Phase 3 実行メモ: `docs/planned/MILESTONE_LIVE_FRAME_PIPELINE_RESOURCE_DIFF_PHASE3_EXECUTION_2026-04-21.md`
+  - Phase 4 実行メモ: `docs/planned/MILESTONE_LIVE_FRAME_PIPELINE_RESOURCE_DIFF_PHASE4_EXECUTION_2026-04-21.md`
+
 ### Project View / Asset System
 - **M-PV-1** Project View Basic Operations ✅ (verified 2026-04-14)
   - selection center/quick actions/sync chip/inline rename 実装済み
@@ -96,6 +117,14 @@
 - Phase 5 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE5_EXECUTION_2026-04-20.md`
 - Phase 6 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE6_EXECUTION_2026-04-20.md`
 - Phase 7 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE7_EXECUTION_2026-04-20.md`
+
+### M-CORE-4 Module Hygiene / Build Stabilization
+- module boundary / Qt type / STL numeric helper / API compatibility をまとめて安定化する
+- いま出ている `SessionLedger` / `Property` / `LayerMatte` / `ArtifactRenderROI` / `Acoustic` 系の compile break を代表例として扱う
+- 詳細は `docs/planned/MILESTONE_CORE_MODULE_HYGIENE_BUILD_STABILIZATION_2026-04-21.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_CORE_MODULE_HYGIENE_BUILD_STABILIZATION_PHASE1_2026-04-21.md`
+- Phase 2 実行メモ: `docs/planned/MILESTONE_CORE_MODULE_HYGIENE_BUILD_STABILIZATION_PHASE2_2026-04-21.md`
+- Phase 3 実行メモ: `docs/planned/MILESTONE_CORE_MODULE_HYGIENE_BUILD_STABILIZATION_PHASE3_2026-04-21.md`
 
 ### M-APP-1 Application Cross-Cutting Improvement
 - menu / toolbar / shortcut / view / diagnostics / workflow を横断で揃える
