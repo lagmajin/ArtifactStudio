@@ -139,7 +139,46 @@
 - 1 フレームを固定して pass / resource / attachment / compare / step を追える内蔵フレームデバッグビューを作る
 - 詳細は `docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_2026-04-20.md`
 
+### M-IR-8 ImmediateContext Boundary / De-direct
+- `DiligentEngine` の `ImmediateContext` / `IDeviceContext` を layer / widget / controller から直接触らない構造へ寄せる
+- `ArtifactIRenderer` / `RenderCommandBuffer` / `DiligentImmediateSubmitter` を正式な描画境界として固定する
+- 詳細は `docs/planned/MILESTONE_IMMEDIATE_CONTEXT_BOUNDARY_2026-04-21.md`
+
+### M-IR-9 Render Boundary Safety Gate
+- 境界変更を壊れにくい順序で進めるための安全ゲート
+- いったん置いておく対象と再開順を固定する
+- 詳細は `docs/planned/MILESTONE_RENDER_BOUNDARY_SAFETY_GATE_2026-04-21.md`
+
+### M-DIAG-5 Startup Thread Churn / Worker Burst Trace
+- 起動直後 / 初回コンポ表示時の worker thread burst を trace で可視化する
+- `sharedBackgroundThreadPool()`、video/image/svg prefetch、render scheduler、playback worker の寄与を切り分ける
+- 詳細は `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_2026-04-21.md`
+
 ## AI / Tooling
+
+### M-AI-0 AI Tooling Expansion
+- AI の読み取り、提案、安全な write tool、自動化を一本化するマスター方針
+- まずは `AIContext` / description catalog / inspection tool を強化し、その後に safe write tool と creative assist を広げる
+- creative assist は `keyframe suggestion` と `color grading suggestion` を先行させる
+- 詳細は `docs/planned/MILESTONE_AI_TOOLING_EXPANSION_2026-04-21.md`
+- 推奨順は `read -> safe write -> keyframe suggestion -> color grading suggestion -> automation`
+
+### M-AI-2 Safe Write Tools
+- AI の提案を確認付きで編集へ反映するための安全な write surface
+- `ArtifactProjectService` / `ArtifactEffectService` / render queue service を薄い wrapper として再利用する
+- dry-run / confirmation / undo を前提に、rename / import / queue / bulk edit を先行する
+- 詳細は `docs/planned/MILESTONE_AI_SAFE_WRITE_TOOLS_2026-04-21.md`
+- Phase 1 実装メモは `docs/planned/MILESTONE_AI_SAFE_WRITE_TOOLS_PHASE1_2026-04-21.md`
+- Phase 2 実装メモは `docs/planned/MILESTONE_AI_SAFE_WRITE_TOOLS_PHASE2_2026-04-21.md`
+- Phase 3 実装メモは `docs/planned/MILESTONE_AI_SAFE_WRITE_TOOLS_PHASE3_2026-04-21.md`
+
+### M-AI-6 Workflow Automation
+- `WorkspaceAutomation` を中心に project / composition / selection / render queue の作業を束ねる
+- snapshot / safe edit / queue control / batch automation を 1 つの流れにする
+- 詳細は `docs/planned/MILESTONE_AI_WORKFLOW_AUTOMATION_2026-04-21.md`
+- Phase 1 実装メモは `docs/planned/MILESTONE_AI_WORKFLOW_AUTOMATION_PHASE1_2026-04-21.md`
+- Phase 2 実装メモは `docs/planned/MILESTONE_AI_WORKFLOW_AUTOMATION_PHASE2_2026-04-21.md`
+- Phase 3 実装メモは `docs/planned/MILESTONE_AI_WORKFLOW_AUTOMATION_PHASE3_2026-04-21.md`
 
 ### M-AI-2 AI Command Sandbox / CLI Execution
 - AI 縺ｫ縺ｯ shell string 縺ｧ縺ｪ縺上↑繧峨〒縺・、program + argv 繧帝攝縺励※謇薙∴繧・
@@ -159,17 +198,19 @@
 
 ### M-AI-3 AI Assisted Keyframe Generation ⭐ **新規追加**
 - 軌跡解析と自動キーフレーム生成でアニメーション作成を支援
-- `AIKeyframeGenerator` で動きのパターンを学習し、スムーズなキーフレームを提案
-- **機能:** 軌跡データからのキーフレーム自動生成、タイムライン統合
+- `AIKeyframeGenerator` で動きのパターンを学習し、スムーズなキーフレーム提案を返す
+- `EasingLabWidget` とタイムライン keyframe 表示を使って比較・適用できるようにする
+- **機能:** 軌跡データからのキーフレーム提案、タイムライン統合、既存 undo path での適用
 - **見積:** 45-60h
-- **詳細:** `docs/planned/MILESTONE_AI_ASSISTED_KEYFRAME_GENERATION_2026-04-11.md`
+- **詳細:** `docs/planned/MILESTONE_AI_KEYFRAME_SUGGESTION_2026-04-21.md`
 
 ### M-AI-4 AI Color Grading Suggestion ⭐ **新規追加**
 - シーン分析と自動カラーグレーディング提案で色調整を支援
-- `AIColorAnalyzer` / `ColorGradingSuggester` で画像を解析し、LUTやパラメータを提案
-- **機能:** 画像分析からの色調整提案、LUT統合
+- `AIColorAnalyzer` / `ColorGradingSuggester` で画像を解析し、LUTやパラメータの候補を提案
+- `ArtifactColorSciencePanel` と `ArtifactColorGradingEngine` を提案経路に載せる
+- **機能:** 画像分析からの色調整提案、LUT/preset 統合、既存 grading 経路での適用
 - **見積:** 60-75h
-- **詳細:** `docs/planned/MILESTONE_AI_COLOR_GRADING_SUGGESTION_2026-04-11.md`
+- **詳細:** `docs/planned/MILESTONE_AI_COLOR_GRADING_SUGGESTION_2026-04-21.md`
 
 ### M-AI-5 AI Basic Assistant ⭐ **新規追加**
 - 基本的なAIアシスタント機能で質問応答とプロジェクト情報提供
@@ -210,22 +251,6 @@
 ### M-FE-6 Batch / Macro / Script Entry
 - batch rename / relink / export、macro、script hook
 - 詳細は `docs/planned/MILESTONE_FEATURE_EXPANSION_2026-03-25.md`
-
-### M-PY-1 Python API & Scripting Console ⭐ **新規追加**
-- プロ向け自動化基盤と組み込みコンソール
-- **機能:** Python ブリッジ (pybind11)・プラグインマネージャー・REPL ウィジェット
-- **見積:** 40-50h
-- **詳細:** `docs/planned/MILESTONE_PYTHON_API_SCRIPTING_2026-03-30.md`
-
-### M-FE-7 Review Workspace: Frame-Accurate Compare & Annotation ⭐ **再定義**
-- 正確な再生 (frame-accurate, LUT/OCIO, タイムコード固定)
-- A/B比較 (swap/wipe/diff), ショット管理 (versions), 注釈 (vector annotation), JKLナビ
-- **目標:** レビュー作業専用の独立 workspace を構築し、確認精度を向上させる
-- **見積:** 40-50h
-- **詳細:** `docs/planned/MILESTONE_REVIEW_WORKSPACE_2026-04-03.md`
-
-### M-FE-8 Search / Collections / Smart Organization
-- global search / smart bin / tag / dependency / missing / duplicate detection
 - **AE差別化:** インクリメンタルサーチ、メタデータ（解像度/fps/デュレーション）でフィルタ可能
 - 詳細は `docs/planned/MILESTONE_SEARCH_COLLECTIONS_SMART_ORGANIZATION_2026-03-28.md`
 
@@ -348,6 +373,15 @@
 - `QSS` を新規追加しない方針へ切り替え、theme / palette / common widget / owner-draw を経由して最終的に `QCommonStyle` ベースへ寄せる
 - 既存の `QSS Reduction` と `Theme System Rollout` の実行計画をまとめ直す
 - 詳細は `docs/planned/MILESTONE_QSS_DECOMMISSION_COMMONSTYLE_2026-04-03.md`
+
+### M-SC-2 Shortcut Context Map / Blender-Like Keymap Routing
+- `InputOperator` の context 解決順と widget / region 単位の分割を固定し、Blender 風の「場所とモードで意味が変わる」ショートカット routing を明文化する
+- `ArtifactCompositionRenderWidget` / `ArtifactTimelineWidget` / `ArtifactLayerPanelWidget` / `ArtifactAssetBrowser` / `ArtifactInspectorWidget` を先行対象にする
+- 詳細は `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_2026-04-21.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE1_EXECUTION_2026-04-21.md`
+- Phase 2 実行メモ: `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE2_EXECUTION_2026-04-21.md`
+- Phase 3 実行メモ: `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE3_EXECUTION_2026-04-21.md`
+- Phase 4 実行メモ: `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE4_2026-04-21.md`
 
 ### Composition Editor Suggested Order
 - `M-UI-7 Composition Editor Mask / Roto Editing`
@@ -592,6 +626,7 @@
 - mask / roto 入口の整理
 - software test widget との見え方差分縮小
 - context / impact / before-after の可視化
+- inspect HUD / compare / effect stack summary の追加
 - effect の部分適用 (Rect / Mask) の可視化
 
 ### M-CE-1 Composition Editor Cache System
@@ -603,6 +638,19 @@
 - 静止レイヤーの GPU texture を長く使い回す cache 層
 - ✅ ギズモ描画最適化 (Phase 2) 完了
 - 詳細は `Artifact/docs/MILESTONE_STATIC_LAYER_GPU_CACHE_2026-03-26.md`
+
+### M-CE-3 Composition Editor Figma-like Overlay / Snap / HUD
+- smart guides / selection overlay / useful HUD を足して、Figma っぽい操作補助を入れる
+- snap と選択オーバーレイを先に本体描画へ寄せ、その後 context HUD / probe を足す
+- 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_FIGMA_LIKE_OVERLAY_2026-04-21.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_COMPOSITION_EDITOR_FIGMA_LIKE_OVERLAY_PHASE1_EXECUTION_2026-04-21.md`
+- Phase 2 実行メモ: `docs/planned/MILESTONE_COMPOSITION_EDITOR_FIGMA_LIKE_OVERLAY_PHASE2_EXECUTION_2026-04-21.md`
+- Phase 3 実行メモ: `docs/planned/MILESTONE_COMPOSITION_EDITOR_FIGMA_LIKE_OVERLAY_PHASE3_EXECUTION_2026-04-21.md`
+
+## Shared Notes
+
+- `docs/shared/ai-tech-memos/README.md`
+- AI 同士で実装メモや調査要点を共有するための軽量な置き場
 
 ## Effects
 
@@ -932,6 +980,14 @@
 - `ArtifactTimelineWidget` 繧帝ｸ縺､縺ｮ mode 縺ｫ縺吶ｋ縲ゅΝ繝ｼ繝・ヨ timeline / curve editor 繧偵→縺ｪ縺｣縺ｦ縺ｯ縺薙→縺後ｒ謹ｭ縺｣縺励※縺上□縺輔＞
 - `U` / `Tab` 繧ｷ繝ｧ繝ｼ繝･縺ｧ playhead / selection / zoom 繧堤舌・縺励※遉ｾ縺ｦ縺薙・繧ｹ繝医Ο繝・ヱ繝ｫ
 - 隧ｳ邏ｰ縺ｯ `docs/planned/MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md`
+
+### M-EAS-1 EasingLab
+- Compare easing presets side by side for a selected keyframe segment.
+- Keep the first slice read-only, then wire apply through the existing undo path.
+- Details: `docs/planned/MILESTONE_EASING_LAB_2026-04-21.md`
+- Phase 1 execution: `docs/planned/MILESTONE_EASING_LAB_PHASE1_EXECUTION_2026-04-21.md`
+- Phase 2 execution: `docs/planned/MILESTONE_EASING_LAB_PHASE2_EXECUTION_2026-04-21.md`
+- Phase 3 execution: `docs/planned/MILESTONE_EASING_LAB_PHASE3_EXECUTION_2026-04-21.md`
 
 ## Good Small Tasks
 
