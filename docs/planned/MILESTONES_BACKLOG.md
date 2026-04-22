@@ -75,6 +75,12 @@
   - `PrimitiveRenderer2D` の cacheKey ベース最適化は実装済み
   - 主要ファイル: `Artifact/docs/MILESTONE_STATIC_LAYER_GPU_CACHE_2026-03-26.md`
 
+### Render Execution / Isolation
+- **M-RE-1** External Renderer Design
+  - 内蔵レンダラは維持しつつ、オフラインレンダリングだけ別プロセスへ切り出す
+  - job snapshot / CLI / progress / diagnostics の設計を先に固める
+  - 詳細: `docs/planned/MILESTONE_EXTERNAL_RENDERER_DESIGN_2026-04-22.md`
+
 ### AI / Tooling
 - **M-AI-1** MCP/Tool Bridge ✅ Phase 1完了 (verified 2026-04-14)
   - McpBridge::handleRequest() / AIContext 実装済み
@@ -117,6 +123,13 @@
 - Phase 5 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE5_EXECUTION_2026-04-20.md`
 - Phase 6 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE6_EXECUTION_2026-04-20.md`
 - Phase 7 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE7_EXECUTION_2026-04-20.md`
+
+### M-WKR-1 Background Utility Worker Process
+- サムネイル / waveform / proxy / メタデータ抽出 / preflight / autosave / log collection などの雑用を、専用 worker process に段階分離する
+- まずは共通 job contract と in-process runtime を作り、その後 protocol と外部プロセスへ進める
+- 詳細は `docs/planned/MILESTONE_BACKGROUND_UTILITY_WORKER_PROCESS_2026-04-22.md`
+- Phase 1 の実装表は同文書内の `実装表 A` を参照
+- Phase 2-5 は `job contract -> scheduler -> facade -> protocol -> dedicated worker process` の順で進める
 
 ### M-CORE-4 Module Hygiene / Build Stabilization
 - module boundary / Qt type / STL numeric helper / API compatibility をまとめて安定化する
@@ -505,6 +518,10 @@
 - **詳細:** `docs/planned/MILESTONE_COLOR_GRADING_WORKSPACE_2026-03-30.md`
 
 ## Timeline / Layer
+
+タイムライン系の整理用入口は [MILESTONE_TIMELINE_INDEX_2026-04-22.md](MILESTONE_TIMELINE_INDEX_2026-04-22.md) を先に見る。
+古い文書は残しつつ、`Completed / Foundation` と `Active / Current` を分けて読む前提にする。
+個別の `M-TL` 番号は legacy と current でぶつかることがあるので、本文のリンク先ファイル名を優先する。
 
 ### M-TL-4 Timeline TrackView Owner-Draw Migration
 - 右ペインを `QGraphicsView` から owner-draw へ段階移行する
@@ -997,7 +1014,7 @@
 - `M-FX-2 Solid Color Effects`
 - `M-FX-4 Creative Workflow (Bridge only)`
 
-### M-TL-13 Timeline Curve Editor Mode
+### Legacy Note: Timeline Curve Editor Mode
 - `ArtifactTimelineWidget` 縺ｧ normal timeline / curve editor 繧偵→縺ｪ縺｣縺ｦ縺ｯ縺薙→縺後ｒ謹ｭ縺｣縺励※縺上□縺輔＞
 - `U` 繧ｷ繝ｧ繝ｼ繝･縺ｧ mode toggle, `Tab` / `Shift+Tab` 縺ｧ curve editor 内 focus traversal
 - 隧ｳ邏ｰ縺ｯ `docs/planned/MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md`
