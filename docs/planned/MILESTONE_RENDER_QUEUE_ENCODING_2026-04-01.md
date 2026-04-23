@@ -13,6 +13,7 @@
 - [ ] GPU ハードウェアエンコーダーの可用性検出（NVENC, QuickSync, AMF）
 - [ ] FFmpeg の hwaccel サポート確認と API 統合準備
 - [ ] 基本的なハードウェアエンコードパス実装（H.264）
+- 2026-04-05: Output 設定ダイアログに FFmpeg の利用可能 codec と `pipe-hw (NVENC)` の案内を表示し、ffmpeg.exe の encoder probe / fallback 入口を追加した
 
 ### Phase 2: Quality & Performance Optimization (2026-04-11 - 2026-04-20)
 - [ ] ハードウェアエンコーダーの品質プリセット作成（速度 vs 品質トレードオフ）

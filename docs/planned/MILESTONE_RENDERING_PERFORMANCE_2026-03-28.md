@@ -1,7 +1,7 @@
 # レンダリング性能改善 Milestone
 
 **作成日:** 2026-03-28
-**更新日:** 2026-03-28
+**更新日:** 2026-04-09
 **ステータス:** 一部実装済み ✅
 **関連コンポーネント:** ArtifactIRenderer, CompositionRenderController, PrimitiveRenderer2D, PrimitiveRenderer3D
 
@@ -47,6 +47,24 @@
 - Home/End キー - 最初/最後のレイヤーへ選択
 - Ctrl+A - 全選択
 - Ctrl+D - レイヤー複製
+
+---
+
+### ✅ GPU 出力の float round-trip 削減
+
+**実装場所:**
+- `ArtifactCore/include/Video/FFMpegEncoder.ixx`
+- `ArtifactCore/src/Image/FFmpegEncoder.cppm`
+- `Artifact/src/Render/ArtifactRenderQueueService.cppm`
+
+**実装内容:**
+- `FFmpegEncoder` に `QImage` 直受けの高速経路を追加
+- Render Queue の native video encode で `QImage -> ImageF32x4_RGBA` 変換を削除
+- GPU readback 後の保存も `QImage` を直接利用するよう変更
+
+**効果:**
+- 連番/動画書き出しの出口での無駄な float round-trip を削減
+- GPU readback 後の CPU 負荷を軽減
 
 ---
 
@@ -111,8 +129,12 @@
 - 毎フレーム GPU→CPU の読み戻し
 - CPU ブロッキング
 
-**ステータス:** ❌ 未実装  
+**ステータス:** △ 部分実装  
 **工数:** 3-4 時間
+
+**補足:**
+- GPU readback 自体は残っている
+- ただし readback 後の `ImageF32x4_RGBA` 再変換は削除済み
 
 ---
 
@@ -123,10 +145,11 @@
 | **Phase 2** | ギズモ描画最適化 | ✅ 完了 | 3-4h |
 | **Phase 1** | テクスチャキャッシュ改善 | ❌ 未着手 | 4-6h |
 | **Phase 3** | シグナルストーム防止 | ❌ 未着手 | 2-3h |
-| **Phase 4** | 不要な readback 削除 | ❌ 未着手 | 3-4h |
+| **Phase 4** | 不要な readback 削減 | △ 部分実装 | 3-4h |
 | **追加** | ROI システム基盤 | ✅ 完了 | 8-10h |
 | **追加** | ステータスバー表示 | ✅ 完了 | 2-4h |
 | **追加** | キーボードショートカット | ✅ 完了 | 4-6h |
+| **追加** | GPU 出力の float round-trip 削減 | ✅ 完了 | 1-2h |
 
 **完了率:** 約 50%
 

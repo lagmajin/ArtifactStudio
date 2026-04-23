@@ -162,3 +162,14 @@ Project / Asset から 3D review に飛びやすくする。
 4. Phase 4
 5. Phase 5
 
+## Current Status
+
+- `Contents Viewer` で `Model3D` を開いて、solid preview 寄りの表示で確認しやすくした
+- `Artifact3DModelViewer` の status で backend / vertex / polygon / bounds を追いやすくした
+- preview が失敗しても backend / error を status で追いやすくした
+- `Reset 3D` と `Ctrl+0` で view reset を押しやすくした
+- status 表示は camera の細部を削って短くした
+- Asset Browser の context menu から preview を開ける
+- Project View の footage context menu からも preview を開ける
+- Project View の `Open` も footage では preview と同じ導線に揃えた
+- 次は review の導線をもう少し軽くしつつ、`source / final / compare` の 3D 表示ルールを整える段階

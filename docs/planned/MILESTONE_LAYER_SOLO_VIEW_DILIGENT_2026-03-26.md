@@ -8,6 +8,7 @@
 - ソロ表示中でも zoom / fit / pan / selection 追従が破綻しないようにする
 - mask / roto / overlay の入口を整理して、後から編集機能を載せやすくする
 - software 側の診断ビューと見え方を近づける
+- 単体表示だけでなく、検査と比較に使える情報量を持たせる
 
 ## v1 Requirements
 
@@ -28,6 +29,11 @@ v1 では、少なくとも次の表示・切替を備える。
 - `Stage` を 1 個選択して表示
 - `Before / After`
 - `cache / debug` 文字列
+- `Visible / Lock / Solo / Active` の状態表示
+- `Matte / Mask` の簡易状態表示
+- `Effect Stack` の要約表示
+- `Impact` 視点の依存先 / 被依存先の表示
+- `Compare` モードでの差分確認
 
 この要件は、編集導線・解析導線・影響確認導線を分離しつつ、1 つの Layer View に集約するための基準とする。
 
@@ -121,6 +127,22 @@ v1 では、少なくとも次の表示・切替を備える。
 - current composition / current layer の追従を安定させる
 - zoom / pan / fit の状態復元を整理する
 - hidden tab での無駄な render loop を減らす
+- layer の選択変更で target が古くならないようにする
+- inspect HUD の情報更新を render loop から切り離す
+
+### Phase 2b: Inspect HUD Expansion
+
+- layer name / type / size / opacity / blend mode を読めるようにする
+- visible / lock / solo / active / hidden の state を 1 画面に出す
+- source size / bounds / pivot / cache state をまとめる
+- selection 中のレイヤーの最小診断文字列を表示する
+
+### Phase 2c: Compare and Impact Surface
+
+- Final / Source / Before / After の見比べを固定化する
+- matte / mask / effect stack の要点を短く出す
+- このレイヤーがどこに影響しているかを要約する
+- 依存先 / 被依存先の簡易一覧を出す
 
 ### Phase 3: Mask / Roto Entry Bridge
 
@@ -129,11 +151,19 @@ v1 では、少なくとも次の表示・切替を備える。
 - `RotoMaskEditor` と Layer Solo View の責務境界を決める
 - 既存の `LayerMask / MaskPath` を直接編集できる最小導線を Layer Solo View に載せる
 
+### Phase 3b: Light Effect Inspection
+
+- effect stack の 1 本目だけでも見えるようにする
+- before / after の要約を effect 単位で出せるようにする
+- local adjustment / partial application の当たりを見やすくする
+- 影響が大きい effect を強調する
+
 ### Phase 4: Editing Parity
 
 - software test widget と Diligent view の見え方を近づける
 - visible / opacity / mask / selection の差分を縮める
 - diagnostic 用のログと操作導線を追加する
+- impact / compare / debug の見え方を software 側と揃える
 
 ## Recommended Order
 
@@ -177,6 +207,10 @@ Layer Solo View を AE 寄りにする観点で、今後の不足は次の 3 点
   - `Rect` / `Mask` などの局所適用をどこに効かせているか見せる
   - Layer Solo View の `Impact` と直結させる
   - 将来的に Track Matte や Shape 適用に伸ばせる前提を作る
+- 情報密度
+  - `Play / Stop / Screenshot` だけでは検査ビューとして薄い
+  - `Inspect / Compare / Impact` を前面に出した方が、レイヤー単体の価値が上がる
+  - 最低でも state badge と要約 HUD が必要
 
 ## Phase 1 Notes
 
@@ -192,3 +226,4 @@ Layer Solo View を AE 寄りにする観点で、今後の不足は次の 3 点
 - `Pivot / Bounds` は selection / transform の可視化としてまとめ、overlay の責務から外しすぎない
 - wrapper 側に v1 の表示ロジックを増やさず、表示面は V2 に閉じる
 - 2026-03-27 時点で、上記の state hooks と HUD overlay を一度入れた。`Final / Source` の実画像差分と wrapper 側の mode 切替 UI も追加済み。次は `Inspect / Impact` の情報密度を詰める
+- 2026-04-21 時点で、`Inspect HUD`, `Impact surface`, `Compare` を明示的な v1 要件として扱うと、Layer Solo View の役割がかなり分かりやすくなる

@@ -124,6 +124,8 @@
 
 - `refreshTracks()` を EventBus の購読先で叩けるようにする
 - `frameChanged` は表示同期だけに限定し、操作起点は Qt のまま維持する
+- 2026-04-05 時点で `FrameChangedEvent` / `ProjectChangedEvent` / `SelectionChangedEvent` / `LayerSelectionChangedEvent` / `CurrentCompositionChangedEvent` を受け始めた
+- 2026-04-05 時点で `LayerChangedEvent` の Created を使って layer 再接続を bus 経由へ寄せ始めた
 
 ---
 
@@ -155,6 +157,11 @@
 
 - UI 更新は `SelectionChangedEvent` と `LayerChangedEvent` で coalesce する
 - overlay 描画は EventBus の結果を読むだけに寄せる
+- 2026-04-05 時点で `ProjectChangedEvent` / `CurrentCompositionChangedEvent` / `SelectionChangedEvent` / `LayerSelectionChangedEvent` / `PlaybackCompositionChangedEvent` を受け始めた
+- 2026-04-05 時点で `PreviewQualityPresetChangedEvent` / `LayerChangedEvent` を使う controller / menu の bus 化を進めた
+- 2026-04-05 時点で `ArtifactInspectorWidget` の project / composition / layer selection 受信を bus 寄りに切り替えた
+- 2026-04-05 時点で `AppMain` の status / autosave / hook / timeline dock / selection fan-out を bus へ寄せ始めた
+- 2026-04-05 時点で `MarkdownNoteEditor` / `WebBridge` / `RenderLayerWidgetV2` / `SoftwareRenderInspectors` / `AudioMixer` の direct connect を bus に寄せ始めた
 
 ---
 
@@ -213,6 +220,7 @@
 
 - queue service の内部状態変更を EventBus に流す
 - UI は bus から履歴と状態を読むだけにする
+- 2026-04-05 時点で `PreviewQualityPresetChangedEvent` を EventBus に載せ始めた
 
 ---
 

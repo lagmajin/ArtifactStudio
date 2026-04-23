@@ -1,0 +1,54 @@
+cmake_minimum_required(VERSION 3.20)
+project(TestGTestFind)
+
+# Set up vcpkg like the main project
+set(VCPKG_TARGET_TRIPLET "x64-windows" CACHE STRING "vcpkg triplet" FORCE)
+set(VCPKG_INSTALLED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/out/vcpkg_installed" CACHE STRING "" FORCE)
+
+message(STATUS "========== GTest Configuration Test ==========")
+message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+message(STATUS "VCPKG_TARGET_TRIPLET: ${VCPKG_TARGET_TRIPLET}")
+message(STATUS "VCPKG_INSTALLED_DIR: ${VCPKG_INSTALLED_DIR}")
+message(STATUS "")
+
+# Check if GTest files exist
+message(STATUS "Checking GTest installation files...")
+if(EXISTS "${VCPKG_INSTALLED_DIR}/x64-windows/include/gtest/gtest.h")
+    message(STATUS "  ✓ Headers found: ${VCPKG_INSTALLED_DIR}/x64-windows/include/gtest/gtest.h")
+else()
+    message(STATUS "  ✗ Headers NOT found")
+endif()
+
+if(EXISTS "${VCPKG_INSTALLED_DIR}/x64-windows/lib/gtest.lib")
+    message(STATUS "  ✓ Release lib found: ${VCPKG_INSTALLED_DIR}/x64-windows/lib/gtest.lib")
+else()
+    message(STATUS "  ✗ Release lib NOT found")
+endif()
+
+if(EXISTS "${VCPKG_INSTALLED_DIR}/x64-windows/debug/lib/gtest.lib")
+    message(STATUS "  ✓ Debug lib found: ${VCPKG_INSTALLED_DIR}/x64-windows/debug/lib/gtest.lib")
+else()
+    message(STATUS "  ✗ Debug lib NOT found")
+endif()
+
+if(EXISTS "${VCPKG_INSTALLED_DIR}/x64-windows/share/gtest/GTestConfig.cmake")
+    message(STATUS "  ✓ CMake config found: ${VCPKG_INSTALLED_DIR}/x64-windows/share/gtest/GTestConfig.cmake")
+else()
+    message(STATUS "  ✗ CMake config NOT found")
+endif()
+
+message(STATUS "")
+message(STATUS "Attempting find_package(GTest CONFIG QUIET)...")
+find_package(GTest CONFIG QUIET)
+
+if(GTest_FOUND)
+    message(STATUS "✓✓✓ SUCCESS: GTest was FOUND! ✓✓✓")
+    message(STATUS "  GTest_VERSION: ${GTest_VERSION}")
+    message(STATUS "  GTest_DIR: ${GTest_DIR}")
+    get_target_property(_gtest_loc GTest::gtest IMPORTED_LOCATION_DEBUG)
+    message(STATUS "  GTest::gtest debug location: ${_gtest_loc}")
+else()
+    message(STATUS "✗✗✗ FAILURE: GTest was NOT found ✗✗✗")
+endif()
+
+message(STATUS "========== End of Test ==========")

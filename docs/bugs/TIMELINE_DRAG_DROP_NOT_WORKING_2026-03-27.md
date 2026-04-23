@@ -133,3 +133,60 @@ Qt::DropActions supportedDropActions() const override { return Qt::MoveAction; }
 | `Artifact/src/Widgets/Timeline/ArtifactLayerHierarchyWidget.cppm` | 134-148 | QTreeView にドラッグ＆ドロップ設定なし |
 | `Artifact/src/Layer/ArtifactHierarchyModel.cppm` | 51-121 | モデルがスタブ状態 |
 | `Artifact/include/Layer/ArtifactHierarchyModel.ixx` | 48-66 | flags/mimeData/dropMimeData 未定義 |
+
+---
+
+## 追記 (2026-04-07): ArtifactLayerPanelWidget の DragForwardFilter バグ修正
+
+### 症状（別コンポーネント）
+
+上記は QTreeView ベースの `ArtifactLayerHierarchyWidget` に関する問題。  
+タイムライン左ペインのカスタム実装 `ArtifactLayerPanelWidget` にも別の D&D 不具合があった。
+
+### 根本原因
+
+`LayerPanelDragForwardFilter` はスクロールビューポート上のドラッグイベントをパネルに転送するが、**元イベントを accept していなかった**。
+
+```cpp
+// 修正前（不具合あり）
+QCoreApplication::sendEvent(target_, &forwardedEvent);
+return forwardedEvent.isAccepted();   // ← 元の event->isAccepted() は false のまま
+```
+
+Qt のドラッグシステムは `QDragEnterEvent::isAccepted()` を元イベントで確認する。  
+false のままだと `QDrag::exec()` が即 `Qt::IgnoreAction` を返し、ドラッグが開始されない。
+
+### 修正内容
+
+`DragEnter` / `DragMove` / `Drop` の各ケースで、転送先が accept した場合に元イベントも accept する:
+
+```cpp
+// 修正後
+QCoreApplication::sendEvent(target_, &forwardedEvent);
+if (forwardedEvent.isAccepted()) {
+    dragEvent->acceptProposedAction();  // 元イベントも accept
+}
+return true;
+```
+
+## 追記 (2026-04-08): QDrag::exec() ベースのアプローチ廃止 → マウスイベントによる手動ドラッグに変更
+
+### 症状
+
+DragForwardFilter 修正後もドラッグ＆ドロップが機能しなかった。
+
+### 根本原因
+
+`QDrag::exec()` は QScrollArea + Windows 環境では不安定で、呼び出し直後に `Qt::IgnoreAction` を返してしまう。  
+またマウスイベントがスクロールビューポートに奪われた場合、`dragCandidateLayerId` がセットされない可能性があった。
+
+### 対策: 手動マウスドラッグ方式に切り替え
+
+- `mouseMoveEvent`: `QApplication::startDragDistance()` を超えたら `dragStarted_ = true` / `draggedLayerId` をセット。  
+  `QDrag::exec()` を呼ばず、`dragInsertVisibleRow` を `insertionVisibleRowForY()` で更新し `update()` する。
+- `mouseReleaseEvent`: `dragStarted_` が true なら `dropEvent` と同等のレイヤー並び替えロジックを実行してコミット。
+- 外部ファイルドロップ（URL/パス）用の `dragEnterEvent` / `dragMoveEvent` / `dropEvent` はそのまま維持。
+
+**修正適用済み**: `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cpp`
+- `mouseMoveEvent` (L1603-1618): `QDrag::exec()` ブロックを手動追跡に置き換え
+- `mouseReleaseEvent` (L1646-1715): 完全な並び替えロジックを追加

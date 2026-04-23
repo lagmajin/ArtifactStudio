@@ -5,6 +5,21 @@
 
 ---
 
+## 仕様概要
+
+このマイルストーンの実行契約は次を基準にする。
+
+- イベントは即時発火せず、**フレーム末に一括処理**するキュー方式とする
+- **レイヤーのキーフレームは一切触らない**
+- イベントは `PropertyOverlay` として値に乗算・加算するだけに留める
+- エフェクトは `EventBus` を直接知らず、受け取ったイベントを契機に内部状態を進める
+- 登録単位はレイヤー単体ではなく `ContactSubscription { triggerLayer, reactorLayer }` とする
+- 1 つのトリガーに対して複数の `Reaction` を登録できる
+
+旧来の `OnStart / OnContact / OnFrame` という名前は、既存の設計メモや UI ラベルに残る場合があるが、ランタイム契約としては下のイベント一覧を優先する。
+
+---
+
 ## コンセプト
 
 ```
@@ -37,6 +52,42 @@
 | **Artifact** | `ReactiveEventEngine` | ⬜ 未実装 | `layer->setLayerPropertyValue()` を呼ぶため App 層 |
 | **Artifact** | `ReactionExecutor` | ⬜ 未実装 | 各リアクションの実行ロジック |
 
+### アーキテクチャ方針
+
+- `EventBus` は登録済みの `TriggerPair` のみ処理する
+- `ContactSubscription` は `triggerLayer` と `reactorLayer` の 2 要素で構成する
+- Contact 系は `layerA / layerB / point / normal` を持つ
+- Layer 系は `layerId` 単位で扱う
+- Effect 系は `effectId` 単位で完結する
+- `Reaction` は値の上書きではなく、`PropertyOverlay` を介した合成を基本とする
+- `PropertyOverlay` は keyframed value に対する加算・乗算の入力として評価する
+- `TimelineReaction` は再生ヘッド制御を行うが、タイムラインのキーフレーム定義自体は変更しない
+- `TriggerReaction` は別レイヤーの開始・停止チェーンを制御する
+- パーティクル系は `ContactBegin` を受けてバーストし、`ParticleSystemFinished` だけを終端イベントとして扱う
+
+### イベント一覧
+
+#### 接触系
+
+| イベント | 内容 |
+|---|---|
+| `ContactBegin { layerA, layerB, point, normal }` | 接触開始 |
+| `ContactEnd { layerA, layerB }` | 接触終了 |
+
+#### レイヤー系
+
+| イベント | 内容 |
+|---|---|
+| `LayerAnimationFinished { layerId }` | レイヤーアニメーション完了 |
+| `LayerKeyframeReached { layerId, keyframeIndex, label }` | 特定キーフレーム到達 |
+| `LayerOutPointReached { layerId }` | out point 到達 |
+
+#### エフェクト系
+
+| イベント | 内容 |
+|---|---|
+| `ParticleSystemFinished { effectId }` | パーティクルシステム終了 |
+
 ### トリガーイベント体系 (13種)
 
 | カテゴリ | トリガー | 用途 |
@@ -64,6 +115,39 @@
 | Spawn | `SpawnLayer` / `DestroyLayer` |
 | Audio | `PlaySound` |
 
+### Reaction 種別
+
+| 種別 | 実装用途 | 振る舞い |
+|---|---|---|
+| `PropertyReaction` | `PropertyOverlay` を生成して Property に渡す | `opacity` / `color` などの値変化 |
+| `PhysicsReaction` | `tick()` で継続更新 | 力・速度・加速度の継続制御 |
+| `TimelineReaction` | 再生ヘッドを制御 | アニメ開始・シーク・停止 |
+| `TriggerReaction` | 別レイヤーの開始・停止チェーン | 連鎖トリガーを構成 |
+
+### PropertyOverlay
+
+```cpp
+struct PropertyOverlay {
+    float    startTime;    // 接触した絶対時刻
+    float    duration;     // 変化時間
+    QVariant targetValue;  // 目標値
+    EasingFn easing;       // カーブ
+};
+```
+
+`evaluate()` 内では、次のように合成する。
+
+```cpp
+QColor = keyframedValue + overlay.evaluate(currentTime);
+```
+
+### エフェクトの扱い
+
+| 種別 | イベント発火 | イベント受信 |
+|---|---|---|
+| ビジュアル系（ブラー・グロー・色収差） | なし | なし |
+| パーティクル系 | `ParticleSystemFinished` のみ | `ContactBegin` を受信してバースト |
+
 ### 統合ポイント
 
 | 用途 | 既存 API | 場所 |
@@ -74,6 +158,7 @@
 | 位置取得/設定 | `layer->position3D()` / `setPosition3D()` | `ArtifactAbstractLayer:135-136` |
 | アクティブ判定 | `layer->isActiveAt(frame)` | `ArtifactAbstractLayer:159` |
 | 更新ループ | `composition->goToFrame()` → `changed()` | コンポジション更新 |
+| リアクティブ評価 | フレーム末キューで `evaluate()` | App 層 |
 | 永続化 | `toJson()` / `fromJson()` | プロジェクト保存 |
 
 ### 評価タイミング
@@ -81,13 +166,14 @@
 ```
 Composition::update(float dt):
   goToFrame(currentFrame)           // キーフレーム評価
-  reactiveEngine->evaluate(frame, dt) // ← ここでリアクティブ評価
+  reactiveEngine->queue(frame, dt)    // 即時発火しない
+  reactiveEngine->evaluateQueued()     // フレーム末にまとめて評価
   Q_EMIT changed()                  // UI 更新
 ```
 
-### 状態管理 (OnEnterRange/OnExitRange/OnSeparation)
+### 状態管理
 
-これらは**前フレームの状態を記憶**する必要がある:
+接触系とレイヤー系は**前フレームの状態を記憶**する必要がある。
 
 ```cpp
 // ReactiveEventEngine 内部状態
@@ -111,38 +197,30 @@ evaluate(frame, dt):
 ### ReactiveEventEngine の評価フロー
 
 ```
-evaluate(frame, deltaTime):
+queue(frame, deltaTime):
+  pendingFrames.push_back({frame, deltaTime})
+
+evaluateQueued():
+  for queued in pendingFrames:
+    evaluateFrame(queued.frame, queued.deltaTime)
+  pendingFrames.clear()
+
+evaluateFrame(frame, deltaTime):
   // 1. 状態更新
   updateLayerStates(frame)
 
-  // 2. Lifecycle トリガー評価
+  // 2. Layer イベント評価
   for layer in composition->allLayer():
-    active = layer->isActiveAt(frame)
-    if active && !prevActive: fire(OnEnterRange, layer)
-    if !active && prevActive: fire(OnExitRange, layer)
-    if active && frame == layer->inPoint(): fire(OnStart, layer)
-    if active && frame == layer->outPoint(): fire(OnEnd, layer)
+    if frame == layer->outPoint(): fire(LayerOutPointReached, layer)
 
-  // 3. Spatial トリガー評価 (全ペア)
-  for each rule with Spatial trigger:
-    bbA = layerA->transformedBoundingBox()
-    bbB = layerB->transformedBoundingBox()
-    contacting = bbA.intersects(bbB)
-    if rule.type == OnContact and contacting and !wasContacting: fire()
-    if rule.type == OnSeparation and !contacting and wasContacting: fire()
-    if rule.type == OnProximity and distance(bbA, bbB) < threshold: fire()
+  // 3. Contact イベント評価
+  for each registered ContactSubscription:
+    bbA = triggerLayer->transformedBoundingBox()
+    bbB = reactorLayer->transformedBoundingBox()
+    if contactBegin(bbA, bbB): fire(ContactBegin, triggerLayer, reactorLayer)
+    if contactEnd(bbA, bbB): fire(ContactEnd, triggerLayer, reactorLayer)
 
-  // 4. Value トリガー評価
-  for each rule with Value trigger:
-    value = layer->getLayerPropertyValue(propertyPath)
-    if rule.type == OnValueExceed and value > threshold: fire()
-    if rule.type == OnValueDrop and value < threshold: fire()
-
-  // 5. Frame トリガー評価
-  for each rule with Frame trigger:
-    if frame == rule.trigger.frameNumber: fire()
-
-  // 6. 遅延リアクション処理
+  // 4. Reaction キュー処理
   for pending in scheduledReactions:
     if pending.fireTime <= now: execute(pending)
 ```
@@ -156,31 +234,17 @@ executeReactions(rule, frame, deltaTime):
     if !target: continue
 
     switch(reaction.type):
-      case SetProperty:
-        if reaction.duration > 0:
-          // アニメーション付き補間
-          startValue = target->getLayerPropertyValue(reaction.propertyPath)
-          animatedValue = interpolate(startValue, reaction.value,
-                                      elapsed/duration, reaction.easing)
-          target->setLayerPropertyValue(reaction.propertyPath, animatedValue)
-        else:
-          target->setLayerPropertyValue(reaction.propertyPath, reaction.value)
+      case PropertyReaction:
+        target->pushPropertyOverlay(reaction.propertyPath, overlay)
 
-      case AnimateProperty:
-        // Linearly interpolate from current to target over duration
-        // Uses easing function from Interpolate.ixx
+      case PhysicsReaction:
+        target->tickReaction(reaction, deltaTime)
 
-      case RandomizeProperty:
-        randomValue = lerp(reaction.value, reaction.valueMax, rand())
-        target->setLayerPropertyValue(reaction.propertyPath, randomValue)
-
-      case ApplyForce/ApplyImpulse/Attract/Repel:
-        // パーティクルレイヤーへの力場追加
-        if auto particle = dynamic_cast<ArtifactParticleLayer*>(target):
-          particle->addForceField(reaction.strength, direction)
-
-      case PlayAnimation/PauseAnimation/GoToFrame:
+      case TimelineReaction:
         target->goToFrame(reaction.targetFrame)
+
+      case TriggerReaction:
+        target->trigger(reaction.targetLayerId)
 ```
 
 ### データ構造 (Core 層)
@@ -464,3 +528,17 @@ Reaction: ApplyForce(target: ParticleLayer, strength: 50, direction: (0, -1))
 - `Target Tree / Event Rules / Inspector / Event Log` を 1 画面にまとめる
 - 後から dockable / inspector integration に拡張できる構造を前提にする
 - 詳細なウィンドウ案は `docs/planned/MILESTONE_REACTIVE_EVENT_EDITOR_WINDOW_2026-03-29.md`
+
+---
+
+## 未決定・将来検討
+
+- 接触判定のタイミング
+  - 毎フレーム全ペア
+  - dirty flag
+  - QuadTree
+- `TimelineReaction` の内部
+  - クリップ再生
+  - tween 動的生成
+- `Sequence / Stagger DSL`
+  - カード連鎖などの規則的なタイミング制御

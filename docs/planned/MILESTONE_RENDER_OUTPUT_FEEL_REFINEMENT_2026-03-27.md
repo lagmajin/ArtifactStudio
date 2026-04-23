@@ -1,7 +1,7 @@
 # Render / Output Feel Refinement Milestone
 
-**作成日:** 2026-03-27  
-**ステータス:** 計画中  
+**作成日:** 2026-03-27
+**ステータス:** 実装中（Phase 1 完了）
 **関連コンポーネント:** ArtifactRenderQueueService, ArtifactRenderQueueManagerWidget, ArtifactProjectService
 
 ---
@@ -305,6 +305,34 @@
   │ ○ 1/4 (480x270)                                 │
   └─────────────────────────────────────────────────┘
   ```
+
+---
+
+## 実装状況
+
+### ✅ Phase 1: Render Recovery（完了）
+
+**実装日:** 2026-04-16
+
+**変更ファイル:**
+- `ArtifactWidgets/src/Render/RenderQueueManagerWidget.cpp`
+  - ジョブコンテキストメニューに「Show Failed Frames...」を追加
+  - 失敗フレーム表示ダイアログの実装（`QListWidget` による一覧表示、複数選択）
+  - 選択的再レンダリング機能（`rerenderFailedFrames()` 呼び出し）
+- `Artifact/include/Render/ArtifactRenderQueueService.ixx`
+  - `FailedFrameInfo` 構造体に `Q_DECLARE_METATYPE` を追加
+  - `detectFailedFrames()` と `rerenderFailedFrames()` を `Q_INVOKABLE` に変更
+
+**機能概要:**
+- Failed/Canceled 状態のジョブに対して「Show Failed Frames...」メニューを表示
+- ダイアログで失敗したフレームの一覧を表示
+- 複数フレームを選択して「Rerender Selected」ボタンで再レンダリング
+- バックエンドの `detectFailedFrames()` と `rerenderFailedFrames()` を `QMetaObject::invokeMethod` 経由で呼び出し
+
+**完了条件達成状況:**
+- ✅ 失敗したフレームを一覧表示
+- ✅ 失敗フレームのみを再レンダリング可能
+- ✅ 出力整合性チェックを実行可能（`detectFailedFrames()` がファイル存在・サイズチェックを実施）
 
 ---
 

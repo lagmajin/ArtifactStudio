@@ -1,8 +1,8 @@
 # Timeline QGraphicsScene Elimination (2026-03-31)
 
-`ArtifactTimelineWidget` の右ペインは、見た目としてはすでに `ArtifactTimelineTrackPainterView` が正規経路に近づいている一方で、内部にはまだ `TimelineTrackView (QGraphicsView + TimelineScene + ClipItem)` の互換層が残っている。
+`ArtifactTimelineWidget` の右ペインは、`ArtifactTimelineTrackPainterView` が正規経路になり、`TimelineScene` / `ClipItem` の互換層は退役済みになった。
 
-このマイルストーンは、右タイムラインから `QGraphicsScene` 依存を段階的に外し、owner-draw 側を唯一の表示責務に近づけるための計画である。
+このマイルストーンは、右タイムラインから `QGraphicsScene` 依存を外し切るための計画として残しているが、右ペインについては主要目標を達成した。
 
 ## Goal
 
@@ -15,9 +15,8 @@
 
 - `ArtifactTimelineTrackPainterView` は clip / marker / playhead の描画を担当している
 - `ArtifactTimelineWidget::refreshTracks()` は painter 側へ可視レイヤーを流し込み始めている
-- `TimelineTrackView` はまだ `QGraphicsView` を継承している
-- `TimelineScene` / `ClipItem` は互換維持のため残っている
-- `QGraphicsScene` の更新は UI 上では見えにくいが、内部ではまだ一部の管理に使われている
+- `TimelineScene` / `ClipItem` は削除済み
+- `QGraphicsScene` の右ペイン依存はなくなった
 
 ## Definition Of Done
 
@@ -108,6 +107,6 @@
 
 ## Notes
 
-- 右ペインはすでに `ArtifactTimelineTrackPainterView` が主役になりつつある
-- まずは scene に clip を積まない形へ寄せ、正規データ源を painter 側へ寄せる
-- `TimelineTrackView` は急に消さず、互換層として縮めていく
+- 右ペインはすでに `ArtifactTimelineTrackPainterView` が主役
+- `TimelineScene` / `ClipItem` は削除済み
+- `TimelineTrackView` はまだ残るが、別用途の棚卸し対象として扱う

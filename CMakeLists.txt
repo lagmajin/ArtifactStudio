@@ -172,10 +172,35 @@ set(CMAKE_CXX_STANDARD 23 CACHE STRING "" FORCE)
 set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "" FORCE)
 
 # ---------------------------------------------------------------------------
-# 共通パス構成
+# vcpkg パッケージの探索とリンク
 # ---------------------------------------------------------------------------
-set(VCPKG_ROOT        "C:/vcpkg"                               CACHE PATH "vcpkg root dir")
-set(VCPKG_INSTALLED   "${VCPKG_ROOT}/installed/x64-windows"    CACHE PATH "vcpkg install dir")
+# Prefer the toolchain-provided out/vcpkg_installed tree when available.
+if(NOT DEFINED VCPKG_ROOT)
+    set(VCPKG_ROOT "C:/vcpkg" CACHE PATH "vcpkg root dir")
+endif()
+if(DEFINED VCPKG_INSTALLED_DIR AND EXISTS "${VCPKG_INSTALLED_DIR}")
+    set(VCPKG_INSTALLED "${VCPKG_INSTALLED_DIR}/x64-windows" CACHE PATH "vcpkg install dir" FORCE)
+else()
+    set(VCPKG_INSTALLED "${VCPKG_ROOT}/installed/x64-windows" CACHE PATH "vcpkg install dir")
+endif()
+
+# nanosvg
+find_package(nanosvg CONFIG QUIET)
+if(nanosvg_FOUND)
+    message(STATUS "Found nanosvg via vcpkg config")
+else()
+    # Fallback: ヘッダのみのライブラリとして手動探索
+    find_path(NANOSVG_INCLUDE_DIRS nanosvg.h
+        PATHS
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/nanosvg/src"
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/nanosvg/include"
+            "${VCPKG_INSTALLED}/include"
+            "${VCPKG_INSTALLED}/include/nanosvg"
+    )
+    if(NANOSVG_INCLUDE_DIRS)
+        message(STATUS "Found nanosvg headers: ${NANOSVG_INCLUDE_DIRS}")
+    endif()
+endif()
 set(THIRD_PARTY_DIR   "${CMAKE_CURRENT_SOURCE_DIR}/third_party" CACHE PATH "local third_party dir")
 set(ARTIFACT_APP_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/Artifact"  CACHE PATH "Artifact app dir")
 set(ARTIFACT_DEPLOY_DIR "" CACHE PATH "Optional output directory for copying Artifact exe and runtime dlls")
@@ -273,7 +298,17 @@ if(ARTIFACT_FRONTEND_MSVC)
 endif()
 
 if(ARTIFACT_COMPILER_MSVC_CL)
-    add_compile_options(/Zf /Zc:__cplusplus /utf-8 /openmp /MP)
+    add_compile_options(
+        $<$<COMPILE_LANGUAGE:C>:/Zf>
+        $<$<COMPILE_LANGUAGE:CXX>:/Zf>
+        $<$<COMPILE_LANGUAGE:C>:/Zc:__cplusplus>
+        $<$<COMPILE_LANGUAGE:CXX>:/Zc:__cplusplus>
+        $<$<COMPILE_LANGUAGE:C>:/utf-8>
+        $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
+        $<$<COMPILE_LANGUAGE:C>:/openmp>
+        $<$<COMPILE_LANGUAGE:CXX>:/openmp>
+        $<$<COMPILE_LANGUAGE:C>:/MP>
+        $<$<COMPILE_LANGUAGE:CXX>:/MP>)
     add_definitions(-D_GUARDOVERFLOW_CRT_ALLOCATORS=1)
     # Override /std:c++23 with /std:c++latest to enable C++26 draft features
     set(CMAKE_CXX23_STANDARD_COMPILE_OPTION   "/std:c++latest" CACHE STRING "" FORCE)
@@ -339,29 +374,72 @@ endfunction()
 # ATL include path (Diligent より前に設定が必要)
 # ---------------------------------------------------------------------------
 if(MSVC)
-    # cl.exe のパス: .../MSVC/<ver>/bin/Hostx64/x64/cl.exe
-    # atlmfc のパス: .../MSVC/<ver>/atlmfc/include
+    # cl.exe のパス: .../MSVC/<ver>/bin/Hostx64/x64/cl.exe -> <ver> root
     get_filename_component(_MSVC_TOOLCHAIN_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)  # x64
     get_filename_component(_MSVC_TOOLCHAIN_DIR "${_MSVC_TOOLCHAIN_DIR}" DIRECTORY)  # Hostx64
     get_filename_component(_MSVC_TOOLCHAIN_DIR "${_MSVC_TOOLCHAIN_DIR}" DIRECTORY)  # bin
     get_filename_component(_MSVC_TOOLCHAIN_DIR "${_MSVC_TOOLCHAIN_DIR}" DIRECTORY)  # <ver>
+
     set(_ATL_INCLUDE_DIR "${_MSVC_TOOLCHAIN_DIR}/atlmfc/include")
-    if(EXISTS "${_ATL_INCLUDE_DIR}")
+    set(_ATL_LIB_DIR     "${_MSVC_TOOLCHAIN_DIR}/atlmfc/lib/x64")
+
+    # Fallback: active toolset が atlmfc を持たない場合 (VS Insiders/Preview で多発)、
+    # 他の VS インストールから atlbase.h を探す。
+    if(NOT EXISTS "${_ATL_INCLUDE_DIR}/atlbase.h")
+        set(_ATL_INCLUDE_DIR "")
+        set(_ATL_LIB_DIR     "")
+        foreach(_atl_vs_major IN ITEMS 18 2022 17 16)
+            foreach(_atl_ed IN ITEMS Insiders Community Enterprise Professional Preview BuildTools)
+                file(GLOB _atl_cands
+                    "C:/Program Files/Microsoft Visual Studio/${_atl_vs_major}/${_atl_ed}/VC/Tools/MSVC/14.*/atlmfc/include/atlbase.h"
+                    "C:/Program Files (x86)/Microsoft Visual Studio/${_atl_vs_major}/${_atl_ed}/VC/Tools/MSVC/14.*/atlmfc/include/atlbase.h")
+                if(_atl_cands)
+                    list(SORT _atl_cands ORDER DESCENDING)
+                    list(GET _atl_cands 0 _atl_found_h)
+                    get_filename_component(_ATL_INCLUDE_DIR "${_atl_found_h}" DIRECTORY)
+                    # atlmfc root -> lib/x64
+                    get_filename_component(_atl_mfc_root "${_ATL_INCLUDE_DIR}" DIRECTORY)
+                    if(EXISTS "${_atl_mfc_root}/lib/x64")
+                        set(_ATL_LIB_DIR "${_atl_mfc_root}/lib/x64")
+                    endif()
+                    message(STATUS "ATL fallback: ${_ATL_INCLUDE_DIR}")
+                    break()
+                endif()
+            endforeach()
+            if(_ATL_INCLUDE_DIR)
+                break()
+            endif()
+        endforeach()
+    endif()
+
+    if(_ATL_INCLUDE_DIR AND EXISTS "${_ATL_INCLUDE_DIR}/atlbase.h")
+        # グローバル include path に追加 (DiligentEngine サブディレクトリにも伝播)
         include_directories("${_ATL_INCLUDE_DIR}")
         if(EXISTS "${_MSVC_TOOLCHAIN_DIR}/lib/x64")
             link_directories("${_MSVC_TOOLCHAIN_DIR}/lib/x64")
         endif()
-        if(EXISTS "${_MSVC_TOOLCHAIN_DIR}/atlmfc/lib/x64")
-            link_directories("${_MSVC_TOOLCHAIN_DIR}/atlmfc/lib/x64")
+        if(_ATL_LIB_DIR AND EXISTS "${_ATL_LIB_DIR}")
+            link_directories("${_ATL_LIB_DIR}")
         endif()
-        # Diligent の check_include_file 用
-        set(CMAKE_REQUIRED_INCLUDES "${_ATL_INCLUDE_DIR}")
-        # Diligent の Approach 2 用: VCToolsInstallDir 環境変数を設定
-        set(ENV{VCToolsInstallDir} "${_MSVC_TOOLCHAIN_DIR}/")
+        # check_include_file() / try_compile() が ATL を見つけられるようにする
+        list(APPEND CMAKE_REQUIRED_INCLUDES "${_ATL_INCLUDE_DIR}")
+        # DiligentEngine の try_compile(HAS_ATL) が走る前に結果をキャッシュに設定。
+        # try_compile はキャッシュに結果があれば再コンパイルしない。
+        # HAS_D3D11/HAS_D3D12 も同様に先行設定（d3d11.h/d3d12.h は Windows SDK に常に存在）。
+        set(HAS_ATL  TRUE CACHE INTERNAL "ATL is available"  FORCE)
+        set(HAS_D3D11 TRUE CACHE INTERNAL "D3D11 headers available" FORCE)
+        set(HAS_D3D12 TRUE CACHE INTERNAL "D3D12 headers available" FORCE)
+        # D3D11/D3D12 サポートフラグも強制更新（再 configure で古い FALSE が残る対策）
+        set(D3D11_SUPPORTED TRUE CACHE INTERNAL "D3D11 is supported" FORCE)
+        set(D3D12_SUPPORTED TRUE CACHE INTERNAL "D3D12 is supported" FORCE)
+        # VCToolsInstallDir は atlmfc を含む VS ツールセットルートを指す
+        get_filename_component(_ATL_VCTOOLS_ROOT "${_ATL_INCLUDE_DIR}/../.." ABSOLUTE)
+        set(ENV{VCToolsInstallDir} "${_ATL_VCTOOLS_ROOT}/")
         message(STATUS "ATL include (global): ${_ATL_INCLUDE_DIR}")
-        message(STATUS "VCToolsInstallDir: ${_MSVC_TOOLCHAIN_DIR}/")
+        message(STATUS "VCToolsInstallDir: ${_ATL_VCTOOLS_ROOT}/")
     else()
-        message(WARNING "ATL include not found at ${_ATL_INCLUDE_DIR}. Install 'C++ 用の ATL' via VS Installer.")
+        set(HAS_ATL FALSE CACHE INTERNAL "ATL is not available" FORCE)
+        message(WARNING "atlbase.h が見つかりません。VS Installer で 'C++ 用の ATL (最新 v14x)' をインストールしてください。D3D11/D3D12 は無効になります。")
     endif()
 endif()
 
@@ -409,6 +487,13 @@ if(ARTIFACT_HAS_LOCAL_QADS)
     endif()
 endif()
 add_subdirectory(third_party/ufbx EXCLUDE_FROM_ALL)
+# TaskFlow submodule was removed
+# set(TF_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+# set(TF_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+# set(TF_BUILD_PROFILER OFF CACHE BOOL "" FORCE)
+# set(TF_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+# set(TF_BUILD_MODULES OFF CACHE BOOL "" FORCE)
+# add_subdirectory(third_party/taskflow EXCLUDE_FROM_ALL)
 
 # ---------------------------------------------------------------------------
 # サブプロジェクトの追加
@@ -418,3 +503,17 @@ set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 add_subdirectory(ArtifactCore)
 add_subdirectory(ArtifactWidgets)
 add_subdirectory(Artifact)
+
+# ---------------------------------------------------------------------------
+# テスト設定
+# ---------------------------------------------------------------------------
+option(ARTIFACT_BUILD_TESTS "Build unit tests" ON)
+if(ARTIFACT_BUILD_TESTS)
+    enable_testing()
+    find_package(GTest CONFIG QUIET)
+    if(GTest_FOUND)
+        add_subdirectory(tests)
+    else()
+        message(WARNING "GTest was not found; skipping unit tests.")
+    endif()
+endif()

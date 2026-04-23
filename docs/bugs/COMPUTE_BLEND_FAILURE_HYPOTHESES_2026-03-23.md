@@ -153,3 +153,42 @@ const bool pipelineEnabled = renderPipeline_.ready() && blendPipelineReady_;
 | `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` | 1202-1253 | レンダーループ (ブレンドパス) |
 | `ArtifactCore/include/Graphics/Shader/Compute/LayerBlendComputeShader.ixx` | 55-77 | Normal ブレンドシェーダー |
 | `ArtifactCore/include/Graphics/Shader/Compute/LayerBlendComputeShader.ixx` | 695 | BlendShaders マップ |
+
+---
+
+## 追記 (2026-04-08): 非 Normal ブレンドシェーダーの Porter-Duff 合成漏れ修正
+
+### 症状
+
+Normal 以外のブレンドモード（Screen, Overlay 等）で、半透明レイヤーのエッジ付近のみ色が正しく合成されなかった。
+
+### 根本原因
+
+`CS_BlendNormal.hlsl` のみが正しい Porter-Duff over を実装していた。  
+他の 14 シェーダーはすべて以下の誤ったパターンを使用していた:
+
+```hlsl
+// 誤: Porter-Duff なし
+float outAlpha = max(dst.a, src.a);
+ResultTex[DTid.xy] = float4(blended, outAlpha);
+```
+
+src.a < 1.0 のエッジで blended 色が src.a で重み付けされず、誤った色が出力される。
+
+### 修正内容
+
+すべての非 Normal シェーダーを Porter-Duff over に統一:
+
+```hlsl
+// 正: Porter-Duff over
+float outAlpha = src.a + dst.a * (1.0 - src.a);
+float3 outColor = (src.a * blended + dst.rgb * dst.a * (1.0 - src.a)) / max(outAlpha, 1e-5);
+ResultTex[DTid.xy] = float4(outColor, outAlpha);
+```
+
+**修正対象 (15 ファイル)**: `ArtifactCore/include/Graphics/Shader/HLSL/Blend/`  
+CS_BlendAdd, CS_BlendScreen, CS_BlendOverlay, CS_BlendColorBurn, CS_BlendColorDodge,  
+CS_BlendDarken, CS_BlendDifference, CS_BlendExclusion, CS_BlendHardLight,  
+CS_BlendHue, CS_BlendLighten, CS_BlendLuminosity, CS_BlendSaturation,  
+CS_BlendColor, CS_BlendSoftlight, CS_BlendSubtract
+

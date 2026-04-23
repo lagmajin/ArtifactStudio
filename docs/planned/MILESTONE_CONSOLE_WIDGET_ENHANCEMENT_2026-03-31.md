@@ -4,14 +4,14 @@
 
 ## 現状サマリー
 
-`ArtifactConsoleWidget` はログ表示、フィルタリング、検索、保存機能を備えているが、デバッグ作業の効率化のためにさらなる拡充が必要。
+`ArtifactDebugConsoleWidget` はログ表示、フィルタリング、検索、保存機能を備えているが、デバッグ作業の効率化のためにさらなる拡充が必要。
 現在は `QSS` 依存を減らし、theme/palette ベースの見た目へ寄せる途中段階にある。
 2026-04-01 時点では、ログ総数の可視化とフィルタ状態サマリの追加を進めている。
 
 ## Scope
 
-- `Artifact/src/Widgets/Diagnostics/ArtifactConsoleWidget.cppm`
-- `Artifact/include/Widgets/Diagnostics/ArtifactConsoleWidget.ixx`
+- `Artifact/src/Widgets/Diagnostics/ArtifactDebugConsoleWidget.cppm`
+- `Artifact/include/Widgets/Diagnostics/ArtifactDebugConsoleWidget.ixx`
 
 ## Goals
 

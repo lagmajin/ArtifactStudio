@@ -6,7 +6,7 @@
 
 `ArtifactContentsViewer` を、単なるファイルプレビューではなく、2D / 3D / 動画 / 画像を横断して確認できるアプリ層の inspection viewer として育てる。
 
-このマイルストーンは、`ArtifactContentsViewer` の責務を明確にしつつ、`Artifact3DModelViewer`、`QMediaPlayer`、画像表示、再生、比較、メタデータ表示を整理する。
+このマイルストーンは、`ArtifactContentsViewer` の責務を明確にしつつ、`Artifact3DModelViewer`、`QMediaPlayer`、画像表示、音声再生、比較、メタデータ表示を整理する。
 
 ---
 
@@ -16,6 +16,7 @@
 
 - image preview
 - video playback
+- audio playback
 - 3D model preview
 - zoom / rotation
 - playback range
@@ -24,6 +25,7 @@
 
 - 2D 画像と 3D モデルで操作感が揃っていない
 - 動画の再生状態と file state の区別が薄い
+- 音声アセットを viewer 内で即再生できる導線がない
 - source / metadata / duration / fps / resolution の見え方が弱い
 - `Source` / `Final` / `Compare` の視点が整理されていない
 - project / asset / inspector との接続がまだ薄い
@@ -36,7 +38,7 @@
 
 1. Contents Viewer は「編集」ではなく「確認」に徹する
 2. 表示対象ごとの責務を分ける
-3. 2D / 3D / video の切替を同じ UI パターンに寄せる
+3. 2D / 3D / video / audio の切替を同じ UI パターンに寄せる
 4. メタデータ表示は viewer の補助情報として扱う
 5. project / asset / inspector から自然に開けるようにする
 
@@ -44,6 +46,7 @@
 
 - image
 - video
+- audio
 - 3D model
 - generated asset
 - source file
@@ -68,7 +71,7 @@
 
 ### 作業項目
 
-- image / video / model の表示分岐を明確化する
+- image / video / audio / model の表示分岐を明確化する
 - `resetCurrentMode()` を「状態初期化」として安定させる
 - zoom / rotation / playback range の state を対象別に整理する
 - info label の役割を「補助メタデータ表示」に固定する
@@ -82,6 +85,7 @@
 ### 進捗
 
 - 2026-03-27 時点で、video / 3D model の heavy page を first use まで遅延生成する方向に進めた
+- 2026-04-03 時点で、audio playback を Contents Viewer の対象に含める方針を追加した
 - 2026-03-27 時点で、header / action state は source / final / compare を意識した整理に寄せている
 
 ### 進捗メモ
@@ -89,6 +93,14 @@
 - 2026-03-27: header / metadata / state / action bar を追加
 - 2026-03-27: image / video / model の state reset を維持したまま、操作導線を viewer 内へ集約
 - 2026-03-27: video 用の scrub slider を追加し、再生位置を確認・操作できるようにした
+- 2026-04-03: audio playback を Contents Viewer の対象として扱う追加方針を入れ、再生系の scope を拡張した
+- 2026-04-03: audio playback を `MediaPlaybackController` / FFmpeg backend で実際に動かす実装に着手した
+- 2026-04-04: audio file で live waveform preview surface を追加し、再生だけでなく確認面としての見え方を強めた
+- 2026-04-05: compare mode の wipe / swap 状態を永続化し、A/B 比較を再訪時に維持できるようにした
+- 2026-04-05: viewer assignment の `Ctrl+1..4` と compare A/B の `Ctrl+Shift+A/B` を追加し、Phase 5 の routing を操作しやすくした
+- 2026-04-05: channel / meta surface を追加し、image の hover probe で RGBA / XY / hex を確認できるようにした
+- 2026-04-05: 3D viewer の zoom / yaw / pitch / camera position を surface meta へ反映し、inspection surface としての説明力を強めた
+- 2026-04-05: compare の A/B header をクリックで source に戻れるようにして、compare routing を短縮した
 - 2026-03-27: `Reset` 操作を追加し、image / video / 3D model の表示状態を各タイプごとに戻せるようにした
 - 2026-03-27: AppMain から `Contents Viewer` を dock として開けるようにし、Asset Browser の double-click で file を直接送れるようにした
 - 2026-03-27: Project View の double-click からも footage を `Contents Viewer` へ送れるようにし、project / asset / viewer の接続を強めた
@@ -99,14 +111,15 @@
 
 ### 目的
 
-画像・動画・3D モデルに共通する情報を viewer で見えるようにする。
+画像・動画・音声・3D モデルに共通する情報を viewer で見えるようにする。
 
 ### 作業項目
 
 - file path / source path 表示
 - file size / resolution / duration / fps / sample rate の表示
+- audio file の基本情報と再生状態の表示
 - missing / unsupported / load failure の区別
-- 2D / 3D / video の簡易 badge
+- 2D / 3D / video / audio の簡易 badge
 - project asset との関連表示
 
 ### 完了条件
@@ -119,6 +132,7 @@
 - 2026-03-27: file name / type badge / size / path / duration / resolution の表示を追加
 - 2026-03-27: copy path / open containing folder の補助導線を追加
 - 2026-03-27: video の position / duration を state 表示に反映した
+- 2026-04-03: audio file の basic info と playback state を viewer metadata に含める方針を追加した
 - 2026-03-27: reset 操作で image / video / 3D model の view state を揃えた
 - 2026-03-27: `Contents Viewer` を Asset Browser の double-click から開けるようにして workflow に接続した
 - 2026-03-27: `Contents Viewer` を Project View の double-click からも開けるようにして、project / asset からの review 導線を揃えた
@@ -170,15 +184,17 @@ Project / Asset から Contents Viewer へ自然に飛べるようにする。
 
 ### 目的
 
-動画・モデル・画像の再生/検証を、実用的な確認窓として仕上げる。
+動画・音声・モデル・画像の再生/検証を、実用的な確認窓として仕上げる。
 
 ### 作業項目
 
 - playback state の表示
+- audio playback の停止 / 再開 / シーク / ループの整理
 - loop / range / seek の整理
 - 3D model camera state の記録
 - error diagnostics の文言整理
 - screenshot / export の補助導線
+- audio waveform / live preview の整理
 
 ### 完了条件
 
