@@ -152,6 +152,14 @@
 - 1 フレームを固定して pass / resource / attachment / compare / step を追える内蔵フレームデバッグビューを作る
 - 詳細は `docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_2026-04-20.md`
 
+### M-APP-4 App Debugger Visual Hierarchy / Color Semantics
+- App Debugger の情報階層、色の意味、異常時の見え方を整えて、人間が読みやすい diagnostics surface に寄せる
+- 詳細は `docs/planned/MILESTONE_APP_DEBUGGER_VISUAL_HIERARCHY_COLOR_SEMANTICS_2026-04-23.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_VISUAL_HIERARCHY_COLOR_SEMANTICS_PHASE1_EXECUTION_2026-04-24.md`
+- Phase 2 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_VISUAL_HIERARCHY_COLOR_SEMANTICS_PHASE2_EXECUTION_2026-04-24.md`
+- Phase 3 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_VISUAL_HIERARCHY_COLOR_SEMANTICS_PHASE3_EXECUTION_2026-04-24.md`
+- Phase 4 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_VISUAL_HIERARCHY_COLOR_SEMANTICS_PHASE4_EXECUTION_2026-04-24.md`
+
 ### M-IR-8 ImmediateContext Boundary / De-direct
 - `DiligentEngine` の `ImmediateContext` / `IDeviceContext` を layer / widget / controller から直接触らない構造へ寄せる
 - `ArtifactIRenderer` / `RenderCommandBuffer` / `DiligentImmediateSubmitter` を正式な描画境界として固定する
@@ -534,6 +542,10 @@
 ### M-TL-9 Timeline Visual Language
 - レイヤーバー、キーフレーム、再生ヘッド、選択ハイライトの色と形を意味ベースで統一する
 - 詳細は `docs/planned/MILESTONE_TIMELINE_VISUAL_LANGUAGE_2026-03-31.md`
+
+### M-TL-14 Timeline Layer Specialization Execution
+- `Audio / Video / Text / Shape / Image / Particle` の最小専用化を、共通編集を壊さずに段階導入する
+- 詳細は `docs/planned/MILESTONE_TIMELINE_LAYER_SPECIALIZATION_EXECUTION_2026-04-23.md`
 
 ### M-TL-5 Timeline Keyframe Editing
 - Timeline 上で property keyframe を見て、打って、移動できるようにする
@@ -955,6 +967,10 @@
 - 編集導線の最小入り口は実装済みで、Phase 2 以降の in-canvas input を残す
 - `Ctrl+Enter` の commit shortcut を追加し、Phase 1 の確定導線を少し強化した
 - 起動時に全文選択するようにして、置き換え入力の初動を軽くした
+
+### M-CE-2 Composition Editor Playback Feel Refinement
+- playhead / scrub / preview の体感を軽くし、ワープ感や重さを減らす
+- 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_PLAYBACK_FEEL_REFINEMENT_2026-04-23.md`
 
 ### M-AB Asset Browser Improvement (Unity 風)
 - 詳細は `docs/planned/MILESTONE_ASSET_BROWSER_IMPROVEMENT.md`
