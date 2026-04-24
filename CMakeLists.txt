@@ -203,6 +203,7 @@ else()
 endif()
 set(THIRD_PARTY_DIR   "${CMAKE_CURRENT_SOURCE_DIR}/third_party" CACHE PATH "local third_party dir")
 set(ARTIFACT_APP_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/Artifact"  CACHE PATH "Artifact app dir")
+set(ARTIFACT_PR_APP_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactPr"  CACHE PATH "ArtifactPr app dir")
 set(ARTIFACT_DEPLOY_DIR "" CACHE PATH "Optional output directory for copying Artifact exe and runtime dlls")
 option(ARTIFACT_USE_SCCACHE "Use sccache compiler launcher when available" ON)
 option(ARTIFACT_ENABLE_SYCL "Enable Intel oneAPI DPC++/SYCL build flags" OFF)
@@ -503,6 +504,7 @@ set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 add_subdirectory(ArtifactCore)
 add_subdirectory(ArtifactWidgets)
 add_subdirectory(Artifact)
+add_subdirectory(ArtifactPr)
 
 # ---------------------------------------------------------------------------
 # テスト設定

@@ -93,6 +93,15 @@
 - `TimelinePlayheadOverlay`
   右ペイン上に重なる赤い縦棒のオーバーレイ。
 
+## Timeline Reading Order
+
+タイムライン系のマイルストーンや責務を追うときは、まず次を参照する。
+
+- [MILESTONE_TIMELINE_INDEX_2026-04-22.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_INDEX_2026-04-22.md)
+- 右ペインの表示責務は `M-TL-11`
+- キーフレーム編集の本筋は `M-TL-5` と `M-TL-7`
+- transform 系の掘り下げは `MILESTONE_TIMELINE_TRANSFORM_KEYFRAME_EDITING_2026-04-12.md`
+
 ## Timeline Subregions
 
 - `ArtifactTimelineWidget`

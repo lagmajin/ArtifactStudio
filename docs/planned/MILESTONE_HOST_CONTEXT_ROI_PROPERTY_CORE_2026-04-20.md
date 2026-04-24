@@ -362,3 +362,13 @@ metadata 導入だけなら比較的安全。
 - [`ArtifactCore/include/Property/PropertyGroup.ixx`](X:/Dev/ArtifactStudio/ArtifactCore/include/Property/PropertyGroup.ixx)
 - [`ArtifactCore/src/Property/AbstractProperty.cppm`](X:/Dev/ArtifactStudio/ArtifactCore/src/Property/AbstractProperty.cppm)
 - [`ArtifactCore/NetworkRPCServer.ixx`](X:/Dev/ArtifactStudio/ArtifactCore/NetworkRPCServer.ixx)
+
+## Follow-up Notes
+
+- `2026-04-22`
+  - `RenderContext` の生成を `createEditorPreviewContext()` / `createFinalExportContext()` / `createProxyBuildContext()` に集約し、preview / export / proxy の入口を共通化した
+  - `RenderContextRegistry::makeKey()` は目的名を文字列化するようにして、snapshots の見通しを少し上げた
+  - `PropertyRegistry` に owner / handle の read-only query を追加し、`ArtifactPropertyWidget` の summary から snapshot owner の状態を読めるようにした
+  - `PropertyRegistryReadOnlyAdapter::queryAllOwners()` を追加し、owner snapshot の列挙を UI 外から行いやすくした
+  - `ArtifactInspectorWidget` の layer type signature を表示ロジックと揃え、NoLayer 以外の type 変化を拾いやすくした
+  - `ArtifactProjectService::selectLayer()` で invalid / cleared / reselect の reason を明示し、selection boundary の log を追いやすくした
