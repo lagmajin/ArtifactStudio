@@ -1,9 +1,10 @@
 # Milestone: Diligent Low-Level Rendering API Expansion (2026-04-01)
 
-**Status:** Phase 1 ✅ / Phase 2 ✅ / Phase 5 ✅ / Phase 7a ✅ / Phase 3・4・6・7b/c 未着手
+**Status:** Phase 1 ✅ / Phase 2 ✅ / Phase 3 ✅ / Phase 5 ✅ / Phase 7a ✅ / Phase 4・6・7b/c 未着手
 **Goal:** `DiligentImmediateSubmitter` の描画 API を拡充し、レンダーステートの最適化を積み重ねながら、長期的に Immediate Context 依存を段階的に削減する
 
 > **更新: 2026-04-25** — Phase 1・2 完了確認、Phase 5 (H1-H5 最適化) 完了反映、Phase 6・7 を新規追加；Phase 7a 実装完了
+> **更新: 2026-04-28** — Phase 3 (`SolidRectPkt` バッチ描画) 実装完了
 
 ---
 
@@ -24,7 +25,7 @@
 | **SetRenderTargets 1回化 (H2)** | ✅ 実装済み |
 | **PSO 切替デdup (H3)** | ✅ 実装済み |
 | **Unit Quad VB (H5)** | ✅ 実装済み |
-| **バッチ描画** | ❌ 未実装 |
+| **バッチ描画 (SolidRect Phase 3)** | ✅ 実装済み (AA付き、最大512矩形/call) |
 | **アップスケール設定 (FSR/RSR)** | ❌ no-op |
 | **3D Line thickness** | ❌ 無視されている (`(void)thickness`) |
 | **パケットのPSO別ソート (H6)** | ❌ 未実装 |
@@ -57,31 +58,18 @@
 
 ---
 
-## Phase 3: Batch Rendering System (P1) ❌ 未着手
+## Phase 3: Batch Rendering System (SolidRect) ✅ 完了
 
-### 目的
-同一 PSO の draw packet を 1 つの DrawIndexed / DrawIndirect にまとめ、draw call 数を削減する。
+### 実施内容
+1. **`batchSolidRectAAPsoAndSrb_`** — AA付き専用 PSO を `ShaderManager` に追加 (UV + fwidth AA)
+2. **動的 VB / 静的 IB** — `DiligentImmediateSubmitter::createBuffers()` で確保 (512矩形分)
+3. **CPU 頂点事前計算** — `SolidRectPkt.xform` から NDC 頂点を CPU で積み上げ
+4. **バッチフラッシュ戦略** — 他パケット型が来るか、512件超えたら `flushSolidRectBatch()` で1回の `DrawIndexed` 発行
+5. **フォールバック** — バッファ未準備時は既存 `submitSolidRect()` を呼ぶ安全パス維持
 
-### 対象
-1. **Solid Rect / Line バッチ**
-   - 同 PSO のパケットを動的 VB に連結 → `DrawIndexed(N * 6)`
-   - `batchSolidRectPSO` のシェーダ (`g_qsBatchSolidColorPSSource`) は既に存在するが submit 経路が未実装
-
-2. **Bezier セグメントバッチ**
-   - 現在: CPU セグメント分割 → 個別 draw call × N
-   - 改善後: 全セグメント頂点を1バッファに蓄積 → 1 call
-
-3. **Glyph バッチ**
-   - 同一 atlas を使う全グリフを1バッファに展開 → 1 DrawIndexed
-   - 現在はグリフ1文字ごとに `mapWriteDiscard` + `DrawIndexed`
-
-### 対象ファイル
-| ファイル | 内容 |
-|---------|------|
-| `Artifact/src/Render/DiligentImmediateSubmitter.cppm` | バッチ蓄積ロジック追加 |
-| `Artifact/include/Render/RenderCommandBuffer.ixx` | `BatchSolidRectPkt` 追加 (任意) |
-
-### 見積: 10-14h
+### 残留課題 (Line / Glyph バッチ)
+- Line バッチ (Bezier セグメント一括) は未着手
+- Glyph バッチ (同一 atlas のグリフ一括) は未着手
 
 ---
 
