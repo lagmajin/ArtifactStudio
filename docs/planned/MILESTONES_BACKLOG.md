@@ -65,6 +65,16 @@
   - テキストレイヤーインライン編集実装済み、Ctrl+Enter commit shortcutあり
   - 主要ファイル: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`
 
+### Layer Editing
+- **M-LE-1** Layer Solo View 編集機能強化（平面・シェイプ） ❌ 未着手
+  - Phase 1: シェイプ固有ビューポートハンドル（角丸・星内半径）
+  - Phase 2: グラデーションフィル（シェイプ・平面レイヤー + プロパティピッカー）
+  - Phase 3: ストロークスタイル（破線・端点・接合・配置）
+  - Phase 4: ギズモ XYWH 数値 HUD オーバーレイ
+  - Phase 5: シェイプ頂点ベジェカーブ編集
+  - 詳細: `docs/planned/MILESTONE_LAYER_EDIT_2026-04-25.md`
+  - 主要ファイル: `Artifact/src/Widgets/Render/ArtifactRenderLayerWidgetv2.cppm`, `Artifact/src/Layer/ArtifactShapeLayer.cppm`
+
 ### Composition Editor / Cache
 - **M-CE-1** Composition Editor Cache System ✅ (verified 2026-04-14)
   - Surface cache / render key suppression / ROIシステム実装済み
