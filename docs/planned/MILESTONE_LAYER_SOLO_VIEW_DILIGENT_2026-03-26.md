@@ -175,6 +175,13 @@ v1 では、少なくとも次の表示・切替を備える。
 
 ## Current Status
 
+- 2026-04-25 時点で、Layer Solo View のシェイプ編集機能 (M-LE-1) を実装完了
+  - **Phase 1 (パラメトリックハンドル)**: Rect レイヤーの角丸ハンドル、Star レイヤーの inner radius ハンドルを Layer Solo View に追加。ドラッグ操作でリアルタイム変更、undo 対応
+  - **Phase 3 (ストロークスタイル)**: `StrokeCap` / `StrokeJoin` / `StrokeAlign` / `dashPattern` を `ArtifactShapeLayer` に追加。QPainter ベースのキャッシュパイプラインで描画
+  - **Phase 4 (変形 HUD)**: TransformGizmo ドラッグ中に XYWH テキストオーバーレイを表示
+  - **Phase 5 (ベジェパス編集)**: `CustomPathVertex` 構造体でベジェコントロールポイントを保持。Paint モードでの頂点/タンジェントドラッグ編集、smooth モード対応、undo 対応
+  - 対象ファイル: `ArtifactShapeLayer.ixx/.cppm`, `TransformGizmo.ixx/.cppm`, `ArtifactRenderLayerWidgetv2.cppm`
+
 - 2026-03-26 時点では、Diligent Layer Solo View は「表示と操作の核」を詰める前段階
 - mask 編集は composition 側に実体があり、Layer Solo View にはまだ直接つながっていない
 - そのため、まずは view の責務整理と mask 入口の設計から入るのが安全
