@@ -4,6 +4,7 @@ set(ARTIFACT_PR_SOURCES
     src/main.cpp
     src/ArtifactPrMainWindow.cpp
     src/ArtifactPrDemoData.cpp
+    src/ArtifactPrEditorEngine.cpp
 )
 
 add_executable(ArtifactPr WIN32 ${ARTIFACT_PR_SOURCES})
@@ -18,7 +19,7 @@ set_target_properties(ArtifactPr PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
 )
 
-target_link_libraries(ArtifactPr PRIVATE ArtifactCore)
+target_link_libraries(ArtifactPr PRIVATE ArtifactCore ArtifactWidgets Qt6::Multimedia)
 
 target_include_directories(ArtifactPr PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -42,3 +43,7 @@ elseif(ARTIFACT_FRONTEND_MSVC)
         _WIN32_WINNT=0x0A00
     )
 endif()
+
+find_package(qtadvanceddocking-qt6 REQUIRED)
+find_package(Qt6 REQUIRED COMPONENTS Multimedia MultimediaWidgets)
+target_link_libraries(ArtifactPr PRIVATE ads::qtadvanceddocking-qt6 Qt6::Multimedia Qt6::MultimediaWidgets)
