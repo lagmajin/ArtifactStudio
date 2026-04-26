@@ -217,21 +217,21 @@ public Q_SLOTS:
     const DemoClip& clipboard() const { return clipboard_; }
 
 Q_SIGNALS:
-    void currentFrameChanged(ArtifactPr::FramePosition frame);
-    void playbackStateChanged(bool isPlaying);
-    void playbackSpeedChanged(ArtifactPr::PlaybackSpeed speed);
-    void inOutPointChanged(ArtifactPr::FramePosition inPoint, ArtifactPr::FramePosition outPoint);
-    void sequenceChanged(const DemoSequence& sequence);
-    void clipSelectionChanged(const QString& clipId);
-    void clipChanged(const QString& clipId);
-    void projectModified();
-    void projectSaved(bool success, const QString& message);
-    void projectLoaded(bool success, const QString& message);
-    void markerChanged();
-    void transitionChanged();
-    void exportStarted();
-    void exportProgress(int percent);
-    void exportFinished(bool success, const QString& message);
+    void currentFrameChanged(ArtifactPr::FramePosition frame) W_SIGNAL(currentFrameChanged, frame);
+    void playbackStateChanged(bool isPlaying) W_SIGNAL(playbackStateChanged, isPlaying);
+    void playbackSpeedChanged(ArtifactPr::PlaybackSpeed speed) W_SIGNAL(playbackSpeedChanged, speed);
+    void inOutPointChanged(ArtifactPr::FramePosition inPoint, ArtifactPr::FramePosition outPoint) W_SIGNAL(inOutPointChanged, inPoint, outPoint);
+    void sequenceChanged(const DemoSequence& sequence) W_SIGNAL(sequenceChanged, sequence);
+    void clipSelectionChanged(const QString& clipId) W_SIGNAL(clipSelectionChanged, clipId);
+    void clipChanged(const QString& clipId) W_SIGNAL(clipChanged, clipId);
+    void projectModified() W_SIGNAL(projectModified);
+    void projectSaved(bool success, const QString& message) W_SIGNAL(projectSaved, success, message);
+    void projectLoaded(bool success, const QString& message) W_SIGNAL(projectLoaded, success, message);
+    void markerChanged() W_SIGNAL(markerChanged);
+    void transitionChanged() W_SIGNAL(transitionChanged);
+    void exportStarted() W_SIGNAL(exportStarted);
+    void exportProgress(int percent) W_SIGNAL(exportProgress, percent);
+    void exportFinished(bool success, const QString& message) W_SIGNAL(exportFinished, success, message);
 
 private:
     void pushUndo(UndoCommand* cmd);

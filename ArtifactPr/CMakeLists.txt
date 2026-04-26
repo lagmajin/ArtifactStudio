@@ -7,7 +7,12 @@ set(ARTIFACT_PR_SOURCES
     src/ArtifactPrEditorEngine.cpp
 )
 
-add_executable(ArtifactPr WIN32 ${ARTIFACT_PR_SOURCES})
+# Generate MOC files explicitly
+qt6_wrap_cpp(ARTIFACT_PR_MOC_SOURCES
+    include/ArtifactPrEditorEngine.hpp
+)
+
+add_executable(ArtifactPr WIN32 ${ARTIFACT_PR_SOURCES} ${ARTIFACT_PR_MOC_SOURCES})
 
 set_target_properties(ArtifactPr PROPERTIES
     CXX_STANDARD 23
