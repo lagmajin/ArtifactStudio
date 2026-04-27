@@ -71,7 +71,7 @@ endif()
 project(ArtifactSuite LANGUAGES C CXX)
 
 # Visual Studio / CMake IDEs should open the main Artifact app by default.
-# ArtifactPr stays as a sibling executable, but it should not become the startup project.
+# ArtifactPr is currently disabled due to W_Object MOC compilation issues.
 set(CMAKE_VS_STARTUP_PROJECT Artifact CACHE STRING "Visual Studio startup project" FORCE)
 
 # Re-assert v143 compiler if toolchain was used, in case vcpkg reset it
@@ -207,7 +207,7 @@ else()
 endif()
 set(THIRD_PARTY_DIR   "${CMAKE_CURRENT_SOURCE_DIR}/third_party" CACHE PATH "local third_party dir")
 set(ARTIFACT_APP_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/Artifact"  CACHE PATH "Artifact app dir")
-set(ARTIFACT_PR_APP_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactPr"  CACHE PATH "ArtifactPr app dir")
+# ARTIFACT_PR_APP_DIR removed - ArtifactPr disabled in build
 set(ARTIFACT_DEPLOY_DIR "" CACHE PATH "Optional output directory for copying Artifact exe and runtime dlls")
 option(ARTIFACT_USE_SCCACHE "Use sccache compiler launcher when available" ON)
 option(ARTIFACT_ENABLE_SYCL "Enable Intel oneAPI DPC++/SYCL build flags" OFF)
@@ -508,7 +508,10 @@ set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 add_subdirectory(ArtifactCore)
 add_subdirectory(ArtifactWidgets)
 add_subdirectory(Artifact)
-add_subdirectory(ArtifactPr)
+# DISABLED: ArtifactPr has W_Object signal macros that require Qt MOC
+# Since MOC causes drive path issues, and ArtifactPr is a demo/utility,
+# we exclude it from the main build. Re-enable by uncommenting below.
+# add_subdirectory(ArtifactPr)
 
 # ---------------------------------------------------------------------------
 # テスト設定
