@@ -70,6 +70,10 @@ endif()
 
 project(ArtifactSuite LANGUAGES C CXX)
 
+# Visual Studio / CMake IDEs should open the main Artifact app by default.
+# ArtifactPr stays as a sibling executable, but it should not become the startup project.
+set(CMAKE_VS_STARTUP_PROJECT Artifact CACHE STRING "Visual Studio startup project" FORCE)
+
 # Re-assert v143 compiler if toolchain was used, in case vcpkg reset it
 if(CMAKE_TOOLCHAIN_FILE MATCHES "toolchain-msvc-v143")
     # Verify compiler is v143 (14.x)
