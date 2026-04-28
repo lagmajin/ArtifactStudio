@@ -7,12 +7,12 @@ set(ARTIFACT_PR_SOURCES
     src/ArtifactPrEditorEngine.cpp
 )
 
-# Generate MOC files explicitly
-qt6_wrap_cpp(ARTIFACT_PR_MOC_SOURCES
-    include/ArtifactPrEditorEngine.hpp
-)
+# MOC disabled - causes issues with drive paths
+# qt6_wrap_cpp(ARTIFACT_PR_MOC_SOURCES
+#     include/ArtifactPrEditorEngine.hpp
+# )
 
-add_executable(ArtifactPr WIN32 ${ARTIFACT_PR_SOURCES} ${ARTIFACT_PR_MOC_SOURCES})
+add_executable(ArtifactPr WIN32 ${ARTIFACT_PR_SOURCES})
 
 set_target_properties(ArtifactPr PROPERTIES
     CXX_STANDARD 23

@@ -31,6 +31,7 @@
 ## Current Understanding
 
 - 主流の 2D 描画はすでに `RenderCommandBuffer` → `DiligentImmediateSubmitter` へ寄っている
+- 2026-04-28 時点で、`ParticleRenderer` と `PrimitiveRenderer3D` billboard も packet 化され、`RenderCommandBuffer` 順序内で submit される
 - 一方で `ArtifactIRenderer` は `IDeviceContext` を内部保持し、`present` / `flush` / `readback` / render target 制御は low-level path のまま
 - したがって目標は「全廃」ではなく「外側からの直叩きを止めて内部へ隔離する」こと
 

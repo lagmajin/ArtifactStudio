@@ -47,8 +47,8 @@ GPU パーティクルパスを有効化し、**1,000,000 パーティクルを 
 ### Phase 2: GPU シミュレーションパス統合
 - [ ] `ParticleCompute` の初期化を `ArtifactCompositionRenderController` で実行
 - [ ] レンダーループ内で Compute Shader Dispatch を呼び出し
-- [ ] `ParticleRenderer` を `ArtifactIRenderer` パイプラインへ統合
-- [ ] 投影行列 / ビュー行列の自動同期
+- [x] `ParticleRenderer` を `ArtifactIRenderer` パイプラインへ統合
+- [x] 投影行列 / ビュー行列の自動同期
 
 ### Phase 3: 機能パリティ確保
 - [ ] 既存全てのエフェクターを GPU 側で再実装

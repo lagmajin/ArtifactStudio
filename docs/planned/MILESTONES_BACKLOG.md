@@ -1040,6 +1040,47 @@
 - Phase 2 execution: `docs/planned/MILESTONE_EASING_LAB_PHASE2_EXECUTION_2026-04-21.md`
 - Phase 3 execution: `docs/planned/MILESTONE_EASING_LAB_PHASE3_EXECUTION_2026-04-21.md`
 
+### M-EXPR-1 Expression System Completeness ⭐ **新規追加**
+- エクスプレッションエンジンはパーサー＋評価器が存在するが、AE ライクな表現力に不足がある
+- **不足機能:**
+  - Pick-whip UI（プロパティ間ドラッグリンク）
+  - 組込みプロパティアクセサ（`position`, `opacity`, `rotation` 等）
+  - 特殊変数（`thisComp`, `thisLayer`, `thisProperty`, `time`, `value`）
+  - ユーティリティ関数（`wiggle()`, `loopIn()/loopOut()`, `pingPong()`, `valueAtTime()`, `speedAtTime()`, `velocityAtTime()`）
+  - `effect()` アクセサ
+  - エクスプレッションエラー表示（タイムライン上）
+  - エクスプレッション→キーフレーム変換
+  - 音声リアクティブ変数（`audioLevels`）
+- **見積:** 60-80h
+- **依存:** `ExpressionParser` ✅, `ExpressionEvaluator` ✅, `ExprIntrinsics` ✅
+
+### M-BLEND-1 Blend Mode Completeness ⭐ **新規追加**
+- 現在 18/38 モード実装。以下のモードを追加する:
+  - Dissolve / Dancing Dissolve
+  - Linear Burn / Classic Color Burn
+  - Linear Dodge / Classic Color Dodge
+  - Linear Light / Vivid Light / Pin Light / Hard Mix
+  - Classic Difference
+  - Divide
+  - Stencil Alpha / Stencil Luma / Silhouette Alpha / Silhouette Luma
+- CPU (`QPainter::CompositionMode`) と GPU (compute shader) の両方で対応
+- **見積:** 20-30h
+- **依存:** `ColorBlendMode` ✅, 各 render path
+
+### M-FX-10 Effects Coverage Expansion ⭐ **新規追加**
+- 既存 ~15 エフェクトから AE ライクなエフェクトカタログへ拡充する
+- **不足カテゴリ（優先度順）:**
+  - **Generate:** Fill, Stroke, Circle, Ellipse, Checkerboard, Gradient Ramp, Grid
+  - **Distort:** Displacement Map, Turbulent Displace, Mesh Warp, Liquify, Optics Compensation
+  - **Stylize:** Cartoon, Emboss, Find Edges, Mosaic, Brush Strokes, Scatter
+  - **Perspective:** Drop Shadow, Radial Shadow, Basic 3D, Bevel Alpha
+  - **Transition:** Dissolve, Iris Wipe, Linear Wipe, Card Wipe, Gradient Wipe
+  - **Time:** Echo, Time Difference, Posterize Time, CC Force Motion Blur
+  - **Utility:** Cineon Converter, Apply Color LUT, Color Profile Converter
+- 各エフェクトは CPU reference 実装→GPU compute shader の 2 段階
+- **見積:** 120-180h（カテゴリ単位で分割可能）
+- **依存:** `EffectStack` ✅, `OFXHost` ✅, `GPUComputeContext` ✅
+
 ## Good Small Tasks
 
 - `M-AR-2 import std Rollout`
