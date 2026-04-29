@@ -56,6 +56,10 @@ Recent milestones still being worked on:
 
 ✅ **Completed milestones are already in `Artifact/docs/archived/` folder**
 
+✅ **Parent-side verification note archived**
+- `docs/archived/MILESTONE_VERIFICATION_COMPLETE_2026-04-27.md`
+- Confirms `TIMELINE_HEADER_OWNER_DRAW` and `TIMELINE_LEFT_PANE_VIRTUAL_SCROLL` are implemented
+
 This keeps the main `Artifact/docs/` directory focused on active work.
 
 ## Recommendations

@@ -17,7 +17,7 @@ After code inspection, confirmed:
   - `ArtifactLayerPanelHeaderWidget` class in `.ixx` file implements QWidget-based header
   - No dependency on `QScrollArea` for header
 
-**Status**: ✅ IMPLEMENTED (should be archived)
+**Status**: ✅ IMPLEMENTED (archived)
 
 ---
 
@@ -32,7 +32,7 @@ After code inspection, confirmed:
   - Only visible rows rendered in `paintEvent` (virtualization confirmed)
   - Wheel scroll support visible in paintEvent
 
-**Status**: ✅ IMPLEMENTED (should be archived)
+**Status**: ✅ IMPLEMENTED (archived)
 
 ---
 
@@ -58,6 +58,6 @@ These should be moved to `archived/` to keep active milestone list clean.
 
 ---
 
-**Date**: 2026-04-27  
+**Date**: 2026-04-27
 **Finding**: 2 more milestones confirmed as completed and ready for archival
 **Next Action**: Archive these 2 milestones, then propose next work direction

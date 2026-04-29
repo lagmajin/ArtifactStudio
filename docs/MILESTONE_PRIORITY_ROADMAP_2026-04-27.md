@@ -166,9 +166,33 @@ Ranked by:
 
 ---
 
+### #7: Debug Render Harness (58/100)
+
+**Priority**: 58/100  
+**Scope**: ~18 hours  
+**Risk**: Low-Medium  
+**Dependencies**: Existing `ArtifactIRenderer`, `FrameDebugSnapshot`, `App Debugger`
+
+**What it is**: A thin diagnostic renderer harness that reuses the same Diligent backend but runs minimal scenes for particle / video / blend isolation.
+
+**Why it matters**:
+- Cuts the large composition UI out of media/render failure triage
+- Gives us a repeatable smoke surface for critical render bugs
+- Helps distinguish renderer contract bugs from layer/data bugs
+- Fits naturally with the critical stability program
+
+**Estimated phases**:
+1. Harness contract + presets (3h)
+2. Minimal particle/video scenes (5h)
+3. Snapshot/report capture (4h)
+4. Frame Debug integration (3h)
+5. Smoke gate notes (3h)
+
+---
+
 ## Priority Tier 5 (Future/Blocked)
 
-### #7: GPU Direct Text Draw - Full Path (WP-2-6)
+### #8: GPU Direct Text Draw - Full Path (WP-2-6)
 
 **Priority**: 55/100  
 **Scope**: ~35 hours  
@@ -186,7 +210,7 @@ Ranked by:
 
 ---
 
-### #8: Video QImage Retirement
+### #9: Video QImage Retirement
 
 **Priority**: 40/100  
 **Scope**: ~55 hours  
@@ -204,7 +228,7 @@ Ranked by:
 
 ---
 
-### #9: OIIO Image Pipeline Migration
+### #10: OIIO Image Pipeline Migration
 
 **Priority**: 30/100  
 **Scope**: ~70 hours  
@@ -247,6 +271,30 @@ Ranked by:
    - Framework/clarity work
    - No code risk
    - Improves maintainability
+
+### ✍️ **Text Workstream (Parallel / Next)**
+
+5. **Text Animator Next Gen** - `docs/planned/MILESTONE_TEXT_ANIMATOR_NEXT_GEN_2026-04-18.md`
+   - AE 風 Text Animator の残タスクを UI / selector / preset / timeline まで詰める
+   - 既存の `TextAnimatorEngine` を前提に進められる
+   - 既に integration milestone があるので、実行順を合わせやすい
+
+6. **GPU Text Rendering / Japanese Shaping** - `ArtifactCore/docs/MILESTONE_GPU_TEXT_RENDERING_JA_2026-04-01.md`
+   - 日本語テキストを backend 差分込みで安定表示する基盤作り
+   - font fallback / shaping / atlas / backend parity を段階導入できる
+   - Text Animator の表示品質にも直結する
+
+#### Recommended Start Order
+
+1. **Text Animator Next Gen** を先に進める
+   - 既存の `TextAnimatorEngine` と `ArtifactTextLayer` の統合がすでに途中まで進んでいる
+   - UI / timeline / preset の詰めがそのまま実装に繋がる
+   - 仕様の輪郭が見えやすく、短いフィードバックループで進めやすい
+
+2. **GPU Text Rendering / Japanese Shaping** は並走または直後に進める
+   - backend 差分を詰める基盤なので、Text Animator の見た目品質にも効く
+   - font fallback / shaping / atlas の整備は、後続の text work にも再利用しやすい
+   - まずは WP-1 と合わせて「描画の土台」を固めるのが効率的
 
 ### 🔧 **Medium-term (Following month)**
 

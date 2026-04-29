@@ -85,6 +85,17 @@
   - `PrimitiveRenderer2D` の cacheKey ベース最適化は実装済み
   - 主要ファイル: `Artifact/docs/MILESTONE_STATIC_LAYER_GPU_CACHE_2026-03-26.md`
 
+- **M-CE-CRIT-1** Critical Render / Media Stability Program ❌ 未着手
+  - パーティクル非表示、ビデオデコード失敗、ビデオレイヤー透明化を長期バグとしてまとめて追跡する
+  - 診断、smoke case、回帰ゲートを先に整え、個別修正をレポートへ戻す
+  - バグレポート: `docs/bugs/BUG_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
+  - 詳細: `docs/planned/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
+
+- **M-CE-CRIT-2** Debug Render Harness ❌ 未着手
+  - particle-only / video-only / blend-only の最小再現を独立に開く検証 surface
+  - 本番 renderer と同じ Diligent backend を使い、失敗理由を capture/report する
+  - 詳細: `docs/planned/MILESTONE_DEBUG_RENDER_HARNESS_2026-04-30.md`
+
 ### Render Execution / Isolation
 - **M-RE-1** External Renderer Design
   - 内蔵レンダラは維持しつつ、オフラインレンダリングだけ別プロセスへ切り出す
@@ -985,6 +996,21 @@
 - 編集導線の最小入り口は実装済みで、Phase 2 以降の in-canvas input を残す
 - `Ctrl+Enter` の commit shortcut を追加し、Phase 1 の確定導線を少し強化した
 - 起動時に全文選択するようにして、置き換え入力の初動を軽くした
+
+### M-TXT-1 Text Animator Next Gen
+- AE 風 Text Animator の残タスクを UI / selector / preset / timeline まで詰める
+- 詳細は `docs/planned/MILESTONE_TEXT_ANIMATOR_NEXT_GEN_2026-04-18.md`
+- 実行メモは `docs/planned/MILESTONE_TEXT_ANIMATOR_NEXT_GEN_EXECUTION_2026-04-30.md`
+
+### C-TXT-6 GPU Text Rendering / Japanese Shaping
+- DX12 / Vulkan backend での日本語 text rendering
+- glyph atlas / shaping / backend parity
+- 詳細は `ArtifactCore/docs/MILESTONE_GPU_TEXT_RENDERING_JA_2026-04-01.md`
+- 実行メモは `ArtifactCore/docs/MILESTONE_GPU_TEXT_RENDERING_JA_EXECUTION_2026-04-30.md`
+
+### Text Workstream Index
+- `docs/planned/MILESTONE_TEXT_WORKSTREAM_INDEX_2026-04-30.md`
+- Text Animator と GPU Text の入口を 1 枚に束ねる索引
 
 ### M-CE-2 Composition Editor Playback Feel Refinement
 - playhead / scrub / preview の体感を軽くし、ワープ感や重さを減らす

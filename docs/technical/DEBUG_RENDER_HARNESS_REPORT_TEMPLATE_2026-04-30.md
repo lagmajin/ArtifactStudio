@@ -1,0 +1,80 @@
+# Debug Render Harness Report Template
+
+This template is the text-first report shape for smoke captures and failure bundles.
+
+Keep it short, copyable, and consistent across particle / video / blend / overlay scenes.
+
+---
+
+## Header
+
+- reportId: `<bundle-id>`
+- createdAt: `<timestamp>`
+- preset: `<preset-name>`
+- frame: `<frame-number>`
+- composition: `<composition-name>`
+- selectedLayer: `<selected-layer-name>`
+- renderBackend: `<backend>`
+
+---
+
+## Summary
+
+- status: `<ok | skipped | failed>`
+- shortReason: `<single-line summary>`
+- viewport: `<width>x<height>`
+- rtvState: `<ready | missing | invalid>`
+
+---
+
+## Media States
+
+### Particle
+
+- particleCount: `<count>`
+- drawState: `<drawn | skipped | failed>`
+- skippedReason: `<reason>`
+- blendMode: `<mode>`
+- matrixMode: `<2d | 3d | unknown>`
+
+### Video
+
+- openState: `<opening | loaded | failed>`
+- decodeState: `<pending | ready | failed | none>`
+- targetFrame: `<frame>`
+- sourceFrame: `<frame>`
+- hasFrameBuffer: `<yes | no>`
+- fallbackState: `<sync-ok | sync-miss | async-pending | async-failed>`
+- lastError: `<text>`
+
+### Blend
+
+- inputCount: `<count>`
+- opacity: `<value>`
+- blendMode: `<mode>`
+- outputState: `<visible | transparent | skipped>`
+
+### Overlay
+
+- grid: `<on | off>`
+- anchor: `<on | off>`
+- guidance: `<on | off>`
+
+---
+
+## Diagnostics
+
+- traceFrames: `<count>`
+- cacheHealth: `<text>`
+- viewportNotes: `<text>`
+- resourceNotes: `<text>`
+- skippedReasons: `<text>`
+
+---
+
+## Notes
+
+- `skipped` means the harness had an explicit reason not to draw.
+- `failed` means a draw or decode action actively failed.
+- If the output is transparent, state why the output is still considered valid or invalid.
+

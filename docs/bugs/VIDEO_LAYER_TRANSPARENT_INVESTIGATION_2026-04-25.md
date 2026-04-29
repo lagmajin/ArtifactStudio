@@ -181,4 +181,11 @@ QImage img(codecContext_->width, codecContext_->height, QImage::Format_RGB888);
 
 ---
 
+## Long-Term Tracking
+
+- `docs/bugs/BUG_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
+- `docs/planned/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
+
+---
+
 **文書終了**

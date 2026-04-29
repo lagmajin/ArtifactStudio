@@ -103,4 +103,12 @@
 - 1000文字のテキストでも60fpsで動作する
 - 全ての影響範囲が視覚的に確認出来る
 
+---
+
+## Execution Slice
+
+- まずは [`MILESTONE_TEXT_ANIMATOR_NEXT_GEN_EXECUTION_2026-04-30.md`](./MILESTONE_TEXT_ANIMATOR_NEXT_GEN_EXECUTION_2026-04-30.md) から着手する
+- 実行順は `Animator UI Finish → Timeline Exposure → Preset Browser`
+- `TextAnimatorEngine` は前提として固定し、UI / timeline / preset の残りだけを詰める
+
 このマイルストーンが完了した時点で、このテキストアニメーターは世界で最も強力なものになります。

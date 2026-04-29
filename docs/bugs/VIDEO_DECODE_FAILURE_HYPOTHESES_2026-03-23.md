@@ -184,3 +184,8 @@ B-frames の数だけパケットが必要。300 ループ以内に到達しな�
 | `ArtifactCore/src/Media/MediaImageFrameDecoder.cppm` | 51-79 | decodeFrame |
 | `Artifact/src/Layer/ArtifactVideoLayer.cppm` | 232-294 | loadFromPath |
 | `Artifact/src/Layer/ArtifactVideoLayer.cppm` | 372-415 | decodeCurrentFrame |
+
+## Long-Term Tracking
+
+- `docs/bugs/BUG_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
+- `docs/planned/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
