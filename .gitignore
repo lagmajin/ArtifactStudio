@@ -31,6 +31,13 @@ disabled_modules/
 *.pdb
 *.bak
 *.old
+.kilo/package-lock.json
+artifact_build.txt
+artifactpr_build.log
+build_artifact.txt
+build_output.log
+build_output.txt
+test_*.png
 vc140.pdb
 CMakeSettings.json
 CMakeUserPresets.json
