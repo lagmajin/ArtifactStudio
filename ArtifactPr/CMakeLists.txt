@@ -1,10 +1,23 @@
 cmake_minimum_required(VERSION 3.30)
 
 set(ARTIFACT_PR_SOURCES
+    include/ArtifactPrDemoData.ixx
+    include/ArtifactPrMainWindow.ixx
+    include/ArtifactPrEditorEngine.ixx
+    include/VideoPlayerWidget.ixx
+    include/TransportBarWidget.ixx
+    include/ExportDialog.ixx
+    include/MediaPanel.ixx
+    include/ProjectPanel.ixx
     src/main.cpp
-    src/ArtifactPrMainWindow.cpp
-    src/ArtifactPrDemoData.cpp
-    src/ArtifactPrEditorEngine.cpp
+    src/ArtifactPrMainWindow.cppm
+    src/ArtifactPrDemoData.cppm
+    src/ArtifactPrEditorEngine.cppm
+    src/VideoPlayerWidget.cppm
+    src/TransportBarWidget.cppm
+    src/ExportDialog.cppm
+    src/MediaPanel.cppm
+    src/ProjectPanel.cppm
 )
 
 # MOC disabled - causes issues with drive paths

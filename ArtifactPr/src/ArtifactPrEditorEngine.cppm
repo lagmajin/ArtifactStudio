@@ -1,4 +1,4 @@
-#include "ArtifactPrEditorEngine.hpp"
+module;
 
 #include <QColor>
 #include <QDebug>
@@ -9,6 +9,8 @@
 #include <QFileInfo>
 #include <QDateTime>
 #include <QDir>
+
+module ArtifactPr.EditorEngine;
 
 using namespace Qt::StringLiterals;
 

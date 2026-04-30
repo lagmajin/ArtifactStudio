@@ -2,7 +2,7 @@
 #include <QPalette>
 #include <QColor>
 
-#include "ArtifactPrMainWindow.hpp"
+import ArtifactPr.MainWindow;
 
 int main(int argc, char *argv[])
 {

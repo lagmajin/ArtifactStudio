@@ -1,4 +1,9 @@
-#include "ArtifactPrDemoData.hpp"
+module;
+#include <QString>
+
+module ArtifactPr.DemoData;
+
+namespace ArtifactPr {
 
 ArtifactPrProjectSpec makeArtifactPrDemoProject()
 {
@@ -35,4 +40,6 @@ ArtifactPrProjectSpec makeArtifactPrDemoProject()
 
     project.sequences = {sequence};
     return project;
+}
+
 }
