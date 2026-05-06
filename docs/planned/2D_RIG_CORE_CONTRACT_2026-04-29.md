@@ -17,6 +17,8 @@
 - `Rig2D::evaluate(time)` を追加し、将来のキー/制約/IK 評価の入口を Core に固定
 - `ArtifactAbstract2DLayer` に ID ベースの薄いリグ操作 API と rig2D 保存復元を追加
 - 既存の 2D 派生レイヤーが `ArtifactAbstract2DLayer` 経由で保存/復元/プロパティ取得するように調整
+- `Rig2D` に control / constraint の初期実装を追加
+- `ArtifactAbstract2DLayer` から control / constraint を作れる薄い API を追加
 
 実際の実装地点:
 
@@ -30,6 +32,7 @@
 - `TransformGizmo` へのリグ責務の混入
 - hot path への `QImage` 追加
 - 汎用 `RigGraph` の全面置き換え
+- まだ UI 上で control を直接編集する導線の本格配線
 
 ---
 
@@ -44,6 +47,7 @@
 - IK
 - JSON 永続化
 - 将来の constraint 評価
+- control / constraint の保存と評価
 
 ### `Bone2D`
 
@@ -73,6 +77,22 @@ UI ではなくレイヤー所有のリグホストに徹する。
 - `AimConstraint2D`
 - `TwoBoneIKConstraint2D`
 - `ArtifactRigControllerLayer`
+
+### いま実装済みの最小形
+
+- `RigControl2D`
+- `RigConstraint2D`
+- `ParentConstraint2D`
+- `MapRangeConstraint2D`
+- `AimConstraint2D`
+- `TwoBoneIKConstraint2D`
+- `ArtifactAbstract2DLayer::addRigSlider`
+- `ArtifactAbstract2DLayer::addRigPoint`
+- `ArtifactAbstract2DLayer::addRigAngle`
+- `ArtifactAbstract2DLayer::addRigParentConstraint`
+- `ArtifactAbstract2DLayer::addRigMapRangeConstraint`
+- `ArtifactAbstract2DLayer::addRigAimConstraint`
+- `ArtifactAbstract2DLayer::addRigTwoBoneIKConstraint`
 
 ### 置き換えない方がいいもの
 
