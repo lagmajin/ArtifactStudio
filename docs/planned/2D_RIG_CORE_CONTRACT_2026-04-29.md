@@ -20,6 +20,7 @@
 - `Rig2D` に control / constraint の初期実装を追加
 - `ArtifactAbstract2DLayer` から control / constraint を作れる薄い API を追加
 - `RigEvaluationContext2D` を追加して constraint 評価の索引を分離
+- `RigControlSet2D` を追加して control 管理を分離
 
 実際の実装地点:
 
@@ -83,6 +84,7 @@ UI ではなくレイヤー所有のリグホストに徹する。
 
 - `RigControl2D`
 - `RigEvaluationContext2D`
+- `RigControlSet2D`
 - `RigConstraint2D`
 - `ParentConstraint2D`
 - `MapRangeConstraint2D`
@@ -108,6 +110,7 @@ UI ではなくレイヤー所有のリグホストに徹する。
 2. `ArtifactAbstract2DLayer` の派生レイヤー保存復元確認
 3. `RigConstraint2D` と `RigEvaluationContext2D` の Core モデルを固める
    - `RigEvaluationContext2D` は実装済み
+   - `RigControlSet2D` は実装済み
 4. `ArtifactRigControllerLayer` を UI 表示として設計する
 5. Bone 選択/編集状態を app 側の軽い state として設計する
 6. IK/constraint は Core 側モデルを決めてから UI へ出す
