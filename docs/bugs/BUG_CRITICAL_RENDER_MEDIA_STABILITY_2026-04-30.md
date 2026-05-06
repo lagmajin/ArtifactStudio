@@ -27,6 +27,12 @@ Known risk areas:
 - blend mode and background-dependent visibility
 - split responsibility between `ArtifactParticleLayer`, `ArtifactIRenderer`, and `ParticleRenderer`
 
+Current diagnostics:
+- `DebugRenderHarnessWidget` can bundle a particle smoke report with `reportId`, `createdAt`, `viewport`, `cacheHealth`, `resourceNotes`, and `skippedReasons`.
+- `AppDebuggerWidget` already exposes RAM preview stats and a harness tab using the same frame snapshot vocabulary.
+- `ArtifactCompositionViewerFooter` mirrors the RAM preview stats for a fast at-a-glance check.
+- A preferred short MP4 fixture and generation command are now documented in `docs/technical/CRITICAL_RENDER_MEDIA_SMOKE_FIXTURE_2026-04-30.md`.
+
 ### Existing References
 
 - `docs/bugs/BUG_PARTICLE_GPU_RENDER_2026-04-19.md`
@@ -66,6 +72,12 @@ Known risk areas:
 - async decode racing with synchronous fallback
 - frame buffer state read/write without a clear synchronization contract
 - QImage / ImageF32x4 conversion path confusion
+
+Current diagnostics:
+- `DebugRenderHarnessWidget` can capture a video smoke bundle with the same report shape as particle cases.
+- The report bundle keeps `shortReason`, `failureReason`, `cacheHealth`, and `skippedReasons` together.
+- `AppDebuggerWidget` and the frame debug surfaces already use the same snapshot vocabulary for comparison.
+- The preferred short MP4 fixture is documented for smoke use and fallback path checks.
 
 ### Existing References
 
@@ -119,3 +131,14 @@ Follow-up execution surface:
 - `docs/planned/MILESTONE_DEBUG_RENDER_HARNESS_PHASE4_EXECUTION_2026-04-30.md`
 - `docs/technical/DEBUG_RENDER_HARNESS_SMOKE_CHECKLIST_2026-04-30.md`
 - `docs/technical/DEBUG_RENDER_HARNESS_REPORT_TEMPLATE_2026-04-30.md`
+
+---
+
+## Immediate Use
+
+When investigating either issue family, start with:
+
+1. `DebugRenderHarnessWidget` smoke report
+2. `AppDebuggerWidget` frame snapshot and RAM preview stats
+3. the relevant stabilization milestone phase notes
+4. the matching smoke checklist

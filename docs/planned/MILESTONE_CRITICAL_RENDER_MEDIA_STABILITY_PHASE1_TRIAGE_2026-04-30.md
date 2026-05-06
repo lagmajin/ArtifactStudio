@@ -30,6 +30,16 @@ The immediate goal is not a broad rewrite. The goal is to make every failure lan
 
 ---
 
+## Current Status
+
+- `DebugRenderHarnessWidget` now captures a text bundle with `reportId`, `createdAt`, `viewport`, `cacheHealth`, `resourceNotes`, and `skippedReasons`.
+- `DebugRenderHarnessWidget` can copy or save the bundle without adding new global wiring.
+- `AppDebuggerWidget` already exposes RAM preview stats in `ready / requested / cached / hit` terms.
+- `ArtifactCompositionViewerFooter` mirrors the same RAM preview diagnostics for quick inspection.
+- The particle stabilization milestone already calls out `no RTV`, `PSO null`, and empty-buffer summary coverage as the next diagnostic target.
+
+---
+
 ## Existing Diagnostics
 
 ### Particle
@@ -76,8 +86,26 @@ Gaps:
 
 - no explicit user-facing decode state enum
 - `loaded`, `decode pending`, `decode failed`, and `frame ready` are still inferred from several fields
-- no small known-good MP4 fixture or documented generation command
 - no regression gate for import/open/seek/frame visibility
+
+### Harness and Report Surface
+
+Existing useful signals:
+
+- `Artifact/src/Widgets/Diagnostics/DebugRenderHarnessWidget.cppm`
+  - smoke report text bundle
+  - preset summary, report identity, viewport, status, and capture notes
+  - clipboard / file save path for regression bundles
+- `Artifact/src/Widgets/Diagnostics/AppDebuggerWidget.cppm`
+  - `ramPreview ready / requested / cached / hit`
+  - frame debug snapshot summary
+- `Artifact/src/Widgets/Render/ArtifactCompositionViewerFooter.cpp`
+  - same preview stats in the footer for at-a-glance review
+
+Gaps:
+
+- no single documented smoke checklist that ties the harness to particle / video stability outcomes
+- no report bundle schema for attaching a repro bundle to a bug update
 
 ---
 
@@ -115,7 +143,7 @@ Particle smoke case:
 
 Video smoke case:
 
-- short MP4, 1-2 seconds
+- short MP4, 1-2 seconds from `../technical/CRITICAL_RENDER_MEDIA_SMOKE_FIXTURE_2026-04-30.md`
 - import as video layer
 - verify frame 0 decode
 - seek to middle frame
@@ -130,4 +158,4 @@ Video smoke case:
 2. Add a compact particle draw summary that reports count / RTV / PSO / SRB / blend mode.
 3. Document or generate a tiny MP4 smoke fixture.
 4. Add a manual smoke checklist under `docs/verification`.
-
+5. Attach the new debug harness report shape to the bug tracker and triage notes.

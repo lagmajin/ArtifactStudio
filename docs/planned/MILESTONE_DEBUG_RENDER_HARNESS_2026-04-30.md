@@ -128,6 +128,13 @@
 - `FrameDebugSnapshot` と矛盾しない report が出る
 - 既存 renderer の責務を壊さずに検証できる
 
+## Current Status
+
+- `DebugRenderHarnessWidget` は既に実装済み
+- `AppMain` から独立 dock として開ける
+- `AppDebuggerWidget` にも harness tab を追加し、frame debug snapshot を流し込める状態にした
+- harness report を clipboard / file に保存できるようにした
+
 ## Related
 
 - [`MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`](./MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md)

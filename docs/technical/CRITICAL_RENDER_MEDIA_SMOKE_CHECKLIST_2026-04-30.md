@@ -48,7 +48,7 @@ Goal: distinguish decode failure from layer visibility or blend failure.
 
 Steps:
 
-1. Import a known-good short MP4.
+1. Import the preferred short MP4 fixture from [`CRITICAL_RENDER_MEDIA_SMOKE_FIXTURE_2026-04-30.md`](./CRITICAL_RENDER_MEDIA_SMOKE_FIXTURE_2026-04-30.md).
 2. Add it as a video layer.
 3. Verify frame 0.
 4. Seek to the middle frame.
@@ -99,4 +99,3 @@ Fail:
 - any silent draw skip
 - particle alive count > 0 with no visible output and no diagnostic reason
 - video layer loaded with no visible output and no diagnostic reason
-
