@@ -234,3 +234,38 @@ if (viewportW > 0.0f && viewportH > 0.0f) {
 
 **作成者**: AI Assistant  
 **次のステップ**: 上記仮説に基づく修正の実施
+
+---
+
+## 2026-05-08 追記: 平面レイヤー選択時の薄い水色線 / 白い四角アウトライン
+
+### 観察
+
+ユーザー提供スクリーンショットでは、正常な選択ギズモとは別に、選択中の平面レイヤーに連動して以下が表示される。
+
+1. 薄い水色の細い線
+2. 白い小さな四角アウトライン群
+3. アンカー位置から中心へ伸びるような斜線
+
+以前の「左上ゴースト」仮説では `Artifact3DGizmo` の残留を第一候補にしていたが、今回の見た目は `drawAnchorCenterOverlay()` が描く `Anchor / Center` 補助表示に近い。
+
+### 現時点の判断
+
+`ArtifactCompositionRenderController.cppm` では、`showAnchorCenterOverlay_` が true の場合、通常の選択ツール中でも `drawAnchorCenterOverlay()` が実行され得る構造だった。
+
+この補助表示は Anchor/Pivot 編集時には有用だが、平面レイヤーを普通に選択しているだけの状態では「通常ギズモと別の薄いゴースト」に見える。
+
+### 対応
+
+`drawAnchorCenterOverlay()` の呼び出し条件を以下に制限した。
+
+1. `showAnchorCenterOverlay_` が true
+2. selected layer が存在する
+3. 現在の gizmo mode が `TransformGizmo::Mode::AnchorPoint`、または Anchor handle をドラッグ中
+
+これにより、平面レイヤー選択だけでは Anchor/Center 補助線を出さず、Anchor ツール操作時のみ表示する。
+
+### 残る確認
+
+1. まだ白い四角アウトラインが残る場合は `TransformGizmo::draw()` 側の scale/anchor handle と selection overlay の二重描画を次に確認する。
+2. 3D レイヤーから 2D レイヤーへ切り替えた時だけ残る場合は、従来通り `gizmo3D_` の stale state を再調査する。

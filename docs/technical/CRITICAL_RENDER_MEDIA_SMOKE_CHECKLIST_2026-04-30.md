@@ -9,6 +9,13 @@
 
 Goal: distinguish "no particles emitted" from "particles emitted but not drawn".
 
+If you are using `DebugRenderHarnessWidget`, read the report header first:
+
+- `videoState`
+- `particleState`
+- `blendState`
+- `glyphAtlasState`
+
 Steps:
 
 1. Create or open a small composition.
@@ -26,6 +33,7 @@ Record:
 | Composition | |
 | Frame | |
 | Background | Dark / Light |
+| Particle state header | |
 | Alive count log | |
 | Draw call log | |
 | RTV warning | |
@@ -46,6 +54,8 @@ Expected useful logs:
 
 Goal: distinguish decode failure from layer visibility or blend failure.
 
+If you are using `DebugRenderHarnessWidget`, check the report header first and treat `videoState` as the primary decode signal.
+
 Steps:
 
 1. Import the preferred short MP4 fixture from [`CRITICAL_RENDER_MEDIA_SMOKE_FIXTURE_2026-04-30.md`](./CRITICAL_RENDER_MEDIA_SMOKE_FIXTURE_2026-04-30.md).
@@ -64,6 +74,7 @@ Record:
 | Codec | |
 | Duration | |
 | Frame tested | |
+| Video state header | |
 | Open result | |
 | First frame decode | |
 | Async pending | |
@@ -83,6 +94,7 @@ Expected useful logs:
 - `[MediaPlayback] direct decode failed`
 - `[FFmpegBackend]`
 - `[MFBackend]`
+- `videoState=` in the harness report header
 
 ---
 

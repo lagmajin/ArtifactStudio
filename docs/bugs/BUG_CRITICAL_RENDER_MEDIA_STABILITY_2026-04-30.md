@@ -99,6 +99,58 @@ Current diagnostics:
 
 ---
 
+## Issue 3: Non-Normal Blend Solid Fill / Invisible Composition
+
+### Symptom
+
+Composition Viewer may become a flat solid fill, or all layer detail may disappear, when an upper layer is changed from `Normal` to another blend mode such as `Add`.
+
+The 2026-05-08 screenshot shows two plane layers:
+
+1. Upper layer: `ホワイト 平面 1`, `Blend: Add`
+2. Lower layer: `salmon 平面 1`, `Blend: Normal`
+
+Instead of showing the expected additive result, the viewer becomes a mostly uniform bluish fill.
+
+### Current Understanding
+
+This is now treated as a long-running composition stability issue, separate from video decode and particle visibility.
+
+Known risk areas:
+
+1. GPU blend compute shader storage format and render-pipeline texture format must match across DX12/Vulkan.
+2. The intermediate `accum` / `temp` ping-pong textures are float pipeline resources, while the per-layer render target may still be a different/sRGB-oriented format.
+3. The blend shader currently assumes a premultiplied-ish accumulation contract: `dst.rgb` is already accumulated color, while `src.rgb` is multiplied by `srcA`.
+4. A plane/video fallback that draws a full-frame solid source can make `Add` look like a viewport-wide fill even when the compute pass itself succeeds.
+5. Current fallback only catches explicit blend failure. It does not detect a successful dispatch that produced a visually invalid solid result.
+
+### Recent Mitigation
+
+The Vulkan validation warning for `OutTex` format mismatch was addressed by aligning the compute shader storage image declaration and pipeline texture format:
+
+1. `RenderConfig::PipelineFormat` is `TEX_FORMAT_RGBA32_FLOAT`.
+2. `LayerBlendComputeShader.ixx` declares `OutTex` as `RWTexture2D<float4>`.
+
+The composition render controller also retries failed non-Normal blends with `Normal`, then falls back to direct sprite draw if the compute path reports failure.
+
+2026-05-08 Phase 1 diagnostic work adds a `Blend / Mask Contract` resource to `FrameDebugSnapshot` and the Debug Render Harness text report. This is intentionally not a fixed viewport test scene; it reports the current composition frame using the contract in `docs/technical/BLEND_MASK_COMPOSITION_CONTRACT_2026-05-08.md`.
+
+### Next Countermeasures
+
+1. Add a deterministic two-plane smoke scene: lower salmon Normal, upper white Add.
+2. Capture frame debug fields for `layerSRV`, `accumSRV`, `tempUAV`, blend mode, opacity, and texture formats for every blend dispatch.
+3. Add a low-cost solid-output detector in the debug harness or frame snapshot, not directly in the hot render path.
+4. Decide whether `RenderPipeline.Layer` should use the same float pipeline format as `accum` / `temp`, or whether a documented sRGB-to-linear conversion boundary is required.
+5. Keep the Diligent backend changes minimal until the above smoke case proves the exact boundary.
+
+### Existing References
+
+- `docs/planned/MILESTONE_GPU_LAYER_BLEND_COMPUTE_2026-03-21.md`
+- `docs/planned/RENDER_BOUNDARY_CHANGE_SAFETY_CHECKLIST_2026-04-21.md`
+- `docs/technical/DX12_VULKAN_PARITY_MEMO_2026-05-07.md`
+
+---
+
 ## Cross-Cutting Policy
 
 These issues should be handled as a stability program rather than one-off fixes.

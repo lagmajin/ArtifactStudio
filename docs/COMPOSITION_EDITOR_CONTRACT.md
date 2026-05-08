@@ -112,6 +112,7 @@ Prefer the existing controller / service path and keep the ownership local.
 - New direct manipulation tools should own their modal state explicitly.
 - New render debug hooks should be readable from `FrameDebugSnapshot`.
 - New display-only helpers should stay out of layer mutation logic.
+- Blend/mask debug hooks should follow `docs/technical/BLEND_MASK_COMPOSITION_CONTRACT_2026-05-08.md` and surface through existing report text rather than permanent viewport fixtures.
 
 ## Guardrails
 

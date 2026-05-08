@@ -46,6 +46,10 @@
 - verify opacity and blend mode are visible in the report
 - verify an intentionally empty input path is reported as transparent output
 - verify the report includes `blend` and `resourceNotes`
+- verify the report includes `blendMaskContract`
+- verify non-Normal blend layers increase `nonNormal`
+- verify masked layers increase `maskedLayers` and set `maskContract=pending`
+- verify failed dispatches are reported as `failed` / `directFallback`, not as silent blank output
 
 ## Overlay-Only
 
