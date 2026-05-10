@@ -114,3 +114,51 @@ Likely safer fix:
 - Never let selection bookkeeping affect the actual composition render unless a
   mode explicitly asks for it.
 
+## Resolution Update - 2026-05-08
+
+User confirmation: the plane-layer move ghost is fixed.
+
+The confirmed fix landed in:
+
+`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+
+Changes:
+
+- During active viewport interaction, rubber-band selection, drop ghost preview,
+  or transform-gizmo dragging, the render-key cache no longer skips redraws.
+  This prevents a stale overlay frame from remaining visible while a layer is
+  being moved.
+- The 2D transform gizmo draw call is suppressed only while the active handle is
+  `Move` and the gizmo is dragging. Other handles still draw normally.
+- The extra selected-layer bounding overlay is now gated by both
+  `showGizmoOverlay_` and `showGuides_`, so guide-disabled editing does not
+  leave a faint frame-like overlay.
+
+Root-cause revision:
+
+The original `kGhostOpacityScale` suspicion is still worth keeping in mind for
+focus/isolate rendering behavior, but it was not the primary cause of this
+specific plane-layer move ghost. The reproduced/fixed symptom was caused by
+interaction overlay drawing combined with cached-frame reuse during movement.
+
+Remaining watch item:
+
+If a similar ghost returns, first check the transform-gizmo draw path and the
+render-key early-return conditions before changing layer opacity or blend logic.
+
+
+## Resolution Update - 2026-05-10: Mask Rasterization Bug (Blank Screen)
+
+**Symptom:**
+When a mask is completed in the composition editor, nothing is displayed. The composition editor is filled with a dark gray color with a hint of blue (the default background clear color).
+
+**Root Cause:**
+The bug was caused by LOD (Level of Detail) downsampling in ArtifactCompositionViewDrawing.cppm not propagating scale correctly to the mask rasterization logic.
+When the composition view renders a mask, processedSurface is downsampled based on LOD. The width and height of the mat (converted from processedSurface) become scaled down. However, the mask's vertices in LayerMask::applyToImage and MaskPath::rasterizeToAlpha were drawn using unscaled local coordinates with an unscaled offset.
+As a result, cv::fillPoly rendered the unscaled (much larger) mask path on the downscaled image mask8. The mask path coordinates were heavily offset and drawn completely out of bounds, resulting in a black mask8 (fully transparent alpha).
+Since the mask incorrectly made the entire layer transparent, only the default Diligent Engine clear color (a dark grayish-blue) was rendered to the screen.
+
+**Fix:**
+Added scaleX and scaleY parameters to MaskPath::rasterizeToAlpha and LayerMask::applyToImage (and their LayerMask::compositeAlphaMask counterparts) in MaskPath.cppm, LayerMask.cppm, MaskPath.ixx, and LayerMask.ixx.
+In ArtifactCompositionViewDrawing.cppm and ArtifactCompositionRenderController.cppm's uildRasterizedSurfaceBuffer, calculated scaleX and scaleY as the ratio between mat.cols/mat.rows and localBounds.width()/localBounds.height().
+Passed the calculated scales down to pplyToImage and correctly scaled the points, expansion, and feather values in MaskPath::rasterizeToAlpha before passing them to cv::fillPoly.
