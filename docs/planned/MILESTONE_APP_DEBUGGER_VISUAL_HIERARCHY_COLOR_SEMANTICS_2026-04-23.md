@@ -141,7 +141,7 @@
 
 ## 次の一手
 
-1. App Debugger の上部サマリを決める
+1. App Debugger の上部サマリを `goal / now / warning / next` で決める
 2. badge 色の意味を固定する
 3. Frame / State / Trace の並び順を決める
 4. first-glance layout を固定する

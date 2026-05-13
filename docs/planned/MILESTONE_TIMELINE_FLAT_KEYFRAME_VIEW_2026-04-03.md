@@ -118,3 +118,31 @@ Artifact でも同じく、`キーフレームだけを先に見せる` 方が�
 2. Phase 2
 3. Phase 3
 4. Phase 4
+
+## Current Boundary Note
+
+2026-05-11 時点では、この milestone は `keyframe visibility` と `lane flattening` を主題にする。
+
+- `Curve Editor Mode` は別マイルストーンとして維持し、ここでは curve 本体を作り込まない
+- `U` は flat filter の切り替え専用とし、curve mode には入らない
+- `Timeline Keyframe Editing` の marker / add / remove / move は残しつつ、表示密度を下げる
+- `Timeline Search / Keyframe Integration` の header 状態と矛盾しない表示にする
+- `Timeline Operation Feel Refinement` の selection / scroll / zoom 体験を邪魔しない
+
+## Missing Pieces
+
+AE レベルに寄せるために、まだ足りないのは次の層。
+
+1. keyframed property の自動抽出
+2. selected layer の lane 強調
+3. current frame と keyframe の相対位置表示
+4. keyframe only と all properties の明確な切り替え
+5. search state と keyframe state の同居表示
+
+## Next Step
+
+1. keyframed property の抽出結果を 1 回で集約する
+2. `Keyframes Only` のデフォルト表示を強める
+3. selected layer の lane を視覚的に強調する
+4. header で current frame と keyframe count を読めるようにする
+5. `U` が flat filter、`Tab` が curve mode になるよう役割を分ける

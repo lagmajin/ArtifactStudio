@@ -57,6 +57,13 @@ Inspector 側の keyframe 周辺は `Property / Keyframe 統合 実行計画` �
 
 この状態を踏まえると、今の中心は「keyframe 操作を増やすこと」よりも「迷わず触れる surface に整えること」にある。
 
+## Current Boundary Note
+
+- この milestone は `selected layer` の keyframe を timeline 上で見える化し、最小の追加 / 削除 / 移動を通すことに集中する
+- `Graph Editor` の全面実装は別スライスに残す
+- easing / tangent / curve editing は Phase 5 以降へ逃がす
+- `Keyframes Only` の可視性と `FrameDebugSnapshot` 系の診断語彙を混ぜない
+
 ## Phases
 
 ### Phase 1: Keyframe Visibility
@@ -268,5 +275,6 @@ Inspector 側の keyframe 周辺は `Property / Keyframe 統合 実行計画` �
 
 ## Related Execution Memos
 
+- [`MILESTONE_TIMELINE_KEYFRAME_EDITING_PHASE1_EXECUTION_2026-05-12.md`](./MILESTONE_TIMELINE_KEYFRAME_EDITING_PHASE1_EXECUTION_2026-05-12.md)
 - [`MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03_EXECUTION.md`](./MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03_EXECUTION.md)
 - [`MILESTONE_TIMELINE_FLAT_KEYFRAME_VIEW_2026-04-03_EXECUTION.md`](./MILESTONE_TIMELINE_FLAT_KEYFRAME_VIEW_2026-04-03_EXECUTION.md)

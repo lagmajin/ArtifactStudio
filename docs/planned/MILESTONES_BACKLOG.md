@@ -96,6 +96,19 @@
   - 本番 renderer と同じ Diligent backend を使い、失敗理由を capture/report する
   - 詳細: `docs/planned/MILESTONE_DEBUG_RENDER_HARNESS_2026-04-30.md`
 
+### M-DIAG-6 Harness Engineering / Goal-First Loop
+- `Debug Render Harness` と `App Debugger` の report vocabulary を goal-first に揃える
+- `goal / expected / actual / next action` を共通の作業単位にする
+- 詳細: `docs/planned/MILESTONE_HARNESS_ENGINEERING_2026-05-12.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_HARNESS_ENGINEERING_PHASE1_EXECUTION_2026-05-12.md`
+
+### M-OPS-1 Active Implementation Triad
+- いま着手しやすい 3 本の実装スライスを固定する
+- `Project Health / Problem View Wiring`
+- `Timeline Keyframe Editing`
+- `Composition Editor Mask / Roto Editing`
+- 詳細: `docs/planned/MILESTONE_ACTIVE_IMPLEMENTATION_TRIAD_2026-05-12.md`
+
 ### Render Execution / Isolation
 - **M-RE-1** External Renderer Design
   - 内蔵レンダラは維持しつつ、オフラインレンダリングだけ別プロセスへ切り出す
@@ -173,6 +186,12 @@
 - 1 フレームを固定して pass / resource / attachment / compare / step を追える内蔵フレームデバッグビューを作る
 - 詳細は `docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_2026-04-20.md`
 
+### M-APP-3a Frame Debug Goal-First Summary
+- `FrameDebugViewWidget` の上部サマリを `goal / frame / warning / next` に固定する
+- harness report と同じ語彙でフレーム単位の判断を読めるようにする
+- 詳細: `docs/planned/MILESTONE_FRAME_DEBUG_GOAL_FIRST_SUMMARY_2026-05-12.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_FRAME_DEBUG_GOAL_FIRST_SUMMARY_PHASE1_EXECUTION_2026-05-12.md`
+
 ### M-APP-4 App Debugger Visual Hierarchy / Color Semantics
 - App Debugger の情報階層、色の意味、異常時の見え方を整えて、人間が読みやすい diagnostics surface に寄せる
 - 詳細は `docs/planned/MILESTONE_APP_DEBUGGER_VISUAL_HIERARCHY_COLOR_SEMANTICS_2026-04-23.md`
@@ -188,6 +207,29 @@
 - Phase 10 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_AUTO_FOCUS_SMART_RANKING_2026-04-24.md`
 - Phase 11 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_SESSION_HISTORY_COMPARISON_2026-04-24.md`
 - Phase 12 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_RENDER_COST_BREAKDOWN_2026-04-24.md`
+
+### M-APP-4a App Debugger Goal-First Summary
+- `AppDebuggerWidget` の上部サマリを `goal / now / warning / next` で固定する
+- harness report と同じ語彙で作業面を読めるようにする
+- 詳細: `docs/planned/MILESTONE_APP_DEBUGGER_GOAL_FIRST_SUMMARY_2026-05-12.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_GOAL_FIRST_SUMMARY_PHASE1_EXECUTION_2026-05-12.md`
+
+### M-APP-5 Project Health / Problem View Wiring
+- `ArtifactProjectHealthChecker` の実務検証を app 側へ確実に寄せる
+- `ArtifactProblemViewWidget` と `ArtifactProjectHealthDashboard` の source / result を同一化する
+- project load / save / render preflight で `DiagnosticEngine` を起動する導線を揃える
+- 詳細は `docs/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_2026-04-14.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md`
+
+### M-APP-6 App Surface Cohesion
+- Project / Asset / Timeline / Composition / Contents Viewer / Inspector / Debugger の current / recent / selection / status を揃える
+- empty state と summary strip の文法をアプリ全体で統一する
+- 詳細は `docs/planned/MILESTONE_APP_SURFACE_COHESION_2026-05-13.md`
+
+### M-APP-7 App Diagnostic Cohesion
+- Project Health / Problem View / App Debugger / Frame Debug View / harness report の diagnostics 文法を揃える
+- warning / error / next action の見せ方を surface 横断で統一する
+- 詳細は `docs/planned/MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md`
 
 ### M-IR-8 ImmediateContext Boundary / De-direct
 - `DiligentEngine` の `ImmediateContext` / `IDeviceContext` を layer / widget / controller から直接触らない構造へ寄せる
@@ -448,6 +490,9 @@
   4. `M-UI-5 Contents Viewer Expansion` の inline edit 連携
   5. `M-TL-4` / `M-TL-8` の painter 化が終わったら viewport/overlay 連携を深める
   6. `M-FE-7` で review / annotation の脇道を足す
+- `M-UI-7` の内部では、geometry editing と mask parameter の time-addressable 化を分ける
+- time-addressable 化の first slice は `docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md` に寄せる
+- Phase 1 実行メモ: `docs/planned/MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_PHASE1_EXECUTION_2026-05-12.md`
 
 ### M-UI-12 Composition Notes / Scratchpad
 - コンポジション / レイヤー / フレームに紐づく軽量メモを残せるようにする
@@ -477,6 +522,14 @@
 - composition editor 上で layer mask / roto を直接編集できるようにする
 - **大幅改善:** モード自動切り替え（コンテキスト判定）、頂点操作直感化（ハンドル/追加削除ツール不要）、マスク管理UI強化（色設定/ドラッグ順序）、視覚フィードバック改善（オーバーレイ/境界線強化）
 - 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md` の entry bridge / path creation を先に詰める
+- mask parameter の time-addressable 化は別スライスとして扱い、`docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md` へ分離する
+
+### M-UI-7a Mask Keyframe Foundation
+- mask parameter の time-addressable 化を geometry editing から分離する
+- まずは scalar mask parameters の property exposure から始める
+- 詳細は `docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_PHASE1_EXECUTION_2026-05-10.md`
 
 ### M-UI-4 Menu-to-App Command Routing
 - File / Composition / Edit / View / Layer / Render / Help の menu を app service / command に正しく接続する
@@ -580,6 +633,7 @@
 - Timeline 上で property keyframe を見て、打って、移動できるようにする
 - **AE差別化:** キーフレームの時間軸スケーリング（全レイヤー一括でタイミング伸縮、pivot点基準で相対関係維持）
 - 詳細は `docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_PHASE1_EXECUTION_2026-05-12.md`
 
 ### M-TL-6 Timeline Layer Search
 - タイムライン上部の検索バーで layer / effect / tag / state をインクリメンタルに絞り込む
@@ -1079,6 +1133,13 @@
   - 音声リアクティブ変数（`audioLevels`）
 - **見積:** 60-80h
 - **依存:** `ExpressionParser` ✅, `ExpressionEvaluator` ✅, `ExprIntrinsics` ✅
+
+### M-EXPR-2 Property Reference Linking / Pick Whip
+- property 間の参照関係を視覚的に張る
+- expression と driven property の target 選択を簡単にする
+- 詳細は `docs/planned/MILESTONE_PROPERTY_REFERENCE_LINKING_2026-05-11.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_PROPERTY_REFERENCE_LINKING_PHASE1_EXECUTION_2026-05-11.md`
+- Phase 2 実行メモ: `docs/planned/MILESTONE_PROPERTY_REFERENCE_LINKING_PHASE2_EXECUTION_2026-05-11.md`
 
 ### M-BLEND-1 Blend Mode Completeness ⭐ **新規追加**
 - 現在 18/38 モード実装。以下のモードを追加する:

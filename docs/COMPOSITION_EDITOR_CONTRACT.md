@@ -23,6 +23,16 @@ This document captures the operating rules for the `ArtifactCompositionRenderWid
 - `Artifact/src/Widgets/Diagnostics/DebugRenderHarnessWidget.cppm`
   - smoke harness that exercises the same reporting vocabulary
 
+## Active Workstream
+
+The current May 12 execution triad is ordered as follows:
+
+1. `Project Health / Problem View Wiring`
+2. `Timeline Keyframe Editing`
+3. `Composition Editor Mask / Roto Editing`
+
+The first two slices primarily improve validation and readability. The third slice remains a shell/controller-bound mode-routing task, so it should stay local to the editor boundary and not spill into unrelated widget wiring.
+
 ## Responsibilities
 
 ### Composition Editor Shell
@@ -130,3 +140,22 @@ Prefer the existing controller / service path and keep the ownership local.
 - Keep the render contract ordered and explicit.
 - Reuse the existing snapshot vocabulary when adding diagnostics.
 - Stop and document the boundary if a change would require a new global signal.
+
+## Current Boundary Note
+
+2026-05-11 時点では、composition editor contract の中心は viewport / overlay / modal input routing にある。
+
+- blend / mask の不具合は permanent overlay で隠さず、`FrameDebugSnapshot` と report text で追う
+- `docs/technical/BLEND_MASK_COMPOSITION_CONTRACT_2026-05-08.md` を、mask / blend smoke の観測契約として参照する
+- `docs/planned/MILESTONE_INLINE_INTERACTION_SURFACES_2026-03-31.md` の inline choice は layer panel 側の責務として扱い、`Modal.Mask` の編集責務とは分ける
+- `docs/planned/MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md` の主題は shape / roto / vertex editing に固定し、mask parameter の時間化は別スライスに分離する
+- property relation / pick-whip は editor viewport ではなく property / inspector 側で扱う
+- mask の時間化は editor contract ではなく `docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md` 側で進める
+- editor contract は shell / controller / renderer の責務境界を維持し、診断は既存の report 経路に寄せる
+
+## Next Step
+
+1. `Modal.Mask` の入力責務を shell/controller に閉じたまま、mask debug report の文言を整理する
+2. layer panel の inline choice と mask editing を混同しないようにする
+3. mask parameter の time-addressable 化は `Mask Keyframe Foundation` の Phase 1 へ分離する
+4. render path 側では、blend / mask の観測値を `FrameDebugSnapshot` に記録するだけに留める

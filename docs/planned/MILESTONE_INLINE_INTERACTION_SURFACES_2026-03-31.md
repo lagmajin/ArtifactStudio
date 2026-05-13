@@ -62,6 +62,8 @@
 ### Phase 2: Property Panel Inline Editors
 
 - color / gradient / blend / expression を property row 内で開けるようにする
+- pick-whip / reference link を property row 内で辿れるようにする
+- property row から target link を drag で捕まえられるようにする
 - ダイアログを開かずに値を反映できるようにする
 - 既存の inspector / property widget と値が矛盾しないようにする
 
@@ -83,6 +85,21 @@
 - blend mode grid
 - column width / display mode / density の即時変更
 - 行の中で終わる軽い選択操作を増やす
+
+## Boundary Note
+
+2026-05-11 時点では、このマイルストーンの `mask preview` は layer panel の inline choice として扱う。
+
+- mask path 自体の編集は `M-UI-7 Composition Editor Mask / Roto Editing` に残す
+- mask parameter の time-addressable 化は `docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md` 側へ分離する
+- inline surface は「開かずに選べる」ことを目的にし、mask の時間編集や property bake は混ぜない
+- diagnostic は `FrameDebugSnapshot` と report text を優先し、inline choice へ観測責務を持ち込まない
+
+## Next Step
+
+1. layer panel の mask preview を軽量な選択補助として整理する
+2. blend mode grid と column width の inline choice を先に固める
+3. mask property の時間化は別マイルストーンとして扱う
 
 ## Validation Checklist
 

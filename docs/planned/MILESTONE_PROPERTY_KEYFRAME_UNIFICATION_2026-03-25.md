@@ -84,6 +84,22 @@ Timeline / Graph Editor を property path ベースに統一する。
 
 のような path で lane を張る
 
+### Phase 5
+
+Property reference linking / pick-whip を property path ベースの統一に乗せる。
+
+#### 作業
+
+- referenceable property の catalog を作る
+- target path を path / layer / comp context で解決する
+- inspector / property row から target link を見えるようにする
+- expression target と reference link の責務を分ける
+
+#### 完了条件
+
+- property 間の関係を手打ちせず辿れる
+- keyframe と reference が同じ property source にぶつからない
+
 ## Risks
 
 - `getLayerPropertyGroups()` が derived layer 側でまだ都度生成を続けると、一部 property は persistent にならない
@@ -163,3 +179,4 @@ derived layer でも同じ property cache を使って persistent property を�
 3. transform 系 property と `AnimatableTransform3D` の同期点を 1 箇所に集約
 4. `J/K` を property path ベースの共通ナビゲーションへ接続
 5. Timeline keyframe lane が直接 `AbstractProperty` を読むようにする
+6. property reference linking / pick-whip を read-only resolver から始める

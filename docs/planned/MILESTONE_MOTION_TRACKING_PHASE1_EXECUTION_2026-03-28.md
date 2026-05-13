@@ -151,3 +151,38 @@ Tracker Editor / Overlay の UI 導線に接続する。
 - 追跡結果を property / keyframe に流せる
 - 後続の UI 追加に必要な契約が固まっている
 
+---
+
+## 2026-05-08 接続方針メモ
+
+Core 側の `Tracking.MotionTracker` はすでに広めの API を持っているが、
+`QImage` ベースの入力と UI/Property への接続がまだ直結していない。
+そのため、いきなり Tracker Editor を作るより、以下の順で小さく接続する。
+
+1. `MotionTracker` の結果を読むだけの adapter を `Artifact` 側に置く
+   - `TrackResult`
+   - `TrackFrame`
+   - `TrackPoint`
+   - confidence / failure frame
+
+2. Composition Debug / App Debugger に tracker summary を表示する
+   - tracker count
+   - selected tracker name
+   - result frame count
+   - average confidence
+   - problem frame count
+
+3. 選択レイヤーへ「tracker を作る」だけの薄い導線を追加する
+   - 実行はまだしない
+   - source layer / tracker id / point or region だけ保持する
+
+4. Property bridge は最後に接続する
+   - tracked position を直接 transform に流さない
+   - まず preview / debug overlay で確認する
+   - keyframe bake は手動 keyframe との優先順位を決めてから行う
+
+禁止事項:
+
+- UI スレッドで長時間 tracking を回さない
+- `QImage` 変換を描画ホットパスへ混ぜない
+- tracker 結果を即座に transform property へ自動適用しない

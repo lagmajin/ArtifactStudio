@@ -90,3 +90,30 @@
 - mask 編集の結果が layer の render に反映される
 - undo / redo で mask 編集が戻せる
 - inspector で mask 状態を確認できる
+
+## Boundary Note
+
+2026-05-11 時点では、このマイルストーンは `shape / roto / vertex editing` を主対象にする。
+
+- mask parameter の time-addressable 化はここに混ぜず、`docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md` 側へ分離する
+- render 側の観測は `docs/technical/BLEND_MASK_COMPOSITION_CONTRACT_2026-05-08.md` に寄せ、fixed overlay は増やさない
+- `FrameDebugSnapshot` と report text で blend / mask の状態を追い、編集 UI と診断 UI を混同しない
+- `EditMode::Mask` の入力優先順位は shell / controller の責務として固定し、property 時間化とは独立に進める
+
+## Current Boundary Note
+
+- このマイルストーンは `Mask` tool の入力導線と `path / vertex` の編集体験を固める
+- `Mask` parameter の時間化は `MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md` に任せる
+- render 側の状態確認は `FrameDebugSnapshot` と report text を使う
+- fixed overlay は増やさず、編集 UI と診断 UI を分離する
+
+## Next Slice
+
+1. entry bridge と mode routing を先に固める
+2. path creation / vertex editing を viewport で安定させる
+3. undo / selection sync を整える
+4. inspector / diagnostics は最後にまとめる
+
+## Related Execution Memos
+
+- [`MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_PHASE1_EXECUTION_2026-05-12.md`](./MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_PHASE1_EXECUTION_2026-05-12.md)

@@ -269,3 +269,41 @@ DiagnosticEngine
 Problem View としての機能はまだ。
 
 実装は空き時間に段階的に進める。
+
+---
+
+## Current Boundary Note
+
+2026-05-09 時点の整理:
+
+- `ArtifactCore` 側は `ProjectDiagnostic` / `DiagnosticEngine` / `ValidationRules` の基盤を持つ。
+- 実務の検証フローは `ArtifactProjectHealthChecker` が担っている。
+- app 側の表示入口は `ArtifactProblemViewWidget` と `ArtifactProjectHealthDashboard`。
+- つまり、今すぐ app に寄せるべきなのは Core の型ではなく、`DiagnosticEngine` の実行タイミングと app 側ルール配線。
+
+優先して揃える項目:
+
+- プロジェクト読み込み時の検証
+- 保存前 / レンダー前の検証フック
+- `ProblemView` と `HealthDashboard` の同一ソース化
+- `AppValidationRules` の登録と運用導線の明確化
+
+## Current Slice
+
+- `ProjectDiagnostic` / `DiagnosticEngine` は Core 側の基盤として維持する
+- `ArtifactProjectHealthChecker` を app 側の入出力の起点にする
+- `ArtifactProblemViewWidget` と `ArtifactProjectHealthDashboard` は同じ結果ソースを読む
+- render preflight は Error のみをブロックし、Warning は案内に留める
+
+## Next Step
+
+2026-05-11 時点では、表示面より先に検証の入口を揃える。
+
+1. `ArtifactProblemViewWidget` と `ArtifactProjectHealthDashboard` が同じ `ProjectHealthReport` / `DiagnosticResult` を読むようにする
+2. `ArtifactProjectManager` の load / import / save 前後で `ArtifactProjectHealthChecker` を呼ぶ
+3. render preflight で `DiagnosticEngine` を実行し、Error のみをブロック条件として扱う
+4. `AppValidationRules` を登録し、Project View / Problem View / Dashboard で同じ判定結果を見せる
+
+## Related Execution Memo
+
+- [`docs/planned/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md`](./planned/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md)

@@ -94,7 +94,7 @@
 
 **Goal:** 1 行ごとの操作性を上げる。
 
-- reset / keyframe / expression / copy-paste の導線を整理する
+- reset / keyframe / expression / pick-whip / copy-paste の導線を整理する
 - numeric rows に slider / spin / drag の責務を分離する
 - labels / value column / inline affordance の見た目を揃える
 - state indication を明確にする
@@ -155,4 +155,5 @@ Property UI は動いているが、責務が散りやすい。
 進捗:
 - `ArtifactPropertyWidget` の section / search / empty state を theme palette へ寄せた
 - `PropertyEditor` の row をカード風に再描画し、hover / focus / keyframe state を可視化した
+- pick-whip / reference linking の入口は row-level affordance として今後整理する
 - まだ `copy-paste` / `legacy remnant` の整理は残っている

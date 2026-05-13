@@ -80,3 +80,12 @@ ArtifactCompositionRenderController (イベント受信側)
 A, B の検証：首先 `CompositionRenderController` にレンダリング用 debounce timer（例: 33ms single-shot）を導入し、LayerChangedEvent ごとに即時レンダリングする現行構造を変える。
 
 C, D は A/B 対応後に悪影響が残っていれば追加調査。
+
+## AE-Style Surface Notes
+
+property 編集を AE っぽくするには、ラグ対策だけでなく row-level の affordance も必要。
+
+- keyframe / expression / pick-whip を 1 行の中で見つけやすくする
+- property target の参照リンクは inspector / property row 側で完結させる
+- drag 中の preview と commit を分けて、編集中の視覚ノイズを減らす
+- row の rebuild が多いと link affordance がぶれやすいので、再構築を抑える

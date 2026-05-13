@@ -13,6 +13,12 @@ ArtifactStudio 本体に組み込む、`簡易 RenderDoc` 風のフレームデ�
 - 問題フレームの再現時に、比較・スクラブ・ステップ・保存を最小操作で行えるようにする
 - 既存の profiler / diagnostics / playback / render queue の情報を再利用し、重複した debug surface を増やさない
 
+## Current Boundary Note
+
+- `goal / frame / warning / next` の summary 文法は [Frame Debug Goal-First Summary](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_FRAME_DEBUG_GOAL_FIRST_SUMMARY_2026-05-12.md) で揃える
+- `goal / now / warning / next` は App Debugger 側の文法として扱う
+- `goal / expected / actual / next action` は Harness Engineering / report 側の文法として扱う
+
 ## Non-Goals
 
 - OS レベルのアタッチ、ブレークポイント、メモリ編集、逆アセンブル

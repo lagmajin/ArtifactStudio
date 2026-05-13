@@ -17,6 +17,7 @@
 - keyframe / reset / navigation / classification badge の配置を統一する
 - 数値、色、チェックボックス、列挙、式の各 row を同じ基準で読む
 - `ArtifactPropertyWidget` の ad-hoc layout を `PropertyEditor` row widget へ寄せる
+- pick-whip / reference link の affordance 位置を row 末尾の共通 action に寄せる
 
 ---
 
@@ -82,6 +83,7 @@
 - color row の click / drag を明示する
 - keyframe navigation triangles を行内の共通 affordance にする
 - reset button の位置とサイズを共通化する
+- reference link / pick-whip glyph の位置を共通化する
 
 **Done when:**
 
@@ -97,6 +99,8 @@
 - row widget が label / value / action の組み立てを担当する
 - `ArtifactPropertyWidget` は group と selection の orchestration に集中する
 - effect / transform / expression の row 実装差を縮める
+- row widget に link / keyframe / reset の並び順を定義する
+- pick-whip の drag affordance を row action の一部として扱う
 
 **Done when:**
 

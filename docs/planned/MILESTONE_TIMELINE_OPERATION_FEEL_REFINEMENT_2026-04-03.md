@@ -128,6 +128,7 @@
 
 - この milestone は `M-TL-5 Timeline Keyframe Editing` と重なるが、こちらは「操作感」と「行き来のしやすさ」に寄せる
 - `M-TL-10 Timeline Flat Keyframe View / U-Key Style Filter` と組み合わせると、編集対象の見通しがかなり上がる
+- `U` は flat filter、`Tab` は curve editor mode として役割を分ける
 - `M-TL-4` / `M-TL-8` の owner-draw / scene elimination が進んでいる前提で、入力周りの polish を積みやすい
 
 ## Progress

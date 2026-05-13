@@ -38,6 +38,12 @@
 - [MILESTONE_TIMELINE_WAVEFORM_2026-04-10.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_WAVEFORM_2026-04-10.md)
 - [MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md)
 
+### 5. Shortcut Split
+
+- `U` は `MILESTONE_TIMELINE_FLAT_KEYFRAME_VIEW_2026-04-03.md` の flat filter を切り替える
+- `Tab` は `MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md` の curve mode を切り替える
+- 右ペインの keyframe 見通しは `M-TL-10`、編集本体は `M-TL-5`、曲線編集は `M-TKF` という分担で読む
+
 ---
 
 ## 状態別まとめ
@@ -70,6 +76,7 @@
 - `M-TL-9` Timeline Visual Language
 - `M-TL-12` DAW-Style Input Surface
 - `M-TL-13` Timeline Scrub Bar Frame Cache Overlay
+- `M-TL-10` は view / visibility / keyframe lane の入口、`M-TL-5` は edit body、`M-TKF` は curve / flat split の境界を見る
 
 ### Specialized Follow-ups
 
@@ -89,6 +96,8 @@
 - `M-TL` の番号は古い計画と新しい補助線でぶつかることがある
 - 迷ったら番号よりファイル名を優先する
 - この index では「今の本筋」と「補助線」を優先して読む
+- `U` と `Tab` の役割はここで分けて覚える
+- `U` = flat keyframe filter, `Tab` = curve editor mode
 
 ### 右ペインのキーフレーム操作を広げたい
 

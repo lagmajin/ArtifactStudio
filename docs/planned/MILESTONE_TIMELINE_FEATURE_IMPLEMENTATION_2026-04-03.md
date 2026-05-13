@@ -10,6 +10,7 @@
 
 - Timeline layer / clip の操作
 - keyframe の visibility / edit / navigation
+- property relation / pick-whip の入口
 - search / filter / state presentation
 - visual language の統一
 - owner-draw への段階移行
@@ -60,6 +61,7 @@ Asset Browser 側の改善は、`M-UI-21 Asset Browser Navigator / Search / Pres
 - `docs/planned/MILESTONE_TIMELINE_VISUAL_LANGUAGE_2026-03-31.md`
 - `docs/planned/MILESTONE_TIMELINE_TRACKVIEW_OWNER_DRAW_MIGRATION_2026-03-27.md`
 - `docs/planned/MILESTONE_TIMELINE_QGRAPHICSSCENE_ELIMINATION_2026-03-31.md`
+- `docs/planned/MILESTONE_PROPERTY_REFERENCE_LINKING_2026-05-11.md`
 
 ---
 

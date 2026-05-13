@@ -72,7 +72,7 @@
 - `ArtifactLayerPanelWidget`
   タイムライン左ペインの担当。レイヤー列と行操作に限定し、composition/preview の責務は持たない。
 - `ArtifactPropertyWidget` / `PropertyEditor`
-  property row と編集 UI の担当。Inspector は summary / selection / effect stack の窓口で、row chrome はここへ寄せる。
+  property row と編集 UI の担当。Inspector は summary / selection / effect stack の窓口で、row chrome はここへ寄せる。pick-whip / reference linking の入口もここに寄せる。
 - `ArtifactRenderLayerWidgetv2`
   layer editor view wrapper。内部の実描画と widget shell を分けて扱う。
 
@@ -335,6 +335,8 @@ Blender 風の routing を最初に導入するときの代表キー。
   - `Space`
   - `J` / `K` / `L`
   - `I` / `O`
+  - `U` = `Keyframes Only` / flat filter
+  - `Tab` = curve editor mode
 - `Panel.Timeline.Left`
   - `Delete`
   - `F2`

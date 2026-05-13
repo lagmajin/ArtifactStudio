@@ -42,8 +42,8 @@ thisComp.layer("Control").effect("Slider")("Slider");
 | エクスプレッション UI (「=」ボタン) | ⚠️ UI のみ、評価エンジンなし |
 | TimeRemap の getSpeedAtTime | ✅ 実装済み |
 | TextAnimatorEngine の式ベース weight | ✅ 実装済み |
-| エクスプレッションパーサー | ❌ 未実装 |
-| エクスプレッションランタイム | ❌ 未実装 |
+| エクスプレッションパーサー | ✅ 実装済み |
+| エクスプレッションランタイム | ✅ 実装済み |
 
 ---
 
@@ -78,9 +78,9 @@ ExpressionEngine (Core)
 ## Milestone 1: Expression Parser (AST)
 
 ### Implementation
-- Tokenizer: 数値、演算子、識別子、文字列、ドットアクセス
+- Tokenizer: 数値、演算子、識別子、文字列、配列、関数呼び出し
 - Parser: 再帰下降パーサーで AST 構築
-- AST ノード: Literal, BinaryOp, UnaryOp, FunctionCall, PropertyAccess, Assignment
+- AST ノード: Literal, BinaryOp, UnaryOp, FunctionCall, ArrayAccess, Conditional, Assignment
 
 ### Grammar (subset):
 ```
@@ -105,9 +105,9 @@ arguments   → expression (',' expression)*
 
 ### Implementation
 - AST ウォーカーで各ノードを評価
-- 型システム: float, vec2, vec3, color, string, array, layer, comp
+- 型システム: number, vector, array, string
 - 組み込み関数の実装
-- プロパティ参照の解決
+- プロパティ参照の解決は未着手
 
 ### 組み込み関数 (最低限):
 ```cpp
@@ -143,6 +143,16 @@ layer.inPoint;     layer.outPoint;
 - 式エディタの UI **(AE差別化: シンタックスハイライト、組み込み変数補完、エラー位置ハイライト、独自DSL検討)**
 
 ### 見積: 6h
+
+## Milestone 3b: Property Reference Linking
+
+### Implementation
+- pick-whip を expression と別の property target resolver として扱う
+- referenceable property の catalog を作る
+- property row / inspector から target link を見える化する
+- まずは read-only で target を選べるようにする
+
+### 見積: 4h
 
 ---
 
@@ -245,7 +255,8 @@ layer.inPoint;     layer.outPoint;
 | 1 | **M1 Parser** | 8h |
 | 2 | **M2 Evaluator** | 10h |
 | 3 | **M3 Property Integration** | 6h |
-| 4 | **M4 Presets** | 4h |
+| 4 | **M3b Property Reference Linking** | 4h |
+| 5 | **M4 Presets** | 4h |
 
 **総見積: ~28h**
 

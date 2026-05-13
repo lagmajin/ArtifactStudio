@@ -18,6 +18,15 @@ Keep it short, copyable, and consistent across particle / video / blend / overla
 
 ---
 
+## Goal
+
+- goal: `<what we are trying to prove>`
+- expected: `<what should happen>`
+- actual: `<what happened>`
+- nextAction: `<what to try next>`
+
+---
+
 ## Summary
 
 - status: `<ok | skipped | failed>`

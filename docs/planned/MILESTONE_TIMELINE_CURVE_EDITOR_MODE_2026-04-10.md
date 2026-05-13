@@ -7,7 +7,8 @@ Add a curve editor mode to `ArtifactTimelineWidget` so the same surface can swit
 - the normal timeline / layer orchestration view
 - a curve-focused editor for animated properties and keyframes
 
-The intended trigger is a keyboard toggle on `U` or `Tab` while the timeline has focus.
+The intended trigger is `Tab` while the timeline has focus.
+`U` is reserved for flat keyframe filtering.
 
 ## UX Intent
 
@@ -16,13 +17,14 @@ The intended trigger is a keyboard toggle on `U` or `Tab` while the timeline has
 - make the transition feel like a mode change, not a new window
 - keep timeline editing available as the default path
 - show curve editing only when the current selection can actually expose animated properties
+- do not overload `U` for mode switching; that key belongs to flat visibility filtering
 
 ## Scope
 
 - mode state and toggle routing inside `ArtifactTimelineWidget`
 - a curve editor surface that reuses the current time context
 - selection-aware property curve presentation
-- keyboard focus and shortcut handling for `U` / `Tab`
+- keyboard focus and shortcut handling for `Tab`
 - undo-friendly curve edits for keyframe navigation and value changes
 - documentation alignment with `docs/WIDGET_MAP.md`
 
@@ -31,7 +33,7 @@ The intended trigger is a keyboard toggle on `U` or `Tab` while the timeline has
 ### Phase 1
 
 - define the mode state and toggle entry points
-- wire keyboard handling for `U` and `Tab`
+- wire keyboard handling for `Tab`
 - preserve playhead and selection when switching modes
 
 ### Phase 2
