@@ -94,6 +94,12 @@ Phase 1 では、まず次の surface を優先する。
 
 ---
 
+## Related Investigation
+
+- Floating mode の Composition Editor 白画面については [`BUG_QADS_FLOATING_COMPOSITION_EDITOR_SHOWEVENT_2026-05-15.md`](../bugs/BUG_QADS_FLOATING_COMPOSITION_EDITOR_SHOWEVENT_2026-05-15.md) を参照する。
+
+---
+
 ## Done Criteria
 
 - 主要 surface の先頭を見た時に、今の位置が短く読める
