@@ -46,6 +46,58 @@ Phase 1 では、まず次の surface を優先する。
 
 ---
 
+## Shared Summary Template
+
+Phase 1 で揃える診断 summary は、まずこの形を標準にする。
+
+```text
+goal: <1 sentence>
+now: <current state in 1 short line>
+warning: <main issue or "none">
+next: <single next action>
+```
+
+補助情報はこの後ろに回し、raw trace は折りたたみか詳細領域に寄せる。
+
+---
+
+## First Pass Order
+
+1. `ArtifactProjectHealthDashboard`
+2. `ArtifactProblemViewWidget`
+3. `AppDebuggerWidget`
+4. `FrameDebugViewWidget`
+
+この順で、各 surface の top strip と status chip を見比べる。
+まず `warning` の出し方を揃え、次に `goal` と `next` の短さを揃える。
+
+---
+
+## Surface Roles
+
+- `Project Health`: 今の project 全体の health を短く返す
+- `Problem View`: 失敗理由と次の一手を短く返す
+- `App Debugger`: state / trace / frame を同じ summary 文法で束ねる
+- `Frame Debug View`: 1 フレーム単位の warning と比較導線を返す
+
+同じ summary を別の surface で再掲してもよいが、役割は変えない。
+`warning` は先頭に出し、`trace` は補助へ回す。
+
+---
+
+## Vocabulary Set
+
+Phase 1 でまず固定する文言は次の4つ。
+
+- `goal`
+- `now`
+- `warning`
+- `next`
+
+必要に応じて `status` を chip に落とすが、summary の主語はこの4語に寄せる。
+
+---
+
 ## Working Rules
 
 1. `goal` は 1 文で言う

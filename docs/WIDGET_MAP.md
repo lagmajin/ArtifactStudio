@@ -181,6 +181,18 @@
 - `isActiveAt()`
   現在は `inPoint <= frame < outPoint` で判定する。描画経路はこの判定に従う前提。
 
+## AI Shorthand
+
+AI への指示や短いメモでのみ使う略語。人間向けの正式名は文書や UI では残す。
+
+- `Composition Editor` = `CE`
+- `Timeline` = `TL`
+- `Mask Path` = `MP`
+- `Mask Handle` = `MH`
+- `Motion Path` = `MOTION`
+- `Selection Rect` = `SELRECT`
+- `Debug Probe` = `DBG`
+
 ## Primary Entry Points
 
 - `Artifact/src/AppMain.cppm`
