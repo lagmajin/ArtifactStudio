@@ -148,6 +148,7 @@ The composition render controller also retries failed non-Normal blends with `No
 - `docs/planned/MILESTONE_GPU_LAYER_BLEND_COMPUTE_2026-03-21.md`
 - `docs/planned/RENDER_BOUNDARY_CHANGE_SAFETY_CHECKLIST_2026-04-21.md`
 - `docs/technical/DX12_VULKAN_PARITY_MEMO_2026-05-07.md`
+- `docs/bugs/BUG_PLANE_LAYER_GPU_BLEND_ON_2026-05-16.md`
 
 ---
 

@@ -114,6 +114,57 @@
 3. undo / selection sync を整える
 4. inspector / diagnostics は最後にまとめる
 
+## Level-Up Priorities (2026-05-16)
+
+mask 編集を「使える」から「積極的に使いたくなる」段階へ上げるなら、次の順がよい。
+
+### 1. Modal.Mask の体感を先に整える
+
+- `Mask` tool に入った瞬間の current layer / selected layer / active composition の同期を固定する
+- gizmo / playhead / pan と競合したときの優先順位を明文化する
+- path 作成中 / 頂点ドラッグ中 / handle ドラッグ中の state を明確に分ける
+
+ここが曖昧なまま機能だけ足すと、編集機能が増えるほど操作事故が増える。
+
+### 2. Path Editing を 3 段階で強化する
+
+1. anchor 追加 / 移動 / 削除 / close-open
+2. segment insert / hovered segment preview / multi-vertex selection
+3. bezier in-out handle 編集
+
+特に `M-CE-MASK-2B` の handle 編集は、roto 体験の質を大きく左右するので独立 slice として扱うのがよい。
+
+### 3. Viewport 上の編集 affordance を増やす
+
+- selected path と hovered path を見分けやすくする
+- anchor / tangent / feather の可視化を分ける
+- `Add / Subtract / Intersect / Difference` を path 単位で読めるようにする
+- invert / feather / expansion の現在値を viewport と inspector で矛盾なく見せる
+
+固定 overlay を増やすのではなく、`Overlay.Composition` の既存責務内で編集状態だけを明快に出す。
+
+### 4. Geometry Editing と Parameter Editing を分離したまま育てる
+
+- geometry: path / vertex / tangent / close-open
+- parameter: opacity / feather / expansion / invert / mask mode
+- time-addressable 化: `MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md`
+
+mask を強くする近道は、geometry と parameter animation を同じ工程に混ぜないこと。
+
+### 5. Undo / Diagnostics を最後ではなく薄く先行させる
+
+- path 1 drag = 1 undo step の粒度を早めに固定する
+- layer 切替時の edit state cleanup を早めに固める
+- render 異常は `FrameDebugSnapshot` / report text で追い、編集 UI に診断責務を持たせすぎない
+
+## Recommended Near-Term Slice
+
+1. `M-CE-MASK-1` を完了して mode routing を安定化
+2. `M-CE-MASK-2` で anchor / segment 編集を実用レベルへ
+3. `M-CE-MASK-2B` で bezier handle を独立完成
+4. `M-CE-MASK-3` で undo / selection sync を固定
+5. `M-CE-MASK-4` で inspector / diagnostics を整える
+
 ## Related Execution Memos
 
 - [`MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_PHASE1_EXECUTION_2026-05-12.md`](./MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_PHASE1_EXECUTION_2026-05-12.md)

@@ -2,6 +2,11 @@
 
 **Critical Reference Document** - Used by multiple clients (ArtifactStudio, preview engines, external tools)
 
+This document mainly explains the **current / legacy conversion reality**.
+For the canonical direction the renderer should converge toward, see:
+
+- [RENDER_FORMAT_CONTRACT_2026-05-16.md](/x:/Dev/ArtifactStudio/docs/technical/RENDER_FORMAT_CONTRACT_2026-05-16.md)
+
 ## TL;DR: Channel Order Quick Reference
 
 | System | Format | Memory Layout | Alpha Position | Notes |
@@ -61,6 +66,9 @@ cv::merge(channels, rgba_mat);                    // → RGBA order
 **Class Name**: `ImageF32x4_RGBA`  
 **Internal Storage**: CV_32FC4 in **BGRA order**  
 **Why**: Inherits OpenCV's BGR convention for performance (zero-copy from OpenCV mats)
+
+This is a known transition liability, not the desired end state.
+The target direction is to make internal float images converge on true RGBA order under the render format contract.
 
 ### When Working with ImageF32x4_RGBA
 

@@ -108,6 +108,40 @@ Phase 1 でまず固定する文言は次の4つ。
 
 ---
 
+## Draft Summary Examples
+
+Phase 1 で使う診断文のたたき台。
+`goal / now / warning / next` の順序は固定し、surface ごとの言い回しだけを変える。
+
+### Project Health / Problem View
+
+```text
+goal: keep the project healthy
+now: 2 missing footages detected
+warning: relink required
+next: open problem view
+```
+
+### App Debugger
+
+```text
+goal: inspect current app state
+now: frame capture is ready
+warning: fallback path active
+next: open frame debug view
+```
+
+### Frame Debug View
+
+```text
+goal: inspect this frame
+now: pass graph contains 12 nodes
+warning: missing resource in pass 4
+next: compare with previous frame
+```
+
+---
+
 ## Tasks
 
 ### 1. Summary Vocabulary

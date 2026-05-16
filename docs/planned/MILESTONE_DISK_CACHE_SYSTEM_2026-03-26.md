@@ -146,6 +146,7 @@
 
 - `Artifact/docs/MILESTONE_COMPOSITION_EDITOR_CACHE_SYSTEM_2026-03-26.md`
 - `docs/planned/MILESTONE_RAM_PREVIEW_CACHE_2026-03-26.md`
+- `docs/planned/MILESTONE_HIERARCHICAL_CACHE_SYSTEM_2026-05-16.md`
 
 ## Notes
 
@@ -154,3 +155,6 @@
 
 したがって、`Disk Cache` は `RAM cache の大きい版` ではなく、
 `正しい invalidation を持つ永続 cache layer` として設計する必要がある。
+
+上位方針としては、`RAM preview` を authoritative composition cache、
+`Disk Cache` を persistent fallback layer として扱う。

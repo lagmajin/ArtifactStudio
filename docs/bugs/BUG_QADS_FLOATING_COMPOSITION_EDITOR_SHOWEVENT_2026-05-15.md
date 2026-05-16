@@ -101,6 +101,98 @@
 2. `prepareFloatingDockContainer(...)` の直後に、対象 dock 内の `CompositionEditor` が本当に `showEvent()` を受けているか確認する。
 3. floating 時だけ `syncPreferredComposition()` を明示的に再実行し、初期化抜けかどうかを切り分ける。
 
+## Long-Term Reading
+
+この不具合は「QADS の repaint バグ」だけで閉じるより、次の 2 層に分けて扱う方がよい。
+
+1. `CFloatingDockContainer` の floating lifecycle
+2. `CompositionViewport` の lazy initialization / retry contract
+
+特に `dock すると直る` という性質は、pure repaint failure よりも
+`renderer 初期化契機が floating で弱い`
+ことを示唆している。
+
+## Recommended Fix Order
+
+### 1. showEvent 依存を弱める
+
+`CompositionViewport::showEvent()` を唯一の起点にしない。
+
+少なくとも次のいずれかで再評価できるようにする。
+
+1. floating container activation
+2. dock visibility change
+3. first non-zero resize after floating
+4. explicit `ensureViewportReady()` call from shell/main-window side
+
+### 2. renderer 初期化と composition sync を分ける
+
+現状は:
+
+1. initialize
+2. recreateSwapChain
+3. setViewportSize
+4. delayed `syncPreferredComposition()`
+
+が `showEvent` 起点でゆるくつながっている。
+
+長期的には:
+
+1. `ensureRendererInitialized(host)`
+2. `ensureSwapChainReady(host, size)`
+3. `ensurePreferredCompositionSynced()`
+
+の 3 段階へ分離し、floating 側から必要段だけ再実行できる形が望ましい。
+
+### 3. QADS floating refresh に「見た目補正」と「viewport readiness」を混ぜない
+
+`prepareFloatingDockContainer(...)` と `scheduleFloatingRefresh(...)` は、
+見た目補正・再描画補助としては有効でも、renderer 初期化保証の責務までは持っていない。
+
+今後も次を混ぜない方がよい。
+
+1. floating window polish
+2. layout / repaint refresh
+3. Composition viewport readiness
+
+### 4. white screen を専用診断語彙で観測する
+
+`FrameDebugSnapshot` とは別に、少なくともログ上で次を追えるようにしたい。
+
+1. viewport host visible
+2. viewport winId acquired
+3. controller initialized
+4. swapchain created
+5. preferred composition synced
+
+これで `白画面` が
+
+- no show event
+- visible guard retry loop
+- swapchain missing
+- composition sync missing
+
+のどれかを早く切り分けられる。
+
+## Practical Direction
+
+短期 workaround を積み増すより、`CompositionViewport` 側に
+`floating-safe readiness contract`
+を導入するのが本筋。
+
+つまり、
+
+1. `showEvent` が来たら試す
+2. しかし `showEvent` が弱くても、`visibility/resize/activation` で再度 ready 化できる
+3. `MainWindow` 側は floating container を見つけたら、その配下の composition surface に対して readiness 再評価を依頼できる
+
+という構造に寄せる。
+
+## Related Planning
+
+- [MILESTONE_APP_SURFACE_COHESION_2026-05-13.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_SURFACE_COHESION_2026-05-13.md)
+- [MILESTONE_QADS_FLOATING_SURFACE_STABILIZATION_2026-05-16.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_QADS_FLOATING_SURFACE_STABILIZATION_2026-05-16.md)
+
 ## 関連ファイル
 
 - `Artifact/src/AppMain.cppm`
@@ -109,4 +201,3 @@
 - `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
 - `Artifact/src/Widgets/Dock/DockStyleManager.cppm`
 - `ArtifactWidgets/src/Dock/Pane.cpp`
-

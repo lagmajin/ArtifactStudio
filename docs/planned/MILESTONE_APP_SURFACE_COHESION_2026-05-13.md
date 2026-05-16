@@ -76,6 +76,38 @@ ArtifactStudio 全体の surface を、画面ごとの寄せ集めではなく�
 
 ---
 
+## Execution Checklist
+
+### Phase 1 Checklist
+
+- [ ] `current / recent / selection / status` の語彙を surface ごとに洗い出す
+- [ ] `ArtifactAssetBrowser` の header を基準文法として固定する
+- [ ] `ArtifactProjectManagerWidget` の current / selection 表示を短く揃える
+- [ ] `ArtifactCompositionEditor` の現在地表示と tooltip を整える
+- [ ] `ArtifactTimelineWidget` の見出し語彙を composition 側と揃える
+- [ ] `AppDebuggerWidget` の summary 文言を診断側の基準に合わせる
+- [ ] 1 画面目を見た時に「今どこにいるか」が 1 行で読めるかを確認する
+
+### Phase 2 Checklist
+
+- [ ] summary strip の高さ基準を決める
+- [ ] `recent` を 3 件前後に収める
+- [ ] `favorites / sources / sync / status` の出し方を短くする
+- [ ] 画面ごとの情報量の差をメモして、過不足を減らす
+- [ ] summary strip が header を押しつぶしていないか確認する
+- [ ] surface ごとの情報順序を `current -> recent -> selection -> status` に寄せる
+
+### Phase 3 Checklist
+
+- [ ] empty state の文法を surface ごとに揃える
+- [ ] `import / open / select / inspect / navigate` の導線を各画面で近づける
+- [ ] 選択なし状態の文言を統一する
+- [ ] 余白ではなく案内として読める empty state にする
+- [ ] 何も選ばれていない時でも次の行動が 1 つ見えるか確認する
+- [ ] empty state の文言が diagnostics 側の warning と混ざらないか確認する
+
+---
+
 ## Success Criteria
 
 - 画面を変えても「今の位置」を読み直すコストが減る
@@ -93,6 +125,7 @@ ArtifactStudio 全体の surface を、画面ごとの寄せ集めではなく�
 - [`MILESTONE_APP_DEBUGGER_GOAL_FIRST_SUMMARY_2026-05-12.md`](./MILESTONE_APP_DEBUGGER_GOAL_FIRST_SUMMARY_2026-05-12.md)
 - [`MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md`](./MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md)
 - [`BUG_QADS_FLOATING_COMPOSITION_EDITOR_SHOWEVENT_2026-05-15.md`](../bugs/BUG_QADS_FLOATING_COMPOSITION_EDITOR_SHOWEVENT_2026-05-15.md)
+- [`MILESTONE_QADS_FLOATING_SURFACE_STABILIZATION_2026-05-16.md`](./MILESTONE_QADS_FLOATING_SURFACE_STABILIZATION_2026-05-16.md)
 - [`../COMPOSITION_EDITOR_CONTRACT.md`](../COMPOSITION_EDITOR_CONTRACT.md)
 
 ---
@@ -102,3 +135,4 @@ ArtifactStudio 全体の surface を、画面ごとの寄せ集めではなく�
 Phase 1 の対象 surface と、共通にする見出し語彙を先に固定する。
 必要なら diagnostics 側は [`MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md`](./MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md) に渡し、surface 側では `current / recent / selection / status` を先に揃える。
 floating 系の表示不良は [`BUG_QADS_FLOATING_COMPOSITION_EDITOR_SHOWEVENT_2026-05-15.md`](../bugs/BUG_QADS_FLOATING_COMPOSITION_EDITOR_SHOWEVENT_2026-05-15.md) に整理済み。
+長期の対処順は [`MILESTONE_QADS_FLOATING_SURFACE_STABILIZATION_2026-05-16.md`](./MILESTONE_QADS_FLOATING_SURFACE_STABILIZATION_2026-05-16.md) に切り出した。

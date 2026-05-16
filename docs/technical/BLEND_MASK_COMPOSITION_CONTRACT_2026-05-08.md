@@ -12,6 +12,10 @@ This contract applies to the Composition Viewer render path and Debug Render Har
 
 Phase 1 does not add a fixed always-visible scene. It records the current frame's blend/mask state in `FrameDebugSnapshot` so the existing harness report can show where the contract may have broken.
 
+Parent format direction:
+
+- `docs/technical/RENDER_FORMAT_CONTRACT_2026-05-16.md`
+
 ---
 
 ## Render Contract
@@ -32,7 +36,9 @@ Current texture contract:
 4. Source alpha is treated as straight alpha on layer input.
 5. Accumulated RGB is treated as premultiplied-style accumulated color.
 
-The `layer` format mismatch is documented risk, not a hidden assumption. If this remains unstable, the next architectural decision is either:
+The `layer` format mismatch is documented risk, not a hidden assumption. The long-term target is described in `RENDER_FORMAT_CONTRACT_2026-05-16.md`.
+
+If this remains unstable during transition, the next architectural decision is either:
 
 1. make `layer` use the same float linear format as `accum` / `temp`, or
 2. keep `layer` as sRGB and add an explicit conversion boundary before compute blend.
