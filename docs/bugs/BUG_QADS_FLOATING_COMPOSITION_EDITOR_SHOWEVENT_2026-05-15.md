@@ -188,6 +188,32 @@
 
 という構造に寄せる。
 
+## 2026-05-16 Fix Applied
+
+`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm` の
+`CompositionViewport::ensureViewportReady()` を、単なる
+`renderer->hasSwapChain()` 判定ではなく、次の host surface fingerprint を
+追跡する形へ更新した。
+
+1. `winId()`
+2. physical size
+3. device pixel ratio
+
+これにより、QADS floating 化で top-level native surface が差し替わった場合も、
+既存 swapchain が残っているだけで正常扱いせず、明示的に
+`CompositionRenderController::recreateSwapChain(this)` を再実行する。
+
+また `CompositionViewport::event()` で `QEvent::WinIdChange` と
+`QEvent::PlatformSurface` を readiness 再評価のトリガーに追加した。
+`Show` / `ActivationChange` / `WindowStateChange` だけに依存しないため、
+floating container の生成順序が変わっても復帰契機を失いにくい。
+
+残る確認観点:
+
+1. floating dock を別モニタへ移動した時の DPR 変更
+2. floating -> dock -> floating の連続切り替え
+3. minimized 状態から復帰した直後の first frame
+
 ## Related Planning
 
 - [MILESTONE_APP_SURFACE_COHESION_2026-05-13.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_SURFACE_COHESION_2026-05-13.md)

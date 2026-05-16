@@ -177,3 +177,31 @@ mask / matte 系では RGB と alpha を同時に減衰する修正が既に入�
 が同時に効くためと考えるのが妥当。
 
 まずは repro を固定し、report text で `layerSRV -> accumSRV -> tempUAV` の min/max と format を可視化するのが次の一手。
+
+## 2026-05-16 Fix Applied
+
+`ArtifactCore/include/Graphics/Shader/Compute/LayerBlendComputeShader.ixx`
+の非 `Normal` compute blend shader を、次の契約へ寄せた。
+
+1. `SrcTex` は straight RGBA として読む
+2. `DstTex` は premultiplied accum として読む
+3. blend mode の数式は `srcColor` / `dstColor` の straight RGB で計算する
+4. 出力時に `ComposeBlend(...)` で premultiplied accum へ戻す
+
+修正前は `srcRGB = src.rgb * srcA` を blend color としても使っており、
+Multiply / Screen / Overlay / HSL 系などで straight/premult が混ざっていた。
+`Normal` は source-over の形なので成立しやすいが、非 `Normal` では plane layer のような
+全面・高 alpha・定色ソースで色崩れが増幅される。
+
+今回の対処では `Add` / `Multiply` / `Screen` / `Overlay` / `Darken` /
+`Lighten` / `ColorDodge` / `ColorBurn` / `HardLight` / `SoftLight` /
+`Difference` / `Exclusion` / HSL 系 / `LinearBurn` / `Divide` /
+`PinLight` / `VividLight` / `LinearLight` / `HardMix` を同じ
+straight-to-premult contract に揃えた。
+
+残る確認観点:
+
+1. lower salmon `Normal` + upper white `Add`
+2. upper opacity 50% の `Add` / `Screen` / `Multiply`
+3. 背景 alpha が 1 未満の composition での premult 出力
+4. 将来の `RGBA32F` layer input 統一時に `SrcTex` contract を再確認する
