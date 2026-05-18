@@ -214,6 +214,47 @@ floating container の生成順序が変わっても復帰契機を失いにく�
 2. floating -> dock -> floating の連続切り替え
 3. minimized 状態から復帰した直後の first frame
 
+## 2026-05-16 Follow-up: Render Child HWND Reparent Probe
+
+追加調査で、`CompositionViewport::winId()` の変化だけでは不十分な可能性が出た。
+
+`DiligentDeviceManager` は Qt viewport HWND の子として独自の
+`DiligentRenderSurface` HWND を作る。QADS floating 化で Qt 側の native parent
+が変わっても、既存の `renderHwnd_` がある場合は `SetWindowPos()` による
+resize だけで、`SetParent()` が行われていなかった。
+
+この状態では:
+
+1. renderer initialized
+2. swapchain exists
+3. renderOneFrame runs
+4. present succeeds
+
+でも、present 先の child HWND が古い dock 側にぶら下がったままになり、
+floating container 側は白いままに見える可能性がある。
+
+対処:
+
+1. `DiligentDeviceManager::Impl` に `renderParentHwnd_` を追加
+2. `createSwapChain()` / `recreateSwapChain()` で current `widget->winId()` と比較
+3. parent が変わっていれば `SetParent(renderHwnd_, parentHwnd)` を実行
+4. `SetWindowPos(..., HWND_TOP, ..., SWP_SHOWWINDOW)` と `ShowWindow(SW_SHOWNA)` で
+   floating 側に子描画 HWND を再表示
+
+診断:
+
+`ArtifactIRenderer` に present counter/status を追加し、
+`CompositionRenderController` が `[CompositionView][PresentProbe]` を出す。
+
+これで白画面を次のどれかに分類できる。
+
+1. `hasSwapChain=false`: swapchain 未生成
+2. `presentStatus=skipped-no-swapchain`: present 前に swapchain が無い
+3. `presentStatus` が例外文字列: backend/surface failure
+4. `presentStatus=ok` なのに白い: Qt/QADS 側の HWND 親子関係、z-order、または paint 覆いかぶせ
+
+特に 4 の場合、`[DiligentDeviceManager] render child HWND reparent` が出るかを確認する。
+
 ## Related Planning
 
 - [MILESTONE_APP_SURFACE_COHESION_2026-05-13.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_SURFACE_COHESION_2026-05-13.md)

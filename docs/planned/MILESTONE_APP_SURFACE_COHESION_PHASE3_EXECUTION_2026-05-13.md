@@ -161,6 +161,16 @@ Phase 3 で揃える empty state のたたき台。
 
 ---
 
+## Progress Note - 2026-05-17
+
+- `ArtifactAssetBrowser`: recent / selection / file info の空状態を `Navigate` / `Select` 起点の案内へ寄せた
+- `ArtifactProjectManagerWidget`: 未選択時の detail を `Select an item to inspect details` 起点へ寄せた
+- `ArtifactCompositionEditor`: 未選択時の overlay に `Open a composition` の次アクションを残した
+- `ArtifactTimelineWidget`: selection なしの summary を `Select a layer to continue` へ寄せた
+- `AppDebuggerWidget`: Phase 2 の `Next` 行を diagnostics warning と分け、empty action として扱う
+
+---
+
 ## Related Docs
 
 - [`MILESTONE_APP_SURFACE_COHESION_2026-05-13.md`](./MILESTONE_APP_SURFACE_COHESION_2026-05-13.md)

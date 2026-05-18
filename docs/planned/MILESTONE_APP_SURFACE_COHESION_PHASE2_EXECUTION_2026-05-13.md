@@ -180,6 +180,16 @@ status: <chip or badge>
 
 ---
 
+## Progress Note - 2026-05-17
+
+- `ArtifactAssetBrowser`: Library Hub の summary 行に高さ上限を入れ、current / recent / selection が膨らみすぎないようにした
+- `ArtifactProjectManagerWidget`: summary を `Recent -> Selection -> Status -> Search` の順へ寄せ、chrome label の高さを抑えた
+- `ArtifactCompositionEditor`: info overlay の selection 行に短い playback status を追加した
+- `ArtifactTimelineWidget`: header strip の順序を `Current -> Recent -> Selection -> Status` に寄せ、各 label の高さを抑えた
+- `AppDebuggerWidget`: overview summary の高さ上限を設定し、diagnostic strip が本文を押し下げすぎないようにした
+
+---
+
 ## Related Docs
 
 - [`MILESTONE_APP_SURFACE_COHESION_2026-05-13.md`](./MILESTONE_APP_SURFACE_COHESION_2026-05-13.md)

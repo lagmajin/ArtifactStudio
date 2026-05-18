@@ -53,6 +53,20 @@
 - rotopath / maskpath の保存・復元で tangent 情報を落とさない
 - ベジェ曲線の編集結果が rasterize / preview / render queue に一致するようにする
 
+#### 2026-05-16 Slice
+
+- `MaskVertex` 既存の `inTangent` / `outTangent` を Composition Editor の Pen tool 操作に接続した
+- Pen tool で新規頂点をクリックしたままドラッグすると、その頂点の out handle を作る
+- `Ctrl` + 既存 anchor drag で corner 頂点から bezier handle を引き出せる
+- handle drag 中に `Alt` を押すと in/out tangent を分離し、押さない場合は AE 風に反対側をミラーする
+- mask path overlay と segment hit-test を直線ではなく cubic bezier の polyline 近似へ変更した
+
+残る改善:
+
+- segment 上への vertex insert
+- selected handle / tangent mode の明示 UI
+- handle drag の undo 粒度と inspector 表示の整理
+
 ### M-CE-MASK-3 Undo / Redo And Selection Sync
 
 - mask 編集を undoable command として扱う

@@ -214,7 +214,7 @@ status: <chip or badge>
 ### Asset Browser
 
 - `current: Library Hub`
-- `recent: <recent folders or assets>`
+- `recent: <up to 3 recent folders>`
 - `selection: <count> selected`
 - `status: sync / missing / favorite`
 
@@ -258,6 +258,16 @@ Examples:
 - `Import files to continue`
 - `Select an item to inspect details`
 - `Open a composition to start editing`
+
+---
+
+## Progress Note - 2026-05-17
+
+- `ArtifactAssetBrowser`: Library Hub の `Current / Recent / Selection / Status` 表示を Phase 1 語彙へ寄せた
+- `ArtifactProjectManagerWidget`: header を `Current: Project View`、sync chip を `Status` 表記へ寄せた
+- `ArtifactCompositionEditor`: info overlay の layer/current 表示を `Current / Selection` 表記へ寄せた
+- `ArtifactTimelineWidget`: 未選択時の current と selection summary を Timeline 語彙へ寄せた
+- `AppDebuggerWidget`: overview summary を `Goal / Now / Warning / Next` 表記へ寄せた
 
 ---
 
