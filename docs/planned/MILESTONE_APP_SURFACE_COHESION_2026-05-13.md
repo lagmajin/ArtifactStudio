@@ -28,6 +28,7 @@ ArtifactStudio 全体の surface を、画面ごとの寄せ集めではなく�
 - empty state の文法
 - status chip / badge の役割分担
 - view 間の基本導線
+- playback / transport の入口整理
 
 ### Out
 
@@ -73,6 +74,44 @@ ArtifactStudio 全体の surface を、画面ごとの寄せ集めではなく�
 - Project / Asset / Timeline / Composition / Debugger の文法を最後に合わせる
 - 画面遷移しても同じアプリとして読めるようにする
 - 余白、見出し、chip、補助文の扱いを揃える
+- playback / transport の操作入口を shell 視点で揃える
+
+---
+
+## Playback Control Integration Slice
+
+### Why
+
+- `docs/WIDGET_MAP.md` では `ArtifactCompositionEditor` が `editor shell / playback controls / surface orchestration` の owner であり、transport の context router として扱う前提になっている
+- 一方で実装上は `ArtifactPlaybackControlWidget` と `ArtifactTimelineWidget` の両方が `ArtifactPlaybackService` を直接叩く箇所を持ち、操作の入口と UI 反映の責務が surface ごとに散っている
+- surface cohesion の観点では、見た目の統一だけでなく `play / pause / seek / step / loop / in-out` がどこから触っても同じ経路を通ることを先に固定したい
+
+### Target
+
+- transport command の authority を `ArtifactPlaybackService` に寄せたまま、surface ごとの UI は shell から同じ action vocabulary を参照する
+- `ArtifactCompositionEditor` を playback context router として固定し、Playback Control / Timeline / viewer footer が別々の判断を持たないようにする
+- widget ごとの直接操作を減らし、`current / selection / status` と同様に `transport` も横断 surface の共通文法として扱う
+
+### Non-Goals
+
+- playback engine / render backend の再設計
+- 新しい global signal/slot の追加
+- transport ごとの独自ショートカット実装の増設
+
+### Execution Notes
+
+1. `ArtifactPlaybackControlWidget` は button wiring と state presentation に寄せ、再生可否や対象 composition の判断は shell / service 側へ寄せる
+2. `ArtifactTimelineWidget` の space / JKL / scrub-preview 導線は、直接 service を叩く箇所を見直し、共有 command へ収束できるものから先に寄せる
+3. `ArtifactCompositionEditor` は active composition と playback context の owner として、transport surface の routing point を明示する
+4. `ArtifactPlaybackService` は command authority と state authority を維持し、widget は state mirror として扱う
+5. `Playback Control`, `Timeline`, `Composition footer` の status wording は `Current / Status / Next action` の surface 文法に揃える
+
+### Done When
+
+- playback control widget と timeline shortcut が同じ command 名と同じ実行先を通る
+- active composition を切り替えた時に transport surface の対象が 1 系統で追える
+- playhead / loop / speed / in-out の UI 反映差分を widget 固有ロジックで説明しなくてよくなる
+- surface をまたいでも `transport` の語彙と状態表示が読み直し不要になる
 
 ---
 
@@ -106,6 +145,15 @@ ArtifactStudio 全体の surface を、画面ごとの寄せ集めではなく�
 - [ ] 何も選ばれていない時でも次の行動が 1 つ見えるか確認する
 - [ ] empty state の文言が diagnostics 側の warning と混ざらないか確認する
 
+### Playback / Transport Checklist
+
+- [ ] `ArtifactCompositionEditor` を transport context router として文書上で固定する
+- [ ] `ArtifactPlaybackControlWidget` の responsibility を `UI wiring / state mirror` に寄せる
+- [ ] `ArtifactTimelineWidget` の playback shortcut と scrub preview の command 経路を棚卸しする
+- [ ] `ArtifactPlaybackService` に残す authority と widget 側に残す presentation を分けて書く
+- [ ] `Playback Control` / `Timeline` / `Composition footer` の status wording を比較して揃える
+- [ ] transport 操作が surface ごとに別仕様に見えないことを確認する
+
 ---
 
 ## Success Criteria
@@ -125,6 +173,7 @@ ArtifactStudio 全体の surface を、画面ごとの寄せ集めではなく�
 - [`MILESTONE_APP_DEBUGGER_GOAL_FIRST_SUMMARY_2026-05-12.md`](./MILESTONE_APP_DEBUGGER_GOAL_FIRST_SUMMARY_2026-05-12.md)
 - [`MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md`](./MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md)
 - [`MILESTONE_APP_SURFACE_COHESION_PHASE4_EXECUTION_2026-05-17.md`](./MILESTONE_APP_SURFACE_COHESION_PHASE4_EXECUTION_2026-05-17.md)
+- [`MILESTONE_MENU_APP_INTEGRATION_2026-03-27.md`](./MILESTONE_MENU_APP_INTEGRATION_2026-03-27.md)
 - [`BUG_QADS_FLOATING_COMPOSITION_EDITOR_SHOWEVENT_2026-05-15.md`](../bugs/BUG_QADS_FLOATING_COMPOSITION_EDITOR_SHOWEVENT_2026-05-15.md)
 - [`MILESTONE_QADS_FLOATING_SURFACE_STABILIZATION_2026-05-16.md`](./MILESTONE_QADS_FLOATING_SURFACE_STABILIZATION_2026-05-16.md)
 - [`../COMPOSITION_EDITOR_CONTRACT.md`](../COMPOSITION_EDITOR_CONTRACT.md)

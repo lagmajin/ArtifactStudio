@@ -37,6 +37,12 @@ Project / Asset / Timeline / Composition / Debugger の表面文法を最後に�
 - `ArtifactTimelineWidget`: keyframe status の `Now` 表記を `Current` に寄せ、空の recent を `Recent: -` に統一した
 - `ArtifactCompositionEditor`: Phase 1-3 の info overlay 文法を維持し、render/controller 境界には触れない
 - `AppDebuggerWidget`: diagnostics 側は `Goal / Now / Warning / Next` を維持し、surface 側の `Status` と混ぜない
+- `ArtifactPlaybackControlWidget` / `ArtifactPlaybackShortcuts`: In/Out 点の command 経路を `ArtifactPlaybackService` に寄せ、widget は state mirror に徹する方向へ整理した
+- `ArtifactTimelineWidget`: scrub preview の `play` / `pause+restore` を `ArtifactPlaybackService` の小さな command に寄せた
+- `ArtifactTimelineWidget`: `J/K/L` シャトルも service command に寄せ、速度計算の責務を widget から外した
+- `ArtifactTimelineWidget`: `I/O` の work area 更新も service command に寄せ、playback range mode の再適用を service 側に寄せた
+- `ArtifactPlaybackShortcuts`: marker add/delete/clear も service command に寄せ、shortcuts 側の direct in/out access を縮小した
+- `ArtifactPlaybackService`: work area / marker / shuttle の command を集約し、Timeline と Control の直接ロジックを薄くした
 
 ---
 
@@ -45,4 +51,3 @@ Project / Asset / Timeline / Composition / Debugger の表面文法を最後に�
 - Code edits are limited to UI wording / label sizing / summary ordering.
 - Build and tests were not run in this pass.
 - `git diff --check` should be used for this surface slice before handoff.
-
