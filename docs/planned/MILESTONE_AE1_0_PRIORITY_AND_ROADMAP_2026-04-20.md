@@ -48,7 +48,7 @@ ArtifactStudio を実務投入できる制作ツールへ寄せるための整�
 - track matte の表現力を実務レベルに近づける
 - mask / roto / shape path を同じ編集基盤に寄せる
 - shape layer を「表示できる」だけでなく「編集できる」側に寄せる
-- 参照: [`docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-04-08.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-04-08.md)
+- 参照: [`docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md)
 
 ### 1-6 Keyframe Interpolation / Easing Graph
 - 線形補間だけの状態から抜ける
@@ -187,7 +187,8 @@ ArtifactStudio を実務投入できる制作ツールへ寄せるための整�
 
 ## 6. 参照
 
+- [`docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md)
 - [`docs/planned/MILESTONE_PRODUCTION_FEATURE_ENHANCEMENT_ROADMAP_2026-04-12.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AE_FEATURE_ENHANCEMENT_ROADMAP_2026-04-12.md)
-- [`docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-04-08.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-04-08.md)
+- [`docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md)
 - [`Artifact/docs/MILESTONE_V1_0_PRODUCTION_READINESS_2026-03-11.md`](X:/Dev/ArtifactStudio/Artifact/docs/MILESTONE_V1_0_PRODUCTION_READINESS_2026-03-11.md)
 - [`docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_2026-04-20.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_2026-04-20.md)

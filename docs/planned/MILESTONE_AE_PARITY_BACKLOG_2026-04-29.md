@@ -106,7 +106,7 @@ ArtifactStudio を After Effects 風アプリとして見たときの、実装�
 
 ## 参照
 
-- [`docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-04-08.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-04-08.md)
+- [`docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md)
+- [`docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md)
 - [`docs/planned/MILESTONE_AE1_0_PRIORITY_AND_ROADMAP_2026-04-20.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AE1_0_PRIORITY_AND_ROADMAP_2026-04-20.md)
 - [`docs/planned/TEXT_LAYER_ROUTE_2026-04-29.md`](X:/Dev/ArtifactStudio/docs/planned/TEXT_LAYER_ROUTE_2026-04-29.md)
-
