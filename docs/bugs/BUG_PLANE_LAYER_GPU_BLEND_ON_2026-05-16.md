@@ -205,3 +205,37 @@ straight-to-premult contract に揃えた。
 2. upper opacity 50% の `Add` / `Screen` / `Multiply`
 3. 背景 alpha が 1 未満の composition での premult 出力
 4. 将来の `RGBA32F` layer input 統一時に `SrcTex` contract を再確認する
+
+## 2026-05-22 Root Fix Direction Applied
+
+非 `Normal` blend に入った瞬間だけ平面同士の合成が空表示になる再発に対して、
+平面レイヤーを GPU blend path から外す止血ではなく、GPU path 内の
+format / alpha contract を明示する方向へ切り替えた。
+
+変更点:
+
+1. `Artifact/src/Render/ArtifactRenderLayerPipeline.cppm`
+   - `RenderPipeline.Layer` は graphics PSO 互換のため
+     `RenderConfig::MainRTVFormat` (`RGBA8_sRGB`) のまま維持
+   - compute blend 入力用に `RenderPipeline.LayerFloat`
+     (`RGBA32F`, SRV/UAV) を追加
+2. `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+   - 各 layer を `Layer(RGBA8_sRGB)` に rasterize した後、
+     `LayerFloat(RGBA32F)` へ compute conversion してから
+     `blendPipeline` へ渡す
+   - first non-Normal layer の graphics seed fallback を廃止し、
+     transparent accum に対する compute shader の early branch で処理する
+3. `ArtifactCore/include/Graphics/Shader/Compute/LayerBlendComputeShader.ixx`
+   - `layerToFloatShaderText` を追加
+   - layer RT 上の premultiplied RGB を alpha で unpremultiply し、
+     blend shader の `straight source / premult accum` contract に合わせる
+4. `ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`
+   - layer-to-float conversion executor を追加
+
+狙い:
+
+1. `PrimitiveRenderer2D` の existing PSO を壊さず、layer draw は従来形式で維持する
+2. `Add` / `Multiply` などの compute blend は `RGBA32F` 同士で処理する
+3. layer RT に source-over で入った premultiplied RGB を、blend shader 入力前に
+   straight source へ戻す
+4. solid plane 専用 bypass や viewport readback fallback を避け、GPU blend 本流で直す

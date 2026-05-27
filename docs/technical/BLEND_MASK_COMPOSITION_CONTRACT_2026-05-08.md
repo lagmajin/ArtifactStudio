@@ -36,7 +36,7 @@ Current texture contract:
 4. Source alpha is treated as straight alpha on layer input.
 5. Accumulated RGB is treated as premultiplied-style accumulated color.
 
-The `layer` format mismatch is documented risk, not a hidden assumption. The long-term target is described in `RENDER_FORMAT_CONTRACT_2026-05-16.md`.
+The `layer=RGBA8_sRGB` mismatch is still a documented risk. `PrimitiveRenderer2D` graphics PSOs are currently built for the main `RGBA8_sRGB` render target format, so moving only `RenderPipeline.Layer` to `RGBA32F` can make the layer draw itself disappear. The long-term target is described in `RENDER_FORMAT_CONTRACT_2026-05-16.md`.
 
 If this remains unstable during transition, the next architectural decision is either:
 

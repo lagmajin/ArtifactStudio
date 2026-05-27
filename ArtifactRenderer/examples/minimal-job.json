@@ -1,0 +1,364 @@
+{
+  "version": 1,
+  "jobId": "example-minimal-job",
+  "mode": "offline",
+  "composition": {
+    "id": "comp_example",
+    "name": "Example Composition",
+    "frameStart": 0,
+    "frameEnd": 4,
+    "fps": 30,
+    "compositions": [
+      {
+        "id": "comp_nested_example",
+        "name": "Nested Example Composition",
+        "frameStart": 0,
+        "frameEnd": 4,
+        "fps": 30,
+        "width": 640,
+        "height": 360,
+        "backgroundColor": {
+          "r": 0.08,
+          "g": 0.1,
+          "b": 0.14,
+          "a": 1.0
+        },
+        "layers": [
+          {
+            "id": "nested_solid",
+            "name": "Nested Solid",
+            "type": 3,
+            "isVisible": true,
+            "inPoint": 0,
+            "outPoint": 4,
+            "opacity": 1.0,
+            "solidWidth": 640,
+            "solidHeight": 360,
+            "solidColor": {
+              "r": 0.22,
+              "g": 0.62,
+              "b": 0.88,
+              "a": 1.0
+            },
+            "transform": {
+              "px": 0,
+              "py": 0,
+              "ax": 0,
+              "ay": 0,
+              "rx": 0,
+              "sx": 1.0,
+              "sy": 1.0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "output": {
+    "path": "renders/example",
+    "format": "png",
+    "width": 1920,
+    "height": 1080
+  },
+  "quality": {
+    "preset": "draft",
+    "backend": "diagnostic"
+  },
+  "snapshot": {
+    "composition": {
+      "id": "comp_example",
+      "name": "Example Composition",
+      "width": 1920,
+      "height": 1080,
+      "backgroundColor": {
+        "r": 0.08,
+        "g": 0.09,
+        "b": 0.11,
+        "a": 1.0
+      },
+      "compositions": [
+        {
+          "id": "comp_nested_example",
+          "name": "Nested Example Composition",
+          "frameStart": 0,
+          "frameEnd": 4,
+          "fps": 30,
+          "width": 640,
+          "height": 360,
+          "backgroundColor": {
+            "r": 0.08,
+            "g": 0.1,
+            "b": 0.14,
+            "a": 1.0
+          },
+          "layers": [
+            {
+              "id": "nested_solid",
+              "name": "Nested Solid",
+              "type": 3,
+              "isVisible": true,
+              "inPoint": 0,
+              "outPoint": 4,
+              "opacity": 1.0,
+              "solidWidth": 640,
+              "solidHeight": 360,
+              "solidColor": {
+                "r": 0.22,
+                "g": 0.62,
+                "b": 0.88,
+                "a": 1.0
+              },
+              "transform": {
+                "px": 0,
+                "py": 0,
+                "ax": 0,
+                "ay": 0,
+                "rx": 0,
+                "sx": 1.0,
+                "sy": 1.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "layers": [
+      {
+        "id": "solid_example",
+        "name": "Example Solid",
+        "type": 3,
+        "isVisible": true,
+        "inPoint": 0,
+        "outPoint": 4,
+        "opacity": 1.0,
+        "solidWidth": 960,
+        "solidHeight": 540,
+        "solidColor": {
+          "r": 0.18,
+          "g": 0.44,
+          "b": 0.86,
+          "a": 1.0
+        },
+        "transform": {
+          "px": 480,
+          "py": 270,
+          "ax": 0,
+          "ay": 0,
+          "rx": 0,
+          "sx": 1.0,
+          "sy": 1.0
+        }
+      },
+      {
+        "id": "text_example",
+        "name": "Example Title",
+        "type": 6,
+        "isVisible": true,
+        "inPoint": 0,
+        "outPoint": 4,
+        "opacity": 1.0,
+        "text.value": "External Renderer",
+        "text.fontFamily": "Arial",
+        "text.fontSize": 84,
+        "text.tracking": 0,
+        "text.leading": 1.0,
+        "text.bold": true,
+        "text.italic": false,
+        "text.allCaps": false,
+        "text.underline": false,
+        "text.strikethrough": false,
+        "text.alignment": 1,
+        "text.verticalAlignment": 0,
+        "text.wrapMode": 0,
+        "text.layoutMode": 0,
+        "text.maxWidth": 0,
+        "text.boxHeight": 0,
+        "text.paragraphSpacing": 0,
+        "text.color": "#ffffffff",
+        "text.strokeEnabled": false,
+        "text.strokeColor": "#ff000000",
+        "text.strokeWidth": 2,
+        "text.shadowEnabled": true,
+        "text.shadowColor": "#7f000000",
+        "text.shadowOffsetX": 6,
+        "text.shadowOffsetY": 6,
+        "text.shadowBlur": 4,
+        "transform": {
+          "px": 960,
+          "py": 160,
+          "ax": 0,
+          "ay": 0,
+          "rx": 0,
+          "sx": 1.0,
+          "sy": 1.0
+        }
+      },
+      {
+        "id": "shape_example",
+        "name": "Example Shape",
+        "type": 7,
+        "layerType": "Shape",
+        "isVisible": true,
+        "inPoint": 0,
+        "outPoint": 4,
+        "opacity": 1.0,
+        "shapeType": 1,
+        "shapeWidth": 260,
+        "shapeHeight": 180,
+        "fillR": 0.95,
+        "fillG": 0.6,
+        "fillB": 0.14,
+        "fillA": 1.0,
+        "fillEnabled": true,
+        "strokeR": 0.06,
+        "strokeG": 0.08,
+        "strokeB": 0.1,
+        "strokeA": 1.0,
+        "strokeWidth": 10,
+        "strokeEnabled": true,
+        "strokeCap": 1,
+        "strokeJoin": 1,
+        "strokeAlign": 0,
+        "cornerRadius": 24,
+        "starPoints": 5,
+        "starInnerRadius": 0.382,
+        "polygonSides": 6,
+        "customPolygonClosed": true,
+        "customPolygonPoints": [],
+        "customPathClosed": true,
+        "customPath": [],
+        "transform": {
+          "px": 1260,
+          "py": 360,
+          "ax": 130,
+          "ay": 90,
+          "rx": -8,
+          "sx": 1.0,
+          "sy": 1.0
+        }
+      },
+      {
+        "id": "precomp_example",
+        "name": "Example Precomp",
+        "type": 8,
+        "layerType": "Precomp",
+        "isVisible": true,
+        "inPoint": 0,
+        "outPoint": 4,
+        "opacity": 1.0,
+        "composition.sourceId": "comp_nested_example",
+        "transform": {
+          "px": 640,
+          "py": 560,
+          "ax": 320,
+          "ay": 180,
+          "rx": 0,
+          "sx": 0.8,
+          "sy": 0.8
+        }
+      },
+      {
+        "id": "svg_example",
+        "name": "Example SVG",
+        "type": 7,
+        "layerType": "Shape",
+        "isVisible": true,
+        "inPoint": 0,
+        "outPoint": 4,
+        "opacity": 0.95,
+        "svg.sourcePath": "minimal-shape.svg",
+        "svg.fitToLayer": true,
+        "transform": {
+          "px": 1472,
+          "py": 672,
+          "ax": 256,
+          "ay": 256,
+          "rx": 0,
+          "sx": 0.52,
+          "sy": 0.52
+        }
+      },
+      {
+        "id": "image_example",
+        "name": "Example Image",
+        "type": 4,
+        "isVisible": true,
+        "inPoint": 0,
+        "outPoint": 4,
+        "opacity": 0.9,
+        "image.sourcePath": "minimal-image.ppm",
+        "image.fitToLayer": true,
+        "image.width": 64,
+        "image.height": 64,
+        "transform": {
+          "px": 448,
+          "py": 680,
+          "ax": 32,
+          "ay": 32,
+          "rx": 0,
+          "sx": 3.0,
+          "sy": 3.0
+        }
+      },
+      {
+        "id": "video_example",
+        "name": "Example Video",
+        "type": 10,
+        "layerType": "Video",
+        "isVisible": true,
+        "inPoint": 0,
+        "outPoint": 4,
+        "opacity": 0.95,
+        "video.sourcePath": "missing-video.mp4",
+        "video.proxyPath": "minimal-image.ppm",
+        "video.width": 64,
+        "video.height": 64,
+        "video.frameRate": 30,
+        "video.hasAudio": false,
+        "video.hasVideo": true,
+        "transform": {
+          "px": 1640,
+          "py": 680,
+          "ax": 32,
+          "ay": 32,
+          "rx": 0,
+          "sx": 2.5,
+          "sy": 2.5
+        }
+      },
+      {
+        "id": "audio_example",
+        "name": "Example Audio",
+        "type": 9,
+        "layerType": "Audio",
+        "isVisible": true,
+        "inPoint": 0,
+        "outPoint": 4,
+        "opacity": 1.0,
+        "audio.sourcePath": "missing-audio.wav",
+        "audio.volume": 0.75,
+        "audio.muted": false,
+        "transform": {
+          "px": 1640,
+          "py": 820,
+          "ax": 160,
+          "ay": 64,
+          "rx": 0,
+          "sx": 1.0,
+          "sy": 1.0
+        }
+      }
+    ],
+    "effects": [],
+    "assets": []
+  },
+  "diagnostics": {
+    "logLevel": "info",
+    "saveCrashTrace": true,
+    "cacheMode": "resume",
+    "retryCount": 1,
+    "cancelFile": "renders/example.cancel",
+    "summaryFile": "renders/example/summary.json",
+    "eventLogFile": "renders/example/events.jsonl"
+  }
+}

@@ -534,10 +534,27 @@ RenderDiagnosticsSpec
 - snapshot を JSON 化する
 - CLI で job を読むだけの子プロセスを作る
 
+Status:
+
+- `2026-05-23`
+  - `ArtifactRenderer` target を追加し、`artifact-renderer.exe --job job.json` の入口を作成
+  - v1 job schema の最小検証を追加
+  - `ArtifactRenderer/examples/minimal-job.json` を追加
+  - `--validate-only` / `--dump-summary` で、レンダリング前に job の読み取りと snapshot 件数を確認できるようにした
+  - まだ実レンダリング、進捗 IPC、Render Queue からの起動導線は未接続
+
 ### Phase 2
 
 - 1 フレーム PNG 出力を実装する
 - ログと終了コードを親へ返す
+
+Status:
+
+- `2026-05-23`
+  - `artifact-renderer.exe --job job.json` の通常実行で先頭フレーム PNG を 1 枚書き出す Phase 2 stub を追加
+  - 現段階の PNG は snapshot 復元後の実コンポジットではなく、job / composition 由来の診断パターン
+  - stdout / stderr に JSON line の `renderStarted` / `renderCompleted` / `renderFailed` を返す
+  - PNG 以外の output format は Phase 2 未対応として非 0 終了にする
 
 ### Phase 3
 
@@ -545,11 +562,172 @@ RenderDiagnosticsSpec
 - 進捗表示
 - キャンセル対応
 
+Status:
+
+- `2026-05-23`
+  - `frameStart <= frame < frameEnd` の PNG sequence stub を追加
+  - 各フレーム完了ごとに stdout JSON line の `renderProgress` を返す
+  - `--cancel-file path` または `diagnostics.cancelFile` の sentinel file でキャンセルできるようにした
+  - キャンセル時は `renderCanceled` を stderr に返し、終了コード `7` にする
+  - まだ親 UI からの cancel request 発行、progress 表示接続、実 snapshot composite は未接続
+
 ### Phase 4
 
 - 複数 backend 対応
 - キャッシュ / リトライ / 再開
 - 必要なら UI からの起動導線を追加
+
+Status:
+
+- `2026-05-23`
+  - `quality.backend` と `--backend` を追加し、CLI 契約として backend selector を受け取れるようにした
+  - Phase 4 stub では `auto` / `cpu` / `diagnostic` を診断 PNG backend として扱い、未実装 backend は明示的に非 0 終了にする
+  - `diagnostics.cacheMode: "resume"` または `--resume` で既存 PNG を skip/cache hit として扱う
+  - `diagnostics.retryCount` または `--retry-count` で PNG 書き込み失敗時の retry 回数を指定できるようにした
+  - progress JSON line に `backend` / `cacheHit` / `attempts` を追加
+  - まだ本物の GPU/CPU backend 切替、永続 cache index、親 UI 起動導線は未接続
+
+### Phase 5
+
+- 親プロセスが stdout stream だけに依存せず完了結果を読めるようにする
+- job JSON / CLI から result artifact の出力先を指定できるようにする
+- 外部プロセス起動導線の前に、結果取得の契約を固定する
+
+Status:
+
+- `2026-05-23`
+  - `--summary-file` / `diagnostics.summaryFile` を追加し、最終 `renderCompleted` / `renderFailed` / `renderCanceled` を JSON file として保存できるようにした
+  - `--event-log` / `diagnostics.eventLogFile` を追加し、stdout/stderr と同じ render event を JSON Lines で保存できるようにした
+  - event log は実行開始時に truncate し、各 event emit 時に追記する
+  - まだ `ArtifactRenderQueueService` からの `QProcess` 起動、UI progress 反映、cancel sentinel 作成は未接続
+
+### Phase 6
+
+- Render Queue から外部 renderer process を起動できるようにする
+- 既存の queue status / progress 経路に外部 renderer events を流し込む
+- 外部 renderer は当面 PNG sequence stub のみを担当し、既存 internal CPU/GPU path は維持する
+
+Status:
+
+- `2026-05-23`
+  - Render Backend に `external` を追加
+  - `ArtifactRenderQueueService` が `renderBackend == external` の job で `artifact-renderer.exe --job job.json` を起動する分岐を追加
+  - 外部 process 用 job JSON / summary / event log / cancel sentinel を temp work dir に生成する
+  - 外部 process の JSON line `renderProgress` / `renderCompleted` を既存 queue progress に反映する
+  - queue cancel / shutdown 時は cancel sentinel を作り、必要なら外部 process を terminate / kill する
+  - 現段階では external backend は PNG sequence のみ対応。実 snapshot composite ではなく外部 renderer 側の diagnostic PNG stub を使う
+
+### Phase 7
+
+- 外部 renderer に live object ではなく composition snapshot を渡す
+- 最初の復元対象を solid layer に絞り、未対応 layer は診断 fallback のまま維持する
+- snapshot transport の shape を親子で確認できるようにする
+
+Status:
+
+- `2026-05-23`
+  - `ArtifactRenderQueueService` の external job JSON に `composition->toJson()` の object と `layers` 配列を含めるようにした
+  - `ArtifactRenderer` の job summary に transported layer count を追加
+  - 外部 renderer が `snapshot.layers` の `LayerType::Solid` JSON を読み、背景色 + solid rectangle を PNG に描けるようにした
+  - `examples/minimal-job.json` に composition snapshot と solid layer の例を追加
+  - 未対応 layer / solid layer がない job は従来の diagnostic pattern に fallback する
+
+### Phase 8
+
+- external solid renderer の座標系を composition space と output space で揃える
+- solid layer snapshot の基本 transform を反映する
+
+Status:
+
+- `2026-05-23`
+  - `snapshot.composition.width/height` と output width/height の比率で canvas scale を適用
+  - solid layer の position / anchor / rotation / scale / opacity を反映
+  - `examples/minimal-job.json` に anchor / rotation fields を追加
+
+### Phase 9
+
+- text layer snapshot の最小復元を追加する
+- 外部 renderer の結果 JSON に painted / unsupported layer counts を載せる
+
+Status:
+
+- `2026-05-23`
+  - `snapshot.layers` の `LayerType::Text` を外部 renderer 側で rasterize する経路を追加
+  - `text.value` / font / alignment / wrap / box size / opacity を反映し、必要なら shadow / stroke も簡易合成する
+  - frame result と progress event に painted / unsupported layer count を追加
+  - `examples/minimal-job.json` に text layer の例を追加
+
+### Phase 10
+
+- SVG layer snapshot の最小復元を追加する
+- job file の相対 source path を job directory 基準で解決する
+
+Status:
+
+- `2026-05-23`
+  - `snapshot.layers` の `svg.sourcePath` を持つ `LayerType::Shape` を外部 renderer 側で rasterize する経路を追加
+  - relative `svg.sourcePath` を job JSON の directory 基準で解決するようにした
+  - `examples/minimal-job.json` に SVG layer の例と `examples/minimal-shape.svg` を追加
+
+### Phase 11
+
+- image layer snapshot の最小復元を追加する
+- image layer の source path と寸法を job に含める
+
+Status:
+
+- `2026-05-23`
+  - `snapshot.layers` の `LayerType::Image` を外部 renderer 側で rasterize する経路を追加
+  - `ArtifactImageLayer::toJson()` に `image.sourcePath` / `image.fitToLayer` / `image.width` / `image.height` を追加
+  - `examples/minimal-job.json` に image layer の例と `examples/minimal-image.ppm` を追加
+
+### Phase 12
+
+- shape layer snapshot の最小復元を追加する
+- shape layer の shape geometry と style を job に含める
+
+Status:
+
+- `2026-05-23`
+  - `snapshot.layers` の `LayerType::Shape` を外部 renderer 側で `QPainterPath` に戻して rasterize する経路を追加
+  - `examples/minimal-job.json` に shape layer の例を追加
+
+### Phase 13
+
+- precomp layer snapshot の最小復元を追加する
+- nested composition snapshot を job に含める
+
+Status:
+
+- `2026-05-23`
+  - `ArtifactCompositionLayer::toJson()` に `composition.sourceId` を追加
+  - render job の `snapshot.composition.compositions` に nested composition snapshot を積むようにした
+  - 外部 renderer 側で `LayerType::Precomp` を再帰的に rasterize する経路を追加
+  - `examples/minimal-job.json` に precomp layer と nested composition の例を追加
+
+### Phase 14
+
+- video layer snapshot の最小復元を追加する
+- video layer の source / proxy / size metadata を job に含める
+
+Status:
+
+- `2026-05-23`
+  - `ArtifactVideoLayer::toJson()` を `LayerType::Video` と namespaced `video.*` keys に揃えた
+  - 外部 renderer 側で `video.proxyPath` / `video.sourcePath` を試し、読める場合は静止 surface として描画するようにした
+  - 読めない場合は簡易プレースホルダを返すようにした
+
+### Phase 15
+
+- audio layer snapshot の最小復元を追加する
+- audio layer の source / volume / mute metadata を job に含める
+
+Status:
+
+- `2026-05-23`
+  - `ArtifactAudioLayer::toJson()` の `audio.sourcePath` / `audio.volume` / `audio.muted` を外部 renderer 側で読み込める状態にした
+  - 外部 renderer 側で `LayerType::Audio` を診断 placeholder として描画し、source / volume / muted 状態が見えるようにした
+  - `examples/minimal-job.json` に audio layer の例を追加
 
 ---
 

@@ -109,6 +109,13 @@
 - `Composition Editor Mask / Roto Editing`
 - 詳細: `docs/planned/MILESTONE_ACTIVE_IMPLEMENTATION_TRIAD_2026-05-12.md`
 
+### M-OPS-2 Continuation Sprint
+- 次の再開点を `app validation -> timeline readability -> editor mode stability` の順で固定する短期実装束
+- `Project Health / Problem View Wiring`
+- `Timeline Keyframe Editing`
+- `Composition Editor Mask / Roto Editing`
+- 詳細: `docs/planned/MILESTONE_CONTINUATION_SPRINT_2026-05-20.md`
+
 ### Render Execution / Isolation
 - **M-RE-1** External Renderer Design
   - 内蔵レンダラは維持しつつ、オフラインレンダリングだけ別プロセスへ切り出す
@@ -697,6 +704,7 @@
 ### M-RD-6 FFmpeg GPU Decode Backend
 - CPU decode とは別に FFmpeg hwaccel backend を持ち、video layer / playback / preview から選べるようにする
 - 詳細は `docs/planned/MILESTONE_FFMPEG_GPU_DECODE_BACKEND_2026-03-28.md`
+- 低レベルAI実装メモ: `docs/planned/MILESTONE_FFMPEG_81_PRORES_GPU_DECODE_LOW_LEVEL_AI_2026-05-23.md`
 
 ### M-RD-7 Unified Audio / Video Render Output
 - video render の後段で audio を mux し、音声付き出力を render queue から扱えるようにする
@@ -973,6 +981,7 @@
 - playback / scrub / loop との連動
 - hit rate / stale cache / dropped frame の可視化
 - 詳細は `docs/planned/MILESTONE_RAM_PREVIEW_CACHE_2026-03-26.md`
+- 低レベルAI実装メモ: `docs/planned/MILESTONE_PREVIEW_PLAYBACK_PERFORMANCE_LOW_LEVEL_AI_2026-05-23.md`
 
 ### M-RP-2 Disk Cache System
 - 永続 preview cache / manifest / eviction / diagnostics
