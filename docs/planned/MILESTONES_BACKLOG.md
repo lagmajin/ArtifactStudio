@@ -85,6 +85,11 @@
   - `PrimitiveRenderer2D` の cacheKey ベース最適化は実装済み
   - 主要ファイル: `Artifact/docs/MILESTONE_STATIC_LAYER_GPU_CACHE_2026-03-26.md`
 
+- **M-RAM-3** Preview Range Policy and Priority ❌ 未着手
+  - `playhead / playback direction / work area / loop` をもとに、どの frame を先に warmup するかの規則を固定する
+  - `immediate / near / directional / safety backfill / out-of-range` の priority reason を diagnostics から読めるようにする
+  - 詳細: `docs/planned/MILESTONE_RAM_PREVIEW_RANGE_POLICY_AND_PRIORITY_2026-05-31.md`
+
 - **M-CE-CRIT-1** Critical Render / Media Stability Program ❌ 未着手
   - パーティクル非表示、ビデオデコード失敗、ビデオレイヤー透明化を長期バグとしてまとめて追跡する
   - 診断、smoke case、回帰ゲートを先に整え、個別修正をレポートへ戻す
@@ -835,6 +840,12 @@
 - **機能:** GPU パーティクル・2D 流体ソルバー (Smoke/Fire)・インタラクティブ・シミュレーション
 - **見積:** 40-60h
 - **詳細:** `docs/planned/MILESTONE_VFX_PARTICLE_FLUID_2026-03-30.md`
+
+### M-VFX-2 AE-Style Simple Rain Effect
+- 既存 particle / effect 基盤で、AE っぽい簡易雨を最短構成で実現する
+- streak / density / direction / splash / depth feel を preset 中心でまとめる
+- **見積:** 8-14h
+- **詳細:** `docs/planned/MILESTONE_AE_STYLE_SIMPLE_RAIN_EFFECT_2026-05-31.md`
 
 ## Audio
 
