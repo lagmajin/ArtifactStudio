@@ -88,3 +88,9 @@
 - `docs/planned/ARTIFACT_IRENDERER_ANALYSIS_2026-04-17.md`
 - `docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_2026-04-20.md`
 - `docs/planned/MILESTONE_LIVE_FRAME_PIPELINE_RESOURCE_DIFF_2026-04-21.md`
+- `docs/planned/MILESTONE_IRENDERER_2D_PRIMITIVE_EXPANSION_2026-05-31.md`
+
+## 2026-05-31 Note
+
+- low-level `ArtifactIRenderer` 拡張としては、上位 shape workflow を増やしやすい `Arc / Rounded Rect / Styled Polyline` の façade 追加が次の候補
+- これは `ImmediateContext` 露出を増やす変更ではなく、renderer boundary を少し厚くする方向として扱う

@@ -127,6 +127,32 @@
   - job snapshot / CLI / progress / diagnostics の設計を先に固める
   - 詳細: `docs/planned/MILESTONE_EXTERNAL_RENDERER_DESIGN_2026-04-22.md`
 
+### Creative Effects / Exploratory Backlog
+- **M-FX-EXP-1** New Image Effect Exploration
+  - 既存の `blur / glow / chromatic aberration` から少し離れた、Artifact らしい画像エフェクト案を保管する
+  - まずは look-dev 用の発想メモとして扱い、制作体験に効くものから実装候補へ昇格させる
+  - `Temporal Fossil`
+  - `Pigment Separation`
+  - `Surface Memory`
+  - `Depth Melt`
+  - `Edge Echo`
+  - `Light Pressure`
+  - `Chromatic Relief`
+  - `Signal Collapse`
+  - `Ink Delay`
+  - `Atmospheric Slicing`
+  - 実装候補メモ:
+    - `Temporal Fossil`: 過去フレームの輪郭や色を薄く堆積させる。モーションブラーではなく時間の層を見せる方向
+    - `Pigment Separation`: RGB 分離ではなく、顔料やインクのにじみとして色がほどける方向
+    - `Surface Memory`: 素材表面に前の像の痕跡が焼き付く。キャンバス、金属、ガラスなど質感差を活かしやすい
+  - Core library 候補:
+    - `Temporal Fossil` は frame history / accumulation 基盤を持てるなら `ArtifactCore` 側に置く価値が高い
+    - `Pigment Separation` は CPU reference と GPU backend の両方を作りやすく、creative effect pack に馴染みやすい
+    - `Surface Memory` は texture/history/mask を跨ぐので、effect host contract が固まってから `ArtifactCore` 候補として再評価する
+  - 関連:
+    - `ArtifactCore/docs/MILESTONES_CORE_BACKLOG.md` の `C-GFX-1 Creative Effect Base`
+    - `ArtifactCore/docs/MILESTONES_CORE_BACKLOG.md` の `C-GFX-2 Creative Effect Pack`
+
 ### AI / Tooling
 - **M-AI-1** MCP/Tool Bridge ✅ Phase 1完了 (verified 2026-04-14)
   - McpBridge::handleRequest() / AIContext 実装済み
@@ -1200,6 +1226,45 @@
 - `ArtifactTimelineWidget` 縺ｧ normal timeline / curve editor 繧偵→縺ｪ縺｣縺ｦ縺ｯ縺薙→縺後ｒ謹ｭ縺｣縺励※縺上□縺輔＞
 - `U` 繧ｷ繝ｧ繝ｼ繝･縺ｧ mode toggle, `Tab` / `Shift+Tab` 縺ｧ curve editor 内 focus traversal
 - 隧ｳ邏ｰ縺ｯ `docs/planned/MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md`
+
+## Timeline / Layer (new)
+
+### M-TM-1 Track Matte Drag-Link UX
+- レイヤーパネルから Alt + ドラッグでトラックマット受け側レイヤーを指定する UI
+- Inspector の Matte セクション強化（MatteType 即切替 / 参照表示）
+- ドラッグ中のハイライトインジケータ、循環参照拒否、Undo/Redo 対応
+- 詳細: `docs/planned/MILESTONE_TRACK_MATTE_DRAG_LINK_UX_2026-06-01.md`
+
+### M-TA-2 Timeline Audio Waveform Display
+- タイムラインの Audio Layer 行で波形(peak min/max)をトラック内に描画
+- ズームに応じた粗密制御、フェードハンドル/音量オートメーション keyframe 可視化
+- 波形クリックでの seek、trim/gain/fade のドラッグ編集、Undo 対応
+- 詳細: `docs/planned/MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md`
+
+## Multi-Viewport / Preview
+
+### M-VP-1 Multi-Viewport Layout System
+- Single / HorizontalSplit / Four-Up / OnePlusThree レイアウト切替 API
+- 各ペインに任意の Camera Layer (Perspective / Orthographic: Top/Front/Left) をバインド
+- ペインごとの独立 Zoom/Pan 状態保持、playhead の同期更新
+- EventBus でのペインイベント multicast、非アクティブペイン低Hz ポーリングによる最適化
+- 詳細: `docs/planned/MILESTONE_MULTI_VIEWPORT_LAYOUT_2026-06-01.md`
+
+### M-PQ-1 Proxy Quality Toggle in Preview UI
+- Playback Control / Viewer フッターから Draft(1/4) / Preview(1/2) / Full を切替
+- quality 切替で render cache invalidation と必要に応じて warm-up 再キャッシュ
+- Composition 設定として quality preset 保存（新規作成時に復元）
+- 詳細: `docs/planned/MILESTONE_PROXY_QUALITY_TOGGLE_UI_2026-06-01.md`
+
+## Motion Graphics
+
+### M-MG-1 Motion Graphics Template System (mogrt-like)
+- `ArtifactTemplateDocument` — exposedParams 定義 + layer tree + keyframe snapshot
+- Export / Import (.artemplate) — 選択レイヤー郡からテンプレート抽出・再配置
+- Inspector に Template Parameters セクション（Scalar/Point/Color/Text/Enum）
+- Template Library Browser（カテゴリ/タグ/サムネイル / DnD 配置）
+- .mogrt 互換読込の option（unzip → JSON ヘッダ + layer tree 抽出）
+- 詳細: `docs/planned/MILESTONE_MOTION_GRAPHICS_TEMPLATE_2026-06-01.md`
 
 ## Terminal / Shell
 

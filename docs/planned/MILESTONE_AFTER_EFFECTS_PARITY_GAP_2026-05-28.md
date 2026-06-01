@@ -24,6 +24,12 @@
 - [`docs/MILESTONE_TEXT_ANIMATOR_INTEGRATION_2026-04-27.md`](X:/Dev/ArtifactStudio/docs/MILESTONE_TEXT_ANIMATOR_INTEGRATION_2026-04-27.md)
 - [`docs/planned/MILESTONE_APP_SURFACE_COHESION_PHASE4_EXECUTION_2026-05-17.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_SURFACE_COHESION_PHASE4_EXECUTION_2026-05-17.md)
 - [`docs/planned/MILESTONE_TEXT_EFFECT_WORKFLOW_BRIDGE_2026-05-25.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_TEXT_EFFECT_WORKFLOW_BRIDGE_2026-05-25.md)
+- [`docs/analysis/AFTER_EFFECTS_MISSING_FEATURES_CURRENT_2026-05-28.md`](X:/Dev/ArtifactStudio/docs/analysis/AFTER_EFFECTS_MISSING_FEATURES_CURRENT_2026-05-28.md)
+- [`docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_COMPARISON_2026-05-30.md`](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_COMPARISON_2026-05-30.md)
+- [`docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_CHECKLIST_2026-05-30.md`](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_CHECKLIST_2026-05-30.md)
+- [`docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_HANDOFF_2026-05-30.md`](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_HANDOFF_2026-05-30.md)
+- [`docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_OPEN_QUESTIONS_2026-05-30.md`](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_OPEN_QUESTIONS_2026-05-30.md)
+- [`docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_MASTER_SUMMARY_2026-05-30.md`](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_MASTER_SUMMARY_2026-05-30.md)
 
 ---
 
@@ -143,5 +149,10 @@ Core のエンジンはあるが、AE っぽい編集体験はまだ途中。
 
 - この文書は 2026-04-08 版の代替ではなく、現行 repo に合わせた再評価版。
 - 古い gap analysis は履歴として残すが、優先順位の判断はこの版を基準にする。
+- 外部AI の要約メモは [AFTER_EFFECTS_MISSING_FEATURES_CURRENT_2026-05-28.md](X:/Dev/ArtifactStudio/docs/analysis/AFTER_EFFECTS_MISSING_FEATURES_CURRENT_2026-05-28.md) を比較参照として使う。
+- 比較の入口は [AFTER_EFFECTS_PARITY_COMPARISON_2026-05-30.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_COMPARISON_2026-05-30.md) にもある。
+- ざっと見るなら [AFTER_EFFECTS_PARITY_CHECKLIST_2026-05-30.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_CHECKLIST_2026-05-30.md) を使う。
+- 再開点を固定したいなら [AFTER_EFFECTS_PARITY_HANDOFF_2026-05-30.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_HANDOFF_2026-05-30.md) を使う。
+- 未解決の論点を洗うなら [AFTER_EFFECTS_PARITY_OPEN_QUESTIONS_2026-05-30.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_OPEN_QUESTIONS_2026-05-30.md) を使う。
+- まず全体像を掴むなら [AFTER_EFFECTS_PARITY_MASTER_SUMMARY_2026-05-30.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_MASTER_SUMMARY_2026-05-30.md) を使う。
 - ビルドやテストは実施していない。
-

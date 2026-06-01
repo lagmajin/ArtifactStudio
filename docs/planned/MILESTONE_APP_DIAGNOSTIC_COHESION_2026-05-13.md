@@ -98,3 +98,10 @@ ArtifactStudio 全体の diagnostics を、画面ごとに別の言い方や別�
 ## Next Step
 
 Phase 1 で使う warning / error / next の文言セットを先に固定する。
+
+## 2026-05-31 Survey Note
+
+- `RAM preview` は diagnostics cohesion の代表例になっている
+- 最近の parity 作業で `ready-missing-image` を state として分離し始めたため、今後は `ready / playable / pending / failed / fallback` を diagnostics 語彙として固定しやすい
+- App Debugger / timeline tooltip / footer / render fallback reason の wording を同じ辞書で見る slice が必要
+- 関連する横断整理は [MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md) を参照

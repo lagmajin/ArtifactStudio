@@ -27,6 +27,10 @@
 
 - [MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md:1)
 - [MILESTONE_AE_PARITY_EXECUTION_2026-04-29.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AE_PARITY_EXECUTION_2026-04-29.md:1)
+- 共有メモ: [AFTER_EFFECTS_PARITY_COMPARISON_2026-05-30.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_COMPARISON_2026-05-30.md:1)
+- チェック表: [AFTER_EFFECTS_PARITY_CHECKLIST_2026-05-30.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_CHECKLIST_2026-05-30.md:1)
+- 再開点: [AFTER_EFFECTS_PARITY_HANDOFF_2026-05-30.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_HANDOFF_2026-05-30.md:1)
+- 未解決: [AFTER_EFFECTS_PARITY_OPEN_QUESTIONS_2026-05-30.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_OPEN_QUESTIONS_2026-05-30.md:1)
 
 ---
 
@@ -256,3 +260,80 @@ AE としての不足を埋める順番は、現時点では次が自然。
 
 - この文書は「現行 repo を読んだうえでの不足メモ」であり、ビルド・実機検証は行っていない
 - 既存の parity 文書を否定するものではなく、実装済み土台と未完成ワークフローを切り分けるための補助メモ
+- 共有版の入口は [docs/shared/ai-tech-memos/INDEX.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/INDEX.md:1)
+- まず総括だけ読むなら [AFTER_EFFECTS_PARITY_MASTER_SUMMARY_2026-05-30.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_MASTER_SUMMARY_2026-05-30.md:1)
+- ざっと確認するなら [AFTER_EFFECTS_PARITY_CHECKLIST_2026-05-30.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_CHECKLIST_2026-05-30.md:1)
+- 迷ったら [AFTER_EFFECTS_PARITY_HANDOFF_2026-05-30.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_HANDOFF_2026-05-30.md:1)
+- 答えが揃っていない論点は [AFTER_EFFECTS_PARITY_OPEN_QUESTIONS_2026-05-30.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_OPEN_QUESTIONS_2026-05-30.md:1)
+
+---
+
+## 補足: 外部AI 調査メモ
+
+別のAIに AE ライク機能の不足を整理してもらった要約を、比較用のメモとして残す。
+この一覧は「どこから手を付けると制作機としての信用が上がるか」という感覚をつかむためのもので、現行コードの厳密な再検証までは含まない。
+
+### P0 - 即座に対処が必要
+
+- RAM プレビュー / キャッシュの安定性
+  - `requested` と `ready` の状態契約が未整備
+- トラックマット / アルファ合成の正確性
+  - マット連鎖の評価順にバグの疑い
+- ブレンドモード
+  - 18/38 程度しか埋まっておらず、Dissolve / Linear Burn / Hard Mix / Stencil 系が不足
+
+### P1 - コア生産性
+
+- キーフレーム補間 / グラフエディタ
+  - Linear が中心で、Bezier / Hold / Roving / Speed Graph が未完成
+- テキストアニメーター UX
+  - Range Selector / CJK / timeline 表示が未完成
+- モーションブラー
+  - 実装の骨はあるが UI 配線と一貫性が弱い
+- アジャスタメントレイヤー
+  - スタブ段階で、レンダーパス統合が未完成
+- 親子階層 / トランスフォーム伝播
+  - データ構造はあるが伝播チェーンがまだ不完全
+
+### P2 - 標準的なプロ機能
+
+- マーカーシステム
+  - コンポ / レイヤーともに未実装扱い
+- シェイプレイヤー演算子
+  - Trim Path / Repeater / Boolean ops / パスアニメーションが不足
+- プリコンポーズ完全ワークフロー
+  - ネスト、タブ開き、属性保持が不完全
+- レイヤースタイル
+  - Drop Shadow / Glow / Bevel などが不足
+- タイムリマップ / フレームブレンド
+  - Optical Flow 相当がない
+- エクスプレッションエンジン
+  - パーサーはあるが `wiggle()` / `loopIn()` / `thisComp` / pick whip が不足
+
+### P3 - 高度な機能
+
+- エフェクト数
+  - 現在の種数から大幅に増やす余地がある
+- カラーマネジメント (OCIO / ACES)
+  - 基盤はあるが production pipeline は未実装
+- 3D カメラトラッカー
+  - 未実装
+- Plugin SDK / AEX 互換
+  - OFX スタブ段階
+- テンプレートシステム (.mogrt 相当)
+  - 未実装
+- Python API 完全カバレッジ
+  - 部分的
+
+### このメモから読めること
+
+- P0 は「機能の有無」より「制作中に壊れないか」が主題
+- P1 は「実際の編集体験を AE に近づける」領域
+- P2 は「標準的なプロ機能を埋める」段階
+- P3 は「互換・拡張・業務連携」の長期課題
+
+### 既存メモとの関係
+
+- 既存の [`MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md:1) と大枠は一致する
+- この補足は、外部AI の調査結果を比較参照できるように残すためのもの
+- 優先順位の細部は、現行コードの再確認で詰める前提にする

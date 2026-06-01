@@ -93,3 +93,10 @@
 1. playhead 更新経路を一本化する
 2. 操作中 preview の下限を決める
 3. 再描画 coalescing の条件を決める
+
+## 2026-05-31 Survey Note
+
+- 体感改善の前提として、`RAM preview fallback` の理由が各 surface で同じ意味を持つことが重要
+- いまは `playable / ready-missing-image / playing-policy-disabled / viewport-interacting` を横断で読めるようにする価値が高い
+- `playback feel` 単独より、state contract 側の整理と並走させた方が再発を減らしやすい
+- 関連する整理は [MILESTONE_RAM_PREVIEW_CACHE_PARITY_EXECUTION_2026-05-31.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_RAM_PREVIEW_CACHE_PARITY_EXECUTION_2026-05-31.md) と [MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md) を参照

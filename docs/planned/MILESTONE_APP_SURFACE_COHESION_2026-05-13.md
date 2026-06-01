@@ -113,6 +113,13 @@ ArtifactStudio 全体の surface を、画面ごとの寄せ集めではなく�
 - playhead / loop / speed / in-out の UI 反映差分を widget 固有ロジックで説明しなくてよくなる
 - surface をまたいでも `transport` の語彙と状態表示が読み直し不要になる
 
+### 2026-05-31 Survey Note
+
+- `ArtifactPlaybackService` を state authority とする方向はかなり進んでいる
+- 一方で `Timeline / footer / render fallback / secondary preview / debugger` が、まだ surface ごとに別の説明粒度を持っている
+- 今の app surface cohesion では、見た目だけでなく `playable / requested / ready / failed / fallback` の横断語彙を固定する slice が必要
+- この続きは [MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md) に切り出す
+
 ---
 
 ## Execution Checklist

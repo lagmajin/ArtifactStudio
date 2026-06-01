@@ -26,6 +26,7 @@
 - `M-IR-8 ImmediateContext Boundary / De-direct`
 - `M-DIAG-5 Startup Thread Churn / Worker Burst Trace`
 - `Particle Render Path Stabilization`
+- `M-IR-10 ArtifactIRenderer 2D Primitive Expansion`
 
 ## Return Order
 
@@ -40,3 +41,8 @@
 - 変更を再開するときの順番が決まっている
 - 壊れやすいポイントが checklist 化されている
 - いまは置いておく判断をしても、戻り先が失われない
+
+## 2026-05-31 Note
+
+- `Arc / Rounded Rect / Styled Polyline` の追加は renderer façade の拡張としては有望だが、`CompositionRenderController` から low-level call site を増やす形では入れない
+- まず `ArtifactIRenderer` / `PrimitiveRenderer2D` に閉じた実装面として用意し、その後 shape workflow から採用する順を守る

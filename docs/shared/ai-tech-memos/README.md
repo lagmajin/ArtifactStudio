@@ -45,3 +45,20 @@
 ```
 
 このディレクトリは、マイルストーン文書の代わりではなく、実装中の小さい観測メモを共有するためのものです。
+
+関連メモ:
+- 関数入口を固定するなら [After Effects Parity P0 Preview Cache Functions](AFTER_EFFECTS_PARITY_P0_PREVIEW_CACHE_FUNCTIONS_2026-05-31.md)
+- 対象ファイルを固定するなら [After Effects Parity P0 Preview Cache Target Files](AFTER_EFFECTS_PARITY_P0_PREVIEW_CACHE_TARGET_FILES_2026-05-31.md)
+- コードを追うための 1 ページ手順は [After Effects Parity P0 Preview Cache Investigation](AFTER_EFFECTS_PARITY_P0_PREVIEW_CACHE_INVESTIGATION_2026-05-31.md)
+- 3 ステップの最短版は [After Effects Parity P0 Preview Cache Quickcheck](AFTER_EFFECTS_PARITY_P0_PREVIEW_CACHE_QUICKCHECK_2026-05-31.md)
+- preview / cache だけを見るなら [After Effects Parity P0 Preview Cache](AFTER_EFFECTS_PARITY_P0_PREVIEW_CACHE_2026-05-31.md)
+- P0 の確認表は [After Effects Parity P0 Checklist](AFTER_EFFECTS_PARITY_P0_CHECKLIST_2026-05-31.md)
+- P0 だけを切り出した起点は [After Effects Parity P0 Starter](AFTER_EFFECTS_PARITY_P0_STARTER_2026-05-31.md)
+- 実行順の地図は [After Effects Parity Execution Roadmap](AFTER_EFFECTS_PARITY_EXECUTION_ROADMAP_2026-05-31.md)
+- まず読む総括は [After Effects Parity Master Summary](AFTER_EFFECTS_PARITY_MASTER_SUMMARY_2026-05-30.md)
+- After Effects 比較の入口は [INDEX.md](INDEX.md) を見る
+- 比較用のまとめは [After Effects Parity Comparison Notes](AFTER_EFFECTS_PARITY_COMPARISON_2026-05-30.md)
+- P0〜P3 の抜き出し表は [After Effects Parity Checklist](AFTER_EFFECTS_PARITY_CHECKLIST_2026-05-30.md)
+- 再開点の案内は [After Effects Parity Handoff](AFTER_EFFECTS_PARITY_HANDOFF_2026-05-30.md)
+- 未解決の論点は [After Effects Parity Open Questions](AFTER_EFFECTS_PARITY_OPEN_QUESTIONS_2026-05-30.md)
+- 入口の整理図は [After Effects Parity Document Map](AFTER_EFFECTS_PARITY_DOCUMENT_MAP_2026-05-30.md)

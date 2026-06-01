@@ -41,6 +41,22 @@ active composition editor / tool options / core shape operators の接続が弱�
 4. core の shape operator / trim path 系が app-layer workflow に十分出てきていない
 5. shape cache は存在するが、描画直前に無効化される構造が残っている
 
+### 2026-05-31 Survey Note: Line Shape Positioning
+
+- `Line` は独立した新レイヤー種別として増やすより、既存 `ArtifactShapeLayer` の `ShapeType::Line` を正式な workflow に引き上げる方が自然
+- 現状コードでは `ShapeType::Line` 自体、描画分岐、tool options 上の shape type はすでに存在する
+- 一方で `新規 > シェイプ` の追加導線では `Line` が見えないため、体験上は「未搭載」に近く見える
+- 広告動画 / 注釈 / 図解 / underline / wipe の用途を考えると、`Line` は `Arrow` や `Callout` より先に底上げする価値が高い
+- したがって直近は `Line layer` を別物として増やすのではなく、`Shape workflow` の不足として扱う
+
+### Line First Slice
+
+- [ ] `新規 > シェイプ` から `Line` を作成できるようにする
+- [ ] `Line` の既定 size / anchor / naming を他 shape と同じ粒度で整える
+- [ ] `stroke width / stroke cap / dash` を `Line` で実務に耐える quick control として優先する
+- [ ] composition editor 上で `Line` の両端編集と方向の affordance を確認する
+- [ ] 将来の `Arrow` は `Line` の派生 shape として検討し、独立 layer type は増やさない
+
 ---
 
 ## フェーズ
@@ -118,6 +134,9 @@ active composition editor / tool options / core shape operators の接続が弱�
    - 既存 `ArtifactLayerEditorWidgetV2` の param handle / path edit を参考にする
 3. **cache 再接続の調査**
    - shape cache が draw 直前に無効化される箇所を整理する
+4. **Line を shape workflow に正式接続**
+   - `ShapeType::Line` の create entry を `新規 > シェイプ` に出す
+   - line 用 quick control を `stroke width / cap / dash` 優先で整える
 
 ---
 
