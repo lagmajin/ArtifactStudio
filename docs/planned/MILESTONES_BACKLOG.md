@@ -268,6 +268,9 @@
 - Project Health / Problem View / App Debugger / Frame Debug View / harness report の diagnostics 文法を揃える
 - warning / error / next action の見せ方を surface 横断で統一する
 - 詳細は `docs/planned/MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md`
+- render preflight / output safety check の cost breakdown をこの文法に乗せる
+- 詳細は `docs/planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`
+- Phase 1 実行メモは `docs/planned/MILESTONE_RENDER_PREFLIGHT_PHASE1_EXECUTION_2026-06-02.md`
 
 ### M-IR-8 ImmediateContext Boundary / De-direct
 - `DiligentEngine` の `ImmediateContext` / `IDeviceContext` を layer / widget / controller から直接触らない構造へ寄せる
@@ -842,6 +845,11 @@
 - composition 全体の最後に掛かる final effect / end-stage effect を検討する
 - layer / effect stack の後段で、出力直前に 1 回だけ効く処理を想定する
 - before / after の比較や render output 調整と合わせて扱う
+
+### M-FX-10 Visual Effect Bus
+- composition final effect を起点に、group/shared render target を使う visual bus を検討する
+- send / return を映像向けの中間レンダーターゲット共有として扱う
+- 詳細は `docs/planned/MILESTONE_VISUAL_EFFECT_BUS_2026-06-02.md`
 
 ### M-FX-9 Face Detection & Auto-Mosaic
 - OpenCV による顔認識 → 自動モザイク/ぼかしエフェクト

@@ -37,6 +37,8 @@ artifactpr_build.log
 build_artifact.txt
 build_output.log
 build_output.txt
+build_*.log
+diff.txt
 test_*.png
 vc140.pdb
 CMakeSettings.json
