@@ -42,10 +42,16 @@ After Effects 標準操作を実現する。MatteType 列挙と LayerMatteRefere
 ## 未着手要素
 
 - レイヤーパネルからのドラッグ＆ドロップでトラックマット受け側レイヤーを指定する UI
-- Inspector の Matte セクションでの受け側レイヤー参照の可視化・変更
 - ドラッグ中のターゲットハイライトとドロップ許可条件の制御
-- MatteType 切替（Alpha / Luma / Inverted Luma）を Inspector から即切替
 - ターゲットレイヤーが削除・移動されたときの dangling reference 処理
+
+## 進捗メモ
+
+- レイヤーパネルの `Alt + Drag` で matte link を設定できる
+- matte の self-reference / cycle は UI と表示の両方で拒否・警告する
+- Inspector の Matte 行はクリックで最初の source へ focus できる
+- Inspector の Matte 行は右クリックで `MatteType` を切り替えられる
+- Layer Panel の matte badge は source 名と type を表示する
 
 ---
 
