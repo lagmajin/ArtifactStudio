@@ -271,6 +271,8 @@
 - render preflight / output safety check の cost breakdown をこの文法に乗せる
 - 詳細は `docs/planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`
 - Phase 1 実行メモは `docs/planned/MILESTONE_RENDER_PREFLIGHT_PHASE1_EXECUTION_2026-06-02.md`
+- cross-industry inspection tools の上位整理は `docs/planned/MILESTONE_CROSS_INDUSTRY_INSPECTION_TOOLS_2026-06-02.md`
+- Phase 1 実行メモは `docs/planned/MILESTONE_CROSS_INDUSTRY_INSPECTION_TOOLS_PHASE1_EXECUTION_2026-06-02.md`
 
 ### M-IR-8 ImmediateContext Boundary / De-direct
 - `DiligentEngine` の `ImmediateContext` / `IDeviceContext` を layer / widget / controller から直接触らない構造へ寄せる
