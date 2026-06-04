@@ -106,11 +106,18 @@ timeline から keyframe を見て、打って、動かす導線を固める。
 - keyframe の前後ジャンプを通す
 - drag で keyframe を移動できるようにする
 - property path ごとの lane 表示を整える
+- trim / delete で後続レイヤーをまとめてずらす ripple edit を入れる
 
 ### 完了条件
 
 - timeline 上だけで keyframe 操作が完結する
 - inspector 側と結果が一致する
+- ripple edit を使った後続全移動が Undo/Redo で破綻しない
+
+### 進行メモ
+
+- 2026-06-04: ripple edit の最小形として、`Trim Out` の後続全移動を次回の実装対象に追加した
+- 2026-06-04: 後続レイヤーの時間移動と keyframe シフトは同一操作として扱い、undo 単位を 1 回にまとめる方針にした
 
 ---
 

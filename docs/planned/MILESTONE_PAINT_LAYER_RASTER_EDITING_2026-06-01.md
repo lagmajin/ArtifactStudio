@@ -97,6 +97,383 @@
   - layer invalidate
   - undo command を記録
 
+## ArtifactCore 型定義ドラフト
+
+この節では、`ArtifactCore` に切り出す時の最小インターフェースを定義する。  
+ここでの狙いは、実装を先に固定することではなく、`ImageLayer` と混ざらない責務境界を明文化すること。
+
+### 設計判断
+
+- `PaintLayer` は `ImageLayer` の派生ではなく独立型にする
+- canonical storage は `ImageF32x4_RGBA` に固定する
+- `StrokeSample` は通常の project save には含めない
+- `PaintPreviewState` は永続化しない
+- `Clone Stamp` と `Healing Brush` は同じ stroke 基盤を共有する
+- `TrackedPoint` は初期版では必須にしない
+
+### 低レベル型
+
+```cpp
+export enum class PaintToolKind {
+    Brush,
+    Eraser,
+    CloneStamp,
+    HealingBrush
+};
+
+export enum class PaintRepairMode {
+    Clone,
+    Heal,
+    PatchBlend,
+    TemporalHeal
+};
+
+export enum class SourceAnchorMode {
+    FixedPoint,
+    OffsetFromTarget,
+    TrackedPoint
+};
+
+export struct StrokeSample {
+    QPointF position;
+    float pressure = 1.0f;
+    float tiltX = 0.0f;
+    float tiltY = 0.0f;
+    float velocity = 0.0f;
+    double timestamp = 0.0;
+    bool isFirst = false;
+    bool isLast = false;
+};
+
+export struct SourceAnchor {
+    SourceAnchorMode mode = SourceAnchorMode::FixedPoint;
+    QPointF sourcePosition;
+    QPointF targetPosition;
+    QPointF offset;
+    int sourceFrame = -1;
+    float confidence = 1.0f;
+    bool locked = false;
+};
+
+export struct RepairOperation {
+    PaintRepairMode mode = PaintRepairMode::Clone;
+    float sampleRadius = 24.0f;
+    float blendStrength = 1.0f;
+    float colorMatchStrength = 0.0f;
+    float edgeFeather = 0.5f;
+    float patchSearchRadius = 48.0f;
+    float seamPenalty = 0.0f;
+    float temporalWeight = 0.0f;
+};
+
+export struct PaintStroke {
+    QUuid strokeId;
+    PaintToolKind toolKind = PaintToolKind::Brush;
+    QVector<StrokeSample> samples;
+    std::optional<SourceAnchor> sourceAnchor;
+    std::optional<RepairOperation> repair;
+    float radius = 24.0f;
+    float hardness = 1.0f;
+    float flow = 1.0f;
+    float opacity = 1.0f;
+    double startTime = 0.0;
+    double endTime = 0.0;
+    QRectF affectedRect;
+};
+
+export struct PaintLayerSourceRef {
+    enum class Kind {
+        Empty,
+        ImportedImage,
+        ImportedVideoFrame,
+        DuplicatedLayer
+    };
+
+    Kind kind = Kind::Empty;
+    QString sourceAssetId;
+    QString sourceLayerId;
+    int sourceFrame = -1;
+};
+
+export struct PaintLayerBufferDesc {
+    QSize canvasSize;
+    bool premultipliedAlpha = true;
+    bool linearColorSpace = true;
+};
+
+export struct PaintPreviewState {
+    QPointF cursorPosition;
+    QPointF sourcePreviewPosition;
+    float brushRadius = 24.0f;
+    float previewOpacity = 1.0f;
+    QRectF overlayBounds;
+};
+
+export struct PaintUndoRecord {
+    QUuid undoId;
+    QUuid strokeId;
+    QRectF affectedRect;
+    int layerRevisionBefore = 0;
+    int layerRevisionAfter = 0;
+};
+```
+
+### `PaintLayer` interface
+
+```cpp
+export class PaintLayer {
+public:
+    PaintLayer();
+    explicit PaintLayer(const PaintLayerBufferDesc& desc);
+
+    QUuid layerId() const;
+    QString name() const;
+    void setName(const QString& name);
+
+    bool isVisible() const;
+    void setVisible(bool visible);
+
+    float opacity() const;
+    void setOpacity(float opacity);
+
+    BlendMode blendMode() const;
+    void setBlendMode(BlendMode mode);
+
+    Transform2D transform() const;
+    void setTransform(const Transform2D& transform);
+
+    TimeRange timeRange() const;
+    void setTimeRange(const TimeRange& range);
+
+    QSize canvasSize() const;
+    void resizeCanvas(const QSize& size);
+
+    const ImageF32x4_RGBA& contentBuffer() const;
+    ImageF32x4_RGBA& contentBuffer();
+
+    const PaintLayerSourceRef& sourceReference() const;
+    void setSourceReference(const PaintLayerSourceRef& ref);
+
+    int revision() const;
+    QRectF dirtyRect() const;
+    void clearDirtyRect();
+
+    void appendStroke(const PaintStroke& stroke);
+    const QVector<PaintStroke>& strokeHistory() const;
+
+    void applyStroke(const PaintStroke& stroke);
+    PaintUndoRecord captureUndoForStroke(const PaintStroke& stroke) const;
+    void restoreFromUndo(const PaintUndoRecord& record);
+
+private:
+    QUuid id_;
+    QString name_;
+    bool visible_ = true;
+    float opacity_ = 1.0f;
+    BlendMode blendMode_ = BlendMode::Normal;
+    Transform2D transform_;
+    TimeRange timeRange_;
+    PaintLayerBufferDesc bufferDesc_;
+    ImageF32x4_RGBA contentBuffer_;
+    PaintLayerSourceRef sourceRef_;
+    QVector<PaintStroke> strokeHistory_;
+    QRectF dirtyRect_;
+    int revision_ = 0;
+};
+```
+
+### 保存方針
+
+- `PaintLayer` の永続化対象
+  - `name`
+  - `visible`
+  - `opacity`
+  - `blendMode`
+  - `transform`
+  - `timeRange`
+  - `canvasSize`
+  - `contentBuffer`
+  - `sourceReference`
+  - `strokeHistory` は原則メタ情報のみ
+- `PaintLayer` の非永続対象
+  - `PaintPreviewState`
+  - hover 中の cursor 情報
+  - drag 中の未確定 path
+  - 完全な raw sample stream
+
+### Undo 方針
+
+- undo の最小単位は 1 stroke
+- `PaintUndoRecord` は buffer 全コピーを常に持たず、まずは affected rect と revision を持つ
+- 差分保存が難しい場合は checkpoint snapshot を別経路で積む
+- preview 中は undo を積まない
+
+### 初期版の最小到達点
+
+1. `PaintLayer` を composition に追加できる
+2. `Brush` と `Eraser` が同じ stroke path を使える
+3. `CloneStamp` が `SourceAnchor` を使って動く
+4. `Heal` は `RepairOperation` の mode だけ先に確保する
+5. project save/load で `contentBuffer` が失われない
+
+## Serialization Draft
+
+`PaintLayer` は、layer metadata と pixel payload を分けて保存する。  
+この分離により、将来 `StrokeSample` を保存するかどうかを切り替えても、基本の project format を壊さずに済む。
+
+### 保存単位
+
+- metadata
+  - layer ID
+  - display name
+  - transform / opacity / blend / visibility
+  - source reference
+  - buffer description
+  - revision / dirty tracking
+- payload
+  - canonical `ImageF32x4_RGBA`
+  - optional thumbnail or preview cache
+- history
+  - default は stroke metadata のみ
+  - raw `StrokeSample` は非推奨
+
+### JSON Draft
+
+```json
+{
+  "type": "paint",
+  "id": "6f0db9d2-4c84-4eb0-a6cf-2f4d38f4f9d0",
+  "name": "Retouch 01",
+  "visible": true,
+  "opacity": 1.0,
+  "blendMode": "normal",
+  "transform": {
+    "tx": 0.0,
+    "ty": 0.0,
+    "rotation": 0.0,
+    "scaleX": 1.0,
+    "scaleY": 1.0
+  },
+  "timeRange": {
+    "start": 0.0,
+    "end": 0.0
+  },
+  "canvasSize": {
+    "width": 1920,
+    "height": 1080
+  },
+  "sourceReference": {
+    "kind": "ImportedImage",
+    "sourceAssetId": "asset-1234",
+    "sourceLayerId": "",
+    "sourceFrame": -1
+  },
+  "buffer": {
+    "encoding": "rgba32f",
+    "linearColorSpace": true,
+    "premultipliedAlpha": true
+  },
+  "revision": 12,
+  "dirtyRect": {
+    "x": 128.0,
+    "y": 64.0,
+    "width": 240.0,
+    "height": 180.0
+  },
+  "strokes": [
+    {
+      "strokeId": "c7a6a9d0-8c49-4db2-b5ef-3d2f1b1c6d61",
+      "toolKind": "CloneStamp",
+      "radius": 24.0,
+      "hardness": 1.0,
+      "flow": 1.0,
+      "opacity": 1.0,
+      "repair": {
+        "mode": "Clone",
+        "sampleRadius": 24.0,
+        "blendStrength": 1.0,
+        "colorMatchStrength": 0.0,
+        "edgeFeather": 0.5,
+        "patchSearchRadius": 48.0,
+        "seamPenalty": 0.0,
+        "temporalWeight": 0.0
+      }
+    }
+  ]
+}
+```
+
+### 保存ルール
+
+- `contentBuffer` は project 内包を基本にする
+- 外部ファイル退避をする場合は、`sourceReference` と別に payload path を持つ
+- undo snapshot は常時保存しない
+- `PaintPreviewState` は保存しない
+- history は stroke metadata のみに抑える
+
+### `ImageF32x4_RGBA` 境界
+
+- import 時
+  - `QImage` / `cv::Mat` / file path から `ImageF32x4_RGBA` に明示変換する
+- export 時
+  - `ImageF32x4_RGBA` から `QImage` / `cv::Mat` / file path へ明示変換する
+- hot path
+  - `QImage` を見ない
+  - implicit conversion を置かない
+
+## Suggested File Split
+
+`ArtifactCore` に落とす場合の、分割候補は次の通り。
+
+### Core module
+
+- `ArtifactCore/include/Paint/PaintLayer.ixx`
+  - `PaintLayer` 本体
+  - buffer desc
+  - source ref
+  - undo record
+
+- `ArtifactCore/include/Paint/PaintStroke.ixx`
+  - `PaintToolKind`
+  - `StrokeSample`
+  - `PaintStroke`
+  - `SourceAnchor`
+  - `RepairOperation`
+
+- `ArtifactCore/src/Paint/PaintLayer.cppm`
+  - apply / restore / dirty tracking
+  - serialization helpers
+
+- `ArtifactCore/src/Paint/PaintStroke.cppm`
+  - sample normalization
+  - stroke packing helpers
+
+### App integration
+
+- `Artifact/include/Layer/ArtifactPaintLayer.ixx`
+  - `PaintLayer` の app 側ラッパー
+  - composition への配置
+
+- `Artifact/src/Layer/ArtifactPaintLayer.cppm`
+  - renderer 連携
+  - current buffer 供給
+
+- `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+  - overlay / stroke commit routing
+
+- `Artifact/src/Widgets/ArtifactToolOptionsBar.cppm`
+  - brush / clone / heal / eraser のパラメータ surface
+
+### 実装順
+
+1. `PaintStroke` / `SourceAnchor` / `RepairOperation`
+2. `PaintLayer` の buffer ownership
+3. JSON save/load
+4. `CloneStamp` の適用
+5. `HealingBrush` の mode 追加
+6. overlay preview
+7. undo snapshot 最適化
+
 ## フェーズ
 
 ### Phase 1: Boundary Audit
@@ -269,6 +646,92 @@ composition editor 上で `PaintLayer` を違和感なく編集できる入口�
 2. blank `PaintLayer` を layer type としてだけ先に通す
 3. hard round brush + eraser の 2 つに絞って stroke engine を作る
 4. undo と save が成立してから clone stamp 以降へ進む
+
+## Minimal CloneStamp API
+
+`CloneStamp` を先に実装する場合、最初に必要なのは「ストロークを受け取る」「ソースを指定する」「buffer に焼く」の 3 点だけ。  
+Healing や patch search はこの段階では入れない。
+
+### 要件
+
+- source は明示指定できる
+- source が未設定なら apply を拒否する
+- brush radius / opacity / hardness だけで動く
+- sample path は stroke として保持する
+- target layer への commit は 1 stroke 単位
+- preview と commit を分ける
+
+### 最小 public API
+
+```cpp
+export class PaintLayer;
+
+export class CloneStampSession {
+public:
+    CloneStampSession();
+
+    void setTargetLayer(PaintLayer* layer);
+    PaintLayer* targetLayer() const;
+
+    void beginStroke(const QPointF& targetPos,
+                     const SourceAnchor& anchor,
+                     float radius,
+                     float opacity,
+                     float hardness);
+
+    void appendSample(const StrokeSample& sample);
+    void updateSourceAnchor(const SourceAnchor& anchor);
+
+    bool canCommit() const;
+    PaintUndoRecord commit();
+    void cancel();
+
+    bool isActive() const;
+    PaintPreviewState previewState() const;
+
+private:
+    PaintLayer* targetLayer_ = nullptr;
+    std::optional<PaintStroke> currentStroke_;
+    PaintPreviewState previewState_;
+};
+```
+
+### 最小 apply contract
+
+`CloneStampSession::commit()` は次を保証する。
+
+- `currentStroke_` が存在しない場合は失敗扱い
+- `targetLayer_` が null の場合は失敗扱い
+- `SourceAnchor` が無効なら失敗扱い
+- 成功時は `PaintLayer::applyStroke()` を呼ぶ
+- 戻り値として `PaintUndoRecord` を返す
+- commit 後は session を idle に戻す
+
+### 失敗条件
+
+- source anchor の mode が未定義
+- source position が canvas 外
+- target layer が null
+- stroke sample が 0 個
+- layer canvas size と stroke 座標系が一致しない
+
+### Preview contract
+
+preview は commit とは別に扱う。
+
+- cursor 移動中は `previewState_` だけ更新
+- `sourcePreviewPosition` はあくまで表示用
+- `overlayBounds` は dirty rect ではない
+- preview で buffer を変更しない
+
+### 実装順
+
+1. `CloneStampSession` の状態遷移だけ作る
+2. `PaintLayer` に `applyStroke()` の空実装を置く
+3. hard round brush の dab 合成を入れる
+4. source offset のコピーを入れる
+5. undo record を返す
+6. preview overlay を接続する
 
 ## 成功条件
 

@@ -27,7 +27,7 @@
 - verify the output is visible on dark background
 - verify the output is still visible on light background
 - verify `no RTV` is reported as `skipped`, not a silent blank frame
-- verify the report includes `particle`, `cacheHealth`, and `traceFrames`
+- verify the report includes `particleState`, `particleDetail`, `cacheHealth`, and `traceFrames`
 
 ## Video-Only
 
@@ -37,7 +37,7 @@
 - verify a mid-frame seek shows a valid decode state
 - verify `decode pending` is distinguishable from `decode failed`
 - verify transparent output is reported with an explicit reason
-- verify the report includes `video`, `shortReason`, and `failureReason` when applicable
+- verify the report includes `videoState`, `shortReason`, and `failureReason` when applicable
 
 ## Blend-Only
 
@@ -45,8 +45,8 @@
 - verify both inputs are present
 - verify opacity and blend mode are visible in the report
 - verify an intentionally empty input path is reported as transparent output
-- verify the report includes `blend` and `resourceNotes`
-- verify the report includes `blendMaskContract`
+- verify the report includes `blendState`, `blendMaskContract`, and `resourceNotes`
+- verify the report includes `particleDetail` for the particle bucket
 - verify non-Normal blend layers increase `nonNormal`
 - verify masked layers increase `maskedLayers` and set `maskContract=pending`
 - verify failed dispatches are reported as `failed` / `directFallback`, not as silent blank output

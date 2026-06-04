@@ -28,10 +28,19 @@ Known risk areas:
 - split responsibility between `ArtifactParticleLayer`, `ArtifactIRenderer`, and `ParticleRenderer`
 
 Current diagnostics:
-- `DebugRenderHarnessWidget` can bundle a particle smoke report with `reportId`, `createdAt`, `viewport`, `cacheHealth`, `resourceNotes`, and `skippedReasons`.
+- `DebugRenderHarnessWidget` can bundle a particle smoke report with `reportId`, `createdAt`, `viewport`, `particleDetail`, `blendMaskContract`, `shortReason`, `cacheHealth`, `resourceNotes`, and `skippedReasons`.
 - `AppDebuggerWidget` already exposes RAM preview stats and a harness tab using the same frame snapshot vocabulary.
 - `ArtifactCompositionViewerFooter` mirrors the RAM preview stats for a fast at-a-glance check.
 - A preferred short MP4 fixture and generation command are now documented in `docs/technical/CRITICAL_RENDER_MEDIA_SMOKE_FIXTURE_2026-04-30.md`.
+
+2026-06-03 review:
+- the particle path now exposes an explicit `state=` label for `empty`, `device-null`, `invalid-viewport`, `queued`, `no-rtv`, `prepared`, `draw-skipped`, and `drawn`
+- the harness text bundle already includes `particleState`, `videoState`, `particleDetail`, `blendMaskContract`, `cacheHealth`, `resourceNotes`, `skippedReasons`, and `shortReason`
+- the harness summary line now surfaces `particleState=...`, `particleDetail=...`, `videoState=...`, `textState=...`, `blendState=...`, and `glyphState=...`
+- the App Debugger export text now surfaces `particleState`, `particleDetail`, `textState`, `videoState`, `blendState`, `blendMaskContract`, and `glyphState` explicitly alongside the frame snapshot JSON
+- `FrameDebugSnapshot` already carries `failureReason`, and the composition render controller records particle debug notes into snapshot resources
+- the new smoke checklist treats both the harness report and App Debugger export text as part of the pass gate
+- the remaining work here is mainly to tighten classification and gating, not to build a brand-new report path
 
 ### Existing References
 
@@ -75,9 +84,13 @@ Known risk areas:
 
 Current diagnostics:
 - `DebugRenderHarnessWidget` can capture a video smoke bundle with the same report shape as particle cases.
-- The report bundle keeps `shortReason`, `failureReason`, `cacheHealth`, and `skippedReasons` together.
+- The report bundle keeps `particleDetail`, `blendMaskContract`, `shortReason`, `failureReason`, `cacheHealth`, and `skippedReasons` together.
 - `AppDebuggerWidget` and the frame debug surfaces already use the same snapshot vocabulary for comparison.
 - The preferred short MP4 fixture is documented for smoke use and fallback path checks.
+
+2026-06-03 review:
+- the video layer now exposes an explicit `state=` label in `decodeState()` / `debugState()` for `not-loaded`, `opening`, `cached`, `decode-pending`, `ready`, `open-failed`, `range-rejected`, `decode-failed`, `sync-fallback-ready`, and `sync-fallback-miss`
+- the remaining work is therefore to make the smoke gate and regression classification use that state directly, not to invent a new harness path
 
 ### Existing References
 
@@ -134,6 +147,9 @@ The Vulkan validation warning for `OutTex` format mismatch was addressed by alig
 The composition render controller also retries failed non-Normal blends with `Normal`, then falls back to direct sprite draw if the compute path reports failure.
 
 2026-05-08 Phase 1 diagnostic work adds a `Blend / Mask Contract` resource to `FrameDebugSnapshot` and the Debug Render Harness text report. This is intentionally not a fixed viewport test scene; it reports the current composition frame using the contract in `docs/technical/BLEND_MASK_COMPOSITION_CONTRACT_2026-05-08.md`.
+
+2026-06-03 review:
+- this issue already has a report surface and contract notes, so the next useful step is to pin the visually-invalid-output detector and the smoke scene more tightly
 
 ### Next Countermeasures
 

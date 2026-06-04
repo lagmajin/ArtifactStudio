@@ -90,15 +90,18 @@
   - `immediate / near / directional / safety backfill / out-of-range` の priority reason を diagnostics から読めるようにする
   - 詳細: `docs/planned/MILESTONE_RAM_PREVIEW_RANGE_POLICY_AND_PRIORITY_2026-05-31.md`
 
-- **M-CE-CRIT-1** Critical Render / Media Stability Program ❌ 未着手
+- **M-CE-CRIT-1** Critical Render / Media Stability Program 🚧 進行中
   - パーティクル非表示、ビデオデコード失敗、ビデオレイヤー透明化を長期バグとしてまとめて追跡する
   - 診断、smoke case、回帰ゲートを先に整え、個別修正をレポートへ戻す
+  - `M-APP-5 Project Health / Problem View Wiring` と同じ diagnostic 文法を使い、render preflight でも同じ result を読む
   - バグレポート: `docs/bugs/BUG_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
   - 詳細: `docs/planned/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
 
-- **M-CE-CRIT-2** Debug Render Harness ❌ 未着手
-  - particle-only / video-only / blend-only の最小再現を独立に開く検証 surface
-  - 本番 renderer と同じ Diligent backend を使い、失敗理由を capture/report する
+### Debug / Regression Surface
+- **M-CE-CRIT-2** Debug Render Harness ✅ 既存 regression surface
+  - particle-only / video-only / blend-only / overlay-only / mixed-media の最小再現 surface は実装済み
+  - `AppMain` から独立 dock として開け、`AppDebuggerWidget` からも同じ frame snapshot vocabulary を読める
+  - 既存の regression surface として `M-CE-CRIT-1` の診断・回帰確認に使う
   - 詳細: `docs/planned/MILESTONE_DEBUG_RENDER_HARNESS_2026-04-30.md`
 
 ### M-DIAG-6 Harness Engineering / Goal-First Loop
@@ -256,6 +259,7 @@
 - `ArtifactProjectHealthChecker` の実務検証を app 側へ確実に寄せる
 - `ArtifactProblemViewWidget` と `ArtifactProjectHealthDashboard` の source / result を同一化する
 - project load / save / render preflight で `DiagnosticEngine` を起動する導線を揃える
+- `M-CE-CRIT-1 Critical Render / Media Stability Program` の smoke gate と同じ failure vocabulary を使う
 - 詳細は `docs/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_2026-04-14.md`
 - Phase 1 実行メモ: `docs/planned/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md`
 
@@ -673,6 +677,12 @@
 ### M-TL-14 Timeline Layer Specialization Execution
 - `Audio / Video / Text / Shape / Image / Particle` の最小専用化を、共通編集を壊さずに段階導入する
 - 詳細は `docs/planned/MILESTONE_TIMELINE_LAYER_SPECIALIZATION_EXECUTION_2026-04-23.md`
+
+### M-TL-15 Timeline Ripple Edit / Downstream Shift
+- trim / delete の差分を後続レイヤーへ押し出す ripple edit を timeline 側に追加する
+- keyframe / clip / layer range の移動を 1 回の undo 単位で扱えるようにする
+- 詳細は `docs/planned/MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03.md`
+- Phase 1 実行メモ: `docs/planned/MILESTONE_TIMELINE_RIPPLE_EDIT_PHASE1_EXECUTION_2026-06-04.md`
 
 ### M-TL-5 Timeline Keyframe Editing
 - Timeline 上で property keyframe を見て、打って、移動できるようにする

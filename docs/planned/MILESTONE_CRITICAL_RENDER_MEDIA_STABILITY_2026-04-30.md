@@ -1,7 +1,7 @@
 # Milestone: Critical Render / Media Stability Program
 
 **Date:** 2026-04-30  
-**Status:** Planned  
+**Status:** In Progress
 **Priority:** Critical  
 **Bug Report:** [`../bugs/BUG_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`](../bugs/BUG_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md)
 
@@ -56,8 +56,8 @@ Done when:
 
 Make failure states visible before broad rewrites.
 
-- particle: report count, target availability, PSO/SRB state, matrix mode, blend mode
-- video: report open state, decode state, last error, target frame, source frame, fallback result
+- particleState: report count, target availability, PSO/SRB state, matrix mode, blend mode
+- videoState: report open state, decode state, last error, target frame, source frame, fallback result
 - composition: report layer skip reason and blend input emptiness
 
 Done when:
@@ -72,6 +72,7 @@ Add small reproducible checks.
 
 Manual checklist:
 - [`../technical/CRITICAL_RENDER_MEDIA_SMOKE_CHECKLIST_2026-04-30.md`](../technical/CRITICAL_RENDER_MEDIA_SMOKE_CHECKLIST_2026-04-30.md)
+- [`../verification/CRITICAL_RENDER_MEDIA_SMOKE_CHECKLIST_2026-06-03.md`](../verification/CRITICAL_RENDER_MEDIA_SMOKE_CHECKLIST_2026-06-03.md)
 
 - particle scene with visible bright particles over dark and light backgrounds
 - short MP4 decode case with frame 0 and mid-frame checks
@@ -87,8 +88,8 @@ Done when:
 
 Only after diagnostics and smoke cases are clear, apply fixes.
 
-- particle: renderer-owned draw contract and target/matrix setup
-- video: explicit decode state and first-frame/open success boundary
+- particleState: renderer-owned draw contract and target/matrix setup
+- videoState: explicit decode state and first-frame/open success boundary
 - composition: keep skip reasons and blend inputs observable
 
 Done when:
@@ -112,6 +113,7 @@ Done when:
 ## Related Execution Surface
 
 - [`MILESTONE_DEBUG_RENDER_HARNESS_2026-04-30.md`](./MILESTONE_DEBUG_RENDER_HARNESS_2026-04-30.md)
+- [`../verification/CRITICAL_RENDER_MEDIA_SMOKE_CHECKLIST_2026-06-03.md`](../verification/CRITICAL_RENDER_MEDIA_SMOKE_CHECKLIST_2026-06-03.md)
 
 ---
 

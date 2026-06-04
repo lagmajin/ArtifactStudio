@@ -40,6 +40,8 @@ Keep it short, copyable, and consistent across particle / video / blend / overla
 
 ### Particle
 
+- particleState: `<ok | skipped | failed | ...>`
+- particleDetail: `<state=... or note>`
 - particleCount: `<count>`
 - drawState: `<drawn | skipped | failed>`
 - skippedReason: `<reason>`
@@ -90,4 +92,5 @@ Keep it short, copyable, and consistent across particle / video / blend / overla
 
 - `skipped` means the harness had an explicit reason not to draw.
 - `failed` means a draw or decode action actively failed.
+- `particleDetail` should carry the shortest useful note for the particle bucket.
 - If the output is transparent, state why the output is still considered valid or invalid.

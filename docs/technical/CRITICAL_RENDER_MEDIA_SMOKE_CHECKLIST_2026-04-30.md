@@ -13,8 +13,9 @@ If you are using `DebugRenderHarnessWidget`, read the report header first:
 
 - `videoState`
 - `particleState`
+- `particleDetail`
 - `blendState`
-- `glyphAtlasState`
+- `glyphState`
 
 Steps:
 
@@ -34,6 +35,7 @@ Record:
 | Frame | |
 | Background | Dark / Light |
 | Particle state header | |
+| Particle detail header | |
 | Alive count log | |
 | Draw call log | |
 | RTV warning | |

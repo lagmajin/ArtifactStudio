@@ -88,8 +88,10 @@
   タイムナビゲーターの下にある RAM preview cache の可視化バー。緑色でキャッシュ済み範囲を示す。旧スクラブ用途は現在は使わない。
 - `ArtifactWorkAreaControlWidget`
   ワークエリアの IN/OUT 範囲を編集するバー。
+- `ArtifactTimelineTrackPainterView`
+  タイムライン右下の正規 owner-draw surface。クリップ、キーフレーム、audio waveform、playhead を描画する。
 - `TimelineTrackView`
-  タイムライン右下の本体。クリップアイテム、赤いシークバー、行グリッドを表示する。
+  旧 QGraphicsView 系の互換 / 退役候補。既存の legacy reference が残る場合のみ参照する。
 - `TimelinePlayheadOverlay`
   右ペイン上に重なる赤い縦棒のオーバーレイ。
 
@@ -114,8 +116,10 @@
   RAM preview cache range / cache occupancy の担当。
 - `ArtifactWorkAreaControlWidget`
   in/out range editing / work area span の担当。
+- `ArtifactTimelineTrackPainterView`
+  right-side editing surface / track content / keyframe lane / waveform の担当。
 - `TimelineTrackView`
-  right-side editing surface / track content / keyframe lane の担当。
+  legacy compatibility layer / scene-based reference の担当。
 
 ## Render / Queue
 
@@ -133,7 +137,7 @@
 - `ProfilerPanelWidget`
   パフォーマンス要約と補助トレースの表示面。frame debug の timing summary に加えて trace hotspots / lock depth / mutex chains を読む窓口。
 - `AppDebuggerWidget`
-  state / trace / frame / diagnostics / export を束ねる内蔵デバッガの総合 surface。`App Internal Debugger` の入口。
+  state / trace / frame / diagnostics / export を束ねる内蔵デバッガの総合 surface。`particleState / videoState / textState / blendState / glyphState` の診断語彙と export text を揃える。`App Internal Debugger` の入口。
 - `FrameDebugViewWidget`
   1 フレーム固定、pass / resource / attachment の検査、compare / step / export を扱う内蔵フレームデバッグ面。`App Internal Debugger` の frame タブに対応する。
 - `FramePipelineViewWidget`
@@ -169,7 +173,7 @@
 - 太い範囲バー
   UI 用語では `ワークエリアバー`。実体は `ArtifactWorkAreaControlWidget`。
 - 右下の編集面
-  UI 用語では `タイムライン本体` または `レイヤー編集領域`。コード上では `TimelineTrackView`。
+  UI 用語では `タイムライン本体` または `レイヤー編集領域`。コード上の現在の正規名は `ArtifactTimelineTrackPainterView`、`TimelineTrackView` は legacy / compatibility 名として扱う。
 
 ## Timeline Range Notes
 
@@ -235,8 +239,10 @@ AI への指示や短いメモでのみ使う略語。人間向けの正式名�
   preview cache visibility の owner。scrub 導線はここではなく track / timeline 側に寄せる。
 - `ArtifactWorkAreaControlWidget`
   work area in/out の owner。drag で範囲を詰める操作を担当する。
-- `TimelineTrackView`
+- `ArtifactTimelineTrackPainterView`
   right-side timeline keymap の owner。clip / keyframe / playhead / selection の直接操作を担当する。
+- `TimelineTrackView`
+  right-side legacy keymap / scene compatibility の owner。
 
 ## Composition Shortcut Notes
 
@@ -322,6 +328,8 @@ Blender 風の keymap routing を進めるときは、以下の context 名を�
 - `ArtifactPlaybackShortcuts`
   - `Workspace.Playback`
   - `Modal.PlaybackScrub`
+  - `Ctrl+G` = `Go to Frame`
+  - `Ctrl+Alt+M` = `Clear All Markers`
 - `Global`
   - `Global`
   - `Dialog.ShortcutEditor`

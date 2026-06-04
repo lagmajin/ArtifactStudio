@@ -36,7 +36,7 @@ This memo records the current parity work for the Diligent-based render path.
   - `videoState`
   - `particleState`
   - `textState`
-  - `glyphAtlasState`
+  - `glyphState`
 
 ## Next checks to continue parity work
 

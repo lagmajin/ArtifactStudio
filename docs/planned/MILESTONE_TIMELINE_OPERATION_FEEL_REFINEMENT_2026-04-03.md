@@ -14,6 +14,7 @@
 - property と timeline を行単位で往復しやすくする
 - 同一行に property 値をインライン表示し、必要ならその場で編集できるようにする
 - 複数レイヤー選択時に keyframe を相対移動でまとめて動かせるようにする
+- ripple edit で後続レイヤーごと時間を詰める / ずらす導線を追加する
 
 ## Scope
 
@@ -116,6 +117,22 @@
   - どこを触っているか迷わない
   - timeline が「閲覧」と「編集」の両方に使える
 
+### Phase 6: Ripple Edit Polish
+
+- 目的
+  - 後続全移動を AE / NLE っぽい編集動作として定着させる
+
+- 実装の要点
+  - `Trim Out` / `Delete` のあとに後続レイヤーをまとめて押し出す
+  - 対象レイヤーと後続レイヤーの keyframe を同じ delta で動かす
+  - Undo/Redo を 1 操作として維持する
+
+- DoD
+  - クリップを詰めたとき、後ろの素材が意図通りついてくる
+  - 後続のタイムラインが壊れず、編集の手触りが軽い
+
+- Phase 1 実行メモ: `docs/planned/MILESTONE_TIMELINE_RIPPLE_EDIT_PHASE1_EXECUTION_2026-06-04.md`
+
 ## Recommended Order
 
 1. Phase 1
@@ -123,6 +140,7 @@
 3. Phase 3
 4. Phase 4
 5. Phase 5
+6. Phase 6
 
 ## Notes
 

@@ -4,21 +4,27 @@ set(VCPKG_INSTALLED_DIR "${_artifact_vcpkg_installed_dir}" CACHE STRING "vcpkg i
 
 # Find cl.exe for MSVC v143
 set(_v143_found_cl "")
-foreach(_vs_major IN ITEMS 18 2022)
-    foreach(_ed IN ITEMS Insiders Community Enterprise Professional Preview)
-        file(GLOB _v143_cands
-            "C:/Program Files/Microsoft Visual Studio/${_vs_major}/${_ed}/VC/Tools/MSVC/14.*/bin/Hostx64/x64/cl.exe"
-            "C:/Program Files/Microsoft Visual Studio/${_vs_major}/${_ed}/VC/Tools/MSVC/14.*/bin/HostX64/x64/cl.exe")
-        if(_v143_cands)
-            list(SORT _v143_cands ORDER DESCENDING)
-            list(GET _v143_cands 0 _v143_found_cl)
+if(DEFINED CMAKE_C_COMPILER AND EXISTS "${CMAKE_C_COMPILER}")
+    set(_v143_found_cl "${CMAKE_C_COMPILER}")
+endif()
+
+if(NOT _v143_found_cl)
+    foreach(_vs_major IN ITEMS 18 2022)
+        foreach(_ed IN ITEMS Community Enterprise Professional Preview Insiders)
+            file(GLOB _v143_cands
+                "C:/Program Files/Microsoft Visual Studio/${_vs_major}/${_ed}/VC/Tools/MSVC/14.*/bin/Hostx64/x64/cl.exe"
+                "C:/Program Files/Microsoft Visual Studio/${_vs_major}/${_ed}/VC/Tools/MSVC/14.*/bin/HostX64/x64/cl.exe")
+            if(_v143_cands)
+                list(SORT _v143_cands ORDER DESCENDING)
+                list(GET _v143_cands 0 _v143_found_cl)
+                break()
+            endif()
+        endforeach()
+        if(_v143_found_cl)
             break()
         endif()
     endforeach()
-    if(_v143_found_cl)
-        break()
-    endif()
-endforeach()
+endif()
 
 if(NOT _v143_found_cl)
     file(GLOB _v143_cands
@@ -60,7 +66,7 @@ if(_v143_found_cl)
         set(_v143_atl_include_dir "")
         set(_v143_atl_lib_dir     "")
         foreach(_atl_vs_major IN ITEMS 18 2022 17 16)
-            foreach(_atl_ed IN ITEMS Insiders Community Enterprise Professional Preview BuildTools)
+        foreach(_atl_ed IN ITEMS Community Enterprise Professional Preview BuildTools Insiders)
                 file(GLOB _atl_header_cands
                     "C:/Program Files/Microsoft Visual Studio/${_atl_vs_major}/${_atl_ed}/VC/Tools/MSVC/14.*/atlmfc/include/atlbase.h"
                     "C:/Program Files (x86)/Microsoft Visual Studio/${_atl_vs_major}/${_atl_ed}/VC/Tools/MSVC/14.*/atlmfc/include/atlbase.h")
@@ -104,6 +110,7 @@ if(_v143_found_cl)
         set(_v143_windows_sdk_winrt_include "${_v143_windows_sdk_root}/Include/${_v143_windows_sdk_version}/winrt")
         set(_v143_windows_sdk_ucrt_lib "${_v143_windows_sdk_root}/Lib/${_v143_windows_sdk_version}/ucrt/x64")
         set(_v143_windows_sdk_um_lib "${_v143_windows_sdk_root}/Lib/${_v143_windows_sdk_version}/um/x64")
+        set(_v143_windows_sdk_bin "${_v143_windows_sdk_root}/bin/${_v143_windows_sdk_version}/x64")
 
         if(EXISTS "${_v143_msvc_root}/include" AND EXISTS "${_v143_windows_sdk_ucrt_include}")
             # Build INCLUDE env and compiler flags. Add ATL only when found.
@@ -137,6 +144,16 @@ if(_v143_found_cl)
             set(CMAKE_EXE_LINKER_FLAGS_INIT    "${CMAKE_EXE_LINKER_FLAGS_INIT}    ${_v143_link_flags}")
             set(CMAKE_SHARED_LINKER_FLAGS_INIT "${CMAKE_SHARED_LINKER_FLAGS_INIT} ${_v143_link_flags}")
             set(CMAKE_MODULE_LINKER_FLAGS_INIT "${CMAKE_MODULE_LINKER_FLAGS_INIT} ${_v143_link_flags}")
+        endif()
+
+        if(EXISTS "${_v143_windows_sdk_bin}")
+            set(ENV{PATH} "${_v143_windows_sdk_bin};$ENV{PATH}")
+            if(EXISTS "${_v143_windows_sdk_bin}/rc.exe")
+                set(CMAKE_RC_COMPILER "${_v143_windows_sdk_bin}/rc.exe" CACHE FILEPATH "Resource compiler" FORCE)
+            endif()
+            if(EXISTS "${_v143_windows_sdk_bin}/mt.exe")
+                set(CMAKE_MT "${_v143_windows_sdk_bin}/mt.exe" CACHE FILEPATH "Manifest tool" FORCE)
+            endif()
         endif()
     endif()
 endif()

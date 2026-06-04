@@ -32,11 +32,19 @@ The immediate goal is not a broad rewrite. The goal is to make every failure lan
 
 ## Current Status
 
-- `DebugRenderHarnessWidget` now captures a text bundle with `reportId`, `createdAt`, `viewport`, `cacheHealth`, `resourceNotes`, and `skippedReasons`.
+- `DebugRenderHarnessWidget` now captures a text bundle with `reportId`, `createdAt`, `viewport`, `particleDetail`, `blendMaskContract`, `shortReason`, `cacheHealth`, `resourceNotes`, and `skippedReasons`.
 - `DebugRenderHarnessWidget` can copy or save the bundle without adding new global wiring.
 - `AppDebuggerWidget` already exposes RAM preview stats in `ready / requested / cached / hit` terms.
 - `ArtifactCompositionViewerFooter` mirrors the same RAM preview diagnostics for quick inspection.
 - The particle stabilization milestone already calls out `no RTV`, `PSO null`, and empty-buffer summary coverage as the next diagnostic target.
+- 2026-06-03 review: the live harness bundle already exposes `particleState`, `videoState`, `particleDetail`, `blendMaskContract`, `shortReason`, and the same snapshot vocabulary used by `AppDebuggerWidget`.
+- 2026-06-03 review: the harness summary line now surfaces `particleState=...`, `particleDetail=...`, `videoState=...`, `textState=...`, `blendState=...`, and `glyphState=...`.
+- 2026-06-03 review: the App Debugger export text now surfaces `particleState`, `particleDetail`, `textState`, `videoState`, `blendState`, `blendMaskContract`, and `glyphState` explicitly alongside the frame snapshot JSON.
+- 2026-06-03 review: the smoke checklist now treats both the harness report and App Debugger export text as part of the pass gate.
+- 2026-06-03 review: `FrameDebugSnapshot` already carries `failureReason`, and the composition render controller records particle debug notes into snapshot resources.
+- 2026-06-03 review: the particle renderer now exposes an explicit `state=` label for `empty`, `device-null`, `invalid-viewport`, `queued`, `no-rtv`, `prepared`, `draw-skipped`, and `drawn`.
+- 2026-06-03 review: the video layer now exposes an explicit `state=` label in `decodeState()` / `debugState()` for `not-loaded`, `opening`, `cached`, `decode-pending`, `ready`, `open-failed`, `range-rejected`, `decode-failed`, `sync-fallback-ready`, and `sync-fallback-miss`.
+- 2026-06-03 review: the remaining work is to make the particle/video failure buckets explicit enough for smoke gating, not to build the first report surface.
 
 ---
 
@@ -158,4 +166,4 @@ Video smoke case:
 2. Add a compact particle draw summary that reports count / RTV / PSO / SRB / blend mode.
 3. Document or generate a tiny MP4 smoke fixture.
 4. Add a manual smoke checklist under `docs/verification`.
-5. Attach the new debug harness report shape to the bug tracker and triage notes.
+5. Convert the current harness report into an explicit regression gate for particle / video smoke outcomes.
