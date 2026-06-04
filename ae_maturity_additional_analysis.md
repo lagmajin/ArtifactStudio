@@ -221,6 +221,29 @@
 - **内容**: カメラレイヤーのフレーム時刻をコンポジションの fps に追従させ、度→ラジアン変換も定数化。
 - **影響**: 24/60fps コンポジションでもカメラ軌道が再生速度と一致する。
 
+### 42. Construction Layer が未定義
+- **状態**: 新規要求
+- **内容**: レンダーされない作業用の設計レイヤーを、正式な layer 概念としてはまだ持っていない。線 / 円 / グリッド / 注釈 / 安全圏 / 軌道を同一の construction surface に置き、親子付けとアニメーションを許したいが、現状は grid / guide / safe margin / note / motion path 的な責務が分散している。
+- **影響**: 設計情報を composition 内で一元管理しにくく、作業中の補助情報を layer として安定運用できない。
+
+### 43. Keyframe Pattern Generator / Key Pattern Dialog
+- **状態**: 新規要求
+- **内容**: 選択中の property に対して、あらかじめ定義したルールから keyframe 列を自動生成するダイアログ。`EasingLabDialog` のような単一補間の調整ではなく、複数 keyframe の並び・間隔・振幅・周期・遷移形状をまとめて生成する入口として使う。
+- **用途**:
+  - `Stagger` - 複数レイヤーを 2f ずつ遅らせる
+  - `Pulse` - `Opacity` / `Scale` をドクドク変化させる
+  - `Bounce` - ロゴ / テキストの弾み
+  - `Shake` - `Position` / `Rotation` の揺れ
+  - `Loop` - 一定周期で繰り返す
+  - `Ramp` - `0→100` のような単調変化
+  - `Wave` - `Sin` 波っぽい上下 / 回転
+  - `Step` - カクカク変化
+  - `Random Hold` - グリッチ / ちらつき
+  - `Overshoot` - 行き過ぎて戻る
+  - `Settle` - 減衰しながら安定
+  - `Beat Sync` - `BPM` に合わせて key を生成する
+- **影響**: 手打ちで keyframe を並べる作業を減らし、反復系・リズム系・揺れ系の演出を素早く作れるようになる。
+
 ---
 
 ## 追加調査: GPU パス/スレッド安全性の新規発見 (P0-P1)
