@@ -1,0 +1,11 @@
+{
+  "name": "artifact-debug-mcp-server",
+  "version": "0.1.0",
+  "description": "Standalone MCP server for ArtifactStudio pseudo-breakpoint debugging",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js"
+  },
+  "license": "MIT"
+}
