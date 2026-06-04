@@ -1138,6 +1138,12 @@
 - playhead / scrub / preview の体感を軽くし、ワープ感や重さを減らす
 - 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_PLAYBACK_FEEL_REFINEMENT_2026-04-23.md`
 
+### M-CE-CONST-1 Construction Layer
+- レンダーされない作業用の設計レイヤーを、composition 内で親子付け・アニメーション可能な形で管理する
+- line / circle / grid / annotation / safe area / orbit guide を同じ制作文脈に寄せる
+- final render では除外しつつ、editor / timeline では見えるようにする
+- 詳細は `docs/planned/MILESTONE_CONSTRUCTION_LAYER_2026-06-05.md`
+
 ### M-AB Asset Browser Improvement (Unity 風)
 - 詳細は `docs/planned/MILESTONE_ASSET_BROWSER_IMPROVEMENT.md`
 - Phase 0: 左ペイン owner-draw 化の基盤作り

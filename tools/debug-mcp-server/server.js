@@ -98,7 +98,7 @@ function createDefaultState() {
     history: [],
     mockSnapshot: createDefaultSnapshot(),
     sessionSummary: {
-      text: 'running  mode=mock  bridge=<none>  reason=<none>  frame=<none>  ticks=0',
+      text: 'running  mode=mock  bridge=<none>  reason=<none>  frame=<none>  ticks=0  lastAction=idle  recent=idle  prior=<none>',
       status: 'running',
       mode: 'mock',
       source: 'mock',
@@ -107,10 +107,19 @@ function createDefaultState() {
       frame: '<none>',
       lastAction: 'idle',
       recentAction: 'idle',
+      priorRecentAction: '<none>',
       tickCount: 0,
       breakConditionCount: 0,
       historyCount: 0,
-      lastHit: '<none>'
+      lastHit: '<none>',
+      breakHistorySummary: buildSummaryPreviewText({
+        mode: 'mock',
+        bridgePath: '<none>',
+        lastAction: 'idle',
+        recentAction: 'idle',
+        priorRecentAction: '<none>',
+        lastHit: '<none>'
+      })
     }
   };
 }
@@ -142,6 +151,9 @@ function buildSessionSummary(state, source = 'mock', bridgePath = '<none>') {
   const recentAction = state.history && state.history.length > 0
     ? historyActionLabel(state.history[state.history.length - 1].type)
     : '<none>';
+  const priorRecentAction = state.history && state.history.length > 1
+    ? historyActionLabel(state.history[state.history.length - 2].type)
+    : '<none>';
   const lastHit = state.lastBreakHit
     ? historySummary({
         timestamp: state.lastBreakHit.matchedAt,
@@ -151,8 +163,18 @@ function buildSessionSummary(state, source = 'mock', bridgePath = '<none>') {
         tickCount
       })
     : '<none>';
+  const summaryText = buildSummaryPreviewText({
+    mode,
+    bridgePath,
+    historyCount,
+    totalHistoryCount: historyCount,
+    lastAction,
+    recentAction,
+    priorRecentAction,
+    lastHit
+  });
   return {
-    text: `${status}  mode=${mode}  bridge=${bridgePath}  reason=${reason}  frame=${frame}  ticks=${tickCount}  breaks=${breakConditionCount}  history=${historyCount}  hit=${lastHit}`,
+    text: `${status}  mode=${mode}  bridge=${bridgePath}  reason=${reason}  frame=${frame}  ticks=${tickCount}  breaks=${breakConditionCount}  history=${historyCount}  lastAction=${lastAction}  recent=${recentAction}  prior=${priorRecentAction}  hit=${lastHit}`,
     status,
     mode,
     source,
@@ -161,10 +183,12 @@ function buildSessionSummary(state, source = 'mock', bridgePath = '<none>') {
     frame,
     lastAction,
     recentAction,
+    priorRecentAction,
     tickCount,
     breakConditionCount,
     historyCount,
-    lastHit
+    lastHit,
+    breakHistorySummary: summaryText
   };
 }
 
@@ -381,6 +405,17 @@ function historyActionLabel(type) {
   return labelMap[String(type || '')] || String(type || 'unknown');
 }
 
+function buildSummaryPreviewText(args) {
+  const mode = String(args && args.mode ? args.mode : '<none>').trim() || '<none>';
+  const bridgePath = String(args && args.bridgePath ? args.bridgePath : '<none>').trim() || '<none>';
+  const lastAction = String(args && args.lastAction ? args.lastAction : '<none>').trim() || '<none>';
+  const recentAction = String(args && args.recentAction ? args.recentAction : '<none>').trim() || '<none>';
+  const priorRecentAction = String(args && args.priorRecentAction ? args.priorRecentAction : '<none>').trim() || '<none>';
+  const lastHit = String(args && args.lastHit ? args.lastHit : '<none>').trim() || '<none>';
+  // Keep this as the compact preview text; detailed counts stay in structured fields.
+  return `${mode}  bridge=${bridgePath}  lastAction=${lastAction}  recent=${recentAction}  prior=${priorRecentAction}  hit=${lastHit}`;
+}
+
 function historySummary(entry) {
   const timestamp = String(entry && entry.timestamp ? entry.timestamp : nowIso());
   const type = String(entry && entry.type ? entry.type : 'unknown');
@@ -549,7 +584,7 @@ function toolCatalog() {
     ),
     makeTool(
       'set_break_condition',
-      'Register one semantic condition that can trigger a pseudo breakpoint.',
+      'Register one semantic condition that can trigger a pseudo-breakpoint.',
       {
         type: 'object',
         additionalProperties: false,
@@ -674,7 +709,7 @@ function toolCatalog() {
     ),
     makeTool(
       'get_session_summary',
-      'Return the current derived session summary.',
+      'Return `sessionSummary` with the current mode and history summary.',
       {
         type: 'object',
         additionalProperties: false,
@@ -683,7 +718,7 @@ function toolCatalog() {
     ),
     makeTool(
       'get_break_history',
-      'Return recent pseudo-breakpoint history entries.',
+      'Return recent break-history events plus `summary`, counts, and window bounds; `summary` feeds `summaryPreview`.',
       {
         type: 'object',
         additionalProperties: false,
@@ -698,7 +733,7 @@ function toolCatalog() {
     ),
     makeTool(
       'clear_history',
-      'Clear the stored pseudo-breakpoint history entries.',
+      'Clear the stored pseudo-breakpoint history.',
       {
         type: 'object',
         additionalProperties: false,
@@ -934,14 +969,18 @@ function callTool(state, name, args) {
     case 'get_break_history': {
       state.session.lastAction = 'get_break_history';
       pushHistory(state, { type: 'read-history' });
-      const requestedLimit = Number(args && args.limit);
-      const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(100, Math.floor(requestedLimit))) : 20;
-      const history = state.history.slice(Math.max(0, state.history.length - limit));
-      const recentAction = state.sessionSummary && typeof state.sessionSummary.recentAction === 'string'
+      const requestedHistoryLimit = Number(args && args.limit);
+      const limit = Number.isFinite(requestedHistoryLimit) ? Math.max(1, Math.min(100, Math.floor(requestedHistoryLimit))) : 20;
+      const windowStartIndex = Math.max(0, state.history.length - limit);
+      const windowEndIndex = state.history.length;
+      const history = state.history.slice(windowStartIndex, windowEndIndex);
+      const priorRecentAction = state.sessionSummary && typeof state.sessionSummary.recentAction === 'string'
         ? state.sessionSummary.recentAction
-        : history.length > 0
-          ? historyActionLabel(history[history.length - 1].type)
+        : history.length > 1
+          ? historyActionLabel(history[history.length - 2].type)
           : '<none>';
+      const recentAction = historyActionLabel('read-history');
+      const lastAction = String(state.sessionSummary && state.sessionSummary.lastAction ? state.sessionSummary.lastAction : 'get_break_history').trim() || 'get_break_history';
       const mode = state.sessionSummary && typeof state.sessionSummary.mode === 'string'
         ? state.sessionSummary.mode
         : state.sessionSummary && state.sessionSummary.source === 'bridge'
@@ -950,28 +989,66 @@ function callTool(state, name, args) {
       const bridgePath = state.sessionSummary && typeof state.sessionSummary.bridgePath === 'string'
         ? state.sessionSummary.bridgePath
         : '<none>';
-      const summary = history.map(historySummary);
+      const lastBreakHit = state.lastBreakHit
+        ? {
+            conditionId: state.lastBreakHit.conditionId,
+            conditionKind: state.lastBreakHit.condition && state.lastBreakHit.condition.kind
+              ? state.lastBreakHit.condition.kind
+              : '<unknown>',
+            reason: state.lastBreakHit.reason || '<none>',
+            matchedAt: state.lastBreakHit.matchedAt || '<none>'
+          }
+        : null;
+      // These lines feed `summaryPreview`; the raw history list is the fallback.
+      const historySummaryLines = history.map(historySummary);
+      const hasMoreHistory = state.history.length > history.length;
+      const summaryText = buildSummaryPreviewText({
+        mode,
+        bridgePath,
+        historyCount: history.length,
+        totalHistoryCount: state.history.length,
+        windowStartIndex,
+        windowEndIndex,
+        lastAction,
+        recentAction,
+        priorRecentAction,
+        lastHit: lastBreakHit ? `${lastBreakHit.conditionId}/${lastBreakHit.conditionKind}` : '<none>'
+      });
       saveState(state);
       return contentResult(
         jsonText({
+          includesReadEvent: true,
           mode,
           bridgePath,
+          lastAction,
+          breakHistorySummary: summaryText,
           recentAction,
+          priorRecentAction,
+          lastBreakHit,
           historyCount: history.length,
           totalHistoryCount: state.history.length,
-          requestedLimit: limit,
+          hasMoreHistory,
+          windowStartIndex,
+          windowEndIndex,
           history,
-          summary
+          summary: historySummaryLines
         }),
         {
+          includesReadEvent: true,
           mode,
           bridgePath,
+          lastAction,
+          breakHistorySummary: summaryText,
           recentAction,
+          priorRecentAction,
+          lastBreakHit,
           historyCount: history.length,
           totalHistoryCount: state.history.length,
-          requestedLimit: limit,
+          hasMoreHistory,
+          windowStartIndex,
+          windowEndIndex,
           history,
-          summary
+          summary: historySummaryLines
         }
       );
     }

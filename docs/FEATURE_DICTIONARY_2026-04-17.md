@@ -266,6 +266,7 @@ private:
 - `ArtifactSDFLayer` - SDF（ Signed Distance Field）レイヤー
 - `ArtifactCloneLayer` - クローンレイヤー
 - `ArtifactCompositionLayer` - コンポジションレイヤー（ネスト）
+- `ArtifactConstructionLayer` - 作業用の非レンダー設計レイヤー（基礎実装）
 
 **共通プロパティ**：
 - `visible`, `locked`, `solo`
@@ -283,6 +284,7 @@ private:
 - 表示/非表示
 - ロック状態
 - Solo状態
+- `Construction Layer` は final render には含めず、editor / timeline 専用に扱う
 
 ---
 

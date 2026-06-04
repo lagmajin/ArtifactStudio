@@ -57,6 +57,8 @@
   - select / move / rotate / scale / fit / pan / zoom
 - `Overlay.Composition`
   - guides / HUD / snap hints / transform handles
+- `Construction.Layer`
+  - renderless construction geometry / annotations / safe-area / orbit-guide surface. line / circle / grid / note をまとめる作業レイヤーで、parenting と animation を許すが、final render には出さない。
 - `Modal.Transform`
   - drag-based transform session
 - `Modal.Mask`
@@ -250,6 +252,8 @@ AI への指示や短いメモでのみ使う略語。人間向けの正式名�
   editor shell / playback / toolbar / transport の context router。
 - `ArtifactCompositionRenderWidget`
   viewport / overlay / direct manipulation の owner。
+- `Construction.Layer`
+  editor-only construction surface の context。
 - `ArtifactCompositionAudioMixerWidget`
   audio lane / gain / mute / solo の owner。
 - `Viewport.Composition`
@@ -281,12 +285,14 @@ Blender 風の keymap routing を進めるときは、以下の context 名を�
   - `Workspace.Composition`
   - `Viewport.Composition`
   - `Overlay.Composition`
+  - `Construction.Layer`
   - `Modal.Transform`
   - `Modal.Mask`
   - `Modal.Pen`
 - `ArtifactCompositionRenderWidget`
   - `Viewport.Composition`
   - `Overlay.Composition`
+  - `Construction.Layer`
   - `Modal.Transform`
 
 ### Timeline
