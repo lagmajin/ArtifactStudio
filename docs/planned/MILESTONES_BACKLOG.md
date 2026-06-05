@@ -1138,6 +1138,11 @@
 - playhead / scrub / preview の体感を軽くし、ワープ感や重さを減らす
 - 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_PLAYBACK_FEEL_REFINEMENT_2026-04-23.md`
 
+### M-CE-3 Responsive Layout Composition
+- `ResponsiveComposition` を別種のコンポとして増やすのではなく、`Composition` に `Responsive Layout` 機能を載せる
+- 1つの composition 内に `16:9 / 9:16 / 1:1` の layout variant を持たせ、出力先ごとのレイアウト差分を管理する
+- 詳細は `docs/planned/MILESTONE_RESPONSIVE_LAYOUT_COMPOSITION_2026-06-05.md`
+
 ### M-CE-CONST-1 Construction Layer
 - レンダーされない作業用の設計レイヤーを、composition 内で親子付け・アニメーション可能な形で管理する
 - line / circle / grid / annotation / safe area / orbit guide を同じ制作文脈に寄せる

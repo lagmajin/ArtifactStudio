@@ -244,6 +244,31 @@
   - `Beat Sync` - `BPM` に合わせて key を生成する
 - **影響**: 手打ちで keyframe を並べる作業を減らし、反復系・リズム系・揺れ系の演出を素早く作れるようになる。
 
+### 44. Responsive Layout を持つ Composition
+- **状態**: 新規要求
+- **内容**: `ResponsiveComposition` を別種のコンポとして増やすのではなく、`Composition` に `Responsive Layout` 機能を付ける方向で整理する。1つの composition の中に複数の layout variant を持たせ、`16:9` / `9:16` / `1:1` のような出力先ごとの差分を同居させたい。
+- **用途**:
+  - `16:9` - 通常の横長出力
+  - `9:16` - 縦長の SNS / モバイル向け出力
+  - `1:1` - 正方形の配信用途
+- **影響**: コンポ種別を増やさずに、出力先別のレイアウト差分を同一 composition 内で管理できる。将来的に `4:5` や `21:9` を追加しやすくなる。
+- **データ構造案**:
+  - `Composition` 本体は従来どおり保持し、その中に `ResponsiveLayoutSet` を持たせる
+  - `ResponsiveLayoutSet` が複数の `LayoutVariant` を管理し、`activeVariantId` で現在の編集対象を表す
+  - `LayoutVariant` は `name`, `baseSize`, `aspectRatio`, `safeArea`, `contentAnchor`, `layoutRules`, `enabled` を持つ
+  - `layoutRules` には、余白、拡大縮小方針、crop 方針、ガイド表示、フォールバックなどを入れられるようにする
+- **互換方針**:
+  - 旧データに `responsiveLayout` が無い場合は、単一 variant として扱う
+  - 既存 composition は壊さず、そのまま `default` variant に読み替える
+  - 保存時は variant が 1 個でも `ResponsiveLayoutSet` を書く形に寄せる
+  - `export` / `preview` では `activeVariantId` が無い場合、最初の variant または default policy に従う
+- **UI 案**:
+  - 左側に variant list、中央に preview、右側に property inspector を置く
+  - `Add Variant` / `Duplicate` / `Rename` / `Set Active` / `Delete` を用意する
+  - `16:9 / 9:16 / 1:1` はタブまたはピルで切り替える
+  - active variant のみ編集ハンドルを出し、safe area と content anchor をオーバーレイ表示する
+  - export ダイアログでも variant を明示選択できるようにする
+
 ---
 
 ## 追加調査: GPU パス/スレッド安全性の新規発見 (P0-P1)
