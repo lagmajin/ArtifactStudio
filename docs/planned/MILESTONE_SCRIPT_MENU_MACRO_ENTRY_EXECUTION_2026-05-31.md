@@ -79,12 +79,141 @@ UI 上で source が分かるようにする。
 - 固定 action bundle を menu / command palette から呼べるようにする
 - preset reference と組み合わせられる形を先に作る
 
+### Phase 4: Built-in Macro Starter Pack
+
+- built-in macro を 5 から 10 個だけ先に固定する
+- まずは layer utility / parenting / effect apply / preset apply に限定する
+- user recording や arbitrary scripting より、repeatable utility command を優先する
+
+### Phase 5: Button Launcher Surface
+
+- macro / script / built-in utility を同じ command family として並べる
+- `Script menu` とは別に、よく使う command を常駐ボタンで呼べる surface を用意する
+- KBar / MoBar のような「即実行ランチャー」として扱い、authoring system 化は後回しにする
+
+## Execution Slice: 1 to 3
+
+今回の first implementation は、次の 3 段で切る。
+
+### 1. Macro Command Shape
+
+目的:
+`macro` を録画再生ではなく、安全な固定 action bundle として定義する。
+
+最低フィールド:
+
+- `id`
+- `name`
+- `description`
+- `targetScope`
+- `commandFamily`
+- `actionSequenceReference`
+- `presetReference` (optional)
+- `iconName` (optional)
+
+ルール:
+
+- macro 自体は UI object を直接触らない
+- 既存 command / service / action path の再利用を前提にする
+- 新しい中央 signal/slot 配線は増やさない
+- command が失敗したときは途中状態を黙って飲み込まない
+
+想定 targetScope:
+
+- `selection.layer`
+- `selection.effect`
+- `composition.active`
+- `project.active`
+
+Done:
+
+- script / macro / batch の metadata shape が並べて読める
+- 1 つの macro descriptor から menu item と launcher button の両方を組み立てられる
+- source category と target scope が UI 側で表示できる
+
+### 2. Built-in Macro Starter Pack
+
+目的:
+KBar / MoBar 的な価値が出る最小セットを、script runtime 完成前でも先に使えるようにする。
+
+最初の候補:
+
+- `Align Selected Layers To Comp Center`
+- `Move Anchor Point To Layer Center`
+- `Create Null And Parent Selection`
+- `Apply Favorite Effect To Selection`
+- `Apply Preset To Selection`
+- `Reveal Selected Layer Transform`
+- `Reset Selected Layer Transform`
+
+方針:
+
+- 最初は built-in macro として実装し、後で script/macro registry に寄せる
+- 各 macro は 1 つの明確な workflow shortener に絞る
+- timeline / inspector / property editor のどこから呼んでも同じ command path を使う
+
+Done:
+
+- 代表 macro が 5 個以上登録される
+- selection 不足や対象不一致時の disabled / error messaging が揃う
+- menu と command palette の両方から同じ結果で呼べる
+
+### 3. Button Launcher Phase 1
+
+目的:
+よく使う macro を、menu を掘らずに 1 click で実行できる surface に載せる。
+
+UI 方針:
+
+- `Button Launcher` は command browser ではなく quick-run surface として扱う
+- まずは fixed section のみ
+- `Built-in`
+- `Macros`
+- `Scripts`
+
+初期仕様:
+
+- 押すと即実行
+- hover で description / target scope を読める
+- source badge を出す
+- disabled reason を読める
+- icon は既存 Studio icon 方針に従う
+
+非 goal:
+
+- drag-and-drop customization
+- user-authored button layout persistence
+- full marketplace / package browser
+
+Done:
+
+- 5 から 10 個の頻出 command をボタンで即実行できる
+- menu item と button が同じ registry を読む
+- 将来 command palette を足しても command family が分裂しない
+
+## Suggested First Built-in Macros
+
+- `Align Selected Layers To Comp Center`
+- `Move Anchor Point To Layer Center`
+- `Create Null And Parent Selection`
+- `Apply Favorite Effect To Selection`
+- `Apply Preset To Selection`
+
+## Suggested Order
+
+1. `Macro Command Shape`
+2. `Built-in Macro Starter Pack`
+3. `Button Launcher Phase 1`
+4. `Safe Reload Loop`
+
 ## Recommended First Connections
 
 - `ArtifactScriptMenu`
 - `ArtifactMainWindow`
 - `ArtifactPythonHookManager`
 - command palette entry
+- macro registry / descriptor provider
+- button launcher widget
 
 ## Success Criteria
 

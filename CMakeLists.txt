@@ -70,6 +70,8 @@ endif()
 
 project(ArtifactSuite LANGUAGES C CXX)
 
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
 # Visual Studio / CMake IDEs should open the main Artifact app by default.
 # ArtifactPr is currently disabled due to W_Object MOC compilation issues.
 set(CMAKE_VS_STARTUP_PROJECT Artifact CACHE STRING "Visual Studio startup project" FORCE)
@@ -186,6 +188,12 @@ if(DEFINED VCPKG_INSTALLED_DIR AND EXISTS "${VCPKG_INSTALLED_DIR}")
     set(VCPKG_INSTALLED "${VCPKG_INSTALLED_DIR}/x64-windows" CACHE PATH "vcpkg install dir" FORCE)
 else()
     set(VCPKG_INSTALLED "${VCPKG_ROOT}/installed/x64-windows" CACHE PATH "vcpkg install dir")
+endif()
+if(EXISTS "${VCPKG_INSTALLED}/include/libavcodec/avcodec.h")
+    set(FFMPEG_DIR "${VCPKG_INSTALLED}" CACHE PATH "FFmpeg root for Qt Multimedia detection" FORCE)
+    set(FFMPEG_ROOT "${VCPKG_INSTALLED}" CACHE PATH "FFmpeg root for Qt Multimedia detection" FORCE)
+    set(PC_FFMPEG_INCLUDE_DIRS "${VCPKG_INSTALLED}/include" CACHE PATH "FFmpeg pkg-config include hint" FORCE)
+    set(PC_FFMPEG_LIBRARY_DIRS "${VCPKG_INSTALLED}/lib" CACHE PATH "FFmpeg pkg-config library hint" FORCE)
 endif()
 
 # nanosvg
@@ -513,6 +521,12 @@ add_subdirectory(ArtifactRenderer)
 # Since MOC causes drive path issues, and ArtifactPr is a demo/utility,
 # we exclude it from the main build. Re-enable by uncommenting below.
 # add_subdirectory(ArtifactPr)
+
+add_custom_target(check_module_hygiene
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONUTF8=1
+            ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_module_hygiene.py
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Checking C++ module hygiene rules")
 
 # ---------------------------------------------------------------------------
 # テスト設定

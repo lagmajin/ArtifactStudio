@@ -63,6 +63,11 @@ QtCSS / `setStyleSheet()` は絶対に新規追加しないこと。見た目の
 `QImage` の新規採用は原則禁止。描画・合成・転送の本流では使わず、ホットパスでは `ImageF32x4_RGBA` などの GPU/バッファ寄り表現を優先すること。既存の `QImage` は入出力、互換フォールバック、Qt API との境界に限って維持し、そこ以外では増やさないこと。
 変換は暗黙にしない。`QImage` 化、CPU ダウンロード、GPU アップロードは必ず明示関数を通し、API 境界で自動変換しないこと。
 
+C++20 modules の再発防止ルール:
+- `module X;` の同一ファイル内で `import X;` は禁止。自己 import は Ninja dyndep を壊しやすい。
+- `Artifact.Layer.Abstract` のような public layer module では、他モジュール所有の型を前方宣言しない。`ArtifactAbstractComposition` とその `Ptr` / `WeakPtr` alias は `Artifact.Composition.Abstract` 側だけで定義する。
+- これらの違反は `check_module_hygiene` ターゲットで機械検査する。
+
 アイコンを追加・差し替えする場合は、既存 `Material` 系の参照を増やさず、`Artifact/App/Icon/Studio/` に収めるオリジナル SVG を優先すること。見た目はソリッド寄り、太めのシルエット、高コントラスト、16px でも読めることを優先し、細い線や装飾過多は避けること。アイコン未設定のメニューアクションは、必要ならこの方針で新規アイコンを補完すること。
 
 `Artifact/App/Icon/Studio/filemenu_*.svg` は承認済みの VS-like File Menu アイコンとして扱い、AI はユーザーが明示的に依頼しない限り編集・置換・再生成しないこと。Composition / Edit など他メニューのアイコンを作る場合は、この File Menu アイコン群の太めのシルエット、ソリッド寄りの形状、高コントラスト、16px 可読性を参照する。
