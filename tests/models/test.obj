@@ -1,0 +1,30 @@
+# Test model - cube with UV
+mtllib test.mtl
+usemtl test_mat
+
+v -1 -1  1
+v  1 -1  1
+v  1  1  1
+v -1  1  1
+v -1 -1 -1
+v  1 -1 -1
+v  1  1 -1
+v -1  1 -1
+
+vt 0 0
+vt 1 0
+vt 1 1
+vt 0 1
+
+# Front
+f 1/1 2/2 3/3 4/4
+# Back
+f 5/1 8/2 7/3 6/4
+# Right
+f 2/1 6/2 7/3 3/4
+# Left
+f 1/1 4/2 8/3 5/4
+# Top
+f 4/1 3/2 7/3 8/4
+# Bottom
+f 1/1 5/2 6/3 2/4

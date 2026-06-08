@@ -57,6 +57,12 @@
   - Phase 1-2完了、row bg/hover/keyframe chromeをowner-draw化
   - 主要ファイル: `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditor.cppm`
 
+- **M-UI-27** Color Constraint Rules / Palette-Conform Correction
+  - `main / accent / background` などのデザイントークンに対して、比較演算子 + 値でルールを GUI 編集できるようにする
+  - ルール違反時の warning / block と、選択色を最寄りパレット色へ補正する導線をまとめる
+  - `ArtifactColorSciencePanel` か `PropertyEditor` のどちらに寄せるかは責務確認後に確定する
+  - 詳細: `docs/planned/MILESTONE_COLOR_CONSTRAINT_RULES_2026-06-07.md`
+
 - **M-UI-3** Inspector Usability ✅ (verified 2026-04-14)
   - キーボードショートカット/ステータスバー/レイヤーラベルカラー/整列分布機能
   - 主要ファイル: `Artifact/src/Widgets/ArtifactAlignmentWidget.cppm`, `Artifact/src/Widgets/ArtifactStatusBar.cpp`
@@ -865,6 +871,13 @@
 - send / return を映像向けの中間レンダーターゲット共有として扱う
 - 詳細は `docs/planned/MILESTONE_VISUAL_EFFECT_BUS_2026-06-02.md`
 
+### M-FX-11 Effect UI Standardization
+- すべてのエフェクトに共通の `Preview / Preset / Appearance` 契約を持たせる
+- 標準エフェクトと OFX サードパーティエフェクトで UI の枠を揃える
+- 実装順: `descriptor / section classification -> Inspector bridge -> preset browser bridge -> appearance catalog -> OFX fallback -> Property alignment`
+- 先行対象: `Gaussian Blur`, `Sharpen`, `Curves`, `Levels`, `Glow`, `OFX Plugin`
+- 詳細は `docs/planned/MILESTONE_EFFECT_UI_STANDARDIZATION_2026-06-07.md`
+
 ### M-FX-9 Face Detection & Auto-Mosaic
 - OpenCV による顔認識 → 自動モザイク/ぼかしエフェクト
 - Haar Cascade / DNN による検出、追従トラッキング
@@ -963,6 +976,11 @@
 ### M-PV-5 Project View Search / Filter / Presentation
 - incremental search / multi filter pills / unused emphasis / list-grid presentation / status bar を Project View surface にまとめる
 - 詳細は `docs/planned/MILESTONE_PROJECT_VIEW_SEARCH_FILTER_PRESENTATION_2026-04-03.md`
+
+### M-PV-6 Project View Scroll Stability ✅ (2026-06-08)
+- import で Project View の scroll position を勝手に先頭へ戻さない
+- 新規素材追加時も現在の表示位置を維持する
+- 詳細は `docs/done/MILESTONE_PROJECT_VIEW_SCROLL_STABILITY_2026-06-07.md`
 
 ### M-AS-1 Asset Import Flow
 - 読み込み
@@ -1123,6 +1141,11 @@
 - AE 風 Text Animator の残タスクを UI / selector / preset / timeline まで詰める
 - 詳細は `docs/planned/MILESTONE_TEXT_ANIMATOR_NEXT_GEN_2026-04-18.md`
 - 実行メモは `docs/planned/MILESTONE_TEXT_ANIMATOR_NEXT_GEN_EXECUTION_2026-04-30.md`
+
+### M-TXT-2 Text Animator Range Color Editing
+- テキスト上の範囲選択から直接 color property を割り当てる
+- 文字ごとの色変更を、複製 + マスクや expression に逃げずに扱えるようにする
+- 詳細は `docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_WORKFLOW_GAPS_2026-06-07.md`
 
 ### C-TXT-6 GPU Text Rendering / Japanese Shaping
 - DX12 / Vulkan backend での日本語 text rendering
@@ -1289,6 +1312,64 @@
 - Composition 設定として quality preset 保存（新規作成時に復元）
 - 詳細: `docs/planned/MILESTONE_PROXY_QUALITY_TOGGLE_UI_2026-06-01.md`
 
+### M-PQ-2 Footage Interpret Safety / Proxy Workflow
+- footage interpret の frame rate 変更時に keyframe / time remap への影響を明示する
+- proxy の生成と切り替えを 1 つの workflow にまとめる
+- 詳細は `docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_WORKFLOW_GAPS_2026-06-07.md`
+
+### M-MASK-2 Mask Feather Directional / Render FPS Safety
+- mask feather を horizontal / vertical / inner / outer に分ける
+- export / render の frame rate 初期値を composition に同期する
+- 詳細は `docs/planned/MILESTONE_MASK_FEATHER_DIRECTIONAL_AND_RENDER_FPS_SAFETY_2026-06-07.md`
+
+### M-3D-2 3D Viewport Orbit / Pan / Preview Mode
+- `Alt + Left Drag` orbit / `Middle Drag` pan / wheel zoom を 3D viewport の共通操作にする
+- camera を直接動かすモードと preview-only mode を分離する
+- 詳細は `docs/planned/MILESTONE_3D_VIEWPORT_ORBIT_PAN_PREVIEW_MODE_2026-06-07.md`
+
+### M-TL-2 Scrub Accuracy / Expression Recursion / Cache Reuse
+- フレーム単位の scrub で特定 frame を飛ばさない
+- expression に安全な再帰と loop を追加する
+- render / export で frame cache を共有する
+- 詳細は `docs/planned/MILESTONE_SCRUB_EXPRESSION_CACHE_REUSE_2026-06-07.md`
+
+### M-EXPR-2 Expression Subframe / Timestep Policy ⚠️ (Phase 1+2 done 2026-06-08)
+- expression の評価を frame locked だけに固定せず、subframe / adaptive step を選べるようにする
+- 30fps / 60fps で物理系式の挙動が変わりにくい評価ポリシーを作る
+- Phase 1 (Time Evaluation Contract) ✅: EvaluationMode enum, frameRate 変数, evaluateAtTime
+- Phase 2 (Subframe Sampling) ✅: 任意時刻評価, evaluateOverRange (4 mode対応)
+- Phase 3-5 未着手
+- 詳細は `docs/planned/MILESTONE_EXPRESSION_SUBFRAME_TIMESTEP_POLICY_2026-06-07.md`
+
+### M-UI-24 UI Layout Undo History
+- panel close / tab move / split / dock rearrange を undoable にする
+- 間違えて閉じた UI を `Ctrl+Z` で戻せるようにする
+- 詳細は `docs/planned/MILESTONE_UI_LAYOUT_UNDO_HISTORY_2026-06-07.md`
+
+### M-UI-25 Context Menu Compact Actions
+- 右クリックメニューを frequent / all に分けて、初期表示を 10 項目以内に抑える
+- よく使う項目のカスタマイズとカテゴリ分けを導入する
+- 詳細は `docs/planned/MILESTONE_CONTEXT_MENU_COMPACT_ACTIONS_2026-06-07.md`
+
+### M-UI-26 Numeric Field Quick Calc
+- 数値フィールドで `+10` / `-5` / `*2` / `/3` の簡易計算式を受け付ける
+- Enter 確定で計算結果を反映し、数値の再入力を減らす
+- 詳細は `docs/planned/MILESTONE_NUMERIC_FIELD_QUICK_CALC_2026-06-07.md`
+
+### M-TL-3 Keyframe Nudge / Temp Snap Override
+- 左右矢印で選択 keyframe を 1 frame 移動し、Shift で 10 frame 移動する
+- Alt 押下中は snap を一時無効化して、ドラッグと nudge の両方を扱いやすくする
+- 詳細は `docs/planned/MILESTONE_KEYFRAME_NUDGE_AND_TEMP_SNAP_OVERRIDE_2026-06-07.md`
+
+### M-CE-4 Aspect Ratio / Resolution Remap Wizard ⚠️ (Phase 3 done 2026-06-08)
+- aspect ratio 変更時に mask / keyframe / anchor を自動再計算する
+- `Center Locked` / `Top Left Locked` / `Stretch To Fit` などの保持基準を選べる
+- Phase 1 (Preflight) ✅: 差分表示, impact 列挙, 警告表示
+- Phase 2 (Policy + Remap) ✅: ResolutionRemap utility, ウィザード, mask 頂点 remap
+- Phase 3 (Preview + Apply + Undo) ✅: アスペクト比プレビュー, アンカー検出有効化, 影響表示
+  - 残: undo/redo基盤, プロパティキーフレームremap, アンカー位置remap実装
+- 詳細は `docs/planned/MILESTONE_ASPECT_RATIO_RESOLUTION_REMAP_WIZARD_2026-06-07.md`
+
 ## Motion Graphics
 
 ### M-MG-1 Motion Graphics Template System (mogrt-like)
@@ -1305,3 +1386,9 @@
 - debug console とは別の、power user 向けの command terminal surface を用意する
 - `PowerShellWidget` を使って command / history / working dir / exit code を扱う
 - 詳細は `docs/planned/MILESTONE_TERMINAL_SHELL_2026-04-06.md`
+
+
+### M-RD-14 VideoLayer Playback Stability
+- `ArtifactVideoLayer` の play → stop が不安定。非同期デコードパイプラインに stop / cancel / reset が存在しない
+- `stop()` 新設、デコード世代管理（generation counter）、`seekToFrame()` と `decodeCurrentFrame()` の同期、`currentFrameImageBuffer()` のリファクタ
+- 詳細は `docs/planned/MILESTONE_VIDEO_LAYER_PLAYBACK_STABILITY_2026-06-06.md`

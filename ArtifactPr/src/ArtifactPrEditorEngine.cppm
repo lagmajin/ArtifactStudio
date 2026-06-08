@@ -1,5 +1,4 @@
 module;
-
 #include <QColor>
 #include <QDebug>
 #include <QJsonDocument>
@@ -9,6 +8,7 @@ module;
 #include <QFileInfo>
 #include <QDateTime>
 #include <QDir>
+#include <QMessageBox>
 
 module ArtifactPr.EditorEngine;
 
@@ -1295,6 +1295,15 @@ DemoProject jsonToProject(const QJsonObject& obj)
 
 bool EditorEngine::saveProject(const QString& filePath)
 {
+    // Pre-save validation: check project health
+    if (!validateProjectHealth(currentProject_)) {
+        QMessageBox::warning(nullptr, "Project Validation Failed",
+            "Project has critical errors that must be fixed before saving.\n"
+            "Please check the Problem View for details.");
+        Q_EMIT projectSaved(false, QStringLiteral("Validation failed: project has critical errors"));
+        return false;
+    }
+
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly)) {
         Q_EMIT projectSaved(false, QStringLiteral("Failed to open file for writing"));
@@ -1333,6 +1342,12 @@ bool EditorEngine::loadProject(const QString& filePath)
 
     currentProject_ = jsonToProject(doc.object());
 
+    // Post-load validation: check project health
+    if (!validateProjectHealth(currentProject_)) {
+        qWarning() << "[loadProject] Project loaded but has critical health issues";
+        // Don't block load, but warn user
+    }
+
     for (const auto& seq : currentProject_.sequences) {
         if (seq.id == currentProject_.activeSequenceId) {
             currentSequence_ = seq;
@@ -1354,6 +1369,53 @@ bool EditorEngine::loadProject(const QString& filePath)
     Q_EMIT sequenceChanged(currentSequence_);
     Q_EMIT projectLoaded(true, QStringLiteral("Project loaded successfully"));
     return true;
+}
+
+static bool validateProjectHealth(const DemoProject& project)
+{
+    bool hasErrors = false;
+    
+    // Check for missing media files
+    for (const auto& media : project.mediaPool) {
+        QFileInfo fi(media.filePath);
+        if (!fi.exists() || !fi.isFile()) {
+            qWarning() << "[validateProjectHealth] Missing media file:" << media.filePath;
+            hasErrors = true;
+        }
+    }
+    
+    // Check for empty sequences
+    if (project.sequences.isEmpty()) {
+        qWarning() << "[validateProjectHealth] Project has no sequences";
+        hasErrors = true;
+    }
+    
+    // Check for invalid active sequence
+    bool activeSeqFound = false;
+    for (const auto& seq : project.sequences) {
+        if (seq.id == project.activeSequenceId) {
+            activeSeqFound = true;
+            break;
+        }
+    }
+    if (!project.activeSequenceId.isEmpty() && !activeSeqFound) {
+        qWarning() << "[validateProjectHealth] Active sequence not found:" << project.activeSequenceId;
+        hasErrors = true;
+    }
+    
+    // Check for zero duration
+    if (project.activeSequenceId.isEmpty() || project.sequences.isEmpty()) {
+        // No sequences is already checked
+    } else {
+        for (const auto& seq : project.sequences) {
+            if (seq.duration <= 0) {
+                qWarning() << "[validateProjectHealth] Sequence has zero/negative duration:" << seq.id;
+                hasErrors = true;
+            }
+        }
+    }
+    
+    return !hasErrors;
 }
 
 void AddMarkerCommand::undo()
