@@ -517,6 +517,7 @@ add_subdirectory(ArtifactCore)
 add_subdirectory(ArtifactWidgets)
 add_subdirectory(Artifact)
 add_subdirectory(ArtifactRenderer)
+add_subdirectory(artifacts-plugin-runner)
 # DISABLED: ArtifactPr has W_Object signal macros that require Qt MOC
 # Since MOC causes drive path issues, and ArtifactPr is a demo/utility,
 # we exclude it from the main build. Re-enable by uncommenting below.
