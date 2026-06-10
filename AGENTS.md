@@ -63,10 +63,32 @@ QtCSS / `setStyleSheet()` は絶対に新規追加しないこと。見た目の
 `QImage` の新規採用は原則禁止。描画・合成・転送の本流では使わず、ホットパスでは `ImageF32x4_RGBA` などの GPU/バッファ寄り表現を優先すること。既存の `QImage` は入出力、互換フォールバック、Qt API との境界に限って維持し、そこ以外では増やさないこと。
 変換は暗黙にしない。`QImage` 化、CPU ダウンロード、GPU アップロードは必ず明示関数を通し、API 境界で自動変換しないこと。
 
+### AI がはまりやすい箇所の簡易チェック
+- Qt 型は「他のヘッダに入っていそう」でも、使うファイル側で直接 `#include` する。
+- モジュールの `.ixx` と `.cppm` は責務を分ける。公開宣言は自己完結、実装は実装ファイルに閉じる。
+- `W_OBJECT` を追加・変更したら、対応する `W_OBJECT_IMPL(...)` と `W_SIGNAL(...)` の整合を必ず確認する。
+- リンクエラーは「宣言だけ増えて実装がない」「実装はあるがビルド対象外」「wobject 実体不足」の順で疑う。
+- `QApplication`、`QRegularExpression`、`QPainterPath`、`QMetaObject` 系は特に include 漏れを疑う。
+
+module purview（`module X;` の後）に `#include` を絶対に追加しないこと。`#include` はグローバルモジュールフラグメント（`module;` と `module X;` の間）にのみ置く。誤って purview 側に置くと、MSVC が TBB / CRT ヘッダのパースに失敗し、`profiling.h` の構文エラーや `iosfwd` の再定義エラーを引き起こす。やむを得ず purview に include が必要な場合は `import <header>;` 形式を用いる。
+
 C++20 modules の再発防止ルール:
 - `module X;` の同一ファイル内で `import X;` は禁止。自己 import は Ninja dyndep を壊しやすい。
 - `Artifact.Layer.Abstract` のような public layer module では、他モジュール所有の型を前方宣言しない。`ArtifactAbstractComposition` とその `Ptr` / `WeakPtr` alias は `Artifact.Composition.Abstract` 側だけで定義する。
 - これらの違反は `check_module_hygiene` ターゲットで機械検査する。
+
+### C++20 modules 循環参照（Circular Dependency）
+
+このプロジェクトは大規模な C++20 modules を使用しており、`.ixx`（インターフェース）と `.cppm`（実装）の両方が Ninja dyndep スキャン対象となるため、**モジュール間の循環参照が発生しやすい**。以下の点に注意すること。
+
+- `.ixx` に不必要な `import` を追加しない。特に、インターフェース上でポインタ／参照としてしか使わない型は、**global module fragment 内で前方宣言**し、module import を避ける（例: `ArtifactIRenderer*` → `namespace Artifact { class ArtifactIRenderer; }`）。
+- `export import` で別モジュールを丸ごと再エクスポートすると、そのモジュールの全依存が透過的に伝播して循環の温床になる。必要な型だけを `import` して前方宣言で済ませることを検討する。
+- `.ixx` と `.cppm` は同じモジュール名を名乗るため、**両方のファイルで宣言された `import` の和集合**がそのモジュールの依存セットになる。実装 `.cppm` 側の `import` だけで済む依存は `.ixx` 側に書かない。
+- 循環が発生した場合、以下の優先順位で解消を試みる:
+  1. `.ixx` の不要な `import` を削除／前方宣言に置き換え
+  2. `export import` を通常の `import` に変更し、再エクスポートをやめる
+  3. 循環の原因となっているクラスを別モジュールに分離（粒度を細かくする）
+  4. どうしても解消できない場合は、`.ixx` を廃して従来の `.hpp` + non-module `.cppm` に戻す（最終手段）
 
 アイコンを追加・差し替えする場合は、既存 `Material` 系の参照を増やさず、`Artifact/App/Icon/Studio/` に収めるオリジナル SVG を優先すること。見た目はソリッド寄り、太めのシルエット、高コントラスト、16px でも読めることを優先し、細い線や装飾過多は避けること。アイコン未設定のメニューアクションは、必要ならこの方針で新規アイコンを補完すること。
 
