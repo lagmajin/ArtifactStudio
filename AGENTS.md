@@ -90,6 +90,19 @@ C++20 modules の再発防止ルール:
   3. 循環の原因となっているクラスを別モジュールに分離（粒度を細かくする）
   4. どうしても解消できない場合は、`.ixx` を廃して従来の `.hpp` + non-module `.cppm` に戻す（最終手段）
 
+### モジュール / Qt 再発防止の簡易ルール
+
+- AI はビルドエラーを見て場当たり的に `import` や `#include` を増やさないこと。
+- `.ixx` には宣言成立に必要な最小限の `import` だけを書くこと。実装でしか使わない依存は `.cppm` / `.cpp` に閉じること。
+- ポインタ、参照、スマートポインタで保持するだけの型は、まず forward declaration で済ませられないか確認すること。
+- 値保持、継承、メンバー呼び出し、delete、signal/slot 接続まで行う型は完全型が必要だと考えること。
+- `std::unique_ptr<Impl>` をヘッダで持つ場合、デストラクタはヘッダ inline にせず `.cppm` / `.cpp` 側で定義すること。
+- Qt 型は「他ヘッダ経由で見えるはず」と考えず、使うファイル側で直接 `#include` すること。
+- 特に `QApplication`、`QStatusBar`、`QPainterPath`、`QRegularExpression`、`QMetaObject`、各種 Event 型は include 漏れを優先的に疑うこと。
+- `module X;` 以降に `#include` を追加しないこと。`#include` は global module fragment (`module;`) 側にのみ置くこと。
+- 循環参照が疑われる場合、まず `.ixx` の不要な `import` を疑い、実装側へ移せないか確認すること。
+- `export import` は依存を広く伝播させるため、エラー回避目的で安易に追加しないこと。
+
 アイコンを追加・差し替えする場合は、既存 `Material` 系の参照を増やさず、`Artifact/App/Icon/Studio/` に収めるオリジナル SVG を優先すること。見た目はソリッド寄り、太めのシルエット、高コントラスト、16px でも読めることを優先し、細い線や装飾過多は避けること。アイコン未設定のメニューアクションは、必要ならこの方針で新規アイコンを補完すること。
 
 `Artifact/App/Icon/Studio/filemenu_*.svg` は承認済みの VS-like File Menu アイコンとして扱い、AI はユーザーが明示的に依頼しない限り編集・置換・再生成しないこと。Composition / Edit など他メニューのアイコンを作る場合は、この File Menu アイコン群の太めのシルエット、ソリッド寄りの形状、高コントラスト、16px 可読性を参照する。
