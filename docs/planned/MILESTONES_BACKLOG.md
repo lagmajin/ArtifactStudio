@@ -151,6 +151,7 @@
   - `DynamicFluidVortex`
   - `ReactionDiffusionStylizer`
   - `VectorFlowGlitch`
+  - `AnisotropicFlowBlur`
   - `Chromatic Relief`
   - `Signal Collapse`
   - `Ink Delay`
@@ -164,6 +165,7 @@
     - `DynamicFluidVortex`: 流体速度場で画像を移流させる。インク、水流、渦、粘性のある歪み向け
     - `ReactionDiffusionStylizer`: 反応拡散で有機的パターンを生成する。キリン柄、シマウマ、指紋、サンゴ向け
     - `VectorFlowGlitch`: 輪郭や流れに沿って引き裂く。構造テンソルや動き場に追従する知的グリッチ向け
+    - `AnisotropicFlowBlur`: 構造テンソルで方向場を取り、流れに沿ってだけぼかす。髪、木目、水流、美肌向け
   - Core library 候補:
     - `Temporal Fossil` は frame history / accumulation 基盤を持てるなら `ArtifactCore` 側に置く価値が高い
     - `Pigment Separation` は CPU reference と GPU backend の両方を作りやすく、creative effect pack に馴染みやすい
@@ -173,6 +175,7 @@
     - `DynamicFluidVortex` は `FluidSolver2D` / `FluidVisualizer` / `FluidForce` と相性が良いので、まずは fluid solver 連携の effect として評価する
     - `ReactionDiffusionStylizer` は `FluidSolver2D` の低解像度格子思想を流用しやすいので、まずは stylized rasterizer として評価する
     - `VectorFlowGlitch` は `StructureTensor` / `Distortion` / `ChromaSpread` と相性が良いので、まずは edge-aware rasterizer として評価する
+    - `AnisotropicFlowBlur` は `StructureTensor` の方向場をそのまま使えるので、まずは edge-preserving blur として評価する
   - 関連:
     - `ArtifactCore/docs/MILESTONES_CORE_BACKLOG.md` の `C-GFX-1 Creative Effect Base`
     - `ArtifactCore/docs/MILESTONES_CORE_BACKLOG.md` の `C-GFX-2 Creative Effect Pack`
