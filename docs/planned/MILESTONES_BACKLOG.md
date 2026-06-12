@@ -154,6 +154,7 @@
   - `AnisotropicFlowBlur`
   - `ReactionDiffusionBlur`
   - `ApertureShapeBlur`
+  - `Glow Variants Pack`
   - `Chromatic Relief`
   - `Signal Collapse`
   - `Ink Delay`
@@ -170,6 +171,7 @@
     - `AnisotropicFlowBlur`: 構造テンソルで方向場を取り、流れに沿ってだけぼかす。髪、木目、水流、美肌向け
     - `ReactionDiffusionBlur`: 拡散しながら模様が育つ。溶けるトランジションや細胞分裂風のブラー向け
     - `ApertureShapeBlur`: 任意マスクを PSF にするレンズボケ。ハート型玉ボケや汚れたレンズ向け
+    - `Glow Variants Pack`: 輪郭発光、色収差、残光、液体感などを分けた発光亜種群
   - Core library 候補:
     - `Temporal Fossil` は frame history / accumulation 基盤を持てるなら `ArtifactCore` 側に置く価値が高い
     - `Pigment Separation` は CPU reference と GPU backend の両方を作りやすく、creative effect pack に馴染みやすい
@@ -182,6 +184,7 @@
     - `AnisotropicFlowBlur` は `StructureTensor` の方向場をそのまま使えるので、まずは edge-preserving blur として評価する
     - `ReactionDiffusionBlur` は `FluidSolver2D` / `AnisotropicFlowBlur` / `Distortion` と相性が良いので、まずは transition-oriented blur として評価する
     - `ApertureShapeBlur` は FFT 系の基盤と aperture UI と相性が良いので、まずは PSF-driven blur として評価する
+    - `Glow Variants Pack` は `Glow` / `DirectionalGlow` / `ChromaSpreadGlow` / `Halation` と相性が良いので、まずは glow family として評価する
   - 関連:
     - `ArtifactCore/docs/MILESTONES_CORE_BACKLOG.md` の `C-GFX-1 Creative Effect Base`
     - `ArtifactCore/docs/MILESTONES_CORE_BACKLOG.md` の `C-GFX-2 Creative Effect Pack`
