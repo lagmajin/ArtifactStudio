@@ -1,0 +1,12 @@
+{
+  "base": "After Effects",
+  "accentColor": "#E4A64A",
+  "textColor": "#E0E6EE",
+  "backgroundColor": "#1F2329",
+  "secondaryBackgroundColor": "#282D34",
+  "selectionColor": "#33485E",
+  "borderColor": "#434B57",
+  "buttonColor": "#2B3037",
+  "buttonHoverColor": "#343A43",
+  "buttonPressedColor": "#23272D"
+}
