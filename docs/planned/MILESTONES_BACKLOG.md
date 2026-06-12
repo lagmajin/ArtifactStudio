@@ -146,6 +146,11 @@
   - `Depth Melt`
   - `Edge Echo`
   - `Light Pressure`
+  - `LuminescenceCaustics`
+  - `QuantumGlitch / WavefunctionCollapse`
+  - `DynamicFluidVortex`
+  - `ReactionDiffusionStylizer`
+  - `VectorFlowGlitch`
   - `Chromatic Relief`
   - `Signal Collapse`
   - `Ink Delay`
@@ -154,10 +159,20 @@
     - `Temporal Fossil`: 過去フレームの輪郭や色を薄く堆積させる。モーションブラーではなく時間の層を見せる方向
     - `Pigment Separation`: RGB 分離ではなく、顔料やインクのにじみとして色がほどける方向
     - `Surface Memory`: 素材表面に前の像の痕跡が焼き付く。キャンバス、金属、ガラスなど質感差を活かしやすい
+    - `LuminescenceCaustics`: 輪郭やハイライトから集光の網目を生成する。液体金属、氷、クリスタル、魔法オーラ向け
+    - `QuantumGlitch / WavefunctionCollapse`: タイルと隣接ルールで画像を再構成する。破壊ではなく自己構成の抽象コラージュ向け
+    - `DynamicFluidVortex`: 流体速度場で画像を移流させる。インク、水流、渦、粘性のある歪み向け
+    - `ReactionDiffusionStylizer`: 反応拡散で有機的パターンを生成する。キリン柄、シマウマ、指紋、サンゴ向け
+    - `VectorFlowGlitch`: 輪郭や流れに沿って引き裂く。構造テンソルや動き場に追従する知的グリッチ向け
   - Core library 候補:
     - `Temporal Fossil` は frame history / accumulation 基盤を持てるなら `ArtifactCore` 側に置く価値が高い
     - `Pigment Separation` は CPU reference と GPU backend の両方を作りやすく、creative effect pack に馴染みやすい
     - `Surface Memory` は texture/history/mask を跨ぐので、effect host contract が固まってから `ArtifactCore` 候補として再評価する
+    - `LuminescenceCaustics` は `Final Effect` または shared bus 寄りの投影表現に昇格しやすいので、最初は stylized rasterizer として検証する
+    - `QuantumGlitch / WavefunctionCollapse` は `Mosaic` / `AutoMosaic` / tile 系資産と相性が良いので、まずは rasterizer として評価する
+    - `DynamicFluidVortex` は `FluidSolver2D` / `FluidVisualizer` / `FluidForce` と相性が良いので、まずは fluid solver 連携の effect として評価する
+    - `ReactionDiffusionStylizer` は `FluidSolver2D` の低解像度格子思想を流用しやすいので、まずは stylized rasterizer として評価する
+    - `VectorFlowGlitch` は `StructureTensor` / `Distortion` / `ChromaSpread` と相性が良いので、まずは edge-aware rasterizer として評価する
   - 関連:
     - `ArtifactCore/docs/MILESTONES_CORE_BACKLOG.md` の `C-GFX-1 Creative Effect Base`
     - `ArtifactCore/docs/MILESTONES_CORE_BACKLOG.md` の `C-GFX-2 Creative Effect Pack`
