@@ -1,8 +1,8 @@
 # Numeric Field Quick Calc Milestone
 
 **作成日:** 2026-06-07  
-**ステータス:** ✅ 完了 (2026-06-08 確認)  
-**関連コンポーネント:** ArtifactPropertyWidget, Numeric Row, Property Editor, Value Input
+**ステータス:** ✅ 完了 (2026-06-08 確認 / 2026-06-15 共有化・Dialog 波及)  
+**関連コンポーネント:** ArtifactPropertyWidget, Numeric Row, Property Editor, Value Input, RenderOutputSettingDialog
 
 ---
 
@@ -88,6 +88,14 @@
 完了条件:
 
 - 主要な数値フィールドで使える
+
+#### 共有化と Dialog 波及 (2026-06-15 追記)
+
+`ArtifactRelativeDoubleSpinBox` / `ArtifactRelativeSpinBox` は元々 `ArtifactPropertyEditor.cppm` のファイルローカルクラスだったが、Dialog 系でも接頭辞計算を共有するため `Artifact.Widgets.RelativeSpinBox` モジュール（`Artifact/include/Widgets/ArtifactRelativeSpinBox.ixx`）に切り出した。
+
+- `ArtifactPropertyEditor.cppm`: ローカル定義を削除し `import Artifact.Widgets.RelativeSpinBox;` に差し替え
+- `ArtifactRenderOutputSettingDialog.cppm`: width/height/fps/bitrate/audioBitrate の5 spinBox を `ArtifactRelative*SpinBox` に置換（メンバ型は基底ポインタ `QSpinBox*`/`QDoubleSpinBox*` のまま、アップキャストで格納）
+- これにより Render 出力設定の bitrate（`+2000` 等の微調整）や fps でも接頭辞計算が効くようになった
 
 ### Phase 4: Validation and Feedback
 

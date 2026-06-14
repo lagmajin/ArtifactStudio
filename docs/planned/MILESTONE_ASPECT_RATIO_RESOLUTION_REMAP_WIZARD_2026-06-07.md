@@ -117,7 +117,7 @@
 #### Phase 3: preview and apply
 - [x] 変更後 preview を表示する (AspectPreviewWidget — 青=old / 橙=new のアスペクト比可視化)
 - [x] 確定時に remap を適用する (applyResolutionRemap — Phase 2で実装済み)
-- [ ] undo / redo できるようにする (要 QUndoCommand 基盤)
+- [x] undo / redo できるようにする (ChangeCompositionResolutionCommand — mask/transform snapshot 方式)
 
 ---
 
@@ -167,7 +167,7 @@
 - [x] どの要素がどれだけ動いたかを示す (Impact group — mask vertex count / anchor / keyframe 表示)
 - [x] 変更不能な要素を明示する (hasImpact() で空の場合は表示)
 - [x] preview と結果の差分を読めるようにする (AspectPreviewWidget + Impact summary)
-- [ ] プロパティキーフレームのremap (要 AnimatableValue 走査 + 座標変換)
+- [x] プロパティキーフレームのremap (transform.position/anchor/scale の X/Y を ResolutionRemap で再計算)
 
 ---
 

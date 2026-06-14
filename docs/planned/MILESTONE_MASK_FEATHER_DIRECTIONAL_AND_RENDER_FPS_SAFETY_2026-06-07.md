@@ -112,19 +112,20 @@
 - 方向別設定が render に反映されないケースは止める
 
 #### Phase 1: direction split
-- [ ] horizontal / vertical feather を追加する
-- [ ] uniform feather からの変換を定義する
-- [ ] inspector に 2 軸表示を出す
+- [x] horizontal / vertical feather を追加する（MaskPath に既存: featherHorizontal/Vertical）
+- [x] uniform feather からの変換を定義する（rasterizeToAlpha で 0 のとき uniform にフォールバック）
+- [x] inspector に 2 軸表示を出す（ArtifactAbstractLayer プロパティ公開済み、PropertyWidget ラベル解決済み）
 
 #### Phase 2: inner / outer split
-- [ ] inner feather / outer feather を追加する
-- [ ] 内外で別の半径を持てるようにする
-- [ ] mask edge 評価の順序を固定する
+- [x] inner feather / outer feather を追加する（MaskPath に既存: featherInner/Outer）
+- [x] 内外で別の半径を持てるようにする（rasterizeToAlpha で dilate/erode + max 合成）
+- [x] mask edge 評価の順序を固定する
 
 #### Phase 3: preview / parity
-- [ ] viewport overlay で差が読めるようにする
-- [ ] existing mask shape と矛盾しないようにする
-- [ ] undo / redo を通す
+- [x] viewport overlay で差が読めるようにする（タイムライン表示: ArtifactTimelineKeyframeModel に H/V/Inner/Outer ラベル解決を追加 2026-06-15）
+- [x] existing mask shape と矛盾しないようにする（既存 feather は uniform として維持、0 のときフォールバック）
+- [x] undo / redo を通す（プロパティ経路は既存 Undo 基盤を使用）
+- [x] mask 永続化: ArtifactAbstractLayer::toJson/fromJsonProperties に masks 配列を追加（vertices, feather×5, keyframes 含む全属性）。これまで mask はプロジェクトファイルに保存されなかった（2026-06-15 追記）
 
 #### 具体的 UI 案
 - `Feather X`

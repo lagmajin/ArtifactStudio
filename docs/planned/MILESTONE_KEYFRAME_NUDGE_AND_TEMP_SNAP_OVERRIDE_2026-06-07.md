@@ -1,7 +1,7 @@
 # Keyframe Nudge / Temp Snap Override Milestone
 
 **作成日:** 2026-06-07  
-**ステータス:** 計画中  
+**ステータス:** ✅ 完了 (2026-06-15 確認・補完)  
 **関連コンポーネント:** Timeline, Keyframe Editing, Snap System, Shortcut Handling
 
 ---
@@ -97,6 +97,10 @@
 
 - 端や複数選択でも安全に動く
 
+実装メモ (2026-06-15):
+- 複数選択対応・frame bounds clamp（`[0, durationFrames-1]`）は既存実装にあり。
+- locked layer の keyframe スキップを追加（`ArtifactTimelineTrackPainterView.cpp` の nudge ループ内で `layer->isLocked()` をチェック）。
+
 ### Phase 5: Timeline Feedback
 
 - nudge 時に現在の移動量を軽く表示する
@@ -106,6 +110,10 @@
 完了条件:
 
 - 何フレーム動いたかが分かる
+
+実装メモ (2026-06-15):
+- 移動量表示は既存 `timelineDebugMessage` で対応済み。
+- Alt 押下時（snap override 中）にメッセージへ "(snap override)" を追記するよう改善。nudge 自体は整数フレーム移動で snap が効かないため、Alt は実質的にドラッグ時のみ意味を持つが、状態の一貫性表示として追加。
 
 ---
 

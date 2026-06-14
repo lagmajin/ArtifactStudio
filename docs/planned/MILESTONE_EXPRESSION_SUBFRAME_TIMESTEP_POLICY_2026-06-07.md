@@ -96,6 +96,12 @@ Expression の評価をフレーム境界だけに固定せず、サブフレー
 - 高速移動や強い力があるときだけ刻みを細かくする
 - 収束条件と最大ステップ数を設定する
 
+実装メモ (2026-06-15):
+- 純関数前提（`time` 変数のみに依存する式）で実装。状態依存の真の物理積分（位置・速度の状態保持）はスコープ外。
+- `ExpressionEvaluator` に `setMaxAdaptiveStepSec` / `setMinAdaptiveStepSec` / `estimateSpeedAtTime` / `lastAdaptiveSplitCount` を追加。
+- AdaptiveStep 分岐を「速度ベースのステップサイズ制御（中央差分で |dy/dt| を推定し `step = clamp(max/(1+speed*gain), min, max)`）+ 半ステップ誤差推定（線形外挿 vs 中点評価の差が `adaptiveTolerance` 以下で収束）」に差し替え。
+- `lastAdaptiveSplitCount()` で Phase 5 診断の足場を用意。
+
 完了条件:
 
 - バネや慣性の動きが frame rate 依存になりにくい

@@ -1,8 +1,8 @@
 # UI Layout Undo History Milestone
 
 **作成日:** 2026-06-07  
-**ステータス:** 計画中  
-**関連コンポーネント:** Window Manager, Dock Layout, Tab State, UndoManager
+**ステータス:** 🟡 進行中（Phase 0: ADS 永続化 完了 2026-06-15 / Phase 1-5 未着手）  
+**関連コンポーネント:** Window Manager, Dock Layout, Tab State, UndoManager, ADS (Advanced Docking System)
 
 ---
 
@@ -49,6 +49,22 @@ UI の開閉や分割、タブ移動などのレイアウト操作を undo / red
 ---
 
 ## Phase 構成
+
+### Phase 0: ADS Layout Persistence（前提基盤）
+
+undo を載せる前に、ADS のレイアウト状態（dock 配置、タブグループ、splitter、floating 位置）が永続化されていないと undo の意味が薄いため、まず永続化を整備した。
+
+実装メモ (2026-06-15):
+- `UiLayoutState`（`ArtifactCore/include/UI/LayoutState.ixx`）に `dockState`（QByteArray）フィールドを追加。構造 version を 2 へ。
+- `toJson/fromJson/saveToSettings/loadFromSettings/saveToStore/loadFromStore` の全てに `dockState` の読み書きを追加。
+- `ArtifactMainWindow`（`Artifact/include/Widgets/ArtifactMainWindow.ixx` / `src/Widgets/ArtifactMainWindow.cppm`）に `saveDockManagerState()` / `restoreDockManagerState()` を追加。内部で `CDockManager::saveState()` / `restoreState()` を呼ぶ。
+- `AppMain.cppm` の起動時復元（`setStartupLayoutFrozen(false)` の直前）と終了時保存（`aboutToQuit`）に dockState の読み書きを接続。version 不一致時・restore 失敗時のリセット処理にも `dockState` キーの削除を追加。
+- **復元タイミングの制約**: ADS は「全ての dock が DockManager に登録された後」でないと restore できない。そのため `setStartupLayoutFrozen(false)` の直前（全 dock 追加後）で呼ぶ。
+- 古いレイアウト（dockState 無し）は `dockState.isEmpty()` でスキップされ、後方互換を保つ。
+
+完了条件:
+
+- ADS レイアウトがアプリ再起動後も復元される
 
 ### Phase 1: Layout State Snapshot
 

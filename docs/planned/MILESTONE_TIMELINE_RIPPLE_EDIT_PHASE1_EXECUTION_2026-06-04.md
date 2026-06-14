@@ -29,6 +29,46 @@
 
 ---
 
+## Phase 2 実行メモ (2026-06-15)
+
+Phase 1 の「Out」のうち、`Trim In` / `Delete` の ripple 対応を実装。
+
+### 実装内容
+
+1. **Ripple Trim In** (`applyTimelineRippleTrimIn`)
+   - target の inPoint を再生ヘッド位置に詰め、後続レイヤーを前に詰める
+   - target 側の startTime / keyframe も inPoint の移動に追従
+   - UI: コンテキストメニュー「Ripple Trim In at Playhead」(TrackPainterView)
+   - ショートカット: `Alt+Shift+[` (TimelineWidget)
+
+2. **Ripple Delete (Close Gap)** (`applyTimelineRippleDelete`)
+   - target を 0 幅に潰して（in/out 同一フレーム）実質削除状態にし、後続を詰める
+   - **レイヤー完全削除はしない**（Undo の安全性のため。snapshot 復元で target も復元できる）。完全削除が必要な場合は既存の「Delete Layer」を使う
+   - UI: コンテキストメニュー「Ripple Delete (Close Gap)」(TrackPainterView)
+   - ショートカット: `Alt+Shift+Delete/Backspace` (TimelineWidget)
+
+3. **Undo コマンド**: `RippleTrimInCommand` / `RippleDeleteCommand`
+   - Phase 1 の `RippleTrimOutCommand` と同じ構造（target + followers を1コマンドに束ねる snapshot 方式）
+
+### 設計判断
+
+- Ripple Delete を「完全削除」ではなく「0幅化（gap close）」にした理由: `restoreTimelineLayerStateSnapshot` は `layerById` でレイヤーを探し、見つからなければ何もしないため、完全削除すると undo で target が復元されない。完全削除版は別コマンド（Phase 3 候補）として、レイヤー再追加基盤と一緒に整備する。
+
+### 変更ファイル
+
+- `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cpp`: applyTimelineRippleTrimIn/Delete, RippleTrimInCommand/RippleDeleteCommand, コンテキストメニュー2項目追加
+- `Artifact/src/Widgets/ArtifactTimelineWidget.cpp`: 同上（キーボードショートカット経由）
+
+### 仍未対応（Phase 3 候補）
+
+- 複数選択への一括 ripple
+- overlap / collision の自動解決
+- parent/child 階層をまたぐ ripple
+- 2ファイル重複実装の統合
+- target locked ガード（target 自体が locked の場合の拒否）
+
+---
+
 ## Current Boundary Note
 
 - まずは `Trim Out` を起点にした後続全移動だけを完成させる
