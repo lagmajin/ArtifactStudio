@@ -33,6 +33,10 @@
       "name": "onnxruntime",
       "features": ["directml"]
     },
-    "sentencepiece"
+    "sentencepiece",
+    {
+      "name": "angelscript",
+      "features": ["addons"]
+    }
   ]
 }

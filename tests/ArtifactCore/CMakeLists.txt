@@ -6,3 +6,10 @@ artifact_add_test(ArtifactCoreTest
     LIBS
         ArtifactCore
 )
+
+artifact_add_test(ArtifactCoreAngelScriptTest
+    SOURCES
+        AngelScriptEngineTest.cpp
+    LIBS
+        ArtifactCore
+)
