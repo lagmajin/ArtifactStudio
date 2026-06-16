@@ -188,3 +188,12 @@ git log --oneline origin/main -1  # ローカルの HEAD と同じハッシュ�
 | 親を push | 6 | `git push origin main` ✅ 成功を確認 |
 
 **この順序を守ること。逆順や同時実行は禁止。**
+
+---
+
+## GitLab Backup Policy
+
+- `GitLab` は **指示がない限りバックアップ専用** とする
+- `push` は許可するが、`delete` / `force push` / 履歴改変 / リポジトリ再作成はしない
+- `GitHub` 側を正規運用の基準として扱う
+- GitLab 側の操作が必要な場合は、必ず明示指示を待つ

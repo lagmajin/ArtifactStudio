@@ -105,14 +105,14 @@
 - preview と実適用が違う場合は silent fix しない
 
 #### Phase 1: preflight
-- [ ] 変更前の resolution / aspect ratio 差分を表示する
-- [ ] mask / keyframe / anchor への影響を列挙する
-- [ ] 変更不能項目を warning 化する
+- [x] 変更前の resolution / aspect ratio 差分を表示する
+- [x] mask / keyframe / anchor への影響を列挙する
+- [x] 変更不能項目を warning 化する
 
 #### Phase 2: policy selection
-- [ ] `Center Locked` / `Top Left Locked` / `Stretch To Fit` を選べるようにする
-- [ ] `Fit With Padding` / `Fit With Crop` を選べるようにする
-- [ ] 変更後の見た目方針を明示する
+- [x] `Center Locked` / `Top Left Locked` / `Stretch To Fit` を選べるようにする
+- [x] `Fit With Padding` / `Fit With Crop` を選べるようにする
+- [x] 変更後の見た目方針を明示する
 
 #### Phase 3: preview and apply
 - [x] 変更後 preview を表示する (AspectPreviewWidget — 青=old / 橙=new のアスペクト比可視化)
@@ -179,6 +179,10 @@
 理由:
 - まず wizard でユーザーに意図を選ばせる方が安全
 - その後に具体要素の remap を policy で実装すると整理しやすい
+
+**エントリーポイント統合完了 (2026-06-15):**
+- `ArtifactProjectManagerWidget` (context menu + inline editor) — ✅
+- `ArtifactCompositionMenu` (Composition Settings dialog) — ✅ (remap wizard 追加済み)
 
 ---
 
