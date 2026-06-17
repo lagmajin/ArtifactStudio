@@ -234,6 +234,104 @@ AE 風 20 テクニックのうち、コンポジションレイヤーループ�
 
 ---
 
+## 8. `QImage` hot path 分類
+
+`QImage` hit 38 は、全部が等価ではない。今回の切り分けでは次の 3 群に分けるのが妥当。
+
+### 8.1 Render Loop Core
+
+- `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- `Artifact/src/Layer/ArtifactVideoLayer.cppm`
+- `Artifact/src/Layer/ArtifactTextLayer.cppm`
+- `Artifact/src/Layer/ArtifactSvgLayer.cppm`
+- `Artifact/src/Layer/ArtifactSDFLayer.cppm`
+
+代表例:
+
+- `surface = processed.toQImage()`
+- `QImage surface(surfaceSize, ...)`
+- `const QImage img = imageLayer->toQImage()`
+- `const QImage svgImage = svgLayer->toQImage()`
+- `const QImage textImage = textLayer->toQImage()`
+- `auto matteResolverLambda = ... -> QImage`
+
+ここは `QImage` を減らす本丸。
+
+#### 8.1.1 すぐ削る候補
+
+- `ArtifactCompositionRenderController.cppm` の `QImage surface(surfaceSize, ...)`
+- `ArtifactCompositionRenderController.cppm` の `processed.toQImage()`
+- `ArtifactCompositionRenderController.cppm` の `surface = surface.convertToFormat(...)`
+- `ArtifactCompositionRenderController.cppm` の `matteResolverLambda` 内の `toQImage()` 連鎖
+
+理由:
+
+- frame loop の中で確実に走る
+- 変換とメモリ確保が重なる
+- boundary ではなく再合成中継なので削減効果が大きい
+
+### 8.2 Render-adjacent Capture
+
+- `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`
+
+代表例:
+
+- `captureCompositionScreenshot()` の `readbackToImage()`
+- `saveScreenshotImage()` の `convertToFormat()`
+- `selectedLayerDebugImage()` の `toQImage()` 呼び出し
+
+ここは render loop 本体ではないが、`QImage` の往復が明確なので次点で削減余地がある。
+
+#### 8.2.1 当面残す候補
+
+- `captureCompositionScreenshot()` の `readbackToImage()`
+- `saveScreenshotImage()` の `convertToFormat()`
+- `selectedLayerDebugImage()` の `toQImage()` 呼び出し
+
+理由:
+
+- screenshot / debug は UI 境界としての意味が強い
+- まずは render core を軽くしたほうが効果が大きい
+- ここを削るなら export / debug 仕様を一緒に整理したほうが安全
+
+### 8.3 Debug / Inspector / Test Boundary
+
+- `Artifact/src/Widgets/Render/ArtifactSoftwareRenderInspectors.cppm`
+- `Artifact/src/Widgets/Render/ArtifactSoftwareRenderTestWidget.cppm`
+- `Artifact/src/Widgets/Render/ArtifactLayerCompositeTestWidget.cppm`
+- `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`
+
+ここは `QImage` が多くても、preview / inspector / test / asset browsing の boundary なので、まずは hot path と分離して扱う。
+
+#### 8.3.1 残す前提の候補
+
+- `ArtifactSoftwareRenderInspectors.cppm`
+- `ArtifactSoftwareRenderTestWidget.cppm`
+- `ArtifactLayerCompositeTestWidget.cppm`
+- `ArtifactProjectManagerWidget.cppm`
+
+理由:
+
+- これらは比較・検証・プレビュー用途で、hot path の主犯ではない
+- まずは boundary を明示したまま性能問題の大半を潰せる
+
+### 8.4 Boundary-only candidates
+
+- `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm` の screenshot save / readback
+- `Artifact/src/Layer/ArtifactVideoLayer.cppm` の decode / compatibility wrappers
+
+ここは `QImage` を完全排除するより、明示的な変換境界として残すほうが現実的。
+
+### 8.5 ざっくり優先順位
+
+1. `ArtifactCompositionRenderController.cppm` の `QImage` 連鎖
+2. `ArtifactVideoLayer.cppm` / `ArtifactTextLayer.cppm` / `ArtifactSvgLayer.cppm`
+3. `ArtifactCompositionEditor.cppm` の capture / readback
+4. `SoftwareRenderInspectors` / `SoftwareRenderTest` / `ProjectManager` の boundary `QImage`
+
+---
+
 **更新履歴**
 
 - 2026-06-16: 初版作成 (CommandCode)。コード変更なし、計測計画と改善ポイント整理のみ
+- 2026-06-17: `QImage` hit を hot path / UI-debug-export / boundary に分割
