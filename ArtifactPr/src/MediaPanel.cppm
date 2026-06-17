@@ -1,16 +1,91 @@
 module;
+
 #include <QFont>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QHash>
+#include <QImage>
+#include <QLineEdit>
 #include <QListWidgetItem>
+#include <QPainter>
+#include <QPixmap>
 #include <QPushButton>
 #include <QStringList>
+#include <QStyledItemDelegate>
+#include <QStyleOptionViewItem>
+#include <QModelIndex>
+#include <QPalette>
 #include <wobjectimpl.h>
 
 module ArtifactPr.MediaPanel;
 
+import ArtifactPr.MediaThumbnailer;
+
+namespace {
+
+/// ListWidget の item に thumbnail + filename を描画する delegate。
+/// QImage は paint() で QPixmap 化されるため、IO / 互換境界用途として OK。
+class MediaThumbnailDelegate : public QStyledItemDelegate {
+public:
+    explicit MediaThumbnailDelegate(QObject* parent = nullptr)
+        : QStyledItemDelegate(parent) {}
+
+    void setThumbnail(const QString& filePath, const QPixmap& pix) {
+        cache_[filePath] = pix;
+    }
+
+    QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override {
+        Q_UNUSED(option);
+        Q_UNUSED(index);
+        return QSize(180, 110);
+    }
+
+    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override {
+        if (!painter) return;
+
+        const QString filePath = index.data(Qt::UserRole).toString();
+        const QString displayName = index.data(Qt::DisplayRole).toString();
+
+        // 背景 (selection)
+        if (option.state & QStyle::State_Selected) {
+            painter->fillRect(option.rect, option.palette.highlight());
+        } else {
+            painter->fillRect(option.rect, option.palette.base());
+        }
+
+        const int thumbW = 160;
+        const int thumbH = 90;
+        const int padX = 8;
+        const int padY = 8;
+        const QRect itemRect = option.rect;
+
+        QRect thumbRect(itemRect.left() + padX, itemRect.top() + padY,
+                        thumbW, thumbH);
+        auto it = cache_.constFind(filePath);
+        if (it != cache_.constEnd() && !it.value().isNull()) {
+            painter->drawPixmap(thumbRect, it.value());
+        } else {
+            painter->setPen(QColor(80, 80, 80));
+            painter->setBrush(QColor(40, 40, 40));
+            painter->drawRect(thumbRect);
+            painter->drawText(thumbRect, Qt::AlignCenter, QStringLiteral("(no preview)"));
+        }
+
+        QRect textRect(itemRect.left() + padX,
+                       thumbRect.bottom() + 4,
+                       itemRect.width() - 2 * padX, 16);
+        painter->setPen(option.palette.color(QPalette::Text));
+        painter->drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft, displayName);
+    }
+
+private:
+    QHash<QString, QPixmap> cache_;
+};
+
+} // namespace
+
 MediaPanel::MediaPanel(QWidget* parent)
-    : QWidget(parent)
+    : QWidget(parent), thumbnailer_(new ArtifactPr::MediaThumbnailer(this))
 {
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(4, 4, 4, 4);
@@ -38,7 +113,34 @@ MediaPanel::MediaPanel(QWidget* parent)
     list_->setAcceptDrops(true);
     list_->setDropIndicatorShown(true);
     list_->setDragEnabled(true);
+    list_->setItemDelegate(new MediaThumbnailDelegate(list_));
     connect(list_, &QListWidget::itemDoubleClicked, this, &MediaPanel::onItemDoubleClicked);
+
+    // 検索バー (PrSearchFilter)
+    searchEdit_ = new QLineEdit(this);
+    searchEdit_->setPlaceholderText(QStringLiteral("Search media..."));
+    searchEdit_->setClearButtonEnabled(true);
+    connect(searchEdit_, &QLineEdit::textChanged,
+            this, &MediaPanel::applySearchFilter);
+
+    // thumbnail 完成時に delegate に通知
+    connect(thumbnailer_, &ArtifactPr::MediaThumbnailer::thumbnailReady,
+            this, [this](ArtifactPr::MediaThumbnail thumb) {
+        if (!thumb.valid) return;
+        auto* delegate = qobject_cast<MediaThumbnailDelegate*>(list_->itemDelegate());
+        if (!delegate) return;
+        QPixmap pix = QPixmap::fromImage(thumb.image);
+        delegate->setThumbnail(thumb.filePath, pix);
+        for (int i = 0; i < list_->count(); ++i) {
+            auto* item = list_->item(i);
+            if (item && item->data(Qt::UserRole).toString() == thumb.filePath) {
+                list_->update(list_->indexFromItem(item));
+                break;
+            }
+        }
+    });
+    thumbnailer_->start();
+
     layout->addWidget(list_, 1);
 
     auto* engine = ArtifactPr::EditorEngine::instance();
@@ -55,12 +157,12 @@ void MediaPanel::refreshMediaList(const ArtifactPr::DemoSequence&)
 
     for (const auto& track : seq.videoTracks) {
         for (const auto& clip : track.clips) {
-            list_->addItem(clip.name);
+            addMediaFile(clip.name, clip.name);
         }
     }
     for (const auto& track : seq.audioTracks) {
         for (const auto& clip : track.clips) {
-            list_->addItem(clip.name);
+            addMediaFile(clip.name, clip.name);
         }
     }
 }
@@ -70,6 +172,15 @@ void MediaPanel::addMediaFile(const QString& filePath, const QString& displayNam
     auto* item = new QListWidgetItem(displayName);
     item->setData(Qt::UserRole, filePath);
     list_->addItem(item);
+
+    // thumbnail を非同期要求 (実ファイルパスの場合のみ)
+    if (QFileInfo::exists(filePath)) {
+        ArtifactPr::ThumbnailRequest req;
+        req.filePath = filePath;
+        req.targetSize = QSize(160, 90);
+        req.seekToMs = 1000;
+        thumbnailer_->request(req);
+    }
 }
 
 void MediaPanel::onImportClicked()

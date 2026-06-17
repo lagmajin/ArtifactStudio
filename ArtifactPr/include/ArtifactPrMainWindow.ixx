@@ -5,6 +5,11 @@ module;
 
 export module ArtifactPr.MainWindow;
 
+import ArtifactPr.Shortcut;
+import ArtifactPr.ShortcutHelpDialog;
+import ArtifactPr.StatusNotifier;
+import ArtifactPr.TimecodeOverlayWidget;
+
 export class TransportBarWidget;
 
 export class ArtifactPrMainWindow : public QMainWindow
@@ -18,6 +23,8 @@ protected:
 
 private Q_SLOTS:
     void onExportTriggered();
+    void onProjectModified();
+    void onUndoRedo();
 
 Q_SIGNALS:
     void requestZoomIn();
@@ -26,4 +33,9 @@ Q_SIGNALS:
 
 private:
     TransportBarWidget* transportBar_ = nullptr;
+    ArtifactPr::PrShortcutRegistry shortcutRegistry_;
+    ArtifactPr::PrStatusNotifier statusNotifier_;
+    ArtifactPr::ShortcutHelpDialog* helpDialog_ = nullptr;
+    QTimer* autoSaveTimer_ = nullptr;
+    ArtifactPr::TimecodeOverlayWidget* timecodeOverlay_ = nullptr;
 };

@@ -15,6 +15,7 @@ module;
 export module ArtifactPr.MediaPanel;
 
 import ArtifactPr.EditorEngine;
+import ArtifactPr.MediaThumbnailer;
 
 export class MediaPanel : public QWidget
 {
@@ -34,4 +35,5 @@ private Q_SLOTS:
 
 private:
     QListWidget* list_ = nullptr;
+    ArtifactPr::MediaThumbnailer* thumbnailer_ = nullptr;
 };

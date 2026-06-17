@@ -85,7 +85,7 @@ void main() {
 
 TEST(AngelScriptEngineTest, RunNonexistentModule) {
     auto& engine = AngelScriptEngine::instance();
-    ASSERT_TRUE(engine.isInitialized();
+    ASSERT_TRUE(engine.isInitialized());
 
     engine.clearError();
 

@@ -30,9 +30,42 @@ ExportDialog::ExportDialog(QWidget* parent)
     resolutionCombo_->addItems({QStringLiteral("1920x1080"), QStringLiteral("1280x720"), QStringLiteral("3840x2160"), QStringLiteral("Match Sequence")});
     layout->addWidget(resolutionCombo_);
 
-    layout->addWidget(new QLabel(QStringLiteral("Codec:")));
+    layout->addWidget(new QLabel(QStringLiteral("Format:")));
     codecCombo_ = new QComboBox();
-    codecCombo_->addItems({QStringLiteral("H.264 (MP4)"), QStringLiteral("H.265 (HEVC)"), QStringLiteral("ProRes"), QStringLiteral("DNxHD")});
+    codecCombo_->addItems({
+        QStringLiteral("H.264 (MP4)"),
+        QStringLiteral("H.265 (HEVC)"),
+        QStringLiteral("ProRes"),
+        QStringLiteral("DNxHD"),
+        QStringLiteral("PNG Sequence"),
+        QStringLiteral("JPEG Sequence"),
+        QStringLiteral("Audio Only (WAV)"),
+        QStringLiteral("Audio Only (MP3)"),
+    });
+    // format 変更時に拡張子と help を更新
+    connect(codecCombo_, qOverload<int>(&QComboBox::currentIndexChanged),
+            this, [this](int idx) {
+        QString fmt = codecCombo_->itemText(idx);
+        QString path = outputPathEdit_->text();
+        if (fmt == QStringLiteral("PNG Sequence")) {
+            if (!path.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive)) {
+                outputPathEdit_->setText(path + QStringLiteral(".png"));
+            }
+        } else if (fmt == QStringLiteral("JPEG Sequence")) {
+            if (!path.endsWith(QStringLiteral(".jpg"), Qt::CaseInsensitive) &&
+                !path.endsWith(QStringLiteral(".jpeg"), Qt::CaseInsensitive)) {
+                outputPathEdit_->setText(path + QStringLiteral(".jpg"));
+            }
+        } else if (fmt == QStringLiteral("Audio Only (WAV)")) {
+            if (!path.endsWith(QStringLiteral(".wav"), Qt::CaseInsensitive)) {
+                outputPathEdit_->setText(path + QStringLiteral(".wav"));
+            }
+        } else if (fmt == QStringLiteral("Audio Only (MP3)")) {
+            if (!path.endsWith(QStringLiteral(".mp3"), Qt::CaseInsensitive)) {
+                outputPathEdit_->setText(path + QStringLiteral(".mp3"));
+            }
+        }
+    });
     layout->addWidget(codecCombo_);
 
     layout->addWidget(new QLabel(QStringLiteral("Frame Rate:")));

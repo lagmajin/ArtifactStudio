@@ -12,6 +12,8 @@ module;
 
 module ArtifactPr.EditorEngine;
 
+import ArtifactPr.EditCommand;
+
 using namespace Qt::StringLiterals;
 
 namespace ArtifactPr {
@@ -583,6 +585,144 @@ void EditorEngine::duplicateSelectedClip()
     Q_EMIT sequenceChanged(currentSequence_);
 }
 
+// =====================================================================
+// 6 種類の NLE 編集操作
+// ---------------------------------------------------------------------
+// すべて UndoCommand 経由で undo / redo 対応。
+// doXxx() helper の中で engine の clipChanged / projectModified を emit。
+// =====================================================================
+
+namespace {
+
+DemoTrack* findTrackById(DemoSequence& seq, const QString& trackId) {
+    for (auto& t : seq.videoTracks) {
+        if (t.id == trackId) return &t;
+    }
+    for (auto& t : seq.audioTracks) {
+        if (t.id == trackId) return &t;
+    }
+    return nullptr;
+}
+
+} // namespace
+
+void EditorEngine::slipClip(const QString& clipId, FramePosition delta)
+{
+    auto* clip = findClip(clipId);
+    if (!clip) return;
+
+    const FramePosition oldIn = clip->sourceIn;
+    const FramePosition oldOut = clip->sourceOut;
+    const FramePosition newIn = oldIn + delta;
+    const FramePosition newOut = oldOut + delta;
+
+    auto* cmd = new SlipClipCommand(clipId, oldIn, oldOut, newIn, newOut);
+    pushUndo(cmd);
+    Q_EMIT clipChanged(clipId);
+    Q_EMIT projectModified();
+}
+
+void EditorEngine::slideClip(const QString& clipId, FramePosition delta)
+{
+    auto* clip = findClip(clipId);
+    if (!clip) return;
+
+    DemoTrack* track = nullptr;
+    int clipIndex = -1;
+    for (auto& t : currentSequence_.videoTracks) {
+        for (int i = 0; i < t.clips.size(); ++i) {
+            if (t.clips[i].id == clipId) { track = &t; clipIndex = i; break; }
+        }
+        if (track) break;
+    }
+    if (!track) return;
+
+    const QString leftId = clipIndex > 0 ? track->clips[clipIndex - 1].id : QString();
+    const QString rightId = clipIndex < track->clips.size() - 1 ? track->clips[clipIndex + 1].id : QString();
+    const FramePosition oldLeftEnd = !leftId.isEmpty()
+        ? (track->clips[clipIndex - 1].startFrame + track->clips[clipIndex - 1].duration)
+        : 0;
+    const FramePosition oldRightStart = !rightId.isEmpty()
+        ? track->clips[clipIndex + 1].startFrame
+        : 0;
+
+    auto* cmd = new SlideClipCommand(clipId,
+                                     clip->startFrame, clip->startFrame + delta,
+                                     leftId, oldLeftEnd,
+                                     rightId, oldRightStart);
+    cmd->computeNewEdges();
+    pushUndo(cmd);
+    Q_EMIT clipChanged(clipId);
+    Q_EMIT projectModified();
+}
+
+void EditorEngine::rippleDeleteClipAt(const QString& clipId)
+{
+    auto* clip = findClip(clipId);
+    if (!clip) return;
+
+    DemoTrack* track = nullptr;
+    int index = -1;
+    for (auto& t : currentSequence_.videoTracks) {
+        for (int i = 0; i < t.clips.size(); ++i) {
+            if (t.clips[i].id == clipId) { track = &t; index = i; break; }
+        }
+        if (track) break;
+    }
+    if (!track) return;
+
+    const FramePosition oldDuration = currentSequence_.duration;
+    const FramePosition newDuration = oldDuration - clip->duration;
+
+    auto* cmd = new RippleDeleteCommand(track->id, *clip, index,
+                                        oldDuration, newDuration);
+    pushUndo(cmd);
+    Q_EMIT sequenceChanged(currentSequence_);
+    Q_EMIT projectModified();
+}
+
+void EditorEngine::insertClipFromSource(const QString& trackId,
+                                        const DemoClip& sourceClip,
+                                        FramePosition insertAt)
+{
+    auto* track = findTrackById(currentSequence_, trackId);
+    if (!track) return;
+
+    const FramePosition oldDuration = currentSequence_.duration;
+    const FramePosition newDuration = oldDuration + sourceClip.duration;
+
+    auto* cmd = new InsertEditCommand(trackId, sourceClip, insertAt,
+                                      oldDuration, newDuration);
+    pushUndo(cmd);
+    Q_EMIT sequenceChanged(currentSequence_);
+    Q_EMIT projectModified();
+}
+
+void EditorEngine::overwriteClipFromSource(const QString& trackId,
+                                           const DemoClip& sourceClip,
+                                           FramePosition overwriteAt)
+{
+    auto* track = findTrackById(currentSequence_, trackId);
+    if (!track) return;
+
+    auto* cmd = new OverwriteEditCommand(trackId, sourceClip, overwriteAt);
+    pushUndo(cmd);
+    Q_EMIT sequenceChanged(currentSequence_);
+    Q_EMIT projectModified();
+}
+
+void EditorEngine::liftRange(const QString& trackId,
+                             FramePosition from, FramePosition to)
+{
+    auto* track = findTrackById(currentSequence_, trackId);
+    if (!track) return;
+
+    auto* cmd = new LiftEditCommand(trackId, from, to, track->clips);
+    pushUndo(cmd);
+    Q_EMIT sequenceChanged(currentSequence_);
+    Q_EMIT projectModified();
+}
+
 void EditorEngine::setClipSpeed(const QString& clipId, double speed)
 {
     auto* clip = findClip(clipId);
@@ -735,6 +875,45 @@ FramePosition EditorEngine::snapToNearest(FramePosition frame, bool forLeftEdge)
     return frame;
 }
 
+// =====================================================================
+// snapToNearestEx: 拡張 snap。
+// 既存の snapToNearest + transition + frame + second を統合。
+// frame / second は round して返す (clamp ではなく round なので
+// ドラッグ中に即時 snap される)。
+// =====================================================================
+FramePosition EditorEngine::snapToNearestEx(FramePosition frame, bool forLeftEdge, int threshold)
+{
+    if (!snapEnabled_) return frame;
+
+    // 既存ロジック (clip / marker / playhead) を再利用
+    const FramePosition baseSnap = snapToNearest(frame, forLeftEdge);
+    if (baseSnap != frame) return baseSnap;
+
+    // transition 端
+    for (const auto& trans : currentSequence_.transitions) {
+        if (qAbs(frame - trans.startFrame) <= threshold) {
+            return trans.startFrame;
+        }
+        if (qAbs(frame - (trans.startFrame + trans.duration)) <= threshold) {
+            return trans.startFrame + trans.duration;
+        }
+    }
+
+    // second 単位 (30 fps 想定)
+    const int kFps = 30;
+    const FramePosition secondFrame = (frame / kFps) * kFps;
+    if (qAbs(frame - secondFrame) <= threshold) {
+        return secondFrame;
+    }
+    const FramePosition nextSecond = secondFrame + kFps;
+    if (qAbs(frame - nextSecond) <= threshold) {
+        return nextSecond;
+    }
+
+    // 1 frame 単位は threshold == 0 相当。返さない。
+    return frame;
+}
+
 void EditorEngine::pushUndo(UndoCommand* cmd)
 {
     undoStack_.push_back(cmd);
@@ -818,6 +997,15 @@ void DeleteClipCommand::redo()
             }
         }
     }
+}
+
+bool EditorEngine::runAutoSave()
+{
+    if (!autoSaveEnabled_) return false;
+    if (autoSaveFilePath_.isEmpty()) return false;
+
+    const bool result = saveProject(autoSaveFilePath_);
+    return result;
 }
 
 void EditorEngine::addMarker(FramePosition position, const QString& name, const QString& comment)
@@ -1075,6 +1263,7 @@ QJsonObject clipToJson(const DemoClip& clip)
     obj[QStringLiteral("sourceOut")] = clip.sourceOut;
     obj[QStringLiteral("color")] = clip.color;
     obj[QStringLiteral("linked")] = clip.linked;
+    obj[QStringLiteral("selected")] = clip.selected;
     obj[QStringLiteral("reversed")] = clip.reversed;
     obj[QStringLiteral("speed")] = clip.speed;
     obj[QStringLiteral("volume")] = clip.volume;
@@ -1100,6 +1289,7 @@ DemoClip jsonToClip(const QJsonObject& obj)
     clip.sourceOut = obj[QStringLiteral("sourceOut")].toInteger();
     clip.color = obj[QStringLiteral("color")].toString(QStringLiteral("#4a9eff"));
     clip.linked = obj[QStringLiteral("linked")].toBool();
+    clip.selected = obj[QStringLiteral("selected")].toBool();
     clip.reversed = obj[QStringLiteral("reversed")].toBool();
     clip.speed = obj[QStringLiteral("speed")].toDouble(1.0);
     clip.volume = obj[QStringLiteral("volume")].toDouble(1.0);
@@ -1304,9 +1494,13 @@ bool EditorEngine::saveProject(const QString& filePath)
         return false;
     }
 
-    QFile file(filePath);
-    if (!file.open(QIODevice::WriteOnly)) {
-        Q_EMIT projectSaved(false, QStringLiteral("Failed to open file for writing"));
+    // Atomic write: temp ファイルに書いてから rename。
+    // crash や disk full で中途半端な状態にならない。
+    const QString tempPath = filePath + QStringLiteral(".tmp");
+
+    QFile file(tempPath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        Q_EMIT projectSaved(false, QStringLiteral("Failed to open temp file for writing: %1").arg(tempPath));
         return false;
     }
 
@@ -1316,7 +1510,18 @@ bool EditorEngine::saveProject(const QString& filePath)
     QJsonDocument doc(json);
 
     file.write(doc.toJson(QJsonDocument::Indented));
+    file.flush();
     file.close();
+
+    // temp → 本ファイルへ rename (atomic on most platforms)
+    if (QFile::exists(filePath)) {
+        QFile::remove(filePath);
+    }
+    if (!QFile::rename(tempPath, filePath)) {
+        Q_EMIT projectSaved(false, QStringLiteral("Failed to rename temp to final file"));
+        QFile::remove(tempPath);
+        return false;
+    }
 
     Q_EMIT projectSaved(true, QStringLiteral("Project saved successfully"));
     return true;

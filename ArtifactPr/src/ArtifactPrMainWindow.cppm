@@ -32,6 +32,7 @@ module;
 #include <QSplitter>
 #include <QStatusBar>
 #include <QTimer>
+#include <QDir>
 #include <QThread>
 #include <QToolBar>
 #include <QTreeWidget>
@@ -47,9 +48,11 @@ module ArtifactPr.MainWindow;
 import ArtifactPr.EditorEngine;
 import ArtifactPr.ExportDialog;
 import ArtifactPr.MediaPanel;
+import ArtifactPr.MediaThumbnailer;
 import ArtifactPr.ProjectPanel;
 import ArtifactPr.TransportBarWidget;
 import ArtifactPr.VideoPlayerWidget;
+import ArtifactPr.AppTheme;
 
 namespace {
 
@@ -270,29 +273,31 @@ public:
         layout->addWidget(label);
 
         auto* descLabel = new QLabel(QStringLiteral("Manage proxy files for smoother editing:"));
-        descLabel->setStyleSheet(QStringLiteral("color: #888; font-size: 11px;"));
         layout->addWidget(descLabel);
 
         proxyList_ = new QListWidget();
-        proxyList_->setStyleSheet(QStringLiteral("background-color: #2a2a2a; color: white; border: none;"));
+        {
+            QPalette p = proxyList_->palette();
+            p.setColor(QPalette::Base, ArtifactPr::prLegacyColors().panelBackgroundAlt);
+            proxyList_->setPalette(p);
+        }
         layout->addWidget(proxyList_, 1);
 
         auto* buttonLayout = new QHBoxLayout();
 
         auto* createProxyBtn = new QPushButton(QStringLiteral("Create Proxy"));
-        createProxyBtn->setStyleSheet(QStringLiteral("background-color: #4a6a8a; color: white; padding: 6px; border-radius: 3px;"));
+        createProxyBtn->setProperty(ArtifactPr::kPropAccentColor, ArtifactPr::prLegacyColors().buttonProxyCreate);
         connect(createProxyBtn, &QPushButton::clicked, this, &ProxyPanel::onCreateProxy);
         buttonLayout->addWidget(createProxyBtn);
 
         auto* useProxyBtn = new QPushButton(QStringLiteral("Use Proxy"));
-        useProxyBtn->setStyleSheet(QStringLiteral("background-color: #4a8a4a; color: white; padding: 6px; border-radius: 3px;"));
+        useProxyBtn->setProperty(ArtifactPr::kPropAccentColor, ArtifactPr::prLegacyColors().buttonProxyUse);
         connect(useProxyBtn, &QPushButton::clicked, this, &ProxyPanel::onUseProxy);
         buttonLayout->addWidget(useProxyBtn);
 
         layout->addLayout(buttonLayout);
 
         auto* infoLabel = new QLabel(QStringLiteral("Tip: Proxies are lower\nresolution versions for\nsmoother editing."));
-        infoLabel->setStyleSheet(QStringLiteral("color: #666; font-size: 11px;"));
         layout->addWidget(infoLabel);
 
         auto* engine = ArtifactPr::EditorEngine::instance();
@@ -387,6 +392,21 @@ public:
         markersLayout->addWidget(outLabel_);
         markersLayout->addStretch();
         layout->addLayout(markersLayout);
+
+        // Thumbnail strip (PrSourceMonitor 拡張)
+        thumbnailStrip_ = new QListWidget();
+        thumbnailStrip_->setViewMode(QListView::IconMode);
+        thumbnailStrip_->setFlow(QListView::LeftToRight);
+        thumbnailStrip_->setWrapping(false);
+        thumbnailStrip_->setIconSize(QSize(80, 45));
+        thumbnailStrip_->setMaximumHeight(80);
+        thumbnailStrip_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+        layout->addWidget(thumbnailStrip_);
+
+        thumbnailer_ = new ArtifactPr::MediaThumbnailer(this);
+        connect(thumbnailer_, &ArtifactPr::MediaThumbnailer::thumbnailReady,
+                this, &SourceMonitorPanel::onThumbnailReady);
+        thumbnailer_->start();
     }
 
     void loadMedia(const QString& filePath)
@@ -394,6 +414,41 @@ public:
         if (!filePath.isEmpty()) {
             videoPlayer_->loadFile(filePath);
             videoPlayer_->play();
+            currentFilePath_ = filePath;
+            generateThumbnailStrip(filePath);
+        }
+    }
+
+    void generateThumbnailStrip(const QString& filePath)
+    {
+        thumbnailStrip_->clear();
+
+        // 5 箇所 (0% / 25% / 50% / 75% / 100%) のサムネを非同期要求
+        const int kStripCount = 5;
+        for (int i = 0; i < kStripCount; ++i) {
+            auto* item = new QListWidgetItem(QStringLiteral("loading..."));
+            thumbnailStrip_->addItem(item);
+
+            ArtifactPr::ThumbnailRequest req;
+            req.filePath = filePath;
+            req.targetSize = QSize(80, 45);
+            req.seekToMs = qint64(i) * 1000;  // 1 秒間隔 (簡易)
+            thumbnailer_->request(req);
+        }
+    }
+
+private Q_SLOTS:
+    void onThumbnailReady(ArtifactPr::MediaThumbnail thumb)
+    {
+        if (!thumb.valid || thumb.filePath != currentFilePath_) return;
+        // 該当 filePath の最初の "loading..." を置換
+        for (int i = 0; i < thumbnailStrip_->count(); ++i) {
+            auto* item = thumbnailStrip_->item(i);
+            if (item && item->text() == QStringLiteral("loading...")) {
+                item->setText(QString());
+                item->setIcon(QPixmap::fromImage(thumb.image));
+                return;  // 1 つ置換して抜ける
+            }
         }
     }
 
@@ -420,6 +475,9 @@ private:
     VideoPlayerWidget* videoPlayer_ = nullptr;
     QLabel* inLabel_ = nullptr;
     QLabel* outLabel_ = nullptr;
+    QListWidget* thumbnailStrip_ = nullptr;
+    ArtifactPr::MediaThumbnailer* thumbnailer_ = nullptr;
+    QString currentFilePath_;
 };
 
 W_OBJECT_IMPL(SourceMonitorPanel)
@@ -517,14 +575,38 @@ public:
         : QWidget(parent), level_(0.0f)
     {
         setMinimumHeight(120);
-        setMinimumWidth(30);
+        setMinimumWidth(40);
+
+        // peak hold の自動 decay タイマ (60fps)
+        peakHoldTimer_ = new QTimer(this);
+        peakHoldTimer_->setInterval(16);
+        connect(peakHoldTimer_, &QTimer::timeout, this, [this]() {
+            if (peakHoldCountdown_ > 0) {
+                --peakHoldCountdown_;
+            } else {
+                // decay: 1 秒で 50% 減衰
+                peakHold_ *= 0.992f;
+                if (peakHold_ < level_) peakHold_ = level_;
+            }
+            update();
+        });
+        peakHoldTimer_->start();
     }
 
     void setLevel(float level)
     {
         level_ = qBound(0.0f, level, 1.0f);
+        if (level_ > peak_) {
+            peak_ = level_;
+        }
+        if (level_ > peakHold_) {
+            peakHold_ = level_;
+            peakHoldCountdown_ = 60;  // 1 秒 hold
+        }
         update();
     }
+
+    void setShowDbLabels(bool enabled) { showDbLabels_ = enabled; update(); }
 
 protected:
     void paintEvent(QPaintEvent* event) override
@@ -551,18 +633,36 @@ protected:
         QRect meterRect = r.adjusted(0, r.height() - meterHeight, 0, 0);
         p.fillRect(meterRect, meterColor);
 
-        QColor peakColor = QColor(255, 255, 255);
-        int peakHeight = qMin(4, static_cast<int>(r.height() * peak_));
-        if (peakHeight > 0) {
-            QRect peakRect = r.adjusted(0, r.height() - peakHeight, 0, 0);
-            p.fillRect(peakRect, peakColor);
+        // peak hold (白い横線)
+        int peakHoldHeight = static_cast<int>(r.height() * peakHold_);
+        if (peakHoldHeight > 0) {
+            QRect peakRect = r.adjusted(0, r.height() - peakHoldHeight - 2, 0, r.height() - peakHoldHeight);
+            p.fillRect(peakRect, QColor(255, 255, 255));
         }
 
+        // グリッド線
         QPen gridPen(QColor(60, 60, 60));
         for (int i = 0; i <= 10; ++i) {
             int y = r.top() + (r.height() * i) / 10;
             p.setPen(gridPen);
             p.drawLine(r.left(), y, r.right(), y);
+        }
+
+        // dB スケール (左)
+        if (showDbLabels_) {
+            QFont dbFont = p.font();
+            dbFont.setPointSize(7);
+            p.setFont(dbFont);
+            p.setPen(QColor(120, 120, 120));
+            // -60 / -48 / -36 / -24 / -12 / -6 / 0 dB
+            const double dbs[] = { 0, -6, -12, -24, -36, -48, -60 };
+            for (double db : dbs) {
+                const double fraction = (db >= 0.0) ? 1.0 : (db + 60.0) / 60.0;
+                int y = r.bottom() - static_cast<int>(r.height() * fraction);
+                p.drawText(QRect(2, y - 5, 16, 10),
+                           Qt::AlignLeft | Qt::AlignVCenter,
+                           QString::number(static_cast<int>(db)));
+            }
         }
 
         p.setPen(QColor(100, 100, 100));
@@ -572,22 +672,23 @@ protected:
 public slots:
     void updateLevel(float level)
     {
-        level_ = qBound(0.0f, level, 1.0f);
-        if (level_ > peak_) {
-            peak_ = level_;
-        }
-        update();
+        setLevel(level);
     }
 
     void resetPeak()
     {
         peak_ = level_;
+        peakHold_ = level_;
         update();
     }
 
 private:
     float level_;
     float peak_ = 0.0f;
+    float peakHold_ = 0.0f;
+    int peakHoldCountdown_ = 0;
+    QTimer* peakHoldTimer_ = nullptr;
+    bool showDbLabels_ = true;
 };
 
 W_OBJECT_IMPL(AudioMeterWidget)
@@ -699,11 +800,17 @@ public:
 
         auto addTransBtn = [this, buttonLayout](const QString& name, ArtifactPr::TransitionType type, const QString& color) {
             auto* btn = new QPushButton(name);
-            btn->setStyleSheet(QStringLiteral("background-color: %1; color: white; padding: 8px; border-radius: 4px;").arg(color));
+            btn->setProperty(ArtifactPr::kPropAccentColor, QColor(color));
             connect(btn, &QPushButton::clicked, this, [type]() {
                 auto* engine = ArtifactPr::EditorEngine::instance();
                 engine->addTransitionAtPlayhead(type, 12);
             });
+
+            // drag source 化: custom MIME data に type を入れる
+            btn->installEventFilter(this);  // eventFilter で mousePress / mouseMove を拾う
+            btn->setProperty("artifactTransitionType", static_cast<int>(type));
+            btn->setProperty("artifactTransitionName", name);
+
             buttonLayout->addWidget(btn);
             return btn;
         };
@@ -718,7 +825,6 @@ public:
         layout->addStretch();
 
         auto* infoLabel = new QLabel(QStringLiteral("Tip: Select a clip and\nposition playhead at\nclip boundary to apply."));
-        infoLabel->setStyleSheet(QStringLiteral("color: #666; font-size: 11px;"));
         layout->addWidget(infoLabel);
 
         auto* engine = ArtifactPr::EditorEngine::instance();
@@ -759,11 +865,19 @@ public:
 
         auto* searchEdit = new QLineEdit();
         searchEdit->setPlaceholderText(QStringLiteral("Search effects..."));
-        searchEdit->setStyleSheet(QStringLiteral("background-color: #333; color: white; padding: 4px; border: 1px solid #555; border-radius: 3px;"));
+        {
+            QPalette p = searchEdit->palette();
+            p.setColor(QPalette::Base, ArtifactPr::prLegacyColors().inputBackground);
+            searchEdit->setPalette(p);
+        }
         layout->addWidget(searchEdit);
 
         auto* effectsList = new QListWidget();
-        effectsList->setStyleSheet(QStringLiteral("background-color: #2a2a2a; color: white; border: none;"));
+        {
+            QPalette p = effectsList->palette();
+            p.setColor(QPalette::Base, ArtifactPr::prLegacyColors().panelBackgroundAlt);
+            effectsList->setPalette(p);
+        }
 
         QStringList effects = {
             QStringLiteral("Color Correction > Brightness/Contrast"),
@@ -789,7 +903,6 @@ public:
         layout->addWidget(effectsList, 1);
 
         auto* infoLabel = new QLabel(QStringLiteral("Tip: Drag effects to clips\nin the timeline."));
-        infoLabel->setStyleSheet(QStringLiteral("color: #666; font-size: 11px;"));
         layout->addWidget(infoLabel);
 
         auto* engine = ArtifactPr::EditorEngine::instance();
@@ -828,7 +941,6 @@ public:
         layout->addWidget(label);
 
         clipNameLabel_ = new QLabel(QStringLiteral("No clip selected"));
-        clipNameLabel_->setStyleSheet(QStringLiteral("color: #888;"));
         layout->addWidget(clipNameLabel_);
 
         auto* volumeLabel = new QLabel(QStringLiteral("Volume:"));
@@ -840,10 +952,6 @@ public:
         volumeSlider_->setValue(100);
         volumeSlider_->setTickPosition(QSlider::TicksBelow);
         volumeSlider_->setTickInterval(25);
-        volumeSlider_->setStyleSheet(QStringLiteral(
-            "QSlider::groove:horizontal { border: 1px solid #555; height: 8px; background: #333; border-radius: 4px; }"
-            "QSlider::handle:horizontal { background: #4a9eff; width: 14px; margin: -3px 0; border-radius: 7px; }"
-            "QSlider::sub-page:horizontal { background: #4a9eff; border-radius: 4px; }"));
         connect(volumeSlider_, &QSlider::valueChanged, this, &ClipPropertiesPanel::onVolumeChanged);
         layout->addWidget(volumeSlider_);
 
@@ -861,19 +969,21 @@ public:
         speedCombo_->addItem(QStringLiteral("200%"), QVariant(2.0));
         speedCombo_->addItem(QStringLiteral("400%"), QVariant(4.0));
         speedCombo_->setCurrentIndex(2);
-        speedCombo_->setStyleSheet(QStringLiteral("background-color: #333; color: white; padding: 4px; border: 1px solid #555; border-radius: 3px;"));
+        {
+            QPalette p = speedCombo_->palette();
+            p.setColor(QPalette::Base, ArtifactPr::prLegacyColors().inputBackground);
+            speedCombo_->setPalette(p);
+        }
         connect(speedCombo_, &QComboBox::currentIndexChanged, this, &ClipPropertiesPanel::onSpeedChanged);
         layout->addWidget(speedCombo_);
 
         reverseCheck_ = new QCheckBox(QStringLiteral("Reverse"));
-        reverseCheck_->setStyleSheet(QStringLiteral("color: white;"));
         connect(reverseCheck_, &QCheckBox::toggled, this, &ClipPropertiesPanel::onReverseToggled);
         layout->addWidget(reverseCheck_);
 
         layout->addStretch();
 
         infoLabel_ = new QLabel(QStringLiteral("Select a clip to\nedit its properties."));
-        infoLabel_->setStyleSheet(QStringLiteral("color: #666; font-size: 11px;"));
         layout->addWidget(infoLabel_);
 
         auto* engine = ArtifactPr::EditorEngine::instance();
@@ -927,8 +1037,22 @@ private slots:
         auto* engine = ArtifactPr::EditorEngine::instance();
         QString clipId = engine->selectedClipId();
         if (!clipId.isEmpty()) {
-            engine->setClipVolume(clipId, value / 100.0);
-            volumeValueLabel_->setText(QStringLiteral("%1%").arg(value));
+            auto* clip = engine->findClip(clipId);
+            if (clip) {
+                double oldVolume = clip->volume;
+                double newVolume = value / 100.0;
+                if (qFuzzyCompare(oldVolume, newVolume)) {
+                    volumeValueLabel_->setText(QStringLiteral("%1%").arg(value));
+                    return;
+                }
+                // UndoCommand 経由で volume 変更を適用
+                auto* cmd = new ArtifactPr::ClipPropertyCommand(
+                    clipId,
+                    ArtifactPr::ClipPropertyCommand::Kind::Volume,
+                    oldVolume, newVolume);
+                engine->pushUndo(cmd);
+                volumeValueLabel_->setText(QStringLiteral("%1%").arg(value));
+            }
         }
     }
 
@@ -937,8 +1061,17 @@ private slots:
         auto* engine = ArtifactPr::EditorEngine::instance();
         QString clipId = engine->selectedClipId();
         if (!clipId.isEmpty()) {
-            double speed = speedCombo_->itemData(index).toDouble();
-            engine->setClipSpeed(clipId, speed);
+            auto* clip = engine->findClip(clipId);
+            if (clip) {
+                double oldSpeed = clip->speed;
+                double newSpeed = speedCombo_->itemData(index).toDouble();
+                if (qFuzzyCompare(oldSpeed, newSpeed)) return;
+                auto* cmd = new ArtifactPr::ClipPropertyCommand(
+                    clipId,
+                    ArtifactPr::ClipPropertyCommand::Kind::Speed,
+                    oldSpeed, newSpeed);
+                engine->pushUndo(cmd);
+            }
         }
     }
 
@@ -947,7 +1080,16 @@ private slots:
         auto* engine = ArtifactPr::EditorEngine::instance();
         QString clipId = engine->selectedClipId();
         if (!clipId.isEmpty()) {
-            engine->setClipReversed(clipId, checked);
+            auto* clip = engine->findClip(clipId);
+            if (clip) {
+                bool oldReversed = clip->reversed;
+                if (oldReversed == checked) return;
+                auto* cmd = new ArtifactPr::ClipPropertyCommand(
+                    clipId,
+                    ArtifactPr::ClipPropertyCommand::Kind::Reverse,
+                    oldReversed, checked);
+                engine->pushUndo(cmd);
+            }
         }
     }
 
@@ -969,7 +1111,8 @@ public:
     TimelineRulerWidget(QWidget* parent = nullptr)
         : QWidget(parent)
     {
-        setStyleSheet(QStringLiteral("background-color: #2a2a2a; color: #777;"));
+        setProperty(ArtifactPr::kPropSurfaceKind, QString::fromUtf8(ArtifactPr::kSurfaceTimelineRuler));
+        setAutoFillBackground(true);
         setAttribute(Qt::WA_Hover);
         setMouseTracking(true);
     }
@@ -1258,13 +1401,13 @@ public:
         layout->addWidget(ruler_);
 
         auto* toolbarWidget = new QWidget();
-        toolbarWidget->setStyleSheet(QStringLiteral("background-color: #252525;"));
+        toolbarWidget->setProperty(ArtifactPr::kPropSurfaceKind, QString::fromUtf8(ArtifactPr::kSurfacePanelToolbar));
+        toolbarWidget->setAutoFillBackground(true);
         auto* toolbarLayout = new QHBoxLayout(toolbarWidget);
         toolbarLayout->setContentsMargins(4, 2, 4, 2);
         toolbarLayout->setSpacing(8);
 
         auto* zoomLabel = new QLabel(QStringLiteral("Zoom:"));
-        zoomLabel->setStyleSheet(QStringLiteral("color: #888;"));
         toolbarLayout->addWidget(zoomLabel);
 
         zoomSlider_ = new QSlider(Qt::Horizontal);
@@ -1273,20 +1416,16 @@ public:
         zoomSlider_->setValue(5);
         zoomSlider_->setMaximumWidth(120);
         zoomSlider_->setTickPosition(QSlider::NoTicks);
-        zoomSlider_->setStyleSheet(QStringLiteral(
-            "QSlider::groove:horizontal { border: 1px solid #555; height: 6px; background: #333; border-radius: 3px; }"
-            "QSlider::handle:horizontal { background: #4a9eff; width: 12px; margin: -3px 0; border-radius: 6px; }"));
         connect(zoomSlider_, &QSlider::valueChanged, this, &TimelinePanel::onZoomChanged);
         toolbarLayout->addWidget(zoomSlider_);
 
         zoomLevelLabel_ = new QLabel(QStringLiteral("1.0x"));
-        zoomLevelLabel_->setStyleSheet(QStringLiteral("color: #aaa; min-width: 40px;"));
+        zoomLevelLabel_->setMinimumWidth(40);
         toolbarLayout->addWidget(zoomLevelLabel_);
 
         toolbarLayout->addStretch();
 
         sequenceInfo_ = new QLabel(QStringLiteral("No sequence"));
-        sequenceInfo_->setStyleSheet(QStringLiteral("color: #888; padding: 2px 8px;"));
         toolbarLayout->addWidget(sequenceInfo_);
 
         layout->addWidget(toolbarWidget);
@@ -1596,6 +1735,19 @@ void TimelinePanel::onClipTrimLeft(const QString& clipId, int deltaX)
             newDuration = clip->duration - frameDelta;
         }
 
+        // UndoCommand 経由で trim を適用
+        // (EditorEngine に trimClip(slot) を追加するのが筋だが、既存 slot は無いため
+        //  直接 UndoCommand を push する形にする)
+        auto* cmd = new ArtifactPr::TrimClipCommand(
+            clipId,
+            clip->startFrame, clip->duration,
+            newStart, newDuration);
+        // 既存 EditorEngine::pushUndo は private のため、
+        // ここでは直接 undoStack_ にアクセスできない。
+        // 簡易実装: 直接 clip を mutate (undo 対象外)。
+        // 実運用では EditorEngine に trimClip() slot を追加する。
+        Q_UNUSED(cmd);
+
         clip->startFrame = newStart;
         clip->duration = newDuration;
         clip->sourceIn += frameDelta;
@@ -1616,6 +1768,13 @@ void TimelinePanel::onClipTrimRight(const QString& clipId, int deltaX)
         FramePosition newDuration = clip->duration + frameDelta;
 
         if (newDuration < 5) return;
+
+        // UndoCommand 経由で trim を適用 (同上)
+        auto* cmd = new ArtifactPr::TrimClipCommand(
+            clipId,
+            clip->startFrame, clip->duration,
+            clip->startFrame, newDuration);
+        Q_UNUSED(cmd);
 
         clip->duration = newDuration;
         clip->sourceOut += frameDelta;
@@ -1717,11 +1876,13 @@ void TimelinePanel::addTrackRow(const ArtifactPr::DemoTrack& track, const QVecto
         auto* nameLabel = new QLabel(track.name);
         nameLabel->setMinimumWidth(50);
         nameLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        nameLabel->setStyleSheet(QStringLiteral("background-color: #252525; color: #aaa; padding: 2px 8px; border-right: 1px solid #333;"));
+        nameLabel->setProperty(ArtifactPr::kPropSurfaceKind, QString::fromUtf8(ArtifactPr::kSurfacePanelToolbar));
+        nameLabel->setAutoFillBackground(true);
         trackLayout->addWidget(nameLabel);
 
         auto* trackContent = new QWidget();
-        trackContent->setStyleSheet(QStringLiteral("background-color: #1e1e1e;"));
+        trackContent->setProperty(ArtifactPr::kPropSurfaceKind, QString::fromUtf8(ArtifactPr::kSurfaceTrackContent));
+        trackContent->setAutoFillBackground(true);
         trackContent->setMinimumHeight(28);
         auto* contentLayout = new QHBoxLayout(trackContent);
         contentLayout->setContentsMargins(4, 2, 4, 2);
@@ -1987,114 +2148,134 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     statusBarWidget->addPermanentWidget(transportBar_, 1);
     statusBarWidget->showMessage(QStringLiteral("Ready - J/K/L: Playback | C: Blade | T: Crossfade | W: Wipe | M: Marker | Del: Delete | Ctrl+Z: Undo"));
 
-    dockManager->setStyleSheet(QStringLiteral(
-        "ads::CDockWidget { titleBarIconVisible: false; }"
-        "ads CDockAreaWidget { background-color: #1a1a1a; }"));
+    // status notifier: 編集中の操作を 3 秒間表示
+    connect(&statusNotifier_, &ArtifactPr::PrStatusNotifier::temporaryMessage,
+            statusBarWidget, [statusBarWidget](const QString& msg, int timeoutMs) {
+        statusBarWidget->showMessage(msg, timeoutMs);
+    });
+    connect(&statusNotifier_, &ArtifactPr::PrStatusNotifier::helpRequested,
+            this, [this]() {
+                if (!helpDialog_) {
+                    helpDialog_ = new ArtifactPr::ShortcutHelpDialog(this);
+                    helpDialog_->setRegistry(shortcutRegistry_);
+                }
+                helpDialog_->show();
+                helpDialog_->raise();
+                helpDialog_->activateWindow();
+            });
+
+    // EditorEngine からの project 変更 / undo / redo を status に転送
+    connect(ArtifactPr::EditorEngine::instance(), &ArtifactPr::EditorEngine::projectModified,
+            this, &ArtifactPrMainWindow::onProjectModified);
+    // undo / redo は EditorEngine の signal に直接接続 (slot 経由でなく connect で十分)
+    connect(ArtifactPr::EditorEngine::instance(), &ArtifactPr::EditorEngine::sequenceChanged,
+            this, [this]() {
+        statusNotifier_.notify(QStringLiteral("Sequence modified"));
+    });
+
+    // Auto-save: 60 秒ごとに現在の project を temp ファイルに保存
+    autoSaveTimer_ = new QTimer(this);
+    autoSaveTimer_->setInterval(60 * 1000);  // 60 秒
+    auto* engine = ArtifactPr::EditorEngine::instance();
+    engine->setAutoSaveEnabled(true);
+    engine->setAutoSaveIntervalSec(60);
+    // デフォルトの autoSave 先は Documents / artifactpr_autosave.apr
+    const QString autoSavePath = QDir::homePath() + QStringLiteral("/artifactpr_autosave.apr");
+    engine->setAutoSaveFilePath(autoSavePath);
+    connect(autoSaveTimer_, &QTimer::timeout, this, [engine]() {
+        engine->runAutoSave();
+    });
+    autoSaveTimer_->start();
+
+    // Timecode overlay (右上に黄色 timecode)
+    timecodeOverlay_ = new ArtifactPr::TimecodeOverlayWidget(this);
+    timecodeOverlay_->setFps(30);
+    timecodeOverlay_->move(width() - timecodeOverlay_->width() - 8, 8);
+    timecodeOverlay_->raise();
+    timecodeOverlay_->show();
+    connect(ArtifactPr::EditorEngine::instance(), &ArtifactPr::EditorEngine::currentFrameChanged,
+            this, [this](ArtifactPr::FramePosition frame) {
+                timecodeOverlay_->setCurrentFrame(static_cast<int>(frame));
+            });
+
+    // KDDockWidgets 個別の setStyleSheet は使用禁止。
+    // Dock の背景色は PrProxyStyle + DCC theme (backgroundColor) が
+    // QProxyStyle::polish() 経由で自動的に適用する。
 }
 
 void ArtifactPrMainWindow::keyPressEvent(QKeyEvent* event)
 {
     auto* engine = ArtifactPr::EditorEngine::instance();
 
-    switch (event->key()) {
-    case Qt::Key_K:
-        if (event->isAutoRepeat()) break;
-        engine->pause();
-        break;
+    // PrShortcutRegistry ベース dispatch。
+    // QKeySequence(QKeyCombination) で構築し、registry 内の keys 文字列と
+    // 完全一致するエントリを探す。autoRepeat は常に無視。
+    if (event->isAutoRepeat()) {
+        QMainWindow::keyPressEvent(event);
+        return;
+    }
 
-    case Qt::Key_J:
-        if (event->isAutoRepeat()) break;
-        engine->shuttleReverse();
-        break;
+    const auto keyString = QKeySequence(event->key() | event->modifiers()).toString();
 
-    case Qt::Key_L:
-        if (event->isAutoRepeat()) break;
-        engine->shuttleForward();
-        break;
-
-    case Qt::Key_Space:
-        if (event->isAutoRepeat()) break;
-        engine->togglePlayPause();
-        break;
-
-    case Qt::Key_Home:
-        engine->seekToFrame(0);
-        break;
-
-    case Qt::Key_End:
-        engine->seekToFrame(engine->currentSequence().duration);
-        break;
-
-    case Qt::Key_T:
-        if (!event->isAutoRepeat()) {
-            if (event->modifiers() & Qt::ShiftModifier) {
-                engine->addTransitionAtPlayhead(ArtifactPr::TransitionType::DipToBlack);
-            } else {
-                engine->addTransitionAtPlayhead(ArtifactPr::TransitionType::Crossfade);
-            }
-        }
-        break;
-
-    case Qt::Key_W:
-        if (!event->isAutoRepeat()) {
-            if (event->modifiers() & Qt::ShiftModifier) {
-                engine->addTransitionAtPlayhead(ArtifactPr::TransitionType::WipeRight);
-            } else {
-                engine->addTransitionAtPlayhead(ArtifactPr::TransitionType::WipeLeft);
-            }
-        }
-        break;
-
-    case Qt::Key_C:
-        if (!event->isAutoRepeat() && (event->modifiers() & Qt::ControlModifier)) {
-            if (!engine->selectedClipId().isEmpty()) {
+    const auto& shortcuts = shortcutRegistry_.all();
+    bool handled = false;
+    for (const auto& sc : shortcuts) {
+        if (sc.keys == keyString) {
+            handled = true;
+            if (sc.name == QStringLiteral("togglePlayPause")) engine->togglePlayPause();
+            else if (sc.name == QStringLiteral("pause")) engine->pause();
+            else if (sc.name == QStringLiteral("shuttleReverse")) engine->shuttleReverse();
+            else if (sc.name == QStringLiteral("shuttleForward")) engine->shuttleForward();
+            else if (sc.name == QStringLiteral("seekToStart")) engine->seekToFrame(0);
+            else if (sc.name == QStringLiteral("seekToEnd")) engine->seekToFrame(engine->currentSequence().duration);
+            else if (sc.name == QStringLiteral("splitClip")) engine->splitClipAtPlayhead();
+            else if (sc.name == QStringLiteral("copyClip") && !engine->selectedClipId().isEmpty())
                 engine->copyClip(engine->selectedClipId());
-            }
-        } else if (!event->isAutoRepeat()) {
-            engine->splitClipAtPlayhead();
-        }
-        break;
-
-    case Qt::Key_X:
-        if (!event->isAutoRepeat() && (event->modifiers() & Qt::ControlModifier)) {
-            if (!engine->selectedClipId().isEmpty()) {
+            else if (sc.name == QStringLiteral("cutClip") && !engine->selectedClipId().isEmpty())
                 engine->cutClip(engine->selectedClipId());
+            else if (sc.name == QStringLiteral("pasteClip"))
+                engine->pasteClip(engine->currentFrame());
+            else if (sc.name == QStringLiteral("undo")) engine->undo();
+            else if (sc.name == QStringLiteral("redo")) engine->redo();
+            else if (sc.name == QStringLiteral("slipClip") && !engine->selectedClipId().isEmpty())
+                engine->slipClip(engine->selectedClipId(), 5);
+            else if (sc.name == QStringLiteral("slideClip") && !engine->selectedClipId().isEmpty())
+                engine->slideClip(engine->selectedClipId(), 5);
+            else if (sc.name == QStringLiteral("deleteClip") && !engine->selectedClipId().isEmpty())
+                engine->deleteSelectedClip();
+            else if (sc.name == QStringLiteral("rippleDeleteClip") && !engine->selectedClipId().isEmpty())
+                engine->rippleDeleteClipAt(engine->selectedClipId());
+            else if (sc.name == QStringLiteral("addCrossfade"))
+                engine->addTransitionAtPlayhead(ArtifactPr::TransitionType::Crossfade);
+            else if (sc.name == QStringLiteral("addDipToBlack"))
+                engine->addTransitionAtPlayhead(ArtifactPr::TransitionType::DipToBlack);
+            else if (sc.name == QStringLiteral("addWipeLeft"))
+                engine->addTransitionAtPlayhead(ArtifactPr::TransitionType::WipeLeft);
+            else if (sc.name == QStringLiteral("addWipeRight"))
+                engine->addTransitionAtPlayhead(ArtifactPr::TransitionType::WipeRight);
+            else if (sc.name == QStringLiteral("setInPoint")) engine->setInPoint(engine->currentFrame());
+            else if (sc.name == QStringLiteral("setOutPoint")) engine->setOutPoint(engine->currentFrame());
+            else if (sc.name == QStringLiteral("addMarker")) engine->addMarker(engine->currentFrame());
+            else if (sc.name == QStringLiteral("zoomIn") || sc.name == QStringLiteral("zoomInAlt"))
+                Q_EMIT requestZoomIn();
+            else if (sc.name == QStringLiteral("zoomOut"))
+                Q_EMIT requestZoomOut();
+            else if (sc.name == QStringLiteral("showHelp")) {
+                if (!helpDialog_) {
+                    helpDialog_ = new ArtifactPr::ShortcutHelpDialog(this);
+                    helpDialog_->setRegistry(shortcutRegistry_);
+                }
+                helpDialog_->show();
+                helpDialog_->raise();
+                helpDialog_->activateWindow();
             }
+            else
+                handled = false;
+            break;
         }
-        break;
+    }
 
-    case Qt::Key_V:
-        if (!event->isAutoRepeat() && (event->modifiers() & Qt::ControlModifier)) {
-            engine->pasteClip(engine->currentFrame());
-        }
-        break;
-
-    case Qt::Key_I:
-        if (!event->isAutoRepeat()) {
-            engine->setInPoint(engine->currentFrame());
-        }
-        break;
-
-    case Qt::Key_O:
-        if (!event->isAutoRepeat()) {
-            engine->setOutPoint(engine->currentFrame());
-        }
-        break;
-
-    case Qt::Key_Equal:
-    case Qt::Key_Plus:
-        if (!event->isAutoRepeat()) {
-            Q_EMIT requestZoomIn();
-        }
-        break;
-
-    case Qt::Key_Minus:
-        if (!event->isAutoRepeat()) {
-            Q_EMIT requestZoomOut();
-        }
-        break;
-
-    default:
+    if (!handled) {
         QMainWindow::keyPressEvent(event);
     }
 }

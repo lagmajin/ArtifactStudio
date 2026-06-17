@@ -10,6 +10,13 @@ artifact_add_test(ArtifactCoreTest
 artifact_add_test(ArtifactCoreAngelScriptTest
     SOURCES
         AngelScriptEngineTest.cpp
+        LIBS
+        ArtifactCore
+)
+
+artifact_add_test(ArtifactCoreCreativeEffectTest
+    SOURCES
+        ColorVibranceEffectTest.cpp
     LIBS
         ArtifactCore
 )

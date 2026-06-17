@@ -1,7 +1,8 @@
 #include <QApplication>
-#include <QPalette>
-#include <QColor>
+#include <QStyleFactory>
 
+import ArtifactCore;
+import ArtifactPr.AppTheme;
 import ArtifactPr.MainWindow;
 
 int main(int argc, char *argv[])
@@ -10,17 +11,13 @@ int main(int argc, char *argv[])
     app.setApplicationName(QStringLiteral("ArtifactPr"));
     app.setOrganizationName(QStringLiteral("ArtifactStudio"));
 
-    QPalette darkPalette;
-    darkPalette.setColor(QPalette::Window, QColor(27, 32, 38));
-    darkPalette.setColor(QPalette::WindowText, QColor(235, 238, 242));
-    darkPalette.setColor(QPalette::Base, QColor(18, 22, 27));
-    darkPalette.setColor(QPalette::AlternateBase, QColor(31, 37, 44));
-    darkPalette.setColor(QPalette::Text, QColor(235, 238, 242));
-    darkPalette.setColor(QPalette::Button, QColor(40, 47, 55));
-    darkPalette.setColor(QPalette::ButtonText, QColor(235, 238, 242));
-    darkPalette.setColor(QPalette::Highlight, QColor(82, 150, 224));
-    darkPalette.setColor(QPalette::HighlightedText, QColor(255, 255, 255));
-    app.setPalette(darkPalette);
+    // 1. ArtifactCore の DCC theme を初期化 (Studio / Dark プリセット)
+    auto theme = ArtifactCore::getDCCTheme(ArtifactCore::DccStylePreset::StudioStyle);
+    ArtifactCore::applyDCCTheme(app, theme);
+
+    // 2. PrProxyStyle (QProxyStyle + Fusion) を適用。
+    //    26 件の setStyleSheet はこの style が polish() / drawControl() で吸収する。
+    app.setStyle(new ArtifactPr::PrProxyStyle(QStyleFactory::create(QStringLiteral("Fusion"))));
 
     ArtifactPrMainWindow window;
     window.show();

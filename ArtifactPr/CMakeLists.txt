@@ -9,6 +9,16 @@ set(ARTIFACT_PR_SOURCES
     include/ExportDialog.ixx
     include/MediaPanel.ixx
     include/ProjectPanel.ixx
+    include/AppTheme.ixx
+    include/MediaThumbnailer.ixx
+    include/VideoSurface.ixx
+    include/EditCommand.ixx
+    include/PrShortcut.ixx
+    include/PrStatusNotifier.ixx
+    include/ShortcutHelpDialog.ixx
+    include/TimecodeOverlayWidget.ixx
+    include/MarkerEditDialog.ixx
+    include/PrColorPickerDialog.ixx
     src/main.cpp
     src/ArtifactPrMainWindow.cppm
     src/ArtifactPrDemoData.cppm
@@ -18,6 +28,16 @@ set(ARTIFACT_PR_SOURCES
     src/ExportDialog.cppm
     src/MediaPanel.cppm
     src/ProjectPanel.cppm
+    src/AppTheme.cppm
+    src/MediaThumbnailer.cppm
+    src/VideoSurface.cppm
+    src/EditCommand.cppm
+    src/PrShortcut.cppm
+    src/PrStatusNotifier.cppm
+    src/ShortcutHelpDialog.cppm
+    src/TimecodeOverlayWidget.cppm
+    src/MarkerEditDialog.cppm
+    src/PrColorPickerDialog.cppm
 )
 
 # MOC disabled - causes issues with drive paths

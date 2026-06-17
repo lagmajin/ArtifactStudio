@@ -203,7 +203,28 @@ public Q_SLOTS:
 
     void cutClip(const QString& clipId);
     void copyClip(const QString& clipId);
+
+    // Auto-save (M-PR-AUTOSAVE)
+    bool isAutoSaveEnabled() const { return autoSaveEnabled_; }
+    void setAutoSaveEnabled(bool enabled) { autoSaveEnabled_ = enabled; }
+
+    int autoSaveIntervalSec() const { return autoSaveIntervalSec_; }
+    void setAutoSaveIntervalSec(int sec) { autoSaveIntervalSec_ = sec; }
+
+    QString autoSaveFilePath() const { return autoSaveFilePath_; }
+    void setAutoSaveFilePath(const QString& path) { autoSaveFilePath_ = path; }
+
+    /// 手動で auto-save をトリガ。
+    bool runAutoSave();
     void pasteClip(FramePosition targetFrame);
+
+    // 6 種類の NLE 編集操作 (UndoCommand 経由)
+    void slipClip(const QString& clipId, FramePosition delta);
+    void slideClip(const QString& clipId, FramePosition delta);
+    void rippleDeleteClipAt(const QString& clipId);
+    void insertClipFromSource(const QString& trackId, const DemoClip& sourceClip, FramePosition insertAt);
+    void overwriteClipFromSource(const QString& trackId, const DemoClip& sourceClip, FramePosition overwriteAt);
+    void liftRange(const QString& trackId, FramePosition from, FramePosition to);
 
     bool saveProject(const QString& filePath);
     bool loadProject(const QString& filePath);
@@ -212,6 +233,17 @@ public Q_SLOTS:
     bool isSnapEnabled() const { return snapEnabled_; }
     void setSnapEnabled(bool enabled) { snapEnabled_ = enabled; }
     FramePosition snapToNearest(FramePosition frame, bool forLeftEdge);
+
+    /// 拡張 snap (5 種類)。
+    enum class SnapKind {
+        Clip,           // 既存
+        Marker,         // 既存
+        Playhead,       // 既存
+        Transition,     // 新規
+        Frame,          // 新規: 1 frame 単位
+        Second,         // 新規: fps 単位 (30 fps なら 30 frame 単位)
+    };
+    FramePosition snapToNearestEx(FramePosition frame, bool forLeftEdge, int threshold = 5);
 
     void undo();
     void redo();
@@ -236,8 +268,11 @@ Q_SIGNALS:
     void exportProgress(int percent) W_SIGNAL(exportProgress, percent);
     void exportFinished(bool success, const QString& message) W_SIGNAL(exportFinished, success, message);
 
-private:
+    /// UndoCommand を push する (UI レイヤから直接利用可)。
+    /// 内部実装は stack_ に積む + redoStack_ をクリア。
     void pushUndo(UndoCommand* cmd);
+
+private:
     QString generateId(const QString& prefix);
     static QString transitionTypeToString(TransitionType type);
     static TransitionType stringToTransitionType(const QString& str);
@@ -250,6 +285,11 @@ private:
     FramePosition inPoint_ = 0;
     FramePosition outPoint_ = 350;
     PlaybackSpeed playbackSpeed_ = PlaybackSpeed::Stop;
+
+    // Auto-save (M-PR-AUTOSAVE)
+    bool autoSaveEnabled_ = false;
+    int autoSaveIntervalSec_ = 60;
+    QString autoSaveFilePath_;
 
     QString selectedClipId_;
 
