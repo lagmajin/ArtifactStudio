@@ -6,8 +6,14 @@
 
 ## 概要
 
-After Effects のワークスペースプリセット機能を再現。
+After Effects 風のワークスペースプリセット機能を目指す。
 パネルの配置やサイズを保存/読み込みできるようにする。
+
+## 現状
+
+- `Artifact/src/Core/ArtifactWorkspaceManager.cppm` に保存/復元がある
+- `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm` から保存・削除・復元を操作できる
+- 現在は「レイアウト + dock 可視状態 + workspaceMode の保存」が主
 
 ## 機能仕様
 
@@ -24,26 +30,25 @@ After Effects のワークスペースプリセット機能を再現。
 - タブ順序
 
 ### デフォルトプリセット
-**AE互換プリセット:**
-- `Standard`: 一般的な編集作業用
-- `Minimal`: 最小限のパネル配置
-- `Animation`: アニメーション作業向け
-- `Motion Tracking`: トラッキング作業向け
+**現行実装の考え方:**
+- 保存済みプリセットはユーザー作成が中心
+- プリセットは JSON ファイル単位で管理する
+- `workspace_session.json` は最後のセッション復元用
 
 ### クイックアクセス
-- `Window > Workspace` メニュー
-- ステータスバーへのドロップダウン追加
-- キーボードショートカット対応
+- `表示 > ワークスペース` メニュー
+- `プリセット` サブメニューから保存 / 削除 / 復元
+- 独立したショートカットは未整理
 
 ### 実装要件
 - QMainWindow のステート保存/復元
 - 設定ファイル(JSON)への保存
-- 起動時のデフォルトプリセット適用
-- 破損プリセットの自動修復
+- 起動時のデフォルト workspace mode 適用
+- 破損プリセットの扱いは今後の改善点
 
 ### 実装場所
-- `Artifact/src/Core/ArtifactWorkspaceManager.cppm` (新規)
-- UI統合: 既存メニューに追加
+- [Artifact/src/Core/ArtifactWorkspaceManager.cppm](/X:/Dev/ArtifactStudio/Artifact/src/Core/ArtifactWorkspaceManager.cppm)
+- [Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm](/X:/Dev/ArtifactStudio/Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm)
 
 ## 技術的考慮
 - パネル状態の正確な保存/復元
@@ -54,6 +59,12 @@ After Effects のワークスペースプリセット機能を再現。
 - より詳細なプリセット管理
 - キーボードショートカット
 - 自動修復機能
+
+## Source Alignment Notes
+
+- `WorkspaceMode` の本体は [Artifact/src/Widgets/ArtifactMainWindow.cppm](/X:/Dev/ArtifactStudio/Artifact/src/Widgets/ArtifactMainWindow.cppm)
+- `WorkspaceMode` の選択 UI は [Artifact/src/Widgets/ArtifactToolBar.cppm](/X:/Dev/ArtifactStudio/Artifact/src/Widgets/ArtifactToolBar.cppm)
+- 実際の保存/復元は [Artifact/src/Core/ArtifactWorkspaceManager.cppm](/X:/Dev/ArtifactStudio/Artifact/src/Core/ArtifactWorkspaceManager.cppm)
 
 ## テストケース
 - プリセットの保存/読み込み精度
