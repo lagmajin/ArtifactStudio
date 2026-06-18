@@ -16,3 +16,6 @@ See [project-workflow/taste.md](project-workflow/taste.md)
 - Do not modify, commit, or push the `ArtifactWidgets`, `libs/...`, or `third_party/*` submodules unless the user explicitly asks; treat them as read-only/external. New UI widgets are first placed under `Artifact/` and only promoted to `ArtifactWidgets/` later. Confidence: 0.85
 - Treat `Artifact_dev_review/` as a read-only sandbox copy; do not edit files inside it. Only modify the `Artifact/` directory for code changes. Confidence: 0.70
 
+# project-architecture
+- For new functionality in `ArtifactPr`, prefer an internal/centralized event system architecture (the style used in `Artifact/`) rather than ad-hoc Qt signal-slot wiring between widgets. Surface components should publish events to a central bus/service that other layers subscribe to. Confidence: 0.60
+
