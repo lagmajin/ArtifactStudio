@@ -64,9 +64,9 @@
 - [ ] ログ出力とエラー出力を標準化する
 - [ ] 単発スクリプトとファイル実行を通す
 
-Phase 1 の実行メモ:
+Phase 1 の実行メモは親文書へ統合済み:
 
-- [docs/planned/MILESTONE_EXTENDSCRIPT_STYLE_SCRIPT_RUNTIME_PHASE1_EXECUTION_2026-04-06.md](./MILESTONE_EXTENDSCRIPT_STYLE_SCRIPT_RUNTIME_PHASE1_EXECUTION_2026-04-06.md)
+- 親文書へ統合済み
 
 ### Phase 2: Interactive Console / Script Surface
 
@@ -118,4 +118,4 @@ Phase 1 の実行メモ:
 - [ArtifactCore/include/Script/Engine/Context/ScriptContext.ixx](/c:/Users/kukul/OneDrive/デスクトップ/Programming/ArtifactStudio/ArtifactCore/include/Script/Engine/Context/ScriptContext.ixx)
 - [ArtifactCore/include/Script/Engine/BuiltinScriptVM.ixx](/c:/Users/kukul/OneDrive/デスクトップ/Programming/ArtifactStudio/ArtifactCore/include/Script/Engine/BuiltinScriptVM.ixx)
 - [ArtifactCore/include/Script/Python/PythonEngine.ixx](/c:/Users/kukul/OneDrive/デスクトップ/Programming/ArtifactStudio/ArtifactCore/include/Script/Python/PythonEngine.ixx)
-- [docs/planned/MILESTONE_EXTENDSCRIPT_STYLE_SCRIPT_RUNTIME_PHASE1_EXECUTION_2026-04-06.md](./MILESTONE_EXTENDSCRIPT_STYLE_SCRIPT_RUNTIME_PHASE1_EXECUTION_2026-04-06.md)
+- 親文書へ統合済み

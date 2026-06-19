@@ -9,26 +9,27 @@ Text 系の次フェーズをまとめた索引。
 ## 1. Text Animator Next Gen
 
 - Plan: [`MILESTONE_TEXT_ANIMATOR_NEXT_GEN_2026-04-18.md`](./MILESTONE_TEXT_ANIMATOR_NEXT_GEN_2026-04-18.md)
-- Execution: [`MILESTONE_TEXT_ANIMATOR_NEXT_GEN_EXECUTION_2026-04-30.md`](./MILESTONE_TEXT_ANIMATOR_NEXT_GEN_EXECUTION_2026-04-30.md)
-- Phase 1: [`MILESTONE_TEXT_ANIMATOR_NEXT_GEN_PHASE1_EXECUTION_2026-04-30.md`](./MILESTONE_TEXT_ANIMATOR_NEXT_GEN_PHASE1_EXECUTION_2026-04-30.md)
+- Execution: 親文書へ統合済み
 - Focus: UI / selector / preset / timeline
+- Note: execution / phase docs are slices of the same parent milestone, not separate workstreams.
 
 ## 2. GPU Text Rendering / Japanese Shaping
 
 - Plan: [`ArtifactCore/docs/MILESTONE_GPU_TEXT_RENDERING_JA_2026-04-01.md`](../../ArtifactCore/docs/MILESTONE_GPU_TEXT_RENDERING_JA_2026-04-01.md)
-- Execution: [`ArtifactCore/docs/MILESTONE_GPU_TEXT_RENDERING_JA_EXECUTION_2026-04-30.md`](../../ArtifactCore/docs/MILESTONE_GPU_TEXT_RENDERING_JA_EXECUTION_2026-04-30.md)
+- Execution: 親文書へ統合済み
 - Focus: font fallback / shaping / atlas / backend parity
 
 ## 3. Complex Script / Vertical Writing
 
 - Plan: [`MILESTONE_TEXT_ANIMATOR_COMPLEX_SCRIPT_VERTICAL_2026-06-12.md`](./MILESTONE_TEXT_ANIMATOR_COMPLEX_SCRIPT_VERTICAL_2026-06-12.md)
-- Execution: [`MILESTONE_TEXT_SHAPING_BACKEND_HARFBUZZ_EXECUTION_2026-06-12.md`](../../ArtifactCore/docs/MILESTONE_TEXT_SHAPING_BACKEND_HARFBUZZ_EXECUTION_2026-06-12.md)
+- Execution: 親文書へ統合済み
 - Focus: grapheme / glyph cluster / RTL / vertical writing / selector semantics
+- Note: this is a semantics slice that depends on the shaping backend, not a duplicate of `Text Animator Next Gen`.
 
 ## 4. Text Shaping Backend / HarfBuzz
 
 - Plan: [`ArtifactCore/docs/MILESTONE_TEXT_SHAPING_BACKEND_HARFBUZZ_2026-06-12.md`](../../ArtifactCore/docs/MILESTONE_TEXT_SHAPING_BACKEND_HARFBUZZ_2026-06-12.md)
-- Execution: [`ArtifactCore/docs/MILESTONE_TEXT_SHAPING_BACKEND_HARFBUZZ_EXECUTION_2026-06-12.md`](../../ArtifactCore/docs/MILESTONE_TEXT_SHAPING_BACKEND_HARFBUZZ_EXECUTION_2026-06-12.md)
+- Execution: 親文書へ統合済み
 - Focus: Qt fallback adapter / HarfBuzz backend / logical-visual mapping / shaping contract
 
 ## 5. Text Layout Contract

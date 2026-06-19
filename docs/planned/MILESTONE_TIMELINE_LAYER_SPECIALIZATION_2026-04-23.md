@@ -75,7 +75,7 @@
 
 - [`MILESTONE_TIMELINE_AUDIO_LAYER_SPECIALIZATION_2026-04-23.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_AUDIO_LAYER_SPECIALIZATION_2026-04-23.md)
   - Audio layer から先に入る具体案
-- [`MILESTONE_TIMELINE_LAYER_SPECIALIZATION_EXECUTION_2026-04-23.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_LAYER_SPECIALIZATION_EXECUTION_2026-04-23.md)
+- Phase 1 execution memo is absorbed into the parent milestone
   - 共通編集を壊さない段階導入の実行版
 - `Video / Text / Shape` は後続で同じ枠組みに載せる
 

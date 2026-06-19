@@ -27,9 +27,6 @@
 - どの animator が何をしているかを一目で追えるようにする
 - timeline に進む前に、設定モデルの見通しを整える
 
-実行メモ:
-- [`MILESTONE_TEXT_ANIMATOR_NEXT_GEN_PHASE1_EXECUTION_2026-04-30.md`](./MILESTONE_TEXT_ANIMATOR_NEXT_GEN_PHASE1_EXECUTION_2026-04-30.md)
-
 ### 2. Timeline Exposure
 
 次に、animator プロパティを timeline に流す。

@@ -97,7 +97,7 @@ ArtifactStudio 全体の diagnostics を、画面ごとに別の言い方や別�
 
 ## Next Step
 
-Phase 1 で使う warning / error / next の文言セットを先に固定する。
+Phase 1 の実行メモは親文書へ統合済み。
 
 ## 2026-05-31 Survey Note
 

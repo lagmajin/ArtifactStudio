@@ -510,7 +510,7 @@ AE の弱点を避けるため、まず debug surface を入れる。
 ## Execution Slice
 
 - まずは [`MILESTONE_TEXT_LAYOUT_CONTRACT_2026-06-12.md`](../../ArtifactCore/docs/MILESTONE_TEXT_LAYOUT_CONTRACT_2026-06-12.md) を共通契約の起点にする
-- 次に [`MILESTONE_TEXT_SHAPING_BACKEND_HARFBUZZ_EXECUTION_2026-06-12.md`](../../ArtifactCore/docs/MILESTONE_TEXT_SHAPING_BACKEND_HARFBUZZ_EXECUTION_2026-06-12.md) で shaping backend を差し替え可能にする
+- 次に [`MILESTONE_TEXT_SHAPING_BACKEND_HARFBUZZ_2026-06-12.md`](../../ArtifactCore/docs/MILESTONE_TEXT_SHAPING_BACKEND_HARFBUZZ_2026-06-12.md) で shaping backend を差し替え可能にする
 - その後に vertical writing の metadata を `TextLayoutContract` へ流し込む
 - 最後に selector / inspector / debug surface を unit aware にする
 - GPU 最適化へ進む前に text semantics が固定される

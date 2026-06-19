@@ -126,4 +126,4 @@ Qt 型や STL 型が module 境界で見えなくなる問題を減らす。
 
 - [`docs/analysis/CORE_MODULE_MISSING_FEATURES_2026-04-19.md`](X:/Dev/ArtifactStudio/docs/analysis/CORE_MODULE_MISSING_FEATURES_2026-04-19.md)
 - [`docs/planned/MILESTONES_BACKLOG.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONES_BACKLOG.md)
-- [`docs/planned/MILESTONE_CORE_MODULE_HYGIENE_BUILD_STABILIZATION_PHASE1_EXECUTION_2026-04-21.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_CORE_MODULE_HYGIENE_BUILD_STABILIZATION_PHASE1_EXECUTION_2026-04-21.md)
+- 実行メモは phase 別のファイルではなく、親文書の各 Phase 節に統合する

@@ -37,7 +37,7 @@
 
 - startup worker を domain ごとに trace できるようにする
 - `Render / Decode / Asset / Playback / Project / AI` の lane に分ける
-- 実行メモ: `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_PHASE1_EXECUTION_2026-04-21.md`
+- 実行メモは親文書へ統合済み
 
 ### Phase 2: Burst Correlation
 

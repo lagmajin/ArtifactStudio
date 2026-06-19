@@ -33,10 +33,11 @@
 
 - [MILESTONE_TIMELINE_LAYER_SEARCH_2026-03-28.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_LAYER_SEARCH_2026-03-28.md)
 - [MILESTONE_TIMELINE_AUDIO_LAYER_SPECIALIZATION_2026-04-23.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_AUDIO_LAYER_SPECIALIZATION_2026-04-23.md)
-- [MILESTONE_TIMELINE_LAYER_SPECIALIZATION_EXECUTION_2026-04-23.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_LAYER_SPECIALIZATION_EXECUTION_2026-04-23.md)
+- `MILESTONE_TIMELINE_LAYER_SPECIALIZATION_2026-04-23.md` は親文書として読む
 - [MILESTONE_TIMELINE_TOOLTIPS_2026-04-10.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_TOOLTIPS_2026-04-10.md)
 - [MILESTONE_TIMELINE_ZOOM_PAN_2026-04-10.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_ZOOM_PAN_2026-04-10.md)
 - [MILESTONE_TIMELINE_WAVEFORM_2026-04-10.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_WAVEFORM_2026-04-10.md)
+- [MILESTONE_LAYER_EFFECT_ENVELOPE_2026-06-19.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_LAYER_EFFECT_ENVELOPE_2026-06-19.md)
 - [MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md)
 
 ### 5. Shortcut Split
@@ -65,6 +66,23 @@
 - `M-TL-4` は `M-TL-11` と `M-TL-8` に吸収された見方でよい
 - `M-TL-8` は右ペインに関しては完了扱い
 - 右ペインの今後は「機能追加」と「見た目/入力の磨き込み」が主になる
+
+### Superseded / Absorbed
+
+以下は単独で追うより、上位計画や別の本筋に吸収して読むと分かりやすいもの。
+
+- `M-TL-4` Timeline TrackView Owner-Draw Migration
+- `M-TL-8` Timeline QGraphicsScene Elimination
+- `M-TL-11` Timeline Right Pane Full Owner-Draw
+- `M-TL-13` Timeline Scrub Bar Frame Cache Overlay
+- `M-TL-14` Timeline Layer Specialization Execution
+- `M-TL-15` Timeline Ripple Edit / Downstream Shift
+
+補足:
+
+- `M-TL-4` は `M-TL-11` と `M-TL-8` に吸収された見方でよい
+- `M-TL-8` と `M-TL-11` は右ペイン/表示基盤として完了または吸収済み
+- `M-TL-13` / `M-TL-14` / `M-TL-15` は本筋の補助線として読む
 
 ### Active / Current
 

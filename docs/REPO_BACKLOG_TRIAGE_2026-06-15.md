@@ -16,7 +16,7 @@
 | 区分 | 件数（概算） | 備考 |
 |------|------|------|
 | 完了（verified 2026-04-14 帯） | 約 15 | M-DIAG-1〜4 / M-PV-1〜2 / M-AS-4 / M-UI-23 / M-UI-3 / M-UI-5 / M-CE-1 / M-CE-CRIT-2 / M-AI-1 / M-AI-2 / M-AB |
-| コードはあるが未接続（P0/P1） | 6 | TextGizmo / Speed Graph sample / Mask vertex insert / Shape Operators 6種 / Text Animator timeline / Group mask |
+| コードはあるが未接続（P0/P1） | 2 | Text Animator timeline / Group mask |
 | 進行中（worklog で実装済み、ビルド未） | 2 | M-CE-CRIT-1 / M-APP-5 (Project Health / Problem View) |
 | 着手可能だが未着手 | 多数 | M-RAM-3 / M-LE-1 / M-TL-15 / Shape Operators 一式 / M-UI-6 / M-UI-7 残課題 / M-IR-8 / M-WKR-1 / M-FE-9 ほか |
 | 後回し（依存が重い） | 一式 | Render Farm / Puppet / Auto-Orient / Motion Sketch / Roving Keyframes / OIIO pipeline / 3D Gizmo / Software Render Pipeline |
@@ -36,10 +36,8 @@
 
 | # | 案件 | エビデンス | 影響 | 見積目安 |
 |---|------|----------|------|----------|
-| B-1 | `sampleSpeedGraph()` 実装 | `ArtifactCurveEditorWidget.cppm:815` コメントのみ | Curve Editor の Value/Speed 切替が実データで動く | S |
-| B-2 | `ArtifactTextGizmo` を Composition Editor に接続 | `ArtifactTextGizmo.cppm` 210行がいずれの controller からも未 import | text 専用 range selector ハンドルが復活 | S〜M |
-| B-3 | Pen Tool: 線分上 vertex insert | `COMPOSITION_EDITOR_GAP_ANALYSIS_2026-06-03.md` §3.a | mask/roto の編集体験の底上げ | S |
-| B-4 | Mask Inspector 表示（count/path/enabled） | gap analysis §3.a | マスクの現状把握が UI で可能に | S |
+| B-1 | Text Animator timeline | `COMPOSITION_EDITOR_GAP_ANALYSIS_2026-06-03.md` §2.d | timeline 右パネルにアニメータープロパティを露出 | M |
+| B-2 | Group mask | `COMPOSITION_EDITOR_GAP_ANALYSIS_2026-06-03.md` §3.b | 接続だけ先に進めると効果が大きい | M |
 
 ### Priority C — 設計は揃っている、段階実装
 
@@ -75,7 +73,7 @@
 1. `Artifact` フルビルド（worklog の Resume Checklist step 1）
 2. コンパイルエラー最小修正
 3. `Problem View` / `Health Dashboard` / `App Debugger` / `Render preflight` の表示確認
-4. B-1（Speed Graph sample）から着手（範囲が局所、効果大）
+4. B-1（Text Animator timeline）から着手（範囲が局所、効果大）
 5. 残りは worklog `2026-06-04` のフォーマットで再開ログを残す
 
 ---

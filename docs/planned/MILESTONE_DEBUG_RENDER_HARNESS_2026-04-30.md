@@ -97,21 +97,21 @@
 - harness の責務を固定
 - scene preset の一覧を決める
 - snapshot に残す項目を確定する
-- 詳細: [`MILESTONE_DEBUG_RENDER_HARNESS_PHASE1_EXECUTION_2026-04-30.md`](./MILESTONE_DEBUG_RENDER_HARNESS_PHASE1_EXECUTION_2026-04-30.md)
+- 詳細: 本書の Phase 1 節を参照
 
 ### Phase 2: Minimal Scene
 
 - particle-only / video-only を先に作る
 - overlay-only を追加する
 - no-RTV / no-frame / decode-fail の見え方を揃える
-- 詳細: [`MILESTONE_DEBUG_RENDER_HARNESS_PHASE2_EXECUTION_2026-04-30.md`](./MILESTONE_DEBUG_RENDER_HARNESS_PHASE2_EXECUTION_2026-04-30.md)
+- 詳細: 本書の Phase 2 節を参照
 
 ### Phase 3: Capture
 
 - smoke report を保存できるようにする
 - 失敗時の last error を bundle に含める
 - frame debug から遷移できるようにする
-- 詳細: [`MILESTONE_DEBUG_RENDER_HARNESS_PHASE3_EXECUTION_2026-04-30.md`](./MILESTONE_DEBUG_RENDER_HARNESS_PHASE3_EXECUTION_2026-04-30.md)
+- 詳細: 本書の Phase 3 節を参照
 
 ### Phase 4: Regression Gate
 
@@ -119,7 +119,7 @@
 - video smoke
 - transparent output smoke
 - expected skipped reason の確認
-- 詳細: [`MILESTONE_DEBUG_RENDER_HARNESS_PHASE4_EXECUTION_2026-04-30.md`](./MILESTONE_DEBUG_RENDER_HARNESS_PHASE4_EXECUTION_2026-04-30.md)
+- 詳細: 本書の Phase 4 節を参照
 
 ## Acceptance Criteria
 
@@ -144,5 +144,4 @@
 - [`../technical/DEBUG_RENDER_HARNESS_SMOKE_CHECKLIST_2026-04-30.md`](../technical/DEBUG_RENDER_HARNESS_SMOKE_CHECKLIST_2026-04-30.md)
 - [`../technical/DEBUG_RENDER_HARNESS_REPORT_TEMPLATE_2026-04-30.md`](../technical/DEBUG_RENDER_HARNESS_REPORT_TEMPLATE_2026-04-30.md)
 - [`../technical/DEBUG_RENDER_HARNESS_SCENE_PRESET_CONTRACT_2026-04-30.md`](../technical/DEBUG_RENDER_HARNESS_SCENE_PRESET_CONTRACT_2026-04-30.md)
-- [`MILESTONE_DEBUG_RENDER_HARNESS_PHASE3_EXECUTION_2026-04-30.md`](./MILESTONE_DEBUG_RENDER_HARNESS_PHASE3_EXECUTION_2026-04-30.md)
-- [`MILESTONE_DEBUG_RENDER_HARNESS_PHASE4_EXECUTION_2026-04-30.md`](./MILESTONE_DEBUG_RENDER_HARNESS_PHASE4_EXECUTION_2026-04-30.md)
+- Phase 3 / Phase 4 は本書に統合済み

@@ -279,7 +279,7 @@ RAM と disk の連携 policy を決める。
 
 ## First Execution Memo
 
-- `docs/planned/MILESTONE_HIERARCHICAL_CACHE_SYSTEM_PHASE1_EXECUTION_2026-05-16.md`
+- Phase 1 の実行メモは親文書へ統合済み
 
 ## Guardrails
 

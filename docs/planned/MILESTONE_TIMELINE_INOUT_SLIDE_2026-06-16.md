@@ -10,12 +10,12 @@
       `Artifact/src/Undo/*`,
       `ArtifactCore/include/Frame/FrameRange.ixx`,
       `ArtifactCore/include/Frame/FramePosition.ixx`
-位置づけ: `MILESTONE_TIMELINE_RIPPLE_EDIT_PHASE1_EXECUTION_2026-06-04.md` と並ぶ基礎編集機能として、**source の取り直しを伴わない「時間窓だけを動かす」slide** を 1 つの表にまとめる。
+位置づけ: `MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03.md` にぶら下がる基礎編集機能として、**source の取り直しを伴わない「時間窓だけを動かす」slide** を 1 つの表にまとめる。
 参照:
 - `docs/analysis/CORE_MODULE_MISSING_FEATURES_2026-04-19.md` (⚠️ 中優先)
 - `docs/analysis/WORKFLOW_GAP_DEEP_DIVE_2026-06-16.md` §4
 - `docs/analysis/MOTION_GRAPHICS_AD_PRODUCTION_THINKING_MEMO_2026-05-28.md` (尺合わせ)
-- `docs/planned/MILESTONE_TIMELINE_RIPPLE_EDIT_PHASE1_EXECUTION_2026-06-04.md`
+- `docs/planned/MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03.md`
 - `docs/planned/MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md`
 - `docs/planned/MILESTONE_TIMELINE_INDEX_2026-04-22.md`
 - `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_2026-04-21.md`
@@ -29,7 +29,7 @@
 > ⚠️ 中優先 イン点 / アウト点 スライド
 > 現在は切り取りしかない
 
-`MILESTONE_TIMELINE_RIPPLE_EDIT_PHASE1_EXECUTION_2026-06-04.md` の親 milestone `M-TL-15 Timeline Ripple Edit / Downstream Shift` は **後続 layer を詰める** ripple を入れたが、**slide（時間窓だけを平行移動）** は未対応。
+`MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03.md` の ripple 系整理は **後続 layer を詰める** 方向だが、**slide（時間窓だけを平行移動）** は未対応。
 
 AE の Slide 機能の本来の役割は「同じソース素材の表示窓を 0.5 秒後ろにずらして、尺は変えず、開始タイミングだけ調整する」という制作上頻出の操作。これが **ない** と、`Trim + Insert` の 2 ステップに分解してUndo スタックを汚すことになる。
 
@@ -44,7 +44,7 @@ AE の Slide 機能の本来の役割は「同じソース素材の表示窓を 
 
 ### 2.1 既存資産
 
-- `MILESTONE_TIMELINE_RIPPLE_EDIT_PHASE1_EXECUTION_2026-06-04.md` の `RippleTrimOutCommand / RippleTrimInCommand / RippleDeleteCommand` — **ripple は実装済み**
+- `MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03.md` の `RippleTrimOutCommand / RippleTrimInCommand / RippleDeleteCommand` — **ripple は実装済み**
 - `ArtifactWorkAreaControlWidget.cppm` — work area 専用の左 / 右ハンドル。**layer の in/out point には触らない**
 - `ArtifactTimelineTrackPainterView.cpp` — clip edge の描画は限定的（grep 0 hit）
 - `ArtifactAbstractLayer` 側に `inPoint() / outPoint() / startTime()` あり
@@ -65,7 +65,7 @@ AE の Slide 機能の本来の役割は「同じソース素材の表示窓を 
 
 ### 2.3 既存 milestone との関係
 
-- `MILESTONE_TIMELINE_RIPPLE_EDIT_PHASE1_EXECUTION_2026-06-04.md` — 上位。ripple の algorithm は **slide の superset** として扱える。本 milestone は ripple を **呼ばずに** 同じ layer だけ動かす
+- `MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03.md` — 上位。ripple の algorithm は **slide の superset** として扱える。本 milestone は ripple を **呼ばずに** 同じ layer だけ動かす
 - `MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md` — right-pane 編集体験。本 milestone は clip 端の編集で補完
 - `MILESTONE_SHORTCUT_CONTEXT_MAP_2026-04-21.md` — shortcut 登録先
 - `MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md` — keyframe 編集
@@ -258,7 +258,7 @@ FramePosition clampOutPoint(FramePosition proposed) const;
 
 | 既存 | 関係 |
 |---|---|
-| `MILESTONE_TIMELINE_RIPPLE_EDIT_PHASE1_EXECUTION_2026-06-04.md` | ripple。本 milestone は ripple を呼ばない slide で棲み分け。 |
+| `MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03.md` | ripple。本 milestone は ripple を呼ばない slide で棲み分け。 |
 | `MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md` | right-pane 編集体験。並走。 |
 | `MILESTONE_SHORTCUT_CONTEXT_MAP_2026-04-21.md` | shortcut 登録先。 |
 | `MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md` | keyframe 編集。 |

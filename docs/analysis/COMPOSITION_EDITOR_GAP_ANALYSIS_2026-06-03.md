@@ -27,15 +27,12 @@
 - **しかしどのコントローラからもimportされていない**
 - 実際のテキスト編集は `TransformGizmo.cppm` 側のparagraph box resizeで代替。TextGizmo独自のrange selectorハンドルは無効
 
-### b. Speed Graph — `sampleSpeedGraph()` が実装されていない
-- `ArtifactCurveEditorWidget.cppm:815` にコメントのみ：
-  ```cpp
-  // auto track = sampleSpeedGraph(keyframes, startFrame, endFrame, frameRate);
-  // curveEditor->setTracks({track});
-  ```
-- Value Graph（値グラフ）の描画・編集ロジックは動く
-- Speed Graph（速度グラフ）の計算関数が未実装のため、**Menu上の toggle (Alt+G) を押しても実際に表示するデータがない**
-- `toggleVelocityGraphRequested` のシグナル→スロット接続は完了している
+### b. Speed Graph — `sampleSpeedGraph()` は実装済み、接続確認が主題
+- `ArtifactCurveEditorWidget.cppm:35` に `sampleSpeedGraph()` の実装あり
+- `ArtifactCurveEditorWidget.cppm:686` の `setSpeedGraph(...)` から `sampleSpeedGraph(...)` を呼んで `CurveTrack` に変換している
+- `ArtifactTimelineWidget.cppm:3902` の `showSpeedGraph()` から graph mode を切り替えている
+- Value Graph（値グラフ）の描画・編集ロジックも動作する
+- したがって、ここは「未実装」ではなく、**表示切替とデータ流入の整合確認**が主題
 
 ### c. Shape Operators — インターフェースのみ、実装ゼロ
 - `ShapeGroup.cppm` に `addOperator()` / `operatorAt()` / `removeOperatorAt()` のインターフェースはある
@@ -114,7 +111,7 @@ Pen Tool自体は動く。未完成な操作：
 │                                                             │
 │  P0（コードはあるが使えていない）                            │
 │  ├─ TextGizmo 未接続（210行の実装が無視されている）          │
-│  ├─ Speed Graph の sampleSpeedGraph() 未実装                │
+│  ├─ Speed Graph は実装済み、接続確認が必要                  │
 │  └─ Segment上 vertex insert 未実装                          │
 │                                                             │
 │  P1（インターフェースはあるが実装がない）                    │

@@ -23,7 +23,7 @@
 
 ## Why Now
 
-- `MILESTONE_TIMELINE_KEYFRAME_EDITING_PHASE1_EXECUTION_2026-05-12.md` で visibility の土台はできてきた
+- `MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md` で visibility の土台はできてきた
 - `ArtifactTimelineTrackPainterView` には marker selection、rectangle selection、batch move の足場が既にある
 - `ArtifactTimelineWidget` には add / remove / copy / paste / jump 系の action が生えている
 - それでも実務上は「見えるが、まだ迷う」状態が残りやすい
@@ -225,7 +225,7 @@ Done when:
 ## Related Docs
 
 - [MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md)
-- [MILESTONE_TIMELINE_KEYFRAME_EDITING_PHASE1_EXECUTION_2026-05-12.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_PHASE1_EXECUTION_2026-05-12.md)
+- [MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md)
 - [MILESTONE_TIMELINE_TRANSFORM_KEYFRAME_EDITING_2026-04-12.md](/x:/Dev/ArtifactStudio/Artifact/docs/MILESTONE_TIMELINE_TRANSFORM_KEYFRAME_EDITING_2026-04-12.md)
 - [MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03.md)
 - [MILESTONE_TIMELINE_SEARCH_KEYFRAME_INTEGRATION_2026-03-28.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_SEARCH_KEYFRAME_INTEGRATION_2026-03-28.md)

@@ -11,7 +11,7 @@
 ## Why This Exists
 
 - [MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md) で state wording は揃え始めたが、`次にどの frame を作るか` の規則はまだ surface の外に散っている
-- [MILESTONE_RAM_PREVIEW_CACHE_PARITY_EXECUTION_2026-05-31.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_RAM_PREVIEW_CACHE_PARITY_EXECUTION_2026-05-31.md) で `requested / ready / failed` は追いやすくなったが、request order が曖昧なままだと体感品質が安定しない
+- [MILESTONE_RAM_PREVIEW_CACHE_PARITY_2026-05-31.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_RAM_PREVIEW_CACHE_PARITY_2026-05-31.md) で `requested / ready / failed` は追いやすくなったが、request order が曖昧なままだと体感品質が安定しない
 - AE parity の観点でも、`playhead 近傍がすぐ出る`、`再生方向に先回りする`、`停止時は編集周辺を厚くする` という priority policy がないと、cache が存在していても制作感が弱い
 
 ## Current Findings
@@ -112,6 +112,6 @@
 ## Related
 
 - [MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md)
-- [MILESTONE_RAM_PREVIEW_CACHE_PARITY_EXECUTION_2026-05-31.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_RAM_PREVIEW_CACHE_PARITY_EXECUTION_2026-05-31.md)
-- [MILESTONE_RAM_PREVIEW_RANGE_POLICY_AND_PRIORITY_PHASE1_EXECUTION_2026-05-31.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_RAM_PREVIEW_RANGE_POLICY_AND_PRIORITY_PHASE1_EXECUTION_2026-05-31.md)
+- [MILESTONE_RAM_PREVIEW_CACHE_PARITY_2026-05-31.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_RAM_PREVIEW_CACHE_PARITY_2026-05-31.md)
+- Phase 1 は本書へ統合済み
 - [AFTER_EFFECTS_PARITY_EXECUTION_ROADMAP_2026-05-31.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_EXECUTION_ROADMAP_2026-05-31.md)

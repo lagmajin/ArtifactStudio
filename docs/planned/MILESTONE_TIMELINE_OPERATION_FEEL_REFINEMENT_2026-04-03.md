@@ -131,7 +131,7 @@
   - クリップを詰めたとき、後ろの素材が意図通りついてくる
   - 後続のタイムラインが壊れず、編集の手触りが軽い
 
-- Phase 1 実行メモ: `docs/planned/MILESTONE_TIMELINE_RIPPLE_EDIT_PHASE1_EXECUTION_2026-06-04.md`
+- Phase 1 実行メモは親文書へ統合済み
 
 ## Recommended Order
 

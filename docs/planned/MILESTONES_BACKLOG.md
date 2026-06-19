@@ -23,10 +23,7 @@
   - `Render / Decode / UI / Event` を frame ごとに並べる
   - 主要ファイル: `ArtifactCore/include/Diagnostics/*`, `Artifact/src/Widgets/Diagnostics/ProfilerPanelWidget.cppm`
   - 詳細: `docs/planned/MILESTONE_LIGHTWEIGHT_TRACER_FRAME_TIMELINE_2026-04-21.md`
-  - Phase 1 実行メモ: `docs/planned/MILESTONE_LIGHTWEIGHT_TRACER_FRAME_TIMELINE_PHASE1_2026-04-21.md`
-  - Phase 2 実行メモ: `docs/planned/MILESTONE_LIGHTWEIGHT_TRACER_FRAME_TIMELINE_PHASE2_2026-04-21.md`
-  - Phase 3 実行メモ: `docs/planned/MILESTONE_LIGHTWEIGHT_TRACER_FRAME_TIMELINE_PHASE3_2026-04-21.md`
-  - Phase 4 実行メモ: `docs/planned/MILESTONE_LIGHTWEIGHT_TRACER_FRAME_TIMELINE_PHASE4_2026-04-21.md`
+  - 実行メモは親文書へ統合済み
 
 - **M-DIAG-4** Live Frame Pipeline / Resource Watcher / State Diff Tracker
   - Pass DAG / RT・Texture・Buffer lifetime / barrier hazard を常時追う
@@ -34,10 +31,7 @@
   - 前フレームとの差分から壊れ始めた瞬間を自動検出する
   - 主要ファイル: `ArtifactCore/include/Render/*`, `Artifact/src/Widgets/Diagnostics/*`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
   - 詳細: `docs/planned/MILESTONE_LIVE_FRAME_PIPELINE_RESOURCE_DIFF_2026-04-21.md`
-  - Phase 1 実行メモ: `docs/planned/MILESTONE_LIVE_FRAME_PIPELINE_RESOURCE_DIFF_PHASE1_EXECUTION_2026-04-21.md`
-  - Phase 2 実行メモ: `docs/planned/MILESTONE_LIVE_FRAME_PIPELINE_RESOURCE_DIFF_PHASE2_EXECUTION_2026-04-21.md`
-  - Phase 3 実行メモ: `docs/planned/MILESTONE_LIVE_FRAME_PIPELINE_RESOURCE_DIFF_PHASE3_EXECUTION_2026-04-21.md`
-  - Phase 4 実行メモ: `docs/planned/MILESTONE_LIVE_FRAME_PIPELINE_RESOURCE_DIFF_PHASE4_EXECUTION_2026-04-21.md`
+  - 実行メモは親文書へ統合済み
 
 ### Project View / Asset System
 - **M-PV-1** Project View Basic Operations ✅ (verified 2026-04-14)
@@ -114,20 +108,16 @@
 - `Debug Render Harness` と `App Debugger` の report vocabulary を goal-first に揃える
 - `goal / expected / actual / next action` を共通の作業単位にする
 - 詳細: `docs/planned/MILESTONE_HARNESS_ENGINEERING_2026-05-12.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_HARNESS_ENGINEERING_PHASE1_EXECUTION_2026-05-12.md`
+- 実行メモは親文書へ統合済み
 
-### M-OPS-1 Active Implementation Triad
-- いま着手しやすい 3 本の実装スライスを固定する
-- `Project Health / Problem View Wiring`
-- `Timeline Keyframe Editing`
-- `Composition Editor Mask / Roto Editing`
+### Workstream Containers
+
+以下は個別機能ではなく、複数 milestone を束ねる進行管理の器。  
+active milestone の重複名としては扱わない。
+
+- `M-OPS-1` Active Implementation Triad
+- `M-OPS-2` Continuation Sprint
 - 詳細: `docs/planned/MILESTONE_ACTIVE_IMPLEMENTATION_TRIAD_2026-05-12.md`
-
-### M-OPS-2 Continuation Sprint
-- 次の再開点を `app validation -> timeline readability -> editor mode stability` の順で固定する短期実装束
-- `Project Health / Problem View Wiring`
-- `Timeline Keyframe Editing`
-- `Composition Editor Mask / Roto Editing`
 - 詳細: `docs/planned/MILESTONE_CONTINUATION_SPRINT_2026-05-20.md`
 
 ### Render Execution / Isolation
@@ -225,12 +215,7 @@
 - 詳細は `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_2026-04-20.md`
 - AE 1.0 向けの必須/重要/後回し仕分けと 6 か月順は `docs/planned/MILESTONE_AE1_0_PRIORITY_AND_ROADMAP_2026-04-20.md`
 - Month 1 の実行順は `docs/planned/MILESTONE_AE1_0_MONTH1_EXECUTION_2026-04-20.md`
-- Phase 2 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE2_EXECUTION_2026-04-20.md`
-- Phase 3 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE3_EXECUTION_2026-04-20.md`
-- Phase 4 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE4_EXECUTION_2026-04-20.md`
-- Phase 5 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE5_EXECUTION_2026-04-20.md`
-- Phase 6 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE6_EXECUTION_2026-04-20.md`
-- Phase 7 の実行メモは `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_PHASE7_EXECUTION_2026-04-20.md`
+- 実行メモは親文書へ統合済み
 
 ### M-WKR-1 Background Utility Worker Process
 - サムネイル / waveform / proxy / メタデータ抽出 / preflight / autosave / log collection などの雑用を、専用 worker process に段階分離する
@@ -243,9 +228,7 @@
 - module boundary / Qt type / STL numeric helper / API compatibility をまとめて安定化する
 - いま出ている `SessionLedger` / `Property` / `LayerMatte` / `ArtifactRenderROI` / `Acoustic` 系の compile break を代表例として扱う
 - 詳細は `docs/planned/MILESTONE_CORE_MODULE_HYGIENE_BUILD_STABILIZATION_2026-04-21.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_CORE_MODULE_HYGIENE_BUILD_STABILIZATION_PHASE1_2026-04-21.md`
-- Phase 2 実行メモ: `docs/planned/MILESTONE_CORE_MODULE_HYGIENE_BUILD_STABILIZATION_PHASE2_2026-04-21.md`
-- Phase 3 実行メモ: `docs/planned/MILESTONE_CORE_MODULE_HYGIENE_BUILD_STABILIZATION_PHASE3_2026-04-21.md`
+- 実行メモは親文書へ統合済み
 
 ### M-APP-1 Application Cross-Cutting Improvement
 - menu / toolbar / shortcut / view / diagnostics / workflow を横断で揃える
@@ -264,37 +247,25 @@
 - `FrameDebugViewWidget` の上部サマリを `goal / frame / warning / next` に固定する
 - harness report と同じ語彙でフレーム単位の判断を読めるようにする
 - 詳細: `docs/planned/MILESTONE_FRAME_DEBUG_GOAL_FIRST_SUMMARY_2026-05-12.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_FRAME_DEBUG_GOAL_FIRST_SUMMARY_PHASE1_EXECUTION_2026-05-12.md`
+- 実行メモは親文書へ統合済み
 
 ### M-APP-4 App Debugger Visual Hierarchy / Color Semantics
 - App Debugger の情報階層、色の意味、異常時の見え方を整えて、人間が読みやすい diagnostics surface に寄せる
 - 詳細は `docs/planned/MILESTONE_APP_DEBUGGER_VISUAL_HIERARCHY_COLOR_SEMANTICS_2026-04-23.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_VISUAL_HIERARCHY_COLOR_SEMANTICS_PHASE1_EXECUTION_2026-04-24.md`
-- Phase 2 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_VISUAL_HIERARCHY_COLOR_SEMANTICS_PHASE2_EXECUTION_2026-04-24.md`
-- Phase 3 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_VISUAL_HIERARCHY_COLOR_SEMANTICS_PHASE3_EXECUTION_2026-04-24.md`
-- Phase 4 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_VISUAL_HIERARCHY_COLOR_SEMANTICS_PHASE4_EXECUTION_2026-04-24.md`
-- Phase 5 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_FIRST_GLANCE_LAYOUT_2026-04-24.md`
-- Phase 6 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_FOCUS_PIN_FILTER_2026-04-24.md`
-- Phase 7 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_REPORT_SHARE_BUNDLE_2026-04-24.md`
-- Phase 8 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_LEGEND_SEMANTIC_KEY_2026-04-24.md`
-- Phase 9 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_QUICK_ACTIONS_2026-04-24.md`
-- Phase 10 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_AUTO_FOCUS_SMART_RANKING_2026-04-24.md`
-- Phase 11 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_SESSION_HISTORY_COMPARISON_2026-04-24.md`
-- Phase 12 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_RENDER_COST_BREAKDOWN_2026-04-24.md`
+- 実行メモは親文書へ統合済み
+- Phase 5-12 は first-glance / focus / report / legend / quick actions / auto focus / session history / render cost の派生 slice として進める
 
 ### M-APP-4a App Debugger Goal-First Summary
 - `AppDebuggerWidget` の上部サマリを `goal / now / warning / next` で固定する
 - harness report と同じ語彙で作業面を読めるようにする
 - 詳細: `docs/planned/MILESTONE_APP_DEBUGGER_GOAL_FIRST_SUMMARY_2026-05-12.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_APP_DEBUGGER_GOAL_FIRST_SUMMARY_PHASE1_EXECUTION_2026-05-12.md`
+- 実行メモは親文書へ統合済み
 
 ### M-APP-5 Project Health / Problem View Wiring
-- `ArtifactProjectHealthChecker` の実務検証を app 側へ確実に寄せる
-- `ArtifactProblemViewWidget` と `ArtifactProjectHealthDashboard` の source / result を同一化する
-- project load / save / render preflight で `DiagnosticEngine` を起動する導線を揃える
-- `M-CE-CRIT-1 Critical Render / Media Stability Program` の smoke gate と同じ failure vocabulary を使う
+- `ArtifactProjectHealthChecker` と `ArtifactProblemViewWidget` / `ArtifactProjectHealthDashboard` の語彙を揃える
+- `DiagnosticEngine` と smoke gate の failure vocabulary を合わせる
 - 詳細は `docs/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_2026-04-14.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md`
+- 実行メモは親文書へ統合済み
 
 ### M-APP-6 App Surface Cohesion
 - Project / Asset / Timeline / Composition / Contents Viewer / Inspector / Debugger の current / recent / selection / status を揃える
@@ -303,15 +274,10 @@
 
 ### M-APP-7 App Diagnostic Cohesion
 - Project Health / Problem View / App Debugger / Frame Debug View / harness report の diagnostics 文法を揃える
-- warning / error / next action の見せ方を surface 横断で統一する
+- warning / error / next action を surface 横断で統一する
+- 派生 slice は同じ文法で読む
 - 詳細は `docs/planned/MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md`
-- render preflight / output safety check の cost breakdown をこの文法に乗せる
-- 詳細は `docs/planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`
-- Phase 1 実行メモは `docs/planned/MILESTONE_RENDER_PREFLIGHT_PHASE1_EXECUTION_2026-06-02.md`
-- cross-industry inspection tools の上位整理は `docs/planned/MILESTONE_CROSS_INDUSTRY_INSPECTION_TOOLS_2026-06-02.md`
-- Phase 1 実行メモは `docs/planned/MILESTONE_CROSS_INDUSTRY_INSPECTION_TOOLS_PHASE1_EXECUTION_2026-06-02.md`
-- visual density monitor の上位整理は `docs/planned/MILESTONE_VISUAL_DENSITY_MONITOR_2026-06-03.md`
-- Phase 1 実行メモは `docs/planned/MILESTONE_VISUAL_DENSITY_MONITOR_PHASE1_EXECUTION_2026-06-03.md`
+- 実行メモは親文書へ統合済み
 
 ### M-IR-8 ImmediateContext Boundary / De-direct
 - `DiligentEngine` の `ImmediateContext` / `IDeviceContext` を layer / widget / controller から直接触らない構造へ寄せる
@@ -338,21 +304,15 @@
 - 推奨順は `read -> safe write -> keyframe suggestion -> color grading suggestion -> automation`
 
 ### M-AI-2 Safe Write Tools
-- AI の提案を確認付きで編集へ反映するための安全な write surface
-- `ArtifactProjectService` / `ArtifactEffectService` / render queue service を薄い wrapper として再利用する
-- dry-run / confirmation / undo を前提に、rename / import / queue / bulk edit を先行する
+- AI の提案を確認付きで編集へ反映する安全な write surface
+- `ArtifactProjectService` / `ArtifactEffectService` / render queue service を再利用する
 - 詳細は `docs/planned/MILESTONE_AI_SAFE_WRITE_TOOLS_2026-04-21.md`
-- Phase 1 実装メモは `docs/planned/MILESTONE_AI_SAFE_WRITE_TOOLS_PHASE1_2026-04-21.md`
-- Phase 2 実装メモは `docs/planned/MILESTONE_AI_SAFE_WRITE_TOOLS_PHASE2_2026-04-21.md`
-- Phase 3 実装メモは `docs/planned/MILESTONE_AI_SAFE_WRITE_TOOLS_PHASE3_2026-04-21.md`
+- 実装メモは親文書へ統合済み
 
 ### M-AI-6 Workflow Automation
-- `WorkspaceAutomation` を中心に project / composition / selection / render queue の作業を束ねる
-- snapshot / safe edit / queue control / batch automation を 1 つの流れにする
+- `WorkspaceAutomation` を中心に project / composition / selection / render queue を束ねる
 - 詳細は `docs/planned/MILESTONE_AI_WORKFLOW_AUTOMATION_2026-04-21.md`
-- Phase 1 実装メモは `docs/planned/MILESTONE_AI_WORKFLOW_AUTOMATION_PHASE1_2026-04-21.md`
-- Phase 2 実装メモは `docs/planned/MILESTONE_AI_WORKFLOW_AUTOMATION_PHASE2_2026-04-21.md`
-- Phase 3 実装メモは `docs/planned/MILESTONE_AI_WORKFLOW_AUTOMATION_PHASE3_2026-04-21.md`
+- 実装メモは親文書へ統合済み
 
 ### M-AI-2 AI Command Sandbox / CLI Execution
 - AI 縺ｫ縺ｯ shell string 縺ｧ縺ｪ縺上↑繧峨〒縺・、program + argv 繧帝攝縺励※謇薙∴繧・
@@ -363,7 +323,7 @@
 - `DescriptionRegistry` / `AIToolExecutor` / `AIContext` を使って AI tool schema を安定化する
 - local / cloud / 将来の MCP bridge から共通で使える tool 境界を切る
 - 詳細は `docs/planned/MILESTONE_AI_MCP_TOOL_BRIDGE_2026-04-10.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_AI_MCP_TOOL_BRIDGE_PHASE1_EXECUTION_2026-04-10.md`
+- 実行メモは親文書へ統合済み
 
 ### M-AI-2 Cloud UI Compact View / Settings Split
 - Cloud AI の詳細設定を dialog 側へ寄せ、常時表示を減らす
@@ -432,19 +392,13 @@
 - Asset Browser を Unity 風のナビゲータとして整理し、search / breadcrumb / favorites / grid-list / thumbnail slider / workflow bridge を段階導入する
 - 既存の search / thumbnail / unused / DnD を土台にして、探索と presentation を揃える
 - 詳細は `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_SEARCH_PRESENTATION_2026-04-03.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_PHASE1_EXECUTION_2026-04-03.md`
-- Phase 2 実行メモ: `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_PHASE2_EXECUTION_2026-04-03.md`
-- Phase 3 実行メモ: `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_PHASE3_EXECUTION_2026-04-03.md`
-- Phase 4 実行メモ: `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_PHASE4_EXECUTION_2026-04-03.md`
+- 実行メモは親文書へ統合済み
 
 ### M-TL-10 Timeline Feature Implementation / Interaction Surface
 - Timeline の layer / clip / keyframe / search / visual language / owner-draw を一つの実行計画として束ねる
 - 既存の timeline milestone を置き換えず、順序と責務をまとめる
 - 詳細は `docs/planned/MILESTONE_TIMELINE_FEATURE_IMPLEMENTATION_2026-04-03.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_TIMELINE_FEATURE_PHASE1_EXECUTION_2026-04-03.md`
-- Phase 2 実行メモ: `docs/planned/MILESTONE_TIMELINE_FEATURE_PHASE2_EXECUTION_2026-04-03.md`
-- Phase 3 実行メモ: `docs/planned/MILESTONE_TIMELINE_FEATURE_PHASE3_EXECUTION_2026-04-03.md`
-- Phase 4 実行メモ: `docs/planned/MILESTONE_TIMELINE_FEATURE_PHASE4_EXECUTION_2026-04-03.md`
+- 実行メモは親文書へ統合済み
 
 ### M-TL-11 Timeline Right Pane Full Owner-Draw
 - `ArtifactTimelineWidget` の右ペインを `ArtifactTimelineTrackPainterView` 正規経路へ固定し、`TimelineTrackView / TimelineScene / ClipItem` を退役させる
@@ -461,6 +415,7 @@
 - `ArtifactTimelineScrubBar` 上に AE 風の cache range 可視化を追加し、frame cache / RAM preview の有効範囲を緑の帯で見せる
 - 現在フレームの赤い進捗表示と共存させ、playback / scrub / seek の状態を読み取りやすくする
 - 詳細は `docs/planned/MILESTONE_TIMELINE_SCRUBBAR_FRAME_CACHE_OVERLAY_2026-04-10.md`
+- timeline index では補助線扱い。単独で追うより `docs/planned/MILESTONE_TIMELINE_INDEX_2026-04-22.md` を先に読む。
 
 ### M-FE-9 Motion Tracking Workflow
 - tracker editor / overlay / stabilize / bake を制作導線としてまとめる
@@ -540,8 +495,7 @@
 - `PropertyEditor` row widget に layout 責務を寄せ、見た目の整いを構造の統一へつなげる
 - 進捗: row bg / hover / keyframe chrome を owner-draw 化した
 - 詳細は `docs/planned/MILESTONE_PROPERTY_WIDGET_ROW_ALIGNMENT_INSPECTOR_LAYOUT_2026-04-03.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_PROPERTY_WIDGET_ROW_ALIGNMENT_PHASE1_EXECUTION_2026-04-03.md`
-- Phase 2 実行メモ: `docs/planned/MILESTONE_PROPERTY_WIDGET_ROW_ALIGNMENT_PHASE2_EXECUTION_2026-04-03.md`
+- 実行メモは親文書へ統合済み
 
 ### M-UI-22 QSS Decommission / CommonStyle Path to QCommonStyle
 - `QSS` を新規追加しない方針へ切り替え、theme / palette / common widget / owner-draw を経由して最終的に `QCommonStyle` ベースへ寄せる
@@ -552,10 +506,7 @@
 - `InputOperator` の context 解決順と widget / region 単位の分割を固定し、Blender 風の「場所とモードで意味が変わる」ショートカット routing を明文化する
 - `ArtifactCompositionRenderWidget` / `ArtifactTimelineWidget` / `ArtifactLayerPanelWidget` / `ArtifactAssetBrowser` / `ArtifactInspectorWidget` を先行対象にする
 - 詳細は `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_2026-04-21.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE1_EXECUTION_2026-04-21.md`
-- Phase 2 実行メモ: `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE2_EXECUTION_2026-04-21.md`
-- Phase 3 実行メモ: `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE3_EXECUTION_2026-04-21.md`
-- Phase 4 実行メモ: `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE4_2026-04-21.md`
+- 実行メモは親文書へ統合済み
 
 ### Composition Editor Suggested Order
 - `M-UI-7 Composition Editor Mask / Roto Editing`
@@ -574,7 +525,7 @@
   6. `M-FE-7` で review / annotation の脇道を足す
 - `M-UI-7` の内部では、geometry editing と mask parameter の time-addressable 化を分ける
 - time-addressable 化の first slice は `docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md` に寄せる
-- Phase 1 実行メモ: `docs/planned/MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_PHASE1_EXECUTION_2026-05-12.md`
+- Phase 1 実行メモは親文書へ統合済み
 
 ### M-UI-12 Composition Notes / Scratchpad
 - コンポジション / レイヤー / フレームに紐づく軽量メモを残せるようにする
@@ -611,7 +562,7 @@
 - mask parameter の time-addressable 化を geometry editing から分離する
 - まずは scalar mask parameters の property exposure から始める
 - 詳細は `docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_PHASE1_EXECUTION_2026-05-10.md`
+- Phase 1 実行メモは親文書へ統合済み
 
 ### M-UI-4 Menu-to-App Command Routing
 - File / Composition / Edit / View / Layer / Render / Help の menu を app service / command に正しく接続する
@@ -709,19 +660,21 @@
 
 ### M-TL-14 Timeline Layer Specialization Execution
 - `Audio / Video / Text / Shape / Image / Particle` の最小専用化を、共通編集を壊さずに段階導入する
-- 詳細は `docs/planned/MILESTONE_TIMELINE_LAYER_SPECIALIZATION_EXECUTION_2026-04-23.md`
+- 詳細は `docs/planned/MILESTONE_TIMELINE_LAYER_SPECIALIZATION_2026-04-23.md`
+- timeline index では補助線扱い。view / input / lane の本筋に吸収される。
 
 ### M-TL-15 Timeline Ripple Edit / Downstream Shift
 - trim / delete の差分を後続レイヤーへ押し出す ripple edit を timeline 側に追加する
 - keyframe / clip / layer range の移動を 1 回の undo 単位で扱えるようにする
 - 詳細は `docs/planned/MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_TIMELINE_RIPPLE_EDIT_PHASE1_EXECUTION_2026-06-04.md`
+- Phase 1 実行メモは親文書へ統合済み
+- timeline index では補助線扱い。keyframe edit の下位拡張として読む。
 
 ### M-TL-5 Timeline Keyframe Editing
 - Timeline 上で property keyframe を見て、打って、移動できるようにする
 - **AE差別化:** キーフレームの時間軸スケーリング（全レイヤー一括でタイミング伸縮、pivot点基準で相対関係維持）
 - 詳細は `docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_PHASE1_EXECUTION_2026-05-12.md`
+- Phase 1 実行メモは親文書へ統合済み
 
 ### M-TL-6 Timeline Layer Search
 - タイムライン上部の検索バーで layer / effect / tag / state をインクリメンタルに絞り込む
@@ -734,7 +687,7 @@
 ### M-LG-1 Layer Group System
 - レイヤーグループの保存 / 表示 / 親子 / 可視性 / 操作単位を整理する
 - 詳細は `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_2026-03-27.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_PHASE1_EXECUTION_2026-04-10.md`
+- Phase 1 実行メモは親文書へ統合済み
 
 ### M-LG-2 Layer Components: Physics / Behavior
 - layer 側に軽量 component system を追加し、追従・減衰・トリガーの受け皿を作る
@@ -844,9 +797,7 @@
 - smart guides / selection overlay / useful HUD を足して、Figma っぽい操作補助を入れる
 - snap と選択オーバーレイを先に本体描画へ寄せ、その後 context HUD / probe を足す
 - 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_FIGMA_LIKE_OVERLAY_2026-04-21.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_COMPOSITION_EDITOR_FIGMA_LIKE_OVERLAY_PHASE1_EXECUTION_2026-04-21.md`
-- Phase 2 実行メモ: `docs/planned/MILESTONE_COMPOSITION_EDITOR_FIGMA_LIKE_OVERLAY_PHASE2_EXECUTION_2026-04-21.md`
-- Phase 3 実行メモ: `docs/planned/MILESTONE_COMPOSITION_EDITOR_FIGMA_LIKE_OVERLAY_PHASE3_EXECUTION_2026-04-21.md`
+- 実行メモは親文書へ統合済み
 
 ## Shared Notes
 
@@ -1167,7 +1118,7 @@
 ### M-TXT-1 Text Animator Next Gen
 - AE 風 Text Animator の残タスクを UI / selector / preset / timeline まで詰める
 - 詳細は `docs/planned/MILESTONE_TEXT_ANIMATOR_NEXT_GEN_2026-04-18.md`
-- 実行メモは `docs/planned/MILESTONE_TEXT_ANIMATOR_NEXT_GEN_EXECUTION_2026-04-30.md`
+- 実行メモは親文書へ統合済み
 
 ### M-TXT-2 Text Animator Range Color Editing
 - テキスト上の範囲選択から直接 color property を割り当てる
@@ -1178,7 +1129,7 @@
 - DX12 / Vulkan backend での日本語 text rendering
 - glyph atlas / shaping / backend parity
 - 詳細は `ArtifactCore/docs/MILESTONE_GPU_TEXT_RENDERING_JA_2026-04-01.md`
-- 実行メモは `ArtifactCore/docs/MILESTONE_GPU_TEXT_RENDERING_JA_EXECUTION_2026-04-30.md`
+- 実行メモは親文書へ統合済み
 
 ### Text Workstream Index
 - `docs/planned/MILESTONE_TEXT_WORKSTREAM_INDEX_2026-04-30.md`
@@ -1234,7 +1185,7 @@
 - `app / project / selection` を中心にした、アプリ内自動化用の script runtime を作る
 - AE ExtendScript 風の操作感で、automation / batch / macro / console 実行を扱えるようにする
 - 詳細: `docs/planned/MILESTONE_EXTENDSCRIPT_STYLE_SCRIPT_RUNTIME_2026-04-06.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_EXTENDSCRIPT_STYLE_SCRIPT_RUNTIME_PHASE1_EXECUTION_2026-04-06.md`
+- Phase 1 実行メモは親文書へ統合済み
 
 ### M-TL-13 Timeline Curve Editor Mode
 - `ArtifactTimelineWidget` 繧帝ｸ縺､縺ｮ mode 縺ｫ縺吶ｋ縲ゅΝ繝ｼ繝・ヨ timeline / curve editor 繧偵→縺ｪ縺｣縺ｦ縺ｯ縺薙→縺後ｒ謹ｭ縺｣縺励※縺上□縺輔＞
@@ -1245,9 +1196,7 @@
 - Compare easing presets side by side for a selected keyframe segment.
 - Keep the first slice read-only, then wire apply through the existing undo path.
 - Details: `docs/planned/MILESTONE_EASING_LAB_2026-04-21.md`
-- Phase 1 execution: `docs/planned/MILESTONE_EASING_LAB_PHASE1_EXECUTION_2026-04-21.md`
-- Phase 2 execution: `docs/planned/MILESTONE_EASING_LAB_PHASE2_EXECUTION_2026-04-21.md`
-- Phase 3 execution: `docs/planned/MILESTONE_EASING_LAB_PHASE3_EXECUTION_2026-04-21.md`
+- execution memo は親文書へ統合済み
 
 ### M-EXPR-1 Expression System Completeness ⭐ **新規追加**
 - エクスプレッションエンジンはパーサー＋評価器が存在するが、AE ライクな表現力に不足がある
@@ -1267,8 +1216,7 @@
 - property 間の参照関係を視覚的に張る
 - expression と driven property の target 選択を簡単にする
 - 詳細は `docs/planned/MILESTONE_PROPERTY_REFERENCE_LINKING_2026-05-11.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_PROPERTY_REFERENCE_LINKING_PHASE1_EXECUTION_2026-05-11.md`
-- Phase 2 実行メモ: `docs/planned/MILESTONE_PROPERTY_REFERENCE_LINKING_PHASE2_EXECUTION_2026-05-11.md`
+- execution memo は親文書へ統合済み
 
 ### M-BLEND-1 Blend Mode Completeness ⭐ **新規追加**
 - 現在 18/38 モード実装。以下のモードを追加する:
@@ -1419,3 +1367,21 @@
 - `ArtifactVideoLayer` の play → stop が不安定。非同期デコードパイプラインに stop / cancel / reset が存在しない
 - `stop()` 新設、デコード世代管理（generation counter）、`seekToFrame()` と `decodeCurrentFrame()` の同期、`currentFrameImageBuffer()` のリファクタ
 - 詳細は `docs/planned/MILESTONE_VIDEO_LAYER_PLAYBACK_STABILITY_2026-06-06.md`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

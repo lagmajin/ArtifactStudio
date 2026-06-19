@@ -42,27 +42,27 @@
 - `IDeviceContext` / `ImmediateContext` へ触れている call site を棚卸しする
 - 上位層が直接使ってよい API と、backend 内部へ押し込む API を分ける
 - `ArtifactIRenderer` の maintenance rule に沿って、D3D12 path の保守境界を明文化する
-- 実行メモ: `docs/planned/MILESTONE_IMMEDIATE_CONTEXT_BOUNDARY_PHASE1_EXECUTION_2026-04-21.md`
+- 実行メモは親文書へ統合済み
 
 ### Phase 2: Render Entry Consolidation
 
 - layer / widget / controller 側の low-level draw を `ArtifactIRenderer` API へ寄せる
 - overlay / gizmo / preview / diagnostics の描画入口を共通化する
 - `PrimitiveRenderer2D / 3D` と `RenderCommandBuffer` 経路を優先する
-- 実行メモ: `docs/planned/MILESTONE_IMMEDIATE_CONTEXT_BOUNDARY_PHASE2_EXECUTION_2026-04-21.md`
+- 実行メモは親文書へ統合済み
 
 ### Phase 3: Context Access Narrowing
 
 - `immediateContext()` のような low-level accessor を read-only diagnostics 向けと backend 用に分離する
 - render target / readback / submit の責務を `ArtifactIRenderer::Impl` 側へ寄せる
 - 上位コードから `IDeviceContext` 型が見えなくても進められる形へ寄せる
-- 実行メモ: `docs/planned/MILESTONE_IMMEDIATE_CONTEXT_BOUNDARY_PHASE3_EXECUTION_2026-04-21.md`
+- 実行メモは親文書へ統合済み
 
 ### Phase 4: Diagnostics / Debug Compatibility
 
 - `Frame Debug View` / `Pipeline View` / `Trace` が必要とする情報を renderer summary API で取れるようにする
 - 低レベル context を直接読むのではなく、attachment / resource / submit summary で読めるようにする
-- 実行メモ: `docs/planned/MILESTONE_IMMEDIATE_CONTEXT_BOUNDARY_PHASE4_EXECUTION_2026-04-21.md`
+- 実行メモは親文書へ統合済み
 
 ## Completion Criteria
 

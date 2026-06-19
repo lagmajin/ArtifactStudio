@@ -107,7 +107,7 @@
 
 ## Execution Slice
 
-- まずは [`MILESTONE_TEXT_ANIMATOR_NEXT_GEN_EXECUTION_2026-04-30.md`](./MILESTONE_TEXT_ANIMATOR_NEXT_GEN_EXECUTION_2026-04-30.md) から着手する
+- 実行メモは親文書へ統合済み
 - 実行順は `Animator UI Finish → Timeline Exposure → Preset Browser`
 - `TextAnimatorEngine` は前提として固定し、UI / timeline / preset の残りだけを詰める
 

@@ -28,7 +28,6 @@
 
 ## File Tickets
 
-- [`docs/planned/MILESTONE_LIGHTWEIGHT_TRACER_FRAME_TIMELINE_PHASE2_EXECUTION_2026-04-21.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_LIGHTWEIGHT_TRACER_FRAME_TIMELINE_PHASE2_EXECUTION_2026-04-21.md)
+- 親文書へ統合済み
 - `Trace.Scope`
 - hot path hook
-

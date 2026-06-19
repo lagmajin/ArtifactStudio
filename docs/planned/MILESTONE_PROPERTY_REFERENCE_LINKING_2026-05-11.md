@@ -58,4 +58,4 @@ This milestone covers the "pick-whip" style workflow where one property can be l
 1. add a read-only target resolver for property paths
 2. define which property types can be linked safely
 3. start with the inspector / property row surface before timeline integration
-4. use the Phase 2 execution memo for the surface-level work
+4. use the Phase 2 section in this parent milestone for the surface-level work

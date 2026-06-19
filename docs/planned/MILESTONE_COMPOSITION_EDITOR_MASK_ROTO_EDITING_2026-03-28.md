@@ -181,4 +181,4 @@ mask を強くする近道は、geometry と parameter animation を同じ工程
 
 ## Related Execution Memos
 
-- [`MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_PHASE1_EXECUTION_2026-05-12.md`](./MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_PHASE1_EXECUTION_2026-05-12.md)
+- Phase 1 execution memo is absorbed into the parent milestone

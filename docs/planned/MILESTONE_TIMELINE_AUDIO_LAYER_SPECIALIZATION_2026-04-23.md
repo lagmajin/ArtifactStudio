@@ -98,4 +98,4 @@ Audio layer 向けに以下を返す descriptor を用意する。
 ## 連携先
 
 - [`MILESTONE_TIMELINE_LAYER_SPECIALIZATION_2026-04-23.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_LAYER_SPECIALIZATION_2026-04-23.md)
-- [`MILESTONE_TIMELINE_LAYER_SPECIALIZATION_EXECUTION_2026-04-23.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_LAYER_SPECIALIZATION_EXECUTION_2026-04-23.md)
+- Phase 1 execution memo is absorbed into the parent milestone

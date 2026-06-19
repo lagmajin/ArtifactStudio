@@ -48,33 +48,12 @@
 
 ## Phases
 
-### Phase 1: Summary Vocabulary
+### Phase 1-4: Summary / Action / Danger / Report
 
-- top strip に `goal / now / warning / next` を置く
-- `status` と `shortReason` をその語彙に接続する
-- `Frame / State / Trace` の役割を短い見出しで固定する
-
-### Phase 2: Action Proximity
-
+- `goal / now / warning / next` を上部サマリの軸にする
 - copy / pin / compare / filter を summary に近づける
-- quick actions を summary-first に並べる
-- 長い report は折りたたみや補助タブへ寄せる
-
-### Phase 3: Danger-First Ordering
-
-- failed pass
-- missing resource
-- fallback path
-- stale cache
-- playback stall
-
-を通常の詳細より前に出す
-
-### Phase 4: Report Bridge
-
-- `Debug Render Harness` の report と同じ読み方に揃える
-- `Frame Debug View` でも同じ語彙を再利用する
-- 保存された bundle からも同じ summary が読めるようにする
+- failed pass / missing resource / fallback / stale cache / playback stall を前景化する
+- `Debug Render Harness` と `Frame Debug View` の report 語彙を揃える
 
 ---
 
@@ -90,4 +69,4 @@
 
 ## Next Step
 
-Phase 1 実行メモを作って、`goal / now / warning / next` を App Debugger の上部サマリ文法として固定する。
+Phase 1 の実行メモは親文書へ統合済み。
