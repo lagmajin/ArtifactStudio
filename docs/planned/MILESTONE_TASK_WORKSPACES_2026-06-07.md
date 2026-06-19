@@ -2,11 +2,20 @@
 
 日付: 2026-06-07
 
-作業内容ごとに UI を切り替え、今やるべきことだけを見せるコンテキスト中心のワークスペースを作る。
+Status: Design Note
+
+作業内容ごとに UI を切り替え、今やるべきことだけを見せるコンテキスト中心のワークスペース構想。
 
 ## Goal
 
-`Import Workspace`、`Layout Workspace`、`Animation Workspace`、`Text/Caption Workspace`、`Export Workspace`、`Debug Workspace` を切り替えて、目的別に最適化された編集面を提供する。
+`Import Workspace`、`Layout Workspace`、`Animation Workspace`、`Text/Caption Workspace`、`Export Workspace`、`Debug Workspace` のような目的別 surface を切り替えて、編集面を最適化する。
+
+## Current Implementation
+
+- 実装済みの中心は `WorkspaceMode` の切替
+- 現在の選択肢は `Default / Import / Layout / Animation / VFX / Compositing / Text / Export / Debug / Audio`
+- レイアウトの保存/復元は `ArtifactWorkspaceManager` が担当する
+- これらはまだ「作業内容で UI 全体を再構成する」段階ではなく、主にモード切替とレイアウト永続化の段階
 
 ## Non-Goals
 
@@ -90,3 +99,13 @@
 - `Motion Tokens` は Animation Workspace の中核になる
 - `Export Matrix` は Export Workspace に自然に載る
 - `Smart Fallbacks` や `Loop Seam Checker` は Debug Workspace に寄せやすい
+
+## Source Alignment Notes
+
+- `Artifact/src/Widgets/ArtifactMainWindow.cppm`
+- `Artifact/src/Widgets/ArtifactToolBar.cppm`
+- `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`
+- `Artifact/src/Core/ArtifactWorkspaceManager.cppm`
+
+これらの実装に合わせるなら、今は「Task Workspace をどう作るか」より先に、
+「既存の `WorkspaceMode` と `WorkspaceManager` をどう整理して拡張するか」が正しい出発点。

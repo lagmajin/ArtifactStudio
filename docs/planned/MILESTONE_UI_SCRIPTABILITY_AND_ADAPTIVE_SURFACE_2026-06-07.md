@@ -15,6 +15,13 @@
 - タイムラインの情報密度を列単位で調整できること
 - 4K / 高 DPI / アクセシビリティ前提のスケーリングとテーマを標準装備すること
 
+## 現状との差分
+
+- いま実装されている中心は `WorkspaceMode` の切替と `ArtifactWorkspaceManager` による保存/復元
+- `scriptable surface` や `contextual keymap` はまだ構想段階
+- タイムラインの列密度制御も、ここで書いている粒度までは未到達
+- この文書は現行実装の仕様書ではなく、拡張ロードマップとして扱う
+
 ## 背景
 
 現状の UI は、dock と個別 widget の組み合わせとしては十分に伸びている一方で、
@@ -341,3 +348,11 @@
 - theme と density は分離可能にする
 - column visibility は表示だけを切り替え、編集責務を消さない
 
+## Source Alignment Notes
+
+- 実装の起点は [Artifact/src/Widgets/ArtifactMainWindow.cppm](/X:/Dev/ArtifactStudio/Artifact/src/Widgets/ArtifactMainWindow.cppm)
+- workspace 保存/復元は [Artifact/src/Core/ArtifactWorkspaceManager.cppm](/X:/Dev/ArtifactStudio/Artifact/src/Core/ArtifactWorkspaceManager.cppm)
+- メニュー統合は [Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm](/X:/Dev/ArtifactStudio/Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm)
+
+この文書のうち、現状でコードに近いのは `High DPI` と `theme` の方向性で、
+`scriptable surface` と `contextual keymap` はまだ設計要求として残っている。

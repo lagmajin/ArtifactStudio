@@ -178,6 +178,11 @@ struct TimelineKeyframeArea {
 - hover 表示だけを追加する
 - 既存 keyframe point の選択・移動が変わらないことを確認する
 
+進捗メモ:
+
+- 右ペインの status summary を短くして、hover keyframe の文脈を出すようにした
+- area の hover / selected / edge affordance を少し強めて、body と端の差を見分けやすくした
+
 ### Phase 2: Select And Move
 
 - area body の選択を追加する

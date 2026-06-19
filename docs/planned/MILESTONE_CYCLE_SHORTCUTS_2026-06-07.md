@@ -35,7 +35,7 @@ Import Cycle と同じ思想で、キー連打で候補を回しながら編集�
 - 候補選択をマウス依存にしない
 - 反復試行の速度が上がる
 - 設定ダイアログを開かずに探索しやすい
-- `Task Workspaces` と組み合わせると文脈ごとの候補回しがしやすい
+- `WorkspaceMode` や将来の作業文脈切替と組み合わせると候補回しがしやすい
 
 ## Phase 1: Cycle Definition
 
@@ -84,4 +84,4 @@ Import Cycle と同じ思想で、キー連打で候補を回しながら編集�
 
 - `Motion Tokens` と相性が良い
 - `Coordinate Profiles` のような候補回しにも応用できる
-- `Task Workspaces` の文脈ごとに候補セットを切り替えやすい
+- `WorkspaceMode` や panel context ごとに候補セットを切り替えやすい
