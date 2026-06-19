@@ -166,7 +166,7 @@ Effect property row に envelope の小さな状態表示を持たせる。
 - keyframe marker と同じ形にしない
 - drag editing は Phase 2 以降に回す
 
-### Preset Browser
+### Preset Browser / Starter Flow
 
 Effect preset と同じ文法に寄せるが、用途は `Entry / Exit Motion` として見せる。
 ユーザー向け名称は `Layer Entrance / Exit Effects` または `Effect Envelope` を候補にする。
@@ -318,4 +318,4 @@ Effect preset と同じ文法に寄せるが、用途は `Entry / Exit Motion` �
 - `docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md`
 - `docs/planned/MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md`
 - `docs/planned/MILESTONE_EFFECT_UI_STANDARDIZATION_2026-06-07.md`
-- `docs/planned/MILESTONE_PRESET_BROWSER_STARTER_FLOW_2026-05-31.md`
+- `docs/planned/MILESTONES_BACKLOG.md`

@@ -852,7 +852,7 @@ active milestone の重複名としては扱わない。
 ### M-FX-11 Effect UI Standardization
 - すべてのエフェクトに共通の `Preview / Preset / Appearance` 契約を持たせる
 - 標準エフェクトと OFX サードパーティエフェクトで UI の枠を揃える
-- 実装順: `descriptor / section classification -> Inspector bridge -> preset browser bridge -> appearance catalog -> OFX fallback -> Property alignment`
+- 実装順: `descriptor / section classification -> Inspector bridge -> preset browser / starter flow bridge -> appearance catalog -> OFX fallback -> Property alignment`
 - 先行対象: `Gaussian Blur`, `Sharpen`, `Curves`, `Levels`, `Glow`, `OFX Plugin`
 - 詳細は `docs/planned/MILESTONE_EFFECT_UI_STANDARDIZATION_2026-06-07.md`
 

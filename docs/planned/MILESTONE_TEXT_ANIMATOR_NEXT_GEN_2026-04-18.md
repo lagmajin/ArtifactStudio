@@ -108,7 +108,7 @@
 ## Execution Slice
 
 - 実行メモは親文書へ統合済み
-- 実行順は `Animator UI Finish → Timeline Exposure → Preset Browser`
+- 実行順は `Animator UI Finish → Timeline Exposure → Preset Browser / Starter Flow`
 - `TextAnimatorEngine` は前提として固定し、UI / timeline / preset の残りだけを詰める
 
 このマイルストーンが完了した時点で、このテキストアニメーターは世界で最も強力なものになります。

@@ -2,7 +2,7 @@
 
 **作成日:** 2026-06-07  
 **ステータス:** 計画中  
-**関連コンポーネント:** ArtifactInspectorWidget, ArtifactPropertyWidget, EffectStack, OFXHost, Preset Browser
+**関連コンポーネント:** ArtifactInspectorWidget, ArtifactPropertyWidget, EffectStack, OFXHost, Preset Browser / Starter Flow
 
 ---
 
@@ -191,15 +191,16 @@ Header は「見出し」ではなく、エフェクトの共通操作面とし�
 - どのエフェクトでも同じ入口から preset を扱える
 - preset の追加導線が effect ごとに別実装にならない
 
-### Phase 2.5: Preset Browser Bridge
+### Phase 2.5: Preset Browser / Starter Flow Bridge
 
 - effect preset browser の card grammar を fixed する
 - preset のメタ情報を preview / type / source / compatibility で読めるようにする
 - save/load の入口を inspector から引けるようにする
+- 共有 card grammar は `Project Template Gallery` 側にも流用できるようにする
 
 完了条件:
 
-- preset browser と effect inspector の表示語彙が一致する
+- preset browser / starter flow と effect inspector の表示語彙が一致する
 
 ### Phase 3: Appearance Section 標準化
 
@@ -432,4 +433,4 @@ Header は「見出し」ではなく、エフェクトの共通操作面とし�
 
 - `docs/planned/MILESTONE_EFFECT_SYSTEM_IMPROVEMENT_2026-03-28.md`
 - `docs/planned/MILESTONE_OFX_PLUGIN_SUPPORT_2026-04-18.md`
-- `docs/planned/MILESTONE_PRESET_BROWSER_STARTER_FLOW_2026-05-31.md`
+- `docs/planned/MILESTONES_BACKLOG.md`

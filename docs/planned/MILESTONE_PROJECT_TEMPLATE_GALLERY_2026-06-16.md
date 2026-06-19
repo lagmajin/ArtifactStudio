@@ -14,7 +14,7 @@
 - `docs/analysis/MOTION_GRAPHICS_AD_PRODUCTION_THINKING_MEMO_2026-05-28.md` (テンプレ量産)
 - `docs/planned/MILESTONE_AD_PRODUCTION_ACCELERATOR_2026-05-28.md`
 - `docs/planned/MILESTONE_AD_PRODUCTION_ACCELERATOR_PHASE1_EXECUTION_2026-05-29.md`
-- `docs/planned/MILESTONE_PRESET_BROWSER_STARTER_FLOW_2026-05-31.md`
+- `docs/planned/MILESTONES_BACKLOG.md`
 - `docs/planned/MILESTONE_WORKSPACE_PRESETS_2026-04-10.md`
 
 ---
@@ -39,7 +39,7 @@
 
 - `ArtifactCreateCompositionDialog.cppm` — 新規 comp 作成 dialog
 - `MILESTONE_AD_PRODUCTION_ACCELERATOR_2026-05-28.md` — 量産設計
-- `MILESTONE_PRESET_BROWSER_STARTER_FLOW_2026-05-31.md` — preset 起点
+- `MILESTONES_BACKLOG.md` — 共通 browser surface
 - `MILESTONE_WORKSPACE_PRESETS_2026-04-10.md` — workspace preset
 - `ArtifactColorScienceManager.cppm` — preset 既存 (`M-LUT-1` で LUT library 化予定)
 
@@ -137,7 +137,7 @@ signals:
 
 ### 3.3 Template Gallery UI
 
-`Artifact/src/Widgets/Dialog/ArtifactTemplateGalleryDialog.cppm` を新規追加:
+`Artifact/src/Widgets/Dialog/ArtifactTemplateGalleryDialog.cppm` を新規追加するが、ブラウザの骨格は `MILESTONES_BACKLOG.md` に載せた共通 surface を再利用する。
 
 ```cpp
 class ArtifactTemplateGalleryDialog : public QDialog {
@@ -160,6 +160,7 @@ private:
 - カテゴリフィルタ + search
 - 選択時に Slot 入力 dialog をポップアップ
 - thumbnail クリックで preview
+- `Preset Browser` と同じ card grammar を使い、gallery 側だけで別 grammar を増やさない
 
 ### 3.4 Welcome Screen 統合
 
@@ -312,7 +313,7 @@ struct SlotDefinition {
 | 既存 | 関係 |
 |---|---|
 | `MILESTONE_AD_PRODUCTION_ACCELERATOR_2026-05-28.md` | 量産。本 milestone は foundation を提供。 |
-| `MILESTONE_PRESET_BROWSER_STARTER_FLOW_2026-05-31.md` | preset 起点。並走。 |
+| `MILESTONES_BACKLOG.md` | 共通 browser surface。card grammar を共有。 |
 | `MILESTONE_WORKSPACE_PRESETS_2026-04-10.md` | workspace とは別概念。 |
 
 ---
