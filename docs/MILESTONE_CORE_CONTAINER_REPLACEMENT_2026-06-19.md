@@ -210,6 +210,7 @@ Status:
 - `ValidationRuleRegistry`, `DiagnosticResult`, `FrameDebugSnapshot`, and `FrameDebugBundle` use named containers with debug metadata
 - `PluginRegistry` snapshot helpers now build their result buffers with `NamedVector<PluginDescriptor>` before returning `std::vector`
 - `EventBusDebugger` snapshot helpers now use `NamedVector` for fire logs and statistics before returning legacy vectors
+- `EventBusDebugger` now returns named vectors for fire logs, subscribers, frequency snapshots, and per-event stats
 - `FallbackTracker` stores its event log in `NamedVector<FallbackEvent>` and builds filtered snapshots through named buffers
 - `TraceSnapshot` crash and event histories now use `NamedVector` while keeping legacy QVector fields for the rest
 - `FrameSkipTracker` stores its dispatch history in `NamedVector<FrameDispatchEvent>` while keeping QVector return types
