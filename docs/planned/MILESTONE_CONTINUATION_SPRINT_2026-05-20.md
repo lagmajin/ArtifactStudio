@@ -1,7 +1,7 @@
 # Continuation Sprint / 2026-05-20
 
 **Date**: 2026-05-20
-**Status**: Planned
+**Status**: Archived
 **Window**: Next 1-2 weeks
 
 このマイルストーンは、いまの backlog が広がりすぎて再開点が見えにくい問題を解消するための短期実装束。
@@ -12,10 +12,10 @@
 
 ## Sprint Goal
 
-次の 3 本を、依存が少なく実利が高い順に進める。
+このスプリントは当初の 3 本のうち 1〜2 が完了済みのため、現在は参照用アーカイブとして扱う。
 
-1. `Project Health / Problem View Wiring` を先に通す
-2. `Timeline Keyframe Editing` の見え方を改善する
+1. `Project Health / Problem View Wiring` は完了
+2. `Timeline Keyframe Editing` は完了
 3. `Composition Editor Mask / Roto Editing` の入口と mode routing を安定させる
 
 ---
@@ -33,7 +33,10 @@
 
 ### 1. Project Health / Problem View Wiring
 
-**Source**: [`MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_2026-04-14.md`](./MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_2026-04-14.md)
+**Status**: Done
+
+**Source**: [`../done/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_2026-04-14.md`](../done/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_2026-04-14.md)
+**Execution memo**: [`../done/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md`](../done/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md)
 
 - `DiagnosticEngine` と `ProjectDiagnostic` の result path を app 側で統一する
 - load / save / render preflight で同じ validation result を使う
@@ -46,7 +49,10 @@
 
 ### 2. Timeline Keyframe Editing
 
-**Source**: [`MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md`](./MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md)
+**Status**: Done
+
+**Source**: [`../done/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md`](../done/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md)
+**Execution memo**: [`../done/MILESTONE_TIMELINE_KEYFRAME_EDITING_PHASE1_EXECUTION_2026-05-12.md`](../done/MILESTONE_TIMELINE_KEYFRAME_EDITING_PHASE1_EXECUTION_2026-05-12.md)
 
 - 選択レイヤーの keyframe を timeline 上で読める状態にする
 - lane emphasis と marker visibility を先に整える
@@ -58,6 +64,8 @@
 - 追加 UI より先に既存面で編集判断ができる
 
 ### 3. Composition Editor Mask / Roto Editing
+
+**Status**: Active follow-up
 
 **Source**: [`MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md`](./MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md)
 
@@ -106,7 +114,6 @@
 
 ## Follow-up Milestones
 
-- [`MILESTONE_ACTIVE_IMPLEMENTATION_TRIAD_2026-05-12.md`](./MILESTONE_ACTIVE_IMPLEMENTATION_TRIAD_2026-05-12.md)
-- [`MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_2026-04-14.md`](./MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_2026-04-14.md)
-- [`MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md`](./MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md)
+- [`../done/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_2026-04-14.md`](../done/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_2026-04-14.md)
+- [`../done/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md`](../done/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md)
 - [`MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md`](./MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md)

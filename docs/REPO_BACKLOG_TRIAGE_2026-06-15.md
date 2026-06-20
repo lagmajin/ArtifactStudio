@@ -2,7 +2,7 @@
 
 **Purpose**: `docs/planned/*` と `docs/analysis/*` を突き合わせ、いま「未着手 / 着手途中 / 完了だが整理未了」のどれに該当するかを1枚で判定する。
 **Inputs**:
-- `docs/analysis/COMPOSITION_EDITOR_GAP_ANALYSIS_2026-06-03.md`
+- `docs/done/COMPOSITION_EDITOR_GAP_ANALYSIS_2026-06-03.md`
 - `docs/analysis/WIDGET_GAP_ANALYSIS_2026-06-03.md`
 - `docs/analysis/FEATURE_AUDIT_MOTION_DESIGN_2026-06-02.md`
 - `docs/MILESTONE_ROADMAP_CURRENT.md` (2026-06-03)
@@ -29,26 +29,26 @@
 
 | # | 案件 | ソース / 詳細 | 状態 | 次の作業 |
 |---|------|-------------|------|----------|
-| A-1 | Critical Render / Media Stability Program | `MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md` / worklog `2026-06-04` | 接続済み・ビルド未 | `Artifact` を MSVC でフルビルド → エラーを最小修正 → smoke case 起動 |
-| A-2 | Project Health / Problem View Wiring | `MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md` | 接続済み・ビルド未 | A-1 と並走、build 通ったあと Problem View / Health Dashboard / App Debugger 3面で表示確認 |
+| A-1 | Critical Render / Media Stability Program | `docs/done/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md` / worklog `2026-06-04` | 接続済み・整理完了 | smoke checklist / report surface を完了物として参照できるようにする |
+| A-2 | Project Health / Problem View Wiring | `docs/done/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md` | 接続済み・整理完了 | A-1 と並走、Problem View / Health Dashboard / App Debugger 3面の参照先を完了物へ更新 |
 
 ### Priority B — コードはあるが未接続（1回で効果が大きい）
 
 | # | 案件 | エビデンス | 影響 | 見積目安 |
 |---|------|----------|------|----------|
-| B-1 | Text Animator timeline | `COMPOSITION_EDITOR_GAP_ANALYSIS_2026-06-03.md` §2.d | timeline 右パネルにアニメータープロパティを露出 | M |
-| B-2 | Group mask | `COMPOSITION_EDITOR_GAP_ANALYSIS_2026-06-03.md` §3.b | 接続だけ先に進めると効果が大きい | M |
+| B-1 | Text Animator timeline | `docs/done/COMPOSITION_EDITOR_GAP_ANALYSIS_2026-06-03.md` §2.d | timeline 右パネルにアニメータープロパティを露出 | M |
+| B-2 | Group mask | `docs/done/COMPOSITION_EDITOR_GAP_ANALYSIS_2026-06-03.md` §3.b | 接続だけ先に進めると効果が大きい | M |
 
 ### Priority C — 設計は揃っている、段階実装
 
 | # | 案件 | ソース | 依存 / 注意点 |
 |---|------|------|--------------|
-| C-1 | Timeline Right Pane Keyframe Edit Refinement | `MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md` | T-Painter 正規経路のみ触る |
-| C-2 | Timeline Ripple Edit Phase 1 | `MILESTONE_TIMELINE_RIPPLE_EDIT_PHASE1_EXECUTION_2026-06-04.md` | T-Painter 経路・undo 単位に留意 |
-| C-3 | Visual Density Monitor | `MILESTONE_VISUAL_DENSITY_MONITOR_2026-06-03.md` | 既存 debug/overlay surface に乗せる |
+| C-1 | Timeline Right Pane Keyframe Edit Refinement | `docs/done/MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md` | T-Painter 正規経路のみ触る |
+| C-2 | Timeline Keyframe Editing Phase 1 | `docs/done/MILESTONE_TIMELINE_KEYFRAME_EDITING_PHASE1_EXECUTION_2026-05-12.md` | visibility / lane / header summary を完了物として扱う |
+| C-3 | Visual Density Monitor | `docs/done/MILESTONE_VISUAL_DENSITY_MONITOR_2026-06-03.md` | 既存 debug/overlay surface に乗せる |
 | C-4 | Mask Keyframe Foundation | `MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md` | M-UI-7 と分離して先に scalar だけ |
 | C-5 | Render Preflight Phase 2（= Problem View 連動） | `MILESTONE_RENDER_PREFLIGHT_2026-06-02.md` | A-1/A-2 と語彙を揃える |
-| C-6 | Group Layer Mask 接続 | `COMPOSITION_EDITOR_GAP_ANALYSIS_2026-06-03.md` §3.b | TextureManager pooling まで含めると重いので接続だけ先に |
+| C-6 | Group Layer Mask 接続 | `docs/done/COMPOSITION_EDITOR_GAP_ANALYSIS_2026-06-03.md` §3.b | TextureManager pooling まで含めると重いので接続だけ先に |
 
 ### Priority D — 着手可能だが依存あり・後段
 

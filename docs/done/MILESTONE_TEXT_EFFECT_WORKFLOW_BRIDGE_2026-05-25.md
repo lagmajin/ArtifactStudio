@@ -1,7 +1,7 @@
 # マイルストーン: Text / Effect Workflow Bridge
 
 **作成日:** 2026-05-25  
-**ステータス:** 計画中  
+**ステータス:** 完了  
 **優先度:** 中  
 **関連:** `docs/planned/MILESTONE_TEXT_ANIMATOR_SYSTEM_2026-03-25.md`, `docs/MILESTONE_TEXT_ANIMATOR_INTEGRATION_2026-04-27.md`, `docs/MILESTONE_EFFECT_SYSTEM_BRIDGE_2026-05-25.md`
 

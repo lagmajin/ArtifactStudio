@@ -33,6 +33,13 @@ The current May 12 execution triad is ordered as follows:
 
 The first two slices primarily improve validation and readability. The third slice remains a shell/controller-bound mode-routing task, so it should stay local to the editor boundary and not spill into unrelated widget wiring.
 
+Mask editing wording should stay consistent across the editor shell and the inspector:
+
+- The toolbar and overlay may say `Mask editing`
+- The internal tool family may remain `ToolType::Pen` for compatibility
+- `Roto` should stay visible in property-path labels and other layer-specific fields where it already carries meaning
+- The editor shell should not introduce a separate global routing layer just to rename the tool
+
 ## Responsibilities
 
 ### Composition Editor Shell
@@ -159,3 +166,4 @@ Prefer the existing controller / service path and keep the ownership local.
 2. layer panel の inline choice と mask editing を混同しないようにする
 3. mask parameter の time-addressable 化は `Mask Keyframe Foundation` の Phase 1 へ分離する
 4. render path 側では、blend / mask の観測値を `FrameDebugSnapshot` に記録するだけに留める
+5. UI 文言は `Mask editing` を基本にしつつ、`Roto` は property/inspector でのみ補助表示に留める

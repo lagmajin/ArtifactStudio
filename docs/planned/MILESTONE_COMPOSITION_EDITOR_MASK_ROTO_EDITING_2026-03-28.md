@@ -120,6 +120,8 @@
 - `Mask` parameter の時間化は `MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md` に任せる
 - render 側の状態確認は `FrameDebugSnapshot` と report text を使う
 - fixed overlay は増やさず、編集 UI と診断 UI を分離する
+- UI 上の主表記は `Mask editing` を基本にし、`Roto` は property / inspector の path label で補助的に残す
+- 実装上の tool family は compatibility のため `ToolType::Pen` を維持してよい
 
 ## Next Slice
 

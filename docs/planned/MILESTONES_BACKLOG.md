@@ -497,6 +497,19 @@ active milestone の重複名としては扱わない。
 - 詳細は `docs/planned/MILESTONE_PROPERTY_WIDGET_ROW_ALIGNMENT_INSPECTOR_LAYOUT_2026-04-03.md`
 - 実行メモは親文書へ統合済み
 
+### M-UI-24 Visual Density Monitor
+- 画面の詰まり具合を density / heatmap / warning で読む診断 surface
+- 完了記録は `docs/done/MILESTONE_VISUAL_DENSITY_MONITOR_2026-06-03.md`
+- 実行メモは `docs/planned/MILESTONE_VISUAL_DENSITY_MONITOR_PHASE1_EXECUTION_2026-06-03.md` だが、canonical completion は done 側
+
+### M-APP-5 Render Preflight / Output Safety Check
+- render queue / export dialog / debugger / problem view に出力前検査を共通文法で流す
+- 完了記録は `docs/done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`
+
+### M-CLIP-1 Keyframe Copy & Paste
+- timeline から keyframe を copy / paste できるようにする
+- 完了記録は `docs/done/MILESTONE_KEYFRAME_COPY_PASTE_2026-06-16.md`
+
 ### M-UI-22 QSS Decommission / CommonStyle Path to QCommonStyle
 - `QSS` を新規追加しない方針へ切り替え、theme / palette / common widget / owner-draw を経由して最終的に `QCommonStyle` ベースへ寄せる
 - 既存の `QSS Reduction` と `Theme System Rollout` の実行計画をまとめ直す
@@ -554,6 +567,7 @@ active milestone の重複名としては扱わない。
 ### M-UI-7 Composition Editor Mask / Roto Editing
 - composition editor 上で layer mask / roto を直接編集できるようにする
 - **大幅改善:** モード自動切り替え（コンテキスト判定）、頂点操作直感化（ハンドル/追加削除ツール不要）、マスク管理UI強化（色設定/ドラッグ順序）、視覚フィードバック改善（オーバーレイ/境界線強化）
+- UI 表記は `Mask editing` を基本にし、`Roto` は property / inspector の補助ラベルに留める
 - 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md`
 - Phase 1 実行メモ: `docs/planned/MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md` の entry bridge / path creation を先に詰める
 - mask parameter の time-addressable 化は別スライスとして扱い、`docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md` へ分離する
@@ -1270,7 +1284,7 @@ active milestone の重複名としては扱わない。
 - タイムラインの Audio Layer 行で波形(peak min/max)をトラック内に描画
 - ズームに応じた粗密制御、フェードハンドル/音量オートメーション keyframe 可視化
 - 波形クリックでの seek、trim/gain/fade のドラッグ編集、Undo 対応
-- 詳細: `docs/planned/MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md`
+- 完了: `docs/done/MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md`
 
 ## Multi-Viewport / Preview
 

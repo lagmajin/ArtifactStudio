@@ -1,7 +1,7 @@
 # M-CLIP-1 Keyframe Copy & Paste Milestone
 
 作成日: 2026-06-16
-ステータス: Draft
+ステータス: Completed
 対象: `ArtifactCore/src/Animation/Value*`,
       `ArtifactCore/src/Animation/Transform2D*`,
       `Artifact/src/Widgets/Timeline/ArtifactTimelineWidget.cpp`,
@@ -12,6 +12,7 @@
       `Artifact/src/Undo/*`,
       `Artifact/src/Widgets/Menu/ArtifactEditMenu.cppm`
 位置づけ: `MILESTONE_ADVANCED_COPY_PASTE_2026-03-28.md` 全体構想から **Keyframe 部分だけを分離** して、Timeline から即座に使える 1 機能に絞った実装計画。
+完了記録: [`../done/MILESTONE_KEYFRAME_COPY_PASTE_2026-06-16.md`](../done/MILESTONE_KEYFRAME_COPY_PASTE_2026-06-16.md)
 参照:
 - `docs/analysis/MOTION_GRAPHICS_ARTIST_PAIN_POINTS_2026-04-19.md` (⭐🌟🌟🌟)
 - `docs/analysis/CORE_MODULE_MISSING_FEATURES_2026-04-19.md` (🟡)

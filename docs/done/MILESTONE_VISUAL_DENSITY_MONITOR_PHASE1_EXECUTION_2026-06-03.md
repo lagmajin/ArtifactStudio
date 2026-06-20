@@ -4,7 +4,7 @@
 
 **Source**: [`MILESTONE_VISUAL_DENSITY_MONITOR_2026-06-03.md`](./MILESTONE_VISUAL_DENSITY_MONITOR_2026-06-03.md)
 
-**Status**: absorbed into [`../done/MILESTONE_VISUAL_DENSITY_MONITOR_2026-06-03.md`](../done/MILESTONE_VISUAL_DENSITY_MONITOR_2026-06-03.md)
+**Status**: 完了
 
 ---
 
@@ -124,7 +124,3 @@
 - warning が `詰まりすぎ` という主観を補助できる
 - overlay と frame debug の言葉が一致する
 - 何を空けるべきかの候補が返る
-
-## Note
-
-This execution memo is retained only as a historical slice. The canonical completion record is the `done` milestone linked above.

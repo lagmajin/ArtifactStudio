@@ -395,6 +395,7 @@ if(MSVC)
 
     set(_ATL_INCLUDE_DIR "${_MSVC_TOOLCHAIN_DIR}/atlmfc/include")
     set(_ATL_LIB_DIR     "${_MSVC_TOOLCHAIN_DIR}/atlmfc/lib/x64")
+    set(_MSVC_INCLUDE_DIR "${_MSVC_TOOLCHAIN_DIR}/include")
 
     # Fallback: active toolset が atlmfc を持たない場合 (VS Insiders/Preview で多発)、
     # 他の VS インストールから atlbase.h を探す。
@@ -428,9 +429,17 @@ if(MSVC)
     if(_ATL_INCLUDE_DIR AND EXISTS "${_ATL_INCLUDE_DIR}/atlbase.h")
         # グローバル include path に追加 (DiligentEngine サブディレクトリにも伝播)
         include_directories("${_ATL_INCLUDE_DIR}")
+        if(EXISTS "${_MSVC_INCLUDE_DIR}/vcruntime.h")
+            include_directories("${_MSVC_INCLUDE_DIR}")
+        endif()
+        set(_artifact_try_compile_include_flags "/I\"${_MSVC_INCLUDE_DIR}\" /I\"${_ATL_INCLUDE_DIR}\" /I\"${_artifact_windows_sdk_version_dir}/um\" /I\"${_artifact_windows_sdk_version_dir}/ucrt\" /I\"${_artifact_windows_sdk_version_dir}/shared\" /I\"${_artifact_windows_sdk_version_dir}/winrt\"")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${_artifact_try_compile_include_flags}" CACHE STRING "C flags with explicit SDK includes" FORCE)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_artifact_try_compile_include_flags}" CACHE STRING "CXX flags with explicit SDK includes" FORCE)
+        set(ENV{INCLUDE} "${_MSVC_INCLUDE_DIR};${_ATL_INCLUDE_DIR};${_artifact_windows_sdk_version_dir}/um;${_artifact_windows_sdk_version_dir}/ucrt;${_artifact_windows_sdk_version_dir}/shared;${_artifact_windows_sdk_version_dir}/winrt;$ENV{INCLUDE}")
         if(EXISTS "${_MSVC_TOOLCHAIN_DIR}/lib/x64")
             link_directories("${_MSVC_TOOLCHAIN_DIR}/lib/x64")
         endif()
+        set(ENV{LIB} "${_MSVC_TOOLCHAIN_DIR}/lib/x64;${_artifact_windows_sdk_version_dir}/um/x64;${_artifact_windows_sdk_version_dir}/ucrt/x64;$ENV{LIB}")
         if(_ATL_LIB_DIR AND EXISTS "${_ATL_LIB_DIR}")
             link_directories("${_ATL_LIB_DIR}")
         endif()
@@ -442,6 +451,8 @@ if(MSVC)
         set(HAS_ATL  TRUE CACHE INTERNAL "ATL is available"  FORCE)
         set(HAS_D3D11 TRUE CACHE INTERNAL "D3D11 headers available" FORCE)
         set(HAS_D3D12 TRUE CACHE INTERNAL "D3D12 headers available" FORCE)
+        set(D3D11_SUPPORTED TRUE CACHE INTERNAL "D3D11 backend available" FORCE)
+        set(D3D12_SUPPORTED TRUE CACHE INTERNAL "D3D12 backend available" FORCE)
         # D3D11/D3D12 サポートフラグも強制更新（再 configure で古い FALSE が残る対策）
         set(D3D11_SUPPORTED TRUE CACHE INTERNAL "D3D11 is supported" FORCE)
         set(D3D12_SUPPORTED TRUE CACHE INTERNAL "D3D12 is supported" FORCE)
@@ -457,11 +468,32 @@ if(MSVC)
 endif()
 
 if(WIN32 AND MSVC)
+    list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
+        CMAKE_C_FLAGS
+        CMAKE_CXX_FLAGS
+        CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION
+        CMAKE_GENERATOR_PLATFORM
+    )
     set(_artifact_windows_sdk_root "C:/Program Files (x86)/Windows Kits/10")
+    set(_artifact_windows_sdk_include_root "${_artifact_windows_sdk_root}/Include")
+    if(EXISTS "${_artifact_windows_sdk_include_root}")
+        file(GLOB _artifact_windows_sdk_include_versions LIST_DIRECTORIES true "${_artifact_windows_sdk_include_root}/*")
+        list(SORT _artifact_windows_sdk_include_versions COMPARE NATURAL ORDER DESCENDING)
+        list(GET _artifact_windows_sdk_include_versions 0 _artifact_windows_sdk_include_version_dir)
+        foreach(_artifact_windows_sdk_include_subdir um ucrt shared winrt)
+            if(EXISTS "${_artifact_windows_sdk_include_version_dir}/${_artifact_windows_sdk_include_subdir}")
+                include_directories("${_artifact_windows_sdk_include_version_dir}/${_artifact_windows_sdk_include_subdir}")
+            endif()
+        endforeach()
+        message(STATUS "Windows SDK include: ${_artifact_windows_sdk_include_version_dir}")
+    endif()
     if(EXISTS "${_artifact_windows_sdk_root}/Lib")
         file(GLOB _artifact_windows_sdk_versions LIST_DIRECTORIES true "${_artifact_windows_sdk_root}/Lib/*")
         list(SORT _artifact_windows_sdk_versions COMPARE NATURAL ORDER DESCENDING)
         list(GET _artifact_windows_sdk_versions 0 _artifact_windows_sdk_version_dir)
+        get_filename_component(_artifact_windows_sdk_version_name "${_artifact_windows_sdk_version_dir}" NAME)
+        set(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION "${_artifact_windows_sdk_version_name}" CACHE STRING "Windows SDK version for DiligentEngine" FORCE)
+        set(ENV{WindowsSDKVersion} "${_artifact_windows_sdk_version_name}\\")
         if(EXISTS "${_artifact_windows_sdk_version_dir}/um/x64")
             link_directories("${_artifact_windows_sdk_version_dir}/um/x64")
         endif()
@@ -481,10 +513,11 @@ set(DILIGENT_BUILD_UNITY   OFF CACHE BOOL "" FORCE)
 
 # Graphics backend selection
 set(DILIGENT_NO_DIRECT3D11 OFF CACHE BOOL "" FORCE)  # DX11 enabled
-set(DILIGENT_NO_DIRECT3D12 OFF CACHE BOOL "" FORCE)  # DX12 enabled
+set(DILIGENT_NO_DIRECT3D12 ON  CACHE BOOL "" FORCE)  # DX12 disabled for stable local verification
 set(DILIGENT_NO_VULKAN     OFF CACHE BOOL "" FORCE)  # Vulkan enabled
 set(DILIGENT_NO_OPENGL     ON  CACHE BOOL "" FORCE)  # OpenGL disabled
 set(DILIGENT_NO_WEBGPU     ON  CACHE BOOL "" FORCE)  # WebGPU disabled
+add_compile_definitions(QUERY_H_RESTRICTION_PERMISSIVE=1)
 
 # Third-party trees are non-modular and occasionally emit malformed .ddi during
 # MSVC dependency scanning. Disable module scan in this subtree only.

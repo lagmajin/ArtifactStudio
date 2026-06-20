@@ -4,6 +4,8 @@
 
 **Source**: [`MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`](./MILESTONE_RENDER_PREFLIGHT_2026-06-02.md)
 
+**Status**: absorbed into [`../done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`](../done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md)
+
 ---
 
 ## Phase 1 Goal
@@ -108,9 +110,12 @@
 - warning と error が同じ文法で読める
 - queue / export dialog / debugger / problem view で結果が食い違わない
 
+## Note
+
+This execution memo is retained only as a historical slice. The canonical completion record is the `done` milestone linked above.
+
 ---
 
 ## Next Step
 
 Phase 2 では、時間見積もりと VRAM 見積もりを足す。
-

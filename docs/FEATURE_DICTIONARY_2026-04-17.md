@@ -51,7 +51,7 @@
 | **Color** | `include/Color/` | `FloatColor`, `ColorManager`, `ColorSwatch`, `ColorLUT`, `ACESColorManager`, `ColorWheelsProcessor` | カラーマネジメント、LUT、カラースペース変換 |
 | **Composition** | `include/Composition/` | `Composition`, `PreComposeManager`, `PreComposeCommand` | コンポジション管理、ネスト |
 | **Container** | `include/Container/` | `MultiIndex` | マルチインデックスコンテナ |
-| **Core** | `include/Core/` | `EditSessionManager`, `DiagnosticEngine`, `ProjectDiagnostic`, `Mask.RotoMask`, `UI.RotoMaskEditor`, `TestHelper` | コアユーティリティ、診断、マスク編集 |
+| **Core** | `include/Core/` | `EditSessionManager`, `DiagnosticEngine`, `ProjectDiagnostic`, `Mask.RotoMask`, `UI.RotoMaskEditor`, `TestHelper` | コアユーティリティ、診断、Mask editing / Roto |
 | **Event** | `include/Event/` | `EventBus` | イベントバス、パブリッシュ/サブスクライブ |
 | **File** | `include/File/` | `FileTypeDetector` | ファイルタイプ検出 |
 | **Font** | `include/Font/` | `FontDescriptor`, `FreeFont` | フォント管理 |
@@ -74,7 +74,7 @@
 | **Time** | `include/Time/` | `Duration`, `RationalTime`, `RealTime`, `TimeCode`, `TimeRange`, `TimeRemap` | 時間表現、タイムコード |
 | **Track** | `include/Track/` | `LayerTrack` | トラック管理 |
 | **Transform** | `include/Transform/` | `StaticTransform3D`, `StaticTransform2D`, `Rotate`, `Rotate2D`, `Scale2D`, `ZoomScale`, `AnchorPoint2D`, `Camera`, `Light` | 座標変換、ビューポート |
-| **UI** | `include/UI/` | `InputOperator`, `InputOperatorManager`, `SelectionManager`, `KeyMap`, `InteractiveActions`, `RotoMaskEditor`, `DragOperator`, `TransformControls`, `GizmoMode` | UI操作、入力処理 |
+| **UI** | `include/UI/` | `InputOperator`, `InputOperatorManager`, `SelectionManager`, `KeyMap`, `InteractiveActions`, `RotoMaskEditor`, `DragOperator`, `TransformControls`, `GizmoMode` | UI操作、入力処理、Mask editing 入口 |
 | **Utils** | `include/Utils/` | `Path`, `String`, `UniString`, `HashValue`, `Id`, `AssetManager`, `JsonLike`, `ScopedTimer`, `PerformanceProfiler`, `Tag`, `MultipleTag` | ユーティリティ、文字列、パス、プロファイラ |
 | **Video** | `include/Video/` | `Video`, `FFmpegVideoDecoder`, `FFMpegEncoder`, `GStreamerDecoder`, `GStreamerEncoder`, `PlaybackManager`, `EncoderSetting`, `Stabilizer` | 動画デコード/エンコード、安定化 |
 | **VST** | `include/VST/` | `VSTHost`, `VSTEffect` | VSTプラグインホスト |

@@ -237,6 +237,18 @@ Inspector 側の keyframe 周辺は `Property / Keyframe 統合 実行計画` �
    - layer search が active のときに keyframe 表示が壊れないようにする
    - filter-only モードでも操作対象が分かるようにする
 
+## Completion Note
+
+Phase 1 の実行メモは完了側へ移してある。選択レイヤーの keyframe 可視化、lane emphasis、header summary の土台は現在の実装基盤として扱う。
+
+## Next Step
+
+Phase 2 では、選択レイヤーの keyframe を「見える」だけでなく、編集操作の入口までつなぐ。
+
+1. keyframe add / remove の共通入口を timeline widget 側に揃える
+2. 前後ジャンプを selected layer / current clip に対して安定化する
+3. playhead 位置への打鍵導線を最小操作で使えるようにする
+
 ## File Checklist
 
 - `Artifact/src/Widgets/ArtifactTimelineWidget.cpp`

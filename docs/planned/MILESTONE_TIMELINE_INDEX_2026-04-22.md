@@ -145,7 +145,7 @@
 1. `Timeline Enhanced Tooltips`
 2. `Timeline Layer Specialization`
 3. `Timeline Zoom & Pan Enhancement`
-4. `Timeline Audio Waveform Display`
+4. `docs/done/MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md`
 
 ---
 

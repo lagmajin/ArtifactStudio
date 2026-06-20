@@ -295,16 +295,20 @@ Problem View としての機能はまだ。
 - `ArtifactProblemViewWidget` と `ArtifactProjectHealthDashboard` は同じ結果ソースを読む
 - render preflight は Error のみをブロックし、Warning は案内に留める
 
+## Completion Note
+
+Phase 1 / 2 の実行メモは完了側へ移してある。現時点では app 側の validation / problem view / dashboard の result path が実装基盤として扱える。
+
 ## Next Step
 
-2026-05-11 時点では、表示面より先に検証の入口を揃える。
+2026-06-20 時点では、完了メモを基盤として次の validation ルール層へ進む。
 
-1. `ArtifactProblemViewWidget` と `ArtifactProjectHealthDashboard` が同じ `ProjectHealthReport` / `DiagnosticResult` を読むようにする
-2. `ArtifactProjectManager` の load / import / save 前後で `ArtifactProjectHealthChecker` を呼ぶ
-3. render preflight で `DiagnosticEngine` を実行し、Error のみをブロック条件として扱う
-4. `AppValidationRules` を登録し、Project View / Problem View / Dashboard で同じ判定結果を見せる
+1. `ArtifactProjectHealthChecker` の警告・エラー分類を `DiagnosticEngine` 側の rule 文法へ寄せる
+2. `render preflight` の Error blocking を `DiagnosticResult` の共通語彙で見直す
+3. `Problem View` と `HealthDashboard` の表示文言を `AppValidationRules` へ合わせる
+4. `Project View` からの health summary 更新をもう一段安定化する
 
 ## Related Execution Memo
 
-- [`docs/planned/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md`](./planned/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md)
+- [`docs/done/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md`](./done/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md)
 - [`docs/planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`](./planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md)

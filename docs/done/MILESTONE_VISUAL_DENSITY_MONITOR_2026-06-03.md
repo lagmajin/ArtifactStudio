@@ -1,9 +1,10 @@
 # MILESTONE: Visual Density Monitor
 
 **Date**: 2026-06-03  
-**Status**: Proposed  
+**Status**: Completed
 **Priority**: Medium-High  
 **Related**: `docs/WIDGET_MAP.md`, `docs/planned/MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md`, `docs/planned/MILESTONE_CROSS_INDUSTRY_INSPECTION_TOOLS_2026-06-02.md`
+**Execution Memo**: [`../planned/MILESTONE_VISUAL_DENSITY_MONITOR_PHASE1_EXECUTION_2026-06-03.md`](../planned/MILESTONE_VISUAL_DENSITY_MONITOR_PHASE1_EXECUTION_2026-06-03.md)
 
 ---
 
@@ -19,6 +20,12 @@
 - どこを少し空けると読みやすくなるかを示す
 - 明るさ・文字・線・動きの密度を同じ語彙で扱う
 - 画面全体の「うるささ」を主観ではなく補助指標で読む
+
+Progress note:
+
+- overlay now includes warning and next action text alongside the heatmap
+- the four-axis vocabulary remains shared with debugger surfaces
+- diagnostic overlay and summary language are aligned for the current phase 1 surface
 
 ---
 
@@ -177,4 +184,3 @@ Phase 1 は「診断」だけを先に作る。
 
 - [`MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md`](./MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md)
 - [`MILESTONE_CROSS_INDUSTRY_INSPECTION_TOOLS_2026-06-02.md`](./MILESTONE_CROSS_INDUSTRY_INSPECTION_TOOLS_2026-06-02.md)
-

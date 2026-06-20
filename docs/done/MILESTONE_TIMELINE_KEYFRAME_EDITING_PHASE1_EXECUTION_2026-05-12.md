@@ -4,7 +4,7 @@
 
 **Source**: [`MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md`](./MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md)
 
-**Status**: Active slice in the May 12 triad
+**Status**: 完了
 **Order**: 2 of 3
 
 Progress note:

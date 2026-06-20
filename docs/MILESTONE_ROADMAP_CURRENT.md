@@ -2,7 +2,7 @@
 
 **Date**: 2026-06-03  
 **Scope**: `Artifact/`, `ArtifactCore/`, `docs/planned/`  
-**Inputs**: `docs/analysis/COMPOSITION_EDITOR_GAP_ANALYSIS_2026-06-03.md`, `docs/analysis/WIDGET_GAP_ANALYSIS_2026-06-03.md`, `docs/planned/MILESTONES_BACKLOG.md`, `docs/planned/MILESTONE_AE_PARITY_BACKLOG_2026-04-29.md`
+**Inputs**: `docs/done/COMPOSITION_EDITOR_GAP_ANALYSIS_2026-06-03.md`, `docs/analysis/WIDGET_GAP_ANALYSIS_2026-06-03.md`, `docs/planned/MILESTONES_BACKLOG.md`, `docs/planned/MILESTONE_AE_PARITY_BACKLOG_2026-04-29.md`
 
 ---
 
@@ -52,8 +52,8 @@ Status:
 
 対象:
 
-- `docs/planned/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
-- `docs/planned/MILESTONE_DEBUG_RENDER_HARNESS_2026-04-30.md` (existing harness surface; use for capture/report and regression checks)
+- `docs/done/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
+- `docs/done/MILESTONE_DEBUG_RENDER_HARNESS_2026-04-30.md` (existing harness surface; use for capture/report and regression checks)
 - `docs/planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`
 
 理由:
@@ -69,33 +69,25 @@ Status:
 
 ### 2. Project Health / Problem View Wiring
 
+Status:
+
+- done
+
 対象:
 
-- `docs/planned/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md`
-- `docs/planned/MILESTONE_ACTIVE_IMPLEMENTATION_TRIAD_2026-05-12.md`
-- `docs/planned/MILESTONE_CONTINUATION_SPRINT_2026-05-20.md`
-
-理由:
-
-- app 側の診断を実務で使える形に寄せると、今後の回帰確認が速くなる
-- `diagnostic` と `problem view` の見え方を揃えるのは、重い機能追加よりも効果が高い
-
-運用メモ:
-
-- この項目は `Critical Render / Media Stability Program` と並走させる
-- render preflight の gate と Problem View の source を揃えることで、同じ failure を別 surface で同じ言葉で読めるようにする
+- `docs/done/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_2026-04-14.md`
+- `docs/done/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md`
 
 ### 3. Timeline Right Pane Keyframe Edit Refinement
 
+Status:
+
+- done
+
 対象:
 
-- `docs/planned/MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md`
-- `docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_PHASE1_EXECUTION_2026-05-12.md`
-
-理由:
-
-- right-pane の state readability は、制作時の迷いを直接減らす
-- 既存の action / model / property path を揃えるだけで体験差が出る
+- `docs/done/MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md`
+- `docs/done/MILESTONE_TIMELINE_KEYFRAME_EDITING_PHASE1_EXECUTION_2026-05-12.md`
 
 ---
 
@@ -103,27 +95,25 @@ Status:
 
 ### 4. Visual Density Monitor
 
+Status:
+
+- done
+
 対象:
 
-- `docs/planned/MILESTONE_VISUAL_DENSITY_MONITOR_2026-06-03.md`
-- `docs/planned/MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md`
-- `docs/planned/MILESTONE_CROSS_INDUSTRY_INSPECTION_TOOLS_2026-06-02.md`
-
-理由:
-
-- 既存の debug / overlay / app debugger surface に乗せやすい
-- 「詰まりすぎている画面」を定量化する案は、設計上の価値が高い
+- `docs/done/MILESTONE_VISUAL_DENSITY_MONITOR_2026-06-03.md`
+- `docs/done/MILESTONE_VISUAL_DENSITY_MONITOR_PHASE1_EXECUTION_2026-06-03.md`
 
 ### 5. Timeline Audio Waveform
 
 対象:
 
-- `docs/planned/MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md`
+- `docs/done/MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md`
 
 扱い:
 
-- analysis 上では実装済み寄りだったため、優先度は下げる
-- 着手するなら「未接続の差分確認」か「ドキュメント更新」のほうが速い
+- done 側へ移動済み
+- 追加でやるなら waveform 周辺の polish や隣接 UI の整理を見る
 
 ### 6. Continuation Sprint の小粒タスク
 
@@ -134,9 +124,15 @@ Status:
 
 候補:
 
-- `Project Health / Problem View Wiring`
-- `Timeline Keyframe Editing`
 - `Composition Editor Mask / Roto Editing`
+
+### 7. Already Closed but Worth Keeping as Reference
+
+- `docs/done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`
+- `docs/done/MILESTONE_KEYFRAME_COPY_PASTE_2026-06-16.md`
+- `docs/done/MILESTONE_VISUAL_DENSITY_MONITOR_2026-06-03.md`
+- `docs/done/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md`
+- `docs/done/MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md`
 
 ---
 
@@ -171,20 +167,18 @@ Status:
 
 1. `Critical Render / Media Stability Program` と `Project Health / Problem View Wiring` を並走
 2. `Debug Render Harness` の既存 surface を使って `Critical Render / Media Stability Program` を回す
-3. `Timeline Right Pane Keyframe Edit Refinement`
-4. `Visual Density Monitor`
+3. `Timeline Audio Waveform`
+4. `Composition Editor Mask / Roto Editing`
 
 ---
 
 ## One-Session Default
 
-もし「いまから 1 回の作業で前進させる」なら、次の順が安全です。
+もし「いまから 1 回の作業で前進させる」なら、`Timeline Audio Waveform` か `Composition Editor Mask / Roto Editing` へ進むのが自然です。
 
-1. `docs/planned/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md` と `docs/planned/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md` を並べて読む
-2. `docs/planned/MILESTONE_DEBUG_RENDER_HARNESS_2026-04-30.md` を読む
-3. `docs/analysis/COMPOSITION_EDITOR_GAP_ANALYSIS_2026-06-03.md` を突き合わせる
-4. `docs/analysis/WIDGET_GAP_ANALYSIS_2026-06-03.md` で既知の実装済み領域を除外する
-5. 実装 or 文書更新に入る
+1. `docs/planned/MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md` を起点にする
+2. `docs/planned/MILESTONE_CONTINUATION_SPRINT_2026-05-20.md` の残り候補を確認する
+3. `docs/planned/MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md` を参照する
 
 ---
 

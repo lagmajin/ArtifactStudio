@@ -1,7 +1,7 @@
 # Timeline Right Pane Keyframe Edit Refinement
 
 **Date**: 2026-05-23
-**Status**: Planned
+**Status**: Completed
 **Window**: Next 1-2 weeks
 **Parent**: `M-TL-5 Timeline Keyframe Editing`
 
@@ -30,6 +30,12 @@
 
 今のボトルネックは機能不足より、右パネル上の state readability と input consistency にある。
 
+Progress note:
+
+- keyframe selection summary now calls out nearest/current proximity more explicitly
+- hovered and selected state are still surfaced through the existing summary path
+- current/nearest/hovered marker emphasis is already separated in the timeline painter
+
 ---
 
 ## In Scope
@@ -42,8 +48,8 @@
 - `Artifact/include/Widgets/Timeline/ArtifactTimelineKeyframeModel.ixx`
 - `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditor.cppm`
 - `Artifact/src/Widgets/Menu/ArtifactAnimationMenu.cppm`
+- `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
 - 必要に応じて `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cpp`
-- 必要に応じて `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
 
 ## Out Of Scope
 

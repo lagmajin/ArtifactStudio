@@ -54,8 +54,8 @@
 
 ## 3. 実装が途中・不安定なもの
 
-### a. Mask/Roto 編集の残課題
-Pen Tool自体は動く。未完成な操作：
+### a. Mask editing / Roto 編集の残課題
+Pen Tool 自体は動く。UI 上の主表記は `Mask editing` として扱う。未完成な操作：
 
 | 操作 | 状態 |
 |------|------|
