@@ -17,6 +17,7 @@ module;
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QInputDialog>
+#include <QLocale>
 #include <QCheckBox>
 #include <QLabel>
 #include <QListWidget>
@@ -61,6 +62,26 @@ using FramePosition = ArtifactPr::FramePosition;
 const int FRAME_WIDTH = 2;
 const int MIN_CLIP_WIDTH = 20;
 const int TRIM_HANDLE_WIDTH = 6;
+
+bool isJapaneseSystemLocale()
+{
+    return QLocale::system().language() == QLocale::Japanese;
+}
+
+QString uiText(const char* english, const char* japanese)
+{
+    return isJapaneseSystemLocale() ? QString::fromUtf8(japanese) : QString::fromUtf8(english);
+}
+
+QString percentLabel(int value)
+{
+    return QStringLiteral("%1%").arg(value);
+}
+
+QString trUi(const char* english, const char* japanese)
+{
+    return isJapaneseSystemLocale() ? QString::fromUtf8(japanese) : QString::fromUtf8(english);
+}
 
 class TimelineClipWidget : public QWidget
 {
@@ -723,7 +744,7 @@ public:
         layout->addLayout(meterLayout);
 
         auto* buttonLayout = new QHBoxLayout();
-        auto* resetPeakBtn = new QPushButton(QStringLiteral("Reset Peak"));
+        auto* resetPeakBtn = new QPushButton(trUi("Reset Peak", "ピークをリセット"));
         connect(resetPeakBtn, &QPushButton::clicked, this, &AudioMeterPanel::onResetPeakClicked);
         buttonLayout->addWidget(resetPeakBtn);
         buttonLayout->addStretch();
@@ -785,14 +806,14 @@ public:
         layout->setContentsMargins(4, 4, 4, 4);
         layout->setSpacing(8);
 
-        auto* label = new QLabel(QStringLiteral("Transitions"));
+        auto* label = new QLabel(trUi("Transitions", "トランジション"));
         QFont titleFont = label->font();
         titleFont.setPointSize(titleFont.pointSize() + 1);
         titleFont.setBold(true);
         label->setFont(titleFont);
         layout->addWidget(label);
 
-        auto* descLabel = new QLabel(QStringLiteral("Select transition type:"));
+        auto* descLabel = new QLabel(uiText("Select transition type:", "トランジション種別を選択:"));
         layout->addWidget(descLabel);
 
         auto* buttonLayout = new QVBoxLayout();
@@ -815,16 +836,18 @@ public:
             return btn;
         };
 
-        addTransBtn(QStringLiteral("Crossfade"), ArtifactPr::TransitionType::Crossfade, QStringLiteral("#c89664"));
-        addTransBtn(QStringLiteral("Dip to Black"), ArtifactPr::TransitionType::DipToBlack, QStringLiteral("#646464"));
-        addTransBtn(QStringLiteral("Wipe Left"), ArtifactPr::TransitionType::WipeLeft, QStringLiteral("#9664c8"));
-        addTransBtn(QStringLiteral("Wipe Right"), ArtifactPr::TransitionType::WipeRight, QStringLiteral("#c86496"));
+        addTransBtn(uiText("Crossfade", "クロスフェード"), ArtifactPr::TransitionType::Crossfade, QStringLiteral("#c89664"));
+        addTransBtn(uiText("Dip to Black", "黒へフェード"), ArtifactPr::TransitionType::DipToBlack, QStringLiteral("#646464"));
+        addTransBtn(uiText("Wipe Left", "左にワイプ"), ArtifactPr::TransitionType::WipeLeft, QStringLiteral("#9664c8"));
+        addTransBtn(uiText("Wipe Right", "右にワイプ"), ArtifactPr::TransitionType::WipeRight, QStringLiteral("#c86496"));
 
         layout->addLayout(buttonLayout);
 
         layout->addStretch();
 
-        auto* infoLabel = new QLabel(QStringLiteral("Tip: Select a clip and\nposition playhead at\nclip boundary to apply."));
+        auto* infoLabel = new QLabel(uiText(
+            "Tip: Select a clip and\nposition playhead at\nclip boundary to apply.",
+            "ヒント: クリップを選択し、\n再生位置を境界に合わせて\n適用してください。"));
         layout->addWidget(infoLabel);
 
         auto* engine = ArtifactPr::EditorEngine::instance();
@@ -853,18 +876,18 @@ public:
         layout->setContentsMargins(4, 4, 4, 4);
         layout->setSpacing(8);
 
-        auto* label = new QLabel(QStringLiteral("Effects"));
+        auto* label = new QLabel(trUi("Effects", "エフェクト"));
         QFont titleFont = label->font();
         titleFont.setPointSize(titleFont.pointSize() + 1);
         titleFont.setBold(true);
         label->setFont(titleFont);
         layout->addWidget(label);
 
-        auto* descLabel = new QLabel(QStringLiteral("Basic effects:"));
+        auto* descLabel = new QLabel(trUi("Basic effects:", "基本エフェクト:"));
         layout->addWidget(descLabel);
 
         auto* searchEdit = new QLineEdit();
-        searchEdit->setPlaceholderText(QStringLiteral("Search effects..."));
+        searchEdit->setPlaceholderText(trUi("Search effects...", "エフェクトを検索..."));
         {
             QPalette p = searchEdit->palette();
             p.setColor(QPalette::Base, ArtifactPr::prLegacyColors().inputBackground);
@@ -880,18 +903,18 @@ public:
         }
 
         QStringList effects = {
-            QStringLiteral("Color Correction > Brightness/Contrast"),
-            QStringLiteral("Color Correction > Hue/Saturation"),
-            QStringLiteral("Color Correction > Color Wheels"),
-            QStringLiteral("Blur > Gaussian Blur"),
-            QStringLiteral("Blur > Box Blur"),
-            QStringLiteral("Sharpen > Unsharp Mask"),
-            QStringLiteral("Stylize > Glow"),
-            QStringLiteral("Stylize > Posterize"),
-            QStringLiteral("Transform > Scale"),
-            QStringLiteral("Transform > Rotate"),
-            QStringLiteral("Audio > Gain"),
-            QStringLiteral("Audio > Equalizer")
+            trUi("Color Correction > Brightness/Contrast", "色補正 > 明るさ/コントラスト"),
+            trUi("Color Correction > Hue/Saturation", "色補正 > 色相/彩度"),
+            trUi("Color Correction > Color Wheels", "色補正 > カラーホイール"),
+            trUi("Blur > Gaussian Blur", "ぼかし > ガウスぼかし"),
+            trUi("Blur > Box Blur", "ぼかし > ボックスぼかし"),
+            trUi("Sharpen > Unsharp Mask", "シャープ > アンシャープマスク"),
+            trUi("Stylize > Glow", "スタイライズ > グロー"),
+            trUi("Stylize > Posterize", "スタイライズ > ポスタリゼーション"),
+            trUi("Transform > Scale", "変形 > スケール"),
+            trUi("Transform > Rotate", "変形 > 回転"),
+            trUi("Audio > Gain", "オーディオ > ゲイン"),
+            trUi("Audio > Equalizer", "オーディオ > イコライザー")
         };
 
         for (const auto& effect : effects) {
@@ -902,7 +925,9 @@ public:
 
         layout->addWidget(effectsList, 1);
 
-        auto* infoLabel = new QLabel(QStringLiteral("Tip: Drag effects to clips\nin the timeline."));
+        auto* infoLabel = new QLabel(trUi(
+            "Tip: Drag effects to clips\nin the timeline.",
+            "ヒント: エフェクトをタイムライン上の\nクリップへドラッグしてください。"));
         layout->addWidget(infoLabel);
 
         auto* engine = ArtifactPr::EditorEngine::instance();
@@ -933,17 +958,17 @@ public:
         layout->setContentsMargins(4, 4, 4, 4);
         layout->setSpacing(8);
 
-        auto* label = new QLabel(QStringLiteral("Clip Properties"));
+        auto* label = new QLabel(trUi("Clip Properties", "クリッププロパティ"));
         QFont titleFont = label->font();
         titleFont.setPointSize(titleFont.pointSize() + 1);
         titleFont.setBold(true);
         label->setFont(titleFont);
         layout->addWidget(label);
 
-        clipNameLabel_ = new QLabel(QStringLiteral("No clip selected"));
+        clipNameLabel_ = new QLabel(uiText("No clip selected", "クリップが選択されていません"));
         layout->addWidget(clipNameLabel_);
 
-        auto* volumeLabel = new QLabel(QStringLiteral("Volume:"));
+        auto* volumeLabel = new QLabel(trUi("Volume:", "ボリューム:"));
         layout->addWidget(volumeLabel);
 
         volumeSlider_ = new QSlider(Qt::Horizontal);
@@ -955,19 +980,19 @@ public:
         connect(volumeSlider_, &QSlider::valueChanged, this, &ClipPropertiesPanel::onVolumeChanged);
         layout->addWidget(volumeSlider_);
 
-        volumeValueLabel_ = new QLabel(QStringLiteral("100%"));
+        volumeValueLabel_ = new QLabel(percentLabel(100));
         volumeValueLabel_->setAlignment(Qt::AlignCenter);
         layout->addWidget(volumeValueLabel_);
 
-        auto* speedLabel = new QLabel(QStringLiteral("Speed:"));
+        auto* speedLabel = new QLabel(trUi("Speed:", "速度:"));
         layout->addWidget(speedLabel);
 
         speedCombo_ = new QComboBox();
-        speedCombo_->addItem(QStringLiteral("25%"), QVariant(0.25));
-        speedCombo_->addItem(QStringLiteral("50%"), QVariant(0.5));
-        speedCombo_->addItem(QStringLiteral("100%"), QVariant(1.0));
-        speedCombo_->addItem(QStringLiteral("200%"), QVariant(2.0));
-        speedCombo_->addItem(QStringLiteral("400%"), QVariant(4.0));
+        speedCombo_->addItem(percentLabel(25), QVariant(0.25));
+        speedCombo_->addItem(percentLabel(50), QVariant(0.5));
+        speedCombo_->addItem(percentLabel(100), QVariant(1.0));
+        speedCombo_->addItem(percentLabel(200), QVariant(2.0));
+        speedCombo_->addItem(percentLabel(400), QVariant(4.0));
         speedCombo_->setCurrentIndex(2);
         {
             QPalette p = speedCombo_->palette();
@@ -977,13 +1002,13 @@ public:
         connect(speedCombo_, &QComboBox::currentIndexChanged, this, &ClipPropertiesPanel::onSpeedChanged);
         layout->addWidget(speedCombo_);
 
-        reverseCheck_ = new QCheckBox(QStringLiteral("Reverse"));
+        reverseCheck_ = new QCheckBox(trUi("Reverse", "逆再生"));
         connect(reverseCheck_, &QCheckBox::toggled, this, &ClipPropertiesPanel::onReverseToggled);
         layout->addWidget(reverseCheck_);
 
         layout->addStretch();
 
-        infoLabel_ = new QLabel(QStringLiteral("Select a clip to\nedit its properties."));
+        infoLabel_ = new QLabel(trUi("Select a clip to\nedit its properties.", "クリップを選択して\nプロパティを編集してください。"));
         layout->addWidget(infoLabel_);
 
         auto* engine = ArtifactPr::EditorEngine::instance();
@@ -998,19 +1023,19 @@ private slots:
         auto* clip = engine->findClip(clipId);
 
         if (!clip) {
-            clipNameLabel_->setText(QStringLiteral("No clip selected"));
+            clipNameLabel_->setText(uiText("No clip selected", "クリップが選択されていません"));
             volumeSlider_->setValue(100);
-            volumeValueLabel_->setText(QStringLiteral("100%"));
+            volumeValueLabel_->setText(percentLabel(100));
             speedCombo_->setCurrentIndex(2);
             reverseCheck_->setChecked(false);
-            infoLabel_->setText(QStringLiteral("Select a clip to\nedit its properties."));
+            infoLabel_->setText(uiText("Select a clip to\nedit its properties.", "クリップを選択して\nプロパティを編集してください。"));
             return;
         }
 
         clipNameLabel_->setText(clip->name);
         int volumePercent = static_cast<int>(clip->volume * 100);
         volumeSlider_->setValue(volumePercent);
-        volumeValueLabel_->setText(QStringLiteral("%1%").arg(volumePercent));
+        volumeValueLabel_->setText(percentLabel(volumePercent));
 
         int speedIndex = speedCombo_->findData(QVariant(clip->speed));
         if (speedIndex >= 0) {
@@ -1019,7 +1044,9 @@ private slots:
 
         reverseCheck_->setChecked(clip->reversed);
 
-        QString info = QStringLiteral("Duration: %1 frames\nStart: %2\nSource: %3-%4")
+        QString info = uiText(
+            "Duration: %1 frames\nStart: %2\nSource: %3-%4",
+            "長さ: %1 フレーム\n開始: %2\nソース: %3-%4")
             .arg(clip->duration).arg(clip->startFrame).arg(clip->sourceIn).arg(clip->sourceOut);
         infoLabel_->setText(info);
     }
@@ -1042,7 +1069,7 @@ private slots:
                 double oldVolume = clip->volume;
                 double newVolume = value / 100.0;
                 if (qFuzzyCompare(oldVolume, newVolume)) {
-                    volumeValueLabel_->setText(QStringLiteral("%1%").arg(value));
+                    volumeValueLabel_->setText(percentLabel(value));
                     return;
                 }
                 // UndoCommand 経由で volume 変更を適用
@@ -1051,7 +1078,7 @@ private slots:
                     ArtifactPr::ClipPropertyCommand::Kind::Volume,
                     oldVolume, newVolume);
                 engine->pushUndo(cmd);
-                volumeValueLabel_->setText(QStringLiteral("%1%").arg(value));
+                volumeValueLabel_->setText(percentLabel(value));
             }
         }
     }
@@ -1407,7 +1434,7 @@ public:
         toolbarLayout->setContentsMargins(4, 2, 4, 2);
         toolbarLayout->setSpacing(8);
 
-        auto* zoomLabel = new QLabel(QStringLiteral("Zoom:"));
+        auto* zoomLabel = new QLabel(trUi("Zoom:", "ズーム:"));
         toolbarLayout->addWidget(zoomLabel);
 
         zoomSlider_ = new QSlider(Qt::Horizontal);
@@ -1425,7 +1452,7 @@ public:
 
         toolbarLayout->addStretch();
 
-        sequenceInfo_ = new QLabel(QStringLiteral("No sequence"));
+        sequenceInfo_ = new QLabel(trUi("No sequence", "シーケンスがありません"));
         toolbarLayout->addWidget(sequenceInfo_);
 
         layout->addWidget(toolbarWidget);
@@ -1556,13 +1583,13 @@ void TimelinePanel::onMarkerRightClicked(const QString& markerId, const QPoint& 
 
         auto* menu = new QMenu();
 
-        auto* renameAction = menu->addAction(QStringLiteral("Rename Marker..."));
+        auto* renameAction = menu->addAction(trUi("Rename Marker...", "マーカー名を変更..."));
         connect(renameAction, &QAction::triggered, [this, engine, markerId]() {
             for (const auto& marker : engine->markers()) {
                 if (marker.id == markerId) {
                     bool ok;
-                    QString newName = QInputDialog::getText(this, QStringLiteral("Rename Marker"),
-                        QStringLiteral("Marker Name:"), QLineEdit::Normal, marker.name, &ok);
+                    QString newName = QInputDialog::getText(this, trUi("Rename Marker", "マーカー名を変更"),
+                        trUi("Marker Name:", "マーカー名:"), QLineEdit::Normal, marker.name, &ok);
                     if (ok && !newName.isEmpty()) {
                         engine->setMarkerName(markerId, newName);
                     }
@@ -1571,7 +1598,7 @@ void TimelinePanel::onMarkerRightClicked(const QString& markerId, const QPoint& 
             }
         });
 
-        auto* goToAction = menu->addAction(QStringLiteral("Go To Marker"));
+        auto* goToAction = menu->addAction(trUi("Go To Marker", "マーカーへ移動"));
         connect(goToAction, &QAction::triggered, [engine, markerId]() {
             for (const auto& marker : engine->markers()) {
                 if (marker.id == markerId) {
@@ -1583,7 +1610,7 @@ void TimelinePanel::onMarkerRightClicked(const QString& markerId, const QPoint& 
 
         menu->addSeparator();
 
-        auto* deleteAction = menu->addAction(QStringLiteral("Delete Marker"));
+        auto* deleteAction = menu->addAction(trUi("Delete Marker", "マーカーを削除"));
         connect(deleteAction, &QAction::triggered, [engine, markerId]() {
             engine->deleteMarker(markerId);
         });
@@ -1628,7 +1655,7 @@ void TimelinePanel::onClipRightClicked(const QString& clipId, const QPoint& pos)
 
         auto* menu = new QMenu();
 
-        auto* speedMenu = menu->addMenu(QStringLiteral("Speed"));
+        auto* speedMenu = menu->addMenu(trUi("Speed", "速度"));
 
         auto* speed100 = speedMenu->addAction(QStringLiteral("100%"));
         connect(speed100, &QAction::triggered, [engine, clipId]() { engine->setClipSpeed(clipId, 1.0); });
@@ -1647,14 +1674,14 @@ void TimelinePanel::onClipRightClicked(const QString& clipId, const QPoint& pos)
 
         menu->addSeparator();
 
-        auto* reverseAction = menu->addAction(QStringLiteral("Reverse"));
+        auto* reverseAction = menu->addAction(trUi("Reverse", "逆再生"));
         reverseAction->setCheckable(true);
         reverseAction->setChecked(clip->reversed);
         connect(reverseAction, &QAction::triggered, [engine, clipId](bool checked) { engine->setClipReversed(clipId, checked); });
 
         menu->addSeparator();
 
-        auto* volumeMenu = menu->addMenu(QStringLiteral("Volume"));
+        auto* volumeMenu = menu->addMenu(trUi("Volume", "ボリューム"));
 
         auto* vol100 = volumeMenu->addAction(QStringLiteral("100%"));
         connect(vol100, &QAction::triggered, [engine, clipId]() { engine->setClipVolume(clipId, 1.0); });
@@ -1673,13 +1700,16 @@ void TimelinePanel::onClipRightClicked(const QString& clipId, const QPoint& pos)
 
         menu->addSeparator();
 
-        auto* nameAction = menu->addAction(QStringLiteral("Rename Clip..."));
+        auto* nameAction = menu->addAction(trUi("Rename Clip...", "クリップ名を変更..."));
         connect(nameAction, &QAction::triggered, [this, engine, clipId]() {
             auto* clip = engine->findClip(clipId);
             if (!clip) return;
             bool ok;
-            QString newName = QInputDialog::getText(this, QStringLiteral("Rename Clip"),
-                QStringLiteral("Clip Name:"), QLineEdit::Normal, clip->name, &ok);
+            QString newName = QInputDialog::getText(
+                this,
+                uiText("Rename Clip", "クリップ名の変更"),
+                uiText("Clip Name:", "クリップ名:"),
+                QLineEdit::Normal, clip->name, &ok);
             if (ok && !newName.isEmpty()) {
                 engine->setClipName(clipId, newName);
                 refreshTimeline(engine->currentSequence());
@@ -1688,7 +1718,7 @@ void TimelinePanel::onClipRightClicked(const QString& clipId, const QPoint& pos)
 
         menu->addSeparator();
 
-        auto* deleteAction = menu->addAction(QStringLiteral("Delete"));
+        auto* deleteAction = menu->addAction(uiText("Delete", "削除"));
         deleteAction->setShortcut(QKeySequence::Delete);
         connect(deleteAction, &QAction::triggered, engine, &ArtifactPr::EditorEngine::deleteSelectedClip);
 
@@ -1806,7 +1836,7 @@ void TimelinePanel::onTransitionRightClicked(const QString& transitionId, const 
 
         auto* menu = new QMenu();
 
-        auto* durationMenu = menu->addMenu(QStringLiteral("Duration"));
+        auto* durationMenu = menu->addMenu(trUi("Duration", "長さ"));
 
         auto* dur6 = durationMenu->addAction(QStringLiteral("6 frames"));
         connect(dur6, &QAction::triggered, [this, engine, seq, transitionId]() mutable {
@@ -1854,7 +1884,7 @@ void TimelinePanel::onTransitionRightClicked(const QString& transitionId, const 
 
         menu->addSeparator();
 
-        auto* deleteAction = menu->addAction(QStringLiteral("Delete Transition"));
+        auto* deleteAction = menu->addAction(trUi("Delete Transition", "トランジションを削除"));
         connect(deleteAction, &QAction::triggered, [engine, transitionId]() {
             engine->deleteTransition(transitionId);
         });
@@ -1941,7 +1971,7 @@ namespace {
 ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
-    setWindowTitle(QStringLiteral("ArtifactPr"));
+    setWindowTitle(trUi("ArtifactPr", "ArtifactPr"));
     resize(1600, 980);
 
     auto* menuBar = new QMenuBar(this);
@@ -1949,28 +1979,30 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
 
     auto* engine = ArtifactPr::EditorEngine::instance();
 
-    auto* fileMenu = menuBar->addMenu(QStringLiteral("File"));
+    auto* fileMenu = menuBar->addMenu(uiText("File", "ファイル"));
 
-    auto* newAction = fileMenu->addAction(QStringLiteral("New Project"));
+    auto* newAction = fileMenu->addAction(uiText("New Project", "新規プロジェクト"));
     newAction->setShortcut(QKeySequence::New);
     connect(newAction, &QAction::triggered, [this, engine]() {
         engine->newProject();
     });
 
-    auto* openAction = fileMenu->addAction(QStringLiteral("Open Project..."));
+    auto* openAction = fileMenu->addAction(uiText("Open Project...", "プロジェクトを開く..."));
     openAction->setShortcut(QKeySequence::Open);
     connect(openAction, &QAction::triggered, [this, engine]() {
-        QString filePath = QFileDialog::getOpenFileName(this, QStringLiteral("Open Project"),
+        QString filePath = QFileDialog::getOpenFileName(
+            this, uiText("Open Project", "プロジェクトを開く"),
             QString(), QStringLiteral("ArtifactPr Project (*.apr);;All Files (*)"));
         if (!filePath.isEmpty()) {
             engine->loadProject(filePath);
         }
     });
 
-    auto* saveAction = fileMenu->addAction(QStringLiteral("Save Project"));
+    auto* saveAction = fileMenu->addAction(uiText("Save Project", "プロジェクトを保存"));
     saveAction->setShortcut(QKeySequence::Save);
     connect(saveAction, &QAction::triggered, [this, engine]() {
-        QString filePath = QFileDialog::getSaveFileName(this, QStringLiteral("Save Project"),
+        QString filePath = QFileDialog::getSaveFileName(
+            this, uiText("Save Project", "プロジェクトを保存"),
             engine->currentProject().name + QStringLiteral(".apr"),
             QStringLiteral("ArtifactPr Project (*.apr);;All Files (*)"));
         if (!filePath.isEmpty()) {
@@ -1978,10 +2010,11 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
         }
     });
 
-    auto* saveAsAction = fileMenu->addAction(QStringLiteral("Save Project As..."));
+    auto* saveAsAction = fileMenu->addAction(uiText("Save Project As...", "名前を付けて保存..."));
     saveAsAction->setShortcut(QKeySequence::SaveAs);
     connect(saveAsAction, &QAction::triggered, [this, engine]() {
-        QString filePath = QFileDialog::getSaveFileName(this, QStringLiteral("Save Project As"),
+        QString filePath = QFileDialog::getSaveFileName(
+            this, uiText("Save Project As", "名前を付けて保存"),
             engine->currentProject().name + QStringLiteral(".apr"),
             QStringLiteral("ArtifactPr Project (*.apr);;All Files (*)"));
         if (!filePath.isEmpty()) {
@@ -1990,81 +2023,81 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     });
 
     fileMenu->addSeparator();
-    fileMenu->addAction(QStringLiteral("Import Media..."));
-    auto* exportAction = fileMenu->addAction(QStringLiteral("Export..."));
+    fileMenu->addAction(uiText("Import Media...", "メディアを読み込む..."));
+    auto* exportAction = fileMenu->addAction(uiText("Export...", "書き出し..."));
     exportAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+E")));
     connect(exportAction, &QAction::triggered, this, &ArtifactPrMainWindow::onExportTriggered);
     fileMenu->addSeparator();
-    fileMenu->addAction(QStringLiteral("Exit"), qApp, &QApplication::quit);
+    fileMenu->addAction(uiText("Exit", "終了"), qApp, &QApplication::quit);
 
-    auto* editMenu = menuBar->addMenu(QStringLiteral("Edit"));
+    auto* editMenu = menuBar->addMenu(uiText("Edit", "編集"));
 
-    auto* undoAction = editMenu->addAction(QStringLiteral("Undo"));
+    auto* undoAction = editMenu->addAction(uiText("Undo", "元に戻す"));
     undoAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Z")));
     connect(undoAction, &QAction::triggered, engine, &ArtifactPr::EditorEngine::undo);
 
-    auto* redoAction = editMenu->addAction(QStringLiteral("Redo"));
+    auto* redoAction = editMenu->addAction(uiText("Redo", "やり直し"));
     redoAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+Z")));
     connect(redoAction, &QAction::triggered, engine, &ArtifactPr::EditorEngine::redo);
 
     editMenu->addSeparator();
 
-    auto* deleteAction = editMenu->addAction(QStringLiteral("Delete"));
+    auto* deleteAction = editMenu->addAction(uiText("Delete", "削除"));
     deleteAction->setShortcut(QKeySequence::Delete);
     connect(deleteAction, &QAction::triggered, engine, &ArtifactPr::EditorEngine::deleteSelectedClip);
 
-    auto* rippleDeleteAction = editMenu->addAction(QStringLiteral("Ripple Delete"));
+    auto* rippleDeleteAction = editMenu->addAction(uiText("Ripple Delete", "リップル削除"));
     rippleDeleteAction->setShortcut(QKeySequence(QStringLiteral("Shift+Delete")));
     connect(rippleDeleteAction, &QAction::triggered, engine, &ArtifactPr::EditorEngine::rippleDeleteSelectedClip);
 
-    auto* duplicateAction = editMenu->addAction(QStringLiteral("Duplicate"));
+    auto* duplicateAction = editMenu->addAction(uiText("Duplicate", "複製"));
     duplicateAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+D")));
     connect(duplicateAction, &QAction::triggered, engine, &ArtifactPr::EditorEngine::duplicateSelectedClip);
 
     editMenu->addSeparator();
-    editMenu->addAction(QStringLiteral("Cut"));
-    editMenu->addAction(QStringLiteral("Copy"));
-    editMenu->addAction(QStringLiteral("Paste"));
+    editMenu->addAction(uiText("Cut", "切り取り"));
+    editMenu->addAction(uiText("Copy", "コピー"));
+    editMenu->addAction(uiText("Paste", "貼り付け"));
 
-    auto* snapAction = editMenu->addAction(QStringLiteral("Snap to Clips"));
+    auto* snapAction = editMenu->addAction(uiText("Snap to Clips", "クリップにスナップ"));
     snapAction->setCheckable(true);
     snapAction->setChecked(true);
     connect(snapAction, &QAction::triggered, [engine](bool checked) {
         engine->setSnapEnabled(checked);
     });
 
-    auto* sequenceMenu = menuBar->addMenu(QStringLiteral("Sequence"));
-    auto* bladeAction = sequenceMenu->addAction(QStringLiteral("Blade at Playhead"));
+    auto* sequenceMenu = menuBar->addMenu(uiText("Sequence", "シーケンス"));
+    auto* bladeAction = sequenceMenu->addAction(uiText("Blade at Playhead", "再生位置でカット"));
     bladeAction->setShortcut(QKeySequence(QStringLiteral("C")));
     connect(bladeAction, &QAction::triggered, engine, &ArtifactPr::EditorEngine::splitClipAtPlayhead);
 
-    auto* addTransitionMenu = sequenceMenu->addMenu(QStringLiteral("Add Transition"));
-    addTransitionMenu->addAction(QStringLiteral("Crossfade"), [engine]() {
+    auto* addTransitionMenu = sequenceMenu->addMenu(uiText("Add Transition", "トランジションを追加"));
+    addTransitionMenu->addAction(uiText("Crossfade", "クロスフェード"), [engine]() {
         engine->addTransitionAtPlayhead(ArtifactPr::TransitionType::Crossfade);
     });
-    addTransitionMenu->addAction(QStringLiteral("Dip to Black"), [engine]() {
+    addTransitionMenu->addAction(uiText("Dip to Black", "黒へフェード"), [engine]() {
         engine->addTransitionAtPlayhead(ArtifactPr::TransitionType::DipToBlack);
     });
-    addTransitionMenu->addAction(QStringLiteral("Wipe Left"), [engine]() {
+    addTransitionMenu->addAction(uiText("Wipe Left", "左にワイプ"), [engine]() {
         engine->addTransitionAtPlayhead(ArtifactPr::TransitionType::WipeLeft);
     });
-    addTransitionMenu->addAction(QStringLiteral("Wipe Right"), [engine]() {
+    addTransitionMenu->addAction(uiText("Wipe Right", "右にワイプ"), [engine]() {
         engine->addTransitionAtPlayhead(ArtifactPr::TransitionType::WipeRight);
     });
 
-    sequenceMenu->addAction(QStringLiteral("New Sequence"));
-    sequenceMenu->addAction(QStringLiteral("Sequence Settings..."));
+    sequenceMenu->addAction(uiText("New Sequence", "新規シーケンス"));
+    sequenceMenu->addAction(uiText("Sequence Settings...", "シーケンス設定..."));
 
-    auto* markerMenu = menuBar->addMenu(QStringLiteral("Marker"));
-    auto* addMarkerAction = markerMenu->addAction(QStringLiteral("Add Marker at Playhead"));
+    auto* markerMenu = menuBar->addMenu(uiText("Marker", "マーカー"));
+    auto* addMarkerAction = markerMenu->addAction(uiText("Add Marker at Playhead", "再生位置にマーカー追加"));
     addMarkerAction->setShortcut(QKeySequence(QStringLiteral("M")));
     connect(addMarkerAction, &QAction::triggered, [engine]() {
         engine->addMarker(engine->currentFrame());
     });
-    auto* clearMarkersAction = markerMenu->addAction(QStringLiteral("Clear All Markers"));
+    auto* clearMarkersAction = markerMenu->addAction(uiText("Clear All Markers", "マーカーをすべて削除"));
     connect(clearMarkersAction, &QAction::triggered, engine, &ArtifactPr::EditorEngine::clearMarkers);
 
-    menuBar->addMenu(QStringLiteral("Render"));
+    menuBar->addMenu(uiText("Render", "レンダー"));
 
     auto* dockManager = new ads::CDockManager(this);
     setCentralWidget(dockManager);
@@ -2104,13 +2137,13 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     dockManager->addDockWidget(ads::RightDockWidgetArea, audioMeterDock);
 
     auto* transitionPanel = new TransitionPanel();
-    auto* transitionDock = new ads::CDockWidget(QStringLiteral("Transitions"));
+    auto* transitionDock = new ads::CDockWidget(trUi("Transitions", "トランジション"));
     transitionDock->setWidget(transitionPanel);
     transitionDock->setFeatures(ads::CDockWidget::AllDockWidgetFeatures);
     dockManager->addDockWidget(ads::RightDockWidgetArea, transitionDock);
 
     auto* effectsPanel = new EffectsPanel();
-    auto* effectsDock = new ads::CDockWidget(QStringLiteral("Effects"));
+    auto* effectsDock = new ads::CDockWidget(trUi("Effects", "エフェクト"));
     effectsDock->setWidget(effectsPanel);
     effectsDock->setFeatures(ads::CDockWidget::AllDockWidgetFeatures);
     dockManager->addDockWidget(ads::RightDockWidgetArea, effectsDock);
@@ -2146,7 +2179,9 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     auto* statusBarWidget = new QStatusBar();
     setStatusBar(statusBarWidget);
     statusBarWidget->addPermanentWidget(transportBar_, 1);
-    statusBarWidget->showMessage(QStringLiteral("Ready - J/K/L: Playback | C: Blade | T: Crossfade | W: Wipe | M: Marker | Del: Delete | Ctrl+Z: Undo"));
+    statusBarWidget->showMessage(trUi(
+        "Ready - J/K/L: Playback | C: Blade | T: Crossfade | W: Wipe | M: Marker | Del: Delete | Ctrl+Z: Undo",
+        "準備完了 - J/K/L: 再生 | C: カット | T: クロスフェード | W: ワイプ | M: マーカー | Del: 削除 | Ctrl+Z: 元に戻す"));
 
     // status notifier: 編集中の操作を 3 秒間表示
     connect(&statusNotifier_, &ArtifactPr::PrStatusNotifier::temporaryMessage,
