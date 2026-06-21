@@ -141,6 +141,82 @@ Preset は effect property への envelope 定義の集合として扱う。
 
 ## UI 方針
 
+### Dedicated Envelope Insert Dialog
+
+通常のレイヤー作成ダイアログには混ぜず、`Envelope Effect` 専用の挿入ダイアログを用意する。
+
+理由:
+
+- 平面 / テキスト / 画像などの基本作成フローを重くしない
+- 「In / Out 付近に短い効果を足す」という目的を明確にする
+- effect preset、duration、strength、target property の選択を専用 UI として育てられる
+- 将来、選択済みレイヤーへの後付け、複数レイヤーへの一括適用、bake へ広げやすい
+
+候補名:
+
+- `Envelope Effect`
+- `Entrance / Exit Effect`
+- `Layer In/Out Effect`
+- `Quick In/Out FX`
+
+Phase 1 では `Envelope Effect` を内部名、UI 表示は `In/Out Effect` 寄りにする。
+
+### Starter Flow
+
+最初の入口は次の 2 種類に分ける。
+
+1. `Layer > Add In/Out Envelope...`
+   - 選択中レイヤーへ後付けする
+   - レイヤーが未選択なら disabled
+   - layer in/out を読んで envelope range を自動提案する
+
+2. `Layer > New > Envelope Layer...` は Phase 2 以降
+   - 新規レイヤー作成と envelope 適用をまとめる高度な入口
+   - 既存の `CreateSolidLayerSettingDialog` とは分ける
+   - 「素材を作る」より「演出付きで置く」ための導線として扱う
+
+通常の `CreateSolidLayerSettingDialog` には、Phase 1 では envelope UI を入れない。
+必要になった場合も、チェックボックス 1 つで専用ダイアログへ遷移する程度に留める。
+
+### Dialog MVP
+
+`Envelope Effect` ダイアログの MVP は、複雑な curve editor ではなく、よく使う選択肢だけを置く。
+
+必須項目:
+
+- preset: `Blur In/Out`, `Opacity Fade In/Out`, `Glow Pop In`, `Chromatic Exit`
+- target: 選択中レイヤー / 選択中 effect property
+- apply side: `In`, `Out`, `In + Out`
+- duration: frames
+- strength: 0..1
+- easing: Phase 1 は固定、Phase 2 で選択式
+- replace policy: existing envelope を置換 / 追加
+
+初期値:
+
+- target layer: current selected layer
+- duration: 12 frames
+- strength: 1.0
+- side: `In + Out`
+- replace policy: same target preset は置換
+
+### Preset Semantics
+
+ユーザーが期待する挙動は「効果の量」ではなく「入退場の見た目」なので、preset 名は effect property 名より演出名を優先する。
+
+例:
+
+- `Soft Blur In/Out`
+- `Fast Blur In`
+- `Fade Out`
+- `Glow Pop In`
+- `Chromatic Exit`
+- `Exposure Flash In`
+
+内部的には既存 effect property の envelope として保存する。
+必要な effect がレイヤーに無い場合は、Phase 1 では自動追加できるものだけ対応する。
+対応できない preset は disabled にする。
+
 ### Inspector
 
 Effect property row に envelope の小さな状態表示を持たせる。
@@ -200,6 +276,8 @@ Effect preset と同じ文法に寄せるが、用途は `Entry / Exit Motion` �
 - preset は既存 effect property を target にする
 - preset 適用時に通常 keyframe を作らない
 - layer in/out を動かしても envelope が追従する
+- `Add In/Out Envelope...` ダイアログから選択中レイヤーへ適用できる
+- 通常のレイヤー作成ダイアログには envelope UI を混ぜない
 
 候補 preset:
 
@@ -236,6 +314,7 @@ Effect preset と同じ文法に寄せるが、用途は `Entry / Exit Motion` �
 - Timeline 上で entry / exit envelope の存在が読める
 - keyframe lane と envelope band が視覚的に混ざらない
 - UI 名称が `docs/WIDGET_MAP.md` の責務分担に沿っている
+- 専用ダイアログ、Inspector row、Timeline band の責務が分かれている
 
 主な作業:
 
@@ -243,6 +322,21 @@ Effect preset と同じ文法に寄せるが、用途は `Entry / Exit Motion` �
 - `ArtifactTimelineTrackPainterView` に envelope band 表示を追加する
 - `ArtifactInspectorWidget` の effect stack から preset 適用導線を作る
 - keyframe edit modal と envelope edit modal を混ぜない
+
+### Phase 4.5: Creation Flow Integration
+
+完了条件:
+
+- 新規レイヤー作成とは別に、`Envelope Layer...` 相当の高度な作成入口を検討できる
+- 既存の `CreateSolidLayerSettingDialog` の基本作成 UX が変わらない
+- `Envelope Effect` ダイアログを、選択済みレイヤーにも新規作成直後のレイヤーにも使い回せる
+
+主な作業:
+
+- dedicated dialog を service 経由で再利用できる形にする
+- selected layer が無い時は layer type / color / size を選べる starter mode を検討する
+- apply 後に selection / timeline refresh だけを明示的に行う
+- 新規 global signal-slot 経路を増やさない
 
 ### Phase 5: Bake / Convert
 
