@@ -1,0 +1,129 @@
+# Milestone: AE Utility Script Pack
+
+> 2026-06-22 draft
+
+## 目的
+
+After Effects 由来の定型作業を、Artifact 側で少ない操作にまとめる。
+この milestone は、AE の人気スクリプトである `Quick Rename Layers`、`Clean Layers`、`Trim Comp to Content` を
+そのまま模倣するのではなく、Artifact の責務境界に合わせて小さな制作補助機能として再構成する。
+
+## 対象候補
+
+### 1. Quick Rename Layers
+
+- 選択レイヤーを一括で命名する
+- prefix / base name / suffix / 連番の組み合わせを扱う
+- 名前の整理と検索性の向上を目的にする
+
+### 2. Clean Layers
+
+- 選択レイヤーを検証用の初期状態に戻す
+- effects / expressions / markers などを選択的に消す
+- 破壊的操作になりすぎないよう、カテゴリ単位で切り替えられるようにする
+
+### 3. Trim Comp to Content
+
+- comp の尺を、実際のレイヤー内容に合わせて詰める
+- 対象範囲、余白、基準レイヤーを切り替えられるようにする
+- work area の同期を同時に扱うかは実装時に決める
+
+## 期待する価値
+
+- 命名の統一がしやすくなる
+- テスト前や再実行前の掃除がしやすくなる
+- 不要な尺を削ってレビューしやすくなる
+- いずれも AE 風の「日常の小技」を支える導線として効く
+
+## Menu Entry
+
+- 入口は `Script` メニュー配下の `AE Utility Pack`
+- 各項目は `macros/ae_utility_pack/` 内の個別スクリプトとして置く
+- メニューからは直接実行できるようにし、編集したいときはファイルをそのまま開けるようにする
+
+## Input Schema
+
+### Quick Rename Layers
+
+- `baseName`
+- `prefix`
+- `suffix`
+- `startIndex`
+- `padding`
+- `renameSelectedOnly`
+- `preserveLockedLayers`
+
+### Clean Layers
+
+- `clearParent`
+- `clearEffects`
+- `clearMarkers`
+- `clearExpressions`
+- `clearLabels`
+- `preserveLockedLayers`
+
+### Trim Comp to Content
+
+- `trimMode`
+  - `selectedLayers`
+  - `allLayers`
+  - `visibleLayers`
+- `paddingFrames`
+- `syncWorkArea`
+- `respectLockedLayers`
+
+### Quick Rename Layers
+
+- `prefix`
+- `baseName`
+- `suffix`
+- `startIndex`
+- `padding`
+- `renameSelectedOnly`
+
+## Artifact 側の置き場所
+
+- `Quick Rename Layers`
+  - project / layer 操作に近い command として扱う
+- `Clean Layers`
+  - development / diagnostic helper に寄せる
+- `Trim Comp to Content`
+  - composition utility として扱う
+
+## 実装メモ
+
+- まずは scriptable surface の完成を待たず、既存 command 入口に載せる
+- UI は小さな dialog か command palette 起点で十分
+- 破壊的操作は確認フローを付ける
+- 新しい global signal / slot は増やさない
+
+## 依存候補
+
+- `docs/planned/MILESTONE_UI_SCRIPTABILITY_AND_ADAPTIVE_SURFACE_2026-06-07.md`
+- `docs/planned/MILESTONE_SHORTCUT_IMPROVEMENTS_2026-06-02.md`
+- `docs/planned/MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03.md`
+
+## Next Step
+
+この milestone を進めるなら、次は各コマンドの
+
+- 入力スキーマ
+- 対象選択ルール
+- Undo / confirm policy
+- UI 入口
+
+を 1 枚ずつ固める。
+
+## Progress
+
+- `Quick Rename Layers` は `artifact.rename_selected_layers(...)` の C++ bridge と
+  `Artifact/scripts/macros/ae_utility_pack/quick_rename_layers.py` で先行実装済み
+- `Clean Layers` は `artifact.clean_selected_layers(...)` の C++ bridge と
+  `Artifact/scripts/macros/ae_utility_pack/clean_layers.py` で先行実装済み
+- `Clean Layers` の現行スコープは `parent` / `effects` / `markers` /
+  `expressions` / `labels` の除去
+- `Trim Comp to Content` は `artifact.trim_comp_to_content(...)` の C++ bridge と
+  `Artifact/scripts/macros/ae_utility_pack/trim_comp_to_content.py` で先行実装済み
+- 現行の `Trim Comp to Content` は `trimMode` / `paddingFrames` / `syncWorkArea` /
+  `respectLockedLayers` を受け、selected / all / visible を切り替えつつ
+  `frameRange` / `workAreaRange` を更新する
