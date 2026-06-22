@@ -1233,9 +1233,7 @@ active milestone の重複名としては扱わない。
 - execution memo は親文書へ統合済み
 
 ### M-BLEND-1 Blend Mode Completeness ⭐ **新規追加**
-- 現在 38/38 モード実装。`BlendModeCatalog::coverageReport()` で全モードの表を確認できる。
-- CPU (`QPainter::CompositionMode` / software compositor) と GPU (compute shader) の両方で全モードに対応
-- 追加モードは以下の通り:
+- 現在 18/38 モード実装。以下のモードを追加する:
   - Dissolve / Dancing Dissolve
   - Linear Burn / Classic Color Burn
   - Linear Dodge / Classic Color Dodge
@@ -1243,7 +1241,8 @@ active milestone の重複名としては扱わない。
   - Classic Difference
   - Divide
   - Stencil Alpha / Stencil Luma / Silhouette Alpha / Silhouette Luma
-- **見積:** 完了
+- CPU (`QPainter::CompositionMode`) と GPU (compute shader) の両方で対応
+- **見積:** 20-30h
 - **依存:** `ColorBlendMode` ✅, 各 render path
 
 ### M-FX-10 Effects Coverage Expansion ⭐ **新規追加**
