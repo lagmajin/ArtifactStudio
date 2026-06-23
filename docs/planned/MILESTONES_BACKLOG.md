@@ -37,6 +37,7 @@
 - **M-PV-1** Project View Basic Operations ✅ (verified 2026-04-14)
   - selection center/quick actions/sync chip/inline rename 実装済み
   - 主要ファイル: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`
+  - マイルストーン文書 `MILESTONE_PROJECT_VIEW_INTERACTION_POLISH` は内容完了につき `docs/done/` へ移動済み (2026-06-23)
 
 - **M-PV-2** Project View Asset Presentation ✅ (verified 2026-04-14)
   - selection summary/detail、HoverThumbnailPopup 実装済み
@@ -66,14 +67,16 @@
   - 主要ファイル: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`
 
 ### Layer Editing
-- **M-LE-1** Layer Solo View 編集機能強化（平面・シェイプ） ❌ 未着手
-  - Phase 1: シェイプ固有ビューポートハンドル（角丸・星内半径）
-  - Phase 2: グラデーションフィル（シェイプ・平面レイヤー + プロパティピッカー）
-  - Phase 3: ストロークスタイル（破線・端点・接合・配置）
-  - Phase 4: ギズモ XYWH 数値 HUD オーバーレイ
-  - Phase 5: シェイプ頂点ベジェカーブ編集
-  - 詳細: `docs/planned/MILESTONE_LAYER_EDIT_2026-04-25.md`
-  - 主要ファイル: `Artifact/src/Widgets/Render/ArtifactRenderLayerWidgetv2.cppm`, `Artifact/src/Layer/ArtifactShapeLayer.cppm`
+- **M-LE-1** Layer Solo View 編集機能強化（平面・シェイプ） 🚧 Phase 1実装済み、Phase 3完了
+  - Phase 1: シェイプ固有ビューポートハンドル（角丸・星内半径） ✅ 実装済み
+  - Phase 2: グラデーションフィル（シェイプ・平面レイヤー + プロパティピッカー） ❌ 未着手
+  - Phase 3: ストロークスタイル（破線・端点・接合・配置） ✅ 完了 (2026-06-23)
+    - StrokeCap/Join/Align → Enum editor化
+    - DashPattern → property公開 + シリアライズ + preset selector UI実装
+  - Phase 4: ギズモ XYWH 数値 HUD オーバーレイ ❌ 未着手
+  - Phase 5: シェイプ頂点ベジェカーブ編集 ❌ 未着手
+  - 詳細: `docs/done/MILESTONE_LAYER_EDIT_2026-04-25.md` (完了Phase分はdone/へ移動済み)
+  - 主要ファイル: `Artifact/src/Widgets/Render/ArtifactRenderLayerWidgetv2.cppm`, `Artifact/src/Layer/ArtifactShapeLayer.cppm`, `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditor.cppm`
 
 ### Composition Editor / Cache
 - **M-CE-1** Composition Editor Cache System ✅ (verified 2026-04-14)
@@ -178,6 +181,10 @@ active milestone の重複名としては扱わない。
   - 関連:
     - `ArtifactCore/docs/MILESTONES_CORE_BACKLOG.md` の `C-GFX-1 Creative Effect Base`
     - `ArtifactCore/docs/MILESTONES_CORE_BACKLOG.md` の `C-GFX-2 Creative Effect Pack`
+
+### Export / Review
+- **M-FE-2** Export / Review / Share ✅ Phase 1完了 (2026-06-23)
+  - Copy Path追加、Reveal/Open/Historyは既存、マイルストーン文書は `docs/done/` へ移動済み
 
 ### AI / Tooling
 - **M-AI-1** MCP/Tool Bridge ✅ Phase 1完了 (verified 2026-04-14)
@@ -361,13 +368,15 @@ active milestone の重複名としては扱わない。
 - `M-RD-5 Animated Image Export`
 - 詳細は `docs/planned/MILESTONE_FEATURE_EXPANSION_FOCUS_TRIO_2026-03-28.md`
 
-### M-FE-1 Onboarding / Empty States
-- empty project / empty selection / empty asset / empty timeline の案内
-- 詳細は `docs/planned/MILESTONE_ONBOARDING_EMPTY_STATES_2026-03-27.md`
+### M-FE-1 Onboarding / Empty States ✅ (2026-06-23)
+- ✅ WelcomeWidget: empty project の案内画面（最近開いたプロジェクト一覧、New / Import / Open ボタン）
+- ✅ Playhead Phase 1: `currentFrame_` を単一権威に統一、全 UI への fan-out を `setCurrentFrameForAll()` に集約
+- 未着手: empty selection / empty asset / empty timeline の案内
+- マイルストーン文書は `docs/done/` へ移動済み
 
-### M-FE-2 Export / Review / Share
-- export 後の quick review / reveal / share を短くする
-- 詳細は `docs/planned/MILESTONE_EXPORT_REVIEW_SHARE_2026-03-27.md`
+### M-FE-2 Export / Review / Share ✅ (2026-06-23)
+- Phase 1 Result Surface 完了: Copy Path追加、Reveal/Open/Historyは既存
+- マイルストーン文書は `docs/done/` へ移動済み
 
 ### M-FE-3 Automation Helpers
 - command palette / batch / preset / macro entry を増やす
@@ -707,12 +716,12 @@ active milestone の重複名としては扱わない。
 - layer 側に軽量 component system を追加し、追従・減衰・トリガーの受け皿を作る
 - 詳細は `docs/planned/MILESTONE_LAYER_COMPONENT_SYSTEM_UNITY_LIKE_2026-04-08.md`
 
-### M-PH Playhead 整備
-- 詳細は `docs/planned/MILESTONE_PLAYHEAD.md`
-- Phase 1: 状態統一 (position_ を唯一の権威に集約)
+### M-PH Playhead 整備 ✅ Phase 1 (2026-06-23)
+- ✅ Phase 1: 状態統一 — `currentFrame_` を単一権威、fan-out → `setCurrentFrameForAll()`、9 箇所の手動書替を統合
 - Phase 2: シーク UX 改善 (不感帯、スナップ、再生中シーク、スクロール追従)
 - Phase 3: 表示品質 (F<n>/HH:MM:SS:FF 同期、高DPI、コンポジションビュー連携)
 - Phase 4: 操作拡充 (J/K/L シャトル、タイムコード入力、ホイールシーク、ドラッグシーク)
+- マイルストーン文書は `docs/done/` へ移動済み
 
 ## Render
 

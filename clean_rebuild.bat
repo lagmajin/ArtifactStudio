@@ -8,7 +8,7 @@ echo [Build directory cleaned]
 
 echo.
 echo [Reconfiguring CMake...]
-cmake --preset x64-Debug
+call configure.bat
 if errorlevel 1 (
     echo CMake configuration failed
     exit /b 1
