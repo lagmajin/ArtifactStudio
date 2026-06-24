@@ -78,6 +78,12 @@
   - 詳細: `docs/done/MILESTONE_LAYER_EDIT_2026-04-25.md` (完了Phase分はdone/へ移動済み)
   - 主要ファイル: `Artifact/src/Widgets/Render/ArtifactRenderLayerWidgetv2.cppm`, `Artifact/src/Layer/ArtifactShapeLayer.cppm`, `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditor.cppm`
 
+- **M-LE-2** Layer Transform からの Crop / Pan 導線と Source Reframe 透明化 🚧 進行中
+  - `Layer Transform` 直下に `Add Crop / Pan` を出し、既存の `Source Reframe` を再利用する
+  - `SourceCrop` の crop 外側を透明として扱い、元サイズのレイヤー寸法を維持する
+  - 詳細: `docs/planned/MILESTONE_LAYER_SOURCE_REFRAME_NLE_2026-06-24.md`
+  - 主要ファイル: `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`, `Artifact/src/Layer/ArtifactImageLayer.cppm`, `Artifact/src/Layer/ArtifactVideoLayer.cppm`, `Artifact/src/Layer/ArtifactSourceCrop.cppm`
+
 ### Composition Editor / Cache
 - **M-CE-1** Composition Editor Cache System ✅ (verified 2026-04-14)
   - Surface cache / render key suppression / ROIシステム実装済み

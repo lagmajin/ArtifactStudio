@@ -33,7 +33,7 @@
 - `near`
 - `directional`
 - `safety-backfill`
-- `work-area-preferred`
+- `work-area`
 - `out-of-range`
 - `unknown`
 
@@ -48,7 +48,7 @@
 やること:
 
 - `frame -> priority reason` を返す read-only API を service 側に置く
-- まずは `current frame / near band / outside work area / outside comp range` を説明できればよい
+- まずは `current frame / near band / work-area / out-of-range` を説明できればよい
 - 実際の scheduler が未完成でも、暫定 policy を reason として返せる形にする
 
 候補:
@@ -108,7 +108,7 @@ Phase 1 では名前の最終形より、`1 か所から読める` ことを優�
 - [ ] priority reason が service から取れる
 - [ ] timeline か debugger で priority reason を表示できる
 - [ ] `failed` と `low priority` が同じ表示にならない
-- [ ] `outside work area` と `outside composition` を分けて扱える
+- [ ] `work-area` と `out-of-range` を分けて扱える
 
 ## Suggested First Implementation Order
 

@@ -20,13 +20,13 @@ The replacement layer should:
 - Prefer named helpers like `count`, `isEmpty`, `append`, `insert`, `contains`, `at`, `each`, and `debugInfo` over exposing raw iterator and allocator vocabulary.
 - Keep escape hatches local and explicit when a migration needs interop with existing code.
 
-## Phase 1: Foundation
+## Phase 1: Foundation ✅
 
-- Add `ContainerDebugInfo` and `ContainerName`.
-- Add `NamedVector<T>` as the first `std::vector` replacement surface.
-- Add `NamedList<T>` for code that genuinely needs stable node-style insertion/removal semantics.
-- Export the new modules through `Container`.
-- Use `NamedVector<T>` in new or touched low-risk code first.
+- Add `ContainerDebugInfo` and `ContainerName`. — ✅
+- Add `NamedVector<T>` as the first `std::vector` replacement surface. — ✅
+- Add `NamedList<T>` for code that genuinely needs stable node-style insertion/removal semantics. — ✅
+- Export the new modules through `Container`. — ✅
+- Use `NamedVector<T>` in new or touched low-risk code first. — ✅
 
 ## Phase 2: Migration Candidates
 
@@ -40,8 +40,8 @@ The replacement layer should:
 ## Phase 3: Broader Types
 
 - Add `NamedList<T>` only if linked-list semantics are truly needed.
-- Add `SmallVector<T, N>` for hot-path fixed-small collections.
-- Add `NameMap<K, V>` / `IdMap<K, V>` after call sites show stable access patterns.
+- Add `SmallVector<T, N>` for hot-path fixed-small collections. — ✅ (2026-06-24)
+- Add `NameMap<K, V>` / `IdMap<K, V>` after call sites show stable access patterns. — ✅ (2026-06-24)
 - Add string and path replacements separately; avoid coupling text design to container migration.
 
 ## Debug Support

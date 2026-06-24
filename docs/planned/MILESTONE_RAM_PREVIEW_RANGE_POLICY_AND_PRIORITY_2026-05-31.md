@@ -69,7 +69,7 @@
 
 - work area がある場合は、その内側を優先し、外側は低 priority に落とす
 - comp 範囲外要求は `out-of-range` として明示する
-- diagnostics 上で `outside work area` と `outside composition` を分けて見せる
+- diagnostics 上で `work-area` と `out-of-range` を分けて見せる
 
 ## Suggested Policy Shape
 
@@ -90,7 +90,7 @@
    - loop や微小 scrub の戻りを支える範囲
 
 5. `Work Area Preferred`
-   - 同じ距離なら work area 内側を先に作る
+   - work area 内側を優先する
 
 6. `Out Of Range`
    - comp 範囲外、または policy 上の対象外

@@ -19,6 +19,7 @@
     "boost-asio",
     "boost-uuid",
     "vulkan",
+    "openxr-loader",
     "box2d",
     "fmt",
     "tbb",

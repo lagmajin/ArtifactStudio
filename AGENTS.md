@@ -48,6 +48,9 @@ Asset 系の統合段階は [Artifact/docs/MILESTONE_ASSET_SYSTEM_2026-03-12.md]
 
 挙動が断定できない場合は、先に現状の責務と依存関係を確認してから編集すること。
 
+`libs/DiligentEngine` の fork / gitlink 更新は、親から見ると依存グラフ全体の再スキャン要因になるため、`ArtifactCore` / `Artifact` の module 収集漏れと同一視しないこと。
+再ビルドが広がった場合は、まず `Diligent` 側の更新か、アプリ側の `FILE_SET CXX_MODULES` / `GLOB` / import 漏れかを分けて切り分けること。
+
 `ArtifactCore` 専用のバックログは [ArtifactCore/docs/MILESTONES_CORE_BACKLOG.md](ArtifactCore/docs/MILESTONES_CORE_BACKLOG.md) を参照してください。
 
 Text 系の Core 整備段階は [ArtifactCore/docs/MILESTONE_TEXT_SYSTEM_2026-03-12.md](ArtifactCore/docs/MILESTONE_TEXT_SYSTEM_2026-03-12.md) を参照してください。
@@ -90,6 +93,17 @@ C++20 modules の再発防止ルール:
   3. 循環の原因となっているクラスを別モジュールに分離（粒度を細かくする）
   4. どうしても解消できない場合は、`.ixx` を廃して従来の `.hpp` + non-module `.cppm` に戻す（最終手段）
 
+### ラインエンディング（CRLF）変更禁止
+
+このプロジェクトの全ソースファイル（`.ixx` / `.cppm` / `.cpp` / `.h` / `.ixx` 等）は **Windows CRLF** を使用している。`write` ツールは意図せず CRLF → LF に変換する可能性がある。Ninja dyndep スキャンが改行コード変更をファイル全体の変更として扱い、4000+ ファイルのフルリビルドを引き起こす。
+
+**ルール:**
+- 既存ファイルの内容変更には **必ず `edit` ツール** を使用すること（`edit` は一致部分のみ書き換え、行末を維持する）
+- `write` ツールは **新規ファイル作成時にのみ** 使用すること
+- やむを得ず `write` で既存ファイルを上書きする場合は、行末が CRLF で保存されていることを確認すること
+- `.ixx` の変更は影響範囲が大きい（全インポーター再コンパイル）。可能な限り `.ixx` を避け、`.cppm` 実装ファイルのみを変更すること
+- 新規 `.cppm` / `.ixx` 追加は CMakeLists.txt 編集を伴うため全体再スキャン要因になる。既存ファイルへの追記・編集で代替可能か最初に検討すること
+
 ### モジュール / Qt 再発防止の簡易ルール
 
 - AI はビルドエラーを見て場当たり的に `import` や `#include` を増やさないこと。
@@ -112,5 +126,7 @@ C++20 modules の再発防止ルール:
 サブモジュールに修正が必要な場合は、まず親リポジトリ側で代替可能か確認し、不可なら「fork 運用」または「パッチ運用」を提案してから進めること。
 
 ビルド・テスト・CMake はユーザーが明示的に指示するまで禁止。ビルドスクリプトの実行、CMake の生成・再実行、テストの起動を AI の判断で行わないこと。必要と判断した場合でも、まず「実行してもいいですか」と確認してからにすること。
+
+新規の `.cpp` / `.cppm` / `.ixx` を追加するときは、対応する `CMakeLists.txt` に明示登録すること。`CONFIGURE_DEPENDS` 付きの `file(GLOB_RECURSE ...)` に新規ファイル発見を依存させないこと。新規ファイルを足しただけで CMake の再スキャンや全体再ビルドが走る構成は避けること。
 
 結果報告はできる限り簡潔にすること。不要な前置きや冗長な説明は避け、変更点・影響・未確認事項を短くまとめる。
