@@ -156,3 +156,7 @@
 - [ ] 編集中に transform gizmo が邪魔しない
 - [ ] property editor と inline edit の結果が一致する
 - [ ] テキスト領域の bounds が画面上で分かる
+
+## Phase 1 Closeout
+
+Phase 1 is documented as complete in `docs/done/MILESTONE_TEXT_LAYER_INLINE_EDIT_PHASE1_2026-06-25.md`.
