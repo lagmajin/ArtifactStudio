@@ -131,3 +131,7 @@ if (capturedGen == impl_->decodeGeneration_.load()) {
 - `docs/planned/MILESTONE_VIDEO_PROXY_IMPROVEMENT_2026-03-28.md` — プロキシ改善（別マイルストーン）
 - `docs/planned/MILESTONE_AUDIO_PLAYBACK_STABILIZATION_2026-03-28.md` — オーディオ再生安定化（別マイルストーン）
 - `docs/planned/MILESTONES_BACKLOG.md` — 全体バックログ
+
+## Completion Note
+
+Core playback stability behavior is documented as complete in `docs/done/MILESTONE_VIDEO_LAYER_PLAYBACK_STABILITY_2026-06-25.md`.
