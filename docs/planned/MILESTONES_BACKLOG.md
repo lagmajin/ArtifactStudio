@@ -134,6 +134,7 @@ active milestone の重複名としては扱わない。
   - 内蔵レンダラは維持しつつ、オフラインレンダリングだけ別プロセスへ切り出す
   - job snapshot / CLI / progress / diagnostics の設計を先に固める
   - 詳細: `docs/planned/MILESTONE_EXTERNAL_RENDERER_DESIGN_2026-04-22.md`
+  - Phase 1 execution: `docs/planned/MILESTONE_EXTERNAL_RENDERER_DESIGN_PHASE1_EXECUTION_2026-06-25.md`
 
 ### Creative Effects / Exploratory Backlog
 - **M-FX-EXP-1** New Image Effect Exploration
