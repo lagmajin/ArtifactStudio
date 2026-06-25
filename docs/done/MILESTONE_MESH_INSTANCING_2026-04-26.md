@@ -151,3 +151,26 @@ Artifact/include/Layer/
 2. 各インスタンスが個別の transform/color を持てる
 3. `CloneData`（CPU）から `InstanceData`（GPU）への変換が 1 フレーム内で完了する
 4. 既存の `ParticleRenderer` と API 設計を合わせる（統一感のあるコードベース）
+
+---
+
+## Completion Note (2026-06-26)
+
+**Status**: Closed for roadmap purposes.
+
+### 完了した項目
+
+| Phase | 項目 | 対応 |
+|-------|------|------|
+| Ph1 | `MeshRenderer::createMeshBuffers()` | `ArtifactCore/src/Graphics/MeshRenderer.cppm` に vertex/index buffer 生成実装済み |
+| Ph1 | 最小シェーダー | `MeshVSSource`, `MeshPSSource` インラインシェーダー実装済み |
+| Ph2 | `InstanceData` 構造体 | `ArtifactCore/include/Graphics/InstanceData.h` 定義済み |
+| Ph2 | `MeshRenderer::createInstanceBuffer()` | Structured Buffer 生成 (`createBuffers()` 内) |
+| Ph2 | `setInstanceData()` → `updateInstanceData()` | CPU→GPU アップロード実装済み |
+| Ph2 | シェーダーで `g_Instances[InstanceID]` | シェーダー内で参照 |
+| Ph3 | `createPSO()` | 頂点レイアウト + PSO 生成実装済み |
+| Ph3 | `DrawIndexed` + `NumInstances` | `draw()` で indexed/non-indexed instanced draw |
+| Ph3 | View/Proj Constant Buffer | `prepare()` でアップデート |
+| Ph4 | `CloneData` → `InstanceData` 変換 | `cloneDataToInstanceData()`, `cloneDataVectorToInstanceDataVector()`, `getInstanceData()` |
+| Ph4 | `ArtifactCloneLayer::draw()` | クローン位置に `drawSolidRectTransformed` で描画 |
+| Ph5 | Effector CPU-side | `addEffector()`, `applyToClones()` 実装済み |

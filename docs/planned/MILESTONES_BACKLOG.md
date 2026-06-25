@@ -67,9 +67,9 @@
   - 主要ファイル: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`
 
 ### Layer Editing
-- **M-LE-1** Layer Solo View 編集機能強化（平面・シェイプ） 🚧 Phase 1実装済み、Phase 3完了
+- **M-LE-1** Layer Solo View 編集機能強化（平面・シェイプ） ✅ Phase 1・2・3 完了
   - Phase 1: シェイプ固有ビューポートハンドル（角丸・星内半径） ✅ 実装済み
-  - Phase 2: グラデーションフィル（シェイプ・平面レイヤー + プロパティピッカー） ❌ 未着手
+  - Phase 2: グラデーションフィル（シェイプ・平面レイヤー + プロパティピッカー） ✅ 実装済み (2026-06-26)
   - Phase 3: ストロークスタイル（破線・端点・接合・配置） ✅ 完了 (2026-06-23)
     - StrokeCap/Join/Align → Enum editor化
     - DashPattern → property公開 + シリアライズ + preset selector UI実装

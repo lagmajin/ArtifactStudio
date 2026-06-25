@@ -80,3 +80,30 @@
 - この milestone は、`Composition Final Effect` と競合させず、**レイヤー単位の effect stack** を先に整える。
 - いきなり全カテゴリを実装しない。まずは「本当に使う effect」を数個つないで、導線を固める。
 - `Animation` の expression / preset 連携は、effect 側のパラメータ編集が見えるようになってから統合する方が混乱しにくい。
+
+---
+
+## Completion Note (2026-06-26)
+
+**Status**: Closed for roadmap purposes.
+
+### 完了した項目
+
+| # | 項目 | 対応 |
+|---|------|------|
+| 1.1 | active layer から effect stack を安全に取得 | 既存実装 |
+| 1.2 | add/remove/reorder/enable/disable API | 既存実装 |
+| 1.3 | effect undo 単位を明確化 | `AddEffectUndoCommand`, `RemoveEffectUndoCommand`, `SetEffectEnabledUndoCommand`, `MoveEffectUndoCommand` を追加 (`ArtifactProjectService.cppm`) |
+| 1.4 | selection change に応じた menu state 再計算 | 既存実装 |
+| 2.1 | エフェクトコントロールから inspector を開く | `ShowEffectInspectorRequested` event → Inspector が Effects tab を表示 (`ArtifactEventTypes.ixx`, `ArtifactEffectMenu.cppm`, `ArtifactInspectorWidget.cppm`) |
+| 2.2 | すべてを削除 | 既存実装 |
+| 2.3 | 実装済み effect を追加可能 | 全 45+ effect が createEffect で実装済み |
+| 3.2 | パラメータ UI 再利用 | `ArtifactPropertyWidget` で統一 |
+| 3.4 | selection 変更で編集対象が明確 | 既存実装 |
+| 4.1 | effect preset 保存/読込 | 既存実装 (`ArtifactEffectPreset`, `ArtifactPresetManager`) |
+| 4.4 | obsolete 項目整理 | `handleAddGeneratorEffect` 削除, `EffectFactoryResult`/未使用 `EffectFactory` 削除 |
+
+### 残課題（再着手不要）
+- 2.4: 全 effect が実装済みのため placeholder 区分は不要
+- 3.1: blend/opacity は effect 単位のプロパティとして未定義（layer 単位で管理）
+- 4.2: effect set 再適用 UI は将来の UX 改善対象

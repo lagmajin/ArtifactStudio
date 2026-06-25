@@ -184,3 +184,37 @@ mask を強くする近道は、geometry と parameter animation を同じ工程
 ## Related Execution Memos
 
 - Phase 1 execution memo is absorbed into the parent milestone
+
+---
+
+## Completion Note (2026-06-26)
+
+**Status**: Closed for roadmap purposes.
+
+### 完了確認
+
+| Sub-milestone | 項目 | 状態 | 対応箇所 |
+|---------------|------|------|---------|
+| M-CE-MASK-1 | Mask tool を composition editor の主要入力モードとして固定 | ✅ | Toolbar の tool mode button (Mask → ToolType::Pen)、Pie menu (Mask → ToolType::Pen) |
+| M-CE-MASK-1 | toolbar / pie menu / shortcut の入口統一 | ✅ | Pie menu + tool mode button + `Ctrl+Shift+M`/`Ctrl+M` |
+| M-CE-MASK-1 | EditMode::Mask の状態遷移 | ✅ | `ArtifactToolService::setEditMode(EditMode::Mask)` → `setActiveTool(ToolType::Pen)` |
+| M-CE-MASK-1 | selection/gizmo/pan/playhead との優先順位 | ✅ | `ArtifactRenderLayerWidgetV2::setEditMode()` で gizmo 非表示・cursor 変更、Render Controller の ToolType ルーティング |
+| M-CE-MASK-2 | 新規 mask path を viewport 上で作成 | ✅ | `beginPendingMaskCreation()` + `finalizePendingMaskCreation()` でレイヤーへ登録 |
+| M-CE-MASK-2 | vertex 追加・移動・削除 | ✅ | Mouse click/drag + `Delete` キー |
+| M-CE-MASK-2 | path close/open/feather/expansion/invert | ✅ | double-click close、feather/expansion/invert は LayerMask/MaskPath プロパティ |
+| M-CE-MASK-2 | hovered/dragged vertex 可視化 | ✅ | `hoveredMaskIndex_/hoveredPathIndex_/hoveredVertexIndex_` + overlay 描画 |
+| M-CE-MASK-2B | in/out tangent 編集 (2026-05-16 Slice) | ✅ | `MaskVertex::inTangent/outTangent`、Ctrl+drag で handle 生成、Alt で分離モード |
+| M-CE-MASK-2B | bezier handle 分離表示・ドラッグ | ✅ | |
+| M-CE-MASK-2B | cubic 近似での segment hit-test | ✅ | |
+| M-CE-MASK-3 | undo/redo 対応 (MaskEditCommand) | ✅ | `MaskEditCommand` : `UndoCommand`、before/after masks snapshot |
+| M-CE-MASK-3 | layer selection 変更時の edit state 安全解除 | ✅ | `ArtifactRenderLayerWidgetV2::setEditMode()` での cleanup |
+| M-CE-MASK-4 | mask count/path count/enabled state を inspector に表示 | △ | PropertyWidget に "Roto" label 表示あり。詳細パネルは polish 課題として残存 |
+
+### 未接続（意図的）
+- `RotoMaskEditor` (Core.UI.RotoMaskEditor) は standalone QWidget。`LayerMask`/`MaskPath` とは別の `RotoMask` データモデルを操作するため、現行の Render Controller 経由の mask editing とは並行した存在として維持
+
+### 残課題（再着手不要レベル）
+- segment 上の vertex insert (2026-05-16 Slice 残) → `insertVertexOnMaskSegment()` API は存在
+- selected handle / tangent mode の明示 UI
+- handle drag の undo 粒度と inspector 表示の整理 → polish 領域
+- mask property の詳細 inspector 表示

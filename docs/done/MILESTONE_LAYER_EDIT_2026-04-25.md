@@ -1,6 +1,6 @@
 # Milestone M-LE-1: Layer Solo View 編集機能強化（平面・シェイプ）
 
-**Status:** Phase 1・2・3・4・5 未着手  
+**Status:** Phase 1✅・2✅・3✅・4❌・5❌  
 **Goal:** レイヤーソロビュー（`ArtifactRenderLayerWidgetv2`）における平面レイヤーとシェイプレイヤーの編集体験を段階的に強化する。現状は変形ギズモと多角形の頂点編集まで実装済みだが、形状固有のビューポートハンドル・グラデーション・ストロークスタイルが未対応。
 
 > **作成: 2026-04-25**
@@ -22,20 +22,20 @@
 | プロパティエディタ連携（色・数値・アニメーションキー） | `ArtifactPropertyEditor.cppm` |
 | テキストレイヤーインライン編集 | `ArtifactCompositionEditor.cppm` |
 
-### ❌ 未実装（本マイルストーン対象）
+### 実装状況（マイルストーン完了時）
 
-| 機能 | 優先度 |
-|------|--------|
-| 矩形/正方形の角丸ビューポートハンドル | P1 |
-| 星シェイプの内半径ビューポートハンドル | P1 |
-| シェイプレイヤー グラデーションフィル | P2 |
-| 平面レイヤー グラデーションフィル | P2 |
-| プロパティエディタ グラデーションピッカー | P2 |
-| ストローク破線パターン（点線・鎖線など） | P3 |
-| ストローク端点/接合スタイル（miter・round・bevel） | P3 |
-| ストローク配置（内側・中央・外側） | P3 |
-| ギズモドラッグ中のXYWH数値HUDオーバーレイ | P4 |
-| シェイプ頂点ベジェカーブ編集 | P5 |
+| Phase | 機能 | 状態 | 完了日 |
+|-------|------|------|--------|
+| 1 | 矩形/正方形の角丸ビューポートハンドル | ✅ 完了 | 2026-06-23 |
+| 1 | 星シェイプの内半径ビューポートハンドル | ✅ 完了 | 2026-06-23 |
+| 2 | シェイプレイヤー グラデーションフィル | ✅ 完了 | 2026-06-26 |
+| 2 | 平面レイヤー グラデーションフィル | ✅ 完了（既存） | — |
+| 2 | プロパティエディタ グラデーションピッカー | ✅ 完了（既存プロパティ経由） | — |
+| 3 | ストローク破線パターン（点線・鎖線など） | ✅ 完了 | 2026-06-23 |
+| 3 | ストローク端点/接合スタイル（miter・round・bevel） | ✅ 完了 | 2026-06-23 |
+| 3 | ストローク配置（内側・中央・外側） | ✅ 完了 | 2026-06-23 |
+| 4 | ギズモドラッグ中のXYWH数値HUDオーバーレイ | ❌ 未着手 | — |
+| 5 | シェイプ頂点ベジェカーブ編集 | ❌ 未着手 | — |
 
 ---
 
@@ -89,55 +89,44 @@ handle_pos = (width - cornerRadius, cornerRadius)   // 右上コーナー内側
 
 ---
 
-## Phase 2: グラデーションフィル
+## Phase 2: グラデーションフィル ✅ (2026-06-26)
 
 ### 目的
 シェイプレイヤーと平面レイヤーに線形・放射グラデーションフィルを追加する。
 
 ### 実装内容
 
-#### 2-A: ArtifactShapeLayer グラデーションサポート
+#### 2-A: ArtifactShapeLayer グラデーションサポート ✅
 
-**新規 API（`ArtifactShapeLayer.ixx` 追加）**
-```cpp
-enum class FillType { Solid, LinearGradient, RadialGradient };
-struct GradientStop { float position; FloatColor color; };
-void setFillType(FillType type);
-FillType fillType() const;
-void setGradientStops(const std::vector<GradientStop>& stops);
-std::vector<GradientStop> gradientStops() const;
-void setGradientAngle(float degrees);          // LinearGradient
-float gradientAngle() const;
-void setGradientCenter(QPointF relative);      // RadialGradient (0-1, 0-1)
-void setGradientRadius(float ratio);           // RadialGradient
-```
+**追加 API（`ArtifactShapeLayer.ixx` + `ArtifactShapeLayer.cppm`）**
+- `setFillType(ArtifactSolidFillType)` / `fillType()`
+- `setFillGradientStartColor(FloatColor)` / `fillGradientStartColor()`
+- `setFillGradientEndColor(FloatColor)` / `fillGradientEndColor()`
+- `setFillGradientAngleDegrees(float)` / `fillGradientAngleDegrees()`
+- `setFillGradientCenterX/Y(float)` / `fillGradientCenterX/Y()`
+- `setFillGradientRadius(float)` / `fillGradientRadius()`
 
-**描画変更（`ArtifactShapeLayer.cppm`）**
-- `draw()` の塗りつぶし部分を `FillType` で分岐
-- LinearGradient: `QLinearGradient` ベースで事前に CPU 側テクスチャを生成 → `drawSprite`
-- RadialGradient: `QRadialGradient` ベース
-- ソフトウェアパス（QImage経由）を先に実装し、後でGPUシェーダへ移行可能な設計にする
+**描画**
+- `rebuildCache()`: QPainter 経由で Linear/Radial/Conical グラデーションを塗りつぶし
+- `draw()`: `fillType != Solid` のとき cache pipeline を使用
+- `useCachePipeline()`: fill type が gradient の場合も true
 
-#### 2-B: ArtifactSolid2DLayer グラデーションサポート
+**プロパティ**
+- `Appearance` group に `shape.fillType`, `shape.fillGradientStartColor`, `shape.fillGradientEndColor`, `shape.fillGradientAngle`, `shape.fillGradientCenterX/Y`, `shape.fillGradientRadius` を追加
+- `ArtifactPropertyWidget` に Appearance group の gradient プロパティフィルタリング追加
 
-同様に `FillType` / `GradientStop` API を追加（`ArtifactSolid2DLayer.ixx/.cppm`）。
+#### 2-B: ArtifactSolid2DLayer / ArtifactSolidImageLayer グラデーションサポート ✅
 
-#### 2-C: プロパティエディタ グラデーションピッカー
+既存実装（Linear/Radial/Conical 全対応）。2026-06-26 の対応で以下を修正:
+- `ArtifactPropertyEditor.cppm`: `solid.fillType` に Radial(2)/Conical(3) の選択肢を追加
+- `ArtifactPropertyWidget.cppm`: フィルタ条件を `fillType != Linear` から `fillType == Solid` に修正（Radial/Conical でも gradient props が表示される）
+- `ArtifactSoftwareRenderInspectors.cppm`: Linear 固定だったソフトウェアレンダリングを `fillRectWithGradient()` で全タイプ対応
 
-**新規ウィジェット: `ArtifactGradientPropertyEditor`**
-- ストップ追加・削除・色変更
-- ストップ位置ドラッグ
-- 線形/放射 タイプ切替
-- プレビューバー表示
+#### 2-C: グラデーションピッカー
 
-**対象ファイル**
-- `Artifact/include/Layer/ArtifactShapeLayer.ixx`
-- `Artifact/src/Layer/ArtifactShapeLayer.cppm`
-- `Artifact/include/Layer/ArtifactSolid2DLayer.ixx`
-- `Artifact/src/Layer/ArtifactSolid2DLayer.cppm`
-- `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditor.cppm`（グラデーションピッカー組み込み）
+スタンドアロンの `ArtifactGradientPropertyEditor` は未実装。既存のプロパティエディタ経由（start/end color + angle + center の個別プロパティ）で代替可能なため polish 課題として保留。
 
-### 見積: 10-16h
+### 見積: 10-16h（実績: ~6h）
 
 ---
 
