@@ -66,4 +66,4 @@ Implement a snapshot serializer on top of the existing render queue job model, t
 
 ## Status
 
-Phase 1 is feasible and can be started now. The smallest useful slice is job snapshot generation plus a CLI entrypoint contract.
+Phase 1 is complete enough for closure in `docs/done/MILESTONE_EXTERNAL_RENDERER_DESIGN_PHASE1_2026-06-25.md`.

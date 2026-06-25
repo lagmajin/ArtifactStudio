@@ -130,11 +130,11 @@ active milestone の重複名としては扱わない。
 - 詳細: `docs/planned/MILESTONE_CONTINUATION_SPRINT_2026-05-20.md`
 
 ### Render Execution / Isolation
-- **M-RE-1** External Renderer Design
+- **M-RE-1** External Renderer Design ✅ Phase 1 closeout
   - 内蔵レンダラは維持しつつ、オフラインレンダリングだけ別プロセスへ切り出す
   - job snapshot / CLI / progress / diagnostics の設計を先に固める
   - 詳細: `docs/planned/MILESTONE_EXTERNAL_RENDERER_DESIGN_2026-04-22.md`
-  - Phase 1 execution: `docs/planned/MILESTONE_EXTERNAL_RENDERER_DESIGN_PHASE1_EXECUTION_2026-06-25.md`
+  - Phase 1 completion: `docs/done/MILESTONE_EXTERNAL_RENDERER_DESIGN_PHASE1_2026-06-25.md`
 
 ### Creative Effects / Exploratory Backlog
 - **M-FX-EXP-1** New Image Effect Exploration
