@@ -1,6 +1,7 @@
 # マイルストーン: Core Source Abstraction (`ISource`)
 
 > 2026-03-25 作成
+> 2026-06-25 更新: Core contract is already implemented; this document is retained as historical reference.
 
 ## 目的
 
@@ -20,6 +21,11 @@
 - Core 側の `ISource` / `FileSource` / `GeneratedSource` は実装済み
 - アプリ層の layer は未変更
 - layer bridge / persistence / relink の統合は次段階
+
+### 終了判定
+
+- Core source abstraction としては完了
+- 以後は app layer bridge / persistence の別マイルストーンで扱う
 
 ---
 
