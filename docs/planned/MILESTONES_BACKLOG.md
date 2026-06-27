@@ -67,21 +67,19 @@
   - 主要ファイル: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`
 
 ### Layer Editing
-- **M-LE-1** Layer Solo View 編集機能強化（平面・シェイプ） ✅ Phase 1・2・3 完了
+- **M-LE-1** Layer Solo View 編集機能強化（平面・シェイプ） ✅ 全 Phase 完了 (2026-06-26)
   - Phase 1: シェイプ固有ビューポートハンドル（角丸・星内半径） ✅ 実装済み
   - Phase 2: グラデーションフィル（シェイプ・平面レイヤー + プロパティピッカー） ✅ 実装済み (2026-06-26)
   - Phase 3: ストロークスタイル（破線・端点・接合・配置） ✅ 完了 (2026-06-23)
-    - StrokeCap/Join/Align → Enum editor化
-    - DashPattern → property公開 + シリアライズ + preset selector UI実装
-  - Phase 4: ギズモ XYWH 数値 HUD オーバーレイ ❌ 未着手
-  - Phase 5: シェイプ頂点ベジェカーブ編集 ❌ 未着手
-  - 詳細: `docs/done/MILESTONE_LAYER_EDIT_2026-04-25.md` (完了Phase分はdone/へ移動済み)
-  - 主要ファイル: `Artifact/src/Widgets/Render/ArtifactRenderLayerWidgetv2.cppm`, `Artifact/src/Layer/ArtifactShapeLayer.cppm`, `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditor.cppm`
+  - Phase 4: ギズモ XYWH 数値 HUD オーバーレイ ✅ 完了 (2026-06-26)
+  - Phase 5: シェイプ頂点ベジェカーブ編集 ✅ 完了 (2026-06-26)
+  - 詳細: `docs/done/MILESTONE_LAYER_EDIT_2026-04-25.md`
+  - 主要ファイル: `Artifact/src/Widgets/Render/ArtifactRenderLayerWidgetv2.cppm`, `Artifact/src/Layer/ArtifactShapeLayer.cppm`, `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditor.cppm`, `Artifact/src/Widgets/Render/TransformGizmo.cppm`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderOverlay.cppm`
 
-- **M-LE-2** Layer Transform からの Crop / Pan 導線と Source Reframe 透明化 🚧 進行中
+- **M-LE-2** Layer Transform からの Crop / Pan 導線と Source Reframe 透明化 ✅ (2026-06-24 完了)
   - `Layer Transform` 直下に `Add Crop / Pan` を出し、既存の `Source Reframe` を再利用する
   - `SourceCrop` の crop 外側を透明として扱い、元サイズのレイヤー寸法を維持する
-  - 詳細: `docs/planned/MILESTONE_LAYER_SOURCE_REFRAME_NLE_2026-06-24.md`
+  - 詳細: `docs/done/MILESTONE_LAYER_SOURCE_REFRAME_NLE_2026-06-24.md`
   - 主要ファイル: `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`, `Artifact/src/Layer/ArtifactImageLayer.cppm`, `Artifact/src/Layer/ArtifactVideoLayer.cppm`, `Artifact/src/Layer/ArtifactSourceCrop.cppm`
 
 ### Composition Editor / Cache
@@ -94,17 +92,13 @@
   - `PrimitiveRenderer2D` の cacheKey ベース最適化は実装済み
   - 主要ファイル: `Artifact/docs/MILESTONE_STATIC_LAYER_GPU_CACHE_2026-03-26.md`
 
-- **M-RAM-3** Preview Range Policy and Priority ❌ 未着手
-  - `playhead / playback direction / work area / loop` をもとに、どの frame を先に warmup するかの規則を固定する
-  - `immediate / near / directional / safety backfill / out-of-range` の priority reason を diagnostics から読めるようにする
-  - 詳細: `docs/planned/MILESTONE_RAM_PREVIEW_RANGE_POLICY_AND_PRIORITY_2026-05-31.md`
+- **M-RAM-3** Preview Range Policy and Priority ✅ (verified 2026-06-26)
+  - `ramPreviewPriorityReason()` / `ramPreviewPriorityState()` / `orderedRamPreviewFramesForRange()` in `ArtifactPlaybackService.cppm`
+  - immediate / near / directional / safety-backfill / work-area / out-of-range の priority reason 実装済み
+  - 再生方向バイアス、一時停止中 warmup、work area 判定まで完了
 
-- **M-CE-CRIT-1** Critical Render / Media Stability Program 🚧 進行中
-  - パーティクル非表示、ビデオデコード失敗、ビデオレイヤー透明化を長期バグとしてまとめて追跡する
-  - 診断、smoke case、回帰ゲートを先に整え、個別修正をレポートへ戻す
-  - `M-APP-5 Project Health / Problem View Wiring` と同じ diagnostic 文法を使い、render preflight でも同じ result を読む
-  - バグレポート: `docs/bugs/BUG_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
-  - 詳細: `docs/planned/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
+- **M-CE-CRIT-1** Critical Render / Media Stability Program ✅ (verified 2026-06-26)
+  - マイルストーン文書 `docs/done/` へ移動済み
 
 ### Debug / Regression Surface
 - **M-CE-CRIT-2** Debug Render Harness ✅ 既存 regression surface
@@ -137,6 +131,11 @@ active milestone の重複名としては扱わない。
   - Phase 1 completion: `docs/done/MILESTONE_EXTERNAL_RENDERER_DESIGN_PHASE1_2026-06-25.md`
 
 ### Creative Effects / Exploratory Backlog
+- **M-FX-FORM-1** Form Grid Particle Layer
+  - Trapcode Form 風の grid / point-cloud particle layer を、既存 `ParticleSystem` / `ClonerGenerator` とは独立した generator layer として設計する
+  - 既存資産との統合は renderer reuse に留め、`ParticleRenderData` / `ArtifactIRenderer::drawParticles()` だけを共有する
+  - 詳細: `docs/planned/MILESTONE_FORM_GRID_PARTICLE_LAYER_2026-06-26.md`
+
 - **M-FX-EXP-1** New Image Effect Exploration
   - 既存の `blur / glow / chromatic aberration` から少し離れた、Artifact らしい画像エフェクト案を保管する
   - まずは look-dev 用の発想メモとして扱い、制作体験に効くものから実装候補へ昇格させる
@@ -526,10 +525,8 @@ active milestone の重複名としては扱わない。
 - timeline から keyframe を copy / paste できるようにする
 - 完了記録は `docs/done/MILESTONE_KEYFRAME_COPY_PASTE_2026-06-16.md`
 
-### M-UI-22 QSS Decommission / CommonStyle Path to QCommonStyle
-- `QSS` を新規追加しない方針へ切り替え、theme / palette / common widget / owner-draw を経由して最終的に `QCommonStyle` ベースへ寄せる
-- 既存の `QSS Reduction` と `Theme System Rollout` の実行計画をまとめ直す
-- 詳細は `docs/planned/MILESTONE_QSS_DECOMMISSION_COMMONSTYLE_2026-04-03.md`
+### M-UI-22 QSS Decommission / CommonStyle Path ✅ 完了
+- 完了: `docs/done/MILESTONE_UI_THEME_SYSTEM_2026-03-30.md`
 
 ### M-SC-2 Shortcut Context Map / Blender-Like Keymap Routing
 - `InputOperator` の context 解決順と widget / region 単位の分割を固定し、Blender 風の「場所とモードで意味が変わる」ショートカット routing を明文化する
@@ -559,7 +556,7 @@ active milestone の重複名としては扱わない。
 ### M-UI-12 Composition Notes / Scratchpad
 - コンポジション / レイヤー / フレームに紐づく軽量メモを残せるようにする
 - review / annotation より前段の、制作中の書きなぐりメモを扱う
-- 詳細は `docs/planned/MILESTONE_COMPOSITION_NOTES_SCRATCHPAD_2026-03-30.md`
+- 詳細は `docs/done/MILESTONE_COMPOSITION_NOTES_SCRATCHPAD_2026-03-30.md`
 
 ### M-UI-3 Inspector Usability
 - effect / property の見つけやすさ
@@ -575,23 +572,21 @@ active milestone の重複名としては扱わない。
 - Physics2D とは別に、animation 用の spring / damping / follow-through を Inspector / Layer Panel から触れるようにする
 - 詳細は `docs/planned/MILESTONE_ANIMATION_DYNAMICS_UI_2026-03-28.md`
 
-### M-UI-6 Composition Motion Path Overlay
-- composition viewport 上で selected layer の motion path と keyframe dot を重ね描きする
-- **AE差別化:** 点の色をレイヤーカラーと連動（どのレイヤーのパスかひと目でわかる）、ホバーで該当フレームのタイムコードをツールチップ表示、パスの点をドラッグして直接位置編集（Nuke風）
+### M-UI-6 Composition Motion Path Overlay ✅ (verified 2026-06-26)
+- 全 Phase 実装済み: path+dot+frame rect overlay, click-to-seek, hover, cache, toggle (Ctrl+Alt+M), interpolation色分け, Shift+click追加/Alt+click削除+Undo
+- 主要コード: `ArtifactCompositionRenderController.cppm:9409-9581`、`buildMotionPathSamples()`、`hitTestMotionPathSample()`
 - 詳細は `docs/planned/MILESTONE_COMPOSITION_MOTION_PATH_OVERLAY_2026-03-28.md`
 
-### M-UI-7 Composition Editor Mask / Roto Editing
-- composition editor 上で layer mask / roto を直接編集できるようにする
-- **大幅改善:** モード自動切り替え（コンテキスト判定）、頂点操作直感化（ハンドル/追加削除ツール不要）、マスク管理UI強化（色設定/ドラッグ順序）、視覚フィードバック改善（オーバーレイ/境界線強化）
-- UI 表記は `Mask editing` を基本にし、`Roto` は property / inspector の補助ラベルに留める
-- 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md`
-- Phase 1 実行メモ: `docs/planned/MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md` の entry bridge / path creation を先に詰める
-- mask parameter の time-addressable 化は別スライスとして扱い、`docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md` へ分離する
+### M-UI-7 Composition Editor Mask / Roto Editing ✅ (verified 2026-06-26)
+- マイルストーン文書 `docs/done/` に移動済み、各サブ milestone 完了
+- 実装内容: `EditMode::Mask` entry → path creation → vertex move/delete → bezier handle edit (Ctrl+drag) → undo/redo (`MaskEditCommand`)
+- 主要ファイル: `ArtifactRenderLayerWidgetv2.cppm` (`drawMaskOverlay()`, mouse handlers), `ArtifactCompositionRenderController.cppm` (pending mask, segment insert, handle set)
+- 残ポリッシュ項目: segment insert UX未配線、inspector detail △、context menu未対応、`RotoMaskEditor` (Core側 standalone) は未接続
 
-### M-UI-7a Mask Keyframe Foundation
-- mask parameter の time-addressable 化を geometry editing から分離する
-- まずは scalar mask parameters の property exposure から始める
-- 詳細は `docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md`
+### M-UI-7a Mask Keyframe Foundation ✅ (verified 2026-06-26)
+- `mask.opacity`, `mask.feather` など scalar parameters の property exposure 完了
+- マイルストーン文書 `docs/done/` へ移動済み
+- 詳細: `docs/done/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md`
 - Phase 1 実行メモは親文書へ統合済み
 
 ### M-UI-4 Menu-to-App Command Routing
@@ -603,11 +598,15 @@ active milestone の重複名としては扱わない。
 - Qt の新規 signal / slot は増やさず、既存 service / event / 明示 refresh で同期する
 - 詳細は `docs/planned/MILESTONE_TOOLBAR_APP_INTEGRATION_2026-04-17.md`
 
+### M-UI-4b Toolbar / App Integration ✅ (verified 2026-06-26)
+- tool selection group (Select/Hand/Zoom/Move/Rotate等), Zoom In/Out/100%/Fit, Guide toggle, More overflow button
+- `ArtifactToolBar.cppm` 全アクション app command surface に配線済み
+
 ### M-UI-5 Contents Viewer Expansion
 - image / video / audio / 3D model / source / final / compare を横断する viewer の拡充
 - audio playback と live waveform preview を同一 surface で確認できるようにする
 - ✅ テキストレイヤーインライン編集 (実装済み)
-- 詳細は `docs/planned/MILESTONE_CONTENTS_VIEWER_EXPANSION_2026-03-27.md`
+- 詳細は `docs/done/MILESTONE_CONTENTS_VIEWER_EXPANSION_2026-03-27.md`
 - 追加の review / compare / annotation 方向は `docs/planned/MILESTONE_REVIEW_COMPARE_ANNOTATION_2026-03-28.md`
 
 ### M-UI-20 Contents Viewer DCC Surface Layout / A-B / Wipe
@@ -693,18 +692,18 @@ active milestone の重複名としては扱わない。
 - 詳細は `docs/planned/MILESTONE_TIMELINE_LAYER_SPECIALIZATION_2026-04-23.md`
 - timeline index では補助線扱い。view / input / lane の本筋に吸収される。
 
-### M-TL-15 Timeline Ripple Edit / Downstream Shift
-- trim / delete の差分を後続レイヤーへ押し出す ripple edit を timeline 側に追加する
-- keyframe / clip / layer range の移動を 1 回の undo 単位で扱えるようにする
-- 詳細は `docs/planned/MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03.md`
-- Phase 1 実行メモは親文書へ統合済み
-- timeline index では補助線扱い。keyframe edit の下位拡張として読む。
+### M-TL-15 Timeline Ripple Edit / Downstream Shift ✅ Phase 1 (verified 2026-06-26)
+- `RippleTrimOutCommand`, `RippleDeleteCommand`, `SlideClipCommand` + undo/redo 実装済み
+- マイルストーン文書: `docs/done/MILESTONE_TIMELINE_RIPPLE_EDIT_PHASE1_EXECUTION_2026-06-04.md`
+- Trim / Delete ripple は完了。全レイヤー一括伸縮など Phase 2+ は未着手
 
-### M-TL-5 Timeline Keyframe Editing
-- Timeline 上で property keyframe を見て、打って、移動できるようにする
-- **AE差別化:** キーフレームの時間軸スケーリング（全レイヤー一括でタイミング伸縮、pivot点基準で相対関係維持）
-- 詳細は `docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md`
-- Phase 1 実行メモは親文書へ統合済み
+### M-TL-5 Timeline Keyframe Editing ✅ (verified 2026-06-26)
+- Add/remove/toggle keyframes, drag-move, multi-selection, copy/paste/cut
+- Full interpolation control (Linear/Ease/Bezier/Hold) via context menu + Easing Lab
+- Key pattern generation (12 presets), reverse, distribute, duplicate, color labels
+- Jump navigation (Ctrl+PgUp/PgDn), status summary, undo/redo for all operations
+- マイルストーン文書 `docs/done/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md` + `docs/done/MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md`
+- **未完了 (stretch goal):** キーフレームの時間軸スケーリング（全レイヤー一括伸縮）
 
 ### M-TL-6 Timeline Layer Search
 - タイムライン上部の検索バーで layer / effect / tag / state をインクリメンタルに絞り込む
@@ -723,11 +722,11 @@ active milestone の重複名としては扱わない。
 - layer 側に軽量 component system を追加し、追従・減衰・トリガーの受け皿を作る
 - 詳細は `docs/planned/MILESTONE_LAYER_COMPONENT_SYSTEM_UNITY_LIKE_2026-04-08.md`
 
-### M-PH Playhead 整備 ✅ Phase 1 (2026-06-23)
+### M-PH Playhead 整備 ✅ Phase 1 (2026-06-23), 🚧 Phase 3-4 partial
 - ✅ Phase 1: 状態統一 — `currentFrame_` を単一権威、fan-out → `setCurrentFrameForAll()`、9 箇所の手動書替を統合
-- Phase 2: シーク UX 改善 (不感帯、スナップ、再生中シーク、スクロール追従)
-- Phase 3: 表示品質 (F<n>/HH:MM:SS:FF 同期、高DPI、コンポジションビュー連携)
-- Phase 4: 操作拡充 (J/K/L シャトル、タイムコード入力、ホイールシーク、ドラッグシーク)
+- 🚧 Phase 2: 不感帯/スナップ/再生中シーク/スクロール追従 → **未実装**
+- 🚧 Phase 3: 表示品質 → ✅ HH:MM:SS:FF (TimeCodeWidget), HiDPI, コンポジションビュー連携 済み / ❌ F<n> 形式
+- 🚧 Phase 4: 操作拡充 → ✅ JKL シャトル, ホイールシーク, ドラッグシーク 済み / ❌ タイムコード入力未実装
 - マイルストーン文書は `docs/done/` へ移動済み
 
 ## Render
@@ -760,9 +759,19 @@ active milestone の重複名としては扱わない。
 - flat RGBA compositing と分離し、deep 用 buffer と IO を別系統で持つ
 - 詳細は `docs/planned/MILESTONE_DEEP_COMPOSITING_2026-03-31.md`
 
-### M-RD-11 GPU Mask Cutout Compute Pipeline
-- layer mask の cutout を compute shader 経由に寄せ、CPU の `cv::Mat` 切り抜きを段階的に減らす
-- CPU fallback を残しつつ、mask texture を GPU 側の中間資源として扱えるようにする
+### M-RD-11 GPU Mask Cutout Compute Pipeline 🚧 Phase 1-2 ✅, Phase 4 🆕
+- Phase 1 (Mask Texture Contract) ✅ — `MaskCutoutPipeline` (+ `MaskCutout.ixx`) 完成済み
+- Phase 2 (Compute Mask Apply) ✅ — 既存 `MaskCutoutPipeline::apply()` で compute shader cutout 可能
+- Phase 4 (GPU Path Rasterizer) 🆕 — `MaskPathRasterizerPipeline` (+ `MaskPathRasterizer.ixx`) で MaskPath 頂点から直接 GPU マスク生成可能
+- **未接続**: Phase 3 (Composition Integration) — `ArtifactCompositionRenderController` への配線は未着手
+- CPU fallback (`LayerMask::applyToImage()`) は維持
+- 主要ファイル:
+  - `ArtifactCore/include/Graphics/Shader/Compute/HLSL/MaskPathRasterizer.ixx`
+  - `ArtifactCore/include/Graphics/Shader/Compute/MaskPathRasterizerPipeline.ixx`
+  - `ArtifactCore/src/Graphics/Shader/Compute/MaskPathRasterizerPipeline.cppm`
+  - `ArtifactCore/include/Graphics/Shader/Compute/HLSL/MaskCutout.ixx`
+  - `ArtifactCore/include/Graphics/Shader/Compute/MaskCutoutPipeline.ixx`
+  - `ArtifactCore/src/Graphics/Shader/Compute/MaskCutoutPipeline.cppm`
 - 詳細は `docs/planned/MILESTONE_GPU_MASK_COMPUTE_PIPELINE_2026-04-03.md`
 
 ### M-RD-6 FFmpeg GPU Decode Backend
@@ -829,6 +838,11 @@ active milestone の重複名としては扱わない。
 - 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_FIGMA_LIKE_OVERLAY_2026-04-21.md`
 - 実行メモは親文書へ統合済み
 
+### M-CE-4 Composition Editor Selection / Comparison Upgrade
+- 矩形選択、追加 / 除外選択、ラッソ選択をビューポート側にまとめる
+- A/B 切替、参照フレーム固定、差分オーバーレイを同じ比較導線として扱う
+- 詳細は `docs/planned/MILESTONE_COMPOSITION_EDITOR_SELECTION_COMPARISON_2026-06-27.md`
+
 ## Shared Notes
 
 - `docs/shared/ai-tech-memos/README.md`
@@ -839,10 +853,8 @@ active milestone の重複名としては扱わない。
 ### M-FX-1 Inspector Effect Stack Bridge
 - Inspector から effect 追加、削除、順序変更
 
-### M-FX-2 Solid Color Effects
-- Color Wheels
-- Curves
-- Grader を Solid に通す
+### M-FX-2 Solid Color Effects ✅ 完了
+- 完了: `docs/done/MILESTONE_SOLID_COLOR_EFFECTS_2026-06-27.md`
 
 ### M-FX-3 Creative Effects Bridge
 - Halftone
@@ -1363,10 +1375,8 @@ active milestone の重複名としては扱わない。
 - Enter 確定で計算結果を反映し、数値の再入力を減らす
 - 詳細は `docs/planned/MILESTONE_NUMERIC_FIELD_QUICK_CALC_2026-06-07.md`
 
-### M-TL-3 Keyframe Nudge / Temp Snap Override
-- 左右矢印で選択 keyframe を 1 frame 移動し、Shift で 10 frame 移動する
-- Alt 押下中は snap を一時無効化して、ドラッグと nudge の両方を扱いやすくする
-- 詳細は `docs/planned/MILESTONE_KEYFRAME_NUDGE_AND_TEMP_SNAP_OVERRIDE_2026-06-07.md`
+### M-TL-3 Keyframe Nudge / Temp Snap Override ✅ 完了
+- 完了: `docs/done/MILESTONE_KEYFRAME_NUDGE_AND_TEMP_SNAP_OVERRIDE_2026-06-07.md`
 
 ### M-CE-4 Aspect Ratio / Resolution Remap Wizard ⚠️ (Phase 3 done 2026-06-08)
 - aspect ratio 変更時に mask / keyframe / anchor を自動再計算する
