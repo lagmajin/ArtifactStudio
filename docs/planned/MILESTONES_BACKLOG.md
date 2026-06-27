@@ -1208,6 +1208,31 @@ active milestone の重複名としては扱わない。
 - 正規表現ベースで basename / frame / padding を検出し、展開可能な論理 item として扱う
 - 詳細は `docs/planned/MILESTONE_ASSET_BROWSER_SEQUENCE_GROUPING_2026-03-31.md`
 
+### M-AB-4 Asset Browser Hover Preview
+- アセットにホバーすると高品質なプレビューをポップアップ表示
+- キャッシュシステム、遅延ローディング、フォールバック機構を実装
+- 詳細は `docs/planned/MILESTONE_ASSET_BROWSER_HOVER_PREVIEW_2026-06-28.md`
+
+### M-AB-10 Asset Browser Relink Workflow
+- 移動/リネームされたアセットファイルの再リンクをサポート
+- 依存関係トラッカー、ダイアログUI、アンドゥサポートを実装
+- 詳細は `docs/planned/MILESTONE_ASSET_BROWSER_RELINK_WORKFLOW_2026-06-28.md`
+
+### M-AB-11 Asset Browser Advanced Sort
+- 複数キーによる高度なソート機能を実装
+- 自然順序ソート、プリセット保存、設定ダイアログをサポート
+- 詳細は `docs/planned/MILESTONE_ASSET_BROWSER_ADVANCED_SORT_2026-06-28.md`
+
+### M-AB-12 Asset Browser Tag System
+- アセットにタグ付け機能を追加
+- タグデータベース、タグエディタウィジェット、フィルタリング、クラウド表示を実装
+- 詳細は `docs/planned/MILESTONE_ASSET_BROWSER_TAG_SYSTEM_2026-06-28.md`
+
+### M-AB-15 Asset Browser AI Support
+- AI支援機能をアセットブラウザに統合
+- アナライザー、自動タグ付け、類似性検索、レコメンド機能を実装
+- 詳細は `docs/planned/MILESTONE_ASSET_BROWSER_AI_SUPPORT_2026-06-28.md`
+
 ### M-CP-2 Camera Overlay Experiment ⭐ **新規追加**
 - Composition Editor 縺ｧ camera frustum / frame overlay 繧帝∈謚槭〒縺阪ｋ experimental mode
 - 2D composition view 縺ｯ縺ｿ縺ｿ螳夂ｾ｡縲・3D editing 縺ｯ縺ゅｊ縺ｪ縺・
@@ -1324,6 +1349,29 @@ active milestone の重複名としては扱わない。
 - ペインごとの独立 Zoom/Pan 状態保持、playhead の同期更新
 - EventBus でのペインイベント multicast、非アクティブペイン低Hz ポーリングによる最適化
 - 詳細: `docs/planned/MILESTONE_MULTI_VIEWPORT_LAYOUT_2026-06-01.md`
+
+### M-VP-4 Viewport Canvas Rotation System
+- After Effects風のキャンバス回転機能（任意角度 -180°〜+180°）
+- マウスジェスチャー（Shift+ドラッグ）で回転、Rキーでリセット
+- 回転中心はキャンバス中央、状態はプロジェクトに保存
+- `ViewportTransformer` に回転フィールドと座標変換ロジックを追加
+- `ViewportCB` に回転情報（ラジアン）を追加
+- 詳細: `docs/planned/MILESTONE_VIEWPORT_CANVAS_ROTATION_2026-06-27.md`
+
+### M-VP-5 Viewport Dynamic Resolution Switching
+- 表示解像度をリアルタイムで切り替え（25%/50%/75%/100%/150%/200%/カスタム）
+- Ctrl+ホイールで解像度変更、メニューからのプリセット選択
+- DPR（Device Pixel Ratio）との適切な連動
+- `ViewportTransformer` に解像度スケールとDPRフィールドを追加
+- レンダーターゲットの再作成に解像度を考慮
+- 詳細: `docs/planned/MILESTONE_VIEWPORT_DYNAMIC_RESOLUTION_2026-06-27.md`
+
+### M-VP-8 Viewport Bookmarks System
+- ビューポート状態（ズーム・パン・回転・解像度）をブックマークとして保存/復元
+- 1-9キーでブックマーク適用、Ctrl+1-9で現在の状態を保存
+- `ViewportBookmarkManager` シングルトンによる集中管理
+- プロジェクトごとの保存、名前付けと整理、削除と並べ替え
+- 詳細: `docs/planned/MILESTONE_VIEWPORT_BOOKMARKS_2026-06-27.md`
 
 ### M-PQ-1 Proxy Quality Toggle in Preview UI
 - Playback Control / Viewer フッターから Draft(1/4) / Preview(1/2) / Full を切替
