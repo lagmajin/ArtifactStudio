@@ -16,6 +16,29 @@
 
 ---
 
+## 現状整理
+
+いま `Artifact.Layer.Physics` にある `physics.enabled` は、レイヤー変形に対する
+spring / damping / follow-through の補助であり、**当たり判定そのものは持っていない**。
+
+したがって「落下して、床や他レイヤーに当たって止まる」挙動を作るには、
+レイヤー物理とは別に **Collider / RigidBody の境界** を追加する必要がある。
+
+最小構成は次の2層に分ける。
+
+1. **Layer-local physics**
+   - 既存の `physics.*` はここに残す
+   - 見た目の慣性、追従、揺れを担当する
+2. **Collision physics**
+   - `Physics2D` または同等の剛体 world を使う
+   - 形状はまず AABB / Box / Circle のどれかに限定する
+   - レイヤーの `localBounds()` か `transformedBoundingBox()` を collider 初期形状に流用する
+
+この切り分けを維持すると、既存のアニメーション物理を壊さずに
+「落とす」「ぶつける」を段階追加できる。
+
+---
+
 ## レイヤーコンポーネント設計
 
 ### ArtifactLayerPhysicsComponent.ixx
@@ -46,6 +69,12 @@ enum class PhysicsSimulationType {
     Constraint,       // 固定・距離維持など
 };
 
+enum class ColliderShapeType {
+    Box,
+    Circle,
+    Polygon,
+};
+
 // 物理コンポーネント設定
 struct PhysicsComponentSettings {
     PhysicsSimulationType type = PhysicsSimulationType::None;
@@ -55,6 +84,13 @@ struct PhysicsComponentSettings {
     float density = 1.0f;
     float friction = 0.3f;
     float restitution = 0.5f;
+    bool useCollision = false;
+    ColliderShapeType colliderShape = ColliderShapeType::Box;
+    float colliderWidth = 0.0f;
+    float colliderHeight = 0.0f;
+    float colliderRadius = 0.0f;
+    QVector2D colliderOffset{0.0f, 0.0f};
+    float bounce = 0.0f;
 
     // SoftBody/Cloth用
     int subdivisions = 4;
@@ -105,6 +141,31 @@ public:
 
 } // namespace Artifact
 ```
+
+### Collision settings 追加案
+
+- `useCollision`
+  - collider を使うかどうか
+- `colliderShape`
+  - `Box` / `Circle` / `Polygon`
+- `colliderWidth`, `colliderHeight`, `colliderRadius`
+  - shape ごとのサイズ
+- `colliderOffset`
+  - レイヤー原点からの collider オフセット
+- `bounce`
+  - 反発
+- `friction`
+  - 接触面の摩擦
+
+### 解決ルール
+
+- まずは `Physics2D` の既存剛体 world を再利用する
+- レイヤーの `localBounds()` を初期 collider の基準にする
+- 3D / 変形後の厳密メッシュ衝突は後回しにする
+- 既存の spring / follow-through は衝突解決の前段として残す
+- ソフトボディは `PhysicsSystem` 経由で `createSoftBody()` し、`registerSoftBodyCollider()` で床や箱を与える
+- レイヤー側の入口は `enableSoftBodyPhysics()` / `disableSoftBodyPhysics()` / `syncSoftBodyPhysicsColliderToBounds()` で最小配線する
+- 格子初期化は `createSoftBodyGrid()` と `enableSoftBodyPhysicsGrid()` で bounds から自動生成する
 
 ---
 

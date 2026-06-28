@@ -52,6 +52,11 @@
   - Phase 1-2完了、row bg/hover/keyframe chromeをowner-draw化
   - 主要ファイル: `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditor.cppm`
 
+- **M-ACC-1** Accessibility and Left-Handed UI Support
+  - 左利き向け補助、片手操作補助、視認性補助、障碍者向け補助をまとめて整理する
+  - Phase 1: 利き手設定の土台、ヒット領域調整、主要 widget からの参照
+  - 詳細: `docs/planned/MILESTONE_ACCESSIBILITY_AND_LEFT_HANDED_UI_2026-06-28.md`
+
 - **M-UI-27** Color Constraint Rules / Palette-Conform Correction
   - `main / accent / background` などのデザイントークンに対して、比較演算子 + 値でルールを GUI 編集できるようにする
   - ルール違反時の warning / block と、選択色を最寄りパレット色へ補正する導線をまとめる
@@ -200,6 +205,11 @@ active milestone の重複名としては扱わない。
 - **M-AI-2** AI Command Sandbox ✅ (verified 2026-04-14)
   - CommandSandbox.ixx（674行）で policy/execution/timeout すべて実装済み
   - 主要ファイル: `ArtifactCore/include/AI/CommandSandbox.ixx`
+
+- **M-CMD-1** Command IR / Automation Foundation
+  - AI / MCP / DSL / Python から low-level API を直叩きさせず、Command IR を正規の automation 入口にする
+  - Primitive Command と Macro Command の二層を前提に、validation / transaction / Undo 単位を固定する
+  - 詳細: `docs/planned/MILESTONE_COMMAND_IR_AUTOMATION_FOUNDATION_2026-06-28.md`
 
 ### Asset Browser
 - **M-AB** Asset Browser Improvement (Unity風) ✅ (verified 2026-04-14)
@@ -721,6 +731,8 @@ active milestone の重複名としては扱わない。
 ### M-LG-2 Layer Components: Physics / Behavior
 - layer 側に軽量 component system を追加し、追従・減衰・トリガーの受け皿を作る
 - 詳細は `docs/planned/MILESTONE_LAYER_COMPONENT_SYSTEM_UNITY_LIKE_2026-04-08.md`
+- 固定評価順と Cloner / Layout / Crowd / Physics / Fracture / Particle の統合契約:
+  `docs/planned/MILESTONE_LAYER_COMPONENT_EVALUATION_PIPELINE_2026-06-28.md`
 
 ### M-PH Playhead 整備 ✅ Phase 1 (2026-06-23), 🚧 Phase 3-4 partial
 - ✅ Phase 1: 状態統一 — `currentFrame_` を単一権威、fan-out → `setCurrentFrameForAll()`、9 箇所の手動書替を統合

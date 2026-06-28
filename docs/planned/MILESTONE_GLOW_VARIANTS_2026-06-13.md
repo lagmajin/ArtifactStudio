@@ -2,6 +2,19 @@
 
 > 2026-06-13
 
+Status: All five variants implemented; static audit completed 2026-06-28.
+Build and runtime visual verification remain pending under the repository
+execution policy.
+
+Current implementation:
+
+- `EdgeBloomEffect`
+- `ReactiveGlowEffect`
+- `ChromaticGlowEffect`
+- `LiquidGlowEffect`
+- `ResidualGlowEffect`
+- Effect Service restoration, effect listing, and Inspector creation entries
+
 ## Purpose
 
 `Glow Variants Pack` は、単純な「光らせる」だけではなく、

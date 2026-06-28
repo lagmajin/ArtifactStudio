@@ -6,9 +6,9 @@ import os
 os.chdir(r'X:\dev\artifactstudio')
 
 # Run the CMake build for ArtifactCore
-print("=== Running: cmake --build out/build/x64-Debug --target ArtifactCore ===\n")
+print("=== Running: cmake --build out/build/x64-Debug --target ArtifactCore -- -k 0 ===\n")
 result = subprocess.run(
-    ['cmake', '--build', r'out\build\x64-Debug', '--target', 'ArtifactCore', '--verbose'],
+    ['cmake', '--build', r'out\build\x64-Debug', '--target', 'ArtifactCore', '--verbose', '--', '-k', '0'],
     capture_output=False,
     text=True
 )

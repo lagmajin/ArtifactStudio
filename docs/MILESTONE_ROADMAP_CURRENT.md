@@ -78,6 +78,24 @@ Status:
 
 - `Composition Editor Mask / Roto Editing`
 
+### 3. Command IR / Automation Foundation
+
+対象:
+
+- `docs/planned/MILESTONE_COMMAND_IR_AUTOMATION_FOUNDATION_2026-06-28.md`
+
+理由:
+
+- AI / MCP / Python の mutation 面を low-level API から切り離す土台になる
+- 既存の `AI Command Sandbox` と `McpBridge` を command-oriented に整理しやすくなる
+- 先に安全な Command IR を決めると、後続の DSL や macro も同じ経路に載せられる
+
+進め方:
+
+1. Primitive command vocabulary を固定する
+2. validate / execute / undo の result shape を決める
+3. resolver / executor / macro の責務を分ける
+
 ---
 
 ## Priority B: いまは再着手しない候補
@@ -126,8 +144,9 @@ Status:
 
 1. `Critical Render / Media Stability Program` と `Project Health / Problem View Wiring` を並走
 2. `Debug Render Harness` の既存 surface を使って `Critical Render / Media Stability Program` を回す
-3. `Composition Editor Mask / Roto Editing`
-4. `Continuation Sprint` の小粒タスク
+3. `Command IR / Automation Foundation`
+4. `Composition Editor Mask / Roto Editing`
+5. `Continuation Sprint` の小粒タスク
 
 ---
 

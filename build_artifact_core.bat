@@ -17,6 +17,6 @@ if not exist "out\build\x64-Debug\CMakeCache.txt" (
 
 REM Run build for ArtifactCore target only
 echo Starting ArtifactCore build...
-cmake --build out/build/x64-Debug --target ArtifactCore 2>&1
+cmake --build out/build/x64-Debug --target ArtifactCore -- -k 0 2>&1
 
 exit /b %errorlevel%

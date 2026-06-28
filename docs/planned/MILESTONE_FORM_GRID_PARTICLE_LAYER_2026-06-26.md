@@ -1,5 +1,16 @@
 # Form Grid Particle Layer Milestone
 
+Status: Implementation present; static audit completed 2026-06-28.
+Build and runtime verification remain pending under the repository execution policy.
+
+Current implementation:
+
+- independent `ArtifactFormParticleLayer` with Form-owned render settings
+- Grid2D, Grid3D, and explicit LayerMap image sampling
+- deterministic noise, twist, falloff, base/animated caches, and diagnostics
+- renderer conversion through `ArtifactCore::ParticleRenderData`
+- creation UI, factory/save-load support, Inspector properties, and presets
+
 Trapcode Form のような「格子・面・立体点群を粒子として見せる」表現を、
 ArtifactStudio では既存 `ParticleSystem` や `ClonerGenerator` に寄せすぎず、
 独立した generator layer として実装する。

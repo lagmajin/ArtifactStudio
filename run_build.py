@@ -2,7 +2,7 @@ import subprocess
 import sys
 
 result = subprocess.run(
-    'cmake --build . --target Artifact -- /nologo /v:m',
+    'cmake --build . --target Artifact -- -k 0 /nologo /v:m',
     cwd=r'X:\Dev\ArtifactStudio\out\build\x64-Debug',
     shell=True, 
     capture_output=True, 

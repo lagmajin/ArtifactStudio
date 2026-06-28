@@ -2,6 +2,19 @@
 
 Date: 2026-06-26
 
+Status: Implementation present through the authoring/render/input/preset slices;
+static audit completed 2026-06-28. Build, runtime visual checks, and render-queue
+sequence verification remain pending under the repository execution policy.
+
+Current implementation:
+
+- deterministic Terrain and Path Tube CPU geometry generation
+- normals, UVs, quality limits, tube/ribbon profiles, taper, twist, and noise
+- project-serializable `ArtifactProcedural3DLayer`
+- existing mesh renderer bridge with solid/wire shading
+- Terrain image/audio inputs and Path Tube mask/shape source sampling
+- creation menu, Inspector properties, cache diagnostics, and creative presets
+
 ## Goal
 
 Artifactのcomposition layerとして扱えるprocedural 3D sourceを実装する。

@@ -9,4 +9,4 @@ if not exist "out\build\x64-Debug\build.ninja" (
     exit /b 1
 )
 
-cmake --build out/build/x64-Debug
+cmake --build out/build/x64-Debug -- -k 0

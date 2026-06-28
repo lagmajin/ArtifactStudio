@@ -8,7 +8,7 @@ import subprocess
 import sys
 
 result = subprocess.run(
-    ['cmake', '--build', 'build', '--target', 'Artifact', '--config', 'Debug'],
+    ['cmake', '--build', 'build', '--target', 'Artifact', '--config', 'Debug', '--', '-k', '0'],
     capture_output=False
 )
 sys.exit(result.returncode)
