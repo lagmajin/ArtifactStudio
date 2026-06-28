@@ -218,3 +218,11 @@ Blender / Illustrator / Spine の「編集対象としてのパス」に近い�
 - vertex / segment / tangent overlay の hit-test 優先順位整理
 
 この slice が通ると、その後の vertex insert や convert-to-editable-path を安全に足しやすくなる。
+
+## Current Progress
+
+- `Shape Edit` mode を `EditMode` と tool routing に追加済み
+- `ArtifactCompositionEditor` の tool menu に `Shape modeling` の入口を追加済み
+- `ArtifactRenderLayerWidgetV2` 側の mode readout でも `Shape` を表示できる状態
+- `ArtifactToolService` で `Shape` を `ToolType::Shape` に結び直した
+- 次は shape layer 選択時の vertex / segment / tangent selection grammar を実装する
