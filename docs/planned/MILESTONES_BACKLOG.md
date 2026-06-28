@@ -87,6 +87,11 @@
   - 詳細: `docs/done/MILESTONE_LAYER_SOURCE_REFRAME_NLE_2026-06-24.md`
   - 主要ファイル: `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`, `Artifact/src/Layer/ArtifactImageLayer.cppm`, `Artifact/src/Layer/ArtifactVideoLayer.cppm`, `Artifact/src/Layer/ArtifactSourceCrop.cppm`
 
+- **M-LE-3** 2D Shape Modeling Editing
+  - `ArtifactShapeLayer` を primitive layer から `editable path + modifier stack` を持つ 2D モデリング対象へ昇格させる
+  - `Shape Edit` mode、vertex/segment/tangent editing、`Convert To Editable Path`、shape operator の modifier UX を段階導入する
+  - 詳細: `docs/planned/MILESTONE_2D_SHAPE_MODELING_EDITING_2026-06-29.md`
+
 ### Composition Editor / Cache
 - **M-CE-1** Composition Editor Cache System ✅ (verified 2026-04-14)
   - Surface cache / render key suppression / ROIシステム実装済み
