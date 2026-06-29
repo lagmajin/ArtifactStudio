@@ -16,6 +16,20 @@ ID: `M-LE-3`
 
 の 3 層で扱い、viewport 上での頂点編集と modifier 的な編集を両立させる。
 
+## Existing Assets
+
+この milestone は新規ゼロからではない。すでに次の資産がある。
+
+- `ArtifactShapeLayer`
+  - `customPolygonPoints` / `customPathVertices` / open-close / tangent 情報を保持
+  - `Trim Paths` / `Offset Paths` / `Rounded Corners` / `Twist` / `Repeater` などの operator を処理済み
+- `RotoMaskEditor`
+  - vertex / tangent / selection / hit-test の UI 土台
+  - 2D 図形編集の interaction grammar に流用しやすい
+- `ShapePath`
+  - path の構造表現と変換の基礎
+  - primitive と editable path の橋渡しに使える
+
 ## Why Now
 
 現状の repo には、すでに次の土台がある。
@@ -23,6 +37,7 @@ ID: `M-LE-3`
 - `ArtifactShapeLayer` に `customPolygonPoints` / `customPathVertices` / open-close / tangent 情報がある
 - shape operator (`Trim Paths`, `Offset Paths`, `Rounded Corners`, `Twist`, `Repeater` など) が実装済み
 - `ArtifactRenderLayerWidgetv2` と overlay に shape path の直接編集経路がある
+- `RotoMaskEditor` に vertex / tangent / selection grammar の土台がある
 - `Composition Editor` には `Modal.Mask` / `Modal.Pen` という modal input routing の先行例がある
 
 一方で、今の shape 編集は
@@ -92,6 +107,7 @@ Blender / Illustrator / Spine の「編集対象としてのパス」に近い�
 - shape layer 選択時に vertex / segment / tangent hit-test を優先できる routing を用意する
 - current layer / current shape path / selected vertices の ownership を固定する
 - gizmo / pan / playback scrub / mask mode との優先順位を明文化する
+- `RotoMaskEditor` の selection grammar を shape editing に再利用できるか見極める
 
 完了条件:
 - shape layer 選択時に viewport から直接 shape editing へ入れる
@@ -109,6 +125,7 @@ Blender / Illustrator / Spine の「編集対象としてのパス」に近い�
 - segment 上 click で vertex insert
 - open / close toggle
 - multi-vertex translation
+- polygon/Bezier の両方で同じ選択文法を維持する
 
 完了条件:
 - simple polygon/path を viewport だけで組み替えられる
@@ -126,6 +143,7 @@ Blender / Illustrator / Spine の「編集対象としてのパス」に近い�
 - handle only selection
 - selected anchor から handle create
 - tangent reset / flatten / align
+- handle 可視化と selection 状態を viewport で読めるようにする
 
 完了条件:
 - curve のニュアンスを viewport 上だけで詰められる
@@ -142,6 +160,7 @@ Blender / Illustrator / Spine の「編集対象としてのパス」に近い�
 - primitive parameter の初期形状を custom path へ焼き付け
 - conversion 後の bounds / anchor / gradient / stroke の整合維持
 - 既存 project load/save で custom path を自然に扱えることを確認
+- conversion は one-way だけでなく、可能なら revert / reset を考慮する
 
 完了条件:
 - rectangle / ellipse / star / polygon を path 編集へ自然に移行できる
@@ -157,6 +176,7 @@ Blender / Illustrator / Spine の「編集対象としてのパス」に近い�
 - reorder / toggle / remove
 - path base と processed result の見分けを overlay に出す
 - `Offset Paths`, `Rounded Corners`, `Pucker/Bloat`, `Twist`, `Repeater` を優先整理
+- operator を effect list ではなく modeling stack として見せる
 
 完了条件:
 - base path と processed path の区別が分かる
@@ -208,6 +228,9 @@ Blender / Illustrator / Spine の「編集対象としてのパス」に近い�
 - `docs/done/MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md`
 - `docs/COMPOSITION_EDITOR_CONTRACT.md`
 - `docs/planned/SHAPE_LAYER_ANALYSIS_2026-04-17.md`
+- `docs/done/MILESTONE_SHAPE_LAYER_ENHANCEMENT_2026-04-28.md`
+- `docs/planned/MILESTONE_VECTOR_LAYER_IMPORT_2026-03-25.md`
+- `Artifact/docs/MILESTONE_SHAPE_PATH_CORE_IMPLEMENTATION_2026-04-16.md`
 
 ## Next Slice
 
@@ -216,6 +239,7 @@ Blender / Illustrator / Spine の「編集対象としてのパス」に近い�
 - `Shape Edit` mode の導入
 - selected shape path / vertex selection state の ownership 整理
 - vertex / segment / tangent overlay の hit-test 優先順位整理
+- `RotoMaskEditor` の selection grammar を shape editing に寄せるか判断する
 
 この slice が通ると、その後の vertex insert や convert-to-editable-path を安全に足しやすくなる。
 

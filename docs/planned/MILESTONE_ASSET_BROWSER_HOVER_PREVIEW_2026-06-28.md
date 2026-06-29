@@ -24,6 +24,11 @@
 - `ArtifactAssetBrowser.cppm`では`generateThumbnail()`がサムネイル生成を担当
 - `AssetMenuItem`構造体には`icon`フィールドがあるが、ホバープレビュー用の大画像は用意されていない
 
+## 進捗メモ
+
+- 2026-06-29: Asset Browser 側に 300ms 遅延の hover popup を追加し、既存 thumbnail / preview 生成をそのまま大きく見せる初期 slice を入れた
+- 今後は image/video の大きめプレビュー精度、メタデータの充実、必要なら専用 popup の描画整理を進める
+
 ### 要件
 - 300msのディレイ後にプレビューポップアップを表示
 - 画像、動画、音声ファイルに対応
