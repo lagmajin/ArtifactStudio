@@ -243,4 +243,5 @@ Blender / Illustrator / Spine の「編集対象としてのパス」に近い�
 - `ArtifactRenderLayerWidgetV2` で selection grammar の土台になる状態表示と基本操作を揃えた
 - `ArtifactRenderLayerWidgetV2` で vertex selection の保持を始めた
 - `ArtifactRenderLayerWidgetV2` で Shift-click vertex selection toggle を入れた
+- `ArtifactRenderLayerWidgetV2` で Ctrl-click vertex selection add を入れた
 - 次は shape layer 選択時の vertex / segment / tangent selection grammar を実装する
