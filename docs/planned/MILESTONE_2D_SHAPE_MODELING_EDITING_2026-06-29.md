@@ -227,4 +227,5 @@ Blender / Illustrator / Spine の「編集対象としてのパス」に近い�
 - `ArtifactToolService` で `Shape` を `ToolType::Shape` に結び直した
 - `ArtifactRenderLayerWidgetV2` の shape context menu で polygon / path の hover summary と path vertex insert を出せるようにした
 - `ArtifactCompositionEditor` の shape selection detail で open / closed を読めるようにした
+- `ArtifactRenderLayerWidgetV2` で path segment hover を拾い、segment からの vertex insert に追従できるようにした
 - 次は shape layer 選択時の vertex / segment / tangent selection grammar を実装する
