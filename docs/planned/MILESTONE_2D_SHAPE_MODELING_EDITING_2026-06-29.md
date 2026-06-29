@@ -239,4 +239,5 @@ Blender / Illustrator / Spine の「編集対象としてのパス」に近い�
 - `ArtifactRenderLayerWidgetV2` の context menu で polygon editing の segment 数も見えるようにした
 - `ArtifactRenderLayerWidgetV2` の hover 表示を vertex / segment 番号付きにした
 - `ArtifactRenderLayerWidgetV2` の state 表示に hover 対象も出すようにした
+- `ArtifactRenderLayerWidgetV2` の path state 表示まわりの整形を進めた
 - 次は shape layer 選択時の vertex / segment / tangent selection grammar を実装する
