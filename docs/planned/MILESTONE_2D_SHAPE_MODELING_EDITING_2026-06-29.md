@@ -233,4 +233,5 @@ Blender / Illustrator / Spine の「編集対象としてのパス」に近い�
 - `ArtifactRenderLayerWidgetV2` で path vertex duplication をできるようにした
 - `ArtifactRenderLayerWidgetV2` で polygon vertex duplication をできるようにした
 - `ArtifactCompositionEditor` の path detail 表示を open / closed で読みやすくした
+- `ArtifactRenderLayerWidgetV2` の context menu で path state を確認しやすくした
 - 次は shape layer 選択時の vertex / segment / tangent selection grammar を実装する
