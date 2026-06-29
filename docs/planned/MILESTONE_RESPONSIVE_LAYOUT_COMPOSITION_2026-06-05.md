@@ -18,6 +18,13 @@
 - UI から variant を切り替えてプレビューできるようにする
 - 出力時に variant を明示選択できるようにする
 
+## Current Code Status
+
+- `ArtifactAbstractComposition` already stores `ResponsiveLayoutSet` and serializes it through `responsiveLayout`
+- Project Manager UI already exposes add / duplicate / edit / activate actions for layout variants
+- Render overlay and project model already surface the active layout variant in summaries
+- 2026-06-29 時点の残作業は、variant switch の見え方をさらに整理しつつ、必要なら preflight / export の明示メッセージを詰めること
+
 ## Variant examples
 
 - `16:9` - 横長の標準出力
