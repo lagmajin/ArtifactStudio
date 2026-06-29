@@ -29,6 +29,14 @@
 - 2026-06-29: Asset Browser 側に 300ms 遅延の hover popup を追加し、既存 thumbnail / preview 生成をそのまま大きく見せる初期 slice を入れた
 - 今後は image/video の大きめプレビュー精度、メタデータの充実、必要なら専用 popup の描画整理を進める
 
+## Next Slice
+
+- hover popup の表示条件を軽量化する
+- `generateThumbnail()` 直呼びを避けて、既存 thumbnail cache / preview cache を優先する
+- file move / mouse move ごとの再生成を抑えて、同一 path の再表示はキャッシュ再利用に寄せる
+- popup の作成/破棄や `QTimer` 接続の再構成を減らす
+- 画像以外の大きめ preview は、後段で専用 reader に分ける
+
 ### 要件
 - 300msのディレイ後にプレビューポップアップを表示
 - 画像、動画、音声ファイルに対応
