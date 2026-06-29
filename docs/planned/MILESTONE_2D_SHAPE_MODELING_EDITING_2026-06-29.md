@@ -230,4 +230,5 @@ Blender / Illustrator / Spine の「編集対象としてのパス」に近い�
 - `ArtifactRenderLayerWidgetV2` で path segment hover を拾い、segment からの vertex insert に追従できるようにした
 - `ArtifactRenderLayerWidgetV2` の tooltip / context menu で path segment hover を明示できるようにした
 - `ArtifactRenderLayerWidgetV2` で path segment を番号付きで識別できるようにした
+- `ArtifactRenderLayerWidgetV2` で path vertex duplication をできるようにした
 - 次は shape layer 選択時の vertex / segment / tangent selection grammar を実装する
