@@ -268,26 +268,29 @@ Effect preset と同じ文法に寄せるが、用途は `Entry / Exit Motion` �
 - expression / external override との優先順位を決める
 - serialization field 名を決める
 
-### Phase 2: Envelope Preset MVP
+### Phase 2: Property-Scoped Insert MVP
 
 完了条件:
 
-- blur / color / glow 系の代表 preset を 5 種類以上定義する
-- preset は既存 effect property を target にする
-- preset 適用時に通常 keyframe を作らない
+- effect property row から `前に挿入` / `後ろに挿入` できる
+- 挿入対象は preset 名ではなく、選択中 property 自体として扱う
+- 挿入時に通常 keyframe を作らない
 - layer in/out を動かしても envelope が追従する
-- `Add In/Out Envelope...` ダイアログから選択中レイヤーへ適用できる
-- 通常のレイヤー作成ダイアログには envelope UI を混ぜない
+- 最初の UI は `duration` / `strength` / `opacity追従` に絞る
+- 複雑な curve editor や preset browser を先に作らない
 
-候補 preset:
+最初の対象:
 
-- `Blur In`
-- `Blur Out`
-- `Soft Focus Entrance`
-- `Fade Saturation Out`
-- `Exposure Flash In`
-- `Glow Pop In`
-- `Chromatic Exit`
+- `blur.radius`
+- `opacity`
+- `exposure`
+- `glow.intensity`
+
+最初の形状:
+
+- `前`: layer 左端に追従する `/` 形
+- `後ろ`: layer 右端に追従する `\` 形
+- Phase 1/2 では複雑な easing 種別を持たず、直線 envelope を優先する
 
 ### Phase 3: Evaluation Integration
 
@@ -310,31 +313,47 @@ Effect preset と同じ文法に寄せるが、用途は `Entry / Exit Motion` �
 
 完了条件:
 
-- Inspector から envelope preset / duration / strength を設定できる
+- Inspector / property row から envelope の有無と基本設定を触れる
 - Timeline 上で entry / exit envelope の存在が読める
 - keyframe lane と envelope band が視覚的に混ざらない
 - UI 名称が `docs/WIDGET_MAP.md` の責務分担に沿っている
-- 専用ダイアログ、Inspector row、Timeline band の責務が分かれている
+- property row、Inspector row、Timeline band の責務が分かれている
 
 主な作業:
 
-- `ArtifactPropertyWidget` に envelope affordance を追加する
+- `ArtifactPropertyWidget` に `前に挿入` / `後ろに挿入` affordance を追加する
 - `ArtifactTimelineTrackPainterView` に envelope band 表示を追加する
-- `ArtifactInspectorWidget` の effect stack から preset 適用導線を作る
-- keyframe edit modal と envelope edit modal を混ぜない
+- `ArtifactInspectorWidget` の effect stack から対象 property の envelope 状態を要約する
+- keyframe edit modal と envelope drag 編集を混ぜない
+
+### Phase 4.25: Direct Manipulation Editing
+
+完了条件:
+
+- Timeline の envelope band を直接ドラッグして `duration` を変更できる
+- Timeline の envelope band を上下ドラッグして `strength` を変更できる
+- `opacity追従` などの補助モードを小さい popover / context menu から切り替えられる
+- keyframe diamond と envelope band の hit target が衝突しにくい
+
+主な作業:
+
+- band 端ドラッグで長さ変更する hit test を追加する
+- band 本体の上下ドラッグで strength を変える interaction を追加する
+- double click または context menu で補助モード UI を開く
+- envelope 選択時の強調表示と delete 操作を整理する
 
 ### Phase 4.5: Creation Flow Integration
 
 完了条件:
 
-- 新規レイヤー作成とは別に、`Envelope Layer...` 相当の高度な作成入口を検討できる
-- 既存の `CreateSolidLayerSettingDialog` の基本作成 UX が変わらない
-- `Envelope Effect` ダイアログを、選択済みレイヤーにも新規作成直後のレイヤーにも使い回せる
+- 新規レイヤー作成時に `前` / `後ろ` の envelope 挿入を軽量オプションとして選べる
+- 既存の `CreateSolidLayerSettingDialog` の基本作成 UX を壊さない
+- レイヤー作成直後の effect property に対して envelope を初期挿入できる
 
 主な作業:
 
-- dedicated dialog を service 経由で再利用できる形にする
-- selected layer が無い時は layer type / color / size を選べる starter mode を検討する
+- 作成ダイアログに重い preset browser を持ち込まず、`なし / 前 / 後ろ / 前後` 程度の軽い入口を検討する
+- effect 選択後に対象 property と side を解決する service を用意する
 - apply 後に selection / timeline refresh だけを明示的に行う
 - 新規 global signal-slot 経路を増やさない
 
@@ -393,6 +412,8 @@ Effect preset と同じ文法に寄せるが、用途は `Entry / Exit Motion` �
 - expression の `value` と envelope の順序を後から変えると互換性が崩れる
 - layer outPoint に追従する exit envelope は trim / stretch / slip と衝突しやすい
 - UI で keyframe と同じ見た目にすると、編集対象を誤認しやすい
+- preset 名中心の UI に寄せると、ユーザーが「effect property に前後を挿す」感覚とずれやすい
+- drag 操作を詰めずにダイアログ項目だけ増やすと、結局 keyframe workflow より遅くなる
 
 ---
 
