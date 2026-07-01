@@ -1,5 +1,17 @@
 # Milestones Backlog
 
+
+### Layer Component / Simulation
+- **M-LC-1** Layer Component Pipeline / Simulation Contract
+  - `cloner / layout / crowd / physics / fracture / emit` を phase-based に矛盾なく接続する
+  - preview fallback と authoritative simulation を分離し、将来の crowd / rigid / soft-body / pyro / bake に耐える土台を作る
+  - 詳細: `docs/planned/MILESTONE_LAYER_COMPONENT_PIPELINE_2026-07-01.md`
+
+- **M-LC-2** Generator / Modifier / Field Stack Migration
+  - `single cloner` 前提から、複数 generator と独立 field stack を持つ構造へ段階移行する
+  - `component.cloner.*` 互換を維持しつつ、`generators[] / modifiers[] / fields[]` の内部モデルへ寄せる
+  - 詳細: `docs/planned/MILESTONE_GENERATOR_MODIFIER_FIELD_STACK_2026-07-01.md`
+
 空いている時間に進めやすいよう、分野別に小さめのマイルストーンへ分割したバックログ。
 
 ## Completed Milestones (2026-04-14 verified)
@@ -938,6 +950,7 @@ active milestone の重複名としては扱わない。
 - **機能:** GPU パーティクル・2D 流体ソルバー (Smoke/Fire)・インタラクティブ・シミュレーション
 - **見積:** 40-60h
 - **詳細:** `docs/planned/MILESTONE_VFX_PARTICLE_FLUID_2026-03-30.md`
+- **補足:** `fluid` は layer component、`pyro` は独立 volume domain として分離する。`docs/planned/MILESTONE_FLUID_COMPONENT_VS_PYRO_DOMAIN_SPLIT_2026-07-01.md`
 
 ### M-VFX-2 AE-Style Simple Rain Effect
 - 既存 particle / effect 基盤で、AE っぽい簡易雨を最短構成で実現する
