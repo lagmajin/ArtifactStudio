@@ -6,6 +6,8 @@ This project uses a **parent-child submodule structure**:
 - **Parent**: `ArtifactStudio` (main branch)
 - **Children**: `Artifact`, `ArtifactCore`, `ArtifactWidgets` (all main branch)
 
+If you are already working on a development branch, prefer keeping **parent and children aligned on the same development branch name** and push that branch as-is instead of pushing to `origin/main`.
+
 **Before any commit/push operation**, read and follow: [`.github/GIT_WORKFLOW_PARENT_CHILD.md`](.github/GIT_WORKFLOW_PARENT_CHILD.md)
 
 ### Golden Rules (MUST FOLLOW)
@@ -15,13 +17,17 @@ This project uses a **parent-child submodule structure**:
 4. **Check before every push**:
    ```bash
    git status -s                    # Confirm which repos modified
-   git -C Artifact push origin main
-   git -C ArtifactCore push origin main
-   git -C ArtifactWidgets push origin main
+   git branch --show-current        # Confirm current branch
+   git -C Artifact branch --show-current
+   git -C ArtifactCore branch --show-current
+   git -C ArtifactWidgets branch --show-current
+   git -C Artifact push origin <current-branch>
+   git -C ArtifactCore push origin <current-branch>
+   git -C ArtifactWidgets push origin <current-branch>
    git add Artifact ArtifactCore ArtifactWidgets
    git commit -m "Bump_[RepoName]_to_[description]"
-   git push origin main
-   git log --oneline origin/main -1  # Verify success
+   git push origin <current-branch>
+   git log --oneline origin/<current-branch> -1  # Verify success
    ```
 
 5. **Never edit child repos unless explicitly requested by user**
