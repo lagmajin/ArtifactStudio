@@ -6,6 +6,15 @@ AI エージェントは **必ずこの手順を守ること**。
 
 ---
 
+## 🌿 **ブランチ方針**
+
+- 通常運用で `main` にいる場合は、親子とも `main` を使う
+- **開発ブランチで作業を始めた場合は、親子リポジトリを同名の開発ブランチにそろえ、そのブランチのまま commit / push を行う**
+- **AI は、開発ブランチ上で作業していることを確認したら、`origin/main` への push ではなく、現在の開発ブランチへの push を優先提案すること**
+- 親子で push 先ブランチ名がずれる場合は、その場で確認してから進める
+
+---
+
 ## 🚫 **禁止事項（MUST NOT）**
 
 1. **子リポジトリを直接編集後、親をプッシュしない**
@@ -47,11 +56,14 @@ git commit -m "feat_MyFeature_description"  # 親と同期しやすい名前に�
 git log --oneline -3
 git branch
 ```
-✅ **親と子が同じブランチ（`main`）にいることを確認**
+✅ **親と子が同じブランチにいることを確認**
+
+- `main` 運用の日: 親子とも `main`
+- 開発ブランチ運用の日: 親子とも同名の開発ブランチ
 
 #### Step 4: 子リポジトリを push
 ```bash
-git push origin main
+git push origin <current-branch>
 ```
 
 #### Step 5: 親リポジトリで gitlink 更新
@@ -61,7 +73,7 @@ git status
 # 出力: modified:   Artifact (new commits)
 git add Artifact
 git commit -m "Bump_Artifact_to_[commit_hash_or_description]"
-git push origin main
+git push origin <current-branch>
 ```
 
 #### Step 6: 親の push 成功を確認
@@ -93,7 +105,7 @@ cd X:\dev\ArtifactStudio
 git status  # Artifact/Core/Widgets に修正がないことを確認
 git add .
 git commit -m "chore_ParentRepo_description"
-git push origin main
+git push origin <current-branch>
 ```
 
 ---
@@ -108,10 +120,10 @@ git log --oneline -3  # ローカル ≠ リモート
 
 # 対応:
 # 1. 原因を特定（権限、競合など）
-# 2. git pull origin main（競合確認）
+# 2. git pull origin <current-branch>（競合確認）
 # 3. 競合があれば解決して再 push
 
-git push origin main
+git push origin <current-branch>
 ```
 
 ### **親の push に失敗したが、子は既に push した場合**
@@ -161,7 +173,7 @@ git log --oneline -1
 # コミットメッセージが "Bump_*" であれば OK
 
 # [ ] 4. 親の push 実行
-git push origin main
+git push origin <current-branch>
 
 # [ ] 5. 親の push が成功したか確認
 git log --oneline origin/main -1  # ローカルの HEAD と同じハッシュ？
@@ -182,9 +194,9 @@ git log --oneline origin/main -1  # ローカルの HEAD と同じハッシュ�
 |-----|-----|------|
 | 子を編集 | 1 | `git status` で確認 |
 | 子をコミット | 2 | `git commit` |
-| 子を push | 3 | `git push origin main` |
+| 子を push | 3 | `git push origin <current-branch>` |
 | 親の gitlink を更新 | 4 | `git add [child]` |
 | 親をコミット | 5 | `git commit -m "Bump_..."` |
-| 親を push | 6 | `git push origin main` ✅ 成功を確認 |
+| 親を push | 6 | `git push origin <current-branch>` ✅ 成功を確認 |
 
 **この順序を守ること。逆順や同時実行は禁止。**
