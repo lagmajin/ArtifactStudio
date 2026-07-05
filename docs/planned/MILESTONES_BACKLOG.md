@@ -12,6 +12,11 @@
   - `component.cloner.*` 互換を維持しつつ、`generators[] / modifiers[] / fields[]` の内部モデルへ寄せる
   - 詳細: `docs/planned/MILESTONE_GENERATOR_MODIFIER_FIELD_STACK_2026-07-01.md`
 
+- **M-LC-3** Live Field Authoring UX
+  - 先行実装済みの live radial field を、viewport direct manipulation と field stack 操作まで引き上げる
+  - center / radius drag、active field 選択、strength / blend / invert、shape 拡張の順で進める
+  - 詳細: `docs/planned/MILESTONE_LIVE_FIELD_AUTHORING_UX_2026-07-04.md`
+
 空いている時間に進めやすいよう、分野別に小さめのマイルストーンへ分割したバックログ。
 
 ## Completed Milestones (2026-04-14 verified)
@@ -1402,6 +1407,12 @@ active milestone の重複名としては扱わない。
 - `ViewportBookmarkManager` シングルトンによる集中管理
 - プロジェクトごとの保存、名前付けと整理、削除と並べ替え
 - 詳細: `docs/planned/MILESTONE_VIEWPORT_BOOKMARKS_2026-06-27.md`
+
+### M-VP-9 Viewport Interaction / Navigation / 3D Cursor
+- C4D 的な Point of Interest navigation、Frame Selected、View Undo / Redo、軽量 HUD を共通操作にする
+- Blender 的な 3D Cursor / Work Cursor を、pivot、orientation、生成位置、snap の共通基準点にする
+- preview-only view と render camera、3D Cursor と object pivot を明確に分離する
+- 詳細: `docs/planned/MILESTONE_VIEWPORT_INTERACTION_NAVIGATION_CURSOR_2026-07-04.md`
 
 ### M-PQ-1 Proxy Quality Toggle in Preview UI
 - Playback Control / Viewer フッターから Draft(1/4) / Preview(1/2) / Full を切替

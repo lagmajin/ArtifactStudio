@@ -193,3 +193,17 @@ ColorScienceManager (New)
 **高い実現性:** 既存の色管理ライブラリが非常に充実しているため、UI統合に注力できる。
 **市場差別化:** After Effectsにはないプロフェッショナルレベルの色管理機能。
 **拡張性:** 将来的にDaVinci Resolveレベルの機能を追加可能。
+
+## Future Extension Notes
+
+- `Color Interop ID`
+  - アプリ間で色空間や表示条件を共有するための識別子を導入する。
+  - 例: `scene_linear`, `display_srgb`, `acescg`, `rec709_scene` のような共通 ID を project / preset / interchange で参照する。
+  - まずは `ColorSpace` / `OCIOConfig` / `ACES` の既存概念に名前を付けるところから始める。
+
+### Future Pigment Extensions
+
+- `Pigment Color Mixing`
+  - 顔料ベースの混色モデルを color science 側でも扱えるようにする将来案。
+  - CMYK に限らず、白 / 黒 / 補助 pigment を含む mixing model として定義し、paint layer から参照できるようにする。
+  - まずは RGB 表示の前段にある「編集用混色モデル」として扱う。

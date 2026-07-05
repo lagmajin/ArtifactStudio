@@ -30,10 +30,10 @@ The current project already has useful building blocks.
 
 Relevant entry points:
 
-- [docs/WIDGET_MAP.md](/X:/Dev/ArtifactStudio/docs/WIDGET_MAP.md)
-- [Artifact/src/Widgets/Diagnostics/AppDebuggerWidget.cppm](/X:/Dev/ArtifactStudio/Artifact/src/Widgets/Diagnostics/AppDebuggerWidget.cppm)
-- [Artifact/src/Playback/ArtifactPlaybackEngine.cppm](/X:/Dev/ArtifactStudio/Artifact/src/Playback/ArtifactPlaybackEngine.cppm)
-- [Artifact/src/Widgets/ArtifactTimelineWidget.cpp](/X:/Dev/ArtifactStudio/Artifact/src/Widgets/ArtifactTimelineWidget.cpp)
+- [docs/WIDGET_MAP.md](WIDGET_MAP.md)
+- [Artifact/src/Widgets/Diagnostics/AppDebuggerWidget.cppm](../Artifact/src/Widgets/Diagnostics/AppDebuggerWidget.cppm)
+- [Artifact/src/Playback/ArtifactPlaybackEngine.cppm](../Artifact/src/Playback/ArtifactPlaybackEngine.cppm)
+- [Artifact/src/Widgets/ArtifactTimelineWidget.cpp](../Artifact/src/Widgets/ArtifactTimelineWidget.cpp)
 
 ## Non-Goals
 
@@ -332,8 +332,8 @@ This gives immediate value without entering risky low-level rendering code.
 
 A standalone MCP prototype now lives in:
 
-- [tools/debug-mcp-server/README.md](/X:/Dev/ArtifactStudio/tools/debug-mcp-server/README.md)
-- [tools/debug-mcp-server/server.js](/X:/Dev/ArtifactStudio/tools/debug-mcp-server/server.js)
+- [tools/debug-mcp-server/README.md](../tools/debug-mcp-server/README.md)
+- [tools/debug-mcp-server/server.js](../tools/debug-mcp-server/server.js)
 
 It currently runs with a local mock snapshot or an optional bridge file via `ARTIFACT_DEBUG_BRIDGE_FILE`.
 The app-side bridge hook now writes a temp-file snapshot by default, so the standalone server can read live state without extra configuration.

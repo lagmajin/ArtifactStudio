@@ -82,6 +82,8 @@
 
 - `ArtifactTimelineWidget`
   タイムライン全体を束ねる親ウィジェット。左ペイン、右ペイン、同期、playhead をまとめる。
+- `ArtifactDopeSheetWidget`
+  timeline-adjacent な Dope Sheet 専用面。複数 property の keyframe 一覧と時間編集に寄せる。
 - `ArtifactLayerPanelWidget`
   タイムライン左ペイン。レイヤー名、親、ブレンド列などを持つ独自ツリーパネル。
 - `ArtifactTimelineNavigatorWidget`
@@ -101,7 +103,7 @@
 
 タイムライン系のマイルストーンや責務を追うときは、まず次を参照する。
 
-- [MILESTONE_TIMELINE_INDEX_2026-04-22.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_INDEX_2026-04-22.md)
+- [MILESTONE_TIMELINE_INDEX_2026-04-22.md](planned/MILESTONE_TIMELINE_INDEX_2026-04-22.md)
 - 右ペインの表示責務は `M-TL-11`
 - キーフレーム編集の本筋は `M-TL-5` と `M-TL-7`
 - transform 系の掘り下げは `MILESTONE_TIMELINE_TRANSFORM_KEYFRAME_EDITING_2026-04-12.md`
@@ -110,6 +112,8 @@
 
 - `ArtifactTimelineWidget`
   orchestration / routing / playhead sync / subregion registration の親。
+- `ArtifactDopeSheetWidget`
+  dope sheet rows / keyframe summary / property-spanning timing view の担当。
 - `ArtifactLayerPanelWidget`
   left tree / row operations / mask / matte / shy / hide の担当。
 - `ArtifactTimelineNavigatorWidget`

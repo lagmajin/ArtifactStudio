@@ -221,6 +221,15 @@
 - `AssetDatabase`
 - 詳細ワークストリーム: `docs/planned/MILESTONE_PROJECT_ASSET_WORKFLOW_2026-03-27.md`
 
+### Future Extension Notes
+
+- `Metadata Tagging`
+  - クリップやアセットにキャラ名・シーン番号・テイク番号・評価などのメタデータを付与する。
+  - 既存の `tags` / `aiTags` / `aiNotes` を土台に、検索・フィルタ・並べ替えへ広げる候補とする。
+- `Smart Collections / Bins`
+  - 「★3以上の未使用素材」のような条件でアセットを動的に集約する。
+  - まずは既存の `folder / bin / favorite / recent` 基盤の上に、保存条件つきの仮想コレクションとして検討する。
+
 ---
 
 ## Phase 7: Export / Render

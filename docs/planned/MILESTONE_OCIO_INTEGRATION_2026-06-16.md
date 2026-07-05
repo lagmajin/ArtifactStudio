@@ -268,6 +268,17 @@ public:
 - `ArtifactColorSciencePanel` の `Export LUT` ボタンから起動
 - 出力サイズは 17 / 33 / 65 から選択
 
+### 3.8 Color Interop ID
+
+- アプリ間で共有できる色空間識別子を導入し、OCIO role / working space / display preset の参照名として扱う。
+- 例:
+  - `scene_linear`
+  - `display_srgb`
+  - `display_rec709`
+  - `working_acescg`
+  - `input_camera_log`
+- まずは project JSON と preset JSON のキーとして扱い、後から外部アプリ連携の交換フォーマットへ拡張する。
+
 ### 3.8 不変条件 (Guardrails)
 
 - 既存 `ColorACES.ixx` / `ColorGamutConversion.ixx` は **温存**

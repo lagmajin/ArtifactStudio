@@ -143,6 +143,13 @@ Core のエンジンはあるが、AE っぽい編集体験はまだ途中。
 5. Parent / Precompose / Motion Blur
 6. Expression / Color / Interop
 
+### Future Extension Note
+
+- `Color Interop ID`
+  - 外部アプリや他ツールと色空間定義を共有するための共通識別子。
+  - 例: `scene_linear`, `display_srgb`, `display_rec709`, `working_acescg`, `input_camera_log`
+  - まずは project 保存、preset 保存、interop export のキーとして扱い、OCIO / ACES の実設定へ橋渡しする。
+
 ---
 
 ## 注意
