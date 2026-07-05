@@ -218,6 +218,19 @@ public:
 - eraser は `dst *= (1 - alpha)`
 - `QImage` を使わず `ImageF32x4RGBAWithCache::pixelData(x, y)` 経由で編集
 
+### 3.4 Future Brush Extensions
+
+この milestone の first pass では扱わないが、paint / brush core が安定したあとに検討する拡張。
+
+- `NanoPixel`
+  - 超高解像度ブラシ描画の将来案。
+  - 画素単位の stamp だけに頼らず、サブピクセル精度、複数サンプルの畳み込み、dab 拡散の物理モデルを使って、見た目の精細さを画素数以上に引き上げる方向で検討する。
+  - まずは stroke core が安定してから、解像度依存しない brush engine の拡張として扱う。
+- `Pigment Color Mixing`
+  - RGB 合成ではなく、顔料ベースの混色を扱う将来案。
+  - cyan / magenta / yellow / white / black などの顔料チャネルを持つ brush preset や stroke preset を候補にする。
+  - まずは表示用 RGB とは別に編集用の物理混色モデルとして定義し、レンダリング側で RGB へ落とす。
+
 ### 3.5 Overlay.Composition 統合
 
 既存 `Overlay.Composition` の `paintEvent` に **brush cursor** を追加:

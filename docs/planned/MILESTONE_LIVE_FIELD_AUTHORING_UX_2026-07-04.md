@@ -15,7 +15,11 @@
 
 ## 1. 目的
 
+<<<<<<< HEAD
 Cinema 4D / Unreal Motion Design 的な field 制作体験を、そのまま巨大な generator system にせず、まずは既存 layer 群へ非破壊で作用する live field として育てる。
+=======
+Cinema 4D / Unreal Motion Design 的な field 制作体験を、そのまま巨大な generator system にせず、まずは **既存 layer 群へ非破壊で作用する live field** として育てる。
+>>>>>>> 6a05302 (chore_parent_repo_sync_all)
 
 今回の先行実装で、次までは到達済み:
 
@@ -78,6 +82,7 @@ Cinema 4D / Unreal Motion Design 的な field 制作体験を、そのまま巨�
 - 3D field
 - 新しい global signal 配線
 - field ごとの専用 dock 大量追加
+<<<<<<< HEAD
 
 ---
 
@@ -88,3 +93,99 @@ Cinema 4D / Unreal Motion Design 的な field 制作体験を、そのまま巨�
 - `strength / blend / invert` の最小パラメータを先に通す
 - radial 以外の shape は 1 種だけでも追加して契約を広げる
 
+=======
+- bake system 全体の設計完了
+
+---
+
+## 4. 実装フェーズ
+
+### Phase 1: Viewport Direct Manipulation
+
+- field center handle を hit-test 可能にする
+- radius handle を hit-test 可能にする
+- drag 中は composition overlay を live 更新する
+- release 時に 1 undo で戻せる command を積む
+- field local space と parent layer transform の往復を明示化する
+
+**Done criteria:**
+
+- center を viewport 上で直接動かせる
+- radius を viewport 上で直接変えられる
+- drag 中の見た目と release 後の値が一致する
+- 1 undo で drag 前へ戻せる
+
+### Phase 2: Field Stack Controls
+
+- field list UI を最小限追加
+- active field の選択を持てるようにする
+- strength / enabled / delete を list から直接操作できるようにする
+- 順序変更に備えて stable order を持たせる
+
+**Done criteria:**
+
+- 複数 field があっても対象を迷わず選べる
+- menu だけでなく list から状態操作できる
+- 将来の reorder 実装を阻害しないデータ構造になる
+
+### Phase 3: Influence Controls
+
+- `strength`
+- `blendMode`
+- `invert`
+- radial 専用の `edgeScale / expansion` と共存できる parameter へ整理
+
+**Done criteria:**
+
+- 1 つの field が「どれだけ効くか」を明示的に制御できる
+- 複数 field を将来合成しても契約が破綻しない
+
+### Phase 4: Shape Expansion
+
+- `box`
+- `linear`
+- 必要なら `solid`
+
+最初から noise まで広げず、overlay / hit-test / evaluation の共通契約を先に固める。
+
+**Done criteria:**
+
+- radial 以外の 2 種以上で同じ authoring 流れが成立する
+- shape ごとの差分が descriptor と overlay に閉じる
+
+### Phase 5: Generator / Modifier Bridge
+
+- field を transform layer 専用の裏機能で終わらせず、
+  `generator / modifier / future dynamics` から読める contract へ寄せる
+- `position only` 前提から、将来の weight / scale / color / time offset に拡張できる influence 出力へ整理する
+
+**Done criteria:**
+
+- field の出力契約が layer transform 専用に閉じない
+- `M-LC-2 Generator / Modifier / Field Stack Migration` と自然に接続できる
+
+---
+
+## 5. 設計メモ
+
+- 直接 manipulation は `ArtifactCompositionRenderController` の既存 input path 内に閉じる
+- 新規 signal / slot は追加しない
+- overlay は今の composition overlay pass を再利用する
+- drag 中の一時値更新と undo command の最終確定を分ける
+- `ArtifactAbstractLayer` の transform evaluation は non-destructive のまま維持する
+
+---
+
+## 6. 次回の再開点
+
+次に着手するなら **Phase 1: Viewport Direct Manipulation** から再開する。
+
+着手順:
+
+1. field handle hit-test の導入
+2. center drag
+3. radius drag
+4. drag undo の確定
+
+この順なら、既存 overlay と menu 実装を活かしながら最小差分で実用域へ持っていける。
+>>>>>>> 6a05302 (chore_parent_repo_sync_all)

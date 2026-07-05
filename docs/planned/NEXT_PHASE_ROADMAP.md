@@ -2,11 +2,11 @@
 
 ## 関連する上位マイルストーン
 
-- [UI Scriptability And Adaptive Surface Milestone](/X:/Dev/ArtifactStudio/docs/planned/MILESTONE_UI_SCRIPTABILITY_AND_ADAPTIVE_SURFACE_2026-06-07.md)
-- [UI Theme System / Studio Skin Milestone](/X:/Dev/ArtifactStudio/docs/planned/MILESTONE_UI_THEME_SYSTEM_2026-03-30.md)
-- [M-SC-2 Shortcut Context Map / Blender-Like Keymap Routing](/X:/Dev/ArtifactStudio/docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_2026-04-21.md)
-- [Physical Motion Blur Milestone](/X:/Dev/ArtifactStudio/docs/planned/MILESTONE_PHYSICAL_MOTION_BLUR_2026-06-07.md)
-- [Export Matrix And Alpha Clarity Milestone](/X:/Dev/ArtifactStudio/docs/planned/MILESTONE_EXPORT_MATRIX_2026-06-07.md)
+- [UI Scriptability And Adaptive Surface Milestone](MILESTONE_UI_SCRIPTABILITY_AND_ADAPTIVE_SURFACE_2026-06-07.md)
+- [UI Theme System / Studio Skin Milestone](MILESTONE_UI_THEME_SYSTEM_2026-03-30.md)
+- [M-SC-2 Shortcut Context Map / Blender-Like Keymap Routing](MILESTONE_SHORTCUT_CONTEXT_MAP_2026-04-21.md)
+- [Physical Motion Blur Milestone](MILESTONE_PHYSICAL_MOTION_BLUR_2026-06-07.md)
+- [Export Matrix And Alpha Clarity Milestone](MILESTONE_EXPORT_MATRIX_2026-06-07.md)
 
 このロードマップは、Project View から Timeline への流れを具体化するための下位計画として残しつつ、
 UI 全体の scriptable 化や keymap 再定義は上位マイルストーンで扱う。

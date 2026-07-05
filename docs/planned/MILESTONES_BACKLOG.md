@@ -1412,9 +1412,21 @@ active milestone の重複名としては扱わない。
 - 1-9キーでブックマーク適用、Ctrl+1-9で現在の状態を保存
 - `ViewportBookmarkManager` シングルトンによる集中管理
 - プロジェクトごとの保存、名前付けと整理、削除と並べ替え
+<<<<<<< HEAD
 - 詳細: `docs/planned/MILESTONE_VIEWPORT_BOOKMARKS_2026-06-27.md`
 
 ### M-PQ-1 Proxy Quality Toggle in Preview UI
+=======
+- 詳細: `docs/planned/MILESTONE_VIEWPORT_BOOKMARKS_2026-06-27.md`
+
+### M-VP-9 Viewport Interaction / Navigation / 3D Cursor
+- C4D 的な Point of Interest navigation、Frame Selected、View Undo / Redo、軽量 HUD を共通操作にする
+- Blender 的な 3D Cursor / Work Cursor を、pivot、orientation、生成位置、snap の共通基準点にする
+- preview-only view と render camera、3D Cursor と object pivot を明確に分離する
+- 詳細: `docs/planned/MILESTONE_VIEWPORT_INTERACTION_NAVIGATION_CURSOR_2026-07-04.md`
+
+### M-PQ-1 Proxy Quality Toggle in Preview UI
+>>>>>>> 6a05302 (chore_parent_repo_sync_all)
 - Playback Control / Viewer フッターから Draft(1/4) / Preview(1/2) / Full を切替
 - quality 切替で render cache invalidation と必要に応じて warm-up 再キャッシュ
 - Composition 設定として quality preset 保存（新規作成時に復元）

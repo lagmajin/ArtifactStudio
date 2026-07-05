@@ -36,6 +36,18 @@ If you are already working on a development branch, prefer keeping **parent and 
 
 AI が UI 名称やウィジェット責務で迷ったら、まず [docs/WIDGET_MAP.md](docs/WIDGET_MAP.md) を参照してください。
 
+### ドキュメント検索
+
+全ドキュメント（952ファイル）のインベントリは `docs/INDEX_GENERATED.md` で管理されている。
+
+新しい作業を始める前にこのファイルを参照し、既存の関連文書を確認すること。
+特に `docs/analysis/` には最新のギャップ分析が、`docs/done/` には完了マイルストーンが、
+`docs/planned/` には計画中のマイルストーンが格納されている。
+
+文書ライフサイクルルールは `docs/DOC_LIFECYCLE.md` を参照すること。
+
+
+
 特にタイムライン周辺は、UI 上の呼び方とコード上のクラス名がずれやすいので、名称確認を先に行うこと。
 
 制作パス系の実装マイルストーンは [Artifact/docs/MILESTONE_M11_SOFTWARE_RENDER_PIPELINE_2026-03-11.md](Artifact/docs/MILESTONE_M11_SOFTWARE_RENDER_PIPELINE_2026-03-11.md) を参照してください。

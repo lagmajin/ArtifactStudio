@@ -1,6 +1,6 @@
 # ArtifactStudio 子モジュール実装マップ
 
-**作成**: 2026-07-02  
+**作成**: 2026-07-03  
 **対象**: `ArtifactCore` / `Artifact` / `ArtifactWidgets`  
 **目的**: 全実装の俯瞰マップ。今後の開発で「どこが完了済みか」「どこに手を付けるべきか」を即座に判断するためのインデックス。
 
@@ -306,7 +306,7 @@ WidgetGlowFrame   AbstractEffect         ImageProcessing::*
 
 ---
 
-**最終更新**: 2026-07-02 (ShapeOperator Difference/Merge 追加, Command IR Phase1 Executor実装)  
+**最終更新**: 2026-07-03 (キーフレーム追従, TextAnimator ease, Precompose, PickWhip, AdjLayer GPU, BlendGPU全種, Matte評価順 — 7マイルストーン完了)  
 **総ファイル数**: ~760 (ArtifactCore ~244 + Artifact ~420 + ArtifactWidgets ~96)  
 **次回更新**: 新モジュール追加時 / マイルストーン完了時 / 大規模リファクタ後
 
