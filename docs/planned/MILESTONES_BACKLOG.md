@@ -17,6 +17,22 @@
   - center / radius drag、active field 選択、strength / blend / invert、shape 拡張の順で進める
   - 詳細: `docs/planned/MILESTONE_LIVE_FIELD_AUTHORING_UX_2026-07-04.md`
 
+### Core / Type System
+- **M-CORE-5** Custom Collections Design
+  - `std` / `Qt` の境界を薄くしつつ、用途ごとの自前コレクションへ段階移行する
+  - `Array<T>`, `String`, `Ptr<T>`, `Ref<T>`, `Owned<T>` の最小 API と採用順を整理する
+  - 詳細: `docs/planned/MILESTONE_CUSTOM_COLLECTIONS_DESIGN_2026-07-04.md`
+
+- **M-CORE-6** Domain Type Wrappers
+  - 素のテンプレート露出を避け、`LayerList`, `EffectRegistry`, `PropertyBag` のような自己文書化型へ包む
+  - `add()`, `remove()`, `contains()`, `get()` を揃え、暗黙変換を避ける
+  - 詳細: `docs/planned/MILESTONE_DOMAIN_TYPE_WRAPPERS_2026-07-04.md`
+
+- **M-CORE-7** std → Qt Migration Plan
+  - `vector`, `mutex`, `string`, `shared_ptr` などの置換優先度と例外を整理する
+  - 置換しない標準型も明文化して、混在を減らす
+  - 詳細: `docs/planned/MILESTONE_STD_TO_QT_MIGRATION_2026-07-04.md`
+
 空いている時間に進めやすいよう、分野別に小さめのマイルストーンへ分割したバックログ。
 
 ## Completed Milestones (2026-04-14 verified)
