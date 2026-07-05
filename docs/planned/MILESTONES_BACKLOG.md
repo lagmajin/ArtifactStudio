@@ -12,6 +12,11 @@
   - `component.cloner.*` 互換を維持しつつ、`generators[] / modifiers[] / fields[]` の内部モデルへ寄せる
   - 詳細: `docs/planned/MILESTONE_GENERATOR_MODIFIER_FIELD_STACK_2026-07-01.md`
 
+- **M-LC-3** Live Field Authoring UX
+  - 先行実装済みの live radial field を、viewport direct manipulation と field stack 操作まで引き上げる
+  - center / radius drag、active field 選択、strength / blend / invert、shape 拡張の順で進める
+  - 詳細: `docs/planned/MILESTONE_LIVE_FIELD_AUTHORING_UX_2026-07-04.md`
+
 空いている時間に進めやすいよう、分野別に小さめのマイルストーンへ分割したバックログ。
 
 ## Completed Milestones (2026-04-14 verified)
@@ -1379,6 +1384,12 @@ active milestone の重複名としては扱わない。
 - ペインごとの独立 Zoom/Pan 状態保持、playhead の同期更新
 - EventBus でのペインイベント multicast、非アクティブペイン低Hz ポーリングによる最適化
 - 詳細: `docs/planned/MILESTONE_MULTI_VIEWPORT_LAYOUT_2026-06-01.md`
+
+### M-VP-9 Viewport Interaction / Navigation / 3D Cursor
+- C4D 的な Point of Interest navigation、Frame Selected、View Undo / Redo、軽量 HUD を共通操作にする
+- Blender 的な 3D Cursor / Work Cursor を、pivot、orientation、生成位置、snap の共通基準点にする
+- preview-only view と render camera、3D Cursor と object pivot を明確に分離する
+- 詳細: `docs/planned/MILESTONE_VIEWPORT_INTERACTION_NAVIGATION_CURSOR_2026-07-04.md`
 
 ### M-VP-4 Viewport Canvas Rotation System
 - After Effects風のキャンバス回転機能（任意角度 -180°〜+180°）
