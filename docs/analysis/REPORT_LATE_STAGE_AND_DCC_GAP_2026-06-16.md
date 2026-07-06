@@ -104,7 +104,7 @@
 - Corner Pin (UI node)
 - Liquify / Mesh Warp
 
-→ `MILESTONE_GLOW_VARIANTS_2026-06-13.md` / `MILESTONE_MESH_WARP_LIQUIFY_2026-06-02.md` の doc はあるが、コード根拠 0 hit。
+→ `docs/done/MILESTONE_GLOW_VARIANTS_2026-06-13.md` / `MILESTONE_MESH_WARP_LIQUIFY_2026-06-02.md` の doc はあるが、コード根拠 0 hit。
 
 ### 2.8 Color (DaVinci Resolve / Baselight / Nuke)
 

@@ -91,7 +91,7 @@ Artifact のタイムラインは `ArtifactTimelineWidget` を中核に、左ペ
 | **Value Graph ⇔ Speed Graph 切替** | AE | ⚠️ 宣言あり。Curve Editor 本体未接続 |
 | **ベジェハンドル独立操作** | AE/Blender | ⚠️ 部分的 |
 | **ハンドルタイプ切替（Free/Aligned/Vector/Auto/Auto Clamped）** | Blender | ❌ |
-| ** Proportional Editing（減衰編集）** | Blender | ❌ 選択キーフレーム周辺も滑らかに追従 |
+| ** Proportional Editing（減衰編集）** | Blender | 🟡 Phase 1: 右ペイン marker drag と area body/edge の時間編集まで対応。value/graph は未対応 |
 | **Pivot Point（変形基点切替）** | Blender | ❌ Bounding Box Center / 2D Cursor / Individual Origins |
 | **Auto-Snap（自動スナップ）** | Blender | ❌ 編集後に自動でフレーム/秒/マーカーに吸着 |
 | **Normalize Curves（正規化表示）** | Blender | ❌ 全カーブを 0-1 範囲に正規化して相対比較 |

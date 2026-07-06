@@ -33,14 +33,15 @@ def get_git_last_modified(filepath: Path) -> Optional[str]:
     return None
 
 
-def extract_title_and_date(filepath: Path) -> tuple[str, Optional[str], list[str]]:
+def extract_title_and_date(filepath: Path) -> tuple[str, Optional[str], Optional[str], list[str]]:
     title = filepath.stem
     date = None
+    status = None
     keywords: list[str] = []
     try:
         content = filepath.read_text("utf-8", errors="replace")
     except (OSError, UnicodeDecodeError):
-        return title, date, keywords
+        return title, date, status, keywords
 
     for line in content.splitlines():
         m = re.match(r"^#\s+(.+)$", line)
@@ -55,6 +56,12 @@ def extract_title_and_date(filepath: Path) -> tuple[str, Optional[str], list[str
         m = re.match(r"^Tags?:\s*(.+)$", line, re.IGNORECASE)
         if m:
             keywords.extend(t.strip() for t in m.group(1).split(","))
+        m = re.match(r"^\*\*ステータス:\*\*\s*(.+)$", line)
+        if m and not status:
+            status = m.group(1).strip()
+        m = re.match(r"^Status:\s*(.+)$", line, re.IGNORECASE)
+        if m and not status:
+            status = m.group(1).strip()
 
     if not date:
         m = re.search(r"(\d{4}-\d{2}-\d{2})", filepath.stem)
@@ -66,7 +73,23 @@ def extract_title_and_date(filepath: Path) -> tuple[str, Optional[str], list[str
     for word in stem.split()[:5]:
         if word and word not in keywords and len(word) > 2:
             keywords.append(word)
-    return title, date, keywords
+    return title, date, status, keywords
+
+
+def extract_status(filepath: Path) -> Optional[str]:
+    try:
+        content = filepath.read_text("utf-8", errors="replace")
+    except (OSError, UnicodeDecodeError):
+        return None
+
+    for line in content.splitlines():
+        m = re.match(r"^\*\*ステータス:\*\*\s*(.+)$", line)
+        if m:
+            return m.group(1).strip()
+        m = re.match(r"^Status:\s*(.+)$", line, re.IGNORECASE)
+        if m:
+            return m.group(1).strip()
+    return None
 
 
 def categorize(path: Path) -> str:
@@ -94,13 +117,14 @@ def scan_directory(base_dir: Path) -> list[dict]:
         if should_exclude(md_file):
             continue
         rel_path = md_file.relative_to(ROOT)
-        title, date, keywords = extract_title_and_date(md_file)
+        title, date, status, keywords = extract_title_and_date(md_file)
         git_date = get_git_last_modified(md_file)
         size_kb = md_file.stat().st_size / 1024
         files.append({
             "path": rel_path.as_posix(),
             "title": title,
             "date": date or "---",
+            "status": status or "---",
             "keywords": ", ".join(keywords[:8]) if keywords else "---",
             "git_date": git_date or "---",
             "size_kb": f"{size_kb:.1f}",
@@ -123,12 +147,12 @@ def generate_index(all_files: list[dict]) -> str:
     for cat_name in sorted(categories.keys()):
         cat_files = categories[cat_name]
         lines.append(f"## {cat_name} ({len(cat_files)} files)\n")
-        lines.append("| # | File | Title | Date | Modified | Size | Keywords |")
-        lines.append("|---|------|-------|------|----------|------|----------|")
+        lines.append("| # | File | Title | Date | Status | Modified | Size | Keywords |")
+        lines.append("|---|------|-------|------|--------|----------|------|----------|")
         for idx, f in enumerate(cat_files, 1):
             t = f["title"].replace("|", "\\|").replace("\n", " ")[:80]
             k = f["keywords"].replace("|", "\\|")[:60]
-            lines.append(f"| {idx} | `{f['path']}` | {t} | {f['date']} | {f['git_date']} | {f['size_kb']} KB | {k} |")
+            lines.append(f"| {idx} | `{f['path']}` | {t} | {f['date']} | {f['status']} | {f['git_date']} | {f['size_kb']} KB | {k} |")
         lines.append("")
 
     lines.append("---\n## Statistics\n| Category | Count |\n|---------|-------|")
@@ -150,13 +174,38 @@ def check_broken_links(all_files: list[dict]) -> list[str]:
         except (OSError, UnicodeDecodeError):
             continue
         base_dir = filepath.parent
+        in_fenced_code = False
         for match in link_pattern.finditer(content):
             link_text, link_target = match.groups()
+            line_start = content.rfind("\n", 0, match.start()) + 1
+            line = content[line_start:content.find("\n", match.start()) if content.find("\n", match.start()) != -1 else len(content)]
+
+            if line.strip().startswith("```"):
+                in_fenced_code = not in_fenced_code
+                continue
+            if in_fenced_code:
+                continue
+
             if link_target.startswith(("http://", "https://", "ftp://")):
                 continue
-            if link_target.startswith(("X:\\", "X:/", "C:\\", "D:\\")):
+            if link_target.startswith(("X:\\", "X:/", "C:\\", "D:\\", "file:///")):
+                warnings.append(
+                    f"  ABSOLUTE: {f_entry['path']} link '{link_text}' "
+                    f"-> {link_target} (prefer relative path)"
+                )
                 continue
             if link_target.startswith("#"):
+                continue
+            if not (
+                "/" in link_target
+                or "\\" in link_target
+                or link_target.startswith(("./", "../"))
+                or link_target.lower().endswith(".md")
+                or link_target.lower().endswith(".ixx")
+                or link_target.lower().endswith(".cppm")
+                or link_target.lower().endswith(".cpp")
+                or link_target.lower().endswith(".h")
+            ):
                 continue
             resolved = (base_dir / link_target).resolve()
             if not resolved.exists():
@@ -164,6 +213,34 @@ def check_broken_links(all_files: list[dict]) -> list[str]:
                     f"  BROKEN: {f_entry['path']} link '{link_text}' "
                     f"-> {link_target} (not found)"
                 )
+    return warnings
+
+
+def check_lifecycle_issues(all_files: list[dict]) -> list[str]:
+    warnings: list[str] = []
+    for f_entry in all_files:
+        rel_path = f_entry["path"]
+        filepath = ROOT / rel_path
+        if not filepath.exists():
+            continue
+        if not rel_path.startswith("docs/planned/"):
+            continue
+
+        status = extract_status(filepath)
+        if not status:
+            continue
+        normalized = status.strip().lower()
+        explicit_complete = (
+            status.lstrip().startswith("✅")
+            or normalized.startswith("complete")
+            or normalized.startswith("completed")
+            or normalized.startswith("done")
+            or status.startswith("完了")
+        )
+        if explicit_complete:
+            warnings.append(
+                f"  LIFECYCLE: {rel_path} is still under docs/planned/ but marked '{status}'"
+            )
     return warnings
 
 
@@ -195,6 +272,15 @@ def main():
             print(w)
     else:
         print("No broken links found (not exhaustive)")
+
+    print("\n--- Lifecycle validation (Phase 2 preview) ---")
+    lifecycle_warnings = check_lifecycle_issues(all_files)
+    if lifecycle_warnings:
+        print(f"Warnings: {len(lifecycle_warnings)}")
+        for w in lifecycle_warnings:
+            print(w)
+    else:
+        print("No planned/done lifecycle issues found")
     print("\nDone.")
 
 

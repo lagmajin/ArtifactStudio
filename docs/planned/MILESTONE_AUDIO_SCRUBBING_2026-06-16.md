@@ -25,6 +25,15 @@
 
 ---
 
+## 実装状況メモ (2026-07-07)
+
+- `ArtifactAudioScrubController` は既に存在し、worker thread / debounce / latency 計測 / 設定保存 / diagnostics を持つ
+- `ArtifactTimelineWidget` と `ArtifactCompositionEditor` 側から scrub 開始・位置更新・停止が接続されている
+- `ApplicationSettingDialog` から scrub 設定を操作できる
+- したがって、文書上の「未着手」ではなく、**実装済みだが検証・磨き込み継続中** とみなすのが実態に近い
+
+---
+
 ## 1. 目的
 
 `FEATURE_AUDIT_MOTION_DESIGN_2026-06-02.md` (#20):

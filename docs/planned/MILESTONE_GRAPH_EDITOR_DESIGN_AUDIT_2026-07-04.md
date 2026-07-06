@@ -7,7 +7,7 @@
 | 機能 | 参照元 | 状態 |
 |---|---|---|
 | **Value Graph 表示** | AE | ✅ |
-| **Speed Graph 表示** | AE | ⚠️ 宣言あり、本体未接続 |
+| **Speed Graph 表示** | AE | ⚠️ 表示とサンプルは接続済み、編集は未対応 |
 | **キーフレーム選択/移動/削除** | AE/Blender | ⚠️ |
 | **ベジェハンドル編集** | AE/Blender | ⚠️ 部分的 |
 | **ハンドルタイプ切替（Free/Aligned/Vector/Auto/AutoClamped）** | Blender | ❌ |
@@ -41,3 +41,11 @@
 | **Curve Mirror（時間/値反転）** | Blender | ❌ |
 | **Easy Ease 一発適用** | AE F9 | ⚠️ |
 | **Elastic/Bounce プリセット** | Motion 4 | ❌ |
+
+---
+
+## 実装状況メモ (2026-07-07)
+
+- `ArtifactCurveEditorWidget` 側には `sampleSpeedGraph()` があり、Timeline 側も read-only の Speed Graph 表示に接続されている
+- そのため「未接続」よりは、**表示はあるが編集はまだ足りない** と表現する方が現在の実態に近い
+- 今後の中心は、Speed Graph の編集導線、ハンドル操作、そして Blender 風の補助機能の段階的追加

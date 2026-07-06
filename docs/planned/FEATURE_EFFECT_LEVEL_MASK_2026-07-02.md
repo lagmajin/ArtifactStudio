@@ -84,3 +84,10 @@ class ArtifactAbstractEffect {
 - 現在のレイヤーマスク実装: `Artifact/src/Mask/LayerMask.cppm`
 - 現在のエフェクトパイプライン: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` `buildRasterizedSurfaceBuffer()`
 - エフェクト抽象: `Artifact/include/Effects/ArtifactAbstractEffect.ixx`
+
+## 実装状況メモ (2026-07-07)
+
+- `ArtifactAbstractEffect` 側に primary mask image と追加 effect mask images の保持が入った。
+- `ArtifactPresetManager` で effect mask image を preset 往復できるようになった。
+- `ArtifactTextLayer` の Source Text keyframe 露出と合わせ、マスク系の保存/復元の土台は前進している。
+- まだ UI からの割り当て導線は未実装のため、本 milestone は Phase 1-2 の途中段階。

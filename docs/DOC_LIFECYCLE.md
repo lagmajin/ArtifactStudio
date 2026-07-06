@@ -23,3 +23,17 @@
 完了時はファイルを `docs/planned/` から `docs/done/` へ移動し、冒頭に追加する。
 
 **ステータス:** ✅ Complete
+
+## 自動チェック
+
+`tools/generate_doc_inventory.py` は、`docs/INDEX_GENERATED.md` の生成に加えて次を警告する。
+
+- `docs/planned/` に残っている `Complete` 文書
+- Markdown 内の絶対パスリンク
+- 壊れている相対リンク
+
+運用時は次のように使う。
+
+```powershell
+python tools/generate_doc_inventory.py
+```

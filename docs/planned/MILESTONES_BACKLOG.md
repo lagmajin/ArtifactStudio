@@ -753,6 +753,12 @@ active milestone の重複名としては扱わない。
 - マイルストーン文書 `docs/done/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md` + `docs/done/MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md`
 - **未完了 (stretch goal):** キーフレームの時間軸スケーリング（全レイヤー一括伸縮）
 
+### M-TL-17 Timeline Proportional Keyframe Editing 🚧
+- 右ペイン `ArtifactTimelineTrackPainterView` に Blender 風の proportional editing を導入する
+- Phase 1 は selected keyframes の time move のみに絞る
+- `O` で on/off、`[` `]` で半径変更
+- 詳細は `docs/planned/MILESTONE_TIMELINE_PROPORTIONAL_KEYFRAME_EDITING_2026-07-06.md`
+
 ### M-TL-6 Timeline Layer Search
 - タイムライン上部の検索バーで layer / effect / tag / state をインクリメンタルに絞り込む
 - 詳細は `docs/planned/MILESTONE_TIMELINE_LAYER_SEARCH_2026-03-28.md`
@@ -1490,7 +1496,7 @@ active milestone の重複名としては扱わない。
 ### M-UI-26 Numeric Field Quick Calc
 - 数値フィールドで `+10` / `-5` / `*2` / `/3` の簡易計算式を受け付ける
 - Enter 確定で計算結果を反映し、数値の再入力を減らす
-- 詳細は `docs/planned/MILESTONE_NUMERIC_FIELD_QUICK_CALC_2026-06-07.md`
+- 詳細は `docs/done/MILESTONE_NUMERIC_FIELD_QUICK_CALC_2026-06-07.md`
 
 ### M-TL-3 Keyframe Nudge / Temp Snap Override ✅ 完了
 - 完了: `docs/done/MILESTONE_KEYFRAME_NUDGE_AND_TEMP_SNAP_OVERRIDE_2026-06-07.md`

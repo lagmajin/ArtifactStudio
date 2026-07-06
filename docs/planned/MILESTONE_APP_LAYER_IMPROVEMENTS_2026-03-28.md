@@ -58,7 +58,7 @@
 
 ## 発見された問題点（未実装）
 
-### ★★★ 問題 1: WebUI ブリッジの未実装機能
+### ★★★ 問題 1: WebUI ブリッジの実装整理
 
 **場所:** `Artifact/src/Widgets/WebUI/ArtifactWebBridge.cppm`
 
@@ -77,8 +77,11 @@
 // TODO: Get current selected layer and serialize its effects/properties to JSON
 ```
 
-**ステータス:** ❌ 未実装  
-**工数:** 4-6 時間
+**現状:** `selectLayer()`, `setEffectProperty()`, `getProjectInfo()`, `getSelectedLayerProperties()` は実装済み。
+**残り:** LayerID / effect lookup / composition statistics / selected layer JSON の仕様差分整理
+
+**ステータス:** △ 部分実装
+**工数:** 1-2 時間
 
 ---
 
@@ -125,7 +128,7 @@ void ArtifactVideoLayer::generateProxy() {
 |------|-----------|------|
 | **Undo/Redo 統合 段階 1** | ✅ 完了 | 20-30h（うち段階 1:10h） |
 | **ASIO スタブバックエンド** | ✅ 完了 | 12-18h |
-| **WebUI ブリッジ** | ❌ 未着手 | 4-6h |
+| **WebUI ブリッジ** | △ 部分実装 | 1-2h |
 | **VideoLayer Proxy** | ❌ 未着手 | 6-8h |
 | **プロジェクト管理** | ❌ 未着手 | 4-6h |
 

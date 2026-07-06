@@ -15,11 +15,7 @@
 
 ## 1. 目的
 
-<<<<<<< HEAD
-Cinema 4D / Unreal Motion Design 的な field 制作体験を、そのまま巨大な generator system にせず、まずは既存 layer 群へ非破壊で作用する live field として育てる。
-=======
 Cinema 4D / Unreal Motion Design 的な field 制作体験を、そのまま巨大な generator system にせず、まずは **既存 layer 群へ非破壊で作用する live field** として育てる。
->>>>>>> 6a05302 (chore_parent_repo_sync_all)
 
 今回の先行実装で、次までは到達済み:
 
@@ -32,9 +28,9 @@ Cinema 4D / Unreal Motion Design 的な field 制作体験を、そのまま巨�
 
 一方で、日常的に使うにはまだ次が不足している:
 
-- viewport 上で field center / radius を直接ドラッグできない
-- field の選択状態や hover が弱い
-- strength / blend / invert / reorder など stack 的な操作がない
+- viewport 上で field center / radius を直接ドラッグできるが、ハンドル演出はまだ最小限
+- field の選択状態や hover が見える
+- strength / blend / invert / reorder など stack 的な操作は一部 menu で扱える
 - radial 以外の field shape がない
 - generator / modifier 側の field mask 契約へまだ接続していない
 
@@ -52,15 +48,16 @@ Cinema 4D / Unreal Motion Design 的な field 制作体験を、そのまま巨�
 - add / update / remove の undo
 - menu からの作成、編集、有効/無効、削除
 - 選択対象に関係する field の viewport overlay
+- viewport 上での center / radius 直接ドラッグ
 
 ### 2.2 未完了
 
 | 軸 | 状況 | 影響 |
 |---|---|---|
-| Viewport drag | 未実装 | center / radius の編集が毎回ダイアログ寄り |
-| Hover / active state | 弱い | どの field を触るか迷いやすい |
-| Field stack controls | 未実装 | 複数 field を重ねた制作に移れない |
-| Blend / weight / invert | 未実装 | C4D 的な influence 設計に広がらない |
+| Viewport drag | 一部実装 | center / radius を viewport で直接ドラッグできるが、専用ハンドルの見た目はまだ簡素 |
+| Hover / active state | 実装済み | viewport hover と active 選択の導線があり、active は badge と menu list でも見える |
+| Field stack controls | 一部実装 | active 巡回、順序変更、menu 経由の enable/edit/delete と最小 list UI はあるが、独立 panel はまだ必要 |
+| Blend / weight / invert | 一部実装 | strength / blendMode / invert を保持・編集できるが、UI surface はまだ簡素 |
 | Shape variety | radial のみ | box / linear / noise 系に発展できない |
 | Modifier integration | 未実装 | generator / modifier / dynamics 共通 contract へ繋がっていない |
 
@@ -82,18 +79,6 @@ Cinema 4D / Unreal Motion Design 的な field 制作体験を、そのまま巨�
 - 3D field
 - 新しい global signal 配線
 - field ごとの専用 dock 大量追加
-<<<<<<< HEAD
-
----
-
-## 4. 次の実装候補
-
-- viewport direct manipulation の drag handle を小さく追加する
-- field list で active / hover / reorder を読めるようにする
-- `strength / blend / invert` の最小パラメータを先に通す
-- radial 以外の shape は 1 種だけでも追加して契約を広げる
-
-=======
 - bake system 全体の設計完了
 
 ---
@@ -121,6 +106,20 @@ Cinema 4D / Unreal Motion Design 的な field 制作体験を、そのまま巨�
 - active field の選択を持てるようにする
 - strength / enabled / delete を list から直接操作できるようにする
 - 順序変更に備えて stable order を持たせる
+
+Current status:
+
+- menu から active field を前後に巡回できる
+- active field の順序を上下へ動かせる
+- field 選択ダイアログは active field を初期選択にする
+- arrange menu に live field の一覧があり、クリックで active を切り替えられる
+- viewport の active field badge が出る
+- viewport 上で center / radius を直接ドラッグできる
+- live field list と badge で strength / invert の要点が見える
+- viewport の active field に center-radial ガイドと handle 差がある
+- active なしのときは active 順序操作を抑制する
+- active field の削除 Undo で active も復元される
+- drag 開始で target field が active に追従する
 
 **Done criteria:**
 
@@ -188,4 +187,3 @@ Cinema 4D / Unreal Motion Design 的な field 制作体験を、そのまま巨�
 4. drag undo の確定
 
 この順なら、既存 overlay と menu 実装を活かしながら最小差分で実用域へ持っていける。
->>>>>>> 6a05302 (chore_parent_repo_sync_all)

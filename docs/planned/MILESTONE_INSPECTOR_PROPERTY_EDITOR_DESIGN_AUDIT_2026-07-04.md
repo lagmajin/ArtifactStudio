@@ -18,7 +18,7 @@ Inspector 周りは3つの主要ファイルで構成:
 | 機能 | 参照元 | 状態 |
 |---|---|---|
 | **Property Reset ボタン（デフォルト値に戻す）** | AE/C4D/Blender | ⚠️ 計画あり (MILESTONE_PROPERTY_RESET_BUTTONS_2026-04-10) |
-| **Numeric Field Quick Calc（数式入力）** | AE | ⚠️ 計画あり (MILESTONE_NUMERIC_FIELD_QUICK_CALC_2026-06-07)。`*2`, `/3`, `+100` 等の式入力 |
+| **Numeric Field Quick Calc（数式入力）** | AE | ✅ 完了 (MILESTONE_NUMERIC_FIELD_QUICK_CALC_2026-06-07)。`*2`, `/3`, `+100` 等の式入力 |
 | **Drag-to-Scrub（数値フィールドをドラッグで増減）** | AE/Blender/Nuke | ❌ 数値フィールド上で左右ドラッグによる粗調/微調 |
 | **Ctrl+Drag 微調整（0.1x 速度）** | AE/Blender | ❌ |
 | **Shift+Drag 粗調整（10x 速度）** | AE/Blender | ❌ |
@@ -106,7 +106,7 @@ Inspector 周りは3つの主要ファイルで構成:
 
 - `Artifact/docs/PROPERTY_EDITOR_AUDIT_2026-03-11.md` — 既存監査
 - `docs/planned/MILESTONE_PROPERTY_WIDGET_ROW_ALIGNMENT_*` — 行整列計画
-- `docs/planned/MILESTONE_NUMERIC_FIELD_QUICK_CALC_2026-06-07.md` — 数式入力
+- `docs/done/MILESTONE_NUMERIC_FIELD_QUICK_CALC_2026-06-07.md` — 数式入力
 - `docs/planned/MILESTONE_PROPERTY_RESET_BUTTONS_2026-04-10.md` — Reset ボタン
 - `docs/done/MILESTONE_PARENT_PICK_WHIP_2026-07-03.md` — Pick Whip
 - `Artifact/src/Widgets/ArtifactInspectorWidget.cppm` — 2,551行

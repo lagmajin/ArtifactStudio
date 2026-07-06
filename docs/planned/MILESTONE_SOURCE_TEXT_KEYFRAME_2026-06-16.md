@@ -23,6 +23,18 @@
 
 ---
 
+## 実装状況メモ (2026-07-07)
+
+- `ArtifactTextLayer` には `setSourceTextAtFrame()` / `sourceTextAtFrame()` / `sourceTextKeyframeFrames()` / `hasSourceTextKeyframes()` が実装済み
+- 現在の実装は `text.value` プロパティを keyframe 化する形で、Source Text の core データモデルは既に着手済み
+- `ArtifactTextLayer` の JSON 保存 / 復元に source text keyframes が載るようになり、履歴は project に残る
+- レイヤー複製時は property serialization 経由で keyframe もコピーされる
+- property serialization の復元が metadata / envelopes / keyframes をまとめて扱うようになった
+- いま残っている主な差分は、Timeline の Text Content トラック表示と Inspector 露出
+- したがって、この milestone は **Phase 1 と永続化が実装済み、Phase 2 以降が残り** という扱いが適切
+
+---
+
 ## 1. 目的
 
 `FEATURE_AUDIT_MOTION_DESIGN_2026-06-02.md` (#18):

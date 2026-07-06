@@ -39,6 +39,17 @@ After Effects 標準操作を実現する。MatteType 列挙と LayerMatteRefere
 
 ---
 
+## 実装状況メモ (2026-07-07)
+
+- `ArtifactLayerPanelWidget` で matte link 用の drag mode が実装済み
+- `Alt + Drag` で Track Matte を設定でき、self-reference / cycle は拒否される
+- `ChangeLayerMatteReferencesCommand` を通して Undo/Redo が積まれる
+- Inspector 側にも matte 参照の切り替え導線と badge 表示があり、文書の Phase 2/3 はかなり進んでいる
+- いま残っているのは、移動時の dangling reference の扱いと、見た目の微調整・説明整理
+- 削除時の dangling matte reference は project 層で掃除するようになった
+
+---
+
 ## 未着手要素
 
 - レイヤーパネルからのドラッグ＆ドロップでトラックマット受け側レイヤーを指定する UI

@@ -39,12 +39,14 @@
 - [MILESTONE_TIMELINE_WAVEFORM_2026-04-10.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_WAVEFORM_2026-04-10.md)
 - [MILESTONE_LAYER_EFFECT_ENVELOPE_2026-06-19.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_LAYER_EFFECT_ENVELOPE_2026-06-19.md)
 - [MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md)
+- [MILESTONE_TIMELINE_INLINE_FCURVE_EDITING_2026-07-06.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_INLINE_FCURVE_EDITING_2026-07-06.md)
 
 ### 5. Shortcut Split
 
 - `U` は `MILESTONE_TIMELINE_FLAT_KEYFRAME_VIEW_2026-04-03.md` の flat filter を切り替える
 - `Tab` は `MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md` の curve mode を切り替える
-- 右ペインの keyframe 見通しは `M-TL-10`、編集本体は `M-TL-5`、曲線編集は `M-TKF` という分担で読む
+- `Shift+U` は `MILESTONE_TIMELINE_INLINE_FCURVE_EDITING_2026-07-06.md` の inline curve 表示を切り替える
+- 右ペインの keyframe 見通しは `M-TL-10`、編集本体は `M-TL-5`、曲線編集は `M-TKF`、インラインカーブ編集は `M-IC` という分担で読む
 
 ---
 
@@ -95,7 +97,8 @@
 - `M-TL-9` Timeline Visual Language
 - `M-TL-12` DAW-Style Input Surface
 - `M-TL-13` Timeline Scrub Bar Frame Cache Overlay
-- `M-TL-10` は view / visibility / keyframe lane の入口、`M-TL-5` は edit body、`M-TKF` は curve / flat split の境界を見る
+- `M-IC` Timeline Inline F-Curve Editing（Phase 1〜4）
+- `M-TL-10` は view / visibility / keyframe lane の入口、`M-TL-5` は edit body、`M-TKF` は curve / flat split の境界、`M-IC` は track lane 上のインラインカーブ編集を見る
 - 右パネルの実務寄り polish は `MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md` を優先してよい
 
 ### Specialized Follow-ups
@@ -104,6 +107,7 @@
 
 - [MILESTONE_TIMELINE_TRANSFORM_KEYFRAME_EDITING_2026-04-12.md](/x:/Dev/ArtifactStudio/Artifact/docs/MILESTONE_TIMELINE_TRANSFORM_KEYFRAME_EDITING_2026-04-12.md)
 - [MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md)
+- [MILESTONE_TIMELINE_INLINE_FCURVE_EDITING_2026-07-06.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_INLINE_FCURVE_EDITING_2026-07-06.md)
 - [MILESTONE_TIMELINE_TOOLTIPS_2026-04-10.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_TOOLTIPS_2026-04-10.md)
 - [MILESTONE_TIMELINE_ZOOM_PAN_2026-04-10.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_ZOOM_PAN_2026-04-10.md)
 - [MILESTONE_TIMELINE_WAVEFORM_2026-04-10.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_WAVEFORM_2026-04-10.md)

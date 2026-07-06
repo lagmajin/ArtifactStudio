@@ -190,3 +190,4 @@ Tags: render, GPU, Diligent, performance
 ## 6. 更新履歴
 
 - 2026-07-03: 初版作成
+- 2026-07-07: `tools/generate_doc_inventory.py` により `docs/INDEX_GENERATED.md` を生成・更新済み。残りはリンク整理とライフサイクル運用の詰め。
