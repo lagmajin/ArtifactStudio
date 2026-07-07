@@ -1,6 +1,6 @@
 # MILESTONE: Viewport Interaction / Navigation / 3D Cursor - 2026-07-04
 
-**ステータス:** Not Started
+**ステータス:** In Progress
 
 作成日: 2026-07-04  
 マイルストーンID: M-VP-9  
@@ -78,7 +78,6 @@ layer / object 自身の anchor / pivot。3D Cursor とは別状態とし、
 ### Preview View
 
 render camera を変更しない editor camera state。camera editing を明示的に選んだ場合だけ
-<<<<<<< HEAD
 project の render camera へ反映する。
 
 ---
@@ -108,9 +107,6 @@ project の render camera へ反映する。
 - 3D Cursor を overlay で見えるようにする
 - Frame Selected / Frame All を existing action 系に接続する
 - preview-only state と render camera state の分離を明示する
-
-=======
-camera layer の transform を変更する。
 
 ---
 
@@ -299,4 +295,3 @@ Phase 1-2 で C4D 的な触りやすさを先に成立させ、Phase 3-5 で Ble
 - 3D Cursor を project / composition / session のどこへ保存するのが適切か
 
 ビルド、テスト、runtime verification は実施していない。
->>>>>>> 6a05302 (chore_parent_repo_sync_all)
