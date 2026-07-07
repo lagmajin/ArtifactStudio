@@ -757,7 +757,7 @@ active milestone の重複名としては扱わない。
 - 右ペイン `ArtifactTimelineTrackPainterView` に Blender 風の proportional editing を導入する
 - Phase 1 は selected keyframes の time move のみに絞る
 - `O` で on/off、`[` `]` で半径変更
-- 詳細は `docs/planned/MILESTONE_TIMELINE_PROPORTIONAL_KEYFRAME_EDITING_2026-07-06.md`
+- 詳細は `docs/done/MILESTONE_TIMELINE_PROPORTIONAL_KEYFRAME_EDITING_2026-07-06.md`
 
 ### M-TL-6 Timeline Layer Search
 - タイムライン上部の検索バーで layer / effect / tag / state をインクリメンタルに絞り込む
