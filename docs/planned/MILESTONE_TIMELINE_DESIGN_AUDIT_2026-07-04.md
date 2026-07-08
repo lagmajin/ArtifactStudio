@@ -80,6 +80,43 @@ AE のレイヤースイッチ列を基準に。Artifact のレイヤーパネ�
 | **選択キーフレームの情報ボックス** | Blender | ❌ 選択キーフレームの時刻/値/補間タイプ/ハンドル値をポップアップ表示 |
 | **ゴースト（Onion Skin）表示** | MotionBuilder | ❌ 前後 N フレームを半透明オーバーレイでタイムライン上に表示 |
 | **モーショントレイル** | Maya | ❌ タイムライン上に軌跡の残像表示 |
+
+---
+
+## Next Execution Slice
+
+P0 は、keyframe 編集とナビゲーションの正本を明示してから広げる。
+
+### P0A の着手点
+
+1. `J/K` のキーフレームジャンプを `Previous / Next Keyframe` として優先度高く整理する
+2. キーフレームの情報ボックスで時刻 / 値 / 補間タイプ / ハンドル値を読めるようにする
+3. `Easy Ease / Easy Ease In / Out` の適用前提を先に固定する
+4. `Selected / Hovered / Current-frame-hit` と keyframe 色の役割を分ける
+
+### P0 完了条件
+
+- どの keyframe が次に来るかを素早く辿れる
+- 選択中 keyframe の情報が 1 画面で読める
+- 補間系の操作と色/状態表示がぶつからない
+
+### P1A の着手点
+
+1. `Roving Keyframes` と `キーフレーム時間方向スケール` を別導線として扱う
+2. `キーフレーム値スケール` と `キーフレーム反転` の意図を分離する
+3. `Auto-Keying` と `Keying Set` を編集時の補助機能として整理する
+4. `ゴースト（Onion Skin）` と `モーショントレイル` は後段に回す
+
+### P1 完了条件
+
+- 一括編集系の意図が分類される
+- 自動キーフレームと手動キーフレームの境界が読める
+- 後続の可視化機能を載せやすい
+
+### P2 への前提
+
+- 表示系の色分けと選択表現は P0/P1 の操作語彙が固まってから詰める
+- 監査で拾った機能は、まず selection / navigation / edit の 3 軸で整理する
 Artifact のタイムラインは `ArtifactTimelineWidget` を中核に、左ペイン（`ArtifactLayerPanelWidget`）＋右ペイン（`ArtifactTimelineTrackPainterView`）＋Navigator＋ScrubBar＋WorkAreaControl＋DopeSheet で構成。owner-draw 移行済みで基盤は堅い。
 
 
