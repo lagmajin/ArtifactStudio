@@ -234,3 +234,40 @@ Layer Solo View を AE 寄りにする観点で、今後の不足は次の 3 点
 - wrapper 側に v1 の表示ロジックを増やさず、表示面は V2 に閉じる
 - 2026-03-27 時点で、上記の state hooks と HUD overlay を一度入れた。`Final / Source` の実画像差分と wrapper 側の mode 切替 UI も追加済み。次は `Inspect / Impact` の情報密度を詰める
 - 2026-04-21 時点で、`Inspect HUD`, `Impact surface`, `Compare` を明示的な v1 要件として扱うと、Layer Solo View の役割がかなり分かりやすくなる
+
+---
+
+## Next Execution Slice
+
+Phase 2b は、Inspect HUD の語彙を先に固定してから Impact surface を広げる。
+
+### Phase 2bA の着手点
+
+1. layer name / type / size / opacity / blend mode を読める最小 HUD に絞る
+2. visible / lock / solo / active / hidden の state を 1 画面にまとめる
+3. source size / bounds / pivot / cache state を短文で読めるようにする
+4. selection 中のレイヤーの最小診断文字列を 1 本に揃える
+
+### Phase 2b 完了条件
+
+- `Inspect HUD` に必要な情報が 1 画面で読める
+- `Visible / Lock / Solo / Active` が widget ごとにばらけない
+- 状態の語彙が短く揃う
+
+### Phase 2cA の着手点
+
+1. `Final / Source / Before / After` の比較軸を固定する
+2. matte / mask / effect stack の要点を短く出す
+3. このレイヤーがどこに影響しているかを要約する
+4. 依存先 / 被依存先の簡易一覧を表示する
+
+### Phase 2c 完了条件
+
+- `Impact` 視点の依存先 / 被依存先が分かる
+- compare と impact の役割が混ざらない
+- review への導線が見える
+
+### Phase 3 への前提
+
+- mask / roto の入口は inspect / impact の語彙が固まってからつなぐ
+- software 側の診断ビューと合わせるのは compare 表示が安定してからでよい
