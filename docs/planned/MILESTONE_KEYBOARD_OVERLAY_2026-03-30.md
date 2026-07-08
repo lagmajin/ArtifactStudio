@@ -66,6 +66,43 @@
 - 起動導線もまだメイン UI に繋がっていない
 - shortcut のデータ自体は既にアプリ内に存在するので、まずは表示層を作るのが最短
 
+---
+
+## Next Execution Slice
+
+Phase 1 は、見た目の UI だけでなく overlay としての振る舞いを先に固める。
+
+### Phase 1A の着手点
+
+1. `KeyboardOverlayDialog` に compact / regular の 2 モードを用意する
+2. overlay opacity と always-on-top を表示設定として反映する
+3. 空のダイアログではなく、カテゴリ見出しだけでも読める骨組みを作る
+4. 画面を邪魔しすぎないサイズと余白の基準を先に決める
+
+### Phase 1 完了条件
+
+- overlay として開ける
+- compact / regular を切り替えられる
+- 参照しやすい最低限の骨組みが見える
+
+### Phase 2A の着手点
+
+1. `PlaybackShortcuts` から shortcut data を集約する
+2. `ApplicationSettingDialog` の一覧と表示元を揃える
+3. action / shortcut / category / description の表示項目を固定する
+4. shortcut の実データを表示層に流し込む
+
+### Phase 2 完了条件
+
+- 設定画面と overlay の内容が一致する
+- カテゴリ別に shortcut が見える
+- 表示データの出どころが 1 本化される
+
+### Phase 3 への前提
+
+- Help メニューや `Ctrl+/` 系の導線は表示層が固まってから入れる
+- modal にしすぎない方針は Phase 1 の実装で確認してから詰める
+
 ## Validation Checklist
 
 - overlay を開くと主要 shortcut がカテゴリ別に見える
