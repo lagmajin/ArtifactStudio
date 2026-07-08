@@ -54,7 +54,7 @@ Status:
 
 - `docs/done/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
 - `docs/done/MILESTONE_DEBUG_RENDER_HARNESS_2026-04-30.md` (existing harness surface; use for capture/report and regression checks)
-- `docs/planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`
+- `docs/done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`
 
 理由:
 
@@ -157,6 +157,16 @@ Status:
 1. `docs/planned/MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md` を参照する
 2. `docs/planned/MILESTONE_CONTINUATION_SPRINT_2026-05-20.md` の残り候補を確認する
 3. `docs/planned/MILESTONE_ACTIVE_IMPLEMENTATION_TRIAD_2026-05-12.md` を参照する
+
+### This Session
+
+今回のセッションで選ぶなら、`docs/planned/MILESTONE_VIEWPORT_ENHANCEMENT_PROPOSAL_2026-07-08.md` の **W0 (基盤)** を次の実行単位として固定する。
+
+- `D-1 RenderScheduler`
+- `D-2 ViewportState`
+- `D-3 Overlay compositor`
+
+理由は、個別の見た目改善より先に、描画・状態・オーバーレイの責務を整理したほうが後続のマイルストーンに流用しやすいから。
 
 ---
 
