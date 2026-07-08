@@ -242,6 +242,28 @@
 }
 ```
 
+---
+
+## Next Execution Slice
+
+### Phase 1A の着手点
+
+- `surfaceId / kind / region / visibility / density` を UI 構成の最小スキーマとして先に固定し、toolbar / menu / timeline で共通に読める形にする
+- command 定義は `type / label / target / args` の薄い形から始め、実行本体は既存の command path に寄せる
+- scriptable surface は runtime を作り込まず、まずは declarative 定義を既存 widget に差し込める入口だけを作る
+
+### Phase 2A の着手点
+
+- shortcut context は `Timeline / Composition Viewer / Layer List / Inspector` の 4 つから始め、同一キーの意味を context で分ける
+- conflict resolution は優先順位と scope だけを先に決め、UI 上の編集画面は後回しにする
+- stale binding を避けるため、context 切替時の再解決経路を既存 shortcut registry に閉じる
+
+### Phase 3 前提
+
+- timeline density は `compact / standard / detailed` の 3 段階を先に固定し、列単位の可視化はその後に広げる
+- high DPI と theme は、surface / shortcut の共通モデルが安定してから token 化する
+- 新しい global signal / slot を増やさず、既存の toolbar / menu / timeline の責務境界を壊さない
+
 - `surfaceId`
   - UI surface を一意に識別する
 - `title`
