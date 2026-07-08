@@ -186,4 +186,26 @@ Current status:
 3. radius drag
 4. drag undo の確定
 
+---
+
+## Next Execution Slice
+
+### Phase 1A の着手点
+
+- field center / radius の hit-test を `ArtifactCompositionRenderController` の既存 input path に閉じて追加し、overlay の live 更新だけ先に通す
+- center drag と radius drag を分け、どちらを掴んでいるかを viewport で迷わない最小ガイドにする
+- drag 開始時に active field を固定し、release 時に 1 undo へまとめる
+
+### Phase 2A の着手点
+
+- field list は独立 panel 化する前に、既存 menu と badge で active / hover / enabled を追える状態に揃える
+- strength / invert / enabled は list から直接触れるようにし、edit ダイアログ増殖を避ける
+- stable order は reorder 実装の前提だけ先に持たせ、見た目の順序と保存順序を分離する
+
+### Phase 5 前提
+
+- generator / modifier への field mask 接続は、viewport 直接編集と stack controls が安定してからにする
+- radial 以外の shape 拡張は、overlay / hit-test / evaluation の共通契約が固まってから進める
+- 新しい global signal / slot は追加せず、現行の input / menu / overlay 経路を再利用する
+
 この順なら、既存 overlay と menu 実装を活かしながら最小差分で実用域へ持っていける。
