@@ -186,15 +186,20 @@ Phase 1 を先に締めるなら、次の順で進める。
 1. `MeshImporter` の失敗理由を、UI へ渡せる単一のエラー表現にまとめる
 2. `OBJ` の fallback を使ったかどうかを区別できるようにする
 3. `gltf` / `glb` の未対応または ufbx 前提を明示する
+4. viewer header では短い状態文、詳細は diagnostics 側に逃がす
+5. `Model3D` の open 成功時も backend 情報を残し、後から追跡できるようにする
 
 #### Phase 1 完了条件
 
 - `OBJ` / `FBX` の読み込み失敗理由が viewer から追える
 - OBJ fallback の採用可否を実装側で判断しやすい
 - `Contents Viewer` の phase 2 へ入る前提が整う
+- header と diagnostics の責務が分かれている
+- 成功 / 失敗の両方で importer path を追える
 
 #### Phase 2 前提
 
 - `FileType::Model3D` の open flow 自体は既にある
 - したがって phase 2 は、open そのものより header / state / reset view の軽量化に寄せる
 - review 導線は phase 1 の失敗理由整備が終わってから詰める
+- preview in Contents Viewer の導線は phase 1 が固まってから細かくする
