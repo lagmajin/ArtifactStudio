@@ -218,3 +218,25 @@ Phase 3 では、より広い範囲へ展開し、既存の操作習慣を壊さ
 - 左利き向けの補助が、単発の UI 修正ではなく設定可能な機能として扱える
 - 障碍者向け補助の検討項目が、将来の拡張先としてドキュメント化されている
 - どの widget で何を直すかの責務境界が把握できる
+
+---
+
+## Next Execution Slice
+
+### Phase 1A の着手点
+
+- `Left-handed mode / High-contrast assist / Reduce precision dependence / Larger hit targets` を共通設定として先に固定し、保存・復元の土台だけ作る
+- メニュー出し位置とヒット領域拡張は、`ArtifactMainWindow` / `ArtifactMenuBar` / `ArtifactCompositionRenderWidget` のような主要導線から順に当てる
+- 左利き補助は「左右反転」ではなく「操作頻度の高いものを近づける」方針を最初に明示する
+
+### Phase 1B の着手点
+
+- `ArtifactTimelineWidget` と `ArtifactPropertyWidget` を先に見直し、ホバー依存を減らす補助を優先する
+- 高コントラスト補助は、色だけでなく境界・ラベル・状態表示の順に反映する
+- 既存 UI を壊さないよう、補助の有効/無効を widget 側で参照するだけの薄い契約にする
+
+### Phase 2 前提
+
+- ショートカット再配置や大規模リマップは別マイルストーンとして扱う
+- 左利き補助と障碍者向け補助は、共通設定と個別設定を分けてから拡張する
+- 新規 global signal / slot は増やさず、既存設定保存経路を流用する
