@@ -219,6 +219,43 @@ Phase 3 は、異常時の見え方を widget ごとではなく app surface と
 
 ---
 
+## Next Execution Slice
+
+Phase 2 は、selection / current / active / solo / lock の正本を panel ごとに固定する。
+
+### Phase 2A の着手点
+
+1. timeline / asset browser / contents viewer / layer solo view の selection 同期を同じ語彙で扱う
+2. `current composition` / `current layer` / `active layer` の正本を明示する
+3. playback state と view state の見え方を統一する
+4. missing / unloaded / muted / clipped の state presentation を揃える
+
+### Phase 2 完了条件
+
+- どのビューでも「今何を見ているか」が分かる
+- 状態名がウィジェットごとにバラけない
+- どの panel が正本か読める
+
+### Phase 3A の着手点
+
+1. status bar / console / inline chips / badges の役割分担を決める
+2. render failure / decode failure / missing asset / playback warning の語彙を揃える
+3. performance hint / cache hit / fallback path を diagnostics に寄せる
+4. 進行中タスクの feedback を操作元へ返す最小導線を決める
+
+### Phase 3 完了条件
+
+- 異常時の見え方が widget ごとに不一致にならない
+- console / status / inline 表示の役割が整理される
+- feedback が操作元に戻る
+
+### Phase 4 への前提
+
+- workflow bridge は selection / diagnostics が揃ってから詰める
+- asset / project / timeline / render の橋渡しは state が安定してからでよい
+
+---
+
 ## Recommended Order
 
 1. Phase 1: Command / Surface Unification
