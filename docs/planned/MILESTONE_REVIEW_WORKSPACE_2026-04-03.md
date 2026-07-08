@@ -164,3 +164,42 @@ M-FE-7-1 は、Review Workspace を独立 widget として立てる前に、編�
 
 - A/B 比較は review mode と frame-accurate playback が固まってから入れる
 - shot management は比較セッションの base/review 契約が固まってから詰める
+
+### M-FE-7-4A の着手点
+
+1. `Shot` entity を `CompositionVersion` の束として定義する
+2. `ShotManager` が current active shot を workspace に提供する責務を持つ
+3. ショットリストとバージョン切替プルダウンの最小 UI を用意する
+4. ショット切り替え時に compare base を自動で切り替える前提を決める
+
+### M-FE-7-4 完了条件
+
+- shot 切替で前バージョンが自動で base になる
+- ショット一覧とバージョン切替が 1 本の導線になる
+- compare と shot management の責務が混ざらない
+
+### M-FE-7-5A の着手点
+
+1. annotation は composition 座標系で保存する前提を固定する
+2. Pen / Arrow / Rect / Text / Eraser を review workspace 上で扱う
+3. クリックでテキストノートを付ける最小導線を決める
+4. annotation data を project に保存できる前提を置く
+
+### M-FE-7-5 完了条件
+
+- review 中にフレームへ注釈を残せる
+- annotation が compare / shot management と衝突しない
+- 保存先と表示先の責務が分かる
+
+### M-FE-7-6A の着手点
+
+1. `J / K / L` のシャトルと `Left / Right` の 1f 移動を分ける
+2. `I / O` の範囲ループと speed 表示を HUD に出す
+3. review mode 時は通常 timeline shortcut と競合しないよう隔離する
+4. `Tab` の compare 切替との役割を混同しない
+
+### M-FE-7-6 完了条件
+
+- JKL 速度が段階的で、停止と逆再生が可能
+- 範囲ループ再生の状態が読める
+- review navigation が他モードと衝突しにくい
