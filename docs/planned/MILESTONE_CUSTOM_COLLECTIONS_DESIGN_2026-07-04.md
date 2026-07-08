@@ -172,3 +172,26 @@ public:
 - 例外: 使用しない。失敗は assert または `Optional` で表現
 - 既存の `HashMap`, `Optional`, `Atomic`, `Span`, `Variant` はそのまま流用
 - 名前空間: `ArtifactCore`
+
+---
+
+## Next Execution Slice
+
+### Phase 0A の着手点
+
+- `Array<T>` を最初に固め、`add / addAll / removeAt / size / begin-end` だけの最小 API で置換の受け皿を作る
+- `String` は `length / data / at / += / == / sub` のみに絞り、`StringView` を先に依存として確定する
+- `Optional<T&>` を使うアクセス経路を、境界チェック付き API として既存コードへ差し込みやすい形にする
+- `operator[]` や複雑なアルゴリズム系 API は Phase 0 では足さず、移行時の面積を小さく保つ
+
+### Phase 0B の着手点
+
+- `Ptr<T>` と `Ref<T>` を `Array<T>` / `String` より後に回し、参照カウントの責務と null 許容の境界を明確にする
+- `Ref<T>` は non-null 前提の短い経路に限定し、既存の raw pointer 置換を一気に広げない
+- `Owned<T>` は move-only の所有権表現として最後に足し、既存 `unique_ptr` 代替の最小路線に留める
+
+### Phase 1 前提
+
+- `Mutex / Lock / Cond` はコレクション置換の土台が固まってから進める
+- `Callback<Sig>` と `Set<T>` は API 利用箇所の偏りを見てから広げる
+- `Queue<T>` / `Thread` は基礎型の採用が進んでから再評価する
