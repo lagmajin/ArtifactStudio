@@ -200,3 +200,27 @@
 「3D を描ける」から「3D を読める」へ寄せるためのもの。  
 `ImGuizmo Direct Code Port` と相性がよく、gizmo の direct code 化と
 overlay 順の固定を同時に進めやすい。
+
+---
+
+## Next Execution Slice
+
+Phase 1 を先に締めるなら、最初は `solid` の安定化から入る。
+
+### Phase 1A の着手点
+
+1. `Artifact3DLayer` の face filling を安定化する
+2. triangulation 前提を docs かコードコメントで明示する
+3. face の裏表や alpha の見え方を整理する
+4. 3D view 側で solid / wireframe 切り替えの破綻を確認する
+
+### Phase 1 完了条件
+
+- 3D オブジェクトが固まりとして読める
+- wireframe / solid を切り替えても大きく崩れない
+
+### Phase 2 の前提
+
+- camera / viewport の責務が固まっている
+- overlay の重なり順を先に崩さない
+- solid が読めない状態のまま camera や overlay を先に増やさない
