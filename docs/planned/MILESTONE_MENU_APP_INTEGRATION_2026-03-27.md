@@ -133,3 +133,40 @@
 - File / Composition / Edit は個別マイルストーンがある
 - ただしメニュー群全体としての app integration ルールはまだ分散している
 - まずは action ownership と enabled state を共通化するのが低コスト
+
+---
+
+## Next Execution Slice
+
+Phase 1 は、各 menu action がどの state の正本を読むかを先に固定する。
+
+### Phase 1A の着手点
+
+1. File / Composition / Edit / View / Layer / Render / Help の action inventory を作る
+2. 各 action を `Service / Project / Playback / Selection / UI` のどれに属するか決める
+3. placeholder action を明示して未実装と実装済みを分ける
+4. menu 側に残すロジックを最小限にする
+
+### Phase 1 完了条件
+
+- action ごとに責務の持ち主が説明できる
+- menu 側に残すロジックが最小限になる
+- placeholder と実装済みが見分けやすい
+
+### Phase 2A の着手点
+
+1. project 有無 / current composition 有無 / current layer / selection / clipboard / undo stack / playback state を enabled state の入力にする
+2. action ごとの無効条件を共通化する
+3. menu 表示時に stale enabled state を出しにくくする
+4. `ArtifactMainWindow` からの明示 refresh を前提にする
+
+### Phase 2 完了条件
+
+- project があるだけで全部有効にならない
+- action ごとの無効条件が一貫する
+- enabled state が UI surface ごとにズレにくい
+
+### Phase 3 への前提
+
+- shared command routing は ownership と enabled state が固まってから入れる
+- cross-panel synchronization は menu state が安定してから詰める
