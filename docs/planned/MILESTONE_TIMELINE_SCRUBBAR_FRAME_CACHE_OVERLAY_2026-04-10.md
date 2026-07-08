@@ -141,3 +141,40 @@ AE 風の RAM preview に寄せて、`ArtifactTimelineScrubBar` 上に
 先に UI surface を作っておくと、
 RAM preview / frame cache / decode prewarm の実装が後から来ても、
 どこを緑に塗ればよいかがぶれにくい。
+
+---
+
+## Next Execution Slice
+
+Phase 1 は、ScrubBar が cache range を受け取る契約を先に固める。
+
+### Phase 1A の着手点
+
+1. `FrameCacheRange` を単一区間と複数区間の両方に対応させる
+2. `FrameCacheState` は `Empty / Preloading / Partial / Ready / Stale` に絞る
+3. cache 情報が取れない backend は空状態として扱う
+4. `ArtifactPlaybackEngine` から UI へ渡す最小データを決める
+
+### Phase 1 完了条件
+
+- `ScrubBar` が「どこを緑に塗るか」を受け取れる
+- 単一 range と複数 range の両方を扱える
+- cache 情報がない場合でも空状態で破綻しない
+
+### Phase 2A の着手点
+
+1. current frame の赤い進捗表示と cache overlay のレイヤー順を決める
+2. `GreenFill / StripedFill / GlowEdge / Minimal` の使い分けを先に固定する
+3. 分断された cache range が見える表示を作る
+4. play / pause / scrub の状態と視認性の衝突を避ける
+
+### Phase 2 完了条件
+
+- cache range が視覚的に分かる
+- current frame の操作感を損なわない
+- 分断された cache range も読める
+
+### Phase 3 への前提
+
+- cache warm / fill / stale の変化は contract が固まってから bridge へ流す
+- diagnostics は overlay が安定してから足す
