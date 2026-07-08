@@ -151,3 +151,34 @@ Core の pointer track を編集や自動生成の基礎にする。
 
 2026-03-28 時点では、モーショングラフィック向けの仮想マウスは Core の独立データモデルとしては未整備。
 この文書で、`Pointer` / `VirtualPointer` を独立した再生可能オブジェクトとして定義する。
+
+---
+
+## Next Execution Slice
+
+Phase 1 は、`VirtualPointerTrack` を「保存できる最小単位」に落とし込む。
+
+### Phase 1A の着手点
+
+1. `PointerFrame` を timestamp / frame / position / visible / pressedButtons を含む最小構造にする
+2. `PointerEventKind` を move / click / doubleClick / drag / hover などの離散表現に分ける
+3. `PointerStyle` は演出寄りの見た目設定として track から分離する
+4. time ベースと frame ベースの両方を同じ track で扱えるようにする
+
+### Phase 1 完了条件
+
+- 1 本の pointer track を保存できる
+- frame ベースでも time ベースでも扱える
+- 既存 animation データと衝突しない
+
+### Phase 2 の前提
+
+- record / playback の契約は data model が固まってから入れる
+- click / drag 区間の表現は frame 設計に依存する
+- UI 描画は Core の外に置く前提を崩さない
+
+### Phase 3 への波及
+
+- pointer motion を keyframe / event と相互変換しやすくする
+- layer / composition への参照は後段で足す
+- easing や overshoot は model が安定してから重ねる
