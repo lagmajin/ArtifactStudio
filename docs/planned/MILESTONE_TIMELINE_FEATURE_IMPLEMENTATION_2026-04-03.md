@@ -211,3 +211,40 @@ layer / effect / state の探索を、制作導線として使える surface に
 - timeline の機能実装を「見える化・編集・探索・表現・移行」に分けて進めやすくなる
 - Asset Browser 側の改善と並行して、制作導線の入口と出口を揃えやすくなる
 - 個別 milestone の重複を避けつつ、全体の進行順を読みやすくできる
+
+---
+
+## Next Execution Slice
+
+Phase 1/2 は、状態同期と keyframe 編集の入口を先に固定する。
+
+### Phase 1A の着手点
+
+1. current composition / current layer / selected layer の同期を 1 本に寄せる
+2. playhead と selection の責務境界を明示する
+3. layer row の visible / hidden / solo / locked を安定表示する
+4. 左ペインと右ペインの selection がずれないようにする
+
+### Phase 1 完了条件
+
+- どの layer を触っているかが常に読める
+- selection / current / playhead が破綻しない
+- panel 間で state 名が揃う
+
+### Phase 2A の着手点
+
+1. keyframe visibility を timeline に重ねる
+2. context menu / shortcut から add / remove を通す
+3. keyframe の前後ジャンプを通す
+4. drag で keyframe を移動できるようにする
+
+### Phase 2 完了条件
+
+- timeline 上だけで keyframe 操作が完結する
+- inspector 側と結果が一致する
+- 編集導線が selection 導線とぶつからない
+
+### Phase 3 への前提
+
+- search / filter は state 同期と keyframe editing の土台が固まってから入れる
+- visual language は操作の意味が安定してから色や形に落とす
