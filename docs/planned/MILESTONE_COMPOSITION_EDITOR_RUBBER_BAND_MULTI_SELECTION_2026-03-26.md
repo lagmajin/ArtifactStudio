@@ -70,3 +70,27 @@ Composition Editor 側には `selection` と `hit test` の前提がすでにあ
 - 選択中レイヤーは composition editor 上で複数ハイライトされ、current layer は主選択として残る
 - まだ group transform / batch property edit / marquee cancel の細部は残っているので、Phase 4 の UX polish は継続課題
 
+---
+
+## Next Execution Slice
+
+Phase 4 は、選択中レイヤーの見え方と選択数のフィードバックを先に固定する。
+
+### Phase 4A の着手点
+
+1. selection box の色、透明度、キャンセル操作を整理する
+2. 選択中レイヤーのハイライトを composition editor に反映する
+3. 選択数や現在の mode を debug 表示できるようにする
+4. current layer を主選択として残しつつ複数ハイライトを見分けやすくする
+
+### Phase 4 完了条件
+
+- 選択中レイヤーの見え方が分かる
+- selection box とハイライトが競合しない
+- 選択数と mode が debug でも追える
+
+### Phase 3 への前提
+
+- selection sync は feedback が安定してからさらに詰める
+- timeline / inspector / property panel の追従は current selection の見え方が固まってからでよい
+
