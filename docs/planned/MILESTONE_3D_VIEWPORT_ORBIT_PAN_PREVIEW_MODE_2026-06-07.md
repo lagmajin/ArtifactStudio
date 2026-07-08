@@ -184,6 +184,37 @@
 
 ---
 
+## Next Execution Slice
+
+Phase 1 を先に締めるなら、`Orbit / Pan / Zoom Shortcut Baseline` から入る。
+
+### Phase 1A の着手点
+
+1. `Alt + Left Drag` を orbit に固定する
+2. `Middle Drag` を pan に固定する
+3. wheel zoom を viewport 共通にする
+4. 既存の tool 切替依存を減らし、操作文法を editor 間で寄せる
+
+### Phase 1 完了条件
+
+- orbit / pan / zoom の基本文法が 1 つにまとまる
+- editor 間で操作の意味が大きくぶれない
+- 3D 表示が予測しやすくなる
+
+### Phase 2 の前提
+
+- preview-only view state を導入する土台ができている
+- live camera state と preview state を分ける準備が整っている
+- HUD / badge は phase 1 の baseline が固まってから入れる
+
+### Preview Mode への波及
+
+- preview mode は「camera を壊さない」ことが前提
+- まず操作文法を揃え、その後に preview session を分離する
+- したがって preview 固有の UI は phase 1 後段に回す
+
+---
+
 ## 関連
 
 - [`docs/planned/MILESTONE_3D_VIEWPORT_SOLID_CAMERA_OVERLAY_2026-04-10.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_3D_VIEWPORT_SOLID_CAMERA_OVERLAY_2026-04-10.md)
