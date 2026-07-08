@@ -182,6 +182,43 @@
 
 ---
 
+## Next Execution Slice
+
+Phase 3 は、異常時の見え方を widget ごとではなく app surface として揃える。
+
+### Phase 3A の着手点
+
+1. status bar / console / inline chip / badge の役割を分ける
+2. render failure / decode failure / missing asset / playback warning を同じ語彙で扱う
+3. performance hint / cache hit / fallback path の表現を diagnostics に寄せる
+4. 進行中タスクの feedback を操作元へ返す最小の導線を決める
+
+### Phase 3 完了条件
+
+- 異常時の見え方が widget ごとに不一致にならない
+- console / status / inline 表示の役割が整理される
+- どの surface に何を出すかが読める
+
+### Phase 4A の着手点
+
+1. Asset Browser から layer / composition / render への橋渡しを整理する
+2. Contents Viewer から source / final / compare への導線を揃える
+3. Timeline から keyframe / layer group / audio state への導線を確認する
+4. Render queue の retry / preset / diagnostics 導線を後段にまとめる
+
+### Phase 4 完了条件
+
+- 一つの操作が複数の surface に自然に橋渡しされる
+- workflow bridge が単機能の寄せ集めに見えない
+- review / compare / render の次の操作が分かる
+
+### Phase 1 への前提
+
+- command / surface ownership は Phase 1 から横断で見直す
+- cross-view selection sync は Phase 2 と diagnostics が揃ってからさらに詰める
+
+---
+
 ## Recommended Order
 
 1. Phase 1: Command / Surface Unification
