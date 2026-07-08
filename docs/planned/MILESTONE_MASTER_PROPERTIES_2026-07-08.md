@@ -60,3 +60,22 @@
 4. 値伝播は最後に通し、式やキーフレームとの競合をそこで解決する
 
 最初の実作業は Phase 1 の「プロパティ露出」から入る。
+
+### Phase 1 の着手点
+
+1. `PreComposeManager` で保持している nesting / layer source の責務を読み直す
+2. 公開プロパティの data model を、親コンプ上書きとは切り離して定義する
+3. UI は `PropertyWidget` / `ArtifactPropertyEditor` の既存導線に寄せる
+4. `unprecompose` の未完部分には触れず、まずは露出と mapping の定義だけに絞る
+
+### Phase 1 完了条件
+
+- プリコンプ側で「外部公開プロパティ」を選択・命名する入口がある
+- 公開プロパティと内部プロパティの mapping が定義されている
+- 親コンプの上書き UI は Phase 2 に回しても破綻しない
+
+### Phase 2 の前提
+
+- `unprecompose` の完成度が上がっている
+- 式/キーフレームとの競合解決ルールが整理されている
+- 先に exposed data model が固まっているため、親側の上書きは後からつなげられる
