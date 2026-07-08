@@ -201,16 +201,18 @@ Phase 3 は、異常時の見え方を widget ごとではなく app surface と
 
 ### Phase 4A の着手点
 
-1. Asset Browser から layer / composition / render への橋渡しを整理する
-2. Contents Viewer から source / final / compare への導線を揃える
-3. Timeline から keyframe / layer group / audio state への導線を確認する
-4. Render queue の retry / preset / diagnostics 導線を後段にまとめる
+1. Asset Browser から Contents Viewer への導線を最初に整える
+2. Asset Browser から layer / composition / render への橋渡しを整理する
+3. Contents Viewer から source / final / compare への導線を揃える
+4. Timeline から keyframe / layer group / audio state への導線を確認する
+5. Render queue の retry / preset / diagnostics 導線を後段にまとめる
 
 ### Phase 4 完了条件
 
 - 一つの操作が複数の surface に自然に橋渡しされる
 - workflow bridge が単機能の寄せ集めに見えない
 - review / compare / render の次の操作が分かる
+- Asset Browser -> Contents Viewer の流れが一番短い
 
 ### Phase 1 への前提
 
