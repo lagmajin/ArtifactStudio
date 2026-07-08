@@ -358,6 +358,8 @@ Unreal Rundown / Notch media-server integration は運用、冗長化、同期�
 
 - 3D 側の camera / overlay 整理は別レーンだが、公開 control contract が固まると preview / state / variant の語彙を揃えやすい
 - したがって、3D 系の整理より先に control contract の骨格を固めると、後続の実装がぶれにくい
+- ただし 3D の orbit / pan / preview 整理自体は control contract の完了を待たずに進められる
+- その場合も、状態名や公開値の命名は `Published Controls` 側の語彙に寄せると統合しやすい
 
 ## 9. 導入後の Artifact の立ち位置
 
