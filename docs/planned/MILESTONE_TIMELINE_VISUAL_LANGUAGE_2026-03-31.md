@@ -110,3 +110,40 @@
 3. Playhead
 4. Selection Highlight
 5. Left/Right Affordance
+
+---
+
+## Next Execution Slice
+
+Phase 1 は、色の意味を layer type と状態の 2 軸に分けて固定する。
+
+### Phase 1A の着手点
+
+1. `Video / Audio / Text / Effect` の既定色を layer type ごとに固定する
+2. `selection / hover / disabled` の派生色を既定色から作る
+3. keyframe の通常 / 選択 / easing / disabled の状態色を先に決める
+4. 色が増えすぎないよう、同系色の派生だけで運ぶ
+
+### Phase 1 完了条件
+
+- layer type ごとの色ルールがコード上で明確に実装される
+- 選択、ホバー、非選択が見た目で判別できる
+- keyframe の状態色が固定される
+
+### Phase 2A の着手点
+
+1. keyframe の形状を通常 / 選択 / easing / disabled で分ける
+2. 同一フレームに複数ある場合のレーン分割を先に決める
+3. marker hit area を見た目と揃える
+4. label 表示は color semantics が安定してから重ねる
+
+### Phase 2 完了条件
+
+- キーフレームが状態別に見分けやすくなる
+- 重なりが読める
+- hit area と見た目が乖離しない
+
+### Phase 3 への前提
+
+- playhead は marker semantics が固まってから一本化する
+- selection highlight は layer color と衝突しない範囲で入れる
