@@ -129,3 +129,34 @@ Material を GPU shader で使用する。
 3. Phase 3
 4. Phase 4
 5. Phase 5
+
+---
+
+## Next Execution Slice
+
+Phase 1 は material の器を先に作り、見た目の自由度を少しずつ上げる。
+
+### Phase 1A の着手点
+
+1. `Material3D` の基本 property を切り出す
+2. diffuse / specular / roughness を最小セットとして定義する
+3. material assignment の前に inspector 側の編集導線を確認する
+4. 既存の solid 表示を壊さない範囲で導入する
+
+### Phase 1 完了条件
+
+- material の色属性を設定できる
+- material の基本値が 1 つの構造にまとまる
+- solid 表示の既存挙動を壊さない
+
+### Phase 2 の前提
+
+- texture support は material の基本属性が安定してから入れる
+- shader integration は parameter 契約が固まってから進める
+- material assignment は editor 側の編集導線が見えてから重ねる
+
+### Phase 3 への波及
+
+- renderer に渡す material parameter の形を先に揃える
+- camera / projection と material の責務を混ぜない
+- simple PBR-like shading は後段で検討する
