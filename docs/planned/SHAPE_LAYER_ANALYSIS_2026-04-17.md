@@ -307,3 +307,25 @@ ArtifactCore/
 4. `toSvg()` は再帰的に子シェイプを `<path>` 要素に変換
 
 同時に、`ArtifactShapeLayer` 側との役割分担を明確にし、Core 層は純粋なデータ・計算ロジックに専念。UI 統合・プロパティ公開・JSON シリアライズは `ArtifactShapeLayer` 側で担当する二層構造を維持すべき。
+
+---
+
+## Next Execution Slice
+
+### Phase 1A の着手点
+
+- `ShapeLayer` の PIMPL 契約を壊さないよう、ctor / dtor / copy / move の最小セットから実装順を固定する
+- `ShapeGroup` を root container に据え、`content / addShape / clearContent / shapeCount` の内部委譲先を先に確定する
+- `BlendMode` と `ShapeType` は表示用ではなくデータ契約として扱い、renderer への責務移譲を前提にする
+
+### Phase 1B の着手点
+
+- `createRectangle / createEllipse / createStar / createPolygon` は factory 入口として残し、実体生成は `.cppm` に閉じる
+- `toSvg / fromSvg` は完全 SVG 対応ではなく、まずは簡易 round-trip の確認に留める
+- `render / toPainterPath` は描画そのものではなく、外部 renderer へ橋渡しする抽象経路として扱う
+
+### Phase 2 前提
+
+- `ArtifactShapeLayer` 側の UI 統合は、Core モデルの契約が安定してから進める
+- undo / redo、GPU リソース管理、全面的な SVG パースは scope 外として分離する
+- 新規 global signal / slot は増やさず、Core 層と app 層の二層構造を維持する
