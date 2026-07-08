@@ -127,3 +127,40 @@
 - 既存 Composition Editor と機能を共有するが、Review Workspace は independent widget として実装する
 - Annotation data はプロジェクトに保存可能にしておく（M-AS の Asset System と連携）
 - LUT/OCIO は Review Workspace 全体で設定し、各 widget に broadcast する設計とする
+
+---
+
+## Next Execution Slice
+
+M-FE-7-1 は、Review Workspace を独立 widget として立てる前に、編集モードとの境界を先に固定する。
+
+### M-FE-7-1A の着手点
+
+1. `ReviewMode` を overlay / wipe / annotation の状態集合として定義する
+2. `ArtifactCompositionEditor` の通常編集と review mode を分離する
+3. `ArtifactReviewWorkspace` は full-screen preview と minimal HUD を持つ器にする
+4. review-specific timing policy は playback/controller 側に閉じる
+
+### M-FE-7-1 完了条件
+
+- review mode 切り替えで通常編集と隔離される
+- workspace が独立 widget として読める
+- overlay / wipe / annotation の状態が review mode にまとまる
+
+### M-FE-7-2A の着手点
+
+1. `frame-accurate seek` を review-specific timing policy に接続する
+2. current frame 追跡と decode cache の接続点を先に固定する
+3. `setLUT` / `setOCIOConfig` の適用位置を final output 段で決める
+4. HUD に timecode と accurate frame count を常時出す前提を作る
+
+### M-FE-7-2 完了条件
+
+- LUT 適用後の見た目が静止画でも動画でも一貫する
+- タイムコード表示が常に正確
+- review timing が frame-accurate として追える
+
+### M-FE-7-3 への前提
+
+- A/B 比較は review mode と frame-accurate playback が固まってから入れる
+- shot management は比較セッションの base/review 契約が固まってから詰める
