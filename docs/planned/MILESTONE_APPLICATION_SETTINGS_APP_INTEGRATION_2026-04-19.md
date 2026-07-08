@@ -99,3 +99,40 @@
 - QADS タブの文字サイズが設定に追従する
 - theme 更新と font 更新が競合しない
 - 設定変更後にアプリ全体の再起動が不要になる
+
+---
+
+## Next Execution Slice
+
+Phase 1 は、保存対象を `General / UI / Render / Preview` に分けて、まず UI 系から固める。
+
+### Phase 1A の着手点
+
+1. `ArtifactAppSettings` に UI 用の設定キーを追加する
+2. フォント、表示スケール、必要なら色設定を持たせる
+3. 既定値を UI / theme / preview の順で決める
+4. `QSettings` と widget の ad-hoc state を settings model に寄せる
+
+### Phase 1 完了条件
+
+- Preferences で変更した値が保存される
+- 再起動後も設定が維持される
+- 保存対象のキー境界が読める
+
+### Phase 2A の着手点
+
+1. `ApplicationSettingDialog` の既存ページに設定項目を追加する
+2. 値の保存・読み込みを実装する
+3. `Apply` で本体へ反映できるようにする
+4. 編集 UI と settings model の責務を分ける
+
+### Phase 2 完了条件
+
+- Preferences で編集した値が settings model に入る
+- `Apply` / `OK` で保存できる
+- UI の編集内容が本体へ渡る
+
+### Phase 3 への前提
+
+- main window の再適用口は settings model が固まってから作る
+- theme と font の適用順序は startup sync の前に整理する
