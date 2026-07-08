@@ -211,3 +211,40 @@ Project / Asset から次の作業へすばやく飛べるようにする。
 それらを一枚の workflow として束ねる専用 milestone はまだ弱い。
 
 この文書はその結節点として扱う。
+
+---
+
+## Next Execution Slice
+
+Phase 1 は、Project View と Asset Browser が同じ item を指していると読める状態を先に作る。
+
+### Phase 1A の着手点
+
+1. current composition と selected asset の同期先を 1 本に寄せる
+2. browser / project で同じ item を追える selection contract を決める
+3. missing / unused / relinked / imported の state 表示を揃える
+4. selection change 時に preview / inspector が追従する前提を作る
+
+### Phase 1 完了条件
+
+- どちらの view から選んでも同じ item が追える
+- selection を切り替えた時に state がズレない
+- preview / inspector の更新責務が読める
+
+### Phase 2A の着手点
+
+1. import 結果の即時反映を workflow に組み込む
+2. relink candidate の列挙を missing state から直接辿れるようにする
+3. bulk relink と drag & drop import を別操作にしすぎない
+4. missing asset search root を selection contract の延長として扱う
+
+### Phase 2 完了条件
+
+- import と relink が workflow としてつながる
+- missing から復帰までの導線が短い
+- state 表示と操作導線が食い違わない
+
+### Phase 5 への前提
+
+- browser から timeline / viewer / render への橋渡しは selection state が揃ってから詰める
+- save / restore は import/relink が安定してから別途固める
