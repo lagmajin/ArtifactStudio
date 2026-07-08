@@ -146,6 +146,43 @@ Contents Viewer は image / video / 3D model を見られるようになって�
 
 ---
 
+## Next Execution Slice
+
+Phase 1 は、比較の意味を先に固定してから UI を広げる。
+
+### Phase 1A の着手点
+
+1. `Source` と `Final` の切替位置を viewer 内で固定する
+2. `Compare` は分割表示として扱い、差分を見せることを主目的にする
+3. playback / scrub と compare の同期方針を先に決める
+4. 3D model の view state と compare state が衝突しないようにする
+
+### Phase 1 完了条件
+
+- 比較対象が分かる
+- compare 中の操作が迷わない
+- source / final / compare の意味が固定される
+
+### Phase 2A の着手点
+
+1. review note / bookmark / status chip の最小表示を用意する
+2. approved / needs work / rejected の 3 状態に絞る
+3. review note は compare state と独立に残せるようにする
+4. 何を確認したかが短く追えるようにする
+
+### Phase 2 完了条件
+
+- review の結果を残せる
+- 何を確認したかが追える
+- status 表示が compare UI を邪魔しない
+
+### Phase 3 への前提
+
+- annotation は compare と review note が安定してから足す
+- timestamp / frame の紐付けは state 契約が固まってからにする
+
+---
+
 ## Related
 
 - `docs/planned/MILESTONE_CONTENTS_VIEWER_EXPANSION_2026-03-27.md`
