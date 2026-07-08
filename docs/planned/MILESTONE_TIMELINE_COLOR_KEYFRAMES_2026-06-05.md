@@ -208,3 +208,40 @@ Done when:
 - `M-TL-10 Timeline Feature Implementation / Interaction Surface` の Phase 4 に吸収済み
 - [MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md)
 - [MILESTONE_TEXT_ANIMATOR_INTEGRATION_2026-04-27.md](/x:/Dev/ArtifactStudio/docs/MILESTONE_TEXT_ANIMATOR_INTEGRATION_2026-04-27.md)
+
+---
+
+## Next Execution Slice
+
+Phase 1 は、property path から color category へ落とす最小ルールを先に固定する。
+
+### Phase 1A の着手点
+
+1. 主要カテゴリを `transform / motion / facial / effect / misc` に絞る
+2. property path から category へ落とす最小ルールを作る
+3. fallback 色を固定して、未分類でも破綻しないようにする
+4. 同じ意味の keyframe は同じ色系統にまとめる
+
+### Phase 1 完了条件
+
+- 色の対応表が文章で説明できる
+- どの keyframe がどのカテゴリに入るかが曖昧でない
+- fallback で timeline が壊れない
+
+### Phase 2A の着手点
+
+1. `KeyframeMarkerVisual::color` の生成ルールを拡張する
+2. selected / hovered / current-frame-hit と競合しない補色処理を決める
+3. 同色系 keyframe が密集しても視認できるようにする
+4. 描画側の変更を最小化して既存 marker へ流し込む
+
+### Phase 2 完了条件
+
+- timeline 上で keyframe の種類が色で判別できる
+- 既存の selection 読みやすさが落ちない
+- marker 色の責務が読める
+
+### Phase 3 への前提
+
+- property / layer / preset 由来の意味は taxonomy が固まってから揃える
+- readability polish は色のカテゴリが安定してから入れる
