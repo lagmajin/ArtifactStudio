@@ -173,3 +173,40 @@ Project / Asset から 3D review に飛びやすくする。
 - Project View の footage context menu からも preview を開ける
 - Project View の `Open` も footage では preview と同じ導線に揃えた
 - 次は review の導線をもう少し軽くしつつ、`source / final / compare` の 3D 表示ルールを整える段階
+
+---
+
+## Next Execution Slice
+
+Phase 2 では、viewer に出す情報を「確認に必要な最小状態」に絞る。
+
+### Phase 2A の着手点
+
+1. loaded model path と backend の表示位置を固定する
+2. vertices / polygons / bounds は review に必要な範囲だけ残す
+3. display mode の状態表示を `Solid / Wireframe / Solid + Wire` に寄せる
+4. `reset view` の導線を model review の文脈に合わせて短くする
+
+### Phase 2 完了条件
+
+- 何を読み込んだか分かる
+- どういう見え方か分かる
+- review 用の情報と雑多な状態が混ざらない
+
+### Phase 3A の着手点
+
+1. `source / final / compare` の 3D 表示ルールを決める
+2. mode button の可視化条件を `Model3D` に限定する
+3. comparison では viewer status を増やしすぎない
+4. compare の導線は Phase 2 の簡素な表示を崩さない
+
+### Phase 3 完了条件
+
+- モデル確認時に見え方を切り替えられる
+- mode と preview が一致する
+- comparison のルールが viewer で読める
+
+### Phase 4 への前提
+
+- Project / Asset からの open 導線は既にある
+- review workflow は表示状態と mode ルールが固まってから詰める
