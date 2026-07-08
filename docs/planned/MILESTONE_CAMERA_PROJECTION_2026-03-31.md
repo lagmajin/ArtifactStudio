@@ -127,3 +127,34 @@ Viewport size と projection を同期する。
 3. Phase 3
 4. Phase 4
 5. Phase 5
+
+---
+
+## Next Execution Slice
+
+Phase 1 を先に締めるなら、`ProjectionMode` と camera property の整理から入る。
+
+### Phase 1A の着手点
+
+1. `ProjectionMode` enum を `Perspective` / `Orthographic` で切る
+2. FOV / near / far / ortho size を camera property として分ける
+3. Inspector から projection mode を切り替えられるようにする
+4. 既存の 2D camera と共存する前提を崩さない
+
+### Phase 1 完了条件
+
+- camera layer で projection mode を選択できる
+- projection 関連の property が見通しよく分かれている
+- 2D camera の挙動を壊さない
+
+### Phase 2 の前提
+
+- view / projection matrix の計算先が明確になっている
+- viewport size と projection の同期方針が決まっている
+- renderer へ渡す matrix 契約が固まっている
+
+### Phase 3 への波及
+
+- renderer integration は matrix contract が固まってから入れる
+- gizmo integration は viewport sync の後段に回す
+- projection 設計を先に固めると orbit / zoom の文法も揃えやすい
