@@ -57,3 +57,22 @@
 4. 既存のレイヤーバリアントと重なる部分は、コンポ単位の管理に限定する
 
 最初の実作業は Phase 1 の Take データモデルから入る。
+
+### Phase 1 の着手点
+
+1. `Composition State Variants` との重なりを確認し、Take を「単なる状態名」ではなく override 集合として定義する
+2. `Master Properties` は exposed control の公開側、`Takes` はその束ね替え側として責務を分ける
+3. UI はまず保存形式と data model を先に定義し、render / batch は後ろに回す
+4. 既存のレイヤーバリアントはコンポ全体の管理に広げず、必要最小限の上書きだけに限定する
+
+### Phase 1 完了条件
+
+- コンポジションに複数 Take を持てる
+- 各 Take が property override の集合を保持できる
+- Master Properties 側の exposed control と組み合わせても解決順が破綻しない
+
+### Phase 2 の前提
+
+- override UI を載せるだけの data model が固まっている
+- 保存形式と責務境界が先に決まっている
+- render queue 連携を後段にしても意味が通る
