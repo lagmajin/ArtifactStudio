@@ -136,10 +136,46 @@ toolbar・menu・shortcut・view state の整合を取りやすくすること�
 4. Phase 4: Cross-Panel Feedback
 5. Phase 5: Toolbar Diagnostics and Polish
 
+---
+
+## Next Execution Slice
+
+Phase 1 は、toolbar action ごとに state の正本と委譲先を先に固定する。
+
+### Phase 1A の着手点
+
+1. `home / select / hand / zoom / move / rotation / scale / camera / pan behind / shape / pen / text / brush / clone stamp / eraser / puppet` の ownership を整理する
+2. `zoom in / zoom out / 100% / fit / grid / guide / view mode` の state source を app/service 側に寄せる
+3. toolbar で完結する action と app service へ委譲する action を分ける
+4. toolbar 側に hidden business logic を残さない
+
+### Phase 1 完了条件
+
+- 各 action がどの state を読むか説明できる
+- toolbar 側に隠れた業務ロジックが残らない
+- menu / toolbar / shortcut の重複実装を減らす前提ができる
+
+### Phase 2A の着手点
+
+1. `ArtifactMainWindow` または既存の state update 経路から toolbar へ明示 refresh を呼ぶ
+2. `setCurrentTool()`, `setWorkspaceMode()`, `setZoomLevel()`, `setGridVisible()`, `setGuideVisible()` の役割を整理する
+3. toolbar の checked / enabled / tooltip を pull できる形に寄せる
+4. 新規 signal/slot を足さずに同期する前提を固める
+
+### Phase 2 完了条件
+
+- toolbar が stale state を表示しにくい
+- 新規 signal/slot を足さずに見た目の同期ができる
+- state update の責務が読める
+
+### Phase 3 への前提
+
+- menu / toolbar / shortcut の command routing は ownership が固まってから共通化する
+- cross-panel feedback は state source が揃ってから詰める
+
 ## Related Milestones
 
 - `docs/planned/MILESTONE_MENU_APP_INTEGRATION_2026-03-27.md`
 - `docs/planned/MILESTONE_APP_CROSS_CUTTING_IMPROVEMENT_2026-03-27.md`
 - `docs/planned/MILESTONE_FEATURE_EXPANSION_2026-03-25.md`
 - `docs/planned/MILESTONE_DEFERRED_UI_INITIALIZATION_2026-03-27.md`
-
