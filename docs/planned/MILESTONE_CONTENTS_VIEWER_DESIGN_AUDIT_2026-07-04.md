@@ -142,3 +142,40 @@
 - `QPainter` / Qt `CompositionMode` を使った新規の描画・合成実装は禁止。既存の Qt 合成コードを触る場合も、増やさず縮小・撤去の方向。
 - 新規シグナル＆スロット接続は禁止。既存のイベント経路やサービスを再利用。
 - QtCSS / `setStyleSheet()` の新規追加禁止。
+
+---
+
+## Next Execution Slice
+
+P1 は、Compare モードとメタデータ表示の責務を先に切り分ける。
+
+### P1A の着手点
+
+1. Source / Final / Compare の mode ボタンと状態表示の重複を解消する
+2. Compare モードを side-by-side / wipe / overlay / dissolve の 4 系統に整理する
+3. 画像メタデータは file size / frame rate / codec / color space / alpha mode に絞って短く出す
+4. channelMetaLabel の chip 風表示を、その場で読める情報カードに寄せる
+
+### P1 完了条件
+
+- compare の見え方が 1 本の語彙で読める
+- metadata が文字列連結の羅列に見えない
+- mode 表示と mode 操作が二重にならない
+
+### P2A の着手点
+
+1. viewer assignment の意味を 1 画面で読めるようにする
+2. recent source の一覧性を QComboBox 依存から見直す
+3. image / video / audio / 3D model の state 表示を揃える
+4. error 表示に再試行や深刻度の区別を足す
+
+### P2 完了条件
+
+- 何を見ているかが 1 画面で分かる
+- 診断表示が widget ごとにばらけない
+- compare / metadata / error の責務が混ざらない
+
+### P3 への前提
+
+- GPU パイプラインの見直しは compare / metadata の責務が固まってからでよい
+- 動画 FFmpeg 統一やチャンネル分離は、state 表示が安定してから後段に回す
