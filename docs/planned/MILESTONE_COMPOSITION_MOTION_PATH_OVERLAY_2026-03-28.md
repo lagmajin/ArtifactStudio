@@ -228,3 +228,39 @@
 4. Phase 4
 5. Phase 5
 
+---
+
+## Next Execution Slice
+
+Phase 1 は、描画の前に path 用の点列を安定して取れる状態を作る。
+
+### Phase 1A の着手点
+
+1. `AnimatableTransform3D` から position keyframe の時刻列を取る
+2. 現在 frame ごとの sampled position を 1 点として取得する
+3. 連続点を path として扱える最小の data contract を決める
+4. selected layer の `position` にだけ絞って source を固定する
+
+### Phase 1 完了条件
+
+- 選択 layer の position path を描くための点列が取得できる
+- current frame の位置を 1 点として追える
+- property keyframe の正本と矛盾しない
+
+### Phase 2A の着手点
+
+1. path 線と keyframe dot を viewport overlay に重ねる
+2. current frame の点を 1 点だけ強調する
+3. gizmo と同時に破綻しない overlay 順を先に決める
+4. selected layer のみ描くか複数選択対応にするかを固定する
+
+### Phase 2 完了条件
+
+- viewport で motion path が見える
+- path と gizmo が同時に破綻しない
+- current frame の位置が読める
+
+### Phase 3 への前提
+
+- overlay on/off は path 描画が安定してから足す
+- zoom 連動の密度制御は path が見える状態が固まってから入れる
