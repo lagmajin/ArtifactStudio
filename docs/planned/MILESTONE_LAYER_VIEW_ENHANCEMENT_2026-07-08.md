@@ -183,6 +183,24 @@ compositor_.drawAll(*renderer_, state_);
 - UI 統合は、比較と補助表示の責務が固まってから行う
 - standalone から dock 化するときに、検査系と比較系が一緒に壊れない
 
+### LW-4 の着手点
+
+1. まず `ArtifactSoftwareLayerTestWidget` の standalone 導線を残したまま、dock 側の入口を追加する
+2. `ArtifactRenderLayerEditor` を Inspector 近傍の第一級導線へ寄せる
+3. `selected / preview / compare` の状態表示を、standalone と dock で共通化する
+4. `LW-1`〜`LW-3` の表示系が壊れないことを確認してから standalone の役割を縮小する
+
+### LW-4 完了条件
+
+- standalone から dock へ自然に移れる
+- どこから開いても同じ検査・比較の文法で扱える
+- Layer View がテスト枠ではなく、編集導線として扱われる
+
+### 仕上げ前提
+
+- `LW-1`〜`LW-3` の共有基盤が先に揃っている
+- UI 統合は導線の変更であって、検査機能の再実装ではない
+
 ---
 
 ## 7. 参照
