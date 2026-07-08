@@ -133,6 +133,19 @@ compositor_.drawAll(*renderer_, state_);
 
 `LW-0` は完了済みなので、次の実作業は `LW-1` から入る。
 
+### LW-1 の着手点
+
+1. `ArtifactLayerEditorWidgetV2::Impl` に `ViewportState` を保持させる
+2. `ViewportOverlayCompositor` を `renderOneFrame()` 末尾に挿す
+3. `DisplayFilterSet` を `DisplayMode` から切り離して導入する
+4. 既存の `renderOneFrame` のレイヤー描画順は崩さず、後段の共有基盤だけ足す
+
+### LW-1 完了条件
+
+- 既存の単層描画の後ろに共有オーバーレイが一括で出る
+- 表示モードが編集モードと混ざらない
+- レイヤービューの 3D 表示が合成側の検査基盤に寄る
+
 ---
 
 ## 7. 参照
