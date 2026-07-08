@@ -110,6 +110,29 @@ project の render camera へ反映する。
 
 ---
 
+## Next Execution Slice
+
+### Phase 1A の着手点
+
+- preview-only view state と camera layer state を先に分離し、orbit / pan / dolly が render camera を直接触らない経路を作る
+- `Alt + Left Drag` / `Alt + Middle Drag` / `Wheel` を Composition viewport に限定して統一し、Point of Interest の決定を `cursor-under-point` 優先で固める
+- navigation 開始時の cross 表示と active viewport の細い枠を、既存 theme token だけで出せる最小構成にする
+- `Frame Selected` / `Frame All` を 2D / 3D 共通 command として接続し、選択喪失時の復帰動線を先に確保する
+
+### Phase 2A の着手点
+
+- view history は viewport ごとに分け、orbit / pan / dolly / frame のみを記録する小さい ring から始める
+- HUD は左上の projection / view name と中央上の active camera に絞り、Default Camera / render camera / preview-only の区別を明示する
+- multi-view 時は active pane のみ shortcut command を受ける前提を確認し、他 pane の誤反応を防ぐ
+
+### Phase 3 前提
+
+- 3D Cursor / Work Cursor は navigation と view history が安定してから導入する
+- cursor placement、pivot source、snap は separate contract として扱い、selection / object pivot / render camera と混ぜない
+- object transform や creation の配置先に広げるのは、overlay と hit target が安定してからにする
+
+---
+
 ## 操作契約
 
 ### Navigation baseline
