@@ -2,6 +2,7 @@ module;
 
 #include <QDialog>
 #include <QTextEdit>
+#include <QWidget>
 
 export module ArtifactPr.ShortcutHelpDialog;
 
@@ -16,5 +17,6 @@ public:
     void setRegistry(const ArtifactPr::PrShortcutRegistry& reg);
 
 private:
+    QWidget* keyboardPreview_ = nullptr;
     QTextEdit* textEdit_ = nullptr;
 };

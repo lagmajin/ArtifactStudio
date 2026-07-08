@@ -188,4 +188,4 @@ B-frames の数だけパケットが必要。300 ループ以内に到達しな�
 ## Long-Term Tracking
 
 - `docs/bugs/BUG_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
-- `docs/planned/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
+- `docs/done/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`

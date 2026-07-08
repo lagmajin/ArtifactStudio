@@ -66,6 +66,13 @@ Key Selected（選択チャンネルのみ）と組み合わせて使う。
 | Motion Trail 描画 | なし |
 | J/K キーフレームジャンプ | なし |
 
+Implementation note:
+
+- `Artifact/src/Service/ArtifactPlaybackShortcuts.cppm` では `J/K/L` が shuttle 系に割り当て済み
+- `ArtifactCore/include/UI/ShortcutBindings.ixx` には `AnimationGoToNextKeyframe` / `AnimationGoToPreviousKeyframe` が既にある
+- そのため Phase 4 の keyframe jump は、既存 shuttle を壊さない経路で追加するのが前提になる
+- Ghosting は `ArtifactCompositionRenderController.cppm` の onion-skin 経路が土台なので、timeline ghosting はそこから派生した表示面として実装する
+
 ---
 
 ## 3. Scope / Non-Goals
@@ -103,6 +110,22 @@ Key Selected（選択チャンネルのみ）と組み合わせて使う。
 - Auto-Keying ON でパラメータ変更→即キーフレーム生成
 - Per-layer ON で選択レイヤーのみ自動キー / 他は影響なし
 - toggle OFF で既存の手動キーイング動作を維持
+
+Suggested first slice:
+
+- `AbstractProperty::setValue()` ではなく、まず `Artifact` 側の property editing path から auto-key の入口を絞る
+- 既存の keyframe 追加経路を再利用して、フレーム内重複の dedup ルールを先に決める
+- keying set は `Channel Box` の selection state と切り離して、最小の model から始める
+
+Current implementation note:
+
+- `Artifact/src/Widgets/ArtifactPropertyWidgetShared.cppm` で auto-key と keying set のガードを property commit path に接続済み
+- `Artifact/src/Widgets/ArtifactTimelineWidget.cppm` で playhead key insertion / frame key editing も同じ keying set ルールに接続済み
+- `Artifact/src/Widgets/Control/ArtifactPlaybackControlWidget.cppm` で Auto-Key toggle, Ghosting toggle, Ghosting frame count / opacity, `All Keyable / Transform Only / Custom` の設定面を追加済み
+- Custom keying set は `UI/Timeline/CustomKeyingSetPropertyPaths` に保存し、プロパティ名の allowlist として使う
+- `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm` にプレイヘッド周辺の薄い ghost marker 表示を settings-driven で追加済み
+- ghosting の frame count / opacity は settings で調整可能になり、描画側はその値を直接参照する
+- 次の確認点は、`Transform Only` / `Custom` の実運用で抜け道がないかと、ghosting の描画面をどこまで既存 onion-skin から流用するかに絞る
 
 ### Phase 2: Keying Set (P1, 1 セッション)
 

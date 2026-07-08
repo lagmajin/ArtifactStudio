@@ -20,7 +20,7 @@
 - [MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md)
 - [MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md)
 - [MILESTONE_TIMELINE_TRANSFORM_KEYFRAME_EDITING_2026-04-12.md](/x:/Dev/ArtifactStudio/Artifact/docs/MILESTONE_TIMELINE_TRANSFORM_KEYFRAME_EDITING_2026-04-12.md)
-- [MILESTONE_TIMELINE_SEARCH_KEYFRAME_INTEGRATION_2026-03-28.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_SEARCH_KEYFRAME_INTEGRATION_2026-03-28.md)
+- [MILESTONE_TIMELINE_SEARCH_KEYFRAME_INTEGRATION_2026-03-28.md](/x:/Dev/ArtifactStudio/docs/done/MILESTONE_TIMELINE_SEARCH_KEYFRAME_INTEGRATION_2026-03-28.md)
 
 ### 3. 表示と入力の土台
 
@@ -62,11 +62,13 @@
 - `M-TL-4` Timeline TrackView Owner-Draw Migration
 - `M-TL-8` Timeline QGraphicsScene Elimination
 - `M-TL-11` Timeline Right Pane Full Owner-Draw
+- `M-TL-7` Timeline Search / Keyframe Integration
 
 補足:
 
 - `M-TL-4` は `M-TL-11` と `M-TL-8` に吸収された見方でよい
 - `M-TL-8` は右ペインに関しては完了扱い
+- `M-TL-7` は検索と keyframe の導線として完了済み
 - 右ペインの今後は「機能追加」と「見た目/入力の磨き込み」が主になる
 
 ### Superseded / Absorbed
@@ -79,11 +81,13 @@
 - `M-TL-13` Timeline Scrub Bar Frame Cache Overlay
 - `M-TL-14` Timeline Layer Specialization Execution
 - `M-TL-15` Timeline Ripple Edit / Downstream Shift
+- `M-TL-7` Timeline Search / Keyframe Integration
 
 補足:
 
 - `M-TL-4` は `M-TL-11` と `M-TL-8` に吸収された見方でよい
 - `M-TL-8` と `M-TL-11` は右ペイン/表示基盤として完了または吸収済み
+- `M-TL-7` は検索結果から keyframe へ辿る導線として完了済み
 - `M-TL-13` / `M-TL-14` / `M-TL-15` は本筋の補助線として読む
 
 ### Active / Current
@@ -93,7 +97,6 @@
 - `M-TL-10` Timeline Feature Implementation / Interaction Surface
 - `M-TL-5` Timeline Keyframe Editing
 - `M-TL-6` Timeline Layer Search
-- `M-TL-7` Timeline Search / Keyframe Integration
 - `M-TL-9` Timeline Visual Language
 - `M-TL-12` DAW-Style Input Surface
 - `M-TL-13` Timeline Scrub Bar Frame Cache Overlay

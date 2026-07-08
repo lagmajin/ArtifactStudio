@@ -1,7 +1,7 @@
 # M-CLIP-1 Keyframe Copy & Paste Milestone
 
 作成日: 2026-06-16
-ステータス: Completed
+ステータス: Archived reference
 対象: `ArtifactCore/src/Animation/Value*`,
       `ArtifactCore/src/Animation/Transform2D*`,
       `Artifact/src/Widgets/Timeline/ArtifactTimelineWidget.cpp`,

@@ -12,7 +12,7 @@
 
 ## Completion judgment
 
-- The milestone described in `docs/planned/MILESTONE_SOURCE_ABSTRACTION_CORE_2026-03-25.md` is already satisfied at the Core layer.
+- The milestone originally documented for Core source abstraction is already satisfied at the Core layer.
 - The app-side layer bridge and cleanup are follow-on work, not part of this core milestone.
 - This is not a fresh proposal candidate.
 

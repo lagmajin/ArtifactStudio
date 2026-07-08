@@ -47,7 +47,7 @@ Illustrator / Affinity 系の転送は app 側の import dialog だけで完結�
 
 - `MILESTONE_VECTOR_LAYER_IMPORT_2026-03-25.md`
 - `MILESTONE_SHAPE_LAYER_ENHANCEMENT_2026-04-28.md`
-- `MILESTONE_SOURCE_ABSTRACTION_CORE_2026-03-25.md`
+- `docs/done/MILESTONE_SOURCE_ABSTRACTION_CORE_2026-03-25_DONE.md`
 
 特に最初の段階では、`.ai` や `.afdesign` の native 完全再現ではなく、
 `PDF-compatible AI` / `EPS` / `PDF` / `SVG` / `Affinity exported PDF/SVG` を安全に受ける経路を優先する。
@@ -364,4 +364,4 @@ first-step import の先に、互換性と再現範囲を広げる。
 
 - [MILESTONE_VECTOR_LAYER_IMPORT_2026-03-25.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_VECTOR_LAYER_IMPORT_2026-03-25.md)
 - [MILESTONE_SHAPE_LAYER_ENHANCEMENT_2026-04-28.md](X:/Dev/ArtifactStudio/docs/MILESTONE_SHAPE_LAYER_ENHANCEMENT_2026-04-28.md)
-- [MILESTONE_SOURCE_ABSTRACTION_CORE_2026-03-25.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_SOURCE_ABSTRACTION_CORE_2026-03-25.md)
+- [MILESTONE_SOURCE_ABSTRACTION_CORE_2026-03-25_DONE.md](X:/Dev/ArtifactStudio/docs/done/MILESTONE_SOURCE_ABSTRACTION_CORE_2026-03-25_DONE.md)

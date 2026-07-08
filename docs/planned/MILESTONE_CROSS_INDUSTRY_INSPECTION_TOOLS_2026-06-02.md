@@ -3,7 +3,7 @@
 **Date**: 2026-06-02  
 **Status**: Proposed  
 **Priority**: High  
-**Related**: `docs/WIDGET_MAP.md`, `docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_2026-04-20.md`, `docs/planned/MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md`, `docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md`, `docs/planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`
+**Related**: `docs/WIDGET_MAP.md`, `docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_2026-04-20.md`, `docs/planned/MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md`, `docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md`, `docs/done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`
 
 ---
 

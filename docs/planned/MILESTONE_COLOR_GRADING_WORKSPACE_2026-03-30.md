@@ -34,5 +34,5 @@
 - リアルタイムスコープによる客観的な露出・色調整の実現。
 
 ## 🔗 関連マイルストーン
-- [M-CS-1 Advanced Color Science Pipeline](MILESTONE_ADVANCED_COLOR_SCIENCE_PIPELINE_2026-03-29.md)
+- [M-CS-1 Advanced Color Science Pipeline](../done/MILESTONE_ADVANCED_COLOR_SCIENCE_PIPELINE_2026-03-29.md)
 - [M-FX-6 Color Correction / Grading](MILESTONE_COLOR_CORRECTION_2026-03-27.md)

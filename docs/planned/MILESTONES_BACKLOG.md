@@ -563,7 +563,7 @@ active milestone の重複名としては扱わない。
 ### M-UI-24 Visual Density Monitor
 - 画面の詰まり具合を density / heatmap / warning で読む診断 surface
 - 完了記録は `docs/done/MILESTONE_VISUAL_DENSITY_MONITOR_2026-06-03.md`
-- 実行メモは `docs/planned/MILESTONE_VISUAL_DENSITY_MONITOR_PHASE1_EXECUTION_2026-06-03.md` だが、canonical completion は done 側
+- 実行メモは `docs/done/MILESTONE_VISUAL_DENSITY_MONITOR_PHASE1_EXECUTION_2026-06-03.md` で、canonical completion は done 側
 
 ### M-APP-5 Render Preflight / Output Safety Check
 - render queue / export dialog / debugger / problem view に出力前検査を共通文法で流す
@@ -709,7 +709,7 @@ active milestone の重複名としては扱わない。
 - **詳細:** `docs/planned/MILESTONE_TYPOGRAPHY_PRESET_UI_2026-03-30.md`
 
 ### M-CS-1 Advanced Color Science Pipeline
-- **詳細:** `docs/planned/MILESTONE_ADVANCED_COLOR_SCIENCE_PIPELINE_2026-03-29.md`
+- **詳細:** `docs/done/MILESTONE_ADVANCED_COLOR_SCIENCE_PIPELINE_2026-03-29.md`
 
 ### M-SC-3 Color Grading Workspace ⭐ **新規提案**
 - プロフェッショナルなグレーディング環境の構築
@@ -757,7 +757,7 @@ active milestone の重複名としては扱わない。
 - 右ペイン `ArtifactTimelineTrackPainterView` に Blender 風の proportional editing を導入する
 - Phase 1 は selected keyframes の time move のみに絞る
 - `O` で on/off、`[` `]` で半径変更
-- 詳細は `docs/done/MILESTONE_TIMELINE_PROPORTIONAL_KEYFRAME_EDITING_2026-07-06.md`
+- 詳細は `docs/planned/MILESTONE_TIMELINE_PROPORTIONAL_KEYFRAME_EDITING_2026-07-06.md`
 
 ### M-TL-6 Timeline Layer Search
 - タイムライン上部の検索バーで layer / effect / tag / state をインクリメンタルに絞り込む
@@ -765,7 +765,7 @@ active milestone の重複名としては扱わない。
 
 ### M-TL-7 Timeline Search / Keyframe Integration
 - search 結果から keyframe へ素早く飛べるようにし、header / status / highlight を統合する
-- 詳細は `docs/planned/MILESTONE_TIMELINE_SEARCH_KEYFRAME_INTEGRATION_2026-03-28.md`
+- 詳細は `docs/done/MILESTONE_TIMELINE_SEARCH_KEYFRAME_INTEGRATION_2026-03-28.md`
 
 ### M-LG-1 Layer Group System
 - レイヤーグループの保存 / 表示 / 親子 / 可視性 / 操作単位を整理する
@@ -870,11 +870,13 @@ active milestone の重複名としては扱わない。
 
 ### M-LV-1 Layer Solo View (Diligent)
 - 詳細は `docs/planned/MILESTONE_LAYER_SOLO_VIEW_DILIGENT_2026-03-26.md`
+- 現行の更新案は `docs/planned/MILESTONE_LAYER_VIEW_ENHANCEMENT_2026-07-08.md`
+- 実装順は LW-0 〜 LW-4（LayerPreviewPipeline 整理 → 共有 ViewportState / Overlay / DisplayFilter → レイヤー固有比較 → ドック統合）
 - current composition / current layer の追従
 - solo 表示の安定化
 - mask / roto 入口の整理
 - software test widget との見え方差分縮小
-- context / impact / before-after の可視化
+- inspect / impact / compare の導線整備
 - inspect HUD / compare / effect stack summary の追加
 - effect の部分適用 (Rect / Mask) の可視化
 
@@ -1531,7 +1533,7 @@ active milestone の重複名としては扱わない。
 ### M-RD-14 VideoLayer Playback Stability
 - `ArtifactVideoLayer` の play → stop が不安定。非同期デコードパイプラインに stop / cancel / reset が存在しない
 - `stop()` 新設、デコード世代管理（generation counter）、`seekToFrame()` と `decodeCurrentFrame()` の同期、`currentFrameImageBuffer()` のリファクタ
-- 詳細は `docs/planned/MILESTONE_VIDEO_LAYER_PLAYBACK_STABILITY_2026-06-06.md`
+- 詳細は `docs/done/MILESTONE_VIDEO_LAYER_PLAYBACK_STABILITY_2026-06-25.md`
 
 
 

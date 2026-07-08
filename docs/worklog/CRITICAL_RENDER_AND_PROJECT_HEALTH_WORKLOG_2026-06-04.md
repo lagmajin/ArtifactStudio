@@ -93,9 +93,9 @@
 ## Related Documents
 
 - `docs/MILESTONE_ROADMAP_CURRENT.md`
-- `docs/planned/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
+- `docs/done/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
 - `docs/planned/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md`
-- `docs/planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`
+- `docs/done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`
 
 ---
 
@@ -139,4 +139,3 @@
 1. Resume Checklist Step 1: ユーザーから「ビルドして」と明示依頼があるか確認する（明示がない限り走らせない）。
 2. backlog 文書のアップデート粒度を判断する（B-1, D-1 は status だけ書き換える 1 行メモで足りる）。
 3. M-UI-* / M-FE-9 / M-IR-8 の定義文書を探す旅にでない。無いなら新規に起こす前にユーザーに「設計メモを起こす or この ID は棚卸し対象に回す」の確認を取る。
-

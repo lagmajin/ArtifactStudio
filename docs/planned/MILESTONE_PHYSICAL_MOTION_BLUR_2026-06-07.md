@@ -176,7 +176,7 @@
 - `docs/planned/MILESTONE_AE_FEATURE_ENHANCEMENT_ROADMAP_2026-04-12.md`
 - `docs/planned/MILESTONE_AE_PARITY_BACKLOG_2026-04-29.md`
 - `docs/planned/MILESTONE_MOTION_NEXT_2026-06-02.md`
-- `docs/planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`
+- `docs/done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`
 - `docs/planned/MILESTONE_TIMELINE_FEATURE_IMPLEMENTATION_2026-04-03.md`
 
 ## Acceptance Checklist
@@ -191,4 +191,3 @@
 
 最初に、motion sample のデータ構造と shutter profile を決める。
 その後に preview path と final path を分け、サンプリング戦略を詰める。
-

@@ -68,8 +68,9 @@ AE のレイヤースイッチ列を基準に。Artifact のレイヤーパネ�
 | **Easy Ease / Easy Ease In / Out ワンキー適用** | AE (F9/Shift+F9) | ⚠️ F9 はあるが速度ベース自動イージング未実装 |
 | **補間タイプ切替（Constant/Linear/Bezier/Auto/Hold）** | 全アプリ | ⚠️ |
 | **Exponential Scale** | AE | ❌ 2D ズームの指数補間（線形ズームの奥行き不自然さを解消） |
-| **イージングのコピペ** | AE (EaseCopy) | ❌ キーフレーム間でイージング設定をコピー |
-| **プリセットイージングライブラリ** | Motion 4/Flow | ❌ Elastic/Bounce/Back/Expo をプルダウンから一発適用 |
+| **イージングのコピペ** | AE (EaseCopy) | ✅ Timeline の `Ease Copy` / `Ease Paste` で対応済み |
+| **プリセットイージングライブラリ** | Motion 4/Flow | ✅ EasingLab の候補に `Elastic / Bounce / Back / Expo` を追加済み |
+| **プリセットアニメーションライブラリ** | Animation Composer | ✅ `Animation` メニューの内蔵プリセットライブラリからワンクリック適用 |
 
 ### キーフレーム表示
 

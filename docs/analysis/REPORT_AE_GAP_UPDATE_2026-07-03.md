@@ -31,7 +31,7 @@
 |---|------|-----------------|-----------------|---------|
 | P0-1 | Preview/Cache/Playback 安定性 | 🟡 土台あり・状態契約未整備 | 🔄 継続改善中 | Multi-frame preview, Viewport 性能改善, VideoLayer 再生安定性 ✅ |
 | P0-2 | Track Matte / Alpha / Blend | 🟡 評価経路あり・正確性不足 | 🔄 継続中 | Blend Mode Catalog 追加 ✅, color blend modes 拡充 ✅, Track Matte drag UX は ❌ |
-| P1-1 | Keyframe/Graph Editor | 🟡 選択可視化済・Speed Graph 未接続 | 🔄 一部完了 | Keyframe Copy & Paste ✅, sampleSpeedGraph() 実装済み ✅ |
+| P1-1 | Keyframe/Graph Editor | 🟡 選択可視化済・Speed Graph 未接続 | ✅ 完了 | CurveEditor 実装済み（Value/Speed 切替・ベジエハンドル編集・キー移動/削除 Undo 連携）|
 | P1-2 | Text Animator UX | 🟡 Engine 完成・UI 未接続 | 🔄 一部完了 | Inline Edit Phase 1 ✅ |
 | P1-3 | Motion Blur | 🟡 実装あり・UI 配線弱い | 🟡 未変化 | 変化なし |
 | P1-4 | Adjustment Layer | 🟡 スタブ段階 | 🟡 未変化 | 変化なし |
@@ -121,7 +121,7 @@ ArtifactCore 側に motiontracker_ncc_tracking として初期コア追加。UI 
 |---|------|------|------|
 | 1 | **RAM Preview / Cache 安定性** | 🟡 状態契約未整備 | requested/ready/failed 統一が最大課題 |
 | 2 | **Track Matte Drag UX** | ❌ | データモデルあり (16 hit) + drag link 0 hit |
-| 3 | **Graph Editor / Speed Graph wiring** | 🟡 sampleSpeedGraph() 実装済み・UI 未接続 | B-1 優先度低だが着手可能 |
+| 3 | **Graph Editor / Speed Graph wiring** | ✅ 完了 | `ArtifactTimelineWidget`/`ArtifactCurveEditorWidget` で Value/Speed グラフ・ハンドル編集・キー操作 UI 実装済み |
 | 4 | **Text Animator UX (timeline/Inspector)** | 🟡 Engine 完成 | Range Selector/Wiggly UI 不在 |
 | 5 | **Audio Scrubbing** | ❌ | Audio engine 基盤あり・実装なし |
 | 6 | **Source Text Keyframe** | ❌ | Text layer inline edit Phase 1 完了が土台 |
@@ -217,3 +217,26 @@ ArtifactCore 側に motiontracker_ncc_tracking として初期コア追加。UI 
 ## 7. 更新履歴
 
 - 2026-07-03: 初版作成。2026-05-28〜06-16 時点の全ギャップ文書に対し、その後の Artifact/ArtifactCore コミットと完了マイルストーンを反映。
+- 2026-07-08: ソースコード直接検証に基づく訂正（§8 参照）。Graph Editor / Blend Mode / Expression 標準関数の実装状況を修正。
+
+---
+
+## 8. 2026-07-08 ソース検証アップデート（実装状況の訂正）
+
+`docs/analysis/AFTER_EFFECTS_MISSING_FEATURES_CURRENT_2026-05-28.md` 等の 2026-05-28 版ギャップ文書が、現行ソースと食い違っていることが判明。ソースを直接確認し、以下を訂正する。
+
+### 8.1 実装済みであることが確認された機能
+
+| 機能 | ソース根拠 | 訂正内容 |
+|------|-----------|----------|
+| Graph Editor（Curve Editor） | `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`（CurveEditorWidget、Value/Speed モード切替、ベジエハンドル編集、キー移動/削除の Undo 連携） | 「未着手」→ ✅ 完了。Value/Speed グラフ・ハンドル編集・キー操作 UI は実装済み |
+| Blend Mode | `ArtifactCore/include/Layer/LayerBlend.ixx`（enum 33 モード）、`ArtifactCore/src/Color/ColorBlendMode.cppm` | 「18/38」→ 33 モード実装済み。Dissolve / DancingDissolve / Stencil / Silhouette 系を含む。AE 標準セットはほぼ完了 |
+| Expression 標準関数 | `ArtifactCore/src/Script/Expression/ExpressionEvaluator.cppm:514-528`（wiggle / valueAtTime / loopIn / loopOut / loopInDuration / loopOutDuration）、`ScriptRuntime.cppm`（thisComp / thisLayer） | wiggle / loopIn / loopOut / valueAtTime / thisComp は実装済み。「不足」は誤り（pick whip UI のみ未完） |
+
+### 8.2 影響と再優先順位
+
+- P0「Graph Editor / Speed Graph wiring」は完了済み。優先度リストから除外してよい。
+- ブレンドモードの P0 項目（種数不足）は解消。
+- 次の着手は **P0 の Track Matte Drag UX → Precompose(unprecompose) → Adjustment Layer** に集中すべき。
+- 補足メモ（§外部AI 調査メモ）内の「18/38」「Graph Editor 未着手」「wiggle/loopIn/thisComp 不足」は、`AFTER_EFFECTS_MISSING_FEATURES_CURRENT_2026-05-28.md` 側の該当記述と共に古いため参照時に注意。
+

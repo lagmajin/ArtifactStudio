@@ -89,7 +89,7 @@ Blender Graph Editor のように、
 
 依存:
 
-- `docs/planned/MILESTONE_TIMELINE_INLINE_FCURVE_EDITING_2026-07-06.md`
+- `docs/done/MILESTONE_TIMELINE_INLINE_FCURVE_EDITING_2026-07-06.md`
 
 ### Phase 4: Advanced Controls
 
@@ -123,15 +123,22 @@ Blender Graph Editor のように、
 - value direction 編集
 - graph editor 側との共有 UI
 
+Current implementation note:
+
+- `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm` の範囲で閉じる方針は維持する
+- proportional editing の first slice は右ペインの marker drag / area drag まで入っており、選択キーに対する time move / scale の重み付けが動く前提になっている
+- ここから先は `inline F-curve` 側へ広げる前段として、右ペインの time-move 編集を崩さずに保守する
+- proportional editing の次の確認点は、selection / undo / drag preview の一致性と、graph editor 側へ共有する最小 API だけに絞る
+
 ## Target Files
 
 - `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`
 - 必要なら `Artifact/include/Widgets/Timeline/ArtifactTimelineTrackPainterView.ixx`
-- 必要なら `docs/planned/MILESTONE_TIMELINE_INLINE_FCURVE_EDITING_2026-07-06.md`
+- 必要なら `docs/done/MILESTONE_TIMELINE_INLINE_FCURVE_EDITING_2026-07-06.md`
 
 ## Related Docs
 
 - `docs/planned/MILESTONE_TIMELINE_KEYFRAME_AREA_EDITING_2026-06-15.md`
-- `docs/planned/MILESTONE_TIMELINE_INLINE_FCURVE_EDITING_2026-07-06.md`
+- `docs/done/MILESTONE_TIMELINE_INLINE_FCURVE_EDITING_2026-07-06.md`
 - `docs/planned/MILESTONE_TIMELINE_DESIGN_AUDIT_2026-07-04.md`
 - `docs/planned/MILESTONE_GRAPH_EDITOR_DESIGN_AUDIT_2026-07-04.md`

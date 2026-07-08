@@ -2,7 +2,7 @@
 
 **Date**: 2026-07-03  
 **Audience**: render/export にまだ慣れていないユーザー  
-**Related**: `docs/planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`, `docs/drafts/RENDER_CENTER_UI_DRAFT_2026-03-28.md`, `Artifact/src/Widgets/Dialog/ArtifactRenderOutputSettingDialog.cppm`
+**Related**: `docs/done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`, `docs/drafts/RENDER_CENTER_UI_DRAFT_2026-03-28.md`, `Artifact/src/Widgets/Dialog/ArtifactRenderOutputSettingDialog.cppm`
 
 ---
 

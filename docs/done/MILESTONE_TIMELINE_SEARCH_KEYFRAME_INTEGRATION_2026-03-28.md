@@ -1,5 +1,8 @@
 # Timeline Search / Keyframe Integration Milestone
 
+**Status**: Completed
+**Source**: moved from `docs/planned/MILESTONE_TIMELINE_SEARCH_KEYFRAME_INTEGRATION_2026-03-28.md`
+
 `Timeline Layer Search` と `Timeline Keyframe Editing` を一体で扱い、検索した layer から keyframe まで迷わず辿れるようにするためのマイルストーン。
 
 この milestone は検索を単独機能として閉じず、keyframe の可視化・ジャンプ・診断と結びつけて、`ArtifactTimelineWidget` の上部操作系をひとまとめに整理する。

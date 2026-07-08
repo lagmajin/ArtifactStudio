@@ -1,7 +1,7 @@
 # Critical Render / Media Smoke Checklist
 
 **Date:** 2026-04-30  
-**Related Milestone:** [`../planned/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`](../planned/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md)
+**Related Milestone:** [`../done/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`](../done/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md)
 
 ---
 

@@ -4,7 +4,7 @@
 
 **Source**: [`MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`](./MILESTONE_RENDER_PREFLIGHT_2026-06-02.md)
 
-**Status**: absorbed into [`../done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`](../done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md)
+**Status**: Completed
 
 ---
 

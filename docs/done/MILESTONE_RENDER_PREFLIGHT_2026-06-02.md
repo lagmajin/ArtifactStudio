@@ -2,8 +2,8 @@
 
 **Date**: 2026-06-02
 **Status**: Completed
-**Source**: [`../planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`](../planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md)
-**Phase 1 Memo**: [`../planned/MILESTONE_RENDER_PREFLIGHT_PHASE1_EXECUTION_2026-06-02.md`](../planned/MILESTONE_RENDER_PREFLIGHT_PHASE1_EXECUTION_2026-06-02.md)
+**Source**: moved from `docs/planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`
+**Phase 1 Memo**: [`MILESTONE_RENDER_PREFLIGHT_PHASE1_EXECUTION_2026-06-02.md`](MILESTONE_RENDER_PREFLIGHT_PHASE1_EXECUTION_2026-06-02.md)
 
 ## Summary
 
@@ -28,4 +28,3 @@
 - `Artifact/src/Widgets/Dialog/ArtifactRenderOutputSettingDialog.cppm`
 - `Artifact/src/Widgets/Render/ArtifactRenderQueueManagerWidget.cpp`
 - `Artifact/src/Widgets/Diagnostics/AppDebuggerWidget.cppm`
-

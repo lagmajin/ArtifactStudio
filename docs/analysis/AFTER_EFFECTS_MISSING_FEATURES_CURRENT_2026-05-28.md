@@ -4,6 +4,14 @@
 対象: ArtifactStudio 現行リポジトリ
 目的: 「AE 風ツールとして見たとき、今なにが本当に不足しているか」を現行コード基準で短く整理する
 
+> ⚠️ **2026-07-08 ソース検証による訂正**
+> 本ドキュメント作成後、ソースコードを直接確認した結果、以下の記述が現状と食い違っている。
+> 詳細は `docs/analysis/REPORT_AE_GAP_UPDATE_2026-07-03.md` §8 を参照。
+> - **Graph Editor / 補間編集**：`ArtifactTimelineWidget` / `ArtifactCurveEditorWidget` により Value/Speed グラフ・ベジエハンドル編集・キー移動/削除 UI は **実装済み（未着手ではない）**。
+> - **Blend Mode**：`Layer.Blend` enum に **33 モード**実装済み（Dissolve/Stencil/Silhouette 系含む）。「18/38」は誤り。
+> - **Expression 標準関数**：`wiggle / valueAtTime / loopIn / loopOut / thisComp` は **実装済み**。不足は pick whip UI のみ。
+> したがって「§1 Graph Editor」「§補足メモ P0/P2」の「未着手/不足」表記は古い。
+
 ---
 
 ## 前提
@@ -36,13 +44,14 @@
 
 ## 結論
 
-現行 repo を AE として見たときの主要不足は次の 5 本。
+現行 repo を AE として見たときの主要不足は次の 4 本（Graph Editor は 2026-07-08 訂正により完了済みとして除外）。
 
-1. Graph Editor / 補間編集
+1. Track Matte / Mask / Blend の正確性
 2. Precompose の実務完成度
 3. Text Animator の timeline 統合
-4. Track Matte / Mask / Blend の正確性
-5. Proxy workflow
+4. Proxy workflow
+
+（Graph Editor / 補間編集は 2026-07-08 時点で実装済み。ただし roving / hold / tangent 編集、easy ease の操作性は要検証。）
 
 この 5 つは「あるように見えるが制作ではまだ弱い」か、「導線はあるが中身が未完成」のどちらかに入る。
 
@@ -50,26 +59,27 @@
 
 ## 1. Graph Editor / 補間編集
 
-### なぜ不足扱いか
+### なぜ不足扱いか（2026-07-08 訂正）
 
-AE らしさの中心にある `easy ease`、`value graph`、`speed graph`、
-`bezier handle`、`roving`、`hold` がまだ実務レベルで揃っていない。
+`value graph`、`speed graph`、`bezier handle` は実装済み。残る実務課題は `roving` / `hold` 編集と、easy ease 等の操作性洗練であり、「未実装」ではない。
 
 ### いまあるもの
 
+- `ArtifactTimelineWidget` / `ArtifactCurveEditorWidget` による Curve Editor 実装
+- Value / Speed グラフの切替（`CurveEditorGraphMode::Value/Speed`）
+- ベジエハンドル編集（`setHandleEditingEnabled`）、キー移動/削除の Undo 連携
 - Timeline 右パネルの keyframe 可視化と marker selection の土台
-- current frame / selected keyframe / lane visibility の改善
 
 コード上の足場:
 
+- [ArtifactTimelineWidget.cppm](X:/Dev/ArtifactStudio/Artifact/src/Widgets/ArtifactTimelineWidget.cppm:4224)（`refreshCurveEditorTracks` 等）
 - [ArtifactTimelineTrackPainterView.cpp](X:/Dev/ArtifactStudio/Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cpp:670)
 
 ### まだ足りないもの
 
-- curve editor surface の本実装
-- speed graph / value graph の切替
-- easy ease / bezier handle
-- roving / hold / tangent 編集
+- roving / hold keyframe 編集
+- tangent 操作の洗練（easy ease 等の操作性）
+- 複数プロパティの一括カーブ編集体験の検証
 
 根拠:
 
@@ -239,13 +249,12 @@ AE parity では「できる」より「破綻しない」が重要。
 
 ## 優先順の提案
 
-AE としての不足を埋める順番は、現時点では次が自然。
+AE としての不足を埋める順番は、現時点では次が自然（Graph Editor は 2026-07-08 訂正で完了済みのため除外）。
 
-1. Graph Editor / 補間編集
-2. Track Matte / Mask / Blend の正確性
-3. Precompose の実務完成度
-4. Text Animator の timeline 統合
-5. Proxy workflow
+1. Track Matte / Mask / Blend の正確性
+2. Precompose の実務完成度
+3. Text Animator の timeline 統合
+4. Proxy workflow
 
 理由:
 
@@ -280,12 +289,12 @@ AE としての不足を埋める順番は、現時点では次が自然。
 - トラックマット / アルファ合成の正確性
   - マット連鎖の評価順にバグの疑い
 - ブレンドモード
-  - 18/38 程度しか埋まっておらず、Dissolve / Linear Burn / Hard Mix / Stencil 系が不足
+  - 2026-07-08 時点で 33 モード実装済み（`Layer.Blend` enum: Normal～SilhouetteLuma、Dissolve/DancingDissolve/Stencil/Silhouette 系含む）。AE 標準セットはほぼ埋まっており「18/38」という古い記述は誤り。
 
 ### P1 - コア生産性
 
 - キーフレーム補間 / グラフエディタ
-  - Linear が中心で、Bezier / Hold / Roving / Speed Graph が未完成
+  - Curve Editor（Value/Speed グラフ・ベジエハンドル編集）は実装済み。残るは Hold / Roving / tangent 編集の操作性向上（2026-07-08 訂正）
 - テキストアニメーター UX
   - Range Selector / CJK / timeline 表示が未完成
 - モーションブラー
@@ -308,7 +317,7 @@ AE としての不足を埋める順番は、現時点では次が自然。
 - タイムリマップ / フレームブレンド
   - Optical Flow 相当がない
 - エクスプレッションエンジン
-  - パーサーはあるが `wiggle()` / `loopIn()` / `thisComp` / pick whip が不足
+  - パーサーと標準関数は実装済み（`wiggle()` / `valueAtTime()` / `loopIn()` / `loopOut()` / `thisComp` / `thisLayer`）。不足は主に **pick whip（UI でのプロパティ紐付け）** と AE 互換 stdlib 拡充。
 
 ### P3 - 高度な機能
 

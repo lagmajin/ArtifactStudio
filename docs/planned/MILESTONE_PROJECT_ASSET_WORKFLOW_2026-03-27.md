@@ -56,7 +56,7 @@ Project View と Asset Browser を別の UI ではなく、同じ制作ワーク
 - `Artifact/src/Service/ArtifactProjectService.cpp`
 - `Artifact/docs/MILESTONE_ASSET_SYSTEM_2026-03-12.md`
 - `Artifact/docs/MILESTONE_PROJECT_VIEW_2026-03-12.md`
-- `docs/planned/MILESTONE_SOURCE_ABSTRACTION_CORE_2026-03-25.md`
+- `docs/done/MILESTONE_SOURCE_ABSTRACTION_CORE_2026-03-25_DONE.md`
 - `docs/planned/MILESTONE_CONTENTS_VIEWER_EXPANSION_2026-03-27.md`
 
 ---

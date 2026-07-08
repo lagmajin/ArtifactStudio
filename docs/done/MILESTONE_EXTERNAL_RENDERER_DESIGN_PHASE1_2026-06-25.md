@@ -12,7 +12,7 @@
 
 ## Completion judgment
 
-- The Phase 1 slice described in `docs/planned/MILESTONE_EXTERNAL_RENDERER_DESIGN_PHASE1_EXECUTION_2026-06-25.md` is already satisfied by the current render queue implementation.
+- The Phase 1 slice described in `docs/done/MILESTONE_EXTERNAL_RENDERER_DESIGN_PHASE1_EXECUTION_2026-06-25.md` is already satisfied by the current render queue implementation.
 - The remaining phases are follow-on work, not blockers for closing this slice.
 - This should not be treated as an open proposal anymore.
 

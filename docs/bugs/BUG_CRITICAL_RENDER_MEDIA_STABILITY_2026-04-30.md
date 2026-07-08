@@ -190,7 +190,7 @@ Create a critical stability milestone that tracks these two bugs together:
 - Video decode / layer visibility stabilization
 
 Phase 1 triage ledger:
-- `docs/planned/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_PHASE1_TRIAGE_2026-04-30.md`
+- `docs/done/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_PHASE1_TRIAGE_2026-04-30.md`
 
 Follow-up execution surface:
 - `docs/planned/MILESTONE_DEBUG_RENDER_HARNESS_2026-04-30.md`

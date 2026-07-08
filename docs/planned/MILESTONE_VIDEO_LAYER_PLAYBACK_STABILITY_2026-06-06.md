@@ -1,6 +1,7 @@
 # マイルストーン: VideoLayer Playback Stability
 
 > 2026-06-06 作成
+> **Status:** Archived reference
 > **コードレビュー元:** `ArtifactVideoLayer.cppm` (Artifact 子リポジトリ)
 
 ## 概要
