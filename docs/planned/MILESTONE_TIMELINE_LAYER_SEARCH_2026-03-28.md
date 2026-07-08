@@ -206,6 +206,43 @@
 
 ---
 
+## Next Execution Slice
+
+Phase 1 は、入力中に即反映することと、いま何件ヒットしているかを先に固める。
+
+### Phase 1A の着手点
+
+1. `ArtifactTimelineWidget` に検索状態を 1 つだけ持たせる
+2. `ArtifactLayerPanelWidget` のフィルタ更新を incremental に反映する
+3. hit count を検索欄の近くに常時表示する
+4. 検索バーを閉じなくても状態が分かるようにする
+
+### Phase 1 完了条件
+
+- 入力中に結果が変わる
+- 検索欄を閉じなくても状態が分かる
+- hit count が常に追える
+
+### Phase 2A の着手点
+
+1. `All Visible / Highlight Only / Filter Only` を検索状態の表示モードとして整理する
+2. 通常表示 / 検索フィルタ中 / 検索結果のみ表示中 を分けて扱う
+3. non-match の薄化や非表示は mode によって切り替える
+4. 検索状態を一時入力ではなく表示モードとして残す
+
+### Phase 2 完了条件
+
+- 検索状態が作業を邪魔しない
+- 文脈保持と絞り込みを切り替えられる
+- 表示モードが検索と混ざらない
+
+### Phase 3 への前提
+
+- query coverage は phase 1/2 で表示の意味が揃ってから広げる
+- result navigation は hit count が安定してから入れる
+
+---
+
 ## Related
 
 - `Artifact/src/Widgets/ArtifactTimelineWidget.cpp`
