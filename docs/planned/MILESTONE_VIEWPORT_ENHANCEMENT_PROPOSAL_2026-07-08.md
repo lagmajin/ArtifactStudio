@@ -232,6 +232,42 @@ W0 の次は、合成側とレイヤー側の両方へ効く表示・比較系�
 
 ---
 
+## 14. W3 / W4 実行順
+
+W3/W4 は、3D 操作の文法と将来拡張の抜け道を順に揃える。
+
+### W3
+
+1. `Orbit / Pan / Zoom Shortcut Baseline` を 2D/3D で揃える
+2. `Preview Orbit Mode` を導入し、live camera と preview-only state を分ける
+3. `ViewOrientationNavigator` との境界を整理する
+
+### W3 完了条件
+
+- editor 間で orbit / pan / zoom の文法が大きくずれない
+- preview-only 操作が camera 編集と混ざらない
+- 3D 表示が操作意図を読みやすい
+
+### W4
+
+1. `Playblast / Contact Sheet` の出力導線を検討する
+2. `Construction Plane / Guide Geometry` を overlay 層として扱う
+3. `M-VP` 系の統合検証を、拡張の入口として最後に回す
+
+### W4 完了条件
+
+- ビューポートから簡易出力と比較確認の導線がある
+- ガイド系表示が overlay として分離されている
+- 拡張要素を足しても W0-W3 の責務が崩れない
+
+### 3D への波及
+
+- W3 は `MILESTONE_3D_VIEWPORT_ORBIT_PAN_PREVIEW_MODE_2026-06-07.md` と実質同じ基盤を持つ
+- W4 は `MILESTONE_3D_VIEWPORT_SOLID_CAMERA_OVERLAY_2026-04-10.md` の overlay / camera 層と接続しやすい
+- したがって、3D 側の整理が先に立つと W3/W4 の仕様が読みやすくなる
+
+---
+
 ## 11. 参照ドキュメント
 
 - `docs/planned/MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md`（不足機能網羅・C4D/Maya/Houdini 比較）
