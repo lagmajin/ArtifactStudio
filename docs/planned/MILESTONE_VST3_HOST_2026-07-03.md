@@ -153,3 +153,24 @@ class VST3Loader {
 
 **CLAP 追加工数:** ~18h  
 **VST3 + CLAP 合計:** ~38h
+
+---
+
+## Next Execution Slice
+
+### Phase 1A の着手点
+
+- VST3 側は `IPluginBase / IAudioProcessor / IEditController / IPluginFactory` の最小宣言と `VST3Loader` だけを先に固める
+- `GetPluginFactory()` から `createInstance()` までの導線を、ローダー単体で追えるところまで整理する
+- `AudioSegment` ↔ VST3 buffer 変換は Phase 2 へ送る前提で、Phase 1 では型の境界だけを明示する
+
+### Phase 2A の着手点
+
+- `IAudioProcessor::process()` の入出力と bus / sample rate 設定を、既存 Audio 系 API とどう接続するか確認する
+- parameter / editor の責務を `IEditController` と inspector 側で分け、UI を先に膨らませない
+
+### Phase 3 前提
+
+- CLAP 側は `clap_entry` と `PluginLibrary` の共通ローダー整備が終わってから拡張する
+- VST3 と CLAP の共用部は search path / effect chain / parameter UI に限定し、GUI ホストの責務は混ぜない
+- 先に `VST3` の最小再生経路を通してから、統合ブラウザや editor 埋め込みへ進む
