@@ -203,3 +203,21 @@ Phase 1 を先に締めるなら、次の順で進める。
 - したがって phase 2 は、open そのものより header / state / reset view の軽量化に寄せる
 - review 導線は phase 1 の失敗理由整備が終わってから詰める
 - preview in Contents Viewer の導線は phase 1 が固まってから細かくする
+
+### Phase 2A の着手点
+
+1. header には短い状態文だけを出し、詳細は diagnostics 側へ逃がす
+2. successful open 時にも backend / source path / mode を追えるようにする
+3. `Reset 3D` と `Ctrl+0` の役割を model viewer 内で固定する
+4. 3D preview の solid preview 寄り表示を維持する
+
+### Phase 2 完了条件
+
+- 何を読み込んだかが viewer で分かる
+- 成功 / 失敗の両方で importer path を追える
+- reset view の導線が短い
+
+### Phase 4 への前提
+
+- review 導線は header / state が安定してから詰める
+- project / asset からの open flow は phase 2 で崩さない
