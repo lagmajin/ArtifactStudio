@@ -178,3 +178,23 @@ Project / Asset から 3D review までの導線を短くする。
 - 3D status は camera / bounds の細部を削って短くした
 - glTF / glb は ufbx 経由で読む前提だと分かるようにした
 - 次の焦点は、model review の導線をもう少し軽くすることと、`gltf` / `glb` の扱いを明確化すること
+
+### Next Execution Slice
+
+Phase 1 を先に締めるなら、次の順で進める。
+
+1. `MeshImporter` の失敗理由を、UI へ渡せる単一のエラー表現にまとめる
+2. `OBJ` の fallback を使ったかどうかを区別できるようにする
+3. `gltf` / `glb` の未対応または ufbx 前提を明示する
+
+#### Phase 1 完了条件
+
+- `OBJ` / `FBX` の読み込み失敗理由が viewer から追える
+- OBJ fallback の採用可否を実装側で判断しやすい
+- `Contents Viewer` の phase 2 へ入る前提が整う
+
+#### Phase 2 前提
+
+- `FileType::Model3D` の open flow 自体は既にある
+- したがって phase 2 は、open そのものより header / state / reset view の軽量化に寄せる
+- review 導線は phase 1 の失敗理由整備が終わってから詰める
