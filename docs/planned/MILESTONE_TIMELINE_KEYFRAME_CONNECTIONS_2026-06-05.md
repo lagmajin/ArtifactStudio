@@ -199,6 +199,43 @@ Done when:
 
 ---
 
+## Next Execution Slice
+
+Phase 1 は、どの keyframe をどの単位で結ぶかを先に固定する。
+
+### Phase 1A の着手点
+
+1. 同一 `layerId + propertyPath` の keyframe を frame 順に並べる
+2. 隣接 keyframe 間を segment として扱う
+3. segment を全区間で描くか、一定閾値以上の近接区間だけ描くかを決める
+4. keyframe が 1 個だけの property は線を出さない
+
+### Phase 1 完了条件
+
+- 「何と何を結ぶか」が説明できる
+- どの条件で線が出るかが曖昧でない
+- 1 property 内の複数 keyframe を結ぶだけに絞れている
+
+### Phase 2A の着手点
+
+1. marker 描画前に segment を描く
+2. 線は marker より下層に置く
+3. current-frame 上の marker や selection 表現を邪魔しない alpha にする
+4. track / lane の上下に収まるよう描画範囲を絞る
+
+### Phase 2 完了条件
+
+- timeline 上で「区間」が背景として読める
+- 点の視認性が落ちない
+- selection / hover / playhead の可読性が保たれる
+
+### Phase 3 への前提
+
+- ease / bezier / roving の見た目反映は segment semantics が固まってからでよい
+- zoom に応じた簡略化は背景帯が読める状態になってから入れる
+
+---
+
 ## Related Docs
 
 - [MILESTONE_TIMELINE_COLOR_KEYFRAMES_2026-06-05.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_COLOR_KEYFRAMES_2026-06-05.md)
