@@ -47,3 +47,16 @@
 - `docs/planned/MILESTONE_MOTION_GRAPHICS_TEMPLATE_2026-06-01.md`
 - `docs/analysis/AFTER_EFFECTS_MISSING_FEATURES_CURRENT_2026-05-28.md`（Precompose 実務完成度）
 - `ArtifactCore/src/Composition/PreCompose.cppm`
+
+---
+
+## 8. 実行順
+
+このマイルストーンは、次の順で進めると責務が崩れにくい。
+
+1. `Precompose` 側の内部プロパティ参照モデルを確認する
+2. 公開プロパティのデータモデルを先に固定する
+3. 親コンプ側の上書き UI は、公開プロパティの読み取りだけに絞る
+4. 値伝播は最後に通し、式やキーフレームとの競合をそこで解決する
+
+最初の実作業は Phase 1 の「プロパティ露出」から入る。

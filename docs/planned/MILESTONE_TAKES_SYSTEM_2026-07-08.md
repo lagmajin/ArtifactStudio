@@ -44,3 +44,16 @@
 - `docs/analysis/REPORT_CROSS_APP_FEATURE_OPPORTUNITIES_2026-07-04.md`
 - `docs/planned/MILESTONE_LIGHTWEIGHT_VCS_AND_LAYER_VARIANTS_2026-04-17.md`
 - `docs/planned/MILESTONE_MASTER_PROPERTIES_2026-07-08.md`（依存関係）
+
+---
+
+## 8. 実行順
+
+このマイルストーンは、次の順で進めると重複を減らしやすい。
+
+1. `Master Properties` との責務境界を先に固定する
+2. Take のデータモデルを、単なるプリセットではなく上書き集合として定義する
+3. Render Queue 連携は最後に回し、まずは UI と保存形式を固める
+4. 既存のレイヤーバリアントと重なる部分は、コンポ単位の管理に限定する
+
+最初の実作業は Phase 1 の Take データモデルから入る。
