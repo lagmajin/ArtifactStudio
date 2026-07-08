@@ -146,3 +146,40 @@ AE レベルに寄せるために、まだ足りないのは次の層。
 3. selected layer の lane を視覚的に強調する
 4. header で current frame と keyframe count を読めるようにする
 5. `U` が flat filter、`Tab` が curve mode になるよう役割を分ける
+
+---
+
+## Next Execution Slice
+
+Phase 1/2 は、抽出結果と切り替え表示を先に固定する。
+
+### Phase 1A の着手点
+
+1. keyframed property の抽出結果を 1 回で集約する
+2. property group の階層名は補助表示に回す
+3. lane 表示は `displayLabel` 優先、なければ humanized name に寄せる
+4. `Transform` / `Physics` のような group は邪魔にならない形で吸収する
+
+### Phase 1 完了条件
+
+- キーフレームが存在する property だけを timeline に出せる
+- selected layer の keyframe が一目で追える
+- 動いていない property が初期表示で邪魔しない
+
+### Phase 2A の着手点
+
+1. `All Properties` / `Keyframes Only` を UI に出す
+2. `U` キーで flat filter をトグルする
+3. timeline header に表示モードの状態を出す
+4. `Tab` の curve mode と役割を混同しない
+
+### Phase 2 完了条件
+
+- 1 操作で `全表示` と `キーフレームのみ` を切り替えられる
+- どちらの状態か迷わない
+- flat filter と curve mode の役割が分かれる
+
+### Phase 3 への前提
+
+- selected layer の lane 強調は flat filter が安定してから入れる
+- current frame / keyframe count の header 表示は toggle state が固まってから詰める
