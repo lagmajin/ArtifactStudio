@@ -158,3 +158,40 @@
 - Remaining Phase 1 polish:
   - rubber-band behavior for layer clips and keyframes can still be tuned
   - selection clearing and additive semantics may need a final UX pass
+
+---
+
+## Next Execution Slice
+
+Phase 2 は、scroll / zoom の意味を先に固定してから、復帰 shortcut を足す。
+
+### Phase 2A の着手点
+
+1. plain scroll を pan に固定する
+2. `Ctrl+Scroll` を zoom に固定する
+3. 原点復帰または表示復帰の shortcut を 1 つ決める
+4. zoom 中でも playhead / keyframe / clip を見失いにくい表示にする
+
+### Phase 2 完了条件
+
+- スクロールとズームの役割が一目で分かる
+- 長い timeline でも現在位置を戻せる
+- 視点操作の意図がぶれない
+
+### Phase 3A の着手点
+
+1. 同一行に property の代表値を出す
+2. inline editor に落とせる値と view-only の値を分ける
+3. property panel と timeline の往復を減らす
+4. 編集対象の由来を status / header に残す
+
+### Phase 3 完了条件
+
+- 確認のためだけに inspector へ戻る回数が減る
+- その場で触れる property が分かる
+- timeline と property の境界が読める
+
+### Phase 6 への前提
+
+- ripple edit は scroll / zoom / inline surface が固まってから入れる
+- 後続レイヤーの押し出しは selection と表示復帰が安定してから詰める
