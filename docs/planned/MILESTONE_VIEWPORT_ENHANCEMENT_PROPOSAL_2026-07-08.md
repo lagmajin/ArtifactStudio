@@ -184,6 +184,18 @@ W0 を実装に進める前の最初の作業順は次の通り。
 
 ---
 
+## 12. W0 実行チェックリスト
+
+W0 を「着手した」と言える最低ラインは次の 3 点。
+
+1. `ViewportState` の責務境界が文書上で確定している
+2. `ViewportOverlayCompositor` と `DisplayFilterSet` の API 形が決まっている
+3. `CompositionRenderController` 側の既存フィールドからの移し替え順が 1 本に定まっている
+
+この 3 点がそろったら、初回実装は `ViewportState` から入る。
+
+---
+
 ## 11. 参照ドキュメント
 
 - `docs/planned/MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md`（不足機能網羅・C4D/Maya/Houdini 比較）

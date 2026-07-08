@@ -121,6 +121,20 @@ compositor_.drawAll(*renderer_, state_);
 
 ---
 
+## 8. 実行順
+
+このマイルストーンは、次の順で進めると迷いにくい。
+
+1. `ViewportState` を合成側と同じ責務境界に寄せる
+2. `ViewportOverlayCompositor` をレイヤービューに接続する
+3. `DisplayFilterSet` を既存 `DisplayMode` と分離して導入する
+4. `LW-2` の HUD / ROI / ゼブラ系を足す
+5. `LW-4` のドック統合を最後に行う
+
+`LW-0` は完了済みなので、次の実作業は `LW-1` から入る。
+
+---
+
 ## 7. 参照
 
 - `docs/planned/MILESTONE_VIEWPORT_ENHANCEMENT_PROPOSAL_2026-07-08.md`（§12 共有基盤）
