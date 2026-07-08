@@ -49,3 +49,27 @@
 - `docs/planned/MILESTONE_3D_VIEWPORT_ORBIT_PAN_PREVIEW_MODE_2026-06-07.md`
 - `docs/planned/MILESTONE_LIGHT_LINKING_2026-03-31.md`
 - `docs/planned/MILESTONE_ENVIRONMENT_MAP_2026-03-28.md`
+
+---
+
+## 8. 実行順
+
+このマイルストーンは、次の順で進めると責務が崩れにくい。
+
+1. 既存の 3D model / camera / light レイヤーが comp 側でどこまで見えるかを確認する
+2. 3D レイヤーを comp 内に置くデータモデルを先に固定する
+3. camera layer と viewport 射影を分離し、preview-only の視点変更を壊さないようにする
+4. 環境マップと light linking を、3D 合成の入力条件として後から接続する
+5. 深度・マスク連携は最後に回す
+
+### Phase 1 の最初の着手点
+
+- `import model` を comp layer として登録する入口を確認する
+- 3D layer の transform を 2D layer と同じ編集経路に寄せる
+- 3D camera の存在を viewport HUD で読めるようにする
+
+### Phase 1 の完了条件
+
+- import 済み 3D モデルを comp の一部として配置できる
+- camera / viewport の責務が混ざらない
+- 3D scene の状態が review しやすい
