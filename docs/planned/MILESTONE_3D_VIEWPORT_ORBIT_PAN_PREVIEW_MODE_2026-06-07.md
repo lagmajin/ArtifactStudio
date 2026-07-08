@@ -194,24 +194,36 @@ Phase 1 を先に締めるなら、`Orbit / Pan / Zoom Shortcut Baseline` から
 2. `Middle Drag` を pan に固定する
 3. wheel zoom を viewport 共通にする
 4. 既存の tool 切替依存を減らし、操作文法を editor 間で寄せる
+5. drag 中の mode 変更と preview 遷移の衝突を抑える
+6. preview-only state を持たない editor でも従来挙動へ落ちるようにする
 
 ### Phase 1 完了条件
 
 - orbit / pan / zoom の基本文法が 1 つにまとまる
 - editor 間で操作の意味が大きくぶれない
 - 3D 表示が予測しやすくなる
+- drag と preview の状態遷移が読める
+
+### Phase 1B の着手点
+
+1. preview-only view state の器を作る
+2. live camera state と temporary session を分ける
+3. preview 中の overlay / badge は後段に回し、まず state だけ分離する
+4. preview 終了時の rollback 経路を先に定義する
 
 ### Phase 2 の前提
 
 - preview-only view state を導入する土台ができている
 - live camera state と preview state を分ける準備が整っている
 - HUD / badge は phase 1 の baseline が固まってから入れる
+- preview の状態遷移を壊さずに orbit / pan / zoom を維持できる
 
 ### Preview Mode への波及
 
 - preview mode は「camera を壊さない」ことが前提
 - まず操作文法を揃え、その後に preview session を分離する
 - したがって preview 固有の UI は phase 1 後段に回す
+- preview-only session が先に立てば、HUD / badge は後から載せやすい
 
 ---
 
