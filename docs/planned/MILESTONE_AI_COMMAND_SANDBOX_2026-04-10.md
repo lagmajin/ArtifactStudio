@@ -78,3 +78,35 @@ agents can use from inside ArtifactStudio.
   allowlist.
 - Built-in tests cover schema exposure, dry-run rejection, and one harmless
   allowed command.
+
+---
+
+## Next Execution Slice
+
+Phase 2 では、policy を編集できることより先に、編集対象の境界を固める。
+
+### Phase 2A の着手点
+
+1. `CommandSandboxPolicy` の編集対象を allowlist / working directory / timeout に絞る
+2. blocked program list と shell-program gate は diagnostics 専用の扱いに寄せる
+3. UI では policy の現在値を見せるだけにして、危険な自動推論を避ける
+4. prompt context には command surface の状態だけを短く出す
+
+### Phase 2 完了条件
+
+- policy editing surface で何を変えられるかが明確
+- allowlist と workspace default が持続化される
+- diagnostics と prompt context に policy 状態が反映される
+
+### Phase 3A の着手点
+
+1. repo-local command preset を workspace-bound の前提でまとめる
+2. build / test / search のような典型コマンドを先に固定する
+3. 明示オーバーライドなしでは project workspace から外れないようにする
+4. workspace root と command root の違いを表示で追えるようにする
+
+### Phase 3 完了条件
+
+- workspace に結びついた developer workflow が見える
+- command execution が repo-local 前提で使いやすい
+- 明示オーバーライドの責務が曖昧にならない
