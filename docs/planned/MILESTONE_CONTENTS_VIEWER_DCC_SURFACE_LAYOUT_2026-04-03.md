@@ -258,6 +258,43 @@ Nuke っぽい複数 viewer 運用を本格化する。
   - `seekSlider`
   - `QStackedWidget` による image / video / model の切り替え
 - `Artifact/src/Widgets/Viewer/ArtifactContentsViewer.cpp`
+
+---
+
+## Next Execution Slice
+
+Phase 1/2 は、上部の shell と mode routing を先に切り分ける。
+
+### Phase 1A の着手点
+
+1. タイトルバー / 本体 / transport / channel-meta の 4 段レイアウトを明示する
+2. source 名 / mode badge / FPS / GPU 負荷を上部で読めるようにする
+3. viewer 番号バッジを導入し、複数 viewer の識別を固定する
+4. recent source dropdown の入口を title bar 側に置く
+
+### Phase 1 完了条件
+
+- viewer の情報が 1 か所に密集しない
+- どの素材を見ているかが上部だけで分かる
+- 複数 viewer の識別が読みやすい
+
+### Phase 2A の着手点
+
+1. MIME / 拡張子 / backend 属性から mode を自動判定する
+2. mode badge を更新して 2D / 3D / audio の見え方を分ける
+3. checkerboard / solid background toggle を統一する
+4. 2D / 3D / audio ごとの input 操作の前提を固める
+
+### Phase 2 完了条件
+
+- viewer が「今どの種類を見ているか」を説明できる
+- mode switch で操作の意味が混ざらない
+- 表示責務が mode ごとに読める
+
+### Phase 3 への前提
+
+- transport / time surface は mode routing が固まってから重ねる
+- channel / meta surface は compare と診断の語彙が揃ってから広げる
   - `updateHeader()`
   - `updatePlaybackState()`
   - `updateActionAvailability()`
