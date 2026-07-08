@@ -224,3 +224,29 @@ Phase 1 を先に締めるなら、最初は `solid` の安定化から入る。
 - camera / viewport の責務が固まっている
 - overlay の重なり順を先に崩さない
 - solid が読めない状態のまま camera や overlay を先に増やさない
+
+### Phase 2A の着手点
+
+1. orbit / pan / zoom / dolly の責務を viewport 側へ寄せる
+2. perspective / orthographic の切替点を先に固定する
+3. camera matrix 更新と redraw の境界を 1 箇所に寄せる
+4. 3D viewer と composition editor で同じ操作文法を使う
+
+### Phase 2 完了条件
+
+- camera の考え方が 3D viewer と composition editor で揃う
+- zoom / rotate / pan の更新が一貫する
+- projection 切替の責務が曖昧にならない
+
+### Phase 3A の着手点
+
+1. gizmo / selection / bounds / HUD の描画順を固定する
+2. 3D overlay を widget ごとの手描きから共通経路へ寄せる
+3. playhead や 2D overlay と競合しない順序を決める
+4. HUD の更新は camera / solid と独立に保つ
+
+### Phase 3 完了条件
+
+- overlay の重なり順が壊れない
+- gizmo と HUD が競合しにくい
+- 3D 補助表示が共通の overlay 経路で扱える
