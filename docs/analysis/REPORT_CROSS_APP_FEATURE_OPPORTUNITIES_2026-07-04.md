@@ -336,6 +336,29 @@ Unreal Rundown / Notch media-server integration は運用、冗長化、同期�
 
 推奨着手順は **A → B → C → D**。A の control contract が B と C の共通 API になるためである。Field engine の内部計画は並行可能だが、UI は既存 component pipeline の評価順が安定してから接続する。
 
+### 追加の実行順
+
+`Published Controls`、`Master Properties`、`Composition State Variants`、`Takes` は別々の機能に見えるが、実装順は次の流れにするとぶれにくい。
+
+1. `Published Controls` で公開できる property contract を固める
+2. `Master Properties` で precomp の exposed control を定義する
+3. `Composition State Variants` で名前付き override set を持たせる
+4. `Takes` で複数バリエーションの override set を束ねる
+
+この順にすると、公開契約 → 露出 → 状態 → バリエーションの依存が自然に流れる。
+
+#### 境界
+
+- `Master Properties` は「何を公開するか」
+- `Takes` は「公開済みまたは既存の override をどう束ねるか」
+- `Composition State Variants` は「状態の切替をどう命名するか」
+- `Published Controls` はその共通契約になる
+
+#### 3D との関係
+
+- 3D 側の camera / overlay 整理は別レーンだが、公開 control contract が固まると preview / state / variant の語彙を揃えやすい
+- したがって、3D 系の整理より先に control contract の骨格を固めると、後続の実装がぶれにくい
+
 ## 9. 導入後の Artifact の立ち位置
 
 この方向は Artifact を「AE の不足機能を埋めるアプリ」から、次のような製品へ進める。
