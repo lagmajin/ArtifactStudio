@@ -194,3 +194,40 @@ surface を実運用に耐えるところまで詰める。
 - [Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm](/c:/Users/kukul/OneDrive/デスクトップ/Programming/ArtifactStudio/Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm)
 - [Artifact/include/Widgets/ArtifactProjectManagerWidget.ixx](/c:/Users/kukul/OneDrive/デスクトップ/Programming/ArtifactStudio/Artifact/include/Widgets/ArtifactProjectManagerWidget.ixx)
 - [Artifact/docs/MILESTONE_PROJECT_VIEW_2026-03-12.md](/c:/Users/kukul/OneDrive/デスクトップ/Programming/ArtifactStudio/Artifact/docs/MILESTONE_PROJECT_VIEW_2026-03-12.md)
+
+---
+
+## Next Execution Slice
+
+Phase 1 は、検索語が入力された瞬間に surface が変わることを先に固める。
+
+### Phase 1A の着手点
+
+1. incremental search を `Enter` なしで反映する
+2. file name / tag / metadata の 3 系統を同じ検索状態で扱う
+3. clear button で search state を 1 箇所から戻せるようにする
+4. 検索中であることを見た目で分かるようにする
+
+### Phase 1 完了条件
+
+- Enter を押さなくても絞り込める
+- 何を検索中かが見える
+- search state が 1 本にまとまる
+
+### Phase 2A の着手点
+
+1. `すべて / コンプ / 映像 / 画像 / 音声 / 3D / 未使用` の pill を並べる
+2. multi-select の状態遷移を先に固定する
+3. `未使用` を強調表示して検索語と競合させない
+4. list / grid toggle は filter state の延長として扱う
+
+### Phase 2 完了条件
+
+- `映像 + 未使用` のような組み合わせで探せる
+- 条件が増えても surface が破綻しない
+- filter state が search state と別れて読める
+
+### Phase 3 への前提
+
+- list / grid presentation は search / filter の state が固まってから入れる
+- status surface は検索結果の意味が揃ってからつなぐ
