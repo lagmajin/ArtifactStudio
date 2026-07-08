@@ -196,6 +196,42 @@ W0 を「着手した」と言える最低ラインは次の 3 点。
 
 ---
 
+## 13. W1 / W2 実行順
+
+W0 の次は、合成側とレイヤー側の両方へ効く表示・比較系を順に乗せる。
+
+### W1
+
+1. `HUDConfig` を先に固める
+2. `DisplayFilterSet` を `ViewportChannelDisplayMode` から切り離す
+3. `Show Flags / Display Tags` のレイヤー単位上書きを追加する
+
+### W1 完了条件
+
+- FPS / zoom / camera / resolution などの HUD state が共通化される
+- チャンネル表示が renderer の既存 hook にまとまる
+- レイヤー単位の表示上書きが controller 依存で増殖しない
+
+### W2
+
+1. `ROI` を draw できる最小経路を作る
+2. `Sample Points` の状態表示を足す
+3. `Wipe / Split 比較` を review 導線として追加する
+
+### W2 完了条件
+
+- ビューポートでプレビュー範囲が見える
+- 永続サンプル点を追える
+- A/B 比較の境界を操作できる
+
+### Layer View への波及
+
+- `W1` は `ArtifactLayerEditorWidgetV2` にも同じく必要
+- `W2` は `LW-2` の HUD/ROI/Zebra 群と実質同じ到達点を持つ
+- したがって、レイヤービューは W1/W2 を吸収する先行導線として扱う
+
+---
+
 ## 11. 参照ドキュメント
 
 - `docs/planned/MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md`（不足機能網羅・C4D/Maya/Houdini 比較）
