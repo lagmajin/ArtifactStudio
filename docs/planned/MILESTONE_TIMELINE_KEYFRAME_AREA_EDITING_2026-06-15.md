@@ -236,3 +236,40 @@ Phase 1-3 では単純な安全ルールにする。
 4. body move を実装する
 5. edge resize を実装する
 6. value edit 連携は最後に回す
+
+---
+
+## Next Execution Slice
+
+Phase 1 は、area 候補の検出と hover 可視化を先に固める。
+
+### Phase 1A の着手点
+
+1. 同一 `layerId + propertyPath + channelIndex` の keyframe を frame 順で並べる
+2. 隣接 keyframe 間を segment として扱い、同値区間だけ候補化する
+3. frame-to-x 変換後に bodyRect / leftHandleRect / rightHandleRect を持たせる
+4. keyframe が 1 個だけの property は area を出さない
+
+### Phase 1 完了条件
+
+- `1 -> 10 -> 10 -> 1` の中央区間が area として検出できる
+- どの条件で area が出るかが説明できる
+- debug / hover だけで候補の境界が追える
+
+### Phase 2A の着手点
+
+1. area bar を keyframe diamond より下、clip bar より上に描く
+2. hover 時に body と端の affordance を分かるようにする
+3. selection / hover / current-frame 表示と競合しない alpha にする
+4. zoom が低いときの最小幅だけ決める
+
+### Phase 2 完了条件
+
+- timeline 上で area が薄い背景帯として読める
+- point の視認性が落ちない
+- selection と hover の役割がぶつからない
+
+### Phase 3 への前提
+
+- body move / edge resize は hit test の優先順位が固まってから入れる
+- undo/redo は snapshot 経路が area 候補と整合してから詰める
