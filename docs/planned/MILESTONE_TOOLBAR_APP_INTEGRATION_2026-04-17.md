@@ -160,13 +160,15 @@ Phase 1 は、toolbar action ごとに state の正本と委譲先を先に固�
 1. `ArtifactMainWindow` または既存の state update 経路から toolbar へ明示 refresh を呼ぶ
 2. `setCurrentTool()`, `setWorkspaceMode()`, `setZoomLevel()`, `setGridVisible()`, `setGuideVisible()` の役割を整理する
 3. toolbar の checked / enabled / tooltip を pull できる形に寄せる
-4. 新規 signal/slot を足さずに同期する前提を固める
+4. tool / workspace / zoom / grid / guide の state を順番に反映する
+5. 新規 signal/slot を足さずに同期する前提を固める
 
 ### Phase 2 完了条件
 
 - toolbar が stale state を表示しにくい
 - 新規 signal/slot を足さずに見た目の同期ができる
 - state update の責務が読める
+- checked / enabled / tooltip の反映順が追える
 
 ### Phase 3 への前提
 
