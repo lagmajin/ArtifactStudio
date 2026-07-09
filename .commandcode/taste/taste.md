@@ -1,6 +1,7 @@
 # Taste (Continuously Learned by [CommandCode][cmd])
 
 [cmd]: https://commandcode.ai/
+
 
 # cppm-modules
 - In C++20 module files (.cppm/.ixx), do NOT put `#include` directives in the module purview (after `module X;`). All includes must go in the Global Module Fragment (GMF) between `module;` and `export module X;`. The only exception is TBB includes which should be placed in GMF with all other includes, NOT in the purview. Confidence: 0.80
@@ -18,4 +19,5 @@ See [project-workflow/taste.md](project-workflow/taste.md)
 
 # project-architecture
 - For new functionality in `ArtifactPr`, prefer an internal/centralized event system architecture (the style used in `Artifact/`) rather than ad-hoc Qt signal-slot wiring between widgets. Surface components should publish events to a central bus/service that other layers subscribe to. Confidence: 0.60
+- When given a choice between a "faithful/comprehensive" (本格的) port/implementation approach vs a simplified/quick approach, prefer the comprehensive option. The user explicitly chose full tile-based DOF (7-pass Jimenez) over a simplified prepass+main alternative when asked. Confidence: 0.70
 
