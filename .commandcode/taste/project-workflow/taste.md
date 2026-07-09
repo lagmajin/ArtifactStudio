@@ -1,4 +1,5 @@
 # project-workflow
+- For developer branch naming in the parent-child repos, use a generic suffix (e.g. `codex/YYYY-MM-DD-dev` or just `codex/YYYY-MM-DD`) rather than a feature-specific name like `codex/YYYY-MM-DD-<feature>`. The branch should reflect ongoing development, not a specific milestone or feature set. If the user rejects a feature-specific name and picks a date-only alternative, use the date-only format. Confidence: 0.80
 - Do not run build, tests, or formatting commands for the ArtifactStudio project unless the user explicitly requests it. Confidence: 0.90
 - Do not commit or push to the parent/child git repos (Artifact/, ArtifactCore/, ArtifactWidgets/) unless the user explicitly asks; just stop at the file-edit step. Confidence: 0.85
 - Before creating a new feature/widget/file, verify by exploration that an equivalent implementation does not already exist (under any name/alias) in the workspace; only proceed if the check is explicit. Confidence: 0.60

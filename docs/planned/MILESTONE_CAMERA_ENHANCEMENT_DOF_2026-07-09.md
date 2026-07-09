@@ -1,99 +1,98 @@
 **ステータス:** Not Started
 
-# M-CAM-2: Camera Enhancement - Depth of Field / Lens Blur 設計マイルストーン
+# M-CAM: Camera Enhancement - Depth of Field / Lens Blur 設計マイルストーン（本格的移植版）
 
 カメラレイヤーのレンズ機能強化。被写界深度（DOF）とレンズボケ（bokeh）を実描画に繋げる。
-現状のカメラ DOF プロパティは **全てメタデータ（描画に繋がっていない）** だが、CoC ベースの DOF シェーダーパイプラインは資産として存在する。したがって「作る」より「既存シェーダーを Diligent 側から dispatch する」のが主眼。
+方針: **Wicked Engine 由来の tile-based DOF シェーダー資産を Diligent 向けに忠実移植する（本格的）**。
 
-## 現状（重要: 誤解を避ける）
+## 核心的制約（設計の前提）
 
-- `Artifact/include/Layer/ArtifactCameraLayer.ixx` + `Artifact/src/Layer/ArtifactCameraLayer.cppm` の DOF 状態は**データモデルのみで完全に round-trip している**:
-  - `depthOfField_` (bool, デフォルト false) — property "Camera Options/Depth of Field", JSON `cameraDepthOfField`, ガイズモ円環, オーバーレイ "DOF On/Off"
-  - `aperture_` (float 4.0, "Aperture / f-stop")
-  - `focusDistance_` (float 1000, "Focus Distance")
-  - `blurAmount_` (float 0–100, デフォルト 100, "Blur Amount")
-  - `motionBlur_` (bool false, ツールチップ: "Enable camera motion blur metadata" — 明示的にメタデータ)
-- **上記いずれも描画パスで blur を算出するコードは皆無**。grep で `focusDistance()` / `aperture()` / `->depthOfField()` の消費者は、自アクセサ・セッター・JSON・作成メニュー・オーバーレイテキストのみ。
-- `ArtifactCore/src/Preview/PreviewQuality.cppm` の `setEnableDepthOfField()` / `isDepthOfFieldEnabled()`（デフォルト true）も **誰も読んでいない inert なトグル**。
-- 関連する「本物の」レンズエフェクトは別系統: `LensDistortionEffect`（樽型/糸巻き型歪み, 2D ラスタエフェクト）、`ChromaticAberrationEffect`、`FisheyeEffect` — いずれもカメラ DOF ではなく per-layer 2D。
+1. **深度バッファは今 `BIND_DEPTH_STENCIL` のみでサンプル不可。**
+   - `ArtifactIRenderer.cppm:1283,1989`（`m_layerDepthTex`）や `createOffscreenDepthTexture`（`:3208`）は全て `BindFlags = BIND_DEPTH_STENCIL` のみ。D32_FLOAT を直接サンプルする SRV は作られていない。
+   - 3D 描画（`MeshRenderer`, `PrimitiveRenderer3D`）は depth write を有効にしているので GPU 上に深度は live にあるが、**DOF コンピュートが読むには `R32_FLOAT` へコピー/リゾルブした `BIND_SHADER_RESOURCE | BIND_UNORDERED_ACCESS` テクスチャが要る**。これが最初の前提作業。
+2. **シェーダーは bindless (`spaceN`) + indirect dispatch + push-constant を仮定。**
+   - `globals.hlsli` の `texture_lineardepth = bindless_textures_float[GetCamera().texture_lineardepth_index]` 等。
+   - `depthoffield_neighborhoodMaxCOCCS.hlsl` は `InterlockedAdd` で `PostprocessTileStatistics` を書き、3 種の tile list を indirect dispatch で実行する。
+   - `PostProcess` 定数は push-constant パス（`PUSHCONSTANT(postprocess, PostProcess)` → Vulkan `vk::push_constant` / 其他 `ConstantBuffer<...> : register(b999)`）。
+   - したがって Diligent 側で「bindless 配列 or 静的 SRV 化」「`DispatchComputeIndirect`」「push-constant range」を揃えないと動かない。
 
-## 資産として既に存在するもの（再利用できる）
+## アーキテクチャ決定
 
-- **DOF シェーダーパイプライン**（Wicked Engine 由来, orphaned 状態）:
-  - `Artifact/shaders/depthOfFieldHF.hlsli` — CoC 演算: `get_coc(linear_depth)` using `dof_cocscale`/`dof_maxcoc` (`ShaderInterop_Postprocess.h` `params0.x/.y`)、Jimenez 2014 tile-based DOF
-  - `depthoffield_prepassCS.hlsl` — `texture_lineardepth` から CoC + 前/背景重み
-  - `depthoffield_tileMaxCOC_horizontalCS.hlsl` / `_verticalCS.hlsl` — tile 最小深度 / 最大 CoC リダクション
-  - `depthoffield_neighborhoodMaxCOCCS.hlsl` — 近傍 min/max CoC
-  - `depthoffield_mainCS.hlsl` (+ `_cheap`, `_earlyexit`) — 散乱/畳み込みブラー（前/背景分離）
-  - `depthoffield_postfilterCS.hlsl`, `depthoffield_upsampleCS.hlsl`
-  - `lineardepthCS.hlsl` — 深度の線形化（CoC 用）
-- **シェーダー定数契約**: `ShaderInterop_Postprocess.h` (`struct PostProcess { resolution; params0; params1; }`)、`globals.hlsli` の `texture_depth` / `texture_lineardepth` bindless バインド。`ShaderInterop_Renderer.h` のカメラ定数バッファに `texture_depth_index` / `texture_depth_index_prev` / `texture_lineardepth_index` が存在。
-- **実 DOF 光線数学**: `ArtifactCore/include/Render/Camera.ixx` の `RayTrace::Camera::getRayDOF()` / `setDOF()` — だが消費者は `VolumeRenderer` のみでカメラレイヤーとは無関係。
+- **DOF は「3D シーン描画時のパス」に置く（2D 最終エフェクトではない）。**
+  - 本質入力は「カメラのフォーカス面からのシーン深度」。2D 合成のあと（最終 LUT のように）に置くと深度がなくて成立しない。
+  - 3D コンテンツは `renderOneFrameImpl` で active `ArtifactCameraLayer` を解決 → `set3DCameraMatrices` へ push される。DOF パスはこの 3D シーンの深度/カラーを消費する。2D のみのコンポジションでは DOF は意味を持たない。
+- **`ArtifactCameraLayer` は「意図」のみ持つ。** `depthOfField_` / `aperture_` / `focusDistance_` / `blurAmount_` を CoC uniform に写す小さな `DOFParameters` プロデューサだけ追加。描画ロジックは持たない。
+- **実行は Diligent backend が持つ。** 不足の dispatch 層を新規追加。
 
-## 足りないもの（実装すべき核心）
+## 依存シェーダー資産一覧（忠実移植対象）
 
-1. **Diligent 側の dispatch 層が不在**。Wicked Engine の `wi::renderer::Postprocess()` 相当のオーケストレーション（線形深度化→DOF チェーン→合成）がリポジトリに存在しない。Artifact の実 renderer は Diligent ベースで、現状走っている GPU ポストは `ArtifactFinalPostProcess.cppm` の 3D LUT のみ。
-2. **カメラレイヤーの DOF 状態 → DOF uniform への接続**。`aperture_` / `focusDistance_` / `depthOfField_` を `dof_cocscale` / `dof_maxcoc` に変換して渡すコードがない。
-3. **深度バッファの live DOF 入力化**。深度は AOV 出力/読み出し（`readbackDepthToImage()` 等）で存在するが、リアルタイム DOF 合成には未消費。
+ヘッダ（移植必須 5 点）: `globals.hlsli`, `ShaderInterop.h`, `ShaderInterop_Postprocess.h`, `ShaderInterop_Renderer.h`, `depthOfFieldHF.hlsli`。
+定数: `POSTPROCESS_BLOCKSIZE=8`, `DEPTHOFFIELD_TILESIZE=32`, `dof_cocscale=params0.x`, `dof_maxcoc=params0.y`, `PostProcess{resolution, resolution_rcp, params0, params1}`, `PostprocessTileStatistics{IndirectDispatchArgs x3}`。
 
-## ワークストリーム A: DOF メタデータの実描画接続（最小実用）
+| Pass | ファイル | 入力 (t/SRV) | 出力 (u/UAV) | 備考 |
+|---|---|---|---|---|
+| 1 | `tileMaxCOC_horizontalCS` | bindless `texture_lineardepth` | u0 `float2`, u1 `float` | 8x8 |
+| 2 | `tileMaxCOC_verticalCS` | t0 horiz `float2`, t1 horiz `float` | u0 `float2`, u1 `float` | 8x8 |
+| 3 | `neighborhoodMaxCOCCS` | t0 `float2`, t1 `float` | u0 `RWStructuredBuffer<PostprocessTileStatistics>`, u1-3 tile lists, u4 `float2` neighborhood | `InterlockedAdd` で indirect 引数生成 |
+| 4 | `prepassCS` (+earlyexit) | t0 color `float4`, t1 neighborhood `float2`, t2 tiles, bindless lineardepth | u0 `float3`(coc,bg,fg), u1 `float3` prefilter | |
+| 5 | `mainCS` (+cheap,+earlyexit) | t0 neighborhood, t1 presort, t2 prefilter, t3/t4/t5 tiles(by variant) | u0 `float3` main, u1 `unorm float` alpha | 64 threads, Jimenez ring scatter |
+| 6 | `postfilterCS` | t0 main `float3`, t1 alpha `float` | u0 `float3`, u1 alpha | median |
+| 7 | `upsampleCS` | t0 full-res `float4`, t1 postfilter, t2 alpha, t3 neighborhood, bindless lineardepth | u0 full-res `float4` | 8x8 |
 
-### M-CAM-A1: カメラ DOF 状態 → uniform 変換
+- `depthOfFieldHF.hlsli` は self-contained（ring offset `disc[80]`, `ringSampleCount[5]`, `get_coc`, `SampleAlpha` 等）。`Camera` 構造体から `aperture_size` / `focal_length` / `z_far` / `z_near` / `texture_lineardepth_index` を消費。
+- `mainCS` の `t3/t4/t5`（earlyexit/cheap/expensive）と `prepassCS` の `t2` は variant でレジスタが分かれる。単一 PRS で全 variant をカバーするよう維持すること。
 
-- 目標: `ArtifactCameraLayer` の `aperture_` / `focusDistance_` / `blurAmount_` を CoC パラメータに変換する算出式を定義。
-- 対象: `ArtifactCameraLayer.cppm`（`Impl` に `cocScale()` / `maxCoc()` 算出ヘルパ追加）、`ShaderInterop_Postprocess.h` の `params0.x/.y` へのマッピング定義。
-- 完了条件:
-  - `depthOfField_` = false のときは既存描画と完全一致（パスを通さない）
-  - `focusDistance_` / `aperture_` から `focalPlane` と `CoC scale` が決まる AE 互換の直感マッピング
-  - `blurAmount_` を `dof_maxcoc` の上限クリップとして使う
+## Diligent 側で閉じる前提作業（P0）
 
-### M-CAM-A2: Diligent DOF dispatch の新規追加
+1. **深度 SRV の導入。** 3D 描画後に D32_FLOAT 深度を `R32_FLOAT`（`BIND_SHADER_RESOURCE | BIND_UNORDERED_ACCESS`）へ `CopyTexture`/リゾルブ。既存 `pushRenderTarget(color, depth)` / `popRenderTarget()` / `clearDepthRenderTarget()` を再利用。`activeDepthView()` の解決順（override DSV → `m_layerDepthTex` → swap-chain DSV）に注意。
+2. **bindless 解消。** 全 `texture_*` マクロと `tiles` StructuredBuffer 読みを固定 SRV/UAV スロットへ書き換え。または Diligent の dynamic descriptor set / 配列 SRV で bindless 配列を再現（忠実だがリスク大）。**推奨: 静的 SRV 化。**
+3. **push-constant range。** `PostProcess` サイズの push-constant range を確保（`dof_cocscale`/`dof_maxcoc`/`resolution`/`resolution_rcp` をセット）。`CBSLOT_PUSHCONSTANT`（b999）相当でも可。
+4. **indirect dispatch。** `neighborhoodMaxCOCCS` が書く `PostprocessTileStatistics` から `DispatchComputeIndirect` で pass 4/5 を 3 variant ずつ実行。tile list バッファは分類→各 variant dispatch 間で生存させる。
+5. **sampler 作成。** `sampler_linear_clamp`(s100) / `sampler_point_clamp`(s103) に合わせた immutable sampler。
+6. **1 PSO + PRS で 7 エントリをカバー。** variant レジスタ分割（t3/t4/t5, t2）を PRS に維持。
 
-- 目標: フレームごとに線形深度化→DOF チェーンを走らせる最小ディスパッチャを追加。
-- 対象: `Artifact/src/Render/ArtifactFinalPostProcess.cppm`（LUT パスに直列、または独立パス）、Diligent コンピュート投入経路（`DiligentImmediateSubmitter.cppm` 参照）。
-- 完了条件:
-  - `depthOfField_` 有効時のみ DOF パスを実行（無効時はスキップ、LUT のみ）
-  - `texture_lineardepth_index` + DOF uniform ブロックを `depthoffield_*` チェーンに供給
-  - 結果を合成フレームに書き戻す
-  - `PreviewQuality::isDepthOfFieldEnabled()` をゲートとして接続
+## 実装フェーズ（薄いところから）
 
-### M-CAM-A3: Inspector / ガイズモ同期
+### P0: 深度読み出し基盤（必須前提）
+- `ArtifactIRenderer` に `R32_FLOAT` 深度コピー用テクスチャ + SRV を追加。3D シーン描画パスのあとに `CopyTexture` で転送。
+- 完了条件: DOF パスが GPU 深度を SRV で読めること（AOV readback ではなく live）。
 
-- 目標: 既存 DOF プロパティが実効果を持つことを UI で確認可能にする。
-- 対象: `ArtifactCameraLayer::getLayerPropertyGroups()`（既存 "Lens / DOF" グループ）、`ArtifactCompositionRenderOverlay.cppm` の "DOF On/Off"。
-- 完了条件:
-  - `depthOfField_` トグルで実ブラーが出ることをプレビューで目視確認
-  - フォーカス距離 / 絞りの変更が即座にボケ量へ反映
+### P1: prepass + main 最小チェーン（本格の一部, 動く DOF）
+- `depthoffield_prepassCS` + `depthoffield_mainCS`（cheap のみ）を Diligent `ComputeExecutor` 経由で dispatch。
+- ヘッダ 5 点を Diligent 向けに移植（bindless→静的 SRV, push-constant 化）。
+- 完了条件: フォーカス面外がブラーになること（tile/neighborhood 簡略でも可）。
 
-## ワークストリーム B: レンズボケ品質向上（オプション拡張）
+### P2: tile + neighborhood 本格化
+- `tileMaxCOC_horizontal/vertical` + `neighborhoodMaxCOCCS`（indirect dispatch 含む）を追加。main の earlyexit/expensive variant も有効化。
+- 完了条件: Jimenez の tile-based 分類（earlyexit/cheap/expensive）が全部動く。
 
-### M-CAM-B1: ボケ形状（bokeh shape / blades）
+### P3: postfilter + upsample
+- `postfilterCS`（median）+ `upsampleCS`（half-res→full-res 合成）を追加。
+- 完了条件: 最終出力が full-res カラーに戻り、エッジノイズが median で低減。
 
-- 目標: 円形だけでなく n 角形ボケ、アナモフィック縦長ボケ等をサポート。
-- 対象: `depthoffield_mainCS.hlsl` の散乱カーネル、または新規ブレードマスク生成。
-- 完了条件:
-  - `apertureBlades_` / `bokehRotation_` プロパティ追加（カメラレイヤー）
-  - ボケ形状が被写界深度外の highlight で可視
+### P4: カメラパラメータ → CoC uniform（M-CAM-A1 相当）
+- `ArtifactCameraLayer` に `DOFParameters` 算出ヘルパ（`aperture_` / `focusDistance_` / `blurAmount_` → `cocScale` / `maxCoc` / focal plane）。`depthOfField_=false` は既存描画と完全一致（パス通さない）。
+- `ShaderInterop_Postprocess.h` の `params0.x/.y` へマッピング。
+- `PreviewQuality::isDepthOfFieldEnabled()` をゲート接続（現状 inert）。
 
-### M-CAM-B2: モーションブラー（カメラ）
+### P5: Inspector / ガイズモ同期（M-CAM-A3 相当）
+- 既存 "Lens / DOF" グループ + オーバーレイ "DOF On/Off" で実効果を目視確認。
 
-- 目標: `motionBlur_` メタデータを実可動にする。
-- 対象: `Artifact/shaders/motionblurCS.hlsl`（資産存在）、`ShaderInterop_Renderer.h` の `velocity` チャネル（`VelocityX/Y` AOV として存在）。
-- 完了条件:
-  - カメラ移動 / 被写体速度からのブラー合成
-  - `PreviewQuality` のゲート統合
+### オプション拡張（M-CAM-B 相当）
+- **B1 bokeh shape**: `apertureBlades_` / `bokehRotation_` プロパティ追加、`mainCS` の ring カーネルを n 角形/アナモフィックへ。
+- **B2 motion blur**: `motionBlur_` メタデータ実可動。`Artifact/shaders/motionblurCS.hlsl` + `VelocityX/Y` AOV を使用。`metadata` と明示されているため周知必須。
 
-## 依存・未確認事項
+## リスク・未確認
 
-- **Wicked Engine 統合は dead code**。`ArtifactRenderManagerWidget.ixx` / `.cppm` で `wi::renderer::` は全てコメントアウト。したがって DOF は Wicked 経由ではなく **Diligent コンピュートとして自前 dispatch** する必要がある。
-- `depthoffield_*.hlsl` は Wicked Engine の bindless / `wi::` ヘルパに依存している可能性が高い。Diligent 側へ持ってくる際、定数バッファ・テクスチャバインドの差し替えが必要（移殖コストの見積もりが別途必要）。
-- 深度バッファは「AOV 出力用」で存在するが、「composite 中の live 入力」として使えるか確認が必要。`ArtifactIRenderer.cppm` の `readbackDepthTo*` 系は CPU 読み出し主眼。GPU 側で深度テクスチャを直接バインドできる構造かを `DiligentImmediateSubmitter` / render target 管理で確認すること。
-- 3D レイヤー描画時に `set3DCameraMatrices(*cameraView, *cameraProj)` 経由でカメラが渡る（`ArtifactCompositionRenderController.cppm`）。DOF パスはこの 3D シーンの深度を消費することになる。2D のみのコンポジションでは DOF は意味を持たない（深度なし）。
-- `motionBlur_` は現状「metadata」とツールチップで明示されているため、実装時は挙動変更の周知が必要。
+- **Wicked Engine 統合は dead code**（`ArtifactRenderManagerWidget` で `wi::renderer::` 全コメントアウト）。DOF は Diligent コンピュートとして自前 dispatch。
+- **bindless→静的 SRV 化の労力** が最大リスク。忠実を取るか、main の ring サンプルを固定 SRV に書き換えるかでコストが数倍違う。
+- **D32_FLOAT の直接 SRV サンプル** は backend 依存。R32_FLOAT コピー経路の方がポータブル。
+- **indirect dispatch** は Diligent で `DispatchComputeIndirect` が使えることを確認（既存コードに間接 dispatch の実績は未確認）。
+- 3D シーン描画のあと、正しいタイミングで深度コピー＋DOF チェーンを挟む編成が `ArtifactCompositionRenderController::renderOneFrameImpl` 側の改修を伴う可能性。
 
 ## 次のステップ
 
-1. A1 で CoC パラメータ算出式を確定（既存プロパティの再定義なし）
-2. A2 で Diligent dispatch を最小実装し、既存 `depthoffield_*.hlsl` をbindless から Diligent バインドへ移殖
-3. A3 でプレビュー動作確認
-4. 余力があれば B1/B2 をオプション拡張として並行
+1. **P0 から始める**（深度 SRV なしでは何も動かない）。
+2. P1 で prepass+main(cheap) を最小動作させ、そこから P2/P3 で本格化。
+3. P4/P5 でカメラパラメータと UI を接続。
+4. 余力で B1/B2。
