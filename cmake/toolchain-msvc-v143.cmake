@@ -1,6 +1,18 @@
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444" CACHE STRING "Required for import std" FORCE)
+set(CMAKE_CXX_MODULE_STD ON CACHE BOOL "Enable import std support during toolchain detection" FORCE)
+set(CMAKE_CXX_STANDARD 23 CACHE STRING "Required for import std detection" FORCE)
+set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "" FORCE)
+
 set(VCPKG_TARGET_TRIPLET "x64-windows" CACHE STRING "vcpkg triplet")
 set(_artifact_vcpkg_installed_dir "${CMAKE_SOURCE_DIR}/out/vcpkg_installed")
-set(VCPKG_INSTALLED_DIR "${_artifact_vcpkg_installed_dir}" CACHE STRING "vcpkg installed dir" FORCE)
+set(_artifact_shared_vcpkg_installed_dir "C:/vcpkg/installed")
+if(EXISTS "${_artifact_vcpkg_installed_dir}")
+    set(VCPKG_INSTALLED_DIR "${_artifact_vcpkg_installed_dir}" CACHE STRING "vcpkg installed dir" FORCE)
+elseif(EXISTS "${_artifact_shared_vcpkg_installed_dir}")
+    set(VCPKG_INSTALLED_DIR "${_artifact_shared_vcpkg_installed_dir}" CACHE STRING "vcpkg installed dir" FORCE)
+else()
+    set(VCPKG_INSTALLED_DIR "${_artifact_vcpkg_installed_dir}" CACHE STRING "vcpkg installed dir" FORCE)
+endif()
 
 # Find cl.exe for MSVC v143
 set(_v143_found_cl "")
