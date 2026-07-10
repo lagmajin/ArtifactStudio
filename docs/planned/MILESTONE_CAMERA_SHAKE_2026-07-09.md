@@ -1,9 +1,9 @@
-**ステータス:** Not Started
+**ステータス:** In Progress（ワークストリーム A: 3D カメラシェイク実装済み / B: 未着手）
 
 # M-CS-1: Camera Shake System - 設計マイルストーン
 
 カメラが揺れる演出（3D 空間でのカメラシェイク / 画面全体を揺らす 2D シェイク）を追加するための設計マイルストーン。
-現状、カメラシェイク / スクリーンシェイク / trauma モデルは存在しない。既存の `jitter` は TAA の AA ジッタと 2D フィルムウィーブ揺らぎ (`FilmJitterEffect`) のみ。
+3D カメラシェイクと trauma モデルは実装済み。2D スクリーンシェイクは未着手。既存の `jitter` は TAA の AA ジッタと 2D フィルムウィーブ揺らぎ (`FilmJitterEffect`) のみ。
 
 ## 設計判断（コンポーネントか、エフェクトか）
 
@@ -22,6 +22,8 @@
 
 ### M-CS-A1: カメラレイヤーへの transient シェイク状態追加
 
+**状態:** 完了
+
 - 目標: `viewMatrix()` に揺れオフセットを差し込める最小基盤を作る。
 - 対象:
   - `Artifact/include/Layer/ArtifactCameraLayer.ixx`
@@ -32,6 +34,8 @@
   - シリアライゼーションは意図的に「保存しない / transient」であることを明記
 
 ### M-CS-A2: 揺れ生成モデル（trauma ベース）
+
+**状態:** 完了
 
 - 目標: AE 互換で直感的な揺れパラメータを定義する。
 - パラメータ候補:
@@ -44,6 +48,8 @@
   - カメラ以外のレイヤーに影響しない
 
 ### M-CS-A3: Inspector / キーフレーム連携
+
+**状態:** 完了（Camera Shake プロパティ群とランタイム trigger を実装済み）
 
 - 目標: シェイクパラメータを UI から操作可能にする。
 - 対象: `ArtifactCameraLayer::getLayerPropertyGroups()` / `setLayerPropertyValue()`

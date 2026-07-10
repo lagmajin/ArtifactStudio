@@ -96,46 +96,54 @@ message(STATUS "CMAKE_EXPERIMENTAL_CXX_IMPORT_STD: ${CMAKE_EXPERIMENTAL_CXX_IMPO
 # ---------------------------------------------------------------------------
 # std.ixx メタデータの設定 (project() 後 = toolchain 処理後に実行)
 # ---------------------------------------------------------------------------
-# CMAKE_CXX_COMPILER が確定した後に実行することで、コンパイラパスから v143 の
-# std.ixx を正確に導出できます。ENV{VCToolsInstallDir} は VS 18 の dev env から
-# v145 を指す場合があるため、project() 前での検出は行いません。
+# CMAKE_CXX_COMPILER が確定した後に実行することで、実際に使用される cl.exe と
+# 同じ MSVC toolset 配下の std.ixx を導出します。import std の供給元は
+# コンパイラと同じ toolset に揃っている必要があるため、旧 VS / 旧 toolset の
+# std.ixx にフォールバックしないよう厳密に扱います。
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    set(ARTIFACT_MSVC_STD_IXX "")
+    set(ARTIFACT_MSVC_MODULES_JSON "")
 
-    # Priority 1: Derive from CMAKE_CXX_COMPILER path (always v143 since toolchain forced it)
+    # Priority 1: Derive from the active compiler path.
     # Compiler: .../VC/Tools/MSVC/<ver>/bin/HostX64/x64/cl.exe
-    # std.ixx:  .../VC/Tools/MSVC/<ver>/modules/std.ixx
+    # modules.json: .../VC/Tools/MSVC/<ver>/modules/modules.json
     get_filename_component(_std_x64   "${CMAKE_CXX_COMPILER}" DIRECTORY)
     get_filename_component(_std_host  "${_std_x64}"           DIRECTORY)
     get_filename_component(_std_bin   "${_std_host}"          DIRECTORY)
     get_filename_component(_std_root  "${_std_bin}"           DIRECTORY)
-    if(EXISTS "${_std_root}/modules/std.ixx")
-        set(ARTIFACT_MSVC_STD_IXX "${_std_root}/modules/std.ixx")
-        message(STATUS "std.ixx (compiler-derived): ${ARTIFACT_MSVC_STD_IXX}")
+    if(EXISTS "${_std_root}/modules/modules.json")
+        set(ARTIFACT_MSVC_MODULES_JSON "${_std_root}/modules/modules.json")
+        message(STATUS "modules.json (compiler-derived): ${ARTIFACT_MSVC_MODULES_JSON}")
     endif()
 
-    # Priority 2: VS 2022 v143 explicit path (fallback if compiler path fails)
-    if(NOT ARTIFACT_MSVC_STD_IXX)
+    # Priority 2: Search for the exact compiler version under known VS installs.
+    # This keeps modules.json aligned with the actual toolset even when the compiler
+    # path is wrapped or normalized by the generator.
+    if(NOT ARTIFACT_MSVC_MODULES_JSON)
+        set(_artifact_msvc_version_glob "${CMAKE_CXX_COMPILER_VERSION}")
+        if(NOT _artifact_msvc_version_glob)
+            set(_artifact_msvc_version_glob "14.*")
+        endif()
         file(GLOB_RECURSE _std_ixx_cands LIST_DIRECTORIES FALSE
-            "C:/Program Files/Microsoft Visual Studio/2022/*/VC/Tools/MSVC/14.*/modules/std.ixx")
+            "C:/Program Files/Microsoft Visual Studio/2022/*/VC/Tools/MSVC/${_artifact_msvc_version_glob}/modules/modules.json"
+            "C:/Program Files/Microsoft Visual Studio/18/*/VC/Tools/MSVC/${_artifact_msvc_version_glob}/modules/modules.json"
+            "C:/Program Files (x86)/Microsoft Visual Studio/2022/*/VC/Tools/MSVC/${_artifact_msvc_version_glob}/modules/modules.json"
+            "C:/Program Files (x86)/Microsoft Visual Studio/18/*/VC/Tools/MSVC/${_artifact_msvc_version_glob}/modules/modules.json")
         list(SORT _std_ixx_cands ORDER DESCENDING)
         if(_std_ixx_cands)
-            list(GET _std_ixx_cands 0 ARTIFACT_MSVC_STD_IXX)
-            message(STATUS "std.ixx (VS 2022 v143 search): ${ARTIFACT_MSVC_STD_IXX}")
+            list(GET _std_ixx_cands 0 ARTIFACT_MSVC_MODULES_JSON)
+            message(STATUS "modules.json (compiler-version search): ${ARTIFACT_MSVC_MODULES_JSON}")
         endif()
     endif()
 
-    if(ARTIFACT_MSVC_STD_IXX)
-        configure_file(
-            "${CMAKE_CURRENT_SOURCE_DIR}/cmake/msvc-stdlib-modules.json.in"
-            "${CMAKE_BINARY_DIR}/msvc-stdlib-modules.json"
-            @ONLY)
+    if(ARTIFACT_MSVC_MODULES_JSON)
         set(CMAKE_CXX_STDLIB_MODULES_JSON
-            "${CMAKE_BINARY_DIR}/msvc-stdlib-modules.json"
+            "${ARTIFACT_MSVC_MODULES_JSON}"
             CACHE FILEPATH "MSVC standard library module metadata override" FORCE)
+        message(STATUS "Active MSVC compiler: ${CMAKE_CXX_COMPILER}")
+        message(STATUS "Active MSVC version: ${CMAKE_CXX_COMPILER_VERSION}")
         message(STATUS "std.ixx metadata configured: ${CMAKE_CXX_STDLIB_MODULES_JSON}")
     else()
-        message(WARNING "std.ixx not found; import std metadata override is disabled.")
+        message(WARNING "modules.json not found; import std metadata override is disabled.")
     endif()
 endif()
 

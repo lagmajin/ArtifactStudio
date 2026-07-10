@@ -7,6 +7,12 @@
   - preview fallback と authoritative simulation を分離し、将来の crowd / rigid / soft-body / pyro / bake に耐える土台を作る
   - 詳細: `docs/planned/MILESTONE_LAYER_COMPONENT_PIPELINE_2026-07-01.md`
 
+### Composition / Workflow
+- **M-PRECOMP-2** Precompose Workflow Completion
+  - `PreCompose` の「呼べる」状態から、`unprecompose()` を含む実務 finish line まで閉じる
+  - layer restore、time/range integrity、undo/redo、`Master Properties` 前提の責務境界を固める
+  - 詳細: `docs/planned/MILESTONE_PRECOMPOSE_WORKFLOW_COMPLETION_2026-07-09.md`
+
 - **M-LC-2** Generator / Modifier / Field Stack Migration
   - `single cloner` 前提から、複数 generator と独立 field stack を持つ構造へ段階移行する
   - `component.cloner.*` 互換を維持しつつ、`generators[] / modifiers[] / fields[]` の内部モデルへ寄せる
