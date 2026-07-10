@@ -195,3 +195,14 @@ Phase 2 は、scroll / zoom の意味を先に固定してから、復帰 shortc
 
 - ripple edit は scroll / zoom / inline surface が固まってから入れる
 - 後続レイヤーの押し出しは selection と表示復帰が安定してから詰める
+# 2026-07-10 Auto Stagger Progress
+
+- Composition Editor Command Palette に可変フレーム間隔の `Auto Stagger` を追加
+- Layer Order / Reverse Layer Order / Center Out を選択可能
+- composition + layer ID をseedにした Deterministic Random順を追加
+- before / after timing snapshot を `LayoutSnapshotCommand` に渡し、1回のUndo/Redoで復元可能にした
+- placement mode として Start Interval / End Interval / Overlap by Frames を追加
+- anchor mode として Earliest Selected In / Current Playhead / First in Applied Order を追加
+- mutation前に最大12件の layer timing 対応表を表示し、同一start frame衝突を警告する
+- delta 0 のlayerはUndo snapshotから除外し、全件no-opなら履歴を追加しない
+- timing lock / layer lock を尊重し、既存の layer timing をスライドする

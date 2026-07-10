@@ -362,3 +362,8 @@ public:
 ## 8. 更新履歴
 
 - 2026-06-16: 初版作成。`REPORT_APP_PERF_BOTTLENECK_2026-06-16.md` §2.2 を正式 milestone に起こした。
+# 2026-07-10 Find Similar Progress
+
+- Composition Editor Command Palette に `Find Similar / Select Related` を追加
+- Same Layer Type / Source Media / Parent / Effect Set / Font を基準に動的選択できる
+- 結果は既存Selection Managerへ返し、Batch / Recipe / QAへそのまま渡せる

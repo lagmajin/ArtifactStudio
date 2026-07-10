@@ -1437,3 +1437,14 @@ struct MissingAssetsDetectedEvent : Event {
 - 将来的には、リンクの相対パス/絶対パスの切り替えを実装
 - クラウドストレージとの統合も検討
 - 同名ファイルの競合解決を強化
+# 2026-07-10 Quick Replace Progress
+
+- Composition Editor Command Palette に複数選択向け `Quick Replace Selected Sources` を追加
+- 既存の `replaceLayerSourceInCurrentComposition()` を再利用し、layer実体を置換せずsourceだけを更新
+- Transform / timing / mask / effect / parent を保持し、locked layerと非対応layerはskipする
+- 1ファイル選択時は全対象へ適用し、複数ファイル選択時はlayer順に1対1で割り当てる
+- source path のbefore / after snapshotをUndo履歴へ積み、複数置換を1回で戻せるようにした
+- layer source kind と選択ファイル拡張子を事前照合し、非互換な割り当てはmutation前にskipする
+- 複数ファイル時に Layer Order または Layer Name to Filename matching を選択可能にした
+- name matching はcase・空白・underscore・hyphen等を正規化し、fileの重複割当を防ぐ
+- mutation前に最大12件の layer-to-file 対応表を確認表示する

@@ -148,3 +148,9 @@ UI 名称や責務で迷った場合は `docs/WIDGET_MAP.md` を確認する。
 - batch export job list の生成
 
 これで「広告動画の文言差し替えと画角展開をまとめて処理する」価値を最短で検証できる。
+# 2026-07-10 Adaptive Text Fit Progress
+
+- Composition Editor Command Palette に selected text layer向け `Adaptive Text Fit` を追加
+- 既存 `text.maxWidth` / `text.boxHeight` を優先し、未設定時はcompositionの80%をfit領域にする
+- 最小font sizeを指定し、実測boundsが領域へ収まるまでfont sizeを縮小する
+- before / after snapshotによる一括Undo/Redoと実行前previewに対応

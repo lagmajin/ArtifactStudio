@@ -215,3 +215,8 @@ ArtifactClipboardManager (新規シングルトン)
 | `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cpp` | - | レイヤーパネル |
 | `Artifact/src/Composition/ArtifactAbstractComposition.cppm` | - | コンポジション |
 | `ArtifactCore/include/Serialization/ArtifactProjectExporter.ixx` | - | JSON シリアライズパターン |
+# 2026-07-10 Progress
+
+- `ClipboardManager::copyPropertyValue()` の payload を選択レイヤーへ適用する
+  `Paste Special: Property Value` を Composition Editor Command Palette に追加
+- ロック済みレイヤーは対象外とし、既存 property path と mutation 経路を再利用する

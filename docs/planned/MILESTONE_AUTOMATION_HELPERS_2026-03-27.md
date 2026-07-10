@@ -21,3 +21,8 @@
 ## Notes
 
 `Feature Expansion` の Phase 0 と各機能をつなぐ補助ワークストリーム。
+# 2026-07-10 Progress
+
+- Composition Editor Command Palette に `Repeat Last Action` を追加
+- 直前の repeatable action を名前付き Recipe としてセッション内保存・再実行可能にした
+- Batch / Paste Special / Published Controls / Responsive Preview / Auto Precompose を同じ入口へ統合した
