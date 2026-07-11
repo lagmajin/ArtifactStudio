@@ -2,6 +2,8 @@
 
 > 2026-03-25 作成
 
+**ステータス:** In Progress
+
 ## 目的
 
 動画・コンポジット向けのモーショントラッキングを、`ArtifactCore` から `Artifact` アプリ層まで段階的に導入する。
@@ -109,6 +111,8 @@ Feature Expansion 側で「追跡を制作能力として増やす」と定義�
 - `MotionTracker::clearTrackingData()`
 - `MotionTracker::hasResult()`
 - tracker settings / track points / track regions の JSON 保存復元
+- 結果フレームの有限値検証、重複ポイントID・不正ホモグラフィの正規化
+- 失敗フレームと問題フレームの統合、キャンセル時の部分結果保持
 
 ### 1-3. 追跡アルゴリズムの実装強化
 
@@ -121,6 +125,13 @@ Feature Expansion 側で「追跡を制作能力として増やす」と定義�
 - template matching
 - planar tracking
 - hybrid mode
+
+#### Implemented
+
+- Optical Flow / Feature Based / Template Matching / Hybrid の方式別処理
+- Planar homography の適用と信頼度評価
+- `cv::Mat` フレーム入力、進捗コールバック、キャンセル対応
+- キャリブレーション済みカメラ姿勢 solve、再投影誤差、姿勢系列JSON、非同期ジョブ
 
 ### 1-4. 入出力
 
