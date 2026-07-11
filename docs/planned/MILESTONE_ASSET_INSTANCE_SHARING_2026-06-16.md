@@ -87,6 +87,7 @@
 - Project Importer が新しい project を読む前に source registry／decoded payload state を reset し、`assets.sourceRegistry` 欠落の旧 project でも前 project の lease が混入しないようにした。
 - source registry snapshot の `schemaVersion` を復元時に検証し、未知の将来 schema や不正値を部分適用せず拒否するようにした。
 - source registry snapshot 内の重複 source UUID を検出し、同一 identity の曖昧な上書きを拒否するようにした。
+- 非ローカライズ source の `id` / `originId` 不一致も拒否し、復元先 identity の取り違えを防ぐようにした。
 - `GPUTextureCacheManager` が `asset:<uuid>` owner の versioned image/video keyを受け取った際、同一sourceの旧version texture entryを整理するようにした。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
