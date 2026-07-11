@@ -40,6 +40,10 @@
 - Image/Audioはロード成功時だけleaseを切り替え、失敗時は既存source leaseを維持する。
 - Videoは既存の非同期open契約に合わせ、open世代開始時にleaseを切り替える。
 - 同一canonical sourceを参照するlayer数を `AssetManager::useCount()` から取得できる状態になった。
+- `AssetManager` に `asset UUID + source version + representation` keyedのgeneric decoded payload cacheを追加した。
+- cacheはweak ownershipとし、Layerがpayload寿命を所有するためregistry起因の常駐を避けた。
+- `invalidateSource()` はversion更新と同時に旧version payload keyを除去する。
+- `ArtifactImageLayer` はrender本流の `ImageF32x4_RGBA` を共有cacheから取得し、decode完了時にversion一致を確認して公開する。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
 ## 1. 目的
