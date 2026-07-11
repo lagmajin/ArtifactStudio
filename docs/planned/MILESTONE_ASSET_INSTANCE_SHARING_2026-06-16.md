@@ -64,6 +64,9 @@
 - Image LayerのLocalize / Relink SharedをService + Undo commandへ接続した。
 - Image JSONにsource UUID/localized状態を保存し、Project registry復元後に同じidentityを再取得する。
 - Image固有 `fromJsonProperties()` を追加し、source path、fit、source cropの復元漏れも修正した。
+- Video / AudioにもLocalize / Relink Shared、source UUID/localized JSON復元を展開した。
+- ProjectServiceのLocalize入口はImage/Video/Audio共通となり、同じUndo commandを再利用する。
+- Video LayerFactoryは専用 `ArtifactVideoLayer::fromJson()` を正規復元経路にし、playback/proxy/audio/crop設定の復元漏れを防いだ。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
 ## 1. 目的
