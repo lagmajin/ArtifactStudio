@@ -58,6 +58,12 @@
 - 既存 `replaceLayerSourceInCurrentComposition()` をImage/Video/Audio/SVG共通のRelink正規入口として維持した。
 - Relinkを `ReplaceLayerSourceCommand` 経由へ移し、source leaseとcache更新を含むUndo/Redoに対応した。
 - 新sourceは実在するlocal fileに限定し、空path、missing path、同一path、非media layerを拒否する。
+- Core registryに同一pathのまま独立UUIDを持つlocalized source identityを追加した。
+- Localize時はuse countをshared identityからlocalized identityへ移し、既存decoded payloadを初期共有する。
+- localized identityは独立version/keyを持つため、以後のinvalidateとGPU cacheをshared sourceから分離できる。
+- Image LayerのLocalize / Relink SharedをService + Undo commandへ接続した。
+- Image JSONにsource UUID/localized状態を保存し、Project registry復元後に同じidentityを再取得する。
+- Image固有 `fromJsonProperties()` を追加し、source path、fit、source cropの復元漏れも修正した。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
 ## 1. 目的
