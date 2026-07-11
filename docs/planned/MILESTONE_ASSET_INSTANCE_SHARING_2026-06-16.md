@@ -92,6 +92,7 @@
 - `schemaVersion` の小数値も拒否し、整数 schema としてのみ復元するようにした。
 - `useCount == 0` の source を `AssetOrphan` として Health Checker／Problem View に公開し、孤立 source の修復導線を既存 Service に接続済みであることを確認した。
 - GPU cache は現在 controller 所有で Health Checker から owner 単位の live entry を観測できないため、`asset.gpu-leak` は未達として残す（GPU cache の観測 API と責務境界を別スライスで設計する）。
+- `GPUTextureCacheManager` に owner 単位の live entry 数／メモリ量を取得する read-only API を追加し、次段の診断接続に必要な観測面を用意した。
 - `GPUTextureCacheManager` が `asset:<uuid>` owner の versioned image/video keyを受け取った際、同一sourceの旧version texture entryを整理するようにした。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
