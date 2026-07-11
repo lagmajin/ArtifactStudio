@@ -85,6 +85,7 @@
 - `AssetDuplicateDecode` は Project Diagnostics で Performance 分類と修復ヒントへ変換される。
 - leaseが0なのに `livePayloadCount` が残る source を `AssetPayloadLeak` として検出し、Performance診断と再読込ヒントへ変換するようにした。
 - Project Importer が新しい project を読む前に source registry／decoded payload state を reset し、`assets.sourceRegistry` 欠落の旧 project でも前 project の lease が混入しないようにした。
+- source registry snapshot の `schemaVersion` を復元時に検証し、未知の将来 schema や不正値を部分適用せず拒否するようにした。
 - `GPUTextureCacheManager` が `asset:<uuid>` owner の versioned image/video keyを受け取った際、同一sourceの旧version texture entryを整理するようにした。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
