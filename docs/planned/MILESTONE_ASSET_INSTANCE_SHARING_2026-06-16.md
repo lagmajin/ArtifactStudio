@@ -55,6 +55,9 @@
 - source health snapshotにpath、type、version、use count、live payload countを公開した。
 - ProjectHealthCheckerがLayer sourceのmissing path、orphan source、invalid versionを検出する。
 - Problem View変換でmissingをFile、orphanをPerformance、versionをConfigurationへ分類し、修復ヒントを追加した。
+- 既存 `replaceLayerSourceInCurrentComposition()` をImage/Video/Audio/SVG共通のRelink正規入口として維持した。
+- Relinkを `ReplaceLayerSourceCommand` 経由へ移し、source leaseとcache更新を含むUndo/Redoに対応した。
+- 新sourceは実在するlocal fileに限定し、空path、missing path、同一path、非media layerを拒否する。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
 ## 1. 目的
