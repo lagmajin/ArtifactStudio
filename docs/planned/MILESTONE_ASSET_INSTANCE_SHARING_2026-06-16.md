@@ -75,6 +75,8 @@
 - `ArtifactAudioLayer` のdecoded PCMを `asset UUID + source version + audio.pcm.f32` の共有payloadへ移し、resample結果と時間窓cacheはlayer-localのまま維持した。
 - `ArtifactVideoLayer` の初期フレームと通常の非同期F32フレームを `asset UUID + source version + video.f32.frame` の共有payloadへ接続し、layer-localのLRUはフォールバック／時間窓として維持した。
 - Composition ViewのVideo GPU fallback cache keyも `asset UUID + source version + frame` に揃え、同じsource/frameのGPU entryをlayer間で共有するようにした。
+- Project Health Checkerが同一canonical pathに複数の非-localized source identityを検出した場合、`AssetDuplicateDecode` として診断するようにした。localized identityは意図的な分離として除外する。
+- `AssetDuplicateDecode` は Project Diagnostics で Performance 分類と修復ヒントへ変換される。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
 ## 1. 目的
