@@ -36,6 +36,10 @@
 - source UUID単位の単調増加versionを持ち、`invalidateSource()` でdecode/GPU cacheが共有できる世代境界を追加した。
 - registry stateはmutexで保護し、release underflowとnull UUIDを拒否する。
 - payload型はまだ保持せず、Core registryへQt画像/GPU backend型を流入させない境界を維持した。
+- `ArtifactImageLayer` / `ArtifactVideoLayer` / `ArtifactAudioLayer` のload、reload、clear、destructionをsource leaseへ接続した。
+- Image/Audioはロード成功時だけleaseを切り替え、失敗時は既存source leaseを維持する。
+- Videoは既存の非同期open契約に合わせ、open世代開始時にleaseを切り替える。
+- 同一canonical sourceを参照するlayer数を `AssetManager::useCount()` から取得できる状態になった。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
 ## 1. 目的
