@@ -90,6 +90,7 @@
 - 非ローカライズ source の `id` / `originId` 不一致も拒否し、復元先 identity の取り違えを防ぐようにした。
 - AssetDatabase 解決後の実 asset ID 重複も拒否し、異なる入力が同一 registry エントリへ上書きされる経路を閉じた。
 - `schemaVersion` の小数値も拒否し、整数 schema としてのみ復元するようにした。
+- `useCount == 0` の source を `AssetOrphan` として Health Checker／Problem View に公開し、孤立 source の修復導線を既存 Service に接続済みであることを確認した。
 - `GPUTextureCacheManager` が `asset:<uuid>` owner の versioned image/video keyを受け取った際、同一sourceの旧version texture entryを整理するようにした。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
