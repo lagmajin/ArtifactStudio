@@ -83,6 +83,7 @@
 - Composition ViewのVideo GPU fallback cache keyも `asset UUID + source version + frame` に揃え、同じsource/frameのGPU entryをlayer間で共有するようにした。
 - Project Health Checkerが同一canonical pathに複数の非-localized source identityを検出した場合、`AssetDuplicateDecode` として診断するようにした。localized identityは意図的な分離として除外する。
 - `AssetDuplicateDecode` は Project Diagnostics で Performance 分類と修復ヒントへ変換される。
+- leaseが0なのに `livePayloadCount` が残る source を `AssetPayloadLeak` として検出し、Performance診断と再読込ヒントへ変換するようにした。
 - `GPUTextureCacheManager` が `asset:<uuid>` owner の versioned image/video keyを受け取った際、同一sourceの旧version texture entryを整理するようにした。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
