@@ -71,6 +71,7 @@
 - Localized toggleはpreview mutationを行わず、commit時だけProjectServiceのUndo対応Localize/Relink Sharedへ流す。
 - use countはregistry由来の診断表示値として公開し、Layer側での直接mutationは拒否する。
 - Project ViewのFootage行メタデータと選択詳細に、`AssetManager::useCount()` 由来の `Source Uses` を追加した。表示値は保存せず、source registryから再計算する。
+- `ArtifactAudioLayer` のdecoded PCMを `asset UUID + source version + audio.pcm.f32` の共有payloadへ移し、resample結果と時間窓cacheはlayer-localのまま維持した。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
 ## 1. 目的
