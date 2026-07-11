@@ -1,7 +1,7 @@
 # M-ASSET-1 Asset Instance Sharing Milestone
 
 作成日: 2026-06-16
-ステータス: Draft
+ステータス: In Progress
 対象: `ArtifactCore/include/Asset/AssetImporter.ixx`,
       `ArtifactCore/include/Asset/AssetDatabase.ixx`,
       `ArtifactCore/src/Asset/AssetManager.cppm`,
@@ -24,6 +24,15 @@
 - `docs/technical/BLEND_MASK_COMPOSITION_CONTRACT_2026-05-08.md`
 
 ---
+
+## 2026-07-12 Foundation progress
+
+- `AssetDatabase::registerAsset()` と `findAssetByPath()` を同一のsource identity正規化へ統一した。
+- 既存ファイルはcanonical path、未作成・missing pathはabsolute clean pathをidentityに使う。
+- Windowsでは大小文字差をcase-foldし、区切り・相対/絶対・case差による重複UUIDを防ぐ。
+- database読込時も同じ正規化を通し、空ID、空path、同一identityの重複entryを除外する。
+- これはdecoded payload registry導入前の不変条件であり、既存APIは変更していない。
+- Source/diff checked only. Build / runtime verification is intentionally deferred.
 
 ## 1. 目的
 
