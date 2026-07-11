@@ -67,6 +67,9 @@
 - Video / AudioにもLocalize / Relink Shared、source UUID/localized JSON復元を展開した。
 - ProjectServiceのLocalize入口はImage/Video/Audio共通となり、同じUndo commandを再利用する。
 - Video LayerFactoryは専用 `ArtifactVideoLayer::fromJson()` を正規復元経路にし、playback/proxy/audio/crop設定の復元漏れを防いだ。
+- Image/Video/AudioのProperty Editorに `Localized Source` と `Source Uses` を追加した。
+- Localized toggleはpreview mutationを行わず、commit時だけProjectServiceのUndo対応Localize/Relink Sharedへ流す。
+- use countはregistry由来の診断表示値として公開し、Layer側での直接mutationは拒否する。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
 ## 1. 目的
