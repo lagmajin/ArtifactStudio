@@ -32,6 +32,10 @@
 - Windowsでは大小文字差をcase-foldし、区切り・相対/絶対・case差による重複UUIDを防ぐ。
 - database読込時も同じ正規化を通し、空ID、空path、同一identityの重複entryを除外する。
 - これはdecoded payload registry導入前の不変条件であり、既存APIは変更していない。
+- 既存 `AssetManager` をsource registryの正規入口にし、`acquireSource / releaseSource / sourceId / useCount` を追加した。
+- source UUID単位の単調増加versionを持ち、`invalidateSource()` でdecode/GPU cacheが共有できる世代境界を追加した。
+- registry stateはmutexで保護し、release underflowとnull UUIDを拒否する。
+- payload型はまだ保持せず、Core registryへQt画像/GPU backend型を流入させない境界を維持した。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
 ## 1. 目的
