@@ -52,6 +52,9 @@
 - use countとdecoded/GPU payloadは保存せず、Layer復元時にleaseから再構築する。
 - Project JSONの `assets.sourceRegistry` に保存し、Composition/Layer生成前に復元する。
 - 旧Projectの `assets.sourceRegistry` 欠落は正常として扱い、従来どおりsource pathから再構築する。
+- source health snapshotにpath、type、version、use count、live payload countを公開した。
+- ProjectHealthCheckerがLayer sourceのmissing path、orphan source、invalid versionを検出する。
+- Problem View変換でmissingをFile、orphanをPerformance、versionをConfigurationへ分類し、修復ヒントを追加した。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
 ## 1. 目的
