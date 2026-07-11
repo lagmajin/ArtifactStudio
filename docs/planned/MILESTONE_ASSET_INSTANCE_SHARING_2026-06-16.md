@@ -79,6 +79,7 @@
 - 既存の `QFileSystemWatcher` 経路を ProjectService の初期化時に有効化し、project内Footageの監視対象を project change ごとに再登録するようにした。
 - `ArtifactVideoLayer` が保持する current frame / LRU / preload payload を source version drift で破棄し、変更後の同期・非同期 decode が新世代へ戻るようにした。
 - `ArtifactAudioLayer` も source version drift で PCM を再読込し、共有payload、waveform、resample、AudioCache を新世代へ切り替えるようにした。
+- `ArtifactImageLayer` の非同期 prefetch 結果に generation を付与し、source version drift 後の旧画像を破棄して新しい decoded F32/GPU共有payloadへ切り替えるようにした。
 - Composition ViewのVideo GPU fallback cache keyも `asset UUID + source version + frame` に揃え、同じsource/frameのGPU entryをlayer間で共有するようにした。
 - Project Health Checkerが同一canonical pathに複数の非-localized source identityを検出した場合、`AssetDuplicateDecode` として診断するようにした。localized identityは意図的な分離として除外する。
 - `AssetDuplicateDecode` は Project Diagnostics で Performance 分類と修復ヒントへ変換される。
