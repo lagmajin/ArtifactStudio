@@ -1,6 +1,8 @@
 # MILESTONE: コアキーフレーム / プロパティ更新の堅牢化
 
-**ステータス:** In Progress
+**ステータス:** Complete (static verification)
+
+**完了日:** 2026-07-12
 
 > 2026-07-10 作成
 
@@ -193,6 +195,16 @@ Phase 1 から入る。まずは現状挙動をテストで固定し、二重実
 - `AnimatableValueT` の置換・整列・move先衝突の回帰を追加した
 
 > Source/diff checked only. Build / test execution is pending explicit permission.
+
+### Static completion summary
+
+- `RationalTime` equality and ordering are scale independent and avoid floating-point epsilon comparison.
+- `AbstractProperty` normalizes keyframe order and uniqueness and uses the same comparison for add, remove, lookup, metadata, and roving operations.
+- Invalid property/keyframe values and non-finite Bezier controls are rejected at mutation boundaries.
+- `AbstractProperty` and `AnimatableValueT` protect read/write evaluation state with shared/exclusive locking.
+- Retime preserves the destination rational scale instead of round-tripping through default-scale seconds.
+- `Artifact.Test.PropertyKeyframe` covers equivalent-scale replacement/removal, large integer ordering, AnimatableValue ordering, replacement, and serialization round-trip.
+- Completion is source/diff verified only; the test module was not executed by user choice.
 
 ### 2026-07-10 Cleanup UI Progress
 

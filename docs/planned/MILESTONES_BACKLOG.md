@@ -45,10 +45,10 @@
   - 置換しない標準型も明文化して、混在を減らす
   - 詳細: `docs/planned/MILESTONE_STD_TO_QT_MIGRATION_2026-07-04.md`
 
-- **M-CORE-8** Core Keyframe / Property Update Hardening
+- **M-CORE-8** Core Keyframe / Property Update Hardening ✅ (static verified 2026-07-12)
   - `AbstractProperty` / `AnimatableValueT` / `Core.KeyFrame` の多重実装を整理し、時刻比較・値検証・評価の堅牢性を上げる
   - まずは現状挙動を固定する回帰テストから入り、`RationalTime` の正規化比較とスレッド安全な評価へ段階移行する
-  - 詳細: `docs/planned/MILESTONE_CORE_KEYFRAME_ROBUSTNESS_2026-07-10.md`
+  - 詳細: `docs/done/MILESTONE_CORE_KEYFRAME_ROBUSTNESS_2026-07-10.md`
 
 空いている時間に進めやすいよう、分野別に小さめのマイルストーンへ分割したバックログ。
 
