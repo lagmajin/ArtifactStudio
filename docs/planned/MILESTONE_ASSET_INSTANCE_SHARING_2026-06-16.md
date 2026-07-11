@@ -74,6 +74,7 @@
 - Asset Browserのファイル行表示、ツールチップ、選択詳細にも `Source Uses` を追加し、filesystem探索とproject source leaseの状態を同じ行から確認できるようにした。
 - `ArtifactAudioLayer` のdecoded PCMを `asset UUID + source version + audio.pcm.f32` の共有payloadへ移し、resample結果と時間窓cacheはlayer-localのまま維持した。
 - `ArtifactVideoLayer` の初期フレームと通常の非同期F32フレームを `asset UUID + source version + video.f32.frame` の共有payloadへ接続し、layer-localのLRUはフォールバック／時間窓として維持した。
+- Composition ViewのVideo GPU fallback cache keyも `asset UUID + source version + frame` に揃え、同じsource/frameのGPU entryをlayer間で共有するようにした。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
 ## 1. 目的
