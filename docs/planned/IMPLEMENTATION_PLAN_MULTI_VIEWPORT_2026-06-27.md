@@ -30,6 +30,15 @@
 > Diligent's `IDeviceContext` is currently used for direct rendering in `ArtifactCompositionRenderController`. When multiple controllers render simultaneously (across multiple viewports), context rendering collision can occur. 
 > To mitigate this safely for the MVP, we propose wrapping the render submission in a `QMutex` to serialize drawing commands, coupled with a late-update polling mechanism (100ms timer) for non-active viewports. We will replace this with a proper `ArtifactRenderScheduler` deduplication queue in a future milestone.
 
+### 2026-07-12 RenderScheduler foundation progress
+
+- `RenderTask` に明示的な `deduplicationKey` を追加した。
+- key未設定Taskは従来どおり常に投入し、既存挙動を維持する。
+- 同一keyのpending / in-flight Taskは後着をcancel扱いにして重複実行しない。
+- 完了、pending cancel、cancel-allの各経路でkeyを解放する。
+- `BatchRenderer` のframe taskはframe単位のkeyを設定する。
+- Source/diff checked only. Build / runtime verification is intentionally deferred.
+
 ## Open Questions
 
 > [!NOTE]
