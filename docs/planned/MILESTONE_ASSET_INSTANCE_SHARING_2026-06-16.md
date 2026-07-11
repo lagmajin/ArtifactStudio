@@ -85,6 +85,7 @@
 - `AssetDuplicateDecode` は Project Diagnostics で Performance 分類と修復ヒントへ変換される。
 - leaseが0なのに `livePayloadCount` が残る source を `AssetPayloadLeak` として検出し、Performance診断と再読込ヒントへ変換するようにした。
 - Project Importer が新しい project を読む前に source registry／decoded payload state を reset し、`assets.sourceRegistry` 欠落の旧 project でも前 project の lease が混入しないようにした。
+- registry reset を project metadata の初期検証後・snapshot 復元直前へ遅延し、早期 parse failure で現行 project の lease を破棄しないようにした。
 - source registry snapshot の `schemaVersion` を復元時に検証し、未知の将来 schema や不正値を部分適用せず拒否するようにした。
 - source registry snapshot 内の重複 source UUID を検出し、同一 identity の曖昧な上書きを拒否するようにした。
 - 非ローカライズ source の `id` / `originId` 不一致も拒否し、復元先 identity の取り違えを防ぐようにした。
