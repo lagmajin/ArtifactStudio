@@ -44,6 +44,10 @@
 - cacheはweak ownershipとし、Layerがpayload寿命を所有するためregistry起因の常駐を避けた。
 - `invalidateSource()` はversion更新と同時に旧version payload keyを除去する。
 - `ArtifactImageLayer` はrender本流の `ImageF32x4_RGBA` を共有cacheから取得し、decode完了時にversion一致を確認して公開する。
+- Image Layerはsource UUID/versionと未加工条件を公開し、GPU upload側が共有可否を判定できるようにした。
+- Composition previewとcomposition viewのGPU cache owner/keyを、未加工Imageに限って `asset UUID + version` へ切り替えた。
+- effect / mask / matte / source cropがあるsurfaceは従来のlayer-local GPU keyを維持する。
+- source version更新後は新keyでuploadされるため、旧GPU entryを再利用しない。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
 ## 1. 目的
