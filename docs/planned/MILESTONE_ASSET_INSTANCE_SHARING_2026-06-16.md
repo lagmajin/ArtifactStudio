@@ -48,6 +48,10 @@
 - Composition previewとcomposition viewのGPU cache owner/keyを、未加工Imageに限って `asset UUID + version` へ切り替えた。
 - effect / mask / matte / source cropがあるsurfaceは従来のlayer-local GPU keyを維持する。
 - source version更新後は新keyでuploadされるため、旧GPU entryを再利用しない。
+- source registryにJSON snapshot/restoreを追加し、stable asset UUID、canonical path、type、versionを永続化する。
+- use countとdecoded/GPU payloadは保存せず、Layer復元時にleaseから再構築する。
+- Project JSONの `assets.sourceRegistry` に保存し、Composition/Layer生成前に復元する。
+- 旧Projectの `assets.sourceRegistry` 欠落は正常として扱い、従来どおりsource pathから再構築する。
 - Source/diff checked only. Build / runtime verification is intentionally deferred.
 
 ## 1. 目的
