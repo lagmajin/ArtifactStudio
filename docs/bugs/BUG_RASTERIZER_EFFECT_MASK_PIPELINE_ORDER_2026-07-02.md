@@ -1,7 +1,7 @@
 # Rasterizer Effect / Mask Pipeline Order Issue
 
 **作成日:** 2026-07-02
-**状態:** 調査済み（未修正）
+**状態:** 実装修正済み（実動確認待ち）
 
 ---
 
@@ -54,3 +54,9 @@ if (hasRasterizerEffect) { ... }  // 後: マスク後のアルファからラ�
 - 一部の Rasterizer エフェクトはマスク前の元画像への依存がある可能性があるため、各エフェクトの `applyConfigured()` がマスク後の入力でも正しく動作するか確認が必要
 - GPU パス（`layerUsesGpuTextureCacheForCompositionView`）でも同様の順序問題がないか要確認
 - surface cache key（`buildLayerSurfaceCacheKey`）に影響を与える可能性あり（マスク → ラスタライザーの順では cache signature 変更が必要かも）
+
+## 2026-07-13 implementation update
+
+- `ArtifactCompositionViewDrawing.cppm`の`QImage`入力と`ImageF32x4_RGBA`入力の両方を`mask -> Rasterizer effect`順へ統一した。
+- `ArtifactCompositionRenderController.cppm`側の同等処理も同じ順序であることを確認した。
+- build / visual fixtureはプロジェクト指示により未実行。Drop Shadow等の実動確認後に状態を「確認済み」へ更新する。

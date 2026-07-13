@@ -1,7 +1,7 @@
 # GPU Compositing Specification
 
-Date: 2026-07-01  
-Status: Normative draft for the Composition Viewer GPU layer path  
+Date: 2026-07-01
+Status: Normative draft for the Composition Viewer GPU layer path
 Applies to: `Artifact`, `ArtifactCore`, preview, RAM preview, render/export paths
 
 ## 1. Purpose
@@ -213,18 +213,19 @@ Failures include:
 - non-finite output,
 - output that is unexpectedly all zero or a single saturated channel.
 
-Current fallback order is:
+The Composition Viewer GPU path is fail-closed:
 
-1. requested blend mode,
-2. retry with `Normal`,
-3. direct sprite fallback.
+1. dispatch the requested blend mode only,
+2. swap the accumulator only after a successful dispatch,
+3. leave the accumulator unchanged when conversion, validation, binding, or
+   dispatch fails.
 
-Fallback MUST be observable in diagnostics. It MUST NOT silently present a
-different blend mode as if the requested operation succeeded.
+The viewer MUST NOT silently retry with `Normal` or draw a direct sprite into
+the float accumulator. Those paths have different blend, format, and alpha
+semantics and can make a broken requested mode appear successful.
 
-The direct sprite fallback is a degraded preview path. It MUST NOT become the
-authoritative export result for unsupported modes. Export SHOULD fail with an
-actionable error or use a contract-equivalent CPU compositor.
+Export SHOULD fail with an actionable error or use a contract-equivalent CPU
+compositor when the requested GPU mode is unavailable.
 
 ## 9. Masks, Mattes, and Special Modes
 
