@@ -1,5 +1,7 @@
 # Layer Component Pipeline / Simulation Contract (2026-07-01)
 
+**ステータス:** In Progress
+
 レイヤーコンポーネントの `cloner / layout / crowd / physics / fracture / emit / simulation` を、
 その場しのぎで足すのではなく、将来の本格シミュレーションまで見据えて矛盾なく連携させるための実装指針。
 
@@ -220,6 +222,15 @@ state owner は layer 単体ではなく composition/session 側に寄せる。
 - layer 単体でなく composition 単位の simulation session を導入
 - playback 時は fixed timestep update をここで進める
 - crowd / rigid / soft-body / particle / pyro の土台をここへ集約
+
+2026-07-14 static implementation:
+
+- `ArtifactAbstractComposition` がframe単位のcomponent simulation sessionを所有
+- crowdは`LayerMotionIntent`と継続velocityからauthoritative transformを生成
+- clone collisionは同一layer内だけでなくcomposition内の対象instance間で解決
+- layer-localの即時crowd/collisionは、composition sessionがない単独previewだけのfallbackへ縮小
+- seek時はsessionを再初期化し、連続frameだけfixed-step状態を継承
+- build / runtime verificationは未実施
 
 ### Phase 4: event-driven topology / emit
 

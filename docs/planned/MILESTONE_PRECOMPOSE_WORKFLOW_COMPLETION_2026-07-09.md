@@ -70,6 +70,12 @@
 - unprecompose で source layer の position / opacity も保持される回帰を追加した
 - keepComposition=false の child composition 削除と undo 往復も回帰テストで固定した
 - restorePrecompose 後の child composition hierarchy も回帰で固定した
+- service側のprecompose / unprecompose成功時に`PreComposeManager`のnesting mappingも同期する
+- unprecompose時はprecomp instanceのMaster Property有効値を復元レイヤーへmaterializeする
+- precomp描画は親frameからchild frameを求め、`getThumbnailAtFrame()`で明示的にsampleする
+- selected-only precomposeはchild内timingを0基準へ正規化し、unprecomposeでparent offsetを戻す
+- precompose / unprecomposeのUndoは同じchild composition・precomp layer objectをsnapshot復元し、IDとMaster Property registryを維持する
+- `NestedTimeUtils::convertTime()`は共通祖先まで上がってtargetへ下る両方向変換に対応する
 
 ### Phase 4 - Workflow Contract for Follow-up Features
 

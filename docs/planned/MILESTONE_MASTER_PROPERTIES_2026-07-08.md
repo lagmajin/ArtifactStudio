@@ -1,6 +1,6 @@
 # Milestone: Master Properties / Essential Properties（プリコンプ外部プロパティ上書き） (2026-07-08)
 
-> 状態: DRAFT（新規・未実装・専用マイルストーン未作成を確認済み）
+**ステータス:** In Progress
 
 ---
 
@@ -79,3 +79,15 @@
 - `unprecompose` の完成度が上がっている
 - 式/キーフレームとの競合解決ルールが整理されている
 - 先に exposed data model が固まっているため、親側の上書きは後からつなげられる
+
+## 9. 2026-07-14 Current Progress
+
+- `ExposedPropertyRegistry`、precomp layer単位override、JSON round-tripは実装済み
+- Composition Settingsからfocused propertyを参照中の全parent precompへ公開・解除できる
+- 公開・解除は一括Undo/Redo対応
+- parent側では既存`Master Properties` property groupからinstance overrideを編集できる
+- precomp描画時だけoverrideを一時適用し、描画後にchild compositionの元値を復元するため、兄弟precomp instance間で値が漏れない
+- precomp samplingは親frameから明示的にchild frameへ変換する
+- unprecompose時はinstanceの有効override値を復元レイヤーへmaterializeする
+- precompose / unprecomposeのUndo snapshotでregistryとoverrideを持つ同じprecomp layer instanceを復元する
+- build / runtime verificationは未実施のため`In Progress`を維持する
