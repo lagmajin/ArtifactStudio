@@ -88,6 +88,8 @@
 - parent側では既存`Master Properties` property groupからinstance overrideを編集できる
 - precomp描画時だけoverrideを一時適用し、描画後にchild compositionの元値を復元するため、兄弟precomp instance間で値が漏れない
 - precomp samplingは親frameから明示的にchild frameへ変換する
+- child frameのanimation/expression評価後にinstance overrideを適用し、Master Propertyを最終優先値として固定する
+- nested precompの`Master Properties/*`も同じscope順序で再帰評価できる
 - unprecompose時はinstanceの有効override値を復元レイヤーへmaterializeする
 - precompose / unprecomposeのUndo snapshotでregistryとoverrideを持つ同じprecomp layer instanceを復元する
 - build / runtime verificationは未実施のため`In Progress`を維持する

@@ -238,6 +238,14 @@ state owner は layer 単体ではなく composition/session 側に寄せる。
 - emit を contact / fracture / density / trigger event 起点に統一
 - secondary systems を「前段の結果を読む consumer」として追加可能にする
 
+2026-07-14 static implementation:
+
+- composition session が新規 contact を前フレームとの差分で抽出
+- `fracture.enabled` は impulse / sensitivity / threshold から `LayerFractureEvent` を生成
+- `component.particleEmitter.enabled` は contact 起点の `LayerParticleSpawnEvent` を生成
+- spawn seed は layer / frame / local entity id から決定論的に生成
+- topology mutation と particle consumer への接続は次段
+
 ### Phase 5: bake / cache / deterministic replay
 
 - component stack 全体の snapshot 化
