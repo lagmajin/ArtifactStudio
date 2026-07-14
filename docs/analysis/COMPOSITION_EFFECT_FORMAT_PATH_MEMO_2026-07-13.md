@@ -30,6 +30,8 @@ asset decode / generator / layer renderer
 
 Composition Viewerは、表示中かつactiveなレイヤーにnon-Normal blendがある場合にGPU blend pathを選ぶ。CPU Rasterizer workを含むレイヤーも、CPUで処理したsurfaceをlayer targetへuploadした後、同じGPU blendへ合流する。
 
+2026-07-13の接続修正後は、透明なcomposition backgroundもGPU blend pathの除外理由にしない。Accumをtransparent blackで開始し、checkerboard / Maya gradientはpresentation chromeとしてAccumの外側で描画する。またstandard blendのready判定をoptional track-matte PSOから分離し、device未準備時の遅延初期化を再試行可能にする。
+
 根拠:
 
 - `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm:20731-20767`

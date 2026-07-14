@@ -57,6 +57,16 @@ if(_v143_found_cl)
     get_filename_component(_v143_cl_bin_root "${_v143_cl_host_dir}" DIRECTORY)
     get_filename_component(_v143_msvc_root "${_v143_cl_bin_root}" DIRECTORY)
 
+    # CMake creates the __cmake_cxx23 target during project().  Point its
+    # std-module metadata at the same toolset as cl.exe before that happens;
+    # a post-project cache override is too late and can mix VS installations.
+    set(_v143_modules_json "${_v143_msvc_root}/modules/modules.json")
+    if(EXISTS "${_v143_modules_json}")
+        set(CMAKE_CXX_STDLIB_MODULES_JSON
+            "${_v143_modules_json}"
+            CACHE FILEPATH "MSVC standard library module metadata override" FORCE)
+    endif()
+
     # Ensure the MSVC debug runtime directory is available to the linker.
     # Some environments do not propagate LIB to the Ninja build step, which
     # leaves MSVCRTD.lib unresolved even though the file exists locally.

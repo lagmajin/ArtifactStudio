@@ -22,6 +22,11 @@ struct ExternalRenderJobSchema {
     QString summaryFile;
     QString eventLogFile;
     QString cancelFile;
+    QJsonObject componentSimulationBake;
+    bool componentSimulationBakePresent = false;
+    bool componentSimulationBakeValid = true;
+    bool componentSimulationBakeUsableForStart = false;
+    int componentSimulationBakeFrameCount = 0;
     QJsonObject raw;
 
     [[nodiscard]] bool isValid() const;

@@ -1,6 +1,28 @@
 # Milestone: 3D Compositing（コンポジション内ライブ 3D シーン） (2026-07-08)
 
-> 状態: DRAFT（新規・未実装・専用マイルストーン未作成を確認済み）
+**ステータス:** In Progress
+
+> 2026-07-14: Phase 1A として、連続する不透明 Model3D レイヤー間で
+> composition preview の depth attachment を共有する最小経路に着手。
+> Phase 1B として、Light Layer の Directional / Point / Spot / Ambient と
+> light linking を Model3D の GPU pixel shader へ接続。
+> Phase 1C として、metallic-roughness / normal / occlusion の各Material入力を
+> linear texture として接続し、Scene Light 側をPBR応答へ拡張。
+> Phase 1D として、Material opacity / opacity texture を透明境界に含め、
+> 透明Model3Dを共有depthから分離してdepth testあり・depth writeなしで描画。
+> Phase 1E として、不透明な単色2Dレイヤーをモデル行列付き3Dカードとして描画し、
+> 連続するModel3D / 2Dカード間で同じdepth attachmentを共有。
+> Phase 1F として、Imageレイヤーの既存GPUキャッシュSRVを3Dカードへ直接接続し、
+> 不透明ピクセルだけdepth write、半透明ピクセルはdepth testのみの2パスに分離。
+> Phase 1G として、SVG / Textが既に保持する`ImageF32x4_RGBA`も同じGPUカード経路へ接続。
+> Phase 1H として、単色Fillの閉じたShape輪郭をear clippingで三角形化し、
+> QImage再ラスタライズなしで専用3D depth PSOへ直接接続。
+> Phase 1I として、RAM cacheに存在するVideoフレームを同期decodeなしでGPUカードへ接続し、
+> Imageと同じalpha-split depth契約でModel3D / 2Dカードとの遮蔽へ参加。
+> Phase 1J として、標準スタイルのShape Strokeをローカル空間のquad列として直接三角形化し、
+> Fillと同じ3D depth契約へ接続。taper / gradient / dash / 非標準joinは既存経路を維持。
+> Phase 1K として、既存のoffscreen color targetから同一GPU textureのSRVを明示取得できる
+> APIを追加。Precomp GPU output registryがCPU readbackなしで親3Dカードへ渡すための所有権境界を固定。
 
 ---
 
@@ -73,3 +95,30 @@
 - import 済み 3D モデルを comp の一部として配置できる
 - camera / viewport の責務が混ざらない
 - 3D scene の状態が review しやすい
+
+## 9. Precomp GPU Output Registry（Phase 1K の契約）
+
+`ArtifactCompositionLayer` を 3D card として合成する前に、child composition
+ごとの GPU 出力を controller 所有の registry に保持する。`QImage` thumbnail は
+この経路の入力にしない。
+
+1 entry は少なくとも次を同時に持つ。
+
+- `sourceCompositionId` / `childFrame` / 出力サイズ / render generation
+- color RTV と、それが所有する同一 texture の SRV
+- child の depth target（親の scene depth へ転用しない）
+- child の描画完了後だけ有効になる `ready` 状態
+
+更新手順は、親フレームに対して child frame を解決し、Master Property override
+scope を開始して child の GPU pass を実行し、scope を必ず復元してから entry を
+`ready` とする。親は `ready` の SRV のみを `draw3DTexturedCard()` へ渡す。
+レンダー中の RTV を SRV として同時に bind しない。
+
+最初の実装範囲は Normal blend・mask/effect なし・循環参照なしの precomp に限定する。
+未対応の precomp は既存 2D 経路を維持し、GPU output registry の不完全な entry を
+表示に利用しない。
+
+2026-07-14 時点では、この限定条件を満たす **2D child comp** を専用 color/depth
+target へ描画し、`ready` 後に親の 3D textured card として合成する最小経路まで実装。
+child に 3D、adjustment、mask、rasterizer effect、非Normal blend、nested precomp
+がある場合は registry を使わず既存経路へ戻す。

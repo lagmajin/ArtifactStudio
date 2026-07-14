@@ -220,6 +220,19 @@ The Composition Viewer GPU path is fail-closed:
 3. leave the accumulator unchanged when conversion, validation, binding, or
    dispatch fails.
 
+Pipeline capability failures MUST be isolated. Standard layer blend readiness
+depends on the blend constant buffer, layer-to-float conversion, and standard
+blend executors. Optional track-matte, stencil, or stochastic capabilities MUST
+NOT make `Add`, `Multiply`, or other standard blend modes globally unavailable.
+When a layer actually requests an unavailable optional capability, that layer
+MUST be skipped without swapping the accumulator; the capability MUST NOT be
+silently ignored.
+
+Viewer initialization MUST be retryable when the render device is not ready at
+the first deferred attempt. A failed shader initialization MAY use a bounded
+retry policy; it MUST NOT leave the viewer permanently on the direct path merely
+because a one-shot startup callback ran before device creation completed.
+
 The viewer MUST NOT silently retry with `Normal` or draw a direct sprite into
 the float accumulator. Those paths have different blend, format, and alpha
 semantics and can make a broken requested mode appear successful.
@@ -248,6 +261,8 @@ Viewport chrome is not composition content.
 - Checkerboard and viewport gradients MUST NOT enter `accumPremul`.
 - A composition background layer MAY enter the accumulator if it is part of the
   composition model.
+- Transparent composition output MUST NOT disable the GPU blend path. It starts
+  from a transparent-black accumulator and follows the same layer loop.
 - Transparent composition output MUST preserve alpha through the final
   accumulator.
 - The final premultiplied accumulator MUST be converted exactly once to the

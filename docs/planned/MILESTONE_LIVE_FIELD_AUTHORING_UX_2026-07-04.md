@@ -28,11 +28,9 @@ Cinema 4D / Unreal Motion Design 的な field 制作体験を、そのまま巨�
 
 一方で、日常的に使うにはまだ次が不足している:
 
-- viewport 上で field center / radius を直接ドラッグできるが、ハンドル演出はまだ最小限
-- field の選択状態や hover が見える
-- strength / blend / invert / reorder など stack 的な操作は一部 menu で扱える
-- radial 以外の field shape がない
-- generator / modifier 側の field mask 契約へまだ接続していない
+- viewport handle の実機操作確認
+- CPU / GPU共通のclone color契約
+- Shape vertex attribute対応後の頂点単位weight
 
 この milestone は、その未完了分を次回すぐ再開できる形に固定する。
 
@@ -54,12 +52,12 @@ Cinema 4D / Unreal Motion Design 的な field 制作体験を、そのまま巨�
 
 | 軸 | 状況 | 影響 |
 |---|---|---|
-| Viewport drag | 一部実装 | center / radius を viewport で直接ドラッグできるが、専用ハンドルの見た目はまだ簡素 |
+| Viewport drag | 実装済み | radial / box / linearのshape別handleとdrag Undoを実装 |
 | Hover / active state | 実装済み | viewport hover と active 選択の導線があり、active は badge と menu list でも見える |
-| Field stack controls | 一部実装 | active 巡回、順序変更、menu 経由の enable/edit/delete と最小 list UI はあるが、独立 panel はまだ必要 |
-| Blend / weight / invert | 一部実装 | strength / blendMode / invert を保持・編集できるが、UI surface はまだ簡素 |
-| Shape variety | radial のみ | box / linear / noise 系に発展できない |
-| Modifier integration | 未実装 | generator / modifier / dynamics 共通 contract へ繋がっていない |
+| Field stack controls | 実装済み | active選択、順序変更、enable/edit/deleteを既存menu stackへ統合 |
+| Blend / weight / invert | 実装済み | strength / blendMode / invertを保存・編集・評価 |
+| Shape variety | radial / box / linear | noise / solid 系は未実装 |
+| Modifier integration | 実装済み | 共通channelをCloner / Modifier後の追加instanceへ接続 |
 
 ---
 
@@ -115,11 +113,14 @@ Current status:
 - arrange menu に live field の一覧があり、クリックで active を切り替えられる
 - viewport の active field badge が出る
 - viewport 上で center / radius を直接ドラッグできる
+- field handleの直接操作は`Alt + drag`に限定し、通常のSelection Tool dragはtransform gizmo / mask / pathへ委譲する
 - live field list と badge で strength / invert の要点が見える
 - viewport の active field に center-radial ガイドと handle 差がある
 - active なしのときは active 順序操作を抑制する
 - active field の削除 Undo で active も復元される
 - drag 開始で target field が active に追従する
+- `Live Fields` stack 内から active field の edit / enable / reorder / remove を直接実行できる
+- edit / enable / remove は active field を優先し、active がない場合だけ選択ダイアログへfallbackする
 
 **Done criteria:**
 
@@ -145,6 +146,16 @@ Current status:
 - `linear`
 - 必要なら `solid`
 
+Current status:
+
+- `shape` descriptorを追加し、旧radial JSONを後方互換で読み込める
+- boxはX/Y半径を個別に保存・評価できる
+- box overlay、center / X / Y handle hit-test、drag Undoを実装済み
+- Layer menuからboxを作成・編集できる
+- linearは方向、グラデーション半幅、ガイド長を保存・評価できる
+- linear overlay、方向ハンドルhit-test、角度と幅の同時drag Undoを実装済み
+- Layer menuからlinearを作成・編集できる
+
 最初から noise まで広げず、overlay / hit-test / evaluation の共通契約を先に固める。
 
 **Done criteria:**
@@ -163,6 +174,24 @@ Current status:
 - field の出力契約が layer transform 専用に閉じない
 - `M-LC-2 Generator / Modifier / Field Stack Migration` と自然に接続できる
 
+Current status:
+
+- `CompositionFieldInfluenceSample` と `evaluateFieldInfluence(...)` を追加
+- radial / box / linear のscalar weight計算をTransform評価と共有
+- stack合成はnormal / additive / multiply / screenに対応
+- Text Animatorのglyph weightへComposition Fieldを接続
+- layer-local Text FieldとComposition Fieldが同時にある場合はweightを乗算
+- ShapeのFill / Stroke alphaへShape中心のscalar weightを接続
+- Shapeの通常GPU描画、cache描画、fracture overlayで同じweightを使用
+- Layer側にcanvas座標からField weightを問い合わせる薄いAPIを追加
+- Cloner / Modifier適用後のclone bounds中心へscalar weightを接続
+- 元レイヤーとの二重適用を避け、追加clone（index 1以降）へ適用
+- cloneの既存weightとComposition Field weightを乗算
+- `CompositionFieldChannelSample` とLayer側bridgeでweight / scale / time offsetを共通化
+- Cloner / Modifier適用後の追加cloneへscaleとtime offsetも適用
+- color channelはCPU callbackとGPU instance dataの共通契約を先に揃える必要があるため保留
+- Shape頂点単位のattribute適用はrenderer側のvertex attribute契約が整うまで未実装
+
 ---
 
 ## 5. 設計メモ
@@ -177,14 +206,14 @@ Current status:
 
 ## 6. 次回の再開点
 
-次に着手するなら **Phase 1: Viewport Direct Manipulation** から再開する。
+主要なauthoring sliceは実装済み。次回は実機確認と共通描画契約の拡張から再開する。
 
 着手順:
 
-1. field handle hit-test の導入
-2. center drag
-3. radius drag
-4. drag undo の確定
+1. CPU / GPUで共通のclone color契約を固定
+2. Shape vertex attribute対応後に頂点単位weightへ拡張
+3. Clonerのbase instanceと追加cloneのchannel ownershipをUI上で明示
+4. 必要性を確認してnoise / solid shapeを追加
 
 ---
 
