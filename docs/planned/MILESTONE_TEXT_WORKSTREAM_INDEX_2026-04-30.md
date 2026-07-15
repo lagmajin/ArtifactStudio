@@ -4,6 +4,9 @@
 
 Text 系の次フェーズをまとめた索引。
 
+> **Canonical milestone:** [`MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md`](./MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md)  
+> 2026-07-16 以降、GPU描画・inline edit・Source Text・Text Animator・多言語対応の全体判断は統合マイルストーンを正規入口とする。この文書は旧workstreamの索引として残す。
+
 ---
 
 ## 1. Text Animator Next Gen

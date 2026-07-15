@@ -1,5 +1,7 @@
 # M-TXT-3 Source Text Keyframe Milestone
 
+> **Supporting slice:** [`MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md`](./MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md) の WP-4。Source Text の個別仕様と履歴を保持する。
+
 作成日: 2026-06-16
 ステータス: Draft
 対象: `Artifact/src/Layer/ArtifactTextLayer.cppm`,
@@ -32,6 +34,7 @@
 - property serialization の復元が metadata / envelopes / keyframes をまとめて扱うようになった
 - いま残っている主な差分は、Timeline の Text Content トラック表示と Inspector 露出
 - したがって、この milestone は **Phase 1 と永続化が実装済み、Phase 2 以降が残り** という扱いが適切
+- 2026-07-16: Composition Editorのtext editorをplayhead評価値へ接続。Source Text保有layerの確定は現在frameのConstant keyframeを`SetLayerPropertyKeyframesCommand`で更新し、Undo／Redoでkeyframe snapshotを復元する
 
 ---
 

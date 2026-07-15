@@ -1,8 +1,22 @@
 # Bug Investigation: ビデオレイヤーが黒く潰れる / 再生できなくなる (2026-07-08)
 
-> 状態: 調査（実機未実行・静的コード解析ベース）
+> 状態: 長期修正を実装（2026-07-16、ビルド・実機確認は未実施）
 > 対象症状: ビデオレイヤーの表示が黒く潰れる（または黒点滅）、再生が止まる
 > 関連: `docs/done/MILESTONE_VIDEO_LAYER_PLAYBACK_STABILITY_2026-06-25.md`
+
+## 0. 2026-07-16 更新
+
+7月8日時点の調査後、通常再生用と直接フレーム取得用のデマルチプレクサ／デコーダー分離、CPU表示パスでのVulkan decode無効化、描画スレッドのFuture待機撤去は既に反映されていた。今回、残っていた停止・要求寿命・メタデータ依存を次の構造へ更新した。
+
+- `ArtifactVideoLayer` の直接取得を単一ワーカーへ集約し、未処理要求は最新1件だけ保持する。
+- 世代IDに加えて要求IDを導入し、停止・シーク後に古いデコード結果が表示を上書きしないようにする。
+- Stopはワーカー完了を待たず旧世代を無効化し、Compositionの開始フレームだけを最終要求にする。
+- 同一フレームの失敗を描画ごとに無限再試行せず、別フレーム移動または世代更新まで最後の正常フレームを保持する。
+- `MediaPlaybackController` は `avg_frame_rate` が欠落した素材で `av_guess_frame_rate`、`r_frame_rate`、フレーム数÷durationの順にFPSを補完する。
+- 直接デコード用のstream index/time baseを独立保持し、非ゼロ`start_time`をseekとPTS比較の双方へ反映する。
+- `ArtifactPlaybackService` とCompositionのplay/pause/stop状態を同期し、Composition stopから動画レイヤーのデコード世代を無効化する。
+
+以下の節は、修正前の原因追跡記録として残す。
 
 ---
 

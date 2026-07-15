@@ -1,5 +1,7 @@
 # MILESTONE: Text Animator Semantic Pipeline
 
+> **Supporting slice:** [`MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md`](./MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md) の WP-5。AE系の問題を解消する selector／modifier 意味論の個別仕様を保持する。
+
 **ステータス:** In Progress
 
 **Date:** 2026-07-04
