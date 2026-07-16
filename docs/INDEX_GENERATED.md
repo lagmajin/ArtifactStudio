@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-16 02:58
+> Generated: 2026-07-16 03:26
 > Total documents: 1056
 
 ---
@@ -243,7 +243,7 @@
 | 38 | `docs/bugs/BUG_RENDER_SCHEDULER_THREAD_FLOOD_2026-04-18.md` | 調査報告書: コンポジション作成時 スレッド洪水問題 | 2026-04-18 | --- | 2026-04-19 | 3.5 KB | BUG, RENDER, SCHEDULER, THREAD, FLOOD |
 | 39 | `docs/bugs/BUG_TIMELINE_4ISSUES_2026-04-19.md` | Timeline: 4 Issue Bug Report (2026-04-19) | 2026-04-19 | --- | 2026-04-21 | 5.2 KB | BUG, TIMELINE, 4ISSUES |
 | 40 | `docs/bugs/BUG_TRANSFORM_GIZMO_CACHE_DISABLED_2026-04-19.md` | 調査報告書: TransformGizmo キャッシュ完全無効化バグ | 2026-04-19 | --- | 2026-04-19 | 3.2 KB | BUG, TRANSFORM, GIZMO, CACHE, DISABLED |
-| 41 | `docs/bugs/BUG_VIDEO_LAYER_BLACK_AND_PLAYBACK_STOP_INVESTIGATION_2026-07-08.md` | Bug Investigation: ビデオレイヤーが黒く潰れる / 再生できなくなる (2026-07-08) | 2026-07-08 | --- | 2026-07-09 | 9.3 KB | BUG, VIDEO, LAYER, BLACK, AND |
+| 41 | `docs/bugs/BUG_VIDEO_LAYER_BLACK_AND_PLAYBACK_STOP_INVESTIGATION_2026-07-08.md` | Bug Investigation: ビデオレイヤーが黒く潰れる / 再生できなくなる (2026-07-08) | 2026-07-08 | --- | 2026-07-16 | 9.3 KB | BUG, VIDEO, LAYER, BLACK, AND |
 | 42 | `docs/bugs/BUG_WASAPI_AUDIO_PERFORMANCE_2026-04-18.md` | 調査報告書: WASAPI オーディオ再生 CPU 負荷異常 | 2026-04-18 | --- | 2026-04-19 | 3.0 KB | BUG, WASAPI, AUDIO, PERFORMANCE |
 | 43 | `docs/bugs/CODE_QUALITY_ISSUES_2026-03-25.md` | コード品質問題レポート (2026-03-25) | 2026-03-25 | --- | 2026-03-27 | 5.8 KB | CODE, QUALITY, ISSUES |
 | 44 | `docs/bugs/COMPOSITION_BACKGROUND_CONFUSION_NOTE_2026-04-06.md` | Composition Background Confusion Note | 2026-04-05 | --- | 2026-04-06 | 1.2 KB | COMPOSITION, BACKGROUND, CONFUSION, NOTE |
@@ -903,7 +903,7 @@
 | 466 | `docs/planned/MILESTONE_SMART_FALLBACKS_2026-06-07.md` | MILESTONE: Smart Fallbacks | 2026-06-07 | --- | 2026-06-09 | 4.9 KB | SMART, FALLBACKS |
 | 467 | `docs/planned/MILESTONE_SMART_GUIDES_2026-04-10.md` | スマートガイドシステムの実装 | 2026-04-10 | --- | 2026-04-11 | 1.7 KB | SMART, GUIDES |
 | 468 | `docs/planned/MILESTONE_SNAP_ADVANCED_2026-04-10.md` | 高度なスナップ機能の実装 | 2026-04-10 | --- | 2026-04-11 | 2.0 KB | SNAP, ADVANCED |
-| 469 | `docs/planned/MILESTONE_SOURCE_TEXT_KEYFRAME_2026-06-16.md` | M-TXT-3 Source Text Keyframe Milestone | 2026-07-16 | --- | 2026-07-07 | 16.5 KB | SOURCE, TEXT, KEYFRAME |
+| 469 | `docs/planned/MILESTONE_SOURCE_TEXT_KEYFRAME_2026-06-16.md` | M-TXT-3 Source Text Keyframe Milestone | 2026-07-16 | --- | 2026-07-16 | 16.5 KB | SOURCE, TEXT, KEYFRAME |
 | 470 | `docs/planned/MILESTONE_STARTUP_AND_COMPOSITION_OPEN_LATENCY_2026-04-28.md` | マイルストーン: Startup / Composition Open Latency Reduction | 2026-04-28 | In Progress | 2026-07-12 | 7.3 KB | STARTUP, AND, COMPOSITION, OPEN, LATENCY |
 | 471 | `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_2026-04-21.md` | M-DIAG-5 Startup Thread Churn / Worker Burst Trace | 2026-04-21 | --- | 2026-06-19 | 2.6 KB | STARTUP, THREAD, CHURN, TRACE |
 | 472 | `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_PHASE1_2026-04-21.md` | M-DIAG-5 Phase 1 | 2026-04-21 | --- | 2026-04-21 | 0.6 KB | STARTUP, THREAD, CHURN, TRACE, PHASE1 |
@@ -921,15 +921,15 @@
 | 484 | `docs/planned/MILESTONE_TEMPORAL_EFFECT_HOST_FOR_TIME_DISPLACEMENT_2026-07-01.md` | Temporal Effect Host for Time Displacement (2026-07-01) | 2026-07-01 | --- | 2026-07-01 | 12.5 KB | TEMPORAL, EFFECT, HOST, FOR, TIME |
 | 485 | `docs/planned/MILESTONE_TERMINAL_SHELL_2026-04-06.md` | Terminal Shell / Command Surface Milestone | 2026-04-06 | --- | 2026-04-06 | 3.1 KB | TERMINAL, SHELL |
 | 486 | `docs/planned/MILESTONE_TEST_QA_INFRASTRUCTURE_2026-03-28.md` | テスト・QA 基盤 Milestone | 2026-03-28 | Phase 1 実装済み | 2026-04-08 | 8.1 KB | TEST, INFRASTRUCTURE |
-| 487 | `docs/planned/MILESTONE_TEXT_ANIMATOR_COMPLEX_SCRIPT_VERTICAL_2026-06-12.md` | MILESTONE: Text Animator Complex Script And Vertical Writing | 2026-07-16 | --- | 2026-06-19 | 14.1 KB | TEXT, ANIMATOR, COMPLEX, SCRIPT, VERTICAL |
-| 488 | `docs/planned/MILESTONE_TEXT_ANIMATOR_NEXT_GEN_2026-04-18.md` | MILESTONE: 次世代テキストアニメーター | 2026-07-16 | --- | 2026-06-20 | 5.4 KB | TEXT, ANIMATOR, NEXT, GEN |
-| 489 | `docs/planned/MILESTONE_TEXT_ANIMATOR_SEMANTIC_PIPELINE_2026-07-04.md` | MILESTONE: Text Animator Semantic Pipeline | 2026-07-16 | In Progress | 2026-07-05 | 12.7 KB | TEXT, ANIMATOR, SEMANTIC, PIPELINE |
+| 487 | `docs/planned/MILESTONE_TEXT_ANIMATOR_COMPLEX_SCRIPT_VERTICAL_2026-06-12.md` | MILESTONE: Text Animator Complex Script And Vertical Writing | 2026-07-16 | --- | 2026-07-16 | 14.1 KB | TEXT, ANIMATOR, COMPLEX, SCRIPT, VERTICAL |
+| 488 | `docs/planned/MILESTONE_TEXT_ANIMATOR_NEXT_GEN_2026-04-18.md` | MILESTONE: 次世代テキストアニメーター | 2026-07-16 | --- | 2026-07-16 | 5.4 KB | TEXT, ANIMATOR, NEXT, GEN |
+| 489 | `docs/planned/MILESTONE_TEXT_ANIMATOR_SEMANTIC_PIPELINE_2026-07-04.md` | MILESTONE: Text Animator Semantic Pipeline | 2026-07-16 | In Progress | 2026-07-16 | 12.7 KB | TEXT, ANIMATOR, SEMANTIC, PIPELINE |
 | 490 | `docs/planned/MILESTONE_TEXT_ANIMATOR_SYSTEM_2026-03-25.md` | Milestone: AE風 Text Animator システム (2026-03-25) | 2026-03-25 | --- | 2026-03-27 | 14.3 KB | TEXT, ANIMATOR, SYSTEM |
 | 491 | `docs/planned/MILESTONE_TEXT_AUTO_SIZE_2026-04-10.md` | テキストレイヤーのオートサイズ調整の実装 | 2026-04-10 | --- | 2026-04-11 | 1.9 KB | TEXT, AUTO, SIZE |
-| 492 | `docs/planned/MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md` | M-TXT-FOUNDATION: Text Layer GPU / Edit / Animation Completion | 2026-07-16 | In Progress | --- | 22.0 KB | TEXT, LAYER, GPU, EDIT, ANIMATION |
-| 493 | `docs/planned/MILESTONE_TEXT_LAYER_INLINE_EDIT_2026-03-27.md` | マイルストーン: テキストレイヤー コンポジットエディタ内編集 | 2026-07-16 | --- | 2026-06-25 | 7.4 KB | TEXT, LAYER, INLINE, EDIT |
+| 492 | `docs/planned/MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md` | M-TXT-FOUNDATION: Text Layer GPU / Edit / Animation Completion | 2026-07-16 | In Progress | 2026-07-16 | 22.3 KB | TEXT, LAYER, GPU, EDIT, ANIMATION |
+| 493 | `docs/planned/MILESTONE_TEXT_LAYER_INLINE_EDIT_2026-03-27.md` | マイルストーン: テキストレイヤー コンポジットエディタ内編集 | 2026-07-16 | --- | 2026-07-16 | 7.4 KB | TEXT, LAYER, INLINE, EDIT |
 | 494 | `docs/planned/MILESTONE_TEXT_VIEWPORT_EDIT_MODE_FEASIBILITY_2026-06-25.md` | Text Viewport Edit Mode Feasibility (2026-06-25) | 2026-06-25 | --- | 2026-06-25 | 14.3 KB | TEXT, VIEWPORT, EDIT, MODE, FEASIBILITY |
-| 495 | `docs/planned/MILESTONE_TEXT_WORKSTREAM_INDEX_2026-04-30.md` | Text Workstream Index | 2026-04-30 | --- | 2026-06-19 | 2.7 KB | TEXT, WORKSTREAM, INDEX |
+| 495 | `docs/planned/MILESTONE_TEXT_WORKSTREAM_INDEX_2026-04-30.md` | Text Workstream Index | 2026-04-30 | --- | 2026-07-16 | 2.7 KB | TEXT, WORKSTREAM, INDEX |
 | 496 | `docs/planned/MILESTONE_TIME_REMAP_CURVE_UI_2026-06-02.md` | M-MOTION-7 Time Remap Curve UI (2026-06-02) | 2026-06-02 | --- | 2026-06-05 | 2.6 KB | TIME, REMAP, CURVE |
 | 497 | `docs/planned/MILESTONE_TIME_WARP_CURVE_2026-07-07.md` | M-TWC-1 Time Warp Curve on Clips Milestone | 2026-07-07 | --- | 2026-07-07 | 7.4 KB | TIME, WARP, CURVE |
 | 498 | `docs/planned/MILESTONE_TIMELINE_AUDIO_LAYER_SPECIALIZATION_2026-04-23.md` | Milestone: Timeline Audio Layer Specialization (2026-04-23) | 2026-04-23 | --- | 2026-06-19 | 2.6 KB | TIMELINE, AUDIO, LAYER, SPECIALIZATION |
@@ -1052,7 +1052,7 @@
 | 17 | `docs/group-layer-render-design.md` | Group Layer Render Design | --- | --- | 2026-04-11 | 4.8 KB | group, layer, render, design |
 | 18 | `docs/HUE_SATURATION_IMPLEMENTATION_PLAN.md` | Hue/Saturation Effect Implementation Plan | --- | --- | 2026-04-14 | 5.4 KB | HUE, SATURATION, IMPLEMENTATION, PLAN |
 | 19 | `docs/ImGuizmo_Gizmo_Structure_Analysis.md` | ImGuizmoギズモ構造分析レポート | 2026-04-09 | --- | 2026-04-10 | 3.2 KB | ImGuizmo, Gizmo, Structure, Analysis |
-| 20 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-07-16 | --- | 2026-07-14 | 207.5 KB | INDEX, GENERATED |
+| 20 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-07-16 | --- | 2026-07-16 | 207.5 KB | INDEX, GENERATED |
 | 21 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 22 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 11.6 KB | CAMERA, PROJECTION |
 | 23 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
@@ -1121,7 +1121,7 @@
 | 9 | `docs/technical/DEBUG_RENDER_HARNESS_REPORT_TEMPLATE_2026-04-30.md` | Debug Render Harness Report Template | 2026-04-30 | --- | 2026-06-04 | 2.1 KB | DEBUG, RENDER, HARNESS, REPORT, TEMPLATE |
 | 10 | `docs/technical/DEBUG_RENDER_HARNESS_SCENE_PRESET_CONTRACT_2026-04-30.md` | Debug Render Harness Scene Preset Contract | 2026-04-30 | --- | 2026-04-30 | 2.9 KB | DEBUG, RENDER, HARNESS, SCENE, PRESET |
 | 11 | `docs/technical/DEBUG_RENDER_HARNESS_SMOKE_CHECKLIST_2026-04-30.md` | Debug Render Harness Smoke Checklist | 2026-04-30 | --- | 2026-06-04 | 2.8 KB | DEBUG, RENDER, HARNESS, SMOKE, CHECKLIST |
-| 12 | `docs/technical/DX12_VULKAN_PARITY_MEMO_2026-05-07.md` | DX12 / Vulkan Parity Memo - 2026-05-07 | 2026-05-07 | --- | 2026-06-04 | 2.0 KB | DX12, VULKAN, PARITY, MEMO |
+| 12 | `docs/technical/DX12_VULKAN_PARITY_MEMO_2026-05-07.md` | DX12 / Vulkan Parity Memo - 2026-05-07 | 2026-05-07 | --- | 2026-06-04 | 2.9 KB | DX12, VULKAN, PARITY, MEMO |
 | 13 | `docs/technical/F2_KEY_IMPLEMENTATION_STATUS_2026-03-28.md` | F2 キー レイヤー名編集 実装状況 | 2026-03-28 | 実装済み | 2026-03-30 | 6.3 KB | KEY, IMPLEMENTATION, STATUS |
 | 14 | `docs/technical/GIZMO_DRAWING_OPTIMIZATION_IMPLEMENTATION_2026-03-28.md` | ギズモ描画最適化 実装レポート (2026-03-28) | 2026-03-28 | 実装完了 | 2026-03-29 | 9.0 KB | GIZMO, DRAWING, OPTIMIZATION, IMPLEMENTATION |
 | 15 | `docs/technical/GIZMO_IMPLEMENTATION_STATUS_2026-04-10.md` | Gizmo Implementation Status (2026-04-10) | 2026-04-10 | --- | 2026-04-11 | 3.0 KB | GIZMO, IMPLEMENTATION, STATUS |

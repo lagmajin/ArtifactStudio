@@ -46,6 +46,7 @@ Status: In Progress
 - 2026-07-16: static／transformed GPU textのfont fallbackをglyph単位へ変更し、atlas keyへ実際に解決されたfont familyを保存。旧 `drawGlyphText()`／`drawGlyphs()` のatlas登録→upload順序も修正。
 - 2026-07-16: `GlyphAtlas` のRGBA atlas書き込みから `QPainter::CompositionMode_Source` を撤去し、所有バッファへの明示的row copyへ変更。
 - 2026-07-16: Text editorの確定を単一Undo transactionへ統合。静的textは`SetTextLayerTextCommand`、Source Text keyframe保有layerは表示中frameのHold keyframe snapshot commandを使い、基底textを誤更新しない契約へ変更。
+- 2026-07-16: `QTextBoundaryFinder::Grapheme` をshaping contractへ接続し、結合文字・variation selector・Emoji ZWJ sequenceを単一cluster identityとして全`GlyphItem`へ伝搬。既定Percentage selector、Wiggly、trackingはcluster単位で評価し、grapheme内部を別々に変形しないよう修正。
 
 ## Animator Quality Bar: AE系ワークフローの問題を解消する
 

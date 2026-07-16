@@ -38,6 +38,19 @@ This memo records the current parity work for the Diligent-based render path.
   - `textState`
   - `glyphState`
 
+## 2026-07-16 depth / PSO / shutdown hardening
+
+- Layer／offline／group offscreen depth resources use a backend-neutral contract:
+  - texture format: `D32_FLOAT`
+  - DSV view: `D32_FLOAT`
+  - SRV view: `R32_FLOAT`
+  - initial state: `DEPTH_WRITE`
+- Depth attachment setup no longer relies on Vulkan inferring an aspect from a typeless default view.
+- Gradient Rect VS/PS interfaces now share only `SV_POSITION` and `TEXCOORD0`; opacity is carried by `GradientCB`, not an undeclared vertex color varying.
+- Solid and transformed sprite PSOs declare only consumed vertex attributes while preserving the actual interleaved buffer stride.
+- PSO cache signature includes an explicit schema version; shader interface changes force a cold cache instead of reusing an incompatible backend blob.
+- Playback shutdown runs explicitly after the Qt event loop and before static destruction. `ArtifactApplicationManager` no longer accesses another function-local singleton from its destructor.
+
 ## Next checks to continue parity work
 
 - verify all `blend()` call sites still use the correct source/destination ordering
