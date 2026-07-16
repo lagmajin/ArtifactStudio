@@ -1,3 +1,6 @@
+# analysis
+- When investigating what features are missing or incomplete in the Artifact project, do NOT trust doc/analysis files (\`docs/analysis/\`, \`docs/planned/\`) at face value — many are outdated. Always verify claims by searching the actual source code (.cppm/.ixx) for real implementations before reporting status. The user explicitly corrected trusting outdated analysis docs over source code. Confidence: 0.75
+
 # Taste (Continuously Learned by [CommandCode][cmd])
 
 [cmd]: https://commandcode.ai/
