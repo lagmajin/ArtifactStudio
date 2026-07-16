@@ -122,6 +122,14 @@ bool renderExternalJob(const ExternalRenderJobSchema& job, QString* errorMessage
                 .value(QStringLiteral("layers")).toArray().size()},
         {QStringLiteral("frameStart"), job.frameStart},
         {QStringLiteral("frameEnd"), job.frameEnd},
+        {QStringLiteral("componentSimulationBakePresent"),
+         job.componentSimulationBakePresent},
+        {QStringLiteral("componentSimulationBakeValid"),
+         job.componentSimulationBakeValid},
+        {QStringLiteral("componentSimulationBakeUsableForStart"),
+         job.componentSimulationBakeUsableForStart},
+        {QStringLiteral("componentSimulationBakeFrameCount"),
+         job.componentSimulationBakeFrameCount},
         {QStringLiteral("outputPath"), job.outputPath}
     };
 
@@ -130,12 +138,22 @@ bool renderExternalJob(const ExternalRenderJobSchema& job, QString* errorMessage
     }
 
     auto appendEvent = [&](const QString& eventName, int progress) {
-        const QJsonObject event{
+        QJsonObject event{
             {QStringLiteral("event"), eventName},
             {QStringLiteral("jobId"), job.jobId},
             {QStringLiteral("progress"), progress},
             {QStringLiteral("timestampUtc"), QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)}
         };
+        if (eventName == QStringLiteral("renderStarted")) {
+            event.insert(QStringLiteral("componentSimulationBakePresent"),
+                         job.componentSimulationBakePresent);
+            event.insert(QStringLiteral("componentSimulationBakeValid"),
+                         job.componentSimulationBakeValid);
+            event.insert(QStringLiteral("componentSimulationBakeUsableForStart"),
+                         job.componentSimulationBakeUsableForStart);
+            event.insert(QStringLiteral("componentSimulationBakeFrameCount"),
+                         job.componentSimulationBakeFrameCount);
+        }
         appendEventJson(job.eventLogFile, event, nullptr);
     };
 

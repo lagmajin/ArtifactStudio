@@ -127,3 +127,9 @@ After Effects 由来の定型作業を、Artifact 側で少ない操作にまと
 - 現行の `Trim Comp to Content` は `trimMode` / `paddingFrames` / `syncWorkArea` /
   `respectLockedLayers` を受け、selected / all / visible を切り替えつつ
   `frameRange` / `workAreaRange` を更新する
+- 2026-07-10: Composition Editor の Command Palette に日常向け Batch 操作を追加
+  - Rename Selected Layers
+  - Duplicate Selected Layers
+  - Sequence Layers End-to-End
+  - Match Duration to First Layer
+  - Trim Composition to Selection

@@ -29,16 +29,24 @@ UI/UX やレンダリングパイプラインの新機能ではなく、**既に
 - [ ] Undo 連携
 
 ### M-APP-4 ArtifactAudioService 実装
-- `Artifact/include/Service/ArtifactAudioService.ixx` (16行、コンストラクタのみ)
-- [ ] Audio device 管理
-- [ ] 再生ルーティング
-- [ ] ボリューム制御
+- `Artifact/include/Service/ArtifactAudioService.ixx`
+- [ ] 物理Audio device列挙・選択（backend側の公開選択契約待ち）
+- [x] current compositionのaudio layer bus生成とMaster既定ルーティング
+- [x] master volume / muteはPlayback出力だけに適用し、Core masterとの二重gainを防止
+- [x] layer busのvolume / pan / mute / solo操作
+- [x] Composition Audio Mixerのmaster操作をAudioService facadeへ、strip操作をCore busへ接続
 
-### M-APP-5 TranslationManager 実装
-- `Artifact/include/Translation/TranslationManager.ixx` (19行)
-- [ ] 文字列テーブル読み込み
-- [ ] ロケール切り替え
-- [ ] 翻訳ルックアップ
+facade sliceは静的実装済み。ユーザー方針によりbuild / testは実施していない。
+
+### M-APP-5 TranslationManager 実装 ✅
+- `Artifact/include/Translation/TranslationManager.ixx`
+- [x] directory / file単位のJSON文字列テーブル読み込み
+- [x] locale正規化、起動時選択、英語fallback付き切り替え
+- [x] nested key flatten、fallback、引数置換を含む翻訳ルックアップ
+- [x] 再ロード時のstale fallback除去とtransactional file / locale切り替え
+- [x] active localeとfallbackを統合したloaded key列挙
+
+静的実装済み。ユーザー方針によりbuild / testは実施していない。
 
 ---
 
@@ -60,14 +68,19 @@ UI/UX やレンダリングパイプラインの新機能ではなく、**既に
 
 ### M-APP-7 EditMode → ツール自動マッピングの UI 接続
 - `ArtifactToolService::setEditMode()` は実装済み
-- [ ] ツールバーボタン → `toolService()->setEditMode()` 接続
-- [ ] キーボードショートカット (V=View, T=Transform, M=Mask, P=Paint) 実装
-- [ ] メインウィンドウのツール選択 UI とサービスの双方向バインディング
+- [x] 既存ツールバーdispatcher → `toolService()->setEditMode()` 接続
+- [x] 既存tool shortcutを維持し、選ばれたtoolからEditModeを自動判定（専用V/T/M/Pは競合のため不採用）
+- [x] 既存`ToolChangedEvent`経路によるツール選択UIとサービスの双方向バインディング
 
 ### M-APP-8 DisplayMode → ビューポート表示切り替え
 - `ArtifactToolService::setDisplayMode()` は実装済み
-- [ ] ビューポートの表示モード (Color/Alpha/Mask/Wireframe) を DisplayMode で制御
-- [ ] ショートカット (1=Color, 2=Alpha, 3=Mask, 4=Wireframe)
+- [x] Layer Viewerの既存Display menu (Color/Alpha/Mask/Wireframe) とDisplayMode serviceを同期
+- [x] Composition Viewの既存Color/Alpha channel操作とDisplayMode serviceを同期
+- [x] serviceのprogrammatic変更をShow / Focus / Window activation時にviewportへpull
+- [x] Mask/WireframeはLayer Viewer責務、Composition ViewはColor/Alpha channel責務として分離
+- [x] Composition Viewは既存`Alt+2` Color / `Alt+3` Alphaを維持し、数字単独shortcutは既存操作との競合を避けて追加しない
+
+静的実装済み。ユーザー方針によりbuild / testは実施していない。
 
 ---
 
@@ -75,9 +88,11 @@ UI/UX やレンダリングパイプラインの新機能ではなく、**既に
 
 ### M-APP-9 AbstractGeneratorEffector::apply() 実装
 - `Artifact/src/Generator/AbstractGeneratorEffector.cppm`
-- [ ] `apply()` → コンポジションパイプラインへの接続
-- [ ] `applyToLayer()` → レイヤーへの適用
-- [ ] SolidGenerator / GradientGenerator / NoiseGenerator の統合テスト
+- [ ] legacy `Generator.Effector`の存廃決定
+- [ ] 現行`ArtifactAbstractEffect` generator群へのpreset / parameter移行
+- [ ] 移行後に未使用stubを削除
+
+2026-07-13監査では`AbstractGeneratorEffector`の利用箇所がなく、任意layerへ生成bufferを注入する正式契約も存在しない。現行generatorは`ArtifactAbstractEffect` pipelineで実装されているため、旧抽象を直接接続する案は撤回する。
 
 ### M-APP-10 DAGExecutor 効果評価
 - `Artifact/include/Engine/DAG/Executor.ixx`
@@ -123,12 +138,16 @@ UI/UX やレンダリングパイプラインの新機能ではなく、**既に
 - [ ] プラグインスキャン
 - 優先度: 低い (サードパーティ効果の互換性)
 
-### M-APP-16 ArtifactWebBridge 完成
+### M-APP-16 ArtifactWebBridge 完成 ✅
 - `Artifact/src/Widgets/WebUI/ArtifactWebBridge.cppm`
-- [ ] `selectLayer()` の LayerID 構築
-- [ ] `setEffectProperty()` のエフェクトルックアップ
-- [ ] `getProjectInfo()` のコンポジション/レイヤー数
-- [ ] `getSelectedLayerProperties()` の JSON 生成
+- [x] `selectLayer()` の LayerID構築とProjectService選択経路
+- [x] selected layer限定のeffect ID / display nameルックアップ
+- [x] JSON scalar / array / objectの型を保持したeffect property更新
+- [x] EffectService経由のproperty存在確認と変更通知
+- [x] 実project有無、全composition数、current layer数のproject情報
+- [x] selected layer / effect / property groupのJSON生成
+
+静的実装済み。ユーザー方針によりbuild / testは実施していない。
 
 ---
 

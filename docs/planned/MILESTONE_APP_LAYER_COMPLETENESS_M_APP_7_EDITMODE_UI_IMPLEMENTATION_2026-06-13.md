@@ -1,13 +1,26 @@
 # 実装案: M-APP-7 EditMode → ツール自動マッピングの UI 接続
 
 > マイルストーン: `MILESTONES_BACKLOG.md` 1124 行 / `MILESTONE_APP_LAYER_COMPLETENESS.md` 61-66 行  
-> 状態: 未実装  
+> 状態: 実装済み・実機未確認
 > 作成: 2026-06-13
 
 ## 目標
 
 UI の編集モード (EditMode) 選択を `ArtifactToolService` に接続し、ツールバーボタンおよびキーボードショートカットでモード切替が可能にする。  
 また、DisplayMode (表示モード) 切替のショートカットを追加する。
+
+## Current Status (2026-07-13)
+
+- 既存`ArtifactToolBar`の単一tool dispatcherから`ArtifactToolService::setEditMode()`を同期するsliceを実装
+- Hand / Zoom / Scrub PreviewはView、transform系はTransform、PenはMask、Brush / EraserはPaint、Shape / Rectangle / TextはShapeへ対応
+- Brush / Eraserも既存tool serviceのactive toolへ渡すよう統一
+- 新しいtoolbar button、signal / slot、QtCSSは追加していない
+- 既存`ToolChangedEvent` subscriptionでserviceからtoolbarのchecked stateへ戻す双方向同期を確認
+- Brush / Eraserのtool label mappingを補完し、programmatic切替でもchecked stateが追従
+- Clone Stampは専用`ToolType`がないため、既存request経路を維持してBrushへ誤表示しない
+- `V / T / M / P`をEditMode専用shortcutへ再割当する案は、既存のSelection / Text / mask property / position shortcutと競合するため採用しない
+- DisplayMode viewport反映は別マイルストーンM-APP-8として分離
+- build / testはユーザー方針により実施しない
 
 ---
 

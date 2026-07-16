@@ -1,5 +1,7 @@
 # MILESTONE: 次世代テキストアニメーター
 
+> **Supporting slice:** [`MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md`](./MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md) の WP-5。Animator UI／preset／timeline の個別仕様と履歴を保持する。
+
 作成日: 2026-04-18
 優先度: 🟠 高
 推定工数: 5日

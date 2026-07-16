@@ -1,5 +1,7 @@
 # MILESTONE: Text Animator Complex Script And Vertical Writing
 
+> **Supporting slice:** [`MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md`](./MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md) の WP-5／WP-7。complex script／縦書き／多言語の個別仕様と履歴を保持する。
+
 **Date**: 2026-06-12
 
 ---

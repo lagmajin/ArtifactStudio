@@ -1,5 +1,7 @@
 # Layer Component Pipeline / Simulation Contract (2026-07-01)
 
+**ステータス:** In Progress
+
 レイヤーコンポーネントの `cloner / layout / crowd / physics / fracture / emit / simulation` を、
 その場しのぎで足すのではなく、将来の本格シミュレーションまで見据えて矛盾なく連携させるための実装指針。
 
@@ -221,17 +223,64 @@ state owner は layer 単体ではなく composition/session 側に寄せる。
 - playback 時は fixed timestep update をここで進める
 - crowd / rigid / soft-body / particle / pyro の土台をここへ集約
 
+2026-07-14 static implementation:
+
+- `ArtifactAbstractComposition` がframe単位のcomponent simulation sessionを所有
+- crowdは`LayerMotionIntent`と継続velocityからauthoritative transformを生成
+- clone collisionは同一layer内だけでなくcomposition内の対象instance間で解決
+- layer-localの即時crowd/collisionは、composition sessionがない単独previewだけのfallbackへ縮小
+- seek時はsessionを再初期化し、連続frameだけfixed-step状態を継承
+- build / runtime verificationは未実施
+
 ### Phase 4: event-driven topology / emit
 
 - fracture を contact / impulse / damage 由来 event に寄せる
 - emit を contact / fracture / density / trigger event 起点に統一
 - secondary systems を「前段の結果を読む consumer」として追加可能にする
 
+2026-07-14 static implementation:
+
+- composition session が新規 contact を前フレームとの差分で抽出
+- `fracture.enabled` は impulse / sensitivity / threshold から `LayerFractureEvent` を生成
+- `component.particleEmitter.enabled` は contact 起点の `LayerParticleSpawnEvent` を生成
+- spawn seed は layer / frame / local entity id から決定論的に生成
+- `setAuthoritativeComponentEvaluationState()` がfracture queueを既存topology mutationへ接続
+- particle spawn queueはevent位置・速度・seedを使って既存component particle bufferへ接続
+- 旧composition collision passからの直接fracture発火を撤去し、二重発火を防止
+- 非連続seekではshard / component particle stateをresetし、旧frameのtopologyを重ねない
+
 ### Phase 5: bake / cache / deterministic replay
 
 - component stack 全体の snapshot 化
 - render queue と editor preview の再現性を合わせる
 - RAM preview / offline render / future network render で同じ simulation result を共有できるようにする
+
+2026-07-14 static implementation:
+
+- composition sessionに最大120 frame / 64 MiBのbounded snapshot cacheを追加
+- 次frame評価開始時に、描画で進んだshard motion / component particle ageを含む直前frameを確定保存
+- exact-frame seekはinstance/intents/contactsとlayer runtimeを同時復元し、event queueは再消費しない
+- same-frame authoring再評価ではcacheを破棄し、古いdescriptor/property stateの再利用を防止
+- Render QueueのCPU/GPU両経路を同じcomposition evaluatorへ接続
+- component simulation使用jobはqueue clone内でcomposition開始frameからwarm-upし、frame順を維持してsub-rangeもfull-rangeと同じ履歴を再生
+- stateful jobだけMFRを抑止し、stateless jobの並列レンダーは維持
+- layer runtime snapshotにversioned JSON codecを追加し、fracture shard / component particle / last-frame値を欠落なく往復可能にした
+- malformed bakeによる過大確保を避けるためshard / particle countに読込上限を設定
+- composition単位のversioned frame bundleにinstance / intent / contact / runtimeを保存
+- composition ID、frame rate、layer authoring hashを検証し、古いauthoring stateのbakeを拒否
+- composition JSONにもframe rateを保存し、queue cloneでfixed-delta契約を維持
+- editor sessionのbounded cacheをqueue cloneへ直接移送し、start直前frameがあればwarm-upを省略
+- external renderer manifestにも同じbake bundleを格納
+- project保存と同時に`<project>.component-bake.json`へatomic sidecar保存し、同期／非同期loadで検証後に復元
+- bakeが空になった場合は古いsidecarを削除し、stale cacheの誤復元を防止
+- external renderer受信側でversion / composition / fps / hash / frame payloadを検証し、summaryとrenderStarted eventへ受理状態を記録
+- external rendererは現状Artifact本体をlinkしないdiagnostic rendererのため、実描画へのstate適用は将来のrenderer統合時に接続
+- Composition Settingsに`Bake Simulation Cache` / `Clear Bake`を追加
+- 新しいsignal/slot接続は増やさず、専用buttonのdialog result経路から既存composition/project serviceを呼び出す
+- Bakeはcomposition全範囲をfixed-step事前評価し、最大119 checkpoint + current frameを範囲全体へ均等配置
+- modal progressをpolling更新し、Cancel時は開始前のsession / layer runtime / frame位置を復元
+- Render Queueは開始直前の完全一致がなくても、直前checkpointから不足frameだけ決定論的に再生
+- sidecar詳細管理UIは未実装
 
 ## Immediate Next Steps
 

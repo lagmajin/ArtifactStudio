@@ -1,5 +1,9 @@
 # MILESTONE: コアキーフレーム / プロパティ更新の堅牢化
 
+**ステータス:** Complete (static verification)
+
+**完了日:** 2026-07-12
+
 > 2026-07-10 作成
 
 ## 目的
@@ -180,6 +184,33 @@ scale 非依存な時刻同一判定へ統一する。
 ## Next Execution Slice
 
 Phase 1 から入る。まずは現状挙動をテストで固定し、二重実装の差異を可視化する。
+
+### Current Progress
+
+- `AbstractProperty` の keyframe 時刻比較を共通ヘルパに寄せ、同一時刻の置換・削除・存在判定を揃えた
+- `AnimatableValueT` 側も keyframe の正規化ヘルパを追加し、昇順 + 一意の不変条件を明示した
+- `Artifact.Test.PropertyKeyframe` を追加し、同一秒の別 scale keyframe が置換・削除と serialization roundtrip で同一視される回帰を固定した
+- `RationalTime::operator==` / `operator<` を、乗算や double epsilon に依存しない約分・連分数比較へ変更した
+- `12/24` と `24/48` を別時刻としていた誤った削除テストを修正し、大整数・負数・異 scale の比較回帰を追加した
+- `AnimatableValueT` の置換・整列・move先衝突の回帰を追加した
+
+> Source/diff checked only. Build / test execution is pending explicit permission.
+
+### Static completion summary
+
+- `RationalTime` equality and ordering are scale independent and avoid floating-point epsilon comparison.
+- `AbstractProperty` normalizes keyframe order and uniqueness and uses the same comparison for add, remove, lookup, metadata, and roving operations.
+- Invalid property/keyframe values and non-finite Bezier controls are rejected at mutation boundaries.
+- `AbstractProperty` and `AnimatableValueT` protect read/write evaluation state with shared/exclusive locking.
+- Retime preserves the destination rational scale instead of round-tripping through default-scale seconds.
+- `Artifact.Test.PropertyKeyframe` covers equivalent-scale replacement/removal, large integer ordering, AnimatableValue ordering, replacement, and serialization round-trip.
+- Completion is source/diff verified only; the test module was not executed by user choice.
+
+### 2026-07-10 Cleanup UI Progress
+
+- Composition Editor Command Palette に selected layer全体の redundant keyframe cleanupを追加
+- 前後3キーが許容誤差内で同値の場合のみ中間キーを削除する
+- `SetLayerPropertyKeyframesCommand` + `MacroUndoCommand` で一括Undo/Redoに対応
 
 ### Phase 1A の着手点
 

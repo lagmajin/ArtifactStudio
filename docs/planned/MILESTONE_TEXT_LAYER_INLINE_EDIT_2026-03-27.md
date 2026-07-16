@@ -1,5 +1,7 @@
 # マイルストーン: テキストレイヤー コンポジットエディタ内編集
 
+> **Supporting slice:** [`MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md`](./MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md) の WP-3。inline edit／IME の個別仕様と履歴を保持する。
+
 > 2026-03-27 作成
 
 ## 現状サマリー
@@ -72,6 +74,12 @@
 - `Escape` で明示的に cancel できるようにして、ダイアログの終了操作を commit / cancel の2系統に整理した
 - 2026-03-27 時点で、Composition Editor の toolbar からも Text Layer 編集を開始できるようにした
 - 2026-03-27 時点で、Composition Editor の viewport context menu からも Text Layer 編集を開始できるようにした
+
+### Progress 2026-07-16
+
+- 編集ダイアログと既存overlay filterの確定処理を共通化し、静的text編集を`SetTextLayerTextCommand` 1件のUndo transactionとして記録するよう変更
+- Source Text keyframe保有layerでは基底textではなくplayhead frameの評価値を編集し、確定時は同frameのConstant keyframeをsnapshot commandで更新する
+- `QPlainTextEdit` の既存IME／selection入力境界を維持し、新しいsignal／slot経路は追加していない
 
 ## Phase 2: In-Canvas Text Input
 

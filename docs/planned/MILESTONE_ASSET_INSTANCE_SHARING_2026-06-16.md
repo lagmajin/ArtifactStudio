@@ -1,7 +1,7 @@
 # M-ASSET-1 Asset Instance Sharing Milestone
 
 作成日: 2026-06-16
-ステータス: Draft
+ステータス: In Progress
 対象: `ArtifactCore/include/Asset/AssetImporter.ixx`,
       `ArtifactCore/include/Asset/AssetDatabase.ixx`,
       `ArtifactCore/src/Asset/AssetManager.cppm`,
@@ -24,6 +24,79 @@
 - `docs/technical/BLEND_MASK_COMPOSITION_CONTRACT_2026-05-08.md`
 
 ---
+
+## 2026-07-12 Foundation progress
+
+- `AssetDatabase::registerAsset()` と `findAssetByPath()` を同一のsource identity正規化へ統一した。
+- 既存ファイルはcanonical path、未作成・missing pathはabsolute clean pathをidentityに使う。
+- Windowsでは大小文字差をcase-foldし、区切り・相対/絶対・case差による重複UUIDを防ぐ。
+- database読込時も同じ正規化を通し、空ID、空path、同一identityの重複entryを除外する。
+- これはdecoded payload registry導入前の不変条件であり、既存APIは変更していない。
+- 既存 `AssetManager` をsource registryの正規入口にし、`acquireSource / releaseSource / sourceId / useCount` を追加した。
+- source UUID単位の単調増加versionを持ち、`invalidateSource()` でdecode/GPU cacheが共有できる世代境界を追加した。
+- registry stateはmutexで保護し、release underflowとnull UUIDを拒否する。
+- payload型はまだ保持せず、Core registryへQt画像/GPU backend型を流入させない境界を維持した。
+- `ArtifactImageLayer` / `ArtifactVideoLayer` / `ArtifactAudioLayer` のload、reload、clear、destructionをsource leaseへ接続した。
+- Image/Audioはロード成功時だけleaseを切り替え、失敗時は既存source leaseを維持する。
+- Videoは既存の非同期open契約に合わせ、open世代開始時にleaseを切り替える。
+- 同一canonical sourceを参照するlayer数を `AssetManager::useCount()` から取得できる状態になった。
+- `AssetManager` に `asset UUID + source version + representation` keyedのgeneric decoded payload cacheを追加した。
+- cacheはweak ownershipとし、Layerがpayload寿命を所有するためregistry起因の常駐を避けた。
+- `invalidateSource()` はversion更新と同時に旧version payload keyを除去する。
+- `ArtifactImageLayer` はrender本流の `ImageF32x4_RGBA` を共有cacheから取得し、decode完了時にversion一致を確認して公開する。
+- Image Layerはsource UUID/versionと未加工条件を公開し、GPU upload側が共有可否を判定できるようにした。
+- Composition previewとcomposition viewのGPU cache owner/keyを、未加工Imageに限って `asset UUID + version` へ切り替えた。
+- effect / mask / matte / source cropがあるsurfaceは従来のlayer-local GPU keyを維持する。
+- source version更新後は新keyでuploadされるため、旧GPU entryを再利用しない。
+- source registryにJSON snapshot/restoreを追加し、stable asset UUID、canonical path、type、versionを永続化する。
+- use countとdecoded/GPU payloadは保存せず、Layer復元時にleaseから再構築する。
+- Project JSONの `assets.sourceRegistry` に保存し、Composition/Layer生成前に復元する。
+- 旧Projectの `assets.sourceRegistry` 欠落は正常として扱い、従来どおりsource pathから再構築する。
+- source health snapshotにpath、type、version、use count、live payload countを公開した。
+- ProjectHealthCheckerがLayer sourceのmissing path、orphan source、invalid versionを検出する。
+- Problem View変換でmissingをFile、orphanをPerformance、versionをConfigurationへ分類し、修復ヒントを追加した。
+- 既存 `replaceLayerSourceInCurrentComposition()` をImage/Video/Audio/SVG共通のRelink正規入口として維持した。
+- Relinkを `ReplaceLayerSourceCommand` 経由へ移し、source leaseとcache更新を含むUndo/Redoに対応した。
+- 新sourceは実在するlocal fileに限定し、空path、missing path、同一path、非media layerを拒否する。
+- Core registryに同一pathのまま独立UUIDを持つlocalized source identityを追加した。
+- Localize時はuse countをshared identityからlocalized identityへ移し、既存decoded payloadを初期共有する。
+- localized identityは独立version/keyを持つため、以後のinvalidateとGPU cacheをshared sourceから分離できる。
+- Image LayerのLocalize / Relink SharedをService + Undo commandへ接続した。
+- Image JSONにsource UUID/localized状態を保存し、Project registry復元後に同じidentityを再取得する。
+- Image固有 `fromJsonProperties()` を追加し、source path、fit、source cropの復元漏れも修正した。
+- Video / AudioにもLocalize / Relink Shared、source UUID/localized JSON復元を展開した。
+- ProjectServiceのLocalize入口はImage/Video/Audio共通となり、同じUndo commandを再利用する。
+- Video LayerFactoryは専用 `ArtifactVideoLayer::fromJson()` を正規復元経路にし、playback/proxy/audio/crop設定の復元漏れを防いだ。
+- Image/Video/AudioのProperty Editorに `Localized Source` と `Source Uses` を追加した。
+- Localized toggleはpreview mutationを行わず、commit時だけProjectServiceのUndo対応Localize/Relink Sharedへ流す。
+- use countはregistry由来の診断表示値として公開し、Layer側での直接mutationは拒否する。
+- Project ViewのFootage行メタデータと選択詳細に、`AssetManager::useCount()` 由来の `Source Uses` を追加した。表示値は保存せず、source registryから再計算する。
+- Asset Browserのファイル行表示、ツールチップ、選択詳細にも `Source Uses` を追加し、filesystem探索とproject source leaseの状態を同じ行から確認できるようにした。
+- `ArtifactAudioLayer` のdecoded PCMを `asset UUID + source version + audio.pcm.f32` の共有payloadへ移し、resample結果と時間窓cacheはlayer-localのまま維持した。
+- `ArtifactVideoLayer` の初期フレームと通常の非同期F32フレームを `asset UUID + source version + video.f32.frame` の共有payloadへ接続し、layer-localのLRUはフォールバック／時間窓として維持した。
+- Videoの同期 fallback と preload も同じ共有payloadを参照・保持するようにし、経路ごとの再decodeを避ける契約に揃えた。
+- ProjectServiceの既存 file-change handler で source UUID を解決して `invalidateSource()` を呼び、変更通知時にdecoded/GPU cacheの旧versionを破棄するようにした。
+- 既存の `QFileSystemWatcher` 経路を ProjectService の初期化時に有効化し、project内Footageの監視対象を project change ごとに再登録するようにした。
+- `ArtifactVideoLayer` が保持する current frame / LRU / preload payload を source version drift で破棄し、変更後の同期・非同期 decode が新世代へ戻るようにした。
+- `ArtifactAudioLayer` も source version drift で PCM を再読込し、共有payload、waveform、resample、AudioCache を新世代へ切り替えるようにした。
+- `ArtifactImageLayer` の非同期 prefetch 結果に generation を付与し、source version drift 後の旧画像を破棄して新しい decoded F32/GPU共有payloadへ切り替えるようにした。
+- Composition ViewのVideo GPU fallback cache keyも `asset UUID + source version + frame` に揃え、同じsource/frameのGPU entryをlayer間で共有するようにした。
+- Project Health Checkerが同一canonical pathに複数の非-localized source identityを検出した場合、`AssetDuplicateDecode` として診断するようにした。localized identityは意図的な分離として除外する。
+- `AssetDuplicateDecode` は Project Diagnostics で Performance 分類と修復ヒントへ変換される。
+- leaseが0なのに `livePayloadCount` が残る source を `AssetPayloadLeak` として検出し、Performance診断と再読込ヒントへ変換するようにした。
+- Project Importer が新しい project を読む前に source registry／decoded payload state を reset し、`assets.sourceRegistry` 欠落の旧 project でも前 project の lease が混入しないようにした。
+- registry reset を project metadata の初期検証後・snapshot 復元直前へ遅延し、早期 parse failure で現行 project の lease を破棄しないようにした。
+- source registry snapshot の `schemaVersion` を復元時に検証し、未知の将来 schema や不正値を部分適用せず拒否するようにした。
+- source registry snapshot 内の重複 source UUID を検出し、同一 identity の曖昧な上書きを拒否するようにした。
+- 非ローカライズ source の `id` / `originId` 不一致も拒否し、復元先 identity の取り違えを防ぐようにした。
+- AssetDatabase 解決後の実 asset ID 重複も拒否し、異なる入力が同一 registry エントリへ上書きされる経路を閉じた。
+- `schemaVersion` の小数値も拒否し、整数 schema としてのみ復元するようにした。
+- `useCount == 0` の source を `AssetOrphan` として Health Checker／Problem View に公開し、孤立 source の修復導線を既存 Service に接続済みであることを確認した。
+- GPU cache は現在 controller 所有で Health Checker から owner 単位の live entry を観測できないため、`asset.gpu-leak` は未達として残す（GPU cache の観測 API と責務境界を別スライスで設計する）。
+- `GPUTextureCacheManager` に owner 単位の live entry 数／メモリ量を取得する read-only API を追加し、次段の診断接続に必要な観測面を用意した。
+- GPU cache の `clear` 系処理を `clearLocked` に分離し、外部 clear と device lifecycle の mutex 境界／再入ロックを整理した。
+- `GPUTextureCacheManager` が `asset:<uuid>` owner の versioned image/video keyを受け取った際、同一sourceの旧version texture entryを整理するようにした。
+- Source/diff checked only. Build / runtime verification is intentionally deferred.
 
 ## 1. 目的
 

@@ -195,6 +195,8 @@ AE 相当の速度が読めるドット表現にする。
 ## Next Execution Slice
 
 Phase 1 から入る。まずは既存挙動を変えずに描画とサンプリングを分離する。
+現在は `ArtifactCompositionRenderController.cppm` の motion path overlay 経路を
+source-level で切り出し始めており、cache 再生成と描画の責務分離を進めている。
 
 ### Phase 1A の着手点
 
@@ -215,6 +217,18 @@ Phase 1 から入る。まずは既存挙動を変えずに描画とサンプリ
   キャッシュ再生成と描画処理をそれぞれ独立したヘルパ単位に分ける
 - 既存の dot / keyframe / current-marker の見た目は維持し、振る舞い変更は入れない
 - 以降の Phase 2 以降は、この分離された土台の上に積む
+
+### Current Progress
+
+- `showMotionPathOverlay_` の main render 経路は helper 呼び出しに一本化した
+- 旧の巨大ブロックは source から हटして、cache 再生成と描画の責務分離が見える状態になった
+- Phase 2 の適応サンプリングは zoom による基準密度に加え、chord からの中点偏差で高曲率区間だけを再帰的に細分化する方式まで実装した
+- サンプルは最大 2048 点、再帰深度は 7 に制限し、直線区間と長尺コンポジションの負荷を上限化している
+- Phase 3 は adaptive path sample と独立した等時間 dot cache を追加し、曲率による線分細分化に影響されず dot 間隔で速度を読めるようにした
+- velocity dot は最大 360 区間へ間引き、current marker は引き続き現在フレームを直接評価している
+- Phase 4 は `AnimatableTransform3D` に keyframe ごとの `PositionSpatialTangents` を追加し、設定済み区間を 2D cubic Bezier として評価する経路を実装した
+- overlay は保存済み tangent を優先し、未設定 keyframe には隣接点から導出した表示用ハンドルを描く。`transform.positionKeyframes` で値・補間・tangent を保存／復元する
+- 挙動確認は未実施なので、source-level 進捗として記録している
 
 ### Phase 2 の前提
 

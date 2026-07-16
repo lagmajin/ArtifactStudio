@@ -59,3 +59,8 @@
 - 1つの composition から複数 aspect ratio の出力を切り替えられる
 - layout variant の追加が既存編集フローを壊さない
 - 出力や preview で、どの variant を使っているかが明確に見える
+# 2026-07-10 Progress
+
+- Command Palette に `Responsive Preview Matrix` の初期入口を追加
+- variant 名と解像度を一覧化し、active responsive variant を素早く切り替えられるようにした
+- 同時サムネイル描画は後続スライス

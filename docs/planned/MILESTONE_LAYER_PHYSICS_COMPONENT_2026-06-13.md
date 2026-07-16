@@ -1,5 +1,7 @@
 # 実装案: M-LYR-PHYS Layer Physics Component
 
+**ステータス:** In Progress
+
 > 2026-06-13 作成  
 > 物理シミュレーションをレイヤーのコンポーネントとして統合（エフェクトではない）
 
@@ -265,3 +267,11 @@ Impulse Force: [1000]
 
 - `MILESTONE_LAYER_MODIFIER_SYSTEM_2026-06-13.md` - 変形システム（物理コンポーネントと併用）
 - `MILESTONE_MESH_INSTANCING_2026-04-26.md` - インスタンス描画（RigidBody座に適用）
+
+## 2026-07-11 進捗
+
+- `component.collision.enabled/shape/width/height/radius/offsetX/offsetY` のInspector・JSON経路を追加済み
+- SoftBody/RigidBodyのbounds同期がコライダー設定を参照するよう接続済み
+- RigidBody初期生成時のCircle形状、および形状変更時の対象body再構築を追加
+- 既存のlayer-local spring / gravity / floor collisionは維持
+- 未実施: 複数レイヤー間の共有PhysicsWorld、Polygon collider、実行時のビルド／ランタイム検証

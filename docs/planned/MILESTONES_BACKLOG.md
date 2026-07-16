@@ -8,6 +8,12 @@
   - 詳細: `docs/planned/MILESTONE_LAYER_COMPONENT_PIPELINE_2026-07-01.md`
 
 ### Composition / Workflow
+- **M-LCW-1** Quick Layer Creation Dialog
+  - 素材・平面・簡単なマスク・入退場 Envelope を一回の確定で作成する新規ダイアログ
+  - 透明度とエフェクト強度の同時 / 先行 / 遅延プリセットを提供する
+  - 既存の `CreateSolidLayerSettingDialog` は維持し、作成オーケストレーターだけを新設する
+  - 詳細: `docs/planned/MILESTONE_QUICK_LAYER_CREATION_DIALOG_2026-07-10.md`
+
 - **M-PRECOMP-2** Precompose Workflow Completion
   - `PreCompose` の「呼べる」状態から、`unprecompose()` を含む実務 finish line まで閉じる
   - layer restore、time/range integrity、undo/redo、`Master Properties` 前提の責務境界を固める
@@ -38,6 +44,11 @@
   - `vector`, `mutex`, `string`, `shared_ptr` などの置換優先度と例外を整理する
   - 置換しない標準型も明文化して、混在を減らす
   - 詳細: `docs/planned/MILESTONE_STD_TO_QT_MIGRATION_2026-07-04.md`
+
+- **M-CORE-8** Core Keyframe / Property Update Hardening ✅ (static verified 2026-07-12)
+  - `AbstractProperty` / `AnimatableValueT` / `Core.KeyFrame` の多重実装を整理し、時刻比較・値検証・評価の堅牢性を上げる
+  - まずは現状挙動を固定する回帰テストから入り、`RationalTime` の正規化比較とスレッド安全な評価へ段階移行する
+  - 詳細: `docs/done/MILESTONE_CORE_KEYFRAME_ROBUSTNESS_2026-07-10.md`
 
 空いている時間に進めやすいよう、分野別に小さめのマイルストーンへ分割したバックログ。
 
@@ -765,6 +776,11 @@ active milestone の重複名としては扱わない。
 - `O` で on/off、`[` `]` で半径変更
 - 詳細は `docs/planned/MILESTONE_TIMELINE_PROPORTIONAL_KEYFRAME_EDITING_2026-07-06.md`
 
+### M-UI-6b Composition Motion Path Display Improvement
+- モーションパス overlay のサンプリングと描画を分離し、適応サンプリング・速度可視化・spatial bezier 表示へ進める
+- まずは既存挙動を壊さない Phase 1 から入り、表示基盤を整えてから編集導線を重ねる
+- 詳細: `docs/planned/MILESTONE_MOTION_PATH_DISPLAY_IMPROVEMENT_2026-07-10.md`
+
 ### M-TL-6 Timeline Layer Search
 - タイムライン上部の検索バーで layer / effect / tag / state をインクリメンタルに絞り込む
 - 詳細は `docs/planned/MILESTONE_TIMELINE_LAYER_SEARCH_2026-03-28.md`
@@ -1442,25 +1458,19 @@ active milestone の重複名としては扱わない。
 - 1-9キーでブックマーク適用、Ctrl+1-9で現在の状態を保存
 - `ViewportBookmarkManager` シングルトンによる集中管理
 - プロジェクトごとの保存、名前付けと整理、削除と並べ替え
-<<<<<<< HEAD
 - 詳細: `docs/planned/MILESTONE_VIEWPORT_BOOKMARKS_2026-06-27.md`
 
 ### M-PQ-1 Proxy Quality Toggle in Preview UI
-=======
-- 詳細: `docs/planned/MILESTONE_VIEWPORT_BOOKMARKS_2026-06-27.md`
+- Playback Control / Viewer フッターから Draft(1/4) / Preview(1/2) / Full を切替
+- quality 切替で render cache invalidation と必要に応じて warm-up 再キャッシュ
+- Composition 設定として quality preset 保存（新規作成時に復元）
+- 詳細: `docs/planned/MILESTONE_PROXY_QUALITY_TOGGLE_UI_2026-06-01.md`
 
 ### M-VP-9 Viewport Interaction / Navigation / 3D Cursor
 - C4D 的な Point of Interest navigation、Frame Selected、View Undo / Redo、軽量 HUD を共通操作にする
 - Blender 的な 3D Cursor / Work Cursor を、pivot、orientation、生成位置、snap の共通基準点にする
 - preview-only view と render camera、3D Cursor と object pivot を明確に分離する
 - 詳細: `docs/planned/MILESTONE_VIEWPORT_INTERACTION_NAVIGATION_CURSOR_2026-07-04.md`
-
-### M-PQ-1 Proxy Quality Toggle in Preview UI
->>>>>>> 6a05302 (chore_parent_repo_sync_all)
-- Playback Control / Viewer フッターから Draft(1/4) / Preview(1/2) / Full を切替
-- quality 切替で render cache invalidation と必要に応じて warm-up 再キャッシュ
-- Composition 設定として quality preset 保存（新規作成時に復元）
-- 詳細: `docs/planned/MILESTONE_PROXY_QUALITY_TOGGLE_UI_2026-06-01.md`
 
 ### M-PQ-2 Footage Interpret Safety / Proxy Workflow
 - footage interpret の frame rate 変更時に keyframe / time remap への影響を明示する

@@ -59,3 +59,15 @@ This milestone covers the "pick-whip" style workflow where one property can be l
 2. define which property types can be linked safely
 3. start with the inspector / property row surface before timeline integration
 4. use the Phase 2 section in this parent milestone for the surface-level work
+
+## 2026-07-10 Source Audit
+
+- 計画書が前提にしている `PropertyLinkManager` の実体は現行sourceに存在しない
+- raw expression stringを直接生成する実装は見送り、stable layer/property resolverを先に追加する
+
+### Phase 1 progress
+
+- `artifact.property-reference.v1` tokenを導入
+- composition ID / layer ID / property path / property typeをJSON参照としてcopy可能にした
+- clipboard tokenをactive compositionでresolveし、layer/property/typeの存在を検証して対象layerを選択する
+- 評価リンクやpick-whip UIはまだ作らず、read-only catalog / resolverに限定した

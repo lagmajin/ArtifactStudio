@@ -1,7 +1,7 @@
 # GPU Compositing Specification
 
-Date: 2026-07-01  
-Status: Normative draft for the Composition Viewer GPU layer path  
+Date: 2026-07-01
+Status: Normative draft for the Composition Viewer GPU layer path
 Applies to: `Artifact`, `ArtifactCore`, preview, RAM preview, render/export paths
 
 ## 1. Purpose
@@ -213,18 +213,32 @@ Failures include:
 - non-finite output,
 - output that is unexpectedly all zero or a single saturated channel.
 
-Current fallback order is:
+The Composition Viewer GPU path is fail-closed:
 
-1. requested blend mode,
-2. retry with `Normal`,
-3. direct sprite fallback.
+1. dispatch the requested blend mode only,
+2. swap the accumulator only after a successful dispatch,
+3. leave the accumulator unchanged when conversion, validation, binding, or
+   dispatch fails.
 
-Fallback MUST be observable in diagnostics. It MUST NOT silently present a
-different blend mode as if the requested operation succeeded.
+Pipeline capability failures MUST be isolated. Standard layer blend readiness
+depends on the blend constant buffer, layer-to-float conversion, and standard
+blend executors. Optional track-matte, stencil, or stochastic capabilities MUST
+NOT make `Add`, `Multiply`, or other standard blend modes globally unavailable.
+When a layer actually requests an unavailable optional capability, that layer
+MUST be skipped without swapping the accumulator; the capability MUST NOT be
+silently ignored.
 
-The direct sprite fallback is a degraded preview path. It MUST NOT become the
-authoritative export result for unsupported modes. Export SHOULD fail with an
-actionable error or use a contract-equivalent CPU compositor.
+Viewer initialization MUST be retryable when the render device is not ready at
+the first deferred attempt. A failed shader initialization MAY use a bounded
+retry policy; it MUST NOT leave the viewer permanently on the direct path merely
+because a one-shot startup callback ran before device creation completed.
+
+The viewer MUST NOT silently retry with `Normal` or draw a direct sprite into
+the float accumulator. Those paths have different blend, format, and alpha
+semantics and can make a broken requested mode appear successful.
+
+Export SHOULD fail with an actionable error or use a contract-equivalent CPU
+compositor when the requested GPU mode is unavailable.
 
 ## 9. Masks, Mattes, and Special Modes
 
@@ -247,6 +261,8 @@ Viewport chrome is not composition content.
 - Checkerboard and viewport gradients MUST NOT enter `accumPremul`.
 - A composition background layer MAY enter the accumulator if it is part of the
   composition model.
+- Transparent composition output MUST NOT disable the GPU blend path. It starts
+  from a transparent-black accumulator and follows the same layer loop.
 - Transparent composition output MUST preserve alpha through the final
   accumulator.
 - The final premultiplied accumulator MUST be converted exactly once to the

@@ -362,3 +362,16 @@ public:
 ## 8. 更新履歴
 
 - 2026-06-16: 初版作成。`REPORT_APP_PERF_BOTTLENECK_2026-06-16.md` §2.2 を正式 milestone に起こした。
+# 2026-07-10 Find Similar Progress
+
+- Composition Editor Command Palette に `Find Similar / Select Related` を追加
+- Same Layer Type / Source Media / Parent / Effect Set / Font を基準に動的選択できる
+- 結果は既存Selection Managerへ返し、Batch / Recipe / QAへそのまま渡せる
+
+## 2026-07-10 Safe Delete Progress
+
+- selected layer削除前に外部parent / matte source / expression文字列参照を監査する
+- 選択内effect数と最大16件の依存関係を確認表示してから既存削除経路へ渡す
+- Parametric Composition input bindingのsourceLayerId参照も監査対象へ追加
+- `MacroUndoCommand` + `RemoveLayerCommand` により複数layer削除を1回でUndo/Redo可能にした
+- Render QueueはComposition単位でありlayer参照を保持しないため、layer Safe Deleteの監査対象外

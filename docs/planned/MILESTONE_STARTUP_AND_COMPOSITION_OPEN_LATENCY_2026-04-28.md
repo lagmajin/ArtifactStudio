@@ -2,6 +2,8 @@
 
 > 2026-04-28 作成
 
+**ステータス:** In Progress
+
 ## 目的
 
 ウィンドウ表示時の初期化遅延と、ダイアログから composition を作成した直後の表示遅延を、個別の改善ではなく一つの実行計画として扱う。
@@ -98,7 +100,7 @@
   - composition 作成直後に editor / timeline が見えるまでの待ちを減らす
 
 - 作業項目:
-  - `CompositionCreatedEvent` 後の timeline 生成を lazy 化する
+  - `CompositionCreatedEvent` 後は Timeline を immediate surface とし、Dope Sheet を restorable lazy dock として登録する
   - composition 作成直後の dock activate / focus / splitter 再計算を整理する
   - `ArtifactCreateCompositionDialog` の入力初期化と名前生成を軽量化する
   - 作成完了後に必要な state 同期だけを残す
@@ -106,6 +108,42 @@
 - 完了条件:
   - dialog から作成した後、window が出るまでの待ちが短くなる
   - 作成直後の dock churn が減る
+
+## Long-Term Architecture: Restorable Dock Shells, On-Demand Content
+
+ADS layout restore requires every dock to be registered before the saved state
+is restored. It does not require every dock's content widget to be constructed.
+All optional surfaces will therefore use a stable dock shell and an on-demand
+content factory.
+
+- Register the stable dock ID, title, tab group, and initial placement at startup.
+- Keep the content in `addLazyDockedWidgetTabbedWithId()` or
+  `addLazyDockedWidgetFloating()` until the dock becomes the active tab.
+- A factory obtains the current composition, selection, and frame from the
+  existing service/event-bus state once at construction. It must not introduce
+  a new central signal route.
+- Never change a dock's ID, tab group, or splitter relationship when replacing
+  its placeholder. This keeps saved layouts valid whether content has been
+  created or not.
+- Keep only the first-paint essentials eager: Composition Viewer, Project,
+  Inspector, and Properties. Reclassify these only after measured startup data
+  confirms that their visibility contract can remain intact.
+
+The first migration is the composition-created Dope Sheet. Timeline remains
+eager because it is the immediate post-create editing surface; the Dope Sheet
+is registered for layout restoration but constructed only when selected.
+
+### Migration Order
+
+1. Composition-created auxiliary surfaces: Dope Sheet first.
+2. Hidden startup tabs: Contents Viewer, Project Memo, Clip Buffer, Shortcut
+   Helper, notes, debug, and test surfaces.
+3. Optional composition-bound views: software composition and layer views,
+   with factory-time synchronization from the current composition.
+4. Always-visible candidates: make changes only after startup measurements and
+   saved-layout restore coverage exist.
+5. Maintain startup, composition-create, first-activation, and saved-layout
+   restore regression measurements for every migration.
 
 ## Phase 4: Editor Initialization Split
 

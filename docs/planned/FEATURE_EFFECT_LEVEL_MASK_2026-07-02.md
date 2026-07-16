@@ -1,7 +1,7 @@
 # エフェクト単位の個別マスク設定
 
 **作成日:** 2026-07-02
-**状態:** 構想段階
+**状態:** 実装済み・実機未確認
 
 ---
 
@@ -85,9 +85,13 @@ class ArtifactAbstractEffect {
 - 現在のエフェクトパイプライン: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` `buildRasterizedSurfaceBuffer()`
 - エフェクト抽象: `Artifact/include/Effects/ArtifactAbstractEffect.ixx`
 
-## 実装状況メモ (2026-07-07)
+## 実装状況メモ (2026-07-13)
 
 - `ArtifactAbstractEffect` 側に primary mask image と追加 effect mask images の保持が入った。
 - `ArtifactPresetManager` で effect mask image を preset 往復できるようになった。
 - `ArtifactTextLayer` の Source Text keyframe 露出と合わせ、マスク系の保存/復元の土台は前進している。
-- まだ UI からの割り当て導線は未実装のため、本 milestone は Phase 1-2 の途中段階。
+- Inspectorのeffect context menuから、現在layerまたは選択layerの既存maskをeffect mask imageへ変換できる。
+- 置換 / 追加 / clearと`SetEffectMaskImagesCommand`によるUndoに対応。
+- effect listへmask数とtooltipを表示し、割り当て状態を確認できる。
+- primary / additional mask imageはeffect適用時に合成され、preset round-tripにも含まれる。
+- build / testはユーザー方針により実施していないため、実機確認だけ未完了。
