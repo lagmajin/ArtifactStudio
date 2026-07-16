@@ -2,10 +2,13 @@
 
 > 2026-07-10 作成
 
+**ステータス:** Not Started
+
 ## 目的
 
 ビューポートのモーションパスオーバーレイを「読める」だけの表示から、
-After Effects 相当の「編集できる・速度が分かる」表示へ引き上げる。
+After Effects 相当の「編集できる・速度が分かる」表示を最低ラインとし、
+空間形状と時間配分を同じ viewport 上で高度編集できる AE 以上の motion-path tool へ引き上げる。
 特に spatial bezier タンジェントハンドルの描画・編集、速度が読めるドット表現、
 ズーム/曲率に応じた適応サンプリングを導入する。
 
@@ -42,13 +45,15 @@ After Effects 相当の「編集できる・速度が分かる」表示へ引き
 - ズーム・曲率に応じてパスのサンプリング密度が変わり、拡大しても滑らか。
 - 現在フレームマーカーが常に実補間位置に一致する。
 - overlay 描画がヘルパへ分離され、保守しやすい。
+- 複数キー / 複数セグメントを box / lasso 選択し、まとめて移動・整列・平滑化できる。
+- spatial shape を保ったまま速度だけを編集でき、roving / constant-speed を切り替えられる。
+- 元キーを破壊せず、Smooth / Simplify / Noise / Offset を modifier として重ねられる。
 
 ## 非ゴール（このマイルストーンの範囲外）
 
 - モーションパスの物理シミュレーション / 自動スムージング AI
-- 3D 空間（Z 軸）のフルモーションパス（まず 2D spatial bezier に集中）
 - タイムライン側の F カーブ編集との統合再設計
-- 複数レイヤーの相対パス表示の高度化
+- 物理シミュレーションそのもの（follow-through 等は別 milestone）
 
 ## 現状とギャップ
 
@@ -68,6 +73,9 @@ After Effects 相当の「編集できる・速度が分かる」表示へ引き
 3. 既存の toggle / 編集操作（ドラッグ / Shift / Alt）の挙動を壊さない。
 4. overlay 描画は `MILESTONE_3D_VIEWPORT_SOLID_CAMERA_OVERLAY` の overlay 経路と衝突させない。
 5. 速度可視化は AE の「フレーム毎ドット」を基準にしつつ、負荷は適応的に抑える。
+6. spatial tangent と temporal easing を別データとして扱い、片方の編集で他方を壊さない。
+7. 操作中は `Motion Path Edit` と対象 layer / key 数を viewport HUD に明示する。
+8. destructive な Simplify / Bake は preview と Apply を分離し、通常操作は Undo 可能にする。
 
 ## Scope（想定する変更ファイル）
 
@@ -148,6 +156,65 @@ AE 相当の速度が読めるドット表現にする。
 - ハンドルドラッグで空間補間を編集できる
 - 編集が Undo/Redo できる
 
+### Phase 6: Advanced Selection / Geometry Editing
+
+単一点編集から DCC らしい複数要素編集へ拡張する。
+
+- key / tangent / segment の選択種別を明確化
+- box / lasso / Shift 加算 / Ctrl 除外による複数選択
+- 複数キーの translate / scale / rotate、軸拘束、整列、均等配置
+- Smooth / Corner / Auto / Continuous / Broken tangent mode
+- パス上への key 挿入（形状を保持する Bézier split）
+
+**Done when:**
+
+- 複数キーを一括変形しても temporal timing が意図せず変化しない
+- active element と選択集合、tangent mode が viewport で判別できる
+
+### Phase 7: Temporal Path Editing（AE 超えの中核）
+
+Graph Editor を往復せず、viewport の path 上で時間配分を編集する。
+
+- frame dot / time tick のドラッグによる区間 timing 編集
+- spatial shape を固定した roving keyframe
+- arc-length parameterization による Constant Speed
+- 区間ごとの speed ramp / ease bias の inline handle
+- speed / acceleration の color heatmap と数値 HUD
+- spatial edit / temporal edit の明示的な mode 切替
+
+**Done when:**
+
+- パス形状を変えずに加減速だけを編集できる
+- Constant Speed で等時間サンプルの移動距離が許容誤差内に揃う
+- Timeline / Curve Editor と同じ keyframe データを編集し、二重状態を持たない
+
+### Phase 8: 3D Motion Path / Camera-Aware Editing
+
+- XYZ spatial tangent と 3D path の表示・編集
+- front / top / side / camera view での plane constraint
+- depth cue、occluded segment、camera-facing handle
+- local / parent / world space 切替と parent motion を除いた relative-path 表示
+- Auto-Orient の tangent preview と roll control
+
+**Done when:**
+
+- 2D / 3D layer が同じ編集モデルで扱える
+- view plane の違いによる意図しない depth 移動を防げる
+
+### Phase 9: Non-Destructive Path Modifiers
+
+AE にない強みとして、元キーを維持した procedural stack を追加する。
+
+- Smooth / Simplify / Resample / Offset / Noise / Clamp Speed
+- modifier ごとの enable / amount / range / seed
+- before / after ghost path と差分 heatmap
+- Bake to Keyframes / Apply を明示操作に限定
+
+**Done when:**
+
+- modifier を無効化すると元の motion path に数値一致で戻る
+- Bake 前に結果と生成キー数を preview できる
+
 ## Recommended Order
 
 1. Phase 1 (分離)
@@ -155,6 +222,10 @@ AE 相当の速度が読めるドット表現にする。
 3. Phase 3 (速度可視化)
 4. Phase 4 (spatial bezier 描画)
 5. Phase 5 (spatial bezier 編集)
+6. Phase 6 (複数選択 / geometry editing)
+7. Phase 7 (viewport temporal editing / roving / constant speed)
+8. Phase 8 (3D motion path)
+9. Phase 9 (non-destructive modifiers)
 
 ### Why This Order
 
@@ -162,6 +233,8 @@ AE 相当の速度が読めるドット表現にする。
 - 適応サンプリングは spatial bezier 描画の下地になる（曲線の細分化に使える）。
 - 速度可視化はサンプリングが整ってから入れる方が破綻しにくい。
 - spatial bezier は描画を先に固め、編集は形が見えてから重ねる。
+- Phase 7 以降は `MILESTONE_CORE_KEYFRAME_ROBUSTNESS_2026-07-10.md` 完了を前提にする。
+- Phase 9 は keyframe 本体へ modifier 結果を書き戻さず、評価時合成を基本にする。
 
 ## 連携先
 
@@ -181,6 +254,10 @@ AE 相当の速度が読めるドット表現にする。
 - 現在フレームマーカーが実補間位置に一致
 - パスが spatial bezier 曲線で描かれる
 - タンジェントハンドルをドラッグ編集でき、Undo/Redo できる
+- 複数キーを box / lasso 選択し、一括変形・整列・平滑化できる
+- spatial shape を維持したまま roving / speed ramp / Constant Speed を編集できる
+- 3D path を view-plane constraint 付きで安全に編集できる
+- non-destructive modifier を ghost preview 後に Bake できる
 - 既存の toggle / キードラッグ / Shift 追加 / Alt 削除が壊れない
 
 ## Notes
