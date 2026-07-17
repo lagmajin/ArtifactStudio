@@ -34,9 +34,10 @@ iGPU / dGPU / 複数dGPUを認識し、用途に適したGPUを明示選択で�
 
 ## Phase 2 — Adapter Registry
 
-- [ ] D3D12 / Vulkan adapter列挙の共通表現
-- [ ] Integrated / Discrete / Virtual / Software分類
-- [ ] dedicated/shared memory、RT、compute、encode/decode capability
+- [x] D3D12 / Vulkan adapter列挙の共通表現
+- [x] Integrated / Discrete / Software / Unknown分類
+- [x] local/unified memory、RT capabilityとAutoスコア
+- [ ] compute、encode/decode capability
 - [ ] stable adapter IDと起動間の設定保存
 
 ## Phase 3 — 明示選択
@@ -74,4 +75,3 @@ iGPU / dGPU / 複数dGPUを認識し、用途に適したGPUを明示選択で�
 - `docs/planned/MILESTONE_RENDER_QUEUE_GPU_BACKEND_2026-04-03.md`
 - `docs/planned/IMPLEMENTATION_PLAN_MULTI_VIEWPORT_2026-06-27.md`
 - `docs/analysis/REPORT_APP_PERF_BOTTLENECK_2026-06-16.md`
-
