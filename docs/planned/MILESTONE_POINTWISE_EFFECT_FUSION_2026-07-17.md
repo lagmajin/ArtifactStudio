@@ -72,6 +72,8 @@ resource transition と intermediate target を明示的に確定し、元の ef
   compile key、generated HLSL pixel shader emitterを実装済み。
 - Exposure / Gamma / Contrast / Levels / Saturation / Tint / LUT / Blend / Alpha / Posterize /
   Threshold のHLSL生成を実装済み。
+- compile keyベースのgenerated source cache、hit / miss集計、融合区間／fallback理由を返す診断を実装済み。
+- dynamic parameter値はcompile keyに含めず、同じnode構成ではcache hitする。
 - render pipeline、effect stack、DXC / Diligent PSO cacheとの接続は意図的に未実施。
 
 ### Phase 1 — IR と融合境界
