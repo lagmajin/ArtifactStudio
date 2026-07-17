@@ -52,7 +52,7 @@ GPU時間が予算を超えた場合は、解像度変更より先にプロー�
 ### Phase 2 — SSGI fast path
 
 - [ ] depth pyramidまたは階層depth入力を用意
-- [ ] 1/2・1/4解像度compute ray march
+- [x] 1/2・1/4解像度compute ray marchとGI出力SRVの最小経路
 - [ ] normal/albedo aware rejectとIBL miss fallback
 - [ ] velocityを使ったtemporal reprojection
 - [ ] bilateral denoiseと既存linear color targetへの合成
