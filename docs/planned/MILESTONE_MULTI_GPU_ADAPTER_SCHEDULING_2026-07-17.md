@@ -42,10 +42,14 @@ iGPU / dGPU / 複数dGPUを認識し、用途に適したGPUを明示選択で�
 
 ## Phase 3 — 明示選択
 
-- [ ] `Auto / High Performance / Power Saving / Specific GPU` policy
-- [ ] device生成前にadapter indexを適用
-- [ ] 無効な保存adapterからAutoへ安全にfallback
+- [x] `Auto / High Performance / Power Saving / Specific GPU` policy
+- [x] device生成前にadapter indexを適用
+- [x] 無効な指定adapterからAuto相当へ安全にfallback
 - [ ] device lost時の再生成と診断
+
+初期実装では `ARTIFACT_GPU_POLICY` と `ARTIFACT_GPU_ADAPTER` を使用する。
+`Specific` はadapter indexまたはadapter名の部分一致を受け付ける。UIと永続設定は
+stable adapter ID導入後に接続する。
 
 ## Phase 4 — Media GPU分離
 
