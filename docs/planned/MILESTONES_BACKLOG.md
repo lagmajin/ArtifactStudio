@@ -1,5 +1,11 @@
 # Milestones Backlog
 
+### Color / Professional Media
+- **M-PRO-MEDIA-1** Professional Media Materials Support
+  - EXR/HDR、広色域、高ビット深度、log素材のメタデータ保持と明示的な解釈経路
+  - Phase 1（OIIO ingest metadata）とPhase 2の入力解釈オーバーライド基盤を実装済み。入力色空間・transfer・HDR/log判定を `RawImage` に保持し、`SourceInterpretOverride` で明示指定できる
+  - 詳細: `docs/planned/MILESTONE_PROFESSIONAL_MEDIA_MATERIALS_2026-07-16.md`
+
 
 ### Layer Component / Simulation
 - **M-LC-1** Layer Component Pipeline / Simulation Contract
@@ -949,6 +955,11 @@ active milestone の重複名としては扱わない。
 
 ### M-FX-5 GPU Effect Parity
 - CPU effect は reference として残しつつ、GPU equivalent effect を順に実装する
+- `supportsGPU()` の宣言や CPU 呼び出しだけの GPU wrapper は完了扱いにしない。HLSL/compute dispatch を実装する
+- CPU reference はテスト／比較／fallback 用として維持し、空間 effect は行・tile 単位で安全に MT 化する
+- temporal / history effect は history の read/write 契約を固定してから MT 化する
+- GPU 失敗時は結果契約を変えず CPU reference へ fallback する
+- 実装・runtime 検証状況は `docs/analysis/EFFECT_MAP_2026-07-16.md` を正本にする
 - 詳細は `docs/planned/MILESTONE_GPU_EFFECT_PARITY_2026-03-27.md`
 
 ### M-FX-6 Color Correction / Grading

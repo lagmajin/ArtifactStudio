@@ -1,8 +1,8 @@
 # M-TXT-FOUNDATION: Text Layer GPU / Edit / Animation Completion
 
 **作成日:** 2026-07-16  
-**ステータス:** In Progress  
-Status: In Progress  
+**ステータス:** Completed (static verified 2026-07-16)
+Status: Completed (static verified 2026-07-16)
 **対象:** `ArtifactCore` / `Artifact`  
 **位置づけ:** Text 系に散在している GPU 描画、shaping、inline edit、Source Text、Text Animator を束ねる統合マイルストーン。
 
@@ -47,6 +47,7 @@ Status: In Progress
 - 2026-07-16: `GlyphAtlas` のRGBA atlas書き込みから `QPainter::CompositionMode_Source` を撤去し、所有バッファへの明示的row copyへ変更。
 - 2026-07-16: Text editorの確定を単一Undo transactionへ統合。静的textは`SetTextLayerTextCommand`、Source Text keyframe保有layerは表示中frameのHold keyframe snapshot commandを使い、基底textを誤更新しない契約へ変更。
 - 2026-07-16: `QTextBoundaryFinder::Grapheme` をshaping contractへ接続し、結合文字・variation selector・Emoji ZWJ sequenceを単一cluster identityとして全`GlyphItem`へ伝搬。既定Percentage selector、Wiggly、trackingはcluster単位で評価し、grapheme内部を別々に変形しないよう修正。
+- 2026-07-16: WP-0〜WP-5の実装経路と責務分担を静的確認し、本マイルストーンを完了扱いへ更新。ビルド／CMake／テスト／実ランタイム確認は未実行。
 
 ## Animator Quality Bar: AE系ワークフローの問題を解消する
 

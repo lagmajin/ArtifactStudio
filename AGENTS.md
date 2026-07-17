@@ -75,6 +75,10 @@ Text 系の Core 整備段階は [ArtifactCore/docs/MILESTONE_TEXT_SYSTEM_2026-0
 
 Property 系 UI の残骸と再整理方針は [Artifact/docs/PROPERTY_EDITOR_AUDIT_2026-03-11.md](Artifact/docs/PROPERTY_EDITOR_AUDIT_2026-03-11.md) を参照してください。
 
+ArtifactPropertyWidget の通常のレイヤープロパティ表示では、レイヤー固有の主要編集項目を優先し、Components / Collision / Layout / Cloner / Crowd / Particle Emitter / Fluid などレイヤーコンポーネント由来のグループを getLayerPropertyGroups() からそのまま露出させないこと。コンポーネント設定は既存の Components 専用面を正規の編集導線とする。
+
+コンポーネント由来のプロパティを通常の Property Widget に表示する場合は、ユーザーの明示要求または設計レビューを必須とし、レイヤー固有の主要項目より低い表示優先度・下位セクションに置くこと。Text Animator のようなレイヤー固有の動的グループはプロパティパスで識別し、表示名の偶然一致だけで Components / Cloner などの専用 UI として扱わないこと。
+
 QtCSS / `setStyleSheet()` は絶対に新規追加しないこと。見た目の調整は `QPalette`、owner-draw、`QProxyStyle`、既存の theme token で解決し、QtCSS は移行不能な例外に限って使う（例外は設計レビュー必須）。
 
 `QColorDialog` の新規使用は禁止。色選択 UI は `FloatColorPicker` または既存の承認済みカラー picker を使い、既存箇所を変更する場合も `QColorDialog` を増やさず統一を優先すること。
