@@ -61,8 +61,8 @@ Composition `ArtifactEffectService` catalog. The bridge is incomplete.
 | Glitch | Yes | Yes / Yes (`builtin.glitch`) | Yes, duplicate family | HLSL in `ArtifactCreativeEffects` | Give it one stable service ID and retire duplicate presentation. |
 | Halftone | Yes | Yes / Yes | Yes, duplicate family | HLSL in `ArtifactCreativeEffects` | Make one parameter contract the canonical one. |
 | Old TV | Yes | Yes / Yes (`builtin.old_tv`) | No user-facing service entry | HLSL in `ArtifactCreativeEffects` | Runtime-validate before treating its GPU path as production-ready. |
-| Pixelate | Yes | No / No | Mosaic is related but different | CPU | Bridge or explicitly document Mosaic as its replacement. |
-| Posterize | Yes | No / No | Curves preset is related | CPU | Expose as a lightweight color/stylize effect. |
+| Pixelate | Yes | Yes (`builtin.pixelate`) / catalog | Mosaic implementation reused | CPU | Bridged through the existing Mosaic effect contract. |
+| Posterize | Yes | Yes (`builtin.posterize`) / catalog | Curves Posterize preset reused | CPU | Bridged through the existing Curves preset contract. |
 | Mirror | Yes | No / No | No direct catalog item | CPU | Low-cost bridge candidate. |
 | Fisheye | Yes | No / No | Lens Distortion is related | CPU | Decide whether Lens Distortion supersedes it. |
 | Edge Echo | Yes | No / No | No direct catalog item | Core has GPU computer | Best candidate for an explicit bridge after its host contract is verified. |
