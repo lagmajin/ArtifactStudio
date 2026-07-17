@@ -6,6 +6,11 @@
   - `Balanced` を標準とし、GPU時間予算に応じてprobe更新数とray stepを動的調整する
   - 詳細: `docs/planned/MILESTONE_CACHED_HYBRID_GLOBAL_ILLUMINATION_2026-07-17.md`
 
+- **M-GPU-1** Multi-GPU Adapter Selection and Scheduling
+  - adapter列挙と明示選択を先に整備し、iGPUはmedia処理、複数dGPUは独立frame/jobへ割り当てる
+  - リアルタイム描画とGIは単一の選択dGPUへ集約し、GPU間の中間texture転送を避ける
+  - 詳細: `docs/planned/MILESTONE_MULTI_GPU_ADAPTER_SCHEDULING_2026-07-17.md`
+
 
 ### Layer Component / Simulation
 - **M-LC-1** Layer Component Pipeline / Simulation Contract
