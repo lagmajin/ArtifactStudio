@@ -1,5 +1,11 @@
 # Milestones Backlog
 
+### Rendering / Global Illumination
+- **M-GI-1** Cached Hybrid Global Illumination
+  - DDGIの画面外安定性、SSGIの近接ディテール、IBLの遠景補完を単一GIとして統合する
+  - `Balanced` を標準とし、GPU時間予算に応じてprobe更新数とray stepを動的調整する
+  - 詳細: `docs/planned/MILESTONE_CACHED_HYBRID_GLOBAL_ILLUMINATION_2026-07-17.md`
+
 
 ### Layer Component / Simulation
 - **M-LC-1** Layer Component Pipeline / Simulation Contract
