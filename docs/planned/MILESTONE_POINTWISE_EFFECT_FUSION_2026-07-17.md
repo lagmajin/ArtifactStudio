@@ -76,6 +76,8 @@ resource transition と intermediate target を明示的に確定し、元の ef
 - dynamic parameter値はcompile keyに含めず、同じnode構成ではcache hitする。
 - segment range、parameter buffer範囲、Levelsの2-slot要件、LUT / blendのSRV要件を検証し、
   不正なIRではHLSL sourceを出力しないpreflight validationを実装済み。
+- premultiplied入力では、色演算前だけstraight RGBへ展開し、segmentの出力alpha契約へ戻す
+  alpha-safe生成を実装済み。Normal blendはstraight / premultipliedそれぞれのsource-over式を生成する。
 - render pipeline、effect stack、DXC / Diligent PSO cacheとの接続は意図的に未実施。
 
 ### Phase 1 — IR と融合境界
