@@ -20,6 +20,14 @@
   - temporal accumulation state
   - quality別 GI execution plan
   - `GIFrameContext`
+  - 必要resourceの算出と`resourcesReady()`検証
+
+## Phase 1 状態
+
+**ArtifactCore-only foundation:** Complete
+
+接続なしのCore基盤として、graph / HLSL lowering / GI settings / execution plan /
+temporal state / resource readinessまで実装済み。ここで一旦区切り、次回はGPU接続フェーズとして再開する。
 
 ## 未実装
 
