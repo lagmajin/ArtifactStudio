@@ -54,8 +54,9 @@ GPU時間が予算を超えた場合は、解像度変更より先にプロー�
 - [ ] depth pyramidまたは階層depth入力を用意
 - [x] 1/2・1/4解像度compute ray marchとGI出力SRVの最小経路
 - [ ] normal/albedo aware rejectとIBL miss fallback
-- [ ] velocityを使ったtemporal reprojection
-- [ ] bilateral denoiseと既存linear color targetへの合成
+- [x] velocityを使ったtemporal reprojectionとping-pong履歴
+- [x] depth/normal aware bilateral denoise
+- [ ] denoise済みGIの既存linear color targetへの合成
 
 ### Phase 3 — 実シーンRTデータ
 
