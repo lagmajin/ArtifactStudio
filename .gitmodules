@@ -16,3 +16,6 @@
 [submodule "libs/llama.cpp"]
 	path = libs/llama.cpp
 	url = https://github.com/ggml-org/llama.cpp.git
+[submodule "libs/NRD"]
+	path = libs/NRD
+	url = https://github.com/NVIDIA-RTX/NRD.git

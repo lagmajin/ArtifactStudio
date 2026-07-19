@@ -8,6 +8,8 @@
   アプリ全体のメインウィンドウ。dock 配置、タブ化、ステータス表示をまとめる。
 - `DockStyleManager`
   QADS のアクティブタブ装飾や glow を管理する。
+- `StudioSectionStack`
+  単純な縦積み専用の軽量コンテナ。可視な子、spacing、contents margins、単一または少数の expanding child を直接配置し、複雑な `QBoxLayout` ネストを避ける。
 
 ## Project / Inspector
 
@@ -16,7 +18,11 @@
 - `ArtifactAssetBrowser`
   左側の Asset Browser。ファイル探索、サムネイル、favorites、recent sources、Project View への選択同期を担当する。
 - `ArtifactInspectorWidget`
-  右側の Inspector パネル。現在のコンポジション / レイヤー / エフェクト情報を編集する。
+  右側の Inspector パネル。現在のコンポジション / レイヤー概要を担当する。Components / Effects / Properties は独立ドックとして扱う。
+- `ArtifactComponentTabSurface`
+  右側の独立 Components ドック。レイヤーコンポーネントの追加、選択、並べ替え、詳細編集を担当する。
+- `ArtifactEffectTabSurface`
+  右側の独立 Effects ドック。effect stack、pipeline stage、enable、mask、preset、詳細編集を担当する。
 - `ArtifactCompositionAudioMixerWidget`
   現在コンポジションの音声レイヤー用ミキサー。
 
@@ -74,7 +80,7 @@
 - `ArtifactLayerPanelWidget`
   タイムライン左ペインの担当。レイヤー列と行操作に限定し、composition/preview の責務は持たない。
 - `ArtifactPropertyWidget` / `PropertyEditor`
-  property row と編集 UI の担当。Inspector は summary / selection / effect stack の窓口で、row chrome はここへ寄せる。pick-whip / reference linking の入口もここに寄せる。
+  property row と編集 UI の担当。Properties は current-layer editor、Components / Effects は各専用面から埋め込み利用する。row chrome、pick-whip、reference linking の入口はここへ寄せる。
 - `ArtifactRenderLayerWidgetv2`
   layer editor view wrapper。内部の実描画と widget shell を分けて扱う。
 

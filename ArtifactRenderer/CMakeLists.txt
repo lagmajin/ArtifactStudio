@@ -24,6 +24,12 @@ target_include_directories(ArtifactRenderer
 
 target_link_libraries(ArtifactRenderer PRIVATE Qt6::Core Qt6::Gui Qt6::Svg)
 
+add_custom_command(TARGET ArtifactRenderer POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/artifact_blender_cycles.py"
+        "$<TARGET_FILE_DIR:ArtifactRenderer>/artifact_blender_cycles.py"
+)
+
 if(MSVC OR CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
     target_compile_options(ArtifactRenderer PRIVATE /Zc:__cplusplus /utf-8 /WX-)
     target_compile_definitions(ArtifactRenderer PRIVATE _WIN32_WINNT=0x0A00)

@@ -121,6 +121,12 @@ ExternalRenderJobSchema parseExternalRenderJob(const QJsonObject& object, QStrin
     job.width = intValue(output, "width", 0);
     job.height = intValue(output, "height", 0);
 
+    const QJsonObject quality = object.value(QStringLiteral("quality")).toObject();
+    job.backend = stringValue(quality, "backend").trimmed().toLower();
+    if (job.backend.isEmpty()) {
+        job.backend = QStringLiteral("diagnostic");
+    }
+
     const QJsonObject diagnostics = object.value(QStringLiteral("diagnostics")).toObject();
     job.summaryFile = stringValue(diagnostics, "summaryFile");
     job.eventLogFile = stringValue(diagnostics, "eventLogFile");
@@ -191,6 +197,7 @@ QJsonObject ExternalRenderJobSchema::toSummaryJson() const
         {QStringLiteral("outputFormat"), outputFormat},
         {QStringLiteral("width"), width},
         {QStringLiteral("height"), height},
+        {QStringLiteral("backend"), backend},
         {QStringLiteral("transportedLayerCount"), transportedLayerCount},
         {QStringLiteral("componentSimulationBakePresent"),
          componentSimulationBakePresent},

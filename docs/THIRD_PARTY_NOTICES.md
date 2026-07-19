@@ -1,0 +1,187 @@
+# Third-Party Notices
+
+ArtifactStudio は以下のオープンソースプロジェクトをアルゴリズム・設計の参考としており、そのライセンスを記載します。
+
+---
+
+## OpenToonz
+
+- **プロジェクト**: OpenToonz (https://github.com/opentoonz/opentoonz)
+- **ライセンス**: BSD 3-Clause License
+- **Copyright**: Copyright (c) 2016-2026, DWANGO Co., Ltd. and respective contributors
+- **参照内容**: クロマキーアルゴリズム、照明エフェクト、レンズグレア分光計算
+
+```
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+
+---
+
+## bgfx
+
+- **プロジェクト**: bgfx (https://github.com/bkaradzic/bgfx)
+- **ライセンス**: BSD 2-Clause License
+- **Copyright**: Copyright 2010-2026 Branimir Karadzic
+- **参照内容**: HDR Bloom パイプライン、トーンマッピング (Reinhard)、シェーダー実装パターン
+
+## Filament
+
+- **プロジェクト**: Filament (https://github.com/google/filament)
+- **ライセンス**: Apache License 2.0
+- **Copyright**: Copyright (C) 2016 The Android Open Source Project
+- **参照内容**: ポストプロセスパイプライン設計、DOF (CoCベース)、Bloom (Karis平均 + Kawaseフィルタ)
+
+## Godot Engine
+
+- **プロジェクト**: Godot Engine (https://github.com/godotengine/godot)
+- **ライセンス**: MIT License
+- **Copyright**: Copyright (c) 2014-present Godot Engine contributors
+- **参照内容**: GTAO (SSAO)、SSIL、ボリュメトリックフォグ
+
+## SPlisHSPlasH
+
+- **プロジェクト**: SPlisHSPlasH (https://github.com/InteractiveComputerGraphics/SPlisHSPlasH)
+- **ライセンス**: MIT License
+- **参照内容**: SPH流体 (WCSPH/PCISPH/PBF/IISPH/DFSPH)、GPU近傍探索
+
+## PositionBasedDynamics
+
+- **プロジェクト**: PositionBasedDynamics (https://github.com/InteractiveComputerGraphics/PositionBasedDynamics)
+- **ライセンス**: MIT License
+- **参照内容**: PBD/XPBD/PBF 統一制約ソルバー、布・ロープ・剛体・流体シミュレーション
+
+## Fusion
+
+- **プロジェクト**: Fusion (https://github.com/Ninjajie/Fusion)
+- **ライセンス**: MIT License
+- **参照内容**: Unity Compute Shader による PBD布 + PBF流体の GPU 実装パターン
+
+## blub
+
+- **プロジェクト**: blub (https://github.com/Wumpf/blub)
+- **ライセンス**: MIT License
+- **参照内容**: APIC流体、WebGPU compute shader、GPU境界ボクセル化
+
+## Ten-Minute-Physics
+
+- **プロジェクト**: Ten-Minute-Physics-Unity (https://github.com/Habrador/Ten-Minute-Physics-Unity)
+- **ライセンス**: MIT License
+- **参照内容**: XPBD 物理チュートリアル全22種 (布・FLIP流体・Eulerian流体・剛体・空間ハッシュ)
+
+## OceanFFT
+
+- **プロジェクト**: OceanFFT (https://github.com/achalpandeyy/OceanFFT)
+- **ライセンス**: MIT License
+- **参照内容**: Stockham FFT による GPU 海洋波シミュレーション、Phillips スペクトル
+
+## Wave-Particles-with-Interactive-Vortices
+
+- **プロジェクト**: Wave-Particles-with-Interactive-Vortices (https://github.com/ACskyline/Wave-Particles-with-Interactive-Vortices)
+- **ライセンス**: MIT License
+- **参照内容**: DX12 Wave Particles + 渦 + フローマップによる川レンダリング (Naughty Dog Uncharted 手法)
+
+## sparkle
+
+- **プロジェクト**: sparkle (https://github.com/tcoppex/sparkle)
+- **ライセンス**: MIT License
+- **参照内容**: 完全 GPU パーティクルエンジン (Bitonic Sort、Curl Noise、3D ベクトル場)
+
+## raylib-gpu-particles
+
+- **プロジェクト**: raylib-gpu-particles (https://github.com/arceryz/raylib-gpu-particles)
+- **ライセンス**: MIT License
+- **参照内容**: GPU Compute Shader パーティクル (完全ドキュメント化、Instancing、ビルボード)
+
+## GridFluidSim3D
+
+- **プロジェクト**: GridFluidSim3D (https://github.com/rlguy/GridFluidSim3D)
+- **ライセンス**: Zlib License
+- **参照内容**: PIC/FLIP グリッドベース流体 (Bridson 教科書の完全実装)
+
+## incremental_mpm
+
+- **プロジェクト**: incremental_mpm (https://github.com/nialltl/incremental_mpm)
+- **ライセンス**: MIT License
+- **参照内容**: MLS-MPM による弾性体・流体シミュレーション (解説記事付き)
+
+## Taichi
+
+- **プロジェクト**: Taichi (https://github.com/taichi-dev/taichi)
+- **ライセンス**: Apache License 2.0
+- **参照内容**: MPM/SPH/PIC の GPU 実装リファレンス
+
+## OpenVDB
+
+- **プロジェクト**: OpenVDB (https://github.com/AcademySoftwareFoundation/openvdb)
+- **ライセンス**: Apache License 2.0
+
+
+## AMD FidelityFX SDK
+
+- **プロジェクト**: FidelityFX-SDK (https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK)
+- **ライセンス**: MIT License
+- **Copyright**: Copyright (c) 2020-2026 Advanced Micro Devices, Inc.
+- **参照内容**: CACAO (Compute AO), SSSR (確率的SSR), SPD (12MIP ダウンサンプラ), CAS (適応シャープニング)
+
+## SaschaWillems Vulkan Examples
+
+- **プロジェクト**: Vulkan (https://github.com/SaschaWillems/Vulkan)
+- **ライセンス**: MIT License
+- **参照内容**: Shadow Mapping, Cascaded Shadow Maps, PCF, PCSS, SSAO, Bloom, PBR, Deferred, Compute Shader
+
+## TheRealMJP/Shadows
+
+- **プロジェクト**: Shadows (https://github.com/TheRealMJP/Shadows)
+- **ライセンス**: MIT License
+- **参照内容**: CSM, 安定化CSM, PCF各種, VSM, EVSM, Moment Shadow Maps (解説記事付き)
+
+## NVIDIA nvpro-samples
+
+- **プロジェクト**: nvpro-samples (https://github.com/nvpro-samples)
+- **ライセンス**: Apache License 2.0
+- **参照内容**: Vulkan レイトレーシング, glTF PBR レンダラー, Gaussian Splatting
+
+
+## OpenImageDenoise
+
+- **プロジェクト**: oidn (https://github.com/RenderKit/oidn)
+- **ライセンス**: Apache License 2.0
+- **Copyright**: Copyright (c) Intel Corporation
+- **参照内容**: AIデノイザー (CPU+CUDA+SYCL+HIP+Metal)。レイトレーシング/RAMプレビューのノイズ除去
+
+## OpenTimelineIO
+
+- **プロジェクト**: OpenTimelineIO (https://github.com/AcademySoftwareFoundation/OpenTimelineIO)
+- **ライセンス**: Apache License 2.0
+- **参照内容**: タイムライン相互運用の業界標準 (AAF/XML/FCPX互換)。タイムライン入出力の設計参考
+
+## MaterialX
+
+- **プロジェクト**: MaterialX (https://github.com/AcademySoftwareFoundation/MaterialX)
+- **ライセンス**: Apache License 2.0
+- **参照内容**: PBR マテリアル交換標準。3D レイヤーのマテリアル定義・インポートの参照
+- **参照内容**: 疎ボリュームデータ構造、煙・火・霧の表現

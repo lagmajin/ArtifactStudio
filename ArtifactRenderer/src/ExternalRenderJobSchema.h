@@ -17,6 +17,7 @@ struct ExternalRenderJobSchema {
     double fps = 30.0;
     QString outputPath;
     QString outputFormat;
+    QString backend = QStringLiteral("diagnostic");
     int width = 0;
     int height = 0;
     QString summaryFile;

@@ -8,6 +8,8 @@
 #include <QImage>
 #include <QRect>
 #include <QPainter>
+#include <QProcess>
+#include <QCoreApplication>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSaveFile>
@@ -15,6 +17,62 @@
 #include <QtGlobal>
 
 namespace ArtifactRenderer {
+
+static bool renderWithBlenderCycles(const ExternalRenderJobSchema& job, QString* errorMessage)
+{
+    const QString blender = qEnvironmentVariable("ARTIFACT_BLENDER_EXECUTABLE", QStringLiteral("blender"));
+    const QString script = QDir(QCoreApplication::applicationDirPath())
+        .filePath(QStringLiteral("artifact_blender_cycles.py"));
+    if (!QFileInfo::exists(script)) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Blender Cycles adapter script not found: %1").arg(script);
+        }
+        return false;
+    }
+
+    const QString jobPath = job.raw.value(QStringLiteral("diagnostics"))
+        .toObject().value(QStringLiteral("jobFile")).toString();
+    if (jobPath.isEmpty()) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Cycles backend requires diagnostics.jobFile");
+        }
+        return false;
+    }
+
+    QProcess process;
+    process.setProcessChannelMode(QProcess::ForwardedChannels);
+    process.start(blender, {
+        QStringLiteral("--background"), QStringLiteral("--python-exit-code"), QStringLiteral("1"),
+        QStringLiteral("--python"), script,
+        QStringLiteral("--"), QStringLiteral("--job"), jobPath
+    });
+    if (!process.waitForStarted(10000)) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Failed to start Blender: %1").arg(blender);
+        }
+        return false;
+    }
+    while (!process.waitForFinished(200)) {
+        if (!job.cancelFile.trimmed().isEmpty() && QFileInfo::exists(job.cancelFile)) {
+            process.terminate();
+            if (!process.waitForFinished(3000)) {
+                process.kill();
+                process.waitForFinished(3000);
+            }
+            if (errorMessage) {
+                *errorMessage = QStringLiteral("Blender Cycles rendering cancelled");
+            }
+            return false;
+        }
+    }
+    if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Blender Cycles exited with code %1").arg(process.exitCode());
+        }
+        return false;
+    }
+    return true;
+}
 
 static QString frameFileName(const ExternalRenderJobSchema& job, int frameNumber)
 {
@@ -113,6 +171,10 @@ bool renderExternalJob(const ExternalRenderJobSchema& job, QString* errorMessage
             *errorMessage = QStringLiteral("Invalid render job");
         }
         return false;
+    }
+
+    if (job.backend == QStringLiteral("cycles") || job.backend == QStringLiteral("blender-cycles")) {
+        return renderWithBlenderCycles(job, errorMessage);
     }
 
     const QJsonObject summary{

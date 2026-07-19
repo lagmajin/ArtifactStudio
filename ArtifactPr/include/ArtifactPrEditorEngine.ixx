@@ -7,8 +7,12 @@ module;
 #include <QColor>
 #include <QMap>
 #include <QVariant>
+#include <QJsonObject>
+#include <memory>
 
 export module ArtifactPr.EditorEngine;
+
+import NLE.Core;
 
 export namespace ArtifactPr {
 
@@ -123,6 +127,21 @@ public:
     virtual QString description() const = 0;
 };
 
+class NLEStateCommand : public UndoCommand
+{
+public:
+    NLEStateCommand(const QJsonObject& before, const QJsonObject& after)
+        : before_(before), after_(after) {}
+
+    void undo() override;
+    void redo() override;
+    QString description() const override { return QStringLiteral("NLE Edit"); }
+
+private:
+    QJsonObject before_;
+    QJsonObject after_;
+};
+
 class EditorEngine : public QObject
 {
     Q_OBJECT
@@ -139,6 +158,9 @@ public:
 
     DemoSequence currentSequence() const { return currentSequence_; }
     void setCurrentSequence(const DemoSequence& seq) { currentSequence_ = seq; }
+
+    QJsonObject nleSnapshot() const;
+    bool restoreNLESnapshot(const QJsonObject& snapshot);
 
     FramePosition currentFrame() const { return currentFrame_; }
     void setCurrentFrame(FramePosition frame);
@@ -221,6 +243,12 @@ public Q_SLOTS:
     // 6 種類の NLE 編集操作 (UndoCommand 経由)
     void slipClip(const QString& clipId, FramePosition delta);
     void slideClip(const QString& clipId, FramePosition delta);
+    void moveClip(const QString& clipId, FramePosition newStart);
+    void trimClip(const QString& clipId,
+                  FramePosition newStart,
+                  FramePosition newDuration,
+                  FramePosition newSourceIn,
+                  FramePosition newSourceOut);
     void rippleDeleteClipAt(const QString& clipId);
     void insertClipFromSource(const QString& trackId, const DemoClip& sourceClip, FramePosition insertAt);
     void overwriteClipFromSource(const QString& trackId, const DemoClip& sourceClip, FramePosition overwriteAt);
@@ -276,8 +304,11 @@ private:
     QString generateId(const QString& prefix);
     static QString transitionTypeToString(TransitionType type);
     static TransitionType stringToTransitionType(const QString& str);
+    void rebuildLegacySnapshotFromNLE();
 
     static EditorEngine* s_instance;
+
+    std::unique_ptr<ArtifactCore::NLE::NLEProjectStore> nleStore_;
 
     DemoProject currentProject_;
     DemoSequence currentSequence_;

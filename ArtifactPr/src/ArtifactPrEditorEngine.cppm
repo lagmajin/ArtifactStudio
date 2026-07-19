@@ -9,6 +9,8 @@ module;
 #include <QDateTime>
 #include <QDir>
 #include <QMessageBox>
+#include <QHash>
+#include <memory>
 
 module ArtifactPr.EditorEngine;
 
@@ -67,6 +69,86 @@ static TransitionType stringToTransitionTypeLocal(const QString& str)
     return TransitionType::Crossfade;
 }
 
+void EditorEngine::rebuildLegacySnapshotFromNLE()
+{
+    if (!nleStore_ || currentProject_.activeSequenceId.isEmpty()) {
+        return;
+    }
+
+    const auto sequenceId = ArtifactCore::NLE::SequenceId::fromString(currentProject_.activeSequenceId);
+    const auto* sequence = nleStore_->sequence(sequenceId);
+    if (!sequence) {
+        return;
+    }
+
+    DemoSequence snapshot;
+    snapshot.id = sequence->id.toString();
+    snapshot.name = sequence->name;
+    snapshot.resolution = QStringLiteral("1920x1080");
+    snapshot.frameRate = QStringLiteral("%1 fps").arg(sequence->timeBase.fps(), 0, 'f', 3);
+    snapshot.duration = sequence->duration.isValid() ? sequence->duration.end() : 0;
+
+    for (const auto& trackId : nleStore_->trackIds(sequence->id)) {
+        const auto* coreTrack = nleStore_->track(trackId);
+        if (!coreTrack) {
+            continue;
+        }
+
+        DemoTrack track;
+        track.id = coreTrack->id.toString();
+        track.name = coreTrack->name;
+        track.kind = coreTrack->kind == ArtifactCore::NLE::TrackKind::Audio
+            ? QStringLiteral("audio")
+            : QStringLiteral("video");
+        track.muted = coreTrack->mute;
+        track.solo = coreTrack->solo;
+
+        for (const auto& clipId : coreTrack->clipOrder) {
+            const auto* coreClip = nleStore_->clip(clipId);
+            if (!coreClip || !coreClip->timelineRange.isValid()) {
+                continue;
+            }
+
+            DemoClip clip;
+            clip.id = coreClip->id.toString();
+            clip.name = coreClip->name;
+            clip.startFrame = coreClip->timelineRange.start();
+            clip.duration = coreClip->timelineRange.duration();
+            clip.sourceIn = coreClip->sourceRange.isValid() ? coreClip->sourceRange.start() : 0;
+            clip.sourceOut = coreClip->sourceRange.isValid() ? coreClip->sourceRange.end() : clip.sourceIn + clip.duration;
+            clip.speed = coreClip->speed;
+            clip.reversed = coreClip->reversed;
+            clip.linked = coreClip->linkedGroupId != 0;
+            clip.selected = coreClip->selected;
+            clip.color = track.kind == QStringLiteral("audio")
+                ? QStringLiteral("#4eff4a")
+                : QStringLiteral("#4a9eff");
+
+            if (const auto* source = nleStore_->source(coreClip->sourceId)) {
+                clip.sourceFile = source->useProxy && !source->proxyUri.isEmpty()
+                    ? source->proxyUri
+                    : source->uri;
+            }
+            track.clips.push_back(clip);
+        }
+
+        if (coreTrack->kind == ArtifactCore::NLE::TrackKind::Audio) {
+            snapshot.audioTracks.push_back(track);
+        } else {
+            snapshot.videoTracks.push_back(track);
+        }
+    }
+
+    currentSequence_ = snapshot;
+    for (auto& projectSequence : currentProject_.sequences) {
+        if (projectSequence.id == snapshot.id) {
+            projectSequence = snapshot;
+            break;
+        }
+    }
+    Q_EMIT sequenceChanged(currentSequence_);
+}
+
 EditorEngine* EditorEngine::s_instance = nullptr;
 
 EditorEngine* EditorEngine::instance()
@@ -80,6 +162,7 @@ EditorEngine* EditorEngine::instance()
 EditorEngine::EditorEngine()
 {
     s_instance = this;
+    nleStore_ = std::make_unique<ArtifactCore::NLE::NLEProjectStore>();
     newProject();
 }
 
@@ -89,8 +172,38 @@ EditorEngine::~EditorEngine()
     qDeleteAll(redoStack_);
 }
 
+QJsonObject EditorEngine::nleSnapshot() const
+{
+    return nleStore_ ? nleStore_->toJson() : QJsonObject{};
+}
+
+bool EditorEngine::restoreNLESnapshot(const QJsonObject& snapshot)
+{
+    if (!nleStore_ || !nleStore_->loadFromJson(snapshot)) {
+        return false;
+    }
+    rebuildLegacySnapshotFromNLE();
+    Q_EMIT projectModified();
+    return true;
+}
+
+void NLEStateCommand::undo()
+{
+    EditorEngine::instance()->restoreNLESnapshot(before_);
+}
+
+void NLEStateCommand::redo()
+{
+    EditorEngine::instance()->restoreNLESnapshot(after_);
+}
+
 void EditorEngine::newProject()
 {
+    if (!nleStore_) {
+        nleStore_ = std::make_unique<ArtifactCore::NLE::NLEProjectStore>();
+    }
+    nleStore_->clear();
+
     DemoProject project;
     project.id = generateLegacyId();
     project.name = QStringLiteral("Untitled Project");
@@ -99,20 +212,26 @@ void EditorEngine::newProject()
     project.modifiedAt = QDateTime::currentDateTime().toString(Qt::ISODate);
 
     DemoSequence seq;
-    seq.id = generateSequenceId();
+    const auto coreSequenceId = nleStore_->createSequence(
+        QStringLiteral("Sequence 1"), ArtifactCore::NLE::TimeBase{1, 30, false});
+    seq.id = coreSequenceId.toString();
     seq.name = QStringLiteral("Sequence 1");
     seq.resolution = QStringLiteral("1920x1080");
     seq.frameRate = QStringLiteral("30 fps");
 
     DemoTrack v1;
-    v1.id = QStringLiteral("track_v1");
+    const auto coreVideoTrackId = nleStore_->createTrack(
+        coreSequenceId, ArtifactCore::NLE::TrackKind::Video, QStringLiteral("V1"));
+    v1.id = coreVideoTrackId.toString();
     v1.name = QStringLiteral("V1");
     v1.kind = QStringLiteral("video");
     v1.height = 28;
     seq.videoTracks.push_back(v1);
 
     DemoTrack a1;
-    a1.id = QStringLiteral("track_a1");
+    const auto coreAudioTrackId = nleStore_->createTrack(
+        coreSequenceId, ArtifactCore::NLE::TrackKind::Audio, QStringLiteral("A1"));
+    a1.id = coreAudioTrackId.toString();
     a1.name = QStringLiteral("A1");
     a1.kind = QStringLiteral("audio");
     a1.height = 28;
@@ -210,6 +329,49 @@ void EditorEngine::loadDemoProject()
         audio1.volume = 1.0;
         currentSequence_.audioTracks[0].clips.push_back(audio1);
     }
+
+    QHash<QString, ArtifactCore::NLE::SourceId> sourceIdsByPath;
+    for (const auto& media : currentProject_.mediaPool) {
+        ArtifactCore::NLE::SourceRef source;
+        source.uri = media.filePath;
+        source.displayName = media.name;
+        source.mimeType = media.type;
+        source.timeBase = ArtifactCore::NLE::TimeBase{1, 30, false};
+        source.availableRange = ArtifactCore::FrameRange::fromDuration(0, 100000);
+        sourceIdsByPath.insert(media.filePath, nleStore_->registerSource(source));
+    }
+
+    const auto importTrack = [this, &sourceIdsByPath](const DemoTrack& legacyTrack) {
+        const auto trackId = ArtifactCore::NLE::TrackId::fromString(legacyTrack.id);
+        for (const auto& legacyClip : legacyTrack.clips) {
+            const auto sourceId = sourceIdsByPath.value(legacyClip.sourceFile);
+            if (!sourceId.isValid()) {
+                continue;
+            }
+
+            ArtifactCore::NLE::ClipDraft draft;
+            draft.sourceId = sourceId;
+            draft.sourceRange = ArtifactCore::FrameRange(legacyClip.sourceIn, legacyClip.sourceOut);
+            draft.timelineRange = ArtifactCore::FrameRange::fromDuration(
+                legacyClip.startFrame, legacyClip.duration);
+            draft.trimRange = draft.sourceRange;
+            draft.name = legacyClip.name;
+            draft.speed = legacyClip.speed;
+            draft.reversed = legacyClip.reversed;
+            nleStore_->addClip(
+                ArtifactCore::NLE::SequenceId::fromString(currentProject_.activeSequenceId),
+                trackId,
+                draft);
+        }
+    };
+
+    for (const auto& track : currentSequence_.videoTracks) {
+        importTrack(track);
+    }
+    for (const auto& track : currentSequence_.audioTracks) {
+        importTrack(track);
+    }
+    rebuildLegacySnapshotFromNLE();
 
     currentProject_.modifiedAt = QDateTime::currentDateTime().toString(Qt::ISODate);
     Q_EMIT projectLoaded(true, QStringLiteral("Demo project loaded"));
@@ -374,6 +536,23 @@ void EditorEngine::deleteSelectedClip()
 {
     if (selectedClipId_.isEmpty()) return;
 
+    if (nleStore_) {
+        const auto clipId = ArtifactCore::NLE::ClipId::fromString(selectedClipId_);
+        if (nleStore_->hasClip(clipId)) {
+            const QJsonObject before = nleSnapshot();
+            if (!nleStore_->removeClip(clipId)) {
+                return;
+            }
+            const QJsonObject after = nleSnapshot();
+            pushUndo(new NLEStateCommand(before, after));
+            selectedClipId_.clear();
+            Q_EMIT clipSelectionChanged(QString());
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
     auto* clip = findClip(selectedClipId_);
     if (!clip) return;
 
@@ -419,6 +598,23 @@ void EditorEngine::deleteSelectedClip()
 void EditorEngine::rippleDeleteSelectedClip()
 {
     if (selectedClipId_.isEmpty()) return;
+
+    if (nleStore_) {
+        const auto clipId = ArtifactCore::NLE::ClipId::fromString(selectedClipId_);
+        if (nleStore_->hasClip(clipId)) {
+            const QJsonObject before = nleSnapshot();
+            if (!nleStore_->rippleDelete(clipId)) {
+                return;
+            }
+            const QJsonObject after = nleSnapshot();
+            pushUndo(new NLEStateCommand(before, after));
+            selectedClipId_.clear();
+            Q_EMIT clipSelectionChanged(QString());
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT projectModified();
+            return;
+        }
+    }
 
     auto* clip = findClip(selectedClipId_);
     if (!clip) return;
@@ -608,6 +804,27 @@ DemoTrack* findTrackById(DemoSequence& seq, const QString& trackId) {
 
 void EditorEngine::slipClip(const QString& clipId, FramePosition delta)
 {
+    if (nleStore_) {
+        const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(clipId);
+        if (nleStore_->hasClip(coreClipId)) {
+            const auto* coreClip = nleStore_->clip(coreClipId);
+            if (!coreClip || !coreClip->sourceRange.isValid()) {
+                return;
+            }
+            const QJsonObject before = nleSnapshot();
+            if (!nleStore_->slipClip(coreClipId,
+                                     ArtifactCore::FramePosition(coreClip->sourceRange.start() + delta))) {
+                return;
+            }
+            const QJsonObject after = nleSnapshot();
+            pushUndo(new NLEStateCommand(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT clipChanged(clipId);
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
     auto* clip = findClip(clipId);
     if (!clip) return;
 
@@ -624,6 +841,28 @@ void EditorEngine::slipClip(const QString& clipId, FramePosition delta)
 
 void EditorEngine::slideClip(const QString& clipId, FramePosition delta)
 {
+    if (nleStore_) {
+        const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(clipId);
+        if (nleStore_->hasClip(coreClipId)) {
+            const auto* coreClip = nleStore_->clip(coreClipId);
+            if (!coreClip || !coreClip->timelineRange.isValid()) {
+                return;
+            }
+            const QJsonObject before = nleSnapshot();
+            if (!nleStore_->slideClip(
+                    coreClipId,
+                    ArtifactCore::FramePosition(coreClip->timelineRange.start() + delta))) {
+                return;
+            }
+            const QJsonObject after = nleSnapshot();
+            pushUndo(new NLEStateCommand(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT clipChanged(clipId);
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
     auto* clip = findClip(clipId);
     if (!clip) return;
 
@@ -652,6 +891,80 @@ void EditorEngine::slideClip(const QString& clipId, FramePosition delta)
                                      rightId, oldRightStart);
     cmd->computeNewEdges();
     pushUndo(cmd);
+    Q_EMIT clipChanged(clipId);
+    Q_EMIT projectModified();
+}
+
+void EditorEngine::moveClip(const QString& clipId, FramePosition newStart)
+{
+    newStart = qMax<FramePosition>(0, newStart);
+
+    if (nleStore_) {
+        const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(clipId);
+        if (nleStore_->hasClip(coreClipId)) {
+            const QJsonObject before = nleSnapshot();
+            if (!nleStore_->moveClip(
+                    coreClipId, ArtifactCore::FramePosition(newStart))) {
+                return;
+            }
+            const QJsonObject after = nleSnapshot();
+            pushUndo(new NLEStateCommand(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT clipChanged(clipId);
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
+    auto* clip = findClip(clipId);
+    if (!clip) {
+        return;
+    }
+    const FramePosition oldStart = clip->startFrame;
+    clip->startFrame = newStart;
+    pushUndo(new MoveClipCommand(clipId, oldStart, newStart));
+    Q_EMIT clipChanged(clipId);
+    Q_EMIT projectModified();
+}
+
+void EditorEngine::trimClip(const QString& clipId,
+                            FramePosition newStart,
+                            FramePosition newDuration,
+                            FramePosition newSourceIn,
+                            FramePosition newSourceOut)
+{
+    if (newDuration <= 0 || newSourceOut <= newSourceIn) {
+        return;
+    }
+
+    if (nleStore_) {
+        const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(clipId);
+        if (nleStore_->hasClip(coreClipId)) {
+            const QJsonObject before = nleSnapshot();
+            const ArtifactCore::FrameRange sourceRange(newSourceIn, newSourceOut);
+            if (!nleStore_->trimClip(coreClipId, sourceRange,
+                                     ArtifactCore::NLE::TrimMode::Source)
+                || !nleStore_->moveClip(
+                    coreClipId, ArtifactCore::FramePosition(newStart))) {
+                return;
+            }
+            const QJsonObject after = nleSnapshot();
+            pushUndo(new NLEStateCommand(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT clipChanged(clipId);
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
+    auto* clip = findClip(clipId);
+    if (!clip) {
+        return;
+    }
+    clip->startFrame = newStart;
+    clip->duration = newDuration;
+    clip->sourceIn = newSourceIn;
+    clip->sourceOut = newSourceOut;
     Q_EMIT clipChanged(clipId);
     Q_EMIT projectModified();
 }
@@ -725,6 +1038,20 @@ void EditorEngine::liftRange(const QString& trackId,
 
 void EditorEngine::setClipSpeed(const QString& clipId, double speed)
 {
+    if (nleStore_) {
+        const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(clipId);
+        if (auto* coreClip = nleStore_->clip(coreClipId)) {
+            const QJsonObject before = nleSnapshot();
+            coreClip->speed = speed;
+            const QJsonObject after = nleSnapshot();
+            pushUndo(new NLEStateCommand(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT clipChanged(clipId);
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
     auto* clip = findClip(clipId);
     if (!clip) return;
 
@@ -735,6 +1062,20 @@ void EditorEngine::setClipSpeed(const QString& clipId, double speed)
 
 void EditorEngine::setClipReversed(const QString& clipId, bool reversed)
 {
+    if (nleStore_) {
+        const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(clipId);
+        if (auto* coreClip = nleStore_->clip(coreClipId)) {
+            const QJsonObject before = nleSnapshot();
+            coreClip->reversed = reversed;
+            const QJsonObject after = nleSnapshot();
+            pushUndo(new NLEStateCommand(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT clipChanged(clipId);
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
     auto* clip = findClip(clipId);
     if (!clip) return;
 
@@ -755,6 +1096,20 @@ void EditorEngine::setClipVolume(const QString& clipId, double volume)
 
 void EditorEngine::setClipName(const QString& clipId, const QString& name)
 {
+    if (nleStore_) {
+        const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(clipId);
+        if (auto* coreClip = nleStore_->clip(coreClipId)) {
+            const QJsonObject before = nleSnapshot();
+            coreClip->name = name;
+            const QJsonObject after = nleSnapshot();
+            pushUndo(new NLEStateCommand(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT clipChanged(clipId);
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
     auto* clip = findClip(clipId);
     if (!clip) return;
 

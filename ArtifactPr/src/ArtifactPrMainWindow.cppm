@@ -1737,9 +1737,7 @@ void TimelinePanel::onClipMoved(const QString& clipId, int deltaX)
 
         FramePosition newStart = qMax(0, clip->startFrame + frameDelta);
         FramePosition snappedStart = engine->snapToNearest(newStart, true);
-        clip->startFrame = snappedStart;
-
-        Q_EMIT engine->projectModified();
+        engine->moveClip(clipId, snappedStart);
         refreshTimeline(engine->currentSequence());
     }
 
@@ -1765,24 +1763,11 @@ void TimelinePanel::onClipTrimLeft(const QString& clipId, int deltaX)
             newDuration = clip->duration - frameDelta;
         }
 
-        // UndoCommand 経由で trim を適用
-        // (EditorEngine に trimClip(slot) を追加するのが筋だが、既存 slot は無いため
-        //  直接 UndoCommand を push する形にする)
-        auto* cmd = new ArtifactPr::TrimClipCommand(
-            clipId,
-            clip->startFrame, clip->duration,
-            newStart, newDuration);
-        // 既存 EditorEngine::pushUndo は private のため、
-        // ここでは直接 undoStack_ にアクセスできない。
-        // 簡易実装: 直接 clip を mutate (undo 対象外)。
-        // 実運用では EditorEngine に trimClip() slot を追加する。
-        Q_UNUSED(cmd);
-
-        clip->startFrame = newStart;
-        clip->duration = newDuration;
-        clip->sourceIn += frameDelta;
-
-        Q_EMIT engine->projectModified();
+        engine->trimClip(clipId,
+                         newStart,
+                         newDuration,
+                         clip->sourceIn + frameDelta,
+                         clip->sourceOut);
         refreshTimeline(engine->currentSequence());
     }
 
@@ -1799,17 +1784,11 @@ void TimelinePanel::onClipTrimRight(const QString& clipId, int deltaX)
 
         if (newDuration < 5) return;
 
-        // UndoCommand 経由で trim を適用 (同上)
-        auto* cmd = new ArtifactPr::TrimClipCommand(
-            clipId,
-            clip->startFrame, clip->duration,
-            clip->startFrame, newDuration);
-        Q_UNUSED(cmd);
-
-        clip->duration = newDuration;
-        clip->sourceOut += frameDelta;
-
-        Q_EMIT engine->projectModified();
+        engine->trimClip(clipId,
+                         clip->startFrame,
+                         newDuration,
+                         clip->sourceIn,
+                         clip->sourceOut + frameDelta);
         refreshTimeline(engine->currentSequence());
     }
 
