@@ -229,3 +229,32 @@ POSSIBILITY OF SUCH DAMAGE.
 - **ライセンス**: MIT License
 - **参照内容**: Anime4K の C++ 移植。OpenCV + GPU 対応。DLL/Lib 形式
 - **参照内容**: 疎ボリュームデータ構造、煙・火・霧の表現
+
+---
+
+## ArtifactStudio 実装参照監査（2026-07-20）
+
+以下は現在追加した shader / core contract の設計・アルゴリズム参照元である。現時点の追加ファイルは、各プロジェクトのソースコードを直接コピーしたものではなく、ArtifactStudio 用に独自実装した初期 pass である。
+
+| 参照元 | ライセンス | ArtifactStudio での参照内容 |
+|---|---|---|
+| [Anime4K](https://github.com/bloc97/Anime4K) | MIT | edge-aware preview upscale の考え方 |
+| [glsl-fast-gaussian-blur](https://github.com/Experience-Monks/glsl-fast-gaussian-blur) | MIT | separable Gaussian blur の構成 |
+| [Unified-Universal-Blur](https://github.com/lukakldiashvili/Unified-Universal-Blur) | MIT | Dual Kawase blur の構成 |
+| [FidelityFX-SDK](https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK) | MIT | SPD / CACAO の compute reduction・AO の考え方 |
+| [FidelityFX-CACAO](https://github.com/GPUOpen-Effects/FidelityFX-CACAO) | MIT | screen-space AO の品質設計 |
+| [TheRealMJP/Shadows](https://github.com/TheRealMJP/Shadows) | MIT | PCF shadow resolve の考え方 |
+| [nvpro-samples](https://github.com/nvpro-samples) | Apache License 2.0 | ray tracing payload / miss / closest-hit の最小契約 |
+| [Godot Engine](https://github.com/godotengine/godot) | MIT | GTAO / height fog の設計参考 |
+| [OpenToonz](https://github.com/opentoonz/opentoonz) | BSD 3-Clause | RGB/HSV keyer の設計参考 |
+| [Malt](https://github.com/bnpr/Malt) | MIT | NPR toon lighting の設計参考 |
+| [Google FILM](https://github.com/google-research/frame-interpolation) | Apache License 2.0 | motion-aware frame interpolation の設計参考 |
+| [FastNoiseLite](https://github.com/Auburn/FastNoiseLite) | MIT | NoiseField / noise family の設計参考 |
+| [PositionBasedDynamics](https://github.com/InteractiveComputerGraphics/PositionBasedDynamics) | MIT | SoftBody / constraint solver の設計参考 |
+| [OpenTimelineIO](https://github.com/AcademySoftwareFoundation/OpenTimelineIO) | Apache License 2.0 | NLE timeline interchange schema の設計参考 |
+
+### ライセンス上の扱い
+
+- 参照のみのものは、ArtifactStudio のバイナリへ自動的に取り込まれない。
+- 今後、外部ソースコード・ヘッダ・モデル・shader を直接取り込む場合は、対象リポジトリの LICENSE と NOTICE、著作権表示、配布条件を個別に確認する。
+- [Dual Kawase Demo](https://github.com/tryone144/dual-kawase-demo) はライセンス表記を確認できていないため、現時点では概念参照のみとし、コードは取り込まない。
