@@ -279,3 +279,301 @@ Pass 3: 1/4 → 1/8...
 | 数式→3D形状 | SDF Ray Marching (curv, bauble) | 美しい幾何学形状 |
 | クアッドツリー風 | quadim | 適応的分割でピクセルアート風 |
 | [demucs](https://github.com/facebookresearch/demucs) | — | Python | MIT | Meta製。高品質ソース分離。spleeterより高精度 |
+
+
+
+## 他業界・異分野から取り入れられる技法
+
+### 印刷・出版
+| 技法 | 何か | ArtifactStudio 応用 |
+|---|---|---|
+| AM/FM 網点 (Halftone) | ドットサイズ/密度で濃淡表現 | 画像→網点エフェクト |
+| 色分解+スクリーン角度 | CMYK 4版の角度付き網点 | ポスタリゼーション+網点合成 |
+| トラッピング | 版境界の重ねによる白ズレ防止 | レイヤー境界の自動補完 |
+| ダブルトーン | 2色で濃淡表現 | モノクロ→2色変換 |
+
+### 織物・テキスタイル
+| 技法 | 何か | ArtifactStudio 応用 |
+|---|---|---|
+| ジャカード織り | 糸の上下で絵柄表現 | クロスハッチ風テクスチャ |
+| 刺繍シミュレーション | 糸の質感・方向・密度 | 手芸風フィルタ |
+
+### 建築・パラメトリックデザイン
+| 技法 | 何か | ArtifactStudio 応用 |
+|---|---|---|
+| ボロノイファサード | 有機的パターン分割 | ガラス割れ・細胞分裂 |
+| 空間充填曲線 | Hilbert, Peano 曲線 | トランジション経路生成 |
+
+### 生物学
+| 技法 | 何か | ArtifactStudio 応用 |
+
+
+## 宇宙 / 星空 / 惑星生成
+
+| リポジトリ | ⭐ | 言語 | ライセンス | 何ができるか |
+|---|---|---|---|---|
+| [ETEngine](https://github.com/Illation/ETEngine) | 805 | C++14/GLSL | **MIT** | 宇宙シム特化のリアルタイム3Dエンジン。**惑星レンダリング+大気散乱**。Deferred PBR。ECS。**卒論がリアルタイム惑星レンダリング** |
+| [OpenSpace](https://github.com/OpenSpace/OpenSpace) | 1.2k | **C++23/Qt6**/Lua | **MIT** | **NASA 公式天体可視化**。Digital Universe 星カタログ。高解像度惑星画像。全天周ドーム対応。**ArtifactStudio と C++23+Qt6 で同スタック** |
+| [Planet-Generator (Godot)](https://github.com/Hoimar/Planet-Generator) | 255 | GDScript | MIT | Godot向けプロシージャル惑星生成。**地形LOD**。Addon形式。大気散乱 |
+| [planet_heightmap_generation](https://github.com/raguilar011095/planet_heightmap_generation) | 90 | JS/WebGL | MIT | 地殻変動+侵食+気候の**物理ベース惑星生成**。Three.js。地球科学に基づく |
+| [Accrete.js](https://github.com/tmanderson/Accrete.js) | 40 | JS | — | **惑星系形成シミュレーション**。Carl SaganのStarGen/Accreteアルゴリズム移植。恒星+惑星+衛星の自動生成 |
+| [Solar-Wanderer](https://github.com/hyqzz/Solar-Wanderer) | 664 | JS/Three.js | — | **1:1実寸太陽系**。NASA JPL 天体暦。太陽表面〜10万AUのオールト雲まで |
+| [Torben Mogensen Planet Generator](https://github.com/MagicalDrizzle/planet-generator) | — | C | — | **古典的テクスチャベース惑星生成**。多数の移植版あり。標高・気温・降水・バイオーム |
+
+### 恒星・星空背景の生成手法（アルゴリズム）
+
+| 手法 | 概要 | 実装のヒント |
+|---|---|---|
+| H-R図ベース分布 | ヘルツシュプルング・ラッセル図に従った星の色温度と絶対等級のランダム分布 | テーブル駆動。O/B/A/F/G/K/Mスペクトル型ごとに確率重み付け |
+| グレア/大気差 | 明るい星ほど大きく、色収差で赤〜青の滲み | 星の輝度に比例したGaussianスポット+波長別スケール |
+| 天の川背景 | 銀河円盤に沿った星密度の高い帯 | 銀経に沿ったsin波密度変調 |
+| 星雲パターン | パーリンノイズ+FBMでガス雲 | 複数オクターブのノイズを加算合成。色は赤(Hα)/青(反射) |
+| Twinkling（瞬き） | 大気の揺らぎによる星の明滅 | 時間+位置依存のPerlinノイズで輝度変調。明るい星ほど少ない |
+| Nebula Cube | 星雲を3Dテクスチャとしてベイク | ノイズボリュームをレイマーチング。OpenSpaceが採用 |
+
+### 惑星レンダリングの構成要素
+
+| 要素 | 手法 | 参照 |
+|---|---|---|
+| 標高マップ生成 | Simplexノイズ多重 + 地殻変動シミュレーション | Planet-Generator, Torben Mogensen |
+| 大気散乱 | Bruneton の事前計算大気散乱 / O'Neil | ETEngine, OpenSpace |
+| 海 | 水面反射 + 波 (Gerstner/FFT) | OceanFFT 参照 |
+| 雲 | ノイズテクスチャ + 影 | ボリュームレイマーチング |
+| 都市光 (夜側) | 人口密度マップ + 光源分布 | NASA Black Marble データ |
+| リング (土星型) | テクスチャまたはパーティクル円盤 | — |
+| 衛星軌道 | ケプラー軌道要素 | Solar-Wanderer 参照 |
+
+### ArtifactStudio での星空背景ジェネレータ設計案
+
+```
+┌─ 星分布生成 ─────────────────────────────┐
+│ H-R図テーブル + ランダム位置 + 銀河密度関数 │ → 静止星空テクスチャ（1回生成）
+│ + Flare/回折スパイク（明るい星のみ）       │
+
+
+## Froxel Volumetric Fog
+
+| リポジトリ | ⭐ | 言語 | ライセンス | 何ができるか |
+|---|---|---|---|---|
+| [diharaw/volumetric-fog](https://github.com/diharaw/volumetric-fog) | 138 | C++/GLSL | **MIT** | **Froxel（フラスタム整列ボクセルグリッド）+ Compute Shader によるボリュメトリックフォグ**。OpenGL 4.5。SIGGRAPH 2014 (Wronski) + Frostbite 論文に基づく決定版リファレンス実装 |
+| [EveryRay-Rendering-Engine](https://github.com/steaklive/EveryRay-Rendering-Engine) | 759 | C++/HLSL | MIT | Voxel Cone Tracing + ボリュメトリックフォグ/クラウド。DX11/DX12。PBR + Deferred |
+
+### Froxel の参照論文
+
+| 論文 | 著者 | 概要 |
+|---|---|---|
+| [Volumetric Fog: Unified, compute shader based solution to atmospheric scattering](https://advances.realtimerendering.com/s2014/) | Bart Wronski (Assassin's Creed IV) | **Froxelの発明論文**。SIGGRAPH 2014。フラスタム→3Dグリッド分割→Compute Shaderで散乱計算 |
+| [Physically-based & Unified Volumetric Rendering in Frostbite](https://www.ea.com/frostbite/news/physically-based-unified-volumetric-rendering-in-frostbite) | Sébastien Hillaire (Frostbite) | **Froxelの発展形**。物理ベースの散乱+吸収。Battlefield/FIFAで使用 |
+| [The Real-time Volumetric Cloudscapes of Horizon Zero Dawn](http://advances.realtimerendering.com/s2015/) | Andrew Schneider (Guerrilla Games) | ボリュメトリッククラウド。Froxelの発展応用 |
+
+
+### 改善版・発展形
+
+| リポジトリ | ⭐ | 言語 | ライセンス | Froxelからの進化点 |
+|---|---|---|---|---|
+| [pezcode/Cluster](https://github.com/pezcode/Cluster) | 471 | C++/HLSL | **MIT** | **Clustered Shading（Froxelの一般化）**。Froxelをライトカリングに応用。Forward/Deferred/Clustered 切替可能。bgfx (DX11/12/Vulkan/GL)。1000+ lights |
+| [DaveH355/clustered-shading](https://github.com/DaveH355/clustered-shading) | 168 | C++/GLSL | MIT | **Clustered Shading のチュートリアル**。教育向け。Froxel→Clusteredの学習に最適。OpenGL + Compute Shader |
+| [azer89/HelloVulkan](https://github.com/azer89/HelloVulkan) | 116 | C++/GLSL | — | **Vulkan Clustered Forward** + PBR + IBL + Ray Tracing + **Bindless** + GPU-driven。FroxelのモダンVulkan実装 |
+| [WickedEngine](https://github.com/turanszkij/WickedEngine) | 7.2k | C++/HLSL | MIT | **DX12 ネイティブ**。ボリュメトリック機能あり。実製品級のコード |
+| [nTiled](https://github.com/BeardedPlatypus/nTiled) | 38 | C++/GLSL | — | Tiled/Clustered/**Hashed** Shading の3方式比較実装。修士論文付き。Froxel→Clustered→Hashedの進化を比較 |
+
+### Froxel の進化マップ
+
+```
+Froxel Volumetric Fog (Wronski 2014)
+    │ フラスタム整列3Dグリッド + 散乱積分
+    │ [diharaw/volumetric-fog] ─── 純粋リファレンス実装 (MIT, GLSL)
+    │
+    ├→ Clustered Shading (Olsson 2012, Persson 2014)
+    │   Froxelグリッドを"光の空間分割"に一般化
+    │   [pezcode/Cluster] ─── Forward/Deferred切替可能 (MIT, bgfx)
+    │   [DaveH355/clustered-shading] ─── チュートリアル (MIT, OpenGL)
+    │
+    ├→ UE4 Volumetric Fog (Epic 2017)
+    │   時間的リプロジェクション + ボリュームシャドウ注入
+    │   ※ 実装は非公開。エンジンソースを参照
+    │
+    ├→ Frostbite Unified Volumetric (Hillaire 2018)
+    │   物理ベースの散乱/吸収統合モデル
+    │   ※ 実装は非公開。論文+スライドを参照
+    │
+    └→ Hashed Shading (2018)
+       ハッシュ関数でクラスタ割り当て。メモリ効率化
+       [nTiled] ─── 3方式比較 + 修士論文
+```
+
+
+```
+カメラ視錐台 (Frustum)
+    ↓
+深度方向にスライス分割 (例: 64スライス)
+    ↓
+各スライスを XY 方向にタイル分割 (例: 160x90)
+    ↓
+3D Froxel グリッド = 160 x 90 x 64
+    ↓
+Compute Shader で各 Froxel に光源注入
+    ↓
+深度方向に積分 (レイマーチング不要!)
+    ↓
+画面に合成 (フルスクリーンクワッド)
+```
+
+### なぜ Froxel が速いか
+
+- レイマーチングと違い、グリッドあたり **O(1)** の処理
+- Compute Shader で完全並列
+- ライトの注入も Froxel 単位で効率的
+- 半透明オブジェクトとの深度整合性が自然に取れる
+
+
+
+## コア基盤（Undo/ECS/NodeGraph/Plugin/Serialization/Job）
+
+### Undo/Redo
+
+| リポジトリ | ⭐ | 言語 | ライセンス | 学ぶべきこと |
+|---|---|---|---|---|
+| [mikwielgus/undoredo](https://github.com/mikwielgus/undoredo) | 120 | Rust | — | Delta/DiffベースのUndo。Snapshot方式と比較した設計 |
+| [implot](https://github.com/epezent/implot) のUndoパターン | — | C++ | MIT | ImPlotのUndo実装がコマンドパターンのクリーンな例 |
+| [Qt Undo Framework](https://doc.qt.io/qt-6/qundo.html) | — | C++ | LGPL | **Qt純正**。`QUndoCommand` + `QUndoStack`。ArtifactStudio は既に Qt ベースなので最有力 |
+
+### ノードグラフエディタ
+
+| リポジトリ | ⭐ | 言語 | ライセンス | 学ぶべきこと |
+|---|---|---|---|---|
+| [imgui-node-editor](https://github.com/thedmd/imgui-node-editor) | 4.5k | C++ | MIT | **最も使われているImGuiノードエディタ**。Blueprint風。UE4インスパイア |
+| [ImNodeFlow](https://github.com/Fattorino/ImNodeFlow) | 503 | C++ | MIT | ImGui向け軽量ノードエディタ。シンプルな設計 |
+| [qt-mvvm](https://github.com/gpospelov/qt-mvvm) | 431 | C++ | — | **Qt向けMVVM + ノードエディタ**。Property Editor + Node Editor 両方あり。ArtifactStudioに最も親和性高い |
+| [rete.js](https://github.com/retejs/rete) | 12.1k | TS | MIT | Web向けだがノードエディタ設計の模範。プラグインアーキテクチャ |
+
+### ECS (Entity Component System)
+
+| リポジトリ | ⭐ | 言語 | ライセンス | 学ぶべきこと |
+|---|---|---|---|---|
+| [EnTT](https://github.com/skypjack/entt) | 11k | C++17 | MIT | **最速ECSライブラリ**。Sparse Setベース。ヘッダオンリー。**ArtifactCore は entt を既に採用済** |
+| [Flecs](https://github.com/SanderMertens/flecs) | 6.7k | C99/C++ | MIT | C99で書かれたECS。クエリDSL。メタデータリフレクション |
+
+### シリアライゼーション
+
+| リポジトリ | ⭐ | 言語 | ライセンス | 学ぶべきこと |
+|---|---|---|---|---|
+| [cereal](https://github.com/USCiLab/cereal) | 4.7k | C++11 | BSD 3-Clause | **C++シリアライゼーションの決定版**。JSON/XML/Binary対応。ヘッダオンリー |
+| [magic_enum](https://github.com/Neargye/magic_enum) | 6.1k | C++17 | MIT | 静的enumリフレクション。enum→文字列/文字列→enum。マクロ不要 |
+| [reflect-cpp](https://github.com/getml/reflect-cpp) | — | C++20 | MIT | **C++20の構造体リフレクション**。自動シリアライズ |
+
+### プラグインシステム
+
+| リポジトリ | ⭐ | 言語 | ライセンス | 学ぶべきこと |
+|---|---|---|---|---|
+| [extism](https://github.com/extism/extism) | 5.7k | Rust/C | BSD 3-Clause | **WebAssemblyベースのプラグインシステム**。全言語対応。サンドボックス。将来性あり |
+| [Qt Plugin System](https://doc.qt.io/qt-6/plugins-howto.html) | — | C++ | LGPL | **Qt純正**。`QPluginLoader` + インターフェース。既存インフラ |
+
+### ジョブシステム / タスクグラフ
+
+| リポジトリ | ⭐ | 言語 | ライセンス | 学ぶべきこと |
+|---|---|---|---|---|
+| [taskflow](https://github.com/taskflow/taskflow) | 11k | C++17 | MIT | **最高峰の並列タスクグラフ**。DAGベース。GPUタスク対応。ヘッダオンリー |
+| [Tina](https://github.com/slembcke/Tina) | 298 | C | MIT | 超軽量コルーチン+ジョブシステム。シングルファイル。ARM/RISC-V対応 |
+| [marl](https://github.com/google/marl) | 2k | C++ | Apache 2.0 | **Google製**。ファイバーベースのスケジューラ。ゲームエンジン向け |
+
+### アセットパイプライン
+
+| リポジトリ | ⭐ | 言語 | ライセンス | 学ぶべきこと |
+|---|---|---|---|---|
+| [assimp](https://github.com/assimp/assimp) | 13.1k | C++ | BSD 3-Clause | **40+ 3D形式対応**。アセットインポートのデファクト。パイプライン設計の模範 |
+| [rres](https://github.com/raysan5/rres) | 556 | C | MIT | raylib向けリソースパッケージング。シンプルなアセットバンドル形式 |
+| [OpenAssetIO](https://github.com/OpenAssetIO/OpenAssetIO) | — | C++ | Apache 2.0 | **VFX向けアセット管理の相互運用標準**。ASWFプロジェクト |
+
+### プロファイリング / トレーシング
+
+| リポジトリ | ⭐ | 言語 | ライセンス | 学ぶべきこと |
+|---|---|---|---|---|
+| [Tracy](https://github.com/wolfpld/tracy) | 11k | C++ | BSD 3-Clause | **リアルタイムC++プロファイラ**。フレーム単位のGPU/CPUトレース。ゲーム業界の標準 |
+| [microprofile](https://github.com/jonasmr/microprofile) | — | C++ | MIT | 軽量プロファイラ。ImGui統合。組み込み容易 |
+| [optick](https://github.com/bombomby/optick) | 4.9k | C++ | MIT | **超軽量ゲームプロファイラ**。Frame-based。GPUトレース |
+
+### 設定 / データ駆動
+
+| リポジトリ | ⭐ | 言語 | ライセンス | 学ぶべきこと |
+|---|---|---|---|---|
+| [tomlplusplus](https://github.com/marzer/tomlplusplus) | 1.8k | C++17 | MIT | **TOMLパーサーの決定版**。ヘッダオンリー。UTF-8完全対応。設定ファイルに最適 |
+| [nlohmann/json](https://github.com/nlohmann/json) | 45k | C++11 | MIT | **C++ JSONライブラリの標準**。STLライクな構文 |
+| [structopt](https://github.com/p-ranav/structopt) | — | C++17 | MIT | 構造体→CLI引数パーサー自動生成 |
+└───────────────────────────────────────────┘
+         ↓
+┌─ 動的要素 ──────────────────────┐
+│ Twinkling (輝度ノイズ変調)       │ → アニメーション用
+│ 流れ星 (確率的発生 + 軌跡)       │
+│ 星雲オーバーレイ (ノイズ合成)     │
+└─────────────────────────────────┘
+```
+
+|---|---|---|
+| 反応拡散 (Turing Pattern) | 化学物質の拡散で縞・斑点が自己組織化 | 毛皮模様・葉脈・指紋 |
+| フィロタキシス | 黄金角 137.5° の葉配列 | ひまわりの種・花パターン |
+| L-system | 文法規則で樹木生成 | フラクタル植物・稲妻分岐 |
+| 差分成長 | 細胞分裂しながら形形成 | 有機的形状アニメ |
+| 群体行動 (Boids) | 鳥/魚の群れ | パーティクルの群れ制御 |
+| 粘菌ネットワーク | 最短経路網の自己形成 | ロゴ間の有機的経路 |
+
+### 天文学
+| 技法 | 何か | ArtifactStudio 応用 |
+|---|---|---|
+| 星野レンダリング | H-R図に基づく星の色と分布 | 星空背景生成 |
+| 星雲シミュレーション | ガス+パーティクル | ボリュームフィル |
+| 重力レンズ | 光の曲がり | 歪みエフェクト |
+
+### 地図学
+| 技法 | 何か | ArtifactStudio 応用 |
+|---|---|---|
+| 陰影起伏図 | 標高から陰影計算 | ハイトマップ→3D陰影 |
+| 等高線 | 標高線の生成 | 輝度→等高線パターン |
+| 図法投影 | Mercator, Mollweide 他 | テクスチャの極座標変換 |
+
+### 医療画像
+| 技法 | 何か | ArtifactStudio 応用 |
+|---|---|---|
+| ボリュームレンダリング | CT/MRIの3D可視化 | スモーク・霧の表現 |
+| 最大値投影 (MIP) | 視線上の最大輝度 | 光線痕跡の可視化 |
+
+### 放送工学
+| 技法 | 何か | ArtifactStudio 応用 |
+|---|---|---|
+| 波形モニター | 輝度の波形表示 | カラーグレーディング診断UI |
+| ベクトルスコープ | 色相/彩度の円形表示 | 同上 |
+
+### 音響工学
+| 技法 | 何か | ArtifactStudio 応用 |
+|---|---|---|
+| スペクトログラム | 周波数×時間の可視化 | 音声→画像変換エフェクト |
+| 波形表示 | 振幅エンベロープ | タイムラインの波形オーバーレイ |
+
+### 結晶学・材料科学
+| 技法 | 何か | ArtifactStudio 応用 |
+|---|---|---|
+| 結晶成長 | 核生成→樹枝状成長 | 氷結晶・霜パターン |
+| 拡散律速凝集 (DLA) | ブラウン運動の粒子集積 | 雪の結晶・珊瑚パターン |
+
+### 計算折り紙
+| 技法 | 何か | ArtifactStudio 応用 |
+|---|---|---|
+| 折り畳みパターン | 紙の折り目で立体化 | トランジションの折り紙風変形 |
+| 切り絵 | 接続した1枚のシルエット | シルエット+線画抽出 |
+
+### 錯視・知覚心理学
+| 技法 | 何か | ArtifactStudio 応用 |
+|---|---|---|
+| モアレ縞 | 周期的パターンの干渉 | レイヤー合成の干渉エフェクト |
+| 運動残効 | 順応後に静止画が動いて見える | 錯視トランジション |
+| ストロボ効果 | 周期的遮断で静止 | コマ撮り風 |
+
+### アルゴリズムアート
+| 技法 | 参照 | 何か |
+|---|---|---|
+| ストレンジアトラクタ | Lorenz, Rössler, Clifford | カオス軌道で粒子モーション |
+| フラクタルフレーム | Scott Draves 1992 | 反復関数系で炎・雲 |
+| ドメインワーピング | Inigo Quilez | ノイズでノイズを歪める高度な模様 |
+| ピクセルソーティング | Kim Asendorf | 輝度/色相でピクセルを並べ替えるグリッチ |
+| スリットスキャン | 映画 2001年宇宙の旅 | 時間軸を空間に展開 |
+| ドロステ効果 | エッシャー | 画像内に自分自身を無限再帰 |
