@@ -105,6 +105,27 @@ struct DemoProject {
     QString activeSequenceId;
 };
 
+/// Shared input contract for preview and export.
+/// The plan freezes the editable NLE state so playback and export do not read
+/// the live editor model while it is being changed.
+enum class RenderQualityPreset {
+    Draft,
+    Preview,
+    Full,
+};
+
+struct RenderPlan {
+    QJsonObject nleSnapshot;
+    QString resolution;
+    QString frameRate;
+    FramePosition startFrame = 0;
+    FramePosition endFrame = 0;
+    double qualityScale = 1.0;
+    bool useProxyMedia = false;
+
+    bool isValid() const { return !nleSnapshot.isEmpty() && endFrame >= startFrame; }
+};
+
 enum class PlaybackSpeed {
     Stop = 0,
     Reverse1x = -1,
@@ -161,6 +182,9 @@ public:
 
     QJsonObject nleSnapshot() const;
     bool restoreNLESnapshot(const QJsonObject& snapshot);
+    RenderPlan createRenderPlan(RenderQualityPreset preset,
+                                FramePosition startFrame = -1,
+                                FramePosition endFrame = -1) const;
 
     FramePosition currentFrame() const { return currentFrame_; }
     void setCurrentFrame(FramePosition frame);

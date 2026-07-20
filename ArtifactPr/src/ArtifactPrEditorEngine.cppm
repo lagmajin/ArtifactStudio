@@ -177,6 +177,35 @@ QJsonObject EditorEngine::nleSnapshot() const
     return nleStore_ ? nleStore_->toJson() : QJsonObject{};
 }
 
+RenderPlan EditorEngine::createRenderPlan(RenderQualityPreset preset,
+                                          FramePosition startFrame,
+                                          FramePosition endFrame) const
+{
+    RenderPlan plan;
+    plan.nleSnapshot = nleSnapshot();
+    plan.resolution = currentSequence_.resolution;
+    plan.frameRate = currentSequence_.frameRate;
+    plan.startFrame = startFrame >= 0 ? startFrame : inPoint_;
+    plan.endFrame = endFrame >= 0 ? endFrame : outPoint_;
+
+    switch (preset) {
+    case RenderQualityPreset::Draft:
+        plan.qualityScale = 0.25;
+        plan.useProxyMedia = true;
+        break;
+    case RenderQualityPreset::Preview:
+        plan.qualityScale = 0.5;
+        plan.useProxyMedia = true;
+        break;
+    case RenderQualityPreset::Full:
+        plan.qualityScale = 1.0;
+        plan.useProxyMedia = false;
+        break;
+    }
+
+    return plan;
+}
+
 bool EditorEngine::restoreNLESnapshot(const QJsonObject& snapshot)
 {
     if (!nleStore_ || !nleStore_->loadFromJson(snapshot)) {
