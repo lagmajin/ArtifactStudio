@@ -9,6 +9,7 @@
 - local-to-clip transform は constant buffer から受け取る
 - Image / Video texture の sample は fragment stage 側に残す
 - `getGridTriangleIndices()` で stable triangle topology を取得できる
+- `ArtifactAbstractLayer::softBodyDeformationMesh()` で layer 側から read-only packet を取得できる
 
 未対応:
 
