@@ -184,4 +184,48 @@ POSSIBILITY OF SUCH DAMAGE.
 - **プロジェクト**: MaterialX (https://github.com/AcademySoftwareFoundation/MaterialX)
 - **ライセンス**: Apache License 2.0
 - **参照内容**: PBR マテリアル交換標準。3D レイヤーのマテリアル定義・インポートの参照
+
+
+## OpenCV
+
+- **プロジェクト**: OpenCV (https://github.com/opencv/opencv)
+- **ライセンス**: Apache License 2.0
+- **参照内容**: 画像フィルタリング、色変換、形態学演算、オプティカルフロー、インペインティング
+
+## libvips
+
+- **プロジェクト**: libvips (https://github.com/libvips/libvips)
+- **ライセンス**: LGPL 2.1
+- **参照内容**: 高速・低メモリ画像処理。需要駆動型パイプライン。リサイズ/合成/ICC/FFT/40+フォーマット
+
+## Halide
+
+- **プロジェクト**: Halide (https://github.com/halide/Halide)
+- **ライセンス**: MIT License
+- **参照内容**: 画像処理 DSL + JIT コンパイラ。アルゴリズムとスケジュールの分離。CPU/GPU 最適化
+
+## FILM (Frame Interpolation)
+
+- **プロジェクト**: frame-interpolation (https://github.com/google-research/frame-interpolation)
+- **ライセンス**: Apache License 2.0
+- **参照内容**: 大規模モーション対応フレーム補間。ECCV 2022。Google製
+
+
+## Real-ESRGAN
+
+- **プロジェクト**: Real-ESRGAN (https://github.com/xinntao/Real-ESRGAN)
+- **ライセンス**: BSD 3-Clause License
+- **参照内容**: 実世界向けブラインド超解像。ncnn Vulkan版で Python 不要の GPU 推論
+
+## Anime4K
+
+- **プロジェクト**: Anime4K (https://github.com/bloc97/Anime4K)
+- **ライセンス**: MIT License
+- **参照内容**: 純粋 GLSL シェーダーによるリアルタイム超解像。ML 不要。4K 60fps
+
+## Anime4KCPP
+
+- **プロジェクト**: Anime4KCPP (https://github.com/TianZerL/Anime4KCPP)
+- **ライセンス**: MIT License
+- **参照内容**: Anime4K の C++ 移植。OpenCV + GPU 対応。DLL/Lib 形式
 - **参照内容**: 疎ボリュームデータ構造、煙・火・霧の表現
