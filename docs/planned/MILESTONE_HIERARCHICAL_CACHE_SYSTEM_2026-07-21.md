@@ -50,7 +50,7 @@
 - **ハンドル**: `GPUTextureCacheHandle{id, generation}`, `GPUTextureBindingRecord`
 - **機能**: budget (512 MiB default) / maxEntries (256) / generation-based invalidation / owner 単位 invalidate / stats
 - **バックエンド**: Diligent Engine, Vulkan native image ラップ対応（`CreateTextureFromVulkanImage`）
-- **既知の問題**: (G-1) resize/upload 競合でステージングバッファリーク, (G-2) `reserve()` が mutex 外
+- **再検証**: 2026-07-21 時点の `GPUTextureCacheManager.cppm` に staging buffer / `reserve()` 呼出しは存在せず、旧 G-1/G-2 指摘は現行コードの既知問題としては扱わない。Diligent backend の挙動は実測時に別途検証する。
 
 #### D. Frame Cache（レンダリング済みフレーム全体）
 - **場所**: `Artifact/include/Render/ArtifactFrameCache.ixx` + `ArtifactFrameCache.cppm`
@@ -100,8 +100,7 @@
 | ID | 問題 | 場所 | 深刻度 |
 |----|------|------|--------|
 | B1 | `buildLayerSurfaceCacheKey()` 毎フレーム無条件構築 | `ArtifactCompositionViewDrawing.cppm:~724` | 重大 |
-| G-1 | GPUTextureCacheManager: resize/upload 競合でステージングバッファリーク | `GPUTextureCacheManager.cppm:277` | 中 |
-| G-2 | GPUTextureCacheManager: `reserve()` が mutex 外 | `GPUTextureCacheManager.cppm:355` | 中 |
+| 解決 | GPUTextureCacheManager の staging leak / mutex 外 `reserve()` | `GPUTextureCacheManager.cppm` | 現行ソースに該当実装がなく、旧調査の指摘を解消 |
 | C1 | FrameCache eviction O(N) スキャン | `ArtifactFrameCache.cppm` | 軽 |
 | -- | Surface cache key に opacity 未反映（stale surface の可能性） | `buildLayerSurfaceCacheKey()` | 中 |
 | -- | composition changed → `surfaceCache_.clear()` + `gpuTextureCacheManager_->clear()` 全件クリア | `CompositionRenderController` | 中 |
