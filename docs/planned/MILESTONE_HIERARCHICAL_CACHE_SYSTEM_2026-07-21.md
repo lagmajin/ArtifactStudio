@@ -90,8 +90,8 @@
 - **内容**: final preview frame の PNG 永続化、RAM への近傍 hydrate、非同期 writer、composition namespace
 - **安全性**: disk-write generation により invalidation 後の書戻しを防止。`Clear Cache` は RAM/disk と保留 writer を同時に無効化する。
 - **key**: composition settings + `preview-frame-v2` + quality/render-path contract hash。contract 未確定時の hydrate は禁止する。
-- **budget**: active contract namespace あたり 512 MiB。保存完了後に最終更新時刻が古い frame PNG から eviction し、state を `onDisk=false` に戻す。
-- **残課題**: layer/effect state hash、manifest、namespace 横断 budget/orphan cleanup、restart 時に contract を先行解決する経路。
+- **budget**: active contract namespace あたり 512 MiB。保存完了後に最終更新時刻が古い frame PNG から eviction し、state を `onDisk=false` に戻す。全 namespace 合計は 2 GiB で、8 回の保存ごとに古い frame を掃除し、空の生成済み namespace を削除する。
+- **残課題**: layer/effect state hash、persisted manifest、restart 時に contract を先行解決する経路。
 
 ---
 
@@ -206,7 +206,8 @@ struct CompositionFrameCacheState {
 ### Phase 4: Disk Preview Frame Cache（部分実装）
 - ✅ asynchronous PNG persistence / RAM hydrate / generation-safe invalidation
 - ✅ active contract namespace の 512 MiB budget / oldest-frame eviction
-- ❌ namespace 横断 budget / orphan cleanup / restart contract bootstrap
+- ✅ namespace 横断 2 GiB budget / empty namespace cleanup
+- ❌ persisted manifest / restart contract bootstrap
 ### Phase 5: Promotion Policy（未着手）
 ### Phase 6: Intermediate / Render Queue Integration（未着手）
 
@@ -254,3 +255,4 @@ struct CompositionFrameCacheState {
 - 2026-07-21: RAM/disk final preview の active owner、disk-write generation、quality/render-path contract、content-edit invalidation を実装反映。
 - 2026-07-21: RAM preview hit rate を要求済み preview range 基準へ修正。
 - 2026-07-21: active disk namespace に 512 MiB budget と oldest-frame eviction を追加。
+- 2026-07-21: disk cache 全体に 2 GiB budget と empty namespace cleanup を追加。
