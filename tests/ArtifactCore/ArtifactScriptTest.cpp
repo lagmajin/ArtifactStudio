@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 #include <variant>
+#include <chrono>
+#include <filesystem>
+#include <fstream>
 
 import Script.ArtifactScript;
 
@@ -153,6 +156,131 @@ class Test : ArtifactBehaviour
         }
     }
 }
+
+TEST(ArtifactScriptTest, EvaluatorHandlesForLoop) {
+    ArtifactScriptParser parser;
+    const auto def = parser.parse(R"(
+class Counter : ArtifactBehaviour
+{
+    public float total = 0.0;
+    void OnUpdate()
+    {
+        for (int i = 0; i < 4; i = i + 1) {
+            total = total + 2;
+        }
+    }
+}
+
+TEST(ArtifactScriptTest, EvaluatorExecutesUserMethodAndReturnsValue) {
+    ArtifactScriptParser parser;
+    const auto def = parser.parse(R"(
+class MathBehaviour : ArtifactBehaviour
+{
+    float add(float a, float b)
+    {
+        return a + b;
+    }
+}
+
+TEST(ArtifactScriptTest, EvaluatorCallsUserMethodFromScript) {
+    ArtifactScriptParser parser;
+    const auto def = parser.parse(R"(
+class MathBehaviour : ArtifactBehaviour
+{
+    float add(float a, float b) { return a + b; }
+    float twice(float value) { return add(value, value); }
+}
+)");
+    ASSERT_TRUE(def.diagnostics.empty());
+    ArtifactScriptEvaluator eval;
+    ArtifactScriptSerializedFields fields;
+    const auto result = eval.executeMethod(def, "twice", {3.0}, fields);
+    ASSERT_TRUE(std::holds_alternative<double>(result));
+    EXPECT_DOUBLE_EQ(std::get<double>(result), 6.0);
+}
+
+TEST(ArtifactScriptTest, ArrayFieldDefaultsAndSize) {
+    ArtifactScriptParser parser;
+    const auto def = parser.parse(R"(
+class Points : ArtifactBehaviour
+{
+    public Array points;
+    float count()
+    {
+        return size(points);
+    }
+}
+
+TEST(ArtifactScriptTest, ArrayPushAndIndexRead) {
+    ArtifactScriptParser parser;
+    const auto def = parser.parse(R"(
+class Points : ArtifactBehaviour
+{
+    public Array points;
+    float first()
+    {
+        push(points, 7.5);
+        points[0] = 9.25;
+        return points[0];
+    }
+}
+
+TEST(ArtifactScriptTest, ArrayLiteralCreatesValues) {
+    ArtifactScriptParser parser;
+    const auto def = parser.parse(R"(
+class Points : ArtifactBehaviour
+{
+    float second()
+    {
+        Array values = [1.0, 2.5, 4.0];
+        return values[1];
+    }
+}
+)");
+    ASSERT_TRUE(def.diagnostics.empty());
+    ArtifactScriptEvaluator eval;
+    ArtifactScriptSerializedFields fields;
+    const auto result = eval.executeMethod(def, "second", {}, fields);
+    ASSERT_TRUE(std::holds_alternative<double>(result));
+    EXPECT_DOUBLE_EQ(std::get<double>(result), 2.5);
+}
+)");
+    ASSERT_TRUE(def.diagnostics.empty());
+    ArtifactScriptComponent component;
+    component.setScriptClass("Points");
+    component.applyDefaults(def);
+    ArtifactScriptEvaluator eval;
+    const auto result = eval.executeMethod(def, "first", {}, component.publicFields());
+    ASSERT_TRUE(std::holds_alternative<double>(result));
+    EXPECT_DOUBLE_EQ(std::get<double>(result), 9.25);
+}
+)");
+    ASSERT_TRUE(def.diagnostics.empty());
+    ArtifactScriptComponent component;
+    component.setScriptClass("Points");
+    component.applyDefaults(def);
+    ASSERT_TRUE(std::holds_alternative<ArtifactScriptArrayPtr>(component.publicFields().at("points")));
+    ArtifactScriptEvaluator eval;
+    const auto result = eval.executeMethod(def, "count", {}, component.publicFields());
+    ASSERT_TRUE(std::holds_alternative<std::int64_t>(result));
+    EXPECT_EQ(std::get<std::int64_t>(result), 0);
+}
+)");
+    ASSERT_TRUE(def.diagnostics.empty());
+    ArtifactScriptEvaluator eval;
+    ArtifactScriptSerializedFields fields;
+    const auto result = eval.executeMethod(def, "add", {2.0, 3.0}, fields);
+    ASSERT_TRUE(std::holds_alternative<double>(result));
+    EXPECT_DOUBLE_EQ(std::get<double>(result), 5.0);
+}
+)");
+    ASSERT_TRUE(def.diagnostics.empty());
+    ArtifactScriptEvaluator eval;
+    ArtifactScriptSerializedFields fields;
+    fields["total"] = 0.0;
+    ASSERT_TRUE(eval.execute(*def.rootClass.methods[0].body, {}, fields));
+    EXPECT_DOUBLE_EQ(std::get<double>(fields["total"]), 8.0);
+}
 )");
     auto& body = *def.rootClass.methods[0].body;
     ArtifactScriptEvaluator eval;
@@ -192,6 +320,54 @@ class Spin : ArtifactBehaviour
     public float speed = 90.0;
     public float radius = 50.0;
 }
+
+TEST(ArtifactScriptTest, FileAddEditAndReload) {
+    const auto path = std::filesystem::temp_directory_path() / "artifact_script_hot_reload_test.artscript";
+    const char* v1 = R"(
+class Spin : ArtifactBehaviour
+{
+    public float speed = 90.0;
+}
+)";
+    const char* v2 = R"(
+class Spin : ArtifactBehaviour
+{
+    public float speed = 90.0;
+    public float angle = 0.0;
+}
+)";
+
+    {
+        std::ofstream output(path, std::ios::binary | std::ios::trunc);
+        ASSERT_TRUE(output);
+        output << v1;
+    }
+
+    ArtifactScriptHotReload hotReload;
+    ASSERT_TRUE(hotReload.addFile(path.string()));
+    ASSERT_NE(hotReload.definitionFor(path.string()), nullptr);
+    ASSERT_NE(hotReload.fieldsFor(path.string()), nullptr);
+    EXPECT_EQ(hotReload.definitionFor(path.string())->rootClass.name, "Spin");
+
+    const auto firstWriteTime = std::filesystem::last_write_time(path);
+    {
+        std::ofstream output(path, std::ios::binary | std::ios::trunc);
+        ASSERT_TRUE(output);
+        output << v2;
+    }
+    std::filesystem::last_write_time(path, firstWriteTime + std::chrono::seconds(1));
+
+    const auto changes = hotReload.reloadChanged();
+    ASSERT_EQ(changes.size(), 1u);
+    EXPECT_TRUE(changes[0].result.success);
+    EXPECT_EQ(changes[0].path, path.string());
+    EXPECT_NE(hotReload.definitionFor(path.string())->rootClass.fields.end(),
+              hotReload.definitionFor(path.string())->rootClass.fields.begin());
+
+    hotReload.removeFile(path.string());
+    EXPECT_EQ(hotReload.definitionFor(path.string()), nullptr);
+    std::filesystem::remove(path);
+}
 )";
     const char* v2 = R"(
 class Spin : ArtifactBehaviour
@@ -220,4 +396,3 @@ class Spin : ArtifactBehaviour
     ASSERT_TRUE(result.migratedFields.find("angle") != result.migratedFields.end());
     EXPECT_DOUBLE_EQ(std::get<double>(result.migratedFields["angle"]), 0.0);
 }
-
