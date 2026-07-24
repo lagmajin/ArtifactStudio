@@ -33,11 +33,17 @@ collision コンポーネントは不要（G1 対応が前提）。
 
 ### G1: fracture の collision 必須依存を緩和【矛盾の本丸】
 
+進捗メモ（2026-07-24）: `makeFractureComponentDescriptor` の `requiredTypeIds`
+は空で、collision なしの pre-generate 構成を許容する実装を確認済み。
+
 - 現状: `makeFractureComponentDescriptor` が `requiredTypeIds = {artifact.component.collision}`（`ArtifactLayerComponentSystem.ixx:685`）。validation（:480-542）は依存先が無効だと **error**。事前破砕は collision を使わないのに、collision 無効でエラー表示になる。
 - 修正: `requiredTypeIds` から collision を外すか、「preGenerate==false かつ triggerFrame<0 の impact 駆動時のみ必須」に条件化。phase 順（Dynamics 500 → Topology 600）は正しいので変更しない。
 - 完了条件: preGenerate + triggerFrame 構成で collision 無効でも validation error が出ない。impact 駆動（collision 経由 :1718, :2106）は従来どおり動作。
 
 ### G2: preset / shardCount 変更時に事前生成が更新されない
+
+進捗メモ（2026-07-24）: preset / shardCount setter は変更時に
+`resetFractureState()` を呼び、関連UIへ `changed()` を通知する実装を確認済み。
 
 - 現状: setter（`ArtifactAbstractLayer.cppm:7807-7810` preset、:7819-7822 shardCount）が `resetFractureState()` を呼ばず、lazy 生成は `shards.empty()` の時だけ → 変更しても破砕形状が更新されない。
 - 修正: 両 setter で `resetFractureState()` を呼ぶ（`fracture.preGenerate` setter :7793-7801 と同じ既存パターン）。
