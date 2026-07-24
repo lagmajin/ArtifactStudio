@@ -248,6 +248,7 @@ Blender / Illustrator / Spine の「編集対象としてのパス」に近い�
 ## Current Progress
 
 ソース監査時点で、Phase 1〜4の主要編集経路とPhase 5のoperator stack操作を確認済み。
+operator stackの追加・削除・並べ替え・全消去にはJSONスナップショットUndo/Redoを追加済み。
 runtime/buildによる最終確認のみ保留。
 
 - `Shape Edit` mode を `EditMode` と tool routing に追加済み
