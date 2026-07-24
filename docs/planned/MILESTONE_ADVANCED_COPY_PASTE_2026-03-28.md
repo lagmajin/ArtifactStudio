@@ -24,6 +24,7 @@ After Effects の Copy/Paste に匹敵する操作性。
 - 複数レイヤーの貼り付けを `Paste Layers` の一括 Undo マクロに統合済み（source/static verified 2026-07-25）。
 - タイムラインのキーフレーム範囲コピー／プレイヘッド貼り付けとスナップショット Undo 経路も既存実装として確認。
 - Property Editor の Copy Value / Paste Value を typed `ClipboardManager` 経由へ接続し、同一プロパティへの貼り付けを優先するよう改善。
+- Inspector のエフェクトラックに Copy Effect / Paste Effect を追加し、既存の Undo 付きエフェクト追加経路へ接続。
 
 ---
 
