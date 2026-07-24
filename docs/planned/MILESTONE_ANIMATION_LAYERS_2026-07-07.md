@@ -68,6 +68,7 @@
 - 同じコンテキストメニューに Transform 用 Stack の一括削除導線を追加。
 - 共有 opacity Stack と Transform 用プロパティ別 Stack の作成／削除を共通スナップショット Undo に統合。
 - 各 Anim Layer の `Value (Current Frame)` を Property Editor に公開し、編集値を現在フレームのキーフレームへ書き込む導線を追加。
+- 現在フレームの Anim Layer キーフレームに対する補間方式の編集も追加。
 
 ### 2.1 既存資産
 
