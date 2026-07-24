@@ -54,6 +54,7 @@
 - [x] **CE-7**: Step（Constant）切替（InterpolationType::Constant への往復）。
   - 実装: Curve EditorのConstant切替とTimelineのStepボタン／Undo経路を確認。2026-07-24 完了（ビルド未検証）。
 - [ ] **CE-8**: 選択キーの frame/value 数値エントリ欄（Maya Stats 相当。既存 `promptSetSelectedKeyValue` をパネル化）。
+  - 進捗: Timelineの `Value...` / `Frame...` ボタンと既存ダイアログは接続済み。常設の数値欄とキーボード導線は未実装。
 - 完了条件: tangent タイプの往復が Undo 対応で動作。数値入力でキーが確定更新される。
 
 ### P3: 表示・効率（後段）
