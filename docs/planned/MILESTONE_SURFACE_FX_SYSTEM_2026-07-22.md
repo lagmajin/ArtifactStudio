@@ -159,6 +159,10 @@ SurfaceFXElement
 
 完了条件: 画面または矩形平面に傷を固定表示し、保存/再読込して見た目が一致する。
 
+進捗メモ（2026-07-24）: CPU fallback による Scratch / Streak / Droplet / Dirt /
+Condensation の静止オーバーレイ、anchor feather、JSON 復元時の矩形正規化を実装。
+Planar は正規化矩形として扱い、GPU pass と専用編集面は未実装。
+
 ### SFX-2: 決定的アニメーション
 
 - `SurfaceFXEvaluator`
@@ -166,6 +170,10 @@ SurfaceFXElement
 - seed とシークの安定性
 
 完了条件: 同一フレームの preview/render queue 結果が一致し、シークで要素が再配置されない。
+
+進捗メモ（2026-07-24）: `EffectContext::timeSeconds` と `fieldSeed` /
+`seedOffset` による水滴・ストリークの決定的な流下と in/out 時間評価を実装。
+独立した `SurfaceFXEvaluator` と停止・消滅・GPU parity の検証は未実装。
 
 ### SFX-3: Surface Response
 
