@@ -62,6 +62,7 @@
 - 既存 Property Editor のレイヤーグループに各 Anim Layer の Weight / Mute / Solo / Blend Mode を公開し、編集値を Stack へ反映。
 - レイヤーコンテキストメニューから Anim Layer の追加／末尾削除を行える導線を追加。
 - Anim Layer の追加／削除を `Change Animation Layers` の一括 Undo コマンドへ統合。
+- プロパティパスごとの独立 Stack API と JSON 保存領域を追加し、Transform 等を共有 opacity Stack と混線させない土台を実装。
 
 ### 2.1 既存資産
 
