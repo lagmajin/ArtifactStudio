@@ -2,7 +2,9 @@
 
 > 2026-07-10 作成
 
-**ステータス:** Not Started
+**ステータス:** Phase 1-4 Completed (static verified 2026-07-22; runtime/build verification pending)
+
+Phase 5 (Spatial Bezier editing) is also completed at source level.
 
 ## 目的
 
@@ -297,6 +299,14 @@ source-level で切り出し始めており、cache 再生成と描画の責務�
 
 ### Current Progress
 
+- [x] Phase 1: motion path の sampling / rendering 責務を helper 経路へ分離済み
+- [x] Phase 2: zoom / chord deviation に基づく adaptive sampling を実装済み
+- [x] Phase 3: 等時間 velocity dot cache と間引きを実装済み
+- [x] Phase 4: spatial tangent の保存・復元と cubic Bezier 表示を実装済み
+- [x] Phase 5: tangent hit-test、drag editing、連動/分離、Undo/Redo を実装済み
+- [~] Phase 6: viewport rubber-band 選択基盤は存在。motion keyframe の複数選択・一括変形は未完了
+- [ ] runtime / build による表示・編集回帰確認
+
 - `showMotionPathOverlay_` の main render 経路は helper 呼び出しに一本化した
 - 旧の巨大ブロックは source から हटして、cache 再生成と描画の責務分離が見える状態になった
 - Phase 2 の適応サンプリングは zoom による基準密度に加え、chord からの中点偏差で高曲率区間だけを再帰的に細分化する方式まで実装した
@@ -305,7 +315,7 @@ source-level で切り出し始めており、cache 再生成と描画の責務�
 - velocity dot は最大 360 区間へ間引き、current marker は引き続き現在フレームを直接評価している
 - Phase 4 は `AnimatableTransform3D` に keyframe ごとの `PositionSpatialTangents` を追加し、設定済み区間を 2D cubic Bezier として評価する経路を実装した
 - overlay は保存済み tangent を優先し、未設定 keyframe には隣接点から導出した表示用ハンドルを描く。`transform.positionKeyframes` で値・補間・tangent を保存／復元する
-- 挙動確認は未実施なので、source-level 進捗として記録している
+- 挙動確認は未実施なので、source-level 完了として記録している
 
 ### Phase 2 の前提
 

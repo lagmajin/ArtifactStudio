@@ -10,7 +10,7 @@
 1. `Composition Editor Cache`（Layer Surface + Static GPU）
 2. `GPUTextureCacheManager`
 3. `RAM Preview Controller`
-4. `Disk Cache`（baseline 実装済み、manifest は継続）
+4. `Disk Cache`（baseline 実装済み、manifest v1 検証済み）
 
 をバラバラの最適化として増やすのではなく、
 **RAM とディスクが連携する階層 cache system** として再整理する。
@@ -57,7 +57,7 @@
 - **クラス**: `FrameCache`（QObject）+ `ProgressiveRenderer` + `RenderPerformanceMonitor`
 - **機能**: LRU/LFU/FIFO ポリシー、メモリバジェット、generation-based invalidation、prefetch、signals
 - **エントリ**: `FrameCacheEntry`（QImage + float pixels + width/height + frame + generation）
-- **既知の問題**: eviction O(N) スキャン
+- **既知の問題**: FrameCache の candidate heap 再構築は閾値ベースで、短時間に大量アクセスした場合は一時的に stale 候補を保持する。候補取得自体は O(log N)。
 
 #### E. RAM Preview（active path 実装済み）
 - **active owner**: `ArtifactPlaybackService` — frame state、priority build queue、RAM LRU、timeline/playback の readiness source を一元管理
@@ -89,9 +89,9 @@
 - **場所**: `Artifact/src/Service/ArtifactPlaybackService.cppm`
 - **内容**: final preview frame の PNG 永続化、RAM への近傍 hydrate、非同期 writer、composition namespace
 - **安全性**: disk-write generation により invalidation 後の書戻しを防止。`Clear Cache` は RAM/disk と保留 writer を同時に無効化する。
-- **key**: composition settings + `preview-frame-v2` + quality/render-path contract hash。contract 未確定時の hydrate は禁止する。
+- **key**: composition settings + serialized composition state + `preview-frame-v3` + quality/render-path contract hash。contract 未確定時の hydrate は禁止する。
 - **budget**: active contract namespace あたり 512 MiB。保存完了後に最終更新時刻が古い frame PNG から eviction し、state を `onDisk=false` に戻す。全 namespace 合計は 2 GiB で、8 回の保存ごとに古い frame を掃除し、空の生成済み namespace を削除する。
-- **残課題**: layer/effect state hash、persisted manifest、restart 時に contract を先行解決する経路。
+- **残課題**: 上位 composition cache への state hash / persisted manifest 接続。
 
 ---
 
@@ -101,8 +101,10 @@
 |----|------|------|--------|
 | B1 | `buildLayerSurfaceCacheKey()` 毎フレーム無条件構築 | `ArtifactCompositionViewDrawing.cppm:~724` | 重大 |
 | 解決 | GPUTextureCacheManager の staging leak / mutex 外 `reserve()` | `GPUTextureCacheManager.cppm` | 現行ソースに該当実装がなく、旧調査の指摘を解消 |
-| C1 | FrameCache eviction O(N) スキャン | `ArtifactFrameCache.cppm` | 軽 |
+| 解決 | FrameCache の LRU/LFU/Size 候補選択 O(N) スキャン | `ArtifactFrameCache.cppm` | 2026-07-22: lazy candidate heap 化 |
+| 解決 | FrameCache の currentMemoryUsage() 全走査 | `ArtifactFrameCache.cppm` | 2026-07-22: 増分カウンタ化 |
 | -- | Surface cache key に opacity 未反映（stale surface の可能性） | `buildLayerSurfaceCacheKey()` | 中 |
+| 解決 | Surface cache key に layer opacity を追加 | `ArtifactCompositionViewDrawing.cppm` | 2026-07-22 |
 | -- | composition changed → `surfaceCache_.clear()` + `gpuTextureCacheManager_->clear()` 全件クリア | `CompositionRenderController` | 中 |
 | -- | panBy() が毎回 `invalidateBaseComposite()` → 全レイヤー再描画 | `CompositionRenderController` | 中 |
 | 解決 | stale disk write が invalidation 後に復活 | `ArtifactPlaybackService` | disk-write generation + queue purge で解決 |
@@ -143,7 +145,7 @@ cache を 4 層として定義する。
 
 - persisted preview frame（PNG）/ RAM hydrate / async writer / contract namespace
 
-責務: RAM miss 時の fallback と再利用。state manifest、budget/eviction/orphan cleanup は未実装。
+責務: RAM miss 時の fallback と再利用。namespace manifest、budget/eviction/orphan cleanup は実装済み。
 
 ---
 
@@ -200,13 +202,26 @@ struct CompositionFrameCacheState {
 
 ### Phase 3: Shared Cache Key / Manifest（部分実装）
 - ✅ composition identity / size / frame rate / range / quality / render path contract
-- ❌ layer/effect state hash と persisted manifest
+- ✅ serialized composition state hash を disk namespace に含め、layer/effect 編集後の stale reuse を分離
+- ✅ composition disk namespace の persisted manifest v1（stateHash を含む）と読み込み検証
+- ❌ 上位 composition cache への state hash / persisted manifest 接続
+
+#### 2026-07-22 implementation slice
+
+- [x] `GPUTextureCacheManager` に explicit / owner / budget / device / clear の invalidation reason 契約を追加
+- [x] cache stats から invalidation count と直近 reason を取得可能化
+- [x] device reset / budget eviction も reason 記録対象に追加
+- [x] Composition Frame Debug resource noteへGPU cacheのinvalidation count / last reasonを公開
+- [x] last reasonを数値ではなく共通の診断文字列へ変換
+- [ ] 上位 composition cache の state hash / persisted manifest 接続
 
 ### Phase 4: Disk Preview Frame Cache（部分実装）
 - ✅ asynchronous PNG persistence / RAM hydrate / generation-safe invalidation
 - ✅ active contract namespace の 512 MiB budget / oldest-frame eviction
 - ✅ namespace 横断 2 GiB budget / empty namespace cleanup
-- ❌ persisted manifest / restart contract bootstrap
+- ✅ namespace ごとの persisted manifest v1（frame / file / bytes / contract / stateHash）書き出し
+- ✅ restart 時に manifest の schema / namespace / contract / stateHash / file size を検証
+- ✅ 現行 composition の preview contract は disk hydrate 前の既存 render-readback 経路で解決
 ### Phase 5: Promotion Policy（未着手）
 ### Phase 6: Intermediate / Render Queue Integration（未着手）
 
@@ -255,3 +270,9 @@ struct CompositionFrameCacheState {
 - 2026-07-21: RAM preview hit rate を要求済み preview range 基準へ修正。
 - 2026-07-21: active disk namespace に 512 MiB budget と oldest-frame eviction を追加。
 - 2026-07-21: disk cache 全体に 2 GiB budget と empty namespace cleanup を追加。
+- 2026-07-22: disk namespace の PNG 状態を `manifest.json` schema v1 として writer 後に原子的に保存。
+- 2026-07-22: disk hit / hydrate 前に manifest の schema・namespace・composition・contract・file size を検証。未生成・破損・古い manifest は miss 扱い。
+- 2026-07-22: manifest のみ残った空 namespace も global budget cleanup で削除するよう修正。
+- 2026-07-22: `ArtifactAbstractComposition::toJson()` の hash を disk namespace に追加し、composition 切り替え時は active namespace を先に削除するよう修正。
+- 2026-07-22: composition state hash は active namespace 内で再利用し、invalidation 時だけ再計算するよう cache。frame path 反復時の JSON serialize を抑制。
+- 2026-07-22: `ArtifactFrameCache` の memory usage を増分カウンタ化し、LRU/LFU/Size eviction を lazy candidate heap 化。stale heap は閾値で再構築。

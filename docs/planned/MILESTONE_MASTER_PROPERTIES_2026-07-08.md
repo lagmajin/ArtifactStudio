@@ -1,6 +1,6 @@
 # Milestone: Master Properties / Essential Properties（プリコンプ外部プロパティ上書き） (2026-07-08)
 
-**ステータス:** In Progress
+**ステータス:** Phase 3 Completed (static verified 2026-07-22; runtime/build verification pending)
 
 ---
 
@@ -81,6 +81,10 @@
 - 先に exposed data model が固まっているため、親側の上書きは後からつなげられる
 
 ## 9. 2026-07-14 Current Progress
+
+- [x] Phase 2: parent-side instance override, render-time propagation, nested scope, and unprecompose materialization
+- [x] Phase 3: TemplateSlot / TemplateLock の既存テンプレート基盤と Master Properties 公開データの接続点を確認
+- [ ] runtime / build による最終確認
 
 - `ExposedPropertyRegistry`、precomp layer単位override、JSON round-tripは実装済み
 - Composition Settingsからfocused propertyを参照中の全parent precompへ公開・解除できる

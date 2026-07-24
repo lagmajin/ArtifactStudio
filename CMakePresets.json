@@ -31,6 +31,13 @@
             }
         },
         {
+            "name": "x64-Debug-Agent",
+            "displayName": "x64 Debug (isolated agent build)",
+            "inherits": "x64-Debug",
+            "binaryDir": "${sourceDir}/out/build/x64-Debug-Agent",
+            "installDir": "${sourceDir}/out/install/x64-Debug-Agent"
+        },
+        {
             "name": "x64-Release",
             "displayName": "x64 Release (MSVC v143)",
             "inherits": "x64-Debug",
@@ -81,6 +88,13 @@
                 "LIB": "C:/PROGRA~2/Intel/oneAPI/compiler/2025.3/lib;$penv{LIB}",
                 "INCLUDE": "C:/PROGRA~2/Intel/oneAPI/compiler/2025.3/include;$penv{INCLUDE}"
             }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "x64-Debug-Agent",
+            "configurePreset": "x64-Debug-Agent",
+            "jobs": 1
         }
     ]
 }

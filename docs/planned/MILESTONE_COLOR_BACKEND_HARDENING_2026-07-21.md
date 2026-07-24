@@ -1,6 +1,6 @@
 # MILESTONE_COLOR_BACKEND_HARDENING_2026-07-21
 
-**Status:** In Progress (P0 ✅ / P1 Partial / P2 ✅)
+**Status:** In Progress (P0 ✅ / P1 Partial+ / P2 ✅)
 **Goal:** カラーコレクションのバックエンドの未定義動作・データ競合・スタブを潰し、UI 層の前に土台を固める。
 
 ## 背景
@@ -25,6 +25,12 @@
 | 6 | ✅ P1 | Preset save/load スタブ | `Artifact/src/Color/ArtifactColorGradingEngine.cppm` | GradingEngine の preset JSON 保存/読み込み/list を実装 |
 | 7 | ✅ P2 | FloatColor ヒープアロケーション | `ArtifactCore/src/Color/FloatColor.cppm` + `.ixx` | pimpl → inline 4-float メンバに変更。全メソッドをヒープアロケーション不要の inline 実装に |
 | 8 | ✅ P2 | ColorPaletteManager 精度 | `Artifact/src/Color/ColorPaletteManager.cppm` | 現在のコードは既に `colorToJsonObject()` で float → JSON double の保存パスを使用。旧来の `HexArgb` は読み込み専用のレガシーパス。問題解消済み |
+
+### 2026-07-22 implementation update
+
+- [x] 現行 `CurvesEffect` のGPU LUT経路が任意RGBカーブを256点 textureへアップロードしていることを確認
+- [x] 未使用の別shader契約を追加せず、既存compute LUT経路へ一本化
+- [ ] runtime shader verification
 
 ## Non-goals
 

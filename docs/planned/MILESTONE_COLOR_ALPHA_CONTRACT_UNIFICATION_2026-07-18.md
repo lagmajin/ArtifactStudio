@@ -1,6 +1,15 @@
 # Milestone: Repository-Wide Color / Alpha Contract Unification
 
 **ステータス:** In Progress
+
+### 2026-07-22 static implementation audit
+
+- [x] `SurfaceColorDescriptor` に storage / transfer / range / alphaMode の契約が存在
+- [x] premultiplied → straight の明示変換を `convertSurfacePixels()` に集約
+- [x] GPU texture upload は `Rgba32LinearStraight` へ明示変換してから cache へ投入
+- [x] `ImageF32x4_RGBA::setFromCVMat(CV_32FC4)` がRGBA float storageを明示するよう修正
+- [ ] 残存する直接RGBA処理の全経路監査
+- [ ] runtime / pixel regression verification
 **日付:** 2026-07-18
 **対象:** `ArtifactStudio`, `Artifact`, `ArtifactCore`, `ArtifactRenderer`
 

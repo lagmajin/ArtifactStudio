@@ -1,5 +1,9 @@
 # MILESTONE: 汎用メタデータ収集基盤（Project Visitor / Collector）
 
+**ステータス:** Phase 1A Completed (static verified 2026-07-22; runtime/build verification pending)
+
+Phase 2 (Statistics Collector migration) and the Phase 3 asset/file integration slice are completed at source level.
+
 > 2026-07-09 作成
 
 ## 目的
@@ -105,6 +109,20 @@
 - `ProjectStats` の結果が従来と一致
 - 走査ロジックの重複が 1 つ減る
 
+**実装確認:**
+
+- [x] `ProjectStatsCollector` が `MetadataCollector` として comp / layer / effect を集計
+- [x] 既存 Statistics の収集経路が `ProjectVisitor` / `MetadataCollectorDriver` を使用
+- [x] 既存の font / value collector と同一走査で併行実行
+- [ ] runtime / build による出力一致確認
+
+### Phase 3 実装確認
+
+- [x] `ArtifactProjectCleanupTool` が共通 metadata traversal を利用
+- [x] serialized `sourcePath` / `filePath` の収集経路を共通走査へ寄せている
+- [x] Packager / usedAssets の統合対象となる共通ノード契約を確認
+- [ ] runtime / build による既存出力一致確認
+
 ### Phase 3: Asset / File 収集を Collector 化
 
 Packager / usedAssets / CleanupTool の収集を統合する。
@@ -190,16 +208,24 @@ Packager / usedAssets / CleanupTool の収集を統合する。
 
 ---
 
-## Next Execution Slice
+## Phase 1A Execution Result
 
-Phase 1 から入る。まずは走査順と Collector フックの契約を固める。
+Phase 1A の走査順・Collector フック・複数 Collector driver は実装済み。
 
-### Phase 1A の着手点
+### Phase 1A の実装点
 
 1. project → composition → layer → effect → property の走査順を確定する
 2. `Collector` のフック（onComposition / onLayer / onEffect / onProperty）を定義する
 3. layer の型付き API と JSON（sourcePath/filePath）の両アクセスをどう抽象するか決める
 4. 1 走査で複数 Collector を回す driver の最小形を作る
+
+### Phase 1A 実装確認
+
+- [x] `ProjectVisitor` に project / composition / layer / effect / property の走査ノード契約を追加済み
+- [x] `MetadataCollector` の型別 hook と reset / report 契約を追加済み
+- [x] 複数 Collector を同一走査で実行する `MetadataCollectorDriver` を追加済み
+- [x] `ArtifactProjectStatistics` の既存統計・値・font collector を新しい走査経路へ接続済み
+- [ ] runtime / build による最終確認
 
 ### Phase 1 完了条件
 

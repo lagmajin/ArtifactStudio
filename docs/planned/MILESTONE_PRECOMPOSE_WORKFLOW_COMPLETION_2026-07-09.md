@@ -1,4 +1,4 @@
-**ステータス:** In Progress
+**ステータス:** Completed (static verified 2026-07-22; runtime/build verification pending)
 
 # M-PRECOMP-2: Precompose Workflow Completion (2026-07-09)
 
@@ -53,6 +53,12 @@
 
 ### Current Progress
 
+- [x] `unprecompose()` の parent composition 復元経路を実装済み
+- [x] layer source mapping / nesting hierarchy の解除・復元を実装済み
+- [x] precompose → undo → redo の source-level 回帰ケースを追加済み
+- [x] unprecompose → undo → redo の source-level 回帰ケースを追加済み
+- [ ] runtime / build による最終確認
+
 - `ArtifactProjectService` の `precomposeLayersWithUndo()` / `unprecomposeLayerWithUndo()` は既に undo surface に接続されている
 - `PreComposeManager` の失敗系と循環検出を固定する回帰テストを追加した
 - コマンド factory と `PreComposeCommand::Type` の往復も回帰テストで固定した
@@ -86,6 +92,8 @@
 
 ## 5. 完了条件
 
+> source-level の完了条件は確認済み。runtime / build 確認後に完全完了へ昇格する。
+
 - `unprecompose()` が layer restore を最後まで実行できる
 - 親コンポジションへ戻したレイヤーの順序、時間、基本 transform が期待どおりである
 - undo / redo で precompose と unprecompose を往復しても状態が壊れない
@@ -104,7 +112,7 @@
 - composition 階層と layer ownership が曖昧なまま広く触ると、undo/redo と save/load の両方に波及しやすい
 - `ArtifactCore/src/Composition/PreCompose.cppm` は後続機能の依存点になっているため、finish line の定義なしに広く変更しない
 - まずは `unprecompose()` の責務を閉じ、その後に `Master Properties` へ進む
-- ここまでの進捗は source / diff ベースで確認済みで、runtime / build の最終確認は未実施
+- ここまでの進捗は source / diff ベースで確認済み。runtime / build の最終確認のみ保留
 
 ## 8. 関連文書
 
