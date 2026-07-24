@@ -61,6 +61,7 @@
 - `ArtifactAbstractLayer::opacity()` が現在フレームの Animation Layer Stack を Additive / Override 評価へ通す実評価経路を追加。
 - 既存 Property Editor のレイヤーグループに各 Anim Layer の Weight / Mute / Solo / Blend Mode を公開し、編集値を Stack へ反映。
 - レイヤーコンテキストメニューから Anim Layer の追加／末尾削除を行える導線を追加。
+- Anim Layer の追加／削除を `Change Animation Layers` の一括 Undo コマンドへ統合。
 
 ### 2.1 既存資産
 
