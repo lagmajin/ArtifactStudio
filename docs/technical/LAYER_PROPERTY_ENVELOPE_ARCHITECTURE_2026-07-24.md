@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-07-24
-**Related:** `docs/planned/MILESTONE_LAYER_EFFECT_ENVELOPE_2026-06-19.md`, `docs/planned/MILESTONE_QUICK_LAYER_CREATION_DIALOG_2026-07-10.md`
+**Related:** `docs/planned/MILESTONE_LAYER_EFFECT_ENVELOPE_2026-06-19.md`, `docs/done/MILESTONE_QUICK_LAYER_CREATION_DIALOG_2026-07-10.md`
 
 ## Decision
 

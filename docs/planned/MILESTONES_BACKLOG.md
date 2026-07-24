@@ -18,7 +18,7 @@
   - 素材・平面・簡単なマスク・入退場 Envelope を一回の確定で作成する新規ダイアログ
   - 透明度とエフェクト強度の同時 / 先行 / 遅延プリセットを提供する
   - 既存の `CreateSolidLayerSettingDialog` は維持し、作成オーケストレーターだけを新設する
-  - 詳細: `docs/planned/MILESTONE_QUICK_LAYER_CREATION_DIALOG_2026-07-10.md`
+  - 詳細: `docs/done/MILESTONE_QUICK_LAYER_CREATION_DIALOG_2026-07-10.md`
 
 - **M-PRECOMP-2** Precompose Workflow Completion
   - `PreCompose` の「呼べる」状態から、`unprecompose()` を含む実務 finish line まで閉じる

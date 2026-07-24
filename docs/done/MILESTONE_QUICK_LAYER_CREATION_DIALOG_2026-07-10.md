@@ -1,7 +1,7 @@
 # Quick Layer Creation Dialog
 
 **作成日:** 2026-07-10  
-**ステータス:** In Progress（MVP の既存実装を静的確認中）  
+**ステータス:** ✅ Complete（MVP source/static verified 2026-07-25; runtime/build verification pending）  
 **対象:** 素材・平面レイヤーの短時間作成、マスク同時生成、Layer Effect Envelope 適用
 
 ## 概要
@@ -125,7 +125,8 @@
 - 平面 / 画像の種別選択と既存 `ArtifactImageInitParams` 経由の画像ファイル選択を追加。
 - `QuickLayerCreationOptions` に配置モードを正式に追加し、ダイアログ選択値を作成処理へ接続。
 - Composition Start / Before Selected / After Selected の配置を Undo マクロ内の既存レイヤー移動コマンドで適用。
-- 画像素材選択、角丸 / 全体マスク、追加プリセット、ビルド・ランタイム確認は未完了。
+- 角丸 / 全体マスク、追加プリセットは Phase 2 として継続。
+- ビルド・ランタイム確認は未実施。
 - 自由形状の本格的な Roto 編集
 
 ## 完了条件

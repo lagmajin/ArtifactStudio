@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-24 22:48
+> Generated: 2026-07-25 00:12
 > Total documents: 1107
 
 ---
@@ -186,7 +186,7 @@
 | 15 | `docs/analysis/REPORT_ARTIFACT_PR_IMPLEMENTABILITY_2026-06-16.md` | ArtifactPr 実装可能性レポート — 2026-06-16 | 2026-06-16 | --- | 2026-06-18 | 16.3 KB | ARTIFACT, IMPLEMENTABILITY |
 | 16 | `docs/analysis/REPORT_ARTIFACT_PR_NLE_2026-06-16.md` | ArtifactPr (Premiere-like NLE) 機能ギャップレポート — 2026-06-16 | 2026-06-16 | --- | 2026-06-18 | 10.2 KB | ARTIFACT, NLE |
 | 17 | `docs/analysis/REPORT_CE_RENDER_ROI_2026-06-16.md` | CompositionEditor / 低レベル Render / ROI 適合調査 — 2026-06-16 | 2026-06-16 | --- | 2026-06-20 | 10.3 KB | RENDER, ROI |
-| 18 | `docs/analysis/REPORT_CROSS_APP_FEATURE_OPPORTUNITIES_2026-07-04.md` | 他アプリ横断 Artifact 機能機会レポート — 2026-07-04 | 2026-07-04 | --- | 2026-07-09 | 19.6 KB | CROSS, APP, FEATURE, OPPORTUNITIES |
+| 18 | `docs/analysis/REPORT_CROSS_APP_FEATURE_OPPORTUNITIES_2026-07-04.md` | 他アプリ横断 Artifact 機能機会レポート — 2026-07-04 | 2026-07-04 | --- | 2026-07-24 | 19.6 KB | CROSS, APP, FEATURE, OPPORTUNITIES |
 | 19 | `docs/analysis/REPORT_JS_ANIMATION_EXPORT_2026-06-16.md` | JS アニメーション出力 実現可能性レポート — 2026-06-16 | 2026-06-16 | --- | 2026-06-18 | 14.7 KB | ANIMATION, EXPORT |
 | 20 | `docs/analysis/REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md` | Late-Stage & DCC Gap レポート — 2026-06-16 | 2026-06-16 | --- | 2026-07-07 | 15.6 KB | LATE, STAGE, AND, DCC, GAP |
 | 21 | `docs/analysis/WIDGET_GAP_ANALYSIS_2026-06-03.md` | 各ウィジェット 不足機能分析 — 2026-06-03 | 2026-06-03 | --- | 2026-06-04 | 9.0 KB | WIDGET, GAP, ANALYSIS |
@@ -315,7 +315,7 @@
 | 3 | `docs/design/project_asset_view_mockups_2026-07-12/README.md` | Project View / Asset Browser Design References | --- | --- | 2026-07-12 | 0.7 KB | README |
 | 4 | `docs/design/render-manager/README.md` | Render Manager redesign | 2026-07-11 | In Progress | 2026-07-12 | 2.4 KB | README |
 
-## done (97 files)
+## done (98 files)
 
 | # | File | Title | Date | Status | Modified | Size | Keywords |
 |---|------|-------|------|--------|----------|------|----------|
@@ -330,7 +330,7 @@
 | 9 | `docs/done/LAYER_PANEL_DRAG_IMPROVEMENTS.md` | レイヤーパネル ドラッグ&ドロップ改善 | --- | --- | 2026-03-20 | 3.2 KB | LAYER, PANEL, DRAG, IMPROVEMENTS |
 | 10 | `docs/done/M_TL_COMPLETION_REPORT.md` | M-TL シリーズ完了レポート | 2026-03-20 | --- | 2026-03-20 | 3.2 KB | COMPLETION, REPORT |
 | 11 | `docs/done/MILESTONE_2026-07-03_SESSION_COMPLETION.md` | 2026-07-03 セッション完了レポート | 2026-07-03 | --- | 2026-07-05 | 1.5 KB | SESSION, COMPLETION |
-| 12 | `docs/done/MILESTONE_2D_SHAPE_MODELING_EDITING_2026-06-29.md` | MILESTONE: 2D Shape Modeling Editing | 2026-06-29 | ✅ Complete (source/static verified 2026-07-24; runtime/build verification pending) | --- | 12.4 KB | SHAPE, MODELING, EDITING |
+| 12 | `docs/done/MILESTONE_2D_SHAPE_MODELING_EDITING_2026-06-29.md` | MILESTONE: 2D Shape Modeling Editing | 2026-06-29 | ✅ Complete (source/static verified 2026-07-24; runtime/build verification pending) | 2026-07-24 | 12.4 KB | SHAPE, MODELING, EDITING |
 | 13 | `docs/done/MILESTONE_ACCESSIBILITY_AND_LEFT_HANDED_UI_2026-06-28.md` | Accessibility and Left-Handed UI Support | 2026-06-28 | --- | 2026-07-07 | 0.9 KB | ACCESSIBILITY, AND, LEFT, HANDED |
 | 14 | `docs/done/MILESTONE_ADVANCED_COLOR_SCIENCE_PIPELINE_2026-03-29.md` | Milestone: Advanced Color Science Pipeline (2026-03-29) | 2026-03-29 | --- | 2026-07-09 | 7.3 KB | ADVANCED, COLOR, SCIENCE, PIPELINE |
 | 15 | `docs/done/MILESTONE_AI_COMMAND_SANDBOX_2026-04-14.md` | AI Command Sandbox | 2026-04-14 | --- | 2026-07-07 | 0.5 KB | COMMAND, SANDBOX |
@@ -375,7 +375,7 @@
 | 54 | `docs/done/MILESTONE_PARENT_PICK_WHIP_2026-07-03.md` | M-LA-4 Parent Pick-Whip Milestone | 2026-07-03 | --- | 2026-07-05 | 5.6 KB | PARENT, PICK, WHIP |
 | 55 | `docs/done/MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md` | Playback State Contract and Transport Cohesion | 2026-05-31 | --- | 2026-07-07 | 0.8 KB | PLAYBACK, STATE, CONTRACT, AND, TRANSPORT |
 | 56 | `docs/done/MILESTONE_PLAYHEAD.md` | マイルストーン: プレイヘッド整備 | 2026-03-21 | --- | 2026-06-24 | 4.2 KB | PLAYHEAD |
-| 57 | `docs/done/MILESTONE_PRECOMPOSE_WORKFLOW_COMPLETION_2026-07-09.md` | M-PRECOMP-2: Precompose Workflow Completion (2026-07-09) | 2026-07-24 | ✅ Complete (source/static verified 2026-07-24; runtime/build verification pending) | --- | 7.9 KB | PRECOMPOSE, WORKFLOW, COMPLETION |
+| 57 | `docs/done/MILESTONE_PRECOMPOSE_WORKFLOW_COMPLETION_2026-07-09.md` | M-PRECOMP-2: Precompose Workflow Completion (2026-07-09) | 2026-07-24 | ✅ Complete (source/static verified 2026-07-24; runtime/build verification pending) | 2026-07-24 | 7.9 KB | PRECOMPOSE, WORKFLOW, COMPLETION |
 | 58 | `docs/done/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md` | Project Health / Problem View - Phase 1 Execution | 2026-05-12 | --- | 2026-06-20 | 2.7 KB | PROJECT, HEALTH, PROBLEM, VIEW, PHASE1 |
 | 59 | `docs/done/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE2_2026-05-25.md` | マイルストーン: Project Health Problem View Phase 2 | 2026-05-25 | 完了 | 2026-06-20 | 2.4 KB | PROJECT, HEALTH, PROBLEM, VIEW, PHASE2 |
 | 60 | `docs/done/MILESTONE_PROJECT_MEMO_PANEL_2026-06-25.md` | Project Memo Panel Completion Note (2026-06-25) | 2026-06-25 | --- | 2026-06-25 | 0.7 KB | PROJECT, MEMO, PANEL |
@@ -385,37 +385,38 @@
 | 64 | `docs/done/MILESTONE_PROJECT_VIEW_SCROLL_STABILITY_2026-06-07.md` | Project View Scroll Stability Milestone | 2026-06-07 | 計画中 | 2026-06-09 | 3.8 KB | PROJECT, VIEW, SCROLL, STABILITY |
 | 65 | `docs/done/MILESTONE_PROJECT_VIEW_TILE_MODE_2026-06-05.md` | Project View Tile Mode | 2026-06-05 | --- | 2026-07-07 | 0.7 KB | PROJECT, VIEW, TILE, MODE |
 | 66 | `docs/done/MILESTONE_PROPERTY_WIDGET_ROW_ALIGNMENT_INSPECTOR_LAYOUT_2026-04-03.md` | Property Widget Row Alignment / Inspector Layout | 2026-04-14 | --- | 2026-07-07 | 0.8 KB | PROPERTY, WIDGET, ROW, ALIGNMENT, INSPECTOR |
-| 67 | `docs/done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md` | Render Preflight / Output Safety Check | 2026-06-02 | --- | 2026-07-09 | 1.4 KB | RENDER, PREFLIGHT |
-| 68 | `docs/done/MILESTONE_RENDER_PREFLIGHT_PHASE1_EXECUTION_2026-06-02.md` | Render Preflight / Output Safety Check - Phase 1 Execution | 2026-06-02 | --- | 2026-07-09 | 2.8 KB | RENDER, PREFLIGHT, PHASE1, EXECUTION |
-| 69 | `docs/done/MILESTONE_RENDER_QUEUE_2026-03-22.md` | Render Queue | 2026-03-22 | --- | 2026-07-07 | 0.6 KB | RENDER, QUEUE |
-| 70 | `docs/done/MILESTONE_SCRUB_PREVIEW_TOOL_2026-06-18.md` | マイルストーン: Scrub Preview Tool | 2026-06-18 | --- | 2026-06-25 | 2.0 KB | SCRUB, PREVIEW, TOOL |
-| 71 | `docs/done/MILESTONE_SHAPE_LAYER_ENHANCEMENT_2026-04-28.md` | MILESTONE: Shape Layer Enhancement | 2026-04-28 | --- | 2026-06-25 | 2.0 KB | SHAPE, LAYER, ENHANCEMENT |
-| 72 | `docs/done/MILESTONE_SOLID_COLOR_EFFECTS_2026-06-27.md` | Solid Color Effects Completion Note (2026-06-27) | 2026-06-27 | --- | 2026-06-27 | 0.8 KB | SOLID, COLOR, EFFECTS |
-| 73 | `docs/done/MILESTONE_SOURCE_ABSTRACTION_CORE_2026-03-25_DONE.md` | Core Source Abstraction Completion Note (2026-06-25) | 2026-06-25 | --- | 2026-07-09 | 0.7 KB | SOURCE, ABSTRACTION, CORE, DONE |
-| 74 | `docs/done/MILESTONE_TEXT_ANIMATOR_INTEGRATION_2026-04-27.md` | MILESTONE: Text Animator (ArtifactCore) → Application Layer Integration | 2026-04-27 | --- | 2026-06-26 | 4.7 KB | TEXT, ANIMATOR, INTEGRATION |
-| 75 | `docs/done/MILESTONE_TEXT_EFFECT_WORKFLOW_BRIDGE_2026-05-25.md` | マイルストーン: Text / Effect Workflow Bridge | 2026-05-25 | 完了 | 2026-06-20 | 2.4 KB | TEXT, EFFECT, WORKFLOW, BRIDGE |
-| 76 | `docs/done/MILESTONE_TEXT_LAYER_INLINE_EDIT_PHASE1_2026-06-25.md` | Text Layer Inline Editing Phase 1 Completion Note (2026-06-25) | 2026-06-25 | --- | 2026-06-25 | 0.8 KB | TEXT, LAYER, INLINE, EDIT, PHASE1 |
-| 77 | `docs/done/MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md` | Timeline Audio Waveform Display | 2026-06-01 | --- | 2026-06-20 | 0.9 KB | TIMELINE, AUDIO, WAVEFORM |
-| 78 | `docs/done/MILESTONE_TIMELINE_INLINE_FCURVE_EDITING_2026-07-06.md` | Timeline Inline F-Curve Editing | 2026-07-06 | --- | 2026-07-07 | 0.9 KB | TIMELINE, INLINE, FCURVE, EDITING |
-| 79 | `docs/done/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md` | Timeline Keyframe Editing Milestone | 2026-04-03 | --- | 2026-06-20 | 12.4 KB | TIMELINE, KEYFRAME, EDITING |
-| 80 | `docs/done/MILESTONE_TIMELINE_KEYFRAME_EDITING_PHASE1_EXECUTION_2026-05-12.md` | Timeline Keyframe Editing - Phase 1 Execution | 2026-05-12 | --- | 2026-06-20 | 2.5 KB | TIMELINE, KEYFRAME, EDITING, PHASE1, EXECUTION |
-| 81 | `docs/done/MILESTONE_TIMELINE_OVERSCROLL_TOGGLE_WORKNOTE_2026-06-02.md` | Milestone: Timeline Overscroll Toggle Worknote | 2026-06-02 | --- | 2026-06-25 | 0.6 KB | TIMELINE, OVERSCROLL, TOGGLE, WORKNOTE |
-| 82 | `docs/done/MILESTONE_TIMELINE_PROPORTIONAL_KEYFRAME_EDITING_2026-07-06.md` | Timeline Proportional Keyframe Editing | 2026-07-06 | --- | 2026-07-07 | 0.7 KB | TIMELINE, PROPORTIONAL, KEYFRAME, EDITING |
-| 83 | `docs/done/MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md` | Timeline Right Pane Keyframe Edit Refinement | 2026-05-23 | --- | 2026-07-09 | 9.5 KB | TIMELINE, RIGHT, PANE, KEYFRAME, EDIT |
-| 84 | `docs/done/MILESTONE_TIMELINE_RIPPLE_EDIT_PHASE1_EXECUTION_2026-06-04.md` | Timeline Ripple Edit - Phase 1 Execution | 2026-06-04 | --- | 2026-06-25 | 5.4 KB | TIMELINE, RIPPLE, EDIT, PHASE1, EXECUTION |
-| 85 | `docs/done/MILESTONE_TIMELINE_SEARCH_KEYFRAME_INTEGRATION_2026-03-28.md` | Timeline Search / Keyframe Integration Milestone | 2026-03-28 | --- | 2026-07-09 | 5.4 KB | TIMELINE, SEARCH, KEYFRAME, INTEGRATION |
-| 86 | `docs/done/MILESTONE_TIMELINE_SELECTION_SETS_2026-06-22.md` | MILESTONE: Timeline Selection Sets | 2026-06-22 | --- | 2026-07-10 | 0.8 KB | TIMELINE, SELECTION, SETS |
-| 87 | `docs/done/MILESTONE_UI_LAYOUT_UNDO_HISTORY_2026-06-07.md` | UI Layout Undo History | 2026-07-07 | --- | 2026-07-07 | 0.9 KB | LAYOUT, UNDO, HISTORY |
-| 88 | `docs/done/MILESTONE_UI_THEME_SYSTEM_2026-03-30.md` | UI Theme System / Studio Skin Milestone (2026-03-30) | 2026-03-30 | --- | 2026-06-27 | 4.3 KB | THEME, SYSTEM |
-| 89 | `docs/done/MILESTONE_VIDEO_LAYER_PLAYBACK_STABILITY_2026-06-25.md` | VideoLayer Playback Stability Completion Note (2026-06-25) | 2026-06-25 | --- | 2026-06-25 | 0.9 KB | VIDEO, LAYER, PLAYBACK, STABILITY |
-| 90 | `docs/done/MILESTONE_VISUAL_DENSITY_MONITOR_2026-06-03.md` | MILESTONE: Visual Density Monitor | 2026-06-03 | --- | 2026-07-09 | 4.2 KB | VISUAL, DENSITY, MONITOR |
-| 91 | `docs/done/MILESTONE_VISUAL_DENSITY_MONITOR_PHASE1_EXECUTION_2026-06-03.md` | Visual Density Monitor - Phase 1 Execution | 2026-06-03 | --- | 2026-06-20 | 2.7 KB | VISUAL, DENSITY, MONITOR, PHASE1, EXECUTION |
-| 92 | `docs/done/MULTITHREADED_PLAYBACK_ENGINE.md` | マルチスレッド再生エンジン実装レポート | --- | --- | 2026-03-20 | 8.1 KB | MULTITHREADED, PLAYBACK, ENGINE |
-| 93 | `docs/done/PLAYBACK_CONTROL_WIDGET_REFACTOR.md` | 再生コントロールウィジェット リファクタリングレポート | --- | --- | 2026-03-20 | 9.2 KB | PLAYBACK, CONTROL, WIDGET, REFACTOR |
-| 94 | `docs/done/PLAYHEAD_INVESTIGATION_2026-03-20.md` | プレイヘッド実装調査レポート | 2026-03-20 | --- | 2026-03-20 | 16.7 KB | PLAYHEAD, INVESTIGATION |
-| 95 | `docs/done/REPO_WIDE_LAYER_LIFECYCLE_AUDIT_2026-06-11.md` | Repository Audit: Layer Lifecycle | 2026-07-12 | Complete (static verification) | 2026-07-12 | 2.1 KB | REPO, WIDE, LAYER, LIFECYCLE, AUDIT |
-| 96 | `docs/done/REPO_WIDE_SAVELOAD_AUDIT_2026-06-11.md` | Repository Audit: Save and Load | 2026-07-12 | Complete (static verification) | 2026-07-12 | 1.9 KB | REPO, WIDE, SAVELOAD, AUDIT |
-| 97 | `docs/done/SESSION_WORK_2026-03-21.md` | セッション作業レポート | 2026-03-21 | --- | 2026-03-22 | 7.6 KB | SESSION, WORK |
+| 67 | `docs/done/MILESTONE_QUICK_LAYER_CREATION_DIALOG_2026-07-10.md` | Quick Layer Creation Dialog | 2026-07-10 | ✅ Complete（MVP source/static verified 2026-07-25; runtime/build verification pending） | --- | 4.9 KB | QUICK, LAYER, CREATION, DIALOG |
+| 68 | `docs/done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md` | Render Preflight / Output Safety Check | 2026-06-02 | --- | 2026-07-09 | 1.4 KB | RENDER, PREFLIGHT |
+| 69 | `docs/done/MILESTONE_RENDER_PREFLIGHT_PHASE1_EXECUTION_2026-06-02.md` | Render Preflight / Output Safety Check - Phase 1 Execution | 2026-06-02 | --- | 2026-07-09 | 2.8 KB | RENDER, PREFLIGHT, PHASE1, EXECUTION |
+| 70 | `docs/done/MILESTONE_RENDER_QUEUE_2026-03-22.md` | Render Queue | 2026-03-22 | --- | 2026-07-07 | 0.6 KB | RENDER, QUEUE |
+| 71 | `docs/done/MILESTONE_SCRUB_PREVIEW_TOOL_2026-06-18.md` | マイルストーン: Scrub Preview Tool | 2026-06-18 | --- | 2026-06-25 | 2.0 KB | SCRUB, PREVIEW, TOOL |
+| 72 | `docs/done/MILESTONE_SHAPE_LAYER_ENHANCEMENT_2026-04-28.md` | MILESTONE: Shape Layer Enhancement | 2026-04-28 | --- | 2026-06-25 | 2.0 KB | SHAPE, LAYER, ENHANCEMENT |
+| 73 | `docs/done/MILESTONE_SOLID_COLOR_EFFECTS_2026-06-27.md` | Solid Color Effects Completion Note (2026-06-27) | 2026-06-27 | --- | 2026-06-27 | 0.8 KB | SOLID, COLOR, EFFECTS |
+| 74 | `docs/done/MILESTONE_SOURCE_ABSTRACTION_CORE_2026-03-25_DONE.md` | Core Source Abstraction Completion Note (2026-06-25) | 2026-06-25 | --- | 2026-07-09 | 0.7 KB | SOURCE, ABSTRACTION, CORE, DONE |
+| 75 | `docs/done/MILESTONE_TEXT_ANIMATOR_INTEGRATION_2026-04-27.md` | MILESTONE: Text Animator (ArtifactCore) → Application Layer Integration | 2026-04-27 | --- | 2026-06-26 | 4.7 KB | TEXT, ANIMATOR, INTEGRATION |
+| 76 | `docs/done/MILESTONE_TEXT_EFFECT_WORKFLOW_BRIDGE_2026-05-25.md` | マイルストーン: Text / Effect Workflow Bridge | 2026-05-25 | 完了 | 2026-06-20 | 2.4 KB | TEXT, EFFECT, WORKFLOW, BRIDGE |
+| 77 | `docs/done/MILESTONE_TEXT_LAYER_INLINE_EDIT_PHASE1_2026-06-25.md` | Text Layer Inline Editing Phase 1 Completion Note (2026-06-25) | 2026-06-25 | --- | 2026-06-25 | 0.8 KB | TEXT, LAYER, INLINE, EDIT, PHASE1 |
+| 78 | `docs/done/MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md` | Timeline Audio Waveform Display | 2026-06-01 | --- | 2026-06-20 | 0.9 KB | TIMELINE, AUDIO, WAVEFORM |
+| 79 | `docs/done/MILESTONE_TIMELINE_INLINE_FCURVE_EDITING_2026-07-06.md` | Timeline Inline F-Curve Editing | 2026-07-06 | --- | 2026-07-07 | 0.9 KB | TIMELINE, INLINE, FCURVE, EDITING |
+| 80 | `docs/done/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md` | Timeline Keyframe Editing Milestone | 2026-04-03 | --- | 2026-06-20 | 12.4 KB | TIMELINE, KEYFRAME, EDITING |
+| 81 | `docs/done/MILESTONE_TIMELINE_KEYFRAME_EDITING_PHASE1_EXECUTION_2026-05-12.md` | Timeline Keyframe Editing - Phase 1 Execution | 2026-05-12 | --- | 2026-06-20 | 2.5 KB | TIMELINE, KEYFRAME, EDITING, PHASE1, EXECUTION |
+| 82 | `docs/done/MILESTONE_TIMELINE_OVERSCROLL_TOGGLE_WORKNOTE_2026-06-02.md` | Milestone: Timeline Overscroll Toggle Worknote | 2026-06-02 | --- | 2026-06-25 | 0.6 KB | TIMELINE, OVERSCROLL, TOGGLE, WORKNOTE |
+| 83 | `docs/done/MILESTONE_TIMELINE_PROPORTIONAL_KEYFRAME_EDITING_2026-07-06.md` | Timeline Proportional Keyframe Editing | 2026-07-06 | --- | 2026-07-07 | 0.7 KB | TIMELINE, PROPORTIONAL, KEYFRAME, EDITING |
+| 84 | `docs/done/MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md` | Timeline Right Pane Keyframe Edit Refinement | 2026-05-23 | --- | 2026-07-09 | 9.5 KB | TIMELINE, RIGHT, PANE, KEYFRAME, EDIT |
+| 85 | `docs/done/MILESTONE_TIMELINE_RIPPLE_EDIT_PHASE1_EXECUTION_2026-06-04.md` | Timeline Ripple Edit - Phase 1 Execution | 2026-06-04 | --- | 2026-06-25 | 5.4 KB | TIMELINE, RIPPLE, EDIT, PHASE1, EXECUTION |
+| 86 | `docs/done/MILESTONE_TIMELINE_SEARCH_KEYFRAME_INTEGRATION_2026-03-28.md` | Timeline Search / Keyframe Integration Milestone | 2026-03-28 | --- | 2026-07-09 | 5.4 KB | TIMELINE, SEARCH, KEYFRAME, INTEGRATION |
+| 87 | `docs/done/MILESTONE_TIMELINE_SELECTION_SETS_2026-06-22.md` | MILESTONE: Timeline Selection Sets | 2026-06-22 | --- | 2026-07-10 | 0.8 KB | TIMELINE, SELECTION, SETS |
+| 88 | `docs/done/MILESTONE_UI_LAYOUT_UNDO_HISTORY_2026-06-07.md` | UI Layout Undo History | 2026-07-07 | --- | 2026-07-07 | 0.9 KB | LAYOUT, UNDO, HISTORY |
+| 89 | `docs/done/MILESTONE_UI_THEME_SYSTEM_2026-03-30.md` | UI Theme System / Studio Skin Milestone (2026-03-30) | 2026-03-30 | --- | 2026-06-27 | 4.3 KB | THEME, SYSTEM |
+| 90 | `docs/done/MILESTONE_VIDEO_LAYER_PLAYBACK_STABILITY_2026-06-25.md` | VideoLayer Playback Stability Completion Note (2026-06-25) | 2026-06-25 | --- | 2026-06-25 | 0.9 KB | VIDEO, LAYER, PLAYBACK, STABILITY |
+| 91 | `docs/done/MILESTONE_VISUAL_DENSITY_MONITOR_2026-06-03.md` | MILESTONE: Visual Density Monitor | 2026-06-03 | --- | 2026-07-09 | 4.2 KB | VISUAL, DENSITY, MONITOR |
+| 92 | `docs/done/MILESTONE_VISUAL_DENSITY_MONITOR_PHASE1_EXECUTION_2026-06-03.md` | Visual Density Monitor - Phase 1 Execution | 2026-06-03 | --- | 2026-06-20 | 2.7 KB | VISUAL, DENSITY, MONITOR, PHASE1, EXECUTION |
+| 93 | `docs/done/MULTITHREADED_PLAYBACK_ENGINE.md` | マルチスレッド再生エンジン実装レポート | --- | --- | 2026-03-20 | 8.1 KB | MULTITHREADED, PLAYBACK, ENGINE |
+| 94 | `docs/done/PLAYBACK_CONTROL_WIDGET_REFACTOR.md` | 再生コントロールウィジェット リファクタリングレポート | --- | --- | 2026-03-20 | 9.2 KB | PLAYBACK, CONTROL, WIDGET, REFACTOR |
+| 95 | `docs/done/PLAYHEAD_INVESTIGATION_2026-03-20.md` | プレイヘッド実装調査レポート | 2026-03-20 | --- | 2026-03-20 | 16.7 KB | PLAYHEAD, INVESTIGATION |
+| 96 | `docs/done/REPO_WIDE_LAYER_LIFECYCLE_AUDIT_2026-06-11.md` | Repository Audit: Layer Lifecycle | 2026-07-12 | Complete (static verification) | 2026-07-12 | 2.1 KB | REPO, WIDE, LAYER, LIFECYCLE, AUDIT |
+| 97 | `docs/done/REPO_WIDE_SAVELOAD_AUDIT_2026-06-11.md` | Repository Audit: Save and Load | 2026-07-12 | Complete (static verification) | 2026-07-12 | 1.9 KB | REPO, WIDE, SAVELOAD, AUDIT |
+| 98 | `docs/done/SESSION_WORK_2026-03-21.md` | セッション作業レポート | 2026-03-21 | --- | 2026-03-22 | 7.6 KB | SESSION, WORK |
 
 ## drafts (2 files)
 
@@ -442,7 +443,7 @@
 | 2 | `docs/perf/PERF_GAP_ANALYSIS_2026-06-04.md` | ArtifactStudio 性能ギャップ分析レポート (2026-06-04) | 2026-06-04 | --- | 2026-06-04 | 8.3 KB | PERF, GAP, ANALYSIS |
 | 3 | `docs/perf/STRUCTURAL_PERF_ISSUES_2026-04-25.md` | 構造的パフォーマンス課題レポート (2026-04-25) | 2026-04-25 | --- | 2026-04-28 | 7.0 KB | STRUCTURAL, PERF, ISSUES |
 
-## planned (587 files)
+## planned (586 files)
 
 | # | File | Title | Date | Status | Modified | Size | Keywords |
 |---|------|-------|------|--------|----------|------|----------|
@@ -698,8 +699,8 @@
 | 250 | `docs/planned/MILESTONE_FFMPEG_81_PRORES_GPU_DECODE_LOW_LEVEL_AI_2026-05-23.md` | FFmpeg 8.1+ ProRes GPU Decode - Low Level AI Implementation Milestone | 2026-05-23 | --- | 2026-05-28 | 8.0 KB | FFMPEG, PRORES, GPU, DECODE |
 | 251 | `docs/planned/MILESTONE_FFMPEG_GPU_DECODE_BACKEND_2026-03-28.md` | FFmpeg GPU Decode Backend Milestone (2026-03-28) | 2026-03-28 | --- | 2026-03-29 | 3.5 KB | FFMPEG, GPU, DECODE, BACKEND |
 | 252 | `docs/planned/MILESTONE_FFMPEG_GPU_ENCODE_BACKEND_2026-04-03.md` | FFmpeg GPU Encode Backend Milestone (2026-04-03) | 2026-04-03 | --- | 2026-04-03 | 4.9 KB | FFMPEG, GPU, ENCODE, BACKEND |
-| 253 | `docs/planned/MILESTONE_FIGMA_AUTO_LAYOUT_2026-07-07.md` | M-FIGMA-1 Auto Layout + Constraints System Milestone | 2026-07-07 | --- | 2026-07-07 | 4.9 KB | FIGMA, AUTO, LAYOUT |
-| 254 | `docs/planned/MILESTONE_FIGMA_BOOLEAN_FILL_STROKE_2026-07-07.md` | M-FIGMA-3 Boolean Path Operations + Advanced Fill/Stroke Milestone | 2026-07-07 | --- | 2026-07-07 | 5.5 KB | FIGMA, BOOLEAN, FILL, STROKE |
+| 253 | `docs/planned/MILESTONE_FIGMA_AUTO_LAYOUT_2026-07-07.md` | M-FIGMA-1 Auto Layout + Constraints System Milestone | 2026-07-07 | --- | 2026-07-24 | 4.9 KB | FIGMA, AUTO, LAYOUT |
+| 254 | `docs/planned/MILESTONE_FIGMA_BOOLEAN_FILL_STROKE_2026-07-07.md` | M-FIGMA-3 Boolean Path Operations + Advanced Fill/Stroke Milestone | 2026-07-07 | --- | 2026-07-24 | 5.5 KB | FIGMA, BOOLEAN, FILL, STROKE |
 | 255 | `docs/planned/MILESTONE_FIGMA_COMPONENT_INSTANCE_2026-07-07.md` | M-FIGMA-2 Component / Instance System Milestone | 2026-07-07 | --- | 2026-07-07 | 5.8 KB | FIGMA, COMPONENT, INSTANCE |
 | 256 | `docs/planned/MILESTONE_FLUID_COMPONENT_VS_PYRO_DOMAIN_SPLIT_2026-07-01.md` | Fluid Component vs Pyro Domain Split (2026-07-01) | 2026-07-01 | --- | 2026-07-01 | 3.9 KB | FLUID, COMPONENT, PYRO, DOMAIN |
 | 257 | `docs/planned/MILESTONE_FONT_USAGE_REPORT_2026-07-09.md` | MILESTONE: 使用フォントインベントリ出力（Font Usage Report） | 2026-07-09 | --- | 2026-07-10 | 9.5 KB | FONT, USAGE, REPORT |
@@ -870,169 +871,168 @@
 | 422 | `docs/planned/MILESTONE_QSS_EXORCISM_PROPERTY_THEME_2026-04-02.md` | Milestone: QSS Exorcism / Property Theme Ownership (2026-04-02) | 2026-04-02 | --- | 2026-04-02 | 3.0 KB | QSS, EXORCISM, PROPERTY, THEME |
 | 423 | `docs/planned/MILESTONE_QSS_REDUCTION_2026-03-31.md` | QSS Reduction / Style Ownership Milestone (2026-03-31) | 2026-03-31 | --- | 2026-04-01 | 2.6 KB | QSS, REDUCTION |
 | 424 | `docs/planned/MILESTONE_QUANTUM_GLITCH_WAVEFUNCTION_COLLAPSE_2026-06-13.md` | Milestone: QuantumGlitch / WavefunctionCollapse | 2026-06-13 | --- | 2026-06-13 | 5.4 KB | QUANTUM, GLITCH, WAVEFUNCTION, COLLAPSE |
-| 425 | `docs/planned/MILESTONE_QUICK_LAYER_CREATION_DIALOG_2026-07-10.md` | Quick Layer Creation Dialog | 2026-07-10 | Not Started | 2026-07-12 | 4.1 KB | QUICK, LAYER, CREATION, DIALOG |
-| 426 | `docs/planned/MILESTONE_RAM_PREVIEW_CACHE_2026-03-26.md` | RAM Preview Cache Milestone | 2026-03-26 | --- | 2026-03-26 | 2.9 KB | RAM, PREVIEW, CACHE |
-| 427 | `docs/planned/MILESTONE_RAM_PREVIEW_RANGE_POLICY_AND_PRIORITY_2026-05-31.md` | Milestone: RAM Preview Range Policy and Priority | 2026-05-31 | --- | 2026-06-25 | 5.3 KB | RAM, PREVIEW, RANGE, POLICY, AND |
-| 428 | `docs/planned/MILESTONE_RAM_PREVIEW_RANGE_POLICY_AND_PRIORITY_PHASE1_EXECUTION_2026-05-31.md` | MILESTONE: RAM Preview Range Policy and Priority - Phase 1 Execution | 2026-05-31 | --- | 2026-06-25 | 4.5 KB | RAM, PREVIEW, RANGE, POLICY, AND |
-| 429 | `docs/planned/MILESTONE_RAM_PREVIEW_RANGE_POLICY_AND_PRIORITY_PHASE2_EXECUTION_2026-06-24.md` | MILESTONE: RAM Preview Range Policy and Priority - Phase 2 Execution | 2026-06-24 | --- | 2026-06-25 | 1.1 KB | RAM, PREVIEW, RANGE, POLICY, AND |
-| 430 | `docs/planned/MILESTONE_RAY_TRACING_DX_VULKAN_2026-05-16.md` | Milestone: DX12/Vulkan Ray Tracing Integration | 2026-05-16 | --- | 2026-05-18 | 3.0 KB | RAY, TRACING, VULKAN |
-| 431 | `docs/planned/MILESTONE_RAYTRACING_EFFECTS_2026-03-25.md` | Milestone: レイトレ系エフェクト段階導入 (2026-03-25) | 2026-03-25 | --- | 2026-03-27 | 13.2 KB | RAYTRACING, EFFECTS |
-| 432 | `docs/planned/MILESTONE_REACTION_DIFFUSION_BLUR_2026-06-13.md` | Milestone: ReactionDiffusionBlur (自己組織化・細胞分裂ブラー) | 2026-06-13 | --- | 2026-06-13 | 5.0 KB | REACTION, DIFFUSION, BLUR |
-| 433 | `docs/planned/MILESTONE_REACTION_DIFFUSION_STYLIZER_2026-06-13.md` | Milestone: ReactionDiffusionStylizer (反応拡散スタイライザー / 自律絵画化) | 2026-06-13 | --- | 2026-06-13 | 5.6 KB | REACTION, DIFFUSION, STYLIZER |
-| 434 | `docs/planned/MILESTONE_REACTIVE_EVENT_EDITOR_WINDOW_2026-03-29.md` | Reactive Event Editor Window Milestone | 2026-03-29 | --- | 2026-04-05 | 4.1 KB | REACTIVE, EVENT, EDITOR, WINDOW |
-| 435 | `docs/planned/MILESTONE_REACTIVE_EVENT_SYSTEM_2026-03-28.md` | Milestone: リアクティブイベントシステム (2026-03-28) | 2026-03-28 | --- | 2026-04-05 | 17.2 KB | REACTIVE, EVENT, SYSTEM |
-| 436 | `docs/planned/MILESTONE_REACTIVE_STATE_FIELD_AUTHORING_2026-07-13.md` | Reactive State & Field Authoring Roadmap | 2026-07-13 | In Progress | 2026-07-14 | 10.8 KB | REACTIVE, STATE, FIELD, AUTHORING |
-| 437 | `docs/planned/MILESTONE_RENDER_BOUNDARY_SAFETY_GATE_2026-04-21.md` | M-IR-9 Render Boundary Safety Gate | 2026-05-31 | --- | 2026-06-01 | 2.1 KB | RENDER, BOUNDARY, SAFETY, GATE |
-| 438 | `docs/planned/MILESTONE_RENDER_FARM_DESIGN_2026-06-16.md` | M-RE-2 Render Farm Foundation Milestone | 2026-06-16 | --- | 2026-07-09 | 17.7 KB | RENDER, FARM, DESIGN |
-| 439 | `docs/planned/MILESTONE_RENDER_FORMAT_EXPANSION_2026-06-16.md` | M-EXPORT-1 Render Format Expansion Milestone | 2026-06-16 | --- | 2026-06-18 | 16.5 KB | RENDER, FORMAT, EXPANSION |
-| 440 | `docs/planned/MILESTONE_RENDER_INTELLIGENCE_TOOLKIT_2026-07-18.md` | Render Intelligence Toolkit | 2026-07-18 | In Progress | 2026-07-19 | 13.1 KB | RENDER, INTELLIGENCE, TOOLKIT |
-| 441 | `docs/planned/MILESTONE_RENDER_OUTPUT_FEEL_REFINEMENT_2026-03-27.md` | Render / Output Feel Refinement Milestone | 2026-03-27 | 実装中（Phase 1 完了） | 2026-04-18 | 19.6 KB | RENDER, OUTPUT, FEEL, REFINEMENT |
-| 442 | `docs/planned/MILESTONE_RENDER_PATH_DECOMPOSITION_2026-03-31.md` | マイルストーン: Render Path Decomposition / Buffer Migration | 2026-03-31 | --- | 2026-03-31 | 3.9 KB | RENDER, PATH, DECOMPOSITION |
-| 443 | `docs/planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md` | MILESTONE: Render Preflight / Output Safety Check | 2026-06-02 | --- | 2026-07-09 | 4.5 KB | RENDER, PREFLIGHT |
-| 444 | `docs/planned/MILESTONE_RENDER_QUEUE_2026-03-22.md` | MILESTONE_RENDER_QUEUE_2026-03-22 | 2026-03-22 | --- | 2026-04-01 | 1.4 KB | RENDER, QUEUE |
-| 445 | `docs/planned/MILESTONE_RENDER_QUEUE_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: レンダーキュー 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 2.1 KB | RENDER, QUEUE, DESIGN, AUDIT |
-| 446 | `docs/planned/MILESTONE_RENDER_QUEUE_ENCODING_2026-04-01.md` | Milestone: Render Queue Hardware Encoding Support (M-RQ-ENC-1) | 2026-04-01 | --- | 2026-04-06 | 4.8 KB | RENDER, QUEUE, ENCODING |
-| 447 | `docs/planned/MILESTONE_RENDER_QUEUE_GPU_BACKEND_2026-04-03.md` | マイルストーン: Render Queue GPU Backend Selection / Fallback | 2026-04-03 | --- | 2026-04-05 | 2.6 KB | RENDER, QUEUE, GPU, BACKEND |
-| 448 | `docs/planned/MILESTONE_RENDERING_PERFORMANCE_2026-03-28.md` | レンダリング性能改善 Milestone | 2026-03-28 | 一部実装済み ✅ | 2026-07-07 | 9.2 KB | RENDERING, PERFORMANCE |
-| 449 | `docs/planned/MILESTONE_RESPONSIVE_LAYOUT_COMPOSITION_2026-06-05.md` | MILESTONE Responsive Layout Composition | 2026-06-29 | --- | 2026-07-10 | 3.2 KB | RESPONSIVE, LAYOUT, COMPOSITION |
-| 450 | `docs/planned/MILESTONE_REVIEW_COMPARE_ANNOTATION_2026-03-28.md` | マイルストーン: Review / Compare / Annotation | 2026-03-28 | --- | 2026-07-09 | 4.5 KB | REVIEW, COMPARE, ANNOTATION |
-| 451 | `docs/planned/MILESTONE_REVIEW_WORKSPACE_2026-04-03.md` | Review Workspace: Frame-Accurate Compare & Annotation Milestone (2026-04-03) | 2026-04-03 | --- | 2026-07-09 | 9.8 KB | REVIEW, WORKSPACE |
-| 452 | `docs/planned/MILESTONE_RPC_CLIENT_2026-07-02.md` | M-RE-2.A Network RPC Client Milestone | 2026-07-02 | --- | 2026-07-02 | 11.1 KB | RPC, CLIENT |
-| 453 | `docs/planned/MILESTONE_SANDBOX_EDITS_2026-06-07.md` | MILESTONE: Sandbox Edits | 2026-06-07 | --- | 2026-06-09 | 2.8 KB | SANDBOX, EDITS |
-| 454 | `docs/planned/MILESTONE_SCENE_NODE_EXPANSION_2026-04-20.md` | MILESTONE: SceneNode Feature Expansion | 2026-04-20 | --- | 2026-04-21 | 8.4 KB | SCENE, NODE, EXPANSION |
-| 455 | `docs/planned/MILESTONE_SCOPES_2026-06-16.md` | M-SCOPES-1 Scopes Milestone (Vector / Waveform / Parade) | 2026-06-16 | --- | 2026-06-18 | 13.0 KB | SCOPES |
-| 456 | `docs/planned/MILESTONE_SCRIPT_CONSOLE_2026-06-16.md` | M-SCRIPT-1 Script Console (REPL) Milestone | 2026-06-16 | --- | 2026-06-19 | 10.0 KB | SCRIPT, CONSOLE |
-| 457 | `docs/planned/MILESTONE_SCRIPT_MENU_MACRO_ENTRY_EXECUTION_2026-05-31.md` | M-FE-6a Script Menu / Macro Entry Execution | 2026-04-02 | --- | 2026-06-06 | 6.7 KB | SCRIPT, MENU, MACRO, ENTRY, EXECUTION |
-| 458 | `docs/planned/MILESTONE_SCRIPT_MENU_PY_LOADER_2026-04-02.md` | Milestone: Script Menu / menu.py Loader (M-PY-2) | 2026-04-02 | --- | 2026-04-02 | 2.0 KB | SCRIPT, MENU, LOADER |
-| 459 | `docs/planned/MILESTONE_SCRUB_EXPRESSION_CACHE_REUSE_2026-06-07.md` | MILESTONE: Scrub Accuracy / Expression Recursion / Cache Reuse - 2026-06-07 | 2026-06-07 | --- | 2026-06-09 | 9.0 KB | SCRUB, EXPRESSION, CACHE, REUSE |
-| 460 | `docs/planned/MILESTONE_SEARCH_COLLECTIONS_SMART_ORGANIZATION_2026-03-28.md` | マイルストーン: Search / Collections / Smart Organization | 2026-03-28 | --- | 2026-03-28 | 3.9 KB | SEARCH, COLLECTIONS, SMART, ORGANIZATION |
-| 461 | `docs/planned/MILESTONE_SECURITY_HARDENING_2026-03-28.md` | セキュリティ強化 Milestone | 2026-03-28 | 計画中 | 2026-03-29 | 8.3 KB | SECURITY, HARDENING |
-| 462 | `docs/planned/MILESTONE_SESSION_LEDGER_RECOVERY_WORKSPACE_2026-04-09.md` | マイルストーン: Session Ledger / Recovery Workspace | 2026-04-09 | --- | 2026-04-09 | 2.7 KB | SESSION, LEDGER, RECOVERY, WORKSPACE |
-| 463 | `docs/planned/MILESTONE_SETTINGS_SEARCH_FILTER_2026-04-02.md` | MILESTONE_SETTINGS_SEARCH_FILTER_2026-04-02 | 2026-04-02 | --- | 2026-04-02 | 6.5 KB | SETTINGS, SEARCH, FILTER |
-| 464 | `docs/planned/MILESTONE_SHAPE_LAYER_COMPLEX_PRESETS_2026-06-28.md` | M-AB-7: Shape Layer 複雑プリセット形状拡張 | 2026-06-28 | --- | 2026-06-29 | 10.5 KB | SHAPE, LAYER, COMPLEX, PRESETS |
-| 465 | `docs/planned/MILESTONE_SHAPE_LAYERS_2026-03-29.md` | Milestone: Shape Layers (2026-03-29) | 2026-03-29 | --- | 2026-04-01 | 3.0 KB | SHAPE, LAYERS |
-| 466 | `docs/planned/MILESTONE_SHAPE_PATH_CORE_IMPLEMENTATION_2026-04-16.md` | MILESTONE: ShapePath コア実装 | 2026-04-16 | --- | 2026-04-18 | 12.7 KB | SHAPE, PATH, CORE, IMPLEMENTATION |
-| 467 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_2026-04-21.md` | M-SC-2 Shortcut Context Map / Blender-Like Keymap Routing | 2026-04-21 | --- | 2026-04-21 | 9.5 KB | SHORTCUT, CONTEXT, MAP |
-| 468 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE1_2026-04-21.md` | M-SC-2 Phase 1 Context Model Freeze | 2026-04-21 | --- | 2026-04-21 | 0.5 KB | SHORTCUT, CONTEXT, MAP, PHASE1 |
-| 469 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE2_2026-04-21.md` | M-SC-2 Phase 2 Widget / Region Registration | 2026-04-21 | --- | 2026-04-21 | 0.6 KB | SHORTCUT, CONTEXT, MAP, PHASE2 |
-| 470 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE3_2026-04-21.md` | M-SC-2 Phase 3 Preset / Editor Integration | 2026-04-21 | --- | 2026-04-21 | 0.6 KB | SHORTCUT, CONTEXT, MAP, PHASE3 |
-| 471 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE4_2026-04-21.md` | M-SC-2 Phase 4 Shortcut Surface / UX Polish | 2026-04-21 | --- | 2026-04-21 | 0.5 KB | SHORTCUT, CONTEXT, MAP, PHASE4 |
-| 472 | `docs/planned/MILESTONE_SHORTCUT_CUSTOMIZATION_2026-04-10.md` | キーボードショートカットカスタマイズUIの実装 | 2026-04-10 | --- | 2026-04-11 | 2.6 KB | SHORTCUT, CUSTOMIZATION |
-| 473 | `docs/planned/MILESTONE_SHORTCUT_IMPROVEMENTS_2026-06-02.md` | ショートカット・操作感改善 マイルストーン | 2026-06-02 | --- | 2026-06-05 | 3.2 KB | SHORTCUT, IMPROVEMENTS |
-| 474 | `docs/planned/MILESTONE_SIMPLE_PREFRACTURE_2026-07-22.md` | M-PREFRACTURE: シンプルな事前破砕（Pre-Fracture）導入 — 設計メモとギャップ修正 | 2026-07-22 | Not Started | 2026-07-24 | 6.0 KB | SIMPLE, PREFRACTURE |
-| 475 | `docs/planned/MILESTONE_SMART_FALLBACKS_2026-06-07.md` | MILESTONE: Smart Fallbacks | 2026-06-07 | --- | 2026-06-09 | 4.9 KB | SMART, FALLBACKS |
-| 476 | `docs/planned/MILESTONE_SMART_GUIDES_2026-04-10.md` | スマートガイドシステムの実装 | 2026-04-10 | --- | 2026-04-11 | 1.7 KB | SMART, GUIDES |
-| 477 | `docs/planned/MILESTONE_SNAP_ADVANCED_2026-04-10.md` | 高度なスナップ機能の実装 | 2026-04-10 | --- | 2026-04-11 | 2.0 KB | SNAP, ADVANCED |
-| 478 | `docs/planned/MILESTONE_SOURCE_TEXT_KEYFRAME_2026-06-16.md` | M-TXT-3 Source Text Keyframe Milestone | 2026-07-16 | --- | 2026-07-16 | 16.5 KB | SOURCE, TEXT, KEYFRAME |
-| 479 | `docs/planned/MILESTONE_STARTUP_AND_COMPOSITION_OPEN_LATENCY_2026-04-28.md` | マイルストーン: Startup / Composition Open Latency Reduction | 2026-04-28 | In Progress | 2026-07-12 | 7.3 KB | STARTUP, AND, COMPOSITION, OPEN, LATENCY |
-| 480 | `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_2026-04-21.md` | M-DIAG-5 Startup Thread Churn / Worker Burst Trace | 2026-04-21 | --- | 2026-06-19 | 2.6 KB | STARTUP, THREAD, CHURN, TRACE |
-| 481 | `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_PHASE1_2026-04-21.md` | M-DIAG-5 Phase 1 | 2026-04-21 | --- | 2026-04-21 | 0.6 KB | STARTUP, THREAD, CHURN, TRACE, PHASE1 |
-| 482 | `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_PHASE2_2026-04-21.md` | M-DIAG-5 Phase 2 | 2026-04-21 | --- | 2026-04-21 | 0.5 KB | STARTUP, THREAD, CHURN, TRACE, PHASE2 |
-| 483 | `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_PHASE3_2026-04-21.md` | M-DIAG-5 Phase 3 | 2026-04-21 | --- | 2026-04-21 | 0.5 KB | STARTUP, THREAD, CHURN, TRACE, PHASE3 |
-| 484 | `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_PHASE4_2026-04-21.md` | M-DIAG-5 Phase 4 | 2026-04-21 | --- | 2026-04-21 | 0.4 KB | STARTUP, THREAD, CHURN, TRACE, PHASE4 |
-| 485 | `docs/planned/MILESTONE_STATE_LAYER_VISIBLE_CHILD_SELECTION_2026-06-11.md` | MILESTONE: State Layer / Visible Child Selection | 2026-06-11 | --- | 2026-06-11 | 1.8 KB | STATE, LAYER, VISIBLE, CHILD, SELECTION |
-| 486 | `docs/planned/MILESTONE_STATUSBAR_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: ステータスバー 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 1.0 KB | STATUSBAR, DESIGN, AUDIT |
-| 487 | `docs/planned/MILESTONE_STD_REPLACEMENT_LIBRARY_SCALEOUT_2026-06-19.md` | M-AR-4 Standard Library Replacement Scale-Out | 2026-06-19 | --- | 2026-06-19 | 10.9 KB | STD, REPLACEMENT, LIBRARY, SCALEOUT |
-| 488 | `docs/planned/MILESTONE_STD_TO_QT_MIGRATION_2026-07-04.md` | マイルストーン: std → Qt ライブラリ置換計画 (2026-07-04) | 2026-07-04 | --- | 2026-07-06 | 5.0 KB | STD, MIGRATION |
-| 489 | `docs/planned/MILESTONE_SURFACE_FX_SYSTEM_2026-07-22.md` | SurfaceFX System Design (2026-07-22) | 2026-07-22 | In Progress | 2026-07-24 | 9.0 KB | SURFACE, SYSTEM |
-| 490 | `docs/planned/MILESTONE_TAKES_SYSTEM_2026-07-08.md` | Milestone: Takes System（レンダーバリエーション / パラメータオーバーライド一括） (2026-07-08) | 2026-07-08 | --- | 2026-07-09 | 4.0 KB | TAKES, SYSTEM |
-| 491 | `docs/planned/MILESTONE_TASK_WORKSPACES_2026-06-07.md` | MILESTONE: Task Workspaces | 2026-06-07 | Design Note | 2026-06-19 | 3.6 KB | TASK, WORKSPACES |
-| 492 | `docs/planned/MILESTONE_TEAM_PROJECT_REALTIME_SYNC_2026-04-12.md` | MILESTONE_TEAM_PROJECT_REALTIME_SYNC_2026-04-12 | 2026-04-12 | --- | 2026-04-13 | 13.9 KB | TEAM, PROJECT, REALTIME, SYNC |
-| 493 | `docs/planned/MILESTONE_TEMPLATE_LOCKING_2026-06-07.md` | MILESTONE: Template Locking | 2026-06-07 | --- | 2026-06-09 | 4.7 KB | TEMPLATE, LOCKING |
-| 494 | `docs/planned/MILESTONE_TEMPORAL_EFFECT_HOST_FOR_TIME_DISPLACEMENT_2026-07-01.md` | Temporal Effect Host for Time Displacement (2026-07-01) | 2026-07-01 | --- | 2026-07-01 | 12.5 KB | TEMPORAL, EFFECT, HOST, FOR, TIME |
-| 495 | `docs/planned/MILESTONE_TERMINAL_SHELL_2026-04-06.md` | Terminal Shell / Command Surface Milestone | 2026-04-06 | --- | 2026-04-06 | 3.1 KB | TERMINAL, SHELL |
-| 496 | `docs/planned/MILESTONE_TEST_QA_INFRASTRUCTURE_2026-03-28.md` | テスト・QA 基盤 Milestone | 2026-03-28 | Phase 1 実装済み | 2026-04-08 | 8.1 KB | TEST, INFRASTRUCTURE |
-| 497 | `docs/planned/MILESTONE_TEXT_ANIMATOR_COMPLEX_SCRIPT_VERTICAL_2026-06-12.md` | MILESTONE: Text Animator Complex Script And Vertical Writing | 2026-07-16 | --- | 2026-07-16 | 14.1 KB | TEXT, ANIMATOR, COMPLEX, SCRIPT, VERTICAL |
-| 498 | `docs/planned/MILESTONE_TEXT_ANIMATOR_NEXT_GEN_2026-04-18.md` | MILESTONE: 次世代テキストアニメーター | 2026-07-16 | --- | 2026-07-16 | 5.4 KB | TEXT, ANIMATOR, NEXT, GEN |
-| 499 | `docs/planned/MILESTONE_TEXT_ANIMATOR_SEMANTIC_PIPELINE_2026-07-04.md` | MILESTONE: Text Animator Semantic Pipeline | 2026-07-16 | In Progress | 2026-07-16 | 12.7 KB | TEXT, ANIMATOR, SEMANTIC, PIPELINE |
-| 500 | `docs/planned/MILESTONE_TEXT_ANIMATOR_SYSTEM_2026-03-25.md` | Milestone: AE風 Text Animator システム (2026-03-25) | 2026-03-25 | --- | 2026-03-27 | 14.3 KB | TEXT, ANIMATOR, SYSTEM |
-| 501 | `docs/planned/MILESTONE_TEXT_AUTO_SIZE_2026-04-10.md` | テキストレイヤーのオートサイズ調整の実装 | 2026-04-10 | --- | 2026-04-11 | 1.9 KB | TEXT, AUTO, SIZE |
-| 502 | `docs/planned/MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md` | M-TXT-FOUNDATION: Text Layer GPU / Edit / Animation Completion | 2026-07-16 | Completed (static verified 2026-07-16) | 2026-07-17 | 22.9 KB | TEXT, LAYER, GPU, EDIT, ANIMATION |
-| 503 | `docs/planned/MILESTONE_TEXT_LAYER_INLINE_EDIT_2026-03-27.md` | マイルストーン: テキストレイヤー コンポジットエディタ内編集 | 2026-07-16 | --- | 2026-07-16 | 7.4 KB | TEXT, LAYER, INLINE, EDIT |
-| 504 | `docs/planned/MILESTONE_TEXT_VIEWPORT_EDIT_MODE_FEASIBILITY_2026-06-25.md` | Text Viewport Edit Mode Feasibility (2026-06-25) | 2026-06-25 | --- | 2026-06-25 | 14.3 KB | TEXT, VIEWPORT, EDIT, MODE, FEASIBILITY |
-| 505 | `docs/planned/MILESTONE_TEXT_WORKSTREAM_INDEX_2026-04-30.md` | Text Workstream Index | 2026-04-30 | --- | 2026-07-16 | 2.7 KB | TEXT, WORKSTREAM, INDEX |
-| 506 | `docs/planned/MILESTONE_TIME_REMAP_CURVE_UI_2026-06-02.md` | M-MOTION-7 Time Remap Curve UI (2026-06-02) | 2026-06-02 | --- | 2026-06-05 | 2.6 KB | TIME, REMAP, CURVE |
-| 507 | `docs/planned/MILESTONE_TIME_WARP_CURVE_2026-07-07.md` | M-TWC-1 Time Warp Curve on Clips Milestone | 2026-07-07 | --- | 2026-07-07 | 7.4 KB | TIME, WARP, CURVE |
-| 508 | `docs/planned/MILESTONE_TIMELINE_AUDIO_LAYER_SPECIALIZATION_2026-04-23.md` | Milestone: Timeline Audio Layer Specialization (2026-04-23) | 2026-04-23 | --- | 2026-06-19 | 2.6 KB | TIMELINE, AUDIO, LAYER, SPECIALIZATION |
-| 509 | `docs/planned/MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md` | Milestone: Timeline Audio Waveform Display | 2026-06-01 | Archived reference | 2026-06-20 | 2.2 KB | TIMELINE, AUDIO, WAVEFORM |
-| 510 | `docs/planned/MILESTONE_TIMELINE_COLOR_KEYFRAMES_2026-06-05.md` | マイルストーン: Timeline Color Keyframes | 2026-06-05 | --- | 2026-07-09 | 8.0 KB | TIMELINE, COLOR, KEYFRAMES |
-| 511 | `docs/planned/MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md` | Timeline Curve Editor Mode | 2026-04-10 | --- | 2026-05-13 | 1.7 KB | TIMELINE, CURVE, EDITOR, MODE |
-| 512 | `docs/planned/MILESTONE_TIMELINE_CURVE_EDITOR_MODE_PHASE1_EXECUTION_2026-04-10.md` | Timeline Curve Editor Mode - Phase 1 Execution | 2026-04-10 | --- | 2026-04-10 | 2.7 KB | TIMELINE, CURVE, EDITOR, MODE, PHASE1 |
-| 513 | `docs/planned/MILESTONE_TIMELINE_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: タイムラインエディタ 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-09 | 22.8 KB | TIMELINE, DESIGN, AUDIT |
-| 514 | `docs/planned/MILESTONE_TIMELINE_FEATURE_IMPLEMENTATION_2026-04-03.md` | マイルストーン: Timeline Feature Implementation / Interaction Surface | 2026-04-03 | --- | 2026-07-09 | 8.4 KB | TIMELINE, FEATURE, IMPLEMENTATION |
-| 515 | `docs/planned/MILESTONE_TIMELINE_FLAT_KEYFRAME_VIEW_2026-04-03.md` | Timeline Flat Keyframe View / U-Key Style Filter | 2026-05-11 | --- | 2026-07-09 | 7.2 KB | TIMELINE, FLAT, KEYFRAME, VIEW |
-| 516 | `docs/planned/MILESTONE_TIMELINE_FLAT_KEYFRAME_VIEW_2026-04-03_EXECUTION.md` | Timeline Flat Keyframe View Execution Memo | 2026-04-23 | --- | 2026-04-23 | 4.1 KB | TIMELINE, FLAT, KEYFRAME, VIEW, EXECUTION |
-| 517 | `docs/planned/MILESTONE_TIMELINE_INDEX_2026-04-22.md` | Timeline Milestone Index | 2026-04-22 | --- | 2026-07-09 | 8.0 KB | TIMELINE, INDEX |
-| 518 | `docs/planned/MILESTONE_TIMELINE_INOUT_SLIDE_2026-06-16.md` | M-TL-16 In/Out Slide Milestone | 2026-06-16 | --- | 2026-06-19 | 14.0 KB | TIMELINE, INOUT, SLIDE |
-| 519 | `docs/planned/MILESTONE_TIMELINE_KEYFRAME_AREA_EDITING_2026-06-15.md` | Timeline Keyframe Area Editing (2026-06-15) | 2026-06-15 | --- | 2026-07-09 | 9.9 KB | TIMELINE, KEYFRAME, AREA, EDITING |
-| 520 | `docs/planned/MILESTONE_TIMELINE_KEYFRAME_CONNECTIONS_2026-06-05.md` | マイルストーン: Timeline Keyframe Connections | 2026-06-05 | --- | 2026-07-09 | 7.8 KB | TIMELINE, KEYFRAME, CONNECTIONS |
-| 521 | `docs/planned/MILESTONE_TIMELINE_LAYER_SEARCH_2026-03-28.md` | マイルストーン: Timeline Layer Search | 2026-03-28 | --- | 2026-07-09 | 6.0 KB | TIMELINE, LAYER, SEARCH |
-| 522 | `docs/planned/MILESTONE_TIMELINE_LAYER_SPECIALIZATION_2026-04-23.md` | Milestone: Timeline Layer Specialization (2026-04-23) | 2026-04-23 | --- | 2026-06-19 | 3.2 KB | TIMELINE, LAYER, SPECIALIZATION |
-| 523 | `docs/planned/MILESTONE_TIMELINE_LAYER_SPECIALIZATION_EXECUTION_2026-04-23.md` | Milestone: Timeline Layer Specialization Execution (2026-04-23) | 2026-04-23 | --- | 2026-04-24 | 3.3 KB | TIMELINE, LAYER, SPECIALIZATION, EXECUTION |
-| 524 | `docs/planned/MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03.md` | Timeline Operation Feel Refinement / AE-Style Editing Flow | 2026-07-10 | --- | 2026-07-10 | 8.1 KB | TIMELINE, OPERATION, FEEL, REFINEMENT |
-| 525 | `docs/planned/MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03_EXECUTION.md` | Timeline Operation Feel Refinement Execution Memo | 2026-04-23 | --- | 2026-04-23 | 4.4 KB | TIMELINE, OPERATION, FEEL, REFINEMENT, EXECUTION |
-| 526 | `docs/planned/MILESTONE_TIMELINE_PROPORTIONAL_KEYFRAME_EDITING_2026-07-06.md` | M-TL-17 Timeline Proportional Keyframe Editing (2026-07-06) | 2026-07-06 | --- | 2026-07-09 | 4.8 KB | TIMELINE, PROPORTIONAL, KEYFRAME, EDITING |
-| 527 | `docs/planned/MILESTONE_TIMELINE_QGRAPHICSSCENE_ELIMINATION_2026-03-31.md` | Timeline QGraphicsScene Elimination (2026-03-31) | 2026-03-31 | --- | 2026-04-08 | 4.0 KB | TIMELINE, QGRAPHICSSCENE, ELIMINATION |
-| 528 | `docs/planned/MILESTONE_TIMELINE_RIGHT_PANE_FULL_OWNER_DRAW_2026-04-08.md` | マイルストーン: Timeline Right Pane Full Owner-Draw | 2026-04-08 | --- | 2026-04-08 | 7.2 KB | TIMELINE, RIGHT, PANE, FULL, OWNER |
-| 529 | `docs/planned/MILESTONE_TIMELINE_SCRUBBAR_FRAME_CACHE_OVERLAY_2026-04-10.md` | Timeline Scrub Bar Frame Cache Overlay | 2026-03-26 | --- | 2026-07-09 | 5.9 KB | TIMELINE, SCRUBBAR, FRAME, CACHE, OVERLAY |
-| 530 | `docs/planned/MILESTONE_TIMELINE_TOOLTIPS_2026-04-10.md` | タイムラインツールチップ拡張の実装 | 2026-04-10 | --- | 2026-04-11 | 2.3 KB | TIMELINE, TOOLTIPS |
-| 531 | `docs/planned/MILESTONE_TIMELINE_TRACKVIEW_OWNER_DRAW_MIGRATION_2026-03-27.md` | Timeline TrackView Owner-Draw Migration (2026-03-27) | 2026-03-27 | --- | 2026-03-28 | 5.7 KB | TIMELINE, TRACKVIEW, OWNER, DRAW, MIGRATION |
-| 532 | `docs/planned/MILESTONE_TIMELINE_VISUAL_LANGUAGE_2026-03-31.md` | Timeline Visual Language (2026-03-31) | 2026-03-31 | --- | 2026-07-09 | 4.9 KB | TIMELINE, VISUAL, LANGUAGE |
-| 533 | `docs/planned/MILESTONE_TIMELINE_WAVEFORM_2026-04-10.md` | タイムラインオーディオ波形表示 | 2026-04-10 | --- | 2026-04-11 | 1.8 KB | TIMELINE, WAVEFORM |
-| 534 | `docs/planned/MILESTONE_TIMELINE_ZOOM_PAN_2026-04-10.md` | タイムラインズーム/パン操作の改善 | 2026-04-10 | --- | 2026-07-09 | 3.4 KB | TIMELINE, ZOOM, PAN |
-| 535 | `docs/planned/MILESTONE_TIMING_EVENT_VIEW_2026-04-10.md` | Timing Event View Milestone | 2026-04-10 | --- | 2026-04-10 | 1.5 KB | TIMING, EVENT, VIEW |
-| 536 | `docs/planned/MILESTONE_TOOLBAR_APP_INTEGRATION_2026-04-17.md` | マイルストーン: Toolbar / App Integration | 2026-04-17 | --- | 2026-07-09 | 7.1 KB | TOOLBAR, APP, INTEGRATION |
-| 537 | `docs/planned/MILESTONE_TOOLBAR_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: ツールバー 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 1.5 KB | TOOLBAR, DESIGN, AUDIT |
-| 538 | `docs/planned/MILESTONE_TOP_LEVEL_WIDGET_ARCHITECTURE_2026-07-13.md` | Top-Level Widget Architecture Migration | 2026-07-13 | In Progress | 2026-07-13 | 12.3 KB | TOP, LEVEL, WIDGET, ARCHITECTURE |
-| 539 | `docs/planned/MILESTONE_TRACK_MATTE_DRAG_LINK_UX_2026-06-01.md` | Milestone: Track Matte Drag-Link UX | 2026-06-01 | --- | 2026-07-07 | 5.0 KB | TRACK, MATTE, DRAG, LINK |
-| 540 | `docs/planned/MILESTONE_TYPOGRAPHY_PRESET_UI_2026-03-30.md` | Milestone: Typography Preset & Motion Style UI (M-TY-2) | 2026-03-30 | --- | 2026-03-30 | 2.5 KB | TYPOGRAPHY, PRESET |
-| 541 | `docs/planned/MILESTONE_UI_EVENT_BUS_ADOPTION_2026-04-01.md` | UI EventBus Adoption Milestone | 2026-04-01 | --- | 2026-04-01 | 2.3 KB | EVENT, BUS, ADOPTION |
-| 542 | `docs/planned/MILESTONE_UI_LAYOUT_UNDO_HISTORY_2026-06-07.md` | UI Layout Undo History Milestone | 2026-06-07 | 🟡 進行中（Phase 0: ADS 永続化 完了 2026-06-15 / Phase 1-5 未着手） | 2026-06-15 | 4.9 KB | LAYOUT, UNDO, HISTORY |
-| 543 | `docs/planned/MILESTONE_UI_SCRIPTABILITY_AND_ADAPTIVE_SURFACE_2026-06-07.md` | UI Scriptability And Adaptive Surface Milestone | 2026-06-07 | --- | 2026-07-09 | 13.1 KB | SCRIPTABILITY, AND, ADAPTIVE, SURFACE |
-| 544 | `docs/planned/MILESTONE_UI_THEME_SYSTEM_ROLLOUT_2026-04-02.md` | MILESTONE: UI Theme System Rollout | 2026-04-02 | --- | 2026-04-02 | 2.6 KB | THEME, SYSTEM, ROLLOUT |
-| 545 | `docs/planned/MILESTONE_UI_UX_UNIFICATION_2026-03-28.md` | UI/UX 統一改善 Milestone | 2026-03-28 | 計画中 | 2026-03-29 | 7.4 KB | UNIFICATION |
-| 546 | `docs/planned/MILESTONE_UNDO_AND_AUDIO_PIPELINE_COMPLETION_2026-03-25.md` | マイルストーン: Undo/Redo と Audio Pipeline の完成度向上 | 2026-03-25 | --- | 2026-03-25 | 5.2 KB | UNDO, AND, AUDIO, PIPELINE, COMPLETION |
-| 547 | `docs/planned/MILESTONE_UNIFIED_AUDIO_VIDEO_RENDER_OUTPUT_2026-03-28.md` | マイルストーン: Unified Audio / Video Render Output | 2026-03-28 | --- | 2026-03-29 | 3.5 KB | UNIFIED, AUDIO, VIDEO, RENDER, OUTPUT |
-| 548 | `docs/planned/MILESTONE_USABILITY_GAP_CLOSURE_2026-07-10.md` | MILESTONE: AE ユーザビリティ・ギャップの実コード検証クロージャ | 2026-07-10 | --- | 2026-07-16 | 13.1 KB | USABILITY, GAP, CLOSURE |
-| 549 | `docs/planned/MILESTONE_VECTOR_FLOW_GLITCH_2026-06-13.md` | Milestone: VectorFlowGlitch (ベクトル・フロー・グリッチ) | 2026-06-13 | --- | 2026-06-13 | 5.4 KB | VECTOR, FLOW, GLITCH |
-| 550 | `docs/planned/MILESTONE_VECTOR_LAYER_IMPORT_2026-03-25.md` | マイルストーン: Vector / SVG Layer Import | 2026-03-25 | --- | 2026-03-25 | 5.1 KB | VECTOR, LAYER, IMPORT |
-| 551 | `docs/planned/MILESTONE_VFX_PARTICLE_FLUID_2026-03-30.md` | Milestone: Real-time Particle & Fluid Simulation (M-VFX-1) | 2026-04-15 | --- | 2026-03-30 | 2.5 KB | VFX, PARTICLE, FLUID |
-| 552 | `docs/planned/MILESTONE_VIDEO_LAYER_PLAYBACK_STABILITY_2026-06-06.md` | マイルストーン: VideoLayer Playback Stability | 2026-06-06 | --- | 2026-07-09 | 5.5 KB | VIDEO, LAYER, PLAYBACK, STABILITY |
-| 553 | `docs/planned/MILESTONE_VIDEO_PROXY_IMPROVEMENT_2026-03-28.md` | ビデオプロキシ機能改善 Milestone | 2026-03-28 | 計画中 | 2026-03-29 | 12.3 KB | VIDEO, PROXY, IMPROVEMENT |
-| 554 | `docs/planned/MILESTONE_VIDEO_QIMAGE_RETIREMENT_COMPLETION_2026-07-09.md` | M-VIDEO-QIR: Video QImage Retirement — Completion 設計マイルストーン | 2026-04-15 | Not Started | 2026-07-09 | 7.5 KB | VIDEO, QIMAGE, RETIREMENT, COMPLETION |
-| 555 | `docs/planned/MILESTONE_VIEWPORT_BOOKMARKS_2026-06-27.md` | Milestone: Viewport Bookmarks System (M-VP-8) | 2026-06-27 | --- | 2026-06-29 | 33.6 KB | VIEWPORT, BOOKMARKS |
-| 556 | `docs/planned/MILESTONE_VIEWPORT_CANVAS_ROTATION_2026-06-27.md` | Milestone: Viewport Canvas Rotation System (M-VP-4) | 2026-06-27 | --- | 2026-06-29 | 19.8 KB | VIEWPORT, CANVAS, ROTATION |
-| 557 | `docs/planned/MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: ビューポート（Composition Editor）デザイン監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 45.8 KB | VIEWPORT, DESIGN, AUDIT |
-| 558 | `docs/planned/MILESTONE_VIEWPORT_DYNAMIC_RESOLUTION_2026-06-27.md` | Milestone: Viewport Dynamic Resolution Switching (M-VP-5) | 2026-06-27 | --- | 2026-06-29 | 23.5 KB | VIEWPORT, DYNAMIC, RESOLUTION |
-| 559 | `docs/planned/MILESTONE_VIEWPORT_ENHANCEMENT_PROPOSAL_2026-07-08.md` | ビューポート強化案 (Viewport Enhancement Proposal) | 2026-07-08 | --- | 2026-07-09 | 23.9 KB | VIEWPORT, ENHANCEMENT, PROPOSAL |
-| 560 | `docs/planned/MILESTONE_VIEWPORT_INTERACTION_NAVIGATION_CURSOR_2026-07-04.md` | MILESTONE: Viewport Interaction / Navigation / 3D Cursor - 2026-07-04 | 2026-07-04 | In Progress | 2026-07-09 | 12.8 KB | VIEWPORT, INTERACTION, NAVIGATION, CURSOR |
-| 561 | `docs/planned/MILESTONE_VIRTUAL_POINTER_CORE_2026-03-28.md` | Virtual Pointer Core Milestone | 2026-03-28 | --- | 2026-07-09 | 5.1 KB | VIRTUAL, POINTER, CORE |
-| 562 | `docs/planned/MILESTONE_VISUAL_EFFECT_BUS_2026-06-02.md` | MILESTONE: Visual Effect Bus | 2026-06-02 | --- | 2026-06-02 | 4.4 KB | VISUAL, EFFECT, BUS |
-| 563 | `docs/planned/MILESTONE_VR_XR_SUPPORT_2026-06-16.md` | M-XR-1 VR / XR Support Milestone | 2026-06-16 | --- | 2026-06-18 | 10.0 KB | SUPPORT |
-| 564 | `docs/planned/MILESTONE_VST3_HOST_2026-07-03.md` | M-VST3-1 VST3 + CLAP Host Integration Milestone | 2026-07-03 | Draft | 2026-07-09 | 6.3 KB | VST3, HOST |
-| 565 | `docs/planned/MILESTONE_WEB_EXPORT_SVG_CSS_2026-06-16.md` | Milestone M-WEBEXPORT-1: SVG + CSS Keyframes + HTML Player Export | 2026-06-16 | --- | 2026-06-18 | 14.1 KB | WEB, EXPORT, SVG, CSS |
-| 566 | `docs/planned/MILESTONE_WORKSPACE_MANAGER_2026-03-29.md` | Milestone: Workspace Manager (2026-03-29) | 2026-03-29 | --- | 2026-06-19 | 2.1 KB | WORKSPACE, MANAGER |
-| 567 | `docs/planned/MILESTONE_WORKSPACE_PRESETS_2026-04-10.md` | ワークスペースプリセット管理の実装 | 2026-04-10 | --- | 2026-07-09 | 3.9 KB | WORKSPACE, PRESETS |
-| 568 | `docs/planned/MILESTONE_ZOOM_TO_FIT_2026-04-10.md` | ズームtoフィット機能の拡張 | 2026-04-10 | --- | 2026-04-11 | 1.9 KB | ZOOM, FIT |
-| 569 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-17 | 95.4 KB | BACKLOG |
-| 570 | `docs/planned/NEXT_PHASE_ROADMAP.md` | プロジェクトビュー → タイムライン統合の次フェーズ提案 | 2026-06-07 | --- | 2026-07-05 | 9.1 KB | NEXT, PHASE, ROADMAP |
-| 571 | `docs/planned/RANDOM_HELPER_PROPOSAL_2026-06-16.md` | Random / Noise Helper Proposal (ArtifactCore) — 2026-06-16 | 2026-06-16 | --- | 2026-06-17 | 21.0 KB | RANDOM, HELPER, PROPOSAL |
-| 572 | `docs/planned/RENDER_BOUNDARY_CHANGE_SAFETY_CHECKLIST_2026-04-21.md` | Render Boundary Change Safety Checklist | 2026-04-21 | --- | 2026-05-16 | 2.6 KB | RENDER, BOUNDARY, CHANGE, SAFETY, CHECKLIST |
-| 573 | `docs/planned/RENDER_QUEUE_MANAGER_GAP_ANALYSIS_2026-04-13.md` | Render Queue Manager ギャップ分析 | 2026-04-13 | --- | 2026-04-13 | 3.0 KB | RENDER, QUEUE, MANAGER, GAP, ANALYSIS |
-| 574 | `docs/planned/REPO_WIDE_BACKLOG_TRIAGE_2026-06-11.md` | Repository Audit: Backlog Triage | 2026-06-11 | --- | 2026-06-11 | 0.5 KB | REPO, WIDE, BACKLOG, TRIAGE |
-| 575 | `docs/planned/REPO_WIDE_EDITOR_INTERACTION_AUDIT_2026-06-11.md` | Repository Audit: Editor Interaction | 2026-06-11 | --- | 2026-06-11 | 0.7 KB | REPO, WIDE, EDITOR, INTERACTION, AUDIT |
-| 576 | `docs/planned/REPO_WIDE_MODULE_HYGIENE_AUDIT_2026-06-11.md` | Repository Audit: Module Hygiene | 2026-06-11 | --- | 2026-06-11 | 0.6 KB | REPO, WIDE, MODULE, HYGIENE, AUDIT |
-| 577 | `docs/planned/REPO_WIDE_PERFORMANCE_HOTSPOT_AUDIT_2026-06-11.md` | Repository Audit: Performance Hotspots | 2026-06-11 | --- | 2026-06-11 | 0.6 KB | REPO, WIDE, PERFORMANCE, HOTSPOT, AUDIT |
-| 578 | `docs/planned/REPO_WIDE_PROPERTY_SYSTEM_AUDIT_2026-06-11.md` | Repository Audit: Property System | 2026-06-11 | --- | 2026-06-11 | 0.6 KB | REPO, WIDE, PROPERTY, SYSTEM, AUDIT |
-| 579 | `docs/planned/REPO_WIDE_RENDER_PATH_AUDIT_2026-06-11.md` | Repository Audit: Render Paths | 2026-06-11 | --- | 2026-06-11 | 0.6 KB | REPO, WIDE, RENDER, PATH, AUDIT |
-| 580 | `docs/planned/REPO_WIDE_SELECTION_AND_CONTEXT_AUDIT_2026-06-11.md` | Repository Audit: Selection and Context | 2026-06-11 | --- | 2026-06-11 | 0.6 KB | REPO, WIDE, SELECTION, AND, CONTEXT |
-| 581 | `docs/planned/REPO_WIDE_TEXT_SYSTEM_AUDIT_2026-06-11.md` | Repository Audit: Text System | 2026-06-11 | --- | 2026-06-11 | 0.8 KB | REPO, WIDE, TEXT, SYSTEM, AUDIT |
-| 582 | `docs/planned/REPO_WIDE_UI_CONSISTENCY_AUDIT_2026-06-11.md` | Repository Audit: UI Consistency | 2026-06-11 | --- | 2026-06-11 | 0.6 KB | REPO, WIDE, CONSISTENCY, AUDIT |
-| 583 | `docs/planned/SHAPE_LAYER_ANALYSIS_2026-04-17.md` | ShapeLayer クラス分析レポート | 2026-04-17 | --- | 2026-07-09 | 19.2 KB | SHAPE, LAYER, ANALYSIS |
-| 584 | `docs/planned/SHAPE_LAYER_FILE_RENDERING_ISSUE_2026-04-20.md` | ShapeLayer File Rendering Issue | 2026-04-20 | --- | 2026-04-20 | 1.6 KB | SHAPE, LAYER, FILE, RENDERING, ISSUE |
-| 585 | `docs/planned/STRING_HELPER_PROPOSAL_2026-06-16.md` | String Helper Proposal (ArtifactCore) — 2026-06-16 | 2026-06-16 | --- | 2026-06-17 | 17.3 KB | STRING, HELPER, PROPOSAL |
-| 586 | `docs/planned/TEAM_PROJECT_USAGE_EXAMPLE.md` | チームプロジェクト 使用例 | --- | --- | 2026-04-13 | 4.5 KB | TEAM, PROJECT, USAGE, EXAMPLE |
-| 587 | `docs/planned/TEXT_LAYER_ROUTE_2026-04-29.md` | Text Layer Route Note - 2026-04-29 | 2026-04-29 | --- | 2026-04-30 | 1.0 KB | TEXT, LAYER, ROUTE |
+| 425 | `docs/planned/MILESTONE_RAM_PREVIEW_CACHE_2026-03-26.md` | RAM Preview Cache Milestone | 2026-03-26 | --- | 2026-03-26 | 2.9 KB | RAM, PREVIEW, CACHE |
+| 426 | `docs/planned/MILESTONE_RAM_PREVIEW_RANGE_POLICY_AND_PRIORITY_2026-05-31.md` | Milestone: RAM Preview Range Policy and Priority | 2026-05-31 | --- | 2026-06-25 | 5.3 KB | RAM, PREVIEW, RANGE, POLICY, AND |
+| 427 | `docs/planned/MILESTONE_RAM_PREVIEW_RANGE_POLICY_AND_PRIORITY_PHASE1_EXECUTION_2026-05-31.md` | MILESTONE: RAM Preview Range Policy and Priority - Phase 1 Execution | 2026-05-31 | --- | 2026-06-25 | 4.5 KB | RAM, PREVIEW, RANGE, POLICY, AND |
+| 428 | `docs/planned/MILESTONE_RAM_PREVIEW_RANGE_POLICY_AND_PRIORITY_PHASE2_EXECUTION_2026-06-24.md` | MILESTONE: RAM Preview Range Policy and Priority - Phase 2 Execution | 2026-06-24 | --- | 2026-06-25 | 1.1 KB | RAM, PREVIEW, RANGE, POLICY, AND |
+| 429 | `docs/planned/MILESTONE_RAY_TRACING_DX_VULKAN_2026-05-16.md` | Milestone: DX12/Vulkan Ray Tracing Integration | 2026-05-16 | --- | 2026-05-18 | 3.0 KB | RAY, TRACING, VULKAN |
+| 430 | `docs/planned/MILESTONE_RAYTRACING_EFFECTS_2026-03-25.md` | Milestone: レイトレ系エフェクト段階導入 (2026-03-25) | 2026-03-25 | --- | 2026-03-27 | 13.2 KB | RAYTRACING, EFFECTS |
+| 431 | `docs/planned/MILESTONE_REACTION_DIFFUSION_BLUR_2026-06-13.md` | Milestone: ReactionDiffusionBlur (自己組織化・細胞分裂ブラー) | 2026-06-13 | --- | 2026-06-13 | 5.0 KB | REACTION, DIFFUSION, BLUR |
+| 432 | `docs/planned/MILESTONE_REACTION_DIFFUSION_STYLIZER_2026-06-13.md` | Milestone: ReactionDiffusionStylizer (反応拡散スタイライザー / 自律絵画化) | 2026-06-13 | --- | 2026-06-13 | 5.6 KB | REACTION, DIFFUSION, STYLIZER |
+| 433 | `docs/planned/MILESTONE_REACTIVE_EVENT_EDITOR_WINDOW_2026-03-29.md` | Reactive Event Editor Window Milestone | 2026-03-29 | --- | 2026-04-05 | 4.1 KB | REACTIVE, EVENT, EDITOR, WINDOW |
+| 434 | `docs/planned/MILESTONE_REACTIVE_EVENT_SYSTEM_2026-03-28.md` | Milestone: リアクティブイベントシステム (2026-03-28) | 2026-03-28 | --- | 2026-04-05 | 17.2 KB | REACTIVE, EVENT, SYSTEM |
+| 435 | `docs/planned/MILESTONE_REACTIVE_STATE_FIELD_AUTHORING_2026-07-13.md` | Reactive State & Field Authoring Roadmap | 2026-07-13 | In Progress | 2026-07-14 | 10.8 KB | REACTIVE, STATE, FIELD, AUTHORING |
+| 436 | `docs/planned/MILESTONE_RENDER_BOUNDARY_SAFETY_GATE_2026-04-21.md` | M-IR-9 Render Boundary Safety Gate | 2026-05-31 | --- | 2026-06-01 | 2.1 KB | RENDER, BOUNDARY, SAFETY, GATE |
+| 437 | `docs/planned/MILESTONE_RENDER_FARM_DESIGN_2026-06-16.md` | M-RE-2 Render Farm Foundation Milestone | 2026-06-16 | --- | 2026-07-09 | 17.7 KB | RENDER, FARM, DESIGN |
+| 438 | `docs/planned/MILESTONE_RENDER_FORMAT_EXPANSION_2026-06-16.md` | M-EXPORT-1 Render Format Expansion Milestone | 2026-06-16 | --- | 2026-06-18 | 16.5 KB | RENDER, FORMAT, EXPANSION |
+| 439 | `docs/planned/MILESTONE_RENDER_INTELLIGENCE_TOOLKIT_2026-07-18.md` | Render Intelligence Toolkit | 2026-07-18 | In Progress | 2026-07-19 | 13.1 KB | RENDER, INTELLIGENCE, TOOLKIT |
+| 440 | `docs/planned/MILESTONE_RENDER_OUTPUT_FEEL_REFINEMENT_2026-03-27.md` | Render / Output Feel Refinement Milestone | 2026-03-27 | 実装中（Phase 1 完了） | 2026-04-18 | 19.6 KB | RENDER, OUTPUT, FEEL, REFINEMENT |
+| 441 | `docs/planned/MILESTONE_RENDER_PATH_DECOMPOSITION_2026-03-31.md` | マイルストーン: Render Path Decomposition / Buffer Migration | 2026-03-31 | --- | 2026-03-31 | 3.9 KB | RENDER, PATH, DECOMPOSITION |
+| 442 | `docs/planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md` | MILESTONE: Render Preflight / Output Safety Check | 2026-06-02 | --- | 2026-07-09 | 4.5 KB | RENDER, PREFLIGHT |
+| 443 | `docs/planned/MILESTONE_RENDER_QUEUE_2026-03-22.md` | MILESTONE_RENDER_QUEUE_2026-03-22 | 2026-03-22 | --- | 2026-04-01 | 1.4 KB | RENDER, QUEUE |
+| 444 | `docs/planned/MILESTONE_RENDER_QUEUE_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: レンダーキュー 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 2.1 KB | RENDER, QUEUE, DESIGN, AUDIT |
+| 445 | `docs/planned/MILESTONE_RENDER_QUEUE_ENCODING_2026-04-01.md` | Milestone: Render Queue Hardware Encoding Support (M-RQ-ENC-1) | 2026-04-01 | --- | 2026-04-06 | 4.8 KB | RENDER, QUEUE, ENCODING |
+| 446 | `docs/planned/MILESTONE_RENDER_QUEUE_GPU_BACKEND_2026-04-03.md` | マイルストーン: Render Queue GPU Backend Selection / Fallback | 2026-04-03 | --- | 2026-04-05 | 2.6 KB | RENDER, QUEUE, GPU, BACKEND |
+| 447 | `docs/planned/MILESTONE_RENDERING_PERFORMANCE_2026-03-28.md` | レンダリング性能改善 Milestone | 2026-03-28 | 一部実装済み ✅ | 2026-07-07 | 9.2 KB | RENDERING, PERFORMANCE |
+| 448 | `docs/planned/MILESTONE_RESPONSIVE_LAYOUT_COMPOSITION_2026-06-05.md` | MILESTONE Responsive Layout Composition | 2026-06-29 | --- | 2026-07-10 | 3.2 KB | RESPONSIVE, LAYOUT, COMPOSITION |
+| 449 | `docs/planned/MILESTONE_REVIEW_COMPARE_ANNOTATION_2026-03-28.md` | マイルストーン: Review / Compare / Annotation | 2026-03-28 | --- | 2026-07-09 | 4.5 KB | REVIEW, COMPARE, ANNOTATION |
+| 450 | `docs/planned/MILESTONE_REVIEW_WORKSPACE_2026-04-03.md` | Review Workspace: Frame-Accurate Compare & Annotation Milestone (2026-04-03) | 2026-04-03 | --- | 2026-07-09 | 9.8 KB | REVIEW, WORKSPACE |
+| 451 | `docs/planned/MILESTONE_RPC_CLIENT_2026-07-02.md` | M-RE-2.A Network RPC Client Milestone | 2026-07-02 | --- | 2026-07-02 | 11.1 KB | RPC, CLIENT |
+| 452 | `docs/planned/MILESTONE_SANDBOX_EDITS_2026-06-07.md` | MILESTONE: Sandbox Edits | 2026-06-07 | --- | 2026-06-09 | 2.8 KB | SANDBOX, EDITS |
+| 453 | `docs/planned/MILESTONE_SCENE_NODE_EXPANSION_2026-04-20.md` | MILESTONE: SceneNode Feature Expansion | 2026-04-20 | --- | 2026-04-21 | 8.4 KB | SCENE, NODE, EXPANSION |
+| 454 | `docs/planned/MILESTONE_SCOPES_2026-06-16.md` | M-SCOPES-1 Scopes Milestone (Vector / Waveform / Parade) | 2026-06-16 | --- | 2026-06-18 | 13.0 KB | SCOPES |
+| 455 | `docs/planned/MILESTONE_SCRIPT_CONSOLE_2026-06-16.md` | M-SCRIPT-1 Script Console (REPL) Milestone | 2026-06-16 | --- | 2026-06-19 | 10.0 KB | SCRIPT, CONSOLE |
+| 456 | `docs/planned/MILESTONE_SCRIPT_MENU_MACRO_ENTRY_EXECUTION_2026-05-31.md` | M-FE-6a Script Menu / Macro Entry Execution | 2026-04-02 | --- | 2026-06-06 | 6.7 KB | SCRIPT, MENU, MACRO, ENTRY, EXECUTION |
+| 457 | `docs/planned/MILESTONE_SCRIPT_MENU_PY_LOADER_2026-04-02.md` | Milestone: Script Menu / menu.py Loader (M-PY-2) | 2026-04-02 | --- | 2026-04-02 | 2.0 KB | SCRIPT, MENU, LOADER |
+| 458 | `docs/planned/MILESTONE_SCRUB_EXPRESSION_CACHE_REUSE_2026-06-07.md` | MILESTONE: Scrub Accuracy / Expression Recursion / Cache Reuse - 2026-06-07 | 2026-06-07 | --- | 2026-06-09 | 9.0 KB | SCRUB, EXPRESSION, CACHE, REUSE |
+| 459 | `docs/planned/MILESTONE_SEARCH_COLLECTIONS_SMART_ORGANIZATION_2026-03-28.md` | マイルストーン: Search / Collections / Smart Organization | 2026-03-28 | --- | 2026-03-28 | 3.9 KB | SEARCH, COLLECTIONS, SMART, ORGANIZATION |
+| 460 | `docs/planned/MILESTONE_SECURITY_HARDENING_2026-03-28.md` | セキュリティ強化 Milestone | 2026-03-28 | 計画中 | 2026-03-29 | 8.3 KB | SECURITY, HARDENING |
+| 461 | `docs/planned/MILESTONE_SESSION_LEDGER_RECOVERY_WORKSPACE_2026-04-09.md` | マイルストーン: Session Ledger / Recovery Workspace | 2026-04-09 | --- | 2026-04-09 | 2.7 KB | SESSION, LEDGER, RECOVERY, WORKSPACE |
+| 462 | `docs/planned/MILESTONE_SETTINGS_SEARCH_FILTER_2026-04-02.md` | MILESTONE_SETTINGS_SEARCH_FILTER_2026-04-02 | 2026-04-02 | --- | 2026-04-02 | 6.5 KB | SETTINGS, SEARCH, FILTER |
+| 463 | `docs/planned/MILESTONE_SHAPE_LAYER_COMPLEX_PRESETS_2026-06-28.md` | M-AB-7: Shape Layer 複雑プリセット形状拡張 | 2026-06-28 | --- | 2026-06-29 | 10.5 KB | SHAPE, LAYER, COMPLEX, PRESETS |
+| 464 | `docs/planned/MILESTONE_SHAPE_LAYERS_2026-03-29.md` | Milestone: Shape Layers (2026-03-29) | 2026-03-29 | --- | 2026-04-01 | 3.0 KB | SHAPE, LAYERS |
+| 465 | `docs/planned/MILESTONE_SHAPE_PATH_CORE_IMPLEMENTATION_2026-04-16.md` | MILESTONE: ShapePath コア実装 | 2026-04-16 | --- | 2026-04-18 | 12.7 KB | SHAPE, PATH, CORE, IMPLEMENTATION |
+| 466 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_2026-04-21.md` | M-SC-2 Shortcut Context Map / Blender-Like Keymap Routing | 2026-04-21 | --- | 2026-04-21 | 9.5 KB | SHORTCUT, CONTEXT, MAP |
+| 467 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE1_2026-04-21.md` | M-SC-2 Phase 1 Context Model Freeze | 2026-04-21 | --- | 2026-04-21 | 0.5 KB | SHORTCUT, CONTEXT, MAP, PHASE1 |
+| 468 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE2_2026-04-21.md` | M-SC-2 Phase 2 Widget / Region Registration | 2026-04-21 | --- | 2026-04-21 | 0.6 KB | SHORTCUT, CONTEXT, MAP, PHASE2 |
+| 469 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE3_2026-04-21.md` | M-SC-2 Phase 3 Preset / Editor Integration | 2026-04-21 | --- | 2026-04-21 | 0.6 KB | SHORTCUT, CONTEXT, MAP, PHASE3 |
+| 470 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE4_2026-04-21.md` | M-SC-2 Phase 4 Shortcut Surface / UX Polish | 2026-04-21 | --- | 2026-04-21 | 0.5 KB | SHORTCUT, CONTEXT, MAP, PHASE4 |
+| 471 | `docs/planned/MILESTONE_SHORTCUT_CUSTOMIZATION_2026-04-10.md` | キーボードショートカットカスタマイズUIの実装 | 2026-04-10 | --- | 2026-04-11 | 2.6 KB | SHORTCUT, CUSTOMIZATION |
+| 472 | `docs/planned/MILESTONE_SHORTCUT_IMPROVEMENTS_2026-06-02.md` | ショートカット・操作感改善 マイルストーン | 2026-06-02 | --- | 2026-06-05 | 3.2 KB | SHORTCUT, IMPROVEMENTS |
+| 473 | `docs/planned/MILESTONE_SIMPLE_PREFRACTURE_2026-07-22.md` | M-PREFRACTURE: シンプルな事前破砕（Pre-Fracture）導入 — 設計メモとギャップ修正 | 2026-07-22 | Not Started | 2026-07-24 | 6.0 KB | SIMPLE, PREFRACTURE |
+| 474 | `docs/planned/MILESTONE_SMART_FALLBACKS_2026-06-07.md` | MILESTONE: Smart Fallbacks | 2026-06-07 | --- | 2026-06-09 | 4.9 KB | SMART, FALLBACKS |
+| 475 | `docs/planned/MILESTONE_SMART_GUIDES_2026-04-10.md` | スマートガイドシステムの実装 | 2026-04-10 | --- | 2026-04-11 | 1.7 KB | SMART, GUIDES |
+| 476 | `docs/planned/MILESTONE_SNAP_ADVANCED_2026-04-10.md` | 高度なスナップ機能の実装 | 2026-04-10 | --- | 2026-04-11 | 2.0 KB | SNAP, ADVANCED |
+| 477 | `docs/planned/MILESTONE_SOURCE_TEXT_KEYFRAME_2026-06-16.md` | M-TXT-3 Source Text Keyframe Milestone | 2026-07-16 | --- | 2026-07-16 | 16.5 KB | SOURCE, TEXT, KEYFRAME |
+| 478 | `docs/planned/MILESTONE_STARTUP_AND_COMPOSITION_OPEN_LATENCY_2026-04-28.md` | マイルストーン: Startup / Composition Open Latency Reduction | 2026-04-28 | In Progress | 2026-07-12 | 7.3 KB | STARTUP, AND, COMPOSITION, OPEN, LATENCY |
+| 479 | `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_2026-04-21.md` | M-DIAG-5 Startup Thread Churn / Worker Burst Trace | 2026-04-21 | --- | 2026-06-19 | 2.6 KB | STARTUP, THREAD, CHURN, TRACE |
+| 480 | `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_PHASE1_2026-04-21.md` | M-DIAG-5 Phase 1 | 2026-04-21 | --- | 2026-04-21 | 0.6 KB | STARTUP, THREAD, CHURN, TRACE, PHASE1 |
+| 481 | `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_PHASE2_2026-04-21.md` | M-DIAG-5 Phase 2 | 2026-04-21 | --- | 2026-04-21 | 0.5 KB | STARTUP, THREAD, CHURN, TRACE, PHASE2 |
+| 482 | `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_PHASE3_2026-04-21.md` | M-DIAG-5 Phase 3 | 2026-04-21 | --- | 2026-04-21 | 0.5 KB | STARTUP, THREAD, CHURN, TRACE, PHASE3 |
+| 483 | `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_PHASE4_2026-04-21.md` | M-DIAG-5 Phase 4 | 2026-04-21 | --- | 2026-04-21 | 0.4 KB | STARTUP, THREAD, CHURN, TRACE, PHASE4 |
+| 484 | `docs/planned/MILESTONE_STATE_LAYER_VISIBLE_CHILD_SELECTION_2026-06-11.md` | MILESTONE: State Layer / Visible Child Selection | 2026-06-11 | --- | 2026-06-11 | 1.8 KB | STATE, LAYER, VISIBLE, CHILD, SELECTION |
+| 485 | `docs/planned/MILESTONE_STATUSBAR_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: ステータスバー 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 1.0 KB | STATUSBAR, DESIGN, AUDIT |
+| 486 | `docs/planned/MILESTONE_STD_REPLACEMENT_LIBRARY_SCALEOUT_2026-06-19.md` | M-AR-4 Standard Library Replacement Scale-Out | 2026-06-19 | --- | 2026-06-19 | 10.9 KB | STD, REPLACEMENT, LIBRARY, SCALEOUT |
+| 487 | `docs/planned/MILESTONE_STD_TO_QT_MIGRATION_2026-07-04.md` | マイルストーン: std → Qt ライブラリ置換計画 (2026-07-04) | 2026-07-04 | --- | 2026-07-06 | 5.0 KB | STD, MIGRATION |
+| 488 | `docs/planned/MILESTONE_SURFACE_FX_SYSTEM_2026-07-22.md` | SurfaceFX System Design (2026-07-22) | 2026-07-22 | In Progress | 2026-07-24 | 9.0 KB | SURFACE, SYSTEM |
+| 489 | `docs/planned/MILESTONE_TAKES_SYSTEM_2026-07-08.md` | Milestone: Takes System（レンダーバリエーション / パラメータオーバーライド一括） (2026-07-08) | 2026-07-08 | --- | 2026-07-09 | 4.0 KB | TAKES, SYSTEM |
+| 490 | `docs/planned/MILESTONE_TASK_WORKSPACES_2026-06-07.md` | MILESTONE: Task Workspaces | 2026-06-07 | Design Note | 2026-06-19 | 3.6 KB | TASK, WORKSPACES |
+| 491 | `docs/planned/MILESTONE_TEAM_PROJECT_REALTIME_SYNC_2026-04-12.md` | MILESTONE_TEAM_PROJECT_REALTIME_SYNC_2026-04-12 | 2026-04-12 | --- | 2026-04-13 | 13.9 KB | TEAM, PROJECT, REALTIME, SYNC |
+| 492 | `docs/planned/MILESTONE_TEMPLATE_LOCKING_2026-06-07.md` | MILESTONE: Template Locking | 2026-06-07 | --- | 2026-06-09 | 4.7 KB | TEMPLATE, LOCKING |
+| 493 | `docs/planned/MILESTONE_TEMPORAL_EFFECT_HOST_FOR_TIME_DISPLACEMENT_2026-07-01.md` | Temporal Effect Host for Time Displacement (2026-07-01) | 2026-07-01 | --- | 2026-07-01 | 12.5 KB | TEMPORAL, EFFECT, HOST, FOR, TIME |
+| 494 | `docs/planned/MILESTONE_TERMINAL_SHELL_2026-04-06.md` | Terminal Shell / Command Surface Milestone | 2026-04-06 | --- | 2026-04-06 | 3.1 KB | TERMINAL, SHELL |
+| 495 | `docs/planned/MILESTONE_TEST_QA_INFRASTRUCTURE_2026-03-28.md` | テスト・QA 基盤 Milestone | 2026-03-28 | Phase 1 実装済み | 2026-04-08 | 8.1 KB | TEST, INFRASTRUCTURE |
+| 496 | `docs/planned/MILESTONE_TEXT_ANIMATOR_COMPLEX_SCRIPT_VERTICAL_2026-06-12.md` | MILESTONE: Text Animator Complex Script And Vertical Writing | 2026-07-16 | --- | 2026-07-16 | 14.1 KB | TEXT, ANIMATOR, COMPLEX, SCRIPT, VERTICAL |
+| 497 | `docs/planned/MILESTONE_TEXT_ANIMATOR_NEXT_GEN_2026-04-18.md` | MILESTONE: 次世代テキストアニメーター | 2026-07-16 | --- | 2026-07-16 | 5.4 KB | TEXT, ANIMATOR, NEXT, GEN |
+| 498 | `docs/planned/MILESTONE_TEXT_ANIMATOR_SEMANTIC_PIPELINE_2026-07-04.md` | MILESTONE: Text Animator Semantic Pipeline | 2026-07-16 | In Progress | 2026-07-16 | 12.7 KB | TEXT, ANIMATOR, SEMANTIC, PIPELINE |
+| 499 | `docs/planned/MILESTONE_TEXT_ANIMATOR_SYSTEM_2026-03-25.md` | Milestone: AE風 Text Animator システム (2026-03-25) | 2026-03-25 | --- | 2026-03-27 | 14.3 KB | TEXT, ANIMATOR, SYSTEM |
+| 500 | `docs/planned/MILESTONE_TEXT_AUTO_SIZE_2026-04-10.md` | テキストレイヤーのオートサイズ調整の実装 | 2026-04-10 | --- | 2026-04-11 | 1.9 KB | TEXT, AUTO, SIZE |
+| 501 | `docs/planned/MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md` | M-TXT-FOUNDATION: Text Layer GPU / Edit / Animation Completion | 2026-07-16 | Completed (static verified 2026-07-16) | 2026-07-17 | 22.9 KB | TEXT, LAYER, GPU, EDIT, ANIMATION |
+| 502 | `docs/planned/MILESTONE_TEXT_LAYER_INLINE_EDIT_2026-03-27.md` | マイルストーン: テキストレイヤー コンポジットエディタ内編集 | 2026-07-16 | --- | 2026-07-16 | 7.4 KB | TEXT, LAYER, INLINE, EDIT |
+| 503 | `docs/planned/MILESTONE_TEXT_VIEWPORT_EDIT_MODE_FEASIBILITY_2026-06-25.md` | Text Viewport Edit Mode Feasibility (2026-06-25) | 2026-06-25 | --- | 2026-06-25 | 14.3 KB | TEXT, VIEWPORT, EDIT, MODE, FEASIBILITY |
+| 504 | `docs/planned/MILESTONE_TEXT_WORKSTREAM_INDEX_2026-04-30.md` | Text Workstream Index | 2026-04-30 | --- | 2026-07-16 | 2.7 KB | TEXT, WORKSTREAM, INDEX |
+| 505 | `docs/planned/MILESTONE_TIME_REMAP_CURVE_UI_2026-06-02.md` | M-MOTION-7 Time Remap Curve UI (2026-06-02) | 2026-06-02 | --- | 2026-06-05 | 2.6 KB | TIME, REMAP, CURVE |
+| 506 | `docs/planned/MILESTONE_TIME_WARP_CURVE_2026-07-07.md` | M-TWC-1 Time Warp Curve on Clips Milestone | 2026-07-07 | --- | 2026-07-07 | 7.4 KB | TIME, WARP, CURVE |
+| 507 | `docs/planned/MILESTONE_TIMELINE_AUDIO_LAYER_SPECIALIZATION_2026-04-23.md` | Milestone: Timeline Audio Layer Specialization (2026-04-23) | 2026-04-23 | --- | 2026-06-19 | 2.6 KB | TIMELINE, AUDIO, LAYER, SPECIALIZATION |
+| 508 | `docs/planned/MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md` | Milestone: Timeline Audio Waveform Display | 2026-06-01 | Archived reference | 2026-06-20 | 2.2 KB | TIMELINE, AUDIO, WAVEFORM |
+| 509 | `docs/planned/MILESTONE_TIMELINE_COLOR_KEYFRAMES_2026-06-05.md` | マイルストーン: Timeline Color Keyframes | 2026-06-05 | --- | 2026-07-09 | 8.0 KB | TIMELINE, COLOR, KEYFRAMES |
+| 510 | `docs/planned/MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md` | Timeline Curve Editor Mode | 2026-04-10 | --- | 2026-05-13 | 1.7 KB | TIMELINE, CURVE, EDITOR, MODE |
+| 511 | `docs/planned/MILESTONE_TIMELINE_CURVE_EDITOR_MODE_PHASE1_EXECUTION_2026-04-10.md` | Timeline Curve Editor Mode - Phase 1 Execution | 2026-04-10 | --- | 2026-04-10 | 2.7 KB | TIMELINE, CURVE, EDITOR, MODE, PHASE1 |
+| 512 | `docs/planned/MILESTONE_TIMELINE_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: タイムラインエディタ 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-09 | 22.8 KB | TIMELINE, DESIGN, AUDIT |
+| 513 | `docs/planned/MILESTONE_TIMELINE_FEATURE_IMPLEMENTATION_2026-04-03.md` | マイルストーン: Timeline Feature Implementation / Interaction Surface | 2026-04-03 | --- | 2026-07-09 | 8.4 KB | TIMELINE, FEATURE, IMPLEMENTATION |
+| 514 | `docs/planned/MILESTONE_TIMELINE_FLAT_KEYFRAME_VIEW_2026-04-03.md` | Timeline Flat Keyframe View / U-Key Style Filter | 2026-05-11 | --- | 2026-07-09 | 7.2 KB | TIMELINE, FLAT, KEYFRAME, VIEW |
+| 515 | `docs/planned/MILESTONE_TIMELINE_FLAT_KEYFRAME_VIEW_2026-04-03_EXECUTION.md` | Timeline Flat Keyframe View Execution Memo | 2026-04-23 | --- | 2026-04-23 | 4.1 KB | TIMELINE, FLAT, KEYFRAME, VIEW, EXECUTION |
+| 516 | `docs/planned/MILESTONE_TIMELINE_INDEX_2026-04-22.md` | Timeline Milestone Index | 2026-04-22 | --- | 2026-07-09 | 8.0 KB | TIMELINE, INDEX |
+| 517 | `docs/planned/MILESTONE_TIMELINE_INOUT_SLIDE_2026-06-16.md` | M-TL-16 In/Out Slide Milestone | 2026-06-16 | --- | 2026-06-19 | 14.0 KB | TIMELINE, INOUT, SLIDE |
+| 518 | `docs/planned/MILESTONE_TIMELINE_KEYFRAME_AREA_EDITING_2026-06-15.md` | Timeline Keyframe Area Editing (2026-06-15) | 2026-06-15 | --- | 2026-07-09 | 9.9 KB | TIMELINE, KEYFRAME, AREA, EDITING |
+| 519 | `docs/planned/MILESTONE_TIMELINE_KEYFRAME_CONNECTIONS_2026-06-05.md` | マイルストーン: Timeline Keyframe Connections | 2026-06-05 | --- | 2026-07-09 | 7.8 KB | TIMELINE, KEYFRAME, CONNECTIONS |
+| 520 | `docs/planned/MILESTONE_TIMELINE_LAYER_SEARCH_2026-03-28.md` | マイルストーン: Timeline Layer Search | 2026-03-28 | --- | 2026-07-09 | 6.0 KB | TIMELINE, LAYER, SEARCH |
+| 521 | `docs/planned/MILESTONE_TIMELINE_LAYER_SPECIALIZATION_2026-04-23.md` | Milestone: Timeline Layer Specialization (2026-04-23) | 2026-04-23 | --- | 2026-06-19 | 3.2 KB | TIMELINE, LAYER, SPECIALIZATION |
+| 522 | `docs/planned/MILESTONE_TIMELINE_LAYER_SPECIALIZATION_EXECUTION_2026-04-23.md` | Milestone: Timeline Layer Specialization Execution (2026-04-23) | 2026-04-23 | --- | 2026-04-24 | 3.3 KB | TIMELINE, LAYER, SPECIALIZATION, EXECUTION |
+| 523 | `docs/planned/MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03.md` | Timeline Operation Feel Refinement / AE-Style Editing Flow | 2026-07-10 | --- | 2026-07-10 | 8.1 KB | TIMELINE, OPERATION, FEEL, REFINEMENT |
+| 524 | `docs/planned/MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03_EXECUTION.md` | Timeline Operation Feel Refinement Execution Memo | 2026-04-23 | --- | 2026-04-23 | 4.4 KB | TIMELINE, OPERATION, FEEL, REFINEMENT, EXECUTION |
+| 525 | `docs/planned/MILESTONE_TIMELINE_PROPORTIONAL_KEYFRAME_EDITING_2026-07-06.md` | M-TL-17 Timeline Proportional Keyframe Editing (2026-07-06) | 2026-07-06 | --- | 2026-07-09 | 4.8 KB | TIMELINE, PROPORTIONAL, KEYFRAME, EDITING |
+| 526 | `docs/planned/MILESTONE_TIMELINE_QGRAPHICSSCENE_ELIMINATION_2026-03-31.md` | Timeline QGraphicsScene Elimination (2026-03-31) | 2026-03-31 | --- | 2026-04-08 | 4.0 KB | TIMELINE, QGRAPHICSSCENE, ELIMINATION |
+| 527 | `docs/planned/MILESTONE_TIMELINE_RIGHT_PANE_FULL_OWNER_DRAW_2026-04-08.md` | マイルストーン: Timeline Right Pane Full Owner-Draw | 2026-04-08 | --- | 2026-04-08 | 7.2 KB | TIMELINE, RIGHT, PANE, FULL, OWNER |
+| 528 | `docs/planned/MILESTONE_TIMELINE_SCRUBBAR_FRAME_CACHE_OVERLAY_2026-04-10.md` | Timeline Scrub Bar Frame Cache Overlay | 2026-03-26 | --- | 2026-07-09 | 5.9 KB | TIMELINE, SCRUBBAR, FRAME, CACHE, OVERLAY |
+| 529 | `docs/planned/MILESTONE_TIMELINE_TOOLTIPS_2026-04-10.md` | タイムラインツールチップ拡張の実装 | 2026-04-10 | --- | 2026-04-11 | 2.3 KB | TIMELINE, TOOLTIPS |
+| 530 | `docs/planned/MILESTONE_TIMELINE_TRACKVIEW_OWNER_DRAW_MIGRATION_2026-03-27.md` | Timeline TrackView Owner-Draw Migration (2026-03-27) | 2026-03-27 | --- | 2026-03-28 | 5.7 KB | TIMELINE, TRACKVIEW, OWNER, DRAW, MIGRATION |
+| 531 | `docs/planned/MILESTONE_TIMELINE_VISUAL_LANGUAGE_2026-03-31.md` | Timeline Visual Language (2026-03-31) | 2026-03-31 | --- | 2026-07-09 | 4.9 KB | TIMELINE, VISUAL, LANGUAGE |
+| 532 | `docs/planned/MILESTONE_TIMELINE_WAVEFORM_2026-04-10.md` | タイムラインオーディオ波形表示 | 2026-04-10 | --- | 2026-04-11 | 1.8 KB | TIMELINE, WAVEFORM |
+| 533 | `docs/planned/MILESTONE_TIMELINE_ZOOM_PAN_2026-04-10.md` | タイムラインズーム/パン操作の改善 | 2026-04-10 | --- | 2026-07-09 | 3.4 KB | TIMELINE, ZOOM, PAN |
+| 534 | `docs/planned/MILESTONE_TIMING_EVENT_VIEW_2026-04-10.md` | Timing Event View Milestone | 2026-04-10 | --- | 2026-04-10 | 1.5 KB | TIMING, EVENT, VIEW |
+| 535 | `docs/planned/MILESTONE_TOOLBAR_APP_INTEGRATION_2026-04-17.md` | マイルストーン: Toolbar / App Integration | 2026-04-17 | --- | 2026-07-09 | 7.1 KB | TOOLBAR, APP, INTEGRATION |
+| 536 | `docs/planned/MILESTONE_TOOLBAR_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: ツールバー 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 1.5 KB | TOOLBAR, DESIGN, AUDIT |
+| 537 | `docs/planned/MILESTONE_TOP_LEVEL_WIDGET_ARCHITECTURE_2026-07-13.md` | Top-Level Widget Architecture Migration | 2026-07-13 | In Progress | 2026-07-13 | 12.3 KB | TOP, LEVEL, WIDGET, ARCHITECTURE |
+| 538 | `docs/planned/MILESTONE_TRACK_MATTE_DRAG_LINK_UX_2026-06-01.md` | Milestone: Track Matte Drag-Link UX | 2026-06-01 | --- | 2026-07-07 | 5.0 KB | TRACK, MATTE, DRAG, LINK |
+| 539 | `docs/planned/MILESTONE_TYPOGRAPHY_PRESET_UI_2026-03-30.md` | Milestone: Typography Preset & Motion Style UI (M-TY-2) | 2026-03-30 | --- | 2026-03-30 | 2.5 KB | TYPOGRAPHY, PRESET |
+| 540 | `docs/planned/MILESTONE_UI_EVENT_BUS_ADOPTION_2026-04-01.md` | UI EventBus Adoption Milestone | 2026-04-01 | --- | 2026-04-01 | 2.3 KB | EVENT, BUS, ADOPTION |
+| 541 | `docs/planned/MILESTONE_UI_LAYOUT_UNDO_HISTORY_2026-06-07.md` | UI Layout Undo History Milestone | 2026-06-07 | 🟡 進行中（Phase 0: ADS 永続化 完了 2026-06-15 / Phase 1-5 未着手） | 2026-06-15 | 4.9 KB | LAYOUT, UNDO, HISTORY |
+| 542 | `docs/planned/MILESTONE_UI_SCRIPTABILITY_AND_ADAPTIVE_SURFACE_2026-06-07.md` | UI Scriptability And Adaptive Surface Milestone | 2026-06-07 | --- | 2026-07-09 | 13.1 KB | SCRIPTABILITY, AND, ADAPTIVE, SURFACE |
+| 543 | `docs/planned/MILESTONE_UI_THEME_SYSTEM_ROLLOUT_2026-04-02.md` | MILESTONE: UI Theme System Rollout | 2026-04-02 | --- | 2026-04-02 | 2.6 KB | THEME, SYSTEM, ROLLOUT |
+| 544 | `docs/planned/MILESTONE_UI_UX_UNIFICATION_2026-03-28.md` | UI/UX 統一改善 Milestone | 2026-03-28 | 計画中 | 2026-03-29 | 7.4 KB | UNIFICATION |
+| 545 | `docs/planned/MILESTONE_UNDO_AND_AUDIO_PIPELINE_COMPLETION_2026-03-25.md` | マイルストーン: Undo/Redo と Audio Pipeline の完成度向上 | 2026-03-25 | --- | 2026-03-25 | 5.2 KB | UNDO, AND, AUDIO, PIPELINE, COMPLETION |
+| 546 | `docs/planned/MILESTONE_UNIFIED_AUDIO_VIDEO_RENDER_OUTPUT_2026-03-28.md` | マイルストーン: Unified Audio / Video Render Output | 2026-03-28 | --- | 2026-03-29 | 3.5 KB | UNIFIED, AUDIO, VIDEO, RENDER, OUTPUT |
+| 547 | `docs/planned/MILESTONE_USABILITY_GAP_CLOSURE_2026-07-10.md` | MILESTONE: AE ユーザビリティ・ギャップの実コード検証クロージャ | 2026-07-10 | --- | 2026-07-16 | 13.1 KB | USABILITY, GAP, CLOSURE |
+| 548 | `docs/planned/MILESTONE_VECTOR_FLOW_GLITCH_2026-06-13.md` | Milestone: VectorFlowGlitch (ベクトル・フロー・グリッチ) | 2026-06-13 | --- | 2026-06-13 | 5.4 KB | VECTOR, FLOW, GLITCH |
+| 549 | `docs/planned/MILESTONE_VECTOR_LAYER_IMPORT_2026-03-25.md` | マイルストーン: Vector / SVG Layer Import | 2026-03-25 | --- | 2026-03-25 | 5.1 KB | VECTOR, LAYER, IMPORT |
+| 550 | `docs/planned/MILESTONE_VFX_PARTICLE_FLUID_2026-03-30.md` | Milestone: Real-time Particle & Fluid Simulation (M-VFX-1) | 2026-04-15 | --- | 2026-03-30 | 2.5 KB | VFX, PARTICLE, FLUID |
+| 551 | `docs/planned/MILESTONE_VIDEO_LAYER_PLAYBACK_STABILITY_2026-06-06.md` | マイルストーン: VideoLayer Playback Stability | 2026-06-06 | --- | 2026-07-09 | 5.5 KB | VIDEO, LAYER, PLAYBACK, STABILITY |
+| 552 | `docs/planned/MILESTONE_VIDEO_PROXY_IMPROVEMENT_2026-03-28.md` | ビデオプロキシ機能改善 Milestone | 2026-03-28 | 計画中 | 2026-03-29 | 12.3 KB | VIDEO, PROXY, IMPROVEMENT |
+| 553 | `docs/planned/MILESTONE_VIDEO_QIMAGE_RETIREMENT_COMPLETION_2026-07-09.md` | M-VIDEO-QIR: Video QImage Retirement — Completion 設計マイルストーン | 2026-04-15 | Not Started | 2026-07-09 | 7.5 KB | VIDEO, QIMAGE, RETIREMENT, COMPLETION |
+| 554 | `docs/planned/MILESTONE_VIEWPORT_BOOKMARKS_2026-06-27.md` | Milestone: Viewport Bookmarks System (M-VP-8) | 2026-06-27 | --- | 2026-06-29 | 33.6 KB | VIEWPORT, BOOKMARKS |
+| 555 | `docs/planned/MILESTONE_VIEWPORT_CANVAS_ROTATION_2026-06-27.md` | Milestone: Viewport Canvas Rotation System (M-VP-4) | 2026-06-27 | --- | 2026-06-29 | 19.8 KB | VIEWPORT, CANVAS, ROTATION |
+| 556 | `docs/planned/MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: ビューポート（Composition Editor）デザイン監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 45.8 KB | VIEWPORT, DESIGN, AUDIT |
+| 557 | `docs/planned/MILESTONE_VIEWPORT_DYNAMIC_RESOLUTION_2026-06-27.md` | Milestone: Viewport Dynamic Resolution Switching (M-VP-5) | 2026-06-27 | --- | 2026-06-29 | 23.5 KB | VIEWPORT, DYNAMIC, RESOLUTION |
+| 558 | `docs/planned/MILESTONE_VIEWPORT_ENHANCEMENT_PROPOSAL_2026-07-08.md` | ビューポート強化案 (Viewport Enhancement Proposal) | 2026-07-08 | --- | 2026-07-09 | 23.9 KB | VIEWPORT, ENHANCEMENT, PROPOSAL |
+| 559 | `docs/planned/MILESTONE_VIEWPORT_INTERACTION_NAVIGATION_CURSOR_2026-07-04.md` | MILESTONE: Viewport Interaction / Navigation / 3D Cursor - 2026-07-04 | 2026-07-04 | In Progress | 2026-07-09 | 12.8 KB | VIEWPORT, INTERACTION, NAVIGATION, CURSOR |
+| 560 | `docs/planned/MILESTONE_VIRTUAL_POINTER_CORE_2026-03-28.md` | Virtual Pointer Core Milestone | 2026-03-28 | --- | 2026-07-09 | 5.1 KB | VIRTUAL, POINTER, CORE |
+| 561 | `docs/planned/MILESTONE_VISUAL_EFFECT_BUS_2026-06-02.md` | MILESTONE: Visual Effect Bus | 2026-06-02 | --- | 2026-06-02 | 4.4 KB | VISUAL, EFFECT, BUS |
+| 562 | `docs/planned/MILESTONE_VR_XR_SUPPORT_2026-06-16.md` | M-XR-1 VR / XR Support Milestone | 2026-06-16 | --- | 2026-06-18 | 10.0 KB | SUPPORT |
+| 563 | `docs/planned/MILESTONE_VST3_HOST_2026-07-03.md` | M-VST3-1 VST3 + CLAP Host Integration Milestone | 2026-07-03 | Draft | 2026-07-09 | 6.3 KB | VST3, HOST |
+| 564 | `docs/planned/MILESTONE_WEB_EXPORT_SVG_CSS_2026-06-16.md` | Milestone M-WEBEXPORT-1: SVG + CSS Keyframes + HTML Player Export | 2026-06-16 | --- | 2026-06-18 | 14.1 KB | WEB, EXPORT, SVG, CSS |
+| 565 | `docs/planned/MILESTONE_WORKSPACE_MANAGER_2026-03-29.md` | Milestone: Workspace Manager (2026-03-29) | 2026-03-29 | --- | 2026-06-19 | 2.1 KB | WORKSPACE, MANAGER |
+| 566 | `docs/planned/MILESTONE_WORKSPACE_PRESETS_2026-04-10.md` | ワークスペースプリセット管理の実装 | 2026-04-10 | --- | 2026-07-09 | 3.9 KB | WORKSPACE, PRESETS |
+| 567 | `docs/planned/MILESTONE_ZOOM_TO_FIT_2026-04-10.md` | ズームtoフィット機能の拡張 | 2026-04-10 | --- | 2026-04-11 | 1.9 KB | ZOOM, FIT |
+| 568 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-24 | 95.4 KB | BACKLOG |
+| 569 | `docs/planned/NEXT_PHASE_ROADMAP.md` | プロジェクトビュー → タイムライン統合の次フェーズ提案 | 2026-06-07 | --- | 2026-07-05 | 9.1 KB | NEXT, PHASE, ROADMAP |
+| 570 | `docs/planned/RANDOM_HELPER_PROPOSAL_2026-06-16.md` | Random / Noise Helper Proposal (ArtifactCore) — 2026-06-16 | 2026-06-16 | --- | 2026-06-17 | 21.0 KB | RANDOM, HELPER, PROPOSAL |
+| 571 | `docs/planned/RENDER_BOUNDARY_CHANGE_SAFETY_CHECKLIST_2026-04-21.md` | Render Boundary Change Safety Checklist | 2026-04-21 | --- | 2026-05-16 | 2.6 KB | RENDER, BOUNDARY, CHANGE, SAFETY, CHECKLIST |
+| 572 | `docs/planned/RENDER_QUEUE_MANAGER_GAP_ANALYSIS_2026-04-13.md` | Render Queue Manager ギャップ分析 | 2026-04-13 | --- | 2026-04-13 | 3.0 KB | RENDER, QUEUE, MANAGER, GAP, ANALYSIS |
+| 573 | `docs/planned/REPO_WIDE_BACKLOG_TRIAGE_2026-06-11.md` | Repository Audit: Backlog Triage | 2026-06-11 | --- | 2026-06-11 | 0.5 KB | REPO, WIDE, BACKLOG, TRIAGE |
+| 574 | `docs/planned/REPO_WIDE_EDITOR_INTERACTION_AUDIT_2026-06-11.md` | Repository Audit: Editor Interaction | 2026-06-11 | --- | 2026-06-11 | 0.7 KB | REPO, WIDE, EDITOR, INTERACTION, AUDIT |
+| 575 | `docs/planned/REPO_WIDE_MODULE_HYGIENE_AUDIT_2026-06-11.md` | Repository Audit: Module Hygiene | 2026-06-11 | --- | 2026-06-11 | 0.6 KB | REPO, WIDE, MODULE, HYGIENE, AUDIT |
+| 576 | `docs/planned/REPO_WIDE_PERFORMANCE_HOTSPOT_AUDIT_2026-06-11.md` | Repository Audit: Performance Hotspots | 2026-06-11 | --- | 2026-06-11 | 0.6 KB | REPO, WIDE, PERFORMANCE, HOTSPOT, AUDIT |
+| 577 | `docs/planned/REPO_WIDE_PROPERTY_SYSTEM_AUDIT_2026-06-11.md` | Repository Audit: Property System | 2026-06-11 | --- | 2026-06-11 | 0.6 KB | REPO, WIDE, PROPERTY, SYSTEM, AUDIT |
+| 578 | `docs/planned/REPO_WIDE_RENDER_PATH_AUDIT_2026-06-11.md` | Repository Audit: Render Paths | 2026-06-11 | --- | 2026-06-11 | 0.6 KB | REPO, WIDE, RENDER, PATH, AUDIT |
+| 579 | `docs/planned/REPO_WIDE_SELECTION_AND_CONTEXT_AUDIT_2026-06-11.md` | Repository Audit: Selection and Context | 2026-06-11 | --- | 2026-06-11 | 0.6 KB | REPO, WIDE, SELECTION, AND, CONTEXT |
+| 580 | `docs/planned/REPO_WIDE_TEXT_SYSTEM_AUDIT_2026-06-11.md` | Repository Audit: Text System | 2026-06-11 | --- | 2026-06-11 | 0.8 KB | REPO, WIDE, TEXT, SYSTEM, AUDIT |
+| 581 | `docs/planned/REPO_WIDE_UI_CONSISTENCY_AUDIT_2026-06-11.md` | Repository Audit: UI Consistency | 2026-06-11 | --- | 2026-06-11 | 0.6 KB | REPO, WIDE, CONSISTENCY, AUDIT |
+| 582 | `docs/planned/SHAPE_LAYER_ANALYSIS_2026-04-17.md` | ShapeLayer クラス分析レポート | 2026-04-17 | --- | 2026-07-09 | 19.2 KB | SHAPE, LAYER, ANALYSIS |
+| 583 | `docs/planned/SHAPE_LAYER_FILE_RENDERING_ISSUE_2026-04-20.md` | ShapeLayer File Rendering Issue | 2026-04-20 | --- | 2026-04-20 | 1.6 KB | SHAPE, LAYER, FILE, RENDERING, ISSUE |
+| 584 | `docs/planned/STRING_HELPER_PROPOSAL_2026-06-16.md` | String Helper Proposal (ArtifactCore) — 2026-06-16 | 2026-06-16 | --- | 2026-06-17 | 17.3 KB | STRING, HELPER, PROPOSAL |
+| 585 | `docs/planned/TEAM_PROJECT_USAGE_EXAMPLE.md` | チームプロジェクト 使用例 | --- | --- | 2026-04-13 | 4.5 KB | TEAM, PROJECT, USAGE, EXAMPLE |
+| 586 | `docs/planned/TEXT_LAYER_ROUTE_2026-04-29.md` | Text Layer Route Note - 2026-04-29 | 2026-04-29 | --- | 2026-04-30 | 1.0 KB | TEXT, LAYER, ROUTE |
 
 ## plans (6 files)
 
@@ -1080,7 +1080,7 @@
 | 23 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.2 KB | IMPL, DOF |
 | 24 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.7 KB | IMPL, SSAO |
 | 25 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.5 KB | IMPL, TONE, MAPPING |
-| 26 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-07-16 | --- | 2026-07-17 | 209.4 KB | INDEX, GENERATED |
+| 26 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-07-24 | --- | 2026-07-24 | 218.0 KB | INDEX, GENERATED |
 | 27 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 28 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 11.6 KB | CAMERA, PROJECTION |
 | 29 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
@@ -1258,11 +1258,11 @@
 | bugs | 89 |
 | codereviews | 1 |
 | design | 4 |
-| done | 97 |
+| done | 98 |
 | drafts | 2 |
 | experiments | 5 |
 | perf | 3 |
-| planned | 587 |
+| planned | 586 |
 | plans | 6 |
 | reports | 1 |
 | root | 58 |
