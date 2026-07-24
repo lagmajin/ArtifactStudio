@@ -59,6 +59,7 @@
 - `AnimationLayerStackT<T>`、Additive / Override、weight / mute / solo、フレーム評価を `Animation.Value` に追加済み（source/static verified 2026-07-25）。
 - `ArtifactAbstractLayer` が float 用 Animation Layer Stack を保持する公開 API を追加。UI / 保存復元 / 実描画評価への接続は次段階。
 - `ArtifactAbstractLayer::opacity()` が現在フレームの Animation Layer Stack を Additive / Override 評価へ通す実評価経路を追加。
+- 既存 Property Editor のレイヤーグループに各 Anim Layer の Weight / Mute / Solo / Blend Mode を公開し、編集値を Stack へ反映。
 
 ### 2.1 既存資産
 
