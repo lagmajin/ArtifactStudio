@@ -70,6 +70,7 @@
 - 各 Anim Layer の `Value (Current Frame)` を Property Editor に公開し、編集値を現在フレームのキーフレームへ書き込む導線を追加。
 - 現在フレームの Anim Layer キーフレームに対する補間方式の編集も追加。
 - 新規 Additive Layer の初期値を neutral 値（opacity=現在値、scale=1、その他=0）で初期化し、追加直後の不意な変形を防止。
+- レイヤーコンテキストメニューに現在フレーム Bake を追加し、共有／プロパティ別 Stack の評価結果を Base へ焼き込み可能にした。
 - キーフレームの補間 enum を Animation Layer JSON に保存／復元するよう修正。
 
 ### 2.1 既存資産
