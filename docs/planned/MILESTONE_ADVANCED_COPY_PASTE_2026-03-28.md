@@ -1,6 +1,6 @@
 # Milestone: 高度コピー/ペースト (2026-03-28)
 
-**Status:** Not Started
+**Status:** Partial（layer copy/paste and clipboard bundle path source/static verified 2026-07-25）
 **Goal:** レイヤー、エフェクト、キーフレーム、プロパティをコピー＆ペースト可能にする。
 After Effects の Copy/Paste に匹敵する操作性。
 
@@ -15,6 +15,12 @@ After Effects の Copy/Paste に匹敵する操作性。
 | キーフレームのコピー/ペースト | ❌ 未実装 | — |
 | プロパティ値のコピー/ペースト | ❌ 未実装 | — |
 | クリップボード形式 | ❌ 定義なし | — |
+
+### 2026-07-25 監査メモ
+
+- `ArtifactCore::ClipboardManager` にレイヤー JSON / 複数レイヤーバンドルの保持経路を確認。
+- Composition Editor に `Paste Layers Here` と選択レイヤーの複製・相対配置処理を確認。
+- エフェクト、キーフレーム、プロパティ値の専用コピー／ペーストは未完了。
 
 ---
 

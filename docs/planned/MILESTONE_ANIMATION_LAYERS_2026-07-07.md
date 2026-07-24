@@ -1,7 +1,7 @@
 # M-ANIM-1 Animation Layers Milestone
 
 作成日: 2026-07-07
-ステータス: Draft
+ステータス: In Progress（設計確認済み、実装着手前）
 対象: `ArtifactCore/include/Animation/AnimatableValue.ixx`,
       `ArtifactCore/include/Animation/AnimatableTransform2D.ixx`,
       `ArtifactCore/include/Animation/AnimatableTransform3D.ixx`,
@@ -50,6 +50,12 @@
 
 
 ## 2. 現状整理 (2026-07-07 基準)
+
+### 2.0 2026-07-25 監査メモ
+
+- `AnimationLayerStack` の実装は未確認。
+- 次の実装単位は `ArtifactCore` 内の Additive / Override 合成モデルと、weight / mute / solo の評価 API。
+- UI と保存形式はコア評価 API の形を確定してから接続する。
 
 ### 2.1 既存資産
 
