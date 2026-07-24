@@ -63,6 +63,7 @@
 - レイヤーコンテキストメニューから Anim Layer の追加／末尾削除を行える導線を追加。
 - Anim Layer の追加／削除を `Change Animation Layers` の一括 Undo コマンドへ統合。
 - プロパティパスごとの独立 Stack API と JSON 保存領域を追加し、Transform 等を共有 opacity Stack と混線させない土台を実装。
+- `getLocalTransformAt()` の Position X/Y、Rotation、Scale X/Y、Anchor の評価後段へプロパティ別 Stack を接続（空 Stack は既存挙動を維持）。
 
 ### 2.1 既存資産
 
