@@ -23,7 +23,7 @@
 - **M-PRECOMP-2** Precompose Workflow Completion
   - `PreCompose` の「呼べる」状態から、`unprecompose()` を含む実務 finish line まで閉じる
   - layer restore、time/range integrity、undo/redo、`Master Properties` 前提の責務境界を固める
-  - 詳細: `docs/planned/MILESTONE_PRECOMPOSE_WORKFLOW_COMPLETION_2026-07-09.md`
+  - 詳細: `docs/done/MILESTONE_PRECOMPOSE_WORKFLOW_COMPLETION_2026-07-09.md`
 
 - **M-LC-2** Generator / Modifier / Field Stack Migration
   - `single cloner` 前提から、複数 generator と独立 field stack を持つ構造へ段階移行する
@@ -146,7 +146,7 @@
 - **M-LE-3** 2D Shape Modeling Editing
   - `ArtifactShapeLayer` を primitive layer から `editable path + modifier stack` を持つ 2D モデリング対象へ昇格させる
   - `Shape Edit` mode、vertex/segment/tangent editing、`Convert To Editable Path`、shape operator の modifier UX を段階導入する
-  - 詳細: `docs/planned/MILESTONE_2D_SHAPE_MODELING_EDITING_2026-06-29.md`
+  - 詳細: `docs/done/MILESTONE_2D_SHAPE_MODELING_EDITING_2026-06-29.md`
 
 ### Composition Editor / Cache
 - **M-CE-1** Composition Editor Cache System ✅ (verified 2026-04-14)

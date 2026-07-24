@@ -15,7 +15,7 @@
 - `docs/planned/MILESTONE_BEYOND_AE_DIFFERENTIATION_2026-06-02.md` (Z-C3)
 - `ae_maturity_additional_analysis.md` #44 (Responsive Layout)
 - `ArtifactCore/include/Shape/ShapeGroup.ixx`
-- `docs/planned/MILESTONE_2D_SHAPE_MODELING_EDITING_2026-06-29.md`
+- `docs/done/MILESTONE_2D_SHAPE_MODELING_EDITING_2026-06-29.md`
 
 ---
 

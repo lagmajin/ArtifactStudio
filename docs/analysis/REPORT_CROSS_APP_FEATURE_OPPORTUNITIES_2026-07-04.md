@@ -279,7 +279,7 @@ Phase 1 は state の作成・複製・切替・override 表示。Transition gra
 | Responsive Layout Preview Matrix | `MILESTONE_RESPONSIVE_LAYOUT_COMPOSITION_2026-06-05.md` |
 | CSV / JSON Batch Variations | `MILESTONE_AD_PRODUCTION_ACCELERATOR_2026-05-28.md` と Phase 2 |
 | Generator / Modifier / Field model | `MILESTONE_GENERATOR_MODIFIER_FIELD_STACK_2026-07-01.md` |
-| Shape modifier stack | `MILESTONE_2D_SHAPE_MODELING_EDITING_2026-06-29.md` |
+| Shape modifier stack | `../done/MILESTONE_2D_SHAPE_MODELING_EDITING_2026-06-29.md` |
 | Layer variants | `MILESTONE_LIGHTWEIGHT_VCS_AND_LAYER_VARIANTS_2026-04-17.md` |
 | Reactive event rules | `MILESTONE_REACTIVE_EVENT_SYSTEM_2026-03-28.md` |
 

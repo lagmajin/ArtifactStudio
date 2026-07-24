@@ -15,7 +15,7 @@
 参照:
 - `ArtifactCore/include/Shape/ShapeGroup.ixx`（addOperator, ShapeOperator）
 - `ArtifactCore/include/Shape/ShapeOperator.ixx`（TrimPaths, Repeater, OffsetPaths 等）
-- `docs/planned/MILESTONE_2D_SHAPE_MODELING_EDITING_2026-06-29.md` (M-LE-3)
+- `docs/done/MILESTONE_2D_SHAPE_MODELING_EDITING_2026-06-29.md` (M-LE-3)
 - `docs/done/COMPOSITION_EDITOR_GAP_ANALYSIS_2026-06-03.md`（ShapeOperator 6種未実装）
 - `docs/planned/MILESTONE_BEYOND_AE_DIFFERENTIATION_2026-06-02.md` (Z-D1: Boolean)
 
