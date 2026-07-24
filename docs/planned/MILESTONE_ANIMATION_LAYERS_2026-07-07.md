@@ -56,6 +56,7 @@
 - `AnimationLayerStack` の実装は未確認。
 - 次の実装単位は `ArtifactCore` 内の Additive / Override 合成モデルと、weight / mute / solo の評価 API。
 - UI と保存形式はコア評価 API の形を確定してから接続する。
+- `AnimationLayerStackT<T>`、Additive / Override、weight / mute / solo、フレーム評価を `Animation.Value` に追加済み（source/static verified 2026-07-25）。
 
 ### 2.1 既存資産
 

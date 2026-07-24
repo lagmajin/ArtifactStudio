@@ -21,6 +21,7 @@ After Effects の Copy/Paste に匹敵する操作性。
 - `ArtifactCore::ClipboardManager` にレイヤー JSON / 複数レイヤーバンドルの保持経路を確認。
 - Composition Editor に `Paste Layers Here` と選択レイヤーの複製・相対配置処理を確認。
 - エフェクト、キーフレーム、プロパティ値の専用コピー／ペーストは未完了。
+- 複数レイヤーの貼り付けを `Paste Layers` の一括 Undo マクロに統合済み（source/static verified 2026-07-25）。
 
 ---
 
