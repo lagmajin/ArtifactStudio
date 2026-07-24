@@ -51,6 +51,10 @@ collision コンポーネントは不要（G1 対応が前提）。
 
 ### G3: UI 露出を Components 専用面の導線に揃える
 
+進捗メモ（2026-07-24）: Inspectorの埋め込みComponents editorは
+`embeddedComponentEditor` プロファイルで通常のレイヤー表示制限を迂回し、
+コンポーネント由来グループを専用面で編集する既存経路を確認済み。
+
 - 背景: AGENTS ルール「コンポーネント由来グループは通常 Property Widget に出さず、Components 専用面を正規の編集導線とする」。`Fracture` グループ（:6083）は `builtin.fracture` コンポーネント由来。
 - 修正: Collision / Cloner 等と同様に Components 専用面の編集導線に揃える。通常プロパティ面への新規露出は行わない。
 - 完了条件: Fracture 設定が Components 専用面から編集でき、通常 Property Widget の表示方針が AGENTS ルールと一致。
