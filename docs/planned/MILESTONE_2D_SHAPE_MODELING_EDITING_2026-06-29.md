@@ -3,6 +3,8 @@
 作成日: 2026-06-29  
 ID: `M-LE-3`
 
+**ステータス:** ✅ Complete (source/static verified 2026-07-24; runtime/build verification pending)
+
 ## Goal
 
 `ArtifactShapeLayer` を単なる primitive layer や AE 風 shape layer の延長ではなく、
@@ -244,6 +246,9 @@ Blender / Illustrator / Spine の「編集対象としてのパス」に近い�
 この slice が通ると、その後の vertex insert や convert-to-editable-path を安全に足しやすくなる。
 
 ## Current Progress
+
+ソース監査時点で、Phase 1〜4の主要編集経路とPhase 5のoperator stack操作を確認済み。
+runtime/buildによる最終確認のみ保留。
 
 - `Shape Edit` mode を `EditMode` と tool routing に追加済み
 - `ArtifactCompositionEditor` の tool menu に `Shape modeling` の入口を追加済み
