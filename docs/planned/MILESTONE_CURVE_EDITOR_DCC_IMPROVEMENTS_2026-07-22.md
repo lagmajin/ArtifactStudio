@@ -49,8 +49,10 @@
 - 完了条件: 矩形で複数キーを選択し一括移動できる。挿入したキーがプロパティに Undo 付きで追加される。
 
 ### P2: タンジェント操作拡充 + 数値入力
-- [ ] **CE-6**: Break / Unify Tangents（`brokenTangents` フラグ活用、`V` メニューまたは `B` はマーキーと競合するため `V` 側へ）。
-- [ ] **CE-7**: Step（Constant）切替（InterpolationType::Constant への往復）。
+- [x] **CE-6**: Break / Unify Tangents（`brokenTangents` フラグ活用、`V` メニューまたは `B` はマーキーと競合するため `V` 側へ）。
+  - 実装: Curve EditorのBreak/Unify操作とTimelineのUndo付きボタン経路を確認。2026-07-24 完了（ビルド未検証）。
+- [x] **CE-7**: Step（Constant）切替（InterpolationType::Constant への往復）。
+  - 実装: Curve EditorのConstant切替とTimelineのStepボタン／Undo経路を確認。2026-07-24 完了（ビルド未検証）。
 - [ ] **CE-8**: 選択キーの frame/value 数値エントリ欄（Maya Stats 相当。既存 `promptSetSelectedKeyValue` をパネル化）。
 - 完了条件: tangent タイプの往復が Undo 対応で動作。数値入力でキーが確定更新される。
 
