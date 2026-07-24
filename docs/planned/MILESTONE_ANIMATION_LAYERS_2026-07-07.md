@@ -65,6 +65,7 @@
 - プロパティパスごとの独立 Stack API と JSON 保存領域を追加し、Transform 等を共有 opacity Stack と混線させない土台を実装。
 - `getLocalTransformAt()` の Position X/Y、Rotation、Scale X/Y、Anchor の評価後段へプロパティ別 Stack を接続（空 Stack は既存挙動を維持）。
 - Property Editor に Transform 用 Stack の状態グループと、レイヤーコンテキストメニューの一括作成導線を追加。
+- 同じコンテキストメニューに Transform 用 Stack の一括削除導線を追加。
 
 ### 2.1 既存資産
 
