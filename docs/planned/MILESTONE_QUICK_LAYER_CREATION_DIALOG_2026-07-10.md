@@ -1,7 +1,7 @@
 # Quick Layer Creation Dialog
 
 **作成日:** 2026-07-10  
-**ステータス:** Not Started  
+**ステータス:** In Progress（MVP の既存実装を静的確認中）  
 **対象:** 素材・平面レイヤーの短時間作成、マスク同時生成、Layer Effect Envelope 適用
 
 ## 概要
@@ -118,6 +118,13 @@
 - 既存の平面設定ダイアログの置き換え
 - Graph Editor の代替
 - 新しい専用エフェクトアルゴリズムの追加
+
+## 2026-07-24 進捗
+
+- `QuickLayerCreationDialog` の既存シェル、平面作成、長方形 / 楕円マスク、Envelope、配置選択、一括 Undo を確認。
+- `QuickLayerCreationOptions` に配置モードを正式に追加し、ダイアログ選択値を作成処理へ接続。
+- Composition Start / Before Selected / After Selected の配置を Undo マクロ内の既存レイヤー移動コマンドで適用。
+- 画像素材選択、角丸 / 全体マスク、追加プリセット、ビルド・ランタイム確認は未完了。
 - 自由形状の本格的な Roto 編集
 
 ## 完了条件
