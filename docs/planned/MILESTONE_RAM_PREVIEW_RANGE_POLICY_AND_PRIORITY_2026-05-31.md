@@ -115,3 +115,16 @@
 - [MILESTONE_RAM_PREVIEW_CACHE_PARITY_2026-05-31.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_RAM_PREVIEW_CACHE_PARITY_2026-05-31.md)
 - Phase 1 は本書へ統合済み
 - [AFTER_EFFECTS_PARITY_EXECUTION_ROADMAP_2026-05-31.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_EXECUTION_ROADMAP_2026-05-31.md)
+
+## Static Audit (2026-07-25)
+
+Phase 1〜4 の policy 部分はサービス実装に具体化されている。`ArtifactPlaybackService` は `ramPreviewRange`、radius、work-area／composition bounds、requested／ready／failed／on-disk state、generation 付き build queue、cancel／invalidate を保持する。`ramPreviewPriorityState()` は `immediate`、`near`、`forward`、`backward`、`work-area`、`out-of-range` を判定し、`ramPreviewPriorityReason()` と summary へ同じ理由を返す。View Menu は current frame の state と not-ready reason を読み、サービス API には cache bitmap、hit rate、pending、build progress、clear／build／stop 相当の導線がある。
+
+ただし、静的確認では playback direction の反転、loop 境界での優先順位、scrub 中の policy 切替、Timeline／Debugger／Preview surface が同じ priority truth を読むことまでは証明できない。さらに前段のRAM Cache監査で確認したとおり、汎用 `FrameCache` はPlaybackServiceの主要経路へ接続されていないため、priority queue が実際の連続再生品質へ反映されることも未検証。Phase 1 は実装済み、Phase 2〜4 は基盤実装済み／実再生・surface統合確認待ちとする。
+
+確認対象:
+
+- `Artifact/include/Service/ArtifactPlaybackService.ixx`
+- `Artifact/src/Service/ArtifactPlaybackService.cppm`
+- `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`
+- `Artifact/src/Widgets/Timeline/ArtifactTimelineScrubBar.cppm`
