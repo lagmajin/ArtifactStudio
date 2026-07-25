@@ -248,6 +248,25 @@ using PropertyObserver  = Callback<void(const QString& propertyName, const QVari
 
 ## 全貌サマリ
 
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の `ArtifactCore/include/Core` を確認した。`Array`、`ArtifactDict`、`Ptr` / `Owned`、`Callback` などの wrapper モジュールは存在するが、リポジトリ全体の置換まで進んだ証拠はない。
+
+| 領域 | 現行確認 | 判定 |
+|---|---|---|
+| Array / collection | `Core.ArtifactArray` に append、safe access、find、remove、iteration 等の API がある | 基盤実装済み |
+| Dict / map | `Core.ArtifactDict` / ordered variant に set、Optional get、tryGet、contains がある | 基盤実装済み |
+| Pointer ownership | `Core.ArtifactPtr` に Ptr、Ref、Owned、WeakPtr の設計がある | 部分実装（利用・品質検証待ち） |
+| Optional | `Utils.Optional` は `std::optional` alias と helper 群であり、独自 `Opt<T>` ではない | 部分実装 |
+| Callback | `Core.ArtifactCallback` に null-safe callback wrapper がある | 基盤実装済み |
+| Domain aliases | LayerList、EffectRegistry、PropertyBag 等の主要 alias の一括導入は確認できない | 未完了 |
+| Repository adoption | 通常の `std::vector` / `QVector` / `QHash` / smart pointer が多数残り、wrapper 使用箇所の横断的な置換は確認できない | 未着手〜部分実装 |
+| API safety | `Ptr` の custom ref-count、`Array` の raw data、wrapper の公開範囲は production-wide adoption 前に専用検証が必要 | 検証待ち |
+
+**判定**: wrapper のプロトタイプ／基盤は存在するが、3,000 箇所超の template 露出削減や domain alias 導入という本来の完了条件には未達。既存コードを一括置換せず、まず wrapper の ownership・例外安全性・利用規約を検証してから段階導入する状態。
+
 | カテゴリ | 新設型 | 置換元 | 箇所数 | AI エラー防止効果 |
 |---|---|---|---|---|
 | コレクション | `Array<T>`, `LayerList` 他 | `std::vector`, `QVector` | 3,069+ | ★★★ |
