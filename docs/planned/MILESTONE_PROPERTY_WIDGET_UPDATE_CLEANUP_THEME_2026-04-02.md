@@ -157,3 +157,11 @@ Property UI は動いているが、責務が散りやすい。
 - `PropertyEditor` の row をカード風に再描画し、hover / focus / keyframe state を可視化した
 - pick-whip / reference linking の入口は row-level affordance として今後整理する
 - まだ `copy-paste` / `legacy remnant` の整理は残っている
+
+## Static Audit (2026-07-25)
+
+現行ソースでは、`ArtifactPropertyWidget` に rebuild debounce、revision、rebuild signature、update-only 経路、frame cache、filter debounce があり、同一構造での不要な再構築を抑制している。`PropertyEditor` は row chrome と action geometry を所有し、Inspector は `QPalette`・theme token・`QProxyStyle`・owner-draw を用いて surface／button／scrollbar の見た目を構成している。新規の `setStyleSheet()` は対象箇所では確認できず、既存の theme ownership 方針と整合する。
+
+一方、`ArtifactPropertyWidget`／`ArtifactInspectorWidget`／PropertyEditor 間の責務境界はまだ複数の ad-hoc group／action row を含み、pick-whip／reference link、copy-paste、legacy Knob の整理は未完了である。palette token の全面的な一元化、dark／light／high-contrast の実画面比較、再構築抑制の性能効果、旧 wrapper を含む全 widget 経路の runtime／build 検証も未確認である。
+
+判定: **Phase 1〜3 の主要基盤は実装済み。** Phase 4〜5 と theme／legacy の完全整理、runtime 検証が残っている。
