@@ -79,6 +79,10 @@ agents can use from inside ArtifactStudio.
 - Built-in tests cover schema exposure, dry-run rejection, and one harmless
   allowed command.
 
+### 2026-07-25 実装監査
+
+`CommandSandbox` の非 shell 実行、明示 allowlist、出力上限、構造化結果、dry-run、schema 登録とテスト入口は記載どおり確認できる。これは OS／CLI command の sandbox であり、`WorkspaceAutomation` の CommandIR dry-run／execute とは別境界である。Phase 2 の allowlist／working-directory／timeout を編集・永続化する UI と、Phase 3 の workspace-bound command preset／root enforcement は確認できないため、Phase 1 完了、Phase 2〜3 未完了と整理する。
+
 ---
 
 ## Next Execution Slice
