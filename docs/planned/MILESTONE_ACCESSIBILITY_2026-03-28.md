@@ -5,6 +5,7 @@
 実装追加: TimelineとComposition ViewをStrongFocusおよびAccessible Name/Description対応。
 実装追加: Property EditorにQt標準QFocusFrameを追加し、キーボードフォーカスを可視化。
 実装追加: TimelineにもQt標準QFocusFrameを追加し、フォーカス表示を統一。
+実装追加: Curve EditorにAccessible Name/Descriptionを設定。
 **関連コンポーネント:** 全 UI コンポーネント
 
 ---
