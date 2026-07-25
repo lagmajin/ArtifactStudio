@@ -1,5 +1,16 @@
 # UI Scriptability And Adaptive Surface Milestone
 
+## Static Audit (2026-07-25)
+
+現状は `WorkspaceAutomation`／`CommandIR` による検証付きの操作 API、workspace の保存・復元、既存 widget の theme token／`QPalette` 利用、context shortcut helper などの部品は存在する。一方、このマイルストーンが求める「UI surface を定義から再構成する」統合モデルは確認できない。
+
+- Scriptable surface: panel/tool/command/layout/theme を共通 JSON 定義から登録し、ユーザー作成 surface を既存 shell に差し込む registry は未確認。WorkspaceAutomation は UI 構成 API ではなく、主に project/layer/playback/render の command facade。
+- Contextual keymap: shortcut helper や個別 action は存在するが、Timeline／Composition Viewer／Layer List／Inspector の優先順位・衝突解決・context 別再割り当てを一元管理する keymap model/editor は未確認。
+- Timeline density: タイムラインには個別の列・表示状態があるものの、`compact/standard/detailed` preset、列順・最小幅・表示責務を共通 policy として保存する機構は未確認。
+- High DPI/theme: SVG 資産、theme token、`QPalette`/owner-draw の方針は現行実装と整合するが、1x/1.5x/2x の検証、全主要 surface の統一、high-contrast/color-safe/large-hit-target の選択可能な preset は未確認。
+
+判定: 設計方針と周辺部品は部分的に存在するが、Phase 1 の共通 surface schema／registryからPhase 5のアクセシブル presetまで未達。既存 command facade を UI 定義 registry と同一視しないことが重要である。
+
 > 2026-06-07 作成
 
 ## 目的
