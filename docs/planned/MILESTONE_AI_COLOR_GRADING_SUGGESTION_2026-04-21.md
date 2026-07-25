@@ -123,3 +123,7 @@ color grading の候補を返せるようにする。
 - 最初は video sequence 全体ではなく単一ショットから始める
 - 破壊的な自動変更は後回しにする
 - `ArtifactColorSciencePanel` を提案の主入口にする
+
+## 2026-07-25 実装監査
+
+入口として想定された ColorSciencePanel／ColorGradingEngine／LUT 管理は存在するが、`AIColorAnalysisContext`／`AIColorAnalysisResult`／`ColorGradingSuggestionRequest`／`ColorGradingSuggestionCandidate` の専用型と、単一ショットの統計抽出から候補生成までの実装は確認できない。提案比較UI、適用前プレビュー、元設定へ戻す導線、sequence分析やfeedback学習も未確認である。したがって Phase 1〜4 は未実装・runtime未検証とする。
