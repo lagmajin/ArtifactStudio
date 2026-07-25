@@ -252,3 +252,20 @@ ArtifactStudio 本体に組み込む、アプリ専用の内蔵デバッガを�
 この文書はアプリ内デバッグ全体の上位設計であり、
 `Frame Debug View` はその中の「1 フレームを固定して追う」実行計画として切り出したものにする。
 
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の AppDebugger、Trace、FrameDebug、Diagnostics、CrashHandler 周辺を照合した。ビルド・実機操作は未実施。
+
+| Phase | 現状 | 判定 |
+|---|---|---|
+| 1. Event Trace Core | Trace model が scope/frame/event/thread/lock/crash と bounded snapshot/JSON を持つ。AppDebugger/TraceTimeline/EventBus の filter・pause・pin の全統合は未確認。 | 部分実装 |
+| 2. State Inspector | AppDebugger、Project Health、Playback、Render/Queue、Asset/Composition の個別状態面がある。current project/composition/layer/playback/backend/queue を一画面で読む統合は未確認。 | 部分実装 |
+| 3. Frame Debugger | FrameDebugView、pipeline/resource/diff、compare/scrub/step の基盤がある。failed frame と rerender candidate の一貫した固定・再参照は未確認。 | 部分実装／確認待ち |
+| 4. Crash Bundle Export | CrashHandler の timestamp report/stack/pending ingestion、FrameDebug/Harness の report save/copy がある。final snapshot + recent trace + diagnostics を一つの crash bundle にまとめる契約は未確認。 | 部分実装／未完了 |
+
+### 現在の判定
+
+上位デバッガを構成する部品は広く実装済みだが、横断 snapshot、AppDebugger の一画面統合、crash/frame bundle の接続が残る。全体は「部分実装／統合確認待ち」とする。
+
