@@ -241,3 +241,11 @@ Done when:
 - [MILESTONE_PROJECT_VIEW_SEARCH_FILTER_PRESENTATION_2026-04-03.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_PROJECT_VIEW_SEARCH_FILTER_PRESENTATION_2026-04-03.md)
 - [MILESTONE_PROJECT_ASSET_WORKFLOW_2026-03-27.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_PROJECT_ASSET_WORKFLOW_2026-03-27.md)
 - [MILESTONE_ASSET_BROWSER_NAVIGATOR_SEARCH_PRESENTATION_2026-04-03.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_SEARCH_PRESENTATION_2026-04-03.md)
+
+## Static Audit (2026-07-25)
+
+`ArtifactProjectView` は `PresentationMode::List` / `Tile` を持ち、Project Manager の view mode combo から切り替えられる。Tile 描画には thumbnail cache、fallback 表示、タイトル、種別 badge、metadata、missing／unused／status／proxy badge、hover／selection 表現があり、Ctrl+wheel による tile 密度調整も確認できる。Tree 側と同じ selection model・visible rows を利用しているため、表示切替で別の item 集合を持つ設計ではない。Project View からの open、reveal、proxy、relink 等の次操作導線も存在する。
+
+一方、thumbnail の全素材種別での表示品質、重い素材を含む初期表示性能、Tile と Asset Browser の見え方の整合、selection/current composition の実動作、各密度での文字省略と runtime 視認性は未検証である。List／Tile の名称は元仕様の list／tile と対応するが、grid／freeform は対象外で、Tile の構造表示も flat な visible rows の描画に依存する。
+
+判定: **Phase 1〜5 の主要実装は確認できる。** Phase 3・Phase 6 と Done Criteria の runtime／性能／責務境界検証が残っている。
