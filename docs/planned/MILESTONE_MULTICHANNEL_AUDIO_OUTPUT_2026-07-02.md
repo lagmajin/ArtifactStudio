@@ -330,3 +330,8 @@ Phase 6 (出力選択UI)
 - [ ] デバイス非対応レイアウトは選択不可
 - [ ] 即時切り替えが安定動作
 
+## 2026-07-25 静的確認
+
+設計書の旧記載から進展しており、AudioRenderer は preferred channel count、実デバイスの channel count、auto-downmix を持ち、Composition 側には 6／8ch の出力レイアウト選択と AudioMixer 経路がある。AudioLayer も mono／stereo／5.1／7.1 のチャンネル数を保持する実装が存在し、UI Mixer と Core AudioBus の同期も実装済み。
+
+一方、AudioDownMixer の実装は確認できた範囲では Stereo／Mono 変換が中心で、7.1 の品質保証、デバイス別の実出力、出力レイアウト選択 UI の完全な接続、RingBuffer の複数チャンネル実機検証、クリッピング防止を含む Phase 4〜6 は未検証または未完了。判定は「パイプライン基盤は導入済み、実機出力・7.1品質・切替検証が残る」とする。
