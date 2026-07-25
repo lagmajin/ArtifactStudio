@@ -27,3 +27,7 @@ This milestone covers two critical API expansions for the Cloud AI assistant int
 - AI can trigger an export and reliably receive a response when the file is successfully written to disk.
 - AI can move the playhead and set the work area boundaries.
 - No memory leaks or thread blocks that freeze the main UI during export.
+
+## 2026-07-25 実装監査
+
+WorkspaceAutomation／CommandIRExecutor に `exportComposition`／`exportCurrentComposition`、render queue 登録・完了待ち・timeout/cancel、playback／seek／work area 操作の入口があり、AI tool bridge から呼べることを確認した。一方、指定ファイルが実際に正常生成されたことの厳密な返却、長時間 export 中の UI 非ブロック、memory leak、seek／work area の実機動作、失敗時の normalized response は runtime で確認できない。したがって Phase 6／7 は API 部分実装済み・受け入れ未完了・runtime未検証とする。
