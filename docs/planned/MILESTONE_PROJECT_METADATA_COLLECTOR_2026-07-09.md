@@ -238,3 +238,11 @@ Phase 1A の走査順・Collector フック・複数 Collector driver は実装�
 - 走査順が既存 Statistics の集計順と矛盾しない
 - Collector 契約が Stats / Asset / Font の 3 用途を無理なく表現できる
 - 既存 API は互換維持し、内部だけ差し替える方針を守る
+
+## Static Audit (2026-07-25)
+
+`ArtifactCore` に `ProjectVisitor` / `MetadataCollector` / `MetadataReport` / `MetadataCollectorDriver` が存在し、Project・Composition・Layer・Effect・Property のノード契約、型別 hook、複数 Collector の同一走査、JSON／CSV 出力を確認できる。`ArtifactProjectStatistics` は Stats と Font の Collector をこの経路で実行し、Packager の外部ファイル収集と CleanupTool の serialized `sourcePath` / `filePath` 収集も `collectMetadata()` 経由へ接続されている。
+
+ただし、`ArtifactProjectCleanupTool` には既存の property-group 再走査が互換フォールバックとして残り、`ArtifactAbstractComposition::getUsedAssets()` は独自の layer JSON 走査を継続している。Health Checker と Font Usage Report 全体の完全移行、1走査で Stats + Asset + Font を実データで同時実行した結果一致、CSV／JSON の既存出力回帰、runtime／build 検証は未確認である。Collector のノード列も値の抽出を呼び出し側に依存するため、汎用 visitor としての project→property 実走査の網羅性は検証待ちである。
+
+判定: **Phase 1A〜Phase 3 の静的基盤・主要接続は実装済み。** ただし、完全な重複除去と Phase 4〜5 の統合／回帰検証は未完了である。
