@@ -15,6 +15,14 @@ Current implementation:
 - Terrain image/audio inputs and Path Tube mask/shape source sampling
 - creation menu, Inspector properties, cache diagnostics, and creative presets
 
+Static audit follow-up (2026-07-25):
+
+- `ArtifactCore::Procedural3DGenerators` provides deterministic Terrain and Path Tube mesh generation, bounded quality presets, normals/UVs, path profiles, taper/twist/noise, and result metadata.
+- `ArtifactProcedural3DLayer` owns both generator variants, resolves image-luminance/audio inputs and mask/shape path data, generates the mesh at resolved frame/quality, exposes property groups, serializes/deserializes settings, and participates in the layer factory.
+- The layer reaches the existing renderer through `ArtifactIRenderer::drawMesh`/wire handling; the render queue explicitly recognizes the layer type.
+- The layer menu exposes `Terrain (Mir)` and `Path Tube (Tao)` creation actions with presets.
+- P0-P6 are represented in static code. P7-P8 remain runtime/render-queue sequence verification items; no build or runtime execution was performed under the repository policy.
+
 ## Goal
 
 Artifactのcomposition layerとして扱えるprocedural 3D sourceを実装する。
