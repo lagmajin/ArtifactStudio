@@ -1,6 +1,10 @@
 # Milestone: 環境マップ (Environment Map) (2026-03-28)
 
-**Status:** Not Started
+**Status:** Phase 1 のデータ契約・Shader 基盤のみ実装済み。HDRI 読み込み、実 Skybox、IBL、UI／runtime 検証は未完了。
+
+### 実装状況（2026-07-25 確認）
+
+`ArtifactEnvironmentMapLayer`、HDRI path／intensity／rotation／background visibility の永続プロパティ、cubemap texture の保持 API、ShaderManager の Skybox PSO／シェーダーを確認した。一方、layer の `draw()` はまだ描画を行わず、HDR／EXR 読み込み、equirectangular→cubemap 変換、irradiance／prefilter／BRDF LUT、PBR への IBL 接続は未実装として扱う。
 **Goal:** 3D 照明に HDRI 環境マップを使用可能にする。
 反射サーフェスの環境映り込み、IBL (Image-Based Lighting) を実現。
 
