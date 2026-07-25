@@ -1,4 +1,4 @@
-**ステータス:** Not Started
+**ステータス:** Implemented — runtime verification pending
 
 # M-PREFRACTURE: シンプルな事前破砕（Pre-Fracture）導入 — 設計メモとギャップ修正
 
@@ -75,3 +75,12 @@ collision コンポーネントは不要（G1 対応が前提）。
 - triggerFrame 往復スクラブで re-arm → 再発火が安定すること。
 - preset / shardCount 変更が即座に形状へ反映されること（G2 後）。
 - `validateLayerComponents()` で collision 無効 + preGenerate 構成が error 非表示になること（G1 後）。
+
+## 2026-07-25 実装監査
+
+- `FractureEffect` の Radial／Grid／Voronoi／Hybrid と preset、seed、shard count の基盤が存在する。
+- `ArtifactAbstractLayer` の `preGenerate`／`triggerFrame`、lazy pre-generation、描画、巻き戻し時の再 arm、JSON 永続化が実装されている。
+- `makeFractureComponentDescriptor()` の required type は空で、collision なしの pre-generate 構成を許容している（G1）。
+- fracture preset／shardCount setter は変更時に `resetFractureState()` を呼び、次の描画で形状を再生成する（G2）。
+- Components 専用の embedded editor 経路があり、通常の Property Widget にコンポーネント由来グループを新規露出していない（G3）。
+- コード上の実装は揃っているが、決定性、triggerFrame の往復スクラブ、validation 表示は runtime 未検証のため、完了表示ではなく検証待ちとする。
