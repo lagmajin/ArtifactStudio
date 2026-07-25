@@ -467,3 +467,7 @@ public:
 ## 8. 更新履歴
 
 - 2026-06-16: 初版作成。`REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md` §2.1 / §4 を正式 milestone に起こした。Paint Layer / Raster Editing foundation。`MILESTONE_PAINT_LAYER_RASTER_EDITING_2026-06-01.md` の実装 phase。
+
+## 2026-07-25 実装監査
+
+`ArtifactPaintLayer` のフレーム管理、`ImageF32x4_RGBA`／cache を使うバッファ、BrushTool の press／move／release、eraser 分岐、フレーム単位の undo、Paint プロパティと JSON の基本経路は実装を確認した。一方、stroke preview／brush cursor の Overlay 経路、専用 Inspector、完全な paint pixel の project 保存・再読込、全 layer／composition への登録導線、PSD 互換、`paint.*` 診断は確認できない。さらに実装ファイルには既存の `QPainter` 使用が残るため、hot path の契約適合は未確認とする。M-PAINT-1 は foundation 部分実装、UI／永続化／診断／runtime 検証未完了とする。
