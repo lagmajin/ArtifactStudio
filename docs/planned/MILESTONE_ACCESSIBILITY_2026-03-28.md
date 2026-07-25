@@ -2,6 +2,7 @@
 
 **作成日:** 2026-03-28  
 **ステータス:** 部分実装（キーボードフォーカス基盤・スクリーンリーダーラベルは主要UIへ適用、全操作検証待ち）  
+実装追加: TimelineとComposition ViewをStrongFocusおよびAccessible Name/Description対応。
 **関連コンポーネント:** 全 UI コンポーネント
 
 ---
