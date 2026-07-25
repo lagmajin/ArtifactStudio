@@ -51,3 +51,9 @@
 | インポートパス・セットの実装 | ⏳ 次回 | AI | ProjectService 連携 |
 | `applyFilters` の TBB 化 | 📋 未着手 | AI | |
 | サムネイル生成の並列化 | 📋 未着手 | AI | OpenCV 並列処理 |
+
+## 2026-07-25 実装監査
+
+- thumbnail の非同期生成・世代管理・memory／disk cache、sequence 検出、unused path のスナップショット走査など、周辺の性能改善は確認できる。
+- 一方、import 済みパスを一括 `QSet` 化する O(1) lookup、`applyFilters` の TBB parallel scan、thumbnail warmup の TBB task_group 並列化は確認できない。
+- したがって UI の負荷軽減に向けた部分実装はあるが、計画書の主要な三段階と数千ファイル時の性能目標は未検証であり、Planning／Partial Implementation を維持する。
