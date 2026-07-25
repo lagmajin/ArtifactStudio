@@ -89,3 +89,10 @@ Completed by Gemini CLI.
 - favorites と folder tree の両方で移動できるため、現在位置の表示を崩すと迷いやすい
 - context menu の項目を増やしすぎると探索 surface として重くなる
 
+
+## 2026-07-25 実装監査
+
+- `AssetDirectoryModel` の folder intelligence と内容比率／tooltip、Favorites anchor と drag／drop、Asset Browser の folder create／rename／delete、import／relink／open／D&D の workflow bridge を確認できる。
+- Phase 4 の Folder Intelligence、Favorites Anchor、Folder Context Menu、Workflow Bridge はコード上完了相当で、文書の Completed 記載と整合する。
+- ただし folder reveal、全操作の失敗時表示、unused／project workflow の実機整合性、tint の可読性は未検証である。
+- 実装は完了相当、runtime verification pending と整理する。
