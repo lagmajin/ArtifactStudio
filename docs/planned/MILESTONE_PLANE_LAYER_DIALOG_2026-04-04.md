@@ -60,3 +60,7 @@
 ## 参照
 
 - デザイン画像: `docs/image/PlaneLayerSettingDialog.jpeg`
+
+## 2026-07-25 実装監査
+
+`CreatePlaneLayerDialog.cppm` に日本語タイトル／セクション、名前入力、単位コンボ、幅・高さ、縦横比ロック、ピクセル縦横比、カラー・HEX 双方向同期、コンポジションサイズ適用、Create／Edit 両ダイアログの共通導線を確認した。設計タスクの主要項目は静的には実装済みと判定する。一方、仕様画像との実際のレイアウト一致、各入力値の保存・再読込、lock／fit／HEX の runtime 挙動、既存 layer creation からの実機導線は未実行のため未検証とする。
