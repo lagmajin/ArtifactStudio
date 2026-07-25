@@ -225,3 +225,9 @@ Artifact/include/Layer/ArtifactAbstractLayer.ixx
 - [ ] 選択解除でワイヤーフレームが消える
 - [ ] 既存のオーバーレイ描画（Cloner フレーム、Anchor など）と競合しない
 - [ ] ハイポリメッシュでもフレームレートが著しく低下しない（目標: 60fps 維持）
+
+## Static audit follow-up (2026-07-25)
+
+- The overlay implementation and controller selection traversal confirm Phase 1 and the Phase 2 multiple-selection entry path, including shared-edge suppression, quad diagonals, normal display, camera-matrix save/restore, and the fixed 24,000-polygon sampling cap.
+- The unchecked success criteria remain genuinely runtime-dependent: camera interaction tracking, disappearance on deselection, coexistence with other overlays, and 60fps behavior. The current cap is deterministic thinning, not a cached/batched LOD system.
+- No build or runtime verification was performed under the repository policy.
