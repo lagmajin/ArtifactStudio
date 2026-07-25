@@ -147,3 +147,19 @@ RGBAに加え、深度、法線、速度、オブジェクトID、マテリア�
 - [`ArtifactCore/include/Channel/Channel.ixx`](ArtifactCore/include/Channel/Channel.ixx)
 - [`Artifact/include/Render/ArtifactIRenderer.ixx`](Artifact/include/Render/ArtifactIRenderer.ixx)
 - [`ArtifactCore/include/ImageProcessing/AbstractImageEffect.ixx`](ArtifactCore/include/ImageProcessing/AbstractImageEffect.ixx)
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースでは `MultiChannelImage`、named channel の EXR export / async export、`ArtifactIRenderer` の multi-channel enable と GPU readback、Render Queue の AOV 選択・保存・preview、Screenshot / Render Output の Multi-channel EXR UI が実装されている。Depth / Normal / Velocity / ObjectID / MaterialID / Albedo / Emission の出力入口も確認でき、Phase 1 の初期項目と Phase 4 の出力導線は大きく進展している。
+
+一方、2D レイヤーの全チャンネル生成、AbstractImageEffect の VideoFrame 対応、任意チャンネルのエフェクト伝搬、チャンネル別 blend、channel viewer、レイヤー単位 mapping UI、実際の全 AOV の生成品質は未確認である。文書の「コアシステム 100% 完成」は、レンダーパイプライン全体の完了を意味しないため、表現を部分実装として扱う。
+
+### Audit status
+
+- Phase 1: 部分実装 — renderer control / readback / named AOV export は実装済み相当。2D depth・全 velocity / ObjectID 生成は未確認
+- Phase 2: 未完了 — channel-aware effect pipeline と標準 channel effect は未確認
+- Phase 3: 未完了 — channel 個別 blend / depth test / normal-space blend は未確認
+- Phase 4: 部分実装 — Render Queue / Screenshot の AOV UI はあるが、channel viewer・layer mapping は未確認
+- Definition of Done: マルチチャンネル export 基盤は導入済み、汎用 pipeline 統合は未完了
