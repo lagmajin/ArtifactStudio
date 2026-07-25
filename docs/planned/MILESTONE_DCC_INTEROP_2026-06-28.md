@@ -245,6 +245,25 @@ Nowアプリケーションの制作ワークフローで、ArtifactStudioを中
 
 ---
 
+## Static audit follow-up (2026-07-25)
+
+現行ソースを再確認した。画像・動画・音声・通常 EXR の入出力は広く存在する一方、DCC プロジェクト／レイヤー構造の相互変換を「完全実装」と扱える状態ではない。
+
+| 領域 | 現行ソースで確認できたこと | 判定 |
+|---|---|---|
+| 画像・通常 EXR | OIIO の import/export と float / named-channel / AOV 経路がある | 実装済み（deep は別） |
+| 動画・音声 | FFmpeg の主要コンテナ・codec 経路がある | 部分〜実装済み（UI露出は別確認） |
+| SVG / JSON | shape の SVG と JSON シリアライズ経路がある | 実装済み（範囲限定） |
+| PSD | header / layer metadata / flattened preview はあるが、個別レイヤー画像・Artifact layer 変換・mask/adjustment の完全経路は未確認 | 部分実装 |
+| GLTF / GLB | asset 判定・3D viewer 側の受け口はあるが、DCC round-trip の完全性は未確認 | 部分実装 |
+| USD / FBX / Alembic | DCC 向けの完全 import/export 経路は確認できない | 未完了 |
+| AEP / PRPROJ / DRP / Nuke script / Blend | プロジェクトファイルの相互変換実装は確認できない | 未実装 |
+| Lottie /字幕 /フォント等 | 本文で候補に挙げた形式の一括実装は確認できない | 未完了 |
+
+**判定**: フォーマット基盤は進展しているが、M-DCC-1 の「主要 DCC との完全連携」には未達。特に PSD レイヤー保持、USD/FBX/Alembic、DCC プロジェクト形式、round-trip 検証が残っている。本文の「95%+」表記は DCC 連携全体の現行証拠とは整合しないため、機能単位の状態表を優先する。
+
+---
+
 ### **1. GIFアニメーション対応 (P0)**
 
 #### **背景**
