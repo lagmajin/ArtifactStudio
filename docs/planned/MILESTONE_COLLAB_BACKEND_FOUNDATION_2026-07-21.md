@@ -46,6 +46,13 @@ LayerLockManager (本 milestone)
 2. `LayerLockManager.ixx` 
 3. `EditSession` broadcast フック
 
+## 2026-07-25 実装監査
+
+- `ArtifactCore/include/Network/CollaborationWebSocket.ixx` と `ArtifactCore/src/Network/CollaborationWebSocket.cppm` に接続状態、送受信、ハートビート、指数バックオフ再接続の API／実装が存在する。
+- `ArtifactCore/include/Command/LayerLockManager.ixx` と `ArtifactCore/src/Command/LayerLockManager.cppm` に acquire/release、リモート状態反映、期限切れ purge が存在する。
+- `ArtifactCore/include/Command/EditSession.ixx` の `pushCommand()` は JSON 履歴を作成し、登録済み `BroadcastCallback` を呼び出す。
+- UI 統合、競合解決、認証/TLS、依存設定変更は Non-goals のため、この監査では未実施でも完了判定を変更しない。
+
 ## 関連
 
 - `docs/planned/MILESTONE_COLLAB_WS_CLIENT_2026-07-02.md` — 本実装の設計ベース
