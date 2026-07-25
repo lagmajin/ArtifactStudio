@@ -459,3 +459,11 @@
 ---
 
 **文書終了**
+
+## Static Audit (2026-07-25)
+
+現行ソースでは、render queue の preset 選択、job panel、format preset manager、batch renderer、frame cache、GPU/frame debug の基盤が確認できる。Render Farm 側には retry、checkpoint、failure manifest、progress 集計も追加されているため、当初の単純な「追加して実行」からは進展している。
+
+ただし、この milestone の完了条件を満たしたとは判定しない。queue UI/service で失敗 frame の一覧取得、欠損・破損ファイルの整合性検査、失敗 frame だけの再レンダリングを一体化した導線は静的に確認できない。フレーム単位の timing は renderer/frame debug の値があるが、job の layer/effect cost と resource 使用率を履歴として可視化する専用契約は未確認である。job 名の inline 編集、命名テンプレート、last-used 設定、履歴からの再実行、job lock/依存関係の専用実装も未確認である。
+
+したがって Phase 1 は farm の failure/checkpoint 基盤として partial、Phase 2 は frame/graph diagnostics の基盤として partial、Phase 3/4 の履歴・命名・可視性は未完了扱いとする。実 UI での一クリック復旧、履歴再実行、整合性検査、runtime の失敗シナリオは未検証である。
