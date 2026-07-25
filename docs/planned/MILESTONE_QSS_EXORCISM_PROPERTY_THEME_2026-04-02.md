@@ -106,3 +106,17 @@
 
 `QSS` はまだ多い。  
 ただし property / inspector / dock 周辺から攻めると、見た目の統一と責務整理を同時に進めやすい。
+
+## Static Audit (2026-07-25)
+
+Property／Inspector 系は QSS 依存をかなり外し、`currentDCCTheme()` から色を取得して `QPalette`、`ArtifactCommonStyle`、owner-draw、PropertyEditor 共通 palette helper へ渡す構成になっている。今回確認した対象の実装ソースでは `setStyleSheet()` は見つからず、property row、入力欄、ボタン、Inspector の主要な色責務は theme 側で説明できる。
+
+ただし、theme 値の取得・fallback・palette 適用が複数箇所に分散し、共通 token／再適用契約として完全には統合されていない。Dock／Queue／ApplicationSettingDialog の residual CSS 棚卸し、theme 切替時の全 surface 再描画、Property／Inspector の実機表示確認は未実施。また CommonStyle 自体は QProxyStyle + Fusion のため、Phase 3〜4 と「QSS 大幅削減」の完了条件は未達。ステータスは Draft のままとする。
+
+確認対象:
+
+- `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`
+- `Artifact/src/Widgets/ArtifactInspectorWidget.cppm`
+- `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditor.cppm`
+- `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorShared.cppm`
+- `Artifact/src/Widgets/CommonStyle.cppm`
