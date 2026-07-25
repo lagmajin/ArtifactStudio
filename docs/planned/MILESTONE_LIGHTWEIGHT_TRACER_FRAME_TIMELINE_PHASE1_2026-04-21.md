@@ -30,3 +30,19 @@
 - 親文書へ統合済み
 - `Trace.Crash`
 - `AppMain` 連携
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+`CrashHandler`、`AppMain` の callback／pending report ingestion、`ArtifactDebugConsoleWidget`／`TraceTimelineWidget` の表示経路を現行ソースで照合した。ビルド・実機クラッシュ検証は未実施。
+
+| 完了条件 | 現状 | 判定 |
+|---|---|---|
+| crash stack が取れる | `CrashHandler::install()` と crash report の stack trace 出力、`AppMain` の `traceCrashFromReportPath()` が存在する。 | 実装済み／実機確認待ち |
+| report が Debug Console から読める | `ingestPendingReports()`、`TraceRecorder::recordCrash()`、Debug Console／Trace Timeline の crash summary・stack 表示を確認した。 | 実装済み／実機確認待ち |
+| frame / thread / last scope を report に含める | timestamp・thread 情報と stack の取り込みは確認できるが、crash report 自体への frame／last scope の完全な関連付けは未確認。 | 部分実装 |
+
+### 現在の判定
+
+Crash report の生成・取り込み・診断 UI 表示はコード上実装済み。frame／last scope の完全な同梱と実機クラッシュ経路は未検証のため、Phase 1 は「部分実装／実行確認待ち」とする。
