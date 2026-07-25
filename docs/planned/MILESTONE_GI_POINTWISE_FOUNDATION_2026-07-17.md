@@ -43,3 +43,10 @@ temporal state / resource readinessまで実装済み。ここで一旦区切り
 - `QImage` をhot pathへ追加しない
 - GPU接続は契約が固まった後に `Artifact` 側で行う
 - Fastは低解像度・低サンプル、Qualityはdepth pyramid・denoise・高サンプルを使う
+
+## 2026-07-25 実装監査
+
+- `Graphics.PointwiseFusion` と `Graphics.GIResources` は存在し、pointwise graph／HLSL lowering、GI settings、frame resources、execution plan、temporal state、resource readiness を確認できる。
+- `Graphics.RenderPipelineFoundation` に Pointwise／GI の Render Graph adapter 契約も存在するが、Diligent resource／barrier と実描画 pass への接続は未完了である。
+- `Artifact` 側には SSGI の設定・compute pipeline 接続の既存経路がある一方、本文書が要求する SSGI shader 本体、depth pyramid、bilateral denoise、PBR lighting 合成の一連の完成は確認できない。
+- GPU／CPU の実測と品質比較も未検証であり、Phase 1 の Core foundation のみ完了、GPU integration phase は未着手・進行中と判定する。
