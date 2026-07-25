@@ -148,3 +148,6 @@ GPU effect parity の中では、次の順で color 系を扱うのが自然。
 - `Hue/Saturation` と `Curves` で見た目 parity を詰める
 - `Color Space` と `LUT` は working / input / output / display の整理後に入れる
 
+## 2026-07-25 実装監査
+
+主要な color effect には CPU／GPU implementation pair、parameter sync、Color Correction shader の部品があり、GPU equivalent の着手は確認できる。また composition render controller 側に少なくとも Exposure の適用分岐がある。一方、effect ごとの GPU 正規経路・失敗時 fallback 理由、CPU/GPU 切替用の reference mode、side-by-side／diff／cost 診断、全 effect 種別への coverage、render queue／preview／solo の既定GPU化は確認できない。したがって Phase 1〜2 は部分実装、Phase 3〜5 は未完了・runtime未検証とする。
