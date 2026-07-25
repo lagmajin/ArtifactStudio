@@ -239,3 +239,17 @@ AI は初案の意匠確認には使えるが、最終実装は SVG か描画コ
 3. タイムライン描画側の参照点を1か所に寄せる
 4. 必要ならアイコン案を SVG 化する
 
+---
+
+## 2026-07-25 現状確認
+
+部分実装。現在の timeline painter では、ひし形 marker、通常／現在フレーム／選択／hover の表示差分、Bezier handle、color label、補間区間の描画が既存処理として存在する。`KeyFrame` 側には interpolation と color label の保存・復元もある。
+
+一方、この仕様で定義した `KeyframeIconHelper` 等の共通 state model は見当たらず、`locked` / `disabled` / `hold` / `dummy` を独立した意味状態として合成する実装や、状態 enum を一元化した生成ヘルパーも未確認である。したがって、現状は「基礎形・編集状態・一部の意味状態が painter に分散している」段階と整理する。
+
+未確認事項:
+
+- アイコン状態の優先順位を共通 helper に集約すること
+- locked / disabled / hold / dummy の表現とデータ源
+- 16px 前後での状態組み合わせの可読性
+- 既存 marker、Bezier、color label との regression
