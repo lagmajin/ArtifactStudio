@@ -150,3 +150,9 @@ SwitchLayer "Mouth"
 - `QImage` / QtCSS / 新規 signal-slot は追加しない
 - 音素検出の精度は「それっぽく見える」レベルで Phase1 完了とする
 - `ArtifactWidgets` は触らない
+
+## 2026-07-25 現状確認
+
+設計書作成後に基盤実装が追加されている。`FormantExtractor` は FFT スペクトルから F1/F2/F3 候補を抽出し、無音・A/I/U/E/O・M/N/F 等へ分類する。`LipSyncTrack` は音声ファイル／AudioSegment の解析、フレーム範囲取得、口形状インデックス列、JSON保存／復元を提供する。`ArtifactAudioLayer` 側にも lip-sync track 生成・Switch Layer適用用のAPIがある。
+
+ただし、Layer Menu の「Lip Sync を Switch Layer に適用」は現在のビルドでは無効化されており、実際のSwitch Layerへのキーフレーム適用、Timelineマーカー／音素表示、Inspector解析UI、ユーザー編集、精度・タイミング検証は未完了。判定は「解析・データモデル基盤は実装済み、ユーザー向け適用導線は未完成」とする。
