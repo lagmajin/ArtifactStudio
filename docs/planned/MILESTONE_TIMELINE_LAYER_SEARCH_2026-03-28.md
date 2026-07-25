@@ -45,6 +45,21 @@
 
 ---
 
+## 2026-07-25 現状確認
+
+Phase 1〜2 相当は実装済み。`ArtifactLayerPanelWidget` は filter text を入力中に反映し、レイヤー名検索に加えて `searchInProperties_` によるプロパティ値検索、All Visible / Highlight Only / Filter Only の `SearchMatchMode`、表示モード連携を持つ。インクリメンタル検索バッファは printable input を受けて一定時間後にクリアされる。Timeline widget 側にも検索欄と表示モード combo の導線がある。
+
+未完了・未確認:
+
+- `type:text` / `fx:blur` / `tag:bg` 等の prefix query parser
+- effect name、tag、parent/child、solo/lock/hidden/visible、source asset の検索対象拡張
+- 検索 hit count、結果ジャンプ、検索結果の明示的なナビゲーション
+- 非一致の半透明表示と、選択・keyframe・scroll との回帰確認
+
+したがって「インクリメンタル検索と表示モードは実装済み、簡易 query・検索対象拡張・結果ナビゲーションは未完了」と整理する。
+
+---
+
 ## 簡易クエリ
 
 ### 文字列検索
