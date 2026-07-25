@@ -1,6 +1,6 @@
 # Milestone: 高度コピー/ペースト (2026-03-28)
 
-**Status:** In Progress（layer/effect/property copy/paste と複数レイヤー貼り付けを実装済み。キーフレーム専用導線を継続）
+**Status:** Core layer/effect/property/keyframe copy/paste と複数レイヤー貼り付けを実装済み。外部クリップボード拡張と runtime 検証が残る。
 **Goal:** レイヤー、エフェクト、キーフレーム、プロパティをコピー＆ペースト可能にする。
 After Effects の Copy/Paste に匹敵する操作性。
 
