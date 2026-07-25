@@ -79,7 +79,8 @@
 
 ### 3.4 Undo 連携
 - [x] リネーム／内部D&D移動を `UndoManager` に登録
-- [ ] インポート/削除/リリンク操作を `UndoManager` に登録
+- [x] 通常ファイルの「Add to Project」登録を `UndoManager` に登録
+- [ ] 削除/リリンク操作を `UndoManager` に登録
 - [ ] 一括操作のマクロコマンド化
 
 **見積: 10h**
