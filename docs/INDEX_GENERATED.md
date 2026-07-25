@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-25 00:12
+> Generated: 2026-07-25 10:40
 > Total documents: 1107
 
 ---
@@ -385,7 +385,7 @@
 | 64 | `docs/done/MILESTONE_PROJECT_VIEW_SCROLL_STABILITY_2026-06-07.md` | Project View Scroll Stability Milestone | 2026-06-07 | 計画中 | 2026-06-09 | 3.8 KB | PROJECT, VIEW, SCROLL, STABILITY |
 | 65 | `docs/done/MILESTONE_PROJECT_VIEW_TILE_MODE_2026-06-05.md` | Project View Tile Mode | 2026-06-05 | --- | 2026-07-07 | 0.7 KB | PROJECT, VIEW, TILE, MODE |
 | 66 | `docs/done/MILESTONE_PROPERTY_WIDGET_ROW_ALIGNMENT_INSPECTOR_LAYOUT_2026-04-03.md` | Property Widget Row Alignment / Inspector Layout | 2026-04-14 | --- | 2026-07-07 | 0.8 KB | PROPERTY, WIDGET, ROW, ALIGNMENT, INSPECTOR |
-| 67 | `docs/done/MILESTONE_QUICK_LAYER_CREATION_DIALOG_2026-07-10.md` | Quick Layer Creation Dialog | 2026-07-10 | ✅ Complete（MVP source/static verified 2026-07-25; runtime/build verification pending） | --- | 4.9 KB | QUICK, LAYER, CREATION, DIALOG |
+| 67 | `docs/done/MILESTONE_QUICK_LAYER_CREATION_DIALOG_2026-07-10.md` | Quick Layer Creation Dialog | 2026-07-10 | ✅ Complete（MVP source/static verified 2026-07-25; runtime/build verification pending） | 2026-07-25 | 4.9 KB | QUICK, LAYER, CREATION, DIALOG |
 | 68 | `docs/done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md` | Render Preflight / Output Safety Check | 2026-06-02 | --- | 2026-07-09 | 1.4 KB | RENDER, PREFLIGHT |
 | 69 | `docs/done/MILESTONE_RENDER_PREFLIGHT_PHASE1_EXECUTION_2026-06-02.md` | Render Preflight / Output Safety Check - Phase 1 Execution | 2026-06-02 | --- | 2026-07-09 | 2.8 KB | RENDER, PREFLIGHT, PHASE1, EXECUTION |
 | 70 | `docs/done/MILESTONE_RENDER_QUEUE_2026-03-22.md` | Render Queue | 2026-03-22 | --- | 2026-07-07 | 0.6 KB | RENDER, QUEUE |
@@ -469,7 +469,7 @@
 | 20 | `docs/planned/MILESTONE_3D_MATERIAL_SYSTEM_2026-03-31.md` | MILESTONE: 3D Material System | 2026-03-31 | --- | 2026-07-09 | 3.6 KB | MATERIAL, SYSTEM |
 | 21 | `docs/planned/MILESTONE_3D_MODEL_IMPORT_AND_CONTENTS_VIEWER_2026-03-29.md` | マイルストーン: 3D Model Import and Contents Viewer Integration | 2026-03-29 | --- | 2026-07-09 | 7.0 KB | MODEL, IMPORT, AND, CONTENTS |
 | 22 | `docs/planned/MILESTONE_3D_MODEL_REVIEW_IN_CONTENTS_VIEWER_2026-03-28.md` | マイルストーン: 3D Model Review in Contents Viewer | 2026-03-28 | --- | 2026-07-09 | 5.5 KB | MODEL, REVIEW, CONTENTS |
-| 23 | `docs/planned/MILESTONE_3D_SELECTION_WIREFRAME_OVERLAY_2026-07-06.md` | 3D 選択時ワイヤーフレームオーバーレイ（Maya/Blender ライク） | 2026-07-06 | --- | 2026-07-09 | 13.0 KB | SELECTION, WIREFRAME, OVERLAY |
+| 23 | `docs/planned/MILESTONE_3D_SELECTION_WIREFRAME_OVERLAY_2026-07-06.md` | 3D 選択時ワイヤーフレームオーバーレイ（Maya/Blender ライク） | 2026-07-06 | --- | 2026-07-25 | 13.3 KB | SELECTION, WIREFRAME, OVERLAY |
 | 24 | `docs/planned/MILESTONE_3D_VIEWPORT_ORBIT_PAN_PREVIEW_MODE_2026-06-07.md` | MILESTONE: 3D Viewport Orbit / Pan / Preview Mode - 2026-06-07 | 2026-06-07 | --- | 2026-07-09 | 7.3 KB | VIEWPORT, ORBIT, PAN, PREVIEW |
 | 25 | `docs/planned/MILESTONE_3D_VIEWPORT_SOLID_CAMERA_OVERLAY_2026-04-10.md` | 3D Viewport Stabilization: Solid / Camera / Overlay | 2026-03-21 | --- | 2026-07-09 | 8.9 KB | VIEWPORT, SOLID, CAMERA, OVERLAY |
 | 26 | `docs/planned/MILESTONE_ACCESSIBILITY_2026-03-28.md` | アクセシビリティ改善 Milestone | 2026-03-28 | 計画中 | 2026-03-29 | 6.5 KB | ACCESSIBILITY |
@@ -479,7 +479,7 @@
 | 30 | `docs/planned/MILESTONE_AD_PRODUCTION_ACCELERATOR_PHASE1_EXECUTION_2026-05-29.md` | Ad Production Accelerator - Phase 1 Execution | 2026-05-29 | --- | 2026-06-01 | 5.5 KB | PRODUCTION, ACCELERATOR, PHASE1, EXECUTION |
 | 31 | `docs/planned/MILESTONE_AD_PRODUCTION_ACCELERATOR_PHASE2_EXECUTION_2026-05-29.md` | Ad Production Accelerator - Phase 2 Execution | 2026-05-29 | --- | 2026-06-01 | 5.9 KB | PRODUCTION, ACCELERATOR, PHASE2, EXECUTION |
 | 32 | `docs/planned/MILESTONE_ADDITIONAL_PROPOSALS_2026-03-28.md` | マイルストーン追加提案レポート (2026-03-28) | 2026-03-28 | 提案 | 2026-03-30 | 11.3 KB | ADDITIONAL, PROPOSALS |
-| 33 | `docs/planned/MILESTONE_ADVANCED_COPY_PASTE_2026-03-28.md` | Milestone: 高度コピー/ペースト (2026-03-28) | 2026-03-28 | --- | 2026-07-10 | 7.9 KB | ADVANCED, COPY, PASTE |
+| 33 | `docs/planned/MILESTONE_ADVANCED_COPY_PASTE_2026-03-28.md` | Milestone: 高度コピー/ペースト (2026-03-28) | 2026-03-28 | --- | 2026-07-25 | 9.0 KB | ADVANCED, COPY, PASTE |
 | 34 | `docs/planned/MILESTONE_ADVANCED_TYPOGRAPHY_ENGINE_2026-03-29.md` | Milestone: Advanced Typography Engine (2026-03-29) | 2026-03-29 | --- | 2026-03-30 | 3.4 KB | ADVANCED, TYPOGRAPHY, ENGINE |
 | 35 | `docs/planned/MILESTONE_AE1_0_MONTH1_EXECUTION_2026-04-20.md` | MILESTONE: AE 1.0 Month 1 Execution | 2026-04-20 | --- | 2026-04-24 | 8.5 KB | AE1, MONTH1, EXECUTION |
 | 36 | `docs/planned/MILESTONE_AE1_0_PRIORITY_AND_ROADMAP_2026-04-20.md` | MILESTONE_PRODUCTION_1_0_PRIORITY_AND_ROADMAP_2026-04-20 | 2026-04-20 | --- | 2026-05-28 | 6.5 KB | AE1, PRIORITY, AND, ROADMAP |
@@ -521,7 +521,7 @@
 | 72 | `docs/planned/MILESTONE_ANIMATED_IMAGE_EXPORT_2026-03-27.md` | マイルストーン: Animated Image Export | 2026-03-27 | --- | 2026-03-28 | 4.2 KB | ANIMATED, IMAGE, EXPORT |
 | 73 | `docs/planned/MILESTONE_ANIMATION_DYNAMICS_CORE_2026-03-28.md` | Animation Dynamics Core Milestone | 2026-03-28 | --- | 2026-03-29 | 6.9 KB | ANIMATION, DYNAMICS, CORE |
 | 74 | `docs/planned/MILESTONE_ANIMATION_DYNAMICS_UI_2026-03-28.md` | マイルストーン: Animation Dynamics UI Surface | 2026-03-28 | --- | 2026-03-29 | 4.1 KB | ANIMATION, DYNAMICS |
-| 75 | `docs/planned/MILESTONE_ANIMATION_LAYERS_2026-07-07.md` | M-ANIM-1 Animation Layers Milestone | 2026-07-07 | --- | 2026-07-07 | 12.0 KB | ANIMATION, LAYERS |
+| 75 | `docs/planned/MILESTONE_ANIMATION_LAYERS_2026-07-07.md` | M-ANIM-1 Animation Layers Milestone | 2026-07-07 | --- | 2026-07-25 | 15.2 KB | ANIMATION, LAYERS |
 | 76 | `docs/planned/MILESTONE_ANISOTROPIC_FLOW_BLUR_2026-06-13.md` | Milestone: AnisotropicFlowBlur (異方性オプティカルフロー・ブラー) | 2026-06-13 | --- | 2026-06-13 | 4.9 KB | ANISOTROPIC, FLOW, BLUR |
 | 77 | `docs/planned/MILESTONE_APERTURE_SHAPE_BLUR_2026-06-13.md` | Milestone: ApertureShapeBlur (カスタム開口レンズボケ / FFT物理ブラー) | 2026-06-13 | --- | 2026-06-13 | 4.7 KB | APERTURE, SHAPE, BLUR |
 | 78 | `docs/planned/MILESTONE_APP_AUTO_UPDATE_2026-03-28.md` | Milestone: アプリケーション自動アップデート (2026-03-28) | 2026-03-28 | --- | 2026-03-29 | 5.0 KB | APP, AUTO, UPDATE |
@@ -1014,7 +1014,7 @@
 | 565 | `docs/planned/MILESTONE_WORKSPACE_MANAGER_2026-03-29.md` | Milestone: Workspace Manager (2026-03-29) | 2026-03-29 | --- | 2026-06-19 | 2.1 KB | WORKSPACE, MANAGER |
 | 566 | `docs/planned/MILESTONE_WORKSPACE_PRESETS_2026-04-10.md` | ワークスペースプリセット管理の実装 | 2026-04-10 | --- | 2026-07-09 | 3.9 KB | WORKSPACE, PRESETS |
 | 567 | `docs/planned/MILESTONE_ZOOM_TO_FIT_2026-04-10.md` | ズームtoフィット機能の拡張 | 2026-04-10 | --- | 2026-04-11 | 1.9 KB | ZOOM, FIT |
-| 568 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-24 | 95.4 KB | BACKLOG |
+| 568 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-25 | 95.4 KB | BACKLOG |
 | 569 | `docs/planned/NEXT_PHASE_ROADMAP.md` | プロジェクトビュー → タイムライン統合の次フェーズ提案 | 2026-06-07 | --- | 2026-07-05 | 9.1 KB | NEXT, PHASE, ROADMAP |
 | 570 | `docs/planned/RANDOM_HELPER_PROPOSAL_2026-06-16.md` | Random / Noise Helper Proposal (ArtifactCore) — 2026-06-16 | 2026-06-16 | --- | 2026-06-17 | 21.0 KB | RANDOM, HELPER, PROPOSAL |
 | 571 | `docs/planned/RENDER_BOUNDARY_CHANGE_SAFETY_CHECKLIST_2026-04-21.md` | Render Boundary Change Safety Checklist | 2026-04-21 | --- | 2026-05-16 | 2.6 KB | RENDER, BOUNDARY, CHANGE, SAFETY, CHECKLIST |
@@ -1080,7 +1080,7 @@
 | 23 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.2 KB | IMPL, DOF |
 | 24 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.7 KB | IMPL, SSAO |
 | 25 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.5 KB | IMPL, TONE, MAPPING |
-| 26 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-07-24 | --- | 2026-07-24 | 218.0 KB | INDEX, GENERATED |
+| 26 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-07-25 | --- | 2026-07-25 | 218.1 KB | INDEX, GENERATED |
 | 27 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 28 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 11.6 KB | CAMERA, PROJECTION |
 | 29 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
@@ -1170,7 +1170,7 @@
 | 24 | `docs/technical/IMAGE_FORMAT_CONVENTIONS.md` | Image Format & Channel Order Conventions | 2026-05-16 | --- | 2026-05-16 | 6.0 KB | IMAGE, FORMAT, CONVENTIONS |
 | 25 | `docs/technical/INTERNAL_VCS_ARCHITECTURE.md` | 内蔵軽量VCS アーキテクチャ調査 | 2026-04-19 | --- | 2026-04-19 | 4.4 KB | INTERNAL, VCS, ARCHITECTURE |
 | 26 | `docs/technical/KEYBOARD_SHORTCUTS_ADDITION_2026-03-28.md` | レイヤーパネル キーボードショートカット追加 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 9.0 KB | KEYBOARD, SHORTCUTS, ADDITION |
-| 27 | `docs/technical/LAYER_PROPERTY_ENVELOPE_ARCHITECTURE_2026-07-24.md` | Layer Property Envelope Architecture | 2026-07-24 | --- | 2026-07-24 | 3.9 KB | LAYER, PROPERTY, ENVELOPE, ARCHITECTURE |
+| 27 | `docs/technical/LAYER_PROPERTY_ENVELOPE_ARCHITECTURE_2026-07-24.md` | Layer Property Envelope Architecture | 2026-07-24 | --- | 2026-07-25 | 3.9 KB | LAYER, PROPERTY, ENVELOPE, ARCHITECTURE |
 | 28 | `docs/technical/LAYER_VIEW_DILIGENT_OPERATION_FIX_2026-03-27.md` | レイヤービュー（Diligent 版）操作不能問題 修正レポート (2026-03-27) | 2026-03-27 | 修正完了（5 件） | 2026-03-27 | 7.6 KB | LAYER, VIEW, DILIGENT, OPERATION, FIX |
 | 29 | `docs/technical/LOCAL_AI_PREPROCESSOR_IMPLEMENTATION_2026-03-27.md` | ローカル AI プリプロセッサー実装レポート (2026-03-27) | 2026-03-27 | 実装完了 | 2026-03-27 | 13.7 KB | LOCAL, PREPROCESSOR, IMPLEMENTATION |
 | 30 | `docs/technical/LOD_SYSTEM_FEASIBILITY_ANALYSIS_2026-03-28.md` | LOD システム実現可能性分析レポート | 2026-03-28 | 調査完了 | 2026-03-30 | 11.2 KB | LOD, SYSTEM, FEASIBILITY, ANALYSIS |
