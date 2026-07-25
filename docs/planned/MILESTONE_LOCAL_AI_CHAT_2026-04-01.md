@@ -107,3 +107,21 @@
 4. **ストリーミング対応**
    - `AIClient::postMessage()` は既にストリーミング対応済み
    - llama.cpp の `llama_decode` をチャンク単位で呼び出す
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+旧来の現状表を現行ソースと照合した。`LlamaLocalAgent.cppm` は既に存在し、llama.cpp の GGUF load／context／sampler／生成・streaming 経路を実装しているため、冒頭の「ヘッダーのみ」は更新が必要である。ビルド・実モデル推論は未実施。
+
+| 項目 | 現状 | 判定 |
+|---|---|---|
+| AIChatWidget / AIClient / prompt / context | Chat UI、provider／model path、遅延 initialize／shutdown、context生成、streaming応答が存在する。 | 実装済み／実行確認待ち |
+| LlamaLocalAgent / llama.cpp | `LlamaLocalAgent.cppm` に GGUF load、architecture check、sampler、同期・streaming生成、error state がある。 | 実装済み／実モデル確認待ち |
+| 会話履歴 | `AIChatWidget` が複数 session と JSON 設定保存／復元を持つ。 | 実装済み |
+| アプリ統合 | Main Window の layout preset に AI Chat が含まれ、AI client の context／tool 経路も存在する。 | 部分実装／導線確認待ち |
+| モデル配置・配布 | モデル path は設定可能だが、既定 GGUF の同梱／download／配布契約は確認できない。 | 未完了 |
+
+### 現在の判定
+
+Local AI Chat の主要な UI／client／llama.cpp backend は実装済み。実モデルでの推論、配布モデル、起動導線の runtime 確認が残るため、全体は「実装済み／実行・配布確認待ち」とする。
