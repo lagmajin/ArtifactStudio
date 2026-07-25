@@ -30,3 +30,11 @@
 
 - 分散レンダリングは、単純な UI 追加ではなく、ジョブ分配・結果回収・失敗再送の設計が必要になる。
 - 自動アクションは、シャットダウン以外に「フォルダを開く」「完了通知」「次のジョブを起動」などが候補になる。
+
+## Static Audit (2026-07-25)
+
+現行ソースでは、`ArtifactRenderQueueService` と `RenderJobModel` / `RenderQueue` に queue job、status、progress、error、並び替え・削除・複製・名前変更・範囲／出力設定変更、start/pause/cancel、rerun の入口があり、`WorkspaceAutomation` からも同じサービス経路を利用できる。preset selector、job panel、queue manager の UI も存在する。Render Farm の checkpoint/retry/progress 基盤は後続層として追加されている。
+
+ただし、目標全体の完了とは判定しない。再起動後の履歴・ログ永続化、in/out/work area の全投入経路での正確な反映、queue 状態と実 renderer の厳密な同期、失敗原因／失敗 frame の UI 表示、checkpoint/resume の実成果物整合、分散失敗時の再送は static evidence だけでは保証できない。`WorkspaceAutomation` の API 入口は、実 UI と長時間 queue の runtime 受け入れ証拠ではない。
+
+判定: queue の基本操作と UI/API surface は実装済み、長時間運用・復旧・永続化・分散の acceptance は未検証または後続 milestone に分割済み。
