@@ -1,7 +1,7 @@
 # ビデオプロキシ機能改善 Milestone
 
 **作成日:** 2026-03-28  
-**ステータス:** 計画中  
+**ステータス:** In Progress（生成・VideoLayer切替・Project View動画キュー接続済み、runtime検証待ち）
 **関連コンポーネント:** ArtifactVideoLayer, FFmpegEncoder, ProxyManager, ArtifactProjectManagerWidget
 
 ---
