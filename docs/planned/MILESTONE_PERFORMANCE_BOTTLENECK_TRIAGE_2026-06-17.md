@@ -115,3 +115,6 @@
 - `GpuContext` の毎 frame 確保が消える
 - 次スプリントに回す項目が明確になる
 
+## 2026-07-25 実装監査
+
+PerformanceProfiler／PerformanceMonitor／DiagnosticEngine、layer／GPU／frame cache、audio の RT 向け計測・ring buffer など観測とキャッシュの基盤は確認した。ただし `paintEvent()` 内の再描画、QImage／readback 境界、毎フレーム GPU context、調整レイヤー readback、cache-key 生成などの具体的な止血完了は確認できず、実機プロファイルによる優先順位確定も未実施である。したがって triage の観測基盤は部分実装、S/A 項目の解消と success criteria は未達・未検証とする。
