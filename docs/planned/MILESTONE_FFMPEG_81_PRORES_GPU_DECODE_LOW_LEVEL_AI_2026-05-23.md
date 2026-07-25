@@ -278,3 +278,12 @@ Only run these when build/test is explicitly allowed:
 - GPU frames have a real ownership-safe representation.
 - Composition render path can consume GPU decoded frames without `QImage`.
 - CPU decode remains the fallback and regression baseline.
+
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+関連 backend の現状を再照合した結果、GpuVideoFrame は Vulkan handle variant と metadata を持ち、FFmpeg の Vulkan hwdevice／hardware frame 生成と CPU download fallback が存在する。ただし、ProRes 専用の runtime capability probe、FFmpegGpu／DecodeBackendPolicy の明示契約、D3D11VA／VideoToolbox／VAAPI の選択、Qt preview／renderer の GPU frame 消費は未完了である。
+
+したがって本文書の D1 は部分実装、D2 は Vulkan 基盤のみ、D3〜D6 は未完了または検証待ちとする。FFmpeg 8.1 の存在だけでは対応証明にならないため、実機 capability probe と ProRes 422／4444 の runtime 検証が必要である。
