@@ -49,3 +49,9 @@
 | **Sidechain 入力選択** | DAW | ❌ |
 | **DC Offset 除去** | Audacity | ❌ |
 | **Normalize** | Audacity | ❌ |
+
+## 2026-07-25 現状確認
+
+設計監査時点から実装が進み、P0 の主要項目は次の経路で存在する。`ArtifactAudioMixer` は Audio Layer と Core `AudioMixer` の bus を同期し、channel strip に volume / pan / mute / solo を保持する。`ArtifactCompositionAudioMixerWidget` は channel/master 行、パン操作、ミュート／ソロ、左右レベル／ピークメーター、マスター操作を提供する。ソロ時の他トラック自動ミュートも `updateSoloStates()` で処理される。
+
+一方、監査表の P1/P2（send/return、bus routing UI、VU/RMS 切替、clip hold／明示的 clip indicator、track name 編集、EQ／compressor／automation mode／VST／sidechain／normalize 等）は未実装、またはこの静的確認だけでは動作保証できない。したがって本マイルストーンは「P0 基盤実装済み、DAW 高度機能は未着手」の状態と判定する。実機再生時のメーター追従、設定の永続化、複数レイヤーの solo/mute と書き出し経路の一致は未検証。
