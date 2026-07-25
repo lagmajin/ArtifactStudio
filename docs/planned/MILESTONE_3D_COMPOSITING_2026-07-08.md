@@ -126,3 +126,10 @@ scope を開始して child の GPU pass を実行し、scope を必ず復元し
 target へ描画し、`ready` 後に親の 3D textured card として合成する最小経路まで実装。
 child に 3D、adjustment、mask、rasterizer effect、非Normal blend、nested precomp
 がある場合は registry を使わず既存経路へ戻す。
+
+### Static audit follow-up (2026-07-25)
+
+- `ArtifactCompositionRenderController` resolves the active camera, scene lights, light-link filtering, shared preview depth, 3D cards/shapes/textures, Model3D, and the precomp GPU-output registry in one explicit composition path.
+- The render queue also exposes Depth/Normal/Velocity/ID channel handling and recognizes camera/light/model/procedural 3D layer types.
+- Phase 1A-1K is therefore supported by current source evidence. Phase 2/3 requirements—full camera/layer scene operation, depth/mask/DOF post-processing, and end-to-end occlusion/transparency/audio runtime checks—remain incomplete or unverified.
+- No build, test, or runtime execution was performed because the repository instructions require explicit approval first.
