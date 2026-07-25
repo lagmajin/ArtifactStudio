@@ -347,3 +347,19 @@ ProjectA のレイヤー → ProjectB にドロップ
 ---
 
 **文書終了**
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースの `ArtifactProjectManager` / `ArtifactProjectService` は `currentProjectPtr_` と `currentProjectPath_` を単一保持する構成で、作成・読込・保存・閉じる操作も current project を置き換える経路である。Project View、WorkspaceAutomation、Project Bundle IPC、Health Dashboard、Snapshot Compare も current project を正本としており、複数 project tab の実装は確認できない。
+
+一方、現在の project の asset browser / bundle import、project health、snapshot compare、workspace automation は Phase 2 以降へ再利用できる基盤である。ただし他 project の同時一覧、独立 undo/save 状態、cross-project asset / layer copy、依存解決、切替時の active composition / selection 同期は未確認である。
+
+### Audit status
+
+- Phase 1: 未実装相当 — single current project の構成で、複数保持・tab 切替は未確認
+- Phase 2: 部分実装 — current project の asset / bundle / health 基盤はあるが、他 project 参照は未確認
+- Phase 3: 未実装相当 — cross-project layer / composition copy と依存解決は未確認
+- Phase 4〜6: 未確認 — undo/save 分離、参照表示、独立編集 workflow の根拠なし
+- Status: `計画中` を維持
