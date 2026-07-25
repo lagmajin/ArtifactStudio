@@ -162,3 +162,10 @@
 1. 左ペインに残す情報と移動先を決める
 2. `Recent` / `Favorites` / `Missing` の優先順位を決める
 3. 既存の Asset Browser shell にどの程度組み込むかを決める
+
+## 2026-07-25 実装監査
+
+- `AssetDirectoryModel` の Recent／Favorites 仮想ノードと QSettings 永続化、Asset Browser の breadcrumb、left hub summary、recent folder buttons、Favorites 導線を確認できる。
+- 現在のフォルダ・件数・status・選択文脈を左側に要約する UI と、Asset Browser の探索責務に閉じた構成も実装されている。
+- 一方、Missing／Relink／Import の quick action が要件どおり一貫して左ペインに揃っていること、空状態の完成度、Project View と責務が混ざらない runtime UX は未確認である。
+- よって主要な hub 構造は実装済み、導線の仕上げと実機確認を残す Partial／継続中と判定する。
