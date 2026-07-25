@@ -186,3 +186,19 @@ Core 側の `Tracking.MotionTracker` はすでに広めの API を持ってい�
 - UI スレッドで長時間 tracking を回さない
 - `QImage` 変換を描画ホットパスへ混ぜない
 - tracker 結果を即座に transform property へ自動適用しない
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースでは `MotionTracker` が forward / backward / range tracking、progress callback、stop、confidence / problem frames、correction、JSON / file save-load、position / anchor への apply 経路を持つ。`ArtifactPointTrackerGizmo` と Composition Render Controller の tracker 操作・結果適用も確認できるため、文書作成時より接続は進んでいる。
+
+ただし、UI を止めない worker orchestration、cancel 後の partial result commit、project asset としての session 復元、rotation / scale / camera transform の全 bridge、manual keyframe との優先順位契約は今回の静的確認だけでは完了を証明できない。`QImage` / OpenCV 入力を含む既存実装の runtime 性能も未検証である。
+
+### Audit status
+
+- 1-1 Result Schema: 部分実装 — JSON による結果保存はあるが、schema freeze / correction history の契約未確認
+- 1-2 Session Save / Restore: 部分実装 — tracker 単体 save/load はあるが、project asset 統合未確認
+- 1-3 Async Orchestration: 部分実装 — progress / stop API はあるが、worker thread / partial commit 未確認
+- 1-4 Property Bridge: 部分実装 — position / anchor 適用を確認。rotation / scale / camera 全対応未確認
+- Phase 1: `In Progress` を維持
