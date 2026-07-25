@@ -4,6 +4,10 @@
 
 Color Tokens の動き版として、イージング・時間・振幅・遅延を名前付きで管理し、レイヤーやコンポジションの演出を再利用可能な設計単位にする。
 
+## 2026-07-25 実装監査
+
+`MotionToken`／`MotionBinding`／`MotionProfile` の専用 schema、JSON 保存、token registry、既存レイヤーや UI からの参照・適用経路は確認できない。既存の Easing、Animation Dynamics、プリセットは個別機能として存在するが、名前付き token による共有管理とは別である。したがって Phase 1〜3 は未実装として扱い、runtime の profile 切替や export/import も未検証とする。
+
 ## Goal
 
 `introMotion = MotionToken.PopIn` のように、動きを直接埋め込まず、名前付きトークン経由で参照できる状態を作る。
