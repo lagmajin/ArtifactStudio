@@ -37,3 +37,18 @@ Hook the comparison surface back into the timeline and property editing flow.
 - the selected segment can be previewed and updated from the dialog
 - apply / undo / redo all work through the existing model
 - the UI surface still feels like part of the current editor
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の Timeline 実装を確認した。
+
+| Work item | 現状 | 判定 |
+|---|---|---|
+| selection bridge | selected markers を Timeline 側で抽出し、dialog callback に保持する | 実装済み（静的確認） |
+| apply bridge | `InterpolationChangeRecord` を作成し、selected keyframe の interpolation を更新する | 実装済み |
+| undoable command | `ApplyInterpolationCommand` の redo/undo が before/after state を適用する | 実装済み |
+| entry point | Timeline `Ease+` と Animation menu の action がある | 実装済み |
+
+**判定**: Execution の Done 条件はソース上達成。実行時の apply / undo / redo 結果は未確認。
