@@ -253,3 +253,10 @@ Phase 3 では、より広い範囲へ展開し、既存の操作習慣を壊さ
 - ショートカット再配置や大規模リマップは別マイルストーンとして扱う
 - 左利き補助と障碍者向け補助は、共通設定と個別設定を分けてから拡張する
 - 新規 global signal / slot は増やさず、既存設定保存経路を流用する
+
+## Static audit follow-up (2026-07-25)
+
+- `Settings.Accessibility` and `ApplicationSettingDialog` provide persisted handedness, large-target, high-contrast, font-scale, color-deficiency, and reduced-hover-dependency settings.
+- The timeline, Property Editor, Composition View/Controller, Main Window, and Menu Bar statically consume portions of those settings; accessible names/descriptions and scaled hit targets are present.
+- `adjustContextMenuPosition()` exists but no caller was found, and a repository-wide scan did not confirm broad left-handed placement or shortcut remapping. Phase 3 cross-widget consistency therefore remains incomplete.
+- Runtime setting changes, RTL layout integrity, and screen-reader announcements remain unverified. No build or runtime verification was performed under the repository policy.
