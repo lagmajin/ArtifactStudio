@@ -40,3 +40,7 @@ Total: 45-60h
 - 手動キーフレームから自動生成が可能
 - 生成されたアニメーションが自然に見える
 - UIが直感的で適用しやすい
+
+## 2026-07-25 実装監査
+
+既存の KeyframePatternGenerator、KeyPatternDialog、Timeline の keyframe 編集・Undo 経路は確認した。また AI の説明カタログに振幅ベースの `generateKeyframes` 説明はある。一方、軌跡解析を入力にする `AIKeyframeGenerator`、機械学習モデル、選択レイヤーの軌跡抽出、AI生成候補の timeline 表示・適用は確認できない。したがって既存のパターン生成は関連基盤に留まり、Phase 1〜3 と本マイルストーンの Success Criteria は未実装・runtime未検証とする。
