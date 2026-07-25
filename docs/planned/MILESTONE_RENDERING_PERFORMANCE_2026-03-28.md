@@ -195,6 +195,14 @@
 
 **合計工数:** 16-23 時間
 
+## Static Audit (2026-07-25)
+
+現行ソースでは、gizmo の描画集約、GPU readback 後の不要な float round-trip 削減、ROI、GPU texture/surface cache、LOD、RAM/frame cache、motion path cache、render graph/frame timing、GPU blend と CPU fallback の基盤が確認できる。`ArtifactCompositionRenderController` には property edit の render coalescing、interactive/draft 時の CPU effect 回避、cache hit/resource diagnostics の経路も存在する。
+
+ただし、文書の 60fps、GPU call 数削減率、cache hit 率、メモリ削減率といった数値目標は測定証拠がなく、完了とは判定しない。signal storm の全経路、毎フレーム readback の完全撤去、OpenCV CPU hot path の移行、全レイヤーでの typed buffer/cache 一貫性、実機 profiling は未検証である。QImage の UI/互換経路と GPU readback は残っている。
+
+判定: 最適化基盤は substantial、数値目標と残存 hot path の runtime acceptance は未完了。
+
 ---
 
 ## Phase 構成
