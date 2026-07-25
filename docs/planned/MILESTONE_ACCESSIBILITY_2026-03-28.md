@@ -318,3 +318,11 @@
 ---
 
 **文書終了**
+
+## Static audit follow-up (2026-07-25)
+
+- Major widgets now have accessible names/descriptions and focus policy/visualization, with shared accessibility settings covering target size, contrast hints, font scale, color-deficiency assistance, and reduced hover dependency.
+- This supports a partial Phase 1-3 foundation, but does not prove the stated “all operations keyboard-accessible” or “all information screen-reader announced” criteria. State-change announcements and complete keyboard traversal were not confirmed repository-wide.
+- Voice control, tremor/precision assistance, switch-control alternatives, and learning/tutorial support remain unimplemented or outside the confirmed scope.
+- The original CSS example is not adopted: repository rules prohibit adding new QtCSS; palette/style/theme-token approaches remain the valid implementation boundary.
+- Runtime focus traversal, screen-reader output, and contrast-ratio verification were not performed.
