@@ -87,3 +87,10 @@ Completed by Gemini CLI.
 - flat result と folder tree の責務が曖昧だと操作が重くなる
 - status / badge の表示を増やしすぎると逆に情報過多になる
 
+
+## 2026-07-25 実装監査
+
+- search input の即時反映、file type／status filter、結果件数と browser status、grid／list presentation を確認できる。
+- breadcrumb／current path と search state の表示、flat な右ペイン結果、source／type／status の item metadata、検索結果からの folder／source navigation も実装されている。
+- よって Incremental Search、Search Mode Surface、Search Result Presentation、Search Navigation の4項目はコード上完了相当である。
+- 検索と back／forward の切替、結果件数、UI 非ブロッキングの実機 runtime verification のみ未実施として整理する。
