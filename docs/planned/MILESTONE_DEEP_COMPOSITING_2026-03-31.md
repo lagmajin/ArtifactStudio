@@ -144,3 +144,17 @@ deep compositing を制作導線に乗せる。
 - いきなり full Nuke/Fusion 相当の deep node graph
 - deep を必要としない通常レンダーの複雑化
 
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の `ArtifactCore` / `Artifact` を確認した。OpenEXR の flat RGBA・float・multi-channel/AOV 入出力は存在するが、deep sample を扱う専用内部表現や deep EXR 経路は確認できなかった。
+
+| Phase | 現状 | 判定 |
+|---|---|---|
+| 1. Deep Buffer Model | `DeepSample` / `DeepPixel` / `DeepImageBuffer` 相当の型と flat/deep 変換経路なし | 未着手 |
+| 2. Deep EXR IO | OpenEXR の通常画像・named channel・AOV 出力はあるが、deep read/write は未確認 | 未着手 |
+| 3. Deep Merge / Holdout | deep sample の over/under、depth order、holdout、pruning 実装なし | 未着手 |
+| 4. UI / Workflow | EXR import/export UI はあるが、deep mode や deep buffer preview は未確認 | 未着手 |
+
+**判定**: 現状は flat EXR / multi-channel EXR の範囲に留まり、Deep Compositing の Phase 1〜4 は未実装。既存 EXR 経路を deep 対応と誤認しないこと。
