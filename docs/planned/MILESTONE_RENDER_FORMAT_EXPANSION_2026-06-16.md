@@ -445,3 +445,13 @@ struct RenderSettings {
 ## 8. 更新履歴
 
 - 2026-06-16: 初版作成。`REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md` §2.11 / §4 を正式 milestone に起こした。Render format expansion foundation。
+
+## 9. Static Audit (2026-07-25)
+
+現行ソースでは、当初の 0 hit から基盤が進み、`EncoderSettings` に video/audio/image-sequence の設定、ProRes profile、AudioOnly、ImageSequence、preset、serialize/deserialize が存在する。`FFmpegEncoder` には video と image sequence の open、`ImageF32x4_RGBA` / `QImage` の入力、codec/container/image-format の availability query、HDR 色空間設定があり、`FFmpegAudioEncoder` には audio encode、mux、probe の API もある。UI 側にも render queue の preset selector と encoder backend 設定導線が確認できる。
+
+ただし、milestone 全体の完了とは判定しない。独立した `EncoderKind`、`ImageSequenceEncoder`、`AudioOnlyEncoder`、`AudioImporter`、`OutputPresetLibrary` の設計どおりの型は確認できず、既存設定／FFmpeg façade に機能が部分的に集約されている。HAP、AV1、WebM/VP9、OGG/Opus/FLAC の実 codec dispatch、EXR/TIFF の bit-depth 実出力、連番の欠落検証、音声のみ queue の実運用は静的検索だけでは確認できない。`FFmpegEncoder` の API に `QImage` overload が残るため、指定された hot-path 不変条件も runtime 経路まで未確認である。
+
+ProRes の設定値や HDR の設定構造は存在するが、OCIO display role、HDR metadata、preset の保存・再読込、旧 project fallback、Problem View の `encoder.*` 診断、実際の output verification は未確認である。Render Farm の `RenderSettings` に encoder/preset を wire-safe に載せる接続も未実装の扱いとする。
+
+判定: Phase 1 は既存設定基盤として partial、Phase 2/3/4/5/6/7 は実出力・永続化・UI/診断の確認不足、Phase 8 は未着手。Done criteria は未達扱い。
