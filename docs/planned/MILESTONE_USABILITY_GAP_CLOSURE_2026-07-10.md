@@ -37,7 +37,7 @@
 | M-UG-3 | Easy Ease 速度ベース | イージーボタンは固定ベジェ（0.42/0.58）のみ。`EasyEase` シンボルなし、velocity ベース自動タンジェントなし | AE の F9 の「隣接速度からの気持ちよさ」がない |
 | M-UG-4 | 式ピックwhip | 式評価・エディタは実装済み。ドラッグでプロパティを繋ぐ AE 的 pickwhip は未実装（親子リンク pickwhip は別存在） | 式リンクがテキスト入力のみで面倒 |
 | M-UG-5 | プリコンポーズ作成 | `ArtifactProjectService::precomposeLayersInCurrentComposition()` に実コンポ生成・レイヤー移動・復元情報・Undo 導線を実装済み（2026-07-25 静的確認） | ✅ 完了（runtime 検証はスキップ） |
-| M-UG-6 | プロキシサービス統一 | `ArtifactProxyManager`（`ProxyService.ixx`）は宣言のみ実装なし。実生成は ProjectManagerWidget に ad-hoc（API 不統一） | プロキシ生成がサービス化されておらず保守性低 |
+| M-UG-6 | プロキシサービス統一 | `ArtifactProxyManager` に動画生成・パス管理・バッチ API を実装し、VideoLayer と Project View の動画キューを接続済み。画像サムネイル経路と品質 enum の完全統一は未完了 | 動画 proxy の共通生成経路は確立、runtime/enum整理待ち |
 | M-UG-7 | テキストアニメータ専用トラック UI | エンジン・セレクタ・グリフ適用は実装済み。AE 的「アニメータ/セレクタ専用トラックパネル」なし（汎用プロパティトラック経由のみ） | アニメータ編集が直感的でない |
 
 ## 推奨実装順（影響範囲 × 体験向上）
@@ -175,13 +175,9 @@ AE の F9（Easy Ease）のように、選択キーフレームの前後キー�
 
 ### 現状コード
 
-- `Artifact/include/Proxy/ProxyService.ixx:48`: `ArtifactProxyManager` 宣言のみ
-  （`.cppm` なし、`ArtifactProxyManager::` 実装ゼロ）
-- `Artifact/src/Layer/ArtifactVideoLayer.cppm:1679`: `generateProxy()` は
-  `qWarning` + `return false;`（deprecated）
-- `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm:6052+`:
-  `queueProxyGeneration`/`processNextProxyJob`（JPG 生成）/`syncProxyPathToProject`
-  が ad-hoc 実装。`ProxyQuality` enum が 2 箇所で不統一
+- `Artifact/include/Proxy/ProxyService.ixx`: `ArtifactProxyManager` の動画生成・パス・バッチ API を実装済み
+- `Artifact/src/Layer/ArtifactVideoLayer.cppm`: `generateProxy()` と decode controller の proxy 切替をサービス経由に接続済み
+- `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`: 動画はサービス、画像は JPG サムネイル経路に分岐。`ProxyQuality` 系はまだ完全統一ではない
 
 ### 完了条件
 
@@ -224,7 +220,7 @@ AE 的「アニメータ/セレクタ」をタイムライン上の専用トラ�
 - [ ] Easy Ease が隣接キーフレーム速度からタンジェントを決定する
 - [ ] 式エディタからドラッグでプロパティ参照を挿入できる
 - [ ] プリコンポーズ作成が実コンポを生成し Undo で戻る
-- [ ] プロキシ生成が `ArtifactProxyManager` 経由に統一される
+- [ ] プロキシ生成が `ArtifactProxyManager` 経由に完全統一される（動画経路は完了、画像サムネイルは別責務）
 - [ ] テキストアニメータが専用トラックで編集できる
 - [ ] 既存プロジェクトのシリアライズ往復が壊れない
 
