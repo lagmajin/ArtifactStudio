@@ -191,3 +191,15 @@
 
 最初に、motion sample のデータ構造と shutter profile を決める。
 その後に preview path と final path を分け、サンプリング戦略を詰める。
+
+## 2026-07-25 実装監査
+
+判定: Phase 1〜5 は未着手。既存の velocity / motion blur 基盤はあるが、物理的な時間積分までは接続されていない。
+
+- `ArtifactMotionBlur` の既存処理は Directional / Radial / Zoom / Velocity / Camera / Transform 系の汎用エフェクトであり、物理的なサブフレーム蓄積そのものではない。
+- Render 側には velocity texture / SRV / resolve と 3D mesh の velocity-only pass があるが、専用の physical motion blur accumulation pass、深度・オクルージョンを考慮した temporal resolve は確認できない。
+- shutter angle / phase / sample count と、rectangle / triangle / trapezoid / custom の shutter profile を扱う実装は確認できない。
+- preview / final の経路分離、adaptive sampling、early-out、cache reuse、ROI 更新も未接続。
+- したがって、現状は後続実装の前提となる velocity 基盤と簡易 blur 基盤まで。次の実装単位は、まず motion sample のデータ契約と shutter profile の定義。
+
+ビルド・実行確認はリポジトリ方針により未実施。
