@@ -362,3 +362,11 @@ QMatrix4x4 displayMatrix = OCIOManager::instance().sceneToDisplay(displayCS, cur
 ## 8. 更新履歴
 
 - 2026-06-16: 初版作成。`REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md` §2.8 / §4 を正式 milestone に起こした。DaVinci 風 Scopes foundation。
+
+## Static Audit (2026-07-25)
+
+現行ソースでは `Color.Grading.ColorScopes` に waveform/vectorscope/parade の CPU renderer、`Graphics.Compute.ScopeComputer` と専用 HLSL に GPU bin 計算、`ArtifactContentsViewer` に既存 ParadeScope の入口がある。したがって scope の計算素材と一部表示基盤は存在する。
+
+ただし、設計どおりの `ScopeFrame` / `ScopeFrameBuilder`、統一 `ScopePanel`、live composition frame の非同期更新、OCIO display-role 整合、intensity/sample-step 設定、highlight/shadow/gamut diagnostics、project 保存、Problem View 接続は確認できない。既存 CPU renderer は `QImage` 入力/出力であり、本 milestone の typed-buffer hot-path guardrail とも未整合である。skin-tone line、60fps上限、旧ParadeScopeとの統合受け入れも未検証。
+
+判定: 計算・shader の基盤は partial、Phase 1〜7 の統一 panel／live／保存／diagnostics は未完了。
