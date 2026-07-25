@@ -57,3 +57,9 @@
 | **出力ファイルの自動検証** | - | ❌ |
 | **Slate / Burn-in 設定（TC/日付焼き込み）** | Resolve | ❌ |
 | **LUT 埋め込み** | Resolve | ❌ |
+
+## Static Audit (2026-07-25)
+
+この監査表の状態は現行ソースに対して古くなっている。`ArtifactRenderQueueService` では remove、duplicate、move、start/pause/cancel、progress、error、rerun、failed-frame detection / selected rerender、preflight の API が確認でき、queue manager と job panel/preset UI も存在する。Render Farm、checkpoint、retry、progress aggregator は別基盤として追加され、P0/P1 の基本操作は少なくとも static surface 上で大きく進展している。
+
+一方、表に残る未実装項目のうち、watch folder、post-render action、複数 output module、filename template、LUT/slate/burn-in、出力ファイル自動検証はこの監査では確認できない。進捗・失敗再試行・background rendering も API と実行経路は確認できるが、UI の長時間 runtime、再起動後の履歴、実成果物検査までは未検証である。したがって元表の ❌ をそのまま現在状態とみなさず、基本 queue 操作は実装済み、拡張 delivery 機能と runtime acceptance は未完了として扱う。
