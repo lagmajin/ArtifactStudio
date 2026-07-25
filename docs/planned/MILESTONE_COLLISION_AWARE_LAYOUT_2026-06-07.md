@@ -4,6 +4,10 @@
 
 UI やテロップが重なったときに、自動で避けるレイアウト制御を作る。
 
+## 2026-07-25 実装監査
+
+本マイルストーンの semantic target role、layout collision resolver、position／scale／reflow の自動回避、衝突理由の UI 表示に対応する専用実装は確認できない。既存には timeline keyframe の衝突表示や物理／粒子の collision、layer の input priority など別責務の機能はあるが、本マイルストーンの広告レイアウト衝突とは分けて扱う。したがって Phase 1〜3 は未実装で、Content Bounds／Responsive Layout からの統合も未着手とする。
+
 ## Goal
 
 タイトルとロゴ、字幕と顔、ボタンとセーフエリアのような衝突を検知し、必要に応じて位置調整や縮小を行えるようにする。
