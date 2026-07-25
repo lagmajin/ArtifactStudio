@@ -304,3 +304,7 @@ class ArtifactIRenderer {
 ## 8. 更新履歴
 
 - 2026-06-16: 初版作成。`REPORT_APP_PERF_BOTTLENECK_2026-06-16.md` §4.1 / §4.2 の重大度 S / A を正式 milestone に起こした。
+
+## 2026-07-25 実装監査
+
+描画側には `GPUTextureCacheManager`／layer surface cache、RAM preview／frame cache、非同期 readback API、診断用 PerformanceMonitor 等の基盤がある。一方、最新の静的調査では cache 判定前の毎フレーム cache-key 構築、調整レイヤーの同期 readback、`sceneLights` の CPU 全画面ループ、非 GPU cache 経路の F32→QImage→再アップロードが残る。完了条件の render path 全体での QImage／readback／JSON parse／QFile.exists 排除、16 effect の context cache 化、delete 削減率、30% frame-time 改善は証拠がなく、実機プロファイルも未実施である。したがって基盤は部分実装だが、M-PERF-1 の修正完了・性能目標は未達／未検証とする。
