@@ -187,6 +187,14 @@ private:
 
 - 2026-07-02: 初版作成。M-RE-2.A として `MILESTONE_RENDER_FARM_DESIGN_2026-06-16.md` の Phase 4 (out-of-process worker) の前提部品を 1 段の milestone として切り出し。
 
+## Static Audit (2026-07-25)
+
+現行ソースでは `ArtifactCore/src/Network/NetworkRPCClient.cppm` と `Artifact/src/Worker/FarmWorkerMain.cppm` が存在し、TCP 接続、register、heartbeat timer、改行区切り JSON-RPC、assignJob callback、frameCompleted/frameFailed、切断 callback の主要経路は追加されている。worker CLI も `--host` / `--port` / `--worker-id` で client を起動する入口を持つ。
+
+ただし、公開側の `ArtifactCore/include/Network/NetworkRPCClient.ixx` は現行 workspace では確認できず、実装の公開宣言・CMake登録・API契約の整合性を証明できない。capability payload、status 応答、cancel 通知、最大512件の送信 queue、再接続（3秒待機・3回）、不正JSONの error 通知、認証、ArtifactRenderer との farm-client 統合も未確認である。実際の master/client 結合と外部 process の assignJob 完了も runtime 未検証。
+
+判定: client の TCP/JSON-RPC 骨格は partial、Done criteria の公開モジュール整合・再接続・capability・cancel・結合検証は未完了。
+
   - `register` (workerId, capability)
   - `heartbeat` (workerId, timestamp)
   - `assignJob` (jobJson) — サーバから受け
@@ -204,4 +212,3 @@ private:
 - Affinity / 認証 / TLS (Phase 4-5)
 - GPU capability 自動検出 (別 topic、OS 依存 path 必要)
 - ログ集約 (`<project_root>/.artifact/farm/logs/`)
-
