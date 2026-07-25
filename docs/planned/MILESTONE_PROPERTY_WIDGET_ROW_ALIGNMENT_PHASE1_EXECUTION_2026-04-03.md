@@ -28,3 +28,10 @@
 - 各 row の操作位置が予測しやすい
 - section header が widget ごとにぶれない
 
+## Static Audit (2026-07-25)
+
+Phase 1 の geometry contract は現行ソースに反映されている。row 最小高さ 34、label 幅 132、row margin／spacing、navigation／keyframe／reset／expression の固定寸法が `PropertyEditor` 側に定数化され、row widget の owner-draw geometry で label／editor／action の位置を算出している。Property Widget 側でも `alignPropertyRowLabels()` を effect／channel／transform／group に適用し、section header／badge／group padding の実装を確認できる。
+
+ただし、checkbox／combobox／slider／color editor の全組み合わせで同一高さになること、Property Widget と Inspector の header baseline／badge 位置が実画面で一致すること、展開 affordance のキーボード・runtime挙動は未検証である。定数が `ArtifactPropertyEditor.cppm` と `ArtifactPropertyEditorShared.cppm` に重複している箇所もあり、単一の共通契約として完全に統合されたとは言い切れない。
+
+判定: **Phase 1 の静的実装は概ね完了。** runtime／visual 検証と寸法定数の完全集約が残っている。
