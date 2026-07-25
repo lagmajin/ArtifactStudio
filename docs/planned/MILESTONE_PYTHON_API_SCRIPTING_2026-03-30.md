@@ -36,3 +36,11 @@
 ## 🔗 関連マイルストーン
 - [M-FE-6 Batch / Macro / Script Entry](MILESTONE_FEATURE_EXPANSION_2026-03-25.md)
 - [M-APP-1 Application Cross-Cutting Improvement](MILESTONE_APP_CROSS_CUTTING_IMPROVEMENT_2026-03-27.md)
+
+## Static Audit (2026-07-25)
+
+計画時点から実装が進み、`ArtifactCore::PythonEngine` に Python 初期化／終了、文字列・ファイル実行、式評価、global 値、C++ function 登録、stdout／stderr callback、interactive console line、search path 管理がある。`CorePythonAPI` は math／color／DSP／system／composition API を登録し、`ArtifactPythonAPI` は選択 layer の rename／cleanup／trim 等を公開する。App 起動時の script scan、Python Hook Manager、Script Menu、WorkspaceAutomation／MCP 経由の自動化経路も確認できる。
+
+一方、計画が想定した pybind11 による `ArtifactCore`／`ArtifactStudio` の型付き Python object export、独立した `ScriptingConsoleWidget`（QPlainTextEdit REPL、syntax highlight、completion）、`app`／`project`／`selected_layers` の直接オブジェクト公開、render queue の完全な Python API、headless CLI 実行、sandbox／権限・実行時間制限、runtime の Python interpreter／output redirect 検証は未確認である。現状は登録関数を中心とした bridge で、型安全な object model と専用 console UI は別途必要である。
+
+判定: **Python 実行基盤と限定 API は実装済み。** Phase 1 の full bridge、Phase 2 の専用 console、Phase 3 の headless／plugin workflow は未完了または未検証である。
