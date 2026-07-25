@@ -212,3 +212,10 @@ Phase 2 では、viewer に出す情報を「確認に必要な最小状態」�
 
 - Project / Asset からの open 導線は既にある
 - review workflow は表示状態と mode ルールが固まってから詰める
+
+## Static audit follow-up (2026-07-25)
+
+- Phases 1-4 are supported by the current `ArtifactContentsViewer` and `Artifact3DModelViewer` source: Model3D routing, importer/backend/error state, mesh inspection metadata, display-mode controls, reset view, and the existing Asset/Project open paths are present.
+- The generic Contents Viewer compare surface (`Wipe`/`Split`/`Difference`) exists, but its Difference mode is explicitly restricted to two image sources and the compare canvas is not a 3D scene/model compare surface. Therefore Phase 5 remains incomplete for 3D models.
+- Source/final role labels and compare routing exist at the generic viewer level, but model-specific camera/mesh comparison and annotation/diagnostic hooks are not confirmed.
+- No build or runtime verification was performed under the repository policy.
