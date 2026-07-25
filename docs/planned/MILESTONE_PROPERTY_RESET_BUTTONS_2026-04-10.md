@@ -54,3 +54,11 @@ After Effects のプロパティパネルにリセットボタンを追加し、
 - 各種プロパティのリセット動作
 - キーフレーム有無での動作差
 - undo/redo の動作確認
+
+## Static Audit (2026-07-25)
+
+現行の Property Editor には、プロパティ行ごとの reset button、reset icon／tooltip、hover 時の action 表示、context menu の `Reset Value`、表示設定 `artifactShouldShowPropertyResetButtons()`、crop／pan 専用の reset 導線が存在する。通常の layer property rows では reset button を表示する設定も確認でき、keyframe 操作・favorites・expression などの row chrome と同じ位置で扱われている。
+
+ただし、すべての通常プロパティに default 値を復元する reset handler が接続されているか、keyframe 付き property で「全 keyframe 削除＋default 値」、選択 keyframe のみ削除、undo／redo、Transform／Text／Effect／Material 全対象の挙動は静的検索だけでは確認できない。設定値は現状プロセス内の表示フラグとして見え、Preferences への永続化も未確認である。視覚的配置は実装済みだが、runtime のクリック結果と reset 後の再評価・保存は未検証である。
+
+判定: **UI 基盤は実装済み。** スマートリセット、Preferences 永続化、undo／redo と全対象の runtime 検証が残っている。
