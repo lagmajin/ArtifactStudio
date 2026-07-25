@@ -71,3 +71,11 @@ This milestone covers the "pick-whip" style workflow where one property can be l
 - composition ID / layer ID / property path / property typeをJSON参照としてcopy可能にした
 - clipboard tokenをactive compositionでresolveし、layer/property/typeの存在を検証して対象layerを選択する
 - 評価リンクやpick-whip UIはまだ作らず、read-only catalog / resolverに限定した
+
+## Static Audit (2026-07-25)
+
+Phase 1 の source audit と一致して、Composition Editor に stable reference token の copy／clipboard resolve 導線があり、composition ID・layer ID・property path・property type の存在確認と対象 layer の選択を行う。既存の ObjectReference／Layer matte 用 picker UI もあるが、これは object／matte 参照の導線であり、任意の `AbstractProperty` 間を結ぶ Property Link とは別責務である。
+
+現行ソースには `PropertyLinkManager`、referenceable property の包括的 catalog、property row からの drag pick-whip、互換性判定付き hover preview、リンクを保存・評価する model は確認できない。clipboard の read-only resolver は Phase 1 の範囲を満たす足場だが、expression target との分離、keyframe と reference の同一 property source 上での共存、Undo／serialization、runtime のリンク評価は未実装または未検証である。
+
+判定: **Phase 1 の read-only token／resolver は実装済み。** Phase 2 の visual pick-whip／local link capture と本格的な property catalog は未着手である。
