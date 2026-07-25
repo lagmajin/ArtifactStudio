@@ -152,6 +152,13 @@ UI 名称や責務で迷った場合は `docs/WIDGET_MAP.md` を確認する。
 - batch export job list の生成
 
 これで「広告動画の文言差し替えと画角展開をまとめて処理する」価値を最短で検証できる。
+
+## Static audit follow-up (2026-07-25)
+
+- The repository contains `TemplateSlot`, `TemplateVariation`, and `OutputVariant` data contracts with JSON conversion, plus Parametric Composition slot application and Workspace Automation/Python template-slot define/list/apply entry points.
+- Adaptive Text Fit and existing Render Queue foundations cover part of the responsive-text and export-side prerequisites.
+- A complete variation-data-to-batch-job workflow was not confirmed: CSV/JSON multi-row UI, 9:16/1:1/16:9 Cartesian job generation, and per-job aggregation of required-slot, overflow, and missing-asset diagnostics remain open.
+- Phase 1 metadata is implemented; Phase 2-4 remain incomplete or runtime-unverified. No build or runtime verification was performed under the repository policy.
 # 2026-07-10 Adaptive Text Fit Progress
 
 - Composition Editor Command Palette に selected text layer向け `Adaptive Text Fit` を追加
