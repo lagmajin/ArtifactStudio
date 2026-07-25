@@ -57,3 +57,24 @@ Composition Editor 上で、3D カメラの視錐台やフレーム境界を重�
 1. Overlay Wiring
 2. Visual Polish
 3. Experimental UX
+## 2026-07-25 実装監査
+
+### 判定
+
+Phase 1〜3 は実装済み。Camera Frustum の toggle、設定保存、表示経路、active camera の frustum / frame 表示までソース上で確認できる。
+
+### 実装確認
+
+- Composition Editor の Display / Shading menu に Camera Frustum の checkable action があり、controller と settings の状態を同期している。
+- CompositionRenderController に `showCameraFrustumOverlay` state、`cameraFrustumVisual()`、frustum overlay draw pass があり、通常の 2D composition view を維持したまま overlay を重ねる。
+- Camera Layer は Perspective / Orthographic の projection、frame、near / far、camera body / direction を保持し、camera selection overlay と共存する。
+
+### 未完了・要確認
+
+- active / inactive camera の見た目の差、frustum の視認性、selection / gizmo / HUD との重なりは runtime 未確認。
+- shortcut / menu の操作感、再起動後の toggle 復元、カメラ切替時の overlay 更新も実機確認が必要。
+- overlay は確認用であり、camera render への切替や本格的な 3D camera editing までは含まない。
+
+### 次の判定
+
+「overlay wiring と基本 UX は実装済み、runtime 表示品質と操作確認待ち」とする。
