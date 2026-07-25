@@ -1,4 +1,4 @@
-**ステータス:** ✅ Complete (source/static verified 2026-07-24; runtime/build verification pending)
+**ステータス:** ✅ Complete (source/static verified 2026-07-24; runtime verification intentionally skipped)
 
 # M-PRECOMP-2: Precompose Workflow Completion (2026-07-09)
 
