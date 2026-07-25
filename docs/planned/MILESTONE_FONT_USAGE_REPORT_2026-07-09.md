@@ -206,3 +206,16 @@ Phase 1 から入る。まずはプロジェクト内の実使用フォントを
 Text／Shape layer の font family、FontDescriptor／FontManager、GlyphAtlas／QRawFont の既存資産は確認できるが、プロジェクト全体を走査する Font Usage Reporter、family→実ファイルの統一解決、license registry、JSON／CSV manifest 出力、提出用コピー導線は確認できない。
 
 従って Phase 1 の専用収集ヘルパから Phase 5 の UI／検証まで未完了。既存の font 解決・glyph 資産は実装候補であり、使用フォントレポートの完了証拠とは扱わない。
+
+## 2026-07-25 実装監査（更新）
+
+判定: Phase 1〜4 の主要基盤と Phase 5 のメニュー導線は実装済み。runtime 上の全フォント種別・ライセンス登録・コピー結果の検証は未実施。
+
+- `ArtifactProjectStatistics::collectMetadata()` は compositions / layers の JSON を走査し、`fontFamily` / `fontPath` / `fontFile` を重複排除して `FontUsageCollector` に渡す。アプリ UI フォントを走査対象へ直接追加する経路は確認できない。
+- `FontUsageCollector` は `QRawFont::fromFont()` で実ファイル、resolved family、style、weight、italic を解決し、未解決数を report / manifest に記録する。
+- `FontLicenseRegistry` と license status / attestation の JSON・CSV 出力、フォント実体と license file の提出用コピー、`font-usage.json` / `font-usage.csv` の生成が実装されている。
+- File Menu に「使用フォントレポートを書き出す...」の導線があり、プロジェクト未選択時の無効化も実装されている。
+- ただしシェイプレイヤー由来のフォント表現、複数 style / weight の代表選択、OS/Qt 環境差、license registry の UI 設定編集、実ファイルコピーの実環境成否は未確認。
+- 従って、コード上は Phase 1〜4 と導線まで進捗しているが、受け入れ条件は build / runtime と実フォントを用いた検証待ち。
+
+ビルド・実行確認はリポジトリ方針により未実施。
