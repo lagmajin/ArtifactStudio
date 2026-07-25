@@ -119,3 +119,12 @@ Phase 1 の実行メモは親文書へ統合済み:
 - [ArtifactCore/include/Script/Engine/BuiltinScriptVM.ixx](/c:/Users/kukul/OneDrive/デスクトップ/Programming/ArtifactStudio/ArtifactCore/include/Script/Engine/BuiltinScriptVM.ixx)
 - [ArtifactCore/include/Script/Python/PythonEngine.ixx](/c:/Users/kukul/OneDrive/デスクトップ/Programming/ArtifactStudio/ArtifactCore/include/Script/Python/PythonEngine.ixx)
 - 親文書へ統合済み
+
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+ScriptRuntime、ScriptContext、BuiltinScriptVM と xecute／xecuteFile、host snapshot、logger、timeout 付き VM 経路を確認した。さらに ArtifactPythonHookManager と WorkspaceAutomation により project／layer／effect／keyframe／playback／render queue 操作の API 基盤が存在する。
+
+一方、ExtendScript 風の専用 Script console、REPL 履歴／複数行再実行、UI への統一結果・stack 表示、スクリプトからのイベント購読、実行権限境界、キャンセルの一貫した UI 導線は確認できない。Python API の一部は placeholder 応答も含むため、Phase 1 は基盤部分実装、Phase 2〜4 は未完了または検証待ち、Phase 5 は未着手として扱う。
