@@ -185,3 +185,20 @@ RenderDoc のスナップショットではなく、実行中に常時開いて�
 - `docs/planned/MILESTONE_LIVE_FRAME_PIPELINE_RESOURCE_DIFF_PHASE3_2026-04-21.md`
 - `docs/planned/MILESTONE_LIVE_FRAME_PIPELINE_RESOURCE_DIFF_PHASE4_2026-04-21.md`
 - Phase 1-4 execution memo は本書に統合済み
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の FramePipelineView、FrameResourceInspector、FrameStateDiff、FrameDebug snapshot と renderer diagnostics を照合した。ビルド・実機の常時監視は未実施。
+
+| Phase | 現状 | 判定 |
+|---|---|---|
+| 1. Frame Graph / Pipeline | `FramePipelineViewWidget` が frame/pass/resource/attachment、graph・hazard・backend summary を表示する。完全な read/write DAG、lifetime、UAV/RTV barrier の収集網羅は未確認。 | 部分実装 |
+| 2. Always-on Resource Inspector | `FrameResourceInspectorWidget` が resource/attachment/preview/readback 要約を表示する。任意 live resource の MIP/array/slice/channel と pixel inspect の実運用は未確認。 | 部分実装 |
+| 3. State Diff Tracker | `FrameStateDiffWidget` が previous/current snapshot、compare state、resource/pass/density 差分を表示する。PSO/CB/SRV/UAV の完全履歴と壊れ始めた frame の自動判定は未確認。 | 部分実装 |
+| 4. Diagnostics Integration | Frame Debug、Profiler、Debug Console、Harness への summary/copy/filter/report 導線がある。常時表示 surface と warning vocabulary の完全統一は未確認。 | 部分実装／統合待ち |
+
+### 現在の判定
+
+Phase 1〜4 の UI と snapshot/diff 基盤は実装済み部分が多いが、live GPU resource の網羅的取得と hazard/history の実行確認が残る。マイルストーンは「部分実装／実行確認待ち」とする。
