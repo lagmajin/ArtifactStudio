@@ -4,6 +4,12 @@
 対象: 3D viewport の camera 操作と preview mode  
 優先度: 🟠 高
 
+**進捗状態:** Phase 1〜3 と Preview Orbit Mode は実装済み。実機での editor 間操作統一・カメラ非破壊性の検証待ち。
+
+### 実装状況（2026-07-25 確認）
+
+`Artifact3DModelViewer` と `ArtifactCompositionEditor` を確認した結果、Alt+左ドラッグ Orbit、中央ドラッグ Pan、wheel zoom、3D view state、Preview Orbit の一時 camera state、Preview バッジ／HUD、複数 viewport pane の状態保持と復元が実装されている。残課題は editor 間の完全な入力契約統一と runtime での操作確認。
+
 ---
 
 ## 目的
