@@ -245,3 +245,9 @@ Phase 1 は、property path から color category へ落とす最小ルールを
 
 - property / layer / preset 由来の意味は taxonomy が固まってから揃える
 - readability polish は色のカテゴリが安定してから入れる
+
+## 2026-07-25 現状確認
+
+色付きkeyframeの基盤は実装済み。`KeyFrame::ColorLabel`（Red／Blue／Yellow／Green／Purple／Gray／None）がpropertyモデルに保存され、JSON serialization／復元に対応する。Track Painter はlabel色、interpolation、selected layer／selected markerを組み合わせて描画し、選択keyframeへのColor Label設定とUndo snapshotも提供する。
+
+未完了または未検証なのは、transform／motion／facial／effect等の意味カテゴリへの自動taxonomy、legend／summary、hover／current-frameとの密集時コントラスト、preset／animatorとの分類整合、代表ケースでの視認性回帰確認である。判定は「手動Color Labelと描画・保存・Undoは実装済み、自動意味分類とreadability polishは未完了」とする。
