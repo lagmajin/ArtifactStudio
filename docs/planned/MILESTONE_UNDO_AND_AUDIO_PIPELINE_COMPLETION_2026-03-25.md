@@ -134,3 +134,9 @@ AudioLayer / VideoLayer audio / other sources
 2. `Audio pipeline` を mixer ベースにして再生品質を上げる
 
 この 2 つが固まると、UI の細かい polish が「ちゃんと効く」土台になる。
+
+## 2026-07-25 現状確認
+
+Audio pipeline は当初の設計より進展しており、Composition に AudioMixer／master bus 経路があり、Audio Layer／Video Layer の音声を bus に同期し、volume／pan／mute／solo と renderer の出力へ接続している。AudioRenderer は Qt sink、出力チャンネル数、downmix、underflow／overflow、pre-roll／resync を扱う。Audio Layer の差し替え・relink・再生状態変更には既存 Undo／Automation 経路もある。
+
+一方、Undo は `UndoManager`、`QUndoStack`／Command.Session、UI固有の経路が併存しており、正の履歴が完全に一本化されたとは確認できない。Audio側も実機での format mismatch、clip／limiter品質、Mixer経由と従来経路の二重管理、Undo後の再生状態・保存復元の一貫性は未検証。判定は「Audio基盤は大幅に統合済み、Undo統一と製品品質検証が残る」とする。
