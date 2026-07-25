@@ -310,3 +310,7 @@
 ---
 
 **文書終了**
+
+## 2026-07-25 実装監査
+
+`ArtifactPluginRegistry` の登録・activate/deactivate・category 検索、`ArtifactPluginLoader` の探索・動的ロード、LayerPluginAdapter／PluginLayerFactory、OFX／VST 系の個別ホスト、PluginSandbox の subprocess／heartbeat／crash callback、Script API／hot reload の基盤は確認した。一方、汎用プラグイン契約による effect／layer／tool／format の一貫した自動UI、依存関係解決、インストール／アンインストール／更新、マーケットプレイス、完全なマクロ記録・batch API、実プラグイン互換性は確認できない。したがってプラグイン基盤は部分実装で、当初 milestone の必須・重要・推奨機能は未完了・runtime 未検証とする。
