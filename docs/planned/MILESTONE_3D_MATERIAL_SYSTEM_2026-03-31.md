@@ -1,5 +1,7 @@
 # MILESTONE: 3D Material System
 
+**Status:** Phase 1〜4 implemented, Phase 5/runtime verification pending
+
 > 2026-03-31 作成
 
 ## 目的
@@ -160,3 +162,11 @@ Phase 1 は material の器を先に作り、見た目の自由度を少しず�
 - renderer に渡す material parameter の形を先に揃える
 - camera / projection と material の責務を混ぜない
 - simple PBR-like shading は後段で検討する
+
+## Implementation Status (2026-07-25)
+
+- `ArtifactCore::Material` が base color、metallic、roughness、opacity、emission、normal/occlusion を保持する。
+- `Artifact3DModelLayer` が material を保存・復元し、Property Editor の編集値を反映する。
+- base-color、metallic-roughness、normal、emission、occlusion、opacity texture の読み込み経路がある。
+- `MeshRenderer` が material constant buffer と PBR-like shader を使用して描画する。
+- Phase 5 の高度な normal/specular mapping、preset UI、および実機確認は未完了。
