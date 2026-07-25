@@ -205,3 +205,7 @@ Phase 1 から入る。まずは `PBRMaterial` の器を作り、既存 `PBRMate
 - `GLTF_PBR_Renderer` の `CreateInfo` と既存 RTV/DSV フォーマットを合わせる
 - 既存レンダーコントローラへの挿入点を先に特定する
 - 表示切替は `MILESTONE_3D_VIEWPORT_SOLID_CAMERA_OVERLAY` の overlay 責務と衝突しない
+
+## 2026-07-25 実装監査
+
+`Material` の metallic／roughness／base color／emission／opacity／normal／AO と各種 texture path、GLTF／OBJ 等からの metallic-roughness・normal・emission・AO texture 抽出、`MeshRenderer` の base color／metallic-roughness texture SRV と PBR 計算、3D model layer／viewer／primitive renderer の既存導線は確認した。一方、`PBRMaterialEffect` としての独立契約、Diligent の `GLTF_PBR_Renderer`／IBL（irradiance・prefiltered environment・BRDF LUT）、複数ライトの PBR uniform 統合、Material 差し替え UI、solid／wireframe との表示切替、実機での見た目・性能一致は確認できない。したがって既存 MeshRenderer に PBR 相当の部分実装はあるが、Element 3D-like milestone の統合完了は未達・runtime 未検証とする。
