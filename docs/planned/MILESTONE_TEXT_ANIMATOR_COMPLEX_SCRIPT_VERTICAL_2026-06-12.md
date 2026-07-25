@@ -1,5 +1,15 @@
 # MILESTONE: Text Animator Complex Script And Vertical Writing
 
+## Static Audit (2026-07-25)
+
+`TextLayoutContract`、`TextShapingRequest/Result`、Qt/HarfBuzz backend interface、script/bidi/cluster/line metadata、vertical writing metadata は実装側に存在する。`GlyphItem` に cluster、line、selector tag、stable token id があり、Text Gizmo／Inspector／debugState 側にも writing mode や selector 情報の表示経路がある。
+
+- 実装済みまたは部分実装: horizontal/vertical の layout contract、script run、bidi run、grapheme相当の cluster span、line/vertical column、ruby、tate-chu-yoko、punctuation、bracket、kinsoku metadata、selector tag/regex と heatmap/debug 表示の入口。
+- 未確認または未達: Hangul/Arabic/Hebrew/Thai/Indic/emoji ZWJ/ligature の実ランタイム検証、clusterを壊さない全selector／source編集同期、stable token の永続性、完全な glyph cluster map、縦書きのruby・kinsoku・tate-chu-yoko実描画、selector stack と modifier stack の独立した編集UI。
+- `QtShapingBackend` と `HarfBuzzShapingBackend` のインターフェースは存在するが、全複雑文字をHarfBuzz本線で処理すること、backend差異の品質比較、full vertical rendering の完了は静的には証明できない。
+
+判定: semantics／metadata の基盤と表示入口は大きく前進しているが、Success Criteria の複雑文字と縦書きの実動作保証は未検証。現時点は contract-first の部分実装として扱う。
+
 > **Supporting slice:** [`MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md`](./MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md) の WP-5／WP-7。complex script／縦書き／多言語の個別仕様と履歴を保持する。
 
 **Date**: 2026-06-12
