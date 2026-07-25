@@ -906,3 +906,7 @@ void ArtifactAICloudWidget::startChatRequest(
 - [docs/planned/MILESTONE_AI_CLOUD_WIDGET_DESIGN_AUDIT_2026-07-04.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AI_CLOUD_WIDGET_DESIGN_AUDIT_2026-07-04.md)
 - [Artifact/docs/MILESTONE_AI_CLOUD_WIDGET_HARDENING_2026-04-09.md](X:/Dev/ArtifactStudio/Artifact/docs/MILESTONE_AI_CLOUD_WIDGET_HARDENING_2026-04-09.md)
 - [docs/planned/MILESTONE_LOCAL_AI_SEPARATION_UI_ONLY_2026-04-23.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_LOCAL_AI_SEPARATION_UI_ONLY_2026-04-23.md)
+
+## 2026-07-25 実装監査
+
+AICloudSessionController／AICloudWorkerProtocol、session／request schema、QProcess の timeout／cancel、MCP transport、tool approval／log の基盤は実装を確認した。一方、`ArtifactAICloudWidget` が現在も `curl.exe` 起動、provider request、tool／MCP 実行を直接保持しており、`AICloudWorkerClient`／`AICloudWorkerBackend` の別プロセス実装、UIクラッシュからのworker隔離、再接続・session復元の実運用は確認できない。したがって Phase 1〜2 は部分実装、Phase 3〜5 と全体完了条件は未完了・runtime未検証とする。
