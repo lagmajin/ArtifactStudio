@@ -192,3 +192,26 @@ ArtifactStudio を実務投入できる制作ツールへ寄せるための整�
 - [`docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md)
 - [`Artifact/docs/MILESTONE_V1_0_PRODUCTION_READINESS_2026-03-11.md`](X:/Dev/ArtifactStudio/Artifact/docs/MILESTONE_V1_0_PRODUCTION_READINESS_2026-03-11.md)
 - [`docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_2026-04-20.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_2026-04-20.md)
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソース上の到達状況を再確認した。ビルド・実機操作による完了判定はまだ行っていない。
+
+| 区分 | 状況 | 判定 |
+|---|---|---|
+| 必須 1-1 Host / Context / ROI / Property | `ArtifactRenderContext`、`ArtifactRenderROI`、`ExposedPropertyRegistry`、render queue の分離基盤が存在する。全 effect/layer の dependency declaration 統一は未確認。 | 部分実装 |
+| 必須 1-2 Timeline / Selection | `ArtifactLayerSelectionManager`、Core `SelectionManager`、Playback/Timeline のサービス境界がある。二重経路と `NoLayer` の全経路整理は未確認。 | 部分実装／確認待ち |
+| 必須 1-3 Render Queue E2E | `ArtifactRenderQueueService`、manager widget、preset、job panel と render queue テストが存在する。実ファイル export、失敗理由、recovery の E2E は未確認。 | 部分実装／E2E待ち |
+| 必須 1-4 Recovery / Diagnostics | CrashHandler、DiagnosticEngine、ProjectDiagnostic、SessionLedger、各種 debug/profiler widget がある。セーフモードから復旧までの一連の導線は未確認。 | 基盤あり／統合待ち |
+| 必須 1-5 Track Matte / Mask / Shape | Mask/Roto/Shape のコアと rasterizer/cutout pipeline、PreCompose 関連がある。matte 順序・複数マスク・編集同期の実運用は未確認。 | 部分実装 |
+| 必須 1-6 Keyframe / Easing | KeyframeEditingTools、EasingCurveUtil、CurveEditor、Bezier/hold/roving の基盤がある。speed/value graph の完全な保存・編集整合性は未確認。 | 部分実装 |
+| 必須 1-7 Motion Blur | Core `Graphics.MotionBlur` と Artifact 側 `ArtifactMotionBlur` が存在する。shutter/phase/sample のレンダー統合は未確認。 | 部分実装／統合待ち |
+| 必須 1-8 Default Workspace | MainWindow、WorkspaceManager/Modes、Timeline/Inspector/RenderQueue の widget 群がある。初回起動の標準レイアウトと復元は未確認。 | 部分実装 |
+| 重要 2-1〜2-7 | Adjustment/LayerStyle、Work Area、Parent/PreCompose/Frame Blending、Markers、Expression、OCIO/LUT、Proxy/Cache/Playback の個別基盤は複数存在するが、制作フローを通した統合完了は確認できない。 | 基盤あり／順次統合 |
+| 後回し 3-1〜3-5 | Plugin/OFX、Deep Composite/HDR、Collaboration、AI、3D/Simulation は個別の実装・計画が混在する。1.0 必須の完了条件には含めない。 | 後段扱い |
+
+### 現時点の優先順位
+
+ロードマップの順序は維持する。次に着手するのは、必須 1-1〜1-3 の契約を実行経路で確認できる診断・E2E 検証と、必須 1-5〜1-7 の合成・補間品質の確認。ソース上のクラス存在だけでは 1.0 完了とは扱わない。
