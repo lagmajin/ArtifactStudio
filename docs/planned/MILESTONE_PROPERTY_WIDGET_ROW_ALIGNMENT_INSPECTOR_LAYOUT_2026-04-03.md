@@ -166,3 +166,11 @@ Property UI の課題は、単なる配色ではなく「どの要素がどこ�
 - `ArtifactInspectorWidget` の refresh を dirty-bit 化して、composition note / layer note / layer info / effects list を必要なものだけ更新するようにした
 - `ArtifactPropertyWidget` の filter 入力は即時 rebuild ではなく debounce rebuild に寄せた
 - `ArtifactPropertyWidget` の animated value 更新は frame cache を持ち、同じフレームの再計算を飛ばせるようにした
+
+## Static Audit (2026-07-25)
+
+現行の Property Editor には、row 最小高さ・label 幅・action spacing・keyframe／navigation／reset／expression の寸法定数が集約され、row widget が label／value editor／aux action を共通配置する。owner-draw の row chrome、hover／selection、keyframe／reset／favorite の表示制御、section の presentation badge、`alignPropertyRowLabels()` による group ごとの整列が実装されている。Property Widget 側も effect／channel／transform／通常 group で共通 row builder を利用し、refresh の signature／dirty-bit／debounce／frame cache も確認できる。
+
+未確認なのは、全 editor 種別（numeric／color／checkbox／combo／expression）での実画面上の baseline と高さの一致、Inspector と Property Widget 間の section header 完全統一、Phase 3 に含まれる reference link／pick-whip affordance、Phase 4 の ad-hoc row 構築の完全撤去、Phase 5 の runtime 視認性である。reset handler の全 row 接続や新規 property 追加時の共通契約も、静的検索だけでは完成を証明できない。
+
+判定: **Phase 1〜2 と row chrome の主要実装は確認できる。** Phase 3〜5 は部分実装または runtime 検証待ちであり、文書の Status は Draft のまま維持する。
