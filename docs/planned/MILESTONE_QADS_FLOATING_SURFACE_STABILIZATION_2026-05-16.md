@@ -123,3 +123,16 @@ Composition Editor だけでなく、将来の render-heavy surface でも同じ
 - dock / floating のどちらでも renderer readiness の説明が同じ
 - retry が `showEvent` 任せではなく、明示的 ensure path で再評価できる
 - log 上で `どこまで準備できて止まったか` が読める
+
+## Static Audit (2026-07-25)
+
+現状は M-QADS-1〜3 の主要な土台が実装済み。`ArtifactCompositionEditor` は可視性、最小化状態、論理／物理サイズ、DPR、native window id、controller 初期化、swap chain 有無を `ensureViewportReady(reason)` で確認し、初期化・swap chain 再作成・preferred composition 同期・dirty 化を一つの明示的な経路で行う。`show`、focus、window activation、レイアウト完了後の queued callback、250ms の限定 retry からこの経路を再評価でき、Readiness ログも出力される。
+
+一方、readiness の語彙は現在 `ensureViewportReady` に集約された実装上の状態で、host visible / native handle / renderer initialized / swapchain ready / preferred composition synced の独立した状態モデルや段階別 ensure API には分離されていない。QADS の floating created・dock visibility changed・安定 resize を専用 hook として横断的に検証した記録もなく、他の render-heavy surface へ一般化された契約も未確認。したがって本マイルストーンは「部分実装、実機再現と lifecycle 検証待ち」とする。
+
+確認対象:
+
+- `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`
+- `Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`
+- `Artifact/include/Widgets/Render/ArtifactCompositionRenderWidget.ixx`
+- `Artifact/include/Widgets/Control/ArtifactPlaybackControlWidget.ixx`
