@@ -542,3 +542,17 @@ Reaction: ApplyForce(target: ParticleLayer, strength: 50, direction: (0, -1))
   - tween 動的生成
 - `Sequence / Stagger DSL`
   - カード連鎖などの規則的なタイミング制御
+
+## Static Audit (2026-07-25)
+
+Coreのデータ契約は実装済みで、`ReactiveEvents.ixx/.cppm` に13種のtrigger、14種のreaction、rule状態項目、JSON serialize／deserialize、文字列変換がある。独立Editor Windowも実装され、View Menuから開ける。
+
+一方、実行エンジンの中心である `ReactiveEventEngine`、`CollisionDetector`、`ReactionExecutor`、フレーム末キュー、前フレーム状態追跡、ContactSubscription登録と実際のtrigger／reaction評価は対象ソースに見つからなかった。EventBusは一般のアプリイベントには使われているが、ReactiveRuleの評価経路へ接続された証拠はない。従って Phase 1（Core定義）は完了、Milestone 2〜5とRuntime Contractは未実装。Editor Windowもルール永続化・実行系とは未接続である。
+
+確認対象:
+
+- `ArtifactCore/include/Reactive/ReactiveEvents.ixx`
+- `ArtifactCore/src/Reactive/ReactiveEvents.cppm`
+- `Artifact/src/Widgets/ReactiveEventEditorWindow.cppm`
+- `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`
+- `Artifact/src/Reactive/`
