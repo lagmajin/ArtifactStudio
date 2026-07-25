@@ -135,3 +135,17 @@ This milestone is the execution path that takes the existing theme work and turn
 - まずは `QSS` を増やさない規律を作り、共通 style の責務を育てるのが先
 - `QCommonStyle` はゴールであって、初手ではない
 - theme preset を JSON で差し替えられる入口を追加し、global style の切替と見た目プリセットの分離を進めた
+
+## Static Audit (2026-07-25)
+
+Phase 1〜2 の基盤は進行中。`ArtifactCommonStyle` が `QProxyStyle` と Fusion を土台に実装され、palette の polish、pixel metric、control／primitive／complex control の owner-draw を担い、`AppMain` からアプリ標準 style として設定されている。主要 widget 側にも `QPalette`、theme token、専用 `QProxyStyle` の利用が広がっており、今回確認した実装ソースでは新規 `setStyleSheet()` は見つからなかった（バックアップ／資料ファイルは除外）。
+
+ただし、基底はまだ `QCommonStyle` ではなく `QProxyStyle` + Fusion で、共通 style の適用範囲・例外一覧・widget-local style の棚卸しは未完了。`DockStyleManager` や Inspector などに個別 style ownership が残り、主要 chrome 全体を QSS 無しで統一できること、Phase 3 の widget 移行、Phase 4 の QCommonStyle 昇格は静的確認だけでは成立しない。したがってステータスは Draft のまま、CommonStyle 基盤は部分実装とする。
+
+確認対象:
+
+- `Artifact/src/Widgets/CommonStyle.cppm`
+- `Artifact/include/Widgets/CommonStyle.ixx`
+- `Artifact/src/AppMain.cppm`
+- `Artifact/src/Widgets/Dock/DockStyleManager.cppm`
+- `Artifact/src/Widgets/ArtifactInspectorWidget.cppm`
