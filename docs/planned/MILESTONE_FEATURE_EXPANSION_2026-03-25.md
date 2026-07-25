@@ -510,3 +510,12 @@
 3. Audio Layer の見え方と編集導線
 4. Workspace / Layout / Session の保存復元
 
+
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+本書は複数の詳細 milestone を束ねる親文書であり、現行ソースでは menu／command routing、motion tracking、audio mixer／再生、camera／transform、effect stack、timeline、automation、export／render の各基盤が部分的に実装されている。
+
+ただし、全重点領域を同一の完了条件で通した証拠はなく、UI と Core の責務統一、全 workflow の runtime 検証、Review／Compare／Annotation、Smart organization、Templates／Starter Kits の横断統合も未完了である。したがって本親 milestone は完了扱いにせず、詳細 milestone ごとの監査結果を正として、Phase 0〜4 は基盤実装済み・部分完了、後続 Phase は継続中として扱う。
