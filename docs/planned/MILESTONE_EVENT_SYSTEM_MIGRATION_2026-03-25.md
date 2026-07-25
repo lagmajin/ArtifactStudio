@@ -233,3 +233,12 @@ widget は service の `signal` を直接多数つなぐのではなく、
 
 最初の実装候補は `FrameChanged` と `SelectionChanged`。
 この 2 つは更新頻度が高く、Qt signal の fan-out 問題が見えやすい。
+
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+EventBus の最小 API と主要な型付きイベント、購読トークン、global bus は実装済みで、Frame／Playback／Project／Composition／Selection／Layer 系の publish / subscribe が確認できる。Qt signal を段階的な bridge として残す方針にも整合する。
+
+ただし、全サービスの adapter 化、全候補 widget の直接 signal 依存の除去、Frame／Selection の throttle・coalesce の実行時保証は未確認である。したがって Phase 1 は実装済み、Phase 2〜3 は進行中として扱い、完了マークは付けない。

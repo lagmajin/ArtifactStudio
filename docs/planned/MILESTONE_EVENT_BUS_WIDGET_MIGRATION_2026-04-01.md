@@ -332,3 +332,11 @@
 - queued delivery は `drain()` を明示的に呼ぶ側を決める
 - まずは `ProjectManagerWidget` のパターンを踏襲する
 - `EventBus::Subscription` は必ず `Impl` 側で保持する。破棄すると即 disconnect される
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+`ArtifactCore::EventBus`、型付き subscribe / publish、Subscription、queued delivery、Debugger が実装され、AppMain、ProjectModel、CompositionGraph、Timeline 周辺など複数箇所で購読が確認できる。従って Phase A は実装済み、Phase B〜D は部分進行と判定する。
+
+Project Manager、Inspector、Render Queue、Asset Browser、Health Dashboard の全経路が EventBus に統一されたこと、coalesce / debounce の一貫した運用、高頻度イベントの再描画抑制は静的検索だけでは確認できない。既存 Qt 経路も残っているため、widget migration の完了扱いにはせず、実行時の購読一覧と重複更新計測を次の検証項目とする。
