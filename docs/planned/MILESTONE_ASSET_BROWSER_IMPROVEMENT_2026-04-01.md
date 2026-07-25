@@ -30,6 +30,7 @@
 
 実装済み: 非同期サムネイル／波形生成、ホバープレビュー、Size／Date／Typeソート、昇順／降順切替、ブレッドクラム、Favorites仮想ノード、FavoritesのQSettings永続化、All Favorites導線。
 実装追加: コンテキストメニューの `Find References` で、プロジェクト内全Compositionの参照Layerを一覧表示。
+実装追加: `Unused` フィルタをAsset Browserツールバーへ公開し、未使用アセット一覧へ直接切り替え可能。
 未完了: Select Unusedの専用導線強化、内部D&D移動、ディスクサムネイルキャッシュ、Undo連携。
 
 ### 2.1 ブレッドクラムナビゲーション
