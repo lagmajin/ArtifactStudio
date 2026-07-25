@@ -121,3 +121,11 @@
 - `pyro` は domain simulation
 - 両者は related だが同一レイヤーに押し込まない
 - layer component pipeline と authoritative simulation path の分離を守る
+
+## 2026-07-25 実装監査
+
+- `artifact.component.fluid` と `FluidSolver2D` は layer/component 側に存在し、軽量な 2D density／velocity preview と particle field 経路に分離されている。
+- `PyroDomain`／`PyroSimulation` は `ArtifactCore` の独立 simulation module として存在し、density／temperature／fuel／velocity／pressure、fixed timestep、source／collider、checkpoint／snapshot／seek を持つ。
+- したがって fluid を pyro の単純拡張にせず、component-local と domain-owned を分ける基本方針はコード構造と一致する。
+- 一方、layer の pyro emitter／collider／render consumer 接続、immutable volume snapshot の renderer extraction、cache／bake／queue render の正規統合は未確認である。
+- 本文書は方針・配置の監査としては整合しているが、統合実装と runtime parity は未完了とする。
