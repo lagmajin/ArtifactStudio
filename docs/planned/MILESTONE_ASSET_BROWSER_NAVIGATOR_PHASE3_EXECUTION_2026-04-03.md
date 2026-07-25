@@ -86,3 +86,10 @@ Completed by Gemini CLI.
 - list/grid の見た目差が強すぎると操作が分断される
 - status を増やしすぎると search 結果との区別がつきにくい
 
+
+## 2026-07-25 実装監査
+
+- 明示的な grid／list 切替、thumbnail size slider、item／selection／status の summary、type／status badge、placeholder icon を確認できる。
+- list view の name／type／size／modified metadata、image／video／audio／font／folder 等の icon semantics、thumbnail cache／未生成時 fallback も実装されている。
+- したがって Phase 3 の Grid／List、Thumbnail Slider、Status Bar、Type／Icon Semantics はコード上完了相当である。
+- 32px 付近での自動 list 遷移、全タイプの表示一貫性、密度の runtime UX 検証は未実施として整理する。
