@@ -572,3 +572,13 @@ void CompositionRenderController::setRotation(float degrees) {
 - 回転中心は常にキャンバス中心
 - 回転状態はプロジェクトファイルに保存
 - 将来的には、回転中心をカスタマイズできるように拡張
+
+---
+
+## 2026-07-25 現状確認
+
+静的確認では、2D viewport 用の `ViewportTransformer` に回転状態や `CanvasToViewport` / `ViewportToCanvas` 回転変換を追加した実装は見つからず、`ArtifactIRenderer` にも viewport 回転 API は確認できない。Composition Editor / Render Controller に Shift+ドラッグ回転や R キーリセットを接続した導線、回転状態のプロジェクト保存も確認できない。
+
+既存の layer transform、3D camera / view-cube、effect の rotation は別責務であり、本マイルストーンの 2D キャンバス回転の達成根拠にはならない。したがって本マイルストーンは「未実装」と判定する。
+
+確認範囲: `ArtifactCore/src/Transform/ViewportTransformer.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`。ビルド・実機操作による動作確認は未実施。
