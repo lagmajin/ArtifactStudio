@@ -24,3 +24,11 @@
 | **キーボードショートカット表示（メニュー右端）** | 全アプリ | ⚠️ |
 | **コンテキストメニューのカスケード整理** | Blender | ⚠️ |
 | **Marking Menu（ジェスチャー方向メニュー）** | Maya | ❌ |
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行のメニュー実装を再確認した。File / Composition / View / Render / Time / Animation には実 action、trigger 接続、project・composition・layer・playback・queue に応じた enabled / checked 更新がある。したがって、この監査表の P0 は「未実装一覧」ではなく、現行実装との差分を再評価する必要がある。特に Close Project、View の rulers/grid、Composition Settings、Animation の time remap などは既存メニュー側に入口が存在する。
+
+未確認または不足として残るのは、Recent Commands、Help 内メニュー検索、Maya 風 Marking Menu、全メニューのキーボード表示統一、共通 action inventory と実行時のクロスパネル同期である。今後は P0 表を source evidence 付きの実装状況表へ置き換え、重複した監査記述を整理する。
