@@ -147,3 +147,7 @@ Phase 2 では、ここで固定した vocabulary を使って `playback directi
 ### Phase 1 判定
 
 priority vocabulary と service 側 reason API は実装済み。Done 判定に必要な timeline/debugger 表示と境界値の実行確認が残るため、Phase 1 は「部分実装／検証待ち」とする。
+
+### 追加静的確認
+
+上記判定後のソース再確認で、`ArtifactTimelineTrackPainterView.cppm` は `ramPreviewPriorityReason(currentFrame)` を tooltip hint に追加し、`AppDebuggerWidget.cppm` は priority band／reason と priority state を診断文字列へ出力していることを確認した。したがって「timeline/debugger 表示」は静的には実装済みで、残るのは boundary 値、failed と low priority の表示分離、reverse／loop／scrub の実機動作確認である。Phase 1 は「実装済み／実行検証待ち」に更新する。
