@@ -144,3 +144,20 @@
 - [`MILESTONE_APP_DEBUGGER_GOAL_FIRST_SUMMARY_2026-05-12.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_GOAL_FIRST_SUMMARY_2026-05-12.md)
 - App Debugger 系の phase 実行メモは親文書へ統合済み
 
+---
+
+## Static audit follow-up (2026-07-25)
+
+`AppDebuggerWidget`、`FrameDebugViewWidget`、`DebugRenderHarnessWidget` の first-glance 構造を確認した。
+
+| 要件 | 現状 | 判定 |
+|---|---|---|
+| First-Glance Summary | Frame Debug に goal/now/warning/next、Harness に summary/health/failure summary がある。 | 実装済み／表示確認待ち |
+| Layout Priority | summary/header、main preview/debug surface、report/details の分離がある。AppDebugger 全体の top/middle/bottom 契約は未確認。 | 部分実装 |
+| Danger-First | failed pass/resource、preview unavailable、cache/fallback 状態を summary/failure 側で前景化する。 | 部分実装 |
+| Raw Text 補助化 | report/details は分離され、copy/save 用 text 面として扱われる。全 raw dump の default collapse は未確認。 | 部分実装／確認待ち |
+
+### 判定
+
+first-glance の主要部品は存在するが、AppDebugger 全体の 3 秒以内の視線誘導と異常時の統一順序は実機確認待ち。Phase 5 は「部分実装／統合確認待ち」とする。
+

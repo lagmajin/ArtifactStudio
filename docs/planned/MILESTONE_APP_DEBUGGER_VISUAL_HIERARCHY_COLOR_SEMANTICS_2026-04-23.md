@@ -139,3 +139,20 @@
 
 Phase 1-4 は summary / color / ordering / diagnostics bridge の基礎面として扱い、Phase 5-12 はその上に乗る派生 slice として進める。
 個別の詳細は各 phase 実行メモに置き、ここでは視線誘導の原則だけを保つ。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の AppDebugger、FrameDebug、Harness の summary/palette/layout 実装を確認した。ビルド・実機 UI 評価は未実施。
+
+| Phase | 現状 | 判定 |
+|---|---|---|
+| 1. Information Hierarchy | Frame Debug に goal/now/warning/next の top summary があり、Harness も summary/failure/report の段階表示を持つ。AppDebugger 全タブの主役統一は未確認。 | 部分実装 |
+| 2. Color Semantics | QPalette ベースの neutral/warning/error 表示、failure palette、summary surface がある。normal/info/warning/error/success の共通 token と全 surface の同一意味付けは未確認。 | 部分実装 |
+| 3. Section Guidance | Frame/Resource/Pipeline/Diff/Trace の専用面と summary/detail の分離がある。Trace/State/Frame/Diagnostics の最終視線誘導は未確認。 | 部分実装 |
+| 4. Danger-First | failed pass、missing/failed resource、fallback、cache health、playback 状態を前景化する表示がある。全異常種別の優先順位統一は未確認。 | 部分実装／統合待ち |
+
+### 現在の判定
+
+情報階層と異常表示の実装は進んでいるが、全 App Debugger surface の共通 semantic token と runtime layout 評価が残る。マイルストーンは「部分実装／確認待ち」とする。
