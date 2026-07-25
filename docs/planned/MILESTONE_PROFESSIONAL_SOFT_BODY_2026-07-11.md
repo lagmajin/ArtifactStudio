@@ -82,3 +82,11 @@
 - `docs/planned/MILESTONE_LAYER_PHYSICS_COMPONENT_2026-06-13.md`
 - `docs/planned/MILESTONE_LAYER_COMPONENT_PIPELINE_2026-07-01.md`
 - `docs/planned/MILESTONE_FLUID_COMPONENT_VS_PYRO_DOMAIN_SPLIT_2026-07-01.md`
+
+## 2026-07-25 実装監査
+
+- `Physics.SoftBody` に固定 timestep／substep、Verlet、拘束、風、自己衝突、破断、snapshot／restore、UV vertex 情報が存在する。
+- `PhysicsSystem` は layer 単位の solver、collider、直近 480 frame の snapshot を管理し、Composition の seek 経路から restore が呼ばれている。
+- Shape の deformable grid 描画、Plane／Box／Circle collider、MPM material solver／preset／snapshot／collision proxy は実装済み範囲として確認できる。
+- 一方、cache miss 時の明示的 reset policy、Image／Video の GPU UV deformation grid、pin／weight 等の authoring UX、bake／export は未完了である。
+- 表示 fps 独立性、seek／render の同一結果、外部 collider filter、GPU preview／final parity は runtime 未検証のため、ステータスは `In Progress` のままとする。
