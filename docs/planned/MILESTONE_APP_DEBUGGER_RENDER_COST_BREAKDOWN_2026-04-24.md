@@ -176,4 +176,22 @@
 - [`MILESTONE_APP_DEBUGGER_AUTO_FOCUS_SMART_RANKING_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_AUTO_FOCUS_SMART_RANKING_2026-04-24.md)
 - [`MILESTONE_APP_DEBUGGER_FIRST_GLANCE_LAYOUT_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_FIRST_GLANCE_LAYOUT_2026-04-24.md)
 - [`MILESTONE_APP_DEBUGGER_FOCUS_PIN_FILTER_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_FOCUS_PIN_FILTER_2026-04-24.md)
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の `FrameDebugSnapshot`、AppDebugger、FrameDebug、Harness、Profiler の cost 表示を確認した。ビルド・性能実測は未実施。
+
+| 項目 | 現状 | 判定 |
+|---|---|---|
+| A. Draw Call Summary | draw/indexed draw、per-visible-layer、pass 単位の duration が snapshot/report にある。overlay/gizmo/helper の専用内訳は未確認。 | 部分実装 |
+| B. PSO / SRB | psoSwitches、srbCommits、pipeline summary が model/app debugger/harness に出る。切替元別の breakdown は未確認。 | 部分実装 |
+| C. Buffer Updates | bufferUpdates と per-visible-layer 指標、過多時の warning がある。uniform/dynamic/per-frame 粒度の分類は未確認。 | 部分実装 |
+| D. CPU / GPU Time | CPU/GPU/average timing、fps、ratio の基盤がある。主因判定を D として自動 suggestion に接続する処理は未確認。 | 部分実装／確認待ち |
+| Next Action | buffer 更新過多などの簡易 note はある。`reduce calls` / `reduce switches` / `coalesce updates` の統一 suggestion ranking は未確認。 | 未完了 |
+
+### 判定
+
+主要な cost counter は実装済みで、総時間以外の内訳も読める。per-layer/overlay breakdown と自動改善提案が残るため、Phase 12 は「部分実装／統合確認待ち」とする。
 - [`MILESTONE_APP_DEBUGGER_QUICK_ACTIONS_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_QUICK_ACTIONS_2026-04-24.md)
