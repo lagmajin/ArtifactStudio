@@ -97,3 +97,11 @@
 
 - `ArtifactCore::ScopedPerformanceTimer` / FrameDebug でエフェクト適用区間の ms を計測し、FX-3 完了後と FX-5 完了後で比較。
 - 1080p レイヤーに Blur + Brightness + Glow の3個チェーンで、プロパティドラッグ中のフレーム時間を目標値（現状比 50% 削減）と比較。
+
+## 2026-07-25 実装監査
+
+- FX-2 の ROI hint `qDebug` 削除は完了している。
+- 現行ソースでは Bevel、CreativeEffects、Dithering、Kaleidoscope、Color Correction 系などに `Flush()`／`WaitForIdle()`／staging texture／CPU readback の組み合わせが残っており、FX-5／FX-6 は未着手と判定する。
+- GPU エフェクトの一部は `CreateTexture` と readback を apply 経路内で行うため、FX-3 の定常フレーム資源再利用と FX-10 の境界変換削減も未完了である。
+- PSO／shader global cache、pointwise fusion、静的 property signature、adaptive resolution の完了証拠は確認できない。
+- よって本マイルストーンは `Phase 0 completed (FX-2); remaining phases pending` のままとする。性能目標値は build／runtime／FrameDebug の測定未実施のため未検証である。
