@@ -1576,3 +1576,9 @@ struct TagManagerUpdatedEvent : Event {
 - タグのエイリアス（別名）機能の追加
 - タグのマージ機能
 - タグのエクスポート/インポート（CSV等）
+
+## 2026-07-25 実装監査
+
+- `AssetTag`／`TagManager`／`TagDatabase` の専用モジュール、AssetMenuModel へのタグ割り当て、TagEditor／TagFilter／TagCloud UI、タグ変更イベントは確認できない。
+- `ArtifactAssetBrowser` には既存のカテゴリ・検索・お気に入り・メタデータ処理はあるが、複数タグ割り当て、AND フィルタ、階層グループ、タグ永続化／入出力の経路は存在しない。
+- よって本マイルストーンは Planned／未着手の判定を維持する。最初にタグデータモデルとプロジェクト単位の永続化契約を追加する必要がある。
