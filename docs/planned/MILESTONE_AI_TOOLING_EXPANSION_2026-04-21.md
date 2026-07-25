@@ -265,3 +265,7 @@ AI を単発提案ではなく、作業の継続的な補助役にする。
 - まずは tool 境界を揃える
 - 破壊的操作は後回しにする
 - AI の出力は「提案」と「実行」を分ける
+
+## 2026-07-25 実装監査
+
+AIContext／ToolBridge／MCP transport、CommandIR／CommandSandbox、WorkspaceAutomation、RenderAutomation など、read／tool schema／safe execution の基盤は実装を確認した。一方、本文の inspection snapshot を一つの安定JSONとして提供する全 read tool 群、確認付き write の全基本操作、operation／confirmation log、local／cloud／MCP の共通実行契約、Phase 3 の keyframe／color suggestion、Phase 4 の workspace preset／batch template まで一貫して完了した証拠はない。したがって Phase 1〜2 は部分実装、Phase 3〜4 と全体 Completion Criteria は未完了・runtime未検証とする。
