@@ -98,3 +98,11 @@ GPU surface からの直接エンコードを含む経路を指す。
 - 初期段階では `auto` は「GPU が使えれば GPU、なければ CPU」とし、明示的な `gpu` 選択は opt-in にする。
 - FFmpeg の hwaccel は decode と encode で API が異なるため、decode backend と共有するのは capability detection 部分のみとする。
 - `Render Queue` UI は既存の job 編集ダイアロogoを拡張し、backend プルダウンを追加する。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+FFmpegEncoder と Render Queue に GPU backend kind、NVENC／QSV／AMF／VAAPI の候補列挙、encoder availability probe、GPU settings 生成、CPU／GPU backend 選択の基盤がある。Render Queue から GPU encoder を選ぶ経路と hardware encoder 不在時のエラー／fallback 判断も確認できる。
+
+一方、public な EncodeBackend::Auto/CPU/GPU 契約の完全な統一、renderer texture からの zero-copy bridge、backend ごとの設定 UI／job schema、auto の CPU retry と cleanup／recovery の実運用は未確認である。M-RE-1〜3 は基盤実装、M-RE-4〜6 は未完了または検証待ちとして記録する。
