@@ -5,6 +5,12 @@
 この milestone は、`solid shading`、`camera`、`overlay` を分けて整理し、
 3D レイヤーと 3D ビューを実用寄りに寄せるための実行計画。
 
+**進捗状態:** Phase 1、Phase 3、Phase 4 は実装済み。Phase 2 は主要経路を実装済みだが、viewer/editor 間の完全統一と実機検証が未完了。
+
+### 実装状況（2026-07-25 確認）
+
+`Artifact3DLayer` の Solid/Wireframe 切替、Material・深度付き mesh 描画、PrimitiveRenderer3D のテクスチャキャッシュ、Composition 側の camera frustum／grid／gizmo／selection／HUD の overlay 経路と描画順を確認した。残課題は複雑 mesh の runtime 破綻確認、viewer と composition editor の camera 操作契約の最終統一、長時間表示時の cache 性能検証。
+
 ## Goal
 
 - 3D 形状を「読める」見た目で安定表示する
