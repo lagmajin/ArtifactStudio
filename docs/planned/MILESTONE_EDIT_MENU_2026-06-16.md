@@ -362,6 +362,24 @@ public:
 ## 8. 更新履歴
 
 - 2026-06-16: 初版作成。`REPORT_APP_PERF_BOTTLENECK_2026-06-16.md` §2.2 を正式 milestone に起こした。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+`ArtifactEditMenu`、`ClipboardManager`、selection manager、既存 undo 経路を照合した。Phase 1〜3 と一部の Phase 6 は実装が進んでいるが、本文が求める全機能の統合完了は確認できない。
+
+| Phase | 現状 | 判定 |
+|---|---|---|
+| 1. Edit menu redesign | Undo/Redo、Clipboard、Selection、Find、Layer/Timeline 操作を持つ menu と shortcuts がある | 実装済み（静的確認） |
+| 2. ClipboardService | layer、effect、property、keyframe の copy/paste 経路と `application/x-artifact-clipboard+json` がある | 部分〜実装済み |
+| 3. SelectionManager | 複数 layer、Select All、Invert、Same Type の既存 selection 経路が menu から利用される | 実装済み（静的確認） |
+| 4. Find & Replace | Edit menu の Find 入口はあるが、layer/property/effect の専用 FindService と Replace 完結経路は未確認 | 部分実装 |
+| 5. Group / Ungroup | Group layer / service の既存部品はあるが、Edit menu からの undo 対応 group/ungroup 完結経路は未確認 | 未確認 |
+| 6. EditManager | UndoManager と menu の動的 enabled/text 更新はあるが、全 edit 操作の単一 EditManager 統合は未確認 | 部分実装 |
+| 7. Project selection persistence | project JSON の selection 保存・復元と edit.* health contribution は未確認 | 未完了 |
+
+**判定**: Edit menu の基盤と clipboard/selection の主要導線は実装済み。Find/Replace、Group/ Ungroup の完全な command 化、selection persistence が残っているため、M-EDIT-1 全体は未完了。
 # 2026-07-10 Find Similar Progress
 
 - Composition Editor Command Palette に `Find Similar / Select Related` を追加
