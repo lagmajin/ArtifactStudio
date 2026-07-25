@@ -197,3 +197,21 @@
 - 各 Work Package は独立して実装可能だが、**M-AS-SAVELOAD** と **M-QA-RECOVERY** は早期実装を推奨
 - パフォーマンス測定は CI で自動化すると回帰検出が容易
 - ユーザテストは小規模でも早期に実施し、フィードバックを反映
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+Undo／保存・回復、Timeline／Inspector、diagnostics の現行ソースを照合した。ビルド、30分操作、fps、起動時間の実測は未実施。
+
+| 領域 | 現状 | 判定 |
+|---|---|---|
+| 制作フロー／保存・回復 | Project save/load、autosave、CrashHandler、recovery snapshot／起動時案内を確認した。全制作パスの欠損なしは未検証。 | 部分実装／実行確認待ち |
+| Timeline／Project同期 | Timeline の編集・undo経路と Project／Asset の選択導線は存在する。滑らかさ・大規模レイヤー性能は未測定。 | 部分実装／性能確認待ち |
+| Inspector／Effect stack | Effect stack、追加・削除・順序変更、Property／Undo 接続を確認した。全エフェクトの操作一貫性は未確認。 | 実装済み部分／確認待ち |
+| Undo／Redo | `UndoManager` のコマンド履歴、undo／redo、履歴ラベル、最大件数を確認した。全主要操作を10段階以上で検証していない。 | 実装済み／網羅確認待ち |
+| パフォーマンス／UX | Profiler／Frame Debug／empty state等の基盤はあるが、15fps・50 layer・5秒起動・30分安定性の合否測定はない。 | 未検証 |
+
+### 現在の判定
+
+安定性・回復性・編集基盤は大きく実装済みだが、Definition of Done の中心である実機操作、性能、データ完全性の測定が未実施。M12 は「部分実装／検証待ち」とする。
