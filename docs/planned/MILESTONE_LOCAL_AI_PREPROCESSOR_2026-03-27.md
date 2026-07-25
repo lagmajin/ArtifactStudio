@@ -336,3 +336,21 @@ QString LlamaLocalAgent::filterSensitiveInfo(const QString& text) {
 ---
 
 **文書終了**
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+`LocalAIAgent`／`LlamaLocalAgent`、`AIClient`、`AIContext`、`AIChatWidget`、cloud agent 経路を現行ソースで照合した。ビルド・実モデル・外部API実行は未実施。
+
+| 項目 | 現状 | 判定 |
+|---|---|---|
+| 質問分析・意図分類 | `LlamaLocalAgent::analyzeUserQuestion()` とルールベースの category／intent 判定が存在する。 | 実装済み／実行確認待ち |
+| 機密情報フィルタリング | `filterSensitiveInfo()` と path／project 情報の匿名化経路を確認した。 | 実装済み／ケース網羅未確認 |
+| 単純質問のローカル回答 | local agent の `generateChatResponse()`／streaming と AIClient の local 分岐が存在する。 | 実装済み／実モデル確認待ち |
+| クラウドエスカレーション | AIClient に cloud agent、tool loop、provider／endpoint 設定と fallback 経路がある。 | 実装済み／外部API確認待ち |
+| 履歴・多言語 | AIChatWidget の複数 session／JSON履歴と prompt language 経路は存在する。 | 部分実装／対応範囲確認待ち |
+
+### 現在の判定
+
+プリプロセッサーの主要基盤は実装済みで、旧文書の「クラウドAIクライアント未実装」は現行状態と一致しない。実モデル・外部API、匿名化ケース、対応言語の実行確認を残す「実装済み／検証待ち」とする。
