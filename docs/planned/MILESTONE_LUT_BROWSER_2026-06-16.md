@@ -283,3 +283,7 @@ LUT は 3 つの状態で扱う。
 ## 8. 更新履歴
 
 - 2026-06-16: 初版作成。`MILESTONE_ADVANCED_COLOR_SCIENCE_PIPELINE_2026-03-29.md` との分業を明示。
+
+## 2026-07-25 実装監査
+
+ArtifactColorScienceManager の LUT scan／load／clear／metadata/error API、ColorSciencePanel の LUT Browser group、再スキャン、利用可能 LUT の一覧、選択プレビュー、Load/Clear、Drag & Drop の入口、FinalPostProcess の GPU LUT upload は実装を確認した。一方、専用 grid／検索・filter、before/after split preview、favorites／recent の永続化、project embedded/pack、Inspector picker、domain tag の linear canonical 整合、Problem View 診断は確認できない。したがって Phase 1 の基礎導線は部分実装、Phase 2〜5 と全体 Done Criteria は未完了・runtime未検証とする。
