@@ -2,6 +2,12 @@
 
 作成日: 2026-04-21
 
+**進捗状態:** 既存 Logger／AuditLog の基盤と tool policy／confirmation の説明は存在するが、Safe Write 専用の operation／confirmation／failure log 統合は未完了。
+
+### 実装状況（2026-07-25 確認）
+
+一般的な Logger、Render LogCollector、AI 用 AuditLog description、WorkspaceAutomation の confirmation message は確認した。一方、`WriteToolResult`／`WriteToolConfirmation`／`WriteToolExecutionPlan` に紐づく履歴、dry-run と実行の区別、policy reject／service failure の共通分類は確認できないため、Phase 3 は部分実装として扱う。
+
 ## 目的
 
 AI の write 実行を、あとから追跡できる形で運用可能にする。
@@ -63,4 +69,3 @@ AI の write 実行を、あとから追跡できる形で運用可能にする�
 - `WriteToolResult`
 - `WriteToolConfirmation`
 - `WriteToolExecutionPlan`
-
