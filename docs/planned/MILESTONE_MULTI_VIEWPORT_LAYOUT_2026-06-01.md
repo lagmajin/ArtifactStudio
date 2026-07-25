@@ -111,3 +111,13 @@ After Effects の 4-up ビュー（Active Camera / Custom 1 / Custom 2 / Custom 
 - Phase 4: 8–12h
 
 合計: 42–58h
+
+---
+
+## 2026-07-25 現状確認
+
+静的確認では、`ArtifactCompositionEditor` に Single / TwoUp / FourUp のレイアウト状態、最大4ペインの `PaneState`、ペインごとの view / render controller、active pane、Splitter 配置、active pane 表示が実装されている。したがってレイアウト切替と複数 controller の基礎は存在する。
+
+一方、仕様の OnePlusThree、各ペインへの任意 Camera Layer 割当、ペインごとの独立 camera／zoom／pan の完全な永続化、authoritative viewport 切替、4ペイン再生時の性能制御・render time diagnostics は確認できない。共通イベントの multicast と `IDeviceContext` 競合回避も、本マイルストーンの完了条件としては未検証。よって「Phase 1〜2 の基礎実装は存在、Camera統合と性能／永続化は未完了」と判定する。
+
+確認範囲: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`。ビルド・実機操作による動作確認は未実施。
