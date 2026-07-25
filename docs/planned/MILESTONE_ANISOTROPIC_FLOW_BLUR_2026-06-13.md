@@ -114,3 +114,15 @@
 
 - [docs/planned/MILESTONE_VECTOR_FLOW_GLITCH_2026-06-13.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_VECTOR_FLOW_GLITCH_2026-06-13.md)
 - [docs/planned/MILESTONE_REACTION_DIFFUSION_STYLIZER_2026-06-13.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_REACTION_DIFFUSION_STYLIZER_2026-06-13.md)
+
+## 2026-07-25 実装監査
+
+判定: Phase 1 の CPU 基盤とエフェクト登録は実装済み。Phase 2〜4 と GPU / preview-final parity は未確認・未接続。
+
+- `ArtifactCore::AnisotropicFlowBlur` は `StructureTensor` の angle / coherence を使い、局所方向に沿った 9 サンプルの CPU 異方性フィルタを実装している。
+- `Artifact.Effect.Rasterizer.AnisotropicFlowBlur` は Rasterizer CPU effect として登録され、Blur Amount / Tensor Noise Scale / Tensor Integration Scale / Edge Adherence を編集できる。
+- 現在のサンプリングは固定 9 点・固定 Gaussian weight で、coherence は横方向成分の抑制に使われる。素材別の texture-aware softening や oil paint / watercolor 等の preset は未実装。
+- GPU 実装、preview / final の品質整合、実際の render path への接続はソース上で確認できない。`OpticalFlowBlur` の公開 API は別系統で GPU 非対応の宣言に留まる。
+- 次の実装単位は、既存 CPU 経路を基準に coherence と半径の評価を固定し、preview / final の適用契約を決めること。
+
+ビルド・実行確認はリポジトリ方針により未実施。
