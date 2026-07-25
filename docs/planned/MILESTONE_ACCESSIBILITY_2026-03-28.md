@@ -8,6 +8,7 @@
 実装追加: Curve EditorにAccessible Name/Descriptionを設定。
 実装追加: Contents ViewerにAccessible Name/Descriptionを設定。
 実装追加: Project ViewにAccessible Name/Descriptionを設定。
+実装追加: Asset BrowserをStrongFocusおよびAccessible Name/Description対応。
 **関連コンポーネント:** 全 UI コンポーネント
 
 ---
