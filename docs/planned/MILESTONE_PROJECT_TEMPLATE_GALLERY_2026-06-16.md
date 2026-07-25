@@ -225,6 +225,14 @@ struct SlotDefinition {
 - thumbnail は `QImage` 経由で生成後、**PNG で書き出して破棄** (memory 解放)
 - 既存 `MILESTONE_AD_PRODUCTION_ACCELERATOR_2026-05-28.md` の `TemplateSlot` と整合
 
+## Static Audit (2026-07-25)
+
+現行ツリーには、このマイルストーンが要求する `ArtifactCore::ProjectTemplate`、`ArtifactTemplateService`、`ArtifactTemplateGalleryDialog`、`template.json` 保存／scan、Welcome Screen の New from Template 導線は確認できない。`TemplateSlot` / `TemplateVariation`、Template Lock Editor、Batch Renderer のテンプレート保存、Viewport の表示テンプレートは個別機能として存在するが、composition snapshot + referenced assets + slot 定義を束ねる Project Template のギャラリーとは別責務である。
+
+そのため、Phase 1〜4 の Project Template 機能、テンプレートの versioning、asset 解決／missing 診断、slot 入力からの instantiate、recent project／Welcome 統合、gallery runtime 検証は未実装または未確認である。既存の個別テンプレート機能を新しい Project Template API と混同しない必要がある。
+
+判定: **Draft のまま。** 現状は関連する slot／preset の部品はあるが、Project Template Gallery の foundation と UI は未着手である。
+
 ### 3.10 Diagnostics
 
 `MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_2026-05-12` の `goal/expected/actual` 枠に:
