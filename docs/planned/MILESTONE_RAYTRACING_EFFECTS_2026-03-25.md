@@ -391,3 +391,17 @@ Quality autoQuality() {
 | `ArtifactCore/src/Graphics/Compute.cppm` | 1-131 | ComputeExecutor（参考） |
 | `ArtifactCore/src/Graphics/GPUComputeContext.cppm` | 1-162 | GpuContext（参考） |
 | `Artifact/src/Render/ArtifactRenderLayerPipeline.cppm` | 1-247 | TextureBundle（参考） |
+
+## Static Audit (2026-07-25)
+
+本マイルストーンの7段階で想定された `SoftShadowPass`、`SSAOPass`、`SSRPass`、`ContactShadowPass`、`RTShadowPass`、`QualityController` の専用実装ファイルは現行ツリーに存在しない。既存のDiligent RT基盤は capability、unit-quad BLAS／TLAS、warmup PSO／SBT、出力 texture の確認までで、shadow／AO／SSR／contact shadow の独立パス、quality tierによる有効切替、Compositionへの最終合成、Inspectorパラメータ群は接続されていない。
+
+関連するWicked Engine由来シェーダーと `GPURayTracer` は存在するが、今回のArtifactのeffect catalog／render pass／quality switchへ統合済みとは確認できない。従って Status の Not Started は妥当で、既存RT capabilityは前提インフラ、M1〜M7のエフェクト実装と受け入れ条件（画質・性能・fallback）は未達として記録する。ビルド・GPU実機検証は未実施。
+
+確認対象:
+
+- `ArtifactCore/src/Graphics/RayTracingManager.cppm`
+- `ArtifactCore/src/Render/GPURayTracer.cppm`
+- `Artifact/src/Render/ArtifactIRenderer.cppm`
+- `Artifact/src/Render/DiligentDeviceManager.cppm`
+- `Artifact/App/shaders/`
