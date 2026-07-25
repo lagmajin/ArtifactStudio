@@ -35,3 +35,9 @@
 ## 🔗 関連マイルストーン
 - [M-AU-3 Audio Visualization](MILESTONE_AUDIO_WAVEFORM_2026-03-29.md)
 - [M-AU-5 Audio Playback Stabilization](MILESTONE_AUDIO_PLAYBACK_STABILIZATION_2026-03-28.md)
+
+## 2026-07-25 現状確認
+
+解析エンジンは `ArtifactCore::AudioAnalyzer` に実装済みで、Hamming 窓付き Radix-2 FFT、RMS／Peak、Low／Mid／High 強度を返す。`ArtifactAbstractComposition::applyAudioAnalysis()` は amplitude／peak／帯域値を外部制御と Audio Reactive Binding に渡し、binding ごとの attack／release smoothing、gain／offset／invert／clamp を適用する。Animation メニューには binding の設定・削除・Preview・Bake・録音操作があり、binding は JSON 化対象になっている。Particle 側の audio spectrum 入力と Viewer の解析表示も存在する。
+
+ただし、再生サービスから解析を継続供給する専用 `AudioFFTService`、Inspector の常設 Audio Link UI、明示的なプリセットライブラリ、実時間更新負荷、書き出し時の音画同期は静的確認だけでは完了を保証できない。したがって「FFT／バインディング基盤と操作導線は実装済み、専用サービス化と実運用検証は未完了」と判定する。
