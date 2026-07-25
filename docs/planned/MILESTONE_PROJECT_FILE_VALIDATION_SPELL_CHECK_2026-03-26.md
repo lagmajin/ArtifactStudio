@@ -75,3 +75,7 @@ health dashboard から一目で追えるようにする。
 - `ArtifactProjectHealthChecker` は既に存在する
 - ただし spell / naming hygiene 専用の検査はまだない
 - まずは project data に限定した validation として追加するのが最小で安全
+
+## 2026-07-25 実装監査
+
+既存の project health／validation は missing file、broken reference、duplicate／circular dependency、expression、performance 等を検出し、diagnostic engine／dashboard 基盤へ接続できる。一方、project／composition／layer／asset 名の typo・naming hygiene、tag／note／AI metadata、custom dictionary、ignore list、locale 辞書、rename suggestion、category別 dashboard／quick fix、import／save／open時の自動 scan は確認できない。したがって参照・整合性検証の基盤はあるが、Spell Check milestone の専用機能は未実装・未検証とする。
