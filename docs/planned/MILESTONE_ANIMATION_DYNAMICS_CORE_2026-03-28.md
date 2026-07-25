@@ -2,6 +2,12 @@
 
 > 2026-03-28 作成
 
+**進捗状態:** Phase 0〜3 の主要基盤は実装済み。高度な layer/channel UI と runtime／回帰検証が残る。
+
+### 実装状況（2026-07-25 確認）
+
+`Animation.Dynamics` の 1D／2D／3D spring-damper、lag follower、overshoot 制限、velocity accumulator、プリセット、seek 時 reset を確認した。`ArtifactAbstractLayer` では position／rotation／scale への適用、Inspector プロパティ、JSON 永続化まで接続されている。残課題は全 transform channel への統一 adapter、スクラブ／再生境界の runtime 検証、テストハーネスと高度な preset UI。
+
 ## 目的
 
 `Physics2D` とは別に、アニメーション向けの軽量なダイナミクス層を `ArtifactCore` に用意する。
