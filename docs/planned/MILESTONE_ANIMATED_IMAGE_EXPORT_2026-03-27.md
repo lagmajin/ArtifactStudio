@@ -2,6 +2,12 @@
 
 > 2026-03-27 作成
 
+**進捗状態:** Phase 1〜4 は実装済み、Phase 5 は部分実装。実ファイル出力と品質／alpha 検証待ち。
+
+### 実装状況（2026-07-25 確認）
+
+FFmpegEncoder の GIF／APNG／Animated WebP codec・container 列挙、loop 設定、Render Queue の各 preset と「アニメ画像」分類を確認した。残課題は palette 品質診断、frame delay／透明背景の形式別警告、実際の各形式ファイル出力と再生互換性の検証。
+
 ## 目的
 
 `動画格納できる画像` を、単発の GIF 対応ではなく、Web 配布や軽量プレビューに使えるアニメーション画像出力として整理する。
