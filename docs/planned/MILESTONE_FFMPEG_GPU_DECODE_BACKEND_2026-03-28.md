@@ -87,3 +87,12 @@ GPU surface への bridge を含む経路を指す。
 - 「GPU decode」と「GPU rendering」は別問題なので、両者を混ぜない。
 - まずは `auto` が CPU fallback を含むことを前提にして、GPU path は opt-in で始めるのが安全。
 
+
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+MediaImageFrameDecoder に FFmpeg の Vulkan hardware device 初期化、hardware frame 検出、GpuVideoFrame 化、direct presentation 判定と安全な download 経路がある。MediaPlaybackController と ArtifactVideoLayer も GPU payload／fallback 状態を扱い、CPU／FFmpeg と MediaFoundation の backend 切替・fallback を持つ。
+
+ただし、文書が要求する public な uto / cpu / gpu policy、GPU capability probe の明示 API、renderer texture bridge の完全接続、GPU frame を Qt preview で直接表示する経路は未完了である。現状は M-VD-1 の一部、M-VD-2 の既存 backend 分離、M-VD-3 の Vulkan 基盤まで進行し、M-VD-4〜6 は未完了または検証待ちとして記録する。
