@@ -126,3 +126,9 @@ class BrushTool : public ArtifactAbstractTool {
 - 新規 W_OBJECT 派生は PaintLayer のみ
 - BrushTool は既存 ToolType enum に追加
 - ブラシカーソルは `Overlay.Composition` に描画
+
+## 2026-07-25 現状確認
+
+当初の「未実装」記載から進展しており、`ArtifactPaintLayer` はフレーム単位の `ImageF32x4_RGBA` バッファ、new/remove/duplicate、stroke適用、消しゴム、直近stroke undo、JSONプロパティ保存を持つ。`ArtifactBrushTool` とツールバー／オプションバーのブラシ・消しゴム導線も存在する。Composition Editor にはOnion Skinの有効化、フレーム数、opacity設定と非同期キャプチャ・オーバーレイ描画がある。
+
+未完了または未検証なのは、Paint LayerのTimeline上のフレーム追加／削除／複製／PageUp/PageDownナビゲーション、フレームインジケータ、stroke UndoManagerとの統合、Onion SkinがPaint Layerの前後フレームを正しく参照すること、実機描画性能と保存復元である。判定は「PaintLayer／Brush／Onion Skin基盤は実装済み、専用Timeline編集と統合検証が残る」とする。
