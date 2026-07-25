@@ -434,3 +434,16 @@ Header は「見出し」ではなく、エフェクトの共通操作面とし�
 - `docs/planned/MILESTONE_EFFECT_SYSTEM_IMPROVEMENT_2026-03-28.md`
 - `docs/planned/MILESTONE_OFX_PLUGIN_SUPPORT_2026-04-18.md`
 - `docs/planned/MILESTONES_BACKLOG.md`
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースを静的に照合した結果、Effect Rack の共通土台は実装済みだが、文書の「標準 UI 契約」全体は未完了と判定する。
+
+- `ArtifactInspectorWidget` に共通の Effect Rack、エフェクト名・有効状態、追加／削除、上下移動、選択操作があり、`ArtifactEffectService` 経由の undo 対応も確認できる。
+- Inspector の context menu から Effect Preset の save / load を共通入口で扱え、`ArtifactEffectPreset` は JSON 化、コレクション、factory preset の基礎を持つ。
+- 一方、`Preview / Appearance / Advanced / Fallback` を descriptor で分類する契約、recent / rename / preset browser の共通導線、OFX の自動分類、Appearance widget の標準化は確認できない。
+- `ArtifactEffectTabSurface` は Effect Rack の表示／非表示と設定保存を提供するが、これだけでは全エフェクト共通 header や preview channel の実装根拠にはならない。
+
+したがって、Phase 1 の Rack／操作基盤と Phase 2 の save/load 基礎は部分的に進行、Phase 1.5 の descriptor bridge、Phase 2.5 以降、Phase D〜F.5 は未完了または未検証として扱う。次の実装候補は、まず descriptor の最小契約を定義し、既存 Rack の header state と preset 入口をそこへ接続すること。
