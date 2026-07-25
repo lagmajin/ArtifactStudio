@@ -405,3 +405,13 @@ EventBus::subscribe<ViewportLayoutChangedEvent>(
 - **View メニュー巻き戻し対応**: `ArtifactViewMenu.cppm` は enum を QActionGroup で管理するため、View メニュー項目の checked/unchecked 制御を忘れずに。
 - **Central widget 差し替え**: 既存 of `ArtifactCompositionEditor` を直接 delete せず、`ArtifactMultiViewportContainer` へ ownership を移譲する経路を取る。
 - **新規グローバル signal 禁止への対応**: `ViewportLayoutChangedEvent` は EventBus 公開型として追加する。
+
+---
+
+## 2026-07-25 現状確認
+
+計画で定義した `ViewportLayoutManager`、`ViewportLayoutChangedEvent`、`ArtifactMultiViewportContainer` の新規ファイルは現行ツリーで確認できない。実装は `ArtifactCompositionEditor` 内の `ViewportLayoutMode`、最大4つの `PaneState`、Splitter、active pane、複数 `CompositionRenderController` を直接保持する形で、計画の Core 管理クラス／親コンテナ分離とは異なる。
+
+また、RenderTask の deduplication key は既に追加されているが、4ペインの低Hz更新、QMutex／RenderSchedulerによる実際の描画直列化、Camera Layer割当、FastSettingsStoreによるレイアウト保存、OnePlusThree builder は確認できない。したがって本計画は「既存Editor内の試作的な複数ペイン実装あり、計画された分離アーキテクチャと運用安全性は未完了」と判定する。
+
+確認範囲: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Render/ArtifactRenderQueueService.cppm`、`ArtifactCore/src/Render/RendererQueueManager.cppm`。ビルド・実機操作による動作確認は未実施。
