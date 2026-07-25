@@ -55,3 +55,13 @@ After Effects の「Fit」コマンドをより賢くし、コンポジション
 - 各種フィットモードの正確性
 - アニメーションの滑らかさ
 - キーボードショートカットの動作
+
+---
+
+## 2026-07-25 現状確認
+
+`ArtifactCompositionRenderController` / `ArtifactCompositionRenderWidget` から `fitToViewport()` を呼ぶ単一の Zoom Fit は実装済みで、Composition Editor のコマンド／コンテキスト導線と View メニューの「画面に合わせる」も存在する。ショートカットも `ViewFitToScreen` として登録され、既定値は `Shift+/` になっている。
+
+一方、仕様にある Selection / Visible / Work Area ごとのフィット計算、5%マージンを明示した専用モード、フィット遷移アニメーション、複数コンポジション単位の設定保存、`Ctrl+0` 等の指定ショートカットは確認できない。したがって本マイルストーンは「Composition 全体を viewport に合わせる基礎機能は実装済み、拡張モードは未実装」と判定する。
+
+確認範囲: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`、`ArtifactCore/src/UI/ShortcutBindings.cppm`。ビルド・実機操作による動作確認は未実施。
