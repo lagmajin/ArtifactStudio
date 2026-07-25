@@ -269,3 +269,21 @@
 | `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm` | 108-118 | スナップメニュー (未接続) |
 | `Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm` | 192 | snapValue ヘルパー |
 | `ArtifactCore/include/Transform/AnimatableTransform3D.ixx` | - | Transform3D (position, scale, rotation, anchor) |
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+`ArtifactCompositionEditor`／`ArtifactCompositionRenderWidget`、render controller、2D／3D gizmo、ToolBar の現行ソースを照合した。ビルド・実機入力確認は未実施。
+
+| 領域 | 現状 | 判定 |
+|---|---|---|
+| Viewport navigation | Alt+LMB orbit、Alt+RMB zoom、MMB pan、cursor-point zoom、wheel zoom、navigation HUD を確認した。フレームレート非依存の操作感は未実測。 | 実装済み／runtime確認待ち |
+| Transform Gizmo W/E/R | W／E／R の tool切替、Move／Rotate／Scale gizmo mode、2D／3D gizmo表示・drag経路を確認した。 | 実装済み／runtime確認待ち |
+| Pivot / channel box | Anchor/Pan Behind と Inspectorの transform編集は存在するが、提案された viewport MiniChannelBox の専用実装は確認できない。 | 部分実装 |
+| Snap | Transform gizmo側のsnap／Alt bypassとView menuのsnap導線はある。共通Snap utilityと全操作への一貫した接続は未確認。 | 部分実装 |
+| Camera／3D operations | Artifact3DModelViewer、3D gizmo、Composition editorの3D操作経路が存在するが、editor間の完全共通契約は未確認。 | 部分実装／統合待ち |
+
+### 現在の判定
+
+主要なMaya風 navigation と W/E/R 操作は現行コードに実装済みで、文書の `Not Started` は更新が必要。Pivot channel box、共通snap、editor間 parity、実機操作を残す「部分実装／runtime確認待ち」とする。
