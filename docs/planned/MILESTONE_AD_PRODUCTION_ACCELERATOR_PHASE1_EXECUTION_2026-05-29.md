@@ -10,6 +10,10 @@ Source: `docs/planned/MILESTONE_AD_PRODUCTION_ACCELERATOR_2026-05-28.md`
 
 この段階では CSV import や batch export には入らず、既存プロジェクトを壊さない slot metadata の保存・復元・検証に絞る。
 
+## 2026-07-25 実装監査
+
+`TemplateSlot`／`TemplateVariation`／`OutputVariant` の型、JSON 変換、automation の define/list/apply 入口は実装を確認した。selected-layer UI、target layer の削除・復元時の警告、required slot validation の runtime 到達性は未確認のため、Phase 1 は metadata 基盤実装済み・UI／runtime 検証待ちとする。
+
 ## Scope
 
 ### In

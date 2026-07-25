@@ -10,6 +10,10 @@ AE 互換や高機能編集だけを追うのではなく、広告動画・SNS �
 
 1 つのモーショングラフィックテンプレートから、文言・素材・画角違いの広告動画を安全に量産できる状態を目指す。
 
+## 2026-07-25 実装監査
+
+`TemplateSlot`／`TemplateVariation`／`OutputVariant` の型と JSON 変換、Parametric Composition の slot 値取り込み、WorkspaceAutomation／Python hook の template slot 定義・一覧・variation 適用入口を確認できる。Adaptive Text Fit と Render Queue の既存基盤もあるため、Phase 1 の metadata と一部の responsive text 機能は実装済みとする。一方、CSV／JSON の複数 variation UI、9:16・1:1・16:9 を組み合わせた batch job 生成、required slot／overflow／missing asset の job 単位集約は一連の runtime workflow として未確認であり、Phase 2〜4 は未完了扱いとする。
+
 ## Non-Goals
 
 - 完全自動生成ツールに寄せすぎない
