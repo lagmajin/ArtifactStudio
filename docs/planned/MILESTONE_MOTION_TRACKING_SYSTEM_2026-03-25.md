@@ -409,3 +409,19 @@ UI から次を実行できるようにする。
 3. トラッカー編集 UI の最小版を作る
 4. Layer / mask / camera への適用を整える
 5. App 層の TrackingService を詰める
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+Phase 1 実行文書と現行ソースを突き合わせた。`MotionTracker` は optical flow / feature / hybrid / NCC 系の処理、結果の正規化、失敗・問題フレーム、補正、JSON / file save-load、progress / stop を持つ。Artifact 側にも Point Tracker Gizmo、overlay、Composition Render Controller の trackerApplyToPosition / trackerApplyToAnchor があり、Core からアプリへの最小接続は進んでいる。
+
+未完了または未確認なのは、独立した TrackingService による worker thread orchestration、project asset としての session 管理、mask / camera / stabilization の統一 bridge、manual keyframe との優先順位、Tracker Editor の一貫した編集 workflow、runtime の長時間処理と cancel 後の部分結果確認である。
+
+### Audit status
+
+- Phase 1 Core model / session: 実装済み相当 — schema 正規化・保存復元・部分結果保持を確認
+- Phase 2 UI / overlay: 部分実装 — Gizmo / overlay はあるが、専用 Editor workflow は未確認
+- Phase 3 property / layer bridge: 部分実装 — position / anchor を確認。mask / camera / stabilization は未統合
+- Phase 4 orchestration: 部分実装 — progress / stop API はあるが、専用 service / worker 契約は未確認
+- Status: `In Progress` を維持
