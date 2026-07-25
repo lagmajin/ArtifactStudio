@@ -123,6 +123,7 @@ Phase 2 では、Phase 1 の設定土台を使って、実際の操作体験を�
 実装追加: 色覚補助設定をタイムライン主要操作ボタンの文字色へ適用。
 実装追加: タイムライン主要操作ボタンへ既存ラベル・ツールチップ由来のAccessible Name/Descriptionを設定。
 実装追加: `Reduce hover dependency` 有効時、選択サマリーがホバー中キーフレーム情報に依存しない。
+実装追加: Property Editorのレイヤー状態ボタンにもAccessible Name/Descriptionを設定。
 
 ### 1. 入力補助の拡張
 - 片手操作しやすい位置に主要アクションを寄せる
