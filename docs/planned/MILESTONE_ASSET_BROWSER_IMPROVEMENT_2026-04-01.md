@@ -81,7 +81,8 @@
 - [x] リネーム／内部D&D移動を `UndoManager` に登録
 - [x] 通常ファイルの「Add to Project」登録を `UndoManager` に登録
 - [x] ファイル削除を退避付き `UndoManager` 操作として登録
-- [ ] フォルダ削除のUndo対応
+- [x] フォルダ削除のファイルシステムUndo対応
+- [ ] フォルダ内Footage登録のUndo/Redo再構築
 - [x] リリンク操作を `UndoManager` に登録
 - [ ] 一括操作のマクロコマンド化
 
