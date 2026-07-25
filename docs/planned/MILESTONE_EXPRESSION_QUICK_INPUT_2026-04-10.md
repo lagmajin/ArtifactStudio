@@ -66,3 +66,11 @@ Add Expression >
 - 補完機能の動作確認
 - 構文チェックの正確性
 - スニペットの保存/読み込み
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースでは ArtifactExpressionCopilotWidget に expression の候補提示と loopOut などの挿入候補があり、AbstractProperty には expression の保存・評価経路がある。一方、仕様にあるプロパティ右クリックの Quick Insert メニュー、関数／引数補完、型ヒント、リアルタイム構文検査、カスタム snippet の保存・入出力は専用実装として確認できない。
+
+したがって既存の Copilot／Evaluator 基盤は部分利用可能だが、本マイルストーンの Quick Input 完了条件は未達。次の候補は、既存 expression editor の入口を再利用した最小の挿入メニューと構文検査表示の確認である。
