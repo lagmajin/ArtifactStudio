@@ -80,3 +80,19 @@
 ## Next Step
 
 Phase 1 実行メモを作って、`FrameDebugViewWidget` の top summary を `goal / frame / warning / next` に揃える。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+`FrameDebugViewWidget` と関連する diff/resource/pipeline/harness widget を現行ソースと照合した。
+
+| Phase | 現状 | 判定 |
+|---|---|---|
+| 1. Summary Vocabulary | top summary に goal/now/warning/next、frame/pass/resource/compare の情報がある。 | 実装済み／表示確認待ち |
+| 2. Comparison Bridge | compare mode/target、previous/current diff、scrub/step 周辺の view は存在する。pin/compare の操作統一は未確認。 | 部分実装 |
+| 3. Report Bridge | FrameDebugSnapshot を App Debugger、Debug Render Harness、resource/pipeline view が共有する。saved bundle の再参照と完全な report 語彙統一は未確認。 | 部分実装 |
+
+### 現在の判定
+
+Phase 1 はコード上ほぼ到達、Phase 2〜3 は共有 snapshot 基盤あり・UI/運用統合確認待ちとする。

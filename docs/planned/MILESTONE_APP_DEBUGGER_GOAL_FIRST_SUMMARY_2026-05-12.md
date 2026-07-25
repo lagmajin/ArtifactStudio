@@ -70,3 +70,21 @@
 ## Next Step
 
 Phase 1 の実行メモは親文書へ統合済み。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の `AppDebuggerWidget`、`FrameDebugViewWidget`、`DebugRenderHarnessWidget` を確認した。ビルド・実機表示は未実施。
+
+| 要件 | 現状 | 判定 |
+|---|---|---|
+| goal/now/warning/next の上部 summary | Frame Debug View に `goal / now / warning / next` の summary 文言が実装されている。 | ソース上確認済み |
+| warning-first ordering | failed pass、warning resource、density warning を summary/detail に出す処理がある。全 debugger surface の順序統一は未確認。 | 部分実装 |
+| copy/pin/compare/filter | Frame debug の compare、console の copy/filter、report の導線が存在する。pin と全 surface の近接配置は未確認。 | 部分実装 |
+| raw text の補助化 | summary label と detail text の二層構造がある。 | ソース上確認済み |
+| harness/report 語彙 | harness と frame debug が snapshot/summary/report を共有するが、warning/next の完全な辞書統一は未確認。 | 部分実装 |
+
+### 現在の判定
+
+Phase 1〜4 の UI 基盤は実装済み部分が多いが、App Debugger 全体の summary ordering、pin/compare/filter の横断導線、harness との語彙統一は確認待ち。マイルストーンは「部分実装／統合確認待ち」とする。
