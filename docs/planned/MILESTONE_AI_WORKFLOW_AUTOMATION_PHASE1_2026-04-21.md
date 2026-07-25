@@ -165,3 +165,7 @@ tool schema と基本の invoke 経路が壊れないようにする。
 - 既存実装を壊さず、AI 向けに整えることが主目的
 - ここで新しい UI を増やさない
 - Phase 2 以降で dry-run / confirmation を厚くする
+
+## 2026-07-25 実装監査
+
+WorkspaceAutomation には workspace／project／composition／selection／render queue snapshot、list／lookup、主要な low-risk mutation、queue control、removal surface が登録され、CommandIRExecutor／AI tool bridge から invoke できることを確認した。`workspaceSnapshot` は主要4領域をまとめるが、文書が想定する `counts`／`activeIds`／`warnings` の統一契約、全 mapping の専用 registry、invalid／malformed invoke の網羅的テスト、実操作の runtime 確認は未完了である。したがって Phase 1-1〜1-5 は主要経路実装済み・契約部分未完了、Phase 1-6 は schema／一部テスト実装済み・runtime未検証とする。
