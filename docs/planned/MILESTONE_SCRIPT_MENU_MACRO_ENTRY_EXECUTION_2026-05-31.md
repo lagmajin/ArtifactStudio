@@ -1,6 +1,16 @@
 # M-FE-6a Script Menu / Macro Entry Execution
 
-`Batch / Macro / Script Entry` を、単なる将来構想ではなく、ユーザー拡張の正式入口として再開するための execution メモ。
+## Static Audit (2026-07-25)
+
+`ArtifactScriptMenu` は scripts workspace の scaffold、`menu.py` / hooks / macros の探索、macro の QAction 化、Python ファイル実行、失敗時の QMessageBox、メニュー再表示時の再構築まで実装されている。`ae_utility_pack` の固定項目も同じ macro 実行経路に接続されている。
+
+- 実装済み: Script menu を canonical entry として使う基礎、macro folder の reload、script/macro source の個別 QAction、macro 実行時の `artifact_macro_name` / `artifact_macro_file` 注入、Python API の workspace 操作登録。
+- 未確認: `id/name/description/targetScope/commandFamily/actionSequenceReference/presetReference/iconName` の共通 descriptor、built-in/script/macro/batch の source category registry、menu と command palette／button launcher の共有 registry、disabled reason と target scope の表示。
+- 未実装または未確認: 固定 action bundle としての 5 個以上の built-in macro、record/playback、Undo 経由の冪等 replay、macro metadata の保存、壊れた script source の disable 状態、safe reload の診断イベント。現状の macro はファイル名を表示して Python ファイルを直接実行する入口に留まる。
+
+判定: Script menu / macro execution の基礎は部分実装だが、M-FE-6a の execution slice 1〜3 と成功条件は未達。次は既存 `ArtifactScriptMenu` の直接実行経路を壊さず、共通 command descriptor／registry の最小形を先に定義するのが安全である。
+
+`Batch / Macro / Script Entry` を、単なる将来構想ではなく、ユーザー拡張の正式入口として再開するための execution メモ。 
 
 ## Why Now
 
