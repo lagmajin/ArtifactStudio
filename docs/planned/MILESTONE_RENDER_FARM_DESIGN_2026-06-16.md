@@ -328,3 +328,13 @@ struct RenderJobResult : UtilityJobResult {
 ## 8. 更新履歴
 
 - 2026-06-16: 初版作成。`EXTERNAL_RENDERER_DESIGN` / `BACKGROUND_UTILITY_WORKER_PROCESS` を上位で束ねる farm foundation として再整理。
+
+## 9. Static Audit (2026-07-25)
+
+現行ソースを静的に確認した範囲では、foundation の主要な型と in-process 実装は追加されている。`RenderFarmTypes` に frame range、job request、progress、failure manifest、retry policy、checkpoint policy/result があり、`RenderFarmMaster` は range split、local worker task、checkpoint restore/save、frame retry、remote slice assignment/result wait を持つ。`CheckpointStore`、`ProgressAggregator`、`LogCollector` も存在し、`ArtifactRenderQueueService` から master と RPC server を利用する経路も確認できた。
+
+ただし、Done criteria を満たしたとまでは判定しない。worker の実処理契約は現状 `RenderJobRequest::renderFrame` callback の同期呼び出しで、`RenderSnapshot` / rendered artifact の受け渡しや実際の farm output 検証は確認できない。checkpoint は completed frame 数を基準に復元するため、非連続 range、逆方向 range、途中 worker 失敗時の厳密な frame 状態復元は未検証である。remote worker の timeout / 切断時は未完了 frame を failure として数える実装で、dead worker job の他 worker への再配分は確認できない。
+
+`ProgressAggregator` は worker 別 completed/failed/current frame と ETA を集計でき、`LogCollector` は callback と JSONL 出力を持つが、RenderQueueManagerWidget / Problem View への runtime 表示、farm log directory への実運用接続、診断イベントの一貫した収集は未確認である。RPC server/client の heartbeat 足場はあるものの、out-of-process worker の discovery、認証、dead 検出後の再割当、実ネットワーク経路の検証は残っている。
+
+判定: Phase 1 は static partial、Phase 2/3 は基盤 partial、Phase 4 は RPC/heartbeat scaffolding。実フレーム成果物、failure manifest の永続契約、再配分、UI/Problem View、runtime の done criteria は未完了。
