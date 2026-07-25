@@ -37,3 +37,11 @@ Composition Viewer を QADS の可動Dockではなく、常設の中央 workspac
 
 - Windows runtimeでの新規コンポジション作成、再起動、Dock復元。
 - Composition Viewerの初期表示、Timeline下部表示、補助ビュー表示。
+
+## 2026-07-25 実装監査
+
+- `ArtifactMainWindow` は `ArtifactCentralDock` と `ArtifactCentralWidgetHost` を作成し、Composition Viewer を中央 host の子として `setCentralWorkspace()` で管理している。
+- `AppMain.cppm` の layout version は 11 で、旧 layout state を破棄してから新しい dock state を復元する経路が存在する。
+- 中央 workspace は `setDockVisible()`／`activateDock()`／workspace mode 切替時にも空にしない保護が実装されている。
+- Timeline の下部 Dock と Contents Viewer などの周辺 Dock 登録もコード上で確認できる。
+- 新規コンポジション作成後の実ウィンドウ表示、再起動後の保存レイアウト復元、浮動化・空ウィンドウ生成の不在は runtime 未検証のため、ステータスは `Implemented — runtime verification pending` のままとする。
