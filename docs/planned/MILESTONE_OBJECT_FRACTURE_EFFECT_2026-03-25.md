@@ -227,3 +227,19 @@ CG ツールでよくある「オブジェクト破砕」「shatter」「destruc
 - shard と debris を分離できる
 - CPU reference がある
 - 将来の HLSL 化に耐える
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースでは `Geometry.Fracture` / `Physics.Fracture` に `FractureEffect`、source bounds / source mesh、impact、radial / grid / Voronoi / hybrid shard 生成、debris 粒子、lifetime、material 系 settings、shatter state / impulse motion、Glass / Concrete / Stone / Metal / Wood / Dust preset が存在する。Composition 側にも fracture property、physics event からの impact 適用、状態保存・復元、image layer の fracture overlay が確認できる。
+
+したがって文書の「Core 側基盤追加済み」は現状と整合する。一方、実際の Layer / Effect メニューからの制作導線、shard geometry の最終描画、collision response の実運用、material 継承の出力、HLSL/GPU path、source 差し替え UI、runtime での破砕品質は未確認である。
+
+### Audit status
+
+- Phase 1: 実装済み相当 — fracture specification / settings / serialization 基盤を確認
+- Phase 2: 部分実装 — shard / debris の生成・motion はあるが、独立 effect の全 render 接続未確認
+- Phase 3: 未完了 — collision / material / source replacement workflow は未確認
+- Phase 4: 未完了 — GPU/HLSL 化とアプリ UI 導線は未確認
+- Definition of Done: Core reference は進展済み、制作向け end-to-end は未完了
