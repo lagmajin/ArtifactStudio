@@ -161,3 +161,21 @@ UI は分けるが、データは分けない。
 
 この repo では、Dope Sheet は `ArtifactTimelineWidget` へ完全統合せず、
 `timeline-adjacent` な別 widget / 別 dock として導入するのが最も安全で拡張しやすい。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の `AppMain`、`ArtifactMainWindow`、`ArtifactDopeSheetWidget` を照合した。配置方針は実装済みで、計画本文の「Phase 1〜3」は実装範囲に応じて更新が必要である。
+
+| 項目 | 現行確認 | 判定 |
+|---|---|---|
+| 別 widget / 別 dock | `ArtifactDopeSheetWidget` が `ArtifactTimelineWidget` とは別に存在 | 実装済み |
+| composition 単位 | `dopesheet::<compositionId>` の dock ID と composition 作成・削除フックがある | 実装済み |
+| bottom area / tab 配置 | AppMain で timeline と同じ bottom dock 系列に登録し、MainWindow の tab group API を利用 | 実装済み（基盤） |
+| lazy 初期化 | Dope Sheet dock は lazy factory として登録され、生成時間も記録される | 実装済み |
+| shared keyframe source | `ArtifactTimelineKeyframeModel` を通じて選択 layer の keyframe を収集 | 部分実装 |
+| playhead / context sync | current frame と composition context の入口はあるが、visible range・selection・jump の双方向同期は未確認 | 部分実装 |
+| offset / scale 操作 | widget 側の操作導線と model API 経由の適用は未確認 | 未完了 |
+
+**判定**: Placement の主目的（timeline-adjacent な別 dock、composition 単位、lazy 初期化）は実装済み。残るのは Dope Sheet の編集 model と timeline との selection/range 同期であり、配置方針自体は完了扱いにできる。
