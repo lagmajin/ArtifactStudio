@@ -165,3 +165,10 @@
 - render queue の typed buffer 対応
 - proxy / LOD / cache の導線整備
 
+## Static Audit (2026-07-25)
+
+現行ソースでは、`ImageF32x4_RGBA` と `ImageUploadBuffer` が typed buffer の中心として使われ、`GPUTextureCacheManager`、`ArtifactCompositionViewDrawing`、video/image/svg/text の current frame buffer、LOD、buffer cache、GPU upload まで接続されている。`RenderCommandBuffer`、`PrimitiveRenderer2D/3D`、offscreen renderer、post-process は描画責務をある程度分離している。
+
+ただし、マイルストーンの完了とは判定しない。`ArtifactCompositionViewDrawing` には buffer から `QImage` へ戻す分岐、QImage surface fallback、renderer readback が残っており、内部主要経路が完全に QImage 非依存になったとは言えない。`RawImage` / `FrameBuffer` の統一契約、format/alpha/color-space/stride の共通メタデータ、source→decode→layout→raster→composite→post→readback の明示 pass graph、各 pass の timing/cache boundary は一貫した公開契約として確認できない。
+
+Render queue/offline と preview の typed-buffer 同一化、各 layer の旧経路撤去、QImage 変換を出口に限定する保証、runtime での見た目一致も未検証である。したがって Phase 1 は部分実装、Phase 2 は helper/renderer 分解として partial、Phase 3/4 は移行途中と判定する。
