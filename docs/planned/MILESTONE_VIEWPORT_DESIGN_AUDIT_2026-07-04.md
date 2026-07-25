@@ -497,3 +497,13 @@
 - `QPainter` / Qt `CompositionMode` を使った新規描画・合成実装は禁止。
 - Diligent バックエンドは AI にとって読み違えやすいシビアなコード扱い。推測で広く触らず変更範囲を最小化。
 - モーションデザイナー視点の P0: Roving Keyframes / Motion Sketch / Auto-Orient / Source Text / Track Matte Drag / Audio Scrubbing（FEATURE_AUDIT より）。
+
+---
+
+## 2026-07-25 現状確認
+
+初回監査の一部記述は現行ソースと差分がある。3D Orbit / Pan / Wheel、Preview Orbit Mode、Camera Bookmarks、Motion Path、Audio Scrubbing、3D selection wireframe、3D compositing の基礎は関連マイルストーンとソースで実装を確認済みであり、「不在」とは判定しない。
+
+現時点でも、チャンネル分離の拡張、X-Ray、Interactive Render Region、Display Tags、Isolation、Construction Plane、Viewport Visualizers、Composition Viewport 内 Wipe、Roving Keyframes、Auto-Orient、Track Matte Drag などは完全な実装根拠が不足している。Puppet / Motion Sketch はファイルと導線の存在だけでは完了とせず、runtime を未確認として扱う。本監査は「基礎viewport機能は大幅に実装済み、DCC比較で列挙された高度機能は未完了または未検証」と更新する。
+
+確認範囲: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderOverlay.cppm`、関連する M-VP / 3D milestone 文書。ビルド・実機操作による動作確認は未実施。
