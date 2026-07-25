@@ -191,3 +191,9 @@ RenderPreflightResult
 - 納品前の事故を減らせる
 - 出力が重い理由をユーザーが理解できる
 - AE / Premiere より「安心して出せる」感を作りやすい
+
+## Static Audit (2026-07-25)
+
+本 milestone は `docs/done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md` へ移管済みで、planned 文書自体は Archived reference である。done 側の記録と現行ソースを照合した結果、`ArtifactRenderQueueService::preflightRenderQueueAt()` / `preflightAllRenderQueues()`、render output dialog の frame rate / alpha / format preflight、Problem View / AppDebugger へ診断語彙を寄せる方針は確認できる。
+
+ただし、これは static evidence の確認であり、全ての missing asset、memory/VRAM estimate、sample render probe、破損出力検査、queue/export/dialog/debugger/problem view の runtime 結果一致までは検証していない。文書上の完了状態は維持しつつ、実機受け入れ検証は別途残る。
