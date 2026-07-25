@@ -32,7 +32,7 @@
 
 | ID | 項目 | コード現状 | 影響 |
 |---|---|---|---|
-| M-UG-1 | ネストコンポ長さ伝播 | `PreCompose.cppm` の `parentToChildTime`/`childToParentTime` は TODO 恒等変換スタブ。`ArtifactAbstractComposition::setFrameRange` にカスケードなし | 親/子コンポ長さ変更が互いに伝播せず「10レイヤー地獄」 |
+| M-UG-1 | ネストコンポ長さ伝播 | `ArtifactProjectService` が `CompositionChangedEvent` を購読し、親→子の範囲同期と子→親プリコンプレイヤー outPoint 同期を実装。`PreComposeManager` の逆引き登録も実レイヤー生成時に接続済み。時間変換は inPoint/startTime オフセット対応だが、明示的 time-remap プロパティは未提供（2026-07-25 静的確認） | 基盤実装済み。time-remap と runtime 検証が残課題 |
 | M-UG-2 | アセットインスタンス共有 | `AssetManager`（`AssetManager.cppm`）が空スタブ、`AssetInstance` は計画のみ | 5 コピー = 5 回デコード / 5 回 GPU アップロード |
 | M-UG-3 | Easy Ease 速度ベース | `ArtifactTimelineTrackPainterView` が隣接キーフレームの Δtime/Δvalue から速度ベースの Bezier ハンドルを算出。隣接不足・非スカラー値は 0.42/0.58 にフォールバック（2026-07-25 静的確認） | ✅ ソース実装完了（runtime 検証は未実施） |
 | M-UG-4 | 式ピックwhip | 式評価・エディタは実装済み。ドラッグでプロパティを繋ぐ AE 的 pickwhip は未実装（親子リンク pickwhip は別存在） | 式リンクがテキスト入力のみで面倒 |
@@ -80,6 +80,16 @@ outPoint へ、またプリコンポ内の子レイヤーへ、双方向に伝�
 - `parentToChildTime`/`childToParentTime` が `timeRemap` / `inPoint` オフセットを
   反映した実変換になる
 - 無限ループ・循環参照（A⊃B⊃A）でスタックオーバーフローしない
+
+### 2026-07-25 静的監査メモ
+
+- `ArtifactProjectService::onChildCompositionFrameRangeChanged()` と
+  `propagateParentFrameRangeToChildren()` / `propagateChildFrameRangeToParents()`
+  による双方向の範囲同期を確認。
+- `PreComposeManager::registerPrecompLayer()` が child→parent 逆引きを構築し、
+  `NestedTimeUtils` は `startTime` オフセットを反映する。
+- `timeRemap` の値を保持・評価するレイヤープロパティは現行コードで確認できず、
+  runtime 検証も未実施のため本項目は未完了のままとする。
 
 ## M-UG-2: アセットインスタンス共有
 
