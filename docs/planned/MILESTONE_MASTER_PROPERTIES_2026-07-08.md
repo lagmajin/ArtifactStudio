@@ -97,3 +97,20 @@
 - unprecompose時はinstanceの有効override値を復元レイヤーへmaterializeする
 - precompose / unprecomposeのUndo snapshotでregistryとoverrideを持つ同じprecomp layer instanceを復元する
 - build / runtime verificationは未実施のため`In Progress`を維持する
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+`ArtifactCompositionRenderController` の instance override／nested propagation、Composition Settings の公開導線、JSON／Undo、TemplateSlot／TemplateLock の接続を現行ソースで再確認した。ビルド・実機動作は未実施。
+
+| Phase | 現状 | 判定 |
+|---|---|---|
+| 1. プロパティ露出 | Exposed property registry、focused property の公開・解除、既存 Master Properties group の表示を確認した。 | 実装済み／表示確認待ち |
+| 2. 親コンプ上書き | precomp layer instance override、render-time propagation、child frame変換、nested scope、Undo／JSON round-tripを確認した。 | 実装済み／runtime確認待ち |
+| 3. Template連携 | TemplateSlot／TemplateLock の既存基盤と公開データの接続点を確認した。完全なテンプレートexport／再利用フローは未確認。 | 部分実装／統合確認待ち |
+| 競合・復元 | expression／keyframe評価後の override 優先順、unprecompose materialize、precompose undo snapshot の記載・実装を確認した。 | 実装済み／runtime確認待ち |
+
+### 現在の判定
+
+Phase 1〜2 と主要な Phase 3 接続は静的に実装済み。テンプレート運用の完全なexport／再利用、および実機での兄弟・nested instance隔離は未検証のため、`Phase 3 Completed — runtime/build verification pending` を維持する。
