@@ -158,3 +158,22 @@
 
 上位方針としては、`RAM preview` を authoritative composition cache、
 `Disk Cache` を persistent fallback layer として扱う。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行コードと `MILESTONE_HIERARCHICAL_CACHE_SYSTEM_2026-07-21.md` を照合した。ビルド・再起動・実ファイル出力による検証は未実施。
+
+| Phase | 現状 | 判定 |
+|---|---|---|
+| 1. Cache Key / Manifest | composition identity/state hash、quality/render contract、namespace、manifest v1 の書き出し・schema/contract/stateHash/file size 検証がある。 | 実装済み／上位 cache 接続は残課題 |
+| 2. Preview Frame Disk Cache | PNG の非同期保存、RAM hydrate、generation-safe invalidation、composition namespace がある。 | 実装済み／再起動後の実動作確認待ち |
+| 3. Budget / Eviction | namespace 512 MiB、全体 2 GiB、oldest-frame eviction、empty namespace cleanup がある。 | 実装済み／実測待ち |
+| 4. Diagnostics / UI | hit rate、cached count、failure reason、clear action のサービス基盤がある。 | 部分実装／UI 一貫表示確認待ち |
+| 5. Intermediate Cache | layer/surface/GPU cache は存在するが、disk への intermediate promotion は未着手。 | 未完了 |
+| 6. Render Queue Integration | RenderQueue service/widget は存在するが、preview disk key と export queue の共有・再利用契約は未確認。 | 未完了 |
+
+### 現在の判定
+
+Phase 1〜3 はコード上完了、Phase 4 は統合確認待ち、Phase 5〜6 は未完了。次は intermediate promotion policy と render queue の key 契約を順番に整理する。
