@@ -215,3 +215,9 @@ UI で必要な最小表示:
 Phase 3 は selected variation を composition preview に一時適用し、text fit / safe area / anchor rule の warning を出す。
 
 そのため Phase 2 では、variation を実体 composition として複製しない。slot value map と validation state を保つだけにする。
+
+## Static audit follow-up (2026-07-25)
+
+- A generic CSV/report export parser and `TemplateVariation` JSON persistence exist, and Workspace Automation exposes single-variation application and variation-to-queue entry points.
+- No dedicated Phase 2 importer/model was confirmed that performs CSV row parsing, JSON-array import, stable-ID/display-name mapping, row-level warnings, disabled invalid rows, and a preview list as one contract.
+- The Phase 2 done criteria therefore remain unmet; current implementation is reusable parser/data infrastructure only. No build or runtime verification was performed under the repository policy.
