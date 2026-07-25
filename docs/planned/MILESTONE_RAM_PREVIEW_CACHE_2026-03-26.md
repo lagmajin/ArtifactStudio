@@ -99,3 +99,7 @@ AE の RAM preview のように「一度貯めたフレームを連続再生し�
 ### 現在の判定
 
 当初の「range/prewarm/priority が独立仕様になっていない」という記載は現行コードでは更新が必要。Phase 1〜2 はコード上進展しており、残る中心課題は Phase 3〜4 の実行経路統合・再生保証・診断表示である。
+
+### 追加確認
+
+`ArtifactFrameCache` 自体には LRU、メモリ／フレーム上限、generation invalidation、prefetch、hit/miss 統計が実装されている。一方、`ArtifactPlaybackService.cppm` では `std::unique_ptr<FrameCache> frameCache_` がコメントアウトされ、「FrameCache module is disabled」と明記されている。現行の RAM preview はサービス内の frame-state／priority／fallback 管理が中心で、汎用 `FrameCache` の hit 優先再生経路へ接続済みとは断定できない。この点を踏まえ、Phase 3 は「部分実装」よりも、FrameCache 接続と実再生の検証を必須残課題として扱う。
