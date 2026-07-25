@@ -4,6 +4,10 @@
 
 試しに変更して、比較して、気に入らなければ破棄できる一時編集モードを作る。
 
+## 2026-07-25 実装監査
+
+本番データから分離した編集 snapshot、sandbox mode の開始／終了、before／after 比較、差分ハイライト、Apply／Discard を一体で提供する専用実装は確認できない。既存の各種 preview、Undo snapshot、AI Command Sandbox は別の限定的な仕組みであり、本マイルストーンの一般編集 sandbox の完了証拠にはならない。したがって Phase 1〜3 は未実装として扱い、runtime の安全性も未検証とする。
+
 ## Goal
 
 `Enter Sandbox Mode` から編集し、`Compare` で差分を見て、`Apply` / `Discard` で確定または破棄できるようにする。
