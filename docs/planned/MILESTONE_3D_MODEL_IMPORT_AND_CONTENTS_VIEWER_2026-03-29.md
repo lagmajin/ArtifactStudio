@@ -185,6 +185,13 @@ Project / Asset から 3D review までの導線を短くする。
 - glTF / glb は ufbx 経由で読む前提だと分かるようにした
 - 次の焦点は、model review の導線をもう少し軽くすることと、`gltf` / `glb` の扱いを明確化すること
 
+### Static audit follow-up (2026-07-25)
+
+- `MeshImporter` has an explicit ufbx main path, OBJ-only tinyobjloader fallback, backend labels, and failure/empty-mesh reasons. The viewer exposes the selected backend, including `glTF via ufbx`.
+- `ArtifactContentsViewer` routes `Model3D` to `Artifact3DModelViewer`, displays backend/status and mesh preview state, supports Solid/Wireframe/Solid+Wire, and provides `Reset 3D` plus the keyboard reset path.
+- The source confirms the existing Project/Asset-to-Contents Viewer integration described above. Phase 5 compare/annotation and diagnostic integration remain future work, while glTF/GLB breadth and actual file coverage remain runtime-verification items.
+- No build or runtime execution was performed under the repository policy.
+
 ### Next Execution Slice
 
 Phase 1 を先に締めるなら、次の順で進める。
