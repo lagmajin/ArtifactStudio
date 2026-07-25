@@ -1011,3 +1011,10 @@ void ArtifactAssetBrowser::Impl::handleLeaveEvent(QEvent* event) {
 - 既存のサムネイル機能との整合性を保つ
 - 将来的には、プレビューをカスタマイズ可能にする（サイズ、ディレイ時間など）
 - タッチデバイス対応は将来の拡張として検討
+
+## 2026-07-25 実装監査
+
+- `ArtifactAssetBrowser` に 300ms の hover timer、`HoverPreviewPopup`、同一 path の再表示抑制、マウス移動／離脱時の schedule・hide 経路、ファイル情報表示を確認できる。
+- 既存 thumbnail／video poster 経路を使った画像・動画 preview の初期 slice は実装済みで、Asset Browser Improvement の Phase 2.2 と整合する。
+- 一方、専用 `HoverPreviewCache`、音声 waveform の popup 表示、高解像度 preview の非同期 load／cancel、preview 中の生成抑制と runtime UX 検証は未完了または未確認である。
+- よって基本 hover popup は実装済みだが、要件全体は Partial／継続中と判定する。
