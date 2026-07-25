@@ -163,3 +163,26 @@ Core のエンジンはあるが、AE っぽい編集体験はまだ途中。
 - 未解決の論点を洗うなら [AFTER_EFFECTS_PARITY_OPEN_QUESTIONS_2026-05-30.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_OPEN_QUESTIONS_2026-05-30.md) を使う。
 - まず全体像を掴むなら [AFTER_EFFECTS_PARITY_MASTER_SUMMARY_2026-05-30.md](X:/Dev/ArtifactStudio/docs/shared/ai-tech-memos/AFTER_EFFECTS_PARITY_MASTER_SUMMARY_2026-05-30.md) を使う。
 - ビルドやテストは実施していない。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースを再照合した結果。ビルド・実機操作は未実施のため、実行時の完了判定とは分けている。
+
+| 領域 | 現行ソースで確認できたもの | 残課題 | 判定 |
+|---|---|---|---|
+| Preview / Cache / Playback | PlaybackService/Engine、CompositionPlaybackController、FrameCache、GPU texture cache、RenderQueue の導線が存在。 | requested/ready/failed の authoritative 状態、cache hit の実画像保証、scrub/fallback の実測。 | 部分実装／P0 |
+| Text Animator | Core の TextAnimator、TextShapingBackend、GlyphLayout/GlyphAtlas と ArtifactTextLayer、Property Editor/Gizmo が存在。 | range selector の全編集、timeline トラック、preset/reuse、CJK fallback の実行整合。 | 部分実装／P0-P1 |
+| Track Matte / Mask / Blend | MaskPath/LayerMask、Roto/PathMorph、MaskCutout/MaskPathRasterizer、LayerBlend の基盤が存在。 | matte order、premultiplied alpha、複数マスクと blend の stack correctness、reason 表示。 | 部分実装／P0-P1 |
+| Keyframe / Graph | KeyframeEditingTools、EasingCurveUtil、TimelineKeyframeModel、CurveEditor が存在。 | value/speed graph の完全切替、Bezier handle、roving/hold/tangent の保存・再生整合。 | 部分実装／P1 |
+| Parent / Precompose | Core/Artifact の PreCompose と階層・選択基盤が存在。 | nested workflow、transform propagation、解除・循環時の状態保持。 | 部分実装／P1-P2 |
+| Motion Blur / Time Remap | ArtifactMotionBlur、Core MotionBlur、TimeRemapProcessor、FrameBlendEffect が存在。 | preview/render の sample policy 一致、shutter/phase の UI と実出力確認。 | 部分実装／P1-P2 |
+| Adjustment / Layer Styles | AdjustmentLayer テストと多数の color/blur/effect 実装が存在。 | adjustment layer の実務導線、drop shadow/glow/stroke の layer-style 契約。 | 部分実装／P2 |
+| Expression | ExpressionValue/Parser/Evaluator と Copilot/利用例が存在。 | AE 風 stdlib、property host binding、debug/inspection、安全な評価境界。 | 基盤あり／P2 |
+| Color / LUT | ArtifactOCIOManager、Core OCIOConfig、ColorGrading、LUTLoader/Writer と色変換群が存在。 | preview/export の一致、ACES/HDR の明示、実ファイル出力検証。 | 部分実装／P2 |
+| Plugins / Interop | import/export、Proxy、3D/Color の周辺基盤はある。 | OFX/plugin SDK、AEP/Nuke/Fusion interchange の完成契約。 | 未完了／P3 |
+
+### 再開点
+
+この文書の優先順位は現状でも有効。次は Preview/Cache の状態契約を固定し、その後 Text Animator、Track Matte/Mask/Blend の順に、各領域で「ソースに存在する」から「実行経路で正しい」へ進める。
