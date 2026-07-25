@@ -739,3 +739,9 @@ preview は commit とは別に扱う。
 - viewport tool と layer persistence が自然につながる
 - 既存 render path を壊さずに最小の pixel editing を追加できる
 - 将来の Photoshop-like expansion に耐える境界が残る
+
+## 2026-07-25 現状確認
+
+Paint Layer の基礎実装は別途進んでおり、`ArtifactPaintLayer` が composition に置ける独立 layer type として存在する。永続バッファは `ImageF32x4_RGBA`、フレーム別管理、ブラシ／消しゴム stroke、直近stroke undo、dirty通知、JSONプロパティ保存を備える。`ArtifactBrushTool`、ブラシ／消しゴムのツールバー・オプションUI、Onion Skin overlay も接続されている。
+
+未完了または未検証なのは、Timeline／InspectorでのPaint Layer専用編集、strokeのUndoManager／プロジェクト履歴統合、pressure／tilt等の入力情報、GPU texture cache更新、複数フレームの保存復元、ソフトウェア／Diligent両経路の性能と表示一致である。clone／heal等の高度修復ツールは本マイルストーンの範囲外。判定は「Raster Editing Foundationは実装済み、製品導線と統合検証が残る」とする。
