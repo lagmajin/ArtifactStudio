@@ -318,3 +318,13 @@ Phase 1-2 で C4D 的な触りやすさを先に成立させ、Phase 3-5 で Ble
 - 3D Cursor を project / composition / session のどこへ保存するのが適切か
 
 ビルド、テスト、runtime verification は実施していない。
+
+---
+
+## 2026-07-25 現状確認
+
+静的確認では、Composition Editor に Alt+左ドラッグ orbit、Middle drag pan、Wheel zoom のナビゲーション、navigation feedback、preview-only orbit mode、Frame Selected / Frame All、View Undo / Redo、Work Cursor の配置・中央化・消去・overlay 表示が既に存在する。したがって Phase 1〜3 の主要導線は部分的に実装済み。
+
+一方、仕様全体としては、cursor-under-point を共通 Point of Interest とする厳密な orbit / dolly 契約、pivot source / orbit source selector、surface snap、複数 viewport ごとの独立状態、3D Cursor の完全な project persistence、Phase 4〜5 の creation / snap 統合は確認できない。既存コードにある view-cube の 3D orientation や Work Cursor は、これら全要件の完了証拠とは分けて扱う。本マイルストーンは「ナビゲーション、preview-only、Frame、Work Cursor の基礎は実装済み、統合契約と高度な cursor workflow は未完了」と判定する。
+
+確認範囲: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`。ビルド・実機操作による動作確認は未実施。
