@@ -60,3 +60,18 @@ same acceleration-structure ownership model, and the same app-level diagnostics.
 - Do not add hot-path `QImage` conversions.
 - Do not change DiligentEngine itself for this milestone.
 - Keep each low-level slice small enough to build and bisect independently.
+
+## Static Audit (2026-07-25)
+
+Capability／diagnosticsの基盤は実装されている。`DiligentDeviceManager` は backend の RayTracing feature を確認し、設定に応じて DX12／Vulkan の device creation を試行する。`RayTracingManager` は Diligent の共通 API で capability、recursion／raygen／AS limits、alignment、unit-quad BLAS、TLAS、warmup RT PSO／SBT／出力 texture を管理し、`ArtifactIRenderer` は初期化・TLAS build・backend／AS状態を診断文字列へ出している。非対応時に manager 初期化をスキップする経路もある。
+
+しかし、現状のBLASは unit quad のplaceholderで、`createOrUpdateBLAS` は layer geometry を利用せず、`buildTLAS` も layer transform の収集・更新を将来課題としている。Composition の実描画やshadow／picking／GIへの接続、debug toggle、dispatch failure と AS creation failure の粒度、DX12／Vulkan両backendでの実機動作は未確認。別系統の `GPURayTracer` も存在するが、今回の `IRayTracingManager`／composition 経路へ統合済みとは断定できない。よって Slice 1 は静的実装済み、Slice 2〜5 はwarmup／placeholder段階と実行検証待ちとして記録する。
+
+確認対象:
+
+- `ArtifactCore/src/Graphics/RayTracingManager.cppm`
+- `ArtifactCore/include/Graphics/RayTracingManager.ixx`
+- `ArtifactCore/src/Render/GPURayTracer.cppm`
+- `Artifact/src/Render/DiligentDeviceManager.cppm`
+- `Artifact/src/Render/ArtifactIRenderer.cppm`
+- `ArtifactCore/src/Render/Shaders/RayTrace.hlsl`
