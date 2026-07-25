@@ -59,3 +59,7 @@
 3. 重大な問題は render 前に止められる
 4. Project 健全性が UI 上で見える
 5. デバッグログとは役割が重ならない
+
+## 2026-07-25 実装監査
+
+DiagnosticEngine／ProjectDiagnostic の severity・category・source・fix action、health report から diagnostic への変換、missing／matte／circular／performance の検査、Problem View／health dashboard の基盤は確認した。一方、Error／Warning／Info の一貫した視覚表示、source layer／composition／asset への追跡、render／timeline／asset の横断一覧、open／render前の validation hook、致命Errorの確実なblock、修復アクションの実行とsummary追従は、静的検索だけでは完了を断定できない。Phase 1〜4 は部分実装・統合／runtime未検証とする。
