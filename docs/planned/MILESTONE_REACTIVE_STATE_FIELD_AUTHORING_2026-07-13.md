@@ -234,3 +234,10 @@ Done criteria:
 - `ArtifactCore` / `ArtifactWidgets`子リポジトリはこのmilestoneでは変更していない
 - 親リポジトリは本milestone文書と生成済み文書indexを変更
 - build、test、CMakeは実行していない
+
+## 2026-07-25 実装監査
+
+- Audio Reactive の binding／mapping／preview／record／bake、Composition State の CRUD／override／baseline 復元、Field の radial／box／linear と Text／Shape／Cloner consumer は、既存の計画記載とソース構造が一致する。
+- State comparison の changed property list、A/B pair 保存、viewport toggle と復元は実装済みだが、Diff の同時 snapshot 描画は未実装である。
+- State の並べ替え、final output px 等の実機依存確認、Field の color channel 契約、各種 runtime 受け入れ確認は未完了または未検証である。
+- したがって静的実装は高い進捗にあるものの、文書の `In Progress` と runtime 未確認の判定を維持する。
