@@ -55,7 +55,7 @@
   - 実装: Curve EditorのBreak/Unify操作とTimelineのUndo付きボタン経路を確認。2026-07-24 完了（ビルド未検証）。
 - [x] **CE-7**: Step（Constant）切替（InterpolationType::Constant への往復）。
   - 実装: Curve EditorのConstant切替とTimelineのStepボタン／Undo経路を確認。2026-07-24 完了（ビルド未検証）。
-- [ ] **CE-8**: 選択キーの frame/value 数値エントリ欄（Maya Stats 相当。既存 `promptSetSelectedKeyValue` をパネル化）。
+- [x] **CE-8**: 選択キーの frame/value 数値エントリ欄（Maya Stats 相当。既存 `promptSetSelectedKeyValue` をパネル化）。
   - 進捗: Curve Editor上部に選択キーのFrame／Value入力欄を追加。既存の keyMoved / interactionStarted / interactionFinished 経路へ接続済み。2026-07-25（ビルド未検証）。
 - 完了条件: tangent タイプの往復が Undo 対応で動作。数値入力でキーが確定更新される。
 
@@ -77,3 +77,10 @@
 - Undo/Redo でタンジェント・挿入・移動が往復すること。
 - タイムライン表示（Tab 往復）でカーブとドープシートのキー位置が一致すること。
 - 新規キーが "CurveEditor" KeyMap 経由で動作し、タイムライン側 QShortcut と両立すること。
+
+## 2026-07-25 実装監査
+
+- CE-1〜CE-13 は、タンジェント書き戻し、複数選択／移動／挿入、数値入力、Buffer／Normalize／Cycle／Snap、Copy/Paste を含め、計画書の実装記録とソース確認が一致する。
+- CE-8 の数値入力は実装済みだったため、チェック欄を `[x]` に修正した。
+- CE-14（Speed グラフの編集）は非目標ではなく後続項目として未実装である。
+- ビルド、runtime、Undo／Redo の実機動作、評価カーブとの一致は未検証のため、マイルストーン全体は `In Progress` のままとする。
