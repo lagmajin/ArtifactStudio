@@ -106,3 +106,16 @@ HLSL 版は CPU の自動変換ではなく、同じ parameter schema を使う�
 - [ArtifactCore/src/Graphics/Effect/CreativeEffectFactory.cppm](/x:/Dev/ArtifactStudio/ArtifactCore/src/Graphics/Effect/CreativeEffectFactory.cppm)
 - [Artifact/src/Render/ShaderManager.cppm](/x:/Dev/ArtifactStudio/Artifact/src/Render/ShaderManager.cppm)
 - [ArtifactCore/src/Graphics/Compute.cppm](/x:/Dev/ArtifactStudio/ArtifactCore/src/Graphics/Compute.cppm)
+
+## 2026-07-25 実装監査
+
+判定: CPU creative effect 群と個別の GPU compute 基盤は存在するが、本マイルストーンの dual-backend 抽象と parity 検証は未実装。
+
+- `CreativeEffect` は `process(VideoFrame&, CreativeEffectContext&)` だけを持つ CPU 実行 API で、backend capability、GPU executor、fallback 理由、reference mode は定義されていない。
+- `CreativeEffectManager` は有効な effect を stack 順に `process()` するだけで、CPU/HLSL の選択や GPU resource / dispatch の分岐を持たない。
+- `CreativeEffectFactory` と各 effect の CPU reference は存在する。一方、初期対象の Posterize / Pixelate / Mirror / Fisheye / Halftone に対して、この CreativeEffect ID と同じ schema を使う HLSL backend の組み合わせは確認できない。
+- 別系統の `Graphics.Compute` や `LayerBlendPipeline`、Artifact 側の GPU effect wrapper は HLSL 実行基盤として利用可能だが、CreativeEffect の backend bridge や共通 parameter upload を証明するものではない。
+- CPU/HLSL の同一入力比較、許容誤差、reference output 保存、UI の backend/fallback 表示は未実装。
+- 次の実装単位は、まず definition / parameter schema と CPU/HLSL executor capability の最小契約を導入すること。
+
+ビルド・実行確認はリポジトリ方針により未実施。
