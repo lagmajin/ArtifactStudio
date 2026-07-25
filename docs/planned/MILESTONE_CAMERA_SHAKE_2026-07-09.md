@@ -98,3 +98,10 @@
 1. A 優先で `ArtifactCameraLayer::viewMatrix()` に transient オフセット差し込み口を確認・実装
 2. B は独立して `ScreenShakeEffect` を `Rasterizer` パイプラインに乗せる
 3. A/B のパラメータUI を Inspector に追加
+
+## 2026-07-25 Screen Shake 実装監査
+
+- `ScreenShakeEffect` は実装済みで、Rasterizer / CPU effect として登録され、Inspector の effect catalog から選択できる。
+- amplitudeX / amplitudeY、frequency、decay、seed、wrapMode（clamp / wrap / mirror）を持ち、`Distortion` の displacement と bilinear sampling を使って 2D surface を変位させる。
+- 未確認事項は、実際の layer effect rack での時間変化、端処理の見た目、長時間再生時の性能、3D camera shake との二重適用を避ける運用である。
+- したがって Workstream B は「実装済み・runtime 確認待ち」と更新する。
