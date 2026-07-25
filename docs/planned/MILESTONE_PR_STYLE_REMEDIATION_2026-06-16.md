@@ -361,3 +361,7 @@ findstr /S /N /C:"setStyleSheet" ArtifactPr\src\*.cppm
 ## 11. 更新履歴
 
 - 2026-06-16: 初版作成。26 箇所を 4 カテゴリに分類。`ArtifactCommonStyle` 流用で 19 件自動 / 6 件半自動 / 1 件動的色 (property 化) の方針を確定。
+
+## 2026-07-25 実装監査
+
+`ArtifactPr` 側には `AppTheme`／`QProxyStyle` 相当の theme absorption 方針が入り、実コードの `setStyleSheet` 検索結果は6件だが、確認できた該当は既存違反の説明コメントで、新規設定呼び出しの残存は静的には確認できなかった。KDDockWidgets の個別テーマ経路、palette／drawControl の全ウィジェット適用、26箇所の見た目一致、実行時のテーマ切替とビルド検証は未確認である。なお対象は `ArtifactPr` サブモジュールのため、今回の監査では編集・コミットしていない。静的な禁止事項対応は進展、完全な修正完了は未検証とする。
