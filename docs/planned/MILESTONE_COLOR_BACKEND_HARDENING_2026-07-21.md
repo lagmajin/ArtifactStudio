@@ -3,6 +3,10 @@
 **Status:** In Progress (P0 ✅ / P1 Partial+ / P2 ✅)
 **Goal:** カラーコレクションのバックエンドの未定義動作・データ競合・スタブを潰し、UI 層の前に土台を固める。
 
+### 2026-07-25 sequential audit
+
+P0 の UB／mutex 修正、`applySettings()` の cache invalidation、preset JSON、FloatColor の allocation 改善、既存 Curves GPU LUT 経路はコード上確認できる。P1 の GPU shader は任意 RGB curve を 256 点 LUT に送る経路まで存在するが、runtime shader verification は未実施である。したがって文書の P0 完了／P1 部分／P2 完了という状態を維持し、UI 改修や shader 実機検証を完了扱いにはしない。
+
 ## 背景
 
 `docs/analysis/REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md` および成熟度分析レポート (p2/p4/p5, 2026-06-03) において、カラー系バックエンドに以下の問題が指摘されている：
