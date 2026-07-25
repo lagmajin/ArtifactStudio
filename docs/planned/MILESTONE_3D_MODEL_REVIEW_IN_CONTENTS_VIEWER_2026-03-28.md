@@ -164,6 +164,8 @@ Project / Asset から 3D review に飛びやすくする。
 
 ## Current Status
 
+**Status:** Phase 1〜4 implemented, Phase 5 compare hooks and runtime verification pending
+
 - `Contents Viewer` で `Model3D` を開いて、solid preview 寄りの表示で確認しやすくした
 - `Artifact3DModelViewer` の status で backend / vertex / polygon / bounds を追いやすくした
 - preview が失敗しても backend / error を status で追いやすくした
