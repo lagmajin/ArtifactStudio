@@ -1384,3 +1384,10 @@ void ArtifactAssetBrowser::Impl::onSortCriteriaChanged() {
 - 将来的には、カスタムコンパレータを実装可能にする
 - タッチデバイス対応も検討
 - 並べ替えアニメーションの追加（将来的な拡張）
+
+## 2026-07-25 実装監査
+
+- `ArtifactAssetBrowser` に Name／Date／Size／Type の単一キー選択、昇順／降順切替、シーケンスの frame 順ソートを確認できる。
+- 一方、複数キーを優先順位付きで適用する `AssetSortCriteria`／`AssetSorter`、各キー別方向、ソートプリセット、自然順、カスタム順、専用設定ダイアログは確認できない。
+- 手動 Drag & Drop sort、ソート条件のプロジェクト単位永続化、タグ・ステータスとの複合ソートも未完了である。
+- よって既存の単一ソートは実装済みだが、Advanced Sort 全体は Partial／未完了と判定する。
