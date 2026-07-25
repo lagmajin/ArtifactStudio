@@ -142,3 +142,21 @@
 1. UI 側に残す責務を先に確定する
 2. AI プロセスの request / response の最小 schema を決める
 3. 再接続と失敗表示の方針を固める
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+`AIChatWidget`、`AIClient`、`LlamaLocalAgent`、`McpTransport`、Main Window の現行実装を照合した。ビルド・別プロセス実行・IPC実機確認は未実施。
+
+| 完了条件 | 現状 | 判定 |
+|---|---|---|
+| アプリ本体が AI の重い処理を直接抱えない | `AIClient` が `LlamaLocalAgent` を直接生成・初期化し、UIプロセス内で推論する経路が現存する。 | 未達 |
+| ローカル AI を別プロセスとして起動 | 汎用 `McpTransport`／`QProcess` はあるが、Local AI専用 worker の起動・管理・接続は確認できない。 | 未達 |
+| UI と AI を純データ境界で接続 | AIContext／JSON APIの型はあるが、local inference の専用 request／response／stream event IPC契約は未確認。 | 部分実装 |
+| UIから失敗・再接続を扱う | AIClient の初期化失敗／cancel／error表示はあるが、worker crash、再接続、再起動回数の管理は未確認。 | 部分実装 |
+| 将来のリモート接続へ拡張可能 | cloud agent と provider 切替は存在するが、local worker と共通化された transport boundary は未確立。 | 部分実装 |
+
+### 現在の判定
+
+現状は UI／client と local agent が同一プロセス内にあり、別プロセス分離は未着手。MCPの汎用 subprocess transport は関連基盤だが、本マイルストーンの完了条件を満たす専用 worker／IPC／監視には該当しないため、「設計段階」とする。
