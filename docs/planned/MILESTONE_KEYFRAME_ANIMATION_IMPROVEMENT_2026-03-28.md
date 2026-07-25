@@ -126,6 +126,8 @@
 
 本資料は総合計画としては「大半完了、未完了項目は個別マイルストーンへ分割済み」と整理する。
 
+補足: 2026-07-25 の追加確認で、`ArtifactTimelineTrackPainterView` に `Clean Keyframes` が実装済みであることを確認した。選択／hover 対象の animatable property から近接する同値キーを削減し、Bezier／補間／anchor／color label を保持して再構築する。`TimelineCleanKeyframes` のショートカット導線と snapshot ベース Undo/Redo も存在するため、「キーフレーム簡易化」は未実装項目から除外する。
+
 ---
 
 ## Phase 構成
