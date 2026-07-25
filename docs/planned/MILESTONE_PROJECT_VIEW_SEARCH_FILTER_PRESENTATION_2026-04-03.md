@@ -231,3 +231,11 @@ Phase 1 は、検索語が入力された瞬間に surface が変わることを
 
 - list / grid presentation は search / filter の state が固まってから入れる
 - status surface は検索結果の意味が揃ってからつなぐ
+
+## Static Audit (2026-07-25)
+
+現行の Project View には、入力即時反映・クリア可能な検索欄、name/path/metadata を含む検索 blob、`tag:` / `unused:true` / `is:unused` の advanced filter、タイプフィルタ、未使用 asset の非同期スナップショット、Tree／Tile 表示切替、Tile のサムネイル・type/status/proxy badge、列ソートと列幅調整が実装されている。選択概要ラベルと選択詳細／プレビュー面も存在する。
+
+ただし、仕様上の list / grid 名称とは現行コードの Tree / Tile 名称が一致せず、複数 filter pill の独立した multi-select surface、画像・音声・3D 等の全タイプ選択、選択容量合計、filter 条件の明示的な status bar、未使用件数の包括的表示、view transition、設定保存は確認できない。`tag:` 検索は実装されているが、タグの入力・管理 UI は確認できず、実データでの複合条件、大量アイテム時の非同期更新、runtime 視認性も未検証である。
+
+判定: **Phase 1〜3 の主要基盤は実装済み。** Phase 2 の統合 filter surface と Phase 4〜5 の status／polish は部分実装または runtime 検証待ちである。
