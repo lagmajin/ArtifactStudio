@@ -173,3 +173,12 @@ Expression の評価をフレーム境界だけに固定せず、サブフレー
 
 - `docs/planned/MILESTONE_EXPRESSION_SYSTEM_2026-03-29.md`
 - `docs/planned/MILESTONE_SCRUB_EXPRESSION_CACHE_REUSE_2026-06-07.md`
+
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+ExpressionEvaluator には FrameLocked／SubframeSampled／AdaptiveStep／FixedMicrostep の評価分岐、valuateAtTime、frame rate 設定、adaptive step の上限・下限・許容誤差・分割回数が実装されている。AbstractProperty::evaluateValue からは RationalTime と frameRate を渡しており、サブフレーム評価の基礎は確認できる。
+
+ただし、プロパティ単位の policy 選択 UI、FixedMicrostep の利用導線、adaptive 評価の実運用検証、診断 UI、30fps／60fps の比較は未確認である。純関数前提という制約も文書化されているため、Phase 1〜3 は基盤実装済み、Phase 4〜5 は未完了または検証待ちと記録する。
