@@ -90,3 +90,7 @@ ChatGPT / Claude / Gemini の Web UI を基準。
 | 🟡 | プロンプトWF | 6 | SlashCmd/@mention/PromptLib/SystemPromptUI |
 | 🟡 | コード適用 | 5 | Diff/AcceptReject/ApplyAll/UndoAI |
 | 🔵 | 高度機能 | 8 | AgentMode/Thinking/WebSearch/MultiModal |
+
+## 2026-07-25 実装監査
+
+現在の widget には provider／model／API key、session／transcript、cancel、tool approval、tool schema／log、MCP 操作の入口があるため、表の一部は更新が必要である。一方、streaming のUI表示、regenerate／edit、Markdown／code block操作、画像添付、token／cost表示、diff／apply、MCP health、agent mode などは未確認である。また process split も未完了で、widget が通信・tool・MCP責務を保持している。したがって本書は不足機能の監査として有効だが、P0〜P2の大半は未完了・runtime未検証とする。
