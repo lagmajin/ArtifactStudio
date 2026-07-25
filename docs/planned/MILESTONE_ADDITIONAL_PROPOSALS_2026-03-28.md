@@ -434,3 +434,9 @@
 ---
 
 **文書終了**
+
+## Static audit follow-up (2026-07-25)
+
+- Several proposals now have partial foundations elsewhere: diagnostic/frame snapshots and trace/crash records, autosave/recovery settings and session-ledger types, performance cost/FPS-oriented diagnostics, template-slot data, and asset/project management features.
+- The proposal list itself remains a planning document rather than a single implemented milestone. Repository evidence does not establish complete end-to-end delivery for crash report export, autosave generation/version retention, performance dashboard history, shortcut customization, project diff UI, tutorial flow, or cloud integration.
+- Existing foundations should be tracked against their dedicated milestones; this umbrella proposal remains `提案` and should not be marked complete. No build or runtime verification was performed under the repository policy.
