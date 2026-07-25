@@ -217,3 +217,21 @@
 
 - これは実装タスクの詳細設計ではなく、制作事故を減らすための追加マイルストーン。
 - ビルドやテストは実施していない。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+`MaskPath` の feather 評価経路、render performance monitor、batch/output settings、Render Preflight 関連を現行ソースで照合した。ビルド・実機出力・FPS実測は未実施。
+
+| 領域 | 現状 | 判定 |
+|---|---|---|
+| Directional mask feather | `MaskPath` に uniform／horizontal／vertical／inner／outer feather があり、保存・補間・CPU mask評価で非対称値を使用する。 | 実装済み／runtime確認待ち |
+| Feather compatibility | directional値が未指定のとき uniform値へフォールバックする経路を確認した。 | 実装済み／網羅確認待ち |
+| Export FPS default sync | composition frame rate と render context／creation defaults の接続はあるが、全 export dialog／job作成での自動同期は未確認。 | 部分実装 |
+| FPS mismatch visibility / preflight | Render performance monitor と preflight基盤は存在するが、`composition: Xfps / output: Yfps` の専用 mismatch warning／強調表示は未確認。 | 部分実装／統合待ち |
+| Render FPS safety | current／average FPS、frame budget、target FPS の計測基盤はあるが、目標値に対する出力安全ゲートの実測は未実施。 | 部分実装／検証待ち |
+
+### 現在の判定
+
+Mask directional feather は主要実装が存在する一方、Render/Export FPS safety は設定同期と mismatch warning の統合が未確定。全体は「部分実装／runtime・export確認待ち」とする。
