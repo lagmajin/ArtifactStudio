@@ -965,3 +965,13 @@ struct ViewportBookmarkAppliedEvent : Event {
 - 単独で実装する場合は、回転と解像度状態を除外した基本版とする
 - 将来的には、ブックマークを他ユーザーと共有できるように拡張
 - クラウド同期機能も検討
+
+---
+
+## 2026-07-25 現状確認
+
+静的確認では、`ArtifactViewMenu.cppm` に `ViewportBookmarkStore` があり、composition ID ごとに CBOR 設定へ名前付きブックマークを保存・一覧・削除し、View メニューから保存／削除／復元できる。保存対象は zoom、pan、viewport orientation で、Composition Editor には専用の Bookmark ボタンもある。
+
+一方、仕様の 1〜9 ショートカット、並べ替え、編集ダイアログ、回転角度・解像度スケールの保存、プロジェクトファイルへの埋め込みは確認できない。保存先はプロジェクト内ではなく AppData の `ViewportBookmarks/viewport_bookmarks.cbor` で、回転・解像度マイルストーンも未実装のため完全な状態保存には至っていない。したがって本マイルストーンは「zoom / pan / orientation の基本版は実装済み、完全仕様は未完了」と判定する。
+
+確認範囲: `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`。ビルド・実機操作による動作確認は未実施。
