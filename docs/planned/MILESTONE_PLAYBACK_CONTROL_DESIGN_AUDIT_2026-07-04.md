@@ -148,3 +148,7 @@ AE / Premiere / Resolve / Avid / Final Cut の全 NLE が採用する標準的�
 - `Artifact/include/Service/ArtifactPlaybackService.ixx` — 再生サービス
 - `docs/WIDGET_MAP.md` — ウィジェット責務
 以下、AE / Premiere / Resolve / Blender / Maya / DAW（Ableton/Logic/Pro Tools）/ Unity / Unreal / Avid / Final Cut / VLC の **12 アプリ群**から収集。
+
+## 2026-07-25 実装監査
+
+再生／停止／step／seek／loop／speed／In-Out、PlaybackClock の負方向再生・loop・drop-frame counter、JKL と連打倍速／スロー操作、ScrubBar の cache 表示・clear は確認した。一方、Jog Wheel／Shuttle Slider、RAM preview の専用範囲・品質制御、Purge Memory、Dropped Frames UI、Ping-Pong／preroll／postroll、timecode 直接入力、marker／edit-point ジャンプ、MIDI／MTC 同期、再生プリセットは未確認または未実装である。基本トランスポートは部分実装、設計監査の全項目は未完了・runtime 未検証とする。
