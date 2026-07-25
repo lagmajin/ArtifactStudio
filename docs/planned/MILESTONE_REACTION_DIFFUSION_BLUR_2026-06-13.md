@@ -126,3 +126,7 @@
 - 次の実装単位は、まず時間状態の所有方法と preview / final の反復契約を定義し、既存 CPU 経路を transition へ接続すること。
 
 ビルド・実行確認はリポジトリ方針により未実施。
+
+### 追加静的確認
+
+`ArtifactInspectorWidget.cppm` の effect catalog、`ArtifactEffectService.cppm` の factory／catalog、`ReactionDiffusionBlurEffect.ixx`／実装の三者が `reaction_diffusion_blur` を共有しているため、Rasterizer effect としての登録・生成導線はソース上確認できる。未完了なのは、登録ではなく persistent な時間状態、transition 経路、GPU化、preview／final 契約、プリセットである。
