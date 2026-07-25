@@ -114,3 +114,18 @@ After Effects 風の編集感を出しつつ、既存のレイヤー移動・und
 4. hover / current key の状態が視覚的に分かる
 5. 既存のレイヤー操作や gizmo と競合しない
 
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースでは、`AnimatableTransform3D` に位置キーの spatial tangent 保存・取得・削除 API があり、レイヤー評価側も spatial position を参照している。Bezier 補間・モーションパス描画・キー編集の基盤も確認できるため、文書の Phase 1〜2 の「未実装」扱いは現状と整合する。
+
+一方、今回の確認では Composition Editor 上で in/out ハンドルを表示し、ドラッグして tangent を編集する専用 UI と、その操作を undo に記録する経路までは確認できなかった。選択中キーの強調やフレーム番号ラベルの完成、gizmo との競合回避、実行時の入力確認も未検証である。
+
+### Audit status
+
+- Phase 1: 実装済み相当 — 追加・削除・移動と undo 基盤を確認。runtime 未確認
+- Phase 2: 実装済み相当 — 補間 API / Bezier 基盤を確認。runtime 未確認
+- Phase 3: 部分実装 — hover / 補間表示は文書記載どおり。選択強調・フレーム番号は未確認
+- Phase 4: 未完了 — spatial tangent API はあるが、ハンドル編集 UI / undo は未確認
+- Status: `In Progress` を維持
