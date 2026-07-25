@@ -45,3 +45,9 @@
 - `docs/planned/MILESTONE_PAINT_LAYER_2026-06-16.md`
 - `docs/analysis/REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md`
 - `docs/FEATURE_DICTIONARY_2026-04-17.md`
+
+## 2026-07-25 実装監査
+
+- 専用の Content-Aware Fill／inpaint／PatchMatch 実装、動画フレーム間伝播、専用 UI・進捗・キャンセル・Undo 統合は確認できない。
+- 既存の RotoMask／RotoBrush、MaskCutout、ColorCorrection の Fill は関連する基盤または別責務であり、Content-Aware Fill の補完処理を実装済みとはみなさない。
+- よって本マイルストーンは DRAFT／未着手の判定を維持する。最初の実装単位は OpenCV inpaint を使う静止フレーム補完である。
