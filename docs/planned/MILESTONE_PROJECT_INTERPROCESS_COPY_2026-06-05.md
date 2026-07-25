@@ -268,3 +268,11 @@ Done when:
 - [MILESTONE_PROJECT_VIEW_TILE_MODE_2026-06-05.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_PROJECT_VIEW_TILE_MODE_2026-06-05.md)
 - [MILESTONE_PROJECT_ASSET_WORKFLOW_2026-03-27.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_PROJECT_ASSET_WORKFLOW_2026-03-27.md)
 - [MILESTONE_ADVANCED_COPY_PASTE_2026-03-28.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_ADVANCED_COPY_PASTE_2026-03-28.md)
+
+## Static Audit (2026-07-25)
+
+現状の実装には、プロジェクト間コピーの主要経路が存在する。`ArtifactProjectBundleIpc` は layer / composition / parametric-composition / project-items の JSON bundle を同一プロセスへ適用し、`QLocalServer` / `QLocalSocket` による別インスタンス間の転送と、失敗時の clipboard 退避を実装している。Project Manager には Copy Item Snapshot / paste 導線があり、asset のプロジェクト内コピーと複数の `QMimeData` drag/drop 経路も確認できる。
+
+一方、bundle は JSON の妥当性と基本的な import 成否を確認する範囲に留まり、依存 asset の列挙・sidecar 同梱・不足依存の診断／再リンク、部分成功の詳細通知、atomic rollback、交換フォーマットのバージョン管理は確認できない。QLocalSocket の接続・応答タイムアウトと clipboard fallback はあるが、別インスタンス間の実動作、依存を含む round-trip、破損 bundle の原因表示、Project View / Asset Browser / 各 editor の UX 統一は未検証である。
+
+判定: **部分実装。** Phase 1〜4 の基盤は実装済みだが、Phase 5〜6 と Done Criteria の runtime / failure-path 検証が残っている。
