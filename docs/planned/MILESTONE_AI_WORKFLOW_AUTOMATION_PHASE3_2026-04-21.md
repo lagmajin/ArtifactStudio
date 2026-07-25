@@ -2,6 +2,12 @@
 
 作成日: 2026-04-21
 
+**進捗状態:** Queue snapshot／control／explanation の API と schema 検査は実装済み。実 UI／render service 接続の runtime 検証待ち。
+
+### 実装状況（2026-07-25 確認）
+
+`WorkspaceAutomation` の queue snapshot／job list、status・progress・error message、enqueue／start／pause／cancel／rerun 操作と AI tool bridge を確認した。既存 `ArtifactRenderQueueService` を wrapper として再利用しており、残課題は実際の長時間ジョブでの状態遷移、失敗理由の表示、snapshot と操作結果の runtime 整合性検証。
+
 ## 目的
 
 レンダーキューを AI から追跡しやすくし、状態説明と基本操作を同じ導線で扱えるようにする。
@@ -65,4 +71,3 @@
 - `startRenderQueueAt`
 - `pauseRenderQueueAt`
 - `cancelRenderQueueAt`
-
