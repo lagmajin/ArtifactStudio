@@ -33,6 +33,10 @@
 - プロのカラーリストのワークフローに近い精度の色調整が可能になる。
 - リアルタイムスコープによる客観的な露出・色調整の実現。
 
+## 2026-07-25 実装監査
+
+ColorScopeRenderer の Waveform／Vectorscope／Histogram／RGB Parade と GPU bin データ向け描画、ArtifactHDRMonitor の解析 API、ColorWheels／ColorCurves／ColorGradingEngine、LUT 管理の基盤は実装を確認した。一方、これらをまとめた Color Grading 専用レイアウト、HDRMonitor からの継続的なスコープ更新、Inspector 双方向同期、LUT ブラウザのホバープレビュー、Wipe 比較表示、マスク部分適用 UI は確認できない。したがって Phase 1 の描画・解析部品は部分実装だが、Phase 2／3 の workspace 統合と受け入れ条件は未完了・runtime未検証とする。
+
 ## 🔗 関連マイルストーン
 - [M-CS-1 Advanced Color Science Pipeline](../done/MILESTONE_ADVANCED_COLOR_SCIENCE_PIPELINE_2026-03-29.md)
 - [M-FX-6 Color Correction / Grading](MILESTONE_COLOR_CORRECTION_2026-03-27.md)
