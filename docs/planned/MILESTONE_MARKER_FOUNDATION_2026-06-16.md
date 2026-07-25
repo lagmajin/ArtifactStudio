@@ -290,3 +290,21 @@ AE 互換の Marker は次の 3 つを担うが、現状どれも動いていな
 ## 8. 更新履歴
 
 - 2026-06-16: 初版作成。`MILESTONE_COMPOSITION_NOTES_SCRATCHPAD_2026-03-30.md` Phase 3 との分業を明示。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+`ArtifactInOutPoints`、Timeline、Project保存、Undo、AI automation の現行ソースを照合した。ビルド・実機操作確認は未実施。
+
+| Done criteria | 現状 | 判定 |
+|---|---|---|
+| Marker model／追加・検索・前後移動 | `ArtifactMarker`、`addMarker`、type/tag/range検索、next/previous、XML入出力を確認した。 | 実装済み基盤 |
+| Timeline表示・入力 | Timeline の `marker` は主に keyframe visual を指す。Composition marker の専用縦線帯・hit-test・追加導線は確認できない。 | 未完了 |
+| Inspectorで追加・編集・削除・ジャンプ | 専用 `MarkerListPanel` は確認できない。AI automation の `add_marker` は存在するが、通常UIの完了条件を満たさない。 | 未完了 |
+| project JSON保存／復元 | `ArtifactInOutPoints` の XML 経路はあるが、`composition.markers[]` の project JSON接続は確認できない。 | 未完了 |
+| Undo／ショートカット／Problem View | Marker専用 command、`*`／`M`／`Shift+M`、marker健全性warningの接続は確認できない。 | 未完了 |
+
+### 現在の判定
+
+MarkerのCore APIは実装済みだが、Timeline／Inspector／JSON／Undo／diagnostics の foundation 接続が未完了。現状は「Core基盤実装済み／UI統合未完了」とする。
