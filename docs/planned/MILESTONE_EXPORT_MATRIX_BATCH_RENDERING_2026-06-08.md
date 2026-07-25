@@ -1,5 +1,7 @@
 # Export Matrix & Batch Rendering (統合マイルストーン)
 
+> 2026-07-25 実装監査: `ArtifactBatchRenderer` の全コンポ追加・選択コンポ追加・filename pattern、BatchTemplate の保存／読込、Render Queue UI の batch 操作は実装を確認した。ExportMatrix の cell 解決と automation job／queue 入口も存在する。一方、用途ベース preset の完全な UI 整理、AlphaState の encoder／preview 間契約、alpha edge check、straight／premultiplied 比較、matrix job と実 render queue の runtime 一貫性は未確認である。Phase 1〜3 は基盤実装済み、Phase 4〜6 は部分実装・検証待ちとする。
+
 > 2026-06-08 作成 (統合元: `EXPORT_MATRIX_2026-06-07`, `BATCH_RENDERING_2026-03-28`)
 
 ## 目的
