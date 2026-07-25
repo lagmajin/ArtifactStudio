@@ -82,3 +82,20 @@ AE の RAM preview のように「一度貯めたフレームを連続再生し�
 - `ArtifactFrameCache` は既に存在する
 - `PlaybackEngine` もある
 - ただし RAM preview としての cache range / prewarm / playback priority はまだ独立した仕様になっていない
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の `ArtifactPlaybackService`、`ArtifactRamPreviewController`、`ArtifactFrameCache`、Playback/Timeline 導線を照合した。ビルド・実機再生は未実施。
+
+| Phase | 現状 | 判定 |
+|---|---|---|
+| 1. Cache Range Model | preview range、frame state、requested/ready/failed、work-area/loop 周辺の状態と frame bitmap がある。 | 実装済み／実行確認待ち |
+| 2. Prewarm / Fill | priority build queue、playhead/near/directional/work-area の順序、キャンセル、generation invalidation がある。 | 実装済み／実測待ち |
+| 3. Playback Integration | final composition frame の ready 判定、RAM LRU、disk hydrate、playback fallback の基盤がある。 | 部分実装／ready range の安定再生確認待ち |
+| 4. UI / Diagnostics | cache bar、hit rate、cached count、failure reason、clear/build/stop のサービス導線がある。 | 部分実装／全 widget の同一状態表示確認待ち |
+
+### 現在の判定
+
+当初の「range/prewarm/priority が独立仕様になっていない」という記載は現行コードでは更新が必要。Phase 1〜2 はコード上進展しており、残る中心課題は Phase 3〜4 の実行経路統合・再生保証・診断表示である。
