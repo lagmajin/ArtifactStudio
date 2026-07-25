@@ -5,7 +5,7 @@
 **優先度**: P2 (Medium)
 **推定工数**: 2-5日
 **カテゴリ**: Accessibility / UI Ergonomics / Input
-**状態**: Phase 1 implemented — runtime verification pending
+**状態**: Phase 1 partially implemented — runtime verification and broader left-handed placement pending
 **依存**: 既存 UI レイアウト、入力系、メニュー配置、設定保存基盤
 
 ---
@@ -159,6 +159,10 @@ Phase 2 では、Phase 1 の設定土台を使って、実際の操作体験を�
 - [x] 左利き向けと障碍者向けの共通・個別が整理される
 
 Phase 2実装完了（ランタイム検証 pending）。
+
+## 2026-07-25 実装監査
+
+共通設定の保存・復元、`Accessibility` ヘルパー、メニューバーの左利き時 RTL、タイムライン／Property Editor の大きいヒットターゲット・高コントラスト・色覚補助・Accessible Name/Description は実装を確認できる。一方、`adjustContextMenuPosition()` は定義されているが呼び出し箇所を確認できず、主要 widget 全体の左右配置やショートカット再配置も未実装である。したがって Phase 1〜2 は設定と一部 widget 適用まで、Phase 3 の横断統合は未完了とする。実際の設定変更後の UI 更新、RTL レイアウト崩れ、支援技術からの読み上げは runtime 未確認。
 
 ---
 
