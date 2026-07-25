@@ -32,6 +32,12 @@
 - `ApplicationSettingDialog` から scrub 設定を操作できる
 - したがって、文書上の「未着手」ではなく、**実装済みだが検証・磨き込み継続中** とみなすのが実態に近い
 
+## 2026-07-25 静的確認
+
+`ArtifactAudioScrubController`／worker は実在し、scrub 開始・位置更新・停止、debounce、latency target、速度由来 volume、設定保存、cache miss 通知、diagnostics を提供する。Timeline Widget と Composition Editor が controller を呼び出し、Application Setting Dialog から有効化・遅延・音量を変更できる。通常再生とは別の scrub worker／buffer 経路で構成されている。
+
+ただし、AudioCache の実ヒット率、音声出力デバイス上の実測遅延、mute／solo／volume の即時反映、video scrub との lock-step、急速ジャンプ時の中断、長時間操作時の worker 終了安全性は静的確認だけでは保証できない。判定は「実装済み、実機検証と運用上の磨き込み待ち」とする。
+
 ---
 
 ## 1. 目的
