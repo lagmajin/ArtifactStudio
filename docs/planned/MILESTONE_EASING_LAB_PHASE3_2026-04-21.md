@@ -51,3 +51,18 @@ After this phase lands, the next implementation slice should be:
 1. extend the preset set if needed
 2. add per-segment comparison metadata
 3. decide whether the lab should also offer bezier-edit shortcuts
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+Timeline の easing lab 接続を確認した。selected keyframe marker の抽出、dialog 起動、interpolation change record、undo command、redo path が現行ソースに存在する。
+
+| Definition of Done | 現状 | 判定 |
+|---|---|---|
+| open from editor surface | Timeline の選択状態に応じて `Ease+` button を表示し、Animation menu にも起動 action がある | 実装済み |
+| apply updates selected keyframe | dialog callback が selected markers の interpolation change records を生成し、実際の composition property に適用する | 実装済み（静的確認） |
+| undo / redo valid | `ApplyInterpolationCommand` が before/after records を保持し、undo/redo を実装する | 実装済み（静的確認） |
+| selection stability | dialog 起動時に selection/markers を capture する経路はあるが、dialog 中の外部 selection 変更は未実行確認 | 部分実装・検証待ち |
+
+**判定**: Phase 3 の実装要件はソース上達成。runtime の apply、undo、redo と selection 競合は未検証。
