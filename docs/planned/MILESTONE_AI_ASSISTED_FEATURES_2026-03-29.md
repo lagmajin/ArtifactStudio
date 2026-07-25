@@ -18,6 +18,10 @@
 | Style Transfer | ❌ 未実装 |
 | Auto-Rigging | ❌ 未実装 |
 
+## 2026-07-25 実装監査
+
+AI Expression Copilot／AI client／ObjectDetector API／ColorGrading 基盤と、AI の説明カタログに background removal 等の説明は確認した。一方、Auto-Reframe の追従実装、Background Removal の実マット生成、一括処理、Style Transfer、複数ショットの Auto Color Match、Auto-Rigging の実装は確認できない。したがって現状表の「完成」は既存の関連基盤・入口を指す範囲に限定し、制作補助機能全体は未完了・runtime未検証とする。
+
 ---
 
 ## 機能
