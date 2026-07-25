@@ -27,6 +27,7 @@
 - `AnimationLayerStackT<float>` の Additive / Override、Weight、Mute、Solo、JSON 保存／復元を実装。
 - `ArtifactAbstractLayer` の Opacity／Transform チャンネル評価、Property Editor 表示、コンテキスト操作、Undo を実装。
 - 現在フレーム Bake と範囲 Bake を、単一 Override Layer へのキーフレーム縮約として実装。
+- レイヤーコンテキストメニューから Work Area 全体を範囲 Bake でき、1回のスナップショット Undo で復元可能。
 - タイムライン上の Anim Layer 選択 UI、Merge／Zero Key、ビルド検証は未完了のため本マイルストーンは `done` へは移動しない。
 
 ---
