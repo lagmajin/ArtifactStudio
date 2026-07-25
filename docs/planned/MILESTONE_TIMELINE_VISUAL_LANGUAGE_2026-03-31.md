@@ -113,6 +113,21 @@
 
 ---
 
+## 2026-07-25 現状確認
+
+実装は Phase 1〜4 相当まで進んでいる。`ArtifactTimelineWidget.cppm` に Video / Audio / Text / Shape / Image / Solid / Camera / Light / Particle 等の layer type 色があり、選択状態は layer panel と右側 timeline の両方で accent／左ボーダーとして表現される。`ArtifactTimelineTrackPainterView.cppm` では marker の interpolation、easing、color label、lane、selected／hover／current 状態を分け、playhead は `TimelinePlayheadDraw` 共通 helper を使って描画している。Scrubbar も同じ theme token を参照する。
+
+未完了・未確認:
+
+- layer color の定義を共通 token／enum に一元化すること
+- 通常／選択／easing／disabled の marker 形状ルールを専用 state helper に集約すること
+- overlay、scrubbar、track painter、playhead の全設定組み合わせで二重描画がないことの実機確認
+- 色覚差へのコントラスト検証と light/dark theme 回帰
+
+したがって「視覚表現の主要な実装と同期は済み、共通化と品質検証が残る」と整理する。
+
+---
+
 ## Next Execution Slice
 
 Phase 1 は、色の意味を layer type と状態の 2 軸に分けて固定する。
