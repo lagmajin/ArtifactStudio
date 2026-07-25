@@ -46,3 +46,17 @@
 
 - `Arc / Rounded Rect / Styled Polyline` の追加は renderer façade の拡張としては有望だが、`CompositionRenderController` から low-level call site を増やす形では入れない
 - まず `ArtifactIRenderer` / `PrimitiveRenderer2D` に閉じた実装面として用意し、その後 shape workflow から採用する順を守る
+
+## Static Audit (2026-07-25)
+
+安全ゲートの記録基盤はかなり進んでいる。`ArtifactIRenderer` は `PrimitiveRenderer2D`、particle renderer、FrameDebug pass/resource summary、RT diagnostics を所有し、粒子描画には empty／device-null／invalid-viewport／no-RTV の skip と診断ログがある。`CompositionRenderController` には render crash trace、FrameDebug snapshot、not-ready／hidden／in-progress の skip 記録があり、renderer façade 側に描画責務を集約する方向は確認できる。
+
+一方、`ArtifactIRenderer` には依然として `immediateContext()` の公開APIと複数の low-level context操作が残り、`CompositionRenderController` にも immediate context 取得箇所が存在する。従って M-IR-8 の de-direct、全call siteの一括移行、particle draw helper化、startup worker churn trace、各backend／render-target復帰の実行確認は未完了。これは実装完了ではなく、危険な変更を再開する順序と観測点が整った「安全ゲート準備済み」と判定する。
+
+確認対象:
+
+- `Artifact/src/Render/ArtifactIRenderer.cppm`
+- `Artifact/src/Render/PrimitiveRenderer2D.cppm`
+- `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- `ArtifactCore/include/Frame/FrameDebug.ixx`
+- `ArtifactCore/include/Diagnostics/Trace.ixx`
