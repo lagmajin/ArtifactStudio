@@ -128,6 +128,21 @@ AE 風の RAM preview に寄せて、`ArtifactTimelineScrubBar` 上に
 ## Recommended Order
 
 1. Cache Range Contract
+
+---
+
+## 2026-07-25 現状確認
+
+主要部分は実装済み。`ArtifactTimelineScrubBar` には単一の cached range と、ready / failed / on-disk の frame bitmap を受け取る API があり、分断された区間も連続 run として描画する。緑の RAM cache、青の on-disk、赤の failed 表示を current frame の進捗表示と同じ surface 上で重ね、frame count、ruler zoom、scrub／seek の visual frame と同期している。`ArtifactTimelineWidget` は playback の RAM preview cache bitmap と frame state を収集して scrubbar へ渡す経路を持つ。
+
+未完了・未確認:
+
+- playback の warm / stale / 再生・停止・loop 変化に対する実機回帰
+- cache 情報が空・未提供の場合の明示的な診断表示
+- overlay style の選択や glow / striped 表現の設定化
+- 大量フレーム、分断区間、長時間 RAM preview での描画負荷確認
+
+したがって「Cache Range Contract と Overlay Rendering は実装済み、Diagnostics と実運用検証は未完了」と整理する。
 2. Scrub Bar Overlay Rendering
 3. Playback / Cache Bridge
 4. Diagnostics / Empty State
