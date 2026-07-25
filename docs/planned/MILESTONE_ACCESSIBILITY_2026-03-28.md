@@ -9,6 +9,7 @@
 実装追加: Contents ViewerにAccessible Name/Descriptionを設定。
 実装追加: Project ViewにAccessible Name/Descriptionを設定。
 実装追加: Asset BrowserをStrongFocusおよびAccessible Name/Description対応。
+実装追加: InspectorにAccessible Name/Descriptionを設定。
 **関連コンポーネント:** 全 UI コンポーネント
 
 ---
