@@ -143,3 +143,12 @@ AutoMosaicEffect (新規エフェクト)
 3. **パフォーマンス**
    - 毎フレーム全検出は重いため、キーフレームで検出 → 間はトラッキング
    - ダウンサンプリングして検出 → 座標をスケールバック
+
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+FaceDetectionEngine、FaceTracker、AutoMosaicEffect の実装と include／module 登録を確認した。AutoMosaic は face detection の有効化、検出領域への pixelate／Gaussian／median 処理、feather、強度等の property を持つため、文書冒頭の Not Started は現状と不一致である。
+
+ただし、Haar／DNN の実モデル選択、検出キャッシュと追従平滑化の実運用、除外顔選択 UI、Inspector preview、OpenCV resource 配置、実フレーム検証は未確認である。Phase 1〜2 はソース実装済み、Phase 3 は基盤あり・検証待ち、Phase 4 は UI 統合未確認として更新する。
