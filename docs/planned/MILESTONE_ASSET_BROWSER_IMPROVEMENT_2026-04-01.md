@@ -1,6 +1,6 @@
 # Milestone: Asset Browser Improvement (2026-04-01)
 
-**Status:** Phase 1 (P0) Complete
+**Status:** Phase 2 (P1) In Progress
 **Goal:** アセットブラウザの基盤強化とUX改善
 
 ---
@@ -27,6 +27,9 @@
 ---
 
 ## Phase 2: P1 UX 向上
+
+実装済み: 非同期サムネイル／波形生成、ホバープレビュー、Size／Date／Typeソート、昇順／降順切替。
+未完了: ブレッドクラムの完全導線、お気に入りの専用セクションと永続化。
 
 ### 2.1 ブレッドクラムナビゲーション
 - パスラベルをパンくずリストに変更
