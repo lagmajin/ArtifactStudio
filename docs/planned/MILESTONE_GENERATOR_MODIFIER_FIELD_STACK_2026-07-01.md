@@ -392,3 +392,10 @@ modifiers[1]:
 - `Artifact/include/Layer/ArtifactLayerComponentSystem.ixx`
 - `Artifact/src/Layer/ArtifactAbstractLayer.cppm`
 - `docs/planned/MILESTONE_LAYER_COMPONENT_PIPELINE_2026-07-01.md`
+
+## 2026-07-25 実装監査
+
+- 既存 `component.cloner.*` 互換 property、`layerCloneModifiers()` の複数 modifier 管理、time-offset／sequence 系の compatibility modifier、weight／scale／time offset の伝播はコード上で確認できる。
+- `FieldComponent.ixx` の Solid／Sphere／Box／Linear／Radial／Noise field 基盤と、field influence の consumer 接続も存在する。
+- 一方、single cloner を正式な `generators[0]` descriptor へ正規化する永続的内部契約、複数 generator の append evaluator、独立 `fields[]` stack、generator／modifier ごとの field binding／remap の完全実装は確認できない。
+- 旧 `component.cloner.*` 互換を維持したまま段階移行する設計方針は妥当だが、5段階全体は未完了と判定する。runtime の複数 generator／modifier／field 評価も未検証である。
