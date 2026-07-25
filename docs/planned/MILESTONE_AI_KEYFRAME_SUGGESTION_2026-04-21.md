@@ -121,3 +121,7 @@
 - 最初は transform / opacity に限定する
 - 完全自動化は狙わない
 - まずは「提案の質」と「比較のしやすさ」を優先する
+
+## 2026-07-25 実装監査
+
+既存の EasingLabWidget、KeyPatternDialog、Timeline／Property 側の keyframe 編集・preview・Undo 経路は確認した。一方、`KeyframeSuggestionContext`／`KeyframeSuggestionSample`／`AIKeyframeGenerator`／`KeyframeSuggestionCandidate` の専用型、既存 keyframe の AI 解析、候補比較の timeline 表示、提案適用の専用導線は確認できない。したがって既存 easing／keyframe 基盤は利用可能だが、Phase 1〜4 と本マイルストーンの Completion Criteria は未実装・runtime未検証とする。
