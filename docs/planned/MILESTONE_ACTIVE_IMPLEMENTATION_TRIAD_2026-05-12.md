@@ -79,6 +79,13 @@ If starting now:
 - `Mask / Roto Editing` is an editor-routing slice and benefits from the first two being clear
 - if a session stalls, return to the Phase 1 memo instead of jumping to the broader milestone
 
+## Static audit follow-up (2026-07-25)
+
+- Project Health / Problem View Wiring and Timeline Keyframe Editing remain correctly classified as completed in the referenced done memos.
+- Composition Mask/Roto has materially advanced beyond the original entry-only scope: mask-tool routing, shortcuts, path/segment/vertex/tangent hit tests, Bezier helpers, guide visibility, mask creation, and undo command paths are present in the composition editor/controller.
+- Full interaction quality for vertex/Bezier editing, multiple-mask/mode conflicts, and runtime state synchronization remains unverified. The triad status therefore stays “1-2 complete; 3 implemented beyond Phase 1 with follow-up remaining.”
+- No build or runtime verification was performed under the repository policy.
+
 ---
 
 ## Related Docs
