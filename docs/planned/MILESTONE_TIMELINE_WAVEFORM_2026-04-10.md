@@ -56,3 +56,9 @@ After Effects のタイムラインにオーディオレイヤーの波形を表
 - ズーム時の表示品質
 - インタラクションの正確性
 - パフォーマンス劣化の確認
+
+## 2026-07-25 整理
+
+この文書の中核表示要件は、`MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md` と `docs/done/MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md` の正規経路へ統合済み。現行実装は `ArtifactTimelineWidget` が波形データを準備・キャッシュし、`ArtifactTimelineTrackPainterView` が Audio clip の peak／RMS を描画する。
+
+したがって本書は独立した未着手マイルストーンではなく、重複する歴史的設計メモとして扱う。クリックseek、trim／gain直接編集、ズーム品質、設定保存、大量音声時の性能は後続のAudio専用編集・検証項目として残る。
