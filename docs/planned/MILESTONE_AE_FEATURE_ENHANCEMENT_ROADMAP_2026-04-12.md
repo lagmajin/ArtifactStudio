@@ -323,3 +323,9 @@ Phase 5 (プロ品質)
 - [MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md](../../docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md)
 - [MILESTONE_ROADMAP_2026-03-10.md](MILESTONE_ROADMAP_2026-03-10.md)
 - [MILESTONE_V1_4_CREATION_FLOW_AND_MODULE_ROLLOUT_2026-03-11.md](MILESTONE_V1_4_CREATION_FLOW_AND_MODULE_ROLLOUT_2026-03-11.md)
+
+## Static audit follow-up (2026-07-25)
+
+- The April baseline is stale relative to current source: BlendMode and GPU blend shader coverage is substantially broader; Bezier interpolation, time remap/frame-blend contracts, shape operators/trim paths, Python APIs, templates/slots, AI bridges, precompose, and motion-blur foundations now exist in dedicated areas.
+- This roadmap is an umbrella plan and its unchecked boxes should not be interpreted as a current implementation inventory. The source scan still does not prove full completion of track-matte chaining, adjustment-layer parity, complete expression runtime/editor, camera tracking, plugin SDK, OCIO/deep compositing, or team/cloud workflows.
+- Detailed status should continue to be maintained in the newer dedicated milestone documents. No build or runtime verification was performed under the repository policy.
