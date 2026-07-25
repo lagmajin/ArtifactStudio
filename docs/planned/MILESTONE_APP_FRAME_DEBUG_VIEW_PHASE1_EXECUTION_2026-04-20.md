@@ -255,3 +255,22 @@ Phase 1 が終わると、Phase 2 で pass / resource inspector を独立 surfac
 - [`docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_2026-04-20.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_2026-04-20.md)
 - [`docs/planned/MILESTONE_APP_INTERNAL_DEBUGGER_2026-04-17.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_INTERNAL_DEBUGGER_2026-04-17.md)
 - [`docs/planned/MILESTONES_BACKLOG.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONES_BACKLOG.md)
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行コードを確認した。ビルド・実機操作は未実施。
+
+| Ticket | 現状 | 判定 |
+|---|---|---|
+| P1-T1 Core Frame Debug Model | `FrameDebugSnapshot`、pass/resource/attachment、compare state、capture/bundle の型と JSON/summary 周辺が存在する。 | 実装済み／保存運用確認待ち |
+| P1-T2 Renderer Summary Hook | Frame snapshot は render/backend/fallback/resource の要約を持つ。renderer 全経路からの attachment/readback 網羅は未確認。 | 部分実装 |
+| P1-T3 Queue Summary Hook | RenderQueue service/widget と failure/progress の基盤がある。failed frame/rerender candidate の snapshot 接続は未確認。 | 部分実装 |
+| P1-T4 Playback Summary Hook | Playback engine/service に current frame、play/pause/seek/step 状態がある。snapshot への全経路統合は未確認。 | 部分実装 |
+| P1-T5 Composition Summary Hook | Composition/render controller と FrameDebugView の snapshot 表示がある。frame pin の永続・再参照は未確認。 | 部分実装 |
+| P1-T6 Display Fallback | Debug Console、Profiler、Frame Debug、Harness に summary/copy/filter/report の面がある。専用 view なしの共通 fallback は未確認。 | 部分実装 |
+
+### Phase 1 判定
+
+Frame Debug のデータモデルと表示面はコード上かなり実装済み。ただし renderer/queue/playback の snapshot 接続網羅、failed frame の再参照、capture bundle の運用確認が残るため、Phase 1 は「部分実装／統合確認待ち」とする。
