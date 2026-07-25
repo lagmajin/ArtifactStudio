@@ -111,3 +111,10 @@
 | `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm` | メイン実装 (2543行) |
 | `Artifact/src/Asset/AssetDirectoryModel.cppm` | ディレクトリツリーモデル |
 | `Artifact/src/Asset/AssetMenuModel.cppm` | ファイルリストモデル |
+
+## 2026-07-25 実装監査
+
+- ファイル監視、非同期 thumbnail／waveform、hover preview、Size／Date／Type sort、breadcrumb、Favorites、Find References、Unused filter、内部 D&D、disk cache、各種 file operation の Undo／Redo 経路を確認できる。
+- 特に Phase 3 の relink／delete／sequence restoration／MacroUndo まで実装され、初版記載より進捗している。
+- 一方、Phase 1 の TBB 並列 thumbnail／filter scan、差分型 imported asset cache は確認できず、数千ファイル時の目標性能と runtime verification も未実施である。
+- よって UX／workflow 部分は概ね実装済み、性能基盤を残す `Phase 3 complete — runtime verification pending` 相当の判定を維持する。
