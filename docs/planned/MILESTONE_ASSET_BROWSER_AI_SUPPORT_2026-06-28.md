@@ -465,3 +465,9 @@ void analyzeImageAsync(const QString& path, std::function<void(AnalysisResult)> 
     });
 }
 ```
+
+## 2026-07-25 実装監査
+
+- 既存の AI agent／SceneClassifier description／OpenCV・FFmpeg 基盤は存在するが、Asset Browser 専用の `AssetAnalyzer`、`AutoTagger`、`SimilaritySearcher`、`ContentRecommender` は確認できない。
+- 自動タグ提案、視覚／metadata 類似検索、自然言語 smart filtering、一括 AI 処理、専用 AI panel／dialog／widget、Asset Browser へのコンテキストメニュー統合も未実装である。
+- 依存する Asset Tag System 自体が未着手のため、現時点での実装進行は確認できず、Planned／未着手の判定を維持する。
