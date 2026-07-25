@@ -34,7 +34,7 @@
 |---|---|---|---|
 | M-UG-1 | ネストコンポ長さ伝播 | `PreCompose.cppm` の `parentToChildTime`/`childToParentTime` は TODO 恒等変換スタブ。`ArtifactAbstractComposition::setFrameRange` にカスケードなし | 親/子コンポ長さ変更が互いに伝播せず「10レイヤー地獄」 |
 | M-UG-2 | アセットインスタンス共有 | `AssetManager`（`AssetManager.cppm`）が空スタブ、`AssetInstance` は計画のみ | 5 コピー = 5 回デコード / 5 回 GPU アップロード |
-| M-UG-3 | Easy Ease 速度ベース | イージーボタンは固定ベジェ（0.42/0.58）のみ。`EasyEase` シンボルなし、velocity ベース自動タンジェントなし | AE の F9 の「隣接速度からの気持ちよさ」がない |
+| M-UG-3 | Easy Ease 速度ベース | `ArtifactTimelineTrackPainterView` が隣接キーフレームの Δtime/Δvalue から速度ベースの Bezier ハンドルを算出。隣接不足・非スカラー値は 0.42/0.58 にフォールバック（2026-07-25 静的確認） | ✅ ソース実装完了（runtime 検証は未実施） |
 | M-UG-4 | 式ピックwhip | 式評価・エディタは実装済み。ドラッグでプロパティを繋ぐ AE 的 pickwhip は未実装（親子リンク pickwhip は別存在） | 式リンクがテキスト入力のみで面倒 |
 | M-UG-5 | プリコンポーズ作成 | `ArtifactProjectService::precomposeLayersInCurrentComposition()` に実コンポ生成・レイヤー移動・復元情報・Undo 導線を実装済み（2026-07-25 静的確認） | ✅ 完了（runtime 検証はスキップ） |
 | M-UG-6 | プロキシサービス統一 | `ArtifactProxyManager` に動画生成・パス管理・バッチ API を実装し、VideoLayer と Project View の動画キューを接続済み。品質 enum も共通化済み | 動画 proxy の runtime 検証と画像サムネイル責務の最終整理待ち |
