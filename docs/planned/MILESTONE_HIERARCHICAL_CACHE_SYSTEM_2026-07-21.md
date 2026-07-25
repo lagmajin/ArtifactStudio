@@ -276,3 +276,11 @@ struct CompositionFrameCacheState {
 - 2026-07-22: `ArtifactAbstractComposition::toJson()` の hash を disk namespace に追加し、composition 切り替え時は active namespace を先に削除するよう修正。
 - 2026-07-22: composition state hash は active namespace 内で再利用し、invalidation 時だけ再計算するよう cache。frame path 反復時の JSON serialize を抑制。
 - 2026-07-22: `ArtifactFrameCache` の memory usage を増分カウンタ化し、LRU/LFU/Size eviction を lazy candidate heap 化。stale heap は閾値で再構築。
+
+## 2026-07-25 実装監査
+
+- Layer／GPU／RAM preview／Disk preview の各基盤と、disk manifest v1・state hash・generation-safe invalidation は計画書の記載どおり実装済み。
+- `ready` の authoritative owner は `ArtifactPlaybackService` に集約され、layer cache hit と composition frame readiness は分離されている。
+- Phase 3 は上位 composition cache への state hash／persisted manifest 接続が未完了である。
+- Phase 5（RAM と disk 間の明示的な promotion policy）と Phase 6（intermediate cache／render queue 統合）は未着手であり、本マイルストーン全体は継続中と判定する。
+- ビルド・実行時の再生保証や Diligent backend の実測は未確認のため、コード監査だけで runtime 完了とは判定しない。
