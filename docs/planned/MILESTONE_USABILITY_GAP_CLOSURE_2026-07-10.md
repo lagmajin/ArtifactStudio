@@ -37,7 +37,7 @@
 | M-UG-3 | Easy Ease 速度ベース | イージーボタンは固定ベジェ（0.42/0.58）のみ。`EasyEase` シンボルなし、velocity ベース自動タンジェントなし | AE の F9 の「隣接速度からの気持ちよさ」がない |
 | M-UG-4 | 式ピックwhip | 式評価・エディタは実装済み。ドラッグでプロパティを繋ぐ AE 的 pickwhip は未実装（親子リンク pickwhip は別存在） | 式リンクがテキスト入力のみで面倒 |
 | M-UG-5 | プリコンポーズ作成 | `ArtifactProjectService::precomposeLayersInCurrentComposition()` に実コンポ生成・レイヤー移動・復元情報・Undo 導線を実装済み（2026-07-25 静的確認） | ✅ 完了（runtime 検証はスキップ） |
-| M-UG-6 | プロキシサービス統一 | `ArtifactProxyManager` に動画生成・パス管理・バッチ API を実装し、VideoLayer と Project View の動画キューを接続済み。画像サムネイル経路と品質 enum の完全統一は未完了 | 動画 proxy の共通生成経路は確立、runtime/enum整理待ち |
+| M-UG-6 | プロキシサービス統一 | `ArtifactProxyManager` に動画生成・パス管理・バッチ API を実装し、VideoLayer と Project View の動画キューを接続済み。品質 enum も共通化済み | 動画 proxy の runtime 検証と画像サムネイル責務の最終整理待ち |
 | M-UG-7 | テキストアニメータ専用トラック UI | エンジン・セレクタ・グリフ適用は実装済み。AE 的「アニメータ/セレクタ専用トラックパネル」なし（汎用プロパティトラック経由のみ） | アニメータ編集が直感的でない |
 
 ## 推奨実装順（影響範囲 × 体験向上）
