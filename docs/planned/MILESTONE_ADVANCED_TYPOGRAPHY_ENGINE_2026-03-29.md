@@ -1,6 +1,10 @@
 # Milestone: Advanced Typography Engine (2026-03-29)
 
-**Status:** Implementation Starting
+**Status:** Phase 1 の animator／shaping 基盤は実装済み、Phase 2/3 は未実装。Text Layer の統合検証待ち。
+
+### 実装状況（2026-07-25 確認）
+
+`TextAnimatorEngine` の transform／style override、GlyphItem の per-glyph 値、`Text.ShapingBackend`／Qt shaping と RTL 判定、Diligent の glyph 描画経路を確認した。残課題は Text Layer での全 animator 項目の表示反映、3D extrusion、Fluid／Physics 連携、OpenType 高度機能の runtime 検証。
 **Goal:** 文字単位の高度な変形・アニメーション制御により、AEを超えるタイポグラフィ表現を実現。
 **関連コンポーネント:** Text.Animator, Text.GlyphLayout, ArtifactTextLayer, Graphics.TextRenderer
 
