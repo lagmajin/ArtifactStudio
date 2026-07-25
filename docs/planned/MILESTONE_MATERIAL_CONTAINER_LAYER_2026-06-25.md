@@ -243,4 +243,11 @@ struct CloneSourceRef {
 4. Property に slot 数と Primary slot を表示する
 5. clone 連携はまだ入れず、設計上の `sourceIndex` だけ残す
 
+## 2026-07-25 実装監査
+
+- 現行コードに `ArtifactMaterialContainerLayer`、`MaterialContainerSlot`、`materialContainer.slots` の専用 model／JSON、通常表示の exposed slot、slot 単位 diagnostics は確認できない。
+- clone 側にも本マイルストーンの `CloneSourceRef.sourceIndex` を用いた Material Container 解決の実装は確認できない。
+- `Material`／PBR、3D model の base color／metallic-roughness texture は既存の別責務であり、素材コンテナーレイヤーの実装とは区別する。
+- したがって本マイルストーンは設計段階の `Draft` のままとし、Phase 1〜4 は未着手と判定する。
+
 この slice なら既存 composition tree と clone render に深く踏み込まず、後からクローナー連携を足せる。
