@@ -466,3 +466,10 @@ public:
 ## 8. 更新履歴
 
 - 2026-06-16: 初版作成。`WORKFLOW_GAP_DEEP_DIVE_2026-06-16.md` §1 を正式 milestone に起こした。
+
+## 2026-07-25 実装監査
+
+- `AssetManager` の canonical source registry、source lease／useCount／version、decoded payload cache、Image／Video／Audio layer の lease 接続を確認できる。
+- source UUID／version を使った GPU cache key、localize／Relink Shared、Project JSON の source registry 復元、Property／Project View／Asset Browser の Source Uses 表示、missing／orphan／duplicate decode／payload leak 診断も実装されている。
+- GPU cache の owner 単位観測 APIなど次段の観測面は追加済みだが、Done Criteria の「5 layer が同一 payload／GPU entry を実測」「unlink／relink の波及差」「保存後再読込の完全復元」は runtime 検証されていない。
+- `asset.gpu-leak` の完全な controller 接続、動画／音声を含む全派生経路の実測、build／runtime parity も未確認であり、Foundation は大きく進行したが milestone 全体は In Progress と判定する。
