@@ -95,3 +95,11 @@ void registerLoopFunctions(ExpressionEvaluator& evaluator);
 | Phase 2: ExpressionEvaluator 統合 | 2-4h |
 | Phase 3: テスト | 2-3h |
 | **合計** | **8-13h** |
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+ExpressionEvaluator には loopIn / loopOut / Duration 系の登録と関数名は存在するが、実装は入力値をそのまま返す簡易 placeholder であり、キーフレーム取得・cycle／pingpong／continue／offset の計算は確認できない。
+
+したがって Phase 1〜3 は未完了。1／0 キーフレーム時の規定動作、タイムリマップ併用、実行時テストも未検証として扱う。UI の Copilot 提案と runtime 実装が一致していないため、次の実装対象は PropertyContext からキーフレーム列と現在時刻を loop 関数へ渡す契約の確定である。
