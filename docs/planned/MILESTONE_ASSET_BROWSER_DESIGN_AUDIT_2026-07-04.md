@@ -126,3 +126,15 @@
 - QtCSS / `setStyleSheet()` の新規追加は禁止。見た目調整は `QPalette`、owner-draw、`QProxyStyle`、既存 theme token で解決する。
 - `QColorDialog` の新規使用禁止。色選択は `FloatColorPicker` を使用する。
 - 新規シグナル＆スロット接続は禁止。既存のイベント経路やサービスを再利用する。
+
+## 2026-07-25 実装監査（更新）
+
+現行 `ArtifactAssetBrowser` を再確認した。既存の P0/P1 指摘の一部は改善済みだが、監査書の問題一覧には旧状態が残っている。
+
+- 左 Hub は Sources / Favorites / Recent、summary、selection、status の入口を持ち、常時 Selected バッジを増やさず既存の選択表示を使っている。
+- grid/list 切替、thumbnail size slider、async thumbnail、hover popup、search/type/status filter、sort、sequence 表示、missing/unused/imported/favorite 状態は実装済み。
+- 依然として owner-draw の状態バッジ、リッチな File Details、タグ／AI／高度ソート、個別 sequence 展開、内部 D&D 移動などは未実装または別 milestone の範囲である。
+- したがって、元の「基本機能は揃っている」という評価は維持するが、P0 として記載された全項目を未達とみなすのは現状と一致しない。残課題は UI polish と別 milestone の機能に分けて扱うべきである。
+- runtime の画面密度・画面端・大量アセット時の UX は未検証。
+
+ビルド・実行確認はリポジトリ方針により未実施。
