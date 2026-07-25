@@ -93,3 +93,13 @@ After Effects 風のワークスペースプリセット機能を目指す。
 - `tab 順序` や細かな panel dependency は、一覧と破損対策が安定してから扱う
 - 自動修復やショートカットの追加は、保存/読込が安定した後の改善に回す
 - プリセット仕様は `WorkspaceManager` の責務メモと運用メモを分けて残す
+
+---
+
+## 2026-07-25 現状確認
+
+静的なソース確認では、基礎的なプリセット保存・一覧・復元・削除・名前変更は実装済み。`ArtifactWorkspaceManager` は `Presets/*.json` と `workspace_session.json` を分離し、ウィンドウ geometry と `WorkspaceMode` を保存・復元する。`ArtifactViewMenu` には保存、削除、最後のセッション復元、および一覧からの個別プリセット復元導線がある。
+
+一方、現仕様との差分として、保存対象は現在 geometry と workspace mode が中心で、ドック配置、タブ順序、全 dock の可視状態・サイズを包括的に保存する実装は確認できない。プリセット名変更の UI 導線、破損 JSON の個別エラー表示・自動修復、解像度変更時の補正、デフォルトプリセットの起動時適用、専用ショートカットも未確認。したがって本マイルストーンは「基礎 API / メニュー導線 実装済み、完全仕様と堅牢化は未完了」と判定する。
+
+確認範囲: `Artifact/src/Core/ArtifactWorkspaceManager.cppm`、`Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`。ビルド・実機操作による動作確認は未実施。
