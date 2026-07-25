@@ -11,6 +11,7 @@
 実装追加: Asset BrowserをStrongFocusおよびAccessible Name/Description対応。
 実装追加: InspectorにAccessible Name/Descriptionを設定。
 実装追加: Composition EditorにAccessible Name/Descriptionを設定。
+実装追加: 3D Model ViewにAccessible Name/Descriptionを設定。
 **関連コンポーネント:** 全 UI コンポーネント
 
 ---
