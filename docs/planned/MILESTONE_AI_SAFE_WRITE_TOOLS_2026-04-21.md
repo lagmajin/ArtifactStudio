@@ -2,6 +2,12 @@
 
 作成日: 2026-04-21
 
+**進捗状態:** Phase 1／3 と confirmation・Undo の主要経路は実装済み。Phase 2 の汎用 dry-run／execution plan と Phase 4 の監査ログは未完了。
+
+### 実装状況（2026-07-25 確認）
+
+WorkspaceAutomation／CommandIR の service wrapper、破壊操作の confirmation message、各種 Undo command／macro、batch rename／move、render queue 操作を確認した。残課題は `WriteToolDryRunResult`／`WriteToolExecutionPlan`／`SafeWriteAuditEntry` 相当の共通契約、operation／confirmation log、UI と AI context の統一 payload。
+
 ## 目的
 
 AI が見つけた提案を、確認付きで安全に編集へ反映できるようにする。

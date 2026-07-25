@@ -2,6 +2,12 @@
 
 作成日: 2026-04-21
 
+**進捗状態:** Confirmation message／Undo／service wrapper は部分実装。汎用 dry-run result、execution plan、removal gate の実行時強制、audit log は未完了。
+
+### 実装状況（2026-07-25 確認）
+
+個別の削除確認メッセージと Undo 対応 mutation は存在するが、`operationName`／`riskLevel`／`affectedCounts`／before-after をまとめた共通 payload、全 destructive operation に対する一貫した gate、operation／confirmation／failure の永続ログは確認できないため未実装として扱う。
+
 ## 目的
 
 AI の write surface に dry-run / confirmation / execution plan を導入し、破壊的操作を安全に扱えるようにする。
