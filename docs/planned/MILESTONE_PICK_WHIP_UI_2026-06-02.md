@@ -77,3 +77,7 @@ After Effects の Pick-Whip UI を参考に、以下の要素を実装する：
 | Phase 2: リンク作成・編集UI | 4-6h |
 | Phase 3: 型チェック | 2-3h |
 | **合計** | **12-19h** |
+
+## 2026-07-25 実装監査
+
+PropertyLinkManager／property binding・expression の Core 基盤は確認できるが、Pick-Whip 用のプロパティ行アイコン、ドラッグ中のベジェワイヤー、ターゲット hover、ドロップ時の Direct／Inverse／Scale／Offset 選択、リンク解除・インジケータ、型互換性拒否 UI は確認できない。したがってリンクコアは部分的に存在するものの、M-MOTION-4 の視覚的操作導線は未実装・未検証とする。
