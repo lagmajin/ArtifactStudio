@@ -85,3 +85,11 @@
 すでに `AbstractCore` 内に `OpenCVPuppetEngine.ixx` という名称でスタブが用意されており、OpenCV をベースにしたアーキテクチャが想定されています。
 
 実装を進める場合、まずはコア部分である**「M1: メッシュ生成」**および**「M2: 移動最小二乗法 (Moving Least Squares) によるワープ処理」**の C++ 実装 (*OpenCVPuppetEngine.cppm*) から着手するのが最も確実なルートになります。
+
+## Static Audit (2026-07-25)
+
+`ArtifactCore/include/ImageProcessing/OpenCV/OpenCVPuppetEngine.ixx` には PuppetPin／PuppetMesh／変形手法 enum と engine API の宣言は存在するが、対応する `OpenCVPuppetEngine.cppm` の実装・CMake登録・呼び出し側の layer／UI／render integration は確認できない。OpenCV の RotoBrush／FaceTracker 等の別機能、一般的な Mesh／warp API、TransformGizmo は存在するが、Puppet Engine の実装完了を示すものではない。
+
+したがって、輪郭／グリッドからの Delaunay mesh 生成、pin 管理、MLS／TPS／ARAP、CPU `remap`、GPU mesh 出力、starch、画像上の pin 操作 UI、undo／serialization、実データでの deformation 検証は未実装または未確認である。
+
+判定: **Not Started（インターフェース stub のみ）。** M1〜M4 と Artifact 側の workflow／render 接続は未着手である。
