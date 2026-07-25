@@ -136,3 +136,16 @@ video 出力と audio 出力を最終ファイルにまとめる。
 
 2026-03-28 時点では、render queue は video-only が基本で、audio は後段 mux のための土台がある段階。
 この milestone で、audio / video を一つの出力導線にまとめる。
+
+## 2026-07-25 実装監査
+
+判定: Phase 1〜4 の統合経路は実装済み。audio extraction／mux の runtime 成否、複雑な seek・range、失敗時の video-only 保持は未検証。
+
+- `ArtifactRenderJob` に integrated render、audio source path、audio codec、bitrate、channel mode、sample rate があり、JSON 保存/読込にも含まれる。
+- composition audio は render snapshot から WAV に書き出し、外部 audio source と合わせて `FFmpegAudioEncoder::muxAudioWithVideo()` へ渡す。video は一時ファイルへ出し、mux 成功後に最終 output へ置き換える経路がある。
+- audio の有無、external source、integratedRenderEnabled を組み合わせて video-only と muxed output を分岐し、audio export 失敗時には外部音声へ切り替えるか job failure とする処理がある。
+- Render Queue UI/API には audio source、audio codec、bitrate、channel、sample rate の編集経路が存在する。
+- ただし composition の複数 audio layer の mix 規約、frame range と audio trim の精度、mux failure 後に video-only 成果を残す保証、container/codec ごとの alpha・metadata・sync の実機検証は未確認。
+- よって基本統合は実装済みだが、受け入れ条件を満たす runtime parity と障害時の成果物保持は未検証。
+
+ビルド・実行確認はリポジトリ方針により未実施。
