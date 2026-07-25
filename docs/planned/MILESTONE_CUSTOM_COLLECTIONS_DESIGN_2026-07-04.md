@@ -195,3 +195,10 @@ public:
 - `Mutex / Lock / Cond` はコレクション置換の土台が固まってから進める
 - `Callback<Sig>` と `Set<T>` は API 利用箇所の偏りを見てから広げる
 - `Queue<T>` / `Thread` は基礎型の採用が進んでから再評価する
+
+## 2026-07-25 実装監査
+
+- `ArtifactArray`／`ArtifactString`／`ArtifactPtr`／`ArtifactSet`／`ArtifactQueue`／`ArtifactThread`／`ArtifactCallback` と既存の `ArtifactHashMap`／`ArtifactOptional`／`ArtifactAtomic`／`ArtifactSpan`／`ArtifactVariant` の基盤型を確認できる。
+- `ArtifactFoundation` から自前型をまとめて公開する経路も存在するため、P0／P1 の受け皿は部分的に整備済みである。
+- ただしロードマップに示された std::vector／std::string／スマートポインタ／同期型等の既存利用箇所全体の置換は未完了で、使用箇所数規模の移行完了や品質検証も確認できない。
+- よって本マイルストーンは基盤型の一部実装済み、全体移行は未着手・継続中と判定する。
