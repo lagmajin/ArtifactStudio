@@ -131,5 +131,9 @@
 ## 注意点
 
 - 最初の版は全く正しく表示されなくても良い。とにかくクラッシュしないで開くこと。
+
+## 2026-07-25 実装監査
+
+`FileTypeDetector` の PMD／PMX と基本的な magic／拡張子判定、`MeshImporter` の PMD 最小読み込みは確認した。一方、VMD のバイナリ parser／bone・morph animation、Lottie parser／composition・shape・mask／effect 変換、PMD／PMX の material・texture・bone・morph、drag-and-drop と timeline 連携、Lottie の実装ファイルは確認できない。したがって Phase 0 と PMD Phase 1 の一部基盤のみで、VMD／Lottie を含む本 milestone は未完了・未検証とする。
 - ユーザーは「動かない」より「ちょっとバグってるけど動く」を100倍好む。
 - 不完全な状態でも早くリリースしてフィードバックをもらう方が、最終的な品質は遥かに高くなる。
