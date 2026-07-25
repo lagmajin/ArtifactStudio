@@ -87,3 +87,20 @@
 - `Motion Tokens` と相性がよい
 - `Content Bounds System` を使うと位置差の解釈が安定する
 - `Multi-Format Preview` で複数比率のループを同時確認しやすい
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+Loop Seam Checker 固有の model／checker／UI／export warning を現行ソースで検索した。ビルド・実データ検査は未実施。
+
+| Phase | 現状 | 判定 |
+|---|---|---|
+| 1. Seam Metrics | position／rotation／opacity／color／time-remap の first/last 比較を担う `LoopSeamChecker` 相当の実装は確認できない。 | 未実装 |
+| 2. Inspection View | first/last 差分、mismatch分類、warning、loop適合度を表示する専用UIは確認できない。 | 未実装 |
+| 3. Export Feedback | GIF／loop export 前に seam mismatch を判定・警告する接続は確認できない。 | 未実装 |
+| 関連基盤 | loop処理、procedural texture の seamless設定、export／previewの個別機能はあるが、本 checker の判定契約とは別。 | 部分的な関連基盤 |
+
+### 現在の判定
+
+本マイルストーン固有の検査モデル、可視化、export feedback は未着手。既存の loop／seamless 機能だけでは完了条件を満たさないため、「計画段階」とする。
