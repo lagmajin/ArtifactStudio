@@ -95,3 +95,8 @@ waveform preview をワークフローに乗せる。
 - 音声素材がプロっぽく見える
 - 検索 / sort / status 表示と共存できる
 
+## 2026-07-25 現状確認
+
+Asset Browser には音声ファイルを対象にした波形サムネイル生成が実装済み。`QtConcurrent`／`QFutureWatcher` による非同期処理、最大30秒の軽量読み込み、peak／RMS envelope の描画、生成中の通常アイコン fallback、失敗パスの記録、thumbnail cache、世代番号による古いジョブ破棄、300ms hover preview が存在する。
+
+未完了または未検証なのは、cache key のファイルサイズ／更新時刻／sample rate 連携、長時間音声全体の代表性、cache eviction、詳細パネル・Source Inspector・Render Queue との表示整合、実行時の大量アセット負荷である。判定は「Phase 1／2と初期UXは実装済み、長時間音声と運用面の仕上げが残る」とする。
