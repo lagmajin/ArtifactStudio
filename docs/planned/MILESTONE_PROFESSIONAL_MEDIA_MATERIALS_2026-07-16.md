@@ -56,3 +56,11 @@ explicit interpretation and later display conversion.
 - raw values are unchanged until an explicit interpretation is selected;
 - log/HDR sources do not get clamped to 8-bit during ingest;
 - working-space and display-space transforms remain separate.
+
+## 2026-07-25 実装監査
+
+- `RawImage`／`ImageImporter`／`SourceInterpretOverride`／`FootageInterpretService` に、source color space、transfer、primaries、bit depth の保持と Auto／Linear／sRGB／ACES 系の明示的解釈設定が存在する。
+- importer が入力画素を暗黙に display transform せず、EXR float／16-bit 読み込みを保持する境界は確認できる。
+- `OCIOConfig`、ACES／transfer／gamut の基盤は存在するが、working-space conversion が effects／mask／compositing 前に一度だけ適用される統合経路、および display/output transform との完全な分離はコード監査だけでは確認できない。
+- EXR／HDR／10／12／16-bit／log source の実ファイル round-trip、metadata retention、export 検証は未実施である。
+- よってステータスは `Phase 1〜2 implemented / Phase 3〜5 partial and runtime validation pending` のままとする。
