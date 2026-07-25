@@ -2,6 +2,8 @@
 
 > 2026-06-07 作成
 
+> 2026-07-25 実装監査: `ExportMatrix`／variant／preset／cell rule の JSON schema、cell 解決、WorkspaceAutomation の resolve／job生成／現行 composition への queue 入口は実装を確認した。一方、本書の alpha clarity 要件（用途プリセットのUI、straight／premultiplied の比較、alpha edge check、export 前の警告集約）は別の出力基盤と部分的な警告に留まり、専用の一貫した preview／preflight workflow は未確認である。Matrix のデータ／automation 基盤は実装済み、UI と alpha 契約・検査は継続とする。
+
 ## 目的
 
 書き出し時の `channel` / `alpha` / `premultiplied` / `straight` の混乱をなくし、
