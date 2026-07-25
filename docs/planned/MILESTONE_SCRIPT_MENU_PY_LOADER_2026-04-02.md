@@ -1,5 +1,15 @@
 # Milestone: Script Menu / menu.py Loader (M-PY-2)
 
+## Static Audit (2026-07-25)
+
+`ArtifactScriptMenu` は `scripts/menu.py` のパスを定義し、初回に scaffold とサンプルコメントを作成し、ファイルを開く導線を提供している。しかし、menu.py を PythonEngine でロードして QAction／submenu に変換する実装は確認できない。
+
+- 実装済み: built-in Script menu、scripts root の決定、`menu.py` の雛形生成、hooks/macros の探索と再表示、Hook の有効・無効設定、Python macro/hook の実行、失敗時の表示。
+- 未実装または未確認: `menu.addCommand(...)` 相当の Python API、separator／nested submenu、登録の idempotence、script command と built-in item の共通 merge、script source の metadata、menu.py の success/failure log、reload 時の動的 QAction 差し替え、broken source の disable、script loading の enable/disable 設定。
+- `ArtifactPythonHookManager` の workspace API は個別関数登録の基盤になるが、menu registration API ではない。したがって hook/macro の実行可能性を menu.py loader の完了根拠にはできない。
+
+判定: Phase 1 の「雛形と入口」は部分的に存在するが、loader skeleton の実行、Phase 2〜4 は未達。次の最小作業は PythonEngine の実行環境と UI QAction の寿命を分離した menu registry を追加し、menu.py の登録失敗を既存診断へ流すこと。
+
 ## Goal
 Build a script entry point that starts as a stable built-in menu and later grows into a Nuke-like `menu.py` system.
 
