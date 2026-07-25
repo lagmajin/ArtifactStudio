@@ -99,3 +99,18 @@ public:
 | Phase 2: メッシュ操作UI | 8-12h |
 | Phase 3: キーフレーム連携 | 4-6h |
 | **合計** | **20-30h** |
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースには `LiquifyEffect` があり、CPU 実装と Push 向け GPU 実装、Push / Pinch / Bloat / Twirl / Turbulence / Pucker 等のブラシ種別、半径・強度・中心・角度・mesh density のプロパティ、EffectService からの生成登録まで確認できる。したがって Liquify のエフェクト基盤は部分的に実装済みである。
+
+一方、このマイルストーンが要求する独立した `MeshWarpEngine`、NxM 頂点の永続メッシュ、Composition Editor 上のワイヤーフレーム／頂点ピッキング UI、頂点群のキーフレーム補間、4x4〜32x32 密度 UI、ホイールによるブラシ半径操作は確認できない。既存の `OpenCVPuppetEngine` は Puppet 用の別経路であり、メッシュワープ完了の根拠にはしない。
+
+### Audit status
+
+- Phase 1: 部分実装 — Liquify の画像変形は存在するが、独立した MeshWarpEngine / 頂点メッシュ API は未確認
+- Phase 2: 未実装相当 — 専用 Mesh Warp widget、ワイヤーフレーム、頂点／領域操作 UI は未確認
+- Phase 3: 未実装相当 — メッシュ頂点群のキーフレーム登録・補間・タイムライン表示は未確認
+- Definition of Done: Liquify 基盤の一部のみ達成。メッシュワープ機能全体は未完了
