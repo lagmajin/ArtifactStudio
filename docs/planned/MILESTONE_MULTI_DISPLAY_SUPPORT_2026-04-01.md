@@ -158,3 +158,19 @@
 4. **パフォーマンス**
    - セカンドモニタープレビューは解像度を落とした更新も可能にする
    - 更新レート制限（30fps/60fps 選択可能）
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースでは `ArtifactSecondaryPreviewWindow` が存在し、`QGuiApplication::screens()` による画面一覧、`showOnScreen()`、`availableGeometry()`、fullscreen 切替、View Menu からの起動を確認できる。したがって文書の Phase 1〜2 を「未着手」とする記載は現状と一致しない。レンダー側には window / widget の device pixel ratio 更新処理もある。
+
+一方、専用 `MultiDisplayManager`、画面ごとの解像度・リフレッシュレート・カラープロファイル管理、画面別 workspace profile、ドックの画面間移動とレイアウト復元、OSD・フレーム操作・プレビュー更新契約は確認できない。実際の複数画面・異なる DPI での runtime 検証も未実施である。
+
+### Audit status
+
+- Phase 1: 部分実装 — Secondary Preview Window / screen selection / fullscreen を確認
+- Phase 2: 部分実装 — fullscreen と DPR 基盤を確認。OSD・専用入力・更新同期は未確認
+- Phase 3: 未完了 — 画面情報・色プロファイル・設定ページを統合する Manager は未確認
+- Phase 4: 未着手相当 — dock の画面間レイアウト記憶・profile は未確認
+- Status: `Not Started` から `部分実装・マルチディスプレイ統合待ち` に更新相当
