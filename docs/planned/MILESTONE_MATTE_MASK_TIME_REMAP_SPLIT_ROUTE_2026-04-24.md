@@ -50,3 +50,20 @@
 - もし次に実装へ進むなら、最初の一手は `Matte` の ownership / cycle / serialization を安定させるところから入るのが安全。
 - `TimeRemap` は既存の timeline / playback の現在の作法に寄せて育てる。
 - `MaskCutout` は compute 版を別ルートで検証し、CPU fallback を残す。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+`LayerMatte`／matte reference、mask compute pipeline、`TimeRemap` の model／layer／render接続を現行ソースで照合した。ビルド・GPU実機・複雑な評価順序は未実施。
+
+| 分野 | 現状 | 判定 |
+|---|---|---|
+| Matte | `LayerMatte` の stack/evaluator、layer JSON保存・復元、参照削除時の dangling cleanup、project health rule、CPU render適用を確認した。適用順・diagnosticsの網羅は未確認。 | 実装済み基盤／確認待ち |
+| MaskCutout | GPU compute用の `MaskCutoutPipeline`／`MaskPathRasterizerPipeline` と mask関連型が存在する。preview/playbackへの全経路とCPU fallback parityは未確認。 | 部分実装／統合確認待ち |
+| TimeRemap | keyframe processor、easing／frame blend、layer enable／key設定／source frame評価、video decode接続、保存経路を確認した。Timeline UIと全layer種別の統合は未確認。 | 実装済み基盤／確認待ち |
+| 責務分離 | Matte／Mask／TimeRemap は別module・別評価経路に分離されている。 | 方針整合 |
+
+### 現在の判定
+
+3系統の基盤と責務分離は現行コードに存在するが、GPU mask parity、matte適用順、TimeRemapのUI／全layer統合は未検証。全体は「基盤実装済み／統合・runtime確認待ち」とする。
