@@ -207,3 +207,11 @@ wipe、split、difference 比較し、再生・フレーム検査・scope 確認
 - final render queue の改修。
 - Diligent backend / device / immediate context の変更。
 - scopes subsystem 全体の同時再実装。
+
+## 2026-07-25 実装監査
+
+- `ArtifactContentsViewer.cppm` に単一 compare canvas、A/B assignment、swap、wipe、split、difference の UI／状態保存、source 非対応時の Diff fallback が存在する。
+- 下段 transport/info strip と J/K/L、frame step 系の key handling は実装されている。
+- Difference 表示は現行コードで `QImage` の diff buffer と `QPainter` 描画を使用しており、本計画の GPU／`ImageF32x4_RGBA` ベースの明示的な比較合成ガードレールを満たす整理は未完了である。
+- source media の framing 共通化、scopes／metadata rail、Asset Browser／Project View の Assign A/B 導線、stale frame／audio の runtime 検証は未完了である。
+- よってステータスは `In Progress` のままとし、既存の Compare UI 追加だけで Phase 1〜5 完了とは判定しない。
