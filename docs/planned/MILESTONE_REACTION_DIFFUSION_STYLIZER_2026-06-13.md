@@ -135,3 +135,15 @@
 - [docs/planned/MILESTONE_DYNAMIC_FLUID_VORTEX_2026-06-13.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_DYNAMIC_FLUID_VORTEX_2026-06-13.md)
 - [docs/planned/MILESTONE_VISUAL_EFFECT_BUS_2026-06-02.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_VISUAL_EFFECT_BUS_2026-06-02.md)
 - [ArtifactCore/include/Physics/FluidSolver2D.ixx](X:/Dev/ArtifactStudio/ArtifactCore/include/Physics/FluidSolver2D.ixx)
+
+## 2026-07-25 実装監査
+
+判定: 専用 Stylizer は未実装。近縁の Reaction Diffusion Blur の CPU 実装はあるが、本マイルストーンの入力依存パラメータ化・スタイル出力・時間発展を満たさない。
+
+- ソース上で `ReactionDiffusionStylizer`、Gray-Scott 用の専用 effect、luminance / hue / saturation から feed / kill / instability を作る経路は確認できない。
+- 既存の `ReactionDiffusionBlurEffect` は固定 seed と固定の低解像度 U/V 反復を行い、Gaussian blur と混合する blur effect であり、stylizer の用途別出力モードではない。
+- `giraffe` / `zebra` / `fingerprint` / `coral maze` / `soft cellular` の preset、輪郭・曲率との coupling、時間をまたぐ interactive evolution、CPU reference と GPU path の分離は未実装。
+- `FluidSolver2D`、`AnisotropicFlowBlur`、Noise / Procedural Texture は再利用候補の基盤であり、Stylizer の実装完了を示すものではない。
+- 次の実装単位は、入力画像から feed / kill を作る parameter mapper と、低解像度 U/V solver の状態契約を専用 effect として定義すること。
+
+ビルド・実行確認はリポジトリ方針により未実施。
