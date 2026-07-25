@@ -47,6 +47,10 @@ Status:
 
 This order keeps the work moving from app-wide validation, to timeline readability, to composition editing entry stability.
 
+## 2026-07-25 実装監査
+
+Project Health と Timeline Keyframe Editing は本書の記載どおり完了扱いでよい。Composition Editor Mask / Roto は、Mask tool の入口、ショートカット、`EditMode::Mask` 相当の routing、mask path／handle の hit test・編集・undo、表示ガイドまで実装が広がっていることを確認した。ただし、full vertex／Bezier editing の操作品質、複数マスク・モード競合、runtime の状態同期は未検証である。したがって Triad 全体は「1・2完了、3は Phase 1 以上の実装ありだが follow-up 継続」と整理する。
+
 ---
 
 ## Why This Order
