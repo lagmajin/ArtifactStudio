@@ -138,3 +138,9 @@ write 実行後の状態変化を AI が説明できるようにする。
 - この段階で UI を増やしすぎない
 - 既存 service の薄いラッパーとして保つ
 - dry-run / confirmation の本格化は Phase 2 に回す
+
+## 2026-07-25 実装監査
+
+Phase 1 の操作入口は `WorkspaceAutomation` の descriptor / invoke routing として登録され、`ArtifactCore::CommandIR` / `CommandResult` および `CommandIRExecutor` から一部の low-risk、effect、render queue 操作を呼び出せる状態になっている。`undoLabel` と成功／失敗メッセージも既存の command result に含まれる。
+
+一方、Phase 1-5 の `SafeWriteResult` / `SafeWriteChangeSummary`、write 前後 snapshot、changed／failed ids をまとめる専用 DTO はまだ存在しない。また、Phase 1 の全 mapping が一つの専用 registry に網羅されているわけではなく、WorkspaceAutomation と CommandIR の対応範囲に依存している。したがって、Phase 1-1〜1-4 は「主要 mapping 実装済み・未網羅」、Phase 1-5 は未実装として扱う。runtime の実操作確認も未実施。
