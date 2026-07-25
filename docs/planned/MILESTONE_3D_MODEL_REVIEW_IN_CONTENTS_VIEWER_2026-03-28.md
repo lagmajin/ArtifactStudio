@@ -219,3 +219,26 @@ Phase 2 では、viewer に出す情報を「確認に必要な最小状態」�
 - The generic Contents Viewer compare surface (`Wipe`/`Split`/`Difference`) exists, but its Difference mode is explicitly restricted to two image sources and the compare canvas is not a 3D scene/model compare surface. Therefore Phase 5 remains incomplete for 3D models.
 - Source/final role labels and compare routing exist at the generic viewer level, but model-specific camera/mesh comparison and annotation/diagnostic hooks are not confirmed.
 - No build or runtime verification was performed under the repository policy.
+
+## 2026-07-25 実装監査
+
+### 判定
+
+Phase 1〜4 はソース上の実装を確認できる。Phase 5 は compare / annotation / diagnostic 連携が未実装または未確認のため、完了扱いにしない。
+
+### 実装確認
+
+- `Artifact3DModelViewer` はモデル読込、失敗状態、backend 名、vertex / polygon / bounds、Solid / Wireframe / Solid + Wire、Reset View、orbit / pan / zoom を保持・表示する。
+- Contents Viewer / Project View / Asset Browser から Model3D を preview する既存導線があり、Project item 側にも preview metadata と missing 表示がある。
+- viewer の source path と load error を status 文に反映するため、inspection surface の基盤は揃っている。
+
+### 未完了・要確認
+
+- OBJ / FBX の実ファイルを用いた成功・失敗表示、missing からの復帰、表示 mode と描画結果の一致は runtime 未検証。
+- current selection と viewer の相互同期、review 後に元の Project / Asset 選択へ戻る導線は、個別 open 経路だけでは完了と断定できない。
+- compare / annotation、source / final 契約、render output review 連携、diagnostic 連携は future extension のまま。
+- glTF / GLB は importer backend の存在を確認できるが、対応範囲と実機確認が不足している。
+
+### 次の判定
+
+「Phase 1〜4 実装済み、runtime 検証と Phase 5 拡張待ち」とする。次は 3D selection wireframe overlay または 3D compositing の依存先を確認し、review 導線を壊さない範囲で順番に監査する。
