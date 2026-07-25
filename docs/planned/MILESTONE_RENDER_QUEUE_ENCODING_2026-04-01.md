@@ -74,3 +74,15 @@
   - Intel: QuickSync
   - AMD: AMF</content>
 <parameter name="filePath">docs/planned/MILESTONE_RENDER_QUEUE_ENCODING_2026-04-01.md
+
+## 2026-07-25 実装監査
+
+判定: Hardware encoder の検出・選択・fallback を含む Phase 1〜3 の主要経路は実装済み。GPU resident lossless codec と zero-copy YUV/HDR 統合は未実装・未検証。
+
+- Render Queue は FFmpeg encoder probe、NVENC/QSV/AMF 相当の codec 名解決、native GPU backend、pipe-hw / pipe-vulkan backend を持つ。
+- GPU backend が利用できない場合に native または pipe の software backend へ戻る分岐と warning/error message がある。Render Queue job の encoderBackend と preset から backend を選ぶ経路も確認できる。
+- H.264/H.265 の quality preset と audio/video encode の基盤はあるが、実機ごとの encoder availability、品質/速度、GPU 使用率の runtime 測定は未確認。
+- Phase 4〜6 の GPU resident 圧縮、全 I-frame 中間 codec、RGBA 10/16bit、NV12/I420/P010 の GPU 変換、FFmpeg への zero-copy YUV bridge、HDR PQ/HLG はソース上で完了を確認できない。
+- 従って、hardware encoding の queue integration と graceful fallback は進行済みだが、マイルストーン全体は Partial。特に「5〜10x」の速度目標は測定なしでは達成扱いにしない。
+
+ビルド・実行確認はリポジトリ方針により未実施。
