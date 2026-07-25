@@ -32,3 +32,7 @@ AI Cloud LLM統合UI。ローカルLLMに加え、OpenAI/Groq/Anthropicなどの
 ## Phase 3: Artifact統合
 - 選択layer/context自動挿入
 - コード生成/修正提案
+
+## 2026-07-25 実装監査
+
+ArtifactAICloudWidget／設定UI、API key 管理、provider／model 選択、prompt／response 表示、tool log、tool approval mode、MCP preview／transport、AIContext の自動構築、cloud session／worker protocol は実装を確認した。一方、本文の OpenAI／Groq／Anthropic 全対応、streaming／履歴の受け入れ確認、選択 layer の context 挿入からコード生成・修正提案までの一貫した運用は確認できない。したがって Phase 1〜2 は部分実装、Phase 3 は未完了・runtime未検証とする。
