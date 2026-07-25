@@ -86,3 +86,10 @@ Completed by Gemini CLI.
 - history が tree navigation と二重化すると current directory が分かりにくくなる
 - favorites の保存先を固定しすぎると project 切替時に混乱する
 
+
+## 2026-07-25 実装監査
+
+- Asset Browser に左右 splitter、クリック可能な breadcrumb、Recent／Favorites 仮想ノード、QSettings 永続化、ディレクトリ選択と file view の同期経路を確認できる。
+- Phase 1 の Splitter Shell／Breadcrumb／History／Favorites Anchor の実装痕跡は揃っており、文書の 2026-04-04 Completed 記載と整合する。
+- ただし実機での往復履歴、splitter 境界、Favorites 登録から再起動復元までの runtime verification は未実施である。
+- したがって実装状態は Phase 1 完了相当、検証状態は pending と整理する。
