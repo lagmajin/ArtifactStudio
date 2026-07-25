@@ -10,6 +10,10 @@
 - [x] `ImageF32x4_RGBA::setFromCVMat(CV_32FC4)` がRGBA float storageを明示するよう修正
 - [ ] 残存する直接RGBA処理の全経路監査
 - [ ] runtime / pixel regression verification
+
+### 2026-07-25 sequential audit
+
+The typed `SurfaceColorDescriptor` and explicit conversion boundary are present, and the repository still contains a large, explicitly documented migration population: direct `QImage`/OpenCV paths, local transfer helpers, and presentation/export conversions remain. The current evidence supports “contract foundation implemented, repository-wide migration incomplete”; it does not support completion of the canonical premultiplied path or pixel parity across preview, GPU, CPU, export, and external renderer. No build or runtime verification was run.
 **日付:** 2026-07-18
 **対象:** `ArtifactStudio`, `Artifact`, `ArtifactCore`, `ArtifactRenderer`
 
