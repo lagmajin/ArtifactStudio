@@ -367,3 +367,21 @@ public:
 ## 8. 更新履歴
 
 - 2026-06-16: 初版作成。`REPORT_APP_PERF_BOTTLENECK_2026-06-16.md` §2.2 と `REPORT_CE_RENDER_ROI_2026-06-16.md` §5 を正式 milestone に起こした。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースを確認した。既存の Diagnostics widget、FrameDebug の render cost / GPU timing、Core Diagnostics の snapshot・trace・crash report 基盤は存在するが、この milestone が定義する専用機能群は揃っていない。
+
+| Phase | 現状 | 判定 |
+|---|---|---|
+| 1. DebugLog | Core Diagnostics の recorder/logger はあるが、提案された category 別 `DebugLog` と render path の `qDebug()` 全廃は確認できない | 部分実装 |
+| 2. Frame Timing | `FrameDebugSnapshot` / renderer に frame・GPU timing と render cost の項目はあるが、`FrameTimingRecorder` の section 分解は未確認 | 部分実装 |
+| 3. Performance Overlay | FPS / frame time / GPU time / memory を専用 overlay として表示する `PerformanceOverlay` は未確認 | 未着手 |
+| 4. GPU Profiler | Diligent marker を集計する `GpuProfiler` と 20+ marker の埋込は未確認 | 未着手 |
+| 5. GPU Memory Tracker | texture / buffer の自動 allocation tracking と peak 表示は未確認 | 未着手 |
+| 6. RenderDoc | optional `RenderDocHook`、DLL 検出、Capture Frame 導線は未確認 | 未着手 |
+| 7. Bug Report / Crash Dump | CrashHandler と crash report parser の基盤はあるが、bug report dialog と analyzer の統合は別途未完了 | 部分実装 |
+
+**判定**: Diagnostics の観測基盤は進んでいるが、M-DEBUG-1 の Done Criteria（overlay、profiler、memory tracker、RenderDoc、category log）を満たす証拠は不足している。既存の frame diagnostics を専用 profiler/overlay の完了とは扱わない。
