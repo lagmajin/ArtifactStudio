@@ -57,3 +57,19 @@ After this phase lands, the next implementation slice should be:
 1. build the preview widget
 2. tile multiple candidates in a dialog
 3. wire synced scrubbing to the preview surface
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+`ArtifactCore/src/Animation/EasingCurveUtil.cppm` を確認した。候補モデル、安定した catalog、入力 clamp、easing 評価、既存 `InterpolationType` への mapping が一箇所にまとまっている。
+
+| Definition of Done | 現状 | 判定 |
+|---|---|---|
+| reusable easing math helper | `evaluateEasing()` と `clampUnit()` が UI 非依存の Core にある | 実装済み |
+| single candidate catalog | `defaultEasingCandidates()` が初期候補を提供する | 実装済み |
+| deterministic formulas | Linear / Ease / Back / Expo 等の純粋な評価関数がある | 実装済み（静的確認） |
+| interpolation compatibility | `easingTypeToInterpolation()` が既存 enum に対応付ける | 実装済み |
+| headless boundary | EasingLab widget は Core helper を import して利用し、Core 側に UI 依存を持ち込んでいない | 実装済み |
+
+**判定**: Phase 1 はソース上完了。数値境界・各 preset の runtime 動作確認は未実施のため、検証状態は別途保留する。
