@@ -750,3 +750,12 @@ Status:
 - まずは 1 job = 1 process の単純なモデルから始める
 
 ここから先は、job schema と snapshot 化の深さを決めれば実装へ進める。
+
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+ArtifactRenderQueueService に外部 renderer job JSON の生成、専用作業ディレクトリ、子プロセス起動、stdout／stderr の JSON Lines 受信、進捗・summary・cancel・失敗処理が実装されている。RenderFarmMaster には worker、RPC server、remote worker 設定、retry／checkpoint の基盤もある。
+
+一方、設計書の snapshot schema と実際の job schema の完全一致、外部子プロセス側の再構成範囲、CLI 単独起動、クラッシュ復旧の実行時検証、RPC の実運用は未確認である。したがって親子プロセス分離の基盤は実装済み、schema／CLI／運用検証は継続課題として記録する。
