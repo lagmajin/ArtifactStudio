@@ -447,3 +447,7 @@ public:
 ## 8. 更新履歴
 
 - 2026-06-16: 初版作成。`REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md` §2.8 / §4 を正式 milestone に起こした。DaVinci / Baselight / Nuke / Houdini 系の foundation。
+
+## 2026-07-25 実装監査
+
+OCIOConfig の JSON／built-in ACES・sRGB・Rec.709・Rec.2020 preset、role／color-space／display／view の query、ArtifactOCIOManager の preset／config file load、working space／display／view の状態管理、ColorSciencePanel の表示・View・config 操作 UI は実装を確認した。一方、実 OpenColorIO processor 連携、composition 単位の role override／looks 永続化、render controller への view transform の通常適用、LUT write、Problem View の `ocio.*` 診断、project 保存 round-trip は確認できない。したがって Phase 1 の built-in／manager と Phase 3 の基本UIは部分実装、Phase 2／4／5／6 は未完了・runtime未検証とする。
