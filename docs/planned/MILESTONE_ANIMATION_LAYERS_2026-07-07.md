@@ -1,7 +1,7 @@
 # M-ANIM-1 Animation Layers Milestone
 
 作成日: 2026-07-07
-ステータス: In Progress（設計確認済み、実装着手前）
+ステータス: In Progress（コア評価・保存・Undo・Bake 実装済み、UI拡張を継続）
 対象: `ArtifactCore/include/Animation/AnimatableValue.ixx`,
       `ArtifactCore/include/Animation/AnimatableTransform2D.ixx`,
       `ArtifactCore/include/Animation/AnimatableTransform3D.ixx`,
@@ -21,6 +21,13 @@
 - `ArtifactCore/include/Animation/AnimatableTransform3D.ixx`
 - `ArtifactCore/include/Rig/Rig2D.ixx` (Bone2D 評価パターン)
 - `ArtifactCore/include/Animation/AnimationDynamics.ixx`
+
+### 2026-07-25 実装整理
+
+- `AnimationLayerStackT<float>` の Additive / Override、Weight、Mute、Solo、JSON 保存／復元を実装。
+- `ArtifactAbstractLayer` の Opacity／Transform チャンネル評価、Property Editor 表示、コンテキスト操作、Undo を実装。
+- 現在フレーム Bake と範囲 Bake を、単一 Override Layer へのキーフレーム縮約として実装。
+- タイムライン上の Anim Layer 選択 UI、Merge／Zero Key、ビルド検証は未完了のため本マイルストーンは `done` へは移動しない。
 
 ---
 
