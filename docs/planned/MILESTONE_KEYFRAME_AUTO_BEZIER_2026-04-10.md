@@ -59,3 +59,18 @@ Auto Bezier → ハンドル長さを自動計算して自然な加速/減速
 - 複数キーフレーム間の連続性
 - 既存キーフレームへの適用
 - パフォーマンス劣化の確認
+
+---
+
+## 2026-07-25 現状確認
+
+部分実装。Timeline では Ease In / Ease Out / Ease In-Out の適用時に Bezier へ変換し、既定の control point を設定する処理がある。Bezier handle は marker として表示され、Mini / Curve Editor でドラッグ編集でき、既存の keyframe 保存・復元にも含まれている。Bezier 区間の描画も、marker の handle を利用している。
+
+未確認・未実装扱い:
+
+- `Auto Bezier` を独立した補間モードとして保持する状態・UI
+- 隣接 keyframe の値差分と時間間隔から handle を自動再計算する処理
+- 滑らかさパラメータと速度連続性の制御
+- 複数 keyframe への再計算、undo/redo、実運用での連続性・性能検証
+
+したがって「Bezier 編集基盤と Easy Ease 相当は実装済み、Auto-Bezier の自動調整本体は未完了」と整理する。
