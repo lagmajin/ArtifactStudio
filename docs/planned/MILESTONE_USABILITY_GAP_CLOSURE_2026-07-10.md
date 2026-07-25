@@ -33,7 +33,7 @@
 | ID | 項目 | コード現状 | 影響 |
 |---|---|---|---|
 | M-UG-1 | ネストコンポ長さ伝播 | `ArtifactProjectService` が `CompositionChangedEvent` を購読し、親→子の範囲同期と子→親プリコンプレイヤー outPoint 同期を実装。`PreComposeManager` の逆引き登録も実レイヤー生成時に接続済み。時間変換は inPoint/startTime オフセット対応だが、明示的 time-remap プロパティは未提供（2026-07-25 静的確認） | 基盤実装済み。time-remap と runtime 検証が残課題 |
-| M-UG-2 | アセットインスタンス共有 | `AssetManager`（`AssetManager.cppm`）が空スタブ、`AssetInstance` は計画のみ | 5 コピー = 5 回デコード / 5 回 GPU アップロード |
+| M-UG-2 | アセットインスタンス共有 | `AssetManager` に source registry の acquire/release、version、decoded payload weak-cache、snapshot/health API を実装し、Image/Video/Audio layer の source lease 経路へ接続済み（2026-07-25 静的確認） | 基盤実装済み。GPU payload 共有と runtime 検証が残課題 |
 | M-UG-3 | Easy Ease 速度ベース | `ArtifactTimelineTrackPainterView` が隣接キーフレームの Δtime/Δvalue から速度ベースの Bezier ハンドルを算出。隣接不足・非スカラー値は 0.42/0.58 にフォールバック（2026-07-25 静的確認） | ✅ ソース実装完了（runtime 検証は未実施） |
 | M-UG-4 | 式ピックwhip | 式評価・エディタは実装済み。ドラッグでプロパティを繋ぐ AE 的 pickwhip は未実装（親子リンク pickwhip は別存在） | 式リンクがテキスト入力のみで面倒 |
 | M-UG-5 | プリコンポーズ作成 | `ArtifactProjectService::precomposeLayersInCurrentComposition()` に実コンポ生成・レイヤー移動・復元情報・Undo 導線を実装済み（2026-07-25 静的確認） | ✅ 完了（runtime 検証はスキップ） |
@@ -114,6 +114,15 @@ outPoint へ、またプリコンポ内の子レイヤーへ、双方向に伝�
 - `AssetManager` に `acquireByPath(path)` / `release(id)` / デコード済ペイロード
   キャッシュ
 - レイヤー生成経路が `AssetManager` 経由でインスタンスを取得・共有
+
+### 2026-07-25 静的監査メモ
+
+- 現行 API 名は `acquireSource` / `releaseSource` で、AssetDatabase の同一 source
+  ID を source registry の useCount で共有する。
+- `decodedPayload` / `publishDecodedPayload` は source version と representation を
+  キーにした weak-cache で、Image/Video/Audio layer が lease を release する。
+- 旧記述の「AssetManager が空」は解消済み。ただし GPU upload の重複排除と runtime
+  検証はこのターンでは確認していないため、完了扱いにはしない。
 
 ## M-UG-3: Easy Ease 速度ベース
 
