@@ -127,3 +127,18 @@
 
 Phase 1 の対象 surface を Timeline / Property / Layer panel に絞り、`No selection` / `No keyframes` / `Add a keyframe at the playhead` の現状文言を先に洗い出す。
 そのあと Preview と Inspector に広げ、最後に tooltip と placeholder をそろえる。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースには Composition Editor の `EmptyCompositionOverlayWidget`、テキスト編集時の `No text layer selected.`、プロパティ参照時の `This layer exposes no referenceable properties.` など、個別 surface の空状態・未対象表示は存在する。また、Composition Editor には選択・スマート選択・ProblemView 相当の導線がある。
+
+ただし、Timeline / Property / Inspector / Preview 全体で `Select / Add / Inspect / Preview` の action-first 語彙を共有する仕組みや、no keyframe / no property / no mask の統一文言は確認できない。空状態から add keyframe、open、scrub へ直接進む共通導線も未確認で、実行時の表示密度・tooltip 重複は未検証である。
+
+### Audit status
+
+- Phase 1: 部分実装 — 個別の未対象表示はあるが、Timeline / Layer / Property の統一は未確認
+- Phase 2: 未完了 — no keyframe / no property / no mask の共通案内は未確認
+- Phase 3: 部分実装 — Composition Preview の empty overlay はあるが、Inspector / Preview 横断の導線は未確認
+- Phase 4: 未着手相当 — tooltip / placeholder / helper text の全体整理と runtime 確認が残る
