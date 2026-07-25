@@ -16,8 +16,8 @@
 | # | 項目 | ファイル | 内容 |
 |---|------|----------|------|
 | 1 | ✅ メソッド本体 AST | `ArtifactScript.cppm` 拡張 | 再帰下降パーサー（式: リテラル/変数/二項/単項/関数呼出、文: 代入/if-else/return/ブロック）+ 本体収集ロジック |
-| 2 | ホットリロード | `ArtifactScriptHotReload.ixx` + `.cppm` 新規 | ファイル監視、再コンパイル、フィールド値保持 |
-| 3 | 基本 VM | `ArtifactScriptEvaluator.cppm` 新規 | スタックベース評価、変数スコープ、フック実行 |
+| 2 | ✅ ホットリロード | `ArtifactScript.ixx` / `ArtifactScript.cppm` | ファイル監視、再コンパイル、フィールド値保持 |
+| 3 | ✅ 基本 VM | `ArtifactScript.ixx` / `ArtifactScript.cppm` | スタックベース評価、変数スコープ、フック実行 |
 
 ## Non-goals
 
@@ -32,3 +32,10 @@
 1. メソッド本体 AST パース
 2. ホットリロード
 3. 基本 VM
+
+## 2026-07-25 実装監査
+
+- `ArtifactCore/include/Script/ArtifactScript/ArtifactScript.ixx` に `ArtifactScriptEvaluator` と `ArtifactScriptHotReload` の公開 API が存在する。
+- `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` にメソッド本体 AST の再帰下降パーサー、Evaluator の式／文実行、HotReload の監視・再読み込み・フィールド保持が実装されている。
+- 当初想定されていた専用ファイル分割ではなく、既存の `ArtifactScript` モジュールへ統合された実装であるため、計画表のファイル表記を実際の配置に合わせた。
+- UI 統合、ループ、任意のクラスメソッド呼び出しは Non-goals のため、未実装でも本マイルストーンの完了判定には含めない。
