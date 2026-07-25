@@ -1,5 +1,15 @@
 # Milestone: AE Utility Script Pack
 
+## Static Audit (2026-07-25)
+
+AE Utility Pack の3本（`quick_rename_layers.py`、`clean_layers.py`、`trim_comp_to_content.py`）と、対応する `ArtifactPythonAPI` の C++ bridge、Script menu の `AE Utility Pack` サブメニューを確認した。各ファイルは menu から直接実行でき、既存の selection／composition service 経路を利用する。
+
+- 実装済み: Quick Rename の prefix/base/suffix/連番、Clean Layers の parent/effects/markers/expressions/labels、Trim の selected/all/visible、padding、work area同期、locked layer考慮。Command Palette 側にも一部日常操作が存在する。
+- 未確認: 小 dialog／Command Palette からの入力編集、破壊的操作の統一 confirm、各操作の Undo 経路、失敗理由の構造化表示、入力スキーマのUI検証、menu と command palette の共通 registry。
+- `ArtifactPythonAPI::registerProjectAPI` には placeholder の project_new/open/save/info も残っているため、AE Utility Pack の3本が動作することを Python API 全体の完成根拠にはできない。
+
+判定: 提案された3 utility の bridge／script／menu entry は部分的に実装済み。再利用可能な制作補助としての最小導線はあるが、Undo／confirm／UI入力／registry統合を含む完成条件は未達または未検証。
+
 > 2026-06-22 draft
 
 ## 目的
