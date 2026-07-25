@@ -1,7 +1,7 @@
 # M-CBOX-1 Channel Box + Maya-Style Property Editor Milestone
 
 作成日: 2026-07-07
-ステータス: Draft
+ステータス: In Progress（Inspector内の基本Channel Boxを実装、操作拡張を継続）
 対象: `Artifact/src/Widgets/Inspector/ArtifactInspectorWidget.cppm`,
       `Artifact/src/Widgets/Property/ArtifactPropertyWidget.cppm`,
       `Artifact/src/Widgets/Property/ArtifactPropertyEditor.cppm`,
@@ -14,6 +14,12 @@
 - `docs/WIDGET_MAP.md` (Inspector / PropertyEditor 責務)
 - `docs/planned/MILESTONE_TIMELINE_DESIGN_AUDIT_2026-07-04.md` (グラフエディタ強化)
 - `docs/planned/MILESTONE_AUTO_ORIENT_2026-06-16.md` (Inspector 露出パターン)
+
+### 2026-07-25 実装整理
+
+- Inspector 上部に Transform／Opacity のコンパクトな Channel Box セクションを追加。
+- 既存 Property Editor 行を再利用し、直接編集、スクラブ、キー表示、Auto-Key、Undo の経路を共有。
+- チャンネル選択、Lock／Unlock、Key Selected／Key All、Graph Editor／DopeSheet 絞り込み、専用永続化は未完了。
 
 ---
 
