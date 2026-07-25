@@ -170,3 +170,9 @@ Phase 1 は material の器を先に作り、見た目の自由度を少しず�
 - base-color、metallic-roughness、normal、emission、occlusion、opacity texture の読み込み経路がある。
 - `MeshRenderer` が material constant buffer と PBR-like shader を使用して描画する。
 - Phase 5 の高度な normal/specular mapping、preset UI、および実機確認は未完了。
+
+## Static audit follow-up (2026-07-25)
+
+- The implemented core type is `ArtifactCore::Material` (not the originally proposed `Material3D` name). It is assigned by `Artifact3DModelLayer`, persisted in JSON, exposed through the existing Property Editor, and included in the layer material signature/cache boundary.
+- `MeshRenderer` binds base-color, opacity, metallic-roughness, normal, emission, and occlusion textures and sends the material factors through a GPU constant buffer. The shader applies tangent-space normal mapping, metallic/roughness response, occlusion, emission, alpha, and scene/studio lighting.
+- Phases 1-4 are supported by static source evidence. The remaining scope is Phase 5 preset/material-browser work plus runtime verification; no build or runtime execution was performed under the repository policy.
