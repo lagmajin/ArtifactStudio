@@ -82,3 +82,8 @@
 - [`docs/planned/MILESTONE_AUDIO_WAVEFORM_2026-03-29.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_AUDIO_WAVEFORM_2026-03-29.md)
 - [`docs/planned/MILESTONE_AUDIO_WAVEFORM_THUMBNAIL_PREVIEW_2026-03-31.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_AUDIO_WAVEFORM_THUMBNAIL_PREVIEW_2026-03-31.md)
 
+## 2026-07-25 現状確認
+
+Audio surface は企画段階から大きく進み、`ArtifactCompositionAudioMixerWidget` に channel/master strip、volume／pan／mute／solo、左右メーターとピーク表示、FX chip、Core Mixer 同期がある。`AudioWaveformWidget`／`ArtifactAudioPreviewWidget` には波形、再生ヘッド、クリック／ドラッグ位置変更、再生／停止、音量、レベル表示があり、Timeline／Asset Browser 側にも波形・scrub導線が実装済み。
+
+未完了または未検証なのは、Mixer／Timeline／Inspector 間の状態文言・badge の完全統一、missing／unloaded／clipped の共通表現、mixer surface 内への waveform 常設、source差し替えの統一導線、実機再生中のplayback head同期、大量素材時の表示負荷である。判定は「主要なAudio UI部品は実装済み、横断的な統一と実運用検証が残る」とする。
