@@ -19,7 +19,8 @@
 
 - Inspector 上部に Transform／Opacity のコンパクトな Channel Box セクションを追加。
 - 既存 Property Editor 行を再利用し、直接編集、スクラブ、キー表示、Auto-Key、Undo の経路を共有。
-- チャンネル選択、Lock／Unlock、Key Selected／Key All、Graph Editor／DopeSheet 絞り込み、専用永続化は未完了。
+- 表示中の Transform／Opacity を一括キー化する `Key All` 操作を追加。
+- チャンネル選択、Lock／Unlock、Key Selected、Graph Editor／DopeSheet 絞り込み、専用永続化は未完了。
 
 ---
 
