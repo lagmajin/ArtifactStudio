@@ -98,3 +98,18 @@
 
 - 既存 render path から DAG 要約を組み立てられる
 
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の FramePipelineView、FrameDebug snapshot、resource/pass records を確認した。ビルド・GPU hazard の実測は未実施。
+
+| Ticket | 現状 | 判定 |
+|---|---|---|
+| P1-T1 Core Graph Model | pipeline/pass/resource/attachment と hazard の要約型、graph summary の表示が存在する。明示的な read/write DAG と lifetime band の全型・全経路は未確認。 | 部分実装 |
+| P1-T2 Render Summary Bridge | Composition/renderer の frame snapshot、backend/fallback、pass/resource summary がある。既存 render path 全てからの DAG 収集は未確認。 | 部分実装 |
+| Hazard detection | failed pass、resource warning、density/hazard summary の表示がある。UAV/RTV、barrier、RAW/WAR の実 GPU 判定は未確認。 | 部分実装／確認待ち |
+
+### Phase 1 判定
+
+表示用の pipeline/resource summary は実装済みだが、完全な DAG/lifetime/hazard 収集は未完了。Phase 1 は「部分実装／実行確認待ち」とする。

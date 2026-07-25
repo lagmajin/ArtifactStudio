@@ -87,3 +87,18 @@
 
 - 任意 resource を読める UI がある
 
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の `FrameResourceInspectorWidget`、`FrameDebugViewWidget`、resource snapshot を確認した。ビルド・実機 resource 操作は未実施。
+
+| Ticket | 現状 | 判定 |
+|---|---|---|
+| P2-T1 Resource Model | resource/attachment/preview/readback の snapshot と selection 対応が存在する。MIP/array/slice/channel/pixel inspect の完全な型・経路は未確認。 | 部分実装 |
+| P2-T2 Resource Inspector UI | 任意 resource の要約、attachment、preview、format/readback 情報を read-only 表示する UI がある。live resource 切替の実機確認は未実施。 | 部分実装／確認待ち |
+| Render Bridge | renderer/frame snapshot から resource を表示できる。ROI/partial-eval/transient の網羅的関連付けは未確認。 | 部分実装 |
+
+### Phase 2 判定
+
+Resource Inspector の read-only first cut は存在するが、任意 live resource の完全な選択・pixel inspect・slice/channel 操作は未完了。Phase 2 は「部分実装／実行確認待ち」とする。
