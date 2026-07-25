@@ -4,6 +4,10 @@
 **見積もり**: 10-15h
 **優先度**: Low (細かいUX改善)
 
+## 2026-07-25 実装監査
+
+OCIOConfig／ArtifactOCIOManager と Color Science Panel の preset・display・view・config load・LUT export の導線、ColorPalette の保存／読込は実装を確認した。一方、本書が想定する StatusBar の Color Space／Gamma／LUT quick control、全 composition への preview-only 適用、最終 render との明確な分離は確認できない。したがって Core／専用 panel は実装済みだが、本マイルストーンの quick status-bar UX と受け入れテストは未完了・runtime未検証とする。
+
 ## 概要
 
 After Effects のようなプロフェッショナルツールでは、色空間やガンマ設定を素早く切り替えられるUIが重要。
