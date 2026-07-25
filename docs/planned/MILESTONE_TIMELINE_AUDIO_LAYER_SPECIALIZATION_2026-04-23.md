@@ -99,3 +99,9 @@ Audio layer 向けに以下を返す descriptor を用意する。
 
 - [`MILESTONE_TIMELINE_LAYER_SPECIALIZATION_2026-04-23.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_LAYER_SPECIALIZATION_2026-04-23.md)
 - Phase 1 execution memo is absorbed into the parent milestone
+
+## 2026-07-25 現状確認
+
+共通タイムライン上で Audio Layer の専用化は進んでいる。`TrackClipVisual::Kind::Audio`、Audio Layer／Video Layer の波形生成、署名付きキャッシュ、peak／RMS 描画、音声状態の補助表示、Scrub Preview 導線が実装済み。Audio Layer の mute／solo／volume／pan は既存 Layer／Mixer 経路と連携する。
+
+未完了または未検証なのは、トラックヘッダ専用バッジの一貫した表示、クリップ端のフェードハンドル、音量ラインの直接ドラッグ編集、波形クリックからの専用 seek、再生ヘッドとの実時間追従、ズームアウト時の段階的間引きである。判定は「波形・状態表示・スクラブ基盤は実装済み、Audio専用編集ハンドルは未完了」とする。
