@@ -2,6 +2,12 @@
 
 > 2026-03-31 作成
 
+**進捗状態:** Phase 1〜3 は実装済み、Phase 4 は基礎 UI まで実装済み。Phase 5 と runtime 検証が未完了。
+
+### 実装状況（2026-07-25 確認）
+
+`ArtifactLightLayer` の All／Include Only／Exclude List、3D layer の Affected By Lights、Composition renderer の layer 単位 light filtering と Directional／Point／Spot／Ambient 系の GPU lighting 接続を確認した。残課題は Outliner 上の可視化、quick linking 操作、light group／per-object intensity／shadow linking、および実機での照明結果検証。
+
 ## 目的
 
 3D scene での light の影響を layer ごとに制御し、柔軟な lighting setup を実現する。
