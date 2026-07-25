@@ -1,6 +1,6 @@
 # Milestone: オーディオ波形ビジュアライザー (2026-03-29)
 
-**Status:** Partial — waveform extraction and timeline display implemented; viewport overlay and spectrum pending
+**Status:** Partial — waveform extraction, timeline display, and initial viewport overlay implemented; spectrum and overlay lifecycle hardening pending
 **Goal:** タイムラインとコンポジションビューポートにオーディオ波形を表示。
 アニメーションのタイミング合わせに必須。
 
@@ -13,7 +13,7 @@
 | オーディオ再生 | ✅ 完成 |
 | 波形データ抽出 | ✅ 実装済み |
 | タイムライン波形表示 | ✅ 実装済み |
-| コンポジション波形表示 | ❌ 未実装 |
+| コンポジション波形表示 | 🟡 初期Overlay実装済み |
 | スペクトラム表示 | ❌ 未実装 |
 
 ---
@@ -65,3 +65,5 @@
 - オーバーレイはビュー下部の固定領域に表示し、コンポジション本体の座標変換やレイヤー合成へ影響させない。
 - 表示更新はフレーム変更・選択変更・ズーム変更時に限定し、音声サンプルの再デコードを描画パスから追い出す。
 - 実装後に、非Audio Layer、無音、未ロード素材、選択なし、表示OFFの各ケースを確認する。
+
+初期実装では選択中Audio Layerの波形をViewport下部へ表示する。表示設定の永続化、更新キャッシュ、表示OFF導線は後続作業とする。
