@@ -179,6 +179,12 @@ Phase 1/2 は、抽出結果と切り替え表示を先に固定する。
 - どちらの状態か迷わない
 - flat filter と curve mode の役割が分かれる
 
+## 2026-07-25 現状確認
+
+記載されている `All Properties`／`Keyframes Only` の実装は現行ソースで確認できず、`U` キー専用のflat filterやheader状態表示も確認できない。一方、Layer Panel側にはkeyframeを持つpropertyの判定、property labelの整形、selected layer／keyframe markerの強調、keyframe追加・削除・移動・補間・Undo導線がある。
+
+したがって本マイルストーンは「keyframe表示の基礎と選択強調は部分実装、Flat Filter／Toggle Surface／Phase 4のproperty coverageは未完了」と判定する。Execution memoのProgress記載は、現在のコード確認結果に合わせて更新が必要。
+
 ### Phase 3 への前提
 
 - selected layer の lane 強調は flat filter が安定してから入れる
