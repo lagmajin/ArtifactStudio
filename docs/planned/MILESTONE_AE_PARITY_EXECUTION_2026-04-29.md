@@ -90,3 +90,28 @@
 - [`docs/planned/MILESTONE_AE_PARITY_BACKLOG_2026-04-29.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AE_PARITY_BACKLOG_2026-04-29.md)
 - [`docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md)
 - [`docs/planned/MILESTONE_AE1_0_PRIORITY_AND_ROADMAP_2026-04-20.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_AE1_0_PRIORITY_AND_ROADMAP_2026-04-20.md)
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+実行計画の各項目を現行ソースと照合した。ビルド・テスト・実機操作は未実施。
+
+| 順位 | 確認結果 | 残課題 / 判定 |
+|---:|---|---|
+| 1 | `ArtifactPlaybackService`/`ArtifactPlaybackEngine`、`ArtifactFrameCache`、GPU cache、composition playback の基盤は存在する。 | WorkAreaControl/TrackPainterView/ScrubBar の frame 上限統一と、requested/ready/failed の実測は未確認。部分実装。 |
+| 2 | `MaskPath`/`LayerMask`、Roto/PathMorph、MaskCutout/Rasterizer、LayerBlend の基盤は存在する。 | mask+blend の塗りつぶし、matte order、premultiplied alpha の実行経路確認が必要。部分実装。 |
+| 3 | `TextAnimator`、shaping、GlyphLayout/Atlas、`ArtifactTextLayer` と text property editor が存在する。 | range selector、Point/Box の内部・UI一致、CJK animated text の実機確認が必要。部分実装。 |
+| 4 | keyframe editing/easing、timeline model、curve editor が存在する。 | value/speed graph の完全な切替、Bezier handle、hold/roving/tangent の確認待ち。部分実装。 |
+| 5 | `ArtifactMotionBlur`、Core MotionBlur、`TimeRemapProcessor`、`FrameBlendEffect` が存在する。 | shutter/phase/sample policy と preview/render 一致を確認する必要がある。部分実装。 |
+| 6 | `PreCompose` と親子・transform 関連の基盤が存在する。 | nested precompose と transform 継承の実行確認待ち。部分実装。 |
+| 7 | Adjustment layer テストと複数の effect 実装が存在する。 | Drop Shadow/Glow/Stroke を含む layer-style の統合導線は未確認。部分実装。 |
+| 8 | Playback と work-area の周辺基盤は存在する。 | ruler/playhead/work-area の widget 間の見た目・frame 契約は未確認。後段。 |
+| 9 | Expression parser/evaluator/value の基盤が存在する。 | 安全 subset、property reference、debug/inspection の実行確認待ち。基盤あり。 |
+| 10 | OCIO/Color management、LUT、grading の基盤が存在する。 | preview/export の見え方一致と gamma/LUT の出力確認待ち。部分実装。 |
+| 11 | RenderQueue service/widget/preset、ProxyService が存在する。 | proxy導線、失敗時復旧、実ファイル export の E2E は未確認。部分実装。 |
+| 12 | import/export、3D、collaboration 等の周辺実装は存在する。 | OFX/plugin boundary と高度な interop は未完了。後回し。 |
+
+### 次の実装・確認単位
+
+まず 1 の playback/cache 状態契約と frame 境界を確認し、次に 2 の合成順・alpha 契約、3 の Text Animator 編集導線へ進む。この順序を維持する。
