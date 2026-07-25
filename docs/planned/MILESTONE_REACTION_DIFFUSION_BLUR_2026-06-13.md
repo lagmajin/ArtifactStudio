@@ -114,3 +114,15 @@
 
 - [docs/planned/MILESTONE_REACTION_DIFFUSION_STYLIZER_2026-06-13.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_REACTION_DIFFUSION_STYLIZER_2026-06-13.md)
 - [docs/planned/MILESTONE_ANISOTROPIC_FLOW_BLUR_2026-06-13.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_ANISOTROPIC_FLOW_BLUR_2026-06-13.md)
+
+## 2026-07-25 実装監査
+
+判定: Phase 1〜2 の CPU Rasterizer 基盤は実装済み。Phase 3〜4、時間状態の保持、preview/final 分離は未確認・未接続。
+
+- `ReactionDiffusionBlurEffect` は Gaussian blur の後に低解像度の U/V 格子を作り、feed / kill、Laplacian、反復更新、patternStrength で画像へ混合する Gray-Scott 風の CPU 処理を持つ。
+- Blur Radius / Feed / Kill / Pattern Strength / Iterations / Evolution は effect の編集プロパティとして公開され、Rasterizer effect として登録されている。
+- ただし各適用で seed と格子を作り直しており、フレームをまたいで模様を育てる persistent state や transition の前フレーム→次フレーム経路は確認できない。
+- GPU solver、preview / final の反復数切替、cell split / ripple dissolve 等のプリセット、深い専用 transition UI は未実装。
+- 次の実装単位は、まず時間状態の所有方法と preview / final の反復契約を定義し、既存 CPU 経路を transition へ接続すること。
+
+ビルド・実行確認はリポジトリ方針により未実施。
