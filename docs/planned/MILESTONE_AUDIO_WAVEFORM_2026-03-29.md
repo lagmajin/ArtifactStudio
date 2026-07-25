@@ -56,3 +56,12 @@
 | `ArtifactCore/src/Audio/AudioRingBuffer.cppm` | オーディオデータ |
 | `Artifact/src/Widgets/ArtifactTimelineWidget.cpp` | タイムライン描画 |
 | `Artifact/src/Playback/ArtifactPlaybackEngine.cppm` | 再生エンジン |
+
+## 次の実装スライス: Composition Viewport Overlay
+
+- 既存の `ArtifactCompositionRenderOverlay` の選択・情報表示責務へ波形データ生成を直接混ぜない。
+- `ArtifactAudioLayer::buildWaveformData()` のピーク／RMSを、選択中Audio Layerの表示用スナップショットとして受け取る専用Overlay境界を設ける。
+- 表示条件は `showAudioWaveformOverlay`、選択レイヤーがAudio Layerであること、現在フレームが有効であることに限定する。
+- オーバーレイはビュー下部の固定領域に表示し、コンポジション本体の座標変換やレイヤー合成へ影響させない。
+- 表示更新はフレーム変更・選択変更・ズーム変更時に限定し、音声サンプルの再デコードを描画パスから追い出す。
+- 実装後に、非Audio Layer、無音、未ロード素材、選択なし、表示OFFの各ケースを確認する。
