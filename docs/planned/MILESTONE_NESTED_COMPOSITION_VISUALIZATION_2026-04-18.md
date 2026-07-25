@@ -116,3 +116,19 @@ Artifact/include/Model/ArtifactCompositionLayer.ixx
 
 - [`docs/planned/MILESTONE_DCC_FEATURE_GAPS_2026-03-28.md`](docs/planned/MILESTONE_DCC_FEATURE_GAPS_2026-03-28.md)
 - [`plans/AFTER_EFFECTS_GAP_ANALYSIS.md`](plans/AFTER_EFFECTS_GAP_ANALYSIS.md)
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースでは `PreComposeManager` が nesting map / parent-child 関係 / nesting level / composition hierarchy / parent lookup / parent-child time conversion / precompose・unprecompose command を持つ。`ArtifactCompositionLayer` とタイムライン／Composition Editor 側の nested composition 接続も存在するため、コア機能が存在するという文書の前提は確認できる。
+
+ただし、今回の静的確認では、専用アイコン・背景色・サムネイル・深度表示、timeline 内部展開、常時表示の breadcrumb、履歴 UI、親子 playhead の完全同期、Alt+drag 複製など、視覚化マイルストーンの全 UI 完了は確認できない。PreCompose API の存在だけでユーザー向け視覚化の Definition of Done 達成とは判定しない。
+
+### Audit status
+
+- Phase 1: 部分実装 — nested composition / precompose の操作基盤はあるが、専用 layer panel 表示は未確認
+- Phase 2: 未完了 — timeline 内部表示、duration / loop / stretch / remap indicator は未確認
+- Phase 3: 部分実装 — hierarchy / time conversion API はあるが、breadcrumb / history UI は未確認
+- Phase 4: 部分実装 — nested timing API はあるが、親子 playhead の完全同期は未確認
+- Phase 5: 部分実装 — precompose / unprecompose はあるが、複製・新規コンポジション化 UI は未確認
