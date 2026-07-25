@@ -89,3 +89,20 @@ Artifact では既に `MaterialType::MaterialX` と `materialXDocument` の格�
 - `hasMaterialXDocument()` / `clearMaterialXDocument()` を追加済み
 - まだ inspector / export / renderer への橋渡しは未着手
 
+---
+
+## Static audit follow-up (2026-07-25)
+
+`ArtifactCore::Material`、`Artifact3DModelLayer` の material property、Material JSON／preset／renderer経路を現行ソースで照合した。ビルド・外部MaterialX実ファイル・renderer parity は未実施。
+
+| Phase | 現状 | 判定 |
+|---|---|---|
+| 1. Document storage | `MaterialType::MaterialX`、document setter/getter、保持用フィールドを確認した。MaterialX専用の完全なsave/load round-tripは未確認。 | 部分実装 |
+| 2. Inspector summary | 3D model layer の property group に `MaterialX` document present の summary 表示を確認した。root node／size／source kind の詳細表示は未確認。 | 部分実装 |
+| 3. Import / Export | MaterialX XML の import/export bridge、preset相互変換、PBR fallback の専用経路は確認できない。 | 未実装 |
+| 4. Renderer / Shader bridge | 既存PBR material assignment はあるが、MaterialX documentからparameterを抽出してrendererへ渡す経路は確認できない。 | 未実装 |
+
+### 現在の判定
+
+MaterialX document の保持と存在表示は部分実装されているが、保存契約、import/export、renderer bridge は未完了。全体は「Phase 1〜2 部分実装／Phase 3〜4 未着手」とする。
+
