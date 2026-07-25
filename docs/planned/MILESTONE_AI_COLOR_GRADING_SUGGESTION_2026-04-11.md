@@ -40,3 +40,7 @@ Total: 60-75h
 - シーンに適した色調整が提案される
 - 提案が適用可能で、結果が自然
 - UIが使いやすく、提案を簡単に適用できる
+
+## 2026-07-25 実装監査
+
+現行コードからは、このマイルストーン固有の `AIColorAnalyzer`／`ColorGradingSuggester`、画像統計からの grading suggestion API、提案を表示・適用する専用 UI は確認できない。既存の ColorGradingEngine、Color Science Panel、AI の機能説明・自然言語導線は関連基盤として存在するが、シーン分析から提案生成・LUT／preset適用までの実装を証明するものではない。したがって Phase 1〜3 は未実装・runtime未検証とする。
