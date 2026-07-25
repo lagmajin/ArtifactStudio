@@ -96,3 +96,10 @@
 2. P1 で prepass+main(cheap) を最小動作させ、そこから P2/P3 で本格化。
 3. P4/P5 でカメラパラメータと UI を接続。
 4. 余力で B1/B2。
+
+## 2026-07-25 実装監査
+
+- `ArtifactCameraLayer` には depthOfField／aperture／focusDistance 等の意図設定があり、作成ダイアログと camera overlay の DOF 表示も確認できる。
+- 一方、DOF の必須前提である D32 深度からサンプル可能な R32 深度 SRV への live コピー、tile／neighborhood／prepass／main／postfilter／upsample の compute chain、indirect dispatch は実装を確認できない。
+- Wicked Engine shader 資産の Diligent 向け移植、CoC uniform の実描画接続、DOF 有効時の実効果も未検証である。
+- したがって本マイルストーンは、カメラ設定・表示の先行実装はあるが、DOF/Lens Blur 本体は未着手の設計段階と判定する。
