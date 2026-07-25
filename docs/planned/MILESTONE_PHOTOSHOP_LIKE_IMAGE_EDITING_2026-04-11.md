@@ -37,6 +37,10 @@ ArtifactCore に Photoshop ライクな画像編集機能を追加し、レイ�
 - GPU/CPU バックエンドの選択
 - API: `addLayerEffect(layer, effectType, params)`
 
+## 2026-07-25 実装監査
+
+`ArtifactPaintLayer`／`ArtifactBrushTool` のブラシ・消しゴム、フレーム別バッファと undo、`LayerMask`、`ArtifactCloneLayer`、多数の `ArtifactCore` ImageProcessing／OpenCV フィルター、Color Correction 系エフェクト、既存レイヤー／マスク導線は確認した。一方、pressure／tilt 入力、独立した `BrushEngine`／`SelectionEngine`／`FilterEngine`／`AdjustmentEngine`／`LayerEffectEngine` API、矩形・楕円・lasso 選択、クローン stamp の直接編集、Photoshop 風の統合 UI、GPU／CPU 選択と性能一致は確認できない。したがって基盤機能は分散して部分実装されているが、本マイルストーンの統合完了と success criteria は未達・未検証とする。
+
 ## Dependencies
 - OpenCV for image processing
 - DiligentEngine for GPU acceleration
