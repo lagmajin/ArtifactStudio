@@ -117,3 +117,20 @@ AE Essential Graphics のモーショングラフィクステンプレート（`
 - Phase 5 (option): 14–20h
 
 合計: 54–80h (Phase 5 省略時: 40–60h)
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースには `TemplateSlot` / `TemplateLock` / `TemplateVariation`、Parametric Composition の template slot / slot value 変換、Master Properties 系の template lock・slot 接続が存在する。また既存の effect preset と property preset の保存・再適用基盤もある。
+
+ただし、`ArtifactTemplateDocument` / `ArtifactTemplateManager`、`.artemplate` の独立保存・読込、選択レイヤーからの exposed parameter 抽出、Template Parameters 専用 Inspector、Template Browser、複数配置時の独立 override、`.mogrt` 互換読込は確認できない。既存の TemplateSlot は、このマイルストーンのモーショングラフィクステンプレート完成を直接証明しない。
+
+### Audit status
+
+- Phase 1: 部分実装 — template slot / lock の基盤はあるが、template document と manager は未確認
+- Phase 2: 未実装相当 — Motion Template の専用 import / export route は未確認
+- Phase 3: 部分実装 — slot / master property の override 基盤はあるが、専用 Inspector UI は未確認
+- Phase 4: 未実装相当 — Template Browser / library / drag-and-drop は未確認
+- Phase 5: 未実装相当 — `.mogrt` 解析・変換は未確認
+- Definition of Done: このマイルストーンは未完了。既存の template slot / preset 基盤を再利用候補として保持する
