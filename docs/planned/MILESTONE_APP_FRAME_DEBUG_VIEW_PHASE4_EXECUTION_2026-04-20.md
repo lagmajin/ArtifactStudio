@@ -196,3 +196,20 @@
 完了条件:
 
 - support 向けの共有導線がぶれない
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の FrameDebug model、Debug Render Harness、Debug Console、Profiler、Render Queue を確認した。ビルド・実機操作は未実施。
+
+| Ticket | 現状 | 判定 |
+|---|---|---|
+| P4-T1 Bundle Model | `FrameDebugBundle`、capture/history、bundleId、createdAt、JSON 化の型が存在する。capture/compare/queue/playback 全要約の網羅は未確認。 | 部分実装 |
+| P4-T2 Export Path | Harness に reportId/timestamp、Copy Report、Save Report、failure summary がある。frame bundle の専用保存と failed frame 履歴の自動保存は未確認。 | 部分実装 |
+| P4-T3 Diagnostics Summary | Debug Console/Profiler/Harness が warning/error/fallback/report を表示・コピーできる。Frame Debug からの統一遷移は未確認。 | 部分実装 |
+| P4-T4 Support Bridge | report は frame capture の共有を案内し、crash/diagnostic には別導線がある。frame bundle と crash bundle の関連契約は未確認。 | 未完了 |
+
+### Phase 4 判定
+
+text report、timestamp、copy/save、failure summary の基盤は実装済み。ただし専用 frame bundle export、failed frame 履歴、crash bundle との support 契約が残るため「部分実装／統合確認待ち」とする。
