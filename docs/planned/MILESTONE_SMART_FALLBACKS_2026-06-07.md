@@ -85,6 +85,10 @@
 
 ## Implementation Notes
 
+### 2026-07-25 実装監査
+
+`FallbackPolicy`／`FallbackTracker` の型、カテゴリ別イベント記録、font／image／effect／color の主要 fallback と Diagnostics Panel は実装を確認した。未着手として記載されている Asset loading 経路への統合と、policy をプロジェクト設定から変更する UI は引き続き未実装である。したがって Phase 1 は完了、Phase 2 は主要4カテゴリの部分実装、Phase 3 はイベント表示まで実装済みだが export 前集約・設定編集は未完了とする。
+
 ### 実装済み (Phase 1 + Phase 2 一部)
 
 - `Core.Diagnostics.FallbackPolicy` — コア型
