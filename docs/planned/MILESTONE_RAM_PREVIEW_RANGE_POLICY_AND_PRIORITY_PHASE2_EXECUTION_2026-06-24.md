@@ -49,3 +49,7 @@ Phase 3 では pause / scrub の warmup 形状をさらに詰める。
 ### Phase 2 判定
 
 方向を意識した priority/order の基盤は入っているが、forward/reverse/pause の体感差と loop 境界は未検証。Phase 2 は「部分実装／実行確認待ち」とする。
+
+### 追加静的確認
+
+`orderedRamPreviewFramesForRange()` は `owner_->state() == Playing` と `playbackSpeed() < 0` を読み、再生方向側と反対側を分けて距離順に追加する。reverse 時は directional side と比較順を反転し、pause 時は directional bias を使わず current frame からの距離順へ戻る。従って Done 条件の direction-aware ordering は静的に確認できる。loop wraparound と scrub 方向の追従は依然として未実装／未検証で、実際の queue 消費順はランタイム確認待ちとする。
