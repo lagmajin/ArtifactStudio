@@ -207,3 +207,7 @@ ColorScienceManager (New)
   - 顔料ベースの混色モデルを color science 側でも扱えるようにする将来案。
   - CMYK に限らず、白 / 黒 / 補助 pigment を含む mixing model として定義し、paint layer から参照できるようにする。
   - まずは RGB 表示の前段にある「編集用混色モデル」として扱う。
+
+## 2026-07-25 実装監査
+
+ColorScienceManager／ColorSciencePanel、composition color settings、HDRMonitor、ColorGradingEngine、ColorLUT／ColorSpace の基盤は現行コードで確認できる。一方、本書の「全Phase完了」「リアルタイム適用」「HDR preview」「UI sidebar の全導線」は、render 経路・保存 round-trip・実機表示を含めて検証できていない。したがって本書は基盤実装の完了記録として扱い、プロダクション統合の完了判定は Color Correction／Color Grading Workspace／OCIO／LUT Browser 側の各マイルストーンに分離する。
