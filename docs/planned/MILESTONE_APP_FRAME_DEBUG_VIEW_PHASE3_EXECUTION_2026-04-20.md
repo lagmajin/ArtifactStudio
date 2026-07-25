@@ -204,3 +204,20 @@ Phase 3 が終わると、Phase 4 で capture bundle と report を出すとき�
 - [`docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_PHASE1_EXECUTION_2026-04-20.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_PHASE1_EXECUTION_2026-04-20.md)
 - [`docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_PHASE2_EXECUTION_2026-04-20.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_PHASE2_EXECUTION_2026-04-20.md)
 - [`docs/planned/MILESTONES_BACKLOG.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONES_BACKLOG.md)
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の playback engine、FrameDebug compare state、timeline、diff/debug widgets を確認した。ビルド・実機操作は未実施。
+
+| Ticket | 現状 | 判定 |
+|---|---|---|
+| P3-T1 Compare State | `FrameDebugCompareMode`、compare target、previous/current diff、snapshot key が存在する。 | 実装済み／運用確認待ち |
+| P3-T2 Playback Step | Playback engine に forward/backward/step と pause/play 状態がある。frame pin との完全同期は未確認。 | 部分実装 |
+| P3-T3 Scrub Integration | Timeline scrub/cache overlay と current frame の導線がある。capture pin の切り替えまで一貫するかは未確認。 | 部分実装 |
+| P3-T4 Compare UI | Frame Debug、State Diff、Composition/Console 側に compare mode/target と text summary がある。A/B の実画面比較と前後 frame 操作の実機確認は未実施。 | 部分実装／確認待ち |
+
+### Phase 3 判定
+
+compare state と diff の基盤は実装済みだが、scrub/step/pin の一つの authority への収束と A/B 操作の実行確認が残る。Phase 3 は「部分実装／統合確認待ち」とする。

@@ -207,3 +207,20 @@ Phase 2 が終わると、Phase 3 で compare / scrub / step を入れたとき�
 - [`docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_2026-04-20.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_2026-04-20.md)
 - [`docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_PHASE1_EXECUTION_2026-04-20.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_PHASE1_EXECUTION_2026-04-20.md)
 - [`docs/planned/MILESTONES_BACKLOG.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONES_BACKLOG.md)
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の Frame Debug / resource / pipeline / console surface を確認した。ビルド・実機操作は未実施。
+
+| Ticket | 現状 | 判定 |
+|---|---|---|
+| P2-T1 Pass Record | `FrameDebugPassRecord`、pass status/kind、順序、failed/skipped の表示・要約がある。 | 実装済み／実行確認待ち |
+| P2-T2 Resource Record | resource、attachment、texture/buffer、source/intermediate/output、cache/fallback 情報の型と表示がある。 | 実装済み／網羅確認待ち |
+| P2-T3 Frame Cache Bridge | Frame summary と resource/pipeline view はある。authoritative RAM/disk readiness の hit/miss/stale が全 inspector に接続するかは未確認。 | 部分実装 |
+| P2-T4 Read-only Inspector | FrameDebugView、ResourceInspector、PipelineView、DebugConsole に read-only summary/detail がある。 | 実装済み／表示確認待ち |
+
+### Phase 2 判定
+
+pass/resource/attachment の read-only 検査面はコード上実装済み。cache readiness と failed frame の全経路接続、長い snapshot の表示運用が残るため「部分実装／統合確認待ち」とする。
