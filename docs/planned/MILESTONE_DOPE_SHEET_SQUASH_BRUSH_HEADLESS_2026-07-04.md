@@ -16,6 +16,22 @@
 
 ## 1. 目的
 
+---
+
+## Static audit follow-up (2026-07-25)
+
+候補として挙げられた専用 `DopeSheetService` / `SquashStretchService` / `BitmapBrushEngine` の有無を確認した。既存の keyframe editing tool、paint layer、brush tool はあるが、本 milestone の UI 非依存 3 系統をまとめた headless contract は未確認である。
+
+| Workstream | 現行確認 | 判定 |
+|---|---|---|
+| Dope Sheet core | `KeyframeEditingTools` に time scale/offset の既存操作はあるが、複数 layer/property の selection aggregate、duplicate/trim、summary report 用 service は未確認 | 部分実装 |
+| Squash & Stretch | transform/keyframe の既存 API はあるが、velocity 分析・補助 scale key bake・tagged rollback の専用 service は未確認 | 未実装 |
+| Bitmap Brush core | `ArtifactPaintLayer` の `BrushStroke` apply 経路と Brush tool はあるが、bitmap tip/dab engine、pressure/tilt/rotation の headless contract は未確認 | 部分実装 |
+| Persistence / diagnostics | 既存 keyframe・layer serialization はあるが、3 workstream 共通の JSON schema、undo 単位、snapshot vocabulary は未確認 | 未完了 |
+| UI separation | Dope Sheet widget / dock は別途存在するが、本書の core/service を UI 非依存で閉じた実装は未確認 | 未完了 |
+
+**判定**: 既存の低レベル部品は再利用可能だが、M-ANIM-HEADLESS-1 の Done 条件を満たす専用 core/service は未実装。次は Dope Sheet batch model と apply/undo contract を先に確定し、Squash & Stretch と Brush を別 service として分離する必要がある。
+
 以下の 3 系統を、互いに UI 依存で詰まらないように独立した下層機能として先行整備する。
 
 1. `Dope Sheet`
