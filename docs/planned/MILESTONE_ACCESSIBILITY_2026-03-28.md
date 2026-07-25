@@ -4,6 +4,7 @@
 **ステータス:** 部分実装（キーボードフォーカス基盤・スクリーンリーダーラベルは主要UIへ適用、全操作検証待ち）  
 実装追加: TimelineとComposition ViewをStrongFocusおよびAccessible Name/Description対応。
 実装追加: Property EditorにQt標準QFocusFrameを追加し、キーボードフォーカスを可視化。
+実装追加: TimelineにもQt標準QFocusFrameを追加し、フォーカス表示を統一。
 **関連コンポーネント:** 全 UI コンポーネント
 
 ---
