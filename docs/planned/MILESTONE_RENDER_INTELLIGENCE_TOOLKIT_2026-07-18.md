@@ -343,3 +343,12 @@ GPU hang / device lost 発生時に、最後に開始・完了した Render Grap
 - `docs/planned/MILESTONE_MOTION_TRACKING_SYSTEM_2026-03-25.md`
 - `docs/planned/MILESTONE_PHYSICAL_MOTION_BLUR_2026-06-07.md`
 - `docs/planned/MILESTONE_TEMPORAL_EFFECT_HOST_FOR_TIME_DISPLACEMENT_2026-07-01.md`
+
+## 2026-07-25 実装監査
+
+- Phase 1 の backend 非依存 Render Graph diagnostic snapshot、stable ID、pass/resource 状態、JSON 化、および Frame Pipeline View への表示接続は確認できる。
+- Phase 1 の CPU/GPU timing 接続と bounded capture ring は未完了である。
+- Optical Flow は `Analyze.OpticalFlow` と既存 consumer に個別実装があるが、本計画が要求する共有 request/result/cache 契約、confidence／scene-cut、consumer 移行までは確認できない。
+- Temporal Denoise は既存の rasterizer effect として存在するが、Render Graph の temporal history、明示的 rejection、preview-only 契約、Inspector 可視化まで接続された実装ではない。
+- JFA の seed／jump／resolve pass、共有 SDF primitive、GPU Breadcrumbs／device-lost の固定長記録基盤は、本リポジトリのコード検索では確認できない。
+- したがって本マイルストーンは `In Progress` のままとし、既存の個別機能の存在だけで完了とは判定しない。
