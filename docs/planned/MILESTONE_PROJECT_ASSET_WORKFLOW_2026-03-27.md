@@ -248,3 +248,26 @@ Phase 1 は、Project View と Asset Browser が同じ item を指している�
 
 - browser から timeline / viewer / render への橋渡しは selection state が揃ってから詰める
 - save / restore は import/relink が安定してから別途固める
+## 2026-07-25 実装監査
+
+### 判定
+
+Phase 1〜6 の基盤はかなり実装済みだが、Project View と Asset Browser をまたぐ一貫した workflow としては未完了。状態表示・import/relink・organization・workflow bridge の個別機能は存在する一方、実行時の cross-view 同期と save/restore 後の通し確認は未検証として扱う。
+
+### 実装確認
+
+- Project Model は composition / footage を project item として構築し、footage の path、type、duration / frame rate / resolution、missing 表示と missing 色を提供している。
+- Project Manager 側には importable path の収集、footage の参照影響確認、composition / footage の利用先判定、missing 判定、proxy 状態表示など、project item から利用先へ進む基盤がある。
+- Asset Browser 側には selection、recent / favorite、Imported / Favorite / Missing / Unused の status filter、thumbnail / type / status marker、relink undo command、directory selection 同期がある。
+- Asset / project service 側の source registry・relink・状態保存基盤は別マイルストーンで整備されているため、ここでは UI 間の共通導線を重複実装しない。
+
+### 未完了・要確認
+
+- Project View で選択した footage と Asset Browser の選択を同一 item として相互追跡する明示的な runtime bridge は、コード上の個別 selection 処理だけでは完了と断定できない。
+- import 結果を Project View と Asset Browser の両方へ即時反映する一連の操作、bulk relink / search root、drag & drop import の通し挙動は未確認。
+- dependency badge、unsupported / load failure の統一表示、virtual collection / smart bin、timeline / Contents Viewer / render queue への導線は部分実装または別 milestone 側に分散している。
+- save / load 後の selected item、active composition、missing / relinked state の整合と再評価は、実行時検証が必要。
+
+### 次の判定
+
+この milestone は「基盤実装済み・統合確認待ち」。Phase 1 の cross-view selection / state sync を最優先の runtime 確認対象とし、その後 Phase 2 の import / relink 通し確認へ進む。
