@@ -1018,3 +1018,14 @@ void ArtifactAssetBrowser::Impl::handleLeaveEvent(QEvent* event) {
 - 既存 thumbnail／video poster 経路を使った画像・動画 preview の初期 slice は実装済みで、Asset Browser Improvement の Phase 2.2 と整合する。
 - 一方、専用 `HoverPreviewCache`、音声 waveform の popup 表示、高解像度 preview の非同期 load／cancel、preview 中の生成抑制と runtime UX 検証は未完了または未確認である。
 - よって基本 hover popup は実装済みだが、要件全体は Partial／継続中と判定する。
+## 2026-07-25 実装監査（更新）
+
+判定: Hover popup、遅延制御、画像/動画/音声 thumbnail、非同期生成・世代キャンセル・ディスクキャッシュは実装済み。専用 popup cache と runtime UX 検証は未完了。
+
+- `ArtifactAssetBrowser` は single-shot の hover timer、同一 path の再表示抑制、移動・離脱時の hide、画面位置計算を持つ。
+- `HoverPreviewPopup` は画像/動画 thumbnail を表示し、音声は waveform thumbnail 経路がある。missing/失敗時は placeholder と failure reason を保持する。
+- thumbnail はメモリ cache とディスク cache を持ち、非同期 preview job は generation token で古い結果を破棄する。画像・動画の WIC/OIIO/Shell/FFmpeg fallback も実装されている。
+- ただし専用 `HoverPreviewCache` / `HoverPreviewManager` の分離、popup 自体の非同期高解像度 preview、cache 上限の要件との一致、シーケンス専用 hover preview、画面端と高速移動時の runtime UX は未確認。
+- 従って初期 slice は大きく実装済みだが、全ファイル種別・性能・UX を含む本 milestone は Partial のまま。
+
+ビルド・実行確認はリポジトリ方針により未実施。
