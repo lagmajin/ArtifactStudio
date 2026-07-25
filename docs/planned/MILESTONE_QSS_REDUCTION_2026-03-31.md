@@ -71,3 +71,17 @@
 - 既存の widget で hover / selection / disabled の見え方が揃う
 - 例外的な `QSS` が増殖しない
 
+## Static Audit (2026-07-25)
+
+対象の `Artifact`／`ArtifactWidgets` 実装ソースを検索したところ、バックアップ・資料ファイルを除く範囲で実際の `setStyleSheet()` は `DockStyleManager.cppm` の `setStyleSheet(QString())` だけだった。これは DockManager の既存 stylesheet を空にする後処理であり、QSS を見た目の定義として追加している箇所ではない。CommonStyle、QPalette、theme token、owner-draw への移行は、Property／Inspector を含む主要 UI で確認できる。
+
+一方、これは静的な残存数の確認であり、全画面の hover／selection／disabled の統一や、theme 切替時の再描画、例外的 stylesheet の責務文書化を証明しない。`QStyleSheetStyle` の実行時混入、サブモジュール全体、生成物・バックアップを含む完全なインベントリも未確認。したがって Phase 1〜2 は大きく前進、Phase 3〜4 と完了条件は未検証として、ステータスは未完了のままとする。
+
+確認対象:
+
+- `Artifact/src/Widgets/Dock/DockStyleManager.cppm`
+- `Artifact/src/Widgets/CommonStyle.cppm`
+- `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`
+- `Artifact/src/Widgets/ArtifactInspectorWidget.cppm`
+- `Artifact/src/Widgets/PropertyEditor/`
+- `ArtifactWidgets/src/Common/HeadPanel.cppm`
