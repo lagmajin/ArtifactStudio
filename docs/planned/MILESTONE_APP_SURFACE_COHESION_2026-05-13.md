@@ -193,3 +193,21 @@ Phase 1 の対象 surface と、共通にする見出し語彙を先に固定す
 floating 系の表示不良は [`BUG_QADS_FLOATING_COMPOSITION_EDITOR_SHOWEVENT_2026-05-15.md`](../bugs/BUG_QADS_FLOATING_COMPOSITION_EDITOR_SHOWEVENT_2026-05-15.md) に整理済み。
 長期の対処順は [`MILESTONE_QADS_FLOATING_SURFACE_STABILIZATION_2026-05-16.md`](./MILESTONE_QADS_FLOATING_SURFACE_STABILIZATION_2026-05-16.md) に切り出した。
 Phase 4 の仕上げメモは親文書に統合済み。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の主要 surface と playback 関連コードを確認した。ビルド・実機 UI は未実施。
+
+| 領域 | 現状 | 判定 |
+|---|---|---|
+| Context Header | Project/Asset/Timeline/Composition/Debugger の widget と context manager は存在する。全 surface の `current/recent/selection` 文法統一は未確認。 | 部分実装 |
+| Summary Strip | Project health、timeline、render queue、property/inspector の summary 基盤がある。高さ・情報順序・chip 密度の横断統一は未確認。 | 部分実装 |
+| Empty State | Project/Asset/Viewer の empty/placeholder 導線は存在する。import/open/select/inspect の次アクション統一は未確認。 | 部分実装 |
+| Playback / Transport | PlaybackService authority と PlaybackControl/Timeline/Composition の導線がある。全 surface が同じ command vocabulary と state wording を読むことは未確認。 | 部分実装／確認待ち |
+| Cross-Surface Finish | Workspace/MainWindow/Project/Timeline/Composition/Diagnostics の統合基盤はある。見た目と操作の実機 cohesion は未確認。 | 未完了 |
+
+### 現在の判定
+
+surface の部品と routing は揃ってきたが、文法・情報量・transport 表示の横断検証が残る。Phase 1〜3 は部分実装、Phase 4 は統合確認待ちとする。

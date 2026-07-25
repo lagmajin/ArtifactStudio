@@ -105,3 +105,20 @@ Phase 1 の実行メモは親文書へ統合済み。
 - 最近の parity 作業で `ready-missing-image` を state として分離し始めたため、今後は `ready / playable / pending / failed / fallback` を diagnostics 語彙として固定しやすい
 - App Debugger / timeline tooltip / footer / render fallback reason の wording を同じ辞書で見る slice が必要
 - 関連する横断整理は [MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md) を参照
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の diagnostics widget、project health、frame debug、playback reason helper を照合した。ビルド・実機表示は未確認。
+
+| Phase | 現状 | 判定 |
+|---|---|---|
+| 1. Vocabulary Alignment | ProjectDiagnostic/DiagnosticEngine、Project Health、App Debugger、frame diagnostics が存在し、playback の `requested/ready/failed/fallback` も定義されている。全 surface の warning/error/chip 表示統一は未確認。 | 部分実装 |
+| 2. Summary-First | goal-first summary、health/dashboard、debugger summary の基盤がある。raw trace より summary が常に先に出ることは未確認。 | 部分実装 |
+| 3. Frame / Harness Bridge | FrameState/Resource/Pipeline/Debug view と harness/debug widgets が存在する。frame failure reason の共通表現と compare/pin/copy の統一は未確認。 | 部分実装 |
+| 4. Cross-Surface Warning | asset/timeline/composition/render/playback に個別 warning/fallback 表示がある。inline と dedicated panel の責務統一は未確認。 | 未完了 |
+
+### 現在の判定
+
+診断の基盤と playback 状態語彙は進展しているが、summary-first と surface 横断の表示整合が残る。全体は「部分実装／統合確認待ち」とする。
