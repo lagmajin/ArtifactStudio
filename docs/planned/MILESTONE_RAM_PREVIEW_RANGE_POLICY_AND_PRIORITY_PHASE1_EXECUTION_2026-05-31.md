@@ -121,3 +121,29 @@ Phase 1 では名前の最終形より、`1 か所から読める` ことを優�
 ## Follow-Up
 
 Phase 2 では、ここで固定した vocabulary を使って `playback direction bias` を実際の request ordering に反映する。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行コードを確認した。子サブモジュールの対象ファイルは編集せず、親から参照できる現状だけを記録する。ビルド・実機 UI 確認は未実施。
+
+### 確認できた実装
+
+- `ArtifactPlaybackService` 側に priority note/reason helper があり、`immediate`、`near`、`directional`、`safety-backfill`、`work-area`、`out-of-range`、`unknown` の語彙を分離して扱っている。
+- priority reason と `requested/ready/failed` の state reason は別 helper 群になっている。
+- current frame、再生状態、方向、work area、composition bounds を使うための service 状態と、priority build queue の ordering が存在する。
+
+### 未確認・残課題
+
+| 完了条件 | 判定 |
+|---|---|
+| code 側で priority vocabulary が定着 | ソース上は確認済み |
+| service から frame priority reason を取得 | ソース上は確認済み |
+| timeline/debugger の表示 | service state の通知基盤はあるが、両面で同じ reason を表示する実行確認は未実施 |
+| failed と low priority の区別 | helper 上は分離。UI 表示の実機確認待ち |
+| work-area と out-of-range の区別 | policy/helper 上は分離。境界値の実行確認待ち |
+
+### Phase 1 判定
+
+priority vocabulary と service 側 reason API は実装済み。Done 判定に必要な timeline/debugger 表示と境界値の実行確認が残るため、Phase 1 は「部分実装／検証待ち」とする。
