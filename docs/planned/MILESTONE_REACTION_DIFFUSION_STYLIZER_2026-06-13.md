@@ -147,3 +147,7 @@
 - 次の実装単位は、入力画像から feed / kill を作る parameter mapper と、低解像度 U/V solver の状態契約を専用 effect として定義すること。
 
 ビルド・実行確認はリポジトリ方針により未実施。
+
+### 追加静的確認
+
+`ReactionDiffusionBlurEffect` の `feed`／`kill`／Laplacian／U-V更新は確認できるが、入力画像の luminance／hue／saturation を制御マップへ変換する処理ではなく、Blur効果内の固定パラメータ反応拡散である。`ArtifactInspectorWidget` と `ArtifactEffectService` に登録されるのも Blur ID であり、Stylizer専用の effect ID、preset、GPU path、時間状態は存在しない。従って本マイルストーンは未実装判定を維持する。
