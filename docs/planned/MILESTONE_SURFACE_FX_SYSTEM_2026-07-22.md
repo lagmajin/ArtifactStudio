@@ -215,3 +215,10 @@ Planar は正規化矩形として扱い、GPU pass と専用編集面は未実�
 ## 次の実装判断
 
 最初の実装対象は `SFX-1` とする。カメラと窓を別システムに分けず、`ScreenSpace` と `Planar` の二つの anchor で両方を表現できることを確認してから、水滴の時間評価を追加する。
+
+## 2026-07-25 実装監査
+
+- `SurfaceFXData`／`SurfaceFXElement` の安定文字列 JSON 契約、ScreenSpace／Planar anchor、Scratch／Droplet／Streak／Dirt／Condensation の要素型が存在する。
+- `SurfaceFXEffect` は effect stack と Composition JSON の保存／復元に接続され、CPU fallback に静止 overlay、時間評価、droplet／streak の deterministic motion、rim／highlight／最大 ±2px の局所サンプリングが実装されている。
+- 独立 `SurfaceFXEvaluator`、GPU SurfaceFX pass、品質段階制御、field atlas 再利用、専用編集面／viewport overlay は未実装または未確認である。
+- preview／render queue の一致、seek／逆再生、複数効果の順序、旧 JSON／未知 enum 復元は runtime 未検証のため、ステータスは `In Progress` のままとする。
