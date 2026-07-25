@@ -170,3 +170,21 @@ Phase 1 は、各 menu action がどの state の正本を読むかを先に固�
 
 - shared command routing は ownership と enabled state が固まってから入れる
 - cross-panel synchronization は menu state が安定してから詰める
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースを静的確認した範囲では、メニュー登録と主要な enabled / checked state は既に各メニューへ実装されている。File は project 有無、Composition は current composition、View は composition / viewport、Render は composition / queue、Animation は current layer を入力にしている。Time menu は `ArtifactPlaybackService` を正本として再生・停止・移動・ループ状態を扱っており、再生系の一元化も部分的に進んでいる。
+
+一方で、action ownership の全体 inventory と共通 command dispatcher は確認できず、各 menu の `QAction::triggered` ラムダから個別サービス／UI処理へ接続する構成が残る。Edit の undo/redo、clipboard、selection に対する全 action の入力条件も共通表としては未整理で、menu 間の refresh 契約と cross-panel 同期を実行時に確認できない。
+
+### Audit status
+
+- Phase 1: 部分実装 — menu ごとの action と責務は存在するが、全体 inventory / ownership map は未作成
+- Phase 2: 部分実装 — 主要 menu に context-aware enabled / checked 更新あり。共通化・stale state 検証は未完了
+- Phase 3: 部分実装 — `ArtifactPlaybackService` の利用は確認できるが、全 action の shared routing は未確認
+- Phase 4: 未確認 — MainWindow、Project、Timeline、Inspector 間の状態同期を実行時に検証できていない
+- Phase 5: 未着手相当 — menu diagnostics と全体 polish の完了根拠なし
+
+次の実装候補は、既存 action を壊さずに inventory を文書化し、menu 表示時の state refresh の入口と undo / selection / clipboard の共通入力を整理すること。
