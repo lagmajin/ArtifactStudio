@@ -915,3 +915,20 @@ variant の override が property 依存を壊す可能性がある。
 
 2026-04-17 時点では設計段階。
 まずは Revision Ledger と Layer Variant の責務分離を固め、その後に UI へ接続する。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+`UndoManager`、`ArtifactAutoSaveManager`、`currentProjectSnapshotJson()`、`ArtifactSnapshotCompareWidget` を現行ソースで照合した。ビルド・実機操作確認は未実施。
+
+| 成功条件 | 現状 | 判定 |
+|---|---|---|
+| project の節目を revision として残す／snapshot から restore | Undo、autosave、project snapshot、snapshot compare／restore の個別機能はあるが、Revision Ledger の永続モデル・revision ID・checkpoint API は確認できない。 | 未実装 |
+| branch を作れる | Snapshot Compare に branch 操作相当の UI はあるが、名前付き branch ref と ledger 管理の実装は確認できない。 | 部分実装 |
+| layer に複数 variant を持つ／切替で再現 | `VariantSet`、base＋override、variant 切替の layer model は確認できない。 | 未実装 |
+| Undo / Autosave / VCS の責務分離 | Undo と autosave は独立しているが、VCS 層自体が未導入のため分離完了とは言えない。 | 部分実装 |
+
+### 現在の判定
+
+既存の Undo／Autosave／snapshot 比較は土台として存在するが、本マイルストーンの Revision Ledger と Layer Variant 機構は未実装。現状は「設計段階／実装未着手」とする。
