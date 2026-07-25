@@ -178,6 +178,12 @@ Phase 2 は、scroll / zoom の意味を先に固定してから、復帰 shortc
 - 長い timeline でも現在位置を戻せる
 - 視点操作の意図がぶれない
 
+## 2026-07-25 現状確認
+
+Phase 1 は実装が進み、Timeline Track Painter に keyframe marker の click modifier／矩形選択、選択ハイライト、複数markerのbatch move、clip選択のmodifier伝播がある。Timeline Widget には property snapshot を使った batch 編集の Undo command、layer stateの復元、scrub controller、track pan／zoomの既存導線もある。
+
+未完了または未検証なのは、rubber-bandの最終UX、plain scrollとCtrl+Scrollの厳密な役割固定、復帰shortcut、inline property editor、複数レイヤーのsnap／collision統一、timelineからInspectorへの往復強調、ripple editの一操作Undoである。判定は「選択強化とbatch編集基盤は実装済み、操作規則の統一と後半Phaseは未完了」とする。
+
 ### Phase 3A の着手点
 
 1. 同一行に property の代表値を出す
