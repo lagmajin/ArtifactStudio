@@ -4,6 +4,10 @@
 
 見た目の外接矩形を安定して計算し、テキスト背景追従・見た目中央アンカー・自動クロップ・整列・セーフエリア判定を支える基盤を作る。
 
+## 2026-07-25 実装監査
+
+`LayerBounds`／`LayerBoundsKind` と `contentBounds()`、source／visible／effect／mask／layout の query API、summary 表示は実装されている。ただし基底実装では `effectBounds` と `maskBounds` が visible bounds の代用で、`layoutBounds` も source を基本とするため、effect／mask を実測した共通計算ではない。外部 automation／UI consumer が5種類を一貫して利用する経路や safe-area warning、auto-crop／visual-center の統合も確認できない。したがって Phase 1〜2 は API の骨格、Phase 3 は未完了とする。
+
 ## Goal
 
 `visibleBounds`, `sourceBounds`, `effectBounds`, `maskBounds`, `layoutBounds` を一貫したルールで扱えるようにする。
