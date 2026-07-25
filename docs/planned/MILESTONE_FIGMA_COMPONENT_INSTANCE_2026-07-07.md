@@ -126,3 +126,12 @@ AE にはこの概念がなく、すべてのレイヤーは独立した複製�
 - 2026-07-07: 初版作成。Figma Component/Instance システム移植設計。
 
 > 新規のコンポーネント管理システムを `ArtifactCore` に追加する。
+
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+Figma 固有の ComponentMaster／ComponentInstance は確認できない。ただし、ArtifactCompositionLayer に master property overrides の辞書、effective value、apply／clear、JSON 保存復元があり、TemplateSlot／TemplateVariation に別系統の template override 基盤も存在する。これらは再利用候補だが、ShapeGroup の master 参照や instance identity とは別契約である。
+
+Component Library、Go to Master、Reset／Detach、master 変更の全 instance 伝播、ネスト component、Figma variant は未実装または未確認。したがって Phase 1〜3 は未完了で、既存 override／template 機能を Component System 完了の証拠とは扱わない。
