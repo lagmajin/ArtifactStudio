@@ -1,6 +1,6 @@
 # Milestone: オーディオ波形ビジュアライザー (2026-03-29)
 
-**Status:** Not Started
+**Status:** Partial — waveform extraction and timeline display implemented; viewport overlay and spectrum pending
 **Goal:** タイムラインとコンポジションビューポートにオーディオ波形を表示。
 アニメーションのタイミング合わせに必須。
 
@@ -11,8 +11,8 @@
 | 機能 | 状態 |
 |------|------|
 | オーディオ再生 | ✅ 完成 |
-| 波形データ抽出 | ❌ 未実装 |
-| タイムライン波形表示 | ❌ 未実装 |
+| 波形データ抽出 | ✅ 実装済み |
+| タイムライン波形表示 | ✅ 実装済み |
 | コンポジション波形表示 | ❌ 未実装 |
 | スペクトラム表示 | ❌ 未実装 |
 
