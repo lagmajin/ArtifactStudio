@@ -2,6 +2,14 @@
 
 **ステータス:** In Progress
 
+## Static Audit (2026-07-25)
+
+現行ソースでは、Phase 1 の基盤はかなり進んでいる。`Graphics.RenderGraph`、`FrameDebug`、`Graphics.TemporalHistory` が存在し、`FramePipelineViewWidget` は compiled graph の pass/resource、実行順、resource lifetime、推定 byte size、CPU/GPU timing、barrier hint を表示する。GPU frame timing の diagnostic 公開と temporal invalidation のデータ構造も確認できる。
+
+一方で、5項目全体の完了とは判定しない。JFA の dedicated distance-field contract / pass 実装、backend-neutral な共有 Optical Flow service/cache、forward-backward confidence と scene-cut、bounded capture ring、pass 単位 query pool、render-state cache、複数 queue/fence の実運用は確認できない。既存の `OpticalFlowBlurEffect` は個別 effect 実装で、共有サービスの証拠にはならない。`TemporalDenoiseEffect` と temporal shader は存在するが、Toolkit が定義する history reprojection・disocclusion・variance・preview-only 境界までの接続は未確認である。GPU Breadcrumbs/device-lost recovery の専用契約・実 backend 連携も未確認である。
+
+判定: Phase 1 diagnostics は static partial-to-substantial、DSA-1 は frame timing 部分のみ、Phase 2〜5 と DSA-2/3 は未完了または実 runtime 接続未検証。`QImage`/`QPainter` を本流に追加した証拠は今回の対象範囲では確認しなかった。
+
 ## 目的
 
 ArtifactStudio の Render Graph / Temporal History 基盤を実描画へ接続し、制作機能と診断機能を同じ GPU 契約上で段階導入する。
