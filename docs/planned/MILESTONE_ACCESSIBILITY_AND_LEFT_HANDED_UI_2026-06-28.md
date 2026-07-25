@@ -118,7 +118,7 @@ UI 全体へ一気に適用せず、後続の widget が参照できる共通設
 
 Phase 2 では、Phase 1 の設定土台を使って、実際の操作体験を少しずつ改善する。
 
-実装追加: `ArtifactTimelineWidget` の主要ツールボタンが `Larger hit targets` 設定に連動。
+実装追加: `ArtifactTimelineWidget` の主要ツールボタンとProperty Editorのレイヤー状態ボタンが `Larger hit targets` 設定に連動。
 
 ### 1. 入力補助の拡張
 - 片手操作しやすい位置に主要アクションを寄せる
