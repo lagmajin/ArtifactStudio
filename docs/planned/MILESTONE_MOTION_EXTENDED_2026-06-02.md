@@ -313,3 +313,19 @@ RenderQueue に進捗バー・残り時間推定・フレームサムネイル�
 - **ChromaKeyEffect**: 存在 → **Spill Suppression など高度パラメータ未実装**
 - **ParticleLayer**: 存在 → **エフェクト形式ではなく独立レイヤー型のみ**
 - **AdjustmentLayer**: Core完備 → **コンポジションエディタ上の視覚的分かりやすさ不足**
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースとの照合では、RotoMask / RotoMaskEditor、ChromaKey の spill suppression 系プロパティ、Marker のモデルとショートカット、NullLayer、SnapGuide の基盤は存在する。したがって、備考欄の「完全に未着手」という扱いは一部更新が必要である。
+
+一方、Brush Paint / Clone Stamp / Roto Brush のフレーム単位ペイント・自動伝播、タイムライン上の Marker 編集 UI、ルーラーからのガイド追加 UI、Ripple / Rolling / Slip / Slide の編集ロジック、Saber / Optical Flare、Audio Reactor の完成導線は、今回の静的確認では完了根拠を確認できない。既存基盤の存在だけで各機能の DoD 達成とは判定しない。
+
+### Audit status
+
+- Category A: Roto の編集基盤は部分実装。ペイント／クローン／自動追跡は未完了
+- Category B: ChromaKey の基盤と spill 関連プロパティは存在。高度な操作 UI と実出力は未確認
+- Category C: Marker / SnapGuide / Null の基盤は存在。ユーザー導線と編集 UI は未完了
+- Category D: 生成エフェクト群は本マイルストーンの完了を示す専用実装・runtime 検証なし
+- 全体: 33 機能の候補リストとして維持し、個別マイルストーンの実装状況を正本とする
