@@ -145,3 +145,15 @@ Feature Expansion 側で「音声を制作能力として増やす」と定義�
 2. Timeline / Playback Integration
 3. Visualization / Diagnostics
 4. Import / Relink / Workflow
+
+## 2026-07-25 実装監査
+
+判定: Phase 1〜4 の主要な layer／timeline／playback／visualization／workflow 経路は実装済み。runtime の音声同期・異常系・全 UI 表示は未検証。
+
+- `ArtifactAudioLayer` は source、volume、mute、audio payload、waveform summary、JSON 保存/復元を持ち、Timeline は audio icon、state、volume/mute、再生中 indicator を表示する。
+- `ArtifactAudioService`、`ArtifactAudioMixer`、`ArtifactPlaybackEngine`、composition の `hasAudio`/active layer 集計が音声レイヤーを playback 経路へ接続している。
+- Timeline track painter、Composition Render Controller、Contents Viewer、Asset Browser に waveform/preview 経路があり、clip／peak／RMS の表示基盤も存在する。Audio layer の追加、source 置換、relink、WorkspaceAutomation、Undo 経路も確認できる。
+- missing / decode failure / empty source の全状態を inspector・timeline・project view で一貫表示すること、solo/mute の実音声挙動、複数 layer の mix、sample rate/channel 変換、再生中 indicator の実機同期は未確認。
+- よって Audio Layer の workflow 接続は大きく進行済みだが、受け入れ条件の runtime parity と異常系 UX は検証待ち。
+
+ビルド・実行確認はリポジトリ方針により未実施。
