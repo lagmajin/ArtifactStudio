@@ -1448,3 +1448,10 @@ struct MissingAssetsDetectedEvent : Event {
 - 複数ファイル時に Layer Order または Layer Name to Filename matching を選択可能にした
 - name matching はcase・空白・underscore・hyphen等を正規化し、fileの重複割当を防ぐ
 - mutation前に最大12件の layer-to-file 対応表を確認表示する
+
+## 2026-07-25 実装監査
+
+- `ArtifactAssetBrowser` の欠落素材向け relink 操作、`ArtifactProjectService` の単一／複数 footage relink と path-based relink、`RelinkAssetCommand` の Undo／Redo 経路を確認できる。
+- AI `WorkspaceAutomation` から `relinkFootageByPath` を呼ぶ経路も存在し、基本的な relink workflow は計画書作成時より実装が進んでいる。
+- 一方、専用 `AssetReferenceTracker`、References Panel、Find References／Select Unused のユーザー導線、古いパスと新しいパスを一覧表示する batch dialog、プロジェクト全体の参照追跡・診断は確認できない。
+- よって単一 relink と Undo は実装済み、参照管理を含む全体 milestone は未完了の Partial 判定とする。
