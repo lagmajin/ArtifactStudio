@@ -4,6 +4,10 @@
 
 座標系や単位を用途ごとに切り替え、Pixel / Percent / Normalized 0-1 / Unity Units / Tile/Grid Units を同じ編集体験の中で扱えるようにする。
 
+## 2026-07-25 実装監査
+
+Core に `CoordinateUnit`／`CoordinateValue`／`CoordinateSpace`／`CoordinateProfile`／`CoordinateResolver` と JSON 変換、px／%／normalized／grid／safe-area の基本変換、式解釈の実装を確認した。ただし Artifact 側の既存編集 UI・property・guide・responsive variant がこの resolver を利用する経路や、profile のプロジェクト保存、Y 軸を含む式の共通評価は確認できない。Unity Units／Tile Grid の実編集統合も未確認であり、Phase 1〜2 は Core 基盤、Phase 3 は未実装とする。
+
 ## Goal
 
 `x = 0.5w`、`y = safe.top + 32px`、`tileX = 3` のような表現を、プロジェクトごとの座標プロファイルに基づいて自然に解釈できるようにする。
