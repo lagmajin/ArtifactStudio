@@ -166,3 +166,19 @@ Software Composition に overlay、gizmo、bounds、crop の可視化を追加�
 2. Project / Asset の同期フロー一覧
 3. Software Composition の debug overlay 要件一覧
 
+---
+
+## Static audit follow-up (2026-07-25)
+
+Property／keyframe、Project／Asset、Software render の現行ソースを横断確認した。ビルド・runtime parity は未実施。
+
+| ワークストリーム | 現状 | 判定 |
+|---|---|---|
+| Property / Keyframe 統合 | `AbstractProperty` と keyframe API は広く使われ、Text／Transform等の保存・Timeline／AI操作経路もある。一方、全 derived layer／effect／mask／camera の単一経路統合は未確認。 | 部分実装 |
+| Project / Asset workflow | Asset Browser／Project Manager、selection、unused／missing表示、relink、cleanup、metadata系の実装を確認した。全導線の同期・undo整合は未確認。 | 実装済み部分／統合確認待ち |
+| Software Composition 強化 | Software render/compositor、layer／composition test surface、bounds／gizmo／fallback診断の要素は存在する。比較／split viewと全overlayの統一は未確認。 | 部分実装 |
+
+### 現在の判定
+
+3つの長期ワークストリームはいずれも基盤または関連機能が存在するが、文書の完了条件を満たす全体統合は未確認。最優先の Property／Keyframe は、残りの非統合経路を棚卸ししてから実装を進める状態とする。
+
