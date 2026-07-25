@@ -180,3 +180,10 @@ Asset Browser から次の操作へ迷わず進めるようにする。
 - 既存のサムネイル・未使用判定・DnD をそのまま活かせる
 - Unity 風の「探す・絞る・見せる」操作感を取り入れやすくなる
 
+
+## 2026-07-25 実装監査
+
+- Phase 1 の splitter／breadcrumb／history／Favorites、Phase 2 の incremental search／flat result、Phase 3 の grid／list／thumbnail／status、Phase 4 の folder intelligence／context menu を関連コードで確認できる。
+- Phase 5 も asset D&D、folder navigation、source／folder double-click 分岐、unused／project workflow、import／relink の主要導線が存在する。
+- Sequence grouping の本格実装と Project View の構造整理は別マイルストーンに分離されており、scope boundary も守られている。
+- よって親 milestone の実装範囲は完了相当だが、検索履歴切替、D&D preview ghost、runtime performance／UX の実機検証を残す状態と判定する。
