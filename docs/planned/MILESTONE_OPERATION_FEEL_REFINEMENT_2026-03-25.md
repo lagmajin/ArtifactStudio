@@ -253,3 +253,7 @@ Widget は「状態の正」ではなく「結果の表示」に寄せる。
 2. drag / scrub / seek の入力経路を軽量化する
 3. hidden widget の refresh と relayout を止める
 
+## 2026-07-25 実装監査
+
+タイムライン／カーブのスクラブ操作、playhead の visual frame 分離、RAM preview の状態・優先度・範囲管理、音声スクラブの専用 worker／低遅延設定、診断メッセージは実装を確認した。一方、再生・スクラブ・停止の preview 負荷切替、render request の横断 coalescing、playhead／composition redraw の完全分離、App Debugger への体感メトリクス統合は確認できない。したがって操作入力と一部の preview／audio 基盤は部分実装、体感改善の完了条件は runtime 未検証とする。
+
