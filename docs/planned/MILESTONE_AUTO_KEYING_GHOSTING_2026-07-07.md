@@ -1,7 +1,7 @@
 # M-AK-1 Auto-Keying + Keying Sets + Ghosting Milestone
 
 作成日: 2026-07-07
-ステータス: Draft
+ステータス: In Progress（Auto-Key／Keying Set／Timeline Ghosting 実装済み、Motion Trail 等を継続）
 対象: `ArtifactCore/include/Animation/AnimatableValue.ixx`,
       `ArtifactCore/include/Animation/AnimatableTransform2D.ixx`,
       `ArtifactCore/include/Animation/AnimatableTransform3D.ixx`,
@@ -126,6 +126,12 @@ Current implementation note:
 - `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm` にプレイヘッド周辺の薄い ghost marker 表示を settings-driven で追加済み
 - ghosting の frame count / opacity は settings で調整可能になり、描画側はその値を直接参照する
 - 次の確認点は、`Transform Only` / `Custom` の実運用で抜け道がないかと、ghosting の描画面をどこまで既存 onion-skin から流用するかに絞る
+
+### 2026-07-25 実装整理
+
+- Auto-Key の設定、Keying Set のプリセット／Custom allowlist、プロパティ変更時の自動キー挿入を実装済み。
+- タイムライン上の Ghost marker とフレーム数／不透明度設定を実装済み。
+- Motion Trail、J/K キーフレームジャンプ、プロジェクト JSON の専用永続化、Diagnostics は未完了。
 
 ### Phase 2: Keying Set (P1, 1 セッション)
 
