@@ -145,3 +145,7 @@ UI / shader / cache のどこかで暗黙変換が混ざると、CPU / GPU の�
 - GPU effect parity の一部として進めるのが自然
 - まずは小さめの correction controls から入るのが低コスト
 - CPU path は debug / compare 用に残す
+
+## 2026-07-25 実装監査
+
+Exposure／Hue and Saturation／Color Wheels には CPU／GPU 実装、property 取得、CPU/GPU 同期処理があり、Color Correction shader、Lift/Gamma/Gain、Curves、LUT の基盤も確認した。したがって Phase 1 の代表的な correction effect と Phase 2 の実装部品は部分的に進んでいる。一方、主要 correction 全体の Inspector 公開、working/input/output/display space の明示的な契約、preview／render／solo の共通 GPU 経路、CPU/GPU の視覚比較、Curves／LUT の通常 GPU 経路、before/after・cost・fallback 診断、preset／batch／keyframe の一貫した workflow は確認できない。Phase 1 は部分実装、Phase 2〜5 は未完了・runtime未検証とする。
