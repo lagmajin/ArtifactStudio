@@ -180,3 +180,11 @@ derived layer でも同じ property cache を使って persistent property を�
 4. `J/K` を property path ベースの共通ナビゲーションへ接続
 5. Timeline keyframe lane が直接 `AbstractProperty` を読むようにする
 6. property reference linking / pick-whip を read-only resolver から始める
+
+## Static Audit (2026-07-25)
+
+現行コードでは、`ArtifactPropertyWidget` の旧 `keyFrameStore()` は検索上確認できず、`AbstractProperty` の keyframe API と serialization bridge が実質的な共通基盤になっている。`persistentLayerProperty()` は多数の derived layer（Video／Audio／Camera／Light／Text／Image／Composition 等）から利用され、Timeline は propertyPath と `interpolateValue()` を直接扱う。Workspace Automation も同じ propertyPath で keyframe の取得・追加・削除・一括操作を行う。
+
+ただし、`ArtifactAbstractLayer` は `AnimatableTransform3D transform_` と persistent `AbstractProperty` を併存させ、TransformGizmo も AnimatableTransform3D を直接操作している。したがって transform の完全な単一 source-of-truth 化、全 derived layer／effect／mask／time remap の共通 path、Inspector の全行と Timeline／playback／gizmo の値一致、J/K の property path 共通ナビゲーション、reference linking の統合は未完了または未検証である。Graph Editor 相当の統合も確認できない。
+
+判定: **Phase 1〜2 と基盤接続は大きく進展。** Phase 3 は bridge として部分実装、Phase 4〜5 と transform／runtime の完全統合は継続中である。
