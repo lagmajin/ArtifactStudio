@@ -158,3 +158,20 @@
 - [`MILESTONE_APP_DEBUGGER_FIRST_GLANCE_LAYOUT_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_FIRST_GLANCE_LAYOUT_2026-04-24.md)
 - [`MILESTONE_APP_DEBUGGER_FOCUS_PIN_FILTER_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_FOCUS_PIN_FILTER_2026-04-24.md)
 - [`MILESTONE_APP_DEBUGGER_REPORT_SHARE_BUNDLE_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_REPORT_SHARE_BUNDLE_2026-04-24.md)
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の FrameDebug/Harness/DebugConsole の palette、labels、summary 文法を確認した。
+
+| 要件 | 現状 | 判定 |
+|---|---|---|
+| Color Legend | QPalette の neutral/warning/error 表示と failure/health tone は存在する。normal/info/warning/error/success を画面内で再掲する共通 legend は未確認。 | 部分実装 |
+| Badge Grammar | goal/now/warning/next、state/compare/resource/pass のラベルはある。state/cause/mode/scope/status の共通 badge 文法は未確認。 | 部分実装 |
+| Semantic Key | Frame summary と report に主要語彙が現れる。pin/filter/raw/bundle の短い辞書・常設 key は未確認。 | 部分実装 |
+| Abbreviation Helper | fallback/stale/missing/compare/bundle の状態語は使われる。hover/tooltip による共通補足は未確認。 | 部分実装／確認待ち |
+
+### 判定
+
+色・ラベルの実装は分散して存在するが、共通 legend と semantic key の一元化は未完了。Phase 8 は「部分実装／統合待ち」とする。

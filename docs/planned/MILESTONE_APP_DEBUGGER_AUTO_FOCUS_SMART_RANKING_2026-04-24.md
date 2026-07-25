@@ -146,3 +146,20 @@
 - [`MILESTONE_APP_DEBUGGER_FOCUS_PIN_FILTER_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_FOCUS_PIN_FILTER_2026-04-24.md)
 - [`MILESTONE_APP_DEBUGGER_QUICK_ACTIONS_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_QUICK_ACTIONS_2026-04-24.md)
 - [`MILESTONE_APP_DEBUGGER_REPORT_SHARE_BUNDLE_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_REPORT_SHARE_BUNDLE_2026-04-24.md)
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の FrameDebug/Harness/Diagnostics 表示を確認した。ビルド・実機操作は未実施。
+
+| 要件 | 現状 | 判定 |
+|---|---|---|
+| Auto Focus | failed pass/resource と selected/compare の表示はあるが、failed/fallback/missing を自動選出する AppDebugger の専用 ranking engine は確認できない。 | 未完了 |
+| Smart Ranking | duration、failure、warning、resource state の値は snapshot にあるが、severity/recency/duration/count を統合した説明可能な score は未確認。 | 未完了 |
+| Slow Path Highlight | render timing、GPU timing、cost、cache health の表示はある。overlay/present/upload/decode の threshold ranking は未確認。 | 部分実装 |
+| Suggestion Line | Frame Debug に `next: compare or step`、Harness に report/details の次アクションがある。状態ごとの唯一の suggestion 選択は未確認。 | 部分実装 |
+
+### 判定
+
+診断値と warning 表示は揃っているが、自動選出・score・slow path ranking は未実装。Phase 10 は「基盤あり／ranking 未完了」とする。
