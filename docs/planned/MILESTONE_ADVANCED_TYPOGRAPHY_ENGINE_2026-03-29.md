@@ -109,3 +109,10 @@ AdvancedTypographyEngine
 | **Phase 1** | 10h | ベクター変形・プロパティ拡張 |
 | **Phase 2** | 12h | 3D・厚み表現 |
 | **Phase 3** | 10h | 流体・物理統合 |
+
+## Static audit follow-up (2026-07-25)
+
+- `TextAnimator`, `GlyphLayout`, `TextShapingBackend`, `TextLayoutContract`, and `GlyphAtlas` modules provide the Phase 1 animator/shaping foundation; the text layer and property-editor animator surfaces consume part of it.
+- RTL/text-direction handling and a GPU glyph rendering path are present, but complete propagation of every animator property through `ArtifactTextLayer` was not confirmed.
+- No dedicated Text3DEngine/extrusion mesh or FluidText/SpringText integration was found in the targeted source tree. Phase 2-3 therefore remain unimplemented, with runtime shaping/renderer verification pending.
+- No build or runtime verification was performed under the repository policy.
