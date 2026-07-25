@@ -145,3 +145,21 @@
 - [`../technical/DEBUG_RENDER_HARNESS_REPORT_TEMPLATE_2026-04-30.md`](../technical/DEBUG_RENDER_HARNESS_REPORT_TEMPLATE_2026-04-30.md)
 - [`../technical/DEBUG_RENDER_HARNESS_SCENE_PRESET_CONTRACT_2026-04-30.md`](../technical/DEBUG_RENDER_HARNESS_SCENE_PRESET_CONTRACT_2026-04-30.md)
 - Phase 3 / Phase 4 は本書に統合済み
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+`DebugRenderHarnessWidget` と関連する診断 surface を再確認した。記載済みの実装状況は概ね現行ソースと一致するが、smoke 実行による合否確認まではできていない。
+
+| 項目 | 現状 | 判定 |
+|---|---|---|
+| 独立 surface | `AppMain` から開く Harness と App Debugger 側の診断入口が存在 | 実装済み |
+| scene presets | particle/video/blend/overlay/mixed-media の固定 preset と fixture 契約が存在 | 実装済み |
+| snapshot/report | frame、composition、layer、backend、media state、resource、skipped reason、render cost を report 化 | 実装済み |
+| failure display | failure summary、failure reason、cache/resource 状態を画面と text report に表示 | 実装済み |
+| capture/share | report identity、clipboard copy、text file save、Frame Debug への説明導線が存在 | 実装済み |
+| FrameDebug consistency | `FrameDebugSnapshot` の状態を参照する経路はあるが、共通 report contract としての自動検証は未確認 | 部分実装 |
+| regression gate | preset 切替と report 生成の基盤はあるが、particle/video/transparent/skipped の実行結果は未確認 | 未確認 |
+
+**判定**: Phase 1〜3 はソース上実装済み、Phase 4 は smoke 実行と失敗分類の検証待ち。次は runtime smoke checklist を実行できる状態で確認する。
