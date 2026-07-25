@@ -56,3 +56,7 @@ After Effects のカラーピッカーをより使いやすく拡張。
 - 各種カラーモードの正確な変換
 - 最近使った色の保存/読み込み
 - システム統合の動作確認
+
+## 2026-07-25 実装監査
+
+FloatColorPicker の既存導線、スライダーのクリックジャンプ補助、ColorPaletteWidget の調和色生成・Smart Extract・palette の JSON 保存／読込は実装を確認した。一方、Wheel／Spectrum／Sliders／System のタブ構成、24色の recent grid、透明度 preview、color-blind 表示、clipboard／hex 表示、picker 設定の永続化、shortcut／高DPI受け入れ確認は揃っていない。なお、新規 QColorDialog／OS picker 導入はプロジェクト方針上追加しない。したがって既存 picker 改善は部分実装、本マイルストーン全体は未完了・runtime未検証とする。
