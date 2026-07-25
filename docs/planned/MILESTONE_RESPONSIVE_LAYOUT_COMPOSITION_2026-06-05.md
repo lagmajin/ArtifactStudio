@@ -25,6 +25,10 @@
 - Render overlay and project model already surface the active layout variant in summaries
 - 2026-06-29 時点の残作業は、variant switch の見え方をさらに整理しつつ、必要なら preflight / export の明示メッセージを詰めること
 
+### 2026-07-25 実装監査
+
+Phase 1 の `ResponsiveLayoutSet`／variant の JSON 保存・復元、Project View の追加・複製・編集・activate、Composition Editor の selector／`Responsive Preview Matrix` 入口、overlay／model の active variant summary は実装を確認した。Render Queue には active variant と output size の不一致 warning もある。一方、Preview Matrix は一覧から variant を切り替える入口で、複数ビューを同時描画するものではない。variant ごとの実レイアウト再配置、preflight の網羅的診断、4:5 等の preset／safe-area・anchor の実適用は未確認であり、Phase 2 は部分実装、Phase 3〜4 は継続とする。
+
 ## Variant examples
 
 - `16:9` - 横長の標準出力
