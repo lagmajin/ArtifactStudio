@@ -143,3 +143,20 @@
 - [`MILESTONE_APP_DEBUGGER_FIRST_GLANCE_LAYOUT_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_FIRST_GLANCE_LAYOUT_2026-04-24.md)
 - App Debugger 系の phase 実行メモは親文書へ統合済み
 
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の FrameDebug/StateDiff/DebugConsole を確認した。ビルド・実機操作は未実施。
+
+| 要件 | 現状 | 判定 |
+|---|---|---|
+| Pin | FrameDebug の capture pinned、selected layer/resource、compare target のデータはある。AppDebugger で frame/pass/resource/warning を一元 pin する操作は未確認。 | 部分実装 |
+| Compare | compare mode/target と previous/current diff が分離されている。 | 実装済み／UI確認待ち |
+| Filter | DebugConsole に search/context/time、debug/info/warning/error、filter preset、summary がある。failed/fallback/missing/selected の横断 filter は未確認。 | 部分実装 |
+| Focus Mode | selected/compare/failure の強調表示はあるが、他項目を薄くする専用 focus mode と pinned list は未確認。 | 未完了 |
+
+### 判定
+
+compare/filter の基盤はあり、pin/focus は FrameDebug 内の状態に留まる。調査対象を一つに固定し全 surface へ反映する Phase 6 は「部分実装／統合待ち」とする。
+

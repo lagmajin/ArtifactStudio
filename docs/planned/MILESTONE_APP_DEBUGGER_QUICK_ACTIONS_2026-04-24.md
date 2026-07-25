@@ -151,3 +151,20 @@
 - [`MILESTONE_APP_DEBUGGER_FOCUS_PIN_FILTER_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_FOCUS_PIN_FILTER_2026-04-24.md)
 - [`MILESTONE_APP_DEBUGGER_REPORT_SHARE_BUNDLE_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_REPORT_SHARE_BUNDLE_2026-04-24.md)
 - [`MILESTONE_APP_DEBUGGER_LEGEND_SEMANTIC_KEY_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_LEGEND_SEMANTIC_KEY_2026-04-24.md)
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の DebugConsole、FrameDebug、Harness の action surface を確認した。
+
+| Action | 現状 | 判定 |
+|---|---|---|
+| Quick Copy | DebugConsole の Copy Selected/Visible/Details、Profiler/Harness の Copy Report がある。summary/pin/compare の統一 action strip は未確認。 | 部分実装 |
+| Quick Pin | capture/pinned state はモデルにあるが、current frame/pass/resource を近接操作する UI は未確認。 | 未完了 |
+| Quick Compare | FrameDebug の compare mode/target と diff 表示がある。baseline/target を一操作で切り替える UI は未確認。 | 部分実装 |
+| Quick Filter | DebugConsole に filter toggle、context/time/search、preset 保存がある。 | 実装済み／横断確認待ち |
+
+### 判定
+
+copy/filter は実用基盤あり、pin/compare の quick action 集約は未完了。Phase 9 は「部分実装／統合確認待ち」とする。
