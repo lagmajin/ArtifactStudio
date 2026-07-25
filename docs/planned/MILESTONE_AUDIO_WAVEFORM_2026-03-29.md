@@ -66,4 +66,4 @@
 - 表示更新はフレーム変更・選択変更・ズーム変更時に限定し、音声サンプルの再デコードを描画パスから追い出す。
 - 実装後に、非Audio Layer、無音、未ロード素材、選択なし、表示OFFの各ケースを確認する。
 
-初期実装では選択中Audio Layerの波形をViewport下部へ表示し、AudioSpectrumの結果を右上へ表示する。`CompositionRenderController::setShowAudioWaveformOverlay()` で表示をOFFにでき、状態は `QSettings` に永続化する。同一ソースパスの再描画ではピーク／RMSキャッシュを再利用し、ファイルサイズまたは更新時刻が変わった場合はキャッシュを再生成する。スペクトラムの表示設定とライフサイクル強化は後続作業とする。
+初期実装では選択中Audio Layerの波形をViewport下部へ表示し、AudioSpectrumの結果を右上へ表示する。波形とスペクトラムは `setShowAudioWaveformOverlay()` / `setShowAudioSpectrumOverlay()` で個別に切り替えられ、状態は `QSettings` に永続化する。同一ソースパスの再描画ではピーク／RMSキャッシュを再利用し、ファイルサイズまたは更新時刻が変わった場合はキャッシュを再生成する。スペクトラムのライフサイクル強化は後続作業とする。
