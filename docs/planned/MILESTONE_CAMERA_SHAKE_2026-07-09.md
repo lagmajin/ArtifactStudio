@@ -105,3 +105,10 @@
 - amplitudeX / amplitudeY、frequency、decay、seed、wrapMode（clamp / wrap / mirror）を持ち、`Distortion` の displacement と bilinear sampling を使って 2D surface を変位させる。
 - 未確認事項は、実際の layer effect rack での時間変化、端処理の見た目、長時間再生時の性能、3D camera shake との二重適用を避ける運用である。
 - したがって Workstream B は「実装済み・runtime 確認待ち」と更新する。
+
+## 2026-07-25 Runtime 統合監査
+
+- 3D camera shake は `CompositionRenderController` の active camera 解決後に composition frame / delta を渡して `advanceShake()` を呼び、camera の `viewMatrix()` 経由で 3D render path に到達する。
+- 2D Screen Shake は Rasterizer effect として `buildRasterizedSurfaceBuffer` / `applyRasterizerEffectsAndMasksToSurface` の effect chain から `applyConfigured()` に到達し、effect context の `timeSeconds` を使う。
+- Inspector catalog、effect service factory、Rasterizer stage 登録も確認できる。
+- したがってソース上の runtime 経路は接続済み。ただし build / runtime 実行は未実施のため、実際の揺れ量、frame scrub、wrap 境界、3D/2D 同時適用時の見た目は未検証。
