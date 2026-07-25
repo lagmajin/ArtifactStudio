@@ -428,3 +428,13 @@ enum class CompositionCompareMode {
 | B-1 Wipe | — | `CompositionRenderController.*` enum + draw | 低 |
 
 **C++20 modules 注意**: 新規 `.ixx` は値保持しない型（前方宣言可）と既存 `ArtifactIRenderer&` 参照のみに留め、実装 `.cppm` へ依存を閉じ込める。`check_module_hygiene` で検査。
+
+---
+
+## 2026-07-25 現状確認
+
+本書は実装仕様ではなく提案書であり、W0 の `RenderScheduler`、共通 `ViewportState`、独立 Overlay compositor は新規基盤として確認できない。現行コードには既存 controller 内の zoom／pan／orientation、channel 表示、比較、HUD、Work Cursor、各種 overlay があるが、提案された責務分離・コマンドバッチ化・OverlayLayer 登録契約とは別である。
+
+また、A-1 DisplayFilter の統合、ROI の実用的な部分再レンダー、カスタム HUD 設定、Wipe 比較、2D／3D 共通 Navigator は提案段階で、現行の個別機能をもって完了とは判定できない。したがって本提案は「既存機能の棚卸しとW0〜W4の設計案は存在、基盤リファクタと各Waveの実装は未着手」と整理する。
+
+確認範囲: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderOverlay.cppm`、`ArtifactCore/src/Transform/ViewportTransformer.cppm`。ビルド・実機操作による動作確認は未実施。
