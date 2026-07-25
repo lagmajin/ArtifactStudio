@@ -140,3 +140,11 @@
 
 - この milestone の本質は「一覧を増やす」ことではなく「探す理由を早く見せる」こと
 - Project View は制作導線の入口なので、背骨に直結する改善だけ残す
+
+## Static Audit (2026-07-25)
+
+実装メモの主要な着手点は、現行 `ArtifactProjectManagerWidget.cppm` に反映されている。検索欄は textChanged で即時更新し、clear button／Esc、type filter、`tag:`・`unused` 系トークンを持つ。Project View は Tree／Tile を切り替え、Tile の type/status/proxy badge、hover／selection 表現、列ソート・幅調整を備える。上部には view mode／filter／search の概要、表示件数と選択数、選択詳細の表示がある。
+
+未達または未確認なのは、仕様に記載された独立した multi-select filter pills、list/grid という名称・状態の統一、選択アイテム容量合計、条件の完全な status surface、view transition、設定の保存、実データでの複合 filter と視認性の runtime 検証である。したがって、この memo の「いま既にあるもの」は概ね実装済みだが、Phase 2〜5 の完成条件をすべて満たしたとは判定できない。
+
+判定: **実装反映済み・仕上げ／検証待ち。**
