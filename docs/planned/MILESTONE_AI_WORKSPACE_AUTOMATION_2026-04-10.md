@@ -1,5 +1,11 @@
 # AI Workspace Automation Milestone
 
+**進捗状態:** Phase 1〜3 は実装済み。schema／mutation／confirmation の static 検証済み、runtime 実行確認待ち。
+
+### 実装状況（2026-07-25 確認）
+
+WorkspaceAutomation の登録、project／composition／selection／render queue snapshot、asset import、layer／effect／keyframe 操作、render queue 操作、Python／CommandIR bridge、破壊操作の confirmation message と AI tool schema 検査を確認した。残課題は実際の UI 起動状態での invocation、失敗時の復旧、長い mutation chain の runtime 検証。
+
 ## Goal
 
 Build a structured AI tool surface for workspace-level editing in ArtifactStudio.
