@@ -35,3 +35,15 @@
 ## 🔗 関連マイルストーン
 - [M-FX-5 GPU Effect Parity](MILESTONE_GPU_EFFECT_PARITY_2026-03-27.md)
 - [M-AU-3 Audio Visualization](MILESTONE_AUDIO_REACTOR_SYSTEM_2026-03-30.md) (オーディオ連携との相乗効果)
+
+## 2026-07-25 実装監査
+
+判定: GPU particle update と layer 内 FluidSolver2D 基盤は存在するが、マイルストーンの Phase 1〜3 を一貫した VFX 経路として完了した状態ではない。
+
+- `Graphics.ParticleCompute` は structured buffer と compute shader で粒子の加速度・drag・noise・audio reactivity・位置更新を行う基盤を持つ。ただしエミット、GPU 側の寿命再生成、物理フィールド連携、カラー/ライフタイムの体系的な描画統合は別途未確認。
+- `ArtifactAbstractLayer` の Fluid component は `FluidSolver2D`、密度/速度更新、viscosity / diffusion / buoyancy / vorticity / solverIterations の設定保存、低密度 preview particle 化まで実装されている。
+- 一方、レイヤーを fluid source にする入力、ビューポート mouse interaction、GPU 2D pressure solve、fluid 用の専用描画パスは確認できない。`FluidVisualizer` は CPU buffer 向けの可視化基盤に留まる。
+- Standard / Additive / Screen 等への専用 VFX 合成挿入、深度/マスク連携、計算結果の bake/export は未確認。
+- 次の実装単位は、既存 GPU particle compute と layer/renderer の所有関係を確定し、Fluid component の preview 表示を実際の VFX render path へ接続すること。
+
+ビルド・実行確認はリポジトリ方針により未実施。
