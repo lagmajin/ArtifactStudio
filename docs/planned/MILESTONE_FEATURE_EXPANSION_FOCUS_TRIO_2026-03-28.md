@@ -163,3 +163,12 @@ GIF / APNG / Animated WebP を、動画とは別の出力系として整理す�
 - `docs/planned/MILESTONE_VECTOR_LAYER_IMPORT_2026-03-25.md`
 - `docs/planned/MILESTONE_ANIMATED_IMAGE_EXPORT_2026-03-27.md`
 - `docs/planned/MILESTONES_BACKLOG.md`
+
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+MotionTracker と SVG layer／render／persistence、GIF／APNG／Animated WebP の render queue preset／codec mapping を確認した。3 本とも文書作成時の未実装前提から進み、Motion tracking は Core 基盤、SVG は layer と rendering 経路、animated image は preset と queue 経路が存在する。
+
+ただし、tracking editor／overlay／bake の制作導線、SVG の完全な asset relink、animated image の alpha／frame delay の runtime 検証、3 本に共通する状態表示の統一は未確認である。Phase 0 は部分実装、Phase 1〜3 は基盤実装・統合検証待ちとして扱い、Focus Trio 全体は未完了と記録する。
