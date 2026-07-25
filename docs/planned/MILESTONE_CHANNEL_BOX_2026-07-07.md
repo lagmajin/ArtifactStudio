@@ -180,3 +180,10 @@ Channel Box は Inspector の補完 UI として、
 ## 8. 更新履歴
 
 - 2026-07-07: 初版作成。Maya Channel Box の ArtifactStudio 移植設計。
+
+## 2026-07-25 実装監査
+
+- `ArtifactPropertyWidget` 内に Transform／Opacity の Channel Box セクションがあり、既存 Property Editor 行を再利用した直接編集・スクラブ・キー表示の経路を確認できる。
+- `Key All`、フォーカス行への `Key Selected`、表示チャンネルの Lock／Unlock と編集不可表示、レイヤーID単位の QSettings 復元も実装されている。
+- ただし独立 `ArtifactChannelBoxWidget`、明示的な複数チャンネル選択、Graph Editor／DopeSheet への selected-channel filter、プロジェクトJSONへの専用永続化、Problem View 診断は確認できない。
+- よって Inspector 内の基本 Channel Box は実装済みだが、Phase 3／4 と全体 Done Criteria は未完了の In Progress 判定を維持する。
