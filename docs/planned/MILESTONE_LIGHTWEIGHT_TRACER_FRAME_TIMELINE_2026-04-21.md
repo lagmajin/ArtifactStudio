@@ -138,3 +138,21 @@ ArtifactStudio に、超軽量のトレーシング基盤を組み込む。
 - [`docs/planned/MILESTONES_BACKLOG.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONES_BACKLOG.md)
 - [`docs/analysis/CORE_MODULE_MISSING_FEATURES_2026-04-19.md`](X:/Dev/ArtifactStudio/docs/analysis/CORE_MODULE_MISSING_FEATURES_2026-04-19.md)
 - Phase 1-3 の実行メモは本書へ統合済み
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の `Core.Diagnostics.Trace`、CrashHandler、TraceTimelineWidget、Profiler/Debugger 導線を照合した。ビルド・実機計測は未実施。
+
+| 段階 | 現状 | 判定 |
+|---|---|---|
+| Crash Stack Capture | CrashHandler が timestamp 付き report、stack trace、pending report ingestion を持つ。Trace snapshot への完全な last-scope/frame 関連付けは未確認。 | 部分実装 |
+| Scope Tracer Core | Trace が scope begin/end、domain、frame、thread、bounded snapshot、JSON を持つ。常時記録の負荷実測は未確認。 | 実装済み／性能確認待ち |
+| Frame Timeline | frame lanes と Render/Decode/UI/Event 相当の scope、TraceTimelineWidget、FrameDebugSnapshot bridge がある。全 render/decode/UI/event の網羅性は未確認。 | 部分実装 |
+| Thread / Lock Trace | thread id、lock acquire/release、lock depth、mutex chain の記録がある。deadlock/starvation の自動判定は未確認。 | 部分実装 |
+| Diagnostics Integration | Profiler、Debug Console、EventBus、Trace timeline の surface がある。summary/trace の責務境界と共通 wording は未確認。 | 部分実装／統合待ち |
+
+### 現在の判定
+
+Trace の core model と crash/thread/lock の記録基盤はコード上実装済み。常時計測の性能、イベント網羅、deadlock 判定、surface 統合は未確認のため、全体は「部分実装／実行確認待ち」とする。
