@@ -99,3 +99,17 @@ Reactive Event System のルールを編集するための独立ウィンドウ�
 - `TriggerReaction` は別レイヤーの開始・停止チェーンを見せる
 - `PhysicsReaction` は継続更新のパラメータをまとめて編集する
 - `PropertyReaction` は `PropertyOverlay` の時間・イージング・目標値を編集する
+
+## Static Audit (2026-07-25)
+
+Phase 1 の独立ウィンドウ基盤は実装されている。`ArtifactReactiveEventEditorWindow` は Target Tree、Rule Tree、Inspector、Event Log を構築し、View Menu から開ける。Inspector は enabled／name／trigger／source・target／property path／threshold／frame／delay／cooldown／once／repeating を編集でき、ルールの追加・削除・複製・有効切替もUI経路に存在する。Core側の `ReactiveEvents` は trigger／reaction／rule の JSON serialize／deserialize と action type 定義を持つ。
+
+ただし、エディタのルールは現在ウィンドウ内の `std::vector<ReactiveRule>` と sample rules を中心に扱われ、Coreの永続化や実行エンジン／EventBusへの接続は確認できない。Inspector の変更もルール配列へ反映してログを出す範囲で、Undo/Redo、composition／layer選択同期、無効参照診断、実発火のlast fired更新、PropertyOverlay編集、dockable化は未確認。したがって Phase 1 は静的実装済み、Phase 2〜4 とRuntime Contractは未完了／実行検証待ちとする。
+
+確認対象:
+
+- `Artifact/include/Widgets/ReactiveEventEditorWindow.ixx`
+- `Artifact/src/Widgets/ReactiveEventEditorWindow.cppm`
+- `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`
+- `ArtifactCore/include/Reactive/ReactiveEvents.ixx`
+- `ArtifactCore/src/Reactive/ReactiveEvents.cppm`
