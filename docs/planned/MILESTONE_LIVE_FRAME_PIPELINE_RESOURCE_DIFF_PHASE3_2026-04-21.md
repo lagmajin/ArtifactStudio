@@ -83,3 +83,18 @@
 
 - 前フレームとの差分を 1 画面から読める
 
+---
+
+## Static audit follow-up (2026-07-25)
+
+`FrameStateDiffWidget`、FrameDebug snapshot、pipeline/resource diff の現行実装を確認した。ビルド・実行時の自動検出は未確認。
+
+| Ticket | 現状 | 判定 |
+|---|---|---|
+| P3-T1 Diff Model | before/current snapshot、change kind、compare state、density/resource/pass 差分のモデル・表示がある。PSO/CB/SRV/UAV 専用の完全履歴は未確認。 | 部分実装 |
+| P3-T2 Diff Bridge | Frame Debug/State Diff に previous/current と text diff summary がある。queue/playback/backend/selection の全差分接続は未確認。 | 部分実装 |
+| 壊れ始め判定 | failed pass/resource warning と前回との差分は表示できる。直前の正常 frame の自動確定と renderScheduled 系の自動原因特定は未確認。 | 未完了 |
+
+### Phase 3 判定
+
+snapshot 差分の read-only first cut は実装済みだが、GPU state 履歴と壊れ始め frame の自動判定が残る。Phase 3 は「部分実装／統合確認待ち」とする。

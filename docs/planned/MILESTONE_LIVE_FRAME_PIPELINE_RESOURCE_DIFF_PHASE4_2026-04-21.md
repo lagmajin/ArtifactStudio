@@ -72,3 +72,18 @@
 
 - App Debugger から導線がある
 
+---
+
+## Static audit follow-up (2026-07-25)
+
+Profiler、Debug Console、Frame Debug、Harness の現行導線を確認した。ビルド・実機 UI は未実施。
+
+| Ticket | 現状 | 判定 |
+|---|---|---|
+| P4-T1 UI Summary Hooks | FramePipeline/Resource/StateDiff/FrameDebug の各 summary と Debug Console/Profiler の copy/filter/report が存在する。 | 実装済み／表示確認待ち |
+| P4-T2 App Entry Points | App Debugger、Frame Debug、Profiler、Harness の surface は存在する。全ての pipeline/resource/diff 面を App Debugger から一貫して開く導線は未確認。 | 部分実装 |
+| Cross-surface consistency | warning/error/fallback/diff の個別表示はある。共通の summary wording と責務境界の完全統一は未確認。 | 部分実装／統合待ち |
+
+### Phase 4 判定
+
+既存 diagnostics surface への summary 統合は進んでいるが、App Debugger の一貫した entry point と surface 横断 wording の確認が残る。Phase 4 は「部分実装／統合確認待ち」とする。
