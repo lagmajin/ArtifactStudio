@@ -158,3 +158,13 @@ Phase 1 を先に締めるなら、`ProjectionMode` と camera property の整�
 - renderer integration は matrix contract が固まってから入れる
 - gizmo integration は viewport sync の後段に回す
 - projection 設計を先に固めると orbit / zoom の文法も揃えやすい
+
+---
+
+## 2026-07-25 現状確認
+
+静的確認では、`ArtifactCameraLayer` に Perspective / Orthographic、FOV、Ortho Width/Height、Near/Far Clip があり、Inspector property と JSON 保存／復元にも接続されている。カメラ側では `QMatrix4x4::perspective()` / `ortho()` を使う projection 計算と frustum 表示が実装され、Composition 側にも camera matrix／3D layer 描画経路がある。
+
+したがって Phase 1〜3 の主要基盤は実装済みと判定する。一方、viewport resize 時の全経路での aspect／projection 同期、複数viewportへのカメラ割当、gizmo と camera projection のruntime一致は未検証で、Phase 4〜5を完全達成した根拠は不足している。
+
+確認範囲: `Artifact/src/Layer/ArtifactCameraLayer.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`。ビルド・実機操作による動作確認は未実施。
