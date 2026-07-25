@@ -200,3 +200,17 @@
 - owner-draw と interaction が同じ surface で進めやすくなる
 - `QGraphicsScene` 由来の重さと複雑さを段階的に減らせる
 - タイムラインの見た目変更と操作変更を同じ計画で追いやすくなる
+
+---
+
+## 2026-07-25 現状確認
+
+主要な Full Owner-Draw 移行は完了済み。`ArtifactTimelineWidget.cppm` は `ArtifactTimelineTrackPainterView` を `timelinePainterPage` に直接配置し、右ペインの正規 surface として利用している。現行 `Artifact/src` では `TimelineScene` / `ClipItem` / `QGraphicsScene` 系のタイムライン実装は見当たらず、painter 側が clip、marker、selection、playhead、seek、drag、resize、scroll／zoom を担当する。`refreshTracks()` も painter への state 更新を中心に構成されている。
+
+未完了・未確認:
+
+- 本文の「現状資産」に残る旧 `TimelineTrackView` / Scene / ClipItem パスの資料整理
+- 大量レイヤーでの repaint、scrub、drag、resize の実機性能検証
+- 旧 shortcut、selection、playhead 同期との回帰確認
+
+したがって「Phase 1〜4 と実質的な Phase 5 は完了、資料整理と実機検証が残る」と整理する。
