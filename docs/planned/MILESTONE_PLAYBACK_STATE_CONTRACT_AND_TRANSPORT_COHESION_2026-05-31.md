@@ -72,3 +72,19 @@
 - [MILESTONE_APP_SURFACE_COHESION_2026-05-13.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_SURFACE_COHESION_2026-05-13.md)
 - [MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md)
 - [MILESTONE_RAM_PREVIEW_CACHE_PARITY_2026-05-31.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_RAM_PREVIEW_CACHE_PARITY_2026-05-31.md)
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の playback service と各 surface の参照語彙を確認した。ビルド・実機 UI は未確認。
+
+| Phase | 現状 | 判定 |
+|---|---|---|
+| 1. State Vocabulary Lock | service 側に `requested/ready/failed`、`ready-missing-image`、`not-requested`、`requested-not-ready` と priority reason の分離がある。 | 基盤実装済み／表示確認待ち |
+| 2. Transport Surface Alignment | PlaybackService、PlaybackEngine、CompositionPlaybackController、Timeline/preview の導線は存在する。全 surface が同一 wording と authority を読むことは未確認。 | 部分実装 |
+| 3. Secondary Preview Explanation | fallback/status の helper と image availability 判定はある。secondary preview の not-requested/pending/missing-image/composition-mismatch の表示統一は未確認。 | 部分実装／UI確認待ち |
+
+### 現在の判定
+
+state vocabulary の service 基盤は進展しているが、surface cohesion と secondary preview の説明表示が残る。Phase 1 はコード上ほぼ完了、Phase 2〜3 は統合・実行確認待ちとする。
