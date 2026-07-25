@@ -131,3 +131,12 @@ Figma では 1 つのシェイプに複数の Fill と複数の Stroke を重ね
 
 ## 6. 更新履歴
 - 2026-07-07: 初版作成。既存 MergePaths 未実装完了 + Figma Fill/Stroke 多段レイヤリング移植設計。
+
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+ShapeOperatorType::MergePaths と MergePaths 宣言、ShapeLayer 側の operator factory は存在するが、MergePaths の boolean 演算実装（Union／Subtract／Intersect／Exclude）は確認できない。
+
+一方、ShapeLayer には単一 fill／stroke の gradient、stroke alignment／cap／join／taper、stroke gradient と persistence／Inspector property の基盤がある。複数 fill／stroke stack、重ね順 UI、individual corner radius、boolean の永続化は未確認である。Phase 1 は未完了、Phase 2 は単一レイヤー拡張まで部分実装、Phase 3〜5 は未完了または未検証として記録する。
