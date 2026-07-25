@@ -330,3 +330,13 @@ struct CssKeyframeProperty {
 ## 11. 更新履歴
 
 - 2026-06-16: 初版作成。Foundation 80% 完成の上に短期実装可能な milestone として起こす。
+
+---
+
+## 2026-07-25 現状確認
+
+静的確認では、`VectorExport` に SVG フレーム列書き出し、HTML 生成、フレーム画像列を再生する HTML player、および CSS 生成 API が存在する。Render Queue から `.html` 出力を判定し、PNG フレームを保存して HTML player を生成する導線もある。したがって「Web export がゼロ」という背景記述は現状と一致しない。
+
+一方、`CssAnimationExporter::extractAnimationData()` は実質的に `transform` の空プロパティを追加するだけで、フレーム値・keyframe の抽出は未実装。現行 HTML player は self-contained な SVG/CSS アニメーションではなく、外部 PNG フレーム列を参照する形式で、Shape operator、Mask / Effect / Blend / Track Matte の SVG 変換、Web Animation プリセット、設定ファイル、ブラウザ／サイズ／CI 検証も確認できない。よって本マイルストーンは「ラスター HTML player と SVG/CSS の骨格あり、仕様上のベクター Web export は未完了」と判定する。
+
+確認範囲: `ArtifactCore/include/IO/VectorExport.ixx`、`ArtifactCore/src/IO/VectorExport.cppm`、`ArtifactCore/src/Shape/ShapeLayer.cppm`、`Artifact/src/Render/ArtifactRenderQueueService.cppm`。ビルド・ブラウザ実行による動作確認は未実施。
