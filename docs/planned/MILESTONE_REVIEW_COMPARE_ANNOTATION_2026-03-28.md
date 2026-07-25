@@ -188,3 +188,11 @@ Phase 1 は、比較の意味を先に固定してから UI を広げる。
 - `docs/planned/MILESTONE_CONTENTS_VIEWER_EXPANSION_2026-03-27.md`
 - `docs/planned/MILESTONE_PROJECT_ASSET_WORKFLOW_2026-03-27.md`
 - `docs/planned/MILESTONE_EXPORT_REVIEW_SHARE_2026-03-27.md`
+
+## Static Audit (2026-07-25)
+
+現行ソースでは、`ArtifactContentsViewer` に compare page、source A/B path、wipe/swap 設定、画像・動画の比較表示と再生／scrub の基盤があり、shortcut binding も compare 操作を持つ。3D viewer、metadata、open flow、timeline marker／bookmark 系の既存基盤も確認できる。
+
+ただし、レビュー用の統一 `Review` / `Annotation` データ契約、approved/needs-work/rejected 状態、note の永続化、timestamp/frame と asset/render result の関連付け、copyable summary、project/asset/render への workflow return は専用経路として確認できない。比較は主に viewer 内の表示状態であり、複数対象を同時に扱うレビュー記録や再起動後の再参照まで実装済みとは判定しない。
+
+判定: Phase 1 の compare surface は partial-to-substantial、Phase 2〜4 の review/annotation/workflow return は未完了または未検証。
