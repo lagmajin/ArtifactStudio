@@ -203,3 +203,21 @@ Phase 7c: Rename & Interface Cleanup
 | `Artifact/src/Render/PrimitiveRenderer3D.cppm` | 3D プリミティブ API |
 | `Artifact/src/Render/ShaderManager.cppm` | PSO/SRB 管理 |
 | `Artifact/include/Render/DiligentDeviceManager.ixx` | `immediateContext()` / `deferredContext()` |
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+低レベル実装を変更せず、現行の宣言・実装上の境界だけを確認した。
+
+| 項目 | 現状 | 判定 |
+|---|---|---|
+| 2D primitive / text API | `DiligentImmediateSubmitter` と Primitive Renderer に矩形・線・glyph・transform 系の submit 経路がある | 実装済み |
+| SolidRect batch | `flushSolidRectBatch()` と 512 矩形単位の batch 経路がある | 実装済み |
+| H1–H5 optimization | PSO/SRB cache、render target まとめ、PSO dedup、unit quad の実装がある | 実装済み（ソース確認） |
+| Phase 4 advanced features | 3D line thickness、upscale config、gizmo mesh、glyph atlas 差分更新の専用実装は未確認 | 未着手 |
+| Phase 6 draw-order optimization | PSO key による安定ソートと透明順序保護は未確認 | 未着手 |
+| Phase 7a deferred recording | deferred context、command list、execute/finish の経路と immediate fallback がある | 実装済み |
+| Phase 7b/7c | 並列 deferred recording と recorder への rename/interface cleanup は未確認 | 未着手 |
+
+**判定**: 本文冒頭の Phase 3 / Phase 5 / Phase 7a 完了表記は現行ソースと整合する。一方、Recommended Order の Phase 3 が未着手とする記述は古く、Phase 3 は完了扱いに更新すべき状態。未完了は Phase 4・6・7b/c。
