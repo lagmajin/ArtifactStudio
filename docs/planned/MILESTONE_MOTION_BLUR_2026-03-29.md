@@ -91,3 +91,21 @@ for each layer with motionBlur enabled:
 | `ArtifactCore/include/Transform/AnimatableTransform3D.ixx` | - | Transform データ |
 | `Artifact/src/Render/PrimitiveRenderer2D.cppm` | 1207 | drawSpriteTransformed |
 | `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` | 1362 | レンダーループ |
+
+## 2026-07-25 実装監査
+
+### 判定
+
+設計文書の「Not Started」は現状と一致しない。Motion Blur の CPU effect と 3D velocity AOV / resolve 基盤は存在するが、文書が想定する layer 単位の transform sampling による本格的な motion blur pass は未完了。
+
+### 実装確認
+
+- `ArtifactMotionBlur` に Directional / Radial / Zoom / Velocity / Camera / Transform の処理と preset がある。
+- Render pipeline は velocity texture / SRV / resolve、Velocity.X / Velocity.Y AOV、mesh velocity-only pass を持つ。render queue も 3D motion と active 3D camera motion を扱う説明を持つ。
+- したがって 3D velocity の出力・確認基盤は実装済みで、単純な CPU motion blur の資産も存在する。
+
+### 未完了・要確認
+
+- 前フレーム／現在フレームの各 layer transform を使った multi-sample render loop、shutter angle / phase / samples の composition-level 適用は確認できない。
+- 2D layer vectors、camera / object velocity の合成規約、GPU directional blur pass、実際の blur 出力は runtime 未確認。
+- 文書上は「Not Started」ではなく「部分実装・composition integration 待ち」と扱う。
