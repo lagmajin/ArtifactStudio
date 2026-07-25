@@ -137,6 +137,20 @@
 4. Phase 4
 5. Phase 5
 
+---
+
+## 2026-07-25 現状確認
+
+現行ソースでは owner-draw への移行が完了した状態に近い。`ArtifactTimelineTrackPainterView` がタイムライン右ペインの正規 surface として生成され、clip の矩形描画・選択・hover・drag・resize、marker の hit test／編集／seek、playhead、zoom、horizontal / vertical offset を一貫して扱っている。`Artifact/src` 内の現行タイムライン関連ファイルには `QGraphicsView` / `QGraphicsScene` / `QGraphicsItem` を使う旧 TimelineTrackView / TimelineScene / ClipItem は見当たらず、旧計画の「並走中」という Current State 記述は現状と一致しない。
+
+未確認・残作業:
+
+- 旧実装が別ブランチ・履歴・生成物に残っていないことの整理確認
+- 大量レイヤーでの repaint、scrub、drag、resize の実機性能検証
+- 旧 shortcut / sync と owner-draw の完全な回帰確認
+
+したがって「Phase 1〜5 のコード移行は完了相当、実運用の性能・回帰検証と旧資料整理が残る」と整理する。
+
 ## Notes
 
 - 右ペインは `ArtifactTimelineTrackPainterView` がすでにあるため、ゼロから作り直す必要はない
