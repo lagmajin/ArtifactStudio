@@ -465,3 +465,21 @@ mask を切らなくても effect 単体で範囲指定できる導線を先に�
 ---
 
 **文書終了**
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の effect base、GPU/CPU implementation、preset、property/serialization、Inspector/Service 経路を確認した。本文作成時の「GPU エフェクト未実装」「基本エフェクトのみ」という前提は古くなっているが、全体の統合完了までは確認できない。
+
+| 領域 | 現行確認 | 判定 |
+|---|---|---|
+| GPU effects | Blur、Glow/Color Correction 系を含む多数の effect に CPU/GPU implementation と compute mode がある | 実装済み（範囲限定） |
+| Effect stack | effect の追加・削除・property 編集・serialization と Inspector の effect surface がある | 部分実装 |
+| order / enable | stack 操作と enabled state の一部はあるが、全 effect の drag reorder / enable UI の一貫性は未確認 | 部分実装・未確認 |
+| parameter sync | editable property、animation 対応、EffectService/Web bridge の set property がある | 部分〜実装済み |
+| CPU/GPU fallback | CPU/GPU impl の併記と compute mode はあるが、全 effect の parity・fallback policy は未検証 | 部分実装 |
+| preset/library | `ArtifactEffectPreset` と collection の JSON save/load、default preset 経路がある | 基盤実装済み |
+| partial application | mask/rect 単体適用を共通 effect contract として完了した証拠は未確認 | 未完了 |
+
+**判定**: GPU effect と preset 基盤は大きく進展している。残課題は effect stack の一貫した順序・enable・preset UX、CPU/GPU parity、partial application の共通化。旧「GPU 未実装」記述は現行状態に合わせて更新が必要。
