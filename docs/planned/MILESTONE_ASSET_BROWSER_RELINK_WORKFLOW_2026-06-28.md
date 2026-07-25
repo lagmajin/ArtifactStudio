@@ -1455,3 +1455,14 @@ struct MissingAssetsDetectedEvent : Event {
 - AI `WorkspaceAutomation` から `relinkFootageByPath` を呼ぶ経路も存在し、基本的な relink workflow は計画書作成時より実装が進んでいる。
 - 一方、専用 `AssetReferenceTracker`、References Panel、Find References／Select Unused のユーザー導線、古いパスと新しいパスを一覧表示する batch dialog、プロジェクト全体の参照追跡・診断は確認できない。
 - よって単一 relink と Undo は実装済み、参照管理を含む全体 milestone は未完了の Partial 判定とする。
+## 2026-07-25 実装監査（更新）
+
+判定: 単一／複数 footage の relink、missing footage の検索ルート操作、Undo/Redo、AI automation は実装済み。参照管理全体の高度な機能は未完了。
+
+- `ArtifactAssetBrowser` と `ArtifactProjectManagerWidget` に missing footage の単一／複数 relink UI があり、`ArtifactProjectService` の path-based relink を利用する。
+- `RelinkAssetCommand` により old path / new path を Undo/Redo でき、`WorkspaceAutomation.relinkFootageByPath` からも操作できる。
+- `ArtifactProjectHealthChecker` は missing asset 診断と、設定時の missing entry 除去を持つ。Project/Asset 側の missing 表示も確認できる。
+- ただし専用 `AssetReferenceTracker`、References Panel、Find References / Select Unused の完成したユーザー導線、同名候補の衝突解決、参照一覧の一括診断は確認できない。
+- したがって relink の基本 workflow は実装済みだが、参照追跡・診断・全ファイル種別の統合を含む本 milestone は Partial のまま。runtime の Undo/Redo と複数ファイル結果は未検証。
+
+ビルド・実行確認はリポジトリ方針により未実施。
