@@ -74,3 +74,9 @@ Codex はコードを読んで理解し、計画を立て、編集し、自分�
 - `Artifact/docs/MILESTONE_AI_CLOUD_UI_2026-04-09.md`
 - `docs/planned/MILESTONE_AI_MCP_TOOL_BRIDGE_2026-04-10.md`
 - `docs/planned/MILESTONES_BACKLOG.md` — M-AI-1〜3
+## 2026-07-25 実装監査
+
+- Cloud／Local AI agent、context snapshot、API provider 管理、MCP bridge の既存基盤を確認でき、MCP/Tools 拡張は部分的に実装済みである。
+- 一方、Codex パターンとして提案された Apply/Reject diff、sandbox preview、slash command、project memories／chronicle、subagent 委譲の専用実装は確認できない。
+- AI の応答・prompt 経路は存在するが、composition 編集を観察→計画→適用→レビューする安全な agent loop も未完成である。
+- よって本マイルストーンは MCP 基盤のみ部分実装、主要な Codex 応用パターンは未実装の設計・提案段階と判定する。
