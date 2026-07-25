@@ -5,7 +5,7 @@
 **優先度**: Medium
 **推定工数**: 3-4日
 **カテゴリ**: Composition Editor / Viewport
-**状態**: Planned
+**状態**: In Progress（基盤実装済み、runtime 検証待ち）
 
 ---
 
