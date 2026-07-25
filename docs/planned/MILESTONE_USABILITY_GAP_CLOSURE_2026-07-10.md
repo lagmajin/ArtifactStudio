@@ -37,7 +37,7 @@
 | M-UG-3 | Easy Ease 速度ベース | `ArtifactTimelineTrackPainterView` が隣接キーフレームの Δtime/Δvalue から速度ベースの Bezier ハンドルを算出。隣接不足・非スカラー値は 0.42/0.58 にフォールバック（2026-07-25 静的確認） | ✅ ソース実装完了（runtime 検証は未実施） |
 | M-UG-4 | 式ピックwhip | Expression Copilot に `thisComp.layer("…")` と現在編集中プロパティの `thisLayer.<propertyPath>` をドラッグ挿入する参照リストを実装（2026-07-25 静的確認） | ✅ ソース実装完了（runtime 検証は未実施） |
 | M-UG-5 | プリコンポーズ作成 | `ArtifactProjectService::precomposeLayersInCurrentComposition()` に実コンポ生成・レイヤー移動・復元情報・Undo 導線を実装済み（2026-07-25 静的確認） | ✅ 完了（runtime 検証はスキップ） |
-| M-UG-6 | プロキシサービス統一 | `ArtifactProxyManager` に動画生成・パス管理・バッチ API を実装し、VideoLayer と Project View の動画キューを接続済み。品質 enum も共通化済み | 動画 proxy の runtime 検証と画像サムネイル責務の最終整理待ち |
+| M-UG-6 | プロキシサービス統一 | `ArtifactProxyManager` に動画生成・パス管理・バッチ API を実装し、VideoLayer と Project View の動画キューを接続。`Full` を含む品質 enum と生成倍率も統一済み（2026-07-25 静的確認） | 動画 proxy の runtime 検証と画像サムネイル責務の最終整理待ち |
 | M-UG-7 | テキストアニメータ専用トラック UI | エンジン・セレクタ・グリフ適用は実装済み。AE 的「アニメータ/セレクタ専用トラックパネル」なし（汎用プロパティトラック経由のみ） | アニメータ編集が直感的でない |
 
 ## 推奨実装順（影響範囲 × 体験向上）
@@ -196,13 +196,19 @@ AE の F9（Easy Ease）のように、選択キーフレームの前後キー�
 
 - `Artifact/include/Proxy/ProxyService.ixx`: `ArtifactProxyManager` の動画生成・パス・バッチ API を実装済み
 - `Artifact/src/Layer/ArtifactVideoLayer.cppm`: `generateProxy()` と decode controller の proxy 切替をサービス経由に接続済み
-- `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`: 動画はサービス、画像は JPG サムネイル経路に分岐。`ProxyQuality` 系はまだ完全統一ではない
+- `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`: 動画はサービス、画像は JPG サムネイル経路に分岐。動画の `Full/Half/Quarter` はサービス enum と生成倍率を一致させている
 
 ### 完了条件
 
 - `ArtifactProxyManager` に実生成・バッチ・キャッシュ・パス管理を実装
 - ProjectManagerWidget の ad-hoc 生成をサービスへ移譲
 - `ProxyQuality` enum を 1 箇所へ統一
+
+### 2026-07-25 静的監査メモ
+
+- `ProxyServiceQuality::Full` は `full` 出力名と 1.0 倍率で生成され、Project View の
+  キューも Full を Half へ降格しない。
+- 画像の JPG サムネイル生成は動画プロキシとは異なる責務として残している。
 
 ## M-UG-7: テキストアニメータ専用トラック UI
 
@@ -217,6 +223,10 @@ AE 的「アニメータ/セレクタ」をタイムライン上の専用トラ�
 - `Artifact/src/Layer/ArtifactTextLayer.cppm:120`: `animators_` ベクトル + 
   `perGlyphMode_` で `applyAnimatorStack` 適用（~3596）実装済み
 - 専用トラックパネル: コード上に存在せず、汎用プロパティトラック（`text.animators.N.*`）経由のみ
+
+`ArtifactTimelineKeyframeModel` には Text Animator の表示名変換があり、汎用トラック上で
+`Text Animator N / Field` として読める。ただしアニメータ追加、セレクタ専用行、スタックの
+折りたたみを持つ専用パネルは未実装のため、本項目は未完了のままとする。
 
 ### 完了条件
 
