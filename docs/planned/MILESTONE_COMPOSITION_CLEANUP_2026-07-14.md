@@ -201,3 +201,11 @@ Composition Cleanupの制作向け候補を開発用Frame Diagnosticsへ混在�
 - `docs/analysis/MOTION_GRAPHICS_AD_PRODUCTION_THINKING_MEMO_2026-05-28.md`
 - `docs/planned/MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md`
 - `docs/DOC_LIFECYCLE.md`
+
+## 2026-07-25 実装監査
+
+- `ArtifactCompositionEditor.cppm` に `analyzeCompositionCleanup()`、各 MVP diagnostic ID、候補 preview、具体的 delta 表示、Apply 経路が存在する。
+- geometry／edge／center／spacing／cluster／focal point／minimum text size／近似 contrast の検出と、既存編集経路を用いた候補適用・Undo 境界はコード上で確認できる。
+- immutable analysis result と stable diagnostic ID の明示的な契約は未確認である。現在の解析結果は editor 実装内の候補構造体に閉じている。
+- final output px 換算、合成済み背景の複数点 sampling、approximate 状態を含む contrast 修正候補、confidence／説明可能な根拠、export preflight 接続は未完了である。
+- よって本マイルストーンは `In Progress` のままとし、MVP の editor 実装だけで Definition of Done 全体を満たしたとは判定しない。
