@@ -118,3 +118,12 @@ AE には完全に存在しない機能。
 - 2026-07-07: 初版作成。Figma Auto Layout + Constraints 移植設計。
 
 > Auto Layout は **ShapeGroup 内の子要素間** から始め、Layer 間へ拡張する。
+
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+文書の「レイアウト自動調整機能が一切ない」「AutoLayout 0 hit」は現行ソースと一致しない。ArtifactAbstractLayer に component.layout.*（enabled／mode／alignment／direction／gap）と親レイヤー由来の offset 計算があり、Composition render controller に Auto Layout の並べ替え・order 更新、responsive layout／overlay の参照も確認できる。
+
+一方、ShapeGroup 所有の ShapeAutoLayout／ShapeConstraints データモデル、Fixed／Fill／Hug の完全契約、padding／gap／anchor の専用 Inspector／永続化、viewport の専用ガイド表示は確認できない。よって既存の Layer component layout は部分的な前身として扱い、Phase 1〜2 は未完了、Phase 3〜4 は未着手または未検証として記録する。
