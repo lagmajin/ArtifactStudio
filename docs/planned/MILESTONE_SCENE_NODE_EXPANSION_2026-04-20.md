@@ -234,3 +234,9 @@
 | P6: Constraints/Advanced | 20-30h | **Deferred** |
 
 **合計: 105-150h**
+
+## Static Audit (2026-07-25)
+
+現行ソースの `SceneNode` は、文書冒頭の現状整理どおり、name、親子階層、local SRT、dirty-cache 付き world matrix/world position、mesh/material、visible、AABB/count を持つ最小実装である。`SceneNodeType`、node ID、JSON serialization、selection/lock/template/display layer、rotation order/pivot/inherits、Scene container、Camera/Light node、property/animation binding、constraint/tag/render-stat の追加契約は確認できない。
+
+既存の layer hierarchy、composition graph、Undo、Camera/Light standalone 型は存在するが、SceneNode の拡張完了を示す接続ではない。したがって Phase 1〜6 は未着手または未接続として扱い、現状は foundation のみと判定する。
