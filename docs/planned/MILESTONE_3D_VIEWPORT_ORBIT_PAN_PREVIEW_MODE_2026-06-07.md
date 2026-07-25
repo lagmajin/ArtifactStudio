@@ -246,3 +246,10 @@ Phase 1 を先に締めるなら、`Orbit / Pan / Zoom Shortcut Baseline` から
 
 - これは 3D ビューポートの操作文法を揃えるための計画文書。
 - ビルドやテストは実施していない。
+
+## Static audit follow-up (2026-07-25)
+
+- `Artifact3DModelViewer` has the requested `Alt + Left Drag` orbit, Middle Drag pan, wheel zoom, bounded orbit state, reset state, and `setPreviewCamera()` bridge.
+- `ArtifactCompositionEditor`/composition render widgets retain separate 2D canvas pan/tool handling; a repository-wide search did not find a shared `Preview Orbit Mode` session or a common orbit/pan contract spanning both editors.
+- Consequently the model-viewer slice is implemented, but the milestone-wide editor unification and non-destructive preview session/rollback requirements remain unverified or incomplete. HUD/badge evidence exists in the planned implementation notes, but a single shared state contract was not confirmed.
+- No build or runtime interaction verification was performed under the repository policy.
