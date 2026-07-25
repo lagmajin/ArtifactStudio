@@ -65,3 +65,18 @@
 | Phase 2: Curve Editor 統合 | 4-6h |
 | Phase 3: UI トリガー | 2-3h |
 | **合計** | **8-12h** |
+
+---
+
+## 2026-07-25 現状確認
+
+Phase 1 の Core モデル相当は存在する。`ArtifactCore/src/Time/TimeRemap.cppm` に `TimeRemapProcessor` があり、時間→ソース時間の補間、逆マッピング、Bezier/Ease/Constant 系の補間、`getSpeedAtTime()`、constant speed／ramp／hold／reverse の生成補助を提供している。
+
+一方、現行 `Artifact/src` の Timeline／Curve Editor 統合では TimeRemap 専用トラック、Value／Speed グラフへの TimeRemap 追加、レイヤーコンテキストメニューの有効化、Inspector 表示を確認できない。したがって本 UI マイルストーンは「Core の TimeRemap 基盤のみ部分実装、UI 統合 Phase 2〜3 は未着手」と整理する。
+
+未確認事項:
+
+- AbstractProperty の実際の TimeRemap source-of-truth との接続
+- 隣接キーからの速度自動計算と Curve Editor の表示同期
+- loopOut / ping-pong との併用
+- 逆再生、freeze、速度ランプの runtime 検証
