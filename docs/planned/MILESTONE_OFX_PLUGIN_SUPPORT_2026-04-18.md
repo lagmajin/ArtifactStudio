@@ -164,3 +164,7 @@ cmake/FindOFX.cmake
 - [`docs/planned/MILESTONE_DCC_FEATURE_GAPS_2026-03-28.md`](docs/planned/MILESTONE_DCC_FEATURE_GAPS_2026-03-28.md)
 - [`plans/AFTER_EFFECTS_GAP_ANALYSIS.md`](plans/AFTER_EFFECTS_GAP_ANALYSIS.md)
 - [`docs/planned/MILESTONE_GPU_EFFECT_PARITY_2026-03-27.md`](docs/planned/MILESTONE_GPU_EFFECT_PARITY_2026-03-27.md)
+
+## 2026-07-25 実装監査
+
+OFX ヘッダー接続、動的ライブラリ走査、`ArtifactOfxHost` の property／parameter／image-effect suite、Load／Describe／DescribeInContext、プラグイン記述の読み込み、`ArtifactOfxEffectImpl` の render instance／begin-sequence／CPU frame buffer 経路、既存 EffectService への `ofx.*` 登録と preview property 公開は実装を確認した。一方、OFX parameter suite の時刻値・キー操作は unsupported のままで、GPU／GL・CL・DX テクスチャ共有、タイル・マルチスレッド契約、専用 Inspector、プリセット／コピー、複数実プラグインでの互換性は確認できない。したがって Phase 1 と Phase 2 の一部、CPU レンダーの基本経路は部分実装、GPU／高度な時間依存・スタック互換は未完了・runtime 未検証とする。
