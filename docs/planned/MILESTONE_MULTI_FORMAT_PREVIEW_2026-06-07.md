@@ -4,6 +4,10 @@
 
 同じ編集内容を複数アスペクト比や出力サイズで同時にプレビューし、1 箇所の変更が全フォーマットにどう見えるかを即座に確認できるようにする。
 
+## 2026-07-25 実装監査
+
+現行コードでは単一 Composition Editor の Safe Area 表示、各種 composition preset、layout variant 選択、Adaptive Text Fit などの部品は確認できる。しかし、16:9／9:16／1:1／4:5 を同時に並べる View Matrix、shared source から複数 view を再評価する専用 UI、view ごとの crop／safe-area／bounds 差分警告は確認できない。したがって Phase 1〜3 は未実装または別機能の部品段階であり、runtime の複数フォーマット比較は未検証とする。
+
 ## Goal
 
 `16:9`、`9:16`、`1:1`、`4:5`、`Unity 1920x1080` のような複数ビューを並べて、編集の影響を横断的に確認できるようにする。
