@@ -273,3 +273,9 @@ Phase 1 は、area 候補の検出と hover 可視化を先に固める。
 
 - body move / edge resize は hit test の優先順位が固まってから入れる
 - undo/redo は snapshot 経路が area 候補と整合してから詰める
+
+## 2026-07-25 現状確認
+
+現行コードには、2点の同一property keyframeを flat area として判定する `selectedMarkersFormFlatArea()`、area context／summary表示、既存keyframe snapshotによる一括編集・Undoの基盤がある。補間変更、選択markerのbatch移動、範囲編集の導線も実装済み。
+
+一方、専用 `TimelineKeyframeArea` の候補収集、owner-drawのarea bar、中央／左右端の個別hit test、area body移動と左右端伸縮、同値判定・collision処理の専用コマンドは確認できない。判定は「area判定と既存point編集への補助は実装済み、専用Area UI／操作は未完了」とする。
