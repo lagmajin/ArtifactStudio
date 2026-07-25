@@ -29,7 +29,8 @@
 ## Phase 2: P1 UX 向上
 
 実装済み: 非同期サムネイル／波形生成、ホバープレビュー、Size／Date／Typeソート、昇順／降順切替、ブレッドクラム、Favorites仮想ノード、FavoritesのQSettings永続化、All Favorites導線。
-未完了: Find References、Select Unusedの専用導線強化、内部D&D移動、ディスクサムネイルキャッシュ、Undo連携。
+実装追加: コンテキストメニューの `Find References` で、現在Composition内の参照Layerを一覧表示。
+未完了: プロジェクト全体のFind References、Select Unusedの専用導線強化、内部D&D移動、ディスクサムネイルキャッシュ、Undo連携。
 
 ### 2.1 ブレッドクラムナビゲーション
 - パスラベルをパンくずリストに変更
