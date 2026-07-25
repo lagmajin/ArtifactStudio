@@ -107,3 +107,7 @@
 - 問題検出の入口が1本になる
 - エラーはレンダー前に止まる
 - problem view と dashboard の結果が食い違わない
+
+## 2026-07-25 実装監査
+
+`ProjectDiagnostic`／`DiagnosticEngine`、app validation rules、ProjectHealth→Diagnostic の変換、missing／matte／circular／expression／performance issue と fix action の基盤は確認した。Problem View／Health Dashboard／load・save・render preflight の三入口が完全に同一 result source を使い、Error を常に render 前に block すること、表示結果が一致することは静的検索だけでは断定できない。したがって Phase 1 の Core／app 基盤は部分実装、入口統一とUI／runtime整合は未検証とする。
