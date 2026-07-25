@@ -238,3 +238,11 @@ Current status:
 - 新しい global signal / slot は追加せず、現行の input / menu / overlay 経路を再利用する
 
 この順なら、既存 overlay と menu 実装を活かしながら最小差分で実用域へ持っていける。
+
+## 2026-07-25 実装監査
+
+- Inspector の Field stack と layer-side descriptor、追加／削除／順序変更、active 選択の導線を確認できる。
+- composition 側の live field は radial／box／linear の overlay・hit-test・drag・Undo と、strength／blend／invert を含む influence 評価を備えている。
+- Text Animator、Shape の alpha、Cloner／Modifier 後の追加 clone へ weight／scale／time offset を橋渡しする実装も確認できる。
+- ただし viewport 実機操作、CPU／GPU 共通の clone color 契約、Shape 頂点属性単位の weight、noise／solid shape は未完了または未検証である。
+- よって authoring の主要 slice は実装済みだが、共通描画契約と runtime parity を残す In Progress 判定を維持する。
