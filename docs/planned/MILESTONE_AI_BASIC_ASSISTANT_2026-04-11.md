@@ -28,3 +28,7 @@ Total: 35-50h
 ## Success Criteria
 - 基本的な質問に正しく応答
 - プロジェクト情報を提供可能
+
+## 2026-07-25 実装監査
+
+AIClient／AIChatWidget、AIContext、local agent、cloud agent、MCP transport／bridge、tool schema／execution の基盤は実装を確認した。プロジェクト情報の snapshot と read-only tool、tool call の確認UIも存在する。一方、この文書の `AIBasicAssistant` 固有 API、ドキュメント／コード検索の一貫した提供契約、質問応答の品質、MCP経由の実運用接続は確認できない。したがって Phase 1〜2 は基盤部分実装、Success Criteria は未完了・runtime未検証とする。
