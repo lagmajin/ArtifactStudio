@@ -529,3 +529,19 @@ void Property::fromJson(const QJsonObject& obj) {
 1. `PropertyType::ObjectReference` 追加
 2. `PropertyMetadata` 拡張
 3. テスト用プロパティ定義
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースでは `PropertyType::ObjectReference`、`ArtifactObjectReferenceWidget`、`ArtifactObjectPickerDialog`、`ArtifactObjectReferencePropertyEditor` が存在する。○／Pick・参照名表示・Clear、検索可能な object tree、current composition の layer / composition 選択、ObjectReference property の editor dispatch まで確認できる。Clone Layer や Procedural 3D Layer でも ObjectReference property の利用がある。
+
+一方、汎用 ObjectReferenceWidget 自体のドラッグ＆ドロップ受け入れ、referenceTypeName による厳密な候補フィルタ、ID 再解決・missing reference 表示、複数参照・履歴・サムネイル、参照変更 undo の全経路は未確認である。したがって Definition of Done は大部分が実装済み相当だが、完全な参照 workflow は未検証とする。
+
+### Audit status
+
+- PropertyType / metadata: 実装済み相当 — ObjectReference と既存 property 利用を確認
+- ObjectReferenceWidget: 部分実装 — Pick / 表示 / Clear はあるが、D&D と型フィルタは未確認
+- ObjectPickerDialog: 実装済み相当 — 検索・composition/layer tree・選択を確認
+- Property editor integration: 実装済み相当 — ObjectReference editor dispatch を確認
+- Definition of Done: 部分実装・runtime / drag-and-drop 検証待ち
