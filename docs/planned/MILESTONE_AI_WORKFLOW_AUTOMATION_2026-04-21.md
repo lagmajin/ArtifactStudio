@@ -2,6 +2,12 @@
 
 作成日: 2026-04-21
 
+**進捗状態:** Phase 1〜3 は実装済み、Phase 4 は batch rename／batch move など一部実装。runtime 検証と共通 write schema の強化が残る。
+
+### 実装状況（2026-07-25 確認）
+
+`WorkspaceAutomation` の統合 snapshot、project／composition／layer／effect／keyframe／render queue 操作、confirmation message、queue 状態・エラー取得、AI schema／static invocation 検査を確認した。残課題は Phase 2 の統一 SafeWriteResult／dry-run payload、Phase 4 の batch import／relink／render、実 UI と長時間 queue の runtime 検証。
+
 ## 目的
 
 AI が単発の提案や単発編集ではなく、ワークスペース全体の作業手順を扱えるようにする。
