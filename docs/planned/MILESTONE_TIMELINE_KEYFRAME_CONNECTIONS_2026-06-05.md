@@ -241,3 +241,23 @@ Phase 1 は、どの keyframe をどの単位で結ぶかを先に固定する�
 - [MILESTONE_TIMELINE_COLOR_KEYFRAMES_2026-06-05.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_COLOR_KEYFRAMES_2026-06-05.md)
 - [MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md)
 - `M-TL-10 Timeline Feature Implementation / Interaction Surface` の Phase 4 に吸収済み
+
+---
+
+## 2026-07-25 現状確認
+
+実装済み（描画フェーズ）。`ArtifactTimelineTrackPainterView.cppm` に
+`KeyframeConnectionSegment` と segment 収集・描画処理があり、同一
+`layerId + propertyPath + trackIndex` の marker を frame 順に並べ、隣接点を
+Bezier 曲線で接続している。marker の `incomingBezier` / `outgoingBezier` の
+handle、選択レイヤー／選択 marker に応じた alpha、zoom に応じた短区間の省略、
+dirty rect による可視範囲判定も実装済みで、marker 描画前の背景線として動作する。
+
+未確認・未実装扱い:
+
+- ease / roving 等を線の意味として表現する Phase 3 の拡張
+- 高密度 marker や低 zoom 時の表示品質の実機確認
+- 歩き、口パク、反復揺れ、fade/effect 混在での regression 確認
+- 線に対する独立した編集・保存モデル（現状は既存 marker の描画から生成）
+
+したがって本マイルストーンは「Phase 1〜2 相当: 実装済み、Phase 3〜5 は要検証・拡張」と整理する。
