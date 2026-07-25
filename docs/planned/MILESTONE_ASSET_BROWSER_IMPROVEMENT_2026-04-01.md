@@ -1,6 +1,6 @@
 # Milestone: Asset Browser Improvement (2026-04-01)
 
-**Status:** Phase 3 (P2) In Progress
+**Status:** Phase 3 (P2) Complete — runtime verification pending
 **Goal:** アセットブラウザの基盤強化とUX改善
 
 ---
@@ -34,7 +34,7 @@
 実装追加: サムネイルをファイルパス・サイズ・更新時刻でキー化したPNGディスクキャッシュへ保存し、再起動後も再利用可能。
 実装追加: Assetルート配下のファイルをフォルダ間で内部D&D移動でき、既存ファイルへの上書きとルート外移動を拒否。
 実装追加: リネームと内部D&D移動を `MoveAssetFileCommand` としてUndo/Redo履歴へ登録。
-未完了: インポート／削除／リリンクのUndo、ディスクキャッシュのLRU・有効期限管理。
+未完了: 一括操作のMacroUndo化、ディスクキャッシュの有効期限管理。
 
 ### 2.1 ブレッドクラムナビゲーション
 - パスラベルをパンくずリストに変更
@@ -76,15 +76,17 @@
 - [x] ファイルベースのディスクキャッシュ
 - [x] 再起動後もキャッシュ維持
 - [x] 256 MiB上限と最終更新時刻ベースの古いキャッシュ削除
+- [x] 30日超過キャッシュの自動失効
 
 ### 3.4 Undo 連携
 - [x] リネーム／内部D&D移動を `UndoManager` に登録
 - [x] 通常ファイルの「Add to Project」登録を `UndoManager` に登録
 - [x] ファイル削除を退避付き `UndoManager` 操作として登録
 - [x] フォルダ削除のファイルシステムUndo対応
-- [ ] フォルダ内Footage登録のUndo/Redo再構築
+- [x] フォルダ内Footage登録のUndo/Redo再構築
+- [x] シーケンスのパス・フレームレート復元
 - [x] リリンク操作を `UndoManager` に登録
-- [ ] 一括操作のマクロコマンド化
+- [x] 削除選択範囲を `MacroUndoCommand` として一括Undo/Redo
 
 **見積: 10h**
 
