@@ -206,3 +206,11 @@
 - `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm` — メイン実装 (4,272行)
 - `Artifact/include/Widgets/ArtifactProjectManagerWidget.ixx` — インターフェース
 - `docs/WIDGET_MAP.md` — ウィジェット責務
+
+## Static Audit (2026-07-25)
+
+現行ソースを再確認したところ、旧監査から進展がある。`ArtifactProjectManagerWidget` / `ArtifactProjectView` には Tree と Tile の切替、プロジェクト横断の検索欄、タイプフィルタ、列ヘッダのソート、列幅調整、インラインリネーム、複数選択、選択アイテムのプレビュー／メタデータ表示、依存関係表示、欠損 footage の再リンク補助、proxy 状態表示、drag & drop 導線が実装されている。Tile はサムネイルとメタデータを描画し、密度調整も持つ。
+
+ただし、List / Thumbnail Grid / Freeform の独立した表示モード、列の表示・並び替え設定、セカンダリソート、Smart Bin / 保存フィルタ / コレクション／タグ、Bin ロック・タブ・履歴、バッチ操作、インポートキューと進捗、proxy 生成管理、EXIF/XMP・カスタムメタデータ、依存関係グラフ、バージョン／アーカイブ管理は確認できない。検索・タイプフィルタ・Tile 表示は実装済みでも、全項目の runtime UX、設定保存、性能、大量データ時の挙動は未検証である。
+
+判定: **部分実装。** M-PV 系の基本導線と Tree/Tile の現行基盤は確認できるが、監査表の P0/P1 機能群は多数未実装または runtime 未検証である。
