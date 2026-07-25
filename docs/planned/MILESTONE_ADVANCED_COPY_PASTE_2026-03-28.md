@@ -230,3 +230,9 @@ ArtifactClipboardManager (新規シングルトン)
 - `ClipboardManager::copyPropertyValue()` の payload を選択レイヤーへ適用する
   `Paste Special: Property Value` を Composition Editor Command Palette に追加
 - ロック済みレイヤーは対象外とし、既存 property path と mutation 経路を再利用する
+
+## Static audit follow-up (2026-07-25)
+
+- `ClipboardManager` now has typed JSON envelopes for layers, layer bundles, effects, keyframes/easing, and property values, with system-clipboard synchronization.
+- Composition Editor and Edit Menu expose layer copy/paste; Timeline exposes keyframe/easing copy/paste; Property Editor exposes typed Copy/Paste Value; Inspector exposes Copy/Paste Effect. Multi-layer paste uses a grouped undo path.
+- The original milestone's acceptance scope is substantially implemented in source, but cross-application image/text clipboard behavior, broader multi-effect workflows, and runtime validation remain unconfirmed. No build or runtime verification was performed under the repository policy.
