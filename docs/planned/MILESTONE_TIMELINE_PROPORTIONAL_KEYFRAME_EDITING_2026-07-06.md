@@ -91,6 +91,21 @@ Blender Graph Editor のように、
 
 - `docs/done/MILESTONE_TIMELINE_INLINE_FCURVE_EDITING_2026-07-06.md`
 
+---
+
+## 2026-07-25 現状確認
+
+Phase 1〜2 相当は実装済み。`ArtifactTimelineTrackPainterView.cppm` に proportional editing の on/off と radius があり、`O` で切り替え、`[` / `]` で半径を調整できる。通常 marker drag、keyframe area body drag、area edge resize のいずれも、pivot からの距離に応じた時間移動／時間スケールを preview と release の双方で適用し、影響範囲の表示も行う。既存の snapshot ベース Undo と selection 更新も同じ編集経路に含まれている。
+
+未完了・未確認:
+
+- value direction 編集と inline F-curve への比例編集
+- Curve / Graph Editor との共有 UI・共通 API
+- falloff 種別、pivot mode、region scale、Bezier tangent 連動
+- 実運用での衝突・merge、Undo/redo、drag preview の回帰確認
+
+したがって「右ペインの time move / scale の first slice は実装済み、Phase 3〜4 は未着手」と整理する。
+
 ### Phase 4: Advanced Controls
 
 - falloff type 切替
