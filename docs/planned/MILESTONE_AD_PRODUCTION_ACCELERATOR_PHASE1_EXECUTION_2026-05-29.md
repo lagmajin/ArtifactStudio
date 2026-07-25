@@ -174,3 +174,9 @@ Done:
 Phase 2 はこの Phase 1 の slot list を前提に、CSV column と slot display name / stable id の対応を作る。
 
 そのため Phase 1 では、display name だけに依存しない stable id を必ず残す。
+
+## Static audit follow-up (2026-07-25)
+
+- `Composition.TemplateSlot` and `ParametricComposition` provide stable slot IDs, display names, target/value metadata, required flags, variation values, and JSON round-trip structures.
+- The current evidence is stronger for the reusable metadata/data contract than for the originally proposed selected-layer UI and composition-specific validation path. A repository-wide source scan did not establish complete missing-target, required-empty, and duplicate-display-name diagnostics at the selected-layer workflow boundary.
+- Backward-compatible parsing and automation entry points are present, but UI/runtime reachability remains unverified. No build or runtime verification was performed under the repository policy.
