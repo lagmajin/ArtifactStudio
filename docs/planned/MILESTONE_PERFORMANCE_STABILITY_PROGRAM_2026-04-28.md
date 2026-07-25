@@ -184,3 +184,7 @@ ArtifactStudio 全体のパフォーマンス問題を、個別のバグ修正�
 - render hot path が安定し、overlay の追加で崩れにくくなる
 - media / cache / decode の遅延が追跡可能になる
 - perf regression を再発しにくくなる
+
+## 2026-07-25 実装監査
+
+アプリ／Core には PerformanceProfiler、PerformanceMonitor の記述、DiagnosticEngine／ValidationRules、frame／GPU／media cache、audio のリアルタイム向け計測基盤が存在する。だが startup／workspace churn／render hot path／decode の統一 trace と基準値、長時間利用の churn 検出、変更前後の regression 比較、実機ベンチマークの結果は確認できない。個別の調査・cache は進んでいるが、Performance Stability Program の観測ループと回帰防止は未完了・未検証とする。
