@@ -56,3 +56,13 @@ After Effects のレイヤーに適用したスタイル (ドロップシャド�
 - プリセットの保存/読み込み精度
 - 各種スタイルの適用確認
 - undo/redo の動作
+
+---
+
+## 2026-07-25 現状確認
+
+部分実装。現行コードには `ArtifactEffectPreset` 系の既定プリセット読み込みと、`ArtifactEffectService`／`WorkspaceAutomation` 経由の layer effect preset 保存・読み込み・適用・一覧 API がある。
+
+一方、本マイルストーンが定義する Layer Style 専用の管理面（ドロップシャドウ／アウトライン／グロー等をまとめたカテゴリ付きプリセット、一覧・検索・削除・名前変更、レイヤーパネル右クリック、D&D、ショートカット、デフォルト同梱 UI）は確認できない。JSON の effect preset 経路は再利用候補だが、レイヤースタイル全体の snapshot と Undo/Redo を一つの導線で扱う実装は未確認である。
+
+したがって「Effect preset の基盤は部分実装、Layer Style Presets の UI／統合は未完了」と整理する。
