@@ -1,6 +1,10 @@
 # Milestone: 3D Compositing（コンポジション内ライブ 3D シーン） (2026-07-08)
 
-**ステータス:** In Progress
+**ステータス:** Phase 1A〜1K 実装済み、Phase 2/3 と実機検証待ち
+
+### 実装状況（2026-07-25 確認）
+
+`ArtifactCompositionRenderController` と GPU レンダリング経路を確認した結果、Model3D、単色／Shape／Image／SVG／Text／Video の 3D カード、標準 Stroke、Precomp GPU 出力を同一の 3D 合成経路へ接続し、不透明・透明の depth 契約、Material の PBR 入力、Light Layer、共有 depth attachment まで実装済み。残課題はカメラ／レイヤー運用を含む Phase 2 の本格的なシーン合成、Phase 3 の depth／mask／DOF 連携、および runtime での遮蔽・透明境界・音声を含む総合検証。
 
 > 2026-07-14: Phase 1A として、連続する不透明 Model3D レイヤー間で
 > composition preview の depth attachment を共有する最小経路に着手。
