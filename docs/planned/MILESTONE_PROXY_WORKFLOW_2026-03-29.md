@@ -64,3 +64,11 @@ struct ProxyInfo {
 | UI (品質ドロップダウン) | 1h |
 
 **総見積: ~8h**
+
+## Static Audit (2026-07-25)
+
+現行実装は計画時の「Not Started」から大きく進展している。`ProxyService` に None／Half／Quarter／Eighth の品質 enum、ProxyInfo、生成・削除・存在確認・情報取得・batch API があり、VideoLayer に proxy path／quality／serialize／clear の状態がある。Project Manager には品質選択付き生成、単体／複数生成、stale 再生成、Reveal、Clear、Global Proxy toggle、queue progress、Ready／Stale／Missing 表示が実装され、Inspector にも proxy 状態表示がある。
+
+ただし、ProxyService の実装本体や FFmpeg／画像変換の実動作、編集時 proxy 使用と render 時 full 解像度への自動切替、Auto／Proxy／Full の統一 viewport UI、生成失敗・キャンセル・再開・大量 batch の進捗／エラー処理、proxy metadata の永続化と runtime round-trip は静的検索だけでは確認できない。Proxy path を VideoLayer に同期する導線はあるが、Project Manager 内の簡易 queue と共通 ProxyService の責務が完全に一元化されているとは言い切れない。
+
+判定: **Proxy 管理 UI と layer 状態の主要基盤は実装済み。** 本格生成 backend、render 時切替、永続化、失敗経路、runtime 検証が残っている。
