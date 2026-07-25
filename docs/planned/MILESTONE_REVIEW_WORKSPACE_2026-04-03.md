@@ -203,3 +203,11 @@ M-FE-7-1 は、Review Workspace を独立 widget として立てる前に、編�
 - JKL 速度が段階的で、停止と逆再生が可能
 - 範囲ループ再生の状態が読める
 - review navigation が他モードと衝突しにくい
+
+## Static Audit (2026-07-25)
+
+現行ソースでは、Contents Viewer に A/B compare、wipe/split/difference 表示、swap、source A/B の設定保存、compare shortcut、画像比較 canvas があり、`FrameDebug` に compare mode/target の診断値もある。frame cache、video decode、timecode/playback の既存基盤も確認できる。
+
+一方、独立した `ArtifactReviewWorkspace`、ReviewMode 境界、Shot/CompositionVersion 管理、AnnotationLayer の vector drawing・コメント・JSON/flattened PNG export、チーム共有、レビュー専用 JKL/HUD の統一契約は確認できない。LUT/OCIO の review-wide 適用、完全な frame-accurate acceptance、複数 shot 並列レビューも未検証である。
+
+判定: M-FE-7-2/7-3 の既存 viewer 基盤は partial、M-FE-7-1/7-4/7-5/7-6 の独立 workspace・shot・annotation・review navigation は未完了または未検証。
