@@ -127,3 +127,19 @@
 
 - [docs/planned/MILESTONE_VFX_PARTICLE_FLUID_2026-03-30.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_VFX_PARTICLE_FLUID_2026-03-30.md)
 - [docs/planned/MILESTONE_VISUAL_EFFECT_BUS_2026-06-02.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_VISUAL_EFFECT_BUS_2026-06-02.md)
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースを確認した。`FluidSolver2D` を layer component から利用する経路、密度・速度の更新、vorticity/viscosity/diffusion 等の設定保存、低密度 preview particle 化は存在する。一方、DynamicFluidVortex の画像移流 effect と入力統合は未確認である。
+
+| Phase | 現状 | 判定 |
+|---|---|---|
+| 1. Fluid Field Viewer | fluid component の solver 状態を preview particle として可視化する基盤があるが、velocity vector / density heatmap / curl overlay の専用 viewer は未確認 | 部分実装 |
+| 2. Advection Warp | `FluidSolver2D` の場を画像へ逆サンプリングする bilinear advection、alpha/premultiplied 維持の専用経路は未確認 | 未実装 |
+| 3. Vortex Injection | layer 内で density/velocity を注入し vorticity を設定できるが、mouse drag・motion path・mask/text contour を source にする導線は未確認 | 部分実装 |
+| 4. Stylized Modes | ink/water/smoke/gel の専用 mode enum・preset は未確認 | 未実装 |
+| 5. Presentation / Integration | Fluid component の Inspector 設定と JSON persistence はあるが、effect stack での画像 warp と preview/render parity は未確認 | 部分実装 |
+
+**判定**: Fluid solver の layer component 基盤は進んでいるが、DynamicFluidVortex の中核である image advection と外部 force source は未実装。既存の fluid component や particle vortex を完成済みの画像渦 effect と扱わない。
