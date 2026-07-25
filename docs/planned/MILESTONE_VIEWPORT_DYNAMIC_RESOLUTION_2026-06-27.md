@@ -630,3 +630,13 @@ export struct ViewportResolutionChangedEvent : Event {
 - 解像度変更時はレンダーターゲットを再作成
 - 将来的には、解像度をX/Y別に設定できるように拡張
 - 解像度プリセットはユーザー設定でカスタマイズ可能
+
+---
+
+## 2026-07-25 現状確認
+
+静的確認では、レンダーコンテキストやプレビュー設定に `resolutionScale` が存在し、出力サイズからスケールを計算する経路、GI の内部解像度スケール、DPR を使ったレンダーターゲット寸法計算もある。ただしこれらは export／内部品質設定／アップスケールの責務であり、本マイルストーンが要求する viewport 用の解像度プリセット API と UI とは別である。
+
+`ViewportTransformer` の表示スケール／DPR API、`ArtifactIRenderer` の ResolutionPreset、Composition Editor の Ctrl+ホイール切替、解像度変更イベント、viewport 状態のプロジェクト保存・レンダーターゲット再作成を一体化した実装は確認できない。したがって本マイルストーンは「関連する render scale の基盤は一部存在、viewport 動的解像度切替は未実装」と判定する。
+
+確認範囲: `ArtifactCore/src/Transform/ViewportTransformer.cppm`、`ArtifactCore/src/Preview/PreviewSettings.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`。ビルド・実機操作による動作確認は未実施。
