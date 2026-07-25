@@ -112,3 +112,9 @@
 - 2D Screen Shake は Rasterizer effect として `buildRasterizedSurfaceBuffer` / `applyRasterizerEffectsAndMasksToSurface` の effect chain から `applyConfigured()` に到達し、effect context の `timeSeconds` を使う。
 - Inspector catalog、effect service factory、Rasterizer stage 登録も確認できる。
 - したがってソース上の runtime 経路は接続済み。ただし build / runtime 実行は未実施のため、実際の揺れ量、frame scrub、wrap 境界、3D/2D 同時適用時の見た目は未検証。
+
+## 2026-07-25 同時適用ルール監査
+
+- 3D camera shake と 2D `ScreenShakeEffect` は別経路として存在し、両方を同時に適用する場合の自動抑止・警告・排他 UI はソース上で確認できない。
+- 文書上は二重揺れを推奨しない運用方針だが、effect rack と camera layer の設定を相互に検査する契約は未実装。
+- よって責務分離はできているが、同時適用ルールは「設計方針のみ・実装未完」。runtime 検証時には単独適用と同時適用を分けて確認する。
