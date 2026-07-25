@@ -120,6 +120,7 @@ Phase 2 では、Phase 1 の設定土台を使って、実際の操作体験を�
 
 実装追加: `ArtifactTimelineWidget` の主要ツールボタンとProperty Editorのレイヤー状態ボタンが `Larger hit targets` 設定に連動。
 実装追加: `Prefer high-contrast hints` 有効時、タイムライン主要操作ボタンのラベルを太字化。
+実装追加: 色覚補助設定をタイムライン主要操作ボタンの文字色へ適用。
 
 ### 1. 入力補助の拡張
 - 片手操作しやすい位置に主要アクションを寄せる
