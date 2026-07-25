@@ -2,6 +2,12 @@
 
 > 2026-03-29 作成
 
+**進捗状態:** Phase 1〜4 は実装済み、Phase 5 は拡張余地と runtime 検証が残る。
+
+### 実装状況（2026-07-25 確認）
+
+`MeshImporter` の backend／エラー状態、`Artifact3DModelViewer` の OBJ／FBX／glTF 系読み込み、mesh metadata・表示モード・Reset View・Orbit 操作、Contents Viewer／Project View の Preview 導線を確認した。残課題は glTF／GLB の対応範囲を明示した上での実機確認、compare／annotation、diagnostic 連携。
+
 ## 目的
 
 `ArtifactCore` の 3D モデル読み込み経路を整え、`Contents Viewer` で `OBJ` / `FBX` を確実に確認できる状態へ持っていく。
