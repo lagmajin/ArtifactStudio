@@ -130,3 +130,19 @@
 
 このマイルストーンは「見た目を変える」より「最初の体感を軽くする」ためのもの。
 `Asset Browser`、`Contents Viewer`、`Timeline`、`Console` のような高頻度 UI から効く。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースを確認した結果、dock の遅延生成と一部 widget の初回処理遅延は実装済みだが、マイルストーン全体の性能効果と state sync の網羅的な検証は未完了である。
+
+| Work package | 現状 | 判定 |
+|---|---|---|
+| Icon Warmup Split | lazy dock 機構と一部の delayed icon/load 経路は存在するが、全対象の共有 icon cache と warmup 完了は未確認 | 部分実装 |
+| Thumbnail / Preview Deferral | Asset Browser の thumbnail warmup queue の基盤はあるが、visible 優先・段階処理の全経路は未確認 | 部分実装 |
+| Dock / Panel First Show Load | `ArtifactMainWindow` に placeholder、factory、first-show materialization、生成時間・失敗状態の記録がある | 実装済み（基盤） |
+| Deferred Playback / Render Bootstrap | render 初期化の遅延箇所はあるが、playback/render backend 全体の遅延初期化は未確認 | 部分実装 |
+| State Sync Safety | selection sync や deferred event は存在するが、lazy load 後の全 panel の再同期を検証できる証拠は不足 | 未確認 |
+
+**判定**: Dock / Panel の基盤は実装済み、他の項目は部分実装または検証待ち。first paint / first interaction の改善量はビルド・実行計測なしには完了扱いにしない。
