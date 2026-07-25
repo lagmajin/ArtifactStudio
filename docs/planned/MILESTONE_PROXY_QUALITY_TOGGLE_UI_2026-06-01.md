@@ -69,6 +69,14 @@ Composition Viewer と Playback Control から proxy / draft / full の
 - 新規composition 作成時に最後に使った quality preset が初期値として復元される
 - 非アクティブコンポジションでも品質設定が保持され、再有効時に反映される
 
+## Static Audit (2026-07-25)
+
+計画時点から実装が進み、`PreviewQualityPreset`（Draft／Preview／Final）、Composition Editor 下部の Full／Half／Quarter resolution combo、Fast Preview メニュー、View Menu の品質操作、`PreviewQualityPresetChangedEvent`、App Settings／session settings の復元経路が確認できる。Render Controller は preset を downsample factor 1／2／4 に変換し、RAM preview cache を invalidate して viewport 更新へ進む。Playback／render contract 側にも previewDownsample と effectiveDownsample の記録がある。
+
+ただし、Project Service の setter 自体には renderer 呼び出しがコメントで残り、実際の反映は event subscription と Render Controller 側に分散している。Viewer footer の専用 DRAFT (1/4)／PREVIEW (1/2) badge、quality を composition-resident に保存する仕組み、品質キーを含む全 frame cache の stale 解放と非同期 warm-up、Ctrl+Alt ショートカット、非アクティブ composition の保持、実解像度／FPS／過去 frame の runtime 検証は未確認である。
+
+判定: **Phase 1 の UI・基本反映と cache invalidate は実装済み。** Phase 2〜3 の専用 badge、永続化粒度、cache policy の完全統一、runtime 検証が残っている。
+
 ---
 
 ## 関連ファイル（影響）
