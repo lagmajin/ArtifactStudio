@@ -340,3 +340,9 @@ protected:
 ## 8. 更新履歴
 
 - 2026-06-16: 初版作成。`REPORT_APP_PERF_BOTTLENECK_2026-06-16.md` §2.2 を正式 milestone に起こした。
+
+## 2026-07-25 現状確認
+
+専用の `ArtifactPenInput`、`ArtifactTouchGesture`、`ArtifactJoystickInput`、`QTabletEvent`／`QTouchEvent`／gesture handler、SpaceMouse／RawInput adapter は現行ソースから確認できなかった。`ArtifactBrushTool` は存在するが、入力値は radius／opacity／eraser の設定が中心で、pressure／tiltを受け取る経路はない。
+
+したがって本マイルストーンは、設計のみで実装未着手に近い状態。ペン筆圧・傾き、multi-touch、pinch／pan／rotate、Joystick 6軸、Timeline／Composition Editorへの安全な入力統合、optional SDK、実機検証が未完了である。
