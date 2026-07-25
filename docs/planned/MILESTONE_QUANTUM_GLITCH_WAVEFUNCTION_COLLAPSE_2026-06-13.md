@@ -133,3 +133,17 @@ stylistic effect である。
 - [docs/planned/MILESTONES_BACKLOG.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONES_BACKLOG.md)
 - [docs/planned/MILESTONE_VISUAL_EFFECT_BUS_2026-06-02.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_VISUAL_EFFECT_BUS_2026-06-02.md)
 - [ArtifactCore/docs/PREMIUM_EFFECTS_MEMO.md](X:/Dev/ArtifactStudio/ArtifactCore/docs/PREMIUM_EFFECTS_MEMO.md)
+
+## Static Audit (2026-07-25)
+
+現状のコードには既存の digital／vector-flow／transition glitch、mosaic 等の近縁実装はあるが、`QuantumGlitch` または `WavefunctionCollapse` としての専用 effect、tile extractor、adjacency rule builder、collapse／reconstruction、時間的な収束・崩壊モデルは確認できなかった。検索で得られた `glitch` 実装は、主に displacement、block corruption、RGB separation、noise、vector flow など既存の破壊型／変形型処理である。
+
+したがって Phase 1 の tile metadata 生成から未着手で、GPU／CPU reference 分離、登録、Inspector property、出力 mode、success criteria も未達。これは関連実装の再利用候補を確認した段階であり、マイルストーンは Planned／未実装のままとする。
+
+確認対象:
+
+- `Artifact/src/Effects/Rasterizer/VectorFlowGlitchEffect.cppm`
+- `ArtifactCore/src/ImageProcessing/VectorFlowGlitch.cpp`
+- `Artifact/src/Effect/ArtifactTransition.cppm`
+- `Artifact/src/Service/ArtifactEffectService.cppm`
+- `ArtifactCore/src/Graphics/Effect/GlitchCreativeEffect.cppm`
