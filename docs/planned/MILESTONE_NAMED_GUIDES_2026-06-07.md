@@ -4,6 +4,10 @@
 
 ガイドを単なる線ではなく、名前付き・用途付きの永続的な参照として扱う。
 
+## 2026-07-25 実装監査
+
+`GuideDefinition`／`GuideSet`／`GuideBinding` は name・purpose・position・enabled・priority・semantic tag を持ち、Project／Construction Layer の JSON 保存・復元と enabled／semantic filtering が実装されている。Smart Guides は Construction Layer の enabled guide を縦横の snap guide として取り込む。一方、binding に基づく layer の follow／relative offset／優先順位付き解決、`Title Baseline` 等の用途別自動配置、Content Bounds／Collision-Aware Layout との接続は確認できない。したがって Phase 1 は実装済み、Phase 2 は表示・snap の部分実装、Phase 3 は未完了とする。
+
 ## Goal
 
 `Title Baseline`、`Logo Area`、`Caption Bottom`、`Character Center`、`Export Crop Edge` のような semantic guide を作り、各レイヤーがスナップや追従に使えるようにする。
