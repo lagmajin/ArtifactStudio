@@ -43,6 +43,10 @@ This milestone is about making those controls easy to discover, easy to stack, a
 - The empty-state copy is aligned around opening a composition, selecting a layer, and then editing color controls.
 - The next implementation step is to wire an actual color-correction preset or property set into the effect editor path.
 
+## 2026-07-25 実装監査
+
+Exposure／Hue and Saturation／Photo Filter／Auto Exposure などの個別 ColorCorrection effect、Color Grading Engine、Looks preset browser の基盤は実装を確認した。一方、Inspector 内で Exposure／Contrast／Brightness／Saturation／Hue を一体の rack として表示する導線、選択変更との安定した連動、未選択時の rack への具体的な到達案内は確認できない。したがって色補正機能の部品は実装済みだが、本マイルストーンの Inspector rack UX と受け入れ条件は未完了・runtime未検証とする。
+
 ## Implementation notes
 - Prefer reusing the existing property editor and effect rack conventions.
 - Keep the first pass small and composable.
