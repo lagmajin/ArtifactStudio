@@ -148,3 +148,20 @@
 - [`MILESTONE_APP_DEBUGGER_FOCUS_PIN_FILTER_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_FOCUS_PIN_FILTER_2026-04-24.md)
 - App Debugger 系の phase 実行メモは親文書へ統合済み
 
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の FrameDebugBundle、AppDebugger の保存、Harness の copy/save report を確認した。
+
+| 要件 | 現状 | 判定 |
+|---|---|---|
+| Summary-first Report | FrameDebug/Harness に summary、warning/failure、report details の分離がある。 | 実装済み／表示確認待ち |
+| Bundle Separation | frame bundle と crash report の別導線、Harness report、FrameDebug JSON bundle がある。playback bundle/support note との正式な型分離は未確認。 | 部分実装 |
+| Copy / Export / Save | Copy Report、Save Report、JSON bundle persist/restore がある。各操作の surface 横断の意味統一は未確認。 | 部分実装 |
+| Support Minimum | frame/reportId、createdAt、render/playback、resource/pass/failure 情報の基盤がある。saved path の一貫表示と最小セット固定は未確認。 | 部分実装／確認待ち |
+
+### 判定
+
+共有レポートと frame bundle は実装が進んでいるが、bundle 種別の契約、support minimum、保存先表示の完全統一が残る。Phase 7 は「部分実装／統合確認待ち」とする。
+

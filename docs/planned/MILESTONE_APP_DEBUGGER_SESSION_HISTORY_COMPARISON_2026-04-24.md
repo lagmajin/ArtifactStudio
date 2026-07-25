@@ -150,3 +150,20 @@
 - [`MILESTONE_APP_DEBUGGER_LEGEND_SEMANTIC_KEY_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_LEGEND_SEMANTIC_KEY_2026-04-24.md)
 - [`MILESTONE_APP_DEBUGGER_QUICK_ACTIONS_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_QUICK_ACTIONS_2026-04-24.md)
 - [`MILESTONE_APP_DEBUGGER_AUTO_FOCUS_SMART_RANKING_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_AUTO_FOCUS_SMART_RANKING_2026-04-24.md)
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の AppDebugger capture bundle/history 実装を確認した。ビルド・実機操作は未実施。
+
+| 要件 | 現状 | 判定 |
+|---|---|---|
+| Recent History | `FrameDebugBundle.history`、capture history list、selection、disk restore/persist がある。 | 実装済み／運用確認待ち |
+| Comparison Pair | current capture、history selection、compare target、selected capture summary がある。current/previous の UI 運用は未確認。 | 部分実装 |
+| Session Capture | bundleId、label、createdAtMs、captureId、source/target frame、pinned がある。warnings/backend/focus の session 要約網羅は未確認。 | 部分実装 |
+| History Summary | current/selected/recent captures、pass/resource/attachment preview の表示がある。last good/failed/heavy/compare の専用 summary は未確認。 | 部分実装 |
+
+### 判定
+
+履歴・永続化・選択・比較の基盤は実装済みだが、session 文脈の完全化と last-good/last-failed の summary が残る。Phase 11 は「部分実装／統合確認待ち」とする。
