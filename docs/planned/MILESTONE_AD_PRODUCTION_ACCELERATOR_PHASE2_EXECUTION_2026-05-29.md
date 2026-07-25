@@ -12,6 +12,10 @@ Phase 1 の `TemplateSlot` list を前提に、CSV / JSON から広告 variation
 
 この段階では composition の複製や render queue 登録は行わない。まずは「行データを安全に解釈し、どの slot に何が入るか」を確認できることを優先する。
 
+## 2026-07-25 実装監査
+
+Core の汎用 CSV parser と `TemplateVariation` の JSON 保存、WorkspaceAutomation の単一 variation 適用入口は存在する。しかし、Phase 2 固有の CSV／JSON variation importer、stable id／display name の mapping、row-level warning／disabled state、variation preview list をまとめる実装は確認できない。したがって Phase 2 は data shape と再利用可能な parser 基盤のみで、完了条件は未達、runtime 検証も未実施とする。
+
 ## Scope
 
 ### In
