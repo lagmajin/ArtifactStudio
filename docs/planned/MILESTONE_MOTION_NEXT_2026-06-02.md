@@ -452,3 +452,20 @@ Composition Editor 上にマウス/ペンで軌跡を描く→その軌跡に沿
 | **フレーム注釈 (N-1)** | クライアントとのやりとりで「3秒23フレームのところの色変えて」が正確に伝わる |
 | **テキスト→モーショングラフィックス (P-1)** | いずれはAIのキラー機能。既存LlamaAgentと統合すれば先進性を打ち出せる |
 | **Lottie 書き出し (L-2)** | Webデザイナーとの協業に必須。既存シェイプシステムを活かせる |
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+この統合候補一覧と現行ソースを照合した。既存基盤として、TimeCode / Playback の timecode、Collaboration WebSocket / protocol、AEP importer の記述・登録、アクセシビリティ設定、Histogram / scene-change 分析の基礎、Template 系の slot / lock が確認できる。
+
+ただし、これらは一覧内の完成機能を直接示さない。CSV/JSON からのグラフ生成と live binding、Storyboard / Animatic UI、AEP 実ファイル変換、Lottie / Bodymovin 書き出し、Premiere 書き出し、複数解像度＋通知、watermark / timecode 焼き込み、GPU frame cache、分散レンダー、品質保証フローは今回の静的確認では完了根拠を確認できない。
+
+### Audit status
+
+- J〜K: データ駆動グラフ、カウンター、Storyboard 専用 UI は未完了
+- L: AEP の説明資産と timecode 基盤はあるが、実変換・Lottie・Premiere 出力は未確認
+- M: Render queue / timecode 基盤はあるが、納品自動化・通知・焼き込みは未確認
+- N〜U: 協業・AI・アクセシビリティ・特殊表現・分散処理・QA は個別マイルストーンを正本として確認する必要がある
+- V〜W: 差別化機能と GPU cache / scene split は部分的な基盤のみ。統合完了・runtime は未検証
+- 全体: 40項目の候補一覧であり、完了扱いにはしない
