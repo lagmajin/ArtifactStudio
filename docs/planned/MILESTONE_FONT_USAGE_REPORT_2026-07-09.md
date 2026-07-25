@@ -197,3 +197,12 @@ Phase 1 から入る。まずはプロジェクト内の実使用フォントを
 
 - ライセンスレジストリは設定ファイル（JSON / ini）で永続化する方針
 - 未証明フォントの警告は Phase 5 の UI 导線と共有する
+
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+Text／Shape layer の font family、FontDescriptor／FontManager、GlyphAtlas／QRawFont の既存資産は確認できるが、プロジェクト全体を走査する Font Usage Reporter、family→実ファイルの統一解決、license registry、JSON／CSV manifest 出力、提出用コピー導線は確認できない。
+
+従って Phase 1 の専用収集ヘルパから Phase 5 の UI／検証まで未完了。既存の font 解決・glyph 資産は実装候補であり、使用フォントレポートの完了証拠とは扱わない。
