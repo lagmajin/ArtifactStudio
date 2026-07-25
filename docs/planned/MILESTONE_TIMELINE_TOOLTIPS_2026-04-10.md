@@ -71,3 +71,18 @@ Next keyframe: 00:00:02:15 (X: 1200, Y: 600)
 - キーフレーム情報の正確性
 - ツールチップの表示/非表示タイミング
 - パフォーマンス劣化の確認
+
+---
+
+## 2026-07-25 現状確認
+
+キーフレーム／編集面の tooltip は実装済み。`ArtifactTimelineTrackPainterView.cppm` では marker hover 時にプロパティ名、値、フレーム、lane、incoming/outgoing easing、補間、anchor、roving、color label、選択状態、current/nearest 状態を複数行で表示する。Bezier handle、選択キーのショートカット、proportional editing の半径、snap 情報も tooltip に含まれる。keyframe area、clip、drag 中の tooltip も別形式で実装され、hover 位置の変化に応じて更新・非表示される。
+
+未完了・未確認:
+
+- レイヤーバーの解像度、blend mode、effect 一覧などの詳細 tooltip
+- enhanced tooltip の設定 ON/OFF と 500ms 遅延の明示制御
+- リッチテキスト、tooltip キャッシュ、スクリーンリーダー対応
+- 大量レイヤー、テーマ切替、実運用での表示負荷と情報量の検証
+
+したがって「marker / area / clip / drag の実用 tooltip は実装済み、レイヤー詳細と設定・品質検証は未完了」と整理する。
