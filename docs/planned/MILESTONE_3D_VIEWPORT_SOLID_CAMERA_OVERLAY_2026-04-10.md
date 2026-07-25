@@ -256,3 +256,10 @@ Phase 1 を先に締めるなら、最初は `solid` の安定化から入る。
 - overlay の重なり順が壊れない
 - gizmo と HUD が競合しにくい
 - 3D 補助表示が共通の overlay 経路で扱える
+
+## Static audit follow-up (2026-07-25)
+
+- Source inspection confirms Solid/Wireframe mesh paths, material/depth-aware mesh drawing, texture caching, camera frustum/grid/gizmo/selection/HUD overlay paths, and explicit 3D camera matrix setup/reset.
+- Phase 1/3/4 implementation claims are supported statically, but complex-mesh visual stability, long-session cache behavior, and runtime overlay ordering are not proven without execution.
+- Phase 2 remains only partially closed: the standalone model viewer has orbit/pan/zoom state, while Composition Editor input remains a separate 2D canvas/tool contract. Full camera parity and common projection ownership were not confirmed.
+- No build or runtime verification was performed under the repository policy.
