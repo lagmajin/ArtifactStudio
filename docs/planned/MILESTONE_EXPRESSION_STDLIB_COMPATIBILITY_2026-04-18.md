@@ -98,3 +98,12 @@ After Effects 2025 のエクスプレッション言語との段階的な互換�
 
 既存のエンジンは非常に良く設計されており、互換レイヤーの追加は全く難しくありません。
 このマイルストーンが完了すると、インターネット上に存在する殆ど全てのAfter Effectsエクスプレッションがそのまま動作するようになります。
+
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+ExpressionEvaluator::registerStandardFunctions() では math／vector、linear／ease、random／noise／wiggle、audio、valueAtTime／loop 系の登録が確認でき、	hisComp／	hisLayer も変数モデルと Copilot 候補が存在する。
+
+一方、index の標準変数、lookAt、seedRandom、sourceRectAtTime、posterizeTime、smooth は互換実装として確認できない。loop 系は登録されているが placeholder であるため、標準ライブラリ互換の完了とは扱えない。AE サンプル 100 件との比較や pixel 単位一致も未検証であり、現状は Phase 1〜2 の一部と Phase 3 の入口のみ実装済みと記録する。
