@@ -235,6 +235,10 @@ Done criteria:
 - 親リポジトリは本milestone文書と生成済み文書indexを変更
 - build、test、CMakeは実行していない
 
+## 2026-07-25 追加静的監査
+
+既存記録に加えて、Audio Reactive の Animation Menu 導線（configure／preview／bake／arm／commit／cancel）と、Composition State／Field の実装記載を対象ソースと再照合した。現時点で大きな欠落は見つからず、主な未完了点は既記載の State 同時snapshot、state並べ替え、Field color channel 契約、実機受け入れ確認である。文書の `In Progress` 判定は維持する。
+
 ## 2026-07-25 実装監査
 
 - Audio Reactive の binding／mapping／preview／record／bake、Composition State の CRUD／override／baseline 復元、Field の radial／box／linear と Text／Shape／Cloner consumer は、既存の計画記載とソース構造が一致する。
