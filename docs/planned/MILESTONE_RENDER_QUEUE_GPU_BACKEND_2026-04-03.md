@@ -106,3 +106,8 @@ backend 選択と fallback を操作しやすくする。
 2. Phase 2
 3. Phase 3
 
+## Static Audit (2026-07-25)
+
+現行ソースでは、job の `renderBackend` に auto/cpu/gpu を保持し、Render Queue UI から選択・表示できる。GPU renderer の初期化、GPU readback、multi-channel 制約、FFmpeg video backend の native GPU / pipe-hw / pipe-vulkan / native / pipe fallback、選択 backend と失敗理由のログ、JSON 保存・復元が確認できる。したがって Phase 1〜3 の主要な queue/service/UI 経路は static 実装済みと判定する。
+
+未確認なのは、実機ごとの capability probe と runtime の GPU→CPU fallback、encoder/renderer の実測品質・速度、GPU 使用率表示、zero-copy frame bridge、Diligent と FFmpeg 間の GPU resident 受け渡しである。QImage fallback/readback も残るため、完全な GPU-only 経路とは判定しない。ビルド・実行確認は未実施。
