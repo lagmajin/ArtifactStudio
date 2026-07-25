@@ -23,6 +23,18 @@
 
 ---
 
+## Static Audit (2026-07-25)
+
+現状は「REPL UI / Expression REPL / Python REPL / macro recorder」の統合実装には未到達。
+
+- `ArtifactCore::PythonEngine` は pybind11 の初期化、`execute` / `executeFile` / `evaluate`、stdout/stderr callback、C++ 関数登録、複数行を扱う対話用バッファを持つ。Python の実行基盤と output routing の一部は存在する。
+- `ArtifactScriptMenu` は scripts/hooks/macros のフォルダ整備と Python ファイル実行を提供するが、専用の `ArtifactScriptConsole` widget、Window Menu の REPL 導線、履歴 UI、補完 UI は確認できない。
+- `ArtifactDebugConsoleWidget` はログ閲覧・検索・フィルタ・保存用のデバッグコンソールで、コード入力／評価を行う Script Console ではない。これを REPL と見なす統合も確認できない。
+- `ArtifactPythonHookManager` は Workspace/Project/Layer/Playback/Render などの Python API 登録を行うため、console から再利用可能な API 面はある。ただし明示的な sandbox（危険 module 制限）、Python の履歴保存、エラー診断コード、macro の記録・Undo replay、completion、ExpressionEvaluator との REPL façade は未確認。
+- `ArtifactCore/src/Script/Expression` には parser/evaluator があるが、`ExpressionRepl` として context/history/output をまとめる公開 API は確認できない。
+
+したがって、現時点の判定は「Python 実行基盤と既存 menu/hook は部分実装、Script Console milestone は未完了」。次の実装単位は、既存の PythonEngine/HookManager を再利用する sandbox 付き console façade と、Expression の context-aware REPL を UI から接続する設計である。新規 signal/slot の追加は AGENTS の制約に従い、既存イベント経路の再利用可否を先に確認する必要がある。
+
 ## 1. 目的
 
 `REPORT_APP_PERF_BOTTLENECK_2026-06-16.md` §2.2:
