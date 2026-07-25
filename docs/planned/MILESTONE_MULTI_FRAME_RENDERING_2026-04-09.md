@@ -148,3 +148,19 @@ MFR を安全に使えるようにする。
 
 2026-04-09 時点では未着手。  
 この milestone は、Render Queue の export スループットを上げるための段階導入計画として扱う。
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行ソースでは `ArtifactRenderQueueService` に M-RD-13 の Multi-Frame Scheduler 相当の分岐があり、GPU backend 以外で複数 worker を選択し、`maxInFlightFrames_`、farm、frame 単位の progress / export 処理を持つ。`PreviewSettings::multiFrameRendering`、render scheduler の parallel strategy、MFR preview diagnostics / pressure / slot summary も確認できるため、「未着手」は現状と一致しない。
+
+一方、composition/job/playback state の immutable snapshot 契約、GPU backend を含む全経路の frame-safe scheduler、cache eviction と memory upper bound の統一、UI の明示的な MFR opt-in / fallback 操作、cancel / resume の実出力検証は未確認である。並列数や farm の存在だけで、MFR の Definition of Done 達成とは判定しない。
+
+### Audit status
+
+- Phase 1: 部分実装 — frame scheduler の入力・並列化基盤はあるが、immutable snapshot 契約未確認
+- Phase 2: 部分実装 — CPU/export 側の複数 worker と in-flight 上限を確認。全 backend / cancel safety 未確認
+- Phase 3: 部分実装 — preview slot / pressure diagnostics はあるが、全 cache / memory 境界未確認
+- Phase 4: 部分実装 — diagnostics はあるが、ユーザー向け opt-in / 直列 fallback UI 未確認
+- Status: `未着手` から `部分実装・安全性検証待ち` に更新相当
