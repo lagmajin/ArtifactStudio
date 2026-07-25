@@ -174,3 +174,13 @@ class VST3Loader {
 - CLAP 側は `clap_entry` と `PluginLibrary` の共通ローダー整備が終わってから拡張する
 - VST3 と CLAP の共用部は search path / effect chain / parameter UI に限定し、GUI ホストの責務は混ぜない
 - 先に `VST3` の最小再生経路を通してから、統合ブラウザや editor 埋め込みへ進む
+
+---
+
+## 2026-07-25 現状確認
+
+静的確認では、`ArtifactCore` に VST3 の最小インターフェース骨格 (`VST3.Interfaces`) と、Windows / POSIX の動的ライブラリから `GetPluginFactory` を取得する `VST3Module` が存在する。`Artifact` 側の `VSTHost` は VST3 拡張子のスキャンパスを持ち、`VSTEffect` からロード、処理、パラメータ、エディタ導線を呼べる。
+
+ただし、VST3 SDK の実インターフェース／ABIではなくプロジェクト内の骨格型であり、`VSTHost` の実処理は既存の簡易プラグイン状態・バッファ処理に留まる。実際の `IPluginFactory::createInstance()`、`IAudioProcessor::setupProcessing/process()`、`IEditController` パラメータ接続、VST3 エディタ埋め込み、Undo/Redo 対応、CLAP の実インスタンス生成・処理統合は確認できない。したがって本マイルストーンは「VST3 ローダー／型の試作は存在、実ホスト統合と CLAP 完成は未達」と判定する。
+
+確認範囲: `ArtifactCore/include/VST3/VST3Interfaces.ixx`、`ArtifactCore/src/VST3/VST3Loader.cppm`、`Artifact/src/VST/VSTHost.cppm`、`Artifact/src/VST/VSTEffect.cppm`、`ArtifactCore/include/CLAP/CLAPHost.ixx`、`ArtifactCore/src/CLAP/CLAPHost.cppm`。ビルド・実プラグインによる動作確認は未実施。
