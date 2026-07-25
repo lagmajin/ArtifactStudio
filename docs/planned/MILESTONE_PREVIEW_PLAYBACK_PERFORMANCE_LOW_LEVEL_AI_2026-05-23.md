@@ -219,3 +219,7 @@ Lightweight verification, only when build/test is explicitly allowed:
   vocabulary.
 - The next AI can implement the build queue without first untangling readiness
   semantics.
+
+## 2026-07-25 実装監査
+
+`ArtifactPlaybackService` に composition-level の requested／ready／failed／inRam／onDisk 状態、RAM／disk preview cache、manifest／hydration、`ArtifactPlaybackEngine` の clock tick と render controller の実画像取得を分離する基盤、Timeline／diagnostic の summary 経路は確認した。一方、全 surface が同一 readiness vocabulary を表示すること、空 tick が ready を汚染しないことの runtime 検証、build queue／guaranteed playback の実装、実画像を使った cache fallback の実機確認は未実施である。低レベルの状態整理は部分実装済み、completion criteria は未検証とする。
