@@ -86,6 +86,14 @@
 
 ---
 
+## 2026-07-25 現状確認
+
+専用 Time Warp Curve 機能は未着手。既存の `ArtifactCore` TimeRemap 基盤（source time 評価、補間、速度計算）は再利用候補として存在するが、現行ソースには本マイルストーンで定義したクリップ単位の `TimeWarpCurve` データモデル、`ArtifactTimelineTrackPainterView` 上の overlay、Speed Point の追加／削除／ドラッグ、逆再生・Freeze UI、TimeRemap への統合経路は確認できない。
+
+また、project JSON の `layer.timeWarpCurve` 永続化、プリセット適用、単調性診断、Beat Sync 連携も未実装扱いである。したがって本マイルストーンは「既存 TimeRemap Core を依存資産として確認済み、Phase 1〜4 の Time Warp Curve 機能は未着手」と整理する。
+
+---
+
 ## 4. Phases
 
 ### Phase 1: TimeWarpCurve データモデル (P0, 1 セッション)
