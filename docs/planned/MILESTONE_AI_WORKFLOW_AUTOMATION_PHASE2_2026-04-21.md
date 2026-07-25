@@ -1,5 +1,11 @@
 # MILESTONE: AI Workflow Automation Phase 2
 
+**進捗状態:** Phase 2-1 の snapshot 基盤と Phase 2-4 の confirmation／approval 接続は部分実装。派生 summary／統一 SafeWriteResult／before-after dry-run payload は未完了。
+
+### 実装状況（2026-07-25 確認）
+
+WorkspaceAutomation の project／composition／selection／render queue snapshot と、AI tool schema／confirmation message、UI の approval mode を確認した。一方、`counts`／`activeIds`／`warnings` の統一派生 schema、`changedIds`／`failedIds`／`nextAction` を持つ共通 write result、before／preview snapshot の汎用 dry-run 契約は確認できないため未実装として扱う。
+
 作成日: 2026-04-21
 
 ## 目的
