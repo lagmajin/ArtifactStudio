@@ -59,3 +59,9 @@ Audio の基盤はある程度揃っているが、UI surface はまだ「状態
 3. waveform / meter / clip state が見える
 4. 保存して再読込しても routing が壊れない
 5. 既存 playback 安定性を落とさない
+
+## 2026-07-25 静的確認
+
+現状は Phase 1 の基礎部分（channel/master の volume・pan・mute・solo、レベル／ピーク表示、Audio Layer と Core bus の同期）が実装済み。Audio Mixer Widget には FX chip と Master／Stereo Out の表示もある。
+
+Phase 2 の send/return・route target 編集・bus topology の永続化、Phase 3 の mixer 内 waveform／専用 clip indicator、Phase 4 の routing 保存復元・invalid target 検出は未実装または未検証。したがって本マイルストーンは「基礎 mixer surface は導入済み、routing 拡張と安全性検証は未完了」と判定する。
