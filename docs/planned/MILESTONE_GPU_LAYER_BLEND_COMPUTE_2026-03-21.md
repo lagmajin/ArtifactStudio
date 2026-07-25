@@ -338,3 +338,16 @@ GPU 未対応環境向けに `ColorBlendMode::blend()` (CPU) へのフォール�
 | Phase 4: CompositionEditor 統合 | 2.5日 |
 | Phase 5: 品質・最適化 | 2日 |
 | **合計** | **≈ 12.5日** |
+
+## 2026-07-25 実装監査
+
+判定: GPU ブレンドシェーダと `LayerBlendPipeline` は大幅に実装済み。ただし CompositionEditor の通常描画経路への全面置換、CPU fallback、性能最適化、デバッグ可視化は未完了・未検証。
+
+- Blend ディレクトリには Normal / Add / Multiply / Screen / Overlay を含む多数の HLSL shader があり、当初の 5/18 から拡張されている。`LayerBlendPipeline` は executor、constant buffer、opacity、dispatch、テクスチャ契約検査を実装している。
+- Track matte の専用 compute 経路、float texture の変換、pointwise/display 補助経路も実装されている。
+- 一方、source 上で全 18 モードの実行成功を runtime まで確認したわけではなく、BlendMode 全体との登録対応、色空間/alpha 契約、実際の CompositionEditor の全レイヤー合成ループ置換は未確認。
+- `blend()` は対応 executor がない場合に失敗し、`blendDirect()` は Normal executor へ寄せる分岐を持つが、`ColorBlendMode::blend()` へ戻る明示的な CPU fallback とは確認できない。
+- ping-pong 中間テクスチャの再利用、Normal レイヤーの dispatch skip、fence 最適化、GPU 中間結果の可視化も未確認。
+- 次の実装単位は、CompositionEditor / preview / render queue の実際の呼び出し箇所を固定し、未対応 mode と GPU failure の CPU fallback 契約を明示すること。
+
+ビルド・実行確認はリポジトリ方針により未実施。
