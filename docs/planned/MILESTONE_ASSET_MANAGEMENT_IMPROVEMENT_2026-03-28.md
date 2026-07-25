@@ -371,3 +371,10 @@
 ---
 
 **文書終了**
+
+## 2026-07-25 実装監査
+
+- AssetDatabase／AssetManager、async import、source registry、unused／missing 判定、thumbnail の memory／disk cache、relink／delete／move の Undo、Project Health Checker／Problem View 経路を確認できる。
+- 当初の「基本 import／cleanup／cache／relink」課題は後続 milestone の実装で大きく改善され、Asset Browser の UX も別文書で拡張済みである。
+- 一方、10,000 件で 60fps を保証する仮想リスト／TBB 並列化、間接参照を含む誤検出ゼロの usage checker、完全な metadata 拡充、batch rename／tagging は未完了または未検証である。
+- よって親 milestone は基盤・workflow 部分が実装済み、性能・metadata・batch 拡張を残す Partial／継続中と判定する。
