@@ -1,5 +1,15 @@
 # Milestone: ExtendScript-Style Script Runtime Phase 1 Execution
 
+## Static Audit (2026-07-25)
+
+Phase 1 の要求に対して、`ScriptRuntime` が host-facing facade として実装され、`ScriptHostSnapshot`（app/version/project/composition/working directory/selection）、文字列・ファイル実行、logger、success/error/位置情報を提供している。`ScriptContext` は変数表と AST cache を持ち、`BuiltinScriptVM` は context 付き評価と timeout 引数、エラー状態を公開する。
+
+- 1-1〜1-4 の成果物に相当する API は存在し、単発実行と診断形状は確認できる。
+- ただし本確認は静的ソース監査であり、実行結果、ファイル失敗時の UI 表示、timeout が実際に VM 評価を停止すること、host snapshot が実アプリ状態へ接続されることまでは検証していない。
+- `app/project/composition/selection` は `ScriptHostSnapshot` の値として扱われるため、ExtendScript 風の可変オブジェクト API や Phase 2 の console／履歴は対象外のまま。
+
+判定: Phase 1 は API 形状として完了相当。ただし runtime integration と実行時検証は未確認で、親の M-PY-3 Phase 2 以降は未達。
+
 > 2026-04-06
 
 ## Goal
