@@ -66,4 +66,4 @@
 - 表示更新はフレーム変更・選択変更・ズーム変更時に限定し、音声サンプルの再デコードを描画パスから追い出す。
 - 実装後に、非Audio Layer、無音、未ロード素材、選択なし、表示OFFの各ケースを確認する。
 
-初期実装では選択中Audio Layerの波形をViewport下部へ表示する。表示設定の永続化、更新キャッシュ、表示OFF導線は後続作業とする。
+初期実装では選択中Audio Layerの波形をViewport下部へ表示する。`CompositionRenderController::setShowAudioWaveformOverlay()` で表示をOFFにできる。設定の永続化、更新キャッシュ、スペクトラム表示は後続作業とする。
