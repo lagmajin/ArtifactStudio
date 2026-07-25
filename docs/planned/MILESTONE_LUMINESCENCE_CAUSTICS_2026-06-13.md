@@ -122,3 +122,21 @@ creative effect である。
 - [docs/EFFECT_SYSTEM_SPECIFICATION.md](X:/Dev/ArtifactStudio/docs/EFFECT_SYSTEM_SPECIFICATION.md)
 - [docs/MILESTONE_EFFECT_SYSTEM_BRIDGE_2026-05-25.md](X:/Dev/ArtifactStudio/docs/MILESTONE_EFFECT_SYSTEM_BRIDGE_2026-05-25.md)
 - [ArtifactCore/docs/PREMIUM_EFFECTS_MEMO.md](X:/Dev/ArtifactStudio/ArtifactCore/docs/PREMIUM_EFFECTS_MEMO.md)
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+現行の親リポジトリから `LuminescenceCaustics`、caustics effect／model、`texture_caustics_index`、関連 shader／effect stack 接続を検索した。ビルド・GPU表示確認は未実施。
+
+| 項目 | 現状 | 判定 |
+|---|---|---|
+| Stylized source mask | luminance／edge／highlight から caustics mask を生成する専用実装は確認できない。 | 未確認／未実装相当 |
+| Wave field synthesis | 時間変化する caustics 網目の専用 model／shader接続は確認できない。 | 未確認／未実装相当 |
+| Material coupling | material色・輪郭方向・曲率を caustics に結び付ける経路は確認できない。 | 未実装相当 |
+| Projection / composite | effect stack に caustics output を渡す専用経路、additive／screen の制御は確認できない。 | 未実装相当 |
+| 既存関連基盤 | glow／edge／procedural texture 等の個別機能は存在するが、本マイルストーンの caustics 契約とは別。 | 関連基盤のみ |
+
+### 現在の判定
+
+本マイルストーン固有のデータモデル、生成パス、material coupling、composite接続は現行ソースで確認できない。既存の glow／edge 機能を足場にした計画段階とする。
