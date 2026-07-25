@@ -282,3 +282,12 @@ layer.inPoint;     layer.outPoint;
 | `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditor.cppm` | 1044-1047 | 「=」ボタン (スタブ) |
 | `ArtifactCore/src/Text/TextAnimator.cppm` | 13-88 | 式ベース weight 計算 (参考) |
 | `ArtifactCore/src/Time/TimeRemap.cppm` | 152 | getSpeedAtTime (参考) |
+
+
+---
+
+## Static audit follow-up (2026-07-25)
+
+ExpressionParser、ExpressionValue、ExpressionEvaluator と AbstractProperty の expression 保存・評価統合、Copilot の syntax highlight／候補／preview／apply 経路を確認した。文書冒頭の「UI のみ、評価エンジンなし」は現状と不一致で、Parser／runtime／Property Integration は実装済みまたは部分実装である。
+
+ただし、レイヤー／プロパティ参照の完全な resolver、pick-whip の target linking、bounce／overshoot／smooth／snap の built-in preset、AE 互換関数の網羅、loop／valueAtTime の実動作は未完了または placeholder である。従って Milestone 1〜2 は実装済み、Milestone 3 は部分実装、3b／4 と互換拡張は未完了として扱う。
