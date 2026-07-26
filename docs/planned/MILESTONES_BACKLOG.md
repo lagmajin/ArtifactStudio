@@ -1414,6 +1414,13 @@ active milestone の重複名としては扱わない。
 - `M-PS-1 AE Utility Script Pack`
   - `Quick Rename Layers` / `Clean Layers` / `Trim Comp to Content` をまとめた AE 風の小型自動化群
 
+## Next Recommended
+
+- `M-REACTIVE-1 Reactive Events Engine`
+  - `ReactiveEvents` はデータモデルが揃っているので、次は `evaluate()` とリアクション実行の最短経路を閉じる
+  - まずは layer property callback と EventBus 送出までに絞り、UI 連携は後段へ分ける
+  - 詳細: `docs/analysis/REACTIVE_EVENTS_ENGINE_DESIGN_2026-07-25.md`
+
 ### Legacy Note: Timeline Curve Editor Mode
 - `ArtifactTimelineWidget` 縺ｧ normal timeline / curve editor 繧偵→縺ｪ縺｣縺ｦ縺ｯ縺薙→縺後ｒ謹ｭ縺｣縺励※縺上□縺輔＞
 - `U` 繧ｷ繝ｧ繝ｼ繝･縺ｧ mode toggle, `Tab` / `Shift+Tab` 縺ｧ curve editor 内 focus traversal
