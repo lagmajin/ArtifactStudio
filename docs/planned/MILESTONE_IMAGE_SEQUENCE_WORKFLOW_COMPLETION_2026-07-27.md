@@ -22,6 +22,8 @@
 - 欠番、padding、フレーム範囲をsequence行と情報面へ表示する。
 - sequence選択時は全フレームをimport対象へ展開する。
 - context menuのimport操作名にフレーム数を表示する。
+- frame cacheはbounded LRUで保持し、ファイル差し替えを更新時刻・サイズで検出する。
+- cache hit / miss取得と明示クリアのAPIをArtifactCoreへ追加する。
 
 ## Phase 1: Sequence Item Presentation
 
@@ -60,7 +62,7 @@
 
 ## 次の実装単位
 
-1. `AssetMenuItem` のsequence表示状態と代表フレーム表示を確認・整理する。
-2. Asset Browserのsequence展開／折りたたみ導線を追加する。
-3. 欠番・読込失敗をsequence単位で表示する。
-4. preview / import / relink の状態表示を共通化する。
+1. Asset Browserのsequence展開／折りたたみ導線を追加する。
+2. 読込失敗とサイズ不一致をsequence単位で表示する。
+3. preview / import / relink の状態表示を共通化する。
+4. 実素材でのキャッシュhit/miss確認を行う。
