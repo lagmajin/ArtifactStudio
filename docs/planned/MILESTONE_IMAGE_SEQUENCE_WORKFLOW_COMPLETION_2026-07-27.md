@@ -1,7 +1,7 @@
 # マイルストーン: Image Sequence Workflow Completion
 
 > 開始日: 2026-07-27
-> 状態: Planned / Next
+> 状態: In Progress
 
 ## 目的
 
