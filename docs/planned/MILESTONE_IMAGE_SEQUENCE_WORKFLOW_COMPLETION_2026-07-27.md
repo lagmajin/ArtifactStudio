@@ -14,6 +14,12 @@
 - Asset Browser側にはsequenceの代表フレーム、開始フレーム、桁数、構成パスを保持する既存経路がある。
 - Asset Browser上の明示的な展開、sequence単位の状態表示、preview導線の一貫性は未完了。
 
+### 2026-07-27 Progress
+
+- Asset Browserのダブルクリック導線を実装。
+- フォルダはブラウズ移動し、sequence／ファイルはメタデータ・プレビュー選択を更新する。
+- importは明示操作に限定し、閲覧と適用の混同を避ける。
+
 ## Phase 1: Sequence Item Presentation
 
 - sequenceを1行または1タイルの論理アセットとして表示する。
