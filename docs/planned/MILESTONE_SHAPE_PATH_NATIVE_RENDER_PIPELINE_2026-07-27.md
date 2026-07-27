@@ -92,6 +92,13 @@ Phase 0 として、`ShapePath` のコマンド／サブパス／fill rule／fla
 
 残作業は、fill の複数サブパス／穴、stroke join／cap／dash、ShapeOperator の geometry packet 化、renderer の専用 fill tessellation、そして QPainter／QImage キャッシュの段階的縮小である。
 
+## 現在の Qt 境界
+
+- `PathShape::toPainterPath()` は既存 Qt API／互換描画の境界として残す。
+- ArtifactShapeLayer の特殊 stroke、グラデーション、ShapeOperator は現時点では QImage キャッシュを使う。
+- 単純なカスタム Bézier は `ShapePath::flatten()` と renderer の polygon／line API を使い、上記キャッシュ境界から分離した。
+- 次の移行では、複数サブパスと穴を扱える fill tessellation を先に設計し、特殊 stroke の置換はその後に行う。
+
 ## 関連文書
 
 - `Artifact/docs/MILESTONE_M11_SOFTWARE_RENDER_PIPELINE_2026-03-11.md`
