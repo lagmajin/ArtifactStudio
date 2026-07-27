@@ -24,6 +24,8 @@
 - context menuのimport操作名にフレーム数を表示する。
 - frame cacheはbounded LRUで保持し、ファイル差し替えを更新時刻・サイズで検出する。
 - cache hit / miss取得と明示クリアのAPIをArtifactCoreへ追加する。
+- sequence行をコンテキストメニューから展開／折りたたみでき、個別フレーム行を確認できる。
+- 展開したフレームの選択・ドラッグ・importは親sequence全体の関係を維持する。
 
 ## Phase 1: Sequence Item Presentation
 
@@ -62,7 +64,5 @@
 
 ## 次の実装単位
 
-1. Asset Browserのsequence展開／折りたたみ導線を追加する。
-2. 読込失敗とサイズ不一致をsequence単位で表示する。
-3. preview / import / relink の状態表示を共通化する。
-4. 実素材でのキャッシュhit/miss確認を行う。
+1. preview / import / relink の状態表示を共通化する。
+2. 実素材でのキャッシュhit/miss確認を行う。
