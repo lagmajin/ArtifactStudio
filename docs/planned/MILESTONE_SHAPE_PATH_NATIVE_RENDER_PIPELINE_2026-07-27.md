@@ -85,6 +85,7 @@ Phase 0 として、`ShapePath` のコマンド／サブパス／fill rule／fla
 ## 実装進捗
 
 - `ShapePath` の bounds、length、位置サンプリング、接線／法線、contains を自作 geometry 経路へ移行した。
+- `PathFillRule`（Winding／EvenOdd）を `ShapePath` と JSON／Qt 境界へ追加した。
 - bounds は二次／三次 Bézier の解析的 extrema を使い、制御点包絡矩形による過大評価を削減した。
 - Bézier flatten API と `Close` の終端セグメントを追加し、stroke／fill の geometry 生成で再利用できるようにした。
 - arc、角丸矩形、楕円、矩形、多角形、星形のプリミティブを Qt パス変換なしで構築する経路を整備した。
