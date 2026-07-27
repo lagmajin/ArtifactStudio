@@ -26,6 +26,7 @@
 - cache hit / miss取得と明示クリアのAPIをArtifactCoreへ追加する。
 - sequence行をコンテキストメニューから展開／折りたたみでき、個別フレーム行を確認できる。
 - 展開したフレームの選択・ドラッグ・importは親sequence全体の関係を維持する。
+- キャッシュ保持数・上限の診断 API と、seek時の次フレーム先読みを追加する。
 
 ## Phase 1: Sequence Item Presentation
 
@@ -65,4 +66,4 @@
 ## 次の実装単位
 
 1. preview / import / relink の状態表示を共通化する。
-2. 実素材でのキャッシュhit/miss確認を行う。
+2. 実素材でのキャッシュhit/miss/保持数確認を行う。
