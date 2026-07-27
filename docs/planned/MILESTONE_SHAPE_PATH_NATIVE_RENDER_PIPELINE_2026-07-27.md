@@ -102,6 +102,7 @@ Phase 0 として、`ShapePath` のコマンド／サブパス／fill rule／fla
 - 次の移行では、複数サブパスと穴を扱える fill tessellation を先に設計し、特殊 stroke の置換はその後に行う。
 - 現行 renderer の polygon／line API だけでは穴を正しく表現できないため、複数輪郭を単純に個別 polygon として描く実装は行わない。winding／even-odd を保持した triangulated fill packet の境界を先に追加する。
 - Core 側には `flattenSubpaths()` を追加済み。既存の `drawSolidTriangleLocal`／`drawSolidPolygonLocal` へ接続する前に、輪郭の向き、fill rule、穴の所属を失わない packet 契約を定義する。
+- 既存の `drawSolidTriangleLocal` は内部バッチ経路を利用するため、複数輪郭 packet の初期接続では新しい低レベル描画 API を増やさず、三角形列を既存 API へ渡す方針とする。
 - 単一輪郭の native custom Bézier fill には ear-clipping triangulation を接続した。退化・失敗時は既存 polygon API へ戻し、複数輪郭・穴は引き続き専用 packet の対象とする。
 
 ## 関連文書
