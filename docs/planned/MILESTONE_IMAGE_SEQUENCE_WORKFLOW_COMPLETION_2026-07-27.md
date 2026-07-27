@@ -19,6 +19,9 @@
 - Asset Browserのダブルクリック導線を実装。
 - フォルダはブラウズ移動し、sequence／ファイルはメタデータ・プレビュー選択を更新する。
 - importは明示操作に限定し、閲覧と適用の混同を避ける。
+- 欠番、padding、フレーム範囲をsequence行と情報面へ表示する。
+- sequence選択時は全フレームをimport対象へ展開する。
+- context menuのimport操作名にフレーム数を表示する。
 
 ## Phase 1: Sequence Item Presentation
 
