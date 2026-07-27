@@ -82,6 +82,16 @@
 
 Phase 0 として、`ShapePath` のコマンド／サブパス／fill rule／flatten tolerance の契約を短い技術メモに固定し、その後に Qt 非依存 bounds と flatten の最小実装を追加する。実装開始時は `.ixx` の依存を増やさず、既存の実装モジュールで代替できるかを先に確認する。
 
+## 実装進捗
+
+- `ShapePath` の bounds、length、位置サンプリング、接線／法線、contains を自作 geometry 経路へ移行した。
+- Bézier flatten API と `Close` の終端セグメントを追加し、stroke／fill の geometry 生成で再利用できるようにした。
+- arc、角丸矩形、楕円、矩形、多角形、星形のプリミティブを Qt パス変換なしで構築する経路を整備した。
+- `ShapePath::addPath()`、`ShapePath::reverse()`、`ShapeGroup::processedPaths()` の不要な Qt 往復を削減した。
+- ArtifactShapeLayer では、単純なカスタム Bézier（単色 fill、標準 stroke、演算子なし）を `ShapePath::flatten()` から renderer へ渡す経路を追加した。特殊 fill／stroke と ShapeOperator は互換キャッシュ経路に残している。
+
+残作業は、fill の複数サブパス／穴、stroke join／cap／dash、ShapeOperator の geometry packet 化、renderer の専用 fill tessellation、そして QPainter／QImage キャッシュの段階的縮小である。
+
 ## 関連文書
 
 - `Artifact/docs/MILESTONE_M11_SOFTWARE_RENDER_PIPELINE_2026-03-11.md`
