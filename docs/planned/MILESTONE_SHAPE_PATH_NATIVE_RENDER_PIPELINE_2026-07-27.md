@@ -100,6 +100,7 @@ Phase 0 として、`ShapePath` のコマンド／サブパス／fill rule／fla
 - 単純なカスタム Bézier は `ShapePath::flatten()` と renderer の polygon／line API を使い、上記キャッシュ境界から分離した。
 - 次の移行では、複数サブパスと穴を扱える fill tessellation を先に設計し、特殊 stroke の置換はその後に行う。
 - 現行 renderer の polygon／line API だけでは穴を正しく表現できないため、複数輪郭を単純に個別 polygon として描く実装は行わない。winding／even-odd を保持した triangulated fill packet の境界を先に追加する。
+- Core 側には `flattenSubpaths()` を追加済み。既存の `drawSolidTriangleLocal`／`drawSolidPolygonLocal` へ接続する前に、輪郭の向き、fill rule、穴の所属を失わない packet 契約を定義する。
 
 ## 関連文書
 
