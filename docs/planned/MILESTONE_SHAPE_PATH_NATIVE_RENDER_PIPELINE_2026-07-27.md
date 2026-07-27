@@ -99,6 +99,7 @@ Phase 0 として、`ShapePath` のコマンド／サブパス／fill rule／fla
 - ArtifactShapeLayer の特殊 stroke、グラデーション、ShapeOperator は現時点では QImage キャッシュを使う。
 - 単純なカスタム Bézier は `ShapePath::flatten()` と renderer の polygon／line API を使い、上記キャッシュ境界から分離した。
 - 次の移行では、複数サブパスと穴を扱える fill tessellation を先に設計し、特殊 stroke の置換はその後に行う。
+- 現行 renderer の polygon／line API だけでは穴を正しく表現できないため、複数輪郭を単純に個別 polygon として描く実装は行わない。winding／even-odd を保持した triangulated fill packet の境界を先に追加する。
 
 ## 関連文書
 
