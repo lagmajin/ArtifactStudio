@@ -29,6 +29,7 @@
 - キャッシュ保持数・上限の診断 API と、seek時の次フレーム先読みを追加する。
 - `ImageSequenceSource` でも代表フレームの padding を sequence 識別条件にする。
 - `ImageSequenceSource::metadata()` から実フレーム範囲と欠番数を取得可能にする。
+- source frame number と sequence index の相互参照、および欠番を誤補間しない seek API を追加する。
 
 ## Phase 1: Sequence Item Presentation
 
