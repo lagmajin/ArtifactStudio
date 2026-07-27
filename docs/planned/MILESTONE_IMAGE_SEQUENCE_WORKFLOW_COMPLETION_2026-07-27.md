@@ -27,6 +27,7 @@
 - sequence行をコンテキストメニューから展開／折りたたみでき、個別フレーム行を確認できる。
 - 展開したフレームの選択・ドラッグ・importは親sequence全体の関係を維持する。
 - キャッシュ保持数・上限の診断 API と、seek時の次フレーム先読みを追加する。
+- `ImageSequenceSource` でも代表フレームの padding を sequence 識別条件にする。
 
 ## Phase 1: Sequence Item Presentation
 
