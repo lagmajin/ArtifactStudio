@@ -38,6 +38,9 @@ playback when a breakpoint condition matches.
 
 - `get_debug_snapshot`
 - `set_break_condition`
+- `set_debug_watch`
+- `list_debug_watches`
+- `clear_debug_watch`
 - `update_break_condition`
 - `list_break_conditions`
 - `clear_break_condition`
@@ -50,6 +53,11 @@ playback when a breakpoint condition matches.
 - `clear_history`
 - `reset_debug_session`
 - `set_mock_snapshot`
+
+Watch paths use dotted snapshot fields such as `playback.frame` and
+`diagnostics.healthState`, or `property:<property-path>` for a registered
+property. A break hit stores the current watch values together with a bounded
+eight-snapshot window before and after playback resumes.
 
 ## Example Flow
 

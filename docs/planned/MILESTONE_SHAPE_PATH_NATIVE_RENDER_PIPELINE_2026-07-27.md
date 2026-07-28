@@ -91,19 +91,20 @@ Phase 0 として、`ShapePath` のコマンド／サブパス／fill rule／fla
 - arc、角丸矩形、楕円、矩形、多角形、星形のプリミティブを Qt パス変換なしで構築する経路を整備した。
 - `ShapePath::addPath()`、`ShapePath::reverse()`、`ShapeGroup::processedPaths()` の不要な Qt 往復を削減した。
 - ArtifactShapeLayer では、単純なカスタム Bézier（単色 fill、標準 stroke、演算子なし）を `ShapePath::flatten()` から renderer へ渡す経路を追加した。特殊 fill／stroke と ShapeOperator は互換キャッシュ経路に残している。
+- `ShapePath::triangulate()` を追加し、fill rule（Winding／EvenOdd）と穴を考慮した多輪郭 triangulation を Core 側で実装した。穴はゼロ幅ブリッジで外輪郭へ統合し、既存の ear-clipping で三角形列にする。分類は輪郭内外の filled 判定で行い、冗長輪郭は除外する。
+- ArtifactShapeLayer の native カスタム Bézier fill を `triangulate()` ベースへ切り替えた（ローカル座標で分割し、変換後に `drawSolidTriangleLocal` へ渡す）。stroke は全サブパスを描画する。triangulation 失敗時は単一輪郭のみ従来の polygon fallback を使い、多輪郭は穴を失う polygon 描画をせず fill をスキップする。
 
-残作業は、fill の複数サブパス／穴、stroke join／cap／dash、ShapeOperator の geometry packet 化、renderer の専用 fill tessellation、そして QPainter／QImage キャッシュの段階的縮小である。
+残作業は、stroke join／cap／dash、ShapeOperator の geometry packet 化、ShapeGroup の多輪郭 fill の新経路接続、そして QPainter／QImage キャッシュの段階的縮小である。
 
 ## 現在の Qt 境界
 
 - `PathShape::toPainterPath()` は既存 Qt API／互換描画の境界として残す。
 - ArtifactShapeLayer の特殊 stroke、グラデーション、ShapeOperator は現時点では QImage キャッシュを使う。
 - 単純なカスタム Bézier は `ShapePath::flatten()` と renderer の polygon／line API を使い、上記キャッシュ境界から分離した。
-- 次の移行では、複数サブパスと穴を扱える fill tessellation を先に設計し、特殊 stroke の置換はその後に行う。
-- 現行 renderer の polygon／line API だけでは穴を正しく表現できないため、複数輪郭を単純に個別 polygon として描く実装は行わない。winding／even-odd を保持した triangulated fill packet の境界を先に追加する。
-- Core 側には `flattenSubpaths()` を追加済み。既存の `drawSolidTriangleLocal`／`drawSolidPolygonLocal` へ接続する前に、輪郭の向き、fill rule、穴の所属を失わない packet 契約を定義する。
-- 既存の `drawSolidTriangleLocal` は内部バッチ経路を利用するため、複数輪郭 packet の初期接続では新しい低レベル描画 API を増やさず、三角形列を既存 API へ渡す方針とする。
-- 単一輪郭の native custom Bézier fill には ear-clipping triangulation を接続した。退化・失敗時は既存 polygon API へ戻し、複数輪郭・穴は引き続き専用 packet の対象とする。
+- 次の移行では、特殊 stroke（join／cap／dash）の geometry 化を設計する。多輪郭 fill の packet 境界は `ShapePath::triangulate()` として Core 側に確立済み。
+- winding／even-odd と穴の所属は `triangulate()` 内で解決し、renderer へは三角形列のみを渡す。複数輪郭を個別 polygon として描く実装は行わない方針を維持し、triangulation 失敗時の多輪郭 fill はスキップする（単一輪郭のみ polygon fallback）。
+- Core 側には `flattenSubpaths()`／`triangulate()` を追加済み。既存の `drawSolidTriangleLocal` の内部バッチ経路を利用し、新しい低レベル描画 API は追加していない。
+- native custom Bézier fill は単一輪郭・多輪郭とも `triangulate()` を使う。退化・失敗時は単一輪郭のみ既存 polygon API へ戻る。
 
 ## 関連文書
 

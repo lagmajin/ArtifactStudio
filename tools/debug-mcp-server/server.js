@@ -94,6 +94,8 @@ function createDefaultState() {
     },
     nextConditionId: 1,
     breakConditions: [],
+    nextWatchId: 1,
+    watchDescriptors: [],
     lastBreakHit: null,
     history: [],
     mockSnapshot: createDefaultSnapshot(),
@@ -278,6 +280,13 @@ function loadState() {
       enabled: condition && condition.enabled !== false,
       value: condition ? condition.value : undefined,
       createdAt: String(condition && condition.createdAt ? condition.createdAt : nowIso())
+    })),
+    watchDescriptors: normalizeArray(state.watchDescriptors).map((watch) => ({
+      id: Number(watch && watch.id ? watch.id : 0),
+      path: String(watch && watch.path ? watch.path : ''),
+      label: String(watch && watch.label ? watch.label : ''),
+      enabled: watch && watch.enabled !== false,
+      createdAt: String(watch && watch.createdAt ? watch.createdAt : nowIso())
     })),
     lastBreakHit: state.lastBreakHit || null,
     history: normalizeArray(state.history),
@@ -615,6 +624,43 @@ function toolCatalog() {
       }
     ),
     makeTool(
+      'set_debug_watch',
+      'Register or update a bounded live watch. Paths use dotted snapshot fields or property:<property-path>.',
+      {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          watch: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              id: { oneOf: [{ type: 'number' }, { type: 'string' }] },
+              path: { type: 'string' },
+              label: { type: 'string' },
+              enabled: { type: 'boolean' }
+            },
+            required: ['path']
+          }
+        },
+        required: ['watch']
+      }
+    ),
+    makeTool(
+      'list_debug_watches',
+      'List registered live watch descriptors.',
+      { type: 'object', additionalProperties: false, properties: {} }
+    ),
+    makeTool(
+      'clear_debug_watch',
+      'Remove one registered live watch descriptor by id.',
+      {
+        type: 'object',
+        additionalProperties: false,
+        properties: { id: { oneOf: [{ type: 'number' }, { type: 'string' }] } },
+        required: ['id']
+      }
+    ),
+    makeTool(
       'update_break_condition',
       'Patch an existing break condition by id.',
       {
@@ -797,6 +843,53 @@ function callTool(state, name, args) {
         jsonText(formatSnapshotForTool(snapshot, state)),
         formatSnapshotForTool(snapshot, state)
       );
+
+    case 'set_debug_watch': {
+      const input = args && typeof args.watch === 'object' ? args.watch : {};
+      const path = String(input.path || '').trim();
+      if (!path) {
+        return contentResult(jsonText({ ok: false, reason: 'path-required' }),
+          { ok: false, reason: 'path-required' });
+      }
+      const requestedId = Number(input.id);
+      const index = Number.isFinite(requestedId)
+        ? state.watchDescriptors.findIndex((watch) => watch.id === requestedId)
+        : -1;
+      const watch = {
+        id: index >= 0 ? state.watchDescriptors[index].id : state.nextWatchId++,
+        path,
+        label: input.label !== undefined ? String(input.label) : '',
+        enabled: input.enabled !== false,
+        createdAt: index >= 0 ? state.watchDescriptors[index].createdAt : nowIso()
+      };
+      if (index >= 0) {
+        state.watchDescriptors[index] = watch;
+      } else {
+        state.watchDescriptors.push(watch);
+      }
+      state.session.lastAction = 'set_debug_watch';
+      pushHistory(state, { type: 'set-debug-watch', watchId: watch.id });
+      saveState(state);
+      return contentResult(jsonText({ ok: true, watch }), { ok: true, watch });
+    }
+
+    case 'list_debug_watches':
+      state.session.lastAction = 'list_debug_watches';
+      pushHistory(state, { type: 'list-debug-watches' });
+      saveState(state);
+      return contentResult(jsonText({ watches: state.watchDescriptors }),
+        { watches: state.watchDescriptors });
+
+    case 'clear_debug_watch': {
+      const id = Number(args && args.id);
+      const before = state.watchDescriptors.length;
+      state.watchDescriptors = state.watchDescriptors.filter((watch) => watch.id !== id);
+      const removed = before !== state.watchDescriptors.length;
+      state.session.lastAction = 'clear_debug_watch';
+      pushHistory(state, { type: 'clear-debug-watch', watchId: id, removed });
+      saveState(state);
+      return contentResult(jsonText({ ok: removed, id }), { ok: removed, id });
+    }
 
     case 'set_break_condition': {
       const conditionInput = args && typeof args.condition === 'object' ? args.condition : {};

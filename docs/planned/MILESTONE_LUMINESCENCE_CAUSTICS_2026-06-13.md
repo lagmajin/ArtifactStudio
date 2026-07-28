@@ -112,7 +112,7 @@ creative effect である。
 
 - [ArtifactCore/src/Graphics/Effect/EdgeEchoEffect.cppm](X:/Dev/ArtifactStudio/ArtifactCore/src/Graphics/Effect/EdgeEchoEffect.cppm)
 - [ArtifactCore/include/ImageProcessing/Halation.ixx](X:/Dev/ArtifactStudio/ArtifactCore/include/ImageProcessing/Halation.ixx)
-- [ArtifactCore/src/ImageProcessing/ChromaSpreadGlow.cpp](X:/Dev/ArtifactStudio/ArtifactCore/src/ImageProcessing/ChromaSpreadGlow.cpp)
+- [ArtifactCore/src/ImageProcessing/ChromaSpreadGlow.cppm](X:/Dev/ArtifactStudio/ArtifactCore/src/ImageProcessing/ChromaSpreadGlow.cppm)
 - [Artifact/App/shaders/causticsCS.hlsl](X:/Dev/ArtifactStudio/Artifact/App/shaders/causticsCS.hlsl)
 - [Artifact/App/shaders/ShaderInterop_Renderer.h](X:/Dev/ArtifactStudio/Artifact/App/shaders/ShaderInterop_Renderer.h)
 - [docs/planned/MILESTONE_VISUAL_EFFECT_BUS_2026-06-02.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_VISUAL_EFFECT_BUS_2026-06-02.md)

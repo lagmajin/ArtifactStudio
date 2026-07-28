@@ -1,7 +1,10 @@
 # Milestone: GPU-Driven MDI Render (2026-04-02)
 
-**Status:** Draft
+**ステータス:** In Progress
+
 **Goal:** CPU 依存の draw submission を減らし、GPU 側で可視判定・集約・`Multi-Draw Indirect` 相当の描画指示生成を行える render path を作る。
+
+**上位導入ゲート:** `docs/planned/MILESTONE_INTERACTIVE_RENDER_PERFORMANCE_2026-07-27.md` の `RP-8 GPU-Driven Submission`
 
 ---
 
@@ -46,6 +49,8 @@ MDI を入れると、同じ種類の描画をまとめられるだけでなく�
 
 この milestone は「最終形の GPU renderer」ではなく、**GPU 駆動の描画 submission を成立させる足場** を作る位置づけ。
 
+平面 1 枚や少数の通常 2D layer では、indirect args 生成、compute dispatch、resource barrier の固定費が利益を上回る可能性がある。初期対象は clone、particle、instanced mesh など、同一 pipeline の draw item が大量に存在し、CPU submission が実測上の bottleneck になっている workload とする。
+
 ---
 
 ## Phases
@@ -74,6 +79,8 @@ MDI を入れると、同じ種類の描画をまとめられるだけでなく�
 - visibility / layer / pass 条件で compaction する
 - 同種 item を group 化する
 - CPU fallback を維持する
+- visible count、overflow count、culled count を GPU counter として記録する
+- args / compacted item buffer の capacity を超えない bounded write にする
 
 **Done when:**
 
@@ -90,6 +97,8 @@ MDI を入れると、同じ種類の描画をまとめられるだけでなく�
 - pass ごとに batch を作る
 - backend ごとの制約を吸収する layer を置く
 - MDI 非対応 backend は既存 path に落とす
+- UAV write から indirect argument read への resource state transition を明示する
+- 少数 item では既存 direct path を選ぶ break-even threshold を計測する
 
 **Done when:**
 
@@ -135,6 +144,26 @@ MDI を入れると、同じ種類の描画をまとめられるだけでなく�
 - GPU 側で作る前提が増えると、debug が難しくなる
 - backend 差分が増えると、MDI が実質的に API ごとの別実装になる
 - 既存の render queue / composition/controller と責務が重複しやすい
+- 透明 layer、matte、adjustment layer を越えた並べ替えは visual correctness を壊す
+- item 数が少ない scene では GPU compaction と indirect submission の固定費が逆効果になる
+- args buffer overflow や frame slot の早期再利用は GPU fault / stale draw の原因になる
+
+---
+
+## Measurement Contract
+
+- CPU draw item build time
+- CPU submission time
+- GPU culling / compaction time
+- indirect args generation time
+- candidate / visible / culled / submitted item count
+- direct / indirect draw count
+- batch break reason
+- args buffer capacity / high-water mark / overflow count
+- CPU fallback count / reason
+- input-to-visible latency
+
+GPU-driven path は、対象 scene で CPU preparation / submission を削減し、GPU frame time と入力遅延を悪化させない場合だけ既定有効候補とする。
 
 ---
 
@@ -150,6 +179,7 @@ MDI を入れると、同じ種類の描画をまとめられるだけでなく�
 
 ## Related
 
+- `docs/planned/MILESTONE_INTERACTIVE_RENDER_PERFORMANCE_2026-07-27.md`
 - `docs/planned/MILESTONE_RENDER_PATH_DECOMPOSITION_2026-03-31.md`
 - `docs/planned/MILESTONE_RENDER_QUEUE_2026-03-22.md`
 - `docs/planned/MILESTONE_DILIGENT_LOW_LEVEL_API_2026-04-01.md`
@@ -157,5 +187,33 @@ MDI を入れると、同じ種類の描画をまとめられるだけでなく�
 
 ## Current Status
 
-GPU-driven MDI は構想段階。  
-まずは draw item の共通化と fallback を固めてから、MDI submission に進めるのが現実的。
+2026-07-27 に Clone / Instanced Mesh と Particle を最初の対象として submission foundation を導入した。
+
+- Clone の現在の描画本流は `MeshRenderer` ではなく `SolidRectXformPkt` であったため、変形矩形を最大 512 item の単一 vertex/index batch へ統合した。
+- Clone batch は 64 item 以上かつ backend 対応時に `DrawIndexedIndirect` を使用する。
+- `MeshRenderer` は 64 instance 以上で indexed / non-indexed indirect draw を選択する。
+- `ParticleRenderer` は 64 particle 以上で `DrawIndirect` を選択する。
+- capability 不足、buffer 作成失敗、少数 item では既存 direct draw を維持する。
+- indirect args buffer は persistent resource とし、draw ごとの buffer 作成を行わない。
+
+第一段のindirect argsはCPUがactive countから更新するfoundationとして導入した。その後のGPU visibility対応は以下の更新で継続する。
+
+### 2026-07-27 GPU visibility / compaction update
+
+`MeshRenderer` と `ParticleRenderer` に compute-based visibility path を追加した。
+
+- input structured buffer は変更せず、GPU-visible output bufferへcompactする。
+- compute shader がvisible itemごとにIndirect Argsのinstance countをatomic incrementする。
+- output capacityはinput upload capacityと同じ上限を使い、buffer外書き込みを防ぐ。
+- compute dispatch後は同じpersistent args bufferを`DrawIndirect` / `DrawIndexedIndirect`へ渡す。
+- Particleは描画順を変えても意味が保たれるAdditive blendだけを対象とする。
+- Meshはtransparent passを除外し、opaque instanceだけを対象とする。
+- Mesh boundsはupload済みgeometryからlocal bounding radiusを計算し、instance scaleを含むconservative sphereとして判定する。
+- shader compilation、PSO、SRB、UAV、Indirect capabilityのいずれかが成立しない場合は既存pathへ戻る。
+
+残作業:
+
+- GPU counterの非同期diagnostics readback。
+- CPU referenceとのvisibility parity validation mode。
+- Cloneの現在の`SolidRectXformPkt`経路に対するGPU-side packet compaction。現在のCloneはGPU batch / indirect submissionまでで、visibility判定は未統合。
+- backend別のUAV / indirect args buffer mode検証。

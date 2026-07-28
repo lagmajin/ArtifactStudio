@@ -20,7 +20,7 @@
 
 ## Existing Signals
 
-- `ArtifactCore/src/ImageProcessing/AnisotropicFlowBlur.cpp` に CPU 実装がある
+- `ArtifactCore/src/ImageProcessing/AnisotropicFlowBlur.cppm` に CPU 実装がある
 - `ArtifactCore/include/ImageProcessing/AnisotropicFlowBlur.ixx` に公開 API がある
 - `ArtifactCore/include/ImageProcessing/StructureTensor.ixx` に方向場の解析基盤がある
 - `ArtifactCore/include/ImageProcessing/Distortion.ixx` に補助的な変形経路がある
@@ -104,7 +104,7 @@
 
 ## Likely Touch Points
 
-- [ArtifactCore/src/ImageProcessing/AnisotropicFlowBlur.cpp](X:/Dev/ArtifactStudio/ArtifactCore/src/ImageProcessing/AnisotropicFlowBlur.cpp)
+- [ArtifactCore/src/ImageProcessing/AnisotropicFlowBlur.cppm](X:/Dev/ArtifactStudio/ArtifactCore/src/ImageProcessing/AnisotropicFlowBlur.cppm)
 - [ArtifactCore/include/ImageProcessing/AnisotropicFlowBlur.ixx](X:/Dev/ArtifactStudio/ArtifactCore/include/ImageProcessing/AnisotropicFlowBlur.ixx)
 - [ArtifactCore/include/ImageProcessing/StructureTensor.ixx](X:/Dev/ArtifactStudio/ArtifactCore/include/ImageProcessing/StructureTensor.ixx)
 - [ArtifactCore/include/ImageProcessing/Distortion.ixx](X:/Dev/ArtifactStudio/ArtifactCore/include/ImageProcessing/Distortion.ixx)

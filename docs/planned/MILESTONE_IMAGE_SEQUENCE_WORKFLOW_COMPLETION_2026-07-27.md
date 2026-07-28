@@ -16,6 +16,8 @@
 
 ### 2026-07-27 Progress
 
+> 注意: 本節の実装は Artifact / ArtifactCore の `codex/cpu-render-main-sync`（リモート `origin/codex/2026-07-27`）で行われ、**2026-07-28 に main へマージ済み**（コンフリクトなし、Artifact +82 / ArtifactCore +55 コミット）。
+
 - Asset Browserのダブルクリック導線を実装。
 - フォルダはブラウズ移動し、sequence／ファイルはメタデータ・プレビュー選択を更新する。
 - importは明示操作に限定し、閲覧と適用の混同を避ける。
@@ -30,6 +32,18 @@
 - `ImageSequenceSource` でも代表フレームの padding を sequence 識別条件にする。
 - `ImageSequenceSource::metadata()` から実フレーム範囲と欠番数を取得可能にする。
 - source frame number と sequence index の相互参照、および欠番を誤補間しない seek API を追加する。
+
+### 2026-07-27 Progress (main)
+
+- Asset Browserの preview / import / relink の状態表示を共通化した。
+  - `AssetStatusSummary`（favorite/imported/unused=全フレーム、missing=1フレームでも）を単一ヘルパーに集約。
+  - sequence行・standalone行のマーカー生成と状態フィルタ判定を同一ヘルパー経由に統一。
+  - 情報面（preview ペイン）を sequence 集計対応にし、フレーム数・開始フレーム・padding を表示。従来は先頭フレーム単体の状態のみで行マーカーと矛盾していた。
+  - Source Uses の集計にも sequencePaths を渡すよう統一。
+  - import（Add to Project）と relink の成功後に情報面を再同期するようにした。
+  - 欠損ファイル選択時も同じ状態表示書式で Missing を提示する。
+- context menu import の sequence 全フレーム展開を main にも実装（操作名にフレーム数表示、`findAssetItemByPath` でフレーム行→親 sequence を解決）。
+- codex ブランチのマージ時に main の共通ヘルパーと branch のフレーム診断（Missing Frames / Unreadable / Size Mismatch マーカー、Relink/Import 失敗警告）を統合。
 
 ## Phase 1: Sequence Item Presentation
 
@@ -68,5 +82,5 @@
 
 ## 次の実装単位
 
-1. preview / import / relink の状態表示を共通化する。
-2. 実素材でのキャッシュhit/miss/保持数確認を行う。
+1. 実素材でのキャッシュhit/miss/保持数確認を行う（キャッシュ実装はマージ済みのため main で検証可能。ビルド確認が前提）。
+2. `detectSequences` の設計差分の確認: マージで `MissingFramePolicy` が廃止され常時ギャップ分割になったが、別セッションの WIP（`MissingFramePolicy` 温存案）が未統合のまま残っている。方針の一本化が必要。

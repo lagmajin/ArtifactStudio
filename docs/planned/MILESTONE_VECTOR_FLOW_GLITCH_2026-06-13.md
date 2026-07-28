@@ -19,7 +19,7 @@
 
 ## Existing Signals
 
-- `ArtifactCore/src/ImageProcessing/VectorFlowGlitch.cpp` に CPU ベースの実装がすでにある
+- `ArtifactCore/src/ImageProcessing/VectorFlowGlitch.cppm` に CPU ベースの実装がすでにある
 - `ArtifactCore/include/ImageProcessing/VectorFlowGlitch.ixx` に公開 settings と effect class がある
 - `ArtifactCore/include/ImageProcessing/StructureTensor.ixx` に局所方向場の解析基盤がある
 - `ArtifactCore/include/ImageProcessing/AnisotropicFlowBlur.ixx` に edge-following の考え方がある
@@ -90,7 +90,7 @@
 
 ## Implementation Notes
 
-- 既存の `VectorFlowGlitch.cpp` は、輪郭方向に沿った displacement の出発点として使える
+- 既存の `VectorFlowGlitch.cppm` は、輪郭方向に沿った displacement の出発点として使える
 - 最初は structure tensor の方向場だけで十分に見栄えがする
 - 将来的に motion vector を足すと、単なる静的グリッチから脱しやすい
 - 破壊感を上げすぎると読めなくなるので、alpha と前景の保持を優先する
@@ -105,7 +105,7 @@
 
 ## Likely Touch Points
 
-- [ArtifactCore/src/ImageProcessing/VectorFlowGlitch.cpp](X:/Dev/ArtifactStudio/ArtifactCore/src/ImageProcessing/VectorFlowGlitch.cpp)
+- [ArtifactCore/src/ImageProcessing/VectorFlowGlitch.cppm](X:/Dev/ArtifactStudio/ArtifactCore/src/ImageProcessing/VectorFlowGlitch.cppm)
 - [ArtifactCore/include/ImageProcessing/VectorFlowGlitch.ixx](X:/Dev/ArtifactStudio/ArtifactCore/include/ImageProcessing/VectorFlowGlitch.ixx)
 - [ArtifactCore/include/ImageProcessing/StructureTensor.ixx](X:/Dev/ArtifactStudio/ArtifactCore/include/ImageProcessing/StructureTensor.ixx)
 - [ArtifactCore/include/ImageProcessing/AnisotropicFlowBlur.ixx](X:/Dev/ArtifactStudio/ArtifactCore/include/ImageProcessing/AnisotropicFlowBlur.ixx)

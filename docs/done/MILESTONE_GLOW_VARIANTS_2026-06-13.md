@@ -34,7 +34,7 @@ Current implementation:
 
 - `Artifact/src/Effects/Glow/GlowEffect.cpp` に標準的な glow effect がある
 - `Artifact/src/Effects/DirectionalGlowEffect.cppm` に方向性のある streak 系がある
-- `ArtifactCore/include/ImageProcessing/ChromaSpreadGlow.ixx` と `src/ImageProcessing/ChromaSpreadGlow.cpp` に色散り込み型の glow がある
+- `ArtifactCore/include/ImageProcessing/ChromaSpreadGlow.ixx` と `src/ImageProcessing/ChromaSpreadGlow.cppm` に色散り込み型の glow がある
 - `ArtifactCore/include/ImageProcessing/Halation.ixx` にフィルム的な滲みと残光がある
 - `ArtifactCore/src/ImageProcessing/OpenCV/Glow.cppm` に複数の OpenCV glow path がある
 - `ArtifactCore/src/ImageProcessing/OpenCV/SpectralGlowCV.cppm` にスペクトル寄りの glow 実装がある
@@ -131,7 +131,7 @@ Current implementation:
 - [Artifact/src/Effects/Glow/GlowEffect.cpp](X:/Dev/ArtifactStudio/Artifact/src/Effects/Glow/GlowEffect.cpp)
 - [Artifact/src/Effects/DirectionalGlowEffect.cppm](X:/Dev/ArtifactStudio/Artifact/src/Effects/DirectionalGlowEffect.cppm)
 - [ArtifactCore/include/ImageProcessing/ChromaSpreadGlow.ixx](X:/Dev/ArtifactStudio/ArtifactCore/include/ImageProcessing/ChromaSpreadGlow.ixx)
-- [ArtifactCore/src/ImageProcessing/ChromaSpreadGlow.cpp](X:/Dev/ArtifactStudio/ArtifactCore/src/ImageProcessing/ChromaSpreadGlow.cpp)
+- [ArtifactCore/src/ImageProcessing/ChromaSpreadGlow.cppm](X:/Dev/ArtifactStudio/ArtifactCore/src/ImageProcessing/ChromaSpreadGlow.cppm)
 - [ArtifactCore/include/ImageProcessing/Halation.ixx](X:/Dev/ArtifactStudio/ArtifactCore/include/ImageProcessing/Halation.ixx)
 - [ArtifactCore/src/ImageProcessing/OpenCV/Glow.cppm](X:/Dev/ArtifactStudio/ArtifactCore/src/ImageProcessing/OpenCV/Glow.cppm)
 - [ArtifactCore/src/ImageProcessing/OpenCV/SpectralGlowCV.cppm](X:/Dev/ArtifactStudio/ArtifactCore/src/ImageProcessing/OpenCV/SpectralGlowCV.cppm)

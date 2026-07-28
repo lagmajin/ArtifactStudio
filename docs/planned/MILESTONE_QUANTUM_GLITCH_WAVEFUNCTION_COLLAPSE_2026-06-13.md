@@ -36,7 +36,7 @@ stylistic effect である。
 ## Existing Signals
 
 - 既存コードには、`mosaic` / `halftone` / `noise` / `glitch` 系の近い表現がある
-- `ArtifactCore/src/ImageProcessing/ChromaSpreadGlow.cpp` や `OpenCV/Glow` には、合成寄りの画作りがある
+- `ArtifactCore/src/ImageProcessing/ChromaSpreadGlow.cppm` や `OpenCV/Glow` には、合成寄りの画作りがある
 - `ArtifactCore/src/Graphics/Effect/LightPressureEffect.cppm` には、輝度と局所勾配を使う stylized warping がある
 - `ArtifactCore/include/ImageProcessing/ChromaSpread.ixx` のように、局所タイル／分散処理へ寄せやすい土台がある
 
@@ -123,7 +123,7 @@ stylistic effect である。
 
 - [ArtifactCore/src/Graphics/Effect/LightPressureEffect.cppm](X:/Dev/ArtifactStudio/ArtifactCore/src/Graphics/Effect/LightPressureEffect.cppm)
 - [ArtifactCore/include/ImageProcessing/ChromaSpread.ixx](X:/Dev/ArtifactStudio/ArtifactCore/include/ImageProcessing/ChromaSpread.ixx)
-- [ArtifactCore/src/ImageProcessing/ChromaSpreadGlow.cpp](X:/Dev/ArtifactStudio/ArtifactCore/src/ImageProcessing/ChromaSpreadGlow.cpp)
+- [ArtifactCore/src/ImageProcessing/ChromaSpreadGlow.cppm](X:/Dev/ArtifactStudio/ArtifactCore/src/ImageProcessing/ChromaSpreadGlow.cppm)
 - [Artifact/src/Effects/AutoMosaicEffect.cppm](X:/Dev/ArtifactStudio/Artifact/src/Effects/AutoMosaicEffect.cppm)
 - [ArtifactCore/include/ImageProcessing/NoiseImageGenerator.ixx](X:/Dev/ArtifactStudio/ArtifactCore/include/ImageProcessing/NoiseImageGenerator.ixx)
 - [Artifact/include/Effects/Mosaic/MosaicEffect.ixx](X:/Dev/ArtifactStudio/Artifact/include/Effects/Mosaic/MosaicEffect.ixx)
@@ -143,7 +143,7 @@ stylistic effect である。
 確認対象:
 
 - `Artifact/src/Effects/Rasterizer/VectorFlowGlitchEffect.cppm`
-- `ArtifactCore/src/ImageProcessing/VectorFlowGlitch.cpp`
+- `ArtifactCore/src/ImageProcessing/VectorFlowGlitch.cppm`
 - `Artifact/src/Effect/ArtifactTransition.cppm`
 - `Artifact/src/Service/ArtifactEffectService.cppm`
 - `ArtifactCore/src/Graphics/Effect/GlitchCreativeEffect.cppm`
