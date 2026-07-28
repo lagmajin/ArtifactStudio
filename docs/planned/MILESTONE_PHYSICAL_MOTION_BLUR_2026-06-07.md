@@ -187,10 +187,41 @@
 - 高速移動時の見た目が単純 blur より自然である
 - 編集中の重さが作業を邪魔しない
 
+## 2026-07-28 実装着手
+
+判定: Phase 1 完了、Phase 2 実装中。モーションブラー固有の責務を `RenderPipeline` へ密結合させず、独立した `MotionBlurPass` として接続した。
+
+入力契約:
+
+- `color`: 現在の合成色バッファ
+- `velocity`: 画面空間速度バッファ
+- `depth`: 深度バッファ（オクルージョン抑制用）
+- `output`: 作業用の別バッファ
+- `MotionBlurSettings`: enabled / shutter angle / phase / sample count / quality
+
+責務分離:
+
+- `RenderPipeline`: 色・速度・深度・作業用テクスチャの提供
+- `MotionBlurPass`: compute PSO、リソースバインド、ディスパッチ、サンプル積分
+- `ArtifactCompositionRenderController`: パスの実行順と preview/final の設定選択
+
+現段階では `motionblurCS.hlsl` の既存実装を直接 `RenderPipeline` に埋め込まず、独立パスから再利用できる形へ整理する。Phase 2 の完了条件は、速度・深度を入力に取り、作業用バッファへ書き出して合成バッファへ戻せることとする。
+
+実装:
+
+- `Artifact/include/Render/ArtifactMotionBlurPass.ixx`
+- `Artifact/src/Render/ArtifactMotionBlurPass.cppm`
+- `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+
+`MotionBlurPass` は色・速度・深度・出力を入力契約とし、速度に沿ったサブサンプルを深度差で重み付けして GPU compute で積分する。成功時だけ `RenderPipeline::swapAccumAndTemp()` を行うため、パス失敗時は従来の resolve にフォールバックする。
+
+未完了: shutter shape（triangle / trapezoid / custom）、adaptive sampling、preview/final の品質差、実機での shader compile / runtime 検証。
+
+ビルド・実行確認はリポジトリ方針により未実施。
+
 ## Next Step
 
-最初に、motion sample のデータ構造と shutter profile を決める。
-その後に preview path と final path を分け、サンプリング戦略を詰める。
+`MotionBlurPass` の入力契約と compute 実行境界を実装し、その後に preview / final の sample policy を接続する。
 
 ## 2026-07-25 実装監査
 
