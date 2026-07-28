@@ -1,8 +1,8 @@
 # FFmpeg 8.1+ ProRes GPU Decode - Low Level AI Implementation Milestone
 
-**Date**: 2026-05-23
-
-**Status**: Planned low-level implementation slice
+**Date**: 2026-05-23  
+**Last Updated**: 2026-07-21 (コード実態調査に基づき更新)  
+**Status**: In Progress (Vulkan HW decode path partially built, intentionally disabled)
 
 **Related**:
 
@@ -40,6 +40,69 @@ Observed in the current codebase:
 
 This means the dependency may be new enough, but the application-level GPU
 decode path is not implemented.
+
+
+---
+
+## 2026-07-21 Implementation Status (コード実態調査)
+
+### 実装済みの GPU Decode 基盤
+
+#### D1 (Capability Probe) — 部分的に実装
+
+- ✅ `MediaImageFrameDecoder::setVulkanDevice()` (`MediaImageFrameDecoder.cppm:296-341`) — Vulkan device context 作成 (`AV_HWDEVICE_TYPE_VULKAN`)
+- ✅ `chooseBestDecoderPixelFormat()` (`MediaImageFrameDecoder.cppm:162-176`) — `hw_device_ctx` あり時は `AV_PIX_FMT_VULKAN` 優先
+- ✅ `initialize()` (`MediaImageFrameDecoder.cppm:343-406`) — `AVCodecContext::hw_device_ctx` 設定済み
+- ❌ `avcodec_get_hw_config()` による ProRes ハードウェア対応の自動検出は未実装
+- ❌ 診断ログに「GPU decode 試行の有無・失敗理由」は未出力
+
+#### D2 (Hardware Decoder Context) — 実装済みだが無効化
+
+- ✅ `downloadHwFrameToCpuVideoFrame()` (`MediaImageFrameDecoder.cppm:123-146`) — Vulkan HW frame → CPU frame 転送
+- ✅ `receiveFrameRaw()` — HW frame 受信 → `downloadHwFrameToCpuVideoFrame()` 経由で CPU に落とす
+- ⚠️ **`directVulkanVideoFramesEnabled()` が `false` をハードコード** (`MediaImageFrameDecoder.cppm:269-277`)
+  - 理由: AVVkFrame timeline semaphore の ownership/synchronization bridge が未実装
+  - 結果: HW decode 経路はコード上存在するが、常に CPU パスが使用される
+
+#### D3 (GpuVideoFrame Handle) — 部分的に実装
+
+- ✅ `GpuVideoFrame` + `VulkanVideoFrameHandle` (`VideoFrame.ixx`) — Vulkan image + layout + format
+- ✅ `GPUTextureCacheManager::acquireOrCreate(..., GpuVideoFrame)` (`GPUTextureCacheManager.ixx:73-75`) — Vulkan ネイティブイメージのラップ（`CreateTextureFromVulkanImage`）
+- ❌ `FFmpegHardwareFrameHandle` のような汎用 HW frame ハンドル型は未実装（Vulkan 固有）
+
+#### D4 (Renderer Bridge) — 実装済み
+
+- ✅ `GPUTextureCacheManager` が `GpuVideoFrame` → Diligent texture のブリッジ (`GPUTextureCacheManager.cppm:271-373`)
+- ✅ Composition view GPU ブランチは `toQImage()` を通らず直接 SRV バインド
+- ✅ CPU fallback パスは維持（`draw()` は `ImageF32x4_RGBA` を消費）
+
+### 全体アーキテクチャ上の改善点 (2026-07-21 時点)
+
+| 項目 | 状態 |
+|---|---|
+| direct decode パス分離 | ✅ `directVideoDecoder_` + `directMediaSource_` が再生パスと独立 |
+| FPS 補完チェーン | ✅ `avg_frame_rate` → `av_guess_frame_rate` → `r_frame_rate` → `フレーム数÷duration` |
+| カラーメタデータ伝搬 | ✅ AVFrame から `colorspace/range/primaries/trc` を伝搬 |
+| Vulkan HW decode 安全化 | ✅ 明示的無効化 + Vulkan フレームスキップ |
+| サムネイル抽出のリソース管理 | ✅ cleanup で全リソース解放（リーク修正済み） |
+| 並行デコード競合 | ✅ 分離デコーダ + `directDecodeMutex_` |
+
+### 残存する低レベル課題
+
+| 課題 | ファイル:行 | 影響 |
+|---|---|---|
+| stride 計算 int overflow | `FFMpegVideoDecoder.cppm:69` | 4K+ で buffer overrun |
+| VFR/HFR シーク | `FFMpegVideoDecoder.cppm:311-314` | 高 FPS 素材でシーク不能 |
+| Audio decoder 致命エラー後 flush なし | `FFMpegAudioDecoder.cppm:305-307` | 音声デコード継続破損 |
+| UI スレッド sleep (video パス) | `MediaPlaybackController.cppm:1016-1020` | 再生中 UI ラグ |
+| `av_rescale_rnd` int64→int truncation | `FFMpegAudioDecoder.cppm:379` | 長時間音声でバッファ誤り |
+
+### 次の一手
+
+- **P0**: Vulkan timeline semaphore bridge 実装 → `directVulkanVideoFramesEnabled()` を有効化可能に
+- **P0**: stride overflow 修正 (`width * 3` → `static_cast<int64_t>(width) * 3`)
+- **P1**: VFR/HFR シーク修正（`avg_frame_rate` ベース timebase を使用）
+- **P1**: HW decode 対応コーデックの自動検出（`avcodec_get_hw_config` + 診断ログ）
 
 ---
 

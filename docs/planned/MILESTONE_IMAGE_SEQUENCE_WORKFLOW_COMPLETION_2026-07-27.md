@@ -45,6 +45,18 @@
 - context menu import の sequence 全フレーム展開を main にも実装（操作名にフレーム数表示、`findAssetItemByPath` でフレーム行→親 sequence を解決）。
 - codex ブランチのマージ時に main の共通ヘルパーと branch のフレーム診断（Missing Frames / Unreadable / Size Mismatch マーカー、Relink/Import 失敗警告）を統合。
 
+### 2026-07-28 Progress (main)
+
+sequence を Composition へ投入した際にフレームパスごとに単体レイヤーへ分解され、シーケンス関係が失われるギャップを解消した（完了条件 4 項目の実装対応。ビルド・実機検証は未実施）。
+
+- 非同期インポート（`importAssetsFromPathsAsync`）に連番検出・素材登録・代表パス集約を追加（`registerImportedAssets`）。従来はファイルコピーのみで footage 登録がなく、全ドロップ経路でシーケンスが N 枚の個別画像に展開されていた。
+- `ArtifactImageInitParams` に `sequencePaths` / `sequenceFrameRate` を追加。
+- `ArtifactImageLayer` に `setImageSequence` / `sequenceFramePaths` / `isImageSequence` / `sequenceFrameRate` を追加し、レイヤー JSON（`image.sequencePaths` / `image.sequenceFrameRate`）へ永続化。再読込時は sourcePath 復元より先にシーケンス情報を復元する。
+- `ArtifactLayerFactory` は sequencePaths が 2 件以上のとき `setImageSequence`（代表フレーム読込）へルーティング。
+- `addLayerToCurrentComposition` で登録済み sequence footage（sequencePaths 一致も探索）から InitParams へシーケンス情報を一元注入。ドロップ元 3 箇所（CompositionEditor / TimelineTrackPainterView / LayerPanel）の個別変更は不要。
+- CompositionEditor の `enqueueDroppedAssets` を集約済み importedPaths 基準の列挙に変更し、シーケンスの再展開（代表パスへの N 重レイヤー生成）を防止。
+- フレーム時刻に応じたシーケンス再生（`ImageSequenceSource` 連携の draw 経路）はフォローアップ（Insight.md 参照）。現状は代表フレーム（先頭）の静止表示＋シーケンス関係の保持・永続化まで。
+
 ## Phase 1: Sequence Item Presentation
 
 - sequenceを1行または1タイルの論理アセットとして表示する。
@@ -84,3 +96,5 @@
 
 1. 実素材でのキャッシュhit/miss/保持数確認を行う（キャッシュ実装はマージ済みのため main で検証可能。ビルド確認が前提）。
 2. `detectSequences` の設計差分の確認: マージで `MissingFramePolicy` が廃止され常時ギャップ分割になったが、別セッションの WIP（`MissingFramePolicy` 温存案）が未統合のまま残っている。方針の一本化が必要。
+3. 2026-07-28 実装分のビルド確認と実機検証（sequence ドロップ → 1 レイヤー生成 → 保存・再読込でシーケンス関係維持）。
+4. `ArtifactImageLayer` の draw 経路を `ImageSequenceSource` と接続し、フレーム時刻に応じたフレーム切替を実装する（静止代表フレーム表示からの次段階）。

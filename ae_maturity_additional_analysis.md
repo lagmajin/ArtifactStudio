@@ -143,10 +143,8 @@
 - **影響**: 統計ダイアログのプロジェクト名欄が埋まる。
 
 ### 27. FFmpeg ラッパー他が常に成功を返すスタブ
-- **状態**: 修正済み
+- **状態**: ? 修正済み（open/play/pause/stop は実装済み）
 - **内容**: `open()` をファイル存在チェック付きにし、`play()` / `pause()` / `stop()` を状態管理付きの薄い実装へ変更。
-- **影響**: PlaybackManager の C++ API が少なくとも状態遷移を持つようになった。
-
 ### 28. タイムライン巨大単一ファイル群 (保守性/ビルド時間)
 - **発生箇所**: `Artifact/src/Widgets/Timeline/ArtifactTimelineWidget.cpp` (7300行), `ArtifactLayerPanelWidget.cpp` (5600行), `ArtifactTimelineTrackPainterView.cpp` (5000行)
 - **内容**: 3ファイルで合計550KB超。モジュール分割なし。

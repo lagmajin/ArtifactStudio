@@ -38,30 +38,33 @@
 - **内容**: 100フレーム分の progress emit をダミー値で行うのみ。input を読み込まず、output を書き出さず `return true`。
 - **影響**: スタビライズ処理が完了したと錯覚する。
 
+
 ### 7. FFmpeg thumbnails でファイルハンドルリーク
-- **発生場所**: `ArtifactCore/src/Codec/FFmpegThumbnailExtractor.cppm:106-115`
-- **内容**: `avformat_open_input` 成功後、`avformat_find_stream_info` / `av_find_best_stream` 失敗時に `goto cleanup` するが、そのパスで `avformat_close_input` が呼ばれない。
-- **影響**: 呼び出しごとにファイルハンドル/OSリソースが漏洩。
+- **状態**: ? 修正済み
+- **発生場所**: `ArtifactCore/src/Codec/FFmpegThumbnailExtractor.cppm:192-199`
+- **修正内容**: cleanup ラベルで `avformat_close_input(&fmtCtx)` が呼ばれるようになった (L197, L359)
 
 ### 8. FFmpeg thumbnails の cleanup で embedded packet を free
-- **発生場所**: `ArtifactCore/src/Codec/FFmpegThumbnailExtractor.cppm:192-199`
-- **内容**: 切断画像（attached_pic）パスで `&stream->attached_pic` を `av_packet_free(&pkt)` に渡す。スタック上のサブオブジェクトを解放する use-after-free / double-free。
-- **影響**: クラッシュ。
+- **状態**: ? 修正済み
+- **発生場所**: `ArtifactCore/src/Codec/FFmpegThumbnailExtractor.cppm:121-129`
+- **修正内容**: `av_packet_free` を呼ばず `QImage::loadFromData()` で直接読み込み (L126)
 
 ### 9. FFmpegVideoDecoder が致命エラーで無限ループ
-- **発生場所**: `ArtifactCore/src/Codec/FFMpegVideoDecoder.cppm:262-300`
-- **内容**: `avcodec_send_packet` が致命的エラーを返すと `decoderDrained_` が設定されず、無限ループ継続。同じ失敗パケットを何度も送信し続ける。
-- **影響**: アプリ全体が永久にハング。
+- **状態**: ? 修正済み
+- **発生場所**: `ArtifactCore/src/Codec/FFMpegVideoDecoder.cppm:280-285`
+- **修正内容**: `avcodec_send_packet` エラー時 `av_packet_unref(pkt); break;` でループ脱出
 
 ### 10. FFmpegAudioDecoder が fatal error 後も decoder state を修復しない
+- **状態**: ? 未修正
 - **発生場所**: `ArtifactCore/src/Codec/FFMpegAudioDecoder.cppm:305-307`
-- **内容**: `avcodec_send_packet` fatal error 時に `continue` するが、decoder flush/drain を行わない。以降の全デコードが破損したコンテキストで実行される。
-- **影響**: 音声デコードが静かに失敗し続ける。
+- **内容**: `avcodec_send_packet` fatal error 時に `continue` するが、decoder flush/drain を行わない
+- **影響**: 音声デコードが静かに失敗し続ける
 
 ### 11. UI スレッドで sleep/yield によるフリーズ
-- **発生場所**: `ArtifactCore/src/Media/MediaPlaybackController.cppm:838-846`
-- **内容**: `getNextVideoFrameRaw` が UI スレッド上で `std::this_thread::sleep_for` / `yield` を実行。最大 500 試行で約 125ms のブロッキング。
-- **影響**: UI ラグ/フリーズ。
+- **状態**: ? ビデオパスに残存（音声パスは修正済み）
+- **発生場所**: `ArtifactCore/src/Media/MediaPlaybackController.cppm:1016-1020`
+- **内容**: `getNextVideoFrameRaw` が UI スレッド上で `std::this_thread::sleep_for` / `yield` を実行
+
 
 ---
 
@@ -129,8 +132,10 @@
 - **影響**: クラッシュまたは不正なコールバック呼び出し。
 - **状態**: 修正済み
 
+
 ### 23. FFmpeg サンプル数リサンプリングで int トランケーション
-- **発生箇所**: `ArtifactCore/src/Codec/FFmpegAudioDecoder.cppm:379-384`
+- **状態**: ? 未修正
+- **発生箇所**: `ArtifactCore/src/Codec/FFMpegAudioDecoder.cppm:379`
 - **内容**: `av_rescale_rnd` の `int64` 戻り値を `static_cast<int>`。高サンプルレート・長時間音声でラップ。
 - **影響**: リサンプル後のバッファサイズ誤り。
 
@@ -139,31 +144,36 @@
 - **内容**: サイクル検出時に `visited` に追加せず return。次回同じバスに到達したときに同様に return し、ミックスから除外される。
 - **影響**: 循環するバス接続の audio が消える。
 
+
 ### 25. MFFrameExtractor のバッファオーバーラン
 - **発生箇所**: `ArtifactCore/src/Codec/MFFrameExtractor.cppm:306`
 - **内容**: `std::memcpy(frame->data.data(), data, currentLength)` で `currentLength > frame->data.size()` のとき overrun。stride 非互換な形式で発生。
 - **影響**: ヒープ破壊。
 
+
 ### 26. VideoDecoder の stride 計算 int オーバーフロー
-- **発生箇所**: `ArtifactCore/src/Codec/FFMpegVideoDecoder.cppm:82-83`
-- **内容**: `width * 3` が `int` 演算。4K+ (width > 71582) で int ラップし異常に小さいバッファ確保。
-- **影響**: 以降の memcpy で buffer overrun。
+- **状態**: ? 未修正
+- **発生箇所**: `ArtifactCore/src/Codec/FFMpegVideoDecoder.cppm:69` + `MediaImageFrameDecoder.cppm:80`
+- **内容**: `width * 3` が `int` 演算。4K+ で int ラップし buffer overrun。
+- **影響**: memcpy overrun。
 
 ### 27. MediaAudioDecoder の bytes 計算 int オーバーフロー
 - **発生箇所**: `ArtifactCore/src/Media/MediaAudioDecoder.cppm:563-583`
 - **内容**: `samples * channels * bytesPerSample` が `int`。7.1ch 96kHz 音声で約 14 分を超えるとラップ。
 - **影響**: バッファサイズ誤り。
 
+
 ### 28. FFmpegAudioDecoder のファイル再 open で pkt/frame が解放されない
-- **発生箇所**: `ArtifactCore/src/Codec/FFmpegAudioDecoder.cppm:171-173`
-- **内容**: `closeFile()` が `av_packet_unref` / `av_frame_unref` のみで `av_packet_free` / `av_frame_free` を呼ばない。再 open でアロケーションが累積。
-- **影響**: メモリリーク。
+- **状態**: ? 許容範囲（unref でリソース保持、open 時は再利用）
+- **発生箇所**: `ArtifactCore/src/Codec/FFMpegAudioDecoder.cppm:196-197`
+- **内容**: `closeFile()` が `av_packet_unref` / `av_frame_unref` のみで free しないが、再 open 時は既存割り当てを再利用。dtor で free するためリークはしない。
+- **影響**: メモリ常駐（リークではない）
 
 ### 29. FFmpeg シークで VFR/HFR で常に先頭に戻る
-- **発生箇所**: `ArtifactCore/src/Codec/FFMpegVideoDecoder.cppm:316-320`
+- **状態**: ? 未修正
+- **発生箇所**: `ArtifactCore/src/Codec/FFMpegVideoDecoder.cppm:311-314`
 - **内容**: `AVRational{1, stream->r_frame_rate.num}` で source timebase を構築。r_frame_rate.num が大きいと `frameNumber / large_num` が 0 に切り捨てられ常にシーク位置 0。
 - **影響**: 高フレームレート動画でシーク不能。
-
 ### 30. FFmpegAudioDecoder seek で trim が int トランケーション
 - **発生箇所**: `ArtifactCore/src/Codec/FFmpegAudioDecoder.cppm:422`
 - **内容**: `seekTargetFrame_ - startFrame` (`qint64`) を `static_cast<int>`。長時間音声でラップし負の値になり `mid(negative)` で空の結果。

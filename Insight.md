@@ -13,6 +13,23 @@
 
 ## Insights
 
+### 2026-07-28 — 連番シーケンスの再生は ArtifactImageLayer::draw と ImageSequenceSource の接続が次段階
+
+- 状態: 未検証（設計案）
+- 関連: `Artifact/src/Layer/ArtifactImageLayer.cppm`、`ArtifactCore/src/Media/ImageSequenceSource.cppm`、`Artifact/src/Service/ArtifactProjectService.cppm`
+- 事実: 今回の実装で sequence は 1 レイヤーに集約され、`sequencePaths` / `sequenceFrameRate` がレイヤー JSON に永続化されるようになった。ただし表示は代表フレーム（先頭）固定で、`ImageSequenceSource`（bounded LRU キャッシュ・先読み・差し替え検出実装済み）は Artifact 側から未使用のまま。
+- 閃き・仮説: `ArtifactImageLayer` の Impl に `ImageSequenceSource` を保持し、コンポジションフレーム→（layer inPoint/startTime と sequenceFrameRate 換算）→ `seekSourceFrame` でフレーム切替するのが最小接続。AssetManager の sourceVersion 更新との二重キャッシュ（フレーム単位 LRU vs 代表パス単位 decodedPayload）の役割分担整理が必要。
+- 価値・懸念: 動画デコードに依存せずタイムライン再生の基盤ができる。懸念は draw ホットパスでの同期読込（現行 prefetch は単一画像前提）と、フレーム切替時の GPU テクスチャ共有（`canShareSourceGpuTexture`）の整合。
+- 次の確認: ビルド確認後、実機で sequence ドロップ→保存→再読込での関係維持を検証し、そのうえで draw 接続の実装単位を切る。
+
+### 2026-07-28 — 非同期インポートと同期インポートの責務差は統合余地がある
+
+- 状態: 未検証
+- 関連: `Artifact/src/Service/ArtifactProjectService.cppm`（`importAssetsFromPaths` / `importAssetsFromPathsAsync` / `registerImportedAssets`）
+- 事実: 同期版は「検出→フレームレート入力→コピー→登録」、非同期版は今回の対応で「コピー→検出→入力→登録」となり、キャンセル時の振る舞いが異なる（同期は中止、非同期は単体登録へフォールバック）。重複登録は `ArtifactProject::addAssetFromPath` の canonical パス重複排除で防がれる。
+- 閃き・仮説: 将来的に同期版を非同期版＋完了待ちに寄せるか、登録部分を `registerImportedAssets` へ共通化すると二重実装を解消できる。
+- 次の確認: 同期版の呼び出し元（Asset Browser の明示 import など）でキャンセル時中止の振る舞いが必要かユーザー確認。
+
 ### 2026-07-27 — SharedPtr への段階移行は std::shared_ptr との相互運用で進めやすい
 
 - 状態: 調査中
