@@ -79,6 +79,7 @@
 - ✅ Render Output Settings Dialog の出力パス、形式、codec、backend、解像度、音声、AOV、frame padding、Export／Cancel に Accessible Name / Description を付与。
 - ✅ Precompose Dialog の新規コンポジション名、レイヤー一覧、移動方式、オプション、作成／キャンセル操作に Accessible Name / Description を付与。
 - ✅ Create Camera Layer Dialog の名前、レンズ／被写界深度／ズーム設定、作成／キャンセル操作に Accessible Name / Description を付与。
+- ✅ Screenshot Export Dialog の出力先、形式、JPEG 品質、全体キャプチャ、EXR AOV、Export／Cancel 操作に Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
