@@ -1,7 +1,7 @@
 # 実装案: App Settings - Widget 接続ギャップ
 
 > 2026-06-13 作成  
-> 状態: 一部未接続
+> 状態: Partial（主要設定・EditMode／DisplayMode 接続済み、Grid／Preview cache／Clone UI は未接続、静的確認 2026-07-29）
 
 ---
 
