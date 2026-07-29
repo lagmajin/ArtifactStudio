@@ -5,8 +5,16 @@
 **優先度**: P2 (Medium)
 **推定工数**: 2-5日
 **カテゴリ**: Accessibility / UI Ergonomics / Input
-**状態**: Phase 1 partially implemented — runtime verification and broader left-handed placement pending
+**状態**: Phase 1〜2 の静的実装は主要ウィジェットへ適用済み — runtime 検証、RTL レイアウト、Phase 3 の全体統合は未完了
 **依存**: 既存 UI レイアウト、入力系、メニュー配置、設定保存基盤
+
+### 2026-07-29 Implementation Loop
+
+- ✅ `adjustContextMenuPosition()` を Project View、Inspector、Graph、Status Bar、Audio Mixer、Timeline、Asset、Property、Render、Playback、Diagnostics の主要コンテキストメニューへ適用。
+- ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
+- ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
+- ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
+- ⏳ 全ウィジェットの左右反転・ツールバー重心調整を含む Phase 3 は未実装。
 
 ---
 
