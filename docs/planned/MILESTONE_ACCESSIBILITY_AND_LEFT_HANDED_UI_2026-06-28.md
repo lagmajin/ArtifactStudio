@@ -87,6 +87,7 @@
 - ✅ Application Settings の Import ページに、既定 FPS、色空間、音声サンプルレート、アルファ、フィールド順、静止画秒数、連番コンポジション設定の Accessible Name / Description を付与。
 - ✅ Application Settings の Preview ページに、プレビュー品質・解像度、RAM／ディスクキャッシュ、サムネイル、GPU 設定の Accessible Name / Description を付与。
 - ✅ Application Settings の Project Defaults ページに、既定コンポジションサイズ、FPS、ワークスペース、背景色の Accessible Name / Description を付与。
+- ✅ Application Settings の Memory & Performance ページに、メモリ／CPU 使用率、worker threads、Auto-tune、キャッシュ削除操作の Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
