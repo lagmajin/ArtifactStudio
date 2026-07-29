@@ -1,6 +1,6 @@
 # Milestone: Composition Editor Selection / Comparison Upgrade (2026-06-27)
 
-**Status:** Planning
+**Status:** 部分完了（矩形選択・selection HUD・A/B/Diff・reference frame pinning を実装、lasso選択とruntime検証未完了）
 **Goal:** コンポジットエディタのビューポート上で、複数選択と A/B 比較を素早く行えるようにする。
 
 ---
