@@ -545,8 +545,8 @@
 | 96 | `docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_PHASE3_EXECUTION_2026-04-20.md` | Phase 3 実行メモ: Compare / Scrub / Step | 2026-04-20 | --- | 2026-04-20 | 6.5 KB | APP, FRAME, DEBUG, VIEW, PHASE3 |
 | 97 | `docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_PHASE4_EXECUTION_2026-04-20.md` | Phase 4 実行メモ: Export and Diagnostics | 2026-04-20 | --- | 2026-04-20 | 6.4 KB | APP, FRAME, DEBUG, VIEW, PHASE4 |
 | 98 | `docs/planned/MILESTONE_APP_INTERNAL_DEBUGGER_2026-04-17.md` | App Internal Debugger Milestone | 2026-04-20 | --- | 2026-06-19 | 8.4 KB | APP, INTERNAL, DEBUGGER |
-| 99 | `docs/planned/MILESTONE_APP_LAYER_COMPLETENESS.md` | マイルストーン: アプリ層完成度向上 | 2026-03-20 | --- | 2026-07-14 | 7.6 KB | APP, LAYER, COMPLETENESS |
-| 100 | `docs/planned/MILESTONE_APP_LAYER_COMPLETENESS_M_APP_7_EDITMODE_UI_IMPLEMENTATION_2026-06-13.md` | 実装案: M-APP-7 EditMode → ツール自動マッピングの UI 接続 | 2026-06-13 | --- | 2026-07-14 | 10.0 KB | APP, LAYER, COMPLETENESS |
+| 99 | `docs/planned/MILESTONE_APP_LAYER_COMPLETENESS.md` | マイルストーン: アプリ層完成度向上 | 2026-03-20 | Partial; app-layer workstreams advanced, remaining gaps tracked by execution milestones and runtime verification | 2026-07-29 | 7.9 KB | APP, LAYER, COMPLETENESS |
+| 100 | `docs/planned/MILESTONE_APP_LAYER_COMPLETENESS_M_APP_7_EDITMODE_UI_IMPLEMENTATION_2026-06-13.md` | 実装案: M-APP-7 EditMode → ツール自動マッピングの UI 接続 | 2026-06-13 | Implemented; toolbar/tool-service mapping verified statically, runtime verification pending | 2026-07-29 | 10.0 KB | APP, LAYER, COMPLETENESS |
 | 101 | `docs/planned/MILESTONE_APP_LAYER_IMPROVEMENTS_2026-03-28.md` | アプリ層改善 Milestone | 2026-03-28 | Partial; layer Undo/Redo and ASIO stub implemented, WebUI/project/inspector expansion pending | 2026-07-29 | 10.0 KB | APP, LAYER, IMPROVEMENTS |
 | 102 | `docs/planned/MILESTONE_APP_SETTINGS_WIDGET_GAP_2026-06-13.md` | 実装案: App Settings - Widget 接続ギャップ | 2026-06-13 | --- | 2026-06-13 | 3.6 KB | APP, SETTINGS, WIDGET, GAP |
 | 103 | `docs/planned/MILESTONE_APP_SURFACE_COHESION_2026-05-13.md` | Milestone: App Surface Cohesion | 2026-05-13 | --- | 2026-06-19 | 9.9 KB | APP, SURFACE, COHESION |
