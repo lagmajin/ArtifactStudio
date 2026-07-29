@@ -1000,7 +1000,7 @@
 | 551 | `docs/planned/MILESTONE_VIDEO_LAYER_PLAYBACK_STABILITY_2026-06-06.md` | マイルストーン: VideoLayer Playback Stability | 2026-06-06 | --- | 2026-07-09 | 5.5 KB | VIDEO, LAYER, PLAYBACK, STABILITY |
 | 552 | `docs/planned/MILESTONE_VIDEO_PROXY_IMPROVEMENT_2026-03-28.md` | ビデオプロキシ機能改善 Milestone | 2026-03-28 | 計画中 | 2026-03-29 | 12.3 KB | VIDEO, PROXY, IMPROVEMENT |
 | 553 | `docs/planned/MILESTONE_VIDEO_QIMAGE_RETIREMENT_COMPLETION_2026-07-09.md` | M-VIDEO-QIR: Video QImage Retirement — Completion 設計マイルストーン | 2026-04-15 | Not Started | 2026-07-09 | 7.5 KB | VIDEO, QIMAGE, RETIREMENT, COMPLETION |
-| 554 | `docs/planned/MILESTONE_VIEWPORT_BOOKMARKS_2026-06-27.md` | Milestone: Viewport Bookmarks System (M-VP-8) | 2026-06-27 | --- | 2026-06-29 | 33.6 KB | VIEWPORT, BOOKMARKS |
+| 554 | `docs/planned/MILESTONE_VIEWPORT_BOOKMARKS_2026-06-27.md` | Milestone: Viewport Bookmarks System (M-VP-8) | 2026-06-27 | Partial; zoom/pan/orientation basic bookmark storage/apply exists, but 1–9 shortcuts, ordering/edit dialog, rotation/resolution persistence, project embedding, and full verification pending | 2026-07-29 | 34.4 KB | VIEWPORT, BOOKMARKS |
 | 555 | `docs/planned/MILESTONE_VIEWPORT_CANVAS_ROTATION_2026-06-27.md` | Milestone: Viewport Canvas Rotation System (M-VP-4) | 2026-06-27 | --- | 2026-06-29 | 19.8 KB | VIEWPORT, CANVAS, ROTATION |
 | 556 | `docs/planned/MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: ビューポート（Composition Editor）デザイン監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 45.8 KB | VIEWPORT, DESIGN, AUDIT |
 | 557 | `docs/planned/MILESTONE_VIEWPORT_DYNAMIC_RESOLUTION_2026-06-27.md` | Milestone: Viewport Dynamic Resolution Switching (M-VP-5) | 2026-06-27 | --- | 2026-06-29 | 23.5 KB | VIEWPORT, DYNAMIC, RESOLUTION |
