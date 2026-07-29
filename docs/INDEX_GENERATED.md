@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-29 21:49
+> Generated: 2026-07-29 21:50
 > Total documents: 1134
 
 ---
@@ -40,7 +40,7 @@
 | 29 | `Artifact/docs/MILESTONE_COMPOSITION_EDITOR_PIE_MENU_2026-03-25.md` | Composition Editor Pie Menu (2026-03-25) | 2026-03-25 | Partial; model/widget/overlay/controller, hover selection, confirm/cancel, and viewport integration exist; trigger contract, full command bridge, UX/runtime verification pending | --- | 6.1 KB | COMPOSITION, EDITOR, PIE, MENU |
 | 30 | `Artifact/docs/MILESTONE_COMPOSITION_MENU_2026-03-13.md` | Composition Menu Milestone | 2026-03-13 | Partial; create/duplicate/rename/delete/settings, queue, current-frame and work-area export implemented; preset expansion, navigation, organization, and batch export pending | --- | 6.5 KB | COMPOSITION, MENU |
 | 31 | `Artifact/docs/MILESTONE_COMPOSITION_VIEW_FAST_PATH_2026-03-25.md` | Composition View Fast Path (2026-03-25) | 2026-03-25 | Partial; interaction downsample/coalescing and cached render foundations exist, camera-only reuse/upload reduction/flush pacing and performance verification pending | --- | 2.9 KB | COMPOSITION, VIEW, FAST, PATH |
-| 32 | `Artifact/docs/MILESTONE_CREATIVE_WORKFLOW_REFINEMENT_2026-03-13.md` | Milestone: Creative Workflow & Inspector Refinement | 2026-03-13 | --- | --- | 3.1 KB | CREATIVE, WORKFLOW, REFINEMENT |
+| 32 | `Artifact/docs/MILESTONE_CREATIVE_WORKFLOW_REFINEMENT_2026-03-13.md` | Milestone: Creative Workflow & Inspector Refinement | 2026-03-13 | Partial（M-CW-1 Creative Effects Bridge は Inspector catalog / EffectService factory を確認済み。Inspector-Property 同期、Property 側管理、検索連携、D&D、runtime 検証は未完了） | --- | 3.4 KB | CREATIVE, WORKFLOW, REFINEMENT |
 | 33 | `Artifact/docs/MILESTONE_DIAGNOSTIC_PHASE_2_2026-04-27.md` | Diagnostic Phase 2: Frame Timing Logger (2026-04-27) | 2026-04-27 | Completed; frame phase timing, periodic debug summaries, Profiler integration, and Trace recording verified | --- | 3.9 KB | DIAGNOSTIC, PHASE |
 | 34 | `Artifact/docs/MILESTONE_EDIT_MENU_2026-03-13.md` | Edit Menu Milestone | 2026-03-13 | Partial; menu/action inventory and initial project/composition/clipboard gating exist, command handlers, undo/selection/timeline/find/preferences integration pending | --- | 7.9 KB | EDIT, MENU |
 | 35 | `Artifact/docs/MILESTONE_EDITING_READY_CUT_2026-03-12.md` | Editing Ready Cut Milestone (M-RC-1) | 2026-03-12 | --- | --- | 3.0 KB | EDITING, READY, CUT |
