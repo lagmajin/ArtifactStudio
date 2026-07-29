@@ -126,6 +126,7 @@ frame index 範囲外／`frameAt()` 失敗時も直前フレームを残さず�
 フレーム解像度が sequence の代表フレームと異なる場合も cache へ取り込まず、UV／crop の不整合を防ぐ。
 `setImageSequence()` の入力も空白 path を除外し、順序を維持した重複除去を行う。
 frame rate も finite かつ正の値だけを採用し、無限値／非数値相当を 0 に正規化する。
+JSON 復元経路でも path の trim／重複除去と frame rate の同一正規化を適用する。
 `setFromQImage()` による編集結果への置換でも sequence reader／cached index を破棄する。
 同時に prefetch generation を進め、編集中の QImage を旧ファイル decode が上書きしないようにした。
 JSON 再読込時も prefetch generation を進め、sequence reader／cached frame／decoded buffer を破棄し、同一 source path で別 sequence を復元しても旧フレームを再利用しないようにした。
