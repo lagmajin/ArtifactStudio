@@ -35,7 +35,7 @@
 | 24 | `Artifact/docs/MILESTONE_CLOUD_AI_PHASE_7_2026-04-27.md` | Cloud AI Phase 7: Timeline Operations - COMPLETED | 2026-04-27 | --- | --- | 7.9 KB | CLOUD, PHASE |
 | 25 | `Artifact/docs/MILESTONE_COMPOSITE_EDITOR_MULTILAYER_ENHANCEMENT_2026-06-16.md` | Multi-Layer Composite Editor Enhancement | 2026-06-16 | --- | --- | 5.6 KB | COMPOSITE, EDITOR, MULTILAYER, ENHANCEMENT |
 | 26 | `Artifact/docs/MILESTONE_COMPOSITION_EDITOR_2026-03-21.md` | Composition Editor Milestone (2026-03-21) | 2026-03-21 | --- | --- | 5.3 KB | COMPOSITION, EDITOR |
-| 27 | `Artifact/docs/MILESTONE_COMPOSITION_EDITOR_CACHE_SYSTEM_2026-03-26.md` | Composition Editor Cache System (2026-03-26) | 2026-03-26 | --- | --- | 4.4 KB | COMPOSITION, EDITOR, CACHE, SYSTEM |
+| 27 | `Artifact/docs/MILESTONE_COMPOSITION_EDITOR_CACHE_SYSTEM_2026-03-26.md` | Composition Editor Cache System (2026-03-26) | 2026-03-26 | Partial（Surface Cache・render-key再合成抑制・GPU blend fast path・GPU texture cache連携を実装、Composition Result Cache・Dirty Layer/Partial Recompose・runtime性能確認は未完了） | 2026-07-29 | 4.4 KB | COMPOSITION, EDITOR, CACHE, SYSTEM |
 | 28 | `Artifact/docs/MILESTONE_COMPOSITION_EDITOR_IMPLEMENTATION_RULES_2026-04-13.md` | Composition Editor Implementation Rules | 2026-04-13 | --- | --- | 6.2 KB | COMPOSITION, EDITOR, IMPLEMENTATION, RULES |
 | 29 | `Artifact/docs/MILESTONE_COMPOSITION_EDITOR_PIE_MENU_2026-03-25.md` | Composition Editor Pie Menu (2026-03-25) | 2026-03-25 | --- | --- | 6.1 KB | COMPOSITION, EDITOR, PIE, MENU |
 | 30 | `Artifact/docs/MILESTONE_COMPOSITION_MENU_2026-03-13.md` | Composition Menu Milestone | 2026-03-13 | --- | --- | 6.5 KB | COMPOSITION, MENU |
