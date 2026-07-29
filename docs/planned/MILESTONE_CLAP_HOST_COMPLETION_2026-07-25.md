@@ -1,6 +1,6 @@
 # MILESTONE_CLAP_HOST_COMPLETION_2026-07-25
 
-**ステータス:** ✅ Complete (2/2)
+**ステータス:** Partial（CLAP DLL 読み込み・PluginInstance 基盤を実装済み。params 拡張、process 変換、host callback、Effect 統合、GUI、runtime 検証は未完了）
 **対象:** `ArtifactCore/include/CLAP/CLAPHost.ixx`, `ArtifactCore/src/CLAP/CLAPHost.cppm`
 **位置づけ:** CLAP (CLever Audio Plugin) ホストのインスタンス生成を実装。
 **作成日:** 2026-07-25

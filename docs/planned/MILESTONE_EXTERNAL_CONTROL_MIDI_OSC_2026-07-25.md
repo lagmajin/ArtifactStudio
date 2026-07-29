@@ -1,6 +1,6 @@
 # MILESTONE_EXTERNAL_CONTROL_MIDI_OSC_2026-07-25
 
-**ステータス:** ✅ Complete (3/3)
+**ステータス:** Partial（MIDI/OSC 入力基盤を実装済み。Artifact UI/Service 統合、追加メッセージ型、非 Windows backend、runtime 検証は未完了）
 **対象:** `ArtifactCore/include/Control/MidiInput.ixx`, `ArtifactCore/src/Control/MidiInput.cppm`, `ArtifactCore/include/Control/OscInput.ixx`, `ArtifactCore/src/Control/OscInput.cppm`
 **位置づけ:** ExternalControlManager の MIDI/OSC 入力バックエンドを実装。
 **作成日:** 2026-07-25

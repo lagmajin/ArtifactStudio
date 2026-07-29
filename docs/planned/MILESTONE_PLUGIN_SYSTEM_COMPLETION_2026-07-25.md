@@ -1,6 +1,6 @@
 # MILESTONE_PLUGIN_SYSTEM_COMPLETION_2026-07-25
 
-**ステータス:** ✅ Complete (4/4)
+**ステータス:** Partial（DLL plugin loading、callback、layer factory scan、property groups を実装済み。subprocess runner、sample plugin、hot reload、runtime 検証は未完了）
 **対象:** `ArtifactCore/include/Tool/ToolMode.ixx`, `Artifact/include/Plugin/PluginLoader.ixx`, `Artifact/src/Plugin/PluginLoader.cppm`, `Artifact/include/Plugin/PluginLayerFactory.ixx`, `Artifact/src/Plugin/PluginLayerFactory.cppm`, `Artifact/src/Plugin/LayerPluginAdapter.cppm`
 **位置づけ:** ArtifactCore の死にコード掃除と Plugin システムのスタブ修正
 **作成日:** 2026-07-25

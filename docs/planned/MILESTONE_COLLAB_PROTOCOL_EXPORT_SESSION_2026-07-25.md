@@ -1,6 +1,6 @@
 # MILESTONE_COLLAB_PROTOCOL_EXPORT_SESSION_2026-07-25
 
-**ステータス:** ✅ Complete (3/3)
+**ステータス:** Partial（protocol export、session ID、rule sync API を実装済み。server bridge、UI 状態表示、競合解決、認証、runtime 検証は未完了）
 **対象:** `ArtifactCore/src/Collaborate/CollaborationProtocol.cppm`, `ArtifactCore/include/Network/CollaborationWebSocket.ixx`, `ArtifactCore/src/Network/CollaborationWebSocket.cppm`
 **位置づけ:** M-COLLAB-1 の後続。孤立していた `CollaborationProtocol` を export 化し、`CollaborationWebSocket` と接続。セッション管理を追加する。
 **作成日:** 2026-07-25

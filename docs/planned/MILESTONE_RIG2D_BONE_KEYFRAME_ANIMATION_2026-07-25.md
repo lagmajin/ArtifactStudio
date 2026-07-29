@@ -1,6 +1,6 @@
 # MILESTONE_RIG2D_BONE_KEYFRAME_ANIMATION_2026-07-25
 
-**ステータス:** ✅ Complete (3/3)
+**ステータス:** Partial（時間評価・キーフレーム補間を実装済み。FPS 設定、独立補間、AnimationLayerStack、RigControl、編集 UI、runtime 検証は未完了）
 **対象:** `ArtifactCore/include/Rig/Rig2D.ixx`, `ArtifactCore/src/Rig/Rig2D.cppm`
 **位置づけ:** Maya / MotionBuilder のボーンキーフレームに相当する Rig2D の時間ベース評価を実装する。
 **作成日:** 2026-07-25

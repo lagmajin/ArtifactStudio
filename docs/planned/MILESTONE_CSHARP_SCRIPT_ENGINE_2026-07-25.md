@@ -1,6 +1,6 @@
 # MILESTONE_CSHARP_SCRIPT_ENGINE_2026-07-25
 
-**ステータス:** ✅ Complete (2/2)
+**ステータス:** Partial（C# engine と hostfxr 経路を実装済み。CMake 定義、複数プラットフォーム対応、Script export、実環境検証は未完了）
 **対象:** `ArtifactCore/include/Script/CSharpScriptEngine.ixx`, `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
 **位置づけ:** PythonEngine / AngelScriptEngine と同じ Singleton+Pimpl パターンで C# スクリプトエンジンを実装。
 **作成日:** 2026-07-25

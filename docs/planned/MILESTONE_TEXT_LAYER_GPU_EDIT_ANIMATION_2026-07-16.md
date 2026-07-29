@@ -1,8 +1,8 @@
 # M-TXT-FOUNDATION: Text Layer GPU / Edit / Animation Completion
 
 **作成日:** 2026-07-16  
-**ステータス:** Completed (static verified 2026-07-16)
-Status: Completed (static verified 2026-07-16)
+**ステータス:** Partial（静的確認済み 2026-07-16、runtime/build 検証待ち）
+Status: Partial (static verified 2026-07-16; runtime/build verification pending)
 **対象:** `ArtifactCore` / `Artifact`  
 **位置づけ:** Text 系に散在している GPU 描画、shaping、inline edit、Source Text、Text Animator を束ねる統合マイルストーン。
 
