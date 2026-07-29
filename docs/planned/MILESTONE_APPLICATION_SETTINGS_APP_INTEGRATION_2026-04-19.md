@@ -1,5 +1,7 @@
 # MILESTONE_APPLICATION_SETTINGS_APP_INTEGRATION_2026-04-19
 
+ステータス: Settings model／Preferences／主要 UI 反映基盤実装済み（startup order・全設定 live sync・runtime 検証待ち、静的確認 2026-07-29）
+
 `ApplicationSettingDialog` とアプリ本体 (`ArtifactMainWindow` / `AppMain`) の連携を整理し、設定を「保存するだけ」ではなく「実際にアプリへ反映できる」状態へ持っていくためのマイルストーン。
 
 ## Goal
