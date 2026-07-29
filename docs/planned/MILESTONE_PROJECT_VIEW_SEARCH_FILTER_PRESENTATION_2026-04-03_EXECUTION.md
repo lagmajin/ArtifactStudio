@@ -160,6 +160,7 @@
 Missing の状態は結果一覧にも `[Missing]` マーカーと赤系の前景色で表示する。Tile の badge も同じ判定を使い、連番では `sequencePaths` の欠損 frame を検出する。Unused と重なる場合は両方のマーカーを保持し、状態を一方で隠さない。
 
 2026-07-30 に advanced filter の `type:` が `,` / `|` / `+` 区切りの複数値を受け付けるようにした。`type:footage,composition` のような条件は OR で評価され、既存の検索語、unused／missing 条件と組み合わせて使える。独立した filter pill UI は引き続き未実装。
+繰り返し指定する `type:footage type:composition` も同じ OR 条件へ蓄積し、後半の prefix が前半を上書きしないようにした。
 
 Unused の filter 照合も表示側と同じ `QDir::cleanPath()` 済みパスを使うように統一し、パス表記差で表示と結果が食い違わないようにした。
 
