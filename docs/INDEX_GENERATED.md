@@ -332,7 +332,7 @@
 | 11 | `docs/done/MILESTONE_2026-07-03_SESSION_COMPLETION.md` | 2026-07-03 セッション完了レポート | 2026-07-03 | --- | 2026-07-05 | 1.5 KB | SESSION, COMPLETION |
 | 12 | `docs/done/MILESTONE_2D_SHAPE_MODELING_EDITING_2026-06-29.md` | MILESTONE: 2D Shape Modeling Editing | 2026-06-29 | ✅ Complete (source/static verified 2026-07-24; runtime/build verification pending) | 2026-07-24 | 12.4 KB | SHAPE, MODELING, EDITING |
 | 13 | `docs/done/MILESTONE_ACCESSIBILITY_AND_LEFT_HANDED_UI_2026-06-28.md` | Accessibility and Left-Handed UI Support | 2026-06-28 | Completed (settings/widget integration; runtime verification pending) | 2026-07-29 | 1.0 KB | ACCESSIBILITY, AND, LEFT, HANDED |
-| 14 | `docs/done/MILESTONE_ADVANCED_COLOR_SCIENCE_PIPELINE_2026-03-29.md` | Milestone: Advanced Color Science Pipeline (2026-03-29) | 2026-03-29 | --- | 2026-07-09 | 7.3 KB | ADVANCED, COLOR, SCIENCE, PIPELINE |
+| 14 | `docs/done/MILESTONE_ADVANCED_COLOR_SCIENCE_PIPELINE_2026-03-29.md` | Milestone: Advanced Color Science Pipeline (2026-03-29) | 2026-03-29 | Partial (foundation/UI integration; production integration and runtime verification pending) | 2026-07-29 | 7.4 KB | ADVANCED, COLOR, SCIENCE, PIPELINE |
 | 15 | `docs/done/MILESTONE_AI_COMMAND_SANDBOX_2026-04-14.md` | AI Command Sandbox | 2026-04-14 | --- | 2026-07-07 | 0.5 KB | COMMAND, SANDBOX |
 | 16 | `docs/done/MILESTONE_ASSET_BROWSER_IMPROVEMENT.md` | Asset Browser Improvement | 2026-04-14 | --- | 2026-07-07 | 0.8 KB | ASSET, BROWSER, IMPROVEMENT |
 | 17 | `docs/done/MILESTONE_ASSET_SYSTEM_2026-03-12.md` | Asset System | 2026-03-12 | --- | 2026-07-07 | 0.7 KB | ASSET, SYSTEM |

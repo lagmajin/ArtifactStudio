@@ -1,6 +1,6 @@
 # Milestone: Advanced Color Science Pipeline (2026-03-29)
 
-**Status:** Ready for Implementation
+**Status:** Partial — color-management foundation and initial UI integration implemented; production integration/runtime verification pending
 **Goal:** 映画レベルの色管理とHDRワークフローでプロフェッショナルな色調整を実現
 **関連コンポーネント:** ColorACES, ColorLUT, ColorSpace, Rendering Pipeline
 
