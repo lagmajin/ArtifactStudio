@@ -479,7 +479,7 @@
 | 30 | `docs/planned/MILESTONE_AD_PRODUCTION_ACCELERATOR_PHASE1_EXECUTION_2026-05-29.md` | Ad Production Accelerator - Phase 1 Execution | 2026-05-29 | --- | 2026-06-01 | 5.5 KB | PRODUCTION, ACCELERATOR, PHASE1, EXECUTION |
 | 31 | `docs/planned/MILESTONE_AD_PRODUCTION_ACCELERATOR_PHASE2_EXECUTION_2026-05-29.md` | Ad Production Accelerator - Phase 2 Execution | 2026-05-29 | --- | 2026-06-01 | 5.9 KB | PRODUCTION, ACCELERATOR, PHASE2, EXECUTION |
 | 32 | `docs/planned/MILESTONE_ADDITIONAL_PROPOSALS_2026-03-28.md` | マイルストーン追加提案レポート (2026-03-28) | 2026-03-28 | 提案 | 2026-03-30 | 11.3 KB | ADDITIONAL, PROPOSALS |
-| 33 | `docs/planned/MILESTONE_ADVANCED_COPY_PASTE_2026-03-28.md` | Milestone: 高度コピー/ペースト (2026-03-28) | 2026-03-28 | --- | 2026-07-25 | 9.0 KB | ADVANCED, COPY, PASTE |
+| 33 | `docs/planned/MILESTONE_ADVANCED_COPY_PASTE_2026-03-28.md` | Milestone: 高度コピー/ペースト (2026-03-28) | 2026-03-28 | Partial (typed layer/bundle/effect/keyframe/property clipboard envelopes and editor/menu/inspector paste paths implemented; cross-application image/text clipboard, broader multi-effect workflows, and runtime verification pending) | 2026-07-29 | 9.0 KB | ADVANCED, COPY, PASTE |
 | 34 | `docs/planned/MILESTONE_ADVANCED_TYPOGRAPHY_ENGINE_2026-03-29.md` | Milestone: Advanced Typography Engine (2026-03-29) | 2026-03-29 | --- | 2026-03-30 | 3.4 KB | ADVANCED, TYPOGRAPHY, ENGINE |
 | 35 | `docs/planned/MILESTONE_AE1_0_MONTH1_EXECUTION_2026-04-20.md` | MILESTONE: AE 1.0 Month 1 Execution | 2026-04-20 | --- | 2026-04-24 | 8.5 KB | AE1, MONTH1, EXECUTION |
 | 36 | `docs/planned/MILESTONE_AE1_0_PRIORITY_AND_ROADMAP_2026-04-20.md` | MILESTONE_PRODUCTION_1_0_PRIORITY_AND_ROADMAP_2026-04-20 | 2026-04-20 | --- | 2026-05-28 | 6.5 KB | AE1, PRIORITY, AND, ROADMAP |
