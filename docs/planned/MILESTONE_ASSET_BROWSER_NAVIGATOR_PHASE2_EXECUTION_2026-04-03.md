@@ -1,5 +1,7 @@
 # マイルストーン: Asset Browser Navigator Phase 2 Execution
 
+ステータス: Phase 2 実装済み（検索導線の runtime 検証待ち、静的確認 2026-07-29）
+
 > 2026-04-03 作成
 
 ## 目的

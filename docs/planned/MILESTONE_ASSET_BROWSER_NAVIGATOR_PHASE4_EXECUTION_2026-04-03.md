@@ -1,5 +1,7 @@
 # マイルストーン: Asset Browser Navigator Phase 4 Execution
 
+ステータス: Phase 4 実装済み（folder workflow の runtime 検証待ち、静的確認 2026-07-29）
+
 > 2026-04-03 作成
 
 ## 目的
