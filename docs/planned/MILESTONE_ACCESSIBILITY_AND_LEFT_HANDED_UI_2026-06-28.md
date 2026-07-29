@@ -84,6 +84,7 @@
 - ✅ Create Composition Dialog の名前、解像度、アスペクト比、フレームレート、タイムコード、デュレーション、背景色、作成／キャンセル操作に Accessible Name / Description を付与。
 - ✅ Color Swatch Dialog のカテゴリ、スウォッチ、色プレビュー、追加／移動／適用／閉じる操作に Accessible Name / Description を付与。
 - ✅ Application Settings Dialog の設定カテゴリ、一般設定、アクセシビリティ設定、保存／適用／キャンセル操作に Accessible Name / Description を付与。
+- ✅ Application Settings の Import ページに、既定 FPS、色空間、音声サンプルレート、アルファ、フィールド順、静止画秒数、連番コンポジション設定の Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
