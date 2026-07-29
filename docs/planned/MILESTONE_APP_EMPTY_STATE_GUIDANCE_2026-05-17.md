@@ -132,3 +132,4 @@ Phase 1 の対象 surface を確定し、`No selection` / `No file selected` / `
 
 - Asset Browser の file list に空状態メッセージを追加した。フォルダ未選択、検索／filter 結果なし、空フォルダをそれぞれ `Open a folder...`、`No assets match...`、`Import or drop files here...` と action-first に表示する。
 - selection／recent／sync の既存案内と同じ surface 上で表示し、一覧が空白だけに見えないよう owner-draw で描画する。
+- Contents Viewer には `Open a file to inspect it, or choose a recent source` の action-first な未読み込み案内が既に存在することを確認した。複数 surface 間の語彙完全統一と runtime 確認は未完了として残す。
