@@ -1,5 +1,7 @@
 # Project View Interaction Polish
 
+**Status**: Completed
+
 > 2026-03-28 作成
 
 ## 目的
@@ -126,4 +128,3 @@ double-click と open ボタンの意味をそろえる。
 
 2026-03-28 時点で、Project View は search / rename / delete / relink / drag & drop が既にある。
 このマイルストーンは、それらを選択中心に束ねるための UI polish を目的とする。
-
