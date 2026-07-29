@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 03:03
+> Generated: 2026-07-30 03:04
 > Total documents: 1134
 
 ---
@@ -747,7 +747,7 @@
 | 291 | `docs/planned/MILESTONE_IMMEDIATE_CONTEXT_BOUNDARY_SAFE_SEQUENCE_2026-04-21.md` | M-IR-8 Safe Sequence | 2026-04-21 | --- | 2026-04-21 | 2.2 KB | IMMEDIATE, CONTEXT, BOUNDARY, SAFE, SEQUENCE |
 | 292 | `docs/planned/MILESTONE_IMPLEMENTATION_PRIORITY_DEEP_AUDIT_2026-04-08.md` | 実装優先順位 ディープオーディットレポート | 2026-04-08 | 優先順位の基準を整理済み（実装完了を示すマイルストーンではない） | 2026-07-29 | 5.4 KB | IMPLEMENTATION, PRIORITY, DEEP, AUDIT |
 | 293 | `docs/planned/MILESTONE_IN_APP_LLM_INTEGRATION_2026-04-08.md` | MILESTONE: アプリ内 LLM 統合フェーズ1 | 2026-04-08 | 提案中 | 2026-04-09 | 3.6 KB | APP, LLM, INTEGRATION |
-| 294 | `docs/planned/MILESTONE_INLINE_INTERACTION_SURFACES_2026-03-31.md` | Inline Interaction Surfaces Milestone (2026-03-31) | 2026-03-31 | --- | 2026-05-13 | 4.7 KB | INLINE, INTERACTION, SURFACES |
+| 294 | `docs/planned/MILESTONE_INLINE_INTERACTION_SURFACES_2026-03-31.md` | Inline Interaction Surfaces Milestone (2026-03-31) | 2026-03-31 | --- | 2026-05-13 | 4.8 KB | INLINE, INTERACTION, SURFACES |
 | 295 | `docs/planned/MILESTONE_INSPECTOR_PROPERTY_EDITOR_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: Inspector / PropertyEditor 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-07 | 6.9 KB | INSPECTOR, PROPERTY, EDITOR, DESIGN, AUDIT |
 | 296 | `docs/planned/MILESTONE_INTEGRATED_RENDERING_ENGINE_2026-03-28.md` | マイルストーン: Integrated Rendering Engine | 2026-03-28 | --- | 2026-03-29 | 3.8 KB | INTEGRATED, RENDERING, ENGINE |
 | 297 | `docs/planned/MILESTONE_INTERACTIVE_RENDER_PERFORMANCE_2026-07-27.md` | Milestone: Interactive Render Performance | 2026-07-27 | Partial implementation / runtime verification pending | 2026-07-29 | 21.2 KB | INTERACTIVE, RENDER, PERFORMANCE |

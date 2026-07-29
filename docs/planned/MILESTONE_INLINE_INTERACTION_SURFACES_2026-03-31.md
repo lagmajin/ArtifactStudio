@@ -86,6 +86,8 @@
 - column width / display mode / density の即時変更
 - 行の中で終わる軽い選択操作を増やす
 
+実装追加: Layer Panel の inline layer name / parent / blend mode editor に Accessible Name / Description を付与し、画面遷移なしの編集導線を支援。
+
 ## Boundary Note
 
 2026-05-11 時点では、このマイルストーンの `mask preview` は layer panel の inline choice として扱う。
