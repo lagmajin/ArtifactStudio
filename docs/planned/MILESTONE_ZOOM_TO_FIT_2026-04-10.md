@@ -64,4 +64,12 @@ After Effects の「Fit」コマンドをより賢くし、コンポジション
 
 一方、仕様にある Selection / Visible / Work Area ごとのフィット計算、5%マージンを明示した専用モード、フィット遷移アニメーション、複数コンポジション単位の設定保存、`Ctrl+0` 等の指定ショートカットは確認できない。したがって本マイルストーンは「Composition 全体を viewport に合わせる基礎機能は実装済み、拡張モードは未実装」と判定する。
 
+## Static Audit Update (2026-07-29)
+
+- Composition設定時と既存の `zoomFit()` 経路で、viewport短辺の5%を `fitToViewport()` の余白として渡すようにした。
+- アスペクト比維持と既存のFit導線は保持する。
+- Selection / Visible / Work Area、遷移アニメーション、指定ショートカット、runtime操作確認は未実施。
+
+判定: **Composition Fit の5%マージンを実装。拡張モードとruntime検証は pending。**
+
 確認範囲: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`、`ArtifactCore/src/UI/ShortcutBindings.cppm`。ビルド・実機操作による動作確認は未実施。
