@@ -2,7 +2,7 @@
 
 > 2026-07-10 作成
 
-**ステータス:** Phase 1-4 Completed (static verified 2026-07-22; runtime/build verification pending)
+**ステータス:** Phase 1-5 Completed (static verified 2026-07-29; multi-key selection/runtime/build verification pending)
 
 Phase 5 (Spatial Bezier editing) is also completed at source level.
 
