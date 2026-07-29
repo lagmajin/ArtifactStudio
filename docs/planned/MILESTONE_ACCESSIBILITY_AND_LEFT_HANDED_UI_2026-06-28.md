@@ -51,7 +51,7 @@
 - ✅ Property Editor 行の keyframe、前後移動、reset、expression、favorite 操作に Accessible Name / Description を付与。
 - ✅ Inspector のテキスト付き操作ボタンと Effect 検索欄に Accessible Name / Description を付与。
 - ✅ Timeline の検索モード、レイヤー表示、行密度コンボと Curve Editor tangent 操作に Accessible Name / Description を付与。
-- ✅ Timeline Work Area の移動、中央基準スケール、ハンドル編集に Accessible Name / Description を付与。
+- ✅ Timeline Work Area の移動、中央基準スケール、ハンドル編集と現在範囲の読み上げに Accessible Name / Description を付与。
 - ✅ Easing Lab の候補選択、プレビュー位置、Apply 操作に Accessible Name / Description を付与。
 - ✅ Key Pattern Dialog のプリセット、数値入力群、プレビュー、Apply 操作に Accessible Name / Description を付与。
 - ✅ Timeline Search の入力欄と検索バーに、検索・次候補／前候補操作の Accessible Name / Description を付与。
