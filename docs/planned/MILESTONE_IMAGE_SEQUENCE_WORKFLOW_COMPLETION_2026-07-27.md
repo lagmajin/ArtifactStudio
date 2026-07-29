@@ -125,3 +125,4 @@ sequence 内の不正パスでも sequence reader と cached frame index を破�
 frame index 範囲外／`frameAt()` 失敗時も直前フレームを残さず、missing-image fallback へ遷移するようにした。
 `setFromQImage()` による編集結果への置換でも sequence reader／cached index を破棄する。
 同時に prefetch generation を進め、編集中の QImage を旧ファイル decode が上書きしないようにした。
+JSON 再読込時も prefetch generation を進め、sequence reader／cached frame／decoded buffer を破棄し、同一 source path で別 sequence を復元しても旧フレームを再利用しないようにした。
