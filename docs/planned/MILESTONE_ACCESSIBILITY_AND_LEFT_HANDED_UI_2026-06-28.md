@@ -75,6 +75,7 @@
 - ✅ Composition Editor の Screenshot、Render Output、View Preset、Viewport Bookmarks に Accessible Name / Description を付与。
 - ✅ Quick Layer Creation Dialog の source、サイズ、mask、envelope、placement、Create／Cancel に Accessible Name / Description を付与。
 - ✅ Resolution Remap Dialog の remap policy、Skip、Apply に Accessible Name / Description を付与。
+- ✅ Create Plane Layer Dialog のサイズ、色、グラデーション、配置補助入力に Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
