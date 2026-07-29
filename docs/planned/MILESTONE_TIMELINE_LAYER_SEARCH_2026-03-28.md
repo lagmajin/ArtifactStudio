@@ -58,7 +58,7 @@ Phase 1〜2 相当は実装済み。`ArtifactLayerPanelWidget` は filter text �
 - child relation、source asset の検索対象拡張
 - 非一致の半透明表示と、選択・keyframe・scroll との回帰確認
 
-したがって「インクリメンタル検索と表示モードは実装済み、簡易 query・検索対象拡張・結果ナビゲーションは未完了」と整理する。
+したがって「インクリメンタル検索、表示モード、hit count、結果ナビゲーション、主要な簡易 query は実装済み、child relation / source asset の検索対象拡張と非一致表示の回帰確認は未完了」と整理する。
 
 ---
 
