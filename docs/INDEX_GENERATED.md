@@ -813,7 +813,7 @@
 | 364 | `docs/planned/MILESTONE_MULTI_VIEWPORT_LAYOUT_2026-06-01.md` | Milestone: Multi-Viewport Layout System | 2026-06-01 | --- | 2026-06-01 | 4.5 KB | MULTI, VIEWPORT, LAYOUT |
 | 365 | `docs/planned/MILESTONE_MULTICHANNEL_AUDIO_OUTPUT_2026-07-02.md` | マルチチャンネルオーディオ出力 設計書 | 2026-07-02 | 設計フェーズ | 2026-07-02 | 11.7 KB | MULTICHANNEL, AUDIO, OUTPUT |
 | 366 | `docs/planned/MILESTONE_MULTICHANNEL_RENDER_PIPELINE_2026-04-18.md` | マイルストーン: マルチチャンネルレンダーパイプライン (AE互換) | 2026-04-18 | --- | 2026-04-19 | 5.4 KB | MULTICHANNEL, RENDER, PIPELINE |
-| 367 | `docs/planned/MILESTONE_NAMED_GUIDES_2026-06-07.md` | MILESTONE: Named Guides | 2026-06-07 | --- | 2026-06-09 | 2.4 KB | NAMED, GUIDES |
+| 367 | `docs/planned/MILESTONE_NAMED_GUIDES_2026-06-07.md` | MILESTONE: Named Guides | 2026-06-07 | Partial (GuideDefinition/GuideSet/GuideBinding schema, JSON persistence, enabled/semantic filtering, and Smart Guides snapping implemented; binding-driven layer follow/offset/priority resolution, purpose-specific auto-placement, Content Bounds/Collision-Aware Layout integration, and runtime verification pending) | 2026-07-29 | 2.4 KB | NAMED, GUIDES |
 | 368 | `docs/planned/MILESTONE_NESTED_COMPOSITION_VISUALIZATION_2026-04-18.md` | マイルストーン: ネストコンポジション 視覚化実装 | 2026-04-18 | --- | 2026-04-19 | 4.4 KB | NESTED, COMPOSITION, VISUALIZATION |
 | 369 | `docs/planned/MILESTONE_NRD_RAY_TRACING_DENOISER_2026-07-19.md` | Milestone: NRD Ray-Tracing Denoiser Integration | 2026-07-19 | --- | 2026-07-19 | 1.9 KB | NRD, RAY, TRACING, DENOISER |
 | 370 | `docs/planned/MILESTONE_OBJECT_FRACTURE_EFFECT_2026-03-25.md` | マイルストーン: Object Fracture / Shatter Effect | 2026-03-25 | --- | 2026-03-25 | 5.3 KB | OBJECT, FRACTURE, EFFECT |
