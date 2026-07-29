@@ -1,5 +1,7 @@
 # MILESTONE: Mask Feather Directional / Render FPS Safety - 2026-06-07
 
+**ステータス:** Mask directional feather 実装済み、FPS safety 統合・runtime/export検証 pending
+
 作成日: 2026-06-07  
 対象: mask feather と render/export safety  
 優先度: 🟠 高
