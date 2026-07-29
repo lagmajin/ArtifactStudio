@@ -32,6 +32,7 @@
 - ✅ Clone ToolOptions の radius／位置固定入力に Accessible Name / Description と scaled target height を適用。
 - ✅ ToolOptionsBar の全ツールモード枠に Accessible Name / Description を付与し、モード単位の読み上げ対象を明確化。
 - ✅ ToolOptionsBar 本体と各モード枠の高さを `Accessibility::scaledSize()` に接続し、large-targets 設定を反映。
+- ✅ ArtifactToolBar 本体に Accessible Name / Description を付与し、アイコンサイズと最小高さを `Accessibility::scaledSize()` に接続。
 - ✅ Application Settings の Accessibility グループ自体に目的説明の Accessible Name / Description を付与。
 - ✅ Playback Control ルートパネルに Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
