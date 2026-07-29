@@ -194,4 +194,9 @@
 ### 判定
 
 主要な cost counter は実装済みで、総時間以外の内訳も読める。per-layer/overlay breakdown と自動改善提案が残るため、Phase 12 は「部分実装／統合確認待ち」とする。
+
+## 2026-07-29 実装マーク
+
+- Draw / indexed draw、PSO / SRB、buffer updates、CPU / GPU timing、per-visible-layer 指標は AppDebugger / FrameDebug / Harness で実装済みとしてマークする。
+- overlay / gizmo / helper の専用 breakdown、更新種別の分類、主因に応じた `reduce calls` 等の自動 suggestion ranking は未完了・未検証のため、Phase 12 は `Partial implementation / integration pending` を維持する。
 - [`MILESTONE_APP_DEBUGGER_QUICK_ACTIONS_2026-04-24.md`](x:/Dev/ArtifactStudio/docs/planned/MILESTONE_APP_DEBUGGER_QUICK_ACTIONS_2026-04-24.md)
