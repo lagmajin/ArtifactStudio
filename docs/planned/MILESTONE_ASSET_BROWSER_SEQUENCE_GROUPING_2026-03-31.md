@@ -109,5 +109,5 @@ import / relink / preview / render queue へ接続する。
 - `ArtifactAssetBrowser` に basename／frame／padding／拡張子／ディレクトリを使った連番検出と、sequence を 1 つの `AssetMenuItem` として構築する経路を確認できる。
 - `sequencePaths`、開始フレーム、フレーム数、padding、代表 thumbnail、frame 番号順ソートがあり、AssetMenuModel と footage import／relink の sequence-aware 経路も存在する。
 - Asset Browser 上には明示的な Expand／Collapse、個別 frame item、frame 番号順表示があり、sequence 単位の missing／unreadable／size mismatch marker、source-use 集約、選択時の全 frame path 展開も実装されている。
-- sequence の import／relink 基盤も存在する。一方、欠落 frame を含む runtime 一貫性、preview／render queue での sequence-aware 動作、実機検証は未完了である。
+- sequence の import／relink 基盤と、context menu から代表 frame／先頭・末尾 frame を選ぶ preview 導線も存在する。一方、欠落 frame を含む runtime 一貫性、render queue での sequence-aware 動作、実機検証は未完了である。
 - よって Phase 1〜2 と基本的な Phase 3 接続は実装済み、全体 milestone は runtime workflow 検証 pending の Partial と判定する。
