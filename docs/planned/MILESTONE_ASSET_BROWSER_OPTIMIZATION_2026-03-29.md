@@ -56,5 +56,5 @@
 
 - thumbnail の非同期生成・世代管理・memory／disk cache、sequence 検出、unused path のスナップショット走査など、周辺の性能改善は確認できる。
 - 一方、`applyFilters` の TBB parallel scan と thumbnail warmup の TBB `task_group` 並列化は確認できない。
-- 2026-07-30 に imported Footage と sequence frame の正規化 path を `QSet` に構築し、`applyFilters()` 内の imported 判定をプロジェクトツリー再帰から O(1) lookup へ切り替えた。キャッシュは各一覧更新の先頭で再構築するため、import／relink 後の既存 refresh 経路でも最新状態を取り込む。
+- 2026-07-30 に imported Footage と sequence frame の正規化 path を `QSet` に構築し、`applyFilters()` 内の imported 判定をプロジェクトツリー再帰から O(1) lookup へ切り替えた。キャッシュは各一覧更新の先頭で再構築し、既存の `clearThumbnailCache()` 経路でも無効化するため、import／relink 後の status 表示が古いまま残らない。
 - `applyFilters` の TBB parallel scan、thumbnail warmup の TBB task_group 並列化、数千ファイル時の性能目標と runtime 計測は未検証であり、Planning／Partial Implementation を維持する。
