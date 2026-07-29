@@ -745,7 +745,7 @@
 | 296 | `docs/planned/MILESTONE_KEYFRAME_COPY_PASTE_2026-06-16.md` | M-CLIP-1 Keyframe Copy & Paste Milestone | 2026-06-16 | --- | 2026-07-09 | 18.0 KB | KEYFRAME, COPY, PASTE |
 | 297 | `docs/planned/MILESTONE_KEYFRAME_STATE_SPEC_2026-06-17.md` | Keyframe State Spec | 2026-06-17 | --- | 2026-06-18 | 5.1 KB | KEYFRAME, STATE, SPEC |
 | 298 | `docs/planned/MILESTONE_LAYER_AUTO_NAMING_2026-04-10.md` | レイヤー自動命名規則の実装 | 2026-04-10 | --- | 2026-04-11 | 2.1 KB | LAYER, AUTO, NAMING |
-| 299 | `docs/planned/MILESTONE_LAYER_COMPONENT_EVALUATION_PIPELINE_2026-06-28.md` | Layer Component Evaluation Pipeline | 2026-06-28 | --- | 2026-06-29 | 3.0 KB | LAYER, COMPONENT, EVALUATION, PIPELINE |
+| 299 | `docs/planned/MILESTONE_LAYER_COMPONENT_EVALUATION_PIPELINE_2026-06-28.md` | Layer Component Evaluation Pipeline | 2026-06-28 | Partial (evaluation foundation/runtime bridge implemented; hardening and runtime verification pending) | 2026-07-29 | 3.0 KB | LAYER, COMPONENT, EVALUATION, PIPELINE |
 | 300 | `docs/planned/MILESTONE_LAYER_COMPONENT_PIPELINE_2026-07-01.md` | Layer Component Pipeline / Simulation Contract (2026-07-01) | 2026-07-01 | In Progress | 2026-07-14 | 13.8 KB | LAYER, COMPONENT, PIPELINE |
 | 301 | `docs/planned/MILESTONE_LAYER_COMPONENT_SYSTEM_2026-04-18.md` | マイルストーン: レイヤーコンポーネントシステム | 2026-04-18 | --- | 2026-04-19 | 3.2 KB | LAYER, COMPONENT, SYSTEM |
 | 302 | `docs/planned/MILESTONE_LAYER_COMPONENT_SYSTEM_UNITY_LIKE_2026-04-08.md` | マイルストーン: レイヤー向け軽量コンポーネントシステム | 2026-04-08 | --- | 2026-04-08 | 8.5 KB | LAYER, COMPONENT, SYSTEM, UNITY, LIKE |
