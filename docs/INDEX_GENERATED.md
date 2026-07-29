@@ -388,7 +388,7 @@
 | 67 | `docs/done/MILESTONE_QUICK_LAYER_CREATION_DIALOG_2026-07-10.md` | Quick Layer Creation Dialog | 2026-07-10 | ✅ Complete（MVP source/static verified 2026-07-25; runtime/build verification pending） | 2026-07-25 | 4.9 KB | QUICK, LAYER, CREATION, DIALOG |
 | 68 | `docs/done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md` | Render Preflight / Output Safety Check | 2026-06-02 | Completed | 2026-07-29 | 1.4 KB | RENDER, PREFLIGHT |
 | 69 | `docs/done/MILESTONE_RENDER_PREFLIGHT_PHASE1_EXECUTION_2026-06-02.md` | Render Preflight / Output Safety Check - Phase 1 Execution | 2026-06-02 | Completed | 2026-07-29 | 2.8 KB | RENDER, PREFLIGHT, PHASE1, EXECUTION |
-| 70 | `docs/done/MILESTONE_RENDER_QUEUE_2026-03-22.md` | Render Queue | 2026-03-22 | --- | 2026-07-07 | 0.6 KB | RENDER, QUEUE |
+| 70 | `docs/done/MILESTONE_RENDER_QUEUE_2026-03-22.md` | Render Queue | 2026-03-22 | Completed | 2026-07-29 | 0.6 KB | RENDER, QUEUE |
 | 71 | `docs/done/MILESTONE_SCRUB_PREVIEW_TOOL_2026-06-18.md` | マイルストーン: Scrub Preview Tool | 2026-06-18 | Completed | 2026-07-29 | 2.0 KB | SCRUB, PREVIEW, TOOL |
 | 72 | `docs/done/MILESTONE_SHAPE_LAYER_ENHANCEMENT_2026-04-28.md` | MILESTONE: Shape Layer Enhancement | 2026-04-28 | --- | 2026-06-25 | 2.0 KB | SHAPE, LAYER, ENHANCEMENT |
 | 73 | `docs/done/MILESTONE_SOLID_COLOR_EFFECTS_2026-06-27.md` | Solid Color Effects Completion Note (2026-06-27) | 2026-06-27 | Completed | 2026-07-29 | 0.8 KB | SOLID, COLOR, EFFECTS |
