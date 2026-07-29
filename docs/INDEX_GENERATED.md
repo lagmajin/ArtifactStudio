@@ -828,7 +828,7 @@
 | 379 | `docs/planned/MILESTONE_PERF_HOTPATH_2026-06-16.md` | M-PERF-1 Performance Hot Path 修正 Milestone | 2026-06-16 | --- | 2026-06-18 | 10.8 KB | PERF, HOTPATH |
 | 380 | `docs/planned/MILESTONE_PERFORMANCE_BOTTLENECK_TRIAGE_2026-06-17.md` | マイルストーン: Performance Bottleneck Triage | 2026-06-17 | --- | 2026-06-17 | 3.4 KB | PERFORMANCE, BOTTLENECK, TRIAGE |
 | 381 | `docs/planned/MILESTONE_PERFORMANCE_STABILITY_PROGRAM_2026-04-28.md` | マイルストーン: Performance Stability Program | 2026-04-28 | --- | 2026-04-29 | 6.0 KB | PERFORMANCE, STABILITY, PROGRAM |
-| 382 | `docs/planned/MILESTONE_PHOTOSHOP_LIKE_IMAGE_EDITING_2026-04-11.md` | Milestone: Photoshop-like Image Editing in ArtifactCore (2026-04-11) | 2026-04-11 | --- | 2026-04-11 | 2.3 KB | PHOTOSHOP, LIKE, IMAGE, EDITING |
+| 382 | `docs/planned/MILESTONE_PHOTOSHOP_LIKE_IMAGE_EDITING_2026-04-11.md` | Milestone: Photoshop-like Image Editing in ArtifactCore (2026-04-11) | 2026-04-11 | 部分完了（ブラシ/消しゴム・フレーム別undo・LayerMask・CloneLayer・画像処理/色補正基盤あり、統合API・選択ツール・直接Clone編集・統合UI・GPU/CPU parityは未完了） | 2026-07-29 | 2.3 KB | PHOTOSHOP, LIKE, IMAGE, EDITING |
 | 383 | `docs/planned/MILESTONE_PHYSICAL_MOTION_BLUR_2026-06-07.md` | Physical Motion Blur Milestone | 2026-06-07 | --- | 2026-07-09 | 6.6 KB | PHYSICAL, MOTION, BLUR |
 | 384 | `docs/planned/MILESTONE_PICK_WHIP_UI_2026-06-02.md` | M-MOTION-4 Pick-Whip UI for Property Linking (2026-06-02) | 2026-06-02 | --- | 2026-06-05 | 3.1 KB | PICK, WHIP |
 | 385 | `docs/planned/MILESTONE_PLANE_LAYER_DIALOG_2026-04-04.md` | 平面レイヤー設定ダイアログ リデザイン マイルストーン | 2026-04-04 | --- | 2026-04-05 | 2.6 KB | PLANE, LAYER, DIALOG |
