@@ -785,11 +785,13 @@ active milestone の重複名としては扱わない。
 - マイルストーン文書 `docs/done/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md` + `docs/done/MILESTONE_TIMELINE_RIGHT_PANE_KEYFRAME_EDIT_REFINEMENT_2026-05-23.md`
 - **未完了 (stretch goal):** キーフレームの時間軸スケーリング（全レイヤー一括伸縮）
 
-### M-TL-17 Timeline Proportional Keyframe Editing 🚧
+### M-TL-17 Timeline Proportional Keyframe Editing 🚧 Phase 1-2 実装済み（2026-07-30）
 - 右ペイン `ArtifactTimelineTrackPainterView` に Blender 風の proportional editing を導入する
 - Phase 1 は selected keyframes の time move のみに絞る
 - `O` で on/off、`[` `]` で半径変更
 - 詳細は `docs/planned/MILESTONE_TIMELINE_PROPORTIONAL_KEYFRAME_EDITING_2026-07-06.md`
+- Phase 1-2: marker drag／area body drag／edge resize と preview／Undo の比例編集 ✅
+- 残件: value direction、inline F-curve／Graph Editor 共有、advanced falloff／pivot
 
 ### M-UI-6b Composition Motion Path Display Improvement
 - モーションパス overlay のサンプリングと描画を分離し、適応サンプリング・速度可視化・spatial bezier 表示へ進める
