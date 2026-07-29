@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 03:04
+> Generated: 2026-07-30 03:06
 > Total documents: 1134
 
 ---
@@ -747,7 +747,7 @@
 | 291 | `docs/planned/MILESTONE_IMMEDIATE_CONTEXT_BOUNDARY_SAFE_SEQUENCE_2026-04-21.md` | M-IR-8 Safe Sequence | 2026-04-21 | --- | 2026-04-21 | 2.2 KB | IMMEDIATE, CONTEXT, BOUNDARY, SAFE, SEQUENCE |
 | 292 | `docs/planned/MILESTONE_IMPLEMENTATION_PRIORITY_DEEP_AUDIT_2026-04-08.md` | 実装優先順位 ディープオーディットレポート | 2026-04-08 | 優先順位の基準を整理済み（実装完了を示すマイルストーンではない） | 2026-07-29 | 5.4 KB | IMPLEMENTATION, PRIORITY, DEEP, AUDIT |
 | 293 | `docs/planned/MILESTONE_IN_APP_LLM_INTEGRATION_2026-04-08.md` | MILESTONE: アプリ内 LLM 統合フェーズ1 | 2026-04-08 | 提案中 | 2026-04-09 | 3.6 KB | APP, LLM, INTEGRATION |
-| 294 | `docs/planned/MILESTONE_INLINE_INTERACTION_SURFACES_2026-03-31.md` | Inline Interaction Surfaces Milestone (2026-03-31) | 2026-03-31 | --- | 2026-05-13 | 4.8 KB | INLINE, INTERACTION, SURFACES |
+| 294 | `docs/planned/MILESTONE_INLINE_INTERACTION_SURFACES_2026-03-31.md` | Inline Interaction Surfaces Milestone (2026-03-31) | 2026-03-31 | --- | 2026-07-30 | 4.8 KB | INLINE, INTERACTION, SURFACES |
 | 295 | `docs/planned/MILESTONE_INSPECTOR_PROPERTY_EDITOR_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: Inspector / PropertyEditor 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-07 | 6.9 KB | INSPECTOR, PROPERTY, EDITOR, DESIGN, AUDIT |
 | 296 | `docs/planned/MILESTONE_INTEGRATED_RENDERING_ENGINE_2026-03-28.md` | マイルストーン: Integrated Rendering Engine | 2026-03-28 | --- | 2026-03-29 | 3.8 KB | INTEGRATED, RENDERING, ENGINE |
 | 297 | `docs/planned/MILESTONE_INTERACTIVE_RENDER_PERFORMANCE_2026-07-27.md` | Milestone: Interactive Render Performance | 2026-07-27 | Partial implementation / runtime verification pending | 2026-07-29 | 21.2 KB | INTERACTIVE, RENDER, PERFORMANCE |
@@ -993,7 +993,7 @@
 | 537 | `docs/planned/MILESTONE_TIMELINE_PROPORTIONAL_KEYFRAME_EDITING_2026-07-06.md` | M-TL-17 Timeline Proportional Keyframe Editing (2026-07-06) | 2026-07-06 | --- | 2026-07-25 | 5.7 KB | TIMELINE, PROPORTIONAL, KEYFRAME, EDITING |
 | 538 | `docs/planned/MILESTONE_TIMELINE_QGRAPHICSSCENE_ELIMINATION_2026-03-31.md` | Timeline QGraphicsScene Elimination (2026-03-31) | 2026-03-31 | --- | 2026-07-25 | 5.0 KB | TIMELINE, QGRAPHICSSCENE, ELIMINATION |
 | 539 | `docs/planned/MILESTONE_TIMELINE_RIGHT_PANE_FULL_OWNER_DRAW_2026-04-08.md` | マイルストーン: Timeline Right Pane Full Owner-Draw | 2026-04-08 | --- | 2026-07-25 | 8.1 KB | TIMELINE, RIGHT, PANE, FULL, OWNER |
-| 540 | `docs/planned/MILESTONE_TIMELINE_SCRUBBAR_FRAME_CACHE_OVERLAY_2026-04-10.md` | Timeline Scrub Bar Frame Cache Overlay | 2026-07-25 | --- | 2026-07-25 | 7.0 KB | TIMELINE, SCRUBBAR, FRAME, CACHE, OVERLAY |
+| 540 | `docs/planned/MILESTONE_TIMELINE_SCRUBBAR_FRAME_CACHE_OVERLAY_2026-04-10.md` | Timeline Scrub Bar Frame Cache Overlay | 2026-07-25 | --- | 2026-07-25 | 7.1 KB | TIMELINE, SCRUBBAR, FRAME, CACHE, OVERLAY |
 | 541 | `docs/planned/MILESTONE_TIMELINE_TOOLTIPS_2026-04-10.md` | タイムラインツールチップ拡張の実装 | 2026-04-10 | --- | 2026-07-25 | 3.4 KB | TIMELINE, TOOLTIPS |
 | 542 | `docs/planned/MILESTONE_TIMELINE_TRACKVIEW_OWNER_DRAW_MIGRATION_2026-03-27.md` | Timeline TrackView Owner-Draw Migration (2026-03-27) | 2026-03-27 | --- | 2026-07-25 | 6.7 KB | TIMELINE, TRACKVIEW, OWNER, DRAW, MIGRATION |
 | 543 | `docs/planned/MILESTONE_TIMELINE_VISUAL_LANGUAGE_2026-03-31.md` | Timeline Visual Language (2026-03-31) | 2026-03-31 | --- | 2026-07-25 | 6.0 KB | TIMELINE, VISUAL, LANGUAGE |
