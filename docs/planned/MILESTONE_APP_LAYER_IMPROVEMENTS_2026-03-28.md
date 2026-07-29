@@ -133,7 +133,7 @@ runtime の WebUI 接続確認と仕様差分の将来拡張は別検証とし�
 
 ---
 
-### △ 問題 4: インスペクターの機能不足（部分実装）
+### ✅ 問題 4: インスペクターの機能不足（静的実装済み）
 
 **場所:** `Artifact/src/Widgets/ArtifactInspectorWidget.cppm`
 
@@ -146,7 +146,7 @@ runtime の WebUI 接続確認と仕様差分の将来拡張は別検証とし�
 // TODO: projectClosed シグナルがあれば接続
 ```
 
-**現状:** `describeLayerPresentation()` と capability summary により、レイヤー実体に合わせたタイプ表示・マスク／matte／proxy／component 状態の表示は実装済み。`projectClosed` 専用シグナルは既存イベント契約上追加しておらず、プロジェクト切替・選択解除経路での lifecycle 検証が残る。
+**現状:** `describeLayerPresentation()` と capability summary により、レイヤー実体に合わせたタイプ表示・マスク／matte／proxy／component 状態の表示を実装済み。既存 `ProjectChangedEvent` 受信時に `hasProject()` を再確認し、close/reset 後は stale state を `setNoProjectState()` へ戻す防御も実装済み。runtime の project 切替・選択解除確認は残る。
 
 **工数:** 3-4 時間
 
@@ -205,7 +205,7 @@ runtime の WebUI 接続確認と仕様差分の将来拡張は別検証とし�
 | 項目 | 工数 | 優先度 | 依存 |
 |------|------|--------|------|
 | **WebUI ブリッジ** | 4-6h | 🟡 中 | なし |
-| **インスペクター改善** | △ 部分実装・lifecycle 検証待ち | 🟡 中 | なし |
+| **インスペクター改善** | ✅ 静的実装済み・lifecycle 確認待ち | 🟡 中 | なし |
 | **プロジェクトインポーター** | ✅ 静的実装済み・runtime 確認待ち | 🟡 中 | なし |
 
 ### P2（推奨）
