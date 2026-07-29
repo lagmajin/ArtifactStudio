@@ -186,5 +186,5 @@ Asset Browser から次の操作へ迷わず進めるようにする。
 - Phase 1 の splitter／breadcrumb／history／Favorites、Phase 2 の incremental search／flat result、Phase 3 の grid／list／thumbnail／status、Phase 4 の folder intelligence／context menu を関連コードで確認できる。
 - Phase 5 も asset D&D、folder navigation、source／folder double-click 分岐、unused／project workflow、import／relink の主要導線が存在する。
 - Sequence grouping の本格実装と Project View の構造整理は別マイルストーンに分離されており、scope boundary も守られている。
-- 2026-07-30 に Grid／List の view mode を `AssetBrowser/ViewMode` に保存・復元する導線を追加した。既存の sort key／方向設定と同じ探索面の設定復元経路を使う。File Type と Status filter も `AssetBrowser/FileTypeFilter` / `AssetBrowser/StatusFilter` に保存・復元する。
+- 2026-07-30 に Grid／List の view mode を `AssetBrowser/ViewMode` に保存・復元する導線を追加した。既存の sort key／方向設定と同じ探索面の設定復元経路を使う。File Type と Status filter も `AssetBrowser/FileTypeFilter` / `AssetBrowser/StatusFilter` に保存・復元する。最後に開いていた存在済みフォルダを `AssetBrowser/CurrentDirectory` に保存し、起動時に採用する。プロジェクト Asset root 外の stale path は既存の root 同期で安全に置き換える。
 - よって親 milestone の実装範囲は完了相当だが、検索履歴切替、D&D preview ghost、runtime performance／UX の実機検証を残す状態と判定する。
