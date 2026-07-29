@@ -992,7 +992,7 @@
 | 543 | `docs/planned/MILESTONE_UI_THEME_SYSTEM_ROLLOUT_2026-04-02.md` | MILESTONE: UI Theme System Rollout | 2026-04-02 | --- | 2026-04-02 | 2.6 KB | THEME, SYSTEM, ROLLOUT |
 | 544 | `docs/planned/MILESTONE_UI_UX_UNIFICATION_2026-03-28.md` | UI/UX 統一改善 Milestone | 2026-03-28 | 計画中 | 2026-03-29 | 7.4 KB | UNIFICATION |
 | 545 | `docs/planned/MILESTONE_UNDO_AND_AUDIO_PIPELINE_COMPLETION_2026-03-25.md` | マイルストーン: Undo/Redo と Audio Pipeline の完成度向上 | 2026-03-25 | --- | 2026-03-25 | 5.2 KB | UNDO, AND, AUDIO, PIPELINE, COMPLETION |
-| 546 | `docs/planned/MILESTONE_UNIFIED_AUDIO_VIDEO_RENDER_OUTPUT_2026-03-28.md` | マイルストーン: Unified Audio / Video Render Output | 2026-03-28 | --- | 2026-03-29 | 3.5 KB | UNIFIED, AUDIO, VIDEO, RENDER, OUTPUT |
+| 546 | `docs/planned/MILESTONE_UNIFIED_AUDIO_VIDEO_RENDER_OUTPUT_2026-03-28.md` | マイルストーン: Unified Audio / Video Render Output | 2026-03-28 | 部分完了（render jobのaudio/mux契約、composition/external audio extraction、FFmpeg mux、codec/bitrate/channel/sample rate UI/API、video-only分岐を実装、複数audio mix・trim精度・mux失敗時成果保持・container/sync runtime検証未完了） | 2026-07-29 | 3.5 KB | UNIFIED, AUDIO, VIDEO, RENDER, OUTPUT |
 | 547 | `docs/planned/MILESTONE_USABILITY_GAP_CLOSURE_2026-07-10.md` | MILESTONE: AE ユーザビリティ・ギャップの実コード検証クロージャ | 2026-07-10 | --- | 2026-07-16 | 13.1 KB | USABILITY, GAP, CLOSURE |
 | 548 | `docs/planned/MILESTONE_VECTOR_FLOW_GLITCH_2026-06-13.md` | Milestone: VectorFlowGlitch (ベクトル・フロー・グリッチ) | 2026-06-13 | --- | 2026-06-13 | 5.4 KB | VECTOR, FLOW, GLITCH |
 | 549 | `docs/planned/MILESTONE_VECTOR_LAYER_IMPORT_2026-03-25.md` | マイルストーン: Vector / SVG Layer Import | 2026-03-25 | --- | 2026-03-25 | 5.1 KB | VECTOR, LAYER, IMPORT |
