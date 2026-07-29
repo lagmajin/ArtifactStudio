@@ -103,6 +103,7 @@
 - ✅ Fallback Diagnostics のカテゴリフィルター、更新／クリア操作、イベント一覧、サマリーに Accessible Name / Description を付与。
 - ✅ AI Cloud Widget の provider／model、prompt、送信／会話コピー、tool／MCP 操作とログ表示に Accessible Name / Description を付与。
 - ✅ Color Swatch Widget のスウォッチ一覧、GPL パレットの Import／Export、全消去操作に Accessible Name / Description を付与。
+- ✅ Property Editor の単行文字列、複数行文字列、フォントファミリー入力に Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
