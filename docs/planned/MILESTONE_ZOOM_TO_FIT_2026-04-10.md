@@ -75,3 +75,9 @@ After Effects の「Fit」コマンドをより賢くし、コンポジション
 判定: **Composition Fit、Selection Fit、Visible Fit を実装。Work Area、遷移アニメーション、指定ショートカット、runtime検証は pending。**
 
 確認範囲: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`、`ArtifactCore/src/UI/ShortcutBindings.cppm`。ビルド・実機操作による動作確認は未実施。
+
+### Shortcut audit (2026-07-29)
+
+- 既存の `ShortcutBindings` は `Ctrl+/` / `Shift+/` を標準のズーム操作に割り当てている。
+- `Ctrl+0` / `Ctrl+Alt+0` は Timeline / Contents Viewer の既存操作と衝突するため、Selection / Visible / Work Area 用の0系ショートカットはこの段階で新規登録しない。
+- キー割り当てを追加する場合は、アプリ全体の shortcut scope と競合解決を先に設計する。
