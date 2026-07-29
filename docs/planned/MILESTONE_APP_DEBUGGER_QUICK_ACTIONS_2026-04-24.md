@@ -168,3 +168,8 @@
 ### 判定
 
 copy/filter は実用基盤あり、pin/compare の quick action 集約は未完了。Phase 9 は「部分実装／統合確認待ち」とする。
+
+## 2026-07-29 実装マーク
+
+- Copy と Filter は既存 DebugConsole / Harness / report surface に実装済みとして記録する。
+- Pin / Compare の統一 quick action strip は未実装・未検証のため、Phase 9 は `Partial implementation / integration pending` を維持する。

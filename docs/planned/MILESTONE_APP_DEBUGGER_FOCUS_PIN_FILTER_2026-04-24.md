@@ -160,3 +160,8 @@
 
 compare/filter の基盤はあり、pin/focus は FrameDebug 内の状態に留まる。調査対象を一つに固定し全 surface へ反映する Phase 6 は「部分実装／統合待ち」とする。
 
+## 2026-07-29 実装マーク
+
+- compare の previous/current 差分、filter の DebugConsole 導線、capture pinned state は実装済み部分として確認した。
+- frame / pass / resource を横断して一つの focus に固定する UI、pinned list の統合、filtered-out 件数の共通 summary は未完了・未検証のため、Phase 6 は `Partial implementation / integration pending` を維持する。
+
