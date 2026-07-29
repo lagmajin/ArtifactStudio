@@ -5,7 +5,7 @@
 **優先度**: P1 (High)
 **推定工数**: 1-2日
 **カテゴリ**: Asset Browser / UX / Sorting
-**状態**: Planned
+**状態**: Partial implementation（既存単一キー sort と natural name sort を実装、multi-key／preset／custom order／runtime 検証 pending）
 **依存**: M-AB (Asset Browser base)
 
 ---
@@ -23,6 +23,13 @@
 - `ArtifactAssetBrowser.cppm`の`applyFilters()`でアイテムをフィルタリングしているが、ソートはシンプルな単一キー
 - `AssetMenuItem`構造体には`name`, `type`, `fileSizeBytes`, `lastModified`などのソート可能なフィールドがある
 - 現在の実装では、1つのフィールドでのみソート可能
+- 名前ソートは `file2` が `file10` より前になる natural order を使用する。
+
+### 2026-07-29 Implementation Loop
+
+- `ArtifactAssetBrowser` の既存 name sort に数値 run-aware の natural comparator を追加。
+- UI／既存 sort key／sequence frame の親子順序は変更せず、連番素材の表示順だけを改善。
+- multi-key、個別方向、preset、custom order、drag sort は未完了。
 
 ### 要件
 - **Multi-key Sort**: 複数のフィールドで同時にソート（例: タイプ→名前→日付）
