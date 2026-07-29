@@ -101,6 +101,7 @@ facade sliceと物理Audio device列挙・選択の公開契約は静的実装�
 - `Artifact/include/Engine/DAG/Executor.ixx`
 - [x] 有向依存のin-degree計算と依存解決順の並列スケジューリング
 - [x] ThreadPoolへのenqueueと全タスク待機
+- [x] 実行前の`EffectGraph::compile()`検証と、循環／不正接続時の失敗返却
 - [ ] 効果ノードの実データ／バックエンド評価（現状はdirty→cachedの状態遷移のみ）
 - [ ] エフェクトスタック → DAGノードへの入力／出力バッファマッピング
 - cycle／missing inputを含むruntime検証は未実施
