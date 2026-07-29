@@ -162,7 +162,7 @@ Phase 2実装完了（ランタイム検証 pending）。
 
 ## 2026-07-25 実装監査
 
-共通設定の保存・復元、`Accessibility` ヘルパー、メニューバーの左利き時 RTL、タイムライン／Property Editor の大きいヒットターゲット・高コントラスト・色覚補助・Accessible Name/Description は実装を確認できる。`ArtifactProjectView`、`ArtifactInspectorWidget`、`ArtifactCompositionGraphWidget`、`ArtifactStatusBar`、`ArtifactCompositionAudioMixerWidget`、`ArtifactAudioMixerWidget`、`ArtifactTimelineTrackPainterView`、`ArtifactLayerPanelWidget`、`ArtifactAssetBrowser`、`ArtifactPropertyWidget`、`ArtifactPropertyEditor`、`ArtifactCompositionRenderWidget`、`ArtifactRenderLayerWidgetv2`、`ArtifactRenderQueueManagerWidget`、`ArtifactPlaybackControlWidget`、`ArtifactDebugConsoleWidget`、`EventBusDebuggerWidget` の主要コンテキストメニューは `adjustContextMenuPosition()` を使って左利き時の出現位置を補正する。主要 widget 全体の左右配置やショートカット再配置は未実装である。したがって Phase 1〜2 は設定と一部 widget 適用まで、Phase 3 の横断統合は未完了とする。実際の設定変更後の UI 更新、RTL レイアウト崩れ、支援技術からの読み上げは runtime 未確認。
+共通設定の保存・復元、`Accessibility` ヘルパー、メニューバーの左利き時 RTL、タイムライン／Property Editor の大きいヒットターゲット・高コントラスト・色覚補助・Accessible Name/Description は実装を確認できる。`ArtifactProjectView`、`ArtifactInspectorWidget`、`ArtifactCompositionGraphWidget`、`ArtifactStatusBar`、`ArtifactCompositionAudioMixerWidget`、`ArtifactAudioMixerWidget`、`ArtifactTimelineTrackPainterView`、`ArtifactLayerPanelWidget`、`ArtifactAssetBrowser`、`ArtifactPropertyWidget`、`ArtifactPropertyEditor`、`ArtifactPropertyEditorAnimatorCount`、`ArtifactCompositionRenderWidget`、`ArtifactRenderLayerWidgetv2`、`ArtifactRenderQueueManagerWidget`、`ArtifactPlaybackControlWidget`、`ArtifactDebugConsoleWidget`、`EventBusDebuggerWidget` の主要コンテキストメニューは `adjustContextMenuPosition()` を使って左利き時の出現位置を補正する。主要 widget 全体の左右配置やショートカット再配置は未実装である。したがって Phase 1〜2 は設定と一部 widget 適用まで、Phase 3 の横断統合は未完了とする。実際の設定変更後の UI 更新、RTL レイアウト崩れ、支援技術からの読み上げは runtime 未確認。
 
 ---
 
