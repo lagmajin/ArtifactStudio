@@ -953,7 +953,7 @@
 | 504 | `docs/planned/MILESTONE_TEXT_WORKSTREAM_INDEX_2026-04-30.md` | Text Workstream Index | 2026-04-30 | --- | 2026-07-16 | 2.7 KB | TEXT, WORKSTREAM, INDEX |
 | 505 | `docs/planned/MILESTONE_TIME_REMAP_CURVE_UI_2026-06-02.md` | M-MOTION-7 Time Remap Curve UI (2026-06-02) | 2026-06-02 | --- | 2026-06-05 | 2.6 KB | TIME, REMAP, CURVE |
 | 506 | `docs/planned/MILESTONE_TIME_WARP_CURVE_2026-07-07.md` | M-TWC-1 Time Warp Curve on Clips Milestone | 2026-07-07 | --- | 2026-07-07 | 7.4 KB | TIME, WARP, CURVE |
-| 507 | `docs/planned/MILESTONE_TIMELINE_AUDIO_LAYER_SPECIALIZATION_2026-04-23.md` | Milestone: Timeline Audio Layer Specialization (2026-04-23) | 2026-04-23 | --- | 2026-06-19 | 2.6 KB | TIMELINE, AUDIO, LAYER, SPECIALIZATION |
+| 507 | `docs/planned/MILESTONE_TIMELINE_AUDIO_LAYER_SPECIALIZATION_2026-04-23.md` | Milestone: Timeline Audio Layer Specialization (2026-04-23) | 2026-04-23 | Partial; Audio kind/descriptor, waveform generation/cache, peak/RMS drawing, state display, scrub preview, and mixer linkage implemented; fade handles, direct gain/seek editing, realtime playhead sync, and zoom decimation pending | 2026-07-29 | 3.3 KB | TIMELINE, AUDIO, LAYER, SPECIALIZATION |
 | 508 | `docs/planned/MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md` | Milestone: Timeline Audio Waveform Display | 2026-06-01 | Archived reference | 2026-06-20 | 2.2 KB | TIMELINE, AUDIO, WAVEFORM |
 | 509 | `docs/planned/MILESTONE_TIMELINE_COLOR_KEYFRAMES_2026-06-05.md` | マイルストーン: Timeline Color Keyframes | 2026-06-05 | --- | 2026-07-09 | 8.0 KB | TIMELINE, COLOR, KEYFRAMES |
 | 510 | `docs/planned/MILESTONE_TIMELINE_CURVE_EDITOR_MODE_2026-04-10.md` | Timeline Curve Editor Mode | 2026-04-10 | --- | 2026-05-13 | 1.7 KB | TIMELINE, CURVE, EDITOR, MODE |
