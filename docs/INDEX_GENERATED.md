@@ -1038,7 +1038,7 @@
 | 582 | `docs/planned/PROPOSAL_RENDER_EXPORT_EFFICIENCY_2026-07-28.md` | 提案メモ: ファイル書き出し（レンダーキュー）効率化 — 2026-07-28 | 2026-07-28 | 提案（未実装・未承認） | 2026-07-28 | 3.7 KB | PROPOSAL, RENDER, EXPORT, EFFICIENCY |
 | 583 | `docs/planned/RANDOM_HELPER_PROPOSAL_2026-06-16.md` | Random / Noise Helper Proposal (ArtifactCore) — 2026-06-16 | 2026-06-16 | --- | 2026-06-17 | 21.0 KB | RANDOM, HELPER, PROPOSAL |
 | 584 | `docs/planned/RENDER_BOUNDARY_CHANGE_SAFETY_CHECKLIST_2026-04-21.md` | Render Boundary Change Safety Checklist | 2026-04-21 | --- | 2026-05-16 | 2.6 KB | RENDER, BOUNDARY, CHANGE, SAFETY, CHECKLIST |
-| 585 | `docs/planned/RENDER_QUEUE_MANAGER_GAP_ANALYSIS_2026-04-13.md` | Render Queue Manager ギャップ分析 | 2026-04-13 | --- | 2026-04-13 | 3.0 KB | RENDER, QUEUE, MANAGER, GAP, ANALYSIS |
+| 585 | `docs/planned/RENDER_QUEUE_MANAGER_GAP_ANALYSIS_2026-04-13.md` | Render Queue Manager ギャップ分析 | 2026-04-13 | --- | 2026-04-13 | 3.3 KB | RENDER, QUEUE, MANAGER, GAP, ANALYSIS |
 | 586 | `docs/planned/REPO_WIDE_BACKLOG_TRIAGE_2026-06-11.md` | Repository Audit: Backlog Triage | 2026-06-11 | --- | 2026-06-11 | 0.5 KB | REPO, WIDE, BACKLOG, TRIAGE |
 | 587 | `docs/planned/REPO_WIDE_EDITOR_INTERACTION_AUDIT_2026-06-11.md` | Repository Audit: Editor Interaction | 2026-06-11 | --- | 2026-06-11 | 0.7 KB | REPO, WIDE, EDITOR, INTERACTION, AUDIT |
 | 588 | `docs/planned/REPO_WIDE_MODULE_HYGIENE_AUDIT_2026-06-11.md` | Repository Audit: Module Hygiene | 2026-06-11 | --- | 2026-06-11 | 0.6 KB | REPO, WIDE, MODULE, HYGIENE, AUDIT |
