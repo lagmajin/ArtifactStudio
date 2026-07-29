@@ -331,7 +331,7 @@
 | 10 | `docs/done/M_TL_COMPLETION_REPORT.md` | M-TL シリーズ完了レポート | 2026-03-20 | --- | 2026-03-20 | 3.2 KB | COMPLETION, REPORT |
 | 11 | `docs/done/MILESTONE_2026-07-03_SESSION_COMPLETION.md` | 2026-07-03 セッション完了レポート | 2026-07-03 | --- | 2026-07-05 | 1.5 KB | SESSION, COMPLETION |
 | 12 | `docs/done/MILESTONE_2D_SHAPE_MODELING_EDITING_2026-06-29.md` | MILESTONE: 2D Shape Modeling Editing | 2026-06-29 | ✅ Complete (source/static verified 2026-07-24; runtime/build verification pending) | 2026-07-24 | 12.4 KB | SHAPE, MODELING, EDITING |
-| 13 | `docs/done/MILESTONE_ACCESSIBILITY_AND_LEFT_HANDED_UI_2026-06-28.md` | Accessibility and Left-Handed UI Support | 2026-06-28 | --- | 2026-07-07 | 0.9 KB | ACCESSIBILITY, AND, LEFT, HANDED |
+| 13 | `docs/done/MILESTONE_ACCESSIBILITY_AND_LEFT_HANDED_UI_2026-06-28.md` | Accessibility and Left-Handed UI Support | 2026-06-28 | Completed (settings/widget integration; runtime verification pending) | 2026-07-29 | 1.0 KB | ACCESSIBILITY, AND, LEFT, HANDED |
 | 14 | `docs/done/MILESTONE_ADVANCED_COLOR_SCIENCE_PIPELINE_2026-03-29.md` | Milestone: Advanced Color Science Pipeline (2026-03-29) | 2026-03-29 | --- | 2026-07-09 | 7.3 KB | ADVANCED, COLOR, SCIENCE, PIPELINE |
 | 15 | `docs/done/MILESTONE_AI_COMMAND_SANDBOX_2026-04-14.md` | AI Command Sandbox | 2026-04-14 | --- | 2026-07-07 | 0.5 KB | COMMAND, SANDBOX |
 | 16 | `docs/done/MILESTONE_ASSET_BROWSER_IMPROVEMENT.md` | Asset Browser Improvement | 2026-04-14 | --- | 2026-07-07 | 0.8 KB | ASSET, BROWSER, IMPROVEMENT |
@@ -473,7 +473,7 @@
 | 24 | `docs/planned/MILESTONE_3D_VIEWPORT_ORBIT_PAN_PREVIEW_MODE_2026-06-07.md` | MILESTONE: 3D Viewport Orbit / Pan / Preview Mode - 2026-06-07 | 2026-06-07 | --- | 2026-07-09 | 7.3 KB | VIEWPORT, ORBIT, PAN, PREVIEW |
 | 25 | `docs/planned/MILESTONE_3D_VIEWPORT_SOLID_CAMERA_OVERLAY_2026-04-10.md` | 3D Viewport Stabilization: Solid / Camera / Overlay | 2026-03-21 | --- | 2026-07-09 | 8.9 KB | VIEWPORT, SOLID, CAMERA, OVERLAY |
 | 26 | `docs/planned/MILESTONE_ACCESSIBILITY_2026-03-28.md` | アクセシビリティ改善 Milestone | 2026-03-28 | 計画中 | 2026-03-29 | 6.5 KB | ACCESSIBILITY |
-| 27 | `docs/planned/MILESTONE_ACCESSIBILITY_AND_LEFT_HANDED_UI_2026-06-28.md` | Milestone: Accessibility and Left-Handed UI Support (M-ACC-1) | 2026-06-28 | --- | 2026-07-09 | 10.2 KB | ACCESSIBILITY, AND, LEFT, HANDED |
+| 27 | `docs/planned/MILESTONE_ACCESSIBILITY_AND_LEFT_HANDED_UI_2026-06-28.md` | Milestone: Accessibility and Left-Handed UI Support (M-ACC-1) | 2026-06-28 | Partial (Phase 1; runtime verification and broader placement pending) | 2026-07-29 | 10.2 KB | ACCESSIBILITY, AND, LEFT, HANDED |
 | 28 | `docs/planned/MILESTONE_ACTIVE_IMPLEMENTATION_TRIAD_2026-05-12.md` | Active Implementation Triad / May 2026 | 2026-05-12 | --- | 2026-06-20 | 3.4 KB | ACTIVE, IMPLEMENTATION, TRIAD |
 | 29 | `docs/planned/MILESTONE_AD_PRODUCTION_ACCELERATOR_2026-05-28.md` | MILESTONE: Ad Production Accelerator | 2026-05-28 | --- | 2026-07-10 | 6.0 KB | PRODUCTION, ACCELERATOR |
 | 30 | `docs/planned/MILESTONE_AD_PRODUCTION_ACCELERATOR_PHASE1_EXECUTION_2026-05-29.md` | Ad Production Accelerator - Phase 1 Execution | 2026-05-29 | --- | 2026-06-01 | 5.5 KB | PRODUCTION, ACCELERATOR, PHASE1, EXECUTION |
