@@ -67,6 +67,7 @@ After Effects のプロパティパネルにリセットボタンを追加し、
 
 - Reset handler がキーフレーム付きプロパティを検出し、既存の `SetLayerPropertyKeyframesCommand` で全キーフレーム削除をUndo対象にした後、デフォルト値を適用するようにした。
 - キーフレームのないプロパティと既存の reset UI／context menu 経路は従来どおり。
+- `ArtifactStudio/PropertyEditor/ShowResetButtons` を `QSettings` に保存し、アプリ再起動後も表示設定を復元するようにした。
 - UIクリック、Undo/Redo、Preferences永続化、Transform/Text/Effect/Material全対象のruntime検証は未実施。
 
-判定: **スマートリセットの実装を追加。runtime検証 pending。**
+判定: **スマートリセットと表示設定の永続化を実装。runtime検証 pending。**
