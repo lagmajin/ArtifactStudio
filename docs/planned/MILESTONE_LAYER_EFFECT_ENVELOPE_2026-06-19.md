@@ -1,7 +1,7 @@
 # Layer Effect Envelope Milestone
 
 **作成日:** 2026-06-19  
-**ステータス:** 計画中  
+**ステータス:** 部分完了（エンベロープ契約・保存復元・描画適用・Quick Create 導線を実装、Property/Inspector/Timeline 統合と Bake は未完了）
 **関連コンポーネント:** AbstractProperty, ArtifactPropertyWidget, ArtifactTimelineTrackPainterView, ArtifactInspectorWidget, Effect Stack
 
 ---

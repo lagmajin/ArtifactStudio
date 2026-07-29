@@ -750,7 +750,7 @@
 | 301 | `docs/planned/MILESTONE_LAYER_COMPONENT_SYSTEM_2026-04-18.md` | マイルストーン: レイヤーコンポーネントシステム | 2026-04-18 | Partial (foundation implemented; integration phases pending) | 2026-07-29 | 3.2 KB | LAYER, COMPONENT, SYSTEM |
 | 302 | `docs/planned/MILESTONE_LAYER_COMPONENT_SYSTEM_UNITY_LIKE_2026-04-08.md` | マイルストーン: レイヤー向け軽量コンポーネントシステム | 2026-04-08 | Partial (Phase 1 host/serialization implemented; Phases 2-5 pending) | 2026-07-29 | 8.5 KB | LAYER, COMPONENT, SYSTEM, UNITY, LIKE |
 | 303 | `docs/planned/MILESTONE_LAYER_COMPONENTS_PHYSICS_BEHAVIOR_2026-03-28.md` | マイルストーン: Layer Components - Physics / Behavior | 2026-03-28 | Partial (Physics surface/runtime implemented; Behavior and UI workflow pending) | 2026-07-29 | 5.7 KB | LAYER, COMPONENTS, PHYSICS, BEHAVIOR |
-| 304 | `docs/planned/MILESTONE_LAYER_EFFECT_ENVELOPE_2026-06-19.md` | Layer Effect Envelope Milestone | 2026-06-19 | 計画中 | 2026-07-02 | 15.5 KB | LAYER, EFFECT, ENVELOPE |
+| 304 | `docs/planned/MILESTONE_LAYER_EFFECT_ENVELOPE_2026-06-19.md` | Layer Effect Envelope Milestone | 2026-06-19 | 部分完了（契約・保存復元・描画適用・Quick Create 実装、Property/Inspector/Timeline 統合と Bake は未完了） | 2026-07-29 | 15.7 KB | LAYER, EFFECT, ENVELOPE |
 | 305 | `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_2026-03-27.md` | マイルストーン: レイヤーグループ導入 | 2026-03-27 | --- | 2026-03-27 | 5.4 KB | LAYER, GROUP, SYSTEM |
 | 306 | `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_PHASE1_EXECUTION_2026-04-10.md` | Milestone: Layer Group System Phase 1 Execution | 2026-04-10 | --- | 2026-04-10 | 2.9 KB | LAYER, GROUP, SYSTEM, PHASE1, EXECUTION |
 | 307 | `docs/planned/MILESTONE_LAYER_LOCK_TRANSPARENCY_2026-04-10.md` | レイヤーロック機能の拡張 | 2026-04-10 | --- | 2026-04-11 | 1.8 KB | LAYER, LOCK, TRANSPARENCY |
