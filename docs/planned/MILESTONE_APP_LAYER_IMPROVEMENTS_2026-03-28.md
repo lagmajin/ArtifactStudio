@@ -96,11 +96,11 @@ runtime の WebUI 接続確認と仕様差分の将来拡張は別検証とし�
 
 ---
 
-### ★★ 問題 3: プロジェクト管理の未実装機能
+### ✅ 問題 3: プロジェクト管理（静的実装済み）
 
 **場所:** `Artifact/src/Project/ArtifactProject.cppm`
 
-**TODO 一覧:**
+**旧 TODO 一覧（現行コードで解消済み）:**
 ```cpp
 // line 310:
 // bool ArtifactProject::Impl::removeById() - TODO: container_.remove() not implemented
@@ -112,7 +112,9 @@ runtime の WebUI 接続確認と仕様差分の将来拡張は別検証とし�
 // void ArtifactProject::setDirty(bool dirty) - TODO: impl_->setDirty not available
 ```
 
-**ステータス:** ❌ 未実装  
+**現状:** `removeById()` は composition container と project tree の双方から削除し、current composition の解除と dirty 化まで行う。`setDirty()` と公開 `isDirty()`／`setDirty()` も実装済みで、主要な mutation 経路から dirty 化される。
+
+**ステータス:** ✅ 静的実装済み（保存・再読込・runtime 通知の検証待ち）  
 **工数:** 4-6 時間
 
 ---
@@ -125,7 +127,7 @@ runtime の WebUI 接続確認と仕様差分の将来拡張は別検証とし�
 | **ASIO スタブバックエンド** | ✅ 完了 | 12-18h |
 | **WebUI ブリッジ** | ✅ 静的実装済み・runtime 確認待ち | 1-2h |
 | **VideoLayer Proxy** | ✅ 静的実装済み・runtime 確認待ち | — |
-| **プロジェクト管理** | ❌ 未着手 | 4-6h |
+| **プロジェクト管理** | ✅ 静的実装済み・runtime 確認待ち | 4-6h |
 
 **完了率:** 約 40%
 
@@ -205,7 +207,7 @@ runtime の WebUI 接続確認と仕様差分の将来拡張は別検証とし�
 | 項目 | 工数 | 優先度 | 依存 |
 |------|------|--------|------|
 | **VideoLayer::generateProxy()** | ✅ 静的実装済み・runtime 確認待ち | 🔴 高 | なし |
-| **プロジェクト管理 TODO** | 4-6h | 🔴 高 | なし |
+| **プロジェクト管理 TODO** | ✅ 静的実装済み・runtime 確認待ち | 🔴 高 | なし |
 | **レイヤー追加コマンド** | 6-8h | 🔴 高 | なし |
 
 ### P1（重要）
