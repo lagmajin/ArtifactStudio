@@ -180,16 +180,13 @@ runtime の WebUI 接続確認と仕様差分の将来拡張は別検証とし�
 
 ---
 
-### ★ 問題 7: レイヤー追加コマンドの未実装
+### ✅ 問題 7: レイヤー追加コマンド（静的実装済み）
 
 **場所:** `Artifact/src/Project/ArtifactProjectManager.cppm`
 
 **関連:** `MILESTONE_APP_LAYER_COMPLETENESS.md`
 
-**未実装:**
-- AddLayerCommand の完全実装
-- RemoveLayerCommand の完全実装
-- Undo/Redo との完全統合
+**現状:** `AddLayerCommand` は top／bottom 追加と undo、`RemoveLayerCommand` は元 index 保存・削除・undo 復元を実装済み。`UndoManager` の command stack から利用可能で、label に対象 layer ID を含む。実際の UI 操作・複数選択・runtime undo/redo の検証は残る。
 
 **工数:** 6-8 時間
 
@@ -203,7 +200,7 @@ runtime の WebUI 接続確認と仕様差分の将来拡張は別検証とし�
 |------|------|--------|------|
 | **VideoLayer::generateProxy()** | ✅ 静的実装済み・runtime 確認待ち | 🔴 高 | なし |
 | **プロジェクト管理 TODO** | ✅ 静的実装済み・runtime 確認待ち | 🔴 高 | なし |
-| **レイヤー追加コマンド** | 6-8h | 🔴 高 | なし |
+| **レイヤー追加コマンド** | ✅ 静的実装済み・runtime 確認待ち | 🔴 高 | なし |
 
 ### P1（重要）
 
