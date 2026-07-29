@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 00:28
+> Generated: 2026-07-30 00:30
 > Total documents: 1134
 
 ---
@@ -563,7 +563,7 @@
 | 107 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_ENGINE_2026-07-21.md` | MILESTONE_ARTIFACTSCRIPT_ENGINE_2026-07-21 | 2026-07-21 | Complete (3/3; build/runtime verification pending) | 2026-07-25 | 2.3 KB | ARTIFACTSCRIPT, ENGINE |
 | 108 | `docs/planned/MILESTONE_ASIO_STUB_IMPLEMENTATION_PLAN_2026-03-28.md` | ASIO スタブ実装 計画案 | 2026-03-28 | 計画案 | 2026-03-30 | 11.8 KB | ASIO, STUB, IMPLEMENTATION, PLAN |
 | 109 | `docs/planned/MILESTONE_ASPECT_RATIO_RESOLUTION_REMAP_WIZARD_2026-06-07.md` | MILESTONE: Aspect Ratio / Resolution Remap Wizard - 2026-06-07 | 2026-06-07 | Partial (preview, resolution remap apply, undo/redo, mask/keyframe remap, policy offsets, and impact diagnostics are documented as implemented; preflight/policy selection UI, actual anchor remap, and build/runtime verification remain pending) | 2026-06-15 | 6.5 KB | ASPECT, RATIO, RESOLUTION, REMAP, WIZARD |
-| 110 | `docs/planned/MILESTONE_ASSET_BROWSER_ADVANCED_SORT_2026-06-28.md` | Milestone: Asset Browser Advanced Sort (M-AB-11) | 2026-06-28 | Partial implementation（既存単一キー sort と natural name sort を実装、multi-key／preset／custom order／runtime 検証 pending） | 2026-07-30 | 48.5 KB | ASSET, BROWSER, ADVANCED, SORT |
+| 110 | `docs/planned/MILESTONE_ASSET_BROWSER_ADVANCED_SORT_2026-06-28.md` | Milestone: Asset Browser Advanced Sort (M-AB-11) | 2026-06-28 | Partial implementation（既存単一キー sort と natural name sort を実装、multi-key／preset／custom order／runtime 検証 pending） | 2026-07-30 | 48.7 KB | ASSET, BROWSER, ADVANCED, SORT |
 | 111 | `docs/planned/MILESTONE_ASSET_BROWSER_AI_SUPPORT_2026-06-28.md` | Milestone: Asset Browser AI Support (M-AB-15) | 2026-06-28 | Not started (2026-07-25 audit: AI tagging, similarity search, smart filtering, batch processing, dedicated UI, and Asset Browser integration are unimplemented; depends on the unfinished Asset Tag System) | 2026-07-25 | 16.4 KB | ASSET, BROWSER, SUPPORT |
 | 112 | `docs/planned/MILESTONE_ASSET_BROWSER_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: アセットブラウザー デザイン監査 (2026-07-04) | 2026-07-04 | Partial (Sources/Favorites/Recent hub, summaries, grid/list, thumbnail sizing, async/hover preview, search/type/status filters, sorting, sequence display, and asset states implemented; owner-draw badges, rich metadata/details, tags/AI/advanced sort, sequence expansion, internal D&D, and runtime UX verification pending) | 2026-07-25 | 9.5 KB | ASSET, BROWSER, DESIGN, AUDIT |
 | 113 | `docs/planned/MILESTONE_ASSET_BROWSER_HOVER_PREVIEW_2026-06-28.md` | Milestone: Asset Browser Hover Preview (M-AB-4) | 2026-07-30 | Partial (300ms hover popup, image/video/audio thumbnail paths, hide/re-entry control, position handling, memory/disk cache, async generation, and stale-result cancellation implemented; dedicated cache/manager separation, high-resolution async popup, sequence preview, cache-limit alignment, and runtime UX verification pending) | 2026-07-30 | 34.9 KB | ASSET, BROWSER, HOVER, PREVIEW |
@@ -930,7 +930,7 @@
 | 474 | `docs/planned/MILESTONE_SHAPE_LAYER_COMPLEX_PRESETS_2026-06-28.md` | M-AB-7: Shape Layer 複雑プリセット形状拡張 | 2026-06-28 | 計画中 | 2026-06-29 | 10.5 KB | SHAPE, LAYER, COMPLEX, PRESETS |
 | 475 | `docs/planned/MILESTONE_SHAPE_LAYERS_2026-03-29.md` | Milestone: Shape Layers (2026-03-29) | 2026-03-29 | Partial; parametric shapes and Inspector/properties are implemented, shape animation remains unimplemented and rendering/cache performance is pending | 2026-04-01 | 3.0 KB | SHAPE, LAYERS |
 | 476 | `docs/planned/MILESTONE_SHAPE_PATH_CORE_IMPLEMENTATION_2026-04-16.md` | MILESTONE: ShapePath コア実装 | 2026-04-16 | ⚠️ 宣言のみで実装未完 | 2026-04-18 | 12.7 KB | SHAPE, PATH, CORE, IMPLEMENTATION |
-| 477 | `docs/planned/MILESTONE_SHAPE_PATH_NATIVE_RENDER_PIPELINE_2026-07-27.md` | ShapePath 自作ジオメトリ／描画経路移行マイルストーン | 2026-07-27 | Partial implementation / Phase 0 contract documented / runtime verification pending | 2026-07-29 | 10.8 KB | SHAPE, PATH, NATIVE, RENDER, PIPELINE |
+| 477 | `docs/planned/MILESTONE_SHAPE_PATH_NATIVE_RENDER_PIPELINE_2026-07-27.md` | ShapePath 自作ジオメトリ／描画経路移行マイルストーン | 2026-07-27 | Partial implementation / Phase 0 contract documented / runtime verification pending | 2026-07-30 | 10.8 KB | SHAPE, PATH, NATIVE, RENDER, PIPELINE |
 | 478 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_2026-04-21.md` | M-SC-2 Shortcut Context Map / Blender-Like Keymap Routing | 2026-04-21 | --- | 2026-04-21 | 9.5 KB | SHORTCUT, CONTEXT, MAP |
 | 479 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE1_2026-04-21.md` | M-SC-2 Phase 1 Context Model Freeze | 2026-04-21 | --- | 2026-04-21 | 0.5 KB | SHORTCUT, CONTEXT, MAP, PHASE1 |
 | 480 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE2_2026-04-21.md` | M-SC-2 Phase 2 Widget / Region Registration | 2026-04-21 | --- | 2026-04-21 | 0.6 KB | SHORTCUT, CONTEXT, MAP, PHASE2 |
@@ -1100,7 +1100,7 @@
 | 23 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.2 KB | IMPL, DOF |
 | 24 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.7 KB | IMPL, SSAO |
 | 25 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.5 KB | IMPL, TONE, MAPPING |
-| 26 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-07-30 | --- | 2026-07-30 | 282.0 KB | INDEX, GENERATED |
+| 26 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-07-30 | --- | 2026-07-30 | 282.1 KB | INDEX, GENERATED |
 | 27 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 28 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 11.6 KB | CAMERA, PROJECTION |
 | 29 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
@@ -1211,7 +1211,7 @@
 | 44 | `docs/technical/ROI_IMPLEMENTATION_SPECIFICATION_2026-03-28.md` | ROI (Region of Interest) 実装仕様書 | 2026-03-28 | 実装仕様確定 | 2026-03-30 | 14.1 KB | ROI, IMPLEMENTATION, SPECIFICATION |
 | 45 | `docs/technical/ROI_PHASE1_2_3_IMPLEMENTATION_COMPLETE_2026-03-28.md` | ROI 実装 段階 1-3 完了レポート | 2026-03-28 | 段階 1-3 完了 | 2026-03-30 | 7.6 KB | ROI, PHASE1, IMPLEMENTATION |
 | 46 | `docs/technical/ROI_SPECIFICATION_2026-03-28.md` | ROI (Region of Interest) 仕様書 | 2026-03-28 | 仕様確定 | 2026-03-30 | 11.3 KB | ROI, SPECIFICATION |
-| 47 | `docs/technical/SHAPEPATH_GEOMETRY_CONTRACT_2026-07-27.md` | ShapePath ジオメトリ契約 | 2026-07-27 | ** Phase 0 documented; implementation and design-review follow-up pending | 2026-07-27 | 4.5 KB | SHAPEPATH, GEOMETRY, CONTRACT |
+| 47 | `docs/technical/SHAPEPATH_GEOMETRY_CONTRACT_2026-07-27.md` | ShapePath ジオメトリ契約 | 2026-07-27 | ** Phase 0 documented; implementation and design-review follow-up pending | 2026-07-30 | 4.5 KB | SHAPEPATH, GEOMETRY, CONTRACT |
 | 48 | `docs/technical/SHORTCUT_SYSTEM_PHASE1_3_IMPLEMENTATION_2026-03-28.md` | Blender 風ショートカットシステム 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 10.8 KB | SHORTCUT, SYSTEM, PHASE1, IMPLEMENTATION |
 | 49 | `docs/technical/STATUSBAR_COMPOSITION_INFO_IMPLEMENTATION_2026-03-28.md` | ステータスバー コンポジション情報表示 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 7.3 KB | STATUSBAR, COMPOSITION, INFO, IMPLEMENTATION |
 | 50 | `docs/technical/STD_REPLACEMENT_PRIORITY_GUIDE_2026-06-19.md` | Standard Library Replacement Priority Guide | 2026-06-19 | --- | 2026-06-19 | 3.7 KB | STD, REPLACEMENT, PRIORITY, GUIDE |

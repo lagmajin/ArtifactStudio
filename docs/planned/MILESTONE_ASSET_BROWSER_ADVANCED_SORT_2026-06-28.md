@@ -30,8 +30,9 @@
 - `ArtifactAssetBrowser` の既存 name sort に数値 run-aware の natural comparator を追加。
 - date／size／type sort が同値の場合も、natural name を安定した副次キーとして使用。
 - natural name まで同値の場合は asset path を最終タイブレークにして、再読込時の並び揺れを抑制。
+- `Type → Name`、`Date → Name`、`Size → Name` の複合 sort preset を既存 combo に追加し、既存の昇順／降順トグルを適用。
 - UI／既存 sort key／sequence frame の親子順序は変更せず、連番素材の表示順だけを改善。
-- multi-key、個別方向、preset、custom order、drag sort は未完了。
+- 個別方向、保存可能な preset、custom order、drag sort は未完了。複合 sort の固定候補は実装済み。
 
 ### 要件
 - **Multi-key Sort**: 複数のフィールドで同時にソート（例: タイプ→名前→日付）
