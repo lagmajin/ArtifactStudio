@@ -28,6 +28,7 @@
 - ✅ Status Bar の muted / accent / danger 色へ色覚補助変換を適用。
 - ✅ Playback Control の timecode、In point、Out point 表示に Accessible Name / Description を付与。
 - ✅ Playback Speed のプリセット・スライダー・数値入力に Accessible Name / Description と scaled height を適用。
+- ✅ Playback Info の current frame、speed、dropped frames 表示に個別の Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
