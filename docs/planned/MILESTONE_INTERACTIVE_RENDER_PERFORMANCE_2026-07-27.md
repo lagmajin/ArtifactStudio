@@ -1,6 +1,6 @@
 # Milestone: Interactive Render Performance
 
-**ステータス:** Not Started
+**ステータス:** Partial implementation / runtime verification pending
 
 **作成日:** 2026-07-27
 **対象:** Composition Viewer、`ArtifactIRenderer`、effect pipeline、preview pacing
@@ -439,3 +439,17 @@ Diligent fork 変更は、Artifact 側で call site、resource lifetime、wait r
 - 平面 1 枚と adjustment layer の baseline 採取
 
 この段階では描画結果を変更しない。証拠ログが安定した後、最初の GPU-resident 対象を pointwise effect chain または adjustment layer background から選ぶ。
+
+## Static audit follow-up (2026-07-29)
+
+現行コードと関連実装の静的な範囲を確認した。ビルド・実機計測は未実施。
+
+| Work package | 現状 | 判定 |
+|---|---|---|
+| RP-0 Measurement | frame phase、GPU/CPU timing、render cost、fallback/diagnostics の基盤は存在するが、要求された reason code 付き JSONL の一貫した保存契約は未確認。 | 部分実装 |
+| RP-1 Sync Boundary | 通常 preview の同期待ち回避、async readback ring、slot hazard の基盤はある。全 call site の reason 必須化と実測検証は未完了。 | 部分実装 |
+| RP-8 GPU-Driven Submission | Clone/Instanced Mesh/Particle の capability-gated indirect submission と一部 GPU culling/compaction が存在する。Clone culling、validation、baseline 比較、runtime gate は未完了。 | 部分実装 |
+
+### 判定
+
+基盤実装は開始済みで、`Not Started` ではない。一方、RP-0/RP-1 の証拠契約と RP-8 の correctness・実測 gate が残るため、マイルストーン全体は「部分実装／runtime verification pending」とする。
