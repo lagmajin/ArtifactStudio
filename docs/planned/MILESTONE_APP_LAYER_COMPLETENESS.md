@@ -21,12 +21,14 @@ UI/UX やレンダリングパイプラインの新機能ではなく、**既に
 - [x] ToolManager へのバインディング
 - [x] シグナル (editModeChanged, displayModeChanged, toolChanged)
 
-### M-APP-3 ArtifactEffectService 実装
-- `Artifact/include/Service/ArtifactEffectService.ixx` (31行、メソッド0)
-- [ ] Effect 作成 / 適用 / 削除 API
-- [ ] レイヤーへのエフェクト適用
-- [ ] エフェクトスタック管理
-- [ ] Undo 連携
+### M-APP-3 ArtifactEffectService 実装 ✅（静的確認 2026-07-30）
+- `Artifact/include/Service/ArtifactEffectService.ixx` / `Artifact/src/Service/ArtifactEffectService.cppm`
+- [x] Effect factory、available effect 列挙
+- [x] レイヤー／Compositionへの追加・削除・enabled変更・並べ替え
+- [x] レイヤーEffectの複製とproperty更新
+- [x] ProjectService経由のUndo連携（layer add/remove、enabled、order）
+- [x] Effect presetの保存・読込
+- runtime UI操作と実機確認は未実施
 
 ### M-APP-4 ArtifactAudioService 実装
 - `Artifact/include/Service/ArtifactAudioService.ixx`
@@ -162,7 +164,7 @@ Phase 5 (データ層) ──→ Phase 6 (拡張)
 | 優先度 | マイルストーン | 理由 |
 |---|---|---|
 | **最優先** | M-APP-6 (Undo) | 宣言済み API を呼ぶだけ、パターン明確 |
-| **高** | M-APP-3 (EffectService) | エフェクト UI に不可欠 |
+| **高** | M-APP-3 (EffectService) ✅ | 静的実装済み、runtime確認待ち |
 | **高** | M-APP-7 (EditMode UI) | ツールサービスを活かすには UI 接続が必要 |
 | **中** | M-APP-9 (Generator::apply) | パイプライン接続ポイント |
 | **中** | M-APP-10 (DAG eval) | レンダリングの根幹 |
