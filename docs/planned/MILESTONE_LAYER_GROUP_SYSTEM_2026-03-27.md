@@ -66,6 +66,8 @@
 
 ## Phase 2: Display Group UI
 
+**進捗:** Timeline layer panel の group row／icon／collapse／child count／rename／child selection／output mode は静的実装済み。group 固有の color／mute／lock 表示と runtime 確認は未検証。
+
 - 目的:
   - レイヤーを整理しやすい表示専用グループを導入する
   - group の存在が UI 上で見えるようにする
@@ -75,7 +77,13 @@
   - collapse / expand
   - group color / mute / lock の可視化
   - group 名の rename
-  - group 内の layer count 表示
+- group 内の layer count 表示
+
+### 静的実装済み
+
+- [x] Timeline layer panel の group row と group icon
+- [x] group の展開／折りたたみ
+- [x] child count、rename、child selection、output mode の操作導線
 
 - 完了条件:
   - group が見える
