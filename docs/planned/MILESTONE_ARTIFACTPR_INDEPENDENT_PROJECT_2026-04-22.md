@@ -1,5 +1,7 @@
 # MILESTONE: ArtifactPr Independent Project
 
+ステータス: Phase 0〜4 実装済み相当（静的確認 2026-07-29、ビルド／runtime parity 検証待ち）
+
 > 2026-04-22 作成
 
 `ArtifactPr` を、既存の `Artifact` と並ぶ別アプリとして立ち上げるためのマイルストーン。
