@@ -1,7 +1,7 @@
 # M-2DTRACK-1 2D Point Tracker Milestone
 
 作成日: 2026-06-16
-ステータス: Draft
+ステータス: Phase 1〜3 基盤実装済み（静的確認 2026-07-29、ビルド／ランタイム／性能確認待ち）
 対象: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`,
       `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`,
       `Artifact/src/Layer/ArtifactAbstractLayer.cppm`,
@@ -430,3 +430,11 @@ public:
 ## 8. 更新履歴
 
 - 2026-06-16: 初版作成。`REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md` §2.6 / §4 を正式 milestone に起こした。2D Point Tracker foundation。`MILESTONE_2D_POINT_TRACKER_2026-06-02.md` の実装 phase。
+
+## 2026-07-29 実装監査
+
+- `ArtifactCore::MotionTracker` に track point／track region、forward／backward／range／all の追跡、結果・信頼度・問題フレーム、補正、JSON／ファイル保存復元が実装されている。
+- `ArtifactPointTrackerGizmo` と Composition Render Controller の接続により、inner／outer box の表示・ヒットテスト・ドラッグ編集・現在フレーム同期の基盤がある。
+- `ArtifactPointTrackerTool` と controller から、追跡結果を新規 Null layer または選択 layer の position／anchor keyframe に適用できる。したがって Phase 1〜3 の主要なデータ／追跡／UI・適用基盤は実装済み相当と判定する。
+- 4点平面 tracker の専用 homography／skew 検出、手動修正後の Track From Here、専用 TrackCommand による完全な undo、Problem View の `tracker.*` contribution、10ms 性能実測は未確認または未実装であり、Phase 4〜6 は未完了とする。
+- `ArtifactCore`／`Artifact` の既存コードだけを確認し、`ArtifactWidgets` は変更していない。ビルド／ランタイム検証は未実施。
