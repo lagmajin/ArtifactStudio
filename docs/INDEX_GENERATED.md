@@ -320,7 +320,7 @@
 | # | File | Title | Date | Status | Modified | Size | Keywords |
 |---|------|-------|------|--------|----------|------|----------|
 | 1 | `docs/done/ATLBASE_H_INVESTIGATION_2026-03-21.md` | atlbase.h 調査レポート | 2026-03-21 | --- | 2026-03-22 | 2.9 KB | ATLBASE, INVESTIGATION |
-| 2 | `docs/done/COMPLETION_REPORT.md` | 🎉 プロジェクトビュー → タイムラインドラッグ改善完了レポート | --- | --- | 2026-03-20 | 7.6 KB | COMPLETION, REPORT |
+| 2 | `docs/done/COMPLETION_REPORT.md` | 🎉 プロジェクトビュー → タイムラインドラッグ改善完了レポート | --- | Completed | 2026-07-29 | 7.6 KB | COMPLETION, REPORT |
 | 3 | `docs/done/COMPOSITION_EDITOR_GAP_ANALYSIS_2026-06-03.md` | コンポジションエディタ 不足機能分析 — 2026-06-03 | 2026-06-03 | --- | 2026-06-20 | 10.2 KB | COMPOSITION, EDITOR, GAP, ANALYSIS |
 | 4 | `docs/done/COORDINATE_SYSTEMS.md` | 座標系仕様書 (Coordinate Systems Specification) | 2026-03-18 | --- | 2026-04-05 | 8.7 KB | COORDINATE, SYSTEMS |
 | 5 | `docs/done/DIALOG_REDESIGN_REPORT_2026-04-04.md` | 実装報告書: ダイアログ UI リデザイン + AI GPU 修正 | 2026-04-04 | --- | 2026-04-05 | 4.2 KB | DIALOG, REDESIGN, REPORT |
@@ -329,7 +329,7 @@
 | 8 | `docs/done/IN_OUT_POINTS_INTEGRATION.md` | In/Out Points 統合実装レポート | --- | --- | 2026-03-20 | 9.1 KB | OUT, POINTS, INTEGRATION |
 | 9 | `docs/done/LAYER_PANEL_DRAG_IMPROVEMENTS.md` | レイヤーパネル ドラッグ&ドロップ改善 | --- | --- | 2026-03-20 | 3.2 KB | LAYER, PANEL, DRAG, IMPROVEMENTS |
 | 10 | `docs/done/M_TL_COMPLETION_REPORT.md` | M-TL シリーズ完了レポート | 2026-03-20 | --- | 2026-03-20 | 3.2 KB | COMPLETION, REPORT |
-| 11 | `docs/done/MILESTONE_2026-07-03_SESSION_COMPLETION.md` | 2026-07-03 セッション完了レポート | 2026-07-03 | --- | 2026-07-05 | 1.5 KB | SESSION, COMPLETION |
+| 11 | `docs/done/MILESTONE_2026-07-03_SESSION_COMPLETION.md` | 2026-07-03 セッション完了レポート | 2026-07-03 | Completed | 2026-07-29 | 1.5 KB | SESSION, COMPLETION |
 | 12 | `docs/done/MILESTONE_2D_SHAPE_MODELING_EDITING_2026-06-29.md` | MILESTONE: 2D Shape Modeling Editing | 2026-06-29 | ✅ Complete (source/static verified 2026-07-24; runtime/build verification pending) | 2026-07-24 | 12.4 KB | SHAPE, MODELING, EDITING |
 | 13 | `docs/done/MILESTONE_ACCESSIBILITY_AND_LEFT_HANDED_UI_2026-06-28.md` | Accessibility and Left-Handed UI Support | 2026-06-28 | Completed (settings/widget integration; runtime verification pending) | 2026-07-29 | 1.0 KB | ACCESSIBILITY, AND, LEFT, HANDED |
 | 14 | `docs/done/MILESTONE_ADVANCED_COLOR_SCIENCE_PIPELINE_2026-03-29.md` | Milestone: Advanced Color Science Pipeline (2026-03-29) | 2026-03-29 | Partial (foundation/UI integration; production integration and runtime verification pending) | 2026-07-29 | 7.4 KB | ADVANCED, COLOR, SCIENCE, PIPELINE |
