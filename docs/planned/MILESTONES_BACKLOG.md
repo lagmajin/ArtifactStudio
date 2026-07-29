@@ -279,8 +279,9 @@ active milestone の重複名としては扱わない。
   - Icon/List切替実装済み（viewModeButton）、Name/Date/Size/Typeソート、Status filter
   - 主要ファイル: `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`
 
-- **M-AB-SEQ-2** Image Sequence Workflow Completion (Next: 2026-07-27)
-  - sequenceの展開表示、欠番／読込失敗のsequence単位診断、preview/import/relink導線を完成させる
+- **M-AB-SEQ-2** Image Sequence Workflow Completion ⚠️ 実装完了・runtime検証待ち (2026-07-30)
+  - sequenceの展開表示、欠番／読込失敗のsequence単位診断、preview/import/relink導線、bounded cache、時刻依存フレーム切替を実装済み
+  - 残りは実素材での保存／再読込、欠番、キャッシュ、実機性能の検証
   - 詳細: `docs/planned/MILESTONE_IMAGE_SEQUENCE_WORKFLOW_COMPLETION_2026-07-27.md`
 
 ## Widget Ownership Guardrails
