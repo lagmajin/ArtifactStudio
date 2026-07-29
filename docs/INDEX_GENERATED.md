@@ -18,7 +18,7 @@
 | 7 | `Artifact/docs/INVESTIGATION_QADS_UPSTREAM_COMPARISON_2026-06-23.md` | QADS Upstream Comparison Investigation (2026-06-23) | 2026-06-23 | --- | --- | 3.5 KB | INVESTIGATION, QADS, UPSTREAM, COMPARISON |
 | 8 | `Artifact/docs/LAYER_CREATION_SPEC_2026-03-15.md` | Layer Creation Spec (2026-03-15) | 2026-03-15 | --- | --- | 1.2 KB | LAYER, CREATION, SPEC |
 | 9 | `Artifact/docs/MILESTONE_3D_GIZMO_IMPLEMENTATION_2026-03-25.md` | 3D Transform Gizmo Implementation Milestone (2026-03-25) | 2026-03-25 | Partial; GIZ-1〜4 implemented, advanced numeric feedback and runtime verification pending | 2026-07-29 | 5.8 KB | GIZMO, IMPLEMENTATION |
-| 10 | `Artifact/docs/MILESTONE_AI_CLOUD_UI_2026-04-09.md` | AI Cloud UI / Provider Milestone (2026-04-09) | 2026-04-09 | --- | --- | 6.2 KB | CLOUD |
+| 10 | `Artifact/docs/MILESTONE_AI_CLOUD_UI_2026-04-09.md` | AI Cloud UI / Provider Milestone (2026-04-09) | 2026-04-09 | Partial; cloud adapter/key management and separate cloud surface implemented, provider-dependent primary chat form and end-to-end validation pending | 2026-07-29 | 7.2 KB | CLOUD |
 | 11 | `Artifact/docs/MILESTONE_AI_CLOUD_WIDGET_HARDENING_2026-04-09.md` | Milestone: AI Cloud Widget Hardening / OpenRouter-Kilo Gateway Trial (2026-04-09 | 2026-04-09 | --- | --- | 5.9 KB | CLOUD, WIDGET, HARDENING |
 | 12 | `Artifact/docs/MILESTONE_APP_UX_AND_CORE_REFINEMENT_2026-03-17.md` | M15 App UX & Core Refinement (2026-03-17) | 2026-03-17 | --- | --- | 4.2 KB | APP, AND, CORE, REFINEMENT |
 | 13 | `Artifact/docs/MILESTONE_ARTIFACT_IRENDER_2026-03-12.md` | ArtifactIRender Milestone | 2026-04-21 | --- | --- | 3.4 KB | ARTIFACT, IRENDER |
@@ -499,7 +499,7 @@
 | 50 | `docs/planned/MILESTONE_AI_ASSISTED_KEYFRAME_GENERATION_2026-04-11.md` | Milestone: AI Assisted Keyframe Generation (2026-04-11) | 2026-04-11 | --- | 2026-04-13 | 1.5 KB | ASSISTED, KEYFRAME, GENERATION |
 | 51 | `docs/planned/MILESTONE_AI_BASIC_ASSISTANT_2026-04-11.md` | Milestone: AI Basic Assistant (2026-04-11) | 2026-04-11 | --- | 2026-04-13 | 0.9 KB | BASIC, ASSISTANT |
 | 52 | `docs/planned/MILESTONE_AI_CLOUD_PROCESS_SPLIT_2026-07-05.md` | Milestone: AI Cloud Process Split (2026-07-05) | 2026-07-05 | --- | 2026-07-05 | 27.5 KB | CLOUD, PROCESS, SPLIT |
-| 53 | `docs/planned/MILESTONE_AI_CLOUD_UI_2026-04-09.md` | MILESTONE_AI_CLOUD_UI_2026-04-09.md | 2026-04-09 | --- | 2026-04-10 | 0.8 KB | CLOUD |
+| 53 | `docs/planned/MILESTONE_AI_CLOUD_UI_2026-04-09.md` | MILESTONE_AI_CLOUD_UI_2026-04-09.md | 2026-04-09 | Partial; settings/provider/prompt-response/context foundation implemented, streaming/history/full provider coverage and runtime validation pending | 2026-07-29 | 1.6 KB | CLOUD |
 | 54 | `docs/planned/MILESTONE_AI_CLOUD_WIDGET_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: AI クラウドウィジェット 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 3.8 KB | CLOUD, WIDGET, DESIGN, AUDIT |
 | 55 | `docs/planned/MILESTONE_AI_CODEX_INTEGRATION_PATTERNS_2026-07-04.md` | Codex App パターン → Artifact AICloudWidget 応用 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 4.0 KB | CODEX, INTEGRATION, PATTERNS |
 | 56 | `docs/planned/MILESTONE_AI_COLOR_GRADING_SUGGESTION_2026-04-11.md` | Milestone: AI Color Grading Suggestion (2026-04-11) | 2026-04-11 | --- | 2026-04-13 | 1.4 KB | COLOR, GRADING, SUGGESTION |
