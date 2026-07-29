@@ -18,6 +18,7 @@
 - ✅ Render Queue と通常 Audio Mixer にも Accessible Name / Description を付与。
 - ✅ Composition Graph の検索／表示領域と Render Queue のジョブ一覧へ操作目的の Accessible Name / Description を付与。
 - ✅ Composition Graph / Render Queue の検索欄へ `Accessibility::scaledSize()` による最小ヒット高さを適用。
+- ✅ Application Settings のアクセシビリティ入力群にも `Accessibility::scaledSize()` による最小ヒット高さを適用。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
