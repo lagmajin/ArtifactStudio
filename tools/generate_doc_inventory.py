@@ -77,6 +77,9 @@ def extract_title_and_date(filepath: Path) -> tuple[str, Optional[str], Optional
         m = re.match(r"^\*\*ステータス:\*\*\s*(.+)$", line)
         if m and not status:
             status = m.group(1).strip()
+        m = re.match(r"^(?:>\s*)?(?:\*\*)?(?:状態|進捗状態)(?:\*\*)?:\s*(.+)$", line)
+        if m and not status:
+            status = m.group(1).strip()
         m = re.match(r"^Status:\s*(.+)$", line, re.IGNORECASE)
         if m and not status:
             status = m.group(1).strip()
@@ -102,6 +105,9 @@ def extract_status(filepath: Path) -> Optional[str]:
 
     for line in content.splitlines():
         m = re.match(r"^\*\*ステータス:\*\*\s*(.+)$", line)
+        if m:
+            return m.group(1).strip()
+        m = re.match(r"^(?:>\s*)?(?:\*\*)?(?:状態|進捗状態)(?:\*\*)?:\s*(.+)$", line)
         if m:
             return m.group(1).strip()
         m = re.match(r"^Status:\s*(.+)$", line, re.IGNORECASE)
