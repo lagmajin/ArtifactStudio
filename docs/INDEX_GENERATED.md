@@ -407,7 +407,7 @@
 | 86 | `docs/done/MILESTONE_TIMELINE_SEARCH_KEYFRAME_INTEGRATION_2026-03-28.md` | Timeline Search / Keyframe Integration Milestone | 2026-03-28 | Completed | 2026-07-29 | 5.4 KB | TIMELINE, SEARCH, KEYFRAME, INTEGRATION |
 | 87 | `docs/done/MILESTONE_TIMELINE_SELECTION_SETS_2026-06-22.md` | MILESTONE: Timeline Selection Sets | 2026-06-22 | Completed | 2026-07-29 | 0.8 KB | TIMELINE, SELECTION, SETS |
 | 88 | `docs/done/MILESTONE_UI_LAYOUT_UNDO_HISTORY_2026-06-07.md` | UI Layout Undo History | 2026-07-07 | Completed | 2026-07-29 | 0.9 KB | LAYOUT, UNDO, HISTORY |
-| 89 | `docs/done/MILESTONE_UI_THEME_SYSTEM_2026-03-30.md` | UI Theme System / Studio Skin Milestone (2026-03-30) | 2026-03-30 | --- | 2026-06-27 | 4.3 KB | THEME, SYSTEM |
+| 89 | `docs/done/MILESTONE_UI_THEME_SYSTEM_2026-03-30.md` | UI Theme System / Studio Skin Milestone (2026-03-30) | 2026-03-30 | Partial; rollout and validation pending | 2026-07-29 | 4.3 KB | THEME, SYSTEM |
 | 90 | `docs/done/MILESTONE_VIDEO_LAYER_PLAYBACK_STABILITY_2026-06-25.md` | VideoLayer Playback Stability Completion Note (2026-06-25) | 2026-06-25 | Completed | 2026-07-29 | 0.9 KB | VIDEO, LAYER, PLAYBACK, STABILITY |
 | 91 | `docs/done/MILESTONE_VISUAL_DENSITY_MONITOR_2026-06-03.md` | MILESTONE: Visual Density Monitor | 2026-06-03 | Completed | 2026-07-29 | 4.2 KB | VISUAL, DENSITY, MONITOR |
 | 92 | `docs/done/MILESTONE_VISUAL_DENSITY_MONITOR_PHASE1_EXECUTION_2026-06-03.md` | Visual Density Monitor - Phase 1 Execution | 2026-06-03 | Completed | 2026-07-29 | 2.7 KB | VISUAL, DENSITY, MONITOR, PHASE1, EXECUTION |
