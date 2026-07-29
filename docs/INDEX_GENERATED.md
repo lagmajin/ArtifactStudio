@@ -396,7 +396,7 @@
 | 75 | `docs/done/MILESTONE_TEXT_ANIMATOR_INTEGRATION_2026-04-27.md` | MILESTONE: Text Animator (ArtifactCore) → Application Layer Integration | 2026-04-27 | --- | 2026-06-26 | 4.7 KB | TEXT, ANIMATOR, INTEGRATION |
 | 76 | `docs/done/MILESTONE_TEXT_EFFECT_WORKFLOW_BRIDGE_2026-05-25.md` | マイルストーン: Text / Effect Workflow Bridge | 2026-05-25 | 完了 | 2026-06-20 | 2.4 KB | TEXT, EFFECT, WORKFLOW, BRIDGE |
 | 77 | `docs/done/MILESTONE_TEXT_LAYER_INLINE_EDIT_PHASE1_2026-06-25.md` | Text Layer Inline Editing Phase 1 Completion Note (2026-06-25) | 2026-06-25 | --- | 2026-06-25 | 0.8 KB | TEXT, LAYER, INLINE, EDIT, PHASE1 |
-| 78 | `docs/done/MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md` | Timeline Audio Waveform Display | 2026-06-01 | --- | 2026-06-20 | 0.9 KB | TIMELINE, AUDIO, WAVEFORM |
+| 78 | `docs/done/MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md` | Timeline Audio Waveform Display | 2026-06-01 | Completed | 2026-07-29 | 0.9 KB | TIMELINE, AUDIO, WAVEFORM |
 | 79 | `docs/done/MILESTONE_TIMELINE_INLINE_FCURVE_EDITING_2026-07-06.md` | Timeline Inline F-Curve Editing | 2026-07-06 | --- | 2026-07-07 | 0.9 KB | TIMELINE, INLINE, FCURVE, EDITING |
 | 80 | `docs/done/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md` | Timeline Keyframe Editing Milestone | 2026-04-03 | --- | 2026-06-20 | 12.4 KB | TIMELINE, KEYFRAME, EDITING |
 | 81 | `docs/done/MILESTONE_TIMELINE_KEYFRAME_EDITING_PHASE1_EXECUTION_2026-05-12.md` | Timeline Keyframe Editing - Phase 1 Execution | 2026-05-12 | --- | 2026-06-20 | 2.5 KB | TIMELINE, KEYFRAME, EDITING, PHASE1, EXECUTION |
