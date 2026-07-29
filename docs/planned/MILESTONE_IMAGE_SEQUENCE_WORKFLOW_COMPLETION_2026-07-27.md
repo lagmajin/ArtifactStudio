@@ -115,3 +115,5 @@ sequence を Composition へ投入した際にフレームパスごとに単体�
 - [x] bounded cache と時刻依存の frame switching
 
 判定: **実装完了 / runtime・実ファイル検証 pending**。ビルド・実機確認後に `docs/done/` へ移動する。
+
+2026-07-29 audit: `ArtifactImageLayer::draw()` の `currentFrame()` → `ImageSequenceSource::frameAt()` 切替接続と、先頭フレームによる初期サイズ確定を再確認。コードコメントも実装状態に合わせて更新した。
