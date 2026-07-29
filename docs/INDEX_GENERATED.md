@@ -887,7 +887,7 @@
 | 438 | `docs/planned/MILESTONE_RENDER_FORMAT_EXPANSION_2026-06-16.md` | M-EXPORT-1 Render Format Expansion Milestone | 2026-06-16 | --- | 2026-06-18 | 16.5 KB | RENDER, FORMAT, EXPANSION |
 | 439 | `docs/planned/MILESTONE_RENDER_INTELLIGENCE_TOOLKIT_2026-07-18.md` | Render Intelligence Toolkit | 2026-07-18 | In Progress | 2026-07-19 | 13.1 KB | RENDER, INTELLIGENCE, TOOLKIT |
 | 440 | `docs/planned/MILESTONE_RENDER_OUTPUT_FEEL_REFINEMENT_2026-03-27.md` | Render / Output Feel Refinement Milestone | 2026-03-27 | 実装中（Phase 1 完了） | 2026-04-18 | 19.6 KB | RENDER, OUTPUT, FEEL, REFINEMENT |
-| 441 | `docs/planned/MILESTONE_RENDER_PATH_DECOMPOSITION_2026-03-31.md` | マイルストーン: Render Path Decomposition / Buffer Migration | 2026-03-31 | --- | 2026-03-31 | 3.9 KB | RENDER, PATH, DECOMPOSITION |
+| 441 | `docs/planned/MILESTONE_RENDER_PATH_DECOMPOSITION_2026-03-31.md` | マイルストーン: Render Path Decomposition / Buffer Migration | 2026-03-31 | Typed buffer foundation/partial connections implemented; QImage reduction/pass contract/runtime verification pending | 2026-07-29 | 3.9 KB | RENDER, PATH, DECOMPOSITION |
 | 442 | `docs/planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md` | MILESTONE: Render Preflight / Output Safety Check | 2026-06-02 | --- | 2026-07-09 | 4.5 KB | RENDER, PREFLIGHT |
 | 443 | `docs/planned/MILESTONE_RENDER_QUEUE_2026-03-22.md` | MILESTONE_RENDER_QUEUE_2026-03-22 | 2026-03-22 | --- | 2026-04-01 | 1.4 KB | RENDER, QUEUE |
 | 444 | `docs/planned/MILESTONE_RENDER_QUEUE_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: レンダーキュー 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 2.1 KB | RENDER, QUEUE, DESIGN, AUDIT |

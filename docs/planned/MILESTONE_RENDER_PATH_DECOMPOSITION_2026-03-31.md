@@ -1,5 +1,7 @@
 # マイルストーン: Render Path Decomposition / Buffer Migration
 
+**ステータス:** Typed buffer 基盤・一部接続実装済み、QImage経路縮小・pass契約・runtime検証 pending
+
 > 2026-03-31 作成
 
 ## 目的
