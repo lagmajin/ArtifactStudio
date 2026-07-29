@@ -159,6 +159,8 @@
 
 Missing の状態は結果一覧にも `[Missing]` マーカーと赤系の前景色で表示する。Unused と重なる場合は両方のマーカーを保持し、状態を一方で隠さない。
 
+Unused の filter 照合も表示側と同じ `QDir::cleanPath()` 済みパスを使うように統一し、パス表記差で表示と結果が食い違わないようにした。
+
 未達または未確認なのは、仕様に記載された独立した multi-select filter pills、list/grid という名称・状態の統一、条件の完全な status surface、view transition、実データでの複合 filter と視認性の runtime 検証である。設定の保存は type filter / Tree-Tile / Unused only / sort column-direction / column widths、選択容量表示は Footage の既存ファイルについて実装済みだが、他の設定や runtime 検証は未完了である。したがって、Phase 2〜5 の完成条件をすべて満たしたとは判定できない。
 
 判定: **実装反映済み・仕上げ／検証待ち。**
