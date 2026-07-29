@@ -1,7 +1,7 @@
 # M-CMD-1 Command IR / Automation Foundation
 
 作成日: 2026-06-28
-ステータス: Draft
+ステータス: 部分完了（CommandRequest/Result/validation/vocabulary、CommandExecutor、App executorとWorkspaceAutomation/Python bridgeを実装、全commandのtransactional rollback・UI/automation経路統一・preview/explain・runtime検証は未完了）
 対象:
 - `ArtifactCore/`
 - `Artifact/`
