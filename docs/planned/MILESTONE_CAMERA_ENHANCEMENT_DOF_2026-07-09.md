@@ -1,4 +1,4 @@
-**ステータス:** Not Started
+**ステータス:** Partial camera foundation / DOF render path not implemented
 
 # M-CAM: Camera Enhancement - Depth of Field / Lens Blur 設計マイルストーン（本格的移植版）
 
@@ -103,3 +103,11 @@
 - 一方、DOF の必須前提である D32 深度からサンプル可能な R32 深度 SRV への live コピー、tile／neighborhood／prepass／main／postfilter／upsample の compute chain、indirect dispatch は実装を確認できない。
 - Wicked Engine shader 資産の Diligent 向け移植、CoC uniform の実描画接続、DOF 有効時の実効果も未検証である。
 - したがって本マイルストーンは、カメラ設定・表示の先行実装はあるが、DOF/Lens Blur 本体は未着手の設計段階と判定する。
+
+## Static audit follow-up (2026-07-29)
+
+現行ソースを再確認した。カメラの DOF 設定、作成 UI、overlay 表示、PreviewQuality の enable flag は存在する。一方、live depth SRV、Diligent compute chain、CoC の実描画接続は確認できない。
+
+### 判定
+
+マイルストーン全体を `Not Started` とするのはカメラ設定基盤を過小評価するため、ステータスを「カメラ基盤の部分実装／DOF render path 未実装」に更新した。DOF 本体は未完了のまま扱う。
