@@ -1,5 +1,7 @@
 # マイルストーン: Audio Playback Stabilization
 
+ステータス: Phase 1〜2／4 基盤実装済み（Phase 3 の format 契約・実機検証待ち、静的確認 2026-07-29）
+
 > 2026-03-28 作成
 
 ## 目的
