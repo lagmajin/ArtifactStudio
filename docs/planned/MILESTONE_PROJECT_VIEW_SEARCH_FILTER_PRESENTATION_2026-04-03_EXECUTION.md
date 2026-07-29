@@ -155,6 +155,8 @@
 
 2026-07-30 に、検索中の語を browse context の selection summary に常時表示するようにした。検索語が空の場合は従来どおり表示せず、検索・filter・view mode の状態を同じ行で確認できる。
 
+同日、Project View の advanced filter に `missing:true` / `is:missing` を追加した。Footage は代表パスを確認し、連番の場合は `sequencePaths` に欠損フレームが一つでもあれば missing として扱う。Composition / Folder / Solid はこの条件では一致しない。
+
 未達または未確認なのは、仕様に記載された独立した multi-select filter pills、list/grid という名称・状態の統一、条件の完全な status surface、view transition、実データでの複合 filter と視認性の runtime 検証である。設定の保存は type filter / Tree-Tile / Unused only / sort column-direction / column widths、選択容量表示は Footage の既存ファイルについて実装済みだが、他の設定や runtime 検証は未完了である。したがって、Phase 2〜5 の完成条件をすべて満たしたとは判定できない。
 
 判定: **実装反映済み・仕上げ／検証待ち。**
