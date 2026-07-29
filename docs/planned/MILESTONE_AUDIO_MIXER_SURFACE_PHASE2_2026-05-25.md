@@ -1,7 +1,7 @@
 # マイルストーン: Audio Mixer Surface Phase 2
 
 **作成日:** 2026-05-25  
-**ステータス:** 計画中  
+**ステータス:** Partial（Phase 1 mixer surface 基礎実装済み、routing／waveform／永続化と runtime 検証待ち、静的確認 2026-07-29）  
 **優先度:** 高  
 **関連:** `docs/planned/MILESTONE_AUDIO_WIDGET_ENHANCEMENT_2026-04-09.md`, `Artifact\docs\MILESTONE_AUDIO_BUS_ROUTING_UI_2026-04-09.md`, `Artifact\docs\MILESTONE_AUDIO_ENGINE_2026-03.md`
 
