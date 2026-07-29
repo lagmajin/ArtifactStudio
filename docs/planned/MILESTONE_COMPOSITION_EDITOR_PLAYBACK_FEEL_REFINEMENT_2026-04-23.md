@@ -1,6 +1,6 @@
 # Milestone: Composition Editor Playback Feel Refinement (2026-04-23)
 
-**Status:** Planning
+**Status:** 部分完了（viewport interaction中のpreview downsample、render request coalescing、playback/RAM preview state表示、fallback reason診断を実装、体感のruntime評価未完了）
 **Goal:** コンポジットエディタの再生・スクラブ・playhead 追従を軽く見せ、ワープ感や重さを減らす。
 
 ---
