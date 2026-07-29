@@ -157,7 +157,7 @@
 
 同日、Project View の advanced filter に `missing:true` / `is:missing` を追加した。Footage は代表パスを確認し、連番の場合は `sequencePaths` に欠損フレームが一つでもあれば missing として扱う。Composition / Folder / Solid はこの条件では一致しない。
 
-Missing の状態は結果一覧にも `[Missing]` マーカーと赤系の前景色で表示する。Unused と重なる場合は両方のマーカーを保持し、状態を一方で隠さない。
+Missing の状態は結果一覧にも `[Missing]` マーカーと赤系の前景色で表示する。Tile の badge も同じ判定を使い、連番では `sequencePaths` の欠損 frame を検出する。Unused と重なる場合は両方のマーカーを保持し、状態を一方で隠さない。
 
 Unused の filter 照合も表示側と同じ `QDir::cleanPath()` 済みパスを使うように統一し、パス表記差で表示と結果が食い違わないようにした。
 
