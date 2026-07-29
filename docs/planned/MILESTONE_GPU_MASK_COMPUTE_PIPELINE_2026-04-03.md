@@ -159,7 +159,7 @@
 |---|---|---|
 | Phase 1: texture contract | Mask texture upload/cache と compute pipeline API が存在し、CPU `LayerMask::applyToImage()` も維持されている。 | 実装済み／比較確認待ち |
 | Phase 2: compute apply | `MaskCutoutPipeline` の PSO/constant buffer/apply 経路と Composition 側の遅延初期化が存在する。 | 基盤実装済み／実経路接続確認待ち |
-| Phase 3: composition integration | Controller の通常 layer surface 生成は依然 CPU mask apply を使用し、preview/playback/export 共通の GPU cutout 選択は未確認。 | 未完了 |
+| Phase 3: composition integration | `PrimitiveRenderer2D::drawMaskedTextureLocal()` には既存の GPU masked-sprite描画経路があるが、Controller の通常 layer surface 生成は依然 CPU mask apply を使用し、compute cutout を preview/playback/export 共通で選択する契約は未確認。 | 未完了 |
 | Phase 4: path rasterization | `MaskPathRasterizerPipeline` は存在するが、composition の mask path 生成への接続と CPU parity は未確認。 | 部分実装 |
 
 ### 判定
