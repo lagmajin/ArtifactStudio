@@ -406,7 +406,7 @@
 | 85 | `docs/done/MILESTONE_TIMELINE_RIPPLE_EDIT_PHASE1_EXECUTION_2026-06-04.md` | Timeline Ripple Edit - Phase 1 Execution | 2026-06-04 | Completed | 2026-07-29 | 5.4 KB | TIMELINE, RIPPLE, EDIT, PHASE1, EXECUTION |
 | 86 | `docs/done/MILESTONE_TIMELINE_SEARCH_KEYFRAME_INTEGRATION_2026-03-28.md` | Timeline Search / Keyframe Integration Milestone | 2026-03-28 | Completed | 2026-07-29 | 5.4 KB | TIMELINE, SEARCH, KEYFRAME, INTEGRATION |
 | 87 | `docs/done/MILESTONE_TIMELINE_SELECTION_SETS_2026-06-22.md` | MILESTONE: Timeline Selection Sets | 2026-06-22 | Completed | 2026-07-29 | 0.8 KB | TIMELINE, SELECTION, SETS |
-| 88 | `docs/done/MILESTONE_UI_LAYOUT_UNDO_HISTORY_2026-06-07.md` | UI Layout Undo History | 2026-07-07 | --- | 2026-07-07 | 0.9 KB | LAYOUT, UNDO, HISTORY |
+| 88 | `docs/done/MILESTONE_UI_LAYOUT_UNDO_HISTORY_2026-06-07.md` | UI Layout Undo History | 2026-07-07 | Completed | 2026-07-29 | 0.9 KB | LAYOUT, UNDO, HISTORY |
 | 89 | `docs/done/MILESTONE_UI_THEME_SYSTEM_2026-03-30.md` | UI Theme System / Studio Skin Milestone (2026-03-30) | 2026-03-30 | --- | 2026-06-27 | 4.3 KB | THEME, SYSTEM |
 | 90 | `docs/done/MILESTONE_VIDEO_LAYER_PLAYBACK_STABILITY_2026-06-25.md` | VideoLayer Playback Stability Completion Note (2026-06-25) | 2026-06-25 | --- | 2026-06-25 | 0.9 KB | VIDEO, LAYER, PLAYBACK, STABILITY |
 | 91 | `docs/done/MILESTONE_VISUAL_DENSITY_MONITOR_2026-06-03.md` | MILESTONE: Visual Density Monitor | 2026-06-03 | --- | 2026-07-09 | 4.2 KB | VISUAL, DENSITY, MONITOR |
