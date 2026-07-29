@@ -108,6 +108,7 @@
 - ✅ Property Editor の Dash Pattern プリセットとカスタム入力に Accessible Name / Description を付与。
 - ✅ Property Editor の Color picker、現在色表示、エディタ領域に Accessible Name / Description を付与。
 - ✅ Property Editor の Text Animator Color 入力と選択範囲への色適用操作に Accessible Name / Description を付与。
+- ✅ Property Editor の Object Reference 表示、Pick、Clear 操作に Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
