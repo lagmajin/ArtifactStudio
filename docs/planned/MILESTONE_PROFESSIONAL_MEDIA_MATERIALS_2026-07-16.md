@@ -64,3 +64,10 @@ explicit interpretation and later display conversion.
 - `OCIOConfig`、ACES／transfer／gamut の基盤は存在するが、working-space conversion が effects／mask／compositing 前に一度だけ適用される統合経路、および display/output transform との完全な分離はコード監査だけでは確認できない。
 - EXR／HDR／10／12／16-bit／log source の実ファイル round-trip、metadata retention、export 検証は未実施である。
 - よってステータスは `Phase 1〜2 implemented / Phase 3〜5 partial and runtime validation pending` のままとする。
+
+## 2026-07-29 実装更新
+
+- Asset Browser に加えて Project View の `Interpret Footage` 導線にも、既存の `FootageInterpretService` を使った Input color space / Input transfer の明示選択を追加した。
+- `Auto` は空の override として保存し、Linear / sRGB / ACEScc / ACEScct / Rec.2020 と Linear / sRGB / LogC / S-Log3 / PQ / HLG を明示値として保存する。
+- importer の画素変換は変更せず、選択値は既存の FootageItem 解釈メタデータへ保持する。
+- working-space conversion、display/output transform、実ファイル round-trip は引き続き未完了・未検証である。
