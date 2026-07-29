@@ -52,6 +52,7 @@
 - ✅ Inspector のテキスト付き操作ボタンと Effect 検索欄に Accessible Name / Description を付与。
 - ✅ Timeline の検索モード、レイヤー表示、行密度コンボと Curve Editor tangent 操作に Accessible Name / Description を付与。
 - ✅ Timeline Work Area の移動、中央基準スケール、ハンドル編集に Accessible Name / Description を付与。
+- ✅ Easing Lab の候補選択、プレビュー位置、Apply 操作に Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
