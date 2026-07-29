@@ -3,7 +3,7 @@
 ### Color / Professional Media
 - **M-PRO-MEDIA-1** Professional Media Materials Support
   - EXR/HDR、広色域、高ビット深度、log素材のメタデータ保持と明示的な解釈経路
-  - Phase 1（OIIO ingest metadata）とPhase 2の入力解釈オーバーライド基盤を実装済み。入力色空間・transfer・HDR/log判定を `RawImage` に保持し、`SourceInterpretOverride` で明示指定できる
+  - Phase 1〜3の統合基盤を実装済み。入力色空間・transfer・HDR/log判定を `RawImage` に保持し、`SourceInterpretOverride` と ImageLayer の明示 working-space 変換へ接続済み。Phase 4〜5 と runtime 検証は継続中
   - 詳細: `docs/planned/MILESTONE_PROFESSIONAL_MEDIA_MATERIALS_2026-07-16.md`
 
 
