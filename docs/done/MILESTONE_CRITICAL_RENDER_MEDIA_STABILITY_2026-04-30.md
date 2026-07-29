@@ -1,7 +1,7 @@
 # Milestone: Critical Render / Media Stability Program
 
 **Date:** 2026-04-30  
-**Status:** Complete
+**Status:** Partial — diagnostics and smoke infrastructure exist; repeatable release-gate checks and runtime particle/video verification remain pending.
 **Priority:** Critical  
 **Bug Report:** [`../bugs/BUG_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`](../bugs/BUG_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md)
 

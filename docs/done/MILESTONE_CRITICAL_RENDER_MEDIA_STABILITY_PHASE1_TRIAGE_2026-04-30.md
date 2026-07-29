@@ -1,5 +1,7 @@
 # Critical Render / Media Stability - Phase 1 Triage Ledger
 
+**Status:** Partial — failure buckets and first-signal guidance are documented; compact state reports, fixtures, and explicit regression-gate execution remain pending.
+
 **Date:** 2026-04-30  
 **Parent:** [`MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`](./MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md)  
 **Bug Report:** [`../bugs/BUG_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`](../bugs/BUG_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md)
