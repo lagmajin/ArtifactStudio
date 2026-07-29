@@ -57,6 +57,7 @@
 - ✅ Timeline Search の入力欄と検索バーに、検索・次候補／前候補操作の Accessible Name / Description を付与。
 - ✅ Layer Panel の visibility、lock、solo、audio、Shy、選択レイヤーメニューに Accessible Name / Description を付与。
 - ✅ Timeline Timecode に current timecode、frame number、現在値を反映する Accessible Name / Description を付与。
+- ✅ Timeline Global Switches の Shy、Motion Blur、Frame Blending、Curve Editor、Motion Path、Overscroll に Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
