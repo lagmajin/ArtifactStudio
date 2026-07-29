@@ -49,6 +49,7 @@
 - ✅ Asset Browser の検索、表示切替、フォルダ移動、種類／状態フィルターに Accessible Name / Description を付与。
 - ✅ Contents Viewer の recent source、viewer assignment、共通操作ボタン、media position に Accessible Name / Description を付与。
 - ✅ Property Editor 行の keyframe、前後移動、reset、expression、favorite 操作に Accessible Name / Description を付与。
+- ✅ Inspector のテキスト付き操作ボタンと Effect 検索欄に Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
