@@ -611,7 +611,7 @@
 | 162 | `docs/planned/MILESTONE_COLOR_GRADING_WORKSPACE_2026-03-30.md` | Milestone: Color Grading Workspace (M-SC-3) | 2026-04-01 | 部分完了（scope/HDR解析、ColorWheels/Curves/GradingEngine、LUT基盤あり、専用layout・継続scope更新・Inspector同期・Wipe比較・mask部分適用は未完了） | 2026-07-29 | 2.4 KB | COLOR, GRADING, WORKSPACE |
 | 163 | `docs/planned/MILESTONE_COLOR_MANAGEMENT_QUICK_2026-04-10.md` | 簡易カラーマネジメント設定の実装 | 2026-04-10 | --- | 2026-04-11 | 2.2 KB | COLOR, MANAGEMENT, QUICK |
 | 164 | `docs/planned/MILESTONE_COLOR_PICKER_DIALOG_2026-04-04.md` | カラーピッカーダイアログ リデザイン マイルストーン | 2026-04-04 | --- | 2026-04-05 | 2.1 KB | COLOR, PICKER, DIALOG |
-| 165 | `docs/planned/MILESTONE_COLOR_PICKER_ENHANCED_2026-04-10.md` | カラーピッカーの拡張機能 | 2026-04-10 | --- | 2026-04-11 | 1.8 KB | COLOR, PICKER, ENHANCED |
+| 165 | `docs/planned/MILESTONE_COLOR_PICKER_ENHANCED_2026-04-10.md` | カラーピッカーの拡張機能 | 2026-04-10 | 部分完了（FloatColorPicker・slider補助・palette生成/Smart Extract/JSON保存読込あり、tab構成・recent grid・alpha preview・color-blind表示・clipboard/hex・設定永続化は未完了） | 2026-07-29 | 1.8 KB | COLOR, PICKER, ENHANCED |
 | 166 | `docs/planned/MILESTONE_COLOR_SWATCH_DIALOG_2026-04-04.md` | カラースウォッチダイアログ 新規作成マイルストーン | 2026-04-04 | --- | 2026-04-05 | 2.5 KB | COLOR, SWATCH, DIALOG |
 | 167 | `docs/planned/MILESTONE_COMMAND_IR_AUTOMATION_FOUNDATION_2026-06-28.md` | M-CMD-1 Command IR / Automation Foundation | 2026-06-28 | --- | 2026-06-29 | 21.0 KB | COMMAND, AUTOMATION, FOUNDATION |
 | 168 | `docs/planned/MILESTONE_COMPOSITION_CLEANUP_2026-07-14.md` | Milestone: CompositionCleanup (2026-07-14) | 2026-07-14 | In Progress | 2026-07-14 | 9.3 KB | COMPOSITION, CLEANUP |
