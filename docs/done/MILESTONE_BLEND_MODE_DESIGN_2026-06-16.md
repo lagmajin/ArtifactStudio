@@ -8,6 +8,7 @@
       `Artifact/src/Render/ArtifactRenderLayerPipeline.cppm`,
       `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
 位置づけ: BlendMode の **実装・接続・UI・契約** を 1 つの milestone に束ねる設計書。
+ステータス: Partial — catalog／一部の適用経路／テスト基盤は存在するが、全 Done Criteria の実装・ランタイム検証は未完了。
 実行方針メモ (2026-06-17 更新):
 - この文書は設計の方向性は妥当だが、初手で `BlendOp.hlsl` 統合まで入ると既存 compute 契約を壊しやすい。
 - 実装順は **Catalog -> 個別不足モード補完 -> Coverage -> UI 整理 -> shader 統合 -> stencil/silhouette 特殊経路** の順へ並べ替える。
