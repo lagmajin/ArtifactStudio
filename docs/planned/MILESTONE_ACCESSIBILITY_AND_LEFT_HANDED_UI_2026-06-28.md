@@ -82,6 +82,7 @@
 - ✅ Screenshot Export Dialog の出力先、形式、JPEG 品質、全体キャプチャ、EXR AOV、Export／Cancel 操作に Accessible Name / Description を付与。
 - ✅ Import Assets Dialog の取り込み説明、アセットグループ一覧、取り込み／キャンセル操作に Accessible Name / Description を付与。
 - ✅ Create Composition Dialog の名前、解像度、アスペクト比、フレームレート、タイムコード、デュレーション、背景色、作成／キャンセル操作に Accessible Name / Description を付与。
+- ✅ Color Swatch Dialog のカテゴリ、スウォッチ、色プレビュー、追加／移動／適用／閉じる操作に Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
