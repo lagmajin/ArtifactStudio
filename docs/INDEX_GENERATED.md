@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 01:11
+> Generated: 2026-07-30 01:12
 > Total documents: 1134
 
 ---
@@ -574,7 +574,7 @@
 | 118 | `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_PHASE2_EXECUTION_2026-04-03.md` | マイルストーン: Asset Browser Navigator Phase 2 Execution | 2026-07-29 | Phase 2 implemented; search/navigation runtime verification pending | 2026-07-29 | 2.8 KB | ASSET, BROWSER, NAVIGATOR, PHASE2, EXECUTION |
 | 119 | `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_PHASE3_EXECUTION_2026-04-03.md` | マイルストーン: Asset Browser Navigator Phase 3 Execution | 2026-07-29 | Phase 3 implemented; runtime density/auto-list/consistency verification pending | 2026-07-29 | 2.7 KB | ASSET, BROWSER, NAVIGATOR, PHASE3, EXECUTION |
 | 120 | `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_PHASE4_EXECUTION_2026-04-03.md` | マイルストーン: Asset Browser Navigator Phase 4 Execution | 2026-07-29 | Phase 4 implemented; folder workflow/runtime verification pending | 2026-07-29 | 3.2 KB | ASSET, BROWSER, NAVIGATOR, PHASE4, EXECUTION |
-| 121 | `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_SEARCH_PRESENTATION_2026-04-03.md` | マイルストーン: Asset Browser Navigator / Search / Presentation Surface | 2026-04-03 | Partial; Phases 1〜5 implementation scope essentially complete, search-history switching, D&D preview ghost, and runtime performance/UX verification pending | 2026-07-30 | 7.4 KB | ASSET, BROWSER, NAVIGATOR, SEARCH, PRESENTATION |
+| 121 | `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_SEARCH_PRESENTATION_2026-04-03.md` | マイルストーン: Asset Browser Navigator / Search / Presentation Surface | 2026-04-03 | Partial; Phases 1〜5 implementation scope essentially complete, search-history switching, D&D preview ghost, and runtime performance/UX verification pending | 2026-07-30 | 7.5 KB | ASSET, BROWSER, NAVIGATOR, SEARCH, PRESENTATION |
 | 122 | `docs/planned/MILESTONE_ASSET_BROWSER_OPTIMIZATION_2026-03-29.md` | Milestone: Asset Browser Optimization (2026-03-29) | 2026-03-29 | Partial implementation; async thumbnail/cache exists, O(1) import lookup and TBB parallel scans pending | 2026-07-25 | 3.3 KB | ASSET, BROWSER, OPTIMIZATION |
 | 123 | `docs/planned/MILESTONE_ASSET_BROWSER_RELINK_WORKFLOW_2026-06-28.md` | Milestone: Asset Browser Relink Workflow (M-AB-10) | 2026-06-28 | Partial implementation（基本 relink／missing／Undo 実装済み、参照追跡・全体 UX・runtime 検証待ち、静的確認 2026-07-29） | 2026-07-29 | 49.7 KB | ASSET, BROWSER, RELINK, WORKFLOW |
 | 124 | `docs/planned/MILESTONE_ASSET_BROWSER_SEQUENCE_GROUPING_2026-03-31.md` | マイルストーン: Asset Browser Sequence Grouping | 2026-07-29 | Phase 1〜3 implemented; runtime consistency/missing-frame verification pending | 2026-07-30 | 3.7 KB | ASSET, BROWSER, SEQUENCE, GROUPING |
