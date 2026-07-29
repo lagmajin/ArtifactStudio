@@ -1,7 +1,7 @@
 # MILESTONE: Effect System Bridge
 
 **Date**: 2026-05-25
-**Status**: Proposed
+**Status**: Completed for the defined bridge scope; future effect-set reapply UX remains optional.
 **Priority**: High
 **Related**: `docs/EFFECT_SYSTEM_SPECIFICATION.md`, `Artifact/src/Widgets/Menu/ArtifactEffectMenu.cppm`, `Artifact/src/Widgets/Menu/ArtifactAnimationMenu.cppm`, `Artifact/docs/MILESTONE_COMPOSITION_FINAL_EFFECT_2026-04-14.md`
 
