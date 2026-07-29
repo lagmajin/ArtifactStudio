@@ -158,6 +158,8 @@ Implementation update (2026-07-29): `TrimPaths`／`Repeater` の operator 出力
 
 同経路は operator の加工結果が空の場合に native early-return せず、既存の互換キャッシュ経路へ戻る境界条件も追加済み。
 
+operator の追加／削除／並べ替え／プロパティ編集について、local bounds と shape content cache の invalidation も同じ更新契約に統一済み。
+
 次の安全な実装単位は、operator 複数輪郭の順序・fill rule・bounds invalidation と、gradient／taper の native contract を固定すること。
 
 ### Phase 2: Styled Polyline
