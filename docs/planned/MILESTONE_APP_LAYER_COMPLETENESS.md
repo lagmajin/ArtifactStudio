@@ -110,6 +110,7 @@ facade sliceと物理Audio device列挙・選択・設定永続化の公開契�
 - [x] 画像入力を明示したノードの`applyConfigured()`評価と出力バッファ保持
 - [x] 画像出力から接続先`ImageBuffer`入力へのDAG伝播
 - [x] 未接続の非画像バックエンドを`Cached`にせず`Error`として返す安全境界
+- [x] `Error` ノードから下流へ stale／partial image buffer を伝播させず、独立枝だけを継続
 - [ ] 全ステージの効果ノード実データ／バックエンド評価（画像入力を明示したノード以外は未接続）
 - [ ] 非画像を含むエフェクトスタック → DAGノードの完全な入力／出力バッファマッピング
 - cycle／missing inputを含むruntime検証は未実施
