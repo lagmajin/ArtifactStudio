@@ -411,8 +411,8 @@
 | 90 | `docs/done/MILESTONE_VIDEO_LAYER_PLAYBACK_STABILITY_2026-06-25.md` | VideoLayer Playback Stability Completion Note (2026-06-25) | 2026-06-25 | Completed | 2026-07-29 | 0.9 KB | VIDEO, LAYER, PLAYBACK, STABILITY |
 | 91 | `docs/done/MILESTONE_VISUAL_DENSITY_MONITOR_2026-06-03.md` | MILESTONE: Visual Density Monitor | 2026-06-03 | Completed | 2026-07-29 | 4.2 KB | VISUAL, DENSITY, MONITOR |
 | 92 | `docs/done/MILESTONE_VISUAL_DENSITY_MONITOR_PHASE1_EXECUTION_2026-06-03.md` | Visual Density Monitor - Phase 1 Execution | 2026-06-03 | Completed | 2026-07-29 | 2.7 KB | VISUAL, DENSITY, MONITOR, PHASE1, EXECUTION |
-| 93 | `docs/done/MULTITHREADED_PLAYBACK_ENGINE.md` | マルチスレッド再生エンジン実装レポート | --- | --- | 2026-03-20 | 8.1 KB | MULTITHREADED, PLAYBACK, ENGINE |
-| 94 | `docs/done/PLAYBACK_CONTROL_WIDGET_REFACTOR.md` | 再生コントロールウィジェット リファクタリングレポート | --- | --- | 2026-03-20 | 9.2 KB | PLAYBACK, CONTROL, WIDGET, REFACTOR |
+| 93 | `docs/done/MULTITHREADED_PLAYBACK_ENGINE.md` | マルチスレッド再生エンジン実装レポート | --- | Completed (implementation report) | 2026-07-29 | 8.1 KB | MULTITHREADED, PLAYBACK, ENGINE |
+| 94 | `docs/done/PLAYBACK_CONTROL_WIDGET_REFACTOR.md` | 再生コントロールウィジェット リファクタリングレポート | --- | Completed (implementation report) | 2026-07-29 | 9.2 KB | PLAYBACK, CONTROL, WIDGET, REFACTOR |
 | 95 | `docs/done/PLAYHEAD_INVESTIGATION_2026-03-20.md` | プレイヘッド実装調査レポート | 2026-03-20 | --- | 2026-03-20 | 16.7 KB | PLAYHEAD, INVESTIGATION |
 | 96 | `docs/done/REPO_WIDE_LAYER_LIFECYCLE_AUDIT_2026-06-11.md` | Repository Audit: Layer Lifecycle | 2026-07-12 | Complete (static verification) | 2026-07-12 | 2.1 KB | REPO, WIDE, LAYER, LIFECYCLE, AUDIT |
 | 97 | `docs/done/REPO_WIDE_SAVELOAD_AUDIT_2026-06-11.md` | Repository Audit: Save and Load | 2026-07-12 | Complete (static verification) | 2026-07-12 | 1.9 KB | REPO, WIDE, SAVELOAD, AUDIT |
