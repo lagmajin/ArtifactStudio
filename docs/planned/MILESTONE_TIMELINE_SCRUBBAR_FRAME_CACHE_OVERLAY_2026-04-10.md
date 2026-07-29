@@ -142,6 +142,7 @@ AE 風の RAM preview に寄せて、`ArtifactTimelineScrubBar` 上に
 - overlay style の選択や glow / striped 表現の設定化
 - 大量フレーム、分断区間、長時間 RAM preview での描画負荷確認
 - 表示側の `totalFrames` と供給 bitmap の長さがずれた場合も、レール外へ描画しない境界処理を追加済み
+- interactive seeking が有効な場合の Left/Right、PageUp/PageDown、Home/End キーボードシークを追加済み
 
 したがって「Cache Range Contract と Overlay Rendering は実装済み、Diagnostics と実運用検証は未完了」と整理する。
 2. Scrub Bar Overlay Rendering
