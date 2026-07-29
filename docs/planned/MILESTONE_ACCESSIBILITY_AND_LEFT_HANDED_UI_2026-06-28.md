@@ -101,6 +101,7 @@
 - ✅ Debug Console のログ消去設定、フィルター概要、ステータス、ログ一覧、選択ログ詳細に Accessible Name / Description を付与。
 - ✅ Frame Resource Inspector のフレーム概要、リソース一覧、詳細、プレビューモード、プレビュー情報／画像に Accessible Name / Description を付与。
 - ✅ Fallback Diagnostics のカテゴリフィルター、更新／クリア操作、イベント一覧、サマリーに Accessible Name / Description を付与。
+- ✅ AI Cloud Widget の provider／model、prompt、送信／会話コピー、tool／MCP 操作とログ表示に Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
