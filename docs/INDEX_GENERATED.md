@@ -703,7 +703,7 @@
 | 254 | `docs/planned/MILESTONE_FIGMA_BOOLEAN_FILL_STROKE_2026-07-07.md` | M-FIGMA-3 Boolean Path Operations + Advanced Fill/Stroke Milestone | 2026-07-07 | --- | 2026-07-24 | 5.5 KB | FIGMA, BOOLEAN, FILL, STROKE |
 | 255 | `docs/planned/MILESTONE_FIGMA_COMPONENT_INSTANCE_2026-07-07.md` | M-FIGMA-2 Component / Instance System Milestone | 2026-07-07 | --- | 2026-07-07 | 5.8 KB | FIGMA, COMPONENT, INSTANCE |
 | 256 | `docs/planned/MILESTONE_FLUID_COMPONENT_VS_PYRO_DOMAIN_SPLIT_2026-07-01.md` | Fluid Component vs Pyro Domain Split (2026-07-01) | 2026-07-01 | --- | 2026-07-01 | 3.9 KB | FLUID, COMPONENT, PYRO, DOMAIN |
-| 257 | `docs/planned/MILESTONE_FONT_USAGE_REPORT_2026-07-09.md` | MILESTONE: 使用フォントインベントリ出力（Font Usage Report） | 2026-07-09 | --- | 2026-07-10 | 9.5 KB | FONT, USAGE, REPORT |
+| 257 | `docs/planned/MILESTONE_FONT_USAGE_REPORT_2026-07-09.md` | MILESTONE: 使用フォントインベントリ出力（Font Usage Report） | 2026-07-09 | Phase 1-4 and export path implemented; runtime/build verification pending | 2026-07-29 | 9.5 KB | FONT, USAGE, REPORT |
 | 258 | `docs/planned/MILESTONE_FORM_GRID_PARTICLE_LAYER_2026-06-26.md` | Form Grid Particle Layer Milestone | 2026-06-28 | Implementation present; static audit completed 2026-06-28. | 2026-06-29 | 9.6 KB | FORM, GRID, PARTICLE, LAYER |
 | 259 | `docs/planned/MILESTONE_FRAME_BY_FRAME_ANIMATION_2026-07-03.md` | M-FBF-1 Frame-by-Frame Animation Milestone | 2026-07-03 | Draft | 2026-07-05 | 3.7 KB | FRAME, ANIMATION |
 | 260 | `docs/planned/MILESTONE_FRAME_DEBUG_GOAL_FIRST_SUMMARY_2026-05-12.md` | Frame Debug / Goal-First Summary | 2026-05-12 | --- | 2026-05-13 | 2.5 KB | FRAME, DEBUG, GOAL, FIRST, SUMMARY |

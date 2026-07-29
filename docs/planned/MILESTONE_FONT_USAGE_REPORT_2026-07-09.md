@@ -1,5 +1,7 @@
 # MILESTONE: 使用フォントインベントリ出力（Font Usage Report）
 
+**ステータス:** Phase 1〜4・出力導線実装済み、runtime/build検証 pending
+
 > 2026-07-09 作成
 
 ## 目的
