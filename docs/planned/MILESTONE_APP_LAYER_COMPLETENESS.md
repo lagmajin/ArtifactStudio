@@ -30,9 +30,10 @@ UI/UX やレンダリングパイプラインの新機能ではなく、**既に
 - [x] Effect presetの保存・読込
 - runtime UI操作と実機確認は未実施
 
-### M-APP-4 ArtifactAudioService 実装 ⚠️（facade静的実装済み・backend/runtime確認待ち）
+### M-APP-4 ArtifactAudioService 実装 ⚠️（facade静的実装済み・device選択/runtime確認待ち）
 - `Artifact/include/Service/ArtifactAudioService.ixx`
-- [ ] 物理Audio device列挙・選択（backend側の公開選択契約待ち）
+- [x] 物理Audio output device名の列挙（`availableOutputDeviceNames()`）
+- [ ] 選択deviceのPlayback backendへの適用（backend側の公開選択契約待ち）
 - [x] current compositionのaudio layer bus生成とMaster既定ルーティング
 - [x] master volume / muteはPlayback出力だけに適用し、Core masterとの二重gainを防止
 - [x] layer busのvolume / pan / mute / solo操作
