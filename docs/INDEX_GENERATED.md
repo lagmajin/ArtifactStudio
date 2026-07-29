@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 01:34
+> Generated: 2026-07-30 01:35
 > Total documents: 1134
 
 ---
@@ -546,7 +546,7 @@
 | 90 | `docs/planned/MILESTONE_APP_DEBUGGER_SESSION_HISTORY_COMPARISON_2026-04-24.md` | Phase 11 Execution: App Debugger Session History / Comparison | 2026-04-24 | Partial (capture history, selection, persistence/restore, compare target, session identifiers, and pinned entries implemented; current/previous operation, session warning/backend/focus completeness, last-good/failed/heavy summaries, and runtime verification pending) | 2026-07-25 | 5.3 KB | APP, DEBUGGER, SESSION, HISTORY, COMPARISON |
 | 91 | `docs/planned/MILESTONE_APP_DEBUGGER_VISUAL_HIERARCHY_COLOR_SEMANTICS_2026-04-23.md` | Milestone: App Debugger Visual Hierarchy / Color Semantics (2026-04-23) | 2026-04-23 | Partial (summary hierarchy, QPalette neutral/warning/error surfaces, section separation, and danger-first attention states implemented; cross-surface semantic tokens, final overlay/present/pass/resource colors, unified ordering, and runtime layout verification pending) | 2026-07-29 | 7.7 KB | APP, DEBUGGER, VISUAL, HIERARCHY, COLOR |
 | 92 | `docs/planned/MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md` | Milestone: App Diagnostic Cohesion | 2026-05-13 | --- | 2026-07-25 | 5.3 KB | APP, DIAGNOSTIC, COHESION |
-| 93 | `docs/planned/MILESTONE_APP_EMPTY_STATE_GUIDANCE_2026-05-17.md` | Milestone: App Empty State Guidance | 2026-05-17 | --- | 2026-07-30 | 5.6 KB | APP, EMPTY, STATE, GUIDANCE |
+| 93 | `docs/planned/MILESTONE_APP_EMPTY_STATE_GUIDANCE_2026-05-17.md` | Milestone: App Empty State Guidance | 2026-05-17 | --- | 2026-07-30 | 5.8 KB | APP, EMPTY, STATE, GUIDANCE |
 | 94 | `docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_2026-04-20.md` | App Frame Debug View Milestone | 2026-05-12 | 部分実装（Frame Debug model/UI、pass/resource/compare/scrub基盤あり、横断snapshot・bundle運用・runtime確認は未完了） | 2026-05-13 | 12.8 KB | APP, FRAME, DEBUG, VIEW |
 | 95 | `docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_PHASE1_EXECUTION_2026-04-20.md` | Phase 1 実行メモ: Frame Capture Contract | 2026-04-20 | 部分実装（FrameDebug model/表示あり、renderer/queue/playback接続網羅とcapture運用は未確認） | 2026-07-25 | 10.7 KB | APP, FRAME, DEBUG, VIEW, PHASE1 |
 | 96 | `docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_PHASE2_EXECUTION_2026-04-20.md` | Phase 2 実行メモ: Pass / Resource Inspector | 2026-04-20 | 部分実装（pass/resource/attachment read-only検査あり、cache readiness・failed frame接続は未確認） | 2026-07-25 | 7.6 KB | APP, FRAME, DEBUG, VIEW, PHASE2 |
