@@ -95,6 +95,7 @@
 - ✅ Application Settings の AI ページに、クラウド AI 設定領域と説明ラベルの Accessible Name / Description を付与。
 - ✅ Cloud AI Settings の provider、base URL、API key 入力に Accessible Name / Description を付与。
 - ✅ Asset Browser のソート条件／方向、Favorites、サムネイルサイズ、選択アセットの Import 操作に Accessible Name / Description を付与。
+- ✅ Asset Browser のファイル一覧、サムネイルサイズ見出し、アセットプレビュー、詳細情報に Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
