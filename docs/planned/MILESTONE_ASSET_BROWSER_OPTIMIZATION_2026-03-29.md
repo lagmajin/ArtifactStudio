@@ -60,4 +60,5 @@
 - 同日、thumbnail cache にファイルの最終更新日時を併記し、cache hit 時に差し替え後の stale thumbnail を破棄して再生成するようにした。既存の memory／disk cache と非同期 generation token は維持する。
 - disk cache は既存実装で absolute path・size・mtime を digest key に含め、30 日 TTL と容量上限も持つことを確認したため、memory cache との stale 判定の責務を重複させない。
 - memory thumbnail cache に 512 entries の上限を追加し、一覧を大量に巡回しても `QHash` が無制限に増えないようにした。超過時は cache entry を退避し、disk cache は引き続き再利用できる。
+- thumbnail diagnostics の `Ready` 判定も同じ mtime freshness helper を使うようにし、差し替え済みファイルを stale なまま Ready と表示しないようにした。
 - `applyFilters` の TBB parallel scan、thumbnail warmup の TBB task_group 並列化、数千ファイル時の性能目標と runtime 計測は未検証であり、Planning／Partial Implementation を維持する。
