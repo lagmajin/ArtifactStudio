@@ -5,7 +5,7 @@
 **優先度**: P1 (High)
 **推定工数**: 1-2日
 **カテゴリ**: Asset Browser / UX / Sorting
-**状態**: Partial implementation（既存単一キー sort と natural name sort を実装、multi-key／preset／custom order／runtime 検証 pending）
+**状態**: Partial implementation（単一キー／natural name／固定複合 preset／sort key・方向の設定保存を実装、個別方向の multi-key／custom order／runtime 検証 pending）
 **依存**: M-AB (Asset Browser base)
 
 ---
