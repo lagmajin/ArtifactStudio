@@ -920,7 +920,7 @@
 | 471 | `docs/planned/MILESTONE_SHORTCUT_CUSTOMIZATION_2026-04-10.md` | キーボードショートカットカスタマイズUIの実装 | 2026-04-10 | --- | 2026-04-11 | 2.6 KB | SHORTCUT, CUSTOMIZATION |
 | 472 | `docs/planned/MILESTONE_SHORTCUT_IMPROVEMENTS_2026-06-02.md` | ショートカット・操作感改善 マイルストーン | 2026-06-02 | --- | 2026-06-05 | 3.2 KB | SHORTCUT, IMPROVEMENTS |
 | 473 | `docs/planned/MILESTONE_SIMPLE_PREFRACTURE_2026-07-22.md` | M-PREFRACTURE: シンプルな事前破砕（Pre-Fracture）導入 — 設計メモとギャップ修正 | 2026-07-22 | Not Started | 2026-07-24 | 6.0 KB | SIMPLE, PREFRACTURE |
-| 474 | `docs/planned/MILESTONE_SMART_FALLBACKS_2026-06-07.md` | MILESTONE: Smart Fallbacks | 2026-06-07 | --- | 2026-06-09 | 4.9 KB | SMART, FALLBACKS |
+| 474 | `docs/planned/MILESTONE_SMART_FALLBACKS_2026-06-07.md` | MILESTONE: Smart Fallbacks | 2026-06-07 | Partial (FallbackPolicy/FallbackTracker, category event recording, font/image/effect/color fallbacks, Diagnostics Panel, and event display implemented; Asset loading integration, project-configurable policy UI, export preflight aggregation, and runtime verification pending) | 2026-07-29 | 4.9 KB | SMART, FALLBACKS |
 | 475 | `docs/planned/MILESTONE_SMART_GUIDES_2026-04-10.md` | スマートガイドシステムの実装 | 2026-04-10 | --- | 2026-04-11 | 1.7 KB | SMART, GUIDES |
 | 476 | `docs/planned/MILESTONE_SNAP_ADVANCED_2026-04-10.md` | 高度なスナップ機能の実装 | 2026-04-10 | --- | 2026-04-11 | 2.0 KB | SNAP, ADVANCED |
 | 477 | `docs/planned/MILESTONE_SOURCE_TEXT_KEYFRAME_2026-06-16.md` | M-TXT-3 Source Text Keyframe Milestone | 2026-07-16 | --- | 2026-07-16 | 16.5 KB | SOURCE, TEXT, KEYFRAME |
