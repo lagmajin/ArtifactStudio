@@ -92,7 +92,7 @@ ArtifactStudio 全体の empty state を、ただの「何もない場所」で�
 ### Phase 3 Checklist
 
 - [ ] Contents Viewer の `no file` 表現を統一する
-- [ ] Asset Browser の selection / recent / sync 文言を短くする
+- [x] Asset Browser の selection / recent / sync 文言を短くする
 - [ ] `open / select / inspect` の導線が各面で一致しているか確認する
 
 ### Phase 4 Checklist
@@ -127,3 +127,8 @@ ArtifactStudio 全体の empty state を、ただの「何もない場所」で�
 
 Phase 1 の対象 surface を確定し、`No selection` / `No file selected` / `Create or open a project` を優先的に洗い出す。
 そのあと Project / Timeline / Inspector を先にそろえ、次に Asset Browser と Contents Viewer に広げる。
+
+## 2026-07-30 実装監査
+
+- Asset Browser の file list に空状態メッセージを追加した。フォルダ未選択、検索／filter 結果なし、空フォルダをそれぞれ `Open a folder...`、`No assets match...`、`Import or drop files here...` と action-first に表示する。
+- selection／recent／sync の既存案内と同じ surface 上で表示し、一覧が空白だけに見えないよう owner-draw で描画する。
