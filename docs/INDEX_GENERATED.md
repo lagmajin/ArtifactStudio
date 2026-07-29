@@ -945,7 +945,7 @@
 | 496 | `docs/planned/MILESTONE_TEXT_ANIMATOR_COMPLEX_SCRIPT_VERTICAL_2026-06-12.md` | MILESTONE: Text Animator Complex Script And Vertical Writing | 2026-07-16 | --- | 2026-07-16 | 14.1 KB | TEXT, ANIMATOR, COMPLEX, SCRIPT, VERTICAL |
 | 497 | `docs/planned/MILESTONE_TEXT_ANIMATOR_NEXT_GEN_2026-04-18.md` | MILESTONE: 次世代テキストアニメーター | 2026-07-16 | --- | 2026-07-16 | 5.4 KB | TEXT, ANIMATOR, NEXT, GEN |
 | 498 | `docs/planned/MILESTONE_TEXT_ANIMATOR_SEMANTIC_PIPELINE_2026-07-04.md` | MILESTONE: Text Animator Semantic Pipeline | 2026-07-16 | In Progress | 2026-07-16 | 12.7 KB | TEXT, ANIMATOR, SEMANTIC, PIPELINE |
-| 499 | `docs/planned/MILESTONE_TEXT_ANIMATOR_SYSTEM_2026-03-25.md` | Milestone: AE風 Text Animator システム (2026-03-25) | 2026-03-25 | --- | 2026-03-27 | 14.3 KB | TEXT, ANIMATOR, SYSTEM |
+| 499 | `docs/planned/MILESTONE_TEXT_ANIMATOR_SYSTEM_2026-03-25.md` | Milestone: AE風 Text Animator システム (2026-03-25) | 2026-03-25 | Not started; Core selector/animator declarations exist, but TextLayoutEngine implementation, layer binding, per-glyph rendering, and TextGizmo integration are pending | 2026-07-29 | 15.0 KB | TEXT, ANIMATOR, SYSTEM |
 | 500 | `docs/planned/MILESTONE_TEXT_AUTO_SIZE_2026-04-10.md` | テキストレイヤーのオートサイズ調整の実装 | 2026-04-10 | --- | 2026-04-11 | 1.9 KB | TEXT, AUTO, SIZE |
 | 501 | `docs/planned/MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md` | M-TXT-FOUNDATION: Text Layer GPU / Edit / Animation Completion | 2026-07-16 | Completed (static verified 2026-07-16) | 2026-07-17 | 22.9 KB | TEXT, LAYER, GPU, EDIT, ANIMATION |
 | 502 | `docs/planned/MILESTONE_TEXT_LAYER_INLINE_EDIT_2026-03-27.md` | マイルストーン: テキストレイヤー コンポジットエディタ内編集 | 2026-07-16 | --- | 2026-07-16 | 7.4 KB | TEXT, LAYER, INLINE, EDIT |
