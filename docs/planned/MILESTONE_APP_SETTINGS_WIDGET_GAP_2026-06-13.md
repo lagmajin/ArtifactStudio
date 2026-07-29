@@ -7,7 +7,8 @@
 
 - ✅ Preview Settings の RAM / disk cache トグルを ViewMenu に接続。
 - ✅ RAM cache の設定変更を実行中の `ArtifactPlaybackService` に同期。
-- ⏳ Disk cache の実行中サービス反映、Clone UI、runtime 検証は未完了。
+- ✅ Disk cache の設定変更を実行中の `ArtifactPlaybackService` に同期。
+- ⏳ Clone UI と runtime 検証は未完了。
 
 ---
 
