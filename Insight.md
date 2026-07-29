@@ -130,3 +130,11 @@
 - 対応: 未使用の `Memory.ArtifactArray` 実装とCMakeの明示登録を削除し、`Core.ArtifactArray` を唯一の `ArtifactArray` 定義にした。
 - 価値・懸念: 型名衝突とアロケータ方針の曖昧さを解消した。今後は用途別確保が必要な箇所で `Memory.ArtifactAllocators` と `std::pmr` コンテナを明示利用する。
 - 次の確認: CMake再生成後にモジュール依存スキャンと通常ビルドで未参照モジュール削除を確認する。
+
+### 2026-07-29 — ドキュメント INDEX の詳細 Status 同期と自動生成が衝突する
+
+- 状態: 未解決・運用課題
+- 関連: `tools/generate_doc_inventory.py`、`docs/INDEX_GENERATED.md`、2026-07-27 以降の planned milestone 文書
+- 事実: 生成スクリプトは新規 Markdown を収集できるが、文書ヘッダの短い Status だけを抽出するため、実装監査に基づき INDEX へ手動同期した詳細な Partial／Not started の説明を再生成時に失う。また、最新 milestone 文書が生成後に追加された場合は INDEX から欠落する。
+- 価値・懸念: 現在は既存の詳細状態を守るため再生成を避けているが、インベントリの完全性と状態説明の一貫性が分離している。生成時の既存 Status 差分保持、または文書側の構造化 Status／監査サマリー抽出が必要。
+- 次の確認: `STATUS` メタデータと監査要約を文書側へ統一し、生成器が既存の詳細状態を安全に再利用できる設計を検討する。
