@@ -153,9 +153,11 @@
   - Surface cache / render key suppression / ROIシステム実装済み
   - 主要ファイル: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
 
-- **M-CE-2** Static Layer GPU Cache ⚠️ (partial - 2026-04-14)
-  - マイルストーン文書と設計は存在するが、専用GPU cacheクラスの実装は未確認
-  - `PrimitiveRenderer2D` の cacheKey ベース最適化は実装済み
+- **M-CE-2** Static Layer GPU Cache ⚠️ (Phase 1〜4 静的実装済み・Phase 5/runtime確認待ち - 2026-07-30)
+  - `ArtifactCompositionViewDrawing` の layer/source/effect/mask/resolution cache signature と source revision を GPU cache key に反映済み
+  - `GPUTextureCacheManager` の F32/QImage 再利用、予算・最大エントリ数・LRU eviction、owner/key/device invalidate、hit/miss/upload/eviction 診断を実装済み
+  - Image Sequence は static cache 対象外としてフレーム単位の描画経路を維持
+  - 残りは静止シーン高速経路（Phase 5）とruntime性能確認
   - 主要ファイル: `Artifact/docs/MILESTONE_STATIC_LAYER_GPU_CACHE_2026-03-26.md`
 
 - **M-RAM-3** Preview Range Policy and Priority ✅ (verified 2026-06-26)
