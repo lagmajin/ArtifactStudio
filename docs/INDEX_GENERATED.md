@@ -807,7 +807,7 @@
 | 358 | `docs/planned/MILESTONE_MOTION_TRACKING_PHASE1_EXECUTION_2026-03-28.md` | マイルストーン: Motion Tracking Phase 1 Execution | 2026-03-28 | --- | 2026-05-13 | 4.4 KB | MOTION, TRACKING, PHASE1, EXECUTION |
 | 359 | `docs/planned/MILESTONE_MOTION_TRACKING_SYSTEM_2026-03-25.md` | マイルストーン: モーショントラッキングシステムの段階導入 | 2026-03-25 | In Progress | 2026-07-12 | 9.6 KB | MOTION, TRACKING, SYSTEM |
 | 360 | `docs/planned/MILESTONE_MULTI_DISPLAY_SUPPORT_2026-04-01.md` | Milestone: Multi-Display Support (2026-04-01) | 2026-04-01 | --- | 2026-04-01 | 6.1 KB | MULTI, DISPLAY, SUPPORT |
-| 361 | `docs/planned/MILESTONE_MULTI_FORMAT_PREVIEW_2026-06-07.md` | MILESTONE: Multi-Format Preview | 2026-06-07 | --- | 2026-06-09 | 2.6 KB | MULTI, FORMAT, PREVIEW |
+| 361 | `docs/planned/MILESTONE_MULTI_FORMAT_PREVIEW_2026-06-07.md` | MILESTONE: Multi-Format Preview | 2026-06-07 | Not started (single-composition Safe Area/preset/variant components exist, but the 16:9/9:16/1:1/4:5 View Matrix, shared-source multi-view evaluation UI, per-view crop/safe-area/bounds warnings, and runtime comparison are unimplemented/unverified) | 2026-07-29 | 2.6 KB | MULTI, FORMAT, PREVIEW |
 | 362 | `docs/planned/MILESTONE_MULTI_FRAME_RENDERING_2026-04-09.md` | マイルストーン: Multi-Frame Rendering (MFR) for Render Queue | 2026-04-09 | --- | 2026-04-09 | 4.3 KB | MULTI, FRAME, RENDERING |
 | 363 | `docs/planned/MILESTONE_MULTI_PROJECT_EDITING_2026-03-27.md` | マルチプロジェクト編集 Milestone | 2026-03-27 | 計画中 | 2026-03-27 | 12.3 KB | MULTI, PROJECT, EDITING |
 | 364 | `docs/planned/MILESTONE_MULTI_VIEWPORT_LAYOUT_2026-06-01.md` | Milestone: Multi-Viewport Layout System | 2026-06-01 | --- | 2026-06-01 | 4.5 KB | MULTI, VIEWPORT, LAYOUT |
