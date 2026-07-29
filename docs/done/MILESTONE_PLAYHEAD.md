@@ -1,6 +1,6 @@
 # マイルストーン: プレイヘッド整備
 
-**ステータス:** Partial — playhead rendering, scrub/keyboard seeking, and playback synchronization are implemented; direct triangle drag, timecode input, snap, and state unification remain pending.
+**ステータス:** Partial — playhead rendering, scrub/keyboard seeking, playback synchronization, direct triangle drag, timecode input, snap, and state unification are implemented; scroll-follow remains pending.
 
 > 2026-03-21 作成
 
@@ -69,7 +69,7 @@
 | J/K/L シャトル操作 | `ArtifactTimelineWidget.cpp` | J=逆再生(x1→x2→x4), K=停止, L=再生(x1→x2→x4→x8) | ✅ |
 | タイムコード入力 | `ArtifactPlaybackControlWidget` | `HH:MM:SS:FF`、`F<n>`、フレーム番号で直接ジャンプ | ✅ |
 | マウスホイールシーク | `ArtifactTimelineWidget.cpp` | ホイール ±1F, Ctrl+ホイール ±10F | ✅ |
-| プレイヘッドドラッグ | `TimelinePlayheadOverlay` | 三角を直接ドラッグしてシーク | 未着手 (別タスク) |
+| プレイヘッドドラッグ | `TimelinePlayheadOverlay` | 三角を直接ドラッグしてシーク | ✅ |
 
 ---
 
