@@ -1,6 +1,6 @@
 # Milestone: GPU Mask Cutout Compute Pipeline (2026-04-03)
 
-**Status:** Draft
+**Status:** Phase 1-2 foundation implemented; composition integration/runtime verification pending
 **Goal:** レイヤーマスクの適用を compute shader 経由に寄せ、`cv::Mat` 前提の CPU 切り抜きを段階的に減らす。
 
 ---
@@ -150,3 +150,18 @@
 - 現状の `LayerMask::applyToImage()` は壊さない。
 - 最初は GPU 版を追加し、切り替え可能にする。
 - path rasterization の GPU 化は「できるか」ではなく「必要になったらやる」段階に留める。
+
+## Static audit follow-up (2026-07-29)
+
+`MaskCutoutPipeline`、`MaskPathRasterizerPipeline`、および `CompositionRenderController` の接続を静的に確認した。ビルド・GPU実機検証は未実施。
+
+| 項目 | 現状 | 判定 |
+|---|---|---|
+| Phase 1: texture contract | Mask texture upload/cache と compute pipeline API が存在し、CPU `LayerMask::applyToImage()` も維持されている。 | 実装済み／比較確認待ち |
+| Phase 2: compute apply | `MaskCutoutPipeline` の PSO/constant buffer/apply 経路と Composition 側の遅延初期化が存在する。 | 基盤実装済み／実経路接続確認待ち |
+| Phase 3: composition integration | Controller の通常 layer surface 生成は依然 CPU mask apply を使用し、preview/playback/export 共通の GPU cutout 選択は未確認。 | 未完了 |
+| Phase 4: path rasterization | `MaskPathRasterizerPipeline` は存在するが、composition の mask path 生成への接続と CPU parity は未確認。 | 部分実装 |
+
+### 判定
+
+`Draft` では現状を過小評価するため、Phase 1〜2 の基盤実装へ更新した。ただし GPU cutout は初期化だけで標準 render path へ統合された証拠がなく、マイルストーン全体は未完了とする。

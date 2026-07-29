@@ -714,7 +714,7 @@
 | 265 | `docs/planned/MILESTONE_GPU_EFFECT_PARITY_2026-03-27.md` | GPU Effect Parity Milestone | 2026-03-27 | --- | 2026-03-28 | 5.2 KB | GPU, EFFECT, PARITY |
 | 266 | `docs/planned/MILESTONE_GPU_EFFECT_PERF_FIXES_2026-07-22.md` | M-FX-PERF: GPU エフェクト追加・プロパティ更新時のもたつき改善 — 修正リスト | 2026-07-22 | Phase 0 completed (FX-2); remaining phases pending | 2026-07-24 | 8.3 KB | GPU, EFFECT, PERF, FIXES |
 | 267 | `docs/planned/MILESTONE_GPU_LAYER_BLEND_COMPUTE_2026-03-21.md` | マイルストーン: ComputeShader (HLSL) ベース レイヤーブレンドシステム | 2026-03-21 | --- | 2026-03-22 | 13.2 KB | GPU, LAYER, BLEND, COMPUTE |
-| 268 | `docs/planned/MILESTONE_GPU_MASK_COMPUTE_PIPELINE_2026-04-03.md` | Milestone: GPU Mask Cutout Compute Pipeline (2026-04-03) | 2026-04-03 | --- | 2026-04-24 | 4.6 KB | GPU, MASK, COMPUTE, PIPELINE |
+| 268 | `docs/planned/MILESTONE_GPU_MASK_COMPUTE_PIPELINE_2026-04-03.md` | Milestone: GPU Mask Cutout Compute Pipeline (2026-04-03) | 2026-04-03 | Phase 1-2 foundation implemented; composition integration/runtime verification pending | 2026-07-29 | 4.6 KB | GPU, MASK, COMPUTE, PIPELINE |
 | 269 | `docs/planned/MILESTONE_GPU_PARTICLE_SYSTEM_2026-04-19.md` | MILESTONE: GPUパーティクルシステム統合 | 2026-04-19 | --- | 2026-04-28 | 4.1 KB | GPU, PARTICLE, SYSTEM |
 | 270 | `docs/planned/MILESTONE_GRAPH_EDITOR_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: カーブ / グラフエディタ 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-07 | 2.1 KB | GRAPH, EDITOR, DESIGN, AUDIT |
 | 271 | `docs/planned/MILESTONE_HARNESS_ENGINEERING_2026-05-12.md` | Harness Engineering / Goal-First Working Loop | 2026-05-12 | --- | 2026-05-13 | 2.9 KB | HARNESS, ENGINEERING |
