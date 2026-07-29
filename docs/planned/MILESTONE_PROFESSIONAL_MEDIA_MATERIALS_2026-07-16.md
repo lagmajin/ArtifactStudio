@@ -71,3 +71,9 @@ explicit interpretation and later display conversion.
 - `Auto` は空の override として保存し、Linear / sRGB / ACEScc / ACEScct / Rec.2020 と Linear / sRGB / LogC / S-Log3 / PQ / HLG を明示値として保存する。
 - importer の画素変換は変更せず、選択値は既存の FootageItem 解釈メタデータへ保持する。
 - working-space conversion、display/output transform、実ファイル round-trip は引き続き未完了・未検証である。
+
+## 2026-07-29 HDR range safety update
+
+- `ArtifactOCIOManager::applyViewTransformToImage()` の RGB 変換から alpha の混入と `0..1` clamp を除去した。
+- これにより、明示的な display/output encoding 前の scene-linear / HDR RGB 値を保持し、alpha は独立して通過する。
+- working-space conversion の適用タイミングと実ファイル round-trip は引き続き未検証である。
