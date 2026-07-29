@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 01:18
+> Generated: 2026-07-30 01:20
 > Total documents: 1134
 
 ---
@@ -985,7 +985,7 @@
 | 529 | `docs/planned/MILESTONE_TIMELINE_INOUT_SLIDE_2026-06-16.md` | M-TL-16 In/Out Slide Milestone | 2026-06-16 | --- | 2026-06-19 | 14.0 KB | TIMELINE, INOUT, SLIDE |
 | 530 | `docs/planned/MILESTONE_TIMELINE_KEYFRAME_AREA_EDITING_2026-06-15.md` | Timeline Keyframe Area Editing (2026-06-15) | 2026-06-15 | --- | 2026-07-25 | 10.6 KB | TIMELINE, KEYFRAME, AREA, EDITING |
 | 531 | `docs/planned/MILESTONE_TIMELINE_KEYFRAME_CONNECTIONS_2026-06-05.md` | マイルストーン: Timeline Keyframe Connections | 2026-06-05 | --- | 2026-07-25 | 8.9 KB | TIMELINE, KEYFRAME, CONNECTIONS |
-| 532 | `docs/planned/MILESTONE_TIMELINE_LAYER_SEARCH_2026-03-28.md` | マイルストーン: Timeline Layer Search | 2026-03-28 | --- | 2026-07-30 | 8.2 KB | TIMELINE, LAYER, SEARCH |
+| 532 | `docs/planned/MILESTONE_TIMELINE_LAYER_SEARCH_2026-03-28.md` | マイルストーン: Timeline Layer Search | 2026-03-28 | --- | 2026-07-30 | 8.4 KB | TIMELINE, LAYER, SEARCH |
 | 533 | `docs/planned/MILESTONE_TIMELINE_LAYER_SPECIALIZATION_2026-04-23.md` | Milestone: Timeline Layer Specialization (2026-04-23) | 2026-04-23 | --- | 2026-06-19 | 3.2 KB | TIMELINE, LAYER, SPECIALIZATION |
 | 534 | `docs/planned/MILESTONE_TIMELINE_LAYER_SPECIALIZATION_EXECUTION_2026-04-23.md` | Milestone: Timeline Layer Specialization Execution (2026-04-23) | 2026-04-23 | --- | 2026-04-24 | 3.3 KB | TIMELINE, LAYER, SPECIALIZATION, EXECUTION |
 | 535 | `docs/planned/MILESTONE_TIMELINE_OPERATION_FEEL_REFINEMENT_2026-04-03.md` | Timeline Operation Feel Refinement / AE-Style Editing Flow | 2026-07-25 | --- | 2026-07-25 | 8.9 KB | TIMELINE, OPERATION, FEEL, REFINEMENT |
