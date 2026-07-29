@@ -24,6 +24,7 @@
 - ✅ Render Queue の Batch追加・プリセット・複製・完了削除・再試行操作にも Accessible Name / Description を付与。
 - ✅ Accessibility 設定群の Tab 順を Preferred hand から Color vision assist まで明示。
 - ✅ Status Bar の各ステータス項目に個別の Accessible Name / Description を付与。
+- ✅ Playback Control の共通 transport ボタンへ Accessible Name / Description と target scale を適用。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
