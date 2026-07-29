@@ -1,7 +1,7 @@
 # 実装案: App Settings - Widget 接続ギャップ
 
 > 2026-06-13 作成  
-> 状態: Partial（主要設定・EditMode／DisplayMode 接続済み、Grid／Preview cache／Clone UI は未接続、静的確認 2026-07-29）
+> 状態: Partial（主要設定・EditMode／DisplayMode 接続済み、Preview cache UI を接続、Grid／Clone UI と runtime 検証は未完了、静的確認 2026-07-29）
 
 ---
 
@@ -47,8 +47,8 @@ VSコードのモード選択プルダウンと同様のUI
 | 設定 | ウィジェット | 状態 |
 |------|-------------|------|
 | `previewQualityText` | ViewMenu/Workspace | ⚠️ 未接続 |
-| `previewEnableRamCache` | ViewMenu/Workspace | ❌ 未接続 |
-| `previewEnableDiskCache` | ViewMenu/Workspace | ❌ 未接続 |
+| `previewEnableRamCache` | ViewMenu/Workspace | ✅ ViewMenu の品質プリセットメニューに接続 |
+| `previewEnableDiskCache` | ViewMenu/Workspace | ✅ ViewMenu の品質プリセットメニューに接続 |
 
 **提案**: ViewMenu → "Preview" サブメニューを拡張  
 品質プリセット (Full/Half/Auto) + Cache トグル
@@ -71,7 +71,7 @@ VSコードのモード選択プルダウンと同様のUI
 
 ### M-APP-SETT-1: Preview Settings UI 接続
 - ViewMenu に Preview Quality/Resolution アクション追加
-- `previewQualityText`, `previewEnableRamCache` 接続
+- `previewQualityText`, `previewEnableRamCache`, `previewEnableDiskCache` 接続
 - 作業時間: 2-3h
 
 ### M-APP-SETT-2: Grid Settings UI 接続
