@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-29 23:17
+> Generated: 2026-07-29 23:23
 > Total documents: 1134
 
 ---
@@ -59,7 +59,7 @@
 | 48 | `Artifact/docs/MILESTONE_PREVIEW_FREEZE_STOP_RESPONSIVENESS_2026-06-05.md` | Preview Freeze & Stop Responsiveness (2026-06-05) | 2026-06-05 | Planned/diagnosed; UI-thread PNG/QImage work, synchronous stop, mutex contention, and seek cost identified; asynchronous stop/I/O, contention reduction, and success-criteria verification pending | --- | 5.9 KB | PREVIEW, FREEZE, STOP, RESPONSIVENESS |
 | 49 | `Artifact/docs/MILESTONE_PRIMITIVE3D_RENDER_PATH_2026-03-21.md` | Primitive 3D Render Path Milestone | 2026-07-25 | ** P3D-1〜4 は実装済み、P3D-5 は backend 側の基盤実装済みで parity の runtime 検証待ち。 | --- | 7.2 KB | PRIMITIVE3D, RENDER, PATH |
 | 50 | `Artifact/docs/MILESTONE_RAM_PREVIEW_SYSTEM_2026-05-01.md` | RAM Preview System | 2026-05-16 | Early foundation; playback/cache state and cache-bar visualization exist, authoritative composition preview queue, ready-range playback, invalidation policy, diagnostics, and commands pending | --- | 3.7 KB | RAM, PREVIEW, SYSTEM |
-| 51 | `Artifact/docs/MILESTONE_RENDER_MANAGER_2026-03-17.md` | M14 Render Manager (2026-03-17) | 2026-03-17 | Partial; M-RENDER-1〜5 implemented, M-RENDER-6 recovery/history/bulk-edit surface and real-output runtime verification pending | --- | 7.0 KB | RENDER, MANAGER |
+| 51 | `Artifact/docs/MILESTONE_RENDER_MANAGER_2026-03-17.md` | M14 Render Manager (2026-03-17) | 2026-03-17 | Partial; M-RENDER-1〜5 implemented, M-RENDER-6 recovery/history/bulk-edit surface and real-output runtime verification pending | --- | 7.8 KB | RENDER, MANAGER |
 | 52 | `Artifact/docs/MILESTONE_ROADMAP_2026-03-10.md` | Artifact Milestone Roadmap (2026-03-10) | 2026-03-10 | --- | --- | 3.0 KB | ROADMAP |
 | 53 | `Artifact/docs/MILESTONE_STATIC_LAYER_GPU_CACHE_2026-03-26.md` | Static Layer GPU Cache (2026-03-26) | 2026-03-26 | Partial（Phase 1〜4実装：cache signature・GPU再利用・budget/LRU・invalidate・hit/miss diagnostics。Phase 5 Static Scene Fast Path とruntime性能確認は未完了） | --- | 5.2 KB | STATIC, LAYER, GPU, CACHE |
 | 54 | `Artifact/docs/MILESTONE_STYLE_SURFACE_KIT_2026-04-09.md` | Milestone: Style Surface Kit / QProxyStyle-Backed Widget Primitives (2026-04-09) | 2026-04-09 | --- | --- | 4.3 KB | STYLE, SURFACE, KIT |
