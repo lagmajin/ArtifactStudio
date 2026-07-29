@@ -1,6 +1,6 @@
 # マイルストーン: プレイヘッド整備
 
-**ステータス:** Partial — playhead rendering, scrub/keyboard seeking, playback synchronization, direct triangle drag, timecode input, snap, and state unification are implemented; scroll-follow remains pending.
+**ステータス:** Complete (static implementation verified; runtime interaction verification pending).
 
 > 2026-03-21 作成
 
@@ -41,13 +41,13 @@
 
 ---
 
-## Phase 2: シーク UX 改善 (P1) — スキップ
+## Phase 2: シーク UX 改善 (P1) ✅
 
 不感帯は改善済みのため省略。残タスクはスクロール追従のみ。
 
 | タスク | 対象ファイル | 内容 |
 |---|---|---|
-| スクロール追従 | `PlayheadSyncFilter` | プレイヘッドがビューポート外に出た場合の自動スクロール |
+| スクロール追従 | `ArtifactTimelineWidget::setCurrentFrameForAll()` | プレイヘッドがビューポート外に出た場合の自動スクロール | ✅ |
 
 ---
 

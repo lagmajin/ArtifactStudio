@@ -815,11 +815,11 @@ active milestone の重複名としては扱わない。
 - 固定評価順と Cloner / Layout / Crowd / Physics / Fracture / Particle の統合契約:
   `docs/planned/MILESTONE_LAYER_COMPONENT_EVALUATION_PIPELINE_2026-06-28.md`
 
-### M-PH Playhead 整備 ✅ Phase 1, Phase 3-4 (2026-07-30), 🚧 Phase 2 partial
+### M-PH Playhead 整備 ✅ 完了 (2026-07-30)
 - ✅ Phase 1: 状態統一 — `currentFrame_` を単一権威、fan-out → `setCurrentFrameForAll()`、9 箇所の手動書替を統合
-- 🚧 Phase 2: ✅ keyframe drag の playhead／work area／layer bounds／keyframe／10-frame snap／プレイヘッド三角ドラッグ実装済み / ❌ スクロール追従
+- ✅ Phase 2: keyframe drag の playhead／work area／layer bounds／keyframe／10-frame snap／プレイヘッド三角ドラッグ／スクロール追従
 - 🚧 Phase 3: 表示品質 → ✅ HH:MM:SS:FF (TimeCodeWidget), HiDPI, コンポジションビュー連携、F<n> 入力解釈 済み
-- 🚧 Phase 4: 操作拡充 → ✅ JKL シャトル, ホイールシーク, ドラッグシーク, プレイヘッド三角ドラッグ, タイムコード／フレーム入力 済み
+- ✅ Phase 4: 操作拡充 → JKL シャトル, ホイールシーク, ドラッグシーク, プレイヘッド三角ドラッグ, タイムコード／フレーム入力
 - マイルストーン文書は `docs/done/` へ移動済み
 
 ## Render

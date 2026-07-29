@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 02:40
+> Generated: 2026-07-30 02:41
 > Total documents: 1134
 
 ---
@@ -381,7 +381,7 @@
 | 53 | `docs/done/MILESTONE_ONBOARDING_EMPTY_STATES_2026-03-27.md` | Onboarding / Empty States (2026-03-27) | 2026-03-27 | Partial (surface guidance exists; unified first-action onboarding and runtime verification pending) | 2026-07-30 | 1.3 KB | ONBOARDING, EMPTY, STATES |
 | 54 | `docs/done/MILESTONE_PARENT_PICK_WHIP_2026-07-03.md` | M-LA-4 Parent Pick-Whip Milestone | 2026-07-03 | Completed (timeline drag/hover/drop and parent service path; runtime/cyclic-parent verification pending) | 2026-07-29 | 5.7 KB | PARENT, PICK, WHIP |
 | 55 | `docs/done/MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md` | Playback State Contract and Transport Cohesion | 2026-05-31 | Completed (state authority, transport synchronization, diagnostic wording, and preview reason reporting; runtime verification pending) | 2026-07-07 | 0.8 KB | PLAYBACK, STATE, CONTRACT, AND, TRANSPORT |
-| 56 | `docs/done/MILESTONE_PLAYHEAD.md` | マイルストーン: プレイヘッド整備 | 2026-03-21 | Partial — playhead rendering, scrub/keyboard seeking, playback synchronization, direct triangle drag, timecode input, snap, and state unification are implemented; scroll-follow remains pending. | 2026-07-30 | 4.4 KB | PLAYHEAD |
+| 56 | `docs/done/MILESTONE_PLAYHEAD.md` | マイルストーン: プレイヘッド整備 | 2026-03-21 | Complete (static implementation verified; runtime interaction verification pending). | 2026-07-30 | 4.3 KB | PLAYHEAD |
 | 57 | `docs/done/MILESTONE_PRECOMPOSE_WORKFLOW_COMPLETION_2026-07-09.md` | M-PRECOMP-2: Precompose Workflow Completion (2026-07-09) | 2026-07-24 | ✅ Complete (source/static verified 2026-07-24; runtime verification intentionally skipped) | 2026-07-25 | 7.9 KB | PRECOMPOSE, WORKFLOW, COMPLETION |
 | 58 | `docs/done/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md` | Project Health / Problem View - Phase 1 Execution | 2026-05-12 | Completed (diagnostic source alignment and render-preflight blocking; runtime verification pending) | 2026-06-20 | 2.7 KB | PROJECT, HEALTH, PROBLEM, VIEW, PHASE1 |
 | 59 | `docs/done/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE2_2026-05-25.md` | マイルストーン: Project Health Problem View Phase 2 | 2026-05-25 | 完了 | 2026-06-20 | 2.4 KB | PROJECT, HEALTH, PROBLEM, VIEW, PHASE2 |
@@ -1033,7 +1033,7 @@
 | 577 | `docs/planned/MILESTONE_WORKSPACE_MANAGER_2026-03-29.md` | Milestone: Workspace Manager (2026-03-29) | 2026-03-29 | --- | 2026-07-25 | 3.4 KB | WORKSPACE, MANAGER |
 | 578 | `docs/planned/MILESTONE_WORKSPACE_PRESETS_2026-04-10.md` | ワークスペースプリセット管理の実装 | 2026-04-10 | --- | 2026-07-25 | 5.2 KB | WORKSPACE, PRESETS |
 | 579 | `docs/planned/MILESTONE_ZOOM_TO_FIT_2026-04-10.md` | ズームtoフィット機能の拡張 | 2026-04-10 | --- | 2026-07-29 | 4.5 KB | ZOOM, FIT |
-| 580 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-30 | 96.9 KB | BACKLOG |
+| 580 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-30 | 96.8 KB | BACKLOG |
 | 581 | `docs/planned/NEXT_PHASE_ROADMAP.md` | プロジェクトビュー → タイムライン統合の次フェーズ提案 | 2026-06-07 | --- | 2026-07-05 | 9.1 KB | NEXT, PHASE, ROADMAP |
 | 582 | `docs/planned/PROPOSAL_RENDER_EXPORT_EFFICIENCY_2026-07-28.md` | 提案メモ: ファイル書き出し（レンダーキュー）効率化 — 2026-07-28 | 2026-07-28 | 提案（未実装・未承認） | 2026-07-28 | 3.7 KB | PROPOSAL, RENDER, EXPORT, EFFICIENCY |
 | 583 | `docs/planned/RANDOM_HELPER_PROPOSAL_2026-06-16.md` | Random / Noise Helper Proposal (ArtifactCore) — 2026-06-16 | 2026-06-16 | --- | 2026-06-17 | 21.0 KB | RANDOM, HELPER, PROPOSAL |
