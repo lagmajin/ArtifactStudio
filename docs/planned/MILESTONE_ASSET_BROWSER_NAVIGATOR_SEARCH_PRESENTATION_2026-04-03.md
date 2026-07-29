@@ -190,5 +190,6 @@ Asset Browser から次の操作へ迷わず進めるようにする。
 - 左 Hub summary には Favorites / Sources に加えて現在の Type、Status、Search 条件を表示し、保存された filter state と実際の表示条件を同じ surface で確認できるようにした。
 - Status の Favorite も summary に明示し、保存・復元された全 Status filter 値が表示上欠落しないことを確認した。
 - 左 Hub summary に現在のフィルタ結果の表示件数（Showing）を追加し、Type / Status / Search 条件の結果規模を同じ surface で把握できるようにした。
+- 左 Hub の Selection summary は、選択行数と連番展開後の source path 数を分けて表示するようにした。連番1行を選択した場合も、`1 selected • N source paths` と表示され、行数とフレーム数を混同しない。
 - 公開 filter setter は未知の値を `all` に正規化して保存し、外部 API からの不正値で一覧が意図せず空になることを防ぐ。
 - よって親 milestone の実装範囲は完了相当だが、検索履歴切替、D&D preview ghost、runtime performance／UX の実機検証を残す状態と判定する。
