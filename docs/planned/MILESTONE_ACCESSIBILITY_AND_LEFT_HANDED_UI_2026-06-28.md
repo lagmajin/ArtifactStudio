@@ -117,6 +117,7 @@
 - ✅ Property Editor 共通の Slider、Selector、Callback Button に標準 Accessible Name / Description を付与。
 - ✅ Property Editor の行コンテナ、プロパティ名ラベル、補助情報、操作クラスタに Accessible Name / Description を付与。
 - ✅ Property Editor 基底エディタに共通 Accessible Name / Description を付与し、派生エディタの読み上げフォールバックを整備。
+- ✅ 3D Model Viewer の shading mode、ナビゲーションヒント、モデルステータス表示に Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
