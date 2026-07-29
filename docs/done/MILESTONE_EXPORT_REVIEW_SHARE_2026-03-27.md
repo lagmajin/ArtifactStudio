@@ -1,5 +1,7 @@
 # Export / Review / Share (2026-03-27)
 
+**Status:** Partial — render/export and viewer foundations exist elsewhere, but the defined post-export review/share workflow and runtime integration are not yet verified as a complete surface.
+
 ## Goal
 
 書き出し結果をそのまま確認・共有しやすくする。
