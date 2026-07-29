@@ -138,3 +138,11 @@
 - 事実: 生成スクリプトは新規 Markdown を収集できるが、文書ヘッダの短い Status だけを抽出するため、実装監査に基づき INDEX へ手動同期した詳細な Partial／Not started の説明を再生成時に失う。また、最新 milestone 文書が生成後に追加された場合は INDEX から欠落する。
 - 価値・懸念: `tools/generate_doc_inventory.py` に既存 INDEX の詳細 Status 引き継ぎと、`状態:`／`進捗状態:` の抽出を追加した。これにより新規文書の収集と既存監査状態の保持を両立できる見込みだが、実 INDEX 再生成時の差分確認はまだ行っていない。
 - 次の確認: INDEX をバックアップ可能な手順で一度再生成し、新規 milestone の収録、既存 Status の保持、件数・分類差分を確認する。
+
+### 2026-07-29 — ドキュメント INDEX dry-run はファイルごとの git log がボトルネックになる
+
+- 状態: 未解決・性能課題
+- 関連: `tools/generate_doc_inventory.py::get_git_last_modified`
+- 事実: 生成器は Markdown ごとに個別の `git log -1` を実行する。1100 件超の文書を対象に Status 引き継ぎを含む dry-run を行ったところ、長時間経過しても完了せず、処理を停止した。INDEX の書き込みは発生していない。
+- 価値・懸念: 文書数が増えるほど生成・検証の反復が遅くなり、Status 同期の安全確認を阻害する。git log の一括取得またはファイル単位の不要な履歴照会削減が必要。
+- 次の確認: `git log --name-only` 等の一括履歴マップを作り、現行出力と同じ Modified 日付を保ったまま生成時間を測定する。
