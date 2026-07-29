@@ -122,3 +122,4 @@ sequence を Composition へ投入した際にフレームパスごとに単体�
 代表フレームの再読込でも cached frame index を無効化し、破棄済み cache を有効扱いしないようにした。
 欠損／不正画像への切替時も prefetch generation を進め、旧画像の非同期結果が placeholder を上書きしないようにした。
 sequence 内の不正パスでも sequence reader と cached frame index を破棄し、旧 reader の再利用を防止する。
+frame index 範囲外／`frameAt()` 失敗時も直前フレームを残さず、missing-image fallback へ遷移するようにした。
