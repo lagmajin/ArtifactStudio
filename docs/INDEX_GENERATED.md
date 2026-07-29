@@ -891,7 +891,7 @@
 | 442 | `docs/planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md` | MILESTONE: Render Preflight / Output Safety Check | 2026-06-02 | --- | 2026-07-09 | 4.5 KB | RENDER, PREFLIGHT |
 | 443 | `docs/planned/MILESTONE_RENDER_QUEUE_2026-03-22.md` | MILESTONE_RENDER_QUEUE_2026-03-22 | 2026-03-22 | --- | 2026-04-01 | 1.4 KB | RENDER, QUEUE |
 | 444 | `docs/planned/MILESTONE_RENDER_QUEUE_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: レンダーキュー 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 2.1 KB | RENDER, QUEUE, DESIGN, AUDIT |
-| 445 | `docs/planned/MILESTONE_RENDER_QUEUE_ENCODING_2026-04-01.md` | Milestone: Render Queue Hardware Encoding Support (M-RQ-ENC-1) | 2026-04-01 | --- | 2026-04-06 | 4.8 KB | RENDER, QUEUE, ENCODING |
+| 445 | `docs/planned/MILESTONE_RENDER_QUEUE_ENCODING_2026-04-01.md` | Milestone: Render Queue Hardware Encoding Support (M-RQ-ENC-1) | 2026-04-01 | 部分完了（FFmpeg probe、NVENC/QSV/AMF相当のcodec解決、native/pipe-hw/pipe-vulkan backend、software fallback、H.264/H.265 quality基盤を実装、GPU resident codec・zero-copy YUV/HDR・実機性能/availability検証未完了） | 2026-07-29 | 4.8 KB | RENDER, QUEUE, ENCODING |
 | 446 | `docs/planned/MILESTONE_RENDER_QUEUE_GPU_BACKEND_2026-04-03.md` | マイルストーン: Render Queue GPU Backend Selection / Fallback | 2026-04-03 | --- | 2026-04-05 | 2.6 KB | RENDER, QUEUE, GPU, BACKEND |
 | 447 | `docs/planned/MILESTONE_RENDERING_PERFORMANCE_2026-03-28.md` | レンダリング性能改善 Milestone | 2026-03-28 | 一部実装済み ✅ | 2026-07-07 | 9.2 KB | RENDERING, PERFORMANCE |
 | 448 | `docs/planned/MILESTONE_RESPONSIVE_LAYOUT_COMPOSITION_2026-06-05.md` | MILESTONE Responsive Layout Composition | 2026-06-29 | --- | 2026-07-10 | 3.2 KB | RESPONSIVE, LAYOUT, COMPOSITION |
