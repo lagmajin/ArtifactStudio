@@ -51,6 +51,36 @@ def get_git_last_modified(filepath: Path) -> Optional[str]:
     return None
 
 
+def load_git_last_modified() -> dict[str, str]:
+    """Read latest commit dates for all inventory files in one git walk."""
+    try:
+        result = subprocess.run(
+            [
+                "git", "log", "--format=__COMMIT__ %ai", "--name-only", "--",
+                "docs", "plans", "Artifact/docs", "ArtifactCore/docs",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+            timeout=60,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return {}
+    if result.returncode != 0:
+        return {}
+
+    latest: dict[str, str] = {}
+    commit_date: Optional[str] = None
+    for line in result.stdout.splitlines():
+        if line.startswith("__COMMIT__ "):
+            commit_date = line[len("__COMMIT__ "):].strip()[:10]
+            continue
+        rel_path = line.strip().replace("\\", "/")
+        if commit_date and rel_path and rel_path not in latest:
+            latest[rel_path] = commit_date
+    return latest
+
+
 def extract_title_and_date(filepath: Path) -> tuple[str, Optional[str], Optional[str], list[str]]:
     title = filepath.stem
     date = None
@@ -132,7 +162,11 @@ def categorize(path: Path) -> str:
     return "other"
 
 
-def scan_directory(base_dir: Path, existing_statuses: dict[str, str]) -> list[dict]:
+def scan_directory(
+    base_dir: Path,
+    existing_statuses: dict[str, str],
+    git_dates: dict[str, str],
+) -> list[dict]:
     files = []
     if not base_dir.exists():
         print(f"  [SKIP] {base_dir} does not exist")
@@ -144,7 +178,7 @@ def scan_directory(base_dir: Path, existing_statuses: dict[str, str]) -> list[di
         title, date, status, keywords = extract_title_and_date(md_file)
         if not status:
             status = existing_statuses.get(rel_path.as_posix())
-        git_date = get_git_last_modified(md_file)
+        git_date = git_dates.get(rel_path.as_posix()) or get_git_last_modified(md_file)
         size_kb = md_file.stat().st_size / 1024
         files.append({
             "path": rel_path.as_posix(),
@@ -275,11 +309,12 @@ def main():
     print("M-DOCMETA Phase 1: Document Inventory Generator")
     print("=" * 60)
     existing_statuses = load_existing_statuses()
+    git_dates = load_git_last_modified()
     all_files = []
     for dir_rel in SCAN_DIRS:
         scan_path = ROOT / dir_rel
         print(f"\nScanning: {dir_rel}/")
-        files = scan_directory(scan_path, existing_statuses)
+        files = scan_directory(scan_path, existing_statuses, git_dates)
         print(f"  -> {len(files)} files")
         all_files.extend(files)
     print(f"\nTotal: {len(all_files)} files")
