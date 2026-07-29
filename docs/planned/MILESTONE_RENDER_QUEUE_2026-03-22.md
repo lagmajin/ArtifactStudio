@@ -38,3 +38,5 @@
 ただし、目標全体の完了とは判定しない。再起動後の履歴・ログ永続化、in/out/work area の全投入経路での正確な反映、queue 状態と実 renderer の厳密な同期、失敗原因／失敗 frame の UI 表示、checkpoint/resume の実成果物整合、分散失敗時の再送は static evidence だけでは保証できない。`WorkspaceAutomation` の API 入口は、実 UI と長時間 queue の runtime 受け入れ証拠ではない。
 
 判定: queue の基本操作と UI/API surface は実装済み、長時間運用・復旧・永続化・分散の acceptance は未検証または後続 milestone に分割済み。
+
+2026-07-30 implementation loop: summary ETA の進捗開始時刻を queue 同期で失わないよう保持し、queue reorder 時のみ index 対応をリセットする処理を追加。runtime の時間精度・長時間運用は未検証。
