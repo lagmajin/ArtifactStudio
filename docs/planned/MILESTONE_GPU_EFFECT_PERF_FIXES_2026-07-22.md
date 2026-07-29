@@ -111,3 +111,5 @@
 `Artifact/src/Effects/ColorCorrection/BrightnessEffect.cppm` を再確認し、`GpuContext`、`ComputeExecutor`、`paramsCB_`、`pipelineReady_` が GPU 実装インスタンスのメンバーとして保持され、PSO/SRB が初回構築後に再利用されることを確認した。したがって FX-1 は実装済みとしてマークする。
 
 ただし、31エフェクト全体の資源再利用（FX-3）、チェーン内 readback 撤去（FX-5/6）、global PSO cache（FX-4）、性能測定は未完了のため、マイルストーン全体のステータスは変更しない。
+
+- 追加確認: `Artifact/src/Effects/Bevel/BevelEffect.cppm` は `GpuContext`、`ComputeExecutor`、params buffer、input/output/staging texture を `applyGPU()` 内で生成している。device/context の共有寿命契約を確認せず executor だけをメンバー化するのは危険なため、FX-3 の安全な移行対象として別途 lifecycle 設計が必要。
