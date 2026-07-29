@@ -521,7 +521,7 @@
 | 72 | `docs/planned/MILESTONE_ANIMATED_IMAGE_EXPORT_2026-03-27.md` | マイルストーン: Animated Image Export | 2026-03-27 | 部分完了（GIF/APNG/Animated WebP の形式面・プリセット・Render Queue経路を実装、palette/alpha/frame delay診断・実ファイル/互換検証は未完了） | 2026-07-29 | 4.2 KB | ANIMATED, IMAGE, EXPORT |
 | 73 | `docs/planned/MILESTONE_ANIMATION_DYNAMICS_CORE_2026-03-28.md` | Animation Dynamics Core Milestone | 2026-03-28 | --- | 2026-03-29 | 6.9 KB | ANIMATION, DYNAMICS, CORE |
 | 74 | `docs/planned/MILESTONE_ANIMATION_DYNAMICS_UI_2026-03-28.md` | マイルストーン: Animation Dynamics UI Surface | 2026-03-28 | --- | 2026-03-29 | 4.1 KB | ANIMATION, DYNAMICS |
-| 75 | `docs/planned/MILESTONE_ANIMATION_LAYERS_2026-07-07.md` | M-ANIM-1 Animation Layers Milestone | 2026-07-07 | --- | 2026-07-25 | 15.2 KB | ANIMATION, LAYERS |
+| 75 | `docs/planned/MILESTONE_ANIMATION_LAYERS_2026-07-07.md` | M-ANIM-1 Animation Layers Milestone | 2026-07-07 | Partial (core evaluation, persistence, Undo, and Bake implemented; timeline selection UI, Merge/Zero Key, and build verification pending) | 2026-07-29 | 15.2 KB | ANIMATION, LAYERS |
 | 76 | `docs/planned/MILESTONE_ANISOTROPIC_FLOW_BLUR_2026-06-13.md` | Milestone: AnisotropicFlowBlur (異方性オプティカルフロー・ブラー) | 2026-06-13 | --- | 2026-06-13 | 4.9 KB | ANISOTROPIC, FLOW, BLUR |
 | 77 | `docs/planned/MILESTONE_APERTURE_SHAPE_BLUR_2026-06-13.md` | Milestone: ApertureShapeBlur (カスタム開口レンズボケ / FFT物理ブラー) | 2026-06-13 | --- | 2026-06-13 | 4.7 KB | APERTURE, SHAPE, BLUR |
 | 78 | `docs/planned/MILESTONE_APP_AUTO_UPDATE_2026-03-28.md` | Milestone: アプリケーション自動アップデート (2026-03-28) | 2026-03-28 | --- | 2026-03-29 | 5.0 KB | APP, AUTO, UPDATE |
