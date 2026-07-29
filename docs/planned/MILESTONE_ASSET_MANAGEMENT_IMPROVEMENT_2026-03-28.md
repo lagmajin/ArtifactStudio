@@ -1,7 +1,7 @@
 # アセット管理改善 Milestone
 
 **作成日:** 2026-03-28  
-**ステータス:** 計画中  
+**ステータス:** Partial／継続中（import・cleanup・cache・relink 基盤実装済み、性能・metadata・batch 拡張と runtime 検証待ち、静的確認 2026-07-29）  
 **関連コンポーネント:** ArtifactAssetBrowser, ArtifactProjectManagerWidget, ArtifactProjectModel
 
 ---
