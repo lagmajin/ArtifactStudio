@@ -69,6 +69,7 @@
 - ✅ Frame Debug View 本体と読み取り専用スナップショット本文に Accessible Name / Description を付与。
 - ✅ App Debugger 本体と Overview、Capture、State、Playback、Frame、Diagnostics、Export サマリーに Accessible Name / Description を付与。
 - ✅ Project View の Global Proxy トグルに Accessible Name / Description を付与。
+- ✅ Project View の Composition Background Color picker に現在色を含む Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
