@@ -1025,6 +1025,7 @@ void ArtifactAssetBrowser::Impl::handleLeaveEvent(QEvent* event) {
 判定: Hover popup、遅延制御、画像/動画/音声 thumbnail、非同期生成・世代キャンセル・ディスクキャッシュは実装済み。専用 popup cache と runtime UX 検証は未完了。
 
 - `ArtifactAssetBrowser` は single-shot の hover timer、同一 path の再表示抑制、移動・離脱時の hide、画面位置計算を持つ。
+- 2026-07-30 に hover popup の表示位置をカーソル右下から利用可能な screen geometry 内へクランプし、画面右端・下端での clipping を防ぐようにした。
 - `HoverPreviewPopup` は画像/動画 thumbnail を表示し、音声は waveform thumbnail 経路がある。missing/失敗時は placeholder と failure reason を保持する。
 - 2026-07-30 に popup の metadata 表示へファイル種別に加えてサイズ（bytes）と最終更新日時（ISO 8601）を追加した。Missing／Folder では不適用値を `-` として表示する。
 - thumbnail はメモリ cache とディスク cache を持ち、非同期 preview job は generation token で古い結果を破棄する。画像・動画の WIC/OIIO/Shell/FFmpeg fallback も実装されている。
