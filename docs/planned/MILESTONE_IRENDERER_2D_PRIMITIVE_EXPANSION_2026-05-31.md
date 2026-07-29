@@ -162,6 +162,8 @@ operator の追加／削除／並べ替え／プロパティ編集について�
 
 gradient／taper など互換キャッシュへ進む operator は、native packet 用の加工を先に実行しないよう候補判定を分離した。空の加工結果も従来の互換経路へ戻る。
 
+Shape layer の local bounds padding は stroke が無効な場合を除き、Center／Outside／Inside の align 契約に合わせて算出するよう更新した。
+
 次の安全な実装単位は、operator 複数輪郭の順序・fill rule・bounds invalidation と、gradient／taper の native contract を固定すること。
 
 ### Phase 2: Styled Polyline

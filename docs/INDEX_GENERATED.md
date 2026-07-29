@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-29 23:53
+> Generated: 2026-07-29 23:54
 > Total documents: 1134
 
 ---
@@ -752,7 +752,7 @@
 | 296 | `docs/planned/MILESTONE_INTEGRATED_RENDERING_ENGINE_2026-03-28.md` | マイルストーン: Integrated Rendering Engine | 2026-03-28 | --- | 2026-03-29 | 3.8 KB | INTEGRATED, RENDERING, ENGINE |
 | 297 | `docs/planned/MILESTONE_INTERACTIVE_RENDER_PERFORMANCE_2026-07-27.md` | Milestone: Interactive Render Performance | 2026-07-27 | Partial implementation / runtime verification pending | 2026-07-29 | 21.2 KB | INTERACTIVE, RENDER, PERFORMANCE |
 | 298 | `docs/planned/MILESTONE_INTERNATIONALIZATION_2026-03-28.md` | インターナショナリゼーション (i18n) Milestone | 2026-03-28 | 計画中 | 2026-03-29 | 7.5 KB | INTERNATIONALIZATION |
-| 299 | `docs/planned/MILESTONE_IRENDERER_2D_PRIMITIVE_EXPANSION_2026-05-31.md` | M-IR-10 ArtifactIRenderer 2D Primitive Expansion | 2026-07-29 | --- | 2026-07-29 | 8.5 KB | IRENDERER, PRIMITIVE, EXPANSION |
+| 299 | `docs/planned/MILESTONE_IRENDERER_2D_PRIMITIVE_EXPANSION_2026-05-31.md` | M-IR-10 ArtifactIRenderer 2D Primitive Expansion | 2026-07-29 | --- | 2026-07-29 | 8.7 KB | IRENDERER, PRIMITIVE, EXPANSION |
 | 300 | `docs/planned/MILESTONE_KEYBOARD_OVERLAY_2026-03-30.md` | Keyboard Overlay Milestone (2026-03-30) | 2026-03-30 | --- | 2026-07-09 | 4.1 KB | KEYBOARD, OVERLAY |
 | 301 | `docs/planned/MILESTONE_KEYFRAME_ANIMATION_IMPROVEMENT_2026-03-28.md` | キーフレーム・アニメーション改善 Milestone | 2026-03-28 | 計画中 | 2026-07-25 | 15.3 KB | KEYFRAME, ANIMATION, IMPROVEMENT |
 | 302 | `docs/planned/MILESTONE_KEYFRAME_AUTO_BEZIER_2026-04-10.md` | キーフレームオートベジエエディタの実装 | 2026-04-10 | --- | 2026-07-25 | 3.0 KB | KEYFRAME, AUTO, BEZIER |
