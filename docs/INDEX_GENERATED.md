@@ -17,14 +17,14 @@
 | 6 | `Artifact/docs/INVESTIGATION_PROJECT_TREE_FLOATING_RESIZE_2026-03-14.md` | INVESTIGATION_PROJECT_TREE_FLOATING_RESIZE_2026-03-14 | 2026-03-14 | --- | --- | 20.7 KB | INVESTIGATION, PROJECT, TREE, FLOATING, RESIZE |
 | 7 | `Artifact/docs/INVESTIGATION_QADS_UPSTREAM_COMPARISON_2026-06-23.md` | QADS Upstream Comparison Investigation (2026-06-23) | 2026-06-23 | --- | --- | 3.5 KB | INVESTIGATION, QADS, UPSTREAM, COMPARISON |
 | 8 | `Artifact/docs/LAYER_CREATION_SPEC_2026-03-15.md` | Layer Creation Spec (2026-03-15) | 2026-03-15 | --- | --- | 1.2 KB | LAYER, CREATION, SPEC |
-| 9 | `Artifact/docs/MILESTONE_3D_GIZMO_IMPLEMENTATION_2026-03-25.md` | 3D Transform Gizmo Implementation Milestone (2026-03-25) | 2026-03-25 | --- | --- | 5.2 KB | GIZMO, IMPLEMENTATION |
+| 9 | `Artifact/docs/MILESTONE_3D_GIZMO_IMPLEMENTATION_2026-03-25.md` | 3D Transform Gizmo Implementation Milestone (2026-03-25) | 2026-03-25 | Partial; GIZ-1〜4 implemented, advanced numeric feedback and runtime verification pending | 2026-07-29 | 5.8 KB | GIZMO, IMPLEMENTATION |
 | 10 | `Artifact/docs/MILESTONE_AI_CLOUD_UI_2026-04-09.md` | AI Cloud UI / Provider Milestone (2026-04-09) | 2026-04-09 | --- | --- | 6.2 KB | CLOUD |
 | 11 | `Artifact/docs/MILESTONE_AI_CLOUD_WIDGET_HARDENING_2026-04-09.md` | Milestone: AI Cloud Widget Hardening / OpenRouter-Kilo Gateway Trial (2026-04-09 | 2026-04-09 | --- | --- | 5.9 KB | CLOUD, WIDGET, HARDENING |
 | 12 | `Artifact/docs/MILESTONE_APP_UX_AND_CORE_REFINEMENT_2026-03-17.md` | M15 App UX & Core Refinement (2026-03-17) | 2026-03-17 | --- | --- | 4.2 KB | APP, AND, CORE, REFINEMENT |
 | 13 | `Artifact/docs/MILESTONE_ARTIFACT_IRENDER_2026-03-12.md` | ArtifactIRender Milestone | 2026-04-21 | --- | --- | 3.4 KB | ARTIFACT, IRENDER |
 | 14 | `Artifact/docs/MILESTONE_ASSET_SYSTEM_2026-03-12.md` | Asset System Milestone | 2026-03-12 | --- | --- | 5.2 KB | ASSET, SYSTEM |
 | 15 | `Artifact/docs/MILESTONE_AUDIO_BUS_ROUTING_UI_2026-04-09.md` | Audio Bus Routing UI Milestone | 2026-04-09 | Partial; bus graph/core serialization foundation exists, user-facing routing editor, composition persistence, and runtime safety verification pending | 2026-07-29 | 5.0 KB | AUDIO, BUS, ROUTING |
-| 16 | `Artifact/docs/MILESTONE_AUDIO_ENGINE_2026-03.md` | Audio Engine Implementation Milestone | 2026-03-22 | --- | --- | 2.3 KB | AUDIO, ENGINE, 2026 |
+| 16 | `Artifact/docs/MILESTONE_AUDIO_ENGINE_2026-03.md` | Audio Engine Implementation Milestone | 2026-03-22 | Partial; sink/decoder/ring-buffer/mixer foundations implemented, hardware-clock A/V sync and runtime validation pending | 2026-07-29 | 3.2 KB | AUDIO, ENGINE, 2026 |
 | 17 | `Artifact/docs/MILESTONE_CLONE_LAYER_CONSOLIDATION_2026-03-30.md` | Milestone: Clone Layer Consolidation (2026-03-30) | 2026-03-30 | --- | --- | 1.7 KB | CLONE, LAYER, CONSOLIDATION |
 | 18 | `Artifact/docs/MILESTONE_CLONER_GENERATOR_2026-03-17.md` | M12 Cloner Generator Foundation (2026-03-17) | 2026-03-17 | --- | --- | 21.0 KB | CLONER, GENERATOR |
 | 19 | `Artifact/docs/MILESTONE_CLOUD_AI_API_ALL_PHASES_2026-04-26.md` | Milestone: Cloud AI Widget API Expansion - All Phases (2026-04-26) | 2026-04-26 | --- | --- | 11.0 KB | CLOUD, API, ALL, PHASES |
