@@ -61,7 +61,7 @@
 | 50 | `Artifact/docs/MILESTONE_RAM_PREVIEW_SYSTEM_2026-05-01.md` | RAM Preview System | 2026-05-16 | --- | --- | 3.7 KB | RAM, PREVIEW, SYSTEM |
 | 51 | `Artifact/docs/MILESTONE_RENDER_MANAGER_2026-03-17.md` | M14 Render Manager (2026-03-17) | 2026-03-17 | --- | --- | 6.2 KB | RENDER, MANAGER |
 | 52 | `Artifact/docs/MILESTONE_ROADMAP_2026-03-10.md` | Artifact Milestone Roadmap (2026-03-10) | 2026-03-10 | --- | --- | 3.0 KB | ROADMAP |
-| 53 | `Artifact/docs/MILESTONE_STATIC_LAYER_GPU_CACHE_2026-03-26.md` | Static Layer GPU Cache (2026-03-26) | 2026-03-26 | --- | --- | 3.7 KB | STATIC, LAYER, GPU, CACHE |
+| 53 | `Artifact/docs/MILESTONE_STATIC_LAYER_GPU_CACHE_2026-03-26.md` | Static Layer GPU Cache (2026-03-26) | 2026-03-26 | Partial（Phase 1〜4実装：cache signature・GPU再利用・budget/LRU・invalidate・hit/miss diagnostics。Phase 5 Static Scene Fast Path とruntime性能確認は未完了） | 2026-07-29 | 3.7 KB | STATIC, LAYER, GPU, CACHE |
 | 54 | `Artifact/docs/MILESTONE_STYLE_SURFACE_KIT_2026-04-09.md` | Milestone: Style Surface Kit / QProxyStyle-Backed Widget Primitives (2026-04-09) | 2026-04-09 | --- | --- | 4.3 KB | STYLE, SURFACE, KIT |
 | 55 | `Artifact/docs/MILESTONE_V0_1_DIAGNOSTIC_2026-03-10.md` | v0.1 Diagnostic (2026-03-10) | 2026-03-10 | --- | --- | 6.4 KB | DIAGNOSTIC |
 | 56 | `Artifact/docs/MILESTONE_V0_1_USABLE_APP.md` | Artifact v0.1 Usable Milestone | --- | --- | --- | 3.4 KB | USABLE, APP |
