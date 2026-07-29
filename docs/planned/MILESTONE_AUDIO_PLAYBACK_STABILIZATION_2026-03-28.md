@@ -1,6 +1,6 @@
 # マイルストーン: Audio Playback Stabilization
 
-ステータス: Phase 1〜2／4 基盤実装済み、Phase 4 診断スナップショット静的実装済み（Phase 3 の format 契約・実機検証待ち）
+ステータス: Phase 1〜2／4 基盤実装済み、Phase 3 sample rate 正規化・Phase 4 診断スナップショット静的実装済み（channel 契約・実機検証待ち）
 
 > 2026-03-28 作成
 
@@ -163,6 +163,7 @@ audio state を見える化して再生の追い込みをしやすくする。
 - `AudioRenderer` 側の bufferedFrames、underflow/overflow 観測と、stop/close/seek 周辺の buffer hygiene が playback engine と接続されている。
 - `ArtifactPlaybackEngine::audioDiagnostics()` / `ArtifactPlaybackService::audioDiagnostics()` / `ArtifactAudioService::playbackDiagnostics()` で device、buffer水位、実sample rate／channel数、format mismatch、open retry、resync、clock correction、underflow、overflow のスナップショットを取得できる。
 - App Debugger の playback diagnostics 表示へ device、buffer、format、underflow／overflow を接続した。
+- renderer 実sample rate と source が異なる場合、enqueue 前に線形リサンプリングする経路を追加した。channel downmix は既存 Core renderer に委譲する。
 - seek 系は media source の decoder flush／cursor 更新を含む経路があり、AudioLayer/VideoLayer の音声供給も mixer・playback へ接続されている。
 - ただし全 backend の sample rate/channel 正規化契約、hardware clock と frame clock の drift correction、seek/stop/restart 後に stale audio が混ざらないこと、underrun 低減効果の runtime 測定は未確認。
 - buffer 水位や counters の公開は diagnostics の基盤だが、ユーザー向けの継続的な表示・記録と再生テスト行列は未確認。

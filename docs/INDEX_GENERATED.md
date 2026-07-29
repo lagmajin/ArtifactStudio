@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 02:23
+> Generated: 2026-07-30 02:24
 > Total documents: 1134
 
 ---
@@ -585,7 +585,7 @@
 | 129 | `docs/planned/MILESTONE_AUDIO_LAYER_INTEGRATION_2026-03-27.md` | マイルストーン: オーディオレイヤー統合 | 2026-07-29 | Phase 1〜4 implemented; audio sync/error UX/runtime parity verification pending | 2026-07-29 | 7.3 KB | AUDIO, LAYER, INTEGRATION |
 | 130 | `docs/planned/MILESTONE_AUDIO_MIXER_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: オーディオミキサー 機能監査 (2026-07-04) | 2026-07-04 | Partial; P0 mixer foundation implemented, DAW-grade P1/P2 features and runtime verification pending | 2026-07-25 | 2.8 KB | AUDIO, MIXER, DESIGN, AUDIT |
 | 131 | `docs/planned/MILESTONE_AUDIO_MIXER_SURFACE_PHASE2_2026-05-25.md` | マイルストーン: Audio Mixer Surface Phase 2 | 2026-05-25 | Partial（Phase 1 mixer surface 基礎実装済み、routing／waveform／永続化と runtime 検証待ち、静的確認 2026-07-29） | 2026-07-29 | 3.1 KB | AUDIO, MIXER, SURFACE, PHASE2 |
-| 132 | `docs/planned/MILESTONE_AUDIO_PLAYBACK_STABILIZATION_2026-03-28.md` | マイルストーン: Audio Playback Stabilization | 2026-03-28 | Phase 1〜2／4 foundation implemented; format contract/runtime verification pending | 2026-07-30 | 5.6 KB | AUDIO, PLAYBACK, STABILIZATION |
+| 132 | `docs/planned/MILESTONE_AUDIO_PLAYBACK_STABILIZATION_2026-03-28.md` | マイルストーン: Audio Playback Stabilization | 2026-03-28 | Phase 1〜2／4 foundation implemented; format contract/runtime verification pending | 2026-07-30 | 5.8 KB | AUDIO, PLAYBACK, STABILIZATION |
 | 133 | `docs/planned/MILESTONE_AUDIO_REACTOR_SYSTEM_2026-03-30.md` | Milestone: Audio Reactor System (M-AU-6) | 2026-07-29 | FFT／Audio Reactive binding foundation implemented; service/UI/runtime verification pending | 2026-07-29 | 3.7 KB | AUDIO, REACTOR, SYSTEM |
 | 134 | `docs/planned/MILESTONE_AUDIO_SCRUBBING_2026-06-16.md` | M-AU-8 Audio Scrubbing Milestone | 2026-06-16 | Implemented; device latency/cache hit/mute-sync/runtime verification pending | 2026-07-29 | 14.9 KB | AUDIO, SCRUBBING |
 | 135 | `docs/planned/MILESTONE_AUDIO_WAVEFORM_2026-03-29.md` | Milestone: オーディオ波形ビジュアライザー (2026-03-29) | 2026-03-29 | Partial; extraction/timeline/cached viewport/spectrum overlays implemented, lifecycle hardening pending | 2026-07-25 | 3.4 KB | AUDIO, WAVEFORM |
