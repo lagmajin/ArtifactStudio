@@ -1,7 +1,7 @@
 # 実装案: App Settings - Widget 接続ギャップ
 
 > 2026-06-13 作成  
-> 状態: Partial（主要設定・EditMode／DisplayMode・Preview cache・Grid UI を接続、Clone UI と runtime 検証は未完了、静的確認 2026-07-29）
+> 状態: Partial（主要設定・EditMode／DisplayMode・Preview cache・Grid UI・CloneLayer Property Editor 接続済み、Effector UI と runtime 検証は未完了、静的確認 2026-07-30）
 
 ### 2026-07-29 Implementation Loop
 
@@ -12,7 +12,8 @@
 - ✅ `previewCacheSizeMB` をディスクキャッシュの per-composition budget と global budget に実行時反映。
 - ✅ Preview / Grid 設定の実装経路はコード上で接続済み（runtime 動作確認は未実施）。
 - ✅ Grid 設定メニューの主間隔・分割数に現在値を表示し、設定状態をメニュー上で確認可能にした。
-- ⏳ CloneLayer / Modifier UI と runtime 検証は未完了。既存の ToolOptionsBar の「コピースタンプ」はブラシ系 Clone tool の半径・位置固定であり、CloneLayer の mode / count / effector 編集導線とは別責務。
+- ✅ CloneLayer の mode / count / transform / grid / radial 等を既存 Property Editor の `Clone` グループへ接続。
+- ⏳ TransformCloneEffector 専用 UI と runtime 検証は未完了。既存の ToolOptionsBar の「コピースタンプ」はブラシ系 Clone tool の半径・位置固定であり、CloneLayer の編集導線とは別責務。
 
 ---
 
@@ -68,7 +69,7 @@ VSコードのモード選択プルダウンと同様のUI
 
 | 設定 | ウィジェット | 状態 |
 |------|-------------|------|
-| *(CloneLayer Settings)* | ToolOptionsBar / Property Editor | ❌ 未接続 |
+| *(CloneLayer Settings)* | Property Editor の Clone group | ✅ 静的接続済み |
 | *TransformCloneEffector* | ToolOptionsBar / Property Editor | ❌ 未接続 |
 
 **提案**: "クローン" ツール選択時に Effectors セクション表示  
@@ -80,7 +81,7 @@ VSコードのモード選択プルダウンと同様のUI
 
 ## 提案マイルストーン
 
-**静的実装の完了マーク（2026-07-29）**: M-APP-SETT-1 Preview Settings UI 接続 ✅、M-APP-SETT-2 Grid Settings UI 接続 ✅。M-APP-SETT-3 Clone/Modifier Tool UI ❌ 未実装。runtime 動作確認は全項目で未実施。
+**静的実装の完了マーク（2026-07-30）**: M-APP-SETT-1 Preview Settings UI 接続 ✅、M-APP-SETT-2 Grid Settings UI 接続 ✅、M-APP-SETT-3 CloneLayer Property Editor 接続 ✅。TransformCloneEffector UI と runtime 動作確認は未完了。
 
 ### M-APP-SETT-1: Preview Settings UI 接続
 - ViewMenu に Preview Quality/Resolution アクション追加
