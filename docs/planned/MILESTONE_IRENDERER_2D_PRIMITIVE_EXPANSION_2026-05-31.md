@@ -150,7 +150,8 @@ void drawStyledPolylineLocal(const std::vector<Detail::float2>& points,
 - `PrimitiveRenderer2D::drawArcLocal()` を追加し、既存の thick-line packet へ分割委譲する円弧 stroke の最小実装を追加。
 - `ArtifactIRenderer::drawArcLocal()` から上記 primitive を公開し、上位 layer が renderer façade 経由で再利用できる境界を確立。
 - 既存 `drawRoundedPanel()` の outline corner を `drawArcLocal()` へ移し、rounded rectangle の重複した円弧実装を整理。
-- Styled polyline、shape layer 接続、runtime parity は未完了。
+- `PolylineStyle` と `ArtifactIRenderer::drawStyledPolyline()` を追加し、closed／round join／round cap／2要素 dash の最小経路を実装。
+- miter／bevel／square の固有 geometry、複数 dash 周期の連続性、shape layer 接続、runtime parity は未完了。
 
 ### Phase 2: Styled Polyline
 
@@ -169,7 +170,7 @@ void drawStyledPolylineLocal(const std::vector<Detail::float2>& points,
 - `Line` や `Rounded Rect` の app-layer 実装が renderer の寄せ集めではなく、正式 API を通る
 - low-level 追加が `ImmediateContext` の露出拡大ではなく、renderer façade の強化として成立する
 
-現時点の判定: **Phase 1 Arc／Rounded Rect façade は実装済み（runtime 検証 pending）／Styled Polyline 以降は未完了**。
+現時点の判定: **Phase 1 Arc／Rounded Rect façade は実装済み、Phase 2 Styled Polyline は部分実装（runtime 検証 pending）**。
 
 ## Target Files
 
