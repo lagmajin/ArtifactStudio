@@ -593,7 +593,7 @@
 | 144 | `docs/planned/MILESTONE_BATCH_RENDERING_2026-03-28.md` | Milestone: バッチレンダリング (2026-03-28) | 2026-03-28 | --- | 2026-03-29 | 3.5 KB | BATCH, RENDERING |
 | 145 | `docs/planned/MILESTONE_BEHAVIOR_DRIVEN_PROPERTY_MOTION_2026-07-05.md` | Milestone: Behavior-Driven Property Motion (2026-07-05) | 2026-07-05 | Not Started | 2026-07-05 | 12.6 KB | BEHAVIOR, DRIVEN, PROPERTY, MOTION |
 | 146 | `docs/planned/MILESTONE_BEYOND_AE_DIFFERENTIATION_2026-06-02.md` | M-BEYOND-AE After Effects にない Artifact だけの差別化機能 (2026-06-02) | 2026-06-02 | --- | 2026-06-05 | 15.7 KB | BEYOND, DIFFERENTIATION |
-| 147 | `docs/planned/MILESTONE_CAMERA_ENHANCEMENT_DOF_2026-07-09.md` | M-CAM: Camera Enhancement - Depth of Field / Lens Blur 設計マイルストーン（本格的移植版） | 2026-07-09 | Not Started | 2026-07-09 | 9.3 KB | CAMERA, ENHANCEMENT, DOF |
+| 147 | `docs/planned/MILESTONE_CAMERA_ENHANCEMENT_DOF_2026-07-09.md` | M-CAM: Camera Enhancement - Depth of Field / Lens Blur 設計マイルストーン（本格的移植版） | 2026-07-09 | Partial camera foundation / DOF render path not implemented | 2026-07-29 | 9.3 KB | CAMERA, ENHANCEMENT, DOF |
 | 148 | `docs/planned/MILESTONE_CAMERA_OVERLAY_EXPERIMENT_2026-04-02.md` | MILESTONE: Camera Overlay Experiment | 2026-04-02 | --- | 2026-04-02 | 2.1 KB | CAMERA, OVERLAY, EXPERIMENT |
 | 149 | `docs/planned/MILESTONE_CAMERA_PROJECTION_2026-03-31.md` | MILESTONE: Camera Projection Integration | 2026-03-31 | --- | 2026-07-09 | 4.0 KB | CAMERA, PROJECTION |
 | 150 | `docs/planned/MILESTONE_CAMERA_SHAKE_2026-07-09.md` | M-CS-1: Camera Shake System - 設計マイルストーン | 2026-07-09 | In Progress（ワークストリーム A: 3D カメラシェイク実装済み / B: 未着手） | 2026-07-10 | 7.6 KB | CAMERA, SHAKE |
@@ -760,7 +760,7 @@
 | 311 | `docs/planned/MILESTONE_LAYER_SOLO_VIEW_DILIGENT_2026-03-26.md` | Layer Solo View (Diligent) Milestone | 2026-04-25 | --- | 2026-07-09 | 14.0 KB | LAYER, SOLO, VIEW, DILIGENT |
 | 312 | `docs/planned/MILESTONE_LAYER_STYLE_PRESETS_2026-04-10.md` | レイヤースタイルプリセットの実装 | 2026-04-10 | --- | 2026-04-11 | 2.0 KB | LAYER, STYLE, PRESETS |
 | 313 | `docs/planned/MILESTONE_LAYER_THUMBNAIL_PREVIEW_2026-04-10.md` | レイヤーサムネイルプレビューの実装 | 2026-04-10 | --- | 2026-04-11 | 1.9 KB | LAYER, THUMBNAIL, PREVIEW |
-| 314 | `docs/planned/MILESTONE_LAYER_VIEW_ENHANCEMENT_2026-07-08.md` | マイルストーン: レイヤー専用ビューポート（Layer View）機能キャッチアップ案 | 2026-07-08 | --- | 2026-07-09 | 13.2 KB | LAYER, VIEW, ENHANCEMENT |
+| 314 | `docs/planned/MILESTONE_LAYER_VIEW_ENHANCEMENT_2026-07-08.md` | マイルストーン: レイヤー専用ビューポート（Layer View）機能キャッチアップ案 | 2026-07-08 | Partial implementation (editing foundation implemented; shared inspection/integration pending) | 2026-07-29 | 13.2 KB | LAYER, VIEW, ENHANCEMENT |
 | 315 | `docs/planned/MILESTONE_LIGHT_LINKING_2026-03-31.md` | MILESTONE: Light Linking System | 2026-03-31 | --- | 2026-03-31 | 2.9 KB | LIGHT, LINKING |
 | 316 | `docs/planned/MILESTONE_LIGHTWEIGHT_TRACER_FRAME_TIMELINE_2026-04-21.md` | マイルストーン: Lightweight Tracer / Frame Timeline | 2026-04-21 | --- | 2026-06-19 | 4.2 KB | LIGHTWEIGHT, TRACER, FRAME, TIMELINE |
 | 317 | `docs/planned/MILESTONE_LIGHTWEIGHT_TRACER_FRAME_TIMELINE_PHASE1_2026-04-21.md` | Phase 1 実行メモ: Crash Stack Capture | 2026-04-21 | --- | 2026-06-19 | 0.7 KB | LIGHTWEIGHT, TRACER, FRAME, TIMELINE, PHASE1 |
