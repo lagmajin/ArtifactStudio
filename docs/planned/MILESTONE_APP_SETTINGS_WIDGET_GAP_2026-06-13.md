@@ -11,6 +11,7 @@
 - ✅ Disk cache の設定変更を実行中の `ArtifactPlaybackService` に同期。
 - ✅ `previewCacheSizeMB` をディスクキャッシュの per-composition budget と global budget に実行時反映。
 - ✅ Preview / Grid 設定の実装経路はコード上で接続済み（runtime 動作確認は未実施）。
+- ✅ Grid 設定メニューの主間隔・分割数に現在値を表示し、設定状態をメニュー上で確認可能にした。
 - ⏳ Clone UI と runtime 検証は未完了。
 
 ---
