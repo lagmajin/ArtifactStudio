@@ -104,7 +104,8 @@ facade sliceと物理Audio device列挙・選択・設定永続化の公開契�
 - [x] ThreadPoolへのenqueueと全タスク待機
 - [x] 実行前の`EffectGraph::compile()`検証と、循環／不正接続時の失敗返却
 - [x] エフェクト未設定ノードを`Cached`にせず`Error`として扱う
-- [ ] 効果ノードの実データ／バックエンド評価（現状はdirty→cachedの状態遷移のみ）
+- [x] 画像入力を明示したノードの`applyConfigured()`評価と出力バッファ保持
+- [ ] 全ステージの効果ノード実データ／バックエンド評価（画像入力を明示したノード以外は未接続）
 - [ ] エフェクトスタック → DAGノードへの入力／出力バッファマッピング
 - cycle／missing inputを含むruntime検証は未実施
 
