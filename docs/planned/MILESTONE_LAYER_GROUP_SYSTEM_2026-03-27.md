@@ -125,6 +125,8 @@
 
 ## Phase 5: Batch Operations / Selection Sync
 
+**進捗:** group の child selection と、選択 layer を group 化する既存導線は静的実装済み。group 単位の移動／削除、batch property、drag-and-drop、runtime確認は未検証。
+
 - 目的:
   - group を複数 layer の操作単位として使えるようにする
   - 選択・移動・rename をまとめやすくする
@@ -133,7 +135,12 @@
   - group 単位の rename / move / delete
   - group 選択時の layer 強調
   - batch property 操作の入口
-  - drag-and-drop による group 再編成
+- drag-and-drop による group 再編成
+
+### 静的実装済み
+
+- [x] group context menu から子レイヤーを選択
+- [x] 選択 layer を group 化する batch 操作の入口
 
 - 完了条件:
   - group が単なる表示枠でなく、操作単位として使える
