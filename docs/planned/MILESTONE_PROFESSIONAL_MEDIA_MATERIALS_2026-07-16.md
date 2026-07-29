@@ -89,3 +89,5 @@ explicit interpretation and later display conversion.
 - `ArtifactOCIOManager::applyInputTransformToWorkingImage()` を追加し、明示された source color space / transfer を active working space へ変換する境界を用意した。
 - RGB の transfer decode と色空間行列変換を行い、alpha は保持し、HDR 値を clamp しない。
 - importer や既存描画経路からの自動呼び出しは追加していない。source interpretation を確定できる呼び出し側が明示的に利用する前提である。
+- 現在の `ArtifactImageLayer` 生成契約は path / sequence のみで、`FootageItem` の interpretation metadata を受け取らないため、自動適用統合は保留する。
+- 次の統合単位は ImageLayer init / save に interpretation metadata を渡し、明示 override がある場合だけ `applyInputTransformToWorkingImage()` を呼ぶ契約追加とする。
