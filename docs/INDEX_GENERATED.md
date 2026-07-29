@@ -979,7 +979,7 @@
 | 530 | `docs/planned/MILESTONE_TIMELINE_TRACKVIEW_OWNER_DRAW_MIGRATION_2026-03-27.md` | Timeline TrackView Owner-Draw Migration (2026-03-27) | 2026-03-27 | --- | 2026-03-28 | 5.7 KB | TIMELINE, TRACKVIEW, OWNER, DRAW, MIGRATION |
 | 531 | `docs/planned/MILESTONE_TIMELINE_VISUAL_LANGUAGE_2026-03-31.md` | Timeline Visual Language (2026-03-31) | 2026-03-31 | --- | 2026-07-09 | 4.9 KB | TIMELINE, VISUAL, LANGUAGE |
 | 532 | `docs/planned/MILESTONE_TIMELINE_WAVEFORM_2026-04-10.md` | タイムラインオーディオ波形表示 | 2026-04-10 | --- | 2026-04-11 | 1.8 KB | TIMELINE, WAVEFORM |
-| 533 | `docs/planned/MILESTONE_TIMELINE_ZOOM_PAN_2026-04-10.md` | タイムラインズーム/パン操作の改善 | 2026-04-10 | --- | 2026-07-09 | 3.4 KB | TIMELINE, ZOOM, PAN |
+| 533 | `docs/planned/MILESTONE_TIMELINE_ZOOM_PAN_2026-04-10.md` | タイムラインズーム/パン操作の改善 | 2026-04-10 | Partial (cursor-centered zoom, track-height zoom, scrolling, middle-button pan, and work-area/scrub synchronization implemented; modifier-separated input, visible zoom label, edge scroll, minimap, smooth transition, and runtime verification pending) | 2026-07-29 | 3.4 KB | TIMELINE, ZOOM, PAN |
 | 534 | `docs/planned/MILESTONE_TIMING_EVENT_VIEW_2026-04-10.md` | Timing Event View Milestone | 2026-04-10 | --- | 2026-04-10 | 1.5 KB | TIMING, EVENT, VIEW |
 | 535 | `docs/planned/MILESTONE_TOOLBAR_APP_INTEGRATION_2026-04-17.md` | マイルストーン: Toolbar / App Integration | 2026-04-17 | --- | 2026-07-09 | 7.1 KB | TOOLBAR, APP, INTEGRATION |
 | 536 | `docs/planned/MILESTONE_TOOLBAR_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: ツールバー 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 1.5 KB | TOOLBAR, DESIGN, AUDIT |
