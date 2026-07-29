@@ -52,10 +52,11 @@ Phase 1〜2 相当は実装済み。`ArtifactLayerPanelWidget` は filter text �
 2026-07-30 に Phase 3 の状態 query の初期実装を追加した。`visible:true/false`、`hidden:true/false`、`locked:true/false`、`solo:true/false` と `is:visible/hidden/locked/unlocked/solo/nonsolo` を既存のレイヤー状態 API で評価し、通常の名前検索と同じ表示・結果ナビゲーション経路へ接続している。続けて `parent:none` / `parent:root` / `parent:any` と親名・ID検索、`hasparent:true/false`、`type:<layerType>` のレイヤー種別検索、`fx:<name>` のプロパティグループ検索、`note:<text>` のレイヤーノート検索、`source:<text>` の保存済み source path / asset metadata 検索も追加した。
 
 2026-07-30 に `tag:<text>` をレイヤーの保存済み JSON metadata に対する検索として追加し、`effect:<name>` を `fx:<name>` と同じプロパティグループ検索経路へ接続した。既存の検索表示モードと結果ナビゲーションをそのまま利用する。
+同日、`child:any` / `child:none` / `child:<name-or-id>` と `haschild:true/false` を `ArtifactGroupLayer::children()` に接続し、親子関係を親側から検索できるようにした。
 
 未完了・未確認:
 
-- child relation、source asset の検索対象拡張
+- source asset の検索対象拡張
 - 非一致の半透明表示と、選択・keyframe・scroll との回帰確認
 
 したがって「インクリメンタル検索、表示モード、hit count、結果ナビゲーション、主要な簡易 query は実装済み、child relation / source asset の検索対象拡張と非一致表示の回帰確認は未完了」と整理する。
