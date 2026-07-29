@@ -38,6 +38,7 @@
 - ✅ Application Settings の Accessibility グループ自体に目的説明の Accessible Name / Description を付与。
 - ✅ Playback Control ルートパネルに Accessible Name / Description を付与。
 - ✅ Main Window と Workspace mode ボタンに Accessible Name / Description を付与。
+- ✅ Icon-only の Main Tool Bar でも、各 QAction のラベル／ツールチップを実ボタンの Accessible Name / Description へ同期。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
