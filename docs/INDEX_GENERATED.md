@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 00:44
+> Generated: 2026-07-30 00:46
 > Total documents: 1134
 
 ---
@@ -868,7 +868,7 @@
 | 412 | `docs/planned/MILESTONE_PROJECT_METADATA_COLLECTOR_2026-07-09.md` | MILESTONE: 汎用メタデータ収集基盤（Project Visitor / Collector） | 2026-07-22 | Phase 1A Completed (static verified 2026-07-22; runtime/build verification pending) | 2026-07-25 | 12.6 KB | PROJECT, METADATA, COLLECTOR |
 | 413 | `docs/planned/MILESTONE_PROJECT_TEMPLATE_GALLERY_2026-06-16.md` | M-TEMPLATE-1 Project Template Gallery Milestone | 2026-06-16 | --- | 2026-07-25 | 12.1 KB | PROJECT, TEMPLATE, GALLERY |
 | 414 | `docs/planned/MILESTONE_PROJECT_VIEW_SEARCH_FILTER_PRESENTATION_2026-04-03.md` | Project View Search / Filter / Presentation | 2026-04-03 | Phase 1〜3主要基盤実装済み、Phase 2統合・Phase 4〜5/runtime検証 pending | 2026-07-29 | 7.3 KB | PROJECT, VIEW, SEARCH, FILTER, PRESENTATION |
-| 415 | `docs/planned/MILESTONE_PROJECT_VIEW_SEARCH_FILTER_PRESENTATION_2026-04-03_EXECUTION.md` | Project View Search / Filter / Presentation Execution Memo | 2026-04-23 | Phase 1-3 implemented; Phase 4-5 and runtime verification pending | 2026-07-25 | 5.3 KB | PROJECT, VIEW, SEARCH, FILTER, PRESENTATION |
+| 415 | `docs/planned/MILESTONE_PROJECT_VIEW_SEARCH_FILTER_PRESENTATION_2026-04-03_EXECUTION.md` | Project View Search / Filter / Presentation Execution Memo | 2026-04-23 | Phase 1-3 implemented; Phase 4-5 and runtime verification pending | 2026-07-25 | 5.6 KB | PROJECT, VIEW, SEARCH, FILTER, PRESENTATION |
 | 416 | `docs/planned/MILESTONE_PROJECT_VIEW_TILE_MODE_2026-06-05.md` | マイルストーン: Project View Tile Mode | 2026-06-05 | Phase 1〜5主要実装済み、Phase 3/6・runtime/性能/責務境界検証 pending | 2026-07-29 | 8.5 KB | PROJECT, VIEW, TILE, MODE |
 | 417 | `docs/planned/MILESTONE_PROPERTY_KEYFRAME_EXECUTION_PLAN_2026-03-25.md` | マイルストーン: Property / Keyframe 統合 実行計画 | 2026-03-25 | --- | 2026-07-25 | 7.0 KB | PROPERTY, KEYFRAME, EXECUTION, PLAN |
 | 418 | `docs/planned/MILESTONE_PROPERTY_KEYFRAME_UNIFICATION_2026-03-25.md` | Property Keyframe Unification | 2026-07-25 | --- | 2026-07-25 | 7.4 KB | PROPERTY, KEYFRAME, UNIFICATION |
