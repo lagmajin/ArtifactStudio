@@ -154,9 +154,9 @@ void drawStyledPolylineLocal(const std::vector<Detail::float2>& points,
 - miter／bevel の外側 join geometry を追加。`ArtifactShapeLayer` の custom path と単純な parametric shape native stroke を `drawStyledPolyline()` へ接続し、layer の cap／join／dash 設定を renderer へ渡す経路を追加。
 - special operator、gradient／taper の互換キャッシュ経路、runtime parity は未完了。
 
-Static audit note (2026-07-29): `TrimPaths`／`Repeater` は `ShapeGroup::processedPaths()` で geometry を生成できるが、現行 `ArtifactShapeLayer::useCachePipeline()` は operator 付きレイヤーを互換 QImage 経路へ送る。native 化には複数輪郭 fill、operator 後の stroke、cache invalidation の統合が必要なため、未完了として保持する。
+Implementation update (2026-07-29): `TrimPaths`／`Repeater` の operator 出力を、solid fill・center stroke・taper／gradient なしの限定条件で `flattenSubpaths()`／`triangulate()` から native packet へ接続した。特殊条件は従来の互換 QImage 経路に残るため、runtime parity と全条件の native 化は未完了。
 
-次の安全な実装単位は、まず `TrimPaths` 単独・solid fill・標準 stroke に限定し、`ShapePath::flattenSubpaths()`／`triangulate()` から native packet へ接続すること。`Repeater` と複数 operator の組み合わせは、複数輪郭の順序・fill rule・bounds invalidation を固定してから対象にする。
+次の安全な実装単位は、operator 複数輪郭の順序・fill rule・bounds invalidation と、gradient／taper の native contract を固定すること。
 
 ### Phase 2: Styled Polyline
 
