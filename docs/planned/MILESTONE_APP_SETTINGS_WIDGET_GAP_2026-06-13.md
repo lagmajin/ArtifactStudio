@@ -79,6 +79,8 @@ VSコードのモード選択プルダウンと同様のUI
 
 ## 提案マイルストーン
 
+**静的実装の完了マーク（2026-07-29）**: M-APP-SETT-1 Preview Settings UI 接続 ✅、M-APP-SETT-2 Grid Settings UI 接続 ✅。M-APP-SETT-3 Clone/Modifier Tool UI ❌ 未実装。runtime 動作確認は全項目で未実施。
+
 ### M-APP-SETT-1: Preview Settings UI 接続
 - ViewMenu に Preview Quality/Resolution アクション追加
 - `previewQualityText`, `previewEnableRamCache`, `previewEnableDiskCache` 接続
