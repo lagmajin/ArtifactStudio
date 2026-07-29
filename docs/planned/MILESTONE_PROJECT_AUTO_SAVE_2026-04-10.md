@@ -36,6 +36,12 @@ After Effects のようなプロフェッショナルツールに欠かせない
 
 `ArtifactAutoSaveManager` の起動／停止、dirty 通知、Recovery snapshot 作成・検出・最新点読み込み、起動時の recovery prompt、設定値の保持、`QSaveFile`／Project backup 世代管理、定期 timer の接続は実装を確認した。一方、仕様にある1/5/10/30分・世代数設定の完全なUI、`.autosave/` 命名規約、差分表示、保存中フィードバック、手動保存との詳細な競合回避、クラッシュ後の実ファイル復元と性能検証は確認できない。したがって自動保存・復旧の基盤は実装済みだが、全仕様と runtime 検証は未完了とする。
 
+## 2026-07-29 実装ループ: 設定反映と原子的スナップショット
+
+- ✅ `ArtifactAppSettings::autoSaveIntervalMinutes()` の値を recovery timer の実行間隔へ接続した。
+- ✅ recovery snapshot の書き込みを `QFile` から `QSaveFile` へ変更し、`commit()` 成功後だけ保存完了と扱うようにした。
+- ⏳ UI での世代数設定、差分表示、保存中フィードバック、実ファイル復元、および runtime/build 検証は未完了。したがって本マイルストーン全体は `Partial` のままとする。
+
 ### 実装要件
 - バックグラウンドスレッドでの保存
 - UIブロッキングの回避
