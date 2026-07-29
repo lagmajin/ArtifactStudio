@@ -57,6 +57,7 @@
 - [x] group layer の child count／collapsed／output mode／active child の保存・復元
 - [x] composition-owned group の child を composition JSON 経路で保持
 - [x] child の parent layer ID と composition pointer の round-trip
+- [x] composition 上で祖先を子へ追加する循環を拒否
 
 - 完了条件:
   - 再起動後も group 構造が壊れない
