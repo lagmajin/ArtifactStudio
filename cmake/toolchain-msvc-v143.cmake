@@ -2,6 +2,7 @@ set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444" CAC
 set(CMAKE_CXX_MODULE_STD OFF CACHE BOOL "Keep import std opt-in during toolchain detection" FORCE)
 set(CMAKE_CXX_STANDARD 23 CACHE STRING "Required for import std detection" FORCE)
 set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "" FORCE)
+set(VCPKG_APPLOCAL_DEPS OFF CACHE BOOL "Disable vcpkg app-local post-build copying" FORCE)
 
 set(VCPKG_TARGET_TRIPLET "x64-windows" CACHE STRING "vcpkg triplet")
 set(_artifact_vcpkg_installed_dir "${CMAKE_SOURCE_DIR}/out/vcpkg_installed")
