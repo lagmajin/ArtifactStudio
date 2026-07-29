@@ -1,6 +1,6 @@
 # Milestone: Asset Browser Thumbnail Async Warmup (2026-04-23)
 
-**Status:** Partial（Phase 1〜2 と世代付き cancel／shutdown 経路を実装済み。Phase 3 の可視範囲優先 scheduler と runtime 性能検証 pending）
+**Status:** Partial（Phase 1〜3 の静的実装済み。明示的 cancel／shutdown の runtime 検証と性能計測 pending）
 **Goal:** アセットブラウザのサムネイル生成を UI スレッドから外し、動画ファイルの多いディレクトリでも一覧表示が固まらないようにする。
 
 ---
@@ -28,9 +28,11 @@
 - 動画サムネイル抽出は OpenCV の `VideoCapture` ではなく、既存の `FFmpegThumbnailExtractor` を使う
 - extractor 側は `thread_count = 1` で単一スレッド寄りに維持する
 
-### Phase 3: 表示中アイテム優先
+### Phase 3: 表示中アイテム優先 ✅
 - 可視範囲や近傍アイテムを優先して warmup する
 - ディレクトリ全件の先読みは後回しにする
+
+実装済み: 初期 `applyFilters()` は画像／動画のプレースホルダーを配置し、表示中行と前後 2 行だけを非同期 warmup する。垂直／水平スクロール時も可視範囲を再評価する。
 
 ---
 
@@ -54,5 +56,5 @@
 - `ArtifactAssetBrowser` に QtConcurrent／QFutureWatcher による image／video thumbnail の非同期生成、世代番号による stale result 無効化、mutex 保護のメモリ cache、個別 model 更新経路を確認できる。
 - FFmpegThumbnailExtractor の単一スレッド寄り抽出、ディスク thumbnail cache、audio waveform の非同期経路も実装されている。
 - キャッシュ再生成時は世代更新に加えて進行中の image／video／audio watcher を disconnect／cancel し、古い job を pending map から破棄する。
-- 一方、可視範囲・近傍アイテムを厳密に優先する scheduler、明示的な cancel／shutdown の runtime 検証、全件初期表示での UI 非ブロッキング効果は未確認である。
-- よって主要な非同期 warmup は実装済みだが、Phase 3 と実機性能検証を残す In Progress 判定を維持する。
+- 可視範囲・近傍アイテムを優先する warmup 経路は実装済み。明示的な cancel／shutdown の runtime 検証、全件初期表示での UI 非ブロッキング効果は未確認である。
+- よって Phase 1〜3 は静的実装済み、実機性能検証を残す Partial 判定を維持する。

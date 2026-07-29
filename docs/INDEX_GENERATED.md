@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 02:50
+> Generated: 2026-07-30 02:52
 > Total documents: 1134
 
 ---
@@ -579,7 +579,7 @@
 | 123 | `docs/planned/MILESTONE_ASSET_BROWSER_RELINK_WORKFLOW_2026-06-28.md` | Milestone: Asset Browser Relink Workflow (M-AB-10) | 2026-06-28 | Partial implementation（基本 relink／missing／Undo 実装済み、参照追跡・全体 UX・runtime 検証待ち、静的確認 2026-07-29） | 2026-07-30 | 50.0 KB | ASSET, BROWSER, RELINK, WORKFLOW |
 | 124 | `docs/planned/MILESTONE_ASSET_BROWSER_SEQUENCE_GROUPING_2026-03-31.md` | マイルストーン: Asset Browser Sequence Grouping | 2026-07-29 | Phase 1〜3 implemented; runtime consistency/missing-frame verification pending | 2026-07-30 | 3.7 KB | ASSET, BROWSER, SEQUENCE, GROUPING |
 | 125 | `docs/planned/MILESTONE_ASSET_BROWSER_TAG_SYSTEM_2026-06-28.md` | Milestone: Asset Browser Tag System (M-AB-12) | 2026-06-28 | Not started (dedicated tag model/database, assignment, filtering, UI, persistence, import/export, and tag events not confirmed in source) | 2026-07-25 | 49.9 KB | ASSET, BROWSER, TAG, SYSTEM |
-| 126 | `docs/planned/MILESTONE_ASSET_BROWSER_THUMBNAIL_ASYNC_2026-04-23.md` | Milestone: Asset Browser Thumbnail Async Warmup (2026-04-23) | 2026-04-23 | In progress; async warmup/cache implemented, visible-item priority and runtime performance verification pending | 2026-07-30 | 3.1 KB | ASSET, BROWSER, THUMBNAIL, ASYNC |
+| 126 | `docs/planned/MILESTONE_ASSET_BROWSER_THUMBNAIL_ASYNC_2026-04-23.md` | Milestone: Asset Browser Thumbnail Async Warmup (2026-04-23) | 2026-04-23 | In progress; async warmup/cache implemented, visible-item priority and runtime performance verification pending | 2026-07-30 | 3.3 KB | ASSET, BROWSER, THUMBNAIL, ASYNC |
 | 127 | `docs/planned/MILESTONE_ASSET_INSTANCE_SHARING_2026-06-16.md` | M-ASSET-1 Asset Instance Sharing Milestone | 2026-06-16 | In progress; source/payload/cache foundation implemented, runtime sharing/parity verification pending | 2026-07-25 | 29.2 KB | ASSET, INSTANCE, SHARING |
 | 128 | `docs/planned/MILESTONE_ASSET_MANAGEMENT_IMPROVEMENT_2026-03-28.md` | アセット管理改善 Milestone | 2026-03-28 | Partial／継続中（import・cleanup・cache・relink 基盤実装済み、性能・metadata・batch 拡張と runtime 検証待ち、静的確認 2026-07-29） | 2026-07-29 | 9.7 KB | ASSET, MANAGEMENT, IMPROVEMENT |
 | 129 | `docs/planned/MILESTONE_AUDIO_LAYER_INTEGRATION_2026-03-27.md` | マイルストーン: オーディオレイヤー統合 | 2026-07-29 | Phase 1〜4 implemented; audio sync/error UX/runtime parity verification pending | 2026-07-29 | 7.3 KB | AUDIO, LAYER, INTEGRATION |
