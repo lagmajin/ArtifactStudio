@@ -1,6 +1,6 @@
 # Professional Media Materials Support (2026-07-16)
 
-**Status:** Phase 1〜2 implemented / Phase 3〜5 partial and runtime validation pending  
+**Status:** Phase 1〜3 integration foundation implemented / Phase 4〜5 partial and runtime validation pending  
 **ID:** M-PRO-MEDIA-1
 
 ## Goal
