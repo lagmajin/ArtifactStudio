@@ -909,8 +909,8 @@
 | 460 | `docs/planned/MILESTONE_SECURITY_HARDENING_2026-03-28.md` | セキュリティ強化 Milestone | 2026-03-28 | 計画中 | 2026-03-29 | 8.3 KB | SECURITY, HARDENING |
 | 461 | `docs/planned/MILESTONE_SESSION_LEDGER_RECOVERY_WORKSPACE_2026-04-09.md` | マイルストーン: Session Ledger / Recovery Workspace | 2026-04-09 | --- | 2026-04-09 | 2.7 KB | SESSION, LEDGER, RECOVERY, WORKSPACE |
 | 462 | `docs/planned/MILESTONE_SETTINGS_SEARCH_FILTER_2026-04-02.md` | MILESTONE_SETTINGS_SEARCH_FILTER_2026-04-02 | 2026-04-02 | --- | 2026-04-02 | 6.5 KB | SETTINGS, SEARCH, FILTER |
-| 463 | `docs/planned/MILESTONE_SHAPE_LAYER_COMPLEX_PRESETS_2026-06-28.md` | M-AB-7: Shape Layer 複雑プリセット形状拡張 | 2026-06-28 | --- | 2026-06-29 | 10.5 KB | SHAPE, LAYER, COMPLEX, PRESETS |
-| 464 | `docs/planned/MILESTONE_SHAPE_LAYERS_2026-03-29.md` | Milestone: Shape Layers (2026-03-29) | 2026-03-29 | --- | 2026-04-01 | 3.0 KB | SHAPE, LAYERS |
+| 463 | `docs/planned/MILESTONE_SHAPE_LAYER_COMPLEX_PRESETS_2026-06-28.md` | M-AB-7: Shape Layer 複雑プリセット形状拡張 | 2026-06-28 | Planned; complex preset shape specification exists, implementation and SVG I/O/runtime verification pending | 2026-07-29 | 11.1 KB | SHAPE, LAYER, COMPLEX, PRESETS |
+| 464 | `docs/planned/MILESTONE_SHAPE_LAYERS_2026-03-29.md` | Milestone: Shape Layers (2026-03-29) | 2026-03-29 | Partial; parametric shapes and Inspector/properties are implemented, shape animation remains unimplemented and rendering/cache performance is pending | 2026-07-29 | 3.7 KB | SHAPE, LAYERS |
 | 465 | `docs/planned/MILESTONE_SHAPE_PATH_CORE_IMPLEMENTATION_2026-04-16.md` | MILESTONE: ShapePath コア実装 | 2026-04-16 | --- | 2026-04-18 | 12.7 KB | SHAPE, PATH, CORE, IMPLEMENTATION |
 | 466 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_2026-04-21.md` | M-SC-2 Shortcut Context Map / Blender-Like Keymap Routing | 2026-04-21 | --- | 2026-04-21 | 9.5 KB | SHORTCUT, CONTEXT, MAP |
 | 467 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE1_2026-04-21.md` | M-SC-2 Phase 1 Context Model Freeze | 2026-04-21 | --- | 2026-04-21 | 0.5 KB | SHORTCUT, CONTEXT, MAP, PHASE1 |
