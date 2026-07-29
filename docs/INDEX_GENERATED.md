@@ -755,10 +755,10 @@
 | 306 | `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_PHASE1_EXECUTION_2026-04-10.md` | Milestone: Layer Group System Phase 1 Execution | 2026-04-10 | Completed (group model, ownership propagation, JSON roundtrip, regression coverage implemented) | 2026-07-29 | 2.9 KB | LAYER, GROUP, SYSTEM, PHASE1, EXECUTION |
 | 307 | `docs/planned/MILESTONE_LAYER_LOCK_TRANSPARENCY_2026-04-10.md` | レイヤーロック機能の拡張 | 2026-04-10 | 部分完了（通常/選択/Transform/Timing ロックと JSON 永続化を実装、Property/Content/Visibility 分離・スマートロック・専用UI/ショートカットは未完了） | 2026-07-29 | 1.8 KB | LAYER, LOCK, TRANSPARENCY |
 | 308 | `docs/planned/MILESTONE_LAYER_MODIFIER_SYSTEM_2026-06-13.md` | 実装案: M-LYR-MOD Layer Modifier System (Blender-style Deformers) | 2026-06-13 | --- | 2026-06-13 | 6.0 KB | LAYER, MODIFIER, SYSTEM |
-| 309 | `docs/planned/MILESTONE_LAYER_PARENT_VISUAL_2026-04-10.md` | レイヤー親子関係の視覚化 | 2026-04-10 | --- | 2026-04-11 | 1.8 KB | LAYER, PARENT, VISUAL |
+| 309 | `docs/planned/MILESTONE_LAYER_PARENT_VISUAL_2026-04-10.md` | レイヤー親子関係の視覚化 | 2026-04-10 | 部分完了（階層モデル/ツリービュー/基本展開とDnD枠を実装、関係線・色分け・選択強調・実際の再親子化処理は未完了） | 2026-07-29 | 1.8 KB | LAYER, PARENT, VISUAL |
 | 310 | `docs/planned/MILESTONE_LAYER_PHYSICS_COMPONENT_2026-06-13.md` | 実装案: M-LYR-PHYS Layer Physics Component | 2026-06-13 | In Progress | 2026-07-12 | 8.0 KB | LAYER, PHYSICS, COMPONENT |
-| 311 | `docs/planned/MILESTONE_LAYER_SOLO_VIEW_DILIGENT_2026-03-26.md` | Layer Solo View (Diligent) Milestone | 2026-04-25 | --- | 2026-07-09 | 14.0 KB | LAYER, SOLO, VIEW, DILIGENT |
-| 312 | `docs/planned/MILESTONE_LAYER_STYLE_PRESETS_2026-04-10.md` | レイヤースタイルプリセットの実装 | 2026-04-10 | --- | 2026-04-11 | 2.0 KB | LAYER, STYLE, PRESETS |
+| 311 | `docs/planned/MILESTONE_LAYER_SOLO_VIEW_DILIGENT_2026-03-26.md` | Layer Solo View (Diligent) Milestone | 2026-04-25 | 部分完了（表示/操作核・mode切替・Inspect HUD・Compare/Mask入口を実装、Impact依存表示・実画像比較・software parity は未完了） | 2026-07-29 | 14.0 KB | LAYER, SOLO, VIEW, DILIGENT |
+| 312 | `docs/planned/MILESTONE_LAYER_STYLE_PRESETS_2026-04-10.md` | レイヤースタイルプリセットの実装 | 2026-04-10 | 部分完了（Effect preset の保存/読込/適用/API基盤あり、Layer Style 専用スナップショット管理・一覧UI・レイヤーパネル統合は未完了） | 2026-07-29 | 2.0 KB | LAYER, STYLE, PRESETS |
 | 313 | `docs/planned/MILESTONE_LAYER_THUMBNAIL_PREVIEW_2026-04-10.md` | レイヤーサムネイルプレビューの実装 | 2026-04-10 | --- | 2026-04-11 | 1.9 KB | LAYER, THUMBNAIL, PREVIEW |
 | 314 | `docs/planned/MILESTONE_LAYER_VIEW_ENHANCEMENT_2026-07-08.md` | マイルストーン: レイヤー専用ビューポート（Layer View）機能キャッチアップ案 | 2026-07-08 | Partial implementation (editing foundation implemented; shared inspection/integration pending) | 2026-07-29 | 13.2 KB | LAYER, VIEW, ENHANCEMENT |
 | 315 | `docs/planned/MILESTONE_LIGHT_LINKING_2026-03-31.md` | MILESTONE: Light Linking System | 2026-03-31 | --- | 2026-03-31 | 2.9 KB | LIGHT, LINKING |
