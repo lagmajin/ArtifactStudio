@@ -54,6 +54,7 @@
 - ✅ Timeline Work Area の移動、中央基準スケール、ハンドル編集に Accessible Name / Description を付与。
 - ✅ Easing Lab の候補選択、プレビュー位置、Apply 操作に Accessible Name / Description を付与。
 - ✅ Key Pattern Dialog のプリセット、数値入力群、プレビュー、Apply 操作に Accessible Name / Description を付与。
+- ✅ Timeline Search の入力欄と検索バーに、検索・次候補／前候補操作の Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
