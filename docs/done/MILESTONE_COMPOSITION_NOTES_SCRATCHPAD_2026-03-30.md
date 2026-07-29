@@ -1,5 +1,7 @@
 # Composition Notes / Scratchpad Milestone (2026-03-30)
 
+**Status:** Partial — composition/layer note editing and persistence paths are implemented; frame/marker notes, note search, and runtime verification remain pending.
+
 `Composition` や `Layer` に紐づく軽量なメモを残せるようにするマイルストーン。
 レビューコメントや正式ドキュメントより前段の、制作中の「書きなぐり」を保持するための導線を作る。
 
