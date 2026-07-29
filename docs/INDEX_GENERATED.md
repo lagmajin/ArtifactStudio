@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 00:31
+> Generated: 2026-07-30 00:32
 > Total documents: 1134
 
 ---
@@ -577,7 +577,7 @@
 | 121 | `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_SEARCH_PRESENTATION_2026-04-03.md` | マイルストーン: Asset Browser Navigator / Search / Presentation Surface | 2026-04-03 | Partial; Phases 1〜5 implementation scope essentially complete, search-history switching, D&D preview ghost, and runtime performance/UX verification pending | 2026-07-25 | 6.4 KB | ASSET, BROWSER, NAVIGATOR, SEARCH, PRESENTATION |
 | 122 | `docs/planned/MILESTONE_ASSET_BROWSER_OPTIMIZATION_2026-03-29.md` | Milestone: Asset Browser Optimization (2026-03-29) | 2026-03-29 | Partial implementation; async thumbnail/cache exists, O(1) import lookup and TBB parallel scans pending | 2026-07-25 | 3.3 KB | ASSET, BROWSER, OPTIMIZATION |
 | 123 | `docs/planned/MILESTONE_ASSET_BROWSER_RELINK_WORKFLOW_2026-06-28.md` | Milestone: Asset Browser Relink Workflow (M-AB-10) | 2026-06-28 | Partial implementation（基本 relink／missing／Undo 実装済み、参照追跡・全体 UX・runtime 検証待ち、静的確認 2026-07-29） | 2026-07-29 | 49.7 KB | ASSET, BROWSER, RELINK, WORKFLOW |
-| 124 | `docs/planned/MILESTONE_ASSET_BROWSER_SEQUENCE_GROUPING_2026-03-31.md` | マイルストーン: Asset Browser Sequence Grouping | 2026-07-29 | Phase 1〜3 implemented; runtime consistency/missing-frame verification pending | 2026-07-29 | 3.3 KB | ASSET, BROWSER, SEQUENCE, GROUPING |
+| 124 | `docs/planned/MILESTONE_ASSET_BROWSER_SEQUENCE_GROUPING_2026-03-31.md` | マイルストーン: Asset Browser Sequence Grouping | 2026-07-29 | Phase 1〜3 implemented; runtime consistency/missing-frame verification pending | 2026-07-29 | 3.6 KB | ASSET, BROWSER, SEQUENCE, GROUPING |
 | 125 | `docs/planned/MILESTONE_ASSET_BROWSER_TAG_SYSTEM_2026-06-28.md` | Milestone: Asset Browser Tag System (M-AB-12) | 2026-06-28 | Not started (dedicated tag model/database, assignment, filtering, UI, persistence, import/export, and tag events not confirmed in source) | 2026-07-25 | 49.9 KB | ASSET, BROWSER, TAG, SYSTEM |
 | 126 | `docs/planned/MILESTONE_ASSET_BROWSER_THUMBNAIL_ASYNC_2026-04-23.md` | Milestone: Asset Browser Thumbnail Async Warmup (2026-04-23) | 2026-04-23 | In progress; async warmup/cache implemented, visible-item priority and runtime performance verification pending | 2026-07-30 | 3.1 KB | ASSET, BROWSER, THUMBNAIL, ASYNC |
 | 127 | `docs/planned/MILESTONE_ASSET_INSTANCE_SHARING_2026-06-16.md` | M-ASSET-1 Asset Instance Sharing Milestone | 2026-06-16 | In progress; source/payload/cache foundation implemented, runtime sharing/parity verification pending | 2026-07-25 | 29.2 KB | ASSET, INSTANCE, SHARING |
