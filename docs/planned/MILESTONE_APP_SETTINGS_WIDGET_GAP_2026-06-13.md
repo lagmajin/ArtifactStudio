@@ -1,7 +1,7 @@
 # 実装案: App Settings - Widget 接続ギャップ
 
 > 2026-06-13 作成  
-> 状態: Partial（主要設定・EditMode／DisplayMode・Preview cache・Grid UI・CloneLayer Property Editor 接続済み、Effector UI と runtime 検証は未完了、静的確認 2026-07-30）
+> 状態: Partial（主要設定・EditMode／DisplayMode・Preview cache・Grid UI・CloneLayer Property Editor・既定Transform Effector接続済み、追加Effector型とruntime検証は未完了、静的確認 2026-07-30）
 
 ### 2026-07-29 Implementation Loop
 
@@ -12,8 +12,8 @@
 - ✅ `previewCacheSizeMB` をディスクキャッシュの per-composition budget と global budget に実行時反映。
 - ✅ Preview / Grid 設定の実装経路はコード上で接続済み（runtime 動作確認は未実施）。
 - ✅ Grid 設定メニューの主間隔・分割数に現在値を表示し、設定状態をメニュー上で確認可能にした。
-- ✅ CloneLayer の mode / count / transform / grid / radial / `useEffector` 等を既存 Property Editor の `Clone` グループへ接続。既定の `TransformCloneEffector` の strength / position / rotation / scale / color toggle も編集可能。Clone設定一式（transform stagesを含む）はJSON保存・再読込にも対応。既定Effectorはゼロオフセットで初期化済み。
-- ⏳ TransformCloneEffector 専用 UI と runtime 検証は未完了。既存の ToolOptionsBar の「コピースタンプ」はブラシ系 Clone tool の半径・位置固定であり、CloneLayer の編集導線とは別責務。
+- ✅ CloneLayer の mode / count / transform / grid / radial / `useEffector` 等を既存 Property Editor の `Clone` グループへ接続。既定の `TransformCloneEffector` の strength / position / rotation / scale / color toggle も編集可能。Clone設定一式（transform stagesと既定Effector値・色を含む）はJSON保存・再読込にも対応。既定Effectorはゼロオフセットで初期化済み。
+- ⏳ 追加Effector型の追加・個別編集UIとruntime検証は未完了。既存の ToolOptionsBar の「コピースタンプ」はブラシ系 Clone tool の半径・位置固定であり、CloneLayer の編集導線とは別責務。
 
 ---
 
@@ -81,7 +81,7 @@ VSコードのモード選択プルダウンと同様のUI
 
 ## 提案マイルストーン
 
-**静的実装の完了マーク（2026-07-30）**: M-APP-SETT-1 Preview Settings UI 接続 ✅、M-APP-SETT-2 Grid Settings UI 接続 ✅、M-APP-SETT-3 CloneLayer Property Editor 接続 ✅。TransformCloneEffector UI と runtime 動作確認は未完了。
+**静的実装の完了マーク（2026-07-30）**: M-APP-SETT-1 Preview Settings UI 接続 ✅、M-APP-SETT-2 Grid Settings UI 接続 ✅、M-APP-SETT-3 CloneLayer Property Editor・既定Transform Effector接続 ✅。追加Effector型とruntime動作確認は未完了。
 
 ### M-APP-SETT-1: Preview Settings UI 接続
 - ViewMenu に Preview Quality/Resolution アクション追加
