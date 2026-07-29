@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-29 23:27
+> Generated: 2026-07-29 23:30
 > Total documents: 1134
 
 ---
@@ -48,7 +48,7 @@
 | 37 | `Artifact/docs/MILESTONE_FFMPEG_BRIDGE_RUNTIME_RESOLUTION_2026-03-25.md` | FFmpeg Bridge Runtime Resolution (2026-03-25) | 2026-03-25 | Partial; application-directory candidate search implemented, explicit override, candidate diagnostics, packaging policy, and backend UX pending | --- | 2.6 KB | FFMPEG, BRIDGE, RUNTIME, RESOLUTION |
 | 38 | `Artifact/docs/MILESTONE_FILE_MENU_2026-03-13.md` | File Menu Milestone | 2026-03-13 | Partial; lifecycle actions, confirmations, composition/import bridge, and initial settings facade implemented; recent-project reopen, dirty-state guards, and failure feedback pending | --- | 7.0 KB | FILE, MENU |
 | 39 | `Artifact/docs/MILESTONE_GPU_DIRECT_TEXT_DRAW_2026-04-14.md` | GPU Direct Text Draw on CompositeEditor (2026-04-14) | 2026-04-14 | Not started; current text path remains QPainter/QTextDocument rasterization plus sprite upload; glyph atlas, glyph shader/PSO, direct draw API, and editor text migration pending | --- | 10.8 KB | GPU, DIRECT, TEXT, DRAW |
-| 40 | `Artifact/docs/MILESTONE_GPU_DIRECT_TEXT_WP3_PRIMITIVERENDERER_2D_2026-04-27.md` | GPU Direct Text Draw WP-3: PrimitiveRenderer2D GlyphAtlas Integration (2026-04-2 | 2026-04-27 | Proof of concept; GlyphAtlas acquisition and draw API skeleton implemented, quad generation/GPU submission and transformed rendering pending | --- | 11.1 KB | GPU, DIRECT, TEXT, WP3, PRIMITIVERENDERER |
+| 40 | `Artifact/docs/MILESTONE_GPU_DIRECT_TEXT_WP3_PRIMITIVERENDERER_2D_2026-04-27.md` | GPU Direct Text Draw WP-3: PrimitiveRenderer2D GlyphAtlas Integration (2026-04-2 | 2026-04-27 | Proof of concept; GlyphAtlas acquisition and draw API skeleton implemented, quad generation/GPU submission and transformed rendering pending | --- | 11.2 KB | GPU, DIRECT, TEXT, WP3, PRIMITIVERENDERER |
 | 41 | `Artifact/docs/MILESTONE_IMGUIZMO_DIRECT_CODE_2026-04-09.md` | Milestone: ImGuizmo Direct Code Integration / Gizmo Port to Artifact Render API  | 2026-04-09 | Draft; design and phase plan only, with no completion evidence for direct primitive port, interaction parity, overlay integration, or backend diagnostics | --- | 6.7 KB | IMGUIZMO, DIRECT, CODE |
 | 42 | `Artifact/docs/MILESTONE_M11_SOFTWARE_RENDER_PIPELINE_2026-03-11.md` | M11 Software Render Pipeline (2026-03-11) | 2026-03-11 | Partial; composition/layer software preview uses current project data and render surfaces, while effect validation, sequence output acceptance, and M11.1 hardware integration remain pending | --- | 3.7 KB | M11, SOFTWARE, RENDER, PIPELINE |
 | 43 | `Artifact/docs/MILESTONE_MESH_INSTANCING_PHASE_2_CLONE_CONVERSION_2026-04-27.md` | Mesh Instancing Phase 2: CloneData to InstanceData Conversion (2026-04-27) | 2026-04-27 | Completed for Phase 2; CloneData→GPU-ready InstanceData conversion, visibility filtering, normalization, and public getInstanceData API implemented; draw integration remains Phase 3 | --- | 10.3 KB | MESH, INSTANCING, PHASE, CLONE |
@@ -930,7 +930,7 @@
 | 474 | `docs/planned/MILESTONE_SHAPE_LAYER_COMPLEX_PRESETS_2026-06-28.md` | M-AB-7: Shape Layer 複雑プリセット形状拡張 | 2026-06-28 | 計画中 | 2026-06-29 | 10.5 KB | SHAPE, LAYER, COMPLEX, PRESETS |
 | 475 | `docs/planned/MILESTONE_SHAPE_LAYERS_2026-03-29.md` | Milestone: Shape Layers (2026-03-29) | 2026-03-29 | Partial; parametric shapes and Inspector/properties are implemented, shape animation remains unimplemented and rendering/cache performance is pending | 2026-04-01 | 3.0 KB | SHAPE, LAYERS |
 | 476 | `docs/planned/MILESTONE_SHAPE_PATH_CORE_IMPLEMENTATION_2026-04-16.md` | MILESTONE: ShapePath コア実装 | 2026-04-16 | ⚠️ 宣言のみで実装未完 | 2026-04-18 | 12.7 KB | SHAPE, PATH, CORE, IMPLEMENTATION |
-| 477 | `docs/planned/MILESTONE_SHAPE_PATH_NATIVE_RENDER_PIPELINE_2026-07-27.md` | ShapePath 自作ジオメトリ／描画経路移行マイルストーン | 2026-07-27 | Partial implementation / runtime verification pending | 2026-07-29 | 10.4 KB | SHAPE, PATH, NATIVE, RENDER, PIPELINE |
+| 477 | `docs/planned/MILESTONE_SHAPE_PATH_NATIVE_RENDER_PIPELINE_2026-07-27.md` | ShapePath 自作ジオメトリ／描画経路移行マイルストーン | 2026-07-27 | Partial implementation / runtime verification pending | 2026-07-29 | 10.6 KB | SHAPE, PATH, NATIVE, RENDER, PIPELINE |
 | 478 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_2026-04-21.md` | M-SC-2 Shortcut Context Map / Blender-Like Keymap Routing | 2026-04-21 | --- | 2026-04-21 | 9.5 KB | SHORTCUT, CONTEXT, MAP |
 | 479 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE1_2026-04-21.md` | M-SC-2 Phase 1 Context Model Freeze | 2026-04-21 | --- | 2026-04-21 | 0.5 KB | SHORTCUT, CONTEXT, MAP, PHASE1 |
 | 480 | `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_PHASE2_2026-04-21.md` | M-SC-2 Phase 2 Widget / Region Registration | 2026-04-21 | --- | 2026-04-21 | 0.6 KB | SHORTCUT, CONTEXT, MAP, PHASE2 |

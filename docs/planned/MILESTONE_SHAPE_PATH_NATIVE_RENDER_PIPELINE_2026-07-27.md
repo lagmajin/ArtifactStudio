@@ -94,7 +94,7 @@ Phase 0 として、`ShapePath` のコマンド／サブパス／fill rule／fla
 - `ShapePath::triangulate()` を追加し、fill rule（Winding／EvenOdd）と穴を考慮した多輪郭 triangulation を Core 側で実装した。穴はゼロ幅ブリッジで外輪郭へ統合し、既存の ear-clipping で三角形列にする。分類は輪郭内外の filled 判定で行い、冗長輪郭は除外する。
 - ArtifactShapeLayer の native カスタム Bézier fill を `triangulate()` ベースへ切り替えた（ローカル座標で分割し、変換後に `drawSolidTriangleLocal` へ渡す）。stroke は全サブパスを描画する。triangulation 失敗時は単一輪郭のみ従来の polygon fallback を使い、多輪郭は穴を失う polygon 描画をせず fill をスキップする。
 
-残作業は、stroke join／cap／dash、ShapeOperator の geometry packet 化、ShapeGroup の多輪郭 fill の新経路接続、そして QPainter／QImage キャッシュの段階的縮小である。
+残作業は、stroke join／cap と標準シェイプを含む dash の全面的な geometry 化、ShapeOperator の geometry packet 化、ShapeGroup の多輪郭 fill の新経路接続、そして QPainter／QImage キャッシュの段階的縮小である。カスタム Bézier の dash は native stroke 経路へ接続済み。
 
 ## 現在の Qt 境界
 
@@ -114,7 +114,7 @@ Phase 0 として、`ShapePath` のコマンド／サブパス／fill rule／fla
 |---|---|---|
 | Core geometry | bounds、flatten、subpath、fill rule、triangulate、主要 primitive は自作経路に存在する。 | 実装済み／描画確認待ち |
 | Native renderer path | 単純カスタム Bézier の fill/stroke は renderer 経路へ接続済み。 | 部分実装 |
-| Advanced stroke/operator | join/cap/dash、ShapeOperator の geometry packet 化は未完了。 | 未完了 |
+| Advanced stroke/operator | join/cap、標準シェイプを含む dash の全面移行、ShapeOperator の geometry packet 化は未完了。カスタム Bézier の dash は native 経路に接続済み。 | 部分実装 |
 | Qt boundary reduction | 特殊 stroke、gradient、operator、互換キャッシュに QPainter/QImage 経路が残る。 | 未完了 |
 
 ### 判定
