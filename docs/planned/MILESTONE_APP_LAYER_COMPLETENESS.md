@@ -114,20 +114,24 @@ facade sliceは静的実装済み。ユーザー方針によりbuild / testは�
 
 ## Phase 5: データ/永続化層
 
-### M-APP-12 PreCompose 時間変換
+### M-APP-12 PreCompose 時間変換 ✅（静的確認 2026-07-30）
 - `ArtifactCore/src/Composition/PreCompose.cppm`
-- [ ] `convertTime()` → ネストされたコンポジションの時間変換実装
-- [ ] `getRemappedTime()` → タイムリマップ対応
-- [ ] `unprecompose()` → レイヤー復元処理
+- [x] `convertTime()` → composition nesting hierarchyを使ったsource/target間変換
+- [x] `getRemappedTime()` / parent-child time helpers
+- [x] `unprecompose()` / `restorePrecompose()` → レイヤー復元処理
+- runtimeの複雑なnesting・undo/redo確認は未実施
 
-### M-APP-13 VideoLayer::generateProxy() 実装
+### M-APP-13 VideoLayer::generateProxy() ✅（静的実装済み・runtime確認待ち）
 - `Artifact/src/Layer/ArtifactVideoLayer.cppm`
-- [ ] FFmpeg プロセス呼び出し
-- [ ] プロキシ生成とパス管理
+- [x] FFmpegプロセス呼び出しとquality別scale/H.264/AAC生成
+- [x] プロキシ生成・パス管理、batch/clear/has/info API
+- FFmpeg実行環境での生成・再生・失敗時cleanupは未検証
 
-### M-APP-14 AspectRatio::setFromString()
+### M-APP-14 AspectRatio::setFromString() ✅（静的確認 2026-07-30）
 - `ArtifactCore/src/Core/AspectRatio.cppm`
-- [ ] "16:9" 形式の文字列パース
+- [x] `16:9` / `16/9` / `1920x1080` パース
+- [x] decimal ratioの有理近似と正規化
+- invalid input / runtime利用箇所の確認は未実施
 
 ---
 
