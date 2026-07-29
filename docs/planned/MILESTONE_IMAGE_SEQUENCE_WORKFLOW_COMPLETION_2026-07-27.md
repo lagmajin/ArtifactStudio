@@ -124,3 +124,4 @@ sequence を Composition へ投入した際にフレームパスごとに単体�
 sequence 内の不正パスでも sequence reader と cached frame index を破棄し、旧 reader の再利用を防止する。
 frame index 範囲外／`frameAt()` 失敗時も直前フレームを残さず、missing-image fallback へ遷移するようにした。
 `setFromQImage()` による編集結果への置換でも sequence reader／cached index を破棄する。
+同時に prefetch generation を進め、編集中の QImage を旧ファイル decode が上書きしないようにした。
