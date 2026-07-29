@@ -91,3 +91,10 @@ explicit interpretation and later display conversion.
 - importer や既存描画経路からの自動呼び出しは追加していない。source interpretation を確定できる呼び出し側が明示的に利用する前提である。
 - 現在の `ArtifactImageLayer` 生成契約は path / sequence のみで、`FootageItem` の interpretation metadata を受け取らないため、自動適用統合は保留する。
 - 次の統合単位は ImageLayer init / save に interpretation metadata を渡し、明示 override がある場合だけ `applyInputTransformToWorkingImage()` を呼ぶ契約追加とする。
+
+## 2026-07-29 ImageLayer integration update
+
+- `ArtifactImageInitParams` に optional input color space / transfer を追加し、`ArtifactProjectService` が登録済み `FootageItem` から静止画・連番双方へ引き継ぐようにした。
+- `ArtifactImageLayer` は interpretation metadata を JSON 保存・復元し、明示値がある場合だけ入力→working-space 変換を適用する。
+- AssetManager の共有 decoded buffer はコピーしてから変換するため、他レイヤーの source cache を破壊しない。
+- path-only 作成では値が空のままなので、既存の Auto 挙動を維持する。
