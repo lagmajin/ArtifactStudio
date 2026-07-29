@@ -63,6 +63,7 @@
 - ✅ Audio Mixer の bus ごとの pan、volume、mute、solo 操作に Accessible Name / Description を付与。
 - ✅ Debug Console の検索、時間／コンテキスト／カテゴリーフィルター、ログ操作、フォントサイズに Accessible Name / Description を付与。
 - ✅ Event Bus Debugger のイベント名、重複／速度／バースト／停止／スクロールフィルターとログ操作に Accessible Name / Description を付与。
+- ✅ Render Queue の出力パス、参照、形式設定、開始／終了フレーム入力に Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
