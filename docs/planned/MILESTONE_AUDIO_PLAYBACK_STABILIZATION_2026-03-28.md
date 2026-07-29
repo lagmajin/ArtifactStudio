@@ -166,7 +166,7 @@ audio state を見える化して再生の追い込みをしやすくする。
 - renderer 実sample rate と source が異なる場合、enqueue 前に線形リサンプリングする経路を追加した。channel downmix は既存 Core renderer に委譲する。
 - format mismatch カウンタは composition 切替時にリセットし、診断対象の境界を明確にした。
 - seek 系は media source の decoder flush／cursor 更新を含む経路があり、AudioLayer/VideoLayer の音声供給も mixer・playback へ接続されている。
-- ただし全 backend の sample rate/channel 正規化契約、hardware clock と frame clock の drift correction、seek/stop/restart 後に stale audio が混ざらないこと、underrun 低減効果の runtime 測定は未確認。
+- ただし全 backend の sample rate/channel 正規化契約、hardware clock と frame clock の drift correction、seek/stop/restart 後の stale audio が混ざらないことの実機確認、underrun 低減効果の runtime 測定は未確認。スクラブ側は stop に加えて start/re-entry 時にも旧バッファを破棄する静的対策を追加済み。
 - buffer 水位や counters の公開は diagnostics の基盤だが、ユーザー向けの継続的な表示・記録と再生テスト行列は未確認。
 
 ビルド・実行確認はリポジトリ方針により未実施。
