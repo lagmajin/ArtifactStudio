@@ -1,5 +1,7 @@
 # Debug Render Harness
 
+**Status:** Partial — harness surface, presets, snapshot/report, failure display, and report capture are implemented; common-contract verification and runtime regression smoke remain pending.
+
 **Date**: 2026-04-30
 **Status**: Completed
 **Parent**: `DebugRenderHarnessWidget` / `AppDebuggerWidget`

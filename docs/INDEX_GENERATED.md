@@ -349,7 +349,7 @@
 | 28 | `docs/done/MILESTONE_CORE_KEYFRAME_ROBUSTNESS_2026-07-10.md` | MILESTONE: コアキーフレーム / プロパティ更新の堅牢化 | 2026-07-12 | Complete (static verification) | 2026-07-12 | 11.2 KB | CORE, KEYFRAME, ROBUSTNESS |
 | 29 | `docs/done/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md` | Milestone: Critical Render / Media Stability Program | 2026-04-30 | Partial (diagnostics/smoke foundation; release gate and runtime particle/video verification pending) | 2026-07-29 | 4.3 KB | CRITICAL, RENDER, MEDIA, STABILITY |
 | 30 | `docs/done/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_PHASE1_TRIAGE_2026-04-30.md` | Critical Render / Media Stability - Phase 1 Triage Ledger | 2026-04-30 | Partial (failure buckets documented; state reports, fixtures, and regression gate pending) | 2026-07-29 | 8.1 KB | CRITICAL, RENDER, MEDIA, STABILITY, PHASE1 |
-| 31 | `docs/done/MILESTONE_DEBUG_RENDER_HARNESS_2026-04-30.md` | Debug Render Harness | 2026-04-30 | --- | 2026-07-07 | 0.8 KB | DEBUG, RENDER, HARNESS |
+| 31 | `docs/done/MILESTONE_DEBUG_RENDER_HARNESS_2026-04-30.md` | Debug Render Harness | 2026-04-30 | Partial (harness/report foundation implemented; common-contract verification and runtime smoke pending) | 2026-07-29 | 0.9 KB | DEBUG, RENDER, HARNESS |
 | 32 | `docs/done/MILESTONE_EFFECT_SYSTEM_BRIDGE_2026-05-25.md` | MILESTONE: Effect System Bridge | 2026-05-25 | --- | 2026-06-26 | 5.4 KB | EFFECT, SYSTEM, BRIDGE |
 | 33 | `docs/done/MILESTONE_EVENTBUS_DEBUGGER_2026-04-15.md` | EventBus Debugger | 2026-04-15 | --- | 2026-07-07 | 0.6 KB | EVENTBUS, DEBUGGER |
 | 34 | `docs/done/MILESTONE_EXPORT_REVIEW_SHARE_2026-03-27.md` | Export / Review / Share (2026-03-27) | 2026-03-27 | --- | 2026-06-24 | 2.3 KB | EXPORT, REVIEW, SHARE |
@@ -656,7 +656,7 @@
 | 207 | `docs/planned/MILESTONE_DAW_STYLE_INPUT_SURFACE_2026-04-08.md` | DAW-Style Input Surface Milestone | 2026-04-08 | --- | 2026-04-09 | 5.1 KB | DAW, STYLE, INPUT, SURFACE |
 | 208 | `docs/planned/MILESTONE_DCC_FEATURE_GAPS_2026-03-28.md` | DCC ツール機能ギャップ分析 (2026-03-28) | 2026-03-28 | --- | 2026-03-29 | 4.4 KB | DCC, FEATURE, GAPS |
 | 209 | `docs/planned/MILESTONE_DCC_INTEROP_2026-06-28.md` | M-DCC-1: DCCツール連携完全強化マスタープラン | 2026-06-28 | --- | 2026-06-29 | 39.0 KB | DCC, INTEROP |
-| 210 | `docs/planned/MILESTONE_DEBUG_RENDER_HARNESS_2026-04-30.md` | Debug Render Harness | 2026-04-30 | --- | 2026-07-09 | 5.2 KB | DEBUG, RENDER, HARNESS |
+| 210 | `docs/planned/MILESTONE_DEBUG_RENDER_HARNESS_2026-04-30.md` | Debug Render Harness | 2026-04-30 | Partial (Phase 1–3 source implementation; Phase 4 smoke execution and regression gate pending) | 2026-07-29 | 5.2 KB | DEBUG, RENDER, HARNESS |
 | 211 | `docs/planned/MILESTONE_DEEP_COMPOSITING_2026-03-31.md` | マイルストーン: Deep Compositing Support | 2026-03-31 | --- | 2026-04-01 | 2.8 KB | DEEP, COMPOSITING |
 | 212 | `docs/planned/MILESTONE_DEFERRED_UI_INITIALIZATION_2026-03-27.md` | Deferred UI Initialization / Lazy Load (2026-03-27) | 2026-03-27 | --- | 2026-04-08 | 3.7 KB | DEFERRED, INITIALIZATION |
 | 213 | `docs/planned/MILESTONE_DEV_DIAGNOSTICS_2026-06-16.md` | M-DEBUG-1 Dev Diagnostics Foundation Milestone | 2026-06-16 | --- | 2026-06-18 | 9.9 KB | DEV, DIAGNOSTICS |
