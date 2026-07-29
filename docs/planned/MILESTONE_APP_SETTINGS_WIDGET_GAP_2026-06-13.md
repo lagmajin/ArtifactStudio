@@ -8,6 +8,7 @@
 - ✅ Preview Settings の RAM / disk cache トグルを ViewMenu に接続。
 - ✅ RAM cache の設定変更を実行中の `ArtifactPlaybackService` に同期。
 - ✅ Disk cache の設定変更を実行中の `ArtifactPlaybackService` に同期。
+- ✅ `previewCacheSizeMB` をディスクキャッシュの per-composition budget と global budget に実行時反映。
 - ⏳ Clone UI と runtime 検証は未完了。
 
 ---
