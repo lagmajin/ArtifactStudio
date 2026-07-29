@@ -1,6 +1,6 @@
 # ShapePath 自作ジオメトリ／描画経路移行マイルストーン
 
-**ステータス:** Partial implementation / runtime verification pending
+**ステータス:** Partial implementation / Phase 0 contract documented / runtime verification pending
 **作成日:** 2026-07-27
 **対象:** 静止画・連番・シェイプ・画像処理・3Dレイヤーの基盤強化
 

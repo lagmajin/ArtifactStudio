@@ -1,7 +1,7 @@
 # ShapePath ジオメトリ契約
 
 **作成日:** 2026-07-27  
-**状態:** Draft  
+**状態:** Phase 0 documented; implementation and design-review follow-up pending  
 **関連マイルストーン:** `docs/planned/MILESTONE_SHAPE_PATH_NATIVE_RENDER_PIPELINE_2026-07-27.md`
 
 ## 目的
