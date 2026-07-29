@@ -52,7 +52,7 @@
 | 41 | `Artifact/docs/MILESTONE_IMGUIZMO_DIRECT_CODE_2026-04-09.md` | Milestone: ImGuizmo Direct Code Integration / Gizmo Port to Artifact Render API  | 2026-04-09 | --- | --- | 6.7 KB | IMGUIZMO, DIRECT, CODE |
 | 42 | `Artifact/docs/MILESTONE_M11_SOFTWARE_RENDER_PIPELINE_2026-03-11.md` | M11 Software Render Pipeline (2026-03-11) | 2026-03-11 | --- | --- | 3.7 KB | M11, SOFTWARE, RENDER, PIPELINE |
 | 43 | `Artifact/docs/MILESTONE_MESH_INSTANCING_PHASE_2_CLONE_CONVERSION_2026-04-27.md` | Mesh Instancing Phase 2: CloneData to InstanceData Conversion (2026-04-27) | 2026-04-27 | --- | --- | 10.3 KB | MESH, INSTANCING, PHASE, CLONE |
-| 44 | `Artifact/docs/MILESTONE_OIIO_IMAGE_PIPELINE_MIGRATION_2026-03-30.md` | Milestone: OIIO Image Pipeline Migration (2026-03-30) | 2026-03-30 | --- | --- | 6.0 KB | OIIO, IMAGE, PIPELINE, MIGRATION |
+| 44 | `Artifact/docs/MILESTONE_OIIO_IMAGE_PIPELINE_MIGRATION_2026-03-30.md` | Milestone: OIIO Image Pipeline Migration (2026-03-30) | 2026-03-30 | Partial（OIIO ingest/metadata・float buffer・非同期先読み・thumbnail/export経路を実装、全体canonical化・linear working space・color managementは未完了） | 2026-07-29 | 6.0 KB | OIIO, IMAGE, PIPELINE, MIGRATION |
 | 45 | `Artifact/docs/MILESTONE_PARTICLE_LAYER_3D_MIGRATION_2026-03-25.md` | ParticleLayer 3D Migration Milestone (2026-03-25) | 2026-03-25 | --- | --- | 12.5 KB | PARTICLE, LAYER, MIGRATION |
 | 46 | `Artifact/docs/MILESTONE_PARTICLE_RENDER_PATH_STABILIZATION_2026-04-21.md` | Particle Render Path Stabilization | 2026-04-19 | --- | --- | 2.1 KB | PARTICLE, RENDER, PATH, STABILIZATION |
 | 47 | `Artifact/docs/MILESTONE_PLAYBACK_ENGINE_STABILIZATION_2026-03-25.md` | Playback Engine Stabilization (2026-03-25) | 2026-03-25 | --- | --- | 7.7 KB | PLAYBACK, ENGINE, STABILIZATION |
