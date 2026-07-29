@@ -84,6 +84,7 @@
 - [x] Timeline layer panel の group row と group icon
 - [x] group の展開／折りたたみ
 - [x] child count、rename、child selection、output mode の操作導線
+- [x] group row の子数バッジへ Hidden／Locked／Solo／Shy 状態を併記
 
 - 完了条件:
   - group が見える
