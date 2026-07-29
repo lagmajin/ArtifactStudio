@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-29 23:25
+> Generated: 2026-07-29 23:27
 > Total documents: 1134
 
 ---
@@ -47,8 +47,8 @@
 | 36 | `Artifact/docs/MILESTONE_FFMPEG_BACKEND_SPLIT_2026-03-20.md` | FFmpeg Backend Split Milestone | 2026-03-20 | Partial; pipe/native backend surfaces and service-level selection exist, UI policy, native parity, and runtime verification pending | --- | 1.6 KB | FFMPEG, BACKEND, SPLIT |
 | 37 | `Artifact/docs/MILESTONE_FFMPEG_BRIDGE_RUNTIME_RESOLUTION_2026-03-25.md` | FFmpeg Bridge Runtime Resolution (2026-03-25) | 2026-03-25 | Partial; application-directory candidate search implemented, explicit override, candidate diagnostics, packaging policy, and backend UX pending | --- | 2.6 KB | FFMPEG, BRIDGE, RUNTIME, RESOLUTION |
 | 38 | `Artifact/docs/MILESTONE_FILE_MENU_2026-03-13.md` | File Menu Milestone | 2026-03-13 | Partial; lifecycle actions, confirmations, composition/import bridge, and initial settings facade implemented; recent-project reopen, dirty-state guards, and failure feedback pending | --- | 7.0 KB | FILE, MENU |
-| 39 | `Artifact/docs/MILESTONE_GPU_DIRECT_TEXT_DRAW_2026-04-14.md` | GPU Direct Text Draw on CompositeEditor (2026-04-14) | 2026-04-14 | Not started; current text path remains QPainter/QTextDocument rasterization plus sprite upload; glyph atlas, glyph shader/PSO, direct draw API, and editor text migration pending | --- | 10.7 KB | GPU, DIRECT, TEXT, DRAW |
-| 40 | `Artifact/docs/MILESTONE_GPU_DIRECT_TEXT_WP3_PRIMITIVERENDERER_2D_2026-04-27.md` | GPU Direct Text Draw WP-3: PrimitiveRenderer2D GlyphAtlas Integration (2026-04-2 | 2026-04-27 | Proof of concept; GlyphAtlas acquisition and draw API skeleton implemented, quad generation/GPU submission and transformed rendering pending | --- | 11.0 KB | GPU, DIRECT, TEXT, WP3, PRIMITIVERENDERER |
+| 39 | `Artifact/docs/MILESTONE_GPU_DIRECT_TEXT_DRAW_2026-04-14.md` | GPU Direct Text Draw on CompositeEditor (2026-04-14) | 2026-04-14 | Not started; current text path remains QPainter/QTextDocument rasterization plus sprite upload; glyph atlas, glyph shader/PSO, direct draw API, and editor text migration pending | --- | 10.8 KB | GPU, DIRECT, TEXT, DRAW |
+| 40 | `Artifact/docs/MILESTONE_GPU_DIRECT_TEXT_WP3_PRIMITIVERENDERER_2D_2026-04-27.md` | GPU Direct Text Draw WP-3: PrimitiveRenderer2D GlyphAtlas Integration (2026-04-2 | 2026-04-27 | Proof of concept; GlyphAtlas acquisition and draw API skeleton implemented, quad generation/GPU submission and transformed rendering pending | --- | 11.1 KB | GPU, DIRECT, TEXT, WP3, PRIMITIVERENDERER |
 | 41 | `Artifact/docs/MILESTONE_IMGUIZMO_DIRECT_CODE_2026-04-09.md` | Milestone: ImGuizmo Direct Code Integration / Gizmo Port to Artifact Render API  | 2026-04-09 | Draft; design and phase plan only, with no completion evidence for direct primitive port, interaction parity, overlay integration, or backend diagnostics | --- | 6.7 KB | IMGUIZMO, DIRECT, CODE |
 | 42 | `Artifact/docs/MILESTONE_M11_SOFTWARE_RENDER_PIPELINE_2026-03-11.md` | M11 Software Render Pipeline (2026-03-11) | 2026-03-11 | Partial; composition/layer software preview uses current project data and render surfaces, while effect validation, sequence output acceptance, and M11.1 hardware integration remain pending | --- | 3.7 KB | M11, SOFTWARE, RENDER, PIPELINE |
 | 43 | `Artifact/docs/MILESTONE_MESH_INSTANCING_PHASE_2_CLONE_CONVERSION_2026-04-27.md` | Mesh Instancing Phase 2: CloneData to InstanceData Conversion (2026-04-27) | 2026-04-27 | Completed for Phase 2; CloneData→GPU-ready InstanceData conversion, visibility filtering, normalization, and public getInstanceData API implemented; draw integration remains Phase 3 | --- | 10.3 KB | MESH, INSTANCING, PHASE, CLONE |
