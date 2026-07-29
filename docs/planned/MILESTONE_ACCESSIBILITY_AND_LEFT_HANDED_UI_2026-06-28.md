@@ -37,6 +37,7 @@
 - ✅ 「その他のツール」ボタンを toolbar action として確実に登録し、実ボタンへ Accessible Name / Description と scaled target height を適用。
 - ✅ Application Settings の Accessibility グループ自体に目的説明の Accessible Name / Description を付与。
 - ✅ Playback Control ルートパネルに Accessible Name / Description を付与。
+- ✅ Main Window と Workspace mode ボタンに Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
