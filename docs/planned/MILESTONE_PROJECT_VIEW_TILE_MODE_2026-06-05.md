@@ -1,5 +1,7 @@
 # マイルストーン: Project View Tile Mode
 
+**ステータス:** Phase 1〜5主要実装済み、Phase 3/6・runtime/性能/責務境界検証 pending
+
 > 2026-06-05 作成
 
 ## 目的

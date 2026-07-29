@@ -1,5 +1,7 @@
 # Project View Search / Filter / Presentation
 
+**ステータス:** Phase 1〜3主要基盤実装済み、Phase 2統合・Phase 4〜5/runtime検証 pending
+
 > 2026-04-03 作成
 
 `ArtifactProjectManagerWidget` を、単なる project tree から「素材を探して、状態を見て、次の操作へ進める surface」に寄せるための milestone です。
