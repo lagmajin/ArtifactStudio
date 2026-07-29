@@ -101,3 +101,9 @@ Phase 1 はコード上ほぼ到達、Phase 2〜3 は共有 snapshot 基盤あ�
 
 - Phase 1 の `goal / now(frame) / warning / next` summary vocabulary は `FrameDebugViewWidget` と `AppDebuggerWidget` の現行コードで実装済みとしてマークする。
 - Phase 2 の compare / pin 操作統一、Phase 3 の saved bundle 再参照と完全な report 語彙統一は未完了・未検証のため、マイルストーン全体は `In Progress` を維持する。
+
+### 追加監査 (2026-07-29)
+
+- `AppDebuggerWidget` には current / history / pinned capture の保持、compare target、`FrameStateDiffWidget` への previous/current 差分表示が既にある。
+- `FrameDebugViewWidget` は read-only summary と compare state の表示責務に限定されている。
+- したがって Phase 2 は「基盤・表示は実装済み、操作統一と runtime 確認 pending」と細分化して記録する。新規 signal / slot や別の global event 配線は追加しない。
