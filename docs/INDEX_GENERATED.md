@@ -628,7 +628,7 @@
 | 179 | `docs/planned/MILESTONE_COMPOSITION_EDITOR_SELECTION_COMPARISON_2026-06-27.md` | Milestone: Composition Editor Selection / Comparison Upgrade (2026-06-27) | 2026-06-27 | --- | 2026-06-27 | 3.4 KB | COMPOSITION, EDITOR, SELECTION, COMPARISON |
 | 180 | `docs/planned/MILESTONE_COMPOSITION_MOTION_PATH_OVERLAY_2026-03-28.md` | マイルストーン: Composition Motion Path Overlay | 2026-03-28 | --- | 2026-07-09 | 8.7 KB | COMPOSITION, MOTION, PATH, OVERLAY |
 | 181 | `docs/planned/MILESTONE_COMPOSITION_NESTING_DISPLAY_2026-04-10.md` | コンポジションのネスト表示改善 | 2026-04-10 | --- | 2026-04-11 | 2.1 KB | COMPOSITION, NESTING, DISPLAY |
-| 182 | `docs/planned/MILESTONE_COMPOSITION_QUICK_SETTINGS_2026-04-10.md` | コンポジションクイック設定メニューの実装 | 2026-04-10 | --- | 2026-04-11 | 2.2 KB | COMPOSITION, QUICK, SETTINGS |
+| 182 | `docs/planned/MILESTONE_COMPOSITION_QUICK_SETTINGS_2026-04-10.md` | コンポジションクイック設定メニューの実装 | 2026-04-10 | 部分実装（Composition Editorの右クリック導線と既存viewport操作メニューあり、解像度・Frame Rate・Duration・背景色のquick submenu・設定変更Undo・チェック表示未完了） | 2026-07-29 | 2.2 KB | COMPOSITION, QUICK, SETTINGS |
 | 183 | `docs/planned/MILESTONE_CONSOLE_WIDGET_ENHANCEMENT_2026-03-31.md` | マイルストーン: デバッグコンソールウィジェットの拡充 | 2026-03-31 | --- | 2026-04-04 | 4.7 KB | CONSOLE, WIDGET, ENHANCEMENT |
 | 184 | `docs/planned/MILESTONE_CONSTRUCTION_LAYER_2026-06-05.md` | マイルストーン: Construction Layer | 2026-06-05 | --- | 2026-06-05 | 7.7 KB | CONSTRUCTION, LAYER |
 | 185 | `docs/planned/MILESTONE_CONTENT_AWARE_FILL_2026-07-08.md` | Milestone: Content-Aware Fill（コンテンツに応じた塗りつぶし） (2026-07-08) | 2026-07-08 | --- | 2026-07-09 | 2.4 KB | CONTENT, AWARE, FILL |
