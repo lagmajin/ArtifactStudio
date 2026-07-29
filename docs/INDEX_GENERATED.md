@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-29 21:38
+> Generated: 2026-07-29 21:43
 > Total documents: 1134
 
 ---
@@ -674,7 +674,7 @@
 | 218 | `docs/planned/MILESTONE_DIAGNOSTICS_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: 診断 / デバッグ機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-25 | 2.7 KB | DIAGNOSTICS, DESIGN, AUDIT |
 | 219 | `docs/planned/MILESTONE_DILIGENT_LOW_LEVEL_API_2026-04-01.md` | Milestone: Diligent Low-Level Rendering API Expansion (2026-04-01) | 2026-04-01 | --- | 2026-07-25 | 11.7 KB | DILIGENT, LOW, LEVEL, API |
 | 220 | `docs/planned/MILESTONE_DISK_CACHE_SYSTEM_2026-03-26.md` | Disk Cache System Milestone | 2026-03-26 | --- | 2026-07-25 | 5.7 KB | DISK, CACHE, SYSTEM |
-| 221 | `docs/planned/MILESTONE_DOCK_WORKSPACE_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: Dock / Workspace 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-25 | 2.8 KB | DOCK, WORKSPACE, DESIGN, AUDIT |
+| 221 | `docs/planned/MILESTONE_DOCK_WORKSPACE_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: Dock / Workspace 機能監査 (2026-07-04) | 2026-07-04 | Partial（Ctrl+1〜4 クイック切替を実装、レイアウトリセット・pin・最大化・runtime 検証は未完了） | 2026-07-29 | 3.5 KB | DOCK, WORKSPACE, DESIGN, AUDIT |
 | 222 | `docs/planned/MILESTONE_DOCUMENTATION_META_MANAGEMENT_2026-07-03.md` | M-DOCMETA: ドキュメントメタ管理 (Documentation Meta Management) | 2026-07-03 | 計画 | 2026-07-25 | 8.4 KB | AE parity, workflow, gap analysis, P0, timeline, keyframe, g |
 | 223 | `docs/planned/MILESTONE_DOMAIN_TYPE_WRAPPERS_2026-07-04.md` | マイルストーン: テンプレート露出削減 → ドメイン型ラッパー (2026-07-04) | 2026-07-04 | --- | 2026-07-25 | 10.6 KB | DOMAIN, TYPE, WRAPPERS |
 | 224 | `docs/planned/MILESTONE_DOPE_SHEET_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: Dope Sheet 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-25 | 2.4 KB | DOPE, SHEET, DESIGN, AUDIT |
@@ -859,7 +859,7 @@
 | 403 | `docs/planned/MILESTONE_PROFESSIONAL_MEDIA_MATERIALS_2026-07-16.md` | Professional Media Materials Support (2026-07-16) | 2026-07-16 | Phase 1-3 integration foundation implemented; Phase 4-5 partial and runtime validation pending | 2026-07-29 | 6.6 KB | PROFESSIONAL, MEDIA, MATERIALS |
 | 404 | `docs/planned/MILESTONE_PROFESSIONAL_SOFT_BODY_2026-07-11.md` | マイルストーン: Professional Soft Body / Cloth System | 2026-07-11 | In Progress | 2026-07-25 | 5.7 KB | PROFESSIONAL, SOFT, BODY |
 | 405 | `docs/planned/MILESTONE_PROJECT_ASSET_WORKFLOW_2026-03-27.md` | マイルストーン: Project / Asset Workflow | 2026-03-27 | Partial (Phase 1-6 foundations for selection/state, import/relink/missing, presentation/metadata, organization, workflow bridges, and save/restore exist; cross-view selection synchronization, unified status/dependency presentation, collections/smart bins, end-to-end bridges, and runtime save/restore verification pending) | 2026-07-25 | 9.4 KB | PROJECT, ASSET, WORKFLOW |
-| 406 | `docs/planned/MILESTONE_PROJECT_AUTO_SAVE_2026-04-10.md` | プロジェクト自動保存機能 | 2026-04-10 | Partial (AutoSaveManager lifecycle, dirty notifications, recovery snapshot create/detect/load, startup prompt, settings retention, QSaveFile/backup generations, and timer wiring implemented; complete interval/generation UI, .autosave naming, diff display, save feedback, conflict avoidance, crash recovery, performance, and runtime verification pending) | 2026-07-25 | 2.6 KB | PROJECT, AUTO, SAVE |
+| 406 | `docs/planned/MILESTONE_PROJECT_AUTO_SAVE_2026-04-10.md` | プロジェクト自動保存機能 | 2026-04-10 | Partial (AutoSaveManager lifecycle, dirty notifications, recovery snapshot create/detect/load, startup prompt, settings retention, QSaveFile/backup generations, and timer wiring implemented; complete interval/generation UI, .autosave naming, diff display, save feedback, conflict avoidance, crash recovery, performance, and runtime verification pending) | 2026-07-29 | 3.1 KB | PROJECT, AUTO, SAVE |
 | 407 | `docs/planned/MILESTONE_PROJECT_FILE_VALIDATION_SPELL_CHECK_2026-03-26.md` | Project File Validation / Spell Check Milestone | 2026-07-25 | Not started (generic project-health/reference validation foundation exists, but dedicated naming hygiene, dictionaries, ignore lists, typo suggestions, spell-check dashboard/quick fixes, and automatic scan workflow are unimplemented and unverified) | 2026-07-25 | 3.7 KB | PROJECT, FILE, VALIDATION, SPELL, CHECK |
 | 408 | `docs/planned/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE1_EXECUTION_2026-05-12.md` | Project Health / Problem View - Phase 1 Execution | 2026-05-12 | Completed (diagnostic source alignment and render-preflight blocking; runtime verification pending) | 2026-07-25 | 3.3 KB | PROJECT, HEALTH, PROBLEM, VIEW, PHASE1 |
 | 409 | `docs/planned/MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_PHASE2_2026-05-25.md` | マイルストーン: Project Health Problem View Phase 2 | 2026-05-25 | 計画中 | 2026-07-25 | 3.0 KB | PROJECT, HEALTH, PROBLEM, VIEW, PHASE2 |
@@ -1100,7 +1100,7 @@
 | 23 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.2 KB | IMPL, DOF |
 | 24 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.7 KB | IMPL, SSAO |
 | 25 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.5 KB | IMPL, TONE, MAPPING |
-| 26 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-07-25 | --- | 2026-07-29 | 274.8 KB | INDEX, GENERATED |
+| 26 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-07-29 | --- | 2026-07-29 | 280.6 KB | INDEX, GENERATED |
 | 27 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 28 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 11.6 KB | CAMERA, PROJECTION |
 | 29 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
