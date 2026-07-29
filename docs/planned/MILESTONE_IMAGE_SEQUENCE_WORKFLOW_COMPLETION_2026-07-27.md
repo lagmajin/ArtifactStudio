@@ -126,3 +126,4 @@ frame index 範囲外／`frameAt()` 失敗時も直前フレームを残さず�
 `setFromQImage()` による編集結果への置換でも sequence reader／cached index を破棄する。
 同時に prefetch generation を進め、編集中の QImage を旧ファイル decode が上書きしないようにした。
 JSON 再読込時も prefetch generation を進め、sequence reader／cached frame／decoded buffer を破棄し、同一 source path で別 sequence を復元しても旧フレームを再利用しないようにした。
+同一 source path の復元でも prefetch を再起動し、cache 破棄後に stale な `prefetchDone_` が placeholder を固定しないようにした。
