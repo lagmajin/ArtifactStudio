@@ -1,7 +1,7 @@
 # M-AU-8 Audio Scrubbing Milestone
 
 作成日: 2026-06-16
-ステータス: Draft
+ステータス: 実装済み（実機検証・運用上の磨き込み待ち、静的確認 2026-07-29）
 対象: `ArtifactCore/include/Audio/AudioCache.ixx`,
       `ArtifactCore/include/Audio/AudioFrame.ixx`,
       `ArtifactCore/include/Audio/AudioSegment.ixx`,
