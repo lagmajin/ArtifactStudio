@@ -3,6 +3,12 @@
 > 2026-06-13 作成  
 > 状態: Partial（主要設定・EditMode／DisplayMode・Preview cache・Grid UI を接続、Clone UI と runtime 検証は未完了、静的確認 2026-07-29）
 
+### 2026-07-29 Implementation Loop
+
+- ✅ Preview Settings の RAM / disk cache トグルを ViewMenu に接続。
+- ✅ RAM cache の設定変更を実行中の `ArtifactPlaybackService` に同期。
+- ⏳ Disk cache の実行中サービス反映、Clone UI、runtime 検証は未完了。
+
 ---
 
 ## 既存接続状況（良好）
