@@ -40,7 +40,7 @@
 - ✅ Main Window と Workspace mode ボタンに Accessible Name / Description を付与。
 - ✅ Icon-only の Main Tool Bar でも、各 QAction のラベル／ツールチップを実ボタンの Accessible Name / Description へ同期。
 - ✅ Timeline Scrub Bar に操作目的と cache 状態を説明する Accessible Name / Description を付与。
-- ✅ interactive seeking 有効時の Timeline Scrub Bar に Left/Right、PageUp/PageDown、Home/End のキーボード操作を追加。
+- ✅ Timeline Scrub Bar の表示専用状態でも、Left/Right、PageUp/PageDown、Home/End のキーボード操作を利用可能化。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
