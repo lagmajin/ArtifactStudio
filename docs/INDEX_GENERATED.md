@@ -357,7 +357,7 @@
 | 36 | `docs/done/MILESTONE_EXTERNAL_RENDERER_DESIGN_PHASE1_EXECUTION_2026-06-25.md` | External Renderer Design Phase 1 Execution (2026-06-25) | 2026-06-25 | Completed (Phase 1 snapshot serializer and headless handoff scope) | 2026-07-29 | 2.2 KB | EXTERNAL, RENDERER, DESIGN, PHASE1, EXECUTION |
 | 37 | `docs/done/MILESTONE_GLOW_VARIANTS_2026-06-13.md` | Milestone: Glow Variants Pack (発光亜種の実験群) | 2026-06-13 | ✅ Complete (All five variants implemented; static audit completed 2026-06-28) | 2026-07-07 | 5.8 KB | GLOW, VARIANTS |
 | 38 | `docs/done/MILESTONE_IMPLEMENTATION_STATUS_2026-03-26.md` | Milestone Implementation Status (2026-03-26) | 2026-03-26 | --- | 2026-03-26 | 2.1 KB | IMPLEMENTATION, STATUS |
-| 39 | `docs/done/MILESTONE_INSPECTOR_USABILITY_2026-04-14.md` | Inspector Usability | 2026-04-14 | --- | 2026-07-07 | 0.7 KB | INSPECTOR, USABILITY |
+| 39 | `docs/done/MILESTONE_INSPECTOR_USABILITY_2026-04-14.md` | Inspector Usability | 2026-04-14 | Completed (filtering, selection sync, empty states, and property/effect editing paths; runtime verification pending) | 2026-07-29 | 0.7 KB | INSPECTOR, USABILITY |
 | 40 | `docs/done/MILESTONE_KEYFRAME_COPY_PASTE_2026-06-16.md` | M-CLIP-1 Keyframe Copy & Paste | 2026-06-16 | --- | 2026-06-20 | 1.2 KB | KEYFRAME, COPY, PASTE |
 | 41 | `docs/done/MILESTONE_KEYFRAME_NUDGE_AND_TEMP_SNAP_OVERRIDE_2026-06-07.md` | Keyframe Nudge / Temp Snap Override Milestone | 2026-06-07 | ✅ 完了 (2026-06-15 確認・補完) | 2026-06-27 | 4.2 KB | KEYFRAME, NUDGE, AND, TEMP, SNAP |
 | 42 | `docs/done/MILESTONE_LAYER_AUTO_ARRANGE_2026-04-10.md` | レイヤー自動配置ユーティリティの実装 | 2026-04-10 | --- | 2026-06-27 | 1.7 KB | LAYER, AUTO, ARRANGE |
