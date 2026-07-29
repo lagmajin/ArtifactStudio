@@ -54,13 +54,13 @@ Phase 1〜2 相当は実装済み。`ArtifactLayerPanelWidget` は filter text �
 2026-07-30 に `tag:<text>` をレイヤーの保存済み JSON metadata に対する検索として追加し、`effect:<name>` を `fx:<name>` と同じプロパティグループ検索経路へ接続した。既存の検索表示モードと結果ナビゲーションをそのまま利用する。
 同日、`child:any` / `child:none` / `child:<name-or-id>` と `haschild:true/false` を `ArtifactGroupLayer::children()` に接続し、親子関係を親側から検索できるようにした。
 検索表示モードも実装経路へ接続し、`Filter Only` は非一致行を除外し、`Highlight Only` は非一致行を半透明化する。`All Visible` は従来どおり全行を表示する。
+`source:<text>` は画像・動画・音声・3D レイヤーの `sourcePath()` とファイル basename を優先して検索し、保存済み JSON metadata をフォールバックに使うよう整理した。
 
 未完了・未確認:
 
-- source asset の検索対象拡張
 - 選択・keyframe・scroll との回帰確認
 
-したがって「インクリメンタル検索、表示モード、hit count、結果ナビゲーション、主要な簡易 query は実装済み、child relation / source asset の検索対象拡張と非一致表示の回帰確認は未完了」と整理する。
+したがって「インクリメンタル検索、表示モード、hit count、結果ナビゲーション、主要な簡易 query、child relation、source asset 検索は実装済み、選択・keyframe・scroll との回帰確認は未完了」と整理する。
 
 ---
 
