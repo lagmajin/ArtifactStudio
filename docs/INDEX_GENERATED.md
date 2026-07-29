@@ -781,7 +781,7 @@
 | 332 | `docs/planned/MILESTONE_LONG_RUNNING_FEATURE_WORKSTREAMS_2026-03-25.md` | マイルストーン: 長期機能拡張ワークストリーム | 2026-03-25 | --- | 2026-03-25 | 4.9 KB | LONG, RUNNING, FEATURE, WORKSTREAMS |
 | 333 | `docs/planned/MILESTONE_LOOP_SEAM_CHECKER_2026-06-07.md` | MILESTONE: Loop Seam Checker | 2026-06-07 | --- | 2026-06-09 | 2.5 KB | LOOP, SEAM, CHECKER |
 | 334 | `docs/planned/MILESTONE_LUMINESCENCE_CAUSTICS_2026-06-13.md` | Milestone: LuminescenceCaustics (光輪集光コースティクス) | 2026-06-13 | --- | 2026-06-13 | 5.3 KB | LUMINESCENCE, CAUSTICS |
-| 335 | `docs/planned/MILESTONE_LUT_BROWSER_2026-06-16.md` | M-LUT-1 LUT Browser / Picker Milestone | 2026-06-16 | --- | 2026-07-09 | 14.0 KB | LUT, BROWSER |
+| 335 | `docs/planned/MILESTONE_LUT_BROWSER_2026-06-16.md` | M-LUT-1 LUT Browser / Picker Milestone | 2026-06-16 | 部分完了（LUT scan/load/clear、一覧・選択プレビュー・D&D・GPU uploadあり、grid/search・before/after・favorites/recent・project添付・Inspector picker・diagnosticsは未完了） | 2026-07-29 | 14.0 KB | LUT, BROWSER |
 | 336 | `docs/planned/MILESTONE_M12_POLISH_AND_STABILITY_2026-03-17.md` | M12 Polish and Stability (2026-03-17) | 2026-03-17 | --- | 2026-03-20 | 8.2 KB | M12, POLISH, AND, STABILITY |
 | 337 | `docs/planned/MILESTONE_MAIN_WINDOW_SHELL_REDESIGN_2026-07-15.md` | Main Window Shell Redesign (2026-07-15) | 2026-07-15 | Implemented — runtime verification pending | 2026-07-15 | 2.0 KB | MAIN, WINDOW, SHELL, REDESIGN |
 | 338 | `docs/planned/MILESTONE_MARKER_FOUNDATION_2026-06-16.md` | M-MARKER-1 Marker Foundation Milestone | 2026-06-16 | 部分完了（Marker Core API・検索・前後移動・XML/AI経路あり、専用Timeline/Inspector/project JSON/Undo/shortcut/diagnostics統合は未完了） | 2026-07-29 | 16.6 KB | MARKER, FOUNDATION |
