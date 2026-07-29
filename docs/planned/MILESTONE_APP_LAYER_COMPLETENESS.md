@@ -92,11 +92,11 @@ facade sliceと物理Audio device列挙・選択・設定永続化の公開契�
 
 ### M-APP-9 AbstractGeneratorEffector::apply() 実装
 - `Artifact/src/Generator/AbstractGeneratorEffector.cppm`
-- [ ] legacy `Generator.Effector`の存廃決定
-- [ ] 現行`ArtifactAbstractEffect` generator群へのpreset / parameter移行
-- [ ] 移行後に未使用stubを削除
+- [x] legacy `Generator.Effector`の存廃決定 — **対象外／撤回**
+- [x] 現行`ArtifactAbstractEffect` generator群へのpreset / parameter移行 — **本契約では実施しない**
+- [x] 移行後に未使用stubを削除 — **対象外／撤回**
 
-2026-07-13監査では`AbstractGeneratorEffector`の利用箇所がなく、任意layerへ生成bufferを注入する正式契約も存在しない。現行generatorは`ArtifactAbstractEffect` pipelineで実装されているため、旧抽象を直接接続する案は撤回する。
+2026-07-13監査では`AbstractGeneratorEffector`の利用箇所がなく、任意layerへ生成bufferを注入する正式契約も存在しない。現行generatorは`ArtifactAbstractEffect` pipelineで実装されているため、旧抽象を直接接続する案は撤回する。したがって本項目は「未完了」ではなく、現行アーキテクチャでは対象外として扱う。
 
 ### M-APP-10 DAGExecutor 効果評価（部分実装）
 - `Artifact/include/Engine/DAG/Executor.ixx`
@@ -180,6 +180,6 @@ Phase 5 (データ層) ──→ Phase 6 (拡張)
 | **最優先** | M-APP-6 (Undo) | 宣言済み API を呼ぶだけ、パターン明確 |
 | **高** | M-APP-3 (EffectService) ✅ | 静的実装済み、runtime確認待ち |
 | **高** | M-APP-7 (EditMode UI) | ツールサービスを活かすには UI 接続が必要 |
-| **中** | M-APP-9 (Generator::apply) | パイプライン接続ポイント |
+| **対象外** | M-APP-9 (Generator::apply) | 旧抽象の直接接続案は撤回済み |
 | **中** | M-APP-10 (DAG eval) | レンダリングの根幹 |
 | **低** | M-APP-15 (OFX) | サードパーティ互換、実装コスト高い |
