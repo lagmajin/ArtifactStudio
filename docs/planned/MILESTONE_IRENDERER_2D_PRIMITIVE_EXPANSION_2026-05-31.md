@@ -156,6 +156,8 @@ void drawStyledPolylineLocal(const std::vector<Detail::float2>& points,
 
 Static audit note (2026-07-29): `TrimPaths`／`Repeater` は `ShapeGroup::processedPaths()` で geometry を生成できるが、現行 `ArtifactShapeLayer::useCachePipeline()` は operator 付きレイヤーを互換 QImage 経路へ送る。native 化には複数輪郭 fill、operator 後の stroke、cache invalidation の統合が必要なため、未完了として保持する。
 
+次の安全な実装単位は、まず `TrimPaths` 単独・solid fill・標準 stroke に限定し、`ShapePath::flattenSubpaths()`／`triangulate()` から native packet へ接続すること。`Repeater` と複数 operator の組み合わせは、複数輪郭の順序・fill rule・bounds invalidation を固定してから対象にする。
+
 ### Phase 2: Styled Polyline
 
 - cap / join / dashPattern を low-level primitive に持ち込む
