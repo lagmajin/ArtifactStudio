@@ -40,6 +40,8 @@
 
 ## Phase 1: Group Model / Serialization
 
+**進捗:** group layer の child／parent ID と group 固有状態の composition JSON round-trip は静的実装済み。UI と実運用での再起動確認は未検証。
+
 - 目的:
   - レイヤーグループのデータモデルを安定させる
   - project 保存 / 読み込みで group 状態を失わないようにする
@@ -48,7 +50,13 @@
   - `group id` / `parent group id` の永続化
   - `expanded / muted / locked / color / opacity` の保存
   - root group の扱いを明示する
-  - delete / move / reparent の整合性チェック
+- delete / move / reparent の整合性チェック
+
+### 静的実装済み
+
+- [x] group layer の child count／collapsed／output mode／active child の保存・復元
+- [x] composition-owned group の child を composition JSON 経路で保持
+- [x] child の parent layer ID と composition pointer の round-trip
 
 - 完了条件:
   - 再起動後も group 構造が壊れない
@@ -149,9 +157,8 @@
 
 ## Validation Checklist
 
-- [ ] group の保存 / 読み込みが安定する
+- [x] group の保存 / 読み込みの基本 round-trip（静的テスト経路）
 - [ ] group の折りたたみと状態表示が見える
 - [ ] group 単位で layer の見え方を追える
 - [ ] parent / child の関係が UI 上で追える
 - [ ] group 単位の操作で layer tree が壊れない
-
