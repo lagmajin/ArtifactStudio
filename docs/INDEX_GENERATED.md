@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 02:30
+> Generated: 2026-07-30 02:31
 > Total documents: 1134
 
 ---
@@ -765,7 +765,7 @@
 | 309 | `docs/planned/MILESTONE_LAYER_COMPONENT_SYSTEM_UNITY_LIKE_2026-04-08.md` | マイルストーン: レイヤー向け軽量コンポーネントシステム | 2026-04-08 | Partial (Phase 1 host/serialization implemented; Phases 2-5 pending) | 2026-04-08 | 8.5 KB | LAYER, COMPONENT, SYSTEM, UNITY, LIKE |
 | 310 | `docs/planned/MILESTONE_LAYER_COMPONENTS_PHYSICS_BEHAVIOR_2026-03-28.md` | マイルストーン: Layer Components - Physics / Behavior | 2026-03-28 | Partial (Physics surface/runtime implemented; Behavior and UI workflow pending) | 2026-03-28 | 5.7 KB | LAYER, COMPONENTS, PHYSICS, BEHAVIOR |
 | 311 | `docs/planned/MILESTONE_LAYER_EFFECT_ENVELOPE_2026-06-19.md` | Layer Effect Envelope Milestone | 2026-06-19 | 部分完了（エンベロープ契約・保存復元・描画適用・Quick Create 導線を実装、Property/Inspector/Timeline 統合と Bake は未完了） | 2026-07-29 | 15.7 KB | LAYER, EFFECT, ENVELOPE |
-| 312 | `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_2026-03-27.md` | マイルストーン: レイヤーグループ導入 | 2026-03-27 | 部分完了（Group Layer の保存・復元・描画・基本操作を実装、表示UI/変換階層/可視性統合は未完了） | 2026-07-30 | 6.9 KB | LAYER, GROUP, SYSTEM |
+| 312 | `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_2026-03-27.md` | マイルストーン: レイヤーグループ導入 | 2026-03-27 | 部分完了（Group Layer の保存・復元・描画・基本操作を実装、表示UI/変換階層/可視性統合は未完了） | 2026-07-30 | 7.3 KB | LAYER, GROUP, SYSTEM |
 | 313 | `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_PHASE1_EXECUTION_2026-04-10.md` | Milestone: Layer Group System Phase 1 Execution | 2026-04-10 | Completed (group model, ownership propagation, JSON roundtrip, regression coverage implemented) | 2026-04-10 | 2.9 KB | LAYER, GROUP, SYSTEM, PHASE1, EXECUTION |
 | 314 | `docs/planned/MILESTONE_LAYER_LOCK_TRANSPARENCY_2026-04-10.md` | レイヤーロック機能の拡張 | 2026-04-10 | 部分完了（通常/選択/Transform/Timing ロックと JSON 永続化を実装、Property/Content/Visibility 分離・スマートロック・専用UI/ショートカットは未完了） | 2026-04-11 | 1.8 KB | LAYER, LOCK, TRANSPARENCY |
 | 315 | `docs/planned/MILESTONE_LAYER_MODIFIER_SYSTEM_2026-06-13.md` | 実装案: M-LYR-MOD Layer Modifier System (Blender-style Deformers) | 2026-06-13 | 未実装 | 2026-06-13 | 6.0 KB | LAYER, MODIFIER, SYSTEM |

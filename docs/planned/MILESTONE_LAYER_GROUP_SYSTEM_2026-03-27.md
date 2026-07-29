@@ -93,6 +93,8 @@
 
 ## Phase 3: Transform Hierarchy Integration
 
+**進捗:** Timeline の parent column／parent-whip 表示と parent-chain state reason は静的実装済み。transform 影響範囲の専用 overlay と runtime確認は未検証。
+
 - 目的:
   - 「見た目整理」と「変換親子」を完全に同一視しない
   - 必要な場合だけ transform 階層として使えるようにする
@@ -101,7 +103,13 @@
   - display group と transform group の役割を分ける
   - parent child の dependency overlay
   - 親を選ぶと子を強調表示
-  - transform への影響範囲を明示
+- transform への影響範囲を明示
+
+### 静的実装済み
+
+- [x] display group と `parentLayerId` を別の責務として保持
+- [x] Timeline parent column／parent-whip による parent の有無表示
+- [x] parent chain を辿った group hidden／locked reason の表示
 
 - 完了条件:
   - group が見た目整理だけでなく、変換文脈でも追える
