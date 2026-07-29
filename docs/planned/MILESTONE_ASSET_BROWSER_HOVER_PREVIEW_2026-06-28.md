@@ -1,5 +1,7 @@
 # Milestone: Asset Browser Hover Preview (M-AB-4)
 
+2026-07-30 implementation loop: generation-mismatched image／video／audio thumbnail watchers are now disconnected, cancelled, and scheduled for deletion before replacement. Async preview UX and runtime verification remain pending.
+
 **マイルストーンID**: M-AB-4
 **作成日**: 2026-06-28
 **優先度**: P1 (High)
