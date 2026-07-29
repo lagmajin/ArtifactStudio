@@ -117,3 +117,5 @@ sequence を Composition へ投入した際にフレームパスごとに単体�
 判定: **実装完了 / runtime・実ファイル検証 pending**。ビルド・実機確認後に `docs/done/` へ移動する。
 
 2026-07-29 audit: `ArtifactImageLayer::draw()` の `currentFrame()` → `ImageSequenceSource::frameAt()` 切替接続と、先頭フレームによる初期サイズ確定を再確認。コードコメントも実装状態に合わせて更新した。
+
+追加監査: source version 更新時と sequence 外の単独画像へ切り替える時に、sequence reader と cached frame index をリセットする状態整合性処理を追加。
