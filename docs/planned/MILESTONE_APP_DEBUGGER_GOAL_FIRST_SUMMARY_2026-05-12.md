@@ -88,3 +88,9 @@ Phase 1 の実行メモは親文書へ統合済み。
 ### 現在の判定
 
 Phase 1〜4 の UI 基盤は実装済み部分が多いが、App Debugger 全体の summary ordering、pin/compare/filter の横断導線、harness との語彙統一は確認待ち。マイルストーンは「部分実装／統合確認待ち」とする。
+
+## 2026-07-29 実装マーク
+
+- App Debugger の状態 summary に `warning / next`、density warning、failure / fallback、capture compare の情報が存在することをコード上確認した。
+- Frame Debug View との snapshot 共有、capture history / pinned 表示、copyable report も既存導線として確認済み。
+- ただし `goal / now / warning / next` の画面横断 ordering と harness の完全な語彙統一は未検証のため、マイルストーン全体は `Partial implementation / integration verification pending` を維持する。
