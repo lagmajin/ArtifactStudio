@@ -1,4 +1,6 @@
 # Milestone: Composition Editor Performance Improvement (M-CP-IMP-1)
+
+**Status:** 部分完了（layer surface/GPU texture cache、dirty/invalidation、render key、debounce/coalescing、interactive downsampleを実装、CompositionChangeDetectorの独立実装・性能測定・SRV/UAV/compute runtime検証未完了）
 ## 🎯 目的
 Composition Editor のUI応答性を向上させ、レイヤー操作時のパフォーマンスを最適化する。
 
