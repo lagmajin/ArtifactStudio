@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-29 21:43
+> Generated: 2026-07-29 21:45
 > Total documents: 1134
 
 ---
@@ -499,7 +499,7 @@
 | 43 | `docs/planned/MILESTONE_AE_STYLE_MASK_EDITING_GRAMMAR_2026-06-02.md` | Milestone: AE Style Mask Editing Grammar | 2026-06-02 | --- | 2026-06-05 | 5.0 KB | STYLE, MASK, EDITING, GRAMMAR |
 | 44 | `docs/planned/MILESTONE_AE_STYLE_MASK_EDITING_GRAMMAR_PHASE1_EXECUTION_2026-06-02.md` | Phase 1 Execution: AE Style Mask Editing Grammar | 2026-06-02 | --- | 2026-06-05 | 2.2 KB | STYLE, MASK, EDITING, GRAMMAR |
 | 45 | `docs/planned/MILESTONE_AE_STYLE_SIMPLE_RAIN_EFFECT_2026-05-31.md` | Milestone: AE-Style Simple Rain Effect | 2026-05-31 | --- | 2026-06-19 | 4.6 KB | STYLE, SIMPLE, RAIN, EFFECT |
-| 46 | `docs/planned/MILESTONE_AE_UTILITY_SCRIPT_PACK_2026-06-22.md` | Milestone: AE Utility Script Pack | 2026-07-25 | --- | 2026-07-25 | 5.5 KB | UTILITY, SCRIPT, PACK |
+| 46 | `docs/planned/MILESTONE_AE_UTILITY_SCRIPT_PACK_2026-06-22.md` | Milestone: AE Utility Script Pack | 2026-07-25 | Partial (three utility scripts, C++ bridges, and Script menu entries implemented; Undo, confirmation, input UI, and shared registry remain incomplete or unverified) | 2026-07-25 | 5.7 KB | UTILITY, SCRIPT, PACK |
 | 47 | `docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-04-08.md` | MILESTONE: 制作ギャップ解消 | 2026-04-08 | ✅ ギャップ特定済み | 2026-04-21 | 5.6 KB | AFTER, EFFECTS, PARITY, GAP |
 | 48 | `docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md` | MILESTONE: After Effects Parity & Gap Analysis - 2026-05-28 | 2026-05-28 | --- | 2026-07-25 | 11.8 KB | AFTER, EFFECTS, PARITY, GAP |
 | 49 | `docs/planned/MILESTONE_AFTER_EFFECTS_PARITY_WORKFLOW_GAPS_2026-06-07.md` | MILESTONE: After Effects Parity Workflow Gaps - 2026-06-07 | 2026-06-07 | --- | 2026-06-20 | 15.3 KB | AFTER, EFFECTS, PARITY, WORKFLOW, GAPS |
@@ -1100,7 +1100,7 @@
 | 23 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.2 KB | IMPL, DOF |
 | 24 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.7 KB | IMPL, SSAO |
 | 25 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.5 KB | IMPL, TONE, MAPPING |
-| 26 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-07-29 | --- | 2026-07-29 | 280.6 KB | INDEX, GENERATED |
+| 26 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-07-29 | --- | 2026-07-29 | 280.8 KB | INDEX, GENERATED |
 | 27 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 28 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 11.6 KB | CAMERA, PROJECTION |
 | 29 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |

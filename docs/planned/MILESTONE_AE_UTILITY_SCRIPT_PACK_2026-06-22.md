@@ -1,5 +1,7 @@
 # Milestone: AE Utility Script Pack
 
+> 状態: Partial (three utility scripts, C++ bridges, and Script menu entries implemented; Undo, confirmation, input UI, and shared registry remain incomplete or unverified)
+
 ## Static Audit (2026-07-25)
 
 AE Utility Pack の3本（`quick_rename_layers.py`、`clean_layers.py`、`trim_comp_to_content.py`）と、対応する `ArtifactPythonAPI` の C++ bridge、Script menu の `AE Utility Pack` サブメニューを確認した。各ファイルは menu から直接実行でき、既存の selection／composition service 経路を利用する。
