@@ -55,7 +55,7 @@ VSコードのモード選択プルダウンと同様のUI
 
 | 設定 | ウィジェット | 状態 |
 |------|-------------|------|
-| `previewQualityText` | ViewMenu/Workspace | ⚠️ 未接続 |
+| `previewQualityText` | ViewMenu/Workspace | ✅ ViewMenu 選択・復元、Workspace 起動適用 |
 | `previewEnableRamCache` | ViewMenu/Workspace | ✅ ViewMenu の品質プリセットメニューに接続 |
 | `previewEnableDiskCache` | ViewMenu/Workspace | ✅ ViewMenu の品質プリセットメニューに接続 |
 
