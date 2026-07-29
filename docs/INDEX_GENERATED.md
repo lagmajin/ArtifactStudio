@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-29 22:24
+> Generated: 2026-07-29 22:25
 > Total documents: 1134
 
 ---
@@ -556,7 +556,7 @@
 | 100 | `docs/planned/MILESTONE_APP_LAYER_COMPLETENESS.md` | マイルストーン: アプリ層完成度向上 | 2026-03-20 | Partial; app-layer workstreams advanced, remaining gaps tracked by execution milestones and runtime verification | 2026-07-14 | 7.6 KB | APP, LAYER, COMPLETENESS |
 | 101 | `docs/planned/MILESTONE_APP_LAYER_COMPLETENESS_M_APP_7_EDITMODE_UI_IMPLEMENTATION_2026-06-13.md` | 実装案: M-APP-7 EditMode → ツール自動マッピングの UI 接続 | 2026-06-13 | 実装済み・実機未確認 | 2026-07-14 | 10.0 KB | APP, LAYER, COMPLETENESS |
 | 102 | `docs/planned/MILESTONE_APP_LAYER_IMPROVEMENTS_2026-03-28.md` | アプリ層改善 Milestone | 2026-03-28 | 一部実装済み ✅ | 2026-07-07 | 10.0 KB | APP, LAYER, IMPROVEMENTS |
-| 103 | `docs/planned/MILESTONE_APP_SETTINGS_WIDGET_GAP_2026-06-13.md` | 実装案: App Settings - Widget 接続ギャップ | 2026-06-13 | Partial（主要設定・EditMode／DisplayMode・Preview cache・Grid UI を接続、Clone UI と runtime 検証は未完了、静的確認 2026-07-29） | 2026-07-29 | 4.3 KB | APP, SETTINGS, WIDGET, GAP |
+| 103 | `docs/planned/MILESTONE_APP_SETTINGS_WIDGET_GAP_2026-06-13.md` | 実装案: App Settings - Widget 接続ギャップ | 2026-06-13 | Partial（主要設定・EditMode／DisplayMode・Preview cache・Grid UI を接続、Clone UI と runtime 検証は未完了、静的確認 2026-07-29） | 2026-07-29 | 4.5 KB | APP, SETTINGS, WIDGET, GAP |
 | 104 | `docs/planned/MILESTONE_APP_SURFACE_COHESION_2026-05-13.md` | Milestone: App Surface Cohesion | 2026-05-13 | Partial; context/summary/empty/playback foundations exist, cross-surface finish and runtime cohesion pending | 2026-07-25 | 11.2 KB | APP, SURFACE, COHESION |
 | 105 | `docs/planned/MILESTONE_APPLICATION_SETTINGS_APP_INTEGRATION_2026-04-19.md` | MILESTONE_APPLICATION_SETTINGS_APP_INTEGRATION_2026-04-19 | 2026-04-19 | Settings model/preferences/main UI foundation implemented; startup/live-sync/runtime verification pending | 2026-07-29 | 5.5 KB | APPLICATION, SETTINGS, APP, INTEGRATION |
 | 106 | `docs/planned/MILESTONE_ARTIFACTPR_INDEPENDENT_PROJECT_2026-04-22.md` | MILESTONE: ArtifactPr Independent Project | 2026-07-29 | Phase 0〜4 implemented statically; build/runtime parity verification pending | 2026-07-29 | 5.1 KB | ARTIFACTPR, INDEPENDENT, PROJECT |

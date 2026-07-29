@@ -6,6 +6,7 @@
 ### 2026-07-29 Implementation Loop
 
 - ✅ Preview Settings の RAM / disk cache トグルを ViewMenu に接続。
+- ✅ Preview quality preset の選択を `previewQualityText` に保存し、起動後のメニュー状態へ復元。
 - ✅ RAM cache の設定変更を実行中の `ArtifactPlaybackService` に同期。
 - ✅ Disk cache の設定変更を実行中の `ArtifactPlaybackService` に同期。
 - ✅ `previewCacheSizeMB` をディスクキャッシュの per-composition budget と global budget に実行時反映。
