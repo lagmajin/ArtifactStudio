@@ -23,7 +23,7 @@
 | **タブの分割ビュー（左右/上下）** | VS Code | ⚠️ |
 | **タブの色分け（プロジェクト/パネル種別）** | - | ❌ |
 | **クイックパネル切替（Ctrl+1/2/3/4）** | Blender | ❌ |
-| **エディタ領域の最大化（Shift+Space）** | Blender | ❌ |
+| **エディタ領域の最大化（Shift+Space）** | Blender | ✅ 実装済み（focused dock の immersive 切替） |
 
 ---
 
@@ -41,7 +41,7 @@
 | タブ並び替え / 分割 | ADS の標準 dock 操作に依存する受け口はあるが、専用 UX の検証は未確認 | 部分実装・未確認 |
 | タブ pin / 色分け | 専用 pin と種別カラーの実装は未確認 | 未実装 |
 | Ctrl+1/2/3/4 切替 | workspace button / mode API はあるが、指定ショートカットは未確認 | 未確認 |
-| Shift+Space 最大化 | 専用 shortcut workflow は未確認 | 未実装 |
+| Shift+Space 最大化 | `ArtifactMainWindow::keyPressEvent()` から focused dock の immersive API を呼ぶ | 実装済み・runtime 未確認 |
 | lazy dock | placeholder、factory、first-show materialization、floating 遅延生成と失敗メタデータがある | 実装済み（基盤） |
 
 **判定**: Dock の保存・復元、workspace mode、floating、lazy initialization は基盤実装済み。P0/P1 の操作仕様（reset、pin、専用 shortcut、double-click maximize）は未完了または検証待ち。
@@ -50,4 +50,5 @@
 
 - ✅ `ArtifactMainWindow::keyPressEvent()` に Ctrl+1〜4 を追加した。
 - ✅ Ctrl+1 = Default、Ctrl+2 = Animation、Ctrl+3 = Compositing、Ctrl+4 = Audio とし、既存の `setWorkspaceMode()` / 可視性ルールを再利用する。
+- ✅ `Shift+Space` で focused dock を最大化し、再度押すと保存済みの可視性・ウィンドウ状態へ復元する。
 - ⏳ デフォルトレイアウトの完全リセット、タブ pin、ダブルクリック最大化、runtime 検証は未完了。Dock / Workspace マイルストーン全体は未完了のままとする。
