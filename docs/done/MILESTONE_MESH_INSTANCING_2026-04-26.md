@@ -1,7 +1,7 @@
 # MILESTONE: Mesh Instancing Infrastructure for DiligentEngine
 
 **Date**: 2026-04-26
-**Status**: Planned
+**Status**: Completed for the documented infrastructure scope; runtime/GPU verification remains pending.
 **Priority**: High
 **Related**: MILESTONE_M11_SOFTWARE_RENDER_PIPELINE, EFFECT_SYSTEM_SPECIFICATION
 
