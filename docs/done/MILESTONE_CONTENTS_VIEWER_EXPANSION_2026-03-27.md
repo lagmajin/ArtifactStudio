@@ -1,5 +1,7 @@
 # マイルストーン: Contents Viewer 拡充
 
+**ステータス:** Partial — image/video/audio/3D、metadata、compare、project/asset integration、playback/waveform foundation are implemented; screenshot/export polish and runtime verification remain pending.
+
 > 2026-03-27 作成
 
 ## 目的
