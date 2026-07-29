@@ -1,7 +1,7 @@
 # マイルストーン: Image Sequence Workflow Completion
 
 > 開始日: 2026-07-27
-> 状態: In Progress
+> 状態: Implementation complete (runtime verification pending)
 
 ## 目的
 
@@ -57,6 +57,13 @@ sequence を Composition へ投入した際にフレームパスごとに単体�
 - CompositionEditor の `enqueueDroppedAssets` を集約済み importedPaths 基準の列挙に変更し、シーケンスの再展開（代表パスへの N 重レイヤー生成）を防止。
 - フレーム時刻に応じたシーケンス再生（`ImageSequenceSource` 連携の draw 経路）はフォローアップ（Insight.md 参照）。現状は代表フレーム（先頭）の静止表示＋シーケンス関係の保持・永続化まで。
 
+### 2026-07-29 Progress (main)
+
+- `ArtifactImageLayer::draw()` がシーケンスレイヤーの現在フレームを `ImageSequenceSource` へ渡し、時刻に応じたフレームを描画するようにした。
+- `ImageSequenceSource` の bounded frame cache を再利用し、フレーム切替時は `QImage` と `ImageF32x4_RGBA` の現在フレームだけを更新する。
+- シーケンス開始時の source open と frame rate 設定を lazy に行い、通常の単一画像レイヤー経路は変更していない。
+- 保存／再読込、欠番、bounded cache の runtime 検証は未実施のため、完了マークではなく実装完了・検証 pending とする。
+
 ## Phase 1: Sequence Item Presentation
 
 - sequenceを1行または1タイルの論理アセットとして表示する。
@@ -97,4 +104,4 @@ sequence を Composition へ投入した際にフレームパスごとに単体�
 1. 実素材でのキャッシュhit/miss/保持数確認を行う（キャッシュ実装はマージ済みのため main で検証可能。ビルド確認が前提）。
 2. `detectSequences` の設計差分の確認: マージで `MissingFramePolicy` が廃止され常時ギャップ分割になったが、別セッションの WIP（`MissingFramePolicy` 温存案）が未統合のまま残っている。方針の一本化が必要。
 3. 2026-07-28 実装分のビルド確認と実機検証（sequence ドロップ → 1 レイヤー生成 → 保存・再読込でシーケンス関係維持）。
-4. `ArtifactImageLayer` の draw 経路を `ImageSequenceSource` と接続し、フレーム時刻に応じたフレーム切替を実装する（静止代表フレーム表示からの次段階）。
+4. `ArtifactImageLayer` の draw 経路を `ImageSequenceSource` と接続し、フレーム時刻に応じたフレーム切替を実装する（実装済み、runtime 検証 pending）。
