@@ -41,7 +41,7 @@
 | 30 | `Artifact/docs/MILESTONE_COMPOSITION_MENU_2026-03-13.md` | Composition Menu Milestone | 2026-03-13 | Partial; create/duplicate/rename/delete/settings, queue, current-frame and work-area export implemented; preset expansion, navigation, organization, and batch export pending | 2026-07-29 | 7.3 KB | COMPOSITION, MENU |
 | 31 | `Artifact/docs/MILESTONE_COMPOSITION_VIEW_FAST_PATH_2026-03-25.md` | Composition View Fast Path (2026-03-25) | 2026-03-25 | Partial; interaction downsample/coalescing and cached render foundations exist, camera-only reuse/upload reduction/flush pacing and performance verification pending | 2026-07-29 | 3.5 KB | COMPOSITION, VIEW, FAST, PATH |
 | 32 | `Artifact/docs/MILESTONE_CREATIVE_WORKFLOW_REFINEMENT_2026-03-13.md` | Milestone: Creative Workflow & Inspector Refinement | 2026-03-13 | --- | --- | 3.1 KB | CREATIVE, WORKFLOW, REFINEMENT |
-| 33 | `Artifact/docs/MILESTONE_DIAGNOSTIC_PHASE_2_2026-04-27.md` | Diagnostic Phase 2: Frame Timing Logger (2026-04-27) | 2026-04-27 | --- | --- | 3.9 KB | DIAGNOSTIC, PHASE |
+| 33 | `Artifact/docs/MILESTONE_DIAGNOSTIC_PHASE_2_2026-04-27.md` | Diagnostic Phase 2: Frame Timing Logger (2026-04-27) | 2026-04-27 | Completed; frame phase timing, periodic debug summaries, Profiler integration, and Trace recording verified | 2026-07-29 | 4.6 KB | DIAGNOSTIC, PHASE |
 | 34 | `Artifact/docs/MILESTONE_EDIT_MENU_2026-03-13.md` | Edit Menu Milestone | 2026-03-13 | Partial; menu/action inventory and initial project/composition/clipboard gating exist, command handlers, undo/selection/timeline/find/preferences integration pending | 2026-07-29 | 8.6 KB | EDIT, MENU |
 | 35 | `Artifact/docs/MILESTONE_EDITING_READY_CUT_2026-03-12.md` | Editing Ready Cut Milestone (M-RC-1) | 2026-03-12 | --- | --- | 3.0 KB | EDITING, READY, CUT |
 | 36 | `Artifact/docs/MILESTONE_FFMPEG_BACKEND_SPLIT_2026-03-20.md` | FFmpeg Backend Split Milestone | 2026-03-20 | Partial; pipe/native backend surfaces and service-level selection exist, UI policy, native parity, and runtime verification pending | 2026-07-29 | 2.2 KB | FFMPEG, BACKEND, SPLIT |
@@ -63,7 +63,7 @@
 | 52 | `Artifact/docs/MILESTONE_ROADMAP_2026-03-10.md` | Artifact Milestone Roadmap (2026-03-10) | 2026-03-10 | --- | --- | 3.0 KB | ROADMAP |
 | 53 | `Artifact/docs/MILESTONE_STATIC_LAYER_GPU_CACHE_2026-03-26.md` | Static Layer GPU Cache (2026-03-26) | 2026-03-26 | Partial（Phase 1〜4実装：cache signature・GPU再利用・budget/LRU・invalidate・hit/miss diagnostics。Phase 5 Static Scene Fast Path とruntime性能確認は未完了） | 2026-07-29 | 3.7 KB | STATIC, LAYER, GPU, CACHE |
 | 54 | `Artifact/docs/MILESTONE_STYLE_SURFACE_KIT_2026-04-09.md` | Milestone: Style Surface Kit / QProxyStyle-Backed Widget Primitives (2026-04-09) | 2026-04-09 | --- | --- | 4.3 KB | STYLE, SURFACE, KIT |
-| 55 | `Artifact/docs/MILESTONE_V0_1_DIAGNOSTIC_2026-03-10.md` | v0.1 Diagnostic (2026-03-10) | 2026-03-10 | --- | --- | 6.4 KB | DIAGNOSTIC |
+| 55 | `Artifact/docs/MILESTONE_V0_1_DIAGNOSTIC_2026-03-10.md` | v0.1 Diagnostic (2026-03-10) | 2026-03-10 | Partial; 2/7 criteria achieved and 5/7 partially achieved, with timeline/render-queue vertical integration still incomplete | 2026-07-29 | 7.1 KB | DIAGNOSTIC |
 | 56 | `Artifact/docs/MILESTONE_V0_1_USABLE_APP.md` | Artifact v0.1 Usable Milestone | --- | --- | --- | 3.4 KB | USABLE, APP |
 | 57 | `Artifact/docs/MILESTONE_V0_2_PRODUCTION_PATH_2026-03-10.md` | Artifact v0.2 Production Path (2026-03-10) | 2026-03-10 | --- | --- | 7.3 KB | PRODUCTION, PATH |
 | 58 | `Artifact/docs/MILESTONE_V0_3_EDITOR_CORE_2026-03-10.md` | Artifact v0.3 Editor Core (2026-03-10) | 2026-03-10 | --- | --- | 4.4 KB | EDITOR, CORE |
@@ -72,7 +72,7 @@
 | 61 | `Artifact/docs/MILESTONE_V0_6_EFFECTS_PIPELINE_USABILITY_2026-03-11.md` | Artifact v0.6 Effects Pipeline Usability (2026-03-11) | 2026-03-11 | --- | --- | 3.2 KB | EFFECTS, PIPELINE, USABILITY |
 | 62 | `Artifact/docs/MILESTONE_V0_7_EXECUTION_LOOP_2026-03-11.md` | Artifact v0.7 Execution Loop (2026-03-11) | 2026-03-11 | --- | --- | 3.2 KB | EXECUTION, LOOP |
 | 63 | `Artifact/docs/MILESTONE_V0_8_RC_FOUNDATION_2026-03-11.md` | Artifact v0.8 RC Foundation (2026-03-11) | 2026-03-11 | --- | --- | 3.4 KB | FOUNDATION |
-| 64 | `Artifact/docs/MILESTONE_V0_9_OPERATIONS_AND_DIAGNOSTICS_2026-03-11.md` | Artifact v0.9 Operations and Diagnostics (2026-03-11) | 2026-03-11 | --- | --- | 3.3 KB | OPERATIONS, AND, DIAGNOSTICS |
+| 64 | `Artifact/docs/MILESTONE_V0_9_OPERATIONS_AND_DIAGNOSTICS_2026-03-11.md` | Artifact v0.9 Operations and Diagnostics (2026-03-11) | 2026-03-11 | Partial; recovery UX, diagnostics export, startup validation, safety confirmations, and operations playbook implemented; full recovery/render-failure validation pending | 2026-07-29 | 4.0 KB | OPERATIONS, AND, DIAGNOSTICS |
 | 65 | `Artifact/docs/MILESTONE_V1_0_PRODUCTION_READINESS_2026-03-11.md` | Artifact v1.0 Production Readiness (2026-03-11) | 2026-03-11 | --- | --- | 2.4 KB | PRODUCTION, READINESS |
 | 66 | `Artifact/docs/MILESTONE_V1_1_RENDERING_DUAL_BACKEND_2026-03-11.md` | Artifact v1.1 Rendering Dual Backend (2026-03-11) | 2026-03-11 | --- | --- | 1.9 KB | RENDERING, DUAL, BACKEND |
 | 67 | `Artifact/docs/MILESTONE_V1_2_TOOLCHAIN_AND_MODULE_HARDENING_2026-03-11.md` | Artifact v1.2 Toolchain and Module Hardening (2026-03-11) | 2026-03-11 | --- | --- | 2.1 KB | TOOLCHAIN, AND, MODULE |
