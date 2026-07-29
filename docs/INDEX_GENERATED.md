@@ -334,7 +334,7 @@
 | 13 | `docs/done/MILESTONE_ACCESSIBILITY_AND_LEFT_HANDED_UI_2026-06-28.md` | Accessibility and Left-Handed UI Support | 2026-06-28 | Completed (settings/widget integration; runtime verification pending) | 2026-07-29 | 1.0 KB | ACCESSIBILITY, AND, LEFT, HANDED |
 | 14 | `docs/done/MILESTONE_ADVANCED_COLOR_SCIENCE_PIPELINE_2026-03-29.md` | Milestone: Advanced Color Science Pipeline (2026-03-29) | 2026-03-29 | Partial (foundation/UI integration; production integration and runtime verification pending) | 2026-07-29 | 7.4 KB | ADVANCED, COLOR, SCIENCE, PIPELINE |
 | 15 | `docs/done/MILESTONE_AI_COMMAND_SANDBOX_2026-04-14.md` | AI Command Sandbox | 2026-04-14 | Completed (policy/execution/timeout foundation) | 2026-07-29 | 0.5 KB | COMMAND, SANDBOX |
-| 16 | `docs/done/MILESTONE_ASSET_BROWSER_IMPROVEMENT.md` | Asset Browser Improvement | 2026-04-14 | --- | 2026-07-07 | 0.8 KB | ASSET, BROWSER, IMPROVEMENT |
+| 16 | `docs/done/MILESTONE_ASSET_BROWSER_IMPROVEMENT.md` | Asset Browser Improvement | 2026-04-14 | Completed (core navigation, presentation, filtering, sync, and thumbnail exploration) | 2026-07-29 | 0.8 KB | ASSET, BROWSER, IMPROVEMENT |
 | 17 | `docs/done/MILESTONE_ASSET_SYSTEM_2026-03-12.md` | Asset System | 2026-03-12 | --- | 2026-07-07 | 0.7 KB | ASSET, SYSTEM |
 | 18 | `docs/done/MILESTONE_AUDIO_ENGINE_PROFILER_2026-04-15.md` | Audio Engine Profiler | 2026-04-15 | --- | 2026-07-07 | 0.6 KB | AUDIO, ENGINE, PROFILER |
 | 19 | `docs/done/MILESTONE_BLEND_MODE_DESIGN_2026-06-16.md` | M-BLEND-1 Blend Mode Design | 2026-06-16 | --- | 2026-07-05 | 21.2 KB | BLEND, MODE, DESIGN |
@@ -559,8 +559,8 @@
 | 110 | `docs/planned/MILESTONE_ASSET_BROWSER_AI_SUPPORT_2026-06-28.md` | Milestone: Asset Browser AI Support (M-AB-15) | 2026-06-28 | --- | 2026-06-28 | 15.8 KB | ASSET, BROWSER, SUPPORT |
 | 111 | `docs/planned/MILESTONE_ASSET_BROWSER_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: アセットブラウザー デザイン監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 8.3 KB | ASSET, BROWSER, DESIGN, AUDIT |
 | 112 | `docs/planned/MILESTONE_ASSET_BROWSER_HOVER_PREVIEW_2026-06-28.md` | Milestone: Asset Browser Hover Preview (M-AB-4) | 2026-06-28 | --- | 2026-06-29 | 32.7 KB | ASSET, BROWSER, HOVER, PREVIEW |
-| 113 | `docs/planned/MILESTONE_ASSET_BROWSER_IMPROVEMENT.md` | マイルストーン: アセットブラウザ改善 (Unity 風) | 2026-03-21 | --- | 2026-04-09 | 6.7 KB | ASSET, BROWSER, IMPROVEMENT |
-| 114 | `docs/planned/MILESTONE_ASSET_BROWSER_IMPROVEMENT_2026-04-01.md` | Milestone: Asset Browser Improvement (2026-04-01) | 2026-04-01 | --- | 2026-04-01 | 3.1 KB | ASSET, BROWSER, IMPROVEMENT |
+| 113 | `docs/planned/MILESTONE_ASSET_BROWSER_IMPROVEMENT.md` | マイルストーン: アセットブラウザ改善 (Unity 風) | 2026-03-21 | Partial (workflow UX advanced; owner-draw expansion and remaining performance work pending) | 2026-07-29 | 6.7 KB | ASSET, BROWSER, IMPROVEMENT |
+| 114 | `docs/planned/MILESTONE_ASSET_BROWSER_IMPROVEMENT_2026-04-01.md` | Milestone: Asset Browser Improvement (2026-04-01) | 2026-04-01 | Partial (Phase 3 complete; TBB performance foundation and runtime verification pending) | 2026-07-29 | 3.1 KB | ASSET, BROWSER, IMPROVEMENT |
 | 115 | `docs/planned/MILESTONE_ASSET_BROWSER_LEFT_PANE_HUB_2026-04-23.md` | Milestone: Asset Browser Left Pane Hub | 2026-04-23 | --- | 2026-04-24 | 4.5 KB | ASSET, BROWSER, LEFT, PANE, HUB |
 | 116 | `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_PHASE1_EXECUTION_2026-04-03.md` | マイルストーン: Asset Browser Navigator Phase 1 Execution | 2026-04-03 | --- | 2026-04-05 | 2.0 KB | ASSET, BROWSER, NAVIGATOR, PHASE1, EXECUTION |
 | 117 | `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_PHASE2_EXECUTION_2026-04-03.md` | マイルストーン: Asset Browser Navigator Phase 2 Execution | 2026-04-03 | Phase 2 implemented; search/navigation runtime verification pending | 2026-07-29 | 2.5 KB | ASSET, BROWSER, NAVIGATOR, PHASE2, EXECUTION |
