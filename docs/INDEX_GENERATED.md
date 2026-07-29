@@ -336,7 +336,7 @@
 | 15 | `docs/done/MILESTONE_AI_COMMAND_SANDBOX_2026-04-14.md` | AI Command Sandbox | 2026-04-14 | Completed (policy/execution/timeout foundation) | 2026-07-29 | 0.5 KB | COMMAND, SANDBOX |
 | 16 | `docs/done/MILESTONE_ASSET_BROWSER_IMPROVEMENT.md` | Asset Browser Improvement | 2026-04-14 | Completed (core navigation, presentation, filtering, sync, and thumbnail exploration) | 2026-07-29 | 0.8 KB | ASSET, BROWSER, IMPROVEMENT |
 | 17 | `docs/done/MILESTONE_ASSET_SYSTEM_2026-03-12.md` | Asset System | 2026-03-12 | Completed (browser/project sync, state visibility, import/metadata/relink/recovery) | 2026-07-29 | 0.7 KB | ASSET, SYSTEM |
-| 18 | `docs/done/MILESTONE_AUDIO_ENGINE_PROFILER_2026-04-15.md` | Audio Engine Profiler | 2026-04-15 | --- | 2026-07-07 | 0.6 KB | AUDIO, ENGINE, PROFILER |
+| 18 | `docs/done/MILESTONE_AUDIO_ENGINE_PROFILER_2026-04-15.md` | Audio Engine Profiler | 2026-04-15 | Completed (timing, buffer observation, and profiler UI; runtime verification pending) | 2026-07-29 | 0.6 KB | AUDIO, ENGINE, PROFILER |
 | 19 | `docs/done/MILESTONE_BLEND_MODE_DESIGN_2026-06-16.md` | M-BLEND-1 Blend Mode Design | 2026-06-16 | --- | 2026-07-05 | 21.2 KB | BLEND, MODE, DESIGN |
 | 20 | `docs/done/MILESTONE_CLIP_BUFFER_PANEL_2026-06-18.md` | マイルストーン: Clip Buffer Panel | 2026-06-18 | --- | 2026-06-25 | 3.2 KB | CLIP, BUFFER, PANEL |
 | 21 | `docs/done/MILESTONE_COLOR_CONSTRAINT_RULES_2026-06-07.md` | Color Constraint Rules / Palette-Conform Correction | 2026-06-07 | --- | 2026-07-07 | 0.7 KB | COLOR, CONSTRAINT, RULES |
