@@ -59,6 +59,7 @@
 - ✅ Timeline Timecode に current timecode、frame number、現在値を反映する Accessible Name / Description を付与。
 - ✅ Timeline Global Switches の Shy、Motion Blur、Frame Blending、Curve Editor、Motion Path、Overscroll に Accessible Name / Description を付与。
 - ✅ Playback Control の再生位置、RAM Preview、Auto-Key、Ghosting 設定群に Accessible Name / Description を付与。
+- ✅ Playback Control の Keying Set、カスタムパス、Mute Preview に Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
