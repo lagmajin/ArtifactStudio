@@ -12,7 +12,7 @@
 - ✅ `previewCacheSizeMB` をディスクキャッシュの per-composition budget と global budget に実行時反映。
 - ✅ Preview / Grid 設定の実装経路はコード上で接続済み（runtime 動作確認は未実施）。
 - ✅ Grid 設定メニューの主間隔・分割数に現在値を表示し、設定状態をメニュー上で確認可能にした。
-- ✅ CloneLayer の mode / count / transform / grid / radial / `useEffector` 等を既存 Property Editor の `Clone` グループへ接続。
+- ✅ CloneLayer の mode / count / transform / grid / radial / `useEffector` 等を既存 Property Editor の `Clone` グループへ接続。`useEffector` はJSON保存・再読込にも対応。
 - ⏳ TransformCloneEffector 専用 UI と runtime 検証は未完了。既存の ToolOptionsBar の「コピースタンプ」はブラシ系 Clone tool の半径・位置固定であり、CloneLayer の編集導線とは別責務。
 
 ---
