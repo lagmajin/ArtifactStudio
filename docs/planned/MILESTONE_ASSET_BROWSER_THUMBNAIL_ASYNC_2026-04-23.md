@@ -1,6 +1,6 @@
 # Milestone: Asset Browser Thumbnail Async Warmup (2026-04-23)
 
-**Status:** In Progress
+**Status:** Partial（Phase 1〜2 と世代付き cancel／shutdown 経路を実装済み。Phase 3 の可視範囲優先 scheduler と runtime 性能検証 pending）
 **Goal:** アセットブラウザのサムネイル生成を UI スレッドから外し、動画ファイルの多いディレクトリでも一覧表示が固まらないようにする。
 
 ---
