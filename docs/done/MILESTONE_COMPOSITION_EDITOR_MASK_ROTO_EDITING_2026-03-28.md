@@ -1,5 +1,7 @@
 # Composition Editor Mask / Roto Editing Milestone (2026-03-28)
 
+**Status:** Partial — mask/roto entry, path editing, Bezier tangent editing, and undo/redo are implemented; detailed inspector presentation and runtime verification remain pending.
+
 `Composition Editor` で layer mask / roto を直接編集できるようにするためのマイルストーン。
 既存の `LayerMask / MaskPath` 実体と、`ArtifactCompositionRenderController` の mask edit mode を前提に、
 「入口」「編集」「同期」「復帰」を一つの作業単位としてまとめる。
