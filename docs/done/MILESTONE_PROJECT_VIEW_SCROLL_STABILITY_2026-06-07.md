@@ -1,7 +1,7 @@
 # Project View Scroll Stability Milestone
 
 **作成日:** 2026-06-07  
-**ステータス:** Completed  
+**ステータス:** Completed
 **関連コンポーネント:** ArtifactProjectManagerWidget, Asset Browser, Project Service
 
 ---
