@@ -98,3 +98,4 @@ explicit interpretation and later display conversion.
 - `ArtifactImageLayer` は interpretation metadata を JSON 保存・復元し、明示値がある場合だけ入力→working-space 変換を適用する。
 - AssetManager の共有 decoded buffer はコピーしてから変換するため、他レイヤーの source cache を破壊しない。
 - path-only 作成では値が空のままなので、既存の Auto 挙動を維持する。
+- 解釈値をロード後に変更した場合は raw source を再読込してから再適用し、変換済みバッファへの二重変換を避ける。
