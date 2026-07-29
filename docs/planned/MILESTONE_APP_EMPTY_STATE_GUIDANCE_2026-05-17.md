@@ -134,3 +134,4 @@ Phase 1 の対象 surface を確定し、`No selection` / `No file selected` / `
 - selection／recent／sync の既存案内と同じ surface 上で表示し、一覧が空白だけに見えないよう owner-draw で描画する。
 - Contents Viewer には `Open a file to inspect it, or choose a recent source` の action-first な未読み込み案内が既に存在することを確認した。複数 surface 間の語彙完全統一と runtime 確認は未完了として残す。
 - Project View には `drawProjectViewEmptyState()` による空一覧描画が既に存在することを確認した。文言を `No project items to show` と `Adjust the search or filters, or import assets and create a composition.` に整理し、初期空状態とフィルタ結果 0 件の両方に成立する案内へ更新した。surface 間の文言統一と runtime 視認性確認は未完了として残す。
+- Inspector は `Select a layer or composition effect to edit properties`、Timeline は `Open a composition to view layers` / `Select a layer to continue` を既に持ち、主要な未選択・未前提状態は action-first になっていることを確認した。surface 間の完全な語彙統一、tooltip／placeholder の総点検、runtime 視認性確認は未完了として残す。
