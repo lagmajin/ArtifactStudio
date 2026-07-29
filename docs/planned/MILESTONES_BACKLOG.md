@@ -814,7 +814,7 @@ active milestone の重複名としては扱わない。
 
 ### M-PH Playhead 整備 ✅ Phase 1, Phase 3-4 (2026-07-30), 🚧 Phase 2 partial
 - ✅ Phase 1: 状態統一 — `currentFrame_` を単一権威、fan-out → `setCurrentFrameForAll()`、9 箇所の手動書替を統合
-- 🚧 Phase 2: 不感帯/スナップ/再生中シーク/スクロール追従 → **未実装**
+- 🚧 Phase 2: ✅ keyframe drag の playhead／work area／layer bounds／keyframe／10-frame snap 実装済み / ❌ 不感帯・再生中シーク・スクロール追従
 - 🚧 Phase 3: 表示品質 → ✅ HH:MM:SS:FF (TimeCodeWidget), HiDPI, コンポジションビュー連携、F<n> 入力解釈 済み
 - 🚧 Phase 4: 操作拡充 → ✅ JKL シャトル, ホイールシーク, ドラッグシーク, タイムコード／フレーム入力 済み
 - マイルストーン文書は `docs/done/` へ移動済み
