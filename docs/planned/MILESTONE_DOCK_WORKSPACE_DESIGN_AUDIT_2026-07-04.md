@@ -1,6 +1,6 @@
 # マイルストーン: Dock / Workspace 機能監査 (2026-07-04)
 
-> 状態: Partial（Ctrl+1〜4 と Shift+Space 最大化を実装、レイアウトリセット・pin・ダブルクリック最大化・runtime 検証は未完了）
+> 状態: Partial（Ctrl+1〜4、Shift+Space 最大化、デフォルトレイアウトリセットを実装、pin・ダブルクリック最大化・runtime 検証は未完了）
 
 > VS Code / Blender / Maya / Premiere ワークスペース比較。
 
@@ -10,7 +10,7 @@
 |---|---|---|
 | **ワークスペースレイアウト保存** | VS Code/Blender | ❌ |
 | **ワークスペースプリセット切替（Compositing/Animation/Color等）** | Blender/Premiere | ❌ |
-| **デフォルトレイアウトにリセット** | VS Code/Blender | ❌ |
+| **デフォルトレイアウトにリセット** | VS Code/Blender | ✅ 実装済み（起動時標準 ADS 状態を復元） |
 | **パネルの最大化/復元（ダブルクリックタブ）** | VS Code/Blender | ❌ |
 | **パネルを新しいウィンドウに分離** | VS Code/Premiere | ❌ |
 
@@ -35,7 +35,7 @@
 |---|---|---|
 | ワークスペースレイアウト保存 | ADS の `saveDockManagerState()` / `restoreDockManagerState()` が公開されている | 基盤実装済み |
 | プリセット切替 | `WorkspaceMode` と mode ごとの dock visibility rule がある | 部分実装 |
-| デフォルトへリセット | mode 切替・dock visibility API はあるが、専用 reset workflow は未確認 | 未確認 |
+| デフォルトへリセット | 起動時標準 ADS state を保存し、View > Workspace Presets から復元 | 実装済み・runtime 未確認 |
 | パネル最大化 / 復元 | immersive dock の visibility 保存・復元経路はあるが、ダブルクリックタブ操作は未確認 | 部分実装 |
 | 新しいウィンドウへの分離 | floating dock API、geometry、container refresh がある | 実装済み（基盤） |
 | タブ並び替え / 分割 | ADS の標準 dock 操作に依存する受け口はあるが、専用 UX の検証は未確認 | 部分実装・未確認 |
@@ -51,4 +51,5 @@
 - ✅ `ArtifactMainWindow::keyPressEvent()` に Ctrl+1〜4 を追加した。
 - ✅ Ctrl+1 = Default、Ctrl+2 = Animation、Ctrl+3 = Compositing、Ctrl+4 = Audio とし、既存の `setWorkspaceMode()` / 可視性ルールを再利用する。
 - ✅ `Shift+Space` で focused dock を最大化し、再度押すと保存済みの可視性・ウィンドウ状態へ復元する。
+- ✅ 起動時の標準 ADS state を保存し、`デフォルトレイアウトにリセット` から復元できる導線を追加した。
 - ⏳ デフォルトレイアウトの完全リセット、タブ pin、ダブルクリック最大化、runtime 検証は未完了。Dock / Workspace マイルストーン全体は未完了のままとする。
