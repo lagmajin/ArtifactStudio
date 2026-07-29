@@ -1,7 +1,7 @@
 # アプリ層改善 Milestone
 
 **作成日:** 2026-03-28
-**更新日:** 2026-03-28
+**更新日:** 2026-07-30
 **ステータス:** 一部実装済み ✅
 **関連コンポーネント:** Artifact アプリケーション層（ArtifactCore ではない）
 
@@ -85,19 +85,13 @@
 
 ---
 
-### ★★★ 問題 2: VideoLayer::generateProxy() 未実装
+### ✅ 問題 2: VideoLayer::generateProxy() 実装済み（runtime 確認待ち）
 
-**場所:** `Artifact/src/Layer/ArtifactVideoLayer.cppm:696`
+**場所:** `Artifact/src/Layer/ArtifactVideoLayer.cppm:2210`
 
-```cpp
-// TODO: Implement actual proxy generation using FFmpeg or OpenCV
-void ArtifactVideoLayer::generateProxy() {
-    // 現在は何もしない
-}
-```
+`ArtifactVideoLayer::generateProxy(ProxyQuality)` は `ArtifactProxyManager` へ委譲し、FFmpeg の scale／H.264／AAC 出力、品質別 proxy path、proxy quality 更新を行う。batch generation、`hasProxy()`、`getProxyInfo()`、`clearProxy()` も実装済み。
 
-**ステータス:** ❌ 未実装  
-**工数:** 6-8 時間
+**ステータス:** ✅ 静的実装済み（FFmpeg 実行環境での生成・再生・失敗時 cleanup は未検証）
 
 ---
 
@@ -129,7 +123,7 @@ void ArtifactVideoLayer::generateProxy() {
 | **Undo/Redo 統合 段階 1** | ✅ 完了 | 20-30h（うち段階 1:10h） |
 | **ASIO スタブバックエンド** | ✅ 完了 | 12-18h |
 | **WebUI ブリッジ** | △ 部分実装 | 1-2h |
-| **VideoLayer Proxy** | ❌ 未着手 | 6-8h |
+| **VideoLayer Proxy** | ✅ 静的実装済み・runtime 確認待ち | — |
 | **プロジェクト管理** | ❌ 未着手 | 4-6h |
 
 **完了率:** 約 40%
@@ -209,7 +203,7 @@ void ArtifactVideoLayer::generateProxy() {
 
 | 項目 | 工数 | 優先度 | 依存 |
 |------|------|--------|------|
-| **VideoLayer::generateProxy()** | 6-8h | 🔴 高 | なし |
+| **VideoLayer::generateProxy()** | ✅ 静的実装済み・runtime 確認待ち | 🔴 高 | なし |
 | **プロジェクト管理 TODO** | 4-6h | 🔴 高 | なし |
 | **レイヤー追加コマンド** | 6-8h | 🔴 高 | なし |
 
@@ -233,7 +227,7 @@ void ArtifactVideoLayer::generateProxy() {
 
 ## Phase 構成
 
-### Phase 1: VideoLayer Proxy 機能
+### Phase 1: VideoLayer Proxy 機能（静的実装済み・runtime 確認待ち）
 
 - 目的:
   - 高解像度動画の編集を軽量化
@@ -248,6 +242,8 @@ void ArtifactVideoLayer::generateProxy() {
   - 1920x1080 動画が 960x540 プロキシで編集可能
   - プロキシ/オリジナル切り替え可能
   - プロキシファイルはプロジェクトに紐づく
+
+現行コードでは `ArtifactVideoLayer::generateProxy()` と `ArtifactProxyManager` の生成・管理経路まで実装済み。上記条件の FFmpeg 実行、再生切り替え、失敗時 cleanup は runtime 確認待ちとする。
 
 - 実装案:
   ```cpp
