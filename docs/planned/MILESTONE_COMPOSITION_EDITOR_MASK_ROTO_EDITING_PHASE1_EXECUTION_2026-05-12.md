@@ -2,9 +2,9 @@
 
 **Date**: 2026-05-12
 
-**Source**: [`MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md`](./MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md)
+**Source**: The original design note referenced below is absent from the current inventory; this execution memo is tracked against the live `ArtifactCompositionEditor` / `ArtifactCompositionRenderController` implementation.
 
-**Status**: Active slice in the May 12 triad
+**Status**: Phase 1 entry/routing implemented; full path editing and runtime verification pending
 **Order**: 3 of 3
 
 ---
@@ -96,3 +96,11 @@
 - `Mask` tool の入口が迷わない
 - edit mode が安定して切り替わる
 - 次の path editing に入る準備ができる
+
+## Static audit follow-up (2026-07-29)
+
+`ArtifactCompositionEditor` と `ArtifactCompositionRenderController` を静的に確認した。Mask tool の入口、ガイド表示、MaskPath/MaskHandle の hit test、頂点・接線編集、undo 反映、quick preset、状態表示が存在する。ビルド・実機操作は未実施。
+
+### 判定
+
+Phase 1 の entry bridge / mode routing / state sync は実装済みとしてマークする。full Roto の品質・入力競合・runtime parity は未検証として残す。
