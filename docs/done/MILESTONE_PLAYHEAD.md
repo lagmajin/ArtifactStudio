@@ -67,7 +67,7 @@
 | タスク | 対象ファイル | 内容 | 状態 |
 |---|---|---|---|
 | J/K/L シャトル操作 | `ArtifactTimelineWidget.cpp` | J=逆再生(x1→x2→x4), K=停止, L=再生(x1→x2→x4→x8) | ✅ |
-| タイムコード入力 | 新規 or `ScrubBar` | `HH:MM:SS:FF` 形式で直接フレームジャンプ | 未着手 (別タスク) |
+| タイムコード入力 | `ArtifactPlaybackControlWidget` | `HH:MM:SS:FF`、`F<n>`、フレーム番号で直接ジャンプ | ✅ |
 | マウスホイールシーク | `ArtifactTimelineWidget.cpp` | ホイール ±1F, Ctrl+ホイール ±10F | ✅ |
 | プレイヘッドドラッグ | `TimelinePlayheadOverlay` | 三角を直接ドラッグしてシーク | 未着手 (別タスク) |
 
