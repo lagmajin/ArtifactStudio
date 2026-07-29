@@ -360,7 +360,7 @@
 | 39 | `docs/done/MILESTONE_INSPECTOR_USABILITY_2026-04-14.md` | Inspector Usability | 2026-04-14 | Completed (filtering, selection sync, empty states, and property/effect editing paths; runtime verification pending) | 2026-07-29 | 0.7 KB | INSPECTOR, USABILITY |
 | 40 | `docs/done/MILESTONE_KEYFRAME_COPY_PASTE_2026-06-16.md` | M-CLIP-1 Keyframe Copy & Paste | 2026-06-16 | Completed (clipboard support, timeline/context/menu paths, and paste-at-playhead; runtime verification pending) | 2026-07-29 | 1.2 KB | KEYFRAME, COPY, PASTE |
 | 41 | `docs/done/MILESTONE_KEYFRAME_NUDGE_AND_TEMP_SNAP_OVERRIDE_2026-06-07.md` | Keyframe Nudge / Temp Snap Override Milestone | 2026-06-07 | ✅ 完了 (2026-06-15 確認・補完) | 2026-06-27 | 4.2 KB | KEYFRAME, NUDGE, AND, TEMP, SNAP |
-| 42 | `docs/done/MILESTONE_LAYER_AUTO_ARRANGE_2026-04-10.md` | レイヤー自動配置ユーティリティの実装 | 2026-04-10 | --- | 2026-06-27 | 1.7 KB | LAYER, AUTO, ARRANGE |
+| 42 | `docs/done/MILESTONE_LAYER_AUTO_ARRANGE_2026-04-10.md` | レイヤー自動配置ユーティリティの実装 | 2026-04-10 | Partial (order arrange actions exist; full alignment, parent transforms, and undo/redo verification pending) | 2026-07-29 | 1.9 KB | LAYER, AUTO, ARRANGE |
 | 43 | `docs/done/MILESTONE_LAYER_EDIT_2026-04-25.md` | Milestone M-LE-1: Layer Solo View 編集機能強化（平面・シェイプ） | 2026-04-25 | --- | 2026-06-27 | 11.5 KB | LAYER, EDIT |
 | 44 | `docs/done/MILESTONE_LAYER_SOURCE_REFRAME_NLE_2026-06-24.md` | M-LE-2: Layer Transform からの Crop / Pan 導線と Source Reframe 透明化 | 2026-06-24 | --- | 2026-06-27 | 2.3 KB | LAYER, SOURCE, REFRAME, NLE |
 | 45 | `docs/done/MILESTONE_LAYER_STYLES_INNERSHADOW_STROKE_SATIN_2026-07-02.md` | Layer Style Effects Completed: InnerShadow, Stroke, Satin | 2026-07-02 | --- | 2026-07-02 | 2.4 KB | LAYER, STYLES, INNERSHADOW, STROKE, SATIN |

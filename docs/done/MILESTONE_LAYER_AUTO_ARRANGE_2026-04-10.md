@@ -1,4 +1,5 @@
 # レイヤー自動配置ユーティリティの実装
+**ステータス:** Partial — layer order arrange actions and shortcuts exist; the full alignment set, parent-transform handling, and verified undo/redo coverage remain pending.
 **マイルストーン**: M-LA-2 Layer Auto-Arrange Utilities
 **作成日**: 2026-04-10
 **見積もり**: 6-8h
