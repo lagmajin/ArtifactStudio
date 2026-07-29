@@ -1520,12 +1520,13 @@ active milestone の重複名としては扱わない。
 - render / export で frame cache を共有する
 - 詳細は `docs/planned/MILESTONE_SCRUB_EXPRESSION_CACHE_REUSE_2026-06-07.md`
 
-### M-EXPR-2 Expression Subframe / Timestep Policy ⚠️ (Phase 1+2 done 2026-06-08)
+### M-EXPR-2 Expression Subframe / Timestep Policy ⚠️ (Phase 1-3 done, 2026-07-30)
 - expression の評価を frame locked だけに固定せず、subframe / adaptive step を選べるようにする
 - 30fps / 60fps で物理系式の挙動が変わりにくい評価ポリシーを作る
 - Phase 1 (Time Evaluation Contract) ✅: EvaluationMode enum, frameRate 変数, evaluateAtTime
 - Phase 2 (Subframe Sampling) ✅: 任意時刻評価, evaluateOverRange (4 mode対応)
-- Phase 3-5 未着手
+- Phase 3 (Adaptive Physics Step) ✅: 速度ベースの分割、半ステップ誤差推定、分割回数診断
+- Phase 4-5: UI の tradeoff controls、FixedMicrostep の利用導線、profiling／diagnostics UI、30/60fps 実機比較は未完了
 - 詳細は `docs/planned/MILESTONE_EXPRESSION_SUBFRAME_TIMESTEP_POLICY_2026-06-07.md`
 
 ### M-UI-24 UI Layout Undo History

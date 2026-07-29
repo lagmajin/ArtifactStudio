@@ -1,7 +1,7 @@
 # Expression Subframe / Timestep Policy Milestone
 
 **作成日:** 2026-06-07  
-**ステータス:** 計画中  
+**ステータス:** Phase 1〜3 実装済み・Phase 4〜5 未完了／検証待ち
 **関連コンポーネント:** ExpressionEvaluator, ExpressionContext, Property Integration, Time System
 
 ---

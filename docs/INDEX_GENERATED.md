@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 02:48
+> Generated: 2026-07-30 02:49
 > Total documents: 1134
 
 ---
@@ -699,7 +699,7 @@
 | 243 | `docs/planned/MILESTONE_EXPRESSION_LOOPOUT_RUNTIME_2026-06-02.md` | M-MOTION-3 Expression loopOut / loopIn Runtime (2026-06-02) | 2026-06-02 | 未実装（loopIn/out及びDurationの登録名/placeholderのみ、キーフレーム取得・cycle/pingpong/continue/offset計算・edge case・time remap併用・runtimeテストなし） | 2026-07-25 | 4.3 KB | EXPRESSION, LOOPOUT, RUNTIME |
 | 244 | `docs/planned/MILESTONE_EXPRESSION_QUICK_INPUT_2026-04-10.md` | エクスプレッションクイック入力の実装 | 2026-04-10 | 部分実装（Expression Copilotの候補popup・thisComp/thisLayer補完・property/Animation menu導線・apply handler・既存expression保存評価を実装、右クリックquick insert・型ヒント・リアルタイム構文検査・snippet保存入出力・runtime検証未完了） | 2026-07-25 | 2.7 KB | EXPRESSION, QUICK, INPUT |
 | 245 | `docs/planned/MILESTONE_EXPRESSION_STDLIB_COMPATIBILITY_2026-04-18.md` | MILESTONE: After Effects エクスプレッション標準ライブラリ互換性 | 2026-04-18 | 部分完了（math/vector、linear/ease、random/noise/wiggle、audio、valueAtTime/loop登録、thisComp/thisLayerモデルを実装、index/lookAt/seedRandom/sourceRectAtTime/posterizeTime/smooth・loop互換性・AEサンプル比較未完了） | 2026-07-25 | 3.5 KB | EXPRESSION, STDLIB, COMPATIBILITY |
-| 246 | `docs/planned/MILESTONE_EXPRESSION_SUBFRAME_TIMESTEP_POLICY_2026-06-07.md` | Expression Subframe / Timestep Policy Milestone | 2026-06-07 | 計画中 | 2026-07-25 | 6.1 KB | EXPRESSION, SUBFRAME, TIMESTEP, POLICY |
+| 246 | `docs/planned/MILESTONE_EXPRESSION_SUBFRAME_TIMESTEP_POLICY_2026-06-07.md` | Expression Subframe / Timestep Policy Milestone | 2026-06-07 | Phase 1〜3 実装済み・Phase 4〜5 未完了／検証待ち | 2026-07-25 | 6.1 KB | EXPRESSION, SUBFRAME, TIMESTEP, POLICY |
 | 247 | `docs/planned/MILESTONE_EXPRESSION_SYSTEM_2026-03-29.md` | Milestone: Expression System (2026-03-29) | 2026-03-29 | 部分完了（parser/evaluator、数値・vector・math/animation built-ins、thisComp/thisLayer候補、property expression保存評価、loopOut/loopIn、Expression Copilot導線を実装、全property参照のruntime網羅・診断/UI統合・互換検証未完了） | 2026-07-29 | 10.2 KB | EXPRESSION, SYSTEM |
 | 248 | `docs/planned/MILESTONE_EXTENDSCRIPT_STYLE_SCRIPT_RUNTIME_2026-04-06.md` | Milestone: ExtendScript-Style Script Runtime (M-PY-3) | 2026-03-30 | --- | 2026-07-25 | 5.8 KB | EXTENDSCRIPT, STYLE, SCRIPT, RUNTIME |
 | 249 | `docs/planned/MILESTONE_EXTENDSCRIPT_STYLE_SCRIPT_RUNTIME_PHASE1_EXECUTION_2026-04-06.md` | Milestone: ExtendScript-Style Script Runtime Phase 1 Execution | 2026-07-25 | --- | 2026-07-25 | 3.5 KB | EXTENDSCRIPT, STYLE, SCRIPT, RUNTIME, PHASE1 |
@@ -1033,7 +1033,7 @@
 | 577 | `docs/planned/MILESTONE_WORKSPACE_MANAGER_2026-03-29.md` | Milestone: Workspace Manager (2026-03-29) | 2026-03-29 | --- | 2026-07-25 | 3.4 KB | WORKSPACE, MANAGER |
 | 578 | `docs/planned/MILESTONE_WORKSPACE_PRESETS_2026-04-10.md` | ワークスペースプリセット管理の実装 | 2026-04-10 | --- | 2026-07-25 | 5.2 KB | WORKSPACE, PRESETS |
 | 579 | `docs/planned/MILESTONE_ZOOM_TO_FIT_2026-04-10.md` | ズームtoフィット機能の拡張 | 2026-04-10 | --- | 2026-07-29 | 4.5 KB | ZOOM, FIT |
-| 580 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-30 | 97.0 KB | BACKLOG |
+| 580 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-30 | 97.2 KB | BACKLOG |
 | 581 | `docs/planned/NEXT_PHASE_ROADMAP.md` | プロジェクトビュー → タイムライン統合の次フェーズ提案 | 2026-06-07 | --- | 2026-07-05 | 9.1 KB | NEXT, PHASE, ROADMAP |
 | 582 | `docs/planned/PROPOSAL_RENDER_EXPORT_EFFICIENCY_2026-07-28.md` | 提案メモ: ファイル書き出し（レンダーキュー）効率化 — 2026-07-28 | 2026-07-28 | 提案（未実装・未承認） | 2026-07-28 | 3.7 KB | PROPOSAL, RENDER, EXPORT, EFFICIENCY |
 | 583 | `docs/planned/RANDOM_HELPER_PROPOSAL_2026-06-16.md` | Random / Noise Helper Proposal (ArtifactCore) — 2026-06-16 | 2026-06-16 | --- | 2026-06-17 | 21.0 KB | RANDOM, HELPER, PROPOSAL |
