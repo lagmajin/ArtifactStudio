@@ -1,6 +1,6 @@
 # MILESTONE_COLOR_BACKEND_HARDENING_2026-07-21
 
-**Status:** In Progress (P0 ✅ / P1 Partial+ / P2 ✅)
+**Status:** 部分完了（P0 ✅ / P1 部分完了・runtime shader verification 未完了 / P2 ✅）
 **Goal:** カラーコレクションのバックエンドの未定義動作・データ競合・スタブを潰し、UI 層の前に土台を固める。
 
 ### 2026-07-25 sequential audit
