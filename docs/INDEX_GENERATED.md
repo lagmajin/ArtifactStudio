@@ -463,7 +463,7 @@
 | 14 | `docs/planned/IMPLEMENTATION_PLAN_VIEWPORT_PANE_MANAGER_2026-06-28.md` | Implementation Plan: Viewport Pane Manager Migration (M-VP-2) | 2026-06-28 | --- | 2026-06-29 | 9.0 KB | IMPLEMENTATION, PLAN, VIEWPORT, PANE, MANAGER |
 | 15 | `docs/planned/IMPROVEMENT_SUGGESTIONS.md` | Artifact ドラッグ&ドロップ・ワークフロー改善提案 | --- | --- | 2026-03-20 | 6.5 KB | IMPROVEMENT, SUGGESTIONS |
 | 16 | `docs/planned/LAYER_MASK_ANALYSIS_2026-04-17.md` | LayerMask クラス分析レポート | 2026-04-17 | --- | 2026-04-18 | 14.1 KB | LAYER, MASK, ANALYSIS |
-| 17 | `docs/planned/MILESTONE_2D_POINT_TRACKER_2026-06-02.md` | M-MOTION-1 2D Point Tracker (2026-06-02) | 2026-06-02 | --- | 2026-06-05 | 6.1 KB | POINT, TRACKER |
+| 17 | `docs/planned/MILESTONE_2D_POINT_TRACKER_2026-06-02.md` | M-MOTION-1 2D Point Tracker (2026-06-02) | 2026-06-02 | Initial design; implementation status moved to 2026-06-16 execution milestone | 2026-07-29 | 6.5 KB | POINT, TRACKER |
 | 18 | `docs/planned/MILESTONE_2D_POINT_TRACKER_2026-06-16.md` | M-2DTRACK-1 2D Point Tracker Milestone | 2026-06-16 | Phase 1〜3 基盤実装済み; planar/undo/diagnostics/performance/runtime verification pending | 2026-07-29 | 16.9 KB | POINT, TRACKER |
 | 19 | `docs/planned/MILESTONE_3D_COMPOSITING_2026-07-08.md` | Milestone: 3D Compositing（コンポジション内ライブ 3D シーン） (2026-07-08) | 2026-07-08 | In Progress | 2026-07-14 | 7.1 KB | COMPOSITING |
 | 20 | `docs/planned/MILESTONE_3D_MATERIAL_SYSTEM_2026-03-31.md` | MILESTONE: 3D Material System | 2026-03-31 | --- | 2026-07-09 | 3.6 KB | MATERIAL, SYSTEM |
