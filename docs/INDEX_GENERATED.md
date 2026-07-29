@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 00:33
+> Generated: 2026-07-30 00:37
 > Total documents: 1134
 
 ---
@@ -856,7 +856,7 @@
 | 400 | `docs/planned/MILESTONE_PR_STYLE_REMEDIATION_2026-06-16.md` | Milestone M-PR-STYLE-1: ArtifactPr Style 違反修正 | 2026-06-16 | Partial (ArtifactPr AppTheme/QProxyStyle direction adopted and no remaining active setStyleSheet calls confirmed statically; KDDockWidgets theme path, palette/drawControl coverage, visual parity, runtime theme switching, build verification, and submodule completion pending) | 2026-07-25 | 16.7 KB | STYLE, REMEDIATION |
 | 401 | `docs/planned/MILESTONE_PREVIEW_PLAYBACK_PERFORMANCE_LOW_LEVEL_AI_2026-05-23.md` | Preview Playback Performance - Low Level AI Implementation Milestone | 2026-05-23 | Partial (PlaybackService readiness states, RAM/disk preview cache, manifest/hydration, separated engine clock/render-controller image capture, and Timeline/diagnostic summaries implemented; shared readiness vocabulary, empty-tick handling, build queue/guaranteed playback, real-image cache fallback, and runtime verification pending) | 2026-07-25 | 8.2 KB | PREVIEW, PLAYBACK, PERFORMANCE, LOW, LEVEL |
 | 402 | `docs/planned/MILESTONE_PROCEDURAL_3D_GENERATORS_MIR_TAO_2026-06-26.md` | Procedural 3D Generators Milestone | 2026-06-26 | Implementation present through the authoring/render/input/preset slices; | 2026-07-25 | 13.7 KB | PROCEDURAL, GENERATORS, MIR, TAO |
-| 403 | `docs/planned/MILESTONE_PROFESSIONAL_MEDIA_MATERIALS_2026-07-16.md` | Professional Media Materials Support (2026-07-16) | 2026-07-16 | Phase 1-3 integration foundation implemented; Phase 4-5 partial and runtime validation pending | 2026-07-29 | 6.6 KB | PROFESSIONAL, MEDIA, MATERIALS |
+| 403 | `docs/planned/MILESTONE_PROFESSIONAL_MEDIA_MATERIALS_2026-07-16.md` | Professional Media Materials Support (2026-07-16) | 2026-07-16 | Phase 1-3 integration foundation implemented; Phase 4-5 partial and runtime validation pending | 2026-07-29 | 7.1 KB | PROFESSIONAL, MEDIA, MATERIALS |
 | 404 | `docs/planned/MILESTONE_PROFESSIONAL_SOFT_BODY_2026-07-11.md` | マイルストーン: Professional Soft Body / Cloth System | 2026-07-11 | In Progress | 2026-07-25 | 5.7 KB | PROFESSIONAL, SOFT, BODY |
 | 405 | `docs/planned/MILESTONE_PROJECT_ASSET_WORKFLOW_2026-03-27.md` | マイルストーン: Project / Asset Workflow | 2026-03-27 | Partial (Phase 1-6 foundations for selection/state, import/relink/missing, presentation/metadata, organization, workflow bridges, and save/restore exist; cross-view selection synchronization, unified status/dependency presentation, collections/smart bins, end-to-end bridges, and runtime save/restore verification pending) | 2026-07-25 | 9.4 KB | PROJECT, ASSET, WORKFLOW |
 | 406 | `docs/planned/MILESTONE_PROJECT_AUTO_SAVE_2026-04-10.md` | プロジェクト自動保存機能 | 2026-04-10 | Partial (AutoSaveManager lifecycle, dirty notifications, recovery snapshot create/detect/load, startup prompt, settings retention, QSaveFile/backup generations, and timer wiring implemented; complete interval/generation UI, .autosave naming, diff display, save feedback, conflict avoidance, crash recovery, performance, and runtime verification pending) | 2026-07-29 | 3.1 KB | PROJECT, AUTO, SAVE |
@@ -1100,7 +1100,7 @@
 | 23 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.2 KB | IMPL, DOF |
 | 24 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.7 KB | IMPL, SSAO |
 | 25 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.5 KB | IMPL, TONE, MAPPING |
-| 26 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-07-30 | --- | 2026-07-30 | 282.1 KB | INDEX, GENERATED |
+| 26 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-07-30 | --- | 2026-07-30 | 282.2 KB | INDEX, GENERATED |
 | 27 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 28 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 11.6 KB | CAMERA, PROJECTION |
 | 29 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |

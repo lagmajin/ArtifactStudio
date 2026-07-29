@@ -63,7 +63,7 @@ explicit interpretation and later display conversion.
 - importer が入力画素を暗黙に display transform せず、EXR float／16-bit 読み込みを保持する境界は確認できる。
 - `OCIOConfig`、ACES／transfer／gamut の基盤は存在するが、working-space conversion が effects／mask／compositing 前に一度だけ適用される統合経路、および display/output transform との完全な分離はコード監査だけでは確認できない。
 - EXR／HDR／10／12／16-bit／log source の実ファイル round-trip、metadata retention、export 検証は未実施である。
-- よってステータスは `Phase 1〜2 implemented / Phase 3〜5 partial and runtime validation pending` のままとする。
+- よってステータスは `Phase 1〜3 implemented / Phase 4〜5 partial and runtime validation pending` と更新する。
 
 ## 2026-07-29 実装更新
 
@@ -99,3 +99,8 @@ explicit interpretation and later display conversion.
 - AssetManager の共有 decoded buffer はコピーしてから変換するため、他レイヤーの source cache を破壊しない。
 - path-only 作成では値が空のままなので、既存の Auto 挙動を維持する。
 - 解釈値をロード後に変更した場合は raw source を再読込してから再適用し、変換済みバッファへの二重変換を避ける。
+
+## 2026-07-30 status correction
+
+- ImageLayer の生成・保存／復元・明示 interpretation 変更時の raw 再読込と working-space 再適用まで確認できるため、Phase 3 は実装済みとして扱う。
+- display/output transform の独立適用、OCIO／ACES の実運用経路、EXR／HDR／10／12／16-bit／log の round-trip は引き続き未完了・未検証である。
