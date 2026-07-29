@@ -44,6 +44,7 @@
 - ✅ Project View の検索欄、種別フィルタ、表示モード、Unused フィルタに Accessible Name / Description を付与。
 - ✅ Project View の inline Composition settings 入力欄、背景色、適用ボタンに Accessible Name / Description を付与。
 - ✅ Project View の選択アクション（Open / Reveal / Proxy / Rename / Delete / Relink 等）に操作結果の Accessible Description を付与。
+- ✅ Project View の icon-only 補助ツールバー（New Composition / New Folder / Generate Proxies / Delete）に Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
