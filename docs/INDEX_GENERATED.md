@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 03:21
+> Generated: 2026-07-30 03:22
 > Total documents: 1134
 
 ---
@@ -480,7 +480,7 @@
 | 24 | `docs/planned/MILESTONE_3D_VIEWPORT_ORBIT_PAN_PREVIEW_MODE_2026-06-07.md` | MILESTONE: 3D Viewport Orbit / Pan / Preview Mode - 2026-06-07 | 2026-06-07 | ** Phase 1〜3 と Preview Orbit Mode は実装済み。実機での editor 間操作統一・カメラ非破壊性の検証待ち。 | 2026-07-25 | 8.7 KB | VIEWPORT, ORBIT, PAN, PREVIEW |
 | 25 | `docs/planned/MILESTONE_3D_VIEWPORT_SOLID_CAMERA_OVERLAY_2026-04-10.md` | 3D Viewport Stabilization: Solid / Camera / Overlay | 2026-07-25 | ** Phase 1、Phase 3、Phase 4 は実装済み。Phase 2 は主要経路を実装済みだが、viewer/editor 間の完全統一と実機検証が未完了。 | 2026-07-25 | 10.3 KB | VIEWPORT, SOLID, CAMERA, OVERLAY |
 | 26 | `docs/planned/MILESTONE_ACCESSIBILITY_2026-03-28.md` | アクセシビリティ改善 Milestone | 2026-03-28 | 部分実装（キーボードフォーカス基盤・スクリーンリーダーラベルは主要UIへ適用、全操作検証待ち） | 2026-07-25 | 8.6 KB | ACCESSIBILITY |
-| 27 | `docs/planned/MILESTONE_ACCESSIBILITY_AND_LEFT_HANDED_UI_2026-06-28.md` | Milestone: Accessibility and Left-Handed UI Support (M-ACC-1) | 2026-06-28 | Phase 1〜2 の静的実装は主要ウィジェットへ適用済み — runtime 検証、RTL レイアウト、Phase 3 の全体統合は未完了 | 2026-07-30 | 18.2 KB | ACCESSIBILITY, AND, LEFT, HANDED |
+| 27 | `docs/planned/MILESTONE_ACCESSIBILITY_AND_LEFT_HANDED_UI_2026-06-28.md` | Milestone: Accessibility and Left-Handed UI Support (M-ACC-1) | 2026-06-28 | Phase 1〜2 の静的実装は主要ウィジェットへ適用済み — runtime 検証、RTL レイアウト、Phase 3 の全体統合は未完了 | 2026-07-30 | 18.3 KB | ACCESSIBILITY, AND, LEFT, HANDED |
 | 28 | `docs/planned/MILESTONE_ACTIVE_IMPLEMENTATION_TRIAD_2026-05-12.md` | Active Implementation Triad / May 2026 | 2026-05-12 | Partial (Project Health and Timeline Keyframe Editing complete; Mask/Roto routing, path/handle editing, guides, creation, and Undo implemented with interaction-quality, multi-mask conflict, synchronization, and runtime follow-up pending) | 2026-07-25 | 4.8 KB | ACTIVE, IMPLEMENTATION, TRIAD |
 | 29 | `docs/planned/MILESTONE_AD_PRODUCTION_ACCELERATOR_2026-05-28.md` | MILESTONE: Ad Production Accelerator | 2026-05-28 | Partial (TemplateSlot/TemplateVariation/OutputVariant metadata, JSON conversion, parametric slot intake, and automation/Python entry points implemented; multi-variation UI, batch aspect-ratio jobs, required-slot/overflow/missing-asset aggregation, and runtime workflow verification pending) | 2026-07-25 | 7.4 KB | PRODUCTION, ACCELERATOR |
 | 30 | `docs/planned/MILESTONE_AD_PRODUCTION_ACCELERATOR_PHASE1_EXECUTION_2026-05-29.md` | Ad Production Accelerator - Phase 1 Execution | 2026-05-29 | Partial (TemplateSlot/TemplateVariation/OutputVariant metadata, JSON conversion, and automation define/list/apply entry points implemented; selected-layer UI, delete/restore warnings, required-slot runtime reachability, and verification pending) | 2026-07-25 | 6.6 KB | PRODUCTION, ACCELERATOR, PHASE1, EXECUTION |
@@ -554,7 +554,7 @@
 | 98 | `docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_PHASE4_EXECUTION_2026-04-20.md` | Phase 4 実行メモ: Export and Diagnostics | 2026-04-20 | 部分実装（report/copy/save/failure summaryあり、専用bundle export・crash bundle連携は未完了） | 2026-07-25 | 7.6 KB | APP, FRAME, DEBUG, VIEW, PHASE4 |
 | 99 | `docs/planned/MILESTONE_APP_INTERNAL_DEBUGGER_2026-04-17.md` | App Internal Debugger Milestone | 2026-04-20 | 部分実装（Trace/State/Frame/Crash/Diagnostics面あり、横断snapshot・一画面統合・bundle接続は未完了） | 2026-07-25 | 9.8 KB | APP, INTERNAL, DEBUGGER |
 | 100 | `docs/planned/MILESTONE_APP_LAYER_COMPLETENESS.md` | マイルストーン: アプリ層完成度向上 | 2026-03-20 | Partial; app-layer workstreams advanced, remaining gaps tracked by execution milestones and runtime verification | 2026-07-30 | 10.5 KB | APP, LAYER, COMPLETENESS |
-| 101 | `docs/planned/MILESTONE_APP_LAYER_COMPLETENESS_M_APP_7_EDITMODE_UI_IMPLEMENTATION_2026-06-13.md` | 実装案: M-APP-7 EditMode → ツール自動マッピングの UI 接続 | 2026-06-13 | 実装済み・実機未確認 | 2026-07-14 | 10.9 KB | APP, LAYER, COMPLETENESS |
+| 101 | `docs/planned/MILESTONE_APP_LAYER_COMPLETENESS_M_APP_7_EDITMODE_UI_IMPLEMENTATION_2026-06-13.md` | 実装案: M-APP-7 EditMode → ツール自動マッピングの UI 接続 | 2026-06-13 | 実装済み・実機未確認 | 2026-07-30 | 10.9 KB | APP, LAYER, COMPLETENESS |
 | 102 | `docs/planned/MILESTONE_APP_LAYER_IMPROVEMENTS_2026-03-28.md` | アプリ層改善 Milestone | 2026-03-28 | 一部実装済み ✅ | 2026-07-30 | 12.3 KB | APP, LAYER, IMPROVEMENTS |
 | 103 | `docs/planned/MILESTONE_APP_SETTINGS_WIDGET_GAP_2026-06-13.md` | 実装案: App Settings - Widget 接続ギャップ | 2026-06-13 | Partial（主要設定・EditMode／DisplayMode・Preview cache・Grid UI・CloneLayer Property Editor・既定Transform Effector接続済み、追加Effector型とruntime検証は未完了、静的確認 2026-07-30） | 2026-07-30 | 5.7 KB | APP, SETTINGS, WIDGET, GAP |
 | 104 | `docs/planned/MILESTONE_APP_SURFACE_COHESION_2026-05-13.md` | Milestone: App Surface Cohesion | 2026-05-13 | Partial; context/summary/empty/playback foundations exist, cross-surface finish and runtime cohesion pending | 2026-07-25 | 11.2 KB | APP, SURFACE, COHESION |
