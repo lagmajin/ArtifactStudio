@@ -447,7 +447,7 @@
 
 | # | File | Title | Date | Status | Modified | Size | Keywords |
 |---|------|-------|------|--------|----------|------|----------|
-| 1 | `docs/planned/2D_RIG_CORE_CONTRACT_2026-04-29.md` | 2D Rig Core Contract Note - 2026-04-29 | 2026-04-29 | --- | 2026-05-07 | 4.0 KB | RIG, CORE, CONTRACT |
+| 1 | `docs/planned/2D_RIG_CORE_CONTRACT_2026-04-29.md` | 2D Rig Core Contract Note - 2026-04-29 | 2026-04-29 | Partial (ID-based rig operations, JSON persistence, evaluation entry, controls, constraints, evaluation context, and property bindings implemented; rig editing UI and runtime verification pending) | 2026-07-29 | 4.0 KB | RIG, CORE, CONTRACT |
 | 2 | `docs/planned/AI_TOOL_DSL_IMPLEMENTATION_GUIDE_2026-04-05.md` | AI Tool DSL Implementation Guide | 2026-04-05 | --- | 2026-04-10 | 16.5 KB | TOOL, DSL, IMPLEMENTATION, GUIDE |
 | 3 | `docs/planned/ARTIFACT_IRENDERER_ANALYSIS_2026-04-17.md` | ArtifactIRenderer インターフェース & 実装 分析レポート | 2026-04-17 | --- | 2026-04-18 | 34.7 KB | ARTIFACT, IRENDERER, ANALYSIS |
 | 4 | `docs/planned/CLASS_DICTIONARY_DEPENDENCY_RESPONSIBILITY_2026-04-17.md` | ArtifactStudio クラス辞典・依存マップ・責務表 | 2026-04-17 | --- | 2026-04-18 | 18.9 KB | CLASS, DICTIONARY, DEPENDENCY, RESPONSIBILITY |
