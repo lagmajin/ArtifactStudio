@@ -1,6 +1,6 @@
 # ShapePath 自作ジオメトリ／描画経路移行マイルストーン
 
-**ステータス:** Not Started
+**ステータス:** Partial implementation / runtime verification pending
 **作成日:** 2026-07-27
 **対象:** 静止画・連番・シェイプ・画像処理・3Dレイヤーの基盤強化
 
@@ -105,6 +105,21 @@ Phase 0 として、`ShapePath` のコマンド／サブパス／fill rule／fla
 - winding／even-odd と穴の所属は `triangulate()` 内で解決し、renderer へは三角形列のみを渡す。複数輪郭を個別 polygon として描く実装は行わない方針を維持し、triangulation 失敗時の多輪郭 fill はスキップする（単一輪郭のみ polygon fallback）。
 - Core 側には `flattenSubpaths()`／`triangulate()` を追加済み。既存の `drawSolidTriangleLocal` の内部バッチ経路を利用し、新しい低レベル描画 API は追加していない。
 - native custom Bézier fill は単一輪郭・多輪郭とも `triangulate()` を使う。退化・失敗時は単一輪郭のみ既存 polygon API へ戻る。
+
+## Static audit follow-up (2026-07-29)
+
+`ArtifactCore::ShapePath` と `ArtifactShapeLayer` の実装を静的に確認した。ビルド・描画比較は未実施。
+
+| 項目 | 現状 | 判定 |
+|---|---|---|
+| Core geometry | bounds、flatten、subpath、fill rule、triangulate、主要 primitive は自作経路に存在する。 | 実装済み／描画確認待ち |
+| Native renderer path | 単純カスタム Bézier の fill/stroke は renderer 経路へ接続済み。 | 部分実装 |
+| Advanced stroke/operator | join/cap/dash、ShapeOperator の geometry packet 化は未完了。 | 未完了 |
+| Qt boundary reduction | 特殊 stroke、gradient、operator、互換キャッシュに QPainter/QImage 経路が残る。 | 未完了 |
+
+### 判定
+
+`Not Started` ではなく、Core geometry と単純 Bézier の native path は実装済み。ただしシェイプ全体の主経路移行、特殊 stroke/operator、Qt キャッシュ縮小、runtime parity 検証が残るため、マイルストーン全体は完了扱いにしない。
 
 ## 関連文書
 
