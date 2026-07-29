@@ -147,7 +147,7 @@
 
 2026-07-30 に Project View の type filter、Tree/Tile view mode、Unused only の設定を `QSettings` に保存・復元する導線を追加した。保存は各既存コントロールの変更時に行い、起動時にはコントロールと Project View の初期表示へ反映する。
 
-同日、複数選択された Footage の実ファイルサイズ合計を browse context の選択状態表示へ追加した。存在するファイルだけを合算し、B〜TB の読みやすい単位で表示する。Composition 数や選択数と同じ既存の selection chrome 更新経路を利用している。
+同日、複数選択された Footage の実ファイルサイズ合計を browse context の選択状態表示へ追加した。存在するファイルだけを合算し、B〜TB の読みやすい単位で表示する。連番 Footage は `sequencePaths` 全体を合算し、代表フレームだけで過小表示しない。Composition 数や選択数と同じ既存の selection chrome 更新経路を利用している。
 
 さらに、Project View の列ソート列と昇順／降順を `ProjectView/SortColumn`、`ProjectView/SortAscending` として保存し、次回のモデル接続時に復元するようにした。ソート矢印の内部状態も復元された値と一致する。
 
