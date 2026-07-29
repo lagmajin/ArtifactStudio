@@ -465,7 +465,7 @@
 | 16 | `docs/planned/LAYER_MASK_ANALYSIS_2026-04-17.md` | LayerMask クラス分析レポート | 2026-04-17 | --- | 2026-04-18 | 14.1 KB | LAYER, MASK, ANALYSIS |
 | 17 | `docs/planned/MILESTONE_2D_POINT_TRACKER_2026-06-02.md` | M-MOTION-1 2D Point Tracker (2026-06-02) | 2026-06-02 | Initial design; implementation status moved to 2026-06-16 execution milestone | 2026-07-29 | 6.5 KB | POINT, TRACKER |
 | 18 | `docs/planned/MILESTONE_2D_POINT_TRACKER_2026-06-16.md` | M-2DTRACK-1 2D Point Tracker Milestone | 2026-06-16 | Phase 1〜3 基盤実装済み; planar/undo/diagnostics/performance/runtime verification pending | 2026-07-29 | 16.9 KB | POINT, TRACKER |
-| 19 | `docs/planned/MILESTONE_3D_COMPOSITING_2026-07-08.md` | Milestone: 3D Compositing（コンポジション内ライブ 3D シーン） (2026-07-08) | 2026-07-08 | In Progress | 2026-07-14 | 7.1 KB | COMPOSITING |
+| 19 | `docs/planned/MILESTONE_3D_COMPOSITING_2026-07-08.md` | Milestone: 3D Compositing（コンポジション内ライブ 3D シーン） (2026-07-08) | 2026-07-08 | Partial (Phase 1A〜1K 3D cards, depth/material/light integration, and precomp GPU output registry implemented; Phase 2/3 scene operation, depth/mask/DOF, and runtime verification pending) | 2026-07-29 | 7.1 KB | COMPOSITING |
 | 20 | `docs/planned/MILESTONE_3D_MATERIAL_SYSTEM_2026-03-31.md` | MILESTONE: 3D Material System | 2026-03-31 | --- | 2026-07-09 | 3.6 KB | MATERIAL, SYSTEM |
 | 21 | `docs/planned/MILESTONE_3D_MODEL_IMPORT_AND_CONTENTS_VIEWER_2026-03-29.md` | マイルストーン: 3D Model Import and Contents Viewer Integration | 2026-03-29 | --- | 2026-07-09 | 7.0 KB | MODEL, IMPORT, AND, CONTENTS |
 | 22 | `docs/planned/MILESTONE_3D_MODEL_REVIEW_IN_CONTENTS_VIEWER_2026-03-28.md` | マイルストーン: 3D Model Review in Contents Viewer | 2026-03-28 | --- | 2026-07-09 | 5.5 KB | MODEL, REVIEW, CONTENTS |
