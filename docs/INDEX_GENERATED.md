@@ -795,7 +795,7 @@
 | 346 | `docs/planned/MILESTONE_MENU_SYSTEM_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: メニューシステム 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 1.4 KB | MENU, SYSTEM, DESIGN, AUDIT |
 | 347 | `docs/planned/MILESTONE_MESH_WARP_LIQUIFY_2026-06-02.md` | M-MOTION-5 Mesh Warp / Liquify Deformation (2026-06-02) | 2026-06-02 | --- | 2026-06-05 | 3.4 KB | MESH, WARP, LIQUIFY |
 | 348 | `docs/planned/MILESTONE_MISC_IDEAS_2026-04-06.md` | Misc Feature Ideas | 2026-03-27 | --- | 2026-04-06 | 2.5 KB | MISC, IDEAS |
-| 349 | `docs/planned/MILESTONE_MOTION_BLUR_2026-03-29.md` | Milestone: Motion Blur (2026-03-29) | 2026-03-29 | --- | 2026-03-30 | 2.8 KB | MOTION, BLUR |
+| 349 | `docs/planned/MILESTONE_MOTION_BLUR_2026-03-29.md` | Milestone: Motion Blur (2026-03-29) | 2026-03-29 | Partial（CPU effect、3D velocity/AOV、GPU MotionBlurPass、global toggle、composition適用起点を実装。layer transform multi-sample・2D velocity規約・runtime出力検証は未完了） | 2026-07-29 | 2.9 KB | MOTION, BLUR |
 | 350 | `docs/planned/MILESTONE_MOTION_DESIGNER_EMPTY_STATE_GUIDANCE_2026-06-02.md` | Milestone: Motion Designer Empty State Guidance | 2026-06-02 | --- | 2026-06-05 | 4.9 KB | MOTION, DESIGNER, EMPTY, STATE, GUIDANCE |
 | 351 | `docs/planned/MILESTONE_MOTION_EXTENDED_2026-06-02.md` | M-MOTION-EXTRA Motion Designer Extended Milestones (2026-06-02) | 2026-06-02 | --- | 2026-06-05 | 11.3 KB | MOTION, EXTENDED |
 | 352 | `docs/planned/MILESTONE_MOTION_FEATURES_INDEX_2026-06-02.md` | M-MOTION Motion Designer Feature Milestones (2026-06-02) | 2026-06-02 | --- | 2026-06-05 | 1.8 KB | MOTION, FEATURES, INDEX |

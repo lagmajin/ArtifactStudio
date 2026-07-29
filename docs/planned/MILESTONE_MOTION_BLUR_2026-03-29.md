@@ -1,6 +1,6 @@
 # Milestone: Motion Blur (2026-03-29)
 
-**Status:** Not Started
+**Status:** Partial (CPU effect、3D velocity/AOV、GPU MotionBlurPass、global toggle、composition 適用起点を実装。layer transform multi-sample、2D velocity規約、runtime出力検証は未完了)
 **Goal:** レイヤーにモーションブラーを適用。高速移動オブジェクトの残像効果。
 
 ---
