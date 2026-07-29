@@ -1,7 +1,7 @@
 # マイルストーン: Construction Layer
 
 **作成日**: 2026-06-05  
-**状態**: Proposal  
+**状態**: 部分完了（Construction Layerの基盤・保存・表示・UI導線を実装、拡張construction itemと専用animation/runtime検証は未完了）
 **優先度**: 中
 
 ---
