@@ -1462,7 +1462,8 @@ struct MissingAssetsDetectedEvent : Event {
 - `ArtifactAssetBrowser` と `ArtifactProjectManagerWidget` に missing footage の単一／複数 relink UI があり、`ArtifactProjectService` の path-based relink を利用する。
 - `RelinkAssetCommand` により old path / new path を Undo/Redo でき、`WorkspaceAutomation.relinkFootageByPath` からも操作できる。
 - `ArtifactProjectHealthChecker` は missing asset 診断と、設定時の missing entry 除去を持つ。Project/Asset 側の missing 表示も確認できる。
-- ただし専用 `AssetReferenceTracker`、References Panel、Find References / Select Unused の完成したユーザー導線、同名候補の衝突解決、参照一覧の一括診断は確認できない。
+- Asset Browser の `Find References` は、単一素材では source path を、連番素材では `sequencePaths` 全体を照合して参照 composition / layer を表示する。
+- ただし専用 `AssetReferenceTracker`、References Panel、Select Unused の完成したユーザー導線、同名候補の衝突解決、参照一覧の一括診断は確認できない。`Find References` は基本的な context-menu 導線までで、専用 panel／一括診断は未完了である。
 - したがって relink の基本 workflow は実装済みだが、参照追跡・診断・全ファイル種別の統合を含む本 milestone は Partial のまま。runtime の Undo/Redo と複数ファイル結果は未検証。
 
 ビルド・実行確認はリポジトリ方針により未実施。
