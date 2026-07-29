@@ -30,7 +30,7 @@ UI/UX やレンダリングパイプラインの新機能ではなく、**既に
 - [x] Effect presetの保存・読込
 - runtime UI操作と実機確認は未実施
 
-### M-APP-4 ArtifactAudioService 実装
+### M-APP-4 ArtifactAudioService 実装 ⚠️（facade静的実装済み・backend/runtime確認待ち）
 - `Artifact/include/Service/ArtifactAudioService.ixx`
 - [ ] 物理Audio device列挙・選択（backend側の公開選択契約待ち）
 - [x] current compositionのaudio layer bus生成とMaster既定ルーティング
@@ -38,7 +38,7 @@ UI/UX やレンダリングパイプラインの新機能ではなく、**既に
 - [x] layer busのvolume / pan / mute / solo操作
 - [x] Composition Audio Mixerのmaster操作をAudioService facadeへ、strip操作をCore busへ接続
 
-facade sliceは静的実装済み。ユーザー方針によりbuild / testは実施していない。
+facade sliceは静的実装済み。物理Audio device列挙・選択の公開契約は未接続。ユーザー方針によりbuild / testは実施していない。
 
 ### M-APP-5 TranslationManager 実装 ✅
 - `Artifact/include/Translation/TranslationManager.ixx`
