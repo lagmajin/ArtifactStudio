@@ -12,6 +12,12 @@ AE Utility Pack の3本（`quick_rename_layers.py`、`clean_layers.py`、`trim_c
 
 判定: 提案された3 utility の bridge／script／menu entry は部分的に実装済み。再利用可能な制作補助としての最小導線はあるが、Undo／confirm／UI入力／registry統合を含む完成条件は未達または未検証。
 
+## 2026-07-29 実装ループ: 破壊的 utility の確認導線
+
+- ✅ Script メニューから `Clean Layers` / `Trim Comp to Content` を実行する前に確認ダイアログを表示するようにした。
+- ✅ `Quick Rename Layers` は非破壊のため確認なしで既存経路を実行する。
+- ⏳ Undo、入力編集 UI、共通 registry、runtime 検証は未完了。マイルストーン全体は `Partial` のままとする。
+
 > 2026-06-22 draft
 
 ## 目的
