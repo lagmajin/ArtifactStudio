@@ -43,3 +43,9 @@
 | lazy dock | placeholder、factory、first-show materialization、floating 遅延生成と失敗メタデータがある | 実装済み（基盤） |
 
 **判定**: Dock の保存・復元、workspace mode、floating、lazy initialization は基盤実装済み。P0/P1 の操作仕様（reset、pin、専用 shortcut、double-click maximize）は未完了または検証待ち。
+
+## 2026-07-29 実装ループ: クイックワークスペース切替
+
+- ✅ `ArtifactMainWindow::keyPressEvent()` に Ctrl+1〜4 を追加した。
+- ✅ Ctrl+1 = Default、Ctrl+2 = Animation、Ctrl+3 = Compositing、Ctrl+4 = Audio とし、既存の `setWorkspaceMode()` / 可視性ルールを再利用する。
+- ⏳ デフォルトレイアウトの完全リセット、タブ pin、ダブルクリック最大化、runtime 検証は未完了。Dock / Workspace マイルストーン全体は未完了のままとする。
