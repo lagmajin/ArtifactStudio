@@ -748,7 +748,7 @@
 | 299 | `docs/planned/MILESTONE_LAYER_COMPONENT_EVALUATION_PIPELINE_2026-06-28.md` | Layer Component Evaluation Pipeline | 2026-06-28 | Partial (evaluation foundation/runtime bridge implemented; hardening and runtime verification pending) | 2026-07-29 | 3.0 KB | LAYER, COMPONENT, EVALUATION, PIPELINE |
 | 300 | `docs/planned/MILESTONE_LAYER_COMPONENT_PIPELINE_2026-07-01.md` | Layer Component Pipeline / Simulation Contract (2026-07-01) | 2026-07-01 | In Progress | 2026-07-14 | 13.8 KB | LAYER, COMPONENT, PIPELINE |
 | 301 | `docs/planned/MILESTONE_LAYER_COMPONENT_SYSTEM_2026-04-18.md` | マイルストーン: レイヤーコンポーネントシステム | 2026-04-18 | Partial (foundation implemented; integration phases pending) | 2026-07-29 | 3.2 KB | LAYER, COMPONENT, SYSTEM |
-| 302 | `docs/planned/MILESTONE_LAYER_COMPONENT_SYSTEM_UNITY_LIKE_2026-04-08.md` | マイルストーン: レイヤー向け軽量コンポーネントシステム | 2026-04-08 | --- | 2026-04-08 | 8.5 KB | LAYER, COMPONENT, SYSTEM, UNITY, LIKE |
+| 302 | `docs/planned/MILESTONE_LAYER_COMPONENT_SYSTEM_UNITY_LIKE_2026-04-08.md` | マイルストーン: レイヤー向け軽量コンポーネントシステム | 2026-04-08 | Partial (Phase 1 host/serialization implemented; Phases 2-5 pending) | 2026-07-29 | 8.5 KB | LAYER, COMPONENT, SYSTEM, UNITY, LIKE |
 | 303 | `docs/planned/MILESTONE_LAYER_COMPONENTS_PHYSICS_BEHAVIOR_2026-03-28.md` | マイルストーン: Layer Components - Physics / Behavior | 2026-03-28 | --- | 2026-03-28 | 5.7 KB | LAYER, COMPONENTS, PHYSICS, BEHAVIOR |
 | 304 | `docs/planned/MILESTONE_LAYER_EFFECT_ENVELOPE_2026-06-19.md` | Layer Effect Envelope Milestone | 2026-06-19 | 計画中 | 2026-07-02 | 15.5 KB | LAYER, EFFECT, ENVELOPE |
 | 305 | `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_2026-03-27.md` | マイルストーン: レイヤーグループ導入 | 2026-03-27 | --- | 2026-03-27 | 5.4 KB | LAYER, GROUP, SYSTEM |
