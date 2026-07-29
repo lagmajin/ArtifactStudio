@@ -98,6 +98,7 @@
 - ✅ Asset Browser のファイル一覧、サムネイルサイズ見出し、アセットプレビュー、詳細情報に Accessible Name / Description を付与。
 - ✅ Color Science Panel の色空間、LUT、OCIO、HDR、色制約ルール操作に Accessible Name / Description を付与。
 - ✅ Command Palette の検索入力、コマンド一覧、閉じる操作に Accessible Name / Description を付与。
+- ✅ Debug Console のログ消去設定、フィルター概要、ステータス、ログ一覧、選択ログ詳細に Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
