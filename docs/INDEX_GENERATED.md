@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 00:07
+> Generated: 2026-07-30 00:08
 > Total documents: 1134
 
 ---
@@ -906,7 +906,7 @@
 | 450 | `docs/planned/MILESTONE_RENDER_OUTPUT_FEEL_REFINEMENT_2026-03-27.md` | Render / Output Feel Refinement Milestone | 2026-03-27 | 実装中（Phase 1 完了） | 2026-07-25 | 21.0 KB | RENDER, OUTPUT, FEEL, REFINEMENT |
 | 451 | `docs/planned/MILESTONE_RENDER_PATH_DECOMPOSITION_2026-03-31.md` | マイルストーン: Render Path Decomposition / Buffer Migration | 2026-03-31 | Typed buffer 基盤・一部接続実装済み、QImage経路縮小・pass契約・runtime検証 pending | 2026-07-29 | 5.4 KB | RENDER, PATH, DECOMPOSITION |
 | 452 | `docs/planned/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md` | MILESTONE: Render Preflight / Output Safety Check | 2026-06-02 | --- | 2026-07-25 | 5.3 KB | RENDER, PREFLIGHT |
-| 453 | `docs/planned/MILESTONE_RENDER_QUEUE_2026-03-22.md` | MILESTONE_RENDER_QUEUE_2026-03-22 | 2026-03-22 | --- | 2026-07-30 | 2.9 KB | RENDER, QUEUE |
+| 453 | `docs/planned/MILESTONE_RENDER_QUEUE_2026-03-22.md` | MILESTONE_RENDER_QUEUE_2026-03-22 | 2026-03-22 | --- | 2026-07-30 | 3.0 KB | RENDER, QUEUE |
 | 454 | `docs/planned/MILESTONE_RENDER_QUEUE_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: レンダーキュー 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-25 | 3.2 KB | RENDER, QUEUE, DESIGN, AUDIT |
 | 455 | `docs/planned/MILESTONE_RENDER_QUEUE_ENCODING_2026-04-01.md` | Milestone: Render Queue Hardware Encoding Support (M-RQ-ENC-1) | 2026-04-01 | 部分完了（FFmpeg probe、NVENC/QSV/AMF相当のcodec解決、native/pipe-hw/pipe-vulkan backend、software fallback、H.264/H.265 quality基盤を実装、GPU resident codec・zero-copy YUV/HDR・実機性能/availability検証未完了） | 2026-07-25 | 6.1 KB | RENDER, QUEUE, ENCODING |
 | 456 | `docs/planned/MILESTONE_RENDER_QUEUE_GPU_BACKEND_2026-04-03.md` | マイルストーン: Render Queue GPU Backend Selection / Fallback | 2026-04-03 | --- | 2026-07-25 | 3.4 KB | RENDER, QUEUE, GPU, BACKEND |
@@ -1038,7 +1038,7 @@
 | 582 | `docs/planned/PROPOSAL_RENDER_EXPORT_EFFICIENCY_2026-07-28.md` | 提案メモ: ファイル書き出し（レンダーキュー）効率化 — 2026-07-28 | 2026-07-28 | 提案（未実装・未承認） | 2026-07-28 | 3.7 KB | PROPOSAL, RENDER, EXPORT, EFFICIENCY |
 | 583 | `docs/planned/RANDOM_HELPER_PROPOSAL_2026-06-16.md` | Random / Noise Helper Proposal (ArtifactCore) — 2026-06-16 | 2026-06-16 | --- | 2026-06-17 | 21.0 KB | RANDOM, HELPER, PROPOSAL |
 | 584 | `docs/planned/RENDER_BOUNDARY_CHANGE_SAFETY_CHECKLIST_2026-04-21.md` | Render Boundary Change Safety Checklist | 2026-04-21 | --- | 2026-05-16 | 2.6 KB | RENDER, BOUNDARY, CHANGE, SAFETY, CHECKLIST |
-| 585 | `docs/planned/RENDER_QUEUE_MANAGER_GAP_ANALYSIS_2026-04-13.md` | Render Queue Manager ギャップ分析 | 2026-04-13 | --- | 2026-04-13 | 3.3 KB | RENDER, QUEUE, MANAGER, GAP, ANALYSIS |
+| 585 | `docs/planned/RENDER_QUEUE_MANAGER_GAP_ANALYSIS_2026-04-13.md` | Render Queue Manager ギャップ分析 | 2026-04-13 | --- | 2026-07-30 | 3.3 KB | RENDER, QUEUE, MANAGER, GAP, ANALYSIS |
 | 586 | `docs/planned/REPO_WIDE_BACKLOG_TRIAGE_2026-06-11.md` | Repository Audit: Backlog Triage | 2026-06-11 | --- | 2026-06-11 | 0.5 KB | REPO, WIDE, BACKLOG, TRIAGE |
 | 587 | `docs/planned/REPO_WIDE_EDITOR_INTERACTION_AUDIT_2026-06-11.md` | Repository Audit: Editor Interaction | 2026-06-11 | --- | 2026-06-11 | 0.7 KB | REPO, WIDE, EDITOR, INTERACTION, AUDIT |
 | 588 | `docs/planned/REPO_WIDE_MODULE_HYGIENE_AUDIT_2026-06-11.md` | Repository Audit: Module Hygiene | 2026-06-11 | --- | 2026-06-11 | 0.6 KB | REPO, WIDE, MODULE, HYGIENE, AUDIT |

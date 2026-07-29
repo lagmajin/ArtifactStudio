@@ -41,3 +41,4 @@
 
 2026-07-30 implementation loop: summary ETA の進捗開始時刻を queue 同期で失わないよう保持し、queue reorder 時のみ index 対応をリセットする処理を追加。runtime の時間精度・長時間運用は未検証。
 途中 job 削除時も index の詰まりによる誤流用を避けるため timing map をリセットし、次の progress event から再計測する。
+progress rollback（再試行／再開）時も該当 job の ETA 開始時刻をリセットする。
