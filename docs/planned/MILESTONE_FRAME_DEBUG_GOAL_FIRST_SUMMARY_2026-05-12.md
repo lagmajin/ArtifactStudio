@@ -96,3 +96,8 @@ Phase 1 実行メモを作って、`FrameDebugViewWidget` の top summary を `g
 ### 現在の判定
 
 Phase 1 はコード上ほぼ到達、Phase 2〜3 は共有 snapshot 基盤あり・UI/運用統合確認待ちとする。
+
+## 2026-07-29 実装マーク
+
+- Phase 1 の `goal / now(frame) / warning / next` summary vocabulary は `FrameDebugViewWidget` と `AppDebuggerWidget` の現行コードで実装済みとしてマークする。
+- Phase 2 の compare / pin 操作統一、Phase 3 の saved bundle 再参照と完全な report 語彙統一は未完了・未検証のため、マイルストーン全体は `In Progress` を維持する。
