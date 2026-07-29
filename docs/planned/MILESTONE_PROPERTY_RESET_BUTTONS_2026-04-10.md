@@ -62,3 +62,11 @@ After Effects のプロパティパネルにリセットボタンを追加し、
 ただし、すべての通常プロパティに default 値を復元する reset handler が接続されているか、keyframe 付き property で「全 keyframe 削除＋default 値」、選択 keyframe のみ削除、undo／redo、Transform／Text／Effect／Material 全対象の挙動は静的検索だけでは確認できない。設定値は現状プロセス内の表示フラグとして見え、Preferences への永続化も未確認である。視覚的配置は実装済みだが、runtime のクリック結果と reset 後の再評価・保存は未検証である。
 
 判定: **UI 基盤は実装済み。** スマートリセット、Preferences 永続化、undo／redo と全対象の runtime 検証が残っている。
+
+## Static Audit Update (2026-07-29)
+
+- Reset handler がキーフレーム付きプロパティを検出し、既存の `SetLayerPropertyKeyframesCommand` で全キーフレーム削除をUndo対象にした後、デフォルト値を適用するようにした。
+- キーフレームのないプロパティと既存の reset UI／context menu 経路は従来どおり。
+- UIクリック、Undo/Redo、Preferences永続化、Transform/Text/Effect/Material全対象のruntime検証は未実施。
+
+判定: **スマートリセットの実装を追加。runtime検証 pending。**
