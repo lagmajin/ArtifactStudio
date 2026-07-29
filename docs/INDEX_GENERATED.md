@@ -384,7 +384,7 @@
 | 63 | `docs/done/MILESTONE_PROJECT_VIEW_INTERACTION_POLISH_2026-03-28.md` | Project View Interaction Polish | 2026-03-28 | Completed | 2026-07-29 | 3.2 KB | PROJECT, VIEW, INTERACTION, POLISH |
 | 64 | `docs/done/MILESTONE_PROJECT_VIEW_SCROLL_STABILITY_2026-06-07.md` | Project View Scroll Stability Milestone | 2026-06-07 | Completed | 2026-07-29 | 3.8 KB | PROJECT, VIEW, SCROLL, STABILITY |
 | 65 | `docs/done/MILESTONE_PROJECT_VIEW_TILE_MODE_2026-06-05.md` | Project View Tile Mode | 2026-06-05 | Completed | 2026-07-29 | 0.7 KB | PROJECT, VIEW, TILE, MODE |
-| 66 | `docs/done/MILESTONE_PROPERTY_WIDGET_ROW_ALIGNMENT_INSPECTOR_LAYOUT_2026-04-03.md` | Property Widget Row Alignment / Inspector Layout | 2026-04-14 | --- | 2026-07-07 | 0.8 KB | PROPERTY, WIDGET, ROW, ALIGNMENT, INSPECTOR |
+| 66 | `docs/done/MILESTONE_PROPERTY_WIDGET_ROW_ALIGNMENT_INSPECTOR_LAYOUT_2026-04-03.md` | Property Widget Row Alignment / Inspector Layout | 2026-04-14 | Completed | 2026-07-29 | 0.8 KB | PROPERTY, WIDGET, ROW, ALIGNMENT, INSPECTOR |
 | 67 | `docs/done/MILESTONE_QUICK_LAYER_CREATION_DIALOG_2026-07-10.md` | Quick Layer Creation Dialog | 2026-07-10 | ✅ Complete（MVP source/static verified 2026-07-25; runtime/build verification pending） | 2026-07-25 | 4.9 KB | QUICK, LAYER, CREATION, DIALOG |
 | 68 | `docs/done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md` | Render Preflight / Output Safety Check | 2026-06-02 | --- | 2026-07-09 | 1.4 KB | RENDER, PREFLIGHT |
 | 69 | `docs/done/MILESTONE_RENDER_PREFLIGHT_PHASE1_EXECUTION_2026-06-02.md` | Render Preflight / Output Safety Check - Phase 1 Execution | 2026-06-02 | --- | 2026-07-09 | 2.8 KB | RENDER, PREFLIGHT, PHASE1, EXECUTION |
