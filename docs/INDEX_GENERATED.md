@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 02:34
+> Generated: 2026-07-30 02:35
 > Total documents: 1134
 
 ---
@@ -588,7 +588,7 @@
 | 132 | `docs/planned/MILESTONE_AUDIO_PLAYBACK_STABILIZATION_2026-03-28.md` | マイルストーン: Audio Playback Stabilization | 2026-03-28 | Phase 1〜2／4 foundation implemented; format contract/runtime verification pending | 2026-07-30 | 5.9 KB | AUDIO, PLAYBACK, STABILIZATION |
 | 133 | `docs/planned/MILESTONE_AUDIO_REACTOR_SYSTEM_2026-03-30.md` | Milestone: Audio Reactor System (M-AU-6) | 2026-07-29 | FFT／Audio Reactive binding foundation implemented; service/UI/runtime verification pending | 2026-07-29 | 3.7 KB | AUDIO, REACTOR, SYSTEM |
 | 134 | `docs/planned/MILESTONE_AUDIO_SCRUBBING_2026-06-16.md` | M-AU-8 Audio Scrubbing Milestone | 2026-06-16 | Implemented; device latency/cache hit/mute-sync/runtime verification pending | 2026-07-29 | 14.9 KB | AUDIO, SCRUBBING |
-| 135 | `docs/planned/MILESTONE_AUDIO_WAVEFORM_2026-03-29.md` | Milestone: オーディオ波形ビジュアライザー (2026-03-29) | 2026-03-29 | Partial; extraction/timeline/cached viewport/spectrum overlays implemented, lifecycle hardening pending | 2026-07-25 | 3.4 KB | AUDIO, WAVEFORM |
+| 135 | `docs/planned/MILESTONE_AUDIO_WAVEFORM_2026-03-29.md` | Milestone: オーディオ波形ビジュアライザー (2026-03-29) | 2026-03-29 | Partial; extraction/timeline/cached viewport/spectrum overlays implemented, lifecycle hardening pending | 2026-07-30 | 3.4 KB | AUDIO, WAVEFORM |
 | 136 | `docs/planned/MILESTONE_AUDIO_WAVEFORM_THUMBNAIL_PREVIEW_2026-03-31.md` | マイルストーン: Audio Waveform Thumbnail Preview | 2026-07-29 | Phase 1/2 and initial UX implemented; long-audio/cache/UI consistency/runtime verification pending | 2026-07-29 | 3.2 KB | AUDIO, WAVEFORM, THUMBNAIL, PREVIEW |
 | 137 | `docs/planned/MILESTONE_AUDIO_WIDGET_ENHANCEMENT_2026-04-09.md` | マイルストーン: Audio Widget Enhancement / Mixer Surface | 2026-04-09 | Partial（主要 Audio UI 部品実装済み、横断統一・常設 waveform・runtime 検証待ち、静的確認 2026-07-29） | 2026-07-29 | 4.0 KB | AUDIO, WIDGET, ENHANCEMENT |
 | 138 | `docs/planned/MILESTONE_AUDIT_CORRECTED_2026-07-04.md` | MILESTONE_AUDIT_CORRECTED_2026-07-04 | 2026-07-04 | --- | 2026-07-05 | 2.8 KB | AUDIT, CORRECTED |
@@ -765,7 +765,7 @@
 | 309 | `docs/planned/MILESTONE_LAYER_COMPONENT_SYSTEM_UNITY_LIKE_2026-04-08.md` | マイルストーン: レイヤー向け軽量コンポーネントシステム | 2026-04-08 | Partial (Phase 1 host/serialization implemented; Phases 2-5 pending) | 2026-04-08 | 8.5 KB | LAYER, COMPONENT, SYSTEM, UNITY, LIKE |
 | 310 | `docs/planned/MILESTONE_LAYER_COMPONENTS_PHYSICS_BEHAVIOR_2026-03-28.md` | マイルストーン: Layer Components - Physics / Behavior | 2026-03-28 | Partial (Physics surface/runtime implemented; Behavior and UI workflow pending) | 2026-03-28 | 5.7 KB | LAYER, COMPONENTS, PHYSICS, BEHAVIOR |
 | 311 | `docs/planned/MILESTONE_LAYER_EFFECT_ENVELOPE_2026-06-19.md` | Layer Effect Envelope Milestone | 2026-06-19 | 部分完了（エンベロープ契約・保存復元・描画適用・Quick Create 導線を実装、Property/Inspector/Timeline 統合と Bake は未完了） | 2026-07-29 | 15.7 KB | LAYER, EFFECT, ENVELOPE |
-| 312 | `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_2026-03-27.md` | マイルストーン: レイヤーグループ導入 | 2026-03-27 | 部分完了（Group Layer の保存・復元・描画・基本操作を実装、表示UI/変換階層/可視性統合は未完了） | 2026-07-30 | 7.3 KB | LAYER, GROUP, SYSTEM |
+| 312 | `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_2026-03-27.md` | マイルストーン: レイヤーグループ導入 | 2026-03-27 | 部分完了（Group Layer の保存・復元・描画・基本操作を実装、表示UI/変換階層/可視性統合は未完了） | 2026-07-30 | 7.4 KB | LAYER, GROUP, SYSTEM |
 | 313 | `docs/planned/MILESTONE_LAYER_GROUP_SYSTEM_PHASE1_EXECUTION_2026-04-10.md` | Milestone: Layer Group System Phase 1 Execution | 2026-04-10 | Completed (group model, ownership propagation, JSON roundtrip, regression coverage implemented) | 2026-04-10 | 2.9 KB | LAYER, GROUP, SYSTEM, PHASE1, EXECUTION |
 | 314 | `docs/planned/MILESTONE_LAYER_LOCK_TRANSPARENCY_2026-04-10.md` | レイヤーロック機能の拡張 | 2026-04-10 | 部分完了（通常/選択/Transform/Timing ロックと JSON 永続化を実装、Property/Content/Visibility 分離・スマートロック・専用UI/ショートカットは未完了） | 2026-04-11 | 1.8 KB | LAYER, LOCK, TRANSPARENCY |
 | 315 | `docs/planned/MILESTONE_LAYER_MODIFIER_SYSTEM_2026-06-13.md` | 実装案: M-LYR-MOD Layer Modifier System (Blender-style Deformers) | 2026-06-13 | 未実装 | 2026-06-13 | 6.0 KB | LAYER, MODIFIER, SYSTEM |

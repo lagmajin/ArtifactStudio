@@ -88,8 +88,8 @@
 - [x] 親 group の Hidden／Locked を子 row の state reason として表示
 
 - 完了条件:
-  - group が見える
-  - group の折りたたみと状態把握ができる
+  - [x] group が見える（Timeline group row／icon）
+  - [x] group の折りたたみと基本状態把握ができる
 
 ## Phase 3: Transform Hierarchy Integration
 
