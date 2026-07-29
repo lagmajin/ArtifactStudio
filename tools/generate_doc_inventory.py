@@ -176,8 +176,13 @@ def scan_directory(
             continue
         rel_path = md_file.relative_to(ROOT)
         title, date, status, keywords = extract_title_and_date(md_file)
-        if not status:
-            status = existing_statuses.get(rel_path.as_posix())
+        curated_status = existing_statuses.get(rel_path.as_posix())
+        generic_statuses = {
+            "planned", "in progress", "not started", "complete", "completed",
+            "implementation complete", "partial", "partial implementation",
+        }
+        if curated_status and (not status or status.strip().lower() in generic_statuses):
+            status = curated_status
         git_date = git_dates.get(rel_path.as_posix()) or get_git_last_modified(md_file)
         size_kb = md_file.stat().st_size / 1024
         files.append({
