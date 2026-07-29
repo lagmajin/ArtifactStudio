@@ -96,11 +96,13 @@ facade sliceは静的実装済み。ユーザー方針によりbuild / testは�
 
 2026-07-13監査では`AbstractGeneratorEffector`の利用箇所がなく、任意layerへ生成bufferを注入する正式契約も存在しない。現行generatorは`ArtifactAbstractEffect` pipelineで実装されているため、旧抽象を直接接続する案は撤回する。
 
-### M-APP-10 DAGExecutor 効果評価
+### M-APP-10 DAGExecutor 効果評価（部分実装）
 - `Artifact/include/Engine/DAG/Executor.ixx`
-- DAG スケジューリングは実装済み
-- [ ] 効果ノードのバックエンド評価 (CPU/GPU)
-- [ ] エフェクトスタック → DAG ノードへのマッピング
+- [x] 有向依存のin-degree計算と依存解決順の並列スケジューリング
+- [x] ThreadPoolへのenqueueと全タスク待機
+- [ ] 効果ノードの実データ／バックエンド評価（現状はdirty→cachedの状態遷移のみ）
+- [ ] エフェクトスタック → DAGノードへの入力／出力バッファマッピング
+- cycle／missing inputを含むruntime検証は未実施
 
 ### M-APP-11 PlaybackEngine::renderFrame() 実装
 - `Artifact/src/Playback/ArtifactPlaybackEngine.cppm`
