@@ -1,4 +1,4 @@
-**ステータス:** Phase 0 completed (FX-2); remaining phases pending
+**ステータス:** FX-1/FX-2 completed; remaining phases pending
 
 # M-FX-PERF: GPU エフェクト追加・プロパティ更新時のもたつき改善 — 修正リスト
 
