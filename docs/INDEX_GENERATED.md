@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 02:53
+> Generated: 2026-07-30 02:57
 > Total documents: 1134
 
 ---
@@ -562,7 +562,7 @@
 | 106 | `docs/planned/MILESTONE_ARTIFACTPR_INDEPENDENT_PROJECT_2026-04-22.md` | MILESTONE: ArtifactPr Independent Project | 2026-07-29 | Phase 0〜4 implemented statically; build/runtime parity verification pending | 2026-07-29 | 5.1 KB | ARTIFACTPR, INDEPENDENT, PROJECT |
 | 107 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_ENGINE_2026-07-21.md` | MILESTONE_ARTIFACTSCRIPT_ENGINE_2026-07-21 | 2026-07-21 | Complete (3/3; build/runtime verification pending) | 2026-07-25 | 2.3 KB | ARTIFACTSCRIPT, ENGINE |
 | 108 | `docs/planned/MILESTONE_ASIO_STUB_IMPLEMENTATION_PLAN_2026-03-28.md` | ASIO スタブ実装 計画案 | 2026-03-28 | 計画案 | 2026-03-30 | 11.8 KB | ASIO, STUB, IMPLEMENTATION, PLAN |
-| 109 | `docs/planned/MILESTONE_ASPECT_RATIO_RESOLUTION_REMAP_WIZARD_2026-06-07.md` | MILESTONE: Aspect Ratio / Resolution Remap Wizard - 2026-06-07 | 2026-06-07 | Partial (preview, resolution remap apply, undo/redo, mask/keyframe remap, policy offsets, and impact diagnostics are documented as implemented; preflight/policy selection UI, actual anchor remap, and build/runtime verification remain pending) | 2026-06-15 | 6.5 KB | ASPECT, RATIO, RESOLUTION, REMAP, WIZARD |
+| 109 | `docs/planned/MILESTONE_ASPECT_RATIO_RESOLUTION_REMAP_WIZARD_2026-06-07.md` | MILESTONE: Aspect Ratio / Resolution Remap Wizard - 2026-06-07 | 2026-06-07 | Partial (preview, resolution remap apply, undo/redo, mask/keyframe remap, policy offsets, and impact diagnostics are documented as implemented; preflight/policy selection UI, actual anchor remap, and build/runtime verification remain pending) | 2026-07-30 | 6.5 KB | ASPECT, RATIO, RESOLUTION, REMAP, WIZARD |
 | 110 | `docs/planned/MILESTONE_ASSET_BROWSER_ADVANCED_SORT_2026-06-28.md` | Milestone: Asset Browser Advanced Sort (M-AB-11) | 2026-06-28 | Partial implementation（単一キー／natural name／固定複合 preset／sort key・方向の設定保存を実装、個別方向の multi-key／custom order／runtime 検証 pending） | 2026-07-30 | 48.9 KB | ASSET, BROWSER, ADVANCED, SORT |
 | 111 | `docs/planned/MILESTONE_ASSET_BROWSER_AI_SUPPORT_2026-06-28.md` | Milestone: Asset Browser AI Support (M-AB-15) | 2026-06-28 | Not started (2026-07-25 audit: AI tagging, similarity search, smart filtering, batch processing, dedicated UI, and Asset Browser integration are unimplemented; depends on the unfinished Asset Tag System) | 2026-07-25 | 16.4 KB | ASSET, BROWSER, SUPPORT |
 | 112 | `docs/planned/MILESTONE_ASSET_BROWSER_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: アセットブラウザー デザイン監査 (2026-07-04) | 2026-07-04 | Partial (Sources/Favorites/Recent hub, summaries, grid/list, thumbnail sizing, async/hover preview, search/type/status filters, sorting, sequence display, and asset states implemented; owner-draw badges, rich metadata/details, tags/AI/advanced sort, sequence expansion, internal D&D, and runtime UX verification pending) | 2026-07-25 | 9.5 KB | ASSET, BROWSER, DESIGN, AUDIT |
@@ -585,7 +585,7 @@
 | 129 | `docs/planned/MILESTONE_AUDIO_LAYER_INTEGRATION_2026-03-27.md` | マイルストーン: オーディオレイヤー統合 | 2026-07-29 | Phase 1〜4 implemented; audio sync/error UX/runtime parity verification pending | 2026-07-29 | 7.3 KB | AUDIO, LAYER, INTEGRATION |
 | 130 | `docs/planned/MILESTONE_AUDIO_MIXER_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: オーディオミキサー 機能監査 (2026-07-04) | 2026-07-04 | Partial; P0 mixer foundation implemented, DAW-grade P1/P2 features and runtime verification pending | 2026-07-25 | 2.8 KB | AUDIO, MIXER, DESIGN, AUDIT |
 | 131 | `docs/planned/MILESTONE_AUDIO_MIXER_SURFACE_PHASE2_2026-05-25.md` | マイルストーン: Audio Mixer Surface Phase 2 | 2026-05-25 | Partial（Phase 1 mixer surface 基礎実装済み、routing／waveform／永続化と runtime 検証待ち、静的確認 2026-07-29） | 2026-07-29 | 3.1 KB | AUDIO, MIXER, SURFACE, PHASE2 |
-| 132 | `docs/planned/MILESTONE_AUDIO_PLAYBACK_STABILIZATION_2026-03-28.md` | マイルストーン: Audio Playback Stabilization | 2026-03-28 | Phase 1〜2／4 foundation implemented; format contract/runtime verification pending | 2026-07-30 | 5.9 KB | AUDIO, PLAYBACK, STABILIZATION |
+| 132 | `docs/planned/MILESTONE_AUDIO_PLAYBACK_STABILIZATION_2026-03-28.md` | マイルストーン: Audio Playback Stabilization | 2026-03-28 | Phase 1〜2／4 foundation implemented; format contract/runtime verification pending | 2026-07-30 | 6.0 KB | AUDIO, PLAYBACK, STABILIZATION |
 | 133 | `docs/planned/MILESTONE_AUDIO_REACTOR_SYSTEM_2026-03-30.md` | Milestone: Audio Reactor System (M-AU-6) | 2026-07-29 | FFT／Audio Reactive binding foundation implemented; service/UI/runtime verification pending | 2026-07-29 | 3.7 KB | AUDIO, REACTOR, SYSTEM |
 | 134 | `docs/planned/MILESTONE_AUDIO_SCRUBBING_2026-06-16.md` | M-AU-8 Audio Scrubbing Milestone | 2026-06-16 | Implemented; device latency/cache hit/mute-sync/runtime verification pending | 2026-07-29 | 14.9 KB | AUDIO, SCRUBBING |
 | 135 | `docs/planned/MILESTONE_AUDIO_WAVEFORM_2026-03-29.md` | Milestone: オーディオ波形ビジュアライザー (2026-03-29) | 2026-03-29 | Partial; extraction/timeline/cached viewport/spectrum overlays implemented, lifecycle hardening pending | 2026-07-30 | 3.4 KB | AUDIO, WAVEFORM |
@@ -1033,7 +1033,7 @@
 | 577 | `docs/planned/MILESTONE_WORKSPACE_MANAGER_2026-03-29.md` | Milestone: Workspace Manager (2026-03-29) | 2026-03-29 | --- | 2026-07-25 | 3.4 KB | WORKSPACE, MANAGER |
 | 578 | `docs/planned/MILESTONE_WORKSPACE_PRESETS_2026-04-10.md` | ワークスペースプリセット管理の実装 | 2026-04-10 | --- | 2026-07-25 | 5.2 KB | WORKSPACE, PRESETS |
 | 579 | `docs/planned/MILESTONE_ZOOM_TO_FIT_2026-04-10.md` | ズームtoフィット機能の拡張 | 2026-04-10 | --- | 2026-07-29 | 4.5 KB | ZOOM, FIT |
-| 580 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-30 | 97.6 KB | BACKLOG |
+| 580 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-30 | 97.7 KB | BACKLOG |
 | 581 | `docs/planned/NEXT_PHASE_ROADMAP.md` | プロジェクトビュー → タイムライン統合の次フェーズ提案 | 2026-06-07 | --- | 2026-07-05 | 9.1 KB | NEXT, PHASE, ROADMAP |
 | 582 | `docs/planned/PROPOSAL_RENDER_EXPORT_EFFICIENCY_2026-07-28.md` | 提案メモ: ファイル書き出し（レンダーキュー）効率化 — 2026-07-28 | 2026-07-28 | 提案（未実装・未承認） | 2026-07-28 | 3.7 KB | PROPOSAL, RENDER, EXPORT, EFFICIENCY |
 | 583 | `docs/planned/RANDOM_HELPER_PROPOSAL_2026-06-16.md` | Random / Noise Helper Proposal (ArtifactCore) — 2026-06-16 | 2026-06-16 | --- | 2026-06-17 | 21.0 KB | RANDOM, HELPER, PROPOSAL |

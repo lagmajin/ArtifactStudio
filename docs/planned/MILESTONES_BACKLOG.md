@@ -1068,6 +1068,7 @@ active milestone の重複名としては扱わない。
 ### M-AU-5 Audio Playback Stabilization
 - start-up pre-roll, stop/seek hygiene, buffer diagnostics, format normalization
 - 詳細は `docs/planned/MILESTONE_AUDIO_PLAYBACK_STABILIZATION_2026-03-28.md`
+- Phase 1〜4 の静的実装済み。スクラブ再入場時の旧バッファ破棄を追加済み。実機の format / drift / underrun 検証は未完了
 
 ## Project / Asset
 
