@@ -104,13 +104,12 @@ facade sliceは静的実装済み。ユーザー方針によりbuild / testは�
 - [ ] エフェクトスタック → DAGノードへの入力／出力バッファマッピング
 - cycle／missing inputを含むruntime検証は未実施
 
-### M-APP-11 PlaybackEngine::renderFrame() 実装
+### M-APP-11 PlaybackEngine::renderFrame() ✅（静的実装済み・runtime確認待ち）
 - `Artifact/src/Playback/ArtifactPlaybackEngine.cppm`
-- 現在: ダミー画像 ("Frame N" テキスト) を返す
-- [ ] レイヤーコンポジット
-- [ ] エフェクト適用
-- [ ] 出力ピクセル生成
-- ※ レンダーパイプライン全体の完成度に依存
+- [x] `generateCompositionThumbnail()` を介したcomposition canvas生成
+- [x] composition sizeへのpreview scalingとframe positionの一時切り替え・復元
+- [x] composition未提供／描画失敗時の明示的なpreview unavailable fallback
+- レイヤー／一部effectの最終品質、連続再生、runtime表示は未検証
 
 ---
 
