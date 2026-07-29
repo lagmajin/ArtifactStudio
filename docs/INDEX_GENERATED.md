@@ -608,7 +608,7 @@
 | 159 | `docs/planned/MILESTONE_COLOR_BACKEND_HARDENING_2026-07-21.md` | MILESTONE_COLOR_BACKEND_HARDENING_2026-07-21 | 2026-07-21 | --- | 2026-07-24 | 3.6 KB | COLOR, BACKEND, HARDENING |
 | 160 | `docs/planned/MILESTONE_COLOR_CORRECTION_2026-03-27.md` | Color Correction / Grading Milestone | 2026-03-27 | --- | 2026-03-28 | 4.7 KB | COLOR, CORRECTION |
 | 161 | `docs/planned/MILESTONE_COLOR_GRADING_2026-03-29.md` | Milestone: Color Grading Suite (2026-03-29) | 2026-03-29 | --- | 2026-03-30 | 1.4 KB | COLOR, GRADING |
-| 162 | `docs/planned/MILESTONE_COLOR_GRADING_WORKSPACE_2026-03-30.md` | Milestone: Color Grading Workspace (M-SC-3) | 2026-04-01 | --- | 2026-07-09 | 2.4 KB | COLOR, GRADING, WORKSPACE |
+| 162 | `docs/planned/MILESTONE_COLOR_GRADING_WORKSPACE_2026-03-30.md` | Milestone: Color Grading Workspace (M-SC-3) | 2026-04-01 | 部分完了（scope/HDR解析、ColorWheels/Curves/GradingEngine、LUT基盤あり、専用layout・継続scope更新・Inspector同期・Wipe比較・mask部分適用は未完了） | 2026-07-29 | 2.4 KB | COLOR, GRADING, WORKSPACE |
 | 163 | `docs/planned/MILESTONE_COLOR_MANAGEMENT_QUICK_2026-04-10.md` | 簡易カラーマネジメント設定の実装 | 2026-04-10 | --- | 2026-04-11 | 2.2 KB | COLOR, MANAGEMENT, QUICK |
 | 164 | `docs/planned/MILESTONE_COLOR_PICKER_DIALOG_2026-04-04.md` | カラーピッカーダイアログ リデザイン マイルストーン | 2026-04-04 | --- | 2026-04-05 | 2.1 KB | COLOR, PICKER, DIALOG |
 | 165 | `docs/planned/MILESTONE_COLOR_PICKER_ENHANCED_2026-04-10.md` | カラーピッカーの拡張機能 | 2026-04-10 | --- | 2026-04-11 | 1.8 KB | COLOR, PICKER, ENHANCED |
