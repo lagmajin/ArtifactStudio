@@ -151,7 +151,7 @@ void drawStyledPolylineLocal(const std::vector<Detail::float2>& points,
 - `ArtifactIRenderer::drawArcLocal()` から上記 primitive を公開し、上位 layer が renderer façade 経由で再利用できる境界を確立。
 - 既存 `drawRoundedPanel()` の outline corner を `drawArcLocal()` へ移し、rounded rectangle の重複した円弧実装を整理。
 - `PolylineStyle` と `ArtifactIRenderer::drawStyledPolyline()` を追加し、closed／round join／round cap／square cap／任意長 dash pattern の連続消費を実装。
-- miter／bevel の固有 geometry、shape layer 接続、runtime parity は未完了。
+- miter／bevel の外側 join geometry を追加。shape layer 接続と runtime parity は未完了。
 
 ### Phase 2: Styled Polyline
 
@@ -170,7 +170,7 @@ void drawStyledPolylineLocal(const std::vector<Detail::float2>& points,
 - `Line` や `Rounded Rect` の app-layer 実装が renderer の寄せ集めではなく、正式 API を通る
 - low-level 追加が `ImmediateContext` の露出拡大ではなく、renderer façade の強化として成立する
 
-現時点の判定: **Phase 1 Arc／Rounded Rect façade は実装済み、Phase 2 Styled Polyline は cap／dash 対応済みの部分実装（runtime 検証 pending）**。
+現時点の判定: **Phase 1 Arc／Rounded Rect façade は実装済み、Phase 2 Styled Polyline は cap／join／dash 対応済み（shape layer 接続・runtime 検証 pending）**。
 
 ## Target Files
 
