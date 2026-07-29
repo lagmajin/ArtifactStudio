@@ -53,5 +53,6 @@
 
 - `ArtifactAssetBrowser` に QtConcurrent／QFutureWatcher による image／video thumbnail の非同期生成、世代番号による stale result 無効化、mutex 保護のメモリ cache、個別 model 更新経路を確認できる。
 - FFmpegThumbnailExtractor の単一スレッド寄り抽出、ディスク thumbnail cache、audio waveform の非同期経路も実装されている。
+- キャッシュ再生成時は世代更新に加えて進行中の image／video／audio watcher を disconnect／cancel し、古い job を pending map から破棄する。
 - 一方、可視範囲・近傍アイテムを厳密に優先する scheduler、明示的な cancel／shutdown の runtime 検証、全件初期表示での UI 非ブロッキング効果は未確認である。
 - よって主要な非同期 warmup は実装済みだが、Phase 3 と実機性能検証を残す In Progress 判定を維持する。
