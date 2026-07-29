@@ -1,7 +1,7 @@
 # M-LA-4 Parent Pick-Whip Milestone
 
 作成日: 2026-07-03
-ステータス: Draft
+ステータス: Completed for the implemented timeline drag-to-parent slice; runtime and cyclic-parent rejection verification remain pending.
 対象: `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`,
       `Artifact/src/Widgets/ArtifactInspectorWidget.cppm`,
       `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`,
