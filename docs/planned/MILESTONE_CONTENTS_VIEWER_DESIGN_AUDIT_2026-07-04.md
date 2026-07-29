@@ -151,6 +151,7 @@
 
 - Compare surface は `Wipe` / `Split` / `Difference` の表示モード、A/B source assignment、左右 swap、wipe position の設定保存・復元を実装済みとして確認した。
 - Difference は画像同士の場合に限定し、非対応 source では Split へ安全に fallback する。
+- Compare の A/B header は source path の存在状態も反映し、割り当て済みだが見つからない source を `Missing` と明示する。
 - スクリーンショット／export、Compare の runtime 視認性確認は未完了として残す。
 
 P1 は、Compare モードとメタデータ表示の責務を先に切り分ける。

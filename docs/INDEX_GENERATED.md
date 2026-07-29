@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 01:42
+> Generated: 2026-07-30 01:43
 > Total documents: 1134
 
 ---
@@ -646,7 +646,7 @@
 | 190 | `docs/planned/MILESTONE_CONTENTS_VIEWER_COMPARE_2026-07-12.md` | Contents Viewer Compare Redesign | 2026-07-12 | In progress (single compare canvas, A/B assignment/swap, wipe/split/difference, state persistence, Diff fallback, transport/info strip, and J/K/L/frame-step handling implemented; GPU/ImageF32x4 diff path, source framing, scopes/metadata rail, Asset Browser/Project View assignment, stale-frame/audio runtime verification pending) | 2026-07-25 | 10.3 KB | CONTENTS, VIEWER, COMPARE |
 | 191 | `docs/planned/MILESTONE_CONTENTS_VIEWER_DCC_SURFACE_LAYOUT_2026-04-03.md` | マイルストーン: Contents Viewer DCC Surface Layout / A-B / Wipe | 2026-04-03 | --- | 2026-07-09 | 10.7 KB | CONTENTS, VIEWER, DCC, SURFACE, LAYOUT |
 | 192 | `docs/planned/MILESTONE_CONTENTS_VIEWER_DCC_SURFACE_LAYOUT_2026-04-03_EXECUTION.md` | Contents Viewer DCC Surface Layout Execution Memo | 2026-04-23 | --- | 2026-04-23 | 4.3 KB | CONTENTS, VIEWER, DCC, SURFACE, LAYOUT |
-| 193 | `docs/planned/MILESTONE_CONTENTS_VIEWER_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: コンテンツビューワー デザイン監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-09 | 10.4 KB | CONTENTS, VIEWER, DESIGN, AUDIT |
+| 193 | `docs/planned/MILESTONE_CONTENTS_VIEWER_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: コンテンツビューワー デザイン監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-30 | 10.5 KB | CONTENTS, VIEWER, DESIGN, AUDIT |
 | 194 | `docs/planned/MILESTONE_CONTEXT_MENU_COMPACT_ACTIONS_2026-06-07.md` | Context Menu Compact Actions Milestone | 2026-06-07 | 計画中 | 2026-06-09 | 3.6 KB | CONTEXT, MENU, COMPACT, ACTIONS |
 | 195 | `docs/planned/MILESTONE_CONTINUATION_SPRINT_2026-05-20.md` | Continuation Sprint / 2026-05-20 | 2026-05-20 | --- | 2026-06-20 | 4.7 KB | CONTINUATION, SPRINT |
 | 196 | `docs/planned/MILESTONE_COORDINATE_PROFILES_2026-06-07.md` | MILESTONE: Coordinate Profiles | 2026-06-07 | Partial (CoordinateUnit/Value/Space/Profile/Resolver contracts, JSON conversion, basic px/%/normalized/grid/safe-area transforms, and expression parsing implemented; Artifact editor/property/guide/responsive integration, project persistence, common Y-axis evaluation, Unity Units/Tile Grid editing, and runtime verification pending) | 2026-07-25 | 3.4 KB | COORDINATE, PROFILES |
