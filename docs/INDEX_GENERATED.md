@@ -865,7 +865,7 @@
 | 416 | `docs/planned/MILESTONE_PROXY_QUALITY_TOGGLE_UI_2026-06-01.md` | Milestone: Proxy Quality Toggle in Preview UI | 2026-06-01 | --- | 2026-06-01 | 3.5 KB | PROXY, QUALITY, TOGGLE |
 | 417 | `docs/planned/MILESTONE_PROXY_WORKFLOW_2026-03-29.md` | Milestone: Proxy Workflow (2026-03-29) | 2026-03-29 | --- | 2026-03-30 | 1.6 KB | PROXY, WORKFLOW |
 | 418 | `docs/planned/MILESTONE_PUPPET_ENGINE_2026-03-29.md` | Milestone: OpenCV Puppet Engine (2026-03-29) | 2026-03-29 | --- | 2026-03-30 | 5.4 KB | PUPPET, ENGINE |
-| 419 | `docs/planned/MILESTONE_PYTHON_API_SCRIPTING_2026-03-30.md` | Milestone: Python API & Scripting Console (M-PY-1) | 2026-04-10 | --- | 2026-03-30 | 2.5 KB | PYTHON, API, SCRIPTING |
+| 419 | `docs/planned/MILESTONE_PYTHON_API_SCRIPTING_2026-03-30.md` | Milestone: Python API & Scripting Console (M-PY-1) | 2026-04-10 | 部分実装（PythonEngine、Core/Artifact API登録、hook/menu、WorkspaceAutomation/MCP経路あり、pybind型付きobject export・専用REPL UI・直接app/project object・完全render queue API・headless CLI・sandbox/timeout・runtime検証未完了） | 2026-07-29 | 2.5 KB | PYTHON, API, SCRIPTING |
 | 420 | `docs/planned/MILESTONE_QADS_FLOATING_SURFACE_STABILIZATION_2026-05-16.md` | Milestone: QADS Floating Surface Stabilization | 2026-05-16 | --- | 2026-05-16 | 3.6 KB | QADS, FLOATING, SURFACE, STABILIZATION |
 | 421 | `docs/planned/MILESTONE_QSS_DECOMMISSION_COMMONSTYLE_2026-04-03.md` | Milestone: QSS Decommission / CommonStyle Path to QCommonStyle (2026-04-03) | 2026-04-03 | --- | 2026-04-03 | 4.7 KB | QSS, DECOMMISSION, COMMONSTYLE |
 | 422 | `docs/planned/MILESTONE_QSS_EXORCISM_PROPERTY_THEME_2026-04-02.md` | Milestone: QSS Exorcism / Property Theme Ownership (2026-04-02) | 2026-04-02 | --- | 2026-04-02 | 3.0 KB | QSS, EXORCISM, PROPERTY, THEME |
