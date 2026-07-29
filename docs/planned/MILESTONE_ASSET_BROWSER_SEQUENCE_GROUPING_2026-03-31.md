@@ -1,5 +1,7 @@
 # マイルストーン: Asset Browser Sequence Grouping
 
+ステータス: Phase 1〜3 実装済み（runtime 一貫性・欠落 frame 検証待ち、静的確認 2026-07-29）
+
 > 2026-03-31 作成
 
 ## 目的
