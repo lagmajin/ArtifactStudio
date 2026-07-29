@@ -1,6 +1,6 @@
 # マイルストーン: Dock / Workspace 機能監査 (2026-07-04)
 
-> 状態: Partial（Ctrl+1〜4 クイック切替を実装、レイアウトリセット・pin・最大化・runtime 検証は未完了）
+> 状態: Partial（Ctrl+1〜4 と Shift+Space 最大化を実装、レイアウトリセット・pin・ダブルクリック最大化・runtime 検証は未完了）
 
 > VS Code / Blender / Maya / Premiere ワークスペース比較。
 
@@ -22,7 +22,7 @@
 | **タブの並び替え（ドラッグ）** | VS Code | ⚠️ |
 | **タブの分割ビュー（左右/上下）** | VS Code | ⚠️ |
 | **タブの色分け（プロジェクト/パネル種別）** | - | ❌ |
-| **クイックパネル切替（Ctrl+1/2/3/4）** | Blender | ❌ |
+| **クイックパネル切替（Ctrl+1/2/3/4）** | Blender | ✅ 実装済み（Default / Animation / Compositing / Audio） |
 | **エディタ領域の最大化（Shift+Space）** | Blender | ✅ 実装済み（focused dock の immersive 切替） |
 
 ---

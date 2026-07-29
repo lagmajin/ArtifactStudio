@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-29 22:05
+> Generated: 2026-07-29 22:06
 > Total documents: 1134
 
 ---
@@ -674,7 +674,7 @@
 | 218 | `docs/planned/MILESTONE_DIAGNOSTICS_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: 診断 / デバッグ機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-25 | 2.7 KB | DIAGNOSTICS, DESIGN, AUDIT |
 | 219 | `docs/planned/MILESTONE_DILIGENT_LOW_LEVEL_API_2026-04-01.md` | Milestone: Diligent Low-Level Rendering API Expansion (2026-04-01) | 2026-04-01 | --- | 2026-07-25 | 11.7 KB | DILIGENT, LOW, LEVEL, API |
 | 220 | `docs/planned/MILESTONE_DISK_CACHE_SYSTEM_2026-03-26.md` | Disk Cache System Milestone | 2026-03-26 | --- | 2026-07-25 | 5.7 KB | DISK, CACHE, SYSTEM |
-| 221 | `docs/planned/MILESTONE_DOCK_WORKSPACE_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: Dock / Workspace 機能監査 (2026-07-04) | 2026-07-04 | Partial（Ctrl+1〜4 クイック切替を実装、レイアウトリセット・pin・最大化・runtime 検証は未完了） | 2026-07-29 | 3.7 KB | DOCK, WORKSPACE, DESIGN, AUDIT |
+| 221 | `docs/planned/MILESTONE_DOCK_WORKSPACE_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: Dock / Workspace 機能監査 (2026-07-04) | 2026-07-04 | Partial（Ctrl+1〜4 と Shift+Space 最大化を実装、レイアウトリセット・pin・ダブルクリック最大化・runtime 検証は未完了） | 2026-07-29 | 3.8 KB | DOCK, WORKSPACE, DESIGN, AUDIT |
 | 222 | `docs/planned/MILESTONE_DOCUMENTATION_META_MANAGEMENT_2026-07-03.md` | M-DOCMETA: ドキュメントメタ管理 (Documentation Meta Management) | 2026-07-03 | 計画 | 2026-07-25 | 8.4 KB | AE parity, workflow, gap analysis, P0, timeline, keyframe, g |
 | 223 | `docs/planned/MILESTONE_DOMAIN_TYPE_WRAPPERS_2026-07-04.md` | マイルストーン: テンプレート露出削減 → ドメイン型ラッパー (2026-07-04) | 2026-07-04 | --- | 2026-07-25 | 10.6 KB | DOMAIN, TYPE, WRAPPERS |
 | 224 | `docs/planned/MILESTONE_DOPE_SHEET_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: Dope Sheet 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-25 | 2.4 KB | DOPE, SHEET, DESIGN, AUDIT |
