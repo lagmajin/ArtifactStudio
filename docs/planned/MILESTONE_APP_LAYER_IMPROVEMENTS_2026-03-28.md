@@ -58,11 +58,11 @@
 
 ## 発見された問題点（未実装）
 
-### ★★★ 問題 1: WebUI ブリッジの実装整理
+### ✅ 問題 1: WebUI ブリッジの実装整理（静的実装済み）
 
 **場所:** `Artifact/src/Widgets/WebUI/ArtifactWebBridge.cppm`
 
-**TODO 一覧:**
+**旧 TODO 一覧（現行コードで解消済み）:**
 ```cpp
 // line 75:
 // TODO: construct LayerID from string
@@ -78,9 +78,10 @@
 ```
 
 **現状:** `selectLayer()`, `setEffectProperty()`, `getProjectInfo()`, `getSelectedLayerProperties()` は実装済み。
-**残り:** LayerID / effect lookup / composition statistics / selected layer JSON の仕様差分整理
+LayerID の文字列化、選択レイヤー上の effect ID／表示名解決、composition／layer 統計、effect／layer property の JSON 化まで現行コードで確認できる。
+runtime の WebUI 接続確認と仕様差分の将来拡張は別検証として残す。
 
-**ステータス:** △ 部分実装
+**ステータス:** ✅ 静的実装済み（runtime 検証待ち）
 **工数:** 1-2 時間
 
 ---
@@ -122,7 +123,7 @@
 |------|-----------|------|
 | **Undo/Redo 統合 段階 1** | ✅ 完了 | 20-30h（うち段階 1:10h） |
 | **ASIO スタブバックエンド** | ✅ 完了 | 12-18h |
-| **WebUI ブリッジ** | △ 部分実装 | 1-2h |
+| **WebUI ブリッジ** | ✅ 静的実装済み・runtime 確認待ち | 1-2h |
 | **VideoLayer Proxy** | ✅ 静的実装済み・runtime 確認待ち | — |
 | **プロジェクト管理** | ❌ 未着手 | 4-6h |
 

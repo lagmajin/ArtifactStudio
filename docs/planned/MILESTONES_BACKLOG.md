@@ -1218,7 +1218,7 @@ active milestone の重複名としては扱わない。
 - Phase 3: EditMode / DisplayMode の UI 接続
 - Phase 4: エフェクトパイプライン接続 (Generator::apply, DAG eval, renderFrame)
 - Phase 5: データ/永続化 (PreCompose 時間変換, VideoProxy, AspectRatio)
-- Phase 6: 拡張 (OFX ホスト, WebBridge)
+- Phase 6: 拡張 (OFX ホスト, WebBridge) — WebBridge の LayerID／effect lookup／project info／selected-layer JSON は静的実装済み、OFX と runtime 検証は継続
 - ログ
 - 診断導線
 

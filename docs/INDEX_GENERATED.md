@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 02:41
+> Generated: 2026-07-30 02:43
 > Total documents: 1134
 
 ---
@@ -555,7 +555,7 @@
 | 99 | `docs/planned/MILESTONE_APP_INTERNAL_DEBUGGER_2026-04-17.md` | App Internal Debugger Milestone | 2026-04-20 | 部分実装（Trace/State/Frame/Crash/Diagnostics面あり、横断snapshot・一画面統合・bundle接続は未完了） | 2026-07-25 | 9.8 KB | APP, INTERNAL, DEBUGGER |
 | 100 | `docs/planned/MILESTONE_APP_LAYER_COMPLETENESS.md` | マイルストーン: アプリ層完成度向上 | 2026-03-20 | Partial; app-layer workstreams advanced, remaining gaps tracked by execution milestones and runtime verification | 2026-07-30 | 9.7 KB | APP, LAYER, COMPLETENESS |
 | 101 | `docs/planned/MILESTONE_APP_LAYER_COMPLETENESS_M_APP_7_EDITMODE_UI_IMPLEMENTATION_2026-06-13.md` | 実装案: M-APP-7 EditMode → ツール自動マッピングの UI 接続 | 2026-06-13 | 実装済み・実機未確認 | 2026-07-14 | 10.0 KB | APP, LAYER, COMPLETENESS |
-| 102 | `docs/planned/MILESTONE_APP_LAYER_IMPROVEMENTS_2026-03-28.md` | アプリ層改善 Milestone | 2026-03-28 | 一部実装済み ✅ | 2026-07-30 | 10.6 KB | APP, LAYER, IMPROVEMENTS |
+| 102 | `docs/planned/MILESTONE_APP_LAYER_IMPROVEMENTS_2026-03-28.md` | アプリ層改善 Milestone | 2026-03-28 | 一部実装済み ✅ | 2026-07-30 | 10.9 KB | APP, LAYER, IMPROVEMENTS |
 | 103 | `docs/planned/MILESTONE_APP_SETTINGS_WIDGET_GAP_2026-06-13.md` | 実装案: App Settings - Widget 接続ギャップ | 2026-06-13 | Partial（主要設定・EditMode／DisplayMode・Preview cache・Grid UI・CloneLayer Property Editor・既定Transform Effector接続済み、追加Effector型とruntime検証は未完了、静的確認 2026-07-30） | 2026-07-30 | 5.7 KB | APP, SETTINGS, WIDGET, GAP |
 | 104 | `docs/planned/MILESTONE_APP_SURFACE_COHESION_2026-05-13.md` | Milestone: App Surface Cohesion | 2026-05-13 | Partial; context/summary/empty/playback foundations exist, cross-surface finish and runtime cohesion pending | 2026-07-25 | 11.2 KB | APP, SURFACE, COHESION |
 | 105 | `docs/planned/MILESTONE_APPLICATION_SETTINGS_APP_INTEGRATION_2026-04-19.md` | MILESTONE_APPLICATION_SETTINGS_APP_INTEGRATION_2026-04-19 | 2026-04-19 | Settings model/preferences/main UI foundation implemented; startup/live-sync/runtime verification pending | 2026-07-29 | 5.5 KB | APPLICATION, SETTINGS, APP, INTEGRATION |
@@ -1033,7 +1033,7 @@
 | 577 | `docs/planned/MILESTONE_WORKSPACE_MANAGER_2026-03-29.md` | Milestone: Workspace Manager (2026-03-29) | 2026-03-29 | --- | 2026-07-25 | 3.4 KB | WORKSPACE, MANAGER |
 | 578 | `docs/planned/MILESTONE_WORKSPACE_PRESETS_2026-04-10.md` | ワークスペースプリセット管理の実装 | 2026-04-10 | --- | 2026-07-25 | 5.2 KB | WORKSPACE, PRESETS |
 | 579 | `docs/planned/MILESTONE_ZOOM_TO_FIT_2026-04-10.md` | ズームtoフィット機能の拡張 | 2026-04-10 | --- | 2026-07-29 | 4.5 KB | ZOOM, FIT |
-| 580 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-30 | 96.8 KB | BACKLOG |
+| 580 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-30 | 97.0 KB | BACKLOG |
 | 581 | `docs/planned/NEXT_PHASE_ROADMAP.md` | プロジェクトビュー → タイムライン統合の次フェーズ提案 | 2026-06-07 | --- | 2026-07-05 | 9.1 KB | NEXT, PHASE, ROADMAP |
 | 582 | `docs/planned/PROPOSAL_RENDER_EXPORT_EFFICIENCY_2026-07-28.md` | 提案メモ: ファイル書き出し（レンダーキュー）効率化 — 2026-07-28 | 2026-07-28 | 提案（未実装・未承認） | 2026-07-28 | 3.7 KB | PROPOSAL, RENDER, EXPORT, EFFICIENCY |
 | 583 | `docs/planned/RANDOM_HELPER_PROPOSAL_2026-06-16.md` | Random / Noise Helper Proposal (ArtifactCore) — 2026-06-16 | 2026-06-16 | --- | 2026-06-17 | 21.0 KB | RANDOM, HELPER, PROPOSAL |
@@ -1100,7 +1100,7 @@
 | 23 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.2 KB | IMPL, DOF |
 | 24 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.7 KB | IMPL, SSAO |
 | 25 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.5 KB | IMPL, TONE, MAPPING |
-| 26 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-07-30 | --- | 2026-07-30 | 282.2 KB | INDEX, GENERATED |
+| 26 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-07-30 | --- | 2026-07-30 | 282.1 KB | INDEX, GENERATED |
 | 27 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 28 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 11.6 KB | CAMERA, PROJECTION |
 | 29 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
