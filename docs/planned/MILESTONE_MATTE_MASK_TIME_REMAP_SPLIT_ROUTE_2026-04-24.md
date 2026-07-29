@@ -1,5 +1,7 @@
 # Matte / Mask / Time Remap Split Route
 
+**Status:** Matte core and TimeRemap foundations implemented; GPU mask integration and cross-route runtime verification pending
+
 `LayerMatte`、`MaskCutout`、`TimeRemap` を 1 本の太い作業にまとめず、責務ごとに分けて進めるための整理メモ。
 
 このドキュメントは、今回の精査で「一気に混ぜると危ない」と判断した領域を、今の `main` に合わせて切り分けるためのものです。
@@ -50,6 +52,14 @@
 - もし次に実装へ進むなら、最初の一手は `Matte` の ownership / cycle / serialization を安定させるところから入るのが安全。
 - `TimeRemap` は既存の timeline / playback の現在の作法に寄せて育てる。
 - `MaskCutout` は compute 版を別ルートで検証し、CPU fallback を残す。
+
+## Static audit follow-up (2026-07-29)
+
+`Layer.Matte`、`Time.TimeRemap`、Roto/Mask の評価経路と GPU Mask milestone を照合した。Matte evaluator/stack、diagnostic validation、TimeRemap processor、RotoMask keyframe/rasterization は実装基盤として存在する。GPU mask は初期化・pipeline API までで、composition の標準経路統合は未完了。ビルド・runtime検証は未実施。
+
+### 判定
+
+責務分離の方針は維持し、Matte/TimeRemap の基盤実装済み、GPU Mask の composition integration pending として扱う。3系統を一括変更する状態ではない。
 
 ---
 

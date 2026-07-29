@@ -789,7 +789,7 @@
 | 340 | `docs/planned/MILESTONE_MASTER_PROPERTIES_2026-07-08.md` | Milestone: Master Properties / Essential Properties（プリコンプ外部プロパティ上書き） (2026-07-08 | 2026-07-08 | Phase 3 Completed (static verified 2026-07-22; runtime/build verification pending) | 2026-07-24 | 5.4 KB | MASTER, PROPERTIES |
 | 341 | `docs/planned/MILESTONE_MATERIAL_CONTAINER_LAYER_2026-06-25.md` | M-MATCON-1: 素材コンテナーレイヤー設計 | 2026-06-25 | --- | 2026-06-25 | 9.4 KB | MATERIAL, CONTAINER, LAYER |
 | 342 | `docs/planned/MILESTONE_MATERIALX_DOCUMENT_EXCHANGE_2026-04-10.md` | MILESTONE: MaterialX Document / Exchange Bridge | 2026-04-10 | --- | 2026-04-11 | 3.0 KB | MATERIALX, DOCUMENT, EXCHANGE |
-| 343 | `docs/planned/MILESTONE_MATTE_MASK_TIME_REMAP_SPLIT_ROUTE_2026-04-24.md` | Matte / Mask / Time Remap Split Route | 2026-04-03 | --- | 2026-04-24 | 2.7 KB | MATTE, MASK, TIME, REMAP, SPLIT |
+| 343 | `docs/planned/MILESTONE_MATTE_MASK_TIME_REMAP_SPLIT_ROUTE_2026-04-24.md` | Matte / Mask / Time Remap Split Route | 2026-04-03 | Matte/TimeRemap foundations implemented; GPU mask integration/runtime verification pending | 2026-07-29 | 2.7 KB | MATTE, MASK, TIME, REMAP, SPLIT |
 | 344 | `docs/planned/MILESTONE_MAYA_VIEWPORT_OPERATIONS_2026-03-25.md` | Milestone: Maya-Like Viewport Operations for AE-Style App (2026-03-25) | 2026-03-25 | --- | 2026-03-27 | 12.0 KB | MAYA, VIEWPORT, OPERATIONS |
 | 345 | `docs/planned/MILESTONE_MENU_APP_INTEGRATION_2026-03-27.md` | Menu to App Integration Milestone | 2026-03-27 | --- | 2026-07-09 | 6.0 KB | MENU, APP, INTEGRATION |
 | 346 | `docs/planned/MILESTONE_MENU_SYSTEM_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: メニューシステム 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 1.4 KB | MENU, SYSTEM, DESIGN, AUDIT |
