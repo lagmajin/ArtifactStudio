@@ -600,7 +600,7 @@
 | 151 | `docs/planned/MILESTONE_CAPTION_SUBTITLE_2026-06-16.md` | M-CAPTION-1 Caption / Subtitle Milestone (SRT / WebVTT) | 2026-06-16 | --- | 2026-06-18 | 13.9 KB | CAPTION, SUBTITLE |
 | 152 | `docs/planned/MILESTONE_CHANNEL_BOX_2026-07-07.md` | M-CBOX-1 Channel Box + Maya-Style Property Editor Milestone | 2026-07-07 | --- | 2026-07-07 | 7.7 KB | CHANNEL, BOX |
 | 153 | `docs/planned/MILESTONE_CLOUD_AI_PHASE_6_7_2026-05-20.md` | Cloud AI Phase 6 & 7: Export API & Timeline Operations | 2026-05-20 | --- | 2026-05-20 | 1.4 KB | CLOUD, PHASE |
-| 154 | `docs/planned/MILESTONE_COLLAB_BACKEND_FOUNDATION_2026-07-21.md` | MILESTONE_COLLAB_BACKEND_FOUNDATION_2026-07-21 | 2026-07-21 | --- | 2026-07-22 | 2.7 KB | COLLAB, BACKEND, FOUNDATION |
+| 154 | `docs/planned/MILESTONE_COLLAB_BACKEND_FOUNDATION_2026-07-21.md` | MILESTONE_COLLAB_BACKEND_FOUNDATION_2026-07-21 | 2026-07-21 | Completed (4/4); WebSocket transport, LayerLockManager, EditSession broadcast hook, heartbeat/reconnect, and expiry handling implemented; UI/OT/auth remain non-goals | 2026-07-29 | 3.5 KB | COLLAB, BACKEND, FOUNDATION |
 | 155 | `docs/planned/MILESTONE_COLLAB_WS_CLIENT_2026-07-02.md` | MILESTONE_COLLAB_WS_CLIENT_2026-07-02 | 2026-07-02 | --- | 2026-07-02 | 11.3 KB | COLLAB, CLIENT |
 | 156 | `docs/planned/MILESTONE_COLLABORATION_FEATURES_2026-03-28.md` | コラボレーション機能 Milestone | 2026-03-28 | 計画中 | 2026-03-29 | 6.6 KB | COLLABORATION, FEATURES |
 | 157 | `docs/planned/MILESTONE_COLLISION_AWARE_LAYOUT_2026-06-07.md` | MILESTONE: Collision-Aware Layout | 2026-06-07 | 未実装（semantic target role、layout collision resolver、position/scale/reflow回避、衝突理由UI、Content Bounds/Responsive Layout統合なし。既存の物理collisionは別責務） | 2026-07-29 | 2.6 KB | COLLISION, AWARE, LAYOUT |
