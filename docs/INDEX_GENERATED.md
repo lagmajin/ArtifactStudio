@@ -23,7 +23,7 @@
 | 12 | `Artifact/docs/MILESTONE_APP_UX_AND_CORE_REFINEMENT_2026-03-17.md` | M15 App UX & Core Refinement (2026-03-17) | 2026-03-17 | --- | --- | 4.2 KB | APP, AND, CORE, REFINEMENT |
 | 13 | `Artifact/docs/MILESTONE_ARTIFACT_IRENDER_2026-03-12.md` | ArtifactIRender Milestone | 2026-04-21 | --- | --- | 3.4 KB | ARTIFACT, IRENDER |
 | 14 | `Artifact/docs/MILESTONE_ASSET_SYSTEM_2026-03-12.md` | Asset System Milestone | 2026-03-12 | --- | --- | 5.2 KB | ASSET, SYSTEM |
-| 15 | `Artifact/docs/MILESTONE_AUDIO_BUS_ROUTING_UI_2026-04-09.md` | Audio Bus Routing UI Milestone | 2026-04-09 | --- | --- | 4.6 KB | AUDIO, BUS, ROUTING |
+| 15 | `Artifact/docs/MILESTONE_AUDIO_BUS_ROUTING_UI_2026-04-09.md` | Audio Bus Routing UI Milestone | 2026-04-09 | Partial; bus graph/core serialization foundation exists, user-facing routing editor, composition persistence, and runtime safety verification pending | 2026-07-29 | 5.0 KB | AUDIO, BUS, ROUTING |
 | 16 | `Artifact/docs/MILESTONE_AUDIO_ENGINE_2026-03.md` | Audio Engine Implementation Milestone | 2026-03-22 | --- | --- | 2.3 KB | AUDIO, ENGINE, 2026 |
 | 17 | `Artifact/docs/MILESTONE_CLONE_LAYER_CONSOLIDATION_2026-03-30.md` | Milestone: Clone Layer Consolidation (2026-03-30) | 2026-03-30 | --- | --- | 1.7 KB | CLONE, LAYER, CONSOLIDATION |
 | 18 | `Artifact/docs/MILESTONE_CLONER_GENERATOR_2026-03-17.md` | M12 Cloner Generator Foundation (2026-03-17) | 2026-03-17 | --- | --- | 21.0 KB | CLONER, GENERATOR |
