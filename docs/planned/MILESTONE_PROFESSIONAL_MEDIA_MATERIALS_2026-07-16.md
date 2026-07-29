@@ -83,3 +83,9 @@ explicit interpretation and later display conversion.
 - `FootageInterpretService::clearOverride()` が frame rate だけでなく input color space / transfer もクリアするようにした。
 - `currentOverride()` は実際に値が設定されている場合だけ `isActive` を返すようにした。
 - これにより、`Auto` へ戻した後に古い色解釈が残る状態と、空 override が有効扱いになる状態を防ぐ。
+
+## 2026-07-29 explicit working-space API
+
+- `ArtifactOCIOManager::applyInputTransformToWorkingImage()` を追加し、明示された source color space / transfer を active working space へ変換する境界を用意した。
+- RGB の transfer decode と色空間行列変換を行い、alpha は保持し、HDR 値を clamp しない。
+- importer や既存描画経路からの自動呼び出しは追加していない。source interpretation を確定できる呼び出し側が明示的に利用する前提である。
