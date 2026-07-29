@@ -803,7 +803,7 @@
 | 354 | `docs/planned/MILESTONE_MOTION_NEXT_2026-06-02.md` | M-MOTION-NEXT モーションデザイナーもう外せない機能 (2026-06-02) | 2026-06-02 | --- | 2026-06-05 | 18.7 KB | MOTION, NEXT |
 | 355 | `docs/planned/MILESTONE_MOTION_PATH_DISPLAY_IMPROVEMENT_2026-07-10.md` | MILESTONE: モーションパス表示改善（Spatial Bezier / 速度可視化 / 適応サンプリング） | 2026-07-10 | Phase 1-5 Completed (static verified 2026-07-29; multi-key selection/runtime/build verification pending) | 2026-07-29 | 16.2 KB | MOTION, PATH, DISPLAY, IMPROVEMENT |
 | 356 | `docs/planned/MILESTONE_MOTION_PATH_EDITING_2026-04-29.md` | MILESTONE: Motion Path Editing | 2026-04-29 | --- | 2026-04-30 | 3.5 KB | MOTION, PATH, EDITING |
-| 357 | `docs/planned/MILESTONE_MOTION_TOKENS_2026-06-07.md` | MILESTONE: Motion Tokens | 2026-06-07 | --- | 2026-06-09 | 2.9 KB | MOTION, TOKENS |
+| 357 | `docs/planned/MILESTONE_MOTION_TOKENS_2026-06-07.md` | MILESTONE: Motion Tokens | 2026-06-07 | Not started (dedicated MotionToken/MotionBinding/MotionProfile schema, JSON persistence, registry, layer/UI reference paths, profile switching, and export/import are unimplemented; existing easing/dynamics presets are separate features) | 2026-07-29 | 2.9 KB | MOTION, TOKENS |
 | 358 | `docs/planned/MILESTONE_MOTION_TRACKING_PHASE1_EXECUTION_2026-03-28.md` | マイルストーン: Motion Tracking Phase 1 Execution | 2026-03-28 | --- | 2026-05-13 | 4.4 KB | MOTION, TRACKING, PHASE1, EXECUTION |
 | 359 | `docs/planned/MILESTONE_MOTION_TRACKING_SYSTEM_2026-03-25.md` | マイルストーン: モーショントラッキングシステムの段階導入 | 2026-03-25 | In Progress | 2026-07-12 | 9.6 KB | MOTION, TRACKING, SYSTEM |
 | 360 | `docs/planned/MILESTONE_MULTI_DISPLAY_SUPPORT_2026-04-01.md` | Milestone: Multi-Display Support (2026-04-01) | 2026-04-01 | --- | 2026-04-01 | 6.1 KB | MULTI, DISPLAY, SUPPORT |
