@@ -1,5 +1,7 @@
 # マイルストーン: プレイヘッド整備
 
+**ステータス:** Partial — playhead rendering, scrub/keyboard seeking, and playback synchronization are implemented; direct triangle drag, timecode input, snap, and state unification remain pending.
+
 > 2026-03-21 作成
 
 ## 現状サマリー
