@@ -2,7 +2,7 @@
 
 作成日: 2026-04-09
 対象: `ArtifactCompositionAudioMixerWidget` / `ArtifactInspectorWidget` / `ArtifactTimelineWidget`
-状態: ✅ 企画追加
+状態: Partial（主要 Audio UI 部品実装済み、横断統一・常設 waveform・runtime 検証待ち、静的確認 2026-07-29）
 
 ---
 
