@@ -147,6 +147,8 @@
 
 2026-07-30 に Project View の type filter、Tree/Tile view mode、Unused only の設定を `QSettings` に保存・復元する導線を追加した。保存は各既存コントロールの変更時に行い、起動時にはコントロールと Project View の初期表示へ反映する。
 
-未達または未確認なのは、仕様に記載された独立した multi-select filter pills、list/grid という名称・状態の統一、選択アイテム容量合計、条件の完全な status surface、view transition、実データでの複合 filter と視認性の runtime 検証である。設定の保存は type filter / Tree-Tile / Unused only について実装済みだが、他の設定や runtime 検証は未完了である。したがって、Phase 2〜5 の完成条件をすべて満たしたとは判定できない。
+同日、複数選択された Footage の実ファイルサイズ合計を browse context の選択状態表示へ追加した。存在するファイルだけを合算し、B〜TB の読みやすい単位で表示する。Composition 数や選択数と同じ既存の selection chrome 更新経路を利用している。
+
+未達または未確認なのは、仕様に記載された独立した multi-select filter pills、list/grid という名称・状態の統一、条件の完全な status surface、view transition、実データでの複合 filter と視認性の runtime 検証である。設定の保存は type filter / Tree-Tile / Unused only、選択容量表示は Footage の既存ファイルについて実装済みだが、他の設定や runtime 検証は未完了である。したがって、Phase 2〜5 の完成条件をすべて満たしたとは判定できない。
 
 判定: **実装反映済み・仕上げ／検証待ち。**
