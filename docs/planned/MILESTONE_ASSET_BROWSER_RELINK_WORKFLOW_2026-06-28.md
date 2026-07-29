@@ -5,7 +5,7 @@
 **優先度**: P1 (High)
 **推定工数**: 2-3日
 **カテゴリ**: Asset Browser / Workflow / Project Management
-**状態**: Planned
+**状態**: Partial implementation（基本 relink／missing／Undo 実装済み、参照追跡・全体 UX・runtime 検証待ち、静的確認 2026-07-29）
 **依存**: M-AB (Asset Browser base), M-AS-4 (Asset System Integration)
 
 ---
