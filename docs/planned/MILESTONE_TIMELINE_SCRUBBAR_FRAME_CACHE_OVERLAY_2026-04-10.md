@@ -138,10 +138,11 @@ AE 風の RAM preview に寄せて、`ArtifactTimelineScrubBar` 上に
 未完了・未確認:
 
 - playback の warm / stale / 再生・停止・loop 変化に対する実機回帰
-- cache 情報が空・未提供の場合の明示的な診断表示
+- cache 情報が空・未提供の場合の画面内診断表示（Accessible Description は実装済み、視覚表示は未完了）
 - overlay style の選択や glow / striped 表現の設定化
 - 大量フレーム、分断区間、長時間 RAM preview での描画負荷確認
 - 表示側の `totalFrames` と供給 bitmap の長さがずれた場合も、レール外へ描画しない境界処理を追加済み
+- cache range / bitmap が空の場合は Accessible Description で「cache 情報なし／生成失敗」を明示
 - マウスの interactive seeking が無効な表示専用状態でも、フォーカス移動後に Left/Right、PageUp/PageDown、Home/End でキーボードシーク可能
 - `frameChanged` は既存の Timeline `applyTimelineSeek` 経路へ接続し、キーボード移動が表示だけで止まらないよう同期
 
