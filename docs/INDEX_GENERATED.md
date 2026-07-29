@@ -333,7 +333,7 @@
 | 12 | `docs/done/MILESTONE_2D_SHAPE_MODELING_EDITING_2026-06-29.md` | MILESTONE: 2D Shape Modeling Editing | 2026-06-29 | ✅ Complete (source/static verified 2026-07-24; runtime/build verification pending) | 2026-07-24 | 12.4 KB | SHAPE, MODELING, EDITING |
 | 13 | `docs/done/MILESTONE_ACCESSIBILITY_AND_LEFT_HANDED_UI_2026-06-28.md` | Accessibility and Left-Handed UI Support | 2026-06-28 | Completed (settings/widget integration; runtime verification pending) | 2026-07-29 | 1.0 KB | ACCESSIBILITY, AND, LEFT, HANDED |
 | 14 | `docs/done/MILESTONE_ADVANCED_COLOR_SCIENCE_PIPELINE_2026-03-29.md` | Milestone: Advanced Color Science Pipeline (2026-03-29) | 2026-03-29 | Partial (foundation/UI integration; production integration and runtime verification pending) | 2026-07-29 | 7.4 KB | ADVANCED, COLOR, SCIENCE, PIPELINE |
-| 15 | `docs/done/MILESTONE_AI_COMMAND_SANDBOX_2026-04-14.md` | AI Command Sandbox | 2026-04-14 | --- | 2026-07-07 | 0.5 KB | COMMAND, SANDBOX |
+| 15 | `docs/done/MILESTONE_AI_COMMAND_SANDBOX_2026-04-14.md` | AI Command Sandbox | 2026-04-14 | Completed (policy/execution/timeout foundation) | 2026-07-29 | 0.5 KB | COMMAND, SANDBOX |
 | 16 | `docs/done/MILESTONE_ASSET_BROWSER_IMPROVEMENT.md` | Asset Browser Improvement | 2026-04-14 | --- | 2026-07-07 | 0.8 KB | ASSET, BROWSER, IMPROVEMENT |
 | 17 | `docs/done/MILESTONE_ASSET_SYSTEM_2026-03-12.md` | Asset System | 2026-03-12 | --- | 2026-07-07 | 0.7 KB | ASSET, SYSTEM |
 | 18 | `docs/done/MILESTONE_AUDIO_ENGINE_PROFILER_2026-04-15.md` | Audio Engine Profiler | 2026-04-15 | --- | 2026-07-07 | 0.6 KB | AUDIO, ENGINE, PROFILER |
@@ -504,7 +504,7 @@
 | 55 | `docs/planned/MILESTONE_AI_CODEX_INTEGRATION_PATTERNS_2026-07-04.md` | Codex App パターン → Artifact AICloudWidget 応用 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 4.0 KB | CODEX, INTEGRATION, PATTERNS |
 | 56 | `docs/planned/MILESTONE_AI_COLOR_GRADING_SUGGESTION_2026-04-11.md` | Milestone: AI Color Grading Suggestion (2026-04-11) | 2026-04-11 | --- | 2026-04-13 | 1.4 KB | COLOR, GRADING, SUGGESTION |
 | 57 | `docs/planned/MILESTONE_AI_COLOR_GRADING_SUGGESTION_2026-04-21.md` | MILESTONE: AI Color Grading Suggestion | 2026-04-21 | --- | 2026-04-21 | 3.1 KB | COLOR, GRADING, SUGGESTION |
-| 58 | `docs/planned/MILESTONE_AI_COMMAND_SANDBOX_2026-04-10.md` | AI Command Sandbox / CLI Execution Milestone | 2026-04-10 | --- | 2026-07-09 | 3.8 KB | COMMAND, SANDBOX |
+| 58 | `docs/planned/MILESTONE_AI_COMMAND_SANDBOX_2026-04-10.md` | AI Command Sandbox / CLI Execution Milestone | 2026-04-10 | Partial (foundation exists; Phase 2/3 persistence, diagnostics, prompt context, and workspace-bound presets pending) | 2026-07-29 | 3.8 KB | COMMAND, SANDBOX |
 | 59 | `docs/planned/MILESTONE_AI_KEYFRAME_SUGGESTION_2026-04-21.md` | MILESTONE: AI Keyframe Suggestion | 2026-04-21 | --- | 2026-04-21 | 3.2 KB | KEYFRAME, SUGGESTION |
 | 60 | `docs/planned/MILESTONE_AI_MCP_TOOL_BRIDGE_2026-04-10.md` | MILESTONE: AI MCP Tool Bridge | 2026-04-10 | --- | 2026-04-10 | 4.0 KB | MCP, TOOL, BRIDGE |
 | 61 | `docs/planned/MILESTONE_AI_MCP_TOOL_BRIDGE_PHASE1_EXECUTION_2026-04-10.md` | AI MCP Tool Bridge - Phase 1 Execution | 2026-04-10 | --- | 2026-04-10 | 2.9 KB | MCP, TOOL, BRIDGE, PHASE1 |
