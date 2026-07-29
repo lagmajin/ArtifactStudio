@@ -686,7 +686,7 @@
 | 237 | `docs/planned/MILESTONE_EXPORT_MATRIX_2026-06-07.md` | Export Matrix And Alpha Clarity Milestone | 2026-06-07 | --- | 2026-07-09 | 8.0 KB | EXPORT, MATRIX |
 | 238 | `docs/planned/MILESTONE_EXPORT_MATRIX_BATCH_RENDERING_2026-06-08.md` | Export Matrix & Batch Rendering (統合マイルストーン) | 2026-06-08 | --- | 2026-06-09 | 5.8 KB | EXPORT, MATRIX, BATCH, RENDERING |
 | 239 | `docs/planned/MILESTONE_EXPRESSION_LOOPOUT_RUNTIME_2026-06-02.md` | M-MOTION-3 Expression loopOut / loopIn Runtime (2026-06-02) | 2026-06-02 | --- | 2026-06-05 | 3.7 KB | EXPRESSION, LOOPOUT, RUNTIME |
-| 240 | `docs/planned/MILESTONE_EXPRESSION_QUICK_INPUT_2026-04-10.md` | エクスプレッションクイック入力の実装 | 2026-04-10 | --- | 2026-04-11 | 2.0 KB | EXPRESSION, QUICK, INPUT |
+| 240 | `docs/planned/MILESTONE_EXPRESSION_QUICK_INPUT_2026-04-10.md` | エクスプレッションクイック入力の実装 | 2026-04-10 | 部分実装（Expression Copilotの候補popup・thisComp/thisLayer補完・property/Animation menu導線・apply handler・既存expression保存評価を実装、右クリックquick insert・型ヒント・リアルタイム構文検査・snippet保存入出力・runtime検証未完了） | 2026-07-29 | 2.0 KB | EXPRESSION, QUICK, INPUT |
 | 241 | `docs/planned/MILESTONE_EXPRESSION_STDLIB_COMPATIBILITY_2026-04-18.md` | MILESTONE: After Effects エクスプレッション標準ライブラリ互換性 | 2026-04-18 | --- | 2026-05-13 | 2.9 KB | EXPRESSION, STDLIB, COMPATIBILITY |
 | 242 | `docs/planned/MILESTONE_EXPRESSION_SUBFRAME_TIMESTEP_POLICY_2026-06-07.md` | Expression Subframe / Timestep Policy Milestone | 2026-06-07 | 計画中 | 2026-06-15 | 5.3 KB | EXPRESSION, SUBFRAME, TIMESTEP, POLICY |
 | 243 | `docs/planned/MILESTONE_EXPRESSION_SYSTEM_2026-03-29.md` | Milestone: Expression System (2026-03-29) | 2026-03-29 | --- | 2026-05-13 | 9.2 KB | EXPRESSION, SYSTEM |
