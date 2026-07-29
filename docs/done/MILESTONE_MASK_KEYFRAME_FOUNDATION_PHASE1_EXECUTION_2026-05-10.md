@@ -1,5 +1,7 @@
 # Phase 1 Execution: Mask Parameter Exposure
 
+**Status:** Partial — roadmap/property exposure boundaries are documented and mask evaluation primitives exist; end-to-end property description and render-path verification remain pending.
+
 ## Goal
 
 Expose mask parameters as time-addressable properties without folding geometry editing into the same slice.
@@ -36,4 +38,3 @@ Expose mask parameters as time-addressable properties without folding geometry e
 - [Composition Editor Contract](/x:/Dev/ArtifactStudio/docs/COMPOSITION_EDITOR_CONTRACT.md)
 - [Mask / Roto Editing Milestone](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md)
 - [Inline Interaction Surfaces Milestone](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_INLINE_INTERACTION_SURFACES_2026-03-31.md)
-

@@ -1,5 +1,7 @@
 # Milestone: Mask Keyframe Foundation
 
+**Status:** Partial — mask path keyframe storage/interpolation/sampling and snapshot serialization exist; full property-pipeline description and evaluated render handoff remain pending verification.
+
 > Parent-side planning index for the mask time-addressable slice.
 
 This document is the parent repository's coordination point for mask parameter keyframing.  
