@@ -37,7 +37,8 @@ UI の編集モード (EditMode) 選択を `ArtifactToolService` に接続し、
 - `setWorkspaceMode(WorkspaceMode)` で workspace 切替 UI あり
 
 ### ArtifactMainWindow
-- `keyPressEvent` は何も処理せずパススルー
+- `keyPressEvent` は `Shift+Space` の immersive dock、`Ctrl+1..4` の workspace、feature flag 下の command palette を処理
+- V/T/M/P と裸の 1..4 は既存の tool／property／表示操作との競合回避のため EditMode／DisplayMode shortcut には割り当てない
 - ツール信号のルーティングは個別ツールのみ (`moveToolRequested` など)
 
 ---
@@ -251,6 +252,17 @@ QObject::connect(toolBar, &ArtifactToolBar::transformModeRequested, this,
 ---
 
 ## 作業順
+
+### 実装監査結果（2026-07-30）
+
+- [x] 既存 `ArtifactToolBar` の tool dispatcher から `ArtifactToolService::setEditMode()` へ同期
+- [x] `ToolChangedEvent` による service → toolbar checked state 同期
+- [x] Brush / Eraser の mapping と Clone Stamp の非誤表示境界
+- [x] 競合する V/T/M/P、裸の 1..4 shortcut を追加しない判断
+- [x] MainWindow の実在 shortcut（immersive / workspace / command palette）を文書化
+- [ ] 実機での tool 切替、checked state、shortcut 競合の受け入れ確認
+
+以下の初期設計案は、現在の責務境界と shortcut 競合を確認するための参考案として保持する。
 
 1. **ArtifactToolBar.ixx** - アクションメンバー追加
 2. **ArtifactToolBar.cppm** - EditMode/DisplayMode アクション実装
