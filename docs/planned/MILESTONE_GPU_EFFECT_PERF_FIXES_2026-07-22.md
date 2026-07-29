@@ -24,7 +24,7 @@
 
 ### P0: 正確性バグ・小規模（先行して切り出し可能）
 
-- [ ] **FX-1: `pipelineReady_` とローカル executor の不一致を修正**
+- [x] **FX-1: `pipelineReady_` とローカル executor の不一致を修正**
   - 症状: Brightness 系エフェクトが2フレーム目以降、PSO 未構築の executor で dispatch する（実質 CPU フォールバック or 無効 dispatch）。
   - 修正: executor をメンバ保持にするか（= FX-3 で統一解決）、暫定ではローカル executor を使う限り毎回 build する（非推奨）。
   - 対象: `BrightnessEffect.cppm` 及び同パターンの全エフェクト（FX-3 の監査で特定）。
@@ -105,3 +105,9 @@
 - GPU エフェクトの一部は `CreateTexture` と readback を apply 経路内で行うため、FX-3 の定常フレーム資源再利用と FX-10 の境界変換削減も未完了である。
 - PSO／shader global cache、pointwise fusion、静的 property signature、adaptive resolution の完了証拠は確認できない。
 - よって本マイルストーンは `Phase 0 completed (FX-2); remaining phases pending` のままとする。性能目標値は build／runtime／FrameDebug の測定未実施のため未検証である。
+
+## 2026-07-29 実装監査（更新）
+
+`Artifact/src/Effects/ColorCorrection/BrightnessEffect.cppm` を再確認し、`GpuContext`、`ComputeExecutor`、`paramsCB_`、`pipelineReady_` が GPU 実装インスタンスのメンバーとして保持され、PSO/SRB が初回構築後に再利用されることを確認した。したがって FX-1 は実装済みとしてマークする。
+
+ただし、31エフェクト全体の資源再利用（FX-3）、チェーン内 readback 撤去（FX-5/6）、global PSO cache（FX-4）、性能測定は未完了のため、マイルストーン全体のステータスは変更しない。
