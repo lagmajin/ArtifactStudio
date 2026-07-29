@@ -1,7 +1,7 @@
 # M-MATCON-1: 素材コンテナーレイヤー設計
 
 作成日: 2026-06-25
-ステータス: Draft
+ステータス: Phase 1 実装済み（静的確認 2026-07-29、ビルド／ランタイム確認待ち）
 対象: `Artifact/include/Layer/*`, `Artifact/src/Layer/*`, `Artifact/src/Render/*`, `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`, `Artifact/src/Layer/ArtifactCloneLayer.cppm`, `Artifact/include/Layer/ArtifactCloneEffectSupport.ixx`
 位置づけ: 複数素材を 1 レイヤー内の配列として保持し、通常表示では 0 番目だけを露出しつつ、クローナーやクローナートランスフォームから 1 番目以降も参照できるようにする。
 
@@ -243,11 +243,13 @@ struct CloneSourceRef {
 4. Property に slot 数と Primary slot を表示する
 5. clone 連携はまだ入れず、設計上の `sourceIndex` だけ残す
 
-## 2026-07-25 実装監査
+## 2026-07-29 実装監査
 
-- 現行コードに `ArtifactMaterialContainerLayer`、`MaterialContainerSlot`、`materialContainer.slots` の専用 model／JSON、通常表示の exposed slot、slot 単位 diagnostics は確認できない。
-- clone 側にも本マイルストーンの `CloneSourceRef.sourceIndex` を用いた Material Container 解決の実装は確認できない。
+- `ArtifactMaterialContainerLayer` と `MaterialContainerSlot` が存在し、layer factory から `LayerType::MaterialContainer` として生成できる。
+- `materialContainer.slots`、slot id／name／enabled、slot 内 layer payload、`exposedIndex` の JSON 保存復元が実装されている。
+- 通常の `draw()` は exposed layer のみを描画し、`localBounds()` も exposed layer を基準にする。Property には slot 数と exposed index が表示される。
+- よって「専用 layer の追加」「JSON に slots を保存復元」「露出 slot の通常表示」「Property の slot 数と Primary slot 相当の表示」は Phase 1 の実装済み範囲と判定する。
+- clone 側の `sourceIndex` 参照、複数素材からの作成 command、slot の undo／並べ替え、hierarchy 展開、slot 単位 diagnostics は未確認／未実装であり、Phase 2〜4 は未完了とする。
 - `Material`／PBR、3D model の base color／metallic-roughness texture は既存の別責務であり、素材コンテナーレイヤーの実装とは区別する。
-- したがって本マイルストーンは設計段階の `Draft` のままとし、Phase 1〜4 は未着手と判定する。
 
 この slice なら既存 composition tree と clone render に深く踏み込まず、後からクローナー連携を足せる。
