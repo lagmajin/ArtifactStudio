@@ -1,5 +1,7 @@
 # マイルストーン: Audio Waveform Thumbnail Preview
 
+ステータス: Phase 1／2・初期 UX 実装済み（長時間音声・cache 運用・表示整合・runtime 検証待ち、静的確認 2026-07-29）
+
 > 2026-03-31 作成
 
 ## 目的
