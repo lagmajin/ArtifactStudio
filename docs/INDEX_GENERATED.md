@@ -371,7 +371,7 @@
 | 50 | `docs/done/MILESTONE_MCP_TOOL_BRIDGE_2026-04-14.md` | MCP / Tool Bridge | 2026-04-14 | Completed (Phase 1 request handling, schema/dispatch, AIContext, and transport boundary; runtime verification pending) | 2026-07-29 | 0.5 KB | MCP, TOOL, BRIDGE |
 | 51 | `docs/done/MILESTONE_MESH_INSTANCING_2026-04-26.md` | MILESTONE: Mesh Instancing Infrastructure for DiligentEngine | 2026-04-26 | Completed (instance buffers/PSO/draw, clone conversion, and effector path; runtime/GPU verification pending) | 2026-07-29 | 7.5 KB | MESH, INSTANCING |
 | 52 | `docs/done/MILESTONE_NUMERIC_FIELD_QUICK_CALC_2026-06-07.md` | Numeric Field Quick Calc Milestone | 2026-06-07 | ✅ 完了 (2026-06-08 確認 / 2026-06-15 共有化・Dialog 波及) | 2026-07-07 | 4.4 KB | NUMERIC, FIELD, QUICK, CALC |
-| 53 | `docs/done/MILESTONE_ONBOARDING_EMPTY_STATES_2026-03-27.md` | Onboarding / Empty States (2026-03-27) | 2026-03-27 | --- | 2026-06-24 | 0.6 KB | ONBOARDING, EMPTY, STATES |
+| 53 | `docs/done/MILESTONE_ONBOARDING_EMPTY_STATES_2026-03-27.md` | Onboarding / Empty States (2026-03-27) | 2026-03-27 | Partial (surface guidance exists; unified first-action onboarding and runtime verification pending) | 2026-07-29 | 0.8 KB | ONBOARDING, EMPTY, STATES |
 | 54 | `docs/done/MILESTONE_PARENT_PICK_WHIP_2026-07-03.md` | M-LA-4 Parent Pick-Whip Milestone | 2026-07-03 | --- | 2026-07-05 | 5.6 KB | PARENT, PICK, WHIP |
 | 55 | `docs/done/MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md` | Playback State Contract and Transport Cohesion | 2026-05-31 | --- | 2026-07-07 | 0.8 KB | PLAYBACK, STATE, CONTRACT, AND, TRANSPORT |
 | 56 | `docs/done/MILESTONE_PLAYHEAD.md` | マイルストーン: プレイヘッド整備 | 2026-03-21 | --- | 2026-06-24 | 4.2 KB | PLAYHEAD |

@@ -1,5 +1,7 @@
 # Onboarding / Empty States (2026-03-27)
 
+**Status:** Partial — empty-state guidance exists across inspector, project, timeline, and viewer surfaces; unified first-action/recent/import/create onboarding remains pending verification.
+
 ## Goal
 
 初回起動や空プロジェクト時に、何をすればよいかが分かる状態を作る。
