@@ -105,8 +105,9 @@ facade sliceと物理Audio device列挙・選択・設定永続化の公開契�
 - [x] 実行前の`EffectGraph::compile()`検証と、循環／不正接続時の失敗返却
 - [x] エフェクト未設定ノードを`Cached`にせず`Error`として扱う
 - [x] 画像入力を明示したノードの`applyConfigured()`評価と出力バッファ保持
+- [x] 画像出力から接続先`ImageBuffer`入力へのDAG伝播
 - [ ] 全ステージの効果ノード実データ／バックエンド評価（画像入力を明示したノード以外は未接続）
-- [ ] エフェクトスタック → DAGノードへの入力／出力バッファマッピング
+- [ ] 非画像を含むエフェクトスタック → DAGノードの完全な入力／出力バッファマッピング
 - cycle／missing inputを含むruntime検証は未実施
 
 ### M-APP-11 PlaybackEngine::renderFrame() ✅（静的実装済み・runtime確認待ち）
