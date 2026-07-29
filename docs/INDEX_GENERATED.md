@@ -818,7 +818,7 @@
 | 369 | `docs/planned/MILESTONE_NRD_RAY_TRACING_DENOISER_2026-07-19.md` | Milestone: NRD Ray-Tracing Denoiser Integration | 2026-07-19 | --- | 2026-07-19 | 1.9 KB | NRD, RAY, TRACING, DENOISER |
 | 370 | `docs/planned/MILESTONE_OBJECT_FRACTURE_EFFECT_2026-03-25.md` | マイルストーン: Object Fracture / Shatter Effect | 2026-03-25 | --- | 2026-03-25 | 5.3 KB | OBJECT, FRACTURE, EFFECT |
 | 371 | `docs/planned/MILESTONE_OBJECT_REFERENCE_UI_2026-03-17.md` | M13 Object Reference UI (2026-03-17) | 2026-03-17 | --- | 2026-03-20 | 15.1 KB | OBJECT, REFERENCE |
-| 372 | `docs/planned/MILESTONE_OCIO_INTEGRATION_2026-06-16.md` | M-OCIO-1 OpenColorIO 統合 Milestone | 2026-06-16 | --- | 2026-07-09 | 17.0 KB | OCIO, INTEGRATION |
+| 372 | `docs/planned/MILESTONE_OCIO_INTEGRATION_2026-06-16.md` | M-OCIO-1 OpenColorIO 統合 Milestone | 2026-06-16 | Partial (OCIOConfig JSON, built-in color presets, role/color-space/display/view queries, manager preset/config loading, working/display/view state, and ColorSciencePanel basics implemented; real OCIO processor, composition overrides/looks persistence, render view-transform application, LUT write, diagnostics, project round-trip, and runtime verification pending) | 2026-07-29 | 17.0 KB | OCIO, INTEGRATION |
 | 373 | `docs/planned/MILESTONE_OFX_PLUGIN_SUPPORT_2026-04-18.md` | マイルストーン: OFX プラグインサポート実装 | 2026-04-18 | --- | 2026-04-18 | 6.0 KB | OFX, PLUGIN, SUPPORT |
 | 374 | `docs/planned/MILESTONE_OPERATION_FEEL_REFINEMENT_2026-03-25.md` | マイルストーン: 操作感改善 / Responsiveness Refinement | 2026-03-25 | --- | 2026-03-28 | 6.2 KB | OPERATION, FEEL, REFINEMENT |
 | 375 | `docs/planned/MILESTONE_PAINT_LAYER_2026-06-16.md` | M-PAINT-1 Paint Layer / Raster Editing Foundation Milestone | 2026-06-16 | --- | 2026-07-05 | 16.2 KB | PAINT, LAYER |
