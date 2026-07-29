@@ -648,7 +648,7 @@
 | 199 | `docs/planned/MILESTONE_CREATIVE_EFFECT_CPU_HLSL_DUAL_BACKEND_2026-03-25.md` | Creative Effect CPU/HLSL Dual Backend | 2026-03-25 | --- | 2026-03-25 | 3.8 KB | CREATIVE, EFFECT, CPU, HLSL, DUAL |
 | 200 | `docs/planned/MILESTONE_CROSS_INDUSTRY_INSPECTION_TOOLS_2026-06-02.md` | MILESTONE: Cross-Industry Inspection Tools | 2026-06-02 | --- | 2026-07-09 | 5.8 KB | CROSS, INDUSTRY, INSPECTION, TOOLS |
 | 201 | `docs/planned/MILESTONE_CROSS_INDUSTRY_INSPECTION_TOOLS_PHASE1_EXECUTION_2026-06-02.md` | Cross-Industry Inspection Tools - Phase 1 Execution | 2026-06-02 | --- | 2026-06-03 | 3.4 KB | CROSS, INDUSTRY, INSPECTION, TOOLS, PHASE1 |
-| 202 | `docs/planned/MILESTONE_CURVE_EDITOR_DCC_IMPROVEMENTS_2026-07-22.md` | M-CURVE-ED: カーブエディタ改善 — DCC いいとこどり計画 | 2026-07-22 | In Progress | 2026-07-24 | 8.4 KB | CURVE, EDITOR, DCC, IMPROVEMENTS |
+| 202 | `docs/planned/MILESTONE_CURVE_EDITOR_DCC_IMPROVEMENTS_2026-07-22.md` | M-CURVE-ED: カーブエディタ改善 — DCC いいとこどり計画 | 2026-07-22 | Partial (CE-1〜CE-13 implemented; CE-14 Speed graph editing and runtime verification pending) | 2026-07-29 | 8.4 KB | CURVE, EDITOR, DCC, IMPROVEMENTS |
 | 203 | `docs/planned/MILESTONE_CUSTOM_COLLECTIONS_DESIGN_2026-07-04.md` | 自前コレクションライブラリ 全体設計 (2026-07-04) | 2026-07-04 | --- | 2026-07-09 | 6.0 KB | CUSTOM, COLLECTIONS, DESIGN |
 | 204 | `docs/planned/MILESTONE_CYCLE_SHORTCUTS_2026-06-07.md` | MILESTONE: Cycle Shortcuts | 2026-06-07 | --- | 2026-06-19 | 2.3 KB | CYCLE, SHORTCUTS |
 | 205 | `docs/planned/MILESTONE_DATA_DRIVEN_ENGINE_2026-04-21.md` | MILESTONE: Data-Driven Engine (CSV / Tabular Data) | 2026-04-21 | --- | 2026-04-21 | 6.2 KB | DATA, DRIVEN, ENGINE |
