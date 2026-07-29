@@ -26,6 +26,8 @@
   - `ArtifactCore/src/Composition/PreCompose.cppm`（Precompose 呼び出し、内部未完成）。
   - Property システム（`PropertyWidget`/`ArtifactPropertyEditor`）は存在するが、外部参照マッピング層なし。
 
+> 注記（2026-07-29）: 上記は作成時のベースラインであり、現在の状態を表さない。`ExposedPropertyRegistry`、precomp layer の override API、親側の公開導線、render-time propagation は後続実装で追加済みであり、詳細は §9 および static audit follow-up を正本とする。
+
 ## 5. スコープ（提案 Phase）
 
 - **Phase 1 — プロパティ露出**
