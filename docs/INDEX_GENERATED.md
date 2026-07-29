@@ -900,7 +900,7 @@
 | 451 | `docs/planned/MILESTONE_RPC_CLIENT_2026-07-02.md` | M-RE-2.A Network RPC Client Milestone | 2026-07-02 | --- | 2026-07-02 | 11.1 KB | RPC, CLIENT |
 | 452 | `docs/planned/MILESTONE_SANDBOX_EDITS_2026-06-07.md` | MILESTONE: Sandbox Edits | 2026-06-07 | --- | 2026-06-09 | 2.8 KB | SANDBOX, EDITS |
 | 453 | `docs/planned/MILESTONE_SCENE_NODE_EXPANSION_2026-04-20.md` | MILESTONE: SceneNode Feature Expansion | 2026-04-20 | --- | 2026-04-21 | 8.4 KB | SCENE, NODE, EXPANSION |
-| 454 | `docs/planned/MILESTONE_SCOPES_2026-06-16.md` | M-SCOPES-1 Scopes Milestone (Vector / Waveform / Parade) | 2026-06-16 | --- | 2026-06-18 | 13.0 KB | SCOPES |
+| 454 | `docs/planned/MILESTONE_SCOPES_2026-06-16.md` | M-SCOPES-1 Scopes Milestone (Vector / Waveform / Parade) | 2026-06-16 | 部分実装（CPU/GPU scope計算・HDR waveform/vectorscope・histogram/RGB parade基盤あり、統一live panel・設定保存・OCIO display role・継続更新・diagnosticsは未完了） | 2026-07-29 | 13.0 KB | SCOPES |
 | 455 | `docs/planned/MILESTONE_SCRIPT_CONSOLE_2026-06-16.md` | M-SCRIPT-1 Script Console (REPL) Milestone | 2026-06-16 | --- | 2026-06-19 | 10.0 KB | SCRIPT, CONSOLE |
 | 456 | `docs/planned/MILESTONE_SCRIPT_MENU_MACRO_ENTRY_EXECUTION_2026-05-31.md` | M-FE-6a Script Menu / Macro Entry Execution | 2026-04-02 | --- | 2026-06-06 | 6.7 KB | SCRIPT, MENU, MACRO, ENTRY, EXECUTION |
 | 457 | `docs/planned/MILESTONE_SCRIPT_MENU_PY_LOADER_2026-04-02.md` | Milestone: Script Menu / menu.py Loader (M-PY-2) | 2026-04-02 | --- | 2026-04-02 | 2.0 KB | SCRIPT, MENU, LOADER |
