@@ -1,7 +1,7 @@
 # 実装案: App Settings - Widget 接続ギャップ
 
 > 2026-06-13 作成  
-> 状態: Partial（主要設定・EditMode／DisplayMode 接続済み、Preview cache UI を接続、Grid／Clone UI と runtime 検証は未完了、静的確認 2026-07-29）
+> 状態: Partial（主要設定・EditMode／DisplayMode・Preview cache・Grid UI を接続、Clone UI と runtime 検証は未完了、静的確認 2026-07-29）
 
 ---
 
@@ -37,7 +37,7 @@ VSコードのモード選択プルダウンと同様のUI
 | 設定 | ウィジェット | 状態 |
 |------|-------------|------|
 | `compositionGridSettings` | ArtifactCompositionRenderController | ⚠️ 実装済みがコード内にある |
-| `compositionGridSettings` | ToolOptionsBar へ追加 | ❌ 未接続 |
+| `compositionGridSettings` | ViewMenu の「グリッド設定」サブメニュー | ✅ 主間隔・分割数・Major／Minor／Axis 表示を接続 |
 
 **提案**: ToolOptionsBar へ Grid サブパネル追加  
 "グリッド表示中のみ表示" のコンテキストUI
@@ -75,7 +75,7 @@ VSコードのモード選択プルダウンと同様のUI
 - 作業時間: 2-3h
 
 ### M-APP-SETT-2: Grid Settings UI 接続
-- ToolOptionsBar へ Grid Settings サブパネル追加
+- ViewMenu の Grid Settings サブメニューへ接続
 - `compositionGridSettings` → UI 双方向バインド
 - 作業時間: 2h
 
