@@ -1,7 +1,7 @@
 # M-SCRIPT-1 Script Console (REPL) Milestone
 
 作成日: 2026-06-16
-ステータス: Draft
+ステータス: 部分実装（PythonEngine/HookManager、Expression evaluator、macro/command基盤とExpression Copilot補完あり、専用REPL widget・履歴/補完統合・sandbox付きPython REPL・macro replay・runtime検証未完了）
 対象: `Artifact/src/Widgets/Menu/ArtifactScriptMenu.cppm`,
       `Artifact/src/Widgets/Menu/ArtifactWindowMenu.cppm`,
       `Artifact/src/Widgets/Dialog/ApplicationSettingDialog.cppm`,
