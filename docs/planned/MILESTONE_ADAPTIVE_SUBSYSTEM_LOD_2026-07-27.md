@@ -1,6 +1,6 @@
 # Milestone: Adaptive Subsystem LOD
 
-**ステータス:** Not Started
+**ステータス:** Partial foundation / implementation and runtime verification pending
 
 **作成日:** 2026-07-27
 **対象:** Composition Preview、Playback、RAM Preview、3D Render、Particle/VFX、Animation、Rig、Physics
@@ -685,3 +685,18 @@ LOD result cache keyには少なくとも次を含める。
 - debug override
 
 この段階ではTexture、Material、Physics、Skeletonの見た目やsimulation品質を変更しない。schedulerと証拠ログが安定した後、Particle/VFXを最初の実利用対象とする。
+
+## Static audit follow-up (2026-07-29)
+
+現行コードと関連ドキュメントを静的に確認した。ビルド・実機操作・性能計測は未実施。
+
+| 項目 | 現状 | 判定 |
+|---|---|---|
+| 既存 LOD 基盤 | `LODManager`、renderer の `DetailLevel`、Viewer の zoom 接続、PreviewQuality、Procedural3D/Particle の接続点が存在する。 | 実装済み／統合確認待ち |
+| LOD-0 Policy Safety | render mode と quality の基盤はあるが、axis 別 `LODContext`、Full 強制、debug override、JSONL evidence の共通契約は未確認。 | 未完了 |
+| LOD-1 Update Frequency | Rig/Physics/Particle に個別の更新制御点はあるが、stable cohort、hysteresis、selected/manipulated の共通昇格 scheduler は未確認。 | 未完了 |
+| 後続 subsystem LOD | texture/material/reflection/GI/shadow/post/animation などは接続点または個別設定に留まり、共通 policy と correctness gate は未完了。 | 未完了 |
+
+### 判定
+
+文書の `Not Started` は現状を過小評価していたため、基盤ありの部分実装へ更新した。ただし最初の実装カットで定義した共通 scheduler と証拠ログが未完成なので、マイルストーン完了とは扱わない。
