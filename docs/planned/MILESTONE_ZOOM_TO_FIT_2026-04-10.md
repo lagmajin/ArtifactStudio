@@ -68,8 +68,9 @@ After Effects の「Fit」コマンドをより賢くし、コンポジション
 
 - Composition設定時と既存の `zoomFit()` 経路で、viewport短辺の5%を `fitToViewport()` の余白として渡すようにした。
 - アスペクト比維持と既存のFit導線は保持する。
+- `zoomFitSelection()` と Command Palette／context menu の `Zoom Fit Selection` を追加し、選択レイヤーの transformed bounds を5%余白でviewport中央へ収めるようにした。
 - Selection / Visible / Work Area、遷移アニメーション、指定ショートカット、runtime操作確認は未実施。
 
-判定: **Composition Fit の5%マージンを実装。拡張モードとruntime検証は pending。**
+判定: **Composition Fit と Selection Fit を実装。Visible / Work Area、遷移アニメーション、指定ショートカット、runtime検証は pending。**
 
 確認範囲: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`、`ArtifactCore/src/UI/ShortcutBindings.cppm`。ビルド・実機操作による動作確認は未実施。
