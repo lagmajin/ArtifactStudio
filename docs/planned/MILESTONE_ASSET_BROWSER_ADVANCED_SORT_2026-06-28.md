@@ -28,6 +28,7 @@
 ### 2026-07-29 Implementation Loop
 
 - `ArtifactAssetBrowser` の既存 name sort に数値 run-aware の natural comparator を追加。
+- date／size／type sort が同値の場合も、natural name を安定した副次キーとして使用。
 - UI／既存 sort key／sequence frame の親子順序は変更せず、連番素材の表示順だけを改善。
 - multi-key、個別方向、preset、custom order、drag sort は未完了。
 

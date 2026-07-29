@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-29 23:49
+> Generated: 2026-07-29 23:50
 > Total documents: 1134
 
 ---
@@ -563,7 +563,7 @@
 | 107 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_ENGINE_2026-07-21.md` | MILESTONE_ARTIFACTSCRIPT_ENGINE_2026-07-21 | 2026-07-21 | Complete (3/3; build/runtime verification pending) | 2026-07-25 | 2.3 KB | ARTIFACTSCRIPT, ENGINE |
 | 108 | `docs/planned/MILESTONE_ASIO_STUB_IMPLEMENTATION_PLAN_2026-03-28.md` | ASIO スタブ実装 計画案 | 2026-03-28 | 計画案 | 2026-03-30 | 11.8 KB | ASIO, STUB, IMPLEMENTATION, PLAN |
 | 109 | `docs/planned/MILESTONE_ASPECT_RATIO_RESOLUTION_REMAP_WIZARD_2026-06-07.md` | MILESTONE: Aspect Ratio / Resolution Remap Wizard - 2026-06-07 | 2026-06-07 | Partial (preview, resolution remap apply, undo/redo, mask/keyframe remap, policy offsets, and impact diagnostics are documented as implemented; preflight/policy selection UI, actual anchor remap, and build/runtime verification remain pending) | 2026-06-15 | 6.5 KB | ASPECT, RATIO, RESOLUTION, REMAP, WIZARD |
-| 110 | `docs/planned/MILESTONE_ASSET_BROWSER_ADVANCED_SORT_2026-06-28.md` | Milestone: Asset Browser Advanced Sort (M-AB-11) | 2026-06-28 | Partial implementation（既存単一キー sort と natural name sort を実装、multi-key／preset／custom order／runtime 検証 pending） | 2026-07-29 | 48.3 KB | ASSET, BROWSER, ADVANCED, SORT |
+| 110 | `docs/planned/MILESTONE_ASSET_BROWSER_ADVANCED_SORT_2026-06-28.md` | Milestone: Asset Browser Advanced Sort (M-AB-11) | 2026-06-28 | Partial implementation（既存単一キー sort と natural name sort を実装、multi-key／preset／custom order／runtime 検証 pending） | 2026-07-29 | 48.4 KB | ASSET, BROWSER, ADVANCED, SORT |
 | 111 | `docs/planned/MILESTONE_ASSET_BROWSER_AI_SUPPORT_2026-06-28.md` | Milestone: Asset Browser AI Support (M-AB-15) | 2026-06-28 | Not started (2026-07-25 audit: AI tagging, similarity search, smart filtering, batch processing, dedicated UI, and Asset Browser integration are unimplemented; depends on the unfinished Asset Tag System) | 2026-07-25 | 16.4 KB | ASSET, BROWSER, SUPPORT |
 | 112 | `docs/planned/MILESTONE_ASSET_BROWSER_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: アセットブラウザー デザイン監査 (2026-07-04) | 2026-07-04 | Partial (Sources/Favorites/Recent hub, summaries, grid/list, thumbnail sizing, async/hover preview, search/type/status filters, sorting, sequence display, and asset states implemented; owner-draw badges, rich metadata/details, tags/AI/advanced sort, sequence expansion, internal D&D, and runtime UX verification pending) | 2026-07-25 | 9.5 KB | ASSET, BROWSER, DESIGN, AUDIT |
 | 113 | `docs/planned/MILESTONE_ASSET_BROWSER_HOVER_PREVIEW_2026-06-28.md` | Milestone: Asset Browser Hover Preview (M-AB-4) | 2026-06-28 | Partial (300ms hover popup, image/video/audio thumbnail paths, hide/re-entry control, position handling, memory/disk cache, async generation, and stale-result cancellation implemented; dedicated cache/manager separation, high-resolution async popup, sequence preview, cache-limit alignment, and runtime UX verification pending) | 2026-07-25 | 34.7 KB | ASSET, BROWSER, HOVER, PREVIEW |
