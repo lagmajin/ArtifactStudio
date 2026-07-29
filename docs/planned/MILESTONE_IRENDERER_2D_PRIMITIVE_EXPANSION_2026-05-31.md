@@ -166,6 +166,7 @@ Shape layer の local bounds padding は stroke が無効な場合を除き、Ce
 `setStrokeAlign()` も local bounds cache を無効化し、編集直後の bounds 再計算に追従する。
 Miter join は renderer の上限（`4 × thickness`）に合わせた保守的な bounds padding を使用し、`setStrokeJoin()` でも再計算を要求する。
 Dash pattern は `setDashPattern()` の入口でも有限かつ正の値へ正規化し、GPU／software cache 経路の入力契約を統一する。
+dash 有効時は solid 専用の join／round-cap overlay を抑止し、gap を頂点 geometry が埋めないようにした。dash segment ごとの cap parity は runtime 検証・後続拡張 pending。
 
 次の安全な実装単位は、operator 複数輪郭の順序・fill rule・bounds invalidation と、gradient／taper の native contract を固定すること。
 
