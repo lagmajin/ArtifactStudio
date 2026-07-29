@@ -338,7 +338,7 @@
 | 17 | `docs/done/MILESTONE_ASSET_SYSTEM_2026-03-12.md` | Asset System | 2026-03-12 | Completed (browser/project sync, state visibility, import/metadata/relink/recovery) | 2026-07-29 | 0.7 KB | ASSET, SYSTEM |
 | 18 | `docs/done/MILESTONE_AUDIO_ENGINE_PROFILER_2026-04-15.md` | Audio Engine Profiler | 2026-04-15 | Completed (timing, buffer observation, and profiler UI; runtime verification pending) | 2026-07-29 | 0.6 KB | AUDIO, ENGINE, PROFILER |
 | 19 | `docs/done/MILESTONE_BLEND_MODE_DESIGN_2026-06-16.md` | M-BLEND-1 Blend Mode Design | 2026-06-16 | Partial (catalog/partial paths/tests exist; full GPU, special paths, UI coverage, and runtime verification pending) | 2026-07-29 | 21.3 KB | BLEND, MODE, DESIGN |
-| 20 | `docs/done/MILESTONE_CLIP_BUFFER_PANEL_2026-06-18.md` | マイルストーン: Clip Buffer Panel | 2026-06-18 | --- | 2026-06-25 | 3.2 KB | CLIP, BUFFER, PANEL |
+| 20 | `docs/done/MILESTONE_CLIP_BUFFER_PANEL_2026-06-18.md` | マイルストーン: Clip Buffer Panel | 2026-06-18 | Completed (Phase 1–3; runtime verification pending) | 2026-07-29 | 3.2 KB | CLIP, BUFFER, PANEL |
 | 21 | `docs/done/MILESTONE_COLOR_CONSTRAINT_RULES_2026-06-07.md` | Color Constraint Rules / Palette-Conform Correction | 2026-06-07 | --- | 2026-07-07 | 0.7 KB | COLOR, CONSTRAINT, RULES |
 | 22 | `docs/done/MILESTONE_COMPOSITION_EDITOR_CACHE_SYSTEM_2026-03-26.md` | Composition Editor Cache System | 2026-03-26 | --- | 2026-07-07 | 0.7 KB | COMPOSITION, EDITOR, CACHE, SYSTEM |
 | 23 | `docs/done/MILESTONE_COMPOSITION_EDITOR_MASK_ROTO_EDITING_2026-03-28.md` | Composition Editor Mask / Roto Editing Milestone (2026-03-28) | 2026-03-28 | --- | 2026-06-26 | 11.2 KB | COMPOSITION, EDITOR, MASK, ROTO, EDITING |
