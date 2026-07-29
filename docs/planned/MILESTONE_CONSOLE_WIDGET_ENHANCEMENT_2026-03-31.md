@@ -2,6 +2,8 @@
 > 2026-03-31 作成
 > 2026-04-01 更新: theme/palette 連携とログ可読性改善を反映
 
+**Status:** 部分完了（theme/palette、regex/time/context/category filter、filter preset保存復元、severity toggle、copy/save visible、context導線を実装、統計dashboard・JSON/CSV/XML export・仮想化/100万件検証・command interface未完了）
+
 ## 現状サマリー
 
 `ArtifactDebugConsoleWidget` はログ表示、フィルタリング、検索、保存機能を備えているが、デバッグ作業の効率化のためにさらなる拡充が必要。
