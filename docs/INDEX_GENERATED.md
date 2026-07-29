@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 03:22
+> Generated: 2026-07-30 03:26
 > Total documents: 1134
 
 ---
@@ -480,7 +480,7 @@
 | 24 | `docs/planned/MILESTONE_3D_VIEWPORT_ORBIT_PAN_PREVIEW_MODE_2026-06-07.md` | MILESTONE: 3D Viewport Orbit / Pan / Preview Mode - 2026-06-07 | 2026-06-07 | ** Phase 1〜3 と Preview Orbit Mode は実装済み。実機での editor 間操作統一・カメラ非破壊性の検証待ち。 | 2026-07-25 | 8.7 KB | VIEWPORT, ORBIT, PAN, PREVIEW |
 | 25 | `docs/planned/MILESTONE_3D_VIEWPORT_SOLID_CAMERA_OVERLAY_2026-04-10.md` | 3D Viewport Stabilization: Solid / Camera / Overlay | 2026-07-25 | ** Phase 1、Phase 3、Phase 4 は実装済み。Phase 2 は主要経路を実装済みだが、viewer/editor 間の完全統一と実機検証が未完了。 | 2026-07-25 | 10.3 KB | VIEWPORT, SOLID, CAMERA, OVERLAY |
 | 26 | `docs/planned/MILESTONE_ACCESSIBILITY_2026-03-28.md` | アクセシビリティ改善 Milestone | 2026-03-28 | 部分実装（キーボードフォーカス基盤・スクリーンリーダーラベルは主要UIへ適用、全操作検証待ち） | 2026-07-25 | 8.6 KB | ACCESSIBILITY |
-| 27 | `docs/planned/MILESTONE_ACCESSIBILITY_AND_LEFT_HANDED_UI_2026-06-28.md` | Milestone: Accessibility and Left-Handed UI Support (M-ACC-1) | 2026-06-28 | Phase 1〜2 の静的実装は主要ウィジェットへ適用済み — runtime 検証、RTL レイアウト、Phase 3 の全体統合は未完了 | 2026-07-30 | 18.3 KB | ACCESSIBILITY, AND, LEFT, HANDED |
+| 27 | `docs/planned/MILESTONE_ACCESSIBILITY_AND_LEFT_HANDED_UI_2026-06-28.md` | Milestone: Accessibility and Left-Handed UI Support (M-ACC-1) | 2026-06-28 | Phase 1〜2 の静的実装は主要ウィジェットへ適用済み — runtime 検証、RTL レイアウト、Phase 3 の全体統合は未完了 | 2026-07-30 | 18.4 KB | ACCESSIBILITY, AND, LEFT, HANDED |
 | 28 | `docs/planned/MILESTONE_ACTIVE_IMPLEMENTATION_TRIAD_2026-05-12.md` | Active Implementation Triad / May 2026 | 2026-05-12 | Partial (Project Health and Timeline Keyframe Editing complete; Mask/Roto routing, path/handle editing, guides, creation, and Undo implemented with interaction-quality, multi-mask conflict, synchronization, and runtime follow-up pending) | 2026-07-25 | 4.8 KB | ACTIVE, IMPLEMENTATION, TRIAD |
 | 29 | `docs/planned/MILESTONE_AD_PRODUCTION_ACCELERATOR_2026-05-28.md` | MILESTONE: Ad Production Accelerator | 2026-05-28 | Partial (TemplateSlot/TemplateVariation/OutputVariant metadata, JSON conversion, parametric slot intake, and automation/Python entry points implemented; multi-variation UI, batch aspect-ratio jobs, required-slot/overflow/missing-asset aggregation, and runtime workflow verification pending) | 2026-07-25 | 7.4 KB | PRODUCTION, ACCELERATOR |
 | 30 | `docs/planned/MILESTONE_AD_PRODUCTION_ACCELERATOR_PHASE1_EXECUTION_2026-05-29.md` | Ad Production Accelerator - Phase 1 Execution | 2026-05-29 | Partial (TemplateSlot/TemplateVariation/OutputVariant metadata, JSON conversion, and automation define/list/apply entry points implemented; selected-layer UI, delete/restore warnings, required-slot runtime reachability, and verification pending) | 2026-07-25 | 6.6 KB | PRODUCTION, ACCELERATOR, PHASE1, EXECUTION |
@@ -1033,7 +1033,7 @@
 | 577 | `docs/planned/MILESTONE_WORKSPACE_MANAGER_2026-03-29.md` | Milestone: Workspace Manager (2026-03-29) | 2026-03-29 | --- | 2026-07-25 | 3.4 KB | WORKSPACE, MANAGER |
 | 578 | `docs/planned/MILESTONE_WORKSPACE_PRESETS_2026-04-10.md` | ワークスペースプリセット管理の実装 | 2026-04-10 | --- | 2026-07-25 | 5.2 KB | WORKSPACE, PRESETS |
 | 579 | `docs/planned/MILESTONE_ZOOM_TO_FIT_2026-04-10.md` | ズームtoフィット機能の拡張 | 2026-04-10 | --- | 2026-07-29 | 4.5 KB | ZOOM, FIT |
-| 580 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-30 | 97.9 KB | BACKLOG |
+| 580 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-30 | 98.1 KB | BACKLOG |
 | 581 | `docs/planned/NEXT_PHASE_ROADMAP.md` | プロジェクトビュー → タイムライン統合の次フェーズ提案 | 2026-06-07 | --- | 2026-07-05 | 9.1 KB | NEXT, PHASE, ROADMAP |
 | 582 | `docs/planned/PROPOSAL_RENDER_EXPORT_EFFICIENCY_2026-07-28.md` | 提案メモ: ファイル書き出し（レンダーキュー）効率化 — 2026-07-28 | 2026-07-28 | 提案（未実装・未承認） | 2026-07-28 | 3.7 KB | PROPOSAL, RENDER, EXPORT, EFFICIENCY |
 | 583 | `docs/planned/RANDOM_HELPER_PROPOSAL_2026-06-16.md` | Random / Noise Helper Proposal (ArtifactCore) — 2026-06-16 | 2026-06-16 | --- | 2026-06-17 | 21.0 KB | RANDOM, HELPER, PROPOSAL |

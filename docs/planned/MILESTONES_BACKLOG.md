@@ -109,6 +109,7 @@
   - 主要ファイル: `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditor.cppm`
 
 - **M-ACC-1** Accessibility and Left-Handed UI Support
+  - 主要 Asset Browser 操作（検索、表示切替、フォルダ移動、種類／状態フィルター）の Accessible Name / Description を静的実装済み（2026-07-30）
   - 左利き向け補助、片手操作補助、視認性補助、障碍者向け補助をまとめて整理する
   - Phase 1: 利き手設定の土台、ヒット領域調整、主要 widget からの参照
   - 詳細: `docs/planned/MILESTONE_ACCESSIBILITY_AND_LEFT_HANDED_UI_2026-06-28.md`
