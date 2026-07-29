@@ -49,7 +49,7 @@
 
 Phase 1〜2 相当は実装済み。`ArtifactLayerPanelWidget` は filter text を入力中に反映し、レイヤー名検索に加えて `searchInProperties_` によるプロパティ値検索、All Visible / Highlight Only / Filter Only の `SearchMatchMode`、表示モード連携を持つ。インクリメンタル検索バッファは printable input を受けて一定時間後にクリアされる。Timeline widget 側にも検索欄と表示モード combo の導線がある。検索結果の hit count と Enter / F3 系の順送りナビゲーションも実装済み。
 
-2026-07-30 に Phase 3 の状態 query の初期実装を追加した。`visible:true/false`、`hidden:true/false`、`locked:true/false`、`solo:true/false` を既存のレイヤー状態 API で評価し、通常の名前検索と同じ表示・結果ナビゲーション経路へ接続している。続けて `parent:none` / `parent:root` と親名・ID検索、`type:<layerType>` のレイヤー種別検索、`fx:<name>` のプロパティグループ検索、`note:<text>` のレイヤーノート検索、`source:<text>` の保存済み source path / asset metadata 検索も追加した。
+2026-07-30 に Phase 3 の状態 query の初期実装を追加した。`visible:true/false`、`hidden:true/false`、`locked:true/false`、`solo:true/false` を既存のレイヤー状態 API で評価し、通常の名前検索と同じ表示・結果ナビゲーション経路へ接続している。続けて `parent:none` / `parent:root` / `parent:any` と親名・ID検索、`hasparent:true/false`、`type:<layerType>` のレイヤー種別検索、`fx:<name>` のプロパティグループ検索、`note:<text>` のレイヤーノート検索、`source:<text>` の保存済み source path / asset metadata 検索も追加した。
 
 未完了・未確認:
 
