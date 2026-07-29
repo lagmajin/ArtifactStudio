@@ -1,6 +1,6 @@
 # Milestone: Expression System (2026-03-29)
 
-**Status:** Not Started
+**Status:** 部分完了（parser/evaluator、数値・vector・math/animation built-ins、thisComp/thisLayer候補、property expression保存評価、loopOut/loopIn、Expression Copilot導線を実装、全property参照のruntime網羅・診断/UI統合・互換検証未完了）
 **Goal:** After Effects 風のエクスプレッションでプロパティ値を動的に制御する。
 キーフレーム以外のアニメーション制御を可能にする。
 
