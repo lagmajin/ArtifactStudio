@@ -13,6 +13,24 @@ from typing import Optional
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / "docs" / "INDEX_GENERATED.md"
 
+
+def load_existing_statuses() -> dict[str, str]:
+    """Keep curated status descriptions when a document has no header status."""
+    statuses: dict[str, str] = {}
+    if not OUTPUT.exists():
+        return statuses
+    try:
+        content = OUTPUT.read_text("utf-8", errors="replace")
+    except OSError:
+        return statuses
+    for line in content.splitlines():
+        match = re.match(r"^\|\s*\d+\s*\|\s*`([^`]+)`\s*\|.*?\|\s*([^|]+?)\s*\|\s*[^|]+\s*\|\s*[^|]+\s*KB\s*\|", line)
+        if match:
+            status = match.group(2).strip()
+            if status and status != "---":
+                statuses[match.group(1)] = status
+    return statuses
+
 SCAN_DIRS = ["docs", "plans", "Artifact/docs", "ArtifactCore/docs"]
 EXCLUDE_PATTERNS = [r"node_modules/", r"third_party/", r"libs/", r"vendor/"]
 
@@ -108,7 +126,7 @@ def categorize(path: Path) -> str:
     return "other"
 
 
-def scan_directory(base_dir: Path) -> list[dict]:
+def scan_directory(base_dir: Path, existing_statuses: dict[str, str]) -> list[dict]:
     files = []
     if not base_dir.exists():
         print(f"  [SKIP] {base_dir} does not exist")
@@ -118,6 +136,8 @@ def scan_directory(base_dir: Path) -> list[dict]:
             continue
         rel_path = md_file.relative_to(ROOT)
         title, date, status, keywords = extract_title_and_date(md_file)
+        if not status:
+            status = existing_statuses.get(rel_path.as_posix())
         git_date = get_git_last_modified(md_file)
         size_kb = md_file.stat().st_size / 1024
         files.append({
@@ -248,11 +268,12 @@ def main():
     print("=" * 60)
     print("M-DOCMETA Phase 1: Document Inventory Generator")
     print("=" * 60)
+    existing_statuses = load_existing_statuses()
     all_files = []
     for dir_rel in SCAN_DIRS:
         scan_path = ROOT / dir_rel
         print(f"\nScanning: {dir_rel}/")
-        files = scan_directory(scan_path)
+        files = scan_directory(scan_path, existing_statuses)
         print(f"  -> {len(files)} files")
         all_files.extend(files)
     print(f"\nTotal: {len(all_files)} files")
