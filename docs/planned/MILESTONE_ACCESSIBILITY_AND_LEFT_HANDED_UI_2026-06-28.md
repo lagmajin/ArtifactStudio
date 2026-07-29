@@ -14,6 +14,7 @@
 - ✅ Render Layer の背景モードコンテキストメニューにも同じ配置補正を適用。
 - ✅ Application Settings のアクセシビリティ項目へ Accessible Name / Description を付与。
 - ✅ Composition Graph と Status Bar にも Accessible Name / Description を付与。
+- ✅ Composition Audio Mixer と Event Bus Debugger にも Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
