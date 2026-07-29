@@ -77,3 +77,9 @@ explicit interpretation and later display conversion.
 - `ArtifactOCIOManager::applyViewTransformToImage()` の RGB 変換から alpha の混入と `0..1` clamp を除去した。
 - これにより、明示的な display/output encoding 前の scene-linear / HDR RGB 値を保持し、alpha は独立して通過する。
 - working-space conversion の適用タイミングと実ファイル round-trip は引き続き未検証である。
+
+## 2026-07-29 interpretation state consistency
+
+- `FootageInterpretService::clearOverride()` が frame rate だけでなく input color space / transfer もクリアするようにした。
+- `currentOverride()` は実際に値が設定されている場合だけ `isActive` を返すようにした。
+- これにより、`Auto` へ戻した後に古い色解釈が残る状態と、空 override が有効扱いになる状態を防ぐ。
