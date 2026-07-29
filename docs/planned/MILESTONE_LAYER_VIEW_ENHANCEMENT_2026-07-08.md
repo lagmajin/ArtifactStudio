@@ -1,6 +1,6 @@
 # マイルストーン: レイヤー専用ビューポート（Layer View）機能キャッチアップ案
 
-> 作成: 2026-07-08 / 状態: Draft（提案・未着手）
+> 作成: 2026-07-08 / 状態: Partial implementation（編集基盤実装済み、共有検査基盤・統合待ち）
 > 関連: `docs/planned/MILESTONE_VIEWPORT_ENHANCEMENT_PROPOSAL_2026-07-08.md`（§12 の共有基盤を前提）
 > スコープ: 単一レイヤー専用ビューポート `ArtifactLayerEditorWidgetV2` / `ArtifactRenderLayerEditor` / `ArtifactSoftwareLayerTestWidget`
 > 目的: 「レイヤー単体専用ビューポートがあるが機能が大幅に遅れている」という指摘への更新案。
@@ -209,3 +209,18 @@ compositor_.drawAll(*renderer_, state_);
 - `docs/planned/MILESTONE_COMPOSITION_EDITOR_LAYER_VIEW.md`（旧 Layer View マイルストン・2026-03-21、現状は古い）
 - `Artifact/include/Render/ArtifactRenderLayerPipeline.ixx`（実パイプライン）
 - `Artifact/src/Widgets/Render/ArtifactRenderLayerWidgetv2.cppm`（実装済み編集機能）
+
+## Static audit follow-up (2026-07-29)
+
+`ArtifactRenderLayerWidgetv2` と関連パイプラインを静的に確認した。ビルド・実機操作は未実施。
+
+| 項目 | 現状 | 判定 |
+|---|---|---|
+| 編集基盤 | pan/zoom、checkerboard、mask/shape editing、transform gizmo、fit/reset、screenshot が実装済み。 | 実装済み／操作確認待ち |
+| 表示・検査 | DisplayMode は Color/Alpha/Mask/Wireframe に限定され、合成側の channel/HUD/ROI/compare 共有は未完了。 | 部分実装 |
+| パイプライン責務 | 実用の `RenderPipeline` は存在するが、`LayerPreviewPipeline` は空スタブで二重構造が残る。 | 整理待ち |
+| 統合導線 | standalone の Layer View は存在するが、dock 内の第一級導線・状態共有は未完了。 | 未完了 |
+
+### 判定
+
+編集機能の実装があるため「未着手」ではない。共有検査基盤、compare/inspect、パイプライン整理、dock 統合、runtime 検証を残課題として、部分実装扱いに更新した。
