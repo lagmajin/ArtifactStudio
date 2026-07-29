@@ -29,6 +29,7 @@
 - ✅ Playback Control の timecode、In point、Out point 表示に Accessible Name / Description を付与。
 - ✅ Playback Speed のプリセット・スライダー・数値入力に Accessible Name / Description と scaled height を適用。
 - ✅ Playback Info の current frame、speed、dropped frames 表示に個別の Accessible Name / Description を付与。
+- ✅ Clone ToolOptions の radius／位置固定入力に Accessible Name / Description と scaled target height を適用。
 - ✅ Application Settings の Accessibility グループ自体に目的説明の Accessible Name / Description を付与。
 - ✅ Playback Control ルートパネルに Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
