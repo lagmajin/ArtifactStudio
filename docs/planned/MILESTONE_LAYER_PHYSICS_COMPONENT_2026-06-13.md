@@ -1,6 +1,6 @@
 # 実装案: M-LYR-PHYS Layer Physics Component
 
-**ステータス:** In Progress
+**ステータス:** 部分完了（Collision 設定の Inspector/JSON、RigidBody/SoftBody bounds 同期、Circle collider 再構築を実装。共有 PhysicsWorld・Polygon collider・ランタイム検証は未完了）
 
 > 2026-06-13 作成  
 > 物理シミュレーションをレイヤーのコンポーネントとして統合（エフェクトではない）
