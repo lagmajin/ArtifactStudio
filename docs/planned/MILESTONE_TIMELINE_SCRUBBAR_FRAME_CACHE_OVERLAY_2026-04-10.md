@@ -143,6 +143,7 @@ AE 風の RAM preview に寄せて、`ArtifactTimelineScrubBar` 上に
 
 実装済み（静的確認）:
 
+- `totalFrames` 未設定時の `setCurrentFrame()` も 0 に収束し、負の上限を作らない初期化境界
 - 表示側の `totalFrames` と供給 bitmap の長さがずれた場合も、レール外へ描画しない境界処理
 - cache range / bitmap が空の場合の Accessible Description と `RAM Cache: unavailable` / `RAM Cache: errors` 表示
 - マウスの interactive seeking が無効な表示専用状態でも、フォーカス移動後に Left/Right、PageUp/PageDown、Home/End でキーボードシーク
