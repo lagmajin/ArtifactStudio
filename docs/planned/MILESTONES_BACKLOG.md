@@ -1556,7 +1556,7 @@ active milestone の重複名としては扱わない。
 - Phase 1 (Preflight) ✅: 差分表示, impact 列挙, 警告表示
 - Phase 2 (Policy + Remap) ✅: ResolutionRemap utility, ウィザード, mask 頂点 remap
 - Phase 3 (Preview + Apply + Undo) ✅: アスペクト比プレビュー, アンカー検出有効化, 影響表示
-  - 残: undo/redo基盤, プロパティキーフレームremap, アンカー位置remap実装
+  - 残: runtime undo/redo確認、実素材でのプロパティ／アンカー keyframe remap 検証
 - 詳細は `docs/planned/MILESTONE_ASPECT_RATIO_RESOLUTION_REMAP_WIZARD_2026-06-07.md`
 
 ## Motion Graphics

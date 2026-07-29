@@ -155,7 +155,7 @@
 
 #### Phase 1: bounds-based remap ✅ (Phase 2で実装)
 - [x] mask path を old bounds -> new bounds で remap する
-- [x] anchor point を bounds basis で再計算する (detection only — 実際のremapは未実装)
+- [x] anchor point を bounds basis で再計算する（transform.anchor の X/Y keyframe remap を含む）
 - [x] keyframe positions を変換する (mask animation keyframesのみ)
 
 #### Phase 2: policy-based offsets ✅
