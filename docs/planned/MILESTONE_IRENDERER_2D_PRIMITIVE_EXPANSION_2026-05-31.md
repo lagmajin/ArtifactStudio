@@ -156,6 +156,8 @@ void drawStyledPolylineLocal(const std::vector<Detail::float2>& points,
 
 Implementation update (2026-07-29): `TrimPaths`／`Repeater` の operator 出力を、solid fill・center stroke・taper／gradient なしの限定条件で `flattenSubpaths()`／`triangulate()` から native packet へ接続した。特殊条件は従来の互換 QImage 経路に残るため、runtime parity と全条件の native 化は未完了。
 
+同経路は operator の加工結果が空の場合に native early-return せず、既存の互換キャッシュ経路へ戻る境界条件も追加済み。
+
 次の安全な実装単位は、operator 複数輪郭の順序・fill rule・bounds invalidation と、gradient／taper の native contract を固定すること。
 
 ### Phase 2: Styled Polyline
