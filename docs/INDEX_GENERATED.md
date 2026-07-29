@@ -115,7 +115,7 @@
 
 | # | File | Title | Date | Status | Modified | Size | Keywords |
 |---|------|-------|------|--------|----------|------|----------|
-| 1 | `Artifact/docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md` | Milestone: Mask Keyframe Foundation | 2026-05-10 | --- | --- | 3.0 KB | MASK, KEYFRAME, FOUNDATION |
+| 1 | `Artifact/docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md` | Milestone: Mask Keyframe Foundation | 2026-05-10 | Partial (mask parameter exposure, current-time evaluation, render-path bridge, and timeline property/keyframe connection implemented; interpolation, fallback, multi-path, spatial-editor, and runtime verification pending) | 2026-07-29 | 3.0 KB | MASK, KEYFRAME, FOUNDATION |
 | 2 | `Artifact/docs/planned/MILESTONE_MULTI_FRAME_PREVIEW_RENDERING_2026-06-29.md` | Milestone: Multi-Frame Preview Rendering | 2026-06-29 | Partial (Phase 0 audit, stale-result rejection, owner-thread publish, generation/composition/pending validation, and 2-slot GPU blend scratch/depth rotation implemented; dedicated preview frame slots, CPU preparation overlap, full async readback integration, and runtime throughput verification pending) | 2026-07-29 | 17.6 KB | MULTI, FRAME, PREVIEW, RENDERING |
 
 ## ArtifactCore (42 files)
