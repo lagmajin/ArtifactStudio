@@ -840,7 +840,7 @@
 | 391 | `docs/planned/MILESTONE_PR_STYLE_REMEDIATION_2026-06-16.md` | Milestone M-PR-STYLE-1: ArtifactPr Style 違反修正 | 2026-06-16 | --- | 2026-06-18 | 16.0 KB | STYLE, REMEDIATION |
 | 392 | `docs/planned/MILESTONE_PREVIEW_PLAYBACK_PERFORMANCE_LOW_LEVEL_AI_2026-05-23.md` | Preview Playback Performance - Low Level AI Implementation Milestone | 2026-05-23 | --- | 2026-06-19 | 7.5 KB | PREVIEW, PLAYBACK, PERFORMANCE, LOW, LEVEL |
 | 393 | `docs/planned/MILESTONE_PROCEDURAL_3D_GENERATORS_MIR_TAO_2026-06-26.md` | Procedural 3D Generators Milestone | 2026-06-26 | Implementation present through the authoring/render/input/preset slices; | 2026-06-29 | 12.8 KB | PROCEDURAL, GENERATORS, MIR, TAO |
-| 394 | `docs/planned/MILESTONE_PROFESSIONAL_MEDIA_MATERIALS_2026-07-16.md` | Professional Media Materials Support (2026-07-16) | 2026-07-16 | --- | 2026-07-17 | 2.5 KB | PROFESSIONAL, MEDIA, MATERIALS |
+| 394 | `docs/planned/MILESTONE_PROFESSIONAL_MEDIA_MATERIALS_2026-07-16.md` | Professional Media Materials Support (2026-07-16) | 2026-07-16 | Phase 1-2 implemented; Phase 3-5 partial and runtime validation pending | 2026-07-29 | 2.5 KB | PROFESSIONAL, MEDIA, MATERIALS |
 | 395 | `docs/planned/MILESTONE_PROFESSIONAL_SOFT_BODY_2026-07-11.md` | マイルストーン: Professional Soft Body / Cloth System | 2026-07-11 | In Progress | 2026-07-12 | 4.9 KB | PROFESSIONAL, SOFT, BODY |
 | 396 | `docs/planned/MILESTONE_PROJECT_ASSET_WORKFLOW_2026-03-27.md` | マイルストーン: Project / Asset Workflow | 2026-03-27 | --- | 2026-07-09 | 7.2 KB | PROJECT, ASSET, WORKFLOW |
 | 397 | `docs/planned/MILESTONE_PROJECT_AUTO_SAVE_2026-04-10.md` | プロジェクト自動保存機能 | 2026-04-10 | --- | 2026-04-11 | 1.9 KB | PROJECT, AUTO, SAVE |
