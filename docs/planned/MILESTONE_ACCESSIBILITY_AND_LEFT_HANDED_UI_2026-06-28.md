@@ -93,6 +93,7 @@
 - ✅ Application Settings の Shortcuts ページに、ショートカット一覧と Import／Export／Reset プリセット操作の Accessible Name / Description を付与。
 - ✅ Application Settings の Plugins ページに、プラグイン一覧、フォルダを開く、更新、ロード／アンロード操作の Accessible Name / Description を付与。
 - ✅ Application Settings の AI ページに、クラウド AI 設定領域と説明ラベルの Accessible Name / Description を付与。
+- ✅ Cloud AI Settings の provider、base URL、API key 入力に Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
