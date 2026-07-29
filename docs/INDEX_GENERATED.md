@@ -323,11 +323,11 @@
 | 2 | `docs/done/COMPLETION_REPORT.md` | 🎉 プロジェクトビュー → タイムラインドラッグ改善完了レポート | --- | Completed | 2026-07-29 | 7.6 KB | COMPLETION, REPORT |
 | 3 | `docs/done/COMPOSITION_EDITOR_GAP_ANALYSIS_2026-06-03.md` | コンポジションエディタ 不足機能分析 — 2026-06-03 | 2026-06-03 | --- | 2026-06-20 | 10.2 KB | COMPOSITION, EDITOR, GAP, ANALYSIS |
 | 4 | `docs/done/COORDINATE_SYSTEMS.md` | 座標系仕様書 (Coordinate Systems Specification) | 2026-03-18 | --- | 2026-04-05 | 8.7 KB | COORDINATE, SYSTEMS |
-| 5 | `docs/done/DIALOG_REDESIGN_REPORT_2026-04-04.md` | 実装報告書: ダイアログ UI リデザイン + AI GPU 修正 | 2026-04-04 | --- | 2026-04-05 | 4.2 KB | DIALOG, REDESIGN, REPORT |
-| 6 | `docs/done/DRAG_DROP_IMPROVEMENTS.md` | ドラッグ&ドロップ改善実装レポート | --- | --- | 2026-03-20 | 7.2 KB | DRAG, DROP, IMPROVEMENTS |
+| 5 | `docs/done/DIALOG_REDESIGN_REPORT_2026-04-04.md` | 実装報告書: ダイアログ UI リデザイン + AI GPU 修正 | 2026-04-04 | Completed (implementation report) | 2026-07-29 | 4.2 KB | DIALOG, REDESIGN, REPORT |
+| 6 | `docs/done/DRAG_DROP_IMPROVEMENTS.md` | ドラッグ&ドロップ改善実装レポート | --- | Completed (implementation report) | 2026-07-29 | 7.2 KB | DRAG, DROP, IMPROVEMENTS |
 | 7 | `docs/done/EXPORT_PIPELINE_INVESTIGATION_2026-03-20.md` | 動画出力パイプライン調査レポート | 2026-03-20 | --- | 2026-03-21 | 5.8 KB | EXPORT, PIPELINE, INVESTIGATION |
-| 8 | `docs/done/IN_OUT_POINTS_INTEGRATION.md` | In/Out Points 統合実装レポート | --- | --- | 2026-03-20 | 9.1 KB | OUT, POINTS, INTEGRATION |
-| 9 | `docs/done/LAYER_PANEL_DRAG_IMPROVEMENTS.md` | レイヤーパネル ドラッグ&ドロップ改善 | --- | --- | 2026-03-20 | 3.2 KB | LAYER, PANEL, DRAG, IMPROVEMENTS |
+| 8 | `docs/done/IN_OUT_POINTS_INTEGRATION.md` | In/Out Points 統合実装レポート | --- | Completed (implementation report) | 2026-07-29 | 9.1 KB | OUT, POINTS, INTEGRATION |
+| 9 | `docs/done/LAYER_PANEL_DRAG_IMPROVEMENTS.md` | レイヤーパネル ドラッグ&ドロップ改善 | --- | Completed (implementation report) | 2026-07-29 | 3.2 KB | LAYER, PANEL, DRAG, IMPROVEMENTS |
 | 10 | `docs/done/M_TL_COMPLETION_REPORT.md` | M-TL シリーズ完了レポート | 2026-03-20 | --- | 2026-03-20 | 3.2 KB | COMPLETION, REPORT |
 | 11 | `docs/done/MILESTONE_2026-07-03_SESSION_COMPLETION.md` | 2026-07-03 セッション完了レポート | 2026-07-03 | Completed | 2026-07-29 | 1.5 KB | SESSION, COMPLETION |
 | 12 | `docs/done/MILESTONE_2D_SHAPE_MODELING_EDITING_2026-06-29.md` | MILESTONE: 2D Shape Modeling Editing | 2026-06-29 | ✅ Complete (source/static verified 2026-07-24; runtime/build verification pending) | 2026-07-24 | 12.4 KB | SHAPE, MODELING, EDITING |
