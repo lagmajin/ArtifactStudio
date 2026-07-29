@@ -512,6 +512,7 @@ active milestone の重複名としては扱わない。
 - 現在フレームの赤い進捗表示と共存させ、playback / scrub / seek の状態を読み取りやすくする
 - 詳細は `docs/planned/MILESTONE_TIMELINE_SCRUBBAR_FRAME_CACHE_OVERLAY_2026-04-10.md`
 - timeline index では補助線扱い。単独で追うより `docs/planned/MILESTONE_TIMELINE_INDEX_2026-04-22.md` を先に読む。
+- 状態: Cache Range Contract / Overlay Rendering / empty-state diagnostics の静的実装済み。runtime 回帰・大量フレーム負荷・overlay style 設定化は未完了
 
 ### M-FE-9 Motion Tracking Workflow
 - tracker editor / overlay / stabilize / bake を制作導線としてまとめる

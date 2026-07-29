@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 03:19
+> Generated: 2026-07-30 03:20
 > Total documents: 1134
 
 ---
@@ -1033,7 +1033,7 @@
 | 577 | `docs/planned/MILESTONE_WORKSPACE_MANAGER_2026-03-29.md` | Milestone: Workspace Manager (2026-03-29) | 2026-03-29 | --- | 2026-07-25 | 3.4 KB | WORKSPACE, MANAGER |
 | 578 | `docs/planned/MILESTONE_WORKSPACE_PRESETS_2026-04-10.md` | ワークスペースプリセット管理の実装 | 2026-04-10 | --- | 2026-07-25 | 5.2 KB | WORKSPACE, PRESETS |
 | 579 | `docs/planned/MILESTONE_ZOOM_TO_FIT_2026-04-10.md` | ズームtoフィット機能の拡張 | 2026-04-10 | --- | 2026-07-29 | 4.5 KB | ZOOM, FIT |
-| 580 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-30 | 97.7 KB | BACKLOG |
+| 580 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-30 | 97.9 KB | BACKLOG |
 | 581 | `docs/planned/NEXT_PHASE_ROADMAP.md` | プロジェクトビュー → タイムライン統合の次フェーズ提案 | 2026-06-07 | --- | 2026-07-05 | 9.1 KB | NEXT, PHASE, ROADMAP |
 | 582 | `docs/planned/PROPOSAL_RENDER_EXPORT_EFFICIENCY_2026-07-28.md` | 提案メモ: ファイル書き出し（レンダーキュー）効率化 — 2026-07-28 | 2026-07-28 | 提案（未実装・未承認） | 2026-07-28 | 3.7 KB | PROPOSAL, RENDER, EXPORT, EFFICIENCY |
 | 583 | `docs/planned/RANDOM_HELPER_PROPOSAL_2026-06-16.md` | Random / Noise Helper Proposal (ArtifactCore) — 2026-06-16 | 2026-06-16 | --- | 2026-06-17 | 21.0 KB | RANDOM, HELPER, PROPOSAL |
