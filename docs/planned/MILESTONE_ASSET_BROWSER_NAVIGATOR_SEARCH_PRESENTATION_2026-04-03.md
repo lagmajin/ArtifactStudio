@@ -188,4 +188,5 @@ Asset Browser から次の操作へ迷わず進めるようにする。
 - Sequence grouping の本格実装と Project View の構造整理は別マイルストーンに分離されており、scope boundary も守られている。
 - 2026-07-30 に Grid／List の view mode を `AssetBrowser/ViewMode` に保存・復元する導線を追加した。既存の sort key／方向設定と同じ探索面の設定復元経路を使う。File Type と Status filter も `AssetBrowser/FileTypeFilter` / `AssetBrowser/StatusFilter` に保存・復元する。UI 操作だけでなく既存の公開 setter 経由でも同じ設定を書き込む。最後に開いていた存在済みフォルダを `AssetBrowser/CurrentDirectory` に保存し、起動時に採用する。プロジェクト Asset root 外の stale path は既存の root 同期で安全に置き換える。
 - 左 Hub summary には Favorites / Sources に加えて現在の Type、Status、Search 条件を表示し、保存された filter state と実際の表示条件を同じ surface で確認できるようにした。
+- Status の Favorite も summary に明示し、保存・復元された全 Status filter 値が表示上欠落しないことを確認した。
 - よって親 milestone の実装範囲は完了相当だが、検索履歴切替、D&D preview ghost、runtime performance／UX の実機検証を残す状態と判定する。
