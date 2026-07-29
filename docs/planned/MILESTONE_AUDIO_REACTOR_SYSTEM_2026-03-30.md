@@ -1,5 +1,7 @@
 # Milestone: Audio Reactor System (M-AU-6)
 
+ステータス: FFT／Audio Reactive binding 基盤実装済み（専用サービス化・実運用検証待ち、静的確認 2026-07-29）
+
 ## 🎯 目的
 `ArtifactAudioMixer` と `AudioRenderer` から提供されるオーディオデータを解析し、レイヤーのプロパティ（位置・スケール・色・エフェクト強度）を音楽や音声に同期して自動アニメーションさせるシステムを構築する。
 

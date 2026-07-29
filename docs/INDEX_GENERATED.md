@@ -578,7 +578,7 @@
 | 129 | `docs/planned/MILESTONE_AUDIO_MIXER_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: オーディオミキサー 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-07-05 | 1.7 KB | AUDIO, MIXER, DESIGN, AUDIT |
 | 130 | `docs/planned/MILESTONE_AUDIO_MIXER_SURFACE_PHASE2_2026-05-25.md` | マイルストーン: Audio Mixer Surface Phase 2 | 2026-05-25 | 計画中 | 2026-05-25 | 2.4 KB | AUDIO, MIXER, SURFACE, PHASE2 |
 | 131 | `docs/planned/MILESTONE_AUDIO_PLAYBACK_STABILIZATION_2026-03-28.md` | マイルストーン: Audio Playback Stabilization | 2026-03-28 | --- | 2026-03-28 | 3.8 KB | AUDIO, PLAYBACK, STABILIZATION |
-| 132 | `docs/planned/MILESTONE_AUDIO_REACTOR_SYSTEM_2026-03-30.md` | Milestone: Audio Reactor System (M-AU-6) | 2026-04-05 | --- | 2026-03-30 | 2.5 KB | AUDIO, REACTOR, SYSTEM |
+| 132 | `docs/planned/MILESTONE_AUDIO_REACTOR_SYSTEM_2026-03-30.md` | Milestone: Audio Reactor System (M-AU-6) | 2026-04-05 | FFT／Audio Reactive binding foundation implemented; service/UI/runtime verification pending | 2026-07-29 | 2.8 KB | AUDIO, REACTOR, SYSTEM |
 | 133 | `docs/planned/MILESTONE_AUDIO_SCRUBBING_2026-06-16.md` | M-AU-8 Audio Scrubbing Milestone | 2026-06-16 | Implemented; device latency/cache hit/mute-sync/runtime verification pending | 2026-07-29 | 14.2 KB | AUDIO, SCRUBBING |
 | 134 | `docs/planned/MILESTONE_AUDIO_WAVEFORM_2026-03-29.md` | Milestone: オーディオ波形ビジュアライザー (2026-03-29) | 2026-03-29 | --- | 2026-03-30 | 1.7 KB | AUDIO, WAVEFORM |
 | 135 | `docs/planned/MILESTONE_AUDIO_WAVEFORM_THUMBNAIL_PREVIEW_2026-03-31.md` | マイルストーン: Audio Waveform Thumbnail Preview | 2026-03-31 | --- | 2026-04-01 | 2.2 KB | AUDIO, WAVEFORM, THUMBNAIL, PREVIEW |
