@@ -40,3 +40,4 @@
 判定: queue の基本操作と UI/API surface は実装済み、長時間運用・復旧・永続化・分散の acceptance は未検証または後続 milestone に分割済み。
 
 2026-07-30 implementation loop: summary ETA の進捗開始時刻を queue 同期で失わないよう保持し、queue reorder 時のみ index 対応をリセットする処理を追加。runtime の時間精度・長時間運用は未検証。
+途中 job 削除時も index の詰まりによる誤流用を避けるため timing map をリセットし、次の progress event から再計測する。
