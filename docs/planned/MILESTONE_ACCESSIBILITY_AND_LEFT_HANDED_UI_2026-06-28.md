@@ -114,6 +114,7 @@
 - ✅ Property Editor の Rotation 数値入力と回転ノブ操作に Accessible Name / Description を付与。
 - ✅ Property Editor の Float／Integer 数値入力とスライダー操作に Accessible Name / Description を付与。
 - ✅ Property Editor の Boolean Toggle とエディタ領域に Accessible Name / Description を付与。
+- ✅ Property Editor 共通の Slider、Selector、Callback Button に標準 Accessible Name / Description を付与。
 - ✅ 左利き設定を既存のアクセシビリティ設定経路で利用し、新規のシグナル／スロット配線は追加していない。
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
