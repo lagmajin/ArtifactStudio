@@ -160,6 +160,8 @@ Implementation update (2026-07-29): `TrimPaths`／`Repeater` の operator 出力
 
 operator の追加／削除／並べ替え／プロパティ編集について、local bounds と shape content cache の invalidation も同じ更新契約に統一済み。
 
+gradient／taper など互換キャッシュへ進む operator は、native packet 用の加工を先に実行しないよう候補判定を分離した。空の加工結果も従来の互換経路へ戻る。
+
 次の安全な実装単位は、operator 複数輪郭の順序・fill rule・bounds invalidation と、gradient／taper の native contract を固定すること。
 
 ### Phase 2: Styled Polyline
