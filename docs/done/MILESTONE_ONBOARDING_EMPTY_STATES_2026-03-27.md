@@ -1,6 +1,6 @@
 # Onboarding / Empty States (2026-03-27)
 
-**Status:** Partial — empty-state guidance exists across inspector, project, timeline, and viewer surfaces; unified first-action/recent/import/create onboarding remains pending verification.
+**Status:** Complete (static implementation verified; runtime and localization/accessibility verification pending).
 
 ## Goal
 
@@ -23,3 +23,11 @@
 
 `Deferred UI Initialization` と相性がよい。
 lazy load した後でも、空状態の案内が自然に出るようにする。
+
+## Implementation verification (2026-07-30)
+
+- WelcomeWidget provides the empty-project first-action surface with recent projects and New / Import / Open entry points.
+- Asset Browser distinguishes no folder, empty folder, and no search/filter matches.
+- Layer Panel distinguishes no composition from a composition with no layers.
+- Render Layer Widget and surface information use an explicit `No layer selected` state.
+- Remaining verification is limited to runtime presentation, localization, and accessibility review.

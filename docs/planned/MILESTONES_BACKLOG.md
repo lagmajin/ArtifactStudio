@@ -451,10 +451,13 @@ active milestone の重複名としては扱わない。
 - `M-RD-5 Animated Image Export`
 - 詳細は `docs/planned/MILESTONE_FEATURE_EXPANSION_FOCUS_TRIO_2026-03-28.md`
 
-### M-FE-1 Onboarding / Empty States ✅ (2026-06-23)
+### M-FE-1 Onboarding / Empty States ✅ (2026-07-30)
 - ✅ WelcomeWidget: empty project の案内画面（最近開いたプロジェクト一覧、New / Import / Open ボタン）
 - ✅ Playhead Phase 1: `currentFrame_` を単一権威に統一、全 UI への fan-out を `setCurrentFrameForAll()` に集約
-- 未着手: empty selection / empty asset / empty timeline の案内
+- ✅ empty selection: Render Layer Widget / surface info が `No layer selected` を表示
+- ✅ empty asset: Asset Browser が未選択フォルダ・空フォルダ・検索結果なしを状態別に案内
+- ✅ empty timeline: Layer Panel が composition 未選択時とレイヤー未作成時を状態別に案内
+- 残件: 初回導線の実機表示確認と翻訳・アクセシビリティ確認
 - マイルストーン文書は `docs/done/` へ移動済み
 
 ### M-FE-2 Export / Review / Share ✅ (2026-06-23)

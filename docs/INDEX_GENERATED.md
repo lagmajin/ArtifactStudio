@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-07-30 02:35
+> Generated: 2026-07-30 02:38
 > Total documents: 1134
 
 ---
@@ -378,7 +378,7 @@
 | 50 | `docs/done/MILESTONE_MCP_TOOL_BRIDGE_2026-04-14.md` | MCP / Tool Bridge | 2026-04-14 | Completed (Phase 1 request handling, schema/dispatch, AIContext, and transport boundary; runtime verification pending) | 2026-07-07 | 0.5 KB | MCP, TOOL, BRIDGE |
 | 51 | `docs/done/MILESTONE_MESH_INSTANCING_2026-04-26.md` | MILESTONE: Mesh Instancing Infrastructure for DiligentEngine | 2026-04-26 | Completed (instance buffers/PSO/draw, clone conversion, and effector path; runtime/GPU verification pending) | 2026-07-29 | 7.5 KB | MESH, INSTANCING |
 | 52 | `docs/done/MILESTONE_NUMERIC_FIELD_QUICK_CALC_2026-06-07.md` | Numeric Field Quick Calc Milestone | 2026-06-07 | ✅ 完了 (2026-06-08 確認 / 2026-06-15 共有化・Dialog 波及) | 2026-07-07 | 4.4 KB | NUMERIC, FIELD, QUICK, CALC |
-| 53 | `docs/done/MILESTONE_ONBOARDING_EMPTY_STATES_2026-03-27.md` | Onboarding / Empty States (2026-03-27) | 2026-03-27 | Partial (surface guidance exists; unified first-action onboarding and runtime verification pending) | 2026-07-29 | 0.8 KB | ONBOARDING, EMPTY, STATES |
+| 53 | `docs/done/MILESTONE_ONBOARDING_EMPTY_STATES_2026-03-27.md` | Onboarding / Empty States (2026-03-27) | 2026-03-27 | Partial (surface guidance exists; unified first-action onboarding and runtime verification pending) | 2026-07-29 | 1.3 KB | ONBOARDING, EMPTY, STATES |
 | 54 | `docs/done/MILESTONE_PARENT_PICK_WHIP_2026-07-03.md` | M-LA-4 Parent Pick-Whip Milestone | 2026-07-03 | Completed (timeline drag/hover/drop and parent service path; runtime/cyclic-parent verification pending) | 2026-07-29 | 5.7 KB | PARENT, PICK, WHIP |
 | 55 | `docs/done/MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md` | Playback State Contract and Transport Cohesion | 2026-05-31 | Completed (state authority, transport synchronization, diagnostic wording, and preview reason reporting; runtime verification pending) | 2026-07-07 | 0.8 KB | PLAYBACK, STATE, CONTRACT, AND, TRANSPORT |
 | 56 | `docs/done/MILESTONE_PLAYHEAD.md` | マイルストーン: プレイヘッド整備 | 2026-03-21 | Partial — playhead rendering, scrub/keyboard seeking, and playback synchronization are implemented; direct triangle drag, timecode input, snap, and state unification remain pending. | 2026-07-30 | 4.4 KB | PLAYHEAD |
@@ -1033,7 +1033,7 @@
 | 577 | `docs/planned/MILESTONE_WORKSPACE_MANAGER_2026-03-29.md` | Milestone: Workspace Manager (2026-03-29) | 2026-03-29 | --- | 2026-07-25 | 3.4 KB | WORKSPACE, MANAGER |
 | 578 | `docs/planned/MILESTONE_WORKSPACE_PRESETS_2026-04-10.md` | ワークスペースプリセット管理の実装 | 2026-04-10 | --- | 2026-07-25 | 5.2 KB | WORKSPACE, PRESETS |
 | 579 | `docs/planned/MILESTONE_ZOOM_TO_FIT_2026-04-10.md` | ズームtoフィット機能の拡張 | 2026-04-10 | --- | 2026-07-29 | 4.5 KB | ZOOM, FIT |
-| 580 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-30 | 96.5 KB | BACKLOG |
+| 580 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-07-16 | --- | 2026-07-30 | 96.9 KB | BACKLOG |
 | 581 | `docs/planned/NEXT_PHASE_ROADMAP.md` | プロジェクトビュー → タイムライン統合の次フェーズ提案 | 2026-06-07 | --- | 2026-07-05 | 9.1 KB | NEXT, PHASE, ROADMAP |
 | 582 | `docs/planned/PROPOSAL_RENDER_EXPORT_EFFICIENCY_2026-07-28.md` | 提案メモ: ファイル書き出し（レンダーキュー）効率化 — 2026-07-28 | 2026-07-28 | 提案（未実装・未承認） | 2026-07-28 | 3.7 KB | PROPOSAL, RENDER, EXPORT, EFFICIENCY |
 | 583 | `docs/planned/RANDOM_HELPER_PROPOSAL_2026-06-16.md` | Random / Noise Helper Proposal (ArtifactCore) — 2026-06-16 | 2026-06-16 | --- | 2026-06-17 | 21.0 KB | RANDOM, HELPER, PROPOSAL |
