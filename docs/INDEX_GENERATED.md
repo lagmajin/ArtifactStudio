@@ -585,7 +585,7 @@
 | 136 | `docs/planned/MILESTONE_AUDIO_WIDGET_ENHANCEMENT_2026-04-09.md` | マイルストーン: Audio Widget Enhancement / Mixer Surface | 2026-04-09 | --- | 2026-04-09 | 2.9 KB | AUDIO, WIDGET, ENHANCEMENT |
 | 137 | `docs/planned/MILESTONE_AUDIT_CORRECTED_2026-07-04.md` | MILESTONE_AUDIT_CORRECTED_2026-07-04 | 2026-07-04 | --- | 2026-07-05 | 2.8 KB | AUDIT, CORRECTED |
 | 138 | `docs/planned/MILESTONE_AUTO_KEYING_GHOSTING_2026-07-07.md` | M-AK-1 Auto-Keying + Keying Sets + Ghosting Milestone | 2026-07-07 | --- | 2026-07-09 | 10.3 KB | AUTO, KEYING, GHOSTING |
-| 139 | `docs/planned/MILESTONE_AUTO_ORIENT_2026-06-16.md` | M-MO-1 Auto-Orient Milestone | 2026-06-16 | --- | 2026-06-19 | 14.8 KB | AUTO, ORIENT |
+| 139 | `docs/planned/MILESTONE_AUTO_ORIENT_2026-06-16.md` | M-MO-1 Auto-Orient Milestone | 2026-06-16 | Auto-Orient mode/evaluation/Property foundation implemented; persistence/integration/runtime verification pending | 2026-07-29 | 16.0 KB | AUTO, ORIENT |
 | 140 | `docs/planned/MILESTONE_AUTO_SUGGESTION_2026-06-02.md` | M-AI-SUGGEST 自動提案・アシスタント機能 (2026-06-02) | 2026-06-02 | --- | 2026-06-05 | 13.0 KB | AUTO, SUGGESTION |
 | 141 | `docs/planned/MILESTONE_AUTO_TRACE_2026-06-02.md` | M-MOTION-6 Auto-Trace / Vectorize Raster (2026-06-02) | 2026-06-02 | --- | 2026-06-05 | 3.4 KB | AUTO, TRACE |
 | 142 | `docs/planned/MILESTONE_AUTOMATION_HELPERS_2026-03-27.md` | Automation Helpers (2026-03-27) | 2026-03-27 | --- | 2026-07-12 | 1.6 KB | AUTOMATION, HELPERS |
