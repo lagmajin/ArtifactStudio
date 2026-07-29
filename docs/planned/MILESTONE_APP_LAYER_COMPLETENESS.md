@@ -34,12 +34,13 @@ UI/UX やレンダリングパイプラインの新機能ではなく、**既に
 - `Artifact/include/Service/ArtifactAudioService.ixx`
 - [x] 物理Audio output device名の列挙（`availableOutputDeviceNames()`）
 - [x] 選択deviceのPlayback backendへの適用（`setOutputDeviceName()` → `ArtifactPlaybackEngine`）
+- [x] 選択device名のQSettings永続化（`audio/outputDeviceName`）
 - [x] current compositionのaudio layer bus生成とMaster既定ルーティング
 - [x] master volume / muteはPlayback出力だけに適用し、Core masterとの二重gainを防止
 - [x] layer busのvolume / pan / mute / solo操作
 - [x] Composition Audio Mixerのmaster操作をAudioService facadeへ、strip操作をCore busへ接続
 
-facade sliceと物理Audio device列挙・選択の公開契約は静的実装済み。指定名は次回のPlayback audio device openに使われ、既に開いているdeviceは再オープン対象になる。実機runtime確認と設定UI接続は未実施。ユーザー方針によりbuild / testは実施していない。
+facade sliceと物理Audio device列挙・選択・設定永続化の公開契約は静的実装済み。指定名は次回のPlayback audio device openに使われ、既に開いているdeviceは再オープン対象になる。実機runtime確認と設定UI接続は未実施。ユーザー方針によりbuild / testは実施していない。
 
 ### M-APP-5 TranslationManager 実装 ✅
 - `Artifact/include/Translation/TranslationManager.ixx`
