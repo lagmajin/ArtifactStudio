@@ -156,3 +156,9 @@ Phase 1-4 は summary / color / ordering / diagnostics bridge の基礎面とし
 ### 現在の判定
 
 情報階層と異常表示の実装は進んでいるが、全 App Debugger surface の共通 semantic token と runtime layout 評価が残る。マイルストーンは「部分実装／確認待ち」とする。
+
+## 2026-07-29 実装マーク
+
+- Phase 1 の current-state / frame summary / warning / next の階層、Phase 2 の QPalette による neutral / warning / error surface はコード上実装済みとしてマークする。
+- Phase 4 の failed pass、resource failure、fallback、stale cache、playback warning の前景化も既存 summary / attention surface で確認済みとする。
+- 全 surface の semantic token 統一、overlay / present / pass / resource の最終色設計、runtime layout 評価は pending のため、マイルストーン全体は `Partial implementation / verification pending` を維持する。
