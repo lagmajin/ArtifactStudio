@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — PointTrackerのkeyframe入力と出力範囲を検証する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Tool/ArtifactPointTrackerTool.cppm`
+- 事実: tracker出力の時間・座標・fps・point IDを検証せず、composition範囲外のkeyframeや重複IDを出力する可能性があった。
+- 閃き・仮説: finite/範囲検証、composition範囲内への限定、ID重複排除と上限を追加すると、追跡結果の適用を安定させられる。
+- 価値・懸念: 異常座標・時間や過大なNull生成を抑え、適用結果をdirty/changedとして通知できる。240fps・1024点上限の用途適合性は未検証。
+- 次の確認: ビルド・実機で範囲外keyframe、重複ID、無効fps、空結果、undo/再読込を確認する。
+
 ### 2026-08-03 — CameraTrackerの解析範囲と結果を検証する
 
 - 状態: 確認済み
