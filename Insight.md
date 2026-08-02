@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ColorWheelsEffect の RGB ホイールと master 値を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/ColorCorrection/ColorWheelsEffect.cppm`
+- 事実: lift / gamma / gain / offset の RGB 値と master 値は clamp のみで、非有限値を明示的に補正していなかった。
+- 閃き・仮説: 4ホイールと4 master setter の境界で有限値を保証すると、色調整状態の同期先へ異常値が伝播しにくくなる。
+- 価値・懸念: カラーグレーディング入力の安定性を一貫して高められる。既定値の妥当性は未検証。
+- 次の確認: ビルド・実機で RGB 各軸と master の異常値入力を確認する。
+
 ### 2026-08-03 — ColorBalanceEffect の RGB バランスと範囲設定を有限化する
 
 - 状態: 確認済み
