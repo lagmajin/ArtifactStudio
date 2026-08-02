@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — EdgeBloomEffect のしきい値・半径・強度入力を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/Glow/EdgeBloomEffect.ixx`
+- 事実: threshold / radius / amount / edgeBoost / tintMix は clamp のみで、非有限値を明示的に補正していなかった。cmath include も不足していた。
+- 閃き・仮説: 公開 setter で有限値を保証し、必要な標準ヘッダを直接 include すると、Edge Bloom の API 境界と module 自己完結性を改善できる。
+- 価値・懸念: エッジ発光の入力安定性を高められる。module interface の変更は再スキャン範囲が広がる可能性がある。
+- 次の確認: ビルド・実機で5項目の異常値入力を確認する。
+
 ### 2026-08-03 — ChromaticGlowEffect の光量・分散・角度入力を有限化する
 
 - 状態: 確認済み
