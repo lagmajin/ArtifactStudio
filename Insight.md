@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ArtifactAudioLayerの音量・再生時間を安全化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Layer/ArtifactAudioLayer.cppm`
+- 事実: layer volume/panは非有限値を補正せず、sample rateが0でもdurationを除算していた。
+- 閃き・仮説: 音量・panを有限値化し、sample rateが正の場合だけdurationとloaded状態を有効にすると、音声レイヤーの再生・診断状態を安定させられる。
+- 価値・懸念: NaN/Infの音声設定と0除算を抑えられる。無効音源をloaded=falseとする呼び出し側の扱いは未検証。
+- 次の確認: ビルド・実機で正常／壊れた音源、volume/pan境界、sample rate 0の挙動を確認する。
+
 ### 2026-08-03 — Keying effectのUI分類を揃える
 
 - 状態: 確認済み
