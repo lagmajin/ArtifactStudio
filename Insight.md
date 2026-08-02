@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — BlurEffect の公開パラメータ setter を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/Blur/BlurEffect.ixx`
+- 事実: radius / strength / edgeThreshold は clamp または max のみで、非有限値を明示的に補正していなかった。
+- 閃き・仮説: 公開 module interface の setter で有限値を保証すると、Blur の CPU / GPU 実装同期へ異常値が伝播しにくくなる。
+- 価値・懸念: 前回の実装側補正と合わせて API 境界も安定化できる。module interface の変更は再スキャン範囲が広がる可能性がある。
+- 次の確認: ビルド・実機で radius / strength / edgeThreshold の異常値入力を確認する。
+
 ### 2026-08-03 — AutoMosaicEffect の feather 入力を有限化する
 
 - 状態: 確認済み
