@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — StripesEffect の周波数・角度・厚み・offset を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Rasterizer/StripesEffect.cppm`
+- 事実: frequency は下限のみ、angle / offset は直接代入、thickness は clamp のみで、非有限値を補正していなかった。
+- 閃き・仮説: 4つの setter で有限値と妥当範囲を保証すると、ストライプ生成の CPU / GPU 同期へ異常値が伝播しにくくなる。
+- 価値・懸念: 周波数の過大値と角度・offset の異常値によるパターン破損を抑えられる。frequency 上限は未検証。
+- 次の確認: ビルド・実機で周波数、厚み、角度、offset の境界値を確認する。
+
 ### 2026-08-03 — HalftoneEffect のドットサイズ・角度・コントラストを有限化する
 
 - 状態: 確認済み
