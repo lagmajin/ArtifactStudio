@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — RenderQueueServiceのselective settings APIを公開宣言へ揃える
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Render/ArtifactRenderQueueService.ixx`
+- 事実: 実装済みのジョブ単位selective settings getter/setterが公開module宣言に含まれず、利用側がサービスAPIとして参照できなかった。
+- 閃き・仮説: `QVariantMap`を用いた宣言と必要なincludeを公開面へ追加すると、WorkspaceAutomationやUIから同じ設定契約を利用できる。
+- 価値・懸念: 実装とmodule interfaceの不一致によるコンパイル・利用制限を解消できる。mapキーの仕様は既存実装に依存する。
+- 次の確認: ビルド・module hygiene検査で公開宣言と実装の一致を確認する。
+
 ### 2026-08-03 — RenderQueueのselective設定をWorkspaceAutomationへ公開する
 
 - 状態: 確認済み
