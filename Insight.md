@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — SharpenEffect の amount・sigma・threshold を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Sharpen/SharpenEffect.cppm`
+- 事実: amount / sigma / threshold は clamp のみで、非有限値を明示的に補正していなかった。
+- 閃き・仮説: 3つの setter で有限値を保証すると、シャープ化の CPU / GPU 同期へ異常値が伝播しにくくなる。
+- 価値・懸念: 輪郭強調の入力安定性を高められる。sigma の既定値と上限の見た目は未検証。
+- 次の確認: ビルド・実機で amount / sigma / threshold の境界値を確認する。
+
 ### 2026-08-03 — VignetteEffect の画面端半径と CPU/GPU 入力条件をそろえる
 
 - 状態: 確認済み
