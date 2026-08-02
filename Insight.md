@@ -4810,3 +4810,10 @@
 - 事実: mask/effect preset の読み込み前に16 MiBのファイルサイズ上限を追加した。
 - 価値: preset JSON の `readAll()` とパースが巨大入力で過剰なメモリを消費する経路を抑える。
 - 次に確認すべきこと: 既存presetの実サイズ分布を確認し、必要なら上限値を仕様化する。
+
+# 2026-08-03: Locale JSON file size bound
+
+- 関連: `Artifact/src/Translation/TranslationManager.cppm`
+- 事実: locale JSON の読み込み前に8 MiBのファイルサイズ上限を追加した。
+- 価値: 翻訳ファイル入力の `readAll()` と再帰的な flatten 処理が巨大入力で過剰なメモリを消費する経路を抑える。
+- 次に確認すべきこと: 翻訳運用で8 MiBを超えるlocaleが発生しないか確認する。
