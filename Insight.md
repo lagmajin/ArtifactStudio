@@ -4859,3 +4859,10 @@
 - 事実: palette JSONの読み込みにファイル16 MiB、palette 100000件の上限を追加した。
 - 価値: 外部paletteの巨大配列や異常なパス指定による過剰な読み込みを抑える。
 - 次に確認すべきこと: 実運用paletteのサイズと件数が上限内か確認する。
+
+# 2026-08-03: Animation preset input bound
+
+- 関連: `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`
+- 事実: Property Widgetのanimation preset JSON読み込みに16 MiBのファイルサイズ上限を追加した。
+- 価値: ユーザー選択ファイルの巨大JSONがUI操作中に無制限に読み込まれる経路を抑える。
+- 次に確認すべきこと: 既存animation presetの最大サイズを確認する。
