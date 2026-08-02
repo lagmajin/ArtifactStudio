@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — BricksEffect のレンガ寸法・モルタル・offset を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Rasterizer/BricksEffect.cppm`
+- 事実: brickWidth / brickHeight / mortarWidth は max のみ、offset は clamp のみで、非有限値を補正していなかった。
+- 閃き・仮説: レンガ生成の4 setter で有限値を保証すると、ラスタライズ計算へ異常なセル寸法が伝播しにくくなる。
+- 価値・懸念: 不正な寸法・オフセットによるレンガパターン破損を抑えられる。既定値の見た目は未検証。
+- 次の確認: ビルド・実機で寸法、モルタル幅、offset の境界値を確認する。
+
 ### 2026-08-03 — MosaicEffect の shape mask 平均と cellSize 入力をそろえる
 
 - 状態: 確認済み
