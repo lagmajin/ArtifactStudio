@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — RenderQueueプリセットのVideo/Audio分類を実装する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Render/ArtifactRenderQueuePresets.cppm`
+- 事実: Videoカテゴリは画像シーケンスでないものを広く返し、Audioカテゴリは常にfalseを返していた。
+- 閃き・仮説: container/codecを正規化して音声・映像の既知値を分類すると、プリセット選択UIのカテゴリ結果を実データに合わせられる。
+- 価値・懸念: 音声プリセットが表示可能になり、音声を動画カテゴリへ誤表示しにくくなる。未知のcontainer/codecの分類は未検証。
+- 次の確認: ビルド・実機でwav/mp3、mp4/mov、未知形式、画像シーケンスのカテゴリ表示を確認する。
+
 ### 2026-08-03 — OCIO Managerのviewer調整・GPU/LUT APIを公開する
 
 - 状態: 確認済み
