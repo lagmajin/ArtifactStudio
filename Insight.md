@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — EdgeEffect / RimLightEffect の rasterizer 入力を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Rasterizer/EdgeEffect.cppm`
+- 事実: Edge の mode / intensity / threshold / invert と RimLight の angle / width / softness / intensity / mix は clamp・fmod のみで、非有限値を補正していなかった。
+- 閃き・仮説: 両 rasterizer effect の setter 境界で有限値を保証すると、異常なエッジ・リム光パラメータが同期先へ伝播しにくくなる。
+- 価値・懸念: 同一実装ファイル内の2エフェクトの入力安定性をそろえられる。既定値の見た目は未検証。
+- 次の確認: ビルド・実機で Edge / RimLight の境界値と異常値入力を確認する。
+
 ### 2026-08-03 — DitheringEffect の algorithm enum と量パラメータを境界検証する
 
 - 状態: 確認済み
