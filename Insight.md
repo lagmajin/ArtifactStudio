@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — WhiteBalanceEffect の温度・色かぶり・明度入力を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/WhiteBalanceEffect.ixx`
+- 事実: temperature / tint / brightness は clamp のみで、非有限値を明示的に補正していなかった。
+- 閃き・仮説: 公開 setter で有限値を保証すると、ホワイトバランス設定の同期先へ異常値が伝播しにくくなる。
+- 価値・懸念: 色温度と補正量の入力安定性を高められる。module interface の変更は再スキャン範囲が広がる可能性がある。
+- 次の確認: ビルド・実機で3項目の異常値入力とプリセット適用を確認する。
+
 ### 2026-08-03 — HDRDisplayEffect の表示モードと HDR パラメータを境界検証する
 
 - 状態: 確認済み
