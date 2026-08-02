@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — Command Paletteからマスク追加をUndo対応で実行する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Widgets/CommandPalette/ArtifactCommandPaletteWidget.cppm`
+- 事実: Command PaletteのAdd Maskを実装し、選択レイヤー全体の矩形マスクを追加、UndoManager経由の復元、About項目の情報表示を接続した。
+- 閃き・仮説: パレットからの編集コマンドも通常メニューと同じUndoCommandへ通すと、導線が増えても編集履歴の一貫性を保てる。
+- 価値・懸念: マスク追加の発見性とUndo整合性が上がる。既存マスクのコピー／復元コストは別途確認が必要。
+- 次の確認: ビルド・実機で選択レイヤーへのAdd Mask、Undo／Redo、対象なし、空サイズを確認する。
+
 ### 2026-08-03 — RenderMenuに一時停止・キャンセル導線と説明を追加する
 
 - 状態: 確認済み
