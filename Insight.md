@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ChromaticReliefEffect のレリーフ入力を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Rasterizer/ChromaticReliefEffect.cppm`
+- 事実: Relief Amount / Chromatic Offset / Direction / Edge Softness / Mix は、setterで非有限値を補正していなかった。
+- 閃き・仮説: 有限値確認後に既存範囲へ収め、Directionにもフォールバックを設けると、レリーフ計算の入力契約を安定させられる。
+- 価値・懸念: NaN/Infによる不定出力を抑えられる。Directionの単位・許容範囲は既存仕様に依存し、未検証。
+- 次の確認: ビルド・実機で各数値の通常値、境界値、非有限値を確認する。
+
 ### 2026-08-03 — WhiteBalanceEffect の色調整範囲をプロパティ定義へ反映する
 
 - 状態: 確認済み
