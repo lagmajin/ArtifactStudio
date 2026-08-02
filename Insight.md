@@ -4936,3 +4936,10 @@
 - 事実: latest snapshot hashのサイズ検証条件を成功時に処理する形へ修正し、ledger/snapshot保存をQSaveFile化した。
 - 価値: 有効なlatest snapshotを誤って読み飛ばす不具合を直し、履歴保存途中のJSON破損リスクを抑える。
 - 次に確認すべきこと: revision作成・再起動後のhead/snapshot復元を確認する。
+
+# 2026-08-03: PSO cache input bound
+
+- 関連: `Artifact/src/Render/ShaderManager.cppm`
+- 事実: PSO cacheの読み込みを512 MiB以下のファイルに制限した。
+- 価値: 起動時のGPU PSO cache読み込みで異常に巨大なバイナリが無制限にメモリへ展開される経路を抑える。
+- 次に確認すべきこと: 実GPU環境で生成されるPSO cacheの最大サイズを確認する。
