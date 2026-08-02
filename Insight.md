@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — LevelsEffect の入出力レベルを有限値として同期する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/ColorCorrection/LevelsEffect.cppm`
+- 事実: input/output black・white は float を直接 double 設定へ渡し、gamma も非有限値の検査なしに clamp していた。
+- 閃き・仮説: 5つの setter で有限値を保証し、gamma だけ既存範囲を維持すると、Levels の設定同期へ異常値が流れにくくなる。
+- 価値・懸念: レベル調整の外部入力に対する安定性を高められる。black / white の相互関係は未検証。
+- 次の確認: ビルド・実機で非有限値入力と black ≤ white の扱いを確認する。
+
 ### 2026-08-03 — GradientRampEffect の座標・opacity 入力を有限化する
 
 - 状態: 確認済み
