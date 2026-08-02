@@ -4984,3 +4984,10 @@
 - 事実: MCP手入力argumentsが配列の場合、tool実行へ渡す要素数を10000件に制限した。
 - 価値: バイト数内でも極端に細かい大量要素を持つJSONがtool実行へ流れる経路を抑える。
 - 次に確認すべきこと: 通常のMCP arguments配列件数が上限内か確認する。
+
+# 2026-08-03: AI model list duplicate suppression
+
+- 関連: `Artifact/src/Widgets/AI/ArtifactAICloudWidget.cppm`
+- 事実: API/local JSONのmodel ID抽出時に重複IDを除外するようにした。
+- 価値: providerや設定ファイルの重複項目でmodel selectorが不必要に膨らむことを防ぐ。
+- 次に確認すべきこと: providerごとのID表記ゆれ（大文字小文字・別名）を確認する。
