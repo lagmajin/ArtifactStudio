@@ -4783,3 +4783,9 @@
 - 事実: `projectItems` 復元前に配列を最大100000件へ制限するようにした。
 - 価値: project JSON の過大な top-level item 配列をそのまま manager へ渡さず、import 時の大量生成を抑える。
 - 次に確認すべきこと: manager 側の folder nesting 復元にも深さ・子 item 上限があるか確認する。
+# 2026-08-03: Project item tree restore bounds
+
+- 関連: `Artifact/src/Project/ArtifactProject.cppm`
+- 事実: project item tree の復元に総数100000件、folder nesting depth 64 の上限を追加した。
+- 価値: project JSON の深すぎる／大量の nested folder が再帰処理と owned item allocation を過剰に消費する経路を抑える。
+- 次に確認すべきこと: 上限到達時に import 結果へ警告を返す必要があるか確認する。
