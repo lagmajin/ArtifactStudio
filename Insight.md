@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ArtifactToolBarのツール導線と名称を拡張する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Widgets/ArtifactToolBar.cppm`
+- 事実: 楕円、Clone、Rig Select、Rig Weight、Track Pointのツール表示・選択処理を追加し、既存ToolTypeへの切替とアクセシビリティ説明を接続した。
+- 閃き・仮説: ToolTypeが先に存在する機能では、ツールバーの表示名・選択状態・ショートカット導線を揃えることが未接続機能の発見性を上げる。
+- 価値・懸念: 新しい編集機能へ到達しやすくなる。アイコン資産の既存参照は将来Studio固有SVGへ整理する余地がある。
+- 次の確認: ビルド・実機で各ツールの選択、再選択、アクセシビリティ情報、ショートカットを確認する。
+
 ### 2026-08-03 — TimelineLayerPanelのvariant名変換とdragEnterの境界を修正する
 
 - 状態: 確認済み
