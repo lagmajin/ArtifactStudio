@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — DitheringEffect の algorithm enum と量パラメータを境界検証する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Dithering/DitheringEffect.cppm`
+- 事実: algorithm は enum 値を直接保持し、amount / patternScale は clamp・max のみで非有限値を補正していなかった。
+- 閃き・仮説: algorithm を有効範囲へ制限し、数値 setter で有限値を保証すると、ディザリング同期先の入力条件を安定化できる。
+- 価値・懸念: 未定義アルゴリズムと異常量による処理差を抑えられる。enum の有効数は未検証。
+- 次の確認: ビルド・実機で algorithm 範囲、amount / patternScale 境界を確認する。
+
 ### 2026-08-03 — LiquidGlowEffect の流体グロー入力を有限化する
 
 - 状態: 確認済み
