@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — MosaicEffect の shape mask 平均と cellSize 入力をそろえる
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Mosaic/MosaicEffect.cppm`
+- 事実: GPU shape mode はセル全体の平均を作ってから中心形状を出力していたため、形状外サンプルを平均へ含めていた。cellSize は非有限値を補正していなかった。
+- 閃き・仮説: shape mode 時は形状内サンプルだけで平均を計算し、cellSize setter で有限値を保証すると、CPU/GPU の形状モザイク結果を整合させやすい。
+- 価値・懸念: 形状モードの色滲みと異常 cellSize を抑えられる。GPU のサンプル数増加による性能影響は未検証。
+- 次の確認: ビルド・実機で矩形 / shape mode、セル端、cellSize 境界を比較する。
+
 ### 2026-08-03 — SharpenEffect の amount・sigma・threshold を有限化する
 
 - 状態: 確認済み
