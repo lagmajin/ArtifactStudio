@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ProceduralTextureGeneratorの入力範囲とプロパティ面を整える
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/Generator/ProceduralTextureGenerator.ixx`
+- 事実: preset・width・heightを無制限に設定でき、GeneratorのProperty一覧とsetPropertyValueが未実装だった。
+- 閃き・仮説: presetと解像度を範囲制限し、同じ契約をAbstractPropertyへ公開すると、生成設定の編集と実行時状態を揃えられる。
+- 価値・懸念: 不正な解像度やpresetによる生成失敗を抑え、Inspectorから基本設定を編集できる。8192上限とSeedの表示型は未検証。
+- 次の確認: ビルド・実機でpreset切替、解像度境界、Seed編集、生成結果を確認する。
+
 ### 2026-08-03 — HueAndSaturationの色調整setterを有限化する
 
 - 状態: 確認済み
