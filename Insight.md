@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — InnerShadow の RGBA 順序・内部合成・入力値を整える
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/InnerShadow/InnerShadowEffect.cppm`
+- 事実: CPU shadow buffer は BGR 順で書き込み、内部合成は前景 alpha を二重に扱う式になっており、setter は非有限値を補正していなかった。
+- 閃き・仮説: RGBA 順へそろえ、shadow factor を前景 alpha と組み合わせた premultiplied 的な式へ整理し、入力 setter で有限値を保証すると、内側影の色・透明度を安定化できる。
+- 価値・懸念: DropShadow と同じ色順の不整合を減らし、透明境界の合成を改善できる。合成式の見た目は未検証。
+- 次の確認: ビルド・実機で半透明レイヤー、RGBA 色順、softness / opacity 境界を比較する。
+
 ### 2026-08-03 — GlowEffect の CPU 輝度マスクと CPU/GPU 入力条件をそろえる
 
 - 状態: 確認済み
