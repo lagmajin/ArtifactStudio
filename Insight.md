@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — DifferenceMatteEffect の threshold を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Rasterizer/DifferenceMatteEffect.cppm`
+- 事実: threshold は clamp のみで、非有限値を明示的に補正していなかった。referenceOffset は既存範囲に制限されている。
+- 閃き・仮説: threshold setter で有限値を保証すると、差分マットの比較結果へ異常値が伝播しにくくなる。
+- 価値・懸念: 差分マスクの入力安定性を高められる。threshold の既定値は未検証。
+- 次の確認: ビルド・実機で referenceOffset と threshold の境界値を確認する。
+
 ### 2026-08-03 — RadialBlurEffect の量・中心・モードを有限化する
 
 - 状態: 確認済み
