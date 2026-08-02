@@ -4977,3 +4977,10 @@
 - 事実: MCP手入力tool arguments JSONを4 MiB以下に制限してからパースするようにした。
 - 価値: UIからの巨大arguments入力でJSONパースやtool実行前のバッファ確保が過剰化する経路を抑える。
 - 次に確認すべきこと: 通常のMCP tool argumentsサイズが上限内か確認する。
+
+# 2026-08-03: MCP manual argument item bound
+
+- 関連: `Artifact/src/Widgets/AI/ArtifactAICloudWidget.cppm`
+- 事実: MCP手入力argumentsが配列の場合、tool実行へ渡す要素数を10000件に制限した。
+- 価値: バイト数内でも極端に細かい大量要素を持つJSONがtool実行へ流れる経路を抑える。
+- 次に確認すべきこと: 通常のMCP arguments配列件数が上限内か確認する。
