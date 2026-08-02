@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — RadioWavesEffect の波数列挙と時間パラメータを安定化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Generate/RadioWavesEffect.cppm`
+- 事実: waveCount は現在時刻までの全ウェーブを列挙し、frequency / lifespan の異常値を前提にせず、各 setter も非有限値を補正していなかった。
+- 閃き・仮説: 有効寿命内の first〜last wave だけを列挙し、安全な frequency / lifespan を使うと、不要計算とゼロ除算リスクを減らせる。setter で関連入力も有限化する。
+- 価値・懸念: 長時間再生時の波ウェーブ列挙コストと異常入力を抑えられる。波の境界タイミングは未検証。
+- 次の確認: ビルド・実機で長時間再生、frequency / lifespan 境界、CPU 出力を確認する。
+
 ### 2026-08-03 — SimpleRainEffect の雨パラメータを有限値境界で統一する
 
 - 状態: 確認済み
