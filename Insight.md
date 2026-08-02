@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — LensDistortion CPU パスでも zoom の下限を再確認する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/LensDistortion/LensDistortionEffect.cppm`
+- 事実: CPU 適用処理は zoom を直接使っており、API setter の補正状態に依存していた。
+- 閃き・仮説: 適用直前にも最小値を適用すると、古い状態や別経路からの設定でもゼロ近傍除算を避けやすくなる。
+- 価値・懸念: CPU レンズ歪みの防御境界を実装側にも置ける。GPU パスとの同じ防御範囲は未検証。
+- 次の確認: ビルド・実機で zoom 0 / 極小値の CPU / GPU 結果を確認する。
+
 ### 2026-08-03 — KuwaharaEffect の radius と sharpness を有限化する
 
 - 状態: 確認済み
