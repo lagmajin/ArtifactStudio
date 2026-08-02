@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ChromaticGlowEffect の光量・分散・角度入力を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/Glow/ChromaticGlowEffect.ixx`
+- 事実: threshold / radius / intensity / dispersion / tintMix は clamp のみで、angle は直接代入され、非有限値を明示的に補正していなかった。
+- 閃き・仮説: 光彩の全数値 setter で有限値を保証すると、GPU / CPU 同期へ異常値が伝播しにくくなる。
+- 価値・懸念: 色収差グローの入力安定性をそろえられる。module interface の変更は再スキャン範囲が広がる可能性がある。
+- 次の確認: ビルド・実機で半径・分散・角度の異常値入力を確認する。
+
 ### 2026-08-03 — SphericalField の中心・半径・falloff と距離評価を有限化する
 
 - 状態: 確認済み
