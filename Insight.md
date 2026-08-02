@@ -4943,3 +4943,10 @@
 - 事実: PSO cacheの読み込みを512 MiB以下のファイルに制限した。
 - 価値: 起動時のGPU PSO cache読み込みで異常に巨大なバイナリが無制限にメモリへ展開される経路を抑える。
 - 次に確認すべきこと: 実GPU環境で生成されるPSO cacheの最大サイズを確認する。
+
+# 2026-08-03: AI model list response bound
+
+- 関連: `Artifact/src/Widgets/AI/ArtifactAICloudWidget.cppm`
+- 事実: model list API responseのJSON読み込みを16 MiB以下に制限した。
+- 価値: 外部AI providerからの巨大なmodel list応答でUI側のバッファ・JSONパースが過剰化する経路を抑える。
+- 次に確認すべきこと: 接続先providerのmodel list応答サイズが上限内か確認する。
