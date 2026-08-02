@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — BlurEffect の数値入力は有限値を明示的に補正する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Blur/BlurEffect.cppm`
+- 事実: `setRadius` / `setStrength` / `setEdgeThreshold` は従来、NaN や無限大を通常の clamp/max だけでは防げなかった。
+- 閃き・仮説: 外部パラメータ境界で `std::isfinite` を先に確認し、各既定値へ戻すことで、後段の GPU/CPU ブラー処理へ非有限値が伝播する経路を減らせる。
+- 価値・懸念: エフェクト設定の破損時にも安定した既定動作を維持できる。既定値の妥当性は未検証。
+- 次の確認: ビルド・実機で NaN / infinity 入力時の UI とレンダリング結果を確認する。
+
 ### 2026-07-28 — 連番シーケンスの再生は ArtifactImageLayer::draw と ImageSequenceSource の接続が次段階
 
 - 状態: 未検証（設計案）
