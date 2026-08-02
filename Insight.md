@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — TextGizmoの選択状態とプレビュー座標を安定化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Widgets/Render/ArtifactTextGizmo.cppm`
+- 事実: layer切替時にドラッグ状態をリセットし、weight／cluster／line境界とzoomの有限値・下限を補正した。
+- 閃き・仮説: Gizmoは選択対象の切替と描画・hitTestが別経路で進むため、対象切替時の状態破棄と座標入力の正規化を同時に行うと残留操作や不定座標を抑えられる。
+- 価値・懸念: レイヤー切替後の誤ドラッグとNaNによる表示・hitTest破綻を減らせる。ズーム端点での操作感は実機確認が必要。
+- 次の確認: ビルド・実機でText layer切替中のドラッグ、極端なzoom、selector preview表示を確認する。
+
 ### 2026-08-03 — Inspectorのエフェクトカタログを実装済み効果へ広げる
 
 - 状態: 確認済み
