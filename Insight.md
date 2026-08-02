@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — GlitchEffect の強度・色ずれ・走査線・seed を境界検証する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Rasterizer/GlitchEffect.cppm`
+- 事実: intensity / colorShift / scanlines は clamp のみ、seed は直接代入で、非有限値や過大 seed を補正していなかった。
+- 閃き・仮説: 3つの float setter を有限化し、seed を範囲内へ収めると、グリッチ生成の同期先へ異常値が伝播しにくくなる。
+- 価値・懸念: 乱数・走査線パラメータの安定性を高められる。seed 上限は未検証。
+- 次の確認: ビルド・実機で4項目の境界値と再現性を確認する。
+
 ### 2026-08-03 — FilmDamageEffect のフィルム損傷プロパティを有限化する
 
 - 状態: 確認済み
