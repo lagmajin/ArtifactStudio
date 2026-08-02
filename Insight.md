@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — TurbulentDisplaceEffect のノイズ入力範囲を明示する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/TurbulentDisplace/TurbulentDisplaceEffect.cppm`
+- 事実: Amount / Size / Octaves / Seed / Domain Warp はsetterの範囲制限または非有限値補正が不足し、プロパティ範囲も未設定だった。
+- 閃き・仮説: 反復回数・シード・ワープ量に上限を設け、同じ範囲をプロパティメタデータへ反映すると、計算負荷と入力契約を安定させられる。
+- 価値・懸念: 極端なノイズ設定による過大計算や不定値を抑えられる。上限値が既存作例を狭めないかは未検証。
+- 次の確認: ビルド・実機で各パラメータの境界値、プリセット、非有限値を確認する。
+
 ### 2026-08-03 — ChromaticReliefEffect のレリーフ入力を有限化する
 
 - 状態: 確認済み
