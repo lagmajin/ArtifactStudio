@@ -5005,3 +5005,9 @@
 - 事実: FootageからImageParamsへ素材別Color Space/Transfer Functionを渡す境界でも、4096/1024文字の上限を適用した。
 - 価値: 古いprojectや別経路で長大な解釈値が保持されていても、画像生成処理へそのまま伝播しないようにする。
 - 次に確認すべきこと: FootageInterpretService側の既存入力検証と上限を統一する。
+# 2026-08-03: Footage frame-rate validation
+
+- 関連: `Artifact/src/Service/FootageInterpretService.cppm`
+- 事実: frame rate変更のpreflight/apply/current overrideで有限値化と0.001〜1000.0の範囲制限を適用した。
+- 価値: NaN/Infや極端なframe rateがFootage解釈と保存状態へ伝播する経路を抑える。
+- 次に確認すべきこと: UI入力側のframe rate範囲と同じ制約になっているか確認する。
