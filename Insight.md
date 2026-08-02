@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — BrushToolをApplicationManagerの公開導線へ接続する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Application/ArtifactApplicationManager.ixx`, `Artifact/src/Application/ArtifactApplicationManager.cppm`
+- 事実: BrushToolはアプリケーションManagerの状態・アクセサに含まれず、UIやサービスから既存のManager経由で取得できなかった。
+- 閃き・仮説: MotionSketch/Puppetと同じ導線でBrushToolを保持・返却すると、ブラシ操作の所有箇所を一元化できる。
+- 価値・懸念: 既存のツール取得パターンを再利用できる。BrushToolの初期化順序やUI接続のruntime確認は未検証。
+- 次の確認: ビルド・実機でApplicationManagerからの取得、ツール切替、破棄時の寿命を確認する。
+
 ### 2026-08-03 — プロジェクトManagerの同期・非同期パスを正規化する
 
 - 状態: 確認済み
