@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — Kaleidoscope の補間サンプリング・フェード半径・入力境界を整える
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Kaleidoscope/KaleidoscopeEffect.cppm`
+- 事実: CPU パスは最近傍整数サンプリングと中心依存の fade 半径を使い、center / rotation / zoom / feather は非有限値を補正していなかった。
+- 閃き・仮説: bilinear sampling と画面端から求める最大半径を使い、setter で有限値を保証すると、万華鏡の境界品質と異常入力耐性を改善できる。
+- 価値・懸念: 回転・拡大時のジャギーと中心外 fade の不整合を抑えられる。補間コストと見た目は未検証。
+- 次の確認: ビルド・実機で回転、feather、画面端、CPU / GPU のサンプリング結果を比較する。
+
 ### 2026-08-03 — InnerShadow の RGBA 順序・内部合成・入力値を整える
 
 - 状態: 確認済み
