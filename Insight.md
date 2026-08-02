@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — Project Viewの検索・フィルター条件を要約表示する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`
+- 事実: Project Viewのtype filter、unused filter、検索語を要約するラベルを追加し、条件変更時に更新するよう接続した。
+- 閃き・仮説: 選択数ではなく現在の絞り込み条件を明示すると、表示件数が変わった理由をユーザーが追いやすい。
+- 価値・懸念: 検索・フィルター状態の見落としを減らせる。狭いProject Viewでは高さと情報密度の妥当性を確認する必要がある。
+- 次の確認: ビルド・実機でfilter／検索語の変更、ラベル折返し、狭幅レイアウトを確認する。
+
 ### 2026-08-03 — ArtifactToolBarのツール導線と名称を拡張する
 
 - 状態: 確認済み
