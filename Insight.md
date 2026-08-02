@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — MotionSketchのフレームレート・入力検証を揃える
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Tool/ArtifactMotionSketchTool.ixx`, `Artifact/src/Tool/ArtifactMotionSketchTool.cppm`
+- 事実: スケッチのundo/redoが固定24fpsでキー時刻を復元し、開始フレームを保持していなかった。座標・サンプル時刻の有限値検証と表示設定APIも不足していた。
+- 閃き・仮説: compositionの実fpsと開始フレームをsnapshotへ使い、入力を検証し、sample rate/wireframe/background設定を公開すると、スケッチ結果とundoの時間軸を一致させられる。
+- 価値・懸念: 24fps以外のcompositionでキー位置がずれにくくなる。実時間サンプリングとフレーム丸めの細かな差は未検証。
+- 次の確認: ビルド・実機で24/30/60fps、無効座標、undo/redo、表示設定を確認する。
+
 ### 2026-08-03 — Luma KeyとDifference Keyをエフェクト登録へ接続する
 
 - 状態: 確認済み
