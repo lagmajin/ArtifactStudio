@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — GlowEffect の CPU 輝度マスクと CPU/GPU 入力条件をそろえる
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Glow/GlowEffect.cppm`
+- 事実: CPU マスク生成は BGR 前提の `cvtColor` を使い、入力 setter は直接値を保持していた。GPU/CPU 共通のレイヤー数や sigma 等にも範囲がなかった。
+- 閃き・仮説: RGBA チャンネルから明示的な RGB 輝度を計算し、マスクを 1 以下に抑え、両実装の setter 範囲を統一すると、色順と異常入力の差を減らせる。
+- 価値・懸念: Glow の CPU / GPU 見た目差と過大パラメータを抑えられる。OpenCV Mat のチャンネル順前提は未検証。
+- 次の確認: ビルド・実機で RGB 原色、glowGain、layerCount、sigma の CPU / GPU 結果を比較する。
+
 ### 2026-08-03 — DropShadow の RGBA 順序・境界サンプリング・入力値を整える
 
 - 状態: 確認済み
