@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — TwistTransform の Angle プロパティに範囲と有限値境界を付ける
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/Transform/TwistTransform.ixx`
+- 事実: Angle プロパティは UI 範囲を持たず、property setter も float を直接保持していた。
+- 閃き・仮説: -720〜720 度の min / max を提示し、setter で同じ範囲と有限値を保証すると、UI 入力と変形計算の境界をそろえられる。
+- 価値・懸念: 非有限・過大角度による変形不安定化を抑えられる。既存の直接 setter 経路の有無は未検証。
+- 次の確認: ビルド・実機で範囲外、NaN / infinity、UI 編集結果を確認する。
+
 ### 2026-08-03 — WaveEffect の CPU/GPU 波形パラメータ範囲を統一する
 
 - 状態: 確認済み
