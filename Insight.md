@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — VoronoiEffect の scale・jitter・mode・seed を境界検証する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Rasterizer/VoronoiEffect.cppm`
+- 事実: scale は下限のみ、jitter は clamp のみ、mode は既存範囲内だが seed は直接代入で、非有限値や過大 seed を補正していなかった。
+- 閃き・仮説: scale / jitter を有限化し、seed を範囲内へ収めると、セル生成と乱数経路の入力を安定化できる。
+- 価値・懸念: 過大なセル密度や未制限 seed による処理差を抑えられる。scale 上限は未検証。
+- 次の確認: ビルド・実機で mode、seed、scale / jitter の境界値と再現性を確認する。
+
 ### 2026-08-03 — StripesEffect の周波数・角度・厚み・offset を有限化する
 
 - 状態: 確認済み
