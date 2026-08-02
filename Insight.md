@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ApertureShapeBlurEffect の開口入力を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Blur/ApertureShapeBlurEffect.cppm`
+- 事実: Radius / Rotation / Edge Brightness / Highlight Boost は非有限値をそのまま保持する経路があった。
+- 閃き・仮説: setter で有限値を確認し、既存の範囲制限と既定値フォールバックを併用すると、PSF計算へ異常値が伝播しにくくなる。
+- 価値・懸念: 開口形状ブラーの不定出力を抑えられる。回転角の極端値とPSF画像経路の相互作用は未検証。
+- 次の確認: ビルド・実機で各数値プロパティの境界値と非有限値を確認する。
+
 ### 2026-08-03 — AnisotropicFlowBlurEffect のテンソル入力を有限化する
 
 - 状態: 確認済み
