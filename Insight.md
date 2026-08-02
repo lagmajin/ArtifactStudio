@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — PuppetToolのpin属性APIを公開する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Tool/ArtifactPuppetTool.ixx`
+- 事実: pinの位置・回転・weight・depthを取得／設定する実装がある一方、公開module宣言にアクセサがなかった。
+- 閃き・仮説: pin属性APIを公開すると、rig編集UIや自動化処理が既存PuppetTool経路から状態を読み書きできる。
+- 価値・懸念: 2D rig編集の編集粒度を高められる。weight/depthの値域検証とUI接続は未検証。
+- 次の確認: ビルド・実機でpin選択、回転・weight・depth編集、保存・再読込を確認する。
+
 ### 2026-08-03 — PointTrackerのkeyframe入力と出力範囲を検証する
 
 - 状態: 確認済み
