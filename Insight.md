@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ChromaKeyEffect の key color チャンネルを有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/Keying/ChromaKeyEffect.ixx`
+- 事実: key color は RGBA 値を直接保持し、チャンネルごとの非有限値や範囲外を検査していなかった。
+- 閃き・仮説: 各チャンネルを有限・0〜1 に補正すると、キー判定へ異常な色値が伝播しにくくなる。
+- 価値・懸念: キーカラー入力の安定性を高められる。CPU/GPU 実装間の setter 共通化は未検証。
+- 次の確認: ビルド・実機で透明度を含む key color の境界値を確認する。
+
 ### 2026-08-03 — PBRMaterialEffect の材質入力検証と変換項目をそろえる
 
 - 状態: 確認済み
