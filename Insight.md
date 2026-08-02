@@ -5017,3 +5017,9 @@
 - 事実: envelope sampleのeffect start/endが非有限値の場合に安全な既定値へフォールバックするようにした。
 - 価値: 異常なanimation値が補間結果へNaN/Infとして伝播する経路を抑える。
 - 次に確認すべきこと: envelope入力keyframeの有限値検証と整合するか確認する。
+# 2026-08-03: Corner Pin warp implementation
+
+- 関連: `Artifact/src/Effect/ArtifactCornerPinEffect.cppm`
+- 事実: Corner Pinのplaceholder処理をhomography計算とOpenCV `warpPerspective`によるRGBA32F CPU warpへ置き換え、入力値・係数の有限値検証を追加した。
+- 価値: コーナーピン効果が実際の画像変形を行い、異常な変換値では元画像へ安全にフォールバックする。
+- 次に確認すべきこと: 透視変形、退化四辺形、alpha保持のruntime受入れを確認する。
