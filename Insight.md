@@ -4908,3 +4908,10 @@
 - 事実: grading preset名を空、`.`/`..`、256文字超、ディレクトリ区切りを含む値として保存・読み込みできないようにした。
 - 価値: preset名から保存先パスを組み立てる際の意図しないディレクトリ逸脱を防ぐ。
 - 次に確認すべきこと: 既存preset名の命名規則がこの制約に適合するか確認する。
+
+# 2026-08-03: Color grading preset atomic save
+
+- 関連: `Artifact/src/Color/ArtifactColorGradingEngine.cppm`
+- 事実: grading preset保存をQSaveFile経由にし、全payload書き込み成功時のみcommitするようにした。
+- 価値: 保存途中のI/O失敗で既存preset JSONが中途半端な内容に置き換わるリスクを抑える。
+- 次に確認すべきこと: 実環境でpreset保存後の再読み込みを確認する。
