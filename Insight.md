@@ -5023,3 +5023,9 @@
 - 事実: Corner Pinのplaceholder処理をhomography計算とOpenCV `warpPerspective`によるRGBA32F CPU warpへ置き換え、入力値・係数の有限値検証を追加した。
 - 価値: コーナーピン効果が実際の画像変形を行い、異常な変換値では元画像へ安全にフォールバックする。
 - 次に確認すべきこと: 透視変形、退化四辺形、alpha保持のruntime受入れを確認する。
+# 2026-08-03: Stabilizer robustness and processing pass
+
+- 関連: `Artifact/src/Effect/ArtifactStabilizer.cppm`
+- 事実: Stabilizerの数値・画像サイズ検証、再実行時の状態リセット、完全トラック判定、有限値フォールバック、フレーム変換処理をまとめて整理した。
+- 価値: 異常入力や再利用時の古いmotion状態による不安定なstabilization結果を抑える。
+- 次に確認すべきこと: 複数フレーム、単一フレーム、特徴点不足、border fillのruntime受入れを確認する。
