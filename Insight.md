@@ -4845,3 +4845,10 @@
 - 事実: workspace session/layout JSON の読み込み前に8 MiBのファイルサイズ上限を追加した。
 - 価値: 壊れた、または巨大化したworkspace設定で `readAll()` が過剰なメモリを消費する経路を抑える。
 - 次に確認すべきこと: 既存workspace設定の最大サイズを確認する。
+
+# 2026-08-03: Revision storage input bounds
+
+- 関連: `Artifact/src/Project/ArtifactRevisionService.cppm`
+- 事実: revision ledgerを16 MiB、snapshot JSONを256 MiB、ledger内revision件数を100000件に制限した。
+- 価値: 履歴復元時の巨大JSON読み込みと大量record生成によるメモリ・処理量を抑える。
+- 次に確認すべきこと: 大規模プロジェクトのsnapshot実サイズと履歴件数が上限内か確認する。
