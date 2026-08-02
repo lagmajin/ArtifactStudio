@@ -4831,3 +4831,10 @@
 - 事実: effect preset collection の読み込みにファイル16 MiB、エントリ100000件の上限を追加し、非object要素を無視するようにした。
 - 価値: 外部preset JSONの巨大配列や異常要素が大量のpreset所有を引き起こす経路を抑える。
 - 次に確認すべきこと: 上限到達時に読み込み結果へ警告を返す必要があるか確認する。
+
+# 2026-08-03: Color grading preset input bounds
+
+- 関連: `Artifact/src/Color/ArtifactColorGradingEngine.cppm`
+- 事実: color grading preset の読み込みにファイル16 MiB、grading node 100000件の上限を追加した。
+- 価値: 外部grading presetの巨大JSONやnode配列による過剰なメモリ・処理量を抑える。
+- 次に確認すべきこと: 実運用のgrading presetサイズが上限に収まるか確認する。
