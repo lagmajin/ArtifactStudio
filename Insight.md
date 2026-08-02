@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ArtifactStabilizerのmodule宣言をinclude後へ移動する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effect/ArtifactStabilizer.ixx`
+- 事実: `export module` 宣言が標準・Qt・wobjectヘッダのinclude途中にあり、global module fragmentの構造が他のmoduleインターフェースと不揃いだった。
+- 閃き・仮説: include群をglobal module fragmentへまとめ、module宣言をその後へ置くと、C++20 module境界とヘッダ解析の挙動を安定させられる。
+- 価値・懸念: MSVCのmoduleスキャン時にincludeがpurviewへ漏れるリスクを下げられる。依存ヘッダの実ビルド確認は未検証。
+- 次の確認: ビルド・module hygiene検査でArtifactStabilizerの宣言・include境界を確認する。
+
 ### 2026-08-03 — BrushToolをApplicationManagerの公開導線へ接続する
 
 - 状態: 確認済み
