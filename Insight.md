@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — OpticsCompensationEffect の光学パラメータ契約を揃える
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/OpticsCompensation/OpticsCompensationEffect.cppm`
+- 事実: Center X/Y、FOV はsetter側に範囲制限がある一方、非有限値の補正とプロパティ定義側の範囲メタデータが不足していた。
+- 閃き・仮説: 有限値フォールバックとUI範囲を同じ契約として持たせると、入力経路ごとの差異を減らせる。
+- 価値・懸念: 光学補正の中心・視野角に不正値が入りにくくなる。既存UIのDirection=-1〜1表示は未検証。
+- 次の確認: ビルド・実機で数値入力とDirectionの正負切替を確認する。
+
 ### 2026-08-03 — EdgeBloomEffect のプロパティ範囲をUIメタデータへ反映する
 
 - 状態: 確認済み
