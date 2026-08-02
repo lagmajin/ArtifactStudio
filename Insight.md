@@ -4901,3 +4901,10 @@
 - 事実: debugger bundle/state JSONの読み込みに8 MiBのファイルサイズ上限を追加した。
 - 価値: 診断UIのJSON読み込みで巨大なdebug bundleやstateが無制限に展開される経路を抑える。
 - 次に確認すべきこと: 通常のdebug bundle/stateサイズが上限内か確認する。
+
+# 2026-08-03: Color grading preset name validation
+
+- 関連: `Artifact/src/Color/ArtifactColorGradingEngine.cppm`
+- 事実: grading preset名を空、`.`/`..`、256文字超、ディレクトリ区切りを含む値として保存・読み込みできないようにした。
+- 価値: preset名から保存先パスを組み立てる際の意図しないディレクトリ逸脱を防ぐ。
+- 次に確認すべきこと: 既存preset名の命名規則がこの制約に適合するか確認する。
