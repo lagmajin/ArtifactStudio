@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — LayerPluginAdapterのABI includeをglobal module fragmentへ移動する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Plugin/LayerPluginAdapter.ixx`
+- 事実: `ArtifactPluginABI.h` の通常includeがmodule宣言後のpurview側に置かれていた。
+- 閃き・仮説: ABIヘッダをglobal module fragmentのinclude群へ移すと、MSVCが外部ヘッダをmodule purviewとして解析するリスクを下げられる。
+- 価値・懸念: C++20 module境界を規約に揃えられる。ABIヘッダ自身のmodule適合性は未検証。
+- 次の確認: module hygiene検査とビルドでinclude位置・ABI型の可視性を確認する。
+
 ### 2026-08-03 — LayerMaskのlock状態APIを公開宣言へ揃える
 
 - 状態: 確認済み
