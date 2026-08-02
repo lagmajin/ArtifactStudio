@@ -4894,3 +4894,10 @@
 - 事実: shortcut preset JSONの読み込みに4 MiBのファイルサイズ上限を追加した。
 - 価値: ユーザー選択のshortcut presetが巨大な場合にUI上で無制限に読み込まれる経路を抑える。
 - 次に確認すべきこと: 既存shortcut presetの最大サイズを確認する。
+
+# 2026-08-03: Debugger JSON input bounds
+
+- 関連: `Artifact/src/Widgets/Diagnostics/AppDebuggerWidget.cppm`
+- 事実: debugger bundle/state JSONの読み込みに8 MiBのファイルサイズ上限を追加した。
+- 価値: 診断UIのJSON読み込みで巨大なdebug bundleやstateが無制限に展開される経路を抑える。
+- 次に確認すべきこと: 通常のdebug bundle/stateサイズが上限内か確認する。
