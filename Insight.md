@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — KuwaharaEffect の radius と sharpness を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Kuwahara/KuwaharaEffect.cppm`
+- 事実: radius / sharpness は clamp のみで、非有限値を明示的に補正していなかった。
+- 閃き・仮説: setter 境界で有限値を保証すると、Kuwahara の CPU / GPU 同期へ異常値が伝播しにくくなる。
+- 価値・懸念: フィルタ半径と輪郭特性の入力安定性を高められる。既定値の見た目は未検証。
+- 次の確認: ビルド・実機で radius / sharpness の境界値と異常値を確認する。
+
 ### 2026-08-03 — RadioWavesEffect の波数列挙と時間パラメータを安定化する
 
 - 状態: 確認済み
