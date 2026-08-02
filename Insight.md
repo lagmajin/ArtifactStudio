@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — HalftoneEffect のドットサイズ・角度・コントラストを有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Rasterizer/HalftoneEffect.cppm`
+- 事実: dotSize は下限のみ、angle は直接代入、contrast は clamp のみで、非有限値を補正していなかった。
+- 閃き・仮説: 3つの setter で有限値と妥当範囲を保証すると、ハーフトーン格子の生成へ異常値が伝播しにくくなる。
+- 価値・懸念: ドット配置とコントラストの入力安定性を高められる。dotSize 上限は未検証。
+- 次の確認: ビルド・実機で dotSize、angle、contrast の境界値を確認する。
+
 ### 2026-08-03 — GlitchEffect の強度・色ずれ・走査線・seed を境界検証する
 
 - 状態: 確認済み
