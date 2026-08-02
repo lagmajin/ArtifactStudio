@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — AudioServiceの音量・パン入力を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Service/ArtifactAudioService.cppm`
+- 事実: master volume、layer volume、pan、dB変換はclamp前に非有限値を除外していなかった。
+- 閃き・仮説: 有限値を確認してから既存範囲へ収め、中立値をフォールバックにすると、音声ミキサーや診断値へのNaN/Inf伝播を防げる。
+- 価値・懸念: 音声出力の不定化を抑えられる。無効入力を1.0/0.0へ戻す設計がUI想定と一致するかは未検証。
+- 次の確認: ビルド・実機でmaster/layer volume、pan、dB診断の境界値と非有限値を確認する。
+
 ### 2026-08-03 — RAM Previewの空範囲と失敗理由を同期する
 
 - 状態: 確認済み
