@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — Render Queue Managerの選択レンダー設定とFarm状態表示を拡張する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Widgets/Render/ArtifactRenderQueueManagerWidget.cppm`
+- 事実: フレーム範囲、解像度、ROI／crop、layer filter、pass分割、除外設定、選択layer利用のUIと要約表示を追加し、Farm worker／RPC状態も表示するようにした。
+- 閃き・仮説: レンダー設定をjob単位で要約して表示すると、キュー投入後の対象範囲と除外条件を再確認しやすく、Farm状態と合わせて実行前の判断材料になる。
+- 価値・懸念: 選択的レンダーと分散実行の可視性が上がる。設定UIの密度と既存jobとの復元互換性は実機確認が必要。
+- 次の確認: ビルド・実機でselected range、ROI、layer filter、pass分割、Farm表示、既存job復元を確認する。
+
 ### 2026-08-03 — ToolOptionsBarのブラシ・消しゴム・Motion Sketch操作を拡張する
 
 - 状態: 確認済み
