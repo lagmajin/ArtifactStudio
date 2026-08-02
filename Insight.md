@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — HueAndSaturation の RGB 色空間変換と入力境界をそろえる
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/ColorCorrection/HueAndSaturation.cppm`
+- 事実: CPU 側の HSV 変換が BGR 定数を使っており、プロパティ入力も clamp のみで非有限値を補正していなかった。
+- 閃き・仮説: RGBA ベースの処理へ RGB 変換定数を合わせ、Hue / Saturation / Lightness の入力境界で有限値を保証すると、色順と異常入力の不整合を同時に減らせる。
+- 価値・懸念: CPU パスの色相処理が入力表現と整合しやすくなる。GPU パスとの完全一致は未検証。
+- 次の確認: ビルド・実機で RGB 原色と半透明入力の CPU / GPU 結果を比較する。
+
 ### 2026-08-03 — LevelsEffect の入出力レベルを有限値として同期する
 
 - 状態: 確認済み
