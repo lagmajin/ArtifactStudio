@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — BrushToolの入力契約とstroke状態を拡張する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Tool/ArtifactBrushTool.ixx`, `Artifact/src/Tool/ArtifactBrushTool.cppm`
+- 事実: ブラシはradius/opacity中心の設定で、flow・hardness・spacing・jitter・pressure/tilt・色・clone/eraser状態やプレビューstroke管理が不足していた。
+- 閃き・仮説: 各入力を有限値・範囲制限し、strokeのpreview/cancel/undo状態と追加設定をTool APIへ揃えると、ブラシ編集UIとPaintLayerの操作契約を統一できる。
+- 価値・懸念: 静止画ペイントの編集粒度と入力安全性を高められる。筆圧・傾きデバイス、clone stamp、実描画品質は未検証。
+- 次の確認: ビルド・実機で通常描画、cancel/undo、筆圧・tilt、eraser mode、clone offset、保存・再読込を確認する。
+
 ### 2026-08-03 — PuppetToolのpin属性APIを公開する
 
 - 状態: 確認済み
