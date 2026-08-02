@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — BatchRendererの逆順rangeと半径入力を防ぐ
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Render/ArtifactRenderScheduler.cppm`
+- 事実: 逆順FrameRangeではforループが終了せず、renderAroundFrameは負のradiusをそのまま範囲計算に使っていた。
+- 閃き・仮説: range境界を先に検証し、フレーム列を終端比較で回し、radiusを0以上へ正規化すると、バッチタスク生成の停止や意図しない範囲を防げる。
+- 価値・懸念: 不正範囲による無限ループ・過剰タスクを抑えられる。巨大な正値radiusの上限は未検証。
+- 次の確認: ビルド・実機で空／逆順／単一／大半径のバッチレンダーを確認する。
+
 ### 2026-08-03 — RenderQueueプリセットのVideo/Audio分類を実装する
 
 - 状態: 確認済み
