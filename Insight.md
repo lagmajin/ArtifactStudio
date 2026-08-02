@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ArtifactIRendererにcompute用オフスクリーンターゲットを追加する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Render/ArtifactIRenderer.ixx`, `Artifact/src/Render/ArtifactIRenderer.cppm`
+- 事実: 既存のオフスクリーン色ターゲットはRTV/SRV用途に限られ、compute post-process向けのRGBA16FターゲットとUAV取得APIがなかった。
+- 閃き・仮説: RTV/SRV/UAVを持つRGBA16Fターゲットを生成し、所有テクスチャからUAV viewを取得できるようにすると、GPU後処理の接続面を共通化できる。
+- 価値・懸念: CPU/QImage経路へ逃がさずcompute処理を接続できる。backendごとのUAV形式・状態遷移は未検証。
+- 次の確認: ビルド・実機でDX12等のUAV作成、view寿命、compute書込後のSRV読込を確認する。
+
 ### 2026-08-03 — FrameCacheのstale候補と計測値を堅牢化する
 
 - 状態: 確認済み
