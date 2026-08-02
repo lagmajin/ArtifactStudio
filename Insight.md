@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — FrameCacheのstale候補と計測値を堅牢化する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Render/ArtifactFrameCache.ixx`, `Artifact/src/Render/ArtifactFrameCache.cppm`
+- 事実: 無効化後のstale eviction候補、null entry、逆順prefetch範囲、無効な容量・品質・計測値の扱いが不足していた。module宣言もinclude途中にあった。
+- 閃き・仮説: live候補のフォールバックと入力検証を追加し、module宣言をinclude後へ移すと、cache更新の停止や不定なFPS計測を抑えられる。
+- 価値・懸念: stale bookkeepingでのeviction停滞と異常値の伝播を減らせる。容量0時に例外を返す既存呼び出し側の扱いは未検証。
+- 次の確認: ビルド・実機でinvalidate後のeviction、逆順range、容量0、品質境界、FPS計測を確認する。
+
 ### 2026-08-03 — GeneratorEffectorの出力保持と生成入力を安定化する
 
 - 状態: 確認済み
