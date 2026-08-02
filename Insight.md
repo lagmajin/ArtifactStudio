@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — SurfaceFXのプロパティ入力を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/SurfaceFX/SurfaceFXEffect.ixx`
+- 事実: Surface anchor、feather、element矩形、rotation、intensity、opacity、roughness、時間値に有限値チェックと範囲補正を追加し、`<cmath>`を直接includeした。
+- 閃き・仮説: SurfaceFXは複数の要素値を一括編集するため、個別setterがない境界でもproperty dispatch時に正規化すると異常値の混入を防ぎやすい。
+- 価値・懸念: エフェクト入力からNaN／無限大が下流へ伝播するリスクを下げられる。時間値のfallbackは既存プリセットとの互換性を確認する必要がある。
+- 次の確認: ビルド・実機でSurfaceFXの各property編集とプリセット適用を確認する。
+
 ### 2026-08-03 — PaintLayerのブラシ入力・クローンスタンプ・Undoを拡張する
 
 - 状態: 確認済み
