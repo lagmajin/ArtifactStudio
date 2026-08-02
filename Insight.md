@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — MainWindowのブラシ・モーションスケッチ設定を永続化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Widgets/ArtifactMainWindow.cppm`
+- 事実: Brush／Eraser／Clone Stampのoption変更をBrushToolへ反映し、QSettingsへ保存・起動時復元する経路を追加した。Motion Sketchの主要設定も同様に接続した。
+- 閃き・仮説: ToolOptionsBarが再生成されてもTool本体を単一の状態源にすると、UI再構築と設定永続化を分離できる。
+- 価値・懸念: ブラシ設定の再利用性が上がる。設定キーの命名と旧版値の単位変換は互換性確認が必要。
+- 次の確認: ビルド・実機でブラシ／Clone／Motion Sketchの変更、再起動後復元、異常値補正を確認する。
+
 ### 2026-08-03 — 3D選択枠オーバーレイの可視性とハンドルを強化する
 
 - 状態: 確認済み
