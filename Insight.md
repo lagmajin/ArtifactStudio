@@ -4998,3 +4998,10 @@
 - 事実: Working Space、Display、View、Looksのsetter入力を4096文字以内へ正規化した。
 - 価値: Config未ロード時を含め、外部・UI由来の異常に長いOCIO selectorが状態へ保持される経路を抑える。
 - 次に確認すべきこと: 実運用のOCIO selector名が上限内か確認する。
+
+# 2026-08-03: Footage interpretation transfer bounds
+
+- 関連: `Artifact/src/Service/ArtifactProjectService.cppm`
+- 事実: FootageからImageParamsへ素材別Color Space/Transfer Functionを渡す境界でも、4096/1024文字の上限を適用した。
+- 価値: 古いprojectや別経路で長大な解釈値が保持されていても、画像生成処理へそのまま伝播しないようにする。
+- 次に確認すべきこと: FootageInterpretService側の既存入力検証と上限を統一する。
