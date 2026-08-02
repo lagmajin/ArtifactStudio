@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — DropShadow の RGBA 順序・境界サンプリング・入力値を整える
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/DropShadow/DropShadowEffect.cppm`
+- 事実: CPU shadow buffer は BGR 順で書き込み、GPU alphaAt は clamp により端点を繰り返し、setter は非有限値を補正していなかった。
+- 閃き・仮説: RGBA 順へそろえ、GPU のサンプル範囲外を透明として扱い、softness に応じた半径を明示すると、CPU / GPU の境界挙動を整合させやすい。
+- 価値・懸念: 色順・端部の影・異常入力による差を抑えられる。GPU の広いループによる性能影響は未検証。
+- 次の確認: ビルド・実機で端部の影、RGBA 色順、softness 境界を比較する。
+
 ### 2026-08-03 — BendTransform の変形パラメータを property editor へ公開する
 
 - 状態: 確認済み
