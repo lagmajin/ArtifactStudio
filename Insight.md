@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — BendTransform の変形パラメータを property editor へ公開する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/Transform/BendTransform.ixx`
+- 事実: angle / direction / size は直接保持し、property group は未実装だった。
+- 閃き・仮説: setter で有限範囲を保証し、3項目を min / max 付き property として公開して setter 経由で編集すると、変形設定の UI と内部状態をそろえられる。
+- 価値・懸念: Bend の主要設定を通常の property editor から編集できる。module interface 変更と property 名の既存利用状況は未検証。
+- 次の確認: ビルド・実機で property 表示、範囲編集、保存・再読込を確認する。
+
 ### 2026-08-03 — TwistTransform の Angle プロパティに範囲と有限値境界を付ける
 
 - 状態: 確認済み
