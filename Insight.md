@@ -4788,4 +4788,11 @@
 - 関連: `Artifact/src/Project/ArtifactProject.cppm`
 - 事実: project item tree の復元に総数100000件、folder nesting depth 64 の上限を追加した。
 - 価値: project JSON の深すぎる／大量の nested folder が再帰処理と owned item allocation を過剰に消費する経路を抑える。
-- 次に確認すべきこと: 上限到達時に import 結果へ警告を返す必要があるか確認する。
+  - 次に確認すべきこと: 上限到達時に import 結果へ警告を返す必要があるか確認する。
+
+# 2026-08-03: Project import file size bound
+
+- 関連: `Artifact/src/Project/ArtifactProjectImporter.cppm`
+- 事実: JSON プロジェクトの読み込み前にファイルサイズを 256 MiB 以下へ制限した。
+- 価値: `readAll()` と JSON パースが巨大な入力で過剰なメモリを消費する経路を抑える。
+- 次に確認すべきこと: 大規模な正当プロジェクトの実ファイルサイズが上限に収まるか確認する。
