@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — HDRDisplayEffect の表示モードと HDR パラメータを境界検証する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/ColorCorrection/HDRDisplayEffect.ixx`
+- 事実: mode は enum 値を直接保持し、数値設定は非有限値を補正せず、プロパティ経路も setter を経由していなかった。プロパティの min / max も未設定だった。
+- 閃き・仮説: enum を有効範囲へ制限し、数値を有限化し、プロパティ経路を setter へ統一することで、UI・直接 API・GPU 同期の境界をそろえられる。
+- 価値・懸念: HDR 表示設定の破損値を抑えられる。module interface の変更は再スキャン範囲が広がる可能性がある。
+- 次の確認: ビルド・実機で mode 範囲外、NaN / infinity、プロパティ編集を確認する。
+
 ### 2026-08-03 — ExposureEffect の露出・オフセット・ガンマ入力を有限化する
 
 - 状態: 確認済み
