@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — VectorBlurEffect のシャッター角・露出補正を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Rasterizer/VectorBlurEffect.cppm`
+- 事実: shutterAngle は clamp のみ、exposureCompensation は非負化のみで、非有限値を補正していなかった。
+- 閃き・仮説: 2つの setter で有限値と妥当範囲を保証すると、ベクトルブラーのモーションサンプル計算へ異常値が伝播しにくくなる。
+- 価値・懸念: 過大な露出補正・角度による不安定化を抑えられる。上限値の見た目は未検証。
+- 次の確認: ビルド・実機で shutterAngle、samples、exposureCompensation の境界値を確認する。
+
 ### 2026-08-03 — ChromaticAberrationEffect の色ずれ量と中心を有限化する
 
 - 状態: 確認済み
