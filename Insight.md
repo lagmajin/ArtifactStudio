@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — Luma KeyとDifference Keyをエフェクト登録へ接続する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/Keying/LumaKeyEffect.ixx`, `Artifact/include/Effects/Keying/DifferenceKeyEffect.ixx`, `Artifact/src/Effects/Keying/LumaKeyEffect.cppm`, `Artifact/src/Effects/Keying/DifferenceKeyEffect.cppm`, `Artifact/src/Service/ArtifactEffectService.cppm`
+- 事実: Luma/Difference Keyのmodule実装がある一方、Serviceの生成分岐・一覧登録がなく、effect IDから生成できなかった。
+- 閃き・仮説: module実装とServiceのalias ID・表示名登録を同時に追加すると、キーイング基盤を通常のエフェクト導線へ接続できる。
+- 価値・懸念: 比較資料で未整備だったLuma/Difference Keyを利用可能な登録面へ進められる。実画像のGPU/runtime品質は未検証。
+- 次の確認: ビルド・実機で両effectの生成、Property編集、CPU/GPU出力、保存・再読込を確認する。
+
 ### 2026-08-03 — AudioServiceの音量・パン入力を有限化する
 
 - 状態: 確認済み
