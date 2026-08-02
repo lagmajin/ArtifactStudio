@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — LuminescenceCausticsEffect のプロパティ入力を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Glow/LuminescenceCausticsEffect.cppm`
+- 事実: Threshold / Edge Weight / Scale / Intensity / Evolution / Color Shift は property setter で clamp または直接代入するだけで、非有限値を補正していなかった。
+- 閃き・仮説: 各プロパティ入力を有限値確認後に既存範囲へ収めると、caustics の同期先へ異常値が伝播しにくくなる。
+- 価値・懸念: 発光模様のパラメータ破損を抑えられる。既定値の見た目は未検証。
+- 次の確認: ビルド・実機で6項目の異常値入力とプロパティ再編集を確認する。
+
 ### 2026-08-03 — Kaleidoscope の補間サンプリング・フェード半径・入力境界を整える
 
 - 状態: 確認済み
