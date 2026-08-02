@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ToolManagerへCloneと2D rig編集ツールを追加する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Tool/ArtifactToolManager.ixx`, `Artifact/src/Tool/ArtifactToolManager.cppm`
+- 事実: Clone、RigSelect、RigWeightのToolTypeがなく、active tool名へのマッピングも不足していた。
+- 閃き・仮説: enumと表示名マッピングを同時に追加すると、ツール選択状態を既存のManager経路で表現できる。
+- 価値・懸念: Clone Stampと2D rig編集のツール状態を統一できる。各ツールのUI起動・操作実装との結線は未検証。
+- 次の確認: ビルド・実機でツール切替、表示名、ショートカット、未対応操作時の挙動を確認する。
+
 ### 2026-08-03 — ArtifactTimelineClockのmodule宣言境界を統一する
 
 - 状態: 確認済み
