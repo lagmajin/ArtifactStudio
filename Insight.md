@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — LiquidGlowEffect の流体グロー入力を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Glow/LiquidGlowEffect.cppm`
+- 事実: threshold / radius / intensity / flowScale / distortion は clamp のみで、phase は直接代入され、非有限値を補正していなかった。
+- 閃き・仮説: 流体グローの全数値 setter で有限値を保証すると、フローノイズと発光同期へ異常値が伝播しにくくなる。
+- 価値・懸念: Liquid Glow の入力安定性をそろえられる。既定値と phase の周期扱いは未検証。
+- 次の確認: ビルド・実機で flowScale / distortion / phase の境界と異常値入力を確認する。
+
 ### 2026-08-03 — ResidualGlowEffect の残光パラメータを有限化する
 
 - 状態: 確認済み
