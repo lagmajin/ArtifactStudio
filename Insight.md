@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — CameraLayerの光学・shake入力を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Layer/ArtifactCameraLayer.cppm`
+- 事実: FOV、正投影サイズ、clip、IPD、shake各入力とJSON復元値を、有限値と実用的な範囲に補正する経路を追加した。
+- 閃き・仮説: カメラ投影と揺れ入力をsetter／復元境界で正規化すると、NaN・無限大・過大値の伝播による表示不安定化を抑えられる。
+- 価値・懸念: 実行時の不定値伝播を減らせる一方、採用した上限値は実機・用途別に妥当性を確認する必要がある。
+- 次の確認: ビルド・実機でFOV、clip、IPD、shake設定の適用とJSON再読込を確認する。
+
 ### 2026-08-03 — ArtifactAudioLayerの音量・再生時間を安全化する
 
 - 状態: 確認済み
