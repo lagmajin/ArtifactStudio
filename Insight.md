@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — GaussianBlur の CPU/GPU sigma 入力を同じ範囲へ制限する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/GauusianBlur.ixx`
+- 事実: CPU / GPU の sigma setter は値を直接保持しており、非有限値や過大値を境界で補正していなかった。
+- 閃き・仮説: 両実装で同じ有限値・0〜64 の範囲を適用すると、カーネル生成と GPU パラメータの入力条件をそろえられる。
+- 価値・懸念: 異常 sigma によるカーネル・GPU 設定の破損を抑えられる。既定値と最大値の妥当性は未検証。
+- 次の確認: ビルド・実機で CPU / GPU sigma の境界値と異常値を比較する。
+
 ### 2026-08-03 — BlurEffect の公開パラメータ setter を有限化する
 
 - 状態: 確認済み
