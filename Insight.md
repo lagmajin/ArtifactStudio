@@ -4777,3 +4777,9 @@
 - 事実: project import の AI tags を最大10000件・各256文字、compositions を最大10000件、composition layers を最大100000件に制限した。
 - 価値: 破損・過大な project JSON による importer の大量オブジェクト生成を抑える。
 - 次に確認すべきこと: projectItems と source registry snapshot の復元側にも同等の上限があるか確認する。
+# 2026-08-03: Project item importer collection bound
+
+- 関連: `Artifact/src/Project/ArtifactProjectImporter.cppm`
+- 事実: `projectItems` 復元前に配列を最大100000件へ制限するようにした。
+- 価値: project JSON の過大な top-level item 配列をそのまま manager へ渡さず、import 時の大量生成を抑える。
+- 次に確認すべきこと: manager 側の folder nesting 復元にも深さ・子 item 上限があるか確認する。
