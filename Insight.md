@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — LayerMenuからRigレイヤー作成とTracker導線を接続する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm`
+- 事実: Rig Layer作成アクションを追加し、初期root bone／control pointを生成してRig Selectへ切り替える導線を実装した。Motion Tracker作成後はTrack Pointを選択するようにした。
+- 閃き・仮説: レイヤー生成直後に対応する編集Toolを選択すると、作成結果を確認・操作するまでの導線が短くなる。
+- 価値・懸念: Rig／Tracker機能の発見性と初期操作性が上がる。既存選択状態やroot bone生成失敗時の扱いは実機確認が必要。
+- 次の確認: ビルド・実機でRig作成、root操作、Tracker作成済み／新規の両経路を確認する。
+
 ### 2026-08-03 — MainWindowのブラシ・モーションスケッチ設定を永続化する
 
 - 状態: 確認済み
