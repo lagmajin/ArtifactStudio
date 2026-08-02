@@ -4873,3 +4873,10 @@
 - 事実: Bundle IPCのraw responseとJSON payloadを32 MiB以下に制限した。
 - 価値: IPC相手からの巨大応答で受信バッファとJSONパースが過剰に膨らむ経路を抑える。
 - 次に確認すべきこと: bundle export/importの正当な応答サイズが上限内か確認する。
+
+# 2026-08-03: Locale flatten bounds
+
+- 関連: `Artifact/src/Translation/TranslationManager.cppm`
+- 事実: locale JSONのflatten処理に項目100000件、object depth 64の上限を追加した。
+- 価値: サイズ上限内でも極端に深い、または多数の翻訳項目を持つJSONによる再帰・map更新の過剰化を抑える。
+- 次に確認すべきこと: 翻訳カタログの実項目数とネスト深度を確認する。
