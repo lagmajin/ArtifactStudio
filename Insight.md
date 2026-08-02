@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — SpherizeEffect の CPU/GPU パラメータ境界をそろえる
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/Spherize/SpherizeEffect.ixx`
+- 事実: CPU / GPU の amount / radius / centerX / centerY setter は値を直接保持していた。
+- 閃き・仮説: 両実装で同じ有限値・範囲補正を適用すると、球面化の CPU / GPU パスで入力条件を統一できる。
+- 価値・懸念: 異常値や過大値による球面化処理の不安定化を抑えられる。amount の最大値は未検証。
+- 次の確認: ビルド・実機で CPU / GPU の境界値・異常値入力を比較する。
+
 ### 2026-08-03 — EdgeBloomEffect のしきい値・半径・強度入力を有限化する
 
 - 状態: 確認済み
