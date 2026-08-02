@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — Keying effectの保存復元を実装クラスへ接続する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Composition/ArtifactAbstractComposition.cppm`
+- 事実: Chroma／Luma／Difference Keyの識別子（新旧形式）をJSON復元時に各実装クラスへ割り当てるようにした。
+- 閃き・仮説: エフェクトの登録・UIカタログだけでなく復元分岐も同じ識別子の別名を受けると、保存済みプロジェクトの互換性を保ちやすい。
+- 価値・懸念: Keying effectの保存／再読込で実装固有プロパティを失いにくくなる。旧形式の全識別子は別途棚卸しが必要。
+- 次の確認: ビルド・実機で3種Keying effectの保存、旧ID読込、Property復元を確認する。
+
 ### 2026-08-03 — Render Queue Managerの選択レンダー設定とFarm状態表示を拡張する
 
 - 状態: 確認済み
