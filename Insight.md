@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — RadialBlurEffect の量・中心・モードを有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Rasterizer/RadialBlurEffect.cppm`
+- 事実: amount / centerX / centerY / mode は clamp のみで、非有限値を補正していなかった。quality は既存範囲に制限されている。
+- 閃き・仮説: 4つの float setter で有限値を保証すると、放射ブラーの中心・量・モード入力を安定化できる。
+- 価値・懸念: 放射サンプリングの異常値伝播を抑えられる。mode の float 表現は未検証。
+- 次の確認: ビルド・実機で中心、amount、quality、mode の境界値を確認する。
+
 ### 2026-08-03 — VoronoiEffect の scale・jitter・mode・seed を境界検証する
 
 - 状態: 確認済み
