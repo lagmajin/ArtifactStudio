@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — CloneGeneratorの配置入力と分布を安定化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Generator/CloneGenerator.cppm`
+- 事実: spacing／radius／bounds等の入力を有限値・非負へ補正し、列挙値を検証した。格子・螺旋・ランダム配置へrotationStepとPoisson disk間隔を反映した。
+- 閃き・仮説: クローン配置は設定値の異常だけでなく、分布モードごとの変換適用順序が見た目を左右するため、共通の入力正規化と各モードの変換適用を揃える価値がある。
+- 価値・懸念: 不正値による配置破綻を減らせる。既存シーンでは回転・Poisson配置の見た目が変わる可能性がある。
+- 次の確認: ビルド・実機で各DistributionMode、rotationStep、Poisson diskの配置結果を確認する。
+
 ### 2026-08-03 — ParticleGeneratorの発生形状と時間入力を安定化する
 
 - 状態: 確認済み
