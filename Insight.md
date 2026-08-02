@@ -4963,3 +4963,10 @@
 - 事実: ローカルJSONからのmodel list抽出にも件数10000件、ID長1024文字、object型チェックを適用した。
 - 価値: API応答とローカル設定の両方でmodel list展開量を一貫して制限する。
 - 次に確認すべきこと: ローカルmodel list設定の通常件数とID長を確認する。
+
+# 2026-08-03: Curl AI model list response bound
+
+- 関連: `Artifact/src/Widgets/AI/ArtifactAICloudWidget.cppm`
+- 事実: curl経由のmodel list JSONも16 MiB以下に制限してからパースするようにした。
+- 価値: QNetworkReply経路だけでなく、外部curl経路でも巨大stdout応答の展開を抑える。
+- 次に確認すべきこと: providerのcurl応答サイズが上限内か確認する。
