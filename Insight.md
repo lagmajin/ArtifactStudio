@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — LinearWipeEffect のsoftnessをCPU/GPUで共有する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/LinearWipe/LinearWipeEffect.cppm`
+- 事実: CPU経路はsoftnessを使わず、GPU定数バッファもangle・featherのみを渡していた。angle・softness・featherには非有限値の補正もなかった。
+- 閃き・仮説: softnessを両経路のエッジ計算へ渡し、入力を有限値化すると、ワイプ境界の見た目と編集値の契約を揃えられる。
+- 価値・懸念: CPU/GPUの境界幅差を減らせる。既存プロジェクトのsoftness既定値との見た目差は未検証。
+- 次の確認: ビルド・実機で角度、softness、featherの境界値とCPU/GPU出力を比較する。
+
 ### 2026-08-03 — LiquifyEffect の補間近傍とGPU変位方向を一致させる
 
 - 状態: 確認済み
