@@ -4991,3 +4991,10 @@
 - 事実: API/local JSONのmodel ID抽出時に重複IDを除外するようにした。
 - 価値: providerや設定ファイルの重複項目でmodel selectorが不必要に膨らむことを防ぐ。
 - 次に確認すべきこと: providerごとのID表記ゆれ（大文字小文字・別名）を確認する。
+
+# 2026-08-03: OCIO selector string bounds
+
+- 関連: `Artifact/src/Color/ArtifactOCIOManager.cppm`
+- 事実: Working Space、Display、View、Looksのsetter入力を4096文字以内へ正規化した。
+- 価値: Config未ロード時を含め、外部・UI由来の異常に長いOCIO selectorが状態へ保持される経路を抑える。
+- 次に確認すべきこと: 実運用のOCIO selector名が上限内か確認する。
