@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — WhiteBalanceEffect の色調整範囲をプロパティ定義へ反映する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/WhiteBalanceEffect.cppm`
+- 事実: Temperature / Tint / Brightness / Preset の想定範囲がプロパティ定義に設定されていなかった。
+- 閃き・仮説: 既存の編集契約に対応する最小・最大値をメタデータ化すると、Inspector側で扱える範囲を明示できる。
+- 価値・懸念: 色調整の入力範囲がUIと設計上揃う。Presetの0〜6が全プリセットを網羅するかは未検証。
+- 次の確認: ビルド・実機で各プロパティの入力範囲とプリセット選択を確認する。
+
 ### 2026-08-03 — OpticsCompensationEffect の光学パラメータ契約を揃える
 
 - 状態: 確認済み
