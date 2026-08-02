@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ViewportScaleOverlayの目盛り計算と表示要素管理を分離する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Widgets/Render/ViewportScaleOverlay.ixx`、`Artifact/src/Widgets/Render/ViewportScaleOverlay.cppm`
+- 事実: ズームに応じたnice step、ruler tick、scale bar、grid label、compassのデータ生成と、overlay要素のID／可視性／キャッシュ管理を独立モジュールへ整理した。
+- 閃き・仮説: viewport overlayの数値計算を描画側から分離すると、ズーム・canvas範囲・単位表示の検証と再利用がしやすい。
+- 価値・懸念: Ruler／scale bar等の表示実装を複数のviewportから共有できる。新規C++ moduleの登録と実描画接続は別途確認が必要。
+- 次の確認: ビルドでmodule分類を確認し、実機でズーム端点、負原点、単位ラベル、overlay cacheを確認する。
+
 ### 2026-08-03 — CompositionRenderWidgetのズーム・パン操作を滑らかにする
 
 - 状態: 確認済み
