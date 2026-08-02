@@ -4803,3 +4803,10 @@
 - 事実: `addProjectItemsFromJson()` に項目総数100000件、folder depth 64、sequence path 100000件の上限を追加した。
 - 価値: importer以外のJSON復元入口でも、深いツリーや巨大な連番配列による過剰な所有・文字列確保を抑える。
 - 次に確認すべきこと: 上限到達時に呼び出し側へ部分復元を通知するAPIが必要か確認する。
+
+# 2026-08-03: Preset JSON file size bound
+
+- 関連: `Artifact/src/Project/ArtifactPresetManager.cppm`
+- 事実: mask/effect preset の読み込み前に16 MiBのファイルサイズ上限を追加した。
+- 価値: preset JSON の `readAll()` とパースが巨大入力で過剰なメモリを消費する経路を抑える。
+- 次に確認すべきこと: 既存presetの実サイズ分布を確認し、必要なら上限値を仕様化する。
