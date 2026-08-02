@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — EchoEffect の decay と blendOperator を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Rasterizer/EchoEffect.cppm`
+- 事実: decay / blendOperator は clamp のみで、非有限値を明示的に補正していなかった。
+- 閃き・仮説: setter 境界で有限値を保証すると、エコー履歴の蓄積と合成係数へ異常値が伝播しにくくなる。
+- 価値・懸念: 残像合成の入力安定性を高められる。blendOperator の既定値の見た目は未検証。
+- 次の確認: ビルド・実機で decay / blendOperator の境界値と異常値を確認する。
+
 ### 2026-08-03 — VectorFlowGlitchEffect のプロパティ入力を有限化する
 
 - 状態: 確認済み
