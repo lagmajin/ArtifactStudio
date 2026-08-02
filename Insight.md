@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ExposureEffect の露出・オフセット・ガンマ入力を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/ColorCorrection/ExposureEffect.ixx`
+- 事実: exposure / offset / gammaCorrection は clamp のみで、非有限値を明示的に補正していなかった。
+- 閃き・仮説: 公開 setter で有限値を保証すると、露出処理の同期先へ異常値が伝播しにくくなる。
+- 価値・懸念: HDR/SDR 露出調整の入力安定性を高められる。module interface の変更は再スキャン範囲が広がる可能性がある。
+- 次の確認: ビルド・実機で3項目の異常値入力を確認する。
+
 ### 2026-08-03 — BrightnessEffect の4設定 setter を有限値境界で保護する
 
 - 状態: 確認済み
