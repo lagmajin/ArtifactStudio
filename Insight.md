@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — SelectiveColorEffect の調整値を setter 境界で有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/ColorCorrection/SelectiveColorEffect.cppm`
+- 事実: strength と CMYK 各調整値は clamp のみで、非有限値を受け入れる余地があった。
+- 閃き・仮説: グループ調整の全入力を setter 境界で有限化すると、Custom 設定と同期先の状態を一貫して保てる。
+- 価値・懸念: 色調整パラメータの異常値伝播を抑えられる。既定値の妥当性は未検証。
+- 次の確認: ビルド・実機で各グループの異常値入力とプリセット切替を確認する。
+
 ### 2026-08-03 — InvertEffect の strength setter で非有限値を遮断する
 
 - 状態: 確認済み
