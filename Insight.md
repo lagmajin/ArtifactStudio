@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — PhysicalHalationEffect のプロパティ入力を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Glow/PhysicalHalationEffect.cppm`
+- 事実: Threshold / Spread / Intensity / Red Diffusion / Softness は property setter で clamp するだけで、非有限値を補正していなかった。cmath include も不足していた。
+- 閃き・仮説: 各入力を有限値確認後に既存範囲へ収め、標準ヘッダを直接 include すると、halation の入力境界と module 自己完結性を改善できる。
+- 価値・懸念: ハレーション設定の異常値伝播を抑えられる。既定値の見た目は未検証。
+- 次の確認: ビルド・実機で5項目の異常値入力とプロパティ再編集を確認する。
+
 ### 2026-08-03 — LensDistortion CPU パスでも zoom の下限を再確認する
 
 - 状態: 確認済み
