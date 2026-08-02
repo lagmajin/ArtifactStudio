@@ -4796,3 +4796,10 @@
 - 事実: JSON プロジェクトの読み込み前にファイルサイズを 256 MiB 以下へ制限した。
 - 価値: `readAll()` と JSON パースが巨大な入力で過剰なメモリを消費する経路を抑える。
 - 次に確認すべきこと: 大規模な正当プロジェクトの実ファイルサイズが上限に収まるか確認する。
+
+# 2026-08-03: Project item API restore bounds
+
+- 関連: `Artifact/src/Project/ArtifactProject.cppm`
+- 事実: `addProjectItemsFromJson()` に項目総数100000件、folder depth 64、sequence path 100000件の上限を追加した。
+- 価値: importer以外のJSON復元入口でも、深いツリーや巨大な連番配列による過剰な所有・文字列確保を抑える。
+- 次に確認すべきこと: 上限到達時に呼び出し側へ部分復元を通知するAPIが必要か確認する。
