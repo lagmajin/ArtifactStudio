@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ChannelMixerEffect の強度と 3x3 行列を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/ColorCorrection/ChannelMixerEffect.cppm`
+- 事実: strength と RGB 3x3 matrix は入力を clamp / 代入するだけで、非有限値を明示的に補正していなかった。
+- 閃き・仮説: 行列の対角成分を恒等値、非対角成分をゼロへ戻す境界を設けると、破損した外部行列でも色変換の基準を維持しやすい。
+- 価値・懸念: Channel Mixer の GPU / CPU 同期へ NaN / infinity が伝播する可能性を下げられる。行列係数の意図的な極端値は別途許容される。
+- 次の確認: ビルド・実機で恒等行列と異常係数入力時の結果を確認する。
+
 ### 2026-08-03 — ColorWheelsEffect の RGB ホイールと master 値を有限化する
 
 - 状態: 確認済み
