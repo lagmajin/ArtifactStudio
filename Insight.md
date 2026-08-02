@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — BrightnessEffect の4設定 setter を有限値境界で保護する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/ColorCorrection/BrightnessEffect.ixx`
+- 事実: brightness / contrast / highlights / shadows は clamp のみで、非有限値を明示的に補正していなかった。
+- 閃き・仮説: 公開 module interface の setter 境界で有限値を保証すると、実装同期前に異常値を遮断できる。
+- 価値・懸念: 4つのトーン調整値を一貫して安定化できる。module interface の変更は再スキャン範囲が広がる可能性がある。
+- 次の確認: ビルド・実機で4項目の異常値入力を確認する。
+
 ### 2026-08-03 — TritoneEffect の階調バランス設定を有限化する
 
 - 状態: 確認済み
