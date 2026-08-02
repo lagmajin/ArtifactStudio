@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — InvertEffect の strength setter で非有限値を遮断する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/ColorCorrection/InvertEffect.cppm`
+- 事実: strength は clamp のみで、NaN / infinity を明示的に補正していなかった。
+- 閃き・仮説: setter 境界で有限値を保証することで、反転量の CPU / GPU 同期へ異常値が伝播する可能性を下げられる。
+- 価値・懸念: 反転強度が常に有効範囲で維持される。既定値の妥当性は未検証。
+- 次の確認: ビルド・実機で異常値入力時の表示と保存結果を確認する。
+
 ### 2026-08-03 — CurvesEffect のプリセット生成と setter で有限値を共有する
 
 - 状態: 確認済み
