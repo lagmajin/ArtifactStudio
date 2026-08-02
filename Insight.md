@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — HueAndSaturationの色調整setterを有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/ColorCorrection/HueAndSaturation.ixx`
+- 事実: Hue / Saturation / Lightness のsetterはclampのみで、NaN/Infを補正していなかった。
+- 閃き・仮説: 有限値を確認してから既存範囲へclampし、無効値には中立値を戻すと、色変換へ異常値が伝播しにくくなる。
+- 価値・懸念: 色補正の不定出力を抑えられる。中立値フォールバックと既存プリセットの組み合わせは未検証。
+- 次の確認: ビルド・実機で色相・彩度・明度の境界値と非有限値を確認する。
+
 ### 2026-08-03 — ArtifactStabilizerのmodule宣言をinclude後へ移動する
 
 - 状態: 確認済み
