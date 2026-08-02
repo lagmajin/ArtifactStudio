@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ToolOptionsBarのブラシ・消しゴム・Motion Sketch操作を拡張する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Widgets/ArtifactToolOptionsBar.ixx`、`Artifact/src/Widgets/ArtifactToolOptionsBar.cppm`
+- 事実: ブラシのflow／spacing／angle／roundness／jitter／筆圧・傾き、Clone時間ずれ、消しゴム詳細、Motion Sketch設定、色選択とTool同期を追加した。
+- 閃き・仮説: オプションUIからTool本体へ同期する明示メソッドを持つと、再生成されるUIと永続化されたTool状態の不一致を減らせる。
+- 価値・懸念: 編集パラメータの表現力とアクセシビリティが上がる。横幅・表示密度と色pickerの既存テーマ整合性は実機確認が必要。
+- 次の確認: ビルド・実機で各spinbox／checkbox、色選択、Tool切替時同期、狭幅レイアウトを確認する。
+
 ### 2026-08-03 — Command Paletteからマスク追加をUndo対応で実行する
 
 - 状態: 確認済み
