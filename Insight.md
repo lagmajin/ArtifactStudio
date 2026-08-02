@@ -5035,3 +5035,9 @@
 - 事実: CPU/GPU両経路でノイズ座標へsizeを適用し、GPU upload bufferの形式・strideを利用するようにした。amount/size/seedも有限値・範囲検証した。
 - 価値: CPU/GPUでノイズ粒度が一致し、異常パラメータや入力形式差による不安定な効果結果を抑える。
 - 次に確認すべきこと: RGBA16F/RGBA32F、monochrome/color noise、GPU不可時fallbackのruntime受入れを確認する。
+# 2026-08-03: Creative effects GPU upload alignment
+
+- 関連: `Artifact/src/Effect/ArtifactCreativeEffects.cppm`
+- 事実: Creative effectsのGPU入力をGpuImageUploadBuffer経由にし、RGBA16F/RGBA32F形式・row strideと出力RGBA channel orderを揃えた。
+- 価値: GPU経路での入力形式差やstride誤認、出力channel order不整合を抑える。
+- 次に確認すべきこと: 16F/32F素材と各creative effectのGPU/fallback結果をruntime確認する。
