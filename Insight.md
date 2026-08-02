@@ -4838,3 +4838,10 @@
 - 事実: color grading preset の読み込みにファイル16 MiB、grading node 100000件の上限を追加した。
 - 価値: 外部grading presetの巨大JSONやnode配列による過剰なメモリ・処理量を抑える。
 - 次に確認すべきこと: 実運用のgrading presetサイズが上限に収まるか確認する。
+
+# 2026-08-03: Workspace JSON file size bound
+
+- 関連: `Artifact/src/Core/ArtifactWorkspaceManager.cppm`
+- 事実: workspace session/layout JSON の読み込み前に8 MiBのファイルサイズ上限を追加した。
+- 価値: 壊れた、または巨大化したworkspace設定で `readAll()` が過剰なメモリを消費する経路を抑える。
+- 次に確認すべきこと: 既存workspace設定の最大サイズを確認する。
