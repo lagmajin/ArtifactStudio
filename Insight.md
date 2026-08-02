@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — AutoMosaicEffect の feather 入力を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/AutoMosaicEffect.ixx`
+- 事実: feather は非負化のみで、NaN / infinity を明示的に補正していなかった。
+- 閃き・仮説: 公開 setter で有限値を確認してから非負化すると、モザイク境界の同期処理へ異常値が伝播しにくくなる。
+- 価値・懸念: フェザー量の入力安定性を高められる。module interface の変更は再スキャン範囲が広がる可能性がある。
+- 次の確認: ビルド・実機で異常値入力時の境界ぼかしを確認する。
+
 ### 2026-08-03 — LiftGammaGainEffect の個別 RGB setter を有限化する
 
 - 状態: 確認済み
