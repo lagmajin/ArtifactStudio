@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — FinalPostProcessのLUT入力ドメインを公開する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Render/ArtifactFinalPostProcess.ixx`, `Artifact/src/Render/ArtifactFinalPostProcess.cppm`
+- 事実: LUT更新APIはあったが、入力ドメインを設定する公開導線がなく、view transformとLUT経路の責務コメントも実装状態と一致していなかった。
+- 閃き・仮説: LUT入力ドメインを明示設定できるようにし、GPU経路がactive LUTを使う契約を記述すると、OCIO/LUT接続の境界を明確にできる。
+- 価値・懸念: HDRや拡張レンジのLUT入力を後段から指定できる。GPUProcessorによる直接変換は別backendのままで、runtime parityは未検証。
+- 次の確認: ビルド・実機でdomain範囲、LUT有無、view transform有無、HDR入力を確認する。
+
 ### 2026-08-03 — ArtifactIRendererにcompute用オフスクリーンターゲットを追加する
 
 - 状態: 確認済み
