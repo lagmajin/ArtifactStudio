@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — Keying effectのUI分類を揃える
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Widgets/ArtifactCompositionAudioMixerWidget.cppm`
+- 事実: Chroma Keyはeffect分類・短縮ラベルの対象だったが、追加したLuma/Difference Keyが同じ表示分類に含まれていなかった。
+- 閃き・仮説: 3種類のkeying effectを同じK分類へ揃えると、effect paletteや一覧の視覚的なグルーピングを一貫させられる。
+- 価値・懸念: キーイング機能の発見性を保てる。Widget名とeffect分類責務の整理は別途未検証。
+- 次の確認: ビルド・実機で3種類のeffect表示名、分類、短縮ラベルを確認する。
+
 ### 2026-08-03 — BrushToolの入力契約とstroke状態を拡張する
 
 - 状態: 確認済み
