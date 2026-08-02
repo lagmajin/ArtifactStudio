@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — PhotoFilterEffect の主要設定を有限値境界で統一する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/ColorCorrection/PhotoFilterEffect.cppm`
+- 事実: density / brightness / contrast / saturationBoost は clamp のみで、非有限値を明示的に補正していなかった。
+- 閃き・仮説: 同じ Photo Filter 設定グループの setter で有限値を保証すると、Custom 設定の同期先へ異常値が伝播しにくくなる。
+- 価値・懸念: 色調整の外部入力に対する安定性をそろえられる。既定値の妥当性は未検証。
+- 次の確認: ビルド・実機で4項目の異常値入力とプリセット切替を確認する。
+
 ### 2026-08-03 — SelectiveColorEffect の調整値を setter 境界で有限化する
 
 - 状態: 確認済み
