@@ -4866,3 +4866,10 @@
 - 事実: Property Widgetのanimation preset JSON読み込みに16 MiBのファイルサイズ上限を追加した。
 - 価値: ユーザー選択ファイルの巨大JSONがUI操作中に無制限に読み込まれる経路を抑える。
 - 次に確認すべきこと: 既存animation presetの最大サイズを確認する。
+
+# 2026-08-03: Bundle IPC response bound
+
+- 関連: `Artifact/src/Application/ArtifactProjectBundleIpc.cppm`
+- 事実: Bundle IPCのraw responseとJSON payloadを32 MiB以下に制限した。
+- 価値: IPC相手からの巨大応答で受信バッファとJSONパースが過剰に膨らむ経路を抑える。
+- 次に確認すべきこと: bundle export/importの正当な応答サイズが上限内か確認する。
