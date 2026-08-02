@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — TritoneEffect の階調バランス設定を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/ColorCorrection/TritoneEffect.cppm`
+- 事実: balance / softness / masterStrength / colorMix は clamp のみで、非有限値を明示的に補正していなかった。
+- 閃き・仮説: 4つの Custom 設定 setter で有限値を保証すると、階調分離と色混合の同期状態へ異常値が伝播しにくくなる。
+- 価値・懸念: Tritone の入力安定性をそろえられる。既定値の見た目は未検証。
+- 次の確認: ビルド・実機で4項目の異常値入力とプリセット切替を確認する。
+
 ### 2026-08-03 — ChannelMixerEffect の強度と 3x3 行列を有限化する
 
 - 状態: 確認済み
