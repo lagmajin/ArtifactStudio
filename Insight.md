@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — RenderControllerのviewport overlay・Rig表示・編集補助を統合する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Widgets/Render/ArtifactCompositionRenderController.ixx`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`
+- 事実: viewport ruler／grid／safe margin／onion skin、Rig overlay／weight map、pose slot、mask操作、3D投影枠、overlay表示切替をRenderControllerとEditor／ViewMenuへ接続した。
+- 閃き・仮説: 表示補助の状態をRenderControllerに集約し、Editorの入力とViewMenuの切替を同じAPIへ通すと、表示状態と操作状態の乖離を減らせる。
+- 価値・懸念: 2D／3D／Rigの編集補助が同じviewport導線で扱える。変更範囲が大きいため、既存操作との回帰確認が必要。
+- 次の確認: ビルド・実機でgrid／ruler／onion／safe margin、Rig pose、mask、3D frame、ViewMenu切替を確認する。
+
 ### 2026-08-03 — AIDSLのfilter評価とCommandAction解析を実装する
 
 - 状態: 確認済み
