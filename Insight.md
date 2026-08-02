@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — RAM Previewの空範囲と失敗理由を同期する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Render/ArtifactRamPreviewController.cppm`
+- 事実: start>=endのpreview rangeでも既存frame state/job queueを保持し、render失敗時にlastErrorを更新していなかった。
+- 閃き・仮説: 空範囲を設定した時点で状態をクリアし、失敗フレームの理由をlastErrorへ保存すると、表示状態と診断情報を一致させられる。
+- 価値・懸念: 空のRAM Previewが古いジョブやready数を残しにくくなり、失敗原因を後から参照できる。start/endの境界仕様は未検証。
+- 次の確認: ビルド・実機で空範囲、単一フレーム、失敗復旧、再ビルドを確認する。
+
 ### 2026-08-03 — BatchRendererの逆順rangeと半径入力を防ぐ
 
 - 状態: 確認済み
