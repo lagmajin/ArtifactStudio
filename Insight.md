@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — FillEffect の opacity setter で非有限値を遮断する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/ColorCorrection/FillEffect.cppm`
+- 事実: opacity は clamp 前に NaN / infinity を検査していなかった。
+- 閃き・仮説: setter 境界で非有限値を既定値へ戻すことで、塗りつぶしの GPU / CPU 同期へ異常値が流れ込む経路を減らせる。
+- 価値・懸念: 破損した外部パラメータでも opacity が有効範囲に保たれる。既定値の妥当性は未検証。
+- 次の確認: ビルド・実機で異常値入力時の保存・表示結果を確認する。
+
 ### 2026-08-03 — FindEdges の GPU 出力は入力アルファを保持する
 
 - 状態: 確認済み
