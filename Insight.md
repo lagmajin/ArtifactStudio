@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — IESLightEffect の照明値・プロパティ経路・パス入力を整える
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/Light/IESLightEffect.ixx`
+- 事実: intensity は非負化のみ、temperature は clamp のみで、プロパティ経路は直接代入し、IES パスは trim せず空判定していた。cmath include も不足していた。
+- 閃き・仮説: 照明値を有限範囲へ補正し、プロパティを setter 経由に統一し、パスを trim してから保持・判定すると、入力境界を一貫させられる。
+- 価値・懸念: IES 照明の異常値と空白付きパスの扱いを安定化できる。実際の IES 解析・LUT 連携は未検証。
+- 次の確認: ビルド・実機で照明値、プロパティ編集、空白付き IES パスを確認する。
+
 ### 2026-08-03 — ChromaKeyEffect の key color チャンネルを有限化する
 
 - 状態: 確認済み
