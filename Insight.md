@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — GaussianBlur のアルファ境界とGPU入力形式を統一する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Blur/GauusianBlur.cppm`
+- 事実: CPU/GPUのRGBブラーは透明画素の色を通常平均し、CPUはBGRA入力をそのまま扱い、GPU入力は常にRGBA32Fとしてアップロードしていた。
+- 閃き・仮説: premultiplied alpha空間でRGBをぼかし、チャンネル順とGPU upload formatを明示すると、透明端の色漏れと入力形式差を抑えられる。
+- 価値・懸念: 透明境界のハローを減らし、16bit float入力にも対応できる。全カラーディスクリプタと実機GPU経路の組合せは未検証。
+- 次の確認: ビルド・実機でRGBA/BGRA、透明端、Rgba16Float/Rgba32Floatの出力を比較する。
+
 ### 2026-08-03 — LinearWipeEffect のsoftnessをCPU/GPUで共有する
 
 - 状態: 確認済み
