@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — CurvesEffect のプリセット生成と setter で有限値を共有する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/ColorCorrection/CurvesEffect.cppm`
+- 事実: S カーブ生成と公開 setter が strength を clamp のみで扱い、非有限値が曲線点へ伝播し得た。
+- 閃き・仮説: 曲線生成側と setter の両方で同じ有限値境界を適用すると、直接生成経路と通常編集経路の挙動をそろえられる。
+- 価値・懸念: 異常入力による曲線破損を抑えられる。既定値の選択は未検証。
+- 次の確認: ビルド・実機でプリセット変更時と直接 setter 呼び出し時の結果を確認する。
+
 ### 2026-08-03 — GrayscaleEffect の strength setter で非有限値を補正する
 
 - 状態: 確認済み
