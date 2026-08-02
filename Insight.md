@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — GeneratorEffectorの出力保持と生成入力を安定化する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Generator/AbstractGeneratorEffector.ixx`, `Artifact/src/Generator/AbstractGeneratorEffector.cppm`
+- 事実: applyが未実装のログ出力のみで、出力面を保持せず、サイズ・フレーム範囲・生成種別・Noise入力の検証も不足していた。
+- 閃き・仮説: 生成結果を保持してoutput()で参照可能にし、入力範囲を正規化、GradientのConicと決定的なNoise生成を実装すると、Generatorの基礎契約を一貫させられる。
+- 価値・懸念: 生成結果を後段へ渡せ、無効サイズや極端なNoise設定を抑えられる。既存プリセットとの画質・速度差は未検証。
+- 次の確認: ビルド・実機で各Gradient/Noise種別、サイズ変更、フレーム範囲、同一seedの再現性を確認する。
+
 ### 2026-08-03 — ArtifactParticleGeneratorのtimeScaleを正規化する
 
 - 状態: 確認済み
