@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ReactionDiffusionBlurEffect の反応拡散パラメータを有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Blur/ReactionDiffusionBlurEffect.cppm`
+- 事実: Blur Radius / Feed / Kill / Pattern Strength / Evolution は property setter で clamp または直接代入し、非有限値を補正していなかった。
+- 閃き・仮説: 各反応拡散入力を有限値確認後に既存範囲へ収めると、反復ブラー計算へ異常値が伝播しにくくなる。
+- 価値・懸念: 反応拡散の発散や不正パターンを抑えられる。既定値の見た目と反復回数との相互作用は未検証。
+- 次の確認: ビルド・実機で Feed / Kill、Iterations、Pattern Strength の境界値を確認する。
+
 ### 2026-08-03 — DifferenceMatteEffect の threshold を有限化する
 
 - 状態: 確認済み
