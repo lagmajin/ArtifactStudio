@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — RenderQueueのselective設定をWorkspaceAutomationへ公開する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx`
+- 事実: RenderQueueServiceとUIにはジョブ単位のselective settings APIが存在する一方、WorkspaceAutomationの操作説明・dispatch・実装一覧に未登録だった。
+- 閃き・仮説: get/set操作を既存のAutomation registryへ追加すると、UIと同じ選択的レンダリング設定をAI操作から扱える。
+- 価値・懸念: render queue自動化の設定粒度を高められる。QVariantMapのキー検証はサービス側の既存契約に依存し、完全なruntime検証は未実施。
+- 次の確認: ビルド・実機で有効／無効レイヤー、範囲指定、無効ジョブindexのget/setを確認する。
+
 ### 2026-08-03 — DistributionModesのCatmull-Rom補間を安定化する
 
 - 状態: 確認済み
