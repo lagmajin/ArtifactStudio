@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — EdgeBloomEffect のプロパティ範囲をUIメタデータへ反映する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Glow/EdgeBloomEffect.cppm`
+- 事実: Threshold / Radius / Amount / Edge Boost / Tint Mix の最小値・最大値がプロパティ定義に設定されていなかった。
+- 閃き・仮説: 既存setterの想定範囲をプロパティメタデータにも設定すると、編集UIと実装側の入力契約を一致させられる。
+- 価値・懸念: UIからの入力範囲が明確になり、異常値入力の機会を減らせる。既存UIが範囲メタデータをどう表示するかは未検証。
+- 次の確認: ビルド・実機で各プロパティのスライダー／数値入力範囲とsetterの挙動を確認する。
+
 ### 2026-08-03 — DisplacementMapEffect の変位量とチャンネル値を正規化する
 
 - 状態: 確認済み
