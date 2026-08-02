@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — AIDSLのfilter評価とCommandAction解析を実装する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Tool/AIDSL/include/AIToolDSL/DSLTypes.ixx`、`Artifact/src/Tool/AIDSL/src/DSLParser.cppm`
+- 事実: `and`／`or`を含むfilter式、数値・文字列比較、regex match、FrameExpr解決、符号付き整数、CommandActionの型を追加した。
+- 閃き・仮説: DSLのparseとevaluateを分けたまま、式ノードの値解決を共通化すると、property filterを実データへ適用しやすい。
+- 価値・懸念: AIDSLコマンドの条件指定とframe参照が実用化する。regex入力や演算子優先順位は追加テストが必要。
+- 次の確認: ビルド・実機でand／or、数値／文字列比較、regex、frame context、無効式を確認する。
+
 ### 2026-08-03 — ViewportScaleOverlayの目盛り計算と表示要素管理を分離する
 
 - 状態: 確認済み
