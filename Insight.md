@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — AnisotropicFlowBlurEffect のテンソル入力を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Blur/AnisotropicFlowBlurEffect.cppm`
+- 事実: Blur Amount / Tensor Noise Scale / Tensor Integration Scale / Edge Adherence は clamp 前に非有限値を除外していなかった。
+- 閃き・仮説: property setter で有限値を確認してから既存範囲へ収めると、異常なテンソル設定がブラー計算へ伝播しにくくなる。
+- 価値・懸念: NaN/Inf による不定な出力を抑えられる。境界値の実機挙動は未検証。
+- 次の確認: ビルド・実機で各入力の通常値、範囲外値、非有限値を確認する。
+
 ### 2026-08-03 — ReactionDiffusionBlurEffect の反応拡散パラメータを有限化する
 
 - 状態: 確認済み
