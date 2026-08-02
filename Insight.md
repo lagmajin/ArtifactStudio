@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ArtifactTimelineClockのmodule宣言境界を統一する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Preview/ArtifactTimelineClock.ixx`
+- 事実: `export module` 宣言がwobject・Qt includeの途中にあり、global module fragmentとmodule purviewの境界が不統一だった。
+- 閃き・仮説: include群の後へmodule宣言を移すと、C++20 moduleのヘッダ解析境界を明確にできる。
+- 価値・懸念: MSVCの外部ヘッダ解析不具合を避ける規約へ揃えられる。wobjectヘッダのmodule対応は未検証。
+- 次の確認: module hygiene検査とビルドでTimelineClockの宣言・wobject生成を確認する。
+
 ### 2026-08-03 — LayerPluginAdapterのABI includeをglobal module fragmentへ移動する
 
 - 状態: 確認済み
