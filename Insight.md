@@ -5011,3 +5011,9 @@
 - 事実: frame rate変更のpreflight/apply/current overrideで有限値化と0.001〜1000.0の範囲制限を適用した。
 - 価値: NaN/Infや極端なframe rateがFootage解釈と保存状態へ伝播する経路を抑える。
 - 次に確認すべきこと: UI入力側のframe rate範囲と同じ制約になっているか確認する。
+# 2026-08-03: Layer effect envelope finite fallback
+
+- 関連: `Artifact/src/Animation/ArtifactLayerEffectEnvelope.cppm`
+- 事実: envelope sampleのeffect start/endが非有限値の場合に安全な既定値へフォールバックするようにした。
+- 価値: 異常なanimation値が補間結果へNaN/Infとして伝播する経路を抑える。
+- 次に確認すべきこと: envelope入力keyframeの有限値検証と整合するか確認する。
