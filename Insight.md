@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — BevelEffect の GPU 色順とパラメータ境界を CPU 側に合わせる
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Bevel/BevelEffect.cppm`
+- 事実: GPU パラメータ転送で highlight / shadow の RGB 成分が BGR 順になっており、強度・softness は非有限値をそのまま受ける可能性があった。
+- 閃き・仮説: 転送値を RGB 順へそろえ、setter 境界で有限値と範囲を保証すると、CPU と GPU の見た目差および異常入力の伝播を同時に抑えられる。
+- 価値・懸念: ベベルの色再現と異常入力時の安定性が改善する。既定値の見た目は未検証。
+- 次の確認: ビルド・実機で highlight / shadow の色順と NaN / infinity 入力時の結果を確認する。
+
 ### 2026-08-03 — BlurEffect の数値入力は有限値を明示的に補正する
 
 - 状態: 確認済み
