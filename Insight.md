@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — WaveEffect の CPU/GPU 波形パラメータ範囲を統一する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/Wave/WaveEffect.ixx`
+- 事実: CPU / GPU の amplitude / frequency / phase は直接保持し、wave type / orientation も範囲外値を許していた。
+- 閃き・仮説: 両実装で同じ有限値・enum 相当の範囲補正を適用すると、波形生成の CPU / GPU パスで入力条件を統一できる。
+- 価値・懸念: 異常な波形値や未定義モードによる処理差を抑えられる。振幅・周波数の上限は未検証。
+- 次の確認: ビルド・実機で CPU / GPU の波形タイプ、方向、境界値を比較する。
+
 ### 2026-08-03 — LiquifyEffect の CPU/GPU brush パラメータと enum を統一する
 
 - 状態: 確認済み
