@@ -4929,3 +4929,10 @@
 - 事実: effect preset collectionの保存をQSaveFile経由にし、payload全量書き込み成功時のみcommitするようにした。
 - 価値: 保存途中のI/O失敗でpreset collection JSONが不完全な内容に置き換わるリスクを抑える。
 - 次に確認すべきこと: 実環境でpreset保存後の再読み込みを確認する。
+
+# 2026-08-03: Revision snapshot guard and atomic save fix
+
+- 関連: `Artifact/src/Project/ArtifactRevisionService.cppm`
+- 事実: latest snapshot hashのサイズ検証条件を成功時に処理する形へ修正し、ledger/snapshot保存をQSaveFile化した。
+- 価値: 有効なlatest snapshotを誤って読み飛ばす不具合を直し、履歴保存途中のJSON破損リスクを抑える。
+- 次に確認すべきこと: revision作成・再起動後のhead/snapshot復元を確認する。
