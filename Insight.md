@@ -4852,3 +4852,10 @@
 - 事実: revision ledgerを16 MiB、snapshot JSONを256 MiB、ledger内revision件数を100000件に制限した。
 - 価値: 履歴復元時の巨大JSON読み込みと大量record生成によるメモリ・処理量を抑える。
 - 次に確認すべきこと: 大規模プロジェクトのsnapshot実サイズと履歴件数が上限内か確認する。
+
+# 2026-08-03: Color palette input bounds
+
+- 関連: `Artifact/src/Color/ColorPaletteManager.cppm`
+- 事実: palette JSONの読み込みにファイル16 MiB、palette 100000件の上限を追加した。
+- 価値: 外部paletteの巨大配列や異常なパス指定による過剰な読み込みを抑える。
+- 次に確認すべきこと: 実運用paletteのサイズと件数が上限内か確認する。
