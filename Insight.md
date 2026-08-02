@@ -4970,3 +4970,10 @@
 - 事実: curl経由のmodel list JSONも16 MiB以下に制限してからパースするようにした。
 - 価値: QNetworkReply経路だけでなく、外部curl経路でも巨大stdout応答の展開を抑える。
 - 次に確認すべきこと: providerのcurl応答サイズが上限内か確認する。
+
+# 2026-08-03: MCP manual arguments bound
+
+- 関連: `Artifact/src/Widgets/AI/ArtifactAICloudWidget.cppm`
+- 事実: MCP手入力tool arguments JSONを4 MiB以下に制限してからパースするようにした。
+- 価値: UIからの巨大arguments入力でJSONパースやtool実行前のバッファ確保が過剰化する経路を抑える。
+- 次に確認すべきこと: 通常のMCP tool argumentsサイズが上限内か確認する。
