@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — SimpleRainEffect の雨パラメータを有限値境界で統一する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Generate/SimpleRainEffect.cppm`
+- 事実: Density / Streak Length / Speed / Wind / Opacity / Depth / Splash Amount / Evolution は property setter で clamp または直接代入し、非有限値を補正していなかった。
+- 閃き・仮説: 各プロパティ入力を有限値確認後に既存範囲へ収めると、雨生成の同期先へ異常値が伝播しにくくなる。
+- 価値・懸念: 雨粒生成のパラメータ破損を抑えられる。既定値の見た目は未検証。
+- 次の確認: ビルド・実機で8項目の異常値入力と Seed 変更を確認する。
+
 ### 2026-08-03 — LuminescenceCausticsEffect のプロパティ入力を有限化する
 
 - 状態: 確認済み
