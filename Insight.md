@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ChromaticAberrationEffect の色ずれ量と中心を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Rasterizer/ChromaticAberrationEffect.cppm`
+- 事実: redShift / blueShift / centerX / centerY は clamp のみで、非有限値を補正していなかった。
+- 閃き・仮説: 色収差量と中心座標の setter で有限値を保証すると、ラスタライズ同期へ異常値が伝播しにくくなる。
+- 価値・懸念: 色ずれの入力安定性を高められる。GPU のサンプル境界挙動は未検証。
+- 次の確認: ビルド・実機で中心移動、色ずれ量の境界、異常値入力を確認する。
+
 ### 2026-08-03 — BricksEffect のレンガ寸法・モルタル・offset を有限化する
 
 - 状態: 確認済み
