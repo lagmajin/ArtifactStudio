@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — PBRMaterialEffect の材質入力検証と変換項目をそろえる
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/Render/PBRMaterialEffect.ixx`
+- 事実: 色は無効 QColor をそのまま受け、metallic / roughness / AO / emissiveIntensity は非有限値を補正せず、toMaterial では emissive・occlusion 項目を反映していなかった。
+- 閃き・仮説: 色の validity を確認し、数値を有限範囲へ収め、変換時に全 PBR 材質項目を渡すと、編集値とレンダリング材質の境界をそろえられる。
+- 価値・懸念: 不正な材質入力と変換漏れを同時に抑えられる。emissive / occlusion の既存 backend 反映は未検証。
+- 次の確認: ビルド・実機で色、金属度、粗さ、発光、AO の変換結果を確認する。
+
 ### 2026-08-03 — LensDistortionEffect の CPU/GPU パラメータ範囲を統一する
 
 - 状態: 確認済み
