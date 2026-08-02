@@ -4956,3 +4956,10 @@
 - 事実: model listの採用件数を10000件、各model idを1024文字に制限し、非object要素を無視するようにした。
 - 価値: サイズ上限内でも異常に大量・長大なmodel情報がUIリストへ展開される経路を抑える。
 - 次に確認すべきこと: 接続先providerの通常model件数とid長を確認する。
+
+# 2026-08-03: Local AI model list entry bound
+
+- 関連: `Artifact/src/Widgets/AI/ArtifactAICloudWidget.cppm`
+- 事実: ローカルJSONからのmodel list抽出にも件数10000件、ID長1024文字、object型チェックを適用した。
+- 価値: API応答とローカル設定の両方でmodel list展開量を一貫して制限する。
+- 次に確認すべきこと: ローカルmodel list設定の通常件数とID長を確認する。
