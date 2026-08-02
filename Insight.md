@@ -4915,3 +4915,10 @@
 - 事実: grading preset保存をQSaveFile経由にし、全payload書き込み成功時のみcommitするようにした。
 - 価値: 保存途中のI/O失敗で既存preset JSONが中途半端な内容に置き換わるリスクを抑える。
 - 次に確認すべきこと: 実環境でpreset保存後の再読み込みを確認する。
+
+# 2026-08-03: Workspace atomic save
+
+- 関連: `Artifact/src/Core/ArtifactWorkspaceManager.cppm`
+- 事実: workspace session/layout JSONの保存をQSaveFile経由にし、payload全量書き込み成功時のみcommitするようにした。
+- 価値: 保存途中のI/O失敗でworkspace設定が空または不完全なJSONに置き換わるリスクを抑える。
+- 次に確認すべきこと: 実環境でsession/layout保存後の復元を確認する。
