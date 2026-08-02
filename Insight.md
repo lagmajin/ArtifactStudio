@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — LiftGammaGainEffect の個別 RGB setter を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/LiftGammaGainEffect.ixx`
+- 事実: 個別の lift / gamma / gain RGB setter は clamp のみで、非有限値を明示的に補正していなかった。既存の一括 setter とは入力経路が分かれている。
+- 閃き・仮説: 個別 setter でも有限値を保証すると、UI の単項目編集と一括編集でカラー調整状態の境界をそろえられる。
+- 価値・懸念: 異常値が GPU / CPU 同期へ伝播する可能性を下げられる。module interface の変更は再スキャン範囲が広がる可能性がある。
+- 次の確認: ビルド・実機で個別 RGB 編集と一括 setter の結果を比較する。
+
 ### 2026-08-03 — WhiteBalanceEffect の温度・色かぶり・明度入力を有限化する
 
 - 状態: 確認済み
