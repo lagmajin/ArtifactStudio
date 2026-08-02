@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — FilmDamageEffect のフィルム損傷プロパティを有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Rasterizer/FilmDamageEffect.cppm`
+- 事実: Grain / Dust / Scratches / Gate Weave / Flicker / Film Burn / Evolution は property setter で clamp または直接代入し、非有限値を補正していなかった。
+- 閃き・仮説: 各損傷パラメータを有限値確認後に既存範囲へ収めると、フィルムノイズ生成へ異常値が伝播しにくくなる。
+- 価値・懸念: フィルムダメージの入力安定性を高められる。既定値の見た目は未検証。
+- 次の確認: ビルド・実機で7項目の異常値入力と Seed 変更を確認する。
+
 ### 2026-08-03 — EchoEffect の decay と blendOperator を有限化する
 
 - 状態: 確認済み
