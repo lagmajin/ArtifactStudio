@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — SphericalField の中心・半径・falloff と距離評価を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/Field/SphericalField.ixx`
+- 事実: center は配列を直接保持し、radius / falloffWidth は負値・非有限値を許し、evaluateAt は非有限座標や距離を検査していなかった。
+- 閃き・仮説: 中心成分と半径系を有限・非負化し、評価入口と距離結果を検査すると、球形フィールドの影響度計算を安定化できる。
+- 価値・懸念: 異常入力による球形影響の破損を抑えられる。falloffWidth と半径の相互関係は未検証。
+- 次の確認: ビルド・実機で半径境界、falloff、非有限座標の評価を確認する。
+
 ### 2026-08-03 — RadialField の中心・軸・半径と距離評価を有限化する
 
 - 状態: 確認済み
