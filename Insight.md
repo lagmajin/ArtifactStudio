@@ -4887,3 +4887,10 @@
 - 事実: external renderer summary JSONの読み込みを16 MiB以下に制限した。
 - 価値: 外部rendererからの巨大summaryでqueue処理中のJSONバッファが過剰化する経路を抑える。
 - 次に確認すべきこと: external rendererが生成するsummaryの実サイズを確認する。
+
+# 2026-08-03: Shortcut preset input bound
+
+- 関連: `Artifact/src/Widgets/Dialog/ApplicationSettingDialog.cppm`
+- 事実: shortcut preset JSONの読み込みに4 MiBのファイルサイズ上限を追加した。
+- 価値: ユーザー選択のshortcut presetが巨大な場合にUI上で無制限に読み込まれる経路を抑える。
+- 次に確認すべきこと: 既存shortcut presetの最大サイズを確認する。
