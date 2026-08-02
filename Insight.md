@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ColorBalanceEffect の RGB バランスと範囲設定を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/ColorCorrection/ColorBalanceEffect.cppm`
+- 事実: shadow / midtone / highlight の RGB 調整値、各 range、masterStrength は clamp のみで、非有限値を明示的に補正していなかった。
+- 閃き・仮説: 3帯域の色調整と共通範囲設定を setter 境界で有限化すると、Custom 設定の同期状態を一貫して保てる。
+- 価値・懸念: 色バランス入力の異常値伝播を抑えられる。帯域範囲の相互関係は未検証。
+- 次の確認: ビルド・実機で3帯域の異常値入力と GPU / CPU 表示を確認する。
+
 ### 2026-08-03 — HueAndSaturation の RGB 色空間変換と入力境界をそろえる
 
 - 状態: 確認済み
