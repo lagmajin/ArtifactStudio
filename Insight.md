@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — OCIO Managerのviewer調整・GPU/LUT APIを公開する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Color/ArtifactOCIOManager.ixx`
+- 事実: 実装側にviewer exposure/gamma、GPU view-transform shader/descriptor、3D LUT bakeの定義がある一方、公開module宣言とQVector includeが不足していた。
+- 閃き・仮説: API宣言を実装と揃えると、viewer-only調整とGPU/LUT経路をrender側から正規に利用できる。
+- 価値・懸念: OCIO v2運用の表示変換・LUT接続面を明示できる。GPU shader descriptorのbackend互換性とHDR受入れは未検証。
+- 次の確認: ビルド・実機でviewer exposure/gamma、shader descriptor、LUTサイズ・domainを確認する。
+
 ### 2026-08-03 — FinalPostProcessのLUT入力ドメインを公開する
 
 - 状態: 確認済み
