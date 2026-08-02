@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ResidualGlowEffect の残光パラメータを有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Glow/ResidualGlowEffect.cppm`
+- 事実: threshold / radius / intensity / decay / historyMix は clamp のみで、非有限値を明示的に補正していなかった。
+- 閃き・仮説: 残光設定の setter で有限値を保証すると、履歴合成へ異常値が伝播しにくくなる。
+- 価値・懸念: 残像の蓄積と減衰の入力安定性を高められる。既定値の見た目は未検証。
+- 次の確認: ビルド・実機で履歴蓄積、decay / historyMix の境界、異常値入力を確認する。
+
 ### 2026-08-03 — PhysicalHalationEffect のプロパティ入力を有限化する
 
 - 状態: 確認済み
