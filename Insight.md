@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — LayerMaskのlock状態APIを公開宣言へ揃える
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Mask/LayerMask.ixx`, `Artifact/src/Mask/LayerMask.cppm`
+- 事実: lock状態の実装は存在していたが、公開module interfaceにgetter/setter宣言がなく、利用側から参照・変更できなかった。
+- 閃き・仮説: 宣言を実装と揃えると、マスク編集UIや操作経路がロック状態を正規APIで扱える。
+- 価値・懸念: ロック中の編集抑止を共通化できる。既存呼び出し側の編集ガードの網羅性は未検証。
+- 次の確認: ビルド・module hygiene検査と実機でlock中の編集操作を確認する。
+
 ### 2026-08-03 — RenderQueueServiceのselective settings APIを公開宣言へ揃える
 
 - 状態: 確認済み
