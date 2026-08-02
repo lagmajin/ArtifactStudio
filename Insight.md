@@ -5029,3 +5029,9 @@
 - 事実: Stabilizerの数値・画像サイズ検証、再実行時の状態リセット、完全トラック判定、有限値フォールバック、フレーム変換処理をまとめて整理した。
 - 価値: 異常入力や再利用時の古いmotion状態による不安定なstabilization結果を抑える。
 - 次に確認すべきこと: 複数フレーム、単一フレーム、特徴点不足、border fillのruntime受入れを確認する。
+# 2026-08-03: Add Noise scale and GPU upload alignment
+
+- 関連: `Artifact/src/Effects/AddNoise/AddNoiseEffect.cppm`
+- 事実: CPU/GPU両経路でノイズ座標へsizeを適用し、GPU upload bufferの形式・strideを利用するようにした。amount/size/seedも有限値・範囲検証した。
+- 価値: CPU/GPUでノイズ粒度が一致し、異常パラメータや入力形式差による不安定な効果結果を抑える。
+- 次に確認すべきこと: RGBA16F/RGBA32F、monochrome/color noise、GPU不可時fallbackのruntime受入れを確認する。
