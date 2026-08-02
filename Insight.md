@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — Inspectorのエフェクトカタログを実装済み効果へ広げる
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Widgets/ArtifactInspectorWidget.cppm`
+- 事実: Optics Compensation、Turbulent Displace、Luma／Difference Key、Liquify、Stroke系、Blur／Transition／Stylize系などのエフェクトカタログ項目を追加した。
+- 閃き・仮説: エフェクト実装とInspectorの検索カタログを同じ識別子・カテゴリ・キーワードで揃えると、既存機能の発見性と追加導線を改善できる。
+- 価値・懸念: 未発見だった効果を検索・カテゴリから選べる。カタログ識別子と登録サービスの対応漏れは別途確認が必要。
+- 次の確認: ビルド・実機で各項目の検索、カテゴリ表示、追加後のProperty表示を確認する。
+
 ### 2026-08-03 — Project Viewの検索・フィルター条件を要約表示する
 
 - 状態: 確認済み
