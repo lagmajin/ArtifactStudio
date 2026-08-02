@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — DirectionalGlowEffect の光条パラメータを有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/DirectionalGlowEffect.ixx`
+- 事実: threshold / intensity / length / weight / angleOffset は clamp・max・直接代入のみで、非有限値を明示的に補正していなかった。
+- 閃き・仮説: 光条の全数値 setter で有限値を保証すると、GPU / CPU 同期へ異常値が伝播しにくくなる。
+- 価値・懸念: Directional Glow の入力安定性を一貫して高められる。module interface の変更は再スキャン範囲が広がる可能性がある。
+- 次の確認: ビルド・実機で光条長・重み・角度の異常値入力を確認する。
+
 ### 2026-08-03 — GaussianBlur の CPU/GPU sigma 入力を同じ範囲へ制限する
 
 - 状態: 確認済み
