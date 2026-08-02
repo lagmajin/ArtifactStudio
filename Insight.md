@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — GrayscaleEffect の strength setter で非有限値を補正する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/ColorCorrection/GrayscaleEffect.cppm`
+- 事実: strength は clamp のみで、NaN / infinity を明示的に拒否していなかった。
+- 閃き・仮説: エフェクトの公開 setter で有限値を保証すれば、同期される CPU / GPU 実装へ異常値が伝播しにくくなる。
+- 価値・懸念: グレースケール量が常に有効な範囲で動作する。既定値の妥当性は未検証。
+- 次の確認: ビルド・実機で異常値入力時のレンダリング結果を確認する。
+
 ### 2026-08-03 — FillEffect の opacity setter で非有限値を遮断する
 
 - 状態: 確認済み
