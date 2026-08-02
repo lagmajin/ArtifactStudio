@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — LensDistortionEffect の CPU/GPU パラメータ範囲を統一する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/LensDistortion/LensDistortionEffect.ixx`
+- 事実: CPU / GPU の distortion / center / zoom setter は値を直接保持していた。
+- 閃き・仮説: 両実装で同じ有限値・範囲補正を適用すると、レンズ歪みの CPU / GPU パスで入力条件を統一できる。
+- 価値・懸念: 非有限値や不正 zoom による歪み処理の不安定化を抑えられる。distortion の最大値は未検証。
+- 次の確認: ビルド・実機で CPU / GPU の中心、歪み、zoom 境界を比較する。
+
 ### 2026-08-03 — SpherizeEffect の CPU/GPU パラメータ境界をそろえる
 
 - 状態: 確認済み
