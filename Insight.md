@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — PaintLayerのブラシ入力・クローンスタンプ・Undoを拡張する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Layer/ArtifactPaintLayer.ixx`、`Artifact/src/Layer/ArtifactPaintLayer.cppm`
+- 事実: ブラシのflow／hardness／角度／roundness／各種jitterを追加し、決定的なdab揺らぎ、クローンスタンプ、フレーム単位のUndo、画像復元時のサイズ・有限値検証を実装した。
+- 閃き・仮説: CPUペイントでは乱数エンジンを状態保存せず、dab位置とインデックスから決定的に揺らぎを作るとUndo／再適用時の見た目を揃えやすい。
+- 価値・懸念: ブラシ表現と編集復元性が向上する一方、既存ストロークの見た目とメモリ使用量（画像Undo／クローン一時バッファ）は確認が必要。
+- 次の確認: ビルド・実機でブラシ属性、クローン元／先フレーム、clear後Undo、異常画像復元を確認する。
+
 ### 2026-08-03 — LayerMaskのロック状態を実装側へ接続する
 
 - 状態: 確認済み
