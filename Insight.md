@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — CompositionRenderWidgetのズーム・パン操作を滑らかにする
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Widgets/Render/ArtifactCompositionRenderWidget.ixx`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`
+- 事実: アンカーを維持するsmooth zoom、pan momentum、ツール別cursor、zoom marquee／space hand状態、rotation snap設定を追加した。
+- 閃き・仮説: ズーム中心をviewport座標とcanvas座標の組で保持し、アニメーション中も同じアンカーを再計算すると、視点が飛びにくい。
+- 価値・懸念: ビュー操作の連続性とツール識別性が上がる。タイマー中のrender負荷とpan停止条件は実機確認が必要。
+- 次の確認: ビルド・実機でwheel／button zoom、momentum pan、tool cursor、rotation snap、zoom marqueeを確認する。
+
 ### 2026-08-03 — CompositionMenuから選択的なRender Queue投入を追加する
 
 - 状態: 確認済み
