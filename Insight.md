@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — TimelineLayerPanelのvariant名変換とdragEnterの境界を修正する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`
+- 事実: variant名のUniString変換を明示的なArtifactCore変換へ揃え、dragEnterEventのブロック境界を修正した。
+- 閃き・仮説: モジュール境界の文字列型変換とイベント分岐の括弧は、暗黙変換や見た目上のインデントに頼らず明示化した方が再スキャン時の不具合を追いやすい。
+- 価値・懸念: 型変換の解決とイベント処理の意図しない範囲実行を防げる。タイムラインの各drop形式は実機確認が必要。
+- 次の確認: ビルド・実機でパスdropとeffect dropの両方を確認する。
+
 ### 2026-08-03 — SurfaceFXのプロパティ入力を有限化する
 
 - 状態: 確認済み
