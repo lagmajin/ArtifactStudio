@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — VignetteEffect の画面端半径と CPU/GPU 入力条件をそろえる
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Rasterizer/VignetteEffect.cppm`
+- 事実: CPU / GPU の最大半径は中心から原点までの距離だけを使い、center が画面中央以外で端部を覆い切れなかった。setter も非有限値を補正していなかった。
+- 閃き・仮説: 各画面端までの最大距離を使い、CPU / GPU の半径計算をそろえ、5つの setter で有限値を保証すると、ビネット境界を安定化できる。
+- 価値・懸念: 中心移動時のフェード範囲と異常入力を改善できる。GPU 式の端数差は未検証。
+- 次の確認: ビルド・実機で中心位置、画面端、CPU / GPU フェード結果を比較する。
+
 ### 2026-08-03 — EdgeEffect / RimLightEffect の rasterizer 入力を有限化する
 
 - 状態: 確認済み
