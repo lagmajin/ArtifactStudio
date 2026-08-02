@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — BoxField の寸法・falloff と評価入力を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/Field/BoxField.ixx`
+- 事実: halfExtent / falloffWidth は負値・非有限値をそのまま保持し、evaluateAt も非有限座標や距離の検査なしに計算していた。
+- 閃き・仮説: setter で寸法を非負有限化し、評価入口と計算結果を検査すると、フィールド評価の異常値伝播を抑えられる。
+- 価値・懸念: 物理・エフェクト評価の安定性を高められる。center の有限値検証は今回の差分範囲外。
+- 次の確認: ビルド・実機で境界寸法、非有限座標、距離計算結果を確認する。
+
 ### 2026-08-03 — DirectionalGlowEffect の光条パラメータを有限化する
 
 - 状態: 確認済み
