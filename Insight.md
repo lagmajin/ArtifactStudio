@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — GradientRampEffect の座標・opacity 入力を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/ColorCorrection/GradientRampEffect.cppm`
+- 事実: start / end 座標と opacity は clamp のみで、非有限値を明示的に補正していなかった。
+- 閃き・仮説: 座標と opacity の setter 境界で有限値を保証すると、グラデーション設定から同期先へ異常値が伝播しにくくなる。
+- 価値・懸念: 描画領域と透明度の入力安定性をそろえられる。既定値の妥当性は未検証。
+- 次の確認: ビルド・実機で異常値入力時のグラデーション方向と透明度を確認する。
+
 ### 2026-08-03 — ColoramaEffect の色変換設定を有限値境界で統一する
 
 - 状態: 確認済み
