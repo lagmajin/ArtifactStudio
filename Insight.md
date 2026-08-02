@@ -4950,3 +4950,9 @@
 - 事実: model list API responseのJSON読み込みを16 MiB以下に制限した。
 - 価値: 外部AI providerからの巨大なmodel list応答でUI側のバッファ・JSONパースが過剰化する経路を抑える。
 - 次に確認すべきこと: 接続先providerのmodel list応答サイズが上限内か確認する。
+# 2026-08-03: AI model list entry bound
+
+- 関連: `Artifact/src/Widgets/AI/ArtifactAICloudWidget.cppm`
+- 事実: model listの採用件数を10000件、各model idを1024文字に制限し、非object要素を無視するようにした。
+- 価値: サイズ上限内でも異常に大量・長大なmodel情報がUIリストへ展開される経路を抑える。
+- 次に確認すべきこと: 接続先providerの通常model件数とid長を確認する。
