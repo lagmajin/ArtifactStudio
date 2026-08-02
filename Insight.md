@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — PointTrackerGizmoに特徴領域と信頼度の可視化を追加する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Widgets/Render/ArtifactPointTrackerGizmo.cppm`
+- 事実: Feature／Searchサイズ、軌跡上のconfidence色、現在フレームの強調点、平均confidence表示を追加した。
+- 閃き・仮説: トラッカーの編集値と解析結果を同じGizmo上で示すと、サイズ調整と結果品質の関係を確認しながら操作できる。
+- 価値・懸念: トラッキング状態の把握性が向上する。軌跡点数が多い場合の表示密度と文字位置は実機確認が必要。
+- 次の確認: ビルド・実機でサイズ表示、confidence色、現在フレーム強調、長い軌跡の視認性を確認する。
+
 ### 2026-08-03 — TransformGizmoの回転スナップと比率維持リサイズを強化する
 
 - 状態: 確認済み
