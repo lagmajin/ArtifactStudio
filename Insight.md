@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — FeedbackEffect の残像量・移動・zoom・回転を有限化する
+
+- 状態: 確認済み
+- 関連: `Artifact/src/Effects/Rasterizer/FeedbackEffect.cppm`
+- 事実: amount / decay は clamp のみ、center offset / rotation は直接代入、zoom は下限のみで非有限値や過大値を補正していなかった。
+- 閃き・仮説: フィードバックの全数値 setter で有限値と範囲を保証すると、履歴フレーム合成へ異常な移動・拡大値が伝播しにくくなる。
+- 価値・懸念: 残像の発散や不安定な変形を抑えられる。上限値の見た目は未検証。
+- 次の確認: ビルド・実機で decay、offset、zoom、rotation の境界値を確認する。
+
 ### 2026-08-03 — VectorBlurEffect のシャッター角・露出補正を有限化する
 
 - 状態: 確認済み
