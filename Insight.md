@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — ArtifactParticleGeneratorのtimeScaleを正規化する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Generator/ArtifactParticleGenerator.ixx`
+- 事実: timeScaleを任意のfloatのまま設定でき、負値や非有限値が粒子時間更新へ渡る可能性があった。
+- 閃き・仮説: 有限値確認後に0以上へclampし、無効値は1.0へ戻すと、粒子シミュレーションの時間進行を安定させられる。
+- 価値・懸念: NaN/Infや逆方向の意図しない時間進行を抑えられる。timeScale=0を停止用途として許可する設計は未検証。
+- 次の確認: ビルド・実機で停止、通常、加速、負値、非有限値を確認する。
+
 ### 2026-08-03 — ToolManagerへCloneと2D rig編集ツールを追加する
 
 - 状態: 確認済み
