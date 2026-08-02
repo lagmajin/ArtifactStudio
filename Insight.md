@@ -13,6 +13,15 @@
 
 ## Insights
 
+### 2026-08-03 — LiquifyEffect の CPU/GPU brush パラメータと enum を統一する
+
+- 状態: 確認済み
+- 関連: `Artifact/include/Effects/Liquify/LiquifyEffect.ixx`
+- 事実: CPU / GPU の brush type、amount、radius、center、angle、seed、mesh density は直接保持され、enum 範囲や数値境界がなかった。
+- 閃き・仮説: 両実装で同じ enum / 有限値 / 範囲補正を適用すると、Liquify の CPU / GPU パスで入力条件を統一できる。
+- 価値・懸念: 不正 brush type や過大 mesh 設定による不安定化を抑えられる。範囲値の UX 妥当性は未検証。
+- 次の確認: ビルド・実機で brush type、mesh density、異常 float 入力を比較する。
+
 ### 2026-08-03 — IESLightEffect の照明値・プロパティ経路・パス入力を整える
 
 - 状態: 確認済み
