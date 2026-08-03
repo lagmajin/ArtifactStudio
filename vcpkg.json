@@ -24,6 +24,7 @@
     "fmt",
     "tbb",
     "openimageio",
+    "opencolorio",
     "glm",
     "stb",
     "boost-iostreams",

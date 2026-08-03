@@ -1,5 +1,7 @@
 # RAM Preview Cache Milestone
 
+**ステータス:** In Progress（range／prewarm／priority／独自RAM cache 実装済み、playback統合／runtime検証待ち）
+
 AE 風の RAM preview を、`render -> frame cache -> playback` の流れで安定して動かすための milestone.
 
 ## Goal

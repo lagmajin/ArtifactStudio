@@ -1,6 +1,6 @@
 # Project View Search / Filter / Presentation
 
-**ステータス:** Phase 1〜3主要基盤実装済み、Phase 2統合・Phase 4〜5/runtime検証 pending
+**ステータス:** 実装完了（runtime検証待ち）
 
 > 2026-04-03 作成
 
@@ -240,4 +240,4 @@ Phase 1 は、検索語が入力された瞬間に surface が変わることを
 
 選択容量合計は Footage の実ファイルを表示し、連番は `sequencePaths` 全体を合算する。Type filter、Tree/Tile、Unused only、sort column/direction、column widths は `QSettings` に保存・復元し、検索語も browse context に表示する。`type:footage,composition` のような複数 type 条件は advanced filter の OR 照合を実装済みだが、仕様上の list / grid 名称とは現行コードの Tree / Tile 名称が一致せず、複数 filter pill の独立した multi-select surface、画像・音声・3D 等の全タイプ選択、未使用件数の包括的表示、view transition、実データでの複合条件、大量アイテム時の非同期更新、runtime 視認性は未検証である。`tag:` 検索は検索語経路のみで、タグの入力・管理 UI は確認できない。
 
-判定: **Phase 1〜3 の主要基盤は実装済み。** Phase 2 の統合 filter surface と Phase 4〜5 の status／polish は部分実装または runtime 検証待ちである。
+判定: **検索・type／unused／missing filter、Tree／Tile、status表示、フィルター状態サマリーまで実装。独立したpill操作、runtime検証は pending。**

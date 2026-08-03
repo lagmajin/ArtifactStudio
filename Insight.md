@@ -6391,3 +6391,24 @@
 - 事実: Creative effectsのGPU入力をGpuImageUploadBuffer経由にし、RGBA16F/RGBA32F形式・row strideと出力RGBA channel orderを揃えた。
 - 価値: GPU経路での入力形式差やstride誤認、出力channel order不整合を抑える。
 - 次に確認すべきこと: 16F/32F素材と各creative effectのGPU/fallback結果をruntime確認する。
+
+# 2026-08-03: Image pipeline audit — GPU cache is scaffold only
+
+- 関連: `docs/analysis/IMAGE_PIPELINE_AUDIT_2026-08-02.md`, `ArtifactCore/include/Image/ImageF32x4_With_Cache.ixx`, `ArtifactCore/src/Image/ImageF32x4_With_Cache.cppm`
+- 事実: `ImageF32x4RGBAWithCache` には CPU/GPU dirty flag と同期 API の宣言はあるが、GPU texture生成、CPU→GPU同期、GPU→CPU同期、dirty box操作は空実装。`GetGpuTextureUAV()` も CPU dirty 時にGPU更新ではなく逆方向同期を呼ぶ。
+- 価値または懸念: 監査のGPU連携評価は「型と契約の存在」と「実動作」を分離して記述する必要がある。現状のままでは static layer cache や GPU effect の正しさをこの型の存在だけから推定できない。
+- 次に確認すべきこと: `ArtifactCore` サブモジュール変更の明示承認後、Diligent の device/context 所有境界、upload format、readback policy を確認してから同期実装を設計する。ビルド・runtime検証なしに完了扱いしない。
+
+# 2026-08-03: Flat named-channel EXR already exists beside OpenExr stub
+
+- 関連: `ArtifactCore/src/IO/Image/ImageExporter.cppm`, `ArtifactCore/include/IO/Image/ImageExporter.ixx`, `ArtifactCore/include/Image/OpenEXR.ixx`
+- 事実: `OpenExr` facade は空スタブだが、`ImageExporter::writeMultiChannel()` は OIIO `ImageOutput` を使い、MultiChannelImage の named channels、compression、colorspace、string metadata を flat EXRへ書き出す。Cryptomatte用のdraft channel生成も存在する。
+- 価値または懸念: 「EXRが未実装」という表現は facade と実用出力経路を分けて記述する必要がある。次の課題は flat AOV writer の新規作成ではなく、既存writerの仕様検証・multi-part/Deep/Cryptomatte 1.3対応である。
+- 次に確認すべきこと: OIIO writerの実ファイルを生成してchannel名・metadata・読み戻しを検証する。ビルド・runtime検証はユーザー承認後に実施する。
+
+# 2026-08-03: GPU cache UAV direction correction
+
+- 関連: `ArtifactCore/src/Image/ImageF32x4_With_Cache.cppm`
+- 事実: `GetGpuTextureUAV()` は CPU dirty 時にGPU→CPU同期を呼んでいた。また、UAV取得時にSRV viewを返していた。
+- 変更: 逆方向同期の呼び出しを除去し、view種別を `TEXTURE_VIEW_UNORDERED_ACCESS` に修正した。CPU→GPU upload自体は device/context 所有契約が未定義のため未実装のまま維持した。
+- 次に確認すべきこと: Diligent runtimeでUAV view取得とresource state遷移を確認し、upload APIの所有境界が確定した後に明示同期を実装する。

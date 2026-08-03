@@ -1,5 +1,7 @@
 # ShapePath 自作ジオメトリ／描画経路移行マイルストーン
 
+**ステータス:** In Progress（Core geometry／単純 Bézier native path 実装済み、advanced stroke／operator／runtime検証待ち）
+
 **ステータス:** Partial implementation / Phase 0 contract documented / runtime verification pending
 **作成日:** 2026-07-27
 **対象:** 静止画・連番・シェイプ・画像処理・3Dレイヤーの基盤強化

@@ -1,4 +1,5 @@
 # ズームtoフィット機能の拡張
+**ステータス:** 実装完了（runtime検証待ち）
 **マイルストーン**: M-CO-3 Zoom to Fit Enhancements
 **作成日**: 2026-04-10
 **見積もり**: 5-7h
@@ -72,7 +73,7 @@ After Effects の「Fit」コマンドをより賢くし、コンポジション
 - `zoomFitVisible()` と Command Palette／context menu の `Zoom Fit Visible` を追加し、可視レイヤーの transformed bounds を統合して5%余白でviewport中央へ収めるようにした。
 - Selection / Visible / Work Area、遷移アニメーション、指定ショートカット、runtime操作確認は未実施。
 
-判定: **Composition Fit、Selection Fit、Visible Fit を実装。Work Area、遷移アニメーション、指定ショートカット、runtime検証は pending。**
+判定: **Composition Fit、Selection Fit、Visible Fit、Work Area Fit を実装。遷移アニメーション、指定ショートカット、runtime検証は pending。**
 
 確認範囲: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`、`ArtifactCore/src/UI/ShortcutBindings.cppm`。ビルド・実機操作による動作確認は未実施。
 
