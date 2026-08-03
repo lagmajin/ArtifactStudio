@@ -6412,3 +6412,10 @@
 - 事実: `GetGpuTextureUAV()` は CPU dirty 時にGPU→CPU同期を呼んでいた。また、UAV取得時にSRV viewを返していた。
 - 変更: 逆方向同期の呼び出しを除去し、view種別を `TEXTURE_VIEW_UNORDERED_ACCESS` に修正した。CPU→GPU upload自体は device/context 所有契約が未定義のため未実装のまま維持した。
 - 次に確認すべきこと: Diligent runtimeでUAV view取得とresource state遷移を確認し、upload APIの所有境界が確定した後に明示同期を実装する。
+
+# 2026-08-03: Planar tracker failure must remain planar
+
+- 関連: `ArtifactCore/src/Tracking/MotionTracker.cppm`, `docs/planned/MILESTONE_PLANAR_TRACKER_2026-08-01.md`
+- 事実: `TrackerType::Planar` のホモグラフィ推定に失敗した場合、従来は点トラッキングへフォールバックし、`trackRange()` も `trackForward()` の戻り値を無視していた。
+- 変更: Planar モードの失敗を failure frame として記録し、追跡セッションを失敗扱いにするようにした。これにより CornerPin 等へ「ホモグラフィなしの成功結果」を渡さない。
+- 次に確認すべきこと: 変換成功時のホモグラフィ、推定失敗時の `TrackResult::isValid`、CornerPin連携を runtime で確認する。OCIO は現行コードで実ライブラリの `.ocio` 読み込み・CPU/GPU shader生成まで実装済みのため、残課題は実配置経路と runtime 検証の確認。
