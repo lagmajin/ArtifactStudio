@@ -2,7 +2,7 @@
 
 **日付**: 2026-08-01
 **ベース**: Nuke Deep Compositing / Foundry Deep EXR 仕様
-**現状**: `DepthMask`（深度マスク計算）と `OpenExr`（空スタブ）が存在。本格的な Deep コンポジットは不在。
+**現状**: `DeepImageBuffer` に可変長サンプル、深度ソート、flatten、Deep over、holdout、flat↔Deep 合成、CPU 深度依存 DoF を実装済み。`OpenExr` は Deep RGBA32F の read/write と buffer 接続まで実装済み。GPU Packed契約・往復変換とDirectCompute front-to-back shaderも追加済み。GPU resource binding、制作UI統合、大規模runtime検証は未完了。
 
 ---
 

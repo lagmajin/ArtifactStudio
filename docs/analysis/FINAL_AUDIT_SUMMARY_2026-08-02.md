@@ -14,15 +14,15 @@
 | 2 | Transform/Frame/Time | 🟢 85% | RationalTime/FramePosition/TimeCode。業界標準品質 |
 | 3 | Audio | 🟢 80% | WASAPIバックエンド。LipSync（独自）。10種エフェクト |
 | 4 | Image/ImageProcessing | 🟡 75% | SurfaceColorDescriptor。140種エフェクト（CPU+GPU+Halide 3系統重複） |
-| 5 | Animation | 🟡 70% | 式エンジン/Rig2D/Easing。VP操作未配線 |
-| 6 | Color Pipeline | 🟡 70% | TransferFunction16種/DaVinci同等レベル。OCIO実lib不在 |
-| 7 | Graphics/GPU/Diligent | 🟡 70% | D3D12+Vulkan。MeshRenderer。RenderGraphトポロソート未実装 |
-| 8 | Media/Video/IO | 🟡 65% | FFmpeg完備/HDR対応。Stabilizer完全死亡。GStreamer未完成 |
-| 9 | Project | 🟡 65% | プロジェクト管理+自動保存。メモリリークあり |
+| 5 | Animation | 🟢 80% | 式エンジン/Rig2D/Easing。Viewport操作・Rig可視化・ドラッグ編集を実装 |
+| 6 | Color Pipeline | 🟡 70% | TransferFunction16種/DaVinci同等レベル。OCIO v2 実ライブラリ統合済み |
+| 7 | Graphics/GPU/Diligent | 🟡 75% | D3D12+Vulkan。MeshRenderer。RenderGraph依存ソート・サイクル検出を実装 |
+| 8 | Media/Video/IO | 🟡 65% | FFmpeg完備/HDR対応。Stabilizerは実装済み。GStreamer未完成 |
+| 9 | Project | 🟡 70% | プロジェクト管理+自動保存。createComposition は値結果を返しリークなし |
 | 10 | Asset | 🟡 60% | 基本機能あり |
 | 11 | Script | 🟡 60% | ExpressionEvaluator/Python/AngelScript |
-| 12 | AI | 🟡 55% | LLM+ONNX+MCP（独自）。コマンド実行スタブ |
-| 13 | Text/Font | 🟡 50% | GlyphAtlas/HarfBuzz/SDF。TextAnimator未実装 |
+| 12 | AI | 🟡 65% | LLM+ONNX+MCP、CommandIR の検証・実行・Undo・診断結果返却。モデル品質と実運用検証は未完了 |
+| 13 | Text/Font | 🟡 50% | GlyphAtlas/HarfBuzz/SDF。TextAnimatorの評価・レイヤー適用を実装済み |
 | 14 | Shape | 🟡 50% | ShapePath/AeOperators/TrimPaths |
 | 15 | Plugin | 🟡 45% | 基盤のみ。SDK不完全 |
 | 16 | Physics/Simulation | 🟡 45% | 多様なソルバー（流体/砂/火炎/軟体/群衆）すべてプロトタイプ |
@@ -50,16 +50,16 @@
 
 ## 10の致命的弱点（P0）
 
-1. **OCIO実ライブラリ未統合** — 自前JSONベース。`.ocio` ファイル読めない。全DCCアプリ標準
-2. **Stabilizer完全死亡** — スタブ+バグ。AEの代名詞的機能がまるで動かない
-3. **プラナー（プレーナー）トラッカー不在** — コンポジットアプリの基本機能が皆無
-4. **ワークスペース保存なし** — DCCの基本。レイアウト保存できない
-5. **EXR/Deep/Cryptomatte不在** — OpenEXRクラスが24行の空スタブ
-6. **Text Tool/VP編集未着手** — AE最大の差別化要素が死んでいる
-7. **RenderGraphトポロジカルソート未実装** — 依存順が狂うと不正描画
-8. **MFR 戻り値無視バグ** — `renderFrame()` の戻り値確認せず常に成功扱い
-9. **FarmWorkerスタブ** — リモートワーカーがレンダリングせず即座に成功報告
-10. **プロジェクトマネージャーメモリリーク** — `createComposition()` が new したものを返さない
+1. **（旧評価）OCIO実ライブラリ未統合** — 修正監査で実 OCIO v2 読み込みを確認。P0 から除外
+2. **（旧評価）Stabilizer完全死亡** — 修正監査で Harris corner、ブロックマッチング、類似変換、平滑化を確認。P0 から除外
+3. **プラナー（プレーナー）トラッカー** — `MotionTracker::Planar` の homography／信頼度／特徴点フォールバック、4点＋ROI登録、Planar切り替えUI、Corner Pin書き出しを実装済み。runtime操作確認のみ未実施
+4. **（旧評価）ワークスペース保存なし** — `ArtifactWorkspaceManager` の geometry/dock state 保存、session save、復元メニューを確認。P0 から除外
+5. **Deep/Cryptomatte** — multi-channel OpenEXR 出力、Deep EXR の RGBA32F read/write、front-to-back flatten、DeepImageBuffer の merge/holdout、Cryptomatte メタデータ/manifest、MurmurHash3 32bit manifest hash、ranked coverage layers を実装済み。実機での大規模 deep sample 性能検証は未実施
+6. **Text Tool/VP編集** — `ArtifactTextLayer` の shaping／per-glyph 評価、Composition Editor の inline text editor、Text Gizmo は実装済み。専用ツールの全操作統合と runtime 確認が未完了
+7. **（旧評価）RenderGraphトポロジカルソート未実装** — `RenderGraph::compile()` の依存辺生成・Kahn 法・サイクル検出を確認。P0 から除外
+8. **（旧評価）MFR 戻り値無視バグ** — Farm master が bool、例外、タイムアウト、リトライを処理。P0 から除外
+9. **（旧評価）FarmWorkerスタブ** — `QProcess` による外部レンダラー起動等を修正監査で確認。P0 から除外
+10. **（旧評価）プロジェクトマネージャーメモリリーク** — 現行 `createComposition()` は値型の `CreateCompositionResult` を返すため再現せず、P0 から除外
 
 ---
 
@@ -67,19 +67,19 @@
 
 | 機能 | スコア | 設計書 |
 |------|--------|--------|
-| 2Dリグシステム | 🟡 70% コードあり。VP未配線 | SPEC_2D_ANIMATION_RIG_SYSTEM |
+| 2Dリグシステム | 🟢 85% | コア評価・Viewport可視化・ボーン/コントロールドラッグ・Undo | SPEC_2D_ANIMATION_RIG_SYSTEM |
 | リグシステムUI | 🔴 5% | SPEC_RIG_SYSTEM_UI_TASKS + IMPLEMENTATION_GUIDE |
-| 3Dフレームギズモ | 🟡 40% 描画のみ | SPEC_3D_FRAME_GIZMO_REQUIREMENTS |
-| 選択的レンダーキュー | 🟠 20% | SPEC_RENDER_QUEUE_SELECTIVE |
-| IBKキーヤー | 🔴 0% | MILESTONE_IBK_KEYER |
-| Lottie/Bodymovin | 🔴 0% | MILESTONE_LOTTIE_EXPORTER |
-| Deepコンポジット | 🔴 0% | MILESTONE_DEEP_COMPOSITE |
-| Cryptomatte | 🔴 0% | MILESTONE_CRYPTOMATTE |
+| 3Dフレームギズモ | 🟢 75% | 投影ヒットテスト・Scale/Move ドラッグ・Undo | SPEC_3D_FRAME_GIZMO_REQUIREMENTS |
+| 選択的レンダーキュー | 🟢 80% | 依存ジョブを含む選択開始・事前検証・完了状態管理 | SPEC_RENDER_QUEUE_SELECTIVE |
+| IBKキーヤー | 🟡 70% | clean plate生成・core/edge matte・morphology・despill を実装済み。GPU/UI統合は残課題 | MILESTONE_IBK_KEYER |
+| Lottie/Bodymovin | 🟡 70% | JSON exporter・keyframe compression・rig export 実装済み。全レイヤー互換は残課題 | MILESTONE_LOTTIE_EXPORTER |
+| Deepコンポジット | 🟡 55% | `DeepImageBuffer` の可変サンプル、深度ソート、flatten、Deep over、holdout、flat↔Deep 合成、CPU 深度依存 DoF、Deep EXR RGBA32F read/write、GPU Packed契約・往復変換、DirectCompute front-to-back shaderを実装済み。GPU resource binding、制作UI統合、大規模runtime検証は未完了 | MILESTONE_DEEP_COMPOSITE |
+| Cryptomatte | 🟡 70% | MILESTONE_CRYPTOMATTE（ranked coverage / manifest / EXR writer 実装済み） |
 | MFR（GPUパス対応） | 🟡 60% | MILESTONE_MFR_MULTI_FRAME_RENDER |
-| Rotobrush級AIマスク | 🔴 0% | MILESTONE_ROTOBRUSH_AI_MASK |
-| プレーナートラッカー | 🔴 0% | MILESTONE_PLANAR_TRACKER |
-| 柔軟グリッドシステム | 🟠 20% | SPEC_FLEXIBLE_GRID_SYSTEM |
-| VPルーラー/スケール | 🔴 0% | SPEC_VIEWPORT_RULER_SCALE_OVERLAY |
+| Rotobrush級AIマスク | 🟡 60% | OpenCV RotoBrush engine の stroke/base-frame、Farneback 光学フロー伝播、mask warp、二値化・open/close cleanup を実装済み。AI品質向上、UI統合、runtime検証は残課題 | MILESTONE_ROTOBRUSH_AI_MASK |
+| プレーナートラッカー | 🟢 85% | homography・信頼度・特徴点フォールバック・4点/ROI・UI導線・Corner Pin書き出しを実装済み。runtime確認は残課題 | MILESTONE_PLANAR_TRACKER |
+| 柔軟グリッドシステム | 🟡 55% | 複数グリッド、単位変換、ズーム連動、範囲/スナップ、極座標/等角/透視線、数値ラベル描画を実装。編集UIとruntime確認は残課題 | SPEC_FLEXIBLE_GRID_SYSTEM |
+| VPルーラー/スケール | 🟢 75% | ルーラー目盛り、有限値検証、範囲クリッピング | SPEC_VIEWPORT_RULER_SCALE_OVERLAY |
 
 ---
 

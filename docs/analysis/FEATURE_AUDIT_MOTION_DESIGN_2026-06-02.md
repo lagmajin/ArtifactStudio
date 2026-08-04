@@ -8,9 +8,9 @@
 
 ## サマリ
 
-- **IMPLEMENTED: 5件**
-- **PARTIAL: 14件**
-- **NOT FOUND: 11件**
+- **IMPLEMENTED: 8件**
+- **PARTIAL: 16件**
+- **NOT FOUND: 6件**
 
 ---
 
@@ -33,26 +33,27 @@
 
 | # | 機能 | 現状 | 欠落 |
 |---|---|---|---|
-| 1 | Easy Ease (F9) | `Artifact/src/Widgets/ArtifactTimelineWidget.cpp:2433-2438` F9 で `InterpolationType::EaseInOut` 等を設定するショートカットあり | 現在は静的なイージング投入のみ。AE 式の「速度ベース自動イージング」(slow-in/slow-out を選択キーフレームの速度から自動算定) は未実装 |
-| 2 | Speed Graph / Value Graph toggle | `Artifact/include/Widgets/Menu/ArtifactAnimationMenu.ixx:66` `toggleValueGraphRequested` declaration あり | curve editor (`Artifact/src/Widgets/ArtifactCurveEditorWidget.cppm`) での速度グラフ描画は宣言コメントのみ `:815-817`。UI 切替が存在するか未確認 |
+| 1 | Easy Ease (F9) | F9 の補間設定で前後キーフレームの velocity から Bezier ハンドルを自動算出 | 実機受入れ確認が残る |
+| 2 | Speed Graph / Value Graph toggle | Curve Editor の Value/Speed 切替、メニュー、ショートカット、ハンドル編集を確認 | 実機受入れ確認が残る |
 | 5 | Motion Path display | `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm:960-1310` build/hittest, `:2246` `showMotionPathOverlay_` flag あり | render 本体は `:6650-6674` でコメントアウト / stub。overlay toggle のみ |
+| 4 | Motion Sketch | `ArtifactMotionSketchTool` のツール選択、キャンバス収集、平滑化、位置キー生成、Undo を確認 | 実機受入れ確認が残る |
+| 12 | Auto-Orient | `AnimatableTransform3D` の AlongPath / AlongPathAtFrameStart 評価、Property UI、JSON 保存復元を確認 | 実機受入れ確認が残る |
 | 6 | Parent Pick Whip | parenting データモデルあり (`Artifact/src/Layer/ArtifactAbstractLayer.cppm:720-1041`), menu は "Select Parent" (`Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm:303`) | drag-to-parent の Inspector/Timeline 操作クラス・ツール未発見 |
-| 10 | Layer Styles | `Artifact/include/Effects/Rasterizer/DropShadowEffect.ixx` のみ単体存在 | Bevel / InnerShadow / Stroke / Satin 等のレイヤースタイル一式は未検出。シェイプの stroke とは別。Inspector 着地点未確認 |
+| 10 | Layer Styles | Drop Shadow / Bevel / Inner Shadow / Stroke / Satin の各 rasterizer effect と EffectService 登録を確認 | 実機受入れと一括 Layer Styles プリセット UX が残る |
 | 11 | Puppet Tool | toolbar アイコン (`Artifact/src/Widgets/ArtifactToolBar.cppm:45`) のみ | mesh deformer / pin / warp 実装はなし |
-| 12 | Auto-Orient | — | 一致するコードなし。time-remap / motion path とも分離未設計 |
 | 14 | Motion Blur | `Artifact/include/Effect/ArtifactMotionBlur.ixx` (`MotionBlurEffect`, `setShutterAngle`), `Artifact/src/Effect/ArtifactMotionBlur.cppm:323` global switch は `Artifact/src/Widgets/ArtifactTimelineGlobalSwitches.cppm:92` | shutter angle/samples を Inspect from timeline する高レベル UX 未確認 |
-| 15 | Echo/Afterimage | — | 一致する effect class なし。単発 frame history の概念は render cache に存在するが effect としては未実装 |
+| 15 | Echo/Afterimage | `EchoEffect` が実装済み | GPU 経路と実機受入れ確認が残る |
 | 16 | Text Animator | `ArtifactCore/include/Text/TextAnimator.ixx` + `TextAnimator.cppm` でエンジンあり | timeline トラック UI と Inspector 入力導線が部分的または未接続 (`docs/MILESTONE_TEXT_ANIMATOR_INTEGRATION_2026-04-27.md` が ongoing) |
 | 17 | Range Selector + Wiggly | `ArtifactCore/include/Text/TextAnimator.ixx:54-65` (`RangeSelector`, `WigglySelector`) 構造体あり | UI（Inspector/Timeline）から操作する導線は未検出 |
-| 20 | Audio Scrubbing | — | scrub 時のリアルタイム音声 preview は見当たらず、playbackEngine への導線のみ存在 |
+| 20 | Audio Scrubbing | `Artifact/include/Audio/ArtifactAudioScrubController.ixx`, `Artifact/src/Audio/ArtifactAudioScrubController.cppm` | 設定・低遅延再生・音量制御・出力デバイス診断まで実装済み。実機受入れのみ未確認 |
 | 22 | Color Profile Embed | `ArtifactCore/src/AI/DataAssetDescriptions.cppm:132` に `colorProfile` field が1つある | ICC 読み書き / 埋め込み export ロジックは見当たらない |
 | 23 | LUT Browser/Picker | `Artifact/src/Color/ArtifactColorScienceManager.cppm:144-150` でディレクトリ走査、`Artifact/src/Widgets/Color/ArtifactColorSciencePanel.cppm:34,159-212` で LUT load/clear あり | ブラウザ UI (.cube/.3dl 一覧＋プレビュー) としては部分 |
 | 24 | Scopes | ParadeScope (`Artifact/src/Widgets/Viewer/ArtifactContentsViewer.cpp:968`), Vectorscope (`Artifact/src/Render/ArtifactHDRMonitor.cppm:153-190`), Waveform は未確認 | 全体の Scope パネルは部分的 |
 | 26 | ROI | `Artifact/include/Render/ArtifactRenderContext.ixx:104-154`, `Artifact/include/Render/ArtifactRenderROI.ixx` struct あり | debug draw コメントアウト。UI からの ROI 設定導線は未確認 |
 | 27 | RAM Preview queue | `Artifact/src/Service/ArtifactPlaybackService.cppm:488` reason ログ存在、milestone doc `MILESTONE_RAM_PREVIEW_SYSTEM_2026-05-01.md` あり | スタンドアロン queue UI は見当たらない |
-| 28 | Render Farm | `ArtifactCore/CMakeLists.txt:16`, `ArtifactCore/src/Network/NetworkRPCServer.cppm` で low-level network 要素あり | render farm orchestration (master/slave スケジューラ) 未実装 |
-| 29 | Render Queue auto-restart | `ArtifactCore/src/Render/RendererQueueManager.cppm` あり | checkpoint / retry ロジック未発見 |
-| 30 | A/B / Wipe | `Artifact/src/Widgets/Viewer/ArtifactContentsViewer.cpp:1701` A/B chip あり、wipe はドキュメント記載のみ | wipe ビューア未実装 |
+| 28 | Render Farm | `FarmWorkerMain.cppm` の外部レンダラー実行、リトライ、出力検証、`RenderFarmMaster.cppm` のジョブ管理が実装済み | 実機の分散受入れ確認が残る |
+| 29 | Render Queue auto-restart | `detectFailedFrames()`、`rerenderFailedFrames()`、`rerenderAllDetectedFailedFrames()`、`resetJobForRerun()`、キュー JSON 永続化が実装済み | UI からの自動再投入ボタンと実機受入れ確認が残る |
+| 30 | A/B / Wipe | `Artifact/src/Widgets/Viewer/ArtifactContentsViewer.cppm` に A/B source routing、Wipe/Split/Difference、ドラッグ式 wipe handle、slider、状態保存を実装済み | 実機受入れ確認が残る |
 
 ---
 
@@ -60,19 +61,17 @@
 
 | # | 機能 | 所見 |
 |---|---|---|
-| 3 | Roving Keyframes | 一致コードなし。keyframe の time-addressable な continuous 化は現在の model でも未導入 |
-| 4 | Motion Sketch | 一致コードなし。mouse path → keyframe batch 生成がない |
-| 9 | Track Matte Drag UX | ドラッグUI/データモデルコード未発見。`Artifact/include/Mask/LayerMask.ixx` の mask はあくまでマスク。track matte 参照自体も未確認 |
-| 10b | Puppet Tool | toolbar に placeholder のみ。mesh/pin/bone コア無し |
-| 12 | Auto-Orient | 0 hit。path に沿う向き自動補正がない |
-| 15 | Echo/Afterimage | effect クラス無し |
-| 18 | Source Text keyframe | `setSourceText` 等無し。テキスト編集はインライン編集のみ |
-| 20 | Audio Scrubbing | 実装無し |
-| 22 | ICC embed | embed ロジック無し |
-| 28b | Render Farm orchestration | RPC 低レイヤーのみ |
-| 29 | Queue checkpoint retry | 未実装 |
+| 3 | Roving Keyframes | `KeyFrame::roving`、Timeline の Roving menu、Undo、保存/復元が実装済み。連続時間の自動再配置は追加検証課題 |
+| 9 | Track Matte Drag UX | `LayerMatteReference`、描画適用、Undo、タイムライン Alt-drag pick-whip、循環参照拒否まで実装済み。残りは操作発見性・編集体験の改善 |
+| 10b | Puppet Tool | `ArtifactPuppetTool` と `OpenCVPuppetEngine`、キャンバス上のピン操作、Undo、削除・回転・weight/depth 調整まで実装済み |
+| 15 | Echo/Afterimage | `EchoEffect` と temporal sampler 経路が実装済み。実機受入れ確認が残る |
+| 18 | Source Text keyframe | `ArtifactTextLayer::setSourceTextAtFrame()`、保存/復元、Timeline/Property UI 導線が実装済み |
+| 20 | Audio Scrubbing | 実装済み。`ArtifactAudioScrubController` の実機受入れ確認が残る |
+| 22 | ICC embed | `ImageExportOptions` の ICC バイナリ／ファイル指定と、OIIO の通常・ImageBuf・マルチチャンネル出力への `ICCProfile` 属性埋め込みを実装済み |
+| 28b | Render Farm orchestration | `RenderFarmMaster` / `FarmWorkerMain` に実装済み。実機受入れ確認が残る |
+| 29 | Queue checkpoint retry | 失敗フレーム検出・指定／全件再レンダー・ジョブ再実行・キュー永続化が実装済み。UI 導線と実機受入れ確認が残る |
 
-**注意:** #9 Track Matte は `LayerMask` はあっても track matte 参照 (`LayerMatteReference`) 本体が未発見だったため、データモデル面も含めて NOT FOUND とした。
+**注意:** #9 Track Matte は旧監査時点では未発見としたが、現行ソース再確認で `ArtifactLayerMatte.ixx` のデータモデルとタイムラインの Alt-drag link 実装を確認した。したがって NOT FOUND ではなく、実装済み（UX改善余地あり）へ訂正する。
 
 ---
 
@@ -87,6 +86,6 @@
 
 ## 推奨優先度（モーションデザイナー視点）
 
-P0: #3 Roving Keyframes / #4 Motion Sketch / #12 Auto-Orient / #18 Source Text / #9 Track Matte Drag / #20 Audio Scrubbing
+P0: #4 Motion Sketch UI / #12 Auto-Orient UI
 P1: #1 Easy Ease 深化 / #2 Speed Graph UI / #10 Layer Styles / #14 Motion Blur UI / #15 Echo / #26 ROI UX
 P2: #22 ICC / #23 LUT Browser / #24 Scopes / #27 RAM Preview Queue / #28/29 Render Queue / #30 Wipe

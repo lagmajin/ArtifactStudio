@@ -236,13 +236,13 @@ CPU 版（ColorTransform + ImageProcessing）+ GPU 版（DirectCompute）+ Halid
 
 ---
 
-## 15. EXR / Deep / Cryptomatte 🔴
+## 15. EXR / Deep / Cryptomatte 🟡
 
 | コンポーネント | 状態 |
 |---------------|------|
-| OpenEXR | 空スタブ（24行） |
-| Deep Image | 不在（別途マイルストーン作成済み） |
-| Cryptomatte | 不在（別途マイルストーン作成済み） |
+| OpenEXR | OIIO flat/deep RGBA read/write facade を実装 |
+| Deep Image | `DeepImageBuffer`、merge、holdout、flatten、ranked output を実装 |
+| Cryptomatte | ranked coverage、manifest、EXR writer を実装 |
 
 ---
 
@@ -256,8 +256,8 @@ CPU 版（ColorTransform + ImageProcessing）+ GPU 版（DirectCompute）+ Halid
 | GPU 連携 | 🟡 70% | ImageF32x4RGBAWithCache はあるが同期は手動 |
 | 色変換エフェクト | 🟢 85% | Levels/Curves/ColorBalance/HueSat/FilmCurve。AE 同等以上 |
 | 画像処理エフェクト | 🟢 80% | CPU版 + GPU版 + Halide版の3系統。機能は豊富 |
-| EXR | 🔴 5% | 空スタブ |
-| Deep / Cryptomatte | 🔴 0% | 不在 |
+| EXR | 🟡 75% | flat named-channel と Deep RGBA IO を実装。multi-part は未確認 |
+| Deep / Cryptomatte | 🟡 70% | DeepImageBuffer / DeepData / ranked Cryptomatte を実装。仕様互換は未検証 |
 | コード重複 | 🟡 60% | 3系統の重複実装。抽象化が必要 |
 
 **総合**: 🟡 75% — 主力画像型と色変換は完成度が高い。EXR/Deep/Cryptomatte の不在とコード重複が課題。
@@ -297,7 +297,7 @@ CPU 版（ColorTransform + ImageProcessing）+ GPU 版（DirectCompute）+ Halid
 
 ### EXR出力経路の追加確認
 
-`OpenExr` facade 自体は空スタブだが、EXR出力機能全体が存在しないわけではない。`IO.ImageExporter` の `writeMultiChannel()` が OIIO `ImageOutput` を使用し、`MultiChannelImage` のチャンネルを named channel として書き出している。
+`OpenExr` facade は OIIO の flat/deep RGBA read/write を提供する。EXR出力機能全体では、`IO.ImageExporter` の `writeMultiChannel()` が OIIO `ImageOutput` を使用し、`MultiChannelImage` のチャンネルを named channel として書き出している。
 
 確認できた既存経路:
 
@@ -312,11 +312,11 @@ CPU 版（ColorTransform + ImageProcessing）+ GPU 版（DirectCompute）+ Halid
 
 | 範囲 | 状態 |
 |------|------|
-| `OpenExr` facade | 🔴 空スタブ |
+| `OpenExr` facade | 🟡 flat/deep RGBA read/write 実装あり |
 | flat named-channel EXR writer | 🟢 実装あり（OIIO経由） |
 | multi-part EXR | 🟡 未確認 |
 | Cryptomatte 1.3準拠 | 🔴 未達／draft channelのみ |
-| Deep EXR | 🔴 未実装 |
+| Deep EXR | 🟡 DeepData read/write 実装あり。Nuke 相互運用は未検証 |
 
 監査上の「OpenEXR = 空スタブ」は facade の記述として維持し、flat AOV出力の欠落を意味しないよう補足する。
 

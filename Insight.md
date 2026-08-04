@@ -6419,3 +6419,10 @@
 - 事実: `TrackerType::Planar` のホモグラフィ推定に失敗した場合、従来は点トラッキングへフォールバックし、`trackRange()` も `trackForward()` の戻り値を無視していた。
 - 変更: Planar モードの失敗を failure frame として記録し、追跡セッションを失敗扱いにするようにした。これにより CornerPin 等へ「ホモグラフィなしの成功結果」を渡さない。
 - 次に確認すべきこと: 変換成功時のホモグラフィ、推定失敗時の `TrackResult::isValid`、CornerPin連携を runtime で確認する。OCIO は現行コードで実ライブラリの `.ocio` 読み込み・CPU/GPU shader生成まで実装済みのため、残課題は実配置経路と runtime 検証の確認。
+
+# 2026-08-03: Evaluation-boundary normalization for interactive systems
+
+- 関連: `ArtifactCore/src/Rig/Rig2D.cppm`, `Artifact/src/Widgets/Render/Artifact3DGizmo.cppm`, `ArtifactCore/include/Grid/ArtifactGridSystem.ixx`
+- 事実: リグの Pose/IK、3D ギズモ、グリッドの各入力経路では、有限値・範囲・スナップを評価境界で正規化することで、保存値や UI 入力を破壊せずに異常値の伝播を抑えられる。
+- 価値または懸念: 共有 GPU レンダラーの MFR はスレッド安全性が未確定なため、GPU を無理に並列化せず、まず状態境界と逐次経路を明確に保つ必要がある。
+- 次に確認すべきこと: GPU リソース所有境界が確定した後、GPU MFR の並列化単位と同期契約を別途検証する。

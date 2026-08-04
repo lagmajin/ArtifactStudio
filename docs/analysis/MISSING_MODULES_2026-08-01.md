@@ -25,7 +25,7 @@
 | 不在モジュール | 他アプリでの存在 | 必要性 |
 |---------------|-----------------|--------|
 | **OCIO v2 実ライブラリ統合** | AE/Nuke/Houdini/UE5 全て標準 | 🔴 致命的。自前3x3行列近似では実用不可 |
-| **Deepコンポジット** | Nuke 標準。AE 一部 | 🟡 3DレンダリングAOVに必要 |
+| **Deepコンポジット** | Nuke 標準。AE 一部 | 🟡 `DeepImageBuffer` とCPU合成・Deep EXR基盤は実装済み。GPU、DoF、制作UI統合が未完了 |
 | **クリプトマット** | Nuke/UE5/AE | 🟡 マルチパスIDマスクの業界標準 |
 | **EXRマルチパート** | Nuke/Houdini | 🟡 EXR 2.0 の標準機能 |
 | **Alembic/USD フルサポート** | Maya/Houdini/UE5 | 🟡 3Dパイプライン連携 |
@@ -55,10 +55,10 @@
 | 不在モジュール | 他アプリでの存在 | 必要性 |
 |---------------|-----------------|--------|
 | **アニメーションレイヤー** | Maya/AE/UE5 | 🟡 ノンリニアアニメ編集 |
-| **Wiggle / loopOut / smooth 式** | AE 標準 | 🟡 Expressionエンジンはあるがプリセット関数がない |
+| **Wiggle / loopOut / smooth 式** | AE 標準 | 🟢 ExpressionEvaluator に wiggle、smooth、loopIn/Out、duration variants、time/frame conversion を実装済み。runtime確認待ち |
 | **プロシージャルアニメプリセット** | Maya/Houdini | 🟢 Noise以外のパターンがない |
-| **キーフレーム補助（Easy Ease/イーズイン/アウト）** | AE 標準 | 🟡 メニュー未実装。エンジンはある |
-| **リグレイヤーUI** | Maya/Spine/Live2D | 🔴 設計書のみ。コードはRig2Dのデータモデルのみ |
+| **キーフレーム補助（Easy Ease/イーズイン/アウト）** | AE 標準 | 🟢 Timeline の Ease In/Out/In-Out、Easing Lab、コピー/ペースト導線を実装済み。runtime確認待ち |
+| **リグレイヤーUI** | Maya/Spine/Live2D | 🟡 Rig Select/Weight、骨・コントロール・ウェイト編集、オーバーレイ、ポーズ操作を実装済み。専用パネルとruntime確認は残課題 |
 
 ### 3D
 | 不在モジュール | 他アプリでの存在 | 必要性 |
@@ -66,7 +66,7 @@
 | **サブディビジョンサーフェス** | Maya/Houdini/UE5 | 🟢 3Dモデリング用（2Dコンポジットアプリには不要か） |
 | **スカルプティング** | Maya/Houdini/UE5 | 🟢 同上 |
 | **CAD/NURBS** | Maya/Houdini | 🟢 同上 |
-| **3D地面グリッド・グリッドフェード** | Maya/Blender/UE5 | 🟡 設計書あり未実装 |
+| **3D地面グリッド・グリッドフェード** | Maya/Blender/UE5 | 🟢 GroundGridSettings、XZ線生成、距離フェード、PrimitiveRenderer3D描画を実装済み。runtime確認待ち |
 | **3Dビューポートギズモ完全版** | Maya/Blender | 🟡 フレームギズモがバグあり |
 
 ### ワークフロー

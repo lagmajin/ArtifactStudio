@@ -2,11 +2,11 @@
 
 作成日: 2026-04-21
 
-**進捗状態:** Confirmation message／Undo／service wrapper は部分実装。汎用 dry-run result、execution plan、removal gate の実行時強制、audit log は未完了。
+**進捗状態:** 汎用 dry-run result、execution plan、confirmation payload、Removal Gate、監査ログ型と主要削除操作の確認済みAPIを実装済み。永続ログと全write操作への横断接続は未完了。
 
 ### 実装状況（2026-07-25 確認）
 
-個別の削除確認メッセージと Undo 対応 mutation は存在するが、`operationName`／`riskLevel`／`affectedCounts`／before-after をまとめた共通 payload、全 destructive operation に対する一貫した gate、operation／confirmation／failure の永続ログは確認できないため未実装として扱う。
+`operationName`／`riskLevel`／`affectedCounts`／before-afterを扱う共通payload、Removal Gate、operation／confirmation／failureを保持する監査ログ型を実装済み。WorkspaceAutomationにはlayer／composition／project item／render queue／assetのdry-runと主要確認済み削除APIを接続した。永続ログと全destructive operationへの横断適用は残課題。
 
 ## 目的
 

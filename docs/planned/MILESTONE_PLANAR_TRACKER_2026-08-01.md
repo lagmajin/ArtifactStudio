@@ -80,8 +80,10 @@ struct PlanarTrackSession {
 
 ## Phase 2: ホモグラフィの応用
 
+**2026-08-04 実装済み**: Planar モードの4点＋ROI登録、厳格なホモグラフィ追跡、結果の Corner Pin キーフレーム書き出し、TrackPoint コンテキストメニューからの Planar 切り替えを接続。
+
 ### Step 2.1 — CornerPin との連携
-既存の `CornerPinEffect`（バグあり、修正必要）と接続:
+既存の `CornerPinEffect` と接続:
 
 ```cpp
 // PlanarTracker → CornerPin エフェクトにキーフレーム書き出し
