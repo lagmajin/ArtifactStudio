@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_IMMEDIATE_CONTEXT_BOUNDARY_2026-04-21.md](MILESTONE_IMMEDIATE_CONTEXT_BOUNDARY_2026-04-21.md)
+
 # M-IR-8 Safe Sequence
 
 `ImmediateContext` 境界整理を実装するとき、描画を壊しにくい順序で進めるための実施順メモ。

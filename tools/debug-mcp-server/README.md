@@ -126,5 +126,8 @@ session, then re-seed the mock snapshot or live bridge as needed.
 
 ## Notes
 
-This is the initial contract-only implementation.
-The Artifact app still needs a bridge hook before break conditions can reflect live UI and playback state.
+This standalone server is retained as a compatibility harness for file-backed
+debug sessions. The Artifact app now has an integrated MCP bridge and polls the
+same state file, so live UI/playback state can be reflected without requiring
+this Node process. Use this server for protocol smoke checks or external
+clients that cannot launch the application directly.

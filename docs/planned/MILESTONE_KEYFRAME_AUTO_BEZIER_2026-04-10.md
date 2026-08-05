@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_TIMELINE_KEYFRAME_STATE_SPEC_2026-06-17.md](MILESTONE_TIMELINE_KEYFRAME_STATE_SPEC_2026-06-17.md)
+
 # キーフレームオートベジエエディタの実装
 **マイルストーン**: M-KF-1 Keyframe Auto-Bezier Editor
 **作成日**: 2026-04-10

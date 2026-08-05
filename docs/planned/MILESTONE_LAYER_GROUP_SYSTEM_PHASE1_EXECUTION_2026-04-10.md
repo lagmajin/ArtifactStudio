@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_LAYER_GROUP_SYSTEM_2026-03-27.md](MILESTONE_LAYER_GROUP_SYSTEM_2026-03-27.md)
+
 # Milestone: Layer Group System Phase 1 Execution
 
 > 2026-04-10

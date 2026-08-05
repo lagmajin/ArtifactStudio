@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_SHAPE_LAYERS_2026-03-29.md](MILESTONE_SHAPE_LAYERS_2026-03-29.md)
+
 # M-AB-7: Shape Layer 複雑プリセット形状拡張
 
 **マイルストーンID**: M-SL-CP-2026-06-28  

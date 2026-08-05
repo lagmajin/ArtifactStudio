@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_COMPOSITION_EDITOR_PERFORMANCE_IMPROVEMENT_2026-03-31.md](MILESTONE_COMPOSITION_EDITOR_PERFORMANCE_IMPROVEMENT_2026-03-31.md)
+
 # Milestone: Composition Editor Playback Feel Refinement (2026-04-23)
 
 **Status:** 部分完了（viewport interaction中のpreview downsample、render request coalescing、playback/RAM preview state表示、fallback reason診断を実装、体感のruntime評価未完了）

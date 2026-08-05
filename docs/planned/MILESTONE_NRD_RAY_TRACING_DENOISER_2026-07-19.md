@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_GI_POINTWISE_FOUNDATION_2026-07-17.md](MILESTONE_GI_POINTWISE_FOUNDATION_2026-07-17.md)
+
 # Milestone: NRD Ray-Tracing Denoiser Integration
 
 **Status:** Dependency staged; render-pass integration pending

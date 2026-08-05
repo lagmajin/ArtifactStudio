@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_MATERIAL_CONTAINER_LAYER_2026-06-25.md](MILESTONE_MATERIAL_CONTAINER_LAYER_2026-06-25.md)
+
 # Form Grid Particle Layer Milestone
 
 Status: Implementation present; static audit completed 2026-06-28.

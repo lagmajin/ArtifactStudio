@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_RAY_TRACING_DX_VULKAN_2026-05-16.md](MILESTONE_RAY_TRACING_DX_VULKAN_2026-05-16.md)
+
 # Milestone: レイトレ系エフェクト段階導入 (2026-03-25)
 
 **Status:** Not Started

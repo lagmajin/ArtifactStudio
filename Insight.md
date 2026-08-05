@@ -6426,3 +6426,59 @@
 - 事実: リグの Pose/IK、3D ギズモ、グリッドの各入力経路では、有限値・範囲・スナップを評価境界で正規化することで、保存値や UI 入力を破壊せずに異常値の伝播を抑えられる。
 - 価値または懸念: 共有 GPU レンダラーの MFR はスレッド安全性が未確定なため、GPU を無理に並列化せず、まず状態境界と逐次経路を明確に保つ必要がある。
 - 次に確認すべきこと: GPU リソース所有境界が確定した後、GPU MFR の並列化単位と同期契約を別途検証する。
+
+# 2026-08-04: Watchpoint polling must not depend on data breakpoints
+
+- 関連: `Artifact/src/AppMain.cppm`, `docs/planned/MILESTONE_MCP_AI_DEBUG_SYSTEM_2026-08-02.md`
+- 事実: デバッグポーラーはDataBreakpoint配列が空の場合に早期returnしていたため、Watchpointだけを登録したセッションでは値取得が実行されなかった。
+- 変更: DataBreakpointとWatchpointの双方が空の場合だけ早期returnするよう修正し、Watchpointの値を `lastWatchSnapshot` に保存する状態契約を追加した。
+- 次に確認すべきこと: runtimeでWatchpoint単独登録後のsnapshot更新間隔、無効化・削除後の停止、古いstate JSONの正規化を確認する。
+
+# 2026-08-05: Serialization registry should follow existing restore APIs
+
+- 関連: `ArtifactCore/include/Serialization/JsonSerializableAdapter.ixx`, `ArtifactCore/include/AI/AIContext.ixx`, `ArtifactCore/include/Graphics/Effect/SurfaceFX.ixx`, `Artifact/src/Composition/ArtifactAbstractComposition.cppm`
+- 事実: 既存の `toJson()` / `fromJson()` が値型として完結している型は、共通 JSON adapter と migration registry に段階移行できる。一方、callback、PImpl、shared-pointer 戻り値、復元 resolver が必要な型は adapter の汎用契約だけでは安全に復元できない。
+- 価値または懸念: 登録数を増やすことより、復元 API と adapter の型契約が一致していることを優先すべき。未検証の型を registry に追加すると、履歴／プロジェクト読み込み時の静かな復元失敗につながる。
+- 次に確認すべきこと: 残りの既存型は復元責務を先に定義し、必要なら resolver／snapshot API を設計してから登録する。adapter登録後の実ビルド・typed envelope round-trip はユーザー承認後に検証する。
+
+# 2026-08-05: Undo persistence must validate before factory restoration
+
+- 関連: `Artifact/src/Undo/UndoManager.cppm`, `Artifact/include/Undo/UndoManager.ixx`
+- 事実: Undo 履歴と offload ファイルは version、payload／entry 件数、文字列長、JSON object 形状、serialization payload を境界で検証し、Factory生成後は `deserialize()` を先に実行してから `canSerialize()` と memory budget を評価する。
+- 価値または懸念: 復元前の未初期化 ID を `canSerialize()` が検査すると、正しい履歴まで拒否する。逆に無制限の JSON／画像 payload を受け入れると、履歴ロードがメモリ圧力や巨大ファイル生成の経路になる。
+- 次に確認すべきこと: build/runtimeで履歴 round-trip、旧／未知 version、壊れた offload、single-entry／total budget 超過時の保持状態を確認する。
+
+# 2026-08-05: SerializableCommand can share the serialization identity contract
+
+- 関連: `ArtifactCore/include/Command/SerializableCommand.ixx`, `ArtifactCore/include/Serialization/ISerializable.ixx`
+- 事実: Core の `SerializableCommand` は既存の `serialize/deserialize` JSON API を維持したまま `ISerializable` を継承し、`commandType()` を `typeName()`、schemaVersion を 1 として共通 registry 契約へ接続できる。
+- 価値または懸念: アプリ層 `UndoCommand` の resolver／memory budget と、Core 層のコラボ command factory は別責務のまま、型識別と schema 契約だけ共有できる。両方を同一履歴スタックへ統合するには別途 ownership／merge policy が必要。
+- 次に確認すべきこと: コラボ transport が typed envelope を要求する場合の command factory adapter と、UndoManager との境界を設計レビュー後に追加する。
+
+# 2026-08-05: Registry key types must stay native at enumeration boundaries
+
+- 関連: `ArtifactCore/include/Serialization/SerializationRegistry.ixx`
+- 事実: Serialization Registry の map key は `QString` なので、登録型一覧を作る際に `QString::fromStdString()` を使うのは型契約に反していた。登録一覧は key を直接 `QStringList` へ追加する必要がある。
+- 価値または懸念: typed registry の列挙 API は診断・migration 監査でも使われるため、境界変換を推測で行わず、コンテナの実型に合わせる必要がある。
+- 次に確認すべきこと: registry の重複登録ポリシーを設計し、同一 typeName の初期化順序を診断できるようにする。
+
+# 2026-08-05: Normalize migration type names at the registry boundary
+
+- 関連: `ArtifactCore/include/Serialization/SchemaMigration.ixx`
+- 事実: migration registry は内部で `std::string` を使うが、公開 API は `QString` を受け取る。登録と検索で trim 規則を統一し、負の schema version を path 探索から拒否することで、空白差分や不正 version による不一致を防げる。
+- 価値または懸念: migration path 探索のグラフ自体は変更せず、入力境界の正規化だけで既存登録の再現性を高められる。
+- 次に確認すべきこと: 複数段階 migration の round-trip と、未知／負の version の明示的失敗を検証する。
+
+# 2026-08-05: Array JSON payloads need an object envelope for ISerializable
+
+- 関連: `ArtifactCore/include/Serialization/JsonSerializableAdapter.ixx`, `ArtifactCore/src/Rig/Rig2D.cppm`
+- 事実: `ISerializable::serialize()` の共通戻り値は `QJsonObject` だが、`RigControlSet2D` の既存 API は `QJsonArray` を返す。`JsonArraySerializableAdapter` は配列を `items` object member に包み、typed envelope と共存させる。
+- 価値または懸念: 既存の配列 JSON 形式を破壊せず Registry／migration の object 契約へ接続できる。adapter は `fromJson(QJsonArray)` の値型だけを対象とし、pointer／polymorphic 戻り値は自動登録しない。
+- 次に確認すべきこと: 配列型の typed envelope round-trip と、空／非配列 `items` の明示的失敗を検証する。
+
+# 2026-08-05: GPU effect caches should be audited in two layers
+
+- 関連: `Artifact/src/Effects/`, `ArtifactCore/docs/MILESTONES_CORE_BACKLOG.md`
+- 事実: 多数の GPU エフェクトで output／staging texture の毎フレーム生成が残っていた。一方、Temporal Smear のように履歴テクスチャを持つ実装は単純な output cache と異なるライフサイクルを持つ。また Core の `GPUTexture` は現状メタデータ abstraction であり、Diligent resource ownership の導入は別の大きな設計変更になる。
+- 価値または懸念: output／staging の条件付き再利用は局所的な性能改善になるが、device 切替、履歴更新、pipeline／executor の寿命を同時に扱わないと不整合を招く。Core の低レベル ownership をアプリ側の局所修正と混同しないことが重要。
+- 次に確認すべきこと: build/runtime で device 再初期化、解像度変更、staging readback、履歴系エフェクトのフレーム連続性を確認し、次段階で Core の `GPUTexture` ownership 方針を設計レビューする。

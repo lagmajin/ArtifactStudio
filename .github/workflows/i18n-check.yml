@@ -1,0 +1,21 @@
+name: i18n coverage
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  translation-coverage:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Audit Japanese translation coverage
+        run: >-
+          python tools/i18n/audit_translations.py Artifact ArtifactCore
+          --locale Artifact/translations/ja.json
+          --baseline Artifact/translations/en.json
+          --min-coverage 80
+          --max-untranslated 4

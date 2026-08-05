@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_LAYER_COMPONENT_SYSTEM_2026-04-18.md](MILESTONE_LAYER_COMPONENT_SYSTEM_2026-04-18.md)
+
 # Layer Component Pipeline / Simulation Contract (2026-07-01)
 
 **ステータス:** In Progress

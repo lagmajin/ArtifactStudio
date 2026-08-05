@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_COLOR_BACKEND_HARDENING_2026-07-21.md](MILESTONE_COLOR_BACKEND_HARDENING_2026-07-21.md)
+
 # Milestone: Repository-Wide Color / Alpha Contract Unification
 
 **ステータス:** In Progress

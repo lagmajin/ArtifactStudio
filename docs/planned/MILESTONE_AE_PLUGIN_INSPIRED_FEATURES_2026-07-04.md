@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_AE_PLUGIN_FEATURES_2026-07-04.md](MILESTONE_AE_PLUGIN_FEATURES_2026-07-04.md)
+
 # AE エコシステム: プラグイン・スクリプト流用アイデア集 (2026-07-04)
 
 > AE の代表的なサードパーティ製プラグイン/スクリプトが提供する機能から Artifact に移植/応用できそうなものを収集。

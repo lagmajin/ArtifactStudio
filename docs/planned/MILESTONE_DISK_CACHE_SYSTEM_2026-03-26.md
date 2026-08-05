@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_HIERARCHICAL_CACHE_SYSTEM_2026-07-21.md](MILESTONE_HIERARCHICAL_CACHE_SYSTEM_2026-07-21.md)
+
 # Disk Cache System Milestone
 
 `RAM Preview Cache` と `Composition Editor Cache` だけでは、

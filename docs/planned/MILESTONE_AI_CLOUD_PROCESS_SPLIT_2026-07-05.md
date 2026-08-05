@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_AI_CLOUD_UI_2026-04-09.md](MILESTONE_AI_CLOUD_UI_2026-04-09.md)
+
 # Milestone: AI Cloud Process Split (2026-07-05)
 
 **Status:** Draft  

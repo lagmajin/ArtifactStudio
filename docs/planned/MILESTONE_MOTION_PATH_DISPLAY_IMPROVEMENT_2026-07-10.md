@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_MOTION_PATH_EDITING_2026-04-29.md](MILESTONE_MOTION_PATH_EDITING_2026-04-29.md)
+
 # MILESTONE: モーションパス表示改善（Spatial Bezier / 速度可視化 / 適応サンプリング）
 
 > 2026-07-10 作成

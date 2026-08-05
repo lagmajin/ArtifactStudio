@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_AI_KEYFRAME_SUGGESTION_2026-04-21.md](MILESTONE_AI_KEYFRAME_SUGGESTION_2026-04-21.md)
+
 # Milestone: AI Assisted Keyframe Generation (2026-04-11)
 
 ## Overview

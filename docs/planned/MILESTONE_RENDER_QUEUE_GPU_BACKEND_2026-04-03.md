@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_RENDER_QUEUE_2026-03-22.md](MILESTONE_RENDER_QUEUE_2026-03-22.md)
+
 # マイルストーン: Render Queue GPU Backend Selection / Fallback
 
 > 2026-04-03 作成

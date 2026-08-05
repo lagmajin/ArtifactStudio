@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_LOCAL_AI_CHAT_2026-04-01.md](MILESTONE_LOCAL_AI_CHAT_2026-04-01.md)
+
 # ローカル AI プリプロセッサー Milestone
 
 **作成日:** 2026-03-27  

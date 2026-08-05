@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_APP_FRAME_DEBUG_VIEW_2026-04-20.md](MILESTONE_APP_FRAME_DEBUG_VIEW_2026-04-20.md)
+
 # Phase 1 実行メモ: Frame Capture Contract
 
 > 2026-04-20 作成

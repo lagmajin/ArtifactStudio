@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_GPU_EFFECT_PERF_FIXES_2026-07-22.md](MILESTONE_GPU_EFFECT_PERF_FIXES_2026-07-22.md)
+
 # GPU Effect Parity Milestone
 
 CPU 側の effect 実装を検証・開発用の参照実装として残しつつ、同等の見た目と挙動を GPU 側で実装していくためのマイルストーン。

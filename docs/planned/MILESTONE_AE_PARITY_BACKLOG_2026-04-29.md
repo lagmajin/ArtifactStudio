@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md](MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md)
+
 # MILESTONE: AE Parity Backlog - 2026-04-29
 
 ArtifactStudio を After Effects 風アプリとして見たときの、実装優先順 backlog。

@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_DEEP_COMPOSITE_2026-08-01.md](MILESTONE_DEEP_COMPOSITE_2026-08-01.md)
+
 # マイルストーン: Deep Compositing Support
 
 > 2026-03-31 作成

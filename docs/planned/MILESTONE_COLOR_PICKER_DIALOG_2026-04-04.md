@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_COLOR_PICKER_ENHANCED_2026-04-10.md](MILESTONE_COLOR_PICKER_ENHANCED_2026-04-10.md)
+
 # カラーピッカーダイアログ リデザイン マイルストーン
 
 ## 概要

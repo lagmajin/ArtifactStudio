@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_UI_THEME_MIGRATION.md](MILESTONE_UI_THEME_MIGRATION.md)
+
 # Milestone: QSS Decommission / CommonStyle Path to QCommonStyle (2026-04-03)
 
 **Status:** Draft  

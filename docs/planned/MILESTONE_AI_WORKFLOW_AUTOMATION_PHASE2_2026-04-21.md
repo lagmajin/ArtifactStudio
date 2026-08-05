@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_AI_WORKFLOW_AUTOMATION_2026-04-21.md](MILESTONE_AI_WORKFLOW_AUTOMATION_2026-04-21.md)
+
 # MILESTONE: AI Workflow Automation Phase 2
 
 **進捗状態:** Phase 2-1 の snapshot 基盤と Phase 2-4 の confirmation／approval 接続は部分実装。派生 summary／統一 SafeWriteResult／before-after dry-run payload は未完了。

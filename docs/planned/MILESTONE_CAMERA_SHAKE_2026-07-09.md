@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_CAMERA_PROJECTION_2026-03-31.md](MILESTONE_CAMERA_PROJECTION_2026-03-31.md)
+
 **ステータス:** In Progress（ワークストリーム A: 3D カメラシェイク実装済み / B: 未着手）
 
 # M-CS-1: Camera Shake System - 設計マイルストーン

@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_PAINT_LAYER_2026-06-16.md](MILESTONE_PAINT_LAYER_2026-06-16.md)
+
 # マイルストーン: Paint Layer / Raster Editing Foundation
 
 > 2026-06-01 作成

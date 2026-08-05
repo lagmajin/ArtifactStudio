@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_CURVE_EDITOR_DCC_IMPROVEMENTS_2026-07-22.md](MILESTONE_CURVE_EDITOR_DCC_IMPROVEMENTS_2026-07-22.md)
+
 # マイルストーン: カーブ / グラフエディタ 機能監査 (2026-07-04)
 
 > AE Graph Editor / Blender Graph Editor / Maya Graph Editor 比較。

@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_GLITCH_EFFECTS_PROPOSAL_2026-06-13.md](MILESTONE_GLITCH_EFFECTS_PROPOSAL_2026-06-13.md)
+
 # Milestone: ApertureShapeBlur (カスタム開口レンズボケ / FFT物理ブラー)
 
 > 2026-06-13

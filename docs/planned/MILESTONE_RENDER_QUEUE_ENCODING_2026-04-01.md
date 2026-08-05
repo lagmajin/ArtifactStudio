@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_RENDER_QUEUE_2026-03-22.md](MILESTONE_RENDER_QUEUE_2026-03-22.md)
+
 # Milestone: Render Queue Hardware Encoding Support (M-RQ-ENC-1)
 ## 🎯 目的
 レンダーキューの最終出力でハードウェアアクセラレーション（NVENC, QuickSync, AMF）を使用した高速動画エンコードを実現。従来のソフトウェアエンコード（libx264/libx265）を補完し、リアルタイムに近い出力速度を達成する。

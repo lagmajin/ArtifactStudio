@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_MAYA_VIEWPORT_OPERATIONS_2026-03-25.md](MILESTONE_MAYA_VIEWPORT_OPERATIONS_2026-03-25.md)
+
 # 3D Viewport Stabilization: Solid / Camera / Overlay
 
 `primitive 3D` と `3D gizmo` はもうある程度描けるが、`Artifact` の 3D 表示はまだ

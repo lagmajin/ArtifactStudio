@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_AUDIO_LAYER_INTEGRATION_2026-03-27.md](MILESTONE_AUDIO_LAYER_INTEGRATION_2026-03-27.md)
+
 # マイルストーン: Audio Widget Enhancement / Mixer Surface
 
 作成日: 2026-04-09

@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_UI_THEME_MIGRATION.md](MILESTONE_UI_THEME_MIGRATION.md)
+
 # Milestone: Property Widget Update / Cleanup / Theme Ownership (2026-04-02)
 
 **Status:** Draft

@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_AUDIO_LAYER_INTEGRATION_2026-03-27.md](MILESTONE_AUDIO_LAYER_INTEGRATION_2026-03-27.md)
+
 # マイルストーン: オーディオミキサー 機能監査 (2026-07-04)
 
 > 2,291行。Logic Pro / Ableton / Pro Tools / Resolve Fairlight 比較。

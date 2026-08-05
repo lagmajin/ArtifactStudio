@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_AI_CLOUD_UI_2026-04-09.md](MILESTONE_AI_CLOUD_UI_2026-04-09.md)
+
 # マイルストーン: AI クラウドウィジェット 機能監査 (2026-07-04)
 
 > 作成: 2026-07-04

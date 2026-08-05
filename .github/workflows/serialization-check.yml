@@ -1,0 +1,16 @@
+name: serialization registration check
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  serialization-registration:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Audit serialization registrations
+        run: python tools/serialization/audit_serialization.py Artifact ArtifactCore

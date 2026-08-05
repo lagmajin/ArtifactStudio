@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_RENDER_QUEUE_2026-03-22.md](MILESTONE_RENDER_QUEUE_2026-03-22.md)
+
 # マイルストーン: レンダーキュー 機能監査 (2026-07-04)
 
 > 907行。AE Render Queue / Nuke Write / Resolve Deliver / Media Encoder 比較。

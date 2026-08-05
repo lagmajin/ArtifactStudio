@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_PHYSICAL_MOTION_BLUR_2026-06-07.md](MILESTONE_PHYSICAL_MOTION_BLUR_2026-06-07.md)
+
 # Milestone: Motion Blur (2026-03-29)
 
 **Status:** Partial (CPU effect、3D velocity/AOV、GPU MotionBlurPass、global toggle、composition 適用起点を実装。layer transform multi-sample、2D velocity規約、runtime出力検証は未完了)

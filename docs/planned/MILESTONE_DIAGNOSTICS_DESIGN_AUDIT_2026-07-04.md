@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md](MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md)
+
 # マイルストーン: 診断 / デバッグ機能監査 (2026-07-04)
 
 > VS Code Debug / Chrome DevTools / Blender System Info / Unity Profiler 比較。

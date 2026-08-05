@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_SHAPE_PATH_CORE_IMPLEMENTATION_2026-04-16.md](MILESTONE_SHAPE_PATH_CORE_IMPLEMENTATION_2026-04-16.md)
+
 # ShapePath 自作ジオメトリ／描画経路移行マイルストーン
 
 **ステータス:** In Progress（Core geometry／単純 Bézier native path 実装済み、advanced stroke／operator／runtime検証待ち）

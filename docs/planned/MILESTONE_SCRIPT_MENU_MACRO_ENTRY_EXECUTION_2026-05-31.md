@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_SCRIPT_MENU_PY_LOADER_2026-04-02.md](MILESTONE_SCRIPT_MENU_PY_LOADER_2026-04-02.md)
+
 # M-FE-6a Script Menu / Macro Entry Execution
 
 ## Static Audit (2026-07-25)

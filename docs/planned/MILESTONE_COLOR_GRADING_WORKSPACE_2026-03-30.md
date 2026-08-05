@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_COLOR_GRADING_2026-03-29.md](MILESTONE_COLOR_GRADING_2026-03-29.md)
+
 # Milestone: Color Grading Workspace (M-SC-3)
 
 ## 🎯 目的

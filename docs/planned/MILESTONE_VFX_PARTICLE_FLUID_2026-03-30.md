@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_SURFACE_FX_SYSTEM_2026-07-22.md](MILESTONE_SURFACE_FX_SYSTEM_2026-07-22.md)
+
 # Milestone: Real-time Particle & Fluid Simulation (M-VFX-1)
 
 ## 🎯 目的

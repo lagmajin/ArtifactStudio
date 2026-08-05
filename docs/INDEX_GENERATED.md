@@ -1,7 +1,7 @@
 # Document Inventory (Auto-Generated)
 
 > Generated: 2026-08-03 18:44
-> Total documents: 1176
+> Total documents: 1177
 
 ---
 
@@ -1083,6 +1083,8 @@
 | 607 | `docs/planned/TEAM_PROJECT_USAGE_EXAMPLE.md` | チームプロジェクト 使用例 | --- | --- | 2026-04-13 | 4.5 KB | TEAM, PROJECT, USAGE, EXAMPLE |
 | 608 | `docs/planned/TEXT_LAYER_ROUTE_2026-04-29.md` | Text Layer Route Note - 2026-04-29 | 2026-04-29 | --- | 2026-04-30 | 1.0 KB | TEXT, LAYER, ROUTE |
 
+| 609 | `docs/planned/MILESTONE_MCP_AI_DEBUG_SYSTEM_2026-08-02.md` | MCP AI デバッグシステム 統合マイルストーン | 2026-08-02 | In Progress | --- | 19.3 KB | MCP, DEBUG, SYSTEM |
+
 ## plans (6 files)
 
 | # | File | Title | Date | Status | Modified | Size | Keywords |
@@ -1347,7 +1349,7 @@
 | experiments | 5 |
 | memo | 4 |
 | perf | 3 |
-| planned | 608 |
+| planned | 609 |
 | plans | 6 |
 | ref | 1 |
 | reports | 1 |
@@ -1359,4 +1361,4 @@
 | trash | 1 |
 | verification | 1 |
 | worklog | 25 |
-| **Total** | **1176** |
+| **Total** | **1177** |

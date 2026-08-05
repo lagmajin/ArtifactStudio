@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_WORKSPACE_MANAGER_2026-03-29.md](MILESTONE_WORKSPACE_MANAGER_2026-03-29.md)
+
 # ワークスペースプリセット管理の実装
 **マイルストーン**: M-WS-1 Workspace Preset Management
 **作成日**: 2026-04-10

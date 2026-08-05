@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_TEXT_ANIMATOR_SYSTEM_2026-03-25.md](MILESTONE_TEXT_ANIMATOR_SYSTEM_2026-03-25.md)
+
 # MILESTONE: Text Animator Complex Script And Vertical Writing
 
 ## Static Audit (2026-07-25)

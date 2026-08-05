@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_TIMELINE_LAYER_SPECIALIZATION_2026-04-23.md](MILESTONE_TIMELINE_LAYER_SPECIALIZATION_2026-04-23.md)
+
 # Milestone: Timeline Layer Specialization Execution (2026-04-23)
 
 **Status:** Planning

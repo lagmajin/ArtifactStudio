@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_REACTION_DIFFUSION_BLUR_2026-06-13.md](MILESTONE_REACTION_DIFFUSION_BLUR_2026-06-13.md)
+
 # Milestone: ReactionDiffusionStylizer (反応拡散スタイライザー / 自律絵画化)
 
 > 2026-06-13

@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_UI_THEME_MIGRATION.md](MILESTONE_UI_THEME_MIGRATION.md)
+
 # QSS Reduction / Style Ownership Milestone (2026-03-31)
 
 `QSS` を UI の主責務から外し、`Artifact` の見た目を theme tokens + 共通 widget + owner-draw で管理するための実行マイルストーン。

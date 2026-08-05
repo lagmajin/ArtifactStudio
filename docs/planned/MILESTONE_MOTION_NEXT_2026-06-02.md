@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_MOTION_FEATURES_INDEX_2026-06-02.md](MILESTONE_MOTION_FEATURES_INDEX_2026-06-02.md)
+
 # M-MOTION-NEXT モーションデザイナーもう外せない機能 (2026-06-02)
 
 先に提案した7件＋26件（合計33機能）**以外**の、まったく別領域からの提案。

@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_COMPOSITION_EDITOR_SELECTION_COMPARISON_2026-06-27.md](MILESTONE_COMPOSITION_EDITOR_SELECTION_COMPARISON_2026-06-27.md)
+
 # Composition Editor Rubber Band Multi-Selection Milestone
 
 `Composition Editor` 上での rubber band 選択を使って、複数レイヤーを一括選択できるようにするためのマイルストーン。

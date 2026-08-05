@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_PLUGIN_SYSTEM_2026-03-28.md](MILESTONE_PLUGIN_SYSTEM_2026-03-28.md)
+
 # MILESTONE_PLUGIN_SYSTEM_COMPLETION_2026-07-25
 
 **ステータス:** Partial（DLL plugin loading、callback、layer factory scan、property groups を実装済み。subprocess runner、sample plugin、hot reload、runtime 検証は未完了）

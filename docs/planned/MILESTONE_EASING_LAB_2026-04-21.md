@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_EASING_LAB.md](MILESTONE_EASING_LAB.md)
+
 # MILESTONE: EasingLab - Easing Comparison Tool
 
 > 2026-04-21 Created

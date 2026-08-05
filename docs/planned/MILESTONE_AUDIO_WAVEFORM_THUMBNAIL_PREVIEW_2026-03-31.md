@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_AUDIO_WAVEFORM_2026-03-29.md](MILESTONE_AUDIO_WAVEFORM_2026-03-29.md)
+
 # マイルストーン: Audio Waveform Thumbnail Preview
 
 ステータス: Phase 1／2・初期 UX 実装済み（長時間音声・cache 運用・表示整合・runtime 検証待ち、静的確認 2026-07-29）

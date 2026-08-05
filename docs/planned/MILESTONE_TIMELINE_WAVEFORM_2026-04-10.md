@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md](MILESTONE_TIMELINE_AUDIO_WAVEFORM_2026-06-01.md)
+
 # タイムラインオーディオ波形表示
 **マイルストーン**: M-TL-13 Timeline Audio Waveform Display
 **作成日**: 2026-04-10

@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_AI_CLOUD_UI_2026-04-09.md](MILESTONE_AI_CLOUD_UI_2026-04-09.md)
+
 # Codex App パターン → Artifact AICloudWidget 応用 (2026-07-04)
 
 > Codex CLI / Codex App (OpenAI) のアーキテクチャを分析し、Artifact の AICloudWidget に転用可能なパターンを抽出。

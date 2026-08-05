@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_CAMERA_PROJECTION_2026-03-31.md](MILESTONE_CAMERA_PROJECTION_2026-03-31.md)
+
 **ステータス:** Partial camera foundation / DOF render path not implemented
 
 # M-CAM: Camera Enhancement - Depth of Field / Lens Blur 設計マイルストーン（本格的移植版）

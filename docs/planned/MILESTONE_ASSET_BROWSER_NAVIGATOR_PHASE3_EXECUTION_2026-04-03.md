@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_ASSET_BROWSER_NAVIGATOR_SEARCH_PRESENTATION_2026-04-03.md](MILESTONE_ASSET_BROWSER_NAVIGATOR_SEARCH_PRESENTATION_2026-04-03.md)
+
 # マイルストーン: Asset Browser Navigator Phase 3 Execution
 
 ステータス: Phase 3 実装済み（runtime UX・密度検証待ち、静的確認 2026-07-29）

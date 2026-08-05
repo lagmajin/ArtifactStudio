@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_CONTENTS_VIEWER_DESIGN_AUDIT_2026-07-04.md](MILESTONE_CONTENTS_VIEWER_DESIGN_AUDIT_2026-07-04.md)
+
 # Contents Viewer Compare Redesign
 
 **ステータス:** In Progress

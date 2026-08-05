@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md](MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md)
+
 # MILESTONE: Viewport Interaction / Navigation / 3D Cursor - 2026-07-04
 
 **ステータス:** In Progress

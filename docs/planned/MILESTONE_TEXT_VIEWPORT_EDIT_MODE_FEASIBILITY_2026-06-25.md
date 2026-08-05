@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_TEXT_LAYER_INLINE_EDIT_2026-03-27.md](MILESTONE_TEXT_LAYER_INLINE_EDIT_2026-03-27.md)
+
 # Text Viewport Edit Mode Feasibility (2026-06-25)
 
 ## Conclusion

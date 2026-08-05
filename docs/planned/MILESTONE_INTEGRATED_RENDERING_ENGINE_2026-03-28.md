@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_BATCH_RENDERING_2026-03-28.md](MILESTONE_BATCH_RENDERING_2026-03-28.md)
+
 # マイルストーン: Integrated Rendering Engine
 
 > 2026-03-28 作成

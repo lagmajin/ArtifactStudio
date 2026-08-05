@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_VIEWPORT_BOOKMARKS_2026-06-27.md](MILESTONE_VIEWPORT_BOOKMARKS_2026-06-27.md)
+
 # Milestone: Viewport Dynamic Resolution Switching (M-VP-5)
 
 **マイルストーンID**: M-VP-5

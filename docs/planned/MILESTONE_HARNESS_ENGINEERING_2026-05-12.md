@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md](MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md)
+
 # Harness Engineering / Goal-First Working Loop
 
 **Date**: 2026-05-12

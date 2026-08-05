@@ -1,4 +1,6 @@
-﻿# M-COLLAB-1 Collaboration WebSocket Client Milestone
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_COLLAB_BACKEND_FOUNDATION_2026-07-21.md](MILESTONE_COLLAB_BACKEND_FOUNDATION_2026-07-21.md)
+
+# M-COLLAB-1 Collaboration WebSocket Client Milestone
 
 作成日: 2026-07-02
 位置づけ: 既存 `tools/collaboration-server` (Node + `ws`) のプロトコルに **Qt クライアント側** から接続する foundation。

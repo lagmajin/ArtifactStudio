@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_AI_WORKFLOW_AUTOMATION_2026-04-21.md](MILESTONE_AI_WORKFLOW_AUTOMATION_2026-04-21.md)
+
 # AI Workspace Automation Milestone
 
 **進捗状態:** Phase 1〜3 は実装済み。schema／mutation／confirmation の static 検証済み、runtime 実行確認待ち。

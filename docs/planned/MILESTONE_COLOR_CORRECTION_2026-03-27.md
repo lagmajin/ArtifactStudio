@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_COLOR_GRADING_2026-03-29.md](MILESTONE_COLOR_GRADING_2026-03-29.md)
+
 # Color Correction / Grading Milestone
 
 `Artifact` の color correction / grading 系を、CPU 参照実装を残しながら GPU 側へ寄せていくためのマイルストーン。

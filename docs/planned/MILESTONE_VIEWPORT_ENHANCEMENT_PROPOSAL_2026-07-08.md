@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md](MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md)
+
 # ビューポート強化案 (Viewport Enhancement Proposal)
 
 > 作成: 2026-07-08 / 状態: Draft（提案・未着手）

@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_RENDERING_PERFORMANCE_2026-03-28.md](MILESTONE_RENDERING_PERFORMANCE_2026-03-28.md)
+
 # Milestone: Adaptive Subsystem LOD
 
 **ステータス:** Partial foundation / implementation and runtime verification pending

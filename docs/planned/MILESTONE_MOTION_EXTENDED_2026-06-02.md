@@ -1,3 +1,5 @@
+> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_MOTION_FEATURES_INDEX_2026-06-02.md](MILESTONE_MOTION_FEATURES_INDEX_2026-06-02.md)
+
 # M-MOTION-EXTRA Motion Designer Extended Milestones (2026-06-02)
 
 先に作成した7マイルストーンに加え、さらなるモーションデザイナー向け機能をカテゴリ別にまとめる。
