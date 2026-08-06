@@ -16,6 +16,9 @@
 - drop-frameのSMPTEスキップ規則を追加する
 - JSON保存、再読込、UI表示、スクラブの往復精度を検証する
 
+実装済み: `TimeCode`の公称fps丸めと、29.97/59.94向けdrop-frame変換API（`setDropFrame` / `isDropFrame`）。
+未完了: `FrameRate`・composition設定・UI・書き出しメタデータへのdrop-frame状態の接続。
+
 既存の`FrameRate`、`TimeCode`、`TimeCodeRange`、`RationalTime`を拡張し、新しい時間型を乱立させない。
 
 ### M2: 字幕・キャプション
