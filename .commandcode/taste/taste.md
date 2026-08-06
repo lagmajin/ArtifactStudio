@@ -6,6 +6,7 @@ See [analysis/taste.md](analysis/taste.md)
 # Taste (Continuously Learned by [CommandCode][cmd])
 
 [cmd]: https://commandcode.ai/
+
 
 # cost-benefit-prioritization
 - When deciding which types in the codebase to extend with operators/utilities, prioritize based on cross-codebase usage footprint, not just whether the type is a color/vector/etc. Types used only as local variables in a single translation unit (e.g. HSVColor/HSLColor used only inside ColorConversion) are low value for operator expansion. Types heavily used across multiple subsystems (e.g. DynVec2/3 used throughout AnimationDynamics) get higher priority. The user accepted this cost-benefit analysis — "value of wide cross-cutting impact" — without objection. Confidence: 0.70
@@ -30,3 +31,6 @@ See [project-workflow/taste.md](project-workflow/taste.md)
 
 # project-architecture
 See [project-architecture/taste.md](project-architecture/taste.md)
+
+# task-preference
+- When presented with a choice between stability/bug-fix work and new feature development, prefers new feature creation (新機能作成). Confidence: 0.55
