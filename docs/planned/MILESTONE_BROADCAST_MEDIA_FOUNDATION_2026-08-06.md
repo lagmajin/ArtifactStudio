@@ -17,7 +17,8 @@
 - JSON保存、再読込、UI表示、スクラブの往復精度を検証する
 
 実装済み: `TimeCode`の公称fps丸めと、29.97/59.94向けdrop-frame変換API（`setDropFrame` / `isDropFrame`）。
-未完了: `FrameRate`・composition設定・UI・書き出しメタデータへのdrop-frame状態の接続。
+実装済み: `EncoderSettings`にも精密標準フレームレート一覧（23.976/29.97/59.94）と、開始タイムコードフレーム／drop-frame状態の保存を追加。
+未完了: `FrameRate`・UI・実際のエンコーダー引数へのdrop-frame状態の接続。
 
 既存の`FrameRate`、`TimeCode`、`TimeCodeRange`、`RationalTime`を拡張し、新しい時間型を乱立させない。
 
