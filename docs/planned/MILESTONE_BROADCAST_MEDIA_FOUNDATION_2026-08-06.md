@@ -42,6 +42,9 @@ FFmpeg出力ヘッダーへ開始タイムコードとdrop-frame表記（`;`）�
 - 5.1/7.1を含むモニタリング・downmix
 - BS.1770系の測定、ゲート、True Peak、LUFS正規化
 
+実装着手: `AudioSpectrum`に通常サンプルピークとは分離した4倍線形補間のTrue Peak近似値を追加。
+厳密なBS.1770フィルタ／オーバーサンプラーではないため、納品QC用の確定値ではなくモニタリング用の基礎値として扱う。
+
 ### M5: 色管理・放送セーフ
 
 - OCIOをpreview/export境界のsource of truthへ接続
