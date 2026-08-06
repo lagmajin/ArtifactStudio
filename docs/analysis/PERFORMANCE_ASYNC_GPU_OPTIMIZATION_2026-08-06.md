@@ -2,11 +2,24 @@
 
 **最終更新:** 2026-08-06
 
+## 実装済み（2026-08-06）
+
+- E（RAM Preview readback）を実装。既存の `readbackTextureViewToImageAsync` / `readbackToImageAsync` 経路を、環境変数未設定時も利用するよう変更した。
+- 再生中も非同期 readback の対象にし、GPU コピーと fence 待機を既存のバックグラウンド経路へ委譲する。
+- B の通常のプロジェクト Open メニュー経路を `loadFromFileAsync` に切り替え、JSON 読込・再構築中の UI スレッドブロックを解消した。
+- B の通常の Save / Save As メニュー経路も `saveToFileAsync` に切り替え、直列化・ファイル書込中の UI スレッドブロックを解消した。
+- B の Welcome 画面と起動プロジェクト経路も `loadFromFileAsync` に切り替えた。
+- K の File メニュー／Welcome 画面からの一括アセットインポートも既存の `importAssetsFromPathsAsync` に切り替え、コピー・プローブ中の UI ブロックを解消した。
+- I の Project View は通常の可視内容更新でサムネイルキャッシュを全消去しないよう変更し、モデル差し替え／内容変更時だけ無効化するようにした。
+- C のプロパティ式評価に既存 `ScriptContext::getOrParseAST` を接続し、同一式の毎回の tokenize／parse を避けるようにした。AST 取得に失敗した場合は従来の文字列評価へフォールバックする。
+- 変更箇所: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- 変更箇所: `Artifact/src/Widgets/Menu/ArtifactFileMenu.cppm`
+
 ## 概要
 
 `ArtifactStudio` は C++20 modules + Qt + DiligentEngine（DX12/Vulkan GPU レンダラ）のモーショングラフィックス/合成ソフト。本調査は「メイン(UI)スレッドで同期実行されている重い I/O/デコード/解析/合成」と「CPU(QImage/OpenCV) で行われている重い処理の GPU 化」候補を特定し、パフォーマンスとレスポンスを改善できる箇所を洗い出した。
 
-調査は読み取り専用（コード変更なし）。各候補は「事実（コード上の実装）」と「推測（ボトルネック/案）」を分け、未検証は `未検証` と明記。
+初版は読み取り専用調査として作成した。現在は実装済み項目を冒頭に追記し、各候補は「事実（コード上の実装）」と「推測（ボトルネック/案）」を分け、未検証は `未検証` と明記する。
 
 制約の遵守:
 - 新規 signal/slot は一切提案せず、既存の非同期/スレッド経路の再利用を前提とする。
@@ -68,12 +81,11 @@
 - **懸念**: cache miss 時の再描画トリガ設計。
 - **未検証**: 実際に待機ブロックするかは実測プロファイルで確定要。
 
-### E. RAM Preview readback の非同期化が env ゲート＋再生除外で無効
+### E. RAM Preview readback の非同期化
 
-- **事実**: `ArtifactCompositionRenderController.cppm:31067-31149` で非同期 readback（`readbackTextureViewToImageAsync` / `readbackToImageAsync`）は環境変数 `ARTIFACT_ENABLE_RAM_PREVIEW_ASYNC_READBACK` がセット AND `!playback->isPlaying()` のときのみ有効。`storeCompositionPreviewFrameImage` の呼び出しは非同期コールバック内のみ（cppm:11379）。
+- **事実**: `ArtifactCompositionRenderController.cppm:31067-31149` で非同期 readback（`readbackTextureViewToImageAsync` / `readbackToImageAsync`）を RAM Preview の未構築フレームに対して利用する。`storeCompositionPreviewFrameImage` の呼び出しは非同期コールバック内のみ（cppm:11379）。
 - **事実**: 非同期基盤自体は堅牢 — リングバッファ + `CopyTexture` + `EnqueueSignal`/`Flush`（非ブロッキング）+ `QtConcurrent::run` バックグラウンドで fence wait とピクセル変換、コールバックで `QImage` 返却（`ArtifactIRenderer.cppm:2069-2290`）。
-- **推測（未検証）**: 再生中（`isPlaying()`）は非同期パスがスキップされるため、再生中の RAM プレビー構築はこのコントローラ経由ではキャプチャされない（別経路かそもそもスキップか要確認）。
-- **案**: 環境変数ゲートを外してデフォルト有効化。再生中も非同期 readback でキャプチャするよう条件を緩和し、同期 `readbackToImage` へのフォールバックを排除。
+- **実装**: 環境変数ゲートを外してデフォルト有効化し、再生中も非同期 readback でキャプチャするよう条件を緩和した。同期 `readbackToImage` へのフォールバックはこのキャプチャ経路では使用しない。
 - **効果**: 再生中の RAM プレビー構築が非ブロッキングに。
 - **懸念**: 再生フレームレートとの整合、fence wait のバックグラウンド負荷。
 
@@ -216,13 +228,13 @@
 4. **A 通常合成の GPU ブレンド適用** — 最大恩恵だが変更範囲大。
 5. **D / F の非同期化** — UI 直結のフリーズ解消。
 
-実装に進む場合は上記順で、まず C・E・B から着手するのがリスク/工数比で最適と判断される。
+実装優先度は C・E・B と判断し、これらは実装済み。残りは個別にスレッド安全性・GPUパイプライン整合性・UI責務を確認してから進める。
 
 ---
 
 # 追加調査（オーディオ/スコープ・テキスト・3D/トラッカー・エクスポート・パーティクル/流体・検索）
 
-以下は初期調査（アセットI/O・レンダーパイプライン・CPUエフェクト・タイムラインUI）に続く追加調査。同様にコード変更なし・事実と推測を分離。
+以下は初期調査（アセットI/O・レンダーパイプライン・CPUエフェクト・タイムラインUI）に続く追加調査。初期調査と同様に事実と推測を分離する。
 
 ## 🔴 高優先（追加分）
 
