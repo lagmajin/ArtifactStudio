@@ -21,6 +21,13 @@ artifact_add_test(ArtifactCoreArtifactScriptTest
         ArtifactCore
 )
 
+artifact_add_test(ArtifactCoreCSharpScriptEngineTest
+    SOURCES
+        CSharpScriptEngineTest.cpp
+    LIBS
+        ArtifactCore
+)
+
 artifact_add_test(ArtifactCoreCreativeEffectTest
     SOURCES
         ColorVibranceEffectTest.cpp
