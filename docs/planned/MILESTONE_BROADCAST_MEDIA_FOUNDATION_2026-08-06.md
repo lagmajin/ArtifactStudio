@@ -45,6 +45,9 @@
 - 10bit、Rec.709、Rec.2020、HLG、PQの入力・出力メタデータ
 - 放送セーフな輝度・色域の検査と補正方針
 
+実装済み: `VideoCodecInfo`の色プライマリ／伝達特性保持、`ColorLuminance`のEncoded RGB向け放送セーフ違反検出・クランプAPI、HDRモニター解析結果への違反数集計。
+補足: 現段階の検査は軽量なRGB legal-range検査であり、完全なY'CbCr変換、True Peak、YCbCr色域マッピングは納品プロファイル側の後続項目とする。
+
 ### M6: 業務codec・納品
 
 - MXF、XDCAM、DNx、ProResの入出力プロファイル
