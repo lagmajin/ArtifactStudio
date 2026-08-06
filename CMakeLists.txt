@@ -515,13 +515,15 @@ endif()
 # ---------------------------------------------------------------------------
 # DiligentEngine (Submodule)
 # ---------------------------------------------------------------------------
+set(ARTIFACT_AGILITY_SDK_DIR "" CACHE PATH
+    "Unpacked Microsoft.Direct3D.D3D12 retail SDK directory (contains build/native/bin/x64/D3D12Core.dll)")
 set(DILIGENT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
 set(DILIGENT_BUILD_DEMOS   OFF CACHE BOOL "" FORCE)
 set(DILIGENT_BUILD_UNITY   OFF CACHE BOOL "" FORCE)
 
 # Graphics backend selection
 set(DILIGENT_NO_DIRECT3D11 OFF CACHE BOOL "" FORCE)  # DX11 enabled
-set(DILIGENT_NO_DIRECT3D12 ON  CACHE BOOL "" FORCE)  # DX12 disabled for stable local verification
+set(DILIGENT_NO_DIRECT3D12 OFF CACHE BOOL "" FORCE)  # DX12 enabled for Agility SDK retail runtime
 set(DILIGENT_NO_VULKAN     OFF CACHE BOOL "" FORCE)  # Vulkan enabled
 set(DILIGENT_NO_OPENGL     ON  CACHE BOOL "" FORCE)  # OpenGL disabled
 set(DILIGENT_NO_WEBGPU     ON  CACHE BOOL "" FORCE)  # WebGPU disabled
