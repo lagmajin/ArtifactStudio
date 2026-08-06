@@ -57,6 +57,8 @@ FFmpeg出力ヘッダーへ開始タイムコードとdrop-frame表記（`;`）�
 - 規格別書き出しプリセット
 - QCレポートと納品メタデータ
 
+実装着手: FFmpeg出力でProResに加え、DNxHD／DNxHRとXDCAM系codec名を解決し、業務向けYUV422 pixel formatを選択。出力fpsのtime baseも整数切り捨てをやめ、23.976／29.97／59.94を有理数で保持する。
+
 FFmpegの汎用codec名判定だけで業務納品対応とみなさず、コンテナ、音声構成、色、timecode、メタデータをプロファイル単位で検証する。
 
 ### M7: 外部I/O・共同編集
