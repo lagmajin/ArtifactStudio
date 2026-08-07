@@ -35,6 +35,7 @@
       "name": "onnxruntime",
       "features": ["directml"]
     },
+    "llama-cpp",
     "sentencepiece",
     {
       "name": "angelscript",

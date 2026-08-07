@@ -6290,9 +6290,10 @@
 # 2026-08-03: PSO cache input bound
 
 - 関連: `Artifact/src/Render/ShaderManager.cppm`
-- 事実: PSO cacheの読み込みを512 MiB以下のファイルに制限した。
+- 事実: `ShaderManager` はDiligentの`IPipelineStateCache`を作成・保存・再読込し、各種描画PSOと`MeshRenderer`へ渡している。PSO cacheの読み込みは512 MiB以下のファイルに制限した。
 - 価値: 起動時のGPU PSO cache読み込みで異常に巨大なバイナリが無制限にメモリへ展開される経路を抑える。
-- 次に確認すべきこと: 実GPU環境で生成されるPSO cacheの最大サイズを確認する。
+- 閃き・仮説: Diligent Archiverはこの実行時PSO cacheとは別の事前アーカイブ機構。PSO cacheの実測ヒット率・起動時間が先に確認できるまでは、Archiverの導入を優先しない。
+- 次に確認すべきこと: 実GPU環境で生成されるPSO cacheの最大サイズ、cache hit率、初回／二回目起動時間を確認し、必要なら配布用shader/PSO archiveを設計レビューする。
 
 # 2026-08-03: AI model list response bound
 
@@ -6482,3 +6483,11 @@
 - 事実: 多数の GPU エフェクトで output／staging texture の毎フレーム生成が残っていた。一方、Temporal Smear のように履歴テクスチャを持つ実装は単純な output cache と異なるライフサイクルを持つ。また Core の `GPUTexture` は現状メタデータ abstraction であり、Diligent resource ownership の導入は別の大きな設計変更になる。
 - 価値または懸念: output／staging の条件付き再利用は局所的な性能改善になるが、device 切替、履歴更新、pipeline／executor の寿命を同時に扱わないと不整合を招く。Core の低レベル ownership をアプリ側の局所修正と混同しないことが重要。
 - 次に確認すべきこと: build/runtime で device 再初期化、解像度変更、staging readback、履歴系エフェクトのフレーム連続性を確認し、次段階で Core の `GPUTexture` ownership 方針を設計レビューする。
+
+# 2026-08-06: 3D instance binning should precede mesh-shader-only work
+
+- 関連: `Artifact/App/shaders/ShaderInterop_Renderer.h`, `ArtifactCore/src/Graphics/MeshRenderer.cppm`, `Artifact/src/Render/ArtifactIRenderer.cppm`
+- 事実: renderer の共有 shader 定義には meshlet の頂点／三角形上限と indirect draw 用のデータがあり、Diligent 側には indirect draw と mesh-shader feature 判定の経路がある。
+- 閃き・仮説（未検証）: まず compute shader で 3D instance を frustum cull し、material／PSO 単位で binning して通常の indexed indirect draw を発行する。meshlet の cone culling／GPU LOD、mesh shader はその上に追加する段階とする。
+- 価値または懸念: クローン・多数メッシュ・particle 系の CPU draw submission を減らせる可能性があるが、2D レイヤー合成の overdraw／blend 負荷には効かない。DX12 Work Graphs 専用にすると Vulkan との共通経路を失う。
+- 次に確認すべきこと: 代表 3D scene で CPU submit 時間、visible instance 数、material/PSO 切替数、GPU 時間を計測してから対象を選定する。

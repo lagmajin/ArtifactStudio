@@ -1,4 +1,4 @@
-#include "ExternalRenderJobSchema.h"
+#include "ExternalFrameRenderer.h"
 
 #include <QDateTime>
 #include <QDir>

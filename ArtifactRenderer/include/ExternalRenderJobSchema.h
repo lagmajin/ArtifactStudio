@@ -7,6 +7,39 @@
 
 namespace ArtifactRenderer {
 
+struct ExternalRenderJobSchema {
+    int version = 0;
+    QString jobId;
+    QString mode;
+    QString compositionId;
+    QString compositionName;
+    int frameStart = 0;
+    int frameEnd = 0;
+    double fps = 30.0;
+    QString outputPath;
+    QString outputFormat;
+    QString backend = QStringLiteral("diagnostic");
+    int width = 0;
+    int height = 0;
+    QString summaryFile;
+    QString eventLogFile;
+    QString cancelFile;
+    QJsonObject componentSimulationBake;
+    bool componentSimulationBakePresent = false;
+    bool componentSimulationBakeValid = true;
+    bool componentSimulationBakeUsableForStart = false;
+    int componentSimulationBakeFrameCount = 0;
+    QJsonObject raw;
+
+    [[nodiscard]] bool isValid() const;
+    [[nodiscard]] bool isSequenceOutput() const;
+    [[nodiscard]] QJsonObject toSummaryJson() const;
+};
+
+[[nodiscard]] ExternalRenderJobSchema parseExternalRenderJob(const QJsonObject& object, QString* errorMessage);
+
+// Compatibility payload used by the reusable diagnostic-frame helper.  New
+// external renderer jobs use ExternalRenderJobSchema above.
 struct RenderJobSummary {
     int version = 0;
     QString jobId;
@@ -33,14 +66,6 @@ struct RenderJobSummary {
     QString eventLogFile;
 
     QJsonObject toJson() const;
-};
-
-class ExternalRenderJobSchema {
-public:
-    static constexpr int CurrentVersion = 1;
-
-    static bool validate(const QJsonObject& root, QStringList* errors);
-    static RenderJobSummary summarize(const QJsonObject& root);
 };
 
 } // namespace ArtifactRenderer

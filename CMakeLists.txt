@@ -440,9 +440,22 @@ if(MSVC)
         if(EXISTS "${_MSVC_INCLUDE_DIR}/vcruntime.h")
             include_directories("${_MSVC_INCLUDE_DIR}")
         endif()
-        set(_artifact_try_compile_include_flags "/I\"${_MSVC_INCLUDE_DIR}\" /I\"${_ATL_INCLUDE_DIR}\" /I\"${_artifact_windows_sdk_version_dir}/um\" /I\"${_artifact_windows_sdk_version_dir}/ucrt\" /I\"${_artifact_windows_sdk_version_dir}/shared\" /I\"${_artifact_windows_sdk_version_dir}/winrt\"")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${_artifact_try_compile_include_flags}" CACHE STRING "C flags with explicit SDK includes" FORCE)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_artifact_try_compile_include_flags}" CACHE STRING "CXX flags with explicit SDK includes" FORCE)
+        # Do not inject Windows SDK include paths into CMAKE_<LANG>_FLAGS.
+        # They precede target include directories and make Diligent's
+        # #include "Query.h" resolve to the SDK's unrelated um/Query.h.
+        # Remove both forms written by older configurations. The SDK path was
+        # not always known at this point, which left the malformed /I"/um"
+        # sequence in existing build caches.
+        set(_artifact_explicit_sdk_include_flags
+            "/I\"${_MSVC_INCLUDE_DIR}\" /I\"${_ATL_INCLUDE_DIR}\" /I\"${_artifact_windows_sdk_version_dir}/um\" /I\"${_artifact_windows_sdk_version_dir}/ucrt\" /I\"${_artifact_windows_sdk_version_dir}/shared\" /I\"${_artifact_windows_sdk_version_dir}/winrt\"")
+        set(_artifact_malformed_sdk_include_flags
+            "/I\"${_MSVC_INCLUDE_DIR}\" /I\"${_ATL_INCLUDE_DIR}\" /I\"/um\" /I\"/ucrt\" /I\"/shared\" /I\"/winrt\"")
+        foreach(_artifact_language_flags CMAKE_C_FLAGS CMAKE_CXX_FLAGS)
+            string(REPLACE "${_artifact_explicit_sdk_include_flags}" "" ${_artifact_language_flags} "${${_artifact_language_flags}}")
+            string(REPLACE "${_artifact_malformed_sdk_include_flags}" "" ${_artifact_language_flags} "${${_artifact_language_flags}}")
+            set(${_artifact_language_flags} "${${_artifact_language_flags}}" CACHE STRING
+                "${_artifact_language_flags} without explicit SDK includes" FORCE)
+        endforeach()
         set(ENV{INCLUDE} "${_MSVC_INCLUDE_DIR};${_ATL_INCLUDE_DIR};${_artifact_windows_sdk_version_dir}/um;${_artifact_windows_sdk_version_dir}/ucrt;${_artifact_windows_sdk_version_dir}/shared;${_artifact_windows_sdk_version_dir}/winrt;$ENV{INCLUDE}")
         if(EXISTS "${_MSVC_TOOLCHAIN_DIR}/lib/x64")
             link_directories("${_MSVC_TOOLCHAIN_DIR}/lib/x64")
@@ -488,11 +501,6 @@ if(WIN32 AND MSVC)
         file(GLOB _artifact_windows_sdk_include_versions LIST_DIRECTORIES true "${_artifact_windows_sdk_include_root}/*")
         list(SORT _artifact_windows_sdk_include_versions COMPARE NATURAL ORDER DESCENDING)
         list(GET _artifact_windows_sdk_include_versions 0 _artifact_windows_sdk_include_version_dir)
-        foreach(_artifact_windows_sdk_include_subdir um ucrt shared winrt)
-            if(EXISTS "${_artifact_windows_sdk_include_version_dir}/${_artifact_windows_sdk_include_subdir}")
-                include_directories("${_artifact_windows_sdk_include_version_dir}/${_artifact_windows_sdk_include_subdir}")
-            endif()
-        endforeach()
         message(STATUS "Windows SDK include: ${_artifact_windows_sdk_include_version_dir}")
     endif()
     if(EXISTS "${_artifact_windows_sdk_root}/Lib")
@@ -515,16 +523,30 @@ endif()
 # ---------------------------------------------------------------------------
 # DiligentEngine (Submodule)
 # ---------------------------------------------------------------------------
-set(ARTIFACT_AGILITY_SDK_DIR "" CACHE PATH
+set(_ARTIFACT_LOCAL_AGILITY_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/agilitysdk-1.619.4-new")
+if(EXISTS "${_ARTIFACT_LOCAL_AGILITY_SDK_DIR}/build/native/bin/x64/D3D12Core.dll")
+    set(_ARTIFACT_AGILITY_SDK_DEFAULT "${_ARTIFACT_LOCAL_AGILITY_SDK_DIR}")
+else()
+    set(_ARTIFACT_AGILITY_SDK_DEFAULT "")
+endif()
+set(ARTIFACT_AGILITY_SDK_DIR "${_ARTIFACT_AGILITY_SDK_DEFAULT}" CACHE PATH
     "Unpacked Microsoft.Direct3D.D3D12 retail SDK directory (contains build/native/bin/x64/D3D12Core.dll)")
+if(NOT ARTIFACT_AGILITY_SDK_DIR AND _ARTIFACT_AGILITY_SDK_DEFAULT)
+    set(ARTIFACT_AGILITY_SDK_DIR "${_ARTIFACT_AGILITY_SDK_DEFAULT}" CACHE PATH
+        "Unpacked Microsoft.Direct3D.D3D12 retail SDK directory (contains build/native/bin/x64/D3D12Core.dll)"
+        FORCE)
+endif()
+set(ARTIFACT_DIRECTSTORAGE_SDK_DIR "" CACHE PATH
+    "Unpacked Microsoft.Direct3D.DirectStorage SDK directory (contains native/include/dstorage.h and native/bin/x64/dstorage.dll)")
 set(DILIGENT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
 set(DILIGENT_BUILD_DEMOS   OFF CACHE BOOL "" FORCE)
 set(DILIGENT_BUILD_UNITY   OFF CACHE BOOL "" FORCE)
 
 # Graphics backend selection
-set(DILIGENT_NO_DIRECT3D11 OFF CACHE BOOL "" FORCE)  # DX11 enabled
+set(DILIGENT_NO_DIRECT3D11 ON  CACHE BOOL "" FORCE)  # DX11 is not supported in the development configuration
 set(DILIGENT_NO_DIRECT3D12 OFF CACHE BOOL "" FORCE)  # DX12 enabled for Agility SDK retail runtime
 set(DILIGENT_NO_VULKAN     OFF CACHE BOOL "" FORCE)  # Vulkan enabled
+set(DILIGENT_NO_GLSLANG    OFF CACHE BOOL "" FORCE)  # Vulkan runtime shader compilation requires glslang for the current HLSL path
 set(DILIGENT_NO_OPENGL     ON  CACHE BOOL "" FORCE)  # OpenGL disabled
 set(DILIGENT_NO_WEBGPU     ON  CACHE BOOL "" FORCE)  # WebGPU disabled
 add_compile_definitions(QUERY_H_RESTRICTION_PERMISSIVE=1)
