@@ -1,12 +1,90 @@
 # Milestones Backlog
 
-**最終更新:** 2026-08-08
+**最終更新:** 2026-08-10
 
 ### Still Image / Production Readiness
 - **M-IMG-1** Still Image Layer Production Readiness
   - 静止画の import、色解釈、transform、crop、mask、blend、effect、保存／再読込、preview／Render Queue の実制作経路を一つの受入条件で閉じる
   - OIIO、Asset System、Static Layer GPU Cache 等の既存計画を再実装せず、`ArtifactImageLayer` の end-to-end 完成責任を持つ
   - 詳細: `docs/planned/MILESTONE_STILL_IMAGE_LAYER_PRODUCTION_READINESS_2026-08-08.md`
+
+## Next Walk TODO: Still Image and Production Workflow
+
+- **WALK-IMG-1** 部分実装（2026-08-10 project path／Asset ID の relocation 復旧を修正）
+  - project root、relative path、Asset ID、absolute fallback、relink の優先順位を AssetManager／project 保存境界で統一する
+  - 静止画・連番画像・動画で共通利用できる relocation 契約を先に定義する
+  - `setCurrentProjectPath()` と `setCurrentProjectRootPath()` の trim／absolute 化と root 同期、project item の `filePathRelative`／`sequencePathsRelative` 併記、composition layer の `*.sourcePathRelative`／`*.sequencePathsRelative` 併記、source registry の `pathRelative` 併記と既存絶対 path fallback は実装済み。Asset ID は registry 復元時に相対候補を優先して再登録する。
+- **WALK-IMG-2** 部分実装（2026-08-10 静止画 crop の Preview／Render Queue 整合を修正）
+  - source、decode、color、CPU buffer、GPU upload、cache、save/reload の状態を一画面で確認できる診断導線を追加する
+  - 既存の Project Health / App Debugger の責務と重複しない範囲で設計する
+  - `ArtifactImageLayer::toQImage()` の cached source crop を Render Queue／thumbnail 側にも適用し、fallback の二重 crop を避ける修正は完了。既存の `FallbackDiagnosticsPanel` を App Debugger の `Fallbacks` tab へ接続し、履歴確認の導線を追加した。さらに event message を Message 列へ表示し、fallback 理由まで確認できるようにした。Selected Image Source resource に source／decode buffer／version／color interpretation を載せ、App Debugger の次アクションにも反映した。GPU texture cache の pending upload count／bytes、layer／asset owner 単位の entry／pending 状態、共有 source key の binding 状態も診断するようにした。surface-cache と direct composite が同じ画像で切り替わるため、共有 source key 未接続は欠落と断定せず `candidate-missing` と表示する。
+  - Composition Controller と共有 Composition View Drawing の current-frame-buffer 早期描画、3D card buffer 取得は crop 有効時に共有せず、`toQImage()`／通常経路へ戻して Preview／Render Queue 側の crop 抜けを防いだ。
+  - image surface-cache key に source crop の全状態を含め、crop 編集後に古い合成面を再利用しないようにした。
+  - matte source の surface-cache key に type／blend／fit／opacity／invert も含め、matte 設定だけを変更した場合の古い合成面再利用を防いだ。
+  - LayerMask の add／set／remove／clear に revision を持たせ、surface-cache key に反映して stale mask surface を防いだ。
+  - decode worker からの `FallbackTracker::record()` と Diagnostics panel の履歴読み取りが競合しないよう、tracker の履歴・policy・warning 設定を内部 mutex で保護する修正を実装済み。
+  - 非同期 readback も `RGBA16_FLOAT`／`RGBA32_FLOAT` を source format のまま staging し、linear float を sRGB へ変換してから QImage 化するよう同期 readback と整合させた。F32 composition pipeline での非同期 readback の形式取り違えを防ぐ。
+  - `LayerMatteReference::opacity` を CPU の matte factor と GPU track-matte の opacity に反映し、保存値だけが表示結果へ反映されない状態を修正した。複数 matte の blendMode／stackMode 統合は別途検証対象として残す。
+  - `LayerMatteReference::fitMode` の Stretch／Fit／Fill／Original を共通の source 整形へ実装し、CPU matte と GPU matte source の両方で常に Stretch される状態を修正した。同一 source layer を異なる fitMode で参照できるよう、GPU cache には未整形 source を保持して適用時に fit する。
+  - CPU matte evaluator が欠落 source を飛ばした際に後続 source と参照設定がずれる edge case を修正し、構築成功した source と active reference を同じ配列で評価するようにした。
+  - CPU surface matte の Add／Subtract／Intersect／Difference を各 `LayerMatteReference::blendMode` から評価するようにした。GPU track-matte の複数 source／per-source blend は shader 入力構造が別のため、引き続き未統合として扱う。
+  - GPU track-matte の RenderPipeline に 3 枚の source texture を追加し、3 source 以内・同一 blend mode／opacity の Add／Intersect／Subtract は既存 shader の一括 stack pass で処理するようにした。Difference、異なる opacity／blend の組み合わせは既存経路へフォールバックする。
+  - Render Queue の共有 `drawLayerForCompositionView` に current-frame matte source map を渡し、matte を含む layer では未適用の surface／static cache を再利用しないようにした。これにより Render Queue GPU の matte helper が未接続だった経路を接続した。
+  - Software Render Queue でも layer surface に既存の rasterizer effect／mask 処理を通し、current-frame matte source map と matte evaluator を適用するようにした。GPU／Software で mask／matte が丸ごと抜ける経路を修正した。
+  - Software／shared GPU surface の matte 適用を `fitMode`／`opacity`／per-reference `blendMode` 対応の共通 evaluator に切り替え、GPU／Software で設定値を捨てて Core 既定 Add stack に落とす差を縮小した。
+  - matte source が解決済みの layer では GPU texture cache も無効化し、surface cache bypass 中に空の cache handle を経由する余計な fallback 分岐を除いた。
+- **WALK-IMG-3** Asset Browser の検索範囲切替（2026-08-10 静的確認・部分修正）
+  - Current Folder / Project Assets / Missing / Unused を切り替えられる検索導線を追加する
+  - 現在フォルダ検索と Project View のプロジェクト検索の責務を整理する
+  - 現状は検索が current folder に限定され、Project Assets 全体を検索する scope は未実装。既存の Missing status filter は UI で非表示だったため、Unused と並ぶ既存導線として再表示した。
+- **WALK-IMG-4** Preview と Render Queue の静止画一致確認
+  - transform、crop、mask、matte、blend、effect、色解釈について、Preview / Software Preview / Render Queue の結果を比較できる受入導線を作る
+  - `STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX` の未実行項目を Pass / Fail / N/A へ進める
+- **WALK-IMG-5** Composition Settings 編集導線の統一
+  - Composition Menu と Project View の設定編集を同じ設定適用、Undo、dirty 更新経路へ揃える
+  - 新規イベント配線を増やさず既存サービスを再利用する
+- **WALK-IMG-6** Render Queue の Scope / Preset 整理
+  - Full / Work Area / Current Frame / Selected Layers と出力プリセットを整理し、現行の複数追加アクションを選びやすくする
+  - 既存 command ID、shortcut、queue behavior との互換性を確認する
+
+## Next Walk TODO: Timeline and Property Editing
+
+- **WALK-TL-1** ✅ Timeline keyframe marker cache の再構築条件整理（2026-08-10 静的確認）
+  - `ArtifactTimelineTrackPainterView` の keyframe marker / connection segment 収集を、paintEvent ごとではなく composition、track、selection、visible range の変更時だけ再構築する
+  - playhead 移動だけでは marker geometry を再計算しない
+- **WALK-TL-2** ✅ Expression AST の評価キャッシュ（2026-08-10 静的確認）
+  - `AbstractProperty::evaluateValue` の式文字列 parse を毎回行わず、既存の `ScriptContext::getOrParseAST` または同等のキャッシュを利用する
+  - 式変更時の invalidation と評価コンテキストの境界を確認する
+- **WALK-TL-3** ✅ Timeline 検索用 property 名のキャッシュ（2026-08-10 実装）
+  - `ArtifactLayerPanelWidget` の検索時にレイヤーごとの `getLayerPropertyGroups()` を毎回再構築しない
+  - property group 構造が変わった時だけ検索用文字列を更新する
+- **WALK-TL-4** 部分実装（2026-08-10 静的確認）
+  - `CachedAudioWaveform` が composition／layer／source signature 単位でフル長ピークを保持し、trim／zoom で再利用する経路は実装済み
+  - `buildAudioWaveformForLayer()` は `updateLayout()` 中に同期実行されるため、UI直結の decode／生成を非同期化する作業は未完了
+- **WALK-TL-5** PropertyEditor の編集補助を完成させる
+  - 数値行の slider、reset/default、keyframe、expression affordance を `PropertyEditor` row の共通機能として揃える
+  - 旧 Knob 系を再拡張せず、現行 `Artifact.Widgets.PropertyEditor` を正規経路にする
+- **WALK-TL-6** Project open/save の非ブロッキング化
+  - 既存の async load/save 経路を File Menu、recent project、recovery、auto-save から統一利用する
+  - 進行表示、編集中の変更との整合性、temp→rename の atomic 保存を確認する
+
+## Next Walk TODO: Composition, Render Queue, and Diagnostics
+
+- **WALK-CE-1** ✅ Project Health 診断から対象箇所へジャンプ（2026-08-10 実装）
+  - 診断行に保持されている composition ID、layer ID、asset path を使い、ダブルクリックまたは Inspect 操作で Project View / Composition / Asset Browser の対象へ移動する
+  - `Double-click to inspect` の案内と実際の操作を一致させる
+- **WALK-CE-2** ✅ Frame Debug の next action を動的化（2026-08-10 Overview / State / Frame に静的実装）
+  - `goal / now / warning / next` の `next` を固定文言にせず、stale resource、cache miss、invalid texture、mask fallback などの最初の原因に応じて変える
+  - resource inspector や compare / step への既存導線を再利用する
+- **WALK-RQ-1** Render History を構造化して再実行可能にする
+  - 現在のテキスト履歴に job ID、frame range、failure stage、error message、retry action を保持する
+  - 履歴の行から Retry Job / Retry Failed Frames / Reveal Output を実行できるようにする
+- **WALK-RQ-2** Composition Editor の screenshot / render output 非同期化
+  - `readbackToImage()` と保存処理を UI 操作に同期接続せず、既存の async readback と完了通知を利用する
+  - 出力中の progress、cancel、失敗段階を表示する
+- **WALK-CE-3** Four-Up viewport の遅延初期化
+  - レイアウト変更時に未表示ペインまで renderer/controller を同期生成せず、表示されたペインから段階的に初期化する
+  - 初回表示時の体感と renderer setup の重複を計測する
 
 ### Color / Professional Media
 - **M-PRO-MEDIA-1** Professional Media Materials Support

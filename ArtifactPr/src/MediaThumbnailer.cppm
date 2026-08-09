@@ -4,6 +4,7 @@ module;
 #include <QElapsedTimer>
 #include <QImage>
 #include <QMediaPlayer>
+#include <QMetaObject>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QQueue>
@@ -38,7 +39,8 @@ namespace ArtifactPr {
 // =====================================================================
 class MediaThumbnailer::Worker : public QObject {
 public:
-    explicit Worker(QObject* parent = nullptr) : QObject(parent) {}
+    explicit Worker(MediaThumbnailer* owner)
+        : QObject(nullptr), owner_(owner) {}
 
     void enqueue(const ThumbnailRequest& req) {
         QMutexLocker lock(&queueMutex_);
@@ -75,13 +77,13 @@ public Q_SLOTS:
 
             MediaThumbnail thumb = generateSync(req);
 
-            // UI thread へ signal emit (queued connection で自動的に marshal)
-            Q_EMIT thumbnailReady(thumb);
+            // 結果を GUI thread へ戻し、所有側で cache と signal を更新する。
+            auto* owner = owner_;
+            QMetaObject::invokeMethod(owner, [owner, thumb]() {
+                owner->publishThumbnail(thumb);
+            }, Qt::QueuedConnection);
         }
     }
-
-Q_SIGNALS:
-    void thumbnailReady(ArtifactPr::MediaThumbnail thumb);
 
 private:
     /// 1 つの thumbnail を同期生成。失敗時は invalid な struct を返す。
@@ -154,6 +156,7 @@ private:
     QWaitCondition queueCond_;
     QQueue<ThumbnailRequest> queue_;
     bool stop_ = false;
+    MediaThumbnailer* owner_ = nullptr;
 };
 
 // =====================================================================
@@ -161,12 +164,10 @@ private:
 // =====================================================================
 
 MediaThumbnailer::MediaThumbnailer(QObject* parent)
-    : QObject(parent), worker_(new Worker) {
+    : QObject(parent), worker_(new Worker(this)) {
     worker_->moveToThread(&workerThread_);
     QObject::connect(&workerThread_, &QThread::started,
                      worker_, &Worker::process);
-    QObject::connect(worker_, &Worker::thumbnailReady,
-                     this, &MediaThumbnailer::thumbnailReady);
 }
 
 MediaThumbnailer::~MediaThumbnailer() {
@@ -196,6 +197,17 @@ void MediaThumbnailer::request(const ThumbnailRequest& req) {
 void MediaThumbnailer::clearCache() {
     QMutexLocker lock(&cacheMutex_);
     cache_.clear();
+}
+
+void MediaThumbnailer::publishThumbnail(const MediaThumbnail& thumbnail)
+{
+    if (!thumbnail.valid || thumbnail.filePath.isEmpty()) return;
+
+    {
+        QMutexLocker lock(&cacheMutex_);
+        cache_.insert(thumbnail.filePath, thumbnail);
+    }
+    Q_EMIT thumbnailReady(thumbnail);
 }
 
 MediaThumbnail MediaThumbnailer::cached(const QString& filePath) const {

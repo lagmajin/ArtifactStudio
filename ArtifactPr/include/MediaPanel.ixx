@@ -3,6 +3,7 @@ module;
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QPushButton>
@@ -32,8 +33,10 @@ Q_SIGNALS:
 private Q_SLOTS:
     void onImportClicked();
     void onItemDoubleClicked(QListWidgetItem* item);
+    void applySearchFilter(const QString& text);
 
 private:
     QListWidget* list_ = nullptr;
+    QLineEdit* searchEdit_ = nullptr;
     ArtifactPr::MediaThumbnailer* thumbnailer_ = nullptr;
 };

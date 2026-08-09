@@ -64,6 +64,8 @@ Q_SIGNALS:
     void thumbnailReady(ArtifactPr::MediaThumbnail thumb) const;
 
 private:
+    void publishThumbnail(const MediaThumbnail& thumbnail);
+
     class Worker;
     QThread workerThread_;
     Worker* worker_ = nullptr;

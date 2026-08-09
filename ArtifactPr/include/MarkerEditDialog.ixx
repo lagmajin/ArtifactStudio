@@ -1,8 +1,13 @@
 module;
 
 #include <QColor>
+#include <QComboBox>
 #include <QDialog>
+#include <QLineEdit>
+#include <QPlainTextEdit>
+#include <QPushButton>
 #include <QString>
+#include <QSpinBox>
 
 export module ArtifactPr.MarkerEditDialog;
 

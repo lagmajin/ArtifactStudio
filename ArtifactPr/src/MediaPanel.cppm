@@ -122,6 +122,7 @@ MediaPanel::MediaPanel(QWidget* parent)
     searchEdit_->setClearButtonEnabled(true);
     connect(searchEdit_, &QLineEdit::textChanged,
             this, &MediaPanel::applySearchFilter);
+    layout->addWidget(searchEdit_);
 
     // thumbnail 完成時に delegate に通知
     connect(thumbnailer_, &ArtifactPr::MediaThumbnailer::thumbnailReady,
@@ -148,6 +149,21 @@ MediaPanel::MediaPanel(QWidget* parent)
     refreshMediaList(engine->currentSequence());
 }
 
+void MediaPanel::applySearchFilter(const QString& text)
+{
+    const QString query = text.trimmed();
+    for (int i = 0; i < list_->count(); ++i) {
+        auto* item = list_->item(i);
+        if (!item) continue;
+
+        const QString filePath = item->data(Qt::UserRole).toString();
+        const bool matches = query.isEmpty()
+            || item->text().contains(query, Qt::CaseInsensitive)
+            || filePath.contains(query, Qt::CaseInsensitive);
+        item->setHidden(!matches);
+    }
+}
+
 void MediaPanel::refreshMediaList(const ArtifactPr::DemoSequence&)
 {
     list_->clear();
@@ -165,6 +181,8 @@ void MediaPanel::refreshMediaList(const ArtifactPr::DemoSequence&)
             addMediaFile(clip.name, clip.name);
         }
     }
+
+    applySearchFilter(searchEdit_->text());
 }
 
 void MediaPanel::addMediaFile(const QString& filePath, const QString& displayName)
@@ -192,6 +210,7 @@ void MediaPanel::onImportClicked()
         for (const auto& file : files) {
             addMediaFile(file, QFileInfo(file).fileName());
         }
+        applySearchFilter(searchEdit_->text());
     }
 }
 

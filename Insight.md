@@ -13,6 +13,33 @@
 
 ## Insights
 
+### 2026-08-10 — Timeline / Property 編集経路の再計算と未利用基盤を改善候補として記録
+
+- 状態: 改善候補・未実装。実行時の呼び出し頻度と効果は未検証。
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、`Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`、`Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`Artifact/src/Widgets/PropertyEditor/*`、`ArtifactCore/src/Property/AbstractProperty.cppm`、`ArtifactCore/src/Script/ScriptContext.cppm`、`docs/analysis/PERFORMANCE_ASYNC_GPU_OPTIMIZATION_2026-08-06.md`
+- 事実: Timeline の keyframe marker / connection segment 収集、Layer Panel の property search、Timeline の audio waveform 生成、Property の式評価と keyframe 読み出しに、描画・検索・再生の更新単位より広い再計算が残っている箇所がある。`PropertyEditor` には共通 row/editor 基盤があり、旧 Knob 系は監査上 legacy / stub と整理されている。Project open/save には async 経路があるが、File Menu・recent project・recovery・auto-save の利用経路は統一されていない。
+- 閃き・仮説: composition、track、selection、visible range、expression text、property group 構造、waveform source の変更をそれぞれキャッシュ無効化条件にすれば、playhead 移動や通常の再描画で同じ構造を作り直さずに済む可能性が高い。既存の async API と `CachedAudioWaveform` を正規経路へ寄せると、機能追加より小さい変更で操作中の停止感を減らせる可能性がある。
+- 価値・懸念: Timeline のスクラブ、プロパティ検索、式付きレイヤー、波形表示、大規模プロジェクトの open/save の体感改善につながる。一方、cache invalidation、式編集時の AST 更新、保存中の編集との整合性、thread safety は設計確認が必要であり、場当たり的な import / signal / module 追加は避ける。
+- 次の確認: 各経路の実呼び出し頻度を既存 profiler / trace で確認し、最初に marker cache または AST cache のどちらか一つを小さな計測付き slice として比較する。ビルド・runtime 検証は明示許可後に行う。
+
+### 2026-08-10 — 診断・Render Queue・Composition Editor の「発見後の行動」導線を改善候補として記録
+
+- 状態: 改善候補・未実装。UI上の実操作とruntimeの使いやすさは未検証。
+- 関連: `Artifact/src/Widgets/ArtifactProjectHealthDashboard.cppm`、`Artifact/src/Widgets/Diagnostics/FrameDebugViewWidget.cppm`、`Artifact/src/Widgets/Render/ArtifactRenderQueueManagerWidget.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`docs/planned/MILESTONES_BACKLOG.md`
+- 事実: Project Health の診断行には diagnostic ID、composition ID、layer ID、asset path が保持され、tooltipには `Double-click to inspect` が設定されているが、同ファイル内に診断行のダブルクリック処理は見当たらない。Frame Debug は `goal / now / warning / next` の要約と resource 状態を持つ。Render Queue は retry、failed frames、history、export の部品を持つが、history表示は主に文字列行である。Composition Editor の viewport render output は通常の単一フレーム出力で `readbackToImage()` を直接呼び、Four-Upレイアウトでは未表示ペインの同期初期化を避ける意図がコメントされている。
+- 閃き・仮説: 診断を「読むだけの表」から対象へのジャンプ、修復、再試行へつながる作業面にすると、既存の診断データを増やさずに価値を上げられる。Render Historyを構造化すれば、失敗理由とRetry Failed Framesを一体化できる。Frame Debugの`next`を原因別に生成すれば、利用者が次の操作を判断しやすい。
+- 価値・懸念: 失敗から復旧までの往復を短縮できる。一方、UI間の既存責務境界、選択同期、Render Queue jobの永続ID、非同期readbackのキャンセルと出力境界を先に確認する必要がある。新規の中央集権イベント配線は追加しない。
+- 次の確認: Project Health の診断行に現在接続済みの navigation / selection API があるか、Render Queue serviceがjob identityとfailed frame情報を公開しているか、Four-Upの非表示paneが本当に初期化されるタイミングを静的に追う。ビルド・runtime検証は明示許可後に行う。
+
+### 2026-08-09 — 体積3Dレイヤーの bounding box ギズモを既存3Dギズモへ統合する
+
+- 状態: 実装済み・実機未検証
+- 関連: `Artifact/include/Widgets/Render/Artifact3DGizmo.ixx`、`Artifact/src/Widgets/Render/Artifact3DGizmo.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- 事実: 体積3Dレイヤーの mesh bounding box を既存の3Dギズモへ同期し、8角・12辺中央・6面中央を描画・レイ判定する経路を追加した。角は非均等スケール、辺は2軸スケール、面は1軸スケールとして扱い、反対側のローカル面を固定する。View空間、個別ハイライト、通常ドラッグとモーダル操作の軸拘束、既存のShift/Ctrlによる比例・スナップ、数値HUD表示も既存経路へ接続した。
+- 閃き・仮説: 既存の `GizmoAxis` と符号付きスケール拘束を再利用すると、専用の新しいイベント経路を増やさずに面・辺・角ごとの操作を接続できる。BB中心を移動・回転ギズモの基準に使うと、非対称メッシュでも表示位置とヒット位置を揃えられる。
+- 価値・懸念: Blender/Maya型のハンドル構成に近づけられる。一方、非対称メッシュ、負スケール、透視投影でのヒット優先順位とサイズ感、回転時の実ピボット補正は未検証。
+- 次の確認: ビルド・実機で角／辺／面ハンドルのヒット、反対面固定、View/World/Local切替、Shift/Ctrl、数値入力、Undo/Redo、カメラ回転、非対称メッシュとクリップ境界を確認する。
+
 ### 2026-08-03 — RenderControllerのviewport overlay・Rig表示・編集補助を統合する
 
 - 状態: 確認済み
@@ -6551,3 +6578,2215 @@
 - **確認できた事実:** XY position / scalar rotation / XY scaleにはinitial/current更新とキー削除APIがある一方、Z scaleには`setCurrentScaleZ`相当とZ専用キー削除APIがない。`setScale(time, x, y, z)`はXYZキーを追加する。Z positionもキー削除はXYと分離されていない。
 - **価値・懸念:** Artifact側のギズモでXY変形はAuto Key設定に従って非キー更新できるが、Z scaleを実際に変更するとAuto Key無効時でもキー作成を完全には避けられず、取消時にZキーだけを対称に除去できない。
 - **次に確認すべきこと:** Core変更が明示的に許可された段階で、Z position/scaleのcurrent/initial setter、has/remove key APIをXYと対称に追加し、3DギズモUndoスナップショットへZキー状態を独立保持する。
+
+# 2026-08-09: Calm theme can reuse the existing palette contract
+
+- **関連:** `ArtifactCore/include/Utils/WindowStyleCSS.ixx`、`Artifact/src/Widgets/Dialog/ApplicationSettingDialog.cppm`、`docs/planned/MILESTONE_NEURODIVERSITY_ACCESSIBILITY_2026-08-08.md`
+- **事実:** UIテーマは `DccStylePreset` のトークンを `buildDCCPalette()` へ渡し、`AppMain` が設定変更後に既存ウィジェットへ再適用する経路になっている。Calm はこの経路に低彩度の背景・テキスト・アクセント・選択色を追加すれば、QtCSSや新規シグナルなしで主要UIへ伝播できる。
+- **価値または懸念:** N-1のUIクロームは局所的に実装できる一方、ビューポート画像の輝度上限や高速点滅検出はテーマトークンとは別の描画／フレーム解析責務であり、同じ変更に混ぜると検証範囲が広がる。
+- **次に確認すべきこと:** Calm選択時のビューポート背景・ギズモ色・オーバーレイ色の適用点を棚卸しし、コンテンツ映像そのものを変更せずUI補助色だけを制御できる境界を決める。
+
+# 2026-08-09: Focus mode should snapshot chrome and ADS dock visibility
+
+- **関連:** `Artifact/include/Widgets/ArtifactMainWindow.ixx`、`Artifact/src/Widgets/ArtifactMainWindow.cppm`、`docs/planned/MILESTONE_NEURODIVERSITY_ACCESSIBILITY_2026-08-08.md`
+- **事実:** ArtifactMainWindow は通常の QMainWindow ではなく、QADS の `CDockManager` と独自の root layout でメニューバー、ツールバー、オプションバー、中央ドック、ステータスバーを構成している。既存の `setDockImmersive()` は単一ドック用の可視性保存を持つ。
+- **気づき（未検証）:** フォーカスモードはADS全体のレイアウトを再構築せず、クロームと非中央ドックの可視性だけをスナップショットすれば、ユーザーのタブ／splitter／floating配置を壊さずに復元できる。
+- **価値または懸念:** QADSの `toggleView()` は floating dock の表示状態にも関係するため、実機で floating／lazy dock、閉じたドック、起動直後のレイアウト復元を確認する必要がある。
+- **次に確認すべきこと:** `Ctrl+Shift+F` のグローバルイベント経路、コマンドパレットとの併用、focus mode 中のドック生成・設定変更時の可視性を runtime で確認する。
+
+# 2026-08-09: C++20 module DLL export requires a narrow explicit API boundary
+
+- **関連:** `Artifact/CMakeLists.txt`、`Artifact/include/Color/ArtifactOCIOManager.ixx`、`Artifact/include/Color/ArtifactColorScienceManager.ixx`、`Artifact/include/Color/ColorPaletteManager.ixx`
+- **事実:** `WINDOWS_EXPORT_ALL_SYMBOLS` だけでも `ArtifactColor.dll` は生成できたが、C++20 module をまたいで `Artifact` 本体から利用する公開メンバーが不足した。既存の `LIBRARY_DLL_API` を3クラスに限定して付けると、ArtifactColor DLL のビルドと本体リンク時のColor系未解決シンボルが解消した。
+- **価値または懸念:** DLL化の境界をクラス単位で明示できる一方、マクロを広範囲へ追加するとABIとBMIの影響範囲が増える。利用側の `dllimport` 方針は、API面を固定してから別途確認する。
+- **次に確認すべきこと:** ArtifactColor の安定公開APIを定義し、DLLロードと主要API呼び出しを検証する。次のDLL候補も同じく小さな境界から選ぶ。
+
+# 2026-08-09: Artifact Debug link needs no executable PDB under the current MSVC
+
+- **関連:** `Artifact/CMakeLists.txt`、`out/build/x64-Debug/bin/Debug/Artifact.exe`
+- **事実:** MSVC 14.51 rejects the old `/DEBUG:FASTLINK` behavior and falls back to `/DEBUG:FULL`; the monolithic Artifact executable then hits `LNK1140`. Adding `/PDB:NONE` only to the Debug `Artifact` executable allows the full link to complete while preserving embedded object debug information.
+- **価値または懸念:** The build is now reproducible with the current toolchain and avoids a multi-gigabyte executable PDB, but executable-level symbol browsing is reduced. A newer toolchain or a smaller target split can restore a full PDB later.
+- **次に確認すべきこと:** Keep `/PDB:NONE` scoped to Debug until the executable is split or the toolchain policy changes; do not propagate it to DLLs or library targets.
+
+# 2026-08-09: Effect contract can be split with a small explicit export surface
+
+- **関連:** `Artifact/CMakeLists.txt`、`Artifact/include/Effects/ArtifactAbstractEffect.ixx`、`Artifact/include/Effects/ArtifactEffectImplBase.ixx`、`Artifact/include/Effects/EffectContext.ixx`、`Artifact/include/Effects/ArtifactAbstractField.ixx`、`Artifact/include/Effects/ArtifactEffectFrameSampler.ixx`
+- **事実:** `ArtifactEffectContract` は公開モジュール5本・実装3本の小さな契約層で、`ArtifactEffects` と `Artifact` の両方から利用される。`ArtifactAbstractEffect`、`EffectID`、`ArtifactEffectImplBase`、`IEffectFrameSampler`、`ArtifactAbstractField`、`ArtifactEffectFrameSampler` に限定して既存の `LIBRARY_DLL_API` を付けることで、DLL化後の本体リンクが成功した。
+- **価値または懸念:** 大規模なEffect実装群をDLL境界へ広げず、契約層だけを分離できる。公開値型を漏らすとリンク時に個別シンボル不足になるため、契約ヘッダの値型も公開表面として棚卸しする必要がある。
+- **次に確認すべきこと:** 次候補へ進む前に、契約DLLの利用側に `dllimport` を導入するか、現在の自動公開方式を維持するかをAPI方針として決める。
+
+# 2026-08-09: Composition export bake needs a frame-sequence boundary
+
+- **関連:** `Artifact/src/Export/ArtifactExportPreRenderPipeline.cppm`、`Artifact/src/Export/ArtifactExportLottieWriter.cppm`、`docs/planned/MILESTONE_COMPOSITION_EXPORT_GAME_UI_2026-08-08.md`
+- **事実:** マスク・エフェクト・3Dなどネイティブ変換できないレイヤーは、既存のDiligentオフスクリーンレイヤーレンダラーを優先してフレーム列へベイクし、GPU初期化できない場合だけ既存サムネイル経路へフォールバックする。RmlUi／Gameface／Unity／Noesisは画像列を各形式の離散アニメーションへ接続し、Lottieはフレームごとの画像レイヤーへ展開する。
+- **気づき（未検証）:** ベイク対象をグループ単位で最適化するには、レイヤー単位の画像列を統合するアトラス仕様と、各ランタイムの画像キャッシュ／読み込み契約が必要になる。現状は正確性を優先して同じフレーム列を各Writerが参照する。
+- **価値または懸念:** 現状の出力は静止UI・軽量な2D変換アニメーションに加え、非対応レイヤーの時間変化も保持できるが、複雑エフェクトを含むモーションUIの完全移植とはまだ言えない。全フレームベイクは書き出し時間・容量・ランタイム参照方式を同時に決める必要がある。
+- **次に確認すべきこと:** RmlUi／Gameface／Unity／Noesis／Lottieの画像列接続は初期実装済み。現実装はフレームごとのGPU初期化を避けていないため、実機検証前にオフスクリーンコンテキストをWriter単位で再利用できるか確認する。各ランタイムでの画像キャッシュと離散アニメーションの対応も確認する。
+
+# 2026-08-09: Onion skin calculation path is active for paint layers
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderOverlay.cppm`、`ArtifactCore/src/Application/ArtifactAppSettings.cppm`
+- **事実:** 既存のキャプチャ方式は残したまま、選択中のペイントレイヤーでは既存の `drawPaintLayerOnionSkinOverlay()` を優先して呼び出し、キャプチャのキュー投入を抑止する経路を接続した。ペイントレイヤー以外は従来のキャプチャ方式へフォールバックする。モーションパス設定の未保存時デフォルトは表示オンに変更した。
+- **価値または懸念:** ペイントのフレームバッファを基にした計算方式へ移行できる一方、現実装の計算方式はペイントレイヤー向けであり、他レイヤーの一般化は別設計になる。既存ユーザーが保存したオフ設定は維持される。
+- **次に確認すべきこと:** ビルド・実機で、ペイントレイヤーの前後フレーム表示、レイヤー切替時のキャプチャ残像、保存済みモーションパス設定の互換性を確認する。
+
+# 2026-08-09: Selected dock tab used the content background as its fill
+
+- **関連:** `Artifact/src/Widgets/Dock/DockStyleManager.cppm`
+- **事実:** 選択中のQADSドックタブは `theme.backgroundColor` を背景に使っており、コンテンツ面と同色になるため、アクティブフレームの塗りつぶしが視認できなかった。選択色トークンを選択中タブの背景に割り当てた。
+- **価値または懸念:** 既存のQPalette／テーマ経路のまま、After Effects、Nuke、Default Qt、High Contrastの各テーマで選択タブを識別しやすくできる。実機で文字色とのコントラストは確認が必要。
+- **次に確認すべきこと:** ドックの選択切替、浮動ドック、非アクティブウィンドウ、テーマ変更後のタブ再描画を確認する。
+
+# 2026-08-09: Composition export must resolve root parents from the live layer graph
+
+- **関連:** `Artifact/src/Export/ArtifactExportSession.cppm`、`Artifact/src/Export/ArtifactExportRmlUiWriter.cppm`、`Artifact/src/Export/ArtifactExportGamefaceWriter.cppm`、`Artifact/src/Export/ArtifactExportUnityUxmlWriter.cppm`、`Artifact/src/Export/ArtifactExportNoesisXamlWriter.cppm`
+- **事実:** Export のツリー構築は `parentLayerId().toString()` をそのまま使うと、未接続の新規レイヤーでルート判定が不安定になる可能性がある。Session では実際の `parentLayer()` が存在する場合だけ親 ID を保存するよう正規化した。
+- **価値または懸念:** 各 Writer が共通の空親 ID からルートを辿れるため、新規コンポジションのレイヤー欠落を防げる。親関係が壊れたプロジェクトでは、未接続レイヤーをルートとして扱うため、ランタイム側の修復状態を隠す可能性がある。
+- **次に確認すべきこと:** 実機検証で、新規レイヤー、親子レイヤー、親削除後の孤児レイヤーを各出力形式へ書き出し、ルートとネストが一致することを確認する。
+
+# 2026-08-09: Exported UI identifiers need an XML-safe leading character
+
+- **関連:** `Artifact/src/Export/ArtifactExportRmlUiWriter.cppm`、`Artifact/src/Export/ArtifactExportGamefaceWriter.cppm`、`Artifact/src/Export/ArtifactExportUnityUxmlWriter.cppm`、`Artifact/src/Export/ArtifactExportNoesisXamlWriter.cppm`
+- **事実:** レイヤー ID は UUID 由来のため数字始まりになり得る。Noesis の `x:Name` などの識別子へそのまま出すと不正またはターゲット参照不能になる可能性があるため、4 Writer の `safeId()` を英数字・アンダースコアへ正規化し、必要時に `layer_` を付けるよう統一した。
+- **価値または懸念:** 出力された UI ツリーの名前参照と CSS セレクターが安定する。一方、元レイヤー ID と外部スクリプトが直接結び付いている場合は、サニタイズ後 ID の対応表が別途必要になる。
+- **次に確認すべきこと:** 実機検証で数字始まり・記号を含むレイヤー ID を含むコンポジションを各形式へ出力し、参照とアニメーションターゲットが一致することを確認する。
+
+# 2026-08-09: Shared export asset names should be safe before format writers see them
+
+- **関連:** `Artifact/src/Export/ArtifactExportSession.cppm`、RmlUi / Gameface / Unity / Noesis の画像参照
+- **事実:** 元画像のファイル名をそのまま相対 URL に使うと、引用符や空白などが HTML/XML/CSS 属性を壊す可能性がある。Session の共有アセット収集でコピー先名を正規化し、同名衝突時は連番を付けるようにした。
+- **価値または懸念:** Writer ごとの個別エスケープに依存せず、全形式で同じ安全な参照パスを利用できる。既存の外部スクリプトが元ファイル名を期待する場合は、出力アセット名との対応表が必要になる。
+- **次に確認すべきこと:** 実機検証で空白・記号・非 ASCII を含む画像名を含むコンポジションを出力し、コピー先と各形式の参照が一致することを確認する。
+
+# 2026-08-09: Unity UI Toolkit image backgrounds need explicit dimensions
+
+- **関連:** `Artifact/src/Export/ArtifactExportUnityUxmlWriter.cppm`
+- **事実:** Unity UI Toolkit の通常画像は `VisualElement` の `background-image` だけでは自然サイズがレイアウトされず、幅・高さが 0 になる可能性がある。コピー後の画像実寸をフォールバックにし、シリアライズ済みの `image.width` / `image.height` を優先して USS に出力するようにした。
+- **価値または懸念:** 静止画レイヤーが Unity UI Toolkit 上で可視になる条件を明示できる。実機の UI Toolkit バージョンによる background-image のレイアウト差は残るため、実ランタイム確認が必要。
+- **次に確認すべきこと:** Unity UI Toolkit で通常画像、画像列ベイク画像、異なるスケール設定のレイヤーを読み込み、表示サイズと位置を確認する。
+
+# 2026-08-09: Export keyframe joins must carry forward the latest property value
+
+- **関連:** `Artifact/src/Export/ArtifactExportRmlUiWriter.cppm`、`Artifact/src/Export/ArtifactExportGamefaceWriter.cppm`、`Artifact/src/Export/ArtifactExportUnityUxmlWriter.cppm`、`Artifact/src/Export/ArtifactExportNoesisXamlWriter.cppm`
+- **事実:** 各 Writer は位置・回転・スケールのキーをまとめて出力する際、別プロパティのキーが存在しないフレームで初期値へフォールバックしていた。これにより、位置だけを変更した後に回転キーを通過すると位置が一時的に戻る出力になり得た。
+- **気づき（未検証）:** 同一タイムライン上の異なるプロパティを疎なキー列から構成する場合、各プロパティは指定フレーム以下の最新キーを保持する必要がある。Writer側でこの解決を統一すれば、Core側のアニメーションモデルを変更せずに形式間の挙動を揃えられる。
+- **価値／懸念:** CSS、USS、Noesis Storyboard のキーフレーム結合が安定する一方、Bezier補間やイージングはまだ各形式の表現力に依存する。
+- **次に確認すべきこと:** 実機検証で位置・回転・スケールを異なるフレームに設定したレイヤーを出力し、各ランタイムで初期値への瞬間的な戻りがないことを確認する。
+
+# 2026-08-09: Export animations need an explicit base frame before the first key
+
+- **関連:** `Artifact/src/Export/ArtifactExportRmlUiWriter.cppm`、`Artifact/src/Export/ArtifactExportGamefaceWriter.cppm`、`Artifact/src/Export/ArtifactExportUnityUxmlWriter.cppm`、`Artifact/src/Export/ArtifactExportNoesisXamlWriter.cppm`、`Artifact/src/Export/ArtifactExportLottieWriter.cppm`
+- **事実:** Writer の統合キー列にコンポジション開始フレームが含まれていないと、最初のキーが後ろにあるアニメーションで、ランタイムの fill／最初のキーフレーム解釈に開始時のベース変換を委ねることになる。
+- **気づき（未検証）:** 出力形式ごとの fill-mode 差を避けるには、CSS／USS／Storyboard へ開始フレームを追加し、Lottie へもベース値の初期キーを追加する必要がある。
+- **価値／懸念:** 遅延開始アニメーションの先行表示を防げる一方、Lottie のキー時刻と各ランタイムのフレーム原点が一致することは実機確認が必要。
+- **次に確認すべきこと:** 開始フレーム後に最初のキーを置いたレイヤーを各形式へ出力し、開始時にベース変換が維持されることを確認する。
+
+# 2026-08-09: Export writers must preserve layer in/out visibility
+
+- **関連:** `Artifact/src/Export/ArtifactExportRmlUiWriter.cppm`、`Artifact/src/Export/ArtifactExportGamefaceWriter.cppm`、`Artifact/src/Export/ArtifactExportUnityUxmlWriter.cppm`、`Artifact/src/Export/ArtifactExportNoesisXamlWriter.cppm`
+- **事実:** Lottie とベイク画像列にはレイヤーの in/out が出力されていたが、通常変換レイヤーの HTML/CSS・USS・Noesis 経路はレイヤー要素を常時表示していた。Gameface のベイク列も画像差し替えだけで時間範囲を制御していなかった。
+- **気づき（未検証）:** 通常変換では変換キーフレームへ opacity の時間列を統合し、ベイク列では CSS／USS の可視アニメーションまたは Gameface のフレーム更新時 opacity、Noesis の opacity storyboard を使うのが最小の共通境界になる。
+- **価値／懸念:** レイヤーの時間範囲が形式間で揃う一方、各ランタイムの animation fill と離散キーフレームの境界時刻は実機で確認する必要がある。
+- **次に確認すべきこと:** レイヤー in/out がコンポジションの途中にある静止レイヤー、通常アニメーション、ベイク列を各形式で読み込み、開始前と終了後に非表示になることを確認する。
+
+# 2026-08-09: Pre-render scale belongs at the export boundary
+
+- **関連:** `Artifact/src/Export/ArtifactExportDialog.cppm`、`Artifact/src/Export/ArtifactExportPreRenderPipeline.cppm`、5形式の Export Writer
+- **事実:** PreRender API は解像度を受け取れたが、Writer と Export Dialog から倍率を指定する契約がなく、実際の出力は常にレイヤーの基準サイズだった。
+- **気づき（未検証）:** 1x〜4xの倍率を各Writerへ個別に実装するより、Writer options から `ArtifactExportPreRenderSequenceOptions` へ倍率を渡し、PreRender側で1〜4にクランプする境界が形式間で一貫する。
+- **価値／懸念:** 高密度UI向けのベイク品質を選べる一方、倍率を上げるとGPUメモリ・書き出し時間・画像容量が増えるため、実機で許容値を確認する必要がある。
+- **次に確認すべきこと:** 同一ベイク対象を1x、2x、4xで出力し、画像寸法、各形式の表示サイズ、ランタイムのメモリ使用量を比較する。
+
+# 2026-08-10: MediaPlaybackController requires fallback FPS for unresolvable video streams
+
+- **関連:** `ArtifactCore/src/Media/MediaPlaybackController.cppm`
+- **事実:** 一部動画（MKV/WebM等の特定ストリーム）で FFmpeg の `avg_frame_rate` / `av_guess_frame_rate` / `r_frame_rate` / `nb_frames` の全抽出ルートが失敗し `fps_` が 0.0 のままとなるケースがあった。`fps_ <= 0.0` の場合、`decodeVideoFrameDirectAtFrameRaw` が `invalid state` と判定して全フレームデコードを拒否し、黒画面が発生していた。
+- **気づき（未検証）:** `fps_` 確定の直後に `fps_ <= 0.0` 時のデフォルト値（30.0 fps）をセットするフォールバックを入れることで、ヘッダ情報が欠損・特殊なフォーマットでもデコード試行がスキップされずプレビュー画面が表示される。
+- **価値／懸念:** 未対応・欠損ヘッダ動画の再生不能（黒画面）を低リスクで回復できる一方、実際の可変フレームレートや異質FPS素材では再生速度のズレが生じる可能性がある。
+- **次に確認すべきこと:** ビルド確認後、実機にて FPS ヘッダが取れない動画ファイルを読み込み、黒画面にならずデコード・プレビュー描画が行われるか検証する。
+
+# 2026-08-10: Hidden matte sources must remain in the source-resolution path
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`、`Artifact/src/Render/ArtifactRenderQueueService.cppm`
+- **事実:** Render Queue と preflight は hidden な matte source を参照対象として扱う一方、Composition Editor の GPU source 収集は source 候補を `isLayerEffectivelyVisible()` で先に除外していた。また、CPU evaluator は source が欠けた matte だけを飛ばして残りを部分適用していたが、GPU は欠損時にレイヤーを無加工へ戻す。
+- **価値または懸念:** hidden source の matte が preview と Render Queue で一致し、欠損 source による部分マスクで意図しない透明化が起きにくくなる。欠損時は unmasked fallback になるため、preflight／診断で原因を知らせる運用は必要。
+- **次に確認すべきこと:** ビルド・実機で hidden source、欠損 source、同一フレームの複数 consumer、source crop 変更を preview と Render Queue で比較する。
+
+# 2026-08-10: GPU matte batches need per-source blend and opacity
+
+- **関連:** `ArtifactCore/include/Graphics/Shader/Compute/LayerBlendPipeline.ixx`、`ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- **事実:** GPU の3入力 matte shader は共通の stack mode と master opacity しか受け取れず、異なる blend mode／opacity や Difference を逐次 fallback していた。CPU evaluator は source ごとに opacity を適用してから各 blend mode で一つの mask に合成する。
+- **価値または懸念:** shader に source ごとの blend mode・opacity を渡し、最大3参照を一回で合成できるようにしたため、混在した matte 設定でも CPU の合成順序に近づく。4参照以上の GPU 経路と実ランタイムの parity は未検証。
+- **次に確認すべきこと:** ビルド・実機で Add／Intersect／Subtract／Difference と異なる opacity を2〜3枚組み合わせ、CPU・GPU・Render Queue の結果を比較する。
+
+# 2026-08-10: Composition preview keeps a separate CPU matte evaluator
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- **事実:** Composition Editor の通常描画は共有 `applyLayerMatteReferencesToSurface` ではなく、controller 内の QImage／ImageF32x4 の `applyLayerMatteToSurface` overload を呼び出していた。この経路にも Luma の premultiplied RGB 読み取りと、欠損 source を除外して残りだけ適用する挙動が残っていた。
+- **価値または懸念:** preview の CPU 経路も straight-alpha Luma と欠損時 unmasked fallback に揃え、GPU／Render Queue との表示差を減らした。古い未使用 evaluator の整理は別作業として残る。
+- **次に確認すべきこと:** ビルド・実機で通常 CPU preview、GPU preview、Render Queue の Luma・透明色・欠損 source を比較する。
+
+# 2026-08-10: GPU preview must not silently miscombine more than three mattes
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`
+- **事実:** UI と CPU evaluator は4枚以上の matte reference を保持・合成できるが、Composition Editor GPU の track-matte pipeline は3 texture slot までである。4枚以上を逐次 shader pass へ送ると、source ごとの blend mode を一つの合成 mask として扱えない。
+- **価値または懸念:** GPU preview は4枚以上を誤った部分マスクとして表示せず、警告付きの無加工 fallback にする。GPU preview での4枚以上の完全対応は別途 multi-pass mask 設計が必要。
+- **次に確認すべきこと:** 4枚以上の matte を作成し、GPU preview が警告と無加工表示になり、CPU preview／Render Queue は全参照を合成することを実機で確認する。
+
+# 2026-08-10: MatteTrackParams needs a fixed constant-buffer size contract
+
+- **関連:** `ArtifactCore/include/Graphics/Shader/Compute/LayerBlendPipeline.ixx`、`ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`
+- **事実:** CPU の `MatteTrackParams` は HLSL constant buffer へ `memcpy` され、field の追加・並び替えがコンパイル時に GPU layout mismatch として検出される仕組みがなかった。
+- **価値または懸念:** 48 bytes（16-byte register 3個）の static assertion を追加し、将来の field 変更で shader 側だけ値がずれる事故を早期検出できる。field の意味・順序そのものは HLSL と手動で保つ必要がある。
+- **次に確認すべきこと:** ビルド時に assertion が成立することと、実機で3枚 matte の各 blend／opacity が対応することを確認する。
+
+# 2026-08-10: Matte source layer opacity order remains a specification gap
+
+- **関連:** `ArtifactCore/docs/MILESTONE_TRACK_MATTE_CORE_2026-03-26.md`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Render/ArtifactRenderQueueService.cppm`
+- **事実:** Core milestone は visibility／opacity／matte の適用順を固定する項目を残している。現行の source resolver は source layer の画像を取得し、参照側 `LayerMatteReference::opacity` は適用するが、source layer 自身の opacity を matte 値へ掛ける明示処理は確認できない。
+- **気づき（未検証）:** source layer opacity を matte に含める仕様なら、preview／Render Queue／GPU source upload の全 resolver で同じ順序を実装する必要がある。逆に source opacity を無視する仕様なら、現状を契約として Core 文書へ明記すべき。
+- **価値／懸念:** 曖昧なまま局所修正すると backend 間の差を増やすため、実装前に source opacity の期待結果を決める必要がある。
+- **次に確認すべきこと:** matte source の opacity を0／0.5／1にしたとき、製品仕様として target mask が変わるべきかを確認する。
+# 2026-08-10: Core MatteEvaluator の合成則を MatteStack と一致させた
+
+- **関連:** `ArtifactCore/src/Layer/LayerMatte.cppm` の `MatteEvaluator::combine()`、`ArtifactCore/include/Layer/LayerMatte.ixx` の `evaluateMatteStack()`、アクティブな LayerMatteReference 評価。
+- **確認できた事実:** `evaluateMatteStack()` と表示側の LayerMatteReference 評価は Common/Intersect を `min(current, next)`、Subtract を `max(0, current - next)` としている。一方、Core の `MatteEvaluator::combine()` だけが Common を乗算、Subtract を `current * (1 - next)` としていた。
+- **対応:** Core の公開 evaluator を既存のスタック評価へ合わせ、同じ MatteStack semantics を共有するようにした。`MatteEvaluator::` の呼び出し箇所はこの散歩時点では検出されていないため、既存利用箇所の動作変更は確認できていない。
+- **未確認:** ビルド・テストは AGENTS.md の指示により未実行。将来 `MatteEvaluator` を再利用する場合は、`MatteStackMode` と `MatteBlendMode` の対応を一つの共通実装へ整理できるか検討する。
+# 2026-08-10: evaluateMatteStack の初回値と空スタックを中立化
+
+- **関連:** `ArtifactCore/include/Layer/LayerMatte.ixx` の `evaluateMatteStack()`。
+- **確認できた事実:** 結果をゼロ初期化したまま最初の有効 source に `Common` / `Subtract` の合成則を適用していたため、最初の matte が常にゼロへ潰れる場合があった。また、有効 node がない stack はゼロ mask を返していたが、`MatteEvaluator::evaluate()` は空入力を1.0として扱っている。
+- **対応:** 最初の有効 matte mask はそのまま初期値として採用し、有効 node がない場合は全ピクセルを1.0にした。2枚目以降は既存の Add / Common / Subtract 規則を適用する。
+- **未確認:** source が不足する enabled node の fallback は milestone 上も未確定のため、今回変更していない。ビルド・テストも未実行。
+# 2026-08-10: evaluateMatteStack の nil source が後続 source の対応をずらす
+
+- **関連:** `ArtifactCore/include/Layer/LayerMatte.ixx` の `evaluateMatteStack()` と `MatteStack::sourceLayerIds()`。
+- **確認できた事実:** `sourceLayerIds()` は enabled かつ non-nil の node だけを source 配列へ対応させる一方、`evaluateMatteStack()` は enabled であれば nil source でも `sourceIndex` を消費していた。nil node の後ろに有効 node があると、後続 source が前の node に誤対応する。
+- **対応:** stack 評価でも nil source node をスキップし、source 配列の対応規則を `sourceLayerIds()` と揃えた。
+- **未確認:** ビルド・テストは未実行。missing な non-nil source の fallback 規則は引き続き未確定。
+# 2026-08-10: MatteStack の nil layer ID を cycle と誤判定しない
+
+- **関連:** `ArtifactCore/include/Layer/LayerMatte.ixx` の `MatteStack::hasCycleWithLayer()`。
+- **確認できた事実:** nil の `layerId` を渡した場合、enabled な nil source node と `nil == nil` が成立し、実在しないレイヤーを cycle と報告し得た。
+- **対応:** nil の引数を即時 false とし、source 側も non-nil の場合だけ比較するようにした。
+- **未確認:** この Core helper の実利用箇所は散歩時点で検出されていない。ビルド・テストは未実行。
+# 2026-08-10: MatteStack::isEmpty を有効な source 基準へ揃えた
+
+- **関連:** `ArtifactCore/include/Layer/LayerMatte.ixx` の `MatteStack::isEmpty()`、`sourceLayerIds()`、`evaluateMatteStack()`。
+- **確認できた事実:** `isEmpty()` だけが enabled かどうかのみを見ており、nil source の node だけでも non-empty を返していた。他の評価・source 列挙 API は nil source を除外している。
+- **対応:** enabled かつ non-nil source が存在する場合だけ non-empty と判定するように統一した。
+- **未確認:** ビルド・テストは未実行。missing な non-nil source の扱いは別途仕様確定が必要。
+# 2026-08-10: 旧 MatteStack CPU helper も初回 mask と nil source を Core と一致させた
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` の `applyMatteStackToSurface()`。
+- **確認できた事実:** この helper は散歩時点で caller を検出していないが、Core の `MatteStack` と同じ `Add / Common / Subtract` を実装していた。初回 mask をゼロから Common 合成し、nil source node でも source index を消費するため、再利用時に Core と結果が分岐する状態だった。
+- **対応:** nil source をスキップし、最初の有効 source mask をそのまま採用してから2枚目以降を合成するよう揃えた。
+- **未確認:** helper の実 runtime caller、ビルド・テストは未確認・未実行。
+# 2026-08-10: MatteNode の欠落 mode は Alpha default を維持する
+
+- **関連:** `ArtifactCore/include/Layer/LayerMatte.ixx` の `MatteNode` constructor / `fromJson()`。
+- **確認できた事実:** constructor の既定 mode は `Alpha` だが、JSON に `mode` がない場合も `fromString("")` を通るため `None` へ変わっていた。保存データの欠落フィールドに対する既定値が一致していなかった。
+- **対応:** `mode` が存在するときだけ復元し、欠落時は constructor の `Alpha` を保持するようにした。明示された未知・空文字の扱いは既存 parser のまま維持した。
+- **未確認:** ビルド・テストは未実行。
+# 2026-08-10: 無効な matte 参照では Composition View の cache を bypass しない
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` の `drawLayerForCompositionView()`。
+- **確認できた事実:** `matteSourceImages` が存在し、`matteReferences()` が空でないだけで `hasResolvedMattes` が true になり、disabled／nil 参照しかないレイヤーでも surface／static／GPU texture cache を無効化していた。
+- **対応:** enabled かつ non-nil の matte reference が実際にある場合だけ matte 適用と cache bypass を有効にした。描画結果は変えず、不要な再計算を避ける修正。
+- **未確認:** runtime 性能とビルド・テストは未確認・未実行。
+# 2026-08-10: Composition View の matte fast-path 判定を有効参照基準へ統一
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` の effect／CV 境界判定。
+- **確認できた事実:** `buildRasterizedSurfaceBuffer()` の2つの overload は、disabled／nil matte だけでも `!matteReferences().empty()` により重い mask／effect 経路を選択していた。実際の matte 適用と Render Queue の source 収集は enabled かつ non-nil を基準にしている。
+- **対応:** `hasEnabledMatteReferences()` を追加し、2つの fast-path 判定を有効参照基準へ変更した。無効な参照の描画結果は従来と同じで、不要な処理だけを避ける。
+- **未確認:** runtime 性能、ビルド・テストは未確認・未実行。
+# 2026-08-10: Render Controller の direct matte 判定を有効参照基準へ統一
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の 3D direct-card、frame-buffer、scene-depth shortcut。
+- **確認できた事実:** 6箇所が `matteReferences().empty()` だけで shortcut の可否を決めていたため、disabled／nil 参照だけでも direct path を拒否していた。Composition View 側は既に enabled かつ non-nil を基準にしている。
+- **対応:** `layerHasEnabledMatteReferences()` を追加し、6箇所を同じ有効参照判定へ変更した。
+- **未確認:** runtime の direct path 選択と性能、ビルド・テストは未確認・未実行。
+# 2026-08-10: LayerMatteReference の JSON opacity を有限・範囲内へ正規化
+
+- **関連:** `Artifact/include/Layer/ArtifactLayerMatte.ixx` の `LayerMatteReference::fromJson()`。
+- **確認できた事実:** JSON から復元した `opacity` を無検証で float 化しており、範囲外や非有限値が matte evaluator／GPU parameter へ伝播する余地があった。評価側の期待契約は 0〜1。
+- **対応:** 復元時に有限値を確認し、有限なら 0〜1 に clamp、非有限なら既定値 1.0 を採用するようにした。
+- **未確認:** ビルド・テストは未実行。
+# 2026-08-10: LayerMatteReference の JSON enum を範囲検証
+
+- **関連:** `Artifact/include/Layer/ArtifactLayerMatte.ixx` の `LayerMatteReference::fromJson()`。
+- **確認できた事実:** `type`、`blendMode`、`fitMode` を無検証で enum cast していた。範囲外値は matte 抽出、合成、fit の switch default へ流れ、入力値によって source が無視されたり意図しない既定経路になったりする。
+- **対応:** 各 enum の有効値を4値として検証し、範囲外は既存の Alpha／Add／Stretch default へ戻すようにした。
+- **未確認:** ビルド・テストは未実行。
+# 2026-08-10: MatteNode の欠落 id は自動生成 ID を維持する
+
+- **関連:** `ArtifactCore/include/Layer/LayerMatte.ixx` の `MatteNode` constructor / `fromJson()`。
+- **確認できた事実:** constructor は自動 ID を作るが、JSON の `id` が欠落している場合も空文字へ上書きしていた。Artifact 側の `LayerMatteReference::fromJson()` は欠落時に既存 ID を保持する。
+- **対応:** `id` が存在するときだけ復元値で上書きし、欠落時は constructor の自動生成 ID を保持するようにした。
+- **未確認:** ビルド・テストは未実行。
+# 2026-08-10: MatteNode::order は保存されるが評価順との契約が未確定
+
+- **関連:** `ArtifactCore/include/Layer/LayerMatte.ixx` の `MatteNode::order()`、`MatteStack::toJson()`、`evaluateMatteStack()`。
+- **確認できた事実:** `order_` は constructor、getter/setter、JSON serialization に存在するが、現行の stack evaluation と `sourceLayerIds()` は `nodes_` の配列順だけを使い、order 値を参照していない。
+- **気づき（未検証）:** `order` が合成順の正規値なら、JSON 復元後や UI reorder 後に評価順が一致しない可能性がある。逆に配列順が正規なら、order は表示・移行用の補助値として文書化が必要。
+- **対応:** 仕様根拠がないため今回は実装を変更せず、次に確認すべき契約として記録した。
+# 2026-08-10: Render Queue の self-matte 重複診断を抑制
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm` の `appendMatteReferenceDiagnostics()`。
+- **確認できた事実:** self-reference は専用の Matte エラーとして報告された後、同じ layer を cycle DFS に通すことで CircularDep エラーも追加され、単一の不正参照が2件に重複していた。
+- **対応:** cycle DFS の各ノードから self-edge だけを除外し、専用エラー1件に統一した。self-reference と別の複数 layer cycle が併存する場合も、後者の DFS は維持する。
+- **未確認:** ビルド・テストは未実行。
+# 2026-08-10: Render Queue の self-matte source を runtime map へ入れない
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm` の software／GPU matte source 収集。
+- **確認できた事実:** preflight は self-reference をエラーにするが、3つの source 収集経路は対象 layer 自身を source map に追加できた。その場合、破損 project JSON では self-matte が実際に適用され、preflight の error 契約と runtime fallback が一致しなかった。
+- **対応:** source map への収集時に `matteRef.sourceLayerId == layer->id()` を除外し、既存の missing-source unmasked fallback へ揃えた。
+- **未確認:** Composition View の malformed self-reference 実機挙動、ビルド・テストは未確認・未実行。
+# 2026-08-10: Composition Render Controller の self-matte source 収集を抑制
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の CPU cache 用 matte source 収集と GPU 事前収集。
+- **確認できた事実:** Render Queue 側は self-reference を source map へ入れない一方、Controller の2経路は対象 layer 自身の ID を resolver へ渡し得た。
+- **対応:** self-reference を両経路で除外し、missing source 時の既存 unmasked fallback と揃えた。
+- **未確認:** ビルド・テストは未確認・未実行。
+
+# 2026-08-10: matte snapshot を Undo memory 見積もりへ反映
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm` の Add／Remove layer command。
+- **確認できた事実:** 依存 matte snapshot を追加した後も `estimatedMemoryBytes()` は command 本体と ID だけを数えていた。
+- **対応:** snapshot 内の matte reference 数をメモリ見積もりに加えた。
+- **未確認:** 実際の Undo manager eviction／offload 動作は未確認。
+
+# 2026-08-10: Add／Remove matte snapshot の macro 順序を確認
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、Safe Delete／Paste／Quick Layer の `MacroUndoCommand` 利用箇所。
+- **確認結果:** snapshot は command 作成時点の同一 composition 内依存だけを保持し、Undo 時に依存 layer が存在する場合だけ復元する。複数削除の逆順 Undo でも detached layer へ参照を戻す経路は無かった。
+- **未確認:** 実行時 Undo／Redo は未確認・未実行。
+
+# 2026-08-10: Layer matte JSON 欠落時の clear は partial apply と衝突
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `fromJsonProperties()`、各 layer factory。
+- **確認できた事実:** `mattes` は key がある場合だけ置換される。`fromJsonProperties()` は新規 factory だけでなく部分プロパティ適用からも呼ばれるため、key 欠落時の無条件 clear は既存 matte を意図せず消す可能性がある。
+- **対応:** 完全復元 caller は新規 layer を生成することを確認し、今回は clear 挙動を変更しない。
+- **未確認:** 全 importer／partial property update の実行時網羅は未確認。
+
+# 2026-08-10: App matte 診断で nil source を未接続として扱う
+
+- **関連:** `Artifact/src/Diagnostics/AppValidationRules.cppm` の `ArtifactMatteReferenceRule`。
+- **確認できた事実:** App 側は enabled かつ nil の matte reference を空 ID の missing source として報告していたが、Core 診断・描画側は nil を未接続として無視している。
+- **対応:** App 診断でも nil source を skip し、診断と描画の active 条件を揃えた。
+- **未確認:** 実 Project Health UI／診断実行は未確認・未実行。
+
+# 2026-08-10: cycle 診断の source layer を実際の cycle 内へ修正
+
+- **関連:** `Artifact/src/Diagnostics/AppValidationRules.cppm` の `ArtifactMatteReferenceRule`。
+- **確認できた事実:** cycle 検出時の診断 `sourceLayerId` が探索開始 layer に設定され、cycle の外側にある layer を指す場合があった。
+- **対応:** 検出された cycle の反復 ID (`cycleId`) を診断 source として設定するようにした。
+- **未確認:** Project Health UI での選択／フォーカス動作は未確認。
+
+# 2026-08-10: matte 削除／Undo 修正を Core milestone 要件と照合
+
+- **関連:** `ArtifactCore/docs/MILESTONE_TRACK_MATTE_CORE_2026-03-26.md` の Phase 1／3／4、Composition 削除と `RemoveLayerCommand`。
+- **確認結果:** dangling dependency の除去と Undo 復元は source missing／serialization／diagnostics の責務に整合し、matte の評価規則や UI 責務を変更していない。
+- **未確認:** 実行時の Undo／Redo とプロジェクト再保存は未確認。
+
+# 2026-08-10: AddLayer Undo でも依存 matte を復元
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm` の `AddLayerCommand`。
+- **確認できた事実:** Add の Undo も低レベル `removeLayer()` を通るため、追加 layer を参照する既存 matte があれば削除時に失われ得た。
+- **対応:** Remove と同じ依存 snapshot／Undo 復元を追加し、依存 snapshot 付き command は serialize 不可とした。
+- **未確認:** ビルド・テストは未確認・未実行。
+
+# 2026-08-10: RemoveLayer Undo で dangling matte 掃除を復元
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm` の `RemoveLayerCommand`。
+- **確認できた事実:** Composition の低レベル削除で参照を掃除すると、Undo は削除対象 layer だけを戻し、他 layer の matte 参照を失ったままだった。
+- **対応:** 削除前の依存 layer／matte 配列を保持し、Undo 時に復元するようにした。依存スナップショットを持つ command は未対応の永続化を避けるため serialize 不可とした。
+- **未確認:** ビルド・テストは未確認・未実行。
+
+# 2026-08-10: Core matte evaluator と実アプリ描画経路を区別
+
+- **関連:** `ArtifactCore/include/Layer/LayerMatte.ixx` の `evaluateMatteStack()`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の `evaluateLayerMatteReferences()`。
+- **確認できた事実:** リポジトリ内の現行アプリ側呼び出しは後者で、Core の `evaluateMatteStack()` は定義のみだった。
+- **価値:** matte 結果の修正時に、Core API を変えても Preview／Render Queue が変わらない経路を誤って対象にしないための境界情報になる。
+- **未検証:** 将来の外部利用者や `Artifact_dev_review` 側からの利用有無は未確認。
+
+# 2026-08-10: shared CPU matte の欠損 source fallback を GPU と照合
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` の `applyLayerMatteReferencesToSurfaceImpl()`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の GPU track-matte 適用。
+- **確認できた事実:** CPU 側は active source を全件 preflight し、1件でも欠ければ元 surface を返す。GPU 側も missing source を検出した場合は unmasked layer に戻る。
+- **確認結果:** 欠損 source の途中までを部分適用する CPU／GPU の分岐は現行経路では確認されなかった。
+- **未確認:** 実 GPU／実フレームでの表示一致は未確認。
+
+# 2026-08-10: GPU matte 適用関数でも self-reference を防御的に除外
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の GPU track-matte 適用関数。
+- **確認できた事実:** 通常の source map 構築では self-reference を除外していたが、適用関数内の batch／fallback 収集条件には self 判定が無かった。
+- **対応:** 適用関数自身でも target layer と同じ source ID を無視するようにした。
+- **未確認:** ビルド・実 GPU 実行は未確認・未実行。
+
+# 2026-08-10: Composition 低レベル削除でも dangling matte を掃除
+
+- **関連:** `Artifact/src/Composition/ArtifactAbstractComposition.cppm` の `Impl::removeLayer()`。
+- **確認できた事実:** Project Service 経由の削除には matte 参照掃除があったが、Composition の直接 `removeLayer()`／`removeLayerById()` は parent link の解除だけで、他レイヤーから削除対象への matte 参照を残していた。
+- **対応:** 共有の低レベル削除処理でも削除対象 ID を指す matte 参照を除去し、変更を通知するようにした。
+- **未確認:** ビルド・テストは未確認・未実行。
+
+# 2026-08-10: shared Composition View と Render Queue の self matte 境界を照合
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`、`Artifact/src/Render/ArtifactRenderQueueService.cppm`、GPU source map 構築。
+- **確認できた事実:** source map 構築、active matte 判定、shared surface 適用入口はいずれも enabled・non-nil・non-self を条件としていた。
+- **確認結果:** Render Queue だけが self matte を収集する残存経路は確認されなかった。
+- **未確認:** 実フレームでの Preview／Render Queue 画素一致は未確認。
+
+# 2026-08-10: disabled matte をリンク切れ表示から除外
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm` の matte 行描画。
+- **確認できた事実:** disabled な参照も `matteBroken` 検査に入り、無効化済みの nil／削除済み source で警告表示になっていた。
+- **対応:** 設定済み参照のバッジは維持しつつ、リンク切れ判定は enabled な参照だけを検査するようにした。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: matte JSON の空 sourceLayerId と legacy assetId を正規化
+
+- **関連:** `Artifact/include/Layer/ArtifactLayerMatte.ixx` の `LayerMatteReference::fromJson()`。
+- **確認できた事実:** `sourceLayerId` キーが存在しても空文字なら、旧 `assetId` が同時に存在する移行途中 JSON を legacy fallback から遮っていた。
+- **対応:** 空でない `sourceLayerId` を優先し、空なら `assetId` を fallback、両方なければ明示的に nil へ戻すようにした。既存インスタンス再利用時の stale state も残さない。
+
+# 2026-08-10: Composition Controller の matte source 収集ゲートを active 判定へ統一
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の `applySurfaceAndDraw`。
+- **確認できた事実:** source 収集ループ自体は disabled・nil・self を除外していたが、入口だけ raw な `matteReferences().size() > 0` 判定だった。
+- **対応:** 既存の `layerHasEnabledMatteReferences()` を入口にも使い、実際に収集対象となる matte がある場合だけ resolver を呼ぶようにした。
+- **未確認:** ビルド・テストは未確認・未実行。
+
+# 2026-08-10: matte 状態サマリーを active 参照へ統一
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactLayerPanelPresentation.cppm`、`Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`、`Artifact/src/Widgets/ArtifactTimelineWidget.cppm`。
+- **確認できた事実:** 状態バッジと概要文が、disabled・nil・self のみの matte でも `Matted`／`Matte Linked` と表示していた。
+- **対応:** 描画経路と同じ enabled・non-nil・non-self 条件で状態サマリーを判定するようにした。設定自体を編集する matte 行の表示は維持した。
+- **未確認:** ビルド・テストは未確認・未実行。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: Visual Density の matte 複雑度を active 参照に限定
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の visual density overlay / visual score。
+- **確認できた事実:** density weight と visual score が matte 配列の件数をそのまま複雑度へ加算していたため、disabled/nil/self 参照も画面複雑度を水増ししていた。
+- **対応:** ヒューリスティックには enabled・非 nil・self 以外の matte 件数だけを使うようにした。診断用の HUD 件数表示は変更していない。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: Composition Editor の選択依存表示を active matte に限定
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm` の selected layer delete safety dialog。
+- **確認できた事実:** 外部依存の説明が matte の `enabled` / nil を確認せず、disabled または空 source の参照でも「選択レイヤーを使う」と表示し得た。
+- **対応:** enabled かつ非 nil の matte source だけを依存表示の対象にし、`LayerID` の文字列往復も除去した。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: Export Session の無効 matte による不要な pre-render を抑制
+
+- **関連:** `Artifact/src/Export/ArtifactExportSession.cppm` の `ArtifactExportSession::build()`。
+- **確認できた事実:** `requiresPreRender` と `preRenderReason` が matte 配列の非空だけを見ており、disabled/nil/self 参照でも export pre-render を要求していた。
+- **対応:** enabled・非 nil・self 以外の参照だけを active matte として判定し、欠落した別 layer ID は従来どおり active 扱いにした。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: Inspector の matte source 操作にも cycle guard を追加
+
+- **関連:** `Artifact/src/Widgets/ArtifactInspectorWidget.cppm` の `setMatteSourceToLayer()` / `addMatteSourceToLayer()`。
+- **確認できた事実:** Inspector は self-reference は拒否していたが、source layer から既存 matte chain を辿って対象へ戻る cycle は検査せず、Undo command を生成できた。
+- **対応:** Timeline の drag 操作と同じ全 enabled matte edge の到達検査を共通ローカル helper として追加し、source 設定・追加の両経路で拒否するようにした。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: 実アプリ診断経路にも matte 全参照 DFS を反映
+
+- **関連:** `Artifact/src/Diagnostics/AppValidationRules.cppm` の `ArtifactMatteReferenceRule`、`Artifact/src/Service/ArtifactProjectService.cppm` の診断登録。
+- **確認できた事実:** 実際のアプリ／Project Health 経路は Core の `MatteReferenceValidationRule` ではなく Artifact 側の同名ルールを登録していた。Artifact 側も最初の enabled matte source だけを cycle 検査していた。
+- **対応:** Artifact 側も全 enabled matte edge を DFS で辿り、self edge は既存の専用診断に任せ、canonical cycle key で重複を抑制するようにした。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: Render Queue の同一 matte cycle 重複診断を抑制
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm` の matte preflight DFS。
+- **確認できた事実:** A→B→A のような cycle は検出できていたが、A 起点では cycle node A、B 起点では cycle node B となり、`reportedCycleNodes` だけでは同じ cycle を2件報告し得た。
+- **対応:** DFS の cycle 部分を node ID の canonical key にして、同一 cycle を開始レイヤーによらず1件へ抑制した。self edge の除外は維持した。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: buildMatteStack の per-reference 情報保持は未検証
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `buildMatteStack()`、`Artifact/include/Layer/ArtifactLayerMatte.ixx` の `toCoreMatteNode()`、`ArtifactCore/include/Layer/LayerMatte.ixx`。
+- **確認できた事実:** `LayerMatteReference` の `opacity` と `blendMode` は Core `MatteNode` へ変換されず、Core `MatteStack` は stack 全体の `MatteStackMode` のみを持つ。現時点で `buildMatteStack()` の呼び出し元は検索上見つからない。
+- **気づき（未検証）:** 将来この convenience API を render 経路へ接続すると、現行の per-reference matte semantics が失われる可能性がある。
+- **対応:** Core 型の拡張や変換仕様の変更は、現在の描画経路に直接影響し得るため今回は実施せず、接続前に契約を確定する課題として記録した。
+# 2026-08-10: Core matte cycle diagnostics が最初の参照だけを辿る問題を修正
+
+- **関連:** `ArtifactCore/src/Diagnostics/ValidationRules.cppm` の `MatteReferenceValidationRule::validate()`。
+- **確認できた事実:** 旧実装は各 layer から最初の enabled matte source だけを選んで chain を辿っており、2本目以降の matte edge による cycle を検出できなかった。
+- **対応:** 全 enabled / 非 nil / 存在する matte edge を DFS で辿り、self edge は専用 Matte 診断に任せ、同一 cycle の重複診断を抑制するようにした。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: Render Layer Widget の self-matte 集計を抑制
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactRenderLayerWidgetv2.cppm` の surface inspect 表示と impact 依存集計。
+- **確認できた事実:** self-reference は描画 source から除外されている一方、UI の Matte 件数と matte input 影響 ID には残り得た。
+- **対応:** self-reference を有効 matte 件数・影響依存の集計から除外した。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: self-matte を高コスト経路の判定からも除外
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の active matte 判定。
+- **確認できた事実:** self-reference は source map から除外済みでも、matte が存在するだけで rasterized surface、cache bypass、GPU fast-path 除外の判定を通っていた。
+- **対応:** 対象 layer 自身を参照する matte は active matte 判定でも除外し、無効な self-reference が余計な高コスト経路を選ばないようにした。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: Inspector の無効 matte を警告状態から除外
+
+- **関連:** `Artifact/src/Widgets/ArtifactInspectorWidget.cppm` の `matteReferenceSummary()`。
+- **確認できた事実:** 無効化された参照も missing / nil / self の `hasInvalid` 判定に入り、実際には描画へ影響しない設定が Inspector の警告色・太字表示を誘発し得た。
+- **対応:** 参照内容の表示は維持しつつ、`hasInvalid` は enabled な参照だけで更新するようにした。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: 不正な matte ID で自動生成 ID を壊さない
+
+- **関連:** `Artifact/include/Layer/ArtifactLayerMatte.ixx` の `LayerMatteReference::fromJson()`。
+- **確認できた事実:** `LayerMatteReference` は構築時にランダム ID を生成するが、JSON の空値・不正値は `Id` のパース結果が nil となり、操作用 ID を上書きしていた。
+- **対応:** 非 nil と確認できた ID だけを復元し、欠落・空値・不正値では構築時の自動 ID を保持するようにした。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: Undo matte JSON の非オブジェクト要素を無視
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm` の `ChangeLayerMatteReferencesCommand::deserialize()`。
+- **確認できた事実:** 通常の layer 復元は `mattes` 配列内の object だけを追加する一方、Undo 復元は配列要素を無条件に `toObject()` して空の参照を追加していた。
+- **対応:** Undo 復元も非オブジェクト要素をスキップし、通常保存経路と同じ入力境界に揃えた。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: Undo matte JSON の必須配列を検証
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm` の `ChangeLayerMatteReferencesCommand::deserialize()`。
+- **確認できた事実:** `before` / `after` が欠落または非配列でも `QJsonValue::toArray()` が空配列を返し、復元コマンドが有効な layer に空 matte を適用し得た。
+- **対応:** 保存形式で必須の両フィールドが配列でない場合は deserialize を失敗させるようにした。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: 実適用 matte 経路の self 参照を除外
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`、`Artifact/src/Render/ArtifactRenderQueueService.cppm`。
+- **確認できた事実:** Controller の実際に呼ばれる QImage / F32 適用関数と共有 CPU 適用の呼び出し側は、self 参照を source 解決対象に含めていた。self の source map 不在を missing と同じ扱いにするため、他の有効 matte と併存すると matte 全体を未適用へ戻し得た。
+- **対応:** 各入口で self 参照を除外し、self 単独は無変更、他の参照は継続評価するようにした。
+- **未確認:** ビルド・テストは未確認・未実行。大規模な Render Controller の `diff --check` には既存の trailing whitespace 警告が残る。
+# 2026-08-10: Render Controller の matte 件数を実効値へ統一
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の visual density HUD と `FrameDebugSnapshot`。
+- **確認できた事実:** Timeline / Render Layer Widget は enabled・非 nil・非 self の matte だけを数える一方、Controller の HUD と debug snapshot は `matteReferences().size()` で設定行数を数えていた。
+- **対応:** 既存の描画判定と同じ active 条件を共有する件数ヘルパーを追加し、HUD・snapshot の件数と密度評価を実効状態へ揃えた。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: matte 補助表示の self 参照を除外
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の選択レイヤー補助表示。
+- **確認できた事実:** 実描画・件数集計では self matte を無効扱いにしている一方、選択レイヤーの matte source outline は self の bounds も表示対象にしていた。
+- **対応:** 補助表示でも self 参照を除外し、実効 matte と同じ表示境界に揃えた。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: Render Queue preflight の nil matte 診断を抑制
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm` の matte preflight。
+- **確認できた事実:** App／Core の matte 診断は enabled でも nil source を未設定として無視する一方、Render Queue preflight は nil source を missing source として報告していた。
+- **対応:** Render Queue も enabled・非 nil の参照だけを missing／hidden／cycle 診断の対象にした。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: Smart Solo の self matte 依存を除外
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm` の `collectSmartSoloLayerIds()`。
+- **確認できた事実:** self matte は visited ガードで再帰停止していたが、依存 edge として一度 source lookup・再帰呼び出しに入っていた。
+- **対応:** 現在の layer 自身を参照する matte は依存収集対象から明示的に除外し、実効 matte 判定と同じ境界にした。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: Importer 監査の matte 復元指摘は現行コードでは stale
+
+- **関連:** `docs/CORE_MODULE_QUALITY_AUDIT_2026-08-06.md`、`Artifact/src/Project/ArtifactProjectImporter.cppm`、`Artifact/src/Composition/ArtifactAbstractComposition.cppm`。
+- **確認できた事実:** 監査文書は Importer が layer ID・parent・track matte を復元しないと記載しているが、現行 Importer は `ArtifactAbstractComposition::fromJson()` を呼び、canonical factory と `fromJsonProperties()`、parent 解決 pass を通している。layer JSON の `mattes` もこの経路で読み込まれる。
+- **対応:** 現在の実装と矛盾する監査文書自体は今回の scope を広げて更新せず、runtime での保存→再読込確認が未実施であることだけを記録した。
+- **未確認:** ビルド・テスト・実ファイルの保存再読込は未確認・未実行。
+# 2026-08-10: Composition 復元時の layer ID を保持
+
+- **関連:** `Artifact/src/Layer/ArtifactLayerFactory.cppm`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`、`Artifact/src/Composition/ArtifactAbstractComposition.cppm`。
+- **確認できた事実:** layer JSON は `id` を保存しているが、factory 復元後に新規 ID のままだった。そのため parent・matte・clone などの layer ID 参照が保存直後の再読込で解決できなかった。
+- **対応:** factory の JSON 復元経路で有効な保存 ID を復元し、Composition 内で重複した場合だけ新規 ID に退避する setter を追加した。
+- **未確認:** ビルド・テスト・実ファイルの保存再読込は未確認・未実行。
+# 2026-08-10: 不正 layer 要素による parent 復元の添字ずれを修正
+
+- **関連:** `Artifact/src/Composition/ArtifactAbstractComposition.cppm` の `fromJson()` layer 復元。
+- **確認できた事実:** layer factory は object 要素と生成成功 layer だけを `loadedLayers` に追加する一方、parent pass は元 JSON 配列の添字を参照していた。不正要素や factory 失敗が前にあると、別 layer の `parentId` を適用し得た。
+- **対応:** 生成 layer と対応する JSON object を並行保持し、parent pass は対応ペアを使うようにした。
+- **未確認:** ビルド・テスト・実ファイルの保存再読込は未確認・未実行。
+# 2026-08-10: クリップ貼り付け時の layer ID 再利用を防止
+
+- **関連:** `Artifact/src/AppMain.cppm` の clip paste 経路。
+- **確認できた事実:** 貼り付け時に layer JSON を factory へそのまま渡しており、保存済みの自身の `id` を再利用して同一 Composition 内で ID が衝突し得た。
+- **対応:** 貼り付け前に自身の `id` だけを除去し、source layer ID など外部参照は保持したまま新規 layer ID を生成するようにした。
+- **未確認:** ビルド・テスト・実 UI 貼り付けは未確認・未実行。
+# 2026-08-10: Clipboard / Project Bundle の layer 復元 factory 経路を修正
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Application/ArtifactProjectBundleIpc.cppm`。
+- **確認できた事実:** 両貼り付け経路が abstract layer の基底 `fromJson()` を直接呼んでいたが、その実装は nullptr を返すため、JSON layer を生成できなかった。
+- **対応:** `ArtifactLayerFactory::createFromJson()` を使用し、貼り付け時は自身の `id` を除去して新規 ID を生成するようにした。
+- **未確認:** ビルド・テスト・実 UI 貼り付けは未確認・未実行。
+# 2026-08-10: 複数 layer 貼り付けの内部 ID 参照を remap
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Application/ArtifactProjectBundleIpc.cppm`。
+- **確認できた事実:** 貼り付け各 layer の自身の ID は新規化しても、選択集合内の parent / matte source は旧 ID のまま残り、新規 layer 間の参照が切れる可能性があった。
+- **対応:** 追加前に旧→新 ID を収集し、全 layer 追加後に集合内の parent / matte source だけを新 ID へ置換した。集合外の参照は変更していない。
+- **未確認:** ビルド・テスト・複数 layer の実 UI 貼り付けは未確認・未実行。
+# 2026-08-10: 複数 layer 貼り付けの clone source も remap
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Application/ArtifactProjectBundleIpc.cppm`、`Artifact/src/Layer/ArtifactCloneLayer.cppm`。
+- **確認できた事実:** clone layer は `clone.sourceLayerId` という別の layer ID 参照を持ち、parent / matte だけの remap ではコピー集合内の clone source が旧 layer を指し続けた。
+- **対応:** clone settings の source ID も集合内の旧→新マップで置換し、集合外の source は維持した。
+- **未確認:** ビルド・テスト・複数 layer の実 UI 貼り付けは未確認・未実行。
+# 2026-08-10: Edit Menu の layer 貼り付けを factory 経路へ統一
+
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactEditMenu.cppm`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`。
+- **確認できた事実:** Edit Menu の貼り付けも abstract layer の基底 `fromJson()` を直接呼んでおり、JSON layer を生成できなかった。
+- **対応:** `ArtifactLayerFactory::createFromJson()` を使い、貼り付け時の自身の ID は除去して新規 ID を生成するようにした。
+- **未検証:** Material Container / Group の legacy embedded child は factory module との循環を避けるため未変更。軽量 deserializer 分離が必要。
+# 2026-08-10: 復元用 layer ID setter の接続後変更を防止
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `setId()`、`ArtifactCore/include/Container/MultiIndexContainer.ixx`。
+- **確認できた事実:** Composition は layer の ID を `byId_` 索引にも保持するため、接続後に layer 自身の ID だけ変更すると検索索引と実体が不一致になる。
+- **対応:** ID 復元 setter は未接続 layer かつ non-nil ID の場合だけ有効にした。
+- **未確認:** ビルド・テストは未確認・未実行。
+# 2026-08-10: Material Container の embedded layer 復元は production 経路
+
+- **関連:** `Artifact/src/Layer/ArtifactMaterialContainerLayer.cppm`、`Artifact/src/Layer/ArtifactLayerFactory.cppm`、`Artifact/src/Layer/ArtifactGroupLayer.cppm`。
+- **確認できた事実:** Group の `children` は detached legacy payload に限定される一方、Material Container の `materialContainer.slots` は通常の `fromJsonProperties()` で常に読み込まれる。slot layer は基底 `ArtifactAbstractLayer::fromJson()` を呼ぶため、現状は nullptr になり得る。
+- **対応:** factory が Material Container を import する一方で Material Container から factory を import すると module 循環になるため、今回の散歩では推測実装を避けた。共通 callback または依存を分離した軽量 layer deserializer が必要。
+- **未確認:** ビルド・テスト・Material Container の実データ復元は未確認・未実行。
+# 2026-08-10: embedded layer 復元の module 循環を callback 境界で解消
+
+- **関連:** `Artifact/include/Layer/ArtifactAbstractLayer.ixx`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`、`Artifact/src/Layer/ArtifactLayerFactory.cppm`、`Artifact/src/Layer/ArtifactMaterialContainerLayer.cppm`。
+- **確認できた事実:** Material Container / legacy Group は nested JSON layer を基底 `fromJson()` へ渡していたが、factory module を直接 import すると Factory→MaterialContainer / Group→Factory の循環になる。
+- **対応:** Abstract に thread-safe な deserializer callback 登録点を置き、Factory の呼び出し時に自身を登録した。nested `fromJson()` は登録済み factory へ委譲し、既存 module import の循環を追加しない。
+- **未確認:** ビルド・テスト・Material Container / Group の実データ復元は未確認。
+# 2026-08-10: Factory 通常生成後の直接 JSON 復元でも callback を登録
+
+- **関連:** `Artifact/src/Layer/ArtifactLayerFactory.cppm` の `ArtifactLayerFactory` constructor、`Artifact/src/Test/ArtifactTestAdjustmentLayer.cppm`。
+- **確認できた事実:** 既存テストは factory の通常 `createLayer()` 後に基底 `fromJson()` を呼ぶため、JSON factory 関数を直接通らず callback が未登録のままになる経路があった。
+- **対応:** Factory constructor でも共通 deserializer を登録し、通常生成→直接復元の順でも callback が利用可能になるようにした。
+- **未確認:** ビルド・テストは未確認。
+# 2026-08-10: Material Container slot 削除時の stale composition を除去
+
+- **関連:** `Artifact/src/Layer/ArtifactMaterialContainerLayer.cppm` の `removeMaterialAt()` / `clearMaterials()`。
+- **確認できた事実:** slot layer は親 Composition へ接続される一方、slot 削除・JSON 再読込時に pointer を nullptr へ戻さず vector から破棄していた。旧 nested layer が stale な Composition pointer を保持し得た。
+- **対応:** slot を erase / clear する前に nested layer を明示的に detach するようにした。
+- **未確認:** ビルド・テスト・Material Container の実 UI 編集／再読込は未確認。
+# 2026-08-10: Switch Layer child 削除時の stale composition を除去
+
+- **関連:** `Artifact/src/Layer/ArtifactSwitchLayer.cppm` の `removeChildLayer()`。
+- **確認できた事実:** Switch child は `addChildLayer()` で親 Composition に接続される一方、削除時は vector から消すだけで Composition pointer を保持し得た。
+- **対応:** vector erase 前に child を明示 detach するようにした。
+- **未確認:** ビルド・テスト・Switch Layer の実 UI 編集は未確認。
+# 2026-08-10: Switch Layer の QObject composition attach 漏れを修正
+
+- **関連:** `Artifact/include/Layer/ArtifactSwitchLayer.ixx`、`Artifact/src/Layer/ArtifactSwitchLayer.cppm`、`Artifact/src/Composition/ArtifactAbstractComposition.cppm`。
+- **確認できた事実:** Composition の `owner_` は QObject 派生ポインタで、通常 layer 追加は QObject overload を呼ぶ。Switch Layer は void* overload だけを override していたため、`impl_->composition_` と child attach が更新されなかった。
+- **対応:** QObject overload を追加し、既存の void* 実装へ委譲した。
+- **未確認:** ビルド・テスト・Switch Layer の実 UI attach / render は未確認。
+# 2026-08-10: Paint Layer の QObject composition attach 漏れを修正
+
+- **関連:** `Artifact/include/Layer/ArtifactPaintLayer.ixx`、`Artifact/src/Layer/ArtifactPaintLayer.cppm`、`Artifact/src/Composition/ArtifactAbstractComposition.cppm`。
+- **確認できた事実:** Paint Layer は void* overload だけを override し、Composition settings から default size を更新していた。通常の QObject owner attach ではこの更新が呼ばれなかった。
+- **対応:** QObject overload を追加し、既存 void* 実装へ委譲した。
+- **未確認:** ビルド・テスト・Paint Layer の実 UI attach / 描画は未確認。
+# 2026-08-10: composition overload 修正の実装 include を補完
+
+- **関連:** `Artifact/src/Layer/ArtifactPaintLayer.cppm`、`Artifact/src/Layer/ArtifactSwitchLayer.cppm`、`Artifact/src/Layer/ArtifactGroupLayer.cppm`。
+- **確認できた事実:** QObject overload の実装ファイルが module interface 経由の QObject 宣言に依存していた。
+- **対応:** 各実装ファイルの global module fragment に `QObject` を直接 include した。
+- **未確認:** ビルド・テストは未確認。
+# 2026-08-10: Adjustable Layer の QObject composition attach 漏れを修正
+
+- **関連:** `Artifact/include/Layer/ArtifactAdjustableLayer.ixx`、`Artifact/src/Layer/ArtifactAdjustableLayer.cppm`。
+- **確認できた事実:** Adjustable Layer は Composition size から source size を更新する処理を void* overload にだけ実装していた。
+- **対応:** QObject overload を追加し、通常の Composition attach でも source size 更新へ到達するようにした。
+- **未確認:** ビルド・テスト・Adjustable Layer の実 UI attach / 描画は未確認。
+# 2026-08-10: Adjustable Layer の未使用未初期化 PImpl を除去
+
+- **関連:** `Artifact/include/Layer/ArtifactAdjustableLayer.ixx`、`Artifact/src/Layer/ArtifactAdjustableLayer.cppm`。
+- **確認できた事実:** header に `Impl*` が宣言されていたが Impl 定義・初期化・利用・解放がなく、constructor 後に未初期化 pointer が残っていた。
+- **対応:** 未使用の PImpl 宣言を削除し、destructor を defaulted definition にした。
+- **未確認:** ビルド・テストは未確認。
+# 2026-08-10: AppMain clip paste の内部 ID remap を統一
+
+- **関連:** `Artifact/src/AppMain.cppm` の `clipPasteRequested`。
+- **確認できた事実:** AppMain の貼り付けは自身の ID だけ除去していたが、複数 layer payload の parent / matte / clone source は旧 ID のままだった。
+- **対応:** 追加成功 layer の旧→新 ID を収集し、全追加後に内部参照だけを remap した。append 失敗 layer は選択・マップ対象から除外した。
+- **未確認:** ビルド・テスト・実 UI 貼り付けは未確認・未実行。
+# 2026-08-10: Edit Menu paste の内部 ID remap を統一
+
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactEditMenu.cppm`。
+- **確認できた事実:** Edit Menu は factory と新規自身 ID までは揃っていたが、複数 layer の parent / matte / clone source は旧 ID のままだった。
+- **対応:** 追加成功 layer の旧→新 ID を収集し、追加後に内部参照を remap した。
+- **未確認:** ビルド・テスト・実 UI 貼り付けは未確認・未実行。
+# 2026-08-10: Paste Undo command の snapshot 時点を修正
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm` の paste transaction。
+- **確認できた事実:** pasted layer を Composition から除去した後に `AddLayerCommand` を生成していたため、親 layer の除去で child parent が先に解除され、Undo snapshot に元 parent が入らなかった。
+- **対応:** 各 `AddLayerCommand` を layer 除去前に生成し、parent / matte 依存 snapshot を取得してから一時除去・transaction 追加する順序へ変更した。
+- **未確認:** ビルド・テスト・実 UI Undo/Redo は未確認・未実行。
+# 2026-08-10: Paste Undo redo の detached child 復元を補完
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm` の `AddLayerCommand::redo()`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm` の paste transaction。
+- **確認できた事実:** Macro redo は親 layer の Add command 実行時点で child をまだ Composition に戻していない。従来の `containsLayerById()` 条件だけでは parent / matte snapshot が child に戻らず、後続 child 追加後も関係が欠落した。
+- **対応:** detached child へ parent / matte snapshot を先行適用し、再追加時に保持されるようにした。別 Composition に接続中の layer は従来どおり除外する。
+- **未確認:** ビルド・テスト・実 UI Undo/Redo は未確認・未実行。
+# 2026-08-10: Add / Remove Layer Undo の parent 依存を復元
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Composition/ArtifactAbstractComposition.cppm`。
+- **確認できた事実:** Composition の layer 削除は対象を親にする child の parent を自動解除するが、Add/Remove Undo は matte 依存しか snapshot していなかった。
+- **対応:** 親を削除・再追加する Undo/Redo で child の parent ID も保存し、layer 再追加後に復元するようにした。非シリアライズ可能条件とメモリ見積もりも更新した。
+- **未確認:** ビルド・テスト・実 UI Undo/Redo は未確認・未実行。
+
+# 2026-08-10: Layer Factory の旧 layerType 早期 return を修正
+
+- **関連:** `Artifact/src/Layer/ArtifactLayerFactory.cppm` の JSON 生成経路。
+- **確認できた事実:** `MaterialContainer` / `FormParticle` / `Procedural3D` は `layerType` や専用キーを後段で判定していたが、`type` がない旧 JSON はその前のガードで無条件に破棄されていた。
+- **対応:** 認識済みの旧形式だけ早期 return を通過させ、未知形式は従来どおり拒否するようにした。
+- **未検証:** ビルド・テスト・旧形式 JSON の実読込は未確認・未実行。
+
+# 2026-08-10: Material Container の layerType / payload 復元を補完
+
+- **関連:** `Artifact/src/Layer/ArtifactLayerFactory.cppm`、`Artifact/src/Layer/ArtifactMaterialContainerLayer.cppm`、`docs/planned/MILESTONE_MATERIAL_CONTAINER_LAYER_2026-06-25.md`。
+- **確認できた事実:** Phase 1 の計画 JSON は slot を `layerType` + `payload` で表現するが、実装は `layer` オブジェクト形式だけを復元していた。Factory も Image / Shape / Text 等の文字列 layerType を型へ変換していなかった。
+- **対応:** 既存の `layer` 形式を維持しつつ、payload に layerType を補って callback factory へ渡す経路を追加し、主要な旧 layerType の型マッピングを追加した。
+- **追補:** 計画形式の `layerName` と slot の `id` も、現行の `name` / `slotId` と併用できるようにした。
+- **未検証:** ビルド・テスト・Material Container の実データ再読込は未確認・未実行。
+
+# 2026-08-10: Material Container 初回 slot 追加時の exposedIndex を修正
+
+- **関連:** `Artifact/src/Layer/ArtifactMaterialContainerLayer.cppm` の `insertMaterialAt()`。
+- **確認できた事実:** 空 container の `exposedIndex` は 0 だが、index 0 への最初の追加でも既存 slot 挿入と同じシフト処理が走り、index 1 へずれていた。
+- **対応:** 既存 slot がある場合だけ exposed index をシフトするようにした。
+- **未検証:** ビルド・テスト・Material Container の実 UI 追加／表示は未確認・未実行。
+
+# 2026-08-10: Material Container slot 削除時の exposedIndex を追従
+
+- **関連:** `Artifact/src/Layer/ArtifactMaterialContainerLayer.cppm` の `removeMaterialAt()`。
+- **確認できた事実:** 表示中 slot より前の slot を削除しても exposed index を減算しておらず、同じ slot を表示し続けられなかった。
+- **対応:** 削除位置より後ろの exposed index を 1 つ戻し、末尾削除時の clamp も維持した。
+- **未検証:** ビルド・テスト・Material Container の実 UI 削除／表示は未確認・未実行。
+
+# 2026-08-10: Switch Layer child 削除時の activeIndex を追従
+
+- **関連:** `Artifact/src/Layer/ArtifactSwitchLayer.cppm` の `removeChildLayer()`。
+- **確認できた事実:** active child より前の child を削除しても active index を減算しておらず、意図した child から選択がずれた。
+- **対応:** 削除位置より後ろの active index を 1 つ戻し、active child／末尾削除時の既存 clamp は維持した。
+- **未検証:** ビルド・テスト・Switch Layer の実 UI 削除／表示は未確認・未実行。
+
+# 2026-08-10: Switch Layer child の JSON 保存・復元を実体化
+
+- **関連:** `Artifact/src/Layer/ArtifactSwitchLayer.cppm` の `toJson()` / `fromJson()`。
+- **確認できた事実:** child の ID と名前だけを保存し、復元時に child JSON を生成していなかったため、Switch Layer の再読込で child 実体が失われていた。
+- **対応:** child の完全 JSON を保存し、登録済み layer factory callback で復元するようにした。復元後に active index と timeline frame 数も child 数へ整列する。
+- **未検証:** ビルド・テスト・Switch Layer の実保存／再読込は未確認・未実行。
+
+# 2026-08-10: Switch Layer を通常の Factory 保存復元経路へ接続
+
+- **関連:** `Artifact/include/Layer/ArtifactSwitchLayer.ixx`、`Artifact/src/Layer/ArtifactSwitchLayer.cppm`、`Artifact/src/Layer/ArtifactLayerFactory.cppm`。
+- **確認できた事実:** Switch は Factory case と legacy type mapping がなく、`toJson()` に基底 metadata がなく、custom `fromJson()` は Factory の `fromJsonProperties()` から呼ばれていなかった。
+- **対応:** Switch の生成 case、`type` / `layerType`、基底 JSON、`fromJsonProperties()` override を追加し、通常の JSON layer 復元経路へ接続した。
+- **未検証:** ビルド・テスト・Switch Layer の実保存／再読込は未確認・未実行。
+
+# 2026-08-10: Video Layer の共通 JSON metadata 欠落を補完
+
+- **関連:** `Artifact/src/Layer/ArtifactVideoLayer.cppm` の `toJson()`。
+- **確認できた事実:** Video の独自 JSON は `type` や source 情報を保存していたが、基底 `ArtifactAbstractLayer::toJson()` を呼ばず、ID・親・matte・共通プロパティを保存していなかった。
+- **対応:** 既存の Video 固有キーを維持しつつ、基底 JSON を初期値として合成するようにした。デコード処理は変更していない。
+- **未検証:** ビルド・テスト・Video の実保存／再読込は未確認・未実行。
+
+# 2026-08-10: Particle Layer の Factory 復元漏れを補完
+
+- **関連:** `Artifact/include/Layer/ArtifactParticleLayer.ixx`、`Artifact/src/Layer/ArtifactParticleLayer.cppm`。
+- **確認できた事実:** Particle は専用 `fromJson()` では render settings／emitters を復元するが、Factory の通常経路が呼ぶ `fromJsonProperties()` override を持っていなかった。
+- **対応:** 既存の `applyPropertiesFromJson()` を再利用する `fromJsonProperties()` override を追加した。
+- **未検証:** ビルド・テスト・Particle の実保存／再読込は未確認・未実行。
+
+# 2026-08-10: Shape Layer の Factory 復元漏れを補完
+
+- **関連:** `Artifact/src/Layer/ArtifactLayerFactory.cppm`、`Artifact/src/Layer/ArtifactShapeLayer.cppm`。
+- **確認できた事実:** Shape は専用 `fromJson()` で shape style／custom path／operators を復元するが、Factory の generic 経路は基底 property 復元だけで専用処理を呼んでいなかった。
+- **対応:** SVG source の既存分岐を維持しつつ、通常 Shape は専用 `fromJson()` へ接続した。
+- **未検証:** ビルド・テスト・Shape の実保存／再読込は未確認・未実行。
+
+# 2026-08-10: Parametric Composition Layer の instance 復元を補完
+
+- **関連:** `Artifact/include/Layer/ArtifactParametricCompositionLayer.ixx`、`Artifact/src/Layer/ArtifactParametricCompositionLayer.cppm`。
+- **確認できた事実:** `parametric.instance` に保存された input bindings／parameter overrides／data row を、Factory の generic 復元経路が読み戻していなかった。
+- **対応:** `ParametricCompositionInstance::fromJson()` を使う `fromJsonProperties()` override を追加した。definition の外部解決責務は変更していない。
+- **未検証:** ビルド・テスト・Parametric Composition の実保存／再読込は未確認・未実行。
+
+# 2026-08-10: Material Container slot child の親階層を切断
+
+- **関連:** `Artifact/src/Layer/ArtifactMaterialContainerLayer.cppm` の JSON 復元。
+- **確認できた事実:** slot child の JSON に残った `parentId` を復元後、そのまま Composition に接続していた。slot は通常 hierarchy の child ではないため、外部 parent へ誤接続し得た。
+- **対応:** slot child を Composition へ接続する際に `clearParent()` を適用し、通常の `insertMaterialAt()` と同じ責務境界に揃えた。
+- **未検証:** ビルド・テスト・Material Container の実保存／再読込は未確認・未実行。
+
+# 2026-08-10: Material Container slot detach 時の parent 残留を除去
+
+- **関連:** `Artifact/src/Layer/ArtifactMaterialContainerLayer.cppm` の `removeMaterialAt()` / `clearMaterials()`。
+- **確認できた事実:** slot child の削除・全消去では Composition pointer だけを detach しており、過去に設定された parent が残る可能性があった。
+- **対応:** Composition detach 前に `clearParent()` を行い、slot が常に非階層 child として破棄されるようにした。
+- **未検証:** ビルド・テスト・Material Container の実 UI 削除／再読込は未確認・未実行。
+
+# 2026-08-10: Switch child の parent 残留を除去
+
+- **関連:** `Artifact/src/Layer/ArtifactSwitchLayer.cppm` の `addChildLayer()` / `removeChildLayer()`。
+- **確認できた事実:** Switch child は通常 hierarchy 外だが、追加時に JSON 由来の parent を消さず、削除時にも parent を解除していなかった。
+- **対応:** child の追加・削除時に `clearParent()` を行い、Material Container と同じ非階層 child の責務境界に揃えた。
+- **未検証:** ビルド・テスト・Switch Layer の実 UI 追加／削除／再読込は未確認・未実行。
+
+# 2026-08-10: nested non-hierarchical child attach 時の parent を正規化
+
+- **関連:** `Artifact/src/Layer/ArtifactMaterialContainerLayer.cppm`、`Artifact/src/Layer/ArtifactSwitchLayer.cppm` の `setComposition()`。
+- **確認できた事実:** attach 時に保持 child の Composition pointer は更新していたが、stale parent を同時に除去していなかった。
+- **対応:** container / switch の attach 処理でも `clearParent()` を先に行い、非階層 child の責務を lifecycle 全体で維持した。
+- **未検証:** ビルド・テスト・nested layer の実 UI attach / detach は未確認・未実行。
+
+# 2026-08-10: nested child paste 時の ID 衝突を回避
+
+- **関連:** `Artifact/src/Layer/ArtifactMaterialContainerLayer.cppm`、`Artifact/src/Layer/ArtifactSwitchLayer.cppm`。
+- **確認できた事実:** paste 経路は外側 Layer の `id` を除去して新規化するが、nested child JSON の ID は保持したままだった。複数回貼り付けで内部 child ID が衝突し得た。
+- **対応:** canonical 保存で外側 `id` がある場合は nested ID を維持し、外側 `id` がない detached payload の復元時だけ nested child ID を再生成する。
+- **未検証:** ビルド・テスト・nested Switch / Material Container の実貼り付けは未確認・未実行。
+
+# 2026-08-10: Material Container disabled slot の描画を抑止
+
+- **関連:** `Artifact/src/Layer/ArtifactMaterialContainerLayer.cppm` の `exposedLayer()`。
+- **確認できた事実:** slot の `enabled` は JSON 保存・復元されていたが、露出 layer の解決で無視され、disabled slot も通常描画されていた。
+- **対応:** 露出 index の slot が disabled または無効なら空 layer を返し、既存の exposed slot 単一評価を維持した。
+- **未検証:** ビルド・テスト・disabled slot の実 UI 表示は未確認・未実行。
+
+# 2026-08-10: 旧 layerName の共通復元 fallback を追加
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `fromJsonProperties()`。
+- **確認できた事実:** 専用 static `fromJson()` が直接基底復元を呼ぶ Layer では、Factory 側の `layerName` fallback が届かず、旧 JSON の表示名が失われていた。
+- **対応:** 共通 `name` を優先し、未存在時だけ `layerName` を表示名へ復元するようにした。
+- **未検証:** ビルド・テスト・旧 JSON の実読込は未確認・未実行。
+
+# 2026-08-10: Composition 重複 Layer ID の再生成を衝突検査付きに補強
+
+- **関連:** `Artifact/src/Composition/ArtifactAbstractComposition.cppm` の JSON layer 復元。
+- **確認できた事実:** serialized ID が既存 layer と重複した場合、再生成を1回だけ行っていた。
+- **対応:** 新 ID が既存索引と衝突しなくなるまで再生成する loop に変更し、by-ID 索引の一意性を明示的に守った。
+- **未検証:** ビルド・テスト・重複 ID JSON の実読込は未確認・未実行。
+# 2026-08-10: Video Factory 復元の sourcePath 依存を解消
+
+- **関連:** `Artifact/src/Layer/ArtifactLayerFactory.cppm`, `Artifact/src/Layer/ArtifactVideoLayer.cppm`
+- **確認できた事実:** `ArtifactVideoLayer::fromJson()` は source path の有無に関係なく、再生速度、ループ、音量、Crop、Proxy、トラッキング設定などを復元する。一方、Factory の専用経路は `video.sourcePath` または `sourcePath` が存在する場合に限定されていた。
+- **変更:** `LayerType::Video` および旧 `VideoLayer` JSON は常に `ArtifactVideoLayer::fromJson()` を使うようにした。
+- **価値:** source path が未設定・空の動画レイヤーでも、保存済みの動画固有設定が共通プロパティ復元で失われない。
+- **次に確認:** 実ファイル読み込みを伴わない動画 JSON の保存・復元ケースで、設定値が保持されることを確認する（ビルド・テスト未実行）。
+
+# 2026-08-10: Factory の SVG 判定を Shape 限定に補正
+
+- **関連:** `Artifact/src/Layer/ArtifactLayerFactory.cppm` の SVG 復元分岐。
+- **確認できた事実:** 分岐条件が `sourcePath` の存在だけだったため、Image など他の source 系 JSON が SVG 初期化へ入る可能性があった。
+- **変更:** `svg.sourcePath` が明示された場合、または `LayerType::Shape` の旧 `sourcePath` の場合だけ SVG 経路を使うようにした。
+- **価値:** Image / Video / 3D などの source path を SVG と誤判定せず、各レイヤーの Factory 経路へ到達できる。
+- **次に確認:** 各 source 系 layer type の最小 JSON を使った Factory 分岐確認（ビルド・テスト未実行）。
+
+# 2026-08-10: Factory の文字列 type 互換を補強
+
+- **関連:** `Artifact/src/Layer/ArtifactLayerFactory.cppm` の JSON 型判定。
+- **確認できた事実:** `type` が数値ではなく旧形式の文字列だった場合、`QJsonValue::toInt()` により `LayerType::Unknown` 相当へ落ち、`layerType` にしか存在しない互換変換を通らなかった。
+- **変更:** Factory が扱う全 enum 系（Null / Solid / Image / Adjustment / Text / Shape / Precomp / Audio / Video / Camera / Light / Group / Particle / Clone / SDF / Model3D / Construction / CompositionBackground / MaterialContainer / FormParticle / Procedural3D / SandSim2D / ParametricComposition / EnvironmentMap / Switch / Paint）の文字列名と Layer 接尾辞を認識するようにした。
+- **価値:** 数値 enum を使わない旧 JSON でも、専用 Factory と各レイヤーの復元処理へ到達できる。
+- **次に確認:** 文字列 `type` を持つ旧 JSON の各代表型を用いた復元確認（ビルド・テスト未実行）。
+
+# 2026-08-10: SVG 復元メソッドの override 契約を明示
+
+- **関連:** `Artifact/include/Layer/ArtifactSvgLayer.ixx`。
+- **確認できた事実:** `ArtifactSvgLayer::fromJsonProperties()` は基底の virtual メソッドを実装していたが、宣言に `override` がなく、シグネチャ不一致をコンパイラに検査させられなかった。
+- **変更:** `override` を付与し、Factory の共通復元経路との契約を明示した。
+- **価値:** 将来の基底 API 変更や宣言誤りをコンパイル時に検出できる。
+
+# 2026-08-10: Environment Map の JSON 往復を追加
+
+- **関連:** `Artifact/include/Layer/ArtifactEnvironmentMapLayer.ixx`。
+- **確認できた事実:** Environment Map は Factory 生成と Inspector 編集に対応していたが、固有の `toJson()` / `fromJsonProperties()` がなく、HDRI パス・強度・回転・背景表示が保存対象になっていなかった。
+- **変更:** 基底 JSON に `LayerType::EnvironmentMap` と環境マップ固有値を追加し、名前空間付きキーと旧簡易キーの両方を復元する inline 実装を追加した。
+- **価値:** Environment Map の保存・再読込で編集状態を維持できる。
+- **次に確認:** HDRI 実体のロードを伴わない JSON 往復でプロパティ値が保持されること（ビルド・テスト未実行）。
+
+# 2026-08-10: SDF シーンの JSON 往復を追加
+
+- **関連:** `Artifact/include/Layer/ArtifactSDFLayer.ixx`, `Artifact/src/Layer/ArtifactSDFLayer.cppm`。
+- **確認できた事実:** SDF は Factory 生成、プリミティブ編集、結合設定、出力解像度を持っていたが、固有 JSON がなく、シーンオブジェクトが保存されなかった。
+- **変更:** 結合演算、スムージング、出力解像度、各プリミティブの形状・Transform・色・パラメータを JSON 化し、復元時に enum 範囲を制限した。
+- **価値:** SDF レイヤーの編集内容を保存・再読込できる。
+- **次に確認:** SDF 実描画を伴わない JSON 往復でオブジェクト数と設定値が保持されること（ビルド・テスト未実行）。
+
+# 2026-08-10: Light の JSON 往復を追加
+
+- **関連:** `Artifact/include/Layer/ArtifactLightLayer.ixx`, `Artifact/src/Layer/ArtifactLightLayer.cppm`。
+- **確認できた事実:** Light は種別、色、強度、範囲、スポット形状、影、ライトリンクの編集 API を持っていたが、固有 JSON がなく保存時に失われていた。
+- **変更:** Light 固有値を JSON 化し、復元時に enum 値を範囲制限して setter 経由で適用するようにした。
+- **価値:** 3D Light の編集状態を保存・再読込できる。
+- **次に確認:** レンダリングを伴わない Light JSON 往復で全プロパティが保持されること（ビルド・テスト未実行）。
+
+# 2026-08-10: Layer 固有 toJson の override 契約を統一
+
+- **関連:** `Artifact/include/Layer/ArtifactImageLayer.ixx`, `Artifact/include/Layer/ArtifactVideoLayer.ixx`, `Artifact/include/Layer/ArtifactSwitchLayer.ixx`, `Artifact/include/Layer/ArtifactParticleLayer.ixx`, `Artifact/include/Layer/ArtifactPaintLayer.ixx`。
+- **確認できた事実:** 各 Layer は基底 `ArtifactAbstractLayer::toJson()` を virtual override していたが、一部宣言に `override` がなく、シグネチャ不一致をコンパイル時に検出できなかった。
+- **変更:** 実装済みの固有 `toJson()` 宣言へ `override` を付与した。
+- **価値:** Factory／保存経路で利用される virtual JSON 契約の静的検査を揃えた。
+
+# 2026-08-10: SVG toJson の override 契約を補完
+
+- **関連:** `Artifact/include/Layer/ArtifactSvgLayer.ixx`。
+- **確認できた事実:** SVG の `fromJsonProperties()` には `override` が付いていたが、同じ virtual 対応の `toJson()` には付いていなかった。
+- **変更:** SVG の `toJson()` 宣言にも `override` を付与した。
+
+# 2026-08-10: Null Layer の保存型を補正
+
+- **関連:** `Artifact/src/Layer/ArtifactNullLayer.cppm`。
+- **確認できた事実:** Null の `toJson()` は基底 JSON をそのまま返し、基底が設定する `LayerType::Unknown` が残っていたため、Factory 経由の再読込で Null として復元できなかった。
+- **変更:** Null の JSON に `LayerType::Null` を明示した。
+- **価値:** Null Layer の保存・再読込が Factory の通常経路で成立する。
+
+# 2026-08-10: Camera / SandSim2D / Paint の保存型を補正
+
+- **関連:** `Artifact/src/Layer/ArtifactCameraLayer.cppm`, `Artifact/src/Layer/ArtifactSandSim2DLayer.cppm`, `Artifact/src/Layer/ArtifactPaintLayer.cppm`。
+- **確認できた事実:** これらの固有 `toJson()` は基底 JSON の `LayerType::Unknown` を残したまま、固有プロパティだけを追加していた。
+- **変更:** Camera / SandSim2D / Paint の各 JSON に対応する `LayerType` を明示した。
+- **価値:** 保存後も Factory が正しい Layer 実装を選択できる。
+
+# 2026-08-10: Camera enum setter の入力範囲を補正
+
+- **関連:** `Artifact/src/Layer/ArtifactCameraLayer.cppm`。
+- **確認できた事実:** Projection / Stereo の setter が enum 値を無検証で保持し、JSON や Inspector から範囲外の整数を渡せた。
+- **変更:** Projection は 0〜1、Stereo は 0〜2 に clamp してから保持するようにした。
+- **価値:** 不正 JSON や外部プロパティ入力で Camera の enum 状態が不正値にならない。
+
+# 2026-08-10: SandSim2D の素材 enum 入力を補正
+
+- **関連:** `Artifact/src/Layer/ArtifactSandSim2DLayer.cppm`。
+- **確認できた事実:** `toolMaterial` は JSON・Inspector・公開 setter から enum を無制限 cast していた。`SandMaterial` の定義は Empty〜Acid の 0〜7 である。
+- **変更:** すべての入力を `setToolMaterial()` に集約し、0〜7 に clamp するようにした。
+- **価値:** 不正入力でシミュレーションの素材判定が未定義値にならない。
+
+# 2026-08-10: Clone mode の JSON 復元範囲を補正
+
+- **関連:** `Artifact/src/Layer/ArtifactCloneLayer.cppm`。
+- **確認できた事実:** Clone の `mode` は復元時に直接 enum cast され、`CloneMode::Linear`〜`Spline` の 0〜6 外を保持できた。
+- **変更:** JSON 値を 0〜6 に clamp してから `CloneMode` へ変換するようにした。
+- **価値:** 不正 JSON で Clone の分岐処理が未定義値にならない。
+
+# 2026-08-10: Clone mode の Inspector 入力範囲を統一
+
+- **関連:** `Artifact/src/Layer/ArtifactCloneLayer.cppm` の `setPropertyValue()`。
+- **確認できた事実:** JSON 復元は clamp 済みでも、Inspector の `Mode` 入力は直接 enum cast していた。
+- **変更:** Inspector 経路も 0〜6 に clamp して、JSON と同じ不変条件を適用した。
+
+# 2026-08-10: Video ProxyQuality の入力範囲を補正
+
+- **関連:** `Artifact/src/Layer/ArtifactVideoLayer.cppm`, `Artifact/include/Proxy/ProxyService.ixx`。
+- **確認できた事実:** `ProxyServiceQuality` は None〜Eighth の 0〜4 だが、Video の JSON・Inspector・公開 setter 経路が無制限 cast していた。
+- **変更:** `setProxyQuality()` で 0〜4 に正規化し、全入力経路を同じ不変条件へ集約した。
+- **価値:** 不正な品質値で proxy controller やスケール判定が未定義状態にならない。
+
+# 2026-08-10: 3D 固定形状の Factory 入力範囲を補正
+
+- **関連:** `Artifact/src/Layer/ArtifactLayerFactory.cppm`, `Artifact/include/Layer/Artifact3DModelLayer.ixx`。
+- **確認できた事実:** `FixedGeometry3D` は Auto〜Cone の 0〜5 だが、Factory の JSON 経路が無制限 cast して初期化パラメータへ渡していた。
+- **変更:** Factory で 0〜5 に clamp してから `FixedGeometry3D` へ変換するようにした。`RenderMode` は既存 setter の範囲正規化を利用する。
+- **価値:** 不正 JSON でも 3D 固定形状の mesh 生成が未定義値へ落ちない。
+
+# 2026-08-10: Layer BlendMode の共通入力範囲を補正
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`, `ArtifactCore/include/Layer/LayerBlend.ixx`。
+- **確認できた事実:** 基底 `setBlendMode()` が JSON・Particle・Inspector から渡る `LAYER_BLEND_TYPE` を無検証で保持していた。定義範囲は Normal〜SilhouetteLuma の 0〜33。
+- **変更:** setter の共通入口で 0〜33 に clamp し、variant override と通常状態の両方へ正規化値を保存するようにした。
+- **価値:** すべての Layer の blend mode 入力が有効な enum 範囲に保たれる。
+
+# 2026-08-10: Layer variant BlendMode 復元の範囲を補正
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の variant JSON 復元。
+- **確認できた事実:** 通常 Layer の setter は正規化済みでも、variant の `blendModeOverride` は JSON 整数を直接 enum cast していた。
+- **変更:** variant override も 0〜33 に clamp して復元するようにした。
+- **価値:** 通常状態と variant 状態の BlendMode 不変条件を一致させた。
+
+# 2026-08-10: LayerCachePolicy の共通入力範囲を補正
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`, `Artifact/include/Layer/ArtifactAbstractLayer.ixx`。
+- **確認できた事実:** LayerCachePolicy は Default / Enabled / Disabled の 0〜2 だが、JSON と Inspector の setter 入力を無検証で保持していた。
+- **変更:** `setLayerCachePolicy()` の共通入口で 0〜2 に clamp するようにした。
+- **価値:** 不正値でキャッシュ判定が想定外状態にならない。
+
+# 2026-08-10: MaskMode の共通 setter 入力を補正
+
+- **関連:** `Artifact/src/Mask/MaskPath.cppm`, `Artifact/include/Mask/MaskPath.ixx`。
+- **確認できた事実:** MaskMode は Add / Subtract / Intersect / Difference の 0〜3 だが、JSON、キーフレーム、Inspector の各経路が setter へ無検証 enum を渡していた。
+- **変更:** `MaskPath::setMode()` で 0〜3 に clamp するようにした。
+- **価値:** マスク合成の全入力経路で有効なモード値を維持する。
+
+# 2026-08-10: Mask keyframe mode の保存時正規化を追加
+
+- **関連:** `Artifact/src/Mask/MaskPath.cppm` の `setAnimationKeyframe()`。
+- **確認できた事実:** 通常の `MaskPath::setMode()` は正規化済みでも、keyframe snapshot は mode を構造体のまま保存していた。
+- **変更:** keyframe を格納する時点でも 0〜3 に clamp するようにした。
+- **価値:** アニメーション keyframe からのサンプリングでも無効な MaskMode が伝播しない。
+
+# 2026-08-10: Label color index の共通入力範囲を補正
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`, `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`。
+- **確認できた事実:** UI のラベル色メニューは 0〜7（なし＋7色）を提供する一方、基底 setter は任意の整数を保持できた。
+- **変更:** `setLabelColorIndex()` で 0〜7 に clamp するようにした。
+- **価値:** JSON・Inspector・UI のどの入力でも存在しないラベル色番号にならない。
+
+# 2026-08-10: Adjustment Layer の保存型を補完
+
+- **関連:** `Artifact/include/Layer/ArtifactAdjustableLayer.ixx`, `Artifact/src/Layer/ArtifactAdjustableLayer.cppm`。
+- **確認できた事実:** Adjustment Layer は Factory で生成できるが、固有 JSON がなく、2D 基底の `Unknown` 型で保存されていた。
+- **変更:** Adjustment 固有の `toJson()` / `fromJsonProperties()` を追加し、保存型に `LayerType::Adjustment` を明示した。
+- **価値:** Adjustment Layer を保存後に Factory の通常経路で正しく再生成できる。
+
+# 2026-08-10: Legacy layerType の Factory 互換範囲を拡張
+
+- **関連:** `Artifact/src/Layer/ArtifactLayerFactory.cppm`。
+- **確認できた事実:** `type` を持たず `layerType` だけを持つ旧 JSON は、Solid / Image / Text など一部の文字列しか認識せず、Adjustment / Group / Camera / 3D 系などが早期 return していた。
+- **変更:** Factory の主要 LayerType と Layer 接尾辞を legacy `layerType` の認識・変換へ追加した。
+- **価値:** 数値 `type` を持たない旧 JSON でも、主要 Layer を通常の Factory 復元へ接続できる。
+
+# 2026-08-10: Legacy layerType の接尾辞別名を補完
+
+- **関連:** `Artifact/src/Layer/ArtifactLayerFactory.cppm`。
+- **確認できた事実:** `MaterialContainerLayer` と `Procedural3D` は認識候補に含めても、型変換条件に同じ別名が揃っていなかった。
+- **変更:** これらの別名も実際の `LayerType` 変換へ接続した。
+
+# 2026-08-10: Adjustment effects の復元を補完
+
+- **関連:** `Artifact/src/Layer/ArtifactAdjustableLayer.cppm`。
+- **確認できた事実:** Adjustment の専用 `fromJsonProperties()` は共通メタデータだけを復元し、基底の effects 復元処理を呼んでいなかった。
+- **変更:** `applyPropertiesFromJson()` を呼び、保存済み effects を Adjustment Layer の復元時にも適用するようにした。
+- **価値:** Adjustment Layer の JSON 往復で、型だけでなく実際の調整効果も維持できる。
+
+# 2026-08-10: Mask rasterizer の異常サイズ防御を追加
+
+- **関連:** `Artifact/src/Mask/MaskPath.cppm`, `Artifact/src/Mask/LayerMask.cppm`。
+- **確認できた事実:** ラスタライズ入口で出力先が null、または幅・高さが 0 以下の場合でも OpenCV の Mat 生成・参照へ進む経路があった。
+- **変更:** 出力先の null と不正サイズを早期 return し、既存の出力 Mat は release するようにした。
+- **価値:** 不正な描画要求で null dereference や OpenCV 側のサイズ例外へ進むリスクを抑える。描画内容や通常入力時の処理は変更しない。
+
+# 2026-08-10: LayerMask の画像サイズ不一致を早期拒否
+
+- **関連:** `Artifact/src/Mask/LayerMask.cppm` の `applyToImage()`。
+- **確認できた事実:** alpha mask は引数の幅・高さで生成される一方、入力 `cv::Mat` の実サイズは検証されず、サイズ不一致のまま `cv::multiply()` へ進み得た。
+- **変更:** null、空・不正サイズ、型不一致に加え、画像の列・行と指定サイズが一致しない場合も早期 return するようにした。
+- **価値:** マスク適用時の OpenCV サイズ例外を防ぎ、通常の一致入力の処理は維持する。
+
+# 2026-08-10: Alpha mask 変換パラメータの非有限値を補正
+
+- **関連:** `Artifact/src/Mask/MaskPath.cppm` の `fromAlphaMask()`。
+- **確認できた事実:** `simplificationTolerance` と `cornerThreshold` は `std::max()` の前に有限値検証がなく、NaN が OpenCV の輪郭近似や角判定へ渡る可能性があった。
+- **変更:** 非有限値は 0 にフォールバックし、有限値だけ既存の下限 clamp を通すようにした。
+- **価値:** 外部入力や変換設定の破損で輪郭抽出が不安定になる経路を減らす。
+
+# 2026-08-10: Mask rasterizer の座標変換値を有限化
+
+- **関連:** `Artifact/src/Mask/MaskPath.cppm` の `rasterizeToAlpha()`。
+- **確認できた事実:** offset／scale は `cv::Point` 化、膨張、ぼかしカーネル計算の複数箇所で使われるが、NaN／無限大の検証がなかった。
+- **変更:** 非有限 offset は 0、非有限 scale は 1 に補正し、以降の全計算で同じ安全値を使うようにした。
+- **価値:** 座標変換の破損が OpenCV の不正座標・不正カーネルへ波及する経路を抑える。有限値の既存挙動は維持する。
+
+# 2026-08-10: Shape 復元時の不正 customPath による polygon 消失を防止
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm` の `ArtifactShapeLayer::fromJson()`。
+- **確認できた事実:** JSON の `customPath` 配列が3点以上でも、頂点検証後の有効数が3未満になる場合がある。その場合も無条件で `customPolygonPoints_` を消していた。
+- **変更:** 有効な custom path が3頂点以上成立した場合だけ polygon を相互排他で消し、不正 path の場合は polygon を保持するようにした。
+- **価値:** 部分的に破損した shape JSON の復元で、別の有効なカスタム polygon まで失うデータロスを防ぐ。
+
+# 2026-08-10: Solid layer の復元サイズを最小値へ正規化
+
+- **関連:** `Artifact/src/Layer/ArtifactSolidImageLayer.cppm`, `Artifact/src/Layer/ArtifactSolid2DLayer.cppm`。
+- **確認できた事実:** 両 `setSize()` は width／height を検証せず `setSourceSize()` へ渡しており、破損 JSON の 0 以下サイズが描画下流へ残り得た。Shape layer には既に最小サイズ防御がある。
+- **変更:** Solid の両実装でも width／height を最低1へ clamp してから保持するようにした。
+- **価値:** Solid の JSON 復元・プロパティ編集で無効な描画サイズを作らず、Shape と同じ境界契約に揃える。
+
+# 2026-08-10: Image 復元時の空ソースで連番状態を解消
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` の `fromJsonProperties()`。
+- **確認できた事実:** 復元開始時に `image.sequencePaths` を読み込んだ後、`image.sourcePath` が空でも source／画像本体だけを無効化し、連番パスと frame rate は残していた。
+- **変更:** 空ソース分岐で sequence paths、frame rate、sequence source、cached index も初期化するようにした。
+- **価値:** ソースなしなのに `isImageSequence()` だけが有効になる不整合を防ぎ、空ソース処理を `loadFromPath("")` と揃える。
+
+# 2026-08-10: SourceCrop 変換のサイズ有限性を統一
+
+- **関連:** `Artifact/src/Layer/ArtifactSourceCrop.cppm` の `sourceToOutputTransform()`。
+- **確認できた事実:** source／output `QSizeF` は正値検査だけで、NaN の比較が false になる場合に変換計算へ進み得た。setter と JSON 復元側には既存の有限値防御がある。
+- **変更:** 両サイズを `hasSourceSize()` で検証し、非有限または非正の入力では恒等変換を返すようにした。
+- **価値:** 画像 crop の変換行列へ NaN／無限大が伝播する経路を閉じる。
+
+# 2026-08-10: Image crop の旧フラット JSON 復元を補完
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` の `fromJsonProperties()`。
+- **確認できた事実:** `toJson()` は旧形式の `sourceCrop.*` キーも出力するが、復元側は新形式の `sourceCrop` オブジェクトだけを読んでいた。
+- **変更:** オブジェクト形式がない場合、旧フラットキーを `SourceCrop::fromJson()` 用の構造へ組み立てて復元するようにした。
+- **価値:** 旧プロジェクト／旧プリセットの crop・pan・zoom・rotation・anchor 状態を保存再読込で失わない。
+
+# 2026-08-10: Construction layer JSON 数値を setter 契約へ統一
+
+- **関連:** `Artifact/src/Layer/ArtifactConstructionLayer.cppm` の `fromJsonProperties()`。
+- **確認できた事実:** プロパティ編集では幅・高さ・grid・opacity 等を clamp する一方、JSON 復元は float 値を直接保持していた。
+- **変更:** 有限値検証と既存 UI 側に対応する下限・上限を共通の読み取り処理へまとめ、復元時にも同じ範囲へ正規化するようにした。
+- **価値:** 破損 JSON の NaN／無限大／極端値が construction 描画サイズやガイド計算へ波及するのを防ぐ。
+
+# 2026-08-10: 共通 transform 復元の非有限値を遮断
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `fromJsonProperties()`。
+- **確認できた事実:** `AnimatableTransform3D` の復元入口は position／rotation／scale／anchor を JSON の double から直接 setter へ渡していた。setter は値をそのまま keyframe／current state に保持する。
+- **変更:** time-zero の transform 値を finite fallback（位置・回転・anchor は0、scale は1）へ通してから復元するようにした。
+- **価値:** 破損した layer JSON の NaN／無限大が共通 transform と下流描画へ伝播するのを防ぐ。子リポジトリは変更していない。
+
+# 2026-08-10: Transform keyframe／variant 復元も有限化
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の transform keyframe と variant override 復元。
+- **確認できた事実:** time-zero の transform を有限化しても、rotation／scale／position keyframe と variant transform は JSON の double を直接 `AnimatableTransform3D` へ渡していた。
+- **変更:** keyframe の値・空間 tangent、および variant の position／rotation／scale／anchor を同じ有限 fallback へ通すようにした。
+- **価値:** アニメーション開始後や variant 切替時にだけ NaN／無限大が現れる復元経路を閉じる。
+
+# 2026-08-10: Variant opacity 復元を有限化
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の variant 復元。
+- **確認できた事実:** variant の opacity override だけは JSON double を直接保持し、通常 layer の opacity setter に相当する 0〜1 clamp／有限値検証がなかった。
+- **変更:** variant opacity を有限値検証後に 0〜1 へ clamp し、異常値は1へ戻すようにした。
+- **価値:** variant 切替時の透明度計算へ NaN／範囲外値が伝播するのを防ぐ。
+
+# 2026-08-10: Empty variants 復元時の base variant 保証
+
+- **関連:** \`Artifact/src/Layer/ArtifactAbstractLayer.cppm\` の variants 復元。
+- **確認できた事実:** \`variants\` が存在する空配列の場合、配列を clear した後に fallback の \`"A"\` variant を追加する分岐を通らず、variant が0件になっていた。
+- **変更:** 復元分岐の後で常に空集合を検査し、必要なら base variant \`"A"\` を追加するようにした。
+- **価値:** 破損／空の variants JSON でも active variant と通常の variant 操作を維持する。
+
+# 2026-08-10: Physics／Motion 復元の有限値・範囲を統一
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の physics／motion JSON 復元。
+- **確認できた事実:** UI setter には mode、速度、stiffness、damping、mass、lagTau 等の範囲がある一方、JSON 復元は `std::clamp()` のみで NaN を除外していなかった。
+- **変更:** 共通の有限値＋clamp helper を使い、motion mode と physics 初速も同じ契約へ揃えた。
+- **価値:** 破損した復元値が Dynamics 更新へ NaN／無効 mode として入り、プレビューを不安定化する経路を減らす。
+
+# 2026-08-10: Fracture／Trail／Fragment 復元の NaN 漏れを補完
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の fracture、motion trail、fragment appearance 復元。
+- **確認できた事実:** これらの float は JSON 復元で `std::clamp()` のみを通り、NaN がそのまま内部状態へ残る可能性があった。
+- **変更:** 既存の意味付き範囲を変えず、有限値＋clamp helper を適用した。
+- **価値:** fracture／trail／fragment の描画・更新計算へ非有限値が伝播する経路を減らす。
+
+# 2026-08-10: Component physics／crowd／fluid 復元を有限化
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の components 復元。
+- **確認できた事実:** collision、crowd、particle emitter、fluid の float 値にも `std::clamp()` のみの復元が残っていた。
+- **変更:** 既存の各 hard range を維持したまま、finite＋clamp helper を適用した。
+- **価値:** コンポーネント評価・シミュレーションへ NaN／無限大が流入する経路を減らす。
+
+# 2026-08-10: Layout／Cloner float 復元を有限化
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の components layout／cloner 復元。
+- **確認できた事実:** safe-area padding、gap、cloner offset／jitter／spacing／radius／angle 等は JSON double を直接 float 化していた。
+- **変更:** 既存の通常値を維持しつつ、非有限値と極端な浮動小数値だけを有限値＋安全範囲へ補正した。enum の意味は推測して変更していない。
+- **価値:** layout 配置や cloner 行列計算へ NaN／無限大が流入する経路を減らす。
+
+# 2026-08-10: Cloner transform 配列の有限値を統一
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `clonerTransforms` と legacy transform 復元。
+- **確認できた事実:** Cloner 本体の offset 等を補正しても、配列内の position／rotation／scale は double を直接 float 化していた。
+- **変更:** 新形式・legacy 形式の両方で、position／rotation／scale を既存の安全範囲へ通すようにした。
+- **価値:** 個別 cloner 操作の行列生成へ非有限値が残る経路を閉じる。
+
+# 2026-08-10: Component descriptor 復元の配列上限を追加
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の generators／fields／cloneModifiers 復元。
+- **確認できた事実:** descriptor 配列は JSON サイズをそのまま `reserve()` し、巨大な壊れた配列でも復元処理が全要素を走査する構造だった。近隣の component 配列には既存の上限パターンがある。
+- **変更:** 各 descriptor 配列の reserve と復元件数を1024件へ制限した。
+- **価値:** 破損 JSON による復元時の過剰メモリ確保・処理時間のリスクを抑える。
+
+# 2026-08-10: Layout enum 復元とプロパティ設定の範囲を一致
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の layout mode／anchor mode／stack direction。
+- **確認できた事実:** プロパティ定義に `Layout Mode = 0..2`、`Cross Alignment = 0..2`、`Direction = 0..1` が明記されていた一方、JSON 復元と直接設定は任意の整数を受け入れていた。
+- **変更:** JSON 復元とプロパティ設定の双方を、それぞれ既存の hard range と同じ範囲へ clamp した。意味がコード上で確定できない horizontal／vertical pin、scale mode、cloner mode は変更していない。
+- **価値:** UI 経由と JSON 経由で layout enum の不正値処理が分岐する問題を減らす。
+
+# 2026-08-10: Cloner clone count の hard range を復元にも適用
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `component.cloner.cloneCount`。
+- **確認できた事実:** プロパティ定義の hard range は 1..256 だが、JSON 復元と直接設定は下限のみを適用していた。
+- **変更:** JSON 復元と直接設定を 1..256 の同じ範囲へ clamp した。
+- **価値:** UI と保存データで cloner の生成数上限が食い違う経路を減らす。
+
+# 2026-08-10: Fracture shard count の hard range を通常経路へ適用
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `fracture.shardCount`。
+- **確認できた事実:** プロパティ定義の hard range は 1..256 だが、JSON 復元と通常のプロパティ設定は下限しか制限していなかった。イベント処理内の一時的な requested fragment count は別の内部経路で 1..4096 を使っている。
+- **変更:** JSON 復元と通常設定のみを 1..256 へ clamp した。内部イベント経路は変更していない。
+- **価値:** 通常の編集・保存データから過大な fracture shard 数が入る経路を減らす。
+
+# 2026-08-10: Physics 直接設定の有限値・hard range を統一
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の physics プロパティ設定。
+- **確認できた事実:** JSON 復元には範囲補正がある一方、直接設定では stiffness／damping／follow-through などが float へ直接変換され、他の項目も `std::clamp()` だけで非有限値を防げなかった。
+- **変更:** 既存の各 hard range を `finitePhysicsValue` に集約し、通常値は同じ範囲で維持しつつ、非有限値は現在値へフォールバックするようにした。
+- **価値:** UI／API から NaN や無限大が physics 設定へ入り、シミュレーションや collider 更新へ伝播する経路を減らす。
+
+# 2026-08-10: Motion／Fracture／Fragment 直接設定の有限値を統一
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `setLayerPropertyValue()`。
+- **確認できた事実:** JSON 復元は finite＋clamp 済みでも、motion、trail、fragment、fracture の通常プロパティ設定には `std::clamp()` だけ、または直接 float 化が残っていた。`std::clamp(NaN, ...)` は NaN を除去しない。
+- **変更:** 既存 hard range を変えず、共有の有限値＋clamp 処理へ揃えた。通常値は従来範囲を維持し、異常値は現在値（不正なら下限）へ戻す。
+- **価値:** UI／API からの異常な数値が motion・fracture・fragment の評価へ流入する経路を減らす。
+
+# 2026-08-10: Component／Layout／Cloner 直接設定の有限値を統一
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の component property dispatch。
+- **確認できた事実:** collision、crowd、particle、fluid、layout、cloner の復元側には既存の範囲補正がある一方、直接設定側は `std::clamp()` のみ、または float への直接変換が残っていた。
+- **変更:** 復元側で確立済みの安全範囲を `finiteClampedValue` に適用し、非有限値を現在値（不正なら範囲下限）へ戻すようにした。layout／cloner の enum は意味が確定している項目以外を変更していない。
+- **価値:** 編集操作から component 評価、配置、cloner 行列へ NaN／無限大が伝播する経路を減らす。
+
+# 2026-08-10: Generator／Cloner compatibility 設定の有限値を統一
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の generator descriptor と compatibility sequence/time-offset 設定。
+- **確認できた事実:** sequence の rate／softness は `std::clamp()` のみで、time offset・spacing・radius・angle は double をそのまま descriptor へ格納していた。
+- **変更:** 既存の復元・UI で使われている範囲を維持し、finite＋clamp を適用した。descriptor に既存値がある場合はそれを異常値のフォールバックにした。
+- **価値:** generator 設定から cloner の評価へ NaN／無限大や過大な座標値が流入する経路を減らす。
+
+# 2026-08-10: Clone modifier の有限値設定を統一
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `component.cloneModifiers.<index>` 編集。
+- **確認できた事実:** rate／softness／strength／frequency／phase／indexScale 等は範囲指定されていたが、`std::clamp()` のみで NaN を除去できず、step と一部の座標値も直接 descriptor へ格納していた。
+- **変更:** 既存範囲を維持した `setFiniteSetting` を追加し、既存 descriptor 値をフォールバックにして有限化した。
+- **価値:** modifier stack の評価へ異常な数値が流入する経路を減らす。
+
+# 2026-08-10: Clone modifier の soft-range 項目を有限値だけ補正
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の plain／random／step modifier 設定。
+- **確認できた事実:** position／rotation／scale 系は UI では soft range のみで、hard range は確認できなかった。従って任意の有限値を clamp する根拠はないが、NaN／無限大は descriptor にそのまま入る。
+- **変更:** hard range を新設せず、有限値は保持し、非有限値だけ既存値または既定値へ戻す `setFiniteOnlySetting` を適用した。
+- **価値:** 仕様を狭めず modifier 評価の異常値流入だけを防ぐ。
+
+# 2026-08-10: Field descriptor の直接設定を有限値だけ補正
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `component.fields.<index>` 編集。
+- **確認できた事実:** field strength は 0..1 へ補正されていたが、center／radius／falloff／extent／scale／amplitude 等は double をそのまま descriptor に格納していた。
+- **変更:** hard range を推測せず、有限値は保持し、非有限値だけ既存値（既存値も不正なら既定値）へ戻すようにした。
+- **価値:** field 評価へ NaN／無限大が流入する経路を減らす。
+
+# 2026-08-10: Cloner transform 直接設定を復元範囲へ統一
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `component.cloner.transforms.<index>` 編集。
+- **確認できた事実:** transform 配列の JSON 復元には position／rotation／scale の安全範囲がある一方、直接設定は double をそのまま float 化していた。
+- **変更:** 復元側と同じ position／scale ±100000、rotation ±360000 の finite＋clamp を直接設定にも適用した。
+- **価値:** UI 編集から cloner 行列生成へ異常値が流入する経路を閉じる。
+
+# 2026-08-10: Transform 直接設定の非有限値を除去
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の通常 transform property dispatch。
+- **確認できた事実:** position／scale／rotation／anchor／initial rotation は UI 定義上 soft range のみで、setter は入力を直接 keyframe／initial 値へ渡していた。
+- **変更:** soft range を hard range に昇格させず、有限値は保持し、NaN／無限大だけ現在時刻の値または既定値へフォールバックした。
+- **価値:** transform keyframe、行列計算、modifier 評価へ異常値が流入する経路を減らす。
+
+# 2026-08-10: Source size setter の hard range を統一
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `source.width`／`source.height`。
+- **確認できた事実:** property 定義の hard range は 1..16384 だが、直接設定は下限のみを適用していた。
+- **変更:** width／height の setter を 1..16384 に clamp した。
+- **価値:** UI 定義と直接設定で source／thumbnail／変換処理へ渡るサイズ上限が食い違う経路を減らす。
+
+# 2026-08-10: Layer opacity 共通 setter の有限値を保証
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `ArtifactAbstractLayer::setOpacity()`。
+- **確認できた事実:** `layer.opacity` は共通 setter に集約されていたが、`std::clamp()` のみで NaN 入力を除去できなかった。mask の数値 setter は別途補正済み。
+- **変更:** 有限値は従来どおり 0..1 に clamp し、非有限値は現在値（現在値も不正なら 1）へフォールバックするようにした。
+- **価値:** 通常 layer、variant、keyframe へ opacity の NaN が伝播する経路を減らす。
+
+# 2026-08-10: Animation layer 直接編集の有限値を保証
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `animationLayers` property dispatch。
+- **確認できた事実:** animation value は double を直接 float 化して keyframe へ渡し、weight は `std::clamp()` のみで NaN を除去できなかった。
+- **変更:** 非有限の value は keyframe を作らず拒否し、weight は既存の 0..1 契約を保ったまま有限値へ補正した。2つの legacy／indexed 経路を同じ挙動に揃えた。
+- **価値:** animation stack の評価へ NaN／無限大が入る経路を減らす。
+
+# 2026-08-10: Animation interpolation の hard range を統一
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の animation layer と position keyframe 復元。
+- **確認できた事実:** UI property の interpolation hard range は 0..32 だが、直接設定と position keyframe JSON 復元は任意整数を `InterpolationType` へ cast していた。
+- **変更:** 直接設定と JSON 復元を 0..32 に clamp した。
+- **価値:** 不正な enum 値が補間評価へ流入する経路を減らす。
+
+# 2026-08-10: Solid gradient setter の有限値を統一
+
+- **関連:** `Artifact/src/Layer/ArtifactSolid2DLayer.cppm`、`Artifact/src/Layer/ArtifactSolidImageLayer.cppm` と `ArtifactCompositionViewDrawing::makeVersionedSolidGradientImage()`。
+- **確認できた事実:** renderer は gradient scale の下限しか補正せず、angle／center／offset の NaN は計算へ流れる一方、両 layer の setter は値を直接保持していた。
+- **変更:** 有限の angle／center／offset は保持し、非有限値は既定値へ戻した。scale は renderer と同じ 0.0001 以上へ正規化した。
+- **価値:** Solid gradient の画像生成・キャッシュキー・描画へ NaN／無効 scale が流入する経路を減らす。
+
+# 2026-08-10: Solid gradient renderer 境界を有限化
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` の `makeVersionedSolidGradientImage()`。
+- **確認できた事実:** renderer は scale の下限だけを適用し、angle／center／offset／scale の非有限値を直接計算へ渡していた。関数は layer setter を経由しない test／export caller からも呼ばれる。
+- **変更:** renderer 境界で通常値を保持したまま、非有限値を既定値へ戻し、scale を 0.0001 以上へ揃えた。
+- **価値:** 直接 caller を含む全 gradient 画像生成経路で NaN の画素計算・キャッシュ汚染を防ぐ。
+
+# 2026-08-10: Solid gradient renderer の色入力境界を有限化
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` の `makeVersionedSolidGradientImage()`。
+- **確認できた事実:** start／end color の各チャンネルは layer setter 経由では補正されても、renderer の直接 caller から NaN／無限大／範囲外が渡ると `std::clamp()` 前の alpha 判定や補間へ影響し得た。
+- **変更:** renderer 境界で色チャンネルを有限値かつ 0..1 に正規化し、非有限値は RGB 0、alpha 1 へフォールバックして以降の補間だけで使用するようにした。
+- **価値:** 直接呼び出しを含む gradient 画像生成で不正な色入力が NaN の画素値へ伝播する経路を減らす。
+
+# 2026-08-10: Solid gradient renderer の角度 overflow を抑制
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` の `makeVersionedSolidGradientImage()`。
+- **確認できた事実:** gradient angle は setter で有限値を保持するが hard range はなく、極端に大きい有限 float は度から radian への乗算で overflow し、`cos`／`sin` が不正値になる可能性があった。
+- **変更:** renderer 内で角度を 360 度周期に `fmod` してから三角関数と conical gradient の計算へ渡すようにした。通常値の角度はそのままの見た目を保つ。
+- **価値:** 直接 caller を含む極端な角度入力で gradient 全体が NaN 化する経路を減らす。
+
+# 2026-08-10: Solid gradient renderer の補間係数を有限化
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` の `spreadGradient()`。
+- **確認できた事実:** finite な中心／offset でも極端な入力では座標演算が ±∞ になり、repeating 分岐の `floor()` と減算で NaN が生じる可能性があった。
+- **変更:** fill type ごとの周期処理より前に、非有限の補間係数を正規化した。NaN は 0.5、±∞ は 0／1 へ寄せ、通常値の計算は変更していない。
+- **価値:** 極端な gradient 座標でも色補間と `qRgba()` へ NaN が流れ込む経路を減らす。
+
+# 2026-08-10: Solid layer の gradient color setter を正規化
+
+- **関連:** `Artifact/src/Layer/ArtifactSolid2DLayer.cppm`、`Artifact/src/Layer/ArtifactSolidImageLayer.cppm` の gradient color setter。
+- **確認できた事実:** JSON／property の QColor 経路は通常有限値だが、公開 setter は FloatColor をそのまま保持し、直接 API 呼び出し後の `toJson()`／cache／QColor 変換へ不正チャンネルが残り得た。
+- **変更:** 両 layer の start／end color setter で RGB／alpha を有限値かつ 0..1 に統一し、非有限値は RGB 0、alpha 1 へフォールバックした。
+- **価値:** renderer 境界だけでなく layer 状態自体も安全になり、保存・cache・描画の各経路で同じ色契約を共有できる。
+
+# 2026-08-10: Solid layer creation params の入力契約を統一
+
+- **関連:** `Artifact/src/Layer/ArtifactLayerInitParams.cppm` の `ArtifactSolidLayerInitParams` setter 群。
+- **確認できた事実:** Solid layer 本体と renderer はサイズ・色・gradient 数値を補正する一方、作成パラメータは width／height、FloatColor、angle／center／scale／offset を直接保持していた。
+- **変更:** 作成パラメータでもサイズを 1..16384、色を有限値かつ 0..1、gradient の非有限値と scale 下限を layer 側と同じ契約へ正規化した。
+- **価値:** layer 作成時だけ不正値が保存・cache・描画へ流れる経路を塞ぎ、初期化経路と編集経路の挙動を揃える。
+
+# 2026-08-10: Solid layer factory の gradient 設定転送漏れを修正
+
+- **関連:** `Artifact/src/Layer/ArtifactLayerFactory.cppm` の Solid layer creation branch。
+- **確認できた事実:** factory は init params から色・fill type・angle だけを転送し、reverse／center X/Y／scale／offset を転送していなかったため、作成直後にその設定が既定値へ戻っていた。
+- **変更:** 5つの gradient 設定を init params から `ArtifactSolidImageLayer` へ転送するようにした。
+- **価値:** 作成時設定と作成後の編集・保存結果が一致し、gradient の意図しない既定値化を防ぐ。
+
+# 2026-08-10: Form Particle の invalid QColor を防御
+
+- **関連:** `Artifact/src/Layer/ArtifactFormParticleLayer.cppm` の `FormParticleSettings::fromJson()`、property dispatch、`colorForPoint()`。
+- **確認できた事実:** 不正な色文字列と invalid `QColor` を JSON／property 経路で無条件に保存していた。設定 struct の色フィールドは公開されているため、外部 caller が直接 invalid 値を設定する経路も残っていた。
+- **変更:** invalid color は既存値へ戻し、描画直前にも solid／gradient 色を検証して fallback するようにした。
+- **価値:** Form Particle の保存復元・編集・直接利用の各経路で、invalid QColor が粒子色計算へ流れることを防ぐ。
+
+# 2026-08-10: Form Particle の数値入力を有限化
+
+- **関連:** `Artifact/src/Layer/ArtifactFormParticleLayer.cppm` の `FormParticleSettings::fromJson()` と property dispatch。
+- **確認できた事実:** spacing／particle size／opacity／source threshold／twist／falloff の一部が `std::max()` または直接 float 化のみで、非有限値を保持し得た。
+- **変更:** 非有限値を既定値または現在値へ戻し、既存の最小値・0..1 hard range を維持する補助関数を JSON と property の両経路へ適用した。
+- **価値:** Form Particle の配置・大きさ・透明度・field 計算へ NaN／∞が入る経路を減らす。
+
+# 2026-08-10: Form Particle の clamp 共通処理を有限化
+
+- **関連:** `Artifact/src/Layer/ArtifactFormParticleLayer.cppm` の匿名 namespace 内 `clampValue()`。
+- **確認できた事実:** 設定 struct の公開フィールドは setter を経由せず直接変更でき、描画側には `clampValue()` を通る float 計算が複数残っていた。
+- **変更:** floating-point の NaN／±∞を clamp の下限／上限へ寄せてから既存処理を続けるようにした。整数の挙動は維持した。
+- **価値:** 直接設定された非有限値が particle vertex の色・透明度・補間係数へ伝播する経路を共通処理で減らす。
+
+# 2026-08-10: Form Particle の色保存出口を正規化
+
+- **関連:** `Artifact/src/Layer/ArtifactFormParticleLayer.cppm` の `FormParticleSettings::toJson()`。
+- **確認できた事実:** 描画直前の色 fallback 後も、公開設定を直接変更した invalid `QColor` は JSON 保存時にそのまま `name()` へ渡されていた。
+- **変更:** `toJson()` で solid／gradient 色を検証し、有効な既定色を保存するようにした。
+- **価値:** invalid 色が保存データへ残り、次回復元時に再発する経路を閉じる。
+
+# 2026-08-10: Form Particle の数値保存出口を正規化
+
+- **関連:** `Artifact/src/Layer/ArtifactFormParticleLayer.cppm` の `FormParticleSettings::toJson()`。
+- **確認できた事実:** 色と同様に、公開設定を直接変更した場合は spacing／size／opacity／noise／twist／falloff／threshold が非有限または復元時の想定範囲外のまま JSON 化され得た。
+- **変更:** `toJson()` で既存の `fromJson()` と同じ下限・範囲、および既定値 fallback を適用してから保存するようにした。
+- **価値:** 不正な数値が保存データへ残り、次回読み込みや別環境へ伝播する経路を減らす。
+
+# 2026-08-10: Form Particle の enum／整数保存出口を正規化
+
+- **関連:** `Artifact/src/Layer/ArtifactFormParticleLayer.cppm` の `FormParticleSettings::toJson()`。
+- **確認できた事実:** 公開設定を直接変更すると generator／color／origin mode、grid dimensions、particle limit、render enum が `fromJson()` の hard range を経ずに保存され得た。
+- **変更:** `toJson()` でも各 mode と整数値を既存の hard range へ clamp して保存するようにした。
+- **価値:** 不正な enum 値や作成負荷を過大化する整数値が保存データへ残る経路を減らす。
+
+# 2026-08-10: Particle emitter の直接 float setter を有限化
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `ArtifactParticleLayer::setLayerPropertyValue()`。
+- **確認できた事実:** 同じ関数内に `safeParticleFloat()` がある一方、rotation speed、emitter の radius／width／height／depth／lineLength、opacity 中間値・終端値は直接 float 化または `std::clamp()` していた。
+- **変更:** 既存 helper を使い、非有限値を現在値へ fallback し、geometry を 0..1000000、opacity 系を 0..1 に揃えた。
+- **価値:** emitter geometry と particle opacity の direct property 経路で NaN／∞が粒子生成へ流れる経路を減らす。
+
+# 2026-08-10: Particle render settings の保存値を有限化
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `ArtifactParticleLayer::toJson()`。
+- **確認できた事実:** render settings の復元側は soft particle distance／stretch factor を 0..1000000 へ clamp しているが、保存側は direct setter の値をそのまま JSON 化していた。
+- **変更:** 保存時にも同じ finite／0..1000000 契約を適用した。
+- **価値:** render settings の NaN／∞が保存データへ残り、次回復元や他環境へ伝播する経路を減らす。
+
+# 2026-08-10: Particle render enum の保存値を正規化
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `ArtifactParticleLayer::toJson()`。
+- **確認できた事実:** render enum は property dispatch では clamp されるが、公開 render settings を直接変更した場合は blend／billboard／sort の値をそのまま保存していた。
+- **変更:** 保存時にも既存の 0..4／0..3／0..3 range へ clamp した。
+- **価値:** 不正な render enum が JSON へ残り、復元時の予期しない描画モードへつながる経路を減らす。
+
+# 2026-08-10: Particle emitter color の保存出口を防御
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `ArtifactParticleLayer::toJson()`。
+- **確認できた事実:** emitter の colorStart／colorMid／colorEnd は `QColor::name()` へ直接渡され、公開パラメータを直接変更した invalid color が保存値へ入り得た。
+- **変更:** 保存時に invalid color を白へ fallback してから ARGB 文字列化するようにした。
+- **価値:** emitter の invalid color が JSON と次回復元へ伝播する経路を減らす。
+
+# 2026-08-10: Particle emitter color の復元入口を防御
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の emitter JSON restore。
+- **確認できた事実:** colorStart／colorMid／colorEnd を JSON 文字列から無条件に `QColor` へ代入していたため、不正文字列で既定パラメータを invalid color に置き換え得た。
+- **変更:** 復元した `QColor` が valid の場合だけ各パラメータへ代入するようにした。
+- **価値:** 不正な保存データが emitter の描画色を壊す経路を防ぐ。
+
+# 2026-08-10: Particle timeScale の overflow 上限を追加
+
+- **関連:** `Artifact/include/Generator/ArtifactParticleGenerator.ixx` の `ParticleSystem::setTimeScale()`。
+- **確認できた事実:** setter は非有限値を fallback する一方、有限値には下限しかなく、極端な timeScale は update 内の `deltaTime * timeScale_` を overflow させ得た。
+- **変更:** 既存の 0 以上契約を保ったまま、他の particle float property と同じ 1000000 上限へ clamp した。
+- **価値:** 極端な時間倍率で粒子シミュレーション時刻が inf／NaN 化する経路を減らす。
+
+# 2026-08-10: ParticleEmitter setParams の runtime 境界を防御
+
+- **関連:** `Artifact/include/Generator/ArtifactParticleGenerator.ixx` の `ParticleEmitter::setParams()`。
+- **確認できた事実:** `setParams()` は EmitterParams を直接コピーし、layer 側の property／JSON 正規化を bypass できた。runtime の emitter shape 計算は radius／width／height／depth／lineLength を直接利用し、色もそのまま描画へ渡していた。
+- **変更:** setParams 境界で geometry を有限値・0..1000000へ clamp し、invalid color を白へ fallback した。
+- **価値:** generator API の直接利用でも emitter geometry の NaN／∞と invalid color が runtime へ流れる経路を減らす。
+
+# 2026-08-10: ParticleEmitter setParams の allocation／flipbook 境界を統一
+
+- **関連:** `Artifact/include/Generator/ArtifactParticleGenerator.ixx` の `ParticleEmitter::setParams()`。
+- **確認できた事実:** layer の JSON 復元は maxParticles、burst／aux count、texture dimensions、frame range／rate を clamp していたが、公開 setParams() は直接コピーしていた。
+- **変更:** setParams() でも同じ hard range を適用するようにした。
+- **価値:** generator API の直接利用で過大 allocation、無効な atlas dimensions、異常な frame rate が runtime へ流れる経路を減らす。
+
+# 2026-08-10: ParticleEmitter setParams の乱数範囲を正規化
+
+- **関連:** `Artifact/include/Generator/ArtifactParticleGenerator.ixx` の `ParticleEmitter::setParams()`、`Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `initializeParticle()`。
+- **確認できた事実:** initializeParticle() は life／speed／rotation／scale／opacity の min-max 差を乱数範囲へ渡す。公開 setParams() は max < min や非有限値をそのまま保持できた。
+- **変更:** 各範囲を有限値・既存 hard range へ clamp し、max が min 未満にならないよう揃えた。
+- **価値:** generator API の直接利用で乱数範囲が負値・NaN 化し、粒子初期化が破綻する経路を減らす。
+
+# 2026-08-10: ParticleEmitter setParams の simulation quality／self-collision 境界を正規化
+
+- **関連:** `Artifact/include/Generator/ArtifactParticleGenerator.ixx` の `ParticleEmitter::setParams()`、`Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `update()`／`applySelfCollisionBroadPhase()`。
+- **確認できた事実:** `update()` は fixedTimeStep を除算に、maxSubSteps を反復回数に使い、selfCollisionRadius／selfCollisionResponse は broad-phase のセル半径と補正係数へ直接使う。公開 setParams() ではこれらが非有限値・極端値のまま残り得た。
+- **変更:** fixedTimeStep を有限値・0.000001..1.0、maxSubSteps を 1..256、selfCollisionRadius を有限値・0.001..1000000、selfCollisionResponse を有限値・0..1 へ clamp し、非有限値は既定値へ戻すようにした。
+- **価値:** 直接 API 利用時にも除算、反復回数、空間ハッシュ、衝突補正へ不正値が流れる経路を減らす。
+
+# 2026-08-10: ParticleEmitter setParams の physics／vector 境界を JSON 経路と統一
+
+- **関連:** `Artifact/include/Generator/ArtifactParticleGenerator.ixx` の `ParticleEmitter::setParams()`、`Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `updateParticle()`／`getEmissionDirection()`。
+- **確認できた事実:** JSON 復元では position／rotation／direction／velocityRandom の成分を補正していたが、公開 setParams() は gravity／windDirection を含むベクトルを直接保持していた。updateParticle() はこれらを速度計算へ直接使い、aux／turbulence／drag の scalar も runtime へ渡す。
+- **変更:** setParams() で主要ベクトル成分を有限値・±1000000へ clamp し、direction spread、mass、drag、wind／turbulence、補助粒子の scalar を既存の hard range／既定値へ正規化した。
+- **価値:** generator API の直接利用でも NaN／∞や過大な physics／aux 値が粒子更新へ流れる経路を減らす。
+
+# 2026-08-10: FlockingEffector の直接設定値を runtime で防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `FlockingEffector::apply(std::vector<Particle>&, float)`。
+- **確認できた事実:** Flocking の公開フィールドは setter を経由せず直接設定でき、実装は neighborhoodRadius の二乗と重みをそのまま近傍検索・加速度計算へ使っていた。
+- **変更:** deltaTime、近傍半径、3 種の重み、最大加速度を有限値・既存の粒子系 hard range へ局所正規化し、非有限値は無効化した。
+- **価値:** 不正な effector 設定が flocking 加速度と近傍探索を NaN／∞化する経路を減らす。
+
+# 2026-08-10: Vortex／Attractor／Repeller の direct effector 境界を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の各 effector `apply()`、`Artifact/src/Layer/ArtifactParticleLayer.cppm` の effector 追加 API。
+- **確認できた事実:** これらの effector は公開フィールドを直接使い、radius／falloff／tightness の無効値を `pow()` や半径判定へ渡していた。add API も入力値をそのまま格納する。
+- **変更:** deltaTime、距離、radius、falloff／tightness、strength を runtime で有限値・上限へ補正し、ゼロ半径や非有限距離では処理をスキップするようにした。
+- **価値:** 不正な direct effector 設定によるゼロ除算、`pow()` の NaN、粒子速度の破綻を抑える。
+
+# 2026-08-10: Force／Turbulence／Wind の direct effector 境界を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の各 effector `apply()`、`Artifact/src/Layer/ArtifactParticleLayer.cppm` の effector JSON 復元。
+- **確認できた事実:** Force の vector／strength、Turbulence の frequency／amplitude／evolution、Wind の方向・強度・周波数は公開フィールドから直接 velocity／acceleration 計算へ入る。
+- **変更:** deltaTime、ベクトル成分、各 scalar を有限値・既存の JSON hard range へ runtime 正規化してから計算するようにした。
+- **価値:** direct API 経由の非有限 effector 設定が粒子の速度・加速度を NaN／∞化する経路を減らす。
+
+# 2026-08-10: KillZoneEffector の無効 zone 設定を no-op 化
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `KillZoneEffector::apply()`、`Artifact/src/Layer/ArtifactParticleLayer.cppm` の JSON 復元。
+- **確認できた事実:** JSON 復元では zoneType／size を補正していたが、direct API の不正 enum は `inside=false` のまま判定され、invert=true では全粒子を kill し得た。Plane のゼロ方向も有効な判定として扱われていた。
+- **変更:** position／particle position／size／direction の有限性を確認し、size を clamp、不正 enum とゼロ方向 Plane は処理をスキップするようにした。
+- **価値:** direct effector 設定による意図しない全粒子削除と不安定な Plane 判定を防ぐ。
+
+# 2026-08-10: Particle effector／system update の null・deltaTime 境界を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleEmitter::addEffector()`／`applyEffectors()`／`ParticleSystem::update()`。
+- **確認できた事実:** `addEffector()` は null unique_ptr を受け入れ、単体粒子更新側だけが null check なしで `enabled` を参照していた。また ParticleSystem は非有限／負 deltaTime を `time_` へ加算し得た。
+- **変更:** null effector を登録しないようにし、apply 側にも防御を追加。不正 deltaTime と scaledDelta は更新をスキップするようにした。
+- **価値:** direct API の null 登録によるクラッシュと、無効 deltaTime による simulation time の NaN／逆行を防ぐ。
+
+# 2026-08-10: ParticleSystem goToFrame の fps／長時間 accumulator 境界を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleSystem::goToFrame()`。
+- **確認できた事実:** fps の NaN は従来の `fps <= 0` 判定を通過し、進行 accumulator は float だったため、長時間ターゲットでは 1/120 秒刻みが丸められて currentTime が進まなくなる可能性があった。
+- **変更:** fps／targetTime を有限値・正値として検証し、進行 accumulator を double 化。不正な dt と null emitter もその反復でスキップするようにした。
+- **価値:** direct API の不正 fps と長時間フレーム移動による無限ループ・時刻破綻を抑える。
+
+# 2026-08-10: Particle preWarm の無効刻み・duration 境界を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleEmitter::preWarm()`／`ParticleSystem::preWarm()`。
+- **確認できた事実:** emitter の preWarm は stepSize を検証せず、0 や NaN の刻みで終了しない可能性があり、無効 duration でも先に既存粒子を clear していた。
+- **変更:** duration／stepSize を検証してから clear し、duration／stepSize を既存の runtime hard range へ clamp。double accumulator と正の dt 検証、null emitter 防御を追加した。
+- **価値:** direct API の不正 preWarm 入力による無限ループ、過大な反復、意図しない状態消去を防ぐ。
+
+# 2026-08-10: ParticleSystem captureRenderData の非有限粒子を描画境界で防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleSystem::captureRenderData()`。
+- **確認できた事実:** alive 粒子の position／velocity／scale／opacity／age／lifetime を検証せず render vertex へコピーしていたため、壊れた simulation 値が GPU／描画経路へ流れ得た。
+- **変更:** 非有限 position／velocity の粒子は capture 対象から除外し、scalar は有限値・非負・1000000 上限へ正規化。alpha は 0..1、lifetime は最小値を保証した。
+- **価値:** render boundary で NaN／∞ vertex が downstream の投影・GPU upload・描画へ伝播する経路を減らす。
+
+# 2026-08-10: ParticleSystem QPainter render の別収集経路を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleSystem::render(QPainter&, const QTransform&)`。
+- **確認できた事実:** captureRenderData() とは別に QPainter render が alive 粒子を直接収集し、null emitter、非有限 position／prevPosition／velocity／age、NaN stretch／trail 設定を検証していなかった。
+- **変更:** 描画対象の収集時に粒子の主要値を有限確認し、null emitter をスキップ。opacity、size、trail width、stretch factor を描画境界で clamp した。
+- **価値:** ソフト描画の sort／transform／gradient へ不正値が流れる別経路を抑制する。
+
+# 2026-08-10: ParticleSystem software／GPU render builder の入力境界を統一
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `updateAndRenderSoftwareFrame()`／`renderGPU()`。
+- **確認できた事実:** QPainter 経路以外にも stretchFactor を直接使う software frame と GPU vertex builder があり、GPU builder は null emitter・null vertex buffer・非有限 particle を検証していなかった。
+- **変更:** software stretch factor を finite clamp。renderGPU() で buffer／capacity、null emitter、主要 particle vector／scalar を検証し、size・stretch・alpha を安全化した。
+- **価値:** 全描画 backend で不正値が vertex buffer、投影計算、GPU upload へ流れる経路を減らす。
+
+# 2026-08-10: ParticleSystem camera position の sort／projection 境界を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleSystem::setCameraPosition()`、Distance sort、software projection。
+- **確認できた事実:** camera position は公開 setter から非有限／極端値をそのまま保持でき、距離比較と投影の両方が直接利用していた。
+- **変更:** setter で各成分を有限値・±1000000へ clampし、非有限値は 0 へ fallback した。
+- **価値:** NaN camera による sort comparator の不安定化と software projection の無効 depth 計算を抑える。
+
+# 2026-08-10: ParticleRenderSettings の direct setter 境界を正規化
+
+- **関連:** `Artifact/include/Generator/ArtifactParticleGenerator.ixx` の `ParticleSystem::setRenderSettings()`、`Artifact/src/Layer/ArtifactParticleLayer.cppm` の JSON／property 適用。
+- **確認できた事実:** setter は設定値を単純コピーしており、公開 API から無効 enum、非有限 soft／stretch／trail scalar、過大 trailLength を保持できた。
+- **変更:** blend／billboard／sort enum を既存範囲へ clampし、render scalar と trailLength を有限値・既存 hard range／既定値へ正規化した。
+- **価値:** direct API と JSON／property 経路の描画設定契約を統一し、render backend の不正分岐・過大描画負荷を減らす。
+
+# 2026-08-10: Particle flipbook atlas 次元の overflow 境界を統一
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `clampFlipbookFrame()`／`flipbookFrameCount()`／software capture。
+- **確認できた事実:** rows／cols は通常 setter で clamp される一方、mutable params() 経路では `rows * cols` を直接計算し、atlas frame 数・frameWidth 計算へ渡していた。
+- **変更:** 共通 flipbook helper と render capture の rows／cols を 1..1024 に clamp し、積が安全な範囲で計算されるようにした。
+- **価値:** direct API の過大 atlas 次元による整数 overflow、負の frame 数、壊れた flipbook frame 選択を抑える。
+
+# 2026-08-10: ParticleSystem totalParticleCount の整数 overflow 境界を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleSystem::totalParticleCount()`、`captureRenderData()` の reserve。
+- **確認できた事実:** emitter ごとの particleCount を int へ無検証加算しており、多数 emitter／大きな maxParticles の組み合わせで負値や overflow が reserve へ流れ得た。
+- **変更:** null emitter を無視し、int 最大値を超える場合は飽和して返すようにした。
+- **価値:** 粒子数集計の overflow による予約容量の破綻と描画 snapshot の不安定化を抑える。
+
+# 2026-08-10: ParticleEmitter emission accumulator の int cast 境界を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleEmitter::simulateStep()`。
+- **確認できた事実:** finite な deltaTime と rate の積でも emitAccumulator_ は int 最大値を超え得て、そのまま `static_cast<int>` していた。
+- **変更:** int cast 前に安全上限を確認し、極端な accumulator は maxParticles を1回の上限として消費・リセットするようにした。
+- **価値:** direct update API の極端な時間刻みで emission count の未定義 cast と過大ループを防ぐ。
+
+# 2026-08-10: ParticleEmitter updateParticle の状態最終境界を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleEmitter::updateParticle()`。
+- **確認できた事実:** p.age が NaN の場合は `p.life <= 0` を通過し、flipbook frame の `floor()`／int cast へ進み得た。integration 後の position／velocity／rotation と補間 scalar も同様に runtime へ残り得た。
+- **変更:** age が非有限なら粒子を破棄し、integration 後の主要 vector／rotation が無効な粒子も破棄。scale／opacity は finite clamp した。
+- **価値:** 壊れた粒子状態が次フレーム、flipbook 計算、描画へ伝播する経路を最終境界で止める。
+
+# 2026-08-10: ParticleLayer transformParticleRenderData の transform 境界を防御
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `transformParticleRenderData()`。
+- **確認できた事実:** QTransform の行列／translation と layer opacity を検証せず map／scale／alpha 計算へ使っていた。source size／velocity も direct core 呼び出しでは非有限になり得た。
+- **変更:** 無効 transform は identity に fallback。opacity、scale、速度由来 stretch を有限値・既存描画範囲へ正規化した。
+- **価値:** layer transform 境界で NaN／∞が core particle data、GPU draw、alpha／size 計算へ再混入する経路を減らす。
+
+# 2026-08-10: ParticleLayer LOD／debug boost の非有限境界を防御
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `applyParticleRenderLOD()`／`boostDebugParticleRenderData()`。
+- **確認できた事実:** LOD の非有限 screenScale は keepRatio を経由して `ceil()`／size_t cast へ進み得た。debug boost も size／color を直接算術演算していた。
+- **変更:** 非有限／極端な screenScale は安全化し、NaN は元データを保持。debug size／color は finite clamp 後に補正した。
+- **価値:** layer LOD とデバッグ描画での整数 cast、size、color の NaN／∞伝播を抑える。
+
+# 2026-08-10: ParticleLayer frame／time 変換の FPS 境界を統一
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の draw／goToFrame／renderToImage／debug draw 経路。
+- **確認できた事実:** ParticleSystem 側の goToFrame は FPS を検証する一方、layer の複数経路は composition の framerate を直接使い、NaN／0 が除算・cache frame・fallback render へ入る余地があった。
+- **変更:** layer 内の composition FPS 取得を共通 `safeParticleFps()` に通し、0.001..1000 の有限値へ統一した。
+- **価値:** GPU／fallback／cache の frame→time 変換で NaN、ゼロ除算、極端な反復時間を抑える。
+
+# 2026-08-10: ParticleLayer renderFrame の size／time 入力境界を防御
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `renderFrame()`／`renderToImage()`。
+- **確認できた事実:** public render API は width／height をそのまま QImage allocation に、time を simulation delta と cache frame 計算へ渡していた。
+- **変更:** render dimensions を 1..16384、非有限 time を 0 秒へ正規化し、非有限 lastTime も 0 に fallback した。
+- **価値:** direct render API の過大 allocation、NaN 時刻、無効な simulation delta の伝播を抑える。
+
+# 2026-08-10: ParticleLayer transform 座標の overflow 境界を防御
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `transformParticleRenderData()`。
+- **確認できた事実:** finite な transform でも巨大な行列係数と particle 座標の積で `QPointF` map 結果が float overflow し、GPU particle vertex へ流れる余地があった。
+- **変更:** mapped x／y を有限値・±1e7へ clamp し、非有限結果は finite source 座標へ fallback した。
+- **価値:** transform 後の座標 overflow による GPU projection／draw の破綻を抑える。
+
+# 2026-08-10: ParticleSystem removeEmitter の通知契約を修正
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleSystem::removeEmitter(ParticleEmitter*)`。
+- **確認できた事実:** 非登録ポインタや null を渡しても `emitterRemoved` を発行し、管理コンテナの実状態と UI／observer 通知が不一致になっていた。
+- **変更:** null／未登録ポインタでは no-op とし、実際に削除した場合だけ erase と通知を行うようにした。
+- **価値:** emitter 管理状態と removal notification の整合性を保つ。
+
+# 2026-08-10: ParticleLayer frame number の float overflow 境界を防御
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の frame render／goToFrame／fallback 経路。
+- **確認できた事実:** FPS を有限化しても `int64_t frameNumber` を先に float 化する式が複数残り、巨大 frame では time=∞ が simulation state と cache へ流れ得た。
+- **変更:** 共通 `safeParticleFrameTime()` で double 計算後に有限値・±1e6 秒へ clamp し、全 layer frame→time 経路へ適用した。
+- **価値:** 巨大 frame 番号の float overflow、無効 lastTime、cache／fallback render の時刻破綻を抑える。
+
+# 2026-08-10: ParticleManager removeSystem の通知契約を修正
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleManager::removeSystem()`。
+- **確認できた事実:** 未登録 system 名に対しても `systemRemoved` を発行し、管理 map の実状態と observer 通知が不一致になっていた。
+- **変更:** 登録済み system が存在する場合だけ erase と通知を行うようにした。
+- **価値:** system 管理状態と removal notification の整合性を保つ。
+
+# 2026-08-10: ParticleSystem renderGPU の quad capacity 境界を修正
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleSystem::renderGPU()`。
+- **確認できた事実:** 1 particle は4 vertexを書き込むが、従来の判定は `vertexCount >= maxVertices` のみで、残り3以下の capacity でも書き込みを許していた。
+- **変更:** `vertexCount > maxVertices - 4` で判定し、4 vertex が丸ごと収まる場合だけ quad を生成するようにした。
+- **価値:** GPU vertex buffer の末尾 overrun と破損した draw data を防ぐ。
+
+# 2026-08-10: ParticleEmitter flipbook frame の整数 cast 境界を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleEmitter::updateParticle()`。
+- **確認できた事実:** `p.age * frameRate` を `floor()` 後に直接 `int` へ cast してから available frame 数で剰余を取っていた。setter 経由では frameRate を制限しているが、mutable `params()` から極端値が入ると cast 前に int 範囲を超え得る。
+- **変更:** frameRate を有限値・0..1000 に正規化し、frame 進行値を double の `fmod()` で available frame 範囲へ先に折り返してから int 化した。
+- **価値:** 極端な経過時間や bypass された emitter パラメータでも、flipbook frame 計算の整数 overflow／未定義変換を抑える。
+
+# 2026-08-10: ParticleEmitter self-collision の runtime パラメータ境界を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleEmitter::applySelfCollisionBroadPhase()`。
+- **確認できた事実:** broad-phase が `selfCollisionRadius` と `selfCollisionResponse` を直接 `max`／`clamp` しており、mutable `params()` 経由の NaN／∞をセルサイズ・衝突補正へ渡す余地があった。
+- **変更:** 半径を有限値・0.001..1000000、反応係数を有限値・0..1へ正規化した。
+- **価値:** 自己衝突の空間ハッシュと速度補正で非有限値が伝播し、粒子状態を壊す経路を抑える。
+
+# 2026-08-10: ParticleEmitter fixed-step の step count cast 境界を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleEmitter::update()`。
+- **確認できた事実:** `fixedStepAccumulator / fixedTimeStep` を直接 `int` へ cast していた。通常の `setParams()` では安全だが、mutable `params()` の極小 fixedTimeStep や累積値の∞で整数範囲を超え得る。
+- **変更:** fixed timestep と max substeps を既存範囲へ再正規化し、step 数を double で計算して 0..maxSubSteps に clamp してから int 化した。累積値が非有限／負の場合もリセットする。
+- **価値:** 極端な direct parameter mutation での未定義整数変換と過大な固定刻み反復を防ぐ。
+
+# 2026-08-10: ParticleSystem／ParticleEmitter の時刻と transform 差分を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleEmitter::update()`／`ParticleSystem::update()`。
+- **確認できた事実:** emitter の position／rotation を検証せず inherited velocity と local-space 差分へ使い、両クラスの累積時刻も直接加算していた。mutable パラメータや長時間更新で NaN／∞が次の粒子生成・frame 状態へ残る余地があった。
+- **変更:** transform vector を有限値として扱い、無効入力では差分移動を抑制して前回の安全な transform を保持。emitter／system 時刻は非負・float 最大値以内へ飽和させた。
+- **価値:** transform 差分由来の非有限 velocity と、累積時刻 overflow の伝播を抑える。
+
+# 2026-08-10: ParticleEmitter 初期粒子の random range 境界を統一
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleEmitter::initializeParticle()`。
+- **確認できた事実:** speed／rotation／scale／opacity／lifetime の各初期値が、mutable `params()` の範囲差をそのまま `QRandomGenerator::bounded()` へ渡していた。範囲が負、非有限、または過大な場合の runtime 契約が不明確だった。
+- **変更:** 有限値・±1000000 の範囲へ clamp し、空範囲は下限を返す共通 `randomInRange()` に統一した。
+- **価値:** 粒子生成時の不正な乱数幅と、初期 NaN／∞の再侵入を抑える。
+
+# 2026-08-10: ParticleEmitter color variation の整数 cast 境界を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleEmitter::initializeParticle()`。
+- **確認できた事実:** color variation が mutable `params()` から∞などで入ると、色 variation の計算結果を直接 `int` 化する経路があった。
+- **変更:** variation を有限値・0..1へ正規化してから色差分を計算するようにした。
+- **価値:** 色生成時の過大な整数変換と不正な QColor 値の伝播を抑える。
+
+# 2026-08-10: ParticleLayer debug fallback の dimension cast 境界を防御
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `ParticleDebugLayer::draw()` fallback 経路。
+- **確認できた事実:** `localBounds()` の width／height を `ceil()` 後に直接 `int` 化し、renderFrame の 1..16384 clamp より前に変換していた。
+- **変更:** 非有限値を 1、有限値を 1..16384 に clamp する `safeParticleDimension()` を追加し、fallback の幅・高さへ適用した。
+- **価値:** 異常な layer bounds による整数 overflow と過大な fallback image allocation を抑える。
+
+# 2026-08-10: ParticleLayer transform の RGB 境界を防御
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `transformParticleRenderData()`。
+- **確認できた事実:** layer transform では alpha／size を正規化していたが、RGB は source 値をそのまま GPU 用 vertex へコピーしていた。
+- **変更:** RGB も有限値・0..1へ正規化してから transformed data へ渡すようにした。
+- **価値:** direct particle render data 由来の NaN／範囲外カラーが GPU 描画へ流れる経路を閉じる。
+
+# 2026-08-10: ParticleLayer direct render data の GPU 境界を正規化
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `toCoreParticleRenderData()`。
+- **確認できた事実:** direct layer render data を core vertex へ変換する際、z／速度／回転／age／lifetime／atlas 値を無加工でコピーしていた。通常の capture 経路以外では renderer へそのまま到達し得る。
+- **変更:** geometry、速度、色、size、stretch、rotation、寿命を有限値・既存描画範囲へ clamp し、atlas rows／cols／frame も 1..1024 と有効 frame 範囲へ正規化した。
+- **価値:** direct data bypass から GPU particle renderer へ非有限値や不正 atlas index が流れる経路を閉じる。
+
+# 2026-08-10: ParticleLayer removeEmitter の無効 index 通知を抑制
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `ArtifactParticleLayer::removeEmitter(int)`。
+- **確認できた事実:** index の妥当性を確認せず core の remove 呼び出し後に常に `emitterRemoved` を発行していた。無効 index でも observer だけが削除済みと認識する可能性があった。
+- **変更:** 0..emitterCount-1 の index だけを処理し、無効 index は no-op にした。
+- **価値:** layer の emitter 管理状態と UI／observer 通知の整合性を保つ。
+
+# 2026-08-10: ParticleLayer property の emitter／preview 上限を統一
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `setLayerPropertyValue()`。
+- **確認できた事実:** `particle.emitterCount` は非負化だけで上限がなく、大量 emitter の生成ループへ入れた。preview width／height も任意の int を保持し、renderFrame の上限と不一致だった。
+- **変更:** emitter 数を既存 JSON 復元上限と同じ 1024、preview dimensions を renderFrame と同じ 1..16384 に clamp した。
+- **価値:** property editing による過大な CPU／メモリ負荷と、preview サイズ契約の不一致を抑える。
+
+# 2026-08-10: ParticleLayer property metadata の上限を runtime と同期
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `getLayerPropertyGroups()`。
+- **確認できた事実:** property setter で emitter 数と preview dimensions に上限を追加した後も、editor metadata は emitter 数が無制限、preview dimensions が未設定だった。
+- **変更:** emitter count を 0..1024、preview width／height を 1..16384 の hard range として明示した。
+- **価値:** UI 入力、property cache、runtime clamp の契約を揃え、過大値が編集面から投入される余地を減らす。
+
+# 2026-08-10: ParticleLayer render property metadata の hard range を同期
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `getLayerPropertyGroups()`。
+- **確認できた事実:** blend／billboard／sort enum と soft particle distance／stretch factor は setter／JSON 側に hard clamp がある一方、editor property には tooltip／soft range しかなかった。
+- **変更:** enum を 0..4／0..3／0..3、numeric 値を 0..1000000 の hard range として明示した。既存の soft range は推奨値として維持した。
+- **価値:** UI 入力と runtime／persistence の許容範囲を一致させる。
+
+# 2026-08-10: ParticleLayer emitter metadata の enum／flipbook 範囲を同期
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の emitter property groups。
+- **確認できた事実:** runtime／JSON／setter では shape、mode、atlas、frame、frameRate、maxParticles を制限していたが、editor metadata の一部は旧い hard range または未設定だった。
+- **変更:** shape 0..7、mode 0..2、texture rows／cols 1..1024、start frame 0..1e9、frame count 1..1e6、frameRate 0.001..1000、maxParticles 1..1e7 に揃えた。
+- **価値:** preset／flipbook 編集時の UI 入力契約を runtime の正規化範囲と一致させる。
+
+# 2026-08-10: ParticleLayer emitter metadata の連続値 hard range を同期
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `getLayerPropertyGroups()`。
+- **確認できた事実:** emitter の position／rotation／direction、shape geometry、rate、burst interval は setter／`ParticleEmitter::setParams()` 側で有限値と ±1e6 または 0..1e6 の範囲へ正規化していたが、editor metadata は soft range のみだった。`burstCount` も metadata の 1..100000 が runtime の 0..10000000 と一致していなかった。
+- **変更:** 各連続値に runtime 契約と一致する hard range を追加し、burst count を 0..10000000 に揃えた。soft range は通常編集時の推奨範囲として維持した。
+- **価値:** UI の入力制限、property setter、JSON／runtime 正規化の境界を揃え、極端値が編集面から投入される余地を減らす。
+
+# 2026-08-10: ParticleLayer particle／physics／aux metadata の hard range を同期
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の particle、physics、aux property groups。
+- **確認できた事実:** life、speed、velocity random、scale、opacity、physics、aux の多くは runtime の有限値・clamp 契約を持つ一方、editor metadata は soft range のみ、または aux count の hard range が 0..256 に留まっていた。
+- **変更:** runtime の 0..1e6、±1e6、scale 0..1000、opacity 0..1 などに対応する hard range を追加・更新し、soft range は推奨値として残した。
+- **価値:** particle parameter の編集面と runtime 正規化の契約を揃え、極端値や旧い上限による意図しない入力制限を減らす。
+
+# 2026-08-10: ParticleLayer aux trigger metadata の enum 範囲を同期
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `particle.aux.trigger`。
+- **確認できた事実:** tooltip では Trails／Birth／Death の 0..2 を示していたが、property metadata の hard range は未設定だった。
+- **変更:** runtime の trigger enum と同じ 0..2 の hard range を追加した。
+- **価値:** UI から未定義の aux trigger 値を投入できないようにし、表示説明と入力契約を一致させる。
+
+- **追加確認:** `particle.aux.opacityScale` の soft range が runtime の 0..1 契約を越えて 2.0 まで表示していたため、推奨範囲も 0..1 に修正した。
+
+# 2026-08-10: ParticleLayer velocity random の入力契約を再調整
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `velocityRandomX/Y/Z` metadata と `setLayerPropertyValue()`。
+- **確認できた事実:** 初回 metadata 追加では `ParticleEmitter::setParams()` のベクトル正規化に合わせて ±1e6 としたが、layer の property setter はランダム振幅を 0..1e6 に clamp していた。
+- **変更:** editor hard range を setter／ランダム振幅の意味に合わせて 0..1e6 に修正した。
+- **価値:** metadata と実際の layer property 入力経路の契約を一致させ、負のランダム振幅を UI から投入できないようにする。
+
+# 2026-08-10: ParticleEmitter emission 入力を直前正規化
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `getEmissionPosition()`／`getEmissionDirection()`。
+- **確認できた事実:** `setParams()` は position／rotation／direction と shape geometry を正規化するが、公開された mutable params 経路ではその後に非有限値や極端値を設定でき、回転行列・emission offset へ直接入っていた。
+- **変更:** emission 直前にベクトルを有限・±1e6、geometry を有限・0..1e6 へ正規化した。
+- **価値:** setter を迂回する authoring／preset 状態でも、粒子生成の初期位置・方向が不正値へ汚染される経路を閉じる。
+
+# 2026-08-10: ParticleEmitter update 中の aux append による vector 無効化を防止
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleEmitter::update()` と `updateParticle()`。
+- **確認できた事実:** update の range-for 中に、死亡／trail aux の `emitAuxParticlesFromParticle()` が同じ `particles_` へ append していた。再配置時に range-for の参照・iterator が無効化される可能性があった。
+- **変更:** Phase 1b 開始時の粒子数を保存し、index ループで既存粒子だけを処理するようにした。追加された aux 粒子は次の simulation step から更新する。
+- **価値:** aux emission 有効時の undefined behavior を除去し、更新順序も deterministic に保つ。
+
+# 2026-08-10: aux emission source 参照を vector append から分離
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `emitParticles()` と `updateParticle()`。
+- **確認できた事実:** Phase 1b を index ループへ変えても、birth／death／trail aux 生成時に vector 要素への参照を `emitAuxParticlesFromParticle()` へ渡していた。aux append の再配置後、その参照を使い続ける経路が残っていた。
+- **変更:** aux 生成前に source particle を値コピーし、death 状態と trail interval の更新を append 前に確定した。
+- **価値:** aux emission の全入口で vector reallocation による dangling reference を防ぐ。
+
+# 2026-08-10: ParticleEmitter self-collision cell key の整数境界を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `applySelfCollisionBroadPhase()`。
+- **確認できた事実:** position は有限でも cellSize が小さい場合、`floor(position / cellSize)` の float→int 変換が int 範囲を超え得た。また巨大な差分では `lengthSquared()` が非有限になり得た。
+- **変更:** cell coordinate を int の安全な内部範囲へ飽和し、非有限の距離二乗を衝突対象から除外した。
+- **価値:** self-collision の broad phase が極端な座標で未定義変換や不正な normal／impulse 計算へ進むのを防ぐ。
+
+# 2026-08-10: ParticleLayer emitter JSON の数値を保存時に正規化
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `ArtifactParticleLayer::toJson()`。
+- **確認できた事実:** 通常の `setParams()` 経路では emitter 値が正規化されるが、mutable params から `savedEmitterParams` に raw 値が残る可能性があり、toJson は rate、geometry、vector、opacity、physics、atlas、aux などを無加工で JSON 化していた。
+- **変更:** 保存時に有限値・既存 runtime 範囲へ clamp し、enum／integer も対応する hard range に正規化した。推奨値ではなく persistence の安全境界を適用した。
+- **価値:** 非有限値や許容外の emitter 設定が保存ファイルへ流出し、次回読込で状態を汚染する経路を閉じる。
+
+- **追加確認:** emitter shape／mode enum も保存時に 0..7／0..2 へ正規化した。
+
+# 2026-08-10: ParticleLayer effector JSON の保存範囲を同期
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `ArtifactParticleLayer::toJson()` effector serialization。
+- **確認できた事実:** effector の読込側は type、strength、vector、radius、frequency、weights、kill zone size 等を clamp していたが、保存側は raw 値を JSON 化していた。
+- **変更:** 読込側の許容範囲に合わせて effector 共通値と各型固有値を保存時に有限値・enum／integer 範囲へ正規化した。
+- **価値:** mutable effector state から非有限値や許容外値が persistence へ流出する経路を閉じ、save/load の契約を対称化する。
+
+# 2026-08-10: ParticleLayer JSON render settings の setter 経路を復元
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `applyPropertiesFromJson()` と `clearEffectors()`。
+- **確認できた事実:** JSON 読込は render settings の各値を個別 clamp していたが、mutable reference へ直接代入して `ParticleSystem::setRenderSettings()` の共通正規化を迂回していた。clearEffectors には const_cast と null dereference 前提も残っていた。
+- **変更:** settings を値で編集してから setter へ渡し、effectors は const view から null check 付きで clear するようにした。
+- **価値:** JSON 読込と通常 setter の正規化契約を統一し、effectors 管理の不要な const_cast／null dereference を除去する。
+
+# 2026-08-10: ParticleLayer emitter position scaling の const_cast を除去
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `ArtifactParticleLayer::Impl::scaleEmitterPositions()`。
+- **確認できた事実:** この処理は emitter vector の追加・削除をせず、各 emitter の `setParams()` を呼ぶだけなのに、const view を mutable vector へ const_cast していた。
+- **変更:** const な unique_ptr コンテナをそのまま走査し、所有対象の setter だけを呼ぶ形にした。
+- **価値:** vector 所有権を変更せずに const-correct に更新でき、不要な const_cast とその保守リスクを除去する。
+
+# 2026-08-10: ParticleLayer public effector API の入力範囲を統一
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `addForceEffector()`、`addVortexEffector()`、`addAttractorEffector()`、`addWindEffector()`。
+- **確認できた事実:** JSON 読込と Turbulence API は effector 値を clamp していたが、他の public add API は position／direction／radius／strength を raw で格納していた。
+- **変更:** 共通 helper で vector を有限・±1e6、radius／strength 等を JSON 読込と同じ範囲へ正規化した。
+- **価値:** UI 以外の public API 経由でも、極端値が effector simulation へ直接流入しないようにする。
+
+# 2026-08-10: ParticleLayer effector 追加時の frame cache 無効化
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の public effector add API。
+- **確認できた事実:** addForce／Vortex／Turbulence／Attractor／Wind は effector を追加しても `clearFrameCache()` を呼んでいなかった。一方 clearEffectors と emitter property 更新は cache を無効化していた。
+- **変更:** 各 effector 追加直後に frame cache を無効化した。
+- **価値:** software fallback の同一 frame 表示が stale にならず、effector 追加が preview に反映される。
+
+# 2026-08-10: ParticleLayer effector 追加時の saved emitter 同期
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の public effector add API と `Impl::savedEmitterParams`。
+- **確認できた事実:** 空の layer で `firstEmitterOrCreate()` が emitter を生成しても、effector add API は saved params を再構築していなかった。結果として実体の emitter／effector と JSON 保存対象が不一致になり得た。
+- **変更:** 各 effector 追加後に `rebuildSavedEmitterParamsFromSystem()` を呼ぶようにした。
+- **価値:** effector を最初に追加した layer でも、project save／再読込で emitter と effector が失われないようにする。
+
+# 2026-08-10: ParticleLayer JSON restore quota を有効 object 数で計数
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の emitter／effector JSON restore loops。
+- **確認できた事実:** restore quota のカウンタを object 判定より前に increment していたため、非 object 配列要素が 1024 件上限を消費し、有効な後続要素が復元されない可能性があった。
+- **変更:** object 判定後に quota を確認・increment するようにした。
+- **追加確認:** effector は type 0..10 の検証後に increment し、未知 type も quota を消費しないようにした。
+- **価値:** malformed JSON の無効要素が valid emitter／effector の復元を妨げないようにする。
+
+# 2026-08-10: ParticleLayer timeScale metadata の上限を同期
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `particle.timeScale` property metadata と `setTimeScale()`。
+- **確認できた事実:** setter／ParticleSystem は timeScale を有限・0..1000000 に clamp していたが、editor metadata に hard range がなかった。
+- **変更:** property metadata に 0..1000000 の hard range を追加した。
+- **価値:** UI／property cache から runtime 契約外の timeScale が投入される余地を減らす。
+
+# 2026-08-10: ParticleLayer JSON 保存を live emitter snapshot 基準へ変更
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` の `ArtifactParticleLayer::toJson()` と `particleSystem()` 公開 API。
+- **確認できた事実:** `particleSystem()` は mutable pointer を返すため外部から emitter params を変更できるが、toJson は `savedEmitterParams` キャッシュを保存していた。キャッシュ更新を伴わない変更が save から欠落し得た。
+- **変更:** toJson 内で live emitter の params と effector を同じ serializable snapshot に収集し、それを保存するようにした。system がない場合だけ旧キャッシュへフォールバックする。
+- **価値:** 外部 API 経由の編集も project save に反映され、emitter と effector の対応関係を保ったまま保存できる。
+
+- **追加確認:** `particle.physics.turbulenceFrequency` は setter が 0..1000 に clamp していたため、metadata の hard range も 0..1000 に修正した。
+
+# 2026-08-10: ParticleSystem software fallback の数値境界を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleSystem::updateAndRenderSoftwareFrame()`。
+- **確認できた事実:** software path は emitter／particle の null・非有限値を前提にし、投影半径を直接 int 化し、`dx * dx` を int のまま計算していた。大きな値や mutable params 経由で overflow／不正な座標計算へ進む余地があった。
+- **変更:** null／非有限 particle をスキップし、scale／stretch／半径／opacity／soft particle／trail width を有限値・既存上限へ正規化した。距離二乗は float 掛け算へ変更した。
+- **価値:** QImage fallback が極端値でクラッシュ、巨大ループ、または不正な投影へ進む経路を局所的に閉じる。
+
+# 2026-08-10: ParticleSystem QPainter fallback の stretch／clear 境界を統一
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleSystem::render(QPainter&)` と `clear()`。
+- **確認できた事実:** QPainter fallback は finite particle を選別していたが、velocity stretch と render setting の積を上限なしで矩形サイズに使用していた。また clear は null emitter を直接 dereference していた。
+- **変更:** stretch を 1..1e6 に clamp し、clear の emitter null check を追加した。
+- **価値:** software fallback の巨大描画値と状態破損時の null dereference を抑え、別 fallback 入口でも同じ境界契約を保つ。
+
+# 2026-08-10: ParticleSystem GPU vertex buffer の容量計算を防御
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleSystem::renderGPU()`。
+- **確認できた事実:** `maxVertices` は粒子 quad の vertex 数として検査していたが、実際の float index は `vertexCount * 8` で計算していたため、極端な int 容量では index が overflow し得た。stretch も QPainter fallback と異なり上限なしだった。
+- **変更:** writable vertex capacity を `INT_MAX / 8` 以下へ制限し、stretch を 1..1e6 に clamp した。
+- **価値:** GPU vertex buffer への書き込み index の整数 overflow と、巨大 stretch による異常な頂点値を抑える。
+
+# 2026-08-10: ParticleSystem lifecycle の null emitter 防御を統一
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` の `ParticleSystem::update()`、`reset()`、`removeEmitter(int)`。
+- **確認できた事実:** 描画・capture 経路は null emitter をスキップしていた一方、update／reset は直接 dereference し、無効な slot の remove は null pointer を通知し得た。
+- **変更:** update／reset は null をスキップし、removeEmitter(index) は null slot を no-op にした。
+- **価値:** lifecycle と描画経路の状態破損時挙動を揃え、simulation 更新や observer 通知の null dereference を防ぐ。
+### 2026-08-10: Particle burst count property input aligned with runtime bounds
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` / `setLayerPropertyValue()` / `particle.emitter.burstCount`
+- **事実:** `ParticleEmitter::setParams()`、JSON 保存・復元、プロパティ metadata は `burstCount` を `0..10000000` として扱っていたが、プロパティ setter だけ `1..10000000` にしていた。
+- **対応:** setter も下限を 0 に統一し、UI からバースト数 0（無効化）を設定できるようにした。
+- **価値/懸念:** 入力経路間の範囲差を解消した。0 の意味が各 emission mode で同一かは未検証。
+- **次に確認:** バーストモードで `burstCount == 0` の実行時挙動を、ビルド・テスト許可後に確認する。
+### 2026-08-10: Particle atlas frame property input aligned with metadata bounds
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` / `setLayerPropertyValue()` / `startFrame`, `frameCount`
+- **事実:** `startFrame` と `frameCount` は metadata、JSON 復元、`ParticleEmitter::setParams()` ではそれぞれ `0..1000000000`、`1..1000000` だが、property setter は下限だけを適用していた。
+- **対応:** property setter にも同じ上限を適用した。
+- **価値/懸念:** UI／JSON／runtime の atlas frame 範囲が統一された。既存保存データの再生互換性は維持される。
+- **次に確認:** 極端な atlas frame 値での flipbook frame 選択を、ビルド・テスト許可後に確認する。
+### 2026-08-10: Flocking invalid-vector isolation before particle integration
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` / `FlockingEffector::apply()`
+- **事実:** Flocking は通常の `updateParticle()` より前の Phase 1a で実行されるため、無効な position／velocity を持つ粒子が `lengthSquared()`、近傍平均、加速度計算へ入ると NaN が他の粒子へ伝播し得た。
+- **対応:** source と neighbor の position／velocity を component 単位で有限値確認し、無効な粒子を Flocking 計算から除外した。
+- **価値/懸念:** 1 粒子の壊れた状態が flock 全体の加速度を汚染する経路を遮断した。無効粒子自体の最終処理は既存の粒子更新側に委ねる。
+- **次に確認:** 異常値を含む Flocking 粒子群で加速度が有限に保たれることを、ビルド・テスト許可後に確認する。
+
+補足: 有限な入力でも近傍加算の overflow で合成加速度が非有限になる可能性があるため、合成後にも有限性を確認し、無効な加速度をゼロへ正規化する。
+### 2026-08-10: Particle QPainter render transform finite guard
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` / `ParticleSystem::render(QPainter&, const QTransform&)`
+- **事実:** layer の GPU 変換経路には有限性確認がある一方、generator の public QPainter render 経路は受け取った `QTransform` をそのまま `QPainter::setTransform()` へ渡していた。
+- **対応:** 行列要素と translation を確認し、非有限な行列は identity に置き換えてから描画するようにした。
+- **価値/懸念:** 直接利用者を含む software/QPainter fallback の invalid transform 伝播を防ぐ。無効行列を identity とする既存 layer 側の扱いに合わせた。
+- **次に確認:** 非有限 transform を渡した fallback render が描画を継続できることを、ビルド・テスト許可後に確認する。
+### 2026-08-10: Self-collision grid skips non-finite particle positions
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` / `ParticleEmitter::applySelfCollisionBroadPhase()`
+- **事実:** broad phase は距離計算時に非有限値を除外していたが、セル構築では非有限 position を `(0,0,0)` 相当のセルへ登録していた。
+- **対応:** セル登録前に position の3成分を有限性確認し、無効粒子を grid から除外した。
+- **価値/懸念:** 異常粒子が原点近傍の候補探索へ混ざる無駄をなくし、セル構築と衝突計算の境界を一致させた。無効粒子の寿命処理は既存 update path が担当する。
+- **次に確認:** 非有限 position を含む self-collision frame で、他粒子の衝突結果が変わらないことをビルド・テスト許可後に確認する。
+### 2026-08-10: Emitter inherited velocity finite guard for tiny delta
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` / `ParticleEmitter::update()`
+- **事実:** 通常 update の emitter 移動量は `deltaPosition / deltaTime` で計算され、正だが極端に小さい delta では infinity になり得た。固定ステップ側の delta 制限だけでは public update 経路を覆えない。
+- **対応:** 成分ごとに有限性を確認し、`±1000000` に clamp、非有限値は 0 に fallback するようにした。
+- **価値/懸念:** emitter の inherited velocity が新規粒子へ非有限値として伝播する経路を遮断した。大きな移動は既存の runtime 速度上限に合わせて飽和する。
+- **次に確認:** 極小 delta と急な emitter 移動を組み合わせた生成で速度が有限に保たれることを、ビルド・テスト許可後に確認する。
+### 2026-08-10: Particle goToFrame simulation time cap aligned with render time
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` / `ParticleSystem::goToFrame()`
+- **事実:** layer の `safeParticleFrameTime()` は frame 時刻を 1,000,000 秒へ clamp していたが、`goToFrame()` は巨大 frame／極小 fps の target time をそのまま 120Hz ループへ渡していた。
+- **対応:** `goToFrame()` の target time も最大 1,000,000 秒に clamp した。
+- **価値/懸念:** render 経路内の seek が極端な入力で長時間ブロックするリスクを除去し、既存の frame-time fallback と上限を統一した。上限超過分の simulation は意図的に省略される。
+- **次に確認:** 巨大 frame と通常 frame の seek が有限時間で完了し、通常範囲の結果が変わらないことをビルド・テスト許可後に確認する。
+### 2026-08-10: Particle clearEmitters now reports aggregate state change
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` / `ArtifactParticleLayer::clearEmitters()`
+- **事実:** clear は emitter と saved params、frame cache を消去していたが、既存の `particleSystemChanged`／`changed` を通知していなかった。JSON の空 `emitters` 配列や preset 切替では、後続 add がない場合に UI／dirty state が更新されない。
+- **対応:** 新しいイベント経路は追加せず、既存シグナルを clear 完了後に発火するようにした。
+- **価値/懸念:** 空状態への復元・切替でも property UI と変更状態が同期する。preset が続けて emitter を追加する場合は既存の通知に加えて clear 通知が発生する。
+- **次に確認:** 空 emitters JSON 復元と preset 切替で UI／dirty state が更新されることを、ビルド・テスト許可後に確認する。
+### 2026-08-10: Particle clearEffectors synchronizes persistence and change state
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` / `ArtifactParticleLayer::clearEffectors()`
+- **事実:** clearEffectors は全 emitter の effectors を消していたが、saved emitter params を再構築せず、既存の変更通知も発火していなかった。live snapshot 保存で通常 JSON は保てるものの、fallback 状態と UI／dirty state が不整合になり得た。
+- **対応:** clear 後に saved params を再構築し、既存の `particleSystemChanged`／`changed` を通知するようにした。
+- **価値/懸念:** effector 一括削除が通常編集と同じ persistence・通知契約を満たす。空 emitter の場合も aggregate change 通知は発生する。
+- **次に確認:** effector 削除後の保存・再読込と UI 更新を、ビルド・テスト許可後に確認する。
+### 2026-08-10: Particle system recreation reports layer dirty state
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` / `ArtifactParticleLayer::createParticleSystem()`
+- **事実:** system 再生成と default emitter 作成後に `particleSystemChanged` は通知していたが、layer の変更通知 `changed` がなかった。
+- **対応:** 再生成完了後に既存の `changed` を発火し、保存対象の状態変更として扱うようにした。
+- **価値/懸念:** system 再作成後の dirty state が UI／保存経路へ伝わる。初期化時に呼ばれる場合は既存 lifecycle の通知契約に従って dirty 扱いになる。
+- **次に確認:** system 再生成後の save prompt と property UI 同期を、ビルド・テスト許可後に確認する。
+### 2026-08-10: JSON particle restore avoids dirty notification from public clear
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` / `applyPropertiesFromJson()` の emitter 復元
+- **事実:** `clearEmitters()` に aggregate `changed` 通知を追加した後、JSON 復元がその public clear を呼ぶと、ロード中の状態置換が interactive edit として dirty 扱いになる。
+- **対応:** JSON 復元では particle system と saved params を内部的に直接クリアし、cache だけを無効化する。公開 `clearEmitters()` の通知契約は維持した。
+- **価値/懸念:** ドキュメント復元直後に不要な dirty state を作らず、空／不正 emitter 配列も従来どおり空状態へ置換できる。ロード完了時の全体通知は既存の上位ロード契約に依存する。
+- **次に確認:** particle JSON のロード直後に dirty state が立たず、空配列復元でも property UI が空になることをビルド・テスト許可後に確認する。
+### 2026-08-10: Unsupported particle effector types no longer consume restore quota
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` / `applyPropertiesFromJson()` の effector restore quota
+- **事実:** `EffectorType` には Drag／Noise／Collision があるが、現行 restore factory では対応 class がなく skip される。quota counter は factory 成功前に増えていたため、未対応要素が後続の有効 effector の復元枠を消費していた。
+- **対応:** effector instance の生成に成功した後でのみ `restoredEffectorCount` を increment するようにした。
+- **価値/懸念:** 不明／未対応 effector が大量に含まれる JSON でも、有効な後続 effector を上限まで復元できる。未対応 type 自体は引き続き skip される。
+- **次に確認:** 未対応 type と有効 type を混在させた JSON の復元で、有効 effector 数が quota どおりになることをビルド・テスト許可後に確認する。
+### 2026-08-10: Particle emitter setter normalizes direct enum inputs
+
+- **関連:** `Artifact/include/Generator/ArtifactParticleGenerator.ixx` / `ParticleEmitter::setParams()`
+- **事実:** JSON／property setter は shape／mode／auxTrigger を範囲化していたが、public `setParams()` は enum を直接コピーしていた。
+- **対応:** setter 入口で `EmitterShape` `0..7`、`EmissionMode` `0..2`、`AuxTriggerMode` `0..2` に正規化した。
+- **価値/懸念:** 直接 API 利用でも invalid enum が switch／aux trigger へ伝播しない。既存の有効 enum の挙動は変わらない。
+- **次に確認:** invalid underlying enum を含む `EmitterParams` を直接渡した場合も、保存・描画・更新が有効な default mode で継続することをビルド・テスト許可後に確認する。
+### 2026-08-10: Particle effector type gets a safe base default
+
+- **関連:** `Artifact/include/Generator/ArtifactParticleGenerator.ixx` / `ParticleEffector::type`
+- **事実:** base effector の `type` は未初期化で、既存の built-in 派生 class は constructor で設定するが、外部／将来の派生 class が設定し忘れると JSON serialize 時の enum 読み出しが未定義値になり得た。
+- **対応:** base field の default を `EffectorType::Force` に設定した。
+- **価値/懸念:** custom effector の type 設定漏れでも未初期化読み出しを防ぐ。custom effector は引き続き、自身の type を明示的に設定する責務を持つ。
+- **次に確認:** type 未設定の custom effector を serialize した場合に安全な値で保存されることを、ビルド・テスト許可後に確認する。
+### 2026-08-10: Particle emitter clear resets deterministic particle IDs
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` / `ParticleEmitter::clear()`
+- **事実:** clear は粒子、時間、accumulator、乱数 seed、transform state を初期化していたが、`nextParticleId_` は維持していた。そのため同じ seed で reset／seek しても particle notification の ID 列だけが変化した。
+- **対応:** clear 時に `nextParticleId_` を 0 へ戻すようにした。
+- **価値/懸念:** reset／goToFrame の再現性を visual simulation だけでなく particle ID にも広げた。clear 後の古い ID と新しい ID の一意性を跨いで保証する用途は想定していない。
+- **次に確認:** 同一 seed の reset／seek で emitted／died ID 列が一致することを、ビルド・テスト許可後に確認する。
+### 2026-08-10: Particle emitter removal keeps signal pointer alive
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` / `ParticleSystem::removeEmitter()` の pointer／index overload
+- **事実:** 旧実装は vector から unique_ptr を erase して emitter を破棄した後、破棄済み raw pointer を `emitterRemoved` に渡していた。
+- **対応:** 対象 unique_ptr を local に move して vector から除去し、signal 通知が完了するまで local ownership で emitter を生存させるようにした。
+- **価値/懸念:** signal receiver が通知 payload を読む時点の dangling pointer を解消した。通知後は local ownership が解放されるため、pointer の長期保持は従来どおり許容されない。
+- **次に確認:** pointer／index 両 overload の signal receiver が通知中に安全に emitter を参照でき、通知後に system から消えていることをビルド・テスト許可後に確認する。
+### 2026-08-10: Turbulence effector octaves serialization avoids unsafe float-to-int cast
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` / `toJson()` の Turbulence effector
+- **事実:** `TurbulenceEffector::octaves` は float だが、保存時に `safeEmitterInt()` へ暗黙に int 化して渡していた。public mutable field が NaN／巨大値の場合、cast 前の安全確認がなかった。
+- **対応:** 有限性を確認し、double の `1..12` clamp 後に int 化し、非有限値は 3 に fallback するようにした。
+- **価値/懸念:** 不正な turbulence 設定でも JSON 保存が未定義動作にならない。既存の有効 octaves の保存値は変わらない。
+- **次に確認:** NaN／巨大 octaves の保存と再読込で値が `3`／`12` に収まることをビルド・テスト許可後に確認する。
+### 2026-08-10: GPU particle vertices clamp extreme finite positions
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` / `ParticleSystem::renderGPU()`
+- **事実:** GPU path は position の有限性だけを確認していた。float 最大値近傍の有限 position に quad corner offset を加えると、vertex buffer へ infinity を書き得た。core render conversion には既に `±10000000` の座標 clamp がある。
+- **対応:** GPU vertex 生成でも position X/Y を `±10000000` に clamp してから quad 計算へ使うようにした。
+- **価値/懸念:** GPU buffer に非有限座標が入る経路を core path と同じ座標契約へ揃えた。極端な座標は画面外の安全な有限座標へ飽和する。
+- **次に確認:** float 最大値近傍の particle が GPU buffer に有限 vertex のみを書き込むことをビルド・テスト許可後に確認する。
+### 2026-08-10: Software particle projection guards non-finite pixel casts
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` / `ParticleSystem::updateAndRenderSoftwareFrame()`
+- **事実:** finite particle position でも投影 `sx/sy` は overflow し得て、旧 code はそのまま `round()` と int cast を行っていた。
+- **対応:** 投影値の有限性を確認して異常値を skip し、有限値も int の上下限から半径余白を引いた範囲へ clamp してから pixel cast するようにした。
+- **価値/懸念:** 極端な座標での undefined int conversion と `px ± radius` overflow を防いだ。画面外粒子は既存の min/max 判定で描画対象外になる。
+- **次に確認:** float 最大値近傍の particle を software fallback へ渡しても frame が生成でき、pixel index が安全範囲に収まることをビルド・テスト許可後に確認する。
+### 2026-08-10: Software particle frame dimensions share preview allocation bounds
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` / `ParticleSystem::updateAndRenderSoftwareFrame()`
+- **事実:** layer の preview dimensions は `1..16384` に制限されているが、public software frame API は正の int を無制限に `QImage` dimensions として受け取っていた。
+- **対応:** frame 生成前に width／height を `1..16384` へ clamp するようにした。
+- **価値/懸念:** 巨大 dimensions による過大 allocation／frame 生成失敗のリスクを preview 経路と統一した。要求値が上限を超える場合は有限な最大 preview へ飽和する。
+- **次に確認:** 巨大 dimensions の入力で frame が安全に生成され、通常 dimensions の出力が変わらないことをビルド・テスト許可後に確認する。
+### 2026-08-10: Particle capture reserve is bounded independently of particle count
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm` / `ParticleSystem::captureRenderData()`
+- **事実:** capture は `totalParticleCount()`（int 最大まで飽和）をそのまま vector reserve に使っていた。非有限／dead particle を後段で除外する場合でも、先に巨大 allocation を試みる経路があった。
+- **対応:** 初期 reserve を 1,000,000 件までに制限し、実際の有効 particle は従来どおり vector へ追加するようにした。
+- **価値/懸念:** 異常な particle 数や多数 emitter での即時 bad allocation リスクを抑えた。通常の小規模 capture の reserve 挙動は変わらない。
+- **次に確認:** 大量／無効 particle を含む capture で frame が生成でき、通常粒子の出力件数が変わらないことをビルド・テスト許可後に確認する。
+### 2026-08-10: Particle renderToImage resets on backward time seeks
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm` / `ArtifactParticleLayer::renderToImage(QImage&, float)`
+- **事実:** `goToFrame()` は時間が戻ると particle system を reset していたが、renderToImage の float-time overload は負の delta を無視して現在の未来 state をそのまま描画していた。
+- **対応:** playing 中に要求 time が `lastTime` より前なら既存 `reset()` を呼び、そこから再度 forward update するようにした。
+- **価値/懸念:** frame render／fallback の backward seek でも過去時刻の state が再現される。paused 中は従来どおり simulation を進めない。
+- **次に確認:** 時刻 `t2` の後に `t1 < t2` を renderToImage した場合、`t1` の画像が reset 後の再シミュレーションと一致することをビルド・テスト許可後に確認する。
+### 2026-08-10: Solid layer direct size setters align with init bounds
+
+- **関連:** `Artifact/src/Layer/ArtifactSolid2DLayer.cppm`、`Artifact/src/Layer/ArtifactSolidImageLayer.cppm` / `setSize()`
+- **事実:** `ArtifactSolidLayerInitParams` は width／height を `1..16384` に制限していたが、solid layer の直接 setter は `max(1, value)` のみで、JSON／public API から巨大 source size を作れた。
+- **対応:** Solid2D／SolidImage の両 `setSize()` を `1..16384` clamp に統一した。
+- **価値/懸念:** solid source／cache の過大 allocation リスクを init／preview の既存契約と揃えた。通常サイズの挙動は変わらない。
+- **次に確認:** 巨大 solid size の JSON 復元と直接 setter が 16384 に収まり、通常 solid の描画が変わらないことをビルド・テスト許可後に確認する。
+## 2026-08-10: Solid color setter normalization
+
+- **関連:** `Artifact/src/Layer/ArtifactSolid2DLayer.cppm`, `Artifact/src/Layer/ArtifactSolidImageLayer.cppm`
+- **事実:** gradient colors already normalized non-finite/channel values, while the regular solid color setters accepted raw `FloatColor` values. The image-layer path also copied that raw value into an animatable keyframe and QColor conversion.
+- **修正:** both regular color setters now normalize channels to finite `0..1` values, using RGB fallback `0` and alpha fallback `1`, before storing or updating the property.
+- **価値:** direct API, animation, JSON, and preview paths now share the same color safety contract without adding a new event path.
+- **未検証:** runtime rendering and animation playback still require the repository's explicit build/test step.
+### 2026-08-10 — Solid 描画入口でも source size を防御的に制限
+
+- **関連:** `Artifact/src/Layer/ArtifactSolid2DLayer.cppm`、`Artifact/src/Layer/ArtifactSolidImageLayer.cppm`
+- **事実:** 固有の `setSize()` と一般プロパティ経路は `1..16384` に制限されているが、基底の protected `setSourceSize()` は raw 値を保持し、Solid の `draw()`／`toQImage()` はそれを直接 `QImage`／gradient image の寸法に使っていた。
+- **修正:** 両 Solid の描画・画像化入口で source width/height を `1..16384` に clamp してから downstream の画像生成へ渡す。
+- **価値:** 通常の UI／JSON 経路外から不正または過大な source size が入っても、Solid の画像 allocation が無制限に拡大しない。
+- **未検証:** 実際の描画結果と大寸法入力時の runtime 挙動は、ビルド・テスト許可後に確認する。
+### 2026-08-10 — 共通 gradient utility に最終入力境界を追加
+
+- **関連:** `Artifact/include/Layer/ArtifactSolidGradientUtil.hpp`
+- **事実:** Solid 層側の setter は多くの値を正規化していたが、共通 `makeSolidGradientImage()` 自体は QSize、fill type、angle、scale、offset を raw 値で受け、NaN／無限大や過大寸法を内部の QImage／gradient 計算へ渡し得た。
+- **修正:** utility 内で寸法を `1..16384`、fill type を `0..5`、scale／offset を有限の bounded range、center と alpha scale を有限値として正規化し、全計算を safe 値へ統一した。
+- **価値:** Solid 2D／Solid Image の共有描画経路が呼び出し側の防御に依存せず、直接 utility 呼び出し時も同じ安全契約を持つ。
+- **未検証:** gradient の各 fill type における実描画 parity はビルド・runtime 確認が必要。
+### 2026-08-10 — thumbnail 共通入口の寸法上限を Solid 経路と統一
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`、`Artifact/src/Layer/ArtifactSolidImageLayer.cppm`
+- **事実:** Solid 2D は基底 `ArtifactAbstractLayer::getThumbnail()` を使い、基底と Solid Image override は要求値を `max(1, ...)` のみで `QImage` allocation／scaled に渡していた。一方、Solid source image と gradient utility の上限は `1..16384` だった。
+- **修正:** 基底 thumbnail と Solid Image override の width/height を `1..16384` に clamp した。これにより Solid 2D を含む基底経路も同じ契約になる。
+- **価値:** 異常に大きい thumbnail 要求による共通 UI の一時画像 allocation を抑え、Solid の寸法境界を入口から末端まで揃えた。
+- **未検証:** 他の専用 thumbnail override（Image／Video 等）の要求上限は今回の範囲外で、runtime の呼び出し契約確認が必要。
+### 2026-08-10 — opacity getter の評価出口を有限・範囲内へ統一
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`、Solid 2D／Solid Image の描画経路
+- **事実:** `setOpacity()` は入力を正規化していたが、`opacity()` は variant override、animated property、animation layer、effect envelope の評価結果をそのまま返していた。Solid 描画はこの値を色 alpha と乗算する。
+- **修正:** getter の最終評価値を有限値として `0..1` に clamp し、非有限値は `1.0` に fallback した。
+- **価値:** Solid を含む全レイヤーの opacity 消費側が、評価経路の違いに関係なく同じ安全契約を受け取れる。
+- **未検証:** variant／animation／effect envelope の組み合わせによる実描画 parity は runtime 確認が必要。
+### 2026-08-10 — Solid JSON 出力でも source size を正規化
+
+- **関連:** `Artifact/src/Layer/ArtifactSolid2DLayer.cppm`、`Artifact/src/Layer/ArtifactSolidImageLayer.cppm`
+- **事実:** factory／固有 `setSize()`／描画入口は `1..16384` を守る一方、raw `setSourceSize()` が使われた場合、Solid の `toJson()` は `solidWidth`／`solidHeight` を未制限のまま保存していた。
+- **修正:** JSON 出力値を `1..16384` に clamp して、描画・復元・保存の寸法契約を統一した。
+- **価値:** 不正または過大な内部サイズが保存ファイルへ再流出せず、次回ロード時の補正に依存しない canonical な Solid JSON になる。
+- **未検証:** 既存プロジェクトの round-trip 実行はビルド・runtime 確認が必要。
+### 2026-08-10 — Solid property metadata を runtime の gradient 契約へ同期
+
+- **関連:** `Artifact/src/Layer/ArtifactSolid2DLayer.cppm`、`Artifact/src/Layer/ArtifactSolidImageLayer.cppm`
+- **事実:** 両 Solid の property editor setter は fill type／center／scale／offset を正規化していたが、property metadata 側に hard range がなく、入力 UI は内部補正へ依存していた。
+- **修正:** fill type `0..5`、center X/Y `0..1`、scale `0.0001..1000000`、offset `-1000000..1000000` を両実装の hard range に追加した。角度の自由度は維持した。
+- **価値:** UI 入力、setter、共通 gradient utility の契約が揃い、無効値の入力を編集段階から減らせる。
+- **未検証:** 実際の property editor のスピン／ドラッグ UI 表示は runtime 確認が必要。
+### 2026-08-10 — 静止画 thumbnail override の寸法上限を共通契約へ統一
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm`
+- **事実:** 静止画 decode は既に width/height、総 pixel 数、channel 数を検証し、crop canvas も decoded image の矩形へ交差していた。一方、専用 `getThumbnail()` は要求値を `max(1, ...)` のみで `QImage::scaled()` に渡していた。
+- **修正:** thumbnail target width/height を `1..16384` に clamp した。
+- **価値:** base／Solid／静止画 thumbnail が同じ allocation 境界を持ち、異常に大きい UI 要求で一時画像だけが膨らむ経路を塞いだ。
+- **未検証:** Image／Video 系の専用 thumbnail override 全体の runtime メモリ挙動は今回の範囲外。
+### 2026-08-10 — Shape の独自色変換と破線 stroke helper を最終防衛
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm`
+- **事実:** Shape の setter／restore は多くの値を正規化していたが、独自 `toQColor()` は NaN に対して `std::clamp()` のみを使い、破線 native stroke helper も width の有限値を確認せず処理していた。
+- **修正:** 色チャンネルを有限値・`0..1`（RGB fallback `0`、alpha fallback `1`）へ正規化し、破線 width は有限かつ正の場合だけ描画するようにした。
+- **価値:** Shape の painter／native stroke 両経路で invalid FloatColor と非有限 stroke width が描画計算へ流れない。
+- **未検証:** Shape の各 operator／stroke style の実描画 parity は runtime 確認が必要。
+### 2026-08-10 — Shape thumbnail override を寸法契約へ同期
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm`
+- **事実:** Shape の `setSize()` と software cache は `1..16384` の寸法を使う一方、専用 `getThumbnail()` は `max(1, ...)` のみで要求値を `scaled()` へ渡していた。
+- **修正:** thumbnail target width/height を `1..16384` に clamp した。
+- **価値:** Shape も base／Solid／Image と同じ thumbnail allocation 境界を持ち、過大な UI 要求による一時画像生成を抑える。
+- **未検証:** Shape operator／stroke style を含む実 thumbnail parity は runtime 確認が必要。
+### 2026-08-10 — Shape gradient radius setter を property hard range と同期
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm`
+- **事実:** `shape.fillGradientRadius` の property metadata は hard range `0..100000` だったが、公開 `setFillGradientRadius()` は有限値なら下限だけを適用し、直接 API／JSON 経由では上限を bypass できた。
+- **修正:** setter も `0..100000` に clamp し、非有限値は既存どおり `0.5` に fallback する。
+- **価値:** gradient radius の UI・setter・cache rebuild が同じ範囲契約を持ち、過大な gradient geometry を抑える。
+- **未検証:** 極端な radius の実描画品質は runtime 確認が必要。
+### 2026-08-10 — Shape enum／angle／stroke metadata と setter の範囲を整合
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm`
+- **事実:** gradient angle の metadata は `-360..360` だが setter は任意の有限値を受け、stroke width の metadata `0..100000` は setter の実上限 `0..16384` と不一致だった。shape/fill enum の metadata hard range もなく、fill tooltip は `0..3` までしか説明していなかった。
+- **修正:** angle setter を `-360..360` に clamp、stroke width metadata を `0..16384` に修正し、shape type `0..6`／fill type `0..5` の hard range と全 fill mode の tooltip を追加した。
+- **価値:** property editor と直接 API の値域が一致し、enum の入力漏れと silently-reduced な stroke width を減らす。
+- **未検証:** property editor の enum widget 表示と極端な stroke width の runtime 見た目は未確認。
+### 2026-08-10 — 静止画 float decode の非有限 pixel を decode 境界で正規化
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm`
+- **事実:** OIIO／derived cache の float pixel 配列は寸法検証後に `ImageF32x4_RGBA::setFromRGBA32F()` へ渡されるが、Core の setter は NaN／無限大を clone 時に除去しない。finite な HDR 値は保持される契約だった。
+- **修正:** OIIO、async reader、derived cache の3つの decode 境界で非有限 channel だけを RGB=`0`、alpha=`1` に置換してから float buffer を構築する。
+- **価値:** invalid float が color transform、thumbnail、GPU／software render へ伝播するのを防ぎつつ、finite な HDR intensity は clamp しない。
+- **未検証:** 異常 pixel を含む画像の実 decode／render 挙動は runtime 確認が必要。
+### 2026-08-10 — 静止画 source metadata の保存境界を decode 契約へ同期
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm`
+- **事実:** 実デコードは channel 数を `1..64` に制限している一方、metadata の JSON 復元は `0..1024` を許し、`toJson()` は保持値をそのまま出力していた。OIIO の ICC `datasize()` も `size_t` から `int` へ直接変換されていた。
+- **修正:** channel 数、alpha index、orientation、pixel aspect、bits per channel、ICC bytes、文字列、channel name 配列を保存・復元・OIIO spec 生成の境界で正規化し、ICC サイズは `256 MiB` 上限とした。
+- **価値:** metadata の round-trip 後だけ実デコード契約を超える状態が残る経路と、異常な spec サイズの整数変換リスクを減らす。
+- **未検証:** 異常 metadata JSON／巨大 ICC 属性を実際に読み書きする runtime 挙動は未確認。
+### 2026-08-10 — 静止画 JSON の保存寸法を decode 上限へ canonical 化
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` / `ArtifactImageLayer::toJson()`
+- **事実:** decode／`setFromQImage()` は source dimensions を `1..16384` に検証しているが、保存処理は内部 `width_`／`height_` をそのまま JSON 化していた。source 欠損時の `0` は有効な空状態として残る。
+- **修正:** JSON 出力時の width／height を `0..16384` に clamp し、通常画像の値と空状態を維持しながら異常な内部値の再流出を防いだ。
+- **価値:** 静止画の decode、runtime state、保存ファイルの寸法契約が揃い、次回復元時の過大 source size を減らす。
+- **未検証:** 壊れた内部 state を作る runtime 経路と既存 project の round-trip は未確認。
+### 2026-08-10 — SourceCrop の公開 geometry API で非有限 source size を拒否
+
+- **関連:** `Artifact/src/Layer/ArtifactSourceCrop.cppm` / `hasSourceSize()`
+- **事実:** ImageLayer から渡る通常の source/output size は有限な画像寸法だが、`effectiveCropRect()` と `sourceToOutputTransform()` は公開 API として任意の `QSizeF` を受け取る。旧判定は正値だけを確認し、`+∞` を source size として通す余地があった。
+- **修正:** source size の width／height が有限かつ正であることを共通判定に追加した。
+- **価値:** 無限大の矩形、scale、transform が crop 計算へ流れず、呼び出し側が ImageLayer 以外でも有限 geometry 契約を共有できる。
+- **未検証:** 異常な `QSizeF` を直接渡す公開 API の runtime 挙動は未確認。
+### 2026-08-10 — Solid gradient scale の setter 上限を utility／property と同期
+
+- **関連:** `Artifact/src/Layer/ArtifactSolid2DLayer.cppm`、`Artifact/src/Layer/ArtifactSolidImageLayer.cppm`、`Artifact/src/Layer/ArtifactLayerInitParams.cppm`
+- **事実:** 共通 gradient utility と property metadata は scale を `0.0001..1000000` としていたが、両 Solid の setter と init params は有限値なら上限なく保持していた。factory は init params の値を Solid setter へ転送する。
+- **修正:** 3つの setter を有限値の `0.0001..1000000` clamp に統一し、非有限値は従来どおり `1.0` に fallback する。
+- **価値:** UI、init params、factory、描画 utility が同じ scale 契約になり、過大な gradient span や cache key の不一致を抑える。
+- **未検証:** 極端な scale の描画 parity と既存 project の round-trip は未確認。
+### 2026-08-10 — Solid gradient center／offset の setter 範囲を同期
+
+- **関連:** `Artifact/src/Layer/ArtifactSolid2DLayer.cppm`、`Artifact/src/Layer/ArtifactSolidImageLayer.cppm`、`Artifact/src/Layer/ArtifactLayerInitParams.cppm`
+- **事実:** center X/Y の metadata は `0..1`、offset の metadata／共通 utility は `-1000000..1000000` だが、3つの setter 群は有限値なら範囲外を保持していた。描画時 utility の clamp と cache／property の保持値が一致しなかった。
+- **修正:** center X/Y と offset を各 setter／init params で同じ範囲へ clamp し、非有限値の既存 fallback も維持した。
+- **価値:** direct API、JSON、factory、property editor、gradient utility が同一の geometry 契約になり、保存値と描画値の乖離を減らす。
+- **未検証:** 範囲端の gradient 見た目と既存 JSON の round-trip は未確認。
+### 2026-08-10 — Shape polygon sides の property hard range を setter と同期
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm` / `shape.polygonSides`
+- **事実:** setter は polygon sides を `3..kMaxShapePathVertices`（現在100000）へ clamp していたが、property metadata に hard range がなく、UI入力は setter の補正に依存していた。
+- **修正:** property metadata に `3..100000` の hard range を追加した。
+- **価値:** Shape の polygon sides で UI、直接 API、JSON 復元の入力境界が揃い、過大な頂点数の入力を編集段階で抑えられる。
+- **未検証:** property editor の integer widget 表示と上限付近の runtime 描画は未確認。
+### 2026-08-10 — Shape dash pattern parser を setter と同じ境界へ前倒し
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm` / `stringToDashPattern()`
+- **事実:** setter は dash pattern を最大1024要素、有限値、`kMaxShapeDimension` 以下へ正規化していたが、文字列 parser は全要素を分割し、巨大な double を float 化してから setter に渡していた。
+- **修正:** parser でも1024要素で打ち切り、double の有限性を確認してから寸法上限へ clamp し、float 化するようにした。
+- **価値:** プロパティ文字列・JSON 復元の早い段階で不要な巨大配列と非有限値を除外し、setter と同じ dash 契約を共有する。
+- **未検証:** 1024要素境界、指数表記、極端な dash 値の native／software 描画 parity は未確認。
+### 2026-08-10 — Shape Trim Paths の property 入力を restore 契約へ同期
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm` / `TrimPaths` operator property path
+- **事実:** restore 正規化は Trim Paths の start／end／offset を有限値・`-100000..100000` に clamp していたが、property setter は `QVariant::toFloat()` の結果を無加工で Core operator へ渡し、metadata に hard range もなかった。
+- **修正:** 3 property に hard range を追加し、編集時も有限値・同一範囲・既存 fallback（start/offset=0、end=100）を適用した。
+- **価値:** 保存復元とインスペクタ編集で Trim Paths の状態契約が揃い、NaN／無限大や過大値が operator geometry へ流れにくくなる。
+- **未検証:** Trim Paths の各 mode における範囲端の描画 parity は未確認。
+### 2026-08-10 — Shape Repeater の offset／rotation property を restore 契約へ同期
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm` / `Repeater` operator property path
+- **事実:** restore 正規化は Repeater offset を `-100000..100000`、rotation を `-360000..360000` の有限値へ clamp していたが、property metadata と編集経路は raw float を Core setter へ渡していた。
+- **修正:** 2 property に hard range を追加し、編集時も同じ範囲と非有限 fallback `0` を適用した。
+- **価値:** Repeater の保存復元とインスペクタ編集で、transform offset／rotation の値域が一致する。
+- **未検証:** 極端な offset／rotation の repeater 描画と property widget 表示は未確認。
+### 2026-08-10 — Shape Repeater の copies／opacity metadata を setter と同期
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm` / `Repeater` operator property group
+- **事実:** property setter／restore は copies を `1..1000`、start/end opacity を `0..100` に clamp していたが、property metadata に hard range がなかった。
+- **修正:** copies、start opacity、end opacity にそれぞれ setter と同じ hard range を追加した。
+- **価値:** Repeater の主要な数値入力が UI段階から同じ境界を持ち、無効値を後段補正へ流す量を減らす。
+- **未検証:** property editor の integer／float widget 表示と上限値の runtime 表現は未確認。
+### 2026-08-10 — Shape Offset／Pucker／Rounded operator の property 入力を restore 契約へ同期
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm` / `OffsetPaths`、`PuckerBloat`、`RoundedCorners`
+- **事実:** restore 正規化は Offset／Pucker amount を `-100000..100000`、Rounded radius を `0..100000` に clamp していたが、property metadata と編集経路は raw float を渡していた。
+- **修正:** 3 property に hard range を追加し、property 編集時も有限値・同一範囲・fallback `0` を適用した。
+- **価値:** operator の保存復元とインスペクタ編集で geometry 値域が一致し、非有限／過大値が Core path へ流れる経路を減らす。
+- **未検証:** 各 operator の範囲端における native／software path の描画 parity は未確認。
+### 2026-08-10 — Shape procedural operator metadata を property setter と同期
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm` / Wiggle Paths、Zig Zag、Hand Drawn Wobble
+- **事実:** property 編集経路は既に amount／frequency／jitter／probability を有限値と既定範囲へ clamp していたが、operator property metadata に hard range がなかった。
+- **修正:** Wiggle／Zig Zag の amount `-100000..100000`、frequency `0..10000`、Wobble amount `0..100000`、frequency `0..10000`、jitter／probability `0..1` を metadata に追加した。
+- **価値:** procedural operator の UI入力が既存 setter の安全契約と一致し、後段補正への依存を減らす。
+- **未検証:** 各 operator の境界値による runtime geometry は未確認。
+### 2026-08-10 — Image factory が単一 sequence path を代表画像として復元
+
+- **関連:** `Artifact/src/Layer/ArtifactLayerFactory.cppm`、`ArtifactImageInitParams`、`ArtifactImageLayer::setImageSequence()`
+- **事実:** init params は sequence paths を1件以上保持でき、ImageLayer の sequence API も1件を受け入れる。一方 factory は paths が2件未満の場合に `imagePath()` だけを参照していたため、sequencePaths だけに1件を設定した生成ではロード対象が空になっていた。
+- **修正:** imagePath が空で sequencePaths が1件の場合、その唯一の sequence path を代表画像の load path として使うようにした。
+- **価値:** 初期化 API の指定方法にかかわらず、単一フレームの image layer が生成される。2件以上の sequence と明示 imagePath の既存挙動は維持する。
+- **未検証:** factory 経由の単一 sequence path の実ロードと source identity は runtime 確認が必要。
+### 2026-08-10 — Layer factory の createNewLayer で init params slicing を解消
+
+- **関連:** `Artifact/include/Layer/ArtifactLayerFactory.ixx`、`Artifact/src/Layer/ArtifactLayerFactory.cppm`
+- **事実:** `createNewLayer(ArtifactLayerInitParams params)` は base 値渡しだったため、derived init params を渡してもコピー時に slicing され、Solid／Image などの dynamic_cast による固有設定転送が失敗していた。既存の呼び出し側はすべて lvalue params を渡している。
+- **修正:** public／Impl の `createNewLayer` を `ArtifactLayerInitParams&` 参照渡しへ変更し、derived params の実型を保持したまま既存 `createLayer()` へ渡すようにした。
+- **価値:** Solid の gradient／size、Image の path／sequence／color interpretation など、init params 由来の生成設定が factory 経由でも実際の layer へ届く。
+- **未検証:** derived init params を使った各 layer の factory runtime 生成は未確認。module interface 変更の再スキャン影響もビルド未実行のため未確認。
+### 2026-08-10 — Layer factory の params 参照を const 化して const_cast 経路を縮小
+
+- **関連:** `Artifact/include/Layer/ArtifactLayerFactory.ixx`、`Artifact/src/Layer/ArtifactLayerFactory.cppm`
+- **事実:** factory は init params を読み取るだけなのに `createNewLayer`／`createLayer` が非const参照で、const params を受ける上位サービス側に `const_cast` が必要な経路があった。derived dynamic_cast は前周の slicing 修正後も const 対応が必要だった。
+- **修正:** public／Impl の両 factory API を `const ArtifactLayerInitParams&` に変更し、derived dynamic_cast も const pointer へ揃えた。lvalue と temporary の両方で実型を保持できる。
+- **価値:** factory API の const 契約が実装と一致し、読み取り専用 params の不必要な可変化を減らす。
+- **未検証:** 上位サービスの const_cast 撤去範囲と module 再スキャン、factory の全 derived runtime 生成は未確認。
+### 2026-08-10 — ArtifactPr MediaPanel の検索ウィジェット宣言漏れ
+
+- **関連:** `ArtifactPr/include/MediaPanel.ixx`、`ArtifactPr/src/MediaPanel.cppm`
+- **事実:** 実装は `searchEdit_` を生成・接続していたが、インターフェース側のメンバー宣言と直接 include が不足していた。
+- **修正:** `QLineEdit` の include と `searchEdit_` メンバーを追加した。
+- **追加修正:** 既存接続の対象だった `applySearchFilter` を実装し、検索欄をレイアウトへ追加した。シーケンス更新・インポート後も現在の検索語を再適用する。
+- **価値:** MediaPanel の検索 UI が宣言・実装間で一致し、未宣言メンバー参照によるビルド失敗を防ぐ。
+- **未検証:** ArtifactPr のビルドと検索フィルタの runtime 動作は未確認。
+### 2026-08-10 — ArtifactPr thumbnail cache の保存経路を復旧
+
+- **関連:** `ArtifactPr/include/MediaThumbnailer.ixx`、`ArtifactPr/src/MediaThumbnailer.cppm`
+- **事実:** `request()` は `cache_` を参照していたが、ワーカーが生成した有効な thumbnail を `cache_` に格納する処理がなく、同一ファイルの再要求が常にデコードへ進んでいた。
+- **修正:** ワーカー結果を GUI スレッドへ queued invoke で戻し、`publishThumbnail()` で cache 保存後に既存の `thumbnailReady` を発行するようにした。ワーカー間の新規 signal 接続は追加していない。
+- **価値:** MediaPanel の再表示・重複要求で同じメディアを再デコードする負荷を抑え、既存の `cached()` 契約を実際に機能させる。
+- **未検証:** ArtifactPr のビルド、複数 thumbnail の到着順、終了直前の queued callback は runtime 確認が必要。
+### 2026-08-10 — ArtifactPr MarkerEditDialog の Qt 型依存を自己完結化
+
+- **関連:** `ArtifactPr/include/MarkerEditDialog.ixx`
+- **事実:** インターフェースのメンバー宣言が `QLineEdit`、`QPlainTextEdit`、`QComboBox`、`QPushButton`、`QSpinBox` を使用していたが、直接 include は `QColor`／`QDialog`／`QString` だけだった。
+- **修正:** メンバー宣言に必要な Qt ヘッダをインターフェースへ追加した。
+- **価値:** 他のモジュール経由の偶然の可視性に依存せず、MarkerEditDialog の公開宣言を単独で解析できる。
+- **未検証:** ArtifactPr のモジュールスキャンとビルドは未実行。
