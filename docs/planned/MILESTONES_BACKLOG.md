@@ -1,5 +1,13 @@
 # Milestones Backlog
 
+**最終更新:** 2026-08-08
+
+### Still Image / Production Readiness
+- **M-IMG-1** Still Image Layer Production Readiness
+  - 静止画の import、色解釈、transform、crop、mask、blend、effect、保存／再読込、preview／Render Queue の実制作経路を一つの受入条件で閉じる
+  - OIIO、Asset System、Static Layer GPU Cache 等の既存計画を再実装せず、`ArtifactImageLayer` の end-to-end 完成責任を持つ
+  - 詳細: `docs/planned/MILESTONE_STILL_IMAGE_LAYER_PRODUCTION_READINESS_2026-08-08.md`
+
 ### Color / Professional Media
 - **M-PRO-MEDIA-1** Professional Media Materials Support
   - EXR/HDR、広色域、高ビット深度、log素材のメタデータ保持と明示的な解釈経路

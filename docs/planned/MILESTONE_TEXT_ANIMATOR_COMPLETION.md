@@ -1,6 +1,7 @@
 # MILESTONE: Text Animator Completion & Inline Editing
 
 **日付**: 2026-08-04
+**最終更新:** 2026-08-08
 **現状**: データモデルとエンジンは Core 層で完成（`TextAnimatorEngine`, `RangeSelector`, `WigglySelector`, `AnimatorProperties`, `TextLayoutContract`）。GlyphAtlas + HarfBuzz + SDF の低レベルも完備。ギャップは統合・UI・ビューポート編集のみ。
 **目標**: ビューポートインライン編集、Animator Engine の未接続機能の配線、AE 互換の range selector 視覚編集、`textIndex`/`textTotal` 式変数。
 
@@ -8,10 +9,10 @@
 
 | # | ギャップ | 深刻度 | 工数 |
 |---|---------|--------|------|
-| G1 | `SelectorOrder` / `createOrderMap()` が `applyAnimator()` から呼ばれていない | 中 | ~2h |
-| G2 | `AnchorPointGrouping` 未実装（word/line/paragraph グループ化） | 高 | ~1-2d |
+| G1 | `SelectorOrder` / `createOrderMap()` の評価・保存・Inspector 接続 | ソース実装完了（2026-08-08、runtime確認待ち） | 確認待ち |
+| G2 | `AnchorPointGrouping`（character/cluster/word/line/paragraph/span/all） | ソース実装完了（2026-08-08、runtime確認待ち） | 確認待ち |
 | G3 | **ビューポートインライン編集不在**（カーソル・選択・IME） | 最重要 | ~3-5d |
-| G4 | Range selector の視覚ハンドル（start/end/offset ドラッグ）不在 | 高 | ~3-5d |
+| G4 | Range selector の視覚ハンドル（start/end/offset ドラッグ） | 先頭Animator・Percentage単位をソース実装（2026-08-08、runtime確認待ち） | 複数Animator選択が残る |
 | G5 | 式変数 `textIndex`/`textTotal` + Expression Selector 不在 | 中 | ~2-3d |
 | G6 | source text キーフレーム間のグリフ識別子安定化不在 | 中 | ~2-3d |
 | G7 | Timeline 上の Animator 専用表示不在 | 中 | ~2-3d |
@@ -120,7 +121,9 @@ Qt の QTextEdit はデフォルトで IME 対応済み。追加で必要なも�
 
 ### 2.1 SelectorOrder の配線
 
-`createOrderMap()` は全7モード実装済みだが呼ばれていない。`applyAnimator()` に1行追加するだけ:
+**状態:** 2026-08-08 ソース実装完了、runtime確認待ち。`RangeSelector::order` を正規状態として追加し、通常評価と source-aware 評価、selector preview、JSON 保存復元、Inspector の `Order` プロパティへ接続した。既存データは `Natural` を既定値として互換維持する。
+
+`createOrderMap()` の全7モードを selector weight の順位へ変換し、通常評価と source-aware 評価の両方で利用する。
 
 ```cpp
 // TextAnimatorEngine.cppm の applyAnimator()
@@ -151,6 +154,8 @@ void TextAnimatorEngine::applyAnimator(
 ```
 
 ### 2.2 AnchorPointGrouping の実装
+
+**状態:** 2026-08-08 ソース実装完了、runtime確認待ち。Glyphの既存metadataとboundsから7種類のグループアンカーを構築し、scale・rotationの共通アンカー補正、JSON保存復元、Inspectorの `Anchor Grouping` へ接続した。
 
 ```cpp
 // 新規: TextAnimatorEngine に追加
@@ -267,6 +272,8 @@ connect(exprEdit, &QLineEdit::textChanged, [=](const QString& text) {
 ## Phase 4: ビューポート Range Selector 視覚編集（G4）
 
 ### 4.1 Range Selector ハンドル
+
+**状態:** 2026-08-08、先頭AnimatorのPercentage Selectorについてソース実装完了、runtime確認待ち。既存のweight heatmapにStart／End／Offsetハンドルを重ね、hit testとドラッグを既存property pathへ接続した。複数Animatorの編集対象選択はTimeline専用UIと合わせて残す。
 
 AE 互換: Text レイヤー選択時に、テキスト上に range selector の start/end/offset を表すドラッグ可能なハンドルを表示。
 

@@ -6491,3 +6491,63 @@
 - 閃き・仮説（未検証）: まず compute shader で 3D instance を frustum cull し、material／PSO 単位で binning して通常の indexed indirect draw を発行する。meshlet の cone culling／GPU LOD、mesh shader はその上に追加する段階とする。
 - 価値または懸念: クローン・多数メッシュ・particle 系の CPU draw submission を減らせる可能性があるが、2D レイヤー合成の overdraw／blend 負荷には効かない。DX12 Work Graphs 専用にすると Vulkan との共通経路を失う。
 - 次に確認すべきこと: 代表 3D scene で CPU submit 時間、visible instance 数、material/PSO 切替数、GPU 時間を計測してから対象を選定する。
+
+# 2026-08-08: Shared render device leases need balanced release
+
+- 関連: `Artifact/include/Render/DiligentDeviceManager.ixx`, `Artifact/src/Effects/ColorCorrection/InvertEffect.cppm`, `Artifact/src/Effects/`
+- 事実: `acquireSharedRenderDeviceForCurrentBackend()` は内部のmanual refCountを増加させ、対応する`releaseSharedRenderDevice()`を要求する。InvertのGPU経路を含む複数のeffectは取得後にDiligent smart pointerだけを解放し、manual refCountを減らしていない。
+- 変更: 今回触れたInvert effectにはscope leaseを追加し、すべての早期returnを含めてreleaseを保証した。
+- 価値または懸念: 未解放refCountが蓄積するとshared deviceの破棄・再生成条件が成立せず、device lossやbackend切替時の寿命問題になる可能性がある。他effectを一括変更すると影響範囲が広いため、現依頼では展開していない。
+- 次に確認すべきこと: `Artifact/src/Effects/`の全acquire/release対応を静的棚卸しし、共通RAII leaseをDeviceManager APIとして提供する設計を検討する。device lossとbackend切替をruntimeで確認する。
+
+# 2026-08-08: Tight Alignment belongs behind a Diligent buffer opt-in
+
+- 関連: `libs/DiligentEngine/DiligentCore/Graphics/GraphicsEngine/interface/Buffer.h`, `libs/DiligentEngine/DiligentCore/Graphics/GraphicsEngineD3D12/src/BufferD3D12Impl.cpp`, `Artifact/src/Render/DiligentImmediateSubmitter.cppm`
+- 事実: Diligent D3D12 backendは通常のbufferをcommitted resourceとして生成する。Agility SDK 1.619のTight Alignmentはfeature tierを照会し、resource作成時の`D3D12_RESOURCE_FLAG_USE_TIGHT_ALIGNMENT`で明示opt-inできる。
+- 変更: backend固有のresource作成をアプリから迂回せず、`MISC_BUFFER_FLAG_TIGHT_ALIGNMENT`をDiligentの公開buffer記述に追加し、Tier 1のdefault-heap bufferだけでnative flagへ変換した。最初の対象は小さなimmutable index / vertex bufferに限定した。
+- 価値または懸念: dynamic/upload/readback、sparse、textureに同じ最適化を拡張すると既存のallocationやsuballocationの契約を変える。未対応backendはhintを無視するため、共通render pathの契約は変わらない。
+- 次に確認すべきこと: 実機でresourceのallocation alignment、VRAM使用量、描画parityを確認し、効果が測定できる小さなdefault-heap bufferだけを追加候補にする。
+
+# 2026-08-08: Internal test runner is a product dependency, not a CTest-only target
+
+- 関連: `Artifact/CMakeLists.txt`, `Artifact/src/AppMain.cppm`, `Artifact/src/Test.cppm`, `Artifact/src/Test/`
+- 事実: ルートの `ARTIFACT_BUILD_TESTS` は `tests/` の GTest 登録だけを制御する。一方、通常の `Artifact` target は `src/Test.cppm` と複数の `src/Test/*.cppm` を収集し、`AppMain` が `Artifact.TestRunner` を直接 import している。
+- 価値または懸念: 通常ビルドからテストコードを除外するだけでは AppMain のモジュール依存を壊す。開発用の内蔵テストを任意 target 化できれば通常ビルドの規模を減らせる可能性があるが、起動時のUI・CLI導線を含む仕様変更になる。
+- 次に確認すべきこと: 内蔵テストランナーの利用導線を整理し、明示的な開発機能フラグまたは別 executable が許容されるかを設計判断する。その後にのみ、test module の target 分離と通常アプリからの import 除去を行う。
+
+# 2026-08-08: 静止画sourceのproject相対path契約
+
+- 関連: `Artifact/src/Layer/ArtifactImageLayer.cppm`、`ArtifactCore/include/Utils/Path.ixx`、`ArtifactCore/src/Asset/AssetImporter.cppm`。
+- 事実: `ArtifactImageLayer`は`image.sourcePath`をそのままJSON保存・`loadFromPath()`へ渡す。`AssetImporter`はsource pathをabsolute pathとして登録しており、layer側にproject rootやproject relocation contextを受け取る経路は確認できない。
+- 気づき（未検証）: layer側だけで相対化／再展開するとAssetManagerのsource identityやrelinkとの二重解決になり得る。project serializerまたはAssetManagerが唯一のbase path policyを提供する必要がある。
+- 価値／懸念: projectフォルダ移動後のstill image relinkを安定させるには必要だが、個別layerの場当たり実装はshared/localized source契約を壊す可能性がある。
+- 次に確認すべきこと: `ArtifactProject`のsave/load境界にsource path resolverを設計し、image/video/sequenceを同じpolicyへ移行できるか確認する。
+
+# 2026-08-08: 静止画レイヤー受入fixtureの不足
+
+- 関連: `docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md`、`ArtifactCore/include/Generate/GenerateTestImage.ixx`、`Artifact/src/Widgets/Render/ArtifactLayerCompositeTestWidget.cppm`。
+- 事実: 既存のtest widgetとRGBA floatのテストパターン生成器は確認できたが、受入表のPNG／TIFF／EXR／PSD／CMYK／orientation素材へ対応付けられた固定fixtureファイルはワークスペース内で確認できない。
+- 気づき（未検証）: runtime受入を再現可能にするには、ライセンス確認済みの小さなfixtureセットと期待metadata／期待pixel結果をversion管理する必要がある。
+- 価値／懸念: 現状の手動素材だけではpreview／Render Queue比較の回帰検証が再現しにくい。fixture追加は素材ライセンスとテスト実行方針の判断を伴う。
+- 次に確認すべきこと: 既存のQA asset保管場所とライセンスを確認し、最小fixtureセットをどのリポジトリ責務で管理するか決める。
+
+# 2026-08-08: Text Animator検証を阻む旧ドライブ参照
+
+- 関連: `build/ArtifactCore/ArtifactCore.vcxproj`、`ArtifactCore/include/Text/TextAnimator.ixx`、Text Animator runtime検証
+- 事実: `J:\dev\ArtifactStudio` の既存Visual Studio build構成がコンパイル入力として `X:\Dev\ArtifactStudio` を参照しており、`OperationgSystem.ixx.ifc` を開けずArtifactCoreビルドが停止した。今回のText Animator変更に到達する前の失敗である。
+- 価値または懸念: 現在のソースと別ドライブのソースが混在するため、ビルド成功時でも編集内容を正しく検証した保証が弱くなる。構成再生成なしでruntime完了扱いにしない。
+- 次に確認すべきこと: ユーザー許可のもと現在の `J:` workspaceからbuild構成を再生成し、Selector Order、Anchor Grouping、Range handleを順にruntime確認する。
+
+# 2026-08-09: Viewport変換キーはAE式ツール切替とBlender式モーダル操作が競合する
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`、`Artifact/src/Widgets/ArtifactToolBar.cppm`、`ShortcutBindings`。
+- 事実: Composition Viewには現在 `W/E/R` による移動・回転・スケールのツール切替があり、別経路では `R` や `G` がAE系のツール／ペン操作として使われる。Blender式の `G/R/S` モーダル変換をそのまま追加すると、既存ツール切替と競合する。
+- 気づき（未検証）: Viewportフォーカス時だけ有効なモーダル変換コンテキストを `ShortcutBindings` に追加し、テキスト入力・ペン・Rig等の専用ツールを除外したうえで、既存AE式ツール切替を設定プリセットとして残す構成が必要。
+- 価値または懸念: 生のキー判定を追加し続けると、同じキーでもWidgetやOS入力経路によって挙動が変わる。既定プリセットを決めずに既存割当を置換すると利用者の操作を破壊する。
+- 次に確認すべきこと: Viewport用Shortcut contextと変換セッションの状態機械を設計し、`G/R/S`、`X/Y/Z`、左クリック／Enter確定、右クリック／Escキャンセルの優先順位を決める。
+## 2026-08-09 — Z transform key state lacks symmetric non-key APIs
+
+- **関連:** `ArtifactCore/include/Animation/AnimatableTransform3D.ixx`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- **確認できた事実:** XY position / scalar rotation / XY scaleにはinitial/current更新とキー削除APIがある一方、Z scaleには`setCurrentScaleZ`相当とZ専用キー削除APIがない。`setScale(time, x, y, z)`はXYZキーを追加する。Z positionもキー削除はXYと分離されていない。
+- **価値・懸念:** Artifact側のギズモでXY変形はAuto Key設定に従って非キー更新できるが、Z scaleを実際に変更するとAuto Key無効時でもキー作成を完全には避けられず、取消時にZキーだけを対称に除去できない。
+- **次に確認すべきこと:** Core変更が明示的に許可された段階で、Z position/scaleのcurrent/initial setter、has/remove key APIをXYと対称に追加し、3DギズモUndoスナップショットへZキー状態を独立保持する。

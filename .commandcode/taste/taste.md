@@ -21,6 +21,7 @@ See [project-workflow/taste.md](project-workflow/taste.md)
 - Do not introduce new QtCSS or `QObject::setStyleSheet(...)` calls in new code; use QPalette, owner-draw, QProxyStyle, or existing theme tokens instead. Confidence: 0.80
 - Do not introduce new public `QImage` usage except at IO/compat boundaries; prefer GPU/buffer types. Confidence: 0.80
 - Avoid adding new `QObject` signal/slot connections (especially global/centralized event wiring) in new code; reuse existing event paths/services. New public signals/slots need design review. Confidence: 0.80
+- Prefers simple callback-based inter-thread communication over Qt signal/slot/emit patterns for worker→main thread dispatch — a single callback dispatched via `QMetaObject::invokeMethod` with `Qt::QueuedConnection`, rather than emit + multi-layer lambda listeners. The user explicitly stated they don't want to use Qt events anymore (「Qtのイベント使いたくない」). This goes beyond "avoid new connections" — the user considers Qt's signal/slot mechanism itself undesirable for the project's architecture. Confidence: 0.85
 
 # project-submodule-boundary
 - Do not modify, commit, or push the `ArtifactWidgets`, `libs/...`, or `third_party/*` submodules unless the user explicitly asks; treat them as read-only/external. New UI widgets are first placed under `Artifact/` and only promoted to `ArtifactWidgets/` later. Confidence: 0.85

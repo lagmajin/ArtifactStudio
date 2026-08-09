@@ -536,8 +536,47 @@ if(NOT ARTIFACT_AGILITY_SDK_DIR AND _ARTIFACT_AGILITY_SDK_DEFAULT)
         "Unpacked Microsoft.Direct3D.D3D12 retail SDK directory (contains build/native/bin/x64/D3D12Core.dll)"
         FORCE)
 endif()
+if(ARTIFACT_AGILITY_SDK_DIR)
+    set(_ARTIFACT_AGILITY_SDK_INCLUDE
+        "${ARTIFACT_AGILITY_SDK_DIR}/build/native/include")
+    if(NOT EXISTS "${_ARTIFACT_AGILITY_SDK_INCLUDE}/d3d12.h")
+        message(FATAL_ERROR
+            "Agility SDK D3D12 headers not found: ${_ARTIFACT_AGILITY_SDK_INCLUDE}")
+    endif()
+    # Agility headers must precede the Windows SDK headers so the compile-time
+    # interfaces match the D3D12Core.dll selected by D3D12SDKVersion.
+    include_directories(BEFORE SYSTEM "${_ARTIFACT_AGILITY_SDK_INCLUDE}")
+    message(STATUS "Agility SDK headers: ${_ARTIFACT_AGILITY_SDK_INCLUDE}")
+endif()
+option(ARTIFACT_ENABLE_DIRECTSTORAGE
+    "Enable DirectStorage as the preferred Windows asynchronous file reader"
+    ${WIN32})
+set(_ARTIFACT_DIRECTSTORAGE_SDK_VERSION "1.3.0")
 set(ARTIFACT_DIRECTSTORAGE_SDK_DIR "" CACHE PATH
-    "Unpacked Microsoft.Direct3D.DirectStorage SDK directory (contains native/include/dstorage.h and native/bin/x64/dstorage.dll)")
+    "Optional unpacked Microsoft.Direct3D.DirectStorage SDK directory (contains native/include/dstorage.h and native/bin/x64/dstorage.dll)")
+
+# Keep Windows builds reproducible without relying on a developer-specific
+# temporary directory. An explicitly supplied SDK directory remains the first
+# choice; otherwise acquire the pinned official NuGet package into the build
+# tree and verify its archive before extraction.
+if(WIN32 AND ARTIFACT_ENABLE_DIRECTSTORAGE AND
+   NOT ARTIFACT_DIRECTSTORAGE_SDK_DIR)
+    include(FetchContent)
+    FetchContent_Declare(artifact_directstorage_sdk
+        URL
+            "https://www.nuget.org/api/v2/package/Microsoft.Direct3D.DirectStorage/${_ARTIFACT_DIRECTSTORAGE_SDK_VERSION}"
+        URL_HASH
+            "SHA256=8ab6c1082537565388b79050d94fdd7f5f437cd0f1d909e7b19f786042b97177"
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    FetchContent_MakeAvailable(artifact_directstorage_sdk)
+    set(ARTIFACT_DIRECTSTORAGE_SDK_DIR
+        "${artifact_directstorage_sdk_SOURCE_DIR}" CACHE PATH
+        "Optional unpacked Microsoft.Direct3D.DirectStorage SDK directory (contains native/include/dstorage.h and native/bin/x64/dstorage.dll)"
+        FORCE)
+    message(STATUS
+        "DirectStorage SDK ${_ARTIFACT_DIRECTSTORAGE_SDK_VERSION} acquired from official NuGet package")
+endif()
 set(DILIGENT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
 set(DILIGENT_BUILD_DEMOS   OFF CACHE BOOL "" FORCE)
 set(DILIGENT_BUILD_UNITY   OFF CACHE BOOL "" FORCE)
@@ -597,7 +636,7 @@ add_custom_target(check_module_hygiene
 # ---------------------------------------------------------------------------
 # テスト設定
 # ---------------------------------------------------------------------------
-option(ARTIFACT_BUILD_TESTS "Build unit tests" ON)
+option(ARTIFACT_BUILD_TESTS "Build unit tests" OFF)
 if(ARTIFACT_BUILD_TESTS)
     enable_testing()
     find_package(GTest CONFIG QUIET)

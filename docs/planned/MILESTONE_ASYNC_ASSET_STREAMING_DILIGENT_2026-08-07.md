@@ -1,6 +1,6 @@
 # Async Asset Streaming / Diligent Upload Milestone
 
-**最終更新:** 2026-08-07
+**最終更新:** 2026-08-08
 **ステータス:** Implemented / Build Verified
 
 ## 実装状況（2026-08-07）
@@ -19,6 +19,7 @@
 - DX12 native resourceへのDirectStorage GPU destinationとGDeflateは採用しなかった。現行のloose画像はCPU decodeが必要で、Diligent所有外のnative resource/fenceを持ち込むより、共通Diligent upload経路でDX12/Vulkan parityを維持する方が安全なためである。
 - portable fallback構成で`ArtifactRender`と`Artifact`全体をDebugビルドし、リンクまで成功した。
 - DirectStorage 1.3 SDK有効構成でも`DirectStorageReader`を実コンパイルし、`Artifact`全体の最終リンクと`dstorage.dll`の実行ディレクトリ配備まで成功した。
+- WindowsではDirectStorageを既定有効とし、Microsoft公式NuGet 1.3.0を固定URL・SHA256検証付きでビルドツリーへ自動取得する。明示したローカルSDKパスを優先し、`ARTIFACT_ENABLE_DIRECTSTORAGE=OFF`で無効化できる。
 - `check_module_hygiene`は実行したが、今回の変更外にある既存の`Artifact.Effect.Rasterizer.RadialBlur`重複exportを検出して失敗した。今回追加したmoduleに対する違反は検出されていない。
 - runtimeのDX12/Vulkan実機比較とI/O・decode・upload各stageの性能計測は未実施。採用判定の次段として代表アセットで計測する。
 

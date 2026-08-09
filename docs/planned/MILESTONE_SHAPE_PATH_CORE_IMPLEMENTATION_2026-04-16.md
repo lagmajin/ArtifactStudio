@@ -1,9 +1,15 @@
 # MILESTONE: ShapePath コア実装
 
+**最終更新:** 2026-08-08
+
+**ステータス:** In Progress
+
 作成日: 2026-04-16
 対象: M13 ~ M14 (4月〜5月)
 調査元: ArtifactStudio コードベース監査 (2026-04-16)
-状態: ⚠️ 宣言のみで実装未完
+状態: Core geometryとnative render接続は実装済み。runtime verification pending。
+
+> 2026-08-08 現在、本文前半の「宣言のみ」という監査結果は過去状態である。`ShapePath.cppm`、`ShapeGroup.cppm`、Qt非依存geometry、triangulation、標準プリミティブ／custom path／operatorのnative renderer接続が存在する。履歴上の当初計画は残し、現在の実装証拠と残ゲートは末尾の更新節を正とする。
 
 ---
 
@@ -327,5 +333,18 @@ ShapePath もこの MaskPath と同様の構成を目指す。
 
 ---
 
+## 2026-08-08 現行実装監査
+
+| 完了条件 | 現行証拠 | 判定 |
+|---|---|---|
+| ShapePath core geometry | `ArtifactCore/src/Shape/ShapePath.cppm` にcommand、解析bounds、flatten、length、contains、transform、triangulate、Qt互換境界が存在 | 実装済み／runtime待ち |
+| ShapeGroup分離 | `ArtifactCore/include/Shape/ShapeGroup.ixx` と `ArtifactCore/src/Shape/ShapeGroup.cppm` が存在 | 実装済み／build待ち |
+| Native renderer接続 | `Artifact/src/Layer/ArtifactShapeLayer.cppm` が標準primitive、custom polygon、custom Bézier、operator結果を三角形／styled polylineとして直接描画 | 実装済み／描画比較待ち |
+| Qt境界縮小 | gradient fill、inside/outside stroke、taper／gradient stroke等だけを理由付きcompatibility fallbackへ限定 | 実装済み／runtime待ち |
+| MaskPath相互変換UI | `MaskPath::fromShapePath()`／`toShapePath()` とLayer Menuの双方向変換actionを実装。Cubic tangent、closed state、opacity、layer transformを保持 | 実装済み／runtime待ち |
+| 単体／統合／pixel parity | テスト資産および実行結果を未確認 | 未完了 |
+
+Native Render Pipeline の実装詳細は、統合元の
+`MILESTONE_SHAPE_PATH_NATIVE_RENDER_PIPELINE_2026-07-27.md` に記録する。
+
 **作成者**: Kilo（AI Agent）
-**最終更新**: 2026-04-16

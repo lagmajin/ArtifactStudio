@@ -1,8 +1,10 @@
 > **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_SHAPE_PATH_CORE_IMPLEMENTATION_2026-04-16.md](MILESTONE_SHAPE_PATH_CORE_IMPLEMENTATION_2026-04-16.md)
 
+**最終更新:** 2026-08-08
+
 # ShapePath 自作ジオメトリ／描画経路移行マイルストーン
 
-**ステータス:** In Progress（Core geometry／単純 Bézier native path 実装済み、advanced stroke／operator／runtime検証待ち）
+**ステータス:** In Progress（native geometry の通常描画移行済み、gradient／stroke alignment等は明示fallback、runtime検証待ち）
 
 **ステータス:** Partial implementation / Phase 0 contract documented / runtime verification pending
 **作成日:** 2026-07-27
@@ -109,6 +111,23 @@ Phase 0 として、`ShapePath` のコマンド／サブパス／fill rule／fla
 - winding／even-odd と穴の所属は `triangulate()` 内で解決し、renderer へは三角形列のみを渡す。複数輪郭を個別 polygon として描く実装は行わない方針を維持し、triangulation 失敗時の多輪郭 fill はスキップする（単一輪郭のみ polygon fallback）。
 - Core 側には `flattenSubpaths()`／`triangulate()` を追加済み。既存の `drawSolidTriangleLocal` の内部バッチ経路を利用し、新しい低レベル描画 API は追加していない。
 - native custom Bézier fill は単一輪郭・多輪郭とも `triangulate()` を使う。退化・失敗時は単一輪郭のみ既存 polygon API へ戻る。
+
+## 2026-08-08 implementation update
+
+- 標準プリミティブ、custom polygon、custom Bézier を同じ `ShapePath` → `triangulate()`／`flattenSubpaths()` 経路へ統合した。
+- 標準シェイプの cap／join／dash は `ArtifactIRenderer::drawStyledPolyline()` を使う native stroke へ移行した。
+- ShapeOperator 入力生成から `QPainterPath` → `ShapePath::fromPainterPath()` の不要な往復を撤去した。
+- operator結果は多輪郭を含めて `ShapePath` geometry cache から三角形／subpath列としてrendererへ渡す。
+- Qt/QImage互換キャッシュは、現rendererに同等契約がない gradient fill、inside/outside stroke、taper／gradient stroke、およびnative operator処理が結果を返さない場合に限定した。
+- fallback理由は `gradient-fill`、`stroke-alignment`、`custom-stroke-effect`、`shape-operator` として明示的に診断ログへ記録する。
+- source変更時は native geometry cache と互換image cacheを同時にinvalid化する。
+- `MaskPath::fromShapePath()`／`toShapePath()` をApp境界に追加し、CoreからMaskへの逆依存を避けながらCubic tangentを保持する双方向変換を実装した。
+- Layer Menuに独立した「マスクとシェイプ」面を追加し、「シェイプをマスクに変換」「マスクをシェイプに変換」をUndo対応で接続した。従来Proxy submenu内に混在していたmask preset／text mask導線も同面へ移した。
+- シェイプの互換キャッシュは一辺 16,384 px・合計 64 Mi px に正規化し、巨大な `QImage` 確保を防止する。縦横比は維持する。
+- 星形／多角形、custom polygon／Bézier、dash pattern の入力・復元上限を固定し、非有限値と座標絶対値 1,000,000 超を除外する。
+- stroke width と corner radius はキャッシュ寸法を上限として正規化する。
+
+残る完了ゲートはビルド、代表shapeの描画比較、保存／再読込、mask／composition、preview安定性のruntime検証である。
 
 ## Static audit follow-up (2026-07-29)
 

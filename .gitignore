@@ -14,6 +14,7 @@
 # Build
 out/
 build/
+build_j_*/
 bin/
 obj/
 x64/
