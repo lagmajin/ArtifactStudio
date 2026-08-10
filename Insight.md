@@ -10655,3 +10655,12 @@
 - **対応:** チャンネルごとの state と初期化状態をインスタンスに保持し、sample rate が変わった場合だけ再初期化する。
 - **価値／懸念:** 複数ブロックのフィルター応答を連続化する。初回ブロックの入力先頭を基準にする従来の初期条件は維持する。
 - **次に確認:** ビルド時に mono／stereo、複数ブロック、sample rate 変更、非有限入力を確認する。
+
+## 2026-08-10: AudioHighLowPass filter state continuity
+
+- **関連:** `ArtifactCore/include/Audio/AudioHighLowPass.ixx`, `ArtifactCore/src/Audio/AudioHighLowPass.cppm`
+- **事実:** low-pass／high-pass の IIR state が `process()` 内ローカル変数で、各ブロックの先頭サンプルから再初期化されていた。
+- **仮説:** 連続音声のブロック境界でフィルターがリセットされ、不要な過渡応答が発生する可能性がある。未検証。
+- **対応:** チャンネルごとの state と初期化状態を保持し、sample rate 変更時または各フィルター無効時に再初期化する。
+- **価値／懸念:** 有効なフィルターのブロック間状態を維持し、無効化後の再有効化では古い状態を使わない。
+- **次に確認:** ビルド時に mono／stereo、複数ブロック、フィルターの有効／無効切替、sample rate 変更を確認する。
