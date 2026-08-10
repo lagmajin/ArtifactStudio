@@ -9394,3 +9394,11 @@
 - **修正:** exclusive initialize 成功後に、実際の exclusive format を内部 render state と `currentFormat` の元データへ反映する。
 - **価値:** exclusive render の callback 書き込み幅と WASAPI buffer の frame layout が一致する。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — QtAudioBackend active query synchronization
+
+- **関連:** `ArtifactCore/src/Audio/QtAudioBackend.cppm`、`QtAudioBackend::isActive()`、`active_`
+- **事実:** `start()` / `stop()` / `readData()` は mutex で `active_` を扱う一方、`isActive()` だけが生読みしていたため、renderer の状態 query と stop の同時実行で data race になり得た。
+- **修正:** `isActive()` も同じ mutex を取得してから `active_` を返すようにした。
+- **価値:** audio backend の active 判定が停止処理と同じ同期規約になり、上位 renderer が競合した状態を観測する経路を減らせる。
+- **未検証:** 実ビルド・テストは未実行。
