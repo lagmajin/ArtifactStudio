@@ -9756,3 +9756,10 @@
 - **判断:** UI-declared parameter ranges are enforced with finite fallbacks; invalid sample rates use 44.1 kHz; non-finite input samples become silence before processing.
 - **価値/懸念:** Chorus/Delay no longer turn one malformed control or PCM value into a whole output block of NaNs. Normal parameter ranges and signal flow are preserved.
 - **次に確認:** Reverb/Compressor/Limiter/Distortion share similar parameter boundaries and should be audited in subsequent walks.
+## 2026-08-10 — Compressor and limiter parameters must stay physically valid
+
+- **関連:** `Artifact/src/Audio/Effects/CompressorEffect.cppm`, `Artifact/src/Audio/Effects/LimiterEffect.cppm`
+- **事実:** compressor ratio/attack/release and limiter release/gain were accepted without finite/range checks; invalid values could produce zero/NaN coefficients. Non-finite input samples also entered peak detection.
+- **判断:** UI ranges are enforced with finite defaults, invalid limiter sample rates fall back to 44.1 kHz, and input samples are normalized to zero before peak/gain processing.
+- **価値/懸念:** malformed controls or PCM no longer poison an entire effect block. Existing valid parameter ranges and effect topology remain unchanged.
+- **次に確認:** Reverb and Distortion parameter setters should receive the same audit in the next walk.
