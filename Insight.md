@@ -10907,3 +10907,12 @@
 - **対応:** silence の sample rate を renderer 実 rate 優先に変更し、未オープン等で rate が取れない場合だけ従来値へ fallback する。
 - **価値／懸念:** EOS 補填だけを output-rate 契約へ揃え、通常 playback の cursor／source rate は変更しない。
 - **次に確認:** ビルド時に 44.1kHz／48kHz fallback と EOS silence の実時間、停止タイミングを確認する。
+
+## 2026-08-10: Playback buffer target rate refresh
+
+- **関連:** `Artifact/src/Playback/ArtifactPlaybackEngine.cppm`
+- **事実:** `audioTargetBufferedFrames_` は active sample rate を元に初回だけ算出され、device fallback／再オープン後に `audioSampleRate_` が変わっても保持されていた。
+- **仮説:** rate 変更後に先読み目標の時間量が変わり、buffer latency が意図した範囲から外れる可能性がある。未検証。
+- **対応:** renderer 実 sample rate が前回値から変わった場合、frame-based target を 0 に戻して次の fill loop で再計算する。
+- **価値／懸念:** 通常再生時の target は変更せず、format change 時だけ先読み量を再同期する。
+- **次に確認:** device fallback／再オープン前後の target frame 数と実 latency を確認する。
