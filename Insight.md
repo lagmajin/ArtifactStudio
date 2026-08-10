@@ -103,6 +103,15 @@
 - 価値・懸念: 負の解像度による巨大 allocation、NaN 波形、float accumulator overflow を防ぐ。最大解像度 2^20 は既存の 512 より大きいため、極端な設定のメモリ負荷は別途確認が必要。
 - 次の確認: 明示許可後に、0 / 負値 / 最大値超過の resolution と NaN / 最大値近傍 PCM で、生成長・有限 RMS・処理時間を確認する。
 
+### 2026-08-10 — AudioAnalyzer の FFT・解析結果境界
+
+- 状態: 実装済みの局所防御。最大 FFT と極端 PCM の性能・精度は未検証。
+- 関連: `ArtifactCore/src/Audio/AudioAnalyzer.cppm`
+- 事実: FFT サイズの setter に実用上の上限がなく、channel mix は float 加算、RMS / spectrum / band intensity は overflow や非有限値を結果へ返し得た。
+- 閃き・仮説: FFT allocation の上限と、mix・RMS・spectrum の各段階で有限性を保証すると、解析表示側が downstream で値を再検査する必要を減らせる。
+- 価値・懸念: 巨大 FFT による allocation 圧迫と、異常 PCM からの NaN 解析値を抑える。最大 FFT を 2^20 に制限するため、超高解像度解析を正式対応する場合は別仕様が必要。
+- 次の確認: 明示許可後に、0 / 巨大 FFT サイズ、NaN / ±∞ / 最大値近傍 PCM、空 spectrum の band intensity を確認する。
+
 ### 2026-08-10 — Timeline / Property 編集経路の再計算と未利用基盤を改善候補として記録
 
 - 状態: 改善候補・未実装。実行時の呼び出し頻度と効果は未検証。
