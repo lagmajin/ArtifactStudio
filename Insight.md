@@ -10466,3 +10466,12 @@
 - **対応:** active 中の composition 切替では先に `stopScrub()` を呼び、debounce・pending frame・renderer buffer を破棄する。
 - **価値／懸念:** composition 境界をまたぐ stale audio を防ぐ。切替中の scrub は停止状態から再開が必要になる。
 - **次に確認:** ビルド時に active scrub 中の composition 差し替えと再 start を確認する。
+
+## 2026-08-10: ArtifactAudioLayer の cache frame 境界
+
+- **関連:** `Artifact/src/Layer/ArtifactAudioLayer.cppm`
+- **事実:** `decodeFrameToCache()` が WAV の `totalFrames_` を PCM 実サイズより優先し、`startSample + sampleRate` と int 添字への変換を直接行っていた。
+- **仮説:** 壊れた／不一致なデコード payload や極端な frame 番号で、未初期化領域のキャッシュ化または符号付き overflow が起きる可能性がある。未検証。
+- **対応:** PCM 実フレーム数との小さい方を上限にし、残りフレーム数から chunk 長を計算し、PCM 添字を `qsizetype` で保持する。
+- **価値／懸念:** キャッシュが実際に存在する PCM 範囲を越えず、通常の音声の chunk 内容は変わらない。
+- **次に確認:** ビルド時に短い末尾 chunk、WAV frame 数と payload の不一致、長時間音声の cache 呼び出しを確認する。
