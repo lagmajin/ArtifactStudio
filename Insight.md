@@ -10979,3 +10979,12 @@
 - **対応:** 既存 Blend opacity と同じ有限値・0〜1 clamp を、matte 定数バッファの書き込み直前に適用する。
 - **価値／懸念:** 通常の 0〜1 入力は変わらず、異常入力の GPU 伝播を抑える。GPU 実行時の結果は未確認。
 - **次に確認:** ビルド時に通常値、負値、1超過、NaN／無限値の matte opacity が安定して定数バッファへ反映されることを確認する。
+
+## 2026-08-10: Manual-only i18n coverage workflow
+
+- **関連:** `.github/workflows/i18n-check.yml`
+- **事実:** i18n coverage workflow は `pull_request` と `push` を無条件にトリガーし、毎回 Windows runner と Python setup を起動していた。
+- **解釈:** 通常の修正 push で Actions を実行したくないという運用意図と一致しない。既存の監査スクリプト自体を削除する必要はない。
+- **対応:** 自動トリガーを外し、GitHub Actions の `workflow_dispatch` による手動実行だけへ変更した。
+- **価値／懸念:** 通常の push／PR では runner を消費せず、必要時の i18n 監査導線は残る。GitHub 上の既存実行履歴は削除しない。
+- **次に確認:** push 後に workflow の Actions UI で手動実行ボタンが表示され、自動実行が発生しないことを確認する。
