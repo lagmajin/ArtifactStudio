@@ -11303,3 +11303,10 @@
 - **対応:** depth／color双方の `imagePixelBytes()` とvector長を入口で検証し、不正入力はcolor bufferをそのまま返す。
 - **価値／懸念:** ImageBuffer入力の不整合をAtmosphereFog全体で遮断する。通常のdepth/color解像度差と異常storageのruntime挙動は未確認。
 - **次に確認:** empty／短いdepth、短いcolor、解像度差、正常fog合成を確認する。
+## 2026-08-10: Image renderer dimension guards
+
+- **事実:** `CPUVolumeRenderer::render()` は `ImageBuffer` の寸法が 0 に丸められる一方、入力の `width` / `height` をそのまま viewport、ループ、除算に使用していた。`GPURayTracer::renderGPU()` も負のサイズを受けると dispatch 前のフォールバック処理へ進み得た。
+- **仮説:** 無効な出力寸法は通常の UI 経路では発生しにくいが、リサイズ途中や外部 API 呼び出しでは空／負のサイズが到達し得る。
+- **対応:** 両レンダラーの入口で正の寸法を要求し、無効入力では空の結果または no-op とした。
+- **価値:** viewport の不正設定、ゼロ除算、負の dispatch／ループ範囲を防止する。
+- **次の確認:** 正常な正寸法での CPU/GPU レンダリングと、無効寸法での API 契約をビルド環境で検証する（未実施）。
