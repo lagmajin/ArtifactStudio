@@ -10889,3 +10889,12 @@
 - **対応:** Preview の enqueue 直前に renderer の実 sample rate へ線形 resample し、UI の source sample cursor は source frame 数のまま進める。
 - **価値／懸念:** Preview と PlaybackEngine の出力レート契約を揃える。線形補間の品質は既存 PlaybackEngine と同等で、音声 DSP の大規模変更は行わない。
 - **次に確認:** ビルド時に 44.1kHz／48kHz source、device fallback、positionChanged と再生時間を確認する。
+
+## 2026-08-10: AudioScrub output-rate alignment
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioScrubController.cppm`, `ArtifactCore/src/Audio/AudioRenderer.cppm`
+- **事実:** Scrub は composition から 48kHz の segment を取得するが、renderer は device fallback 後に実 sample rate を変更し、enqueue 自体は rate 変換を行わない。
+- **仮説:** fallback device で scrub の音程・継続時間がずれる可能性がある。未検証。
+- **対応:** enqueue 前に renderer の実 sample rate へ線形 resample する。scrub の source frame／速度計算は変更しない。
+- **価値／懸念:** Preview／Playback／Scrub の output-rate 契約を揃える。短い scrub segment で線形補間の CPU コストが増えるが、既存の PlaybackEngine と同じ方式である。
+- **次に確認:** ビルド時に device fallback と scrub drag の音程、segment 継続時間、buffered frame 数を確認する。
