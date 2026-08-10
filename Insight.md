@@ -11087,3 +11087,12 @@
 - **対応:** 3 pipeline に専用 cbuffer の dynamic variable を追加し、`updateParams()` を bool 化して Map／全 resource binding の失敗時は dispatch を中止する。
 - **価値／懸念:** Vectorscope／Waveform／Parade の CPU→HLSL parameter 契約を実装上も明示する。GPU reflection と表示結果は未確認。
 - **次に確認:** ビルド時に各 scope の dimension／step、cbuffer reflection、Map／binding failure、正常 dispatch と readback を確認する。
+
+## 2026-08-10: GPU compression cbuffer and buffer-capacity guards
+
+- **関連:** `ArtifactCore/src/Graphics/Shader/Compute/GPUCompressionPipeline.cppm`, `ArtifactCore/include/Graphics/Shader/Compute/HLSL/Compression.ixx`
+- **事実:** Compress／Decompress の HLSL は `CompressionCB` を参照していたが、両 pipeline の variable descriptor に登録されていなかった。CPU 側は Map／resource binding failure を無視し、shader が扱う `numBlocks * blockSize / 4` uint 分の buffer 容量と texture dimensions も検証していなかった。
+- **仮説:** cbuffer が未 binding のまま dispatch される、compressed buffer の不足領域へアクセスする、または指定 dimensions と実 texture がずれて不正な pixel 参照になる可能性がある。未検証。
+- **対応:** 両 pipeline に dynamic cbuffer variable を登録し、dispatch 前に cbuffer／texture／buffer binding、Map、buffer 容量、texture dimensions を検証する。cbuffer binding は SRB 作成後の各実行で行う。
+- **価値／懸念:** 圧縮／展開の CPU→HLSL 契約と出力容量前提を明示する。GPU 圧縮データの実結果と各 backend の buffer validation は未確認。
+- **次に確認:** ビルド時に compress／decompress、block size 境界、容量不足、dimension 不一致、Map／binding failure、正常 round-trip を確認する。
