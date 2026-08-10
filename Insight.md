@@ -10619,3 +10619,12 @@
 - **対応:** 実際の `channelData` 配列数を確認してからチャンネルデータへアクセスする。
 - **価値／懸念:** 不整合入力時に panning 処理を安全に打ち切る。正常な AudioSegment の結果は変更しない。
 - **次に確認:** ビルド時に channelCount と channelData 数が一致／不一致の入力を確認する。
+
+## 2026-08-10: LayerBlend opacity finite guard
+
+- **関連:** `ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`
+- **事実:** `blend()` と `blendDirect()` が受け取った opacity を検証せず、BlendParams constant bufferへ直接書き込んでいた。
+- **仮説:** NaN／無限値や1超の opacity が HLSL 合成へ伝播し、出力色が非有限または意図しない強度になる可能性がある。未検証。
+- **対応:** 両経路で opacity を有限値確認後、0〜1へ clampする共通ヘルパーを使用する。
+- **価値／懸念:** 通常の opacity の挙動を維持しつつ、GPU側へ異常値を渡さない。
+- **次に確認:** ビルド時に opacity が NaN、負値、1超、通常値の各ケースを確認する。
