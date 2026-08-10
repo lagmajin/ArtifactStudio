@@ -9211,6 +9211,14 @@
 - **価値:** MatteTrack assertion 修正後に露出する shader compile failure と、display composite の未宣言値参照を防ぐ。
 - **未検証:** 実ビルド・テストは未実行。
 
+### 2026-08-10 — MatteTrack の入力契約とSRV binding検証
+
+- **関連:** `ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`、`LayerBlendPipeline::applyTrackMatte()`
+- **事実:** matte count と optional SRV の関係、幅・高さ0を関数入口で検証しておらず、texture view binding の戻り値も無視していた。
+- **修正:** countを1〜3に制限し必要なSRVを要求、0サイズを拒否し、全SRV binding成功を dispatch 前に確認するようにした。
+- **価値:** 不完全な track matte 入力をGPU dispatchまで通さず、失敗箇所をCPU側で明確に扱える。
+- **未検証:** 実ビルド・テストは未実行。
+
 ### 2026-08-10 — AudioMixer の旧 JSON 欠損フィールド復元
 
 - **関連:** `ArtifactCore/src/Audio/AudioMixer.cppm`、`AudioMixer::deserialize()`
