@@ -9474,3 +9474,11 @@
 - **修正:** 全 channel の長さが先頭 channel の frame count と一致する場合だけ no-op return する。
 - **価値:** 不均一 segment は既存の zero-padding 付き変換経路を通り、downmixer の出力契約が一貫する。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — Composition audio input guard
+
+- **関連:** `Artifact/src/Composition/ArtifactAbstractComposition.cppm`、`ArtifactAbstractComposition::getAudio()`
+- **事実:** 各 audio layer は不正な frameCount/sampleRate を拒否していたが、Composition の集約入口には guard がなく、invalid request が mixer buffer 初期化や layer traversal まで進み得た。失敗時の outSegment も stale のまま残り得た。
+- **修正:** frameCount/sampleRate が正でない場合は outSegment を clear して false を返す。
+- **価値:** composition-level audio API の入力契約を各 layer とそろえ、前回結果の誤再利用を防ぐ。
+- **未検証:** 実ビルド・テストは未実行。
