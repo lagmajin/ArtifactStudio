@@ -9628,3 +9628,9 @@
 - **修正:** chunk 長は維持し、各 channel の実長だけ `copy_n` し、不足分をゼロ埋めするようにした。
 - **価値:** malformed／部分的な AudioSegment でも preview の時間進行を壊さず安全に再生できる。
 - **未検証:** ビルド・テストは未実行。
+### 2026-08-10 — Playback audio time-scale の極小速度境界
+- **関連:** `Artifact/src/Playback/ArtifactPlaybackEngine.cppm` の `timeScaleAudioSegment()`／`updateAudio()`
+- **事実:** 最小速度 `0.0001` では停止判定を通過し、`sourceFrames / speed` の巨大値を int 化して大きな出力 buffer を確保し得た。
+- **修正:** 極小速度を `<=` で停止扱いにし、target frame 数を有限値・`int` 上限確認後に変換するようにした。
+- **価値:** 異常な再生速度での整数変換不定動作とメモリ急増を防ぐ。
+- **未検証:** ビルド・テストは未実行。
