@@ -11366,3 +11366,10 @@
 - **対応:** 初期値／最大値を非負範囲へ制限し、linear は `long long`、exponential は有限性と上限を確認してから int 化するようにした。
 - **価値:** retry 待機時間を常に 0〜maxBackoffMs の範囲に固定する。
 - **次の確認:** 負値、巨大 attempt、factor 1／NaN、通常設定の backoff runtime 挙動をビルド環境で検証する（未実施）。
+## 2026-08-10: Render range and checkpoint interval guards
+
+- **事実:** `RenderFrameRange::count()` と range 分割の加算は int arithmetic を使い、local frame loop も `frame += step` の overflow を防いでいなかった。`setCheckpointPolicy()` は非正 interval を受け入れていた。
+- **仮説:** 最大付近の frame 番号や不正な policy 設定で、誤った frame 数、無限ループ、または毎フレーム checkpoint 保存が発生する可能性がある。
+- **対応:** count／分割を 64-bit 中間計算にし、loop の次 frame を overflow-safe に進め、非 Disabled policy の interval を最低 1 に正規化した。
+- **価値:** render farm の frame 進行と checkpoint 頻度を入力値に対して有限・予測可能にする。
+- **次の確認:** INT_MAX 付近の range、巨大 step、非正 interval、通常 range の runtime 挙動をビルド環境で検証する（未実施）。
