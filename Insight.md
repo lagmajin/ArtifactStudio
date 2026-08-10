@@ -11338,3 +11338,10 @@
 - **対応:** 負の row を無効化し、progress を有限かつ 0〜1 に正規化した。
 - **価値:** モデル行アクセスと UI 表示値の契約を入口で固定する。
 - **次の確認:** 行削除競合、NaN／無限 progress、通常 progress の model/view runtime 挙動をビルド環境で検証する（未実施）。
+## 2026-08-10: Render job model display boundary
+
+- **事実:** `RenderJob` の progress は公開フィールドであり、`jobAt()` 経由の直接変更では setter の正規化を迂回できた。また `columnCount()` は有効な親 index に対しても列数 4 を返していた。
+- **仮説:** 直接変更された非有限／範囲外 progress が表示時の変換へ入り、階層 index に対する Qt model 契約も曖昧になる可能性がある。
+- **対応:** 表示時にも progress を有限・0〜1 に正規化し、有効な親 index の列数を 0 とした。
+- **価値:** setter 経由／直接変更の両方で表示境界を安定させる。
+- **次の確認:** 直接 progress 変更と親 index の model/view runtime 挙動をビルド環境で検証する（未実施）。
