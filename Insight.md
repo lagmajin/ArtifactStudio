@@ -10700,3 +10700,12 @@
 - **対応:** 左右それぞれの hold counter を保持し、各チャンネルのサンプル周期を独立させる。
 - **価値／懸念:** mono／stereo で Bitcrush の時間特性を一致させる。Bitcrush の量子化レベルと他モードは変更しない。
 - **次に確認:** ビルド時に mono／stereo、downsample 1／4／32、左右異なる入力を確認する。
+
+## 2026-08-10: Artifact AudioMixer configuration bounds
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioMixer.cppm`
+- **事実:** `setSampleRate()` と `setBufferSize()` が入力値をそのまま内部設定へ保存していた。
+- **仮説:** 0／負の sample rate や buffer size が後段の音声処理へ伝播し、無効なバッファ契約や係数計算を誘発する可能性がある。未検証。
+- **対応:** sample rate は正値、それ以外は44100へ戻し、buffer size は1〜1<<20へ clampする。
+- **価値／懸念:** 設定入口で無効値を止める。通常範囲の既存設定は変更しない。
+- **次に確認:** ビルド時に0／負値／通常値／上限超過の setter 結果を確認する。
