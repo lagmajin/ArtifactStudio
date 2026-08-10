@@ -9362,3 +9362,11 @@
 - **修正:** clear snapshot を logical read position として occupancy/capacity 計算にも使う。SPSC の readCount 所有権は維持する。
 - **価値:** seek/stop 後に新しい音声を即座に ring buffer へ再充填でき、consumer の clear callback を待つ余分な無音窓を減らせる。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — QtAudioBackend start failure propagation
+
+- **関連:** `ArtifactCore/src/Audio/QtAudioBackend.cppm`、`QtAudioBackend::start()`、`AudioRenderer::start()`
+- **事実:** Qt backend は `QAudioSink::start()` 後の error/state を確認せず `active_` を true のままにでき、sink 起動失敗でも上位 renderer が active と判断し得た。
+- **修正:** start 直後に `QAudio::NoError` と `StoppedState` を確認し、失敗時は active/callback を戻して sink を停止する。
+- **価値:** Qt audio device の起動失敗が「再生中だが音が出ない」状態として隠れにくくなる。
+- **未検証:** 実ビルド・テストは未実行。
