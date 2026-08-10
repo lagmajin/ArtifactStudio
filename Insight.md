@@ -10736,3 +10736,12 @@
 - **対応:** 4つの callback の入口に `bus_` null guard を追加する。
 - **価値／懸念:** 未接続状態では操作を無視し、接続済み bus の操作と表示は変更しない。
 - **次に確認:** ビルド時に各 control の通常操作、row 再構築中の遅延イベント、未接続 widget を確認する。
+
+## 2026-08-10: AudioMixerWidget null mixer refresh guard
+
+- **関連:** `Artifact/src/Widgets/AudioMixerWidget.cppm`
+- **事実:** `AudioMixerWidget::refreshBuses()` は追加ボタンの callback では `mixer_` null を扱っていたが、一覧取得前の `getAllBuses()` は無条件に呼んでいた。
+- **仮説:** null mixer を受ける公開 widget の初期化・再構築で null dereference になる可能性がある。未検証。
+- **対応:** null mixer 時は追加ボタンを無効化し、bus 一覧取得前に空表示で戻る。
+- **価値／懸念:** mixer 未接続時も widget を安全に構築できる。接続済み mixer の bus 列挙・追加動作は変更しない。
+- **次に確認:** ビルド時に null／有効 mixer の構築、refresh、bus 追加を確認する。
