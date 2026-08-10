@@ -9728,3 +9728,10 @@
 - **判断:** callback frame 数と temporary buffer の sample 数を int 表現可能な範囲へ制限し、WASAPI で処理できない残余フレームは無音で埋めるようにした。
 - **価値/懸念:** 異常に大きい backend buffer でも callback 引数や一時バッファのサイズが wraparound しない。通常のデバイス buffer では従来どおり全フレームを処理する。
 - **次に確認:** 実デバイスで backend buffer と callback frame 数の runtime 契約を確認する（ビルド・実行は未実施）。
+## 2026-08-10 — WASAPI exclusive format selection needs matching integer types
+
+- **関連:** `ArtifactCore/src/Audio/WASAPIBackend.cppm`
+- **事実:** exclusive mode の channel 数選択が `std::min(2, UINT32)` になっており、テンプレート引数を推論する MSVC では異なる型のため成立しない。
+- **判断:** `std::min<UINT32>(2u, ...)` として device channel count と同じ型で比較するようにした。
+- **価値/懸念:** WASAPI exclusive open 経路のコンパイル互換性を改善する。channel 数の上限や実際の exclusive format は変更していない。
+- **次に確認:** WASAPI/Qt backend の runtime open は実デバイス依存のため、ビルド・実機確認が必要。
