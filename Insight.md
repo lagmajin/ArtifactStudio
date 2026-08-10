@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — AudioWriter の I/O status 整合性
+
+- 関連: `ArtifactCore/src/Audio/AudioWriter.cppm`。
+- 確認できた事実: segment の WAV bytes を QDataStream へ書いた後、stream status を確認せず `dataBytes` を進めていたため、部分／失敗書き込みでも header byte count が成功扱いになり得た。
+- 修正内容: segment 書き込み後に QDataStream status を確認し、失敗時は dataBytes を進めず writer を停止して file を閉じるようにした。
+- 未検証の仮説: ディスク／device error 時に破損 WAV を正常な data length として finalize する経路を抑えられる。
+- 価値／懸念: 正常な書き込みと RIFF サイズ計算は維持する。失敗後は既存 API に明示的な error getter がないため、停止状態が唯一の通知になる。
+- 次に確認すべきこと: 実機または I/O fault harness で write failure、close、再 open の状態遷移を確認する。
+
 ### 2026-08-10 — Scrub audio の renderer 前 PCM 境界
 
 - 関連: `Artifact/src/Audio/ArtifactAudioScrubController.cppm`。
