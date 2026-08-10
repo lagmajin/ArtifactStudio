@@ -11240,3 +11240,12 @@
 - **対応:** 両APIで device context の有無を確認し、warningを記録して更新を中断する。
 - **価値／懸念:** GPU更新境界の失敗をクラッシュにせず、既存GPUデータを保持する。再試行時の呼び出し順序は未検証。
 - **次に確認:** null context、正常 upload、geometryのみ／instanceのみ更新、context再初期化後の再試行を確認する。
+
+## 2026-08-10: Mesh renderer invalidates prepared state after render-state changes
+
+- **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cppm`
+- **事実:** `prepared_` は prepare 成功を記録するが、行列、ライト、マテリアル値、テクスチャ、透明passの変更時に無効化されていなかった。これらの値／SRVは prepare 内でGPUへ反映される。
+- **仮説:** prepare 後に設定APIを呼び、そのまま draw すると、前回の定数またはSRV bindingで描画する可能性がある。未検証。
+- **対応:** 変更系設定APIの入口で `prepared_ = false` とし、変更後は再prepareを要求する。
+- **価値／懸念:** CPU設定とGPU commitの世代を一致させる。設定APIの呼び出し順序と実ランタイム再prepareは未確認。
+- **次に確認:** prepare→各設定変更→draw、再prepare→draw、texture replacement、transparent／opaque切替を確認する。
