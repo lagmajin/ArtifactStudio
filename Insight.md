@@ -9646,3 +9646,9 @@
 - **修正:** FFT/hop を最低値へ制限し、window denominator を保護、spectrogram start を qint64 化、band の sample rate／bin width を検証するようにした。
 - **価値:** malformed analyzer settings や audio metadata での巨大確保・NaN・範囲外 index を防ぐ。
 - **未検証:** ビルド・テストは未実行。
+### 2026-08-10 — AudioSyncTools の rate／tempo／normalize 境界
+- **関連:** `Artifact/src/Audio/ArtifactAudioWaveform.cppm`
+- **事実:** `timeStretch()` は非有限・極小 rate を int frame 数へ変換し得た。`detectTempo()` は invalid sample rate で bpm=0 のまま while を回し続け、`normalize()` は NaN／極端 target dB をそのまま gain 計算へ渡していた。
+- **修正:** rate と target frame 数を検証し、invalid sample rate は既定 tempo を返し、target dB を有限・実用範囲へ制限した。
+- **価値:** malformed audio metadata／sync parameter による無限ループ、巨大確保、NaN 音声を防ぐ。
+- **未検証:** ビルド・テストは未実行。
