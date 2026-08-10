@@ -11195,3 +11195,12 @@
 - **対応:** map failure 時は GPU culling を無効化し、リソース commit／描画準備を中断する。
 - **価値／懸念:** 定数アップロード失敗を stale state の描画へ伝播させない。実 GPU の map failure 発生条件と復帰動作は未確認。
 - **次に確認:** constant buffer map failure、次フレームの再準備、GPU culling の有効／無効遷移、通常粒子描画を確認する。
+
+## 2026-08-10: Particle renderer matrix pointer guards
+
+- **関連:** `ArtifactCore/src/Graphics/ParticleRenderer.cppm`, `ArtifactCore/include/Graphics/ParticleRenderer.ixx`
+- **事実:** `setProjectionMatrix()` と `setViewMatrix()` は公開された raw pointer API だが、引数を検証せず 16 要素を `memcpy` していた。
+- **仮説:** カメラ更新の失敗経路や初期化順序のずれで null が渡ると、描画前に即アクセス違反になる可能性がある。未検証。
+- **対応:** null 行列では state を変更せず warning と debug state を記録して return する。
+- **価値／懸念:** 不正な行列更新をクラッシュにせず、前回の有効行列を保持する。行列内容そのものの有限値検証は別責務として未実施。
+- **次に確認:** null 行列、正常な16要素行列、prepare／draw 後の行列更新、カメラ初期化順序を確認する。
