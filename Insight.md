@@ -9402,3 +9402,11 @@
 - **修正:** `isActive()` も同じ mutex を取得してから `active_` を返すようにした。
 - **価値:** audio backend の active 判定が停止処理と同じ同期規約になり、上位 renderer が競合した状態を観測する経路を減らせる。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — AudioDownMixer layout-shape guard
+
+- **関連:** `ArtifactCore/src/Audio/AudioDownMixer.cppm`、`AudioDownMixer::process()`
+- **事実:** conversion の early return は `AudioChannelLayout` の enum 値だけを比較していたため、`Stereo` と記録された channel count 不一致の入力をそのまま返し得た。AudioRenderer はその場合に出力先 channel 数だけを読み、余剰チャンネルを暗黙に落とす。
+- **修正:** 既知 layout の期待 channel 数も一致した場合だけ early return するようにした。形状が不一致なら既存の変換/fallback 経路へ進む。
+- **価値:** metadata と実データの channel 数がずれた音声で、downmix の責務を bypass してしまう経路を減らせる。
+- **未検証:** 実ビルド・テストは未実行。
