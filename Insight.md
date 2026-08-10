@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — Artifact Reverb の FDN／plate state 有限性
+
+- 関連: `Artifact/src/Audio/Effects/ReverbEffect.cppm`。
+- 確認できた事実: 入力 PCM は有限化されていたが、plate の tank／damping state と FDN の Hadamard、delay buffer、wet/dry 合成には overflow／非有限 state の防波堤がなかった。
+- 修正内容: Dattorro／FDN／Hybrid の主要 state 書き込み、feedback、early reflection、出力合成を有限化した。
+- 未検証の仮説: 大振幅入力が reverb tail の state を infinity にし、次の block 以降へ残る経路を抑えられる。
+- 価値／懸念: 通常の reverb の減衰・アルゴリズム選択は維持する。異常な大振幅は符号を保って float 最大値へ飽和する。
+- 次に確認すべきこと: 実機またはオフライン再生で Dattorro／FDN／Hybrid 各モードの長い tail、block 境界、極端入力を確認する。
+
 ### 2026-08-10 — Artifact limiter／compressor の出力有限性
 
 - 関連: `Artifact/src/Audio/Effects/LimiterEffect.cppm`、`Artifact/src/Audio/Effects/CompressorEffect.cppm`。
