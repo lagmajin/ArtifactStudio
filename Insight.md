@@ -10574,3 +10574,12 @@
 - **対応:** resolution を設定値・上限・実フレーム数の最小値に制限する。
 - **価値／懸念:** 短い入力の負荷を入力長に比例させる。長い入力と通常設定の表示解像度は維持する。
 - **次に確認:** ビルド時に10 frameへ最大 resolution、通常長音声、resolution 1を確認する。
+
+## 2026-08-10: Core AudioAnalyzer intensity bin 境界
+
+- **関連:** `ArtifactCore/src/Audio/AudioAnalyzer.cppm`
+- **事実:** 帯域周波数を bin index へ変換する値を int へ直接 cast していた。
+- **仮説:** 低い sample rate で bin 幅が小さくなると、int overflow／不正 cast が発生する可能性がある。未検証。
+- **対応:** 有限値を確認し、周波数 index を spectrum の有効範囲へ clamp してから平均を計算する。
+- **価値／懸念:** 異常な sample rate でも帯域分析を安全に継続できる。通常の周波数帯結果は維持する。
+- **次に確認:** ビルド時に低 sample rate、通常44.1kHz、帯域境界を確認する。
