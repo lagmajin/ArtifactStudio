@@ -9226,3 +9226,11 @@
 - **修正:** Core mixer を再接続した直後に Master bus の volume/mute を `ArtifactAudioService` へ反映する。
 - **価値:** Advanced Routing 後も compact UI、Core bus、Playback service の Master 状態が一致する。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — MediaPanel audio import の保存・再表示
+
+- **関連:** `ArtifactPr/src/MediaPanel.cppm`、`refreshMediaList()`、`onImportClicked()`
+- **事実:** audio import は QListWidget にだけ追加され mediaPool に登録されなかった。また audio clip の refresh は `sourceFile` ではなく `name` をファイルパスとして扱っていた。
+- **修正:** audio の mediaPool 登録と重複抑制を追加し、audio track/mediaPool の表示パスを `sourceFile` / `filePath` から復元するようにした。thumbnail 要求は映像拡張子に限定した。
+- **価値:** 音声素材が refresh・保存・再読込の境界で消えたり、表示名をファイルとして誤参照したりしにくくなる。
+- **未検証:** 実ビルド・テストは未実行。

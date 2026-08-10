@@ -190,12 +190,18 @@ void MediaPanel::refreshMediaList(const ArtifactPr::DemoSequence&)
     }
     for (const auto& track : seq.audioTracks) {
         for (const auto& clip : track.clips) {
-            addMediaFile(clip.name, clip.name);
+            if (!clip.sourceFile.isEmpty() && !alreadyListed(clip.sourceFile)) {
+                const QString displayName = clip.name.isEmpty()
+                    ? QFileInfo(clip.sourceFile).fileName()
+                    : clip.name;
+                addMediaFile(clip.sourceFile, displayName);
+            }
         }
     }
 
     for (const auto& media : engine->mediaPool()) {
-        if (media.type == QStringLiteral("video")
+        if ((media.type == QStringLiteral("video") ||
+             media.type == QStringLiteral("audio"))
             && !media.filePath.isEmpty()
             && !alreadyListed(media.filePath)) {
             addMediaFile(media.filePath, media.name.isEmpty()
@@ -213,8 +219,13 @@ void MediaPanel::addMediaFile(const QString& filePath, const QString& displayNam
     item->setData(Qt::UserRole, filePath);
     list_->addItem(item);
 
-    // thumbnail を非同期要求 (実ファイルパスの場合のみ)
-    if (QFileInfo::exists(filePath)) {
+    // thumbnail を非同期要求 (映像ファイルの場合のみ)
+    const QString suffix = QFileInfo(filePath).suffix().toLower();
+    const bool isVideo = suffix == QStringLiteral("mp4")
+        || suffix == QStringLiteral("avi")
+        || suffix == QStringLiteral("mov")
+        || suffix == QStringLiteral("mkv");
+    if (isVideo && QFileInfo::exists(filePath)) {
         ArtifactPr::ThumbnailRequest req;
         req.filePath = filePath;
         req.targetSize = QSize(160, 90);
@@ -236,30 +247,34 @@ void MediaPanel::onImportClicked()
                 || suffix == QStringLiteral("mov")
                 || suffix == QStringLiteral("mkv");
             bool alreadyListed = false;
-            if (isVideo) {
-                for (int i = 0; i < list_->count(); ++i) {
-                    const auto* item = list_->item(i);
-                    if (item && item->data(Qt::UserRole).toString() == file) {
-                        alreadyListed = true;
-                        break;
-                    }
+            for (int i = 0; i < list_->count(); ++i) {
+                const auto* item = list_->item(i);
+                if (item && item->data(Qt::UserRole).toString() == file) {
+                    alreadyListed = true;
+                    break;
                 }
             }
-            if (!isVideo || !alreadyListed) {
+            if (!alreadyListed) {
                 addMediaFile(file, QFileInfo(file).fileName());
             }
-            if (isVideo) {
+            const bool isAudio = suffix == QStringLiteral("mp3")
+                || suffix == QStringLiteral("wav")
+                || suffix == QStringLiteral("aac");
+            if (isVideo || isAudio) {
                 auto* engine = ArtifactPr::EditorEngine::instance();
                 bool alreadyRegistered = false;
                 for (const auto& media : engine->mediaPool()) {
-                    if (media.filePath == file && media.type == QStringLiteral("video")) {
+                    const QString mediaType = isVideo
+                        ? QStringLiteral("video") : QStringLiteral("audio");
+                    if (media.filePath == file && media.type == mediaType) {
                         alreadyRegistered = true;
                         break;
                     }
                 }
                 if (!alreadyRegistered) {
                     engine->addMediaToPool(
-                        file, QFileInfo(file).fileName(), QStringLiteral("video"));
+                        file, QFileInfo(file).fileName(),
+                        isVideo ? QStringLiteral("video") : QStringLiteral("audio"));
                 }
             }
         }
