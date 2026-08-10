@@ -9210,3 +9210,11 @@
 - **修正:** フィールドが存在するときだけ値を復元し、欠損時は `AudioBus` の既定値を保持するようにした。
 - **価値:** 古いプロジェクトを読み込んでも、未保存だった mixer 属性が破壊的に無音化されにくい。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — Composition Audio Mixer の Master bus 接続
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioMixer.cppm`、`AudioMixer::connectToCoreMixer()`、`AudioMixerMasterBus::connectToCoreBus()`
+- **事実:** compact mixer の Master bus は Core mixer の Master bus に接続されておらず、Advanced Routing 側で変更した Master volume/mute が再表示時に失われていた。
+- **修正:** Core mixer 接続時に Master bus を接続し、volume と mute を同期する。接続解除時は安全な既定値へ戻す。
+- **価値:** Advanced Routing と compact mixer の Master 操作が同じ Core 状態を参照する。
+- **未検証:** 実ビルド・テストは未実行。
