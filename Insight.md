@@ -11096,3 +11096,12 @@
 - **対応:** 両 pipeline に dynamic cbuffer variable を登録し、dispatch 前に cbuffer／texture／buffer binding、Map、buffer 容量、texture dimensions を検証する。cbuffer binding は SRB 作成後の各実行で行う。
 - **価値／懸念:** 圧縮／展開の CPU→HLSL 契約と出力容量前提を明示する。GPU 圧縮データの実結果と各 backend の buffer validation は未確認。
 - **次に確認:** ビルド時に compress／decompress、block size 境界、容量不足、dimension 不一致、Map／binding failure、正常 round-trip を確認する。
+
+## 2026-08-10: Mask and procedural cbuffer descriptor alignment
+
+- **関連:** `ArtifactCore/src/Graphics/Shader/Compute/MaskCutoutPipeline.cppm`, `ArtifactCore/src/Graphics/Shader/Compute/MaskPathRasterizerPipeline.cppm`, `ArtifactCore/src/ImageProcessing/ProceduralTexture.cppm`
+- **事実:** 3つの HLSL shader が `MaskParams`／`RasterizerParams`／`ProceduralTextureCB` を参照し、CPU 側で `setBuffer()` していたが、pipeline variable descriptor に cbuffer 名が含まれていなかった。Mask 2系統は Map／texture binding failure も無視していた。
+- **仮説:** backend や SRB 作成順によって constant buffer が未 binding のまま dispatch され、mask mode、path rasterizer dimensions、procedural texture settings が stale／既定値になる可能性がある。未検証。
+- **対応:** 3 pipeline の cbuffer を dynamic variable として登録し、Mask の cbuffer／texture／buffer-view binding と Map failure、ProceduralTexture の cbuffer／output binding を dispatch 前に検証する。
+- **価値／懸念:** mask と procedural generation の CPU→HLSL resource 契約を、暗黙の default variable 解決から明示的な descriptor に揃える。GPU 実行結果は未確認。
+- **次に確認:** ビルド時に各 shader の reflection、mask mode／path mode、procedural settings、Map／binding failure、正常 dispatch を確認する。
