@@ -11168,3 +11168,12 @@
 - **対応:** seek 加算を明示的な qint64 にし、空 waveform 入力では既存データを zero-fill する。
 - **価値／懸念:** ファイル位置計算と可視化 state の failure path を決定的にする。4GB 境界と UI 表示は未確認。
 - **次に確認:** near-limit header position、empty／zero-frame waveform、正常 WAV finalize と連続 waveform 更新を確認する。
+
+## 2026-08-10: Audio backend callback lifetime cleanup
+
+- **関連:** `ArtifactCore/src/Audio/WASAPIBackend.cppm`, `ArtifactCore/src/Audio/QtAudioBackend.cppm`
+- **事実:** stop／close 後も WASAPI の Impl callback と Qt backend の `callback_` が保持され、renderer を捕捉する callback object が backend lifetime まで残っていた。WASAPI は thread join 完了、Qt は stop 状態の mutex section が callback 解放点だった。
+- **仮説:** repeated device open／close で callback capture が不要に延命され、終了順序や backend 再生成時の stale callback が診断を難しくする可能性がある。未検証。
+- **対応:** WASAPI は render thread が joinable でなくなった後、Qt は stop 時に callback を解放する。readData は既に lock 内で callback を local copy してから呼ぶため、進行中の read を切断しない。
+- **価値／懸念:** backend stop 後の callback ownership を明示する。実デバイスの stop／close race は未確認。
+- **次に確認:** repeated open／start／stop／close、Qt pull 中の stop、WASAPI thread join、callback capture 解放を確認する。
