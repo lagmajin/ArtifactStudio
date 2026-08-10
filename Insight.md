@@ -9290,3 +9290,11 @@
 - **修正:** variable layout を plan の resource 名から構築し、executor の ready 状態を再確認する。dispatch 寸法と texture 寸法を一致させ、同一 texture の入出力を拒否する。
 - **価値:** カスタム resource 名の plan が bind 失敗しにくくなり、寸法不一致による未処理領域や不正な in-place compute を早期に検出できる。
 - **未検証:** 実ビルド・テストは未実行。`git diff --check` のみ実行。
+
+### 2026-08-10 — Layer blend executor の constant buffer bind 初期化
+
+- **関連:** `ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`、`createExecutors()`、`createMatteTrackExecutor()`
+- **事実:** 通常 Blend と MatteTrack の `ComputeExecutor::setBuffer()` 戻り値が無視され、定数バッファを bind できなくても executor が登録され得た。
+- **修正:** `BlendParams` / `MatteTrackParams` の bind 成功を executor 初期化の条件にし、失敗した blend mode は登録せず、MatteTrack は初期化失敗として扱う。
+- **価値:** opacity や matte パラメータが未 bind のまま dispatch される遅延不具合を、初期化境界で検出できる。
+- **未検証:** 実ビルド・テストは未実行。
