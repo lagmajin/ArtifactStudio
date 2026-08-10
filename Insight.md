@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — Artifact AudioAnalyzer の DFT 累積精度
+
+- 関連: `Artifact/src/Audio/ArtifactAudioWaveform.cppm` の `AudioAnalyzer::Impl::fft()`／`computeSpectrum()`。
+- 確認できた事実: float の複素 DFT 累積は最大 PCM と FFT 長の組み合わせで infinity になり得て、spectrum／phase へ伝播していた。
+- 修正内容: DFT 累積を double にし、complex 結果と spectrum magnitude を有限 float へ clamp した。stereo waveform 合成も有限化した。
+- 未検証の仮説: 極端 PCM の解析で、FFT の累積 overflow が meter／spectrogram／phase へ波及する経路を抑えられる。
+- 価値／懸念: 通常の解析結果は維持し、double の範囲を超える異常値だけ float 最大値へ飽和する。
+- 次に確認すべきこと: 実機またはオフライン解析で FFT size 境界、最大振幅、stereo 不揃い長を確認する。
+
 ### 2026-08-10 — Core HighLowPass／ParametricEQ の filter state 有限性
 
 - 関連: `ArtifactCore/include/Audio/AudioHighLowPass.ixx`、`ArtifactCore/src/Audio/AudioHighLowPass.cppm`、`ArtifactCore/src/Audio/AudioParametricEQ.cppm`。
