@@ -9514,3 +9514,11 @@
 - **修正:** `EAGAIN` / `EOF` まで receive を繰り返し、各 frame の resampled PCM を一つの `AudioDecodeResult` に連結する。
 - **価値:** packet 境界に依存せず、デコーダが返した全 audio frame を上位の audio buffer に渡せる。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — Codec-name audio initialization contract
+
+- **関連:** `ArtifactCore/src/Media/MediaAudioDecoder.cppm`、`initializeByCodecName()`
+- **事実:** codec-name 初期化は codec context を開いた後に `initialized_` だけを true にし、decode が必須とする `SwrContext` を作っていなかったため、その経路だけ decode が常に未初期化扱いになっていた。
+- **修正:** resampler setup を完了できた場合だけ初期化成功とし、失敗時は codec context を解放して false を返す。
+- **価値:** 初期化成功状態と decode 可能状態の不一致をなくす。
+- **未検証:** 実ビルド・テストは未実行。codec 名だけで入力フォーマットが決まらない場合は、明示的な codec parameters 初期化が必要。
