@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — Artifact waveform の解析入力有限性
+
+- 関連: `Artifact/src/Audio/ArtifactAudioWaveform.cppm`。
+- 確認できた事実: mono 化、level 計算、normalize、fade が入力 PCM を直接加算・二乗・乗算していたため、非有限値が波形表示や返却 AudioSegment に残り得た。
+- 修正内容: 共通 sanitizer を追加し、mono 化と level 計算、normalize／fade の境界で NaN を無音、±∞ を float 最大値へ正規化した。
+- 未検証の仮説: 壊れた decoder／effect 出力が波形解析結果や normalize 後の audio buffer を NaN にする経路を抑えられる。
+- 価値／懸念: 通常の waveform・RMS・fade の計算は維持する。極端な有限値は最大値へ飽和するため、表示上の異常振幅は別途 UX 判断が必要。
+- 次に確認すべきこと: 実機またはオフライン解析で multi-channel の不揃い長、無音、異常 PCM を確認する。
+
 ### 2026-08-10 — AudioBassTreble の IIR state 有限性
 
 - 関連: `ArtifactCore/include/Audio/AudioBassTreble.ixx`、`ArtifactCore/src/Audio/AudioBassTreble.cppm`。
