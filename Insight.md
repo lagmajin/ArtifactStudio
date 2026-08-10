@@ -9218,3 +9218,11 @@
 - **修正:** Core mixer 接続時に Master bus を接続し、volume と mute を同期する。接続解除時は安全な既定値へ戻す。
 - **価値:** Advanced Routing と compact mixer の Master 操作が同じ Core 状態を参照する。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — Core Master 値を Playback service へ再同期
+
+- **関連:** `Artifact/src/Widgets/ArtifactCompositionAudioMixerWidget.cppm`、`refreshFromCurrentComposition()`
+- **事実:** Advanced Routing は Core の Master bus を直接編集するが、refresh 前に呼ばれる service 同期は旧 service 値を再適用するため、表示値と実際の出力 gain/mute が乖離し得た。
+- **修正:** Core mixer を再接続した直後に Master bus の volume/mute を `ArtifactAudioService` へ反映する。
+- **価値:** Advanced Routing 後も compact UI、Core bus、Playback service の Master 状態が一致する。
+- **未検証:** 実ビルド・テストは未実行。
