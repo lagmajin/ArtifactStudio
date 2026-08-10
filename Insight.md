@@ -9442,3 +9442,11 @@
 - **修正:** source position 自体を channel の有効範囲に clamp してから index と係数を計算する。
 - **価値:** 不均一 channel 長の resample が末尾で過大な外挿サンプルを生成する経路を防ぐ。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — AudioDownMixer multichannel target mapping
+
+- **関連:** `ArtifactCore/src/Audio/AudioDownMixer.cppm`、`AudioDownMixer::process()`、`AudioBus` multichannel routing
+- **事実:** AudioBus は `Surround51/Surround71` を target layout に設定するが、downmixer は Mono/Stereo target しか処理せず、5.1↔7.1 の layout mismatch で空の output segment を返し得た。
+- **修正:** surround target 用に標準 channel order の mapping を追加し、7.1→5.1 は back channel を surround に fold、足りない channel は silence にする。
+- **価値:** multichannel bus の layout 変換で入力全体が無音化する経路を防ぎ、5.1/7.1 routing を保持する。
+- **未検証:** 実ビルド・テストは未実行。
