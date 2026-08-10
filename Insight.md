@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — Artifact waveform 相関／同期解析の累積精度
+
+- 関連: `Artifact/src/Audio/ArtifactAudioWaveform.cppm` の correlation、band energy、timeStretch、alignment、beat detection。
+- 確認できた事実: 相関・energy・alignment・beat の累積が float のままで、最大有限 PCM では overflow し得た。timeStretch 補間も入力を直接乗算していた。
+- 修正内容: 累積を double 化し、結果を有限 float へ clamp、timeStretch の補間 sample を有限化した。
+- 未検証の仮説: 極端 PCM が同期推定・band meter・beat 検出を NaN／∞にする経路を抑えられる。
+- 価値／懸念: 通常の解析結果と閾値判定は維持する。異常振幅は上限へ飽和するため、物理的に妥当な入力範囲の検証は別途必要。
+- 次に確認すべきこと: 実機またはオフライン解析で相関ゼロ／最大振幅／巨大 FFT window／rate 境界を確認する。
+
 ### 2026-08-10 — Artifact AudioAnalyzer の DFT 累積精度
 
 - 関連: `Artifact/src/Audio/ArtifactAudioWaveform.cppm` の `AudioAnalyzer::Impl::fft()`／`computeSpectrum()`。
