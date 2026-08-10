@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — AudioClockProvider の drift 整数境界
+
+- 関連: `Artifact/src/Audio/AudioClockProvider.cppm`。
+- 確認できた事実: audio/video 時刻の int64 差分、EMA の double→int64 変換、`std::abs(INT64_MIN)`、補正後時刻の加算が overflow し得た。drift 設定も範囲検証なしで保持していた。
+- 修正内容: drift 設定を正規化し、差分／加算を saturating arithmetic、EMA を int64 範囲へ clamp、絶対値判定を unsigned magnitude へ変更した。
+- 未検証の仮説: 壊れた外部時刻や極端な drift 設定で、再生位置が wrap して逆方向へ飛ぶ経路を抑えられる。
+- 価値／懸念: 通常の AV sync 補正は維持する。int64 の限界付近では最大／最小値へ飽和するため、根本的な外部時刻異常は診断対象として残る。
+- 次に確認すべきこと: 実機またはオフライン同期処理で、負の時刻・極端な差分・設定変更中の補正を確認する。
+
 ### 2026-08-10 — Artifact Equalizer／Distortion の state 境界
 
 - 関連: `Artifact/src/Audio/Effects/EqualizerEffect.cppm`、`Artifact/src/Audio/Effects/DistortionEffect.cppm`。
