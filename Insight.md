@@ -9562,3 +9562,11 @@
 - **修正:** channel ごとの available frame 数で処理し、空 channel は skip、sampleRate 不正時は effect を早期 return する。
 - **価値:** malformed AudioSegment の解析・filter 処理で範囲外読みと不正係数を防止する。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — Audio effect uneven channel safety
+
+- **関連:** `ArtifactCore/src/Audio/AudioChorus.cppm`、`AudioReverb.cppm`、`AudioStereoMixer.cppm`、`AudioBassTreble.cppm`
+- **事実:** 4 effect が先頭 channel の frame 数を全 channel に適用し、短い channel を範囲外参照し得た。Chorus／BassTreble は sampleRate 0 も係数・LFO 計算に進み得た。
+- **修正:** channel ごとの実長で処理範囲を clamp し、空 channel を skip、sampleRate 不正時は rate 依存 effect を早期 return する。
+- **価値:** effect rack に不均一または不正な AudioSegment が入っても範囲外読みを防止する。
+- **未検証:** 実ビルド・テストは未実行。
