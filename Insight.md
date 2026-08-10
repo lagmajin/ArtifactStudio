@@ -10340,3 +10340,12 @@
 - **対応:** bytes-per-frame を先に安全検証し、その後に frame 数と総量を検証する。
 - **価値／懸念:** 異常な `AudioSegment` でもメモリ使用量を過小評価しにくくなる。通常経路の計算結果は変わらない。
 - **次に確認:** ビルド時に通常の mono/stereo/multichannel cache と境界値のメモリ使用量を確認する。
+
+## 2026-08-10: SimpleWav の chunk 境界処理を修正
+
+- **関連:** `ArtifactCore/src/Audio/SimpleWav.cppm`
+- **事実:** `fmt ` の chunkSize が16未満でも固定長ヘッダを読み、`maxFrames` で `data` を部分読込した場合も残りの chunk bytes を消費していなかった。
+- **仮説:** 破損 WAV や部分読込＋後続 chunk の組み合わせで、次の chunk ID を音声データから誤読する可能性がある。未検証。
+- **対応:** 短い fmt chunk を拒否し、部分読込後は data chunk の残りをスキップする。
+- **価値／懸念:** chunk parser の位置が宣言境界と一致する。通常の全量読込の挙動は変わらない。
+- **次に確認:** ビルド時に fmt<16、奇数 chunk、maxFrames 部分読込、後続 LIST/JUNK chunk を確認する。
