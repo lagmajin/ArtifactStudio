@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — AudioRingBuffer の write 容量判定
+
+- 関連: `ArtifactCore/src/Audio/AudioRingBuffer.cppm`。
+- 確認できた事実: write 前の `buffered + frames` が size_t overflow し得て、1回の入力 frame 数が capacity を超える場合も加算結果に依存していた。
+- 修正内容: buffered 値を capacity へ制限し、`frames > capacity` または `buffered > capacity - frames` で拒否する判定へ変更した。
+- 未検証の仮説: 極端な AudioSegment サイズやカウンタ境界で、リング容量を越えた memcpy／writeCount 更新へ進む経路を抑えられる。
+- 価値／懸念: 通常の SPSC write／read と wrap-around は維持する。capacity 超過入力は従来どおり false で無音側へ扱われる。
+- 次に確認すべきこと: 実機または buffer harness で capacity-1／capacity／capacity+1 とカウンタ wrap 近傍を確認する。
+
 ### 2026-08-10 — AudioRenderer callback の出力サイズ境界
 
 - 関連: `ArtifactCore/src/Audio/AudioRenderer.cppm` の `audioCallback()`。
