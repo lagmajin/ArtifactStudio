@@ -10520,3 +10520,12 @@
 - **対応:** 相関側の index を qint64 で計算してから範囲判定し、QVector の添字として利用する。
 - **価値／懸念:** alignment の通常結果を保ったまま、巨大入力の添字計算を安全化する。
 - **次に確認:** ビルド時に最大長に近い左右 segment、正負の最大 lag を確認する。
+
+## 2026-08-10: AudioAnalyzer band bin 境界
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioWaveform.cppm`
+- **事実:** 周波数を FFT bin へ変換する値を int 上限・spectrum サイズで検査せず直接 cast していた。
+- **仮説:** 低い sample rate や大きな FFT サイズで高域周波数の bin 値が int 範囲を越え、不正な cast や範囲外走査につながる可能性がある。未検証。
+- **対応:** 有限値を確認し、各周波数を spectrum の bin 数へ clamp してから走査する。
+- **価値／懸念:** 異常な sample rate でも band 分析が安全に空／末尾範囲として扱われる。通常の bin 結果は維持する。
+- **次に確認:** ビルド時に sample rate 1、低レート音声、高い FFT サイズで band 分析を確認する。
