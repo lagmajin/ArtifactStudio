@@ -10934,3 +10934,12 @@
 - **対応:** flush で `seekTargetFrame_` も -1 に戻す。seek の flush→新 target 設定順序は変更しない。
 - **価値／懸念:** 明示 flush を純粋な decoder state reset に揃える。通常の seek 後の trim は従来どおり維持する。
 - **次に確認:** ビルド時に seek→flush→decode、seek→decode、EOS drain の target frame 遷移を確認する。
+
+## 2026-08-10: Audio decoder demuxer flush after seek
+
+- **関連:** `ArtifactCore/src/Codec/FFMpegAudioDecoder.cppm`, `ArtifactCore/src/Codec/FFmpegVideoDecoder.cppm`
+- **事実:** Video decoder は `av_seek_frame()` 成功後に `avformat_flush()` と codec flush を行うが、Audio decoder は codec／resampler flush のみだった。
+- **仮説:** seek 前の demuxer buffered packet が残る環境では、seek 後の audio decode が旧位置の packet を混ぜる可能性がある。未検証。
+- **対応:** Audio seek 成功後に `avformat_flush()` を追加し、既存の state reset と新 seek target 設定の順序を維持する。
+- **価値／懸念:** seek 境界の demuxer／codec reset を video 経路と揃える。FFmpeg backend の runtime 動作は未確認。
+- **次に確認:** ビルド時に前後方向 seek、seek 直後の最初の segment.startFrame、旧 packet 混入の有無を確認する。
