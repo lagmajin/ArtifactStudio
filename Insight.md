@@ -10529,3 +10529,12 @@
 - **対応:** 有限値を確認し、各周波数を spectrum の bin 数へ clamp してから走査する。
 - **価値／懸念:** 異常な sample rate でも band 分析が安全に空／末尾範囲として扱われる。通常の bin 結果は維持する。
 - **次に確認:** ビルド時に sample rate 1、低レート音声、高い FFT サイズで band 分析を確認する。
+
+## 2026-08-10: AudioPreview seek 時の renderer buffer 清掃
+
+- **関連:** `Artifact/src/Widgets/AudioPreviewWidget.cppm`
+- **事実:** `AudioPlaybackEngine::setPosition()` が segment 位置だけを更新し、再生中の renderer buffer と feed/EOS 状態を維持していた。
+- **仮説:** waveform seek 後に旧位置の queued audio が新位置の音声より先に鳴り、EOS 状態も新しい再生位置へ持ち越される可能性がある。未検証。
+- **対応:** seek 時に renderer buffer、feed counter、EOS フラグをリセットしてから新しい segment 位置を選ぶ。
+- **価値／懸念:** seek 後の音声経路と位置表示を同じ境界から再開する。再生中の seek では旧 buffer を破棄する。
+- **次に確認:** ビルド時に再生中の前後 seek、EOS 直前 seek、停止中 seek を確認する。
