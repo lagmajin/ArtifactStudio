@@ -9693,3 +9693,10 @@
 - **判断:** invalid mix levels fall back to their existing defaults; copied and sampled values are converted to zero when non-finite. Finite values and existing gain ranges are otherwise preserved.
 - **価値/懸念:** DownMixer becomes a stable boundary for malformed decoded/input audio without changing normal channel mapping behavior.
 - **次に確認:** Runtime audio paths should verify that downstream meters and renderers receive finite PCM after conversion; build/runtime verification remains pending.
+## 2026-08-10 — Audio cache memory statistics need size_t-safe arithmetic
+
+- **関連:** `ArtifactCore/src/Audio/AudioCache.cppm` / `AudioCache::getMemoryUsage`
+- **事実:** frame count と channel count は `int` のまま乗算されてから `size_t` に変換されるため、統計計算だけが 32-bit 整数 overflow を起こす可能性があった。エントリ総和の `size_t` overflow も未処理だった。
+- **判断:** 各項目と総和を `size_t` で検査し、表現できない場合は最大値へ飽和させるようにした。
+- **価値/懸念:** キャッシュ統計が wraparound して小さく見えることを防ぐ。実際のキャッシュ容量制限や音声データ配置は変更していない。
+- **次に確認:** キャッシュ上限がフレーム数基準で妥当かは、runtime のメモリ使用量計測で別途確認する。
