@@ -9322,3 +9322,11 @@
 - **修正:** 全 texture が要求範囲を覆うこと、canonical float format が一致すること、SRV と UAV が alias しないこと、constant buffer が存在することを事前検証する。
 - **価値:** direct blend の範囲外 read と read/write hazard を dispatch 前に防ぎ、blend shader の前提を CPU API に反映する。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — MatteTrack shader source の単一化
+
+- **関連:** `ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`、`ArtifactCore/include/Graphics/Shader/Compute/HLSL/MatteTrack.ixx`
+- **事実:** PSO は cppm 内の `kMatteTrackSource` を使う一方、同じ shader の公開 HLSL module が別コピーとして存在していた。両方の現内容は同等だが、将来の layout 修正が片方だけに入る drift リスクがあった。
+- **修正:** PSO の source と entry point を既存の `Shaders::MatteTrack` module から参照し、cppm 内の重複 source を削除した。
+- **価値:** C++ constant buffer layout の検証対象と実際の PSO source が同じ定義を参照し、再発経路を一つ減らせる。
+- **未検証:** 実ビルド・テストは未実行。module 依存の静的確認のみ。
