@@ -9330,3 +9330,11 @@
 - **修正:** PSO の source と entry point を既存の `Shaders::MatteTrack` module から参照し、cppm 内の重複 source を削除した。
 - **価値:** C++ constant buffer layout の検証対象と実際の PSO source が同じ定義を参照し、再発経路を一つ減らせる。
 - **未検証:** 実ビルド・テストは未実行。module 依存の静的確認のみ。
+
+### 2026-08-10 — BlendParams constant buffer の static layout guard
+
+- **関連:** `ArtifactCore/include/Graphics/Shader/Compute/LayerBlendPipeline.ixx`、`BlendParams`、`LayerBlendComputeShader.ixx`
+- **事実:** BlendParams は HLSL の 2 register / 32-byte layout と一致しているが、MatteTrack と異なり C++ 側の static assertion がなかった。
+- **修正:** `sizeof(BlendParams) == 32` を検証する static assertion を追加した。
+- **価値:** channel display と blend の constant buffer drift を module compile 時に検出できる。
+- **未検証:** 実ビルド・テストは未実行。
