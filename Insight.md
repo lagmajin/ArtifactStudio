@@ -139,6 +139,15 @@
 - 価値・懸念: NaN state の block 越し伝播と chorus output の overflow を抑える。既存の feedback パラメータ適用など音色仕様には手を入れていない。
 - 次の確認: 明示許可後に、NaN / ±∞ / 最大 PCM を複数 block へ通し、delay buffer と output の有限性を確認する。
 
+### 2026-08-10 — AudioReverb の comb state 有限性
+
+- 状態: 実装済みの局所防御。極端な decay / PCM の聴感と長時間 state 安定性は未検証。
+- 関連: `ArtifactCore/include/Audio/AudioReverb.ixx`、`ArtifactCore/src/Audio/AudioReverb.cppm`
+- 事実: Reverb は comb buffer の値を次 block で再利用し、input・buffer・output の加算を float のまま行っていた。setter / JSON / parameter 経路も非有限値を保持できた。
+- 閃き・仮説: comb state の読み出し・書き込みと wet output の各境界で有限化すると、NaN の長期残留を effect 内で止められる。
+- 価値・懸念: 非有限 state の block 越し伝播と reverb output overflow を抑える。音色アルゴリズムや未使用の size semantics は変更していない。
+- 次の確認: 明示許可後に、NaN / ±∞ / 最大 PCM と極端 decay・mix を複数 block へ通し、comb state と output の有限性を確認する。
+
 ### 2026-08-10 — Timeline / Property 編集経路の再計算と未利用基盤を改善候補として記録
 
 - 状態: 改善候補・未実装。実行時の呼び出し頻度と効果は未検証。
