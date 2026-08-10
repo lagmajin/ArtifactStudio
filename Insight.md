@@ -11015,3 +11015,12 @@
 - **対応:** active particle count を保持して dispatch 範囲を制限し、upload／dispatch の resource・context・map・binding を検証する。audio は256 binへゼロパディングし、実際の入力 bin 数で intensity を平均する。
 - **価値／懸念:** 部分入力の安全性と audio 更新の決定性を高める。既存 caller が upload 前に dispatch する場合は no-op になる。
 - **次に確認:** ビルド時に partial particle upload、空／短い spectrum、null／map failure、正常 dispatch の各経路を確認する。
+
+## 2026-08-10: Histogram region binding and dispatch guards
+
+- **関連:** `ArtifactCore/src/Graphics/Compute/Histogram.cppm`, `ArtifactCore/include/Graphics/Shader/Compute/HLSL/Histogram.ixx`
+- **事実:** HLSL の Luma／RGB shader は `HistogramParams` と region 値を参照するが、CPU 側の variable 宣言・binding がなく、`computeLuminanceRegion()` は領域引数を無視していた。RGB 経路も `g_OutputHistogramRGB` ではなく別 output 名を設定していた。
+- **仮説:** region 指定が効かず、RGB 結果が未 binding／誤 binding になる可能性がある。null input、map failure、小容量 output ではさらに不正 dispatch／書き込みの可能性がある。未検証。
+- **対応:** HistogramParams の dynamic binding を追加し、Luma／RGB／Statistics で region buffer を更新する。RGB output 名を HLSL と一致させ、入力・容量・map／resource binding／device を検証する。
+- **価値／懸念:** 領域指定と RGB histogram の GPU 契約を復元し、異常入力時は no-op にする。GPU 実行結果は未確認。
+- **次に確認:** ビルド時に full／region Luma、RGB 256×3 bins、Statistics 8 bins、null／小容量／map failure の各経路を確認する。
