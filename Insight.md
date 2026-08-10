@@ -10421,3 +10421,12 @@
 - **対応:** frame 加算と milliseconds 変換を上限で飽和させる。
 - **価値／懸念:** UI／metadata の異常値で未定義動作を避ける。通常の音声では結果は変わらない。
 - **次に確認:** ビルド時に通常値、qint64 最大近傍、int milliseconds 上限近傍を確認する。
+
+## 2026-08-10: AudioMixer master volume 同期の clamp
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioMixer.cppm`
+- **事実:** Core master bus の dB 値を `pow()` で UI 倍率へ戻す際、有限値と UI の 0〜2 範囲を検証していなかった。
+- **仮説:** 異常または将来拡張された Core 値で、UI volume 契約を越える値や非有限値が保持される可能性がある。未検証。
+- **対応:** 変換結果を有限値確認後に0〜2へ clampし、非有限値は1へ戻す。
+- **価値／懸念:** Core→UI 再同期後も UI の音量範囲を保証する。2倍を越える Core 値はUI上限へ丸められる。
+- **次に確認:** ビルド時に -144 dB、0 dB、24 dB、非有限値相当の境界を確認する。
