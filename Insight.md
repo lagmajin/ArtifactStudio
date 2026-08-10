@@ -10376,3 +10376,12 @@
 - **対応:** 2チャンネル分の独立した buffer plane と write position を使用する。
 - **価値／懸念:** ステレオのチャンネル分離を保つ。buffer サイズ拡張時は安全のため既存の遅延履歴をリセットする。
 - **次に確認:** ビルド時に mono→stereo、stereo impulse、buffer 拡張後の連続性を確認する。
+
+## 2026-08-10: AudioBus の負 frame 数正規化
+
+- **関連:** `ArtifactCore/src/Audio/AudioBus.cppm`
+- **事実:** `clearInput()` が受け取った `frameCount` を検証せず、main／side-chain の `QVector::resize()` に渡していた。
+- **仮説:** 異常な負値が入ると内部バッファのサイズ更新が不正になり、後段 effect の形状前提を壊す可能性がある。未検証。
+- **対応:** frame 数を `std::max(0, frameCount)` で正規化し、両バッファの resize に使用する。
+- **価値／懸念:** 負値入力を空バッファとして安全に扱う。正の frame 数の挙動は変わらない。
+- **次に確認:** ビルド時に0、負値、通常 frame 数で main／side-chain の形状を確認する。
