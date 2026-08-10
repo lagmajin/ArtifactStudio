@@ -10880,3 +10880,12 @@
 - **対応:** enqueue 成功、または既存 buffered frames がある場合だけ start する。
 - **価値／懸念:** 既存バッファの drain と通常の scrub 開始は維持し、空の拒否ケースだけを抑制する。
 - **次に確認:** ビルド時に空バッファ／enqueue 拒否／既存バッファ drain の各状態で active 遷移を確認する。
+
+## 2026-08-10: AudioPreview output-rate alignment
+
+- **関連:** `Artifact/src/Widgets/AudioPreviewWidget.cppm`, `ArtifactCore/src/Audio/AudioRenderer.cppm`
+- **事実:** `AudioRenderer::enqueue()` は sample rate を変換せず、`AudioPreviewWidget` は decoder segment の rate をそのまま送出していた。PlaybackEngine には renderer rate への resample が既に存在する。
+- **仮説:** 44.1kHz source を 48kHz device へ送る場合などに、preview の再生時間・音程がずれる可能性がある。未検証。
+- **対応:** Preview の enqueue 直前に renderer の実 sample rate へ線形 resample し、UI の source sample cursor は source frame 数のまま進める。
+- **価値／懸念:** Preview と PlaybackEngine の出力レート契約を揃える。線形補間の品質は既存 PlaybackEngine と同等で、音声 DSP の大規模変更は行わない。
+- **次に確認:** ビルド時に 44.1kHz／48kHz source、device fallback、positionChanged と再生時間を確認する。
