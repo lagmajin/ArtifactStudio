@@ -11359,3 +11359,10 @@
 - **対応:** payload 全体の書き込み、flush、最終 QFile error を確認し、失敗時は `false` を返すようにした。
 - **価値:** checkpoint の成功通知を実際の永続化結果に一致させる。
 - **次の確認:** 正常保存、短い／失敗する書き込み、再読込の runtime 挙動をビルド環境で検証する（未実施）。
+## 2026-08-10: Retry backoff arithmetic guard
+
+- **事実:** `RetryPolicy::backoffMs()` は負の設定値をそのまま使い、linear の `int` 乗算と exponential の大きな `pow()` 結果を安全に clamp していなかった。
+- **仮説:** 外部設定や大きい retry attempt により、負の sleep、整数 overflow、未定義の浮動小数→整数変換が発生する可能性がある。
+- **対応:** 初期値／最大値を非負範囲へ制限し、linear は `long long`、exponential は有限性と上限を確認してから int 化するようにした。
+- **価値:** retry 待機時間を常に 0〜maxBackoffMs の範囲に固定する。
+- **次の確認:** 負値、巨大 attempt、factor 1／NaN、通常設定の backoff runtime 挙動をビルド環境で検証する（未実施）。
