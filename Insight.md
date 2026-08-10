@@ -10988,3 +10988,12 @@
 - **対応:** 自動トリガーを外し、GitHub Actions の `workflow_dispatch` による手動実行だけへ変更した。
 - **価値／懸念:** 通常の push／PR では runner を消費せず、必要時の i18n 監査導線は残る。GitHub 上の既存実行履歴は削除しない。
 - **次に確認:** push 後に workflow の Actions UI で手動実行ボタンが表示され、自動実行が発生しないことを確認する。
+
+## 2026-08-10: Scope compute input and capacity guards
+
+- **関連:** `ArtifactCore/src/Graphics/Compute/ScopeComputer.cppm`, `ArtifactCore/include/Graphics/Compute/ScopeComputer.ixx`
+- **事実:** vectorscope／waveform／parade の公開 compute API は context、入力 texture、出力 buffer、正の step／寸法を前提にし、readback は context／device と source 容量を前提にしていたが、実装側で検証していなかった。
+- **仮説:** GPU 初期化失敗、破棄途中、または不正な UI 寸法・step が渡ると null dereference、除算ゼロ、出力 buffer 範囲外書き込みにつながる可能性がある。未検証。
+- **対応:** dispatch／readback 前に pointer、texture 寸法、正の引数、必要な output／source buffer 容量を検証し、不正時は no-op／false を返す。
+- **価値／懸念:** 正常な scope 計算の dispatch 条件は変えず、異常入力を GPU へ送らない。実 GPU での境界挙動は未確認。
+- **次に確認:** ビルド時に null context、step=0、負寸法、小容量 buffer、正常入力の各ケースを確認する。
