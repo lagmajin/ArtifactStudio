@@ -10349,3 +10349,12 @@
 - **対応:** 短い fmt chunk を拒否し、部分読込後は data chunk の残りをスキップする。
 - **価値／懸念:** chunk parser の位置が宣言境界と一致する。通常の全量読込の挙動は変わらない。
 - **次に確認:** ビルド時に fmt<16、奇数 chunk、maxFrames 部分読込、後続 LIST/JUNK chunk を確認する。
+
+## 2026-08-10: SimpleWav の切り詰め chunk 拒否
+
+- **関連:** `ArtifactCore/src/Audio/SimpleWav.cppm`
+- **事実:** chunk サイズ読込後に、宣言サイズがファイル残量を超えるかを確認していなかった。
+- **仮説:** 切り詰め WAV で `seek()` が成功扱いになり、後続の形式判定まで不正データを持ち込む可能性がある。未検証。
+- **対応:** 各 chunk のデータ開始位置とファイル残量を比較し、収まらない chunk を拒否する。奇数 chunk の padding seek も失敗時に拒否する。
+- **価値／懸念:** 不完全なファイルを早期に失敗させ、chunk parser の境界を保証する。厳格化により、壊れたサイズを持つ WAV は従来より読み込まれなくなる。
+- **次に確認:** ビルド時に正常 WAV、truncated data、truncated padding、余分な LIST/JUNK chunk を確認する。
