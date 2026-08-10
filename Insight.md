@@ -9610,3 +9610,9 @@
 - **修正:** 各値を有限値・既存 UI 範囲へ正規化し、Chorus の delay を buffer 契約内に制限、segment 縮小時に write position を再正規化した。
 - **価値:** malformed parameter による範囲外アクセス、NaN 音声、整数変換不定動作を防ぐ。
 - **未検証:** ビルド・テストは未実行。
+### 2026-08-10 — AudioRingBuffer の容量・チャンネル実長契約
+- **関連:** `ArtifactCore/src/Audio/AudioRingBuffer.cppm`
+- **事実:** capacity 0 が設定可能で、後続の modulo／free-space 計算が不正になり得た。write は channel 0 の frame 数を全チャンネルへ適用し、短い channel の source を `frames` 分 memcpy していた。
+- **修正:** capacity を最低 1 に正規化し、available/free space を上限保護、チャンネルごとの実長だけをコピーして不足部分をゼロ埋めするようにした。
+- **価値:** producer 側の範囲外読み取りと容量境界による未定義動作を防ぐ。
+- **未検証:** ビルド・テストは未実行。
