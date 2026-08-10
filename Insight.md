@@ -11069,3 +11069,12 @@
 - **対応:** upload 成功時だけ LUT／SRV を保持し、apply の context／texture／サイズ／Map／binding を検証して失敗時は no-op にする。
 - **価値／懸念:** LUT の resource lifetime と dispatch 前提を明確化する。GPU 実行結果と backend ごとの CreateTexture failure は未確認。
 - **次に確認:** ビルド時に LUT size 2／256、upload failure、SRV failure、domain 設定、input/output サイズ不一致、正常 trilinear dispatch を確認する。
+
+## 2026-08-10: EchoBlend cbuffer and ring-range guards
+
+- **関連:** `ArtifactCore/src/Graphics/Compute/EchoBlendComputer.cppm`, `ArtifactCore/include/Graphics/Shader/Compute/HLSL/EchoBlend.ixx`
+- **事実:** HLSL の `EchoParams` は存在したが、CPU pipeline variable に登録されていなかった。CPU 側は frameCount を ring の実数／shader 上限 8 に制限せず、Map／binding／texture サイズの失敗も確認していなかった。
+- **仮説:** cbuffer が未 binding のまま処理される、未 binding の ring view を shader が読む、またはサイズ不一致で ring texture の範囲外を読む可能性がある。未検証。
+- **対応:** cbuffer を dynamic variable として登録し、active frame 数を 1〜8 かつ有効 view 数に制限する。context／Map／resource／サイズを検証してから dispatch する。
+- **価値／懸念:** EchoBlend の cbuffer と ring resource 契約を明確化する。GPU の実画面結果と decay の極端値は未確認。
+- **次に確認:** ビルド時に ring 1／8 frames、frameCount 過大・ゼロ、欠落 view、サイズ不一致、Map／binding failure、正常 echo blend を確認する。
