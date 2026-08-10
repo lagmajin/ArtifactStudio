@@ -10691,3 +10691,12 @@
 - **対応:** 今回は仕様・音質設計の範囲が広いため実装せず、候補として記録する。
 - **価値／懸念:** ブロック境界をまたぐ lookahead を設計する際の確認点になる。既存の limiter 音色とレイテンシー契約を先に確認する必要がある。
 - **次に確認:** 実測時にブロック境界直前／直後のインパルス、lookahead latency、現在の `lookaheadBuf_` の想定用途を確認する。
+
+## 2026-08-10: Artifact Distortion bitcrush channel cadence
+
+- **関連:** `Artifact/include/Audio/Effects/DistortionEffect.ixx`, `Artifact/src/Audio/Effects/DistortionEffect.cppm`
+- **事実:** Bitcrush の hold counter が左右で共有され、ステレオ処理ではチャンネル内ループごとに同じカウンタを進めていた。
+- **仮説:** downsample 周期がチャンネル数に依存し、左右でサンプル保持タイミングがずれる可能性がある。未検証。
+- **対応:** 左右それぞれの hold counter を保持し、各チャンネルのサンプル周期を独立させる。
+- **価値／懸念:** mono／stereo で Bitcrush の時間特性を一致させる。Bitcrush の量子化レベルと他モードは変更しない。
+- **次に確認:** ビルド時に mono／stereo、downsample 1／4／32、左右異なる入力を確認する。
