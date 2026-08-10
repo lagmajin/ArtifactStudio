@@ -9490,3 +9490,11 @@
 - **修正:** 次フレームの `base1` を参照するようにした。末尾では従来どおり zero fallback を使う。
 - **価値:** mono 音声の sample-rate 変換が時間軸に沿って滑らかに補間される。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — Video audio output sample-rate contract
+
+- **関連:** `ArtifactCore/include/Media/MediaPlaybackController.ixx`、`ArtifactCore/src/Media/MediaPlaybackController.cppm`、`Artifact/src/Layer/ArtifactVideoLayer.cppm`
+- **事実:** FFmpeg audio decoder は既定で 44.1 kHz の S16 stereo PCM を返す一方、`ArtifactVideoLayer::getAudio()` は要求された sample rate を `AudioSegment` に設定するだけで、PCM 自体を変換していなかった。
+- **修正:** `MediaPlaybackController::setAudioOutputSampleRate()` を追加し、video layer が要求レートを decoder の resampler に設定する。レート変更時は既存 PCM buffer を破棄して source position から再シークする。
+- **価値:** 48 kHz 再生・波形・書き出しで、PCM の実レートと `AudioSegment::sampleRate` が不一致になる経路を防ぐ。
+- **未検証:** 実ビルド・テストは未実行。C++20 module の依存スキャンも未実行。
