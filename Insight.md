@@ -9622,3 +9622,9 @@
 - **修正:** 64-bit 中間値で上限検証し、書き出し開始時にも表現可能な channel 数へ制限した。
 - **価値:** 音声データ本体を出力できても、ヘッダだけ壊れるケースを防ぐ。
 - **未検証:** ビルド・テストは未実行。
+### 2026-08-10 — AudioPreviewWidget の短い channel 切り出し
+- **関連:** `Artifact/src/Widgets/AudioPreviewWidget.cppm` の `onTimerTick()`
+- **事実:** preview chunk は channel 0 の frame 数を全 channel に適用し、短い channel で `constData()+offset+chunkSize` を生成して範囲外を参照し得た。
+- **修正:** chunk 長は維持し、各 channel の実長だけ `copy_n` し、不足分をゼロ埋めするようにした。
+- **価値:** malformed／部分的な AudioSegment でも preview の時間進行を壊さず安全に再生できる。
+- **未検証:** ビルド・テストは未実行。
