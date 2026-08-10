@@ -11141,3 +11141,12 @@
 - **対応:** Blend／Channel Display の variable descriptor に dynamic `BlendParams` を追加し、初期化前 binding を除去、display／blend 実行時に cbuffer と texture を一括 binding する。
 - **価値／懸念:** LayerBlend の 32-byte cbuffer layout と SRB lifecycle を一致させる。GPU blending の実結果は未確認。
 - **次に確認:** ビルド時に BlendParams reflection、opacity／blend mode、channel display、Map／binding failure、正常 blend dispatch を確認する。
+
+## 2026-08-10: Audio queue input and mixer stale-output guards
+
+- **関連:** `ArtifactCore/include/Audio/AudioBufferQueue.ixx`, `ArtifactCore/src/Audio/AudioMixer.cppm`
+- **事実:** `AudioBufferQueue::push()` は空 segment、無効 sample rate、channel 数不整合を検証せず queue 成功を返し得た。`AudioMixer::process()` は frame／sample rate が無効な場合にそのまま return し、再利用される `finalOutput` の既存サンプルを残していた。
+- **仮説:** decoder の empty frame が下流で EOF／underflow と混同され、無効な process 呼び出しで前ブロックの音が再出力される可能性がある。未検証。
+- **対応:** queue 入口で segment の frame／channel／sample rate／channel length を検証し、mixer の無効入力時は output を zero-fill して return する。
+- **価値／懸念:** audio pipeline の failure を成功扱いせず、無効 block で stale audio を鳴らさない。実 decoder／backend の挙動は未確認。
+- **次に確認:** empty／短 channel／無効 rate の queue push、invalid mixer block、正常 decode／mix、EOF／underflow の区別を確認する。
