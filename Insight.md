@@ -9700,3 +9700,10 @@
 - **判断:** 各項目と総和を `size_t` で検査し、表現できない場合は最大値へ飽和させるようにした。
 - **価値/懸念:** キャッシュ統計が wraparound して小さく見えることを防ぐ。実際のキャッシュ容量制限や音声データ配置は変更していない。
 - **次に確認:** キャッシュ上限がフレーム数基準で妥当かは、runtime のメモリ使用量計測で別途確認する。
+## 2026-08-10 — Lip-sync WAV conversion must bound QVector frame sizes
+
+- **関連:** `ArtifactCore/src/Audio/LipSyncTrack.cppm`
+- **事実:** WAV の frame 数は `qint64` で取得できるが、音声チャンネルの `QVector` は `int` サイズへキャストして resize していた。また `analyzeFromFile` の NaN frame rate は単純な `<= 0` 判定を通過していた。
+- **判断:** frame 数を `QVector` の最大 `int` サイズ以内に限定し、frame rate に有限値チェックを追加した。
+- **価値/懸念:** 巨大な WAV や不正な解析パラメータでの不正サイズ化を防ぐ。通常サイズの lip-sync 解析とイベント形式は変更していない。
+- **次に確認:** 長時間音声を扱う場合は、必要なら chunked lip-sync analysis を別設計として検討する。
