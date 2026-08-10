@@ -9306,3 +9306,11 @@
 - **修正:** layer/matte/output texture の実寸法を要求寸法と一致させ、output と入力の alias を拒否する。
 - **価値:** 入力不足による範囲外 read と read/write 同一 resource の不定動作を dispatch 前に防げる。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — Pointwise executor cache key の resource layout 同期
+
+- **関連:** `ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`、`applyPointwise()`、`PointwiseComputePlan`
+- **事実:** Pointwise executor の再利用 key は shader compile key だけで、plan が持つ parameter/source/output/background/LUT/history の resource 名を含んでいなかった。
+- **修正:** resource 名を cache key に含め、同じ shader 本体でも layout 名が変わった plan は executor を再構築する。
+- **価値:** custom resource 名を持つ連続 plan の bind が、直前 plan の古い layout に依存しなくなる。
+- **未検証:** 実ビルド・テストは未実行。
