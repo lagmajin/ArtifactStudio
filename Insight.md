@@ -9763,3 +9763,10 @@
 - **判断:** UI ranges are enforced with finite defaults, invalid limiter sample rates fall back to 44.1 kHz, and input samples are normalized to zero before peak/gain processing.
 - **価値/懸念:** malformed controls or PCM no longer poison an entire effect block. Existing valid parameter ranges and effect topology remain unchanged.
 - **次に確認:** Reverb and Distortion parameter setters should receive the same audit in the next walk.
+## 2026-08-10 — Reverb and distortion controls need finite DSP bounds
+
+- **関連:** `Artifact/src/Audio/Effects/ReverbEffect.cppm`, `Artifact/src/Audio/Effects/DistortionEffect.cppm`
+- **事実:** Reverb controls were assigned directly into delay/LFO initialization and per-sample feedback math. Distortion accepted NaN for drive/tone/mix/bit depth/downsample, and non-finite input PCM entered nonlinear functions.
+- **判断:** All listed parameters now use their UI ranges with finite defaults; invalid reverb sample rates fall back to 44.1 kHz; non-finite input samples become zero.
+- **価値/懸念:** Invalid controls cannot create unbounded buffers, zero-rate divisions, or NaN nonlinear output. Valid effect ranges and algorithm selection remain unchanged.
+- **次に確認:** The remaining Equalizer effect should be checked for the same setter and input sanitization pattern.
