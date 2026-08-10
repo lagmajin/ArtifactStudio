@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — AudioTone の加算と setter 有限性
+
+- 関連: `ArtifactCore/include/Audio/AudioTone.ixx`、`ArtifactCore/src/Audio/AudioTone.cppm`。
+- 確認できた事実: 公開 frequency / amplitude setter と JSON 復元が非有限値を保持でき、process は既存 PCM へトーンを直接加算していた。
+- 修正内容: setter／復元の非有限値を既定値へ戻し、PCM・トーン乗算・加算結果を有限化した。
+- 未検証の仮説: 壊れた automation または保存データが Tone の phase／PCM をブロック越しに汚染する経路を遮断できる。
+- 価値／懸念: 正常な波形・周波数の挙動は維持し、異常値だけを無音または float 最大値へ寄せる。極端な有限 amplitude の音量設計自体は既存仕様のまま。
+- 次に確認すべきこと: 実機またはオフライン再生で、Tone の無効パラメータと非有限入力を確認する。
+
 ### 2026-08-10 — AudioBus の入力加算有限性
 
 - 関連: `ArtifactCore/src/Audio/AudioBus.cppm` の `addInput()` / `addSideChain()`。
