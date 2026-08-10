@@ -10331,3 +10331,12 @@
 - **対応:** 1回の receive 処理で最初に queue へ積めた segment を返し、残りの codec frame は次回の decode 呼び出しで処理する。
 - **価値／懸念:** queue 上限に依存した burst drop を避ける。大量 frame の処理は呼び出し回数へ分散される。
 - **次に確認:** ビルド時に複数 frame packet、queue 上限近傍、EOF drain の連続出力を確認する。
+
+## 2026-08-10: AudioCache のメモリ使用量計算を段階検証
+
+- **関連:** `ArtifactCore/src/Audio/AudioCache.cppm`
+- **事実:** `getMemoryUsage()` が `channels * sizeof(float)` を除算前に計算していた。
+- **仮説:** 異常に大きいチャンネル数では積が wrap して、フレーム数との乗算の上限検査をすり抜ける可能性がある。未検証。
+- **対応:** bytes-per-frame を先に安全検証し、その後に frame 数と総量を検証する。
+- **価値／懸念:** 異常な `AudioSegment` でもメモリ使用量を過小評価しにくくなる。通常経路の計算結果は変わらない。
+- **次に確認:** ビルド時に通常の mono/stereo/multichannel cache と境界値のメモリ使用量を確認する。
