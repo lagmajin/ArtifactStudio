@@ -11114,3 +11114,12 @@
 - **対応:** HLSL cbuffer に明示的な uint padding を追加し、C++ pipeline に dynamic cbuffer variable を登録、実行時の texture binding と同じ経路で buffer を binding する。
 - **価値／懸念:** static assertion の layout 根拠と runtime resource 契約を両方明示する。現行 build tree の再コンパイル結果は規約により未確認。
 - **次に確認:** `J:\dev\ArtifactStudio` を source root とする clean build で static assertion、cbuffer reflection、track matte 1／2／3 source、normal／inverted luma を確認する。
+
+## 2026-08-10: Mask and procedural pre-map texture validation
+
+- **関連:** `ArtifactCore/src/Graphics/Shader/Compute/MaskCutoutPipeline.cppm`, `ArtifactCore/src/Graphics/Shader/Compute/MaskPathRasterizerPipeline.cppm`, `ArtifactCore/src/ImageProcessing/ProceduralTexture.cppm`
+- **事実:** これらの処理は constant buffer を Map した後に output texture を検査していたため、null／invalid output で return すると Unmap に到達しない経路があった。Path Rasterizer は width／height の正値・実 texture dimension 一致も dispatch 前に保証していなかった。
+- **仮説:** Map 状態が残ったまま次回 Map／resource 更新に進み、backend ごとに失敗や stale parameter が発生する可能性がある。未検証。
+- **対応:** output texture と dimension を Map より前に検証し、Path Rasterizer は負値・不一致 dimension を no-op にする。
+- **価値／懸念:** failure path の resource lifetime を閉じ、負値の unsigned dispatch 変換を防ぐ。GPU backend の Map state は未確認。
+- **次に確認:** Map failure、null output、zero／negative dimension、dimension mismatch、正常 mask／procedural dispatch を確認する。
