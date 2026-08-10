@@ -9598,3 +9598,9 @@
 - **修正:** チャンネル実長で書き込みを制限し、peak の探索終端を `size - 2` に制限、不正 rate とチャンネル共通長を検証してから frame を切り出すようにした。
 - **価値:** malformed audio による範囲外アクセスと解析ループ不全を防ぐ。
 - **未検証:** ビルド・テストは未実行。
+### 2026-08-10 — Audio Tone / Delay parameter sanitization
+- **関連:** `ArtifactCore/src/Audio/AudioTone.cppm`、`ArtifactCore/src/Audio/AudioDelay.cppm`
+- **事実:** 公開 parameter setter／JSON 復元値が有限値・範囲内である保証なしに処理へ入り、Tone は NaN 周波数・振幅や不正 enum、Delay は NaN／巨大 delay の整数変換と feedback／mix を直接使用していた。
+- **修正:** 処理直前に有限値と実用範囲へ正規化し、Tone の位相を常に `[0,1)` へ折り返し、不正 waveform は無音、Delay の delay sample 数を buffer 契約内へ制限した。
+- **価値:** 不正な外部パラメータで NaN 拡散や整数オーバーフローを防ぐ。
+- **未検証:** ビルド・テストは未実行。
