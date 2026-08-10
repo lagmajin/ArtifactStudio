@@ -9338,3 +9338,11 @@
 - **修正:** `sizeof(BlendParams) == 32` を検証する static assertion を追加した。
 - **価値:** channel display と blend の constant buffer drift を module compile 時に検出できる。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — AudioMixer Master bus の composition 永続化
+
+- **関連:** `ArtifactCore/src/Audio/AudioMixer.cppm`、`AudioMixer::serialize()` / `deserialize()`、`Artifact/src/Composition/ArtifactAbstractComposition.cppm`
+- **事実:** mixer serialization は Master bus を bus 配列から除外し、Master volume/mute を別に保存・復元していなかったため、Advanced Routing で変更した Master 状態が再読込で既定値へ戻り得た。
+- **修正:** top-level `master` object に volume(dB) と mute を保存し、存在する場合だけ復元する。旧形式には既定値を維持する。
+- **価値:** composition の保存・再読込後も Master の出力設定を保持できる。
+- **未検証:** 実ビルド・テストは未実行。
