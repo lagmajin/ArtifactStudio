@@ -9506,3 +9506,11 @@
 - **修正:** `swr_get_out_samples()` と現在の出力 bytes-per-sample を使って、通常 decode と flush の capacity を計算するようにした。
 - **価値:** 可変 sample-rate の audio decoder で出力 buffer の見積りを resampler の実際の出力契約に合わせる。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — FFmpeg packet multi-frame drain
+
+- **関連:** `ArtifactCore/src/Media/MediaAudioDecoder.cppm`、`MediaAudioDecoder::decodeFrameDetailed()`
+- **事実:** `avcodec_send_packet()` の後に `avcodec_receive_frame()` を一度しか呼んでいなかったため、1 packet から複数 audio frame を返す codec では後続 frame が破棄され得た。
+- **修正:** `EAGAIN` / `EOF` まで receive を繰り返し、各 frame の resampled PCM を一つの `AudioDecodeResult` に連結する。
+- **価値:** packet 境界に依存せず、デコーダが返した全 audio frame を上位の audio buffer に渡せる。
+- **未検証:** 実ビルド・テストは未実行。
