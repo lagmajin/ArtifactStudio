@@ -10412,3 +10412,12 @@
 - **対応:** EOS をマークした後、renderer の buffered frames が0になるまで timer tick で待ってから停止する。
 - **価値／懸念:** 末尾の音声を排出してから playbackStopped を通知する。デバイスが無限に buffer を保持する場合は停止待ちになるため、runtime 確認が必要。
 - **次に確認:** 短い音声、長い音声、EOS 直前の renderer buffer 残量を実機で確認する。
+
+## 2026-08-10: AudioPreview の位置・時間変換飽和
+
+- **関連:** `Artifact/src/Widgets/AudioPreviewWidget.cppm`
+- **事実:** chunk の `startFrame` 加算と sample index→milliseconds の `int` 変換に上限検査がなかった。
+- **仮説:** 極端な startFrame や長時間音声で符号付き overflow が起き、renderer metadata や duration 表示が壊れる可能性がある。未検証。
+- **対応:** frame 加算と milliseconds 変換を上限で飽和させる。
+- **価値／懸念:** UI／metadata の異常値で未定義動作を避ける。通常の音声では結果は変わらない。
+- **次に確認:** ビルド時に通常値、qint64 最大近傍、int milliseconds 上限近傍を確認する。
