@@ -10178,3 +10178,12 @@
 - **対応:** Core AudioAnalyzer と同じ `2^20` を FFT／hop サイズの上限として適用した。
 - **価値／懸念:** 異常な設定による資源急増を抑える。2^20 自体は大きいため、将来 UI と設定層で共通上限を定義できるか確認する。
 - **次に確認:** ビルド時に FFT／hop の上下限と spectrogram 境界を確認する。
+
+## 2026-08-10: Artifact オーディオデバイス open 入力境界
+
+- **関連:** `Artifact/src/Audio/PortAudioDevice.cppm`, `Artifact/src/Audio/WASAPIDevice.cppm`
+- **事実:** `open()` は sample rate／channel 数／frames per buffer を検証せず、WASAPI は sample rate を buffer duration の除数に使っていた。PortAudio は `Pa_GetDeviceInfo()` の null 結果も未検証だった。
+- **仮説:** 不正なデバイス設定で除算異常、API への不正引数、または過大なバッファ要求が発生する可能性がある。未検証。
+- **対応:** 両デバイスで sample rate 1..384kHz、channels 1..64、frames per buffer 1..2^20 を入口検証し、PortAudio の device info を null チェックした。
+- **価値／懸念:** OS／外部設定からの不正値をデバイス API 前に止める。特殊な超高サンプルレートや多チャンネルデバイスは明示的に拒否される。
+- **次に確認:** 実機またはビルド時に無効値の拒否と正常なデバイス open を確認する。
