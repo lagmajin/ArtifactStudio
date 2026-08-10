@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — Core HighLowPass／ParametricEQ の filter state 有限性
+
+- 関連: `ArtifactCore/include/Audio/AudioHighLowPass.ixx`、`ArtifactCore/src/Audio/AudioHighLowPass.cppm`、`ArtifactCore/src/Audio/AudioParametricEQ.cppm`。
+- 確認できた事実: HighLowPass の `data[0]`／IIR state と ParametricEQ の sample／遅延 state が非有限入力を直接保持し得た。
+- 修正内容: setter の境界、入力、IIR／biquad state、出力を有限化し、NaN は無音、±∞は float 最大値へ寄せた。
+- 未検証の仮説: 異常 PCM が block をまたいで filter state と後段出力を汚染する経路を抑えられる。
+- 価値／懸念: 通常の filter 係数と周波数挙動は維持する。resonance は既存同様に未使用で、今回の修正では責務を広げていない。
+- 次に確認すべきこと: 実機またはオフライン処理で pass-through／LP／HP 各モード、短い channel、block 境界を確認する。
+
 ### 2026-08-10 — AudioRingBuffer の write 容量判定
 
 - 関連: `ArtifactCore/src/Audio/AudioRingBuffer.cppm`。
