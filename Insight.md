@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — AudioCache prefetch の先頭フレーム境界
+
+- 関連: `ArtifactCore/src/Audio/AudioCache.cppm` の `prefetch()`。
+- 確認できた事実: `available + 1` で inclusive end の件数を求めていたため、`startFrame == 0` で int64 最大値に 1 を足して overflow し、safeCount が負になっていた。
+- 修正内容: available が要求 count 以上かを先に判定し、必要な場合だけ `available + 1` を計算するようにした。
+- 未検証の仮説: 通常の frame 0 からの prefetch が無効化される経路と、int64 上限付近の wrap を同時に抑えられる。
+- 価値／懸念: 通常の prefetch 件数・上限 4096 は維持し、終端付近だけ安全に短縮する。
+- 次に確認すべきこと: 実機または cache harness で startFrame 0、max-1、max、max+1 相当の要求を確認する。
+
 ### 2026-08-10 — AudioWriter の I/O status 整合性
 
 - 関連: `ArtifactCore/src/Audio/AudioWriter.cppm`。
