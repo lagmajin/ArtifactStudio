@@ -9219,6 +9219,14 @@
 - **価値:** 不完全な track matte 入力をGPU dispatchまで通さず、失敗箇所をCPU側で明確に扱える。
 - **未検証:** 実ビルド・テストは未実行。
 
+### 2026-08-10 — MatteTrack constant buffer map failure
+
+- **関連:** `ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`、`LayerBlendPipeline::applyTrackMatte()`
+- **事実:** `MapBuffer()` 後の `pData == nullptr` を警告せず、古い定数値のまま dispatch する経路があった。
+- **修正:** map失敗時は即座に false を返し、dispatchを行わないようにした。
+- **価値:** GPUへ不確定な matte parameters を送らず、失敗を呼び出し側へ返せる。
+- **未検証:** 実ビルド・テストは未実行。
+
 ### 2026-08-10 — AudioMixer の旧 JSON 欠損フィールド復元
 
 - **関連:** `ArtifactCore/src/Audio/AudioMixer.cppm`、`AudioMixer::deserialize()`
