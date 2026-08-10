@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — AudioCompressor の detector／出力有限性
+
+- 関連: `ArtifactCore/include/Audio/AudioCompressor.ixx`、`ArtifactCore/src/Audio/AudioCompressor.cppm`。
+- 確認できた事実: 公開 setter が範囲外・非有限値を直接保持し、side-chain の非有限 PCM と出力の直接乗算が envelope／gain に伝播し得た。
+- 修正内容: 公開 setter を既存 process の有効範囲へ揃え、detector の非有限サンプルを無視し、出力の入力・乗算結果を有限化した。
+- 未検証の仮説: side-chain または圧縮対象に異常 PCM が混じっても、envelope state と後段出力を NaN にしない。
+- 価値／懸念: 通常の圧縮カーブと範囲内パラメータは維持する。異常な大振幅は float 最大値へ飽和するため、後段の fader / soft-clip 責務は残る。
+- 次に確認すべきこと: 実機またはオフライン再生で side-chain 有効時の短い／不揃いなチャンネル長と異常 PCM を確認する。
+
 ### 2026-08-10 — AudioStereoMixer のバランス境界
 
 - 関連: `ArtifactCore/include/Audio/AudioStereoMixer.ixx`、`ArtifactCore/src/Audio/AudioStereoMixer.cppm`。
