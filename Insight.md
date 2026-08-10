@@ -11294,3 +11294,12 @@
 - **対応:** threshold／intensity／radius／angle／gammaを有限値に正規化し、反復数・streak数・filter radiusを安全な上限へ制限する。非有限sigmaには有限fallbackを使う。
 - **価値／懸念:** 外部設定を受けるpost-processの数値契約を処理入口で守る。上限値のUX妥当性と性能は未確認。
 - **次に確認:** NaN／Inf／負値／極端値、通常設定、各effectの出力有限性と処理時間を確認する。
+
+## 2026-08-10: Atmosphere fog image input storage guard
+
+- **関連:** `ArtifactCore/src/Render/AtmosphereFog.cppm`, `ArtifactCore/include/Render/ImageBuffer.ixx`
+- **事実:** `applyToImage()` は depth/color の最小 width／height を使ってrow pointerを作るが、両ImageBufferのpixel storage長を確認していなかった。
+- **仮説:** 公開mutableな寸法と短いpixel vectorの不整合で、fog合成中に範囲外read/writeになる可能性がある。未検証。
+- **対応:** depth／color双方の `imagePixelBytes()` とvector長を入口で検証し、不正入力はcolor bufferをそのまま返す。
+- **価値／懸念:** ImageBuffer入力の不整合をAtmosphereFog全体で遮断する。通常のdepth/color解像度差と異常storageのruntime挙動は未確認。
+- **次に確認:** empty／短いdepth、短いcolor、解像度差、正常fog合成を確認する。
