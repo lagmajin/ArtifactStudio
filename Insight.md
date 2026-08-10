@@ -9686,3 +9686,10 @@
 - **判断:** 各ローカルな packing 範囲を `#pragma pack(pop)` で閉じた。`MatteTrackParams` のフィールドや HLSL は変更していない。
 - **価値/懸念:** C++ constant buffer の 16-byte register 境界が復元され、提示された static assertion の失敗原因を除去する。既存の各 CBuffer 型の意図した packed layout には影響しない。
 - **次に確認:** ビルド環境で `LayerBlendPipeline.ixx` の static assertion と関連モジュール依存スキャンを確認する（この環境ではビルド禁止のため未実行）。
+## 2026-08-10 — Downmixer must not propagate non-finite controls or samples
+
+- **関連:** `ArtifactCore/src/Audio/AudioDownMixer.cppm`
+- **事実:** mix level setters accepted NaN/∞, and direct channel-map/copy paths forwarded non-finite PCM samples. The arithmetic downmix path could therefore emit invalid samples into later mixer stages.
+- **判断:** invalid mix levels fall back to their existing defaults; copied and sampled values are converted to zero when non-finite. Finite values and existing gain ranges are otherwise preserved.
+- **価値/懸念:** DownMixer becomes a stable boundary for malformed decoded/input audio without changing normal channel mapping behavior.
+- **次に確認:** Runtime audio paths should verify that downstream meters and renderers receive finite PCM after conversion; build/runtime verification remains pending.
