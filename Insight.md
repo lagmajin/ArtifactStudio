@@ -11345,3 +11345,10 @@
 - **対応:** 表示時にも progress を有限・0〜1 に正規化し、有効な親 index の列数を 0 とした。
 - **価値:** setter 経由／直接変更の両方で表示境界を安定させる。
 - **次の確認:** 直接 progress 変更と親 index の model/view runtime 挙動をビルド環境で検証する（未実施）。
+## 2026-08-10: Checkpoint job-id path containment
+
+- **事実:** `CheckpointStore` は `jobId` を base path に直接連結して、保存・読込・削除対象を組み立てていた。
+- **仮説:** 区切り文字、`..`、Windows ドライブ指定を含む外部 job ID が checkpoint base path の外部を指す可能性がある。
+- **対応:** job ID を空でない単一パス要素に制限し、不正値では path を空として保存・参照を拒否するようにした。
+- **価値:** checkpoint 操作のパス境界を base path 配下に固定する。
+- **次の確認:** 正常 ID、空 ID、区切り文字、`..`、ドライブ指定の save/load/remove 挙動をビルド環境で検証する（未実施）。
