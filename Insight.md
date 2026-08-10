@@ -9282,3 +9282,11 @@
 - **修正:** HLSL が参照しない末尾の4-byte paddingを追加し、定数バッファのサイズを48 bytesに一致させた。
 - **価値:** Layer blend の C++20 module compile failure を解消し、GPU constant buffer の境界契約を明示できる。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — Pointwise compute の resource layout と texture 契約
+
+- **関連:** `ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`、`LayerBlendPipeline::applyPointwise()`、`PointwiseComputePlan`
+- **事実:** Pointwise plan は resource 名を保持しているが、compute pipeline の variable layout は固定名を使っていた。また dispatch 寸法と SRV/UAV の実寸法、入出力 texture の alias が入口で検証されていなかった。
+- **修正:** variable layout を plan の resource 名から構築し、executor の ready 状態を再確認する。dispatch 寸法と texture 寸法を一致させ、同一 texture の入出力を拒否する。
+- **価値:** カスタム resource 名の plan が bind 失敗しにくくなり、寸法不一致による未処理領域や不正な in-place compute を早期に検出できる。
+- **未検証:** 実ビルド・テストは未実行。`git diff --check` のみ実行。
