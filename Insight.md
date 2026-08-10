@@ -9640,3 +9640,9 @@
 - **修正:** 利用可能長から safe start と remaining を求め、残量との `min` で end を算出するようにした。
 - **価値:** waveform range 要求の異常値で負の slice 長や不正な切り出しを防ぐ。
 - **未検証:** ビルド・テストは未実行。
+### 2026-08-10 — AudioAnalyzer の FFT／band 境界
+- **関連:** `Artifact/src/Audio/ArtifactAudioWaveform.cppm`
+- **事実:** FFT size と hop size に下限がなく、size 0/負数の resize や size 1 の window denominator 0 が発生し得た。`computeBands()` は invalid sample rate を bin index に変換していた。spectrogram の start 乗算も int overflow 余地があった。
+- **修正:** FFT/hop を最低値へ制限し、window denominator を保護、spectrogram start を qint64 化、band の sample rate／bin width を検証するようにした。
+- **価値:** malformed analyzer settings や audio metadata での巨大確保・NaN・範囲外 index を防ぐ。
+- **未検証:** ビルド・テストは未実行。
