@@ -10448,3 +10448,12 @@
 - **対応:** 0〜2 clamp と非有限値 fallback を行う `volumeToCoreDb()` を追加し、初期同期・master 同期・変更通知で共通利用する。
 - **価値／懸念:** UI と Core の volume 表現を同じ安全な線形値から生成する。無効値は1.0倍として扱う。
 - **次に確認:** ビルド時に0、1、2、非有限値、composition 再同期を確認する。
+
+## 2026-08-10: AudioScrubController の停止時 transient state 清掃
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioScrubController.cppm`
+- **事実:** `stopScrub()` が pending frame を消しても、last frame・時刻・速度を保持していた。
+- **仮説:** 停止後も scrub volume / speed API が直前の値を返し、次の UI 状態表示へ stale 値が伝播する可能性がある。未検証。
+- **対応:** 停止時に frame／時刻／速度を初期化し、volume 計算にも active 状態を要求する。
+- **価値／懸念:** 停止中の scrub 状態をゼロへ戻す。latency の計測値は診断用履歴として保持する。
+- **次に確認:** ビルド時に start→update→stop、stop 中の volume/speed、再 start を確認する。
