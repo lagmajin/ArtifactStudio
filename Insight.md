@@ -11024,3 +11024,12 @@
 - **対応:** HistogramParams の dynamic binding を追加し、Luma／RGB／Statistics で region buffer を更新する。RGB output 名を HLSL と一致させ、入力・容量・map／resource binding／device を検証する。
 - **価値／懸念:** 領域指定と RGB histogram の GPU 契約を復元し、異常入力時は no-op にする。GPU 実行結果は未確認。
 - **次に確認:** ビルド時に full／region Luma、RGB 256×3 bins、Statistics 8 bins、null／小容量／map failure の各経路を確認する。
+
+## 2026-08-10: Curve compute parameter and LUT safety
+
+- **関連:** `ArtifactCore/src/Graphics/Compute/CurveComputer.cppm`, `ArtifactCore/include/Graphics/Shader/Compute/HLSL/ColorCurves.ixx`
+- **事実:** HLSL の `CurveParams` は CPU pipeline variable に登録されておらず、dynamic LUT buffer に CPU write flag がなかった。shader の入力色／master LUT 値は index 化前に範囲制限されていなかった。
+- **仮説:** constant buffer が binding されず masterOnly が効かない、LUT map が失敗する、HDR／範囲外値で LUT 範囲外 read が起きる可能性がある。未検証。
+- **対応:** CurveParams の variable 登録、LUT buffer の CPU write 設定、context／texture／map／resource binding の検証を追加し、HLSL の全 LUT index を 0〜255 に clamp する。
+- **価値／懸念:** GPU curve 適用の resource 契約と LUT 境界を明確化する。通常の 0〜1 入力と既存 LUT 結果は維持する想定だが、GPU 実行は未確認。
+- **次に確認:** ビルド時に masterOnly／channel curves、HDR／負値入力、LUT map failure、正常 dispatch を確認する。
