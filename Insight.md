@@ -11249,3 +11249,12 @@
 - **対応:** 変更系設定APIの入口で `prepared_ = false` とし、変更後は再prepareを要求する。
 - **価値／懸念:** CPU設定とGPU commitの世代を一致させる。設定APIの呼び出し順序と実ランタイム再prepareは未確認。
 - **次に確認:** prepare→各設定変更→draw、再prepare→draw、texture replacement、transparent／opaque切替を確認する。
+
+## 2026-08-10: Creative effect frame dimension guards
+
+- **関連:** `ArtifactCore/src/Graphics/Effect/TemporalFossilEffect.cppm`, `ArtifactCore/src/Graphics/Effect/SurfaceMemoryEffect.cppm`
+- **事実:** 両エフェクトは frame dimensions を `size_t` に変換してから積算し、負の width／height を拒否していなかった。
+- **仮説:** 不正な VideoFrame dimensions が到達すると、巨大な count の vector allocation／channel read に進み、例外やメモリ破壊につながる可能性がある。未検証。
+- **対応:** count 計算前に width と height が正値であることを確認し、不正フレームを no-op にする。
+- **価値／懸念:** 入力境界で符号付き寸法の危険なsize_t変換を止める。正常なframe lifecycleと異常寸法の生成経路は未確認。
+- **次に確認:** zero／negative dimensions、通常frame、resize後のhistory reset、連続frame処理を確認する。
