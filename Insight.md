@@ -11317,3 +11317,10 @@
 - **対応:** 出力 texture と UAV の両方が有効であることを確認してから dispatch するようにした。
 - **価値:** GPU リソース生成失敗を安全に no-op 化し、後段 API への不正なリソース渡しを防ぐ。
 - **次の確認:** 正常な出力生成、生成失敗時のフォールバック方針、GPU readback の runtime 挙動をビルド環境で検証する（未実施）。
+## 2026-08-10: GPU ray tracer readback stride guard
+
+- **事実:** staging texture の readback は `pData` の null 判定だけで、stride を検証せず `int` の行オフセットを使っていた。
+- **仮説:** 大きな画像や異常な mapping 結果では、行幅不足または整数オーバーフローにより readback 範囲外を読む可能性がある。
+- **対応:** 画像1行に必要な stride を確認し、行・画素オフセットを `size_t` で計算するようにした。
+- **価値:** GPU readback の行境界と整数範囲を明示的に守る。
+- **次の確認:** 実 GPU の staging stride と readback 結果をビルド環境で検証する（未実施）。
