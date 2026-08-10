@@ -9530,3 +9530,11 @@
 - **修正:** codec flush 後に resampler を再生成し、現在の出力 sample-rate／format 設定を保ったまま遅延状態をリセットする。
 - **価値:** seek・stop 境界で古い音声が再生される経路を抑止する。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — Delayed audio codec packet handling
+
+- **関連:** `ArtifactCore/src/Media/MediaAudioDecoder.cppm`、`ArtifactCore/src/Media/MediaPlaybackController.cppm`
+- **事実:** audio decoder は packet を正常に受理しても codec delay のためその packet では PCM を返さないことがある。controller は空 QByteArray を即時返却していたため、遅延 codec の出力待ち packet を音声終了／欠落として扱い得た。
+- **修正:** no-output でも decode 成功を示し、controller が最大 32 packet まで追加取得して PCM を待つ bounded loop を追加した。
+- **価値:** codec delay による先頭・途中の音切れを抑えつつ、reader 呼び出しを無制限にしない。
+- **未検証:** 実ビルド・テストは未実行。
