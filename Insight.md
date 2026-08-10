@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — AudioStereoMixer のバランス境界
+
+- 関連: `ArtifactCore/include/Audio/AudioStereoMixer.ixx`、`ArtifactCore/src/Audio/AudioStereoMixer.cppm`。
+- 確認できた事実: left/right balance と補助パラメータの setter が非有限値を保持でき、左右 PCM の乗算前にも入力有限性の保証がなかった。
+- 修正内容: balance を有限かつ [-1,1] に制限し、補助値は非有限時に既定値へ戻し、左右の入力・乗算結果を有限化した。
+- 未検証の仮説: 壊れた automation または upstream PCM が StereoMixer を通過して後段へ NaN を伝播する経路を抑えられる。
+- 価値／懸念: 正常な stereo balance は維持する。center / delay は現状未使用のため、既存の責務境界は変更していない。
+- 次に確認すべきこと: center / delay の実装導線と、StereoMixer を生成する factory の parameter 復元を確認する。
+
 ### 2026-08-10 — AudioTone の加算と setter 有限性
 
 - 関連: `ArtifactCore/include/Audio/AudioTone.ixx`、`ArtifactCore/src/Audio/AudioTone.cppm`。
