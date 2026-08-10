@@ -10313,3 +10313,12 @@
 - **対応:** delay／入力の加算、rescale 結果の `int` 範囲、`qint64` frame 加算を検証してから確保・更新する。
 - **価値／懸念:** decoder の allocation と timeline state を整数境界で保護する。異常な frame は当該 decode を破棄する。
 - **次に確認:** ビルド時に通常音声、resampler delay、巨大／破損 frame の decode 境界を確認する。
+
+## 2026-08-10: FFmpeg decoder pending segment 保持
+
+- **関連:** `ArtifactCore/src/Codec/FFMpegAudioDecoder.cppm`
+- **事実:** `decodeNextSegment()` は各呼び出しでローカル `AudioBufferQueue` を作り、codec の1回の receive で複数生成された segment の先頭以外を破棄していた。
+- **仮説:** packet／codec の frame 分割によって音声データが欠落し、再生時間や waveform に隙間ができる可能性がある。未検証。
+- **対応:** Impl に pending queue を保持し、次回 `decodeNextSegment()` へ未消費 segment を引き継ぐ。close／flush／seek では queue を clear する。
+- **価値／懸念:** decoder output の全 segment を順序どおり消費できる。queue 上限 100 件を超える異常な burst の扱いは既存上限に委ねる。
+- **次に確認:** ビルド時に1 packet 複数 frame、seek 後、EOF drain の segment 連続性を確認する。
