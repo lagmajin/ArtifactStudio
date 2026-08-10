@@ -10583,3 +10583,12 @@
 - **対応:** 有限値を確認し、周波数 index を spectrum の有効範囲へ clamp してから平均を計算する。
 - **価値／懸念:** 異常な sample rate でも帯域分析を安全に継続できる。通常の周波数帯結果は維持する。
 - **次に確認:** ビルド時に低 sample rate、通常44.1kHz、帯域境界を確認する。
+
+## 2026-08-10: AudioParametricEQ Q parameter metadata
+
+- **関連:** `ArtifactCore/src/Audio/AudioParametricEQ.cppm`
+- **事実:** `getParameters()` が Q 値の default metadata を常に1.0として返し、band に保存された Q 値と一致していなかった。
+- **仮説:** UI／プリセット再同期時に Q の default が実設定と異なり、編集前の表示や reset 操作が意図しない値になる可能性がある。未検証。
+- **対応:** Q parameter の default と current の両方に band.qFactor を使用する。
+- **価値／懸念:** パラメータ metadata と実際の band 設定を一致させる。Q の通常範囲や係数計算は変更しない。
+- **次に確認:** ビルド時に Q=0.1、1、10 の getParameters／reset 表示を確認する。
