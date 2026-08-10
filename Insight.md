@@ -9714,3 +9714,10 @@
 - **判断:** bin をスペクトル範囲へ clamp し、解析フレーム幅を finite/`int` 範囲内で検査し、無効な閾値更新を無視するようにした。
 - **価値/懸念:** 通常のフォルマント解析を維持しながら、極端な解析設定による未定義な整数変換を避ける。
 - **次に確認:** 長時間・低 frame-rate の lip-sync 解析は chunk 単位の設計が必要かを別途確認する。
+## 2026-08-10 — Rasterizer and analyzer arithmetic must stay outside int overflow
+
+- **関連:** `ArtifactCore/src/Audio/AudioRasterizer.cppm`, `ArtifactCore/src/Audio/AudioAnalyzer.cppm`
+- **事実:** waveform bin の `bin * sampleCount` と interleaved bin の同等計算は `int` 掛け算だった。Analyzer の RMS 分母も `frames * channels` の `int` 計算で、無効 sample rate は周波数 bin のゼロ除算を起こし得た。
+- **判断:** bin index は 64-bit 中間値で計算し、Analyzer の RMS は double 分母・累積を使う。非有限 PCM は無視し、frequency/sample-rate 入力を検証する。
+- **価値/懸念:** 大きな波形データや malformed PCM でも解析の index・RMS・band intensity が wraparound/NaN になりにくい。通常の有限入力の結果は同じ計算意図を維持する。
+- **次に確認:** runtime で巨大 waveform の rasterization と無効 sample-rate analyzer の呼び出し元契約を確認する。
