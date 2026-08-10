@@ -11204,3 +11204,12 @@
 - **対応:** null 行列では state を変更せず warning と debug state を記録して return する。
 - **価値／懸念:** 不正な行列更新をクラッシュにせず、前回の有効行列を保持する。行列内容そのものの有限値検証は別責務として未実施。
 - **次に確認:** null 行列、正常な16要素行列、prepare／draw 後の行列更新、カメラ初期化順序を確認する。
+
+## 2026-08-10: Particle renderer initialization device guards
+
+- **関連:** `ArtifactCore/src/Graphics/ParticleRenderer.cppm`
+- **事実:** `createBuffers()` と `createPSO()` は `context_.RenderDevice()` の結果を確認せず、また zero-capacity 初期化も拒否せずに Diligent API を呼んでいた。
+- **仮説:** GPU context がまだ初期化されていない時、または max particle 数が 0 の時に、null device dereference や無効な zero-size resource 作成へ進む可能性がある。未検証。
+- **対応:** 両初期化段階の入口で device、max particle 数、constant buffer の前提を検査し、失敗を debug state と warning にして return する。
+- **価値／懸念:** GPU初期化順序のずれをクラッシュにせず、既存 resource を不用意に使わない。再初期化時の resource lifetime は未検証。
+- **次に確認:** null device、zero capacity、通常の初期化、render-option変更後の PSO 再生成を確認する。
