@@ -10493,3 +10493,12 @@
 - **対応:** frame 差分と sample 位置を `long double` で計算し、有限値を丸めてから PCM の有効範囲へ clamp する。FPS も有限値だけ採用する。
 - **価値／懸念:** waveform の添字が実 PCM 範囲を越えない。通常の範囲では従来の丸め結果を維持する。
 - **次に確認:** ビルド時に in/out の最大差分、非有限 FPS、開始位置と末尾 sample の境界を確認する。
+
+## 2026-08-10: AudioWaveformGenerator の range metadata 境界
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioWaveform.cppm`
+- **事実:** `generateRange()` が `segment.startFrame + startSample` を無検査で計算し、beat 検出も `i + windowSize` をループ条件に使っていた。
+- **仮説:** 極端な frame metadata や大きな waveform の末尾で、qint64／int の加算 overflow により不正な startFrame や走査範囲が生じる可能性がある。未検証。
+- **対応:** range の startFrame を qint64 最大値へ飽和させ、beat 検出は差分比較と安全な hop 更新に変更する。
+- **価値／懸念:** waveform metadata と beat 走査の範囲を保証する。正常値の waveform 内容は維持する。
+- **次に確認:** ビルド時に最大 startFrame、単一窓、巨大サンプル列の末尾 beat 検出を確認する。
