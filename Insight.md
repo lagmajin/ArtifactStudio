@@ -10709,3 +10709,12 @@
 - **対応:** sample rate は正値、それ以外は44100へ戻し、buffer size は1〜1<<20へ clampする。
 - **価値／懸念:** 設定入口で無効値を止める。通常範囲の既存設定は変更しない。
 - **次に確認:** ビルド時に0／負値／通常値／上限超過の setter 結果を確認する。
+
+## 2026-08-10: AudioEffectSlotWidget null bus guard
+
+- **関連:** `Artifact/src/Widgets/AudioMixerWidget.cppm`
+- **事実:** `AudioEffectSlotWidget::mousePressEvent()` は `bus_` が null でも挿入メニューを構築し、選択 lambda で `bus_->addEffect()` を呼び得た。
+- **仮説:** 一時的な widget 状態や破棄順序の不整合時に、メニュー選択で null dereference が発生する可能性がある。未検証。
+- **対応:** 左クリック処理の入口で `bus_` null を拒否する。
+- **価値／懸念:** 有効な bus を持たない slot は操作不能にする。通常の mixer slot の挿入導線は変更しない。
+- **次に確認:** ビルド時に bus 設定済み／未設定 widget のクリックを確認する。
