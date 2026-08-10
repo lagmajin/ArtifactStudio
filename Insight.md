@@ -10556,3 +10556,12 @@
 - **対応:** bar 幅を0以上へ clampし、幅または高さがない場合は bar 描画をスキップする。
 - **価値／懸念:** 極小サイズでも描画 API の入力を正に保つ。通常サイズの level bar は変わらない。
 - **次に確認:** ビルド時に幅0〜7、高さ0〜3、通常サイズの level bar を確認する。
+
+## 2026-08-10: LipSyncTrack analyze の直接入力境界
+
+- **関連:** `ArtifactCore/src/Audio/LipSyncTrack.cppm`
+- **事実:** `analyzeFromFile()` は frame rate を検査していたが、公開 `analyze()` の直接呼び出しには有限値・正値・空 segment の検査がなかった。
+- **仮説:** NaN／無限／負の frame rate や空 segment が formant 解析へ入り、不正な phoneme event を生成する可能性がある。未検証。
+- **対応:** `analyze()` 自身で frame rate と segment の有効性を検査し、無効時は events を清掃して false を返す。
+- **価値／懸念:** ファイル経由と直接呼び出しで入力契約を統一する。無効入力では旧 events も残さない。
+- **次に確認:** ビルド時に空 segment、NaN FPS、正規 FPS の直接 analyze を確認する。
