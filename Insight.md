@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — AudioSpectrum の解析累積境界
+
+- 関連: `ArtifactCore/src/Audio/AudioSpectrum.cppm`。
+- 確認できた事実: waveform／stereo downmix／DFT 累積が非有限 PCM を直接扱い、integrated energy と frame position の加算も overflow し得た。normalize は非有限 sample を残していた。
+- 修正内容: sample sanitizer、double 累積の上限、DFT 出力の有限化、frame counter／end frame の飽和加算、normalize 出力の有限化を追加した。
+- 未検証の仮説: decoder／effect 由来の異常 PCM が spectrum、waveform、LUFS state、正規化後 buffer へ NaN／∞を伝播する経路を抑えられる。
+- 価値／懸念: 通常の解析値と連続 integrated window は維持する。極端な入力では float／double の上限へ飽和するため、表示上の異常振幅は別途診断対象として残る。
+- 次に確認すべきこと: 実機またはオフライン解析で stereo／surround、無音、極端 PCM、巨大 startFrame の block 連結を確認する。
+
 ### 2026-08-10 — AudioClockProvider の drift 整数境界
 
 - 関連: `Artifact/src/Audio/AudioClockProvider.cppm`。
