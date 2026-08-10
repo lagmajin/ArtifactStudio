@@ -11213,3 +11213,12 @@
 - **対応:** 両初期化段階の入口で device、max particle 数、constant buffer の前提を検査し、失敗を debug state と warning にして return する。
 - **価値／懸念:** GPU初期化順序のずれをクラッシュにせず、既存 resource を不用意に使わない。再初期化時の resource lifetime は未検証。
 - **次に確認:** null device、zero capacity、通常の初期化、render-option変更後の PSO 再生成を確認する。
+
+## 2026-08-10: Particle renderer prepare/draw state gate
+
+- **関連:** `ArtifactCore/include/Graphics/ParticleRenderer.ixx`, `ArtifactCore/src/Graphics/ParticleRenderer.cppm`
+- **事実:** `prepare()` は途中失敗を返せない void API で、`draw()` は prepare 成功状態を保持せず、map／binding failure 後でも呼び出し可能だった。
+- **仮説:** prepare failure の直後に draw が続くと、前回の pipeline／resource commit を使った stale frame が発行される可能性がある。未検証。
+- **対応:** `prepared_` を追加し、prepare 開始時に false、commit 完了時だけ true とする。draw は準備済みかつ必要な resource がある場合だけ通す。
+- **価値／懸念:** void prepare API の failure path を draw 側で安全に閉じる。呼び出し側の prepare／draw 順序自体は未検証。
+- **次に確認:** prepare 成功→draw、map failure→draw、binding failure→draw、次フレームの再準備を確認する。
