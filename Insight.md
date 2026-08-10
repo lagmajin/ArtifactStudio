@@ -11373,3 +11373,10 @@
 - **対応:** count／分割を 64-bit 中間計算にし、loop の次 frame を overflow-safe に進め、非 Disabled policy の interval を最低 1 に正規化した。
 - **価値:** render farm の frame 進行と checkpoint 頻度を入力値に対して有限・予測可能にする。
 - **次の確認:** INT_MAX 付近の range、巨大 step、非正 interval、通常 range の runtime 挙動をビルド環境で検証する（未実施）。
+## 2026-08-10: Checkpoint restore range containment
+
+- **事実:** checkpoint JSON の `jobId` を要求 ID と照合せず、`completedUpToFrame - request.startFrame` を int 同士で計算していた。保存値が現在の request range 外でもそのまま進捗へ反映されていた。
+- **仮説:** 別 job の checkpoint 混入や極端な completed frame により、誤復元、int overflow、request total を超える進捗が発生する可能性がある。
+- **対応:** JSON job ID を照合し、completed frame を request range に clamp、差分を 64-bit で計算して request total 以下へ制限した。checkpoint の totalFrames では現行 total を上書きしないようにした。
+- **価値:** checkpoint 復元の対象 job と進捗範囲を現在の render request に固定する。
+- **次の確認:** 別 job ID、負値、INT_MAX 付近、正常 checkpoint の復元 runtime 挙動をビルド環境で検証する（未実施）。
