@@ -10808,3 +10808,12 @@
 - **対応:** setter 内で該当 all-pass の係数を更新する。delay line は再初期化せず、現在の reverb tail を保持する。
 - **価値／懸念:** decay／diffusion の通常設定が次サンプルから反映される。size 変更時の delay length 再構成や未使用パラメータは今回の範囲外。
 - **次に確認:** ビルド時に block 中の decay／diffusion 変更と reverb tail の連続性を確認する。
+
+## 2026-08-10: Reverb live size parameter
+
+- **関連:** `Artifact/src/Audio/Effects/ReverbEffect.cppm`
+- **事実:** `size_` は FDN line length の計算に使われるが、FDN は constructor／sample-rate 初期化時にしか再構築されなかった。
+- **仮説:** size の UI 変更が FDN Hall／Hybrid の tail length に反映されず、表示値と実際の空間サイズが乖離する可能性がある。未検証。
+- **対応:** size 変更時に Dattorro all-pass の delay係数を更新し、FDN tail network だけを `initFDN()` で再構築する。
+- **価値／懸念:** Dattorro delay state は保持する一方、FDN tail は size 変更時にリセットされる。通常の同値 setter では再構築しない。
+- **次に確認:** ビルド時に FDN／Hybrid の size 変更、tail length、Dattorro state の連続性を確認する。
