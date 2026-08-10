@@ -9749,3 +9749,10 @@
 - **判断:** NaN/∞ の volume・pan は既定値へ戻し、meter dB は有限値かつ -60〜6.02 dB に正規化してから状態・signal・peak に使う。
 - **価値/懸念:** 不正な layer または renderer 値で mixer UI が NaN 表示や stale peak 状態にならない。通常の有限値の範囲と表示上限は維持する。
 - **次に確認:** mixer widget が 6.02 dB 上限を意図した表示仕様として扱っているかを runtime で確認する。
+## 2026-08-10 — Artifact delay effects need finite parameter and PCM boundaries
+
+- **関連:** `Artifact/src/Audio/Effects/ChorusEffect.cppm`, `Artifact/src/Audio/Effects/DelayEffect.cppm`
+- **事実:** effect parameter setters accepted NaN/∞, and process paths passed non-finite input samples through dry/wet arithmetic. Invalid sample rates were also sent to DSP initialization.
+- **判断:** UI-declared parameter ranges are enforced with finite fallbacks; invalid sample rates use 44.1 kHz; non-finite input samples become silence before processing.
+- **価値/懸念:** Chorus/Delay no longer turn one malformed control or PCM value into a whole output block of NaNs. Normal parameter ranges and signal flow are preserved.
+- **次に確認:** Reverb/Compressor/Limiter/Distortion share similar parameter boundaries and should be audited in subsequent walks.
