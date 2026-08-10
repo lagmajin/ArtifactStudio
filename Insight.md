@@ -9586,3 +9586,9 @@
 - **修正:** L/R effect は L/R の共通長、全 channel effect は全 channel の最短長で処理し、invalid rate を早期 return する。
 - **価値:** Artifact 側の effect rack でも malformed AudioSegment の範囲外アクセスを防ぐ。
 - **未検証:** 実ビルド・テストは未実行。
+### 2026-08-10 — AudioSpectrum の空入力・bin 数境界
+- **関連:** `ArtifactCore/include/Audio/AudioSpectrum.ixx`、`ArtifactCore/src/Audio/AudioSpectrum.cppm`
+- **事実:** `setBins()` は負数を受け入れており、次回の `resize()` で巨大な `size_t` に変換され得た。また空セグメントでは前回の解析結果を保持し、空入力の DFT は 0 除算になり得た。
+- **修正:** bin 数を 1 以上に制限し、空入力時に解析状態をクリア、DFT の空入力・不正サイズをゼロ結果で終了するようにした。
+- **価値:** malformed / empty audio segment でのメモリ急増・NaN・古い spectrum 表示を防ぐ。
+- **未検証:** ビルド・テストは未実行。
