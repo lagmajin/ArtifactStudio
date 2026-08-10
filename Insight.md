@@ -10763,3 +10763,12 @@
 - **対応:** 各 callback の入口で layer ID に対応する map entry が同じ strip かを確認し、stale strip なら無視する。
 - **価値／懸念:** QObject の遅延破棄方式と既存 signal 配線を維持したまま、旧 UI 状態の書き戻しを防ぐ。現行 strip の操作は変更しない。
 - **次に確認:** ビルド時に composition 切替／再同期直後の遅延 signal と通常操作を確認する。
+
+## 2026-08-10: AudioBus clear-input sample-rate guard
+
+- **関連:** `ArtifactCore/src/Audio/AudioBus.cppm`
+- **事実:** `clearInput()` は frame count を 0 以上に補正していたが、sample rate は 0／負値を buffer metadata に保存していた。
+- **仮説:** `AudioMixer::process()` 外から直接 buffer を準備する経路で、無効な sample rate が downmixer／effect の入力契約へ伝播する可能性がある。未検証。
+- **対応:** `clearInput()` 内で sample rate を正値、それ以外は 44100 に補正して両 buffer に設定する。
+- **価値／懸念:** 正常な sample rate の挙動は変更せず、無効入力だけを既定値へ戻す。
+- **次に確認:** ビルド時に 0／負値／通常値で main／side-chain buffer metadata を確認する。
