@@ -11177,3 +11177,12 @@
 - **対応:** WASAPI は render thread が joinable でなくなった後、Qt は stop 時に callback を解放する。readData は既に lock 内で callback を local copy してから呼ぶため、進行中の read を切断しない。
 - **価値／懸念:** backend stop 後の callback ownership を明示する。実デバイスの stop／close race は未確認。
 - **次に確認:** repeated open／start／stop／close、Qt pull 中の stop、WASAPI thread join、callback capture 解放を確認する。
+
+## 2026-08-10: AudioCache sample-rate input guard
+
+- **関連:** `ArtifactCore/src/Audio/AudioCache.cppm`, `ArtifactCore/include/Audio/AudioCache.ixx`
+- **事実:** `AudioCache::addCache()` は frame／channel／channel length を検証していたが、`AudioSegment::sampleRate` が 0 以下でも cache insert を許していた。decoder からの通常入力は正値だが、API は外部 segment も受け取る。
+- **仮説:** 無効 rate の cached segment が後段の DSP／renderer へ渡り、処理を no-op したり timing metadata を壊したりする可能性がある。未検証。
+- **対応:** cache insert の入口で sample rate も正値必須にする。cache miss の output semantics は変更しない。
+- **価値／懸念:** AudioSegment の基本 metadata 契約を queue／renderer／cache で揃える。cache hit／decode 実行は未確認。
+- **次に確認:** invalid rate cache insert、valid hit、cache replacement、prefetch provider、正常 decode／render を確認する。
