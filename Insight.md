@@ -10430,3 +10430,12 @@
 - **対応:** 変換結果を有限値確認後に0〜2へ clampし、非有限値は1へ戻す。
 - **価値／懸念:** Core→UI 再同期後も UI の音量範囲を保証する。2倍を越える Core 値はUI上限へ丸められる。
 - **次に確認:** ビルド時に -144 dB、0 dB、24 dB、非有限値相当の境界を確認する。
+
+## 2026-08-10: ArtifactAudioMixer の stale layer bus 除去
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioMixer.cppm`
+- **事実:** `clearChannelStrips()` が UI strip の Core bus 参照だけを外し、Core mixer 側の layer bus・route・send を削除していなかった。
+- **仮説:** composition の再同期を繰り返すと、古い layer bus が Core graph と serialize 結果へ残る可能性がある。未検証。
+- **対応:** strip が保持する Core bus を参照してから `removeBus()` で Core mixer から除去し、その後 strip の参照をクリアする。
+- **価値／懸念:** UI と Core の bus 集合を composition 同期時に一致させる。手動作成 bus は strip から参照されないため保持する。
+- **次に確認:** ビルド時に composition 差し替え、layer 削除、route/send の stale 状態を確認する。
