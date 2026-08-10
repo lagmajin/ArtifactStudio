@@ -9592,3 +9592,9 @@
 - **修正:** bin 数を 1 以上に制限し、空入力時に解析状態をクリア、DFT の空入力・不正サイズをゼロ結果で終了するようにした。
 - **価値:** malformed / empty audio segment でのメモリ急増・NaN・古い spectrum 表示を防ぐ。
 - **未検証:** ビルド・テストは未実行。
+### 2026-08-10 — Audio panner / formant analyzer の境界修正
+- **関連:** `ArtifactCore/src/Audio/AudioPanner.cppm`、`ArtifactCore/src/Audio/FormantExtractor.cppm`
+- **事実:** Panner は channel 0 の frame 数を短いチャンネルにも適用していた。Formant の peak 探索は最終 bin の `i + 1` を参照し、track 解析は不正 sample rate で解析幅が 0 になり得た。
+- **修正:** チャンネル実長で書き込みを制限し、peak の探索終端を `size - 2` に制限、不正 rate とチャンネル共通長を検証してから frame を切り出すようにした。
+- **価値:** malformed audio による範囲外アクセスと解析ループ不全を防ぐ。
+- **未検証:** ビルド・テストは未実行。
