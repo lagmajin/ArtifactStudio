@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — Artifact Delay／Chorus の delay-line state 有限性
+
+- 関連: `Artifact/src/Audio/Effects/DelayEffect.cppm`、`Artifact/src/Audio/Effects/ChorusEffect.cppm`。
+- 確認できた事実: 入力は有限化されていたが、delay read、feedback filter state、voice accumulation、delay buffer 書き込み、wet/dry 出力は直接演算していた。
+- 修正内容: 両 effect の delay state・feedback・voice mix・最終出力を有限化し、NaN は無音、±∞ は float 最大値へ寄せた。
+- 未検証の仮説: 大振幅入力または delay-line の異常値が block をまたいで feedback tail に残る経路を抑えられる。
+- 価値／懸念: 通常の delay／chorus の時間・feedback・mix は維持する。極端な値では saturation が先に働く。
+- 次に確認すべきこと: 実機またはオフライン再生で delay の ping-pong と chorus の全 voice を長時間確認する。
+
 ### 2026-08-10 — Artifact Reverb の FDN／plate state 有限性
 
 - 関連: `Artifact/src/Audio/Effects/ReverbEffect.cppm`。
