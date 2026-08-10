@@ -9634,3 +9634,9 @@
 - **修正:** 極小速度を `<=` で停止扱いにし、target frame 数を有限値・`int` 上限確認後に変換するようにした。
 - **価値:** 異常な再生速度での整数変換不定動作とメモリ急増を防ぐ。
 - **未検証:** ビルド・テストは未実行。
+### 2026-08-10 — AudioWaveform range slice の加算 overflow
+- **関連:** `Artifact/src/Audio/ArtifactAudioWaveform.cppm` の `generateRange()`
+- **事実:** `startSample + sampleCount` を先に計算してから mono buffer 長へ clamp しており、巨大な qint64 入力で加算 overflow が起き得た。
+- **修正:** 利用可能長から safe start と remaining を求め、残量との `min` で end を算出するようにした。
+- **価値:** waveform range 要求の異常値で負の slice 長や不正な切り出しを防ぐ。
+- **未検証:** ビルド・テストは未実行。
