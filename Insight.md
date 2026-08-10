@@ -9354,3 +9354,11 @@
 - **修正:** clear 時点の write count を atomic に保存し、その時点までだけ read position を進める。
 - **価値:** seek/stop 後の新しい音声が clear race で消え、再生開始が一度余計に underflow する経路を狭める。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — clear 後の producer-side refill 可視性
+
+- **関連:** `ArtifactCore/src/Audio/AudioRingBuffer.cppm`、`AudioRenderer::clearBuffer()`、`ArtifactPlaybackEngine::updateAudio()`
+- **事実:** clear 通知の consumer 処理前は `readCount_` が古いままなので、producer の `available()` / `write()` が旧音声を占有中と誤認し、seek 後の refill を遅らせ得た。
+- **修正:** clear snapshot を logical read position として occupancy/capacity 計算にも使う。SPSC の readCount 所有権は維持する。
+- **価値:** seek/stop 後に新しい音声を即座に ring buffer へ再充填でき、consumer の clear callback を待つ余分な無音窓を減らせる。
+- **未検証:** 実ビルド・テストは未実行。
