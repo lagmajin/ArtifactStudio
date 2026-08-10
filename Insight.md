@@ -9410,3 +9410,11 @@
 - **修正:** 既知 layout の期待 channel 数も一致した場合だけ early return するようにした。形状が不一致なら既存の変換/fallback 経路へ進む。
 - **価値:** metadata と実データの channel 数がずれた音声で、downmix の責務を bypass してしまう経路を減らせる。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — AudioBus channel-shape normalization gate
+
+- **関連:** `ArtifactCore/src/Audio/AudioBus.cppm`、`AudioBus::addInput()` / `addSideChain()`
+- **事実:** AudioBus は input と bus の layout enum が異なる場合だけ downmix していたため、同じ layout 名でも channel 数が異なる segment は、入力 channel 数と buffer channel 数の最小値だけを加算して余剰 channel を暗黙に落としていた。
+- **修正:** main buffer / side-chain buffer の期待 channel 数も比較し、不一致時は既存の AudioDownMixer 経路へ送る。
+- **価値:** routing の main/side-chain 両方で metadata と実データの不一致を同じ normalization 契約で処理できる。
+- **未検証:** 実ビルド・テストは未実行。
