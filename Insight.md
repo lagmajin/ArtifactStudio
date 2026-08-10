@@ -9235,6 +9235,14 @@
 - **価値:** 未更新パラメータや未設定リソースでのGPU実行を防ぐ。
 - **未検証:** 実ビルド・テストは未実行。
 
+### 2026-08-10 — LayerBlend dispatch の texture binding契約
+
+- **関連:** `ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`、`convertLayerToFloat()`、`blend()`、`blendDirect()`
+- **事実:** convert/通常blendがtexture bindingの失敗を無視し、direct blendは0サイズでもdispatch可能だった。
+- **修正:** Src/Dst/Out bindingの戻り値を確認し、direct blendの幅・高さ0を拒否するようにした。
+- **価値:** 未設定リソースや無効 dispatchをGPUへ渡さず、呼び出し側が失敗を検知できる。
+- **未検証:** 実ビルド・テストは未実行。
+
 ### 2026-08-10 — AudioMixer の旧 JSON 欠損フィールド復元
 
 - **関連:** `ArtifactCore/src/Audio/AudioMixer.cppm`、`AudioMixer::deserialize()`
