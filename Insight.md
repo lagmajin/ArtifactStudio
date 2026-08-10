@@ -9538,3 +9538,11 @@
 - **修正:** no-output でも decode 成功を示し、controller が最大 32 packet まで追加取得して PCM を待つ bounded loop を追加した。
 - **価値:** codec delay による先頭・途中の音切れを抑えつつ、reader 呼び出しを無制限にしない。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — AudioWriter channel alignment
+
+- **関連:** `ArtifactCore/src/Audio/AudioWriter.cppm`、`AudioWriter::write()`
+- **事実:** WAV header は最初の segment の channel count を保持するが、後続 segment の channel 数が少ない場合は実際の interleaved sample 数も減っていたため、frame alignment と data size が header と不一致になり得た。
+- **修正:** header の channel 数を毎 frame 必ず書き、不足 channel は zero-fill、余分な channel は従来どおり無視する。
+- **価値:** mono/stereo が混在する音声書き出しでも WAV の block alignment と再生時間を維持する。
+- **未検証:** 実ビルド・テストは未実行。
