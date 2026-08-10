@@ -31,6 +31,15 @@
 - 価値・懸念: NaN 音量がミュート判定、dB 変換、ミキサー計算へ漏れる可能性を下げる。`-∞ dB` は既存の無音意味を保ち、極端な有限 dB は 0〜2 に飽和させた。
 - 次の確認: 明示許可後に、NaN / ±∞ / 極端値 / 0 除算を含む AudioVolume の単体または既存 Core 検証経路で、有限値と既存ミュート semantics を確認する。
 
+### 2026-08-10 — Core AudioDecibels の有限値境界
+
+- 状態: 実装済みの局所防御。変換・演算の runtime 検証は未実施。
+- 関連: `ArtifactCore/src/Audio/AudioDecibels.cppm`
+- 事実: dB 値オブジェクトの constructor、setter、補間、算術演算は `std::clamp` に非有限値を渡し得た。`fromLinearValue` も NaN / +∞ を明示的に扱っていなかった。
+- 閃き・仮説: `AudioVolume` と `AudioDecibels` の相互変換境界で有限性を保証すると、ミキサーや UI がどちらの表現を使っても同じ不変条件を受け取れる。
+- 価値・懸念: NaN dB の伝播を抑え、無音（−60 dB）と最大値（20 dB）の意味を維持したまま、極端な線形値を定義済み範囲へ収める。一方、実際の effect chain が例外値を生成しないかは未検証。
+- 次の確認: 明示許可後に、AudioVolume↔AudioDecibels の NaN / ±∞ / 0 / 極端値変換と補間を既存 Core 検証経路で確認する。
+
 ### 2026-08-10 — Timeline / Property 編集経路の再計算と未利用基盤を改善候補として記録
 
 - 状態: 改善候補・未実装。実行時の呼び出し頻度と効果は未検証。
