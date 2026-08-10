@@ -9418,3 +9418,11 @@
 - **修正:** main buffer / side-chain buffer の期待 channel 数も比較し、不一致時は既存の AudioDownMixer 経路へ送る。
 - **価値:** routing の main/side-chain 両方で metadata と実データの不一致を同じ normalization 契約で処理できる。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — AudioBus per-channel frame bound
+
+- **関連:** `ArtifactCore/src/Audio/AudioBus.cppm`、`AudioBus::addInput()` / `addSideChain()`
+- **事実:** 両 routing 経路は `AudioSegment::frameCount()`（先頭 channel の長さ）だけを上限に使っていたため、短い channel を含む malformed input で `src[i]` が channel の実サイズを越え得た。
+- **修正:** 各 channel の source/destination サイズも含めた最小値までで加算するようにした。
+- **価値:** 入力 channel 間の frame 数が不一致でも範囲外読みを防ぎ、main と side-chain の安全性をそろえる。
+- **未検証:** 実ビルド・テストは未実行。
