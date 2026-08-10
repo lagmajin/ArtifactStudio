@@ -9346,3 +9346,11 @@
 - **修正:** top-level `master` object に volume(dB) と mute を保存し、存在する場合だけ復元する。旧形式には既定値を維持する。
 - **価値:** composition の保存・再読込後も Master の出力設定を保持できる。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — AudioRingBuffer clear barrier の新音声保護
+
+- **関連:** `ArtifactCore/src/Audio/AudioRingBuffer.cppm`、`AudioRingBuffer::clear()` / `read()`
+- **事実:** consumer は clear 通知を受けると live な `writeCount_` まで read position を進めていたため、clear 後に producer が書いた新しい音声も同じ read で破棄し得た。
+- **修正:** clear 時点の write count を atomic に保存し、その時点までだけ read position を進める。
+- **価値:** seek/stop 後の新しい音声が clear race で消え、再生開始が一度余計に underflow する経路を狭める。
+- **未検証:** 実ビルド・テストは未実行。
