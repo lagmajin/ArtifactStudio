@@ -11352,3 +11352,10 @@
 - **対応:** job ID を空でない単一パス要素に制限し、不正値では path を空として保存・参照を拒否するようにした。
 - **価値:** checkpoint 操作のパス境界を base path 配下に固定する。
 - **次の確認:** 正常 ID、空 ID、区切り文字、`..`、ドライブ指定の save/load/remove 挙動をビルド環境で検証する（未実施）。
+## 2026-08-10: Checkpoint write-result verification
+
+- **事実:** `CheckpointStore::save()` は `QFile::write()` の結果と flush／file error を確認せず、書き込み失敗後も成功を返していた。
+- **仮説:** ディスク容量不足、権限、I/O エラー時に checkpoint が存在すると誤認し、render farm の復旧状態が壊れる可能性がある。
+- **対応:** payload 全体の書き込み、flush、最終 QFile error を確認し、失敗時は `false` を返すようにした。
+- **価値:** checkpoint の成功通知を実際の永続化結果に一致させる。
+- **次の確認:** 正常保存、短い／失敗する書き込み、再読込の runtime 挙動をビルド環境で検証する（未実施）。
