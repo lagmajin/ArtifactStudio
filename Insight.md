@@ -10565,3 +10565,12 @@
 - **対応:** `analyze()` 自身で frame rate と segment の有効性を検査し、無効時は events を清掃して false を返す。
 - **価値／懸念:** ファイル経由と直接呼び出しで入力契約を統一する。無効入力では旧 events も残さない。
 - **次に確認:** ビルド時に空 segment、NaN FPS、正規 FPS の直接 analyze を確認する。
+
+## 2026-08-10: AudioWaveform の短 segment resolution 境界
+
+- **関連:** `ArtifactCore/src/Audio/AudioWaveform.cppm`
+- **事実:** waveform の設定 resolution を最大値だけで clamp し、短い segment でも実フレーム数を大きく超える QVector と走査を行っていた。
+- **仮説:** 小さな音声 segment に高い resolution 設定が組み合わさると、不要なメモリ確保と空 bin の大量処理が発生する可能性がある。未検証。
+- **対応:** resolution を設定値・上限・実フレーム数の最小値に制限する。
+- **価値／懸念:** 短い入力の負荷を入力長に比例させる。長い入力と通常設定の表示解像度は維持する。
+- **次に確認:** ビルド時に10 frameへ最大 resolution、通常長音声、resolution 1を確認する。
