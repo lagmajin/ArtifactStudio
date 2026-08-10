@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — AudioRenderer callback の出力サイズ境界
+
+- 関連: `ArtifactCore/src/Audio/AudioRenderer.cppm` の `audioCallback()`。
+- 確認できた事実: callback の `frames * channelsRequested` を size_t へ乗算する前に overflow 検査がなく、後続の memset／index 計算が不正サイズになり得た。
+- 修正内容: 出力サンプル数の乗算前に size_t 上限を確認し、表現不能な callback は早期 return するようにした。
+- 未検証の仮説: 壊れた backend 引数や極端な device format が、出力 buffer の範囲外 memset／書き込みへつながる経路を抑えられる。
+- 価値／懸念: 通常の device callback は変更しない。異常な引数では無音化ではなく return となるため、backend 側の引数診断は別途残る。
+- 次に確認すべきこと: 実機または callback harness で、0／負値／極端な frames・channels の扱いを確認する。
+
 ### 2026-08-10 — AudioSpectrum の解析累積境界
 
 - 関連: `ArtifactCore/src/Audio/AudioSpectrum.cppm`。
