@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — AudioBassTreble の IIR state 有限性
+
+- 関連: `ArtifactCore/include/Audio/AudioBassTreble.ixx`、`ArtifactCore/src/Audio/AudioBassTreble.cppm`。
+- 確認できた事実: bass / treble setter が範囲外・非有限値を保持し、`data[0]` と各 PCM を IIR state に直接投入していた。
+- 修正内容: dB setter を [-24,24] と有限値へ制限し、IIR state と出力の入力・演算結果を有限化した。
+- 未検証の仮説: 1サンプルでも異常な PCM が入った場合に、low/high state を以後の全フレームへ汚染する経路を抑えられる。
+- 価値／懸念: 正常な EQ カーブは維持し、異常値のみ無音または float 最大値へ寄せる。係数計算やフィルタ構造は変更していない。
+- 次に確認すべきこと: 実機またはオフライン再生で block 境界をまたぐ異常 PCM と sample-rate 変更を確認する。
+
 ### 2026-08-10 — AudioCompressor の detector／出力有限性
 
 - 関連: `ArtifactCore/include/Audio/AudioCompressor.ixx`、`ArtifactCore/src/Audio/AudioCompressor.cppm`。
