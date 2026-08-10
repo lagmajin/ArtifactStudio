@@ -112,6 +112,15 @@
 - 価値・懸念: 巨大 FFT による allocation 圧迫と、異常 PCM からの NaN 解析値を抑える。最大 FFT を 2^20 に制限するため、超高解像度解析を正式対応する場合は別仕様が必要。
 - 次の確認: 明示許可後に、0 / 巨大 FFT サイズ、NaN / ±∞ / 最大値近傍 PCM、空 spectrum の band intensity を確認する。
 
+### 2026-08-10 — AudioDelay の state buffer 有限性
+
+- 状態: 実装済みの局所防御。極端な feedback / PCM の聴感と state 安定性は未検証。
+- 関連: `ArtifactCore/include/Audio/AudioDelay.ixx`、`ArtifactCore/src/Audio/AudioDelay.cppm`
+- 事実: delay の setter / JSON は非有限値を保持でき、遅延 buffer の値と入力を加算・wet mix した結果をそのまま buffer / segment へ書いていた。
+- 閃き・仮説: delay は過去の非有限値を次の block へ持ち越すため、出力だけでなく buffer へ保存する直前に有限化する必要がある。
+- 価値・懸念: NaN state の蓄積と overflow した delay output の伝播を抑える。±∞ は最大有限値へ、NaN は無音へ寄せるため、極端値の音量は別途確認が必要。
+- 次の確認: 明示許可後に、NaN / ±∞ / 極端 feedback・mix・delay と最大 PCM を複数 block へ通し、buffer と出力が有限であることを確認する。
+
 ### 2026-08-10 — Timeline / Property 編集経路の再計算と未利用基盤を改善候補として記録
 
 - 状態: 改善候補・未実装。実行時の呼び出し頻度と効果は未検証。
