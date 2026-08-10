@@ -10322,3 +10322,12 @@
 - **対応:** Impl に pending queue を保持し、次回 `decodeNextSegment()` へ未消費 segment を引き継ぐ。close／flush／seek では queue を clear する。
 - **価値／懸念:** decoder output の全 segment を順序どおり消費できる。queue 上限 100 件を超える異常な burst の扱いは既存上限に委ねる。
 - **次に確認:** ビルド時に1 packet 複数 frame、seek 後、EOF drain の segment 連続性を確認する。
+
+## 2026-08-10: FFmpeg receive burst の queue drop 防止
+
+- **関連:** `ArtifactCore/src/Codec/FFMpegAudioDecoder.cppm`
+- **事実:** pending queue を保持しても、1回の `avcodec_receive_frame()` ループが AudioBufferQueue の上限を超えて複数 segment を積むと、上限到達後の `push()` が黙って segment を破棄する。
+- **仮説:** 大きな packet／codec burst で音声 segment が欠落する可能性がある。未検証。
+- **対応:** 1回の receive 処理で最初に queue へ積めた segment を返し、残りの codec frame は次回の decode 呼び出しで処理する。
+- **価値／懸念:** queue 上限に依存した burst drop を避ける。大量 frame の処理は呼び出し回数へ分散される。
+- **次に確認:** ビルド時に複数 frame packet、queue 上限近傍、EOF drain の連続出力を確認する。
