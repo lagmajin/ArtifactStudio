@@ -9482,3 +9482,11 @@
 - **修正:** frameCount/sampleRate が正でない場合は outSegment を clear して false を返す。
 - **価値:** composition-level audio API の入力契約を各 layer とそろえ、前回結果の誤再利用を防ぐ。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — ArtifactAudioLayer mono interpolation source
+
+- **関連:** `Artifact/src/Layer/ArtifactAudioLayer.cppm`、`ArtifactAudioLayer::getAudio()`
+- **事実:** Mono source の resample loop は `s1`（次の補間点）にも `base0` を使っていたため、フレーム間の線形補間が実質的に無効だった。
+- **修正:** 次フレームの `base1` を参照するようにした。末尾では従来どおり zero fallback を使う。
+- **価値:** mono 音声の sample-rate 変換が時間軸に沿って滑らかに補間される。
+- **未検証:** 実ビルド・テストは未実行。
