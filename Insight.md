@@ -10790,3 +10790,12 @@
 - **対応:** read channel count 10 を `AudioChannelLayout::Custom10ch` に対応付ける。
 - **価値／懸念:** 1／6／8ch の既存 mapping は変更しない。10ch の metadata だけ正確になる。
 - **次に確認:** ビルド時に10ch write→read と downstream downmix の layout／channel count を確認する。
+
+## 2026-08-10: AudioDownMixer target-layout validation
+
+- **関連:** `ArtifactCore/src/Audio/AudioDownMixer.cppm`
+- **事実:** `setTargetLayout()` は enum 値を無検証で保存していた。`process()` に変換分岐のない値では、frames が正でも空 output になり得る。
+- **仮説:** 不正 enum や未対応 layout の設定が音声を無音化する可能性がある。未検証。
+- **対応:** 現在サポートする Mono／Stereo／5.1／7.1／Custom10ch だけを受け付け、それ以外は Stereo に戻す。
+- **価値／懸念:** 既存の対応済み layout は変更しない。Ambisonics は現実装の変換対象外なので、誤って空 output を返さず Stereo fallback とする。
+- **次に確認:** ビルド時に各対応 layout と不正／未対応 enum の setter／process 結果を確認する。
