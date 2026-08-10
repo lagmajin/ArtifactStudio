@@ -10817,3 +10817,12 @@
 - **対応:** size 変更時に Dattorro all-pass の delay係数を更新し、FDN tail network だけを `initFDN()` で再構築する。
 - **価値／懸念:** Dattorro delay state は保持する一方、FDN tail は size 変更時にリセットされる。通常の同値 setter では再構築しない。
 - **次に確認:** ビルド時に FDN／Hybrid の size 変更、tail length、Dattorro state の連続性を確認する。
+
+## 2026-08-10: FFmpeg decoder queue backpressure
+
+- **関連:** `ArtifactCore/include/Audio/AudioBufferQueue.ixx`, `ArtifactCore/src/Codec/FFMpegAudioDecoder.cppm`
+- **事実:** queue は満杯時に `push()` を無視するが、decoder は queue 状態を確認せず次の codec frame を受信していた。
+- **仮説:** consumer が遅い場合、queue 上限を超えた音声 frame が静かに破棄され、再生に欠落や短い無音が生じる可能性がある。未検証。
+- **対応:** queue の `isFull()` を追加し、codec frame 受信前と resampler drain 前に backpressure を返す。
+- **価値／懸念:** queue が空くまで codec frame を消費しない。queue 容量や通常の decode 順序は変更しない。
+- **次に確認:** ビルド時に queue 満杯／pop 後の decode 再開と連続 frame 数を確認する。
