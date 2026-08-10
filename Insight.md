@@ -9450,3 +9450,11 @@
 - **修正:** surround target 用に標準 channel order の mapping を追加し、7.1→5.1 は back channel を surround に fold、足りない channel は silence にする。
 - **価値:** multichannel bus の layout 変換で入力全体が無音化する経路を防ぎ、5.1/7.1 routing を保持する。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — AudioDownMixer per-channel sample safety
+
+- **関連:** `ArtifactCore/src/Audio/AudioDownMixer.cppm`、Stereo/Mono downmix branches
+- **事実:** 既存の 5.1/7.1→Stereo、Mono→Stereo、multi-channel→Mono 分岐は先頭 channel の frame 数を全 channel に適用し、短い channel で範囲外読みになり得た。
+- **修正:** channel ごとの sample access を安全な zero-padding helper に統一し、Stereo output も先に zero 初期化する。
+- **価値:** malformed または部分的な audio segment が downmix 中に範囲外読みや未初期化出力を生まない。
+- **未検証:** 実ビルド・テストは未実行。
