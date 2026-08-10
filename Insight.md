@@ -10997,3 +10997,12 @@
 - **対応:** dispatch／readback 前に pointer、texture 寸法、正の引数、必要な output／source buffer 容量を検証し、不正時は no-op／false を返す。
 - **価値／懸念:** 正常な scope 計算の dispatch 条件は変えず、異常入力を GPU へ送らない。実 GPU での境界挙動は未確認。
 - **次に確認:** ビルド時に null context、step=0、負寸法、小容量 buffer、正常入力の各ケースを確認する。
+
+## 2026-08-10: Boids upload and dispatch contract guards
+
+- **関連:** `ArtifactCore/src/Graphics/BoidsCompute.cppm`, `ArtifactCore/include/Graphics/BoidsCompute.ixx`
+- **事実:** agent upload の count は positions だけを基準にして velocities を同じ index で読み、obstacle upload の count は centers だけを基準にして radii を同じ index で読んでいた。dispatch は upload 済み agent 数を `maxAgents_` で上書きしていた。
+- **仮説:** 入力 vector 長が不一致なら CPU 側範囲外読み取りが起き、agent 数が max 未満なら未初期化 agent 領域を GPU が処理する可能性がある。未検証。
+- **対応:** vector の共通長と最大数で upload count を制限し、context／resource／PSO／agent count を dispatch 前に検証し、実 agent count を maxAgents 以下に clamp する。constant-buffer map と SRV／UAV binding の失敗時も dispatch を中止する。
+- **価値／懸念:** 部分的な入力でも安全に処理し、未投入 agent の GPU 処理を避ける。agent count 0 の dispatch は no-op になるため、呼び出し側が upload を先に行う必要がある。
+- **次に確認:** ビルド時に positions／velocities、centers／radii の長さ不一致、partial upload、null context、正常 dispatch を確認する。
