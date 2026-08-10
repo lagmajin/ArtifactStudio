@@ -10682,3 +10682,12 @@
 - **対応:** チャンネル×バンドごとの4 stateをインスタンスに保持し、sample rateまたは構造変更時だけリセットする。
 - **価値／懸念:** Core側EQと同じブロック連続性をadapter側にも適用する。通常の係数計算とUIパラメータ範囲は変更しない。
 - **次に確認:** ビルド時にmono／stereo、複数ブロック、バンド変更、sample rate変更を確認する。
+
+## 2026-08-10: Artifact Limiter cross-block lookahead
+
+- **関連:** `Artifact/include/Audio/Effects/LimiterEffect.ixx`, `Artifact/src/Audio/Effects/LimiterEffect.cppm`
+- **事実:** `LimiterEffect` は `lookaheadBuf_`／`lookaheadSamples_` を持つが、現行 `process()` の先読みはそのブロック内の `peakLevels` のみで行われている。
+- **仮説:** ブロック末尾の大きなピークを次ブロック側で抑えられず、実際の brick-wall lookahead と異なる過渡応答になる可能性がある。未検証。
+- **対応:** 今回は仕様・音質設計の範囲が広いため実装せず、候補として記録する。
+- **価値／懸念:** ブロック境界をまたぐ lookahead を設計する際の確認点になる。既存の limiter 音色とレイテンシー契約を先に確認する必要がある。
+- **次に確認:** 実測時にブロック境界直前／直後のインパルス、lookahead latency、現在の `lookaheadBuf_` の想定用途を確認する。
