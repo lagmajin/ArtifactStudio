@@ -10673,3 +10673,12 @@
 - **対応:** channel／frame と同じ入口条件で sample rate 0以下を拒否し、正常値だけを係数計算へ渡す。
 - **価値／懸念:** 不正メタデータ時の予測不能なEQ処理を防ぐ。正のsample rateでの処理は変更しない。
 - **次に確認:** ビルド時に sample rate 0、負値、通常44.1kHz／48kHzを確認する。
+
+## 2026-08-10: Artifact Equalizer biquad state continuity
+
+- **関連:** `Artifact/include/Audio/Effects/EqualizerEffect.ixx`, `Artifact/src/Audio/Effects/EqualizerEffect.cppm`
+- **事実:** 各バンドの biquad state（x1／x2／y1／y2）が `process()` 内ローカル変数で、ブロックごとにゼロへ戻っていた。
+- **仮説:** 連続音声のブロック境界でEQが毎回過渡状態から始まり、クリックや周波数応答の揺れが出る可能性がある。未検証。
+- **対応:** チャンネル×バンドごとの4 stateをインスタンスに保持し、sample rateまたは構造変更時だけリセットする。
+- **価値／懸念:** Core側EQと同じブロック連続性をadapter側にも適用する。通常の係数計算とUIパラメータ範囲は変更しない。
+- **次に確認:** ビルド時にmono／stereo、複数ブロック、バンド変更、sample rate変更を確認する。
