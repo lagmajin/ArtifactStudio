@@ -9672,3 +9672,10 @@
 - **判断:** 既存のピーク保持ロジックを左右共通のローカル処理に揃え、stereo でもクリップ通知を行い、reset 時にカウンターをゼロ化した。
 - **価値/懸念:** AudioPreview のピーク表示とクリップ状態が mono/stereo で一貫する。attack/release の設定値は既存どおり別途平滑化に使われていないため、今回の範囲では変更していない。
 - **次に確認:** `AudioLevelMeter` の consumer が peak 値を直接表示しているか、また attack/release の期待仕様があるかを確認する。
+## 2026-08-10 — Audio level bar should sanitize dB values at the paint boundary
+
+- **関連:** `Artifact/src/Widgets/AudioPreviewWidget.cppm` / `AudioLevelBarWidget`
+- **事実:** レベル値を下限だけで `std::max` しており、`+∞` や有限の 0 dB 超がそのまま ratio と整数ピクセル幅の計算へ進む可能性があった。
+- **判断:** dB 値を有限値へ補正し、-60〜0 dB にクランプしてから ratio を計算するようにした。
+- **価値/懸念:** オーディオ入力異常があってもバー描画の整数変換や矩形範囲が壊れにくい。クリップ判定そのものは AudioLevelMeter 側の責務として変更していない。
+- **次に確認:** 実 UI で 0 dB 超のピークをクリップ色として表現する仕様が必要か確認する。
