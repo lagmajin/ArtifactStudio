@@ -9234,3 +9234,11 @@
 - **修正:** audio の mediaPool 登録と重複抑制を追加し、audio track/mediaPool の表示パスを `sourceFile` / `filePath` から復元するようにした。thumbnail 要求は映像拡張子に限定した。
 - **価値:** 音声素材が refresh・保存・再読込の境界で消えたり、表示名をファイルとして誤参照したりしにくくなる。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — MatteTrack constant buffer の末尾 padding
+
+- **関連:** `ArtifactCore/include/Graphics/Shader/Compute/LayerBlendPipeline.ixx`、`ArtifactCore/include/Graphics/Shader/Compute/HLSL/MatteTrack.ixx`、`ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`
+- **事実:** C++ `MatteTrackParams` は scalar 11個で44 bytesだったが、HLSL constant buffer は16-byte register単位で3 register（48 bytes）。既存の static assertion がこの差を検出していた。
+- **修正:** HLSL が参照しない末尾の4-byte paddingを追加し、定数バッファのサイズを48 bytesに一致させた。
+- **価値:** Layer blend の C++20 module compile failure を解消し、GPU constant buffer の境界契約を明示できる。
+- **未検証:** 実ビルド・テストは未実行。
