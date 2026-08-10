@@ -9203,6 +9203,14 @@
 - **価値:** 保存失敗時の modifiedAt 復元が正しいスコープで成立し、未宣言変数による compile failure を避ける。
 - **未検証:** 実ビルド・テストは未実行。
 
+### 2026-08-10 — Channel component display shader の cbuffer 契約
+
+- **関連:** `ArtifactCore/include/Graphics/Shader/Compute/LayerBlendComputeShader.ixx`、`channelComponentDisplayShaderText`、`BlendParams`
+- **事実:** channel display 用 HLSL は `component` だけの短い cbuffer を宣言していた一方、実装は `displayMode` / `displayComponentY` / `displayComponentZ` を参照し、C++ は共通 `BlendParams` を転送していた。
+- **修正:** HLSL cbuffer を共通 `BlendParams` の8 scalar構成へ揃え、単一チャンネル参照は C++ が設定する `blendMode` を使うようにした。
+- **価値:** MatteTrack assertion 修正後に露出する shader compile failure と、display composite の未宣言値参照を防ぐ。
+- **未検証:** 実ビルド・テストは未実行。
+
 ### 2026-08-10 — AudioMixer の旧 JSON 欠損フィールド復元
 
 - **関連:** `ArtifactCore/src/Audio/AudioMixer.cppm`、`AudioMixer::deserialize()`
