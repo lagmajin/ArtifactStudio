@@ -10871,3 +10871,12 @@
 - **対応:** ソースコードは変更せず、ビルドツリーの source path 不一致を切り分けた。
 - **価値／懸念:** 生成物を削除・再生成せず、ユーザーの既存ビルド環境を保持する。再構成時は現在の checkout を source にした専用 build directory が必要。
 - **次に確認:** ユーザー許可後に J ドライブ checkout を source として CMake を再構成し、同じ assertion が再現するか確認する。
+
+## 2026-08-10: Scrub renderer empty-start guard
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioScrubController.cppm`
+- **事実:** 非アクティブな scrub renderer は、enqueue が ring buffer overflow／入力拒否で false を返しても `start()` を呼んでいた。
+- **仮説:** バッファが空のまま再生を開始し、不要な immediate underflow と空のデバイス起動を発生させる可能性がある。未検証。
+- **対応:** enqueue 成功、または既存 buffered frames がある場合だけ start する。
+- **価値／懸念:** 既存バッファの drain と通常の scrub 開始は維持し、空の拒否ケースだけを抑制する。
+- **次に確認:** ビルド時に空バッファ／enqueue 拒否／既存バッファ drain の各状態で active 遷移を確認する。
