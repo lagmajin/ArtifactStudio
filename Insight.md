@@ -10970,3 +10970,12 @@
 - **対応:** upload helper を bool 化し、初回 transform または flush vertex upload が失敗した batch を破棄して draw を中止する。
 - **価値／懸念:** upload 失敗時は該当 sprite batch が落ちるが、stale GPU data の誤描画を避ける。正常 batching と stats は成功時のみ更新する。
 - **次に確認:** ビルド時に正常 batch、transform map failure、vertex map failure の batch state reset と draw count を確認する。
+
+## 2026-08-10: Track-matte opacity sanitization
+
+- **関連:** `ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`, `ArtifactCore/include/Graphics/Shader/Compute/HLSL/MatteTrack.ixx`
+- **事実:** `applyTrackMatte()` は入力リソースと matte 数を検証するが、3つの opacity は定数バッファへ未加工でコピーし、HLSL はそれを mask に直接乗算している。
+- **仮説:** NaN／無限値／範囲外 opacity が上流から渡ると、GPU mask が不定または意図せず強く／弱くなる可能性がある。未検証。
+- **対応:** 既存 Blend opacity と同じ有限値・0〜1 clamp を、matte 定数バッファの書き込み直前に適用する。
+- **価値／懸念:** 通常の 0〜1 入力は変わらず、異常入力の GPU 伝播を抑える。GPU 実行時の結果は未確認。
+- **次に確認:** ビルド時に通常値、負値、1超過、NaN／無限値の matte opacity が安定して定数バッファへ反映されることを確認する。
