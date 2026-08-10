@@ -58,6 +58,15 @@
 - 価値・懸念: 不正な pan で左右ゲインが NaN になったり、直接適用で PCM が壊れたりするリスクを下げる。異常ゲインは無音へ寄せ、overflow は有限の最大値へ飽和させた。
 - 次の確認: 明示許可後に、NaN / ±∞ / ±2 の pan と最大 PCM を各公開 API に通し、有限出力と左右定位を確認する。
 
+### 2026-08-10 — AudioSegment の共通 frame 数契約
+
+- 状態: 実装済みの局所防御。既存 caller の不揃いチャンネル入力に対する runtime 互換性は未検証。
+- 関連: `ArtifactCore/include/Audio/AudioSegment.ixx`、`ArtifactCore/src/Audio/AudioDownMixer.cppm`、`ArtifactCore/src/Audio/AudioBus.cppm`
+- 事実: `frameCount()` は「全チャンネルのサンプル数」というコメントに反して channel 0 の長さだけを返していた。downmix / mix 側には各チャンネル長を個別に clamp する処理もあるが、共通ループ上限としては過大になり得た。
+- 閃き・仮説: AudioSegment の共通 frame 数を最短チャンネル長に定義すると、public struct に不揃いデータが入った場合も、上流のループ上限自体が安全側に揃う。
+- 価値・懸念: panning、downmix、mixer の out-of-range リスクを下げる。長いチャンネルの余剰サンプルを暗黙に捨てる契約になるため、入力生成側で不揃いが発生していないかは別途確認が必要。
+- 次の確認: 明示許可後に、0 / 1 / 不揃い / 負の setFrameCount を含む AudioSegment を既存音声経路へ渡し、共通 frame 数と出力長を確認する。
+
 ### 2026-08-10 — Timeline / Property 編集経路の再計算と未利用基盤を改善候補として記録
 
 - 状態: 改善候補・未実装。実行時の呼び出し頻度と効果は未検証。
