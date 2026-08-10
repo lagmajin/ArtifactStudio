@@ -11186,3 +11186,12 @@
 - **対応:** cache insert の入口で sample rate も正値必須にする。cache miss の output semantics は変更しない。
 - **価値／懸念:** AudioSegment の基本 metadata 契約を queue／renderer／cache で揃える。cache hit／decode 実行は未確認。
 - **次に確認:** invalid rate cache insert、valid hit、cache replacement、prefetch provider、正常 decode／render を確認する。
+
+## 2026-08-10: Particle renderer constant-map failure must abort preparation
+
+- **関連:** `ArtifactCore/src/Graphics/ParticleRenderer.cppm`
+- **事実:** `prepare()` は定数バッファの `MapBuffer()` が失敗しても、前回の定数を残したまま SRB commit まで進み、`gpuCullActive_` も前フレーム状態を再利用し得た。
+- **仮説:** 一時的な GPU map failure の後に、現在フレームと異なる view／projection や indirect draw state で粒子を描画する可能性がある。未検証。
+- **対応:** map failure 時は GPU culling を無効化し、リソース commit／描画準備を中断する。
+- **価値／懸念:** 定数アップロード失敗を stale state の描画へ伝播させない。実 GPU の map failure 発生条件と復帰動作は未確認。
+- **次に確認:** constant buffer map failure、次フレームの再準備、GPU culling の有効／無効遷移、通常粒子描画を確認する。
