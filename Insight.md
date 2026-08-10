@@ -10133,3 +10133,12 @@
 - **対応:** FFT サイズ上限と同じ `2^20` をビン数にも適用し、最小値は 1 に固定した。
 - **価値／懸念:** 異常な設定によるメモリ急増を抑えられる。一方、2^20 自体は大きいため、将来は UI／設定層でも入力上限を共有できるか確認する。
 - **次に確認:** ビルド時に `AudioSpectrum` の公開ヘッダが `std::min` を直接利用するための標準ヘッダ依存を確認する。
+
+## 2026-08-10: Core AudioReverb パラメータ範囲
+
+- **関連:** `ArtifactCore/include/Audio/AudioReverb.ixx`, `ArtifactCore/src/Audio/AudioReverb.cppm`
+- **事実:** `getParameters()` は Decay／Mix／Size を 0..1 と定義していたが、setter と `setParameterValue()` は有限値の範囲外を保持できた。
+- **仮説:** UI 以外の JSON／API 経路から範囲外の係数が保存されると、後段の DSP 係数が仕様外になる可能性がある。未検証。
+- **対応:** 3 setter で有限値を 0..1 に clamp し、`setParameterValue()` も setter 経由に統一した。
+- **価値／懸念:** パラメータ宣言と実際の保持値が一致する。`size_` の DSP 利用範囲は別途確認が必要。
+- **次に確認:** ビルド時に Core Reverb の JSON 往復と係数境界を確認する。
