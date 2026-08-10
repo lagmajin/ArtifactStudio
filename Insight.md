@@ -10925,3 +10925,12 @@
 - **対応:** push を bool 戻り値にし、受理成功時だけ decoder の期待 frame を更新する。
 - **価値／懸念:** queue の既存上限と backpressure 方針は維持し、受理結果を明示的に扱う。失敗後の codec／resampler 消費自体は既存の単一 producer 前提に依存する。
 - **次に確認:** ビルド時に queue 満杯境界、decoder cursor、EOS／resampler drain の連続性を確認する。
+
+## 2026-08-10: Audio decoder flush seek-target reset
+
+- **関連:** `ArtifactCore/src/Codec/FFMpegAudioDecoder.cppm`
+- **事実:** `flush()` は `seekTargetSeconds_` を解除する一方、`seekTargetFrame_` を保持していた。`seek()` は flush 後に新しい frame target を設定する。
+- **仮説:** seek 後かつ target frame 消費前に明示 flush されると、古い target が次の decode の trimming 条件として残る可能性がある。未検証。
+- **対応:** flush で `seekTargetFrame_` も -1 に戻す。seek の flush→新 target 設定順序は変更しない。
+- **価値／懸念:** 明示 flush を純粋な decoder state reset に揃える。通常の seek 後の trim は従来どおり維持する。
+- **次に確認:** ビルド時に seek→flush→decode、seek→decode、EOS drain の target frame 遷移を確認する。
