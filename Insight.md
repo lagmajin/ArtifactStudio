@@ -11051,3 +11051,12 @@
 - **対応:** 3段の cbuffer variable 登録、初期化・texture/view・入力サイズ・context・Map／binding の検証を追加し、失敗時は後段 dispatch を中止する。Warp の履歴入力は型の一致する history SRV に揃えた。
 - **価値／懸念:** EdgeEcho の GPU resource 契約と失敗伝播を明示化する。履歴の black clear／初回フレーム見た目は別途 runtime 確認が必要。
 - **次に確認:** ビルド時に cbuffer reflection、texture resize／CreateTexture failure、初回／継続 frame、Map／binding failure を確認する。
+
+## 2026-08-10: Halftone constant-buffer layout alignment
+
+- **関連:** `ArtifactCore/src/Graphics/Compute/HalftoneComputer.cppm`, `ArtifactCore/include/Graphics/Shader/Compute/HLSL/Halftone.ixx`
+- **事実:** CPU 側は 64 bytes の buffer を確保していたが、Map 後の一時構造体は 40 bytes だった。HLSL の cbuffer は scalar／array の packing に依存し、`HalftoneParams` も pipeline の dynamic variable に登録されていなかった。
+- **仮説:** cbuffer の trailing data が未定義になり、backend によって parameter の読み出しや binding が不安定になる可能性がある。未検証。
+- **対応:** HLSL を `float4 + int4 + float4` の 48-byte layout に明示化し、CPU mirror struct と `static_assert` を追加する。dynamic cbuffer binding、Map／texture／サイズ検証も追加した。
+- **価値／懸念:** Halftone の CPU→HLSL parameter 契約を packing 規則から切り離す。GPU shader reflection と実画面結果は未確認。
+- **次に確認:** ビルド時に cbuffer reflection、mono／color／CMYK 各 mode、異なる dot shape、Map／binding failure、input/output サイズ不一致を確認する。
