@@ -10502,3 +10502,12 @@
 - **対応:** range の startFrame を qint64 最大値へ飽和させ、beat 検出は差分比較と安全な hop 更新に変更する。
 - **価値／懸念:** waveform metadata と beat 走査の範囲を保証する。正常値の waveform 内容は維持する。
 - **次に確認:** ビルド時に最大 startFrame、単一窓、巨大サンプル列の末尾 beat 検出を確認する。
+
+## 2026-08-10: AudioSyncTools tempo 推定の有限値保証
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioWaveform.cppm`
+- **事実:** beat 間隔の平均と BPM 計算を float で行い、非有限値やゼロの結果を確認しないまま倍／半分の補正ループへ入っていた。
+- **仮説:** 大量の beat、異常な sample rate、または累積 overflow で BPM が infinity／zero になり、無限ループまたは不正値を返す可能性がある。未検証。
+- **対応:** 間隔と BPM を double で計算し、有限値・正値を確認できない場合は120 BPMへ fallback する。
+- **価値／懸念:** tempo 推定が必ず有限値で終了する。異常入力では既定値を返す。
+- **次に確認:** ビルド時に beat 間隔が極端なケース、sample rate 異常、BPM 補正境界を確認する。
