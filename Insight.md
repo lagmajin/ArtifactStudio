@@ -11123,3 +11123,12 @@
 - **対応:** output texture と dimension を Map より前に検証し、Path Rasterizer は負値・不一致 dimension を no-op にする。
 - **価値／懸念:** failure path の resource lifetime を閉じ、負値の unsigned dispatch 変換を防ぐ。GPU backend の Map state は未確認。
 - **次に確認:** Map failure、null output、zero／negative dimension、dimension mismatch、正常 mask／procedural dispatch を確認する。
+
+## 2026-08-10: Boids and particle constants runtime binding
+
+- **関連:** `ArtifactCore/src/Graphics/BoidsCompute.cppm`, `ArtifactCore/src/Graphics/ParticleCompute.cppm`
+- **事実:** 両 HLSL compute shader は `cbuffer Constants` を参照していたが、CPU の variable descriptor は structured buffer view だけを登録し、constant buffer を SRB 作成前に `setBuffer()` していた。dispatch 時の cbuffer binding 成否も確認していなかった。
+- **仮説:** agent／particle count、delta time、audio 由来の simulation parameter が未 binding または stale 値のまま dispatch される可能性がある。未検証。
+- **対応:** 両 pipeline に `Constants` の dynamic variable を追加し、SRB 作成後の dispatch で cbuffer と UAV／SRV を一括 binding、失敗時は no-op にする。
+- **価値／懸念:** simulation parameter の CPU→HLSL 契約を resource view と同じ実行時経路へ揃える。GPU simulation 結果は未確認。
+- **次に確認:** ビルド時に Boids／Particle の constants reflection、agent／particle count、dt、audio spectrum、Map／binding failure、正常 dispatch を確認する。
