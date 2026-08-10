@@ -11380,3 +11380,10 @@
 - **対応:** JSON job ID を照合し、completed frame を request range に clamp、差分を 64-bit で計算して request total 以下へ制限した。checkpoint の totalFrames では現行 total を上書きしないようにした。
 - **価値:** checkpoint 復元の対象 job と進捗範囲を現在の render request に固定する。
 - **次の確認:** 別 job ID、負値、INT_MAX 付近、正常 checkpoint の復元 runtime 挙動をビルド環境で検証する（未実施）。
+## 2026-08-10: Checkpoint save-frame arithmetic guard
+
+- **事実:** `saveCheckpoint()` は `baseFrame + completed` を int のまま計算していた。
+- **仮説:** 最大 frame 付近の render で checkpoint の completed frame が wrap し、次回復元位置が壊れる可能性がある。
+- **対応:** 64-bit 中間値で計算し、保存前に int 範囲へ clamp した。
+- **価値:** checkpoint の絶対 frame 値を算術 overflow から守る。
+- **次の確認:** INT_MAX／INT_MIN 近傍の checkpoint 保存・復元と通常経路をビルド環境で検証する（未実施）。
