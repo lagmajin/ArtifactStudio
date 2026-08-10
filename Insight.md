@@ -9604,3 +9604,9 @@
 - **修正:** 処理直前に有限値と実用範囲へ正規化し、Tone の位相を常に `[0,1)` へ折り返し、不正 waveform は無音、Delay の delay sample 数を buffer 契約内へ制限した。
 - **価値:** 不正な外部パラメータで NaN 拡散や整数オーバーフローを防ぐ。
 - **未検証:** ビルド・テストは未実行。
+### 2026-08-10 — Audio Chorus / Reverb / BassTreble の不正値防護
+- **関連:** `ArtifactCore/src/Audio/AudioChorus.cppm`、`AudioReverb.cppm`、`AudioBassTreble.cppm`
+- **事実:** Chorus は NaN／巨大 delay を整数変換し、Reverb の decay／mix と BassTreble の dB 値は非有限値のまま DSP 演算へ入っていた。Chorus の ring position は segment ごとの必要長変化にも依存していた。
+- **修正:** 各値を有限値・既存 UI 範囲へ正規化し、Chorus の delay を buffer 契約内に制限、segment 縮小時に write position を再正規化した。
+- **価値:** malformed parameter による範囲外アクセス、NaN 音声、整数変換不定動作を防ぐ。
+- **未検証:** ビルド・テストは未実行。
