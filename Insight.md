@@ -9770,3 +9770,10 @@
 - **判断:** All listed parameters now use their UI ranges with finite defaults; invalid reverb sample rates fall back to 44.1 kHz; non-finite input samples become zero.
 - **価値/懸念:** Invalid controls cannot create unbounded buffers, zero-rate divisions, or NaN nonlinear output. Valid effect ranges and algorithm selection remain unchanged.
 - **次に確認:** The remaining Equalizer effect should be checked for the same setter and input sanitization pattern.
+## 2026-08-10 — Equalizer biquad state needs finite gains and PCM
+
+- **関連:** `Artifact/src/Audio/Effects/EqualizerEffect.cppm`
+- **事実:** EQ gain setter accepted NaN, which could make biquad coefficients and every subsequent channel state non-finite. Input channel samples were also used without sanitization.
+- **判断:** gain is constrained to its declared -12..12 dB range, coefficient inputs have finite fallbacks, and non-finite PCM is treated as zero before filtering.
+- **価値/懸念:** A malformed automation value or sample no longer poisons the EQ block. Normal band frequencies, Q values, and finite gain behavior are unchanged.
+- **次に確認:** Remaining Artifact audio effect factories and parameter deserialization should be checked for bypassing these setters.
