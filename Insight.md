@@ -10268,3 +10268,12 @@
 - **対応:** 既存 AudioChannelLayout の最大 10ch を固定確保し、10ch 超を拒否する。active channel 数は縮小せず atomic に増加管理し、既存フレームが残っている間のチャンネル数変更は拒否して read/write の形状を維持した。
 - **価値／懸念:** RT consumer 中の heap resize をなくす。multichannel 入力後は channel 数を縮小せず保持する既存の実効挙動を明示化した。
 - **次に確認:** ビルド時に Mono／Stereo／5.1／7.1／Custom10ch の切替と、同時 read/write を確認する。
+
+## 2026-08-10: QtAudioBackend open 失敗時の sink cleanup
+
+- **関連:** `ArtifactCore/src/Audio/QtAudioBackend.cppm`
+- **事実:** `QAudioSink` を生成した後の `QIODevice::open()` 失敗時に、sink を破棄せず false を返していた。
+- **仮説:** backend fallback や再 open の繰り返しで、失敗した QAudioSink が backend インスタンスに残り続ける可能性がある。未検証。
+- **対応:** QIODevice の open 失敗時に `audioSink_` を reset し、未使用 sink を保持しないようにした。
+- **価値／懸念:** Qt backend の失敗状態を clean に保つ。QAudioSink 自体の constructor 失敗は既存 API の例外／Qt 実装に委ねる。
+- **次に確認:** ビルド時に unsupported format、QIODevice open failure、backend fallback を確認する。
