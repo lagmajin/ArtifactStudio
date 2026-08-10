@@ -10403,3 +10403,12 @@
 - **対応:** 更新を本体へ移し、最大値のイベントを記録した後はループを終了する。
 - **価値／懸念:** 極端な開始フレームでも未定義の符号付き overflow を避ける。通常範囲では従来と同じ frame 列になる。
 - **次に確認:** ビルド時に通常の startFrame と `int64_t` 最大値近傍を確認する。
+
+## 2026-08-10: AudioPreview の EOS tail drain
+
+- **関連:** `Artifact/src/Widgets/AudioPreviewWidget.cppm`
+- **事実:** `onTimerTick()` が全 segment を供給し終えた時点で即 `stop()` し、renderer の buffered frames を待っていなかった。
+- **仮説:** 再生末尾の hardware buffer が破棄され、最後の音声が短く切れる可能性がある。未検証。
+- **対応:** EOS をマークした後、renderer の buffered frames が0になるまで timer tick で待ってから停止する。
+- **価値／懸念:** 末尾の音声を排出してから playbackStopped を通知する。デバイスが無限に buffer を保持する場合は停止待ちになるため、runtime 確認が必要。
+- **次に確認:** 短い音声、長い音声、EOS 直前の renderer buffer 残量を実機で確認する。
