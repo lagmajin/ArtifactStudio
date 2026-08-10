@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — Artifact Equalizer／Distortion の state 境界
+
+- 関連: `Artifact/src/Audio/Effects/EqualizerEffect.cppm`、`Artifact/src/Audio/Effects/DistortionEffect.cppm`。
+- 確認できた事実: Equalizer の biquad 出力と Distortion の tone state／最終出力を直接保存していた。Distortion の foldback は巨大な有限入力で反復回数が入力値に比例した。
+- 修正内容: Equalizer の biquad state を有限化し、Distortion の foldback を反射結果を保つ modulo 計算へ変更し、state／出力も有限化した。
+- 未検証の仮説: 異常 PCM で EQ state が汚染される経路と、巨大 drive 入力で foldback が長時間ループする経路を抑えられる。
+- 価値／懸念: 通常の EQ／非線形処理は維持する。foldback は同じ反射周期を bounded 計算するため、極端入力でも処理時間が入力振幅に依存しない。
+- 次に確認すべきこと: 実機またはオフライン再生で各 distortion mode と EQ band の極端入力、block 境界を確認する。
+
 ### 2026-08-10 — Artifact Delay／Chorus の delay-line state 有限性
 
 - 関連: `Artifact/src/Audio/Effects/DelayEffect.cppm`、`Artifact/src/Audio/Effects/ChorusEffect.cppm`。
