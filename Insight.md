@@ -76,6 +76,15 @@
 - 価値・懸念: downmix 後の NaN / ±∞ が mixer や renderer へ漏れるリスクを下げる。NaN は 0、±∞ は float 最大値へ飽和させるため、極端値の聴感は別途確認が必要。
 - 次の確認: 明示許可後に、各レイアウト・巨大係数・極端 PCM で downmix 出力と audio bus の有限性を確認する。
 
+### 2026-08-10 — AudioRingBuffer の read 境界と layout 復元
+
+- 状態: 実装済みの局所修正。SPSC の同時実行と hardware callback の runtime 検証は未実施。
+- 関連: `ArtifactCore/src/Audio/AudioRingBuffer.cppm`
+- 事実: `read(..., 0)` は成功扱いのまま cursor を進めず、読み出し channel 数にかかわらず `AudioChannelLayout::Stereo` を設定していた。
+- 閃き・仮説: callback 側の要求量が 0 になる境界では明示的に失敗・空出力を返し、既知の channel 数から layout を復元すると、再試行ループと不要な downmix を避けられる。
+- 価値・懸念: zero-length read の曖昧な成功状態と、6 / 8ch の誤った metadata 伝播を防ぐ。sample rate は ring buffer が保持していないため、既存 caller の設定責務は残る。
+- 次の確認: 明示許可後に、0 frame / 空 buffer / mono・stereo・5.1・7.1 の read と consumer の layout 判定を確認する。
+
 ### 2026-08-10 — Timeline / Property 編集経路の再計算と未利用基盤を改善候補として記録
 
 - 状態: 改善候補・未実装。実行時の呼び出し頻度と効果は未検証。
