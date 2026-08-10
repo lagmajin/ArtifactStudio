@@ -9522,3 +9522,11 @@
 - **修正:** resampler setup を完了できた場合だけ初期化成功とし、失敗時は codec context を解放して false を返す。
 - **価値:** 初期化成功状態と decode 可能状態の不一致をなくす。
 - **未検証:** 実ビルド・テストは未実行。codec 名だけで入力フォーマットが決まらない場合は、明示的な codec parameters 初期化が必要。
+
+### 2026-08-10 — Audio decoder seek flush
+
+- **関連:** `ArtifactCore/src/Media/MediaAudioDecoder.cppm`、`MediaAudioDecoder::flush()`
+- **事実:** codec buffer の flush だけでは `SwrContext` 内の遅延 PCM が残るため、seek／stop 後の最初の audio packet に旧位置のサンプルが混入し得た。
+- **修正:** codec flush 後に resampler を再生成し、現在の出力 sample-rate／format 設定を保ったまま遅延状態をリセットする。
+- **価値:** seek・stop 境界で古い音声が再生される経路を抑止する。
+- **未検証:** 実ビルド・テストは未実行。
