@@ -10628,3 +10628,12 @@
 - **対応:** 両経路で opacity を有限値確認後、0〜1へ clampする共通ヘルパーを使用する。
 - **価値／懸念:** 通常の opacity の挙動を維持しつつ、GPU側へ異常値を渡さない。
 - **次に確認:** ビルド時に opacity が NaN、負値、1超、通常値の各ケースを確認する。
+
+## 2026-08-10: AudioReverb block and channel state
+
+- **関連:** `ArtifactCore/include/Audio/AudioReverb.ixx`, `ArtifactCore/src/Audio/AudioReverb.cppm`
+- **事実:** comb buffer の index が各 `process()` で `i % needed` に戻り、左右チャンネルが同じ4本の comb buffer を共有していた。
+- **仮説:** 複数ブロック処理で残響がブロック境界ごとに再開し、左右の入力履歴が相互に混ざる可能性がある。未検証。
+- **対応:** チャンネルごとの comb buffer 領域と書き込み位置を保持し、バッファ拡張時だけ状態をリセットする。
+- **価値／懸念:** AudioReverb のストリーミング連続性と左右分離を保つ。残響アルゴリズムの係数と公開パラメータは変更しない。
+- **次に確認:** ビルド時に1ブロック／複数ブロック、左右異なるインパルス、バッファ拡張時の有限性を確認する。
