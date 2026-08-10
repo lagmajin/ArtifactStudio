@@ -11387,3 +11387,10 @@
 - **対応:** 64-bit 中間値で計算し、保存前に int 範囲へ clamp した。
 - **価値:** checkpoint の絶対 frame 値を算術 overflow から守る。
 - **次の確認:** INT_MAX／INT_MIN 近傍の checkpoint 保存・復元と通常経路をビルド環境で検証する（未実施）。
+## 2026-08-10: Render progress arithmetic guard
+
+- **事実:** `RenderJobProgress` は completed／failed／total を int のまま加減算し、completed が total を超えても progress を clamp していなかった。
+- **仮説:** 異常な復元値、重複完了通知、巨大な frame 数で overflow や 100% 超過表示、完了判定の誤りが起きる可能性がある。
+- **対応:** progress を有限の 0〜1 に clamp し、remaining／processed の計算を 64-bit 中間値へ変更した。非正 total は finished と扱う。
+- **価値:** 進捗 UI と farm 完了判定の算術境界を統一する。
+- **次の確認:** 巨大カウンタ、重複通知、非正 total、通常進捗の runtime 挙動をビルド環境で検証する（未実施）。
