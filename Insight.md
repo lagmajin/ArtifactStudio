@@ -9378,3 +9378,11 @@
 - **修正:** `GetBuffer(framesToWrite)` に変更し、padding の memset/offset を削除して取得領域へ直接 callback する。
 - **価値:** 通常の partial padding 状態で buffer acquire が失敗して音声が更新されない経路と、誤 offset 書き込みを防ぐ。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — WASAPI requestStop の thread lifetime
+
+- **関連:** `ArtifactCore/src/Audio/WASAPIBackend.cppm`、`WASAPIBackend::requestStop()`、`Impl::stopThread()`
+- **事実:** requestStop は render thread を detach して返るため、直後の close/destructor が COM audio client を release する前に thread が残る可能性があった。再 start も joinable thread の上書きになり得た。
+- **修正:** requestStop は停止通知と AudioClient::Stop だけを行い thread を joinable のまま保持し、start 時に残 thread を reap してから新 thread を生成する。
+- **価値:** stop/close/restart の resource lifetime を明示し、detached render thread による use-after-release と thread assignment failure を防ぐ。
+- **未検証:** 実ビルド・テストは未実行。
