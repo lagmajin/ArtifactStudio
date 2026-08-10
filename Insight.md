@@ -11285,3 +11285,12 @@
 - **対応:** process入口で `imagePixelBytes()` による必要バイト数を確認し、不正または空の画像をno-opにする。
 - **価値／懸念:** bloom／glare／denoise／gamma全経路の共通入力契約を一箇所で守る。ImageBuffer生成元の整合性は未確認。
 - **次に確認:** empty image、短いpixel storage、通常ImageBuffer、各post-process設定の実行を確認する。
+
+## 2026-08-10: Volume post-process numeric setting sanitization
+
+- **関連:** `ArtifactCore/src/Render/VolumePostProcess.cppm`, `ArtifactCore/include/Render/VolumePostProcess.ixx`
+- **事実:** post-process設定の NaN／Inf、負のgamma、極端なfilterRadiusやstreakCountが、float cast／pow／vector allocation／ループ上限へ直接流れていた。
+- **仮説:** 不正な設定値で範囲外cast、無限値の画素変換、過大な一時バッファ、過剰な処理時間が発生する可能性がある。未検証。
+- **対応:** threshold／intensity／radius／angle／gammaを有限値に正規化し、反復数・streak数・filter radiusを安全な上限へ制限する。非有限sigmaには有限fallbackを使う。
+- **価値／懸念:** 外部設定を受けるpost-processの数値契約を処理入口で守る。上限値のUX妥当性と性能は未確認。
+- **次に確認:** NaN／Inf／負値／極端値、通常設定、各effectの出力有限性と処理時間を確認する。
