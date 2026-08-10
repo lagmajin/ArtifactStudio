@@ -11258,3 +11258,12 @@
 - **対応:** count 計算前に width と height が正値であることを確認し、不正フレームを no-op にする。
 - **価値／懸念:** 入力境界で符号付き寸法の危険なsize_t変換を止める。正常なframe lifecycleと異常寸法の生成経路は未確認。
 - **次に確認:** zero／negative dimensions、通常frame、resize後のhistory reset、連続frame処理を確認する。
+
+## 2026-08-10: Additional creative effect dimension guards
+
+- **関連:** `ArtifactCore/src/Graphics/Effect/EdgeEchoEffect.cppm`, `ColorVibranceEffect.cppm`, `DepthMeltEffect.cppm`, `LightPressureEffect.cppm`, `PigmentSeparationEffect.cppm`
+- **事実:** 5つの effect process が width／height を正値確認する前に `size_t` count を計算していた。
+- **仮説:** 負寸法の VideoFrame が入力されると、巨大な source vector や並列処理範囲を生成する可能性がある。未検証。
+- **対応:** 各 process で width と height が正値であることを count 計算前に確認する。
+- **価値／懸念:** 同じframe dimension contractをCreative Effect群へ拡張する。異常寸法を生成する上流経路と通常処理は未確認。
+- **次に確認:** 各effectのzero／negative dimensions、通常frame、resize後処理を確認する。
