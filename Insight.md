@@ -9434,3 +9434,11 @@
 - **修正:** channel ごとの実長を補間上限に使い、空 channel は出力を zero-fill する。
 - **価値:** playback の resample / speed transform が malformed audio segment でも安全に出力を生成し、下流の入力 guard だけに依存しない。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — Playback resample interpolation clamp
+
+- **関連:** `Artifact/src/Playback/ArtifactPlaybackEngine.cppm`、`resampleAudioSegment()`
+- **事実:** channel ごとの短い入力に対して index を clamp しても、補間係数は元の source position から計算されるため、末尾で 1.0 を超える外挿値になり得た。
+- **修正:** source position 自体を channel の有効範囲に clamp してから index と係数を計算する。
+- **価値:** 不均一 channel 長の resample が末尾で過大な外挿サンプルを生成する経路を防ぐ。
+- **未検証:** 実ビルド・テストは未実行。
