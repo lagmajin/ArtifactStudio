@@ -94,6 +94,15 @@
 - 価値・懸念: EQ biquad の NaN 係数・状態汚染を防ぎ、計算後の fallback だけに依存しない。無効値は frequency 1000Hz、gain 0dB、Q 1 の既定値へ寄せた。
 - 次の確認: 明示許可後に、非有限 / 極端な band 設定で係数・state・出力が有限であることを確認する。
 
+### 2026-08-10 — AudioWaveform の解像度・RMS 境界
+
+- 状態: 実装済みの局所防御。大振幅入力での表示スケール・runtime 性能は未検証。
+- 関連: `ArtifactCore/include/Audio/AudioWaveform.ixx`、`ArtifactCore/src/Audio/AudioWaveform.cppm`
+- 事実: `setResolution()` は負値を制限せず、vector resize へ渡していた。RMS 集計は float の二乗和で、非有限 PCM をそのまま加算していた。
+- 閃き・仮説: 解像度の上限を値オブジェクトの setter と process 側の両方で守り、RMS は double で集計すると、UI 設定と malformed PCM の両方から waveform cache を守れる。
+- 価値・懸念: 負の解像度による巨大 allocation、NaN 波形、float accumulator overflow を防ぐ。最大解像度 2^20 は既存の 512 より大きいため、極端な設定のメモリ負荷は別途確認が必要。
+- 次の確認: 明示許可後に、0 / 負値 / 最大値超過の resolution と NaN / 最大値近傍 PCM で、生成長・有限 RMS・処理時間を確認する。
+
 ### 2026-08-10 — Timeline / Property 編集経路の再計算と未利用基盤を改善候補として記録
 
 - 状態: 改善候補・未実装。実行時の呼び出し頻度と効果は未検証。
