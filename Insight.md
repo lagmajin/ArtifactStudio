@@ -9735,3 +9735,10 @@
 - **判断:** `std::min<UINT32>(2u, ...)` として device channel count と同じ型で比較するようにした。
 - **価値/懸念:** WASAPI exclusive open 経路のコンパイル互換性を改善する。channel 数の上限や実際の exclusive format は変更していない。
 - **次に確認:** WASAPI/Qt backend の runtime open は実デバイス依存のため、ビルド・実機確認が必要。
+## 2026-08-10 — AudioRenderer callback needs finite PCM and size-safe output clearing
+
+- **関連:** `ArtifactCore/src/Audio/AudioRenderer.cppm`
+- **事実:** backend callback の buffer/frame/channel 引数は無検査で `memset` の int 掛け算へ入り、ring buffer 由来の非有限 sample は `std::clamp` へ直接渡されていた。
+- **判断:** null/非正 callback 引数を早期終了し、出力 sample 数を `size_t` で計算する。非有限 sample と volume は無音として扱う。
+- **価値/懸念:** 再生出力での範囲外書き込み・NaN PCM の伝播を防ぐ。通常の有限 PCM と volume の挙動は維持する。
+- **次に確認:** callback 呼び出し元が常に有効 buffer を渡すこと、RT thread での sanitization コストが許容範囲かを runtime で確認する。
