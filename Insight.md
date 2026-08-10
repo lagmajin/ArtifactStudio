@@ -10943,3 +10943,12 @@
 - **対応:** Audio seek 成功後に `avformat_flush()` を追加し、既存の state reset と新 seek target 設定の順序を維持する。
 - **価値／懸念:** seek 境界の demuxer／codec reset を video 経路と揃える。FFmpeg backend の runtime 動作は未確認。
 - **次に確認:** ビルド時に前後方向 seek、seek 直後の最初の segment.startFrame、旧 packet 混入の有無を確認する。
+
+## 2026-08-10: AudioCache configuration lock coverage
+
+- **関連:** `ArtifactCore/include/Audio/AudioCache.ixx`, `ArtifactCore/src/Audio/AudioCache.cppm`
+- **事実:** cache entries と prefetch provider は `QReadWriteLock` で保護されるが、max-frame 設定の inline getter／setter は lock 外で `prefetch`／cache 操作と同時アクセスできた。
+- **仮説:** UI／設定側から max-frame 設定を変更しながら background prefetch が走ると、設定値の data race になる可能性がある。未検証。
+- **対応:** getter／setter を実装側へ移し、read／write lock で保護する。
+- **価値／懸念:** cache eviction の既存タイミングと上限値の意味は変更しない。設定変更時に既存 cache の即時 trim は行わない。
+- **次に確認:** ビルド時に prefetch と設定変更を並行させた場合の race／上限値の可視性を確認する。
