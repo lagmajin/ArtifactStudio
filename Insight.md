@@ -10961,3 +10961,12 @@
 - **対応:** 入力と map 成功を確認してから copy／unmap／buffer-update stat を行う。
 - **価値／懸念:** upload 失敗時は stale buffer のまま draw が続く可能性があるが、null dereference は防止する。LayerBlend の constant-buffer layout は変更しない。
 - **次に確認:** ビルド時に正常 map と device／buffer invalidation の upload 経路でクラッシュせず診断できることを確認する。
+
+## 2026-08-10: Bindless batch abort on upload failure
+
+- **関連:** `Artifact/src/Render/DiligentBindlessSubmitter.cppm`
+- **事実:** map failure guard は追加済みでも、呼び出し側は upload 失敗後に buffer-update stat を増やし、flush で draw を続行していた。
+- **仮説:** device／buffer map failure 時に stale vertex／transform data を新しい texture table と組み合わせて描画する可能性がある。未検証。
+- **対応:** upload helper を bool 化し、初回 transform または flush vertex upload が失敗した batch を破棄して draw を中止する。
+- **価値／懸念:** upload 失敗時は該当 sprite batch が落ちるが、stale GPU data の誤描画を避ける。正常 batching と stats は成功時のみ更新する。
+- **次に確認:** ビルド時に正常 batch、transform map failure、vertex map failure の batch state reset と draw count を確認する。
