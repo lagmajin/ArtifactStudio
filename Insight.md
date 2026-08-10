@@ -11033,3 +11033,12 @@
 - **対応:** CurveParams の variable 登録、LUT buffer の CPU write 設定、context／texture／map／resource binding の検証を追加し、HLSL の全 LUT index を 0〜255 に clamp する。
 - **価値／懸念:** GPU curve 適用の resource 契約と LUT 境界を明確化する。通常の 0〜1 入力と既存 LUT 結果は維持する想定だが、GPU 実行は未確認。
 - **次に確認:** ビルド時に masterOnly／channel curves、HDR／負値入力、LUT map failure、正常 dispatch を確認する。
+
+## 2026-08-10: Duotone constant-buffer layout alignment
+
+- **関連:** `ArtifactCore/src/Graphics/Compute/DuotoneComputer.cppm`, `ArtifactCore/include/Graphics/Shader/Compute/HLSL/Duotone.ixx`
+- **事実:** HLSL の DuotoneParams は float4×2 + float + float3 の 48 bytes だが、CPU buffer の確保サイズは 36 bytes だった。さらに HLSL cbuffer の variable 登録が pipeline descriptor に含まれていなかった。
+- **仮説:** constant-buffer binding が成立しない、または GPU が必要な 48 bytes を超えて読み出す可能性がある。未検証。
+- **対応:** CPU 側に 48-byte mirror struct と static_assert を追加し、buffer サイズと cbuffer variable count を HLSL と一致させる。device／context／texture／map／binding 失敗時は dispatch を中止する。
+- **価値／懸念:** Duotone の parameter 転送を明示的に HLSL layout と揃える。GPU 実行結果は未確認。
+- **次に確認:** ビルド時に cbuffer reflection、master／highlight／blend の値転送、map failure、正常 dispatch を確認する。
