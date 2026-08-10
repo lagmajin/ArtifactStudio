@@ -10196,3 +10196,12 @@
 - **対応:** WASAPI は current padding から空き容量を求め、書き込み量を制限し、null 入力は無音化する。PortAudio は入力と型境界を検証し、成功時だけ position を加算する。
 - **価値／懸念:** デバイス API の実バッファ容量と内部 position の整合性を高める。WASAPI の null 入力を無音として扱う仕様は既存 write API の安全なフォールバックである。
 - **次に確認:** 実機またはビルド時に partial write、null 入力、デバイス停止中 write を確認する。
+
+## 2026-08-10: オーディオデバイス open 失敗時の後始末
+
+- **関連:** `Artifact/src/Audio/PortAudioDevice.cppm`, `Artifact/src/Audio/WASAPIDevice.cppm`
+- **事実:** PortAudio は初期化後の default device／device info／stream open 失敗時に terminate されない経路があり、WASAPI は途中失敗時の COM オブジェクトを残し得た。`close()` も未初期化状態で terminate／uninitialize していた。
+- **仮説:** デバイス再 open や連続失敗時に参照カウント、COM 初期化状態、ネイティブハンドルが蓄積する可能性がある。未検証。
+- **対応:** 初期化済みフラグを追加し、再 open 前と途中失敗時に共通 cleanup を実行するようにした。
+- **価値／懸念:** 失敗経路と通常 close の資源管理を一致させる。COM の既存スレッドモデルが `COINIT_MULTITHREADED` と衝突する場合は従来どおり open を拒否する。
+- **次に確認:** 実機またはビルド時に再 open、各初期化段階の失敗、close の二重呼び出しを確認する。
