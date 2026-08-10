@@ -9926,3 +9926,12 @@
 - **判断:** frame deltas are measured with unsigned magnitude, speed is finite/capped, volumeScale falls back to 0.5 when invalid, and latency is clamped to the int range.
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
+
+### 2026-08-10 — AudioBus の入力加算有限性
+
+- 関連: `ArtifactCore/src/Audio/AudioBus.cppm` の `addInput()` / `addSideChain()`。
+- 確認できた事実: 入力とバスのレイアウト・チャンネル数が一致する場合は DownMixer を通らず、`src[i] * localGain` を直接バッファへ加算していた。
+- 修正内容: 入力、乗算結果、加算結果を有限値へ正規化し、NaN は無音、±∞ は float 最大値へ置き換える共通処理を追加した。
+- 未検証の仮説: 巨大な有限ゲインによる float overflow が、同一レイアウト経路で後段の meter や effect state に伝播するケースを抑えられる。
+- 価値／懸念: バス境界で非有限値を止められる一方、極端な値を最大値へ飽和させるため、最終的な音量制御は既存の fader / soft-clip 責務に残る。
+- 次に確認すべきこと: 実機またはオフライン再生で、同一レイアウトの NaN / 大ゲイン入力と side-chain の挙動を確認する。
