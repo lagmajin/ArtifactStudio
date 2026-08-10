@@ -9546,3 +9546,11 @@
 - **修正:** header の channel 数を毎 frame 必ず書き、不足 channel は zero-fill、余分な channel は従来どおり無視する。
 - **価値:** mono/stereo が混在する音声書き出しでも WAV の block alignment と再生時間を維持する。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — AudioSyncTools uneven channel safety
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioWaveform.cppm`、`AudioSyncTools::timeStretch()` / `fadeOut()`
+- **事実:** 両処理が先頭 channel の frame 数を全 channel に適用し、短い channel の読み書きで範囲外アクセスになり得た。
+- **修正:** time-stretch は channel ごとに source index を clamp し、空 channel は zero-fill。fade-out は channel 実長の範囲だけ処理する。
+- **価値:** malformed／部分的な AudioSegment を波形編集処理へ渡しても範囲外アクセスを避ける。
+- **未検証:** 実ビルド・テストは未実行。
