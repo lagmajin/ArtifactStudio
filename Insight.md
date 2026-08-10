@@ -10277,3 +10277,12 @@
 - **対応:** QIODevice の open 失敗時に `audioSink_` を reset し、未使用 sink を保持しないようにした。
 - **価値／懸念:** Qt backend の失敗状態を clean に保つ。QAudioSink 自体の constructor 失敗は既存 API の例外／Qt 実装に委ねる。
 - **次に確認:** ビルド時に unsupported format、QIODevice open failure、backend fallback を確認する。
+
+## 2026-08-10: FFmpeg audio decoder open／seek 境界
+
+- **関連:** `ArtifactCore/src/Codec/FFMpegAudioDecoder.cppm`
+- **事実:** stream info、audio stream 探索、codec context 確保の失敗時に `fmtCtx_` を閉じず return する経路があった。`seek()` は非有限値や負値を timestamp 整数化前に検証していなかった。
+- **仮説:** 壊れた／非対応音声を繰り返し開くと FFmpeg format resource が残り、NaN seek では不正 timestamp が生成される可能性がある。未検証。
+- **対応:** open の各失敗経路で `closeFile()` を呼び、seek は有限かつ 0 以上の秒数だけ受け付ける。
+- **価値／懸念:** decoder の失敗状態を完全に閉じ、timestamp 変換前の入力境界を明確化する。負 seek を 0 に丸める既存利用があれば、呼び出し側で補正が必要になる。
+- **次に確認:** ビルド時に非対応ファイル、open 失敗の反復、NaN／負 seek を確認する。
