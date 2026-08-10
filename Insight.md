@@ -10475,3 +10475,12 @@
 - **対応:** PCM 実フレーム数との小さい方を上限にし、残りフレーム数から chunk 長を計算し、PCM 添字を `qsizetype` で保持する。
 - **価値／懸念:** キャッシュが実際に存在する PCM 範囲を越えず、通常の音声の chunk 内容は変わらない。
 - **次に確認:** ビルド時に短い末尾 chunk、WAV frame 数と payload の不一致、長時間音声の cache 呼び出しを確認する。
+
+## 2026-08-10: ArtifactAudioLayer の audio sample position 境界
+
+- **関連:** `Artifact/src/Layer/ArtifactAudioLayer.cppm`
+- **事実:** `getAudio()` が timeline frame の差分を qint64 で直接計算し、時間から求めた浮動小数の sample position を検査せず qint64 に変換していた。
+- **仮説:** 極端な in/out、start time、または非有限の計算結果で overflow／不正変換が起こり、PCM の範囲外を読む可能性がある。未検証。
+- **対応:** frame 差分と sample position を `long double` で計算し、有限値かつ PCM 範囲内であることを確認してから qint64 の start sample を作る。
+- **価値／懸念:** 異常な timeline 入力を無音の失敗として扱い、通常範囲のリサンプリング結果は変えない。
+- **次に確認:** ビルド時に負の local frame、巨大な frame 差分、末尾 sample 近傍を確認する。
