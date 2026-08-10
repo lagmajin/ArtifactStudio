@@ -10457,3 +10457,12 @@
 - **対応:** 停止時に frame／時刻／速度を初期化し、volume 計算にも active 状態を要求する。
 - **価値／懸念:** 停止中の scrub 状態をゼロへ戻す。latency の計測値は診断用履歴として保持する。
 - **次に確認:** ビルド時に start→update→stop、stop 中の volume/speed、再 start を確認する。
+
+## 2026-08-10: Scrub composition 切替時の旧音声破棄
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioScrubController.cppm`
+- **事実:** active scrub 中の `setComposition()` が composition pointer だけを置き換え、旧 buffer と pending frame を維持していた。
+- **仮説:** composition 切替直後に旧 composition の音声が鳴る、または pending frame が新 composition へ意図せず適用される可能性がある。未検証。
+- **対応:** active 中の composition 切替では先に `stopScrub()` を呼び、debounce・pending frame・renderer buffer を破棄する。
+- **価値／懸念:** composition 境界をまたぐ stale audio を防ぐ。切替中の scrub は停止状態から再開が必要になる。
+- **次に確認:** ビルド時に active scrub 中の composition 差し替えと再 start を確認する。
