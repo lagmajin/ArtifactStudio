@@ -11132,3 +11132,12 @@
 - **対応:** 両 pipeline に `Constants` の dynamic variable を追加し、SRB 作成後の dispatch で cbuffer と UAV／SRV を一括 binding、失敗時は no-op にする。
 - **価値／懸念:** simulation parameter の CPU→HLSL 契約を resource view と同じ実行時経路へ揃える。GPU simulation 結果は未確認。
 - **次に確認:** ビルド時に Boids／Particle の constants reflection、agent／particle count、dt、audio spectrum、Map／binding failure、正常 dispatch を確認する。
+
+## 2026-08-10: LayerBlend BlendParams SRB-order alignment
+
+- **関連:** `ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`, `ArtifactCore/include/Graphics/Shader/Compute/LayerBlendComputeShader.ixx`
+- **事実:** Blend／Channel Display の HLSL は `BlendParams` cbuffer を参照していたが、CPU の descriptor に cbuffer 名がなく、初期化中に SRB 作成前の `setBuffer()` を行っていた。実行時には texture view だけを binding していた。
+- **仮説:** blend mode、opacity、display component が SRB／backend によって未 binding または stale 値のまま dispatch される可能性がある。未検証。
+- **対応:** Blend／Channel Display の variable descriptor に dynamic `BlendParams` を追加し、初期化前 binding を除去、display／blend 実行時に cbuffer と texture を一括 binding する。
+- **価値／懸念:** LayerBlend の 32-byte cbuffer layout と SRB lifecycle を一致させる。GPU blending の実結果は未確認。
+- **次に確認:** ビルド時に BlendParams reflection、opacity／blend mode、channel display、Map／binding failure、正常 blend dispatch を確認する。
