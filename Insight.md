@@ -11267,3 +11267,12 @@
 - **対応:** 各 process で width と height が正値であることを count 計算前に確認する。
 - **価値／懸念:** 同じframe dimension contractをCreative Effect群へ拡張する。異常寸法を生成する上流経路と通常処理は未確認。
 - **次に確認:** 各effectのzero／negative dimensions、通常frame、resize後処理を確認する。
+
+## 2026-08-10: Volume resolution cell-count overflow guard
+
+- **関連:** `ArtifactCore/include/Render/VolumeRenderer.ixx`
+- **事実:** `VolumeResolution::cellCount()` は正値の width／height／depth を直接3軸積算し、size_t overflowを検出していなかった。
+- **仮説:** 大きな有効寸法でcell countがwrapし、volume bufferの容量計算や後続indexingを誤らせる可能性がある。未検証。
+- **対応:** width×height、続く×depthの各段階で上限を確認し、表現不能なcountは0を返す。
+- **価値／懸念:** volume allocation前の容量契約を安全にする。実際の最大解像度制約とGPU側の上限は未確認。
+- **次に確認:** 通常解像度、軸ごとの上限付近、overflowする解像度、cellCount利用側の0扱いを確認する。
