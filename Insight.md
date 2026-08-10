@@ -11276,3 +11276,12 @@
 - **対応:** width×height、続く×depthの各段階で上限を確認し、表現不能なcountは0を返す。
 - **価値／懸念:** volume allocation前の容量契約を安全にする。実際の最大解像度制約とGPU側の上限は未確認。
 - **次に確認:** 通常解像度、軸ごとの上限付近、overflowする解像度、cellCount利用側の0扱いを確認する。
+
+## 2026-08-10: Volume post-process image storage guard
+
+- **関連:** `ArtifactCore/src/Render/VolumePostProcess.cppm`, `ArtifactCore/include/Render/ImageBuffer.ixx`
+- **事実:** `VolumePostProcessor::process()` は公開mutableな ImageBuffer の width／height と pixel storage の整合性を確認せず、各post-processへ進んでいた。
+- **仮説:** 寸法だけ変更された、または短いpixel vectorを持つImageBufferが渡ると、row／pixel offsetの参照が範囲外になる可能性がある。未検証。
+- **対応:** process入口で `imagePixelBytes()` による必要バイト数を確認し、不正または空の画像をno-opにする。
+- **価値／懸念:** bloom／glare／denoise／gamma全経路の共通入力契約を一箇所で守る。ImageBuffer生成元の整合性は未確認。
+- **次に確認:** empty image、短いpixel storage、通常ImageBuffer、各post-process設定の実行を確認する。
