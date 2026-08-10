@@ -11231,3 +11231,12 @@
 - **対応:** 行列変換 helper を null-safe にし、prepare の入口で context 不在時に return する。
 - **価値／懸念:** MeshRenderer の公開入力とGPU実行境界をクラッシュしない失敗経路にする。行列内容の有限値検証、map failure 後の stale state は別確認が必要。
 - **次に確認:** null／正常行列、prepare(nullptr)、GPU再初期化後の prepare、通常描画を確認する。
+
+## 2026-08-10: Mesh renderer upload context guards
+
+- **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cppm`
+- **事実:** `updateMeshGeometry()` と `updateInstanceData()` は CPU入力とGPU bufferだけを確認し、`context_.DeviceContext()` の nullを確認せず `UpdateBuffer()` を呼んでいた。
+- **仮説:** GPU context の再初期化中や未接続状態で geometry／instance 更新が呼ばれると、null context dereference になる可能性がある。未検証。
+- **対応:** 両APIで device context の有無を確認し、warningを記録して更新を中断する。
+- **価値／懸念:** GPU更新境界の失敗をクラッシュにせず、既存GPUデータを保持する。再試行時の呼び出し順序は未検証。
+- **次に確認:** null context、正常 upload、geometryのみ／instanceのみ更新、context再初期化後の再試行を確認する。
