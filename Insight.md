@@ -9652,3 +9652,9 @@
 - **修正:** rate と target frame 数を検証し、invalid sample rate は既定 tempo を返し、target dB を有限・実用範囲へ制限した。
 - **価値:** malformed audio metadata／sync parameter による無限ループ、巨大確保、NaN 音声を防ぐ。
 - **未検証:** ビルド・テストは未実行。
+### 2026-08-10 — Core DSP helper の delay／phase 境界
+- **関連:** `ArtifactCore/include/Audio/DSP/DelayLine.ixx`、`LFO.ixx`、`AllPassFilter.ixx`
+- **事実:** DelayLine は invalid delay を int index 化し、LFO は invalid sample rate／frequency で phase を壊し得た。AllPassFilter は invalid delay／feedback をそのまま使用していた。
+- **修正:** delay／rate／feedback を有限値・有効範囲へ正規化し、過大 buffer 要求を拒否、LFO phase を周期内へ折り返すようにした。
+- **価値:** 低レベル DSP から NaN、範囲外 index、異常な buffer 確保が上位 effect へ伝播するのを防ぐ。
+- **未検証:** ビルド・テストは未実行。
