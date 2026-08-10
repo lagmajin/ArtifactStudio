@@ -11310,3 +11310,10 @@
 - **対応:** 両レンダラーの入口で正の寸法を要求し、無効入力では空の結果または no-op とした。
 - **価値:** viewport の不正設定、ゼロ除算、負の dispatch／ループ範囲を防止する。
 - **次の確認:** 正常な正寸法での CPU/GPU レンダリングと、無効寸法での API 契約をビルド環境で検証する（未実施）。
+## 2026-08-10: GPU ray tracer output allocation guard
+
+- **事実:** `GPURayTracer::prepareOutputTexture()` は texture または UAV の生成に失敗しても呼び出し元へ戻り、`renderGPU()` はそのまま ray dispatch と `CopyTexture` を実行していた。
+- **仮説:** GPU メモリ不足、無効なデバイス状態、または一時的なリソース作成失敗時に null リソースが後段へ伝播し得る。
+- **対応:** 出力 texture と UAV の両方が有効であることを確認してから dispatch するようにした。
+- **価値:** GPU リソース生成失敗を安全に no-op 化し、後段 API への不正なリソース渡しを防ぐ。
+- **次の確認:** 正常な出力生成、生成失敗時のフォールバック方針、GPU readback の runtime 挙動をビルド環境で検証する（未実施）。
