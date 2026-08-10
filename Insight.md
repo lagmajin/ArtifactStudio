@@ -121,6 +121,15 @@
 - 価値・懸念: NaN state の蓄積と overflow した delay output の伝播を抑える。±∞ は最大有限値へ、NaN は無音へ寄せるため、極端値の音量は別途確認が必要。
 - 次の確認: 明示許可後に、NaN / ±∞ / 極端 feedback・mix・delay と最大 PCM を複数 block へ通し、buffer と出力が有限であることを確認する。
 
+### 2026-08-10 — Audio backend の PCM→device 変換境界
+
+- 状態: 実装済みの局所防御。実 hardware callback と各 sample format の runtime 検証は未実施。
+- 関連: `ArtifactCore/src/Audio/WASAPIBackend.cppm`、`ArtifactCore/src/Audio/QtAudioBackend.cppm`、`ArtifactCore/src/Audio/AudioRenderer.cppm`
+- 事実: WASAPI / QtAudio の int16 変換は callback の float を `std::clamp` して `lround` していた。callback 契約外から NaN が入ると clamp 結果をそのまま整数変換へ渡し得た。renderer の dB helper も NaN を明示処理していなかった。
+- 閃き・仮説: backend の最終 sample format 変換で非有限値を無音へ落とすと、上流 callback の実装差や将来の経路追加に対して device boundary を自己完結させられる。
+- 価値・懸念: NaN の `lround` 伝播と異常 meter 値を抑える。非有限入力を無音とするため、異常発生箇所の診断ログは別途必要になり得る。
+- 次の確認: 明示許可後に、float / int16 backend へ NaN / ±∞ / ±1超過サンプルを渡し、出力・meter・callback 継続性を確認する。
+
 ### 2026-08-10 — Timeline / Property 編集経路の再計算と未利用基盤を改善候補として記録
 
 - 状態: 改善候補・未実装。実行時の呼び出し頻度と効果は未検証。
