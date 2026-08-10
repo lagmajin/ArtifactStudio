@@ -10898,3 +10898,12 @@
 - **対応:** enqueue 前に renderer の実 sample rate へ線形 resample する。scrub の source frame／速度計算は変更しない。
 - **価値／懸念:** Preview／Playback／Scrub の output-rate 契約を揃える。短い scrub segment で線形補間の CPU コストが増えるが、既存の PlaybackEngine と同じ方式である。
 - **次に確認:** ビルド時に device fallback と scrub drag の音程、segment 継続時間、buffered frame 数を確認する。
+
+## 2026-08-10: Playback EOS silence output-rate alignment
+
+- **関連:** `Artifact/src/Playback/ArtifactPlaybackEngine.cppm`
+- **事実:** 通常の playback segment は renderer 実 sample rate へ変換するが、EOS 補填 silence は `audioSampleRate_` を設定していた。silence frame 数は renderer buffer の残量から計算される。
+- **仮説:** device fallback 時に末尾 silence の実時間がずれ、EOS 直前の停止タイミングが不安定になる可能性がある。未検証。
+- **対応:** silence の sample rate を renderer 実 rate 優先に変更し、未オープン等で rate が取れない場合だけ従来値へ fallback する。
+- **価値／懸念:** EOS 補填だけを output-rate 契約へ揃え、通常 playback の cursor／source rate は変更しない。
+- **次に確認:** ビルド時に 44.1kHz／48kHz fallback と EOS silence の実時間、停止タイミングを確認する。
