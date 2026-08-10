@@ -9707,3 +9707,10 @@
 - **判断:** frame 数を `QVector` の最大 `int` サイズ以内に限定し、frame rate に有限値チェックを追加した。
 - **価値/懸念:** 巨大な WAV や不正な解析パラメータでの不正サイズ化を防ぐ。通常サイズの lip-sync 解析とイベント形式は変更していない。
 - **次に確認:** 長時間音声を扱う場合は、必要なら chunked lip-sync analysis を別設計として検討する。
+## 2026-08-10 — Formant analysis needs bounded frequency and frame conversions
+
+- **関連:** `ArtifactCore/src/Audio/FormantExtractor.cppm`
+- **事実:** frequency/bin の直接 `float`→`int` 変換と、`sampleRate / frameRate` の直接 `double`→`int` 変換があり、極端な値で範囲外変換の余地があった。閾値 setter も非有限・逆順の範囲を受け入れていた。
+- **判断:** bin をスペクトル範囲へ clamp し、解析フレーム幅を finite/`int` 範囲内で検査し、無効な閾値更新を無視するようにした。
+- **価値/懸念:** 通常のフォルマント解析を維持しながら、極端な解析設定による未定義な整数変換を避ける。
+- **次に確認:** 長時間・低 frame-rate の lip-sync 解析は chunk 単位の設計が必要かを別途確認する。
