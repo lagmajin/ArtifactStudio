@@ -11060,3 +11060,12 @@
 - **対応:** HLSL を `float4 + int4 + float4` の 48-byte layout に明示化し、CPU mirror struct と `static_assert` を追加する。dynamic cbuffer binding、Map／texture／サイズ検証も追加した。
 - **価値／懸念:** Halftone の CPU→HLSL parameter 契約を packing 規則から切り離す。GPU shader reflection と実画面結果は未確認。
 - **次に確認:** ビルド時に cbuffer reflection、mono／color／CMYK 各 mode、異なる dot shape、Map／binding failure、input/output サイズ不一致を確認する。
+
+## 2026-08-10: LUT3D resource failure propagation
+
+- **関連:** `ArtifactCore/src/Graphics/Compute/LUT3DComputer.cppm`
+- **事実:** LUT3D の cbuffer layout と variable 登録は既に一致していたが、`apply()` は null context／texture、Map failure、resource binding failure の後も dispatch し得た。LUT upload の CreateTexture／default SRV failure 後も状態を明示的に落としていなかった。
+- **仮説:** stale な LUT view や未更新の constant buffer を使った dispatch、サイズ不一致による入力範囲外参照が起こる可能性がある。未検証。
+- **対応:** upload 成功時だけ LUT／SRV を保持し、apply の context／texture／サイズ／Map／binding を検証して失敗時は no-op にする。
+- **価値／懸念:** LUT の resource lifetime と dispatch 前提を明確化する。GPU 実行結果と backend ごとの CreateTexture failure は未確認。
+- **次に確認:** ビルド時に LUT size 2／256、upload failure、SRV failure、domain 設定、input/output サイズ不一致、正常 trilinear dispatch を確認する。
