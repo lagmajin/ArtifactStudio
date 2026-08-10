@@ -9298,3 +9298,11 @@
 - **修正:** `BlendParams` / `MatteTrackParams` の bind 成功を executor 初期化の条件にし、失敗した blend mode は登録せず、MatteTrack は初期化失敗として扱う。
 - **価値:** opacity や matte パラメータが未 bind のまま dispatch される遅延不具合を、初期化境界で検出できる。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — MatteTrack の入力 texture 寸法・alias 境界
+
+- **関連:** `ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`、`applyTrackMatte()`、`ArtifactCore/include/Graphics/Shader/Compute/HLSL/MatteTrack.ixx`
+- **事実:** MatteTrack shader は全入力を同じ dispatch 座標で読み、出力寸法だけで bounds check するが、CPU 側は非ゼロ寸法しか検証していなかった。
+- **修正:** layer/matte/output texture の実寸法を要求寸法と一致させ、output と入力の alias を拒否する。
+- **価値:** 入力不足による範囲外 read と read/write 同一 resource の不定動作を dispatch 前に防げる。
+- **未検証:** 実ビルド・テストは未実行。
