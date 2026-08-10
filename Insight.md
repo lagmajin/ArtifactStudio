@@ -10772,3 +10772,12 @@
 - **対応:** `clearInput()` 内で sample rate を正値、それ以外は 44100 に補正して両 buffer に設定する。
 - **価値／懸念:** 正常な sample rate の挙動は変更せず、無効入力だけを既定値へ戻す。
 - **次に確認:** ビルド時に 0／負値／通常値で main／side-chain buffer metadata を確認する。
+
+## 2026-08-10: AudioDownMixer Custom10ch output branch
+
+- **関連:** `ArtifactCore/src/Audio/AudioDownMixer.cppm`
+- **事実:** `process()` は Stereo／Mono／5.1／7.1 の target 分岐しか持たず、`Custom10ch` target で source shape が不一致の場合、channelData が空の output を返していた。
+- **仮説:** 10ch bus へ異形 source を入力すると、音声が全チャンネル無音になり得る。未検証。
+- **対応:** `Custom10ch` target 用に10ch zero-fill outputを作り、source に存在するチャンネルと frame だけを有限値付きでコピーする。
+- **価値／懸念:** 正常な10ch shapeの fast path は変更しない。未存在チャンネルは無音とする。
+- **次に確認:** ビルド時に mono／stereo／5.1／7.1／10ch source を Custom10ch target へ変換するケースを確認する。
