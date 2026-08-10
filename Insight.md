@@ -8790,3 +8790,415 @@
 - **修正:** メンバー宣言に必要な Qt ヘッダをインターフェースへ追加した。
 - **価値:** 他のモジュール経由の偶然の可視性に依存せず、MarkerEditDialog の公開宣言を単独で解析できる。
 - **未検証:** ArtifactPr のモジュールスキャンとビルドは未実行。
+### 2026-08-10 — ArtifactPr ExportDialog の画像形式変更時拡張子を置換
+
+- **関連:** `ArtifactPr/src/ExportDialog.cppm`、形式コンボボックスの更新処理
+- **事実:** PNG／JPEG 選択時、既存拡張子があっても新しい拡張子を単純追加していたため、`output.mp4.png` のようなパスになり得た。
+- **修正:** PNG／JPEG の画像シーケンスに限り、パス末尾の既存拡張子を選択形式の拡張子へ置換するようにした。ディレクトリ名中のドットは拡張子判定から除外する。WAV／MP3 分岐は変更していない。
+- **価値:** 形式変更時に出力先が予測可能になり、手動で拡張子を直す必要を減らす。
+- **未検証:** Windows／UNCパスと形式変更の runtime 表示は未確認。
+### 2026-08-10 — ArtifactPr project save の既存ファイル削除先行を解消
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`EditorEngine::saveProject()`
+- **事実:** 旧保存処理は temp ファイルへ書いた後、既存の最終ファイルを `remove()` してから rename していた。rename に失敗すると元プロジェクトも失われ得る。
+- **修正:** `QSaveFile` の write／commit 経路へ置き換え、既存ファイルを先に削除しないようにした。payload の書き込みサイズも確認する。
+- **価値:** 保存失敗時に既存プロジェクトを残しやすくなり、コメントと実装の atomic save 契約が一致する。
+- **未検証:** Windows 上の commit、権限不足、ディスク満杯、既存ファイルの復元動作は未確認。
+### 2026-08-10 — ArtifactPr project load の stale sequence と JSON形状を防止
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`EditorEngine::loadProject()`
+- **事実:** JSON が object であることを確認せず、active sequence ID が見つからない場合は `currentSequence_` を更新していなかったため、直前プロジェクトのシーケンスが残る余地があった。
+- **修正:** JSON parse error と root object 形状を分けて検証し、読込前に current sequence を初期化した。active sequence が不在でも先頭 sequence を選び、sequence が空なら空状態を維持する。out point も非負化した。
+- **価値:** プロジェクト切替時の stale UI／再生範囲を減らし、壊れた JSON を読み込んだ後の状態遷移を明確にする。
+- **未検証:** 空 sequence、active ID 欠損、旧形式 JSON の runtime 復元は未確認。
+### 2026-08-10 — ArtifactPr TransportBar のタイムコード fps 固定を解消
+
+- **関連:** `ArtifactPr/src/TransportBarWidget.cppm`、`TransportBarWidget::updateTimecode()`
+- **事実:** タイムコード表示は常に30fpsで frame／秒を計算していたが、`DemoSequence::frameRate` にはシーケンス固有の fps が保持されている。
+- **修正:** sequence の frameRate 文字列を安全に数値化し、無効値だけ30fpsへ fallback する共通ヘルパーを使うようにした。
+- **価値:** 24／25／60fps のシーケンスでもタイムコード表示が実際の編集基準に一致する。
+- **未検証:** 小数 fps（29.97等）の drop-frame 表示と runtime 表示は未確認。
+### 2026-08-10 — ArtifactPr MainWindow の fps 固定表示を TransportBar と同期
+
+- **関連:** `ArtifactPr/src/ArtifactPrMainWindow.cppm`、`ProgramMonitorPanel`、`TimelineRulerWidget`
+- **事実:** Program Monitor のタイムコードと Timeline Ruler の目盛り・秒ラベルが30fps固定で、sequence の `frameRate` を参照していなかった。
+- **修正:** sequence frameRate の安全な数値化を追加し、Program Monitor と Ruler の両方へ適用した。Ruler は sequence 更新時に fps を受け取る。
+- **価値:** TransportBar、Program Monitor、Timeline Ruler が同じフレーム基準になり、非30fps sequence の時間表示の食い違いを減らす。
+- **未検証:** 29.97fps の drop-frame 規則、sequence 切替直後の runtime 再描画は未確認。
+### 2026-08-10 — ArtifactPr TimecodeOverlay の sequence fps 同期漏れを解消
+
+- **関連:** `ArtifactPr/src/ArtifactPrMainWindow.cppm`、`TimecodeOverlayWidget`
+- **事実:** オーバーレイは生成時に30fpsを固定設定し、sequenceChanged 後の fps 更新経路がなかった。
+- **修正:** 初期値を現在 sequence から設定し、既存の sequenceChanged 接続内で同じ frameRate 契約を再適用するようにした。
+- **価値:** TransportBar、Program Monitor、Timeline Ruler、右上 overlay のタイムコード基準が揃う。
+- **未検証:** sequence 切替中の overlay 再描画と小数 fps の drop-frame 表示は未確認。
+### 2026-08-10 — ArtifactPr VideoSurface の signal snapshot 読み出しを mutex 内へ移動
+
+- **関連:** `ArtifactPr/src/VideoSurface.cppm`、`PrVideoSurface::present()`
+- **事実:** 最新画像を mutex 保護下で更新した後、ロック解除後に `latestImage_` を signal payload へコピーしていた。次 frame の更新と同時に読む余地があった。
+- **修正:** signal 用の QImage コピーを mutex 保護下で作り、解除後はそのコピーだけを payload へ移動するようにした。
+- **価値:** video preview の latest-wins handoff で共有状態の競合窓を狭め、通知 payload と PTS の対応を安定させる。
+- **未検証:** 実際の QVideoFrame スレッド境界と high-FPS の runtime 挙動は未確認。
+### 2026-08-10 — ArtifactPr VideoPlayer の無効パス表示を placeholder へ戻す
+
+- **関連:** `ArtifactPr/src/VideoPlayerWidget.cppm`、`VideoPlayerWidget::loadFile()`
+- **事実:** 空パスや存在しないパスでも `QMediaPlayer::setSource()` と canvas 表示へ進み、読み込み失敗時の入口状態が不明瞭になっていた。
+- **修正:** ローカルファイルの存在・通常ファイル判定を先に行い、無効な場合は再生停止と placeholder 表示へ戻すようにした。
+- **価値:** Import／Project から不正な media path が渡っても、黒い canvas へ遷移せず利用者に未読み込み状態を示せる。
+- **未検証:** ファイル権限、ネットワーク URL、QMediaPlayer の非同期エラー表示は未確認。
+### 2026-08-10 — ArtifactPr ProjectPanel の sequence 行 ID を実データへ同期
+
+- **関連:** `ArtifactPr/src/ProjectPanel.cppm`、`ProjectPanel::refreshProjectTree()`
+- **事実:** sequence tree item の `Qt::UserRole` は常に整数 `0` で、表示中の `DemoSequence` と識別情報が一致していなかった。
+- **修正:** `seq.id` を user data に格納するようにした。既存の tree 構造やイベント配線は変更していない。
+- **価値:** 将来の選択・ナビゲーションが表示名ではなく sequence ID で対象を特定でき、同名 sequence にも対応できる。
+- **未検証:** ProjectPanel の実クリック選択導線は今回の範囲外で、runtime 接続は未確認。
+### 2026-08-10 — ArtifactPr Source／Program Monitor の sequence 切替契約を補正
+
+- **関連:** `ArtifactPr/src/ArtifactPrMainWindow.cppm`、`SourceMonitorPanel`、`ProgramMonitorPanel`
+- **事実:** Source Monitor の In／Out frame 変換は33ms固定で、Program Monitor の sequenceChanged handler は空実装だったため、非30fpsで範囲がずれ、sequence切替後に旧 preview が残る余地があった。
+- **修正:** In／Out を sequence fps から `positionMs * fps / 1000` で算出し、sequence切替時は preview を停止・placeholderへ戻し、timecodeをゼロへ戻すようにした。
+- **価値:** 24／25／60fps sequence の編集範囲が正しくなり、sequence切替時の古い video preview 混入を防ぐ。
+- **未検証:** 小数 fps、sequence 切替中の非同期 frame 到着、実機の In／Out 表示は未確認。
+### 2026-08-10 — ArtifactPr clip paste／trim の負 frame を防止
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`EditorEngine::pasteClip()`／`trimClip()`
+- **事実:** paste は負の target を current frame へ補正していたが、補正前の値を new clip へ代入していた。trim は負の newStart をそのまま保持できた。
+- **修正:** paste の補正を new clip 作成前へ移動し、trim の newStart も0以上へ clampした。
+- **価値:** clip が負の timeline frame に配置されず、paste と trim の編集範囲契約が move／seek と揃う。
+- **未検証:** clip duration超過、source range境界、NLE store経路の runtime 編集は未確認。
+### 2026-08-10 — ArtifactPr thumbnail request key に seek／サイズを含める
+
+- **関連:** `ArtifactPr/include/MediaThumbnailer.ixx`、`ArtifactPr/src/MediaThumbnailer.cppm`、`ArtifactPr/src/ArtifactPrMainWindow.cppm`
+- **事実:** thumbnail queue の重複判定と cache lookup が filePath だけをキーにしていたため、Source Monitor の5つの seek 時刻要求が1件に統合され、同じ画像を複数 slotへ誤配置する余地があった。
+- **修正:** path、target size、seek 時刻から request key を作り、queue／cache をそのキーで分離した。生成結果にも seek 時刻を保持し、Source Monitor は対応 slotへ戻す。
+- **価値:** 複数時刻の filmstrip がそれぞれ生成・表示され、異なるサイズ要求の cache 衝突も避けられる。
+- **未検証:** 同一 path の大量要求、cache clear と到着順、実動画の seek 精度は未確認。
+### 2026-08-10 — ArtifactPr timeline second snap を sequence fps へ同期
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`EditorEngine::snapToNearestEx()`
+- **事実:** 1秒単位の snap が30fps固定で、sequence の frameRate を参照していなかった。
+- **修正:** 保存済みの frameRate を安全に数値化し、秒境界の snap 間隔へ適用した。無効値は30fpsへ fallback する。
+- **価値:** 24／25／60fps sequence のクリップ・マーカー操作で、秒単位 snap が実時間の境界と一致する。
+- **未検証:** 小数 fps の snap 境界と threshold 端の runtime 操作は未確認。
+### 2026-08-10 — ArtifactPr setCurrentSequence の保存・通知同期を補正
+
+- **関連:** `ArtifactPr/include/ArtifactPrEditorEngine.ixx`、`EditorEngine::setCurrentSequence()`、Timeline transition 編集
+- **事実:** setter は `currentSequence_` だけを書き換えており、`currentProject_.sequences` の保存対象と `sequenceChanged`／`projectModified` 通知を更新していなかった。
+- **修正:** 同一 sequence ID の project snapshot を更新し、既存の sequence／project modified signal を setter から発行するようにした。
+- **価値:** Transition の直接編集が画面だけでなく保存状態にも反映され、Program Monitor／Timeline／Project の更新経路が揃う。
+- **未検証:** setter 呼び出し元の重複 refresh／signal 回数と project save の runtime round-trip は未確認。
+### 2026-08-10 — ArtifactPr playback tick interval を sequence fps へ同期
+
+- **関連:** `ArtifactPr/src/TransportBarWidget.cppm`、`TransportBarWidget::onPlayClicked()`
+- **事実:** frame／timecode は sequence fps を参照するようになった一方、再生 timer は33ms固定で30fps相当だった。
+- **修正:** sequence fps から `1000 / fps` の tick interval を計算し、最低1msで timer を開始するようにした。
+- **価値:** 24／25／60fps sequence の再生 tick と frame進行の基準が一致する。
+- **未検証:** 高fps、整数ms丸め、再生速度変更中の runtime frame pacing は未確認。
+### 2026-08-10 — ArtifactPr pause tick の1フレーム進行を防止
+
+- **関連:** `ArtifactPr/src/TransportBarWidget.cppm`、`TransportBarWidget::onPlaybackTick()`
+- **事実:** `PlaybackSpeed::Pause` は `isPlaying()` では停止状態だが、timer が外部操作後も残った場合、既定分岐が1フレーム進行させる余地があった。
+- **修正:** Stop／Pause を先に判定して timer を停止し、frame を変更せず return するようにした。
+- **価値:** pause 操作が再生 tick の残留によって意図せず seek されることを防ぐ。
+- **未検証:** 外部 pause signal と timer timeout の同時到着順は未確認。
+### 2026-08-10 — ArtifactPr setCurrentFrame の範囲契約を seekToFrame と統一
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`EditorEngine::setCurrentFrame()`／`seekToFrame()`
+- **事実:** `seekToFrame()` は0〜durationへ clamp していたが、公開 setter は負値やduration超過をそのまま保持していた。
+- **修正:** setter でも同じ範囲へ clamp し、signal には実際に適用した frame を渡すようにした。
+- **価値:** playback、timeline、外部操作の current frame が常に sequence 範囲内になり、負の timecode や範囲外描画を防ぐ。
+- **未検証:** durationが負／空sequenceの setter 呼び出しと runtime UI 表示は未確認。
+### 2026-08-10 — ArtifactPr Lift／Insert edit command の復元とID生成を修正
+
+- **関連:** `ArtifactPr/src/EditCommand.cppm`、`LiftEditCommand::doLift()`、`InsertEditCommand::doInsert()`
+- **事実:** Lift undo の predicate が `c.id == c.id` で常に真になり、復元したclipを含む全clipを削除し得た。Insert は `QObject::sender()` の真偽だけを文字列化しており、一意な挿入IDを生成していなかった。
+- **修正:** Lift undo は保存済みの元配列を丸ごと復元し、Insert は専用カウンタでIDを生成するようにした。
+- **価値:** video timeline の Lift undo が他clipを壊さず、Insert/Undo対象を識別できる。
+- **未検証:** 複数回の Insert／Lift undo-redo、既存 project のID衝突、runtime操作は未確認。
+### 2026-08-10 — ArtifactPr NLE edit command の初回適用と挿入IDを修正
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`ArtifactPr/include/EditCommand.ixx`、`ArtifactPr/src/EditCommand.cppm`
+- **事実:** `pushUndo()` は command を登録するだけなのに、Slip／Slide／Ripple／Insert／Overwrite／Lift の初回呼び出し側は `redo()` を実行していなかった。Insert／Overwrite の undo は source clip ID を探しており、挿入された新IDを追跡できなかった。
+- **修正:** 各編集操作で初回 `redo()` を実行してから stack へ登録し、Insert／Overwrite に永続する inserted ID を持たせて undo／redo 対象を一致させた。
+- **価値:** NLE編集操作が初回から実データへ反映され、undo／redoで元clipや別clipを誤操作しにくくなる。
+- **未検証:** 6操作の組合せ、NLE store経路との parity、複数回 undo／redo は runtime 未確認。
+### 2026-08-10 — ArtifactPr Ripple／Insert edit の sequence duration 同期を補正
+
+- **関連:** `ArtifactPr/src/EditCommand.cppm`、`RippleDeleteCommand::doRipple()`、`InsertEditCommand::doInsert()`
+- **事実:** 両 command は old/new duration を保持していたが、実行時に `DemoSequence::duration` を更新していなかった。
+- **修正:** 初回適用・undo・redoの各経路で sequence snapshot の duration を切り替え、`setCurrentSequence()` へ渡すようにした。
+- **価値:** timeline の clip構造と sequence終端、再生範囲、保存対象の duration が一致する。
+- **未検証:** Insert／Ripple の連続操作と NLE store同期は runtime 未確認。
+### 2026-08-10 — ArtifactPr TimecodeOverlay の fps setter を正規化
+
+- **関連:** `ArtifactPr/include/TimecodeOverlayWidget.ixx`、`TimecodeOverlayWidget::setFps()`
+- **事実:** setter は0以下の fps を保持し、描画時の `frameToTimecode()` だけが30fpsへ fallback していた。
+- **修正:** setter で最低1fpsへ clamp し、保持値と描画値の契約を一致させた。
+- **価値:** sequence変更や外部UI設定から無効fpsが渡っても、表示状態が暗黙に別値へ変わらない。
+- **未検証:** 0以下fpsを直接設定する runtime 呼び出しと overlay 再描画は未確認。
+### 2026-08-10 — ArtifactPr MediaThumbnailer に要求完全一致の cache API を追加
+
+- **関連:** `ArtifactPr/include/MediaThumbnailer.ixx`、`ArtifactPr/src/MediaThumbnailer.cppm`
+- **事実:** cache key を seek／サイズ単位へ細分化した後も、公開 `cached(filePath)` は複数 variant のうち任意の1件を返す曖昧さが残った。
+- **修正:** 既存の filePath 版を互換維持しつつ、`ThumbnailRequest` の path／サイズ／seek に完全一致する overload を追加した。
+- **価値:** 呼び出し側が意図した thumbnail variant を同期取得でき、cache key 契約をAPIから明示的に利用できる。
+- **未検証:** 新 overload の外部利用と variant 別 cache hit の runtime 挙動は未確認。
+### 2026-08-10 — ArtifactPr TimecodeOverlay の負 frame 入力を拒否
+
+- **関連:** `ArtifactPr/src/TimecodeOverlayWidget.cppm`、`TimecodeOverlayWidget::setCurrentFrame()`
+- **事実:** EditorEngine 側は current frame を0以上へ clampするが、overlay の公開 setter は負値をそのまま保持できた。
+- **修正:** overlay setter でも0未満を0へ正規化してから更新するようにした。
+- **価値:** 外部UIや将来の別再生経路から負 frame が渡っても、負の timecode 表示を防げる。
+- **未検証:** 負 frame の直接 runtime 呼び出しと overlay 描画は未確認。
+### 2026-08-10 — ArtifactPr sequence 差し替え時の時間範囲を clamp
+
+- **関連:** `ArtifactPr/include/ArtifactPrEditorEngine.ixx`、`EditorEngine::setCurrentSequence()`
+- **事実:** sequence の保存・通知は同期したが、duration が変わる差し替え時に current frame／In／Out が旧 duration を超える可能性が残っていた。
+- **修正:** sequence 更新後に current frame、In、Out を0〜新 durationへ clampし、current frame が変わった場合は既存 signal を発行する。
+- **価値:** sequence切替・編集後に再生位置と作業範囲が存在しない frame を指さなくなる。
+- **未検証:** In > Out の既存状態、空 sequence の runtime 表示は未確認。
+### 2026-08-10 — ArtifactPr legacy trim の undo 契約を補正
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`ArtifactPr/include/ArtifactPrEditorEngine.ixx`、`TrimClipCommand`
+- **事実:** legacy fallback の trim は clip の start／duration／source 範囲を直接変更していたが、undo stack へ登録しておらず、既存 command も source 範囲を保持していなかった。
+- **修正:** TrimClipCommand に旧新の sourceIn／sourceOut を持たせ、fallback trim を初回 redo 後に pushUndo する経路へ統一した。
+- **価値:** NLE store を使わない legacy clip でも、trim の表示状態と source 範囲を一体で undo／redo できる。
+- **未検証:** runtime の trim → undo → redo と、NLE store 経路との挙動比較は未確認。
+### 2026-08-10 — ArtifactPr thumbnail cache の世代境界を追加
+
+- **関連:** `ArtifactPr/include/MediaThumbnailer.ixx`、`ArtifactPr/src/MediaThumbnailer.cppm`、`MediaThumbnailer::clearCache()` / `publishThumbnail()`
+- **事実:** 非同期生成中に project unload や cache clear が起きると、古い worker 結果が後から cache と `thumbnailReady` に戻る経路があった。
+- **修正:** request に cache 世代を付与し、`clearCache()` で世代を進め、現行世代と一致しない生成結果を publish 前に破棄するようにした。
+- **価値:** プロジェクト切替後に旧メディアのサムネイルが新しい表示面へ混入する可能性を抑えられる。
+- **未検証:** 実際の切替中に発生する遅延 callback の runtime 挙動は未確認。
+### 2026-08-10 — ArtifactPr video preview の旧フレーム残留を抑制
+
+- **関連:** `ArtifactPr/src/VideoPlayerWidget.cppm`、`VideoPlayerWidget::loadFile()`、`VideoCanvas`
+- **事実:** 無効パスへ戻る場合や別ファイルを読み込む場合も canvas の直前フレームは保持され、次の表示面切替で旧映像が再利用される可能性があった。
+- **修正:** load 成功・失敗の境界で canvas を空 pixmap に戻してから placeholder／新 source を表示するようにした。
+- **価値:** メディア切替時に旧ファイルの映像を新しいファイルの初期表示として誤認しにくくなる。
+- **未検証:** 実際の decode 遅延中の placeholder／黒画面遷移は runtime 未確認。
+### 2026-08-10 — ArtifactPr 保存失敗時の modifiedAt を復元
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`EditorEngine::saveProject()`
+- **事実:** `QSaveFile` の commit 前に `currentProject_.modifiedAt` を更新していたため、ディスク保存に失敗してもメモリ上の更新時刻だけが進んでいた。
+- **修正:** commit 失敗時に保存前の `modifiedAt` を復元するようにした。
+- **価値:** 保存失敗後の dirty state とプロジェクトメタデータの意味が一致しやすくなる。
+- **未検証:** ディスクフル／権限拒否などの実際の commit 失敗は runtime 未確認。
+### 2026-08-10 — ArtifactPr timeline zoom の座標反映を補正
+
+- **関連:** `ArtifactPr/src/ArtifactPrMainWindow.cppm`、`TimelinePanel::onZoomChanged()`、`FRAME_WIDTH`
+- **事実:** ズーム値はラベルと未使用のローカル変数にしか反映されず、ruler／clip幅／マーカー操作／移動・トリム計算は常に2 px/frameを使っていた。
+- **修正:** ズーム変更時に共有 frame width を更新し、既存の `refreshTimeline()` で関連表示と操作領域を再構築するようにした。
+- **価値:** 見た目の倍率とマウス座標から frame へ変換する契約が一致する。
+- **未検証:** ズーム変更中のスクロール位置保持と長尺 sequence の runtime 操作は未確認。
+### 2026-08-10 — ArtifactPr work area の In／Out 順序を正規化
+
+- **関連:** `ArtifactPr/include/ArtifactPrEditorEngine.ixx`、`EditorEngine::setInPoint()` / `setOutPoint()`
+- **事実:** 公開 setter は負値、duration超過、In > Out／Out < In を受け入れ、再生・書き出し計画へ不正な範囲を渡し得た。
+- **修正:** In は0〜Out、Out はIn〜sequence durationへ clampし、端点の順序を常に維持するようにした。
+- **価値:** UI操作とショートカット操作のどちらからでも、ワークエリア範囲が有効な frame 区間になる。
+- **未検証:** 空 sequence と duration変更直後の端点表示は runtime 未確認。
+### 2026-08-10 — ArtifactPr clip property editor の初回適用を補正
+
+- **関連:** `ArtifactPr/src/ArtifactPrMainWindow.cppm`、`ClipPropertiesPanel`、`ClipPropertyCommand`
+- **事実:** Volume／Speed／Reverse の UI handler は command を undo stack に積んでいたが、初回 `redo()` を呼んでいなかった。
+- **修正:** 各 handler で command を初回適用してから stack に登録するようにした。
+- **価値:** property editor の表示値と clip model の値が一致し、続く undo／redo も同じ command 契約で動く。
+- **未検証:** slider／combo変更後の runtime undo／redo と NLE store 経路の比較は未確認。
+### 2026-08-10 — ArtifactPr 無効 clip 選択を拒否
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`EditorEngine::selectClip()`
+- **事実:** 選択要求された ID が現 sequence に存在しなくても `selectedClipId_` に保持され、Inspector／command の stale selection になり得た。
+- **修正:** video／audio track 全体で存在を確認し、無効 ID は空選択として通知するようにした。
+- **価値:** sequence差し替えや遅延UI callback後に、存在しない clip を編集対象として残さない。
+- **未検証:** sequence切替と選択通知が同一イベントループ内で競合する runtime 挙動は未確認。
+### 2026-08-10 — ArtifactPr property command の dirty 通知を補正
+
+- **関連:** `ArtifactPr/src/EditCommand.cppm`、`ClipPropertyCommand::doApply()`
+- **事実:** Volume／Speed／Reverse／Name の command 適用は `clipChanged` のみを通知し、保存状態を示す `projectModified` を通知していなかった。
+- **修正:** property command の適用完了時に既存の `projectModified` signal を発行するようにした。
+- **価値:** UI property 編集、undo、redo のいずれでもプロジェクトの未保存状態が更新される。
+- **未検証:** runtime の dirty indicator と連続 undo／redo 表示は未確認。
+### 2026-08-10 — ArtifactPr legacy clip property 操作を undo 経路へ統一
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`setClipSpeed()`、`setClipReversed()`、`setClipVolume()`、`setClipName()`
+- **事実:** Inspector は `ClipPropertyCommand` を使う一方、legacy のコンテキストメニュー経路は clip を直接変更して undo stack を迂回していた。
+- **修正:** legacy 経路も旧値・新値を持つ `ClipPropertyCommand` を初回適用してから stack に登録するようにした。speed は0.01以上、volumeは0〜2へ正規化した。
+- **価値:** 右クリック操作と Inspector 操作で undo／redo と dirty 通知の挙動が一致する。
+- **未検証:** 連続 property 操作の stack 粒度と NLE store 側の parity は runtime 未確認。
+### 2026-08-10 — ArtifactPr marker 編集を状態 command へ統一
+
+- **関連:** `ArtifactPr/include/ArtifactPrEditorEngine.ixx`、`ArtifactPr/src/ArtifactPrEditorEngine.cppm`、marker 編集 API
+- **事実:** marker の追加／削除だけが undo 対応で、移動・名前・コメント・全削除は直接変更されていた。位置も sequence 範囲外を受け入れていた。
+- **修正:** marker 配列の before／after を保持する `MarkerStateCommand` を追加し、全編集操作を undo stack へ登録。追加／移動位置を0〜durationへ clampした。
+- **価値:** marker 操作の復元契約が揃い、範囲外 marker が ruler／書き出し計画へ流れにくくなる。
+- **未検証:** 複数 marker 操作の連続 undo／redo と sequence 切替中の表示は runtime 未確認。
+### 2026-08-10 — ArtifactPr video ripple delete の undo を補正
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`EditorEngine::rippleDeleteSelectedClip()`、`RippleDeleteCommand`
+- **事実:** video legacy 経路は後続 clip を詰めながら `DeleteClipCommand` を使っていたため、undo で後続位置と sequence duration が復元されなかった。
+- **修正:** video track だけ `RippleDeleteCommand` を初回適用して stack へ登録する経路へ切り替えた。audio track の既存経路は変更していない。
+- **価値:** 映像の ripple delete が undo／redo で構造・終端ともに戻る。
+- **未検証:** 複数 video track と連続 ripple delete の runtime 挙動は未確認。
+### 2026-08-10 — ArtifactPr video split／duplicate の undo を追加
+
+- **関連:** `ArtifactPr/include/ArtifactPrEditorEngine.ixx`、`ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`splitClipAtPlayhead()`、`duplicateSelectedClip()`
+- **事実:** video clip の split／duplicate は配列を直接変更し、undo stack と選択状態の復元を持っていなかった。
+- **修正:** video tracks 全体と選択 ID の before／after を保持する `VideoTracksStateCommand` を追加し、映像経路だけ初回変更後に stack へ登録した。audio 経路は変更していない。
+- **価値:** Blade／Duplicate 操作を undo／redo しても映像 clip 構造と選択対象が一致する。
+- **未検証:** 複数 video track、split後の連続 duplicate、runtime undo／redo は未確認。
+### 2026-08-10 — ArtifactPr video duplicate の sequence duration を同期
+
+- **関連:** `ArtifactPr/include/ArtifactPrEditorEngine.ixx`、`ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`VideoTracksStateCommand`、`duplicateSelectedClip()`
+- **事実:** video clip を sequence末尾へ duplicate しても sequence duration は旧値のままで、複製 clip の終端が再生・書き出し範囲外になり得た。
+- **修正:** video tracks state command に duration の before／after を保持させ、duplicate後の最大終端を sequence duration へ反映し、undo時に復元するようにした。
+- **価値:** 複製した映像 clip、sequence終端、再生範囲が一致する。
+- **未検証:** duplicate後の sequence切替と runtime undo／redo は未確認。
+### 2026-08-10 — ArtifactPr video split／duplicate の初回保存同期を補正
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`EditorEngine::splitClipAtPlayhead()`、`duplicateSelectedClip()`
+- **事実:** legacy video trackを直接変更した後、`currentSequence_` の内容が `currentProject_.sequences` へ反映される前に保存できる経路が残っていた。
+- **修正:** video split／duplicate の初回変更後に既存 `setCurrentSequence()` を通し、project snapshot と sequence duration を同期してから undo command を登録するようにした。
+- **価値:** 画面上で見える映像編集結果と保存対象の sequence が一致する。
+- **未検証:** split／duplicate後の save→load round trip は runtime 未確認。
+
+### 2026-08-10 — ArtifactPr video paste を sequence state undo に統一
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`EditorEngine::pasteClip()`、`VideoTracksStateCommand`
+- **事実:** legacy paste は video track を直接変更して `projectModified()` / `sequenceChanged()` を発行するだけで、映像トラック状態・duration・選択状態を undo command に保存していなかった。
+- **修正:** video paste の前後で video tracks、duration、selection を保存し、挿入後に `setCurrentSequence()` と `VideoTracksStateCommand` を使うようにした。audio-only の既存分岐は変更していない。
+- **価値:** paste 後の保存用 sequence snapshot と Undo/Redo の復元対象が揃い、末尾以降への貼り付けによる duration 拡張も復元できる。
+- **未検証:** 実ビルド・テストは未実行。clipboard の source track 種別を保持しない既存仕様は今回の対象外。
+### 2026-08-10 — ArtifactPr video delete を sequence state undo に統一
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`EditorEngine::deleteSelectedClip()`、`VideoTracksStateCommand`
+- **事実:** legacy video delete は clip 配列を直接削除し、旧 `DeleteClipCommand` を登録していたため、選択状態・保存用 sequence snapshot・sequence通知の復元契約が映像全体では揃っていなかった。
+- **修正:** video delete の前後で video tracks、duration、選択状態を保存し、削除後に `setCurrentSequence()` と `VideoTracksStateCommand` を登録するようにした。audio delete の既存経路は変更していない。
+- **価値:** 映像削除の undo／redo が clip構造と選択状態を一体で復元し、削除直後の保存対象も同期する。
+- **未検証:** 実ビルド・テストは未実行。audio-only deletion と NLE store 経路は今回の対象外。
+
+### 2026-08-10 — ArtifactPr video cut の対象選択を引数へ同期
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`EditorEngine::cutClip()`
+- **事実:** cut は引数 clip を clipboard へコピーした後、削除対象を `selectedClipId_` に委ねていたため、引数と選択が異なると別の clip を削除する可能性があった。
+- **修正:** video track 上の引数 clip だけ、削除前に既存 `selectClip()` で選択状態を同期するようにした。audio clip の既存経路は変更していない。
+- **価値:** UI／APIから明示した映像 clip と cut の削除対象が一致する。
+- **未検証:** 実ビルド・テストは未実行。複数選択や linked clip の仕様は今回の対象外。
+
+### 2026-08-10 — ArtifactPr video move／trim の初回保存同期を補正
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`EditorEngine::moveClip()` / `trimClip()`
+- **事実:** legacy video の move／trim は command を undo stack へ登録していたが、初回変更後に `currentProject_.sequences` へ current sequence を同期していなかった。
+- **修正:** video clip の初回 move／trim 後だけ既存 `setCurrentSequence()` を通し、保存対象 snapshot を更新するようにした。audio clip の既存経路は変更していない。
+- **価値:** タイムライン上の移動・トリム結果が、同じ編集直後の保存にも反映される。
+- **未検証:** 実ビルド・テストは未実行。NLE store 経路と audio-only 操作は今回の対象外。
+
+### 2026-08-10 — ArtifactPr video slip／slide／overwrite／lift の初回保存同期を補正
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`slipClip()`、`slideClip()`、`overwriteClipFromSource()`、`liftRange()`
+- **事実:** これらの legacy command は初回 `redo()` と undo stack 登録を行っていたが、変更後の current sequence を project snapshot へ同期していなかった。`insertClipFromSource()` は既存 command 内で同期済みだった。
+- **修正:** video clip／video track の初回適用後だけ既存 `setCurrentSequence()` を通すようにした。audio 経路は変更していない。
+- **価値:** source range、隣接 clip、上書き、lift の結果が編集直後の保存対象にも反映される。
+- **未検証:** 実ビルド・テストは未実行。NLE store 経路と audio-only 操作は今回の対象外。
+
+### 2026-08-10 — ArtifactPr video edit command の undo／redo 保存同期を補正
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`ArtifactPr/src/EditCommand.cppm`、move／trim／slip／slide／overwrite／lift command
+- **事実:** 初回編集時に snapshot を同期しても、command の undo／redo 実行時は clip 配列だけが変わり、保存対象の current project sequence が古くなる経路が残っていた。
+- **修正:** video clip／video track の command 適用後に既存 `setCurrentSequence()` を通すようにした。audio command の経路は変更していない。
+- **価値:** 映像編集の初回適用と undo／redo 後で、画面状態・保存対象・sequence 通知の整合が保たれる。
+- **未検証:** 実ビルド・テストは未実行。複合 command の連続 undo／redo と NLE store parity は未確認。
+
+### 2026-08-10 — ArtifactPr video property command の undo／redo 保存同期を補正
+
+- **関連:** `ArtifactPr/src/EditCommand.cppm`、`ClipPropertyCommand::doApply()`
+- **事実:** 映像 clip の speed／reverse／volume／name は初回適用と undo／redo で clip 値を更新していたが、project sequence snapshot の同期は行っていなかった。
+- **修正:** video clip に限って property 適用後に `setCurrentSequence()` を通し、既存の dirty 通知を維持した。audio clip の経路は変更していない。
+- **価値:** Inspector／コンテキスト編集と undo／redo の結果が保存対象にも一致する。
+- **未検証:** 実ビルド・テストは未実行。NLE store property 経路との parity は未確認。
+### 2026-08-10 — ArtifactPr render plan の映像範囲を sequence duration へ clamp
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`EditorEngine::createRenderPlan()`、`RenderPlan`
+- **事実:** In/Out setter は範囲を正規化していたが、render plan API に明示した start／end frame は duration 外や逆順のまま plan に入る可能性があった。
+- **修正:** 明示値と既定 In/Out の両方を sequence duration 内へ clampし、end は start 以上へ正規化した。
+- **価値:** プレビュー・書き出し側が存在しない映像 frame 範囲を受け取りにくくなる。
+- **未検証:** 実ビルド・テスト・実ファイル出力は未実行。
+### 2026-08-10 — ArtifactPr video surface の切替時 pending frame を破棄
+
+- **関連:** `ArtifactPr/include/VideoSurface.ixx`、`ArtifactPr/src/VideoSurface.cppm`、`ArtifactPr/src/VideoPlayerWidget.cppm`
+- **事実:** media 切替時に canvas を空にしても、surface 内の未送信旧 frame が残り、切替後の表示へ混入する余地があった。
+- **修正:** `PrVideoSurface::clear()` を追加し、無効／有効 path の切替前に player 停止と pending frame 破棄を行うようにした。新しい signal は追加していない。
+- **価値:** 映像 source 切替時の旧 frame 残留と一瞬の誤表示を抑える。
+- **未検証:** 実デコード中の source 切替競合と runtime 表示は未確認。
+### 2026-08-10 — ArtifactPr video transition の追加／削除を state command 化
+
+- **関連:** `ArtifactPr/include/ArtifactPrEditorEngine.ixx`、`ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`addTransition()` / `deleteTransition()`
+- **事実:** video transition の追加・削除は配列を直接変更し、保存 snapshot と Undo/Redo の状態 command を持っていなかった。audio track へ流れる既存経路も存在する。
+- **修正:** video track の追加・削除だけ before／after の transition 配列を `TransitionStateCommand` に保持し、`setCurrentSequence()` を通すようにした。音声経路は変更していない。
+- **価値:** 映像トランジションの編集結果が保存・Undo/Redo と一致し、削除後の復元対象も明確になる。
+- **未検証:** 実ビルド・テストは未実行。トランジションの runtime 合成結果と audio track 経路は今回の対象外。
+### 2026-08-10 — ArtifactPr video transition resize を state command 化
+
+- **関連:** `ArtifactPr/include/ArtifactPrEditorEngine.ixx`、`ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`ArtifactPr/src/ArtifactPrMainWindow.cppm`、`setVideoTransitionDuration()`
+- **事実:** timeline の video transition drag resize は UI から sequence copy を直接書き換え、Undo/Redo command を登録していなかった。
+- **修正:** video transition 専用 API と `TransitionStateCommand` を追加し、video の場合だけ新経路へ接続した。audio transition は既存 UI 経路へフォールバックする。
+- **価値:** 映像トランジションのドラッグリサイズも追加・削除と同じ保存／Undo契約になる。
+- **未検証:** 実ビルド・テストは未実行。context menu の固定 duration 操作と runtime 表示は次回確認対象。
+### 2026-08-10 — ArtifactPr video transition context duration を state command 化
+
+- **関連:** `ArtifactPr/src/ArtifactPrMainWindow.cppm`、`TimelinePanel::onTransitionRightClicked()`
+- **事実:** context menu の固定 duration 操作は menu 作成時の sequence copy を直接書き戻し、映像トランジションの Undo/Redo 経路を迂回していた。
+- **修正:** 映像 transition は `setVideoTransitionDuration()` を使い、audio transition は既存の copy 書き戻しへフォールバックする共通処理にした。
+- **価値:** drag resize と context duration 操作の映像側で保存・Undo契約が揃い、古い sequence copy による上書きも避けられる。
+- **未検証:** 実ビルド・テストは未実行。context menu の runtime 操作と audio fallback は未確認。
+### 2026-08-10 — ArtifactPr video import を media pool 保存へ接続
+
+- **関連:** `ArtifactPr/src/MediaPanel.cppm`、`MediaPanel::onImportClicked()`、`EditorEngine::addMediaToPool()`
+- **事実:** MediaPanel の import は video file を一覧へ追加していたが、project の `mediaPool` へ登録していなかったため、保存・再読込で素材情報が失われ得た。
+- **修正:** mp4／avi／mov／mkv の video import 時だけ既存 `addMediaToPool()` を呼ぶようにした。audio import の既存経路は変更していない。
+- **価値:** UI で読み込んだ映像素材が project 保存対象へ入り、再利用可能な media metadata として残る。
+- **未検証:** 実ビルド・テスト・save→load runtime は未実行。重複 video path の扱いは次回確認対象。
+### 2026-08-10 — ArtifactPr video import の media pool 重複を抑制
+
+- **関連:** `ArtifactPr/src/MediaPanel.cppm`、`MediaPanel::onImportClicked()`、`EditorEngine::mediaPool()`
+- **事実:** 同じ video path を複数回 import すると、一覧と project mediaPool の両方に重複 entry が増える経路があった。
+- **修正:** video import 前に既存 mediaPool の path／type を照合し、未登録の場合だけ `addMediaToPool()` を呼ぶようにした。
+- **価値:** 再 import 操作が保存対象の video metadata を増殖させず、media pool と UI の対応が安定する。
+- **未検証:** 大文字小文字の異なる path、symlink／relative path の同一性は未確認。
+### 2026-08-10 — ArtifactPr MediaPanel の video path と保存 mediaPool 表示を同期
+
+- **関連:** `ArtifactPr/src/MediaPanel.cppm`、`MediaPanel::refreshMediaList()`、`onItemDoubleClicked()`
+- **事実:** video clip の list item に `clip.name` を UserRole path として格納していたため、double-click 時に実ファイルではなく表示名を preview へ渡していた。また保存済み mediaPool の video entry は refresh 対象外だった。
+- **修正:** video clip は `sourceFile` を UserRole に格納し、保存済み video mediaPool を path 重複なしで追加表示するようにした。audio clip の既存表示経路は変更していない。
+- **価値:** project 再読込後も video source の選択・preview 導線が実ファイルへつながり、import 済み素材が一覧から消えにくくなる。
+- **未検証:** 実ビルド・テスト・save→load runtime は未実行。
+### 2026-08-10 — ArtifactPr File menu の video import 導線を接続
+
+- **関連:** `ArtifactPr/include/ArtifactPrMainWindow.ixx`、`ArtifactPr/src/ArtifactPrMainWindow.cppm`、`MediaPanel`
+- **事実:** File menu の `Import Media...` は action だけ作られ、triggered handler がなく、File menu から import できなかった。
+- **修正:** File menu を `Import Video...` として video file dialog、既存 `addMediaToPool()`、MediaPanel refresh へ接続した。audio file filter／処理は追加していない。
+- **価値:** File menu から読み込んだ映像も保存対象と MediaPanel 表示へ入り、dock 内 import と同じ project workflow に乗る。
+- **未検証:** 実ビルド・テスト・runtime File menu 操作は未実行。
+### 2026-08-10 — ArtifactPr File menu video import の重複登録を抑制
+
+- **関連:** `ArtifactPr/src/ArtifactPrMainWindow.cppm`、File menu の video import handler
+- **事実:** File menu を接続すると、同じ video path の再 import が mediaPool entry を増やす可能性があった。
+- **修正:** 既存 mediaPool の video path／type を照合し、未登録時だけ `addMediaToPool()` を呼ぶようにした。
+- **価値:** dock import と File menu import のどちらでも、保存対象の video metadata が重複しにくくなる。
+- **未検証:** path 正規化や symlink 同一性は未確認。
+### 2026-08-10 — ArtifactPr MediaPanel video import の一覧重複を抑制
+
+- **関連:** `ArtifactPr/src/MediaPanel.cppm`、`MediaPanel::onImportClicked()`
+- **事実:** video mediaPool の重複登録を防いだ後も、同一 video path の再 import は QListWidget item を重複追加していた。
+- **修正:** video path が既存 UserRole にある場合は一覧追加を省略し、audio の既存追加処理は維持した。
+- **価値:** dock import を繰り返しても video 一覧と mediaPool の件数が乖離しにくくなる。
+- **未検証:** path 正規化・大文字小文字差・symlink の同一性は未確認。
+### 2026-08-10 — ArtifactPr save failure rollback の変数スコープを修正
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`saveProject()`、`loadDemoProject()`
+- **事実:** `saveProject()` の commit failure 分岐が `previousModifiedAt` を参照していたが、変数は別関数 `loadDemoProject()` 内にあり、save 側では未宣言だった。
+- **修正:** 保存前の modifiedAt を `saveProject()` 内で取得し、demo load 側の不要な宣言を削除した。
+- **価値:** 保存失敗時の modifiedAt 復元が正しいスコープで成立し、未宣言変数による compile failure を避ける。
+- **未検証:** 実ビルド・テストは未実行。

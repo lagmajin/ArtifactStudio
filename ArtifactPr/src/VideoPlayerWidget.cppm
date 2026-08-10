@@ -1,6 +1,7 @@
 module;
 
 #include <QHBoxLayout>
+#include <QFileInfo>
 #include <QLabel>
 #include <QMediaPlayer>
 #include <QPaintEvent>
@@ -96,6 +97,18 @@ VideoPlayerWidget::~VideoPlayerWidget() {
 
 void VideoPlayerWidget::loadFile(const QString& filePath)
 {
+    const QFileInfo fileInfo(filePath);
+    if (filePath.trimmed().isEmpty() || !fileInfo.exists() || !fileInfo.isFile()) {
+        player_->stop();
+        surface_->clear();
+        videoCanvas_->setFrame(QPixmap(), 0);
+        stackedWidget_->setCurrentIndex(0);
+        return;
+    }
+
+    player_->stop();
+    surface_->clear();
+    videoCanvas_->setFrame(QPixmap(), 0);
     QUrl url = QUrl::fromLocalFile(filePath);
     player_->setSource(url);
     stackedWidget_->setCurrentIndex(1);

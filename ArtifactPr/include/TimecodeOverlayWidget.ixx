@@ -1,6 +1,7 @@
 module;
 
 #include <QString>
+#include <QtGlobal>
 #include <QWidget>
 
 export module ArtifactPr.TimecodeOverlayWidget;
@@ -14,7 +15,7 @@ public:
     void setCurrentFrame(int frame);
 
     /// FPS を設定。
-    void setFps(int fps) { fps_ = fps; update(); }
+    void setFps(int fps) { fps_ = qMax(1, fps); update(); }
 
     /// 表示 / 非表示。
     void setVisible(bool visible);

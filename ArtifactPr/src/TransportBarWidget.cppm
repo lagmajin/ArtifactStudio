@@ -1,13 +1,27 @@
 module;
 #include <QFont>
+#include <QChar>
 #include <QLabel>
 #include <QPushButton>
 #include <QString>
 #include <QTimer>
 #include <QHBoxLayout>
+#include <QtGlobal>
 #include <wobjectimpl.h>
 
 module ArtifactPr.TransportBarWidget;
+
+namespace {
+
+int sequenceFrameRate(const ArtifactPr::DemoSequence& sequence)
+{
+    bool ok = false;
+    const double parsed = sequence.frameRate.section(QChar(' '), 0, 0).toDouble(&ok);
+    if (!ok || parsed <= 0.0) return 30;
+    return qMax(1, static_cast<int>(parsed + 0.5));
+}
+
+} // namespace
 
 TransportBarWidget::TransportBarWidget(QWidget* parent)
     : QWidget(parent)
@@ -80,7 +94,8 @@ void TransportBarWidget::onPlayClicked()
     engine->togglePlayPause();
 
     if (engine->isPlaying()) {
-        playbackTimer_->start(33);
+        const int fps = sequenceFrameRate(engine->currentSequence());
+        playbackTimer_->start(qMax(1, 1000 / fps));
     } else {
         playbackTimer_->stop();
     }
@@ -96,8 +111,15 @@ void TransportBarWidget::onStepFwdClicked()
 void TransportBarWidget::onPlaybackTick()
 {
     auto* engine = ArtifactPr::EditorEngine::instance();
+    playbackTimer_->setInterval(qMax(1, 1000 / sequenceFrameRate(engine->currentSequence())));
     auto frame = engine->currentFrame();
     int speed = static_cast<int>(engine->playbackSpeed());
+
+    if (speed == static_cast<int>(ArtifactPr::PlaybackSpeed::Stop) ||
+        speed == static_cast<int>(ArtifactPr::PlaybackSpeed::Pause)) {
+        playbackTimer_->stop();
+        return;
+    }
 
     if (speed > 1) {
         if (frame < engine->currentSequence().duration) {
@@ -130,7 +152,7 @@ void TransportBarWidget::onExportClicked()
 
 void TransportBarWidget::updateTimecode(ArtifactPr::FramePosition frame)
 {
-    int fps = 30;
+    const int fps = sequenceFrameRate(ArtifactPr::EditorEngine::instance()->currentSequence());
     int totalSeconds = static_cast<int>(frame) / fps;
     int hours = totalSeconds / 3600;
     int minutes = (totalSeconds % 3600) / 60;

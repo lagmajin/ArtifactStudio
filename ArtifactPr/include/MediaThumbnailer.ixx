@@ -9,6 +9,7 @@ module;
 #include <QString>
 #include <QVariant>
 #include <QWaitCondition>
+#include <QtGlobal>
 
 export module ArtifactPr.MediaThumbnailer;
 
@@ -19,17 +20,21 @@ export namespace ArtifactPr {
 /// MediaPanel 表示用には QPixmap 経由に変換される。
 struct MediaThumbnail {
     QString filePath;
+    QString cacheKey;
     QImage image;          // 32x18 〜 320x180 (request による)
     qint64 durationMs = 0; // 0 = 取得失敗
+    qint64 seekToMs = 0;
+    quint64 generation = 0;
     bool valid = false;
 };
 
 /// thumbnail 取得要求。
-/// 同じ filePath の request は最新のみ処理する (古い request は破棄)。
+/// 同じ filePath／サイズ／seek 時刻の request は最新のみ処理する。
 struct ThumbnailRequest {
     QString filePath;
     QSize targetSize = QSize(160, 90);
     qint64 seekToMs = 1000;  // この時刻付近のフレームを抽出
+    quint64 generation = 0;  // MediaThumbnailer が request 時に付与する世代
 };
 
 /// 非同期 thumbnail 生成サービス。
@@ -46,7 +51,7 @@ public:
     explicit MediaThumbnailer(QObject* parent = nullptr);
     ~MediaThumbnailer() override;
 
-    /// thumbnail を非同期要求。同一 filePath の古い要求は破棄される。
+    /// thumbnail を非同期要求。同一 request key の古い要求は破棄される。
     void request(const ThumbnailRequest& req);
 
     /// cache を全消去 (project unload 等)。
@@ -54,6 +59,7 @@ public:
 
     /// cache 内の thumbnail を取得 (同期)。無ければ invalid な struct を返す。
     MediaThumbnail cached(const QString& filePath) const;
+    MediaThumbnail cached(const ThumbnailRequest& request) const;
 
     /// 起動 / 停止。
     void start();
@@ -72,6 +78,7 @@ private:
 
     mutable QMutex cacheMutex_;
     QHash<QString, MediaThumbnail> cache_;
+    quint64 cacheGeneration_ = 0;
 };
 
 } // namespace ArtifactPr

@@ -40,7 +40,7 @@ void ProjectPanel::refreshProjectTree(const ArtifactPr::DemoSequence& seq)
     sequencesNode->setExpanded(true);
 
     auto* seqItem = new QTreeWidgetItem(QStringList{seq.name});
-    seqItem->setData(0, Qt::UserRole, 0);
+    seqItem->setData(0, Qt::UserRole, seq.id);
     sequencesNode->addChild(seqItem);
 
     projectNode->addChild(sequencesNode);

@@ -6,6 +6,7 @@ module;
 #include <QString>
 #include <QColor>
 #include <QMap>
+#include <QtGlobal>
 #include <QVariant>
 #include <QJsonObject>
 #include <memory>
@@ -178,7 +179,26 @@ public:
     void setCurrentProject(const DemoProject& project) { currentProject_ = project; }
 
     DemoSequence currentSequence() const { return currentSequence_; }
-    void setCurrentSequence(const DemoSequence& seq) { currentSequence_ = seq; }
+    void setCurrentSequence(const DemoSequence& seq)
+    {
+        currentSequence_ = seq;
+        for (auto& projectSequence : currentProject_.sequences) {
+            if (projectSequence.id == seq.id) {
+                projectSequence = seq;
+                break;
+            }
+        }
+        const FramePosition maxFrame = qMax<FramePosition>(0, currentSequence_.duration);
+        const FramePosition clampedFrame = qMax<FramePosition>(0, qMin(currentFrame_, maxFrame));
+        if (clampedFrame != currentFrame_) {
+            currentFrame_ = clampedFrame;
+            Q_EMIT currentFrameChanged(currentFrame_);
+        }
+        inPoint_ = qMax<FramePosition>(0, qMin(inPoint_, maxFrame));
+        outPoint_ = qMax<FramePosition>(0, qMin(outPoint_, maxFrame));
+        Q_EMIT sequenceChanged(currentSequence_);
+        Q_EMIT projectModified();
+    }
 
     QJsonObject nleSnapshot() const;
     bool restoreNLESnapshot(const QJsonObject& snapshot);
@@ -191,8 +211,18 @@ public:
 
     FramePosition inPoint() const { return inPoint_; }
     FramePosition outPoint() const { return outPoint_; }
-    void setInPoint(FramePosition p) { inPoint_ = p; Q_EMIT inOutPointChanged(inPoint_, outPoint_); }
-    void setOutPoint(FramePosition p) { outPoint_ = p; Q_EMIT inOutPointChanged(inPoint_, outPoint_); }
+    void setInPoint(FramePosition p)
+    {
+        const FramePosition maxFrame = qMax<FramePosition>(0, currentSequence_.duration);
+        inPoint_ = qMax<FramePosition>(0, qMin(p, qMin(outPoint_, maxFrame)));
+        Q_EMIT inOutPointChanged(inPoint_, outPoint_);
+    }
+    void setOutPoint(FramePosition p)
+    {
+        const FramePosition maxFrame = qMax<FramePosition>(0, currentSequence_.duration);
+        outPoint_ = qMax<FramePosition>(inPoint_, qMin(p, maxFrame));
+        Q_EMIT inOutPointChanged(inPoint_, outPoint_);
+    }
 
     PlaybackSpeed playbackSpeed() const { return playbackSpeed_; }
     bool isPlaying() const { return playbackSpeed_ != PlaybackSpeed::Stop && playbackSpeed_ != PlaybackSpeed::Pause; }
@@ -243,6 +273,7 @@ public Q_SLOTS:
     void addTransition(const QString& trackId, const QString& leftClipId, const QString& rightClipId,
                       FramePosition startFrame, TransitionType type, FramePosition duration = 12);
     void deleteTransition(const QString& transitionId);
+    bool setVideoTransitionDuration(const QString& transitionId, FramePosition duration);
 
     void addMediaToPool(const QString& filePath, const QString& name, const QString& type);
     void removeMediaFromPool(const QString& mediaId);
@@ -378,22 +409,31 @@ class TrimClipCommand : public UndoCommand
 {
 public:
     TrimClipCommand(const QString& clipId, FramePosition oldStart, FramePosition oldDuration,
-                   FramePosition newStart, FramePosition newDuration)
+                   FramePosition oldSourceIn, FramePosition oldSourceOut,
+                   FramePosition newStart, FramePosition newDuration,
+                   FramePosition newSourceIn, FramePosition newSourceOut)
         : clipId_(clipId), oldStart_(oldStart), oldDuration_(oldDuration),
-          newStart_(newStart), newDuration_(newDuration) {}
+          oldSourceIn_(oldSourceIn), oldSourceOut_(oldSourceOut),
+          newStart_(newStart), newDuration_(newDuration),
+          newSourceIn_(newSourceIn), newSourceOut_(newSourceOut) {}
 
     void undo() override;
-    void redo() override { doTrim(newStart_, newDuration_); }
+    void redo() override { doTrim(newStart_, newDuration_, newSourceIn_, newSourceOut_); }
     QString description() const override { return QStringLiteral("Trim Clip"); }
 
 private:
-    void doTrim(FramePosition start, FramePosition duration);
+    void doTrim(FramePosition start, FramePosition duration,
+                FramePosition sourceIn, FramePosition sourceOut);
 
     QString clipId_;
     FramePosition oldStart_;
     FramePosition oldDuration_;
+    FramePosition oldSourceIn_;
+    FramePosition oldSourceOut_;
     FramePosition newStart_;
     FramePosition newDuration_;
+    FramePosition newSourceIn_;
+    FramePosition newSourceOut_;
 };
 
 class DeleteClipCommand : public UndoCommand
@@ -410,6 +450,32 @@ private:
     QString trackId_;
     DemoClip clip_;
     int index_;
+};
+
+class VideoTracksStateCommand : public UndoCommand
+{
+public:
+    VideoTracksStateCommand(QVector<DemoTrack> before, QVector<DemoTrack> after,
+                            FramePosition beforeDuration, FramePosition afterDuration,
+                            QString beforeSelection, QString afterSelection)
+        : before_(std::move(before)), after_(std::move(after)),
+          beforeDuration_(beforeDuration), afterDuration_(afterDuration),
+          beforeSelection_(std::move(beforeSelection)), afterSelection_(std::move(afterSelection)) {}
+
+    void undo() override;
+    void redo() override;
+    QString description() const override { return QStringLiteral("Change Video Clips"); }
+
+private:
+    void apply(const QVector<DemoTrack>& tracks, FramePosition duration,
+               const QString& selection);
+
+    QVector<DemoTrack> before_;
+    QVector<DemoTrack> after_;
+    FramePosition beforeDuration_;
+    FramePosition afterDuration_;
+    QString beforeSelection_;
+    QString afterSelection_;
 };
 
 class AddMarkerCommand : public UndoCommand
@@ -439,6 +505,40 @@ public:
 private:
     Marker marker_;
     int index_;
+};
+
+class MarkerStateCommand : public UndoCommand
+{
+public:
+    MarkerStateCommand(QVector<Marker> before, QVector<Marker> after)
+        : before_(std::move(before)), after_(std::move(after)) {}
+
+    void undo() override;
+    void redo() override;
+    QString description() const override { return QStringLiteral("Change Markers"); }
+
+private:
+    void apply(const QVector<Marker>& markers);
+
+    QVector<Marker> before_;
+    QVector<Marker> after_;
+};
+
+class TransitionStateCommand : public UndoCommand
+{
+public:
+    TransitionStateCommand(QVector<Transition> before, QVector<Transition> after)
+        : before_(std::move(before)), after_(std::move(after)) {}
+
+    void undo() override;
+    void redo() override;
+    QString description() const override { return QStringLiteral("Change Video Transition"); }
+
+private:
+    void apply(const QVector<Transition>& transitions);
+
+    QVector<Transition> before_;
+    QVector<Transition> after_;
 };
 
 }

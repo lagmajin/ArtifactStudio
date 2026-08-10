@@ -47,15 +47,16 @@ ExportDialog::ExportDialog(QWidget* parent)
             this, [this](int idx) {
         QString fmt = codecCombo_->itemText(idx);
         QString path = outputPathEdit_->text();
+        const auto replaceExtension = [&path](const QString& extension) {
+            const int slash = qMax(path.lastIndexOf(QChar('/')), path.lastIndexOf(QChar('\\')));
+            const int dot = path.lastIndexOf(QChar('.'));
+            const int extensionStart = dot > slash ? dot : path.size();
+            return path.left(extensionStart) + extension;
+        };
         if (fmt == QStringLiteral("PNG Sequence")) {
-            if (!path.endsWith(QStringLiteral(".png"), Qt::CaseInsensitive)) {
-                outputPathEdit_->setText(path + QStringLiteral(".png"));
-            }
+            outputPathEdit_->setText(replaceExtension(QStringLiteral(".png")));
         } else if (fmt == QStringLiteral("JPEG Sequence")) {
-            if (!path.endsWith(QStringLiteral(".jpg"), Qt::CaseInsensitive) &&
-                !path.endsWith(QStringLiteral(".jpeg"), Qt::CaseInsensitive)) {
-                outputPathEdit_->setText(path + QStringLiteral(".jpg"));
-            }
+            outputPathEdit_->setText(replaceExtension(QStringLiteral(".jpg")));
         } else if (fmt == QStringLiteral("Audio Only (WAV)")) {
             if (!path.endsWith(QStringLiteral(".wav"), Qt::CaseInsensitive)) {
                 outputPathEdit_->setText(path + QStringLiteral(".wav"));

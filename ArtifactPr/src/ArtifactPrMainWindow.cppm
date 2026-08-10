@@ -12,6 +12,7 @@ module;
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFont>
 #include <QFrame>
 #include <QGuiApplication>
@@ -32,6 +33,7 @@ module;
 #include <QComboBox>
 #include <QSplitter>
 #include <QStatusBar>
+#include <QStringList>
 #include <QTimer>
 #include <QDir>
 #include <QThread>
@@ -59,13 +61,21 @@ namespace {
 
 using FramePosition = ArtifactPr::FramePosition;
 
-const int FRAME_WIDTH = 2;
+int FRAME_WIDTH = 2;
 const int MIN_CLIP_WIDTH = 20;
 const int TRIM_HANDLE_WIDTH = 6;
 
 bool isJapaneseSystemLocale()
 {
     return QLocale::system().language() == QLocale::Japanese;
+}
+
+int sequenceFrameRate(const ArtifactPr::DemoSequence& sequence)
+{
+    bool ok = false;
+    const double parsed = sequence.frameRate.section(QChar(' '), 0, 0).toDouble(&ok);
+    if (!ok || parsed <= 0.0) return 30;
+    return qMax(1, static_cast<int>(parsed + 0.5));
 }
 
 QString uiText(const char* english, const char* japanese)
@@ -454,6 +464,7 @@ public:
             req.filePath = filePath;
             req.targetSize = QSize(80, 45);
             req.seekToMs = qint64(i) * 1000;  // 1 秒間隔 (簡易)
+            item->setData(Qt::UserRole, req.seekToMs);
             thumbnailer_->request(req);
         }
     }
@@ -462,10 +473,11 @@ private Q_SLOTS:
     void onThumbnailReady(ArtifactPr::MediaThumbnail thumb)
     {
         if (!thumb.valid || thumb.filePath != currentFilePath_) return;
-        // 該当 filePath の最初の "loading..." を置換
+        // 要求した seek 時刻に対応する slot を置換
         for (int i = 0; i < thumbnailStrip_->count(); ++i) {
             auto* item = thumbnailStrip_->item(i);
-            if (item && item->text() == QStringLiteral("loading...")) {
+            if (item && item->text() == QStringLiteral("loading...") &&
+                item->data(Qt::UserRole).toLongLong() == thumb.seekToMs) {
                 item->setText(QString());
                 item->setIcon(QPixmap::fromImage(thumb.image));
                 return;  // 1 つ置換して抜ける
@@ -478,7 +490,8 @@ private Q_SLOTS:
     {
         auto* engine = ArtifactPr::EditorEngine::instance();
         qint64 positionMs = videoPlayer_->position();
-        FramePosition frame = positionMs / 33;
+        const int fps = sequenceFrameRate(engine->currentSequence());
+        FramePosition frame = (positionMs * fps) / 1000;
         engine->setInPoint(frame);
         inLabel_->setText(QStringLiteral("In: %1").arg(frame));
     }
@@ -487,7 +500,8 @@ private Q_SLOTS:
     {
         auto* engine = ArtifactPr::EditorEngine::instance();
         qint64 positionMs = videoPlayer_->position();
-        FramePosition frame = positionMs / 33;
+        const int fps = sequenceFrameRate(engine->currentSequence());
+        FramePosition frame = (positionMs * fps) / 1000;
         engine->setOutPoint(frame);
         outLabel_->setText(QStringLiteral("Out: %1").arg(frame));
     }
@@ -542,7 +556,7 @@ public:
 private Q_SLOTS:
     void updateTimecode(ArtifactPr::FramePosition frame)
     {
-        int fps = 30;
+        const int fps = sequenceFrameRate(ArtifactPr::EditorEngine::instance()->currentSequence());
         int totalSeconds = static_cast<int>(frame) / fps;
         int hours = totalSeconds / 3600;
         int minutes = (totalSeconds % 3600) / 60;
@@ -560,7 +574,13 @@ private Q_SLOTS:
         preview_->seek(positionMs);
     }
 
-    void onSequenceChanged(const ArtifactPr::DemoSequence& seq) { }
+    void onSequenceChanged(const ArtifactPr::DemoSequence& seq)
+    {
+        Q_UNUSED(seq);
+        preview_->stop();
+        preview_->loadFile(QString());
+        timecode_->setText(QStringLiteral("00:00:00:00"));
+    }
 
     void onPlaybackStateChanged(bool isPlaying)
     {
@@ -1077,6 +1097,7 @@ private slots:
                     clipId,
                     ArtifactPr::ClipPropertyCommand::Kind::Volume,
                     oldVolume, newVolume);
+                cmd->redo();
                 engine->pushUndo(cmd);
                 volumeValueLabel_->setText(percentLabel(value));
             }
@@ -1097,6 +1118,7 @@ private slots:
                     clipId,
                     ArtifactPr::ClipPropertyCommand::Kind::Speed,
                     oldSpeed, newSpeed);
+                cmd->redo();
                 engine->pushUndo(cmd);
             }
         }
@@ -1115,6 +1137,7 @@ private slots:
                     clipId,
                     ArtifactPr::ClipPropertyCommand::Kind::Reverse,
                     oldReversed, checked);
+                cmd->redo();
                 engine->pushUndo(cmd);
             }
         }
@@ -1144,7 +1167,8 @@ public:
         setMouseTracking(true);
     }
 
-    void setMarkers(const QVector<ArtifactPr::Marker>& markers) { markers_ = markers; }
+    void setMarkers(const QVector<ArtifactPr::Marker>& markers) { markers_ = markers; update(); }
+    void setFrameRate(int fps) { frameRate_ = qMax(1, fps); update(); }
     void setTransitions(const QVector<ArtifactPr::Transition>& transitions) { transitions_ = transitions; }
 
 signals:
@@ -1167,7 +1191,7 @@ protected:
         p.setFont(font);
 
         int duration = 400;
-        int tickStep = 30;
+        const int tickStep = frameRate_;
 
         for (int frame = 0; frame < duration; frame += tickStep) {
             int x = frame * FRAME_WIDTH;
@@ -1176,7 +1200,7 @@ protected:
             p.drawLine(x, rect.height() - 8, x, rect.height());
 
             p.setPen(QColor(150, 150, 150));
-            int seconds = frame / 30;
+            int seconds = frame / frameRate_;
             p.drawText(x + 2, 10, QStringLiteral("%1s").arg(seconds));
         }
 
@@ -1285,6 +1309,7 @@ protected:
 private:
     QVector<ArtifactPr::Marker> markers_;
     QVector<ArtifactPr::Transition> transitions_;
+    int frameRate_ = 30;
     QString selectedMarkerId_;
     int dragStartX_;
     bool isDraggingMarker_ = false;
@@ -1547,6 +1572,7 @@ void TimelinePanel::refreshTimeline(const ArtifactPr::DemoSequence& seq)
                                    .arg(seq.name).arg(seq.frameRate).arg(seq.duration)
                                    .arg(seq.markers.size()).arg(seq.transitions.size()));
 
+        ruler_->setFrameRate(sequenceFrameRate(seq));
         ruler_->setMarkers(seq.markers);
         ruler_->setTransitions(seq.transitions);
         ruler_->update();
@@ -1631,12 +1657,8 @@ void TimelinePanel::onZoomChanged(int value)
         zoomLevel_ = value / 5.0f;
         zoomLevelLabel_->setText(QStringLiteral("%1x").arg(zoomLevel_, 0, 'f', 1));
 
-        int frameWidth = qMax(1, static_cast<int>(2 * zoomLevel_));
-
-        for (auto* child : timelineHost_->findChildren<QWidget*>()) {
-            child->update();
-        }
-        ruler_->update();
+        FRAME_WIDTH = qMax(1, static_cast<int>(2 * zoomLevel_));
+        refreshTimeline(ArtifactPr::EditorEngine::instance()->currentSequence());
     }
 
 void TimelinePanel::onClipSelected(const QString& clipId)
@@ -1795,6 +1817,10 @@ void TimelinePanel::onClipTrimRight(const QString& clipId, int deltaX)
 void TimelinePanel::onTransitionResized(const QString& transitionId, int newDuration)
     {
         auto* engine = ArtifactPr::EditorEngine::instance();
+        if (engine->setVideoTransitionDuration(transitionId, newDuration)) {
+            Q_EMIT engine->transitionChanged();
+            return;
+        }
         auto seq = engine->currentSequence();
         auto& transitions = seq.transitions;
         for (auto& trans : transitions) {
@@ -1817,48 +1843,42 @@ void TimelinePanel::onTransitionRightClicked(const QString& transitionId, const 
 
         auto* durationMenu = menu->addMenu(trUi("Duration", "長さ"));
 
-        auto* dur6 = durationMenu->addAction(QStringLiteral("6 frames"));
-        connect(dur6, &QAction::triggered, [this, engine, seq, transitionId]() mutable {
+        auto applyTransitionDuration = [engine, seq, transitionId](int duration) mutable {
+            if (engine->setVideoTransitionDuration(transitionId, duration)) {
+                Q_EMIT engine->transitionChanged();
+                return;
+            }
             auto updatedSeq = seq;
             for (auto& trans : updatedSeq.transitions) {
-                if (trans.id == transitionId) { trans.duration = 6; break; }
+                if (trans.id == transitionId) { trans.duration = duration; break; }
             }
             engine->setCurrentSequence(updatedSeq);
             Q_EMIT engine->transitionChanged();
-            refreshTimeline(updatedSeq);
+            Q_EMIT engine->projectModified();
+        };
+
+        auto* dur6 = durationMenu->addAction(QStringLiteral("6 frames"));
+        connect(dur6, &QAction::triggered, [this, applyTransitionDuration] {
+            applyTransitionDuration(6);
+            refreshTimeline(ArtifactPr::EditorEngine::instance()->currentSequence());
         });
 
         auto* dur12 = durationMenu->addAction(QStringLiteral("12 frames"));
-        connect(dur12, &QAction::triggered, [this, engine, seq, transitionId]() mutable {
-            auto updatedSeq = seq;
-            for (auto& trans : updatedSeq.transitions) {
-                if (trans.id == transitionId) { trans.duration = 12; break; }
-            }
-            engine->setCurrentSequence(updatedSeq);
-            Q_EMIT engine->transitionChanged();
-            refreshTimeline(updatedSeq);
+        connect(dur12, &QAction::triggered, [this, applyTransitionDuration] {
+            applyTransitionDuration(12);
+            refreshTimeline(ArtifactPr::EditorEngine::instance()->currentSequence());
         });
 
         auto* dur24 = durationMenu->addAction(QStringLiteral("24 frames"));
-        connect(dur24, &QAction::triggered, [this, engine, seq, transitionId]() mutable {
-            auto updatedSeq = seq;
-            for (auto& trans : updatedSeq.transitions) {
-                if (trans.id == transitionId) { trans.duration = 24; break; }
-            }
-            engine->setCurrentSequence(updatedSeq);
-            Q_EMIT engine->transitionChanged();
-            refreshTimeline(updatedSeq);
+        connect(dur24, &QAction::triggered, [this, applyTransitionDuration] {
+            applyTransitionDuration(24);
+            refreshTimeline(ArtifactPr::EditorEngine::instance()->currentSequence());
         });
 
         auto* dur48 = durationMenu->addAction(QStringLiteral("48 frames"));
-        connect(dur48, &QAction::triggered, [this, engine, seq, transitionId]() mutable {
-            auto updatedSeq = seq;
-            for (auto& trans : updatedSeq.transitions) {
-                if (trans.id == transitionId) { trans.duration = 48; break; }
-            }
-            engine->setCurrentSequence(updatedSeq);
-            Q_EMIT engine->transitionChanged();
-            refreshTimeline(updatedSeq);
+        connect(dur48, &QAction::triggered, [this, applyTransitionDuration] {
+            applyTransitionDuration(48);
+            refreshTimeline(ArtifactPr::EditorEngine::instance()->currentSequence());
         });
 
         menu->addSeparator();
@@ -2002,7 +2022,27 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     });
 
     fileMenu->addSeparator();
-    fileMenu->addAction(uiText("Import Media...", "メディアを読み込む..."));
+    auto* importMediaAction = fileMenu->addAction(uiText("Import Video...", "映像を読み込む..."));
+    connect(importMediaAction, &QAction::triggered, [this, engine]() {
+        const QStringList files = QFileDialog::getOpenFileNames(
+            this, uiText("Import Video", "映像を読み込む"), QString(),
+            QStringLiteral("Video Files (*.mp4 *.avi *.mov *.mkv)"));
+        for (const auto& file : files) {
+            bool alreadyRegistered = false;
+            for (const auto& media : engine->mediaPool()) {
+                if (media.filePath == file && media.type == QStringLiteral("video")) {
+                    alreadyRegistered = true;
+                    break;
+                }
+            }
+            if (!alreadyRegistered) {
+                engine->addMediaToPool(file, QFileInfo(file).fileName(), QStringLiteral("video"));
+            }
+        }
+        if (!files.isEmpty() && mediaPanel_) {
+            mediaPanel_->refreshMediaList(engine->currentSequence());
+        }
+    });
     auto* exportAction = fileMenu->addAction(uiText("Export...", "書き出し..."));
     exportAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+E")));
     connect(exportAction, &QAction::triggered, this, &ArtifactPrMainWindow::onExportTriggered);
@@ -2087,7 +2127,8 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     projectDock->setFeatures(ads::CDockWidget::AllDockWidgetFeatures);
     auto* projectArea = dockManager->addDockWidget(ads::LeftDockWidgetArea, projectDock);
 
-    auto* mediaPanel = new MediaPanel();
+    mediaPanel_ = new MediaPanel();
+    auto* mediaPanel = mediaPanel_;
     auto* mediaDock = new ads::CDockWidget(QStringLiteral("Media"));
     mediaDock->setWidget(mediaPanel);
     mediaDock->setFeatures(ads::CDockWidget::AllDockWidgetFeatures);
@@ -2183,8 +2224,11 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
             this, &ArtifactPrMainWindow::onProjectModified);
     // undo / redo は EditorEngine の signal に直接接続 (slot 経由でなく connect で十分)
     connect(ArtifactPr::EditorEngine::instance(), &ArtifactPr::EditorEngine::sequenceChanged,
-            this, [this]() {
+            this, [this](const ArtifactPr::DemoSequence& sequence) {
         statusNotifier_.notify(QStringLiteral("Sequence modified"));
+        if (timecodeOverlay_) {
+            timecodeOverlay_->setFps(sequenceFrameRate(sequence));
+        }
     });
 
     // Auto-save: 60 秒ごとに現在の project を temp ファイルに保存
@@ -2203,7 +2247,7 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
 
     // Timecode overlay (右上に黄色 timecode)
     timecodeOverlay_ = new ArtifactPr::TimecodeOverlayWidget(this);
-    timecodeOverlay_->setFps(30);
+    timecodeOverlay_->setFps(sequenceFrameRate(engine->currentSequence()));
     timecodeOverlay_->move(width() - timecodeOverlay_->width() - 8, 8);
     timecodeOverlay_->raise();
     timecodeOverlay_->show();

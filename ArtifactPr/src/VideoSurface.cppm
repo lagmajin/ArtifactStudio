@@ -20,6 +20,13 @@ PrVideoSurface::PrVideoSurface(QObject* parent)
 
 PrVideoSurface::~PrVideoSurface() = default;
 
+void PrVideoSurface::clear() {
+    QMutexLocker lock(&mutex_);
+    latestImage_ = QImage();
+    latestPtsMs_ = 0;
+    hasNewFrame_ = false;
+}
+
 QList<QVideoFrame::PixelFormat> PrVideoSurface::supportedPixelFormats(
     QAbstractVideoBuffer::HandleType handleType) const {
     Q_UNUSED(handleType);
@@ -59,6 +66,7 @@ bool PrVideoSurface::present(const QVideoFrame& frame) {
 
     qint64 pts = frame.startTime() / 1000;  // us -> ms
 
+    QImage signalImage;
     {
         QMutexLocker lock(&mutex_);
         if (hasNewFrame_) {
@@ -66,12 +74,13 @@ bool PrVideoSurface::present(const QVideoFrame& frame) {
             ++droppedCount_;
         }
         latestImage_ = std::move(img);
+        signalImage = latestImage_;
         latestPtsMs_ = pts;
         hasNewFrame_ = true;
     }
 
     PrFrameSnapshot snap;
-    snap.image = latestImage_;
+    snap.image = std::move(signalImage);
     snap.ptsMs = pts;
     snap.valid = true;
     Q_EMIT framePresented(snap);

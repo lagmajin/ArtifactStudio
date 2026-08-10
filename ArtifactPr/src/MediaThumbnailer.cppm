@@ -24,14 +24,27 @@ import ArtifactPr.MediaThumbnailer;
 
 namespace ArtifactPr {
 
+namespace {
+
+QString thumbnailKey(const ThumbnailRequest& req)
+{
+    return QStringLiteral("%1|%2x%3|%4")
+        .arg(req.filePath)
+        .arg(req.targetSize.width())
+        .arg(req.targetSize.height())
+        .arg(req.seekToMs);
+}
+
+} // namespace
+
 // =====================================================================
 // MediaThumbnailer::Worker
 // ---------------------------------------------------------------------
 // 別スレッドで動く。request queue から ThumbnailRequest を取り出し、
 // 1 つずつ thumbnail を生成する。
 //
-// 重複 filePath は latest-wins: queue 内の古い同じ filePath の request
-// は破棄して、最新のものだけ処理する。
+// 同じ request key は latest-wins: queue 内の古い同一 path／サイズ／seek
+// request は破棄して、最新のものだけ処理する。
 //
 // thumbnail 抽出には QMediaPlayer + QVideoSink を使う。
 // seek して最初の videoFrameChanged を待ってから frame を image 化。
@@ -45,10 +58,10 @@ public:
     void enqueue(const ThumbnailRequest& req) {
         QMutexLocker lock(&queueMutex_);
 
-        // latest-wins: 同じ filePath が queue にあれば除去
+        // latest-wins: 同じ request key が queue にあれば除去
         auto it = std::remove_if(queue_.begin(), queue_.end(),
             [&req](const ThumbnailRequest& r) {
-                return r.filePath == req.filePath;
+                return thumbnailKey(r) == thumbnailKey(req);
             });
         queue_.erase(it, queue_.end());
 
@@ -90,8 +103,11 @@ private:
     MediaThumbnail generateSync(const ThumbnailRequest& req) {
         MediaThumbnail result;
         result.filePath = req.filePath;
+        result.cacheKey = thumbnailKey(req);
         result.image = QImage();
         result.durationMs = 0;
+        result.seekToMs = req.seekToMs;
+        result.generation = req.generation;
         result.valid = false;
 
         QMediaPlayer player;
@@ -178,10 +194,12 @@ MediaThumbnailer::~MediaThumbnailer() {
 }
 
 void MediaThumbnailer::request(const ThumbnailRequest& req) {
+    ThumbnailRequest generationTaggedRequest = req;
     // cache に既にあれば即時 emit
     {
         QMutexLocker lock(&cacheMutex_);
-        auto it = cache_.constFind(req.filePath);
+        generationTaggedRequest.generation = cacheGeneration_;
+        auto it = cache_.constFind(thumbnailKey(generationTaggedRequest));
         if (it != cache_.constEnd() && it.value().valid) {
             MediaThumbnail hit = it.value();
             // UI thread に post して emit
@@ -191,12 +209,13 @@ void MediaThumbnailer::request(const ThumbnailRequest& req) {
             return;
         }
     }
-    worker_->enqueue(req);
+    worker_->enqueue(generationTaggedRequest);
 }
 
 void MediaThumbnailer::clearCache() {
     QMutexLocker lock(&cacheMutex_);
     cache_.clear();
+    ++cacheGeneration_;
 }
 
 void MediaThumbnailer::publishThumbnail(const MediaThumbnail& thumbnail)
@@ -205,14 +224,25 @@ void MediaThumbnailer::publishThumbnail(const MediaThumbnail& thumbnail)
 
     {
         QMutexLocker lock(&cacheMutex_);
-        cache_.insert(thumbnail.filePath, thumbnail);
+        if (thumbnail.generation != cacheGeneration_) return;
+        cache_.insert(thumbnail.cacheKey, thumbnail);
     }
     Q_EMIT thumbnailReady(thumbnail);
 }
 
 MediaThumbnail MediaThumbnailer::cached(const QString& filePath) const {
     QMutexLocker lock(&cacheMutex_);
-    auto it = cache_.constFind(filePath);
+    for (auto it = cache_.cbegin(); it != cache_.cend(); ++it) {
+        if (it.value().filePath == filePath) {
+            return it.value();
+        }
+    }
+    return MediaThumbnail{};
+}
+
+MediaThumbnail MediaThumbnailer::cached(const ThumbnailRequest& request) const {
+    QMutexLocker lock(&cacheMutex_);
+    auto it = cache_.constFind(thumbnailKey(request));
     if (it != cache_.constEnd()) {
         return it.value();
     }

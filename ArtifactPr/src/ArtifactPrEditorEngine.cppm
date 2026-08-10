@@ -6,6 +6,7 @@ module;
 #include <QJsonArray>
 #include <QFile>
 #include <QFileInfo>
+#include <QSaveFile>
 #include <QDateTime>
 #include <QDir>
 #include <QMessageBox>
@@ -185,8 +186,12 @@ RenderPlan EditorEngine::createRenderPlan(RenderQualityPreset preset,
     plan.nleSnapshot = nleSnapshot();
     plan.resolution = currentSequence_.resolution;
     plan.frameRate = currentSequence_.frameRate;
-    plan.startFrame = startFrame >= 0 ? startFrame : inPoint_;
-    plan.endFrame = endFrame >= 0 ? endFrame : outPoint_;
+    const FramePosition maxFrame = qMax<FramePosition>(0, currentSequence_.duration);
+    const FramePosition requestedStart = startFrame >= 0 ? startFrame : inPoint_;
+    const FramePosition requestedEnd = endFrame >= 0 ? endFrame : outPoint_;
+    plan.startFrame = qMax<FramePosition>(0, qMin(requestedStart, maxFrame));
+    plan.endFrame = qMax<FramePosition>(plan.startFrame,
+                                        qMin(requestedEnd, maxFrame));
 
     switch (preset) {
     case RenderQualityPreset::Draft:
@@ -408,21 +413,31 @@ void EditorEngine::loadDemoProject()
 
 void EditorEngine::setCurrentFrame(FramePosition frame)
 {
-    currentFrame_ = frame;
-    Q_EMIT currentFrameChanged(frame);
+    const FramePosition maxFrame = qMax<FramePosition>(0, currentSequence_.duration);
+    currentFrame_ = qMax<FramePosition>(0, qMin(frame, maxFrame));
+    Q_EMIT currentFrameChanged(currentFrame_);
 }
 
 void EditorEngine::selectClip(const QString& clipId)
 {
+    bool found = false;
     for (auto& track : currentSequence_.videoTracks) {
         for (auto& clip : track.clips) {
             clip.selected = (clip.id == clipId);
+            found = found || clip.id == clipId;
         }
     }
     for (auto& track : currentSequence_.audioTracks) {
         for (auto& clip : track.clips) {
             clip.selected = (clip.id == clipId);
+            found = found || clip.id == clipId;
         }
+    }
+
+    if (!found) {
+        selectedClipId_.clear();
+        Q_EMIT clipSelectionChanged(QString());
+        return;
     }
 
     selectedClipId_ = clipId;
@@ -587,15 +602,18 @@ void EditorEngine::deleteSelectedClip()
 
     QString trackId;
     int index = -1;
+    bool removedFromVideo = false;
+    const auto beforeVideoTracks = currentSequence_.videoTracks;
+    const FramePosition beforeDuration = currentSequence_.duration;
+    const QString beforeSelection = selectedClipId_;
 
     for (auto& track : currentSequence_.videoTracks) {
         for (int i = 0; i < track.clips.size(); ++i) {
             if (track.clips[i].id == selectedClipId_) {
                 trackId = track.id;
                 index = i;
-                auto cmd = new DeleteClipCommand(track.id, track.clips[i], i);
-                pushUndo(cmd);
                 track.clips.removeAt(i);
+                removedFromVideo = true;
                 break;
             }
         }
@@ -620,6 +638,15 @@ void EditorEngine::deleteSelectedClip()
 
     selectedClipId_.clear();
     Q_EMIT clipSelectionChanged(QString());
+    if (removedFromVideo) {
+        setCurrentSequence(currentSequence_);
+        pushUndo(new VideoTracksStateCommand(beforeVideoTracks,
+                                             currentSequence_.videoTracks,
+                                             beforeDuration,
+                                             currentSequence_.duration,
+                                             beforeSelection,
+                                             QString()));
+    }
     Q_EMIT projectModified();
     Q_EMIT sequenceChanged(currentSequence_);
 }
@@ -651,6 +678,7 @@ void EditorEngine::rippleDeleteSelectedClip()
     QString trackId;
     int index = -1;
     DemoTrack* track = nullptr;
+    bool isVideoTrack = false;
 
     for (auto& t : currentSequence_.videoTracks) {
         for (int i = 0; i < t.clips.size(); ++i) {
@@ -658,6 +686,7 @@ void EditorEngine::rippleDeleteSelectedClip()
                 trackId = t.id;
                 index = i;
                 track = &t;
+                isVideoTrack = true;
                 break;
             }
         }
@@ -680,15 +709,23 @@ void EditorEngine::rippleDeleteSelectedClip()
 
     if (!track) return;
 
-    FramePosition deletedStart = clip->startFrame;
     FramePosition deletedDuration = clip->duration;
 
-    auto cmd = new DeleteClipCommand(track->id, *clip, index);
-    pushUndo(cmd);
-    track->clips.removeAt(index);
+    if (isVideoTrack) {
+        const FramePosition oldDuration = currentSequence_.duration;
+        const FramePosition newDuration = oldDuration - deletedDuration;
+        auto* cmd = new RippleDeleteCommand(track->id, *clip, index,
+                                             oldDuration, newDuration);
+        cmd->redo();
+        pushUndo(cmd);
+    } else {
+        auto cmd = new DeleteClipCommand(track->id, *clip, index);
+        pushUndo(cmd);
+        track->clips.removeAt(index);
 
-    for (int i = index; i < track->clips.size(); ++i) {
-        track->clips[i].startFrame -= deletedDuration;
+        for (int i = index; i < track->clips.size(); ++i) {
+            track->clips[i].startFrame -= deletedDuration;
+        }
     }
 
     selectedClipId_.clear();
@@ -700,6 +737,20 @@ void EditorEngine::rippleDeleteSelectedClip()
 void EditorEngine::splitClipAtPlayhead()
 {
     if (selectedClipId_.isEmpty()) return;
+
+    const auto beforeVideoTracks = currentSequence_.videoTracks;
+    const FramePosition beforeDuration = currentSequence_.duration;
+    const QString beforeSelection = selectedClipId_;
+    bool selectedVideoClip = false;
+    for (const auto& track : currentSequence_.videoTracks) {
+        for (const auto& videoClip : track.clips) {
+            if (videoClip.id == selectedClipId_) {
+                selectedVideoClip = true;
+                break;
+            }
+        }
+        if (selectedVideoClip) break;
+    }
 
     auto* clip = findClip(selectedClipId_);
     if (!clip) return;
@@ -752,6 +803,16 @@ void EditorEngine::splitClipAtPlayhead()
         }
     }
 
+    if (track && selectedVideoClip) {
+        setCurrentSequence(currentSequence_);
+        pushUndo(new VideoTracksStateCommand(beforeVideoTracks,
+                                             currentSequence_.videoTracks,
+                                             beforeDuration,
+                                             currentSequence_.duration,
+                                             beforeSelection,
+                                             selectedClipId_));
+    }
+
     Q_EMIT projectModified();
     Q_EMIT sequenceChanged(currentSequence_);
 }
@@ -759,6 +820,20 @@ void EditorEngine::splitClipAtPlayhead()
 void EditorEngine::duplicateSelectedClip()
 {
     if (selectedClipId_.isEmpty()) return;
+
+    const auto beforeVideoTracks = currentSequence_.videoTracks;
+    const FramePosition beforeDuration = currentSequence_.duration;
+    const QString beforeSelection = selectedClipId_;
+    bool selectedVideoClip = false;
+    for (const auto& track : currentSequence_.videoTracks) {
+        for (const auto& videoClip : track.clips) {
+            if (videoClip.id == selectedClipId_) {
+                selectedVideoClip = true;
+                break;
+            }
+        }
+        if (selectedVideoClip) break;
+    }
 
     auto* clip = findClip(selectedClipId_);
     if (!clip) return;
@@ -804,6 +879,17 @@ void EditorEngine::duplicateSelectedClip()
             track->clips.push_back(newClip);
         }
         selectClip(newClip.id);
+        if (selectedVideoClip) {
+            currentSequence_.duration = qMax<FramePosition>(
+                currentSequence_.duration, newClip.startFrame + newClip.duration);
+            setCurrentSequence(currentSequence_);
+            pushUndo(new VideoTracksStateCommand(beforeVideoTracks,
+                                                 currentSequence_.videoTracks,
+                                                 beforeDuration,
+                                                 currentSequence_.duration,
+                                                 beforeSelection,
+                                                 selectedClipId_));
+        }
     }
 
     Q_EMIT projectModified();
@@ -861,9 +947,23 @@ void EditorEngine::slipClip(const QString& clipId, FramePosition delta)
     const FramePosition oldOut = clip->sourceOut;
     const FramePosition newIn = oldIn + delta;
     const FramePosition newOut = oldOut + delta;
+    bool isVideoClip = false;
+    for (const auto& track : currentSequence_.videoTracks) {
+        for (const auto& videoClip : track.clips) {
+            if (videoClip.id == clipId) {
+                isVideoClip = true;
+                break;
+            }
+        }
+        if (isVideoClip) break;
+    }
 
     auto* cmd = new SlipClipCommand(clipId, oldIn, oldOut, newIn, newOut);
+    cmd->redo();
     pushUndo(cmd);
+    if (isVideoClip) {
+        setCurrentSequence(currentSequence_);
+    }
     Q_EMIT clipChanged(clipId);
     Q_EMIT projectModified();
 }
@@ -919,7 +1019,9 @@ void EditorEngine::slideClip(const QString& clipId, FramePosition delta)
                                      leftId, oldLeftEnd,
                                      rightId, oldRightStart);
     cmd->computeNewEdges();
+    cmd->redo();
     pushUndo(cmd);
+    setCurrentSequence(currentSequence_);
     Q_EMIT clipChanged(clipId);
     Q_EMIT projectModified();
 }
@@ -949,9 +1051,22 @@ void EditorEngine::moveClip(const QString& clipId, FramePosition newStart)
     if (!clip) {
         return;
     }
+    bool isVideoClip = false;
+    for (const auto& track : currentSequence_.videoTracks) {
+        for (const auto& videoClip : track.clips) {
+            if (videoClip.id == clipId) {
+                isVideoClip = true;
+                break;
+            }
+        }
+        if (isVideoClip) break;
+    }
     const FramePosition oldStart = clip->startFrame;
     clip->startFrame = newStart;
     pushUndo(new MoveClipCommand(clipId, oldStart, newStart));
+    if (isVideoClip) {
+        setCurrentSequence(currentSequence_);
+    }
     Q_EMIT clipChanged(clipId);
     Q_EMIT projectModified();
 }
@@ -962,6 +1077,7 @@ void EditorEngine::trimClip(const QString& clipId,
                             FramePosition newSourceIn,
                             FramePosition newSourceOut)
 {
+    newStart = qMax<FramePosition>(0, newStart);
     if (newDuration <= 0 || newSourceOut <= newSourceIn) {
         return;
     }
@@ -990,10 +1106,30 @@ void EditorEngine::trimClip(const QString& clipId,
     if (!clip) {
         return;
     }
-    clip->startFrame = newStart;
-    clip->duration = newDuration;
-    clip->sourceIn = newSourceIn;
-    clip->sourceOut = newSourceOut;
+    bool isVideoClip = false;
+    for (const auto& track : currentSequence_.videoTracks) {
+        for (const auto& videoClip : track.clips) {
+            if (videoClip.id == clipId) {
+                isVideoClip = true;
+                break;
+            }
+        }
+        if (isVideoClip) break;
+    }
+    const FramePosition oldStart = clip->startFrame;
+    const FramePosition oldDuration = clip->duration;
+    const FramePosition oldSourceIn = clip->sourceIn;
+    const FramePosition oldSourceOut = clip->sourceOut;
+    auto* cmd = new TrimClipCommand(clipId,
+                                    oldStart, oldDuration,
+                                    oldSourceIn, oldSourceOut,
+                                    newStart, newDuration,
+                                    newSourceIn, newSourceOut);
+    cmd->redo();
+    pushUndo(cmd);
+    if (isVideoClip) {
+        setCurrentSequence(currentSequence_);
+    }
     Q_EMIT clipChanged(clipId);
     Q_EMIT projectModified();
 }
@@ -1018,6 +1154,7 @@ void EditorEngine::rippleDeleteClipAt(const QString& clipId)
 
     auto* cmd = new RippleDeleteCommand(track->id, *clip, index,
                                         oldDuration, newDuration);
+    cmd->redo();
     pushUndo(cmd);
     Q_EMIT sequenceChanged(currentSequence_);
     Q_EMIT projectModified();
@@ -1035,6 +1172,7 @@ void EditorEngine::insertClipFromSource(const QString& trackId,
 
     auto* cmd = new InsertEditCommand(trackId, sourceClip, insertAt,
                                       oldDuration, newDuration);
+    cmd->redo();
     pushUndo(cmd);
     Q_EMIT sequenceChanged(currentSequence_);
     Q_EMIT projectModified();
@@ -1048,7 +1186,11 @@ void EditorEngine::overwriteClipFromSource(const QString& trackId,
     if (!track) return;
 
     auto* cmd = new OverwriteEditCommand(trackId, sourceClip, overwriteAt);
+    cmd->redo();
     pushUndo(cmd);
+    if (track->kind == QStringLiteral("video")) {
+        setCurrentSequence(currentSequence_);
+    }
     Q_EMIT sequenceChanged(currentSequence_);
     Q_EMIT projectModified();
 }
@@ -1060,7 +1202,11 @@ void EditorEngine::liftRange(const QString& trackId,
     if (!track) return;
 
     auto* cmd = new LiftEditCommand(trackId, from, to, track->clips);
+    cmd->redo();
     pushUndo(cmd);
+    if (track->kind == QStringLiteral("video")) {
+        setCurrentSequence(currentSequence_);
+    }
     Q_EMIT sequenceChanged(currentSequence_);
     Q_EMIT projectModified();
 }
@@ -1084,9 +1230,11 @@ void EditorEngine::setClipSpeed(const QString& clipId, double speed)
     auto* clip = findClip(clipId);
     if (!clip) return;
 
-    clip->speed = speed;
-    Q_EMIT clipChanged(clipId);
-    Q_EMIT projectModified();
+    speed = qMax(0.01, speed);
+    auto* cmd = new ClipPropertyCommand(clipId, ClipPropertyCommand::Kind::Speed,
+                                        clip->speed, speed);
+    cmd->redo();
+    pushUndo(cmd);
 }
 
 void EditorEngine::setClipReversed(const QString& clipId, bool reversed)
@@ -1108,9 +1256,10 @@ void EditorEngine::setClipReversed(const QString& clipId, bool reversed)
     auto* clip = findClip(clipId);
     if (!clip) return;
 
-    clip->reversed = reversed;
-    Q_EMIT clipChanged(clipId);
-    Q_EMIT projectModified();
+    auto* cmd = new ClipPropertyCommand(clipId, ClipPropertyCommand::Kind::Reverse,
+                                        clip->reversed, reversed);
+    cmd->redo();
+    pushUndo(cmd);
 }
 
 void EditorEngine::setClipVolume(const QString& clipId, double volume)
@@ -1118,9 +1267,11 @@ void EditorEngine::setClipVolume(const QString& clipId, double volume)
     auto* clip = findClip(clipId);
     if (!clip) return;
 
-    clip->volume = qMax(0.0, qMin(2.0, volume));
-    Q_EMIT clipChanged(clipId);
-    Q_EMIT projectModified();
+    volume = qMax(0.0, qMin(2.0, volume));
+    auto* cmd = new ClipPropertyCommand(clipId, ClipPropertyCommand::Kind::Volume,
+                                        clip->volume, volume);
+    cmd->redo();
+    pushUndo(cmd);
 }
 
 void EditorEngine::setClipName(const QString& clipId, const QString& name)
@@ -1142,9 +1293,10 @@ void EditorEngine::setClipName(const QString& clipId, const QString& name)
     auto* clip = findClip(clipId);
     if (!clip) return;
 
-    clip->name = name;
-    Q_EMIT clipChanged(clipId);
-    Q_EMIT projectModified();
+    auto* cmd = new ClipPropertyCommand(clipId, ClipPropertyCommand::Kind::Name,
+                                        clip->name, name);
+    cmd->redo();
+    pushUndo(cmd);
 }
 
 void EditorEngine::cutClip(const QString& clipId)
@@ -1153,6 +1305,19 @@ void EditorEngine::cutClip(const QString& clipId)
     if (!clip) return;
 
     clipboard_ = *clip;
+    bool isVideoClip = false;
+    for (const auto& track : currentSequence_.videoTracks) {
+        for (const auto& videoClip : track.clips) {
+            if (videoClip.id == clipId) {
+                isVideoClip = true;
+                break;
+            }
+        }
+        if (isVideoClip) break;
+    }
+    if (isVideoClip && selectedClipId_ != clipId) {
+        selectClip(clipId);
+    }
     deleteSelectedClip();
 }
 
@@ -1168,16 +1333,22 @@ void EditorEngine::pasteClip(FramePosition targetFrame)
 {
     if (clipboard_.id.isEmpty()) return;
 
+    if (targetFrame < 0) targetFrame = currentFrame_;
+
+    const auto beforeVideoTracks = currentSequence_.videoTracks;
+    const FramePosition beforeDuration = currentSequence_.duration;
+    const QString beforeSelection = selectedClipId_;
+
     DemoClip newClip = clipboard_;
     newClip.id = generateId(QStringLiteral("clip"));
     newClip.startFrame = targetFrame;
     newClip.selected = false;
 
     DemoTrack* targetTrack = nullptr;
-    if (targetFrame < 0) targetFrame = currentFrame_;
-
+    bool targetIsVideo = false;
     for (auto& track : currentSequence_.videoTracks) {
         targetTrack = &track;
+        targetIsVideo = true;
         break;
     }
 
@@ -1201,6 +1372,17 @@ void EditorEngine::pasteClip(FramePosition targetFrame)
             targetTrack->clips.push_back(newClip);
         }
         selectClip(newClip.id);
+        if (targetIsVideo) {
+            currentSequence_.duration = qMax<FramePosition>(
+                currentSequence_.duration, newClip.startFrame + newClip.duration);
+            setCurrentSequence(currentSequence_);
+            pushUndo(new VideoTracksStateCommand(beforeVideoTracks,
+                                                 currentSequence_.videoTracks,
+                                                 beforeDuration,
+                                                 currentSequence_.duration,
+                                                 beforeSelection,
+                                                 selectedClipId_));
+        }
         Q_EMIT projectModified();
         Q_EMIT sequenceChanged(currentSequence_);
     }
@@ -1283,8 +1465,12 @@ FramePosition EditorEngine::snapToNearestEx(FramePosition frame, bool forLeftEdg
         }
     }
 
-    // second 単位 (30 fps 想定)
-    const int kFps = 30;
+    // second 単位 (sequence の frame rate に合わせる)
+    bool fpsOk = false;
+    const double parsedFps = currentSequence_.frameRate.section(QChar(' '), 0, 0).toDouble(&fpsOk);
+    const int kFps = !fpsOk || parsedFps <= 0.0
+        ? 30
+        : qMax(1, static_cast<int>(parsedFps + 0.5));
     const FramePosition secondFrame = (frame / kFps) * kFps;
     if (qAbs(frame - secondFrame) <= threshold) {
         return secondFrame;
@@ -1337,6 +1523,19 @@ void MoveClipCommand::doMove(FramePosition pos)
     auto* clip = engine->findClip(clipId_);
     if (clip) {
         clip->startFrame = pos;
+        bool isVideoClip = false;
+        for (const auto& track : engine->currentSequence().videoTracks) {
+            for (const auto& videoClip : track.clips) {
+                if (videoClip.id == clipId_) {
+                    isVideoClip = true;
+                    break;
+                }
+            }
+            if (isVideoClip) break;
+        }
+        if (isVideoClip) {
+            engine->setCurrentSequence(engine->currentSequence());
+        }
     }
 }
 
@@ -1345,19 +1544,35 @@ void MoveClipCommand::undo()
     doMove(oldStart_);
 }
 
-void TrimClipCommand::doTrim(FramePosition start, FramePosition duration)
+void TrimClipCommand::doTrim(FramePosition start, FramePosition duration,
+                             FramePosition sourceIn, FramePosition sourceOut)
 {
     auto* engine = ArtifactPr::EditorEngine::instance();
     auto* clip = engine->findClip(clipId_);
     if (clip) {
         clip->startFrame = start;
         clip->duration = duration;
+        clip->sourceIn = sourceIn;
+        clip->sourceOut = sourceOut;
+        bool isVideoClip = false;
+        for (const auto& track : engine->currentSequence().videoTracks) {
+            for (const auto& videoClip : track.clips) {
+                if (videoClip.id == clipId_) {
+                    isVideoClip = true;
+                    break;
+                }
+            }
+            if (isVideoClip) break;
+        }
+        if (isVideoClip) {
+            engine->setCurrentSequence(engine->currentSequence());
+        }
     }
 }
 
 void TrimClipCommand::undo()
 {
-    doTrim(oldStart_, oldDuration_);
+    doTrim(oldStart_, oldDuration_, oldSourceIn_, oldSourceOut_);
 }
 
 void DeleteClipCommand::undo()
@@ -1394,6 +1609,8 @@ bool EditorEngine::runAutoSave()
 
 void EditorEngine::addMarker(FramePosition position, const QString& name, const QString& comment)
 {
+    position = qMax<FramePosition>(0, qMin(position, currentSequence_.duration));
+    const auto before = currentSequence_.markers;
     Marker marker;
     marker.id = generateMarkerId();
     marker.position = position;
@@ -1404,7 +1621,7 @@ void EditorEngine::addMarker(FramePosition position, const QString& name, const 
 
     currentSequence_.markers.append(marker);
 
-    pushUndo(new AddMarkerCommand(marker));
+    pushUndo(new MarkerStateCommand(before, currentSequence_.markers));
     Q_EMIT markerChanged();
     Q_EMIT projectModified();
 }
@@ -1413,9 +1630,9 @@ void EditorEngine::deleteMarker(const QString& markerId)
 {
     for (int i = 0; i < currentSequence_.markers.size(); ++i) {
         if (currentSequence_.markers[i].id == markerId) {
-            auto marker = currentSequence_.markers[i];
-            pushUndo(new DeleteMarkerCommand(marker, i));
+            const auto before = currentSequence_.markers;
             currentSequence_.markers.removeAt(i);
+            pushUndo(new MarkerStateCommand(before, currentSequence_.markers));
             Q_EMIT markerChanged();
             Q_EMIT projectModified();
             return;
@@ -1425,9 +1642,12 @@ void EditorEngine::deleteMarker(const QString& markerId)
 
 void EditorEngine::moveMarker(const QString& markerId, FramePosition newPosition)
 {
+    const auto before = currentSequence_.markers;
     for (auto& marker : currentSequence_.markers) {
         if (marker.id == markerId) {
-            marker.position = newPosition;
+            marker.position = qMax<FramePosition>(0,
+                qMin(newPosition, currentSequence_.duration));
+            pushUndo(new MarkerStateCommand(before, currentSequence_.markers));
             Q_EMIT markerChanged();
             Q_EMIT projectModified();
             return;
@@ -1437,9 +1657,11 @@ void EditorEngine::moveMarker(const QString& markerId, FramePosition newPosition
 
 void EditorEngine::setMarkerName(const QString& markerId, const QString& name)
 {
+    const auto before = currentSequence_.markers;
     for (auto& marker : currentSequence_.markers) {
         if (marker.id == markerId) {
             marker.name = name;
+            pushUndo(new MarkerStateCommand(before, currentSequence_.markers));
             Q_EMIT markerChanged();
             Q_EMIT projectModified();
             return;
@@ -1449,9 +1671,11 @@ void EditorEngine::setMarkerName(const QString& markerId, const QString& name)
 
 void EditorEngine::setMarkerComment(const QString& markerId, const QString& comment)
 {
+    const auto before = currentSequence_.markers;
     for (auto& marker : currentSequence_.markers) {
         if (marker.id == markerId) {
             marker.comment = comment;
+            pushUndo(new MarkerStateCommand(before, currentSequence_.markers));
             Q_EMIT markerChanged();
             Q_EMIT projectModified();
             return;
@@ -1461,7 +1685,10 @@ void EditorEngine::setMarkerComment(const QString& markerId, const QString& comm
 
 void EditorEngine::clearMarkers()
 {
+    if (currentSequence_.markers.isEmpty()) return;
+    const auto before = currentSequence_.markers;
     currentSequence_.markers.clear();
+    pushUndo(new MarkerStateCommand(before, currentSequence_.markers));
     Q_EMIT markerChanged();
     Q_EMIT projectModified();
 }
@@ -1523,6 +1750,16 @@ void EditorEngine::addTransitionAtPlayhead(TransitionType type, FramePosition du
 void EditorEngine::addTransition(const QString& trackId, const QString& leftClipId, const QString& rightClipId,
                                  FramePosition startFrame, TransitionType type, FramePosition duration)
 {
+    if (duration <= 0 || startFrame < 0) return;
+
+    bool isVideoTrack = false;
+    for (const auto& track : currentSequence_.videoTracks) {
+        if (track.id == trackId) {
+            isVideoTrack = true;
+            break;
+        }
+    }
+
     Transition trans;
     trans.id = generateTransitionId();
     trans.trackId = trackId;
@@ -1532,7 +1769,12 @@ void EditorEngine::addTransition(const QString& trackId, const QString& leftClip
     trans.duration = duration;
     trans.type = type;
 
+    const auto before = currentSequence_.transitions;
     currentSequence_.transitions.append(trans);
+    if (isVideoTrack) {
+        setCurrentSequence(currentSequence_);
+        pushUndo(new TransitionStateCommand(before, currentSequence_.transitions));
+    }
     Q_EMIT transitionChanged();
     Q_EMIT projectModified();
 }
@@ -1541,12 +1783,52 @@ void EditorEngine::deleteTransition(const QString& transitionId)
 {
     for (int i = 0; i < currentSequence_.transitions.size(); ++i) {
         if (currentSequence_.transitions[i].id == transitionId) {
+            const auto before = currentSequence_.transitions;
+            const bool isVideoTrack = [&]() {
+                for (const auto& track : currentSequence_.videoTracks) {
+                    if (track.id == currentSequence_.transitions[i].trackId) return true;
+                }
+                return false;
+            }();
             currentSequence_.transitions.removeAt(i);
+            if (isVideoTrack) {
+                setCurrentSequence(currentSequence_);
+                pushUndo(new TransitionStateCommand(before, currentSequence_.transitions));
+            }
             Q_EMIT transitionChanged();
             Q_EMIT projectModified();
             return;
         }
     }
+}
+
+bool EditorEngine::setVideoTransitionDuration(const QString& transitionId, FramePosition duration)
+{
+    if (duration <= 0) return false;
+
+    bool isVideoTransition = false;
+    for (const auto& transition : currentSequence_.transitions) {
+        if (transition.id != transitionId) continue;
+        for (const auto& track : currentSequence_.videoTracks) {
+            if (track.id == transition.trackId) {
+                isVideoTransition = true;
+                break;
+            }
+        }
+        break;
+    }
+    if (!isVideoTransition) return false;
+
+    const auto before = currentSequence_.transitions;
+    for (auto& transition : currentSequence_.transitions) {
+        if (transition.id == transitionId) {
+            transition.duration = duration;
+            break;
+        }
+    }
+    setCurrentSequence(currentSequence_);
+    pushUndo(new TransitionStateCommand(before, currentSequence_.transitions));
+    return true;
 }
 
 QString EditorEngine::transitionTypeToString(TransitionType type)
@@ -1878,32 +2160,24 @@ bool EditorEngine::saveProject(const QString& filePath)
         return false;
     }
 
-    // Atomic write: temp ファイルに書いてから rename。
+    // QSaveFile が既存ファイルを先に削除せず、commit 時に置換する。
     // crash や disk full で中途半端な状態にならない。
-    const QString tempPath = filePath + QStringLiteral(".tmp");
-
-    QFile file(tempPath);
+    QSaveFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        Q_EMIT projectSaved(false, QStringLiteral("Failed to open temp file for writing: %1").arg(tempPath));
+        Q_EMIT projectSaved(false, QStringLiteral("Failed to open project file for writing: %1").arg(filePath));
         return false;
     }
 
+    const QString previousModifiedAt = currentProject_.modifiedAt;
     currentProject_.modifiedAt = QDateTime::currentDateTime().toString(Qt::ISODate);
 
     QJsonObject json = projectToJson(currentProject_);
     QJsonDocument doc(json);
+    const QByteArray payload = doc.toJson(QJsonDocument::Indented);
 
-    file.write(doc.toJson(QJsonDocument::Indented));
-    file.flush();
-    file.close();
-
-    // temp → 本ファイルへ rename (atomic on most platforms)
-    if (QFile::exists(filePath)) {
-        QFile::remove(filePath);
-    }
-    if (!QFile::rename(tempPath, filePath)) {
-        Q_EMIT projectSaved(false, QStringLiteral("Failed to rename temp to final file"));
-        QFile::remove(tempPath);
+    if (file.write(payload) != payload.size() || !file.commit()) {
+        currentProject_.modifiedAt = previousModifiedAt;
+        Q_EMIT projectSaved(false, QStringLiteral("Failed to commit project file: %1").arg(filePath));
         return false;
     }
 
@@ -1928,6 +2202,10 @@ bool EditorEngine::loadProject(const QString& filePath)
         Q_EMIT projectLoaded(false, QStringLiteral("JSON parse error: %1").arg(error.errorString()));
         return false;
     }
+    if (!doc.isObject()) {
+        Q_EMIT projectLoaded(false, QStringLiteral("Project JSON root must be an object"));
+        return false;
+    }
 
     currentProject_ = jsonToProject(doc.object());
 
@@ -1937,16 +2215,23 @@ bool EditorEngine::loadProject(const QString& filePath)
         // Don't block load, but warn user
     }
 
+    currentSequence_ = DemoSequence{};
+    bool activeSequenceFound = false;
     for (const auto& seq : currentProject_.sequences) {
         if (seq.id == currentProject_.activeSequenceId) {
             currentSequence_ = seq;
+            activeSequenceFound = true;
             break;
         }
+    }
+    if (!activeSequenceFound && !currentProject_.sequences.isEmpty()) {
+        currentSequence_ = currentProject_.sequences.front();
+        currentProject_.activeSequenceId = currentSequence_.id;
     }
 
     currentFrame_ = 0;
     inPoint_ = 0;
-    outPoint_ = currentSequence_.duration;
+    outPoint_ = qMax<FramePosition>(0, currentSequence_.duration);
     playbackSpeed_ = PlaybackSpeed::Stop;
     selectedClipId_.clear();
 
@@ -2045,5 +2330,68 @@ void DeleteMarkerCommand::redo()
     Q_EMIT engine->markerChanged();
 }
 
-} // namespace ArtifactPr
+void VideoTracksStateCommand::apply(const QVector<DemoTrack>& tracks,
+                                    FramePosition duration,
+                                    const QString& selection)
+{
+    auto* engine = ArtifactPr::EditorEngine::instance();
+    auto sequence = engine->currentSequence();
+    sequence.videoTracks = tracks;
+    sequence.duration = duration;
+    engine->setCurrentSequence(sequence);
+    if (selection.isEmpty()) {
+        engine->clearSelection();
+    } else {
+        engine->selectClip(selection);
+    }
+}
 
+void VideoTracksStateCommand::undo()
+{
+    apply(before_, beforeDuration_, beforeSelection_);
+}
+
+void VideoTracksStateCommand::redo()
+{
+    apply(after_, afterDuration_, afterSelection_);
+}
+
+void MarkerStateCommand::apply(const QVector<Marker>& markers)
+{
+    auto* engine = ArtifactPr::EditorEngine::instance();
+    auto sequence = engine->currentSequence();
+    sequence.markers = markers;
+    engine->setCurrentSequence(sequence);
+    Q_EMIT engine->markerChanged();
+}
+
+void TransitionStateCommand::apply(const QVector<Transition>& transitions)
+{
+    auto* engine = ArtifactPr::EditorEngine::instance();
+    auto sequence = engine->currentSequence();
+    sequence.transitions = transitions;
+    engine->setCurrentSequence(sequence);
+    Q_EMIT engine->transitionChanged();
+}
+
+void TransitionStateCommand::undo()
+{
+    apply(before_);
+}
+
+void TransitionStateCommand::redo()
+{
+    apply(after_);
+}
+
+void MarkerStateCommand::undo()
+{
+    apply(before_);
+}
+
+void MarkerStateCommand::redo()
+{
+    apply(after_);
+}
+
+} // namespace ArtifactPr

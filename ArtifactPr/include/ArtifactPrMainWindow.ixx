@@ -11,6 +11,7 @@ import ArtifactPr.StatusNotifier;
 import ArtifactPr.TimecodeOverlayWidget;
 
 export class TransportBarWidget;
+export class MediaPanel;
 
 export class ArtifactPrMainWindow : public QMainWindow
 {
@@ -38,4 +39,5 @@ private:
     ArtifactPr::ShortcutHelpDialog* helpDialog_ = nullptr;
     QTimer* autoSaveTimer_ = nullptr;
     ArtifactPr::TimecodeOverlayWidget* timecodeOverlay_ = nullptr;
+    MediaPanel* mediaPanel_ = nullptr;
 };

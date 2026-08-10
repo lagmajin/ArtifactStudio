@@ -170,15 +170,37 @@ void MediaPanel::refreshMediaList(const ArtifactPr::DemoSequence&)
 
     auto* engine = ArtifactPr::EditorEngine::instance();
     const auto& seq = engine->currentSequence();
+    const auto alreadyListed = [this](const QString& filePath) {
+        for (int i = 0; i < list_->count(); ++i) {
+            const auto* item = list_->item(i);
+            if (item && item->data(Qt::UserRole).toString() == filePath) return true;
+        }
+        return false;
+    };
 
     for (const auto& track : seq.videoTracks) {
         for (const auto& clip : track.clips) {
-            addMediaFile(clip.name, clip.name);
+            if (!clip.sourceFile.isEmpty() && !alreadyListed(clip.sourceFile)) {
+                const QString displayName = clip.name.isEmpty()
+                    ? QFileInfo(clip.sourceFile).fileName()
+                    : clip.name;
+                addMediaFile(clip.sourceFile, displayName);
+            }
         }
     }
     for (const auto& track : seq.audioTracks) {
         for (const auto& clip : track.clips) {
             addMediaFile(clip.name, clip.name);
+        }
+    }
+
+    for (const auto& media : engine->mediaPool()) {
+        if (media.type == QStringLiteral("video")
+            && !media.filePath.isEmpty()
+            && !alreadyListed(media.filePath)) {
+            addMediaFile(media.filePath, media.name.isEmpty()
+                ? QFileInfo(media.filePath).fileName()
+                : media.name);
         }
     }
 
@@ -208,7 +230,38 @@ void MediaPanel::onImportClicked()
 
     if (!files.isEmpty()) {
         for (const auto& file : files) {
-            addMediaFile(file, QFileInfo(file).fileName());
+            const QString suffix = QFileInfo(file).suffix().toLower();
+            const bool isVideo = suffix == QStringLiteral("mp4")
+                || suffix == QStringLiteral("avi")
+                || suffix == QStringLiteral("mov")
+                || suffix == QStringLiteral("mkv");
+            bool alreadyListed = false;
+            if (isVideo) {
+                for (int i = 0; i < list_->count(); ++i) {
+                    const auto* item = list_->item(i);
+                    if (item && item->data(Qt::UserRole).toString() == file) {
+                        alreadyListed = true;
+                        break;
+                    }
+                }
+            }
+            if (!isVideo || !alreadyListed) {
+                addMediaFile(file, QFileInfo(file).fileName());
+            }
+            if (isVideo) {
+                auto* engine = ArtifactPr::EditorEngine::instance();
+                bool alreadyRegistered = false;
+                for (const auto& media : engine->mediaPool()) {
+                    if (media.filePath == file && media.type == QStringLiteral("video")) {
+                        alreadyRegistered = true;
+                        break;
+                    }
+                }
+                if (!alreadyRegistered) {
+                    engine->addMediaToPool(
+                        file, QFileInfo(file).fileName(), QStringLiteral("video"));
+                }
+            }
         }
         applySearchFilter(searchEdit_->text());
     }

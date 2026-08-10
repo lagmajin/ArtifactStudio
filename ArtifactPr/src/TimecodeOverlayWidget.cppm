@@ -6,6 +6,7 @@ module;
 #include <QPen>
 #include <QRect>
 #include <QString>
+#include <QtGlobal>
 #include <QWidget>
 
 module ArtifactPr.TimecodeOverlayWidget;
@@ -21,6 +22,7 @@ TimecodeOverlayWidget::TimecodeOverlayWidget(QWidget* parent)
 }
 
 void TimecodeOverlayWidget::setCurrentFrame(int frame) {
+    frame = qMax(0, frame);
     if (currentFrame_ == frame) return;
     currentFrame_ = frame;
     update();

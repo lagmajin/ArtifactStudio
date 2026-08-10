@@ -1,6 +1,7 @@
 module;
 
 #include <QObject>
+#include <QtGlobal>
 #include <QVariant>
 #include <QVector>
 
@@ -10,6 +11,12 @@ import ArtifactPr.EditCommand;
 import ArtifactPr.EditorEngine;
 
 namespace ArtifactPr {
+
+namespace {
+
+int insertedClipCounter = 0;
+
+} // namespace
 
 // =====================================================================
 // SlipClipCommand
@@ -21,6 +28,14 @@ void SlipClipCommand::doSlip(FramePosition sourceIn, FramePosition sourceOut) {
         clip->sourceIn = sourceIn;
         clip->sourceOut = sourceOut;
         Q_EMIT engine->clipChanged(clipId_);
+        for (const auto& track : engine->currentSequence().videoTracks) {
+            for (const auto& videoClip : track.clips) {
+                if (videoClip.id == clipId_) {
+                    engine->setCurrentSequence(engine->currentSequence());
+                    return;
+                }
+            }
+        }
     }
 }
 
@@ -61,6 +76,7 @@ void SlideClipCommand::doSlide(FramePosition start, FramePosition leftEnd, Frame
     if (clip) {
         Q_EMIT engine->clipChanged(clipId_);
     }
+    engine->setCurrentSequence(engine->currentSequence());
 }
 
 // =====================================================================
@@ -93,6 +109,9 @@ void RippleDeleteCommand::doRipple(bool undo) {
             }
         }
     }
+    auto sequence = engine->currentSequence();
+    sequence.duration = qMax<FramePosition>(0, undo ? oldDuration_ : newDuration_);
+    engine->setCurrentSequence(sequence);
     Q_EMIT engine->projectModified();
 }
 
@@ -107,7 +126,7 @@ void InsertEditCommand::doInsert(bool undo) {
     if (undo) {
         // 挿入した clip を除去
         for (int i = 0; i < track->clips.size(); ++i) {
-            if (track->clips[i].id == sourceClip_.id && track->clips[i].startFrame == insertAt_) {
+            if (track->clips[i].id == insertedClipId_ && track->clips[i].startFrame == insertAt_) {
                 track->clips.removeAt(i);
                 // 後続 clip を元位置に戻す
                 for (int j = i; j < track->clips.size(); ++j) {
@@ -126,7 +145,10 @@ void InsertEditCommand::doInsert(bool undo) {
         // 新しい clip を insert
         DemoClip newClip = sourceClip_;
         newClip.startFrame = insertAt_;
-        newClip.id = QStringLiteral("insert_%1").arg(QObject::sender() ? QString() : QString());
+        if (insertedClipId_.isEmpty()) {
+            insertedClipId_ = QStringLiteral("insert_%1").arg(++insertedClipCounter);
+        }
+        newClip.id = insertedClipId_;
         // 同じ startFrame 位置に挿入 (sort 維持)
         int insertIndex = 0;
         for (int i = 0; i < track->clips.size(); ++i) {
@@ -136,6 +158,9 @@ void InsertEditCommand::doInsert(bool undo) {
         }
         track->clips.insert(insertIndex, newClip);
     }
+    auto sequence = engine->currentSequence();
+    sequence.duration = qMax<FramePosition>(0, undo ? oldDuration_ : newDuration_);
+    engine->setCurrentSequence(sequence);
     Q_EMIT engine->projectModified();
 }
 
@@ -146,11 +171,12 @@ void OverwriteEditCommand::doOverwrite(bool undo) {
     auto* engine = EditorEngine::instance();
     auto* track = engine->findTrack(trackId_);
     if (!track) return;
+    const bool isVideoTrack = track->kind == QStringLiteral("video");
 
     if (undo) {
         // 元の clip を除去 + removedClips を復元
         for (int i = 0; i < track->clips.size(); ++i) {
-            if (track->clips[i].id == sourceClip_.id) {
+            if (track->clips[i].id == insertedClipId_) {
                 track->clips.removeAt(i);
                 break;
             }
@@ -180,7 +206,14 @@ void OverwriteEditCommand::doOverwrite(bool undo) {
         // sourceClip を挿入
         DemoClip newClip = sourceClip_;
         newClip.startFrame = overwriteAt_;
+        if (insertedClipId_.isEmpty()) {
+            insertedClipId_ = QStringLiteral("overwrite_%1").arg(++insertedClipCounter);
+        }
+        newClip.id = insertedClipId_;
         track->clips.append(newClip);
+    }
+    if (isVideoTrack) {
+        engine->setCurrentSequence(engine->currentSequence());
     }
     Q_EMIT engine->projectModified();
 }
@@ -192,21 +225,11 @@ void LiftEditCommand::doLift(bool undo) {
     auto* engine = EditorEngine::instance();
     auto* track = engine->findTrack(trackId_);
     if (!track) return;
+    const bool isVideoTrack = track->kind == QStringLiteral("video");
 
     if (undo) {
-        // originalClips を復元 + removedClips を除去
-        for (int i = 0; i < track->clips.size(); ++i) {
-            // 同じ startFrame 範囲を持つ clip を除去 (lift で作られた gap)
-        }
-        for (const auto& c : originalClips_) {
-            track->clips.append(c);
-        }
-        for (const auto& c : removedClips_) {
-            // 衝突部分を削除
-            track->clips.removeIf([&](const DemoClip& c) {
-                return c.id == c.id;  // 同一性で除去
-            });
-        }
+        // 部分 trim と削除を含む元の clip 配列をそのまま復元する。
+        track->clips = originalClips_;
     } else {
         // from ~ to 区間にある clip 部分を抜き取る
         originalClips_ = track->clips;
@@ -238,6 +261,9 @@ void LiftEditCommand::doLift(bool undo) {
             }
         }
         track->clips = remaining;
+    }
+    if (isVideoTrack) {
+        engine->setCurrentSequence(engine->currentSequence());
     }
     Q_EMIT engine->projectModified();
 }
@@ -278,6 +304,16 @@ void ClipPropertyCommand::doApply(const QVariant& v) {
         Q_EMIT engine->clipChanged(clipId_);
         break;
     }
+    for (const auto& track : engine->currentSequence().videoTracks) {
+        for (const auto& videoClip : track.clips) {
+            if (videoClip.id == clipId_) {
+                engine->setCurrentSequence(engine->currentSequence());
+                Q_EMIT engine->projectModified();
+                return;
+            }
+        }
+    }
+    Q_EMIT engine->projectModified();
 }
 
 } // namespace ArtifactPr

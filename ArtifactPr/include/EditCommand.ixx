@@ -113,6 +113,7 @@ private:
     DemoClip sourceClip_;
     FramePosition insertAt_;
     FramePosition oldDuration_, newDuration_;
+    QString insertedClipId_;
 };
 
 /// Overwrite Edit: source clip を playhead 位置で上書き。
@@ -134,6 +135,7 @@ private:
     QString trackId_;
     DemoClip sourceClip_;
     FramePosition overwriteAt_;
+    QString insertedClipId_;
     QVector<DemoClip> removedClips_;  // 上書きで消えた clip (redo 時に保持)
 };
 

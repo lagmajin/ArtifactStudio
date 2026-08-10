@@ -44,6 +44,9 @@ public:
     /// 取得後、内部 frame は無効化される。
     PrFrameSnapshot takeSnapshot();
 
+    /// メディア切替前に保留中の旧 frame を破棄する。
+    void clear();
+
     /// 最後に present した frame の PTS (ms)。UI thread から参照可能。
     qint64 lastPtsMs() const;
 
