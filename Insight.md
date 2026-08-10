@@ -130,6 +130,15 @@
 - 価値・懸念: NaN の `lround` 伝播、Float32 device buffer への非有限値、異常 meter 値を抑える。非有限入力を無音とするため、異常発生箇所の診断ログは別途必要になり得る。
 - 次の確認: 明示許可後に、float / int16 backend へ NaN / ±∞ / ±1超過サンプルを渡し、出力・meter・callback 継続性を確認する。
 
+### 2026-08-10 — AudioChorus の delay state 有限性
+
+- 状態: 実装済みの局所防御。chorus の音色・feedback 仕様は未変更で、極端値の runtime 聴感は未検証。
+- 関連: `ArtifactCore/include/Audio/AudioChorus.ixx`、`ArtifactCore/src/Audio/AudioChorus.cppm`
+- 事実: Chorus は入力を delay buffer へ直接保存し、次 block で再利用していた。setter / JSON / parameter 経路も非有限値を保持できた。
+- 閃き・仮説: 遅延系 effect は buffer state の保存点で有限性を保証し、出力側でも再確認することで、1サンプルの NaN が長時間残る経路を止められる。
+- 価値・懸念: NaN state の block 越し伝播と chorus output の overflow を抑える。既存の feedback パラメータ適用など音色仕様には手を入れていない。
+- 次の確認: 明示許可後に、NaN / ±∞ / 最大 PCM を複数 block へ通し、delay buffer と output の有限性を確認する。
+
 ### 2026-08-10 — Timeline / Property 編集経路の再計算と未利用基盤を改善候補として記録
 
 - 状態: 改善候補・未実装。実行時の呼び出し頻度と効果は未検証。
