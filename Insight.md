@@ -10754,3 +10754,12 @@
 - **対応:** bus が有効な場合だけ routing と Core bus setter を実行し、失敗時は strip を未接続・Master 表示として継続する。
 - **価値／懸念:** 1 layer の bus 作成失敗で mixer 全体の同期を中断しない。通常の bus 作成成功時の設定値は変更しない。
 - **次に確認:** ビルド時に通常 layer、無効／衝突 layer ID、Core mixer 作成失敗時の同期を確認する。
+
+## 2026-08-10: AudioMixer stale channel-strip callback guard
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioMixer.cppm`
+- **事実:** `clearChannelStrips()` は QObject strip を `deleteLater()` する一方、先に map から所有を外す。旧 strip の signal callback は owner の `this` context を持ち、map 外でも実行され得る。
+- **仮説:** 再同期中の遅延 volume／pan／mute／solo signal が、現行 composition の設定や mute 状態を旧 layer 値で上書きする可能性がある。未検証。
+- **対応:** 各 callback の入口で layer ID に対応する map entry が同じ strip かを確認し、stale strip なら無視する。
+- **価値／懸念:** QObject の遅延破棄方式と既存 signal 配線を維持したまま、旧 UI 状態の書き戻しを防ぐ。現行 strip の操作は変更しない。
+- **次に確認:** ビルド時に composition 切替／再同期直後の遅延 signal と通常操作を確認する。
