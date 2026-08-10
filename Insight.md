@@ -11159,3 +11159,12 @@
 - **対応:** open は backend null を false で返し、start／stop／close 系は backend がある場合だけ lifecycle call を行う。
 - **価値／懸念:** device lifecycle の failure path を安全に閉じる。実 backend の start／stop sequence は未確認。
 - **次に確認:** backend factory failure、open failure、start without backend、requestStop／stop／close の null backend、正常 WASAPI／Qt lifecycle を確認する。
+
+## 2026-08-10: Audio writer seek width and waveform reset guards
+
+- **関連:** `ArtifactCore/src/Audio/AudioWriter.cppm`, `ArtifactCore/src/Audio/AudioWaveform.cppm`
+- **事実:** WAV header 更新位置は `44 + dataBytes` の型で加算してから `QFile::seek()` に渡していたため、RIFF 上限付近で 32-bit wrap の余地があった。Waveform は channel／frame が空の入力で return し、前回の `waveformData_` を保持していた。
+- **仮説:** 大きな WAV の finalize が先頭付近を seek して破損する、空ブロック後に UI が古い波形を表示する可能性がある。未検証。
+- **対応:** seek 加算を明示的な qint64 にし、空 waveform 入力では既存データを zero-fill する。
+- **価値／懸念:** ファイル位置計算と可視化 state の failure path を決定的にする。4GB 境界と UI 表示は未確認。
+- **次に確認:** near-limit header position、empty／zero-frame waveform、正常 WAV finalize と連続 waveform 更新を確認する。
