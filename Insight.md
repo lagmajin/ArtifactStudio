@@ -10727,3 +10727,12 @@
 - **対応:** `paintEvent()` の描画開始時に `bus_` null を検査し、未接続時は標準 QWidget 描画後に終了する。
 - **価値／懸念:** 描画ライフサイクルを meter 更新側と一致させる。接続済み bus のメーター表示は変更しない。
 - **次に確認:** ビルド時に mixer row の再構築・空 composition・bus 接続済み状態を確認する。
+
+## 2026-08-10: AudioChannelStripWidget control null bus guards
+
+- **関連:** `Artifact/src/Widgets/AudioMixerWidget.cppm`
+- **事実:** Pan／Volume／Mute／Solo の Qt callback は `bus_` の検査なしに setter を呼んでいた。一方、同じ widget の meter 更新・描画経路は null 状態を扱っていた。
+- **仮説:** row 再構築や未接続 widget の遅延イベントで、操作 callback が null bus を参照する可能性がある。未検証。
+- **対応:** 4つの callback の入口に `bus_` null guard を追加する。
+- **価値／懸念:** 未接続状態では操作を無視し、接続済み bus の操作と表示は変更しない。
+- **次に確認:** ビルド時に各 control の通常操作、row 再構築中の遅延イベント、未接続 widget を確認する。
