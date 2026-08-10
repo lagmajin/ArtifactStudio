@@ -49,6 +49,15 @@
 - 価値・懸念: 異常に大きい入力やゲインでも soft-clip が有限値として動き、メータの非有限値伝播を抑えられる。飽和点付近のメータ表示は実機音量・既存仕様との確認が必要。
 - 次の確認: 明示許可後に、最大値近傍の PCM、通常ゲイン、FX 後の極端値で output / peak / RMS が有限であることを確認する。
 
+### 2026-08-10 — AudioPanner の直接 API 入力境界
+
+- 状態: 実装済みの局所防御。各 panning mode の実機・聴感確認は未実施。
+- 関連: `ArtifactCore/src/Audio/AudioPanner.cppm`
+- 事実: `calculateGain` と `calculateConstantPowerGains` は非有限または範囲外の pan / azimuth を直接計算し、`applyPanning` はゲインと PCM の非有限性を検査していなかった。
+- 閃き・仮説: AudioBus 経由だけでなく、公開されている Panner API 自体で pan を正規化すると、別の effect / UI 経路からの NaN 伝播も抑えられる。
+- 価値・懸念: 不正な pan で左右ゲインが NaN になったり、直接適用で PCM が壊れたりするリスクを下げる。異常ゲインは無音へ寄せ、overflow は有限の最大値へ飽和させた。
+- 次の確認: 明示許可後に、NaN / ±∞ / ±2 の pan と最大 PCM を各公開 API に通し、有限出力と左右定位を確認する。
+
 ### 2026-08-10 — Timeline / Property 編集経路の再計算と未利用基盤を改善候補として記録
 
 - 状態: 改善候補・未実装。実行時の呼び出し頻度と効果は未検証。
