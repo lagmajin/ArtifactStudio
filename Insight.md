@@ -10844,3 +10844,12 @@
 - **対応:** open 前に旧 preload、waveform、総サンプル数をクリアする。
 - **価値／懸念:** 読み込み失敗時は空の preview になる。正常な読み込みと stop／再生フローは変更しない。
 - **次に確認:** ビルド時に有効 file→無効 file、無効 file→有効 file の順で play／waveform 状態を確認する。
+
+## 2026-08-10: AudioRenderer enqueue result and preview position
+
+- **関連:** `ArtifactCore/include/Audio/AudioRenderer.ixx`, `ArtifactCore/src/Audio/AudioRenderer.cppm`, `Artifact/src/Widgets/AudioPreviewWidget.cppm`
+- **事実:** `AudioRenderer::enqueue()` は入力不正／ring buffer overflow を呼び出し側へ返さず、AudioPreview は enqueue 成否に関係なく位置を256 frame進めていた。生成 chunk は最大512 frameだった。
+- **仮説:** overflow 時に音声を捨てたまま位置だけ進み、成功時も chunk と位置の進み幅が異なるため、再生欠落・重複・波形位置ずれが起きる可能性がある。未検証。
+- **対応:** enqueue を bool 戻り値にし、AudioPreview は成功した chunk の frame 数だけ位置を進め、失敗時は同じ位置で再試行する。
+- **価値／懸念:** 他の enqueue 呼び出しは戻り値を無視できるため API 利用は互換。AudioPreview の位置進行だけを実送出量に一致させる。
+- **次に確認:** ビルド時に通常送出、ring buffer overflow、chunk 境界、EOS 位置を確認する。
