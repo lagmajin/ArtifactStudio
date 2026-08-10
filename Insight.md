@@ -10439,3 +10439,12 @@
 - **対応:** strip が保持する Core bus を参照してから `removeBus()` で Core mixer から除去し、その後 strip の参照をクリアする。
 - **価値／懸念:** UI と Core の bus 集合を composition 同期時に一致させる。手動作成 bus は strip から参照されないため保持する。
 - **次に確認:** ビルド時に composition 差し替え、layer 削除、route/send の stale 状態を確認する。
+
+## 2026-08-10: ArtifactAudioMixer の layer volume 変換統一
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioMixer.cppm`
+- **事実:** layer の UI volume は setter で正規化される一方、Core bus 同期側が生の値を `log10()` へ渡していた。
+- **仮説:** 非有限値や範囲外の layer 値で UI と Core の volume が不一致になる可能性がある。未検証。
+- **対応:** 0〜2 clamp と非有限値 fallback を行う `volumeToCoreDb()` を追加し、初期同期・master 同期・変更通知で共通利用する。
+- **価値／懸念:** UI と Core の volume 表現を同じ安全な線形値から生成する。無効値は1.0倍として扱う。
+- **次に確認:** ビルド時に0、1、2、非有限値、composition 再同期を確認する。
