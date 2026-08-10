@@ -11150,3 +11150,12 @@
 - **対応:** queue 入口で segment の frame／channel／sample rate／channel length を検証し、mixer の無効入力時は output を zero-fill して return する。
 - **価値／懸念:** audio pipeline の failure を成功扱いせず、無効 block で stale audio を鳴らさない。実 decoder／backend の挙動は未確認。
 - **次に確認:** empty／短 channel／無効 rate の queue push、invalid mixer block、正常 decode／mix、EOF／underflow の区別を確認する。
+
+## 2026-08-10: AudioRenderer backend lifecycle guards
+
+- **関連:** `ArtifactCore/src/Audio/AudioRenderer.cppm`
+- **事実:** `openDevice()` は backend 再生成後の null を検証せず `open()` へ進み、`start()`／`requestStop()`／`stop()`／`closeDevice()` も backend の存在を前提に呼び出していた。通常の factory 経路では backend が生成されるが、生成失敗時の契約は明示されていなかった。
+- **仮説:** allocation／factory failure や将来の backend selection 拡張時に renderer が null dereference する可能性がある。未検証。
+- **対応:** open は backend null を false で返し、start／stop／close 系は backend がある場合だけ lifecycle call を行う。
+- **価値／懸念:** device lifecycle の failure path を安全に閉じる。実 backend の start／stop sequence は未確認。
+- **次に確認:** backend factory failure、open failure、start without backend、requestStop／stop／close の null backend、正常 WASAPI／Qt lifecycle を確認する。
