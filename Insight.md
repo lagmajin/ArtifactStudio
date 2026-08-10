@@ -10187,3 +10187,12 @@
 - **対応:** 両デバイスで sample rate 1..384kHz、channels 1..64、frames per buffer 1..2^20 を入口検証し、PortAudio の device info を null チェックした。
 - **価値／懸念:** OS／外部設定からの不正値をデバイス API 前に止める。特殊な超高サンプルレートや多チャンネルデバイスは明示的に拒否される。
 - **次に確認:** 実機またはビルド時に無効値の拒否と正常なデバイス open を確認する。
+
+## 2026-08-10: オーディオデバイス write の利用可能量境界
+
+- **関連:** `Artifact/src/Audio/WASAPIDevice.cppm`, `Artifact/src/Audio/PortAudioDevice.cppm`
+- **事実:** WASAPI は `GetBufferSize()` の値を空き容量として扱い、要求 frame 数をそのまま `UINT32` 化・memcpy していた。PortAudio は null 入力と frame 数の型境界を検証せず、書き込み失敗後も position を進めていた。
+- **仮説:** 大きい要求や出力バッファ逼迫時に overrun、過大 memcpy、position の誤差が起きる可能性がある。未検証。
+- **対応:** WASAPI は current padding から空き容量を求め、書き込み量を制限し、null 入力は無音化する。PortAudio は入力と型境界を検証し、成功時だけ position を加算する。
+- **価値／懸念:** デバイス API の実バッファ容量と内部 position の整合性を高める。WASAPI の null 入力を無音として扱う仕様は既存 write API の安全なフォールバックである。
+- **次に確認:** 実機またはビルド時に partial write、null 入力、デバイス停止中 write を確認する。
