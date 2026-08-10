@@ -10233,6 +10233,15 @@
 - **価値／懸念:** 出力音量の API 境界を有限値に保つ。非有限値の原因診断自体は別途必要。
 - **次に確認:** ビルド時に NaN／∞／0／1／範囲外音量の変換を確認する。
 
+## 2026-08-10: AudioRenderer callback byte／index 境界
+
+- **関連:** `ArtifactCore/src/Audio/AudioRenderer.cppm`
+- **事実:** callback は frame×channel の `size_t` overflow だけを確認していたが、出力 byte 数の `× sizeof(float)` と interleaved buffer index は別の計算だった。
+- **仮説:** 極端な callback 引数で memset byte 数や buffer index が wrap し、不正な出力領域へアクセスする可能性がある。未検証。
+- **対応:** byte 数の追加 overflow check と、出力 index の `size_t` 計算を追加した。
+- **価値／懸念:** callback の出力領域計算を同じ型幅で完結させる。通常の backend が渡す現実的な frame 数では挙動は変わらない。
+- **次に確認:** ビルド時に最大 frame／channel 境界と通常の callback 出力を確認する。
+
 ## 2026-08-10: AudioPreview 外側 UI 状態と sample rate 境界
 
 - **関連:** `Artifact/src/Widgets/AudioPreviewWidget.cppm`
