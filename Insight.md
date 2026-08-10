@@ -9498,3 +9498,11 @@
 - **修正:** `MediaPlaybackController::setAudioOutputSampleRate()` を追加し、video layer が要求レートを decoder の resampler に設定する。レート変更時は既存 PCM buffer を破棄して source position から再シークする。
 - **価値:** 48 kHz 再生・波形・書き出しで、PCM の実レートと `AudioSegment::sampleRate` が不一致になる経路を防ぐ。
 - **未検証:** 実ビルド・テストは未実行。C++20 module の依存スキャンも未実行。
+
+### 2026-08-10 — FFmpeg resampler output capacity
+
+- **関連:** `ArtifactCore/src/Media/MediaAudioDecoder.cppm`、`MediaAudioDecoder::decodeFrameDetailed()` / `flushAndGetRemaining()`
+- **事実:** resampler の出力 capacity と flush 残量計算に入力 frame 数・44.1 kHz・固定 stereo byte 数を使っていたため、入力／出力レート変更時に末尾サンプルを取りこぼす、または buffer 見積りが不足する可能性があった。
+- **修正:** `swr_get_out_samples()` と現在の出力 bytes-per-sample を使って、通常 decode と flush の capacity を計算するようにした。
+- **価値:** 可変 sample-rate の audio decoder で出力 buffer の見積りを resampler の実際の出力契約に合わせる。
+- **未検証:** 実ビルド・テストは未実行。
