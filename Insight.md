@@ -9386,3 +9386,11 @@
 - **修正:** requestStop は停止通知と AudioClient::Stop だけを行い thread を joinable のまま保持し、start 時に残 thread を reap してから新 thread を生成する。
 - **価値:** stop/close/restart の resource lifetime を明示し、detached render thread による use-after-release と thread assignment failure を防ぐ。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — WASAPI exclusive format state alignment
+
+- **関連:** `ArtifactCore/src/Audio/WASAPIBackend.cppm`、`WASAPIBackend::open()`、exclusive `WAVEFORMATEX`
+- **事実:** exclusive mode は 2ch Float32 の `exclusiveFmt` を `Initialize()` に渡すが、内部 `mixChannels` / `mixSampleRate` / format flag は shared mix format のままだった。多チャンネル device では render callback の channel 数が実 buffer と不一致になり得た。
+- **修正:** exclusive initialize 成功後に、実際の exclusive format を内部 render state と `currentFormat` の元データへ反映する。
+- **価値:** exclusive render の callback 書き込み幅と WASAPI buffer の frame layout が一致する。
+- **未検証:** 実ビルド・テストは未実行。
