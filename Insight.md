@@ -11324,3 +11324,10 @@
 - **対応:** 画像1行に必要な stride を確認し、行・画素オフセットを `size_t` で計算するようにした。
 - **価値:** GPU readback の行境界と整数範囲を明示的に守る。
 - **次の確認:** 実 GPU の staging stride と readback 結果をビルド環境で検証する（未実施）。
+## 2026-08-10: Volume field overflow validity guard
+
+- **事実:** `VolumeResolution::cellCount()` は寸法積の overflow 時に 0 を返すが、volume field の `empty()` は `resolution.valid()` だけを見ていた。
+- **仮説:** 正値だが容量計算不能な解像度が modifier や trilinear sampling に進むと、0 要素相当の領域を通常領域として添字アクセスする可能性がある。
+- **対応:** scalar／vector field とも `cellCount() == 0` を空フィールドとして扱うようにした。
+- **価値:** 解像度の積が表現できない入力を、全 volume 処理の入口で遮断する。
+- **次の確認:** overflow 解像度、通常解像度、trilinear sampling の runtime 挙動をビルド環境で検証する（未実施）。
