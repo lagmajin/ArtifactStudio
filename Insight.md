@@ -9554,3 +9554,11 @@
 - **修正:** time-stretch は channel ごとに source index を clamp し、空 channel は zero-fill。fade-out は channel 実長の範囲だけ処理する。
 - **価値:** malformed／部分的な AudioSegment を波形編集処理へ渡しても範囲外アクセスを避ける。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — Audio analysis/effect segment guards
+
+- **関連:** `ArtifactCore/src/Audio/AudioAnalyzer.cppm`、`ArtifactCore/src/Audio/AudioHighLowPass.cppm`
+- **事実:** Analyzer と HighLowPass は先頭 channel の frame 数を全 channel に適用し、短い channel を範囲外参照し得た。HighLowPass は sampleRate 0 の係数計算も防いでいなかった。
+- **修正:** channel ごとの available frame 数で処理し、空 channel は skip、sampleRate 不正時は effect を早期 return する。
+- **価値:** malformed AudioSegment の解析・filter 処理で範囲外読みと不正係数を防止する。
+- **未検証:** 実ビルド・テストは未実行。
