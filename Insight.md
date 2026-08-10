@@ -9784,3 +9784,10 @@
 - **判断:** 基底 setter で正の値だけを受け入れ、無効値は既定の 44.1 kHz に戻すようにした。
 - **価値/懸念:** 未 override の Artifact audio effect も同じ sample-rate 契約を共有できる。正の sample rate の挙動は変更しない。
 - **次に確認:** 外部 caller が sample rate を設定するタイミングと、device rate への再同期を runtime で確認する。
+## 2026-08-10 — Scrub controller needs safe frame delta and settings boundaries
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioScrubController.cppm`
+- **事実:** scrub speed used `std::abs(int64_t delta)`, which is undefined at the minimum value; volumeScale accepted NaN through `qBound`; latency converted an unbounded qint64 elapsed time directly to int.
+- **判断:** frame deltas are measured with unsigned magnitude, speed is finite/capped, volumeScale falls back to 0.5 when invalid, and latency is clamped to the int range.
+- **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
+- **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
