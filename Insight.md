@@ -9658,3 +9658,17 @@
 - **修正:** delay／rate／feedback を有限値・有効範囲へ正規化し、過大 buffer 要求を拒否、LFO phase を周期内へ折り返すようにした。
 - **価値:** 低レベル DSP から NaN、範囲外 index、異常な buffer 確保が上位 effect へ伝播するのを防ぐ。
 - **未検証:** ビルド・テストは未実行。
+## 2026-08-10 — Waveform display width must be bounded by source frames
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioWaveform.cppm` / `AudioWaveformGenerator::generate`
+- **事実:** 表示幅が音声フレーム数を超えても、生成ループが作れる波形ビン数はフレーム数までだった。一方で、要求幅をそのまま `QVector` のサイズと `reserve(width * 2)` に使っていた。
+- **判断:** 波形出力幅を `min(displayWidth, numSamples)` に制限し、不要な確保と `int` の積のオーバーフロー余地を抑えた。
+- **価値/懸念:** 極端な viewport 幅や外部入力でのメモリ浪費を防ぐ。表示側が要求幅と `WaveformData::width` の一致を前提にしている場合は、必要に応じて別途確認する。
+- **次に確認:** 大きな表示幅を指定した既存の waveform consumer が `peaks.size()` と `width` のどちらを描画幅として使うかを確認する。
+## 2026-08-10 — Level meter peak state must be symmetric for mono and stereo
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioWaveform.cppm` / `AudioLevelMeter`
+- **事実:** mono 処理は左ピークだけを更新し、stereo 処理は RMS レベルだけを更新していたため、ピーク保持値とクリップ通知が入力経路によって不一致だった。`reset()` も保持カウンターを初期化していなかった。
+- **判断:** 既存のピーク保持ロジックを左右共通のローカル処理に揃え、stereo でもクリップ通知を行い、reset 時にカウンターをゼロ化した。
+- **価値/懸念:** AudioPreview のピーク表示とクリップ状態が mono/stereo で一貫する。attack/release の設定値は既存どおり別途平滑化に使われていないため、今回の範囲では変更していない。
+- **次に確認:** `AudioLevelMeter` の consumer が peak 値を直接表示しているか、また attack/release の期待仕様があるかを確認する。
