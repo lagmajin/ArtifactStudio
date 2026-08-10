@@ -10538,3 +10538,12 @@
 - **対応:** seek 時に renderer buffer、feed counter、EOS フラグをリセットしてから新しい segment 位置を選ぶ。
 - **価値／懸念:** seek 後の音声経路と位置表示を同じ境界から再開する。再生中の seek では旧 buffer を破棄する。
 - **次に確認:** ビルド時に再生中の前後 seek、EOS 直前 seek、停止中 seek を確認する。
+
+## 2026-08-10: AudioWaveformWidget の sample 座標 clamp
+
+- **関連:** `Artifact/src/Widgets/AudioPreviewWidget.cppm`
+- **事実:** waveform peak／RMS 値を座標へ変換する際、非有限値や float→int 範囲を検査していなかった。
+- **仮説:** 異常な waveform sample で int 変換が未定義になり、描画座標が壊れる可能性がある。未検証。
+- **対応:** sample を有限値かつ正値に限定し、振幅を centerY 以内へ clamp してから座標化する。
+- **価値／懸念:** 異常データでも描画が widget 内に収まる。通常の0〜1 waveform表示は維持する。
+- **次に確認:** ビルド時に NaN、infinity、float 最大値、通常の peak／RMS 表示を確認する。
