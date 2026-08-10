@@ -10781,3 +10781,12 @@
 - **対応:** `Custom10ch` target 用に10ch zero-fill outputを作り、source に存在するチャンネルと frame だけを有限値付きでコピーする。
 - **価値／懸念:** 正常な10ch shapeの fast path は変更しない。未存在チャンネルは無音とする。
 - **次に確認:** ビルド時に mono／stereo／5.1／7.1／10ch source を Custom10ch target へ変換するケースを確認する。
+
+## 2026-08-10: AudioRingBuffer Custom10ch layout preservation
+
+- **関連:** `ArtifactCore/src/Audio/AudioRingBuffer.cppm`
+- **事実:** ring buffer は最大10チャンネルを保持できるが、`read()` の channel-count→layout mapping に 10 の case がなく、Custom10ch data を Stereo metadata で返していた。
+- **仮説:** downstream の layout 判定が10chを異形 stereoとして扱い、不要な downmix／誤った channel routing を起こす可能性がある。未検証。
+- **対応:** read channel count 10 を `AudioChannelLayout::Custom10ch` に対応付ける。
+- **価値／懸念:** 1／6／8ch の既存 mapping は変更しない。10ch の metadata だけ正確になる。
+- **次に確認:** ビルド時に10ch write→read と downstream downmix の layout／channel count を確認する。
