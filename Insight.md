@@ -11006,3 +11006,12 @@
 - **対応:** vector の共通長と最大数で upload count を制限し、context／resource／PSO／agent count を dispatch 前に検証し、実 agent count を maxAgents 以下に clamp する。constant-buffer map と SRV／UAV binding の失敗時も dispatch を中止する。
 - **価値／懸念:** 部分的な入力でも安全に処理し、未投入 agent の GPU 処理を避ける。agent count 0 の dispatch は no-op になるため、呼び出し側が upload を先に行う必要がある。
 - **次に確認:** ビルド時に positions／velocities、centers／radii の長さ不一致、partial upload、null context、正常 dispatch を確認する。
+
+## 2026-08-10: Particle compute active-range and audio padding
+
+- **関連:** `ArtifactCore/include/Graphics/ParticleCompute.ixx`, `ArtifactCore/src/Graphics/ParticleCompute.cppm`
+- **事実:** particle upload は caller の count を vector 長へ制限せず、dispatch は常に max particle 数を shader へ渡していた。audio spectrum は短い入力の残り bin を更新せず、intensity は常に16 bin平均としていた。
+- **仮説:** count 不一致で CPU 範囲外読み取り、partial upload 後の未初期化 GPU particle 処理、短い spectrum の stale audio 参照が起こる可能性がある。未検証。
+- **対応:** active particle count を保持して dispatch 範囲を制限し、upload／dispatch の resource・context・map・binding を検証する。audio は256 binへゼロパディングし、実際の入力 bin 数で intensity を平均する。
+- **価値／懸念:** 部分入力の安全性と audio 更新の決定性を高める。既存 caller が upload 前に dispatch する場合は no-op になる。
+- **次に確認:** ビルド時に partial particle upload、空／短い spectrum、null／map failure、正常 dispatch の各経路を確認する。
