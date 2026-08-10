@@ -11078,3 +11078,12 @@
 - **対応:** cbuffer を dynamic variable として登録し、active frame 数を 1〜8 かつ有効 view 数に制限する。context／Map／resource／サイズを検証してから dispatch する。
 - **価値／懸念:** EchoBlend の cbuffer と ring resource 契約を明確化する。GPU の実画面結果と decay の極端値は未確認。
 - **次に確認:** ビルド時に ring 1／8 frames、frameCount 過大・ゼロ、欠落 view、サイズ不一致、Map／binding failure、正常 echo blend を確認する。
+
+## 2026-08-10: Scope cbuffer registration and update failure propagation
+
+- **関連:** `ArtifactCore/src/Graphics/Compute/ScopeComputer.cppm`, `ArtifactCore/include/Graphics/Compute/ScopeComputer.ixx`, `ArtifactCore/include/Graphics/Shader/Compute/HLSL/ScopeVectorscope.ixx`, `ScopeWaveform.ixx`, `ScopeParade.ixx`
+- **事実:** 3つの HLSL shader は各専用 cbuffer を参照していたが、CPU pipeline variable descriptor は入力 texture と出力 buffer だけを登録していた。`updateParams()` も Map failure を呼び出し側へ返していなかった。
+- **仮説:** scope size／output size／step が正しくても cbuffer が未 binding のため、既定値や stale 値で scope の座標計算が行われる可能性がある。未検証。
+- **対応:** 3 pipeline に専用 cbuffer の dynamic variable を追加し、`updateParams()` を bool 化して Map／全 resource binding の失敗時は dispatch を中止する。
+- **価値／懸念:** Vectorscope／Waveform／Parade の CPU→HLSL parameter 契約を実装上も明示する。GPU reflection と表示結果は未確認。
+- **次に確認:** ビルド時に各 scope の dimension／step、cbuffer reflection、Map／binding failure、正常 dispatch と readback を確認する。
