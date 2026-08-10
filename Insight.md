@@ -10304,3 +10304,12 @@
 - **対応:** decode 開始時に `out` を空にし、codec が drained かつ resampler 遅延が空になった時だけ EOF を返すようにした。
 - **価値／懸念:** 出力失敗と EOF の状態を API から正しく観測できる。resampler の遅延が残る間は EOF を遅らせる。
 - **次に確認:** ビルド時に decode failure、通常 EOF、resampler drain 後の EOF を確認する。
+
+## 2026-08-10: FFmpeg resampler 出力サイズ境界
+
+- **関連:** `ArtifactCore/src/Codec/FFMpegAudioDecoder.cppm`
+- **事実:** `swr_get_delay()` と `av_rescale_rnd()` の結果を直接 `int` へ cast し、resampled frame 位置も無検証加算していた。
+- **仮説:** 壊れた codec state や極端な入力で巨大な確保、整数 wrap、誤った次 frame 位置が発生する可能性がある。未検証。
+- **対応:** delay／入力の加算、rescale 結果の `int` 範囲、`qint64` frame 加算を検証してから確保・更新する。
+- **価値／懸念:** decoder の allocation と timeline state を整数境界で保護する。異常な frame は当該 decode を破棄する。
+- **次に確認:** ビルド時に通常音声、resampler delay、巨大／破損 frame の decode 境界を確認する。
