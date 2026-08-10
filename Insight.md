@@ -10295,3 +10295,12 @@
 - **対応:** timestamp／frame の両変換で安全に表現できる秒数上限を計算し、超過値を拒否してから整数化する。
 - **価値／懸念:** seek API の数値境界を明示する。現実的な音声長の seek 挙動は変わらない。
 - **次に確認:** ビルド時に最大近傍・極端な有限値の seek と通常 seek を確認する。
+
+## 2026-08-10: FFmpeg decoder 出力と EOF 状態
+
+- **関連:** `ArtifactCore/src/Codec/FFMpegAudioDecoder.cppm`
+- **事実:** `decodeNextSegment()` は失敗時に出力引数を変更せず、`isEndOfStream()` は常に false を返していた。decoder の EOF と resampler 遅延は内部で別管理されていた。
+- **仮説:** decode 失敗時に caller が stale segment を再利用し、EOF 判定に依存する処理が終了できない可能性がある。未検証。
+- **対応:** decode 開始時に `out` を空にし、codec が drained かつ resampler 遅延が空になった時だけ EOF を返すようにした。
+- **価値／懸念:** 出力失敗と EOF の状態を API から正しく観測できる。resampler の遅延が残る間は EOF を遅らせる。
+- **次に確認:** ビルド時に decode failure、通常 EOF、resampler drain 後の EOF を確認する。
