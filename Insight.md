@@ -10259,3 +10259,12 @@
 - **対応:** 内部 engine が playing になった場合だけ UI 更新・通知を行う。音量を有限値かつ 0..1 に正規化し、view の sample rate は 44100 を既定値にする。decoder の非正 sample rate は load を拒否する。
 - **価値／懸念:** UI 通知と実再生状態を一致させる。壊れた音声ファイルは従来より早い段階でロード失敗になる。
 - **次に確認:** 実機またはビルド時にデバイス失敗、NaN 音量、非正 sample rate の表示と通知を確認する。
+
+## 2026-08-10: AudioRingBuffer の RT チャンネル resize 競合
+
+- **関連:** `ArtifactCore/src/Audio/AudioRingBuffer.cppm`
+- **事実:** producer の新規チャンネル入力で `channels_` を動的 resize し、consumer の RT `read()` が同じ vector を読む構造だった。`channelCount_` も非 atomic だった。
+- **仮説:** multichannel segment の初回投入と callback 読み出しが重なると、vector 再配置や active channel 数の data race が起きる可能性がある。未検証。
+- **対応:** 既存 AudioChannelLayout の最大 10ch を固定確保し、10ch 超を拒否する。active channel 数は縮小せず atomic に増加管理し、既存フレームが残っている間のチャンネル数変更は拒否して read/write の形状を維持した。
+- **価値／懸念:** RT consumer 中の heap resize をなくす。multichannel 入力後は channel 数を縮小せず保持する既存の実効挙動を明示化した。
+- **次に確認:** ビルド時に Mono／Stereo／5.1／7.1／Custom10ch の切替と、同時 read/write を確認する。
