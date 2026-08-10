@@ -10862,3 +10862,12 @@
 - **対応:** enqueue 成功時だけ cursor を進め、拒否時は警告して fill loop を中断し、次回再試行できる状態にする。
 - **価値／懸念:** 正常な送出量・再生速度は変更しない。拒否時の warning は既存の音声診断方針に合わせる。
 - **次に確認:** ビルド時に overflow、renderer 未準備、通常 fill loop の cursor 進行と再試行を確認する。
+
+## 2026-08-10: LayerBlendPipeline build-tree source-path mismatch
+
+- **関連:** `ArtifactCore/include/Graphics/Shader/Compute/LayerBlendPipeline.ixx`, `cmake-build-debug/CMakeCache.txt`
+- **事実:** 現行 `MatteTrackParams` は末尾パディングを含む 48 バイトで、HLSL cbuffer の 3 レジスタ構成と一致している。一方、既存の CMake cache は `X:/Dev/ArtifactStudio` を source directory として記録している。
+- **仮説:** `J:\dev\ArtifactStudio` の現行ソースではなく、旧パスまたは別 checkout の生成済み dyndep／オブジェクトが static assertion を報告している可能性が高い。未検証。
+- **対応:** ソースコードは変更せず、ビルドツリーの source path 不一致を切り分けた。
+- **価値／懸念:** 生成物を削除・再生成せず、ユーザーの既存ビルド環境を保持する。再構成時は現在の checkout を source にした専用 build directory が必要。
+- **次に確認:** ユーザー許可後に J ドライブ checkout を source として CMake を再構成し、同じ assertion が再現するか確認する。
