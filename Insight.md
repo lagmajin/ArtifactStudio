@@ -10853,3 +10853,12 @@
 - **対応:** enqueue を bool 戻り値にし、AudioPreview は成功した chunk の frame 数だけ位置を進め、失敗時は同じ位置で再試行する。
 - **価値／懸念:** 他の enqueue 呼び出しは戻り値を無視できるため API 利用は互換。AudioPreview の位置進行だけを実送出量に一致させる。
 - **次に確認:** ビルド時に通常送出、ring buffer overflow、chunk 境界、EOS 位置を確認する。
+
+## 2026-08-10: ArtifactPlaybackEngine enqueue cursor guard
+
+- **関連:** `Artifact/src/Playback/ArtifactPlaybackEngine.cppm`
+- **事実:** fill loop は `AudioRenderer::enqueue()` の成否に関係なく `audioNextFrame_` を1 frame進めていた。
+- **仮説:** renderer overflow／入力不正時に audio cursor だけ進み、composition の frame が欠落する可能性がある。未検証。
+- **対応:** enqueue 成功時だけ cursor を進め、拒否時は警告して fill loop を中断し、次回再試行できる状態にする。
+- **価値／懸念:** 正常な送出量・再生速度は変更しない。拒否時の warning は既存の音声診断方針に合わせる。
+- **次に確認:** ビルド時に overflow、renderer 未準備、通常 fill loop の cursor 進行と再試行を確認する。
