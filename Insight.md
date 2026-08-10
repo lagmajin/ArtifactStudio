@@ -10826,3 +10826,12 @@
 - **対応:** queue の `isFull()` を追加し、codec frame 受信前と resampler drain 前に backpressure を返す。
 - **価値／懸念:** queue が空くまで codec frame を消費しない。queue 容量や通常の decode 順序は変更しない。
 - **次に確認:** ビルド時に queue 満杯／pop 後の decode 再開と連続 frame 数を確認する。
+
+## 2026-08-10: FFmpeg decoder pending-queue EOS guard
+
+- **関連:** `ArtifactCore/include/Audio/AudioBufferQueue.ixx`, `ArtifactCore/src/Codec/FFMpegAudioDecoder.cppm`
+- **事実:** `isEndOfStream()` は decoder drained／resampler delay のみを判定し、pending queue に未消費 segment が残っている状態を見ていなかった。
+- **仮説:** consumer が EOS を先に確認すると、queue 内の末尾 audio segment を再生せず終了扱いする可能性がある。未検証。
+- **対応:** queue の `isEmpty()` を追加し、pending segment が残る間は EOS を false にする。
+- **価値／懸念:** decoder／resampler の判定は維持し、未消費データだけを EOS の完了条件へ追加する。
+- **次に確認:** ビルド時に decoder drain 後の queue 残量、pop 後の EOS 遷移を確認する。
