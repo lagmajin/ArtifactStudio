@@ -10385,3 +10385,12 @@
 - **対応:** frame 数を `std::max(0, frameCount)` で正規化し、両バッファの resize に使用する。
 - **価値／懸念:** 負値入力を空バッファとして安全に扱う。正の frame 数の挙動は変わらない。
 - **次に確認:** ビルド時に0、負値、通常 frame 数で main／side-chain の形状を確認する。
+
+## 2026-08-10: FormantExtractor の分析窓ループ overflow 防止
+
+- **関連:** `ArtifactCore/src/Audio/FormantExtractor.cppm`
+- **事実:** `analyzeTrack()` の窓判定が `offset + framesPerAnalysis <= totalFrames` という加算比較だった。
+- **仮説:** 大きな入力では加算が `int` 上限を越えて負値化し、窓の走査条件や後続 offset 更新を壊す可能性がある。未検証。
+- **対応:** `framesPerAnalysis <= totalFrames - offset` の減算比較へ変更し、成立時の offset 加算が totalFrames 内に収まる形にする。
+- **価値／懸念:** 境界付近の分析ループを安全に終端できる。通常入力の窓分割結果は変わらない。
+- **次に確認:** ビルド時に窓長1、窓長が総フレーム数に近い場合、最大級の入力境界を確認する。
