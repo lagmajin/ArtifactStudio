@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — Core AudioAnalyzer の FFT 累積精度
+
+- 関連: `ArtifactCore/include/Audio/AudioAnalyzer.ixx`、`ArtifactCore/src/Audio/AudioAnalyzer.cppm`。
+- 確認できた事実: mono／window 入力から Cooley–Tukey butterfly まで complex<float> で処理しており、最大 PCM と大 FFT で中間値が infinity になり得た。
+- 修正内容: private FFT buffer と computeFFT の型を complex<double> に変更し、spectrum へ戻す段階で有限 float へ clamp した。
+- 未検証の仮説: Core 側の spectrum／intensity 解析が極端入力で infinity になる経路を抑えられる。
+- 価値／懸念: 通常の FFT 演算・bin 配置は維持し、出力 API の float 契約も維持する。極端な中間値は float 最大値へ飽和する。
+- 次に確認すべきこと: 実機または offline analyzer で FFT size 2／最大 size、最大振幅、surround mix を確認する。
+
 ### 2026-08-10 — AudioBufferQueue の segment 上限
 
 - 関連: `ArtifactCore/include/Audio/AudioBufferQueue.ixx`。
