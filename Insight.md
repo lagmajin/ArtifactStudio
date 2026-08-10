@@ -10394,3 +10394,12 @@
 - **対応:** `framesPerAnalysis <= totalFrames - offset` の減算比較へ変更し、成立時の offset 加算が totalFrames 内に収まる形にする。
 - **価値／懸念:** 境界付近の分析ループを安全に終端できる。通常入力の窓分割結果は変わらない。
 - **次に確認:** ビルド時に窓長1、窓長が総フレーム数に近い場合、最大級の入力境界を確認する。
+
+## 2026-08-10: FormantExtractor の event frame 加算 overflow 防止
+
+- **関連:** `ArtifactCore/src/Audio/FormantExtractor.cppm`
+- **事実:** 分析イベントの `frame` を for 文の更新式で無条件に `++` していた。
+- **仮説:** `startFrame` が `int64_t` 最大値近傍だと、最後のイベント後の加算が overflow する可能性がある。未検証。
+- **対応:** 更新を本体へ移し、最大値のイベントを記録した後はループを終了する。
+- **価値／懸念:** 極端な開始フレームでも未定義の符号付き overflow を避ける。通常範囲では従来と同じ frame 列になる。
+- **次に確認:** ビルド時に通常の startFrame と `int64_t` 最大値近傍を確認する。
