@@ -9202,3 +9202,11 @@
 - **修正:** 保存前の modifiedAt を `saveProject()` 内で取得し、demo load 側の不要な宣言を削除した。
 - **価値:** 保存失敗時の modifiedAt 復元が正しいスコープで成立し、未宣言変数による compile failure を避ける。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — AudioMixer の旧 JSON 欠損フィールド復元
+
+- **関連:** `ArtifactCore/src/Audio/AudioMixer.cppm`、`AudioMixer::deserialize()`
+- **事実:** 旧形式の mixer bus JSON で `volume` / `pan` / `mute` / `solo` が欠落すると、Qt JSON の既定変換により volume/pan が 0、mute/solo が false として上書きされる。
+- **修正:** フィールドが存在するときだけ値を復元し、欠損時は `AudioBus` の既定値を保持するようにした。
+- **価値:** 古いプロジェクトを読み込んでも、未保存だった mixer 属性が破壊的に無音化されにくい。
+- **未検証:** 実ビルド・テストは未実行。
