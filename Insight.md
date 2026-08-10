@@ -10169,3 +10169,12 @@
 - **対応:** 表示点数の容量計算を `int` 最大値で飽和させてから `reserve()` に渡すようにした。
 - **価値／懸念:** 整数オーバーフローによる不正な容量要求を避ける。極端な入力自体のメモリコストは別の責務として残る。
 - **次に確認:** ビルド時に最大幅近傍の waveform 生成境界を確認する。
+
+## 2026-08-10: Artifact AudioAnalyzer FFT サイズ上限
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioWaveform.cppm`, `Artifact/include/Audio/ArtifactAudioWaveform.ixx`
+- **事実:** `setFFTSize()` と `setHopSize()` は下限だけを適用し、FFT サイズに応じて `window_`／作業バッファを確保していた。
+- **仮説:** 外部設定から極端な FFT サイズを受けると、過大なメモリ確保や初期化時間が発生する可能性がある。未検証。
+- **対応:** Core AudioAnalyzer と同じ `2^20` を FFT／hop サイズの上限として適用した。
+- **価値／懸念:** 異常な設定による資源急増を抑える。2^20 自体は大きいため、将来 UI と設定層で共通上限を定義できるか確認する。
+- **次に確認:** ビルド時に FFT／hop の上下限と spectrogram 境界を確認する。
