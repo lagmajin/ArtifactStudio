@@ -10484,3 +10484,12 @@
 - **対応:** frame 差分と sample position を `long double` で計算し、有限値かつ PCM 範囲内であることを確認してから qint64 の start sample を作る。
 - **価値／懸念:** 異常な timeline 入力を無音の失敗として扱い、通常範囲のリサンプリング結果は変えない。
 - **次に確認:** ビルド時に負の local frame、巨大な frame 差分、末尾 sample 近傍を確認する。
+
+## 2026-08-10: ArtifactAudioLayer waveform index 境界
+
+- **関連:** `Artifact/src/Layer/ArtifactAudioLayer.cppm`
+- **事実:** waveform 生成が in/out frame の qint64 減算と `llround()` の結果を無検査で使い、FPS の非有限値も30へ fallback していなかった。
+- **仮説:** 極端な layer 範囲や異常な composition FPS で、符号付き overflow／不正な整数変換が起きる可能性がある。未検証。
+- **対応:** frame 差分と sample 位置を `long double` で計算し、有限値を丸めてから PCM の有効範囲へ clamp する。FPS も有限値だけ採用する。
+- **価値／懸念:** waveform の添字が実 PCM 範囲を越えない。通常の範囲では従来の丸め結果を維持する。
+- **次に確認:** ビルド時に in/out の最大差分、非有限 FPS、開始位置と末尾 sample の境界を確認する。
