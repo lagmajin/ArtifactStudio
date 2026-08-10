@@ -9466,3 +9466,11 @@
 - **修正:** Mono 入力を Stereo downmix と同じ dual-mono 方針で L/R に複製する。
 - **価値:** Mono source を multichannel bus に送った際の左右定位を一貫させる。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — AudioDownMixer uniform-shape early return
+
+- **関連:** `ArtifactCore/src/Audio/AudioDownMixer.cppm`、`AudioDownMixer::process()` early return
+- **事実:** same layout / channel count だけで変換を省略していたため、channel ごとの frame 長が不揃いな segment が malformed のまま caller に返り得た。
+- **修正:** 全 channel の長さが先頭 channel の frame count と一致する場合だけ no-op return する。
+- **価値:** 不均一 segment は既存の zero-padding 付き変換経路を通り、downmixer の出力契約が一貫する。
+- **未検証:** 実ビルド・テストは未実行。
