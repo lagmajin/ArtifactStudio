@@ -10592,3 +10592,12 @@
 - **対応:** Q parameter の default と current の両方に band.qFactor を使用する。
 - **価値／懸念:** パラメータ metadata と実際の band 設定を一致させる。Q の通常範囲や係数計算は変更しない。
 - **次に確認:** ビルド時に Q=0.1、1、10 の getParameters／reset 表示を確認する。
+
+## 2026-08-10: AudioCompressor envelope/gain finite guard
+
+- **関連:** `ArtifactCore/src/Audio/AudioCompressor.cppm`
+- **事実:** 入力 sample は有限化していたが、envelope の係数計算と gain の pow/log 結果を検査せず、状態と出力へ使っていた。
+- **仮説:** 極端な有限 sample で envelope が infinity、gain が NaN になり、次フレームの状態や gain reduction が壊れる可能性がある。未検証。
+- **対応:** envelope を有限化し、gain を有限値かつ0〜1へ clampして、出力と gain-reduction 状態に共通利用する。
+- **価値／懸念:** 異常な算術結果が compressor 状態へ蓄積しない。通常の圧縮カーブは維持する。
+- **次に確認:** ビルド時に最大振幅、長い attack/release、sidechain 有無の有限性を確認する。
