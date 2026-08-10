@@ -9721,3 +9721,10 @@
 - **判断:** bin index は 64-bit 中間値で計算し、Analyzer の RMS は double 分母・累積を使う。非有限 PCM は無視し、frequency/sample-rate 入力を検証する。
 - **価値/懸念:** 大きな波形データや malformed PCM でも解析の index・RMS・band intensity が wraparound/NaN になりにくい。通常の有限入力の結果は同じ計算意図を維持する。
 - **次に確認:** runtime で巨大 waveform の rasterization と無効 sample-rate analyzer の呼び出し元契約を確認する。
+## 2026-08-10 — Audio backend callbacks must respect the int frame contract
+
+- **関連:** `ArtifactCore/src/Audio/WASAPIBackend.cppm`, `ArtifactCore/src/Audio/QtAudioBackend.cppm`
+- **事実:** `AudioCallback` の frame 引数は `int` だが、WASAPI の `UINT32` frame 数を無検査で cast していた。Qt の Int16 path も `frames * channels` を `QVector` の int サイズへ直接渡していた。
+- **判断:** callback frame 数と temporary buffer の sample 数を int 表現可能な範囲へ制限し、WASAPI で処理できない残余フレームは無音で埋めるようにした。
+- **価値/懸念:** 異常に大きい backend buffer でも callback 引数や一時バッファのサイズが wraparound しない。通常のデバイス buffer では従来どおり全フレームを処理する。
+- **次に確認:** 実デバイスで backend buffer と callback frame 数の runtime 契約を確認する（ビルド・実行は未実施）。
