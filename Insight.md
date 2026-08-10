@@ -10242,6 +10242,15 @@
 - **価値／懸念:** callback の出力領域計算を同じ型幅で完結させる。通常の backend が渡す現実的な frame 数では挙動は変わらない。
 - **次に確認:** ビルド時に最大 frame／channel 境界と通常の callback 出力を確認する。
 
+## 2026-08-10: AudioRenderer level callback slot の atomic shared_ptr
+
+- **関連:** `ArtifactCore/src/Audio/AudioRenderer.cppm`
+- **事実:** level callback slot は `SharedPtr` の普通の代入／コピーで更新・読み取りされていたが、audio callback は別 thread から同じ slot を参照していた。コメントだけが atomic load を示していた。
+- **仮説:** callback 差し替えと audio callback の同時実行時に shared_ptr オブジェクト自体の data race が起きる可能性がある。未検証。
+- **対応:** slot を `std::shared_ptr` とし、`std::atomic_load_explicit`／`std::atomic_store_explicit` で読み書きするようにした。
+- **価値／懸念:** callback function の寿命と slot 切替を標準 shared_ptr atomic API で同期する。callback 呼び出し本体の thread affinity は従来どおり audio thread のまま。
+- **次に確認:** ビルド時に callback の登録／解除と audio callback 同時実行を確認する。
+
 ## 2026-08-10: AudioPreview 外側 UI 状態と sample rate 境界
 
 - **関連:** `Artifact/src/Widgets/AudioPreviewWidget.cppm`
