@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — Artifact limiter／compressor の出力有限性
+
+- 関連: `Artifact/src/Audio/Effects/LimiterEffect.cppm`、`Artifact/src/Audio/Effects/CompressorEffect.cppm`。
+- 確認できた事実: 両 effect は detector 入力を有限化していたが、最終 PCM への gain 乗算結果を直接保存していた。
+- 修正内容: limiter の input/current gain、compressor の makeup/compression gain 適用後に NaN／∞を正規化する境界を追加した。
+- 未検証の仮説: 最大振幅の入力や上限付近の makeup/input gain で、後段へ infinity が漏れる経路を抑えられる。
+- 価値／懸念: 通常の gain カーブは維持する。異常な大振幅は符号を保って float 最大値へ飽和する。
+- 次に確認すべきこと: 実機またはオフライン再生で limiter の lookahead と compressor の knee／makeup の極端値を確認する。
+
 ### 2026-08-10 — Artifact waveform の解析入力有限性
 
 - 関連: `Artifact/src/Audio/ArtifactAudioWaveform.cppm`。
