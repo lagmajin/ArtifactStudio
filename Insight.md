@@ -9777,3 +9777,10 @@
 - **判断:** gain is constrained to its declared -12..12 dB range, coefficient inputs have finite fallbacks, and non-finite PCM is treated as zero before filtering.
 - **価値/懸念:** A malformed automation value or sample no longer poisons the EQ block. Normal band frequencies, Q values, and finite gain behavior are unchanged.
 - **次に確認:** Remaining Artifact audio effect factories and parameter deserialization should be checked for bypassing these setters.
+## 2026-08-10 — Common Artifact effect sample-rate setter needs a valid fallback
+
+- **関連:** `Artifact/include/Audio/Effects/ArtifactAudioEffectBase.ixx`
+- **事実:** Compressor と Equalizer は base implementation の `setSampleRate` を継承しており、0 以下の sample rate をそのまま保持していた。個別 effect の process guard があっても getter/state は無効値になり得た。
+- **判断:** 基底 setter で正の値だけを受け入れ、無効値は既定の 44.1 kHz に戻すようにした。
+- **価値/懸念:** 未 override の Artifact audio effect も同じ sample-rate 契約を共有できる。正の sample rate の挙動は変更しない。
+- **次に確認:** 外部 caller が sample rate を設定するタイミングと、device rate への再同期を runtime で確認する。
