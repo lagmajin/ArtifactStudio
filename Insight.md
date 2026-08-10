@@ -10952,3 +10952,12 @@
 - **対応:** getter／setter を実装側へ移し、read／write lock で保護する。
 - **価値／懸念:** cache eviction の既存タイミングと上限値の意味は変更しない。設定変更時に既存 cache の即時 trim は行わない。
 - **次に確認:** ビルド時に prefetch と設定変更を並行させた場合の race／上限値の可視性を確認する。
+
+## 2026-08-10: Diligent buffer-map failure guards
+
+- **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm`, `Artifact/src/Render/DiligentBindlessSubmitter.cppm`
+- **事実:** 共通 `mapWriteDiscard` helper は context／buffer／data と `MapBuffer` の mapped pointer を確認せず `memcpy` していた。
+- **仮説:** device loss、破棄済み buffer、または map failure 時に null pointer copy で render thread がクラッシュする可能性がある。未検証。
+- **対応:** 入力と map 成功を確認してから copy／unmap／buffer-update stat を行う。
+- **価値／懸念:** upload 失敗時は stale buffer のまま draw が続く可能性があるが、null dereference は防止する。LayerBlend の constant-buffer layout は変更しない。
+- **次に確認:** ビルド時に正常 map と device／buffer invalidation の upload 経路でクラッシュせず診断できることを確認する。
