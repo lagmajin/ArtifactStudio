@@ -10799,3 +10799,12 @@
 - **対応:** 現在サポートする Mono／Stereo／5.1／7.1／Custom10ch だけを受け付け、それ以外は Stereo に戻す。
 - **価値／懸念:** 既存の対応済み layout は変更しない。Ambisonics は現実装の変換対象外なので、誤って空 output を返さず Stereo fallback とする。
 - **次に確認:** ビルド時に各対応 layout と不正／未対応 enum の setter／process 結果を確認する。
+
+## 2026-08-10: Reverb live decay and diffusion parameters
+
+- **関連:** `Artifact/src/Audio/Effects/ReverbEffect.cppm`
+- **事実:** `decay` と `diffusion` は `initDattorro()` で all-pass 係数へ反映されるが、`setParameter()` では member 値だけを更新していた。
+- **仮説:** UI automation 中にこれらを変更しても diffuser／tank all-pass の音色が旧係数のままになり、設定表示と実音が乖離する可能性がある。未検証。
+- **対応:** setter 内で該当 all-pass の係数を更新する。delay line は再初期化せず、現在の reverb tail を保持する。
+- **価値／懸念:** decay／diffusion の通常設定が次サンプルから反映される。size 変更時の delay length 再構成や未使用パラメータは今回の範囲外。
+- **次に確認:** ビルド時に block 中の decay／diffusion 変更と reverb tail の連続性を確認する。
