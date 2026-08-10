@@ -9742,3 +9742,10 @@
 - **判断:** null/非正 callback 引数を早期終了し、出力 sample 数を `size_t` で計算する。非有限 sample と volume は無音として扱う。
 - **価値/懸念:** 再生出力での範囲外書き込み・NaN PCM の伝播を防ぐ。通常の有限 PCM と volume の挙動は維持する。
 - **次に確認:** callback 呼び出し元が常に有効 buffer を渡すこと、RT thread での sanitization コストが許容範囲かを runtime で確認する。
+## 2026-08-10 — Mixer UI must sanitize volume, pan, and meter inputs
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioMixer.cppm`
+- **事実:** channel/master volume と pan は NaN を `std::clamp` へ渡せ、meter 更新も NaN dB を peak/max と signal へ伝播させていた。
+- **判断:** NaN/∞ の volume・pan は既定値へ戻し、meter dB は有限値かつ -60〜6.02 dB に正規化してから状態・signal・peak に使う。
+- **価値/懸念:** 不正な layer または renderer 値で mixer UI が NaN 表示や stale peak 状態にならない。通常の有限値の範囲と表示上限は維持する。
+- **次に確認:** mixer widget が 6.02 dB 上限を意図した表示仕様として扱っているかを runtime で確認する。
