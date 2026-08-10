@@ -10664,3 +10664,12 @@
 - **対応:** チャンネルごとの state と初期化状態を保持し、sample rate 変更時または各フィルター無効時に再初期化する。
 - **価値／懸念:** 有効なフィルターのブロック間状態を維持し、無効化後の再有効化では古い状態を使わない。
 - **次に確認:** ビルド時に mono／stereo、複数ブロック、フィルターの有効／無効切替、sample rate 変更を確認する。
+
+## 2026-08-10: AudioParametricEQ invalid sample rate guard
+
+- **関連:** `ArtifactCore/src/Audio/AudioParametricEQ.cppm`
+- **事実:** sample rate が0以下でも1Hzへ置換してEQ係数の計算を続けていた。
+- **仮説:** 不正な音声メタデータで意図しない極低周波の係数を生成し、入力を変形する可能性がある。未検証。
+- **対応:** channel／frame と同じ入口条件で sample rate 0以下を拒否し、正常値だけを係数計算へ渡す。
+- **価値／懸念:** 不正メタデータ時の予測不能なEQ処理を防ぐ。正のsample rateでの処理は変更しない。
+- **次に確認:** ビルド時に sample rate 0、負値、通常44.1kHz／48kHzを確認する。
