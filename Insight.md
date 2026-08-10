@@ -11042,3 +11042,12 @@
 - **対応:** CPU 側に 48-byte mirror struct と static_assert を追加し、buffer サイズと cbuffer variable count を HLSL と一致させる。device／context／texture／map／binding 失敗時は dispatch を中止する。
 - **価値／懸念:** Duotone の parameter 転送を明示的に HLSL layout と揃える。GPU 実行結果は未確認。
 - **次に確認:** ビルド時に cbuffer reflection、master／highlight／blend の値転送、map failure、正常 dispatch を確認する。
+
+## 2026-08-10: EdgeEcho stage bindings and failure propagation
+
+- **関連:** `ArtifactCore/src/Graphics/Compute/EdgeEchoComputer.cppm`, `ArtifactCore/include/Graphics/Shader/Compute/HLSL/EdgeEcho.ixx`
+- **事実:** Sobel／Warp／Composite の HLSL cbuffer は CPU pipeline variable に登録されていなかった。EdgeEcho は context／texture／Map／resource binding／CreateTexture の失敗後も後段へ進む経路があり、echoColor も null 検証がなかった。
+- **仮説:** parameter が未 binding のまま処理される、途中段の stale resource で後段を dispatch する、または初期化失敗時に null view を参照する可能性がある。履歴 texture の初期値は現在も未検証。
+- **対応:** 3段の cbuffer variable 登録、初期化・texture/view・入力サイズ・context・Map／binding の検証を追加し、失敗時は後段 dispatch を中止する。Warp の履歴入力は型の一致する history SRV に揃えた。
+- **価値／懸念:** EdgeEcho の GPU resource 契約と失敗伝播を明示化する。履歴の black clear／初回フレーム見た目は別途 runtime 確認が必要。
+- **次に確認:** ビルド時に cbuffer reflection、texture resize／CreateTexture failure、初回／継続 frame、Map／binding failure を確認する。
