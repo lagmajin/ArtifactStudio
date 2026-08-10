@@ -9458,3 +9458,11 @@
 - **修正:** channel ごとの sample access を安全な zero-padding helper に統一し、Stereo output も先に zero 初期化する。
 - **価値:** malformed または部分的な audio segment が downmix 中に範囲外読みや未初期化出力を生まない。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — AudioDownMixer mono surround placement
+
+- **関連:** `ArtifactCore/src/Audio/AudioDownMixer.cppm`、Surround51/71 target mapping
+- **事実:** surround target の一般 channel copy は Mono 入力を channel 0 にだけ配置していたため、Mono 音声の右出力が無音になっていた。
+- **修正:** Mono 入力を Stereo downmix と同じ dual-mono 方針で L/R に複製する。
+- **価値:** Mono source を multichannel bus に送った際の左右定位を一貫させる。
+- **未検証:** 実ビルド・テストは未実行。
