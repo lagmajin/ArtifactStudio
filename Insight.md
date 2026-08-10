@@ -85,6 +85,15 @@
 - 価値・懸念: zero-length read の曖昧な成功状態と、6 / 8ch の誤った metadata 伝播を防ぐ。sample rate は ring buffer が保持していないため、既存 caller の設定責務は残る。
 - 次の確認: 明示許可後に、0 frame / 空 buffer / mono・stereo・5.1・7.1 の read と consumer の layout 判定を確認する。
 
+### 2026-08-10 — AudioParametricEQ の band 計算入口
+
+- 状態: 実装済みの局所防御。極端な EQ 設定での周波数応答は未検証。
+- 関連: `ArtifactCore/src/Audio/AudioParametricEQ.cppm`
+- 事実: `process()` は band の frequency / gain / Q を `std::clamp` と `std::pow` へ直接渡していた。`setParameterValue()` も非有限値を先に拒否していなかった。
+- 閃き・仮説: setter・JSON だけでなく、リアルタイム process の計算直前で値を再正規化すると、内部状態や将来の別入力経路からの NaN も係数計算へ入らない。
+- 価値・懸念: EQ biquad の NaN 係数・状態汚染を防ぎ、計算後の fallback だけに依存しない。無効値は frequency 1000Hz、gain 0dB、Q 1 の既定値へ寄せた。
+- 次の確認: 明示許可後に、非有限 / 極端な band 設定で係数・state・出力が有限であることを確認する。
+
 ### 2026-08-10 — Timeline / Property 編集経路の再計算と未利用基盤を改善候補として記録
 
 - 状態: 改善候補・未実装。実行時の呼び出し頻度と効果は未検証。
