@@ -10916,3 +10916,12 @@
 - **対応:** renderer 実 sample rate が前回値から変わった場合、frame-based target を 0 に戻して次の fill loop で再計算する。
 - **価値／懸念:** 通常再生時の target は変更せず、format change 時だけ先読み量を再同期する。
 - **次に確認:** device fallback／再オープン前後の target frame 数と実 latency を確認する。
+
+## 2026-08-10: Decoder queue push-result contract
+
+- **関連:** `ArtifactCore/include/Audio/AudioBufferQueue.ixx`, `ArtifactCore/src/Codec/FFMpegAudioDecoder.cppm`
+- **事実:** `AudioBufferQueue::push()` は満杯時に false を返さず segment を破棄し、decoder は push 後に `nextExpectedFrame_` を進めていた。
+- **仮説:** 事前 `isFull()` と push の間に状態が変化した場合、音声を失ったまま decoder frame cursor だけ進む可能性がある。未検証。
+- **対応:** push を bool 戻り値にし、受理成功時だけ decoder の期待 frame を更新する。
+- **価値／懸念:** queue の既存上限と backpressure 方針は維持し、受理結果を明示的に扱う。失敗後の codec／resampler 消費自体は既存の単一 producer 前提に依存する。
+- **次に確認:** ビルド時に queue 満杯境界、decoder cursor、EOS／resampler drain の連続性を確認する。
