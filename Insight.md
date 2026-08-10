@@ -11331,3 +11331,10 @@
 - **対応:** scalar／vector field とも `cellCount() == 0` を空フィールドとして扱うようにした。
 - **価値:** 解像度の積が表現できない入力を、全 volume 処理の入口で遮断する。
 - **次の確認:** overflow 解像度、通常解像度、trilinear sampling の runtime 挙動をビルド環境で検証する（未実施）。
+## 2026-08-10: Render job model input sanitization
+
+- **事実:** `RenderJobModel::data()` は負の row を明示的に拒否しておらず、`setJobProgress()` は非有限値や範囲外の値を保存していた。
+- **仮説:** stale QModelIndex や外部からの NaN／無限 progress が表示時の float→int 変換と進捗表示を不安定にする可能性がある。
+- **対応:** 負の row を無効化し、progress を有限かつ 0〜1 に正規化した。
+- **価値:** モデル行アクセスと UI 表示値の契約を入口で固定する。
+- **次の確認:** 行削除競合、NaN／無限 progress、通常 progress の model/view runtime 挙動をビルド環境で検証する（未実施）。
