@@ -10718,3 +10718,12 @@
 - **対応:** 左クリック処理の入口で `bus_` null を拒否する。
 - **価値／懸念:** 有効な bus を持たない slot は操作不能にする。通常の mixer slot の挿入導線は変更しない。
 - **次に確認:** ビルド時に bus 設定済み／未設定 widget のクリックを確認する。
+
+## 2026-08-10: AudioChannelStripWidget paint null bus guard
+
+- **関連:** `Artifact/src/Widgets/AudioMixerWidget.cppm`
+- **事実:** `AudioChannelStripWidget::updateMeters()` は `bus_` null を確認していたが、`paintEvent()` は peak／RMS／gain reduction の取得前に確認していなかった。
+- **仮説:** mixer の row 再構築中に strip が一時的に未接続状態で描画されると、null dereference になる可能性がある。未検証。
+- **対応:** `paintEvent()` の描画開始時に `bus_` null を検査し、未接続時は標準 QWidget 描画後に終了する。
+- **価値／懸念:** 描画ライフサイクルを meter 更新側と一致させる。接続済み bus のメーター表示は変更しない。
+- **次に確認:** ビルド時に mixer row の再構築・空 composition・bus 接続済み状態を確認する。
