@@ -10835,3 +10835,12 @@
 - **対応:** queue の `isEmpty()` を追加し、pending segment が残る間は EOS を false にする。
 - **価値／懸念:** decoder／resampler の判定は維持し、未消費データだけを EOS の完了条件へ追加する。
 - **次に確認:** ビルド時に decoder drain 後の queue 残量、pop 後の EOS 遷移を確認する。
+
+## 2026-08-10: AudioPreview failed-load stale asset guard
+
+- **関連:** `Artifact/src/Widgets/AudioPreviewWidget.cppm`
+- **事実:** `loadFile()` は `stop()` 後に新規 open が失敗すると、旧 `preloadedSegments_`／waveform／totalSamples を保持していた。
+- **仮説:** 失敗した新規読み込みの後、UI の play 操作で旧 asset が再生され、ユーザーに読み込み成功と誤認させる可能性がある。未検証。
+- **対応:** open 前に旧 preload、waveform、総サンプル数をクリアする。
+- **価値／懸念:** 読み込み失敗時は空の preview になる。正常な読み込みと stop／再生フローは変更しない。
+- **次に確認:** ビルド時に有効 file→無効 file、無効 file→有効 file の順で play／waveform 状態を確認する。
