@@ -10745,3 +10745,12 @@
 - **対応:** null mixer 時は追加ボタンを無効化し、bus 一覧取得前に空表示で戻る。
 - **価値／懸念:** mixer 未接続時も widget を安全に構築できる。接続済み mixer の bus 列挙・追加動作は変更しない。
 - **次に確認:** ビルド時に null／有効 mixer の構築、refresh、bus 追加を確認する。
+
+## 2026-08-10: AudioMixer layer bus creation failure guard
+
+- **関連:** `Artifact/src/Audio/ArtifactAudioMixer.cppm`, `ArtifactCore/src/Audio/AudioMixer.cppm`
+- **事実:** Core の `ensureLayerBus()` は作成失敗時に null を返し得るが、adapter 側は戻り値を直ちに routing lookup と bus setter に渡していた。
+- **仮説:** layer ID／bus 作成条件の異常時に、composition 同期処理が null dereference になる可能性がある。未検証。
+- **対応:** bus が有効な場合だけ routing と Core bus setter を実行し、失敗時は strip を未接続・Master 表示として継続する。
+- **価値／懸念:** 1 layer の bus 作成失敗で mixer 全体の同期を中断しない。通常の bus 作成成功時の設定値は変更しない。
+- **次に確認:** ビルド時に通常 layer、無効／衝突 layer ID、Core mixer 作成失敗時の同期を確認する。
