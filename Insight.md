@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — Scrub audio の renderer 前 PCM 境界
+
+- 関連: `Artifact/src/Audio/ArtifactAudioScrubController.cppm`。
+- 確認できた事実: `getAudio()` の結果を scrub volume へ直接乗算しており、異常 PCM は AudioRenderer／RingBuffer の手前まで残り得た。
+- 修正内容: volume 適用前に入力を有限化し、乗算結果も有限値へ正規化してから enqueue するようにした。
+- 未検証の仮説: scrub 対象 composition が異常 PCM を返しても、ring buffer state／renderer callback へ NaN を持ち込む経路を抑えられる。
+- 価値／懸念: 通常の scrub volume は維持する。極端な有限値は後段の renderer clamp に委ねつつ、非有限値だけを境界で止める。
+- 次に確認すべきこと: 実機または scrub harness で cache miss、無音、異常 PCM、速度変更中の enqueue を確認する。
+
 ### 2026-08-10 — Artifact waveform 相関／同期解析の累積精度
 
 - 関連: `Artifact/src/Audio/ArtifactAudioWaveform.cppm` の correlation、band energy、timeStretch、alignment、beat detection。
