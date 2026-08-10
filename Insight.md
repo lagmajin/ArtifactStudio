@@ -10358,3 +10358,12 @@
 - **対応:** 各 chunk のデータ開始位置とファイル残量を比較し、収まらない chunk を拒否する。奇数 chunk の padding seek も失敗時に拒否する。
 - **価値／懸念:** 不完全なファイルを早期に失敗させ、chunk parser の境界を保証する。厳格化により、壊れたサイズを持つ WAV は従来より読み込まれなくなる。
 - **次に確認:** ビルド時に正常 WAV、truncated data、truncated padding、余分な LIST/JUNK chunk を確認する。
+
+## 2026-08-10: Audio Chorus/Reverb の buffer サイズ overflow 防止
+
+- **関連:** `ArtifactCore/src/Audio/AudioChorus.cppm`, `ArtifactCore/src/Audio/AudioReverb.cppm`
+- **事実:** 入力 frame 数に delay／余白を加える計算と、Reverb の comb buffer 4本分の計算を `int` のまま行っていた。
+- **仮説:** `QVector` の上限近くの異常 segment で負値化または wrap が起き、誤った resize・剰余・index 計算につながる可能性がある。未検証。
+- **対応:** 加算・4倍算の前に `int` 上限を検査し、表現できないサイズの segment は処理を拒否する。
+- **価値／懸念:** 異常入力による buffer サイズ破壊を防ぐ。巨大な入力を実際に確保する前に拒否するため、通常経路の結果は変わらない。
+- **次に確認:** ビルド時に通常 frame 数と int 上限近傍の境界入力を確認する。
