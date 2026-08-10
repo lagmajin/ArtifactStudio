@@ -9370,3 +9370,11 @@
 - **修正:** start 直後に `QAudio::NoError` と `StoppedState` を確認し、失敗時は active/callback を戻して sink を停止する。
 - **価値:** Qt audio device の起動失敗が「再生中だが音が出ない」状態として隠れにくくなる。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — WASAPI GetBuffer の空きフレーム契約
+
+- **関連:** `ArtifactCore/src/Audio/WASAPIBackend.cppm`、`WASAPIBackend::Impl::renderLoop()`
+- **事実:** render loop は `padding` 後の空き `framesToWrite` を計算しているのに `GetBuffer(bufferFrameCount)` を要求し、さらに返却領域へ padding offset を加えていた。WASAPI の write cursor 契約では空きフレーム数だけを取得し、返却 pointer の先頭へ書く必要がある。
+- **修正:** `GetBuffer(framesToWrite)` に変更し、padding の memset/offset を削除して取得領域へ直接 callback する。
+- **価値:** 通常の partial padding 状態で buffer acquire が失敗して音声が更新されない経路と、誤 offset 書き込みを防ぐ。
+- **未検証:** 実ビルド・テストは未実行。
