@@ -9927,6 +9927,15 @@
 - **価値/懸念:** malformed timeline positions, persisted settings, or clock gaps no longer poison scrub volume or diagnostics. Normal drag timing and volume behavior are preserved.
 - **次に確認:** Scrub worker lifecycle and composition audio extraction should be checked for thread shutdown and stale composition ownership.
 
+### 2026-08-10 — AudioBufferQueue の segment 上限
+
+- 関連: `ArtifactCore/include/Audio/AudioBufferQueue.ixx`。
+- 確認できた事実: `maxSegments = 100` が宣言されていたが、push で参照されず、producer が速い場合に QList が無制限に増加していた。
+- 修正内容: queue が上限に達したら新規 segment を拒否し、既存 API のままメモリ使用量を bounded にした。
+- 未検証の仮説: audio producer／consumer の速度差が長時間続いても、buffer queue が無制限に成長する経路を抑えられる。
+- 価値／懸念: 既存の FIFO 順序と consumer の挙動は維持する。push が void のため、拒否件数の可視化は別途必要になる。
+- 次に確認すべきこと: 実機または queue harness で上限直前、上限到達、pop 後の再 push を確認する。
+
 ### 2026-08-10 — AudioCache prefetch の先頭フレーム境界
 
 - 関連: `ArtifactCore/src/Audio/AudioCache.cppm` の `prefetch()`。
