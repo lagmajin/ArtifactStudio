@@ -9227,6 +9227,14 @@
 - **価値:** GPUへ不確定な matte parameters を送らず、失敗を呼び出し側へ返せる。
 - **未検証:** 実ビルド・テストは未実行。
 
+### 2026-08-10 — blendDirect の GPU binding失敗処理
+
+- **関連:** `ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`、`LayerBlendPipeline::blendDirect()`
+- **事実:** direct blend 経路は BlendParams の map失敗と Src/Dst/Out texture binding の戻り値を無視して dispatchしていた。
+- **修正:** mapまたはbindingが失敗した場合は dispatchせず falseを返すようにした。
+- **価値:** 未更新パラメータや未設定リソースでのGPU実行を防ぐ。
+- **未検証:** 実ビルド・テストは未実行。
+
 ### 2026-08-10 — AudioMixer の旧 JSON 欠損フィールド復元
 
 - **関連:** `ArtifactCore/src/Audio/AudioMixer.cppm`、`AudioMixer::deserialize()`
