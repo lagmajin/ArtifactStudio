@@ -10142,3 +10142,12 @@
 - **対応:** 3 setter で有限値を 0..1 に clamp し、`setParameterValue()` も setter 経由に統一した。
 - **価値／懸念:** パラメータ宣言と実際の保持値が一致する。`size_` の DSP 利用範囲は別途確認が必要。
 - **次に確認:** ビルド時に Core Reverb の JSON 往復と係数境界を確認する。
+
+## 2026-08-10: Core Delay／Chorus パラメータ範囲
+
+- **関連:** `ArtifactCore/include/Audio/AudioDelay.ixx`, `ArtifactCore/src/Audio/AudioDelay.cppm`, `ArtifactCore/include/Audio/AudioChorus.ixx`, `ArtifactCore/src/Audio/AudioChorus.cppm`
+- **事実:** Delay／Chorus は汎用 `setParameterValue()` で有限値を直接保持しており、`getParameters()` の宣言範囲を迂回できた。
+- **仮説:** 範囲外の delay、feedback、rate、depth が DSP の遅延量や帰還係数に入り、音量暴走や巨大バッファ要求を誘発する可能性がある。未検証。
+- **対応:** setter と汎用 parameter 経路を既存の UI 宣言範囲へ統一した。
+- **価値／懸念:** 設定経路による挙動差をなくす。既存プロジェクトに範囲外値が保存されていた場合は、読み込み時に仕様範囲へ補正される。
+- **次に確認:** ビルド時に JSON 往復と各パラメータの上下限を確認する。
