@@ -9314,3 +9314,11 @@
 - **修正:** resource 名を cache key に含め、同じ shader 本体でも layout 名が変わった plan は executor を再構築する。
 - **価値:** custom resource 名を持つ連続 plan の bind が、直前 plan の古い layout に依存しなくなる。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — blendDirect の explicit dispatch texture 契約
+
+- **関連:** `ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`、`blendDirect()`、`ArtifactCore/include/Graphics/Shader/Compute/LayerBlendComputeShader.ixx`
+- **事実:** Blend shader は output 寸法だけで bounds check し、direct API は要求 width/height に基づき dispatch するが、入力 texture の最小寸法・format・output alias を検証していなかった。
+- **修正:** 全 texture が要求範囲を覆うこと、canonical float format が一致すること、SRV と UAV が alias しないこと、constant buffer が存在することを事前検証する。
+- **価値:** direct blend の範囲外 read と read/write hazard を dispatch 前に防ぎ、blend shader の前提を CPU API に反映する。
+- **未検証:** 実ビルド・テストは未実行。
