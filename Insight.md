@@ -10367,3 +10367,12 @@
 - **対応:** 加算・4倍算の前に `int` 上限を検査し、表現できないサイズの segment は処理を拒否する。
 - **価値／懸念:** 異常入力による buffer サイズ破壊を防ぐ。巨大な入力を実際に確保する前に拒否するため、通常経路の結果は変わらない。
 - **次に確認:** ビルド時に通常 frame 数と int 上限近傍の境界入力を確認する。
+
+## 2026-08-10: AudioChorus のチャンネル間遅延履歴分離
+
+- **関連:** `ArtifactCore/include/Audio/AudioChorus.ixx`, `ArtifactCore/src/Audio/AudioChorus.cppm`
+- **事実:** Chorus が L/R で単一の delay buffer と write position を共有していた。
+- **仮説:** ステレオ segment では先に処理したチャンネルの遅延履歴が、後続チャンネルの読み出しへ混入する。未検証。
+- **対応:** 2チャンネル分の独立した buffer plane と write position を使用する。
+- **価値／懸念:** ステレオのチャンネル分離を保つ。buffer サイズ拡張時は安全のため既存の遅延履歴をリセットする。
+- **次に確認:** ビルド時に mono→stereo、stereo impulse、buffer 拡張後の連続性を確認する。
