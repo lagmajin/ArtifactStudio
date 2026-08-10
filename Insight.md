@@ -9578,3 +9578,11 @@
 - **修正:** channel ごとの実長で処理し、rate 依存処理の不正 sampleRate を拒否、Delay buffer は最低 1 sample を確保する。
 - **価値:** 追加の effect rack 経路でも malformed AudioSegment と不正パラメータによる範囲外／ゼロ除算を防止する。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — Artifact audio effects channel alignment
+
+- **関連:** `Artifact/src/Audio/Effects/DelayEffect.cppm`、`ReverbEffect.cppm`、`CompressorEffect.cppm`、`LimiterEffect.cppm`、`DistortionEffect.cppm`、`EqualizerEffect.cppm`、`ChorusEffect.cppm`
+- **事実:** Artifact 側の effect 群は先頭 channel の sample 数を全 channel に使い、短い channel の読み越しが起こり得た。rate 依存 effect は無効な sample rate でも係数計算へ進み得た。
+- **修正:** L/R effect は L/R の共通長、全 channel effect は全 channel の最短長で処理し、invalid rate を早期 return する。
+- **価値:** Artifact 側の effect rack でも malformed AudioSegment の範囲外アクセスを防ぐ。
+- **未検証:** 実ビルド・テストは未実行。
