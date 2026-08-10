@@ -11222,3 +11222,12 @@
 - **対応:** `prepared_` を追加し、prepare 開始時に false、commit 完了時だけ true とする。draw は準備済みかつ必要な resource がある場合だけ通す。
 - **価値／懸念:** void prepare API の failure path を draw 側で安全に閉じる。呼び出し側の prepare／draw 順序自体は未検証。
 - **次に確認:** prepare 成功→draw、map failure→draw、binding failure→draw、次フレームの再準備を確認する。
+
+## 2026-08-10: Mesh renderer context and matrix input guards
+
+- **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cppm`
+- **事実:** `transpose4x4()` は source／destination pointer を検証せず、4つの公開行列setterから null が到達し得た。`prepare()` も device context の検証前に map 処理へ進む構造だった。
+- **仮説:** カメラ更新の失敗やGPU context 未準備時に、アクセス違反または不正な prepare 呼び出しが発生する可能性がある。未検証。
+- **対応:** 行列変換 helper を null-safe にし、prepare の入口で context 不在時に return する。
+- **価値／懸念:** MeshRenderer の公開入力とGPU実行境界をクラッシュしない失敗経路にする。行列内容の有限値検証、map failure 後の stale state は別確認が必要。
+- **次に確認:** null／正常行列、prepare(nullptr)、GPU再初期化後の prepare、通常描画を確認する。
