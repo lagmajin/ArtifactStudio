@@ -10547,3 +10547,12 @@
 - **対応:** sample を有限値かつ正値に限定し、振幅を centerY 以内へ clamp してから座標化する。
 - **価値／懸念:** 異常データでも描画が widget 内に収まる。通常の0〜1 waveform表示は維持する。
 - **次に確認:** ビルド時に NaN、infinity、float 最大値、通常の peak／RMS 表示を確認する。
+
+## 2026-08-10: AudioLevelBarWidget の極小サイズ境界
+
+- **関連:** `Artifact/src/Widgets/AudioPreviewWidget.cppm`
+- **事実:** level bar の幅を `widget width - 8` で直接計算しており、極小 widget では負の描画幅になっていた。
+- **仮説:** リサイズ途中や極小 dock で負の QRect 幅が描画 API へ渡り、表示の不整合を起こす可能性がある。未検証。
+- **対応:** bar 幅を0以上へ clampし、幅または高さがない場合は bar 描画をスキップする。
+- **価値／懸念:** 極小サイズでも描画 API の入力を正に保つ。通常サイズの level bar は変わらない。
+- **次に確認:** ビルド時に幅0〜7、高さ0〜3、通常サイズの level bar を確認する。
