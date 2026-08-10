@@ -9426,3 +9426,11 @@
 - **修正:** 各 channel の source/destination サイズも含めた最小値までで加算するようにした。
 - **価値:** 入力 channel 間の frame 数が不一致でも範囲外読みを防ぎ、main と side-chain の安全性をそろえる。
 - **未検証:** 実ビルド・テストは未実行。
+
+### 2026-08-10 — Playback segment transform channel bounds
+
+- **関連:** `Artifact/src/Playback/ArtifactPlaybackEngine.cppm`、`resampleAudioSegment()` / `timeScaleAudioSegment()`
+- **事実:** 両 helper は先頭 channel の `frameCount()` を全 channel に使っていたため、channel ごとの frame 数が不一致な segment で補間元を範囲外参照し得た。
+- **修正:** channel ごとの実長を補間上限に使い、空 channel は出力を zero-fill する。
+- **価値:** playback の resample / speed transform が malformed audio segment でも安全に出力を生成し、下流の入力 guard だけに依存しない。
+- **未検証:** 実ビルド・テストは未実行。
