@@ -11105,3 +11105,12 @@
 - **対応:** 3 pipeline の cbuffer を dynamic variable として登録し、Mask の cbuffer／texture／buffer-view binding と Map failure、ProceduralTexture の cbuffer／output binding を dispatch 前に検証する。
 - **価値／懸念:** mask と procedural generation の CPU→HLSL resource 契約を、暗黙の default variable 解決から明示的な descriptor に揃える。GPU 実行結果は未確認。
 - **次に確認:** ビルド時に各 shader の reflection、mask mode／path mode、procedural settings、Map／binding failure、正常 dispatch を確認する。
+
+## 2026-08-10: MatteTrack cbuffer explicit padding and runtime binding
+
+- **関連:** `ArtifactCore/include/Graphics/Shader/Compute/LayerBlendPipeline.ixx`, `ArtifactCore/include/Graphics/Shader/Compute/HLSL/MatteTrack.ixx`, `ArtifactCore/src/Graphics/LayerBlendPipeline.cppm`
+- **事実:** 現行 C++ の `MatteTrackParams` は 48 bytes で static assertion を満たしていたが、HLSL 側の trailing register padding は暗黙で、pipeline variable descriptor に `MatteTrackParams` が含まれていなかった。過去のエラー出力は現ワークスペースと異なる `X:\Dev\ArtifactStudio` build tree を参照していた。
+- **仮説:** 古い build tree では assertion 前の struct をコンパイルしていた可能性があり、現行 tree でも cbuffer 未登録により matte parameters が未 binding になる可能性がある。未検証。
+- **対応:** HLSL cbuffer に明示的な uint padding を追加し、C++ pipeline に dynamic cbuffer variable を登録、実行時の texture binding と同じ経路で buffer を binding する。
+- **価値／懸念:** static assertion の layout 根拠と runtime resource 契約を両方明示する。現行 build tree の再コンパイル結果は規約により未確認。
+- **次に確認:** `J:\dev\ArtifactStudio` を source root とする clean build で static assertion、cbuffer reflection、track matte 1／2／3 source、normal／inverted luma を確認する。
