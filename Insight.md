@@ -9679,3 +9679,10 @@
 - **判断:** dB 値を有限値へ補正し、-60〜0 dB にクランプしてから ratio を計算するようにした。
 - **価値/懸念:** オーディオ入力異常があってもバー描画の整数変換や矩形範囲が壊れにくい。クリップ判定そのものは AudioLevelMeter 側の責務として変更していない。
 - **次に確認:** 実 UI で 0 dB 超のピークをクリップ色として表現する仕様が必要か確認する。
+## 2026-08-10 — Unbalanced CBuffer packing leaked into later module types
+
+- **関連:** `ArtifactCore/include/Graphics/CBuffer/Constants.ixx`, `Graphics.LayerBlendPipeline`
+- **事実:** `LineVertex`、`RectVertex`、`DrawSpriteConstants` の `#pragma pack(push,1)` に対応する `pop` がなく、同じ翻訳単位／モジュールで後続の構造体へ 1-byte packing が継承されていた。`MatteTrackParams` は定義上12個の4-byte要素だが、44 byteとして評価されていた。
+- **判断:** 各ローカルな packing 範囲を `#pragma pack(pop)` で閉じた。`MatteTrackParams` のフィールドや HLSL は変更していない。
+- **価値/懸念:** C++ constant buffer の 16-byte register 境界が復元され、提示された static assertion の失敗原因を除去する。既存の各 CBuffer 型の意図した packed layout には影響しない。
+- **次に確認:** ビルド環境で `LayerBlendPipeline.ixx` の static assertion と関連モジュール依存スキャンを確認する（この環境ではビルド禁止のため未実行）。
