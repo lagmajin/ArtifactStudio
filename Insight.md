@@ -11394,3 +11394,10 @@
 - **対応:** progress を有限の 0〜1 に clamp し、remaining／processed の計算を 64-bit 中間値へ変更した。非正 total は finished と扱う。
 - **価値:** 進捗 UI と farm 完了判定の算術境界を統一する。
 - **次の確認:** 巨大カウンタ、重複通知、非正 total、通常進捗の runtime 挙動をビルド環境で検証する（未実施）。
+
+## 2026-08-11: 3D 描画の行列スコープとflush契約
+
+- **事実:** `PrimitiveRenderer3D` のギズモはキューへ蓄積し、`flushGizmo3D()` 時点のカメラ行列でGPU送信される。ライトレイヤーの描画では行列resetより前のflushが必要だった。選択ワイヤーフレームにも同じ順序依存が存在した。Controller内の3Dレイヤー／Solid Card／Shape Card／静止画・動画Cardには局所RAIIスコープを導入済みで、Overlay側は未移行。
+- **仮説:** `set3DCameraMatrices()`／`reset3DCameraMatrices()` を呼び出し側へ公開したまま、キュー描画のflush責務を各経路へ委ねる構造は、同種の行列リークを再発させやすい。
+- **価値・懸念:** 未検証。将来、RAIIの3D描画スコープ（行列設定・flush・resetを一体化）または行列をキュー頂点へスナップショットする設計に寄せれば、順序依存をAPIで防げる。後者はバッチ分割とGPUコストを伴うため設計レビューが必要。
+- **次の確認:** すべての `set3DCameraMatrices()` 呼び出しについて、対応するflush/reset順序、レンダーターゲット切替、viewport復元を静的監査し、複数のカメラ・ライト・選択オーバーレイを含む実機ケースで確認する。
