@@ -27,6 +27,7 @@ vcpkg_installed/
 # Local DirectX 12 Agility SDK package (downloaded for runtime deployment)
 temp/Microsoft.Direct3D.D3D12.*.nupkg
 temp/agilitysdk-*/
+temp/ffmpeg/
 
 # Submodules temporary
 stashed_broken_modules/
@@ -45,6 +46,7 @@ build_output.txt
 build_*.log
 diff.txt
 test_*.png
+tests/fixtures/generated/
 vc140.pdb
 CMakeSettings.json
 CMakeUserPresets.json
