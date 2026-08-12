@@ -633,6 +633,12 @@ add_custom_target(check_module_hygiene
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMENT "Checking C++ module hygiene rules")
 
+add_custom_target(check_source_manifests
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONUTF8=1
+            ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_source_manifests.py
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Checking explicit source manifests and focused pack ownership")
+
 # ---------------------------------------------------------------------------
 # テスト設定
 # ---------------------------------------------------------------------------

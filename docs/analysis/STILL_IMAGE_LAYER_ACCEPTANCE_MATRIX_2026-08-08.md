@@ -1,6 +1,6 @@
 # 静止画レイヤー制作受入マトリクス
 
-**最終更新:** 2026-08-08
+**最終更新:** 2026-08-12
 
 **対象マイルストーン:** `M-IMG-1 Still Image Layer Production Readiness`
 
@@ -18,7 +18,11 @@
 | CPU frame供給 | `currentFrameBuffer()` | Composition View / Render Controllerから参照 | 実装済・runtime未確認 |
 | GPU upload／共有 | `GPUTextureCacheManager` | source version + input interpretation別key | 実装済・runtime未確認 |
 | Project保存／復元 | `toJson()` / `fromJsonProperties()` | source、identity、fit、crop、interpretation、PSD subimage | 実装済・runtime未確認 |
-| Thumbnail／Qt境界 | `toQImage()` / `getThumbnail()` | 入出力・UI互換境界 | 実装済・色解釈一致は未確認 |
+| Thumbnail／Qt境界 | `toQImage()` / `getThumbnail()` | 入出力・UI互換境界 | 変換済み buffer を使う静的修正済・runtime未確認 |
+
+### 現行コードで確認した連番再生接続
+
+旧レポートに残っていた「`ImageSequenceSource` → `ArtifactImageLayer::draw()` の接続未完了」という記述は、現行コードでは更新が必要である。`draw()` と `toQImage()` は `currentFrame()` から `resolveSequenceFrame()` を通して `refreshSequenceFrame()` を呼び、`ImageSequenceSource::tryFrameAt()` が対象フレームの cache lookup / prefetch を行う。したがって、連番再生の時間駆動接続は静的には実装済みで、残課題は runtime での frame advance、欠損、範囲外、保存・再読込の受入確認である。
 
 ## 素材マトリクス
 
@@ -70,9 +74,14 @@
 
 1. ICC profile本体を使う変換は未整備。standard CMYKは簡易RGB変換済みで、profile依存の精密変換と実素材runtime確認が必要。
 2. project相対source pathの唯一の解決契約が未整備。Image Layer単独ではproject rootを取得できないため、AssetManager／project保存境界で設計する必要がある。
-3. `toQImage()`／thumbnailとworking-space変換済み`currentFrameBuffer()`の色結果一致はruntime確認が必要。
+3. `toQImage()`／thumbnailは working-space変換済み`cacheBuffer_`を明示的に QImage 化するよう修正した。`currentFrameBuffer()`との色結果一致はruntime確認が必要。
 4. CMYK等の4ch非RGBA素材は誤alphaを防ぐ診断を追加済みだが、source color modelに応じたRGB変換契約が必要。
-5. Render Queueを含む受入実行は、ビルド・テスト許可後に行う。
+5. 連番の時間駆動接続は静的実装済みだが、frame advance / 欠損保持 / 範囲外 clamp の runtime確認が未完了。
+6. Render Queueを含む受入実行は、ビルド・テスト許可後に行う。
+
+### 色経路の実装ハンドオフ
+
+`ArtifactImageLayer::toQImage()` で raw `cache_` を早期返却せず、入力解釈後の `cacheBuffer_` を QImage 境界で明示変換してから crop を適用する修正を実装した。これにより GPU preview の `currentFrameBuffer()` と thumbnail / software export の色源を揃える。実装時は、(1) sequence frame 更新後の buffer、(2) associated alpha の unpremultiply / premultiply、(3) crop の pixel bounds、(4) no-color-transform 時の既存結果を個別に確認する。runtime検証は未実行。
 
 ## 完了判定
 
