@@ -90,7 +90,7 @@
 
 ## 追加確認: Lottie
 
-`ArtifactCore/src/Export/Lottie/LottieExporter.cppm` に `importFromFile()` があり、Lottie JSONの基本ドキュメント、レイヤー、シェイプ、テキスト等をCore構造へ変換する。現状の不足は、これをArtifactの編集可能なレイヤー／コンポジションへ生成するアプリ導線と、`.lottie` ZIPコンテナの展開である。
+`ArtifactCore/src/Export/Lottie/LottieExporter.cppm` に `importFromFile()` があり、Lottie JSONの基本ドキュメント、レイヤー、シェイプ、テキスト等をCore構造へ変換する。現状の不足は、これをArtifactの編集可能なレイヤー／コンポジションへ生成するアプリ導線と、`.lottie` ZIPコンテナの展開である。`.lottie` はArchiveとして判定できるようにしたが、これはインポート完了を意味しない。
 
 ## 根拠として確認した主な文書・コード
 
