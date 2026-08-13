@@ -1,8 +1,10 @@
 # MILESTONE: Distort & Warp Effects Completion
 
 **日付**: 2026-08-04
-**現状**: 4効果がCPU+GPU実装済み（Liquify, Spherize, Wave, LensDistortion）。TurbulentDisplace GPUスタブ、TwistTransform/BendTransform 実装なし、Coreの DisplacementFunc 6種が未ブリッジ、CornerPin 旧パターン。AE互換の Bulge/Twirl/MeshWar/WaveWarp/Magnify/Ripple/PolarCoordinates 不在。
+**現状**: 4効果がCPU+GPU実装済み（Liquify, Spherize, Wave, LensDistortion）。TurbulentDisplace GPUスタブ、TwistTransform/BendTransform 実装なし、Coreの DisplacementFunc 6種が未ブリッジ、CornerPin 旧パターン。AE互換の Bulge/Twirl/MeshWar/WaveWarp/Magnify/Ripple/PolarCoordinates 不在。2026-08-13 に `ArtifactCore::morphImages()` の CPU reference 基盤（対応制御点、進行率、bilinear/nearest、クロスディゾルブ）を追加。
 **目標**: 全既存スタブの完成、Core DisplacementFunc→Composition ブリッジ、主要AE distortの実装、統一GPUヘルパー。
+
+**進捗 (2026-08-13):** `ArtifactCore::morphImages()` のCPU referenceに加え、`Image Morph` エフェクトを追加。ターゲット画像パス、amount、対応制御点JSONを通常のエフェクトプロパティとして扱い、EffectService／Inspectorカタログから生成可能にした。GPUパス、画像選択UI、runtime受入確認は未完了。
 
 ## 現状マトリクス
 

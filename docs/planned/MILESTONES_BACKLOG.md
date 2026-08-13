@@ -1,6 +1,6 @@
 # Milestones Backlog
 
-**最終更新:** 2026-08-10
+**最終更新:** 2026-08-13
 
 ### Still Image / Production Readiness
 - **M-IMG-1** Still Image Layer Production Readiness
@@ -33,10 +33,10 @@
   - Software Render Queue でも layer surface に既存の rasterizer effect／mask 処理を通し、current-frame matte source map と matte evaluator を適用するようにした。GPU／Software で mask／matte が丸ごと抜ける経路を修正した。
   - Software／shared GPU surface の matte 適用を `fitMode`／`opacity`／per-reference `blendMode` 対応の共通 evaluator に切り替え、GPU／Software で設定値を捨てて Core 既定 Add stack に落とす差を縮小した。
   - matte source が解決済みの layer では GPU texture cache も無効化し、surface cache bypass 中に空の cache handle を経由する余計な fallback 分岐を除いた。
-- **WALK-IMG-3** Asset Browser の検索範囲切替（2026-08-10 静的確認・部分修正）
+- **WALK-IMG-3** ✅ Asset Browser の検索範囲切替（2026-08-13 実装）
   - Current Folder / Project Assets / Missing / Unused を切り替えられる検索導線を追加する
   - 現在フォルダ検索と Project View のプロジェクト検索の責務を整理する
-  - 現状は検索が current folder に限定され、Project Assets 全体を検索する scope は未実装。既存の Missing status filter は UI で非表示だったため、Unused と並ぶ既存導線として再表示した。
+  - Current Folder / Project Assets / Missing / Unused を Asset Browser 内の検索スコープとして追加し、設定を保存・復元する。Project Assets は asset root 以下を再帰検索する。
 - **WALK-IMG-4** Preview と Render Queue の静止画一致確認
   - transform、crop、mask、matte、blend、effect、色解釈について、Preview / Software Preview / Render Queue の結果を比較できる受入導線を作る
   - `STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX` の未実行項目を Pass / Fail / N/A へ進める
@@ -64,9 +64,10 @@
 - **WALK-TL-5** PropertyEditor の編集補助を完成させる
   - 数値行の slider、reset/default、keyframe、expression affordance を `PropertyEditor` row の共通機能として揃える
   - 旧 Knob 系を再拡張せず、現行 `Artifact.Widgets.PropertyEditor` を正規経路にする
-- **WALK-TL-6** Project open/save の非ブロッキング化
+- **WALK-TL-6** ✅ Project open/save の非ブロッキング化（2026-08-13 静的確認）
   - 既存の async load/save 経路を File Menu、recent project、recovery、auto-save から統一利用する
   - 進行表示、編集中の変更との整合性、temp→rename の atomic 保存を確認する
+  - File Menu の通常保存／別名保存／最近のプロジェクト再オープンは `loadFromFileAsync()` / `saveToFileAsync()` を使用済み。進行表示と atomic 保存の runtime 確認は未実施。
 
 ## Next Walk TODO: Composition, Render Queue, and Diagnostics
 
