@@ -75,6 +75,7 @@ QADS を一度に削除せず、既存のレイアウト・タブ・floating・w
 - [x] QADS adapter／native surfaceのbackend kind／capability契約を追加する
 - [x] backend kindの文字列変換を共通契約へ集約する
 - [x] native surfaceが未対応floating entryを黙ってdocked化しないようにする
+- [x] native surfaceのdock一覧／area問い合わせAPIを追加する
 - [x] native surfaceへportable layoutのarea／visibleを適用する最小復元APIを追加する
 - [x] native surface自身のportable layout保存／復元APIを追加する
 - [x] native surfaceのportable layout旧配列形式を後方互換で読む
