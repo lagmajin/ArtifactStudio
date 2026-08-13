@@ -70,6 +70,7 @@ QADS を一度に削除せず、既存のレイアウト・タブ・floating・w
 - [x] dock の登録・削除・表示切り替え・tab 化を独自 backend で実装する
 - [x] native surfaceにactivate相当のtab前面化操作を追加する
 - [x] native surfaceでpinned状態を保持・保存・復元する
+- [x] native surfaceで実行中のdock area移動を実装する
 - [x] native surfaceへportable layoutのarea／visibleを適用する最小復元APIを追加する
 - [x] native surface自身のportable layout保存／復元APIを追加する
 - [x] native surfaceのportable layout旧配列形式を後方互換で読む
