@@ -706,3 +706,10 @@
 - **対応:** `ArtifactEffectsFinishing` が現在所有する `Effects/Rasterizer/RadialBlurEffect.ixx/.cppm` を Rasterizer umbrella と residual の source list から除外し、未使用の `Effects/RadialBlur` 側は manifest exclusion のまま保持した。ファイル自体は削除していない。
 - **価値/懸念:** 二重定義を避けつつ、履歴上の旧ファイルを保全できる。CMake configure / build による実際の target 解決は未検証。
 - **次に確認:** 他の module-name 重複は既存の分割実装かを確認し、同様に明確な二重定義だけを所有リストから除外する。
+## 2026-08-13 — QADS adapter と native dock surface の段階移行境界
+
+- **関連:** `Artifact/include/Widgets/ArtifactDockManager.ixx`、`Artifact/include/Widgets/ArtifactNativeDockSurface.ixx`、`Artifact/src/Widgets/ArtifactMainWindow.cppm`
+- **事実:** 公開widget moduleからQADS型を除去し、QADS adapterとbackend-neutralな `DockLayoutRegistry` を分離した。native surfaceは5領域、tab化、portable layout、visible／pinned／activate／area移動を持つが、floatingとdrag/dropは未対応としてcapabilityで明示している。
+- **仮説:** QADS state blobを既定のモデルにし続けると、native backendへの切替時にfloatingやtab groupの差異が暗黙に失われるため、portable modelを先に正規化し、未対応機能は復元時に診断ログへ出す方が安全。
+- **価値・懸念:** adapter交換の境界と部分復元の失敗条件を明示できる。一方、native surfaceは現在ArtifactMainWindowの既定backendへ接続しておらず、実機表示・module hygiene・QADS完全撤去は未検証。
+- **次に確認:** ビルド許可後に新規moduleのコンパイル、native surfaceの実機表示、portable復元、既存QADS layoutとの比較を検証する。
