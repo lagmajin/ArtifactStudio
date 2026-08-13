@@ -15,7 +15,7 @@
 - OIIOベースの画像取り込み・メタデータ・float buffer・thumbnail経路がある。
 - PSDは現状フラット画像として扱う整理で、レイヤー構造の保持は未対応。
 - EXRは需要文書上の未対応候補であり、OpenEXR/OIIO経路の実装範囲を再確認する必要がある。
-- GIFは先頭フレームのみという整理で、アニメーションとしての取り込みは未完了。
+- GIFは今回、単一ファイル内の複数フレームをImageSequenceSourceのサブフレームとして扱うよう追加した。runtimeでの実ファイル確認は未実施。
 - SVGはビットマップ化が中心で、編集可能なパス／アニメーションとしてのインポートは未対応。
 - Aseprite、Krita、TIFFの多ページ・RAW・DDS/KTX2などの専用取り込みは、今回の静的調査では正規の統合経路を確認できなかった。
 - AVIF/HEIC/HEIF/JXL/JP2/PNM/PFM/KTX2は、OIIOがビルドに該当codec/pluginを持つ場合に既存画像readerで扱えるよう、拡張子の分類とAsset管理へ追加した。実ファイルの読み込みはruntime未検証。
