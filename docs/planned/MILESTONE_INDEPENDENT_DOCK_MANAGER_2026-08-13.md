@@ -69,6 +69,7 @@ QADS を一度に削除せず、既存のレイアウト・タブ・floating・w
 - [x] dock surface、tab surface、splitter surface の最小実装を追加する
 - [x] dock の登録・削除・表示切り替え・tab 化を独自 backend で実装する
 - [x] native surfaceへportable layoutのarea／visibleを適用する最小復元APIを追加する
+- [x] native surface自身のportable layout保存／復元APIを追加する
 - [ ] `ArtifactMainWindow` は facade のみを参照する構成にする
 - [ ] QADS backend と native backend を切り替え可能にする
 
