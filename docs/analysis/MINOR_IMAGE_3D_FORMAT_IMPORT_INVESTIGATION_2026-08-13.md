@@ -26,7 +26,7 @@
 - OBJには `tinyobjloader` fallbackがある。
 - PMD/PMXには限定的なPMD系読み込みコードが存在する。
 - USDAはASCIIの限定読み込みがあるが、USDC/USDZはOpenUSD runtime未接続。
-- ABC/Alembic、DAE、USD系の一部はUIのファイルフィルタに現れる一方、実際の importer backend が形式ごとに完成しているとは限らない。STLは今回、ASCII／binaryの静的三角形メッシュ読み込みを追加した。
+- ABC/Alembic、DAE、USD系の一部はUIのファイルフィルタに現れる一方、実際の importer backend が形式ごとに完成しているとは限らない。STLはASCII／binary、PLYはASCIIの静的メッシュ読み込みを追加した。
 - 既存の3Dレイヤーは、読み込んだメッシュを基本的に単一 `Artifact3DLayer` として保持するため、シーン階層、スキニング、アニメーション、複数マテリアルの完全保持は別課題である。
 
 ## 候補形式の優先順位
@@ -39,7 +39,7 @@
 | P1 | SVGパス | UI・モーション用途に有効 | 中 | ビットマップ化と編集可能パスを分離 |
 | P2 | Lottie | 2Dモーション素材の交換に有効 | 中 | ThorVG等の採用可否を決める |
 | P2 | Aseprite/Krita | 連番・ドット絵・レイヤー素材向け | 中 | フレームとレイヤーを画像シーケンスへ変換 |
-| P2 | PLY/DAE | 3D素材の受け皿を広げる | 小〜中 | 変換後の三角形メッシュに限定 |
+| P2 | DAE | 3D素材の受け皿を広げる | 小〜中 | 変換後の三角形メッシュに限定 |
 | P2 | Alembic | キャッシュアニメーション用途 | 高 | まず静的ジオメトリ／キャッシュ再生の要否を分ける |
 | P3 | USDC/USDZ | USDパイプラインとの接続 | 高 | OpenUSD導入と依存配布を先に評価 |
 | P3 | DDS/KTX2 | GPUテクスチャ・ゲーム資産 | 中 | 画像入力とGPU圧縮テクスチャを分離 |
