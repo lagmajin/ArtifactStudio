@@ -1704,3 +1704,10 @@
 - 仮説（未検証）: 最初にモデル精度を追うより、候補のmask／bounds／confidence／provenanceと、一括Undo・source identity・推定画素の保存契約を固定した方が、モデル交換やCPU／GPU fallbackに耐える制作機能になる。
 - 価値・懸念: 一枚の画像から復元できない隠し画素を確定情報として扱う事故を避け、AI結果を通常のマスク編集へ安全に引き渡せる。候補の前後順と背景補完品質は素材依存で、runtime評価が必要。
 - 次の確認: Phase 0の代表素材で、単一候補のmask生成から画像レイヤー作成、保存／再読込、Preview／Render Queue一致までの最小往復を確認する。モデル選定と新規モジュール追加は、その接続点を確認してから決める。
+## 2026-08-14: TextGlyphSubmitter の製品 renderer 接続境界（未検証）
+
+- 関連: `Artifact/src/Render/ArtifactTextGlyphSubmitter.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`、`Artifact/src/Render/PrimitiveRenderer2D.cppm`、`experiments/TextAnimatorLab/artifact_text_glyph_smoke.cpp`
+- 事実: `ArtifactTextGlyphSubmitter` は standalone GPU smoke と専用 runtime target から利用され、変形 PSO、readback の非透明画素、カラー glyph の RGB 保持を検査する経路がある。一方、製品 `ArtifactIRenderer::drawGlyphs()` / `drawGlyphsTransformed()` は現在も `PrimitiveRenderer2D` へ委譲しており、Submitter は製品描画経路から呼ばれていない。
+- 仮説（未検証）: 製品 renderer へ直接接続するには、`ShaderManager` の glyph PSO／SRB 所有を renderer 初期化境界で Submitter provider へ渡し、render target と device context の寿命に合わせて Submitter を保持する必要がある。単純な draw 呼び出し置換だけでは device 再初期化と既存 sprite／particle submit 順序を壊す可能性がある。
+- 価値・懸念: standalone の成功を製品経路の成功と誤認するのを防ぎ、次の統合作業の変更範囲を renderer 初期化・target ownership・flush 順序に限定できる。ビルド・実行確認は未実施。
+- 次の確認: ユーザー許可後に focused GPU target をビルドし、既存 `ArtifactIRenderer` の device 再初期化、通常 glyph、変形 glyph、カラー glyph、readback を段階的に確認してから製品経路へ接続する。
