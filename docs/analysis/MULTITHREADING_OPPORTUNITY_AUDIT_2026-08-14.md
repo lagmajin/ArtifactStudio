@@ -50,7 +50,7 @@
 | P0 | RAM Preview | frame preparation、GPU submit、readback | Conditional | frame generation、pending queue、async readback、stale-result判定が存在 | frame-local target、共有framePosition、cache publish、GPU context | 2-slot bounded pipelineの状態機械を実装前に定義する |
 | P1 | CPU matte／mask | tile rowsまたは独立surface | Conditional / Parallel-safe candidate | 大容量ピクセルループとCPU matte evaluatorが存在 | halo、blend順、共有scratch、QImage境界 | `ImageF32x4_RGBA`のtile独立性を確認し、単一tileの結果一致を証明する |
 | P1 | `Artifact/src/Effect/*` | effectのpixel／tile loop | Already parallel / Audit needed | 多数の`Parallel::For`が存在 | nested TBB、メモリ帯域飽和、effect間の順序依存 | per-effect timingとactive worker数を計測し、未並列箇所だけ抽出する |
-| P1 | Asset Browser | thumbnail／audio preview | Async-safe | `QtConcurrent::run`と`waitForFinished()`が混在 | UI owner、QImage境界、generation、cache invalidation | `waitForFinished()`の呼び出し元を非ブロッキングwatcherへ移行できるか確認する |
+| P1 | Asset Browser | thumbnail／audio preview | Already async / no new candidate confirmed | 通常の画像thumbnailと音声waveformは`QFutureWatcher`＋`QtConcurrent::run`で非同期化済み。残る`waitForFinished()`は`Impl`破棄時のwatcher cleanup | 破棄中のworker lifetime、QImage/QPixmap境界、generation、cache invalidation | 新規非同期化は行わず、破棄時のcancel／cleanupとgeneration破棄の回帰確認に限定する |
 | P1 | Project／Asset import | copy、probe、metadata | Async-safe | async import経路が既に存在する | import順序、登録owner、失敗報告 | 同期呼び出し元を列挙し、既存async APIとの結果整合を比較する |
 | P1 | Proxy／AutoSave | encode、serialize、file write | Async-safe | 重い同期処理が計画文書で確認されている | 編集中snapshot、atomic save、process concurrency | immutable project snapshotを先に定義する |
 | P2 | `ArtifactRenderScheduler` | frame tasks | Conditional | `FrameParallel`、`TileParallel`、`LayerParallel` enumとqueue契約が存在 | 実装と契約の乖離、GPU共有、progress signal | scheduler実装の実行経路を読み、宣言だけの戦略を区別する |
