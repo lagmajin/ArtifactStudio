@@ -70,13 +70,13 @@ Glyph atlas の GPU 描画だけを実行できる検証経路を作る。
   vertex/index/transform buffer、`submitAtlasSprite*`相当の処理を分離対象として確定した。
 - **完了（provider契約）**: `ArtifactTextGlyphPipelineProvider` を追加し、
   Glyph PSO/SRBとatlas samplerだけをSubmitterへ渡す境界を固定した。
-- **未完了（GPU実装）**: providerを使ったatlas upload、quad submit、変形submitは未実装。
+- **完了（検証用GPU実装）**: `ArtifactTextGlyphSubmitter` 経由のatlas upload、quad submit、変形submitを実GPUで確認済み。製品rendererへの全面移行と専用providerへの完全分離は未完了。
 - **検証結果**: ShaderManagerを公開IFCごと単独ターゲットへ取り込むと、
   `Graphics.Shader.Set` / `Graphics` などのtransitive module依存が発生する。
   そのため移行アダプタはTextRuntimeの正規moduleグラフ内に置き、真の独立化は
   ShaderManager内部のGlyph PSO生成を専用providerへ移した後に行う。
-- Glyph PSO生成に必要なShaderManager APIを専用providerへ移す。
-- Sprite系PSOやParticle系importを専用モジュールから排除する。
+- Glyph PSO生成に必要なShaderManager APIを専用providerへ移す（製品renderer分離の残課題）。
+- Sprite系PSOやParticle系importを専用モジュールから排除する（製品renderer分離の残課題）。
 
 ### G3: 実行ターゲット
 
