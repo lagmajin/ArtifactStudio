@@ -1,4 +1,5 @@
 #include <QGuiApplication>
+#include <QColor>
 #include <QImage>
 #include <QFile>
 #include <QString>
@@ -55,9 +56,15 @@ int main(int argc, char **argv) {
   renderer.drawGlyphs(glyphs, style, ArtifactCore::FloatColor(1.0f, 1.0f, 1.0f, 1.0f));
   renderer.flushAndWait();
   const QImage image = renderer.readbackToImage();
-  const bool saved = image.save(output);
-  std::fprintf(stderr, "gpu-smoke: glyphs=%zu image=%dx%d saved=%d path=%s\n",
-               glyphs.size(), image.width(), image.height(), saved ? 1 : 0,
+  int nonZeroAlpha = 0;
+  for (int y = 0; y < image.height(); ++y) {
+    for (int x = 0; x < image.width(); ++x) {
+      if (image.pixelColor(x, y).alpha() > 0) ++nonZeroAlpha;
+    }
+  }
+  const bool saved = !image.isNull() && nonZeroAlpha > 0 && image.save(output);
+  std::fprintf(stderr, "gpu-smoke: glyphs=%zu image=%dx%d nonzeroAlpha=%d saved=%d path=%s\n",
+               glyphs.size(), image.width(), image.height(), nonZeroAlpha, saved ? 1 : 0,
                output.toLocal8Bit().constData());
   renderer.destroy();
   return saved ? 0 : 1;
