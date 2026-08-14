@@ -45,6 +45,20 @@ GPU glyph smoke の成功条件は、PNG を保存できることだけではな
 画素も1つ以上必要になる。ログの `nonzeroAlpha`、`colorPixels`、`colorPreserved` を
 確認する。これにより、空の透明画像やカラー情報を失った画像を成功扱いしない。
 
+変形用 PSO の確認では通常実行を使う。通常 glyph の回転・scale・opacity が有効になり、
+Submitter が変形用 pipeline を選択する。比較用に `ARTIFACT_TEXT_SMOKE_NO_TRANSFORM=1`
+を設定すると、同じ入力を非変形 pipeline で実行できる。
+
+```powershell
+$env:ARTIFACT_TEXT_SMOKE_NO_TRANSFORM = '0'
+& '.\build_gpu_text_clean\Artifact\Debug\ArtifactTextGlyphSmoke.exe' `
+  'Text Sample1 🧪' '.\gpu_text_transformed.png'
+$env:ARTIFACT_TEXT_SMOKE_NO_TRANSFORM = '1'
+& '.\build_gpu_text_clean\Artifact\Debug\ArtifactTextGlyphSmoke.exe' `
+  'Text Sample1 🧪' '.\gpu_text_plain.png'
+Remove-Item Env:ARTIFACT_TEXT_SMOKE_NO_TRANSFORM
+```
+
 ## 段階
 
 - `smoke`: 基本文字列、空文字、Emoji、CJK、RTL、combining mark
