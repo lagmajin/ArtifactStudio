@@ -40,6 +40,11 @@ $env:QT_QPA_PLATFORM_PLUGIN_PATH = 'C:\vcpkg\installed\x64-windows\debug\Qt6\plu
   'Text Sample1 🧪' '.\build_text_runtime_v2\artifactcore_text_atlas.png'
 ```
 
+GPU glyph smoke の成功条件は、PNG を保存できることだけではない。readback 画像に
+非透明ピクセルが1つ以上必要で、カラー glyph を含む入力では RGB の非グレースケール
+画素も1つ以上必要になる。ログの `nonzeroAlpha`、`colorPixels`、`colorPreserved` を
+確認する。これにより、空の透明画像やカラー情報を失った画像を成功扱いしない。
+
 ## 段階
 
 - `smoke`: 基本文字列、空文字、Emoji、CJK、RTL、combining mark
