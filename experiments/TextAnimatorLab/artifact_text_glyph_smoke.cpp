@@ -21,9 +21,6 @@ import Text.Style;
 import Font.FreeFont;
 import Utils.String.UniString;
 
-struct Vertex { float pos[2]; float uv[2]; float color[4]; };
-struct Transform { float offset[2]; float scale[2]; float screenSize[2]; };
-
 int main(int argc, char** argv) {
     QGuiApplication app(argc, argv);
     const QString sample = argc > 1 ? QString::fromLocal8Bit(argv[1])
@@ -137,51 +134,4 @@ int main(int argc, char** argv) {
         apiImage.width(), apiImage.height(), apiSaved ? 1 : 0, output.toLocal8Bit().constData());
     submitter.destroy(); target.destroy(); gpu.destroy();
     return apiSaved ? 0 : 9;
-
-    const QImage atlas = coreAtlas.atlasImage();
-    Diligent::TextureDesc atlasDesc; atlasDesc.Name = "GlyphSmokeAtlas";
-    atlasDesc.Type = Diligent::RESOURCE_DIM_TEX_2D;
-    atlasDesc.Width = static_cast<Diligent::Uint32>(atlas.width());
-    atlasDesc.Height = static_cast<Diligent::Uint32>(atlas.height());
-    atlasDesc.MipLevels = 1; atlasDesc.Format = Diligent::TEX_FORMAT_RGBA8_UNORM;
-    atlasDesc.Usage = Diligent::USAGE_IMMUTABLE; atlasDesc.BindFlags = Diligent::BIND_SHADER_RESOURCE;
-    Diligent::TextureSubResData sub{atlas.constBits(), static_cast<Diligent::Uint32>(atlas.bytesPerLine())};
-    Diligent::TextureData texData{&sub, 1};
-    Diligent::RefCntAutoPtr<Diligent::ITexture> atlasTexture;
-    gpu.device()->CreateTexture(atlasDesc, &texData, &atlasTexture);
-    auto* atlasView = atlasTexture ? atlasTexture->GetDefaultView(Diligent::TEXTURE_VIEW_SHADER_RESOURCE) : nullptr;
-    if (!vb || !cb || !atlasView) { std::fprintf(stderr, "glyph-smoke: resources=0\n"); return 7; }
-
-    srb->GetVariableByName(Diligent::SHADER_TYPE_VERTEX, "TransformCB")->Set(cb);
-    srb->GetVariableByName(Diligent::SHADER_TYPE_PIXEL, "g_texture")->Set(atlasView);
-    srb->GetVariableByName(Diligent::SHADER_TYPE_PIXEL, "g_sampler")->Set(sampler);
-    target.clear(gpu.context(), 0, 0, 0, 0);
-    auto* rtv = target.renderTargetView();
-    gpu.context()->SetRenderTargets(1, &rtv, nullptr,
-        Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-    gpu.context()->SetPipelineState(pso);
-    gpu.context()->CommitShaderResources(srb, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-    Diligent::IBuffer* buffers[] = {vb}; Diligent::Uint64 offsets[] = {0};
-    gpu.context()->SetVertexBuffers(0, 1, buffers, offsets,
-        Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION, Diligent::SET_VERTEX_BUFFERS_FLAG_RESET);
-    for (Diligent::Uint32 i = 0; i < drawGlyphs.size(); ++i)
-        gpu.context()->Draw(Diligent::DrawAttribs{4, Diligent::DRAW_FLAG_VERIFY_ALL, 1, i * 4});
-    gpu.context()->Flush(); gpu.context()->WaitForIdle();
-
-    QImage image; const bool read = target.readback(gpu.context(), image);
-    const bool saved = read && image.save(output);
-    int nonZeroAlpha = 0; int fullAlpha = 0; int minAlpha = 255; int maxAlpha = 0;
-    if (read) {
-        for (int y = 30; y < 150; ++y) for (int x = 80; x < 560; ++x) {
-            const int a = image.pixelColor(x, y).alpha();
-            nonZeroAlpha += a > 0 ? 1 : 0; fullAlpha += a == 255 ? 1 : 0;
-            minAlpha = std::min(minAlpha, a); maxAlpha = std::max(maxAlpha, a);
-        }
-    }
-    std::fprintf(stderr, "glyph-smoke: device=1 pipelines=1 glyphQuad=1 layout=Text Sample1-emoji image=%dx%d saved=%d path=%s\n",
-        image.width(), image.height(), saved ? 1 : 0, output.toLocal8Bit().constData());
-    std::fprintf(stderr, "glyph-smoke: gpu-alpha nonzero=%d full=%d min=%d max=%d\n",
-        nonZeroAlpha, fullAlpha, minAlpha, maxAlpha);
-    target.destroy(); gpu.destroy();
-    return saved ? 0 : 7;
 }
