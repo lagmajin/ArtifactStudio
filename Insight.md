@@ -1034,3 +1034,11 @@
 - 事実: preflightはworkspace・診断・契約をまとめて返していたが、AIが結果の新しさを判定する時刻情報がなかった。
 - 対応: `observedAtUtc` をISO 8601 millisecond形式で追加し、ブリッジテストでも空でないことを検査するようにした。
 - 未検証: 長時間処理中のsnapshotと実際の編集時刻の差、ビルド・実行挙動。
+
+## 2026-08-14: TextGlyphSubmitter の製品 renderer 接続境界（未検証）
+
+- 関連: `Artifact/src/Render/ArtifactTextGlyphSubmitter.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`、`Artifact/src/Render/PrimitiveRenderer2D.cppm`、`experiments/TextAnimatorLab/artifact_text_glyph_smoke.cpp`
+- 事実: `ArtifactTextGlyphSubmitter` は standalone GPU smoke と専用 runtime target から利用され、変形 PSO、readback の非透明画素、カラー glyph の RGB 保持を検査する経路がある。一方、製品 `ArtifactIRenderer::drawGlyphs()` / `drawGlyphsTransformed()` は現在も `PrimitiveRenderer2D` へ委譲しており、Submitter は製品描画経路から呼ばれていない。
+- 仮説（未検証）: 製品 renderer へ直接接続するには、`ShaderManager` の glyph PSO／SRB 所有を renderer 初期化境界で Submitter provider へ渡し、render target と device context の寿命に合わせて Submitter を保持する必要がある。単純な draw 呼び出し置換だけでは device 再初期化と既存 sprite／particle submit 順序を壊す可能性がある。
+- 価値・懸念: standalone の成功を製品経路の成功と誤認するのを防ぎ、次の統合作業の変更範囲を renderer 初期化・target ownership・flush 順序に限定できる。ビルド・実行確認は未実施。
+- 次の確認: ユーザー許可後に focused GPU target をビルドし、既存 `ArtifactIRenderer` の device 再初期化、通常 glyph、変形 glyph、カラー glyph、readback を段階的に確認してから製品経路へ接続する。
