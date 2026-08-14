@@ -1,14 +1,9 @@
 #include <QGuiApplication>
 #include <QImage>
 #include <cstdio>
-#include <cstring>
-#include <algorithm>
 #include <vector>
 
-#include <Buffer.h>
-#include <DeviceContext.h>
 #include <RenderDevice.h>
-#include <Texture.h>
 #include <RefCntAutoPtr.hpp>
 
 import Artifact.Render.TextGpuDevice;
@@ -61,10 +56,7 @@ int main(int argc, char** argv) {
         layout[i].offsetScale = noTransform ? 1.0f : 1.0f + ((i % 3) == 0 ? 0.08f : 0.0f);
         layout[i].offsetOpacity = noTransform ? 1.0f : 0.88f + 0.12f * static_cast<float>(i % 4) / 3.0f;
     }
-    struct DrawGlyph { ArtifactCore::GlyphRect rect; float x; float y; };
-    std::vector<DrawGlyph> drawGlyphs;
-    drawGlyphs.reserve(layout.size());
-    float penX = 24.0f;
+    std::size_t atlasGlyphs = 0;
     int colorGlyphs = 0;
     for (const auto& glyph : layout) {
         const QString glyphText = QString::fromUcs4(&glyph.charCode, 1);
@@ -74,46 +66,12 @@ int main(int argc, char** argv) {
         key.fontFamily = font.family().toStdString(); key.renderMode = glyph.renderMode;
         const auto rect = coreAtlas.acquire(key, font);
         if (!rect.valid) continue;
+        ++atlasGlyphs;
         if (rect.colorPreserved) ++colorGlyphs;
-        drawGlyphs.push_back({rect, penX + rect.bearingX, 128.0f - rect.bearingY});
-        penX += rect.advance > 0.0f ? rect.advance : static_cast<float>(rect.width);
     }
-    if (drawGlyphs.empty()) { std::fprintf(stderr, "glyph-smoke: atlas=0\n"); return 6; }
+    if (atlasGlyphs == 0) { std::fprintf(stderr, "glyph-smoke: atlas=0\n"); return 6; }
     std::fprintf(stderr, "glyph-smoke: layoutGlyphs=%zu colorGlyphs=%d atlas=%dx%d\n",
-        drawGlyphs.size(), colorGlyphs, coreAtlas.width(), coreAtlas.height());
-    const float aw = static_cast<float>(coreAtlas.width());
-    const float ah = static_cast<float>(coreAtlas.height());
-    std::vector<Vertex> vertices;
-    vertices.reserve(drawGlyphs.size() * 4);
-    for (const auto& glyph : drawGlyphs) {
-        const auto& rect = glyph.rect;
-        const float x0 = glyph.x, y0 = glyph.y;
-        const float x1 = x0 + rect.width, y1 = y0 + rect.height;
-        const float u0 = rect.u0(static_cast<int>(aw)), v0 = rect.v0(static_cast<int>(ah));
-        const float u1 = rect.u1(static_cast<int>(aw)), v1 = rect.v1(static_cast<int>(ah));
-        const float r = rect.colorPreserved ? 1.0f : 1.0f;
-        const float g = rect.colorPreserved ? 1.0f : 1.0f;
-        const float b = rect.colorPreserved ? 1.0f : 1.0f;
-        const float alpha = rect.colorPreserved ? -1.0f : 1.0f;
-        vertices.push_back({{x0,y0},{u0,v0},{r,g,b,alpha}});
-        vertices.push_back({{x1,y0},{u1,v0},{r,g,b,alpha}});
-        vertices.push_back({{x0,y1},{u0,v1},{r,g,b,alpha}});
-        vertices.push_back({{x1,y1},{u1,v1},{r,g,b,alpha}});
-    }
-    Diligent::BufferDesc vbDesc; vbDesc.Name = "GlyphSmokeVB";
-    vbDesc.Size = static_cast<Diligent::Uint32>(vertices.size() * sizeof(Vertex)); vbDesc.Usage = Diligent::USAGE_IMMUTABLE;
-    vbDesc.BindFlags = Diligent::BIND_VERTEX_BUFFER;
-    Diligent::BufferData vbData{vertices.data(), vbDesc.Size};
-    Diligent::RefCntAutoPtr<Diligent::IBuffer> vb;
-    gpu.device()->CreateBuffer(vbDesc, &vbData, &vb);
-
-    Transform transform{{0, 0}, {1, 1}, {1000, 180}};
-    Diligent::BufferDesc cbDesc; cbDesc.Name = "GlyphSmokeTransform";
-    cbDesc.Size = sizeof(transform); cbDesc.Usage = Diligent::USAGE_IMMUTABLE;
-    cbDesc.BindFlags = Diligent::BIND_UNIFORM_BUFFER;
-    Diligent::BufferData cbData{&transform, sizeof(transform)};
-    Diligent::RefCntAutoPtr<Diligent::IBuffer> cb;
-    gpu.device()->CreateBuffer(cbDesc, &cbData, &cb);
+        atlasGlyphs, colorGlyphs, coreAtlas.width(), coreAtlas.height());
 
     Artifact::ArtifactTextGlyphSubmitter submitter;
     Artifact::ArtifactTextGlyphPipelineProvider provider{
