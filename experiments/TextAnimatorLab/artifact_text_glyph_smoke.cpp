@@ -87,9 +87,19 @@ int main(int argc, char** argv) {
     }
     submitter.flush(gpu.context()); gpu.context()->WaitForIdle();
     QImage apiImage; const bool apiRead = target.readback(gpu.context(), apiImage);
-    const bool apiSaved = apiRead && apiImage.save(output);
-    std::fprintf(stderr, "glyph-smoke: submitter-api=1 image=%dx%d saved=%d path=%s\n",
-        apiImage.width(), apiImage.height(), apiSaved ? 1 : 0, output.toLocal8Bit().constData());
+    int nonZeroAlpha = 0;
+    if (apiRead) {
+        for (int y = 0; y < apiImage.height(); ++y) {
+            for (int x = 0; x < apiImage.width(); ++x) {
+                if (apiImage.pixelColor(x, y).alpha() > 0) ++nonZeroAlpha;
+            }
+        }
+    }
+    const bool apiHasPixels = nonZeroAlpha > 0;
+    const bool apiSaved = apiRead && apiHasPixels && apiImage.save(output);
+    std::fprintf(stderr, "glyph-smoke: submitter-api=1 image=%dx%d nonzeroAlpha=%d saved=%d path=%s\n",
+        apiImage.width(), apiImage.height(), nonZeroAlpha, apiSaved ? 1 : 0,
+        output.toLocal8Bit().constData());
     submitter.destroy(); target.destroy(); gpu.destroy();
     return apiSaved ? 0 : 9;
 }
