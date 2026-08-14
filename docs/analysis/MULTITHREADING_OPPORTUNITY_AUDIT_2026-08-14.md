@@ -160,3 +160,18 @@ P-core／E-core差はNUMAとは別問題なので、Alder Lake以降の単一NUM
 - 各候補のruntime結果比較
 
 本監査は、実装を許可するものではない。各フェーズは対象範囲、所有権、キャンセル、検証条件を確定してから個別に実装する。
+
+## RenderSchedulerの現状制約
+
+`Artifact/src/Render/ArtifactRenderScheduler.cppm` の `Impl` には `taskExecutor_` があるが、公開ヘッダに設定APIはなく、現行コードの検索範囲では実際のcomposition／frame rendererを接続する経路を確認できない。
+したがって、現在の `FrameParallel` は「登録されたRenderTaskを並列に実行できる」ことを意味するだけで、フレームレンダリングが自動的に並列化されることを意味しない。
+
+Tile／Layer strategyを実装するには、次の契約を先に定義する必要がある。
+
+- taskが所有するframe／tile／layer snapshot
+- renderer／GPU contextの所有thread
+- output surfaceの書き込み範囲とmerge順序
+- cancel、failure、stale resultの公開規則
+- task executorを注入する既存サービスまたは新規公開APIの責務
+
+この契約なしにexecutorやglobal callbackを追加しない。
