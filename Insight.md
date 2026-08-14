@@ -713,3 +713,237 @@
 - **仮説:** QADS state blobを既定のモデルにし続けると、native backendへの切替時にfloatingやtab groupの差異が暗黙に失われるため、portable modelを先に正規化し、未対応機能は復元時に診断ログへ出す方が安全。
 - **価値・懸念:** adapter交換の境界と部分復元の失敗条件を明示できる。一方、native surfaceは現在ArtifactMainWindowの既定backendへ接続しておらず、実機表示・module hygiene・QADS完全撤去は未検証。
 - **次に確認:** ビルド許可後に新規moduleのコンパイル、native surfaceの実機表示、portable復元、既存QADS layoutとの比較を検証する。
+
+## 2026-08-13 — AI write 結果は既存 CommandResult を再利用する
+
+- **関連:** `ArtifactCore/include/AI/CommandIR.ixx`、`Artifact/include/AI/WorkspaceAutomation.ixx`
+- **事実:** `ArtifactCore::CommandResult` は `success`、`valid`、`executed`、`type`、`error`、`undoLabel`、`diagnostics`、`details` を持ち、`toVariantMap()` と `commandResultFromVariantMap()` を備えている。`WorkspaceAutomation` の `validateCommand` / `executeCommand` はこの型を経由している。
+- **対応:** AI 側の共通判定に合わせ、既存フィールドを保持したまま `validateCommand` は `ok = valid`、`executeCommand` は `ok = success` を追加した。
+- **価値/懸念:** 新しい結果型を増やさず、既存の write 実行経路を AI から一貫して判定できる。`errorCode` の体系はまだ存在せず、自由文 `error` を機械分類する設計は未着手。
+- **次に確認:** command type ごとの error taxonomy を設計し、`error` の自由文と互換な `errorCode` を段階的に追加する。ビルド・runtime確認は未実施。
+
+## 2026-08-13 — CommandResult の error taxonomy は段階導入する
+
+- **関連:** `ArtifactCore/include/AI/CommandIR.ixx`、`Artifact/src/AI/CommandIRExecutor.cppm`
+- **事実:** 現在の `CommandResult` は `error` を自由文で保持し、validation failure、unsupported command、target/property failure、render failure が同じ文字列フィールドに入る。既存の command 実装には安定した `errorCode` フィールドはない。
+- **提案:** 既存の `error` を保持したまま、まず `COMMAND_INVALID`、`UNSUPPORTED_COMMAND`、`TARGET_NOT_FOUND`、`PROPERTY_INVALID`、`EXECUTION_FAILED`、`RENDER_FAILED` の粗い分類を追加する。詳細な command-specific code は後段にする。
+- **価値/懸念:** AI が再試行・ユーザー確認・入力修正を選べるようになる。一方、自由文からの自動分類は誤判定し得るため、各 executor の失敗分岐で明示設定する必要がある。
+- **実装状況:** `WorkspaceAutomation` の `validateCommand` / `executeCommand` で、既存 `error` を保持したまま `COMMAND_INVALID`、`UNSUPPORTED_COMMAND`、`PROPERTY_INVALID`、`TARGET_NOT_FOUND`、`RENDER_FAILED`、`EXECUTION_FAILED` の粗い分類を段階導入した。`CommandResult` に `errorCode` と `retryable` を追加し、validation と `CommandIRExecutor` の明示的な property / effect-index failure は executor 側で直接設定する。facade は既存呼び出しとの互換 fallback として残している。
+- **次に確認:** 残りの executor failure branch を、意味が確定するものだけ段階移行する。ビルド・runtime確認は未実施。
+
+## 2026-08-14 — GPU文字 atlas はカラー絵文字を単色QRawFont経路で表現できない
+
+- **関連:** `ArtifactCore/src/Text/GlyphAtlas.cppm`、`Artifact/src/Render/DiligentImmediateSubmitter.cppm`、`experiments/TextAnimatorLab/artifact_gpu_text_smoke.cpp`
+- **事実:** DX12のGPUスモークで日本語と通常ラテン文字は描画できるが、`U+1F9EA`（🧪）はQRawFontのalpha atlas経路では□になる。UTF-8ファイル入力で引数変換を排除しても再現したため、PowerShellのUnicode transportだけが原因ではない。
+- **仮説:** Windowsのカラー絵文字フォントをalpha-only atlasへ落とす現在の設計では、カラーレイヤー情報を失うか、代替グリフの輪郭を取得している。絵文字は単色フォールバック、カラーbitmap atlas、または別の絵文字描画契約を選択できる必要がある。
+- **価値・懸念:** 「文字が存在する」ことと「GPU atlasで正しく描画できる」ことを分離して監査できる。絵文字を通常文字と同じGlyphKeyだけで扱うと、カラー情報とgrapheme/ZWJ単位を失う。
+- **次に確認:** QRawFontのglyph index・alphaMapサイズ・font familyを絵文字ケースごとに記録し、単色記号（★）とカラー絵文字（🧪、😀、ZWJ）を比較する。
+
+## 2026-08-14 — Segoe UI Emoji はalpha取得可能、欠落点はカラー転送
+
+- **関連:** `experiments/TextAnimatorLab/artifactcore_text_smoke.cpp`、`ArtifactCore/src/Text/GlyphAtlas.cppm`
+- **事実:** `🧪` は `Segoe UI Emoji` のglyph index 3620として解決され、`QRawFont::alphaMapForGlyph` は86x88のbitmapを返し、`pathForGlyph`も空ではなかった。alpha画像は `artifactcore_emoji_alpha.png` として保存できた。
+- **結論:** 「絵文字glyphを取得できない」は誤り。現在の単色coverage atlasは輪郭を取得できるが、カラーbitmapの色レイヤーを保持しない。GPU側の未完了範囲はカラーatlas形式、転送、shader分岐である。
+- **次に確認:** alpha-only絵文字をGPUで描画する経路を最新ArtifactCore/ArtifactRenderビルドで再検証し、その後カラーbitmap取得方式を選定する。
+
+## 2026-08-14 — Windowsカラーglyphの実装候補はDirectWrite 3
+
+- **関連:** `ArtifactCore/src/Text/GlyphAtlas.cppm`、Windows SDK `um/dwrite_3.h`
+- **事実:** 現行Windows SDKには `IDWriteFontFace5`、`DWRITE_COLOR_GLYPH_RUN1`、カラーglyph列挙APIが存在する。Qtの`QRawFont::alphaMapForGlyph`だけでは色レイヤーを取得できない。
+- **提案:** Windows実装ではDirectWriteのカラーglyph runをRGBA bitmapへラスタライズする専用providerを設け、`GlyphRenderMode::ColorBitmap`だけをそのproviderへ分岐する。通常glyphは既存QRawFont coverage経路を維持する。
+- **価値・懸念:** モノクロ経路を壊さず、カラー／COLR／SVG系をOSのフォント実装に合わせられる。一方、DirectWriteのfont faceとQtのfont family・glyph indexの対応、およびGPU atlas更新のスレッド境界は未検証。
+- **次に確認:** DirectWrite font face生成と`DWRITE_COLOR_GLYPH_RUN1`のbitmap化を小さなWindows専用Coreスモークで検証し、QImageは入力境界に限定してRGBAバッファへ明示変換する。
+
+## 2026-08-14 — DirectWriteカラーglyph run列挙は実機で成立
+
+- **関連:** `experiments/TextAnimatorLab/directwrite_color_glyph_smoke.cpp`
+- **事実:** Windows SDKの`IDWriteFactory2::TranslateColorGlyphRun`で`🧪`（glyph 3620）を実行時に列挙し、5つのカラーglyph runとパレットインデックスを取得できた。
+- **結論:** カラー情報の取得不能ではなく、残る実装範囲はrunのRGBAラスタライズ、GlyphAtlasへの明示コピー、GPU shaderでのカラーサンプル分岐である。
+- **次に確認:** DirectWriteカラーrunを一時RGBAターゲットへ描画する方法を、既存のQt合成禁止・GPU本流優先ルールに沿って選定する。まずCPU診断用の最小RGBAバッファで座標・透明度・パレット合成を検証する。
+
+## 2026-08-14 — DirectWriteカラーrunはalpha textureへラスタライズ可能
+
+- **関連:** `experiments/TextAnimatorLab/directwrite_color_glyph_smoke.cpp`
+- **事実:** `IDWriteFactory3::CreateGlyphRunAnalysis` と `IDWriteGlyphRunAnalysis::CreateAlphaTexture` を使い、`🧪` の5カラーrunから合計3841個の非透明alpha pixelを取得できた。
+- **結論:** DirectWriteカラーrunは、runごとのパレット色とalpha textureを明示合成してRGBAアトラスへ変換できる。QtのQPainterをGPU本流へ追加する必要はない。
+- **次に確認:** palette entry取得、runごとのtexture boundsの共通キャンバス合成、GlyphAtlasのカラー専用入力APIを実装する。
+
+## 2026-08-14 — Segoe UI EmojiのカラーrunはrunColorを直接提供する
+
+- **関連:** `experiments/TextAnimatorLab/directwrite_color_glyph_smoke.cpp`
+- **事実:** `🧪` の5runは大きな`paletteIndex`値を返すが、各runの`runColor`には有効なRGBA色が入っている（例: `(0.765, 0.937, 0.235, 1.0)`）。`imageFormats=0x5`、alpha textureも生成済み。
+- **結論:** カラー合成ではpalette indexを通常CPAL indexとして解釈せず、DirectWriteが返す`runColor`を優先する。特殊palette indexはそのままGPU契約へ持ち込まない。
+- **次に確認:** runColor×alpha textureのCPU合成を診断バッファで検証し、GlyphAtlasのカラー矩形へ保存するデータ形式を固定する。
+
+## 2026-08-14 — DirectWriteカラーrunのRGBA合成スモークが成立
+
+- **関連:** `experiments/TextAnimatorLab/directwrite_color_glyph_smoke.cpp`、`directwrite_color_glyph.ppm`
+- **事実:** 5つのカラーrunを各texture boundsの共通キャンバス（93x92）へ配置し、`runColor`とalphaをpremultiplied相当のsource-overで合成できた。PPM出力は25,681 bytes、合成入力はalphaPixels=3841。
+- **結論:** GlyphAtlas側で必要な最小データは、カラー矩形、RGBA8画素、bearing/advance、render modeで固定できる。Qt合成やQImageのホットパス追加は不要。
+- **次に確認:** この合成処理をCoreのWindows専用providerへ移し、DirectWrite非対応環境では既存coverageまたは明示的unsupportedへフォールバックする。
+## 2026-08-14: ArtifactCore の分割ターゲット重複が全体GPUビルドを阻害
+
+- 関連: `ArtifactCore/CMakeLists.txt`, `src/AI/OnnxDmlLocalAgent.cppm`
+- 事実: `OnnxDmlLocalAgent.cppm` が統合 `ArtifactCore` と分割 `ArtifactCoreAI` の双方のコンパイル対象になり、モジュール実装の宣言解決エラーが発生している。
+- 影響: テキスト/GPU実装とは独立した既存ビルド構成の問題だが、アプリ全体の `ArtifactRender` ビルドを止める。
+- 次に確認: 分割ターゲット移行時の重複ソース除去方針を設計し、全体ビルドの別マイルストーンとして扱う。
+
+## 2026-08-14: 旧ArtifactRenderと新Diligent/Coreの混在はGPUスモークを起動直後に壊す
+
+- 関連: `experiments/TextAnimatorLab/gpu_smoke_standalone/CMakeLists.txt`, `Artifact/ArtifactRender.lib`
+- 事実: 既存のArtifactRender静的ライブラリ（2026-08-11）を複数世代のDiligent/Coreライブラリと組み合わせると、APIバージョン不一致または起動直後のアクセス違反になり、実画像が生成されない。
+- 影響: GPU合否はソース修正だけでは判定できず、ArtifactRender・ArtifactCore・Diligentを同一ビルド世代で再生成する必要がある。
+- 次に確認: 全体ビルドが完了した世代のライブラリだけで専用スモークを再リンクし、`image=幅x高さ saved=1`を監査の必須条件にする。
+
+## 2026-08-14: ArtifactRenderTextSmokeは現状でもArtifactRender/全Core依存を引き込む
+
+- 関連: `Artifact/CMakeLists.txt`、`ArtifactCore/CMakeLists.txt`
+- 事実: `ArtifactRenderTextSmoke`は`ArtifactRender`にリンクし、`ArtifactRender`は全体のCore依存を通るため、コメントにある「UIなしの軽量GPUスモーク」でもArtifactCore全体のモジュール生成をスケジュールする。
+- 影響: テキスト専用GPU検証のビルド時間と失敗範囲が、Particle/Audio等の無関係なCore境界に広がる。
+- 次に確認: 本番Rendererからテキスト描画に必要なGPU契約・atlas upload・readbackを独立したRendererTextRuntimeへ分離できるか設計し、既存ArtifactRenderとのABI混在を避ける。
+## 2026-08-14: ArtifactIRendererはテキストGPU実験の最小依存ではない
+- related: Artifact/src/Render/ArtifactIRenderer.cppm, Artifact/src/Render/DiligentImmediateSubmitter.cppm, Artifact/CMakeLists.txt
+- fact: ArtifactRenderTextRuntimeからPostProcess/MotionBlur/GPUTextureCacheを除外しても、ArtifactIRendererがMesh/Material/LayerBlend/RayTracing/Particle/LOD等を直接importするため、ArtifactCore全体のモジュールグラフを再び広げる
+- impact: 既存IRendererをそのまま再利用する分離では、TextSmokeの高速・安定した検証目標を満たせない
+- hypothesis: テキストGPU経路には、Device/Shader/CommandBuffer/Primitive2D/ glyph submit/readbackだけの専用Facadeが必要
+- next: ArtifactIRendererのAPIをTextRenderContext等へ分解し、既存Renderer本体とスモーク依存を切り離す
+## 2026-08-14: GPUテキスト経路の次の依存ボトルネックはImmediateSubmitter
+- related: Artifact/src/Render/PrimitiveRenderer2D.cppm, Artifact/src/Render/DiligentImmediateSubmitter.cppm, Artifact/include/Render/DiligentImmediateSubmitter.ixx
+- fact: PrimitiveRenderer2D::drawGlyphs は GlyphAtlasSprite packet を RenderCommandBuffer に積むだけで、GPU実行は DiligentImmediateSubmitter::submitAtlasSprite に委譲される。
+- fact: DiligentImmediateSubmitter は glyph path 以外にも PrimitiveRenderer3D、ParticleRenderer、全Sprite/Rect/Line PSO群を公開・実装依存として import している。
+- impact: ArtifactIRenderer を外しても、現状の Submitter をそのまま使う限り最小GPUテキストターゲットは全描画依存を再び取り込む。
+- hypothesis: GlyphText/AtlasSprite のsubmit処理、必要なShaderManagerのglyph PSO、RenderCommandBufferの該当packetだけを専用Submitterへ分離すれば、Core/Renderer全体を避けた実GPU smokeを構築できる。
+- next: glyph-only submitterの依存グラフと、ShaderManagerからglyph PSO生成に必要な最小シェーダー群を抽出する。
+## 2026-08-14: 独立Glyph GPU経路でatlas upload後のalpha監査が必要
+- related: experiments/TextAnimatorLab/artifact_text_glyph_smoke.cpp, ArtifactCore/src/Text/GlyphAtlas.cppm, Artifact/include/Render/ArtifactTextGlyphShaderSources.ixx
+- fact: D3D12 device、Glyph PSO/SRB、Core GlyphAtlasの `T` rect (63x90)、quad draw、640x180 readbackまでは同一Debug出力で成功した。
+- observation: readback画像は非透明の矩形として見え、文字形状のalphaマスクとして期待する結果ではない。CPU atlasのrect取得自体は `atlasRect=0,0 63x90` で成立している。
+- hypothesis: QImage RGBA upload、Alpha8からRGBA8へのcoverage展開、またはshaderのalpha/blend/resource-state境界のいずれかで透明度が失われている。未検証。
+- fact: 原因はスモーク側のGPU texture descriptorが1x1のまま2048x2048 atlasを渡していたことだった。descriptorをatlas実寸へ修正後、GPU alphaは `min=0 max=255` となり、readback画像でT形状を確認できた。
+- next: スモークを単一Tから実際のTextLayout glyph列とカラーemojiへ拡張し、複数rect・カラー保持・アニメータ変形を同じGPU経路で検証する。
+- fact: `Text Sample1 🧪` をCore GlyphAtlasから12 glyphとして生成し、D3D12 readbackで白文字とカラー試験管emojiを確認できた。カラーglyphは1件、GPU alphaは0..255。
+- fact: 正式Submitter APIで `offsetRotation` / `offsetScale` / `offsetOpacity` を各Glyphへ設定し、回転した文字列とカラーemojiのreadback画像を確認した。これはタイムライン依存なしのGlyph単位GPU変形の実証になる。
+
+## 2026-08-14: FloatColorへの汎用Variant埋め込みはカラー統合の初手にしない
+- 関連: `ArtifactCore/src/Color/FloatColor.cppm`、`Artifact/src/Color/ArtifactColorScienceManager.cppm`、`Artifact/src/Effects/Rasterizer/VectorBlurEffect.cppm`
+- 事実: `FloatColor` は加減乗除、補間、色変換、UIパレット、合成処理で広く使われている。一方、`SurfaceColorDescriptor` は少なくともエフェクト側で既に色の格納形式・原色・伝達関数・参照方式を表現している。
+- 結論: `ColorAny` / 無制限 `std::variant` を `FloatColor` の代替として導入すると、描画内部へ型判定と変換責務が拡散する。まず `SurfaceColorDescriptor` を入力・画像バッファ境界の正規メタデータとして採用し、演算内部の `FloatColor` は当面維持する方が変更範囲と循環依存を抑えられる。
+- 次に確認: ピッカー、LUT、コンポジットの各入口で、色値とdescriptorを別々に受け渡せる既存APIを棚卸しし、変換が暗黙に起きている境界から段階的に整理する。
+
+## 2026-08-14: FloatColorPickerはHDR編集不能をUI仕様として固定している
+- 関連: `ArtifactWidgets/src/Dialog/FloatColorPicker.cppm`
+- 事実: RGB/HSB/HSL/明度/アルファのスライダーは全て0〜1000の範囲で、値を0〜1へ変換する。HEX表示・入力も8bit（0〜255）で、`FloatColor` に1.0超の値を保持していてもUIから編集・往復できない。
+- 結論: HDR対応は `FloatColor` の型変更だけでは解決せず、ピッカーにシーン参照モード、露出表示、1.0超の数値入力、表示用HEXとの分離が必要。既存のArtifactWidgetsを変更する作業として独立して扱うべき。
+- 次に確認: HDR用UIを既存ピッカーへ追加するか、通常ピッカーとシーン参照ピッカーを分離するかを設計レビューで決める。Qt QColorへの変換は表示専用境界に限定する。
+
+## 2026-08-14: OCIOは現行本線、旧ColorManagerは未接続候補
+- 関連: `Artifact/src/Color/ArtifactOCIOManager.cppm`、`Artifact/src/Color/ArtifactColorManagement.cppm`、`Artifact/src/Widgets/Render/ViewportColorPipeline.cppm`、`Artifact/src/Layer/ArtifactImageLayer.cppm`
+- 事実: `ArtifactOCIOManager` は画像入力変換、ビューポート表示変換、プロジェクト保存/読込から参照されている。Artifact側の `ColorManager` は定義と自身の実装以外の呼び出し箇所が検索上確認できず、`ArtifactColorScienceManager` はカラーサイエンスパネルと旧LUT管理を保持している。
+- 追加事実: `ArtifactCore/include/Color/ColorSpace.ixx` には公開 `ColorManager` API が存在するため、Artifact側実装の未使用だけを根拠にColorManager全体を削除してはならない。
+- 追加事実: `ColorManager::instance()` の呼び出しは `ArtifactCore` / `Artifact` / `ArtifactPr` のソース検索で見つからず、Core側の公開宣言とArtifact側の実装が残っている。一方、レンダリング契約など複数のインターフェースが `Color.ColorSpace` をimportしているため、モジュール境界そのものは依存されている。
+- 結論: 3系統を同列に統合するのではなく、まずOCIOを現行の正規経路として明文化する。Artifact側の旧実装を整理する場合も、ArtifactCoreの公開ColorManagerとの互換境界を先に定義する。
+- 次に確認: 削除ではなく、`ColorManager` のAPIを互換層として残し、実装をOCIO設定・変換サービスへ委譲できるかを設計する。`ArtifactColorScienceManager` のLUT責務はOCIO設定・ビュー変換責務と分離して整理する。
+
+## 2026-08-14: ColorLUTの既存CPU経路はHDRを明示的に失う
+- 関連: `ArtifactCore/src/Color/ColorLUT.cppm`、`ArtifactCore/include/Color/ColorLUT.ixx`
+- 事実: `ColorLUT::apply(float&, float&, float&)` は入力と補間結果を0〜1へクランプする。`applyToImage()` は入力を `QImage::Format_ARGB32` に変換し、8bit RGBAへ書き戻す。
+- 結論: HDR対応はピッカーだけでなくLUT適用経路にも必要。既存のQImage APIの意味を変えず、F32画像／バッファ向けにHDR値を保持する別APIを追加し、表示用変換とシーン値のLUT適用を分離するのが安全。
+- 次に確認: `ImageF32x4_RGBA` または既存のF32バッファ型へLUTを適用する境界を確認し、クランプが必要なのはLUTサンプル座標だけか、出力値もクランプする仕様かを決める。
+
+## 2026-08-14: 3D回転のX/Y/Z項目は現状モデルへ保存されていない
+- 関連: `ArtifactCore/include/Animation/AnimatableTransform3D.ixx`、`ArtifactCore/src/Animation/AnimatableTransform3D.cppm`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`
+- 事実: `ArtifactAbstractLayer::setRotation3D(QVector3D)` は `rot.x()` だけを `AnimatableTransform3D::setRotation()` に渡す。`AnimatableTransform3D` の公開setterも単一の `float degrees` で、JSON/UIには `rotationX/Y/Z` が現れる箇所があるが、内部のアニメーション値と評価経路は単一角度。
+- 結論: 3D回転対応はUI項目の追加ではなく、X/Y/Z各軸のアニメーション値、シリアライズ、補間、描画行列を一貫して拡張するモデル変更。既存の`rotation`をZ軸互換として扱う移行仕様が必要。
+- 次に確認: 3Dレイヤーの描画行列生成箇所と、既存JSONの`rotation`/`rotationX/Y/Z`読込優先順位を棚卸しし、互換変換を先に定義する。
+- 追加事実: `Artifact3DModelLayer.cppm` と `ArtifactProcedural3DLayer.cppm` はいずれも `QMatrix4x4::rotate(angle, 0, 0, 1)` を使う。共通の `ArtifactAbstractLayer::getLocalTransform4x4()` も現状は単一回転前提で、個別3Dレイヤーだけを修正しても2D/3D共通変換や親子変換との整合を失う。
+- 次に確認: まず共通のローカル行列生成をEuler順序またはQuaternionに置き換える設計を決め、その後に3Dモデル・Procedural3D・Gizmo・Undoの各経路を同じ回転値へ接続する。
+
+## 2026-08-14: Transform3Dの通常行列はZ位置を落としている
+- 関連: `ArtifactCore/src/Animation/AnimatableTransform3D.cppm`
+- 事実: `getMatrix()` のtranslationは `(currentX_, currentY_, 0.0f)` を使う一方、`getAllMatrix()` は `(currentX_, currentY_, currentZ_)` を使う。`getMatrixAt()` もZ位置を0固定で生成する。
+- 懸念: 3Dレイヤーの評価経路によってZ位置が反映されたり失われたりする可能性がある。3軸回転の実装前に、`getMatrix` / `getAllMatrix` / `getMatrixAt` / `getAllMatrixAt` の責務とZ位置の扱いを統一する必要がある。
+- 追加事実: `getMatrixAt()` はアニメーションのoffset値（`x_`/`y_`/`z_`、`scaleX_`等）を直接行列へ入れる一方、`getAllMatrixAt()` はinitial値との合成値を使う。`getMatrix()` と `getMatrixAt()` の責務差はコードコメントだけでは明確でなく、3D化時に初期値・offset値の合成規約を確定する必要がある。
+
+## 2026-08-14: バッチ再リンクは既存relink APIの単純拡張では足りない
+- 関連: `Artifact/include/Service/ArtifactProjectService.ixx`、`Artifact/src/Service/ArtifactProjectService.cppm`、`Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`
+- 事実: 現在は `relinkFootageByPath(old,new)` と `relinkFootageItems(items,new)` があり、Asset Browserには単一アセットのUndo付き再リンク導線がある。旧パスから候補ファイルを探索するbasename、相対パス、サイズ、mtime、ハッシュ等の解決器は見当たらない。
+- 結論: バッチ再リンクは既存APIにループを足すだけでは不十分。候補探索結果、曖昧候補、連番グループ、全参照更新、Undo単位をまとめる専用サービス境界が必要。
+- 次に確認: まず候補探索を副作用なしの `RelinkCandidateResolver` として定義し、確定後に既存の `relinkFootageByPath` を呼ぶ二段階構成にする。自動確定ではなく候補提示を初期仕様とする。
+- 追加事実: `relinkFootage()` の現行実装は `FootageItem::filePath` と連番の `sequencePaths` を更新するが、`image.sourcePath` / `video.sourcePath` / `audio.sourcePath` 等のレイヤー側パスを同じ操作内で更新していない。
+- 懸念: レイヤーがFootageItemを参照して再解決する経路が別に存在する可能性はあるが、コード上は再リンク直後の全参照伝播が保証されていない。なお、再確認により `ArtifactAbstractComposition::allLayer()` / `allLayerRef()` は既に公開されていることが判明したため、先の「全レイヤー列挙APIがない」という見立ては誤り。候補探索より先に、AssetDatabase・FootageItem・レイヤーsourcePathの正規参照関係を確認する必要がある。
+- 追加事実: Asset Browserの `RelinkAssetCommand` は `relinkFootageByPath()` だけをredo/undoしている。
+- 懸念: relinkFootage内でレイヤーsourcePathまで直接変更すると、既存UndoがFootageItemのパスしか戻さず、レイヤー参照だけが取り残される。伝播を実装する場合はFootageItem変更と全レイヤー変更を同一Undoコマンドにまとめる必要がある。
+
+## 2026-08-14: QPA障害ではなくZWJ描画単位の未接続が残る
+- 関連: `experiments/TextAnimatorLab/run_gpu_smoke.ps1`、`experiments/TextAnimatorLab/artifact_text_glyph_smoke.cpp`、`ArtifactCore/src/Text/TextShapingBackend.cppm`
+- 事実: Debug QPAを明示してRTX 4070 Ti / D3D12上で `Text1`、CJK、`👩‍💻` を同一GPUスモークへ通せる。通常文字とCJKは描画できるが、ZWJは現行のQt glyph列生成で3 glyph（カラー2件）として出力される。
+- 結論: QPA探索とGPU起動は解決済み。ZWJ・variation selector・modifierを単一の描画／アニメーション単位として扱うには、Unicode grapheme契約とglyph atlasのsequence rasterization境界を一致させる必要がある。部分表示を成功扱いにせず、sequence対応を独立した完了条件にする。
+- 次に確認: `GlyphKey` / `GlyphAtlas::acquire()` が単一code point前提のため、sequence keyとDirectWrite color glyph runの合成結果をキャッシュできる最小APIを設計する。
+- 追加事実: DirectWriteへsequence全体のglyph配列を試験的に渡すと、現状のQt由来glyph列とは位置・合字結果が一致せず、同じsequence画像を複数回描画する危険がある。Submitterは現在、ZWJ/variation selectorをスキップし、scalar color glyphを明示的な暫定フォールバックとして使う。
+- 結論: sequence rasterizerを有効化するには、DirectWriteのshape結果（glyph index、原点、advance、run bounds）をCore layoutへ戻し、Submitterが1 cluster 1 quadを生成する契約まで一体で検証する必要がある。単に`sequenceUtf8`をキーへ渡すだけでは製品品質にならない。
+- 追加事実: Qt `QGlyphRun` のstring indexを使ってshaped glyph indexをCore `GlyphItem`へ保持し、DirectWriteへglyph index 1623を渡すと、`👩‍💻`の合成済みcolor glyphを実GPUで1描画単位としてreadbackできた。Qtが返さない継続codepointはSubmitterでスキップする。
+- 更新結論: sequence対応の最小実装は「Coreのshape結果を捨てず、Atlas keyにshaped glyph indexを含める」ことで成立する。複数run、異なるfont fallback、modifier sequenceは引き続き追加ケースとして検証が必要。
+- 追加事実: `GlyphItem.shapedGlyphIndices` を追加し、同一cluster内のshaped glyph indexをCoreで集約した。家族絵文字は実行時に1 cluster / 4 shaped glyphとして取得できる。
+- 残課題: Submitter/Atlasはまだscalar indexを描画単位にしているため、配列契約は接続済みだが家族clusterの合成画像化は未完了。配列全体のDirectWrite run rasterizationと、cluster bounds/advanceの伝搬が次の実装境界。
+- 追加事実: `GlyphKey.shapedGlyphIndices`へcluster配列を伝搬し、Submitterがcluster先頭だけをAtlasへ渡す経路を実装した。家族絵文字の4 glyphはDirectWriteの1 runとして処理されるが、run boundsの左端／レイヤー境界の扱いによりreadback画像にclipが残る。
+- 次に確認: DirectWrite color runの各layer boundsをglyph runの原点へ戻す座標変換を検証し、union boundsのminX/minYをbearingとして保持する。単純にscalar QRawFont boundingRectへ置換するだけでは不十分。
+- 追加検証: 家族clusterをx=120へ移動して実GPU描画したところ、合成run画像は欠けずに表示できた。先の左端clipはAtlas union boundsではなく、Smokeのx=0付近で回転したquadが画面端で切れた結果だった。実アプリではcluster boundsを考慮した安全な画面配置／自動フレーム内判定が別途必要。
+- 追加事実: 前後文字を含む複合Smokeでは、通常glyphのAtlas rectはvalidでもGPU readbackから消える。`A B`だけでも再現するため、家族cluster固有ではない。単独`Text1`との差分は、現行Submitterの複数glyph／変形描画状態にある可能性が高い。
+- 次に確認: rotation/scale/opacityを無効にした同一Submitter試験と、1 draw callに全quadをまとめる方式を比較し、DrawAttribsのvertex offsetまたは変形後座標の問題を分離する。
+- 原因確定: 複合ケースで通常文字が消えた原因はGPU draw状態ではなく、`QImage::Format_Alpha8`をGrayscale8へ変換してcoverageを読んでいたことだった。Alpha8はalpha channelを直接読む必要があり、元の分岐へ戻すと無変形`A B`および`A 👨‍👩‍👧‍👦 B`が実GPUで復旧した。
+- 追加原因確定: 前後Latin文脈で家族emojiが一部になったのは、`QGlyphRun`の重複したcluster先頭string indexをfallbackが行頭0から割り当てていたため。run内の有効なstring indexをfallback開始位置に使うと、`A 👨‍👩‍👧‍👦 B`でA・家族emoji・Bの全てを実GPU表示できた。
+
+## 2026-08-14: 3D回転モデルと連番再リンクの実装反映
+- 関連: `ArtifactCore/src/Animation/AnimatableTransform3D.cppm`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`、`Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`
+- 事実: `AnimatableTransform3D` にX/Yの独立値・キーフレーム評価を追加し、既存 `rotation` をZ軸互換として共通行列、スナップショット、保存／再読込、3Dモデル、Procedural3D、ギズモ、Undoへ接続した。Euler適用順序はZ→Y→X。
+- 事実: Asset Browserの複数選択再リンクは候補を素材ごとに確認してから一括適用し、途中失敗時にロールバックする複合Undoを持つ。同一連番の複数フレーム選択はFootageItem単位へ正規化した。
+- 懸念: いずれもビルド・実行検証は未実施。旧 `rotation` と新X/Y/Zの初期値・offset合成、およびレイヤー固有プロパティUIの3軸編集契約は引き続き確認が必要。
+
+## 2026-08-14: 再リンク参照一致は正規化絶対パスで行う
+- 関連: `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`
+- 事実: FootageItemの絶対パスとレイヤーJSONのsourcePathは、相対表記や区切り文字の違いを含み得る。
+- 結論: バッチ再リンクのsourcePath伝播では生文字列比較を避け、`QFileInfo(...).absoluteFilePath()` と `QDir::cleanPath()` を通した比較を使う。
+- 次に確認: 大文字小文字の扱いはOS依存のため、Windows上のケース差を含む実行検証が必要。
+
+## 2026-08-14: バッチ再リンク候補には参照数を併記する
+- 関連: `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`
+- 事実: 候補選択前に全コンポジションのレイヤーJSONを走査し、旧パスを参照するレイヤー数を集計できる。
+- 結論: 候補のスコア・理由だけでなく参照数も表示し、影響範囲を確認してから確定できるようにした。候補探索と参照集計は適用前に実行されるため、副作用はない。
+
+## 2026-08-14: AssetDatabaseにも再リンクのID維持移行が必要
+- 関連: `ArtifactCore/include/Asset/AssetDatabase.ixx`、`ArtifactCore/src/Asset/AssetDatabase.cppm`、`Artifact/src/Service/ArtifactProjectService.cppm`
+- 事実: `AssetManager::acquireSource(newPath, ...)` は新しいAssetDatabase登録を作れるが、旧パスのAssetInfoを自動移行・削除するAPIは存在しなかった。
+- 対応: Asset IDを維持したままpathToIdとAssetInfoのパスを移す `relinkAssetPath()` を追加し、連番は全フレームの移行に失敗した場合に逆順ロールバックする。
+- 未検証: 実プロジェクトでのAssetDatabase永続化、既存newPath衝突、ビルド・実行挙動。
+
+## 2026-08-14: RAMプレビューは二経路が存在し、PlaybackService側は既に先読み接続済み
+- 関連: `Artifact/src/Service/ArtifactPlaybackService.cppm`、`Artifact/src/Render/ArtifactRamPreviewController.cppm`、`docs/analysis/AE_PAIN_POINT_IMPROVEMENT_MAP_2026-08-13.md`
+- 事実: `ArtifactPlaybackService` はRAMキャッシュ、周辺フレーム先読み、世代番号による要求キャンセル、進捗／ヒット率、再生開始をキャッシュ準備で待たせない経路を持つ。複数のWidgetもPlaybackServiceの状態を参照している。
+- 事実: `ArtifactProjectService::setPreviewQualityPreset()` 内には旧 `progressiveRenderer_` 呼び出しのコメントが残るが、実際の `CompositionRenderController::setPreviewQualityPreset()` は Draft/Preview/Final を 4/2/1 倍の downsample に変換し、品質変更時にRAM preview cacheをinvalidateして再描画を要求する。
+- 事実: 別の `ArtifactRamPreviewController::startBuild()` はレンダーコールバックを同一スレッドのwhileループで処理する。CMakeには登録されているが、現状のアプリ実行コードからの利用箇所は確認できず、既存の階層キャッシュ計画でもlegacy initial controller扱いになっている。
+- 結論: 改善の主眼は新しいRAMプレビュー機構を追加することではなく、PlaybackServiceを正規経路として二経路を整理し、旧Controllerには新機能を追加せず、PlaybackService側の実際の非同期性と品質プリセットを検証すること。
+- 未検証: ビルド・実行時に旧Controllerがリンク対象／外部利用されていないこと、およびPlaybackServiceのフレーム生成がUIスレッドを長時間ブロックしないこと。
+
+## 2026-08-14: 連番再リンクでは同一フレームのAssetDatabase移行を無操作成功にする
+- 関連: `Artifact/src/Service/ArtifactProjectService.cppm`、`ArtifactCore/src/Asset/AssetDatabase.cppm`
+- 事実: 連番再リンクでは、移行先の一部フレームが既存パスと同一になることがある。`AssetDatabase::relinkAssetPath()` は同一パスを拒否するため、移行不要なフレームまで失敗扱いにすると全体ロールバックへ入る。
+- 対応: `ArtifactProjectService::relinkFootage()` の移行ヘルパーで正規化絶対パスが同一の場合は成功扱いにし、AssetDatabase APIを呼ばずに続行する。
+- 未検証: 混在した連番の実プロジェクトでのAsset ID維持、衝突時ロールバック、ビルド・実行挙動。
+
+## 2026-08-14: 再リンク同一判定はAssetDatabaseと同じWindows大小文字規則が必要
+- 関連: `Artifact/src/Service/ArtifactProjectService.cppm`、`ArtifactCore/src/Asset/AssetDatabase.cppm`
+- 事実: `AssetDatabase::normalizedAssetPath()` はWindowsでcase foldingを行うが、再リンクサービス側の同一パス判定は当初 `cleanPath` のみだった。
+- 対応: 再リンク移行ヘルパーでもWindowsではcase foldingしてから同一パスを無操作成功と判定するようにした。
+- 未検証: Windows上で大文字小文字だけ異なる既存連番のAsset ID維持とロールバック。
+
+## 2026-08-14: 再リンク移行の同一判定はcanonical pathを優先する
+- 関連: `Artifact/src/Service/ArtifactProjectService.cppm`、`ArtifactCore/src/Asset/AssetDatabase.cppm`
+- 事実: `AssetDatabase` は実在ファイルのcanonical pathをAsset identityに使うが、サービス側の移行前比較はabsolute pathだけだった。
+- 対応: サービス側の移行ヘルパーもcanonical path、空の場合はabsolute path、clean path、Windows case foldingの順に正規化するようにした。
+- 未検証: シンボリックリンクを含む連番のAsset ID維持と、移行失敗時の逆順ロールバック。
+
+## 2026-08-14: 再リンク検索入口も同一のcanonical path正規化へ統一
+- 関連: `Artifact/src/Service/ArtifactProjectService.cppm`
+- 事実: `findFootageItemByPath()` と `relinkFootageByPath()` は移行ヘルパーとは別にabsolute path比較を持っていたため、symlink・Windows大小文字差で対象FootageItemを見失う余地があった。
+- 対応: 匿名名前空間の `normalizeRelinkPath()` を追加し、検索・同一判定・AssetDatabase移行前判定で共有するようにした。
+- 未検証: 実ファイルのsymlink、Windowsケース差、連番の混在パスを含む検索から移行までの実行確認。

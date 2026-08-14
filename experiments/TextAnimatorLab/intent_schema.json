@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "artifact://text-animation-intent/v1",
+  "title": "Artifact Text Animation Intent",
+  "type": "object",
+  "required": ["action", "target", "selection", "operators", "timing"],
+  "additionalProperties": false,
+  "properties": {
+    "action": {"const": "create_text_animation"},
+    "target": {"type": "string", "minLength": 1},
+    "selection": {
+      "type": "object",
+      "required": ["unit", "order"],
+      "additionalProperties": false,
+      "properties": {
+        "unit": {"enum": ["character", "grapheme", "word", "line", "paragraph", "tag", "regex"]},
+        "order": {"enum": ["natural", "reverse", "random_stable", "center_out", "edge_in"]},
+        "value": {"type": ["string", "integer", "null"]},
+        "pattern": {"type": "string", "maxLength": 4096}
+      }
+    },
+    "operators": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "required": ["type", "from", "to"],
+        "additionalProperties": false,
+        "properties": {
+          "type": {"enum": ["position", "scale", "rotation", "opacity", "skew", "tracking", "color", "stroke", "blur", "noise"]},
+          "mode": {"enum": ["add", "replace", "multiply", "blend", "min", "max"]},
+          "from": {},
+          "to": {},
+          "amount": {},
+          "axis": {"enum": ["x", "y", "z", "xy", "xyz"]},
+          "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6,8}$"},
+          "seed": {"type": "integer"}
+        }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "required": ["duration", "stagger"],
+      "additionalProperties": false,
+      "properties": {
+        "duration": {"type": "number", "minimum": 0, "maximum": 86400},
+        "stagger": {"type": "number", "minimum": 0, "maximum": 86400},
+        "easing": {"enum": ["linear", "smooth", "sharp", "spring", "custom"]},
+        "start": {"type": "number", "minimum": 0}
+      }
+    },
+    "options": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "maxLength": 256},
+        "replaceExisting": {"type": "boolean"},
+        "previewOnly": {"type": "boolean"}
+      }
+    }
+  }
+}

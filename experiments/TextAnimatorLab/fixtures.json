@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "fixtures": [
+    {"id": "empty", "tier": "smoke", "text": ""},
+    {"id": "spaces", "tier": "smoke", "text": "   "},
+    {"id": "text1", "tier": "smoke", "text": "Text1"},
+    {"id": "text_sample1", "tier": "smoke", "text": "Text Sample1"},
+    {"id": "emoji_sentence", "tier": "smoke", "text": "Text 😀 Sample"},
+    {"id": "emoji_modifier", "tier": "smoke", "text": "😀👍🏽 Text"},
+    {"id": "japanese", "tier": "smoke", "text": "日本語テキスト"},
+    {"id": "combining", "tier": "smoke", "text": "e\u0301 cafe\u0301"},
+    {"id": "rtl_mixed", "tier": "smoke", "text": "Text مرحبا 123"},
+    {"id": "multiline", "tier": "contract", "text": "A\nB\nC"},
+    {"id": "zwj_family", "tier": "contract", "text": "👨‍👩‍👧‍👦"},
+    {"id": "ligature_candidate", "tier": "contract", "text": "office affine"},
+    {"id": "content_edit_add_word", "tier": "contract", "text": "Text Sample2"},
+    {"id": "content_edit_remove_word", "tier": "contract", "text": "Text"},
+    {"id": "layout_constraint_multiline", "tier": "contract", "text": "A long line that must stay inside a box\nSecond line"},
+    {"id": "semantic_tokens", "tier": "contract", "text": "Title: 😀 2026"},
+    {"id": "long_latin", "tier": "stress", "text": "Text Sample1 Text Sample1 Text Sample1 Text Sample1 Text Sample1 Text Sample1 Text Sample1 Text Sample1 Text Sample1 Text Sample1 Text Sample1 Text Sample1 Text Sample1 Text Sample1 Text Sample1 Text Sample1 Text Sample1 Text Sample1 Text Sample1 Text Sample1"}
+  ]
+}

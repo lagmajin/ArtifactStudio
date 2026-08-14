@@ -1,9 +1,25 @@
 # MILESTONE: Text Animator Completion & Inline Editing
 
 **日付**: 2026-08-04
-**最終更新:** 2026-08-08
-**現状**: データモデルとエンジンは Core 層で完成（`TextAnimatorEngine`, `RangeSelector`, `WigglySelector`, `AnimatorProperties`, `TextLayoutContract`）。GlyphAtlas + HarfBuzz + SDF の低レベルも完備。ギャップは統合・UI・ビューポート編集のみ。
+**最終更新:** 2026-08-14
+**現状**: Coreの設計シミュレーション122件、ArtifactCoreの実テキストスモーク、DX12 GPUの通常文字・日本語描画を確認済み。絵文字grapheme metadataはshapingからglyphへ伝播済みで、DirectWriteのカラーrun取得・alpha texture化・RGBA合成まで診断スモークで確認済み。カラー／ZWJ絵文字のGPU atlas描画は未完了。統合Artifactビルドには既存の壊れたIFC参照が残る。
 **目標**: ビューポートインライン編集、Animator Engine の未接続機能の配線、AE 互換の range selector 視覚編集、`textIndex`/`textTotal` 式変数。
+
+## 実験検証スナップショット（2026-08-14）
+
+| 検証対象 | 結果 | 根拠 |
+|---|---|---|
+| `Text Sample1` のlayout・selector・回転 | ✅ | `ArtifactCoreTextSmoke`、設計テスト |
+| 日本語フォントfallback + DX12描画 | ✅ | `gpu_text_japanese.png` |
+| emoji modifier / ZWJのcluster grouping | ✅ | 設計テスト122件、`clusterIndex`出力 |
+| QPA自動起動 | ✅ | `run_gpu_smoke.ps1` |
+| BMP記号 `★` のGPU描画 | ⚠️ | 通常フォント分類へ修正済み、GPU統合再ビルド待ち |
+| カラー絵文字のCore atlas生成 | ✅ | DirectWriteカラーrunからRGBA atlasを生成、`colorPreservedGlyphCount=1` |
+| カラー／ZWJ絵文字のGPU描画 | ⚠️ | Core atlasとGPU分岐は実装済み。GPUスモークは実行ファイル鮮度ゲートで `stale-binary`、最新ArtifactRender統合ビルド待ち |
+| GPU監査の実行ファイル鮮度 | ✅ | `audit_gpu_matrix.ps1` が契約ソースより古い実行ファイルを合格扱いしない |
+| DirectWriteカラーrun取得 | ✅ | `directwrite_color_glyph_smoke.exe`、`🧪`で5run／alpha texture確認 |
+| DirectWrite runColor + alphaのRGBA合成 | ✅ 診断スモーク | `directwrite_color_glyph.ppm`、93x92合成 |
+| GPU glyphのrotation／scale反映 | ✅ source patch | `DiligentImmediateSubmitter` のquad／matrix生成へ `offsetRotation` と `offsetScale` を接続。統合GPU再ビルド待ち |
 
 ## 現状の10ギャップ
 
@@ -393,3 +409,70 @@ void populateStableTokenIds(GlyphItem* glyphs, int oldCount, int newCount,
 | P4: 視覚ハンドル | **P1** | 大 | TextGizmo の主要拡張 |
 | G2: AnchorPointGrouping | **P2** | 中 | word/line/paragraph 単位のアニメーション |
 | P5: Timeline 統合 | **P2** | 中 | 既存 Timeline 描画の拡張 |
+
+---
+
+## モーションデザイナーペルソナ検証 Todo（2026-08-13追加）
+
+121件の設計テスト、smoke / contract / stress 監査では、基礎Animatorの有限性・選択単位・順序・文字変形・合成・絵文字/合字/改行の静的整合性を確認済み。以下は、ペルソナの可能性マップに対して未接続または未検証の残タスクである。
+
+### 現時点で検証済みの範囲
+
+- [x] `Text1` / `Text Sample1` / 日本語 / 絵文字 / 合字 / 改行 / 長文の静的監査
+- [x] 文字・書記素・単語・行・段落・タグ・正規表現の選択契約
+- [x] Natural / Reverse / CenterOut / EdgeIn / RandomStable の順序契約
+- [x] Position / Scale / Rotation / Opacity / Skew / Tracking / Z / Blur / Stroke / Color の値契約
+- [x] Wiggly、seed、Animator stack、有限値、範囲、未知フィールドの監査
+- [x] `preview` の選択結果・演算子・タイミング・診断の機械可読出力
+
+ただし、これは設計モデルの証拠であり、実ランタイムでCore設定へ適用された証拠ではない。次の実装段階では、同じ入力をCoreへ渡した結果とこのモデルの差分を比較する。
+
+### P0: Intentから実動作までの検証可能な経路
+
+- [ ] `selection/order/unit/property/from/to/timing/easing/anchor/space/blend/seed` を実際のCore Animator設定へ変換する
+- [ ] `Intent → preview → diff → apply → verify` の一連の結果を機械可読で返す
+- [ ] `Text1`、`Text Sample1`、日本語、絵文字、合字、改行で同一Intentの再現性を確認する
+- [ ] UI、プリセット、AI/APIの3経路で同じ結果になることを比較する
+- [ ] 実ランタイムのプレビュー結果とPython設計モデル/Core snapshotの差分監査を行う
+
+### P1: モーション表現の拡張
+
+- [ ] パス、円、螺旋、グリッド、自由曲線に沿った位置/回転/整列を設計する
+- [ ] 3D回転、カメラ相対、ビルボード、文字ごとの深度と遮蔽を設計する
+- [ ] 物理風の落下、衝突、跳ね、ばらし、再集合を非破壊Animatorとして設計する
+- [ ] 音声、音量、ビート、マーカー、外部データを時間入力へ接続する
+- [ ] グリフ輪郭・塗りのワイプ、マスク、クリップ、グリフ置換を検討する
+- [ ] ばね、慣性、オーバーシュート、減衰、ステップ、量子化を共通時間プリミティブとして整理する
+
+### P1: 文字構造と編集の堅牢性
+
+- [ ] フォント変更、可変フォント軸、サイズ変更、桁増減後の選択/時間/レイアウト再計算を監査する
+- [ ] RTL、縦書き、CJK、フォールバックフォント、欠落グリフを検証する
+- [ ] 文字列の差し替えで stable token とAnimator状態が意図どおり維持されることを確認する
+- [ ] 選択順・時間順・描画順・読み順をUI/APIで別々に表示する
+- [ ] Animator合成の加算/置換/乗算/最大/最小/ブレンドと変形順序を差分表示する
+
+### P2: 時短・品質・AI親和性
+
+- [ ] 代表シナリオ（タイトル登場、単語強調、タイプオン、文章入替、ロゴ、音楽同期、物理分解、データ表示、多言語）を固定fixture化する
+- [ ] どのパラメータが結果に影響したかを説明する診断情報を提供する
+- [ ] 文字列変更時に壊れる範囲、再計算内容、修正候補を提示する
+- [ ] プリセットをIntentへ展開し、部分上書きして再保存できるようにする
+- [ ] 細かいキーフレーム探索を不要にするコンポーネント編集導線を評価する
+
+### 完了条件
+
+- [ ] P0の5項目を実ランタイムで確認する
+- [ ] 代表シナリオfixtureに対して、静的監査と実動作監査の結果が一致する
+- [ ] 少なくとも1つのパス系、1つの3D系、1つの物理系表現をIntentから再現する
+- [ ] 未対応の表現は、制限・代替手段・将来計画をAPI診断に明示する
+
+### Core実動作検証の環境ブロッカー（2026-08-13）
+
+- [ ] 現行ソース専用のCoreビルドを成立させる
+- [ ] `build` / `cmake-build-debug` は `X:\Dev\ArtifactStudio` の旧キャッシュを持つため検証対象外とする
+- [ ] `build_j_vs` / `build_j_vs18` は `J:\dev\ArtifactStudio` を参照するが、CMake再構成時にprotobuf/OpenCVとDiligent側Abseilのターゲットが衝突する
+- [ ] 隔離構成 `build_text_runtime_vs` でも `absl_strings links to itself` / `absl::abseil_dll not found` が発生し、TextAnimatorのコンパイル・実行へ到達していない
+- [ ] 上記の依存構成を整理した後、古い `.obj` / `.lib` を証拠として再利用せず、TextAnimatorを再ビルドする
+
+現在のCore実動作判定は未確認。Python設計モデルの成功をCore成功として扱わない。

@@ -1,0 +1,30 @@
+[
+  {
+    "name": "word_reveal",
+    "intent": {
+      "action": "create_text_animation",
+      "target": "text-layer-1",
+      "selection": {"unit": "word", "order": "natural"},
+      "operators": [
+        {"type": "opacity", "mode": "replace", "from": 0.0, "to": 1.0},
+        {"type": "position", "mode": "add", "axis": "y", "from": -32.0, "to": 0.0}
+      ],
+      "timing": {"duration": 0.8, "stagger": 0.08, "easing": "smooth"},
+      "options": {"name": "Word Reveal", "previewOnly": true}
+    }
+  },
+  {
+    "name": "emoji_bounce",
+    "intent": {
+      "action": "create_text_animation",
+      "target": "text-layer-1",
+      "selection": {"unit": "regex", "order": "natural", "pattern": "😀|👍🏽"},
+      "operators": [
+        {"type": "scale", "mode": "replace", "from": 0.9, "to": 1.0},
+        {"type": "rotation", "mode": "add", "from": -8.0, "to": 0.0}
+      ],
+      "timing": {"duration": 0.35, "stagger": 0.0, "easing": "spring"},
+      "options": {"name": "Emoji Bounce", "previewOnly": true}
+    }
+  }
+]
