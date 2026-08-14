@@ -2,6 +2,15 @@
 
 未解決の設計判断・runtime 検証待ちだけを記録する。実装済みの局所修正と履歴は `docs/analysis/INSIGHT_ARCHIVE_2026-08-11.md` を参照する。
 
+## 2026-08-14 — 静止画・連番画像の受入ギャップ棚卸し（未検証）
+
+- **関連:** `docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md`、`docs/planned/MILESTONE_STILL_IMAGE_LAYER_PRODUCTION_READINESS_2026-08-08.md`、`docs/planned/MILESTONE_IMAGE_SEQUENCE_WORKFLOW_COMPLETION_2026-07-27.md`、`ArtifactImageLayer`、`ImageSequenceSource`
+- **事実:** 静止画は OIIO header preflight、非同期 float decode、入力色解釈、GPU cache、JSON 保存／復元、crop を含む `toQImage()` 境界まで静的実装済みと整理されている。一方、受入マトリクスの IMG-01〜14 と OP-01〜10 は、ほぼすべて実素材・runtime 未確認である。
+- **事実:** 連番は Asset Browser の単一素材表示、展開、欠番／読込失敗／relink 診断、Composition 投入時の関係保存、bounded cache、時刻依存の frame switching が実装済みと整理されている。残りは保存／再読込、欠番、範囲外、cache hit/miss、実機性能の検証である。
+- **仮説（未検証）:** 次の価値が最も高い作業は新規機能追加ではなく、同一の最小受入素材セットを使って静止画と連番の Preview／Software Preview／Render Queue を比較し、失敗段階を受入表へ反映すること。ここで差異が出れば、source／color／cache／composite のどの境界を直すべきかを限定できる。
+- **価値・懸念:** 静的実装済みと制作利用可能を混同せず、動画対応や低レベル backend へ広げる前に、現在の優先対象である静止画・連番画像の品質を測定できる。ビルド・テスト・runtime 検証はユーザー許可が必要なため未実施。
+- **次の確認:** 8-bit sRGB、alpha付き、16-bit／float、grayscale、missing／corrupt の静止画素材に加え、正常連番、欠番、範囲外、異解像度、差し替え連番を用意し、(1) frame advance、(2) stale frame 非表示、(3) bounded cache、(4) 保存／再読込、(5) Preview／Render Queue の一致を順に確認する。
+
 ## 2026-08-13 — Point2D キーフレームの JSON 復元型（未検証）
 
 - **関連:** `ArtifactCore/include/Property/PropertySerializationBridge.ixx`、`PropertyType::Point2D`
@@ -947,3 +956,81 @@
 - 事実: `findFootageItemByPath()` と `relinkFootageByPath()` は移行ヘルパーとは別にabsolute path比較を持っていたため、symlink・Windows大小文字差で対象FootageItemを見失う余地があった。
 - 対応: 匿名名前空間の `normalizeRelinkPath()` を追加し、検索・同一判定・AssetDatabase移行前判定で共有するようにした。
 - 未検証: 実ファイルのsymlink、Windowsケース差、連番の混在パスを含む検索から移行までの実行確認。
+
+## 2026-08-14: AI操作の初期ハンドシェイクを契約化
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx`、`design/user-personas/api-agent.md`
+- 事実: WorkspaceAutomationにはスナップショット、コマンド検証、dry-run、監査ログ、診断が既に存在するが、AIが起動直後に安全な利用順序と必須レスポンス項目を一括取得する入口はなかった。
+- 対応: `agentContract()` を追加し、発見・安全実行順序・観測・高リスク操作・失敗レスポンス項目・運用原則を機械可読な `QVariantMap` で返すようにした。
+- 未検証: 実行時の登録経路から `agentContract` を呼び出せること、外部AIクライアントが契約情報を利用すること、ビルド・実行挙動。
+
+## 2026-08-14: AI操作契約を共通システムプロンプトにも反映
+- 関連: `ArtifactCore/include/AI/AIPromptGenerator.ixx`
+- 事実: `AIPromptGenerator` はCore層にあり、Artifact層のWorkspaceAutomationを直接importできない。一方、全AIバックエンドが共通の操作方針を受け取る入口になっている。
+- 対応: 状態観測、安定ID解決、validateCommand、preview/dry-run、明示確認、実行後再観測、失敗情報保持の順序を日本語・英語のシステムプロンプトへ追加した。
+- 未検証: 各バックエンドが生成済みシステムプロンプトを実際に使用すること、ビルド・実行挙動。
+
+## 2026-08-14: クラウドAIへ実行時のエージェント契約を注入
+- 関連: `Artifact/src/AI/AIClient.cppm`、`Artifact/include/AI/WorkspaceAutomation.ixx`
+- 事実: クラウドチャットは共通システムプロンプトとツールスキーマを使用するが、契約の具体的なバージョン・観測メソッド・安全メソッドはプロンプトに含まれていなかった。
+- 対応: `agentContract()` の現在値をCompact JSON化し、クラウドAIのシステムプロンプトへ追加した。
+- 未検証: QVariantからJSONへの変換結果、各クラウドプロバイダのプロンプト受け渡し、ビルド・実行挙動。
+
+## 2026-08-14: AI起動時の読み取りをagentPreflightへ集約
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx`、`design/user-personas/api-agent.md`
+- 事実: AIは契約、現在状態、診断を別々に取得すると、呼び出し順や一部取得漏れを起こしやすい。
+- 対応: 読み取り専用の `agentPreflight()` を追加し、契約・workspace snapshot・diagnosticsを一括返却するようにした。
+- 未検証: 実行時のJSONシリアライズ、AIクライアント側での自動利用、ビルド・実行挙動。
+
+## 2026-08-14: AI契約とpreflightをツールブリッジ検査へ固定
+- 関連: `Artifact/src/Test/ArtifactTestAIToolBridge.cppm`
+- 事実: AI向けメソッドはツールスキーマへ登録されるため、登録漏れや返却形状の退行は起動後まで見つからない可能性がある。
+- 対応: `agentContract` / `agentPreflight` のスキーマ登録、契約バージョン、読み取り専用フラグ、主要返却項目を既存のAIツールブリッジテストで検査するようにした。
+- 未検証: テストの実行結果、ビルド・実行挙動。
+
+## 2026-08-14: AI APIリファレンスにpreflight契約を公開
+- 関連: `Artifact/docs/AI_API_EXTENDED_REFERENCE.md`、`Artifact/docs/AI_API_CLOUD_WIDGET_NOTES.md`
+- 事実: 実装とテストに追加したagentContract / agentPreflightが、既存のAI APIリファレンスには記載されていなかった。
+- 対応: 起動時の推奨呼び出し順、読み取り専用preflight、検証・確認・実行後観測の契約を公開ドキュメントへ追記した。
+- 未検証: ドキュメントからのサンプルJSONが各外部クライアントでそのまま解釈されること、ビルド・実行挙動。
+
+## 2026-08-14: クラウドツール実行後にpreflightを再観測
+- 関連: `Artifact/src/AI/AIClient.cppm`
+- 事実: クラウドのツールループは実行結果のtraceを次の応答へ渡していたが、変更後のworkspace状態を同じ応答に含めていなかった。
+- 対応: ツール呼び出し成功直後に`agentPreflight()`を読み取り、`post_tool_preflight`として次のAI応答へ渡すようにした。
+- 未検証: ツール実行後のsnapshot内容、長いpreflight JSONによるコンテキスト増加、ビルド・実行挙動。
+
+## 2026-08-14: 共通プロンプトでagentPreflightの発見性を明示
+- 関連: `ArtifactCore/include/AI/AIPromptGenerator.ixx`
+- 事実: 共通プロンプトは安全な観測順序を説明していたが、ローカルAIが具体的な一括入口を選ぶにはメソッド名の手掛かりが不足していた。
+- 対応: WorkspaceAutomation利用時は`agentPreflight()`を最初の読み取りハンドシェイクとして優先する指示を日本語・英語へ追加した。
+- 未検証: 各ローカルモデルがこの優先順位を守ること、ビルド・実行挙動。
+
+## 2026-08-14: AI Cloud Widgetの実行経路にもpost-tool観測を追加
+- 関連: `Artifact/src/Widgets/AI/ArtifactAICloudWidget.cppm`
+- 事実: AIClientのクラウドループとは別に、Cloud Widgetが承認付きでツールを直接実行する経路を持っていた。
+- 対応: 承認済みツール実行の結果へ`post_tool_preflight`を付加し、UI経由でも次のAI応答が変更後状態を観測できるようにした。
+- 未検証: MCP外部ツールを含む場合のpreflight適用範囲、ビルド・実行挙動。
+
+## 2026-08-14: Python Workspace APIへagentPreflightを公開
+- 関連: `Artifact/src/Script/ArtifactPythonHookManager.cppm`、`Artifact/docs/AI_API_EXTENDED_REFERENCE.md`
+- 事実: Python bridgeにはworkspaceSnapshotや各種編集操作が登録されていたが、AIエージェント向けの契約・状態・診断の一括取得入口がなかった。
+- 対応: `artifact.workspace.agentPreflight()` を追加し、C++側と同じcompact JSONを返すようにした。
+- 未検証: PythonEngine初期化後の関数登録、JSON受け渡し、ビルド・実行挙動。
+
+## 2026-08-14: WorkspaceAutomationの説明文にAI安全入口を明示
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx`
+- 事実: `agentPreflight` はスキーマ登録されていても、コンポーネント詳細説明だけを読むクライアントには優先入口として伝わらなかった。
+- 対応: 詳細説明に、読み取り専用preflight、書き込み検証、完了前の再観測を明記した。
+- 未検証: 各クライアントが詳細説明を表示・利用すること、ビルド・実行挙動。
+
+## 2026-08-14: agentContractにPython代替入口を記載
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx`、`design/user-personas/api-agent.md`
+- 事実: C++のWorkspaceAutomationとPythonの`artifact.workspace`は同じpreflightを提供するが、契約情報にはPython名がなかった。
+- 対応: `alternateEntryPoints.python` に `artifact.workspace.agentPreflight` を追加し、ペルソナ文書にも併記した。
+- 未検証: PythonEngine未初期化時の利用可否、ビルド・実行挙動。
+
+## 2026-08-14: agentPreflightに観測時刻を付加
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/src/Test/ArtifactTestAIToolBridge.cppm`
+- 事実: preflightはworkspace・診断・契約をまとめて返していたが、AIが結果の新しさを判定する時刻情報がなかった。
+- 対応: `observedAtUtc` をISO 8601 millisecond形式で追加し、ブリッジテストでも空でないことを検査するようにした。
+- 未検証: 長時間処理中のsnapshotと実際の編集時刻の差、ビルド・実行挙動。
