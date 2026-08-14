@@ -26,6 +26,7 @@
                 "strategy": "external"
             },
             "cacheVariables": {
+                "DILIGENT_NO_RADIENT": "ON",
                 "VCPKG_INSTALLED_DIR": "${sourceDir}/out/vcpkg_installed",
                 "ARTIFACT_DEPLOY_DIR": "C:/Users/lagma/Desktop/Artifact"
             }
