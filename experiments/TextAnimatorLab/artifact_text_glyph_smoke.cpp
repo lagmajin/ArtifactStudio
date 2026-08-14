@@ -1,4 +1,5 @@
 #include <QGuiApplication>
+#include <QColor>
 #include <QImage>
 #include <cstdio>
 #include <vector>
@@ -88,17 +89,26 @@ int main(int argc, char** argv) {
     submitter.flush(gpu.context()); gpu.context()->WaitForIdle();
     QImage apiImage; const bool apiRead = target.readback(gpu.context(), apiImage);
     int nonZeroAlpha = 0;
+    int colorPixels = 0;
     if (apiRead) {
         for (int y = 0; y < apiImage.height(); ++y) {
             for (int x = 0; x < apiImage.width(); ++x) {
-                if (apiImage.pixelColor(x, y).alpha() > 0) ++nonZeroAlpha;
+                const QColor pixel = apiImage.pixelColor(x, y);
+                if (pixel.alpha() > 0) {
+                    ++nonZeroAlpha;
+                    if (pixel.red() != pixel.green() || pixel.green() != pixel.blue()) {
+                        ++colorPixels;
+                    }
+                }
             }
         }
     }
     const bool apiHasPixels = nonZeroAlpha > 0;
-    const bool apiSaved = apiRead && apiHasPixels && apiImage.save(output);
-    std::fprintf(stderr, "glyph-smoke: submitter-api=1 image=%dx%d nonzeroAlpha=%d saved=%d path=%s\n",
-        apiImage.width(), apiImage.height(), nonZeroAlpha, apiSaved ? 1 : 0,
+    const bool apiColorPreserved = colorGlyphs == 0 || colorPixels > 0;
+    const bool apiSaved = apiRead && apiHasPixels && apiColorPreserved && apiImage.save(output);
+    std::fprintf(stderr, "glyph-smoke: submitter-api=1 image=%dx%d nonzeroAlpha=%d colorPixels=%d colorPreserved=%d saved=%d path=%s\n",
+        apiImage.width(), apiImage.height(), nonZeroAlpha, colorPixels,
+        apiColorPreserved ? 1 : 0, apiSaved ? 1 : 0,
         output.toLocal8Bit().constData());
     submitter.destroy(); target.destroy(); gpu.destroy();
     return apiSaved ? 0 : 9;
