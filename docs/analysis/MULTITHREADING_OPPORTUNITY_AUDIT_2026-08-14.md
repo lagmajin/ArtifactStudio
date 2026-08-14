@@ -29,6 +29,7 @@
 - `VolumePostProcess`、software blend、CPU matte、HDR monitor の独立 row／pixel 処理
 - `RendererQueueManager` と `RenderFarmMaster` の model／callback／job state／remote state の thread boundary と race 修正
 - `MediaReader` の worker lifecycle（start／pause／stop／queue 読み取り）の既存 `QMutex` 同期化
+- `FileWatcher`、`PreciseTicker`、`ArtifactCore::Thread`、`BackgroundTaskWorkerPool` の restart／shutdown／self-join lifecycle 修正
 - `ImageExporter` の RGBA float 変換、multi-channel synthetic channel、interleaved buffer 構築
 - RenderScheduler の未接続 strategy は、所有権契約がないため並列化せず安全な逐次 fallback を維持
 
