@@ -21,6 +21,18 @@
 
 ## 既存インフラ
 
+## 監査後に実装・push済みの範囲
+
+監査後、以下は既存の `ArtifactCore::Parallel` と明示的な状態同期を再利用して実装した。いずれもビルド、テスト、ベンチマークは未実施であり、速度向上は未計測である。
+
+- `MotionTracker::solveCameraPoseStream()` の順序保持付きサンプル並列化
+- `VolumePostProcess`、software blend、CPU matte、HDR monitor の独立 row／pixel 処理
+- `RendererQueueManager` と `RenderFarmMaster` の model／callback／job state／remote state の thread boundary と race 修正
+- `ImageExporter` の RGBA float 変換、multi-channel synthetic channel、interleaved buffer 構築
+- RenderScheduler の未接続 strategy は、所有権契約がないため並列化せず安全な逐次 fallback を維持
+
+これらは「実装済み」であって「性能検証済み」ではない。結果一致、キャンセル、破棄、worker 数、メモリ帯域を個別に検証する必要がある。
+
 ### CPU並列
 
 - `ArtifactCore::Parallel::For` は `ArtifactCore/src/Core/Parallel.cppm` でTBB `parallel_for`へ接続されている
@@ -153,13 +165,12 @@ P-core／E-core差はNUMAとは別問題なので、Alder Lake以降の単一NUM
 
 ## 未実施事項
 
-- ソースコードの変更
 - ビルド、CMake生成、テスト
 - ベンチマーク
 - dual-socket実機でのNUMA測定
 - 各候補のruntime結果比較
 
-本監査は、実装を許可するものではない。各フェーズは対象範囲、所有権、キャンセル、検証条件を確定してから個別に実装する。
+本監査は、未実装候補について実装を自動的に許可するものではない。実装済み範囲も含め、各フェーズは対象範囲、所有権、キャンセル、検証条件を確定してから個別に検証する。
 
 ## RenderSchedulerの現状制約
 
