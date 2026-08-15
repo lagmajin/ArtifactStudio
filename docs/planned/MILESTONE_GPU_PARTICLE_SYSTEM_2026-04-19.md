@@ -1,6 +1,7 @@
 # MILESTONE: GPUパーティクルシステム統合
 作成日: 2026-04-19
-ステータス: 計画中
+**最終更新:** 2026-08-15
+ステータス: GPUパーティクル描画はArtifactIRendererへ接続済み、GPUシミュレーション統合と機能パリティは未完了
 対象バージョン: M11
 
 ---
@@ -95,6 +96,23 @@ GPU パーティクルパスを有効化し、**1,000,000 パーティクルを 
 2. 全ての既存パーティクルプリセットが完全に同じ挙動で動作すること
 3. シリアライズ互換性を維持
 4. エクスプレッションによるパーティクル制御は引き続き動作すること
+
+---
+
+## 2026-08-15 現行コード監査
+
+- `ArtifactParticleLayer::draw()` は決定論的な `ParticleSystem::goToFrame()` でCPUシミュレーションを更新し、`captureRenderData()` を `ArtifactIRenderer::drawParticles()` へ渡す。したがって「ParticleLayer はCPUのみで描画」は現状と一致しない。
+- `ArtifactIRenderer` は `ParticleRenderer` を遅延初期化し、GPU billboard／instance 描画、投影・ビュー行列同期、最大100,000パーティクル設定、GPU可視性カリングの準備を持つ。GPUレンダリング接続は Phase 2 の一部実装済み。
+- `ParticleCompute` の初期化・バッファ・dispatch API は存在するが、`ArtifactParticleLayer` または Composition の通常レンダーループから GPUシミュレーションを dispatch する接続は確認できない。現状は CPU simulation + GPU rendering であり、1,000,000 パーティクル目標を裏付けるコードではない。
+- GPU側の全エミッター／エフェクター／コライダーのパリティ、自動CPU/GPU切替、性能目標、プリワームと拡張機能は未実装または未検証。ビルド・実行は実施していない。
+
+判定: **GPU描画経路とLODは実装済み。GPUシミュレーション、機能パリティ、100万粒子性能、runtime受入れは pending。**
+
+## Update 2026-08-15
+
+- `ArtifactParticleLayer::draw()` の CPU `ParticleSystem::goToFrame()`／`captureRenderData()` と、`ArtifactIRenderer::drawParticles()` の GPU billboard／instance rendering 接続を再確認。
+- `ParticleRenderer` の遅延初期化、projection／view 同期、GPU visibility culling の準備はあるが、`ParticleCompute` の通常レンダーループ dispatch は未接続。
+- 現状は CPU simulation＋GPU rendering。GPU emitter／effector／collider parity、CPU／GPU 自動切替、プリワーム、100万粒子性能、runtime 受入は未完了・未検証。
 
 ---
 

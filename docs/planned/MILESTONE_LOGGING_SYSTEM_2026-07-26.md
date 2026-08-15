@@ -1,6 +1,7 @@
 # Logging System Expansion Milestone (2026-07-26)
 
 **ステータス:** In Progress
+**最終更新:** 2026-08-15
 
 ## 目的
 
@@ -57,3 +58,10 @@ Logger::instance()->setFileLoggingEnabled(true);
 
 - 現在の Qt／MSVC モジュール構成で `std::array` と atomic メンバーの公開が問題ないかは未ビルド。
 - drain の呼び出し周期はアプリのメインループまたは既存診断更新経路で決定する。
+
+## Update 2026-08-15
+
+- `ArtifactCore::Logger` に `LogCategory`、固定長 fast record、bounded ring、drop counter、`tryFastLogFormat()`、`drainFastLogs()`、カテゴリ有効／無効化が実装されている。`ViewportTransformer` が `RenderVP` の fast API を利用していることも確認できる。
+- ファイル出力は有効化・パス・最大バイト数・JSON Lines形式・flush を持ち、ログファイル準備／ローテーション経路がある。Debug Console は Logger の drain を呼び、既存ログ表示へ統合されている。
+- ただし現行コード検索では、カテゴリ階層の閾値設定、カテゴリ別の永続プリセット選択、fast path の全高頻度レンダー移行、drop／memory の専用UI表示は完了根拠が弱い。`qDebug`／`qWarning` の互換経路も多数残っている。
+- よって現状は `Phase 1〜2 implemented / file format and rotation substantially implemented / Phase 4 selective migration and category UX partial / no-build runtime validation pending` と整理する。本文のモジュール構成未ビルド注意は維持する。

@@ -2,6 +2,8 @@
 
 > 2026-03-27 作成
 
+**最終更新:** 2026-08-15
+
 ## 目的
 
 Project View と Asset Browser を別の UI ではなく、同じ制作ワークフローの入口として揃える。
@@ -166,6 +168,8 @@ Project / Asset から次の作業へすばやく飛べるようにする。
 - recent / favorite / missing asset の action surface
 - project view の double-click から footage review を Contents Viewer へ送る
 
+**Update 2026-08-15:** Project View の Composition コンテキストメニューから、選択 composition を Render Queue に直接投入する導線を追加した。Asset Browser から timeline への直接追加、hot reload、実データでの cross-view 受入れは未検証。
+
 ### 完了条件
 
 - 素材を見つけてから使うまでが短い
@@ -248,7 +252,7 @@ Phase 1 は、Project View と Asset Browser が同じ item を指している�
 
 - browser から timeline / viewer / render への橋渡しは selection state が揃ってから詰める
 - save / restore は import/relink が安定してから別途固める
-## 2026-07-25 実装監査
+## 2026-08-15 現行コード監査
 
 ### 判定
 
@@ -271,3 +275,7 @@ Phase 1〜6 の基盤はかなり実装済みだが、Project View と Asset Bro
 ### 次の判定
 
 この milestone は「基盤実装済み・統合確認待ち」。Phase 1 の cross-view selection / state sync を最優先の runtime 確認対象とし、その後 Phase 2 の import / relink 通し確認へ進む。
+
+## Update 2026-08-15
+
+Project View の context import、file dialog import、外部 drag & drop import が `ArtifactProjectService::importAssetsFromPathsAsync()` を利用するよう確認・修正した。大きな import／sequence 検出を UI イベント処理で同期実行せず、既存の非同期登録・compatibility check・projectChanged 経路へ揃えた。import 結果の Project View／Asset Browser 同時反映、bulk relink、save／restore 後の cross-view state は引き続き runtime 未検証とする。

@@ -2,6 +2,11 @@
 
 **ステータス:** Partial — image/video/audio/3D、metadata、compare、project/asset integration、playback/waveform foundation are implemented; screenshot/export polish and runtime verification remain pending.
 
+## Update 2026-08-15
+
+- 画像表示中の transformed viewer image を PNG／JPEG へ保存する `Screenshot` action を追加した。元ファイルではなく、現在の viewer 表示状態を保存する。
+- export の runtime 受入れ、compare／3D／video の capture、保存失敗時の UI 通知は未完了または未検証。
+
 > 2026-03-27 作成
 
 ## 目的

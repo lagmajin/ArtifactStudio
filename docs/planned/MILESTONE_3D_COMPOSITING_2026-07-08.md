@@ -1,8 +1,9 @@
 # Milestone: 3D Compositing（コンポジション内ライブ 3D シーン） (2026-07-08)
 
-**ステータス:** Phase 1A〜1K 実装済み、Phase 2/3 と実機検証待ち
+**最終更新:** 2026-08-15
+**ステータス:** Phase 1A〜1K の静的実装を確認済み。Phase 2/3 の本格統合と実機検証待ち。
 
-### 実装状況（2026-07-25 確認）
+### 実装状況（2026-08-15 確認）
 
 `ArtifactCompositionRenderController` と GPU レンダリング経路を確認した結果、Model3D、単色／Shape／Image／SVG／Text／Video の 3D カード、標準 Stroke、Precomp GPU 出力を同一の 3D 合成経路へ接続し、不透明・透明の depth 契約、Material の PBR 入力、Light Layer、共有 depth attachment まで実装済み。残課題はカメラ／レイヤー運用を含む Phase 2 の本格的なシーン合成、Phase 3 の depth／mask／DOF 連携、および runtime での遮蔽・透明境界・音声を含む総合検証。
 
@@ -45,9 +46,9 @@
 - **Nuke** — 3D ビュー / ScanlineRender / カメラ・ジオメトリ・ライトのコンポジット。
 - **After Effects** — 3D レイヤー・カメラ・ライト・レイヤー距離順ソート。
 
-## 4. 現状（ソース確認・2026-07-08）
+## 4. 現状（ソース確認・2026-08-15）
 
-- grep `Live3D|3D Comp|Scanline|3D コンポジット` → 0 hit。専用マイルストーンなし。
+- `ArtifactCompositionRenderController` に専用の 3D composition 経路があり、Model3D／3Dカード／共有depth／Light／Material／Precomp GPU output を接続済み。旧来の専用名称検索だけでは現状を判定できない。
 - 関連基盤:
   - `MILESTONE_3D_MODEL_IMPORT_AND_CONTENTS_VIEWER_2026-03-29.md`（import 済み）。
   - `MILESTONE_3D_VIEWPORT_ORBIT_PAN_PREVIEW_MODE_2026-06-07.md`（viewport 操作）。
@@ -133,3 +134,19 @@ child に 3D、adjustment、mask、rasterizer effect、非Normal blend、nested 
 - The render queue also exposes Depth/Normal/Velocity/ID channel handling and recognizes camera/light/model/procedural 3D layer types.
 - Phase 1A-1K is therefore supported by current source evidence. Phase 2/3 requirements—full camera/layer scene operation, depth/mask/DOF post-processing, and end-to-end occlusion/transparency/audio runtime checks—remain incomplete or unverified.
 - No build, test, or runtime execution was performed because the repository instructions require explicit approval first.
+
+## Update 2026-08-15
+
+現行コードを追加確認した。CompositionRenderController は active camera／scene lights／light-link filtering、共有 preview depth、3D cards、Model3D、Precomp GPU output registry を同一の3D合成経路で扱う。単色／Shape／Image／SVG／Text／Video のカード、Material のPBR入力、透明境界、Light Layer、depth attachmentの接続も確認できる。
+
+一方、カメラ／レイヤー運用の全面的なscene管理、depth／mask／DOF後処理、複雑なprecomp条件、遮蔽・透明境界の実機parityは未完了または未検証。Phase 1A〜1Kの静的実装は確認済み、Phase 2〜3とruntime受入は pending とする。
+
+## Update 2026-08-15
+
+- `Artifact3DLayer::fromJsonProperties()` で、既存レイヤーへ source-less／`FixedGeometry3D::Auto` のJSONを復元した際に旧meshが残るstale restoreを修正した。
+- 復元対象にモデルsourceがない場合はCubeへ戻し、静止画レイヤーと同じくsourceなし状態を明示的に確定する。
+- missing model source の復元時も旧meshを残さず、source pathを保持した未ロード状態へ遷移するようにした。
+- 3D transform snapshot の時刻基準を固定30fpsからレイヤーの `compositionFrameRate()` へ変更し、非30fpsコンポジションでのフレームずれを防いだ。
+- Camera／Lightレイヤーもfpsを整数丸めせずcompositionの実数fps（例: 29.97）で `RationalTime` を生成するよう揃えた。
+- 3D選択枠、固定平面投影、ピッキングrayのtransform snapshotにも同じfps基準を適用し、描画と編集操作の時刻ずれを除去した。
+- ビルド・3D runtime検証・遮蔽parity確認は未実施。

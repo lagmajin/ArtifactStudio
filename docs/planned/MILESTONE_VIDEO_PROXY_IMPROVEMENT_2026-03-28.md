@@ -1,7 +1,8 @@
 # ビデオプロキシ機能改善 Milestone
 
 **作成日:** 2026-03-28  
-**ステータス:** In Progress（生成・VideoLayer切替・Project View動画キュー接続済み、runtime検証待ち）
+**最終更新:** 2026-08-15
+**ステータス:** 生成・品質切替・Project View／Timeline 導線・batch API は実装済み。同期実行、cache policy、runtime 検証が残る。
 **関連コンポーネント:** ArtifactVideoLayer, FFmpegEncoder, ProxyManager, ArtifactProjectManagerWidget
 
 ---
@@ -12,39 +13,43 @@
 
 **現状:**
 - `ProxyQuality` 列挙型は存在（None, Quarter, Half, Full）
-- `generateProxy()` メソッドは存在するが未実装（TODO コメント）
+- `ArtifactProxyManager::generateProxy()` は ffmpeg の scale／H.264／AAC 経路で実装済み
 - プロキシファイルのパス管理は実装済み
 - プロキシ切り替えロジックは一部実装
 
 ---
 
-## 発見された問題点
+## 現行コード監査 (2026-08-15)
 
-### ★★★ 問題 1: プロキシ生成の実装がない
+- `ArtifactVideoLayer::generateProxy()` は `ArtifactProxyManager` に委譲し、生成後に proxy path と quality を反映する。
+- `ArtifactProxyManager` は quality 別 path、存在確認、情報取得、削除、batch generation を提供する。
+- Project Manager、Timeline layer menu、Layer menu から生成・表示・削除・品質切替へ到達できる。`setProxyQuality()` は proxy path の存在を確認して playback source を更新する経路を持つ。
+- 残課題は `QProcess::waitForFinished(-1)` による同期生成、キャンセル／進捗、cache 容量・自動削除、ffmpeg 不在時の診断、実動画での runtime 受入れ。
 
-**場所:** `Artifact/src/Layer/ArtifactVideoLayer.cppm:696`
+## 残る問題点
+
+### ★★ 問題 1: プロキシ生成が同期実行
+
+**場所:** `Artifact/src/Layer/ArtifactVideoLayer.cppm` の `ArtifactProxyManager::generateProxy()`
 
 ```cpp
 bool ArtifactVideoLayer::generateProxy(ProxyQuality quality)
 {
     // ... 準備 ...
     
-    // TODO: Implement actual proxy generation using FFmpeg or OpenCV
-    // For now, just return false to indicate it's not implemented
-    return false;  // ← 常に失敗
+QProcess process;
+process.start("ffmpeg", args);
+process.waitForFinished(-1);
 }
 ```
 
-**影響:**
-- プロキシ機能が使えない
-- 高解像度動画が重いまま
-- ワークフローの効率化ができない
+**影響:** UI thread から呼ばれた場合、生成中に操作がブロックされる。
 
 **工数:** 8-12 時間
 
 ---
 
-### ★★★ 問題 2: プロキシ切り替えが不完全
+### ★★ 問題 2: プロキシ切り替えの runtime 受入れ
 
 **場所:** `Artifact/src/Layer/ArtifactVideoLayer.cppm:647-658`
 
@@ -72,7 +77,7 @@ void ArtifactVideoLayer::setProxyQuality(ProxyQuality quality)
 
 ---
 
-### ★★ 問題 3: プロキシマネージャーの未実装
+### ★★ 問題 3: プロキシキャッシュ policy
 
 **場所:** `Artifact/include/Layer/ArtifactVideoLayer.ixx:52`
 

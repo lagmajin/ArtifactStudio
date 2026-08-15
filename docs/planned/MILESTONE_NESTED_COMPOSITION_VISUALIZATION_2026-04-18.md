@@ -132,3 +132,9 @@ Artifact/include/Model/ArtifactCompositionLayer.ixx
 - Phase 3: 部分実装 — hierarchy / time conversion API はあるが、breadcrumb / history UI は未確認
 - Phase 4: 部分実装 — nested timing API はあるが、親子 playhead の完全同期は未確認
 - Phase 5: 部分実装 — precompose / unprecompose はあるが、複製・新規コンポジション化 UI は未確認
+
+## Update 2026-08-15
+
+- `ArtifactLayerMenu`、`ArtifactLayerPanelWidget`、`PrecomposeDialog` から、プリコンポーズ／解除と Undo 付きの操作導線を確認した。`PreComposeManager` には階層、時刻変換、循環拒否、復元経路がある。
+- Project health／render queue 側にも nested composition の循環・matte 等を診断する経路があるため、ネストのデータ／操作基盤は当初記述より進んでいる。
+- ただし、専用アイコン・深度表示・タイムライン内展開・常時表示 breadcrumb／履歴 UI・親子 playhead の完全同期・Alt+drag 複製は現行検索で確認できない。視覚化マイルストーンの判定は引き続き部分実装。ビルド・runtime 操作確認は未実施。

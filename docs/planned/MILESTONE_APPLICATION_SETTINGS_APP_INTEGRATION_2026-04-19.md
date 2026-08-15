@@ -1,6 +1,7 @@
 # MILESTONE_APPLICATION_SETTINGS_APP_INTEGRATION_2026-04-19
 
 ステータス: Settings model／Preferences／主要 UI 反映基盤実装済み（startup order・全設定 live sync・runtime 検証待ち、静的確認 2026-07-29）
+最終更新: 2026-08-15
 
 `ApplicationSettingDialog` とアプリ本体 (`ArtifactMainWindow` / `AppMain`) の連携を整理し、設定を「保存するだけ」ではなく「実際にアプリへ反映できる」状態へ持っていくためのマイルストーン。
 
@@ -138,3 +139,12 @@ Phase 1 は、保存対象を `General / UI / Render / Preview` に分けて、�
 
 - main window の再適用口は settings model が固まってから作る
 - theme と font の適用順序は startup sync の前に整理する
+
+## 2026-08-15 現行コード監査
+
+- `ArtifactAppSettings` の schema は General／UI／Render／Preview に加え、Import、ProjectDefaults、Accessibility、ContentsViewer、Timeline、Viewport、AI などの設定を一元登録している。
+- `ApplicationSettingDialog` の各ページには Import、Preview、Project Defaults、Memory & Performance、Composition View、Audio Scrubbing、Shortcuts、Plugins、AI、Accessibility などの編集面がある。
+- Main Window／Menu Bar／Contents Viewer／Timeline などが `ArtifactAppSettings::instance()` を参照する利用箇所を確認した。
+- ただし設定変更を全 UI が即時反映する live sync、起動時の theme／font／layout restore の順序、全設定の再起動後保持はコード検索だけでは完全には証明できず、runtime 検証待ち。
+
+判定: **Settings schema、Preferences 編集面、主要 UI の参照経路は実装済み。全設定の live sync、startup order、runtime 保存／復元検証は pending。**

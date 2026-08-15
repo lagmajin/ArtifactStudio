@@ -3,6 +3,8 @@
 > 開始日: 2026-07-27
 > 状態: Implementation complete (runtime verification pending)
 
+**最終更新:** 2026-08-15
+
 ## 目的
 
 静止画・連番画像を、Asset BrowserからCompositionへの投入まで一貫した素材として扱えるようにする。動画デコード対応には依存せず、連番画像の編集・確認・再リンク・プレビューの完成度を優先する。
@@ -13,6 +15,12 @@
 - `ImageSequenceSource` に限定サイズのフレームキャッシュを追加済み。
 - Asset Browser側にはsequenceの代表フレーム、開始フレーム、桁数、構成パスを保持する既存経路がある。
 - Asset Browser上の明示的な展開、sequence単位の状態表示、preview導線の一貫性は未完了。
+
+## Update 2026-08-15
+
+- `ArtifactImageLayer::draw()` から `ImageSequenceSource::frameAt()` へ現在時刻を渡す経路、bounded frame cache、欠番を誤補間しない frame lookup、解像度不一致時の拒否を現行コードで再確認。
+- Asset Browser の sequence 単位の展開・状態集計・relink/import 表示と、Composition 投入時の `sequencePaths`／`sequenceFrameRate` 保存経路も確認できる。
+- 実素材での欠番・missing・relink・source 差し替え、保存／再読込、scrub 時の cache 挙動は未検証。実装完了・runtime verification pending の判定を維持する。
 
 ### 2026-07-27 Progress
 
@@ -131,3 +139,11 @@ JSON 復元経路でも path の trim／重複除去と frame rate の同一正�
 同時に prefetch generation を進め、編集中の QImage を旧ファイル decode が上書きしないようにした。
 JSON 再読込時も prefetch generation を進め、sequence reader／cached frame／decoded buffer を破棄し、同一 source path で別 sequence を復元しても旧フレームを再利用しないようにした。
 同一 source path の復元でも prefetch を再起動し、cache 破棄後に stale な `prefetchDone_` が placeholder を固定しないようにした。
+
+## 2026-08-15 現行コード監査
+
+- Asset Browser の sequence 検出・展開・状態集計・import/relink 導線、`ArtifactImageLayer` の sequencePaths／frame rate 永続化、`ImageSequenceSource::frameAt()` による時刻依存描画を確認した。
+- bounded frame cache、seek 周辺の先読み、欠番・解像度不一致・不正パス時の cache／reader 無効化も実装されている。旧来の「代表フレームだけ表示」は現状には当たらない。
+- 実素材を使った欠番・relink・保存／再読込・cache hit/miss と、Composition 投入後の実フレーム切替はコード上の経路までで、runtime parity は未検証。ビルド・テストは実施していない。
+
+判定: **Image Sequence workflow の実装は完了。実素材を用いた runtime／保存復元／cache 検証のみ pending。**

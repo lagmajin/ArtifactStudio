@@ -1,5 +1,7 @@
 # AI Command Sandbox / CLI Execution Milestone
 
+**最終更新:** 2026-08-15
+
 This milestone defines the safe command-line execution layer that future AI
 agents can use from inside ArtifactStudio.
 
@@ -82,6 +84,25 @@ agents can use from inside ArtifactStudio.
 ### 2026-07-25 実装監査
 
 `CommandSandbox` の非 shell 実行、明示 allowlist、出力上限、構造化結果、dry-run、schema 登録とテスト入口は記載どおり確認できる。これは OS／CLI command の sandbox であり、`WorkspaceAutomation` の CommandIR dry-run／execute とは別境界である。Phase 2 の allowlist／working-directory／timeout を編集・永続化する UI と、Phase 3 の workspace-bound command preset／root enforcement は確認できないため、Phase 1 完了、Phase 2〜3 未完了と整理する。
+
+## 2026-08-15 現行コード監査
+
+- `CommandSandbox` は shell を経由しない `QProcess` 実行、program allowlist、working directory 検証、環境変数 allowlist、timeout、出力上限、dry-run、構造化結果、AI schema 登録を実装している。
+- `setAllowlist`／`setWorkingDirectory`／`setDefaultTimeoutMs` などの tool 操作は存在するが、Preferences での編集・永続化、diagnostics／prompt context への現在 policy 表示は確認できない。
+- AI Cloud UI の `curl.exe` 経路や MCP transport はこの sandbox と別の QProcess 経路であり、本マイルストーンの allowlist 保護を自動的に共有しない。
+- workspace-bound command preset、root enforcement、実プロセスの timeout／出力上限 runtime 検証は未実施。
+
+判定: **Phase 1 の sandbox core は実装済み。Phase 2 の設定 UI／永続化、Phase 3 の workspace 制約、他の外部プロセス経路との統合、runtime 検証は pending。**
+
+## Update 2026-08-15
+
+現行コードを追加確認した。`CommandSandbox` は shell 非経由の `QProcess`、program allowlist、working directory検証、環境変数allowlist、timeout、出力上限、dry-run、構造化結果、AI schema登録を備える。`setAllowlist`／`setWorkingDirectory`／`setDefaultTimeoutMs` などの操作入口も存在する。
+
+未完了・未検証なのは、Preferencesでのpolicy編集／永続化、diagnostics／prompt contextへのpolicy表示、workspace-bound command preset、root enforcement、AI Cloud／MCP等の外部プロセス経路とのpolicy統合、timeout／出力上限のruntime確認である。Phase 1 coreは実装済み、Phase 2〜3と統合検証は pending とする。
+
+## Update 2026-08-15
+
+現行の `CommandSandbox` は `ArtifactCore` 子リポジトリにあり、残る policy 永続化と workspace root enforcement は同ファイルの境界設計を伴う。親側だけで重複実装すると sandbox の責務が分散するため、今回はコード変更を行わず、Phase 2／3 の着手条件を「policy persistence と root enforcement の共通契約確定」に固定した。
 
 ---
 

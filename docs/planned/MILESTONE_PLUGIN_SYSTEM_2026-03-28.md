@@ -4,6 +4,13 @@
 **ステータス:** 計画中  
 **関連コンポーネント:** Effect System, Layer System, Tool System, Scripting
 
+## Update 2026-08-15
+
+- `ArtifactPluginLoader`／`PluginLayerFactory` は DLL の検出・API／export 検証、layer plugin の登録入口を持つ。`ArtifactPluginSandbox` は subprocess、heartbeat、crash／restart／fail callback を提供する。
+- `WorkspaceAutomation` と Python hook／ScriptRuntime には、レイヤー・エフェクト・keyframe・render queue・template 等を操作する API があり、当初計画の scripting／batch 基盤は大きく進んでいる。
+- 一方、標準化された effect plugin の実処理／自動 UI、custom tool／toolbar 登録、format plugin の共通契約、署名／quarantine／ABI compatibility、OS 権限制限、install／dependency／update manager は未完了または未確認。
+- 判定: **loader／layer plugin／sandbox／scripting の基盤は部分実装。完成した第三者向け plugin ecosystem と runtime compatibility は未達。ビルド・外部 plugin 実機検証は未実施。**
+
 ---
 
 ## 概要

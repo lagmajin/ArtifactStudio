@@ -1,5 +1,15 @@
 # Keyframe State Spec
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+Keyframe の編集・意味データは実装が進んでいます。`ArtifactTimelineKeyframeModel`／`ArtifactTimelineTrackPainterView` は keyframe の選択、移動、追加・削除、補間、Bezier control point、roving、anchor、color label を保持・復元し、snapshot ベースの Undo 境界も持ちます。Curve Editor では value／velocity graph と tangent／interpolation 編集が接続されています。
+
+一方、本仕様の `基礎状態 + 編集状態 + 意味状態` を統合した共通 visual state 型、locked／disabled／focused／hovered／dummy／hold の描画契約、diamond／filled／badge の優先順位を横断的に確認できませんでした。現状は **keyframe data／editing 基盤は実装済み、visual state spec の完全適用は未完了・未検証**です。
+
+右ペインの proportional editing は、marker／area の time move・time scale、radius、preview guide、snapshot Undo、selection更新まで実装済みである。value方向やCurve／Graph Editorとの共通化は未実装・未検証として残す。
+
 作成日: 2026-06-17  
 対象: `Artifact/src/Timeline/ArtifactTimelineIconModel.cppm`, `Artifact/include/Timeline/ArtifactTimelineIconModel.ixx`,
 `Artifact/src/Widgets/Timeline/ArtifactTimelineLabel.cppm`,

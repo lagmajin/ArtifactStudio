@@ -1,5 +1,6 @@
 # Project View Search / Filter / Presentation
 
+**最終更新:** 2026-08-15
 **ステータス:** 実装完了（runtime検証待ち）
 
 > 2026-04-03 作成
@@ -234,10 +235,14 @@ Phase 1 は、検索語が入力された瞬間に surface が変わることを
 - list / grid presentation は search / filter の state が固まってから入れる
 - status surface は検索結果の意味が揃ってからつなぐ
 
-## Static Audit (2026-07-30)
+## Static Audit (2026-08-15)
 
 現行の Project View には、入力即時反映・クリア可能な検索欄、name/path/metadata を含む検索 blob、`tag:` / `unused:true` / `is:unused` / `missing:true` / `is:missing` の advanced filter、タイプフィルタ、未使用 asset の非同期スナップショット、Tree／Tile 表示切替、Tile のサムネイル・type/status/proxy badge、列ソートと列幅調整が実装されている。選択概要ラベルと選択詳細／プレビュー面も存在する。Missing は一覧マーカーと色で表示され、連番の欠損 frame も判定する。
 
 選択容量合計は Footage の実ファイルを表示し、連番は `sequencePaths` 全体を合算する。Type filter、Tree/Tile、Unused only、sort column/direction、column widths は `QSettings` に保存・復元し、検索語も browse context に表示する。`type:footage,composition` のような複数 type 条件は advanced filter の OR 照合を実装済みだが、仕様上の list / grid 名称とは現行コードの Tree / Tile 名称が一致せず、複数 filter pill の独立した multi-select surface、画像・音声・3D 等の全タイプ選択、未使用件数の包括的表示、view transition、実データでの複合条件、大量アイテム時の非同期更新、runtime 視認性は未検証である。`tag:` 検索は検索語経路のみで、タグの入力・管理 UI は確認できない。
 
 判定: **検索・type／unused／missing filter、Tree／Tile、status表示、フィルター状態サマリーまで実装。独立したpill操作、runtime検証は pending。**
+
+## Update 2026-08-15
+
+現行コードを追加確認した。検索は `textChanged` による即時反映と clear／Esc を持ち、name／path／metadata、`type:`／`tag:`／`regex:`／`unused:true`／`used:true`／`used:false`／`missing:true` を同じ proxy filter で評価する。Tree／Tile 切替、unused／missing emphasis、件数・filter・選択容量の status surface、sort／column width／view mode／filter の QSettings 保存も確認した。独立した multi-select filter pill、list/grid 名称の統一、全 asset type の pill、view transition、複合条件の runtime 視認性は未完了または未検証とする。

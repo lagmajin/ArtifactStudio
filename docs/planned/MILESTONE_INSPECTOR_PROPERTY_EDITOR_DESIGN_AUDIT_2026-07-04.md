@@ -2,6 +2,17 @@
 
 > 作成: 2026-07-04
 
+**最終更新:** 2026-08-15
+
+## 2026-08-15 現行コード照合
+
+- Property Reset、Quick Calc、Drag Scrub／Relative Spin、検索、各種 typed editor、Expression 入力・検証、Animation／Keyframe 操作の基盤を確認。旧 P0 表の「Reset／Drag Scrub／Expression 不在」は現状には適用しない。
+- Inspector の effect rack には add/remove、並べ替え、enable／disable、Copy／Paste Effect、Save／Load Effect Preset、検索・カテゴリ表示の経路がある。旧「effect copy/paste／preset／bypass 不在」は更新が必要。
+- Components は専用 surface に分離され、通常の layer property 表示では責務を混ぜない現行方針がある。Collision／Generator／Transform／Field などの component 設定を通常 property group の未実装と数えない。
+- 複数選択の完全な Mixed 表示・一括編集、全セクション操作、favorites／changed-only／keyframe-only filter、property driver／custom group、runtime の各編集受入れは未完了または未検証。
+
+この文書の不足表は 2026-07-04 時点の監査スナップショットであり、上記の現行コード監査を優先する。ビルド・テストは未実施。
+
 ## 監査サマリー
 
 Inspector 周りは3つの主要ファイルで構成:

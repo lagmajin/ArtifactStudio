@@ -1,7 +1,15 @@
 # Milestone: Diligent Low-Level Rendering API Expansion (2026-04-01)
 
+**最終更新:** 2026-08-15
+
 **Status:** Phase 1 ✅ / Phase 2 ✅ / Phase 3 ✅ / Phase 5 ✅ / Phase 7a ✅ / Phase 4・6・7b/c 未着手
 **Goal:** `DiligentImmediateSubmitter` の描画 API を拡充し、レンダーステートの最適化を積み重ねながら、長期的に Immediate Context 依存を段階的に削減する
+
+## Update 2026-08-15
+
+- `DiligentImmediateSubmitter` の primitive／text／sprite API、PSO／SRB 再利用、render target 一回設定、PSO dedup、unit quad、SolidRect batch、Deferred Context Phase 7a を実装済みとして再確認。
+- `setUpscaleConfig()` の実装、3D line thickness、PSO 別 packet sort、Line／Glyph batch、Glyph atlas 差分更新、Deferred Context の並列記録は未着手または未確認。
+- Immediate Context fallback と Diligent resource lifetime を維持したまま、Phase 4／6／7b/c は runtime・backend 検証待ち。低レベル backend の変更は行っていない。
 
 > **更新: 2026-04-25** — Phase 1・2 完了確認、Phase 5 (H1-H5 最適化) 完了反映、Phase 6・7 を新規追加；Phase 7a 実装完了
 > **更新: 2026-04-28** — Phase 3 (`SolidRectPkt` バッチ描画) 実装完了
@@ -180,13 +188,13 @@ Phase 7c: Rename & Interface Cleanup
 | 1 | **Phase 1: Bug Fixes & API Parity** | 2h | P0 | ✅ 完了 |
 | 2 | **Phase 2: Text Rendering API** | 8h | P0 | ✅ 完了 |
 | 3 | **Phase 5: Render State Optimization (H1–H5)** | — | P0 | ✅ 完了 |
-| 4 | **Phase 3: Batch Rendering System** | 10-14h | P1 | ❌ 未着手 |
+| 4 | **Phase 3: Batch Rendering System** | 10-14h | P1 | ✅ 完了 |
 | 5 | **Phase 6: Draw Order Optimization** | 4-6h | P1 | ❌ 未着手 |
 | 6 | **Phase 4: Advanced Features** | 12-18h | P2 | ❌ 未着手 |
 | 7 | **Phase 7a: Deferred Context Recording** | 6-8h | P2 | ✅ 完了 |
 | 8 | **Phase 7b/7c: Parallel Recording & Rename** | 16-20h | P3 | ❌ 未着手 |
 
-**残見積: ~50-66h**
+**残見積: Phase 4・6・7b/c のみ（旧見積は再計算待ち）**
 
 ---
 
@@ -221,3 +229,11 @@ Phase 7c: Rename & Interface Cleanup
 | Phase 7b/7c | 並列 deferred recording と recorder への rename/interface cleanup は未確認 | 未着手 |
 
 **判定**: 本文冒頭の Phase 3 / Phase 5 / Phase 7a 完了表記は現行ソースと整合する。一方、Recommended Order の Phase 3 が未着手とする記述は古く、Phase 3 は完了扱いに更新すべき状態。未完了は Phase 4・6・7b/c。
+
+## Static audit follow-up (2026-08-15)
+
+- `DiligentImmediateSubmitter` の primitive／text／sprite／mask submit、PSO／SRB 管理、SolidRect batch、deferred context の command-list 経路は引き続き実装済みとして扱える。
+- Phase 4 の 3D line thickness／upscale／glyph atlas 差分更新、Phase 6 の透明順序を保護した PSO sort、Phase 7b/c の並列 deferred recording／命名整理は現行コード上で完了根拠を確認できない。
+- H1〜H5 の実効性能、deferred recording の backend parity、長時間 GPU resource 安定性は実行検証が必要であり、ビルド／runtime は実施していない。
+
+判定: **低レベル 2D／text／batch／deferred 基盤は実装済み。Advanced API、draw-order optimization、parallel recording、実測検証が残る。**

@@ -1,5 +1,15 @@
 # マイルストーン: Host / Context / ROI / Property Core
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+- Render context は `RenderContextRegistry`／`RenderPurpose`／snapshot を持ち、Composition preview と Render Queue final export が登録経路を利用している。
+- ROI は `RenderROI` と `EffectROIHint` が layer bounds、effect expansion、full-frame 要求に接続され、Render Queue には FullFrame／Tiled と tile size、custom crop の検証がある。
+- Property は `globalPropertyRegistry()`／`PropertyRegistryReadOnlyAdapter`、`ExposedPropertyRegistry`、WorkspaceAutomation／Python API の path 操作が存在する。ただし全 property owner の単一 registry 化と UI consumer の完全移行は未完了。
+- Host／plugin 側には EffectContext、OFX host suites、VST3／CLAP の個別基盤があるが、本書が想定する全 effect 共通の `EffectHostContext`／capability／dependency adapter 契約へ統一されたとは確認できない。
+- 判定: **Context／ROI／Property の基盤は部分〜実装済み、全経路の共通契約・tiled runtime・plugin adapter の受入れは pending**。ビルド・テストは未実施。
+
 > 2026-04-20 作成
 
 ## 目的

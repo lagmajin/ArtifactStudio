@@ -29,6 +29,11 @@
 
 Phase 1 の `ResponsiveLayoutSet`／variant の JSON 保存・復元、Project View の追加・複製・編集・activate、Composition Editor の selector／`Responsive Preview Matrix` 入口、overlay／model の active variant summary は実装を確認した。Render Queue には active variant と output size の不一致 warning もある。一方、Preview Matrix は一覧から variant を切り替える入口で、複数ビューを同時描画するものではない。variant ごとの実レイアウト再配置、preflight の網羅的診断、4:5 等の preset／safe-area・anchor の実適用は未確認であり、Phase 2 は部分実装、Phase 3〜4 は継続とする。
 
+## Update 2026-08-15
+
+- 現行コードでは `ResponsiveLayoutSet`／variant の JSON round-trip、Project View の追加・複製・編集・activate、Composition／Command Palette の selector、active variant summary、Render Queue の output size warning を確認できる。
+- variant 切替に伴う実レイアウト再配置、複数 variant の同時 Preview Matrix 描画、preflight 診断、safe-area／anchor の実適用、preset と runtime parity は未完了または未確認。
+
 ## Variant examples
 
 - `16:9` - 横長の標準出力

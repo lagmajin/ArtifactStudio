@@ -7,7 +7,8 @@
 **優先度**: Medium
 **推定工数**: 2-3日
 **カテゴリ**: Composition Editor / Viewport / Performance
-**状態**: Planned
+**最終更新**: 2026-08-15
+**状態**: 部分実装（固定品質プリセットと操作中 downsample は実装済み。負荷連動の自動スケールは未完了）
 
 ---
 
@@ -20,8 +21,9 @@
 ## 背景
 
 ### 現状
-- 現在のビューポートは固定解像度で表示
-- 表示解像度の動的変更（`Viewport resolution 即時切替`）は **0 hit** — 完全に未実装
+- Composition Editor に Full／Half／Quarter の preview quality 切替があり、`PreviewQualityPreset` から renderer の downsample factor（1／2／4）へ反映される。
+- 操作中は `interactivePreviewDownsampleFloor_` と `effectivePreviewDownsample` により一時的に低解像度化する経路がある。
+- 表示負荷や目標フレームレートを計測して段階的に自動調整する制御は未確認。
 - HiDPI対応が不十分で、高DPIディスプレイで100%表示時の位置ずれバグあり
 - `devicePixelRatio` は部分的に考慮されているが、表示解像度スケールとは分離されていない
 
@@ -639,6 +641,6 @@ export struct ViewportResolutionChangedEvent : Event {
 
 静的確認では、レンダーコンテキストやプレビュー設定に `resolutionScale` が存在し、出力サイズからスケールを計算する経路、GI の内部解像度スケール、DPR を使ったレンダーターゲット寸法計算もある。ただしこれらは export／内部品質設定／アップスケールの責務であり、本マイルストーンが要求する viewport 用の解像度プリセット API と UI とは別である。
 
-`ViewportTransformer` の表示スケール／DPR API、`ArtifactIRenderer` の ResolutionPreset、Composition Editor の Ctrl+ホイール切替、解像度変更イベント、viewport 状態のプロジェクト保存・レンダーターゲット再作成を一体化した実装は確認できない。したがって本マイルストーンは「関連する render scale の基盤は一部存在、viewport 動的解像度切替は未実装」と判定する。
+現行コードでは `PreviewQualityPreset` の Full／Half／Quarter、controller の resolution scale、操作中 downsample、resize 時の DPR 更新、品質変更イベント経路とレンダーターゲット再作成を確認できる。一方、25〜200% の細粒度プリセット、Custom、Ctrl+wheel、負荷連動 Auto Scale、viewport状態の保存、runtime受入は未完了または未確認である。したがって本マイルストーンは「固定品質プリセットと操作中 downsample の部分実装」と判定する。
 
 確認範囲: `ArtifactCore/src/Transform/ViewportTransformer.cppm`、`ArtifactCore/src/Preview/PreviewSettings.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`。ビルド・実機操作による動作確認は未実施。

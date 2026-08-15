@@ -1,6 +1,6 @@
 # Professional Monitoring Scopes Expansion (2026-08-08)
 
-**最終更新:** 2026-08-10
+**最終更新:** 2026-08-15
 **状態:** 一部実装（Phase 1a Histogram 統合済み、残作業あり）
 
 ## 概要
@@ -206,3 +206,10 @@ Phase 1 だけで Histogram + CIE 色度図が追加され、即座に価値が�
 | `ArtifactWidgets/src/Color/WaveformScopeWidget.cppm` | 3 |
 | `Artifact/src/Render/ArtifactHDRMonitor.cppm` | 4 |
 | `Artifact/App/shaders/scope_*.hlsl`（3本・新規） | 4 |
+
+## Update 2026-08-15
+
+- Histogram は Composition Editor の既存スコープダイアログへ統合済みで、Combined／対数スケールと既存の frame update 周期に接続されている。
+- `ArtifactHDRMonitor::analyzeFrame()` は FalseColor、Waveform、Vectorscope、GamutWarning と clip／gamut statistics を提供するため、モニタリング計算の基盤は存在する。
+- 現行の UI は依然としてフローティングダイアログ中心で、CIE 色度図、ドッキング常駐、レイアウトプリセット、QC ステータス表示、Line／Alpha／Time scope、非同期 readback の安定化は未完了または未確認である。
+- 判定は **Phase 1 の Histogram 統合と HDR 解析基盤は部分実装／Phase 0 の安定化と Phase 2〜4 は未完了** を維持する。ビルド・テスト・runtime 確認は未実施。

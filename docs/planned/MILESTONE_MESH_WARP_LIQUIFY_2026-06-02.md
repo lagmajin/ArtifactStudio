@@ -1,6 +1,7 @@
 # M-MOTION-5 Mesh Warp / Liquify Deformation (2026-06-02)
 
 日付：2026-06-02
+**最終更新:** 2026-08-15
 目標：画像を格子状のメッシュで自由に変形させる「メッシュワープ」ツールを実装する。顔修正、形状調整、 Liquify 風のプッシュ変形に対応。
 
 ---
@@ -114,3 +115,11 @@ public:
 - Phase 2: 未実装相当 — 専用 Mesh Warp widget、ワイヤーフレーム、頂点／領域操作 UI は未確認
 - Phase 3: 未実装相当 — メッシュ頂点群のキーフレーム登録・補間・タイムライン表示は未確認
 - Definition of Done: Liquify 基盤の一部のみ達成。メッシュワープ機能全体は未完了
+
+## 現行コード監査 (2026-08-15)
+
+`LiquifyEffect` の CPU／GPU 経路、Push／Pinch／Bloat／Twirl／Turbulence／Pucker のブラシ種別、半径・強度・中心・角度・mesh density の property は現行コードでも確認できる。したがって、Liquify をエフェクトとして利用する基盤は継続して部分実装である。
+
+一方、独立した `MeshWarpEngine`、NxM 頂点の永続メッシュ、Composition Editor のワイヤーフレーム／頂点ピッキング、メッシュ頂点のキーフレーム、密度変更 UI は確認できない。`OpenCVPuppetEngine`／`ArtifactPuppetTool` はピン変形の別機能であり、本 milestone の Mesh Warp 完了根拠にはしない。
+
+判定: **Liquify エフェクト基盤のみ部分実装。Mesh Warp の DoD は未達。**

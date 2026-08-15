@@ -1,8 +1,19 @@
 # プレーナートラッカー 実装マイルストーン
 
+**最終更新:** 2026-08-15
 **日付**: 2026-08-01
 **ベース**: Mocha Pro / Nuke PlanarTracker / AE 3D Camera Tracker
-**現状**: `MotionTracker` に `TrackerType::Planar` と `TrackingMethod::OpticalFlow` の enum 定義あり。`NccTracker`（NCCテンプレートマッチング）実装済み。プレーナートラッキングの本格的な実装は不在。
+**現状**: `MotionTracker` にPlanarモード、ROI／4点、厳格なhomography追跡、RANSAC／ECC fallback、結果JSON、Corner Pin書き出し、UIのPlanar切替が実装済み。独立 `PlanarTracker` も特徴点＋PyrLK＋RANSAC homographyを持つ。Insert／Removeの製品操作とruntime受入は未完。
+
+## 現行コード監査 (2026-08-15)
+
+`MotionTracker::computePlanarHomography()` はShi-Tomasi特徴点、PyrLK追跡、RANSAC、ECC fallback、信頼度計算を含み、Planarモードではhomographyなしのpoint-flowへ暗黙fallbackしない。homographyはフレーム結果とJSONへ保存され、Corner Pin keyframe書き出しとTrackPoint UIの切替も現行コードで確認できる。`ArtifactCore.Tracking.PlanarTracker` には別の最小コア実装もある。一方、平面Insert／Remove、長尺シーケンスの再初期化・受入、追跡結果を通常レンダーへ適用するruntime parityは未確認である。
+
+## Update 2026-08-15
+
+- `MotionTracker::computePlanarHomography()` の Shi-Tomasi／PyrLK、RANSAC、ECC fallback、confidence、JSON 保存、Corner Pin keyframe 書き出し、TrackPoint の Planar 切替を再確認。
+- `ArtifactCore.Tracking.PlanarTracker` の独立コア実装も存在するが、Insert／Remove の製品操作、スプライン ROI 編集、自動 plane 提案、3D camera solver 接続は未確認。
+- 長尺シーケンスの再初期化、追跡結果の通常 render 適用、runtime parity／受入は未完了・未検証。
 **狙い**: 平面（ビルボード、壁、床など）を4点で囲み、その変形をトラッキングしてホモグラフィ行列を出力する
 
 ---

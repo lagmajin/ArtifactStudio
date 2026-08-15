@@ -1,6 +1,10 @@
 # Milestone: App Empty State Guidance
 
 > 2026-05-17 作成
+> 2026-08-15 現行コード監査
+
+**最終更新:** 2026-08-15
+**Status:** 主要 surface の action-first 案内は実装済み、全体の語彙統一と runtime 視認性確認が未完了
 
 ArtifactStudio 全体の empty state を、ただの「何もない場所」ではなく次の行動が読める案内として揃えるマイルストーン。
 
@@ -135,3 +139,12 @@ Phase 1 の対象 surface を確定し、`No selection` / `No file selected` / `
 - Contents Viewer には `Open a file to inspect it, or choose a recent source` の action-first な未読み込み案内が既に存在することを確認した。複数 surface 間の語彙完全統一と runtime 確認は未完了として残す。
 - Project View には `drawProjectViewEmptyState()` による空一覧描画が既に存在することを確認した。文言を `No project items to show` と `Adjust the search or filters, or import assets and create a composition.` に整理し、初期空状態とフィルタ結果 0 件の両方に成立する案内へ更新した。surface 間の文言統一と runtime 視認性確認は未完了として残す。
 - Inspector は `Select a layer or composition effect to edit properties`、Timeline は `Open a composition to view layers` / `Select a layer to continue` を既に持ち、主要な未選択・未前提状態は action-first になっていることを確認した。surface 間の完全な語彙統一、tooltip／placeholder の総点検、runtime 視認性確認は未完了として残す。
+
+## 2026-08-15 現行コード監査
+
+- Project View、Asset Browser、Contents Viewer、Inspector、Timeline、Composition Editor、Preview／Render Inspector の空状態に action-first 文言と owner-draw／overlay の表示経路を確認した。
+- `Open a composition`、`Select a layer`、`Open a file`、`Import or drop files here` など、次の操作を示す案内は主要 surface に広がっている。
+- ただし `No project`、`No layer selected`、`No job selected` など状態表示中心の文言も残っており、全画面で語彙が統一されたわけではない。これは API／shell のエラー文言と UI helper text を分けて整理する必要がある。
+- tooltip／placeholder の全件監査、表示密度、複数 viewport の空状態、runtime 視認性は未検証。
+
+判定: **主要 UI の empty state guidance は実装済み。全 surface の語彙統一、helper／tooltip 整理、runtime 視認性検証は pending。**

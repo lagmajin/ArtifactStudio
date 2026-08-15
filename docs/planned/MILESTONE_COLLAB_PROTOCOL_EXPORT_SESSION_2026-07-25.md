@@ -1,9 +1,16 @@
 # MILESTONE_COLLAB_PROTOCOL_EXPORT_SESSION_2026-07-25
 
-**ステータス:** Partial（protocol export、session ID、rule sync API を実装済み。server bridge、UI 状態表示、競合解決、認証、runtime 検証は未完了）
+**最終更新:** 2026-08-15
+**ステータス:** protocol export、session ID、rule sync API は実装済み。server bridge、UI状態表示、競合解決、認証、runtime検証は未完了。
 **対象:** `ArtifactCore/src/Collaborate/CollaborationProtocol.cppm`, `ArtifactCore/include/Network/CollaborationWebSocket.ixx`, `ArtifactCore/src/Network/CollaborationWebSocket.cppm`
 **位置づけ:** M-COLLAB-1 の後続。孤立していた `CollaborationProtocol` を export 化し、`CollaborationWebSocket` と接続。セッション管理を追加する。
 **作成日:** 2026-07-25
+
+## 現行コード監査 (2026-08-15)
+
+`Collaborate.Protocol` は `CollaborationMessage`／`CollaborationProtocol` を export し、8種のメッセージ型、session ID、rule sync の serialize／deserialize を提供している。`CollaborationWebSocket` は生成した session ID を join／operation／lock／presence／rule sync の送信へ含め、受信時の rule_added／removed／updated／executed dispatch も実装済みである。
+
+旧文書の protocol export・session 管理・rule sync API の未完了判定は現状と一致しない。一方、`tools/collaboration-server` 側に rule sync の中継を確認できず、UIの状態表示、競合解決、認証／TLS、サーバーとの実接続受入は未完了として残す。
 
 ## 1. 目的
 

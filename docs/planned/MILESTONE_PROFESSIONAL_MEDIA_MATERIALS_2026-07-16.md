@@ -1,6 +1,7 @@
 # Professional Media Materials Support (2026-07-16)
 
 **Status:** Phase 1〜3 integration foundation implemented / Phase 4〜5 partial and runtime validation pending
+**最終更新:** 2026-08-15
 **ID:** M-PRO-MEDIA-1
 
 ## Goal
@@ -104,3 +105,23 @@ explicit interpretation and later display conversion.
 
 - ImageLayer の生成・保存／復元・明示 interpretation 変更時の raw 再読込と working-space 再適用まで確認できるため、Phase 3 は実装済みとして扱う。
 - display/output transform の独立適用、OCIO／ACES の実運用経路、EXR／HDR／10／12／16-bit／log の round-trip は引き続き未完了・未検証である。
+
+## 2026-08-15 現行コード監査
+
+- `ArtifactImageInitParams`、`ArtifactProjectService`、`ArtifactLayerFactory`、`ArtifactImageLayer` の経路で、FootageItem の input color space / transfer を静止画・連番へ渡し、JSON 保存・復元し、明示値がある場合だけ input→working-space 変換を適用する実装は確認できる。Phase 1〜3 の静的実装判定は維持する。
+- `ArtifactOCIOManager::applyInputTransformToWorkingImage()` と `applyViewTransformToImage()` は存在し、RGB と alpha を分離して HDR 値を不用意に clamp しない境界がある。`ArtifactFinalPostProcess` にも working-to-display 行列の保持経路がある。
+- ただし、プレビュー・書き出しの全経路で display/output transform が一貫して一度だけ適用されること、実 OCIO/ACES config による運用、working image の実データが effects／mask／compositing 前に必ず統一されることはコードだけでは受入れ確定できない。
+- OIIO の EXR／HDR／16-bit と source metadata 保持は静的に確認できるが、10/12/16-bit、代表的 log、HDR の実ファイル round-trip、再読込後の二重変換防止、EXR/HDR export の実測記録は見当たらない。
+- よって現状は `Phase 1〜3 static implementation confirmed / Phase 4〜5 partial and runtime validation pending` とする。次の確認対象は、実素材を使った入力解釈→working→preview/export の一貫性と、display transform の二重適用・alpha 汚染・HDR clamp がないこと。
+
+## Update 2026-08-15
+
+- `ArtifactFinalPostProcess::apply()` が view transform 有効・LUT未設定時に成功扱いを返していたため、実際に出力を書き込めない場合は `false` を返すよう修正した。
+- これにより、呼び出し側が未初期化／古いpost-process出力を変換済み結果として採用する誤経路を防ぐ。
+- OCIO／ACESの実変換、実素材のround-trip、runtime検証は未実施。
+
+## Update 2026-08-15 — viewport transform clear state
+
+- `ViewportColorPipeline::clear()` で LUT だけでなく `ArtifactFinalPostProcess` の view-transform enabled 状態も解除するようにした。
+- 表示設定／OCIO config を無効化した後に、古い display-transform state が残る可能性を減らした。
+- 実 OCIO config、HDR／log 実素材 round-trip、各 preview／export 経路の runtime 受入は未完了。

@@ -1,5 +1,13 @@
 # マイルストーン: Layer Components - Physics / Behavior
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+旧文書の「Physics／Behavior は共通 surface として未存在」という判定は現状とずれています。`ArtifactAbstractLayer` は collision／rigid body／soft body／fluid 等の component descriptor と property group、JSON 保存・再読込、bounds 同期を持ち、`PhysicsSystem` は rigid／soft body、collider、snapshot／restore、LOD 設定を管理します。Composition の frame evaluation から collision pair と physics snapshot を評価し、layer の変形／描画側にも接続されています。
+
+一方、文書が想定する layer-local spring／follow-through は現行の `Motion`／`Physics` property group と既存の Motion Dynamics preset で実装済みです。未確認なのは behavior trigger／rule／note の共通契約、Inspector での独立 Behavior surface、preset の共通化、全 layer type の runtime parity です。現状は **Physics／Collision／Motion Dynamics 実装は進行済み、Behavior と共通 surface は未完了・未検証**と判定します。
+
 > 2026-03-28 作成
 
 ## 目的

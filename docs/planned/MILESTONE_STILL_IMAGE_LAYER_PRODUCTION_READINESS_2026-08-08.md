@@ -1,14 +1,24 @@
 # MILESTONE: 静止画レイヤー Production Readiness
 
-**最終更新:** 2026-08-08
+**最終更新:** 2026-08-15
 
-**ステータス:** In Progress
+**ステータス:** Static implementation partial / runtime acceptance pending
 
 **識別子:** M-IMG-1
 
 ## 目的
 
 `ArtifactImageLayer` を、画像を表示できる段階から、実制作で安心して使える静止画レイヤーへ引き上げる。読み込み、表示品質、変換、マスク、合成、保存／再読込、プレビュー安定性を一つの受入経路として閉じ、静止画を後続の連番画像・画像処理・3D合成の基準素材にする。
+
+## 現行コード監査 (2026-08-15)
+
+静止画の入力境界、非同期 decode、source version/generation 検証、入力色解釈別 cache、metadata 保存、CMYK／alpha semantics、巨大画像制限、placeholder 失敗遷移は実装根拠を確認できる。GPU texture／layer surface cache も source version と入力色解釈を key に含め、Frame Debug の cache 診断へ接続されている。`ArtifactProjectManager` の project root／assets API に加え、project exporter/importer が source path／sequence path の `*Relative` キーを保存し、project directory 基準で復元する経路も確認できる。保存済み Preview／Render Queue フレームの画素差を確認する比較ハーネスも追加したが、実素材での一致判定、保存／再読込の runtime 往復、source 更新・missing・relink の runtime 受入は未検証であり、完了条件は未達とする。
+
+## Update 2026-08-15
+
+- `ArtifactImageLayer` の非同期 decode、generation／source version 検証、入力色解釈を含む共有 cache key、失敗時 placeholder、`ImageF32x4_RGBA` 保持を現行実装で再確認。
+- project exporter/importer の `sourcePathRelative`／`sequencePathRelative` と project directory 基準の復元経路も確認でき、保存境界の静止画対応は前進している。
+- 一方、実素材での Preview／Render Queue 一致、保存・再読込、source 更新・missing・relink、GPU cache invalidation の runtime 受入は未実施。Production Readiness は static partial のまま。
 
 ## 背景と責務
 

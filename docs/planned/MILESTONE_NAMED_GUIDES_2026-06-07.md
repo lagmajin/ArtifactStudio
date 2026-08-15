@@ -2,6 +2,14 @@
 
 日付: 2026-06-07
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+- `GuideDefinition`／`GuideSet`／`GuideBinding` の name・purpose 相当の semantic tag、orientation／position／enabled／priority、JSON 保存復元、semantic／enabled filtering を再確認した。Project と Construction Layer の guide set に保持され、Smart Guides が Construction Layer の enabled guide を snap 候補へ取り込む。
+- View の guide 表示／snap toggle と toolbar／shortcut の導線も存在する。ただし `GuideBinding` を使った layer の follow／relative offset 解決、優先順位を考慮した実際の追従、用途別自動配置、Content Bounds／Collision-Aware Layout 連携は未確認。
+- 現状判定は Phase 1 実装済み、Phase 2 表示・snap 部分実装、Phase 3 未完了で、前回監査から大きな変更は確認できない。
+
 ガイドを単なる線ではなく、名前付き・用途付きの永続的な参照として扱う。
 
 ## 2026-07-25 実装監査

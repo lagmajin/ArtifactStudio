@@ -1,5 +1,20 @@
 # M-DEV-1 Crash Diagnostics & Recovery (2026-03-15)
 
+**最終更新:** 2026-08-15
+
+**現状:** 診断収集・クラッシュ記録・safe mode 起動入口は実装済み。完全なダンプ／スタック解決、復旧 UI、実クラッシュ QA は未完了。
+
+## 2026-08-15 現行コード照合
+
+- ✅ `CrashHandler::captureStackTrace()` は Windows の `CaptureStackBackTrace` を使ったアドレス列収集を実装済み。symbol 解決や minidump は未実装のまま。
+
+- ✅ `CrashHandler` は Windows の unhandled exception filter を install し、`crash_reports` へ timestamp 付き report を保存する。起動時の pending report ingest と `TraceRecorder`／`SessionLedger` への記録も `AppMain` から接続されている。
+- ✅ `Core.Diagnostics.CrashReportParser` は保存 report を `DiagnosticSnapshot` へ変換し、`CoreDiagnostic.Test.cppm` に parser／ingest の contract test がある。
+- ✅ `Trace` は crash／thread／event の履歴を JSON 化でき、App Debugger／Trace Timeline が直近 crash と履歴を表示・出力する。render path には任意の crash trace logging もある。
+- ✅ `--safe-mode` の起動フラグ入口は存在する。
+- ⚠️ `CrashHandler::captureStackTrace()` は現状プレースホルダー相当で、完全な symbolized stack／minidump、主要オブジェクトの安全な snapshot、既知クラッシュの再現 QA は未達。
+- ⏳ safe mode のユーザー向け recovery guidance、診断パッケージ送信 UI、実クラッシュからの end-to-end 検証は未完了。
+
 目的
 - アプリケーションで発生するクラッシュの根本原因特定を容易にし、ユーザに安全な回復手順を提供するための診断基盤とワークフローを整備する。
 

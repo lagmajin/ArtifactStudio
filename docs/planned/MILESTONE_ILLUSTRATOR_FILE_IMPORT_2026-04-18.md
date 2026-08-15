@@ -1,5 +1,13 @@
 # マイルストーン: Illustrator AI Transfer / Import Bridge
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+`.ai`／`.pdf`／`.eps`／`.svg`／Affinity 拡張子の判定、`VectorSourceKind`／`VectorImportResult` の共通契約、Asset Database への登録、vector metadata の保存は実装済みです。PDF-compatible AI は `FileTypeDetector` で PDF header を扱い、Asset Browser／Project 側の通常 asset 導線へ載せられます。
+
+ただし `VectorAssetFile` は現状 path／拡張子／readability／preview readiness を基にした骨格 result で、実 parser、page／artboard・node tree 抽出、unsupported feature report、editable shape／text／image conversion、`Place As Preview`／`Convert To Editable Layers` の専用 UI 導線は確認できません。したがって現状は **Asset ingest／metadata foundation のみ実装**で、v1 Done は未達です。
+
 作成日: 2026-04-18  
 更新日: 2026-06-06  
 対象: `ArtifactCore` + `Artifact` + `docs/planned/`

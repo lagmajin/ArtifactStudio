@@ -1,8 +1,8 @@
 # Agility SDK 1.619 / Diligent-safe Adoption Milestone
 
-**最終更新:** 2026-08-08
+**最終更新:** 2026-08-15
 
-**ステータス:** In Progress
+**ステータス:** Phase 0〜1 の基盤実装を確認済み。SM 6.9 の限定 opt-in と fallback は一部実装。Phase 2〜4 の全面的な受入れは未完了。
 
 ## 目的
 
@@ -11,6 +11,13 @@ ArtifactStudio が既に同梱している DirectX 12 Agility SDK 1.619 を前�
 当面の対象は静止画レイヤー、連番画像レイヤー、シェイプレイヤー、画像処理・レイヤー合成の compute path と診断機能とする。動画対応は対象外とする。
 
 ## 現状
+
+### 現行コード監査 (2026-08-15)
+
+- AppMain は Agility SDK 619 を公開し、CMake は retail `D3D12Core.dll` を配置する。
+- `DiligentDeviceManager` は device／DXC の Shader Model、DXC version、`D3D12_OPTIONS22`、1D dispatch 上限、tight alignment／periodic trim 等を一度取得して capability snapshot に保持する。
+- App Debugger は shader model／DXC／Options22／dispatch 上限を表示し、`InvertEffect` は capability 条件を満たす場合だけ 1D dispatch／SM 6.9 経路を選び、非対応時は既存経路へ戻す。
+- したがって Phase 0 は静的実装を確認済み、Phase 1 は限定的な実装済みと整理する。実機での DX12 runtime、4K/8K、出力一致、性能差、trim／timeline query の受入れは未確認。
 
 - `Artifact/src/AppMain.cppm` が `D3D12SDKVersion = 619` と `D3D12SDKPath = ".\\"` を公開している。
 - `Artifact/CMakeLists.txt` が retail 1.619 系の `D3D12Core.dll` を実行ファイルの隣へ配置する。

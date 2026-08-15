@@ -1,10 +1,11 @@
 # Composition Editor Mask / Roto Editing - Phase 1 Execution
 
+**最終更新:** 2026-08-15
 **Date**: 2026-05-12
 
 **Source**: The original design note referenced below is absent from the current inventory; this execution memo is tracked against the live `ArtifactCompositionEditor` / `ArtifactCompositionRenderController` implementation.
 
-**Status**: Phase 1 entry/routing implemented; full path editing and runtime verification pending
+**Status**: Phase 1 entry/routing implemented; substantial mask/path editing and undo paths are present, while full roto quality and runtime verification remain pending
 **Order**: 3 of 3
 
 ---
@@ -103,4 +104,11 @@
 
 ### 判定
 
-Phase 1 の entry bridge / mode routing / state sync は実装済みとしてマークする。full Roto の品質・入力競合・runtime parity は未検証として残す。
+Phase 1 の entry bridge / mode routing / state sync は実装済みとしてマークする。現行コードでは mask vertex / tangent の hit test、drag、delete、proportional edit、mask overlay、path vertex / tangent 編集、transactional Undo まで確認できるため、単なる入口実装という旧記述は更新する。ただし full Roto の品質、入力競合、保存・再読込 parity、runtime parity は未検証として残す。
+
+### 2026-08-15 現行コード監査
+
+- `ArtifactRenderLayerWidgetv2.cppm` に `EditMode::Mask`、mask/display mode、mask handle hit test、vertex/tangent drag、proportional drag、delete、mask overlay、Undo transaction が存在する。
+- 同ファイルには shape/custom path の vertex/tangent 編集と `PathVertexEditCommand` もあり、Phase 1 の「full path editing は次段」という前提を部分的に超えている。
+- `ArtifactCompositionRenderWidget.cppm` から Mask tool、Rotation、Anchor Point の入力 routing と mode 切替が確認できる。
+- ただし実機での pointer priority、複数 mask/path の編集、保存後の再読込、フレーム変化中の編集整合性はコード検索だけでは証明できない。

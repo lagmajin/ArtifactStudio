@@ -2,6 +2,16 @@
 
 > 2026-04-01 作成
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+現行コードでは、`ArtifactCore::EventBus`／`globalEventBus()` と subscription の基盤が稼働しており、Project Manager、Timeline、Property、Inspector、Composition Editor、Render、Asset Browser、各種 Menu などが `ProjectChangedEvent`、`CurrentCompositionChangedEvent`、`LayerChangedEvent`、`LayerSelectionChangedEvent`、`SelectionChangedEvent`、`FrameChangedEvent` を購読している。`ArtifactProjectService`、`ArtifactPlaybackService`、`ArtifactAbstractComposition` などからの publish も確認でき、文書作成時の「移行を始める」段階は既に超えている。
+
+一方、イベント名・責務は文書の想定と完全には一致しない。実装では `LayerSelectionChangedEvent`、`PlaybackStateChangedEvent`、`WorkAreaChangedEvent` などの既存型が中心で、各 widget の再描画／再集計処理も個別に保持されている。`ThumbnailUpdatedEvent`、`HistoryEntryAppendedEvent`、`SearchResultChangedEvent`、`KeyframeChangedEvent`、`DiagnosticsStateChangedEvent` を全 widget 共通の移行マトリクスとして運用していること、debounce／coalesce の共通契約、購読解除・ライフサイクル・重複通知の runtime 受入まではコード検索だけでは確認できない。
+
+判定は「主要な project／composition／layer／selection／frame の EventBus 移行は実装済み、補助イベントの横断統一と通知品質の受入は未完了」とする。Qt signal を新規追加する課題ではなく、既存 EventBus 経路の責務整理と重複・頻度の検証を残課題とする。
+
 ## 目的
 
 `ArtifactCore::EventBus` を使って、複数 widget にまたがる状態変化の配信を段階的に切り替える。

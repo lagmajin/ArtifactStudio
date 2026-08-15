@@ -1,5 +1,8 @@
 # 自前コレクションライブラリ 全体設計 (2026-07-04)
 
+**最終更新:** 2026-08-15
+**Status:** HashMap／Optional／Atomic／Span／Variant など一部基盤は存在するが、Array／String／Ptr 等の全面置換は未達
+
 > std も Qt も使わない。純粋 C++20。`ArtifactHashMap` と同じ哲学。
 > 依存: `<cstddef>`, `<cstdint>`, `<cassert>`, `<new>`, `<utility>` のみ。
 
@@ -168,6 +171,12 @@ public:
 ## 実装方針
 
 - 全型 `.ixx` にテンプレート実装を含める（ヘッダオンリー）
+
+## 2026-08-15 現行実装監査
+
+- `ArtifactHashMap`、`ArtifactOptional`、`ArtifactAtomic`、`ArtifactSpan`、`ArtifactVariant` の既存自前型は確認できる。
+- 一方、プロジェクト／Asset の Folder／Collection 機能とは別の「標準コンテナ置換」設計であり、`std::vector`／`std::string`／smart pointer 等の公開 API 全体はまだ残っている。
+- `Array`、`String`、`Ptr`／`Ref`、Mutex／Callback／Set への段階移行、ABI／module 境界の統一は未完了。既存の std replacement scaleout 文書と整合させて追跡する。
 - メモリ: `new`/`delete` のみ。アロケータ抽象化はしない（シンプルさ優先）
 - 例外: 使用しない。失敗は assert または `Optional` で表現
 - 既存の `HashMap`, `Optional`, `Atomic`, `Span`, `Variant` はそのまま流用

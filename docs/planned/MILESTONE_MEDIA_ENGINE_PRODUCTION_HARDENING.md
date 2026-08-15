@@ -1,6 +1,7 @@
 # MILESTONE: Media Engine Production Hardening
 
-**日付**: 2026-08-04
+**日付**: 2026-08-15
+**最終更新:** 2026-08-15
 **現状**: 動画デコード・シーク・カラーパイプライン・フレームキャッシュ・プロキシが独立して存在するが、いずれも決定的なボトルネックを抱えている。
 **目標**: ハードウェアデコード有効化 → フレーム精度シーク → カラーパイプライン直結 → キャッシュ統合 → 非同期プロキシ生成の順に各レイヤーを実用レベルに引き上げる。
 
@@ -13,6 +14,24 @@
 | **カラーパイプライン** | swscale → CV_8UC3→CV_32FC4→sRGB decode/encode の5コピー | AVColorSpace 完全無視。二重 sRGB 変換。VideoFrameColorInfo 未使用 |
 | **フレームキャッシュ** | レイヤー単位 120フレーム LRU + PlaybackService 128フレーム | **Global FrameCache が disabled**。スクラブ方向検知・先読み不在 |
 | **プロキシ** | 切り替えロジック・UI・シリアライズ完備 | 同期 QProcess（UIスレッドブロッキング）。外部 ffmpeg バイナリ依存。非同期生成不在。エクスポート時自動フル解像度切替不在 |
+
+## 現行コード照合（2026-08-15）
+
+- **P1 は未完了**。`MediaImageFrameDecoder` に Vulkan HW フレーム選択と安全な CPU ダウンロードの分岐はあるが、`directVulkanVideoFramesEnabled()` は timeline semaphore／Diligent 側の所有権同期不足を理由に `false` のまま。現状は直接 GPU 提示ではない。
+- **P2 は未完了**。`FFMpegVideoDecoder` は `av_seek_frame(..., AVSEEK_FLAG_BACKWARD)` 後に逐次デコードする実装で、Keyframe Index は確認できない。
+- **P3 は部分実装**。`DecodedVideoFrame` に色空間・レンジ・primaries・transfer のメタデータを保持するが、FFmpeg の `sws_getContext` は固定 RGB24／BILINEAR で、色空間反映と二重変換回避は未完了。
+- **P4 は部分実装**。`ArtifactVideoLayer` の小容量 LRU と `ArtifactPlaybackService` の RAM preview／ディスクキャッシュ、世代無効化、キャンセル、再生中 fallback は存在する。一方、Global FrameCache は無効のままで、Encoded Packet Cache とスクラブ方向ベースの先読みは未実装。
+- **P5 は未完了**。現行のプロキシ生成は linked FFmpeg encoder／非同期管理／エクスポート時の一時フル解像度切替まで統合されていない。
+
+したがって、このマイルストーンは「動画基盤が存在する」段階から、P1〜P5 の hardening を残す **未完了（P3/P4 の一部のみ実装済み）** と判定する。
+
+## Update 2026-08-15
+
+現行コードと上記の統合監査を再確認した。動画対応は既存のデコード・キャッシュ・proxy 基盤があるものの、直接 GPU 提示、keyframe index、色空間を尊重した変換、global cache／先読み、非同期 proxy 生成のいずれも完了条件を満たす証拠はない。
+
+- `directVulkanVideoFramesEnabled()` が無効のため、Vulkan の実装部品が存在しても GPU 直結完了とは扱わない。
+- seek は backward seek 後の逐次デコード、proxy は同期／外部 FFmpeg 依存の経路が残っている。
+- 現状判定は **P3/P4 の部分実装のみ、P1/P2/P5 は未完了** を維持する。動画を優先対象へ戻す判断はせず、静止画・連番・シェイプ・合成・3D の基盤安定化後に再評価する。
 
 ### フレームの旅路（現状の全コピー）
 

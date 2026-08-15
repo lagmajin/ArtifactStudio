@@ -9,6 +9,13 @@
 **現状**: 既存型の多くは独自の `toJson()`/`fromJson()` を使用している。共通契約・マイグレーション・型レジストリの基盤は追加済みで、Exporter/Importer/Packager の単一文書経路と、Packager 設定時の composition 分割経路を接続済み。既存型の全面移行、レイヤー/アセット分割、typed envelope のプロジェクト実利用は未完了。既定のプロジェクトファイルは単一 JSON。
 **目標**: `ISerializable` 統一インターフェース、スキーマバージョン管理、前方互換マイグレーション、任意型のシリアライズレジストリ。
 
+## Update 2026-08-15
+
+- 現行ソースでは `ISerializable`、JSON adapter、typed registry、`SchemaMigrationRegistry`、JSON／CBOR document I/O、分割 document store、`ProjectSerializer` facade が存在する。既存の `ArtifactProjectExporter`／`Importer`／`Packager` から facade を利用する経路も確認できる。
+- `ArtifactAbstractComposition` は composition variant、layout、audio reactive、rig、surface FX などの adapter／migration 登録を行い、個別の `toJson()`／`fromJson()` も引き続き使用している。Rig2D、Marker、各種 layer の保存は現時点でも用途別 JSON 経路が主体である。
+- したがって Phase 1〜4 の基盤実装は現行コードと整合するが、「全型が `ISerializable` を実装」「typed envelope が既定プロジェクト形式」「レイヤー／アセットまで全面分割」「全ロードで自動 migration」は未達である。
+- `ArtifactProject` 自体の復元契約が未確定であること、既定ファイルが単一 JSON のままであることを含め、Phase 5 と全面移行は保留とする。現状は `foundation implemented / adapter-based partial migration / full project adoption pending` と判定する。
+
 ## 現状の問題
 
 | 問題 | 影響 |

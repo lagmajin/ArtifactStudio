@@ -1,8 +1,22 @@
 # MILESTONE: 3D Material System
 
-**Status:** Phase 1〜4 implemented, Phase 5/runtime verification pending
+**最終更新:** 2026-08-15
+**Status:** Material core、3D layer assignment、PBR texture input、shader/render 接続、Inspector／JSON は実装済み。高度機能の一部と runtime verification は pending。
 
 > 2026-03-31 作成
+
+## 現行コード監査 (2026-08-15)
+
+- `ArtifactCore::Material` は PBR の base color／emission／metallic／roughness／alpha、normal strength、occlusion、opacity、各種 texture path を保持する。
+- `Artifact3DModelLayer` は material を所有し、Inspector の Material group、JSON 保存／復元、importer 由来の metallic-roughness／normal／occlusion texture、透明材質判定、material signature を提供する。
+- CompositionRenderController／Diligent render window 側には PBR parameter、metallic-roughness／normal texture、opacity／depth 契約、Light Layer 連携が存在する。
+- したがって旧 Phase 1〜4 の「作成予定」は現状と一致しない。Layer Panel の 3D Material メニューに Matte／Metal／Plastic／Glass のプリセット適用を追加した。残りは Material Browser／asset 管理の独立導線、高度な mapping、実機での shading／透明境界／texture 更新受入れ。
+
+## Update 2026-08-15
+
+現行コードを追加確認した。`ArtifactCore::Material` は base color／emission／metallic／roughness／alpha、normal strength、occlusion、opacity、texture path を保持し、`Artifact3DModelLayer` の Inspector／JSON／import material 情報と接続されている。CompositionRenderController／Diligent renderer にはPBR parameter、metallic-roughness／normal texture、opacity／depth、Light Layer連携がある。
+
+未完了・未検証なのは、Material Browser／asset管理の独立導線、preset／高度なmapping、実機でのshading、透明境界、texture更新受入れである。基本Material／PBR接続は実装済み、拡張UXとruntime検証は pending とする。
 
 ## 目的
 
@@ -169,7 +183,7 @@ Phase 1 は material の器を先に作り、見た目の自由度を少しず�
 - `Artifact3DModelLayer` が material を保存・復元し、Property Editor の編集値を反映する。
 - base-color、metallic-roughness、normal、emission、occlusion、opacity texture の読み込み経路がある。
 - `MeshRenderer` が material constant buffer と PBR-like shader を使用して描画する。
-- Phase 5 の高度な normal/specular mapping、preset UI、および実機確認は未完了。
+- Phase 5 の高度な normal/specular mapping、独立した Material Browser／asset preset UI、および実機確認は未完了。
 
 ## Static audit follow-up (2026-07-25)
 

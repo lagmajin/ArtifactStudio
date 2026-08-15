@@ -1,6 +1,7 @@
 # MILESTONE: Loop Seam Checker
 
 日付: 2026-06-07
+**最終更新:** 2026-08-15
 
 ループアニメーションの最初と最後が自然につながっているかを検査し、継ぎ目を見つけやすくする。
 
@@ -104,3 +105,10 @@ Loop Seam Checker 固有の model／checker／UI／export warning を現行ソ�
 ### 現在の判定
 
 本マイルストーン固有の検査モデル、可視化、export feedback は未着手。既存の loop／seamless 機能だけでは完了条件を満たさないため、「計画段階」とする。
+
+## Update 2026-08-15
+
+- 現行コードを再確認したが、`LoopSeamChecker` 相当の first／last frame 比較、position／rotation／opacity／color／time-remap の mismatch model は確認できない。
+- Playback Control と Time Menu には loop の有効化導線があり、Procedural Texture には seamless 設定がある。ただし、これらは継ぎ目検査や品質スコアを提供するものではない。
+- 差分表示、適合度／warning UI、GIF・loop export 前の検査接続、修正候補提示も未実装相当である。
+- 判定は **Phase 1〜3 未着手／既存 loop 基盤のみ** を維持する。ビルド・テスト・runtime 確認は未実施。

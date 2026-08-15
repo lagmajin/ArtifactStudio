@@ -1,7 +1,14 @@
 # M-MOTION-3 Expression loopOut / loopIn Runtime (2026-06-02)
 
 日付：2026-06-02
+**最終更新:** 2026-08-15
 目標：Expression エディタの Copilot で提案される `loopOut("cycle")` などループ関数を、ExpressionEvaluator で実際に実行可能にする。
+
+## 現行コード監査 (2026-08-15)
+
+`ExpressionEvaluator` は `loopIn` / `loopOut` / `loopInDuration` / `loopOutDuration` を登録しています。`loopValue()` は `keyframes`、`time`、`value` を読み、空・単一キーのフォールバック、時刻順ソート、`cycle` / `pingpong` / `continue` / `offset`、duration と keyframe count を処理します。`AbstractProperty::evaluateValue()` からも keyframes / time / value が評価コンテキストへ渡されます。
+
+旧記述の「loopIn / loopOut の runtime 未実装」は現状と一致しません。残課題は、通常レンダー経路での実行時挙動、time remap との組み合わせ、ベクター／配列値、After Effects 互換の境界ケースを実行確認できていない点です。
 
 ---
 

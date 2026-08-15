@@ -1,6 +1,7 @@
 # MILESTONE: AI Color Grading Suggestion
 
 作成日: 2026-04-21
+最終更新: 2026-08-15
 
 ## 目的
 
@@ -127,3 +128,23 @@ color grading の候補を返せるようにする。
 ## 2026-07-25 実装監査
 
 入口として想定された ColorSciencePanel／ColorGradingEngine／LUT 管理は存在するが、`AIColorAnalysisContext`／`AIColorAnalysisResult`／`ColorGradingSuggestionRequest`／`ColorGradingSuggestionCandidate` の専用型と、単一ショットの統計抽出から候補生成までの実装は確認できない。提案比較UI、適用前プレビュー、元設定へ戻す導線、sequence分析やfeedback学習も未確認である。したがって Phase 1〜4 は未実装・runtime未検証とする。
+
+## 2026-08-15 現行コード監査
+
+- `ArtifactColorGradingEngine` の `ColorGradingSuggestion`、`suggestGrading()`、`applySuggestion()` と、Color Science／LUT／preset の既存経路を確認した。
+- これはルール／統計ベースの grading suggestion 基盤であり、AIColorAnalysisContext 等の専用 AI 契約、単一フレーム解析から候補比較までの独立 workflow は確認できない。
+- 適用前 preview、before／after 比較、Undo を含む提案 UI、selected layer／frame context の自動接続は未確認。既存の color settings／LUT UI は再利用可能な土台として扱う。
+
+判定: **ColorGradingEngine の suggestion／apply 基盤と既存 Color Science UI は実装済み。AI 解析契約、候補比較 UI、context 接続、runtime 検証は pending。**
+
+## Update 2026-08-15
+
+現行コードを追加確認した。`ArtifactColorGradingEngine` の `ColorGradingSuggestion`、`suggestGrading()`、`applySuggestion()` と、Color Science／LUT／preset の既存編集経路が存在する。これはルール／統計ベースの suggestion／apply 基盤であり、既存の色設定を再利用できる。
+
+一方、`AIColorAnalysisContext` 等の専用AI契約、単一フレーム統計から候補比較へ至る独立workflow、適用前preview、before／after比較、提案Undo、selected layer／frame contextの自動接続は未確認。AI解析、候補比較UI、runtime受入れは pending とする。
+
+## Update 2026-08-15
+
+`ArtifactColorGradingEngine` に `AIColorAnalysisResult` と `analyzeSamples()` を追加した。有限な色サンプルから平均輝度、輝度レンジ、平均彩度、赤青差による色温度偏り、暗部／ハイライト比率を read-only に収集し、既存の `suggestGrading()` へ渡せる Phase 1 の解析契約を確保した。空入力・非有限値は安全に無効結果として扱う。
+
+AI context、LUT／preset を含む候補比較、適用前 preview／Undo、UI接続、runtime受入れは引き続き pending。

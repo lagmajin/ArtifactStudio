@@ -1,6 +1,7 @@
 # Milestone: GPU Mask Cutout Compute Pipeline (2026-04-03)
 
-**Status:** Phase 1-2 foundation implemented; composition integration/runtime verification pending
+**最終更新:** 2026-08-15
+**Status:** mask texture／cutout／path rasterizer／track matte の GPU foundation 実装済み、composition 統合と runtime parity 待ち
 **Goal:** レイヤーマスクの適用を compute shader 経由に寄せ、`cv::Mat` 前提の CPU 切り抜きを段階的に減らす。
 
 ---
@@ -148,8 +149,28 @@
 ## Notes
 
 - 現状の `LayerMask::applyToImage()` は壊さない。
+
+## 現行コード監査 (2026-08-15)
+
+- `MaskCutoutPipeline` に mask texture upload/cache、alpha／matte mode、compute dispatch の経路があり、`MaskPathRasterizerPipeline` に path segment から mask texture を生成する経路がある。
+- `LayerBlendPipeline` には track matte の compute executor、複数 matte source、resource alias／dimension validation、fallback diagnostics がある。ROI／texture cache と組み合わせる前提も確認した。
+- ただし、preview／playback／export の全 composition 経路で GPU cutout が標準利用されること、CPU rasterizer との画素 parity、cache invalidation、失敗時 fallback の runtime 表示は未検証。
+
+判定: **GPU mask／path／matte の foundation は Phase 1–4 まで進展。通常 composition 統合、CPU/GPU parity、runtime 受入れは pending。**
 - 最初は GPU 版を追加し、切り替え可能にする。
 - path rasterization の GPU 化は「できるか」ではなく「必要になったらやる」段階に留める。
+
+## 2026-08-15 現行コード追加確認
+
+- `ArtifactCompositionRenderController` は `MaskCutoutPipeline` を遅延生成・初期化し、GPU track matte では matte source を先に収集して `applyTrackMatte()` へ渡す実装がある。したがって「GPU機能が未接続」という旧記述は現状には当たらない。
+- ただし、`MaskCutoutPipeline` の初期化確認と track matte 経路は確認できる一方、通常の `LayerMask::applyToImage()` を全 preview／playback／export でGPU cutoutへ置換した証拠はない。GPU cutout失敗時のCPU fallbackも、経路ごとの統一契約としては未確認。
+- `MaskPathRasterizerPipeline` は独立した compute API として存在するが、通常の mask path 編集・描画フローからの標準利用と CPU 画素 parity は未検証。ビルド・実行は実施していない。
+
+## Update 2026-08-15
+
+- Diligent 境界の現行実装を再確認し、`MaskCutoutPipeline` の mask texture upload／cache／compute apply、`MaskPathRasterizerPipeline` の path rasterize、`LayerBlendPipeline` の track matte executor と resource validation を確認。
+- `ArtifactCompositionRenderController` からの遅延初期化と track matte source 収集は実装済みだが、全 preview／playback／export が GPU cutout を標準経路として使うことまでは証明できない。
+- CPU／GPU の画素 parity、cache invalidation、backend 別の resource lifetime、失敗時 fallback の runtime 挙動は未検証。Diligent／D3D12／Vulkan の低レベル変更は行っていない。
 
 ## Static audit follow-up (2026-07-29)
 

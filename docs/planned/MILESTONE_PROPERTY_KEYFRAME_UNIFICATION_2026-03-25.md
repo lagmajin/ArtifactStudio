@@ -1,5 +1,7 @@
 # Property Keyframe Unification
 
+**最終更新:** 2026-08-15
+
 ## Goal
 
 キーフレームの正を `ArtifactCore::AbstractProperty` に一本化する。
@@ -188,3 +190,7 @@ derived layer でも同じ property cache を使って persistent property を�
 ただし、`ArtifactAbstractLayer` は `AnimatableTransform3D transform_` と persistent `AbstractProperty` を併存させ、TransformGizmo も AnimatableTransform3D を直接操作している。したがって transform の完全な単一 source-of-truth 化、全 derived layer／effect／mask／time remap の共通 path、Inspector の全行と Timeline／playback／gizmo の値一致、J/K の property path 共通ナビゲーション、reference linking の統合は未完了または未検証である。Graph Editor 相当の統合も確認できない。
 
 判定: **Phase 1〜2 と基盤接続は大きく進展。** Phase 3 は bridge として部分実装、Phase 4〜5 と transform／runtime の完全統合は継続中である。
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactPropertyWidget` の row は `AbstractProperty` の keyframe 状態、現在時刻の補間値、前後 keyframe navigation、Auto-Key／Undo 経路を利用し、旧 `keyFrameStore()` は現行コードで確認できない。Timeline／Workspace Automation も property path を中心に扱う。一方、`AnimatableTransform3D` と persistent `AbstractProperty` の併存、TransformGizmo の直接操作、effect／mask／time-remap の全経路統一、Graph Editor 相当の同期は未完了または runtime 未検証である。判定は従来どおり、基盤統合済み・完全な single source of truth は pending とする。

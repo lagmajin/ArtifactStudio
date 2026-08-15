@@ -31,6 +31,16 @@ Total: 35-50h
 - 基本的な質問に正しく応答
 - プロジェクト情報を提供可能
 
-## 2026-07-25 実装監査
+## 2026-08-15 現行コード監査
+
+`AIClient`／`AIChatWidget`、`AIContext`、local/cloud agent、MCP transport／bridge、tool schema／execution の基盤は現行コードで確認できる。`WorkspaceAutomation` と `CommandIRExecutor` は、プロジェクト／コンポジション／レイヤー／キーフレーム／レンダーキューの read/write 操作を登録し、AI クライアントから利用できる。
+
+一方、この文書の `AIBasicAssistant` 固有 API は存在せず、ドキュメント／コード検索を一貫した回答契約として提供する層、質問応答品質の受入、MCP 外部接続の実運用はコード検索だけでは証明できない。したがって Phase 1〜2 は統合基盤まで実装済み、Success Criteria は runtime／運用検証待ちとする。
+
+## Update 2026-08-15
+
+本マイルストーンは 2026-08-04 付で `MILESTONE_LOCAL_AI_CHAT_2026-04-01.md` に統合済みのため、ここでは新規の `AIBasicAssistant` 層を追加しない。現行の実装対象は Local AI Chat／AIClient／AIChatWidget／MCP／WorkspaceAutomation とし、実モデル推論、モデル配布、ドキュメント／コード検索契約、runtime受入れを統合先で管理する。
+
+## 2026-07-25 実装監査（履歴）
 
 AIClient／AIChatWidget、AIContext、local agent、cloud agent、MCP transport／bridge、tool schema／execution の基盤は実装を確認した。プロジェクト情報の snapshot と read-only tool、tool call の確認UIも存在する。一方、この文書の `AIBasicAssistant` 固有 API、ドキュメント／コード検索の一貫した提供契約、質問応答の品質、MCP経由の実運用接続は確認できない。したがって Phase 1〜2 は基盤部分実装、Success Criteria は未完了・runtime未検証とする。

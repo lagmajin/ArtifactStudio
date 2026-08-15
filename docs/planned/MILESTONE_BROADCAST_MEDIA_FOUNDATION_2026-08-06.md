@@ -1,6 +1,22 @@
 **最終更新:** 2026-08-06
 
+**現行コード監査:** 2026-08-15
+
 **ステータス:** In Progress
+
+## 2026-08-15 現行コード監査
+
+M1 の `TimeCode`／drop-frame API、EncoderSettings の精密 frame rate・開始 timecode、FFmpeg header への timecode 出力、proxy URI の online 状態、AudioSpectrum の True Peak 近似／LUFS gain、ColorLuminance の legal-range 検査、DNx／XDCAM 系 codec 名解決はコード上確認できる。字幕の SRT 基盤、既存の proxy／relink も別経路で存在する。
+
+ただし `FrameRate`・UI・実エンコーダー引数への drop-frame の完全接続、字幕トラックの一貫した編集／export、厳密な BS.1770／True Peak、OCIO を source of truth とした放送色管理、MXF／業務プロファイル単位の QC、SDI／共同編集は未完了。コード上の codec 名解決だけで納品対応完了とは判定しない。
+
+判定: **時間・proxy・軽量 audio/color 検査・codec 基盤は部分実装、放送納品品質と M2〜M7 の統合検証は pending。**
+
+## Update 2026-08-15
+
+`TimeCode`／drop-frame API、精密 frame rate、FFmpeg timecode header、proxy online state、AudioSpectrumのTrue Peak近似／LUFS gain、ColorLuminanceのlegal-range検査、DNx／XDCAM codec解決を現行コードで確認した。時間・proxy・軽量audio／color・codecの基盤は部分実装済みである。
+
+未完了・未確認なのは、FrameRate／UI／encoder引数へのdrop-frame完全接続、字幕の編集・export統合、厳密なBS.1770／True Peak、OCIOをsource of truthとした放送色管理、MXF／業務プロファイルQC、SDI／共同編集、実納品プロファイルのruntime検証である。
 
 # 業務メディア基盤マイルストーン
 

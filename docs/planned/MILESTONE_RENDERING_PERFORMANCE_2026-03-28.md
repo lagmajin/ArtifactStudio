@@ -1,9 +1,15 @@
 # レンダリング性能改善 Milestone
 
 **作成日:** 2026-03-28
-**更新日:** 2026-04-09
-**ステータス:** 一部実装済み ✅
+**更新日:** 2026-08-15
+**ステータス:** 性能基盤は大部分実装済み、数値目標と実機受入れは未完了
 **関連コンポーネント:** ArtifactIRenderer, CompositionRenderController, PrimitiveRenderer2D, PrimitiveRenderer3D
+
+## Update 2026-08-15
+
+- `PrimitiveRenderer2D` の solid circle 化、内容ベース texture cache／prune、ROI 基盤、非同期 readback ring、Render Queue の float round-trip 削減を現行状態として確認。
+- `CompositionRenderController` の coalescing／差分 invalidation 基盤も存在するが、全経路での signal storm 抑制と full recompose 回避は runtime 未確認。
+- 不要な GPU readback の完全撤去、cache 閾値の妥当性、60fps／p95 frame time／memory bandwidth などの数値目標は未測定。性能基盤は部分的に実装済み、実機受入 pending とする。
 
 ---
 
@@ -117,8 +123,8 @@
 **問題:**
 - プロパティ 1 回の変更で 2〜3 回のフルレンダリング
 
-**ステータス:** ❌ 未実装  
-**工数:** 2-3 時間
+**ステータス:** ✅ 基盤実装済み、全経路のruntime受入れ待ち
+**工数:** 追加検証 2-3 時間
 
 ---
 
@@ -130,8 +136,8 @@
 - 毎フレーム GPU→CPU の読み戻し
 - CPU ブロッキング
 
-**ステータス:** △ 部分実装  
-**工数:** 3-4 時間
+**ステータス:** ✅ 非同期readback／リングバッファ実装済み、不要経路の完全撤去は未完了
+**工数:** 追加整理・検証 3-4 時間
 
 **補足:**
 - GPU readback 自体は残っている
@@ -145,8 +151,8 @@
 |-------|------|-----------|------|
 | **Phase 2** | ギズモ描画最適化 | ✅ 完了 | 3-4h |
 | **Phase 1** | テクスチャキャッシュ改善 | △ 部分解消 | 0-1h |
-| **Phase 3** | シグナルストーム防止 | ❌ 未着手 | 2-3h |
-| **Phase 4** | 不要な readback 削減 | △ 部分実装 | 3-4h |
+| **Phase 3** | シグナルストーム防止 | ✅ coalescing 基盤実装済み、runtime確認待ち | 2-3h |
+| **Phase 4** | 不要な readback 削減 | ✅ async／ring 基盤実装済み、同期経路の用途整理待ち | 3-4h |
 | **追加** | ROI システム基盤 | ✅ 完了 | 8-10h |
 | **追加** | ステータスバー表示 | ✅ 完了 | 2-4h |
 | **追加** | キーボードショートカット | ✅ 完了 | 4-6h |
@@ -195,13 +201,13 @@
 
 **合計工数:** 16-23 時間
 
-## Static Audit (2026-07-25)
+## Static Audit (2026-08-15)
 
-現行ソースでは、gizmo の描画集約、GPU readback 後の不要な float round-trip 削減、ROI、GPU texture/surface cache、LOD、RAM/frame cache、motion path cache、render graph/frame timing、GPU blend と CPU fallback の基盤が確認できる。`ArtifactCompositionRenderController` には property edit の render coalescing、interactive/draft 時の CPU effect 回避、cache hit/resource diagnostics の経路も存在する。
+現行ソースでは、gizmo の描画集約、GPU readback 後の不要な float round-trip 削減、ROI、GPU texture/surface cache、LOD、RAM/frame cache、motion path cache、render graph/frame timing、GPU blend と CPU fallback の基盤が確認できる。`ArtifactCompositionRenderController` には property edit の render coalescing、interactive/draft 時の CPU effect 回避、cache hit/resource diagnostics の経路も存在する。直近のコードでは、選択範囲／ラッソ操作やマスク一括編集も同じ描画更新経路に接続されている。さらに、typed buffer が利用可能な非GPUキャッシュ面のライト適用では、QImage 往復を避ける float 経路を追加した。GPU Render Queue の通常／単発出力では `readbackToImageF32()` とtyped-buffer最終エフェクト経路を接続し、出力直前までQImage化を遅延している。
 
 ただし、文書の 60fps、GPU call 数削減率、cache hit 率、メモリ削減率といった数値目標は測定証拠がなく、完了とは判定しない。signal storm の全経路、毎フレーム readback の完全撤去、OpenCV CPU hot path の移行、全レイヤーでの typed buffer/cache 一貫性、実機 profiling は未検証である。QImage の UI/互換経路と GPU readback は残っている。
 
-判定: 最適化基盤は substantial、数値目標と残存 hot path の runtime acceptance は未完了。
+判定: 旧文書の「約50%」は現状を過小評価しているため更新した。最適化基盤は substantial だが、数値目標と残存 hot path の runtime acceptance は未完了で、完了扱いにはしない。
 
 ---
 

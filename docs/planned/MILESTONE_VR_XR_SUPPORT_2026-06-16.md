@@ -1,7 +1,8 @@
 # M-XR-1 VR / XR Support Milestone
 
 作成日: 2026-06-16
-ステータス: Draft
+**最終更新:** 2026-08-15
+ステータス: Cameraのstereo preview基盤は部分実装、OpenXR／HMD／6DoF controllerは未実装
 対象: `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`,
       `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`,
       `Artifact/src/Render/ArtifactIRenderer.cppm`,
@@ -52,6 +53,21 @@ VR / XR での immersive editing は **次の制作環境の標準**。現状は
 | HMD view matrix | 0 hit | pose tracking なし |
 | Immersive viewport | 0 hit | VR viewport widget 不在 |
 | 6DoF controller | 0 hit | controller 入力 (Touch / Index / Vive) なし |
+
+## Current implementation audit (2026-08-15)
+
+現行コードを確認した。OpenXR session／runtime検出、HMD pose、XR viewport、swapchain submit、6DoF XR controller の実装は確認できない。一方、`ArtifactCameraLayer` には `StereoMode::Mono／TopBottom／SideBySide`、IPD property、projection options、Inspector property、`cameraStereoMode` の JSON 保存が存在する。
+
+| 項目 | 現行コードで確認できた実装 | 判定 |
+|---|---|---|
+| Stereo camera settings | Camera layer の stereo mode、IPD、projection property と persistence | 部分実装。HMD pose由来のeye viewではない |
+| OpenXR foundation | `OpenXRSession`、OpenXR loader/runtime detection、session lifecycle は未確認 | 未実装 |
+| HMD / view matrix | HMD pose、left/right eye view、runtime tracking は未確認 | 未実装 |
+| Stereo render / swapchain | 既存 camera stereo設定はあるが、OpenXR swapchainへの両眼submit経路は未確認 | 未実装／未確認 |
+| XR viewport / controller | `ArtifactXRViewport`、6DoF XR controller mapping、floating immersive editor は未確認 | 未実装 |
+| Persistence / diagnostics | camera stereo modeの保存はあるが、`vrMode`／XR session diagnostics／旧project fallbackは未確認 | 部分実装 |
+
+**更新後の判定**: M-XR-1 は OpenXR foundation未着手のまま。既存の stereo camera property をPhase 2の前段資産として扱い、次はoptional OpenXR runtime detectionとmono fallbackの境界を先に作る必要がある。Stereo設定の存在だけではXR対応完了とは扱わない。
 
 ---
 

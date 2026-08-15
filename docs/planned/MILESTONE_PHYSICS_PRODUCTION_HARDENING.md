@@ -4,6 +4,12 @@
 **現状**: 8 ソルバーすべてプロトタイプ品質（平均 45%）。MPM と SoftBody は `PhysicsSystem` 経由で layer 統合済み。他は孤立。
 **目標**: MPM + SoftBody を最初の production-ready ソルバーにし、Boids + Fluid + Pyro を後続で GPU 加速 + レンダリング統合する。
 
+## 現行コード監査 (2026-08-15)
+
+`MpmSolver2D.cppm`、`SoftBodySolver.cppm`、`Physics2D.cppm`、`FluidSolver2D.cppm`、`SandSim2D.cppm`、`FractureEngine.cppm` は現行ツリーに存在する。`PhysicsSystem.cppm` には layer ID 単位の rigid world／soft body／material solver、snapshot、LOD と、`ArtifactAbstractLayer`／composition からの登録・復元経路がある。したがって「MPM と SoftBody だけが統合済み」という冒頭記述は現状を単純化しすぎている。
+
+一方、文書が想定する `PyroSolver.cppm`／`BoidsSolver.cppm` は存在せず、Pyro は `Simulation/PyroSimulation.cppm`、Boids／Sand の GPU 資産は `Graphics/BoidsCompute.cppm`／`Graphics/SandGPUCompute.cppm` に分かれている。`MpmBackend`／`stepOnceGPU` の専用 GPU API、全 solver 共通の production backend 契約、Pyro／Boids の layer・render 接続は確認できない。よって MPM／SoftBody／PhysicsSystem の CPU 基盤と一部 GPU compute 資産は存在するが、production-ready 化、GPU parity、全 solver の layer／render 統合、runtime 検証は pending と判定する。
+
 ## 現状サマリ
 
 | ソルバー | 行数 | CPU/GPU | Layer統合 | 品質 |

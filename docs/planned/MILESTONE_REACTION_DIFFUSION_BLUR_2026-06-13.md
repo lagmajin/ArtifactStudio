@@ -130,3 +130,9 @@
 ### 追加静的確認
 
 `ArtifactInspectorWidget.cppm` の effect catalog、`ArtifactEffectService.cppm` の factory／catalog、`ReactionDiffusionBlurEffect.ixx`／実装の三者が `reaction_diffusion_blur` を共有しているため、Rasterizer effect としての登録・生成導線はソース上確認できる。未完了なのは、登録ではなく persistent な時間状態、transition 経路、GPU化、preview／final 契約、プリセットである。
+
+## Update 2026-08-15
+
+- `ReactionDiffusionBlurEffect` の CPU Rasterizer 経路、Gray-Scott 風 U/V 更新、Gaussian blur との混合、編集プロパティ、factory／catalog 登録を再確認した。
+- 現行実装は各適用で格子を初期化するため、フレームをまたぐ persistent state や前フレームから次フレームへの transition は未接続。GPU solver、preview／final 反復契約、cell split／ripple dissolve 等の preset／専用 UI も未確認。
+- 判定は変更なし: **Phase 1〜2 の CPU 基盤は実装済み、Phase 3〜4 と時間状態・GPU化・runtime受入は未完了。ビルド・実行確認は未実施。**

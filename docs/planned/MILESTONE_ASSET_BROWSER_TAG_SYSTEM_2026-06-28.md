@@ -1,11 +1,12 @@
 # Milestone: Asset Browser Tag System (M-AB-12)
 
+**最終更新:** 2026-08-15
 **マイルストーンID**: M-AB-12
 **作成日**: 2026-06-28
 **優先度**: P2 (Medium)
 **推定工数**: 2-3日
 **カテゴリ**: Asset Browser / Metadata / Organization
-**状態**: Planned
+**状態**: 未実装（共通 metadata/tag 型は部分的に存在するが、Asset Browser の tag workflow は未接続）
 **依存**: M-AB (Asset Browser base), M-AB-11 (Advanced Sort)
 
 ---
@@ -19,11 +20,9 @@
 ## 背景
 
 ### 現状
-- アセットブラウザーには`AssetMenuItem`構造体があるが、タグ機能は未実装
-- 既存のフィルタリングはファイルタイプ、ステータス、検索文字列に限定
-- `ArtifactAssetBrowser.cppm`の`applyFilters()`はカテゴリベースのフィルタリング
-- お気に入り（Favorites）機能はあるが、カスタムタグは未実装
-- タグベースの整理機能なし
+- Asset Browser の現行 filter はファイルタイプ、status、検索文字列が中心で、asset tag による filter/assignment は確認できない。
+- `ArtifactAssetMetaFile` の tags、`MultipleTag`、Project の AI tags など共通・周辺のタグ表現は存在するが、Asset Browser の project-scoped custom tag database / editor には接続されていない。
+- Favorites は status として存在するが、ユーザー定義タグ、tag cloud、tag group、import/export は未実装。
 
 ### 要件
 - **Tag Management**: タグの作成、編集、削除
@@ -1542,6 +1541,13 @@ struct TagManagerUpdatedEvent : Event {
 
 ---
 
+## 2026-08-15 現行コード監査
+
+- `ArtifactCore/src/Asset/AssetMetaFile.cppm` の `tags()` / `addTag()` / `removeTag()` は metadata file 単位のタグ保存を提供する。
+- `ArtifactCore` の `MultipleTag` は複数タグ、any/all 判定、union/intersection/subtract を提供するが、Asset Browser の model/filter から利用されている証拠はない。
+- `ArtifactAssetBrowser.cppm` には tag editor、tag filter、tag cloud、tag group、tag persistence/import/export の導線がなく、現行 status filter と混同しない方がよい。
+- よって本 milestone は共通タグ基盤の部分的な再利用候補はあるものの、Asset Browser 機能としては未実装。ビルド・runtime 確認は未実施。
+
 ## 完了基準
 
 - [ ] タグの作成、編集、削除が正しく動作
@@ -1582,3 +1588,11 @@ struct TagManagerUpdatedEvent : Event {
 - `AssetTag`／`TagManager`／`TagDatabase` の専用モジュール、AssetMenuModel へのタグ割り当て、TagEditor／TagFilter／TagCloud UI、タグ変更イベントは確認できない。
 - `ArtifactAssetBrowser` には既存のカテゴリ・検索・お気に入り・メタデータ処理はあるが、複数タグ割り当て、AND フィルタ、階層グループ、タグ永続化／入出力の経路は存在しない。
 - よって本マイルストーンは Planned／未着手の判定を維持する。最初にタグデータモデルとプロジェクト単位の永続化契約を追加する必要がある。
+
+## Update 2026-08-15
+
+- 現行コードでは `ArtifactAssetMetaFile::tags()`、`addTag()`、`removeTag()` が存在し、アセット単位の metadata file に複数タグを保存できる。Asset Browser の選択情報欄も保存済みタグを読み取り、表示している。
+- ただし `ArtifactAssetBrowser` の検索・フィルタはファイル名、ファイル種別、status、未使用／お気に入り等が中心で、タグの assignment UI、タグによる filter、AND/OR 条件、タグ一覧・使用数表示は接続されていない。
+- `AssetTag`／`TagManager`／`TagDatabase`、TagEditor／TagFilter／TagCloud／TagManagementDialog、タグ変更イベントの専用実装も確認できない。タグの色・グループ・import/export・一括編集も未実装のままである。
+- 判定は **Planned／未着手（metadata の低レベル API と表示のみ部分実装）** を維持する。次の実装単位は、既存 `ArtifactAssetMetaFile` を直接 UI から変更するのではなく、プロジェクトスコープのタグ定義・asset path/UUID との割り当て・再読込契約を先に確定すること。
+- ビルド・テスト・runtime 確認は未実施。

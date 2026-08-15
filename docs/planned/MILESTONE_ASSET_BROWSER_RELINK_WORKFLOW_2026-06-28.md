@@ -1,5 +1,6 @@
 # Milestone: Asset Browser Relink Workflow (M-AB-10)
 
+**最終更新:** 2026-08-15
 **マイルストーンID**: M-AB-10
 **作成日**: 2026-06-28
 **優先度**: P1 (High)
@@ -19,11 +20,9 @@
 ## 背景
 
 ### 現状
-- 既存の`MILESTONE_ASSET_BROWSER_IMPROVEMENT_2026-04-01.md` (Phase 3) で「Find References / Select Unused」の概念が言及されているが未実装
-- `ArtifactAssetBrowser.cppm`には`isImportedAssetPath()`/`isUnusedAssetPath()`/`isMissingAssetPath()`などのステータスチェック機能がある
-- `AssetMenuItem`構造体にはステータス情報を表示する機能があるが、再リンク操作は未実装
-- プロジェクト内のアセット参照は`ProjectManager`で管理されている
-- ファイルの移動/リネームに対応した自動再リンク機能なし
+- `ArtifactAssetBrowser.cppm` には missing / imported / unused の状態集約、候補検索、単一 relink、batch relink、Undo/Redo 経路がある
+- `WorkspaceAutomation` から `relinkFootageByPath` を呼び出せる
+- 参照追跡の専用 tracker / references panel / Select Unused の完成した導線は確認できない
 
 ### 要件
 - **Find References**: 選択したアセットが使用されているコンポジション/レイヤーを特定
@@ -1465,5 +1464,13 @@ struct MissingAssetsDetectedEvent : Event {
 - Asset Browser の `Find References` は、単一素材では source path を、連番素材では `sequencePaths` 全体を照合して参照 composition / layer を表示する。
 - ただし専用 `AssetReferenceTracker`、References Panel、Select Unused の完成したユーザー導線、同名候補の衝突解決、参照一覧の一括診断は確認できない。`Find References` は基本的な context-menu 導線までで、専用 panel／一括診断は未完了である。
 - したがって relink の基本 workflow は実装済みだが、参照追跡・診断・全ファイル種別の統合を含む本 milestone は Partial のまま。runtime の Undo/Redo と複数ファイル結果は未検証。
+
+## 2026-08-15 現行コード監査
+
+- 単一 relink は `RelinkAssetCommand`、複数 relink は `RelinkAssetBatchCommand` として Undo stack に登録される。batch 失敗時には適用済み変更を逆順復元する処理も確認できる。
+- Missing filter と sequence の欠落 frame 集約、`Find Relink Candidates`、batch 候補選択、候補 score/reason 表示が Asset Browser の context-menu 経路に存在する。
+- relink 後の layer source 変更を記録する `RelinkLayerSourceChange` もあり、単なる project item のパス変更より広い復旧経路になっている。
+- ただし専用 `AssetReferenceTracker`、References Panel、Find References の一覧表示、Select Unused の確定導線、同名候補の衝突解決、進捗／キャンセル UI は未確認または未完了。
+- runtime での batch rollback、sequence の欠落 frame 復旧、外部ドライブ復帰、複数ファイル結果は未検証。ステータスは Partial を維持する。
 
 ビルド・実行確認はリポジトリ方針により未実施。

@@ -1,5 +1,17 @@
 # MILESTONE_SETTINGS_SEARCH_FILTER_2026-04-02
 
+**最終更新:** 2026-08-15
+
+**現状:** 検索基盤とページ横断の絞り込みは実装済み。ただし、設計案の「フラットな検索結果リスト」「該当項目へのジャンプ／ハイライト」「Ctrl+F／Escape 操作」は未完了。
+
+## 2026-08-15 現行コード照合
+
+- ✅ `ApplicationSettingDialog` に Search settings 欄があり、General／Import／Preview／Project Defaults／Composition View／Memory & Performance／Shortcuts／Audio Scrubbing／Plugins の全ページを検索対象にしている。
+- ✅ 各ページの `searchableItems()` を横断し、label／description／category の大文字小文字を区別しない部分一致で、項目 widget の表示・カテゴリ行の表示を更新する。
+- ✅ Project override の設定項目は検索時に太字化され、override 件数表示と Reset Project Overrides も同じダイアログに接続されている。
+- ⚠️ 実装は検索結果を別の `QListWidget` に集約せず、元ページ内の widget とカテゴリ行を直接隠す方式。検索結果の説明文・カテゴリ付きフラット一覧、クリックによる該当項目への移動、明示的な highlight 表示は存在しない。
+- ⏳ `Ctrl+F`、`Escape` での検索操作、空結果メッセージ、検索履歴、全カテゴリ（旧案の AI ページを含む）の網羅性、runtime UI 検証は未完了。
+
 ## 概要
 
 環境設定ダイアログ (`ApplicationSettingDialog`) に JetBrains IDE 風の検索バーを実装し、検索クエリに一致する設定項目のみを表示する機能を実装する。

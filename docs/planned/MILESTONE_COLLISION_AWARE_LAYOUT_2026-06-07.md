@@ -2,6 +2,13 @@
 
 日付: 2026-06-07
 
+**最終更新:** 2026-08-15
+**Status:** 専用の semantic target／collision resolver／自動回避は未実装。既存の物理・timeline・layer collision は別責務。
+
+## Update 2026-08-15
+
+現行コードを再確認したが、`face`／`logo`／`subtitle`／`button`／`safeArea` などの semantic target、広告レイアウト用の collision resolver、position／scale／reflow の自動回避、衝突理由の共通UIは確認できない。既存の物理・粒子collision、Timeline上の衝突表示、Content Bounds／Responsive Layoutは関連基盤に留まり、本マイルストーンの自動レイアウト回避は未実装とする。
+
 UI やテロップが重なったときに、自動で避けるレイアウト制御を作る。
 
 ## 2026-07-25 実装監査

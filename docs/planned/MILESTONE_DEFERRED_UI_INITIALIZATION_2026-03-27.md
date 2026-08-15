@@ -1,5 +1,8 @@
 # Deferred UI Initialization / Lazy Load (2026-03-27)
 
+**最終更新:** 2026-08-15
+**判定:** lazy dock／visible thumbnail warmup の基盤は実装済み。全 UI の遅延化と性能受入れは未完了。
+
 ## Goal
 
 アプリ起動直後の重い初期化を減らし、最初の表示と初回操作の待ち時間を短くする。
@@ -145,4 +148,16 @@
 | Deferred Playback / Render Bootstrap | render 初期化の遅延箇所はあるが、playback/render backend 全体の遅延初期化は未確認 | 部分実装 |
 | State Sync Safety | selection sync や deferred event は存在するが、lazy load 後の全 panel の再同期を検証できる証拠は不足 | 未確認 |
 
+## Update 2026-08-15
+
+`ArtifactMainWindow` の placeholder／factory／first-show materialization、生成時間・失敗状態の記録、非必須 dock の遅延生成、Asset Browser の非同期 thumbnail／waveform queue、Property／Viewer の初回処理遅延を現行コードで確認した。lazy UIの基盤は実装済みである。
+
+一方、全対象の共有 icon cache／warmup、visible範囲優先の全thumbnail経路、Playback／Render backend全体の遅延初期化、lazy load後の全panel再同期、first paint／first interactionの定量効果は未確認。全UIの遅延化と性能受入は pending とする。
+
 **判定**: Dock / Panel の基盤は実装済み、他の項目は部分実装または検証待ち。first paint / first interaction の改善量はビルド・実行計測なしには完了扱いにしない。
+
+## 2026-08-15 現行コード照合
+
+`AppMain.cppm`／`ArtifactMainWindow.cppm` で、placeholder、factory、first-show materialization、floating／tabbed lazy dock、生成時間・失敗状態の記録、dock layout の保存／復元を再確認した。Asset Browser は placeholder と visible／近傍優先の非同期 thumbnail warmup、Contents Viewer／Property Editor／Timeline には初回生成を遅延する導線がある。
+
+一方、icon cache の全体統合、Playback／Render backend の全面的な遅延初期化、hidden panel の refresh 抑制、lazy load 後の全 panel state 再同期は未確認。first paint／first interaction の改善量、終了時 watcher／factory の安全な破棄も runtime 未検証である。今回はビルド・テストを実行していない。

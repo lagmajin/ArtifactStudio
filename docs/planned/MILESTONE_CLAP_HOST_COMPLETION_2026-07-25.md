@@ -1,9 +1,20 @@
 # MILESTONE_CLAP_HOST_COMPLETION_2026-07-25
 
-**ステータス:** Partial（CLAP DLL 読み込み・PluginInstance 基盤を実装済み。params 拡張、process 変換、host callback、Effect 統合、GUI、runtime 検証は未完了）
+**最終更新:** 2026-08-15
+**ステータス:** CLAP DLL 読み込み、PluginInstance、params、process 変換、host callback、ClapEffect 接続基盤を実装済み。GUI、実プラグイン互換性、runtime 検証は未完了。
 **対象:** `ArtifactCore/include/CLAP/CLAPHost.ixx`, `ArtifactCore/src/CLAP/CLAPHost.cppm`
 **位置づけ:** CLAP (CLever Audio Plugin) ホストのインスタンス生成を実装。
 **作成日:** 2026-07-25
+
+## 現行コード監査 (2026-08-15)
+
+`PluginLibrary` は `clap_entry` の解決、entry の init/deinit、DLL 生存期間の保持を実装し、`Host::loadPlugin()` は descriptor 列挙・`PluginInstance` 作成・初期化・保持まで行う。`Plugin` 側には params 拡張の列挙／値取得／値設定、process 用の `AudioSegment` 変換、host callback があり、`ClapEffect` は activate／startProcessing／process／deactivate と EffectParameter の取得・設定へ接続されている。
+
+旧文書の「params 拡張・process 変換・host callback・Effect 統合は未完了」という判定は現状と一致しない。残課題は CLAP UI／editor 導線、複数 plugin の選択・管理、実プラグインでの event／audio layout／latency 契約、scan／load／unload と render queue を含む runtime 受入である。
+
+## Update 2026-08-15
+
+上記の現行コード監査を、実装行まで再照合した。`clap.params` の列挙・値取得・値設定・表示文字列変換、`ClapEffect` の `AudioSegment` 接続、`Host::scanPlugins()`／`loadPlugin()`／`unloadPlugin()` はコード上で確認できるため、旧「未統合」タスク表は履歴として扱う。現在の残課題は UI 拡張、イベント／複数バス／レイアウト／レイテンシ契約、runtime 受入とする。
 
 ## 1. 目的
 

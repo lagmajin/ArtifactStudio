@@ -2,6 +2,14 @@
 
 日付: 2026-06-07
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+- `MotionToken`／`MotionBinding`／`MotionProfile` という名前付き schema／registry は現行コードで確認できず、JSON の専用保存・未定義 token 検出・profile 切替も未確認。
+- 既存の Easing、Animation Dynamics、Text Animator、各種 animation preset は存在するが、`introMotion`／`exitMotion` などの binding を介して複数 target で共有する経路とは分離している。
+- したがって Phase 1〜3 は未実装扱いを維持する。既存 easing／preset を Motion Token の候補資産として再利用できるが、現時点で token 化された完了証拠はない。
+
 Color Tokens の動き版として、イージング・時間・振幅・遅延を名前付きで管理し、レイヤーやコンポジションの演出を再利用可能な設計単位にする。
 
 ## 2026-07-25 実装監査

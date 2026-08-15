@@ -1,8 +1,23 @@
 # Milestone: App Debugger Visual Hierarchy / Color Semantics (2026-04-23)
 
-**Status:** Planning
+**最終更新:** 2026-08-15
+**Status:** 部分実装（デバッグ表示の基盤あり、情報階層と色セマンティクスの統一は未完了）
 **Parent:** `MILESTONE_APP_INTERNAL_DEBUGGER_2026-04-17`
 **Goal:** 内蔵デバッガを「情報は多いが読みにくい」状態から、色とレイアウトで優先度が伝わる画面へ寄せる。
+
+## 2026-08-15 実装監査
+
+`AppDebuggerWidget` の各種診断タブ、`FrameDebug`／Trace 系の表示、`TraceTimelineWidget` のドメイン別色分けと acquired／error の状態色は実装されている。したがって診断情報の分類表示と一部の色表現は進んでいる。
+
+一方、`Current State` の常時要約、見るべきカテゴリの単一フォーカス、異常時の固定サマリ、overlay／present／pass／resource の共通セマンティクス、詳細ログの折りたたみ、全診断面での neutral／info／warning／error／success の統一は確認できない。`TraceTimelineWidget` の色は trace domain 表現が中心であり、本 milestone の状態語彙を横断的に保証するものではない。
+
+判定: **Phase 2〜3 は局所実装、Phase 1／4 と横断的な色・レイアウト統一は pending。** ビルド・実機表示による視認性確認は未実施。
+
+## Update 2026-08-15
+
+現行コードを追加確認した。`AppDebuggerWidget` の診断タブ、`FrameDebug`／Trace表示、`TraceTimelineWidget` のdomain別色分け、acquired／error状態色は存在する。局所的な分類表示と色表現は実装済みとして扱える。
+
+一方、常時 `Current State` 要約、単一focusカテゴリ、異常時固定summary、overlay／present／pass／resourceの共通semantic、詳細ログの折りたたみ、全診断面でのneutral／info／warning／error／success統一は未確認。Phase 2〜3は部分実装、Phase 1／4と横断統一、視認性runtime確認は pending とする。
 
 ---
 

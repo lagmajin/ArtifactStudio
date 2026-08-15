@@ -1,8 +1,18 @@
 # スマートガイドシステムの実装
+
+**最終更新:** 2026-08-15
 **マイルストーン**: M-CO-4 Smart Guides System
 **作成日**: 2026-04-10
 **見積もり**: 10-12h
 **優先度**: Low (細かいUX改善)
+
+## 2026-08-15 現行コード照合
+
+- ✅ `TransformGizmo` に他レイヤーの bounds／edge／center、composition の基準、spacing を使う `SnapGuideSet` と snap 判定があり、移動／リサイズへ接続されている。
+- ✅ `CompositionRenderController` は show／snap-to-guides 状態、検出線、projected snap guide を保持し、viewport overlay へ描画する。距離系 spacing guide も存在する。
+- ✅ ViewMenu／Composition Editor／Toolbar からガイド表示とスナップを切り替えられ、ショートカット、設定保存、view preset への保存／復元経路がある。
+- ⚠️ 現行実装で確認できる主対象は bounds／center／edge／spacing と composition guide で、旧案にある全ターゲット（grid、custom guide、safe area）やターゲット別色／持続時間／感度設定が統一設定として揃っていることは確認できない。
+- ⏳ ドラッグ中の予測線・距離／角度ラベルの全操作、詳細設定 UI、高DPI／大量レイヤー性能、runtime スナップ精度 QA は未完了。
 
 ## 概要
 

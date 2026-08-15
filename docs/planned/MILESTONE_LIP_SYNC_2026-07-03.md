@@ -1,6 +1,7 @@
 # M-LIPSYNC-1 Lip Sync Animation Milestone
 
 **作成日:** 2026-07-03
+**最終更新:** 2026-08-15
 **ステータス:** Draft
 **関連:**
 - `ArtifactCore/include/Audio/AudioAnalyzer.ixx`
@@ -152,6 +153,13 @@ SwitchLayer "Mouth"
 - `ArtifactWidgets` は触らない
 
 ## 2026-07-25 現状確認
+
+## 2026-08-15 現行コード監査
+
+- `FormantExtractor` は FFT spectrum から F1／F2／F3 候補を抽出し、無音・母音・M/N/F 系の分類を行う。`LipSyncTrack` は音声／AudioSegment 解析、frame range、mouth shape index、JSON 保存／復元を持つ。
+- `ArtifactAudioLayer` には lip-sync track の生成と Switch Layer 適用を想定した API があるため、旧「音素検出・データモデルなし」は現状には適用しない。
+- ただし Layer Menu の適用導線は disabled のままで、実 Switch Layer への keyframe 書込み、Timeline marker／phoneme 表示、Inspector UI、ユーザー編集、精度・タイミング runtime 受入れは未完了または未検証。
+- 判定: **解析・データモデル基盤は実装済み、ユーザー向け適用 workflow は pending**。ビルド・テストは未実施。
 
 設計書作成後に基盤実装が追加されている。`FormantExtractor` は FFT スペクトルから F1/F2/F3 候補を抽出し、無音・A/I/U/E/O・M/N/F 等へ分類する。`LipSyncTrack` は音声ファイル／AudioSegment の解析、フレーム範囲取得、口形状インデックス列、JSON保存／復元を提供する。`ArtifactAudioLayer` 側にも lip-sync track 生成・Switch Layer適用用のAPIがある。
 

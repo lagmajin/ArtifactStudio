@@ -1,8 +1,18 @@
 # コンポジションクイック設定メニューの実装
+
+**最終更新:** 2026-08-15
 **マイルストーン**: M-CO-1 Composition Quick Settings Menu
 **作成日**: 2026-04-10
 **見積もり**: 4-6h
 **優先度**: Low (細かいUX改善)
+
+## 2026-08-15 現行コード照合
+
+- ✅ `ArtifactCompositionMenu` に Composition Settings の quick preset／編集導線があり、Frame Rate、Duration、Background、Resolution remap、フル Composition Settings をまとめて扱う。
+- ✅ 解像度変更は Resolution Remap Dialog と `ChangeCompositionResolutionCommand`／Undo 経路へ接続されている。既定背景色、frame rate、duration の変更も現在の composition に反映される。
+- ✅ `ArtifactCompositionEditor` 側にも preview resolution／quality、background／display options の quick controls があり、旧案の「右クリックメニュー未実装」とは現状が異なる。
+- ⚠️ 旧案にある HD／4K／8K、fps、duration の全プリセットが同じ context menu に揃っていることや、現在値のチェック表示は静的コード上で一貫して確認できない。実装は Composition Menu／toolbar に分散している。
+- ⏳ 最近使用した設定、カスタムプリセット保存、複数 composition 操作、全 quick action の runtime／Undo QA は未完了。
 
 ## 概要
 

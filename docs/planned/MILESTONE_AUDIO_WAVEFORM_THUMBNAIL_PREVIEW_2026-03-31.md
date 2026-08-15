@@ -1,5 +1,7 @@
 > **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_AUDIO_WAVEFORM_2026-03-29.md](MILESTONE_AUDIO_WAVEFORM_2026-03-29.md)
 
+**最終更新:** 2026-08-15
+
 # マイルストーン: Audio Waveform Thumbnail Preview
 
 ステータス: Phase 1／2・初期 UX 実装済み（長時間音声・cache 運用・表示整合・runtime 検証待ち、静的確認 2026-07-29）
@@ -104,3 +106,9 @@ waveform preview をワークフローに乗せる。
 Asset Browser には音声ファイルを対象にした波形サムネイル生成が実装済み。`QtConcurrent`／`QFutureWatcher` による非同期処理、最大30秒の軽量読み込み、peak／RMS envelope の描画、生成中の通常アイコン fallback、失敗パスの記録、thumbnail cache、世代番号による古いジョブ破棄、300ms hover preview が存在する。
 
 未完了または未検証なのは、cache key のファイルサイズ／更新時刻／sample rate 連携、長時間音声全体の代表性、cache eviction、詳細パネル・Source Inspector・Render Queue との表示整合、実行時の大量アセット負荷である。判定は「Phase 1／2と初期UXは実装済み、長時間音声と運用面の仕上げが残る」とする。
+
+## Update 2026-08-15
+
+Asset Browser の非同期 waveform thumbnail、生成中 fallback、失敗時 fallback、generation による stale job 破棄、hover preview と cache 経路を現行コードで再確認した。Phase 1／2 と初期 UX は実装済み相当だが、長時間音声の代表性、cache eviction、source metadata 変更時の全表示面更新、Source Inspector／Render Queue との整合、大量アセット時の runtime 負荷は未完了または未検証とする。
+
+追加確認として、Asset Browser の thumbnail 用 decode は現在 `SimpleWav` 経路に限定されており、FFmpeg の一般音声 decode 経路とは接続されていない。WAV 以外の音声形式を thumbnail 対象として完全対応するには、既存 `FFmpegAudioDecoder` を使った非同期抽出契約が必要であり、今回は既存 decoder の責務を重複実装しないため未変更とした。

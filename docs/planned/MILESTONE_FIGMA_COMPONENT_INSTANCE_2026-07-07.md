@@ -1,7 +1,8 @@
 # M-FIGMA-2 Component / Instance System Milestone
 
 作成日: 2026-07-07
-ステータス: Draft
+**最終更新:** 2026-08-15
+ステータス: Pre-compose／master property override／Template variation は部分実装、Figma Component／Instance system は未実装
 対象: `ArtifactCore/include/Shape/ShapeGroup.ixx`,
       `Artifact/src/Layer/ArtifactShapeLayer.cppm`,
       `Artifact/src/Layer/ArtifactAbstractLayer.cppm`,
@@ -134,4 +135,19 @@ AE にはこの概念がなく、すべてのレイヤーは独立した複製�
 
 Figma 固有の ComponentMaster／ComponentInstance は確認できない。ただし、ArtifactCompositionLayer に master property overrides の辞書、effective value、apply／clear、JSON 保存復元があり、TemplateSlot／TemplateVariation に別系統の template override 基盤も存在する。これらは再利用候補だが、ShapeGroup の master 参照や instance identity とは別契約である。
 
-Component Library、Go to Master、Reset／Detach、master 変更の全 instance 伝播、ネスト component、Figma variant は未実装または未確認。したがって Phase 1〜3 は未完了で、既存 override／template 機能を Component System 完了の証拠とは扱わない。
+ Component Library、Go to Master、Reset／Detach、master 変更の全 instance 伝播、ネスト component、Figma variant は未実装または未確認。したがって Phase 1〜3 は未完了で、既存 override／template 機能を Component System 完了の証拠とは扱わない。
+
+## Current implementation audit (2026-08-15)
+
+現行コードを確認した。Figma固有の `ComponentMaster`／`ComponentInstance`／`InstanceOverride` 型、ShapeGroup の master identity、Component Library は引き続き確認できない。一方で、既存の Pre-compose／`ArtifactCompositionLayer` には master property overrides の辞書、effective value の解決、apply／clear、JSON保存復元があり、TemplateLock／TemplateSlot／TemplateVariation と Python／WorkspaceAutomation の適用導線も存在する。
+
+| 項目 | 現行コードで確認できた実装 | 本 milestoneとの関係 |
+|---|---|---|
+| Master-like source | Pre-composeされたcomposition layerが子compを参照し、exposed property overrideを保持 | 再利用候補だがComponentMaster identityとは別契約 |
+| Property override | `ArtifactCompositionLayer` の override map、effective value、apply／clear、JSON復元 | 部分実装 |
+| Template variation | TemplateLock／editable fields、TemplateSlot／Variation、automation／render diagnostics | variation部品。Shape component instanceとは別責務 |
+| ShapeGroup instance | `ShapeElement::clone`／ShapeGroup階層はあるが、master参照付きinstanceモデルは未確認 | 未実装 |
+| Library / UI | Component Library、Go to Master、Reset／Detach、master変更の全instance伝播は未確認 | 未実装 |
+| Persistence / diagnostics | Pre-compose／overrideの保存はあるが、`components[]` のmasterId／override schemaやbroken master診断は未確認 | 未完了 |
+
+**更新後の判定**: M-FIGMA-2 は Draft 継続。既存の Pre-compose override をそのままComponent System完了と扱わず、master identity、instance lifecycle（reset／detach）、override path、更新伝播、保存schemaを別契約として定義する必要がある。

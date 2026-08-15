@@ -1,6 +1,7 @@
 # M-SCRIPT-1 Script Console (REPL) Milestone
 
 作成日: 2026-06-16
+**最終更新:** 2026-08-15
 ステータス: 部分実装（PythonEngine/HookManager、Expression evaluator、macro/command基盤とExpression Copilot補完あり、専用REPL widget・履歴/補完統合・sandbox付きPython REPL・macro replay・runtime検証未完了）
 対象: `Artifact/src/Widgets/Menu/ArtifactScriptMenu.cppm`,
       `Artifact/src/Widgets/Menu/ArtifactWindowMenu.cppm`,
@@ -34,6 +35,10 @@
 - `ArtifactCore/src/Script/Expression` には parser/evaluator があるが、`ExpressionRepl` として context/history/output をまとめる公開 API は確認できない。
 
 したがって、現時点の判定は「Python 実行基盤と既存 menu/hook は部分実装、Script Console milestone は未完了」。次の実装単位は、既存の PythonEngine/HookManager を再利用する sandbox 付き console façade と、Expression の context-aware REPL を UI から接続する設計である。新規 signal/slot の追加は AGENTS の制約に従い、既存イベント経路の再利用可否を先に確認する必要がある。
+
+## 現行コード監査 (2026-08-15)
+
+`ScriptRuntime`／`PythonEngine`／`ExpressionEvaluator` は execute／evaluate／複数行・stdout/stderr 等の実行基盤を持ち、`ArtifactPythonHookManager` は Workspace Automation API を登録する。一方、`ArtifactDebugConsoleWidget` はログ閲覧用で、専用 Script Console の入力・評価・履歴・補完 UI ではない。sandbox、Expression context REPL、macro 記録／replay、履歴永続化、`script.*` Problem View 診断は現行コードだけでは確認できないため、既存判定どおり基盤 partial・REPL milestone 未完了とする。
 
 ## 1. 目的
 

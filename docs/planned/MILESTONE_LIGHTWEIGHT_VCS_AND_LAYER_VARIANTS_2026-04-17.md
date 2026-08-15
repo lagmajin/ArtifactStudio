@@ -2,6 +2,15 @@
 
 > 2026-04-17 作成
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+- Undo／AutoSave／SessionLedger／project snapshot／SnapshotCompare の各基盤と、Render Farm の frame checkpoint は現行コードで確認できる。
+- 一方、`RevisionNode`／`BranchRef`／Revision Ledger の専用保存・checkpoint／restore／branch UI、および layer base + override の `VariantSet`／active variant 契約は確認できない。
+- Export Matrix／responsive layout の `variant` は別責務であり、本書の layer variant 実装完了の証拠にはしない。
+- 判定: **短期履歴・recovery・snapshot 比較は実装基盤あり。内蔵VCSとレイヤーバリエーションは未着手または未接続。** ビルド・テストは未実施。
+
 ## 目的
 
 ArtifactStudio 内部に、Git の代替ではないが、編集履歴を「版」として扱える軽量VCSを導入する。

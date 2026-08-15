@@ -2,6 +2,16 @@
 
 > 2026-03-21 作成
 
+**最終更新:** 2026-08-15
+**Status:** GPU blend foundation／track matte／pointwise 経路は実装済み、通常 composition の全面統合と runtime parity は未完了
+
+## 2026-08-15 現行コード照合
+
+- `ArtifactIRenderer::createLayerBlendPipeline()` と `blendLayers()` が存在し、`CompositionRenderController` の通常 composition／matte 経路から `LayerBlendPipeline` を利用している。
+- `RenderPipeline` 側にも `LayerBlendPipeline` の所有・初期化経路があり、旧記載の「CompositionEditor 未着手」「RenderPipeline 空スタブ」は現行コードと一致しない。
+- Software 側は `ArtifactSoftwareImageCompositor` で追加 blend／stencil／silhouette の CPU 分岐を持つ。
+- 未完了は全 BlendMode の GPU shader／inline registry、通常 composition の全モード常設選択、opacity／alpha semantics、CPU／GPU parity、runtime 受入である。
+
 ## 概要
 
 CompositionEditor の GPU レンダーパスに ComputeShader ベースのレイヤーブレンドを導入する。
@@ -351,3 +361,18 @@ GPU 未対応環境向けに `ColorBlendMode::blend()` (CPU) へのフォール�
 - 次の実装単位は、CompositionEditor / preview / render queue の実際の呼び出し箇所を固定し、未対応 mode と GPU failure の CPU fallback 契約を明示すること。
 
 ビルド・実行確認はリポジトリ方針により未実施。
+
+## 現行コード監査 (2026-08-15)
+
+- `LayerBlendPipeline` は `BlendShaders` に登録された各 mode の executor、constant buffer、opacity 付き dispatch、テクスチャ契約検査を実装している。Blend shader 群も当初の 5 種から大幅に増え、classic／dissolve／stencil／silhouette 系を含む構成になっている。
+- 同じ pipeline に track matte compute、layer-to-float、channel display、pointwise effect fusion の補助経路があり、`ArtifactIRenderer` と `CompositionRenderController` から生成・初期化できる。Composition 側には device 待ち、再試行回数、失敗状態の診断もある。
+- `Artifact/src/Test.cppm` には全 `BlendMode` 値を走査して dispatch、readback、有限値、出力書き込み、Normal／Add／Multiply 等の基準値を確認する GPU smoke test がある。ただしこの作業ではビルド・実行していないため、runtime 成功の証拠にはしていない。
+- `RenderPipeline::renderComposition()` は現在も output を clear するだけで、`layers` と `currentFrame` を実際には使用していない。通常の CompositionEditor の layer draw／blend loop の全面置換、GPU failure 時の `ColorBlendMode` への明示的 CPU fallback、ping-pong の実フレーム parity、性能最適化と中間結果可視化は未完了・未検証。
+
+判定: **GPU レイヤーブレンドの実行基盤は Phase 1–3 相当まで大きく進展。track matte／pointwise を含む GPU 補助経路も実装済み。ただし通常 composition 統合、CPU fallback 契約、実機での全 mode／alpha／色空間 parity は pending。**
+
+## Update 2026-08-15
+
+現行コードを追加確認した。`ArtifactCompositionRenderController` の通常レイヤー合成ループには、float／straight-alpha 契約を満たすレイヤーを `blendLayers()` へ渡し、ping-pong の accumulator／temporary texture を交換する経路がある。`LayerBlendPipeline` は登録済み mode ごとの ComputeExecutor、opacity constant buffer、8x8 dispatch、サイズ／フォーマット／resource alias 検査を実装し、track matte と pointwise の補助経路も持つ。
+
+ただし `RenderPipeline::renderComposition()` の汎用入口はなお clear 相当で、すべての CompositionEditor／preview／render queue 経路が同じ GPU loop に統一されたとは確認できない。GPU失敗時の `ColorBlendMode` への明示的 CPU fallback、全 mode の runtime／alpha／色空間 parity、ping-pong再利用の実測も pending。旧記述の「CompositionEditor統合なし」は過去状態なので、通常合成に部分統合済みとして扱う。

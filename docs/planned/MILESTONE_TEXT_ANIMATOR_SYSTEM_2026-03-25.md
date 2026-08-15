@@ -1,6 +1,8 @@
 # Milestone: AE風 Text Animator システム (2026-03-25)
 
-**Status:** Not Started
+**最終更新:** 2026-08-15
+
+**Status:** Partial（GlyphLayout、Range／Wiggly selector、per-glyph evaluation／rendering、Property／JSON 接続は実装済み。高度な編集 UI と runtime 検証は未完了）
 **Goal:** After Effects 風の Text Animator を段階導入。レンジセレクターで文字単位のアニメーションを実現。
 
 ---
@@ -40,6 +42,15 @@ ArtifactTextLayer
 | `AnimatorProperties` (pos/scale/rot/opacity) | ✅ 完成 | `ArtifactCore/include/Text/TextAnimator.ixx` |
 | `TextGizmo` (レンジ編集UI) | ⚠️ スタブ（ハードコード） | `Artifact/src/Widgets/Render/ArtifactTextGizmo.cppm` |
 | テキストプロパティパネル | ✅ 18項目 | `ArtifactTextLayer.cppm:173-217` |
+
+## 2026-08-15 現行コード照合
+
+- ✅ `ArtifactCore/src/Text/GlyphLayout.cppm` に `TextLayoutEngine::layout()`／`layoutOnPath()` があり、`QTextLayout` から glyph index、cluster、line、advance、bounds を生成する。
+- ✅ `ArtifactTextLayer` は animator state／glyph 配列を保持し、`TextAnimatorEngine::applyAnimatorStack()` を評価経路へ接続している。
+- ✅ position／scale／rotation／opacity／skew／tracking／color／stroke／blur と Range／Wiggly selector の値が JSON と persistent property path に保存される。
+- ✅ `drawAnimatedGlyphRun()` による per-glyph 描画と、アニメータなしの通常テキスト描画経路が共存している。テキストパス描画、CJK／RTL／emoji 等の既存 shaping 基盤も確認できる。
+- ✅ Animator の追加／削除、プリセット、Property Editor／Text Gizmo の接続が存在する。旧記載の「GlyphLayout はヘッダーのみ」「Layer は GlyphItem を持たない」「per-glyph path は存在しない」は現状と不一致。
+- ⏳ Animator 専用 UI の操作深度、複雑な shaping／改行／パス配置との組合せ、GPU／大量文字の性能、実機 runtime 検証は未完了。
 
 ### 未接続（Core にあるが Layer で使われていない）
 - `GlyphLayout::TextLayoutEngine::layout()` — テキストを GlyphItem[] に分解する関数

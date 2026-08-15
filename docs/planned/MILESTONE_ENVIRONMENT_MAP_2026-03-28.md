@@ -2,6 +2,20 @@
 
 **Status:** Phase 1 のデータ契約・Shader 基盤のみ実装済み。HDRI 読み込み、実 Skybox、IBL、UI／runtime 検証は未完了。
 
+**最終更新:** 2026-08-15
+
+### 現行コード監査（2026-08-15）
+
+`ArtifactEnvironmentMapLayer` の layer type、path／intensity／rotation／background visibility の保存、cubemap texture holder、layer factory 復元、`ShaderManager` の Skybox shader／PSO は確認できる。3D viewport の PBR shader には HDRI が未生成でも表示を保つ analytic environment fallback もあるが、これは環境マップ asset の描画・IBL接続ではない。
+
+旧監査の「Phase 1 のデータ契約・shader基盤のみ」という判定は維持する。HDR／EXRの実読み込み、equirectangular→cubemap、layer `draw()` への接続、irradiance／prefilter／BRDF LUT、PBRへの実IBL、UI／runtime受入は未完了である。
+
+## Update 2026-08-15
+
+`ArtifactEnvironmentMapLayer` の layer type、path／intensity／rotation／background visibility のJSON保存、cubemap texture holder、factory復元、`ShaderManager` のSkybox shader／PSO、PBR shaderのanalytic environment fallbackを現行コードで確認した。環境マップのデータ契約とshader基盤は実装済みとして扱う。
+
+未完了・未確認なのはHDR／EXR実読み込み、equirectangular→cubemap変換、layer `draw()`／viewport接続、irradiance／prefilter／BRDF LUT、PBRへの実IBL、Inspector／preset UI、HDR runtime受入である。
+
 ### 実装状況（2026-07-25 確認）
 
 `ArtifactEnvironmentMapLayer`、HDRI path／intensity／rotation／background visibility の永続プロパティ、cubemap texture の保持 API、ShaderManager の Skybox PSO／シェーダーを確認した。一方、layer の `draw()` はまだ描画を行わず、HDR／EXR 読み込み、equirectangular→cubemap 変換、irradiance／prefilter／BRDF LUT、PBR への IBL 接続は未実装として扱う。

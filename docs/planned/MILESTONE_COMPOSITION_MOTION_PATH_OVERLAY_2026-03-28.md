@@ -2,6 +2,9 @@
 
 > 2026-03-28 作成
 
+**最終更新:** 2026-08-15
+**Status:** 2D／camera motion path の表示・キー点・current frame 強調・toggle・adaptive cache は実装済み、編集／navigation parity と runtime 検証が未完了
+
 ## 目的
 
 `ArtifactCompositionEditor` の viewport 上で、選択中レイヤーの motion path を AE 風に見える状態へ持っていく。
@@ -264,3 +267,11 @@ Phase 1 は、描画の前に path 用の点列を安定して取れる状態を
 
 - overlay on/off は path 描画が安定してから足す
 - zoom 連動の密度制御は path が見える状態が固まってから入れる
+
+## 2026-08-15 現行実装監査
+
+- `CompositionRenderController::renderMotionPathOverlayForLayer()` が選択レイヤーの position keyframe を読み、2D path、keyframe dot、current frame marker を描画する。
+- 過去／未来の色分け、zoom に応じた adaptive sample、曲率ベースのサンプリング上限、overlay cache が実装されている。
+- Camera layer は 2D canvas に平坦化せず、world-space の線・キー点・current frame ring を別経路で描画する。
+- Composition Editor の toolbar／shortcut、`ArtifactAppSettings`、secondary controller まで表示 toggle が同期している。
+- ただし path 点の直接編集・keyframe click からの seek、Graph／DopeSheet との完全な選択同期、複数選択時の編集規則、runtime 視認性は未検証。

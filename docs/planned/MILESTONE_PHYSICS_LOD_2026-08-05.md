@@ -112,3 +112,10 @@
 ## 現時点の対応判断
 
 共通設定の入口と更新頻度・サブステップ・反復数・Sleep・CCD・SoftBody自己衝突・Fluid再解像度化・Minimal時のPolygon Collision Mesh簡略化・破砕計算抑制・破砕shard／debris生成数削減・Clothグリッド低解像度化を導入した。破砕生成時のdebrisCount適用も確認済み。破砕後に既存結果を再構成する段階変更は、別途状態所有と復元責務を確認する。
+
+## Update 2026-08-15
+
+- `PhysicsSystem.cppm` の現行実装で `PhysicsLODLevel`、`PhysicsLODSettings`、全体の更新Hz、Rigid／SoftBody／Fluid／MPM のサブステップ・反復予算、Frozen停止、Reduced／Minimal の Sleep・CCD・自己衝突・Polygon AABB・破砕・Clothグリッド制御を確認できる。初期基盤の記述は現状と整合する。
+- `ArtifactAbstractLayer`／`ArtifactAbstractComposition` から physics LOD settings、物理ステップ、snapshot restore の経路は参照されている。一方、画面投影サイズ・距離・速度・重要度・相互作用状態から自動的に `Full / Reduced / Minimal / Frozen` を選ぶ `PhysicsLODContext`／共通判定器は現行コードで確認できない。
+- Fluid再解像度やCloth／破砕の削減は設定値に応じた制御であり、切替時の状態再マッピング、近景復帰時の完全再構成、最終レンダー／決定論モードの自動LOD無効化を受入れた証拠はない。
+- よって現状は `manual LOD policy and per-solver controls implemented / automatic screen-space selection, transition safety, persistence and runtime validation pending` と判定する。自動LOD未実装という冒頭の監査結論は維持する。

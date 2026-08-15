@@ -1,7 +1,8 @@
 # Composition Export to Game UI Middleware (2026-08-08)
 
 **最終更新:** 2026-08-09
-**状態:** 実装中（初期版）
+**最終監査:** 2026-08-15
+**状態:** 初期実装済み。Writer／共通 session／pre-render の静的導線は成立、各ランタイム受入れと atlas 最適化は未完了。
 
 ## 概要
 
@@ -16,6 +17,12 @@ ArtifactStudio のコンポジション（レイヤー構造・テキスト・�
 - マスク、マット、エフェクト、3D、CPUラスター処理、複雑シェイプ、グラデーションが必要なレイヤーは、既存Diligentオフスクリーン経路を優先してフレーム列へベイクする。
 - プリレンダー解像度は Export Dialog から 1x〜4x を選択でき、5形式の Writer から共通 PreRender 経路へ伝播する。
 - 未完了: 画像列のアトラス最適化、実機ランタイム検証、複雑なエフェクト補間の品質確認。
+
+## 2026-08-15 現行コード照合
+
+`ArtifactExportSession`、共通 `ArtifactExportPreRenderPipeline`、File Menu／Export Dialog の導線と、Lottie／RmlUi／Gameface／Unity UI Toolkit／NoesisGUI の各 Writer を確認した。画像アセットの相対パス化、同名衝突回避、基本 transform／text／keyframe 出力、複雑レイヤーのベイク経路、1x〜4x の解像度指定は実装済みとして扱える。
+
+ただし、各出力を実際のゲーム UI ランタイムで読み込む検証、形式ごとのアニメーション／フォント／座標系 parity、画像列の atlas／packing、複雑エフェクトの補間品質は未検証。Writer の存在だけで「5形式の本番互換完了」とは判定しない。
 
 ## 対象出力フォーマット
 

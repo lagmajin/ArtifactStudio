@@ -1,7 +1,8 @@
 # M-ASSET-1 Asset Instance Sharing Milestone
 
+**最終更新:** 2026-08-15
 作成日: 2026-06-16
-ステータス: In Progress
+ステータス: Foundation 実装済み・runtime 検証待ち
 対象: `ArtifactCore/include/Asset/AssetImporter.ixx`,
       `ArtifactCore/include/Asset/AssetDatabase.ixx`,
       `ArtifactCore/src/Asset/AssetManager.cppm`,
@@ -473,3 +474,11 @@ public:
 - source UUID／version を使った GPU cache key、localize／Relink Shared、Project JSON の source registry 復元、Property／Project View／Asset Browser の Source Uses 表示、missing／orphan／duplicate decode／payload leak 診断も実装されている。
 - GPU cache の owner 単位観測 APIなど次段の観測面は追加済みだが、Done Criteria の「5 layer が同一 payload／GPU entry を実測」「unlink／relink の波及差」「保存後再読込の完全復元」は runtime 検証されていない。
 - `asset.gpu-leak` の完全な controller 接続、動画／音声を含む全派生経路の実測、build／runtime parity も未確認であり、Foundation は大きく進行したが milestone 全体は In Progress と判定する。
+
+## 2026-08-15 現行コード監査
+
+- `AssetManager` の source registry、canonical identity、lease/useCount/version、decoded payload cache と、Image/Video/Audio の source lease 接続を現行コードで再確認した。
+- ProjectService の file-change invalidation、source registry snapshot/restore、schema/duplicate identity 検証、Health Checker の orphan/duplicate/payload leak 診断も実装面で確認できる。
+- Localize / Relink Shared は layer 共通の Service + Undo 経路に接続され、Property / Project View / Asset Browser の `Source Uses` 表示も存在する。
+- GPU cache の owner 単位観測 APIと versioned asset key の整理は進んでいるが、controller 全体の `asset.gpu-leak` 診断接続、5 layer の decoded/GPU payload 実測、保存・再読込後の identity 完全一致は未証明。
+- よって実装基盤は完了扱いに近いが、共有効果・localize/relink 波及・動画/音声派生経路の runtime parity は未検証として残す。

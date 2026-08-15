@@ -2,6 +2,8 @@
 
 # マイルストーン: オーディオミキサー 機能監査 (2026-07-04)
 
+**最終更新:** 2026-08-15
+
 > 2,291行。Logic Pro / Ableton / Pro Tools / Resolve Fairlight 比較。
 
 ## 監査サマリー
@@ -57,3 +59,9 @@
 設計監査時点から実装が進み、P0 の主要項目は次の経路で存在する。`ArtifactAudioMixer` は Audio Layer と Core `AudioMixer` の bus を同期し、channel strip に volume / pan / mute / solo を保持する。`ArtifactCompositionAudioMixerWidget` は channel/master 行、パン操作、ミュート／ソロ、左右レベル／ピークメーター、マスター操作を提供する。ソロ時の他トラック自動ミュートも `updateSoloStates()` で処理される。
 
 一方、監査表の P1/P2（send/return、bus routing UI、VU/RMS 切替、clip hold／明示的 clip indicator、track name 編集、EQ／compressor／automation mode／VST／sidechain／normalize 等）は未実装、またはこの静的確認だけでは動作保証できない。したがって本マイルストーンは「P0 基盤実装済み、DAW 高度機能は未着手」の状態と判定する。実機再生時のメーター追従、設定の永続化、複数レイヤーの solo/mute と書き出し経路の一致は未検証。
+
+## Update 2026-08-15 — 現行コード照合
+
+`ArtifactCompositionAudioMixerWidget` の owner-draw メーターに 0 dBFS 以上を示す赤い clip インジケーターを確認した。P0 の静的 UI 基盤は、旧監査表の Clip Indicator ❌ から実装済み相当へ更新する。
+
+send/return、bus topology の永続化、VU/RMS 切替、track name 編集、実機再生時のメーター追従、複数 layer の solo/mute と書き出し経路の一致は未完了または未検証である。

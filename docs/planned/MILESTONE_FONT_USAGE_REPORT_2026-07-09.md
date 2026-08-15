@@ -1,5 +1,13 @@
 # MILESTONE: 使用フォントインベントリ出力（Font Usage Report）
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+`FontUsageCollector`／`ArtifactProjectStatistics` は project metadata の text font を重複排除し、`QRawFont` で resolved family・style・weight・italic・実ファイルを解決します。`FontLicenseRegistry`、JSON／CSV manifest、フォント／license file のコピー、File Menu の「使用フォントレポートを書き出す」導線も実装済みです。
+
+未確認なのは、shape／rich-text／複数 style の網羅性、license registry の UI 編集、OS／Qt 差、実フォントを使ったコピー・manifest 出力の runtime 成否です。文書内の旧「専用収集ヘルパ／レポート経路なし」は現状と一致しません。
+
 **ステータス:** Phase 1〜4・出力導線実装済み、runtime/build検証 pending
 
 > 2026-07-09 作成

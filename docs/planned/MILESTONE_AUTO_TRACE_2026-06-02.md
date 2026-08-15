@@ -1,7 +1,14 @@
 # M-MOTION-6 Auto-Trace / Vectorize Raster (2026-06-02)
 
 日付：2026-06-02
+最終更新：2026-08-15
 目標：ラスタ画像をベクターパスに自動トレースする機能。ロゴのベクター化、イラストのパス抽出に使用する。
+
+## 2026-08-15 現行コード監査
+
+`ShapePath`／`ShapeLayer`、MaskPath、OpenCV の画像処理基盤は存在するが、文書で想定する `ArtifactCore/src/Trace/AutoTrace.cppm`、`cv::findContours()`／`approxPolyDP()` を使う Auto-Trace エンジン、チャンネル／しきい値 UI、トレース結果の Shape／Mask 出力導線は確認できなかった。`KeyframePatternGenerator` の trajectory → keyframe 変換や診断用 `TraceRecorder` は、画像輪郭の Auto-Trace とは別機能である。
+
+判定: **Phase 1〜3 は未着手。既存の Shape／Mask／OpenCV 基盤を利用できるが、輪郭抽出・Bezier 近似・UI・Undo 統合が未実装。**
 
 ---
 

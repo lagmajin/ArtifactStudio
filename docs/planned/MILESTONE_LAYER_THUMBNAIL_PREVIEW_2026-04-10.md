@@ -1,8 +1,18 @@
 # レイヤーサムネイルプレビューの実装
+
+**最終更新:** 2026-08-15
 **マイルストーン**: M-LA-5 Layer Thumbnail Preview
 **作成日**: 2026-04-10
 **見積もり**: 10-12h
 **優先度**: Low (細かいUX改善)
+
+## 2026-08-15 現行コード照合
+
+- ✅ `ArtifactAbstractLayer` にサイズ別 thumbnail cache と mutation 時の invalidation があり、各 layer subclass が `getThumbnail()` を override している。
+- ✅ Image／Video／Text／Shape／SVG／Solid／Clone／SDF／Null 等で内容に応じた thumbnail 生成または base fallback が確認できる。Video／Media 側には frame／timestamp thumbnail 抽出経路もある。
+- ✅ Preview 設定には thumbnail 生成 ON／OFF と品質設定が登録されており、キャッシュ設定も存在する。
+- ⚠️ 現行コードからは、Timeline の全レイヤー行へ 64px thumbnail を常時表示する専用 UI、hover 128px preview、クリック全画面 preview、レイヤー時刻との同期が一体化していることは確認できない。
+- ⏳ 非同期 thumbnail generator、GPU thumbnail path、高DPI／memory eviction、設定 UI の完全接続、全 layer 種別の runtime QA は未完了。
 
 ## 概要
 

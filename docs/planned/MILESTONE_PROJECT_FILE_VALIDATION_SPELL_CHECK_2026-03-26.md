@@ -2,6 +2,19 @@
 
 `ArtifactProject` が持つ project data に対して、名前の typo や表記ゆれ、禁止語、参照切れを検出するための validation milestone.
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactProjectHealthChecker` は naming／spelling／missing asset／broken reference／circular reference／frame range を検査し、組み込み typo 辞書による spelling suggestion とカテゴリ別 repair action を生成する。`ArtifactProjectHealthDashboard`、Problem View、Project Importer、Project Manager から health report／repair 経路へ接続されているため、文書の「命名と文字列品質を追加する」という Phase 1〜2 の基盤は実装済みである。
+
+一方、custom dictionary／ignore list、禁止語ポリシーの編集 UI、tags／notes／AI metadata の網羅、suggestion の一括適用と undo、runtime の誤検出率検証は確認できない。現状は project health validation と組み込み spelling suggestion が実装済み、ユーザー定義辞書・高度な品質ポリシー・運用検証が pending と判定する。
+
+## Update 2026-08-15
+
+- 現行コードでは `ArtifactProjectHealthChecker` の naming／spelling／missing asset／broken reference／circular reference／frame range 検査、組み込み修正候補、repair、Project Health Dashboard／Problem View／save・import validation 連携を確認できる。
+- custom dictionary／ignore list、禁止語 policy UI、tags／notes／AI metadata の網羅、一括 suggestion 適用＋Undo、誤検出率の runtime 検証は未完了または未確認。
+
 ## Goal
 
 - project / composition / layer / asset 名の typo を見つけやすくする

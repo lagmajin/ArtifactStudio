@@ -1,5 +1,8 @@
 # Milestone: Motion Graphics Template System (mogrt-like)
 
+**最終更新:** 2026-08-15
+**ステータス:** 部分実装（TemplateSlot／TemplateLock／公開プロパティ接続、ArtifactTemplateDocument の JSON 保存契約あり。抽出・配置・ライブラリ・完全な入出力は未完了）
+
 作成日: 2026-06-01
 親: `MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md` (Essential Graphics / Motion Graphics)
 関連: `MILESTONE_AE_FEATURE_ENHANCEMENT_ROADMAP_2026-04-12.md` (.mogrt 相当), `MILESTONES_BACKLOG.md`
@@ -83,6 +86,15 @@ AE Essential Graphics のモーショングラフィクステンプレート（`
 - Artifact では .mogrt を unzip → 最低限のレイヤー構造 + パラメータ定義を
   抽出し `ArtifactTemplateDocument` へ変換
 - 実際の AE エフェクト実体は再現不可のため「param + keyframe + layer tree」のみ mapper
+
+## Update 2026-08-15
+
+- `ArtifactCore::TemplateSlot`／`TemplateLockSchema` は JSON serialization／migration、編集可能フィールド判定、lock guard を持ち、`TemplateLockEditorWidget` から設定・読み込み・保存できる。
+- `ParametricComposition` には template slots／slot values の JSON 変換があり、Master Properties の exposed property／instance override と接続する基盤も存在する。したがって旧「テンプレート基盤が未着手」という記述は現行コードと一致しない。
+- 一方、計画書の `ArtifactTemplateDocument`／`ArtifactTemplateManager`、`.artemplate` 専用保存形式、選択レイヤーと keyframe の完全な export／import、`ArtifactTemplateBrowser`、タグ／サムネイル検索、`.mogrt` 互換読込は確認できない。
+- 判定は **TemplateSlot／TemplateLock／Master Properties 接続は部分実装、mogrt-like template の作成・配布・ライブラリ workflow は未完了** を維持する。ビルド・テスト・runtime 確認は未実施。
+- 2026-08-15: `Artifact.Template.Document` に `ArtifactTemplateDocument` の最小データモデルを追加し、id／name／sourceLayerIds／exposedParameters／layerSnapshots／metadata／TemplateLockSchema の JSON 保存・読込を登録した。`fromLayers()` は各 layer の既存 JSON と `masterProperties` を抽出し、`instantiateLayers()`／`appendToComposition()` で復元・配置できる。`ArtifactTemplateParametersWidget` は document の設定・取得に対応し、Inspector の Template 専用 tab から現在 layer の公開パラメータを表示・編集できる。`ArtifactTemplateLibrary` で `.artemplate` の保存・列挙・読込・削除を追加し、`ArtifactTemplateLibraryWidget` で一覧更新と選択テンプレートの読込 UI も追加した。Asset Browser の中央コンテンツには Assets／Templates タブを追加し、テンプレート一覧を実導線へ接続した。テンプレート項目のダブルクリックで現在 Composition へ layer を追加し、`AddLayerCommand` を通じて Undo 履歴へ登録する処理も実装した。テンプレート一覧から `application/x-artifact-template` の DnD payload を出し、Composition Editor 側で受けて現在 Composition へ Undo 付きで配置できるようにした。実素材での互換性は次段階。
+- mogrt 読込については、`ArtifactCore/include/third_party/miniz.h` は存在するが、現行 Artifact 側に ZIP reader の利用箇所は確認できなかった。依存境界を確認せずに新しい ZIP 実装を追加する段階ではないため、`.mogrt` の unzip／manifest mapping は未実装として維持する。
 
 ---
 

@@ -1,6 +1,15 @@
 # 実装案: M-LYR-PHYS Layer Physics Component
 
+**最終更新:** 2026-08-15
+
 **ステータス:** 部分完了（Collision 設定の Inspector/JSON、RigidBody/SoftBody bounds 同期、Circle collider 再構築を実装。共有 PhysicsWorld・Polygon collider・ランタイム検証は未完了）
+
+### 現行コード監査 (2026-08-15)
+
+- `ArtifactAbstractLayer` は `component.collision.*` を Component descriptor、Property、JSON 保存／復元へ接続し、Box／Circle の bounds 同期、floor／composition bounds、collision output を持つ。
+- `PhysicsSystem` は layer ID 単位の rigid world／soft body／collider／snapshot 管理を提供し、`ArtifactAbstractLayer` の RigidBody／SoftBody enable・disable・sync 経路から利用されている。
+- SoftBody は `createSoftBodyGrid()`、collider 登録、LOD／snapshot の基盤まで確認できる。旧「共有 PhysicsWorld 不在」は現状には適用しない。
+- Polygon collider の通常レイヤー導線、Fracture／Fluid／Constraint の共通 component 化、複数レイヤー接触の runtime parity、Inspector の専用 Physics surface、ビルド・実機検証は未完了または未確認。
 
 > 2026-06-13 作成  
 > 物理シミュレーションをレイヤーのコンポーネントとして統合（エフェクトではない）

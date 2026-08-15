@@ -2,6 +2,7 @@
 
 **マイルストーンID**: M-ACC-1
 **作成日**: 2026-06-28
+**最終更新:** 2026-08-15
 **優先度**: P2 (Medium)
 **推定工数**: 2-5日
 **カテゴリ**: Accessibility / UI Ergonomics / Input
@@ -122,6 +123,15 @@
 - ✅ 変更ファイルの静的差分チェックとドキュメントインベントリ更新を実施。
 - ⏳ 実アプリ上の左利き設定切り替え、RTL レイアウト、スクリーンリーダー／キーボード操作の runtime 検証は未実施。
 - ⏳ 全ウィジェットの左右反転・ツールバー重心調整を含む Phase 3 は未実装。
+
+### 2026-08-15 Static Audit
+
+- `Settings.Accessibility` と `ArtifactAppSettings` に handedness、large targets、high-contrast hints、hover dependency、Sticky Keys、single-hand mode、viewport magnifier の設定・取得経路がある。
+- `ArtifactMenuBar`、主要コンテキストメニュー、Timeline／Render／Composition 系のヒット領域・色・フォーカス表示で設定利用箇所を確認した。
+- 左利き対応はメニュー位置補正と既存 UI の設定利用が中心で、全体 RTL／左右反転ではない。viewport magnifier は設定経路までで、実表示の runtime 確認は未実施。
+- スクリーンリーダー用 Accessible Name / Description の適用範囲は広いが、実際の読み上げとキーボードのみの全操作は未検証。
+
+判定: **Phase 1〜2 の静的実装は大部分確認済み。Phase 3 の全体レイアウト統合、RTL、runtime 検証は pending。**
 
 ---
 
@@ -375,3 +385,10 @@ Phase 3 では、より広い範囲へ展開し、既存の操作習慣を壊さ
 - The timeline, Property Editor, Composition View/Controller, Main Window, and Menu Bar statically consume portions of those settings; accessible names/descriptions and scaled hit targets are present.
 - `adjustContextMenuPosition()` exists but no caller was found, and a repository-wide scan did not confirm broad left-handed placement or shortcut remapping. Phase 3 cross-widget consistency therefore remains incomplete.
 - Runtime setting changes, RTL layout integrity, and screen-reader announcements remain unverified. No build or runtime verification was performed under the repository policy.
+
+## Update 2026-08-15
+
+- 現行コードを再確認し、`AccessibilitySettings` の handedness、font scale、large targets、high-contrast、color-deficiency、sticky keys、single-hand mode、viewport magnifier の設定・保存経路を確認。
+- 左利き対応は `ArtifactMenuBar` のメニュー配置と、主要 widget の `adjustContextMenuPosition()` 呼び出しまで実装済み。主要操作領域にも `scaledSize()` が適用されている。
+- 高コントラスト／色覚補助／フォントスケール／ホバー依存低減は Timeline、Composition View/Controller、Status Bar、Gizmo、各種ツールバー等で部分的に利用されている。
+- ただし、全体の RTL レイアウト、ショートカット再配置、設定変更後の即時反映、viewport magnifier・single-hand・sticky keys の実利用範囲、スクリーンリーダー／runtime 動作はコード静的確認だけでは完了判定できない。Phase 3 と実機検証は未完了。

@@ -1,5 +1,7 @@
 # M-MOTION-4 Pick-Whip UI for Property Linking (2026-06-02)
 
+**最終更新:** 2026-08-15
+
 日付：2026-06-02
 目標：プロパティリンクの視覚的ドラッグ UI（Pick-Whip）を実装し、コード上のリンク機能を直感的な操作で使えるようにする。
 
@@ -81,3 +83,10 @@ After Effects の Pick-Whip UI を参考に、以下の要素を実装する：
 ## 2026-07-25 実装監査
 
 PropertyLinkManager／property binding・expression の Core 基盤は確認できるが、Pick-Whip 用のプロパティ行アイコン、ドラッグ中のベジェワイヤー、ターゲット hover、ドロップ時の Direct／Inverse／Scale／Offset 選択、リンク解除・インジケータ、型互換性拒否 UI は確認できない。したがってリンクコアは部分的に存在するものの、M-MOTION-4 の視覚的操作導線は未実装・未検証とする。
+
+## Update 2026-08-15
+
+- `PropertyLinkManager` は link の追加と source 更新時の target 反映を提供するため、Property linking の Core は存在する。
+- `ArtifactTimelineLayerPanelWidget` には parent pick-whip と Track Matte の drag/drop・cycle guard があり、`ArtifactExpressionCopilotWidget` にも expression pick-whip の導線がある。ただし、これらは本 milestone の property row → property row linking UI とは別経路である。
+- `ArtifactPropertyWidget`／Property Editor のプロパティ行に、PropertyLinkManager と接続した pick-whip アイコン、Bezier wire、target hover、link type popup、link indicator／解除、型不一致の拒否 UI は確認できない。
+- 判定は **PropertyLinkManager／別用途の pick-whip 基盤は部分実装、PropertyLink 用の視覚 UI は未実装相当** を維持する。ビルド・テスト・runtime 確認は未実施。

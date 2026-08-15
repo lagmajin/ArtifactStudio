@@ -2,6 +2,8 @@
 
 Status: Archived reference
 
+**最終更新:** 2026-08-15
+
 作成日: 2026-06-01
 親: `MILESTONE_TIMELINE_LAYER_SPECIALIZATION_2026-04-23.md`
 関連: `MILESTONE_TIMELINE_AUDIO_LAYER_SPECIALIZATION_2026-04-23.md`, `MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md` (Item 9)
@@ -36,6 +38,13 @@ Audio Layer descriptor + TrackPainterView 拡張を採用し、残る未着手�
 ---
 
 ## 実装メモ
+
+## 現行コード確認 (2026-08-15)
+
+- `ArtifactTimelineTrackPainterView::TrackClipVisual` は `waveformPeaks`／`waveformRms` を保持し、clip 内に peak／RMS を owner-draw する。
+- Timeline 側には waveform cache／ready 状態の描画要素があり、Audio Layer の presentation descriptor も Waveform Preview を示す。
+- Contents Viewer には PCM からの waveform preview／RMS／peak 表示があり、Composition Viewer には audio waveform overlay の設定と cache 経路がある。
+- 残課題は長時間音声での cache 更新・zoom 追従・ready 表示の runtime 受入れと、フェード／trim／gain 編集との総合確認。
 
 - `ArtifactTimelineTrackPainterView` の audio waveform 描画は正規経路として扱う
 - `ArtifactTimelineWidget` 側で waveform データの準備とキャッシュが行われる

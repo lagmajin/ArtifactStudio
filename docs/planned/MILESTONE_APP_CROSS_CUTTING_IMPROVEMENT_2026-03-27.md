@@ -2,6 +2,23 @@
 
 > 2026-03-27 作成
 
+**最終更新:** 2026-08-15
+
+## 2026-08-15 現行コード照合
+
+- `ArtifactAppSettings` にテーマ、アクセシビリティ、viewport、diagnostics 等の横断設定と保存 API があり、Main Window／各 widget から共有されている。
+- Project Service は Project Health／Validation／Session Ledger／File Watcher を統合し、Diagnostics へ変換する経路を持つ。
+- Menu／Toolbar／Shortcut、Timeline／Asset／Contents／Composition の状態連携は複数箇所で実装済みだが、全 action の単一 command owner への統一までは到達していない。
+- Frame Debug、Profiler、Fallback、Render Queue、Playback の診断面は拡張済み。表示語彙・status／console／inline の完全統一と全 workflow の runtime 受入れは未完了。
+
+**判定:** 横断設定・診断・主要 workflow bridge は実装が進んでいる。これはローリング枠のため完了扱いにはせず、command ownership、cross-view state、feedback 表現の統一を継続する。
+
+## Update 2026-08-15
+
+`ArtifactAppSettings` の共有設定、Project Service の Health／Validation／Session Ledger／File Watcher、Menu／Toolbar／Shortcut、Timeline／Asset／Contents／Composition の状態連携、Frame Debug／Profiler／Fallback／Render Queue／Playback の診断面を現行コードで確認した。主要な横断基盤と workflow bridge は実装済みまたは進行中である。
+
+未完了なのは、全 action の単一 command owner 化、cross-view の selection／current／active state の正本統一、status／console／inline の表示語彙統一、missing／decode／render failure の共通 feedback、workflow 全体の runtime 受入である。ローリング改善枠として継続扱いとする。
+
 ## 目的
 
 アプリ全体にまたがる改善を、個別機能の寄せ集めではなく、同じ基準で束ねて進める。

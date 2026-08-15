@@ -2,6 +2,14 @@
 
 日付: 2026-06-07
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+- `FallbackPolicy`／`FallbackTracker` はカテゴリ別 action、fallback value、warning、イベント履歴を持ち、Font／Image／Color／Effect の主要経路で記録される。`FallbackDiagnosticsPanel` はイベント一覧、カテゴリ filter、clear を提供する。
+- 画像 layer の missing／readback 経路、未知 effect の bypass、無効 color token の magenta、font 解決の fallback を現行コードで確認できる。レンダー側にも software／CPU／RAM preview 等の個別 fallback reason がある。
+- Asset loading 全体への統一 policy 適用、プロジェクト設定からの policy 編集、export 前の missing／fallback 集約は未完了または未確認。判定は Phase 1 完了、Phase 2 部分実装、Phase 3 表示まで実装済みだが運用機能未完了を維持する。
+
 フォント、画像、色、エフェクトが見つからないときに、安全で説明可能な代替ルールへ落とし込む。
 
 ## Goal

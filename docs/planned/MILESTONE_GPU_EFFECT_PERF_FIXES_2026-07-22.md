@@ -1,4 +1,5 @@
 **ステータス:** FX-1/FX-2 completed; remaining phases pending
+**最終更新:** 2026-08-15
 
 # M-FX-PERF: GPU エフェクト追加・プロパティ更新時のもたつき改善 — 修正リスト
 
@@ -113,3 +114,18 @@
 ただし、31エフェクト全体の資源再利用（FX-3）、チェーン内 readback 撤去（FX-5/6）、global PSO cache（FX-4）、性能測定は未完了のため、マイルストーン全体のステータスは変更しない。
 
 - 追加確認: `Artifact/src/Effects/Bevel/BevelEffect.cppm` は `GpuContext`、`ComputeExecutor`、params buffer、input/output/staging texture を `applyGPU()` 内で生成している。device/context の共有寿命契約を確認せず executor だけをメンバー化するのは危険なため、FX-3 の安全な移行対象として別途 lifecycle 設計が必要。
+
+## 2026-08-15 現行コード監査
+
+- Brightness、Blur、Glow、Color Correction、Mosaic など一部の GPU 実装では `GpuContext`／`ComputeExecutor`／出力テクスチャをメンバー保持する形が確認でき、FX-1 の修正方向は維持されている。
+- ただし複数の GPU エフェクトに `CopyTexture` → `Flush` → `WaitForIdle` → staging texture readback が残っている。したがってチェーン内 GPU テクスチャ継続（FX-5）と fence 化（FX-6）は未完了である。
+- エフェクトごとの readback、`ImageF32x4RGBAWithCache` 境界、定常フレームの資源再利用を一括で解消する共通経路は確認できない。FX-3／FX-4／FX-7〜FX-10 の完了を示すコードまたは測定結果も確認できない。
+- 今回は静的コード監査のみで、FrameDebug による性能測定、ビルド、ランタイム確認は実施していない。
+
+判定: **FX-1/FX-2 と一部エフェクトのリソース保持は実装済み。GPUチェーン化、readback削減、PSO共有、性能目標の検証は pending。**
+
+## Update 2026-08-15
+
+- Brightness／Blur／Glow／Color Correction／Mosaic の一部で GPU context、executor、出力資源を保持する実装を確認し、FX-1 の修正方向を維持。
+- 一方、複数の GPU effect に `CopyTexture` → `Flush` → `WaitForIdle` → staging readback が残り、GPU テクスチャ ping-pong と末尾一回 readback の共通経路は未成立。
+- FX-3／FX-4／FX-5／FX-6／FX-7〜FX-10 の完了コードや FrameDebug 測定は確認できない。性能改善の判定は静的 partial のまま。

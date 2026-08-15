@@ -1,7 +1,8 @@
 # MILESTONE: Configuration Layering System
 
 **最終更新:** 2026-08-05
-**ステータス:** In Progress
+**最終監査:** 2026-08-15
+**ステータス:** 基盤実装済み、QSettings 移行と hot reload は未完了
 **日付**: 2026-08-04
 **現状**: `FastSettingsStore`（CBOR, 単一フラットファイル）と `QSettings` が混在。階層化（システム→ユーザー→プロジェクト）不在。スキーマ検証は setter 毎の場当たり的クランプのみ。設定ホットリロード不在。 
 **目標**: 3層設定システム、設定スキーマ宣言、ホットリロード、QSettings の FastSettingsStore への統一。
@@ -14,6 +15,12 @@
 - 設定ダイアログに検索、Project override 件数表示、override の太字表示、全解除を追加。
 - API key と Asset Integration 設定を User レイヤーへ移行。
 - 未完了: Artifact 側に残る個別 `QSettings` の移行、行単位の override 解除、実ビルド・実行検証。
+
+## 2026-08-15 現行コード照合
+
+`ConfigLayer`／`LayeredConfigStore`、Project の `.artifact/settings.cbor` load／unload、`ArtifactAppSettings` のスキーマ接続、Asset／AI 系の LayeredConfigStore 利用、設定画面の検索・Project override 表示を確認した。System／User／Project／Session の解決基盤は、当初の「階層化不在」より進んでいる。
+
+一方、`AppMain.cppm` には legacy layout 移行用の `QSettings` が残り、コードベース全体の QSettings ゼロ化は未達。ファイル変更の hot reload と valueChanged／layerChanged の全 UI 反映、行単位 override 解除、設定スキーマの全キー網羅、プロジェクト切替後の値分離は static evidence だけでは完了保証できない。今回はビルド・テストを実行していない。
 
 ## 現状の問題
 

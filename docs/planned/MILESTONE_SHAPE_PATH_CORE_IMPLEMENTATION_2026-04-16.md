@@ -1,6 +1,6 @@
 # MILESTONE: ShapePath コア実装
 
-**最終更新:** 2026-08-08
+**最終更新:** 2026-08-15
 
 **ステータス:** In Progress
 
@@ -8,6 +8,14 @@
 対象: M13 ~ M14 (4月〜5月)
 調査元: ArtifactStudio コードベース監査 (2026-04-16)
 状態: Core geometryとnative render接続は実装済み。runtime verification pending。
+
+## Update 2026-08-15
+
+- `ArtifactShapeLayer` のnative stroke経路で、変換後の頂点に対してstroke幅がローカル値のまま固定される欠落を修正した。
+- native operator／通常shapeの両経路で、描画スケールをstroke幅へ反映し、拡大・縮小時の線幅整合を保つようにした。
+- custom Bézier path の fill rule（Winding／EvenOdd）をレイヤー設定、native geometry、JSON保存／復元へ接続した。
+- ビルド・描画比較・runtime検証は未実施。
+- ビルド・描画比較・runtime検証は未実施。
 
 > 2026-08-08 現在、本文前半の「宣言のみ」という監査結果は過去状態である。`ShapePath.cppm`、`ShapeGroup.cppm`、Qt非依存geometry、triangulation、標準プリミティブ／custom path／operatorのnative renderer接続が存在する。履歴上の当初計画は残し、現在の実装証拠と残ゲートは末尾の更新節を正とする。
 
@@ -348,3 +356,9 @@ Native Render Pipeline の実装詳細は、統合元の
 `MILESTONE_SHAPE_PATH_NATIVE_RENDER_PIPELINE_2026-07-27.md` に記録する。
 
 **作成者**: Kilo（AI Agent）
+
+## Update 2026-08-15
+
+現行コードを再確認した。`ShapePath` の command 列、解析的 bounds、flatten／subpath、fill rule、triangulation、主要プリミティブ、Qt 互換境界は実装済みで、`ShapeGroup` も interface／implementation 分離済み。`ArtifactShapeLayer` は標準プリミティブ、custom polygon／Bézier、operator 結果を native renderer の triangle／styled polyline 経路へ渡し、特殊 fill／stroke などは理由付き互換 fallback に限定している。`MaskPath` との双方向変換と Layer Menu の Undo 対応導線も確認できる。
+
+未完了なのは pixel parity、保存／再読込、mask／composition／preview の runtime 受入と、ビルド・単体／統合テスト結果の確認である。Core geometry／native render 接続は実装済み、品質ゲートと runtime 検証は pending とする。

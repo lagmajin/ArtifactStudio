@@ -1,6 +1,7 @@
 # Milestone: CompositionCleanup (2026-07-14)
 
-**ステータス:** In Progress
+**最終更新:** 2026-08-15
+**ステータス:** MVP の analyzer／preview／apply／Undo は実装済み。immutable snapshot 契約、精密な可視 bounds／背景解析、preflight 接続、runtime 受入は未完了。
 
 ## Goal
 
@@ -202,7 +203,13 @@ Composition Cleanupの制作向け候補を開発用Frame Diagnosticsへ混在�
 - `docs/planned/MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md`
 - `docs/DOC_LIFECYCLE.md`
 
-## 2026-07-25 実装監査
+## 2026-08-15 現行コード監査
+
+`ArtifactCompositionEditor.cppm` に `analyzeCompositionCleanup()`、`cleanup.uneven-margin`／`edge-risk`／`near-center`／`text-too-small`／contrast／cluster／focal point／spacing の候補生成、候補 preview、delta 表示、既存編集経路への apply、Undo 境界、メニュー導線がある。旧文書の「MVP editor 実装が未確認」という記述は更新が必要で、MVP の編集導線は実装済みと判定する。
+
+ただし解析は editor 内の `CompositionCleanupCandidate` に閉じ、`transformedBoundingBox()` ベースである。immutable composition snapshot、実 glyph／path／alpha bounds、最終出力px換算、合成済み背景の複数点 sampling、confidence／説明根拠、export preflight 接続、実機受入は未完了とする。
+
+## 2026-07-25 実装監査（履歴）
 
 - `ArtifactCompositionEditor.cppm` に `analyzeCompositionCleanup()`、各 MVP diagnostic ID、候補 preview、具体的 delta 表示、Apply 経路が存在する。
 - geometry／edge／center／spacing／cluster／focal point／minimum text size／近似 contrast の検出と、既存編集経路を用いた候補適用・Undo 境界はコード上で確認できる。

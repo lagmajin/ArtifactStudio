@@ -1,5 +1,8 @@
 # 2D Rig Core Contract Note - 2026-04-29
 
+**最終更新:** 2026-08-15
+**Status:** Core 契約・制約・ポーズ API は実装済み、UI 統合と永続化／runtime 検証が未完了
+
 ## 判断
 
 現在の路線は大きく正しい。
@@ -118,3 +121,19 @@ UI ではなくレイヤー所有のリグホストに徹する。
 4. `ArtifactRigControllerLayer` を UI 表示として設計する
 5. Bone 選択/編集状態を app 側の軽い state として設計する
 6. IK/constraint は Core 側モデルを決めてから UI へ出す
+
+## 2026-08-15 現行実装監査
+
+現在の Core には、当初の契約を超えて次の実装が確認できる。
+
+- `Rig2D` は ID ベースの骨操作、`evaluate(RationalTime)`、ローカル変換設定、階層更新、JSON 保存復元、Two-Bone IK を持つ。
+- `RigControlSet2D`、`RigEvaluationContext2D`、`RigPropertyBinding2D` と、Parent / MapRange / Aim / TwoBoneIK の各 constraint が Core に存在し、それぞれ JSON 化と評価入口を持つ。
+- `PoseSnapshot`、`capturePose`、`applyPose`、`blendPoses` があり、骨のローカル変換と control 値をまとめたポーズ操作の基礎は実装済み。
+- `ArtifactAbstract2DLayer` 側にも rig、control、constraint、property binding を作成・保存復元する薄い API がある。
+
+未完了または未確認の範囲は次の通り。
+
+- 専用リグ編集 UI、骨／control／constraint の選択・編集導線、Inspector との責務分離は未確認。
+- `PoseSnapshot` のファイル永続化スキーマ、レイヤー派生型をまたぐ JSON ラウンドトリップ、constraint 評価結果の保存／再読込は未実測。
+- `evaluate(time)` と keyframe、control、constraint、IK の評価順序・循環検出・無効参照時の診断契約は明文化されていない。
+- 実際の viewport 操作、Undo、再生・書き出し時の評価整合は、ビルド／テストを実行していないため未確認。

@@ -237,7 +237,7 @@ void MediaPanel::addMediaFile(const QString& filePath, const QString& displayNam
 void MediaPanel::onImportClicked()
 {
     QStringList files = QFileDialog::getOpenFileNames(this, QStringLiteral("Import Media"), QString(),
-        QStringLiteral("Video Files (*.mp4 *.avi *.mov *.mkv);;Audio Files (*.mp3 *.wav *.aac);;All Files (*)"));
+        QStringLiteral("Video Files (*.mp4 *.avi *.mov *.mkv);;Audio Files (*.mp3 *.wav *.aac *.flac);;All Files (*)"));
 
     if (!files.isEmpty()) {
         for (const auto& file : files) {
@@ -259,7 +259,8 @@ void MediaPanel::onImportClicked()
             }
             const bool isAudio = suffix == QStringLiteral("mp3")
                 || suffix == QStringLiteral("wav")
-                || suffix == QStringLiteral("aac");
+                || suffix == QStringLiteral("aac")
+                || suffix == QStringLiteral("flac");
             if (isVideo || isAudio) {
                 auto* engine = ArtifactPr::EditorEngine::instance();
                 bool alreadyRegistered = false;

@@ -1,5 +1,12 @@
 # MILESTONE: Render Preflight / Output Safety Check
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+- Render Queue preflightで出力ディレクトリの書込み不可をError、既存出力ファイルを上書きWarningとして表示するようにした。
+- ビルド・実際の権限差・Render Queue runtime検証は未実施。
+
 **Date**: 2026-06-02  
 **Status**: Archived reference
 **Priority**: High  

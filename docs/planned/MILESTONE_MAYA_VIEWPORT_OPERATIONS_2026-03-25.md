@@ -1,6 +1,7 @@
 # Milestone: Maya-Like Viewport Operations for AE-Style App (2026-03-25)
 
-**Status:** Not Started
+**最終更新:** 2026-08-15
+**Status:** 主要操作は実装済み、Pivot／共通Snap／editor間整合とruntime確認が未完了
 **Goal:** After Effects風アプリに「Maya/Blender ライクなビューポート操作」を導入。
 構造（レイヤー/DAG/ノード）は変更せず、入力と操作体験のみ改善。
 
@@ -272,7 +273,7 @@
 
 ---
 
-## Static audit follow-up (2026-07-25)
+## Static audit follow-up (2026-08-15)
 
 `ArtifactCompositionEditor`／`ArtifactCompositionRenderWidget`、render controller、2D／3D gizmo、ToolBar の現行ソースを照合した。ビルド・実機入力確認は未実施。
 
@@ -282,8 +283,8 @@
 | Transform Gizmo W/E/R | W／E／R の tool切替、Move／Rotate／Scale gizmo mode、2D／3D gizmo表示・drag経路を確認した。 | 実装済み／runtime確認待ち |
 | Pivot / channel box | Anchor/Pan Behind と Inspectorの transform編集は存在するが、提案された viewport MiniChannelBox の専用実装は確認できない。 | 部分実装 |
 | Snap | Transform gizmo側のsnap／Alt bypassとView menuのsnap導線はある。共通Snap utilityと全操作への一貫した接続は未確認。 | 部分実装 |
-| Camera／3D operations | Artifact3DModelViewer、3D gizmo、Composition editorの3D操作経路が存在するが、editor間の完全共通契約は未確認。 | 部分実装／統合待ち |
+| Camera／3D operations | Artifact3DModelViewer と Composition Editor の両方で orbit／pan／zoom 経路を確認。Composition Editor の Preview Orbit は controller の camera state を snapshot／restore し、通常 camera を非破壊で扱う。 | 部分実装／editor間入力契約とruntime確認待ち |
 
 ### 現在の判定
 
-主要なMaya風 navigation と W/E/R 操作は現行コードに実装済みで、文書の `Not Started` は更新が必要。Pivot channel box、共通snap、editor間 parity、実機操作を残す「部分実装／runtime確認待ち」とする。
+主要なMaya風 navigation と W/E/R 操作は現行コードに実装済みで、Preview Orbit の非破壊 snapshot／restore も確認できる。Pivot channel box、共通snap、editor間 parity、実機操作を残す「部分実装／runtime確認待ち」とする。

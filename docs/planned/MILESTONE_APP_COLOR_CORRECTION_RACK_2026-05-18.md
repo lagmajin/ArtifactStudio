@@ -1,5 +1,7 @@
 # MILESTONE_APP_COLOR_CORRECTION_RACK_2026-05-18
 
+**最終更新:** 2026-08-15
+
 ## Goal
 Add a first-class color correction rack that feels native to the Inspector and makes the app immediately better for day-to-day compositing work.
 
@@ -46,6 +48,18 @@ This milestone is about making those controls easy to discover, easy to stack, a
 ## 2026-07-25 実装監査
 
 Exposure／Hue and Saturation／Photo Filter／Auto Exposure などの個別 ColorCorrection effect、Color Grading Engine、Looks preset browser の基盤は実装を確認した。一方、Inspector 内で Exposure／Contrast／Brightness／Saturation／Hue を一体の rack として表示する導線、選択変更との安定した連動、未選択時の rack への具体的な到達案内は確認できない。したがって色補正機能の部品は実装済みだが、本マイルストーンの Inspector rack UX と受け入れ条件は未完了・runtime未検証とする。
+
+## 2026-08-15 現行コード監査
+
+- `ColorWheelsProcessor`、`ColorCurves`、`ColorGrader`、LUT／Looks preset、個別 ColorCorrection effects の基盤を確認した。
+- Inspector／Property Editor の既存 Effect rack へ個別効果を追加する導線はあるが、Exposure／Contrast／Brightness／Saturation／Hue を一体の専用 rack として常設する実装は確認できない。
+- Color grading の適用順、選択変更時の状態同期、未選択時の具体的な案内、before／after UI は runtime 含め未確認。
+
+判定: **色補正エンジン・個別 effects・Looks／LUT 基盤は実装済み。Inspector 専用 rack UX、安定した selection sync、empty state と runtime 検証は pending。**
+
+## Update 2026-08-15
+
+現行コードでは `ColorWheelsProcessor`、`ColorCurves`、`ColorGrader`、LUT／Looks preset、Exposure／Hue and Saturation／Photo Filter／Auto Exposure などの個別効果が利用可能で、既存の Inspector Effect rack から追加する導線がある。一方、Exposure／Contrast／Brightness／Saturation／Hue を一体で常設する専用 Color Correction rack、before／after 表示、選択変更時の完全な状態同期、未選択時の具体的な到達導線は未確認である。色補正の処理基盤は実装済み、rack UX と runtime 受入は pending とする。
 
 ## Implementation notes
 - Prefer reusing the existing property editor and effect rack conventions.

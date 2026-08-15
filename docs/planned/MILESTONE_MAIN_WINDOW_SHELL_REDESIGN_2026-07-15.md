@@ -1,5 +1,6 @@
 # Main Window Shell Redesign (2026-07-15)
 
+**最終更新:** 2026-08-15
 **ステータス:** Implemented — runtime verification pending
 
 ## Goal

@@ -6,6 +6,14 @@
 **現状**: `UndoManager`（アプリ層, 34 コマンド, 100 エントリ制限）と `Command` モジュール（Core 層, `QUndoCommand`, コラボ向け）の2系統が並行。アプリ層のメモリ予算・ディスクオフロード・履歴永続化は実装済み。`SerializableCommand` は `ISerializable` を継承し、`commandType()` を typeName、schemaVersion=1 として共通契約へ接続した。`type`／`schemaVersion`／`data` の typed envelope、Factory の入力／deserialize 失敗検証、creator map の mutex 保護も追加済み。両系統の実運用統合は未完了。
 **目標**: エントリ数制限→バイト予算制限移行、大規模スナップショットのディスクオフロード、セッション間 Undo 履歴永続化、Command モジュールの統合または廃止。
 
+## Update 2026-08-15
+
+- `UndoManager` の現行実装には `UndoBudget`（件数・総メモリ・単一エントリ上限）、`estimatedMemoryBytes()`、古い履歴の予算エビクション、`memoryPressure()`、`OffloadPolicy`、`OffloadedUndoCommand` がある。少なくとも主要な画像・レイヤー・マスク・キーフレーム・Composition 系コマンドには個別のサイズ見積もりが実装されている。
+- typed envelope の serialization／Factory／resolver と、`saveSessionHistory()` / `loadSessionHistory()` の履歴 JSON API が存在する。Macro、InOutPoints、layer/property 系など複数コマンドの復元経路も確認できる。
+- ただしヘッダ既定の `canSerialize() == false` を持つコマンドが残り、現行文書に記載された「34コマンド全体の個別 serialization 未完了」と整合する。全操作をセッション間で復元できる状態とはみなさない。
+- `OffloadPolicy` の既定値は `Never` であり、OnPressure／Always の動作は API とコード経路の存在までは確認できるが、OOM 回避・Undo/Redo 復元・cleanup の実運用結果は未検証である。`memoryPressureChanged` の UI 表示も確認できない。
+- Core の `Command` モジュールと Artifact の `UndoManager` は依然として並行している。よって現状は `budget / offload / history foundation implemented; command coverage, default policy, UI diagnostics, cross-session runtime validation pending` と整理する。
+
 ## 現状のボトルネック
 
 `UndoManager::Impl`:

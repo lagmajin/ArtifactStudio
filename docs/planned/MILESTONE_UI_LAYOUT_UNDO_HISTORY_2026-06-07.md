@@ -1,12 +1,20 @@
 # UI Layout Undo History Milestone
 
 **作成日:** 2026-06-07  
-**ステータス:** 🟡 進行中（Phase 0: ADS 永続化 完了 2026-06-15 / Phase 1-5 未着手）  
+**最終更新:** 2026-08-15
+**ステータス:** Phase 0〜2 と安全な default reset は実装済み。全操作の granular undo、menu 同期、recovery の runtime 受入れは未完了。  
 **関連コンポーネント:** Window Manager, Dock Layout, Tab State, UndoManager, ADS (Advanced Docking System)
 
 ---
 
 ## 概要
+
+## 現行コード監査 (2026-08-15)
+
+- `UiLayoutState` は ADS dock state を JSON／Settings／Store に保存し、AppMain の起動復元・終了保存へ接続されている。
+- `ArtifactMainWindow` は dock show/hide、floating、default reset などで before/after の dock state を `LayoutSnapshotCommand` として UndoManager に積む経路を持つ。
+- `LayoutSnapshotCommand::undo()` により UI layout snapshot の復元が可能で、編集 Undo とは別の layout snapshot command として統合されている。
+- ただし、全ての tab reorder／split／detach 経路が一貫して記録されること、粒度 policy、壊れた layout の自動 recovery、runtime での Ctrl+Z／Redo 受入れは未確認。
 
 UI の開閉や分割、タブ移動などのレイアウト操作を undo / redo 可能にするためのマイルストーンです。
 

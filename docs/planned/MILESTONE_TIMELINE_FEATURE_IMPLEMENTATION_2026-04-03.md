@@ -17,6 +17,19 @@
 
 Asset Browser 側の改善は、`M-UI-21 Asset Browser Navigator / Search / Presentation Surface` を並走対象として扱う。
 
+## Update 2026-08-15
+
+**最終更新:** 2026-08-15
+
+- `ArtifactTimelineWidget` には常設検索、検索モード、Hit status、次／前検索、keyframe add／remove／paste、keyframe navigation、playhead overlay、current layer／frame の状態表示がある。
+- `ArtifactTimelineTrackPainterView` は keyframe marker の描画・選択・編集、範囲変換、削除、補間／roving、ripple edit の実装を持ち、owner-draw が主要経路になっている。`ArtifactLayerPanelWidget` には visible／locked／solo／shy と selection の同期経路もある。
+- ただし全ての編集操作で Inspector／Undo／Redo の結果が完全一致すること、旧 scene 経路の縮退完了、密集 keyframe の省略規則、runtime の大量レイヤー性能はコード検索だけでは証明できない。
+- 判定: **Phase 1〜4 と Phase 5 の主要基盤は実装済み。全操作の受入れ、owner-draw 完全移行、性能・runtime 検証は未完了。ビルド・テストは未実施。**
+
+- `ArtifactTimelineTrackPainterView::setCurrentFrame()` で非有限なplayhead入力を現在値へ正規化してから範囲clampするようにし、NaN／Infが描画座標へ伝播しないようにした。
+- duration、pixels-per-frame、horizontal／vertical offset も有限値を確認してからclampするようにし、外部状態や復元値によるNaN伝播を同じ入力境界で防いだ。
+- durationを短縮した際にcurrent frameが終端を越えて残らないよう、playheadも新しいdurationへclampするようにした。
+
 ---
 
 ## 背景

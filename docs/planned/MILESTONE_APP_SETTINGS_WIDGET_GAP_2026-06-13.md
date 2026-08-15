@@ -1,7 +1,16 @@
 # 実装案: App Settings - Widget 接続ギャップ
 
+**最終更新:** 2026-08-15
+
 > 2026-06-13 作成  
-> 状態: Partial（主要設定・EditMode／DisplayMode・Preview cache・Grid UI・CloneLayer Property Editor・既定Transform Effector接続済み、追加Effector型とruntime検証は未完了、静的確認 2026-07-30）
+> 状態: Partial（主要設定・EditMode／DisplayMode・Preview cache・Grid UI・CloneLayer Property Editor・既定Transform Effector接続済み、追加Effector型とruntime検証は未完了、静的確認 2026-08-15）
+
+### 2026-08-15 現行コード照合
+
+- ✅ `ArtifactViewMenu` は `previewQualityText`、RAM／disk cache、`compositionGridSettings` を設定値から読み取り、ViewMenu の操作と Composition 側へ反映する経路がある。
+- ✅ `AppMain` は起動時に Preview cache 設定を `ArtifactPlaybackService` へ適用し、`ApplicationSettingDialog` も同じ Preview 設定を表示する。
+- ✅ Clone Layer の編集導線は `ArtifactInspectorWidget` の Cloner／Clone Modifier 面に整理され、ToolOptionsBar の Clone Stamp（ブラシ操作）とは責務が分離されている。
+- ⏳ 設定変更後の全ウィジェット即時同期、追加 Effector 型の個別編集、Preview／Clone の実機 runtime 検証はコード静的確認だけでは完了扱いにできない。
 
 ### 2026-07-29 Implementation Loop
 

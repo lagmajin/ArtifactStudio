@@ -1,13 +1,19 @@
 # Terminal Shell / Command Surface Milestone
 
-## Static Audit (2026-07-25)
+**最終更新:** 2026-08-15
 
-`PowerShellWidget` は存在し、Windows では `powershell.exe -NoProfile -Command`、それ以外では `/bin/sh -c` を `QProcess` で非同期実行できる。標準出力の表示、実行中の二重起動抑止、終了時の `commandFinished` は確認できる。
+## Static Audit (2026-08-15)
 
-- Phase 1 の一部: コマンド入力、Run、出力表示、非同期実行、終了通知は実装済み。
-- 未実装または未確認: Stop/Clear、working directory、終了コード／終了状態の表示、stderr の独立表示、shell profile 選択、環境変数管理、実行履歴と履歴検索、複数 command の再実行、output 折りたたみ、favorites/templates/batch。
+`PowerShellWidget` は存在し、Windows では `powershell.exe -NoProfile -Command`、それ以外では `/bin/sh -c` を `QProcess` で非同期実行できる。標準出力の表示、実行中の二重起動抑止、working directory、Stop／Clear、終了コード／終了状態表示、上下キーによる command history 再利用、終了時の `commandFinished` を実装した。
+
+- Phase 1 の一部: コマンド入力、Run、出力表示、非同期実行、Stop／Clear、working directory、終了コード表示、終了通知は実装済み。
+- 未実装または未確認: stderr の独立表示、shell profile 選択、環境変数管理、履歴検索、複数 command の再実行、output 折りたたみ、favorites/templates/batch。
 - `runCommand()` は同期 `waitForFinished(-1)` で標準エラーや終了コードを返さず、対話的な terminal session／PTY ではない。履歴・session・profile のモデルも確認できない。
 - Debug Console はログ閲覧・フィルタ面であり、Terminal との役割分担は概念上あるものの、menu/shortcut/dock からの統合導線と script runner／diagnostics 連携は未確認。
+
+## 現行コード監査 (2026-08-15)
+
+`PowerShellWidget` は非同期 `QProcess` の merged output、二重起動抑止、終了通知、Stop／Clear、working directory、上下キーの履歴再利用を持つが、同期 `runCommand()` も残り、PTY 的な session model ではない。stderr 分離、profile／環境変数、履歴検索、output 折りたたみ、favorites／batch、menu・dock 統合は未確認。従って Phase 1 は入力・実行・出力・基本履歴までの部分実装、Phase 2〜4 は未完了として扱う。
 
 判定: 最小の外部 command runner は部分実装。MILESTONE の Phase 1 の状態表示・停止操作から Phase 4 までは未達で、現状を「本格 terminal surface」とは判定できない。
 

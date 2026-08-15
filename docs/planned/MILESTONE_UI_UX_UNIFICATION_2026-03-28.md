@@ -1,10 +1,17 @@
 # UI/UX 統一改善 Milestone
 
 **作成日:** 2026-03-28  
+**最終更新:** 2026-08-15
 **ステータス:** 計画中  
 **関連コンポーネント:** ArtifactPropertyWidget, ArtifactInspectorWidget, ArtifactTimelineWidget, ArtifactProjectManagerWidget
 
 ---
+
+## Update 2026-08-15
+
+- `ArtifactPropertyWidget` は rebuild signature／revision、visibility defer、property value cache、差分不要時の再利用判定を持つが、signature が変わる場合は layout／editor rows を再構築する。したがって当初の全選択変更再構築問題は緩和されているが、完全な widget pool／差分更新ではない。
+- Property editor の icon loader は共有 cache を持ち、keyframe／navigation／expression／favorite 等の毎回 disk I/O は改善済み。共通 theme token、QPalette／owner-draw、ShortcutBindings、EventBus、各 widget の accessibility 名も現行コードで広く使用されている。
+- Timeline／Toolbar／Statusbar の専用監査で確認した通り、D&D／高度なショートカット／全体テーマ統一／tooltip と shortcut 表示の網羅性、selection-driven UI の完全な共通契約は未完了。UI/UX 統一全体は部分実装のまま。
 
 ## 概要
 

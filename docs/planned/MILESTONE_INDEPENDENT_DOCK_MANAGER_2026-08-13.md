@@ -1,13 +1,32 @@
 # 独自ドッキングウィジェットマネージャ移行マイルストーン
 
-**最終更新:** 2026-08-13
-**ステータス:** In Progress
+**最終更新:** 2026-08-15
+**ステータス:** Phase 1–3 partial / two-panel MVP implementation complete, runtime verification pending。floating lifecycle and backend switch pending
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactDockManager` facade、QADS adapter、`ArtifactNativeDockSurface`、backend-neutral な `DockLayoutDocument`／registry、portable JSON の保存・復元は現行コードに存在する。`ArtifactMainWindow` の公開契約は `Artifact.DockManager` を参照し、QADS の area 変換や manager 所有は実装側へ閉じられている。一方、`ArtifactMainWindow.cppm` 自体は QADS の生成・登録・floating callback を backend facade 内で扱う構造が残っており、独自 backend と QADS backend の実運用切替、floating lifecycle の完全な抽象化、workspace preset の backend 非依存化は未完である。
 
 ## 目的
 
 Qt Advanced Docking System（QADS）を参考実装として活用しつつ、ArtifactStudio のドッキング責務を独自のドッキングウィジェットマネージャへ段階的に移行する。
 
 QADS を一度に削除せず、既存のレイアウト・タブ・floating・workspace 保存を維持しながら、アプリケーション側 API と backend を分離する。
+
+## 次の実装方針: Two-panel MVP
+
+全パネルを一度に独自 backend へ移すのではなく、まず以下の2面だけで独自 dock surface の実運用経路を成立させる。
+
+- `Composition Viewer`
+- `Inspector`
+
+この2面で、登録、表示、tab 化、activate、close、area 移動、portable layout 保存・復元までを確認する。Timeline、Project、Asset Browser、Components、Effects、Render Queue、Debug 系は QADS backend に残してよい。
+
+MVP の目的は機能数を増やすことではなく、独自 backend が実際の編集セッションで壊れずに使えることを確認することである。
+
+### 現在の実装状態
+
+`ARTIFACT_NATIVE_DOCK_MVP=1` の opt-in 経路を追加し、Composition Viewer と Inspector を `NativeDockSurface` に登録できるようにした。表示、activate、visibility、pinned、tab routing、portable layout のコード経路も接続済み。通常起動時は従来どおり QADS backend を使用する。native surface の表示、サイズ、保存・復元、QADS との混在はまだ runtime 未検証であり、現時点では既定 backend を変更しない。
 
 ## 背景と現状の課題
 
@@ -83,6 +102,14 @@ QADS を一度に削除せず、既存のレイアウト・タブ・floating・w
 - [ ] `ArtifactMainWindow` は facade のみを参照する構成にする
 - [ ] QADS backend と native backend を切り替え可能にする
 
+#### Two-panel MVP acceptance slice
+
+- [ ] Composition Viewer と Inspector を native backend で生成できる
+- [ ] 2面の docked / tabbed / area 移動 / activate / close を実操作で確認する
+- [ ] 2面の portable layout 保存・復元を確認する
+- [ ] 残りのパネルは既存 QADS backend のままでも起動・操作できる
+- [ ] native backend の不成立時に、全 workspace を壊さず QADS backend へ戻せる
+
 ### Phase 4 — floating と drag/drop
 
 - [ ] 独自 floating window の lifecycle を定義する
@@ -115,7 +142,7 @@ QADS を一度に削除せず、既存のレイアウト・タブ・floating・w
 
 ## 次の実装単位
 
-`ArtifactMainWindow` 内に集中している dock 登録・表示・floating 操作を `ArtifactDockManager` facade へ移す。Phase 1 では QADS backend の挙動を変えず、責務分離だけを行う。
+次は Composition Viewer と Inspector に限定して native backend を実運用経路へ接続し、QADS backend との混在・切替・portable layout 復元を確認する。その後に floating lifecycle と native window policy を facade の責務へ移す。全パネルを独自 backend へ移すことは MVP の完了条件ではない。
 
 ## 検証メモ
 

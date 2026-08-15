@@ -1,6 +1,8 @@
 # Milestone: Composition Editor Info HUD Atlas
 
-**Status:** Phase 1 In Progress
+**最終更新:** 2026-08-15
+
+**Status:** Phase 1 Complete、Phase 2/3 Partial（HUD 集約と glyph atlas 経路は存在するが、HUD 全体の atlas 切替・性能検証は未完了）
 **Goal:** `ArtifactCompositionEditor` の viewport 上に、選択情報や補助情報を軽量に表示できる HUD を作り、最終的に glyph atlas ベースへ移行する
 
 ---
@@ -90,6 +92,14 @@ HUD に出す文字列を controller 側の state として持つ
 - `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`
 - 必要に応じて `Artifact/src/Render/ArtifactIRenderer.cppm`
 - 必要に応じて `Artifact/src/Render/TextRenderer.ixx`
+
+## 2026-08-15 現行コード照合
+
+- ✅ `CompositionRenderController` に `setInfoOverlayText(title, detail)`／`clearInfoOverlayText()` があり、`ArtifactCompositionEditor` から selection、tool、操作状態、tracker 等の情報を集約している。
+- ✅ overlay pass は固定位置の viewport info overlay を描画し、空状態・表示状態を controller 側で管理している。旧記載の「Phase 1 In Progress」は現状と不一致。
+- ✅ `PrimitiveRenderer2D`／`ArtifactIRenderer`／`DiligentImmediateSubmitter` に `GlyphAtlas`、`drawGlyphText`、transformed glyph submit、debug state が実装されているため、atlas 基盤自体は HUD 専用ではないが利用可能。
+- ⚠️ 現行 HUD の描画箇所は `drawViewportInfoOverlay()` であり、glyph atlas へ直接切り替えたことは静的コード上で確認できない。HUD は通常の renderer text／overlay 経路を使う可能性が残る。
+- ⏳ HUD 専用の text cache、atlas への明示的な切替、font fallback／DPI／長文 clipping、常時表示時の draw cost と runtime 表示確認は未完了。
 
 ---
 

@@ -1,4 +1,6 @@
-**ステータス:** In Progress
+**ステータス:** CE-1〜CE-13 実装済み、Speed グラフ編集と runtime／回帰検証が未完了
+
+最終更新: 2026-08-15
 
 2026-07-25: CE-8〜CE-13 のソース実装を再確認。常設数値入力、Buffer／Normalize／Cycle／Snap、Curve Copy/Paste まで実装済み。ビルド・ランタイム検証は未実施。
 
@@ -18,7 +20,8 @@
 - `CurveKey` はベジェハンドル + `brokenTangents` フラグ（Maya Break/Unify 相当の概念）を保持
 
 ### 重大なギャップ（正確性バグ）
-- **タンジェント編集がプロパティに書き戻されない**。ハンドルドラッグと Auto/Flat/Linear ボタンはウィジェットローカルのみ。書き戻し関数 `applyCurveEditorTrackToProperty`（cp1/cp2 変換ロジック完備、`ArtifactTimelineWidget.cppm:3387`）は呼び出し元ゼロのデッドコード。表示カーブと評価カーブが乖離し、signature 変更で編集が消える。
+- 2026-08-15 の現行コード照合では、タンジェント編集の書き戻し経路は解消済み。`interactionFinished` で `writeBackCurveEditorStructureDiffs` と `writeBackCurveEditorTangentEdits` を呼び、`applyCurveEditorTrackToProperty` が cp1/cp2 と interpolation を property へ反映し、同一操作の Undo snapshot に含める。
+- 残る確認課題は、Speed グラフの編集可否、任意 property の keying-set 制限、複雑な tangent／frame変更後の runtime 評価と再読込である。
 
 ## キー体系の整合ポリシー（Blender ライク系と矛盾しないために）
 
@@ -84,3 +87,16 @@
 - CE-8 の数値入力は実装済みだったため、チェック欄を `[x]` に修正した。
 - CE-14（Speed グラフの編集）は非目標ではなく後続項目として未実装である。
 - ビルド、runtime、Undo／Redo の実機動作、評価カーブとの一致は未検証のため、マイルストーン全体は `In Progress` のままとする。
+
+## 2026-08-15 現行コード監査
+
+- `ArtifactCurveEditorWidget` に Value／Speed 表示、Bezier handle、複数キー選択・移動・挿入・削除、tangent 操作、数値入力、Buffer／Normalize／Cycle／Snap／Copy-Paste の経路が存在する。
+- `ArtifactTimelineWidget` 側には curve editor の snapshot、tangent／構造差分の書き戻し、Property keyframe への Undo 経路があり、旧記述の「タンジェントがローカルだけ」は現行コードには適用しない。
+- Speed グラフは引き続き read-only で、速度カーブを編集して元の keyframe へ書き戻す契約は未実装。
+- ビルド／runtime／Undo-Redo／再生・export での評価カーブ一致はこの監査では実行していない。
+
+判定: **通常の Value カーブ編集と主要 DCC 操作は実装済み。Speed 編集、実機検証、回帰検証は pending。**
+
+### CE-14 調査追記 2026-08-15
+
+Speed graph は現在の Value keyframe 群から区間速度をサンプリングして生成する派生表示であり、Speed上の1点を移動しても、元の値・時間キーフレームへ一意に逆変換できない。したがって既存の `keyMoved(track, key, frame, value)` をそのままSpeedへ接続する実装は行わず、速度編集の契約（速度を変更した区間の再積分、境界条件、値域、Undo単位）を先に定義する必要がある。

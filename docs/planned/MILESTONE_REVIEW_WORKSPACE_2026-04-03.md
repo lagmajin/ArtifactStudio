@@ -1,5 +1,7 @@
 # Review Workspace: Frame-Accurate Compare & Annotation Milestone (2026-04-03)
 
+**最終更新:** 2026-08-15
+
 ## Goal
 
 制作中のコンポジション・レンダリング結果を、**「見えてるもの＝最終結果に近い」**状態でレビューできる,
@@ -211,3 +213,7 @@ M-FE-7-1 は、Review Workspace を独立 widget として立てる前に、編�
 一方、独立した `ArtifactReviewWorkspace`、ReviewMode 境界、Shot/CompositionVersion 管理、AnnotationLayer の vector drawing・コメント・JSON/flattened PNG export、チーム共有、レビュー専用 JKL/HUD の統一契約は確認できない。LUT/OCIO の review-wide 適用、完全な frame-accurate acceptance、複数 shot 並列レビューも未検証である。
 
 判定: M-FE-7-2/7-3 の既存 viewer 基盤は partial、M-FE-7-1/7-4/7-5/7-6 の独立 workspace・shot・annotation・review navigation は未完了または未検証。
+
+## 現行コード監査 (2026-08-15)
+
+Contents Viewer の compare／wipe／split／difference、swap、source A/B の設定保存と compare canvas は現行コードで確認できる。`ArtifactAppSettings` に compare wipe／swap／source path の永続化もあるため、viewer 基盤は部分実装として更新する。一方、独立 Review Workspace、shot／version 管理、座標系付き annotation の保存・export、review 専用 JKL／HUD、LUT／OCIO の全体適用、frame-accurate runtime 受入れは未確認であり、残りの phase は pending とする。

@@ -1,5 +1,20 @@
 # マイルストーン: レイヤー専用ビューポート（Layer View）機能キャッチアップ案
 
+**最終更新:** 2026-08-15
+
+## 2026-08-15 実装進捗
+
+- Layer Solo Viewのviewport入力をComposition Viewに合わせ、`pixelDelta()`対応と`Shift+ホイール`横パンを追加。
+- Composition Viewと同じ90% / 80%のSafe Area表示を追加し、Gridとは独立して切り替え可能にした。
+- 既存のZoom HUD、Pivot / Bounds、Edit / Inspect / Impact、Display mode、Impact依存表示は既に存在するため、重複実装しない方針を確認。
+- 次の優先順位は、永続Guide管理、Channel表示、Before / After比較、ROI / Zebra / Sample表示、最後にドック統合とする。
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactLayerEditorWidgetV2` は、旧監査時点の単純な pan／zoom／checkerboard wrapper から進み、Final／Alpha／Mask／Wire 表示、View／Transform／Shape／Mask 編集、mask／shape の Undo、transform HUD、cache／stage／source／effect／mask の要約、Impact の依存表示まで実装している。`ArtifactRenderLayerEditor` はそれらを転送する wrapper として `AppMain` の Layer Solo View dock に接続されている。
+
+一方、旧案が想定した `ViewportState`／`ViewportOverlayCompositor`／`DisplayFilterSet` の共有基盤を導入した証拠はなく、現行は Layer View 独自の `DisplayMode`／HUD／編集経路である。したがって「編集基盤未実装」は訂正するが、Composition View と完全に同じ channel／ROI／zebra／compare／overlay 契約へ統合済みとは判定しない。`LayerPreviewPipeline` の死スタブ整理、ドック内での第一級統合、runtime の表示品質・selection 追従は未完了または未検証。
+
 > 作成: 2026-07-08 / 状態: Partial implementation（編集基盤実装済み、共有検査基盤・統合待ち）
 > 関連: `docs/planned/MILESTONE_VIEWPORT_ENHANCEMENT_PROPOSAL_2026-07-08.md`（§12 の共有基盤を前提）
 > スコープ: 単一レイヤー専用ビューポート `ArtifactLayerEditorWidgetV2` / `ArtifactRenderLayerEditor` / `ArtifactSoftwareLayerTestWidget`

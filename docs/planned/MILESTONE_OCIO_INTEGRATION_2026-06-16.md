@@ -1,7 +1,8 @@
 # M-OCIO-1 OpenColorIO 統合 Milestone
 
 作成日: 2026-06-16
-ステータス: Draft
+最終更新: 2026-08-15
+ステータス: OCIO config／manager／project 保存と view transform 基盤は実装済み、render／export 全経路の受入れ待ち
 対象: `Artifact/src/Color/ArtifactColorScienceManager.cppm`,
       `Artifact/src/Widgets/Color/ArtifactColorSciencePanel.cppm`,
       `Artifact/src/Widgets/Color/ColorPicker/*`,
@@ -451,3 +452,11 @@ public:
 ## 2026-07-25 実装監査
 
 OCIOConfig の JSON／built-in ACES・sRGB・Rec.709・Rec.2020 preset、role／color-space／display／view の query、ArtifactOCIOManager の preset／config file load、working space／display／view の状態管理、ColorSciencePanel の表示・View・config 操作 UI は実装を確認した。一方、実 OpenColorIO processor 連携、composition 単位の role override／looks 永続化、render controller への view transform の通常適用、LUT write、Problem View の `ocio.*` 診断、project 保存 round-trip は確認できない。したがって Phase 1 の built-in／manager と Phase 3 の基本UIは部分実装、Phase 2／4／5／6 は未完了・runtime未検証とする。
+
+## 現行コード監査 (2026-08-15)
+
+- `ArtifactOCIOManager` に built-in preset／file config load、working space、display、view、looks、exposure／gamma の管理と OpenColorIO processor による view transform／look 適用がある。
+- Project exporter／importer が `ocio` 設定を保存・復元し、FarmWorkerMain は `--ocio-config` を renderer environment に渡す経路を持つ。`OCIOConfig` の role／display／view query と fallback config も確認した。
+- ただし、composition／export の全経路での適用順、LUT `.cube`／`.3dl` write、Problem View の `ocio.*` 診断、OCIO 未導入時の mock と実ライブラリの parity、runtime の色差受入れは未検証。
+
+判定: **OCIO の config／manager／project persistence／worker propagation は実装済み。全 render／export 経路、LUT、diagnostics、色精度の受入れは pending。**

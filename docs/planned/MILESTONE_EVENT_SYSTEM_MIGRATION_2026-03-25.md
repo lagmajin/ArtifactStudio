@@ -242,3 +242,9 @@ widget は service の `signal` を直接多数つなぐのではなく、
 EventBus の最小 API と主要な型付きイベント、購読トークン、global bus は実装済みで、Frame／Playback／Project／Composition／Selection／Layer 系の publish / subscribe が確認できる。Qt signal を段階的な bridge として残す方針にも整合する。
 
 ただし、全サービスの adapter 化、全候補 widget の直接 signal 依存の除去、Frame／Selection の throttle・coalesce の実行時保証は未確認である。したがって Phase 1 は実装済み、Phase 2〜3 は進行中として扱い、完了マークは付けない。
+
+## Update 2026-08-15
+
+現行コードを追加照合した。型付き `EventBus`／購読トークン／global bus と、Playback／Project／Composition／Selection／Layer／Tool／Asset／Render 周辺の publish／subscribe は実装済み。主要 widget の EventBus 購読も広がっている。
+
+一方、全サービスの Qt bridge 化、残存する直接 signal 依存の整理、高頻度イベントの throttle／coalesce の runtime 保証は未完了または未検証。新規の signal／slot 配線や Reactive 系の変更は行わない。

@@ -1,7 +1,13 @@
 # MILESTONE: Internationalization (i18n) Implementation
 
 **日付**: 2026-08-04
-**最終更新:** 2026-08-05
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+Core の `LocalizationManager` が locale enum／コード設定／自動判定／翻訳ロードを持ち、App の `TranslationManager` は Core へ委譲しています。App 起動時には translations directory を両マネージャーへロードし、`--lang` と system locale による言語選択、ja／en／zh／ko 等の locale 認識が確認できます。翻訳監査ツールと主要メニュー・Property Editor・Command Palette 等の翻訳キー移行も反映済みです。
+
+ただし文書内の「2系統の統合未完了」という旧記述は現状とずれています。残課題は UI 全域のハードコード文字列、Core／App の API 完全統一、動的言語切替時の既存 widget 更新、数値・日付の全画面 locale formatting、全 locale の実表示確認です。
 **監査結果:** `tools/i18n/audit_translations.py` による ja/en 対照でカバレッジ100%、未翻訳4件（技術表記）を確認。
 **今回の実装:** Core の LocalizationManager を翻訳カタログの単一実体とし、App の TranslationManager は既存 API を維持する薄い委譲層へ統合。loadedKeys API を追加。
 Property Editor のキーフレーム、リセット、エクスプレッション、お気に入り操作ラベルも翻訳キー経由へ移行。

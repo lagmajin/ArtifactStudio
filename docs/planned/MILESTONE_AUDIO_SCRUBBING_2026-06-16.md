@@ -1,5 +1,6 @@
 # M-AU-8 Audio Scrubbing Milestone
 
+**最終更新:** 2026-08-15
 作成日: 2026-06-16
 ステータス: 実装済み（実機検証・運用上の磨き込み待ち、静的確認 2026-07-29）
 対象: `ArtifactCore/include/Audio/AudioCache.ixx`,
@@ -37,6 +38,20 @@
 `ArtifactAudioScrubController`／worker は実在し、scrub 開始・位置更新・停止、debounce、latency target、速度由来 volume、設定保存、cache miss 通知、diagnostics を提供する。Timeline Widget と Composition Editor が controller を呼び出し、Application Setting Dialog から有効化・遅延・音量を変更できる。通常再生とは別の scrub worker／buffer 経路で構成されている。
 
 ただし、AudioCache の実ヒット率、音声出力デバイス上の実測遅延、mute／solo／volume の即時反映、video scrub との lock-step、急速ジャンプ時の中断、長時間操作時の worker 終了安全性は静的確認だけでは保証できない。判定は「実装済み、実機検証と運用上の磨き込み待ち」とする。
+
+## 2026-08-15 現行コード監査
+
+- `ArtifactAudioScrubController` / worker の start・position update・stop、debounce、latency target、速度由来 volume、設定保存、cache miss、diagnostics を確認した。
+- Timeline Track Painter View の `ScrubPreview` tool と Timeline/Composition Editor の controller 呼び出しが存在し、通常 playback と分離した scrub 経路を維持している。
+- `AudioClockProvider` / Playback Service の audio clock 接続も存在するが、scrub preview が video frame、audio sample、出力 device clock と完全に lock-step することは静的コードだけでは証明できない。
+- 急速ジャンプ時の worker cancellation、cache hit率、mute/solo/volume 即時反映、長時間操作後の worker 終了安全性、実デバイス遅延は未検証。
+- したがって機能実装は完了扱いに近いが、実機検証・運用上の磨き込み待ちのステータスを維持する。
+
+## Update 2026-08-15
+
+- `ArtifactAudioScrubController`／worker の start・position update・stop、debounce、latency target、速度由来 volume、設定保存、cache miss、diagnostics を再確認。
+- Timeline Track Painter View の `ScrubPreview` tool、Timeline／Composition Editor の controller 呼出し、`AudioClockProvider` 接続を確認。通常 playback と分離した scrub 経路は維持されている。
+- video frame／audio sample／device clock の lock-step、急速ジャンプ時 cancellation、cache hit rate、mute／solo／volume 即時反映、長時間 worker 終了安全性、実機 latency は未検証。
 
 ---
 

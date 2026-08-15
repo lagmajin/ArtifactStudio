@@ -2,6 +2,9 @@
 
 > 2026-04-19 作成
 
+**最終更新:** 2026-08-15
+**ステータス:** Phase 1 の最小デコーダ・検出は実装済み相当、マテリアル／ボーン表示／モーフ／runtime 受入れ待ち
+
 ## 目的
 
 `ArtifactCore` の 3D モデル読み込み経路に PMD (MikuMikuDance Polygon Model Data) フォーマット対応を追加し、
@@ -15,10 +18,17 @@ PMD フォーマットは MMD エコシステムで最も広く使われてい�
 コンテンツ制作ワークフローにおける重要な入力形式となる。
 
 現在の状況:
-- `FileTypeDetector` は未だ `.pmd` を認識していない
-- `MeshImporter` は PMD 用のデコーダを持っていない
+- `FileTypeDetector` は `.pmd` を 3D model として認識する実装がある
+- `MeshImporter` は PMD の最小バイナリデコーダを持つ
 - `Artifact3DModelViewer` はボーン・ウェイト情報を表示する仕組みが無い
 - マテリアル・テクスチャ・モーフ対応の下地が不足している
+
+## Update 2026-08-15
+
+- `ArtifactCore/src/File/FileTypeDetector.cppm` に PMD 判定があり、`ArtifactCore/src/Geometry/MeshImporter.cppm` の `loadPMD()` が PMD magic、バージョン／頂点数／面数、頂点・法線・UV・skin data、face index の範囲を検証して Mesh を生成する。
+- したがって旧「`.pmd` 未認識」「PMD デコーダなし」という記述は現行コードと一致せず、Phase 1 の検出・最小ジオメトリ読み込みは実装済み相当として扱う。
+- 現時点で確認できる範囲は最小 Mesh import までで、PMD マテリアル／テクスチャ・Toon／エッジ、ボーン階層の表示・GPU skinning、モーフ、PMX 対応、Contents Viewer の実素材受入れは未確認または未完了である。
+- 判定は **Phase 1 部分実装／Phase 2〜4 未完了** を維持する。ビルド・テスト・runtime 確認は未実施。
 
 ---
 

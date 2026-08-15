@@ -2,6 +2,18 @@
 
 > 2026-03-25 作成
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+現行コードを確認すると、Property／Keyframe は `AbstractProperty` の値・アニメーション・補間・keyframe編集を基盤に持ち、Timeline／Inspector／Property Widget、Undo、copy/paste、3D transform など複数の編集経路へ接続されている。ただし全 derived layer／mask／camera／effect を完全に同一契約へ収束させたことは未確認である。
+
+Project／Asset workflow では Asset Browser と Project Manager の選択同期、Recent／Favorites、relink、missing／unused 検出、import・cleanup・thumbnail の基盤が存在する。残りは Asset Browser と Project View の情報面統合、drag-and-drop／relink の全導線、metadata／duration／fps の横断表示と runtime 受入である。
+
+Software Composition では software render compositor、software render inspectors／test widgets、current layer／composition の診断経路が存在する。一方、GPUとの比較を目的にした一貫した compare／split view、overlay／gizmo／crop／bounds の全機能 parity、回帰検出ワークフローは未確認である。
+
+判定は「3つの長期テーマはいずれも基盤と部分統合が進行済み。Property／Keyframe の完全統合、Asset／Project の横断workflow、Software Composition の比較・検証面は継続課題」とする。
+
 ## 目的
 
 空き時間で少しずつ進めると効く、時間はかかるが完成度への寄与が大きい作業をまとめる。

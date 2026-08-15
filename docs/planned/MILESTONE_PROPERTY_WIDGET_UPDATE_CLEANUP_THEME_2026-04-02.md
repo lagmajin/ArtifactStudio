@@ -2,7 +2,7 @@
 
 # Milestone: Property Widget Update / Cleanup / Theme Ownership (2026-04-02)
 
-**Status:** Draft
+**Status:** 部分完了（2026-08-15 現行コード監査）
 **Goal:** `ArtifactPropertyWidget` 周辺の残骸整理、`PropertyEditor` の責務分離、そして property UI のテーマ所有権を整理して、見た目と構造を長期保守しやすい形へ寄せる。
 
 ---
@@ -167,3 +167,11 @@ Property UI は動いているが、責務が散りやすい。
 一方、`ArtifactPropertyWidget`／`ArtifactInspectorWidget`／PropertyEditor 間の責務境界はまだ複数の ad-hoc group／action row を含み、pick-whip／reference link、copy-paste、legacy Knob の整理は未完了である。palette token の全面的な一元化、dark／light／high-contrast の実画面比較、再構築抑制の性能効果、旧 wrapper を含む全 widget 経路の runtime／build 検証も未確認である。
 
 判定: **Phase 1〜3 の主要基盤は実装済み。** Phase 4〜5 と theme／legacy の完全整理、runtime 検証が残っている。
+
+## Update 2026-08-15
+
+- `ArtifactPropertyWidgetShared` に property panel／section／search の palette helper、theme token 由来の surface／border／selection／accent、row の keyframe／expression／auto-key 導線を確認。
+- `ArtifactPropertyWidget` は rebuild debounce／revision／signature／frame cache、component editor との責務境界、通常 layer property から component group を除外する経路を確認。
+- `PropertyEditor`／Inspector 側には row chrome、reset／keyframe／expression、palette／owner-draw があるため、Phase 1〜3 は現行実装に反映済みと更新する。
+- Object Reference editor は既存の Pick／Clear に加えて expression reference MIME の drag-and-drop を受け、数値 layer reference を commit できるようにした。
+- `PropertyEditor` の context menu と `ClipboardManager` による property value copy／paste は現行実装で確認できる。一方、pick-whip／reference link、legacy Knob の整理、dark／light／high-contrast の実画面比較と runtime／build 検証は未完了または未確認。

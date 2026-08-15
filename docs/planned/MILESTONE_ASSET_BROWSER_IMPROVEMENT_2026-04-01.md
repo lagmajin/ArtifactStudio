@@ -1,7 +1,16 @@
 # Milestone: Asset Browser Improvement (2026-04-01)
 
+**最終更新:** 2026-08-15
 **Status:** Phase 3 (P2) Complete — runtime verification pending
 **Goal:** アセットブラウザの基盤強化とUX改善
+
+## 2026-08-15 現行コード監査
+
+`ArtifactAssetBrowser` は `QFileSystemWatcher`、非同期 thumbnail／waveform job、世代管理、sequence grouping、Favorites／Unused／Missing、breadcrumb、hover preview、内部D&D、file operation Undo／Redoを実装している。ディスク thumbnail cache も path／size／更新時刻キー、容量上限、期限管理まで確認できる。
+
+一方、TBBによる並列化の明示的導線、imported asset cache の差分型更新、watcher世代と大量ファイル更新の統合、長時間 runtime 性能は未完了または未検証とする。
+
+今回、watcher のファイル／ディレクトリ変更時に thumbnail generation を即時無効化し、遅延 refresh 前に完了した古い thumbnail job を破棄する導線を追加した。大量更新時の UI refresh coalescing と実機安定性は未検証である。
 
 ---
 
@@ -118,3 +127,17 @@
 - 特に Phase 3 の relink／delete／sequence restoration／MacroUndo まで実装され、初版記載より進捗している。
 - 一方、Phase 1 の TBB 並列 thumbnail／filter scan、差分型 imported asset cache は確認できず、数千ファイル時の目標性能と runtime verification も未実施である。
 - よって UX／workflow 部分は概ね実装済み、性能基盤を残す `Phase 3 complete — runtime verification pending` 相当の判定を維持する。
+
+## 2026-08-15 現行コード照合
+
+`ArtifactAssetBrowser.cppm` では、検索・タイプ／状態フィルタ、シーケンス検出、Favorites、Unused／Missing 表示、非同期画像・動画・音声サムネイル、hover preview、メモリキャッシュ、リロード世代管理、内部 D&D と Undo／Redo の導線を再確認した。旧文書の P1／P2 UX を未実装として扱う根拠は現行コードにはない。
+
+一方、サムネイル生成は複数の非同期経路を持つものの、計画にある TBB 並列化と imported asset cache の差分スキャンはこのコード確認では裏付けられなかった。大量アセット時のスキャン時間、サムネイル hit rate、ディスクキャッシュの実効期限、ファイル監視から UI 更新までの runtime 安定性は未検証である。今回はビルド・テストを実行していない。
+
+## Update 2026-08-15
+
+検索／フィルタ、Favorites／Unused／Missing、シーケンス検出、非同期サムネイル・waveform、hover preview、内部D&D、リネーム／削除／relinkのUndo／Redoは現行コードで確認済み。P1／P2のUXとworkflowは実装済みとして扱う。TBB並列thumbnail、差分型imported asset cache、大量ファイル時の性能、cache hit／expiry、FileSystemWatcherからUI更新までのruntime安定性は未確認で、Phase 1性能基盤と受入検証はpendingとする。
+
+## Update 2026-08-15 — 順序監査
+
+Asset Browser の現行導線は、静止画・連番を含む検索／フィルタ／Favorites／Unused／Missing／sequence detection、非同期thumbnail／waveform、breadcrumb、hover preview、内部D&D、Undo／Redoまで実装済みであることを再確認した。残る実装候補は TBB または同等の並列thumbnail scheduling、差分型 imported asset cache、監視イベントの世代統合であり、現状で不用意に別のwatcherや重複cacheを追加する根拠はない。

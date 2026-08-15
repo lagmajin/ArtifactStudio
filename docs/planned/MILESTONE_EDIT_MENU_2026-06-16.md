@@ -1,7 +1,8 @@
 # M-EDIT-1 Edit Menu Foundation Milestone
 
 作成日: 2026-06-16
-ステータス: Draft
+最終更新: 2026-08-15
+ステータス: Edit menu／clipboard／multi-selection／Undo 基盤は実装済み、Find／Group command／selection persistence は未完了
 対象: `Artifact/src/Widgets/Menu/ArtifactEditMenu.cppm`,
       `Artifact/src/Widgets/Menu/ArtifactFileMenu.cppm`,
       `Artifact/src/Service/ArtifactClipboardService.cppm`,
@@ -12,6 +13,11 @@
       `Artifact/src/Widgets/Inspector/ArtifactInspectorWidget.cppm`,
       `Artifact/src/Undo/*`
 位置づけ: `REPORT_APP_PERF_BOTTLENECK_2026-06-16.md` で確認した `EditMenu 1 hit / Clipboard 18 hit / Undo redo 27 hit` を統合し、Edit / Selection / Find / Replace / Multi-selection の foundation を整える。
+
+## Update 2026-08-15
+
+- 現行コードでは Edit Menu の Undo／Redo／Undo History、Cut／Copy／Paste／Delete／Duplicate、Select All／None／Invert／Same Type、Find、multi-layer paste と Undo 経路を確認できる。
+- Group／Ungroup の専用 command、selection persistence、Find／Replace の高度な検索、ショートカット競合と全操作の runtime／Undo-Redo 検証は未完了または未確認。
 参照:
 - `docs/analysis/REPORT_APP_PERF_BOTTLENECK_2026-06-16.md`
 - `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_2026-04-21.md`
@@ -393,3 +399,13 @@ public:
 - Parametric Composition input bindingのsourceLayerId参照も監査対象へ追加
 - `MacroUndoCommand` + `RemoveLayerCommand` により複数layer削除を1回でUndo/Redo可能にした
 - Render QueueはComposition単位でありlayer参照を保持しないため、layer Safe Deleteの監査対象外
+
+## 現行コード監査 (2026-08-15)
+
+- `ArtifactEditMenu` は Undo／Redo、clipboard、selection、find、layer、timeline の主要メニューと shortcut を持つ。`ShortcutBindings` に Undo／Redo／keyframe／layer duplicate などの設定・保存経路がある。
+- `ClipboardManager` は layer／effect／keyframe／easing／property／project bundle を識別し、`application/x-artifact-clipboard+json` と system clipboard 同期を実装している。本文の「keyframe のみ」より進展している。
+- `ArtifactLayerSelectionManager` と Timeline／Layer Panel は複数選択、Select All／Invert／Same Type 相当の選択補助、選択順保持を実装している。`UndoManager`／`MacroUndoCommand` による複数 layer 操作と safe delete の一括 undo も確認できる。
+- 専用 `ArtifactFindService`／property replace の完結 workflow は現行ファイル一覧で確認できず、Group／Ungroup の Edit menu command と完全な undo 統合も未確認。AI／Project Service 側の group 操作は Edit menu 完了の証拠とは分けて扱う。
+- 選択状態を project JSON に永続化して再読込する契約、`edit.*` Problem View 診断、全 edit 操作を単一 `ArtifactEditManager` に集約する経路も未確認。runtime shortcut 衝突の受入れは未実施。
+
+判定: **編集メニュー、clipboard、selection、Undo の主要基盤は実装済み。Find／Replace、Group command の完全統合、selection persistence、edit diagnostics、shortcut runtime parity は pending。**

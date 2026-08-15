@@ -86,3 +86,9 @@ Next keyframe: 00:00:02:15 (X: 1200, Y: 600)
 - 大量レイヤー、テーマ切替、実運用での表示負荷と情報量の検証
 
 したがって「marker / area / clip / drag の実用 tooltip は実装済み、レイヤー詳細と設定・品質検証は未完了」と整理する。
+
+## Implementation Update 2026-08-15
+
+- `ArtifactLayerPanelWidget` のレイヤー行 tooltip に、レイヤー種別、in／out frame、opacity、blend mode、effect 数を追加した。
+- 既存の Track Matte 情報と Alt-drag の案内は維持している。
+- 解像度、設定による ON/OFF、500ms 遅延、tooltip cache、テーマ／大量レイヤーでの runtime 検証は未実施。

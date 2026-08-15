@@ -2,6 +2,13 @@
 
 > 2026-06-05 作成
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+- 現行コードでは `ClipboardManager` の layer／project item JSON bundle、QMimeData／system clipboard 同期、Project View の copy／paste、Composition Editor の layer clipboard と複合 paste 経路を確認できる。
+- 依存 asset の bundle 同梱・不足依存の unresolved 表示、別プロセス間の交換フォーマット安定性、参照 remap／Undo の全ケースは未完了または未確認。live object 共有を採用していない点は設計方針と一致する。
+
 ## 目的
 
 別の Artifact プロジェクト、あるいは別の Artifact インスタンスから、1つのレイヤーやアセットを安全に取り出して再利用できるようにする。
@@ -269,7 +276,7 @@ Done when:
 - [MILESTONE_PROJECT_ASSET_WORKFLOW_2026-03-27.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_PROJECT_ASSET_WORKFLOW_2026-03-27.md)
 - [MILESTONE_ADVANCED_COPY_PASTE_2026-03-28.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_ADVANCED_COPY_PASTE_2026-03-28.md)
 
-## Static Audit (2026-07-25)
+## Static Audit (2026-08-15)
 
 現状の実装には、プロジェクト間コピーの主要経路が存在する。`ArtifactProjectBundleIpc` は layer / composition / parametric-composition / project-items の JSON bundle を同一プロセスへ適用し、`QLocalServer` / `QLocalSocket` による別インスタンス間の転送と、失敗時の clipboard 退避を実装している。Project Manager には Copy Item Snapshot / paste 導線があり、asset のプロジェクト内コピーと複数の `QMimeData` drag/drop 経路も確認できる。
 

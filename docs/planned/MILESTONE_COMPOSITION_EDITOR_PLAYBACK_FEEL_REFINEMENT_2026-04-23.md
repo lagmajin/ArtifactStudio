@@ -2,6 +2,8 @@
 
 # Milestone: Composition Editor Playback Feel Refinement (2026-04-23)
 
+**最終更新:** 2026-08-15
+
 **Status:** 部分完了（viewport interaction中のpreview downsample、render request coalescing、playback/RAM preview state表示、fallback reason診断を実装、体感のruntime評価未完了）
 **Goal:** コンポジットエディタの再生・スクラブ・playhead 追従を軽く見せ、ワープ感や重さを減らす。
 
@@ -102,3 +104,9 @@
 - いまは `playable / ready-missing-image / playing-policy-disabled / viewport-interacting` を横断で読めるようにする価値が高い
 - `playback feel` 単独より、state contract 側の整理と並走させた方が再発を減らしやすい
 - 関連する整理は [MILESTONE_RAM_PREVIEW_CACHE_PARITY_2026-05-31.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_RAM_PREVIEW_CACHE_PARITY_2026-05-31.md) と [MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md](X:/Dev/ArtifactStudio/docs/planned/MILESTONE_PLAYBACK_STATE_CONTRACT_AND_TRANSPORT_COHESION_2026-05-31.md) を参照
+
+## Update 2026-08-15 — 現行コード確認
+
+- `ArtifactFrameCache` の preview downsample、RAM previewの再生状態／fallback reason、Timelineのcache summary表示、再生中のframeChangedに追随するcache表示更新を確認した。
+- render requestのcoalescing、property refreshのframe単位抑制、Playback Serviceのframe sync／coalesced diagnosticsを確認した。
+- playhead／previewの体感改善は基盤実装済みだが、実機でのscrub遅延、長時間再生、GPU／software差、audio同期のruntime受入れは未検証とする。

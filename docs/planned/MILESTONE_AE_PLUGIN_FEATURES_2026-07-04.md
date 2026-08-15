@@ -1,10 +1,21 @@
 # AE プラグイン機能の Artifact Studio への取り込み (2026-07-04)
 
+**最終更新:** 2026-08-15
+
 > 無料・有料 AE プラグインの独自機能を Artifact でネイティブ実装する案。
 
 > 2026-07-08 更新: `FX Console` 相当の `Ctrl+Space` クイックエフェクト起動をインスペクタ側に実装済み。`Motion 4` 相当の 9点アンカーポイント操作も既存ツールとして取り込み済み。`EaseCopy` 相当のキーフレーム easing コピペと `Elastic / Bounce / Back` のプリセット、`Animation Composer` 相当の内蔵プリセットライブラリも追加済み。
 
 ## 実装状況
+
+### 2026-08-15 現行コード照合
+
+- AE 風の小規模 workflow（Effect Picker、Ease Copy／Paste、easing／preset library、anchor point 操作）は既存 UI として実装済み。
+- Core には `PluginRegistry`、共通 Plugin ABI、`ILayerPlugin`、VST3 loader、CLAP host の基盤がある。
+- ただし現行コード上、AE ネイティブプラグインの互換ホスト、外部エフェクトを通常の Effect surface へ安全にロードする完成経路、CLAP の実運用・UI統合は確認できない。
+- Duik／Overlord／Saber 等の大規模互換機能は、ネイティブ機能の個別実装候補であり、プラグイン互換としては未実装。署名、sandbox、ABI／version compatibility、runtime plugin QA も未完了。
+
+**判定:** AE 風 workflow の一部とプラグイン基盤は実装済み。外部 AE plugin compatibility を目標にする場合は未達。
 
 - `Ctrl+Space` で Inspector の effect picker を開けるようになった
 - 既存の `+ Add Effect` ボタンと同じ導線を共有している

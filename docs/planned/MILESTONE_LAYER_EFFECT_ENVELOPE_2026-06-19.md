@@ -1,8 +1,18 @@
 # Layer Effect Envelope Milestone
 
 **作成日:** 2026-06-19  
+**最終更新:** 2026-08-15
 **ステータス:** 部分完了（エンベロープ契約・保存復元・描画適用・Quick Create 導線を実装、Property/Inspector/Timeline 統合と Bake は未完了）
 **関連コンポーネント:** AbstractProperty, ArtifactPropertyWidget, ArtifactTimelineTrackPainterView, ArtifactInspectorWidget, Effect Stack
+
+## 2026-08-15 現行コード監査
+
+- `AbstractProperty` は envelope track の保持、Entry／Exit／Absolute の相対時間評価、Override／Add／Multiply、strength、target property、追加・削除・preset 適用を実装している。
+- `ArtifactAbstractLayer` は layer effect envelope の entry／exit、duration、timing、curve、effect start/end を JSON 保存／復元し、opacity 評価へ適用している。
+- Preview／Composition render 側にも `effectEnvelope()` の effect strength 経路があり、Layer Effect Envelope の描画適用は旧記述より進んでいる。
+- ただし Envelope 専用 Inspector／Timeline surface、全 effect property への一貫した適用、通常 keyframe への Bake、複数 envelope の編集／Undo、runtime parity は未完了または未検証。
+
+判定: **Core 評価・保存・一部 render 接続は実装済み。編集 UI と Bake／runtime 受入れは pending。** ビルド・テストは未実施。
 
 ---
 

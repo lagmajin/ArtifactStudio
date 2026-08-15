@@ -1,7 +1,16 @@
 # Milestone: Asset Browser Optimization (2026-03-29)
 
-**Status:** Planning / Partial Implementation
+**最終更新:** 2026-08-15
+**Status:** 部分実装（パス判定・キャッシュ改善済み、並列スキャン／並列サムネイル生成は未着手）
 **Goal:** アセットブラウザのフォルダ読み込み速度を劇的に向上させ、数千ファイルのディレクトリでも UI が固まらないようにする。
+
+## 2026-08-15 現行コード監査
+
+Asset Browser には imported path の `QSet` キャッシュ、thumbnail の memory／disk cache、mtime による stale 判定、generation token、512 件の memory 上限、status／type／search／sort の一覧処理が実装されている。Phase 1 とサムネイル再利用の基盤は現行コードに反映されている。
+
+一方、`applyFilters` は UI 側の逐次走査のままで、TBB の `parallel_for` は確認できない。thumbnail warmup も timer から最大 4 件ずつ処理する方式で、TBB `task_group` による並列デコードは未確認。数千ファイル時の 0.1 秒目標、UI 非ブロック性、実測 hit rate は runtime 計測が必要である。
+
+判定: **Phase 1 は実装済み、Phase 2〜3 は pending。**
 
 ---
 

@@ -1,8 +1,23 @@
 # レイヤーロック機能の拡張
+
+**最終更新:** 2026-08-15
 **マイルストーン**: M-LA-4 Layer Lock Enhancements
 **作成日**: 2026-04-10
 **見積もり**: 4-6h
 **優先度**: Low (細かいUX改善)
+
+## 2026-08-15 現行コード照合
+
+- ✅ `ArtifactAbstractLayer`／`LayerState` の通常ロックと timing lock があり、Project Service に current composition の取得・設定 API がある。ロック状態は layer serialization の対象になっている。
+- ✅ Timeline の `LayerLockIndicator` はロック状態、ユーザー名、色、tooltip を表示し、Layer Panel に専用の lock icon／context action がある。
+- ✅ 既存の編集・移動系 service では locked／timing-locked layer を拒否する分岐が確認できる。opacity は通常の layer property として別途保持・編集される。
+- ⚠️ Transform／Property／Content／Visibility を個別にロックする4種の権限モデル、スマートロック理由、全 Property Editor のグレーアウトを一体化した実装は確認できない。現行は主に layer 全体／タイミングのロックである。
+- ⏳ 詳細ロック設定 UI、ショートカット、Undo／Redo の全導線、保存再読込と runtime 操作拒否の網羅検証は未完了。
+
+## Update 2026-08-15
+
+- 現行コードでは layer 全体の lock／timing lock、Timeline の lock indicator／context action、編集操作の拒否、Undo 経路、保存対象を確認できる。
+- Transform／Property／Content／Visibility の個別ロック、詳細 lock reason、全 Inspector の一体的な無効化、runtime 網羅検証は未完了または未確認。
 
 ## 概要
 

@@ -3,12 +3,21 @@
 # エフェクト UI 標準化 Milestone
 
 **作成日:** 2026-06-07  
-**ステータス:** 計画中  
+**最終更新:** 2026-08-15
+**ステータス:** descriptor／Inspector bridge 部分実装、共通UI面とruntime受入は未完了  
 **関連コンポーネント:** ArtifactInspectorWidget, ArtifactPropertyWidget, EffectStack, OFXHost, Preset Browser / Starter Flow
 
 ---
 
 ## 概要
+
+## 2026-08-15 現行コード監査
+
+`ArtifactAbstractEffect` に `EffectUIDescriptor`／`uiDescriptor()` があり、Preview／Preset／Appearance／Fallback／Advanced の最小 capability と section 分類を返す。OFX ID は Fallback に分類され、Inspector Effect Rack の tooltip から descriptor 状態を確認できる。Effect preset の保存／読込と Property Editor の effect group／focus 同期も既存経路として確認した。
+
+一方、descriptor を使った共通 Preview／before-after／Appearance widget、preset browser／recent／factory preset、OFX の自動分類、Property Editor への完全な descriptor 反映は未完了または未検証である。
+
+判定: **metadata と Inspector bridge は部分実装。共通UI契約の全面適用と runtime 受入れは pending。**
 
 エフェクトごとに UI の見え方がバラバラになっている状態を解消し、すべてのエフェクトに共通の操作文法を持たせるためのマイルストーンです。
 
@@ -449,3 +458,9 @@ Header は「見出し」ではなく、エフェクトの共通操作面とし�
 - `ArtifactEffectTabSurface` は Effect Rack の表示／非表示と設定保存を提供するが、これだけでは全エフェクト共通 header や preview channel の実装根拠にはならない。
 
 したがって、Phase 1 の Rack／操作基盤と Phase 2 の save/load 基礎は部分的に進行、Phase 1.5 の descriptor bridge、Phase 2.5 以降、Phase D〜F.5 は未完了または未検証として扱う。次の実装候補は、まず descriptor の最小契約を定義し、既存 Rack の header state と preset 入口をそこへ接続すること。
+
+## Update 2026-08-15 — Descriptor Bridge Skeleton
+
+`ArtifactAbstractEffect` に `EffectUIDescriptor` と `uiDescriptor()` を追加した。Preview／Preset／Appearance／Fallback／Advanced の最小契約を共通APIで取得でき、OFX IDは安全に `Fallback` へ分類する。Inspector の Effect Rack tooltip から descriptor の契約状態と section を確認できるため、既存のrack表示を壊さず descriptor-aware 化する Phase 1.5 の基礎ができた。
+
+個別effectによる明示descriptor override、Preview before／after UI、Appearance widget、recent／rename付きpreset browser、OFXパラメータ自動分類、Property Editorとのsection同期は未完了または未検証。

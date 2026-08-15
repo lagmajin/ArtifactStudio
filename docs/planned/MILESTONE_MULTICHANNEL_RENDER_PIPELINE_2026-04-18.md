@@ -1,8 +1,24 @@
 # マイルストーン: マルチチャンネルレンダーパイプライン (AE互換)
 
+**最終更新:** 2026-08-15
+
 作成日: 2026-04-18
 優先度: 🟠 高
 対象バージョン: M13
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactIRenderer` の channel enable/readback API と `MultiChannelImage` への取得経路は実装されている。Composition Editor には Depth、Normal X/Y/Z、Object ID などの表示・書き出し導線があり、multi-channel EXR を含む保存案内も存在する。3D viewer 側では depth buffer と normal texture の生成・利用も確認できる。
+
+ただし、これは「チャンネルを保持して表示・書き出しできる」基盤であり、目標の全パイプライン伝搬を意味しない。2D レイヤーの深度値・object/material ID の一貫した自動生成、velocity の実レンダリング、エフェクトとブレンドでの全チャンネル伝搬、チャンネル別出力の runtime parity は現行コードから確認できない。UI に表示モードがあっても、実データが全バックエンド・全レイヤーで埋まることは別途検証が必要である。
+
+**判定:** チャンネル型・renderer 制御・readback/export・一部 3D depth/normal は実装済み。2D/3D の統一生成、velocity/object/material ID の実運用、effect/composite propagation、受入れテストは pending。
+
+## Update 2026-08-15
+
+- `ArtifactIRenderer` の channel enable／readback、`MultiChannelImage`、Render Queue／Screenshot／Render Output の multi-channel EXR 導線を再確認。
+- Composition 側には depth／normal／velocity／albedo／ID の channel source、AOV remap、ping-pong view 保持、viewport channel display の経路がある。GPU backend 必須や未生成 AOV の診断も実装されている。
+- ただし velocity は現状 3D object／camera motion が中心で 2D layer vectors は未対応。Object／Material ID は draft の packed／single-hit coverage、全レイヤーの自動生成・effect／blend 伝搬・runtime parity は未完了。
 
 ---
 

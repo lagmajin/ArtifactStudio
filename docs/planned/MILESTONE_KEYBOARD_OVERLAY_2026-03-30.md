@@ -1,5 +1,13 @@
 # Keyboard Overlay Milestone (2026-03-30)
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+`KeyboardOverlayDialog` は実装済みで、compact mode、overlay opacity、always-on-top、shortcut 再読込・カテゴリ表示の基盤があります。Help menu から開く導線と `Ctrl+/`／HelpContents の shortcut も接続され、設定画面と同じ `ArtifactCore::ShortcutBindings` を参照しています。
+
+一方、検索／filter、カテゴリ折りたたみ、お気に入り固定、shortcut の編集・競合表示、実際の compact／regular 表示品質は未確認です。旧文書の「中身は未実装に近い」「起動導線未接続」は現状と一致しません。なお、Blender 系の G/R/S/X/Y/Z 予約操作との整合は別途確認が必要です。
+
 `KeyboardOverlayDialog` を、単なる空ダイアログではなく、アプリ内ショートカットを俯瞰できる軽量 overlay として完成させるためのマイルストーン。
 `ApplicationSettingDialog` の shortcut 一覧や `PlaybackShortcuts` の実装とつなぎ、操作を覚えやすくする。
 

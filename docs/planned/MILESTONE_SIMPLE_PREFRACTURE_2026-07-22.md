@@ -84,3 +84,9 @@ collision コンポーネントは不要（G1 対応が前提）。
 - fracture preset／shardCount setter は変更時に `resetFractureState()` を呼び、次の描画で形状を再生成する（G2）。
 - Components 専用の embedded editor 経路があり、通常の Property Widget にコンポーネント由来グループを新規露出していない（G3）。
 - コード上の実装は揃っているが、決定性、triggerFrame の往復スクラブ、validation 表示は runtime 未検証のため、完了表示ではなく検証待ちとする。
+
+## Update 2026-08-15
+
+- `FractureEffect` の Radial／Grid／Voronoi／Hybrid 生成、preGenerate／triggerFrame、lazy shard 生成、描画接続、JSON 永続化を現行コードで再確認した。
+- fracture descriptor の collision 非必須化、preset／shardCount 変更時の `resetFractureState()`、Components 専用 editor 経路も維持されている。通常 Property Widget へのコンポーネント由来グループ追加は行われていない。
+- 判定は変更なし: **実装基盤と G1〜G3 はコード上完了。決定性、往復スクラブ再発火、validation 表示、実描画の runtime 受入は未検証。ビルド・テストは未実施。**

@@ -1,5 +1,7 @@
 # Timeline QGraphicsScene Elimination (2026-03-31)
 
+**最終更新:** 2026-08-15
+
 `ArtifactTimelineWidget` の右ペインは、`ArtifactTimelineTrackPainterView` が正規経路になり、`TimelineScene` / `ClipItem` の互換層は退役済みになった。
 
 このマイルストーンは、右タイムラインから `QGraphicsScene` 依存を外し切るための計画として残しているが、右ペインについては主要目標を達成した。
@@ -113,7 +115,7 @@
 
 ---
 
-## 2026-07-25 現状確認
+## 2026-08-15 現状確認
 
 現行ソースで再確認した結果、タイムライン実装内には `QGraphicsView` / `QGraphicsScene` / `QGraphicsItem` の参照は見当たらず、Phase 1〜4 の主要目標は達成済みと判断できる。`ArtifactTimelineTrackPainterView` が右ペインの描画・hit test・入力・編集・playhead・scroll の正規経路である。残っている QGraphics 系参照は `ArtifactCompositionGraphWidget` のグラフ UI であり、Timeline の Scene 依存ではない。
 

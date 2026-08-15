@@ -2,7 +2,15 @@
 
 **Date**: 2026-06-02
 
+**最終更新:** 2026-08-15
+
 **Source**: [`MILESTONE_CROSS_INDUSTRY_INSPECTION_TOOLS_2026-06-02.md`](./MILESTONE_CROSS_INDUSTRY_INSPECTION_TOOLS_2026-06-02.md)
+
+## 現行コード監査 (2026-08-15)
+
+`FrameDebugViewWidget`、`FrameStateDiffWidget`、`AppDebuggerWidget` の接続、および `ArtifactContentsViewer` の比較表示（wipe / split / difference）は実装済みです。一方、Effect Hitbox の専用データ契約・選択レイヤー overlay、alpha-only / thresholded leakage の専用 compare mode、現在フレームと前フレームを結ぶ本マイルストーン固有の導線は確認できませんでした。
+
+したがって Phase 1 は **比較・診断の基盤のみ部分実装**で、Hitbox View と Leakage View の Done Criteria は未達です。bounds の種類別取得、overlay への描画接続、差分モードの切り替え、実フレームでの警告表示、実行時のパフォーマンスは未検証です。
 
 ---
 
@@ -147,4 +155,3 @@ Phase 1 では current frame と previous frame のみを前提にする。
 ## Next Step
 
 Phase 2 では `Motion Ghost / Version Ghost` を追加し、timeline 側の比較へ広げる。
-

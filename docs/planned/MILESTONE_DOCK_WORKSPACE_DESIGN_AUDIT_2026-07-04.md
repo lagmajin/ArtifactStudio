@@ -2,6 +2,8 @@
 
 > 状態: Partial（Ctrl+1〜4、Shift+Space 最大化、デフォルトレイアウトリセット、pin を実装、ダブルクリック最大化・runtime 検証は未完了）
 
+**最終更新:** 2026-08-15
+
 > VS Code / Blender / Maya / Premiere ワークスペース比較。
 
 ## 🔴 P0
@@ -54,3 +56,9 @@
 - ✅ 起動時の標準 ADS state を保存し、`デフォルトレイアウトにリセット` から復元できる導線を追加した。
 - ✅ ウィンドウパネルメニューの `ピン留め` サブメニューから Dock の closable feature を切り替えられるようにした。
 - ⏳ デフォルトレイアウトの完全リセット、タブ pin、ダブルクリック最大化、runtime 検証は未完了。Dock / Workspace マイルストーン全体は未完了のままとする。
+
+## 2026-08-15 現行コード照合
+
+`ArtifactMainWindow`／`ArtifactWorkspaceManager`／`AppMain` で、ADS dock state の保存・復元、portable layout 移行、workspace mode、Ctrl+1〜4、Shift+Space の immersive 切替、default state capture／restore、floating／lazy dock、pin による closable 制御を再確認した。元表の「保存・プリセット・分離・ショートカット未実装」は現行コードには当てはまらない。
+
+一方、タブのダブルクリック最大化、タブ色分け、専用分割ビュー UX、完全な reset 後の全 dock 状態、複数回の再起動を跨ぐ runtime 安定性は未確認である。判定は「dock 基盤と主要操作は実装済み、細部 UX と runtime 受入れ pending」を維持する。今回はビルド・テストを実行していない。

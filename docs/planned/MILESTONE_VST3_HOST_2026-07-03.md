@@ -1,8 +1,18 @@
 # M-VST3-1 VST3 + CLAP Host Integration Milestone
 
 **作成日:** 2026-07-03
-**ステータス:** Draft
+**最終更新:** 2026-08-15
+**ステータス:** Partial implementation — VST3／CLAP ローダーと CLAP 実処理基盤は存在するが、VST3 audio/editor 統合は未完了
 **ライセンス:** VST3 SDK (MIT), CLAP (MIT)
+
+## Update 2026-08-15
+
+現行コードを再照合した結果、判定は維持しつつ、CLAP 側の実装範囲を明確化した。
+
+- `ArtifactCore::VST3Loader` は動的ライブラリから `GetPluginFactory` を解決し、ファクトリの存在確認とプラグイン数取得までを行う。VST3 の `IAudioProcessor`／`IEditController` を `AbstractEffect` や Inspector に接続する実装は確認できない。
+- CLAP は `PluginLibrary`、ホストコールバック、スキャン、インスタンス生成、activate／start-processing／process、`ClapEffect` の `AudioSegment` 接続まで実装されている。
+- 共通の `PluginLoader` には通常ロード失敗時の subprocess フォールバックがあるが、これは VST3 の音声処理・GUI・パラメータ統合そのものを完了させるものではない。
+- よって現状は「VST3 はローダー骨格、CLAP は音声処理経路まで実装済み。VST3 の実用ホスト統合、VST3 editor、パラメータ／Undo、エフェクトチェーン接続、実プラグイン互換検証は未完了」とする。
 
 ---
 
@@ -184,3 +194,13 @@ class VST3Loader {
 ただし、VST3 SDK の実インターフェース／ABIではなくプロジェクト内の骨格型であり、`VSTHost` の実処理は既存の簡易プラグイン状態・バッファ処理に留まる。実際の `IPluginFactory::createInstance()`、`IAudioProcessor::setupProcessing/process()`、`IEditController` パラメータ接続、VST3 エディタ埋め込み、Undo/Redo 対応、CLAP の実インスタンス生成・処理統合は確認できない。したがって本マイルストーンは「VST3 ローダー／型の試作は存在、実ホスト統合と CLAP 完成は未達」と判定する。
 
 確認範囲: `ArtifactCore/include/VST3/VST3Interfaces.ixx`、`ArtifactCore/src/VST3/VST3Loader.cppm`、`Artifact/src/VST/VSTHost.cppm`、`Artifact/src/VST/VSTEffect.cppm`、`ArtifactCore/include/CLAP/CLAPHost.ixx`、`ArtifactCore/src/CLAP/CLAPHost.cppm`。ビルド・実プラグインによる動作確認は未実施。
+
+## 現行コード監査 (2026-08-15)
+
+`VST3Module` は動的ライブラリから `GetPluginFactory` を取得し、VST3 拡張子の scan／load と class info 取得まで実装している。`VSTHost`／`VSTEffect`／Audio Mixer には VST 挿入、parameter 表示・設定、既存 VST2 の process／editor 導線が残っている。
+
+さらに `CLAPHost` には entry／plugin 列挙、`create_plugin`、activate／start processing、audio process、parameter event、state、GUI／timer／thread 関連の実装が存在するため、旧監査の「CLAP 実インスタンス生成・処理未確認」は現行コードとは不一致である。
+
+ただし VST3 側は SDK の実 ABI と完全に一致する実 processor／controller／bus／editor 接続を確認できず、`VSTHost::process()` は VST3 を処理対象外としている。VST3 parameter／editor／Undo、CLAP の実プラグイン受入れ、sandbox／crash isolation、runtime ABI 検証は未完了である。
+
+判定: **VST3／CLAP の loader と CLAP host 基盤は部分実装。VST3 の実 audio／editor 統合と実プラグイン受入れは pending。**

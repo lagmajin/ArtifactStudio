@@ -1,6 +1,8 @@
 # Milestone: Property Widget Row Alignment / Inspector Layout (2026-04-03)
 
-**Status:** Draft
+**最終更新:** 2026-08-15
+
+**Status:** 部分完了（2026-08-15 現行コード監査）
 **Goal:** `ArtifactPropertyWidget` の各行を、インスペクタらしく整列したレイアウトへ段階的に寄せる。  
 見た目の好みだけでなく、`PropertyEditor` の row-level 責務を揃えて、どの行も同じ規則で読めるようにする。
 
@@ -167,10 +169,21 @@ Property UI の課題は、単なる配色ではなく「どの要素がどこ�
 - `ArtifactPropertyWidget` の filter 入力は即時 rebuild ではなく debounce rebuild に寄せた
 - `ArtifactPropertyWidget` の animated value 更新は frame cache を持ち、同じフレームの再計算を飛ばせるようにした
 
-## Static Audit (2026-07-25)
+## Static Audit (2026-08-15)
 
 現行の Property Editor には、row 最小高さ・label 幅・action spacing・keyframe／navigation／reset／expression の寸法定数が集約され、row widget が label／value editor／aux action を共通配置する。owner-draw の row chrome、hover／selection、keyframe／reset／favorite の表示制御、section の presentation badge、`alignPropertyRowLabels()` による group ごとの整列が実装されている。Property Widget 側も effect／channel／transform／通常 group で共通 row builder を利用し、refresh の signature／dirty-bit／debounce／frame cache も確認できる。
 
 未確認なのは、全 editor 種別（numeric／color／checkbox／combo／expression）での実画面上の baseline と高さの一致、Inspector と Property Widget 間の section header 完全統一、Phase 3 に含まれる reference link／pick-whip affordance、Phase 4 の ad-hoc row 構築の完全撤去、Phase 5 の runtime 視認性である。reset handler の全 row 接続や新規 property 追加時の共通契約も、静的検索だけでは完成を証明できない。
 
 判定: **Phase 1〜2 と row chrome の主要実装は確認できる。** Phase 3〜5 は部分実装または runtime 検証待ちであり、文書の Status は Draft のまま維持する。
+
+## Update 2026-08-15
+
+- `ArtifactPropertyEditorRowWidget` に label／editor／aux action の共通配置、固定寸法、keyframe／navigation／reset／expression の action order、owner-draw row chrome、accessible description を確認。
+- `ArtifactPropertyWidget` は `alignPropertyRowLabels()`、value-column layout mode、section／channel／transform の共通 builder、signature／debounce／frame cache を利用している。
+- 2026-08-15: section／channel／transform／effect の row label 整列に残っていた同一の magic width を `kPropertyRowLabelMinWidth`／`kPropertyRowLabelMaxWidth`／`kEffectRowLabelMaxWidth` へ定数化した。
+- したがって Phase 1〜2 と Phase 4 の主要骨格は実装済みとして扱う。reference link／pick-whip、Inspector との header 完全統一、全 editor 種別の runtime baseline、ad-hoc row の完全撤去は未完了または未検証。
+
+### Current-Code Recheck (2026-08-15)
+
+`alignPropertyRowLabels()` は effect / channel / transform / 通常 group の複数経路から利用され、Property Widget 側の signature・debounce・frame cache も現行コードで確認できる。`valueColumnFirst` による行方向切替と、keyframe / reset 系の操作導線も残っている。一方、pick-whip／reference link の共通 row action、Inspector との section header 完全統一、全 editor 種別の実画面 baseline は静的コードだけでは確認できないため、Phase 3〜5 は未完了扱いを継続する。

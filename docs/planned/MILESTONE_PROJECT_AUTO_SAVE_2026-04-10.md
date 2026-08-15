@@ -1,6 +1,7 @@
 # プロジェクト自動保存機能
 **マイルストーン**: M-PJ-1 Project Auto-Save Feature
 **作成日**: 2026-04-10
+**最終更新**: 2026-08-15
 **見積もり**: 8-10h
 **優先度**: Low (細かいUX改善)
 
@@ -32,9 +33,14 @@ After Effects のようなプロフェッショナルツールに欠かせない
 - 差分表示 (何が変更されたか)
 - リカバリー後の手動保存確認
 
-## 2026-07-25 実装監査
+## 2026-08-15 現行コード監査
 
 `ArtifactAutoSaveManager` の起動／停止、dirty 通知、Recovery snapshot 作成・検出・最新点読み込み、起動時の recovery prompt、設定値の保持、`QSaveFile`／Project backup 世代管理、定期 timer の接続は実装を確認した。一方、仕様にある1/5/10/30分・世代数設定の完全なUI、`.autosave/` 命名規約、差分表示、保存中フィードバック、手動保存との詳細な競合回避、クラッシュ後の実ファイル復元と性能検証は確認できない。したがって自動保存・復旧の基盤は実装済みだが、全仕様と runtime 検証は未完了とする。
+
+## Update 2026-08-15
+
+- 現行コードでは `ArtifactAutoSaveManager` の起動／停止、dirty 通知、recovery snapshot、`QSaveFile` の原子的 commit、設定 interval の timer 接続、起動時 recovery prompt、Project backup 世代管理を確認できる。
+- 世代数 UI、`.autosave/` 命名規約、差分表示、保存中フィードバック、手動保存との競合仕様、実ファイル復元と runtime／性能検証は未完了または未確認。
 
 ## 2026-07-29 実装ループ: 設定反映と原子的スナップショット
 

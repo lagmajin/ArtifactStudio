@@ -2,6 +2,7 @@
 
 **Date:** 2026-05-16  
 **Status:** Planned
+**最終更新:** 2026-08-15
 
 ## Goal
 
@@ -136,3 +137,7 @@ Composition Editor だけでなく、将来の render-heavy surface でも同じ
 - `Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`
 - `Artifact/include/Widgets/Render/ArtifactCompositionRenderWidget.ixx`
 - `Artifact/include/Widgets/Control/ArtifactPlaybackControlWidget.ixx`
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactCompositionEditor` の `ensureViewportReady(reason)` は visibility／最小化／logical・physical size／DPR／native window／controller／swap chain／preferred composition をまとめて再評価し、show・focus・activation・queued layout callback・限定 retry から呼び出される。`DockStyleManager` 側も floating container を dock 関連 object として扱い、active／floating 状態を再描画対象にしている。readiness の専用段階モデル、floating 作成・dock visibility・安定 resize の横断 hook、他の render-heavy surface への一般化、白画面再現の runtime 検証は未完了であり、部分実装・受入れ待ちと判定する。

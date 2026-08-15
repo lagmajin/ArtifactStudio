@@ -2,6 +2,14 @@
 
 日付: 2026-06-07
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+- `WorkspaceMode` は Default／Import／Layout／Animation／VFX／Compositing／Text／Export／Debug／Audio を持ち、`ArtifactMainWindow` の workspace visibility rule と toolbar／menu 切替に接続されている。目的別に一部 panel／toolbar の可視性を変える基盤は実装済み。
+- `ArtifactWorkspaceManager` は session／preset の保存・復元・一覧・削除・rename、geometry／dock state／workspace mode の JSON 永続化を実装している。View Menu からレイアウト保存、preset 復元、最後の session 復元を操作できる。
+- ただし各 Task Workspace の primary tools／visible panels／default shortcuts を独立定義する schema、per-workspace の panel visibility と recent context の管理、workspace ごとの UI 再構成は未確認。現状は WorkspaceMode と共通レイアウト永続化の段階で、Phase 1〜2 は部分実装、Phase 3 は未完了。
+
 Status: Design Note
 
 作業内容ごとに UI を切り替え、今やるべきことだけを見せるコンテキスト中心のワークスペース構想。

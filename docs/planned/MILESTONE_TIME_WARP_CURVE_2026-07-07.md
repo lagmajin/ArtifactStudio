@@ -1,7 +1,8 @@
 # M-TWC-1 Time Warp Curve on Clips Milestone
 
 作成日: 2026-07-07
-ステータス: Draft
+最終更新: 2026-08-15
+ステータス: TimeRemap／Curve Editor／Time Warp raster effect は部分実装、clip 単位 TimeWarpCurve と timeline overlay は未実装
 対象: `ArtifactCore/include/Time/TimeRemap.ixx`,
       `ArtifactCore/src/Time/TimeRemap.cppm`,
       `ArtifactCore/include/Animation/AnimatableValue.ixx`,
@@ -92,6 +93,12 @@
 
 また、project JSON の `layer.timeWarpCurve` 永続化、プリセット適用、単調性診断、Beat Sync 連携も未実装扱いである。したがって本マイルストーンは「既存 TimeRemap Core を依存資産として確認済み、Phase 1〜4 の Time Warp Curve 機能は未着手」と整理する。
 
+## Update 2026-08-15
+
+- `TimeRemap::sourceTimeAt()` と `ArtifactCurveEditorWidget::sampleSpeedGraph()` は既存の再利用候補として確認できる。
+- 一方、`TimeWarpCurve`／`timeWarpCurve` の専用データモデル、レイヤー／プロジェクト JSON、タイムライン上のクリップ overlay、Speed Point 編集、TimeRemap への接続は現行コード検索で確認できなかった。
+- 判定は 2026-07-25 時点から変更なし。TimeRemap 基盤と汎用 curve 表示は部分実装、専用 Time Warp Curve は未着手。ビルド・runtime 操作確認は未実施。
+
 ---
 
 ## 4. Phases
@@ -174,3 +181,13 @@
 ## 8. 更新履歴
 
 - 2026-07-07: 初版作成。Maya Time Warp Curve の ArtifactStudio 移植設計。
+
+## 現行コード監査 (2026-08-15)
+
+- `TimeRemapProcessor` は output→source の keyframe 評価、Linear／Bezier／Hold／Ease、速度計算、Reverse／Hold／Ramp／SuperSlowMotion の preset、frame blend 設定を実装している。`ArtifactAbstractLayer`／VideoLayer／FootageInterpretService からも time remap が参照される。
+- `ArtifactCurveEditorWidget` と `ArtifactTimelineWidget` は Value／Speed graph、Bezier handle、key の追加・移動・削除、easing の編集・保存／復元を実装している。ただしこれは一般 animatable property の curve editor で、clip 単位の Time Warp Curve overlay ではない。
+- `TimeWarpEffect` は rasterizer effect として登録され、offset／channel／smoothness を編集できるが、本 milestone の source-time mapping 用 `TimeWarpCurve` とは別機能である。名称だけで完了扱いにしない。
+- 専用 `TimeWarpCurve` データモデル、clip 上の Speed Point overlay、逆再生／Freeze の clip UI、TimeRemap への curve 統合、`layer.timeWarpCurve` の専用永続化、単調性 diagnostics は現行コード上で確認できない。
+- したがって既存 TimeRemap の評価・Curve Editor 基盤は再利用可能だが、M-TWC-1 の Phase 1〜4 は未完了。再生／export の実際の clip 経路での一致も未検証。
+
+判定: **レイヤー単位の TimeRemap と汎用 curve editing は進展。clip 単位の Time Warp Curve workflow、専用 overlay／統合／保存／診断は pending。**

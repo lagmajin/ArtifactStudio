@@ -1,6 +1,21 @@
 # マイルストーン: Render Path Decomposition / Buffer Migration
 
-**ステータス:** Typed buffer 基盤・一部接続実装済み、QImage経路縮小・pass契約・runtime検証 pending
+**最終更新:** 2026-08-15
+**ステータス:** Typed buffer／cache／GPU upload 基盤は実装済み、QImage経路縮小・pass契約・runtime検証 pending
+
+## 現行コード監査 (2026-08-15)
+
+`ImageF32x4_RGBA` が内部の float RGBA 表現として存在し、`ImageF32x4_With_Cache` が CPU dirty state と GPU の shader-resource / unordered-access view の同期を担っている。`RawImage` は import 側にあり、`toQImage()` などの明示的な変換境界も確認できる。したがって typed buffer、cache、GPU upload の基盤は実装済みと判定する。
+
+ただし、`ArtifactCompositionRenderController` では現在も QImage を surface、matte source、resolved source、preview/readback の中間値として保持する経路が残っている。QImage は UI・I/O だけに閉じておらず、layer 合成や matte 処理の内部にも入るため、QImage 経路の縮小と pass ごとの責務分離は未完了である。`QImage` の新規採用を増やす状態ではないが、既存経路の置換を完了した証拠はない。
+
+**判定:** Phase 1（typed buffer と明示変換の基盤）は実装済み。Phase 2（render/composite pass の分解）、QImage の I/O 境界限定、format/alpha/colorspace 契約の全経路適用、GPU/CPU parity と runtime 受入れは pending。
+
+## Update 2026-08-15
+
+- `ImageF32x4_RGBA`／`ImageF32x4_With_Cache`、明示的な `toQImage()` 境界、GPU upload／surface cache の基盤を再確認。
+- `CompositionRenderController` には setup／base／surface／mask／composite／post／overlay／flush／present の frame pass plan と診断要約があるため、pass 分解の足場は実装済み。
+- ただし QImage は surface、matte、resolved source、preview/readback に残っており、主要 render path の typed buffer 化、format／alpha／colorspace 契約の全経路適用、GPU／CPU parity は未完了・未検証。
 
 > 2026-03-31 作成
 
@@ -167,10 +182,10 @@
 - render queue の typed buffer 対応
 - proxy / LOD / cache の導線整備
 
-## Static Audit (2026-07-25)
+## Static Audit (2026-08-15)
 
-現行ソースでは、`ImageF32x4_RGBA` と `ImageUploadBuffer` が typed buffer の中心として使われ、`GPUTextureCacheManager`、`ArtifactCompositionViewDrawing`、video/image/svg/text の current frame buffer、LOD、buffer cache、GPU upload まで接続されている。`RenderCommandBuffer`、`PrimitiveRenderer2D/3D`、offscreen renderer、post-process は描画責務をある程度分離している。
+現行ソースでは、`ImageF32x4_RGBA` と `ImageUploadBuffer` が typed buffer の中心として使われ、`GPUTextureCacheManager`、`ArtifactCompositionViewDrawing`、video/image/svg/text の current frame buffer、LOD、buffer cache、GPU upload まで接続されている。`RenderCommandBuffer`、`PrimitiveRenderer2D/3D`、offscreen renderer、post-process は描画責務をある程度分離している。最終コンポジションエフェクトにも `applyCompositionFinalEffectsToBuffer()` のtyped-buffer入口を追加し、QImage版のレイヤー rasterizer はtyped-buffer版へ委譲する構造に整理した。GPU Render Queue の通常フレーム出力と単発GPU出力の両方で `readbackToImageF32()` を経由し、crop／resize／最終エフェクトをQImage化前に適用する経路へ接続した。ソフトウェアコンポジターにも既存QImage処理を互換境界として利用する `composeToBuffer()` を追加し、Hue／Saturation／Color／Luminosity／Dissolve／DancingDissolve はOpenCVのfloat合成ループへ移行した。Stencil／Silhouette系はアルファプレーンを追加し、RGB合成を壊さずに出力アルファを更新する経路を実装した。
 
 ただし、マイルストーンの完了とは判定しない。`ArtifactCompositionViewDrawing` には buffer から `QImage` へ戻す分岐、QImage surface fallback、renderer readback が残っており、内部主要経路が完全に QImage 非依存になったとは言えない。`RawImage` / `FrameBuffer` の統一契約、format/alpha/color-space/stride の共通メタデータ、source→decode→layout→raster→composite→post→readback の明示 pass graph、各 pass の timing/cache boundary は一貫した公開契約として確認できない。
 
-Render queue/offline と preview の typed-buffer 同一化、各 layer の旧経路撤去、QImage 変換を出口に限定する保証、runtime での見た目一致も未検証である。したがって Phase 1 は部分実装、Phase 2 は helper/renderer 分解として partial、Phase 3/4 は移行途中と判定する。
+Render queue/offline と preview の typed-buffer 同一化、各 layer の旧経路撤去、QImage 変換を出口に限定する保証、runtime での見た目一致も未検証である。現行コードには `ArtifactCompositionViewDrawing` の QImage surface／matte／effect 境界と renderer readback が残るため、QImage hot path の完全撤去とは判定できない。したがって Phase 1 は部分実装、Phase 2 は helper/renderer 分解として partial、Phase 3/4 は移行途中と判定する。

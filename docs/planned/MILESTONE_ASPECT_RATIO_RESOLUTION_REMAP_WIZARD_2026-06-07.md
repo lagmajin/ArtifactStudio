@@ -1,8 +1,14 @@
 # MILESTONE: Aspect Ratio / Resolution Remap Wizard - 2026-06-07
 
 作成日: 2026-06-07  
+最終更新: 2026-08-15
 対象: aspect ratio 変更時のマスク / keyframe / anchor 再計算  
 優先度: 🟠 高
+
+## Update 2026-08-15
+
+- 現行コードでは `ArtifactResolutionRemapDialog`、Impact summary、Center／Top-Left／Stretch／Padding／Crop の5ポリシー、mask path・transform keyframe・anchor・scale の remap、Undo command、Project／Composition の入口を確認できる。
+- pixel aspect ratio を含む完全な座標契約、全データ型の影響一覧、preview と実結果の runtime parity、Undo／再生回帰検証は未完了または未確認。
 
 ---
 
@@ -10,8 +16,7 @@
 
 コンポの解像度や aspect ratio を変更したときに、マスク・キーフレーム・アンカーポイントが崩れないようにする。
 
-現在は `HD -> Square` のような変更で座標系がずれ、手動で個別調整するしかない。
-このマイルストーンでは、解像度変更時に **自動再計算ウィザード** を提供する。
+作成時点では `HD -> Square` のような変更で座標系がずれ、手動調整に頼る状態だった。現行コードでは解像度変更時の **自動再計算ウィザード** と5種類の remap policy、適用・Undo 経路が実装されている。残る課題は pixel aspect ratio、影響一覧の完全性、全データ型の runtime parity である。
 
 ---
 
@@ -118,6 +123,15 @@
 - [x] 変更後 preview を表示する (AspectPreviewWidget — 青=old / 橙=new のアスペクト比可視化)
 - [x] 確定時に remap を適用する (applyResolutionRemap — Phase 2で実装済み)
 - [x] undo / redo できるようにする (ChangeCompositionResolutionCommand — mask/transform snapshot 方式)
+
+### 2026-08-15 現行コード監査
+
+- `ArtifactResolutionRemapDialog` は旧／新解像度と aspect ratio の差分、影響概要、アスペクト比プレビュー、警告、5つの RemapPolicy、適用導線を持つ。
+- `Geometry.ResolutionRemap` は Position、Bounds、Scale、Transform の Center Locked／Top Left Locked／Stretch To Fit／Fit With Padding／Fit With Crop を実装している。
+- `ArtifactAbstractComposition::applyResolutionRemap()` はレイヤーの transform、mask／anchor 系 property、composition size を再計算し、Project View と Composition Menu から Undo command 経由で呼ばれる。
+- ただし `calculateImpact()` の mask vertex／keyframe 件数は現状フラグベースの概要値で、全要素の詳細列挙ではない。pixel aspect ratio の remap と全 keyframe／mask 頂点の実データ検証も未確認。
+
+判定: **ウィザード、5ポリシーの変換計算、主要な適用・Undo 導線は実装済み。影響一覧の完全性、pixel aspect ratio、全データ型の runtime 検証は pending。**
 
 ---
 

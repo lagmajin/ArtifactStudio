@@ -1,5 +1,7 @@
 > **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_AUDIO_LAYER_INTEGRATION_2026-03-27.md](MILESTONE_AUDIO_LAYER_INTEGRATION_2026-03-27.md)
 
+**最終更新:** 2026-08-15
+
 # マイルストーン: Audio Widget Enhancement / Mixer Surface
 
 作成日: 2026-04-09
@@ -89,3 +91,9 @@
 Audio surface は企画段階から大きく進み、`ArtifactCompositionAudioMixerWidget` に channel/master strip、volume／pan／mute／solo、左右メーターとピーク表示、FX chip、Core Mixer 同期がある。`AudioWaveformWidget`／`ArtifactAudioPreviewWidget` には波形、再生ヘッド、クリック／ドラッグ位置変更、再生／停止、音量、レベル表示があり、Timeline／Asset Browser 側にも波形・scrub導線が実装済み。
 
 未完了または未検証なのは、Mixer／Timeline／Inspector 間の状態文言・badge の完全統一、missing／unloaded／clipped の共通表現、mixer surface 内への waveform 常設、source差し替えの統一導線、実機再生中のplayback head同期、大量素材時の表示負荷である。判定は「主要なAudio UI部品は実装済み、横断的な統一と実運用検証が残る」とする。
+
+## Update 2026-08-15
+
+現行 `ArtifactCompositionAudioMixerWidget` を追加監査した。channel／master strip の volume・pan・mute・solo、FX chip、routing 導線、左右 level／peak meter、0 dBFS 超過時の clip indicator、summary／state 表示を確認した。summaryにはaudio layerのmissing／unloaded件数も表示するよう更新した。waveform は Timeline／Viewport／Preview／Asset Browser／Contents Viewer 側に実装されているが、mixer strip 内の常設 waveform、Mixer／Timeline／Inspector の state badge 完全統一、再生中 playback head の実機同期、大量素材時の負荷は未完了または未検証とする。
+
+今回の順序監査では、mixer の channel strip が保持する現在の level／routing 契約に waveform source と playback-head 時間軸がないことを確認した。既存の `AudioWaveformWidget` を単純に埋め込むと別 decode／cache と状態表示が重複するため、今回はコード変更を行わず、共通 waveform source 契約を先に定義する課題として残す。

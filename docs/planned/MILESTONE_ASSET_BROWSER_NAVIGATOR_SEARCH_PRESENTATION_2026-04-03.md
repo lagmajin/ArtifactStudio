@@ -2,6 +2,17 @@
 
 > 2026-04-03 作成
 
+**最終更新:** 2026-08-15
+
+### 2026-08-15 follow-up
+
+- Asset Browser の検索欄に bounded search history と contains completer を追加し、再起動後も最近の検索語を候補として再利用できるようにした。
+- **判定:** Phase 1〜4 と Phase 5 の既存 drag surface は実装済み。検索履歴は実装済み。未完了は timeline 接続時の D&D preview ghost と runtime 受入れ。
+
+### Update 2026-08-15
+
+現行コードを再確認し、検索履歴の保存・復元（最大 12 件）、contains completer、入力中の履歴更新が既に実装済みであることを反映した。残る preview ghost は Asset Browser 単体の drag pixmap ではなく、Timeline の drop target まで含む受入れ表示として別途扱う。
+
 ## 目的
 
 現行の `ArtifactAssetBrowser` を土台に、制作現場で使いやすい Asset Browser の表面を段階的に整える。
@@ -193,3 +204,9 @@ Asset Browser から次の操作へ迷わず進めるようにする。
 - 左 Hub の Selection summary は、選択行数と連番展開後の source path 数を分けて表示するようにした。連番1行を選択した場合も、`1 selected • N source paths` と表示され、行数とフレーム数を混同しない。
 - 公開 filter setter は未知の値を `all` に正規化して保存し、外部 API からの不正値で一覧が意図せず空になることを防ぐ。
 - よって親 milestone の実装範囲は完了相当だが、検索履歴切替、D&D preview ghost、runtime performance／UX の実機検証を残す状態と判定する。
+
+## 2026-08-15 現行コード照合
+
+`ArtifactAssetBrowser.cppm` で、grid／list 切替と設定復元、thumbnail size、検索・タイプ／状態フィルタ、Name／Date／Size／Type 系ソート、昇降順、breadcrumb、Recent／Favorites、sequence 表示、Unused／Missing 状態表示を再確認した。旧計画の Navigator／Search／Presentation の主要項目は現行コードに反映されている。
+
+folder と flat search result の完全なモード分離、履歴の back／forward 操作、timeline への D&D preview ghost はこの確認では成立を裏付けられなかった。検索対象範囲、数千ファイル時の更新性能、設定復元後の UI 整合性も runtime 未検証。今回はビルド・テストを実行していない。

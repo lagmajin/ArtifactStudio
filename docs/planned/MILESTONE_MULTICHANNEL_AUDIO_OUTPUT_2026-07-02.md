@@ -1,7 +1,8 @@
 # マルチチャンネルオーディオ出力 設計書
 
 **作成日:** 2026-07-02
-**ステータス:** 設計フェーズ
+**最終更新:** 2026-08-15
+**ステータス:** 基盤実装済み（実機出力・品質・切替検証待ち）
 **関連コンポーネント:** AudioRenderer, AudioMixer, AudioBus, AudioDownMixer, ArtifactAudioLayer, ArtifactPlaybackEngine, ArtifactAudioMixer
 
 ---
@@ -335,3 +336,11 @@ Phase 6 (出力選択UI)
 設計書の旧記載から進展しており、AudioRenderer は preferred channel count、実デバイスの channel count、auto-downmix を持ち、Composition 側には 6／8ch の出力レイアウト選択と AudioMixer 経路がある。AudioLayer も mono／stereo／5.1／7.1 のチャンネル数を保持する実装が存在し、UI Mixer と Core AudioBus の同期も実装済み。
 
 一方、AudioDownMixer の実装は確認できた範囲では Stereo／Mono 変換が中心で、7.1 の品質保証、デバイス別の実出力、出力レイアウト選択 UI の完全な接続、RingBuffer の複数チャンネル実機検証、クリッピング防止を含む Phase 4〜6 は未検証または未完了。判定は「パイプライン基盤は導入済み、実機出力・7.1品質・切替検証が残る」とする。
+
+## Update 2026-08-15
+
+- `AudioRenderer` は preferred channel count からデバイス形式を要求し、実デバイスの channel count を保持する。入力チャンネル数がデバイスを超える場合は `AudioDownMixer` を介して mono／stereo へ自動変換する経路もある。
+- `AudioDownMixer` には 5.1／7.1 の channel layout 判定、7.1→stereo の ITU-R 系ミックス、stereo／5.1 から 5.1／7.1 への拡張、10ch の明示レイアウト処理が存在するため、旧「7.1 未対応」という記述は現行コードと一致しない。
+- `AudioRingBuffer`、WASAPI、Qt Audio backend、WAV writer、FFmpeg の channel layout 処理も可変チャンネル数を受ける基盤がある。ただし、実デバイスでの 5.1／7.1 出力、Composition／UI のレイアウト選択が renderer へ一貫して届くこと、再生中切替、クリッピング、各 downmix の聴感品質は静的確認では証明できない。
+- 判定は **パイプライン基盤は実装済み／Phase 4〜6 の実機・品質受入れは未完了** を維持する。冒頭のステータスは「設計フェーズ」から「基盤実装済み・検証待ち」へ更新する。
+- ビルド・テスト・runtime 確認は未実施。

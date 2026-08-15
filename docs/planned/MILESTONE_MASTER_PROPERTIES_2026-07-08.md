@@ -1,5 +1,6 @@
 # Milestone: Master Properties / Essential Properties（プリコンプ外部プロパティ上書き） (2026-07-08)
 
+**最終更新:** 2026-08-15
 **ステータス:** Phase 3 Completed (static verified 2026-07-22; runtime/build verification pending)
 
 ---
@@ -116,3 +117,10 @@
 ### 現在の判定
 
 Phase 1〜2 と主要な Phase 3 接続は静的に実装済み。テンプレート運用の完全なexport／再利用、および実機での兄弟・nested instance隔離は未検証のため、`Phase 3 Completed — runtime/build verification pending` を維持する。
+
+## Update 2026-08-15
+
+- 現行コードを再確認し、Master Properties の基盤である exposed property registry、precomp instance override、JSON／Undo 復元、render-time の child frame 変換と nested scope の記録が引き続き存在することを確認した。
+- Property システム側にも `ObjectReference` を含む型処理と expression／serialization の経路があり、公開プロパティの型拡張を阻害する旧ベースラインは解消されている。
+- ただし、テンプレートの完全な export／再利用、複数兄弟・nested instance の値隔離、expression／keyframe 競合の runtime 結果は静的コード確認だけでは完了判定できない。
+- 判定は **Phase 1〜2 実装済み、Phase 3 接続済み・runtime／build 受入れ待ち** を維持する。ビルド・テスト・runtime 確認は未実施。

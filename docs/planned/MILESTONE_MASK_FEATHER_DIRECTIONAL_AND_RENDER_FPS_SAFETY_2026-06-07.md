@@ -2,6 +2,8 @@
 
 **ステータス:** Mask directional feather 実装済み、FPS safety 統合・runtime/export検証 pending
 
+**最終更新:** 2026-08-15
+
 作成日: 2026-06-07  
 対象: mask feather と render/export safety  
 優先度: 🟠 高
@@ -237,3 +239,11 @@
 ### 現在の判定
 
 Mask directional feather は主要実装が存在する一方、Render/Export FPS safety は設定同期と mismatch warning の統合が未確定。全体は「部分実装／runtime・export確認待ち」とする。
+
+## 現行コード監査 (2026-08-15)
+
+`MaskPath` は uniform／horizontal／vertical／inner／outer feather を保持・補間・JSON 復元し、CPU 評価では方向別の X/Y blur と内外 feather、未指定時の uniform fallback を実装している。`LayerMask` の合成経路も確認できるため、directional feather の core 実装は現行コードでも成立している。
+
+一方、FPS 側は render queue／preview の frame budget・performance 計測と composition／stream の frame rate 情報までは存在するが、全 export job の FPS 自動同期、専用 mismatch warning、failure を防ぐ出力ゲート、実測による安全性は確認できない。したがって export/runtime 部分を完了扱いにはしない。
+
+判定: **directional feather は実装済み。FPS safety は計測・設定素材までで、export 統合と runtime 検証が pending。**

@@ -135,3 +135,8 @@
 - Command Palette に `Auto Precompose Package` を追加
 - 選択レイヤーを既存の `precomposeLayersWithUndo()` へ渡し、内容尺へ合わせる
   `MoveSelected` package を少ない入力で作成できる入口を追加
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+- `ArtifactCompositionLayer` のJSON復元で source composition ID が欠落している場合、既存インスタンスの以前のsourceを持ち越さないようにした。

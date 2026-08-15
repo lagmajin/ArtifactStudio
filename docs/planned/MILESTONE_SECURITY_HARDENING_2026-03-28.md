@@ -4,6 +4,13 @@
 **ステータス:** 計画中  
 **関連コンポーネント:** プロジェクト管理，ネットワーク，ファイルシステム
 
+## Update 2026-08-15
+
+- プロジェクト／アセット経路には `canonicalFilePath()`、入力名の sanitize、SHA-256 による revision／identity、project health の missing／cycle 診断が存在する。これは入力検証と整合性確認の基盤であり、包括的な sandbox boundary ではない。
+- Farm Worker には TLS オプションと CA 証明書指定があり、AI Cloud 側にも Qt SSL capability の診断がある。ただし全ネットワーク経路の証明書検証ポリシーと機密情報保護を本監査だけで完了とは判定しない。
+- PluginLoader／PluginSandbox には subprocess 起動、heartbeat、crash／restart／fail callback、canonical path identity がある。一方、OS レベルのファイルアクセス制限、権限分離、署名／quarantine、監査ログ、プロジェクト暗号化は未確認または未実装。
+- 判定: **入力検証・revision hash・限定的な TLS／plugin subprocess 基盤は部分実装。暗号化保存、全面的な通信 hardening、OS sandbox、改ざん検出付き監査ログ、脆弱性スキャンは未完了。ビルド・セキュリティ runtime 検証は未実施。**
+
 ---
 
 ## 概要

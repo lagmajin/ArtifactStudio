@@ -1,5 +1,19 @@
 # Milestone: Hierarchical Cache System
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+階層の主要部は現行コードに存在します。Asset source／decode、layer surface／GPU texture、composition RAM、disk preview の各 cache と、`ArtifactPlaybackService` の composition-level readiness、generation invalidation、disk hydrate／eviction が確認できます。`ArtifactFrameCache`、image sequence／video の local cache、差分 render key も個別に実装されています。
+
+一方、これらを共通の persisted manifest／state hash 契約で横断する上位 cache facade は未確認です。surface key の毎フレーム構築、全件 invalidation、candidate heap の一時 stale 候補、上位 composition cache への state hash／manifest 接続、再起動後の総合再利用は残課題または未検証です。
+
+## Update 2026-08-15
+
+- source／decode、layer surface／GPU texture、composition RAM、disk preview の各 cache と、Playback Service の readiness／generation invalidation／disk hydrate・eviction を再確認。
+- Asset shared payload、video local frame cache、差分 render key、motion path cache も個別に存在するが、persisted manifest／state hash を横断する上位 facade は確認できない。
+- surface key の毎フレーム構築、全件 invalidation、candidate heap の stale 候補、再起動後の総合再利用、上位 composition cache への manifest 接続は未完了・未検証。
+
 **Date:** 2026-07-21 (コード実態調査に基づき全面更新)  
 **ステータス:** In Progress
 

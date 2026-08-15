@@ -1,7 +1,8 @@
 # M-FIGMA-1 Auto Layout + Constraints System Milestone
 
 作成日: 2026-07-07
-ステータス: Draft
+**最終更新:** 2026-08-15
+ステータス: Layer component の簡易Auto Layoutは実装済み、ShapeGroup／Figma Constraintsの専用契約は未完了
 対象: `ArtifactCore/include/Shape/ShapeGroup.ixx`,
       `ArtifactCore/src/Shape/ShapeGroup.cppm`,
       `Artifact/src/Layer/ArtifactAbstractLayer.cppm`,
@@ -62,6 +63,22 @@ AE には完全に存在しない機能。
 | Auto Layout ビューポート UI | なし |
 
 ### 2.3 コード検索: AutoLayout → 0 hit, LayoutConstraint → 0 hit, HugContents → 0 hit
+
+## Current implementation audit (2026-08-15)
+
+現行コードを再確認した。Figma互換の専用 `ShapeAutoLayout`／`ShapeConstraints` が存在する証拠はない。一方、`ArtifactAbstractLayer` には layout component があり、親bounds・padding・direction・alignment・gap から子レイヤーの offset を算出し、render／overlay と layer JSON に接続している。
+
+| 項目 | 現行コードで確認できた実装 | 判定 |
+|---|---|---|
+| Layer layout model | `component.layout.enabled`、mode（0〜2）、alignment、direction、gap、padding properties と `parentAutoLayoutOffset` を確認 | 部分実装。ShapeGroup所有ではない |
+| Runtime placement | Composition render path が親の layout 設定を読み、子の位置 offset／order を計算 | 実装済み。Figmaの全SizeMode契約ではない |
+| Text resize | Text layer は Point／Box／Path layout mode、box size／maxWidth 等を持つ | 関連基盤。Auto LayoutのHugContentsとは別 |
+| Constraints | Left／Right／Top／Bottom／Center／Scale の専用データモデル・再計算は未確認 | 未実装 |
+| ShapeGroup Auto Layout | `ShapeAutoLayout`／`ShapeConstraints` class と ShapeGroup accessor は未確認 | 未実装 |
+| Inspector / persistence | Layer component layout property と `components.layout`／`layoutMode` の JSON 保存復元を確認 | 部分実装。専用Figma設定 panel は未確認 |
+| Viewport guides | 専用 padding／gap／anchor guide の実装は未確認 | 未実装／未確認 |
+
+**更新後の判定**: M-FIGMA-1 は Layer component の前身実装があるため、冒頭の「完全な0 hit」記述は古い。Phase 1 の一部は既存経路で満たすが、ShapeGroup内のFixed／Fill／Hug、親リサイズConstraints、専用viewport／Inspectorを追加しない限り完了とは扱わない。
 
 ---
 

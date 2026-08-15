@@ -12,12 +12,13 @@ module;
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFileDialog>
+#include <QInputDialog>
+#include <QLineEdit>
 #include <QFileInfo>
 #include <QFont>
 #include <QFrame>
 #include <QGuiApplication>
 #include <QHBoxLayout>
-#include <QInputDialog>
 #include <QLocale>
 #include <QCheckBox>
 #include <QLabel>
@@ -409,6 +410,16 @@ public:
         connect(setOutBtn, &QPushButton::clicked, this, &SourceMonitorPanel::onSetOutClicked);
         headerLayout->addWidget(setOutBtn);
 
+        auto* insertBtn = new QPushButton(QStringLiteral("Insert"));
+        insertBtn->setToolTip(QStringLiteral("Insert source range at the playhead"));
+        connect(insertBtn, &QPushButton::clicked, this, &SourceMonitorPanel::onInsertClicked);
+        headerLayout->addWidget(insertBtn);
+
+        auto* overwriteBtn = new QPushButton(QStringLiteral("Overwrite"));
+        overwriteBtn->setToolTip(QStringLiteral("Overwrite the timeline at the playhead"));
+        connect(overwriteBtn, &QPushButton::clicked, this, &SourceMonitorPanel::onOverwriteClicked);
+        headerLayout->addWidget(overwriteBtn);
+
         layout->addLayout(headerLayout);
 
         videoPlayer_ = new VideoPlayerWidget();
@@ -505,6 +516,51 @@ private Q_SLOTS:
         engine->setOutPoint(frame);
         outLabel_->setText(QStringLiteral("Out: %1").arg(frame));
     }
+
+    void insertSourceAtPlayhead(bool overwrite)
+    {
+        auto* engine = ArtifactPr::EditorEngine::instance();
+        if (currentFilePath_.isEmpty()) return;
+
+        const QString suffix = QFileInfo(currentFilePath_).suffix().toLower();
+        const bool isAudio = suffix == QStringLiteral("mp3")
+            || suffix == QStringLiteral("wav")
+            || suffix == QStringLiteral("aac")
+            || suffix == QStringLiteral("flac");
+
+        QString trackId;
+        const auto& tracks = isAudio
+            ? engine->currentSequence().audioTracks
+            : engine->currentSequence().videoTracks;
+        for (const auto& track : tracks) {
+            trackId = track.id;
+            break;
+        }
+        if (trackId.isEmpty()) return;
+
+        ArtifactPr::DemoClip source;
+        source.name = QFileInfo(currentFilePath_).completeBaseName();
+        source.sourceFile = currentFilePath_;
+        source.sourceIn = 0;
+        ArtifactPr::FramePosition sourceDuration = engine->outPoint() - engine->inPoint();
+        const ArtifactPr::FramePosition defaultWorkArea = engine->currentSequence().duration;
+        if (sourceDuration == defaultWorkArea && videoPlayer_->duration() > 0) {
+            const int fps = sequenceFrameRate(engine->currentSequence());
+            sourceDuration = (videoPlayer_->duration() * fps) / 1000;
+        }
+        source.sourceOut = qMax<ArtifactPr::FramePosition>(1, sourceDuration);
+        source.duration = source.sourceOut - source.sourceIn;
+        source.color = QStringLiteral("#4a9eff");
+
+        if (overwrite) {
+            engine->overwriteClipFromSource(trackId, source, engine->currentFrame());
+        } else {
+            engine->insertClipFromSource(trackId, source, engine->currentFrame());
+        }
+    }
+
+    void onInsertClicked() { insertSourceAtPlayhead(false); }
+    void onOverwriteClicked() { insertSourceAtPlayhead(true); }
 
 private:
     VideoPlayerWidget* videoPlayer_ = nullptr;
@@ -1970,6 +2026,7 @@ namespace {
 ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
+    ArtifactPr::loadSharedShortcuts();
     setWindowTitle(trUi("ArtifactPr", "ArtifactPr"));
     resize(1600, 980);
 
@@ -1978,17 +2035,40 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
 
     auto* engine = ArtifactPr::EditorEngine::instance();
 
+    const auto confirmProjectSwitch = [this, engine]() -> bool {
+        if (!projectDirty_) return true;
+
+        const auto result = QMessageBox::question(
+            this, uiText("Unsaved Changes", "未保存の変更"),
+            uiText("Save changes before switching projects?", "プロジェクトを切り替える前に変更を保存しますか？"),
+            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
+            QMessageBox::Save);
+        if (result == QMessageBox::Cancel) return false;
+        if (result == QMessageBox::Discard) return true;
+
+        QString filePath = engine->projectFilePath();
+        if (filePath.isEmpty()) {
+            filePath = QFileDialog::getSaveFileName(
+                this, uiText("Save Project", "プロジェクトを保存"),
+                engine->currentProject().name + QStringLiteral(".apr"),
+                QStringLiteral("ArtifactPr Project (*.apr);;All Files (*)"));
+        }
+        return !filePath.isEmpty() && engine->saveProject(filePath);
+    };
+
     auto* fileMenu = menuBar->addMenu(uiText("File", "ファイル"));
 
     auto* newAction = fileMenu->addAction(uiText("New Project", "新規プロジェクト"));
     newAction->setShortcut(QKeySequence::New);
-    connect(newAction, &QAction::triggered, [this, engine]() {
+    connect(newAction, &QAction::triggered, [this, engine, confirmProjectSwitch]() {
+        if (!confirmProjectSwitch()) return;
         engine->newProject();
     });
 
     auto* openAction = fileMenu->addAction(uiText("Open Project...", "プロジェクトを開く..."));
     openAction->setShortcut(QKeySequence::Open);
-    connect(openAction, &QAction::triggered, [this, engine]() {
+    connect(openAction, &QAction::triggered, [this, engine, confirmProjectSwitch]() {
+        if (!confirmProjectSwitch()) return;
         QString filePath = QFileDialog::getOpenFileName(
             this, uiText("Open Project", "プロジェクトを開く"),
             QString(), QStringLiteral("ArtifactPr Project (*.apr);;All Files (*)"));
@@ -2000,10 +2080,13 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     auto* saveAction = fileMenu->addAction(uiText("Save Project", "プロジェクトを保存"));
     saveAction->setShortcut(QKeySequence::Save);
     connect(saveAction, &QAction::triggered, [this, engine]() {
-        QString filePath = QFileDialog::getSaveFileName(
-            this, uiText("Save Project", "プロジェクトを保存"),
-            engine->currentProject().name + QStringLiteral(".apr"),
-            QStringLiteral("ArtifactPr Project (*.apr);;All Files (*)"));
+        QString filePath = engine->projectFilePath();
+        if (filePath.isEmpty()) {
+            filePath = QFileDialog::getSaveFileName(
+                this, uiText("Save Project", "プロジェクトを保存"),
+                engine->currentProject().name + QStringLiteral(".apr"),
+                QStringLiteral("ArtifactPr Project (*.apr);;All Files (*)"));
+        }
         if (!filePath.isEmpty()) {
             engine->saveProject(filePath);
         }
@@ -2022,21 +2105,27 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     });
 
     fileMenu->addSeparator();
-    auto* importMediaAction = fileMenu->addAction(uiText("Import Video...", "映像を読み込む..."));
+    auto* importMediaAction = fileMenu->addAction(uiText("Import Media...", "素材を読み込む..."));
     connect(importMediaAction, &QAction::triggered, [this, engine]() {
         const QStringList files = QFileDialog::getOpenFileNames(
-            this, uiText("Import Video", "映像を読み込む"), QString(),
-            QStringLiteral("Video Files (*.mp4 *.avi *.mov *.mkv)"));
+            this, uiText("Import Media", "素材を読み込む"), QString(),
+            QStringLiteral("Media Files (*.mp4 *.avi *.mov *.mkv *.mp3 *.wav *.aac *.flac);;Video Files (*.mp4 *.avi *.mov *.mkv);;Audio Files (*.mp3 *.wav *.aac *.flac);;All Files (*)"));
         for (const auto& file : files) {
+            const QString suffix = QFileInfo(file).suffix().toLower();
+            const bool isAudio = suffix == QStringLiteral("mp3")
+                || suffix == QStringLiteral("wav")
+                || suffix == QStringLiteral("aac")
+                || suffix == QStringLiteral("flac");
+            const QString mediaType = isAudio ? QStringLiteral("audio") : QStringLiteral("video");
             bool alreadyRegistered = false;
             for (const auto& media : engine->mediaPool()) {
-                if (media.filePath == file && media.type == QStringLiteral("video")) {
+                if (media.filePath == file && media.type == mediaType) {
                     alreadyRegistered = true;
                     break;
                 }
             }
             if (!alreadyRegistered) {
-                engine->addMediaToPool(file, QFileInfo(file).fileName(), QStringLiteral("video"));
+                engine->addMediaToPool(file, QFileInfo(file).fileName(), mediaType);
             }
         }
         if (!files.isEmpty() && mediaPanel_) {
@@ -2052,21 +2141,17 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     auto* editMenu = menuBar->addMenu(uiText("Edit", "編集"));
 
     auto* undoAction = editMenu->addAction(uiText("Undo", "元に戻す"));
-    undoAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Z")));
     connect(undoAction, &QAction::triggered, engine, &ArtifactPr::EditorEngine::undo);
 
     auto* redoAction = editMenu->addAction(uiText("Redo", "やり直し"));
-    redoAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+Z")));
     connect(redoAction, &QAction::triggered, engine, &ArtifactPr::EditorEngine::redo);
 
     editMenu->addSeparator();
 
     auto* deleteAction = editMenu->addAction(uiText("Delete", "削除"));
-    deleteAction->setShortcut(QKeySequence::Delete);
     connect(deleteAction, &QAction::triggered, engine, &ArtifactPr::EditorEngine::deleteSelectedClip);
 
     auto* rippleDeleteAction = editMenu->addAction(uiText("Ripple Delete", "リップル削除"));
-    rippleDeleteAction->setShortcut(QKeySequence(QStringLiteral("Shift+Delete")));
     connect(rippleDeleteAction, &QAction::triggered, engine, &ArtifactPr::EditorEngine::rippleDeleteSelectedClip);
 
     auto* duplicateAction = editMenu->addAction(uiText("Duplicate", "複製"));
@@ -2074,9 +2159,28 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     connect(duplicateAction, &QAction::triggered, engine, &ArtifactPr::EditorEngine::duplicateSelectedClip);
 
     editMenu->addSeparator();
-    editMenu->addAction(uiText("Cut", "切り取り"));
-    editMenu->addAction(uiText("Copy", "コピー"));
-    editMenu->addAction(uiText("Paste", "貼り付け"));
+
+    // The editor already owns clipboard semantics and undo integration. Keep
+    // the menu actions as thin commands so keyboard, menu, and future context
+    // menu entry points all follow the same edit path.
+    auto* cutAction = editMenu->addAction(uiText("Cut", "切り取り"));
+    connect(cutAction, &QAction::triggered, [engine]() {
+        const QString clipId = engine->selectedClipId();
+        if (clipId.isEmpty()) return;
+        engine->copyClip(clipId);
+        engine->deleteSelectedClip();
+    });
+
+    auto* copyAction = editMenu->addAction(uiText("Copy", "コピー"));
+    connect(copyAction, &QAction::triggered, [engine]() {
+        const QString clipId = engine->selectedClipId();
+        if (!clipId.isEmpty()) engine->copyClip(clipId);
+    });
+
+    auto* pasteAction = editMenu->addAction(uiText("Paste", "貼り付け"));
+    connect(pasteAction, &QAction::triggered, [engine]() {
+        if (engine->hasClipboard()) engine->pasteClip(engine->currentFrame());
+    });
 
     auto* snapAction = editMenu->addAction(uiText("Snap to Clips", "クリップにスナップ"));
     snapAction->setCheckable(true);
@@ -2087,7 +2191,6 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
 
     auto* sequenceMenu = menuBar->addMenu(uiText("Sequence", "シーケンス"));
     auto* bladeAction = sequenceMenu->addAction(uiText("Blade at Playhead", "再生位置でカット"));
-    bladeAction->setShortcut(QKeySequence(QStringLiteral("C")));
     connect(bladeAction, &QAction::triggered, engine, &ArtifactPr::EditorEngine::splitClipAtPlayhead);
 
     auto* addTransitionMenu = sequenceMenu->addMenu(uiText("Add Transition", "トランジションを追加"));
@@ -2104,19 +2207,70 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
         engine->addTransitionAtPlayhead(ArtifactPr::TransitionType::WipeRight);
     });
 
-    sequenceMenu->addAction(uiText("New Sequence", "新規シーケンス"));
-    sequenceMenu->addAction(uiText("Sequence Settings...", "シーケンス設定..."));
+    auto* newSequenceAction = sequenceMenu->addAction(uiText("New Sequence", "新規シーケンス"));
+    newSequenceAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+N")));
+    connect(newSequenceAction, &QAction::triggered, engine, &ArtifactPr::EditorEngine::newSequence);
+    auto* switchSequenceAction = sequenceMenu->addAction(uiText("Switch Sequence...", "シーケンスを切り替え..."));
+    connect(switchSequenceAction, &QAction::triggered, this, [this, engine]() {
+        const auto sequences = engine->currentProject().sequences;
+        if (sequences.isEmpty()) return;
+
+        QStringList names;
+        int currentIndex = 0;
+        for (int i = 0; i < sequences.size(); ++i) {
+            names.append(sequences[i].name);
+            if (sequences[i].id == engine->currentSequence().id) currentIndex = i;
+        }
+
+        bool accepted = false;
+        const QString selected = QInputDialog::getItem(
+            this, uiText("Switch Sequence", "シーケンスを切り替え"),
+            uiText("Sequence", "シーケンス"), names, currentIndex, false, &accepted);
+        if (!accepted) return;
+        const int selectedIndex = names.indexOf(selected);
+        if (selectedIndex >= 0) engine->selectSequence(sequences[selectedIndex].id);
+    });
+    auto* sequenceSettingsAction = sequenceMenu->addAction(uiText("Sequence Settings...", "シーケンス設定..."));
+    connect(sequenceSettingsAction, &QAction::triggered, this, [this, engine]() {
+        auto sequence = engine->currentSequence();
+        bool accepted = false;
+        const QString name = QInputDialog::getText(
+            this, uiText("Sequence Settings", "シーケンス設定"),
+            uiText("Name", "名前"), QLineEdit::Normal, sequence.name, &accepted);
+        if (!accepted) return;
+
+        const QString resolution = QInputDialog::getText(
+            this, uiText("Sequence Settings", "シーケンス設定"),
+            uiText("Resolution", "解像度"), QLineEdit::Normal, sequence.resolution, &accepted);
+        if (!accepted) return;
+
+        const QString frameRate = QInputDialog::getText(
+            this, uiText("Sequence Settings", "シーケンス設定"),
+            uiText("Frame Rate", "フレームレート"), QLineEdit::Normal, sequence.frameRate, &accepted);
+        if (accepted) {
+            engine->updateSequenceSettings(name, resolution, frameRate);
+        }
+    });
 
     auto* markerMenu = menuBar->addMenu(uiText("Marker", "マーカー"));
     auto* addMarkerAction = markerMenu->addAction(uiText("Add Marker at Playhead", "再生位置にマーカー追加"));
-    addMarkerAction->setShortcut(QKeySequence(QStringLiteral("M")));
     connect(addMarkerAction, &QAction::triggered, [engine]() {
         engine->addMarker(engine->currentFrame());
     });
     auto* clearMarkersAction = markerMenu->addAction(uiText("Clear All Markers", "マーカーをすべて削除"));
     connect(clearMarkersAction, &QAction::triggered, engine, &ArtifactPr::EditorEngine::clearMarkers);
 
-    menuBar->addMenu(uiText("Render", "レンダー"));
+    auto* helpMenu = menuBar->addMenu(uiText("Help", "ヘルプ"));
+    auto* shortcutsAction = helpMenu->addAction(uiText("Keyboard Shortcuts...", "キーボードショートカット..."));
+    connect(shortcutsAction, &QAction::triggered, this, [this]() {
+        if (!helpDialog_) {
+            helpDialog_ = new ArtifactPr::ShortcutHelpDialog(this);
+            helpDialog_->setRegistry(shortcutRegistry_);
+        }
+        helpDialog_->show();
+        helpDialog_->raise();
+        helpDialog_->activateWindow();
+    });
 
     auto* dockManager = new ads::CDockManager(this);
     setCentralWidget(dockManager);
@@ -2200,8 +2354,8 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     setStatusBar(statusBarWidget);
     statusBarWidget->addPermanentWidget(transportBar_, 1);
     statusBarWidget->showMessage(trUi(
-        "Ready - J/K/L: Playback | C: Blade | T: Crossfade | W: Wipe | M: Marker | Del: Delete | Ctrl+Z: Undo",
-        "準備完了 - J/K/L: 再生 | C: カット | T: クロスフェード | W: ワイプ | M: マーカー | Del: 削除 | Ctrl+Z: 元に戻す"));
+        "Ready - Keyboard Shortcuts are configurable from Help",
+        "準備完了 - ショートカットはヘルプから変更できます"));
 
     // status notifier: 編集中の操作を 3 秒間表示
     connect(&statusNotifier_, &ArtifactPr::PrStatusNotifier::temporaryMessage,
@@ -2222,6 +2376,20 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     // EditorEngine からの project 変更 / undo / redo を status に転送
     connect(ArtifactPr::EditorEngine::instance(), &ArtifactPr::EditorEngine::projectModified,
             this, &ArtifactPrMainWindow::onProjectModified);
+    connect(ArtifactPr::EditorEngine::instance(), &ArtifactPr::EditorEngine::projectSaved,
+            this, [this](bool success, const QString&) {
+        if (success) {
+            projectDirty_ = false;
+            setWindowTitle(trUi("ArtifactPr", "ArtifactPr"));
+        }
+    });
+    connect(ArtifactPr::EditorEngine::instance(), &ArtifactPr::EditorEngine::projectLoaded,
+            this, [this](bool success, const QString&) {
+        if (success) {
+            projectDirty_ = false;
+            setWindowTitle(trUi("ArtifactPr", "ArtifactPr"));
+        }
+    });
     // undo / redo は EditorEngine の signal に直接接続 (slot 経由でなく connect で十分)
     connect(ArtifactPr::EditorEngine::instance(), &ArtifactPr::EditorEngine::sequenceChanged,
             this, [this](const ArtifactPr::DemoSequence& sequence) {
@@ -2273,9 +2441,74 @@ void ArtifactPrMainWindow::keyPressEvent(QKeyEvent* event)
         return;
     }
 
+    // Shared configurable bindings take precedence over the legacy local
+    // registry. This makes changes made in Artifact's shortcut settings work
+    // in ArtifactPr without duplicating persistence or conflict logic.
+    const auto dispatchShared = [&](const QString& actionName) -> bool {
+        if (!ArtifactPr::matchesSharedShortcut(event, actionName)) return false;
+        if (actionName == QStringLiteral("undo")) engine->undo();
+        else if (actionName == QStringLiteral("redo")) engine->redo();
+        else if (actionName == QStringLiteral("togglePlayPause")) engine->togglePlayPause();
+        else if (actionName == QStringLiteral("splitClip")) engine->splitClipAtPlayhead();
+        else if (actionName == QStringLiteral("deleteClip")) engine->deleteSelectedClip();
+        else if (actionName == QStringLiteral("addMarker")) engine->addMarker(engine->currentFrame());
+        else if (actionName == QStringLiteral("zoomIn")) Q_EMIT requestZoomIn();
+        else if (actionName == QStringLiteral("zoomOut")) Q_EMIT requestZoomOut();
+        else if (actionName == QStringLiteral("copyClip") && !engine->selectedClipId().isEmpty())
+            engine->copyClip(engine->selectedClipId());
+        else if (actionName == QStringLiteral("cutClip") && !engine->selectedClipId().isEmpty())
+            engine->cutClip(engine->selectedClipId());
+        else if (actionName == QStringLiteral("pasteClip")) engine->pasteClip(engine->currentFrame());
+        else if (actionName == QStringLiteral("slipClip") && !engine->selectedClipId().isEmpty())
+            engine->slipClip(engine->selectedClipId(), 5);
+        else if (actionName == QStringLiteral("slideClip") && !engine->selectedClipId().isEmpty())
+            engine->slideClip(engine->selectedClipId(), 5);
+        else if (actionName == QStringLiteral("shuttleReverse")) engine->shuttleReverse();
+        else if (actionName == QStringLiteral("shuttleForward")) engine->shuttleForward();
+        else if (actionName == QStringLiteral("setInPoint")) engine->setInPoint(engine->currentFrame());
+        else if (actionName == QStringLiteral("setOutPoint")) engine->setOutPoint(engine->currentFrame());
+        else if (actionName == QStringLiteral("pause")) engine->pause();
+        else if (actionName == QStringLiteral("seekToStart")) engine->seekToFrame(0);
+        else if (actionName == QStringLiteral("seekToEnd")) engine->seekToFrame(engine->currentSequence().duration);
+        else if (actionName == QStringLiteral("rippleDeleteClip") && !engine->selectedClipId().isEmpty())
+            engine->rippleDeleteClipAt(engine->selectedClipId());
+        else if (actionName == QStringLiteral("addCrossfade")) engine->addTransitionAtPlayhead(ArtifactPr::TransitionType::Crossfade);
+        else if (actionName == QStringLiteral("addDipToBlack")) engine->addTransitionAtPlayhead(ArtifactPr::TransitionType::DipToBlack);
+        else if (actionName == QStringLiteral("addWipeLeft")) engine->addTransitionAtPlayhead(ArtifactPr::TransitionType::WipeLeft);
+        else if (actionName == QStringLiteral("addWipeRight")) engine->addTransitionAtPlayhead(ArtifactPr::TransitionType::WipeRight);
+        else if (actionName == QStringLiteral("showHelp")) {
+            if (!helpDialog_) helpDialog_ = new ArtifactPr::ShortcutHelpDialog(this);
+            helpDialog_->setRegistry(shortcutRegistry_);
+            helpDialog_->show();
+            helpDialog_->raise();
+            helpDialog_->activateWindow();
+        }
+        else if (actionName == QStringLiteral("zoomInAlt")) Q_EMIT requestZoomIn();
+        return true;
+    };
+    for (const auto& actionName : {QStringLiteral("undo"), QStringLiteral("redo"),
+                                   QStringLiteral("togglePlayPause"), QStringLiteral("splitClip"),
+                                   QStringLiteral("deleteClip"), QStringLiteral("addMarker"),
+                                   QStringLiteral("zoomIn"), QStringLiteral("zoomOut"),
+                                   QStringLiteral("copyClip"), QStringLiteral("cutClip"),
+                                   QStringLiteral("pasteClip"), QStringLiteral("slipClip"),
+                                   QStringLiteral("slideClip"), QStringLiteral("shuttleReverse"),
+                                   QStringLiteral("shuttleForward"), QStringLiteral("setInPoint"),
+                                   QStringLiteral("setOutPoint"), QStringLiteral("pause"),
+                                   QStringLiteral("seekToStart"), QStringLiteral("seekToEnd"),
+                                   QStringLiteral("rippleDeleteClip"), QStringLiteral("addCrossfade"),
+                                   QStringLiteral("addDipToBlack"), QStringLiteral("addWipeLeft"),
+                                   QStringLiteral("addWipeRight"), QStringLiteral("showHelp"),
+                                   QStringLiteral("zoomInAlt")}) {
+        if (dispatchShared(actionName)) {
+            event->accept();
+            return;
+        }
+    }
+
     const auto keyString = QKeySequence(event->key() | event->modifiers()).toString();
 
-    const auto& shortcuts = shortcutRegistry_.all();
+    const auto shortcuts = shortcutRegistry_.resolved();
     bool handled = false;
     for (const auto& sc : shortcuts) {
         if (sc.keys == keyString) {
@@ -2342,6 +2575,54 @@ void ArtifactPrMainWindow::onExportTriggered()
 {
     ExportDialog dialog(this);
     dialog.exec();
+}
+
+void ArtifactPrMainWindow::onProjectModified()
+{
+    if (projectDirty_) return;
+    projectDirty_ = true;
+    setWindowTitle(trUi("ArtifactPr*", "ArtifactPr*"));
+}
+
+void ArtifactPrMainWindow::onUndoRedo()
+{
+    onProjectModified();
+}
+
+void ArtifactPrMainWindow::closeEvent(QCloseEvent* event)
+{
+    if (!projectDirty_) {
+        event->accept();
+        return;
+    }
+
+    const auto result = QMessageBox::question(
+        this, uiText("Unsaved Changes", "未保存の変更"),
+        uiText("Save changes before closing?", "変更を保存して終了しますか？"),
+        QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
+        QMessageBox::Save);
+    if (result == QMessageBox::Cancel) {
+        event->ignore();
+        return;
+    }
+    if (result == QMessageBox::Discard) {
+        event->accept();
+        return;
+    }
+
+    auto* engine = ArtifactPr::EditorEngine::instance();
+    QString filePath = engine->projectFilePath();
+    if (filePath.isEmpty()) {
+        filePath = QFileDialog::getSaveFileName(
+            this, uiText("Save Project", "プロジェクトを保存"),
+            engine->currentProject().name + QStringLiteral(".apr"),
+            QStringLiteral("ArtifactPr Project (*.apr);;All Files (*)"));
+    }
+    if (filePath.isEmpty() || !engine->saveProject(filePath)) {
+        event->ignore();
+        return;
+    }
+    event->accept();
 }
 
 W_OBJECT_IMPL(ArtifactPrMainWindow)

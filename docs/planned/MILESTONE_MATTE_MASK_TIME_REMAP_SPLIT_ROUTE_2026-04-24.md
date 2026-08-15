@@ -1,6 +1,7 @@
 # Matte / Mask / Time Remap Split Route
 
-**Status:** Matte core and TimeRemap foundations implemented; GPU mask integration and cross-route runtime verification pending
+**最終更新:** 2026-08-15
+**Status:** Matte／TimeRemap 基盤と GPU mask／track matte API は実装済み、composition cross-route parity は未検証
 
 `LayerMatte`、`MaskCutout`、`TimeRemap` を 1 本の太い作業にまとめず、責務ごとに分けて進めるための整理メモ。
 
@@ -77,3 +78,12 @@
 ### 現在の判定
 
 3系統の基盤と責務分離は現行コードに存在するが、GPU mask parity、matte適用順、TimeRemapのUI／全layer統合は未検証。全体は「基盤実装済み／統合・runtime確認待ち」とする。
+
+## 現行コード監査 (2026-08-15)
+
+- Matte は `LayerMatte`／参照検証／循環検出／削除時 cleanup／RenderQueue の preflight と、Composition 側の GPU track matte 適用経路まで進展している。GPU 側は最大 3 source の制約と失敗時の診断・未適用分岐も持つ。
+- Mask は `MaskCutoutPipeline` と `MaskPathRasterizerPipeline` の texture／compute 経路があり、別マイルストーンで扱う責務分離は維持できている。通常 composition の全 preview／playback／export 経路での採用と CPU rasterizer との parity は未検証。
+- TimeRemap は processor の keyframe／easing／reverse／hold／frame blend、layer 保存・復元、VideoLayer の source frame 評価、Curve Editor／Animation Menu、footage impact 解析まで接続されている。全 layer 種別、audio sync、scrub、export の一致は未検証。
+- したがって 3 系統を一括統合する段階ではなく、Matte の適用順と diagnostics、Mask の GPU/CPU parity、TimeRemap の timeline／playback／export parity を別々に受け入れる状態である。
+
+判定: **責務分離と各基盤は実装済み。Matte／Mask／TimeRemap をまたぐ composition runtime の順序・fallback・フレーム整合性は pending。**

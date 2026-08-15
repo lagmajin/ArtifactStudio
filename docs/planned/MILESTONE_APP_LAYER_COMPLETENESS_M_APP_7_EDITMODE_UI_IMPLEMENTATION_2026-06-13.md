@@ -4,6 +4,9 @@
 > 状態: 実装済み・実機未確認
 > 作成: 2026-06-13
 
+**最終更新:** 2026-08-15
+**Status:** EditMode の tool mapping は実装済み、DisplayMode の専用導線と実機確認は別管理／未確認
+
 ## 目標
 
 UI の編集モード (EditMode) 選択を `ArtifactToolService` に接続し、ツールバーボタンおよびキーボードショートカットでモード切替が可能にする。  

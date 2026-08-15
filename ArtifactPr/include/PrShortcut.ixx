@@ -4,8 +4,11 @@ module;
 #include <QKeySequence>
 #include <QString>
 #include <QStringList>
+#include <QKeyEvent>
 
 export module ArtifactPr.Shortcut;
+
+import UI.ShortcutBindings;
 
 export namespace ArtifactPr {
 
@@ -52,9 +55,21 @@ public:
     /// shortcut の help text を生成 (overlay UI 用)。
     QString helpText() const;
 
+    /// Shared Artifact bindings を反映した表示用一覧。
+    QList<PrShortcut> resolved() const;
+
 private:
     QList<PrShortcut> shortcuts_;
     QHash<QString, int> byName_;
 };
+
+/// Resolve ArtifactPr actions through the shared, user-configurable binding
+/// store used by Artifact. Actions without a matching shared id keep their
+/// local Premiere-style default until a dedicated id is introduced.
+ArtifactCore::ShortcutId sharedShortcutId(const QString& actionName);
+bool matchesSharedShortcut(const QKeyEvent* event, const QString& actionName);
+QKeySequence sharedShortcut(const QString& actionName);
+bool loadSharedShortcuts();
+bool saveSharedShortcuts();
 
 } // namespace ArtifactPr

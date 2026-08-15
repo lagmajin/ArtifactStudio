@@ -1,5 +1,18 @@
 ﻿# 全ウィジェット監査 修正版 (2026-07-04)
 
+**最終更新:** 2026-08-15
+
+## 2026-08-15 現行コード照合
+
+この文書は 2026-07-04 時点の横断監査スナップショットであり、以下は現行ソースとの再照合結果である。古い「不足」欄をそのまま現状判定として扱わない。
+
+- **Animation Layers**: `AnimationLayerStackT<T>` の Additive / Override、Weight、Mute、Solo、保存・復元、Property Editor と Undo の接続を確認。旧 Timeline 欄の「未実装」は現状には適用しない。完全な runtime／全型の受入れは未検証。
+- **Audio Mixer**: `ArtifactAudioMixer` と `ArtifactCompositionAudioMixerWidget` に channel/master、volume、pan、mute、solo、peak meter、および solo 時の自動ミュートを確認。旧「Track Mute/Solo 不在」は更新が必要。Clip Indicator は別途未確認。
+- **Roving Keyframes**: Curve Editor／Dope Sheet 側に roving のデータ・表示準備はあるが、相対間隔を保った編集と保存・再生整合性は未確認。旧 ❌ を「部分実装／受入れ待ち」に修正する。
+- **Dropped Frames / AI token-cost / Smart Bin / Viewport channel split・X-Ray**: 現行コードでこの監査が要求する完成導線までは確認できず、引き続き未完了または未検証とする。
+
+ビルド・テスト・実機 UI 確認は実施していない。
+
 > コード精読ベース。初回監査の誤認(70%+)を訂正。
 > ✅=実装済み、⚠️=部分的、❌=コード不在、🎉=今回実装完了
 

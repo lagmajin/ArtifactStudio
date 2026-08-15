@@ -1,5 +1,8 @@
 # M-IR-9 Render Boundary Safety Gate
 
+**最終更新:** 2026-08-15
+**ステータス:** 観測・snapshot・fallback の安全基盤は整備済み、低レベル依存の縮小と runtime 受入れ待ち
+
 `ImmediateContext` / render target / particle / startup worker の境界変更を、描画崩れを起こしにくい順序で進めるための安全ゲート。
 
 ## Goal
@@ -60,3 +63,17 @@
 - `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
 - `ArtifactCore/include/Frame/FrameDebug.ixx`
 - `ArtifactCore/include/Diagnostics/Trace.ixx`
+
+## 現行コード監査 (2026-08-15)
+
+- `FrameDebug`／`Trace`、render context snapshot、frame render snapshot、external renderer job snapshot、GPU texture／readback fallback の診断経路を確認した。
+- `ArtifactIRenderer` が primitive／particle／pipeline／frame diagnostics を集約し、queue 側では render snapshot を clone して frame ごとの mutable state を隔離する経路がある。
+- 一方、`immediateContext()` と `IDeviceContext*` を受ける low-level API、GPU readback、CPU／Qt compatibility fallback は残っている。全 call site の de-direct、粒子 helper 化、backend／render-target 復帰、snapshot 並列実行の runtime 検証は未完了。
+
+判定: **安全ゲートの観測点と境界整理の基盤は実装済み。low-level de-direct と全 backend の受入れは pending。**
+
+## Update 2026-08-15
+
+- `FrameDebug`／`Trace`、render context／frame snapshot、external renderer job snapshot、GPU texture／readback fallback の観測経路を再確認。
+- `ArtifactIRenderer` は primitive／particle／pipeline／frame diagnostics を集約し、`CompositionRenderController` には pass summary と skip／crash trace がある。
+- ただし `immediateContext()`／`IDeviceContext*` を受ける low-level API、GPU readback、CPU／Qt fallback は残る。全 call site の de-direct、particle helper 化、backend／render-target 復帰、snapshot 並列 runtime 検証は未完了。

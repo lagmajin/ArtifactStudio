@@ -1,5 +1,11 @@
 # MILESTONE: Scrub Accuracy / Expression Recursion / Cache Reuse - 2026-06-07
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15 — 現行コード確認
+
+`ImageSequenceSource` の mutex 保護 LRU／byte budget／generation invalidation、`ArtifactFrameCache` の LRU／generation、RAM preview と Render Queue の cache 経路、`ExpressionEvaluator` の recursion depth／evaluation budget／memoization／loop 関数を確認した。残課題は scrub の requested／committed truth の統一、property reference を含む再帰評価の一貫した cycle policy、export 全体での共通 cache、miss 理由の統一表示である。
+
 作成日: 2026-06-07  
 対象: scrub 精度 / expression 再帰 / render cache 再利用  
 優先度: 🟠 高
@@ -289,3 +295,10 @@
 
 - これは実装タスクの詳細設計ではなく、scrub / expression / cache の 3 点を実行可能な単位にまとめた計画文書。
 - ビルドやテストは実施していない。
+
+## Update 2026-08-15
+
+- `ImageSequenceSource` には mutex 保護された LRU／byte budget の frame cache、hit／miss counters、generation invalidation があり、連番画像の再利用基盤は実装済み。
+- `ArtifactFrameCache`／RAM preview／render queue には別の frame cache・prewarm・priority 経路があるが、scrub の requested／committed／displayed frame 契約と全 render export での共通 cache hit を一つの統合契約として確認できる状態ではない。
+- expression の安全な再帰・memoization・loop policy、この文書の skip reason／最後の確定 frame fallback は専用の完了実装として確認できず、runtime 受入が必要。
+- 判定: **連番／RAM／render cache の基盤は部分実装。scrub truth の統一、expression recursion policy、export-wide cache reuse、diagnostics は未完了・未検証。ビルド・テストは未実施。**

@@ -1,10 +1,17 @@
 # MILESTONE: Effect Browser + Curve Editor Completion
 
+**最終更新**: 2026-08-15
 **日付**: 2026-08-04
-**現状**: エフェクト適用は右クリックメニューのみ（カテゴリ別サブメニュー、検索なし、D&D なし）。Curve Editor はコード実装済みだが全13機能がビルド・ランタイム未検証。DopeSheet は読み取り専用の QListWidget。
+**現状**: Effect Palette は検索付き一覧と D&D MIME 生成まで実装済みで、LayerPanel 側にも効果追加処理がある。ただしカテゴリツリー、ダブルクリック適用、履歴・お気に入り・プリセット表示は未実装で、効果 D&D の実操作経路は要確認。Curve Editor は専用ウィジェット、値/速度グラフ、キー・接線編集、プロパティ書き戻しと Undo 境界のコードが存在するが、ビルド・ランタイム検証は未実施。DopeSheet は `ArtifactTimelineKeyframeModel` でデータ収集・変形基盤がある一方、表示ウィジェットは非編集の QListWidget。
 **目標**: ドッカブル Effect Palette（検索+カテゴリツリー+D&D）、Curve Editor 全機能のビルド・ランタイム検証、DopeSheet 編集機能。
 
 ## Effect Browser 現状
+
+### 2026-08-15 実装監査
+
+- `ArtifactEffectPalette` は `availableEffects()` を検索し、`application/x-artifact-effect-add` MIME でドラッグを開始する。View メニューからパレットを開く登録も存在する。
+- 旧記述の「検索なし、D&D なし」は現状と一致しない。カテゴリは依然としてフラット一覧で、カテゴリツリー、サムネイル、ダブルクリック適用、キーボード起動、Favorites/Recent はコード上で確認できない。
+- `ArtifactLayerPanelWidget` には MIME を受けて選択行のレイヤーへ `addEffectToLayer()` する処理がある。ただし通常のパス収集が先に空入力で終了する分岐があり、効果 MIME 単独のドロップが実際に到達するかは未検証。
 
 | 機能 | 状態 |
 |------|------|
@@ -21,6 +28,12 @@
 | キーボード起動 | ❌ 不在 |
 
 ## Curve Editor 現状
+
+### 2026-08-15 実装監査
+
+- `ArtifactCurveEditorWidget` と `ArtifactTimelineWidget` の統合は存在し、値グラフ/速度グラフ、キー追加・削除・移動、接線・補間操作、書き戻し、スナップショット比較による Undo 境界が実装されている。
+- したがって「コード実装済みだが全機能未実装」ではなく、実装コードはかなり進んでいる。ただしビルド・ランタイム・Undo/Redo の実動作は今回も確認していない（ユーザー指示によりビルドなし）。
+- エフェクト専用のカーブ編集経路や、エフェクトパラメータを Curve Editor に明示的に束ねる専用 UI はコード検索で確認できなかった。現状はタイムラインの選択プロパティを曲線対象にする設計として扱う。
 
 | 機能 | コード | ビルド | ランタイム | Undo/Redo |
 |------|--------|--------|-----------|-----------|
@@ -256,6 +269,12 @@ CE-1〜CE-13 はコードが書かれているが、**一度もビルドされ�
 ---
 
 ## Phase 3: DopeSheet 編集機能 + Curve Editor 統合
+
+### 2026-08-15 実装監査
+
+- `ArtifactTimelineKeyframeModel` には DopeSheet キーフレーム収集と時間/値変形の処理がある。
+- 一方 `ArtifactDopeSheetWidget` は `QListWidget` を `NoSelection` で使い、行の選択・移動・削除・編集操作は実装されていない。旧計画の「読み取り専用」は現状でも有効で、P3 は未完了。
+- Curve Editor は Timeline のページとして統合され、値/速度モード切替も存在するが、DopeSheet との選択状態同期や編集結果の双方向同期は未確認。
 
 ### 3.1 DopeSheet 編集機能
 

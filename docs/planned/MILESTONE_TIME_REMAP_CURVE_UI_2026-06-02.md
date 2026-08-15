@@ -1,6 +1,7 @@
 # M-MOTION-7 Time Remap Curve UI (2026-06-02)
 
 日付：2026-06-02
+**最終更新:** 2026-08-15
 目標：タイムリマップ（可変速再生）のカーブ編集 UI を実装。特定部分をスローにしたり早送りしたりする速度ランプを直感的に編集可能にする。
 
 ---
@@ -80,3 +81,15 @@ Phase 1 の Core モデル相当は存在する。`ArtifactCore/src/Time/TimeRem
 - 隣接キーからの速度自動計算と Curve Editor の表示同期
 - loopOut / ping-pong との併用
 - 逆再生、freeze、速度ランプの runtime 検証
+
+## Update 2026-08-15
+
+現行コードを再確認したところ、2026-07-25 時点から実装が進んでいる。
+
+- `ArtifactCore::TimeRemapProcessor` / `TimeRemapEffect` は、キーフレーム補間、Bezier/Ease/Constant/Hold、逆マッピング、`getSpeedAtTime()`、フレームブレンドを実装済み。
+- `ArtifactAbstractLayer` に有効化、キーフレーム追加、合成フレームからソースフレームへの解決があり、`ArtifactVideoLayer` と合成レンダー側から実際に参照されている。Animation メニューからの有効化、フリーズ、時間反転の導線も存在する。
+- `ArtifactCurveEditorWidget` に `sampleSpeedGraph()` と `setSpeedGraph()` が追加され、隣接キーフレームの傾きから `Speed (%)` 用のサンプルとタンジェントを生成できる。ただし、現行コード上で選択レイヤーの TimeRemap キーを Curve Editor に渡す呼び出しは確認できず、実際のトラック統合は未完了。
+- Value（合成時間→ソース時間）グラフ、TimeRemap 専用キートラック、速度グラフの編集結果をレイヤーへ書き戻す経路、Inspector 表示、Undo／保存・再読込の専用経路は未確認。
+- `loopOut` Expression との併用、逆再生・フリーズ・速度ランプの再生／書き出し品質は、コード静的確認だけでは完了扱いにできない。
+
+現状は「Core とレイヤー runtime は実装済み、Animation メニューと Speed グラフ生成の部品も実装済み、Curve Editor 接続と編集・永続化・検証が未完了」。Phase 1 は部分完了から実装済み寄り、Phase 2〜3 は部分実装のまま。

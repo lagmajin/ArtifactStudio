@@ -1,10 +1,17 @@
 # C# Script Engine (hostfxr + CSX) 実装マイルストーン
 
 **日付**: 2026-08-04
+**最終更新**: 2026-08-15
 **ステータス**: Phase 0〜4 実装完了（hostfxr/CSX API、Roslynブートストラップ、Script Menu、テスト基盤を追加。ビルド・実行確認待ち）
 **ベース**: hostfxr (.NET Hosting API) + Roslyn Scripting API
 **現状**: `CSharpScriptEngine.ixx` (66行) + `CSharpScriptEngine.cppm` (408行) で Singleton+Pimpl 実装済み。実装は `ARTIFACT_HAS_DOTNET` の有無で分岐する。`Script.ixx` 未登録、CMake 未配線。`.bak` に Qt 依存の旧実装あり（hostfxr.h / nethost.h / coreclr_delegates.h 使用）。
 **狙い**: .NET アセンブリ (.dll) の hostfxr ロード実行を産線にし、さらに CSX (.csx) スクリプトの Roslyn 経由実行まで通す。
+
+## 2026-08-15 現行コード照合
+
+`CSharpScriptEngine` の C++20 module 登録、hostfxr の動的ロード実装、`ARTIFACT_HAS_DOTNET` 有無による stub 分岐、ArtifactScript Menu の .NET 呼び出し導線を確認した。現行ソース上は API／実装の土台はあるが、.NET 側の Roslyn ブートストラップ成果物、CMake の実環境検出、実 DLL／CSX のロードと評価を静的コードだけで完了とは判定できない。
+
+したがって Phase 0〜4 は「コード配置と契約の実装済み」とし、hostfxr 有効環境での DLL／CSX 実行、依存 Assembly 解決、エラー伝播、Menu 経由の runtime 受入れは pending。今回はビルド・テストを実行していない。
 
 ## 類似ツール参考
 

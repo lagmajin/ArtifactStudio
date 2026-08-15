@@ -1,6 +1,6 @@
 # 静止画レイヤー制作受入マトリクス
 
-**最終更新:** 2026-08-12
+**最終更新:** 2026-08-15
 
 **対象マイルストーン:** `M-IMG-1 Still Image Layer Production Readiness`
 
@@ -78,6 +78,7 @@
 4. CMYK等の4ch非RGBA素材は誤alphaを防ぐ診断を追加済みだが、source color modelに応じたRGB変換契約が必要。
 5. 連番の時間駆動接続は静的実装済みだが、frame advance / 欠損保持 / 範囲外 clamp の runtime確認が未完了。
 6. Render Queueを含む受入実行は、ビルド・テスト許可後に行う。
+7. `ArtifactSoftwareRenderTestWidget` に保存済み Preview／Render Queue フレームの比較導線を追加した。`P`／`Q` で画像を読み込み、`D` で同一サイズを確認したうえで差分画素数・平均 RGBA 差・最大差を表示する。実素材での判定と Software Preview を含む三経路比較は未実行。
 
 ### 色経路の実装ハンドオフ
 

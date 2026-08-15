@@ -2,6 +2,21 @@
 
 > 2026-05-31
 
+**最終更新:** 2026-08-15
+**現状:** CPU effect／Inspector factory／静止画・連番の通常stack経路は実装済み、GPU／preset packaging／runtime受入れ待ち
+
+## 2026-08-15 現行コード監査
+
+`ArtifactParticleLayer`／粒子レンダー基盤、および AI description 側の `rain` preset 名は確認できる。一方、`RainEffect`、雨 streak／density／wind／splash の専用パラメータ、composition render への雨 preset の接続は現行コードから確認できなかった。`ArtifactCore::RainModel` は AcousticSystem 配下のモデルであり、映像用の雨描画実装とは別責務である。
+
+判定（旧監査時点）: **Phase 1〜5 は未着手。** 現行コード照合は下記 Update 2026-08-15 を正とする。
+
+## Update 2026-08-15 — 現行コード照合
+
+`SimpleRainEffect` のCPU実装を確認した。密度、streak length、speed、wind、opacity、depth、splash、evolution、seedを持ち、決定的hashから雨滴を生成して `ImageF32x4_RGBA` 上で合成する。`ArtifactEffectService` のfactory／catalogにも登録され、通常のRasterizer effect stackから利用できる。`Preset` プロパティから `Light`／`Heavy` を適用でき、個別編集時は `Custom` に戻る。
+
+したがって Phase 1〜2 の最小実装と、light/heavy の最小プリセット適用は完了相当。GPU equivalent、プリセットの専用UI／配布パッケージ、zoom／composition boundsのruntime受入れ、preview／render queue parity、GPU／CPU性能比較は未完了または未検証。
+
 ## Purpose
 
 `After Effects` っぽい見た目の簡易雨を、既存の particle / effect / overlay 基盤の上で最小構成から実現する。

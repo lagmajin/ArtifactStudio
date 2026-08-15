@@ -1,7 +1,8 @@
 # M-FBF-1 Frame-by-Frame Animation Milestone
 
 **作成日:** 2026-07-03
-**ステータス:** Draft
+**最終更新:** 2026-08-15
+**ステータス:** Paint Layer／Brush／Onion Skin 基盤は実装済み、専用 Timeline 編集と統合検証が未完了
 **関連:**
 - `docs/planned/MILESTONE_PAINT_LAYER_RASTER_EDITING_2026-06-01.md`
 - `docs/planned/MILESTONE_PEN_TOUCH_JOYSTICK_2026-06-16.md`
@@ -132,3 +133,12 @@ class BrushTool : public ArtifactAbstractTool {
 当初の「未実装」記載から進展しており、`ArtifactPaintLayer` はフレーム単位の `ImageF32x4_RGBA` バッファ、new/remove/duplicate、stroke適用、消しゴム、直近stroke undo、JSONプロパティ保存を持つ。`ArtifactBrushTool` とツールバー／オプションバーのブラシ・消しゴム導線も存在する。Composition Editor にはOnion Skinの有効化、フレーム数、opacity設定と非同期キャプチャ・オーバーレイ描画がある。
 
 未完了または未検証なのは、Paint LayerのTimeline上のフレーム追加／削除／複製／PageUp/PageDownナビゲーション、フレームインジケータ、stroke UndoManagerとの統合、Onion SkinがPaint Layerの前後フレームを正しく参照すること、実機描画性能と保存復元である。判定は「PaintLayer／Brush／Onion Skin基盤は実装済み、専用Timeline編集と統合検証が残る」とする。
+
+## 2026-08-15 現行コード監査
+
+- `ArtifactPaintLayer` はフレーム単位の `ImageF32x4_RGBA`、frame add/remove/duplicate、Brush／Eraser／Clone、stroke undo、JSON 保存／復元を持つ。
+- `ArtifactBrushTool` と Composition Editor の brush／eraser／clone／clear 導線、Layer Panel の frame-by-frame capability 表示、Paint Layer onion-skin overlay 経路を確認した。
+- ただし、Dope Sheet／Timeline での専用 cel 操作、PageUp／PageDown の専用ナビゲーション、フレームインジケータ、UndoManager の一般経路との統合、前後フレーム参照の runtime parity は未確認。
+- paint buffer の表示側に QImage 変換境界が残っており、編集用 float buffer と表示／renderer 経路の性能・保存復元は未検証。ビルド／テストは実行していない。
+
+判定: **Frame-by-frame のデータ／ブラシ／Onion Skin 基盤は実装済み。専用 Timeline workflow、Undo／runtime parity、表示性能検証は pending。**

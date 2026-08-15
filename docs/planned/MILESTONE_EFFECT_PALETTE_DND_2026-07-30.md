@@ -1,6 +1,7 @@
 # Milestone: エフェクトパレット D&D + 簡易操作強化
 
-**ステータス:** Not Started
+**最終更新:** 2026-08-15
+**ステータス:** Phase 1 のパレット／検索／drag source は実装済み。レイヤー drop は導線上の要確認、Phase 2 は未確認。
 
 **作成日:** 2026-07-30
 **対象:** エフェクトパレットウィジェット新設、レイヤーパネル/ビューポートへの D&D 受付
@@ -186,3 +187,9 @@ if (mimeData->hasFormat("application/x-artifact-effect-add")) {
 - パレットのカスタマイズ（お気に入り、並び替え）→ 後続
 - EffectRackList（Inspector 側）の改修 → 既存で動作中、本マイルストーンでは触らない
 - `ArtifactWidgets` サブモジュールの変更 → 禁止
+
+## 2026-08-15 現行コード照合
+
+`ArtifactEffectPalette.ixx/.cppm`、`ArtifactViewMenu.cppm`、`ArtifactLayerPanelWidget.cppm` を確認した。パレットの表示、`availableEffects()` による一覧、ID／表示名検索、`application/x-artifact-effect-add` の MIME、アイコン付き drag source、View menu からの起動は実装済みである。
+
+一方、レイヤーパネルの drop 処理は通常のファイル path 判定の後ろに配置されており、effect MIME だけの drop が早期 return で到達できない可能性がある。ビューポート drop、double-click／Enter 即時適用、drag preview の名称表示、Undo／Redo と不正 drop の runtime は未確認。したがって Phase 1 は「実装済みだが drop 経路要確認」、Phase 2 は pending とする。

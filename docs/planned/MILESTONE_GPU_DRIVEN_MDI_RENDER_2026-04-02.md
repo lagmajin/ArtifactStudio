@@ -1,6 +1,7 @@
 # Milestone: GPU-Driven MDI Render (2026-04-02)
 
-**ステータス:** In Progress
+**最終更新:** 2026-08-15
+**ステータス:** clone／mesh／particle の indirect submission と一部GPU visibility は実装済み、Clone compaction・診断・backend parity は未完了
 
 **Goal:** CPU 依存の draw submission を減らし、GPU 側で可視判定・集約・`Multi-Draw Indirect` 相当の描画指示生成を行える render path を作る。
 
@@ -217,3 +218,18 @@ GPU-driven path は、対象 scene で CPU preparation / submission を削減し
 - CPU referenceとのvisibility parity validation mode。
 - Cloneの現在の`SolidRectXformPkt`経路に対するGPU-side packet compaction。現在のCloneはGPU batch / indirect submissionまでで、visibility判定は未統合。
 - backend別のUAV / indirect args buffer mode検証。
+
+### 2026-08-15 現行コード監査
+
+- `ParticleRenderer` と `MeshRenderer` は indirect args buffer、GPU visibility compaction、`DrawIndirect`／`DrawIndexedIndirect`、少数件や capability 不足時の direct fallback を実装している。
+- `DiligentImmediateSubmitter` には solid-rect batch の persistent indirect args buffer と indexed indirect draw がある。したがって MDI の基盤は計画段階ではなく、clone／mesh／particle の限定 workload で実装済み。
+- GPU visibility の非同期 counter readback、CPU reference parity、Clone の `SolidRectXformPkt` 自体のGPU-side compaction、backend別検証は未完了。preview／playback／export 全経路の共通採用や性能の break-even 測定も未確認。
+- ビルド・GPU実機実行・性能計測は実施していない。
+
+判定: **Phase 1–3 の限定的な submission foundation は実装済み。全経路統合、診断／parity、backend検証、性能受入れは pending。**
+
+## Update 2026-08-15
+
+- `ParticleRenderer`／`MeshRenderer` の persistent indirect args、GPU visibility compaction、`DrawIndirect`／`DrawIndexedIndirect`、少数件・capability 不足時の direct fallback を再確認。
+- `DiligentImmediateSubmitter` の solid-rect batch も indexed indirect draw を持つため、clone／mesh／particle の限定 workload では MDI foundation 実装済みと判断。
+- 非同期 counter readback、CPU reference parity、Clone の `SolidRectXformPkt` GPU compaction、backend 別 UAV／indirect 検証、preview／playback／export 共通化、break-even 性能測定は未完了・未検証。

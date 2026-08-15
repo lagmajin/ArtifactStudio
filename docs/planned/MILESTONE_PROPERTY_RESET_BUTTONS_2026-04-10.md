@@ -1,4 +1,5 @@
 # プロパティリセットボタンの追加
+**最終更新:** 2026-08-15
 **マイルストーン**: M-PR-1 Property Reset Buttons
 **作成日**: 2026-04-10
 **見積もり**: 3-5h
@@ -71,3 +72,7 @@ After Effects のプロパティパネルにリセットボタンを追加し、
 - UIクリック、Undo/Redo、Preferences永続化、Transform/Text/Effect/Material全対象のruntime検証は未実施。
 
 判定: **スマートリセットと表示設定の永続化を実装。runtime検証 pending。**
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactPropertyWidget` では通常 row の reset 表示、context menu の `Reset Value`、crop／pan 専用 reset、UndoManager 連携と keyframe property 用の reset 経路が確認できる。`QSettings` による表示設定の保存も既存監査と一致する。一方、全 editor 種別・全対象 property での default 値、keyframe 削除、Undo/Redo、再評価・保存結果は実行せずには証明できないため、UI 基盤とスマートリセット実装は維持し、runtime 受入れを pending とする。

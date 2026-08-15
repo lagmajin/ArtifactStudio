@@ -2,6 +2,9 @@
 
 日付: 2026-06-07
 
+**最終更新:** 2026-08-15
+**Status:** LayerBounds／5種の query API／summary は実装済み、effect／mask の厳密計算と外部 consumer 統合は未完了
+
 見た目の外接矩形を安定して計算し、テキスト背景追従・見た目中央アンカー・自動クロップ・整列・セーフエリア判定を支える基盤を作る。
 
 ## 2026-07-25 実装監査
@@ -92,3 +95,15 @@
 - `Sandbox Edits` の比較表示と相性が良い
 - motion tokens と組み合わせると、サイズ変化や動きの影響を比較しやすい
 - まずは bounds の意味を揃え、UI は後から利用する
+
+## 2026-08-15 現行実装監査
+
+- `ArtifactAbstractLayer::contentBounds()` は Source／Visible／Effect／Mask／Layout を `LayerBounds` として返し、各 query と summary API が公開されている。
+- `visualLocalBounds()` は clone／effect／modifier 等を含む表示寄りの bounds を計算するため、単純な `localBounds()` より進んだ実装が存在する。
+- 一方、基底 `contentBounds()` では effect／mask が visible bounds を代用するケースが残り、5種類の意味が常に厳密に分離されているとは言えない。
+- text background、visual-center、auto-crop、safe-area warning、automation からの共通利用は未確認。runtime の bounds 受入も未実施。
+
+## Update 2026-08-15
+
+- 現行コードでは `LayerBounds`／5種 query／summary、`visualLocalBounds()`、Resolution Remap／Layer Alignment からの bounds 利用を確認できる。
+- 基底 query では effect／mask が visible の代用になる場合があり、text background／visual-center／auto-crop／safe-area／automation の共通 consumer と runtime 受入は未完了または未確認。

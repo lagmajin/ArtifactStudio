@@ -1,8 +1,12 @@
 # MILESTONE: 3D Viewport & Rendering Production Hardening
 
-**日付**: 2026-08-04
-**現状**: 2D Gizmo は完成。3D Axis Gizmo は描画・ヒットテスト・ドラッグが実装済みだが Frame Gizmo のドラッグが 2D canvas-space / 3D projection-space の不一致で破損。RayTracing は DXR パイプラインがボイラープレートとして存在するが BLAS にジオメトリ未投入（グラデーション出力のみ）。CPU レイトレーサーは動いているがエディタ未接続。Volume レンダリングは CPU のみ。照明は Gizmo 可視化のみで実際の寄与なし。DOF はシェーダー資産が存在するが Diligent 未統合。
+**日付**: 2026-08-15
+**現状**: 2D Gizmo と 3D Axis／Projected Frame Gizmo の描画・ヒットテスト・ドラッグ経路は実装済み。RayTracing は mesh の vertex/index buffer、content hash、BLAS create/update、TLAS build に加え、warmup 用 ray-generation／miss／closest-hit shader、PSO、SBT、出力 UAV、`TraceRays()` dispatch まで Core に実装されている。ただし最終描画／lighting 連携と実ジオメトリ用 shader 契約は未確認。CPU レイトレーサーは動いているがエディタ未接続。Volume レンダリングは CPU のみ。照明は shadow map の生成／SRV 接続まで部分実装で、全面的な寄与は未確認。DOF はカメラパラメータと shader 資産が存在するが Diligent の DOF pass は未統合。
 **目標**: Frame Gizmo 修正、DXR に実ジオメトリ投入、Volume GPU 化、照明パイプライン接続、DOF 有効化。
+
+## 現行コード監査 (2026-08-15)
+
+Projected frame gizmo は `Artifact3DGizmo` の hit test、local basis、mode 切替、camera matrix、drag 更新、undo 経路が `CompositionRenderController` に統合されており、旧記述の「描画のみ／2D canvas-space 不一致」は現行コードと一致しない。3D axis gizmo と selection overlay も同じ controller 経路で確認できる。RayTracing は `ArtifactIRenderer` から mesh geometry を hash 付きで `createOrUpdateBLAS()` へ渡し、TLAS を再構築する経路が確認できる。`RayTracingManager` には warmup shader の `TraceRay()` と `IDeviceContext::TraceRays()`、RGBA32F output texture／SBT の実装もあるが、renderer の通常描画結果へ接続された最終パスかは未確認である。さらに shadow map は 1024² depth texture／DSV／SRV の生成、caster pass、main render への SRV 接続まで存在し、`shadowMapDebugState()` と Frame Debug の `Shadow Map` resource 診断も追加した。GPU volume、DOF の Diligent 接続、runtime 受入は未検証である。
 
 ## 現状マトリクス
 
@@ -10,11 +14,11 @@
 |---------------|------|-----------|
 | 2D TransformGizmo | ✅ 完成 | — |
 | 3D Axis Gizmo | ✅ 描画+ヒット+ドラッグ | — |
-| **3D Frame Gizmo** | ⚠️ 描画のみ | ドラッグ変換が 2D canvas-space で 3D projection と不整合 |
-| GPU RayTracing | 🟡 ボイラープレート | BLAS にジオメトリ未投入。TraceRay() 呼出なし |
+| **3D Frame Gizmo** | ✅ 描画+ヒット+ドラッグ | runtime 検証は未実施 |
+| GPU RayTracing | 🟡 warmup dispatch／acceleration structure 実装 | `TraceRay()` と `TraceRays()` は Core に存在。通常 renderer の最終出力／実ジオメトリ shader 接続は未確認 |
 | CPU RayTracer | ✅ 機能 | エディタ未接続。BVH AABB がダミー |
 | Volume Rendering | ⚠️ CPU only | GPU パス不在。エディタ未接続 |
-| 3D Lighting | ⚠️ Gizmo のみ | 実照明パス不在。shadow map 不在 |
+| 3D Lighting | 🟡 shadow map 部分実装 | shadow map の生成／SRV 接続あり。全面的な lighting 契約は未完 |
 | Depth of Field | ❌ 未着手 | シェーダー資産は存在。深度SRV未作成 |
 | Selection Wireframe | ⚠️ 実装済み | ランタイム検証未。エッジキャッシュ未 |
 | Ground Grid | ⚠️ データモデル完成 | 3D ビューポート描画未接続 |

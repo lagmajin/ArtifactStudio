@@ -243,3 +243,11 @@ CG ツールでよくある「オブジェクト破砕」「shatter」「destruc
 - Phase 3: 未完了 — collision / material / source replacement workflow は未確認
 - Phase 4: 未完了 — GPU/HLSL 化とアプリ UI 導線は未確認
 - Definition of Done: Core reference は進展済み、制作向け end-to-end は未完了
+
+## Update 2026-08-15
+
+- `ArtifactAbstractLayer` の現行実装で fracture component の設定、trigger frame、impact適用、shard motion（速度・回転・重力・damping・lifetime・opacity）、floor／composition bounds の簡易衝突、debris 粒子生成、shard polygon／debris の `ArtifactIRenderer` 描画が確認できる。
+- fracture state と shard motion は composition／layer の snapshot・復元・JSON経路へ含まれている。Physics LOD の Reduced／Minimal 設定から shard／debris 数、破砕計算、サブステップを制御する接続もある。
+- したがって「Core基盤のみでアプリ層未接続」という初期説明は古く、最小限の Layer runtime／preview 描画まで実装済みとする。ただしこれは独立した `CreativeEffect` stack の完全なeffect登録を意味しない。
+- 現行コード検索では、通常の Effect menu／専用破砕UIからの作成導線、mesh material／texture UV 継承、実物理collision backend、HLSL／GPU破砕、source差し替え・再リンク、Undo専用コマンド、外部品質受入れは確認できない。
+- よって現状は `Phase 1〜3 and CPU layer preview: partial-to-implemented / CreativeEffect integration, material/source workflow, GPU path and runtime validation pending` と判定する。Core referenceのみ未完了とする旧判定は更新する。

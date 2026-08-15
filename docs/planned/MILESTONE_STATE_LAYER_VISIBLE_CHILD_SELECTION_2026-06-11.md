@@ -1,5 +1,13 @@
 # MILESTONE: State Layer / Visible Child Selection
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+- 独立した `StateLayer` や state ごとの visible child list は現行コードで確認できない。
+- 代替に近い機能として `ArtifactAbstractComposition` の state variant／active state、state ごとの property override、Composition／View Menu の切替・比較・JSON 保存復元が実装されている。ただしこれは子レイヤーの表示集合を切り替えるモデルではない。
+- 通常の `visible`／`solo`／`shy` と state-managed visibility を区別する判定、Timeline／Hierarchy での表示同期、child list の Inspector surface は未確認。したがって本マイルストーンの Phase 1〜3 は未実装で、Composition State Variant とは別の追加設計が必要。
+
 ## Purpose
 
 子レイヤーの中から、いま表示するものを状態として切り替える `StateLayer` の最小実装を整理する。
@@ -55,4 +63,3 @@
 - 1つの state で表示する child を切り替えられる
 - hidden children と state-managed children の違いが UI 上で追える
 - 既存の visibility 操作を壊さない
-

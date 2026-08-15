@@ -1,6 +1,19 @@
 # MILESTONE_COLOR_BACKEND_HARDENING_2026-07-21
 
 **Status:** 部分完了（P0 ✅ / P1 部分完了・runtime shader verification 未完了 / P2 ✅）
+**最終更新:** 2026-08-15
+
+### 2026-08-15 現行コード補足
+
+`OCIOConfig` の外部／組み込み Rec.709・Rec.2020／HDR PQ 設定、`ColorSpace` の PQ／HLG transfer、FFmpeg encoder の HDR10／HLG・10bit pixel format、`ColorLuminance` の broadcast-safe 検査は確認できる。ただし、これらは本 milestone の P0〜P2 の完了判定とは分け、preview／export の source-of-truth 統合や実機 shader／HDR 出力確認を未検証のまま維持する。
+
+判定: **バックエンド修正 P0／P2 と preset／基本 GPU LUT は実装済み、任意曲線の runtime shader 検証および color-management の実運用統合は pending。**
+
+## Update 2026-08-15
+
+- `OCIOConfig` の Rec.709／Rec.2020／HDR PQ、`ColorSpace` の PQ／HLG、FFmpeg の HDR10／HLG／10bit、`ColorLuminance` の broadcast-safe 検査を再確認。
+- P0 の UB／mutex、`applySettings()` の cache invalidation、preset JSON、FloatColor allocation、Curves の任意 RGB LUT 経路は実装済みと判断。
+- GPU 任意曲線の runtime shader 検証、preview／export の color-management source-of-truth 統合、実機 HDR 出力確認は未完了。P0／P2 完了、P1 部分完了の判定を維持する。
 **Goal:** カラーコレクションのバックエンドの未定義動作・データ競合・スタブを潰し、UI 層の前に土台を固める。
 
 ### 2026-07-25 sequential audit

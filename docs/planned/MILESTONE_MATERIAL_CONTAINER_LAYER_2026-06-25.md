@@ -1,6 +1,7 @@
 # M-MATCON-1: 素材コンテナーレイヤー設計
 
 作成日: 2026-06-25
+最終更新: 2026-08-15
 ステータス: Phase 1 実装済み（静的確認 2026-07-29、ビルド／ランタイム確認待ち）
 対象: `Artifact/include/Layer/*`, `Artifact/src/Layer/*`, `Artifact/src/Render/*`, `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`, `Artifact/src/Layer/ArtifactCloneLayer.cppm`, `Artifact/include/Layer/ArtifactCloneEffectSupport.ixx`
 位置づけ: 複数素材を 1 レイヤー内の配列として保持し、通常表示では 0 番目だけを露出しつつ、クローナーやクローナートランスフォームから 1 番目以降も参照できるようにする。
@@ -253,3 +254,10 @@ struct CloneSourceRef {
 - `Material`／PBR、3D model の base color／metallic-roughness texture は既存の別責務であり、素材コンテナーレイヤーの実装とは区別する。
 
 この slice なら既存 composition tree と clone render に深く踏み込まず、後からクローナー連携を足せる。
+
+## Update 2026-08-15
+
+- `ArtifactMaterialContainerLayer` は現行コードで LayerFactory に登録され、`MaterialContainerSlot` の id／name／enabled／payload、`exposedIndex`、slot 配列の JSON 保存・復元、exposed layer の通常描画、slot 数／exposed index の property 表示を確認できる。Phase 1 の判定は維持する。
+- 現行コード検索では、Clone 系の source reference が Material Container の `materialAt(sourceIndex)` を解決する接続、複数 layer／asset から container を作る command、slot の reorder／編集専用 Undo、Hierarchy の slot 展開、slot 単位 diagnostics／cache key は確認できない。
+- `setExposedIndex()` は存在するが、Phase 1 の「UIから露出 slot を切り替えない」方針と、runtimeでの切替受入れは分けて扱う。exposed slot 切替を完了機能とは判定しない。
+- よって現状は `Phase 1 static implementation confirmed / Phase 2〜4 clone integration, editing UX, undo, diagnostics and runtime validation pending` と整理する。Material／PBR の既存実装は引き続き別責務である。

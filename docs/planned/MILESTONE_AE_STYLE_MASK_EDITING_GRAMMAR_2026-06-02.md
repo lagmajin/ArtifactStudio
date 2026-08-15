@@ -2,6 +2,17 @@
 
 > 2026-06-02 作成
 
+**最終更新:** 2026-08-15
+
+## 2026-08-15 現行コード照合
+
+- `RotoMask` に頂点追加／削除、位置・入出タンジェント、頂点補間、feather、mask mode、キーフレーム時刻評価、JSON／clone／keyframe コピーの基盤がある。
+- `RotoMaskEditor` に Draw／Select／Edit／Delete モード、頂点・タンジェント hit-test、ドラッグ編集、Delete、undo／redo、grid／zoom／pan、キーボードモード切替が実装されている。
+- 一方、現行コード上はこの専用 editor が Timeline／Composition の通常マスク編集導線へ全面統合されていること、Shift 複数選択、辺上クリック追加、Alt による角／ベジェ切替、F／T／M／MM の AE ショートカット契約は確認できない。
+- 既存 `MaskPath` 側にはマスク mode、頂点、タンジェント、キーフレーム、undo／JSON 経路があるが、RotoMaskEditor と通常マスク surface の責務統一は未完了。
+
+**判定:** マスクデータモデルと独立した直接編集 widget は実装済み。AE 互換の操作文法、複数選択、通常 UI 統合、runtime 受入れは未完了。
+
 After Effects のマスク編集で期待される「操作の文法」を、Artifact の Timeline / Mask surface に段階的に寄せるマイルストーン。
 
 この文書は、頂点選択・追加・削除・変形・マスク全体移動・プロパティ呼び出し・マスクモード切替を、モーションデザイナーが迷わず扱えるようにするための上位枠とする。

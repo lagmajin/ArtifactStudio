@@ -1,7 +1,16 @@
 # Milestone: アプリケーション自動アップデート (2026-03-28)
 
-**Status:** Not Started
+**最終更新:** 2026-08-15
+**Status:** バージョン管理と手動リリース導線は実装済み、自動確認・配布は未実装
 **Goal:** GitHub Releases から最新バージョンを確認し、ダウンロード・インストールを案内する。
+
+## 2026-08-15 現行コード照合
+
+- `Artifact/CMakeLists.txt` に `0.9.0` のバージョン定数があり、`ARTIFACT_VERSION_STRING` をコンパイル定義として注入している。`ApplicationService::applicationVersion()` と Version Info 表示はこの値を使用する。
+- Help メニューに `Check for Updates` は存在するが、現状は GitHub Releases ページを開くだけで、API による最新リリース照合・セマンティックバージョン比較・ダウンロードは実装されていない。
+- 更新確認の設定、起動時チェック、通知ダイアログ、署名／ハッシュ検証、ロールバックも現行コードからは確認できない。
+
+**判定:** Milestone 1 のバージョン管理と手動確認導線は完了。Milestone 2 以降（非同期チェック、自動配布、安全なインストール）は未着手。
 
 ---
 
@@ -9,11 +18,11 @@
 
 | 機能 | 状態 | 場所 |
 |------|------|------|
-| バージョン表示 | ⚠️ ハードコード "1.0.0" | `ArtifactHelpMenu.cppm:86` |
-| `applicationVersion()` | ⚠️ 実装済みだが未使用 | `ApplicationService.cppm:115` |
-| アップデート確認 | ❌ 未実装 | — |
+| バージョン表示 | ✅ `ARTIFACT_VERSION_STRING`／Version Info 経由 | `Artifact/CMakeLists.txt`, `ApplicationService` |
+| `applicationVersion()` | ✅ 現行バージョン表示に使用 | `ApplicationService.cppm` |
+| アップデート確認 | 🟡 Releases ページを開く導線のみ | Help menu |
 | 自動ダウンロード | ❌ 未実装 | — |
-| バージョン番号定義 | ❌ ビルド定数なし | — |
+| バージョン番号定義 | ✅ `0.9.0` のコンパイル定数 | `Artifact/CMakeLists.txt` |
 
 ---
 

@@ -1,5 +1,13 @@
 # 実装案: M-LYR-MOD Layer Modifier System (Blender-style Deformers)
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+「未実装」という冒頭の旧判定は現状と一致しません。`ArtifactLayerModifier`／`TransformLayerModifier`／`LayerModifierStack`、追加・削除・順序適用、JSON serialize／deserialize、`ArtifactAbstractLayer` の transform 評価への適用が実装されています。別系統では clone modifier descriptor の time-offset／sequence／random／formula／spline／step と field influence も `cloneRenderInstances()` に接続されています。
+
+ただし、提案されていた Taper／Bend／Twist、Noise Displace、Spline Warp、Lattice、Mesh／Wave deform の専用 modifier 実装と、Tool Options／Inspector の動的追加 UI、複雑な geometry deformation、各 modifier の runtime parity は未確認です。現状は **modifier stack の基盤＋Transform／clone 系部分実装**と判定します。
+
 > 2026-06-13 作成  
 > 状態: 未実装  
 > 優先度: 中（CloneEffector 基盤があるため、段階的拡張可能）

@@ -2,11 +2,28 @@
 
 **マイルストーンID**: M-AB-11
 **作成日**: 2026-06-28
+**最終更新**: 2026-08-15
 **優先度**: P1 (High)
 **推定工数**: 1-2日
 **カテゴリ**: Asset Browser / UX / Sorting
 **状態**: Partial implementation（単一キー／natural name／固定複合 preset／sort key・方向の設定保存を実装、個別方向の multi-key／custom order／runtime 検証 pending）
 **依存**: M-AB (Asset Browser base)
+
+## 2026-08-15 現行コード照合
+
+- `ArtifactAssetBrowser` に name／date／size／type と、`Type → Name`、`Date → Name`、`Size → Name` の固定プリセットがある。
+- natural name 比較、同値時の名前・パスによる安定タイブレーク、sort key／方向の `QSettings` 保存と復元を確認した。
+- 個別方向を持つ任意の multi-key 条件、ユーザー保存プリセット、custom order／drag sort、runtime 大量アセット性能検証は未実装または未確認。
+
+**判定:** 基本ソートと固定複合プリセットは実装済み。高度なカスタムソート機能は未完了。
+
+## Update 2026-08-15
+
+現行コードを再照合した。`ArtifactAssetBrowser` は name／date／size／type の sort、natural name comparator、同値時の name／path tie-break、Type→Name／Date→Name／Size→Name の固定 preset、sort key／方向の設定保存を持つ。
+
+- 任意の multi-key に各方向を個別設定する UI、ユーザー保存 preset、custom order、drag sort は確認できない。
+- sequence frame の親子順維持は既存導線で保たれているが、全 sort criteria と統一された custom order 契約ではない。
+- 判定は **基本／固定 preset／natural sort は実装済み、高度な custom sort と大量アセット runtime 検証は未完了** を維持する。
 
 ---
 
@@ -1402,3 +1419,9 @@ void ArtifactAssetBrowser::Impl::onSortCriteriaChanged() {
 - 一方、複数キーを優先順位付きで適用する `AssetSortCriteria`／`AssetSorter`、各キー別方向、ソートプリセット、自然順、カスタム順、専用設定ダイアログは確認できない。
 - 手動 Drag & Drop sort、ソート条件のプロジェクト単位永続化、タグ・ステータスとの複合ソートも未完了である。
 - よって既存の単一ソートは実装済みだが、Advanced Sort 全体は Partial／未完了と判定する。
+
+## Update 2026-08-15
+
+現行コードを再確認した。Name／Date／Size／Type の自然順・安定 tie-break、Type→Name／Date→Name／Size→Name の固定複合 preset、昇順／降順、sort key／方向の設定保存は実装済み。
+
+未完了は任意の multi-key を各キー別方向で編集する `AssetSorter`／設定 UI、ユーザー保存 preset、custom order／drag sort、大量アセットの runtime 受入れである。したがって固定 preset までを実装済み、Advanced Sort 全体は部分完了とする。

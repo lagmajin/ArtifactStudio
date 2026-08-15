@@ -3,6 +3,7 @@
 > 2026-04-28 作成
 
 **ステータス:** In Progress
+**最終更新:** 2026-08-15
 
 ## 目的
 
@@ -192,3 +193,11 @@ is registered for layout restoration but constructed only when selected.
 - 重い初期化箇所がログで見える
 - lazy 化しても必要な UI が欠けない
 - 再発防止の基準が残る
+
+## Update 2026-08-15
+
+- `ArtifactIRenderer::initialize()` に `ScopedStartupTimer`／`StartupProfiler` があり、Device、RayTracing、PrimitiveRenderer、Shader／PSO 初期化の時間をログ／レポート化する経路がある。`ArtifactCompositionRenderController` と `ArtifactCompositionEditor` にも startup timer、deferred initialization、viewport retry の計測・ログが存在する。
+- `ArtifactMainWindow` には stable dock shell と lazy widget の状態、startup layout freeze／apply、保存レイアウト復元後の deferred refresh が実装されている。optional dock の内容を後から生成する設計基盤は、本文の Long-Term Architecture と整合する。
+- `AppMain` では geometry restore、ADS dock restore、layout finalize の計測ログ、startup parallelism の warmup 復帰が確認できる。初回表示前後の重い処理を観測する基礎は実装済みである。
+- Composition 作成直後についても editor／viewport の deferred sync・retry・debounce 経路は存在するが、Timeline／Dope Sheet の全てが本文どおり lazy 化されていること、作成から first visible frame までの一貫した計測点、dock churn の削減効果はコード検索だけでは受入れ確定できない。
+- 数値基準（startup／create-composition／first-paint の baseline と改善値）は現行文書・コードから確認できない。よって現状は `Phase 1 instrumentation and startup shell: substantially implemented / Phase 2〜4 deferred path: partial / Phase 5 numeric regression evidence: pending` とする。体感改善や ms 目標は実測なしに完了扱いしない。

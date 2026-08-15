@@ -1,5 +1,8 @@
 # Creative Effect CPU/HLSL Dual Backend
 
+**最終更新:** 2026-08-15
+**Status:** CPU creative effect と `ArtifactAbstractEffect` の汎用 CPU／GPU／AUTO bridge、HLSL／compute 基盤は存在するが、creative effect 全体への接続と parity 検証は未完了
+
 ## 目的
 
 `ArtifactCore` の creative effect を、テストしやすい CPU 実装を残したまま、HLSL backend も提供できる構造へ段階移行する。
@@ -12,8 +15,8 @@
 
 ## 現状認識
 
-- `CreativeEffect` は CPU 前提の単一実装になっている
-- `CreativeEffectManager` は effect stack を順に `process()` するだけで backend 抽象がない
+- `ArtifactAbstractEffect` は `ComputeMode::CPU/GPU/AUTO` と GPU implementation fallback を持つが、creative effect 全体がこの bridge に接続されているわけではない
+- `CreativeEffectManager` は effect stack を順に `process()` する既存経路を維持しており、creative effect ID単位の parity 契約はまだない
 - `ShaderManager` / `Graphics.Compute` / `LayerBlendPipeline` は既に HLSL の実行基盤を持っている
 - `docs/EFFECT_SYSTEM_SPECIFICATION.md` には effect のカテゴリと将来の GPU 化方針があるが、backend 分離の実装計画はまだ薄い
 
@@ -119,3 +122,10 @@ HLSL 版は CPU の自動変換ではなく、同じ parameter schema を使う�
 - 次の実装単位は、まず definition / parameter schema と CPU/HLSL executor capability の最小契約を導入すること。
 
 ビルド・実行確認はリポジトリ方針により未実施。
+
+## 2026-08-15 現行実装監査
+
+- CPU 側の `CreativeEffect`／`CreativeEffectManager`／`CreativeEffectFactory` と各 effect の reference 実装は現行コードに存在する。
+- `Graphics.Compute`、`SinglePassShader`、`PointwiseEffectFusion`、`LayerBlendPipeline`、`ShaderManager` など、別系統の GPU／HLSL 実行基盤も拡張されている。
+- ただし CreativeEffect ID と parameter schema を GPU executor に橋渡しする backend 選択、fallback 理由、共通 upload、CPU/HLSL 同一入力比較は確認できない。
+- よって Phase 1〜2 は CPU 側基盤、Phase 3〜5 は未実装または未検証。ビルド／GPU 実行は行っていない。

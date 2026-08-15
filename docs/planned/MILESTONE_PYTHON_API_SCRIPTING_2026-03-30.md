@@ -1,5 +1,7 @@
 # Milestone: Python API & Scripting Console (M-PY-1)
 
+**最終更新:** 2026-08-15
+
 ## 🎯 目的
 `ArtifactStudio` の操作を外部および内部からプログラム可能にし、大量の処理（バッチレンダリング、アセット整理、コンポジション生成）を自動化するための基盤を構築する。また、ユーザーが独自のツール（プラグイン）を作成できるエコシステムを提供する。
 
@@ -44,3 +46,7 @@
 一方、計画が想定した pybind11 による `ArtifactCore`／`ArtifactStudio` の型付き Python object export、独立した `ScriptingConsoleWidget`（QPlainTextEdit REPL、syntax highlight、completion）、`app`／`project`／`selected_layers` の直接オブジェクト公開、render queue の完全な Python API、headless CLI 実行、sandbox／権限・実行時間制限、runtime の Python interpreter／output redirect 検証は未確認である。現状は登録関数を中心とした bridge で、型安全な object model と専用 console UI は別途必要である。
 
 判定: **Python 実行基盤と限定 API は実装済み。** Phase 1 の full bridge、Phase 2 の専用 console、Phase 3 の headless／plugin workflow は未完了または未検証である。
+
+## 現行コード監査 (2026-08-15)
+
+`PythonEngine` は pybind11／外部 Python fallback、execute／evaluate、登録関数・global、stdout callback、複数行 console line を持ち、`CorePythonAPI`／`ArtifactPythonHookManager` から限定 API を登録できる。専用 `ScriptingConsoleWidget`、typed object model の全面 export、sandbox／権限・時間制限、履歴・補完、headless CLI の一貫した受入れは現行コードでは確認できない。したがって Python bridge の基盤は進展済みだが、Phase 1 の full bridge と Phase 2〜3 は未完了・runtime 検証待ちとする。

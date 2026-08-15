@@ -1,5 +1,8 @@
 # ArtifactCore 層 安全実装リスト
 
+**最終更新:** 2026-08-15
+**Status:** 基盤機能は複数実装済み。ただし、この文書が想定した「Coreだけで完結した安全実装セット」は未完了
+
 ✅ UI / アプリ層に一切触れずに実装可能
 ✅ 単体テスト可能
 ✅ 後方互換性 100% 維持
@@ -154,3 +157,17 @@ FloatColor blend(FloatColor dst, FloatColor src, BLEND_MODE mode, float opacity)
 
 この方法であれば、何も壊さずに着実に前進する事が出来ます。
 途中でいつでも止める事が出来て、既存リリースに一切影響が出ません。
+
+---
+
+## 2026-08-15 現行実装監査
+
+この文書の当初リストを、現在のコードに照合した。元の「未実装」前提は古く、少なくとも以下は既存実装として確認できる。
+
+- ベジェ／イージング: `AnimatableValue` の補間、`EasingCurveUtil` の複数 easing、Bezier keyframe 編集、Curve Editor／Easing Lab 連携が存在する。専用の `interpolateBezierVelocity()` として整理された契約、Core 単体での網羅的な数値検証は未確認。
+- 変換: `AnimatableTransform2D`、`StaticTransform2D`、`TransformHelper` の行列生成・合成が存在する。元案の `Transform2D::operator*` という単一 API に統合された状態ではなく、親子階層の共通 Core 契約としての整理は未完了。
+- 時間: `RationalTime` は既に各レイヤー、コンポジション、キーフレーム、再生・編集経路で利用されている。サブフレーム表現の全面移行や全利用箇所の一貫性検証は未確認。
+- ブレンド: GPU の `LayerBlendPipeline`／シェーダー群と、テストコード上の BlendMode smoke 検査は存在する。一方、文書が想定した全モードの独立した CPU reference 関数と、GPU／CPU の共通 golden 契約は未確認。
+- レイヤー順序: Timeline／Composition 側にはレイヤー列のソートや描画経路があるが、調整レイヤー・マット・3D・ガイドを扱う Core の純粋な `LayerOrder` API は確認できない。
+
+したがって現在の位置づけは「安全な小粒 Core 実装をこれから始める段階」ではなく、「主要な基盤はアプリ／GPU経路まで進んだが、責務分離・参照実装・単体検証の穴を埋める段階」である。ビルド・テストはこの監査では実行していない。

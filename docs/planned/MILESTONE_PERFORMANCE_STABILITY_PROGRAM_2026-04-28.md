@@ -2,6 +2,14 @@
 
 > 2026-04-28 作成
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+`AppMain`／`ArtifactMainWindow` には startup／layout の `QElapsedTimer` 計測、deferred refresh／layout freeze、startup parallelism と trace／crash 記録がある。Composition Editor／Render Controller には `PerformanceRegistry`／Profiler UI、`FrameDebugSnapshot`／`TraceRecorder`、pass／resource 記録があり、RAM preview／disk／thumbnail／waveform cache も状態と key を持つ。したがって、可観測性と局所的な churn／cache 対策の基盤は実装済みである。
+
+一方、全 subsystem 共通の budget／SLO 契約、CPU／GPU／upload／readback の統合された長時間計測、低メモリ・再起動・大規模素材の受入れ、D3D12／Vulkan backend 別の runtime 比較は確認できない。現状は観測・局所改善の基盤実装済み、横断的な stability program の acceptance と継続運用は pending と判定する。
+
 ## 目的
 
 ArtifactStudio 全体のパフォーマンス問題を、個別のバグ修正ではなく、長期的な改善プログラムとして扱う。

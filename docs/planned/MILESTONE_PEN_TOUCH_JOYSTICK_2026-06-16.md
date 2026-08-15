@@ -1,7 +1,8 @@
 # M-INTERACT-1 Pen / Touch / Joystick 入力 Milestone
 
 作成日: 2026-06-16
-ステータス: Draft
+**最終更新:** 2026-08-15
+ステータス: Tablet の pressure／tilt 経路は実装済み、Touch／Multi-touch／Joystick は未実装
 対象: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`,
       `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`,
       `Artifact/src/Widgets/Timeline/ArtifactTimelineWidget.cpp`,
@@ -346,3 +347,18 @@ protected:
 専用の `ArtifactPenInput`、`ArtifactTouchGesture`、`ArtifactJoystickInput`、`QTabletEvent`／`QTouchEvent`／gesture handler、SpaceMouse／RawInput adapter は現行ソースから確認できなかった。`ArtifactBrushTool` は存在するが、入力値は radius／opacity／eraser の設定が中心で、pressure／tiltを受け取る経路はない。
 
 したがって本マイルストーンは、設計のみで実装未着手に近い状態。ペン筆圧・傾き、multi-touch、pinch／pan／rotate、Joystick 6軸、Timeline／Composition Editorへの安全な入力統合、optional SDK、実機検証が未完了である。
+
+## 2026-08-15 現行実装監査
+
+2026-07-25 の確認後、Tablet 入力の基礎経路が追加されている。現行コードでは `ArtifactCompositionEditor::tabletEvent` が Qt の `QTabletEvent` から pressure／xTilt／yTilt を取得し、`CompositionRenderController::setPointerPressure`／`setPointerTilt` 経由で `ArtifactBrushTool` に反映する。BrushTool は pressure を radius／opacity／flow に、tilt を angle／roundness に適用する。
+
+| Workstream | 現行コードで確認できた実装 | 判定 |
+|---|---|---|
+| Pen pressure | `QTabletEvent::pressure()` → controller → `ArtifactBrushTool::setPressure()`。Tablet release 時に 1.0 へ戻す | 実装済み。ただし実機測定は未実施 |
+| Pen tilt | `xTilt()`／`yTilt()` → `setPointerTilt()` → BrushTool の angle／roundness。既存 mouse 経路を温存した synthetic press／move／release | 実装済み。rotation／barrel button の専用導線は未確認 |
+| Brush integration | pressureAffectsSize／Opacity／Flow、tiltAffectsAngle／Roundness の設定と stroke apply を確認 | 実装済み |
+| Touch gesture / Multi-touch | `QTouchEvent`、`QGestureEvent`、pinch／pan／swipe／rotate の専用 handler は未確認 | 未実装 |
+| Joystick / SpaceMouse | `ArtifactJoystickInput`、vendor SDK／RawInput adapter、6軸 camera mapping は未確認 | 未実装 |
+| Settings / diagnostics | Input 専用設定ページ、pressure curve／button mapping、`input.*` Problem View 診断は未確認 | 未完了 |
+
+**更新後の判定**: Phase 1 の pressure／tilt と BrushTool 統合は成立しているが、M-INTERACT-1 全体は未完了。次の作業は Touch API の Qt event ownership と既存 mouse 合成の競合を先に整理し、Joystick は optional backend として分離すること。実機の Wacom／touch panel／SpaceMouse 検証は未実施のため、完了扱いにはしない。

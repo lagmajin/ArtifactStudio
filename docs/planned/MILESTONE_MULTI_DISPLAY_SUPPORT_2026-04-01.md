@@ -1,6 +1,7 @@
 # Milestone: Multi-Display Support (2026-04-01)
 
-**Status:** Not Started
+**最終更新:** 2026-08-15
+**Status:** Secondary preview／screen selection／fullscreen／DPR／basic display profile implemented, color profile and layout integration pending
 **Goal:** デュアル/マルチディスプレイ環境での制作ワークフローを強化する
 
 ---
@@ -9,12 +10,13 @@
 
 | 機能 | 状態 |
 |------|------|
-| `QScreen` 使用 | ⚠️ 一部（ダイアログ位置決めのみ） |
-| マルチモニター検出 | ❌ 未実装 |
-| セカンドモニタープレビュー | ❌ 未実装 |
-| フルスクリーンプレビュー | ❌ 未実装 |
-| ウィンドウ画面間移動 | ❌ 未実装 |
+| `QScreen` 使用 | ✅ screen list／availableGeometry を使用 |
+| マルチモニター検出 | ✅ セカンドプレビューの screen selection |
+| セカンドモニタープレビュー | ✅ `ArtifactSecondaryPreviewWindow` |
+| フルスクリーンプレビュー | ✅ fullscreen／ESC・F11 |
+| ウィンドウ画面間移動 | ✅ 選択screenへの配置 |
 | モニタープロファイル連携 | ❌ 未実装 |
+| セカンドプレビュー設定保存 | ✅ screen／fullscreen／FPS／geometry |
 
 ---
 
@@ -174,3 +176,24 @@
 - Phase 3: 未完了 — 画面情報・色プロファイル・設定ページを統合する Manager は未確認
 - Phase 4: 未着手相当 — dock の画面間レイアウト記憶・profile は未確認
 - Status: `Not Started` から `部分実装・マルチディスプレイ統合待ち` に更新相当
+
+## 現行コード監査 (2026-08-15)
+
+- `ArtifactSecondaryPreviewWindow` は `QGuiApplication::screens()` の一覧から画面を選び、`availableGeometry()` を使った配置、fullscreen 切替、タイムライン frame 更新要求を持つ。View Menu から起動できるため、Phase 1 の主要導線は実装済み。
+- Composition／Diligent renderer／PrimitiveRenderer は widget／window の devicePixelRatio を読み取り、physical viewport／render target／入力座標へ反映する。異なる DPI を考慮した基盤は存在する。
+- 一方、専用 `MultiDisplayManager`、refresh rate／color profile の取得・保存、display ごとの workspace profile、dock layout の monitor-aware restore、fullscreen preview の OSD／frame keyboard contract は確認できない。
+- 実際の複数画面、異なる DPI、画面切替後の renderer resize／入力座標／fullscreen 復帰の runtime 検証は未実施。secondary preview の表示同期と性能上限も未受入れ。
+
+判定: **Phase 1 の secondary preview と Phase 2 の DPR／fullscreen 基盤は実装済み。display profile、layout memory、OSD／操作契約、multi-DPI runtime parity は pending。**
+
+## Update 2026-08-15
+
+- `ArtifactSecondaryPreviewWindow` の screen list、`availableGeometry()` 配置、fullscreen、timeline frame 更新要求、View Menu 起動を再確認。
+- renderer／PrimitiveRenderer 側の devicePixelRatio 反映と physical viewport／render target／入力座標への接続も確認できる。
+- refresh rate／color profile、display workspace profile、monitor-aware dock restore、fullscreen OSD／keyboard contract、複数画面・異なる DPI の runtime parity は未完了・未検証。
+
+## Update 2026-08-15 — 現行順序での実装確認
+
+既存の `ArtifactSecondaryPreviewWindow` は画面一覧／配置／fullscreen／ESC・F11操作／OSD／timeline frame更新を持ち、Phase 1〜2の主要導線は実装済みだった。renderer側もDPRをphysical viewport／render target／入力座標へ反映しているため、今回は新規の重複window実装を追加しない。
+
+次の実装単位は、画面識別子を安定化したdisplay profile、refresh rate／color profile情報、monitor-aware workspace復元である。複数画面・異なるDPIでのruntime検証は未完了。

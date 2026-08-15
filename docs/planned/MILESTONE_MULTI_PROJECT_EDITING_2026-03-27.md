@@ -1,6 +1,7 @@
 # マルチプロジェクト編集 Milestone
 
 **作成日:** 2026-03-27  
+**最終更新:** 2026-08-15
 **ステータス:** 計画中  
 **関連コンポーネント:** ArtifactProjectManager, ArtifactMainWindow, ArtifactProjectService
 
@@ -363,3 +364,11 @@ ProjectA のレイヤー → ProjectB にドロップ
 - Phase 3: 未実装相当 — cross-project layer / composition copy と依存解決は未確認
 - Phase 4〜6: 未確認 — undo/save 分離、参照表示、独立編集 workflow の根拠なし
 - Status: `計画中` を維持
+
+## Update 2026-08-15
+
+- `ArtifactProjectManager` は引き続き `currentProjectPtr_`、`currentProjectPath_` を単一の current state として保持し、`loadFromFile`／`saveToFile`／`closeCurrentProject` も現在のプロジェクトを置き換える経路である。
+- `ArtifactProjectManagerWidget` は Project View のツリー、検索、アセット操作、bundle／proxy／rename などの current project 操作を提供するが、複数プロジェクトを並べる tab model や独立した project session collection は確認できない。
+- `ArtifactFileMenu` の Open Project と recent project は順次ロードする導線であり、同時編集・プロジェクト間ドラッグ＆ドロップ・cross-project layer／composition copy の証拠にはならない。
+- よって判定は **Phase 1〜4 未実装相当（current project 単一運用）** を維持する。asset／bundle／health／automation の既存基盤は将来の cross-project 機能へ再利用可能だが、複数保持・独立 undo/save・依存解決・切替時同期は未着手である。
+- ビルド・テスト・runtime 確認は未実施。

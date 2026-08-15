@@ -2,6 +2,9 @@
 
 **Date**: 2026-05-12
 
+**最終更新:** 2026-08-15
+**Status:** Project Health／Timeline Keyframe は完了扱い、Mask／Roto は Phase 1 超の実装済み・runtime 検証待ち
+
 This note grouped the three implementation slices that were once ready for direct work.
 
 The goal is to make the next starting point obvious and keep the work order stable across sessions.
@@ -85,6 +88,12 @@ If starting now:
 - Composition Mask/Roto has materially advanced beyond the original entry-only scope: mask-tool routing, shortcuts, path/segment/vertex/tangent hit tests, Bezier helpers, guide visibility, mask creation, and undo command paths are present in the composition editor/controller.
 - Full interaction quality for vertex/Bezier editing, multiple-mask/mode conflicts, and runtime state synchronization remains unverified. The triad status therefore stays “1-2 complete; 3 implemented beyond Phase 1 with follow-up remaining.”
 - No build or runtime verification was performed under the repository policy.
+
+## Update 2026-08-15
+
+現行コードと参照先を追加照合した。Project Health／Problem View Wiring と Timeline Keyframe Editing は完了済みの扱いを維持できる。Composition Editor Mask／Roto は mask tool routing、shortcuts、path／segment／vertex／tangent hit test、Bezier helper、guide、mask creation、Undo経路まで Phase 1を超えて実装されている。
+
+未完了・未検証なのは、full vertex／Bezier操作品質、複数maskとmodeの競合、runtimeでの状態同期である。Triadの判定は「1・2は完了、3は実装進展済みだがfollow-upとruntime受入れがpending」とする。
 
 ---
 

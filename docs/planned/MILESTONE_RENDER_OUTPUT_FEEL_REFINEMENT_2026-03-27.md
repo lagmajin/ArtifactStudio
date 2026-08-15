@@ -1,6 +1,7 @@
 # Render / Output Feel Refinement Milestone
 
 **作成日:** 2026-03-27
+**最終更新:** 2026-08-15
 **ステータス:** 実装中（Phase 1 完了）
 **関連コンポーネント:** ArtifactRenderQueueService, ArtifactRenderQueueManagerWidget, ArtifactProjectService
 
@@ -460,7 +461,7 @@
 
 **文書終了**
 
-## Static Audit (2026-07-25)
+## Static Audit (2026-08-15)
 
 現行ソースでは、render queue の preset 選択、job panel、format preset manager、batch renderer、frame cache、GPU/frame debug の基盤が確認できる。Render Farm 側には retry、checkpoint、failure manifest、progress 集計も追加されているため、当初の単純な「追加して実行」からは進展している。
 

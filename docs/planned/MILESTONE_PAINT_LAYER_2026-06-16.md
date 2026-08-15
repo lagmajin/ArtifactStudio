@@ -1,7 +1,8 @@
 # M-PAINT-1 Paint Layer / Raster Editing Foundation Milestone
 
 作成日: 2026-06-16
-ステータス: Draft
+最終更新: 2026-08-15
+ステータス: PaintLayer／Brush stroke／消しゴムモード／frame別 undo／JSON は実装済み、専用 Inspector／診断／GPU表示経路は未完了
 対象: `Artifact/src/Layer/ArtifactAbstractLayer.cppm`,
       `Artifact/src/Layer/ArtifactImageLayer.cppm`,
       `Artifact/src/Layer/ArtifactNullLayer.cppm`,
@@ -15,6 +16,11 @@
       `ArtifactCore/src/Image/ImageF32x4RGBAWithCache.ixx`,
       `ArtifactCore/src/Image/ImageInterface.ixx`
 位置づけ: `MILESTONE_PAINT_LAYER_RASTER_EDITING_2026-06-01.md` を実装フェーズに進める foundation。新規 `ArtifactPaintLayer` + BrushTool / EraserTool で Photoshop 風の直接描画を導入。
+
+## Update 2026-08-15
+
+- 現行コードでは `ArtifactPaintLayer` の frame buffer、`ArtifactBrushTool` の pointer stroke、逐次適用、消しゴム mode、stroke undo、pixel buffer の JSON 保存／復元を確認できる。
+- 独立した `EraserTool` は見当たらず、消しゴムは Brush の `eraserMode`／stroke flag として実装されている。専用 Inspector、診断、GPU表示経路、runtime 受入は未完了または未確認。
 参照:
 - `docs/analysis/REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md` §2.1
 - `docs/analysis/AFTER_EFFECTS_MISSING_FEATURES_CURRENT_2026-05-28.md` (P2)
@@ -471,3 +477,13 @@ public:
 ## 2026-07-25 実装監査
 
 `ArtifactPaintLayer` のフレーム管理、`ImageF32x4_RGBA`／cache を使うバッファ、BrushTool の press／move／release、eraser 分岐、フレーム単位の undo、Paint プロパティと JSON の基本経路は実装を確認した。一方、stroke preview／brush cursor の Overlay 経路、専用 Inspector、完全な paint pixel の project 保存・再読込、全 layer／composition への登録導線、PSD 互換、`paint.*` 診断は確認できない。さらに実装ファイルには既存の `QPainter` 使用が残るため、hot path の契約適合は未確認とする。M-PAINT-1 は foundation 部分実装、UI／永続化／診断／runtime 検証未完了とする。
+
+## 現行コード監査 (2026-08-15)
+
+- `ArtifactPaintLayer` と layer factory の登録があり、フレームごとの `ImageF32x4_RGBA` バッファ、Brush／Eraser の stroke 適用、半径・硬さ・opacity・flow・jitter・tilt、clone stamp、最大 20 件の frame 単位 undo を実装している。
+- `ArtifactBrushTool` は mouse press／move／release、stroke preview 点列、pressure／tilt 設定、paint layer／RotoBrush 入力分岐を持つ。Composition Editor には Brush／Eraser／Clone 系の操作と選択 paint layer の undo／clear が接続されている。
+- PaintLayer の `toJson()`／`fromJsonProperties()` は frame ごとの float RGBA を base64 で保存・復元し、`Paint` property group と onion-skin overlay も存在する。従来監査の「完全保存未確認」は、静的コード上では実装済みとして更新する。ただし実ファイルの round-trip は未実行。
+- `draw()` では float buffer を `QImage` に変換して renderer に渡している。編集本体は float buffer だが、paint layer の表示経路は「QImage を hot path に入れない」という設計目標をまだ満たしていない可能性があるため、GPU texture upload／直接 float 表示への整理が残る。
+- 専用 Paint Inspector、Problem View の `paint.*` 診断、PSD pixel-layer 互換、stroke の runtime／保存再読込、pressure 実入力の受入れは未確認。高度な brush（smear／healer）は別 scope とする。
+
+判定: **PaintLayer foundation と基本編集 workflow は実装済み。保存・undo・overlay の静的経路も進展しているが、表示の QImage 境界、専用 UI／diagnostics、実機 round-trip は pending。**

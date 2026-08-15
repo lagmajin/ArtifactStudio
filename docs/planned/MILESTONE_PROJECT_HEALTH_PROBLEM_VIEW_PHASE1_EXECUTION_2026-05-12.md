@@ -1,10 +1,11 @@
 # Project Health / Problem View - Phase 1 Execution
 
 **Date**: 2026-05-12
+**最終更新**: 2026-08-15
 
 **Source**: [`../MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_2026-04-14.md`](../MILESTONE_PROJECT_HEALTH_PROBLEM_VIEW_2026-04-14.md)
 
-**Status**: Active slice in the May 12 triad
+**Status**: Core／app 診断経路と主要 UI は実装済み、入口間の runtime 一致確認待ち
 **Order**: 1 of 3
 
 ---
@@ -111,3 +112,19 @@
 ## 2026-07-25 実装監査
 
 `ProjectDiagnostic`／`DiagnosticEngine`、app validation rules、ProjectHealth→Diagnostic の変換、missing／matte／circular／expression／performance issue と fix action の基盤は確認した。Problem View／Health Dashboard／load・save・render preflight の三入口が完全に同一 result source を使い、Error を常に render 前に block すること、表示結果が一致することは静的検索だけでは断定できない。したがって Phase 1 の Core／app 基盤は部分実装、入口統一とUI／runtime整合は未検証とする。
+
+## 2026-08-15 現行コード監査
+
+- `ArtifactProjectService::currentProjectDiagnostics()` が Project Health を `ProjectDiagnostic` へ変換し、Problem View／Health Dashboard／App Debugger がこの診断モデルを参照する経路を確認した。
+- Render Queue は preflight の Error を job failure に反映し、output dialog／queue surface に error・warning summary と details を表示する実装がある。
+- load／save／render の全ケースで同じ診断結果・表示・block 条件になること、runtime での refresh 順序と Error blocking の受入れは未検証。
+
+判定: **診断基盤、主要 UI、render preflight の Error 経路は実装済み。入口間の完全な結果一致と runtime 検証は pending。**
+
+## Update 2026-08-15
+
+現行コードを再確認した。`ArtifactProjectService::currentProjectDiagnostics()` を中心に Project Health／Problem View／App Debugger が構造化診断を参照し、Render Queue の preflight は Error を job failure として扱う経路がある。
+
+- Warning／Error の表示とブロック責務は主要導線に存在するが、load／save／render の全入口が同一タイミング・同一 snapshot を読むことは静的コードだけでは保証できない。
+- Problem View と Health Dashboard の refresh 順序、stale diagnostics の破棄、Error blocking 後の再評価・復旧は runtime 受入が未確認。
+- 判定は **Phase 1 の診断基盤と主要 UI は実装済み、入口統一の実運用検証は未完了** を維持する。

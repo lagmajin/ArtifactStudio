@@ -1,5 +1,13 @@
 # FFmpeg 8.1+ ProRes GPU Decode - Low Level AI Implementation Milestone
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+Vulkan `AVHWDeviceContext`／`AVHWFramesContext` の初期化、`AV_PIX_FMT_VULKAN` 優先選択、HW frame の受信・CPU download、`GpuVideoFrame` → `GPUTextureCacheManager` → Diligent texture の橋渡しは実装済みです。direct decoder と通常 playback の分離、色メタデータ伝搬、CPU fallback も確認できます。
+
+ただし `directVulkanVideoFramesEnabled()` は false 固定で、Qt preview backend は GPU frame を提示できず、実際の再生は CPU frame 経路へ戻ります。ProRes の capability probe／診断、timeline semaphore ownership bridge、汎用 HW frame handle、VFR/HFR seek と stride／音声の低レベル課題は未完了・未検証です。現状は **GPU decode foundation は存在するが native GPU decode は無効**です。
+
 **Date**: 2026-05-23  
 **Last Updated**: 2026-07-21 (コード実態調査に基づき更新)  
 **Status**: In Progress (Vulkan HW decode path partially built, intentionally disabled)

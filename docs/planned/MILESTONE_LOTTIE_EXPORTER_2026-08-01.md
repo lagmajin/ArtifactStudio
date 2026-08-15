@@ -1,8 +1,9 @@
 # Lottie / Bodymovin エクスポーター 実装マイルストーン
 
 **日付**: 2026-08-01
+**最終更新**: 2026-08-15
 **ベース**: Adobe After Effects の Bodymovin プラグイン + Lottie (lottie-web / lottie-ios)
-**現状**: 2Dリグシステム実装中。Lottieは完全に不在。
+**現状**: LottieのCore型・JSON変換・Artifact側Export導線・Rig2D変換の基盤を実装済み。外部runtime互換と一部機能の実ファイル検証は未完了。
 **狙い**: Artifact の2Dリグで作ったアニメーションをLottie JSONに書き出し、Web/iOS/Android/Flutterで再生可能にする
 
 ---
@@ -284,3 +285,11 @@ File メニュー → Export → Lottie (.json)...
 - [ ] キーフレーム間引きでJSONサイズが削減される
 - [ ] 複数レイヤーの順序が正しい
 - [ ] マスクパスが正しくエクスポートされる
+
+## Update 2026-08-15
+
+- `ArtifactCore` に `Export.Lottie.Types`、`Export.Lottie.Exporter`、`LottieRigExporter` があり、Lottie document／layer／transform／keyframe／shape／image／precomp の型、JSON serialize／validate、file export、import、keyframe compression、embedded image asset の経路を確認できる。
+- `LottieRigExporter` は Rig2D のボーンを時系列サンプルし、position／scale／rotation keyframe と rectangle／fill、skin mesh の path shape を document に追加する。したがって旧記述の「Lottie完全不在」は現状と一致しない。
+- `ArtifactExportLottieWriter` と `ArtifactExportDialog` に Composition → Lottie JSON の書き出し導線があり、画像埋め込み、shape／precomp／raster fallback、frame range などを変換する基盤がある。
+- 一方、現行コード検索だけでは lottie-web／LottieFiles／各OS runtime での再生互換、mask／matte、TextAnimator のネイティブ変換、RDP mesh simplification、専用 Lottie Export Dialog の全オプションが受入れ済みとは確認できない。既存 UI は汎用 Export Dialog の Lottie 分岐である。
+- よって現状は `Phase 1 core serialization/export/import: implemented / Rig2D and common shape export: partial-to-implemented / Phase 2 optimization, Phase 3 dedicated UI, masks/text and external-player validation: pending` と整理する。

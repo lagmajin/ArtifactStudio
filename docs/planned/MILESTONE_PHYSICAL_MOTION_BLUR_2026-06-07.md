@@ -1,5 +1,7 @@
 # Physical Motion Blur Milestone
 
+**最終更新:** 2026-08-15
+
 > 2026-06-07 作成
 
 ## 目的
@@ -218,6 +220,14 @@
 未完了: shutter shape（triangle / trapezoid / custom）、adaptive sampling、preview/final の品質差、実機での shader compile / runtime 検証。
 
 ビルド・実行確認はリポジトリ方針により未実施。
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactMotionBlurPass` が現行ツリーに存在し、color／velocity／depth／output の入力契約、velocity に沿うサブサンプル、深度差による重み付け、GPU compute 実行、失敗時の従来 resolve fallback を実装している。したがって、前回監査の「専用 physical accumulation pass は未接続」という判定は更新が必要で、Phase 1〜2 の GPU pass 基盤は静的に存在する。
+
+一方、shutter shape の triangle／trapezoid／custom、adaptive sampling、preview／final の品質ポリシー、実際の全 composition path への安定接続、shader compile／実機性能・画質検証は未完了である。既存の `ArtifactMotionBlur` や `TimeRemap` の簡易 blur と、physical pass の機能パリティも未確認とする。
+
+判定: **GPU physical motion blur pass と velocity/depth 入力基盤は部分実装済み。shutter profile、品質制御、全経路統合、runtime 検証は pending。**
 
 ## Next Step
 

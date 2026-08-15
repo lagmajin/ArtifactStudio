@@ -3,6 +3,7 @@
 > 2026-04-01 更新: theme/palette 連携とログ可読性改善を反映
 
 **Status:** 部分完了（theme/palette、regex/time/context/category filter、filter preset保存復元、severity toggle、copy/save visible、context導線を実装、統計dashboard・JSON/CSV/XML export・仮想化/100万件検証・command interface未完了）
+**最終更新:** 2026-08-15
 
 ## 現状サマリー
 
@@ -132,3 +133,9 @@
 - [ ] JSON/CSVエクスポート可能
 - [ ] 100万件ログで快適動作
 - [ ] コマンド実行インターフェース実装</content>
+
+## 2026-08-15 現行実装監査
+
+- `ArtifactDebugConsoleWidget` に palette／theme、regex／time／context／category filter、severity toggle、filter preset の QSettings 保存復元、selected／visible log の copy／save、FrameDebug snapshot 表示が存在する。
+- AppMain からの独立 console dock と playback／render 周辺の診断導線も確認できる。
+- 統計 dashboard、JSON／CSV／XML の汎用 export、百万件規模の virtualized list、command interface、runtime 大量ログ性能は未完了または未検証。

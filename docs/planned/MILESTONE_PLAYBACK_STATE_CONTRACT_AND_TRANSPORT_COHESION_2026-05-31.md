@@ -2,6 +2,8 @@
 
 > 2026-05-31
 
+**最終更新:** 2026-08-15
+
 ## Purpose
 
 `ArtifactPlaybackService` を state authority としたまま、`Composition Editor / Timeline / footer / render surface / debugger / secondary preview` が同じ playback truth を読むように揃える。
@@ -88,3 +90,11 @@
 ### 現在の判定
 
 state vocabulary の service 基盤は進展しているが、surface cohesion と secondary preview の説明表示が残る。Phase 1 はコード上ほぼ完了、Phase 2〜3 は統合・実行確認待ちとする。
+
+## Update 2026-08-15
+
+現行コードを再照合した。`ArtifactPlaybackService` は requested／ready／failed／pending／fallback、ready-missing-image、priority reason、generation／invalidate を保持し、Timeline／Composition Editor／footer／Debugger／secondary preview がそれぞれ状態を読む導線を持つ。
+
+- service の state vocabulary は実装済みだが、全 surface が同じ authority・表示順・fallback reason を共有する contract にはなっていない。
+- secondary preview の not-requested／pending／ready-missing-image／composition-mismatch の説明、transport 操作との同期、連続再生中の state transition は runtime 未検証。
+- 判定は **state contract の基盤は実装済み、transport／surface cohesion と secondary preview の説明統合は未完了** を維持する。

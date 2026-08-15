@@ -1,6 +1,7 @@
 # マイルストーン追加提案レポート (2026-03-28)
 
 **作成日:** 2026-03-28  
+**最終更新:** 2026-08-15
 **ステータス:** 提案  
 
 ---
@@ -436,6 +437,12 @@
 **文書終了**
 
 ## Static audit follow-up (2026-07-25)
+
+## 2026-08-15 現行コード照合
+
+- 既存の専用マイルストーンへ移管された診断、永続化、性能、Asset／Project、設定系の提案は、各文書側で実装状況を追跡している。
+- 本文の追加提案リスト自体は横断的な候補集であり、現行コードだけから全提案の end-to-end 完了を示す証拠はない。
+- したがって本書は完了マイルストーンへ変更せず、残課題は各専用マイルストーンへ分割して管理する。
 
 - Several proposals now have partial foundations elsewhere: diagnostic/frame snapshots and trace/crash records, autosave/recovery settings and session-ledger types, performance cost/FPS-oriented diagnostics, template-slot data, and asset/project management features.
 - The proposal list itself remains a planning document rather than a single implemented milestone. Repository evidence does not establish complete end-to-end delivery for crash report export, autosave generation/version retention, performance dashboard history, shortcut customization, project diff UI, tutorial flow, or cloud integration.

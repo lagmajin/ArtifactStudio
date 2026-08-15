@@ -1,12 +1,12 @@
 # マイルストーン: コンポジションエディター & レイヤービュー
 
+**最終更新:** 2026-08-15
 > 2026-03-21 作成
 
 ## 現状サマリー
 
-コンポジションエディターは 2D 変換 (選択/移動/スケール/Undo/グリッド/セーフエリア) が動作する基盤がある。
-主な欠落: **回転ハンドル**、**ガイド線**、**非機能 UI コントロール** (解像度ドロップダウン、ファストプレビュー)、**3D カメラ**。
-レイヤービューは単一レイヤー描画のみで、インタラクションやオーバーレイがない。
+コンポジションエディターは 2D 変換 (選択/移動/回転/スケール/アンカー/Undo/グリッド/セーフエリア) が動作する基盤まで進んでいる。
+主な欠落は、**ガイド管理の永続化と専用表示**、**解像度・ファストプレビュー設定の実行経路**、**マルチビュー**である。レイヤービュー側には edit/display mode、選択・グリッド・composition guide overlay が既にある。
 
 ---
 
@@ -124,6 +124,14 @@ TransformGizmo に回転とアンカーポイントを追加し、2D 変換を�
 
 ## 現状の機能マップ
 
+### 2026-08-15 現行コード監査
+
+- `TransformGizmo.cppm` に回転ドラッグ、アンカーポイント、スナップガイド、回転キー/Undo 経路が存在するため、初期文書の「回転未実装」「アンカー未実装」は現状と一致しない。
+- `GridRenderer.cppm` は lines / dots / crosses と subdivided grid を実装し、`ArtifactRenderLayerWidgetv2.cppm` は composition guide overlay、grid toggle、edit/display mode を持つ。
+- Smart Guides は composition/layer edge、center、spacing の snap line として実装されているが、自由配置ガイドの編集・保存・再読込を示す証拠は不足している。
+- 解像度 remap、render resolution scale、preview surface は存在するが、この文書が想定した「解像度ドロップダウン」「ファストプレビュー」の UI 操作から実行経路までの一貫性は未確認である。
+- 3D viewport / camera、ruler、split/multi-view、runtime の layer-view 視認性は別マイルストーンまたは未検証として残る。
+
 | 機能 | 状態 |
 |---|---|
 | 2D パン/ズーム | ✅ 動作 |
@@ -139,16 +147,16 @@ TransformGizmo に回転とアンカーポイントを追加し、2D 変換を�
 | 再生フレーム同期 | ✅ 動作 |
 | Zoom Fit/100%/Reset | ✅ 動作 |
 | ソフトウェアプレビュー | ✅ 動作 |
-| **回転ハンドル** | ❌ 未実装 |
-| **アンカーポイント編集** | ❌ 未実装 |
+| **回転ハンドル** | ✅ TransformGizmo に実装 |
+| **アンカーポイント編集** | ✅ TransformGizmo / AnchorPointTool に実装 |
 | **2D gizmo mode 切替** | ✅ 動作 |
-| **ガイド線** | ❌ フラッグのみ、描画なし |
+| **ガイド線** | △ Smart Guides / snap lines は実装、永続的なユーザーガイド管理は未完了 |
 | **解像度切り替え** | ❌ UI のみ、ハンドラが qDebug |
 | **ファストプレビュー** | ❌ UI のみ、未接続 |
 | **3D カメラ** | ❌ ViewportCamera が 2D のみ |
 | **GridRenderer** | ❌ 全メソッドスタブ |
-| **レイヤービュー: バウンディングボックス** | ❌ 未実装 |
-| **レイヤービュー: edit/display mode** | ❌ 空メソッド |
+| **レイヤービュー: バウンディングボックス** | △ overlay 経路あり、runtime 視認性は未検証 |
+| **レイヤービュー: edit/display mode** | ✅ 実装 |
 | **ルーラー** | ❌ 未実装 |
 | **マルチビュー** | ❌ 未実装 |
 | **Text Layer viewport edit** | △ 最小導線のみ |

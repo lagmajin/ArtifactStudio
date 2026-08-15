@@ -2,11 +2,20 @@
 
 > Generated: 2026-06-02
 
+**最終更新:** 2026-08-15
+
 ## 背景
 
 AEライクな操作感を目指しているが、ショートカット・キー操作で不足しているものが多い。
 特に AE 必須の矩形選択、レイヤー複製、レイヤー重ね順、クリップ分割などが未実装で、
 現状ではマウスドラッグ操作で補っており、キーボード中心のワークフローが阻害されている。
+
+## Update 2026-08-15
+
+- `ShortcutBindings` には `Ctrl+D` のレイヤー複製、`Ctrl+[ / ]` 系の重ね順、Timeline split、キーフレーム削除、View zoom／reset／snap、Premiere 系 clip 操作まで enum・既定値・メニュー登録がある。
+- `ArtifactTimelineTrackPainterView` は split、キーフレーム削除、矩形選択を実装し、Layer Panel 側にも複製導線がある。タイムラインの操作は現行コードでかなり進んでいる。
+- Composition viewport の「空ドラッグによるレイヤー矩形マルチ選択」は該当 widget で確認できず、現状確認できた矩形処理は zoom marquee。`S` 単独 split、`0`／`=`／`+` など文書記載キーとの既定値差、Inspector フォーカス、Pre-compose、整列ショートカットは未完了または未確認。
+- したがって、P0 は Timeline／Layer 操作が部分〜大半実装済み、Composition marquee とキー契約の整理が残課題。`Backspace` から `Delete` への完全統一も未確認。
 
 ## 現状のAEライク要素 (OK)
 

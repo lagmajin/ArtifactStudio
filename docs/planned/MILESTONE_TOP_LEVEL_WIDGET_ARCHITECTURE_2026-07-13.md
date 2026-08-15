@@ -1,11 +1,19 @@
 # Top-Level Widget Architecture Migration
 
-**ステータス:** In Progress
+**最終更新:** 2026-08-15
+**ステータス:** `ArtifactMainWindow : QWidget` 化と DockManager／backend-neutral layout 基盤は実装済み。workspace facade への全面移行、floating lifecycle、backend switch、runtime 検証は未完了。
 
 **日付:** 2026-07-13  
 **対象:** `Artifact` アプリケーションシェル / Qt ADS workspace
 
 ## 目的
+
+## 現行コード監査 (2026-08-15)
+
+- `ArtifactMainWindow` は既に `QWidget` 継承で、window geometry と root shell の責務へ移行している。
+- `Artifact.DockManager` は QADS adapter と backend-neutral `DockLayoutDocument`／dock registry を持ち、`NativeDockSurface` も JSON 保存／復元の境界を提供する。
+- 一方、メニューや既存の workspace 操作には `ArtifactMainWindow`／タイトル検索／QADS helper へ直接到達する経路が残る。`ArtifactWorkspaceManager` の全操作を facade に寄せた状態ではない。
+- よって migration の初期構造は進捗済みだが、QADS と native backend の切替、floating dock の完全な lifecycle、保存／復元の一元化は未完了とする。
 
 `ArtifactMainWindow` の `QMainWindow` 継承を廃止し、通常のトップレベル `QWidget` と Qt ADS を中心とした単一のレイアウト管理へ移行する。
 

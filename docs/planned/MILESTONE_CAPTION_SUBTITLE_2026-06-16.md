@@ -1,7 +1,8 @@
 # M-CAPTION-1 Caption / Subtitle Milestone (SRT / WebVTT)
 
 作成日: 2026-06-16
-ステータス: Draft
+最終更新: 2026-08-15
+ステータス: 部分実装（NLE の SRT／WebVTT と保存・検証基盤あり、UI／TextLayer 接続は未完了）
 対象: `Artifact/src/Layer/ArtifactTextLayer.cppm`,
       `Artifact/src/Widgets/ArtifactCompositionEditor.cppm`,
       `Artifact/src/Service/ArtifactRenderQueueService.cppm`,
@@ -10,6 +11,14 @@
       `Artifact/src/Project/ArtifactProjectManager.cppm`,
       `ArtifactCore/include/Time/TimeCode.ixx`
 位置づけ: 字幕 (caption) を **SRT / WebVTT 経由でインポート / エクスポート** する foundation。AE の字幕機能 / Premiere の Caption Panel 互換。
+
+## 2026-08-15 現行コード監査
+
+`ArtifactCore::NLE::SubtitleCue`／sequence subtitle 配列、`OtioAdapter` の SRT／WebVTT import／export、file helper、JSON 保存・読込、subtitle cue の add／update／remove／clear、範囲・空文字・重複・sequence 外を検査する validation は実装されている。旧文書の「SRT／WebVTT 0 hit」は現状と一致しない。
+
+一方、字幕を Artifact の TextLayer として自動生成する導線、専用タイムライントラック／Caption Panel UI、CEA-708 binary、cue settings／position の完全な WebVTT 対応、drop-frame を含む全 export 経路の runtime 検証は確認できない。NLE の subtitle store とアプリの通常 Composition 編集面は別責務として扱う。
+
+判定: **SRT／WebVTT のデータ・変換・永続化・検証は主要実装済み、UI／TextLayer／CEA-708／放送向け統合は pending。**
 参照:
 - `docs/analysis/REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md` §2.9
 - `docs/analysis/DESIRED_IMPORT_FORMATS_2026-04-19.md` (`.srt / .ass` 言及)

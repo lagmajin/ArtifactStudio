@@ -2,6 +2,18 @@
 
 > 2026-04-09 作成
 
+## Update 2026-08-15
+
+- `ArtifactCore::SessionLedger` と `ArtifactRenderQueueService::sessionLedger()` は存在し、project opened／render job／failed task／crash 等の typed entry と crash 記録の入口を持つ。`ArtifactAutoSaveManager` の recovery point、revision ledger、render queue checkpoint／job 状態も個別に存在する。
+- ただし、専用の Recovery Workspace UI、recent／failed／recoverable の切替、project・render・recovery の相互参照、台帳の永続化／再起動復元は確認できない。現状は **台帳モデルと記録入口の部分実装、統合 UI／運用導線は未完了** と判定する。
+
+## Update 2026-08-15 — Phase 1/2 implementation
+
+- `SessionLedger` に schema version 付き JSON serialize／deserialize と `saveToFile()`／`loadFromFile()` を追加した。既存の typed entry、recovery point、session metadata を同一ファイルへ保存できる。
+- `AppMain` で起動時ロード、終了時保存を接続した。保存先は AppData 配下の `Session/session-ledger.json` とし、破損・未存在時は空の現行セッションを継続する。
+- `ArtifactRecoveryWorkspaceWidget` を追加し、台帳の recent／failed／recoverable 切替、件数表示、recovery point 件数表示、手動 refresh を実装した。右側 dock に遅延生成で登録し、初期表示は非表示とした。
+- 選択項目から recovery snapshot の open、failed render job の resume を既存の Project Manager／Render Queue 経路へ接続した。project・render・recovery の詳細な相互参照と runtime 受入れは未検証。
+
 ## 目的
 
 project / render job / failed task / recovery point を 1 つの作業台帳にまとめ、アプリ全体の復旧導線を整理する。
@@ -116,5 +128,9 @@ project / render job / failed task / recovery point を 1 つの作業台帳に�
 
 ## Current Status
 
-2026-04-09 時点では未着手。  
+2026-08-15 現行コードでは、Core の SessionLedger と autosave／revision／render queue の個別基盤に加え、App 起動時の ledger 読込・終了時保存、recovery directory の表示、Recovery Workspace の lazy dock 表示まで実装済み。App 側の一元表示と永続化は前進したが、復旧候補からの quick reopen／render resume、project／render／recovery の相互参照、実クラッシュ後の runtime 受入れは未検証。
 App 側の作業履歴と復旧導線をまとめる基盤 milestone として扱う。
+
+## Update 2026-08-15
+
+M-QA-3 の現行コード照合に合わせ、Session Ledger／Recovery Workspace の実装済み範囲を反映した。今回の確認では追加コード変更は不要だった。残課題は recovery action の実接続とクラッシュ後の end-to-end 検証である。

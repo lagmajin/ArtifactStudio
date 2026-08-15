@@ -1,11 +1,21 @@
 # Production Volume / Voxel Pipeline (2026-08-08)
 
-**最終更新:** 2026-08-08
-**状態:** 監査完了・提案
+**最終更新:** 2026-08-15
+**状態:** Core 参照実装あり / Artifact 統合未着手
 
 ## 概要
 
-ArtifactStudio のボリューム・ボクセル対応状況は **参照実装としては驚くほど充実しているが、Artifact アプリケーション側に一切統合されていない**。既存資産のパイプ接続と GPU 化により、C4D + Redshift Volume / Houdini Mantra 級のボリュームレンダリングを実現する。
+ArtifactStudio のボリューム・ボクセル対応状況は、`ArtifactCore` に CPU レイマーチング、メッシュ→密度場、Pyro/OpenVDB の参照実装がある一方、Artifact アプリケーション側の専用レイヤー／ビューポート接続は未確認である。まず既存資産の接続契約を固め、その後 GPU 化へ進む。
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactCore/src/Render/VolumeRenderer.cppm` には三線形サンプリング、transfer function、ライト遮蔽、位相関数、複数散乱近似、DOF を含む CPU renderer が存在する。`MeshToVolume`、`OpenVDBVolumeReference`、`PyroSimulation` も Core 側の独立実装として確認できる。一方、`ArtifactVolumeLayer` は存在せず、`CompositionRenderController`／`ArtifactIRenderer` から `CPUVolumeRenderer::render()` を呼ぶ経路、GPU volume texture／raymarch pass、NanoVDB 接続は確認できない。したがって現段階は「Core の参照実装が充実」までで、Phase 1 のアプリ統合は未着手と判定する。
+
+## Update 2026-08-15
+
+- `CPUVolumeRenderer` の三線形サンプル、transfer function、照明／遮蔽、位相関数、複数散乱近似、DOF と、`MeshToVolume`／OpenVDB／Pyro の Core 実装を再確認。
+- Artifact 側には専用 `ArtifactVolumeLayer`、Composition／IRenderer からの `CPUVolumeRenderer::render()` 接続、Pyro／OpenVDB の end-to-end volume path、GPU volume texture／raymarch pass、NanoVDB 接続は確認できない。
+- 判定は Core reference implementation まで。Phase 1 のアプリ統合、GPU 化、制作 UI、runtime acceptance は未着手または未検証。
 
 ## 現状監査：実装済みモジュール
 

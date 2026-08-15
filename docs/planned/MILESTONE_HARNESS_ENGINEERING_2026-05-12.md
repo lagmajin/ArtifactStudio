@@ -1,5 +1,7 @@
 > **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md](MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md)
 
+**最終更新:** 2026-08-15
+
 # Harness Engineering / Goal-First Working Loop
 
 **Date**: 2026-05-12
@@ -115,3 +117,15 @@ Phase 1 の実行メモを作って、goal-first report の項目を `Debug Rend
 - 次の実装単位は、`goal / expected / actual / next action` と `ok / skipped / failed / degraded / pending` を共有する report contract、および Harness/App Debugger 間の copy・save・compare の運用確認。
 
 **判定**: Phase 1 基盤実装済み・Phase 2 シナリオ基盤実装済み・Phase 3 部分実装・Phase 4 未完了。
+
+## Update 2026-08-15
+
+- `DebugRenderHarnessWidget` の report に `goal / expected / actual / nextAction` を共通の Summary 項目として追加した。
+- report status は `ok / failed / pending / degraded` の分類へ正規化し、既存の failure／snapshot 診断を再利用する。
+- App Debugger 側の同一テンプレート化、copy/save/compare の完全統合、runtime smoke checklist は継続課題。
+
+### 2026-08-15 follow-up
+
+- App Debugger の Capture Details にも `goal / expected / actual / nextAction` を追加し、Harness report と同じ text-first 語彙で比較状況を読めるようにした。
+- Capture／baseline compare の詳細は既存表示へ追記するだけに留め、global wiring や新しい signal は追加していない。
+- status taxonomy の完全統合と runtime smoke checklist は未確認。

@@ -1,6 +1,15 @@
 # Milestone: Composition Editor Performance Improvement (M-CP-IMP-1)
 
 **Status:** 部分完了（layer surface/GPU texture cache、dirty/invalidation、render key、debounce/coalescing、interactive downsampleを実装、CompositionChangeDetectorの独立実装・性能測定・SRV/UAV/compute runtime検証未完了）
+**最終更新:** 2026-08-15
+
+## 2026-08-15 現行コード監査
+
+Composition render widget の dirty flag／coalesced update、layer dirty flags、layer surface／GPU texture cache、render key、interactive downsample、TransformGizmo／overlay cache、render queue の単一行更新は現行コードで確認できる。したがって cache／invalidation／UI 更新抑制の基盤は実装済みである。
+
+一方、独立した `CompositionChangeDetector` による変更レイヤー単位の差分レンダー契約、LayerBlendPipeline の要求単位での SRV/UAV batch binding、texture size に応じた compute dispatch 最適化、50% 応答性目標の計測、GPU runtime 検証は確認できない。キャッシュの存在だけでは部分再描画の完了とは判定しない。
+
+判定: **差分更新・cache・debounce 基盤は部分実装、Phase 1 の独立 change detector、Phase 2〜3 の GPU 最適化、性能計測／runtime 検証は pending。**
 ## 🎯 目的
 Composition Editor のUI応答性を向上させ、レイヤー操作時のパフォーマンスを最適化する。
 

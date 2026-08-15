@@ -1,5 +1,13 @@
 # マイルストーン: タイムラインエディタ 機能監査 (2026-07-04)
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+- 現行構成は `ArtifactTimelineWidget`、Layer Panel、`ArtifactTimelineTrackPainterView`、Navigator、ScrubBar、WorkAreaControl、DopeSheet、Curve Editor まで分割され、各 widget の accessibility name／操作 API と owner-draw 経路が確認できる。
+- Timeline は keyframe copy／paste／selection／ease、split、marker、zoom、tool switching、marquee selection、work area、curve／graph mode、各種 EventBus 更新を実装済み。Curve Editor も tangent／interpolation／key value／frame 編集と fit／zoom を持つ。
+- 監査表に残る Shy／Solo／Audio／FX／Frame Blend／Motion Blur の専用スイッチ列、label／comment／custom column、roving／scale／reverse／auto-keying、keyframe info box、marker 管理、speed graph の完全統合、JKL／skip／play-around 等は未完了または未確認。基盤は大きく進んだが、P0／P1 の機能監査項目は未完了。
+
 > 作成: 2026-07-04
 > 元依頼: 「タイムラインエディタの機能提案をいろいろのアプリから調べて」
 

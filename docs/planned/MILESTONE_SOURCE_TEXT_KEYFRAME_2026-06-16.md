@@ -3,7 +3,8 @@
 > **Supporting slice:** [`MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md`](./MILESTONE_TEXT_LAYER_GPU_EDIT_ANIMATION_2026-07-16.md) の WP-4。Source Text の個別仕様と履歴を保持する。
 
 作成日: 2026-06-16
-ステータス: Draft
+**最終更新:** 2026-08-15
+ステータス: Source Text keyframe の core／編集／保存／描画評価は実装済み、専用 UI／diagnostics と runtime 検証が未完了
 対象: `Artifact/src/Layer/ArtifactTextLayer.cppm`,
       `Artifact/src/Widgets/Inspector/ArtifactTextLayerPanel.cppm`,
       `Artifact/src/Widgets/Timeline/ArtifactTimelineWidget.cpp`,
@@ -35,6 +36,21 @@
 - いま残っている主な差分は、Timeline の Text Content トラック表示と Inspector 露出
 - したがって、この milestone は **Phase 1 と永続化が実装済み、Phase 2 以降が残り** という扱いが適切
 - 2026-07-16: Composition Editorのtext editorをplayhead評価値へ接続。Source Text保有layerの確定は現在frameのConstant keyframeを`SetLayerPropertyKeyframesCommand`で更新し、Undo／Redoでkeyframe snapshotを復元する
+
+## Current implementation audit (2026-08-15)
+
+現行コードを確認した結果、2026-07-16 時点の実装から、Source Text は専用 track ではなく既存の `text.value` animatable property／timeline context menu／property row を再利用する形で実用経路が揃っている。
+
+| 項目 | 現行コードで確認できた実装 | 判定 |
+|---|---|---|
+| Core API / evaluation | `ArtifactTextLayer::setSourceTextAtFrame`、`sourceTextAtFrame`、keyframe frame 列挙、`hasSourceTextKeyframes`。`text.value` を Constant keyframe として扱い、現在時刻の resolved text を描画・mask 生成へ渡す | 実装済み |
+| Timeline editing | `ArtifactTimelineTrackPainterView` の `text.value` 判定付き context menu に Source Text の add／remove／edit-at-playhead。`ArtifactTimelineKeyframeModel` の Source Text 表示名も確認 | 実装済み。ただし仕様書の専用 Text Content track ではない |
+| Inspector editing | `ArtifactPropertyWidgetShared` の Source Text row menu から playhead の text を編集し、`SetLayerPropertyKeyframesCommand` で snapshot Undo／Redo | 実装済み。専用 Source Text panel／一覧 UI は未確認 |
+| Persistence | `ArtifactTextLayer::toJson`／`fromJsonProperties` が `text.sourceTextKeyframes` の時間・補間・Bezier・anchor・color label 等を保存／復元。旧 JSON の欠落は許容される分岐 | 実装済み。保存→再読込の実測は未確認 |
+| Text Animator precedence | Source Text の resolved value を描画・mask 経路が利用することは確認できるが、Source Text → Text Animator → Default の全経路を一貫して検証する専用 evidence は未確認 | 部分確認 |
+| Diagnostics | `text.source.*` の Problem View 健全性ルールや FrameDebug の専用 health record は未確認 | 未実装／未確認 |
+
+**更新後の判定**: Phase 1 と Phase 4 の中心実装、Timeline／Inspector の既存導線、Undo は成立している。残りは専用 Text Content track／Source Text panel を本当に追加するかの仕様整理、source keyframe の diagnostics、CJK・box/path text を含む保存／再読込と評価順の runtime 確認である。
 
 ---
 

@@ -1,7 +1,8 @@
 # M-CRASH-1 Crash-safe Save Foundation Milestone
 
 作成日: 2026-06-16
-ステータス: Draft
+最終更新: 2026-08-15
+ステータス: QSaveFile／backup rotation／autosave recovery prompt は実装済み、crash-safe loader／size limit／diagnostics は未完了
 対象: `Artifact/src/Project/ArtifactProjectManager.cppm`,
       `Artifact/src/Project/ArtifactProjectSerializer.cppm`,
       `Artifact/src/Project/ArtifactProjectImporter.cppm`,
@@ -12,6 +13,11 @@
       `ArtifactCore/src/Project/*`,
       `ArtifactCore/src/Utils/File*.ixx`
 位置づけ: クラッシュ / 電源断 / 強制終了から **プロジェクトを救出** できる foundation。現状は `Auto-save 3 hit / Crash recovery 6 hit` の最低限のみ。
+
+## Update 2026-08-15
+
+- 現行コードでは通常保存・async 保存の `QSaveFile`、既存 project の backup rotation、revision ledger／snapshot、autosave recovery prompt、save/import validation を確認できる。
+- 専用 crash-safe loader、project size limit／巨大データ制御、復元結果 diagnostics、実際の電源断・破損ファイル復旧と性能検証は未完了または未確認。
 参照:
 - `docs/analysis/REPORT_APP_PERF_BOTTLENECK_2026-06-16.md` §2.2
 - `docs/planned/MILESTONE_PROJECT_AUTO_SAVE_2026-04-10.md`
@@ -341,3 +347,12 @@ class ArtifactProjectManager {
 ## 8. 更新履歴
 
 - 2026-06-16: 初版作成。`REPORT_APP_PERF_BOTTLENECK_2026-06-16.md` §2.2 を正式 milestone に起こした。
+
+## 現行コード監査 (2026-08-15)
+
+- `ArtifactProjectManager::saveToFile()` は保存前に `.bak~1`〜`.bak~3` をローテーションし、exporter 側の `QSaveFile` 経由で project JSON を commit する経路がある。sidecar／revision／workspace／autosave でも `QSaveFile` の利用が確認できる。
+- `ArtifactAutoSaveManager` は時刻付き recovery snapshot の作成、保存件数の prune、`hasRecoveryPoint()`／最新 snapshot 読み込みを実装している。起動時には `showRecoveryPrompt()` が Recover／Ignore を提示し、復元 JSON を別ファイルへ出して再ロードする。
+- ただし本 milestone が想定する共通 `AtomicFileWriter`／`CrashSafeProjectLoader` は現行コード上で確認できず、主 project の破損時に backup／tmp を JSON 検証して自動選択する loader 契約もない。backup の命名は `.bak~N` で、仕様記載の `.bak.N` と異なる。
+- project size limit、save／recovery の `crash.*` Problem View 診断、disk-full／network-drive の明示的扱い、recovery 候補の選択 UI（最新 snapshot 以外）は未確認。save 中断時に元ファイルを保持する範囲は `QSaveFile` の挙動に依存しており、実機 crash 受入れは未実施。
+
+判定: **atomic save の実装基盤、backup rotation、autosave recovery prompt は大きく進展。破損主ファイルの検証付き復元、共通 loader、size limit、Problem View 診断、crash runtime parity は pending。**

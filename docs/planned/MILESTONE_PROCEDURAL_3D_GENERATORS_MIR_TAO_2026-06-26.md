@@ -2,6 +2,8 @@
 
 Date: 2026-06-26
 
+Last updated: 2026-08-15
+
 Status: Implementation present through the authoring/render/input/preset slices;
 static audit completed 2026-06-28. Build, runtime visual checks, and render-queue
 sequence verification remain pending under the repository execution policy.
@@ -22,6 +24,13 @@ Static audit follow-up (2026-07-25):
 - The layer reaches the existing renderer through `ArtifactIRenderer::drawMesh`/wire handling; the render queue explicitly recognizes the layer type.
 - The layer menu exposes `Terrain (Mir)` and `Path Tube (Tao)` creation actions with presets.
 - P0-P6 are represented in static code. P7-P8 remain runtime/render-queue sequence verification items; no build or runtime execution was performed under the repository policy.
+
+Update 2026-08-15:
+
+- Current code still provides deterministic Terrain and Path Tube generation with bounded quality presets, normals/UVs, path profile, taper/twist/noise, and result metadata in `Procedural3DGenerators`.
+- `ArtifactProcedural3DLayer` resolves image/audio and mask/shape inputs, serializes settings, exposes properties, participates in the layer factory, and reaches the existing mesh renderer including wire shading. Creation actions and presets remain present in the layer menu.
+- No new evidence establishes render-queue sequence acceptance, runtime visual quality, cache invalidation under animated inputs, or long-running performance behavior. P7-P8 therefore remain pending.
+- Status remains **authoring/render/input/preset slices implemented; runtime/build verification pending**. Build, tests, and runtime checks were not executed.
 
 ## Goal
 

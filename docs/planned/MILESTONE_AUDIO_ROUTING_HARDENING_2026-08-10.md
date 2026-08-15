@@ -1,10 +1,20 @@
 # マイルストーン: Audio Routing Hardening
 
-**最終更新:** 2026-08-10
-**ステータス:** Not Started
+**最終更新:** 2026-08-15
+**ステータス:** Core routing contract partial / UI・runtime parity pending
 **優先度:** 高
 **対象:** `Artifact/`, `ArtifactCore/`
 **関連:** [Audio Layer Integration](MILESTONE_AUDIO_LAYER_INTEGRATION_2026-03-27.md), [Audio Mixer Surface Phase 2](MILESTONE_AUDIO_MIXER_SURFACE_PHASE2_2026-05-25.md), [Multichannel Audio Output](MILESTONE_MULTICHANNEL_AUDIO_OUTPUT_2026-07-02.md)
+
+## 現行コード監査 (2026-08-15)
+
+`AudioMixer` には Master／Layer／Group／Return の bus 種別、stable layer bus resolver、primary route、sidechain send、cycle／self-route／Master source 拒否、solo 到達判定、JSON の bus／edge 復元が実装されている。`ArtifactAudioService` と composition 側も `layer_<LayerID>` を利用している。一方、routing 操作の structured diagnostic、layer bus cleanup の単一 resolver、Composition Audio Mixer からの advanced routing の一貫した導線、route 編集の undo、preview/export parity、multichannel acceptance は未確認または未完である。従って基盤は「未着手」ではなく、Phase 0〜1の一部実装済みとして扱う。
+
+## Update 2026-08-15
+
+- `AudioMixer` の Master／Layer／Group／Return、stable layer bus、primary route、sidechain、cycle／self-route／Master source 拒否、solo 到達判定、JSON 復元を再確認。
+- `AudioRoutingResult` による拒否理由、Composition Audio Mixer からの Advanced Routing 導線、bus kind persistence、group／return 作成、route visibility は実装済み。
+- route 編集の undo、layer bus cleanup の全状態遷移、preview／export parity、stereo／5.1／7.1 acceptance、sidechain solo policy は未完了・未検証。
 
 ## 目的
 

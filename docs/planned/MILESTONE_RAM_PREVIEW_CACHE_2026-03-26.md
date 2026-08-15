@@ -1,5 +1,6 @@
 # RAM Preview Cache Milestone
 
+**最終更新:** 2026-08-15
 **ステータス:** In Progress（range／prewarm／priority／独自RAM cache 実装済み、playback統合／runtime検証待ち）
 
 AE 風の RAM preview を、`render -> frame cache -> playback` の流れで安定して動かすための milestone.
@@ -105,3 +106,11 @@ AE の RAM preview のように「一度貯めたフレームを連続再生し�
 ### 追加確認
 
 `ArtifactFrameCache` 自体には LRU、メモリ／フレーム上限、generation invalidation、prefetch、hit/miss 統計が実装されている。一方、`ArtifactPlaybackService.cppm` では `std::unique_ptr<FrameCache> frameCache_` がコメントアウトされ、「FrameCache module is disabled」と明記されている。現行の RAM preview はサービス内の frame-state／priority／fallback 管理が中心で、汎用 `FrameCache` の hit 優先再生経路へ接続済みとは断定できない。この点を踏まえ、Phase 3 は「部分実装」よりも、FrameCache 接続と実再生の検証を必須残課題として扱う。
+
+## Update 2026-08-15
+
+現行コードを再照合した。`ArtifactRamPreviewController` には priority queue、prewarm、cancel、generation invalidation、failure state があり、`ArtifactPlaybackService` には RAM／disk preview、fallback、cache state の診断導線がある。
+
+- ただし汎用 `ArtifactFrameCache` は Playback の hit 優先経路へ完全接続されておらず、コメントアウトされた cache member も残る。
+- loop／work-area／scrub の連続再生で cache hit が常に優先されること、cache bar／hit rate／stall が各 UI で同じ状態を示すことは未検証。
+- 判定は **range／prewarm／priority 基盤は実装済み、FrameCache 接続・再生保証・診断表示の統一は未完了** を維持する。

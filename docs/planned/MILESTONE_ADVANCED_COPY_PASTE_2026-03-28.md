@@ -1,6 +1,7 @@
 # Milestone: 高度コピー/ペースト (2026-03-28)
 
-**Status:** Core layer/effect/property/keyframe copy/paste と複数レイヤー貼り付けを実装済み。外部クリップボード拡張と runtime 検証が残る。
+**最終更新:** 2026-08-15
+**Status:** Core layer/effect/property/keyframe copy/paste、複数レイヤー、system clipboard、Undo 統合を実装済み。互換性・runtime 検証が残る。
 **Goal:** レイヤー、エフェクト、キーフレーム、プロパティをコピー＆ペースト可能にする。
 After Effects の Copy/Paste に匹敵する操作性。
 
@@ -10,17 +11,28 @@ After Effects の Copy/Paste に匹敵する操作性。
 
 | 機能 | 状態 | 場所 |
 |------|------|------|
-| レイヤーのコピー/ペースト | ⚠️ 基本のみ | `ArtifactCompositionEditor.cppm` |
-| エフェクトのコピー/ペースト | ❌ 未実装 | — |
-| キーフレームのコピー/ペースト | ❌ 未実装 | — |
-| プロパティ値のコピー/ペースト | ❌ 未実装 | — |
-| クリップボード形式 | ❌ 定義なし | — |
+| レイヤーのコピー/ペースト | ✅ 複数・bundle 対応 | `ClipboardManager` / `ArtifactCompositionEditor.cppm` |
+| エフェクトのコピー/ペースト | ✅ 実装済み | `ClipboardManager` / Inspector effect rack |
+| キーフレームのコピー/ペースト | ✅ 範囲・playhead offset 対応 | Timeline painter / `ClipboardManager` |
+| プロパティ値のコピー/ペースト | ✅ typed 値対応 | Property Editor / `ClipboardManager` |
+| クリップボード形式 | ✅ MIME + JSON envelope | `application/x-artifact-clipboard+json` |
 
 ### 2026-07-25 監査メモ
 
+### 2026-08-15 現行コード監査
+
+- `ClipboardManager` は layer／effect／keyframes／keyframe easing／property value／project bundle の typed envelope を保持し、system clipboard と同期する。
+- Timeline は選択 keyframe の copy、playhead 位置への paste、Undo snapshot を持つ。複数 layer paste は macro undo に統合されている。
+- 残課題は外部アプリとの互換 MIME、異種プロパティへの paste 変換規則、実機でのショートカット競合・Undo/Redo 受入れである。
+
+## Update 2026-08-15
+
+- 現行コードでは `ClipboardManager` の typed envelope、layer／effect／keyframe／easing／property value／project bundle、system clipboard 同期、Timeline／Inspector／Property Editor の paste と Undo 統合を確認できる。
+- 外部アプリ互換 MIME、異種プロパティへの安全な変換規則、参照 asset の跨プロジェクト解決、ショートカット競合と Undo／Redo の runtime 受入は未完了または未確認。
+
 - `ArtifactCore::ClipboardManager` にレイヤー JSON / 複数レイヤーバンドルの保持経路を確認。
 - Composition Editor に `Paste Layers Here` と選択レイヤーの複製・相対配置処理を確認。
-- エフェクト、キーフレーム、プロパティ値の専用コピー／ペーストは未完了。
+- エフェクト、キーフレーム、プロパティ値の専用コピー／ペーストは実装済み。現行コードでは `ClipboardManager` の typed envelope と、Inspector／Timeline／Property Editor の各導線へ接続されている。
 - 複数レイヤーの貼り付けを `Paste Layers` の一括 Undo マクロに統合済み（source/static verified 2026-07-25）。
 - タイムラインのキーフレーム範囲コピー／プレイヘッド貼り付けとスナップショット Undo 経路も既存実装として確認。
 - Property Editor の Copy Value / Paste Value を typed `ClipboardManager` 経由へ接続し、同一プロパティへの貼り付けを優先するよう改善。

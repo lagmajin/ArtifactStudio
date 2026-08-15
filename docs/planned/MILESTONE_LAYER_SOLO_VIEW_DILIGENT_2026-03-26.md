@@ -1,5 +1,14 @@
 # Layer Solo View (Diligent) Milestone
 
+**最終更新:** 2026-08-15
+
+## 2026-08-15 現行コード監査
+
+- `ArtifactRenderLayerEditor` は Layer Solo View の薄い wrapper として `setTargetLayer`／`setClearColor`／`resetView`／Edit／Display mode を `ArtifactLayerEditorWidgetV2` へ転送している。
+- `ArtifactLayerEditorWidgetV2` は Final／Alpha／Mask／Wire display、View／Transform／Shape／Mask edit mode、zoom／pan／reset、mask／shape 編集、Undo、cache／stage／source／effect／mask の HUD、Impact の親子・matte・dependent 表示を実装している。
+- RotoMaskEditor は Core に存在するが、Layer Solo View の全編集面をそれへ統一する構成ではない。Before／After の専用比較、完全な source-stage 切替、実機での selection 追従・Diligent 表示品質は未確認。
+- 旧「表示だけの薄い wrapper」「v1 surface 未実装」という前提は現状には適用しない。残課題は比較・Impact の受入れ、runtime 安定性、software view との parity である。
+
 `Layer View (Diligent)` を、単体レイヤーの検査ビューから「ソロ表示で編集補助にも使えるビュー」へ寄せるためのマイルストーン。
 
 ## Goal

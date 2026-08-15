@@ -1,5 +1,6 @@
 # マイルストーン: Audio Playback Stabilization
 
+**最終更新:** 2026-08-15
 ステータス: Phase 1〜2／4 基盤実装済み、Phase 3 sample rate 正規化・Phase 4 診断スナップショット静的実装済み（channel 契約・実機検証待ち）
 
 > 2026-03-28 作成
@@ -166,7 +167,33 @@ audio state を見える化して再生の追い込みをしやすくする。
 - renderer 実sample rate と source が異なる場合、enqueue 前に線形リサンプリングする経路を追加した。channel downmix は既存 Core renderer に委譲する。
 - format mismatch カウンタは composition 切替時にリセットし、診断対象の境界を明確にした。
 - seek 系は media source の decoder flush／cursor 更新を含む経路があり、AudioLayer/VideoLayer の音声供給も mixer・playback へ接続されている。
+
+## Update 2026-08-15 — 順序監査
+
+現行コードで pre-roll、buffer threshold、seek／stop 時の `clearBuffer()`、silence 補填、source sample rate の線形 resampling、underflow／overflow／format mismatch diagnostics、FFmpeg decoder flush を再確認した。コード上で追加すべき重複経路は見つからなかった。
+
+未完了または未検証なのは、全 channel layout の実機受入、device clock drift、seek／stop／restart 後の stale audio、実機 underrun 改善効果である。今回はビルド・テストを実行していない。
+
+## 2026-08-15 現行コード監査
+
+- `ArtifactPlaybackEngine` は target/start threshold を分けた pre-roll、buffer 水位を見ながらの供給、枯渇時の silence 補填、audio resync 時の clear を持つ。
+- `AudioRenderer` の bufferedFrames、underflow/overflow、stop/close/seek の buffer hygiene と、App Debugger の playback diagnostics 表示まで静的に確認できる。
+- renderer 実 sample rate への線形 resampling、decoder flush／cursor 更新、AudioLayer/VideoLayer の音声供給経路も実装されている。
+- ただし全 channel layout の正規化、seek 後 stale audio の完全排除、underrun/overflow の実機結果、device clock drift の runtime parity はコード検索だけでは証明できない。
+- よって静的基盤は進んでいるが、Phase 3 の統一 channel 契約と実機検証は未完了として扱う。
 - ただし全 backend の sample rate/channel 正規化契約、hardware clock と frame clock の drift correction、seek/stop/restart 後の stale audio が混ざらないことの実機確認、underrun 低減効果の runtime 測定は未確認。スクラブ側は stop に加えて start/re-entry 時にも旧バッファを破棄する静的対策を追加済み。
 - buffer 水位や counters の公開は diagnostics の基盤だが、ユーザー向けの継続的な表示・記録と再生テスト行列は未確認。
 
 ビルド・実行確認はリポジトリ方針により未実施。
+
+## Update 2026-08-15
+
+- `ArtifactPlaybackEngine` の pre-roll／buffer threshold／silence 補填／resync clear、`AudioRenderer` の buffer hygiene と underflow／overflow counters を再確認。
+- sample rate の線形 resampling、decoder flush／cursor 更新、AudioLayer／VideoLayer の供給、App Debugger の playback diagnostics 接続を確認。
+- 全 channel layout の正規化、device clock drift、seek／stop／restart 後の stale audio、underrun 改善効果、継続的な診断記録と実機テスト行列は未完了・未検証。
+
+`ArtifactPlaybackService` の内部 audio clock fallback を再確認し、controller だけでなく `ArtifactPlaybackEngine` にも `audioOffsetSeconds_` と `audioTimer_` を渡すよう修正した。外部 clock provider 未設定時も、engine の既存 `syncWithAudioClock()` が内部 audio clock を参照できる状態になった。device clock drift、seek 後の実音声一致、実機での補正効果は引き続き未検証とする。
+
+## Update 2026-08-15 — M-RD-7 統合先確認
+
+M-RD-7 は本書へ統合済みのため、別系統の audio/video mux 実装は追加しない。render queue 側の integrated render／音声設定／`muxAudioWithVideo()` 接続と、playback 側の pre-roll／resync／diagnostics はそれぞれ現行コードに存在する。残課題は channel layout、device clock drift、seek 後の同期、mux／再生の実機受入れである。

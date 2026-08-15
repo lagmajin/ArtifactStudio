@@ -1,5 +1,7 @@
 # App Frame Debug View Milestone
 
+**最終更新:** 2026-08-15
+
 ArtifactStudio 本体に組み込む、`簡易 RenderDoc` 風のフレームデバッグビューを定義するマイルストーン。
 
 この機能は外部プロセスをデバッグするものではなく、`Artifact` アプリ自身が描画した 1 フレームを、実行中に止めずに観測・比較・追跡するためのものとする。
@@ -7,6 +9,13 @@ ArtifactStudio 本体に組み込む、`簡易 RenderDoc` 風のフレームデ�
 `App Internal Debugger` の中でも、とくに「frame を固定して原因を追う」部分を独立させた実行計画として扱う。
 
 ## Goal
+
+## Update 2026-08-15
+
+現行コードを再照合した。`FrameDebug`／`Trace` と renderer の pass／resource summary、fallback／skip／crash 記録、playback／render queue の診断材料は既存経路として利用できる。`ArtifactIRenderer` と `CompositionRenderController` にも frame 単位の観測点がある。
+
+- ただし独立 `FrameDebugViewWidget`／dock／controller、capture の保存・履歴、A/B compare、pass graph／resource view の統合 UI は確認できない。
+- 現在は **read surface と診断データは部分実装、Frame Debug View の一体型 UI／capture workflow は未完了** と判定する。
 
 - 単一フレームを固定して、入力 / 中間状態 / 出力を同じ画面で追えるようにする
 - render pass / layer / attachment / readback / fallback の関係を、フレーム単位で読めるようにする
@@ -402,3 +411,12 @@ RenderDoc っぽく見せたい部分の中心だが、実体は `Artifact` 向�
 - `docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_PHASE2_EXECUTION_2026-04-20.md`
 - `docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_PHASE3_EXECUTION_2026-04-20.md`
 - `docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_PHASE4_EXECUTION_2026-04-20.md`
+
+## 2026-08-15 現行コード監査
+
+- `FrameDebugSnapshot`／`FrameDebugCapture`／`FrameDebugBundle` に frame、playback、backend、failure reason、pass、resource、attachment、preview、compare、RenderGraph 診断と履歴のデータ契約を確認した。
+- App Debugger、Frame Debug View、Frame Resource Inspector、Pipeline View、Fallback Diagnostics などの表示面と JSON serialization／history 導線が存在する。
+- RenderGraph の pass／resource 状態と `stateReason` は Frame Debug の診断情報へ反映可能だが、アプリの全 render path が常時 capture を生成すること、前後 frame の実比較・scrub・step が一つの UI workflow で完結することは未確認。
+- 実描画中の capture 性能、bundle export、failed frame 自動保存、runtime の表示順・操作性は未検証。
+
+判定: **Frame Debug のデータ契約、保存形式、主要 inspection surface は実装済み。全 render path の capture 接続、compare／scrub workflow、bundle／runtime 検証は pending。**

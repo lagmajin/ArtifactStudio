@@ -1,6 +1,7 @@
 # Milestone: OpenCV Puppet Engine (2026-03-29)
 
-**Status:** Not Started (Stub Exists)
+**最終更新:** 2026-08-15
+**Status:** Partial implementation
 **Goal:** After Effectsライクなパペットピンツール（Puppet Pin Tool）を `ArtifactCore` に実装し、2D画像やレイヤーの自由変形（メッシュワープ）を可能にする。
 
 ---
@@ -92,4 +93,10 @@
 
 したがって、輪郭／グリッドからの Delaunay mesh 生成、pin 管理、MLS／TPS／ARAP、CPU `remap`、GPU mesh 出力、starch、画像上の pin 操作 UI、undo／serialization、実データでの deformation 検証は未実装または未確認である。
 
-判定: **Not Started（インターフェース stub のみ）。** M1〜M4 と Artifact 側の workflow／render 接続は未着手である。
+判定（2026-07-25時点）: **Not Started（インターフェース stub のみ）。** M1〜M4 と Artifact 側の workflow／render 接続は未着手である。
+
+## 現行コード監査 (2026-08-15)
+
+旧監査から進展しており、`OpenCVPuppetEngine.cppm` に image bind、mesh 生成、pin add/remove/update、MLS deformation、depth／overlap／starch／bend の処理、CPU `renderDeformedImage()`、deformed mesh 取得が実装されている。`ArtifactPuppetTool` には pin の追加・移動・削除、hit test、overlay、layer deform の UI/tool 経路もあるため、「stub のみ」から **M1〜M2 と tool surface は部分実装**へ判定を更新する。
+
+一方、TPS／ARAP、starch の完全な物理モデル、Artifact renderer の GPU mesh path、layer／project serialization、Undo、実データでの deformation／性能検証は確認できない。tool 側の結果転送には `QImage` bridge も残るため、hot-path 不変条件を含む M3 の完了とは扱わず、GPU／保存／runtime parity は pending とする。

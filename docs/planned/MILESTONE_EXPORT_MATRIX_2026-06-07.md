@@ -1,8 +1,18 @@
 # Export Matrix And Alpha Clarity Milestone
 
+**最終更新:** 2026-08-15
+
 > 2026-06-07 作成
 
 > 2026-07-25 実装監査: `ExportMatrix`／variant／preset／cell rule の JSON schema、cell 解決、WorkspaceAutomation の resolve／job生成／現行 composition への queue 入口は実装を確認した。一方、本書の alpha clarity 要件（用途プリセットのUI、straight／premultiplied の比較、alpha edge check、export 前の警告集約）は別の出力基盤と部分的な警告に留まり、専用の一貫した preview／preflight workflow は未確認である。Matrix のデータ／automation 基盤は実装済み、UI と alpha 契約・検査は継続とする。
+
+**ステータス:** Export Matrix／preset／automation と出力設定ガイドは実装済み、alpha preflight／比較 workflow と runtime 検証が未完了
+
+## Update 2026-08-15
+
+`ExportMatrix` の variant／preset／cell rule JSON schema、cell解決、WorkspaceAutomation の resolve／job生成／Render Queue入口、出力設定ガイドを現行コードで確認した。用途別の出力設定基盤とautomation接続は実装済みである。
+
+未完了・未確認なのは、用途プリセットの全UI、straight／premultiplied比較、alpha edge／fringe preflight、警告の一体的な集約、実出力でのalpha保持、形式別runtime互換性である。alpha契約と比較workflowは pending とする。
 
 ## 目的
 
@@ -218,3 +228,18 @@ UI の標準案内は `迷ったら MP4 + H.264 + AAC` を基本にし、
 
 最初に、既存の render preset / encoder setting の一覧を用途名へマッピングし、
 その次に alpha 状態の contract と preflight check を整理する。
+
+## Static audit follow-up (2026-08-15)
+
+- `ExportMatrix` の schema／variant／preset／cell rule、WorkspaceAutomation の解決・job生成、現行 composition の queue 入口を確認した。
+- `ArtifactRenderOutputSettingDialog` には format preset、container／codec guide、alpha／premultiplied guide、frame-rate preflight、multi-channel UI、output package guide がある。旧来の「出力形式だけで用途が分からない」という状態は部分的に改善されている。
+- ただし、straight／premultiplied の実画像比較、alpha edge／fringe の専用検査、警告の一元集約、preview と最終 export の parity は確認できない。
+- 実ファイルの alpha 保持、各 codec／container の組み合わせ、preflight の runtime 挙動は未検証。ビルド／テストは実行していない。
+
+追加確認:
+
+- `ArtifactRenderQueuePresets` には MP4/MOV/WebM、PNG/APNG/WebP、EXR などの形式別プリセットと説明があり、形式マトリクスのデータ層は旧計画より進んでいる。
+- `ArtifactRenderQueueService::preflightRenderQueueAt()` はコンテナ・音声・コーデック互換性などの一般的なジョブ検査を行うが、alpha edge／黒・白フリンジを検査する処理は確認できない。
+- `ImageExporter` とレンダーキューの alpha 入出力経路は存在するものの、straight／premultiplied を比較表示する専用 UI はコード検索で確認できない。
+
+判定: **Export Matrix／preset／出力設定ガイドは実装済み。alpha clarity の実画像検査、比較／preflight の統一、runtime 検証は pending。**

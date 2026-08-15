@@ -1,6 +1,7 @@
 # Color Constraint Rules / Palette-Conform Correction
 
 **Date**: 2026-06-07
+**最終更新:** 2026-08-15
 **Status**: Completed
 **Parent**: `ArtifactColorSciencePanel`
 

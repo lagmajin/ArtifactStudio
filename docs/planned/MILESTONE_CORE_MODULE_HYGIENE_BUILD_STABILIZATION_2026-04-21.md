@@ -2,6 +2,9 @@
 
 > 2026-04-21 作成
 
+**最終更新:** 2026-08-15
+**Status:** module hygiene 検査と Numeric helper は導入済み、全ソースの適用確認と実ビルド安定性は未検証
+
 ## 目的
 
 ArtifactCore と Artifact の module 境界を安定化し、`std` / Qt / module import の噛み合わせで繰り返し出るビルド崩れを減らす。
@@ -127,3 +130,10 @@ Qt 型や STL 型が module 境界で見えなくなる問題を減らす。
 - [`docs/analysis/CORE_MODULE_MISSING_FEATURES_2026-04-19.md`](X:/Dev/ArtifactStudio/docs/analysis/CORE_MODULE_MISSING_FEATURES_2026-04-19.md)
 - [`docs/planned/MILESTONES_BACKLOG.md`](X:/Dev/ArtifactStudio/docs/planned/MILESTONES_BACKLOG.md)
 - 実行メモは phase 別のファイルではなく、親文書の各 Phase 節に統合する
+
+## 2026-08-15 現行実装監査
+
+- ルート CMake に `check_module_hygiene` target があり、`scripts/check_module_hygiene.py` が self-import、禁止 forward declaration、module purview 後の include、重複 export module を静的検査する。
+- `ArtifactCore/include/Utils/Numeric.ixx` に `min_same`／`max_same` が存在し、`std::common_type_t` で数値型混在を吸収する共通 helper が導入されている。
+- ただし、このターンでは target／ビルドを実行していないため、現行全ソースが検査を通過すること、代表的な C++ module／link error が解消していることは未確認。
+- Qt 型の直接 include、既存 API 互換、Artifact 側を含む全 hotspot の置換範囲も静的な存在確認だけでは完了判定できない。

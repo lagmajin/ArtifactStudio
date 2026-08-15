@@ -2,6 +2,22 @@
 
 未解決の設計判断・runtime 検証待ちだけを記録する。実装済みの局所修正と履歴は `docs/analysis/INSIGHT_ARCHIVE_2026-08-11.md` を参照する。
 
+## 2026-08-15 — Two-panel native dock MVP の境界（未検証）
+
+- **関連:** `Artifact/include/Widgets/ArtifactNativeDockSurface.ixx`、`Artifact/src/Widgets/ArtifactMainWindow.cppm`、`docs/planned/MILESTONE_INDEPENDENT_DOCK_MANAGER_2026-08-13.md`
+- **事実:** `ARTIFACT_NATIVE_DOCK_MVP=1` の opt-in 経路では、Composition Viewer と Inspector を `NativeDockSurface` に登録し、表示、activate、pinned、tab、portable layout の経路を native surface 側へ渡している。通常起動時の QADS 経路は維持している。
+- **仮説（未検証）:** 現在の native surface は QADS の central dock 内にホストされるため、MVP は native panel の内部挙動と保存契約を検証できるが、top-level の splitter、floating、drag/drop を含む QADS 置換性までは証明しない。
+- **価値・懸念:** 実運用リスクを限定したまま backend-neutral API を検証できる一方、native backend を QADS の代替と表現しすぎると検証範囲を誤認する。MVP の runtime 確認では「QADS 内に埋め込まれた native surface」と「独立 workspace backend」を分けて評価する必要がある。
+- **次の確認:** runtime で2面の resize、tab、visibility、portable save/restore を確認した後、native surface を QADS manager の外側へ昇格できる root layout seam を設計する。
+
+## 2026-08-15 — ドック追加メニューは registry facade の UX 層に限定する（未検証）
+
+- **関連:** `docs/planned/MILESTONE_DOCK_PANEL_ADD_MENU_2026-08-15.md`、`ArtifactWorkspaceWidget`、DockManager / dock registry
+- **事実:** トップレベル widget architecture は workspace / DockManager をレイアウト所有者として整理中で、各パネルは個別の責務を持つ。
+- **仮説（未検証）:** 追加メニューを個別 widget の一覧管理にせず、安定した panel ID を持つ registry facade の薄い UX 層として実装すると、重複 dock、表示名依存、パネル責務の混線を避けやすい。
+- **価値・懸念:** 最近使用・お気に入り・再表示を追加しても、Components / Effects / Properties などの専用面を汎用 inspector に戻さずに済む。現行 registry API と保存境界が十分かは未検証。
+- **次の確認:** 現行の dock 登録・生成・activate・save/restore 経路を一覧化し、既存 API で Phase 1 の契約を満たせるか確認する。
+
 ## 2026-08-14 — 静止画・連番画像の受入ギャップ棚卸し（未検証）
 
 - **関連:** `docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md`、`docs/planned/MILESTONE_STILL_IMAGE_LAYER_PRODUCTION_READINESS_2026-08-08.md`、`docs/planned/MILESTONE_IMAGE_SEQUENCE_WORKFLOW_COMPLETION_2026-07-27.md`、`ArtifactImageLayer`、`ImageSequenceSource`
@@ -1034,3 +1050,642 @@
 - 事実: preflightはworkspace・診断・契約をまとめて返していたが、AIが結果の新しさを判定する時刻情報がなかった。
 - 対応: `observedAtUtc` をISO 8601 millisecond形式で追加し、ブリッジテストでも空でないことを検査するようにした。
 - 未検証: 長時間処理中のsnapshotと実際の編集時刻の差、ビルド・実行挙動。
+
+## 2026-08-15: 直近レンダリング調査レポートの妥当性確認
+- 関連: `docs/analysis/BATCH_RENDER_FAILURE_2026-08-13.md`、`docs/analysis/IMAGE_BUFFER_PRECISION_AUDIT_2026-08-13.md`、`docs/analysis/OCCLUSION_CULLING_IMPLEMENTATION_MEMO_2026-08-13.md`、`docs/analysis/ADVANCED_RENDERING_GAP_2026-08-13.md`
+- 事実: `useMfr = false`、フレーム全体を覆う `compositionFrameStateMutex_`、`ArtifactBatchRenderer` の未初期化設定、RT の BLAS no-op、RenderGraph の診断専用経路など、主要な指摘は一次ソース上で確認できた。
+- 判断: レポートは概ね妥当。ただし、並列レンダー・float/HDR 化・Hi-Z・RenderGraph実行化はいずれも子リポジトリの広範な変更を伴い、現時点で一括実装すべき単一修正ではない。
+- 次に確認すべきこと: ユーザーが対象サブモジュールと優先順位を明示した後、最小の縦切り（まずバッチ設定バグ修正、または性能基盤の設計分離）を選定する。ビルド・実行検証は別途許可が必要。
+
+## 2026-08-15: 既存フレームパス実装と共有RenderGraphの接続点
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`ArtifactCore/include/Graphics/RenderGraph.ixx`
+- 事実: Composition 側には `FunctionalRenderPass` / `RenderPassExecutor` による既存の段階的パス実行があり、RenderGraph は診断グラフだけでなく、フレームパス順序の検証・共有スケジューラとして段階導入できる。
+- 対応: `renderOneFrameImpl` のフレームパス計画から共有 RenderGraph を構築し、依存チェーンの compile 検証を追加した。既存 executor の資源所有・実行は維持している。
+- 未検証: RenderGraph executor から実 GPU パスを直接駆動した場合のリソース状態遷移、実行時間、runtime 表示。
+
+## 2026-08-15: レイヤー縦切りをRenderGraph executorへ移行
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- 対応: Layer Raster → Mask / Track Matte → Blend の3パスについて、既存 `FunctionalRenderPass` を共有 `RenderGraph::execute()` の executor から実行する `runAllWithRenderGraph()` を追加した。
+- 未検証: 1レイヤーごとの graph compile コスト、GPU resource barrier の実装、複数レイヤー間での transient resource aliasing。
+
+## 2026-08-15: RTウォームアップをTLAS参照経路へ拡張
+- 関連: `ArtifactCore/src/Graphics/RayTracingManager.cppm`
+- 対応: 固定色だけを書いていた ray-generation shader に TLAS、TraceRay、miss、triangle closest-hit を追加し、PSO/SBT に hit group と TLAS binding を登録した。
+- 未検証: 実メッシュ登録後の DXR/Vulkan runtime shader compilation、空 TLAS での TraceRay、GPU 出力のヒット色。
+
+## 2026-08-15: RT登録対象を不透明メッシュに限定
+- 関連: `Artifact/src/Render/ArtifactIRenderer.cppm`
+- 対応: BLAS登録条件に実効 opacity、base color alpha、opacity texture の判定を追加し、透明メッシュを RT の不透明ジオメトリ経路へ登録しないようにした。
+- 未検証: 同一 geometry の複数 instance 管理、透明化／不透明化がフレーム中に切り替わる場合の BLAS/TLAS 更新。
+
+## 2026-08-15: RenderGraph transient allocation slot 計画
+- 関連: `ArtifactCore/include/Graphics/RenderGraph.ixx`
+- 対応: compile 結果に各 resource の生存区間と allocation slot を付加し、区間が重ならない transient resource を同一 slot に割り当てる greedy aliasing 計画を追加した。External/Persistent resource は再利用対象外とした。
+- 未検証: Diligent texture/buffer 実体への slot 適用、フォーマット・サイズ互換性を考慮した aliasing、backend barrier との連携。
+
+## 2026-08-15: RenderGraph aliasing 予算を診断へ公開
+- 関連: `ArtifactCore/include/Graphics/RenderGraph.ixx`
+- 対応: compiled graph に allocation slot 数を追加し、diagnostic snapshot に論理 resource 総量とは別の alias 後推定 byte 数を追加した。
+- 未検証: 実 backend allocation との差、アライメント・メモリ heap 制約、FrameDebug JSON への表示統合。
+
+## 2026-08-15: aliasing メモリ見積もりを FrameDebug に公開
+- 関連: `ArtifactCore/include/Frame/FrameDebug.ixx`、`Artifact/src/Widgets/Diagnostics/FramePipelineViewWidget.cppm`
+- 対応: `estimatedAliasedResourceBytes` と resource の `allocationSlot` を JSON 往復・診断表示へ追加した。
+- 未検証: 実 GPU allocation との差、古い capture JSON との表示互換性、UI上の長文レイアウト。
+
+## 2026-08-15: RenderGraph executorへcompiled allocation計画を伝播
+- 関連: `ArtifactCore/include/Graphics/RenderGraph.ixx`
+- 対応: `RenderGraphExecutionContext` に `CompiledRenderGraph` を追加し、executor が resource lifetime と allocation slot を参照できるようにした。handle から lifetime を引く accessor も追加した。
+- 未検証: backend allocator が実際に slot を使う実装、pass間の resource state transition、executor callback の runtime 性能。
+
+## 2026-08-15: compiled graph に allocation slot descriptor を追加
+- 関連: `ArtifactCore/include/Graphics/RenderGraph.ixx`
+- 対応: slot ごとに resource 種別、寸法、format、最大 byteSize を保持する `RenderAllocationSlotDescriptor` と accessor を追加した。executor は slot descriptor を参照して backend resource を確保できる。
+- 未検証: Diligent の実 texture/buffer pool 実装、heap alignment、alias slot の state transition。
+
+## 2026-08-15: allocation slot descriptor を FrameDebug 往復化
+- 関連: `ArtifactCore/include/Graphics/RenderGraph.ixx`、`ArtifactCore/include/Frame/FrameDebug.ixx`、`Artifact/src/Widgets/Diagnostics/FramePipelineViewWidget.cppm`
+- 対応: compiled graph の slot descriptor 一覧を diagnostic snapshot、JSON 往復、Frame Pipeline の slot 数表示へ追加した。
+- 未検証: slot 個別の UI 詳細表示、実 backend pool と descriptor の一致、旧 capture の migration 表示。
+- 対応: Frame Pipeline に各 allocation slot の種別・寸法・format・byteSize の詳細行を追加した。
+
+## 2026-08-15: MeshRenderer の BLAS buffer bind 不整合を修正
+- 関連: `ArtifactCore/src/Graphics/MeshRenderer.cppm`、`ArtifactCore/src/Graphics/RayTracingManager.cppm`
+- 事実: MeshRenderer の position/index buffer は vertex/index bind のみで作成されていたが、Diligent の BLAS build source buffer には `BIND_RAY_TRACING` が必要だった。
+- 対応: position/index buffer に `BIND_RAY_TRACING` を追加し、buffer pointer または geometry 数が変わった場合は既存 BLAS を再生成するようにした。
+- 未検証: 実デバイスの BLAS build 成功、同一 geometry の複数 instance、buffer rebuild 中の GPU lifetime。
+- 追記: `BIND_RAY_TRACING` は Ray Tracing 対応デバイスでのみ付与し、非対応デバイスの通常メッシュ作成を維持する。
+- 対応: MeshRenderer の RT 対応判定を RayTracingManager と同じ feature state + `STANDALONE_SHADERS` capability 判定へ統一した。
+- 対応: TLAS に `ALLOW_UPDATE` を付け、同一 instance 数のフレーム更新では update scratch size を使った TLAS update を選択する。instance 数が変わる場合は full build に戻す。
+- 対応: BLAS/TLAS scratch buffer・instance buffer の生成失敗と TLAS 最大 instance 数超過を build 前に拒否する。
+- 対応: BLAS 登録時に vertex/index buffer の `BIND_RAY_TRACING` を検査し、診断カウンタの BLAS build 数を実 build 数単位に修正した。
+- 対応: BLAS ごとの dirty 状態を追加し、geometry layout が変わった BLAS だけを再構築するようにした。transform 更新時は BLAS build を省略し TLAS update へ進める。
+- 対応: `updateInstanceTransform()` / `hasBLAS()` を追加し、geometry が同じでも transform 変更時だけ TLAS update を発行するようにした。透明状態から不透明状態へ戻るメッシュも再登録できる。
+- 対応: 不透明でない mesh instance は TLAS mask=0 で無効化し、再び不透明になった際は transform update 経由で再有効化する。
+- 対応: `RayTracingCapabilities` に登録 BLAS 数、有効 instance 数、直近 build 成否を追加し、初期化ログへ出力した。
+- 対応: TLAS が未構築の初期化段階では `traceUnitQuad()` が TraceRays を発行しないようにした。
+
+## 2026-08-15: BLAS/TLAS 静的整合性監査
+- 関連: `ArtifactCore/include/Graphics/RayTracingManager.ixx`、`ArtifactCore/src/Graphics/RayTracingManager.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`
+- 事実: 新規 pure virtual API の実装は `RayTracingManager` に集約され、呼び出し側も ArtifactIRenderer のみだった。
+- 対応: BLAS 登録数を有効な BLAS 実体数として数えるよう修正し、TLAS build 失敗時の `lastBuildSucceeded` を必ず false に戻すようにした。TLAS scratch の build/update 最大サイズ判定も統一した。
+- 未検証: コンパイラによる C++20 module 整合性、Diligent 実デバイス上の BLAS/TLAS build、複数 instance の表現。
+
+## 2026-08-15: 現行 mesh 呼び出しの RT 識別子確認
+- 関連: `Artifact/src/Layer/Artifact3DModelLayer.cppm`、`Artifact/src/Layer/ArtifactProcedural3DLayer.cppm`、`Artifact/include/Render/ArtifactIRenderer.ixx`
+- 事実: `drawMesh()` の `cacheKey` は通常の 3D モデルでは source path と layer ID、procedural mesh では layer ID から生成されるため、現行のレイヤー描画単位では TLAS instance 識別子として機能する。
+- 判断: 直ちに別の instance map を導入する必要はない。将来、同一 layer が 1 frame 内で複数回描画される機能を追加する場合は、`drawMesh()` API に明示的な instance ID を導入する。
+- 未検証: 実行時に同一 layer が複数回 submit される特殊経路の有無。
+
+## 2026-08-15: Diligent RT API 参照照合
+- 関連: `ArtifactCore/src/Graphics/RayTracingManager.cppm`、`libs/DiligentEngine/DiligentSamples/Tutorials/Tutorial22_HybridRendering/src/Tutorial22_HybridRendering.cpp`
+- 事実: BLAS/TLAS の source buffer に `BIND_RAY_TRACING` を付与すること、scratch / instance buffer の用途、`BuildBLASAttribs`・`BuildTLASAttribs` の主要フィールド、transform の設定方法は Diligent の公式サンプルと一致している。
+- 未検証: Artifact の C++20 module コンパイル、使用 GPU backend 固有の RT shader / SBT 制約、実フレームでの API 呼び出し順。
+
+## 2026-08-15: RAM preview も RenderGraph executor 経由へ移行
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- 対応: RAM preview の Base / Composite 2-pass 実行を、既存の `RenderPassExecutor::runAllWithRenderGraph()` に統一した。GPU pipeline の主要 layer 3-pass に加え、fallback branch でも compiled pass order と executor failure propagation を通す。
+- 未検証: 実フレームの pass resource state transition、GPU pipeline 全体の各 pass を RenderGraph へ置き換える作業。
+
+## 2026-08-15: Composition の単一 pass 実行も RenderGraph 経由へ統一
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- 対応: Setup、GPU Base、Resolve、RAM/direct fallback、Overlay、Present の単一 pass 実行に `runWithRenderGraph()` を導入した。複数 pass の layer 実行と合わせ、旧 `RenderPassExecutor::run()` の直接呼び出しを除去した。
+- 未検証: RenderGraph が実 GPU resource allocation や state barrier を所有する段階への移行、実フレームの描画結果。
+
+## 2026-08-15: フレーム診断グラフの resource 見積りを実寸化
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- 対応: フレーム pass plan の診断用 resource をゼロ寸法の Buffer から viewport 寸法の Texture へ変更し、RGBA8 相当の byteSize を設定した。allocation slot の alias 見積りが実際の画面サイズを反映する。
+- 未検証: 実 backend の format mapping、MSAA / HDR / AOV ごとの実際の resource 分割、GPU allocation との一致。
+
+## 2026-08-15: RenderGraph executor に graph 本体を公開
+- 関連: `ArtifactCore/include/Graphics/RenderGraph.ixx`
+- 対応: `RenderGraphExecutionContext` に `const RenderGraph& graph` を追加した。pass executor は compiled graph の allocation slot だけでなく、resource descriptor を handle から解決できるため、将来の backend allocator / barrier adapter を context から接続できる。
+- 未検証: 実 backend 側の allocator 実装、resource state transition、context ABI 変更の module build。
+
+## 2026-08-15: RT pipeline resource variable 数の不整合修正
+- 関連: `ArtifactCore/src/Graphics/RayTracingManager.cppm`
+- 事実: RT warmup PSO の `Variables` 配列には `g_OutputTex` と `g_TLAS` の2項目があったが、`NumVariables` が1だった。
+- 対応: `NumVariables = 2` に修正し、TLAS static resource variable が resource layout に含まれるようにした。
+- 未検証: Diligent PSO 作成、static binding、SBT / TraceRays の実 backend 動作。
+
+## 2026-08-15: RenderGraph executor 移行時の null pass 防御を維持
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- 対応: `runAllWithRenderGraph()` の callback に null pass 検査を追加した。旧 `runAll()` と同様、無効な pass pointer を dereference せず失敗伝播する。
+- 未検証: 実フレームでの executor failure propagation。
+
+## 2026-08-15: drawMesh の RT 分岐を再整形・再確認
+- 関連: `Artifact/src/Render/ArtifactIRenderer.cppm`
+- 対応: BLAS/TLAS 分岐のインデントとブロック構造を明確化した。透明 instance の無効化、不透明化時の再登録、transform 更新、geometry 更新時の BLAS 再構築の範囲を読み違えにくくした。
+- 未検証: C++20 module compile、GPU 実行時の TLAS 更新結果。
+
+## 2026-08-15: RT warmup shader の payload / hit group 整合性確認
+- 関連: `ArtifactCore/src/Graphics/RayTracingManager.cppm`
+- 事実: RayGen / Miss / ClosestHit が同一 `Payload { float4 color; }` を使用し、SBT 登録名は PSO の shader 名と一致している。Miss と ClosestHit の双方が payload を初期化し、RayGen が UAV へ書き込む。
+- 未検証: DXC コンパイル、各 backend の shader model / SBT 制約、実際の TraceRays 出力。
+
+## 2026-08-15: VP監査で確認したcache・同期境界の分離
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`、`Artifact/src/Widgets/Render/ArtifactSoftwareRenderInspectors.cppm`
+- **事実:** Composition のcamera-only GPU cacheは実装済みだが、静止画／solid・Normal blend・effect/maskなし等に限定され、設定opt-inかつruntime検証待ちである。通常2D direct pathではレイヤー後に`ArtifactIRenderer::flush()`が呼ばれ、surface cacheがhitしてもeffect/mask付きimage・SVG・text・videoでは入力の`QImage`化やmatte解決が先に残る。Software Composition TestはQPainter系の別実装で、3Dは実描画せずfallback card、videoは情報カードになり得る。
+- **仮説（未検証）:** VP改善を一つの「高速化」変更として扱うと、camera cache、layer surface cache、RTV/UAV flush境界、software parityの問題を混同する。まず2D direct pathのflush削減可能条件、次にcache hit前のsource変換、最後に3D/software parityを個別に受入する必要がある。
+- **価値・懸念:** 表示品質と性能の証拠を同じ指標に混ぜず、DiligentのD3D12/Vulkan共通境界を壊さずに、最小の改善単位を選べる。`QImage`／QPainterの新規ホットパス拡大や、子リポジトリ変更を誘発しない。
+- **次に確認すべきこと:** ビルド・runtime許可後、(1) 2D direct pathでflush回数とGPU frame time、(2) effect/mask付き静止画でsource変換回数、(3) 3D／video／software previewのfresh captureと画素差、(4) focus移動・overlay外クリック・selection同期のUI sessionを分けて計測する。
+
+## 2026-08-15: VPのflush診断値が常時ゼロになる経路
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- **事実:** `renderOneFrameImpl()` のoverlay pass後に `flushMs = 0` が無条件代入され、その後 `lastFlushMs_` とFrameDebugのflush passへ渡される。`renderer_->flush()` の呼び出しは複数あるが、現行の`flushMs`単独では総flush時間を表さない。
+- **仮説（未検証）:** flush削減の性能判断を現行ログだけで行うと、実際のsubmissionコストを見落とす。frame全体の累積flush時間、またはflush回数と最終flushの区別が必要。
+- **価値・懸念:** 先に診断の意味を修正しないと、direct pathのflush集約前後を比較できない。計測追加はDiligentの`submitQueuedDraws()`と`IImmediateContext::Flush()`の境界を壊さず、待機を導入しない形に限定する。
+- **次に確認すべきこと:** `flush()` wrapper入口で累積時間／回数を記録し、frame endでリセットする案と、既存の`Submit2D` profiler計測との重複を比較する。ビルド・runtime検証は許可後に行う。
+## 2026-08-15: ShapePath の fill rule はレイヤー境界で明示保存が必要
+- 関連: `Artifact/include/Layer/ArtifactShapeLayer.ixx`、`Artifact/src/Layer/ArtifactShapeLayer.cppm`
+- 事実: Core の `ShapePath` は既に Winding／EvenOdd と triangulation を持つが、`ArtifactShapeLayer` の custom Bézier 設定には fill rule がなく、JSON・Property Editor・native geometry 間で選択値を保持できなかった。
+- 対応: custom path fill rule をレイヤー設定、native geometry／operator経路、JSON保存／復元へ接続し、既定値はWindingに維持した。
+- 未検証: C++20 module compile、穴を含むEvenOdd描画のpixel parity、Preview／Render Queueのruntime結果。
+## 2026-08-15: Final Post Process の未適用成功扱い
+- 関連: `Artifact/src/Render/ArtifactFinalPostProcess.cppm`
+- 事実: view transform が有効でもLUTが未設定の場合、GPU出力を書かずに `apply()` が `true` を返していた。
+- 対応: 実際にpost-processを適用できない場合は `false` を返し、呼び出し側がstale destinationを採用しないようにした。
+- 未検証: GPU runtime、LUT適用、OCIO/ACES display transform の実出力。
+## 2026-08-15: 3D layer の source-less JSON stale restore
+- 関連: `Artifact/src/Layer/Artifact3DModelLayer.cppm`
+- 事実: `fromJsonProperties()` は `sourcePath` が空で `fixedGeometry=Auto` の場合、既存レイヤーに読み込まれていたmeshを置き換えなかった。
+- 対応: sourceのない復元ではCubeへ戻し、旧モデルが表示に残らないようにした。
+- 未検証: C++20 module compile、モデル欠落／再読込のruntime、3D遮蔽parity。
+## 2026-08-15: 3D missing source 復元時の旧mesh残留
+- 関連: `Artifact/src/Layer/Artifact3DModelLayer.cppm`
+- 事実: `fromJsonProperties()` のmissing model pathで `loadFromFile()` が早期returnし、既存レイヤーのmeshが表示に残る可能性があった。
+- 対応: source pathを保持したまま `meshLoaded_ = false` とし、missing状態を描画へ持ち越さないようにした。
+- 未検証: missing／relink runtime、UIのmissing表示、3D render queue parity。
+## 2026-08-15: 3D transform snapshot の固定30fps
+- 関連: `Artifact/src/Layer/Artifact3DModelLayer.cppm`
+- 事実: 現在／前フレームの `RationalTime` が固定30fpsで作られ、非30fps compositionで3Dアニメーションの時刻がずれる可能性があった。
+- 対応: `compositionFrameRate()` を安全なフォールバック付きで使うようにした。
+- 未検証: 24／25／29.97／60fpsのruntime、モーションブラー／velocity連携。
+## 2026-08-15: Camera／Light のfps整数丸め
+- 関連: `Artifact/src/Layer/ArtifactCameraLayer.cppm`、`Artifact/src/Layer/ArtifactLightLayer.cppm`
+- 事実: composition fpsを `int64_t` へ丸めており、29.97fpsなどの時刻基準が30fpsへ変わっていた。
+- 対応: 実数fpsを `RationalTime` へ渡すよう変更し、Model3D／Camera／Lightの時間基準を揃えた。
+- 未検証: 29.97fpsのruntime、カメラシェイク／ライトアニメーションの実機結果。
+## 2026-08-15: 3D編集補助経路の固定30fps
+- 関連: `Artifact/src/Layer/Artifact3DModelLayer.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- 事実: selection outline、固定平面の投影／ray hit、Model3D pickingのtransform snapshotに固定30fpsが残っていた。
+- 対応: 各レイヤーの`compositionFrameRate()`を使い、描画本体と編集補助の時刻基準を統一した。
+- 未検証: 非30fpsのruntime選択・picking・投影、3D gizmo parity。
+## 2026-08-15: Layer component JSON の stale state
+- 関連: `Artifact/src/Layer/ArtifactAbstractLayer.cppm`
+- 事実: components／componentGraph を持たないJSONを既存レイヤーへ復元すると、以前のcomponent activation・追加modifier・descriptor graphが残る可能性があった。
+- 対応: 欠落ブロック時にlegacy activation、追加modifier、script binding、component host graphを明示クリアしてからbuiltin descriptorを再同期するようにした。
+- 未検証: C++20 module compile、component runtime phase parity、旧JSON互換。
+## 2026-08-15: Precomp source composition の stale restore
+- 関連: `Artifact/src/Layer/ArtifactCompositionLayer.cppm`
+- 事実: `composition.sourceId` がないJSONを既存precomp layerへ復元すると、以前のsource composition IDが残る可能性があった。
+- 対応: source IDを常に復元し、欠落時は空IDへ明示的に戻すようにした。
+- 未検証: precompose／unprecompose runtime、nested compositionの描画・undo parity。
+## 2026-08-15: Clone Layer source／effector stale restore
+- 関連: `Artifact/src/Layer/ArtifactCloneLayer.cppm`
+- 事実: JSONに`sourceLayerId`または`useEffector`がない場合、既存Clone Layerの以前の設定が残る可能性があった。
+- 対応: 欠落時はsource layer IDを空、effector使用をfalseへ明示的に戻すようにした。
+- 未検証: Clone Layerのpartial JSON互換、runtime generator／effector parity。
+## 2026-08-15: Render Preflight の出力安全チェック不足
+- 関連: `Artifact/src/Render/ArtifactRenderQueueService.cppm`
+- 事実: preflightは出力ディレクトリの存在までで、書込み不可と既存出力ファイルを診断していなかった。
+- 対応: 書込み不可をError、既存ファイルを上書きWarningとして追加した。
+- 未検証: Windows／ネットワークドライブの権限判定、sequence／video出力の実書込み。
+## 2026-08-15: Timeline playhead の非有限値伝播
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`
+- 事実: `setCurrentFrame()` がNaN／Infを直接`std::clamp`へ渡し、current frameとdirty rectangle計算へ不正値が伝播する余地があった。
+- 対応: 有限値でない入力は現在フレームへ戻してから範囲clampするようにした。
+- 未検証: UI scrub／外部transportからのNaN入力、長時間再生のruntime。
+## 2026-08-15: Timeline viewport値の非有限値伝播
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`
+- 事実: duration、pixels-per-frame、scroll offsetも非有限値を直接clamp／座標計算へ渡す余地があった。
+- 対応: 各入力を有限値へ正規化してからclampし、Timelineの描画・スクロール状態を安定化した。
+- 未検証: レイアウト復元、外部transport、長時間scrubのruntime。
+## 2026-08-15: Timeline duration短縮時のplayhead残留
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`
+- 事実: durationを短縮してもcurrent frameが旧終端のまま残り、playheadが表示範囲外になる可能性があった。
+- 対応: duration更新時にcurrent frameを新終端へclampした。
+- 未検証: duration変更中の外部transport同期、runtime再生／scrub。
+## 2026-08-15: InputSurface capture後のtarget／context残留
+- 関連: `ArtifactCore/src/UI/InputOperatorManager.cppm`
+- 事実: commit／cancel後にmodeはOffへ戻るが、前回のtargetIdとcontextがstateに残っていた。
+- 対応: Off正規化時にtarget／contextをクリアし、次回captureへのstale対象混入を防いだ。
+- 未検証: Timeline／Inspector UIの状態表示、property書込み、runtime capture連続操作。
+## 2026-08-15: InputSurface の負フレーム入力
+- 関連: `ArtifactCore/src/UI/InputOperatorManager.cppm`
+- 事実: transport／step frameとcapture開始引数を負値のまま状態へ保存できた。
+- 対応: setterおよびcapture開始時に0未満を0へ正規化した。
+- 未検証: 外部transport、step keyframe書込み、runtime scrub境界。
+# 2026-08-15 — InputSurface の確定・取消でコンテキストを残さない
+
+- 関連: `ArtifactCore/src/UI/InputOperatorManager.cppm` の `commitCapture()` / `cancelCapture()`。
+- 事実: capture 終了時に mode と armed 等は Off 相当に戻していたが、`targetId` と `context` は明示的に消去されていなかった。
+- 対応: Off の共通正規化を確定・取消経路にも通し、次の入力セッションへ対象・文脈が残留しないようにした。
+- 価値/懸念: DAW-style 入力の再利用時に、前回の編集対象へ誤って書き込むリスクを下げる。ビルド未実施のため、呼び出し側の期待値は未検証。
+- 次に確認: 実装をビルド／実行できる段階で、commit/cancel 後の stateChanged payload と再開始時の target/context を確認する。
+# 2026-08-15 — TransformGizmo の対象差し替え境界
+
+- 関連: `Artifact/src/Widgets/Render/TransformGizmo.cppm`。
+- 事実: マルチターゲット変換はドラッグ開始時に全対象の Undo スナップショットを保持するため、ドラッグ中の `setLayer()` / `setTargetLayers()` は旧スナップショットと新対象を混在させ得た。
+- 対応: 対象差し替え前に進行中の操作を `cancelInteraction()` で復元・終了する。
+- 価値/懸念: 選択変更時に誤ったレイヤーへ変換や Undo を適用するリスクを下げる。ビルド未実施のため、選択変更イベントとの実行順序は未検証。
+- 次に確認: 実行時にドラッグ中の選択変更、取消後の dirty/event 通知、Undo 履歴の増加がないことを確認する。
+# 2026-08-15 — TransformGizmo のターゲット配列正規化
+
+- 関連: `Artifact/src/Widgets/Render/TransformGizmo.cppm`。
+- 事実: `setTargetLayers()` は null や同一 ID の重複を受け入れられ、マルチドラッグ時の変換・Undo対象が重複し得た。
+- 対応: 対象差し替え時に null と重複 ID を除去し、入力順は維持する。
+- 価値/懸念: 同一レイヤーへの二重適用を防ぐ。ビルド未実施のため、呼び出し側が null を件数として扱う前提は未検証。
+- 次に確認: 複数選択の順序、同一 ID の重複入力、全件無効入力時の Gizmo 非表示を実行時に確認する。
+# 2026-08-15 — マスクスタックの並べ替え API
+
+- 関連: `Artifact/include/Layer/ArtifactAbstractLayer.ixx`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`。
+- 事実: マスクの追加・削除・置換は存在したが、Phase 1 のスタック順変更を表すモデル API がなかった。
+- 対応: `moveMask(fromIndex, toIndex)` を追加し、無効 index／同一 index は no-op、成功時は順序と `maskRevision` を更新する。
+- 価値/懸念: UI の Drag&Drop 並べ替えを既存レイヤー責務内で実装できる。ビルド未実施のため、公開モジュール宣言との整合は未検証。
+- 次に確認: パネル側からの Undo 接続と、マスク合成順が UI 順序と一致するかを確認する。
+# 2026-08-15 — マスク順変更の Undo 境界
+
+- 関連: `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`。
+- 事実: マスク順変更 API は追加できたが、Undo 層に対応コマンドがなかった。
+- 対応: `MoveMaskCommand` を追加し、弱参照レイヤーに対して old/new index を反転適用する。
+- 価値/懸念: マスクスタック UI は順変更を履歴化できる。現時点では Drag&Drop UI からの push 接続は未実装。
+- 次に確認: マスクスタック UI の並べ替えイベントから、変更成功時だけ `UndoManager::push()` する。
+# 2026-08-15 — Inspector からマスク順変更を履歴化
+
+- 関連: `Artifact/src/Widgets/ArtifactInspectorWidget.cppm`。
+- 事実: `MoveMaskCommand` は存在したが、ユーザーが実行できる導線がなかった。
+- 対応: 既存 Inspector コンテキストメニューに、複数マスクの各項目の Up/Down 操作を追加し、`UndoManager::push()` 経由で順変更する。
+- 価値/懸念: 新規シグナルなしでマスク順変更と Undo を接続できる。専用 Drag&Drop パネルは未実装。
+- 次に確認: マスク順の表示名、Undo/Redo 後の合成順、選択レイヤー更新を実行時に確認する。
+# 2026-08-15 — マスク一括状態操作の Undo
+
+- 関連: `Artifact/src/Widgets/ArtifactInspectorWidget.cppm`。
+- 事実: マスク順変更の導線は追加済みだったが、Phase 1 の一括 Enable/Disable/Invert 操作はなかった。
+- 対応: 既存 `MaskEditCommand` に before/after のマスク配列を渡し、変更がある場合だけ履歴化する。
+- 価値/懸念: 複数マスクの状態変更を一回の Undo で戻せる。専用 Drag&Drop パネルと個別選択 UI は未実装。
+- 次に確認: 一括操作後のマスク合成結果、Undo/Redo、0件／全同値状態で不要な履歴が積まれないことを実行時に確認する。
+# 2026-08-15 — マスクパス合成モードの一括変更
+
+- 関連: `Artifact/src/Widgets/ArtifactInspectorWidget.cppm`、`MaskMode`。
+- 事実: `LayerMask` は複数 `MaskPath` の合成モードを保持するが、Inspector から全パスを一括変更する導線がなかった。
+- 対応: Add/Subtract/Intersect/Difference の一括操作を追加し、変更がある場合だけマスク配列の before/after を `MaskEditCommand` に渡す。
+- 価値/懸念: マスクスタックの合成ルールをまとめて調整できる。個別パス選択・専用パネルは未実装。
+- 次に確認: 複数パスの合成結果と Undo/Redo が一致するかを実行時に確認する。
+# 2026-08-15 — CompositionCompareMode の責務境界
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`。
+- 事実: `CompositionCompareMode` と A/B state variant の切替、`Diff` 値の保持は存在するが、レンダー本体で compare mode に応じた2出力・差分合成を行う分岐は確認できない。
+- 仮説: 現状の compare mode は state variant 選択の準備段階で、Phase 3 の DiffComposite／SplitView を直接提供するものではない。
+- 価値/懸念: UI に差分モードを露出する前に、フル合成と選択対象の2つのレンダー結果を保持する境界を追加する必要がある。推測を実装に広げず、今回のターンではコード変更を見送った。
+- 次に確認: `RenderPassResources` または既存 offscreen render target を比較用に再利用できるか、GPU readback を増やさずに2パスを合成できるかを調査する。
+# 2026-08-15 — 比較レンダー用レイヤーフィルター
+
+- 関連: `Artifact/include/Widgets/Render/ArtifactCompositionRenderController.ixx`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`。
+- 事実: 既存のレイヤー合成ループは全レイヤーを処理しており、選択レイヤーのみを再描画する指定がなかった。
+- 対応: `CompositionLayerRenderFilter` と `setLayerRenderFilter()` を追加し、`SelectedOnly` 時は選択集合外をスキップする。既定値は `All`。
+- 価値/懸念: DiffComposite／SplitView の2パス目へ進むための最小境界を追加した。ただし比較用の別レンダーターゲットと差分合成は未実装。
+- 次に確認: フィルター切替時の base composite 無効化、選択なし時の空出力、既存 solo／visibility 判定との順序を確認する。
+# 2026-08-15 — 比較フィルターのコンポジション境界
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の composition reset。
+- 事実: 比較用 `SelectedOnly` は controller の状態として保持されるため、コンポジション切替時に明示リセットしないと次のコンポジションにも残り得た。
+- 対応: 既存 compare state の reset と同じ境界で `CompositionLayerRenderFilter::All` に戻す。
+- 価値/懸念: コンポジション切替後の表示欠落を防ぐ。2パス差分合成自体は未実装。
+- 次に確認: controller destroy／再initialize と composition 差し替えの両方で filter getter が All を返すことを実行時に確認する。
+# 2026-08-15 — CompositionRenderController destroy 時の比較状態初期化
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`。
+- 事実: composition 差し替え時の filter reset は追加済みだったが、controller の `destroy()` では compare mode／filter の明示リセットがなかった。
+- 対応: destroy 境界でも `CompositionCompareMode::Off` と `CompositionLayerRenderFilter::All` に戻す。
+- 価値/懸念: renderer 再初期化後に古い比較表示状態が復活しない。2パス合成は未実装。
+- 次に確認: destroy→initialize の後に通常全レイヤー描画へ戻ることを実行時に確認する。
+# 2026-08-15 — SelectedOnly の単一選択フォールバック
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`。
+- 事実: 選択集合 API が空でも単一の `selectedLayerId_` は設定される経路があり、集合だけを見ると SelectedOnly が全レイヤーを除外していた。
+- 対応: 複数選択集合が空の場合は selectedLayerId と比較し、単一選択を描画対象にする。
+- 価値/懸念: 単一選択と複数選択で比較用フィルターの意味が一致する。ビルド未実施のため、selection manager の更新順序は未検証。
+- 次に確認: 単一選択、複数選択、選択解除の3状態で SelectedOnly の描画対象を確認する。
+# 2026-08-15 — 比較2パス向けレイヤー判定の共通化
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`。
+- 事実: SelectedOnly の複数／単一選択フォールバック判定がレイヤー描画ループ内に埋め込まれていた。
+- 対応: `passesLayerRenderFilter()` に切り出し、filter・selectedIds・selectedLayerId・layer を同じ契約で評価する。
+- 価値/懸念: フル／選択のみの2パス化で対象判定が分岐しない。今回の動作は従来と同じで、別ターゲット描画は未接続。
+- 次に確認: 2つのレンダーパスが同じ選択集合と単一選択フォールバックを共有することを確認する。
+# 2026-08-15 — Timeline キーフレームスニペット基盤
+
+- 関連: `Artifact/include/Widgets/ArtifactTimelineWidget.ixx`、`Artifact/src/Widgets/ArtifactTimelineWidget.cppm`。
+- 事実: 選択キーフレームの JSON Copy/Paste と Undo は既存だったが、名前付きの一時保存はなかった。
+- 対応: Timeline 内に `QHash<QString, QJsonArray>` を追加し、保存／適用／削除 API を実装。適用は既存 Clipboard／Paste 経路を通す。
+- 価値/懸念: スニペット適用時も既存の複数レイヤー適用と Undo を再利用できる。現時点では名前入力・一覧 UI と永続化は未実装。
+- 次に確認: UI からの名前入力、同名上書き確認、Timeline 再生成時の保持、プロジェクト保存との境界を設計する。
+# 2026-08-15 — キーフレームスニペット UI 接続
+
+- 関連: `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`。
+- 事実: スニペット API は追加済みだったが、名前入力と一覧操作の UI がなかった。
+- 対応: Curve Editor ヘッダーに Snippet ボタンを追加し、保存・適用・削除を既存 API へ接続した。
+- 価値/懸念: 既存 Paste 経路で Undo を維持できる。スニペットは現在 Timeline widget の寿命内だけ保持し、プロジェクト永続化は未実装。
+- 次に確認: 同名保存の上書き確認、widget 再生成、プロジェクト保存／再読込への統合を確認する。
+# 2026-08-15 — キーフレームスニペットの設定保存
+
+- 関連: `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`。
+- 事実: スニペットは widget のメモリ内だけに保持され、再生成・再起動で失われていた。
+- 対応: `QSettings` の `Timeline/KeyframeSnippets` グループに各 JSON 配列を保存し、Impl コンストラクタで復元する。
+- 価値/懸念: プロジェクト形式を変更せずユーザー設定として再利用できる。プロジェクト単位の共有・移行は未実装。
+- 次に確認: 壊れた JSON、空名、同名上書き、設定削除後の復元を実行時に確認する。
+# 2026-08-15 — Alt ドラッグの自動スムージング
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`。
+- 事実: Shift／Ctrl の軸拘束と複数キー移動は実装済みだったが、Alt ドラッグ確定時に補間を自動調整していなかった。
+- 対応: Alt（Ctrl なし）でドラッグしたキーについて、前後キーの速度から `tryComputeEasyEaseHandles()` を使い、Bezier 補間とハンドルをスナップショットへ反映する。
+- 価値/懸念: 既存 Easy Ease と同じ計算・Undo 経路を再利用できる。隣接キーがない／非スカラー値では従来補間を維持する。ビルド未実施。
+- 次に確認: Alt 単独、Alt+Ctrl、隣接キーなし、複数選択の各ケースを実行時に確認する。
+
+# 2026-08-15 — Timeline チャンネルフィルターの最小導入
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`。
+- 事実: 既存検索はレイヤー行を絞り込むが、キーフレームマーカーのプロパティチャンネル絞り込みはなかった。
+- 対応: `transform:` / `audio:` / `effect:` を既存検索欄で解釈し、マーカー収集時にチャンネル選別する API を追加。
+- 価値/懸念: 新規シグナルを増やさず既存更新経路を使える。Property 行とマーカーの両方を同じ分類で更新する。
+- 次に確認: 実 UI で接頭辞入力時の行表示、空グループの非表示、既存検索語との併用を確認する。
+
+# 2026-08-15 — チャンネルフィルターとカーブエディタの同期
+
+- 関連: `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`。
+- 事実: Property 行とマーカーを絞り込んでも、Curve Editor は選択レイヤーの全プロパティを収集していた。
+- 対応: Curve／Speed Graph の両方へ同じ `PropertyChannelFilter` を渡し、対象トラックを同期した。
+- 価値/懸念: フィルター変更後にカーブだけ別チャンネルが残る不整合を防げる。プロパティ分類は既存パス命名に基づく簡易判定である。
+- 次に確認: Transform／Audio／Effect 各モードで選択・カーブ編集・Undo の対象が一致することを実行時に確認する。
+
+# 2026-08-15 — フィルター変更時のカーブ更新保証
+
+- 関連: `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`。
+- 事実: 検索欄からチャンネルを変更した際、Curve Editor の再構築は EventBus の遅延更新に依存していた。
+- 対応: 検索変更処理で Timeline と Curve Editor を明示的に再同期し、非表示チャンネルの選択・フォーカスが残らない経路を確保した。
+- 価値/懸念: UI 操作直後の表示遅延を減らせる。既存の更新処理を直接呼ぶため、頻繁な検索入力時の負荷は実行時に確認が必要。
+- 次に確認: 連続入力、空検索への復帰、フィルター中のカーブ編集後 Undo を確認する。
+
+# 2026-08-15 — チャンネル接頭辞とプロパティ検索の併用
+
+- 関連: `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`。
+- 事実: 接頭辞を単独トークンとして解釈していたため、`transform:position` のような検索はチャンネル指定として認識されなかった。
+- 対応: `transform:`／`audio:`／`effect:` の後続文字列を通常のプロパティ検索語として左ペインへ渡すようにした。
+- 価値/懸念: チャンネル指定とプロパティ名検索を一つの検索欄で併用できる。分類は引き続きプロパティパス命名に依存する。
+- 次に確認: 大文字小文字、空白付き接頭辞、未知の接頭辞を含む検索を確認する。
+
+# 2026-08-15 — Timeline からのアニメーションレイヤーベイク
+
+- 関連: `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`, `Artifact/include/Undo/UndoManager.ixx`。
+- 事実: レイヤー側には Work Area 範囲のアニメーションレイヤーベイクとスナップショット Undo が既にあったが、Timeline の選択レイヤーから直接呼ぶ導線がなかった。
+- 対応: 既存 Pattern ボタンのメニューに範囲ベイクを追加し、選択レイヤーごとに Work Area をベイクして既存 Undo コマンドへ登録するようにした。
+- 価値/懸念: 複数レイヤーを同じ範囲で一括ベイクできる。Undo が利用可能な場合はレイヤーごとに履歴へ積み、利用できない場合もベイク結果を保持する。
+- 次に確認: 空 Work Area、非選択状態、複数レイヤーの Undo／Redo、ベイク後の Curve 更新を確認する。
+
+# 2026-08-15 — 選択キーフレームのフリンジ生成
+
+- 関連: `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`。
+- 事実: Phase 7 の範囲ベイク導線はあったが、選択範囲の端で補間を安定させる近接キーフレーム生成はなかった。
+- 対応: Pattern メニューから、選択プロパティごとの最初／最後の選択値を範囲端の隣接フレームへ複製する機能を追加した。既存のキーフレームスナップショット Undo を利用する。
+- 価値/懸念: 範囲端の補間値を固定しやすくなる。既存キーがある場合、またはコンポジション範囲外では追加しない。
+- 次に確認: 単一／複数プロパティ、範囲端、既存キー、Undo／Redo を確認する。
+
+# 2026-08-15 — Phase 8 ブロック移動の既存実装監査
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`, `ArtifactCore/src/UI/ShortcutBindings.cppm`。
+- 事実: Keyframe Area の Body／Edge ドラッグは選択キー群をまとめて移動・伸縮し、複数トラックを扱える。`Ctrl+G` は Curve Editor 切替に既に予約されている。
+- 対応: 既存のブロック操作を再利用対象として確認し、ショートカット競合を避けるため `Ctrl+G` の上書きは行わなかった。
+- 価値/懸念: 既存 Undo・スナップ経路を維持できる。永続的な名前付きグループはまだなく、Phase 8 の「グループ化」は Area 操作ベースである。
+- 次に確認: Phase 9 のプロパティブロックコピー／ペーストへ進む。
+
+# 2026-08-15 — Property Block Copy/Paste の既存経路監査
+
+- 関連: `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`, `ArtifactCore/include/Clipboard/ClipboardManager.ixx`。
+- 事実: 選択キーフレームの Clipboard レコードは各要素に `propertyPath` を持ち、Paste 時に対象レイヤーごとに同じプロパティパスを解決する。
+- 対応: 複数プロパティを含む既存 Copy／Paste を Property Block の実装として確認し、別形式や重複 UI は追加しなかった。
+- 価値/懸念: 既存の JSON／システムクリップボード／Undo 経路を維持できる。プロパティ値全体（非キーフレーム）のブロックコピーは別機能として未実装。
+- 次に確認: Phase 10 の数値入力スピニングを監査する。
+
+# 2026-08-15 — 修飾ホイールによる数値スピニング
+
+- 関連: `Artifact/include/Widgets/ArtifactRelativeSpinBox.ixx`。
+- 事実: 相対 SpinBox は誤操作防止のためホイールを無条件に無視していた。
+- 対応: 通常ホイールは従来どおり無効のまま、Shift=0.1x、Ctrl=10x、Alt=0.01x の修飾時だけ Double／Integer SpinBox を更新するようにした。
+- 価値/懸念: 意図しないスクロール変更を避けつつ、Inspector の微調整・粗調整を共通化できる。Integer SpinBox は整数丸めのため極小倍率でも最小 1 step となる。
+- 次に確認: 各修飾キー、上下方向、範囲端、通常ホイール無効の挙動を確認する。
+
+# 2026-08-15 — Timeline マルチプロパティ検索
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`。
+- 事実: 検索対象はレイヤー名とプロパティグループ名が中心で、個別プロパティ名や正規表現による行絞り込みはなかった。
+- 対応: プロパティ名／表示ラベルを検索キャッシュへ追加し、通常文字列と `/正規表現/` の両方で Property 行を絞り込むようにした。
+- 価値/懸念: `transform:position` など上位の Timeline フィルターと組み合わせて、実際に編集対象となる行だけを表示できる。正規表現が不正な場合は一致なしとして扱う。
+- 次に確認: 正規表現、表示ラベル、空検索復帰、保存済み検索フィルターの導線を確認する。
+
+# 2026-08-15 — Timeline 検索フィルターの保存
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactTimeCodeWidget.cppm`。
+- 事実: Phase 11 の検索は実装済みだったが、検索語を名前付きで保存・再適用する導線がなかった。
+- 対応: 検索欄のコンテキストメニューに保存／適用を追加し、`QSettings` の `Timeline/SavedSearchFilters` に名前付きフィルターを保存するようにした。
+- 価値/懸念: 正規表現やチャンネル接頭辞を含む検索条件を再利用できる。削除 UI はまだなく、同名保存は上書きする。
+- 次に確認: 保存・再起動後の復元、同名上書き、空検索の保存拒否を確認する。
+
+# 2026-08-15 — Dock Add Menu の registry 境界監査
+
+- 関連: `Artifact/src/Widgets/ArtifactMainWindow.cppm`, `Artifact/include/Widgets/ArtifactDockManager.ixx`。
+- 事実: Dock manager は dock ID の登録・重複拒否・一覧取得を既に持ち、MainWindow 側には既存 dock の再表示／activate 経路がある。
+- 対応: Add Menu の Phase 1 として、表示名ではなく objectName／dock ID を永続キーにする責務境界を確認した。
+- 価値/懸念: 新規 dock registry を重複作成せず既存管理を再利用できる。カテゴリ／表示名 descriptor はまだない。
+- 次に確認: 現行 dock 登録箇所を一覧化し、Phase 2 の descriptor と追加メニューを最小範囲で実装する。
+
+# 2026-08-15 — Dock パネル再表示メニューの最小導線
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`。
+- 事実: 既存の Window Panels メニューは表示切替を持っていたが、追加／再表示の意図が独立していなかった。
+- 対応: 登録済み dock だけを列挙する「パネルを追加／再表示」サブメニューを追加し、既存 dock の表示・activate API を再利用した。
+- 価値/懸念: 未登録 panel の見せかけや重複生成を避けられる。タイトルバーの専用 `+` 導線と ID ベースの履歴は未実装。
+- 次に確認: MainWindow title bar の適切なホスト位置を特定し、同じ submenu を `+` 入口へ移す。
+
+# 2026-08-15 — Dock 最近使用／お気に入りの ID 保存
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`。
+- 事実: Dock の再表示メニューはあったが、頻繁に使う面を ID ベースで再利用する保存層がなかった。
+- 対応: 最近使用（最大8件）とお気に入りを `QSettings` に Dock ID で保存し、View メニューから activate／切替できるようにした。存在しない Dock ID は表示時に除外する。
+- 価値/懸念: 表示名変更や未登録面の混入に強い。専用 title-bar `+` とカテゴリ descriptor はまだ未実装。
+- 次に確認: Dock title bar の公開拡張 API を依存ヘッダで確認し、可能なら同じメニューを `+` に接続する。
+
+# 2026-08-15 — Dock 追加メニューのカテゴリ整理
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`。
+- 事実: 登録済み Dock の再表示項目は単一のフラット一覧だった。
+- 対応: Project / Assets、Editing、Animation、Render / Diagnostics、Other のカテゴリ submenu に分け、各項目の activate 経路は既存 API を維持した。
+- 価値/懸念: パネル数が増えても探索しやすい。分類は現行表示名のキーワードに基づくため、将来は Dock descriptor の明示カテゴリへ移行する。
+
+# 2026-08-15 — Dock メニュー設定の再読込修正
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`。
+- 事実: Dock 一覧が変わらない場合にメニュー再構築を早期終了していたため、最近使用順の更新が次回表示へ反映されなかった。
+- 対応: Window Panels メニューを表示時に設定から再構築し、最近使用順・お気に入りの変更を即時反映するようにした。
+- 価値/懸念: 設定と UI の stale 表示を防げる。Dock 数が非常に多い場合の再構築コストは runtime で確認する。
+
+# 2026-08-15 — Dock メニューのアクセシビリティ metadata
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`。
+- 事実: 新しい Dock サブメニューは表示名だけで、スクリーンリーダー向けの役割説明がなかった。
+- 対応: 最近使用／お気に入り／追加・再表示メニューに accessible name／description、個別 action に tooltip を追加した。
+- 価値/懸念: メニューの目的と操作結果を識別しやすくなる。狭幅レイアウトと実際のキーボード受入は未確認。
+
+# 2026-08-15 — MainWindow 上部 chrome への Dock `+` 入口
+
+- 関連: `Artifact/src/Widgets/ArtifactMenuBar.cppm`, `Artifact/include/Widgets/ArtifactMainWindow.ixx`。
+- 事実: ADS 内部 title bar の公開拡張 API は workspace から確認できなかったが、MainWindow の QMenuBar には右上 corner widget の拡張点がある。
+- 対応: 右上に `+` QToolButton を追加し、登録済み Dock を表示時に列挙して既存 `setDockVisible()`／`activateDock()` へ接続した。
+- 価値/懸念: 新規 Dock 生成や ADS 本体変更なしで追加導線を提供できる。狭幅メニューバーでの表示密度は runtime 未確認。
+
+# 2026-08-15 — Dock `+` 入口の最近使用／お気に入り同期
+
+- 関連: `Artifact/src/Widgets/ArtifactMenuBar.cppm`, `docs/planned/MILESTONE_DOCK_PANEL_ADD_MENU_2026-08-15.md`。
+- 事実: 上部 chrome の `+` 入口は登録済み Dock のフラット一覧だけを持っていた。
+- 対応: View メニューと同じ `QSettings` の最近使用／お気に入り ID を表示時に読み込み、既存の Dock activate 経路と最近使用更新を共有した。
+- 価値/懸念: 入口が違っても利用頻度の高い Dock に同じ手順で到達できる。カテゴリ分類の完全な parity は未実装で、狭幅表示は runtime 未確認。
+
+# 2026-08-15 — Render Queue の単一フレーム表記
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactRenderQueueManagerWidget.cppm`。
+- 事実: Render Queue の frame range mode `4` は単一フレーム出力だが、UI 表記が `Single Frame` で現在の playhead との関係が曖昧だった。
+- 対応: 内部 mode／保存形式を変更せず、一覧 summary と combo の表示を `Current Frame` に統一し、選択肢の accessible description を追加した。
+- 価値/懸念: Current Frame が Composition／Work Area／Selected Frames と並ぶ出力範囲の意味を読み取りやすくなる。実際の queue 実行時 frame 解決は runtime 未確認。
+
+# 2026-08-15 — Composition Settings の共通 finalize 経路
+
+- 関連: `Artifact/include/Service/ArtifactProjectService.ixx`, `Artifact/src/Service/ArtifactProjectService.cppm`, `Artifact/src/Widgets/Menu/ArtifactCompositionMenu.cppm`, `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`。
+- 事実: Composition Menu と Project View は設定フォームと解像度 remap 判定を個別に持つ一方、確定後の project dirty 通知・playback range／FPS 同期もそれぞれ実装していた。
+- 対応: `finalizeCompositionSettingsChange()` を Project Service に追加し、両 UI から共通利用するようにした。解像度変更の Undo／remap、フォーム責務、新規 signal 配線は変更していない。
+- 価値/懸念: 片方だけ同期処理が抜ける divergence を減らせる。設定フォームと remap 判定そのものの共通化、および runtime 受入は未完了。
+
+# 2026-08-15 — Composition Menu の Render Queue 追加導線整理
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactCompositionMenu.cppm`。
+- 事実: 全範囲／Current Frame／Work Area／選択レイヤー系の6 action が Composition Menu の同じ階層に並び、範囲とレイヤー対象の違いが一覧で追いにくかった。
+- 対応: 6 action を「レンダーキューに追加」submenu にまとめ、既存 QAction、shortcut、handler、enable 判定は変更せず、submenu の accessible metadata を追加した。
+- 価値/懸念: 追加操作の探索性を上げつつ command 互換性を維持できる。submenu の狭幅表示と runtime 操作確認は未実施。
+
+# 2026-08-15 — Timeline audio waveform の layout 同期ブロック遅延化
+
+- 関連: `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`。
+- 事実: waveform cache が未構築または signature 不一致の場合、`refreshTracks()`／`updateLayout()` の同期中に `buildAudioWaveformForLayer()` が実行されていた。
+- 対応: cache miss を per-layer の pending set で重複抑制し、次の UI event loop tick に生成を遅延。完了後に同じ composition の track を再構築する。composition 切替時は pending を破棄する。
+- 価値/懸念: レイアウト更新入口の同期ブロックと重複生成を減らせる。layer snapshot の安全な worker 契約が未定義のため、decode／生成自体の別スレッド化と runtime 負荷検証は残る。
+
+# 2026-08-15 — Property Reset の値／キーフレーム Undo 単位統一
+
+- 関連: `Artifact/include/Undo/UndoManager.ixx`, `Artifact/src/Undo/UndoManager.cppm`, `Artifact/src/Widgets/ArtifactPropertyWidgetShared.cppm`。
+- 事実: Property Editor の Reset は keyframe を削除する Undo だけを作り、default value の変更自体は同じ Undo 単位に含めていなかった。
+- 対応: layer property value 用の `SetLayerPropertyValueCommand` を追加し、keyframe command と `MacroUndoCommand` にまとめた。keyframe がない Reset も値変更を Undo 対象にした。
+- 価値/懸念: Reset 前の値とアニメーション状態を1回の Undo で復元できる。通常の複数選択編集と runtime 受入は未完了。
+
+# 2026-08-15 — Render Queue 履歴 metadata と行アクション
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactRenderQueueManagerWidget.cppm`。
+- 事実: 履歴行は時刻付きテキストだけで、service event の job ID／frame range／failure stage が履歴から読み取りにくく、行から Retry／Reveal を直接実行できなかった。
+- 対応: service event の履歴表示に job metadata を付加し、source index を `QListWidgetItem::UserRole` に保持。履歴行の context menu から Retry Job／Reveal Output を既存 service API へ接続した。
+- 価値/懸念: 失敗履歴から次の操作へ直接進める。既存保存履歴の metadata 復元と service が公開する永続 stable job ID は未完了。
+
+# 2026-08-15 — Screenshot async readback の失敗段階表示
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`。
+- 事実: async readback の完了後に null image／保存失敗を通知していたが、readback と encode/write のどちらで失敗したかが表示されなかった。
+- 対応: null image に `Stage: readback`、保存失敗に `Stage: encode/write` を付加し、readback 完了後の進捗表示を `Saving ...` に更新した。
+- 価値/懸念: UI 操作だけで失敗段階を切り分けやすくなる。Whole Window／multi-channel の同期経路と runtime 受入は未確認。
+
+# 2026-08-15 — Four-Up deferred start の世代管理
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`。
+- 事実: Four-Up の controller start は event loop に段階分散されていたが、切替直後の古い `QTimer::singleShot` callback が新しい layout に対して残る可能性があった。
+- 対応: viewport layout generation を追加し、世代が変わった deferred callback を無効化。各 pane start の遅延時間を debug log に記録する。
+- 価値/懸念: レイアウト切替時の stale renderer 起動と不要な初期化を減らせる。view／controller の完全な lazy materialization と runtime 計測は未完了。
+
+# 2026-08-15 — Viewport display-transform clear state
+
+- 関連: `Artifact/src/Widgets/Render/ViewportColorPipeline.cppm`。
+- 事実: `clear()` は baked LUT を破棄していたが、post-process の view-transform enabled flag は明示的に戻していなかった。
+- 対応: LUT と flag を同時に clear し、OCIO config／display transform 無効化後の状態を一致させた。
+- 価値/懸念: stale display-transform state の残留を防げる。実素材での HDR／log round-trip と preview／export parity は未検証。
+
+# 2026-08-15 — Layer Component dependency graph validation
+
+- 関連: `Artifact/include/Layer/ArtifactLayerComponentSystem.ixx`。
+- 事実: `LayerComponentHost::validate()` は missing／disabled／late dependency を検出していたが、空の required type と循環依存は検出していなかった。
+- 対応: 空 dependency type をエラー化し、descriptor type graph を DFS して循環依存を validation issue として返すようにした。
+- 価値/懸念: phase evaluator に曖昧な依存グラフが入る前に診断できる。実 component graph と runtime phase parity は未検証。
+
+# 2026-08-15 — Generator／Field／Modifier stack descriptor validation
+
+- 関連: `Artifact/src/Layer/ArtifactAbstractLayer.cppm`, `Artifact/docs/MILESTONE_GENERATOR_MODIFIER_FIELD_STACK_2026-07-01.md`。
+- 事実: 追加 descriptor stack は保存・再読込・UI 表示へ接続されていたが、stack ごとの空 id／type と重複 id の validation は builtin component host と分離されていた。
+- 対応: `validateLayerComponents()` に generator／field／modifier 共通の id／type validation を追加し、既存 diagnostics surface へ統合した。
+- 価値/懸念: descriptor merge／評価へ進む前に不正な stack identity を検出できる。field binding・merge／weight 契約と runtime parity は未検証。
+
+# 2026-08-15 — Live field noise／solid shape parity
+
+- 関連: `Artifact/src/Composition/ArtifactAbstractComposition.cppm`, `docs/planned/MILESTONE_LIVE_FIELD_AUTHORING_UX_2026-07-04.md`。
+- 事実: composition field の保存形式と共通評価器は radial／box／linear のみを shape として扱っていた。
+- 対応: `noise` と `solid` を JSON round-trip と共通 scalar evaluator に追加し、既存の target／coordinate parent／blend／invert 経路へ接続した。
+- 価値/懸念: field descriptor の shape 拡張を renderer 側の大改修なしで先行できる。noise は決定的 CPU 評価のみで、時間変化・GPU parity・viewport handle は未検証。
+
+# 2026-08-15 — App Debugger goal-first capture summary
+
+- 関連: `Artifact/src/Widgets/Diagnostics/AppDebuggerWidget.cppm`, `docs/planned/MILESTONE_HARNESS_ENGINEERING_2026-05-12.md`。
+- 事実: Debug Render Harness は goal-first の report summary を持つ一方、App Debugger の Capture Details は capture／baseline の比較情報中心だった。
+- 対応: App Debugger 側にも `goal / expected / actual / nextAction` を追加し、既存の capture／failure／compare 情報を再利用した。
+- 価値/懸念: 診断 surface 間で次の行動を読み取りやすくなる。status taxonomy の完全統合と runtime smoke は未検証。
+
+# 2026-08-15 — Command IR keyframe preflight validation
+
+- 関連: `Artifact/src/AI/CommandIRExecutor.cppm`, `docs/planned/MILESTONE_COMMAND_IR_AUTOMATION_FOUNDATION_2026-06-28.md`。
+- 事実: keyframe command は各 setter を順番に呼び出すため、入力 payload の不備を mutation 前に一括確認していなかった。
+- 対応: 単一／batch keyframe command に property path、batch、frame、value の preflight validation を追加した。
+- 価値/懸念: malformed request による partial mutation を防げる。setter の runtime failure を跨ぐ rollback は別契約として未実装。
+
+# 2026-08-15 — Command Palette MRU restore normalization
+
+- 関連: `Artifact/src/Widgets/CommandPalette/ArtifactCommandPaletteWidget.cppm`。
+- 事実: JSON から MRU を復元する経路は文字列をそのまま追加し、空 ID／重複 ID を許容していた。
+- 対応: trim、空 ID 除外、重複除外を復元時に追加した。
+- 価値/懸念: 再起動後の palette ranking が安定する。Recipe 全体の再起動後復元と runtime 受入れは未検証。
+
+# 2026-08-15 — Workspace layout structural fallback
+
+- 関連: `Artifact/src/Core/ArtifactWorkspaceManager.cppm`。
+- 事実: session／preset JSON が空でない場合、`layout` オブジェクト欠落でも復元成功扱いになり得た。
+- 対応: `applyWindowState()` で layout object の存在を必須化し、不完全な状態は default-layout recovery に委譲するようにした。
+- 価値/懸念: 壊れた session が部分復元状態を成功として固定するのを防ぐ。破損 session の UI 通知と runtime 受入れは未検証。
+
+# 2026-08-15 — Interactive Shell source recursion guard
+
+- 関連: `Artifact/src/Application/ArtifactInteractiveShell.cppm`。
+- 事実: nested `source` は再帰を検出していたが、top-level script が active set に登録されず、自己 source と symlink 経由の再帰を防げなかった。
+- 対応: top-level／nested source で共有する active script set と canonical path を導入した。
+- 価値/懸念: script include の無限再帰を抑止できる。外部 script sandbox／権限と runtime 受入れは未検証。
+
+# 2026-08-15 — Asset Browser search history completer
+
+- 関連: `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`。
+- 事実: 検索は incremental filter を持っていたが、過去の検索語を再利用する候補／永続化経路がなかった。
+- 対応: `QCompleter` と bounded `QSettings` history を既存 search field に接続し、2文字以上の検索語を重複排除して保存するようにした。
+- 価値/懸念: 大量素材の再検索を短縮できる。runtime UX と検索履歴切替の受入れは未検証。
+
+# 2026-08-15 — Timeline playhead hit radius ownership
+
+- 関連: `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`。
+- 事実: playhead overlay の hit radius が event filter と通常 mouse press に重複定義されていた。
+- 対応: 共通定数へ集約し、入力経路間の調整値のずれを防いだ。
+- 価値/懸念: 今後の不感帯調整を一箇所で行える。実機入力とテーマ別の視認性は未検証。
+
+# 2026-08-15 — Property row label width alignment
+
+- 関連: `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditor.cppm`、`Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorShared.cppm`。
+- 事実: shared row layout は label 幅 132px だが、concrete editor row は 124px だった。
+- 対応: concrete row の標準 label 幅を 132px に統一した。
+- 価値/懸念: Property Editor と section／channel／transform／effect row の値列開始位置を揃えられる。実機での長いラベルと狭幅レイアウトは未検証。

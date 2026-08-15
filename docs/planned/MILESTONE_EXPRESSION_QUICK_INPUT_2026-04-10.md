@@ -1,8 +1,15 @@
 # エクスプレッションクイック入力の実装
 **マイルストーン**: M-EX-1 Expression Quick Input System
 **作成日**: 2026-04-10
+**最終更新:** 2026-08-15
 **見積もり**: 6-8h
 **優先度**: Low (細かいUX改善)
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactExpressionCopilotWidget` は `thisComp`／`thisLayer`／root 候補の文脈補完、候補ポップアップ、Tab／Enter適用、構文解析・runtime検証、エラー位置の波線表示を実装している。`ArtifactAnimationMenu` と Property Widget から新規／アクティブ expression の導線も確認できる。
+
+一方、旧仕様の右クリック `Add Expression` サブメニュー内の固定関数一覧・定数挿入、引数型ヒント、snippet の保存／分類／import-export は現行コード検索では確認できない。したがって入力補完・検証の基盤は実装済みだが、Quick Input の Definition of Done 全体は未完了とする。
 
 ## 概要
 

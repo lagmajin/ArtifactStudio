@@ -1,11 +1,23 @@
 # マイルストーン: レイヤーグループ導入
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactGroupLayer` は composition-owned／embedded child の両経路、`childrenForRender()`、offscreen composite と fallback draw、group opacity／blend／mask の単位評価を持ちます。`ArtifactHierarchyModel` は parent chain／子行を扱い、Timeline の group row／collapse／rename／selection／parent column、保存・再読込・循環拒否も実装されています。group の hidden／locked 等の state reason と Workspace Automation の作成導線も確認できます。
+
+今回、Timeline のグループメニューから Undo 付きの「グループを解除」を実行できる導線を追加しました。残課題は、group transform の専用可視化、group 単位の move／delete／drag-and-drop、solo／shy／lock の全 runtime 組み合わせ、project tree との共通表現、再起動後の実 UI／描画 parity の検証です。したがってモデル・表示・基本レンダーは進行済みですが、Phase 4〜6 は未完了・未検証です。
+
+## Update 2026-08-15
+
+- 現行コードでは group の composition 所有／embedded child、offscreen composite、opacity／blend／mask、Timeline の折りたたみ・rename・選択・parent 表示、保存・再読込・循環拒否まで確認できる。
+- group 単位の transform 可視化・移動／削除／drag-and-drop、solo／shy／lock の組み合わせ、Project View との共通表現、再起動後の UI／描画 parity は未完了または runtime 未確認。
+
 > 2026-03-27 作成
 
 ## 現状サマリー
 
-`ArtifactLayerGroup` / `ArtifactLayerGroupCollection` は既に存在するが、現状は「データ構造の骨組み」に近い。
-グループの名前、親子関係、折りたたみ、ミュート、ロック、色、opacity は持てる一方で、UI と描画と操作の責務がまだ分離されていない。
+作成時点では `ArtifactLayerGroup` / `ArtifactLayerGroupCollection` は「データ構造の骨組み」に近かったが、現行コードでは `ArtifactGroupLayer`、Timeline の階層表示、描画合成、保存／再読込、循環拒否まで接続されている。残る課題は、group transform の専用可視化、group 単位の操作、Project View との責務・表示統一、実 UI／描画の runtime parity である。
 
 このマイルストーンでは、レイヤーグループを「見た目整理」「変換階層」「可視性制御」の3役に分けて、将来の複雑な構成でも追えるようにする。
 

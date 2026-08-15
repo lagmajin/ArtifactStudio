@@ -2,6 +2,14 @@
 
 > 2026-04-21 作成
 
+**最終更新:** 2026-08-15
+
+## 2026-08-15 現行コード監査
+
+`Core.Diagnostics.Trace` の scope begin/end、domain／frame／thread、bounded snapshot／JSON、CrashHandler の report／stack／pending ingestion、TraceTimeline／FrameDebug bridge、thread／lock 記録を再確認した。したがって本書冒頭の「不足している」という背景は、基盤実装前提として更新が必要である。
+
+残るのは常時計測の負荷実測、Render／Decode／UI／Event の網羅性、deadlock／starvation の自動判定、Profiler／Debug Console／EventBus との責務・表示統合、実機 runtime 受入れである。判定は **Trace core 実装済み、可視化・統合・runtime 検証は部分実装／pending**。ビルド・テストは未実施。
+
 ## 目的
 
 ArtifactStudio に、超軽量のトレーシング基盤を組み込む。

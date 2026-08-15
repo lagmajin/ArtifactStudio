@@ -1,5 +1,7 @@
 # M-RE-2.A Network RPC Client Milestone
 
+**最終更新:** 2026-08-15
+
 作成日: 2026-07-02
 位置づけ: `ArtifactCore/NetworkRPCServer.ixx` (TCP/JSON-RPC 2.0 サーバ) の **対となるクライアント** を 1 モジュールに切り出す。
 `docs/planned/MILESTONE_RENDER_FARM_DESIGN_2026-06-16.md` (Phase 1〜5) の **Phase 4 (out-of-process worker)**
@@ -194,6 +196,10 @@ private:
 ただし、公開側の `ArtifactCore/include/Network/NetworkRPCClient.ixx` は現行 workspace では確認できず、実装の公開宣言・CMake登録・API契約の整合性を証明できない。capability payload、status 応答、cancel 通知、最大512件の送信 queue、再接続（3秒待機・3回）、不正JSONの error 通知、認証、ArtifactRenderer との farm-client 統合も未確認である。実際の master/client 結合と外部 process の assignJob 完了も runtime 未検証。
 
 判定: client の TCP/JSON-RPC 骨格は partial、Done criteria の公開モジュール整合・再接続・capability・cancel・結合検証は未完了。
+
+## 現行コード監査 (2026-08-15)
+
+`NetworkRPCClient.cppm` と `FarmWorkerMain` には TCP 接続、register／heartbeat、assignJob、frameCompleted／frameFailed、切断通知の骨格があり、worker 側 CLI には token／TLS／CA certificate の設定入口もある。ただし現行 workspace では対応する `NetworkRPCClient.ixx` 公開宣言を確認できず、再接続、送信 queue、cancel、capability の実運用、master/client の外部 process 結合、認証・TLS の実通信は未検証である。判定は **client skeleton partial、公開 module 契約と end-to-end acceptance pending** とする。
 
   - `register` (workerId, capability)
   - `heartbeat` (workerId, timestamp)

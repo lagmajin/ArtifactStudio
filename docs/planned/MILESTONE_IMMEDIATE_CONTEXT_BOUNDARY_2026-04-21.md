@@ -1,5 +1,13 @@
 # M-IR-8 ImmediateContext Boundary / De-direct
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+主流の GPU 2D／3D 描画は `RenderCommandBuffer` → `DiligentImmediateSubmitter` → `PrimitiveRenderer2D/3D` に集約され、`ArtifactIRenderer` は queued draw と frame-debug summary の façade として機能しています。`submitQueuedDraws()`、indirect batch、debug pass summary まで確認できます。
+
+ただし `ArtifactIRenderer` 自体は `IDeviceContext` を保持し、submit／present／readback／render-target 制御を直接行うため、Phase 3 の context access narrowing は未完了です。software／diagnostic／legacy widget には QPainter と CompositionMode の互換経路も残り、上位入口の全面統一、renderer summary による全 diagnostics 移行、直叩きの網羅的除去は未検証です。
+
 `DiligentEngine` の `IDeviceContext` / `ImmediateContext` を、layer / widget / controller 側から直接触らない構造へ寄せるための更新段階。
 
 ## Goal

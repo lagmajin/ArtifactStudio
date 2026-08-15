@@ -1,8 +1,23 @@
 # レイヤー自動命名規則の実装
+
+**最終更新:** 2026-08-15
 **マイルストーン**: M-LA-1 Layer Auto-Naming Convention
 **作成日**: 2026-04-10
 **見積もり**: 8-12h
 **優先度**: Low (細かいUX改善)
+
+## 2026-08-15 現行コード照合
+
+- ✅ 各 layer class に既定名があり、Layer Factory は `ArtifactLayerInitParams::name()` を初期名として適用する。画像／動画／SVG／3D などの import は source の base name を渡す経路がある。
+- ✅ Camera／Light／Shape／Text／Clone／Group／Adjustment などは型ごとの既定名を持ち、Timeline では inline rename、F2、context menu、専用 Rename command／Undo が利用できる。
+- ✅ PreCompose については `PreComposeManager` に default name prefix と auto-naming flag があり、生成された precomp 名の制御経路が存在する。
+- ⚠️ 画像・テキスト・シェイプ等を横断する共通の重複回避（`_1`／`_2`）、自動命名 ON／OFF 設定、手動リネーム後の連番継続は現行コード上で確認できない。命名は主に呼び出し側の初期名と各 class の固定既定名に分散している。
+- ⏳ ソース名／色情報を使った統一規則、複数同時生成時の連番最適化、カスタム命名プリセット、設定保存、全経路の runtime／Undo QA は未完了。
+
+## Update 2026-08-15
+
+- 現行コードでは型別既定名、import source の basename、PreCompose の auto-naming、Timeline／F2 rename と Undo を確認できる。
+- 全 layer type 共通の重複回避、auto-naming 設定、手動 rename 後の連番継続、命名 preset、全生成経路の runtime／Undo QA は未完了または未確認。
 
 ## 概要
 

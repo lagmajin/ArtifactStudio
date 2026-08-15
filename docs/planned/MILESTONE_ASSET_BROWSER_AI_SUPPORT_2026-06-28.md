@@ -6,7 +6,22 @@
 **推定工数**: 3-5日
 **カテゴリ**: Asset Browser / AI / Automation
 **状態**: Planned
+**最終更新:** 2026-08-15
+**現行判定:** Asset Browser の AI 自動タグ付け・類似検索・推奨・自然言語 filter の専用実装は未確認。共通 AI bridge と metadata/tag 基盤のみ部分的に存在。
+
+## 2026-08-15 現行実装監査
+
+- Asset Browser 側には検索／filter／sort／tag metadata の基盤があるが、`AssetAnalyzer`、`AutoTagger`、`SimilaritySearcher`、`ContentRecommender`、専用 AI panel／dialog の実装は確認できない。
+- AI／MCP bridge や共通 automation は存在するものの、Asset Browser の選択・tag・similarity index・batch processing へ接続する専用契約ではない。
+- よって本マイルストーンは Planned のまま。AI解析、自然言語 query、推奨 UI、非同期処理、結果の永続化／runtime 検証は未着手または未確認。
 **依存**: M-AB (Asset Browser base), M-AB-4 (Hover Preview), M-AB-12 (Tag System)
+
+## Update 2026-08-15
+
+現行コードを再確認した。Asset Browser の検索／filter／sort／tag metadata と、共通 AI／MCP／WorkspaceAutomation の入口は存在するが、Asset Browser 専用の解析・類似検索・推奨契約は見つからない。
+
+- `AssetAnalyzer`／`AutoTagger`／`SimilaritySearcher`／`ContentRecommender`、専用 AI panel／dialog、結果 index／永続化は未実装または未確認。
+- AI bridge の存在だけでは本マイルストーンの達成とは扱わず、状態は **Planned** を維持する。
 
 ---
 

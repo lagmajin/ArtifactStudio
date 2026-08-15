@@ -1,7 +1,8 @@
 # M-EXPORT-1 Render Format Expansion Milestone
 
 作成日: 2026-06-16
-ステータス: Draft
+最終更新: 2026-08-15
+ステータス: format／preset／image sequence／audio-only の基盤実装済み、codec 網羅性と実機出力検証待ち
 対象: `ArtifactCore/src/Video/AbstractEncoder.cppm`,
       `ArtifactCore/src/Video/FFMpegEncoder*`,
       `ArtifactCore/src/Video/EncoderSetting*`,
@@ -455,3 +456,17 @@ struct RenderSettings {
 ProRes の設定値や HDR の設定構造は存在するが、OCIO display role、HDR metadata、preset の保存・再読込、旧 project fallback、Problem View の `encoder.*` 診断、実際の output verification は未確認である。Render Farm の `RenderSettings` に encoder/preset を wire-safe に載せる接続も未実装の扱いとする。
 
 判定: Phase 1 は既存設定基盤として partial、Phase 2/3/4/5/6/7 は実出力・永続化・UI/診断の確認不足、Phase 8 は未着手。Done criteria は未達扱い。
+
+## 現行コード監査 (2026-08-15)
+
+- `ArtifactRenderFormatPresetManager` に video／animated image／image sequence／audio の built-in preset、custom preset、category／usage 検索がある。
+- Render Queue／Batch Renderer は preset から output extension、codec、audio-only、image sequence の job 設定を組み立てる。`FFmpegEncoder`／`FFmpegAudioEncoder` には video、image sequence、audio encode、availability probe の入口がある。
+- ProRes、H.264／H.265、PNG／JPEG／EXR、WAV 等の設定・dispatch 基盤は確認できるが、全 preset の実 codec 出力、TIFF／HAP／AV1／WebM／OGG／Opus／FLAC の環境別可用性、EXR bit depth、実成果物検証、保存／再読込の全経路は未検証。
+
+判定: **format／preset／queue integration の基盤は実装済み。codec 網羅性、実出力、永続化、diagnostics／farm 接続の受入れは pending。**
+
+## Update 2026-08-15
+
+現行コードを追加照合した。`ArtifactRenderFormatPresetManager` の built-in／custom preset、Render Queue／Batch Renderer の image sequence・audio-only job 組み立て、`FFmpegEncoder`／`FFmpegAudioEncoder` の encode・availability probe 入口、ProRes／H.264／H.265／PNG／JPEG／EXR／WAV の設定・dispatch 基盤は確認できる。
+
+一方、設計上の独立 `EncoderKind`／`ImageSequenceEncoder`／`AudioOnlyEncoder`／`AudioImporter`／`OutputPresetLibrary` としての分離は確認できず、TIFF／HAP／AV1／WebM／OGG／Opus／FLAC の実 codec 出力、EXR bit depth、project 保存復元、`encoder.*` diagnostics、Render Farm wire 接続は未検証または未完了。基盤実装済み、実成果物受入は pending とする。

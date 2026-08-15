@@ -1,5 +1,23 @@
 # Generator / Modifier / Field Stack Migration (2026-07-01)
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+- Clone LayerのJSON復元で、欠落した `sourceLayerId`／`useEffector` を旧インスタンスから持ち越さず既定値へ戻すようにした。
+
+## 現行コード監査 (2026-08-15)
+
+前回監査から進み、`ArtifactAbstractLayer` は legacy cloner を互換 generator descriptor（`generator.compat.cloner.0`）へ正規化し、追加 generator／field／clone modifier descriptor を保存・再読込します。`cloneRenderInstances()` は `layerGenerators()` を反復し、grid／matrix／radial／legacy generator を複数処理し、共通 modifier と field influence を適用します。UI property も `component.generators.%1.*` を生成します。
+
+したがって Phase 1〜4 の内部 descriptor／複数 generator／独立 fields stack の基盤は部分的に実装済みです。未完了なのは generator／modifier ごとの field binding・mask／blend／remap、全 modifier type の正規 descriptor 化、複数 generator の合成順序・重複／weight 契約、保存互換性と runtime parity の検証です。
+
+## Update 2026-08-15 — stack descriptor validation
+
+- `ArtifactAbstractLayer::validateLayerComponents()` で追加 generator／field／modifier descriptor の id／type 空値と重複 id を検出するようにした。
+- 既存の builtin component dependency validation と同じ diagnostics surface を再利用し、評価順序や保存形式は変更していない。
+- generator／modifier ごとの field binding、merge／weight 契約、runtime parity は引き続き未完了。
+
 `component.cloner.*` を単発機能のまま肥大化させず、
 複数 generator、複数 modifier、複数 field が矛盾なく共存できる構造へ移行するための計画。
 
@@ -399,3 +417,4 @@ modifiers[1]:
 - `FieldComponent.ixx` の Solid／Sphere／Box／Linear／Radial／Noise field 基盤と、field influence の consumer 接続も存在する。
 - 一方、single cloner を正式な `generators[0]` descriptor へ正規化する永続的内部契約、複数 generator の append evaluator、独立 `fields[]` stack、generator／modifier ごとの field binding／remap の完全実装は確認できない。
 - 旧 `component.cloner.*` 互換を維持したまま段階移行する設計方針は妥当だが、5段階全体は未完了と判定する。runtime の複数 generator／modifier／field 評価も未検証である。
+**最終更新:** 2026-08-15

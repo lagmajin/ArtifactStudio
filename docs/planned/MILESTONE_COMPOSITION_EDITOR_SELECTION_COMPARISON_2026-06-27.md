@@ -1,6 +1,15 @@
 # Milestone: Composition Editor Selection / Comparison Upgrade (2026-06-27)
 
-**Status:** 部分完了（矩形選択・selection HUD・A/B/Diff・reference frame pinning を実装、lasso選択とruntime検証未完了）
+**Status:** 部分完了（矩形／Altラッソ選択・selection HUD・A/B/Diff・reference frame pinning を実装、runtime検証未完了）
+**最終更新:** 2026-08-15
+
+## 2026-08-15 現行コード監査
+
+矩形選択・selection HUD・A/B／Diff・reference frame の状態モデルと、Contents Viewer 側の compare A/B／wipe／swap 設定、FrameDebug の compare mode は現行コードで確認できる。SelectionManager による複数 layer 選択と既存の viewport 操作経路も存在する。
+
+一方、viewport 内 lasso 選択は `Alt` で開始し、`Shift` 追加／`Ctrl` toggle の selection mode と組み合わせる実装を確認した。ただし Shift／Alt の選択契約を全ツールモードで統一すること、比較状態の一貫した HUD／context menu 導線、reference frame の project 保存、複数選択と比較の runtime E2E は未確認。Contents Viewer の compare API と Composition Editor の A/B/Diff を同一機能として数えない。
+
+判定: **矩形／lasso選択・比較／reference 基盤は部分実装、全モード操作契約・永続化・runtime 検証は pending。**
 **Goal:** コンポジットエディタのビューポート上で、複数選択と A/B 比較を素早く行えるようにする。
 
 ---

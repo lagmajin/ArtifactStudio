@@ -2,7 +2,8 @@
 
 # Form Grid Particle Layer Milestone
 
-Status: Implementation present; static audit completed 2026-06-28.
+**最終更新:** 2026-08-15
+Status: Implementation present; static audit completed 2026-08-15.
 Build and runtime verification remain pending under the repository execution policy.
 
 Current implementation:

@@ -2,6 +2,16 @@
 
 > 2026-03-25 作成
 
+**最終更新:** 2026-08-15
+
+## 2026-08-15 現行コード監査
+
+本書は複数の詳細 milestone を束ねる親計画であり、ここに列挙された項目を一括完了とは判定しない。現行コードでは、Motion Tracking、Audio mixer／waveform、Camera／Transform、Effect Stack／Preset、Timeline／Keyframe、Project／Asset、Render／Export、Automation、Review／Compare にそれぞれ実装基盤または部分的な制作導線が存在する。
+
+一方、全領域を通した production workflow、共通 command／state 表示、複数素材・長時間再生・実出力の runtime parity、Smart organization／Annotation の完全統合は未検証または未完了である。`MILESTONE_GPU_EFFECT_PARITY_2026-03-27.md` など superseded／統合済みの詳細文書は、各後継 milestone を正とする。
+
+判定: **Feature Expansion の主要領域は基盤実装が大きく進行。親計画全体は未完了、個別 milestone 単位で受入れを追跡する。** ビルド・テストは未実施。
+
 ## 目的
 
 既存機能を速く・気持ちよくするマイルストーンとは別に、制作能力そのものを増やす。
@@ -519,3 +529,9 @@
 本書は複数の詳細 milestone を束ねる親文書であり、現行ソースでは menu／command routing、motion tracking、audio mixer／再生、camera／transform、effect stack、timeline、automation、export／render の各基盤が部分的に実装されている。
 
 ただし、全重点領域を同一の完了条件で通した証拠はなく、UI と Core の責務統一、全 workflow の runtime 検証、Review／Compare／Annotation、Smart organization、Templates／Starter Kits の横断統合も未完了である。したがって本親 milestone は完了扱いにせず、詳細 milestone ごとの監査結果を正として、Phase 0〜4 は基盤実装済み・部分完了、後続 Phase は継続中として扱う。
+
+## Update 2026-08-15
+
+Templates／Presets の現行コードを追加確認した。`ArtifactPresetManager` に project／effect／color palette 系の保存・読み込み、`ArtifactEffectPreset`／`ArtifactRenderQueuePresets`／`ArtifactFxPresetCatalog` に effect／render／FX の preset catalog、`ArtifactWorkspaceManager` に workspace layout preset が存在する。テンプレート variation／project starter として再利用できる土台はあるが、project／composition／layer／effect を一つの starter kit として作成・適用する横断契約、UI 導線、runtime受入れは未完了とする。
+
+Batch／Macro／Script の現行コードも追加確認した。`ArtifactInteractiveShell` は `--script` と `source` による再帰検出付き command file 実行を持ち、`ArtifactPythonHookManager` は Python hook の入口、Command Palette は Recipe の保存・再実行、`ArtifactBatchRenderer` は batch render を提供する。外部 script の sandbox／権限契約、macro の失敗時 rollback、長時間実行の状態表示、runtime受入れは未完了とする。

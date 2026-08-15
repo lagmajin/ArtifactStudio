@@ -1,5 +1,8 @@
 # FFmpeg GPU Decode Backend Milestone (2026-03-28)
 
+**最終更新:** 2026-08-15
+**ステータス:** Vulkan／GPU frame payload と renderer cache 接続の基盤実装済み、policy／preview／runtime parity 待ち
+
 FFmpeg の hardware-accelerated decode backend を CPU software decode とは別系統として作り、
 video layer / playback / preview から backend を選べるようにするためのマイルストーン。
 
@@ -95,4 +98,22 @@ GPU surface への bridge を含む経路を指す。
 
 MediaImageFrameDecoder に FFmpeg の Vulkan hardware device 初期化、hardware frame 検出、GpuVideoFrame 化、direct presentation 判定と安全な download 経路がある。MediaPlaybackController と ArtifactVideoLayer も GPU payload／fallback 状態を扱い、CPU／FFmpeg と MediaFoundation の backend 切替・fallback を持つ。
 
-ただし、文書が要求する public な uto / cpu / gpu policy、GPU capability probe の明示 API、renderer texture bridge の完全接続、GPU frame を Qt preview で直接表示する経路は未完了である。現状は M-VD-1 の一部、M-VD-2 の既存 backend 分離、M-VD-3 の Vulkan 基盤まで進行し、M-VD-4〜6 は未完了または検証待ちとして記録する。
+ただし、文書が要求する public な auto / cpu / gpu policy、GPU capability probe の明示 API、renderer texture bridge の完全接続、GPU frame を Qt preview で直接表示する経路は未完了である。現状は M-VD-1 の一部、M-VD-2 の既存 backend 分離、M-VD-3 の Vulkan 基盤まで進行し、M-VD-4〜6 は未完了または検証待ちとして記録する。
+
+## 現行コード監査 (2026-08-15)
+
+- `MediaImageFrameDecoder` に FFmpeg Vulkan hardware device 初期化、hardware frame 検出、`GpuVideoFrame` 化、direct presentation 判定、安全な download fallback がある。
+- `MediaPlaybackController`／`ArtifactVideoLayer` は GPU payload と CPU fallback 状態を扱い、`GPUTextureCacheManager`／composition drawing へ GPU frame を渡す経路を確認した。
+- `ArtifactVideoLayer` の通常の `ImageF32x4_RGBA` 消費経路では、Vulkan hardware decode を有効化すると CPU presentation buffer が空になる場合があるため、現状は hardware-only pixel format を避ける安全側の扱いになっている。
+- ただし、public な `auto／cpu／gpu` policy と capability probe の統一 API、Qt preview の直接 GPU 表示、seek／playback の backend 間 parity、実機 driver 別受入れは未検証。
+
+判定: **M-VD-1〜3 と renderer 接続の基盤は実装済み。M-VD-4〜6 の完全統合、再生整合、実機受入れは pending。**
+
+## Update 2026-08-15
+
+現行コードを追加照合した。Vulkan hardware device／frame 検出、`GpuVideoFrame` 化、`GPUTextureCacheManager` への受け渡し、CPU download fallback は実装されている。
+
+- 一方、direct Vulkan presentation は同期条件を満たさないため policy 上無効で、GPU frame が常に renderer へ zero-copy で到達する状態ではない。
+- また、通常の Video Layer は CPU presentation buffer を前提にしており、GPU payload が取得できても renderer 側で直接消費できない場合は download fallback に戻る。
+- `auto／cpu／gpu` の統一 public policy、Qt preview の直接 GPU 表示、seek／playback parity、driver／codec 別の実機受入れは未完了。
+- 判定は **Vulkan decode と fallback の基盤は実装済み、direct presentation・policy統合・再生整合・実機受入れは未達** を維持する。

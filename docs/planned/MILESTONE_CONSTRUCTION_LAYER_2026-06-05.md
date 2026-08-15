@@ -2,6 +2,7 @@
 
 **作成日**: 2026-06-05  
 **状態**: 部分完了（Construction Layerの基盤・保存・表示・UI導線を実装、拡張construction itemと専用animation/runtime検証は未完了）
+**最終更新:** 2026-08-15
 **優先度**: 中
 
 ---
@@ -88,6 +89,18 @@ AE 風の制作では、レイアウト確認や構図検討のために次の�
 - final render path では `LayerType::Construction` を明示的に skip する
 - editor / timeline / inspector では通常 layer と別の badge で扱う
 - 既存プロジェクトに新型がない場合は影響しない
+
+## 2026-08-15 現行実装監査
+
+- `ArtifactConstructionLayer`、`LayerType::Construction`、factory 分岐、JSON 保存復元、Construction property group、GuideSet、SmartGuides 連携を確認した。
+- Timeline／Inspector の Construction 表示、Layer menu からの作成導線、final render inclusion の明示フラグも実装されている。
+- ただし line／circle／annotation／orbit などの拡張 item モデル、points／radius／text の専用 animation、複数 construction layer の runtime／再読込 parity は未確認。
+- したがって基盤・保存・表示・UI導線は実装済み、提案された全 item／animation／runtime 完成条件は未達とする。
+
+## Update 2026-08-15
+
+- 現行コードでは `ArtifactConstructionLayer`、factory／JSON round-trip、Construction property group、SmartGuides 連携、Timeline／Inspector 表示、作成メニューを確認できる。
+- line／circle／annotation／orbit 等の拡張 item、points／radius／text の専用 animation、複数 layer の runtime／再読込 parity は未完了または未確認。
 
 ---
 

@@ -1,6 +1,7 @@
 # マイルストーン: Asset Browser Sequence Grouping
 
-ステータス: Phase 1〜3 実装済み（runtime 一貫性・欠落 frame 検証待ち、静的確認 2026-07-29）
+**最終更新:** 2026-08-15
+ステータス: Phase 1〜2 と基本的な Phase 3 接続は実装済み（runtime 一貫性・欠落 frame・render queue 連携の検証待ち）
 
 > 2026-03-31 作成
 
@@ -111,3 +112,11 @@ import / relink / preview / render queue へ接続する。
 - Asset Browser 上には明示的な Expand／Collapse、個別 frame item、frame 番号順表示があり、sequence 単位の missing／unreadable／size mismatch marker、source-use 集約、選択時の全 frame path 展開も実装されている。
 - sequence の import／relink 基盤と、context menu から代表 frame／先頭・末尾 frame を選ぶ preview 導線も存在する。一方、欠落 frame を含む runtime 一貫性、render queue での sequence-aware 動作、実機検証は未完了である。
 - よって Phase 1〜2 と基本的な Phase 3 接続は実装済み、全体 milestone は runtime workflow 検証 pending の Partial と判定する。
+
+## 2026-08-15 現行コード監査
+
+- `Asset Browser` の `sequencePaths`、展開状態、代表 thumbnail、開始 frame／frame count／padding、frame 番号順表示、missing/unreadable/size mismatch marker を確認した。
+- `ArtifactProjectService` は `Asset.Sequence` の検出、sequence import、sequence-aware relink、各 frame path の再解決を実装している。
+- 選択時の全 frame path 展開、代表 frame／先頭・末尾 frame の preview 導線も存在するため、Phase 1〜2 は静的には達成と判定できる。
+- ただし Asset Browser の展開状態と Project/Timeline 側の sequence identity、欠落 frame を含む実データの import/relink、render queue の frame range 一貫性は runtime 未検証。
+- したがって全体ステータスは Partial を維持する。

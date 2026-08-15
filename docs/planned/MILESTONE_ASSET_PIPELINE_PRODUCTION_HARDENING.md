@@ -1,8 +1,27 @@
 # MILESTONE: Asset Pipeline Production Hardening
 
 **日付**: 2026-08-04
-**現状**: AssetDatabase + AssetManager + AssetBrowser UI は機能的。しかし AssetConverter は空スタブ、VectorImport はデータ構造のみ、プロキシシステムは不在、ImageAssetFile 等の具象クラス不在。
+**最終更新**: 2026-08-15
+**現状**: AssetDatabase／AssetManager／AssetBrowser に加え、AssetConverter、AssetMetaFile、ImageAssetFile、AssetImportSettings、基本的な VectorImport、プロキシ生成の主要経路も実装済み。ただし本番品質の形式正規化・型付きベクター編集・統合検証は未完了。
 **目標**: 型付きアセットクラス、フォーマット正規化パイプライン、プロキシ生成、バッチ変換、ベクターインポートの実装。
+
+## 2026-08-15 現行コード監査
+
+`AssetImporter` は画像メタデータ生成、`.meta` の読み書き、設定に応じた画像 proxy 生成へ接続されている。`ArtifactAssetConverter` は convert／batch／proxy API と画像変換実装を持ち、`ArtifactAssetMetaFile` は UUID・種別・import 時刻・proxy・tag・custom value を保存できる。`ImageAssetFile` は画像メタデータを読み取り、`VectorImport` はファイル種別検出と preview／editable-attempted の結果を返す。アプリ側には VideoLayer／Project View／Layer Menu からの proxy 導線もある。
+
+したがって文書内の「空スタブ」「プロキシシステム不在」という記述は現状と一致しない。一方、AssetConverter の色空間正規化・汎用フォーマット網羅、VectorImport の実編集可能ノード生成、AssetBrowser の型付きメタデータ表示、音声／動画を含む import 時の統一 proxy policy、失敗時 cleanup と大量 batch の runtime 検証は未完了である。
+
+判定: **Phase 1〜2 は主要基盤実装済み、Phase 3 の本格 vector import と全形式の production hardening は pending。**
+
+## Update 2026-08-15
+
+監査内容を現行コードの責務まで再確認した。`AssetImporter`／`ArtifactAssetConverter`／`ArtifactAssetMetaFile`／`ImageAssetFile`／`VectorImport` は、文書後半に残る「空スタブ」「型定義のみ」という当初記述より進んでいるため、現状サマリの該当行は履歴として扱う。
+
+- 画像のメタデータ、meta 保存、proxy、単体／batch 変換の主要 API は存在する。
+- VectorImport は形式検出と preview／editable-attempted の結果までで、編集可能なベクターノード生成の完了は確認できない。
+- AssetBrowser／AssetDirectoryModel には一覧、favorites／recent、遅延 fetch、drag-and-drop、サムネイル導線があるが、全形式を横断する統一 import policy、色空間正規化、大量 batch の失敗 cleanup／再開、音声・動画を含む production runtime 受入は未完了。
+
+判定は **主要基盤は実装済み、本格 vector import と全形式の production hardening は pending** を維持する。
 
 ## 現状サマリ
 

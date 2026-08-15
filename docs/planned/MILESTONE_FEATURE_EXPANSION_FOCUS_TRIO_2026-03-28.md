@@ -2,6 +2,21 @@
 
 > 2026-03-28 作成
 
+**最終更新:** 2026-08-15
+
+### 2026-08-15 follow-up
+
+- Workspace session／preset の JSON が構文上は有効でも `layout` オブジェクトを欠く場合、復元成功と扱わず既存の default-layout recovery へ戻すようにした。
+- Interactive Shell の top-level／nested `source` で canonical path を共有し、自己参照・symlink 経由の再帰 source を検出するようにした。
+
+## 2026-08-15 現行コード監査
+
+- **Motion Tracking**: `MotionTracker`／NCC／Planar、Point Tracker Tool／Gizmo、前後追跡、Null／Corner Pin 適用、Video Layer の tracker ID 保存、Diagnostics 表示を確認。Editor の実素材精度、失敗復帰、bake／overlay の runtime 受入れは未検証。
+- **Vector／SVG**: SVG の asset detection／vector source／layer rendering／保存復元と、AI/PDF 系の ingest 基盤を確認。複雑 SVG の完全な editable node import、relink、unsupported report、実ファイル受入れは未完了または未検証。
+- **Animated Image Export**: Render Queue の GIF／APNG／Animated WebP preset と FFmpeg encoder／codec mapping を確認。alpha／palette／frame delay の実出力、失敗時 cleanup、queue UI の runtime parity は未検証。
+
+従って Focus Trio は「3 機能とも基盤あり、制作導線と実出力の受入れ待ち」と判定する。Phase の順序は計画上の優先順位であり、現行の実装完了順を表さない。ビルド・テストは未実施。
+
 ## 目的
 
 機能拡充の中でも、優先度を上げた 3 本を実装順つきで固定する。

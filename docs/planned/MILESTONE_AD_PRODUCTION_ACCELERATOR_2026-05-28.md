@@ -2,6 +2,10 @@
 
 日付: 2026-05-28
 
+**最終更新:** 2026-08-15
+
+**現行コード監査 (2026-08-15):** `TemplateSlot`／`TemplateVariation`／`OutputVariant` の型・JSON変換、`ParametricComposition` の slot 値保持、`WorkspaceAutomation` の `defineTemplateSlot`／`listTemplateSlots`／`applyTemplateVariation`／`createTemplateFromVariation`、Python hook の入口を確認した。従って slot 定義と variation 適用、variation からの出力ジョブ生成基盤は実装済み。CSV／JSONを編集する専用UI、複数画角を束ねた実運用 batch、required slot・overflow・missing asset のジョブ単位集約は未確認であり、広告量産 workflow 全体は未完了とする。
+
 AE 互換や高機能編集だけを追うのではなく、広告動画・SNS 動画の量産で発生する反復作業を短縮するための実装候補。
 
 元メモ: `docs/analysis/MOTION_GRAPHICS_AD_PRODUCTION_THINKING_MEMO_2026-05-28.md`

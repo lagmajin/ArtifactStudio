@@ -1,5 +1,6 @@
 # ズームtoフィット機能の拡張
 **ステータス:** 実装完了（runtime検証待ち）
+**最終更新:** 2026-08-15
 **マイルストーン**: M-CO-3 Zoom to Fit Enhancements
 **作成日**: 2026-04-10
 **見積もり**: 5-7h
@@ -82,3 +83,14 @@ After Effects の「Fit」コマンドをより賢くし、コンポジション
 - 既存の `ShortcutBindings` は `Ctrl+/` / `Shift+/` を標準のズーム操作に割り当てている。
 - `Ctrl+0` / `Ctrl+Alt+0` は Timeline / Contents Viewer の既存操作と衝突するため、Selection / Visible / Work Area 用の0系ショートカットはこの段階で新規登録しない。
 - キー割り当てを追加する場合は、アプリ全体の shortcut scope と競合解決を先に設計する。
+
+## Static Audit Update (2026-08-15)
+
+- `CompositionRenderController::zoomFitWorkArea()` を確認。Composition の Work Area と時間的に重なる可視レイヤーを抽出し、transformed bounds を統合して5%余白でviewport中央へ収める。
+- Selection / Visible / Work Area はいずれもズームを `0.05f` から `64.0f` にクランプし、view history と再描画無効化を通る。
+- Selection は単一の選択レイヤー、Visible は全可視レイヤーを対象にする。現在のコードでは複数選択を統合した Selection Fit ではない。
+- Fit 系は `smoothZoomActive_` を停止して即時適用するため、仕様にあるアニメーション遷移は未実装。指定された `Ctrl+0` 系ショートカットも既存操作との競合を避けて未登録。
+
+判定: **4種類のFit計算と基本UXは実装済み。複数選択の統合、遷移アニメーション、指定ショートカット、runtime検証は pending。**
+
+確認範囲: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`、`ArtifactCore/src/UI/ShortcutBindings.cppm`。ビルド・実機操作による動作確認は未実施。

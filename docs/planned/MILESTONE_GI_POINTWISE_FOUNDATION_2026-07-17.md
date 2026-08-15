@@ -1,5 +1,19 @@
 # GI / Pointwise Fusion Foundation
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+`Graphics.PointwiseFusion` は `RenderPipeline::applyPointwise()` から validation／compute plan／GPU blend pipeline へ接続されています。GI も `ArtifactRenderLayerPipeline` に `ScreenSpaceGICS` と temporal resolve compute shader、history／depth／normal／velocity、denoise パラメータ、低解像度 dispatch の実装があり、前回監査の「SSGI shader 本体未確認」は現状と一致しません。
+
+ただし、GI の結果を通常の PBR lighting／最終 composition へ合成する呼び出し経路、depth pyramid／本格 bilateral denoise、`Graphics.GIResources` の計画と実 GPU resource の一貫した接続、GPU／CPU 品質比較は未確認です。現状は **Core foundation＋SSGI compute／temporal resolve の部分実装**と判定します。
+
+## Update 2026-08-15
+
+- `Graphics.PointwiseFusion` の validation／compute plan／GPU blend pipeline 接続と、`ArtifactRenderLayerPipeline` の SSGI compute、temporal resolve、history／depth／normal／velocity、低解像度 dispatch を再確認。
+- 前回の「SSGI shader 本体未確認」は現行コードには当たらず、SSGI／temporal 部分実装として更新。
+- 通常の PBR lighting／最終 composition への GI 合成、depth pyramid、bilateral denoise、`GIResources` の一貫した GPU resource 接続、GPU／CPU 品質比較は未完了・未検証。
+
 **ステータス:** In Progress
 
 ## 目的

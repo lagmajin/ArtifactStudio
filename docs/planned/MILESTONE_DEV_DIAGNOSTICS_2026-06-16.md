@@ -1,7 +1,8 @@
 # M-DEBUG-1 Dev Diagnostics Foundation Milestone
 
 作成日: 2026-06-16
-ステータス: Draft
+最終更新: 2026-08-15
+ステータス: Frame／trace／crash／MCP 観測基盤は実装済み、専用 overlay／GPU profiler／memory tracker／RenderDoc は未完了
 対象: `Artifact/src/Widgets/Diagnostics/AppDebuggerWidget.cppm`,
       `Artifact/src/Widgets/Diagnostics/DebugRenderHarnessWidget.cppm`,
       `Artifact/src/Widgets/Diagnostics/FrameDebugViewWidget.cppm`,
@@ -385,3 +386,12 @@ public:
 | 7. Bug Report / Crash Dump | CrashHandler と crash report parser の基盤はあるが、bug report dialog と analyzer の統合は別途未完了 | 部分実装 |
 
 **判定**: Diagnostics の観測基盤は進んでいるが、M-DEBUG-1 の Done Criteria（overlay、profiler、memory tracker、RenderDoc、category log）を満たす証拠は不足している。既存の frame diagnostics を専用 profiler/overlay の完了とは扱わない。
+
+## 現行コード監査 (2026-08-15)
+
+- `TraceRecorder`／`FrameDebugSnapshot` は frame、pass、scope、crash、thread、lock を保持・JSON化でき、Composition／Playback／RenderQueue から frame snapshot と scope を記録している。FramePipeline／FrameDebug／ProfilerPanel／AppDebugger 系 widget から参照できる。
+- `CrashHandler` と `TraceRecorder` の crash record、AppMain の MCP debug server／state file、`McpBridge` の trace／frame／GPU memory／diagnostic snapshot 取得経路も確認できる。Diagnostics の保存・外部取得基盤は、当初の「0 hit」より進展している。
+- ただし仕様にある `PerformanceOverlay`（FPS／frame／GPU／memory の常時表示）、`GpuProfiler`、`GpuMemoryTracker`、`FrameTimingRecorder` の専用 API、optional `RenderDocHook`、category 単位の `DebugLog` は現行コード上で確認できない。既存の frame diagnostics はこれらの完了を代替しない。
+- render path には `qDebug()`／`qWarning()` が残っており、category filter による制御と render path からの全廃は未達。Bug report dialog／crash dump analyzer の製品 UI 統合も未完了。
+
+判定: **観測・記録・MCP 連携の基盤は実装済み。M-DEBUG-1 の専用 performance／GPU 計測機能、ログ制御、RenderDoc、bug report UI は pending。**

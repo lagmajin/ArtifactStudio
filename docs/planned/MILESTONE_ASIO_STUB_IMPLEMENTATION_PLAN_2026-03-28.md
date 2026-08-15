@@ -1,8 +1,17 @@
 # ASIO スタブ実装 計画案
 
 **作成日:** 2026-03-28  
-**ステータス:** 計画案  
+**最終更新:** 2026-08-15
+**ステータス:** ASIO stub 実装済み・実機検証待ち
 **関連コンポーネント:** AudioBackend, WASAPIBackend, AudioRenderer
+
+## 2026-08-15 現行コード照合
+
+- `Audio.Backend.ASIOStub` と `ASIOBackendStub.cppm` が存在し、open／start／stop／close／format／active 状態を実装している。
+- `AudioRenderer` の ASIO backend 選択は `ASIOBackendStub` を生成し、実体は WASAPI fallback として動作する。backend 名も `ASIO (WASAPI fallback)` と明示される。
+- よって「SDKを使わないスタブ」と「将来の真のASIO移行点」は実装済み。低遅延ASIO、専用device列挙、ASIO SDK互換、実機のbuffer／device受入れは未実装または未確認。
+
+**判定:** この計画のスタブ版はコード上完了。真のASIO backend は別マイルストーンとして扱う。
 
 ---
 

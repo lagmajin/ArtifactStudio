@@ -81,6 +81,13 @@
 - Source Text keyframe保有layerでは基底textではなくplayhead frameの評価値を編集し、確定時は同frameのConstant keyframeをsnapshot commandで更新する
 - `QPlainTextEdit` の既存IME／selection入力境界を維持し、新しいsignal／slot経路は追加していない
 
+## Update 2026-08-15
+
+- `ArtifactCompositionEditor`／`ArtifactCompositionRenderController` の Text Layer 編集導線を再確認した。viewport double-click、toolbar、context menu から編集を開始でき、overlay の `QPlainTextEdit` が text layer のモデル更新へ接続されている。
+- `SetTextLayerTextCommand` による Undo transaction、Escape cancel、commit、Source Text keyframe の playhead 時点編集、再描画通知が実装されている。IME／selection は Qt editor 境界を利用する。
+- `TextGizmo` は transform／animator range 等の操作面として存在するが、caret／選択範囲をコンポジット上へ完全に描く本格的な in-canvas editor、box bounds editing、全 property sync の runtime 受入は未完了・未検証。
+- 判定: **Phase 1 の編集入口・commit/cancel・Undo と Phase 2 の入力基盤は実装済み。in-canvas caret／box edit／完全な inspector sync／runtime受入は pending。ビルド・テストは未実施。**
+
 ## Phase 2: In-Canvas Text Input
 
 - 目的:

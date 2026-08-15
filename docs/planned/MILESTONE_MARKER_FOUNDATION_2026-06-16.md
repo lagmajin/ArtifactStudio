@@ -1,6 +1,7 @@
 # M-MARKER-1 Marker Foundation Milestone
 
 作成日: 2026-06-16
+最終更新: 2026-08-15
 対象: `Artifact/include/Composition/ArtifactInOutPoints.ixx`,
       `ArtifactCore/include/Frame/*`,
       `Artifact/src/Composition/ArtifactInOutPoints.cppm`,
@@ -69,6 +70,14 @@ AE 互換の Marker は次の 3 つを担うが、現状どれも動いていな
 | 永続化 | `exportToXML / importFromXML` スタブの可能性高、project JSON への接続なし | 保存 / 復元できない |
 | Undo | Marker 操作の `W_OBJECT` シグナルはあるが `QUndoCommand` 未実装 | 戻し / やり直し不可 |
 | Diagnostics | `M-APP-5 Project Health` の `goal/expected/actual` 枠に marker 健全性が無い | 壊れた marker を見過ごしやすい |
+
+## Update 2026-08-15
+
+- `ArtifactInOutPoints` の marker API は実装済みで、位置・コメント・種別・色・WebLink・tags、検索・範囲取得・chapter 判定、次／前マーカー移動まで確認できる。
+- `ArtifactInOutPoints::toJson()` / `fromJson()` が存在し、`ArtifactAbstractComposition` の `inOutPoints` JSON 保存・復元へ接続されている。したがって旧表の「project JSON への接続なし」は現状と一致せず、基本永続化は実装済みとする。XML import/export も実装されている。
+- `ArtifactPlaybackShortcuts`、`ArtifactPlaybackService`、`ArtifactCompositionPlaybackController` に、現在フレームへの追加・Chapter追加・削除・全消去・次／前マーカー移動が接続されている。`ShortcutBindings` と Timeline Widget のキー処理にも Add／Next／Previous が存在する。
+- 現行コードの検索範囲では、`ArtifactTimelineTrackPainterView` の専用 composition-marker 帯／marker hit test、Inspector の `MarkerListPanel`、Marker 操作用の `QUndoCommand` 群、Problem View の marker integrity 診断は確認できない。Phase 1 の専用表示、Phase 2 の一覧編集、Phase 3 の Undo、Phase 4 の診断は未完了とする。
+- なお `ArtifactInOutPoints::addMarker()` は同一フレームを既存 marker の更新として扱うため、複数 marker を同一位置に保持する設計ではない。この挙動は現行実装の制約として、今後の受入れ条件に明記する。
 
 ### 2.3 既存 milestone との関係
 

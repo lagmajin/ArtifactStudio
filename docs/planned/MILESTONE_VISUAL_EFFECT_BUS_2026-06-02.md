@@ -1,11 +1,24 @@
 # MILESTONE: Visual Effect Bus
 
 **Date**: 2026-06-02  
+**最終更新**: 2026-08-15
 **Status**: Proposed  
 **Priority**: Medium  
 **Related**: `docs/MILESTONE_COMPOSITION_FINAL_EFFECT_2026-04-14.md`, `docs/MILESTONE_EFFECT_SYSTEM_BRIDGE_2026-05-25.md`, `ArtifactCore/include/Audio/AudioBus.ixx`, `ArtifactCore/include/Composition/CompositionFinalEffect.ixx`, `Artifact/include/Engine/DAG/LayerGraphBuilder.ixx`
 
 ---
+
+## Update 2026-08-15
+
+- `CompositionFinalEffect`／`CompositionFinalEffectStack` は実装済みで、effect の追加・削除・並べ替え・enabled 抽出・JSON 保存／復元がある。Composition の composed image／buffer と render queue から final effect 適用経路も確認できる。
+- ただしこれは composition 単位の final effect stack であり、現行コード上に Visual Effect Bus の send／return、共有中間 render target、複数レイヤーからの再利用、routing loop 検出、pre／post 契約は確認できない。
+- UI も通常の layer effect／final effect の操作はあるが、bus 名・input／send 先・return 先・before／after を一体で示す専用 surface は未確認。Phase 1 の基礎は部分実装、Phase 2／3 は未完了。
+
+## Update 2026-08-15 — 現行コード再確認
+
+- `applyCompositionFinalEffectsToBuffer()` は composition-owned effect stack を受け取り、合成後の `ImageF32x4_RGBA` に Rasterizer effect を順番どおり適用する。Render Queue のCPU／GPU分岐、Composition Editorの比較取得、thumbnail経路から共通利用されている。
+- これは Phase 1 の「composition final effect を最初の bus とする」実行基盤に相当するが、send／return として名前付き中間bufferを公開するAPIではない。
+- したがって、Phase 1 は実行経路のみ部分完了。shared render targetの所有権、複数consumer、routing loop拒否、pre／post契約、専用UIは未実装または未検証とする。
 
 ## 概要
 
@@ -134,4 +147,3 @@ audio の bus と違い、映像は時間方向ではなくフレーム単位で
 2. group/shared render target を導入する
 3. send / return の UI を作る
 4. 必要になってから複雑な routing を増やす
-

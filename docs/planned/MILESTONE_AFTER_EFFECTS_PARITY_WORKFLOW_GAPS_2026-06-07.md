@@ -2,6 +2,12 @@
 
 # MILESTONE: After Effects Parity Workflow Gaps - 2026-06-07
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15 — Proxy workflow 現行コード確認
+
+`ArtifactProjectManagerWidget` は選択 footage の proxy 解像度選択、非同期生成キュー、stale 判定、batch generate／clear、metadata 保存を持ち、`ArtifactLayerPanelWidget` から Project View の同じ生成導線を呼び出せる。`ArtifactVideoLayer` への proxy path／quality 同期も存在する。残課題は footage interpret の time-remap 影響表示、生成キャンセル／進捗の統一 UI、proxy 切替の runtime 受入である。
+
 作成日: 2026-06-07  
 対象: AE parity の制作導線ギャップ  
 優先度: 🟠 高

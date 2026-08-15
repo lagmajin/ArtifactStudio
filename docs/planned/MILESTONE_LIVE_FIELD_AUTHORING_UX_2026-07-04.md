@@ -1,5 +1,7 @@
 # M-LC-3 Live Field Authoring UX
 
+**最終更新:** 2026-08-15
+
 **ステータス:** In Progress
 
 作成日: 2026-07-04  
@@ -56,7 +58,7 @@ Cinema 4D / Unreal Motion Design 的な field 制作体験を、そのまま巨�
 | Hover / active state | 実装済み | viewport hover と active 選択の導線があり、active は badge と menu list でも見える |
 | Field stack controls | 実装済み | active選択、順序変更、enable/edit/deleteを既存menu stackへ統合 |
 | Blend / weight / invert | 実装済み | strength / blendMode / invertを保存・編集・評価 |
-| Shape variety | radial / box / linear | noise / solid 系は未実装 |
+| Shape variety | radial / box / linear / noise / solid | composition field の共通 scalar evaluation と JSON round-trip を実装済み。viewport 専用 handle と実素材での調整は未確認 |
 | Modifier integration | 実装済み | 共通channelをCloner / Modifier後の追加instanceへ接続 |
 
 ---
@@ -78,6 +80,13 @@ Cinema 4D / Unreal Motion Design 的な field 制作体験を、そのまま巨�
 - 新しい global signal 配線
 - field ごとの専用 dock 大量追加
 - bake system 全体の設計完了
+
+### 4.6 Composition field shape parity
+
+- `noise` は canvas/local sample 座標から決定的に得られる scalar weight として共通 evaluator に追加。
+- `solid` は field の有効範囲全体へ一定 weight を返す shape として追加。
+- 既存の strength / invert / blendMode / target layer / coordinate parent の経路を再利用し、renderer や新規 signal は追加しない。
+- noise の時間変化、GPU 間の完全な bit parity、noise / solid 用 viewport handle は未検証。
 
 ---
 
@@ -240,6 +249,13 @@ Current status:
 この順なら、既存 overlay と menu 実装を活かしながら最小差分で実用域へ持っていける。
 
 ## 2026-07-25 実装監査
+
+## 2026-08-15 現行コード監査
+
+- radial／box／linear field の descriptor、保存復元、overlay、hit-test、direct drag、Undo、active／reorder／enable／remove の stack 操作を再確認した。
+- influence は normal／additive／multiply／screen、strength／invert を持ち、Text Animator glyph、Shape fill／stroke alpha、Cloner／Modifier 後の clone に weight／scale／time offset を橋渡ししている。
+- color channel の CPU／GPU 共通契約、Shape vertex 単位 weight、noise／solid shape は未実装または保留。viewport 実機操作、clone ownership の表示、runtime parity も未検証。
+- 判定: **主要 authoring slice と generator／modifier bridge は実装済み、描画契約拡張と runtime 受入れは pending**。ビルド・テストは未実施。
 
 - Inspector の Field stack と layer-side descriptor、追加／削除／順序変更、active 選択の導線を確認できる。
 - composition 側の live field は radial／box／linear の overlay・hit-test・drag・Undo と、strength／blend／invert を含む influence 評価を備えている。

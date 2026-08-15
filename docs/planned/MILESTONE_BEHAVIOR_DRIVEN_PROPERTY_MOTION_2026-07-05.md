@@ -1,6 +1,15 @@
 # Milestone: Behavior-Driven Property Motion (2026-07-05)
 
-**ステータス:** Not Started
+**最終更新:** 2026-08-15
+**ステータス:** 部分実装（Property Link／Audio Reactive の個別経路あり、共通 Behavior 契約は未整備）
+
+## 2026-08-15 現行コード監査
+
+`PropertyLinkManager` は source／target property と link type を保持し、`ArtifactAbstractComposition` の Audio Reactive Binding は RMS／Peak／Low／Mid／High、gain／offset／invert／clamp、attack／release、preview／bake、JSON／Undo を実装している。ExpressionEvaluator と particle force field も関連する個別基盤として存在する。
+
+一方、Behavior ID／type／stable target／共通評価順、scalar／vec 互換検証、dependency graph／循環検出、preview／render の共通 deterministic contract、Throw／Gravity／Orbit／Attractor 等を一つの非破壊 Behavior 層で評価する実装は確認できない。既存の Property Link と Audio Reactive はこの milestone の全体契約を満たすものではない。
+
+判定: **Phase 1〜2 は個別機能として部分実装、Phase 0 の共通契約と Phase 3 以降の motion behavior／統合 UI は pending。**
 
 ## Goal
 

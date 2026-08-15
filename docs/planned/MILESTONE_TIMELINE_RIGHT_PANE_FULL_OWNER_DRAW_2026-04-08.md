@@ -2,6 +2,8 @@
 
 > 2026-04-08 作成
 
+**最終更新:** 2026-08-15
+
 ## 目的
 
 `ArtifactTimelineWidget` の右ペインを、`TimelineTrackView (QGraphicsView + TimelineScene + ClipItem)` の互換実装から、`ArtifactTimelineTrackPainterView (QWidget + QPainter)` を正規経路とする完全 owner-draw surface に移行する。
@@ -39,6 +41,10 @@
 - `ArtifactTimelineWidget.cpp` から track 高さの行ごとの更新を外して、bulk 更新に寄せた
 - `ArtifactTimelineWidget.cpp` の viewport sync を helper 化して、ズームと横オフセットの反映を共通化した
 - `ArtifactTimelineScene.cppm` と `ArtifactTimelineObjects.cpp` は削除して、右ペインの正規経路を painter 側に固定した
+
+### Update 2026-08-15
+
+現行コードを再確認し、右ペインの生成・描画・seek・clip/keyframe操作が `ArtifactTimelineTrackPainterView` を正規経路としていること、旧 `TimelineScene`／`ClipItem` のソースが残っていないことを反映した。残課題は旧 shortcut／同期の回帰確認と、大量レイヤー時の runtime 性能受入れ。
 
 ---
 

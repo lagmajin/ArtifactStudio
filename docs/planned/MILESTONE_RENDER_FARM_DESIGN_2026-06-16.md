@@ -1,6 +1,8 @@
 # M-RE-2 Render Farm Foundation Milestone
 
 作成日: 2026-06-16
+最終更新: 2026-08-15
+ステータス: in-process／RPC／HTTP の基盤実装済み、実成果物・障害復旧・runtime 受入れ待ち
 対象: `ArtifactCore/src/Network/NetworkRPCServer.cppm`,
       `ArtifactCore/src/Render/RendererQueueManager.cppm`,
       `Artifact/src/Widgets/Render/RenderQueueManagerWidget.cppm`,
@@ -16,6 +18,14 @@
 - `docs/analysis/FEATURE_AUDIT_MOTION_DESIGN_2026-06-02.md` (#28 Render Farm, #29 Queue checkpoint)
 - `docs/planned/MILESTONE_RENDER_BOUNDARY_SAFETY_GATE_2026-04-21.md`
 - `docs/done/MILESTONE_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md`
+
+## Update 2026-08-15
+
+現行コードを再照合した。`FarmWorkerMain` は worker ID／version／pool／maintenance の登録情報を受け取り、割り当てられた frame range を外部 renderer 実行へ変換する。job／frame timeout、retry 最大回数、初期 backoff、成功・失敗 frame 通知までの実装がある。`RenderFarmSharedBuffer` と `IPCChannel` には共有メモリ／socket の transport 基盤もある。
+
+- したがって旧文書の「out-of-process worker は Phase 4 以降」「retry／worker 実行は未着手」という説明は、現行コード全体の説明としては古い。
+- 一方、master 側の複数 worker 分配、固定範囲の checkpoint 復元、heartbeat による dead worker 再配分、farm 全体の progress／log 集約、認証・暗号化、実運用の runtime 受入は確認できない。
+- 判定は **worker 実行・timeout／retry・transport の部品は実装済み、Render Farm の orchestration／checkpoint／健全性統合は未完了** とする。
 
 ---
 
@@ -338,3 +348,11 @@ struct RenderJobResult : UtilityJobResult {
 `ProgressAggregator` は worker 別 completed/failed/current frame と ETA を集計でき、`LogCollector` は callback と JSONL 出力を持つが、RenderQueueManagerWidget / Problem View への runtime 表示、farm log directory への実運用接続、診断イベントの一貫した収集は未確認である。RPC server/client の heartbeat 足場はあるものの、out-of-process worker の discovery、認証、dead 検出後の再割当、実ネットワーク経路の検証は残っている。
 
 判定: Phase 1 は static partial、Phase 2/3 は基盤 partial、Phase 4 は RPC/heartbeat scaffolding。実フレーム成果物、failure manifest の永続契約、再配分、UI/Problem View、runtime の done criteria は未完了。
+
+## 10. 現行コード監査 (2026-08-15)
+
+- `RenderFarmMaster`／`RenderFarmWorker`、`RenderFarmTypes`、`CheckpointStore`、`ProgressAggregator`、`LogCollector` の主要契約と queue service からの接続を再確認した。
+- RPC／HTTP server、remote worker の認証 token／TLS 設定、maintenance、worker snapshot の API も存在するが、これらは transport／管理面の基盤であり、実 worker の discovery・再接続・再配分を証明するものではない。
+- 実フレーム成果物の収集、非連続 range の checkpoint 復元、dead worker の未完了 frame 再配分、farm 状態の Problem View／queue UI への runtime 反映は未検証。
+
+判定: **farm foundation は実装済み。分散レンダーとしての end-to-end 完了、障害復旧、成果物整合、runtime 受入れは pending。**

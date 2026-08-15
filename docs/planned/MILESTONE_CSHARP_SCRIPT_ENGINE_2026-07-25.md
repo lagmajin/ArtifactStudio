@@ -1,9 +1,18 @@
 # MILESTONE_CSHARP_SCRIPT_ENGINE_2026-07-25
 
 **ステータス:** Partial（C# engine と hostfxr 経路を実装済み。CMake 定義、複数プラットフォーム対応、Script export、実環境検証は未完了）
+**最終更新:** 2026-08-15
 **対象:** `ArtifactCore/include/Script/CSharpScriptEngine.ixx`, `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
 **位置づけ:** PythonEngine / AngelScriptEngine と同じ Singleton+Pimpl パターンで C# スクリプトエンジンを実装。
 **作成日:** 2026-07-25
+
+## 2026-08-15 現行コード監査
+
+`CSharpScriptEngine.ixx`／`.cppm` と hostfxr の Windows 動的ロード、runtimeconfig 解決、assembly load／evaluate、error state の経路は現行ソースに存在する。Inspector／layer の Script component・binding 表示も別のアプリ導線として確認できる。
+
+一方、`ARTIFACT_HAS_DOTNET` の CMake 定義、`Script.ixx` の composite export、Linux／macOS の hostfxr 経路、C# script の安全な sandbox／permission 契約、UI からの execute／export、実 .NET runtime での end-to-end 検証は未確認。ビルドを行っていないため、モジュール登録とリンク成立は静的確認を超えて断定しない。
+
+判定: **C# engine のコード基盤は部分実装、build integration／cross-platform／安全境界／runtime 検証は pending。**
 
 ## 1. 目的
 

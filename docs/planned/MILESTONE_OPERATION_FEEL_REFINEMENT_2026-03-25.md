@@ -2,6 +2,14 @@
 
 > 2026-03-25 作成
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+現行コードでは、FrameChanged の coalescing／queued dispatch、Playback Service の maintenance debounce、AI／mixer／preview の遅延更新、EventBus による project／composition／layer／selection／frame の状態配信、visible widget を意識した更新経路が確認できる。drag／scrub／property 編集には既存の軽量更新と確定処理の分離もある。
+
+一方、全対象 widget で coalesce／throttle の契約が統一されているわけではなく、Timeline／Composition／Inspector／Project／Asset の repaint／relayout 回数、長尺 timeline の仮想化、GPU／software fallback の操作応答性を横断的に受入した証拠はない。Phase 1〜3 は部分的に実装、Phase 4 と全体の操作感 parity／runtime 計測は継続課題とする。
+
 ## 目的
 
 機能を増やすのではなく、既存機能の「触ったときの気持ちよさ」を上げる。

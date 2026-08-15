@@ -1,6 +1,7 @@
 # マイルストーン: OFX プラグインサポート実装
 
 作成日: 2026-04-18
+**最終更新:** 2026-08-15
 優先度: 🔴 最高
 対象バージョン: M13
 
@@ -43,6 +44,16 @@ OpenFX (OFX) 標準プラグイン規格のサポートを実装し、Nuke / DaV
 - ⏳ 既存エフェクトスタックとの完全互換: まだ未着手
 
 現時点では「OFX プラグインを見つけて host に載せる土台」を優先しており、実レンダリングや完全な param bridge はこれからです。
+
+## Update 2026-08-15
+
+現行コードを再照合した結果、4月時点より実装範囲は広がっている。
+
+- `ArtifactOfxHost` は OFX プラグインの探索・ロード、`fetchSuite`、Property／Param の基本操作、`Load / Describe / DescribeInContext` 相当の自己記述取り込みを持つ。
+- `ArtifactOfxEffectImpl` は OFX エフェクトを通常のエフェクト生成経路へ接続し、パラメータ型の基本変換、`ofx.mix`／`ofx.bypass`、画像バッファを渡すレンダー呼び出し、プラグインごとの render instance を実装している。
+- エフェクト一覧・メニュー・Inspector には OFX カテゴリ、Plugin Manager、再スキャン、ロード済みプラグイン表示の導線がある。
+- ただし OFX 1.4 完全互換とはまだ言えない。時間依存・キーフレーム API の多くは未対応または unsupported 扱いで、カスタム UI、深いパラメータ階層、GPU／Diligent テクスチャ共有、タイル／マルチスレッド、クラッシュ隔離、ブラックリスト、実プラグイン互換検証は未完了。
+- したがって現状判定は「ロードして基本パラメータと CPU 系レンダーを接続する実用的な骨格まで実装済み。完全な OFX エコシステム対応は未達」とする。
 
 ---
 
@@ -165,6 +176,12 @@ cmake/FindOFX.cmake
 - [`plans/AFTER_EFFECTS_GAP_ANALYSIS.md`](plans/AFTER_EFFECTS_GAP_ANALYSIS.md)
 - [`docs/planned/MILESTONE_GPU_EFFECT_PARITY_2026-03-27.md`](docs/planned/MILESTONE_GPU_EFFECT_PARITY_2026-03-27.md)
 
-## 2026-07-25 実装監査
+## 2026-08-15 現行コード監査
+
+OFX header／loader、`ArtifactOfxHost` の property／parameter／image-effect suite、Load／Describe／DescribeInContext、plugin metadata、render instance／begin-sequence、CPU frame-buffer path、`ArtifactOfxEffectImpl` の EffectService 登録と preview property 公開を現行コードで確認した。`paramGetValue`／`paramSetValue` を含む基本 parameter read/write と group/path の保持も存在する。
+
+旧文書の「host に載せる土台のみ」という説明は、CPU effect 経路と parameter bridge の範囲では更新が必要。ただし time-value／key、GPU／GL・CL・DX texture sharing、tiling／multithreading、専用 Inspector、preset／copy、複数実プラグイン互換性、runtime検証は未完了で、OFX 1.4 完全実装・メジャープラグイン動作保証とは判定しない。
+
+## 2026-07-25 実装監査（履歴）
 
 OFX ヘッダー接続、動的ライブラリ走査、`ArtifactOfxHost` の property／parameter／image-effect suite、Load／Describe／DescribeInContext、プラグイン記述の読み込み、`ArtifactOfxEffectImpl` の render instance／begin-sequence／CPU frame buffer 経路、既存 EffectService への `ofx.*` 登録と preview property 公開は実装を確認した。一方、OFX parameter suite の時刻値・キー操作は unsupported のままで、GPU／GL・CL・DX テクスチャ共有、タイル・マルチスレッド契約、専用 Inspector、プリセット／コピー、複数実プラグインでの互換性は確認できない。したがって Phase 1 と Phase 2 の一部、CPU レンダーの基本経路は部分実装、GPU／高度な時間依存・スタック互換は未完了・runtime 未検証とする。

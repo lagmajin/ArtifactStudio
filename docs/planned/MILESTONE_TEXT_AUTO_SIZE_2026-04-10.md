@@ -1,6 +1,7 @@
 # テキストレイヤーのオートサイズ調整の実装
 **マイルストーン**: M-TX-1 Text Layer Auto-Size Adjustment
 **作成日**: 2026-04-10
+**最終更新**: 2026-08-15
 **見積もり**: 5-7h
 **優先度**: Low (細かいUX改善)
 
@@ -8,6 +9,12 @@
 
 After Effects のテキストレイヤーで、文字数変更時に自動的にバウンディングボックスを調整する。
 テキスト編集時の手動調整の手間を減らす。
+
+## Update 2026-08-15
+
+- `ArtifactTextLayer` には `text.layoutMode`、`text.maxWidth`、`text.boxHeight` があり、`maxWidth = 0`／`boxHeight = 0` を自動幅・自動高さとして扱う説明と、glyph bounds／source size の計算経路を確認できる。
+- Text Property 側への layout mode、最大幅、高さ、wrap、alignment などの表示・保存経路は実装済み。文字内容や font size、source-text keyframe も既存の property／JSON 経路に接続されている。
+- ただし仕様にある `Off / Width / Height / Width and Height` の明示的 Auto-Size モード、アンカー固定方向、`Scale to Fit / Scale to Fill`、最小／最大サイズ制限、変更時の専用 undo／runtime 受入は現行コード上で未確認。現状は「自動幅／固定幅・自動高さ」のレイアウト設定が中心で、マイルストーン全体は部分実装。
 
 ## 機能仕様
 

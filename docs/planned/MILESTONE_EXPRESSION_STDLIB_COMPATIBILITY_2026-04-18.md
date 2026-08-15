@@ -1,6 +1,7 @@
 # MILESTONE: After Effects エクスプレッション標準ライブラリ互換性
 
 作成日: 2026-04-18
+**最終更新:** 2026-08-15
 優先度: 🔴 最高
 推定工数: 3日
 
@@ -20,8 +21,14 @@
 ✅ 評価エンジン: 実装済み
 ✅ 演算子優先順位: 基本実装あり
 ✅ 値型システム: Number/Array/Vector/String 対応
-❌ AE標準グローバル変数: 未実装
-⚠️ AE標準ライブラリ関数: 一部実装済み、互換ギャップあり
+⚠️ AE標準グローバル変数: `thisComp`／`thisLayer` は一部 context 注入、全プロパティ契約は未完了
+⚠️ AE標準ライブラリ関数: 基本数学・補間・乱数・音声・`valueAtTime`・loop系は実装、互換ギャップあり
+
+## 現行コード監査 (2026-08-15)
+
+`ExpressionEvaluator::registerStandardFunctions()` で sin/cos、linear/ease、clamp、vector、random/noise、wiggle/smooth、audio、`valueAtTime`、`loopIn/Out`、duration版が登録されている。loop系は `keyframes`／`time`／`value` context、cycle／pingpong／continue／offset、0／1キーフレームのフォールバック、duration／keyframe count を扱う実装がある。
+
+旧表の「loop系未実装」および標準関数の未登録という判定は現状と一致しない。一方、`index`、AEの追加グローバル／レイヤー API、`posterizeTime`／`seedRandom`／`toWorld` 系、time remapとの完全な組み合わせ、AE互換の網羅受入は未確認である。基本stdlib基盤は実装済みだが、マイルストーン全体は未完了とする。
 
 ---
 

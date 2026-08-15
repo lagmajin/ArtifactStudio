@@ -1,11 +1,12 @@
 # マイルストーン: アセットブラウザー デザイン監査 (2026-07-04)
 
+**最終更新:** 2026-08-15
 > 作成: 2026-07-04
 > 元依頼: 「アセットブラウザーのデザインをもっと見やすくできるか、問題点は？」
 
 ## 監査サマリー
 
-`ArtifactAssetBrowser.cppm`（3,500行）のコードと、既存の計画文書群を横断的に分析した結果をまとめる。基本機能は揃っているが、Unity/Blender 級のアセットブラウザーと比較すると、以下の領域で見劣りする。
+`ArtifactAssetBrowser.cppm`（現行 5,550 行）のコードと、既存の計画文書群を横断的に分析した結果をまとめる。基本機能は揃っているが、Unity/Blender 級のアセットブラウザーと比較すると、以下の領域で改善余地が残る。
 
 ---
 
@@ -126,6 +127,14 @@
 - QtCSS / `setStyleSheet()` の新規追加は禁止。見た目調整は `QPalette`、owner-draw、`QProxyStyle`、既存 theme token で解決する。
 - `QColorDialog` の新規使用禁止。色選択は `FloatColorPicker` を使用する。
 - 新規シグナル＆スロット接続は禁止。既存のイベント経路やサービスを再利用する。
+
+## 2026-08-15 現行コード監査
+
+- `AssetCardDelegate` による grid card の owner-draw、hover/selection 枠、Favorite の星、Imported/Missing/Unused の状態ドット、metadata 表示が実装されている。従って「owner-draw と状態バッジが未実装」という旧 P0/P1 記述は現状と一致しない。
+- grid/list 切替、thumbnail size slider、disk/memory thumbnail cache、mtime 判定、async thumbnail/waveform、hover popup、search/type/status filter、sort、sequence 表示、Viewer への導線を確認した。
+- それでも File Details は簡易表示で、タグ、依存関係、高度な複数キーソート、内部 D&D 移動、sequence の個別展開、AI 支援は未完了または別 milestone の範囲である。
+- 5,550 行の単一 `.cppm` に thumbnail/backend、filter/model、file operation、hover preview、UI を抱えており、責務分割は継続課題。
+- 大量アセット時の描画密度、hover preview の体感、Missing/Unused の実データ整合性は runtime 未検証。ビルド・実行確認は行っていない。
 
 ## 2026-07-25 実装監査（更新）
 

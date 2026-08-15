@@ -2,6 +2,9 @@
 
 > 2026-04-09 作成
 
+**最終更新:** 2026-08-15
+**ステータス:** MFR scheduler／in-flight／progress 基盤は部分実装、安全性・全 backend parity の検証待ち
+
 ## 目的
 
 Render Queue の書き出しを、1 フレームずつ直列に処理する方式から、複数フレームを同時に進められる Multi-Frame Rendering (MFR) へ段階的に移行する。
@@ -158,6 +161,14 @@ MFR を安全に使えるようにする。
 一方、composition/job/playback state の immutable snapshot 契約、GPU backend を含む全経路の frame-safe scheduler、cache eviction と memory upper bound の統一、UI の明示的な MFR opt-in / fallback 操作、cancel / resume の実出力検証は未確認である。並列数や farm の存在だけで、MFR の Definition of Done 達成とは判定しない。
 
 ### Audit status
+
+2026-08-15 現行コード監査:
+
+- `ArtifactRenderQueueService` に MFR 相当の分岐、`maxInFlightFrames_`、farm／frame progress／export 処理があり、`RenderSettings`／`RenderJobModel` に multi-frame 設定を確認した。
+- `MFRDispatcher` に複数 worker、retry／backoff、progress callback、cancel／continue-on-error の基盤があり、`FrameCache` に memory／count 制限、generation、eviction、prefetch cancel がある。
+- ただし、immutable frame snapshot の全経路適用、GPU backend を含む frame-safe scheduler、memory upper bound の実測、UI の明示 opt-in／直列 fallback、cancel／resume 後の実出力整合は未検証。
+
+判定: **「未着手」ではなく、export MFR の基盤実装済み・安全性検証待ち。**
 
 - Phase 1: 部分実装 — frame scheduler の入力・並列化基盤はあるが、immutable snapshot 契約未確認
 - Phase 2: 部分実装 — CPU/export 側の複数 worker と in-flight 上限を確認。全 backend / cancel safety 未確認

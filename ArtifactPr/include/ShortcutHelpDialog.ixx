@@ -2,6 +2,9 @@ module;
 
 #include <QDialog>
 #include <QTextEdit>
+#include <QTableWidget>
+#include <QKeySequenceEdit>
+#include <QHash>
 #include <QWidget>
 
 export module ArtifactPr.ShortcutHelpDialog;
@@ -19,4 +22,6 @@ public:
 private:
     QWidget* keyboardPreview_ = nullptr;
     QTextEdit* textEdit_ = nullptr;
+    QTableWidget* editorTable_ = nullptr;
+    QHash<QString, QKeySequenceEdit*> editors_;
 };

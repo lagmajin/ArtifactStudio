@@ -3,6 +3,16 @@
 > 2026-06-13 作成  
 > 既存: `ArtifactGlitchEffect`（チャンネルオフセット）、`TurbulentDisplaceEffect`、`WaveEffect`
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+- `VectorFlowGlitch` の Core processor と `VectorFlowGlitchEffect`、`ChromaticReliefEffect` は実装され、`ArtifactEffectService` の catalog／Inspector 入口へ登録されている。
+- Glitch は rasterizer の CPU implementation に加え、既存 `ArtifactGlitchEffect` の GPU compute／Transition 系の経路がある。Mosaic／Auto Mosaic／Turbulent Displace も利用可能な基盤として確認できる。
+- `TemporalFossilEffect` は Core の history／decay 処理として存在するが、通常の Layer effect catalog・GPU composition path への完全接続は未確認。
+- `QuantumGlitch`、`SignalCollapse`、`InkDelay／DitherBleed` の提案名に対応する完成 effect は現行ソースで確認できない。
+- 判定: **提案の一部（VectorFlow／ChromaticRelief／Glitch 系）は実装済み。残りの提案 effect と runtime／CPU-GPU parity は未完了または未検証。** ビルド・テストは未実施。
+
 ---
 
 ## 既存エフェクト分析

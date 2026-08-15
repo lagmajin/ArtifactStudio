@@ -2,6 +2,14 @@
 
 日付: 2026-06-07
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+- 現行コードを再確認したが、一般編集を本番データから分離する `SandboxEdit`／session／snapshot の専用モデル、Enter／Compare／Apply／Discard の一体化した UI／サービスは確認できない。
+- 既存の Undo snapshot、Composition の before／after preview、AI Command Sandbox、各種 preview cache は限定目的の仕組みであり、編集全体を隔離する sandbox の証拠にはならない。
+- よって Phase 1〜3 は未実装扱いを維持する。特に discard／apply と既存 undo／保存状態の境界、runtime での安全性は未検証。
+
 試しに変更して、比較して、気に入らなければ破棄できる一時編集モードを作る。
 
 ## 2026-07-25 実装監査

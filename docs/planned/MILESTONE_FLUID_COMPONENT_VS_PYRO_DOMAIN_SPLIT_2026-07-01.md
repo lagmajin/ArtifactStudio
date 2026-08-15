@@ -1,5 +1,13 @@
 # Fluid Component vs Pyro Domain Split (2026-07-01)
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+`FluidSolver2D` は `PhysicsSystem` の layer／component 寄りの軽量 preview 経路にあり、LOD による解像度・反復数制御も確認できます。`PyroSimulation` は `ArtifactCore` の独立 domain として、3D field、fixed timestep、source／collider、checkpoint、seek、`PyroFrameSnapshot` を持ちます。この責務分離は現行コードと整合します。
+
+ただし、Pyro の GPU backend は enum／契約上の存在に留まり、通常の layer emitter／collider、renderer extraction、cache／bake／queue render への統合は確認できません。Fluid の particle／clone influence への本番接続と、両経路の runtime parity も未検証です。
+
 `fluid` と `pyro` を同じ「流体」という言葉でまとめず、
 今の `LayerComponentPhase` / generator / field / modifier / simulation contract に沿って
 役割を分離するための方針。

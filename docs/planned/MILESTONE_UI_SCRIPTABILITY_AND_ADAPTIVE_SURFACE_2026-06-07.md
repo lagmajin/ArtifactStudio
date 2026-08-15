@@ -1,6 +1,8 @@
 # UI Scriptability And Adaptive Surface Milestone
 
-## Static Audit (2026-07-25)
+**最終更新:** 2026-08-15
+
+## Static Audit (2026-08-15)
 
 現状は `WorkspaceAutomation`／`CommandIR` による検証付きの操作 API、workspace の保存・復元、既存 widget の theme token／`QPalette` 利用、context shortcut helper などの部品は存在する。一方、このマイルストーンが求める「UI surface を定義から再構成する」統合モデルは確認できない。
 
@@ -389,3 +391,7 @@
 
 この文書のうち、現状でコードに近いのは `High DPI` と `theme` の方向性で、
 `scriptable surface` と `contextual keymap` はまだ設計要求として残っている。
+
+## 現行コード監査 (2026-08-15)
+
+`WorkspaceAutomation`／`CommandIR` の検証付き command facade、workspace 保存・復元、theme token／`QPalette`、個別 shortcut helper は現行コードで確認できる。一方、surface registry、定義からの panel／layout 再構成、context 別 keymap model、timeline density／column policy の共通保存、1x／1.5x／2x・high-contrast の runtime parity は確認できない。従って基盤部品は実装済みだが、scriptable surface と adaptive policy の統合 milestone は未完了とする。

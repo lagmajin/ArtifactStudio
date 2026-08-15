@@ -1,5 +1,12 @@
 # Automation Helpers (2026-03-27)
 
+**最終更新:** 2026-08-15
+
+### 2026-08-15 follow-up
+
+- Command Palette の JSON MRU 復元で空 ID と重複 ID を除外し、再起動後の順位情報を正規化するようにした。
+**判定:** Command Palette／Recipe／WorkspaceAutomation の基盤は実装済み。外部向け macro／全 workflow の runtime 受入れは未完了。
+
 ## Goal
 
 制作中の定型作業を少しずつ自動化できる土台を作る。
@@ -33,3 +40,9 @@
 - usage count + recency boostでPalette項目をstable sortし、日常的な操作を自動的に上位表示する
 - Paletteから任意commandをPin / Unpinでき、favorite boostをusage rankingより優先する
 - usage countとrecent historyだけを初期化するReset actionを追加（PinとRecipeは保持）
+
+## 2026-08-15 現行コード照合
+
+`WorkspaceAutomation`、`CommandIRExecutor`、AI tool bridge、interactive shell、Render Queue API を確認した。レイヤー／コンポジション／エフェクト／キーフレーム／アセット／再生／レンダーキューの操作が共通の automation surface に登録され、Command Palette の Recipe、pin、usage／recent 永続化も実装されている。batch rename／project item 移動、render queue 編集・開始・状態取得の API も確認できる。
+
+一方、DoD の「繰り返し操作を再利用できる」は API／descriptor の静的存在だけでは保証できない。Undo 境界、失敗時の部分適用、再起動後の Recipe の全 action、外部 script／macro の長時間運用、UI と AI／CLI の結果整合は runtime 未検証。今回はビルド・テストを実行していない。

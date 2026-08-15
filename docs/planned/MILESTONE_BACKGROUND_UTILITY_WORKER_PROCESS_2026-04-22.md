@@ -2,6 +2,22 @@
 
 > 2026-04-22 作成
 
+**最終更新:** 2026-08-15
+
+## 2026-08-15 現行コード監査
+
+共有 `QThreadPool`／background thread の基盤、Asset Browser の非同期 thumbnail／waveform 生成、画像シーケンス走査、Proxy／MCP／Farm など個別の worker 経路は存在する。しかし、この milestone が想定する `UtilityJobRequest/Result`、共通 scheduler／task registry、cancel／retry／dedupe 契約、全対象を横断する `UtilityWorkerClient` または専用 utility process は確認できなかった。`FarmWorkerMain` と `McpTransport` は別用途の process boundary であり、汎用 utility worker の証拠には含めない。
+
+判定: **個別の in-process 非同期処理は部分実装、共通 Job Contract／Worker Runtime／out-of-process 境界／Diagnostics 統合は未着手。**
+
+## Update 2026-08-15
+
+現行コードを再確認した。`FarmWorkerMain`／`NetworkRPCClient`／`NetworkRPCServer` は render farm 用の別用途 worker として、job assignment、frame progress／log、heartbeat、timeout、cancel／resubmit 等を持つ。一方、Asset Browser の thumbnail 等は個別の非同期経路に留まる。
+
+- `UtilityJobRequest/Result/Progress` を中心とした汎用 utility contract、共通 scheduler／task registry、dedupe／cancel／retry を全対象へ適用する実装は確認できない。
+- したがって farm の機能拡張を、この utility worker milestone の達成証拠には含めない。
+- 判定は **個別非同期処理と farm worker は存在するが、汎用 utility worker runtime／共通契約／専用 process は未完了** を維持する。
+
 ## 目的
 
 サムネイル生成、waveform 生成、proxy 生成、素材メタデータ抽出などの「雑用」を、将来的に UI / render 本体から分離できる専用ワーカープロセスへ整理する。

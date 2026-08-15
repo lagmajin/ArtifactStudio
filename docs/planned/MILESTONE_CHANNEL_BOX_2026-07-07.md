@@ -2,6 +2,8 @@
 
 作成日: 2026-07-07
 ステータス: In Progress（Inspector内の基本Channel Boxを実装、操作拡張を継続）
+**最終更新:** 2026-08-15
+現行判定: 基本 Channel Box、Key All／Key Selected、Lock／Unlock、設定復元は実装済み。複数チャンネル選択、Graph Editor／DopeSheet 連携、プロジェクト単位の専用永続化は未完了。
 対象: `Artifact/src/Widgets/Inspector/ArtifactInspectorWidget.cppm`,
       `Artifact/src/Widgets/Property/ArtifactPropertyWidget.cppm`,
       `Artifact/src/Widgets/Property/ArtifactPropertyEditor.cppm`,
@@ -24,6 +26,10 @@
 - 表示中チャンネルをまとめて Lock／Unlock し、ロック行を編集不可・暗色状態にする操作を追加。
 - ロック状態をレイヤーID単位で `QSettings` に保存し、再表示時に復元するようにした。
 - 明示的な複数チャンネル選択、Graph Editor／DopeSheet 絞り込み、プロジェクトJSONへの専用永続化は未完了。
+
+## Update 2026-08-15
+
+Inspector内の基本Channel Box、Transform／Opacity行、直接編集・スクラブ・キー表示、Key All／Key Selected、Lock／Unlock、Undo、QSettingsによる復元を現行コードで確認した。残るのは明示的な複数チャンネル選択、Graph Editor／DopeSheet連携、プロジェクト単位の専用永続化、Problem View警告、runtime受入である。
 
 ---
 
@@ -65,7 +71,9 @@ Channel Box は Inspector の補完 UI として、
 | `ArtifactPropertyEditor` | `ArtifactPropertyEditor.cppm` | property 編集の共通基盤 |
 | `AnimatableValue<float>` | `ArtifactCore/include/Animation/AnimatableValue.ixx` | `hasKeyframeAt(RationalTime)` でキーの有無判定可能 |
 
-### 2.2 不足
+### 2.2 不足（実装前のスナップショット）
+
+以下の表は Channel Box 実装前の 2026-07-07 時点の記録であり、現行状態の判定には上記の 2026-08-15 監査を使用する。
 
 | 軸 | 状況 | 影響 |
 |---|---|---|

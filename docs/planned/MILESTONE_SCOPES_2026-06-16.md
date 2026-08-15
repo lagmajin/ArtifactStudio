@@ -1,7 +1,8 @@
 # M-SCOPES-1 Scopes Milestone (Vector / Waveform / Parade)
 
 作成日: 2026-06-16
-ステータス: Draft
+最終更新: 2026-08-15
+ステータス: CPU／GPU scope 計算基盤は実装済み、統一 live panel／OCIO／保存・診断は未完了
 対象: `Artifact/src/Widgets/Viewer/ArtifactContentsViewer.cpp`,
       `Artifact/src/Widgets/Color/ArtifactColorSciencePanel.cppm`,
       `Artifact/src/Widgets/Color/ArtifactColorSwatchWidget.cppm`,
@@ -370,3 +371,13 @@ QMatrix4x4 displayMatrix = OCIOManager::instance().sceneToDisplay(displayCS, cur
 ただし、設計どおりの `ScopeFrame` / `ScopeFrameBuilder`、統一 `ScopePanel`、live composition frame の非同期更新、OCIO display-role 整合、intensity/sample-step 設定、highlight/shadow/gamut diagnostics、project 保存、Problem View 接続は確認できない。既存 CPU renderer は `QImage` 入力/出力であり、本 milestone の typed-buffer hot-path guardrail とも未整合である。skin-tone line、60fps上限、旧ParadeScopeとの統合受け入れも未検証。
 
 判定: 計算・shader の基盤は partial、Phase 1〜7 の統一 panel／live／保存／diagnostics は未完了。
+
+## 現行コード監査 (2026-08-15)
+
+- `ColorScopeRenderer` は Waveform／Vectorscope／Histogram／Parade の CPU renderer を持ち、`Graphics.Compute.ScopeComputer` と `ScopeWaveform`／`ScopeVectorscope`／`ScopeParade` shader も存在する。GPU 側の bin 計算基盤は当初監査より進展している。
+- `ArtifactContentsViewer` の既存 scope 入口、`ArtifactHDRMonitor` の vectorscope 関連、Color Grading の scope 型は確認できる。`PerformanceProfiler` と Trace の scope 記録もあり、計算・診断素材は複数経路に存在する。
+- ただし `ScopeFrame`／`ScopeFrameBuilder`、Vector／Waveform／Parade を一つに束ねる `ScopePanel`、composition の最終 frame からの非同期 live 更新、sample step／intensity／skin-line UI は確認できない。
+- CPU renderer は `QImage` 入出力と `QPainter` を使うため、typed float buffer を新規 hot path に使う設計目標とは未整合。GPU bin 結果を表示へ接続する共通契約も未確認。
+- OCIO display-role 追従、highlight／shadow／gamut の Problem View 診断、scope 設定の project 保存、HDR／runtime 受入れは未完了。
+
+判定: **scope の CPU／GPU 計算基盤と既存表示の断片は実装済み。統一 panel、composition live 更新、色管理整合、保存・診断、QImage hot-path 整理は pending。**

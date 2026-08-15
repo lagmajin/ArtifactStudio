@@ -6,6 +6,13 @@
 **現状**: `QSharedMemory` 使用ゼロ。mmap ゼロ。GPU テクスチャのプロセス間共有ゼロ。全プロセス間通信が TCP（RenderFarm）、QLocalSocket（ProjectBundleIpc）、QProcess stdin/stdout（Sandbox/MCP）のストリームベース。農場ローカルワーカーの出力は全フレームがファイルシステム経由。
 **目標**: GPU テクスチャのプロセス間ゼロコピー共有（Vulkan external memory + D3D11 shared handle）、ローカルレンダーファーム用共有メモリリングバッファ、汎用 `SharedMemoryRingBuffer` ユーティリティ。
 
+## Update 2026-08-15
+
+- 「`QSharedMemory` 使用ゼロ」という冒頭の現状記述は古い。`ArtifactCore/src/IPC/SharedMemoryRingBuffer.cppm` に SPSC 可変長リング、wrap marker、CRC32C、統計、セマフォ通知、blocking read、reconnect／persistent 状態の基盤が実装されている。
+- `RenderFarmSharedBuffer` は `ImageF32x4_RGBA` の RGBA32F frame payload をリングへ書込み・読出しする producer／consumer API を持ち、`IPCChannel` には SharedMemory／QLocalSocket／QTcpSocket／QProcess の transport 抽象と shared-memory の `sendZeroCopy` 経路がある。
+- ただし現行コード検索では、RenderFarm の通常実行経路、Sandbox の画像結果、GPU external memory／D3D11 shared handle／Vulkan external memory への実接続は確認できない。ファイル経由・既存ストリーム経路を置き換えたとは判定しない。
+- 100,000エントリのプロセス間試験、4K 128MB wrap、persistent 異常終了復旧、4K実測、transport fallback の実測結果は確認できない。現状は `Phase 1 / P3 / P4 foundation implemented; production integration, GPU sharing, and runtime validation pending` と整理する。
+
 ### 実装進捗（2026-08-05）
 
 - P1 の `SharedMemoryRingBuffer` を追加。共有メモリ上の SPSC 可変長リング、ラップマーカー、CRC32C、統計、セマフォ通知、タイムアウト読取、再接続 API を実装。

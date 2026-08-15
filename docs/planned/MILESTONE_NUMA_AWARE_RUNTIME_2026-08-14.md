@@ -1,7 +1,11 @@
 # NUMA-Aware Runtime Foundation Milestone
 
-**最終更新:** 2026-08-14
+**最終更新:** 2026-08-15
 **ステータス:** Not Started
+
+## 現行コード監査 (2026-08-15)
+
+Artifact／ArtifactCore の現行ソース、CMake、Diligent device 管理経路を確認したが、NUMA topology query、preferred-node allocation、processor-group／thread affinity、NUMA diagnostics の専用実装は見つからなかった。`std::thread` や既存の bounded worker pool は存在するものの、NUMA-aware である根拠にはならない。従って本マイルストーンの `Not Started` 判定は維持する。なお、NUMA対応を理由に既存 worker pool や Diligent backend を先に変更する根拠も現状にはない。
 
 ## 目的
 

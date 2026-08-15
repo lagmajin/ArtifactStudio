@@ -1,6 +1,7 @@
 # カラーピッカーの拡張機能
 **マイルストーン**: M-CP-1 Enhanced Color Picker
 **作成日**: 2026-04-10
+**最終更新**: 2026-08-15
 **見積もり**: 8-10h
 **優先度**: Low (細かいUX改善)
 
@@ -56,6 +57,15 @@ After Effects のカラーピッカーをより使いやすく拡張。
 - 各種カラーモードの正確な変換
 - 最近使った色の保存/読み込み
 - システム統合の動作確認
+
+## 2026-08-15 現行コード監査
+
+- `FloatColorPicker` は Property Editor、各種ダイアログ、Palette、Project View、Tool Options から共通利用されている。HDR／float 色を扱う既存導線も確認できる。
+- `ColorPaletteWidget` には色抽出・調和色・JSON 保存／読込があり、単純なカラーピッカー基盤を未実装とする旧判定は現状に適用しない。
+- 一方、Wheel／Spectrum／Sliders／System の明示タブ、24色 recent grid、透明度 preview、color-blind 表示、clipboard／hex 表示は確認できない。`QColorDialog` の新規導入はプロジェクト方針上対象外。
+- 高DPI、色変換精度、recent／picker 設定の永続化、runtime 操作は未検証。
+
+判定: **共通 float picker と既存の palette／HDR 基盤は実装済み。専用拡張 UI、recent／accessibility workflow、runtime 検証は pending。**
 
 ## 2026-07-25 実装監査
 

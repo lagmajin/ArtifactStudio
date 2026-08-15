@@ -1,5 +1,6 @@
 # Milestone: Asset Browser Hover Preview (M-AB-4)
 
+**最終更新:** 2026-08-15
 2026-07-30 implementation loop: generation-mismatched image／video／audio thumbnail watchers are now disconnected, cancelled, and scheduled for deletion before replacement. Async preview UX and runtime verification remain pending.
 
 **マイルストーンID**: M-AB-4
@@ -7,7 +8,7 @@
 **優先度**: P1 (High)
 **推定工数**: 1-2日
 **カテゴリ**: Asset Browser / UX / Preview
-**状態**: Planned
+**状態**: 部分完了
 **依存**: M-AB (Asset Browser base)
 
 ---
@@ -1031,5 +1032,13 @@ void ArtifactAssetBrowser::Impl::handleLeaveEvent(QEvent* event) {
 - thumbnail はメモリ cache とディスク cache を持ち、非同期 preview job は generation token で古い結果を破棄する。画像・動画の WIC/OIIO/Shell/FFmpeg fallback も実装されている。
 - ただし専用 `HoverPreviewCache` / `HoverPreviewManager` の分離、popup 自体の非同期高解像度 preview、cache 上限の要件との一致、シーケンス専用 hover preview、画面端と高速移動時の runtime UX は未確認。
 - 従って初期 slice は大きく実装済みだが、全ファイル種別・性能・UX を含む本 milestone は Partial のまま。
+
+## 2026-08-15 現行コード監査
+
+- `ArtifactAssetBrowser.cppm` に 300ms の hover timer、mouse leave 時の hide、共有 `HoverPreviewPopup`、metadata 併記、同一 path の再表示抑制が存在する。
+- 画像・動画は非同期 preview thumbnail、音声は waveform thumbnail の生成経路があり、generation token と watcher の切断・cancel・削除で stale result を抑制している。
+- ただし popup 自体は専用高解像度 cache ではなく既存 icon/thumbnail と `QLabel` 表示を使う。動画は poster、音声は waveform thumbnail の確認に留まり、再生型 preview ではない。
+- `scheduleHoverPreview()` は timer ごとに接続を再構成するため、設計メモの「接続再構成を減らす」は未達。大量アセット時の遅延、popup 位置、実際の mouse leave 挙動は未検証。
+- よって基本要件は実装済みだが、専用 preview cache、高解像度品質、性能・runtime UX を含む milestone 全体は部分完了とする。
 
 ビルド・実行確認はリポジトリ方針により未実施。

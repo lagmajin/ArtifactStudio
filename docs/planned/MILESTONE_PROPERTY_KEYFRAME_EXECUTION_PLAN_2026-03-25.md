@@ -1,5 +1,7 @@
 # マイルストーン: Property / Keyframe 統合 実行計画
 
+**最終更新:** 2026-08-15
+
 > 2026-03-25 作成
 
 ## 目的
@@ -209,11 +211,15 @@ Timeline 上で property key を可視化・操作できるようにする。
 2. transform bridge の責務を 1 箇所に集める
 3. Inspector から keyframe を Core 直結にする
 
-## Static Audit (2026-07-25)
+## Static Audit (2026-08-15)
 
 `AbstractProperty` の keyframe 操作・補間・anchor／color label・JSON serialization、`PropertySerializationBridge`、Timeline の propertyPath ベースの marker／選択／移動／copy・paste・easing 相当の処理を確認できる。Workspace Automation からも propertyPath 指定の set/get/delete／batch keyframe API が Core の property へ到達する経路を持つ。Timeline の keyframe lane は `KeyframeAreaVisual` と `ArtifactTimelineKeyframeModel` を中心に構成されている。
 
 一方、実行計画の「全 derived layer の persistent property 統一」「AnimatableTransform3D との単一路線化」「Inspector の全 property 行の Core 直結」「全 layer type の lane 表示」「time remap との整合」は静的検索だけでは完了を証明できない。`ArtifactAbstractLayer` は persistent property と transform3D の両 API を併存させており、Video／Camera／Light／effect／mask／text を含む全経路の source-of-truth 一致、refresh 後の object identity、playback／gizmo／render の一致、runtime の keyframe 保存・再読込は未検証である。
 
 判定: **Core／Timeline の主要基盤は実装済み。** Phase 1〜3 と Phase 4 の一部は確認できるが、transform bridge の完全統一、全 derived layer 展開、Phase 5〜6、runtime／build 検証が残っている。
+
+### Current-Code Recheck (2026-08-15)
+
+親の統合文書と現行コードの再照合でも、`AbstractProperty`／propertyPath／Timeline lane／Workspace Automation の共通基盤は確認できる。未完了判定は変わらず、`AnimatableTransform3D` と persistent property の二重経路、全 derived layer・effect・mask・time remap の統一、playback／gizmo／render の値一致、Graph Editor と runtime 保存・再読込は未確認である。実行計画は Phase 1〜3 完了相当、後続 Phase は継続中として扱う。
 

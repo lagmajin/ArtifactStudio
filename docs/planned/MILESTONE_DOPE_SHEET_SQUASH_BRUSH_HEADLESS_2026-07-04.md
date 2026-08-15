@@ -1,7 +1,8 @@
 # M-ANIM-HEADLESS-1 Dope Sheet / Squash & Stretch / Bitmap Brush Engine (UI統合なし)
 
 作成日: 2026-07-04  
-ステータス: Draft  
+**最終更新:** 2026-08-15
+ステータス: Dope Sheet の既存 keyframe 操作と PaintLayer／BrushTool は部分実装、Squash & Stretch／Bitmap Brush Engine の headless contract は未実装
 方針: **UI 統合はこの milestone では行わない**。`Timeline` / `Composition Editor` / `Property Panel` への常設導線は後続 slice に分離し、今回は **core / service / model / serialization / diagnostics / test seam** のみを整備する。
 
 参照:
@@ -31,6 +32,20 @@
 | UI separation | Dope Sheet widget / dock は別途存在するが、本書の core/service を UI 非依存で閉じた実装は未確認 | 未完了 |
 
 **判定**: 既存の低レベル部品は再利用可能だが、M-ANIM-HEADLESS-1 の Done 条件を満たす専用 core/service は未実装。次は Dope Sheet batch model と apply/undo contract を先に確定し、Squash & Stretch と Brush を別 service として分離する必要がある。
+
+## Current implementation audit (2026-08-15)
+
+現行コードを再確認した結果、2026-07-25 時点の判定から Dope Sheet 部分だけ進展している。専用の UI 非依存 service 3 系統が揃った状態ではない。
+
+| Workstream | 現行コードで確認できた実装 | 現時点の判定 |
+|---|---|---|
+| Dope Sheet core | `ArtifactTimelineKeyframeModel` が `DopeSheetKeyframeRef`／`DopeSheetKeyframeEntry` を持ち、layer の animatable property を収集。`offsetKeyframes` と `scaleKeyframes` は複数 ref をまとめて property へ反映する。`ArtifactDopeSheetWidget` もこの model を利用 | 部分実装。専用 Core module、duplicate／trim／selection summary、UI 非依存の 1 undo contract は未確認 |
+| Squash & Stretch | transform の通常 keyframe 編集は存在するが、`SquashStretchProfile`／速度分析／補助 scale bake／tagged rollback の専用実装は未確認 | 未実装 |
+| Bitmap Brush core | `ArtifactPaintLayer` が frame buffer、`BrushStroke` の apply／undo、clone stamp、JSON 保存を持ち、`ArtifactBrushTool` が press／move／release を stroke に変換。別途 `OpenCVRotoBrushEngine` は foreground/background stroke の roto 用 | 部分実装。bitmap tip／dab spacing／pressure・tilt・rotation を備えた UI 非依存 `BitmapBrushEngine` は未確認 |
+| Persistence / diagnostics | PaintLayer の stroke/frame データ保存と既存 Undo 経路はある | 未完了。3 workstream 共通 schema、操作単位の report／snapshot vocabulary、headless test seam は未確認 |
+| UI separation | Dope Sheet dock と BrushTool／Composition Editor の導線が存在する | 未完了。今回の core/service 契約を UI から独立して閉じた状態ではない |
+
+**更新後の判定**: M-ANIM-HEADLESS-1 は未完了。次の実装優先度は、既存 `ArtifactTimelineKeyframeModel` の batch 操作を undo／summary 付きの専用契約へ切り出し、その後に Squash & Stretch と bitmap dab engine を独立 service として追加すること。
 
 以下の 3 系統を、互いに UI 依存で詰まらないように独立した下層機能として先行整備する。
 

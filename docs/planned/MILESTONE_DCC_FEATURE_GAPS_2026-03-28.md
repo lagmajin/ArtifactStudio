@@ -1,5 +1,7 @@
 # DCC ツール機能ギャップ分析 (2026-03-28)
 
+**最終更新:** 2026-08-15
+
 ## 概要
 
 ArtifactStudio を After Effects / Nuke / Fusion / DaVinci Resolve 等の
@@ -59,3 +61,16 @@ ArtifactStudio を After Effects / Nuke / Fusion / DaVinci Resolve 等の
 4. **充実したレンダーキュー:** 多形式対応 + プリセット
 5. **AI 統合:** エクスプレッションコパイロット
 6. **パーティクル/MoGraph:** Clone Generator + エフェクタ + パーティクル
+
+## 2026-08-15 現行コード監査
+
+この表は 2026-03-28 時点のギャップであり、現行実装では複数項目が更新されている。
+
+- **アニメーション:** Motion Path overlay／編集、Auto-Orient、Curve Editor の Bezier／tangent／複数キー操作、Animation Layer の Additive／Override 基盤が実装済み。専用 timeline surface、Speed graph 編集、runtime 検証は未完了。
+- **色管理:** ACES／OCIO config、working/display/view、LUT、HDR、Color Science Panel が実装済み。色管理 UI の一部と全経路の parity 検証は未完了。
+- **インポート／エクスポート:** PSD／SVG／Lottie、OBJ／FBX の 3D viewer 経路などが追加済み。AEP／Nuke／Fusion の完全な相互運用、USD／Alembic の汎用 round-trip は未確認。
+- **レンダリング:** Render Queue、GPU encode/decode、Render Farm の基盤が存在する。実ファイル生成、分散再開、長時間 runtime は未検証。
+- **UI／ワークフロー:** Edit／Animation／View menu、Layer Panel の Frequent／All context menu、Python／CommandIR 系の基盤がある。共通 Menu Registry、ユーザー固有のメニュー履歴、完全な batch workflow は未完了。
+- **3D:** Camera／Light／Model viewer、solid／wireframe、overlay／gizmo の主要経路は実装済み。高度な material graph、完全な camera parity、3D animation／runtime 検証は未完了。
+
+判定: **旧表をそのまま現状の未実装一覧として使うことはできない。主要基盤は実装済みだが、DCC相互運用の完全性・高度機能・runtime／受け入れ検証が残る。**

@@ -2,6 +2,12 @@
 
 **最終更新:** 2026-08-14
 
+**ステータス:** Existing glyph GPU path / standalone runtime split pending
+
+## 現行コード監査 (2026-08-15)
+
+製品 Renderer 側には `GlyphAtlas`、atlas texture upload、glyph quad／transformed glyph submit、glyph PSO、coverage／color bitmap の入力経路が既に存在し、`PrimitiveRenderer2D` と `DiligentImmediateSubmitter` の debug state も確認できる。一方、`ArtifactRenderTextRuntime` という分離 module／link target と、同 runtime へ切り替えた standalone smoke の証拠は確認できない。したがって glyph 描画契約は部分実装、分離と4種 fixture の GPU 受入は未完と判定する。
+
 ## 目的
 
 `TextAnimatorLab` のGPU検証を、ArtifactCore全体・Audio・Video・Particleのビルドに依存させず、製品Rendererと同じglyph atlas / shader / transform契約で実行できるようにする。

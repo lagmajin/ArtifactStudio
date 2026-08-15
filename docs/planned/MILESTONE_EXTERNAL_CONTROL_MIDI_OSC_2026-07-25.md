@@ -4,6 +4,7 @@
 **対象:** `ArtifactCore/include/Control/MidiInput.ixx`, `ArtifactCore/src/Control/MidiInput.cppm`, `ArtifactCore/include/Control/OscInput.ixx`, `ArtifactCore/src/Control/OscInput.cppm`
 **位置づけ:** ExternalControlManager の MIDI/OSC 入力バックエンドを実装。
 **作成日:** 2026-07-25
+**最終更新:** 2026-08-15
 
 ## 1. 目的
 
@@ -76,3 +77,12 @@ QObject::connect(oscInput, &OscInput::messageReceived, [](const QString& path, f
 - [ ] OSC バンドル (タイムタグ付き複数メッセージ) 対応
 - [ ] OSC 文字列/Blob タイプ対応 (現状は float/int のみ)
 - [ ] macOS CoreMIDI / Linux ALSA バックエンド (現状は WinMM のみ)
+
+## 2026-08-15 現行コード監査
+
+- `Control.Midi.Input` と `Control.OSC.Input` の Core モジュール、MIDI／OSC の入力型・受信 API は存在する。
+- `ExternalControlManager` の address mapping／value transform／observeInput と、Composition の external control／audio analysis 適用経路も確認した。
+- 一方、`Artifact` の起動・設定 UI／Service から MidiInput／OscInput を生成して接続する実装は確認できない。MIDI Note Off、OSC bundle／string／blob、macOS／Linux backend も未完了。
+- 実機 MIDI／UDP 受信、スレッド／キュー遅延、Property／Expression への live recording は未検証。ビルド／テストは実行していない。
+
+判定: **Core の MIDI／OSC 入力基盤と外部制御マッピングは実装済み。Artifact 統合、追加メッセージ型、非 Windows backend、runtime 検証は pending。**

@@ -1,6 +1,7 @@
 # MILESTONE: AI Keyframe Suggestion
 
 作成日: 2026-04-21
+最終更新: 2026-08-15
 
 ## 目的
 
@@ -125,3 +126,18 @@
 ## 2026-07-25 実装監査
 
 既存の EasingLabWidget、KeyPatternDialog、Timeline／Property 側の keyframe 編集・preview・Undo 経路は確認した。一方、`KeyframeSuggestionContext`／`KeyframeSuggestionSample`／`AIKeyframeGenerator`／`KeyframeSuggestionCandidate` の専用型、既存 keyframe の AI 解析、候補比較の timeline 表示、提案適用の専用導線は確認できない。したがって既存 easing／keyframe 基盤は利用可能だが、Phase 1〜4 と本マイルストーンの Completion Criteria は未実装・runtime未検証とする。
+
+## 2026-08-15 現行コード監査
+
+- `KeyframePatternGenerator::generateFromTrajectory()` は有限値検証と 2D trajectory の再サンプリングから `TrajectoryKeyframe` を生成し、`ArtifactTimelineWidget::applyTrajectoryToProperty()` は既存の keyframe／Undo 経路へ適用する。
+- `KeyPatternDialog`／`EasingLabWidget` は候補生成・preview・適用の UI 基盤として存在する。
+- ただし `KeyframeSuggestionContext`、候補比較 lane、選択レイヤーからの自動 trajectory 抽出、AI 品質評価・フィードバックの専用契約は確認できない。
+- したがって trajectory pattern generation は実装済みだが、本マイルストーンの「AI suggestion」と timeline 比較 workflow は未接続。runtime 検証も未実施。
+
+判定: **既存 keyframe／easing 基盤と trajectory 生成・Undo 適用は実装済み。AI suggestion 契約、候補比較 UI、自動抽出、runtime 検証は pending。**
+
+## Update 2026-08-15
+
+現行コードを追加確認した。`KeyframePatternGenerator::generateFromTrajectory()` は有限値検証と2D trajectoryの再サンプリングから `TrajectoryKeyframe` を生成し、`ArtifactTimelineWidget::applyTrajectoryToProperty()` が既存の keyframe／Undo 経路へ適用する。`KeyPatternDialog`／`EasingLabWidget` には候補生成・preview・適用のUI基盤がある。
+
+一方、`KeyframeSuggestionContext` 等のAI専用契約、選択レイヤーからの自動trajectory抽出、候補比較lane、AI品質評価／feedbackは未確認。trajectory生成と既存適用は実装済み、AI suggestion workflowとruntime検証は pending とする。

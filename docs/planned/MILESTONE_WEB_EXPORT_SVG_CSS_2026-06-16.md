@@ -42,6 +42,13 @@
 - `.html` + `.css` + 1 フレーム SVG を **self-contained** で書き出す機能
 - Export ダイアログの **Web Animation (HTML) プリセット**
 
+## Update 2026-08-15
+
+- `SvgFrameExporter` は ShapeLayer／composition frame の SVG 化と SVG sequence 書き出しを実装済み。
+- `HtmlPlayerWriter` と Render Queue の `html` 経路は、SVG／CSS を埋め込む self-contained player と、連番フレームを切り替える HTML player を生成する。Web Animation HTML プリセットと出力設定 UI も存在する。
+- `CssAnimationExporter::extractAnimationData()` は現時点でも transform 値を各フレームへ複製する実装で、実際の animatable keyframe／opacity／fill／stroke 等の抽出には未到達。Shape operator、mask／effect／blend／track matte の SVG 化、単一 HTML への画像埋め込み、ブラウザ見た目一致は未検証または未実装。
+- 判定: **SVG frame／sequence と HTML player の基盤は実装済み。完全な CSS keyframe export と SVG parity は未完了。ビルド・ブラウザ runtime 確認は未実施。**
+
 ---
 
 ## 2. ゴール

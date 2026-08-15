@@ -90,3 +90,9 @@
 - Shape の deformable grid 描画、Plane／Box／Circle collider、MPM material solver／preset／snapshot／collision proxy は実装済み範囲として確認できる。
 - 一方、cache miss 時の明示的 reset policy、Image／Video の GPU UV deformation grid、pin／weight 等の authoring UX、bake／export は未完了である。
 - 表示 fps 独立性、seek／render の同一結果、外部 collider filter、GPU preview／final parity は runtime 未検証のため、ステータスは `In Progress` のままとする。
+
+## Update 2026-08-15
+
+- `Physics.SoftBody` の固定 timestep／substep、snapshot／restore、layer 単位の solver 管理と、`Physics.Mpm2D` の材質 preset／collision proxy／fracture event 連携を現行コードで再確認した。
+- Composition の seek から snapshot restore へ入る経路と、Shape の deformable grid は存在するが、cache miss の reset policy、Image／Video の UV GPU grid、authoring UX、bake／export は未完了のまま。
+- 判定は変更なし: **Soft Body／MPM の基盤実装は進行済み。Preview／Bake／Render の同一 snapshot 契約、GPU parity、外部 collider filter、runtime 受入は未検証。ビルド・テストは未実施。**

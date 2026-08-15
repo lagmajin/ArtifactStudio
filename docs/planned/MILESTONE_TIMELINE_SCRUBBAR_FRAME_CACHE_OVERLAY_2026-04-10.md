@@ -1,5 +1,7 @@
 # Timeline Scrub Bar Frame Cache Overlay
 
+**最終更新:** 2026-08-15
+
 AE 風の RAM preview に寄せて、`ArtifactTimelineScrubBar` 上に
 「どこまでフレームキャッシュ済みか」を緑色の帯で可視化するための
 マイルストーン。
@@ -52,6 +54,10 @@ AE 風の RAM preview に寄せて、`ArtifactTimelineScrubBar` 上に
 - 現在フレームの赤い進捗表示と視認的に衝突しない
 - 再生中 / 停止中 / scrub 中で、表示の意味が崩れない
 - キャッシュ情報がない場合でも UI が壊れず、従来表示へ自然にフォールバックする
+
+## Update 2026-08-15
+
+現行コードでは `ArtifactTimelineScrubBar` が連続範囲、ready／on-disk／failed の分断 bitmap、現在フレーム表示、cache unavailable のアクセシブル説明まで実装済みで、`ArtifactTimelineWidget` から `ArtifactPlaybackService` のフレーム状態を橋渡ししている。Cache Range Contract、overlay rendering、playback/cache bridge、empty-state は主要経路まで完了。未確認は再生・停止・seek中の実機表示と長時間更新時の性能受入れ。
 
 ## Work Packages
 

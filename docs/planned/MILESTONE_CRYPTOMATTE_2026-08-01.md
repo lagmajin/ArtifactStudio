@@ -1,9 +1,14 @@
 # Cryptomatte 実装マイルストーン
 
+**最終更新:** 2026-08-15
 **日付**: 2026-08-01
 **ベース**: Cryptomatte Specification 1.3 by Psyop
-**現状**: `ArtifactIRenderer::ChannelType::ObjectId` + `MaterialId` + `readbackToMultiChannelImage()` が既に実装。IDベースのマルチAOVレンダリング基盤あり。
-**不足**: Cryptomatte の標準フォーマット（ID + coverage マニフェスト付き EXR）への変換が未実装。
+**現状**: ObjectId／MaterialId AOVに加え、`Image.Cryptomatte` の CryptoPixel／CryptoImage／manifest、Object／Material buffer変換、rank付きCrypto EXR writer、Cryptomatte metadata生成まで実装済み。通常のrenderer／Render QueueのCryptomatte生成・選択UI・大規模runtime検証は未完。
+**不足**: 通常の最終レンダーから複数ID／coverageを生成し、Render Queueの標準AOV設定とCryptomatte EXR writerを一貫して接続する経路。
+
+## 現行コード監査 (2026-08-15)
+
+`CryptoPixel.cppm`、`CryptoImage.cppm`、`CryptoExrWriter.cppm` と `ImageExporter` の `cryptomatte/<manifestId>/manifest`／rank channel 処理を確認した。既存の ObjectId／MaterialId readbackを入力に変換する基盤と、OpenEXR metadata の出力はある。一方、通常の `CompositionRenderController`／Render Queue からこの writer を呼ぶ統合、実際の coverage付き複数サンプル生成、Cryptomatteを選択してマスクを作る制作UIは今回の静的確認では見つからない。従ってデータ／codec層は部分実装、製品workflowは未完と判定する。
 
 ---
 

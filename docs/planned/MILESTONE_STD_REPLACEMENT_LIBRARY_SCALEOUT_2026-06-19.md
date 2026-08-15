@@ -1,7 +1,8 @@
 # M-AR-4 Standard Library Replacement Scale-Out
 
 作成日: 2026-06-19  
-ステータス: Draft  
+**最終更新:** 2026-08-15
+ステータス: Result／Status／Optional／String／Path／Id の基盤は実装済み、公開APIのstdコンテナ縮約は未完了
 対象: `ArtifactCore/include/Utils/*`, `ArtifactCore/include/Result/*`, `Artifact/include/Result/*`, `Artifact/include/Composition/*`, `Artifact/include/Asset/*`, `Artifact/include/Layer/*`, `Artifact/include/Project/*`, `Artifact/include/Render/*`, `Artifact/include/Audio/*`, `Artifact/include/Video/*`
 位置づけ: `std::` の全面置換ではなく、**表層 API にテンプレートが露出しすぎる領域を順に専用型へ寄せる**。既存の `Utils.String / Utils.Path / Utils.Id / UniString` と各種 `Result` を土台に、事故りやすい境界から拡張する。
 参照:
@@ -276,3 +277,20 @@ Done criteria:
 ## 10. 更新履歴
 
 - 2026-06-19: 初版作成。`Utils/*` と `Result/*` を起点に、標準ライブラリ置換を「表層 API の縮約」として再定義した。
+
+## Current implementation audit (2026-08-15)
+
+現行コードを確認した。基盤型は「設計のみ」ではなく、`Utils.Result` の `Status`／`ErrorCode`／`Result<T>`、`Utils.Optional` の `Optional<T>` と変換 helper、`Utils.String`／`UniString`／`Path`／`Id`／各種 `*Like` concept が存在する。Artifact 側にも Composition／Asset／Layer／Project の domain result があり、失敗理由を `Status` へ寄せる土台はある。
+
+一方で、public module interface には `std::vector`、`std::function`、`std::shared_ptr`／`unique_ptr`、`std::optional` を直接露出する箇所が多数残る。例えば layer の property group／effect／child 一覧、ProjectManager の callback alias、shape／paint の点列、validation API などで確認できる。
+
+| Workstream | 現行確認 | 判定 |
+|---|---|---|
+| Result / Status | `ErrorCode`、`ErrorContext`、`Status::ok/fail`、`Result<T>` と domain result が存在 | Phase 1 基盤実装済み。ただし全APIの統一は未完了 |
+| Optional / string / path / id | `Optional` helper、`String`／`UniString`、`Path`、`Id`／CompositionID／LayerID が存在 | 基盤実装済み |
+| Container surface | `VectorLike` 等の concept はあるが、公開APIの `std::vector` 返却・引数は広範囲に残る | Phase 2 未完了 |
+| Domain ref/key | domain ID は整備されているが、AssetRef／LayerRef／ProjectRef の所有・参照境界を全面統一した状態ではない | Phase 3 部分実装 |
+| Public API shrink | `std::function` callback、標準コンテナ、スマートポインタの直接露出が残る | Phase 4 未完了 |
+| Adoption guide | 本文の設計方針はあるが、`docs/technical/` の移行ガイド／機械的な公開API監査は未確認 | Phase 5 未完了 |
+
+**更新後の判定**: M-AR-4 は Phase 1 の共通基盤が部分的に成立した状態。次は新しい wrapper を乱立させず、代表的な public API の返却型（property groups、children/effects、Project callbacks）を対象に、参照／所有／失敗の契約を先に固定してから段階移行する必要がある。

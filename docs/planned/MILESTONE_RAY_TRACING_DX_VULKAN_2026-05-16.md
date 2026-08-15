@@ -1,6 +1,7 @@
 # Milestone: DX12/Vulkan Ray Tracing Integration
 
 Date: 2026-05-16
+**最終更新:** 2026-08-15
 
 ## Goal
 
@@ -75,3 +76,15 @@ Capability／diagnosticsの基盤は実装されている。`DiligentDeviceManag
 - `Artifact/src/Render/DiligentDeviceManager.cppm`
 - `Artifact/src/Render/ArtifactIRenderer.cppm`
 - `ArtifactCore/src/Render/Shaders/RayTrace.hlsl`
+
+## 現行コード監査 (2026-08-15)
+
+`RayTracingManager` は Diligent 共通 API で device capability、BLAS／TLAS、scratch／instance buffer、RT PSO／SBT、output texture、`TraceRays` dispatch を管理している。現行実装では `RTGeometryData` の vertex/index buffer を受ける BLAS 登録・build 経路と active instance の TLAS build も確認でき、旧監査の「unit-quad placeholder のみ」という判定は更新が必要である。
+
+ただし、layer geometry／transform の composition 収集、実描画への shadow／picking／GI 接続、DX12／Vulkan 両 backend の実機確認、dispatch／AS failure の app diagnostics 粒度、raster fallback の受入れは未確認である。判定は **capability／AS／warmup の基盤実装済み、composition integration と runtime acceptance は pending** とする。
+
+## Update 2026-08-15
+
+- `RayTracingManager` の Diligent 共通 capability、`RTGeometryData` による BLAS 更新、active instance の TLAS、scratch／instance buffer、warmup RT PSO／SBT／`TraceRays` を再確認。
+- `ArtifactIRenderer` は geometry change 時の BLAS／TLAS 更新と RT diagnostics を呼び出す経路まで持つため、旧「unit-quad placeholder のみ」という判定は更新。
+- ただし layer geometry／transform の composition 収集、shadow／picking／GI の実利用、DX12／Vulkan 実機差、AS／dispatch failure の詳細 diagnostics、raster fallback の runtime 受入は未完了。

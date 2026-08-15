@@ -1,5 +1,7 @@
 # マイルストーン: Review / Compare / Annotation
 
+**最終更新:** 2026-08-15
+
 > 2026-03-28 作成
 
 ## 目的
@@ -196,3 +198,11 @@ Phase 1 は、比較の意味を先に固定してから UI を広げる。
 ただし、レビュー用の統一 `Review` / `Annotation` データ契約、approved/needs-work/rejected 状態、note の永続化、timestamp/frame と asset/render result の関連付け、copyable summary、project/asset/render への workflow return は専用経路として確認できない。比較は主に viewer 内の表示状態であり、複数対象を同時に扱うレビュー記録や再起動後の再参照まで実装済みとは判定しない。
 
 判定: Phase 1 の compare surface は partial-to-substantial、Phase 2〜4 の review/annotation/workflow return は未完了または未検証。
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactContentsViewer` の compare page、source A/B、wipe／swap、画像・動画の比較表示と再生／scrub は現行コードで確認でき、`ArtifactAppSettings` に compare state の保存 API もある。これにより Phase 1 の compare surface は基盤実装済み相当と更新する。一方、Review／Annotation の統一 data contract、approved／needs-work／rejected、note の永続化、frame／asset／render result への関連付け、annotation export、複数対象の review workflow は確認できず、Phase 2〜4 は pending とする。
+
+## Update 2026-08-15
+
+Phase 1 の既存実装を再確認した。Contents Viewer には compare page、source A/B、wipe／swap、画像・動画の compare 表示、再生／scrub 同期、compare shortcut、設定保存があるため、比較表示の入口は追加実装不要と判定する。次の実装対象は Phase 2 の最小 review status と note だが、現行コードには review 対象・識別子・永続化先を横断する契約がない。`QSettings` や viewer ローカル状態へ場当たり的に追加せず、asset／render result／frame を参照できる review record 契約を先に置く必要がある。

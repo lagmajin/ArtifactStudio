@@ -1,12 +1,32 @@
 # マイルストーン: Animation Dynamics UI Surface
 
 > 2026-03-28 作成
+> 2026-08-15 現行コード監査
+
+**最終更新:** 2026-08-15
 
 ## 目的
 
 `Animation Dynamics Core` で導入する spring / damping / follow-through を、`Artifact` の UI から扱える形にする。
 
 この milestone はダイナミクスの solver を実装しない。Core 側の値を、Inspector / Property / Layer UI で編集・確認・再利用できるようにする受け皿を作る。
+
+**現状:** Layer Property の Motion Dynamics group と JSON／評価接続、Layer Panel の専用 preset menu は実装済み。Timeline／Layer Panel の状態表示、runtime 検証は未完了。
+
+### 2026-08-15 実装確認
+
+- `ArtifactAbstractLayer::getLayerPropertyGroups()` に Motion Dynamics の enabled、mode、stiffness、damping、mass、lag tau、overshoot clamp／limit が登録され、ラベル・tooltip・編集範囲を持つ。
+- 値の変更は layer の設定・JSON 永続化と `Animation.Dynamics` の transform 評価へ接続されている。既存の Physics group とは別に Motion group として扱われる。
+- `ArtifactLayerPanelWidget` のレイヤーコンテキストメニューに Smooth／Bouncy／Heavy／Floaty／Rigid の preset と Reset 導線を追加し、既存の `setLayerPropertyValue()` 経由で Motion Dynamics の値を一括適用する。
+- Timeline／Layer Panel の enabled／preset badge、viewport motion path、専用 reset／copy UI、実機操作確認は未実施。
+
+### Update 2026-08-15 — Layer Panel feedback
+
+- Layer Panel の通常レイヤー行に `Dynamics` 状態を既存の state badge へ統合表示するようにした。既存の Hidden／Locked／Solo 等がある場合は併記し、Motion tone で表示する。
+- `performUpdateLayout()` の row signature に state text／tone を含め、Motion Dynamics の有効／無効変更時に表示が stale にならないようにした。
+- preset 名の完全な逆算表示、Timeline 側の badge、Undo 付き preset 適用、runtime 検証は未完了または未検証。
+
+判定: **Inspector／Property の編集面と Core 接続、Layer Panel の preset surface は実装済み。Timeline／Layer feedback、Undo 付き workflow 統合、runtime 検証は pending。**
 
 ---
 

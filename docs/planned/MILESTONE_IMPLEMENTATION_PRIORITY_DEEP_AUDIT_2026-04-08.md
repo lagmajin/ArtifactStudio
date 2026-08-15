@@ -1,8 +1,22 @@
 # 実装優先順位 ディープオーディットレポート
 
 作成日: 2026-04-08
+最終更新: 2026-08-15
 調査対象: ArtifactAbstractLayer / ArtifactIRenderer 実コード精査
 状態: 優先順位の基準を整理済み（実装完了を示すマイルストーンではない）
+
+## 2026-08-15 現行コード照合
+
+この文書の TOP 7 は 2026-04-08 時点の仮説であり、現行の実装状況・優先順位を示す一覧ではない。特に「線形補間のみ」「トラックマット未実装」「ワークエリアなし」「親子変換未反映」は現行コードと一致しない。
+
+- **Keyframe**: Bezier／hold／roving／easing、Timeline／Curve Editor、copy/paste、Undo の基盤がある。Dope Sheet 専用編集面と runtime parity は未完了。
+- **Motion Blur**: `MotionBlurPass`、MotionBlurEffect、preview settings、frame blend 経路があるが、通常 preview／export 全体の品質・性能受入れは未検証。
+- **Track Matte**: `LayerBlendPipeline::applyTrackMatte` と Composition 側の matte source／GPU mask 経路が存在する。全 blend mode、CPU fallback、preview／export parity は未確認。
+- **Adjustment Layer**: `isAdjustmentLayer`、property／JSON、composition の field／adjustment 評価経路があるが、全エフェクト・マスク・複数レイヤーの実機受入れは未確認。
+- **Layer Style**: effect preset／drop shadow 等の個別基盤はあるが、Layer Style 全体の専用 snapshot／管理 UI は未完了。
+- **Parenting / Work Area**: parent ID、cycle guard、transform／precomp propagation、Composition／Playback／Automation の work area API が存在する。複雑な階層・保存再読込・runtime parity は未検証。
+
+今後の優先順位はこの旧 TOP 7 ではなく、関連する個別 milestone の現行監査と未検証項目を基準に決める。ビルド・テストは未実施。
 
 ---
 

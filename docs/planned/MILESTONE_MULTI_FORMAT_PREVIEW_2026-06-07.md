@@ -2,11 +2,27 @@
 
 日付: 2026-06-07
 
+**最終更新:** 2026-08-15
+
 同じ編集内容を複数アスペクト比や出力サイズで同時にプレビューし、1 箇所の変更が全フォーマットにどう見えるかを即座に確認できるようにする。
 
 ## 2026-07-25 実装監査
 
 現行コードでは単一 Composition Editor の Safe Area 表示、各種 composition preset、layout variant 選択、Adaptive Text Fit などの部品は確認できる。しかし、16:9／9:16／1:1／4:5 を同時に並べる View Matrix、shared source から複数 view を再評価する専用 UI、view ごとの crop／safe-area／bounds 差分警告は確認できない。したがって Phase 1〜3 は未実装または別機能の部品段階であり、runtime の複数フォーマット比較は未検証とする。
+
+## 2026-08-15 現行コード監査
+
+- `PreviewQuality`、Draft／Preview／Final の解像度プリセット、Composition Editor の Safe Area／layout preset は実装されているが、これらは単一ビューの品質・レイアウト制御であり、複数フォーマットを同時表示する View Matrix ではない。
+- `CompositionRenderController` には preview quality の設定反映と alpha／resource preview があるものの、16:9／9:16／1:1／4:5 を共有ソースから並列再評価する専用コンテナや、view 別 crop／bounds 差分警告は確認できない。
+- したがって本マイルストーンの Phase 1〜3 は未着手に近く、既存の PreviewQuality や Safe Area を完了証拠として扱えない。ビルド・ランタイム検証は実施していない。
+
+判定: **単一ビューのpreview品質基盤は実装済み。Multi-Format View Matrix、shared editing、cross-format feedback は pending。**
+
+## Update 2026-08-15
+
+現行コードを追加確認した。`PreviewQuality` の Draft／Preview／Final、alpha／resource preview、Composition Editor の Safe Area／layout preset は存在するが、いずれも単一ビューの品質・レイアウト制御である。16:9／9:16／1:1／4:5を同一編集ソースから並列評価するView Matrix、view別crop／bounds差分、cross-format警告の専用containerは確認できない。
+
+したがって既存のPreviewQualityやSafe Areaを本マイルストーンの完了証拠にはせず、Phase 1〜3は未着手に近い状態、単一preview基盤のみ実装済みと判定する。ビルド・runtime検証は未実施。
 
 ## Goal
 

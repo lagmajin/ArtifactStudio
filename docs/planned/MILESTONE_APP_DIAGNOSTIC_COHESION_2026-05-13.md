@@ -1,6 +1,7 @@
 # Milestone: App Diagnostic Cohesion
 
 > 2026-05-13 作成
+> 2026-08-15 現行コード監査
 
 ArtifactStudio 全体の diagnostics を、画面ごとに別の言い方や別の深さで散らさず、同じ文法で読めるようにするマイルストーン。
 
@@ -122,3 +123,20 @@ Phase 1 の実行メモは親文書へ統合済み。
 ### 現在の判定
 
 診断の基盤と playback 状態語彙は進展しているが、summary-first と surface 横断の表示整合が残る。全体は「部分実装／統合確認待ち」とする。
+
+## 2026-08-15 現行コード監査
+
+- `ProjectDiagnostic`／`DiagnosticEngine`、Core の `DiagnosticSnapshot`／`TraceSnapshot`、Frame Debug の pipeline／resource／state 表現が存在し、severity と failure reason を構造化して扱える。
+- App Debugger、Frame Debug View、Fallback Diagnostics、Project／Render／Playback 系の各 widget に summary、filter、snapshot、diagnostic detail の導線を確認した。
+- `stateReason` を含む frame pipeline 診断や playback の ready／pending／failed／fallback 語彙は整備されているが、全 surface が同じ summary-first 表示順・色・next action を共有することはコード上で確認できない。
+- raw trace／ログと UI summary の責務境界、compare／pin／copy の共通導線、runtime 表示順は未検証。
+
+判定: **診断モデル、構造化 snapshot、主要 Debugger／Frame Debug UI は実装済み。横断語彙・summary-first・warning 表示順・runtime 検証は pending。**
+
+## Update 2026-08-15
+
+主要 surface の現行コードを再照合した。`ProjectDiagnostic`／`DiagnosticEngine`、`DiagnosticSnapshot`／`TraceSnapshot`、App Debugger／Frame Debug／Fallback Diagnostics の構造化表示は存在する。Playback の `ready`／`pending`／`failed`／`fallback` も状態語彙として利用されている。
+
+- ただし surface 横断で `goal / now / warning / next`、色、優先順位、copy／compare／pin の導線が一つの共有 contract になっている証拠はない。
+- raw trace と summary の責務境界、Project Health／Problem View／Frame Debug の表示順、runtime での warning 可読性も未検証。
+- 判定は **診断基盤は実装済み、cross-surface cohesion と runtime 検証は未完了** を維持する。

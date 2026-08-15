@@ -1,5 +1,7 @@
 # SurfaceFX System Design (2026-07-22)
 
+**最終更新:** 2026-08-15
+
 **ステータス:** In Progress
 
 ## 目的
@@ -222,3 +224,10 @@ Planar は正規化矩形として扱い、GPU pass と専用編集面は未実�
 - `SurfaceFXEffect` は effect stack と Composition JSON の保存／復元に接続され、CPU fallback に静止 overlay、時間評価、droplet／streak の deterministic motion、rim／highlight／最大 ±2px の局所サンプリングが実装されている。
 - 独立 `SurfaceFXEvaluator`、GPU SurfaceFX pass、品質段階制御、field atlas 再利用、専用編集面／viewport overlay は未実装または未確認である。
 - preview／render queue の一致、seek／逆再生、複数効果の順序、旧 JSON／未知 enum 復元は runtime 未検証のため、ステータスは `In Progress` のままとする。
+
+## Update 2026-08-15 — 現行コード確認
+
+- `ArtifactAbstractComposition` の effect JSON 保存／復元と `SurfaceFXEffect` の `SurfaceFXData` 接続を確認した。
+- CPU fallback は `Scratch` / `Droplet` / `Streak` / `Dirt` / `Condensation` を処理し、`EffectContext::timeSeconds`、`fieldSeed`、`seedOffset` に基づく決定的な時間評価を行う。水滴の rim／highlight と最大 ±2px の局所サンプリングも現行実装に含まれる。
+- 独立 `SurfaceFXEvaluator`、GPU SurfaceFX pass、品質段階制御、field atlas 再利用、専用編集面／viewport overlay、preview／render queue の runtime parity は未実装または未検証である。
+- したがって SFX-1〜SFX-3 のCPU基盤は部分実装済みだが、SFX-4のコード編集なしの制作導線とGPU／runtime受入れは未完了とする。

@@ -1,6 +1,18 @@
 # マイルストーン: Vector / SVG Layer Import
 
+**最終更新:** 2026-08-15
+
 > 2026-03-25 作成
+
+## 2026-08-15 現行コード照合
+
+- ✅ SVG のドロップ／タイムライン import は `ArtifactProjectService` 経由で asset 登録後、`ArtifactSvgInitParams` から SVG layer を生成する経路がある。
+- ✅ `ArtifactSvgLayer` は source path、fit-to-layer、source version、自然サイズ、非同期 raster cache、`ImageF32x4_RGBA` への明示変換、JSON 保存／再読込、SVG property group を持つ。
+- ✅ Project／Timeline 側では SVG layer を Shape 系の既存 factory で復元し、missing source の relink 判定も `svg.sourcePath` を対象にしている。
+- ⚠️ 現状は SVG の構造を保持して編集する vector document model ではなく、`QSvgRenderer` で rasterize した結果を layer として扱う実装である。path／text／group 単位の編集、embedded data、複数ページ、SVG 専用 stroke／fill 編集は未達。
+- ⏳ Diligent／software 間の品質差、zoom 時の再 rasterize、保存後の missing／relink UI、実ファイルを用いた runtime 検証は未完了。
+
+したがって、Phase 1 は実用的な SVG layer 入口まで、Phase 2 は source／transform／保存の部分、Phase 3 は raster preview 経路までが実装済み。Phase 4 の「vector としての編集」は未着手に近く、完了扱いにはしない。
 
 ## 目的
 

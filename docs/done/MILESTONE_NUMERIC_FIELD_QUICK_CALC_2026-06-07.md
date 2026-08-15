@@ -1,5 +1,11 @@
 # Numeric Field Quick Calc Milestone
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15 — 共通 Numeric Editor 経路を再確認
+
+`ArtifactPropertyEditorNumeric` の float／integer editor に `+10`、`-5`、`*2`、`/3` の相対計算を追加し、Enter／editingFinished 時に範囲 clamp 後の値を既存の commit 経路へ渡すようにした。絶対値入力と既存 slider／preview／Undo 経路は維持する。
+
 **作成日:** 2026-06-07  
 **ステータス:** ✅ 完了 (2026-06-08 確認 / 2026-06-15 共有化・Dialog 波及)  
 **関連コンポーネント:** ArtifactPropertyWidget, Numeric Row, Property Editor, Value Input, RenderOutputSettingDialog

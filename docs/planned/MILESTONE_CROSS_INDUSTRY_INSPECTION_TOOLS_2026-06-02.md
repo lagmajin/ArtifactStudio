@@ -1,9 +1,16 @@
 # MILESTONE: Cross-Industry Inspection Tools
 
 **Date**: 2026-06-02  
-**Status**: Proposed  
+**最終更新:** 2026-08-15
+**Status**: 部分実装（Frame Debug／Problem View／Snapshot Compare／Scopes／Waveform は存在。Motion Ghost、統合 inspection workflow、runtime受入は未完了）
 **Priority**: High  
 **Related**: `docs/WIDGET_MAP.md`, `docs/planned/MILESTONE_APP_FRAME_DEBUG_VIEW_2026-04-20.md`, `docs/planned/MILESTONE_APP_DIAGNOSTIC_COHESION_2026-05-13.md`, `docs/planned/MILESTONE_TIMELINE_KEYFRAME_EDITING_2026-03-27.md`, `docs/done/MILESTONE_RENDER_PREFLIGHT_2026-06-02.md`
+
+## 現行コード監査 (2026-08-15)
+
+`FrameDebugViewWidget`、`AppDebuggerWidget`、`ArtifactProblemViewWidget`、`ArtifactSnapshotCompareWidget`、Contents Viewer の compare（wipe／split／difference）、histogram／waveform／parade 系 scope、Timeline audio waveform、各種 ProjectDiagnostic／ValidationRules は現行コードで確認できる。したがって「inspection 系UIが未着手」という前提は更新が必要である。
+
+一方、motion ghost／version ghost の専用 overlay、effect範囲の統合可視化、motion急変の timeline 分析、全 inspection surface の共通 snapshot／evidence 契約、単一の cross-industry inspection workflow、実機受入は確認できない。現状は複数の観察ツールが個別実装された段階で、マイルストーン全体は未完了とする。
 
 ---
 

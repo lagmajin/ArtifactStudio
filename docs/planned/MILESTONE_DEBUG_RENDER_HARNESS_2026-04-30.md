@@ -1,5 +1,16 @@
 # Debug Render Harness
 
+**最終更新:** 2026-08-15
+**Status:** Harness／preset／snapshot report／独立 UI は実装済み、regression smoke の実行結果と共通 report 自動検証が未確認
+
+## Update 2026-08-15
+
+現行コードを再照合した。`DebugRenderHarnessWidget` は独立 surface として起動でき、preset／snapshot／report の表示・clipboard／file 保存、App Debugger への harness 面の統合がある。`FrameDebugSnapshot` と renderer の診断情報も report 材料として利用されている。
+
+- ただし、particle／video／blend／overlay の各 smoke preset を実際に起動して合否を記録した証拠、golden／差分比較、headless regression の自動 gate は確認できない。
+- 共通 report template との機械検証、GPU／software parity、失敗時 bundle の長期保存・再現受入も未完了。
+- 判定は **harness UI／preset／report 基盤は実装済み、regression smoke と自動検証は未達** を維持する。
+
 `DiligentEngine` / `ArtifactIRenderer` を本番経路のまま残しつつ、粒子・動画・ブレンド・オーバーレイの最小再現を独立に検証するためのデバッグ用レンダリングハーネス。
 
 これは別 backend の再実装ではなく、**同じ Diligent backend を使う薄い検証 surface** として扱う。
@@ -163,3 +174,9 @@
 | regression gate | preset 切替と report 生成の基盤はあるが、particle/video/transparent/skipped の実行結果は未確認 | 未確認 |
 
 **判定**: Phase 1〜3 はソース上実装済み、Phase 4 は smoke 実行と失敗分類の検証待ち。次は runtime smoke checklist を実行できる状態で確認する。
+
+## 2026-08-15 現行実装監査
+
+- `DebugRenderHarnessWidget`、AppMain の独立 dock、AppDebugger の harness tab、preset 切替、FrameDebugSnapshot 参照、clipboard／file report 保存が現行ソースに存在する。
+- particle／video／blend／overlay／mixed-media の fixture と failure reason／skipped reason の表示契約も確認できる。
+- ただし particle／video／transparent output／expected skipped の実行結果、report contract の自動比較、実 backend での再現性は未検証。ビルド・runtime smoke は実施していない。

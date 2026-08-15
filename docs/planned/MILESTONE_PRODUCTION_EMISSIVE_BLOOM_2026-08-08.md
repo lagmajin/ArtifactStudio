@@ -1,11 +1,15 @@
 # Production Emissive + GPU Bloom Pipeline (2026-08-08)
 
-**最終更新:** 2026-08-08
-**状態:** 計画
+**最終更新:** 2026-08-15
+**状態:** Emissive入力とCPU／参照Bloomあり / GPU final post-process未接続
 
 ## 概要
 
 3D Model Layer の PBR マテリアルに実装済みのエミッシブ (`emissionColor` + `emissionStrength` + `emissionTexture`) を、GPU ベースのリアルタイム Bloom ポストプロセスで光らせる。プロダクションレベルの発光表現（Blade Runner ネオン、TRON グロー、モーショングラフィックス）を実現する。
+
+## 現行コード監査 (2026-08-15)
+
+`Material` の emission 値、3D model layer の material、`ArtifactIRenderer` の emission setter、Emission channel の readback は現行コードに存在する。Core には `VolumePostProcess` の CPU bloom（threshold、radius、iterations、intensity）と、複数の OpenCV glow／bloom 実装もある。一方、通常の `CompositionRenderController` の最終出力に対して、HDR RGBA16F の composite target、独立 emissive MRT、GPU bright/downsample/upsample pyramid、tone mapping を一体化した final post-process は確認できない。したがって、入力側と参照実装は進んでいるが、このマイルストーンの主目的である GPU Bloom 統合は未着手相当と判定する。
 
 ## 現状のスコア
 
@@ -21,7 +25,7 @@
 | `ChannelType::Emission` readback | ✅ | `ArtifactIRenderer.cppm:2987-2988` |
 | `PBRMaterialEffect` (レイヤーエフェクト, emissive 0-100) | ✅ | `Artifact/include/Effects/Render/PBRMaterialEffect.ixx` |
 | 2D CPU Glow エフェクト群 (OpenCV) | ✅ | `Artifact/src/Effects/Glow/*.cppm` (6種) |
-| `EdgeBloomEffectCPUImpl` (GPU compute, Diligent) | ✅ | `Artifact/src/Effects/Glow/EdgeBloomEffect.cppm` |
+| `EdgeBloomEffectCPUImpl` (GPU compute, Diligent) | ⚠️ | 現行ツリーで通常 final post-process への接続は未確認 |
 | **GPU Bloom ポストプロセス** | ❌ | **これを作る** |
 | **HDR バックバッファ (RGBA16F)** | ❌ | 既存は LDR。Bloom用に fp16 化 |
 | **Tone Mapping (HDR→LDR)** | ❌ | Bloom適用後に必須 |

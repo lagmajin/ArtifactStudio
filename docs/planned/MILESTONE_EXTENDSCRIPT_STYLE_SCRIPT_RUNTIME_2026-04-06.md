@@ -1,5 +1,13 @@
 # Milestone: ExtendScript-Style Script Runtime (M-PY-3)
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+`ScriptRuntime` は軽量 Expression parser/evaluator、JavaScript／ExtendScript style 切替、host snapshot（app／project／composition／selection／thisComp／thisLayer）、`log`／`warn`／`error`、複数 statement の実行、ファイル実行、構文・runtime error の位置情報を実装している。`ArtifactScript` の parser／VM と `ArtifactScriptMenu` の script file 導線も別系統の基盤として存在する。
+
+一方、目標にある `app.project` の実操作、renderQueue／timeline／layer mutation、REPL／console履歴、非同期ジョブ・キャンセル・タイムアウト、実行権限境界、UIの統一結果／stack表示は確認できない。従って host runtime skeleton は部分実装済みだが、ExtendScript-style automation 全体は未完了とする。
+
 ## Goal
 
 `ArtifactStudio` に、After Effects の ExtendScript に近いアプリ内自動化スクリプト実行基盤を追加する。

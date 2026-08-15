@@ -1,5 +1,8 @@
 # マイルストーン: テンプレート露出削減 → ドメイン型ラッパー (2026-07-04)
 
+**最終更新:** 2026-08-15
+**判定:** wrapper 基盤は存在するが、domain alias 導入と repository-wide 移行は未完了。
+
 > 目標: `std::vector<std::shared_ptr<X>>` のような素のテンプレート露出を撲滅し、
 > AI が誤らない自己文書化的な型で包む。
 
@@ -266,6 +269,12 @@ using PropertyObserver  = Callback<void(const QString& propertyName, const QVari
 | API safety | `Ptr` の custom ref-count、`Array` の raw data、wrapper の公開範囲は production-wide adoption 前に専用検証が必要 | 検証待ち |
 
 **判定**: wrapper のプロトタイプ／基盤は存在するが、3,000 箇所超の template 露出削減や domain alias 導入という本来の完了条件には未達。既存コードを一括置換せず、まず wrapper の ownership・例外安全性・利用規約を検証してから段階導入する状態。
+
+## 2026-08-15 現行コード照合
+
+`Core.ArtifactArray`、`Core.ArtifactDict`、`Core.ArtifactPtr`、`Core.ArtifactCallback` と、既存の `CompositionID`／`LayerID`／`FramePosition` のドメイン型利用を確認した。型ラッパーの基盤自体は維持されているが、主要な実装は依然として `QVector`／`QHash`／標準 smart pointer／`std::function` を直接利用している。
+
+`LayerList`／`EffectRegistry`／`PropertyBag` 等の横断 alias、`Opt<T>`／Lock／Atomic の全面導入、wrapper の ownership／例外安全性の repository-wide 検証は未完了。したがって、現行の正確な判定は「基盤プロトタイプ実装済み、採用拡大は未着手〜部分実装」であり、今回はビルド・テストを実行していない。
 
 | カテゴリ | 新設型 | 置換元 | 箇所数 | AI エラー防止効果 |
 |---|---|---|---|---|

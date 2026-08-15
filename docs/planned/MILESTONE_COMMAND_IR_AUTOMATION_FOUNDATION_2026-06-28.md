@@ -1,7 +1,8 @@
 # M-CMD-1 Command IR / Automation Foundation
 
+**最終更新:** 2026-08-15
 作成日: 2026-06-28
-ステータス: 部分完了（CommandRequest/Result/validation/vocabulary、CommandExecutor、App executorとWorkspaceAutomation/Python bridgeを実装、全commandのtransactional rollback・UI/automation経路統一・preview/explain・runtime検証は未完了）
+ステータス: 部分完了（Core contract、validation/vocabulary、App側CommandIRExecutor、WorkspaceAutomation経由のcommand facadeは実装済み。全commandのtransactional rollback、UI/automation経路統一、独立Resolver、preview/explain、runtime検証は未完了）
 対象:
 - `ArtifactCore/`
 - `Artifact/`
@@ -21,6 +22,11 @@
 - `docs/planned/MILESTONE_SCRIPT_MENU_MACRO_ENTRY_EXECUTION_2026-05-31.md`
 
 ---
+
+### 2026-08-15 follow-up
+
+- `set_keyframes` / `batch_set_keyframes` に実行前 payload validation を追加し、空 property path、空 batch、frame/value 欠落を mutation 前に拒否するようにした。
+- これにより入力不備による partial mutation は防げるが、WorkspaceAutomation の runtime failure に対する全 command 共通 rollback、独立 Resolver、preview/explain は未完了。
 
 ## 1. 目的
 
@@ -674,16 +680,20 @@ Done criteria:
 Evidence currently present:
 
 - `Core.AI.CommandIR` module exists
-- `WorkspaceAutomation` exposes `commandVocabulary / validateCommand / executeCommand`
+- `CommandRequest` / `CommandResult` / `CommandExecutor` are defined, including structured diagnostics, retryability, and undo labels
+- `CommandIRExecutor` implements validation-first dispatch for property/keyframe/layer/effect/composition/playback/render and query commands through `WorkspaceAutomation`
+- `WorkspaceAutomation` exposes `commandVocabulary / validateCommand / executeCommand`, while the existing Python/AI bridge still exposes additional direct workspace methods
 - command examples and result shapes are documented
 
-This aligns mainly with Phase 1 to Phase 3 in the summary above, with Phase 4 kept as a follow-on surface.
+This aligns mainly with Phase 1 and the core of Phase 2. The App executor and facade are now materially ahead of the original Phase 1–3 note, but resolver separation, all-or-nothing batch transactions, and a single UI/automation mutation path are not demonstrated by the current source.
 
 Still unverified in this workspace:
 
 - runtime build / execution proof
 - any end-to-end MCP or UI call path
-- broader resolver / macro behavior beyond the documented contract
+- independent resolver / canonical alias conversion
+- all-command rollback and one-Undo transaction grouping
+- built-in macro behavior and preview/explain output
 
 Next actions if we continue:
 

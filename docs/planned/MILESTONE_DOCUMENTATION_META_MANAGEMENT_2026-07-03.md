@@ -1,9 +1,16 @@
 # M-DOCMETA: ドキュメントメタ管理 (Documentation Meta Management)
 
 **作成日:** 2026-07-03  
-**ステータス:** 計画  
+**最終更新:** 2026-08-15
+**ステータス:** インベントリ生成・ライフサイクル基盤は実装済み。リンク整理、planned→done 運用、継続的な完全性監査は未完了。
 **対象範囲:** `docs/`, `plans/`, `Artifact/docs/`, `ArtifactCore/docs/` 配下の全マークダウンファイル（推定 950+ ファイル）  
 **目的:** ドキュメントの散逸を防ぎ、AI と人間の両方が効率的に文書を発見・管理できる基盤を構築する。  
+
+## 現行コード／運用監査 (2026-08-15)
+
+`tools/generate_doc_inventory.py` と `docs/INDEX_GENERATED.md` が存在し、root／子モジュールを含む Markdown のインベントリ、更新日、ステータス、キーワードを生成できる。`docs/DOC_LIFECYCLE.md` と `tools/docs/audit_document_dates.py` も存在し、今回のマイルストーン更新で要求される文書更新日を機械監査できる。
+
+したがって Phase 1〜4 のインベントリ／検索／更新日基盤は実装済みと判定する。一方、生成物はスナップショットであり、リンク切れの全自動修復、planned→done の一括移行、重複文書の統合、CI／pre-commit 等による継続強制までは確認できない。
 
 ---
 

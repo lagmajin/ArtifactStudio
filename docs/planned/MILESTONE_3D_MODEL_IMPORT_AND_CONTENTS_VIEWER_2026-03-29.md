@@ -2,11 +2,15 @@
 
 > 2026-03-29 作成
 
+**最終更新:** 2026-08-15
+
 **進捗状態:** Phase 1〜4 は実装済み、Phase 5 は拡張余地と runtime 検証が残る。
 
-### 実装状況（2026-07-25 確認）
+### 実装状況（2026-08-15 確認）
 
 `MeshImporter` の backend／エラー状態、`Artifact3DModelViewer` の OBJ／FBX／glTF 系読み込み、mesh metadata・表示モード・Reset View・Orbit 操作、Contents Viewer／Project View の Preview 導線を確認した。残課題は glTF／GLB の対応範囲を明示した上での実機確認、compare／annotation、diagnostic 連携。
+
+現行コードでは、3D model viewer だけでなく、Model3D レイヤーへの import material 情報、Material の JSON 復元、Contents Viewer の recent／compare 用設定、Point Tracker／3D viewer の診断情報も確認できる。一方、対応形式ごとの実ファイル成功・失敗表示、compare／annotation の 3D 専用 UX、import diagnostic の一貫した受入れはコード検索だけでは証明できない。
 
 ## 目的
 
@@ -214,6 +218,12 @@ Phase 1 を先に締めるなら、次の順で進める。
 
 - `FileType::Model3D` の open flow 自体は既にある
 - したがって phase 2 は、open そのものより header / state / reset view の軽量化に寄せる
+
+## Update 2026-08-15
+
+現行コードと直近の監査内容を反映した。`MeshImporter` は ufbx 本線に加えて OBJ 限定の tinyobjloader fallback、backend 名、空メッシュ／読み込み失敗理由を持つ。`ArtifactContentsViewer` は `Model3D` を `Artifact3DModelViewer` へ渡し、Solid／Wireframe／Solid+Wire、mesh 状態、backend 表示、Reset 3D とキーボードリセットを提供する。Project View／Asset Browser から Contents Viewer へ開く導線も確認済み。
+
+一方、対応形式ごとの実ファイル受入、glTF／GLB の対応範囲、compare／annotation の3D専用UI、import diagnostic の一貫した連携は未検証または未実装。Phase 1〜4 は静的実装済み、Phase 5 と runtime 検証は pending とする。
 - review 導線は phase 1 の失敗理由整備が終わってから詰める
 - preview in Contents Viewer の導線は phase 1 が固まってから細かくする
 

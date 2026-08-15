@@ -1,11 +1,12 @@
 # マイルストーン: コンテンツビューワー デザイン監査 (2026-07-04)
 
+**最終更新:** 2026-08-15
 > 作成: 2026-07-04
 > 元依頼: 「コンテンツビューワーもよろしく」
 
 ## 監査サマリー
 
-`ArtifactContentsViewer.cpp`（2,295行）は、画像/動画/音声/3Dモデル/比較を横断する inspection viewer としての責務を果たしているが、単一クラスに全機能がフラットに詰まっており、以下の領域で改善余地がある。
+`ArtifactContentsViewer.cppm`（現行 3,752 行）は、画像/動画/音声/3Dモデル/比較を横断する inspection viewer としての責務を果たしているが、単一の `Impl` に全機能がフラットに詰まっており、比較 UI の追加で責務分割の必要性はむしろ増している。
 
 ---
 
@@ -130,7 +131,7 @@
 - `docs/planned/MILESTONE_3D_MODEL_REVIEW_IN_CONTENTS_VIEWER_2026-03-28.md` — 3D モデルレビュー連携
 - `docs/planned/MILESTONE_3D_MODEL_IMPORT_AND_CONTENTS_VIEWER_2026-03-29.md` — 3D モデルインポート連携
 - `docs/planned/MILESTONES_BACKLOG.md` — 全体バックログ
-- `Artifact/src/Widgets/Viewer/ArtifactContentsViewer.cpp` — メイン実装 (2,295行)
+- `Artifact/src/Widgets/Viewer/ArtifactContentsViewer.cppm` — メイン実装 (現行 3,752行)
 - `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm` — 3D モデルビューア
 - `docs/WIDGET_MAP.md` — ウィジェット責務マップ
 
@@ -146,6 +147,15 @@
 ---
 
 ## Next Execution Slice
+
+## 2026-08-15 実装監査
+
+- Compare は `QSplitter` から専用の compare canvas 経路へ進み、`Wipe` / `Split` / `Difference`、A/B source、swap、wipe 状態の保存・復元、Missing 表示、Difference の画像限定ガードを確認した。
+- ただし compare canvas と Parade は依然として `QPainter` / `QImage` を使い、Difference も pixmap-to-image 変換後の CPU 合成である。GPU／`ImageF32x4_RGBA` 本流への移行は未着手として扱う。
+- `ArtifactContentsViewer.cppm` は 3,752 行で、画像・音声・動画・3D・比較・metadata・入力処理が同一 `Impl` に残る。クラス分割、surface ごとの state owner、renderer/service 境界は未完了。
+- Compare の source routing と状態表示は前進したが、runtime の視認性、stale frame、異種 media の compare、scope の転送経路はコード検索だけでは受入れ不能である。
+
+したがって、本監査は Compare UI の Phase 2 相当が進んだ状態だが、P0 の表示パイプライン整理と責務分割が未完了のため `In Progress` を維持する。
 
 ## 2026-07-30 実装監査
 

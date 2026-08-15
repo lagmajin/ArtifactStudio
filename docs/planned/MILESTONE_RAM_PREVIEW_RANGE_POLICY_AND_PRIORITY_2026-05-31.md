@@ -1,5 +1,7 @@
 # Milestone: RAM Preview Range Policy and Priority
 
+**最終更新:** 2026-08-15
+
 > 2026-05-31
 
 ## Purpose
@@ -128,3 +130,15 @@ Phase 1〜4 の policy 部分はサービス実装に具体化されている。
 - `Artifact/src/Service/ArtifactPlaybackService.cppm`
 - `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`
 - `Artifact/src/Widgets/Timeline/ArtifactTimelineScrubBar.cppm`
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactPlaybackService` に RAM preview の range／radius、frame state、generation 付き build queue、LRU image budget、work-area／composition bounds、priority band／reason、hit rate／pending／progress の API が現行コードで確認できる。したがって Phase 1 の policy 基盤と Phase 2〜4 の service surface は実装済み相当である。一方、汎用 `FrameCache` との接続、再生方向・loop 境界・scrub 中の優先順位、Timeline／Debugger／Preview の共通 priority truth、連続再生品質は runtime 未検証であり、受入れは pending とする。
+
+## Update 2026-08-15
+
+現行コードを再照合した。`ramPreviewPriorityState()`／`ramPreviewPriorityReason()` は immediate／near／forward／backward／work-area／out-of-range の理由を返し、build queue は generation、cancel、invalidate、LRU budget、progress を扱う。
+
+- service 内の priority policy は実装済みだが、再生方向の反転、loop 境界、scrub 中の切替が連続再生へ正しく反映されることは未検証。
+- Timeline／Debugger／Preview が同一の priority truth を読む共有契約、および汎用 `FrameCache` の hit 優先再生接続は未確認。
+- 判定は **priority vocabulary／service 基盤は実装済み、playback 反映・surface 統合・runtime 受入れは未完了** を維持する。

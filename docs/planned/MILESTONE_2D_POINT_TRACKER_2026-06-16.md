@@ -1,7 +1,8 @@
 # M-2DTRACK-1 2D Point Tracker Milestone
 
 作成日: 2026-06-16
-ステータス: Phase 1〜3 基盤実装済み（静的確認 2026-07-29、ビルド／ランタイム／性能確認待ち）
+最終更新: 2026-08-15
+ステータス: Core／UI／レイヤー適用の主要経路を実装済み（静的確認済み、ビルド／ランタイム／性能確認待ち）
 対象: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`,
       `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`,
       `Artifact/src/Layer/ArtifactAbstractLayer.cppm`,
@@ -24,6 +25,13 @@
 ---
 
 ## 1. 目的
+
+### 現行コード監査 (2026-08-15)
+
+- `ArtifactCore::MotionTracker` は point／region／planar の追跡、前後方向・全範囲、Optical Flow／Feature／Hybrid、信頼度、問題フレーム、補正、平滑化、外れ値除去を実装している。
+- `ArtifactCore::NccTracker` と `PlanarTracker` が存在し、Planar は point-flow への暗黙フォールバックを避ける strict 経路になっている。
+- Artifact 側には Point Tracker Gizmo／Tool、Composition Editor の前後追跡操作、Null Layer への keyframe export、Corner Pin への適用、Video Layer の tracker ID 保存、Diagnostics 表示がある。
+- したがって旧「0 hit／未実装」の記述は現状と一致しない。残りは実素材での精度・失敗復帰・性能・Undo／Project lifecycle の受入れ確認である。
 
 `REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md` §2.6:
 
@@ -438,3 +446,9 @@ public:
 - `ArtifactPointTrackerTool` と controller から、追跡結果を新規 Null layer または選択 layer の position／anchor keyframe に適用できる。したがって Phase 1〜3 の主要なデータ／追跡／UI・適用基盤は実装済み相当と判定する。
 - 4点平面 tracker の専用 homography／skew 検出、手動修正後の Track From Here、専用 TrackCommand による完全な undo、Problem View の `tracker.*` contribution、10ms 性能実測は未確認または未実装であり、Phase 4〜6 は未完了とする。
 - `ArtifactCore`／`Artifact` の既存コードだけを確認し、`ArtifactWidgets` は変更していない。ビルド／ランタイム検証は未実施。
+
+## Update 2026-08-15
+
+現行コードを再確認した結果、主要な追跡・表示・適用経路は実装済みとして扱える。`MotionTracker` の point／region／planar モード、前後・範囲追跡、信頼度／問題フレーム、補正・平滑化・外れ値処理があり、`NccTracker` と `PlanarTracker` も存在する。Artifact 側では Point Tracker Gizmo／Tool、Composition Editor の追跡操作、Null Layer への keyframe 出力、Corner Pin 適用、Video Layer の tracker ID 保存、Diagnostics 表示を確認した。
+
+一方、4点平面の専用 homography 運用、手動修正後の Track From Here、完全な tracker 専用 Undo、Problem View の `tracker.*` contribution、10ms 性能基準、実素材での精度・失敗復帰・project lifecycle は未確認または未完了。したがって Phase 1〜3 は実装済み、Phase 4〜6 と runtime／性能受入は pending とする。

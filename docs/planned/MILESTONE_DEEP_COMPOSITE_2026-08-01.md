@@ -1,8 +1,19 @@
 # Deepコンポジット 実装マイルストーン
 
+**最終更新:** 2026-08-15
 **日付**: 2026-08-01
 **ベース**: Nuke Deep Compositing / Foundry Deep EXR 仕様
 **現状**: `DeepImageBuffer` に可変長サンプル、深度ソート、flatten、Deep over、holdout、flat↔Deep 合成、CPU 深度依存 DoF を実装済み。`OpenExr` は Deep RGBA32F の read/write と buffer 接続まで実装済み。GPU Packed契約・往復変換とDirectCompute front-to-back shaderも追加済み。GPU resource binding、制作UI統合、大規模runtime検証は未完了。
+
+## 現行コード監査 (2026-08-15)
+
+`DeepImageBuffer`、Deep over／holdout／flat変換／depth matte／DoF、OpenEXR deep read/write、packed GPU契約、`DeepComposite.hlsl` の front-to-back shader は現行コードで確認できる。通常の Composition Render Controller や Render Queue の最終描画へ Deep buffer を接続するGPU resource binding、Deep専用の制作UI、実運用の大規模サンプル受入は確認できない。従ってCore／codec基盤は実装済みだが、アプリ統合段階は未完という従来の判定を維持する。
+
+## Update 2026-08-15
+
+- `DeepImageBuffer` の可変サンプル、depth sort、flatten、Deep over／holdout、depth matte／DoF、packed GPU 契約、OpenEXR deep read／write を再確認。
+- `DeepComposite.hlsl` の front-to-back compute shader と DirectCompute 接続は存在するが、通常の Composition Render Controller／Render Queue の最終描画へ GPU resource binding する経路は確認できない。
+- Deep 専用の制作 UI、大規模サンプル、flat／Deep の実運用 runtime parity は未完了。Core／codec foundation 実装済み、アプリ統合 pending の判定を維持する。
 
 ---
 

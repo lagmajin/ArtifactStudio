@@ -1,10 +1,12 @@
 # MILESTONE: UI Theme Migration — QSS → Theme Tokens + QCommonStyle
 
 **日付**: 2026-03-31〜2026-04-03（統合+実装詳細化: 2026-08-04）
-**最終更新:** 2026-08-05
+**最終更新:** 2026-08-15
 **今回の実装:** ArtifactCommonStyle を QCommonStyle 基底へ移行し、AppMain の Fusion 生成依存を撤去。QADS の組み込み stylesheet クリアは例外として明文化。
 **統合元**: `MILESTONE_QSS_REDUCTION` + `MILESTONE_QSS_EXORCISM_PROPERTY_THEME` + `MILESTONE_QSS_DECOMMISSION_COMMONSTYLE` + `MILESTONE_PROPERTY_WIDGET_UPDATE_CLEANUP_THEME` + `MILESTONE_UI_THEME_SYSTEM_ROLLOUT`
-**静的監査**: 2026-07-25 — Phase 1〜3 実装済み。Phase 4 の QCommonStyle 移行、Phase 5 の QADS 例外明文化、Phase 6 の Property Row 状態表示・コンテキスト操作は実装済み。Legacy Knob 群には現行 PropertyEditor への移行先を示す deprecated 注記を追加。実行時確認は未完了。
+**静的監査**: 2026-08-15 — Phase 1〜3 実装済み。Phase 4 の QCommonStyle 移行、Phase 5 の QADS 例外明文化、Phase 6 の Property Row 状態表示・コンテキスト操作は実装済み。現行 `Artifact/src` の `setStyleSheet()` は `DockStyleManager.cppm` の QADS 組み込み stylesheet クリア 1 箇所のみで、Legacy Knob 群には現行 PropertyEditor への移行先を示す deprecated 注記を追加。`ApplicationSettingDialog::saveSettings()` で選択した `DccStylePreset` を保存後に `applyDCCTheme()` へ渡し、アプリ palette を runtime 再適用する入口を追加した。全 surface の再描画と実行時確認は未完了。
+- 2026-08-15 QSS inventory: production source の `setStyleSheet()` は `Artifact/src/Widgets/Dock/DockStyleManager.cppm` にある QADS 組み込み stylesheet のクリアだけ。`*.bak` や `whole_file.txt` の旧スナップショットは現行実装の残存箇所として数えない。
+- `DockStyleManager` は `ApplicationPaletteChange`／`PaletteChange` を受けると border token を glow style に再適用し、dock decoration を queued refresh するようにした。
 
 ## 現状
 

@@ -3,6 +3,8 @@
 **作成日:** 2026-03-28
 **更新日:** 2026-07-30
 **ステータス:** 一部実装済み ✅
+**最終更新:** 2026-08-15
+**現行判定:** WebUI／Proxy／Project／Inspector／Importer／Packager の主要経路は静的実装済み。runtime E2E、失敗復旧、複数選択と完全な Undo 検証が未完了。
 **関連コンポーネント:** Artifact アプリケーション層（ArtifactCore ではない）
 
 ---

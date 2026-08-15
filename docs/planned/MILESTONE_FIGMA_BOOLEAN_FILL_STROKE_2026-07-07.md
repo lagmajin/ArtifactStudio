@@ -1,7 +1,8 @@
 # M-FIGMA-3 Boolean Path Operations + Advanced Fill/Stroke Milestone
 
 作成日: 2026-07-07
-ステータス: Draft
+**最終更新:** 2026-08-15
+ステータス: MergePathsのBoolean演算は実装済み、Fill／Stroke多段化と個別角丸は未完了
 対象: `ArtifactCore/include/Shape/ShapeGroup.ixx`,
       `ArtifactCore/src/Shape/ShapeGroup.cppm`,
       `ArtifactCore/include/Shape/ShapeOperator.ixx`,
@@ -76,6 +77,22 @@ Figma では 1 つのシェイプに複数の Fill と複数の Stroke を重ね
 - `MergePaths` → `ShapeOperatorType` enum に定義あり。実装なし
 - `booleanOp` / `BooleanOp` → 0 hit
 - `multiple.*fill` / `fillStack` → 0 hit
+
+## Current implementation audit (2026-08-15)
+
+現行コードを再確認した結果、Phase 1 の記述は更新が必要である。`ArtifactCore/include/Shape/AeOperators.ixx` の `MergePaths::process` が `QPainterPath::united`／`subtracted`／`intersected` と XOR 相当の Difference、単純 Merge を実装している。`ShapeGroup::addOperator` と `ArtifactShapeLayer` の operator factory が `MergePaths` を生成し、mode は JSON に保存／復元される。
+
+| 項目 | 現行コードで確認できた実装 | 判定 |
+|---|---|---|
+| Boolean operations | Add（Union）／Subtract／Intersect／Difference（Exclude相当）／Merge、複数入力の逐次処理、simplified、ShapePath化 | 実装済み。専用演算テストは未実行 |
+| Operator integration | ShapeGroup／ShapeLayer の operator stack と factory、operator mode JSON を確認 | 実装済み |
+| Fill | Solid／linear・radial等のgradient、opacity、fill enable、JSON／Inspector property | 単一Fillとして部分実装 |
+| Stroke | width、cap、join、center／inside／outside、taper、stroke gradient、JSON／Inspector property | 単一Strokeとして部分実装 |
+| Multi Fill／Stroke | `FillLayer`／`StrokeLayer` stack、順序編集、複製・削除UIは未確認 | 未実装 |
+| Corner radius | ShapeLayer／RectanglePathShapeとも単一 corner radius | 個別四隅は未実装 |
+| Boolean UI / persistence | Merge Paths operator の追加・mode編集・operator JSON は存在 | Fill／Stroke stackとFigma専用UIは未完了 |
+
+**更新後の判定**: M-FIGMA-3 は Phase 1 完了、Phase 2 の単一Fill／Stroke基盤も部分的に成立している。残りは複数Fill／Strokeのデータモデル・描画順・Inspector並べ替え、個別corner radius、対応する保存／再読込とBoolean結果のruntime確認である。
 
 
 ## 3. Scope / Non-Goals

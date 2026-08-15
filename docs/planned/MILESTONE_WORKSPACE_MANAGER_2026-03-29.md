@@ -57,3 +57,8 @@
 ただし本ドキュメントの記述には差分がある。`ArtifactWorkspaceManager` 自身が保存する `UiLayoutState` は現在 geometry が中心で、コメントにもある通り `QMainWindow::saveState()` は使わず、dock 配置は `AppMain` の `main_window_layout.cbor` 保存系が担当する。さらに `restoreSession()` の呼び出しはメニュー操作に限られ、起動時に自動復元する呼び出しは確認できない。したがって「保存／読込の基盤は実装済み」だが、「WorkspaceManager が ADS 配置を JSON で一元管理し、起動時デフォルト／セッション復元まで完了」という当初記述は未達として整理する。
 
 確認範囲: `Artifact/src/Core/ArtifactWorkspaceManager.cppm`、`Artifact/src/AppMain.cppm`、`Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`。ビルド・実機操作による動作確認は未実施。
+
+## Update 2026-08-15
+
+- 現行コードでは WorkspaceManager の session／preset JSON、保存・復元・削除・rename API、View Menu の操作導線を確認できる。
+- geometry／UiLayoutState と ADS dock state／main-window layout は別保存系で、WorkspaceManager 単独の一元管理や起動時自動 session restore、独立 shortcut は未完了または未確認。

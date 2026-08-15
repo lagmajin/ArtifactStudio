@@ -1,8 +1,15 @@
 # コラボレーション機能 Milestone
 
 **作成日:** 2026-03-28  
-**ステータス:** 計画中  
+**最終更新:** 2026-08-15
+**ステータス:** バックエンド基盤・presence／lock UI の一部実装済み。共有権限、競合解決、コメント、認証、運用受入は未完了。
 **関連コンポーネント:** ArtifactProject, ArtifactComposition, Network, VersionControl
+
+## 現行コード監査 (2026-08-15)
+
+`CollaborationWebSocket`、`CollaborationProtocol`、`LayerLockManager`、`EditSession` の transport／session／lock／broadcast 基盤は実装済みで、`CollabPresenceWidget` と `LayerLockIndicator` も存在する。したがって旧文書の「全体が計画中」という表現は現状と一致しない。
+
+一方、プロジェクト共有の権限・招待リンク、操作の競合解決（OT／CRDT／merge）、変更差分の表示・巻き戻し、コメント／レビュー、サーバー側の rule sync 中継、認証／TLS、通常編集画面への接続導線は現行コード検索だけでは完了を証明できない。現時点の判定は、**通信・ロック・presence の基盤部分実装済み、コラボレーション機能全体は未完了** とする。
 
 ---
 

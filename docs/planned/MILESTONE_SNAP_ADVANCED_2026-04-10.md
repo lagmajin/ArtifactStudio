@@ -1,8 +1,18 @@
 # 高度なスナップ機能の実装
+
+**最終更新:** 2026-08-15
 **マイルストーン**: M-SN-1 Advanced Snapping System
 **作成日**: 2026-04-10
 **見積もり**: 12-15h
 **優先度**: Low (細かいUX改善)
+
+## 2026-08-15 現行コード照合
+
+- ✅ `TransformGizmo` は他レイヤーの bounds／center／edge、composition 基準、spacing guide を検出し、移動・リサイズの snap と active line／label 表示へ接続している。
+- ✅ ViewMenu には grid／guide の表示・スナップ切替があり、ショートカットと `QSettings` による状態復元がある。GridSettings には snapToGrid が含まれる。
+- ✅ 回転には `Viewport/RotationSnapDegrees` 設定と軸／角度スナップの既存経路がある。
+- ⚠️ 旧案の専用 Snap Manager、ターゲット別 ON／OFF、許容範囲・磁石強度・色の設定ダイアログ、safe margin／custom guide の統一モデルは確認できない。
+- ⏳ Alt トグル、優先順位設定、音 feedback、全操作モードの runtime 精度・性能 QA、設定 UI の完全接続は未完了。
 
 ## 概要
 

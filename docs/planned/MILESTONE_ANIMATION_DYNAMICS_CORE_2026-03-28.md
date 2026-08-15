@@ -3,10 +3,26 @@
 > 2026-03-28 作成
 
 **進捗状態:** Phase 0〜3 の主要基盤は実装済み。高度な layer/channel UI と runtime／回帰検証が残る。
+**最終更新:** 2026-08-15
 
 ### 実装状況（2026-07-25 確認）
 
 `Animation.Dynamics` の 1D／2D／3D spring-damper、lag follower、overshoot 制限、velocity accumulator、プリセット、seek 時 reset を確認した。`ArtifactAbstractLayer` では position／rotation／scale への適用、Inspector プロパティ、JSON 永続化まで接続されている。残課題は全 transform channel への統一 adapter、スクラブ／再生境界の runtime 検証、テストハーネスと高度な preset UI。
+
+### 2026-08-15 現行コード監査
+
+- `Animation.Dynamics` の solver は `DynamicsChannel1D/2D/3D`、Spring／LagFollow、preset、overshoot clamp、velocity accumulator、seek reset を保持している。
+- `ArtifactAbstractLayer::getLocalTransformAt()`、`getLocalTransform()`、`getLocalTransformAtFrame()` の評価後段で Position X/Y、Rotation、Scale X/Y に dynamics を適用する経路を確認した。設定値は Property／component descriptor と JSON に接続されている。
+- したがって旧来の「Core solver のみ」「Layer 未接続」という扱いは現状に適用しない。
+- Anchor、Opacity、3D の全チャンネルを同一 adapter で扱う統合、専用 preset UI、スクラブ／再生境界の runtime 検証、自動テストハーネスは未完了。
+
+判定: **Core solver と主要 2D transform への静的接続は実装済み。全チャンネル統合、UI 拡張、runtime／回帰検証は pending。**
+
+## Update 2026-08-15
+
+現行コードを追加確認した。`Animation.Dynamics` は 1D／2D／3D の spring／lag follower、preset、overshoot clamp、velocity accumulator、seek reset を提供し、`ArtifactAbstractLayer` の Position X/Y、Rotation、Scale X/Y の評価後段へ接続されている。Property／component descriptor と JSON 永続化も確認できる。
+
+未完了なのは Anchor／Opacity／3Dを含む全チャンネルの共通adapter、専用preset UI、scrub／再生境界の挙動、自動テストハーネス、runtime／回帰検証である。Core solverと主要2D接続は実装済み、全チャンネル統合と受入れは pending とする。
 
 ## 目的
 

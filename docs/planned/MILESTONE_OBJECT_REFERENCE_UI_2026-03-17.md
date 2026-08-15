@@ -1,5 +1,7 @@
 # M13 Object Reference UI (2026-03-17)
 
+**最終更新:** 2026-08-15
+
 日付：2026-03-17  
 目標：Unity 風オブジェクト参照選択 UI を実装する
 
@@ -20,6 +22,14 @@
 - [ ] **ObjectPickerDialog** 実装
 - [ ] ドラッグ＆ドロップ対応
 - [ ] 参照クリア機能
+
+## Update 2026-08-15
+
+- `PropertyType::ObjectReference` は `AbstractProperty` の型処理に存在し、`ArtifactPropertyEditorObjectRef` が現在値表示、オブジェクト選択、クリア、Accessible Name／Description を提供している。
+- `ArtifactObjectPickerDialog` は composition／layer のツリー、検索、選択、OK／Cancel を実装し、`ArtifactInspectorWidget` から呼び出されている。`ArtifactObjectReferenceWidget` も pick／clear の共通部品として存在する。
+- Procedural 3D layer と Clone layer には ObjectReference 型の実利用例があり、property editor から参照を編集する主要経路は実装済み相当である。
+- ただし、旧要件のドラッグ＆ドロップによる参照設定、参照型フィルタの厳密な適用範囲、参照切れ表示・自動修復、全 ObjectReference プロパティの Inspector 統合は静的確認だけでは完了判定できない。判定は **主要 UI／picker／clear 実装済み、D&D・横断受入れ未確認** とする。
+- ビルド・テスト・runtime 確認は未実施。
 
 ---
 

@@ -88,6 +88,25 @@ Pointer 演出の最小データモデルを固定する。
 - frame ベースでも time ベースでも扱える
 - 既存 animation データと衝突しない
 
+## Implementation Update 2026-08-15
+
+- `ArtifactCore/include/Animation/VirtualPointer.ixx` を追加し、`VirtualPointerTrack`、`VirtualPointerFrame`、`PointerEventKind`、`VirtualPointerStyle` の Phase 1 データモデルを実装した。
+- frame／timestamp、画面座標、visible、pressed buttons、event kind、pressure／strength、style を JSON 保存／復元できる。track は frame 順へ正規化して追加する。
+- 録画 API、seek 復元、補間、Editor／Layer 接続、UI 描画は次段階の対象として未実装。ビルド・テストは未実施。
+
+## Implementation Update 2026-08-15 (Phase 2)
+
+- `VirtualPointerTrack::recordFrame()` を追加し、同一 frame の再録画は既存状態を置き換え、異なる frame は時系列へ挿入する。
+- `stateAtFrame()` を追加し、位置・timestamp・pressure・strength は線形補間、visible／pressed buttons／event kind は区間の近い側から復元する。範囲外は端の状態へ clamp する。
+- これにより seek 時の deterministic な状態取得の Core 契約を用意した。実際の playback service、録画入力、drag 区間の編集 UI、runtime 検証は未実施。
+
+## Implementation Update 2026-08-15 (Phase 3)
+
+- `VirtualPointerBinding` を追加し、composition ID、layer ID、property path、enabled を track に保持・JSON 保存／復元できるようにした。
+- `VirtualPointerTrack::isBound()` で Editor／automation 側が接続可否を判定できる。実際の layer mutation、keyframe 変換、easing／overshoot、編集 UI はまだ接続していない。
+- Editor 向けに `positionAtFrame()` と `eventFrames()` を追加し、位置評価と click／drag／hover 等の離散イベント列を同じ track から取得できるようにした。
+- `stateAtTime()` も追加し、frame-based／time-based の両方で同じ補間・境界 clamp 契約を利用できるようにした。
+
 ---
 
 ## Phase 2: Recording / Playback Contract

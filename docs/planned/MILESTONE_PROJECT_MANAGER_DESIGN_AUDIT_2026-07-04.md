@@ -1,5 +1,7 @@
 # マイルストーン: プロジェクトマネージャ 機能監査 (2026-07-04)
 
+**最終更新:** 2026-08-15
+
 > 作成: 2026-07-04
 > 元依頼: 「次はプロジェクトマネージャーを」
 
@@ -207,7 +209,7 @@
 - `Artifact/include/Widgets/ArtifactProjectManagerWidget.ixx` — インターフェース
 - `docs/WIDGET_MAP.md` — ウィジェット責務
 
-## Static Audit (2026-07-25)
+## Static Audit (2026-08-15)
 
 現行ソースを再確認したところ、旧監査から進展がある。`ArtifactProjectManagerWidget` / `ArtifactProjectView` には Tree と Tile の切替、プロジェクト横断の検索欄、タイプフィルタ、列ヘッダのソート、列幅調整、インラインリネーム、複数選択、選択アイテムのプレビュー／メタデータ表示、依存関係表示、欠損 footage の再リンク補助、proxy 状態表示、drag & drop 導線が実装されている。Tile はサムネイルとメタデータを描画し、密度調整も持つ。
 

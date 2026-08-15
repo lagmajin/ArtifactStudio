@@ -1,5 +1,7 @@
 # Timeline TrackView Owner-Draw Migration (2026-03-27)
 
+**最終更新:** 2026-08-15
+
 `ArtifactTimelineWidget` の右ペインは、現状 `TimelineTrackView (QGraphicsView + TimelineScene + ClipItem)` と `ArtifactTimelineTrackPainterView (QWidget + QPainter)` が並走している。
 性能仮説では、`QGraphicsView` / `QGraphicsScene` / `QGraphicsItem` のオーバーヘッドが大きく、クリップ数やドラッグ頻度が増えるほど UI 応答が落ちやすい。
 
@@ -150,6 +152,12 @@
 - 旧 shortcut / sync と owner-draw の完全な回帰確認
 
 したがって「Phase 1〜5 のコード移行は完了相当、実運用の性能・回帰検証と旧資料整理が残る」と整理する。
+
+## Update 2026-08-15
+
+M-TL-4 の実装状態を現行コードで再確認した。右ペインは `ArtifactTimelineTrackPainterView` に集約され、clip／row／playhead／keyframe marker の描画、選択・hover・drag・resize・seek、zoom／水平・垂直 offset を owner-draw 側で処理している。`Artifact/src` の Timeline 実装には旧 `QGraphicsView`／`QGraphicsScene`／`QGraphicsItem` 系の参照がないため、コード移行は完了相当とする。
+
+残作業は大量レイヤー時の scrub／drag／resize 性能、shortcut／sync の完全回帰、および旧資料の整理であり、ビルドや実機実行なしには受入れ済みとは判定しない。
 
 ## Notes
 

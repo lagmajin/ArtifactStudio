@@ -26,6 +26,7 @@
     "openimageio",
     "opencolorio",
     "glm",
+    "meshoptimizer",
     "stb",
     "boost-iostreams",
     "entt",

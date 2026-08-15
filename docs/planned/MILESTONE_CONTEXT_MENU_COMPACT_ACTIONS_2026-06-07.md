@@ -1,7 +1,8 @@
 # Context Menu Compact Actions Milestone
 
 **作成日:** 2026-06-07  
-**ステータス:** 計画中  
+**最終更新:** 2026-08-15
+**ステータス:** Layer Panel の Frequent／All 分離とカテゴリ整理は実装済み、個人カスタマイズ／検索／全 surface 統一は未完了
 **関連コンポーネント:** Context Menu, Layer Panel, Inspector, Composition Editor, Menu Registry
 
 ---
@@ -137,3 +138,12 @@
 - `docs/planned/MILESTONE_MENU_APP_INTEGRATION_2026-03-27.md`
 - `docs/planned/MILESTONE_SHORTCUT_CONTEXT_MAP_2026-04-21.md`
 - `docs/planned/MILESTONE_APP_CROSS_CUTTING_IMPROVEMENT_2026-03-27.md`
+
+## 2026-08-15 現行コード監査
+
+- `ArtifactLayerPanelWidget` の選択レイヤー用 context menu に `Frequent` と `All` があり、状態、整理、選択レイヤー、プリコンポーズ、マット、プロキシ、コピー、新規などをカテゴリ別 submenu に分けている。
+- 主要 surface には既存の専用 menu／context menu があり、Layer Panel については旧来の「長い項目の羅列のみ」という前提は現状に適用しない。
+- ただし、Frequent の pin／unpin、直近使用履歴による並べ替え、検索／type-ahead、折りたたみ状態の個人保存、Timeline／Inspector／Composition 間で共有する Menu Registry は確認できない。
+- 初期表示が常に10項目以内か、surface間のカテゴリ・頻出項目が整合するか、実操作の到達性は runtime 未検証。
+
+判定: **Layer Panel の compact 化とカテゴリ分離は実装済み。カスタマイズ、検索、共通 registry、runtime UX 検証は pending。**

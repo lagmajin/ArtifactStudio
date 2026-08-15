@@ -21,6 +21,12 @@ implementation files; this is an adoption signal, not a claim that every
 effect has a fully parallel pipeline.
 It does not replace the CPU/HLSL dual-backend or GPU-parity milestones.
 
+Current creative-effect exception: the Inspector's `builtin.halftone` entry
+uses `ArtifactHalftoneEffect`, which has an HLSL `runCreativeCompute()` path
+with CPU fallback. The separate `ArtifactCoreCreativeEffect` adapter used by
+Core factory entries such as Mirror remains CPU-only until a texture-native
+GPU contract is added.
+
 Performance caveat: the newly added fallback-compatible GPU paths currently
 accept `ImageF32x4RGBA` input, upload it to a temporary texture, dispatch the
 shader, wait for completion, and read the result back. They prove an HLSL

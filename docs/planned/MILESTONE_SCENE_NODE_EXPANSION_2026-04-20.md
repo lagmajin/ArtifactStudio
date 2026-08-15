@@ -1,5 +1,7 @@
 # MILESTONE: SceneNode Feature Expansion
 
+**最終更新:** 2026-08-15
+
 > 2026-04-20 作成
 
 ## 目的
@@ -240,3 +242,7 @@
 現行ソースの `SceneNode` は、文書冒頭の現状整理どおり、name、親子階層、local SRT、dirty-cache 付き world matrix/world position、mesh/material、visible、AABB/count を持つ最小実装である。`SceneNodeType`、node ID、JSON serialization、selection/lock/template/display layer、rotation order/pivot/inherits、Scene container、Camera/Light node、property/animation binding、constraint/tag/render-stat の追加契約は確認できない。
 
 既存の layer hierarchy、composition graph、Undo、Camera/Light standalone 型は存在するが、SceneNode の拡張完了を示す接続ではない。したがって Phase 1〜6 は未着手または未接続として扱い、現状は foundation のみと判定する。
+
+## 現行コード監査 (2026-08-15)
+
+`SceneNode` の現行実装は、PImpl、name、親子管理／descendants／path、local position／quaternion／scale、dirty を伴う world matrix／world position、mesh／material、visible、bounding box／node count を備える。旧監査の「最小 foundation」という判定は維持する。一方、`SceneNodeType`／stable ID／JSON serialization、Scene container、Camera／Light node、property／animation binding、constraint、既存 viewport／composition renderer への接続は確認できず、Phase 1 の拡張契約から Phase 6 まで未接続または未着手である。

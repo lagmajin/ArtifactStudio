@@ -2,6 +2,14 @@
 
 > 2026-06-17 作成
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactCompositionEditor`／`ArtifactCompositionRenderController` には `PerformanceProfiler`、`ProfilerOverlay`／`ProfilerPanel`、`FrameDebugSnapshot`、pass／resource 記録が存在し、旧文書時点より計測と診断の基盤は進んでいる。render controller には screenshot／debug／matte／source bridge 用の `QImage` 経路が複数残っており、QImage hot path を全面解消した状態ではない。
+
+`GpuContext` の生成経路も現行 controller に存在するが、毎フレーム確保か長寿命再利用かはコード検索だけでは受入れできず、lifetime と frame-time の runtime 計測が必要である。したがって、profiler／FrameDebug の基盤は実装済み、QImage 境界の縮小・GpuContext lifetime の確定・`paintEvent`／update churn の実測と改善優先順位付けは pending と判定する。
+
 ## 目的
 
 `CompositionEditor` と周辺 render / UI path にある perf ボトルネックを、まず「止血対象」と「次スプリント対象」に分けて、改善の順番を固定する。

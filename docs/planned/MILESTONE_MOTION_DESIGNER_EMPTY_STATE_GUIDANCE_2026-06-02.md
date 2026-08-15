@@ -2,6 +2,8 @@
 
 > 2026-06-02 作成
 
+**最終更新:** 2026-08-15
+
 モーションデザイナー向けに、タイムラインや関連 surface の空状態を「何もない場所」ではなく「次の操作が分かる案内」として揃えるマイルストーン。
 
 この文書は、Timeline / Property / Inspector / Preview / Composition 周辺の empty selection、未キーフレーム、未対象、未読み込み時の文言と導線をまとめる上位枠とする。
@@ -142,3 +144,11 @@ Phase 1 の対象 surface を Timeline / Property / Layer panel に絞り、`No 
 - Phase 2: 未完了 — no keyframe / no property / no mask の共通案内は未確認
 - Phase 3: 部分実装 — Composition Preview の empty overlay はあるが、Inspector / Preview 横断の導線は未確認
 - Phase 4: 未着手相当 — tooltip / placeholder / helper text の全体整理と runtime 確認が残る
+
+## Update 2026-08-15
+
+現行コードを追加確認した。Timeline には `Select a layer to continue`、`Keys: - | Select a layer`、Property Widget には `Select a layer or composition effect to edit`、Inspector には `Select a layer to manage effects`／`Select a layer inside a composition to add ...`、Preview 系には `Select a layer to inspect the preview` など、action-first の空状態文言が複数 surface に実装されている。Composition Editor の空状態オーバーレイと、Layer Solo View の `Select a layer to inspect` も確認できる。
+
+一方で、Dope Sheet の `No dope sheet rows yet. Select a layer with keyframes.`、Composition Editor の `No text layer selected.`、参照プロパティの `This layer exposes no referenceable properties.` など、`No ...` 系や surface 固有の表現も残っている。空状態から add keyframe／open／scrub へ進む共通 action、no keyframe／no property／no mask の統一テンプレート、tooltip／placeholder の横断管理は未確認である。
+
+判定を更新し、Phase 1 と Phase 3 は個別 surface の action-first 表示が進んだ「部分実装」、Phase 2 は共通文言・導線が未完了、Phase 4 は全体整理と runtime の表示密度確認が残る状態とする。実装コードの確認のみで、実際の画面上の重複や読みやすさは未検証である。

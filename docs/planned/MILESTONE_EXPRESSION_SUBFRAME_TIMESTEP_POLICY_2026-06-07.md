@@ -1,8 +1,15 @@
 # Expression Subframe / Timestep Policy Milestone
 
 **作成日:** 2026-06-07  
-**ステータス:** Phase 1〜3 実装済み・Phase 4〜5 未完了／検証待ち
+**最終更新:** 2026-08-15
+**ステータス:** evaluator の評価モード・固定／adaptive step 基盤は実装済み。property単位設定、UI、全expression経路の適用、runtime検証は未完了。
 **関連コンポーネント:** ExpressionEvaluator, ExpressionContext, Property Integration, Time System
+
+## 現行コード監査 (2026-08-15)
+
+`ExpressionEvaluator` は FrameLocked／SubframeSampled／FixedMicrostep／AdaptiveStep の `evaluateOverRange()`、frame rate、substep count、adaptive tolerance、min/max step、split count 診断、任意時刻の `evaluateAtTime()` を実装している。したがって Phase 1〜3 の evaluator 基盤だけでなく、固定／adaptive step の主要計算経路も静的コード上で確認できる。
+
+一方、`EvaluationMode` を式単位／プロパティ単位で保存・選択する UI、通常の Property evaluation／preview／render queue への一貫した mode 伝播、物理式以外を含む純粋性・副作用契約、30/60fps parity の runtime 受入は確認できない。Phase 4〜5 は未完了扱いとする。
 
 ---
 

@@ -1,6 +1,6 @@
 # Neurodiversity Accessibility (2026-08-08)
 
-**最終更新:** 2026-08-09
+**最終更新:** 2026-08-15
 **状態:** 部分実装（N-1 Calm UIテーマのトークン適用済み。輝度上限・点滅検出は未完了）
 
 ## 概要
@@ -18,6 +18,13 @@
 - ✅ General Settings の UI Theme から `Calm` を選択・保存可能
 - ✅ N-2 のフォーカスモード（`Ctrl+Shift+F`）でメニューバー、ツールバー、オプションバー、ステータスバー、非中央ドックを一時的に非表示化し、元の可視状態を復元
 - ⏳ ビューポート輝度上限、フレーム間の高速明暗変化検出、ギズモ／コンテンツ描画への適用は次段階
+
+## Update 2026-08-15
+
+- 現行コードと設定導線を再確認し、Calm UI theme、Focus Mode、font scale、large targets、high-contrast hints、color-deficiency mode、hover dependency reduction、sticky keys、single-hand mode、viewport magnifier の設定または基盤が存在することを確認した。
+- Focus Mode は Main Window のドック／ツールバー等の可視性をスナップショット化して復元する経路があり、sticky modifier はアプリの input event filter と status 表示に接続されている。
+- 一方、ビューポートの輝度上限、フレーム間の明滅検出、reduce-motion の全アニメーション横断適用、Pomodoro／ガイド付き操作／記録マクロ、viewport magnifier の実表示は未実装または静的確認のみである。
+- 判定は **Calm／Focus／入力補助と設定基盤は部分実装、感覚負荷の自動抑制と runtime 受入れは未完了** を維持する。ビルド・テスト・runtime 確認は未実施。
 
 ## カテゴリ別計画
 

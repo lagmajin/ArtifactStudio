@@ -2,6 +2,8 @@
 
 > 2026-04-10 作成
 
+**最終更新:** 2026-08-15
+
 ## 目的
 
 MaterialX を、単なる XML 文字列の保持ではなく、Artifact の material asset / inspector / export に接続しやすい交換形式として扱う。
@@ -97,12 +99,20 @@ Artifact では既に `MaterialType::MaterialX` と `materialXDocument` の格�
 
 | Phase | 現状 | 判定 |
 |---|---|---|
-| 1. Document storage | `MaterialType::MaterialX`、document setter/getter、保持用フィールドを確認した。MaterialX専用の完全なsave/load round-tripは未確認。 | 部分実装 |
+| 1. Document storage | `MaterialType::MaterialX`、document setter/getter、保持用フィールド、`Material::saveMaterialXDocument()`／`loadMaterialXDocument()` を確認した。 | 部分実装 |
 | 2. Inspector summary | 3D model layer の property group に `MaterialX` document present の summary 表示を確認した。root node／size／source kind の詳細表示は未確認。 | 部分実装 |
-| 3. Import / Export | MaterialX XML の import/export bridge、preset相互変換、PBR fallback の専用経路は確認できない。 | 未実装 |
+| 3. Import / Export | MaterialX XML のファイル保存／読込を `Material` API に追加した。preset相互変換、schema validation、PBR fallback の専用経路は未確認。 | 部分実装 |
 | 4. Renderer / Shader bridge | 既存PBR material assignment はあるが、MaterialX documentからparameterを抽出してrendererへ渡す経路は確認できない。 | 未実装 |
 
 ### 現在の判定
 
 MaterialX document の保持と存在表示は部分実装されているが、保存契約、import/export、renderer bridge は未完了。全体は「Phase 1〜2 部分実装／Phase 3〜4 未着手」とする。
+
+## 現行コード監査 (2026-08-15)
+
+`Material` は `MaterialType::MaterialX` と XML document の getter／setter／clear、JSON／preset 経路を持ち、`Artifact3DModelLayer` の property group には MaterialX document の存在 summary がある。PBR の metallic／roughness／normal／occlusion 等は通常の Material／renderer 経路で扱われる。
+
+ただし、MaterialX XML を解析して PBR parameter や shader graph へ変換する importer／exporter、MaterialX document の専用 inspector 編集、renderer への MaterialX 由来 parameter bridge は確認できない。MaterialX の保持と通常 PBR の実装を、交換機能の完了根拠として扱わない。
+
+判定: **Document storage と存在表示、ファイル単位のXML保存／読込は部分実装。編集 UI、schema validation、renderer bridge は未実装。**
 

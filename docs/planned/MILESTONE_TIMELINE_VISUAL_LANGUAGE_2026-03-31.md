@@ -1,5 +1,7 @@
 # Timeline Visual Language (2026-03-31)
 
+**最終更新:** 2026-08-15
+
 タイムラインの視覚表現を、単なる装飾ではなく意味ベースの UI 言語として整理する。
 
 このマイルストーンは、レイヤーバー、キーフレーム、再生ヘッド、選択ハイライトを一貫したルールで描き分け、操作対象と状態を瞬時に判別しやすくすることを目的とする。
@@ -44,9 +46,13 @@
 ## Current State
 
 - `ArtifactTimelineTrackPainterView` でクリップとキーフレームの owner-draw が始まっている
-- クリップはまだ単一の既定色が強く、種別別の整理は未完
-- playhead は painter 側と overlay 側の二重描画が起きていたため、片側へ寄せる途中である
+- `ArtifactTimelineWidget::layerTimelineColor()` で Video／Audio／Text／Shape／Image／Particle／3D／Camera などの種別色が定義され、clipへ渡されている
+- playhead は right panel の overlay同期経路へ整理され、旧scene由来の二重描画は現行コードでは確認できない
 - キーフレームは visible rows ベースで収集し始めており、色分けとレーン分割の入口がある
+
+## Update 2026-08-15
+
+現行コードでは、種別色、選択／hoverの派生色、keyframeのinterpolation／easing／color label、レーン分割、playhead overlay、左パネルのactive borderが主要経路まで実装済み。残るのは共通token/helperへの整理、色覚差・light/dark themeを含む実機回帰、状態形状の横断統一である。
 
 ## Definition Of Done
 
@@ -113,7 +119,7 @@
 
 ---
 
-## 2026-07-25 現状確認
+## 2026-08-15 現状確認
 
 実装は Phase 1〜4 相当まで進んでいる。`ArtifactTimelineWidget.cppm` に Video / Audio / Text / Shape / Image / Solid / Camera / Light / Particle 等の layer type 色があり、選択状態は layer panel と右側 timeline の両方で accent／左ボーダーとして表現される。`ArtifactTimelineTrackPainterView.cppm` では marker の interpolation、easing、color label、lane、selected／hover／current 状態を分け、playhead は `TimelinePlayheadDraw` 共通 helper を使って描画している。Scrubbar も同じ theme token を参照する。
 

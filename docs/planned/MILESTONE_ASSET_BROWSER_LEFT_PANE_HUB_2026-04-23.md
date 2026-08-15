@@ -2,6 +2,9 @@
 
 > 2026-04-23 作成
 
+**最終更新:** 2026-08-15
+**判定:** Hub の主要構造は実装済み。Missing／Relink／Import の専用 quick action と runtime 受入れは未完了。
+
 `ArtifactAssetBrowser` の左側を、単なるフォルダ一覧ではなく「素材ハブ」として整理するマイルストーン。
 
 見た目の寂しさを埋めるだけでなく、何があるか・何が危ないか・次に何をすればいいかを左側で読めるようにする。
@@ -169,3 +172,9 @@
 - 現在のフォルダ・件数・status・選択文脈を左側に要約する UI と、Asset Browser の探索責務に閉じた構成も実装されている。
 - 一方、Missing／Relink／Import の quick action が要件どおり一貫して左ペインに揃っていること、空状態の完成度、Project View と責務が混ざらない runtime UX は未確認である。
 - よって主要な hub 構造は実装済み、導線の仕上げと実機確認を残す Partial／継続中と判定する。
+
+## 2026-08-15 現行コード照合
+
+`ArtifactAssetBrowser.cppm` では、Sources カード、現在パス、件数・Favorites・Sources・Type・Status・検索条件の summary、Recent folder、選択状況、All Favorites、breadcrumb、Unused／Missing の状態フィルタを確認した。左ペインは Project View の構造表示ではなく、Asset Browser の探索・状態確認に閉じた責務になっている。
+
+一方、設計案にある Missing／Relink／Import の専用ボタン群は、現行コードでは同一の常設 quick action として揃っているとは確認できない。空状態の視覚的完成度、Recent／Favorites の実操作、Project View との同期境界は static evidence だけでは受入れできないため、Phase 4 と runtime 確認を残す。

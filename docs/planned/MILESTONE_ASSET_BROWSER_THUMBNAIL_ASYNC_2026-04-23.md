@@ -1,5 +1,6 @@
 # Milestone: Asset Browser Thumbnail Async Warmup (2026-04-23)
 
+**最終更新:** 2026-08-15
 **Status:** Partial（Phase 1〜3 の静的実装済み。明示的 cancel／shutdown の runtime 検証と性能計測 pending）
 **Goal:** アセットブラウザのサムネイル生成を UI スレッドから外し、動画ファイルの多いディレクトリでも一覧表示が固まらないようにする。
 
@@ -58,3 +59,9 @@
 - キャッシュ再生成時は世代更新に加えて進行中の image／video／audio watcher を disconnect／cancel し、古い job を pending map から破棄する。
 - 可視範囲・近傍アイテムを優先する warmup 経路は実装済み。明示的な cancel／shutdown の runtime 検証、全件初期表示での UI 非ブロッキング効果は未確認である。
 - よって Phase 1〜3 は静的実装済み、実機性能検証を残す Partial 判定を維持する。
+
+## 2026-08-15 現行コード照合
+
+`ArtifactAssetBrowser.cppm` で、QtConcurrent による画像／動画／音声 waveform の非同期生成、表示範囲と近傍を優先する warmup、`thumbnailGeneration_` による stale result 無効化、watcher／pending map の管理、mutex 保護のメモリキャッシュ、PNG ディスクキャッシュ、個別モデル更新を再確認した。旧来の「一覧生成中に全件同期 decode」前提は現行コードと一致しない。
+
+ただし、QtConcurrent の実際の並列度制御、終了時に全 watcher が確実に停止すること、スクロール連続時の重複抑制、動画・音声が大量にある場合の UI latency／cache hit rate は静的コードだけでは保証できない。今回はビルド・テストを実行していない。

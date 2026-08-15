@@ -1,14 +1,24 @@
 # 3Dレイヤー回転モデルの3軸化
 
-**最終更新:** 2026-08-14
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactAbstractLayer` の 3 軸 snapshot、`rotationX/Y/Z` の JSON 保存／復元、Z→Y→X の共通行列生成、`Artifact3DModelLayer` の X/Y/Z 適用は現行コードで確認できる。旧 `rotation`／`rx` 互換も維持されている。一方、プロパティ UI の表示責務整理と、親子変換・モーションブラー・カメラ投影を組み合わせた runtime 受入はコード検索だけでは完了を証明できないため、受入条件全体は未検証とする。
+
+## Update 2026-08-15
+
+- `AnimatableTransform3D` の実装を再確認し、X/Y/Z の独立値・キーフレーム評価、Z→Y→X の Euler 行列、旧 `rotation` 値を Z 軸へ割り当てる互換経路を確認。
+- 3D モデル側の X/Y/Z 適用と JSON／Undo 経路は実装済みと判断できる。
+- Quaternion 編集、親子変換・モーションブラー・カメラ投影を組み合わせた runtime 受入、およびプロパティ UI の責務整理は未完了・未検証。
 
 ## 現状
 
 - `AnimatableTransform3D` は既存のZ軸互換値に加え、X/Yの独立アニメーション値と3軸スナップショット値を保持する。
-- `ArtifactAbstractLayer::setRotation3D(QVector3D)` は `rot.x()` のみを保存する。
-- `AnimatableTransform3D` の共通行列生成はZ → Y → X順のEuler回転を適用する。`ArtifactAbstractLayer`側の値接続は未完了。
-- `Artifact3DModelLayer` と `ArtifactProcedural3DLayer` もZ軸単一回転を直接適用する。
-- JSON/UIには `rotationX` / `rotationY` / `rotationZ` が存在する箇所があるが、内部モデルと一貫していない。
+- `ArtifactAbstractLayer::setRotation3D(QVector3D)` は3軸値を `setRotationX/Y/Z` へ反映する。旧来の「Xのみ保存」という記述は現行コードと不一致。
+- `AnimatableTransform3D` の共通行列生成はZ → Y → X順のEuler回転を適用し、`ArtifactAbstractLayer` のローカル変換にも接続済み。
+- `Artifact3DModelLayer` と `ArtifactProcedural3DLayer` は `rotationX/Y/Z` のスナップショットをそれぞれのモデル行列へ適用する。
+- JSON/UIには `rotationX` / `rotationY` / `rotationZ` が存在し、キーフレーム、Undo 用プロパティ経路、保存／再読込へ接続されている。残りは親子変換・モーションブラー・カメラ投影との runtime 受入である。
 
 ## 実装順序
 

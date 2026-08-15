@@ -1,5 +1,13 @@
 # M-DIAG-5 Startup Thread Churn / Worker Burst Trace
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+- 現行コードには shared background `QThreadPool`、render scheduler 専用 pool、playback `QThread`、preview／asset／decode 系の非同期 worker が併存している。`ArtifactRenderScheduler` は pool の max thread count を管理し、Playback は worker thread の再始動経路を持つ。
+- Logger は thread id／thread name を記録し、App Debugger は thread pool の状態を表示できるため、基礎的な thread 診断情報はある。ただし startup／first composition／first preview を `Render / Decode / Asset / Playback / Project / AI` lane にタグ付けした Trace Timeline は確認できない。
+- 起動 burst の発生源別 churn 件数、単発 worker の相関表示、startup hotspot の専用 Profiler surface、pool consolidation／initialization deferral の完了は未確認。Phase 1〜4 は未完了で、現状は個別 pool 管理と一般的な thread diagnostics の段階。
+
 コンポジション初期化やアプリ起動直後に、大量の worker thread が短時間で生成・終了する現象を可視化し、不要な burst を減らすためのマイルストーン。
 
 ## Goal

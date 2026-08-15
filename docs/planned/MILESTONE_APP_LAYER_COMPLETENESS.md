@@ -2,6 +2,23 @@
 
 > 2026-03-20 作成
 
+**最終更新:** 2026-08-15
+
+## 2026-08-15 現行コード照合
+
+- `ArtifactLayerFactory` は Null／Solid／Image／Adjustment／Text／Shape／Audio／Video／Precomp／Camera／Light／Group／Particle／3D Model などの生成と JSON 復元を持ち、legacy `layerType` 名も吸収する。
+- ApplicationService、Tool／Effect／Audio／Translation、Undo、DisplayMode、PreCompose、proxy、AspectRatio の主要穴埋めは本文記載どおり実装済みまたは対象外へ整理済み。
+- 未完了の中心は DAG の全エフェクト実データ評価、非画像入出力の完全接続、runtime 受入れであり、レイヤー生成表面そのものではない。
+
+**判定:** アプリ層の主要サービス／レイヤー factory 基盤は大部分実装済み。残課題は効果評価の完全接続と実機検証。
+
+## 2026-08-15 追加照合
+
+- `CompositionGraphBuilder` はレイヤー／エフェクトの DAG 構築まで実装済み。
+- `DAGExecutor` は compile、依存解決、画像バッファ伝播、失敗枝の遮断まで実装済み。
+- ただし、Transform / LayerRender の実体入力と、非画像ステージの backend 評価契約は未接続。null ノードを暗黙の恒等処理として扱う実装は行わない。
+- 次の実装単位は、実データを供給できる画像ステージから順に DAG 入出力契約を接続すること。runtime 検証は別途必要。
+
 ## 目標
 
 コアモジュールのスタブ実装を埋め、サービス層・ツール層・エフェクト層の接続を完成させる。
@@ -154,9 +171,10 @@ facade sliceと物理Audio device列挙・選択・設定永続化の公開契�
 
 ### M-APP-15 OFX ホスト基盤
 - `Artifact/src/Effetcs/Ofx/` 全体
-- [ ] OFX SDK ヘッダ統合
-- [ ] ホスト構造体セットアップ
-- [ ] プラグインスキャン
+- [x] OFX SDK ヘッダ群と host suite の基盤（`Artifact/include/ofx/`, `ArtifactOfxHost`）
+- [x] ホスト構造体セットアップと suite callback
+- [x] プラグインスキャン／loaded plugin の EffectService 列挙
+- [ ] 実OFX pluginのロード・render・property editing runtime受入
 - 優先度: 低い (サードパーティ効果の互換性)
 
 ### M-APP-16 ArtifactWebBridge 完成 ✅

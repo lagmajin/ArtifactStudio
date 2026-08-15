@@ -1,7 +1,7 @@
 # MILESTONE: Text Animator Completion & Inline Editing
 
 **日付**: 2026-08-04
-**最終更新:** 2026-08-14
+**最終更新:** 2026-08-15
 **現状**: Coreの設計シミュレーション122件、ArtifactCoreの実テキストスモーク、DX12 GPUの通常文字・日本語描画を確認済み。絵文字grapheme metadataはshapingからglyphへ伝播済みで、DirectWriteのカラーrun取得・alpha texture化・RGBA合成まで診断スモークで確認済み。カラー／ZWJ絵文字のGPU atlas描画は未完了。統合Artifactビルドには既存の壊れたIFC参照が残る。
 **目標**: ビューポートインライン編集、Animator Engine の未接続機能の配線、AE 互換の range selector 視覚編集、`textIndex`/`textTotal` 式変数。
 
@@ -20,6 +20,14 @@
 | DirectWriteカラーrun取得 | ✅ | `directwrite_color_glyph_smoke.exe`、`🧪`で5run／alpha texture確認 |
 | DirectWrite runColor + alphaのRGBA合成 | ✅ 診断スモーク | `directwrite_color_glyph.ppm`、93x92合成 |
 | GPU glyphのrotation／scale反映 | ✅ source patch | `DiligentImmediateSubmitter` のquad／matrix生成へ `offsetRotation` と `offsetScale` を接続。統合GPU再ビルド待ち |
+
+## Update 2026-08-15
+
+- `TextAnimatorEngine` は `SelectorOrder` の順位計算、`AnchorPointGrouping` のアンカー生成、通常評価と source-aware 評価、複数 animator stack の適用まで実装されている。これらはソース実装済みだが、実行時の視覚受入れは未確認である。
+- `ArtifactTextGizmo` には先頭 animator の start/end/offset ハンドル、weight preview、cluster/line 境界表示、ドラッグ時の Undo コマンドが存在する。したがって「range selector の視覚ハンドル不在」という旧記述は現状と一致しない。複数 animator の選択・編集導線は引き続き未完了である。
+- Text ツールはクリック／ドラッグで point text／box text を作成し、作成後に `editTextAtViewport()` を呼ぶ。ただし編集 UI は現在も `QInputDialog::getMultiLineText()` であり、ビューポート追従する inline editor、IME を含む直接編集、Esc 破棄／Ctrl+Enter 確定の専用状態は確認できない。G3 は未完了、G9 はレイヤー作成まで部分実装とする。
+- `TextAnimator.cppm` の現行 animator 評価に `textIndex`／`textTotal` または Expression Selector の評価経路は見当たらない。G5 は未着手または未接続として扱う。
+- 以上から、現状は `SelectorOrder / AnchorPointGrouping / first-animator selector gizmo: source implemented, runtime pending / inline editing: not implemented / expression selector variables: not implemented` と整理する。GPUカラー絵文字の統合描画と既存の実行ファイル鮮度問題も、別途 runtime validation 待ちである。
 
 ## 現状の10ギャップ
 

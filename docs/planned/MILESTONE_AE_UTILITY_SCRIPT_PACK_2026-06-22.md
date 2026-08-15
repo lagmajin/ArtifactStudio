@@ -1,5 +1,7 @@
 # Milestone: AE Utility Script Pack
 
+**最終更新:** 2026-08-15
+
 > 状態: Partial (three utility scripts, C++ bridges, and Script menu entries implemented; Undo, confirmation, input UI, and shared registry remain incomplete or unverified)
 
 ## Static Audit (2026-07-25)
@@ -13,6 +15,14 @@ AE Utility Pack の3本（`quick_rename_layers.py`、`clean_layers.py`、`trim_c
 判定: 提案された3 utility の bridge／script／menu entry は部分的に実装済み。再利用可能な制作補助としての最小導線はあるが、Undo／confirm／UI入力／registry統合を含む完成条件は未達または未検証。
 
 ## 2026-07-29 実装ループ: 破壊的 utility の確認導線
+
+## 2026-08-15 現行コード照合
+
+- 3本の script／C++ bridge／Script menu entry と、Clean／Trim の確認ダイアログを確認した。
+- 現行の残課題は Undo の統一、入力編集 UI、失敗理由の構造化、Script menu と Command Palette の共通 registry、runtime 検証。
+- `ArtifactPythonAPI` 全体には placeholder API も残るため、この3本の実装を Python surface 全体の完成とは扱わない。
+
+**判定:** 最小導線は実装済みだが、再利用可能な制作補助パックとしては `Partial` を維持する。
 
 - ✅ Script メニューから `Clean Layers` / `Trim Comp to Content` を実行する前に確認ダイアログを表示するようにした。
 - ✅ `Quick Rename Layers` は非破壊のため確認なしで既存経路を実行する。

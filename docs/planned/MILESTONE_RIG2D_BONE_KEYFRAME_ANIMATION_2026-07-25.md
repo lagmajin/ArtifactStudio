@@ -4,6 +4,15 @@
 **対象:** `ArtifactCore/include/Rig/Rig2D.ixx`, `ArtifactCore/src/Rig/Rig2D.cppm`
 **位置づけ:** Maya / MotionBuilder のボーンキーフレームに相当する Rig2D の時間ベース評価を実装する。
 **作成日:** 2026-07-25
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+- `BoneTransform` の加減算・スカラー乗算、`Bone2D::evaluate(RationalTime)` のキーフレーム補間、追加／削除／存在確認／件数／全消去 API、`Bone2D::toJson()` / `fromJson()` の keyframes 配列は現行 `ArtifactCore/src/Rig/Rig2D.cppm` で確認できる。旧ステータスの「時間評価・キーフレーム補間実装済み」は維持する。
+- `Rig2D::evaluate()` は各ボーンを時刻評価して resolved transform を更新し、階層更新・constraints・smart bones の評価経路も存在する。TwoBoneIK の `poleAngle` は実際の評価で肘方向の符号に使われ、単なる直列化だけではない。
+- `Rig2D` 側には control の追加・値設定、constraint、property binding、JSON 保存／復元、TwoBoneIK／CCDIK solver がある。一方、現行コード検索では Artifact 側の RigControl 編集 UI、ボーン選択／ポーズ操作 UI、タイムライン上のボーン keyframe 操作、Rig 用 Undo、AnimationLayerStack の実接続は確認できない。
+- `evaluate()` 内の `30fps` 固定変換は残っており、Rig 自身の FPS 設定も未実装である。ボーンごとの独立補間設定も、既存 `AnimatableValueT` のキー単位補間を超える専用 UI／契約は確認できない。
+- よって現状は `Core evaluation / keyframe persistence: implemented; RigControl and editing UI / Rig Undo / AnimationLayerStack / runtime validation: pending` と整理する。Phase 1 の Core 部分を完了扱いに更新し、UI・非破壊アニメーション層は未完了のままとする。
 
 ## 1. 目的
 

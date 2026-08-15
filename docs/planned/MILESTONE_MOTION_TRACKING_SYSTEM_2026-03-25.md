@@ -2,6 +2,8 @@
 
 > 2026-03-25 作成
 
+**最終更新:** 2026-08-15
+
 **ステータス:** In Progress
 
 ## 目的
@@ -425,3 +427,10 @@ Phase 1 実行文書と現行ソースを突き合わせた。`MotionTracker` �
 - Phase 3 property / layer bridge: 部分実装 — position / anchor を確認。mask / camera / stabilization は未統合
 - Phase 4 orchestration: 部分実装 — progress / stop API はあるが、専用 service / worker 契約は未確認
 - Status: `In Progress` を維持
+
+## Update 2026-08-15
+
+- `MotionTracker` は point／region／planar、前後・範囲追跡、Optical Flow／Feature／Hybrid／NCC、信頼度・問題フレーム、補正・平滑化・外れ値除去、JSON／file save-load、progress／stop を引き続き提供している。
+- Artifact 側では `ArtifactPointTrackerTool`、`ArtifactPointTrackerGizmo`、Composition Render Controller の tracker apply、Corner Pin、Video Layer の tracker ID、Diagnostics 表示まで接続されている。2D tracker の主要導線は別実行文書と整合する。
+- ただし、独立 TrackingService／worker orchestration、project asset としての session lifecycle、mask／camera／stabilization の統一 bridge、manual keyframe との優先順位、長時間処理の cancel 後部分結果は未確認または未完了である。
+- 判定は **Core／2D UI／position・anchor 適用は実装済み相当、アプリ横断統合と runtime 受入れは未完了** を維持する。ビルド・テスト・runtime 確認は未実施。

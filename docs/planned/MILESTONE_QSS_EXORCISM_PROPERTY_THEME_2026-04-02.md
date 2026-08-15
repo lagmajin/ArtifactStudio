@@ -2,7 +2,7 @@
 
 # Milestone: QSS Exorcism / Property Theme Ownership (2026-04-02)
 
-**Status:** Draft
+**Status:** 部分完了（2026-08-15 現行コード監査、統合先は UI Theme Migration）
 **Goal:** `QSS` 依存を property / inspector / core surface から段階的に追い出し、theme token と owner-draw に寄せる。
 
 ---
@@ -106,14 +106,18 @@
 
 ## Current Status
 
-`QSS` はまだ多い。  
-ただし property / inspector / dock 周辺から攻めると、見た目の統一と責務整理を同時に進めやすい。
+現行の `Artifact/src` では、見た目を定義する `setStyleSheet()` は確認できず、残る 1 箇所は QADS の組み込み stylesheet をクリアする例外である。Property／Inspector／Queue の主要 path は palette／theme token／owner-draw に移行済み。実行時の全 surface 切替確認と token 適用の共通化は残る。
 
 ## Static Audit (2026-07-25)
 
 Property／Inspector 系は QSS 依存をかなり外し、`currentDCCTheme()` から色を取得して `QPalette`、`ArtifactCommonStyle`、owner-draw、PropertyEditor 共通 palette helper へ渡す構成になっている。今回確認した対象の実装ソースでは `setStyleSheet()` は見つからず、property row、入力欄、ボタン、Inspector の主要な色責務は theme 側で説明できる。
 
-ただし、theme 値の取得・fallback・palette 適用が複数箇所に分散し、共通 token／再適用契約として完全には統合されていない。Dock／Queue／ApplicationSettingDialog の residual CSS 棚卸し、theme 切替時の全 surface 再描画、Property／Inspector の実機表示確認は未実施。また CommonStyle 自体は QProxyStyle + Fusion のため、Phase 3〜4 と「QSS 大幅削減」の完了条件は未達。ステータスは Draft のままとする。
+ただし、theme 値の取得・fallback・palette 適用が複数箇所に分散し、共通 token／再適用契約として完全には統合されていない。Dock／Queue／ApplicationSettingDialog の実行時再描画、theme 切替時の全 surface 再描画、Property／Inspector の実機表示確認は未実施。したがって Phase 3〜4 と完了条件は未達だが、Draft ではなく部分完了として扱う。
+
+## Update 2026-08-15
+
+- 旧 QSS exorcism の成果は `MILESTONE_UI_THEME_MIGRATION.md` に統合済み。
+- 現行ソースの残存呼び出しは QADS 初期 stylesheet のクリア 1 箇所のみで、Property／Inspector／Queue の新規 QSS はない。
 
 確認対象:
 

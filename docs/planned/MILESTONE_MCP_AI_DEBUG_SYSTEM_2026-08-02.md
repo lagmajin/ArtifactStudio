@@ -1,10 +1,15 @@
 # MCP AI デバッグシステム 統合マイルストーン
 
-**ステータス:** In Progress
+**ステータス:** Protocol and tool surface substantial / live integration acceptance pending
 
+**最終更新:** 2026-08-15
 **日付**: 2026-08-02
 **統合元**: `MILESTONE_MCP_LIVE_DEBUG`, `MILESTONE_MCP_DEBUG_BREAKPOINTS`, `MILESTONE_AI_DEBUGGER_EXTENSIONS`
 **先行成果**: `DEBUG_MCP_PSEUDO_BREAKPOINT_PLAN_2026-06-04`（初期構想）, `DEBUG_AGENT_RESIDENT_VERTICAL_SLICE_2026-07-26`（常駐 Debug Agent 実装済み）
+
+## 現行コード監査 (2026-08-15)
+
+`McpBridge` は JSON-RPC framing、tools/list・tools/call、ログ／state／composition／layer／render queue／GPU memory／property／step／pause／trace／breakpoint／watchpoint／patch／query／performance 系の分岐を持つ。`McpTransport` は QProcess ベースのセッションを提供し、`Trace`／`FrameDebug` には render snapshot の記録経路がある。したがって初期計画の「21種ツール未実装」という前提は古い。一方、実行中アプリへの接続、実際の `debug-bridge.json`／state file 更新、safe write の権限・rollback、各ツールの UI／renderer 状態との完全な一致は今回の静的確認では受入できないため、統合は未完として扱う。
 
 ## 既存インフラ（すべて実装済み）
 

@@ -4,9 +4,18 @@
 
 **進捗状態:** Phase 1〜3 は実装済み、Phase 4 は基礎 UI まで実装済み。Phase 5 と runtime 検証が未完了。
 
+**最終更新:** 2026-08-15
+
+### 現行コード監査 (2026-08-15)
+
+- `ArtifactLightLayer` は `All`／`IncludeOnly`／`ExcludeList`、対象 layer ID の保存・復元、Inspector 編集を実装している。
+- `Artifact3DModelLayer` は `render.affectedByLights` を保持・保存し、Inspector から全ライトの影響を無効化できる。
+- `ArtifactCompositionRenderController` は light link の対象判定を行い、対象外 layer を lighting から除外する経路を持つ。Directional／Point／Spot／Ambient の scene light 接続も確認できる。
+- Layer Panel の Light Linking メニューから All／Include Selected Layers／Exclude Selected Layers を適用する quick link 操作を追加した。Outliner の常時可視化、light group、per-object intensity、shadow linking、実機での照明結果は未完了または未検証。旧「未実装」は Phase 1〜3 については現状に適用しない。
+
 ### 実装状況（2026-07-25 確認）
 
-`ArtifactLightLayer` の All／Include Only／Exclude List、3D layer の Affected By Lights、Composition renderer の layer 単位 light filtering と Directional／Point／Spot／Ambient 系の GPU lighting 接続を確認した。残課題は Outliner 上の可視化、quick linking 操作、light group／per-object intensity／shadow linking、および実機での照明結果検証。
+`ArtifactLightLayer` の All／Include Only／Exclude List、3D layer の Affected By Lights、Composition renderer の layer 単位 light filtering と Directional／Point／Spot／Ambient 系の GPU lighting 接続を確認した。Layer Panel には All／Include Selected Layers／Exclude Selected Layers の quick linking 操作を追加した。残課題は Outliner 上の常時可視化、light group／per-object intensity／shadow linking、および実機での照明結果検証。
 
 ## 目的
 

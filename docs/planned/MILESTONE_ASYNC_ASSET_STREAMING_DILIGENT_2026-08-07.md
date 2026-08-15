@@ -1,7 +1,17 @@
 # Async Asset Streaming / Diligent Upload Milestone
 
-**最終更新:** 2026-08-08
-**ステータス:** Implemented / Build Verified
+**最終更新:** 2026-08-15
+**ステータス:** Static implementation substantial / runtime and performance acceptance pending
+
+## 現行コード監査 (2026-08-15)
+
+`AsyncAssetReadScheduler` は priority、generation、cancellation、request coalescing、queued/completed byte budget を持ち、`ArtifactImageLayer` から利用されている。`DiligentUploadCoordinator` は bounded batch、owner render lane、staging resource、pending upload cancel、device reset／source version の世代無効化を扱い、`GPUTextureCacheManager` の upload 経路へ接続されている。DirectStorage は optional adapter として存在するが、SDK有無に依存するため portable fallback が正規の安全経路である。コード上の統合は大きく進んでいる一方、今回の確認では build／実機 runtime／DX12・Vulkan I/O・decode・upload 性能比較は実施していないため、「Build Verified」の断定を外し、受入待ちへ更新した。
+
+## Update 2026-08-15
+
+- `AsyncAssetReadScheduler` の priority／generation／cancel／request coalescing／byte budget と、`DiligentUploadCoordinator` の bounded batch、owner lane、staging recycle、device reset／source version invalidation を再確認。
+- `GPUTextureCacheManager` への upload 接続と DirectStorage optional adapter は存在するが、portable fallback が安全な標準経路。DirectStorage を decode backend とみなさない設計も維持。
+- build／DX12・Vulkan 実機 I/O、decode／upload 性能、代表アセットの stale／cancel／device reset runtime 受入は未完了・未検証。「Build Verified」ではなく static substantial／acceptance pending とする。
 
 ## 実装状況（2026-08-07）
 

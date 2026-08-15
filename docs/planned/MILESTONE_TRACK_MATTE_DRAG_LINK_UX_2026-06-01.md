@@ -64,6 +64,18 @@ After Effects 標準操作を実現する。MatteType 列挙と LayerMatteRefere
 - Inspector の Matte 行は右クリックで `MatteType` を切り替えられる
 - Layer Panel の matte badge は source 名と type を表示する
 
+## 現行コード照合（Update 2026-08-15）
+
+`ArtifactLayerPanelWidget` には Alt-drag の matte link mode、matte slot／layer drop、target tooltip／highlight、self-reference／cycle 拒否、source 置換、`ChangeLayerMatteReferencesCommand` による Undo／Redo が存在する。Inspector の参照表示と MatteType 切替も確認できるため、上記の「未着手要素」のうち基本 UI は実装済みとして扱う。
+
+残る確認課題は、削除・移動後の dangling reference の全経路、複数 matte slot の runtime 表示、実機での drop affordance と Undo／Redo 受入である。
+
+## Update 2026-08-15
+
+- `ArtifactLayerPanelWidget`／`ArtifactLayerPanelPresentation` と `ChangeLayerMatteReferencesCommand` の現行経路を確認し、Alt+Drag による matte link、self-reference／cycle 拒否、Undo/Redo、matte badge 表示は実装済みとして扱う。
+- `ArtifactMatteReferenceRule` と Render Queue 側の診断には missing source、self-reference、hidden source、cycle の検出があり、削除時の参照掃除も `ArtifactAbstractComposition`／Undo 経路に存在する。
+- したがって Phase 1〜3 の主要基盤は実装済み。ただし実機でのドラッグ操作、drop target の視覚的ハイライト、dangling reference の移動／再配置ケース、合成結果の runtime 受入は未検証とする。
+
 ---
 
 ## フェーズ

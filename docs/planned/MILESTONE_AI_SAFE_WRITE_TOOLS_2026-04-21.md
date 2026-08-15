@@ -1,12 +1,28 @@
 # MILESTONE: AI Safe Write Tools
 
 作成日: 2026-04-21
+最終更新: 2026-08-15
 
-**進捗状態:** Phase 1／3 と confirmation・Undo の主要経路は実装済み。Phase 2 の汎用 dry-run／execution plan と Phase 4 の監査ログは未完了。
+**進捗状態:** Phase 1／3、汎用 dry-run／execution plan、confirmation・Undo、監査ログの主要経路は実装済み。UI／runtime 統合検証が残る。
 
 ### 実装状況（2026-07-25 確認）
 
 WorkspaceAutomation／CommandIR の service wrapper、破壊操作の confirmation message、各種 Undo command／macro、batch rename／move、render queue 操作を確認した。残課題は `WriteToolDryRunResult`／`WriteToolExecutionPlan`／`SafeWriteAuditEntry` 相当の共通契約、operation／confirmation log、UI と AI context の統一 payload。
+
+## 2026-08-15 現行コード監査
+
+- `CommandIR` に `SafeWriteDryRunResult`、`SafeWriteConfirmationPayload`、`SafeWriteExecutionPlan`、risk level、undo availability の契約を確認した。
+- `WorkspaceAutomation` は remove layer／composition／asset／project item／render queue の dry-run、confirmation gate、Undo 可能性の表示、成功／拒否の audit entry を持つ。
+- `SafeWriteAuditLog` は in-memory snapshot と JSON save／load の tool を公開しているため、旧来の「共通契約／監査ログ未実装」という記述は更新が必要。
+- ただし全 write 操作が同一 execution plan に揃っているか、UI の confirmation dialog と AI context の payload が同一表示になるか、監査ログの実運用・runtime 検証は未確認。
+
+判定: **Phase 1〜4 の core 契約・主要 destructive gate・Undo・監査ログは実装済み。全操作の統一、UI／AI payload 整合、runtime 検証は pending。**
+
+## Update 2026-08-15
+
+現行コードを追加確認した。`CommandIR` は `SafeWriteDryRunResult`、`SafeWriteConfirmationPayload`、`SafeWriteExecutionPlan`、risk level、undo availability を持つ。`WorkspaceAutomation` には layer／composition／asset／project item／render queue の dry-run、confirmation gate、Undo可否表示、成功／拒否の audit entry があり、`SafeWriteAuditLog` の JSON save／load も公開されている。
+
+未完了・未検証なのは、全write操作を同一execution planへ統一すること、UI confirmation dialogとAI contextのpayload一致、監査ログの長期運用、runtime検証である。Core契約と主要gateは実装済み、全操作整合と受入れは pending とする。
 
 ## 目的
 

@@ -1,5 +1,14 @@
 # Timing Event View Milestone
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+- `Artifact.Widgets.TimingEventView` と `TimingEventItem` が実装済み。イベント lane、ruler、playhead、row 表示、選択、hover／cursor、イベント hit test を持つ。
+- 左右端のドラッグによる start／end resize、中央ドラッグによる timing move、クリックによる playhead 移動、Ctrl+wheel の zoom、visible range／pixels-per-frame の API を確認できる。
+- `ArtifactTestTimingEventView` には events roundtrip、selection、current frame、visible range、zoom、clear の検査がある。ただし通常のタイムライン／Project workflow への統合、右側 compact inspector、label／row 編集、version navigation、export/download、AI safe mutation は未確認または未実装。
+- よって Phase 1 は実装済み、Phase 2 は viewport と timing 編集まで部分実装、Phase 3 は未完了。現状は独立した基礎 widget として存在する段階。
+
 ## Goal
 
 Build a lightweight timeline-adjacent widget for event and timing work only.

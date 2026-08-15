@@ -2,6 +2,9 @@
 
 日付: 2026-06-07
 
+**最終更新:** 2026-08-15
+**判定:** 候補回し専用の cycle 実装は未着手。既存の shortcut registry／context help／設定画面のみ基盤として利用可能。
+
 Import Cycle と同じ思想で、キー連打で候補を回しながら編集を進めるキーボード中心のワークフローを作る。
 
 ## Goal
@@ -36,6 +39,12 @@ Import Cycle と同じ思想で、キー連打で候補を回しながら編集�
 - 反復試行の速度が上がる
 - 設定ダイアログを開かずに探索しやすい
 - `WorkspaceMode` や将来の作業文脈切替と組み合わせると候補回しがしやすい
+
+## 2026-08-15 現行コード照合
+
+`ShortcutBindings`、workspace context ごとの shortcut help、設定画面の preset import／export は実装されているが、`E`／`M`／`A`／`F`／`L` の候補セット、current index、preview overlay、commit／revert の cycle state は現行コード上で確認できなかった。Timeline の Ease 操作や既存ツールキーは、この milestone の候補循環 UX とは別機能として扱う。
+
+したがって、旧設計の候補回し機能は未実装、ショートカット基盤だけ部分利用可能という判定に更新する。実装時は `G/R/S/X/Y/Z` の汎用変換操作や既存コンテキストと衝突しない定義が必要であり、今回はビルド・テストを実行していない。
 
 ## Phase 1: Cycle Definition
 

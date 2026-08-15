@@ -5,6 +5,27 @@ ArtifactStudio 本体に組み込む、アプリ専用の内蔵デバッガを�
 このデバッガは「任意の外部プロセスをデバッグするもの」ではなく、
 `Artifact` アプリ自身の状態・描画・再生・イベント・診断を 1 つの surface に集約して読むためのものとする。
 
+**最終更新:** 2026-08-15
+**現行ステータス:** 観測・フレーム診断基盤は大部分実装済み、統合運用と一部の安全な操作は継続中
+
+## 2026-08-15 現行コード照合
+
+- `AppDebuggerWidget` に Capture、State、Playback、Trace、Pipeline、Resource、State Diff、Trace Timeline、Frame、Harness、Diagnostics、Fallbacks の表示面がある。
+- `FrameDebugSnapshot` / `FrameDebugBundle`、Trace、レンダーグラフ診断、リソース／パイプライン表示、キャプチャ履歴の JSON 保存・再読込経路を確認した。
+- `EventBusDebugger` と `ArtifactDebugConsoleWidget` にイベント観測、重複・高頻度・遅延の統計、フレーム診断テキスト出力がある。
+- 外部プロセス attach、ブレークポイント、任意コード実行は設計上の対象外であり、read-first のアプリ内診断 surface に集中している。
+- Crash 専用タブ、全状態の単一スナップショット統合、runtime での長時間／複合障害受入れ、診断 UI の重複整理は未完了または未確認。
+
+**判定:** Debug Shell、Frame／Trace 観測、診断出力は実装済み。統合品質と運用検証が残るため、マイルストーン全体は継続中。
+
+## Update 2026-08-15
+
+現行コードを再照合した。`AppDebuggerWidget` の複数診断面、`TraceTimelineWidget` の thread／domain／event 表示、`DiagnosticRecorder` の snapshot／delta／JSON、FrameDebug bundle の保存・再読込は実装済みとして扱える。
+
+- Crash は crash handler／trace 連携と診断表示の材料はあるが、専用 inspector と長期運用の統合は未完了。
+- State／Frame／Pipeline／Resource／Fallback の全情報を一つの canonical snapshot に統合し、各表示面の重複を整理した状態までは確認できない。
+- 判定は **Debug Shell と観測基盤は実装済み、canonical snapshot・crash workflow・長時間／複合障害の runtime 受入は未完了** を維持する。
+
 ## Goal
 
 - アプリの現在状態を、実行中に止めずに観測できるようにする

@@ -1,5 +1,8 @@
 # FFmpeg GPU Encode Backend Milestone (2026-04-03)
 
+**最終更新:** 2026-08-15
+**ステータス:** capability probe／backend 選択／fallback 基盤は実装済み、zero-copy と実機受入れ待ち
+
 FFmpeg の hardware-accelerated encode backend を CPU software encode とは別系統として追加し、
 Render Queue からエンコード backend を選択できるようにするためのマイルストーン。
 
@@ -106,3 +109,19 @@ GPU surface からの直接エンコードを含む経路を指す。
 FFmpegEncoder と Render Queue に GPU backend kind、NVENC／QSV／AMF／VAAPI の候補列挙、encoder availability probe、GPU settings 生成、CPU／GPU backend 選択の基盤がある。Render Queue から GPU encoder を選ぶ経路と hardware encoder 不在時のエラー／fallback 判断も確認できる。
 
 一方、public な EncodeBackend::Auto/CPU/GPU 契約の完全な統一、renderer texture からの zero-copy bridge、backend ごとの設定 UI／job schema、auto の CPU retry と cleanup／recovery の実運用は未確認である。M-RE-1〜3 は基盤実装、M-RE-4〜6 は未完了または検証待ちとして記録する。
+
+## 現行コード監査 (2026-08-15)
+
+- FFmpeg encoder probe、NVENC／QSV／AMF／VAAPI 相当の codec 名解決、Render Queue の encoder backend／preset 設定、GPU 不可時の CPU／pipe fallback 経路を確認した。
+- native GPU backend と pipe-hw／pipe-vulkan の入口はあるが、renderer texture から encoder までの zero-copy、backend ごとの完全な job schema／UI 契約、失敗後 cleanup→CPU retry の実運用は未検証。
+- GPU encoder の可用性、品質／速度、GPU 使用率は環境依存のため、静的コード確認だけでは完了扱いにしない。
+
+判定: **M-RE-1〜3 の基盤と queue integration は実装済み。M-RE-4〜6 の完全統合、recovery、性能受入れは pending。**
+
+## Update 2026-08-15
+
+現行コードを追加照合した。FFmpeg encoder probe、hardware codec 候補、Render Queue の backend／preset 選択、native GPU／pipe-hw／pipe-vulkan／CPU fallback の入口は存在する。
+
+- `ArtifactIRenderer` の GPU texture を encoder が直接受け取る zero-copy bridge は確認できない。
+- backend ごとの job schema／UI 契約の完全な統一、失敗後の cleanup→CPU retry、実機 capability／品質／速度／GPU使用率の受入も未完了。
+- 判定は **capability／選択／fallback 基盤は実装済み、zero-copy・recovery・性能受入れは未達** を維持する。

@@ -1,5 +1,6 @@
 # マイルストーン: Project View Tile Mode
 
+**最終更新:** 2026-08-15
 **ステータス:** Phase 1〜5主要実装済み、Phase 3/6・runtime/性能/責務境界検証 pending
 
 > 2026-06-05 作成
@@ -244,7 +245,7 @@ Done when:
 - [MILESTONE_PROJECT_ASSET_WORKFLOW_2026-03-27.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_PROJECT_ASSET_WORKFLOW_2026-03-27.md)
 - [MILESTONE_ASSET_BROWSER_NAVIGATOR_SEARCH_PRESENTATION_2026-04-03.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_SEARCH_PRESENTATION_2026-04-03.md)
 
-## Static Audit (2026-07-25)
+## Static Audit (2026-08-15)
 
 `ArtifactProjectView` は `PresentationMode::List` / `Tile` を持ち、Project Manager の view mode combo から切り替えられる。Tile 描画には thumbnail cache、fallback 表示、タイトル、種別 badge、metadata、missing／unused／status／proxy badge、hover／selection 表現があり、Ctrl+wheel による tile 密度調整も確認できる。Tree 側と同じ selection model・visible rows を利用しているため、表示切替で別の item 集合を持つ設計ではない。Project View からの open、reveal、proxy、relink 等の次操作導線も存在する。
 

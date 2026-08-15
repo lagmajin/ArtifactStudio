@@ -2,6 +2,9 @@
 
 > 状態: DRAFT（新規・未実装・専用マイルストーン未作成を確認済み）
 
+**最終更新:** 2026-08-15
+**Status:** Content-Aware Fill／inpaint／PatchMatch／動画伝播／専用UIは未実装。既存のRoto／Paint／Mask基盤は別責務。
+
 ---
 
 ## 1. 概要
@@ -39,6 +42,18 @@
 
 - OpenCV 依存は既存の `OpenCVRotoBrushEngine` 経路で解決可能か要確認。
 - GPU 化（現在は CPU inpaint 中心）は後回し。
+
+## 2026-08-15 現行実装監査
+
+- 専用の `ContentAwareFill`／`inpaint`／PatchMatch API、動画フレーム間伝播、進捗／キャンセル／専用 UI は引き続き確認できない。
+- `RotoMask`、`RotoBrush`、Paint layer、MaskCutout／Rasterizer、OpenCV 系画像処理は存在するが、指定領域を周囲から補完する本機能の実装証拠にはならない。
+- 本マイルストーンは DRAFT／未着手を維持する。最初の実装単位は静止フレームの明示的な OpenCV inpaint と Paint／Mask の Undo 境界である。
+
+## Update 2026-08-15
+
+- 専用 `ContentAwareFill`／inpaint／PatchMatch API、動画フレーム間伝播、進捗・キャンセル・専用 UI は現行コードで確認できない。
+- `RotoMask`／`RotoBrush`／Paint／MaskCutout／Rasterizer／OpenCV 画像処理は関連基盤だが、本機能の補完処理そのものとは切り分ける。
+- 判定は DRAFT／未着手を維持。最初の実装候補は静止フレームの明示的 OpenCV inpaint と Paint／Mask Undo 境界であり、実装・runtime 検証は未実施。
 
 ## 7. 関連文書
 

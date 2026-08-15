@@ -1,4 +1,5 @@
-**ステータス:** Not Started
+**ステータス:** Partial（正フレーム型・色メタ経路は実装済み。CPU fallback／互換API／runtime確認が残存）
+**最終更新:** 2026-08-15
 
 # M-VIDEO-QIR: Video QImage Retirement — Completion 設計マイルストーン
 
@@ -49,6 +50,14 @@
 ### P3: QImage 退役完了（WP-7 クローズ）
 - live パスから `QImage` を完全に排除。残る `toQImage()` / `currentFrameToQImage()` / `decodeFrameToQImage()` は debug snapshot export / 未移行 inspector / 明示的 compatibility shim のみに限定し、コード上で用途を明記。
 - 元 `MILESTONE_VIDEO_QIMAGE_RETIREMENT` のステータスを `✅ Complete` へ更新し、陳腐な `Current State`/`Progress Notes` を補正。
+
+## Update 2026-08-15
+
+- `ArtifactVideoLayer` の正フレームバッファは `ImageF32x4_RGBA currentFrameBuffer_` で、`DecodedVideoFrame` から CPU image buffer へ変換する経路、GPU frame／GPU texture cache 経路、直接 sprite 描画経路を確認できる。旧文書の `currentQImage_` 不在判定は維持する。
+- `FFMpegVideoDecoder` は `AVFrame` の colorspace／color range／primaries／transfer を `VideoFrameColorInfo` へ格納し、`MediaImageFrameDecoder` も同様に decode metadata を設定している。したがって P1 の「decode時の色メタ未着手」は現状と一致しない。
+- ただし `ArtifactCompositionViewDrawing` の CPU fallback、`ArtifactPreviewCompositionPipeline` の一部 live path、`MediaPlaybackController` の legacy QImage API、thumbnail／debug／preview disk I/O には明示的な QImage 変換が残る。動画の全 live path から QImage が退役したとは判定しない。
+- 色メタは保持される境界があるが、input→working→display/output の統一 color-management policy、GPU decode 側の全経路でのタグ利用、実素材の wide-gamut／limited-range 検証は未確認である。
+- よって現状は `P1 metadata foundation and GPU/ImageF32 core path implemented / P0 CPU fallback and P2 color policy partial / P3 retirement and runtime validation pending` と整理する。元の `MILESTONE_VIDEO_QIMAGE_RETIREMENT` を Complete へ変更する条件はまだ満たさない。
 
 ## 検証チェックリスト（元マイルストンから引き継ぎ、ここでクローズ）
 

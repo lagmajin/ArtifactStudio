@@ -2,6 +2,14 @@
 
 > 状態: DRAFT（新規・専用マイルストーン未作成を確認済み。CROSS_APP 文書で FOUNDATION 提案のみ）
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+- 現行コードを `Take` / `TakeSystem` / `takeId` / composition-level override の観点で確認したが、Takes 専用のモデル、保存 schema、切替 API、UI、Render Queue 連携は見当たらない。DRAFT／未着手の判定を維持する。
+- 既存の `ArtifactCore::NLE` にある marker の保存・OTIO 変換や、`Master Properties`、レイヤー variant 系の実装は、複数レンダーバリエーションを束ねる Takes の実装とは別責務である。現時点で Takes の実装済み根拠には数えない。
+- `RenderQueue` は既存のジョブ投入・バッチ処理を持つが、Take ごとの override 解決や出力命名・分岐を受け取る契約は確認できない。Phase 1 のデータモデルと責務境界を先に設計する必要がある。
+
 ---
 
 ## 1. 概要

@@ -4,7 +4,9 @@
 **優先度**: P0 (Critical)  
 **カテゴリ**: Interoperability / DCC Integration / Export/Import  
 **作成日**: 2026-06-28  
-**状態**: 計画中  
+**状態**: 計画中
+**最終更新:** 2026-08-15
+**現行判定:** 画像／動画／JSON／SVG／Lottie等の入出力基盤は広いが、DCCの完全な往復変換とPSD／USDの構造保持は未完了
 
 ---
 
@@ -244,6 +246,13 @@ Nowアプリケーションの制作ワークフローで、ArtifactStudioを中
 ## 🎯 **詳細仕様**
 
 ---
+
+## 2026-08-15 現行実装監査
+
+- JSON project、画像／動画／音声の FFmpeg／OIIO 経路、SVG／Shape、Lottie／Unity UXML／RML／Gameface／Noesis 系の export surface は現行コードに存在する。
+- Asset／Mesh 側には OBJ／FBX／glTF／Alembic／STL の候補や mesh importer 基盤があるが、形式ごとの完全な scene／material／animation round-trip を示す共通契約は確認できない。
+- PSD は header／section／layer metadata／flattened preview の基盤に留まり、個別 layer image、mask、adjustment、Artifact layer 変換は未完了。USD も部分対応扱いを維持する。
+- したがって「業界主要DCCとの完全連携」は未達。実ファイル往復、欠落情報レポート、UI列挙と codec 実装の一致、runtime parity は未検証。
 
 ## Static audit follow-up (2026-07-25)
 

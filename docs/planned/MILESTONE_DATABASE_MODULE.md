@@ -2,9 +2,16 @@
 
 **日付**: 2026-08-04
 **最終更新:** 2026-08-05
-**実装状況:** ArtifactCore に SQLite Database 基盤、PreparedQuery、トランザクション、WAL/foreign key 初期化、MigrationRunner、VACUUM backup を追加。SessionLedger・AssetDatabase 等の既存消費者移行と実ビルド検証は未実施。
-**現状**: データベース抽象化レイヤー不在。`AssetDatabase` は JSON ファイル、`FastSettingsStore` は CBOR、`SessionLedger` はメモリのみ（終了時に消失）。SQL 系の依存ゼロ。
+**最終監査:** 2026-08-15
+**実装状況:** ArtifactCore に SQLite Database 基盤、PreparedQuery、トランザクション、WAL/foreign key 初期化、MigrationRunner、backup を追加。既存消費者の SQLite 移行と実ビルド検証は未実施。
+**現状**: Database 抽象化は存在するが、`AssetDatabase` は JSON、`FastSettingsStore` は CBOR、`SessionLedger` は現行コード上メモリ主体のまま。SQL を全消費者へ適用した状態ではない。
 **目標**: Qt 内蔵 `QSqlDatabase` + SQLite ドライバを使った軽量永続化モジュール。マイグレーション、プリペアドクエリ、非同期クエリ。SessionLedger → AssetDatabase → RenderQueue → Tag システムの順に移行。
+
+## 2026-08-15 現行コード照合
+
+`ArtifactCore/include/Database/Database.ixx` と `Database.cppm` に QSQLITE 接続、WAL／busy timeout／foreign key、PreparedQuery、transaction、schema migration、backup の実装を確認した。従って「抽象化レイヤー不在」「SQL 依存ゼロ」は現状と一致しない。
+
+一方、`AssetDatabase` は JSON のままで、Render Queue／Asset Tag／SessionLedger の SQLite consumer 移行、非同期 query、アプリ再起動後の履歴復元はコード上の完了根拠がない。Qt SQLite driver の実環境、migration rollback、同時アクセス、成果物の永続化受入れも未検証。今回はビルド・テストを実行していない。
 
 ## 現状の永続化機構
 

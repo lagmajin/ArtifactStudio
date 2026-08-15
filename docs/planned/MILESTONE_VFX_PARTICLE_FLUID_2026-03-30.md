@@ -2,6 +2,10 @@
 
 # Milestone: Real-time Particle & Fluid Simulation (M-VFX-1)
 
+**最終更新:** 2026-08-15
+
+**ステータス:** SUPERSEDED — Surface FX System（2026-08-15 現行コード照合）
+
 ## 🎯 目的
 `DiligentEngine` による強力な GPU 計算能力を、モーショングラフィックスにおける視覚効果（VFX）へと直接結びつける。数十万個のパーティクルや、本格的な流体シミュレーション（煙、炎、液体）をリアルタイムで操作可能にし、レンダリング時間の劇的な短縮と表現の豊かさを両立させる。
 
@@ -49,3 +53,11 @@
 - 次の実装単位は、既存 GPU particle compute と layer/renderer の所有関係を確定し、Fluid component の preview 表示を実際の VFX render path へ接続すること。
 
 ビルド・実行確認はリポジトリ方針により未実施。
+
+## Update 2026-08-15 — 現行順序での実装確認
+
+`ParticleCompute` のGPU structured buffer／compute dispatch基盤、layer内 `FluidSolver2D` の密度・速度更新、設定保存／復元、低密度 preview particle 描画を再確認した。Fluid component は既存layer previewへ接続済みだが、GPU particleのemit／draw経路、GPU pressure solve、layer入力・mouse interaction、専用VFX render pass、depth／mask、bakeは未完了または未検証である。
+
+この文書は Surface FX System へ統合済みのため、次の実装判断は既存component／renderer契約を利用し、独立したVFX経路を重複追加しない。
+
+独立 Particle／Fluid の GPU emit／draw、pressure solve、mouse interaction、専用 pass、bake をこのマイルストーンから新規実装することは見送る。Particle／Fluid の将来実装が必要になった場合は、Surface FX または既存 layer component の責務と統合契約を先に更新する。

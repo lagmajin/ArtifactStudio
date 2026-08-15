@@ -1,6 +1,6 @@
 # バッチ再リンク・一括参照更新
 
-**最終更新:** 2026-08-14
+**最終更新:** 2026-08-15
 
 ## 進捗
 
@@ -14,14 +14,19 @@
 
 素材移動後に複数の Missing Footage を個別修正せず、候補を確認して一括再リンクできるようにする。
 
-## 現状の確認
+## 現状の確認 (2026-08-15)
 
-- `ArtifactProjectService::relinkFootageByPath()` は旧パスに完全一致する `FootageItem` を1件だけ検索する。
-- `relinkFootageItems()` は複数項目を同じ新パスへ向けるAPIであり、候補探索は行わない。
-- Asset Browser の `RelinkAssetCommand` は `relinkFootageByPath()` の呼び出しだけをUndo/Redoする。
+- `ArtifactProjectService::findRelinkCandidates()` が basename、拡張子、連番全フレーム、サイズ、更新時刻、canonical path を用いた副作用なし候補探索を提供している。
+- Asset Browser は単一候補の確認適用と、複数選択候補の一括確定 UI を持つ。曖昧な候補は自動適用しない。
+- `RelinkAssetBatchCommand` は適用前に対象を検証し、複数の FootageItem／layer source をまとめて Undo/Redo する。途中失敗時は逆順復元する経路も実装済み。
 - `ArtifactAbstractComposition::allLayer()` / `allLayerRef()` により、コンポジション内レイヤーの列挙は可能。
 - FootageItem のパスと、レイヤーの `image/video/audio/svg.sourcePath` は、Asset Browserのバッチ導線では同一Undo単位にまとまる。レイヤー更新時のAssetManager再取得・旧参照解放はコード上確認済み。AssetDatabaseの直接同期APIも追加済みで、実データ実行検証が残る。
 - 再リンク対象の検索・同一判定・AssetDatabase移行前判定は、canonical path、absolute fallback、clean path、Windows case foldingの共通規則へ統一済み。同一フレームは移行不要として成功扱いにする。
+
+## Update 2026-08-15
+
+- 現行コードでは候補探索、複数候補の明示確定、複合Undo/Redo、失敗時の逆順復元、AssetDatabase移行判定まで実装済み。
+- 未確認事項は、実データでのAssetDatabase移行、プリコンポジションをまたぐ大量参照、連番欠落・候補競合時のUIとUndo復元のruntime受入。
 
 ## 実装方針
 
@@ -69,6 +74,7 @@
 ## 残課題
 
 - AssetDatabaseの移行APIを実データで実行確認する。
+- プリコンポジションをまたぐ大量参照と、連番欠落・候補競合時の UI／Undo 復元を実 runtime で受入確認する。
 
 ## 非対象
 

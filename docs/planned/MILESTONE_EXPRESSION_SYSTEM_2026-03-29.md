@@ -1,5 +1,7 @@
 # Milestone: Expression System (2026-03-29)
 
+**最終更新:** 2026-08-15
+
 **Status:** 部分完了（parser/evaluator、数値・vector・math/animation built-ins、thisComp/thisLayer候補、property expression保存評価、loopOut/loopIn、Expression Copilot導線を実装、全property参照のruntime網羅・診断/UI統合・互換検証未完了）
 **Goal:** After Effects 風のエクスプレッションでプロパティ値を動的に制御する。
 キーフレーム以外のアニメーション制御を可能にする。
@@ -291,3 +293,12 @@ layer.inPoint;     layer.outPoint;
 ExpressionParser、ExpressionValue、ExpressionEvaluator と AbstractProperty の expression 保存・評価統合、Copilot の syntax highlight／候補／preview／apply 経路を確認した。文書冒頭の「UI のみ、評価エンジンなし」は現状と不一致で、Parser／runtime／Property Integration は実装済みまたは部分実装である。
 
 ただし、レイヤー／プロパティ参照の完全な resolver、pick-whip の target linking、bounce／overshoot／smooth／snap の built-in preset、AE 互換関数の網羅、loop／valueAtTime の実動作は未完了または placeholder である。従って Milestone 1〜2 は実装済み、Milestone 3 は部分実装、3b／4 と互換拡張は未完了として扱う。
+
+## Static audit follow-up (2026-08-15)
+
+- `Script.Expression.Parser`／`Evaluator`／`Value` が存在し、数値・vector・配列・文字列・math／animation built-in、時刻評価、range 評価 API を提供している。
+- `AbstractProperty` と `PropertySerializationBridge` は expression の設定・評価・JSON 保存／復元に接続している。`ExpressionValidationRule`、Project Diagnostic、MCP／Expression Copilot の補助導線も確認した。
+- 一方、全 layer／全 property の context-aware resolver、pick-whip による target linking、`loopIn`／`loopOut`／`valueAtTime` の完全な実動作、AE互換 built-in の網羅、専用 expression editor／診断 UI の統合は未完了または未確認。
+- 複数フレーム評価、subframe／scrub、循環参照・エラー表示、保存復元の runtime parity は未検証。ビルド／テストは実行していない。
+
+判定: **Parser／Evaluator／Property 保存評価の基盤は実装済み。context resolver、target linking、互換 built-in、runtime／diagnostic parity は pending。**

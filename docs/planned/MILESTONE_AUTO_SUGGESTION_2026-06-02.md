@@ -1,5 +1,14 @@
 # M-AI-SUGGEST 自動提案・アシスタント機能 (2026-06-02)
 
+**最終更新:** 2026-08-15
+**現状:** 未実装（既存の AI／アニメーション／解析基盤はあるが、自動提案ワークフローは未接続）
+
+## 2026-08-15 現行コード監査
+
+`AIClient`、local／cloud agent、`ToolBridge`、`AudioAnalyzer`、Expression／Animation の基盤は存在する。しかし、選択キーフレームのパターン分析から複数案を生成する UI、候補の preview／Apply／Cancel、エフェクト・レイアウト・テキスト・音声ビートに対する専用 suggestion provider は、この監査では確認できなかった。既存の easing utility や composition／audio reactive binding は、提案機能そのものの実装証拠には含めない。
+
+判定: **X-A〜X-E の自動提案フローは未着手。AI tool／解析基盤を再利用できるが、候補生成・差分 preview・安全な適用・Undo 統合が次の実装範囲。**
+
 既存のAI機能（ExpressionCopilot, AIClient）とは別物。LlamaAgent + ToolBridge を活用して、**モーションデザイナーの作業を先回りして提案する**機能群。AEにない最大の差別化領域。
 
 これまでの99機能と重複しない20項目。

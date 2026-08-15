@@ -1,7 +1,8 @@
 # MILESTONE: Motion Path Editing
 
 **Date**: 2026-04-29
-**Status**: In Progress
+**最終更新:** 2026-08-15
+**Status**: Phase 1〜4 の静的実装を確認済み、runtime／視覚受入れ待ち
 **Priority**: Medium
 **Related**: `docs/worklog/MOTION_PATH_EDITING_WORKLOG_2026-04-29.md`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
 
@@ -129,3 +130,17 @@ After Effects 風の編集感を出しつつ、既存のレイヤー移動・und
 - Phase 3: 部分実装 — hover / 補間表示は文書記載どおり。選択強調・フレーム番号は未確認
 - Phase 4: 未完了 — spatial tangent API はあるが、ハンドル編集 UI / undo は未確認
 - Status: `In Progress` を維持
+
+## 現行コード監査 (2026-08-15)
+
+前回監査後、`ArtifactCompositionRenderController` に motion path tangent の hit test、in／out handle の drag、linked tangent の更新、`MotionPathTangentUndoCommand` による undo／redo が実装されていることを確認した。キーの移動・追加・削除・補間変更と、overlay の表示切替／ショートカット導線も現行コードに存在する。
+
+したがって、本文の「in/out ハンドル未実装」「ハンドル編集 undo 未対応」は現状とは不一致で、Phase 4 の主要実装は静的には成立している。ただし、実際の viewport 操作での親変換・gizmo 競合・linked／自由 tangent の視認性、保存再読込後の整合、runtime undo／redo は未検証である。
+
+判定: **motion path の編集機能は Phase 1〜4 まで実装済み相当。runtime／視覚受入れを pending とする。**
+
+## Update 2026-08-15
+
+M-UI-6b の現行コードも追加照合した。`ArtifactCompositionRenderController` にはズーム依存の適応サンプル間隔、曲率に応じた Bézier tessellation、等時間の速度ドット、実補間位置の current marker、spatial Bézier の in／out tangent 表示・hit test・drag・Undo がある。したがって表示改善の Phase 1〜5 は実装済み相当として扱う。
+
+複数キー／lasso 選択、roving／constant-speed、3D camera-aware 編集、non-destructive modifier は別の後続範囲であり、runtime・視覚回帰は未検証のままとする。

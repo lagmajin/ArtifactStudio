@@ -1,7 +1,8 @@
 # M-TL-16 In/Out Slide Milestone
 
 作成日: 2026-06-16
-ステータス: Draft
+**最終更新:** 2026-08-15
+ステータス: Slide 操作の主要実装済み、実行時の source 境界／複数選択保存復元検証が未完了
 対象: `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cpp`,
       `Artifact/src/Widgets/Timeline/ArtifactTimelineWidget.cpp`,
       `Artifact/src/Widgets/Timeline/ArtifactWorkAreaControlWidget.cppm`,
@@ -49,6 +50,22 @@ AE の Slide 機能の本来の役割は「同じソース素材の表示窓を 
 - `ArtifactTimelineTrackPainterView.cpp` — clip edge の描画は限定的（grep 0 hit）
 - `ArtifactAbstractLayer` 側に `inPoint() / outPoint() / startTime()` あり
 - `ArtifactCore/include/Frame/FrameRange.ixx` — `FrameRange { start, end }`
+
+### 2.4 Current implementation audit (2026-08-15)
+
+現行コードを確認した結果、当初の「Slide なし」から主要な編集経路は実装済みになっている。
+
+| 項目 | 現行コードで確認できた実装 | 判定 |
+|---|---|---|
+| Slide mode / tool | `ArtifactTimelineTrackPainterView` に `SlideBody`、clip の source trim 範囲表示、Slide 時の grip 強調があり、`ArtifactTimelineWidget` が `S`／`TimelineSlideTool` で切替 | 実装済み |
+| Mouse drag | Slide tool の中央ドラッグ、snap、source trim 範囲による min/max clamp、release 時の `clipSlid` | 実装済み |
+| Slide apply | `applyTimelineLayerSlide` が in/out を同じ duration で移動し、startTime は変更せず、animatable keyframe を delta 移動 | 実装済み |
+| Undo | `SlideClipCommand` が in/out/startTime/keyframe snapshot を保持。Timeline widget／track view の両方に接続 | 実装済み |
+| Keyboard / batch | Alt／Shift+Alt 系の Slide 操作と、選択 clip を `MacroUndoCommand` に束ねる経路を確認 | 実装済み。実行時確認待ち |
+| Trim / Ripple | 通常の edge resize と `RippleTrimIn/Out`／`RippleDelete` は別経路として存在 | 別機能として部分実装 |
+| Persistence | layer の in/out/startTime は既存 layer JSON に保存される | 保存・再読込の実測未確認 |
+
+**更新後の判定**: Phase 1〜5 の中心実装は揃っている。残りは source 境界を含む各 layer type、複数選択の 1 undo、保存／再読込、キーフレーム追従の runtime parity を確認し、必要なら clamp 通知と UI 表記を補うこと。Phase 6 の Trim／Ripple Slide／Ripple Trim は本 milestone の完了条件には含めない。
 
 ### 2.2 不足
 

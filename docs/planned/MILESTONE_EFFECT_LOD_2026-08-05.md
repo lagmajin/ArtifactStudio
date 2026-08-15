@@ -1,6 +1,18 @@
 # エフェクトLOD導入マイルストーン
 
-**最終更新:** 2026-08-05
+**最終更新:** 2026-08-15
+
+**現状:** ズーム由来の Low／Medium／High と一部レンダラー・エフェクトへの伝播は実装済み。エフェクトチェーンの影響範囲評価、視認性保護、プレビュー／最終品質ポリシー分離は未実装。
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactLODManager` と `CompositionRenderController::detailLevelFromZoom()` がズームから3段階の `DetailLevel` を選び、renderer、layer `drawLOD()`、surface の downsample、エフェクト適用へ渡す経路が存在する。3D procedural layer の品質分岐、overlay の表示密度制御も確認できる。一方、現行判定は主に zoom／表示モード由来で、エフェクトの最大拡張半径、motion blur、shadow、displacement、glow の輝度寄与を合成した評価矩形を作っていない。Adjustment／文字・細線の保護、LODヒステリシスは未確認である。レンダーキュー側には `DetailLevel::High` を明示する経路があるため、最終レンダーの自動LOD抑制はコード上の方針として見えるが、出力品質の受入れは未検証である。したがって M1 の単純なLOD伝播は部分実装、M2以降のエフェクト認識LODは未着手と判定する。
+
+## Update 2026-08-15
+
+- `ArtifactLODManager`、ズーム由来の `DetailLevel`、layer `drawLOD()`、surface downsample、effect への LOD 伝播を再確認。3D procedural layer と overlay 表示密度にも分岐がある。
+- 現行の判定は主に zoom／表示モード由来で、effect chain の拡張矩形、motion blur／shadow／displacement／glow の寄与、Adjustment／文字／細線の保護は未実装または未確認。
+- Render Queue が `DetailLevel::High` を指定する経路はあるが、最終レンダーの品質維持、LOD ヒステリシス、preview／final policy 分離は runtime 受入未検証。M1 部分実装、M2 以降未着手の判定を維持する。
 
 ## 目的
 

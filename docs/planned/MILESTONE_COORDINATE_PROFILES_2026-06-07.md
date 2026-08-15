@@ -2,6 +2,9 @@
 
 日付: 2026-06-07
 
+**最終更新:** 2026-08-15
+**Status:** CoordinateProfile／Resolver と基本変換は Core 実装済み、Artifact UI／project persistence／Unity・Tile 編集統合は未確認
+
 座標系や単位を用途ごとに切り替え、Pixel / Percent / Normalized 0-1 / Unity Units / Tile/Grid Units を同じ編集体験の中で扱えるようにする。
 
 ## 2026-07-25 実装監査
@@ -94,3 +97,10 @@ Core に `CoordinateUnit`／`CoordinateValue`／`CoordinateSpace`／`CoordinateP
 - `Content Bounds System` と組み合わせると、見た目基準の配置がやりやすい
 - `Sandbox Edits` と組み合わせると、座標変化の比較がしやすい
 - まずは resolver と profile を作り、UI は後から追従させる
+
+## 2026-08-15 現行実装監査
+
+- Core の `CoordinateUnit`、`CoordinateValue`、`CoordinateSpace`、`CoordinateProfile`、`CoordinateResolver` と JSON 変換、px／%／normalized／grid／safe-area の基本式評価を確認した。
+- 既存のレイヤー編集 UI、property、guide、responsive variant がこの resolver を共通利用する経路は確認できない。
+- profile のプロジェクト保存、canvas resize 時の再評価、Y 軸を含む式の共通契約、Unity Units／Tile Grid の実編集導線は未確認。
+- したがって Phase 1〜2 は Core 基盤、Phase 3 の UI／project 統合は未完了と判定する。

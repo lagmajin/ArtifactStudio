@@ -1,6 +1,7 @@
 # Milestone: Multi-Viewport Layout System
 
 作成日: 2026-06-01
+最終更新: 2026-08-15
 親: `MILESTONE_AFTER_EFFECTS_PARITY_GAP_2026-05-28.md` (Multi-view / Viewer)
 関連: `MILESTONE_CAMERA_PROJECTION_2026-03-31.md` (Camera Layer Projection)
 
@@ -121,3 +122,11 @@ After Effects の 4-up ビュー（Active Camera / Custom 1 / Custom 2 / Custom 
 一方、仕様の OnePlusThree、各ペインへの任意 Camera Layer 割当、ペインごとの独立 camera／zoom／pan の完全な永続化、authoritative viewport 切替、4ペイン再生時の性能制御・render time diagnostics は確認できない。共通イベントの multicast と `IDeviceContext` 競合回避も、本マイルストーンの完了条件としては未検証。よって「Phase 1〜2 の基礎実装は存在、Camera統合と性能／永続化は未完了」と判定する。
 
 確認範囲: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`。ビルド・実機操作による動作確認は未実施。
+
+## Update 2026-08-15
+
+- `ArtifactCompositionEditor::Impl` に `Single` / `TwoUp` / `FourUp` の3レイアウト、最大4つの `PaneState`、ペインごとの `CompositionViewport` と `CompositionRenderController`、active pane、水平／垂直 splitter が実装されている。レイアウト切替の toolbar action／shortcut と、ペインごとの resize callback も確認できる。
+- したがって旧仕様の `HorizontalSplit` という名称は現行コードでは `TwoUp` に相当し、`OnePlusThree` はまだ enum・レイアウト計算に存在しない。現行の実装済み範囲は Single / 2-Up / 4-Up である。
+- 各 controller が分離され、orientation／zoom／pan の状態を個別に保持できる基盤はあるが、現行 `PaneState` 自体には Camera Layer ID の assignment フィールドがない。各ペインへ任意の Perspective / Top / Front / Left Camera Layer を割り当てる UI／保存経路は確認できない。
+- `activePane` と active controller の切替、overlay indicator、共通 composition の更新経路は存在する。一方、authoritative viewport の明示的な切替契約、ペインごとの設定永続化、4ペイン時の重複評価抑制・低Hz化・render time diagnostics は未確認である。
+- よって現状は `Phase 1〜2 layout/controller foundation implemented / Phase 3 camera assignment and authoritative viewport pending / Phase 4 performance and persistence pending` と判定する。4ペイン性能の「Single の2倍未満」は静的コードからは証明できない。

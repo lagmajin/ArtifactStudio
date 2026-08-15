@@ -1,5 +1,17 @@
 # Live Frame Pipeline / Resource Watcher / State Diff Tracker Milestone
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+現行コードには、このマイルストーンの基盤となる `RenderGraph` / `CompiledRenderGraph`、リソースの `Transient` / `Persistent` / `External` lifetime、pass の read/write 定義、allocation slot と lifetime range が実装されている。`FrameDebugSnapshot` も pass・resource・attachment・preview・render graph diagnostic・GPU timing を保持し、`ArtifactCompositionRenderController` から記録されている。
+
+診断 UI 側では `FramePipelineViewWidget`、`FrameResourceInspectorWidget`、`FrameStateDiffWidget` が `AppDebuggerWidget` に接続され、フレームの pipeline、resource、前回 snapshot との差分、選択 resource の preview を確認できる。したがって、スナップショット型の pipeline/resource/state-diff 機能は実装済み、または実装基盤ありと判定する。
+
+一方、提案していた「常時稼働」の完全形、すなわち全フレームの自動収集、UAV/RTV や read-after-write の汎用 hazard 検出、barrier 不整合の診断、任意 resource の MIP/slice/ピクセル検査、実行中の低オーバーヘッド監視としての安定運用までは現行コードから確認できない。現状は `FrameDebugSnapshot` と render graph diagnostic を入口にした capture/比較 UI が中心であり、RenderDoc 相当の live watcher としては未完了とする。
+
+**判定:** Phase 1（render graph/lifetime のデータモデル、frame snapshot、pipeline/resource/state-diff の診断 UI）は実装済み。Phase 2（常時監視、汎用 hazard/barrier 検出、詳細な texture/buffer inspection、性能・保持期間の検証）は未完了。
+
 ArtifactStudio 本体に組み込む、常時稼働の描画構造可視化・リソース監視・状態差分追跡をまとめたマイルストーン。
 
 この機能は RenderDoc のような「結果のスナップショット」ではなく、実行中に構造と壊れ始めた瞬間を追うための内蔵ツールとする。

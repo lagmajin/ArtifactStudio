@@ -1,6 +1,7 @@
 # M-ANIM-1 Animation Layers Milestone
 
 作成日: 2026-07-07
+最終更新: 2026-08-15
 ステータス: In Progress（コア評価・保存・Undo・Bake 実装済み、UI拡張を継続）
 対象: `ArtifactCore/include/Animation/AnimatableValue.ixx`,
       `ArtifactCore/include/Animation/AnimatableTransform2D.ixx`,
@@ -81,6 +82,22 @@
 - レイヤーコンテキストメニューに現在フレーム Bake を追加し、共有／プロパティ別 Stack の評価結果を単一 Override Layer へ縮約して出力を維持する。
 - キーフレームの補間 enum を Animation Layer JSON に保存／復元するよう修正。
 
+### 2026-08-15 現行コード監査
+
+- `AnimationLayerStackT<float>` は `AnimatableValue.ixx` に実装済みで、Additive / Override、weight、mute、solo、現在時刻評価、JSON 保存／復元を確認。
+- `ArtifactAbstractLayer` は共有 opacity stack とプロパティ別 Transform stack を保持し、opacity と Position X/Y、Rotation、Scale X/Y、Anchor の評価経路へ接続している。
+- Property Editor の Weight / Mute / Solo / Blend Mode / Current Frame Value / interpolation、コンテキストメニューの追加・削除・Bake、`AnimationLayerStackSnapshotCommand` の Undo を確認。
+- 旧 2.2〜2.3 の「AnimationLayerStack なし」「評価未接続」という記述は実装前のスナップショットであり、現状には適用しない。
+- タイムライン上の専用 Anim Layer 選択 UI、Merge／Zero Key、全面的な Transform チャンネル網羅、runtime 検証は未完了。
+
+判定: **Animation Layer のコア評価・保存・Undo・Property Editor／コンテキスト導線は実装済み。専用 Timeline UI、Merge／Zero Key、runtime 検証は pending。**
+
+## Update 2026-08-15
+
+現行コードを追加確認した。`AnimationLayerStackT<float>` の Additive／Override、weight／mute／solo、時刻評価、JSON roundtrip があり、`ArtifactAbstractLayer` の opacity と Transform の複数チャンネルへ接続されている。Property Editor では Weight／Mute／Solo／Blend Mode／Current Frame Value／interpolation を編集でき、コンテキストメニューの追加・削除・Bake と snapshot Undo も確認できる。
+
+未完了なのは専用 Timeline Anim Layer 選択UI、Merge／Zero Key、Transform チャンネルの全面網羅、ビルド／runtime検証である。コア評価・保存・Undoは実装済み、Timeline UXと受入検証は pending とする。
+
 ### 2.1 既存資産
 
 | 資産 | ファイル | 内容 |
@@ -93,7 +110,9 @@
 | Layer Panel | `ArtifactLayerPanelWidget.cppm` | 左ペイン。スタック表示の UI パターンあり |
 | `ArtifactTimelineWidget` | `ArtifactTimelineWidget.cppm` | タイムライン中核。キーフレーム表示 / 編集完備 |
 
-### 2.2 不足
+### 2.2 不足（作成時点のスナップショット）
+
+以下は実装前の 2026-07-07 時点で整理した不足項目であり、2026-08-15 の現行判定ではそのままの状態を示さない。現行の未完了項目は上記「2026-08-15 現行コード監査」および `Update 2026-08-15` を正とする。
 
 | 軸 | 状況 | 影響 |
 |---|---|---|
@@ -106,7 +125,9 @@
 | Bake / Merge | なし | 破壊的統合ができない |
 | Zero Key | なし | 現在値をキャプチャして Base Layer にできない |
 
-### 2.3 コード検索結果
+### 2.3 コード検索結果（履歴）
+
+この検索結果も実装前の記録である。現行コードでは `AnimationLayerStackT`、Additive／Override、weight／mute／solo、Property Editor／Bake／Undo の経路が確認できる。
 
 - `AnimationLayer` → 0 hit（Artifact/, ArtifactCore/ 配下）
 - `AnimationLayerStack` → 0 hit

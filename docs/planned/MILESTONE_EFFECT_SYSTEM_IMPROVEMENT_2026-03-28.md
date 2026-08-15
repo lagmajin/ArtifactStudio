@@ -1,7 +1,9 @@
 # エフェクトシステム改善 Milestone
 
-**作成日:** 2026-03-28  
-**ステータス:** 計画中  
+**最終更新:** 2026-08-15
+
+**作成日:** 2026-03-28
+**ステータス:** GPU／CPU effect と stack／preset 基盤、effect-local Rect の共通適用、project／clipboard region 保存は実装済み。Inspector入力・preset serialization・共通 parity・UI統合検証が未完了
 **関連コンポーネント:** ArtifactEffect, EffectManager, GPU Pipeline, PropertyEditor
 
 ---
@@ -483,3 +485,30 @@ mask を切らなくても effect 単体で範囲指定できる導線を先に�
 | partial application | mask/rect 単体適用を共通 effect contract として完了した証拠は未確認 | 未完了 |
 
 **判定**: GPU effect と preset 基盤は大きく進展している。残課題は effect stack の一貫した順序・enable・preset UX、CPU/GPU parity、partial application の共通化。旧「GPU 未実装」記述は現行状態に合わせて更新が必要。
+
+## Static audit follow-up (2026-08-15)
+
+- `ArtifactEffectService` に effect の生成、追加／削除、enable、移動、複製、property 更新、preset 保存／読込の API があり、Inspector／composition effect 経路にも接続している。
+- Blur、Color Correction、Distortion 等に CPU／GPU implementation を持つ effect が多数あり、作成時の「GPU effect 未実装」という前提は現状には適用しない。
+- ただし、全 effect の compute mode／fallback／画質 parity が共通契約で保証されている証拠、rect／mask の部分適用を共通 stack contract として扱う証拠、全 surface での drag reorder／preset UX は確認できない。
+- 実効性能、CPU／GPU pixel parity、partial effect の runtime 挙動は未検証。ビルド／テストは実行していない。
+
+判定: **Effect の生成・管理・GPU／CPU基盤・preset は実装済み。共通実行契約、partial application、parity／性能検証は pending。**
+
+## Update 2026-08-15
+
+`ArtifactEffectService` の生成・追加／削除・enable・移動・複製・property更新・preset保存／読込、Inspector／composition effect経路、Blur／Color Correction／Distortion等のCPU／GPU実装を現行コードで確認した。作成時の「GPU effect未実装」「基本effectのみ」という前提は現状には適用しない。
+
+未完了・未確認なのは、全effectのcompute mode／fallback／画質parityの共通契約、rect／maskのpartial application、全surfaceのdrag reorder／preset UX、実効性能、CPU／GPU pixel parity、partial effectのruntime挙動である。
+
+## Update 2026-08-15 — Partial Application 実装
+
+`ArtifactAbstractEffect` に effect-local な `QRectF` region 契約を追加した。region は source surface の pixel 座標で保持し、`applyConfigured()` の共通 blending 段階で effect 結果と元画像を矩形内だけ合成する。既存の primary mask／effect mask images は同じ段階で併用できるため、Rect と Mask を同一 effect stack 上で扱える基礎ができた。無効・不正な矩形は自動的に解除し、既存 effect の既定動作は変わらない。
+
+Inspector の矩形入力導線、region の project／preset serialization、tracked／shape／matte への拡張、preview／render／solo の runtime parity は未完了または未検証。
+
+## Update 2026-08-15 — Composition Final Effect 監査
+
+`ArtifactAbstractComposition` は composition-owned effect stack を保持し、`Artifact.Render.CompositionViewDrawing` の `applyCompositionFinalEffectsToBuffer()` が layer 合成後の buffer に Rasterizer effect を順番どおり一度だけ適用する。Preview／Composition Editor、Render Queue の各出力経路、thumbnail はこの final-effect helper を呼び出しているため、M-FX-8 の基本実行経路は実装済みと判定する。
+
+残課題は final effect 専用の Inspector／before-after UI、GPU resource chain の恒常利用、effect stack と composition final stack の責務表示、render output との parity／runtime受入れである。

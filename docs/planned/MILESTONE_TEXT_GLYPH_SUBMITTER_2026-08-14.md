@@ -1,6 +1,12 @@
 # Text Glyph Submitter 分離マイルストーン
 
-**最終更新:** 2026-08-14
+**最終更新:** 2026-08-15
+
+**ステータス:** GPU smoke path proven / submitter extraction pending
+
+## 現行コード監査 (2026-08-15)
+
+既存コードと直近の GPU 監査記録から、製品 Renderer 内の glyph atlas upload、通常／変形 glyph submit、color emoji、ZWJ cluster 処理、readback は実証済みの範囲がある。G3 の focused runtime／smoke も記録上は `Text Sample1`、CJK、emoji、変形を通過している。一方、独立 `ArtifactTextGlyphSubmitter` 本体への資源・submit 処理の抽出、ShaderManager からの glyph PSO provider 分離、同一出力由来の runtime 再現性は未完または現ワークツリーで直接確認できないため、マイルストーン全体は未完とする。
 
 ## 目的
 

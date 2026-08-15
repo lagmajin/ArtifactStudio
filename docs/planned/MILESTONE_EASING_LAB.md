@@ -1,6 +1,7 @@
 # MILESTONE: EasingLab — Easing Comparison Tool
 
 **日付**: 2026-04-21（統合+実装詳細化: 2026-08-04）
+**最終更新:** 2026-08-15
 **統合元**: `MILESTONE_EASING_LAB_*` 7ファイル
 **静的監査**: 2026-07-25 — 全 Phase 実装済み、runtime 検証のみ残
 
@@ -20,6 +21,12 @@
 ## 残タスク: Runtime 検証
 
 実装は完了しているため、残るのは実行時検証のみ。以下の順で実施する。
+
+## 2026-08-15 現行コード照合
+
+`EasingCurveUtil`、6 preset の catalog、`EasingLabWidget`／Dialog、Timeline の Ease+／Animation menu、`ApplyInterpolationCommand` の Undo／Redo 経路を現行コードで再確認した。静的な実装範囲は従来の「全 Phase 実装済み」と整合する。
+
+ただし、ここに記載された数値境界、scrub の滑らかさ、selection 切替、複数 composition、未選択時の扱い、Undo／Redo の実操作はビルド・実行なしでは受入れできない。判定は「コード実装済み、runtime 検証待ち」を維持する。
 
 ### Step 1: ビルド確認
 

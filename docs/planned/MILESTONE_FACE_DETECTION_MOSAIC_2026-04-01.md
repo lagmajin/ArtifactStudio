@@ -1,6 +1,7 @@
 # Milestone: Face Detection & Auto-Mosaic (2026-04-01)
 
-**Status:** Not Started
+**最終更新:** 2026-08-15
+**Status:** FaceDetection／FaceTracker／AutoMosaic の基盤実装済み、モデル運用・UI・runtime parity は未完了
 **Goal:** OpenCV による顔認識 → 自動モザイク/ぼかしエフェクト
 
 ---
@@ -12,9 +13,9 @@
 | OpenCV 連携基盤 (`CvUtils`) | ✅ 実装済み |
 | QImage ↔ cv::Mat 変換 | ✅ 実装済み |
 | OpenCV ベースエフェクト群 | ✅ 多数実装済み |
-| 顔認識 (Haar Cascade / DNN) | ❌ 未実装 |
-| 自動モザイク/ぼかし | ❌ 未実装 |
-| 追従トラッキング | ❌ 未実装 |
+| 顔認識 (Haar Cascade / DNN) | ⚠️ `AutoMosaicEffect` から detector を呼ぶ基盤あり。モデル運用は未完了 |
+| 自動モザイク/ぼかし | ✅ `AutoMosaicEffect::apply()` の pixelate／Gaussian／median／feather |
+| 追従トラッキング | ❌ FaceTracker接続は未確認 |
 
 ---
 
@@ -152,3 +153,18 @@ AutoMosaicEffect (新規エフェクト)
 FaceDetectionEngine、FaceTracker、AutoMosaicEffect の実装と include／module 登録を確認した。AutoMosaic は face detection の有効化、検出領域への pixelate／Gaussian／median 処理、feather、強度等の property を持つため、文書冒頭の Not Started は現状と不一致である。
 
 ただし、Haar／DNN の実モデル選択、検出キャッシュと追従平滑化の実運用、除外顔選択 UI、Inspector preview、OpenCV resource 配置、実フレーム検証は未確認である。Phase 1〜2 はソース実装済み、Phase 3 は基盤あり・検証待ち、Phase 4 は UI 統合未確認として更新する。
+
+## 現行コード監査 (2026-08-15)
+
+- `FaceDetectionEngine` は Haar Cascade／OpenCV DNN の設定、model path、`QImage`／`cv::Mat` 入力、検出結果と confidence を提供し、`FaceTracker` は検出矩形の対応付け・平滑化・見失いフレームの保持を実装している。
+- `AutoMosaicEffect` は effect service に登録され、face detection の有効化、pixelate／Gaussian／median、strength／feather 等の property と検出領域への適用を持つ。通常の `MosaicEffect` には GPU compute と CPU fallback もあるが、AutoMosaic の顔検出処理は別の CPU／QImage 経路である。
+- Haar cascade／DNN のモデル資産配置と AutoMosaic の detector／tracker の実際の runtime 接続、検出結果の frame cache、除外顔選択、Inspector 上の preview UI は静的コードからは受入れ確認できない。
+- source から `QImage` 入力の CPU 処理が確認できるため、静止画・連番を優先する場合でも GPU／float buffer の合成本流へ移すか、互換境界として明示する整理が残る。実フレーム品質・追従安定性・performance は未計測。
+
+判定: **顔検出／追従／自動モザイクの実装基盤と effect 登録は完了。モデル資産、UI 導線、cache／runtime 接続、品質・性能受入れは pending。**
+
+## Update 2026-08-15 — Effect Stack 接続
+
+`AutoMosaicEffect::apply()` を追加し、通常の `ArtifactAbstractEffect::applyConfigured()` 経路からも顔検出／手動領域の pixelate・Gaussian・median・feather を `ImageF32x4_RGBA` 上で適用できるようにした。これにより standalone の `QImage` helper だけでなく、layer／composition effect stack でAuto Mosaicを処理できる。
+
+モデル資産、detector／trackerのframe cache接続、除外顔選択、Inspector preview、GPU相当経路、実フレーム品質・性能は未完了または未検証。

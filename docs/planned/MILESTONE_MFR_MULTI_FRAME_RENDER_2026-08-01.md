@@ -1,11 +1,22 @@
 # マルチフレームレンダリング（MFR）実装マイルストーン
 
+**最終更新:** 2026-08-15
 **日付**: 2026-08-01
 **ベース**: After Effects 2022 "Multi-Frame Rendering" (MFR) + Artifact の既存レンダリング基盤
-**現状**: `BackgroundTaskWorkerPool`, `Parallel::For`, `ThreadPool` が既に実装。単一フレームのパフォーマンスは高いが、レンダーキューは1フレームずつ逐次処理。
+**現状**: MFR のジョブ契約・並列 dispatcher・memory budget・retry/cancel/progress と Render Queue の設定・呼出し基盤は実装済み。ただし通常の実レンダーループでは `useMfr = false` の経路が残っており、実MFR有効化、thread-safety、出力順序、GPU resource競合、性能向上は未受入。
 **狙い**: 複数フレームを同時にレンダリングし、CPUコア数を活かした高速化（4-8倍の速度向上を目標）
 
 ---
+
+## 現行コード監査 (2026-08-15)
+
+`Core.Render.MFR.Dispatcher` は frame range／step、hardware concurrency、memory limit による同時数制限、依存フレーム時の逐次 fallback、retry、continue-on-error、cancel、progress、elapsed／speedup 集計を実装している。Render Queue 側には MFR 設定フィールドと dispatcher 呼び出し基盤があるが、`ArtifactRenderQueueService` の実レンダー部分には `const bool useMfr = false` が残り、通常経路でのMFR実行は無効化されている。一方、shared composition／GPU resource の並列安全性、実際のファイル書き出し順序、複数レイヤー種別での runtime 性能は未検証である。
+
+## Update 2026-08-15
+
+- `Core.Render.MFR.Dispatcher` の並列数・memory budget・依存フレーム逐次 fallback・retry／cancel／progress 集計と、Render Queue の設定／呼出し基盤を再確認。
+- `ArtifactRenderQueueService` の実レンダーループには `useMfr = false` が残っており、通常の実ファイル出力で MFR が有効とは判定できない。
+- shared composition／GPU resource の thread-safety、出力順序、複数レイヤー種別の性能、実 MFR と逐次結果の一致は未検証。実装済みなのは dispatcher foundation まで。
 
 ## MFR とは
 

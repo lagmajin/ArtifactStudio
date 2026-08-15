@@ -311,7 +311,11 @@ public Q_SLOTS:
 
     bool saveProject(const QString& filePath);
     bool loadProject(const QString& filePath);
+    QString projectFilePath() const { return projectFilePath_; }
     void newProject();
+    void newSequence();
+    bool selectSequence(const QString& sequenceId);
+    void updateSequenceSettings(const QString& name, const QString& resolution, const QString& frameRate);
 
     bool isSnapEnabled() const { return snapEnabled_; }
     void setSnapEnabled(bool enabled) { snapEnabled_ = enabled; }
@@ -367,6 +371,7 @@ private:
 
     DemoProject currentProject_;
     DemoSequence currentSequence_;
+    QString projectFilePath_;
     FramePosition currentFrame_ = 0;
     FramePosition inPoint_ = 0;
     FramePosition outPoint_ = 350;

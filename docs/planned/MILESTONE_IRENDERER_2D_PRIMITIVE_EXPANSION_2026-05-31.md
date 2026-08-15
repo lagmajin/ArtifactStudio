@@ -1,5 +1,21 @@
 # M-IR-10 ArtifactIRenderer 2D Primitive Expansion
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+Arc と styled polyline は `ArtifactIRenderer`／`PrimitiveRenderer2D` 側に追加済みで、round cap／join、closed、dash pattern、miter／bevel の境界、および Shape layer の stroke／bounds invalidation まで接続されています。`TrimPaths`／`Repeater` の一部条件も native packet 経路へ接続済みです。
+
+一方、gradient／taper、special operator、複数輪郭の fill rule、互換キャッシュ経路との parity、実 GPU／software runtime の描画一致は未完了または未検証です。なお、Rounded Rect は専用 public façade として全面置換されたとは確認できず、既存 rounded panel／point-list 経路が残っています。
+
+## Update 2026-08-15
+
+実装行を再照合した。`PrimitiveRenderer2D::drawArcLocal()` と styled polyline 相当の stroke／dash／cap／join 処理、`ArtifactIRenderer` の rounded panel façade、Shape layer の stroke／bounds 接続は確認できる。一方、TransformGizmo の arc は点列を組み立てて `drawPolyline()` を呼ぶ経路も残る。
+
+- Arc と polyline の基盤は部分的に実装済みだが、提案 API 群が全て統一された public façade として提供されているわけではない。
+- Rounded Rect の全面移行、gradient／taper、複数輪郭 fill rule、GPU／software parity の runtime 検証は未完了。
+- 判定は **Arc／styled stroke の実装基盤と rounded panel は存在するが、2D primitive expansion の統一完了は未達** を維持する。
+
 `ArtifactIRenderer` / `PrimitiveRenderer2D` に、上位の shape workflow を増やしやすくする低レベル 2D primitive を足すための段階メモ。
 
 ## Goal

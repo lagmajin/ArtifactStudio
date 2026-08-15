@@ -1,6 +1,15 @@
 # マイルストーン: Search / Collections / Smart Organization
 
+**最終更新:** 2026-08-15
+
 > 2026-03-28 作成
+
+## 2026-08-15 現行コード照合
+
+- ✅ Asset Browser は名前／type／status の filter、Favorite／Missing／Unused の status filter、Recent folder、favorite toggle、unused の非同期 snapshot、missing／unused marker を持つ。
+- ✅ Project View も missing／unused の表示、advanced filter、thumbnail／status 表示、asset への操作導線を持つ。旧記載の「検索・整理が全く別」は現状と不一致。
+- ⚠️ `favorite`／`recent`／`unused`／`missing` は主に各 widget の filter／marker として実装され、browser と project で共有する永続 Collection／Smart Bin モデル、duplicate／dependency collection は確認できない。
+- ⏳ global search、保存可能な query／tag、smart bin、duplicate／dependency action、collection から Timeline／Render Queue へつなぐ review hooks、概念名の完全統一は未完了。
 
 ## 目的
 

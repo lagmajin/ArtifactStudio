@@ -1,8 +1,19 @@
 # Rotobrush級 AIマスク 実装マイルストーン
 
+**最終更新:** 2026-08-15
 **日付**: 2026-08-01
 **ベース**: AE Rotobrush 3.0 / RunwayML / SAM (Segment Anything Model)
-**現状**: `OnnxDmlLocalAgent`（ONNX Runtime + DirectML）稼働中。`OpenCVRotoBrushEngine` 一部実装あり。AI基盤は整っている。
+**現状**: `OnnxDmlLocalAgent`（ONNX Runtime + DirectML）と `OpenCVRotoBrushEngine` の一部実装は存在する。AI基盤・OpenCVのrotobrush補助はあるが、SAM専用engine、prompt/encoder/mask decoder、時間伝播、製品UI接続は未確認。
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactCore` 側には ONNX／DirectML の汎用AI基盤と OpenCV roto brush engine があるが、`SAMEngine`、SAM model asset契約、foreground／background promptからのmask decoder、frame-to-frame propagation、mask pathへの製品変換導線は今回の静的検索では見つからない。従って「AI基盤は整っている」は汎用基盤の存在としては正しいが、Rotobrush相当のPhase 1は未着手、既存OpenCV engineは補助的な部分実装として扱う。
+
+## Update 2026-08-15
+
+- ONNX／DirectML の汎用 AI 基盤と `OpenCVRotoBrushEngine` は存在するが、SAM 専用 engine、model asset 契約、prompt encoder／mask decoder は現行コードで確認できない。
+- frame-to-frame propagation、mask refine、mask-to-Bezier path、Composition View の Rotobrush UI／Undo 接続も未確認。
+- 既存の OpenCV roto brush は補助基盤として扱い、Rotobrush 相当 Phase 1（静止画セグメンテーション）未着手、製品統合・runtime 検証 pending の判定を維持する。
 **狙い**: ONNX Runtime で SAM 等のセグメンテーションモデルを推論し、ブラシストローク1回でオブジェクトを自動マスクする
 
 ---

@@ -2,10 +2,11 @@
 
 **マイルストーンID**: M-VP-8
 **作成日**: 2026-06-27
+**最終更新**: 2026-08-15
 **優先度**: Low
 **推定工数**: 2-3日
 **カテゴリ**: Composition Editor / Viewport / UX
-**状態**: Planned
+**状態**: 名前付き viewport／camera bookmark、template、ズーム／パン／回転／orientation／preview quality の保存・復元、UI 導線は実装済み。shortcut／並べ替え／実機受入れは未完了。なお `Ctrl+Shift+1〜9` は Rig Pose Slot が使用しており、Bookmark の `Ctrl+1〜9` は未接続。
 
 ---
 
@@ -18,8 +19,8 @@
 ## 背景
 
 ### 現状
-- 既に`ViewportBookmarkStore`クラスの概念は存在（`Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`に設計あり）
-- ビューポート状態の保存/復元機能は**未実装**
+- `ViewportBookmarkStore` は `ArtifactViewMenu.cppm` に実装され、composition 単位の CBOR 保存／読み込み、名前一覧、保存、削除を持つ。
+- `ArtifactCompositionEditor` の Bookmark ボタンからメニューを開き、現在状態の保存・既存状態の適用へ到達する。
 - 実装が大変とのこと（ユーザー指摘）
 - 類似機能として、After Effectsの「ビューポートのズーム位置を保存」がある
 
@@ -968,10 +969,17 @@ struct ViewportBookmarkAppliedEvent : Event {
 
 ---
 
+## 現行コード監査 (2026-08-15)
+
+- Bookmark は zoom、pan、rotation、viewport orientation、preview quality、camera state を保存・復元する。Project／composition ID ごとの保存先も分離されている。
+- View menu には named bookmark と viewport template の save／apply／delete 導線があり、Composition Editor の toolbar にも Bookmark ボタンがある。
+- 旧仕様の `ViewportBookmarkManager` 新規 Core モジュールは作られていないが、現状は ViewMenu 内の store が責務を担っている。
+- 1〜9 shortcut、並べ替え、3D camera 複数視点の runtime 受入れ、壊れた／旧形式 bookmark の migration は未確認。
+
 ## 2026-07-25 現状確認
 
 静的確認では、`ArtifactViewMenu.cppm` に `ViewportBookmarkStore` があり、composition ID ごとに CBOR 設定へ名前付きブックマークを保存・一覧・削除し、View メニューから保存／削除／復元できる。保存対象は zoom、pan、viewport orientation で、Composition Editor には専用の Bookmark ボタンもある。
 
-一方、仕様の 1〜9 ショートカット、並べ替え、編集ダイアログ、回転角度・解像度スケールの保存、プロジェクトファイルへの埋め込みは確認できない。保存先はプロジェクト内ではなく AppData の `ViewportBookmarks/viewport_bookmarks.cbor` で、回転・解像度マイルストーンも未実装のため完全な状態保存には至っていない。したがって本マイルストーンは「zoom / pan / orientation の基本版は実装済み、完全仕様は未完了」と判定する。
+一方、仕様の 1〜9 ショートカット、並べ替え、編集ダイアログ、プロジェクトファイルへの埋め込みは確認できない。保存先はプロジェクト内ではなく AppData の `ViewportBookmarks/viewport_bookmarks.cbor` である。2026-08-15 に bookmark entry へ `previewQualityPreset` を追加し、保存・復元時に `ArtifactProjectService` 経由で適用するようにした。したがって本マイルストーンは「zoom / pan / rotation / orientation / preview quality の基本版は実装済み、完全仕様は未完了」と判定する。
 
 確認範囲: `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`。ビルド・実機操作による動作確認は未実施。

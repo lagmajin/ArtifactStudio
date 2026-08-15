@@ -1,6 +1,18 @@
 # マイルストーン: FSR / DLSS アップスケーリング基盤（2026-08-05）
 
-**最終更新:** 2026-08-05
+**最終更新:** 2026-08-15
+
+**現状:** renderer 内の単純な低解像度描画スケールは実装済み。FSR/DLSS/XeSS の方式選択、temporal frame contract、GPU upscaler adapter、診断・履歴リセットは未実装。
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactIRenderer` には `setUpscaleConfig()` と 0.25〜1.0 の内部 render scale があり、render target の幅・高さを縮小する経路が存在する。`PreviewSettings` にも resolution scale の基礎設定があるため、単純な spatial downscale の入口はある。また `ArtifactCore/include/FSR/ffx_fsr1.h` は参照ヘッダとして存在する。しかし、FSR の実行 shader／adapter、DLSS／XeSS SDK接続、低解像度入力から表示解像度への明示的な GPU upscale pass、motion vector／depth／jitter／exposure／history reset 契約、実効方式の診断表示は確認できない。現段階は UPS-0 の既存スケール入口のみで、UPS-1以降は未着手と判定する。
+
+## Update 2026-08-15
+
+- `ArtifactIRenderer::setUpscaleConfig()` と 0.25〜1.0 の render scale による低解像度 render target 経路を再確認。これは方式選択付きの upscaler ではなく、既存の spatial scale 入口に留まる。
+- FSR／DLSS／XeSS の実行 adapter、明示的な GPU upscale pass、motion／depth／jitter／exposure／history reset 契約、実効方式の診断表示は現行コードで確認できない。
+- 判定は UPS-0 の既存スケール入口のみ実装、UPS-1 以降未着手。SDK／Diligent backend の追加変更や build／runtime 検証は行っていない。
 
 ## 目的
 

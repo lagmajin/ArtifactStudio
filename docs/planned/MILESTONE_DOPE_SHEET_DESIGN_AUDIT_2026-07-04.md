@@ -1,5 +1,16 @@
 # マイルストーン: Dope Sheet 機能監査 (2026-07-04)
 
+**最終更新:** 2026-08-15
+
+## 2026-08-15 現行コード照合
+
+- `ArtifactDopeSheetWidget` は `AppMain` から遅延生成され、選択レイヤーの `collectDopeSheetKeyframesForLayer()` 結果を一覧表示する基盤として存在する。
+- ただし現行 widget の選択モードは `NoSelection` で、Dope Sheet 自身の keyframe 移動／削除／時間方向スケール／Summary Row／channel grouping／regex filter／Frame-Seconds 切替は確認できない。
+- キーフレームの copy/paste、補間・roving・Undo は Timeline／Curve Editor 側に実装があるが、Dope Sheet の編集面へ統合された証拠はない。
+- 判定は **一覧表示のみ部分実装、編集 Dope Sheet は未完了**。この文書の P0/P1 不足表は現状にも概ね適用できるが、Timeline／Curve Editor の既存機能を Dope Sheet 未実装と混同しない。
+
+ビルド・テスト・実機 UI 確認は未実施。
+
 > Blender Dope Sheet / Maya Dope Sheet / AE Timeline Keyframe View 比較。
 
 ## 🔴 P0

@@ -1,10 +1,17 @@
 # MILESTONE: 汎用メタデータ収集基盤（Project Visitor / Collector）
 
+**最終更新:** 2026-08-15
 **ステータス:** Phase 1A Completed (static verified 2026-07-22; runtime/build verification pending)
 
 Phase 2 (Statistics Collector migration) and the Phase 3 asset/file integration slice are completed at source level.
 
 > 2026-07-09 作成
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactProjectStatistics` は `ProjectVisitor` と複数の `MetadataCollector` を使い、statistics／metadata value／font usage を同じ走査基盤から収集する。FontUsage の manifest／copy/export、Packager と CleanupTool の metadata collector 利用、HealthChecker／Problem View／Importer の別系統 validation 接続も現行コードで確認できる。Phase 1A〜3 の主要接続は静的に実装済みという従来判定と整合する。
+
+ただし HealthChecker／AssetReferenceTracker／Composition の参照追跡まで全てを `ProjectVisitor` に統合した状態ではなく、目的別走査は残っている。重複走査の完全解消、未使用 asset／broken reference の共通 collector 化、Phase 4〜5 の回帰・runtime 検証は pending と判定する。
 
 ## 目的
 

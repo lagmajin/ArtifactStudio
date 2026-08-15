@@ -1,8 +1,20 @@
 # 優先度高い実装マイルストーン 総括
 
 **作成日:** 2026-03-28
-**更新日:** 2026-03-28
+**更新日:** 2026-08-15
 **ステータス:** 一部実装済み
+
+## 2026-08-15 現行コード照合
+
+この総括表は 2026-03-28 時点の優先順位スナップショットであり、現行の完了判定としては使用しない。主な更新は次の通り。
+
+- **Rendering performance**: cache／batch／LOD／GPU resource retention の基盤は複数実装済み。ただし性能目標値は未計測で、旧表の数値を達成値とは扱わない。
+- **Application layer**: Proxy、Project、WebUI、Inspector、Importer／Packager の主要経路は静的実装済み。runtime E2E と失敗復旧は未検証。
+- **Test／QA**: Debug Harness、Frame Debug、Diagnostics、module hygiene の検査基盤は存在するが、全体 CI／回帰テスト網の完成は確認できない。
+- **Security**: path／session の一部 sanitize と入力検証は存在するが、プロジェクト暗号化・通信保護・包括的 threat model の完了は確認できない。
+- **Undo／Redo、ASIO、ROI**: 各専用マイルストーンで部分または実装済みの基盤が確認できる。機能横断の受入れは未検証。
+
+したがって本書の「未着手」は、現行では「基盤あり／統合または runtime 検証待ち」と読み替える項目がある。ビルド・テストは未実施。
 
 ---
 

@@ -35,3 +35,6 @@ See [project-architecture/taste.md](project-architecture/taste.md)
 
 # task-preference
 - When presented with a choice between stability/bug-fix work and new feature development, prefers new feature creation (新機能作成). Confidence: 0.55
+
+# language
+- Communicates in Japanese and expects responses in Japanese. Confidence: 0.85

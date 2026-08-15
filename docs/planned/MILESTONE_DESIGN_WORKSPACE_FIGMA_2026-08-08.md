@@ -1,7 +1,13 @@
 # Design Workspace — Figma-style UI Design Features (2026-08-08)
 
 **最終更新:** 2026-08-08
-**状態:** 計画
+**状態:** Design／Animate と Auto Layout の基盤、既存 export は実装済み。Figma固有の Constraints／Components／Slice 等は未完了。
+
+## 現行コード監査 (2026-08-15)
+
+Design／Animate mode、親 bounds／padding／direction／alignment／gap による既存 layout component、Design時の並べ替え、基本 Shape／Text／Image／Mask、Lottie／RmlUi／Gameface／Unity／Noesis export は現行コードで確認できる。Drop Shadow effect と Merge Paths operator も存在するが、Figmaの専用データ契約・多段 Fill/Stroke・Boolean編集UIまで完了した証拠にはならない。
+
+一方、`constraintLeft/Right/Top/Bottom` の専用契約、Figma Component／Instance／Library、Frame／Slice tool、Figma制約に基づく親サイズ追従、スタイルライブラリ、Figma同期／runtime受入は確認できない。したがってスコアカードの未実装項目は概ね維持し、既存 Auto Layout／Merge Paths／Drop Shadow は「部分実装」として扱う。
 
 ## 概要
 

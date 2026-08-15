@@ -1,7 +1,8 @@
 # M-TEMPLATE-1 Project Template Gallery Milestone
 
 作成日: 2026-06-16
-ステータス: Draft
+**最終更新:** 2026-08-15
+ステータス: Project Template Gallery は未実装、関連する composition／batch／viewport／variation template 部品のみ存在
 対象: `Artifact/src/Widgets/Dialog/ArtifactCreateCompositionDialog.cppm`,
       `Artifact/src/Widgets/Welcome/ArtifactWelcomeScreen.cppm` (将来),
       `Artifact/src/Service/ArtifactProjectService.cppm`,
@@ -9,6 +10,11 @@
       `Artifact/src/Project/ArtifactProjectManager.cppm`,
       `ArtifactCore/src/Project/ProjectTemplate*`
 位置づけ: AE の "Save as Template" / Premiere の "Project Templates" 互換の foundation。
+
+## Update 2026-08-15
+
+- 現行コードでは専用の `ProjectTemplate`、`ArtifactTemplateService`、テンプレートギャラリー、template versioning、variation binding の実装は確認できない。
+- `TemplateSlot`／`TemplateLock` と ResponsiveLayout variant の補助部品は存在するが、composition snapshot＋asset 参照＋slot を一体化した保存・サムネイル・適用導線とは別系統。未実装判定を維持する。
 参照:
 - `docs/analysis/REPORT_APP_PERF_BOTTLENECK_2026-06-16.md` §2.2
 - `docs/analysis/MOTION_GRAPHICS_AD_PRODUCTION_THINKING_MEMO_2026-05-28.md` (テンプレ量産)
@@ -232,6 +238,21 @@ struct SlotDefinition {
 そのため、Phase 1〜4 の Project Template 機能、テンプレートの versioning、asset 解決／missing 診断、slot 入力からの instantiate、recent project／Welcome 統合、gallery runtime 検証は未実装または未確認である。既存の個別テンプレート機能を新しい Project Template API と混同しない必要がある。
 
 判定: **Draft のまま。** 現状は関連する slot／preset の部品はあるが、Project Template Gallery の foundation と UI は未着手である。
+
+## Current implementation audit (2026-08-15)
+
+現行コードを再確認した。2026-07-25 の判定どおり、composition snapshot・asset 参照・slot 定義を一つの Project Template として管理する共通モデル／service／gallery は存在しない。ただし、周辺の「template」という名称の機能は増えているため、責務を分離して記録する。
+
+| 項目 | 現行コードで確認できた実装 | 本 milestone との関係 |
+|---|---|---|
+| Composition creation templates | `ArtifactProjectInitParams::defaultTemplate`／`animationTemplate`／`storyboardTemplate` が新規 composition の初期値を作る | 部分的な初期値 template。保存・検索可能な project template ではない |
+| Batch render templates | `ArtifactBatchRenderer` が batch template directory の scan／save／delete／default template と composition 追加を持つ | Batch render 専用。gallery／slot instantiate とは別責務 |
+| Template locks / variations | `TemplateLockSchema`、TemplateLock editor、render queue の editable field 診断、`defineTemplateSlot`／`applyTemplateVariation` automation を確認 | variation の部品はあるが composition snapshot と統合されていない |
+| Viewport templates | `ViewportTemplateStore` が view state の save／load／delete と menu 導線を持つ | View設定専用。Project Template ではない |
+| Project Template model/service/gallery | `ArtifactCore::ProjectTemplate`、`ArtifactTemplateService`、`ArtifactTemplateGalleryDialog`、template directory scan／instantiate は未確認 | 未実装 |
+| Welcome / diagnostics | Welcome の New from Template、`template.asset-missing` 等の専用診断は未確認 | 未完了 |
+
+**更新後の判定**: M-TEMPLATE-1 は Draft 継続。まず既存 `TemplateLockSchema`／TemplateSlot と `ArtifactProject` の JSON snapshot・asset manifest を接続する core contract を定め、その後に service／gallery を作る必要がある。既存の batch／viewport template を Project Template の実装済み証拠として扱わない。
 
 ### 3.10 Diagnostics
 

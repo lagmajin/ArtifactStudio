@@ -1,6 +1,7 @@
 module;
 #include <QMainWindow>
 #include <QKeyEvent>
+#include <QCloseEvent>
 #include <wobjectdefs.h>
 
 export module ArtifactPr.MainWindow;
@@ -21,6 +22,7 @@ public:
 
 protected:
     void keyPressEvent(QKeyEvent* event) override;
+    void closeEvent(QCloseEvent* event) override;
 
 private Q_SLOTS:
     void onExportTriggered();
@@ -40,4 +42,5 @@ private:
     QTimer* autoSaveTimer_ = nullptr;
     ArtifactPr::TimecodeOverlayWidget* timecodeOverlay_ = nullptr;
     MediaPanel* mediaPanel_ = nullptr;
+    bool projectDirty_ = false;
 };

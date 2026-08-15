@@ -1,6 +1,7 @@
 # M-MO-1 Auto-Orient Milestone
 
 作成日: 2026-06-16
+最終更新: 2026-08-15
 ステータス: 部分実装（Auto-Orient 評価・Property 基盤は実装、永続化／統合検証待ち、静的確認 2026-07-29）
 対象: `Artifact/src/Layer/ArtifactAbstractLayer.cppm`,
       `Artifact/src/Layer/ArtifactAbstractLayer.ixx`,
@@ -81,6 +82,14 @@ AE では、layer の **position に motion path がある場合**、Auto-Orient
 - `ArtifactAbstractLayer` の Transform property group に `transform.autoOrient` が追加され、Property 値から mode を切り替えられる。
 - したがって Auto-Orient の mode／評価／Property 基盤は部分実装済みと判定する。
 - 既存 rotation keyframe への加算・オフセット規則、composition 全体 ON/OFF、project JSON の明示保存復元、diagnostics、Undo／runtime 検証は未確認または未実装であり、Phase 2 以降は未完了とする。
+
+### 2.5 2026-08-15 現行コード監査
+
+- `AnimatableTransform3D` の `AutoOrientMode` と position keyframe の前後差分による tangent 評価を確認した。`AlongPath` と `AlongPathAtFrameStart` の mode が存在する。
+- `ArtifactAbstractLayer` は `transform.autoOrient` を Property Editor に公開し、`autoOrientMode` を layer JSON に保存／復元している。
+- ただし、既存 rotation keyframe との合成規則、motion path 編集後の再評価範囲、composition 全体の有効化、専用 diagnostics／Undo、実際の再生・スクラブ挙動はコード静的確認だけでは完了と判定できない。
+
+判定: **Auto-Orient の評価・Property・基本永続化は実装済み。rotation 合成仕様、編集／再生統合、runtime 検証は pending。**
 
 ### 2.3 既存 milestone との関係
 

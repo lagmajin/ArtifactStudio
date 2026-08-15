@@ -1,5 +1,7 @@
 # Milestone: Local AI Chat Integration (2026-04-01)
 
+**最終更新:** 2026-08-15
+
 **Status:** Phase 0+2 Complete (遅延初期化 + 設定UI実装済み)
 **Goal:** ローカルLLM (llama.cpp) を接続し、アプリ内チャットで会話できるようにする
 
@@ -125,3 +127,9 @@
 ### 現在の判定
 
 Local AI Chat の主要な UI／client／llama.cpp backend は実装済み。実モデルでの推論、配布モデル、起動導線の runtime 確認が残るため、全体は「実装済み／実行・配布確認待ち」とする。
+
+## Update 2026-08-15
+
+現行コードを追加確認した。`LlamaLocalAgent.cppm` は GGUF load、architecture check、context／sampler、同期・streaming生成、error state を実装している。`AIChatWidget`／`AIClient` には遅延初期化、provider／model path、context生成、複数session、JSON設定保存／復元があり、Main Windowのlayout presetとtool経路にも接続されている。
+
+未完了・未検証なのは、実モデルでの推論、モデル配布／download契約、起動導線、streamingの長時間安定性である。Local ChatのUI／client／backendは静的実装済み、実モデル受入れと配布は pending とする。

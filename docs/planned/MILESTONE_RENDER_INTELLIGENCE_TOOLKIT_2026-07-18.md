@@ -1,14 +1,16 @@
 # Render Intelligence Toolkit
 
-**ステータス:** In Progress
+**最終更新:** 2026-08-15
 
-## Static Audit (2026-07-25)
+**ステータス:** Phase 1 partial / Phase 2-5 pending
 
-現行ソースでは、Phase 1 の基盤はかなり進んでいる。`Graphics.RenderGraph`、`FrameDebug`、`Graphics.TemporalHistory` が存在し、`FramePipelineViewWidget` は compiled graph の pass/resource、実行順、resource lifetime、推定 byte size、CPU/GPU timing、barrier hint を表示する。GPU frame timing の diagnostic 公開と temporal invalidation のデータ構造も確認できる。
+## Static Audit (2026-08-15)
 
-一方で、5項目全体の完了とは判定しない。JFA の dedicated distance-field contract / pass 実装、backend-neutral な共有 Optical Flow service/cache、forward-backward confidence と scene-cut、bounded capture ring、pass 単位 query pool、render-state cache、複数 queue/fence の実運用は確認できない。既存の `OpticalFlowBlurEffect` は個別 effect 実装で、共有サービスの証拠にはならない。`TemporalDenoiseEffect` と temporal shader は存在するが、Toolkit が定義する history reprojection・disocclusion・variance・preview-only 境界までの接続は未確認である。GPU Breadcrumbs/device-lost recovery の専用契約・実 backend 連携も未確認である。
+現行ソースでは、Phase 1 の基盤と bounded capture の実装が確認できる。`Graphics.RenderGraph`、`FrameDebug`、`Graphics.TemporalHistory` が存在し、`FramePipelineViewWidget` は compiled graph の pass/resource、実行順、resource lifetime、推定 byte size、CPU/GPU timing、barrier hint を表示する。GPU frame timing の diagnostic 公開と temporal invalidation のデータ構造も確認できる。Composition の Frame Debug snapshot には GPU Texture Cache の hit/miss、pending upload、invalidation count、last invalidation reason が resource note として接続されている。一方、RenderGraph の一般的な pass cache/invalidation reason 契約は未接続である。`TraceRecorder` は frame timeline を最大 120 件、event を最大 4096 件に制限し、App Debugger の `FrameDebugBundle.history` は最大 8 capture に制限される。
 
-判定: Phase 1 diagnostics は static partial-to-substantial、DSA-1 は frame timing 部分のみ、Phase 2〜5 と DSA-2/3 は未完了または実 runtime 接続未検証。`QImage`/`QPainter` を本流に追加した証拠は今回の対象範囲では確認しなかった。
+一方で、5項目全体の完了とは判定しない。JFA の dedicated distance-field contract / pass 実装、backend-neutral な共有 Optical Flow service/cache、forward-backward confidence と scene-cut、pass 単位 query pool、複数 queue/fence の実運用は確認できない。`ShaderManager` の既存 PSO cache は確認でき、`ShaderManager::pipelineStateCacheDebugState()` と `ArtifactIRenderer::pipelineStateCacheDebugState()` で unavailable / cold-start / loaded を取得できるようにしたが、hit/miss/rejected reason の細粒度診断は未実装である。既存の `OpticalFlowBlurEffect` は個別 effect 実装で、共有サービスの証拠にはならない。`TemporalDenoiseEffect` と temporal shader は存在するが、Toolkit が定義する history reprojection・disocclusion・variance・preview-only 境界までの接続は未確認である。GPU Breadcrumbs/device-lost recovery の専用契約・実 backend 連携も未確認である。
+
+判定: Phase 1 diagnostics は static substantial、Composition cache diagnostics、pass scheduling state reason の Pipeline View 表示、bounded capture は実装済みだが、cache/invalidation reason と DSA-1 の pass timing は未完、DSA-2 は既存 PSO cache 部分のみ、Phase 2〜5 と DSA-3 は未完了または実 runtime 接続未検証。`QImage`/`QPainter` を本流に追加した証拠は今回の対象範囲では確認しなかった。
 
 ## 目的
 
@@ -53,10 +55,10 @@ Optical Flow ------------------------> Temporal Preview Denoiser
 - [x] pass ID / resource ID / execution order / lifetime / estimated bytes を取得
 - [x] scheduled / disabled / blocked の pass 状態を区別
 - [x] `Frame.Debug` に JSON 変換を追加（64-bit ID / byte size は文字列で保持）
-- [ ] Render Graph 実行結果の CPU / GPU timing と cache / invalidation reason を接続
+- [ ] Render Graph 実行結果の CPU / GPU timing と cache / invalidation reason を接続（frame timing、Composition Texture Cache reason、pass scheduling state reason は接続済み、一般 pass timing/cache reason は未完）
 - [x] 既存 Frame Pipeline View に snapshot 表示を接続
 - [x] Composition の確定済み Frame Pass Plan から観測専用 capture producer を接続
-- [ ] bounded capture ring を接続
+- [x] bounded capture ring を接続（TraceRecorder: frame 120 / event 4096、App Debugger history: 8）
 
 ### 目的
 
@@ -127,10 +129,10 @@ queue overlapへ影響する可能性があるため、Pass単位計測は明示
 
 参照: `DiligentSamples/Tutorials/Tutorial26_StateCache`
 
-1. device type / adapter / driver / build / shader revision を含む cache key
+1. device type / adapter / driver / build / shader revision を含む cache key（既存 `ShaderManager` の device/backend/format 系キーで部分実装）
 2. cache file のatomic保存と破損時fallback
 3. JFA / Temporal Denoiser の新規PSOだけで限定試行
-4. cache hit / miss / rejected reason をDiagnosticsへ公開
+4. cache hit / miss / rejected reason をDiagnosticsへ公開（cache lifecycle state は公開済み、hit/miss/rejected reason は未実装）
 5. 開発buildのみhot reloadを有効化
 6. 安定後に既存 `ShaderManager` のPSOを段階移行
 

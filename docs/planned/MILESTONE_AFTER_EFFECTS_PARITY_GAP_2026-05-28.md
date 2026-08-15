@@ -1,8 +1,18 @@
 # MILESTONE: After Effects Parity & Gap Analysis - 2026-05-28
 
 作成日: 2026-05-28  
+最終更新: 2026-08-15
 対象: ArtifactStudio 現行リポジトリ  
 位置づけ: 2026-04-08 版の再整理・現行化
+
+## 2026-08-15 現行コード照合
+
+- Text Animator、RAM preview／cache、track matte／mask、precompose、expression、keyframe／clipboard、3D／shape／audio layer の基盤が現行コードに存在する。
+- 直近の専用マイルストーンで、静止画・連番・shape・3D・diagnostics・render pipeline の進捗がさらに更新されている。
+- 残る主要ギャップは、preview の requested／ready 契約、Text Animator の timeline cohesion、matte／alpha の厳密性、graph editor の深い編集、nested workflow、expression host 境界である。
+- 本書は単一機能の完了表ではなく parity の横断分析なので、各領域の判定は専用マイルストーンを正本とする。runtime／実機受入れを伴う完了とは扱わない。
+
+**判定:** AE parity の主要な土台は実装済み。現在のボトルネックは機能の不存在より、各 surface の接続・状態契約・品質検証。
 
 ---
 

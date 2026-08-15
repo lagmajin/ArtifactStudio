@@ -1,8 +1,18 @@
 # キーボードショートカットカスタマイズUIの実装
+
+**最終更新:** 2026-08-15
 **マイルストーン**: M-SC-1 Keyboard Shortcuts Customization UI
 **作成日**: 2026-04-10
 **見積もり**: 12-16h
 **優先度**: Low (細かいUX改善)
+
+## 2026-08-15 現行コード照合
+
+- ✅ `ShortcutBindings` は多数の `ShortcutId`、既定 `QKeySequence`、現在値、`setShortcut()`、event matching、JSON serialize／load、reset-to-defaults を持つ。
+- ✅ `ApplicationSettingDialog` の Shortcut page はカテゴリ／検索可能な設定表、キー入力、保存／適用、既定値リセット、JSON preset export／import を提供している。
+- ✅ Menu、Timeline、Composition、Viewer、Project、Render 等は中央の `ShortcutBindings` からショートカットを参照し、変更値を各 UI へ適用する経路がある。
+- ⚠️ 旧案の専用 `ArtifactShortcutEditorDialog` とワークスペース別 preset は現行構成では確認できない。競合検出／上書き確認も、Shortcut page の静的コード上で完全な警告 UI として確認できない。
+- ⏳ QWERTY／JIS差、コンテキスト別競合、runtime 再バインドの全 action、preset バージョン移行、実機 QA は未完了。
 
 ## 概要
 

@@ -2,6 +2,8 @@
 
 # Color Correction / Grading Milestone
 
+**最終更新:** 2026-08-15
+
 `Artifact` の color correction / grading 系を、CPU 参照実装を残しながら GPU 側へ寄せていくためのマイルストーン。
 
 ここでいう color correction は、単なる `Solid` の色変更ではなく、露出・コントラスト・色相・彩度・白黒・カーブ・LUT などの調整を含む。
@@ -151,3 +153,9 @@ UI / shader / cache のどこかで暗黙変換が混ざると、CPU / GPU の�
 ## 2026-07-25 実装監査
 
 Exposure／Hue and Saturation／Color Wheels には CPU／GPU 実装、property 取得、CPU/GPU 同期処理があり、Color Correction shader、Lift/Gamma/Gain、Curves、LUT の基盤も確認した。したがって Phase 1 の代表的な correction effect と Phase 2 の実装部品は部分的に進んでいる。一方、主要 correction 全体の Inspector 公開、working/input/output/display space の明示的な契約、preview／render／solo の共通 GPU 経路、CPU/GPU の視覚比較、Curves／LUT の通常 GPU 経路、before/after・cost・fallback 診断、preset／batch／keyframe の一貫した workflow は確認できない。Phase 1 は部分実装、Phase 2〜5 は未完了・runtime未検証とする。
+
+## 2026-08-15 現行コード監査
+
+`ColorWheelsEffect`／`CurvesEffect` の CPU／GPU implementation pair と Inspector catalog／factory、`ArtifactColorGradingEngine` の wheels／curves／Hue-Sat-Luma／LUT／preset／sample analysis、`ArtifactColorScienceManager` の LUT load／builtin／intensity／GPU 参照を確認した。Phase 1 の主要 controls と Phase 2〜3 の実装部品は部分的に存在する。
+
+一方、grading engine の状態が通常 effect stack の単一 source of truth になっていること、preview／render／solo で同じ GPU grade path を常用すること、専用 grading suite／scope／LUT browser、CPU／GPU parity の runtime 受入は未確認である。現時点の判定は Phase 1〜3 の部分実装、Phase 4〜5 は未完了または runtime 未検証とする。

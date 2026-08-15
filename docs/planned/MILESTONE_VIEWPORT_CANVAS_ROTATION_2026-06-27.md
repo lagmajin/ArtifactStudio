@@ -9,6 +9,10 @@
 **カテゴリ**: Composition Editor / Viewport
 **状態**: In Progress（基盤実装済み、runtime 検証待ち）
 
+## 現行コード照合（Update 2026-08-15）
+
+旧記述の「0 hit／完全未実装」は現行コードには当てはまらない。`ArtifactCompositionRenderWidget` に Shift-drag の canvas rotation、viewport 中心基準の角度計算、Shift／Alt／Ctrl による snap、Rotation HUD、renderer への状態反映が実装されている。残る課題は project 保存、R リセット、座標変換と複数 viewport の整合、および runtime 受入である。
+
 ---
 
 ## 目的
@@ -21,7 +25,7 @@ After Effects風のキャンバス回転機能を実装する。ユーザーは�
 
 ### 現状
 - 現在のビューポートはパン・ズーム・フィット機能は完備
-- 回転操作（`Viewport rotation (canvas rotate)`）は **0 hit** — 完全に未実装
+- 回転操作（`Viewport rotation (canvas rotate)`）は基盤実装済み。旧監査時点の **0 hit** 判定は更新済み。
 - `ViewportTransformer` クラスに回転状態を管理する仕組みがない
 - 3Dレイヤー用のカメラ回転は別途実装されているが、2Dキャンバスの回転は未サポート
 
@@ -29,7 +33,7 @@ After Effects風のキャンバス回転機能を実装する。ユーザーは�
 - キャンバスを任意角度（-180°〜+180°）で回転
 - 回転中心点はビューポート中央
 - マウスジェスチャー（Shift+ドラッグ）で回転
--キーボードショートカット（Rキー等）でリセット
+- キーボードショートカット（Rキー等）でリセット（現行は未接続。`TimelineRotateTool` との予約キー競合を整理してから追加する）
 - 回転状態はプロジェクトに保存
 - 既存のパン・ズームと調和した操作性
 
@@ -579,8 +583,8 @@ void CompositionRenderController::setRotation(float degrees) {
 
 ## 2026-07-25 現状確認
 
-静的確認では、2D viewport 用の `ViewportTransformer` に回転状態や `CanvasToViewport` / `ViewportToCanvas` 回転変換を追加した実装は見つからず、`ArtifactIRenderer` にも viewport 回転 API は確認できない。Composition Editor / Render Controller に Shift+ドラッグ回転や R キーリセットを接続した導線、回転状態のプロジェクト保存も確認できない。
+現行コードでは `ArtifactCompositionRenderWidget` に Shift+ドラッグ回転、中心基準の角度計算、modifier snap、Rotation HUD、renderer state反映がある。一方、Rキーリセット、project保存、複数viewportでの座標変換整合、runtime受入は未完了または未確認である。
 
-既存の layer transform、3D camera / view-cube、effect の rotation は別責務であり、本マイルストーンの 2D キャンバス回転の達成根拠にはならない。したがって本マイルストーンは「未実装」と判定する。
+既存の layer transform、3D camera / view-cube、effect の rotation は別責務である。本マイルストーンは「基盤実装済み、保存・ショートカット・runtime受入待ち」と判定する。
 
 確認範囲: `ArtifactCore/src/Transform/ViewportTransformer.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`。ビルド・実機操作による動作確認は未実施。

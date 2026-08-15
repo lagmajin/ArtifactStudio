@@ -2,6 +2,9 @@
 
 > 2026-06-12 作成
 
+**最終更新:** 2026-08-15
+**Status:** module／ixx／cppm 移行は大きく進行中、旧 h／hpp と third-party／互換層が多数残り、全廃は未達
+
 ## 目的
 
 `Artifact` 側の新規実装を `ixx/cppm` 中心へ寄せ、`cpp/hpp` の追加を止めていく。
@@ -114,9 +117,15 @@ UI から呼ばれる薄いロジックを module 化し、API 境界を整理�
 - 旧 `hpp` は利用側が全部移るまで残す
 - 1ファイルごとに差分を小さく保つ
 
+## 2026-08-15 現行実装監査
+
+- `ArtifactCore`／`Artifact` の CMake は多数の `FILE_SET CXX_MODULES` と module 専用 target／implementation reference を運用しており、移行基盤は確立している。
+- 一方、`Artifact`／`ArtifactCore`／`ArtifactWidgets` には `.h`／`.hpp` が現在も多数存在する。`TimelinePlayheadDraw.hpp`、画像／mesh／互換ヘッダ、third-party shader／codec headers などは一括削除対象にできない。
+- したがって本マイルストーンは「新規実装を module 中心にする」段階は進行中だが、Phase 1〜3 の完了や旧 API／header の削除候補確定は未確認。
+- module hygiene の静的検査 target は別マイルストーンで整備済みだが、ビルド・検査の実行結果はこのターンでは取得していない。
+
 ## 参照資料
 
 - `docs/planned/REPO_WIDE_MODULE_HYGIENE_AUDIT_2026-06-11.md`
 - `docs/planned/MILESTONE_CORE_MODULE_HYGIENE_BUILD_STABILIZATION_2026-04-21.md`
 - `docs/planned/MILESTONE_TIMELINE_FEATURE_IMPLEMENTATION_2026-04-03.md`
-

@@ -1,6 +1,7 @@
 # 簡易カラーマネジメント設定の実装
 **マイルストーン**: M-CM-1 Quick Color Management Settings
 **作成日**: 2026-04-10
+**最終更新**: 2026-08-15
 **見積もり**: 10-15h
 **優先度**: Low (細かいUX改善)
 
@@ -70,3 +71,12 @@ After Effects のようなプロフェッショナルツールでは、色空間
 - LUT の読み込み/適用
 - プレビューレンダリングへの反映
 - 最終出力への非適用確認
+
+## 2026-08-15 現行コード監査
+
+- `ArtifactOCIOManager` は preset／config file、working space、display、view、looks、viewer exposure／gamma、CPU view transform、GPU shader descriptor を保持している。
+- `Color Science Panel` には専用の設定・LUT／表示変換導線があるため、単純な色空間基盤を未実装とする旧判定は現状に適用しない。
+- 一方、文書が想定する StatusBar の Color Space／Gamma／LUT quick control、preview-only と最終 render の明確な分離、全 composition への即時反映は確認できない。
+- OCIO／色変換の実機表示差、GPU／CPU parity、プロジェクト保存の受け入れ確認は未検証。
+
+判定: **色管理の Core／専用 panel 基盤は実装済み。StatusBar quick UX、適用境界の明示、runtime／parity 検証は pending。**

@@ -1,5 +1,7 @@
 # DAW-Style Input Surface Milestone
 
+**最終更新:** 2026-08-15
+
 Date: 2026-04-08
 
 ## Goal
@@ -28,6 +30,30 @@ Date: 2026-04-08
 - Core 側の入力モード基盤として `InputSurfaceManager` を実装済み
 - `InputSurfaceStateChangedEvent` を `EventBus` に流せるようにした
 - リアルタイム入力 / ステップ入力 / armed / pending の状態を一元化した
+
+## 2026-08-15 現行コード照合
+
+- ✅ `InputSurfaceManager` は Off／RealTime／StepEntry／LiveCapture の状態、armed、live preview、quantize、transport／step frame、target／context、pending を保持し、`InputSurfaceStateChangedEvent` を発行する。
+- ✅ `beginRealTimeCapture()`、`beginStepEntry()`、`commitCapture()`、`cancelCapture()` が状態遷移として実装されている。`ArtifactPlaybackShortcuts` には J／K／L shuttle と scrub 操作、Audio Scrub Controller には診断経路がある。
+- ⚠️ 現行コードの静的確認では、InputSurfaceManager の状態を Timeline／Inspector／Transport の各 UI が同じ値で表示し、実際の property／keyframe 書き込みへ接続する end-to-end 経路までは確認できない。
+- ⏳ MIDI／OSC を含む外部入力、再生中の live capture の throttle／pending commit、停止中の step keyframe 書き込み、recording／armed UI、undo／redo を含む runtime 検証は未完了。
+
+## Update 2026-08-15
+
+`InputSurfaceManager` の Off／RealTime／StepEntry／LiveCapture、armed／pending／quantize／transport state、`InputSurfaceStateChangedEvent`、capture開始・確定・キャンセル遷移を現行コードで確認した。入力モードのCore契約は実装済みである。
+
+- Off遷移（capture commit／cancelを含む）で、前回のtarget／contextを持ち越さないようにし、次回入力へstaleな対象が混入する経路を防いだ。
+- transport／step frame と capture開始時のframe入力を0以上へ正規化し、負時間の入力がkeyframe確定へ流れないようにした。
+
+未完了・未確認なのは、Timeline／Inspector／Transportの同一状態表示、property／keyframeへのend-to-end書き込み、live captureのthrottle／pending commit、停止中step入力、recording／armed UI、MIDI／OSC、Undo／Redoを含むruntime受入である。
+
+### Update 2026-08-15
+
+Artifact 側では `InputSurfaceManager`／`InputSurfaceStateChangedEvent` の参照が Core 実装に限られており、Timeline／Inspector／Transport の表示・編集導線へ接続されたコードは確認できなかった。したがって本 milestone は Core 契約のみ実装済み、App/UI 統合は未着手として扱う。
+
+### Update 2026-08-15
+
+Timeline header に Input surface status を追加し、Core の state から Off／Real-time／Step／Hybrid、Armed、Pending、quantize、target を表示するようにした。既存のTimeline更新経路で状態を反映し、新規の中央イベント配線は追加していない。Inspector／Transportとの共通表示とproperty／keyframeへの書き込みは引き続き未実装。
 
 ## Non-Goals
 

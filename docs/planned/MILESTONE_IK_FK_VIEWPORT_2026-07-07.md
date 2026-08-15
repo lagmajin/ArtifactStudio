@@ -1,7 +1,8 @@
 # M-RIG-2 IK/FK Switch + Pole Vector Viewport Milestone
 
 作成日: 2026-07-07
-ステータス: Draft
+**最終更新:** 2026-08-15
+ステータス: Rig core／骨表示・選択・FK相当ドラッグは実装済み、IK/FK切替とPole Vector UIが未完了
 対象: `ArtifactCore/include/Rig/Rig2D.ixx`,
       `ArtifactCore/src/Rig/Rig2D.cppm`,
       `ArtifactCore/include/Rig/RigController2D.ixx` (計画),
@@ -86,6 +87,22 @@ CCD IK (`solveCCDIK()`)、制約（Parent, MapRange, Aim, TwoBoneIK）、
 - `ArtifactBoneLayer` → 0 hit（設計のみ）
 - `IKFKSwitch` → 0 hit
 - `PoleVector` → TwoBoneIKConstraint2D に `poleAngle_` メンバあり。UI 露出なし
+
+### 2.4 Current implementation audit (2026-08-15)
+
+現行コードを確認した結果、当初のコード検索結果から core と viewport の基礎部分は大きく進んでいる。
+
+| 軸 | 現行コードで確認できた実装 | 判定 |
+|---|---|---|
+| IK core | `Rig2D::solveTwoBoneIK`／`solveCCDIK` に加え、`solveFABRIK` と `StretchyLimbDescriptor`／`computeStretchyMidpoint` が存在 | 実装済み。専用の収束テストは未実行 |
+| Rig evaluation / controls | `Rig2D::evaluate`、constraints、`RigController2D`、Point／Slider／Angle controls、skin mesh と pose snapshot が存在 | 部分〜実装済み |
+| Bone viewport | RenderController が bone の global matrix から線・原点・階層 panel・選択ハイライトを描画し、hit test を持つ | 実装済み |
+| Direct editing / Undo | `RigSelect` で bone 回転・control 値をドラッグし、release 時に `RigBoneTransformUndoCommand`／`RigControlValueUndoCommand` を積む | FK相当の編集は実装済み |
+| Rig weight workflow | `RigWeight` の選択・paint・normalize／smooth／mirror と `RigSkinWeightsUndoCommand` を確認 | 実装済み。IK pose編集とは別責務 |
+| IK/FK / pole | `IKFKMode`、bone 単位 blend、pole vector handle、IK target／pole target layer は未確認。`TwoBoneIKConstraint2D` の pole angle は存在するが viewport 導線なし | 未完了 |
+| Persistence | `ArtifactAbstract2DLayer` が `rig2D` を layer JSON に保存／復元。Rig core の bones／constraints／controls／skin mesh も JSON 化 | 実装済み。IK/FK専用状態の再読込は未確認 |
+
+**更新後の判定**: FABRIK／StretchyLimb と既存の bone/control viewport editing は成立しているが、M-RIG-2 の中心である IK/FK 切替、pole vector 操作、IK target の直接ドラッグ、専用 layer／Inspector 導線は未完了。次は既存 TwoBoneIK の pole angle を UI に誤流用せず、IK target／pole target の責務と状態保存形式を先に確定する。
 
 
 

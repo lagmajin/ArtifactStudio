@@ -1,5 +1,15 @@
 # Inline Interaction Surfaces Milestone (2026-03-31)
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+部分的な inline surface は実装済みです。`ArtifactCompositionEditor` に text layer の inline edit と commit／cancel、viewport overlay／gizmo の mouse interaction があり、Property Editor には inline row interaction／knob、Layer Panel には layer name・parent・blend mode の inline controls、Timeline には scrub／keyframe interaction があります。
+
+一方、Phase 1 の共通 popup／embedded／overlay container と focus／commit／cancel 契約は横断的に統一されておらず、color／gradient／expression／pick-whip の property-row editor、viewport W/H/X/Y/Anchor scrub、timeline expression／waveform inline、mask preview／blend grid の全面導線も未完了または未検証です。現状は **局所的な inline 実装のみ**と判定します。2026-08-15 の追補として、Layer Panel の layer name／parent／blend mode inline editor に Accessible Name／Description を付与しました。
+
+現行コードの追加確認では、Layer Panel の mask row はクリックで対象 layer と `mask.N.enabled` property path を選択し、Inspector 側へ focus を渡す経路が実装済みです。また、blend mode は inline combo と Undo command、matte の opacity／blend／fit／type は row context menu として接続されています。したがって「選択・軽量変更」の土台はある一方、mask thumbnail／preview を行内で直接切り替える surface と、popup／embedded／overlay の共通ライフサイクル契約は未実装です。
+
 プロパティパネル、ビューポート、タイムライン、レイヤーパネルに散らばっている「その場で触る」操作を、共通の inline interaction として整理するマイルストーン。
 
 狙いは、ダイアログに逃がす前に、まず行内・キャンバス内・行上で完結できる操作を増やすこと。
@@ -101,7 +111,8 @@
 
 1. layer panel の mask preview を軽量な選択補助として整理する
 2. blend mode grid と column width の inline choice を先に固める
-3. mask property の時間化は別マイルストーンとして扱う
+3. popup／embedded／overlay の focus／commit／cancel 共通契約を小さく抽出する
+4. mask property の時間化は別マイルストーンとして扱う
 
 ## Validation Checklist
 

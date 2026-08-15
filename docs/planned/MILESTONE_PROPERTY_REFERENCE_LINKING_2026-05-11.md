@@ -1,5 +1,7 @@
 # Milestone: Property Reference Linking / Pick Whip
 
+**最終更新:** 2026-08-15
+
 > Parent-side roadmap for AE-style property linking.
 
 This milestone covers the "pick-whip" style workflow where one property can be linked to another property without typing a raw path by hand.
@@ -79,3 +81,14 @@ Phase 1 の source audit と一致して、Composition Editor に stable referen
 現行ソースには `PropertyLinkManager`、referenceable property の包括的 catalog、property row からの drag pick-whip、互換性判定付き hover preview、リンクを保存・評価する model は確認できない。clipboard の read-only resolver は Phase 1 の範囲を満たす足場だが、expression target との分離、keyframe と reference の同一 property source 上での共存、Undo／serialization、runtime のリンク評価は未実装または未検証である。
 
 判定: **Phase 1 の read-only token／resolver は実装済み。** Phase 2 の visual pick-whip／local link capture と本格的な property catalog は未着手である。
+
+## 現行コード監査 (2026-08-15)
+
+現行 Property Editor／Inspector の検索では、`PropertyLinkManager` のコア実装は確認できるが、row-level の pick-whip、互換性付き hover preview、Property Editor から利用できるリンク評価モデルは確認できない。Object／matte picker、script binding、layer source relink は存在するが、本 milestone の property-to-property linking とは別責務である。従って Phase 1 の read-only reference token／resolver とコアリンク保持を完了扱いとし、Phase 2 の visual capture と保存・Undo・runtime 評価は pending のままとする。
+
+## Update 2026-08-15
+
+- `PropertyLinkManager` の既存コア実装を確認し、UI／serialization 層が現在のリンクを read-only 列挙できる `links()` API を追加した。
+- Expression Copilot の reference MIME を Property Editor row が受け取り、既存の Copilot 編集導線を参照式で開く Pick Whip の最小受け側を追加した。
+- これは Expression Copilot の参照式挿入までであり、任意の `AbstractProperty` 間のリンク capture／catalog ではない。
+- リンクの永続化、Undo、互換性判定、Property Editor からの capture、runtime 評価は引き続き pending。

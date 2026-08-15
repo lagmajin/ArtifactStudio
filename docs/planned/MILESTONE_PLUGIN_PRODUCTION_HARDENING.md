@@ -4,6 +4,20 @@
 **現状**: 3 つの並行プラグインシステム（ネイティブ ABI / VST+CLAP / OFX）の骨格が存在。しかし実際に動作するサードパーティプラグインはゼロ。サンプル・SDK・ドキュメント不在。
 **目標**: 1 つのネイティブレイヤープラグインを完全にエンドツーエンドで動作させ、CLAP と OFX を実プラグインで検証する。
 
+## 現行コード監査 (2026-08-15)
+
+`PluginLoader`／`PluginLayerFactory`／`LayerPluginAdapter`、`PluginRegistry`、sandbox の native plugin 骨格は現行コードに存在する。ただし `tests/plugins/minimal_layer_plugin/MinimalLayerPlugin.cpp` の create／instance／draw 系 entry point は `nullptr` を返すスタブで、native layer の E2E 実装は未達である。
+
+CLAP は `CLAPHost`、VST2 は `VSTHost`／`VSTEffect`、OFX は `ArtifactOfxHost`／`ArtifactOfxEffectImpl` に loader／instance／処理の主要経路がある。VST3 は loader／interfaces の骨格に留まり、実 SDK による処理経路は確認できない。実サードパーティ plugin、SDK／sample の配布契約、ABI／sandbox の安全境界、CLAP／OFX／VST の runtime 受入は未確認である。したがって native plugin E2E と各形式の実プラグイン検証は pending と判定する。
+
+## Update 2026-08-15
+
+現行コードを再照合した。`ArtifactPluginLoader` は API／export／plugin count を検証し、in-process DLL ロード失敗時に subprocess へフォールバックできる。`ArtifactPluginSandbox` には heartbeat、クラッシュ回数、上限到達時の失敗状態、停止処理がある。
+
+- ただし `PluginLayerFactory::scanAndRegister()` は現在 `PluginLoadMode::DllInProcess` を明示しており、通常のネイティブレイヤー探索で sandbox を自動選択する経路は確認できない。
+- サンプル native layer の create／instance／draw entry point は依然としてスタブのため、Loader → Layer → Composition View の E2E は未達。
+- 署名検証、ABI compatibility の詳細な隔離、永続ブラックリスト／quarantine、権限制限、実 plugin の crash／reload 受入は未完了。CLAP／OFX の loader と処理骨格があることだけでは、本番 hardening 完了とは判定しない。
+
 ## 現状サマリ
 
 | システム | DLL ロード | インスタンス化 | 処理 | 実プラグイン |

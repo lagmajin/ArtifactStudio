@@ -129,6 +129,21 @@ Artifact でも同じく、`キーフレームだけを先に見せる` 方が�
 - `Timeline Search / Keyframe Integration` の header 状態と矛盾しない表示にする
 - `Timeline Operation Feel Refinement` の selection / scroll / zoom 体験を邪魔しない
 
+## Update 2026-08-15
+
+- `ArtifactLayerPanelWidget` には `AllLayers`、`SelectedOnly`、`AnimatedOnly`、`ImportantAndKeyframed` などの display mode と、keyframe／important property の絞り込み判定がある。
+- `ArtifactTimelineWidget` には keyframe marker、選択、add／remove／copy／paste、補間、前後移動の操作があり、Phase 1 の flat filtering と Phase 3 の selected-layer 展開は基盤実装済み。
+- ただし `Keyframes Only` という専用表示名／常時切替 UI、U キー専用 shortcut、property coverage の完全性は確認できない。実際の combo は初期状態で非表示化されているため、ユーザー導線としての Phase 2 は部分実装とする。
+- 判定: **flat filter／keyframe editing 基盤は実装済み、Toggle Surface と全 property lane の整理は未完了。ビルド・runtime 操作確認は未実施。**
+
+## Implementation Update 2026-08-15
+
+- `TimelineLayerDisplayMode::KeyframesOnly` を追加し、animatable かつ keyframe を持つ property だけを表示する専用モードを実装。
+- タイムラインの表示モードコンボを常時表示し、`Keyframes Only` を選択可能にした。
+- 初期表示を `Keyframes Only` に変更し、必要な場合は `All Layers` へ明示的に戻せるようにした。
+- `U` は `All Layers` と `Keyframes Only` の切替に統一した。既存の `Keyframes + Important` モードは個別選択肢として保持する。
+- ビルド・runtime 操作確認は未実施。密集 keyframe の省略、全 property coverage、ショートカット競合の受入は次段階。
+
 ## Missing Pieces
 
 AE レベルに寄せるために、まだ足りないのは次の層。

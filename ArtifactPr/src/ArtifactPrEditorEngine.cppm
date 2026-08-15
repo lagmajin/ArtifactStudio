@@ -233,6 +233,7 @@ void NLEStateCommand::redo()
 
 void EditorEngine::newProject()
 {
+    projectFilePath_.clear();
     if (!nleStore_) {
         nleStore_ = std::make_unique<ArtifactCore::NLE::NLEProjectStore>();
     }
@@ -252,6 +253,10 @@ void EditorEngine::newProject()
     seq.name = QStringLiteral("Sequence 1");
     seq.resolution = QStringLiteral("1920x1080");
     seq.frameRate = QStringLiteral("30 fps");
+    seq.duration = 350;
+    if (auto* coreSequence = nleStore_->sequence(coreSequenceId)) {
+        coreSequence->duration = ArtifactCore::FrameRange::fromFrameCount(0, seq.duration);
+    }
 
     DemoTrack v1;
     const auto coreVideoTrackId = nleStore_->createTrack(
@@ -289,6 +294,133 @@ void EditorEngine::newProject()
 
     Q_EMIT sequenceChanged(currentSequence_);
     Q_EMIT projectLoaded(true, QStringLiteral("New project created"));
+}
+
+void EditorEngine::newSequence()
+{
+    if (currentProject_.id.isEmpty()) {
+        newProject();
+    }
+    if (!nleStore_) {
+        nleStore_ = std::make_unique<ArtifactCore::NLE::NLEProjectStore>();
+    }
+
+    DemoSequence sequence;
+    const auto coreSequenceId = nleStore_->createSequence(
+        QStringLiteral("Sequence %1").arg(currentProject_.sequences.size() + 1),
+        ArtifactCore::NLE::TimeBase{1, 30, false});
+    sequence.id = coreSequenceId.toString();
+    sequence.name = QStringLiteral("Sequence %1").arg(currentProject_.sequences.size() + 1);
+    sequence.resolution = QStringLiteral("1920x1080");
+    sequence.frameRate = QStringLiteral("30 fps");
+    sequence.duration = 350;
+    if (auto* coreSequence = nleStore_->sequence(coreSequenceId)) {
+        coreSequence->duration = ArtifactCore::FrameRange::fromFrameCount(0, sequence.duration);
+    }
+
+    DemoTrack video;
+    const auto coreVideoTrackId = nleStore_->createTrack(
+        coreSequenceId, ArtifactCore::NLE::TrackKind::Video, QStringLiteral("V1"));
+    video.id = coreVideoTrackId.toString();
+    video.name = QStringLiteral("V1");
+    video.kind = QStringLiteral("video");
+    video.height = 28;
+    sequence.videoTracks.push_back(video);
+
+    DemoTrack audio;
+    const auto coreAudioTrackId = nleStore_->createTrack(
+        coreSequenceId, ArtifactCore::NLE::TrackKind::Audio, QStringLiteral("A1"));
+    audio.id = coreAudioTrackId.toString();
+    audio.name = QStringLiteral("A1");
+    audio.kind = QStringLiteral("audio");
+    audio.height = 28;
+    sequence.audioTracks.push_back(audio);
+
+    currentProject_.sequences.push_back(sequence);
+    currentProject_.activeSequenceId = sequence.id;
+    currentProject_.modifiedAt = QDateTime::currentDateTime().toString(Qt::ISODate);
+    currentSequence_ = sequence;
+    currentFrame_ = 0;
+    inPoint_ = 0;
+    outPoint_ = sequence.duration;
+    playbackSpeed_ = PlaybackSpeed::Stop;
+    selectedClipId_.clear();
+
+    qDeleteAll(undoStack_);
+    undoStack_.clear();
+    qDeleteAll(redoStack_);
+    redoStack_.clear();
+
+    Q_EMIT sequenceChanged(currentSequence_);
+    Q_EMIT projectModified();
+}
+
+bool EditorEngine::selectSequence(const QString& sequenceId)
+{
+    for (const auto& sequence : currentProject_.sequences) {
+        if (sequence.id != sequenceId) continue;
+
+        currentProject_.activeSequenceId = sequence.id;
+        currentSequence_ = sequence;
+        currentFrame_ = 0;
+        inPoint_ = 0;
+        outPoint_ = qMax<FramePosition>(0, sequence.duration);
+        playbackSpeed_ = PlaybackSpeed::Stop;
+        selectedClipId_.clear();
+        Q_EMIT sequenceChanged(currentSequence_);
+        Q_EMIT projectModified();
+        return true;
+    }
+    return false;
+}
+
+void EditorEngine::updateSequenceSettings(const QString& name,
+                                          const QString& resolution,
+                                          const QString& frameRate)
+{
+    if (currentSequence_.id.isEmpty()) return;
+
+    const QString trimmedName = name.trimmed();
+    const QString trimmedResolution = resolution.trimmed();
+    const QString trimmedFrameRate = frameRate.trimmed();
+    if (!trimmedName.isEmpty()) currentSequence_.name = trimmedName;
+    if (!trimmedResolution.isEmpty()) currentSequence_.resolution = trimmedResolution;
+    if (!trimmedFrameRate.isEmpty()) currentSequence_.frameRate = trimmedFrameRate;
+
+    for (auto& sequence : currentProject_.sequences) {
+        if (sequence.id == currentSequence_.id) {
+            sequence = currentSequence_;
+            break;
+        }
+    }
+    if (nleStore_) {
+        const auto coreSequenceId = ArtifactCore::NLE::SequenceId::fromString(currentSequence_.id);
+        if (auto* coreSequence = nleStore_->sequence(coreSequenceId)) {
+            coreSequence->name = currentSequence_.name;
+            if (!trimmedFrameRate.isEmpty()) {
+                QString rateText = trimmedFrameRate;
+                rateText.remove(QStringLiteral("fps"), Qt::CaseInsensitive);
+                bool ok = false;
+                const double fps = rateText.trimmed().toDouble(&ok);
+                if (ok && fps > 0.0) {
+                    ArtifactCore::NLE::TimeBase timeBase;
+                    if (rateText.trimmed().startsWith(QStringLiteral("23.976"))) {
+                        timeBase = ArtifactCore::NLE::TimeBase{1001, 24000, false};
+                    } else if (rateText.trimmed().startsWith(QStringLiteral("29.97"))) {
+                        timeBase = ArtifactCore::NLE::TimeBase{1001, 30000, false};
+                    } else if (rateText.trimmed().startsWith(QStringLiteral("59.94"))) {
+                        timeBase = ArtifactCore::NLE::TimeBase{1001, 60000, false};
+                    } else {
+                        timeBase = ArtifactCore::NLE::TimeBase{1, static_cast<int32_t>(fps + 0.5), false};
+                    }
+                    if (timeBase.isValid()) coreSequence->timeBase = timeBase;
+                }
+            }
+        }
+    }
+    currentProject_.modifiedAt = QDateTime::currentDateTime().toString(Qt::ISODate);
+    Q_EMIT sequenceChanged(currentSequence_);
+    Q_EMIT projectModified();
 }
 
 void EditorEngine::loadDemoProject()
@@ -2181,6 +2313,7 @@ bool EditorEngine::saveProject(const QString& filePath)
         return false;
     }
 
+    projectFilePath_ = QFileInfo(filePath).absoluteFilePath();
     Q_EMIT projectSaved(true, QStringLiteral("Project saved successfully"));
     return true;
 }
@@ -2206,6 +2339,8 @@ bool EditorEngine::loadProject(const QString& filePath)
         Q_EMIT projectLoaded(false, QStringLiteral("Project JSON root must be an object"));
         return false;
     }
+
+    projectFilePath_ = QFileInfo(filePath).absoluteFilePath();
 
     currentProject_ = jsonToProject(doc.object());
 

@@ -1,8 +1,18 @@
 # コンポジションのネスト表示改善
+
+**最終更新:** 2026-08-15
 **マイルストーン**: M-CO-2 Composition Nesting Display Enhancement
 **作成日**: 2026-04-10
 **見積もり**: 7-9h
 **優先度**: Low (細かいUX改善)
+
+## 2026-08-15 現行コード照合
+
+- ✅ `PreComposeManager` は親子 composition、precomp layer、階層、親参照、循環可能性、時間変換を管理する。Project Health Checker には循環参照検出もある。
+- ✅ Timeline の Precomp layer は専用アイコン／バッジ／capability 表示を持ち、コンテキストメニューから「コンポジションを開く」、複製、名前変更、precompose／unprecompose を操作できる。
+- ✅ `ArtifactProjectService::changeCurrentComposition()` と AI／Timeline の呼び出し経路により、ネスト先の編集画面へ切り替えられる。Precompose の undo／restore と保存復元も実装されている。
+- ⚠️ 旧案の Project View におけるツリー型インデント、ネストレベル色分け、使用回数／未使用表示、使用箇所一覧は、現行コード上で一体化した専用 UI としては確認できない。
+- ⏳ breadcrumb／親へ戻る導線、依存関係のリアルタイム可視化、未使用整理、設定による表示切替、ネスト表示の runtime QA は未完了。
 
 ## 概要
 

@@ -2,6 +2,17 @@
 
 > 2026-04-22 作成
 
+**最終更新:** 2026-08-15
+**ステータス:** snapshot／farm transport の基盤実装済み、独立 renderer process の end-to-end 実装待ち
+
+## Update 2026-08-15
+
+現行コードを再確認した。`ArtifactOffscreenRenderer2D` は Diligent のオフスクリーン GPU ターゲットを初期化し、フレームを描画する独立 renderer 部品として存在する。`RenderFarmSharedBuffer`／IPC にはフレームの共有・検証・読み出し基盤があり、Render Queue／Project 側にもジョブ管理経路がある。
+
+- ただし、これらは「独立 renderer process が job snapshot を受け取り、composition を再構成し、範囲をレンダーして結果・診断を返す」E2E の証拠ではない。
+- 現行の確認範囲では、親子プロセス間の外部 renderer job schema、CLI 起動、snapshot 復元、進捗／失敗の完全な戻し、再実行・キャンセル契約は未完了。
+- 判定は **オフスクリーン描画と transport の基盤は実装済み、独立 renderer process の end-to-end は未達** を維持する。
+
 内蔵レンダラはそのまま維持しつつ、クラッシュしやすいオフラインレンダリングだけを別プロセスへ切り出すための設計案。
 
 目的は「UI 本体を巻き込まずに、失敗しやすい処理を隔離する」こと。
@@ -759,3 +770,11 @@ Status:
 ArtifactRenderQueueService に外部 renderer job JSON の生成、専用作業ディレクトリ、子プロセス起動、stdout／stderr の JSON Lines 受信、進捗・summary・cancel・失敗処理が実装されている。RenderFarmMaster には worker、RPC server、remote worker 設定、retry／checkpoint の基盤もある。
 
 一方、設計書の snapshot schema と実際の job schema の完全一致、外部子プロセス側の再構成範囲、CLI 単独起動、クラッシュ復旧の実行時検証、RPC の実運用は未確認である。したがって親子プロセス分離の基盤は実装済み、schema／CLI／運用検証は継続課題として記録する。
+
+## 現行コード監査 (2026-08-15)
+
+- Render Queue に外部 renderer job の JSON 生成、専用作業ディレクトリ、子プロセス起動、JSON Lines の stdout／stderr 受信、進捗・summary・cancel・失敗処理がある。
+- `RenderFarmMaster`／RPC server には snapshot／job contract、worker、retry、checkpoint、remote worker 管理の基盤がある。
+- ただし、設計上の snapshot schema と実際の payload の完全一致、全 layer／effect の外部再構成、CLI 単独実行、クラッシュ後の成果物復旧、実ネットワーク運用は未検証。
+
+判定: **外部 renderer の親子境界と job transport は実装済み。独立 process の完全な renderer parity と end-to-end 運用は pending。**

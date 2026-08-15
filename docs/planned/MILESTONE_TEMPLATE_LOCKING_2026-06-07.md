@@ -2,6 +2,14 @@
 
 日付: 2026-06-07
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15
+
+- `TemplateLockSchema`／`ProtectedRegion`／`EditableField`、`TemplateEditGuard` の判定・理由・accessible fields、`TemplateSlot` の lock scope／editability、JSON serialization を現行コードで確認できる。
+- `TemplateLockEditorWidget` は保護領域・編集可能フィールドの表示／追加／削除、schema の JSON import/export を持つ。Render Queue の preflight には protected region と editable field の診断も接続されている。
+- 一方、通常の Composition Property Editor や一括編集／自動差し替えから `TemplateEditGuard` を呼び出して編集拒否する経路は未確認。したがって Phase 1 は実装済み、Phase 2 は UI／preflight 部分まで、Phase 3 の共有・一覧化ワークフローは未完了。
+
 テンプレートの壊してはいけない部分をロックし、編集可能な項目だけを安全に差し替えられるようにする。
 
 ## Goal

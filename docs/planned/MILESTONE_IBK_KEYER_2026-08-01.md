@@ -1,8 +1,13 @@
 # IBKキーヤー 実装マイルストーン
 
+**最終更新:** 2026-08-15
 **日付**: 2026-08-01
 **ベース**: Nuke IBK (Image-Based Keyer) の基本アルゴリズム
-**現状**: `ChromaKeyEffect` が単純なクロマキー実装（色距離ベース）として存在
+**現状**: `ChromaKeyEffect` に加えて、`ArtifactCore::Keying::IBKKeyer` のCPUコア実装が存在する。clean plate差分、core／edge matte、despill、gamma、erode／dilate、RGBA出力まで実装済み。ただしArtifact effect wrapper、GPU compute、clean plate自動生成、通常のUI／Render Queue接続は未確認。
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactCore/include/ImageProcessing/Keying/IBKKeyer.ixx` と `ArtifactCore/src/ImageProcessing/Keying/IBKKeyer.cppm` を確認した。`processIBK()` は入力バッファの妥当性確認、screen correction、foreground／clean plate差分、core／edge合成、despill、gamma、morphology、premultiplied RGBA出力を実装している。一方、`Artifact/include/Effects/Keying/IBKKeyerEffect.ixx`／対応wrapper、GPU HLSL／pipeline、clean plate生成、エフェクト選択UI、Render Queueの通常処理への接続はコード上確認できない。したがってPhase 1のCore実装は部分的に前進、製品workflowは未完と判定する。
 
 ---
 

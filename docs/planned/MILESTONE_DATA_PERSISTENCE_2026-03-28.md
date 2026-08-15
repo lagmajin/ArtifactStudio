@@ -1,7 +1,9 @@
 # データ永続化改善 Milestone
 
+**最終更新:** 2026-08-15
+
 **作成日:** 2026-03-28  
-**ステータス:** 計画中  
+**ステータス:** 基盤実装済み・運用検証継続中
 **関連コンポーネント:** ArtifactProject, ArtifactComposition, ArtifactLayer, JSON シリアライザ
 
 ---
@@ -9,6 +11,15 @@
 ## 概要
 
 プロジェクトファイルの保存/読み込みの信頼性を向上させ、データ破損を防止する。
+
+## 2026-08-15 現行コード照合
+
+- ✅ `ArtifactProjectManager` は保存前 validation、既存ファイルの世代 backup（`.bak~1` 以降）、通常／非同期保存、incremental save の入口を持つ。
+- ✅ `ProjectSerializer`／`SplitDocumentStore` は単一／split manifest 保存に対応し、`SerializationEnvelope`、`SchemaMigrationRegistry`、project importer の version／minimum version 検査と migration 経路がある。
+- ✅ Project／Settings／tree の validation、循環参照・missing source を含む Project Health／Importer 検査、source identity／relink 処理が実装されている。
+- ✅ project version、color pipeline version、AI metadata、autosave 設定、recovery point／session ledger の保存・復元経路が存在する。
+- ⚠️ 旧計画の「保存中クラッシュ対策なし」「バージョン管理なし」「validationなし」は現行コードと不一致。ただし増分保存が差分書き込みとしてどこまで効率化されているか、atomicity／backup を含む end-to-end 復旧は静的確認だけでは保証できない。
+- ⏳ backup 世代からのユーザー向け復元 UI、完全な schema migration coverage、破損／中断保存の runtime QA、メタデータ運用ルールの統一は未完了。
 
 ---
 

@@ -1,5 +1,13 @@
 # Menu to App Integration Milestone
 
+**最終更新:** 2026-08-15
+
+## 現行コード監査 (2026-08-15)
+
+`ArtifactEditMenu` は Undo／Redo、clipboard、selection、playback のサービス経路と context-based enabled state を持ち、`ArtifactRenderMenu` は current composition／queue job に応じて add／start／pause／cancel／clear を更新する。`ArtifactLayerMenu` と Animation menu も project／composition／layer／keyframe の状態に応じて action を有効化し、主要な command routing は現行コードに存在する。
+
+一方、全 menu と shortcut が常に同一 command service 経路を共有すること、checked／enabled state の更新タイミング、menu 間の state 一貫性、再起動後・runtime での操作受入れは未検証である。したがって主要 routing と context state は実装済み、横断的な command 契約と runtime 検証は pending と判定する。
+
 `File` / `Composition` / `Edit` / `View` / `Layer` / `Render` などの各メニューを、単独の action 群ではなくアプリ層の command routing 入口として整理するためのマイルストーン。
 
 この文書は、各メニューの UI 文言や配置よりも、**どのサービス・どの state・どの command を触るか** を先に固定することを目的にする。

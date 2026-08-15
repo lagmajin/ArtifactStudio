@@ -153,3 +153,9 @@ GPU effect parity の中では、次の順で color 系を扱うのが自然。
 ## 2026-07-25 実装監査
 
 主要な color effect には CPU／GPU implementation pair、parameter sync、Color Correction shader の部品があり、GPU equivalent の着手は確認できる。また composition render controller 側に少なくとも Exposure の適用分岐がある。一方、effect ごとの GPU 正規経路・失敗時 fallback 理由、CPU/GPU 切替用の reference mode、side-by-side／diff／cost 診断、全 effect 種別への coverage、render queue／preview／solo の既定GPU化は確認できない。したがって Phase 1〜2 は部分実装、Phase 3〜5 は未完了・runtime未検証とする。
+
+## 2026-08-15 現行コード監査
+
+`ArtifactAbstractEffect` の CPU／GPU／AUTO 選択と GPU 失敗時の CPU fallback 契約、複数 effect の HLSL／compute dispatch は確認できる。一方、Brightness／Blur／Glow／Color Correction／Dithering／Find Edges などの GPU 実装では、出力を staging texture に copy して `Flush`／`WaitForIdle` 後に CPU surface へ readback する経路が残っている。これは GPU executor の存在を示すが、GPU chain 内の中間結果を GPU のまま次の effect へ渡す正規経路とはみなさない。
+
+したがって現時点は Phase 1〜2 の部分実装、Phase 3〜5 は未完了または runtime 未検証とする。`builtin.halftone` は `ArtifactHalftoneEffect::runCreativeCompute()` による実HLSL dispatchとCPU fallbackを持つが、Core factory adapter（Mirror等）はCPU経路のままである。次の実装単位は、effect 単体の shader 追加ではなく、GPU chain の ping-pong resource／末尾一回 readback／PSO 共有／fallback 理由の診断契約を先に固定すること。

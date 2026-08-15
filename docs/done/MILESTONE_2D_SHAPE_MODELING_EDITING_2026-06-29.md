@@ -4,6 +4,7 @@
 ID: `M-LE-3`
 
 **ステータス:** ✅ Complete (source/static verified 2026-07-24; runtime/build verification pending)
+**最終更新:** 2026-08-15
 
 ## Goal
 

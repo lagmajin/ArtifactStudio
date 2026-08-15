@@ -2,6 +2,20 @@
 
 > 2026-03-31 作成
 
+**最終更新:** 2026-08-15
+
+## Update 2026-08-15 — projection input hardening
+
+- `ArtifactCameraLayer::projectionMatrix()` now normalizes non-finite and non-positive viewport aspect values to a finite positive fallback before both Perspective and Orthographic projection calculation. This prevents early viewport／gizmo requests from dividing by zero in Orthographic mode.
+- viewport resize／multi-viewport active-camera synchronization and runtime matrix-order acceptance remain pending.
+**Status:** Camera projection／matrix／renderer 基盤は実装済み、viewport resize・複数 viewport・runtime 整合が未検証
+
+## Update 2026-08-15
+
+- `ArtifactCameraLayer` の Perspective／Orthographic、FOV、near／far、ortho width／height、JSON／property 経路と projection matrix 生成を再確認。
+- Composition Render Controller の camera projection／fallback matrix、3D gizmo の projection-aware scale、frustum overlay の接続を確認。
+- viewport resize、複数 viewport／active camera、camera transform と 3D layer の行列順、保存再読込後の runtime 整合は未完了・未検証。
+
 ## 目的
 
 3D rendering のために camera の projection を適切に扱い、perspective / orthographic の両方をサポートする。
@@ -130,11 +144,11 @@ Viewport size と projection を同期する。
 
 ---
 
-## Next Execution Slice
+## Next Execution Slice（現行残課題）
 
-Phase 1 を先に締めるなら、`ProjectionMode` と camera property の整理から入る。
+ProjectionMode と camera property の基盤整理は完了しているため、次の実装・検証単位は viewport resize、複数 viewport／active camera、camera transform と 3D layer の行列順、保存再読込後の runtime 整合である。
 
-### Phase 1A の着手点
+### Phase 1A の着手点（履歴）
 
 1. `ProjectionMode` enum を `Perspective` / `Orthographic` で切る
 2. FOV / near / far / ortho size を camera property として分ける

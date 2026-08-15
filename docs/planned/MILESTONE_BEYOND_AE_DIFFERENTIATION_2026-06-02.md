@@ -1,5 +1,18 @@
 # M-BEYOND-AE After Effects にない Artifact だけの差別化機能 (2026-06-02)
 
+**最終更新:** 2026-08-15
+
+## 2026-08-15 現行コード照合
+
+この文書は多数の提案をまとめた横断バックログであり、個別マイルストーンの進捗を上書きしない。現行コードでは次の差別化要素に基盤または部分実装がある。
+
+- **Collaboration**: WebSocket の session／operation／lock／presence／rule sync、LayerLockManager、EditSession の push command を確認。ただし auth／TLS、OT/CRDT、server relay、UI の完成運用は未完了。
+- **Figma／コンポーネント**: Design／Animate workspace、layout／Auto Layout、shape・text・image・mask、export の基盤を確認。Figma Component／Instance／Library、同期、constraints、style library は未統合または未検証。
+- **Automation／AI／Diagnostics**: WorkspaceAutomation／CommandIR／AI tool bridge、project health、Frame Debug／Problem View／Snapshot Compare／scopes は実装基盤がある。外部サービスの実運用、全自動最適化、統合 runtime workflow は未検証。
+- **未確認の大型提案**: ノードベース合成、モーション状態遷移、モバイル remote preview、完全な Python／CI headless workflow、AE plugin compatibility は現行コードで完成経路を確認できない。
+
+従って本書全体の「差別化機能」を一括完了とは扱わず、実装済みの基盤と個別 milestone で追跡する未完了提案を分離する。
+
 これまで73機能提案した。これはその**どれとも重複しない**、AEユーザーが「これAEにも欲しかったんだよ…！」となる機能群。
 
 ---

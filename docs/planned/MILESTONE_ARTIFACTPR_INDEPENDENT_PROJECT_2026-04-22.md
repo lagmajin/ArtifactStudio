@@ -1,6 +1,14 @@
 # MILESTONE: ArtifactPr Independent Project
 
+**最終更新:** 2026-08-15
+
 ステータス: Phase 0〜4 実装済み相当（静的確認 2026-07-29、ビルド／runtime parity 検証待ち）
+
+### 現行コード監査 (2026-08-15)
+
+- `ArtifactPr` には独立した `main.cpp`、workspace window、Project／Media panel、Transport／Video surface、EditorEngine、NLE の sequence／track／clip 操作、split／ripple delete／duplicate、marker、export dialog の実装が存在する。
+- ただしルート `CMakeLists.txt` では ArtifactPr の `add_subdirectory(ArtifactPr)` が無効化されており、W_OBJECT／MOC のパス問題を理由にビルドターゲットから外れている。
+- したがって「独立アプリとして成立」「Phase 4 の再生・書き出し完了」は静的コード上の実装相当であり、現行 checkout での build／起動／NLE と preview・export の接続 parity は未検証。実行可能な独立ターゲットへの復帰が残課題。
 
 > 2026-04-22 作成
 
