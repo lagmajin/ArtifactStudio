@@ -204,23 +204,6 @@ if(EXISTS "${VCPKG_INSTALLED}/include/libavcodec/avcodec.h")
     set(PC_FFMPEG_LIBRARY_DIRS "${VCPKG_INSTALLED}/lib" CACHE PATH "FFmpeg pkg-config library hint" FORCE)
 endif()
 
-# nanosvg
-find_package(nanosvg CONFIG QUIET)
-if(nanosvg_FOUND)
-    message(STATUS "Found nanosvg via vcpkg config")
-else()
-    # Fallback: ヘッダのみのライブラリとして手動探索
-    find_path(NANOSVG_INCLUDE_DIRS nanosvg.h
-        PATHS
-            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/nanosvg/src"
-            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/nanosvg/include"
-            "${VCPKG_INSTALLED}/include"
-            "${VCPKG_INSTALLED}/include/nanosvg"
-    )
-    if(NANOSVG_INCLUDE_DIRS)
-        message(STATUS "Found nanosvg headers: ${NANOSVG_INCLUDE_DIRS}")
-    endif()
-endif()
 set(THIRD_PARTY_DIR   "${CMAKE_CURRENT_SOURCE_DIR}/third_party" CACHE PATH "local third_party dir")
 set(ARTIFACT_APP_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/Artifact"  CACHE PATH "Artifact app dir")
 # ARTIFACT_PR_APP_DIR removed - ArtifactPr disabled in build
