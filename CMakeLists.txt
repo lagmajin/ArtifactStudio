@@ -578,8 +578,7 @@ if(WIN32 AND ARTIFACT_ENABLE_DIRECTSTORAGE AND
         "DirectStorage SDK ${_ARTIFACT_DIRECTSTORAGE_SDK_VERSION} acquired from official NuGet package")
 endif()
 set(DILIGENT_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
-set(DILIGENT_BUILD_DEMOS   OFF CACHE BOOL "" FORCE)
-set(DILIGENT_BUILD_UNITY   OFF CACHE BOOL "" FORCE)
+set(DILIGENT_BUILD_FX      OFF CACHE BOOL "" FORCE)
 
 # Graphics backend selection
 set(DILIGENT_NO_DIRECT3D11 ON  CACHE BOOL "" FORCE)  # DX11 is not supported in the development configuration
