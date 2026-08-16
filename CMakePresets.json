@@ -89,6 +89,18 @@
                 "LIB": "C:/PROGRA~2/Intel/oneAPI/compiler/2025.3/lib;$penv{LIB}",
                 "INCLUDE": "C:/PROGRA~2/Intel/oneAPI/compiler/2025.3/include;$penv{INCLUDE}"
             }
+        },
+        {
+            "name": "x64-Debug-ClangCL-LLD",
+            "displayName": "x64 Debug (clang-cl + lld-link)",
+            "inherits": "x64-Debug-ClangCL",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "installDir": "${sourceDir}/out/install/${presetName}",
+            "cacheVariables": {
+                "CMAKE_EXE_LINKER_FLAGS": "/clang:-fuse-ld=lld",
+                "CMAKE_SHARED_LINKER_FLAGS": "/clang:-fuse-ld=lld",
+                "CMAKE_MODULE_LINKER_FLAGS": "/clang:-fuse-ld=lld"
+            }
         }
     ],
     "buildPresets": [
