@@ -1689,3 +1689,10 @@
 - 事実: shared row layout は label 幅 132px だが、concrete editor row は 124px だった。
 - 対応: concrete row の標準 label 幅を 132px に統一した。
 - 価値/懸念: Property Editor と section／channel／transform／effect row の値列開始位置を揃えられる。実機での長いラベルと狭幅レイアウトは未検証。
+
+# 2026-08-16 — Audio monitor/export responsibility boundary
+
+- 関連: `ArtifactCore/src/Audio/AudioMixer.cppm`、`Artifact/src/Service/ArtifactPlaybackService.cppm`、`Artifact/src/Render/ArtifactRenderQueueService.cppm`。
+- 事実: ExportはAudioMixerの最終segmentを直接取得し、PlaybackだけがAudioRendererのmaster volumeを通るため、現状のmonitor音量とexport音量は別経路になっている。
+- 仮説: Cue／Control Room出力を追加する場合は、既存Masterを再利用せず、明示的なmonitor／cue出力役割をAudioMixerまたはPlayback境界に追加する必要がある。
+- 価値/懸念: exportへmonitor補正が混入する事故を避けられる。Cue出力のルーティング、複数デバイス、UI責務は未設計・未検証。
