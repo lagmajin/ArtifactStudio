@@ -4,7 +4,13 @@ cmake_minimum_required(VERSION 3.30)
 # import std; サポートの有効化 (project() より前に記述が必須)
 # ---------------------------------------------------------------------------
 # CMake 3.30+ では import std は実験的機能のため、特定の UUID を設定する必要があります
-set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444" CACHE STRING "Required for import std" FORCE)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.3")
+    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b")
+    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b" CACHE STRING "Required for import std (CMake 4.3)" FORCE)
+else()
+    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444")
+    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444" CACHE STRING "Required for import std (CMake 4.2)" FORCE)
+endif()
 
 # clang-cl / IntelLLVM 系では project() 前の CMAKE_CXX_MODULE_STD ON が
 # try_compile と衝突するため、コンパイラ種別を事前チェックします。
@@ -33,11 +39,13 @@ if(ARTIFACT_USING_CLANG_LIKE_PREPROJECT)
     set(ARTIFACT_ENABLE_PREPROJECT_IMPORT_STD OFF)
 endif()
 
-if(ARTIFACT_ENABLE_PREPROJECT_IMPORT_STD)
-    set(CMAKE_CXX_MODULE_STD ON CACHE BOOL "Enable import std support" FORCE)
-else()
-    set(CMAKE_CXX_MODULE_STD OFF CACHE BOOL "Disable pre-project import std for non-MSVC frontends" FORCE)
-endif()
+# Enable CMake's standard-library module producer. Local targets also carry an
+# explicit std.ifc reference for the MSVC module scanner, so the producer must
+# exist before any interface or implementation unit imports std.
+set(CMAKE_CXX_MODULE_STD OFF CACHE BOOL "Use the explicit MSVC std.ifc producer" FORCE)
+set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
+    CMAKE_EXPERIMENTAL_CXX_IMPORT_STD
+    CACHE STRING "Propagate C++ module settings to try_compile" FORCE)
 set(CMAKE_CXX_STANDARD 23 CACHE STRING "Required for import std detection" FORCE)
 set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "" FORCE)
 
@@ -147,6 +155,32 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     endif()
 endif()
 
+# CMake 4.3 does not yet populate __cmake_cxx_std_23 for MSVC 14.51, leaving
+# that target without sources. Build the MSVC standard module explicitly and
+# keep the existing /reference;std=... contract for local C++20 modules.
+if(MSVC AND ARTIFACT_MSVC_MODULES_JSON)
+    get_filename_component(_artifact_msvc_modules_dir
+        "${ARTIFACT_MSVC_MODULES_JSON}" DIRECTORY)
+    set(_artifact_std_ixx "${_artifact_msvc_modules_dir}/std.ixx")
+    set(_artifact_std_ifc "${CMAKE_BINARY_DIR}/CMakeFiles/__cmake_cxx23.dir/std.ifc")
+    set(_artifact_std_obj "${CMAKE_BINARY_DIR}/CMakeFiles/__cmake_cxx23.dir/std.obj")
+    if(EXISTS "${_artifact_std_ixx}")
+        add_custom_command(
+            OUTPUT "${_artifact_std_ifc}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                    "${CMAKE_BINARY_DIR}/CMakeFiles/__cmake_cxx23.dir"
+            COMMAND "${CMAKE_CXX_COMPILER}" /nologo /std:c++latest
+                    /experimental:module /TP /c /interface
+                    "/ifcOutput${_artifact_std_ifc}"
+                    "/Fo${_artifact_std_obj}"
+                    "${_artifact_std_ixx}"
+            DEPENDS "${_artifact_std_ixx}"
+            COMMENT "Building MSVC standard library module std"
+            VERBATIM)
+        add_custom_target(ArtifactStdModule DEPENDS "${_artifact_std_ifc}")
+    endif()
+endif()
+
 # clang-cl + C++20 modules: ensure clang-scan-deps is configured so CMake can
 # build module import graphs.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
@@ -177,9 +211,8 @@ endif()
 # ---------------------------------------------------------------------------
 # グローバル設定のリセット (外部ライブラリへの波及を防止)
 # ---------------------------------------------------------------------------
-# ツールチェーン検出が終わったので、以降のターゲットがデフォルトで ON にならないよう OFF に戻す
-# 必要なターゲット（ArtifactCore等）でのみ個別に ON に設定します。
-set(CMAKE_CXX_MODULE_STD OFF CACHE BOOL "" FORCE)
+# import std is supplied to local module targets by CMake's std.ifc producer
+# and the explicit MSVC references below.
 
 # 全体のデフォルト C++ 規格: C++23 (/std:c++latest で最新 draft を有効化)
 set(CMAKE_CXX_STANDARD 23 CACHE STRING "" FORCE)
@@ -475,6 +508,7 @@ if(WIN32 AND MSVC)
     list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
         CMAKE_C_FLAGS
         CMAKE_CXX_FLAGS
+        CMAKE_EXPERIMENTAL_CXX_IMPORT_STD
         CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION
         CMAKE_GENERATOR_PLATFORM
     )
@@ -575,7 +609,23 @@ add_compile_definitions(QUERY_H_RESTRICTION_PERMISSIVE=1)
 # Third-party trees are non-modular and occasionally emit malformed .ddi during
 # MSVC dependency scanning. Disable module scan in this subtree only.
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+# Diligent's platform probes use source-file try_compile projects. CMake's
+# import-std integration injects an empty __cmake_cxx_std_23 target into those
+# probes, so keep it disabled while configuring the third-party subtree.
+set(_artifact_cxx_module_std_for_local_targets OFF)
+set(CMAKE_CXX_MODULE_STD OFF CACHE BOOL "Disable std module during Diligent probes" FORCE)
 add_subdirectory(libs/DiligentEngine EXCLUDE_FROM_ALL)
+set(CMAKE_CXX_MODULE_STD ${_artifact_cxx_module_std_for_local_targets} CACHE BOOL "Generate the C++ standard library module" FORCE)
+# Diligent's nested configure may leave the cache with its older import-std
+# gate value. Reassert the gate used by the active CMake before configuring
+# the remaining third-party and project targets.
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.3")
+    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD
+        "451f2fe2-a8a2-47c3-bc32-94786d8fc91b")
+    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD
+        "451f2fe2-a8a2-47c3-bc32-94786d8fc91b"
+        CACHE STRING "Required for import std (CMake 4.3)" FORCE)
+endif()
 if(ARTIFACT_HAS_LOCAL_QADS)
     set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
     set(BUILD_STATIC OFF CACHE BOOL "" FORCE)
@@ -585,7 +635,17 @@ if(ARTIFACT_HAS_LOCAL_QADS)
         target_compile_options(qtadvanceddocking-qt6 PRIVATE /Zm200 /bigobj)
     endif()
 endif()
+# ufbx is a non-module third-party target and does not consume import std.
+# Hide the experimental gate while its standalone CMakeLists is evaluated;
+# otherwise CMake 4.3 rejects the older gate value used by that subtree.
+set(_artifact_import_std_gate_for_ufbx "${CMAKE_EXPERIMENTAL_CXX_IMPORT_STD}")
+set(_artifact_cxx_module_std_for_ufbx "${CMAKE_CXX_MODULE_STD}")
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "" CACHE STRING "Disable import std for ufbx" FORCE)
+set(CMAKE_CXX_MODULE_STD OFF CACHE BOOL "Disable import std for ufbx" FORCE)
 add_subdirectory(third_party/ufbx EXCLUDE_FROM_ALL)
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "${_artifact_import_std_gate_for_ufbx}" CACHE STRING "Restore import std gate" FORCE)
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "${_artifact_import_std_gate_for_ufbx}")
+set(CMAKE_CXX_MODULE_STD "${_artifact_cxx_module_std_for_ufbx}" CACHE BOOL "Restore import std setting" FORCE)
 # TaskFlow submodule was removed
 # set(TF_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
 # set(TF_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -597,7 +657,7 @@ add_subdirectory(third_party/ufbx EXCLUDE_FROM_ALL)
 # ---------------------------------------------------------------------------
 # サブプロジェクトの追加
 # ---------------------------------------------------------------------------
-# Project targets use C++ modules heavily; re-enable scanning for local code.
+# Project targets use C++ modules heavily; enable scanning for local code.
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 add_subdirectory(ArtifactCore)
 add_subdirectory(ArtifactWidgets)

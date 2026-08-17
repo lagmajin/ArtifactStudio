@@ -8,6 +8,12 @@
   - OIIO、Asset System、Static Layer GPU Cache 等の既存計画を再実装せず、`ArtifactImageLayer` の end-to-end 完成責任を持つ
   - 詳細: `docs/planned/MILESTONE_STILL_IMAGE_LAYER_PRODUCTION_READINESS_2026-08-08.md`
 
+- **M-IMG-LAYER-1** 単一画像レイヤー化（Not Started）
+  - 一枚の静止画から前景候補・背景・補助要素を解析し、マスク付きの通常画像レイヤーへ変換する
+  - 既存の画像バッファ、LayerMask、RotoBrush／AI基盤、GPU cutout、保存／再読込経路を再利用し、推定画素と元画像由来の画素を区別する
+  - 動画・連番・時間伝播・完全な隠し領域復元は対象外とする
+  - 詳細: `docs/planned/MILESTONE_SINGLE_IMAGE_LAYERIZATION_2026-08-17.md`
+
 ## Next Walk TODO: Still Image and Production Workflow
 
 - **WALK-IMG-1** 部分実装（2026-08-10 project path／Asset ID の relocation 復旧を修正）

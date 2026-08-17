@@ -1696,3 +1696,11 @@
 - 事実: ExportはAudioMixerの最終segmentを直接取得し、PlaybackだけがAudioRendererのmaster volumeを通るため、現状のmonitor音量とexport音量は別経路になっている。
 - 仮説: Cue／Control Room出力を追加する場合は、既存Masterを再利用せず、明示的なmonitor／cue出力役割をAudioMixerまたはPlayback境界に追加する必要がある。
 - 価値/懸念: exportへmonitor補正が混入する事故を避けられる。Cue出力のルーティング、複数デバイス、UI責務は未設計・未検証。
+
+# 2026-08-17 — 単一画像レイヤー化は「解析」より生成契約が重要（未検証）
+
+- 関連: `docs/planned/MILESTONE_SINGLE_IMAGE_LAYERIZATION_2026-08-17.md`、`ArtifactImageLayer`、`LayerMask`、`OpenCVRotoBrushEngine`、`MaskCutoutPipeline`
+- 事実: 画像バッファ、マスク、マスクからパスへの変換、RotoBrush補助、GPU cutoutの部品は存在する。一方、それらを複数の通常画像レイヤー、背景補完、保存／再読込へまとめる生成契約は確認できない。
+- 仮説（未検証）: 最初にモデル精度を追うより、候補のmask／bounds／confidence／provenanceと、一括Undo・source identity・推定画素の保存契約を固定した方が、モデル交換やCPU／GPU fallbackに耐える制作機能になる。
+- 価値・懸念: 一枚の画像から復元できない隠し画素を確定情報として扱う事故を避け、AI結果を通常のマスク編集へ安全に引き渡せる。候補の前後順と背景補完品質は素材依存で、runtime評価が必要。
+- 次の確認: Phase 0の代表素材で、単一候補のmask生成から画像レイヤー作成、保存／再読込、Preview／Render Queue一致までの最小往復を確認する。モデル選定と新規モジュール追加は、その接続点を確認してから決める。
