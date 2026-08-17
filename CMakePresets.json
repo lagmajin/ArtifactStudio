@@ -97,9 +97,10 @@
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "installDir": "${sourceDir}/out/install/${presetName}",
             "cacheVariables": {
-                "CMAKE_EXE_LINKER_FLAGS": "/clang:-fuse-ld=lld",
-                "CMAKE_SHARED_LINKER_FLAGS": "/clang:-fuse-ld=lld",
-                "CMAKE_MODULE_LINKER_FLAGS": "/clang:-fuse-ld=lld",
+                "CMAKE_LINKER": "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/Llvm/x64/bin/lld-link.exe",
+                "CMAKE_EXE_LINKER_FLAGS": "",
+                "CMAKE_SHARED_LINKER_FLAGS": "",
+                "CMAKE_MODULE_LINKER_FLAGS": "",
                 "ARTIFACT_DEPLOY_DIR": "C:/Users/lagma/Desktop/Artifact-ClangCL-LLD"
             }
         }
