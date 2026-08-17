@@ -1,5 +1,16 @@
-set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444" CACHE STRING "Required for import std" FORCE)
-set(CMAKE_CXX_MODULE_STD OFF CACHE BOOL "Keep import std opt-in during toolchain detection" FORCE)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.3")
+    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b")
+    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b" CACHE STRING "Required for import std (CMake 4.3)" FORCE)
+else()
+    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444")
+    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444" CACHE STRING "Required for import std (CMake 4.2)" FORCE)
+endif()
+# The top-level project enables CXX_MODULE_STD for application targets. Do not
+# force it from the toolchain: Diligent's source-file try_compile probes must
+# remain independent from the application's import-std target graph.
+set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
+    CMAKE_EXPERIMENTAL_CXX_IMPORT_STD
+    CACHE STRING "Propagate import-std metadata to try_compile" FORCE)
 set(CMAKE_CXX_STANDARD 23 CACHE STRING "Required for import std detection" FORCE)
 set(CMAKE_CXX_STANDARD_REQUIRED ON CACHE BOOL "" FORCE)
 set(VCPKG_APPLOCAL_DEPS OFF CACHE BOOL "Disable vcpkg app-local post-build copying" FORCE)
