@@ -8,17 +8,17 @@
 
 `ArtifactEnvironmentMapLayer` の layer type、path／intensity／rotation／background visibility の保存、cubemap texture holder、layer factory 復元、`ShaderManager` の Skybox shader／PSO は確認できる。3D viewport の PBR shader には HDRI が未生成でも表示を保つ analytic environment fallback もあるが、これは環境マップ asset の描画・IBL接続ではない。
 
-旧監査の「Phase 1 のデータ契約・shader基盤のみ」という判定は維持する。HDR／EXRの実読み込み、equirectangular→cubemap、layer `draw()` への接続、irradiance／prefilter／BRDF LUT、PBRへの実IBL、UI／runtime受入は未完了である。
+旧監査の「Phase 1 のデータ契約・shader基盤のみ」という判定は更新する。HDR／EXRの実読み込み、equirectangular→cubemap、Composition→Renderer→MeshRendererのPBR接続、BRDF LUT、7段mipmap、CPU irradiance convolution、HDRI rotation、visibleAsBackground連携は実装済み。GPU convolution／prefilter最適化、UI／runtime受入は未完了である。
 
 ## Update 2026-08-15
 
-`ArtifactEnvironmentMapLayer` の layer type、path／intensity／rotation／background visibility のJSON保存、cubemap texture holder、factory復元、`ShaderManager` のSkybox shader／PSO、PBR shaderのanalytic environment fallbackを現行コードで確認した。環境マップのデータ契約とshader基盤は実装済みとして扱う。
+`ArtifactEnvironmentMapLayer` の layer type、path／intensity／rotation／background visibility のJSON保存、cubemap texture holder、factory復元、`ShaderManager` のSkybox shader／PSO、PBR shaderのanalytic environment fallbackを現行コードで確認した。HDR／EXRのequirectangular読み込み、Composition→Renderer→MeshRendererの伝播、6面cubemap、7段mipmap、BRDF LUT、PBR IBL入力まで実装済みとして扱う。
 
-未完了・未確認なのはHDR／EXR実読み込み、equirectangular→cubemap変換、layer `draw()`／viewport接続、irradiance／prefilter／BRDF LUT、PBRへの実IBL、Inspector／preset UI、HDR runtime受入である。
+未完了・未確認なのはroughness別のGPU prefilter、layer `draw()`／viewport接続、Inspector／preset UI、HDR runtime受入である。irradianceはCPU cosine convolution済みで、GPU版は最適化項目として残る。現在のspecularはcubemap mipmapの平均化を使う暫定prefilterである。
 
 ### 実装状況（2026-07-25 確認）
 
-`ArtifactEnvironmentMapLayer`、HDRI path／intensity／rotation／background visibility の永続プロパティ、cubemap texture の保持 API、ShaderManager の Skybox PSO／シェーダーを確認した。一方、layer の `draw()` はまだ描画を行わず、HDR／EXR 読み込み、equirectangular→cubemap 変換、irradiance／prefilter／BRDF LUT、PBR への IBL 接続は未実装として扱う。
+`ArtifactEnvironmentMapLayer`、HDRI path／intensity／rotation／background visibility の永続プロパティ、cubemap texture の保持 API、ShaderManager の Skybox PSO／シェーダーを確認した。一方、layer の `draw()` はまだ描画を行わず、Skybox／GPU prefilter／UI は未実装として扱う。HDR／EXR 読み込み、equirectangular→cubemap 変換、CPU irradiance convolution、BRDF LUT、PBR への IBL 接続は実装済みである。
 **Goal:** 3D 照明に HDRI 環境マップを使用可能にする。
 反射サーフェスの環境映り込み、IBL (Image-Based Lighting) を実現。
 
@@ -31,9 +31,9 @@
 | 3D ライト (Point, Directional, Spot) | ✅ 実装済み | `ArtifactLightLayer.cppm` |
 | 3D カメラ | ✅ 実装済み | `ArtifactCameraLayer.cppm` |
 | 3D マテリアル | ⚠️ 基本のみ | — |
-| 環境マップ / HDRI | ❌ 未実装 | — |
-| IBL (Image-Based Lighting) | ❌ 未実装 | — |
-| Skybox 描画 | ❌ 未実装 | — |
+| 環境マップ / HDRI | ✅ 基盤実装済み | HDR/EXR→cubemap、CPU irradiance、rotation、PBR接続 |
+| IBL (Image-Based Lighting) | 🟡 部分実装 | diffuse irradiance／specular mip／BRDF LUT。GPU最適化は未完了 |
+| Skybox 描画 | 🟡 接続済み | visibleAsBackground による表示制御。runtime受入は未確認 |
 
 ---
 
@@ -233,7 +233,7 @@ IBL パイプライン:
 | IBL-02 | Equirectangular→cubemap | 6面cubemap生成と方向変換shader | IBL-01 | 高 |
 | IBL-03 | Skybox runtime pass | camera rotation／intensity／background表示 | IBL-02 | 高 |
 | IBL-04 | Cubemap mip chain | mip生成とsampler／LOD契約 | IBL-02 | 高 |
-| IBL-05 | Irradiance convolution | diffuse irradiance cubemap生成 | IBL-04 | 高 |
+| IBL-05 | Irradiance convolution | `irradianceEnvMapCS.hlsl`／`irradianceEnvMapCB.hlsl` と diffuse irradiance cubemap生成 | IBL-04 | 高 |
 | IBL-06 | Specular prefilter | roughness別prefilterとGGX積分 | IBL-04 | 高 |
 | IBL-07 | BRDF LUT | split-sum BRDF LUTの生成・共有 | IBL-05 | 中 |
 | IBL-08 | PBR IBL binding | material shaderへのdiffuse/specular IBL接続 | IBL-05〜07 | 高 |

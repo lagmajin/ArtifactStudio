@@ -1,6 +1,6 @@
 # AE・他 DCC 機能差ギャップ最新レポート — 2026-08-15
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-08-18
 **調査対象:** ArtifactStudio 親リポジトリ、`Artifact`、`ArtifactCore` の現行ソース
 **調査方法:** 既存の 2026-07-28 DCC レポートおよび 2026-08-08 3D レポートを基準に、現行ファイル・シンボル・直近コミットを再照合。ビルド、CMake、テスト、実ランタイム検証は未実施。
 
@@ -22,8 +22,8 @@
 | 連番画像 | 🟡 接続済み・受入れ未確認 | `Media.ImageSequenceSource`、`ArtifactImageLayer::setImageSequence`、Project Service、`ArtifactCompositionRenderController` | 欠番、開始フレーム、fps、seek、保存復元、キャッシュの一連の確認が未実施 |
 | Track Matte | 🟡 UI・編集・評価あり | `LayerMatte`のstack/JSON/alpha・luma評価、`ArtifactLayerPanelWidget`のAlt-drag link、cycle guard、Undo/tooltip | 実コンポジションでのstack順・複数matte受入れが未確認 |
 | 3D Material | 🟡 編集・描画接続あり | 3D Layer の Material property group、JSON、`ArtifactIRenderer::drawMesh`、`MeshRenderer::setPbrFactors/setPrincipledFactors` | IBL/environment map の render binding、反射プローブ、runtime受入れが未確認 |
-| Environment Map | 🟡 データ層あり・render未接続 | `ArtifactEnvironmentMapLayer` に HDRI path / intensity / rotation / cubemap holder / JSON / Inspector | Composition Render Controller と `MeshRenderer` の IBL binding が未確認 |
-| 3D Shadow | 🟡 render path あり | `MeshRenderer::prepareShadow/drawShadow/setShadowMap`、`ArtifactIRenderer` shadow pass | 複数ライト・品質設定・実シーンでの受入れが未確認 |
+| Environment Map | 🟡 render接続済み・runtime未確認 | `ArtifactEnvironmentMapLayer` の HDRI path / intensity / rotation / background visibility、Composition Render Controller、`ArtifactIRenderer`、`MeshRenderer` の IBL／Skybox binding | GPU prefilter、Inspector/preset UI、runtime受入れが未確認 |
+| 3D Shadow | 🟡 render path あり | `MeshRenderer::prepareShadow/drawShadow/setShadowMap`、3×3 PCF softness、`ArtifactIRenderer` shadow pass | 複数ライト・品質設定・実シーンでの受入れが未確認 |
 | Lottie | 🟡 実装痕跡あり | `Export/Lottie/LottieTypes.ixx`、`LottieExporter.ixx`、`LottieRigExporter.ixx` | 対応範囲と round-trip は未検証 |
 | PSD | 🟡 実装あり | `PSDDocument`、`ArtifactProjectService::importPsdLayersToCurrentComposition`、Project View の PSD action | 複雑な adjustment layer／スマートオブジェクト等の互換範囲は未確認 |
 | AEP | ❌ importer 本体なし | `AEPImporterDescription` は AI description のみ。AEP拡張子アイコンは存在するが機能実装ではない | parser、変換、UI 入口が未実装 |
