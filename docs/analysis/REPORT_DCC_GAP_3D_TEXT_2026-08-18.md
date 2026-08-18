@@ -90,7 +90,7 @@
 | **Viewport inline editing** | ❌ 未実装 | `ArtifactTextLayer.cppm` に `TextTool`/`inlineEdit`/`setEditingText`/`textEditMode`/`editText` **未発見**。`ArtifactToolManager.cppm:43` に `case ToolType::Text: return "TextTool";` の文字列のみ。modal 編集のみ (AE_PAIN_POINT 確認)。 |
 | **Expression Selector** | ❌ 未実装 | `TextAnimator.ixx`/`.cppm` に `ExpressionSelector`/`textIndex`/`textTotal` **未発見**。RangeSelector と WigglySelector のみ。 |
 | **Variable fonts** | ❌ 未実装 | `FontDescriptor.ixx` に `fontVariation`/`fontAxis` **未発見**。`FontWeight` は `Normal=0`/`Bold=1` の2値。`FontStyle` は `Normal=0`/`Italic=1` の2値。 |
-| **数値フォントウェイト** | ❌ 未実装 | `FreeFont.ixx:226` — `font.setBold(style.fontWeight == FontWeight::Bold)` の **2値**。QFont::Weight (Thin～Black, 100-900) の数値対応 **なし**。 |
+| **数値フォントウェイト** | ✅ 基盤実装済み | `TextStyle.fontWeightValue`、`FreeFont` の QFont weight、TextLayer の JSON／Inspector／描画経路を実装。Variable font axis と UI の細かなプリセットは未実装。 |
 | **ベースラインシフト** | ❌ 未実装 | `TextStyle.ixx` に `baselineShift` **未発見**。 |
 | **個別 Fill/Hue/Sat/Brightness アニメータープロパティ** | 🟡 部分実装 | `AnimatorProperties` に `fillColor` (FloatRGBA) はあるが、AE の Fill RGB / Hue / Sat / Brightness の**個別プロパティ**はなし。単一の `fillColor` オーバーライドのみ。 |
 | **HarfBuzz シェーピング** | ❌ スタブ | `TextShapingBackend.cppm:1199-1202` — `HarfBuzzShapingBackend::shape()` が `QtShapingBackend{}.shape(request)` に**フォールバック** (コメント: "Temporary fallback until the HarfBuzz adapter is wired in") |
