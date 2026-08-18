@@ -1,8 +1,8 @@
 # Milestone: 環境マップ (Environment Map) (2026-03-28)
 
-**Status:** Phase 1 のデータ契約・Shader 基盤のみ実装済み。HDRI 読み込み、実 Skybox、IBL、UI／runtime 検証は未完了。
+**Status:** Phase 1 のデータ契約・Shader 基盤を拡張中。共有IBLサンプリング関数とcubemap GPU所有権を追加。HDRI 読み込み、実 Skybox、PBR接続、UI／runtime 検証は未完了。
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-08-18
 
 ### 現行コード監査（2026-08-15）
 
@@ -224,3 +224,20 @@ IBL パイプライン:
 | `Artifact/src/Layer/ArtifactCameraLayer.cppm` | - | 3D カメラレイヤー (参考) |
 | `ArtifactCore/include/Color/ColorACES.ixx` | - | ACES カラーマネージャ (HDRI の色空間変換に使用) |
 | `Artifact/shaders/ShaderInterop_BVH.h` | - | Wicked Engine キューブマップ構造体 (参考) |
+
+## 次に切り出せる実装マイルストーン（2026-08-18）
+
+| ID | マイルストーン | 主な成果物 | 依存 | 優先度 |
+|---|---|---|---|---|
+| IBL-01 | HDR/EXR ingest | float HDR画像の読み込みとlinear色空間契約 | ImageImporter | 高 |
+| IBL-02 | Equirectangular→cubemap | 6面cubemap生成と方向変換shader | IBL-01 | 高 |
+| IBL-03 | Skybox runtime pass | camera rotation／intensity／background表示 | IBL-02 | 高 |
+| IBL-04 | Cubemap mip chain | mip生成とsampler／LOD契約 | IBL-02 | 高 |
+| IBL-05 | Irradiance convolution | diffuse irradiance cubemap生成 | IBL-04 | 高 |
+| IBL-06 | Specular prefilter | roughness別prefilterとGGX積分 | IBL-04 | 高 |
+| IBL-07 | BRDF LUT | split-sum BRDF LUTの生成・共有 | IBL-05 | 中 |
+| IBL-08 | PBR IBL binding | material shaderへのdiffuse/specular IBL接続 | IBL-05〜07 | 高 |
+| IBL-09 | Environment asset cache | path／GPU device／resolution単位のキャッシュ | IBL-02〜08 | 中 |
+| IBL-10 | Inspector／acceptance | HDRI選択、強度、回転、失敗表示、runtime受入 | IBL-03〜09 | 高 |
+
+推奨順は `IBL-01 → IBL-02 → IBL-03 → IBL-05/06 → IBL-07 → IBL-08 → IBL-09 → IBL-10`。`IBL-04` は `IBL-05` と `IBL-06` の共通前提として先に完了させる。
