@@ -679,6 +679,12 @@ set(_artifact_cxx_module_std_for_ufbx "${CMAKE_CXX_MODULE_STD}")
 set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "" CACHE STRING "Disable import std for ufbx" FORCE)
 set(CMAKE_CXX_MODULE_STD OFF CACHE BOOL "Disable import std for ufbx" FORCE)
 add_subdirectory(third_party/ufbx EXCLUDE_FROM_ALL)
+if(TARGET ufbx AND WIN32 AND MSVC AND _artifact_windows_sdk_include_version_dir)
+    target_include_directories(ufbx PRIVATE
+        "${_artifact_windows_sdk_include_version_dir}/ucrt"
+        "${_artifact_windows_sdk_include_version_dir}/shared"
+        "${_artifact_windows_sdk_include_version_dir}/um")
+endif()
 set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "${_artifact_import_std_gate_for_ufbx}" CACHE STRING "Restore import std gate" FORCE)
 set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "${_artifact_import_std_gate_for_ufbx}")
 set(CMAKE_CXX_MODULE_STD "${_artifact_cxx_module_std_for_ufbx}" CACHE BOOL "Restore import std setting" FORCE)
