@@ -1,8 +1,8 @@
 # MILESTONE: Motion Path Editing
 
 **Date**: 2026-04-29
-**最終更新:** 2026-08-15
-**Status**: Phase 1〜4 の静的実装を確認済み、runtime／視覚受入れ待ち
+**最終更新:** 2026-08-20
+**Status**: Phase 1〜4 および複数キーの translate / rotate / scale を静的実装、runtime／ビルド受入れ待ち
 **Priority**: Medium
 **Related**: `docs/worklog/MOTION_PATH_EDITING_WORKLOG_2026-04-29.md`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
 
@@ -138,6 +138,17 @@ After Effects 風の編集感を出しつつ、既存のレイヤー移動・und
 したがって、本文の「in/out ハンドル未実装」「ハンドル編集 undo 未対応」は現状とは不一致で、Phase 4 の主要実装は静的には成立している。ただし、実際の viewport 操作での親変換・gizmo 競合・linked／自由 tangent の視認性、保存再読込後の整合、runtime undo／redo は未検証である。
 
 判定: **motion path の編集機能は Phase 1〜4 まで実装済み相当。runtime／視覚受入れを pending とする。**
+
+## Update 2026-08-20
+
+`ArtifactCompositionRenderController` にモーションパスキーの選択集合を追加した。
+通常クリックは置換、Shift クリックは加算、Ctrl クリックはトグルで選択でき、
+選択キーはドラッグ時に同時移動する。Shift+Alt ドラッグは選択集合を中心に回転し、
+Shift+Ctrl ドラッグは選択集合を中心に拡縮する。いずれも
+`MotionPathGroupUndoCommand` で一操作の Undo/Redo にまとめる。選択キーは黄色リングで表示する。
+
+判定: **複数キーの translate / rotate / scale はソース実装済み。実機操作、親変換、
+3Dカメラ視点、保存再読込、ビルド検証は未確認。**
 
 ## Update 2026-08-15
 

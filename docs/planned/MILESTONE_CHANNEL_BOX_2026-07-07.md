@@ -2,8 +2,8 @@
 
 作成日: 2026-07-07
 ステータス: In Progress（Inspector内の基本Channel Boxを実装、操作拡張を継続）
-**最終更新:** 2026-08-15
-現行判定: 基本 Channel Box、Key All／Key Selected、Lock／Unlock、設定復元は実装済み。複数チャンネル選択、Graph Editor／DopeSheet 連携、プロジェクト単位の専用永続化は未完了。
+**最終更新:** 2026-08-20
+現行判定: 基本 Channel Box、Key All／Key Selected、Lock／Unlock、選択パスのTimeline／Graph Editor連携、レイヤー単位の選択復元まで実装済み。プロジェクト単位の専用永続化、Problem View診断、実機受入は未完了。
 対象: `Artifact/src/Widgets/Inspector/ArtifactInspectorWidget.cppm`,
       `Artifact/src/Widgets/Property/ArtifactPropertyWidget.cppm`,
       `Artifact/src/Widgets/Property/ArtifactPropertyEditor.cppm`,
@@ -26,6 +26,7 @@
 - 表示中チャンネルをまとめて Lock／Unlock し、ロック行を編集不可・暗色状態にする操作を追加。
 - ロック状態をレイヤーID単位で `QSettings` に保存し、再表示時に復元するようにした。
 - 明示的な複数チャンネル選択、Graph Editor／DopeSheet 絞り込み、プロジェクトJSONへの専用永続化は未完了。
+- 2026-08-20: Property Editor行のowner-draw選択表示とCtrlクリックによる複数チャンネル選択を追加。選択パスをGraph Editor／Timelineマーカーへ伝播し、レイヤーID単位のQSettings復元を追加。
 
 ## Update 2026-08-15
 
