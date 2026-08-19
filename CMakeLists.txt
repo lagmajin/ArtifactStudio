@@ -706,6 +706,24 @@ add_subdirectory(ArtifactWidgets)
 add_subdirectory(Artifact)
 add_subdirectory(ArtifactRenderer)
 add_subdirectory(artifacts-plugin-runner)
+
+# CMake's native __CMAKE::CXX23 provider and the project-owned MSVC std.ifc
+# cannot be enabled on the same target: MSVC reports an ambiguous `std` IFC.
+# Child projects add their targets before this point, so normalize all local
+# Artifact targets here when the explicit provider is active.
+if(MSVC AND ARTIFACT_USE_EXPLICIT_STD_IFC)
+    get_property(_artifact_child_directories DIRECTORY PROPERTY SUBDIRECTORIES)
+    foreach(_artifact_child_directory IN LISTS _artifact_child_directories)
+        get_property(_artifact_child_targets
+            DIRECTORY "${_artifact_child_directory}" PROPERTY BUILDSYSTEM_TARGETS)
+        foreach(_artifact_child_target IN LISTS _artifact_child_targets)
+            if(_artifact_child_target MATCHES "^Artifact")
+                set_property(TARGET "${_artifact_child_target}" PROPERTY CXX_MODULE_STD OFF)
+            endif()
+        endforeach()
+    endforeach()
+endif()
+
 # DISABLED: ArtifactPr has W_Object signal macros that require Qt MOC
 # Since MOC causes drive path issues, and ArtifactPr is a demo/utility,
 # we exclude it from the main build. Re-enable by uncommenting below.
