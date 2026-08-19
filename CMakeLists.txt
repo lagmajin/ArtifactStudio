@@ -4,12 +4,12 @@ cmake_minimum_required(VERSION 3.30)
 # import std; サポートの有効化 (project() より前に記述が必須)
 # ---------------------------------------------------------------------------
 # CMake 3.30+ では import std は実験的機能のため、特定の UUID を設定する必要があります
-if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.3")
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.2")
     set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b")
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b" CACHE STRING "Required for import std (CMake 4.3)" FORCE)
+    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b" CACHE STRING "Required for import std (CMake 4.2+)" FORCE)
 else()
     set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444")
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444" CACHE STRING "Required for import std (CMake 4.2)" FORCE)
+    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444" CACHE STRING "Required for import std (CMake 3.30-4.1)" FORCE)
 endif()
 
 # clang-cl / IntelLLVM 系では project() 前の CMAKE_CXX_MODULE_STD ON が
@@ -159,18 +159,42 @@ endif()
 # that target without sources. Build the MSVC standard module explicitly and
 # keep the existing /reference;std=... contract for local C++20 modules.
 if(MSVC AND ARTIFACT_MSVC_MODULES_JSON)
+    set(ARTIFACT_USE_EXPLICIT_STD_IFC ON CACHE BOOL
+        "Use the project-owned MSVC std IFC producer" FORCE)
     get_filename_component(_artifact_msvc_modules_dir
         "${ARTIFACT_MSVC_MODULES_JSON}" DIRECTORY)
     set(_artifact_std_ixx "${_artifact_msvc_modules_dir}/std.ixx")
-    set(_artifact_std_ifc "${CMAKE_BINARY_DIR}/CMakeFiles/__cmake_cxx23.dir/std.ifc")
-    set(_artifact_std_obj "${CMAKE_BINARY_DIR}/CMakeFiles/__cmake_cxx23.dir/std.obj")
+    set(_artifact_std_ifc "${CMAKE_BINARY_DIR}/CMakeFiles/__cmake_cxx23.dir/artifact_std.ifc")
+    set(_artifact_std_obj "${CMAKE_BINARY_DIR}/CMakeFiles/__cmake_cxx23.dir/artifact_std.obj")
+    get_filename_component(_artifact_std_compiler_bin
+        "${CMAKE_CXX_COMPILER}" DIRECTORY)
+    get_filename_component(_artifact_std_msvc_root
+        "${_artifact_std_compiler_bin}/../../.." ABSOLUTE)
+    set(_artifact_std_msvc_include "${_artifact_std_msvc_root}/include")
+    file(GLOB _artifact_std_sdk_includes LIST_DIRECTORIES true
+        "C:/Program Files (x86)/Windows Kits/10/Include/*")
+    list(SORT _artifact_std_sdk_includes COMPARE NATURAL ORDER DESCENDING)
+    list(GET _artifact_std_sdk_includes 0 _artifact_std_sdk_include_root)
+    set(_artifact_std_include_args)
+    foreach(_artifact_std_include IN ITEMS
+        "${_artifact_std_msvc_include}"
+        "${_artifact_std_sdk_include_root}/ucrt"
+        "${_artifact_std_sdk_include_root}/shared"
+        "${_artifact_std_sdk_include_root}/um"
+        "${_artifact_std_sdk_include_root}/winrt")
+        if(_artifact_std_include AND EXISTS "${_artifact_std_include}")
+            list(APPEND _artifact_std_include_args "/I${_artifact_std_include}")
+        endif()
+    endforeach()
     if(EXISTS "${_artifact_std_ixx}")
         add_custom_command(
             OUTPUT "${_artifact_std_ifc}"
             COMMAND ${CMAKE_COMMAND} -E make_directory
                     "${CMAKE_BINARY_DIR}/CMakeFiles/__cmake_cxx23.dir"
             COMMAND "${CMAKE_CXX_COMPILER}" /nologo /std:c++latest
-                    /experimental:module /TP /c /interface
+                    /experimental:module /TP /c /interface /MDd /EHsc
+                    /D_DEBUG /D_ITERATOR_DEBUG_LEVEL=2
+                    ${_artifact_std_include_args}
                     "/ifcOutput${_artifact_std_ifc}"
                     "/Fo${_artifact_std_obj}"
                     "${_artifact_std_ixx}"
@@ -535,6 +559,18 @@ if(WIN32 AND MSVC)
         endif()
         message(STATUS "Windows SDK lib: ${_artifact_windows_sdk_version_dir}")
     endif()
+endif()
+
+# Keep the Windows SDK headers available to third-party targets as well as the
+# project targets.  DiligentEngine is configured in a nested subdirectory and
+# does not inherit ArtifactCore's target-local SDK include directories.
+if(WIN32 AND MSVC AND _artifact_windows_sdk_include_version_dir)
+    set(CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES
+        "${_artifact_windows_sdk_include_version_dir}/ucrt"
+        "${_artifact_windows_sdk_include_version_dir}/shared"
+        "${_artifact_windows_sdk_include_version_dir}/um"
+        "${_artifact_windows_sdk_include_version_dir}/winrt"
+        CACHE STRING "Windows SDK include directories for all MSVC targets" FORCE)
 endif()
 
 # ---------------------------------------------------------------------------
