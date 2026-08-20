@@ -3,7 +3,7 @@
 > 2026-08-20 作成
 
 **最終更新:** 2026-08-20
-**Status:** In Progress (Phase 1〜3 実装中)
+**Status:** Phase 1〜3 ソース実装済み、runtime／ビルド受入れ待ち
 **Priority:** High
 **Related:** `docs/planned/MILESTONE_MOTION_PATH_EDITING_2026-04-29.md`, `docs/planned/MILESTONE_COMPOSITION_MOTION_PATH_OVERLAY_2026-03-28.md`, `docs/planned/MILESTONE_AUTO_ORIENT_2026-06-16.md`
 
@@ -58,3 +58,13 @@
 3. パス上のキーフレームをダブルクリックすると、タイムラインの再生位置が該当フレームに移動すること。
 4. ホバー中に対象フレーム情報が HUD に分かりやすく表示されること。
 5. 操作が既存の Undo / Redo と完全に整合すること。
+
+---
+
+## 5. 実装監査 (2026-08-20)
+
+- **Phase 1:** `Alt + タンジェントドラッグ` で `linked=false` に切り替え、In/Out を独立編集。Undo/Redo は `MotionPathTangentSnapshot` の `linked` を含めて復元する。
+- **Phase 2:** キーフレームクリック時に `ArtifactPlaybackService::setCurrentFrame()`（フォールバックは composition の `goToFrame()`）を呼び、CTI とレイヤー評価を同期する。
+- **Phase 3:** キーホバー時に対象フレームと座標を `InfoOverlay` へ表示し、パス外でクリアする。複数キー変形開始時は Move/Rotate/Scale と選択数も表示する。
+
+判定: **Phase 1〜3 は静的ソース実装済み。実機操作、親変換・3D視点、保存再読込、ビルド検証は未確認。**
