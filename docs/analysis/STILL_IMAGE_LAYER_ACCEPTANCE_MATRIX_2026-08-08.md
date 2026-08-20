@@ -10,7 +10,7 @@
 
 ## Preview／Render Queue 比較判定
 
-保存フレーム比較は `ArtifactSoftwareRenderTestWidget` の判定基準に合わせ、各チャンネル差分が `2` 以下の画素を許容し、許容値を超える画素が全体の `0.1%` 以下であれば `PASS` とする。平均 RGBA 差分と最大チャンネル合計差分も記録し、サイズ不一致または許容超過時は `FAIL` とする。実素材での runtime 実行結果は未記録である。
+保存フレーム比較は `ArtifactSoftwareRenderTestWidget` の判定基準に合わせ、各チャンネル差分が `2` 以下の画素を許容し、許容値を超える画素が全体の `0.1%` 以下であれば `PASS` とする。Preview と Render Queue に加えて Software Preview のキャプチャも読み込み可能で、3経路が揃った場合は3組のペア比較がすべて合格したときだけ全体を `PASS` とする。平均 RGBA 差分と最大チャンネル合計差分も記録し、サイズ不一致または許容超過時は `FAIL` とする。実素材での runtime 実行結果は未記録である。
 
 ## 現行経路
 
