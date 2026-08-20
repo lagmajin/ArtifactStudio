@@ -1,6 +1,6 @@
 # MILESTONE: 静止画レイヤー Production Readiness
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-08-20
 
 **ステータス:** Static implementation partial / runtime acceptance pending
 
@@ -122,6 +122,12 @@
 Phase 2 としてproject root基準のsource path解決責務をAssetManager／project保存境界で定義し、image・sequence・videoを共通のrelocation／relink契約へ載せる。ビルドやruntime検証は、実行許可を得てから行う。
 
 ## 実装進捗
+
+### 2026-08-20 — Preview／Render Queue 比較の受入判定を明示化
+
+- `ArtifactSoftwareRenderTestWidget` の Preview／Render Queue capture 比較に、チャンネル差分許容値 `2` と許容超過ピクセル率 `0.1%` を導入した。
+- 比較結果を `PASS`／`FAIL` として表示し、超過ピクセル数、平均 RGBA 差分、最大チャンネル合計差分を同時に確認できるようにした。
+- これは受入判定の表示強化であり、実素材による Preview／Software Preview／Render Queue の runtime 実行と判定は未実施である。
 
 ### 2026-08-08 — 入力色解釈別の共有デコードキャッシュ分離
 
