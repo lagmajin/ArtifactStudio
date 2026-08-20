@@ -61,7 +61,7 @@
 
 **完了条件:** 各群で代表 effect 1件以上が実制作の調整・比較に必要な controls を持つ。
 
-**進捗:** Chroma Key に Matte Black Clip / Matte White Clip と opaque grayscale の Preview Matte を追加し、Similarity / Edge Softness の出力から matte の下限・上限を明示的に調整できるようにした。Lens Distortion には CPU/GPU 同一式で Tangential X / Y（decentering）と Radial Quadratic（2次半径係数）を追加した。Edge Bloom には CPU/GPU 共通の Threshold Softness を追加した。Temporal Denoise は sampled average-luma scene-cut rejection、分散ベースの Motion Adaptive、Ghost Suppression の調整を持つ。keyer の複数 sample、色空間指定、Lens profile の読込 UI、GPU runtime parity は未実装または未検証。
+**進捗:** Chroma Key に Matte Black Clip / Matte White Clip と opaque grayscale の Preview Matte を追加し、Similarity / Edge Softness の出力から matte の下限・上限を明示的に調整できるようにした。Lens Distortion には CPU/GPU 同一式で Tangential X / Y（decentering）と Radial Quadratic（2次半径係数）を追加した。Edge Bloom には CPU/GPU 共通の Threshold Softness、Edge Boost、Radius サンプル距離を追加した。Temporal Denoise は sampled average-luma scene-cut rejection、分散ベースの Motion Adaptive、Ghost Suppression の調整を持つ。keyer の複数 sample、色空間指定、Lens profile の読込 UI、GPU runtime parity は未実装または未検証。
 
 ### PIEC-4: 制作診断と比較
 
