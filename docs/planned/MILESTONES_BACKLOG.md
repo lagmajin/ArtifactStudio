@@ -1,6 +1,6 @@
 # Milestones Backlog
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-08-20
 
 ### Still Image / Production Readiness
 - **M-IMG-1** Still Image Layer Production Readiness
@@ -905,7 +905,7 @@ active milestone の重複名としては扱わない。
 - **機能:** Basic materials (diffuse/specular), texture mapping, material assignment
 - **見積:** 30-40h
 - **詳細:** `docs/planned/MILESTONE_3D_MATERIAL_SYSTEM_2026-03-31.md`
-- **部分完了確認（Update 2026-08-15）**: `ArtifactCore::Material` の base color／emission／metallic／roughness／alpha、normal／occlusion／opacity、texture path、3D layer の Material Inspector／JSON／import texture、PBR renderer／shader接続を確認。Layer Panel に Matte／Metal／Plastic／Glass の Material preset 適用を追加した。Material Browser／asset管理、高度mapping、実機のshading・透明境界・texture更新受入は未完了または未検証。
+- **部分完了確認（Update 2026-08-20）**: `ArtifactCore::Material` の base color／emission／metallic／roughness／specular／IOR／transmission／clearcoat／sheen／alpha、normal／occlusion／opacity、texture path、3D layer の Material Inspector／JSON／import texture、PBR renderer／shader接続を確認。HDRI／IBL、環境回転、skybox、同一 renderer/device 内の環境リソース共有、Base Color／MR／Normal のCPU mip生成も接続済み。Layer Panel に Matte／Metal／Plastic／Glass の Material preset 適用を追加した。Material Browser／asset管理、高度mapping、プロセス全体の環境キャッシュ、実機のshading・透明境界・texture更新受入は未完了または未検証。
 
 ### M-MAT-2 MaterialX Document / Exchange Bridge
 - MaterialX XML を Material asset / inspector / export の橋渡しにする

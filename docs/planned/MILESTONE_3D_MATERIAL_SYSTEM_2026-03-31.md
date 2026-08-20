@@ -1,20 +1,20 @@
 # MILESTONE: 3D Material System
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-08-20
 **Status:** Material core、3D layer assignment、PBR texture input、shader/render 接続、Inspector／JSON は実装済み。高度機能の一部と runtime verification は pending。
 
 > 2026-03-31 作成
 
-## 現行コード監査 (2026-08-15)
+## 現行コード監査 (2026-08-20)
 
-- `ArtifactCore::Material` は PBR の base color／emission／metallic／roughness／alpha、normal strength、occlusion、opacity、各種 texture path を保持する。
+- `ArtifactCore::Material` は PBR の base color／emission／metallic／roughness／alpha、normal strength、occlusion、opacity、sheen、各種 texture path を保持する。
 - `Artifact3DModelLayer` は material を所有し、Inspector の Material group、JSON 保存／復元、importer 由来の metallic-roughness／normal／occlusion texture、透明材質判定、material signature を提供する。
 - CompositionRenderController／Diligent render window 側には PBR parameter、metallic-roughness／normal texture、opacity／depth 契約、Light Layer 連携が存在する。
-- したがって旧 Phase 1〜4 の「作成予定」は現状と一致しない。Layer Panel の 3D Material メニューに Matte／Metal／Plastic／Glass のプリセット適用を追加した。残りは Material Browser／asset 管理の独立導線、高度な mapping、実機での shading／透明境界／texture 更新受入れ。
+- したがって旧 Phase 1〜4 の「作成予定」は現状と一致しない。Layer Panel の 3D Material メニューに Matte／Metal／Plastic／Glass のプリセット適用を追加した。Sheen は Material／Inspector／JSON／MeshRenderer の直接光・IBL 経路まで接続済み。残りは Material Browser／asset 管理の独立導線、高度な mapping、実機での shading／透明境界／texture 更新受入れ。
 
-## Update 2026-08-15
+## Update 2026-08-20
 
-現行コードを追加確認した。`ArtifactCore::Material` は base color／emission／metallic／roughness／alpha、normal strength、occlusion、opacity、texture path を保持し、`Artifact3DModelLayer` の Inspector／JSON／import material 情報と接続されている。CompositionRenderController／Diligent renderer にはPBR parameter、metallic-roughness／normal texture、opacity／depth、Light Layer連携がある。
+現行コードを追加確認した。`ArtifactCore::Material` は base color／emission／metallic／roughness／alpha、normal strength、occlusion、opacity、sheen、texture path を保持し、`Artifact3DModelLayer` の Inspector／JSON／import material 情報と接続されている。CompositionRenderController／Diligent renderer にはPBR parameter、metallic-roughness／normal texture、opacity／depth、Light Layer連携がある。Sheen は直接光・IBL の shader 経路へ接続されている。
 
 未完了・未検証なのは、Material Browser／asset管理の独立導線、preset／高度なmapping、実機でのshading、透明境界、texture更新受入れである。基本Material／PBR接続は実装済み、拡張UXとruntime検証は pending とする。
 

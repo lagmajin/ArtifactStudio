@@ -1750,3 +1750,34 @@
 - 仮説（未検証）: ノイズを独立レイヤーにすると、適用範囲、合成順、強度、シード、アニメーション、プレビュー／書き出し差分を管理しやすくなる。一方、単なる画像レイヤーとして実装すると、時間変化するシードや色空間、合成モードの責務が不明確になりやすい。
 - 価値・懸念: 参照素材と本番素材の誤編集を防ぎ、ノイズを再利用可能な制作要素として扱える。専用レイヤー化は保存形式、GPU／CPU実装、レンダー順、キャッシュ無効化条件を増やすため、最初から広いノイズ種類を抱えない方が安全。
 - 次の確認: ソースエリアはグループ＋非レンダー属性で足りるか、ノイズはまずGPU生成の単一方式（例: film grain）から始めるか、またノイズをレイヤー単位・コンポジション単位のどちらで適用するかを決める。
+# 2026-08-20 — PBR環境光の色空間と事前フィルタリング
+
+- 関連: `ArtifactCore/src/Graphics/MeshRenderer.cppm`、PBR環境キューブ、Material IBL
+- 事実: 既存の環境キューブは equirectangular 画像から生成され、専用 irradiance cube と BRDF LUT を持っていた。specular mip は単純な面内平均だったため、GGX prefilter としては近似に留まっていた。
+- 対応: 8bit LDR環境 RGB の sRGB→線形変換、mipごとの GGX importance sampling、環境単独時の IBL 経路、Clearcoat／Transmission／AO／HDR出力の整合を追加した。
+- 価値/懸念: HDRI の diffuse、specular、clearcoat、transmission が同じ線形環境値を基準に評価できる。GGX生成はCPU起動時処理であり、サンプル数・環境解像度によって初期化コストが増える。Transmission は厚み・内部散乱を持たない薄い近似である。
+- 次の確認: build/runtime を省略しているため、Diligent のキューブサブリソース順序、HLSL `refract` の backend 差、HDR／LDR環境の見た目、起動時コストを実機で確認する。
+
+- 追記: `MaterialAlphaMode` を MeshRenderer の alpha-test／blend 選択へ接続し、`alphaCutoff`（既定値 0.5）を Material、GPU 定数、JSON、3Dレイヤーの数値プロパティまで通した。現時点では enum 専用 UI と glTF インポータの alphaCutoff 読み込みは未対応。
+- 追記: 同一 `ArtifactIRenderer` 内の MeshRenderer 間で cubemap／irradiance／BRDF LUT を参照共有する経路を追加した。共有元と共有先は同じ `GpuContext`／device 所有範囲で使う前提で、異なる device 間の共有、LRU解放、プロセス全体キャッシュは未対応。
+- 追記: equirectangular 環境画像の cubemap 初期化、GGX prefilter、irradiance convolution のサンプルを bilinear＋水平ラップへ統一した。極方向は clamp するため、極付近の立体角補正と実機画質は未検証。
+- 追記: Skybox は IBL と別の描画経路だったため、環境 intensity と Y 回転を同じ定数契約で渡すようにした。背景の露出・方向は揃うが、skybox 専用の露出／トーンマップ設定はまだ分離していない。
+- 追記: `ArtifactEnvironmentMapLayer::setHdriPath()` でパスを trim し、レイヤー保存値と `ArtifactIRenderer` の環境ロードキーを一致させた。空白のみの入力は空環境として扱われる。
+- 追記: 共通PBR経路でも `refract` の無効方向を検出し、全反射時の transmission Fresnel を 1.0 に固定した。環境反射のフォールバックは維持し、透過寄与だけを抑制する。
+
+# 2026-08-20 — 環境マップ共有キャッシュの次段階
+
+- 関連: `ArtifactCore/src/Graphics/MeshRenderer.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`、PBR IBL リソース管理
+- 事実: 現在は同一 `ArtifactIRenderer`／同一 device 内でのみ、生成済み cubemap・irradiance・prefilter・BRDF LUT を MeshRenderer 間で参照共有している。同じ環境を別 renderer が読み込む場合は、renderer ごとに生成が発生し得る。
+- 仮説（未検証）: device をキーにした共有環境リソース表と、正規化パス＋画像更新世代をキーにした参照カウント付きキャッシュを導入すれば、複数コンポジション／プレビュー間の重複生成を抑えられる。ただし Diligent の device 寿命、スレッド境界、画像変更時の世代破棄、LRU上限を明示しないまま static 所有へ移行するとリークや stale SRV の原因になる。
+- 価値・懸念: HDRI の高価なCPU prefilterを再利用できる一方、プロセス全体キャッシュは renderer の単純な所有モデルを変えるため、先に cache key・device lifetime・eviction 契約を固定する必要がある。
+- 次の確認: `GpuContext`／device の安定した識別子、環境画像の更新世代、既存 renderer 破棄時の参照解放を確認し、まず同一 device 限定の小さな共有レジストリから設計する。
+
+# 2026-08-20 — PBRプレビューの光学係数整合
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`、`Artifact3DModelViewer` の PBR プレビュー
+- 事実: プレビューは誘電体 F0 を固定値 0.04 としており、本レンダラーが Material の specular／IOR から F0 を計算する経路と一致していなかった。
+- 対応: プレビューの ColorCB に optical factors を追加し、specular と IOR を既定値付き API から渡して、本レンダラーと同じ F0 の組み立てへ寄せた。
+- 価値/懸念: Material Inspector とプレビューの反射量・ガラス感の差を縮められる。プレビューは依然として簡略化した環境光であり、完全な IBL／透過の見た目一致ではない。
+- 次の確認: build/runtime を省略しているため、ColorCB の Diligent constant-buffer layout と specular／IOR の実機表示を確認する。
+- 追記: プレビューの transmission fallback を固定色から IOR による `refract` 方向ベースの簡略環境サンプルへ変更した。厚み・吸収・内部反射は持たないため、ガラスの物理的な透過表現ではなく、preview readability を目的とした近似である。

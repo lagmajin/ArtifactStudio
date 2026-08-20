@@ -1,6 +1,6 @@
 # AE 不満点 → ArtifactStudio 改善マップ
 
-**最終更新:** 2026-08-14
+**最終更新:** 2026-08-20
 
 After Effects 利用者の不満点を、ArtifactStudio のソースコード現状（2026-08-13 調査時点）に照らして、改善・差別化できる点を優先度順に整理したもの。
 
@@ -171,9 +171,9 @@ After Effects 利用者の不満点を、ArtifactStudio のソースコード現
 
 **AE の不満**: 環境レイヤー / 反射が扱いにくい。
 
-**現状**: `ArtifactEnvironmentMapLayer` は器のみ。HDRI 読込 → cubemap 生成 → PBR シェーダへのバインドが全て欠落。実質未実装。
+**現状**: `MeshRenderer::setEnvironmentMap()` が HDRI/LDR 環境画像を読み込み、cubemap、cosine-convolved irradiance cube、GGX prefiltered mip chain、BRDF LUT を生成して PBR shader へバインドする。環境単独の IBL、環境回転、Clearcoat／Transmission／AO も shader 経路に接続済み。`ArtifactIRenderer`／`ShaderManager` には環境キューブの skybox 背景表示経路も存在し、同一 renderer/device 内の環境リソース共有も実装済み。`ArtifactEnvironmentMapLayer` の専用レイヤーとしての表示・編集責務、プロセス全体／LRU キャッシュ、runtime/backend差分は未検証。
 
-**改善**: HDRI（.hdr/.exr）読込 + split-sum IBL + skybox 背景。
+**改善**: 専用環境レイヤーの編集・保存契約、skybox 背景、環境キューブの共有キャッシュ、D3D12/Vulkan の実機 parity を整備する。
 
 ### 16. シャドウの強化（3D）
 
@@ -264,7 +264,7 @@ After Effects 利用者の不満点を、ArtifactStudio のソースコード現
 - モデルアニメーション / skinning / Alembic（未実装）
 - デフォーマ / モディファイアスタック（未実装）
 - 頂点カラーの描画反映（読込は一部あるが描画未使用）
-- SSAO / SSGI / DDGI はコードあるが PBR パス未統合（要確認）
+- SSGI / DDGI はコンポジション側の GI パイプラインとして実装済み。`MeshRenderer` の per-material PBR へ GI 結果を直接注入する契約は未定義で、現状は別段階の合成経路として扱う。
 
 ### カラー
 - `FloatColor` の色空間メタデータ（なし、最大の弱点）
