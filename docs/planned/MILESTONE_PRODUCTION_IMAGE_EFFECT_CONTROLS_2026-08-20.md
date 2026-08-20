@@ -49,7 +49,7 @@
 
 **完了条件:** 優先 effect 群に安全な編集範囲と保存・キーフレームに耐える stable property identity がある。
 
-**進捗:** Blur、Edge Bloom、Chroma Key、Lens Distortion、Displacement Map、Aperture Shape Blur、Temporal Denoise、Color Wheels、Drop Shadow の既存項目へ表示名、既定値、hard/soft range、step、単位、tooltip を追加した。Blurは従来非公開だった Iterations / Mode / Edge Threshold / Premultiplied Alpha も公開した。全 effect 群への展開は継続する。
+**進捗:** Blur、Edge Bloom、Chroma Key、Lens Distortion、Displacement Map、Aperture Shape Blur、Temporal Denoise、Color Wheels、Drop Shadow の既存項目へ表示名、既定値、hard/soft range、step、単位、tooltip を追加した。Blurは従来非公開だった Iterations / Mode / Edge Threshold / Premultiplied Alpha も公開した。2026-08-20 に EdgeBloom、ApertureShapeBlur、ChromaKey、LensDistortion、TemporalDenoise の表示名・min/max・tooltip の不足を正規化した。全 effect 群への展開は継続する。
 
 ### PIEC-3: 高頻度 effect の拡張
 
@@ -86,4 +86,4 @@
 
 ## 次の実装単位
 
-PIEC-2 として、`EdgeBloomEffect`、`ApertureShapeBlurEffect`、`ChromaKeyEffect`、`LensDistortionEffect`、`TemporalDenoiseEffect` の property metadata を正規化する。その後、PIEC-3 の不足パラメータは effect 群ごとに小さく追加する。
+PIEC-2 の代表5 effect（`EdgeBloomEffect`、`ApertureShapeBlurEffect`、`ChromaKeyEffect`、`LensDistortionEffect`、`TemporalDenoiseEffect`）の property metadata 正規化は完了した。次は PIEC-3 として keyer の複数 sample / 色空間、Lens profile、Temporal の motion-adaptive / ghost suppression、Blur/Bloom の quality / edge mode を effect 群ごとに小さく追加する。
