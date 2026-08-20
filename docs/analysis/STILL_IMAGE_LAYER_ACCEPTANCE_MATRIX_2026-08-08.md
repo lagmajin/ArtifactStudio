@@ -1,12 +1,16 @@
 # 静止画レイヤー制作受入マトリクス
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-08-20
 
 **対象マイルストーン:** `M-IMG-1 Still Image Layer Production Readiness`
 
 ## 目的
 
 静止画の import から保存、再読込、preview、Render Queue までを同じ観点で確認し、未実装とruntime未確認を混同しないための受入基準を固定する。
+
+## Preview／Render Queue 比較判定
+
+保存フレーム比較は `ArtifactSoftwareRenderTestWidget` の判定基準に合わせ、各チャンネル差分が `2` 以下の画素を許容し、許容値を超える画素が全体の `0.1%` 以下であれば `PASS` とする。平均 RGBA 差分と最大チャンネル合計差分も記録し、サイズ不一致または許容超過時は `FAIL` とする。実素材での runtime 実行結果は未記録である。
 
 ## 現行経路
 
