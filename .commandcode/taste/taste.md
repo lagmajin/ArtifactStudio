@@ -28,8 +28,8 @@ See [project-workflow/taste.md](project-workflow/taste.md)
 - Treat `Artifact_dev_review/` as a read-only sandbox copy; do not edit files inside it. Only modify the `Artifact/` directory for code changes. Confidence: 0.70
 
 # ux-design-philosophy
-- Values subtle/quiet ("地味だが効く") professional-polish interactions in property/value editing and wants them mined from top-tier apps — specifically value-drag scrubbing (値ドラッグ), modifier-key precision (Shift/Ctrl/Alt), inline math (e.g. `100/3`), non-linear/perceptual sliders, multi-value link/bulk editing, unit switching, and field-level context menus. Reference apps for this class of polish: Adobe AE/PS, DaVinci Resolve, Blender, Ableton, Figma. Confidence: 0.65
 - Prefers innovative UX interactions with "wow factor" over standard drag-and-drop / conventional patterns. When asked for feature proposals (especially D&D/UI interactions), the user expects the assistant to brainstorm creative, surprising ideas that make users say 「そんなことできるの？」(you can do that?!), rather than straightforward conventional implementations. The user explicitly rejected a standard "drag effect from palette to layer" milestone as too plain/obvious (「地味だ」) and asked for more revolutionary interaction designs. Confidence: 0.80
+- Prefers feature designs that are mode-rich (モードがいっぱいある) with many variations over a single-purpose tool — when brainstorming enhancements for the plane/solid layer, the user found the idea of "many modes" appealing (「モードがいっぱいあると面白そう」). Confidence: 0.55
 
 # project-architecture
 See [project-architecture/taste.md](project-architecture/taste.md)
@@ -39,3 +39,6 @@ See [project-architecture/taste.md](project-architecture/taste.md)
 
 # language
 - Communicates in Japanese and expects responses in Japanese. Confidence: 0.85
+
+# project-direction
+- Currently focuses feature development on plane/shape/image layers (平面・シェイプ・画像レイヤー) for the near term; feature brainstorming, gap analysis, and prioritization should center on these layer types. Confidence: 0.70

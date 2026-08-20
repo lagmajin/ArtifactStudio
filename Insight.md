@@ -1704,10 +1704,49 @@
 - 仮説（未検証）: 最初にモデル精度を追うより、候補のmask／bounds／confidence／provenanceと、一括Undo・source identity・推定画素の保存契約を固定した方が、モデル交換やCPU／GPU fallbackに耐える制作機能になる。
 - 価値・懸念: 一枚の画像から復元できない隠し画素を確定情報として扱う事故を避け、AI結果を通常のマスク編集へ安全に引き渡せる。候補の前後順と背景補完品質は素材依存で、runtime評価が必要。
 - 次の確認: Phase 0の代表素材で、単一候補のmask生成から画像レイヤー作成、保存／再読込、Preview／Render Queue一致までの最小往復を確認する。モデル選定と新規モジュール追加は、その接続点を確認してから決める。
-## 2026-08-14: TextGlyphSubmitter の製品 renderer 接続境界（未検証）
 
-- 関連: `Artifact/src/Render/ArtifactTextGlyphSubmitter.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`、`Artifact/src/Render/PrimitiveRenderer2D.cppm`、`experiments/TextAnimatorLab/artifact_text_glyph_smoke.cpp`
-- 事実: `ArtifactTextGlyphSubmitter` は standalone GPU smoke と専用 runtime target から利用され、変形 PSO、readback の非透明画素、カラー glyph の RGB 保持を検査する経路がある。一方、製品 `ArtifactIRenderer::drawGlyphs()` / `drawGlyphsTransformed()` は現在も `PrimitiveRenderer2D` へ委譲しており、Submitter は製品描画経路から呼ばれていない。
-- 仮説（未検証）: 製品 renderer へ直接接続するには、`ShaderManager` の glyph PSO／SRB 所有を renderer 初期化境界で Submitter provider へ渡し、render target と device context の寿命に合わせて Submitter を保持する必要がある。単純な draw 呼び出し置換だけでは device 再初期化と既存 sprite／particle submit 順序を壊す可能性がある。
-- 価値・懸念: standalone の成功を製品経路の成功と誤認するのを防ぎ、次の統合作業の変更範囲を renderer 初期化・target ownership・flush 順序に限定できる。ビルド・実行確認は未実施。
-- 次の確認: ユーザー許可後に focused GPU target をビルドし、既存 `ArtifactIRenderer` の device 再初期化、通常 glyph、変形 glyph、カラー glyph、readback を段階的に確認してから製品経路へ接続する。
+# 2026-08-18 — Solid2Dグラデーション平面の直接GPU描画
+
+- 関連: `Artifact/src/Layer/ArtifactSolid2DLayer.cppm`、`ArtifactIRenderer::drawGradientRectTransformed`
+- 事実: Solid2Dの非単色塗りは、レイヤー自身の描画経路では一度`QImage`のグラデーションを生成してからスプライトとしてGPUへ送っていた。既存のGPUグラデーション矩形APIは同じパラメータを受け取れる。
+- 対応: グラデーション画像生成を廃止し、既存のGPU矩形シェーダー経路へ直接送るようにした。単色平面と同じく、変換・クローン重み・不透明度をGPU描画コマンドへ渡す。
+- 価値/懸念: 通常の平面描画でCPU画像生成とテクスチャ作成を避けられる。マスク／ラスタライズエフェクト付きの合成経路は別途CPUフォールバックが残り、runtime画質・色補間・fillTypeの一致確認は未実施。
+- 次の確認: GPU／CPU出力のグラデーション境界、透明度、反転、中心・スケール・オフセット、クローン表示を実機で比較する。
+
+# 2026-08-18 — 画像デプス機能のCore分離
+
+- 関連: `ArtifactCore/include/Image/DepthMap.ixx`、`ArtifactCore/include/AI/ImageDepthEstimator.ixx`
+- 対応: 画像由来の深度値を保持する`DepthMap`と、AIモデルを差し替え可能にする`IImageDepthEstimator`／オプション契約をCoreへ追加した。深度の正規化・反転・範囲制限はCoreで扱い、ONNX／DirectMLの具体的なモデル接続とGPU描画はArtifact側へ分離する。
+- 価値・懸念: 手動深度マップ、AI推定深度、将来のクラウド推定を同じデータ契約で扱える。現時点では推定モデル実装とGPU視差描画への接続は未完了で、`DepthMask`は既知のワールド深度用であり画像推定とは別責務。
+- 次の確認: Artifact側で深度テクスチャを3Dカード／細分化メッシュへ接続し、最初のローカル推定プロバイダを選定する。
+- 追記: `DepthMap::fromQImage()`／`toQImage()`を追加し、グレースケール画像を明示的な入力・表示境界として扱えるようにした。深度メッシュの法線も隣接頂点から近似計算する。
+- 追記: `ArtifactImageLayer`に深度マップとメッシュ設定のAPIを追加し、ファイル参照画像では既存3Dカメラ＋`drawMesh()`経路へ切り替えられるようにした。現在はメモリ上の深度設定で、深度マップの保存復元とインメモリGPUテクスチャ材質は未対応。
+- 追記: `DepthMap`の画像ファイル入出力と、`ArtifactImageLayer`の深度マップパス・メッシュ設定のJSON保存／復元を追加した。復元時に深度ファイルが欠落している場合は通常画像へ安全にフォールバックする。
+- 追記: `MeshRenderer::setBaseColorTextureView()`と`ArtifactIRenderer::drawMesh()`のテクスチャビュー受け渡しを追加した。GPUキャッシュ済みのインメモリ画像をファイル再読込なしで深度メッシュへ接続するための境界ができたが、現在の`ArtifactImageLayer`は引き続きファイルパスを優先する。
+- 追記: CompositionRenderControllerで深度有効な`ArtifactImageLayer`の`ImageF32x4_RGBA`をGPUテクスチャキャッシュから取得し、深度メッシュ＋直接SRVの`drawMesh()`へ渡す経路を追加した。これにより、フレームバッファ画像もファイル再読込なしで深度メッシュへ合流する。
+- 追記: `OnnxImageDepthEstimator`を追加し、ONNX Runtime + DirectMLで一般的なRGB NCHW入力／1ch深度出力モデルを実行できるCoreプロバイダを用意した。バックエンド未導入、モデル不在、推論失敗時はエラーを保持して呼び出し側がCPUフォールバックへ切り替えられる。
+- 2026-08-18 — ObjectDetectorのONNX接続
+- 関連: `ArtifactCore/include/AI/ObjectDetector.ixx`、`ArtifactCore/src/AI/ObjectDetector.cppm`
+- 対応: 既存の仮検出を維持しつつ、ONNX／DirectMLモデルを初期化して、一般的なN行6列（`x1,y1,x2,y2,score,class`）またはYOLO系の検出テンソルを読み取る経路を追加した。推論失敗時は既存フォールバックへ戻る。
+- 懸念: YOLOv8の転置出力、ラベルファイル、NMS、モデル固有の前処理はまだモデルアダプター側で吸収していない。モデルごとの入出力契約を固定してから本番モデルを選ぶ必要がある。
+- 追記: YOLOv8系の`[1,channels,boxes]`転置出力とYOLOv5系の`[boxes,85]`形式を判別し、クラス別NMSを追加した。ラベルファイルとレターボックス補正は引き続き未対応。
+- 追記: `ObjectDetector`へクラスラベルファイル読み込みとレターボックス前処理／座標逆変換を追加した。これにより、アスペクト比を保持した推論結果を元画像へ戻し、`class_7`ではなくモデルラベル名を返せる。
+- 2026-08-18 — ONNX画像セグメンテーション契約
+- 関連: `ArtifactCore/include/AI/ImageSegmenter.ixx`、`ArtifactCore/include/AI/OnnxImageSegmenter.ixx`
+- 対応: 1chマスク出力を`DepthMap`形式で受ける`IImageSegmenter`と、ONNX／DirectMLのRGB入力・マスク出力プロバイダを追加した。正規化、反転、しきい値処理をCore側で行い、既存のマスク／切り抜き処理へ渡せる。
+- 懸念: U2Net等のモデル固有の出力チャネル、アルファ合成、人物ラベル、複数クラスマスクの扱いはモデルアダプターで追加する必要がある。
+- 追記: `applySegmentationMask()`を追加し、推定マスクを双線形サンプリングして`ImageF32x4_RGBA`のアルファへ適用できるようにした。切り抜き用途へ渡す前のCore合成段階を固定した。
+- 追記: `ArtifactImageLayer::applySegmentationMask()`を追加し、画像レイヤーの現在バッファへマスク切り抜きを明示的に適用できるようにした。元ソースパスは変更せず、レイヤーの編集バッファとキャッシュを更新する。
+- 追記: `LuminanceImageSegmenter`を追加し、ONNXモデルがない場合も同じ`IImageSegmenter`契約で簡易マスクを生成できるようにした。これは人物認識ではなく、明度しきい値による明示的な低品質フォールバックである。
+- 追記: `ImageSegmentationOptions::applySigmoid`を追加し、確率出力とlogit出力の両方をモデル設定で扱えるようにした。
+- 追記: `OnnxImageSegmenter`がモデルの入力テンソル形状を読み取り、固定512ではなくモデル指定の幅・高さで前処理するようにした。動的形状や不正値は安全な既定範囲へフォールバックする。
+- 追記: `OnnxImageDepthEstimator`も入力テンソル形状を取得する方式へ統一し、固定384の前処理をモデル指定サイズへ変更した。
+
+# 2026-08-18 — コンポジションのソースエリアと独立ノイズレイヤー（アイデア）
+
+- 関連: コンポジション構成、参照素材、画像処理・レイヤー合成
+- 事実: 制作中に参照画像、カラーチャート、HDRI、マスク作成元などを本番レイヤーと同じ場所へ置くと、編集対象と参照対象の区別が曖昧になりやすい。現在、専用のソースエリアは未確定。
+- アイデア: コンポジション内に「ソースエリア」を設け、参照専用レイヤーを本番レンダーから除外する。さらに、粒状感・フィルムグレイン・ディザ・TVノイズなどを担う「ノイズレイヤー」を通常の画像／エフェクトとは独立したレイヤー種別として検討する。
+- 仮説（未検証）: ノイズを独立レイヤーにすると、適用範囲、合成順、強度、シード、アニメーション、プレビュー／書き出し差分を管理しやすくなる。一方、単なる画像レイヤーとして実装すると、時間変化するシードや色空間、合成モードの責務が不明確になりやすい。
+- 価値・懸念: 参照素材と本番素材の誤編集を防ぎ、ノイズを再利用可能な制作要素として扱える。専用レイヤー化は保存形式、GPU／CPU実装、レンダー順、キャッシュ無効化条件を増やすため、最初から広いノイズ種類を抱えない方が安全。
+- 次の確認: ソースエリアはグループ＋非レンダー属性で足りるか、ノイズはまずGPU生成の単一方式（例: film grain）から始めるか、またノイズをレイヤー単位・コンポジション単位のどちらで適用するかを決める。
