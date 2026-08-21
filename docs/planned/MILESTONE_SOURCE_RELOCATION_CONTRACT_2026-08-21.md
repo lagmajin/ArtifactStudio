@@ -1,10 +1,15 @@
 # マイルストーン: Source Relocation Contract（Image / Image Sequence）
 
 **最終更新:** 2026-08-21
-**ステータス:** Not Started
+**ステータス:** In Progress
 **優先度:** High
 **識別子:** M-SRC-RELOC-1
 **関連:** `docs/planned/MILESTONE_STILL_IMAGE_LAYER_PRODUCTION_READINESS_2026-08-08.md`, `docs/planned/MILESTONE_IMAGE_SEQUENCE_WORKFLOW_COMPLETION_2026-07-27.md`, `docs/planned/MILESTONE_ASSET_BROWSER_RELINK_WORKFLOW_2026-06-28.md`
+
+### 進捗 (2026-08-21)
+
+- `ArtifactProjectManager::setCurrentProjectPath()` がtrim後の入力を絶対・clean pathへ正規化し、project rootを同じ正規化値から再計算するようにした（Artifact `1a088828`、親gitlink `271f627`）。
+- 既存のproject exporter／importerにある `*Relative` と source registry復元経路は温存し、次の実装では候補順位・diagnostic reasonの共通化へ進む。
 
 ## 背景
 
