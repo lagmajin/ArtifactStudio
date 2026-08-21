@@ -138,3 +138,26 @@ TEST(AudioMixerRoutingTest, VcaVolumeControlsMemberOutput)
     ASSERT_EQ(output.channelCount(), 2);
     EXPECT_NEAR(output.channelData[0][0], 0.5f, 0.002f);
 }
+
+TEST(AudioMixerRoutingTest, MultipleVcasMultiplyMemberGain)
+{
+    AudioMixer mixer;
+    const auto primaryVca = mixer.createBus(String("Primary VCA"), AudioBusKind::Vca);
+    const auto trimVca = mixer.createBus(String("Trim VCA"), AudioBusKind::Vca);
+    const auto member = mixer.createBus(String("Shared Member"));
+    ASSERT_TRUE(primaryVca);
+    ASSERT_TRUE(trimVca);
+    ASSERT_TRUE(member);
+    ASSERT_EQ(mixer.assignVcaMember(primaryVca, member), AudioRoutingResult::Applied);
+    ASSERT_EQ(mixer.assignVcaMember(trimVca, member), AudioRoutingResult::Applied);
+
+    primaryVca->setVolume(-6.0206f);
+    trimVca->setVolume(-6.0206f);
+    member->clearInput(4, 48000);
+    member->addInput(makeStereoInput(1.0f));
+    AudioSegment output = makeStereoInput(0.0f);
+    mixer.process(output);
+
+    ASSERT_EQ(output.channelCount(), 2);
+    EXPECT_NEAR(output.channelData[0][0], 0.25f, 0.003f);
+}
