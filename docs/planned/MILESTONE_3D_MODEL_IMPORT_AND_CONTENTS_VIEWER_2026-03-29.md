@@ -2,13 +2,13 @@
 
 > 2026-03-29 作成
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-08-21
 
 **進捗状態:** Phase 1〜4 は実装済み、Phase 5 は拡張余地と runtime 検証が残る。
 
 ### 実装状況（2026-08-15 確認）
 
-`MeshImporter` の backend／エラー状態、`Artifact3DModelViewer` の OBJ／FBX／glTF 系読み込み、mesh metadata・表示モード・Reset View・Orbit 操作、Contents Viewer／Project View の Preview 導線を確認した。残課題は glTF／GLB の対応範囲を明示した上での実機確認、compare／annotation、diagnostic 連携。
+`MeshImporter` の backend／エラー状態、`Artifact3DModelViewer` の OBJ／FBX／glTF 系読み込み、mesh metadata・表示モード・Reset View・Orbit 操作、Contents Viewer／Project View の Preview 導線を確認した。FBX／glTF／GLBについてはskin cluster、最大8 influence、CPU LBS/Rigid/Dual Quaternion/Blended DQ、LinearBlendの4 influence Diligent GPU、追加influence・非LBS・128本超過時のCPU fallback、animation clip再生、単純blend shapeのProperty Editor編集・JSON復元・timed reload時のweight保持まで実装済み。残課題は対応形式ごとの実機確認、複雑なdeformer挙動、compare／annotation、diagnostic 連携。
 
 現行コードでは、3D model viewer だけでなく、Model3D レイヤーへの import material 情報、Material の JSON 復元、Contents Viewer の recent／compare 用設定、Point Tracker／3D viewer の診断情報も確認できる。一方、対応形式ごとの実ファイル成功・失敗表示、compare／annotation の 3D 専用 UX、import diagnostic の一貫した受入れはコード検索だけでは証明できない。
 
