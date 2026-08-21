@@ -34,3 +34,10 @@ artifact_add_test(ArtifactCoreCreativeEffectTest
     LIBS
         ArtifactCore
 )
+
+artifact_add_test(ArtifactCoreAudioMixerRoutingTest
+    SOURCES
+        AudioMixerRoutingTest.cpp
+    LIBS
+        ArtifactCore
+)
