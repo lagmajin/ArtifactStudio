@@ -101,6 +101,33 @@ TEST(AudioMixerRoutingTest, LegacySidechainSourceMigratesToActiveSend)
     EXPECT_NEAR(restoredTarget->getSideChainBuffer().channelData[0][0], 1.0f, 0.001f);
 }
 
+TEST(AudioMixerRoutingTest, PreFaderSendModeSurvivesSerialization)
+{
+    AudioMixer mixer;
+    const auto source = mixer.createBus(String("Serialized Source"));
+    const auto target = mixer.createBus(String("Serialized Target"));
+    ASSERT_TRUE(source);
+    ASSERT_TRUE(target);
+    source->setVolume(-6.0206f);
+    ASSERT_EQ(mixer.addSideChainSend(source, target, 1.0f, true),
+              AudioRoutingResult::Applied);
+
+    AudioMixer restored;
+    ASSERT_TRUE(restored.deserialize(mixer.serialize()));
+    const auto restoredSource = restored.findBusByName(String("Serialized Source"));
+    const auto restoredTarget = restored.findBusByName(String("Serialized Target"));
+    ASSERT_TRUE(restoredSource);
+    ASSERT_TRUE(restoredTarget);
+    restoredSource->clearInput(4, 48000);
+    restoredTarget->clearInput(4, 48000);
+    restoredSource->addInput(makeStereoInput(1.0f));
+    AudioSegment output = makeStereoInput(0.0f);
+    restored.process(output);
+
+    ASSERT_EQ(restoredTarget->getSideChainBuffer().channelCount(), 2);
+    EXPECT_NEAR(restoredTarget->getSideChainBuffer().channelData[0][0], 1.0f, 0.001f);
+}
+
 TEST(AudioMixerRoutingTest, VcaMembershipSurvivesSerialization)
 {
     AudioMixer mixer;
