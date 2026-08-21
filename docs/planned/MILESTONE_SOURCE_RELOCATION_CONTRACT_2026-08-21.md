@@ -9,6 +9,7 @@
 ### 進捗 (2026-08-21)
 
 - `ArtifactProjectManager::setCurrentProjectPath()` がtrim後の入力を絶対・clean pathへ正規化し、project rootを同じ正規化値から再計算するようにした（Artifact `1a088828`、親gitlink `271f627`）。
+- `ArtifactProjectExporter` がabsolute pathだけでなく、既にrelativeなsource／sequence pathもproject directory基準の `pathRelative`／`sequencePathsRelative` として保存するようにした（Artifact `c68d9e1d`、親gitlink `5f03338`）。
 - 既存のproject exporter／importerにある `*Relative` と source registry復元経路は温存し、次の実装では候補順位・diagnostic reasonの共通化へ進む。
 
 ## 背景
