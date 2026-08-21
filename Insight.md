@@ -2,6 +2,23 @@
 
 未解決の設計判断・runtime 検証待ちだけを記録する。実装済みの局所修正と履歴は `docs/analysis/INSIGHT_ARCHIVE_2026-08-11.md` を参照する。
 
+## 2026-08-21 — Text Animator のキーフレーム可視化と Undo 漏れ（未検証）
+
+- **関連:** `Artifact/src/Layer/ArtifactTextLayer.cppm`（`addAnimator` L2212 / `removeAnimator` L2220 / `updateGlyphEvaluation` L4577）、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`（`isTimelineHiddenLayerPropertyGroup` L166）、`Artifact/src/Widgets/Timeline/*`
+- **事実:** Text Animator の全プロパティ（Range start/end/offset、position/scale/opacity/tracking/fillColor等21項目）と Source Text キーフレームはキーフレーム化・時間評価・JSON round-trip まで実装済み。一方、(1) `isTimelineHiddenLayerPropertyGroup` が Transform 以外のグループ行を全て隠すため animator のキーがタイムラインに表示されず、用意済みの `displayLabelForPropertyPath` ラベルが標準経路で到達不能、(2) `addAnimator` / `removeAnimator` / Inspector の animator 値編集 / ◆トグル / タイムライン「Add/Remove Keyframe」に Undo push がなく、削除時はキーフレームごと失われる、(3) gpu-glyph パスの早期リターンは `rasterize==true` 条件のため、GPU描画では毎フレーム全再シェーピング＋animator評価＋不要な `animatedGlyphBounds`（per-glyph QPainterPath）が走る。surface cache キーは `animatorCount()>0` で `|frame=N` が付き enabled 依存なし。
+- **仮説（未検証）:** (2) のUndo対応がデータロス防止として最優先。(1) はAGENTS.mdの「左ペイン標準グループはTransformのみ」ルールと衝突するため、mask/matte型の専用行としての露出を設計レビューで決める必要がある。(3) はGPU glyph評価のキャッシュ（フレームキー＋source/styleキー）で圧縮可能。
+- **価値・懸念:** AEユーザーの基本ワークフロー（テキスト→animator→キー打ち→タイムライン調整）のうち、タイムライン調整の導線が事実上欠落している。削除のUndo不可は事故につながる。
+- **次の確認:** animator操作のUndo command化、タイムライン専用行の設計判断、glyph評価キャッシュの効果測定の順に扱う。
+
+## 2026-08-21 — GPU blend pipeline のレイヤー毎全画面パスは実測後に融合を判断する（未検証）
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`（`prepareGpuLayerForBlend` L11572、`blendGpuLayerIntoAccum` L11889、`drawGpuLayerToIntermediate` 内 `renderer_->flush()` L11394、`finalizeGpuRenderToViewport` L12002）、`Artifact/src/Render/GPUTextureCacheManager.cppm`、`Artifact/src/Render/PrimitiveRenderer2D.cppm`
+- **事実:** 非Normalブレンド・3D・SSGI・マルチチャネル構成のGPUパイプラインは、レイヤー毎に全画面 `convertLayerToFloat`（compute）＋ `blendLayers`（compute、ping-pong）＋ `ctx->Flush()` を発行し、Nレイヤーで 2N+1 回の全画面パスになる。3DレイヤーはAOV分で最大6回 `layer->draw()`。ゲート条件は L32150-32215。Normalブレンドのみの2D構成はフォールバック直描画で対象外。`beginFrameGpuProfiling` / `ProfileScope` / `RenderPerformanceMonitor` が実装済みで計測可能。
+- **事実（2026-08-21修正済み）:** `GPUTextureCacheManager::acquireOrCreate` はキャッシュ照会前にフルイメージ変換（QImage→RGBA8888、F32→Rgba32LinearStraight）しており、3Dカード・深度パスの毎フレーム無条件呼び出し（コントローラ L8622, L8699）と合わさってヒット時も全画像変換が発生していた。cache-first peek（`tryAcquireExistingLocked`）とpending早期リターンで解消。`PrimitiveRenderer2D` のスプライトキャッシュpruneもドロー数基準（60ドロー）だったため、高ドロー構成で恒久再アップロードの恐れがあり、pruneサイクル基準へ変更済み。両修正のruntime効果は未計測。
+- **仮説（未検証）:** convert+blendのcompute融合、flushのフレーム末尾集約（UAV barrier置換）でレイヤー数に比例するGPUパス時間を圧縮できる。ただし依存関係（レイヤー間のaccum直列化）とDiligentのバリア意味論を要確認で、AGENTS.mdのシビアなコード扱い。
+- **価値・懸念:** レイヤー数の多い3D/エフェクト構成でのプレビューfpsとRender Queue時間に直結する。一方、計測前に触ると表示品質リスクが高く、既存profilerでの実測が先。
+- **次の確認:** (1) 修正済みcache-first経路の効果を、3Dカードを含む構成でGPUタイム・フレーム時間を実測比較。(2) レイヤー数10/30/60の非Normal構成で `layerToFloatConvertCount` / `blendDispatchCount` とフレーム時間の相関を取得。(3) 融合の要否と安全な導入順（flush集約から先行）を判断する。
+
 ## 2026-08-20 — 自動トランジション挿入は再生ヘッド操作の反復ではなく、候補計画の一括適用にする（未検証）
 
 - **関連:** `ArtifactPr/include/ArtifactPrEditorEngine.ixx`、`ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`ArtifactPr/src/ArtifactPrMainWindow.cppm`、`plans/transition-effects-expansion-2026-07-09.md`

@@ -41,3 +41,10 @@ artifact_add_test(ArtifactCoreAudioMixerRoutingTest
     LIBS
         ArtifactCore
 )
+
+artifact_add_test(ArtifactCoreSourceResolutionContractTest
+    SOURCES
+        SourceResolutionContractTest.cpp
+    LIBS
+        ArtifactCore
+)

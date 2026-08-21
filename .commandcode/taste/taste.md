@@ -22,6 +22,7 @@ See [project-workflow/taste.md](project-workflow/taste.md)
 - Do not introduce new public `QImage` usage except at IO/compat boundaries; prefer GPU/buffer types. Confidence: 0.80
 - Avoid adding new `QObject` signal/slot connections (especially global/centralized event wiring) in new code; reuse existing event paths/services. New public signals/slots need design review. Confidence: 0.80
 - Prefers simple callback-based inter-thread communication over Qt signal/slot/emit patterns for worker→main thread dispatch — a single callback dispatched via `QMetaObject::invokeMethod` with `Qt::QueuedConnection`, rather than emit + multi-layer lambda listeners. The user explicitly stated they don't want to use Qt events anymore (「Qtのイベント使いたくない」). This goes beyond "avoid new connections" — the user considers Qt's signal/slot mechanism itself undesirable for the project's architecture. Confidence: 0.85
+- Do not leave per-frame `qDebug()` logging in playback/render hot paths (e.g. `goToFrame` / timer-tick handlers); when an audit surfaces such logging, treat its removal as an easy inline fix. Confidence: 0.6
 
 # project-submodule-boundary
 - Do not modify, commit, or push the `ArtifactWidgets`, `libs/...`, or `third_party/*` submodules unless the user explicitly asks; treat them as read-only/external. New UI widgets are first placed under `Artifact/` and only promoted to `ArtifactWidgets/` later. Confidence: 0.85
@@ -41,4 +42,4 @@ See [project-architecture/taste.md](project-architecture/taste.md)
 - Communicates in Japanese and expects responses in Japanese. Confidence: 0.85
 
 # project-direction
-- Currently focuses feature development on plane/shape/image layers (平面・シェイプ・画像レイヤー) for the near term; feature brainstorming, gap analysis, and prioritization should center on these layer types. Confidence: 0.70
+- Currently focuses feature development on image/plane/text/shape layers (画像・平面・テキスト・シェイプレイヤー) for the near term; feature brainstorming, gap analysis, and prioritization should center on these four layer types. The user reconfirmed this direction (2026-08-21), adding テキスト (text) layers to the previously observed plane/shape/image trio. Confidence: 0.75

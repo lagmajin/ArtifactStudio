@@ -12,6 +12,35 @@
 - `ArtifactProjectExporter` がabsolute pathだけでなく、既にrelativeなsource／sequence pathもproject directory基準の `pathRelative`／`sequencePathsRelative` として保存するようにした（Artifact `c68d9e1d`、親gitlink `5f03338`）。
 - 既存のproject exporter／importerにある `*Relative` と source registry復元経路は温存し、次の実装では候補順位・diagnostic reasonの共通化へ進む。
 
+### 進捗 (2026-08-21 第2回: 候補採用とdiagnostic reasonの共通化)
+
+- `Asset.Manager` モジュールに共通契約型を追加した（ArtifactCore）:
+  - `SourceResolutionCandidateKind`（`SavedAssetId` / `ProjectRelativePath` / `RegistryRelativePath` / `AbsolutePathFallback`）
+  - `SourceCandidateOutcome`（既存候補採用 / 元パス空のため未解決候補採用 / 候補欠落で元パス維持 / 候補空で元パス維持）
+  - `SourceCandidateResolution`（kind、adopted、originalPath、candidatePath、resolvedPath、outcome）
+- 採用判定を `resolveProjectRelativeSource()` に、保存側のrelative候補生成を `projectRelativeSourceCandidate()` に集約した。両関数は既存の採用条件（exists または元パス空で採用／連番frameはexistsのみ採用）と同一の挙動を保持する。
+- Importerの5解決箇所（source registry `pathRelative`、layer `*sourcePath` + `*Relative`、layer `*sequencePaths` 要素毎、footage `filePath` + `filePathRelative`、footage `sequencePaths` 要素毎）を共通関数へ統一した。
+- Importerが解決統計を収集し、候補欠落が1件以上ある場合は `[Importer][SourceResolution]` としてwarningサマリを出力する。
+- Exporterの `relativePathFor` を `projectRelativeSourceCandidate()` へ委譲し、保存側・復元側で同じ正規化を使うようにした。
+- `tests/ArtifactCore/SourceResolutionContractTest.cpp` を追加し、採用・維持・空元パス採用・連番slot維持・relative生成round-tripを固定した。`ArtifactCoreSourceResolutionContractTest` としてCMake登録済み。ビルド・実行はユーザー指示待ち。
+
+## 保存キーの棚卸し（Phase 0）
+
+| 保存キー | 対象 | 復元側の採用条件 |
+|---|---|---|
+| `assets.sourceRegistry.sources[].pathRelative` | source registry | 候補が存在、または元 `path` が空 |
+| `<key>.sourcePath` + `<key>.sourcePathRelative` | layer単一source | 候補が存在、または元が空 |
+| `<key>.sequencePaths` + `<key>.sequencePathsRelative` | layer連番 | 要素毎に候補が存在する場合のみ差し替え |
+| footage `filePath` + `filePathRelative` | Project Item footage | 候補が存在、または元が空 |
+| footage `sequencePaths` + `sequencePathsRelative` | Project Item footage連番 | 要素毎に候補が存在する場合のみ差し替え |
+
+既存JSON（`*Relative` を持たない旧形式）はabsolute pathのみで復元され、挙動は変更されない。`Asset.Manager` のregistry復元（schemaVersion 2）は従来どおり厳格validationを維持する。
+
+## 残課題
+
+- Image／Video／Audio layerの復元順序は依然「absolute path第一候補 → Asset ID後追い」であり、契約案（Asset ID → relative → absolute）と逆。Phase 2で `loadFromPath()` 前にAsset ID／registry経路を先に試行する変更が必要。
+- 解決結果のhealth reportへの反映（`AssetPathMissing` との突合）は未実装。
+
 ## 背景
 
 静止画と連番画像の保存・再読込経路には、project root、相対パス、Asset ID、絶対パス fallback、relink の責務が複数箇所に分散している。現行コードには `*Relative` 保存項目や relocation 復旧の実装がある一方、Image Layer、Image Sequence、AssetManager、Project importer の間で「どの候補をどの順序で採用するか」を一つの契約として固定した文書と受入ケースが不足している。
@@ -54,9 +83,9 @@ projectを別ディレクトリへ移動した場合でも、静止画・連番�
 
 ### Phase 0 — 契約と状態モデル
 
-- source resolution候補、採用理由、missing理由を共通の診断表現へ整理する。
-- Image／Sequenceで共通の保存キーと、既存JSONの互換読込を棚卸しする。
-- Asset ID、relative path、absolute fallbackの優先順位を仕様化する。
+- source resolution候補、採用理由、missing理由を共通の診断表現へ整理する（完了: `SourceResolutionCandidateKind` / `SourceCandidateOutcome` / `SourceCandidateResolution`）。
+- Image／Sequenceで共通の保存キーと、既存JSONの互換読込を棚卸しする（完了: 本書の保存キー棚卸し表）。
+- Asset ID、relative path、absolute fallbackの優先順位を仕様化する（仕様は本書の解決優先順位のまま。実装適用はPhase 2）。
 
 ### Phase 1 — Project境界の統一
 
