@@ -17,7 +17,7 @@
 - 同一メンバーの複数VCA所属によるゲイン乗算ケースも追加済み（コミット `53f9c4e`）。
 - Pre-Fader sendの保存／再読込ケースも追加済み（コミット `47ea144`）。
 - `ArtifactCoreAudioMixerRoutingTest` としてCMakeのテストターゲットへ登録済み（コミット `cbbb1fb`）。
-- ビルド、テスト、実素材でのPreview／Render Queue確認は未実施。
+- ビルド・CTest・実素材でのPreview／Render Queue確認は、ユーザー指示によりスキップ中。
 
 ## 完了条件
 
@@ -39,6 +39,8 @@
 - Pre/Post設定の保存／再読込ケースを追加する（完了）。
 - test targetへの登録状態を確認する（完了）。
 - build／test実行前に、テスト対象のモジュール依存と既存CMake登録の重複を確認する。
+
+※ ユーザー指示により、Phase 2のbuild／test実行はこの作業セッションではスキップする。コード・テスト・CMake登録の静的確認までを今回の検証範囲とする。
 
 ### Phase 2 — 実行経路の受入
 
