@@ -2,8 +2,8 @@
 
 > 2026-08-20 作成
 
-**最終更新:** 2026-08-20
-**Status:** Phase 0 実装済み、Phase 2（Pre/Post-Fader send）実装済み、Phase 3（VCA Core/UI）実装済み、runtime検証待ち
+**最終更新:** 2026-08-21
+**Status:** Phase 0 実装済み、Phase 2（Pre/Post-Fader send）実装済み、Phase 3（VCA Core/UI）実装済み、legacy sidechain移行実装済み、runtime検証待ち
 **Priority:** Medium
 **Related:** `docs/analysis/AUDIO_TEXT_ANIM_AUDIT_2026-08-02.md`, `docs/bugs/AUDIO_PLAYBACK_SYSTEM_ISSUES_2026-03-27.md`, `docs/analysis/ASSET_PROJECT_OTHER_AUDIT_2026-08-02.md`
 
@@ -107,7 +107,7 @@
 - `tests/ArtifactCore/AudioMixerRoutingTest.cpp` にPre-Fader送信とVCA保存復元の回帰テストを追加した（未実行）。
 
 - **現状の強み:** `AudioMixer::Impl` の `routing`（1:1 プライマリ）＋ `sends`（1:N aux）モデルは DAW の main-out / aux-send セマンティクスと一致。`getSortedBuses` のトポロジカルソート（`:86`）と `connect` のサイクル検出（`:558`）は実装済み。`AudioBus::process`（`:303`）で FX 適用後に `&sideChainBuffer_` をエフェクトへ渡し、`AudioCompressor` が `sideChain` 引数で受けるため、Return バス経由の sidechain は動作する。
-- **Phase 1 の根拠:** `sidechainSource_` は `AudioBus.cppm:535-552` で set/get されるが、読み出しは `toJson/fromJson` のみ。Audio 全体・Artifact 全体で `getSidechainSource` の読み出しは 0 件 → デッドコード確定。
+- **Phase 1 の根拠:** `sidechainSource_` は `AudioBus.cppm:535-552` で set/get される。現行のsend graphが正規経路だが、旧JSON互換のため `AudioMixer::deserialize` が `getSidechainSource()` を読み、明示的な `sends` がない場合だけ active sendへ移行する。新規保存では `sends` を正規形式として扱う。
 - **Phase 2 の根拠:** `AudioMixer::process`（`:740-744`）のセンド供給は `bus->getOutputBuffer()`（post-fader）のみ。pre-fader には `bus` のエフェクト適用前バッファへの参照が必要。
 - **Phase 3 の根拠:** `AudioBusKind` に VCA がなく、ゲイン合成は `AudioBus::process` の `linearGain` のみ。VCA は primary 経路を変えず別計算が必要。
 - **Phase 4/5:** ASIO 🟡30%、VST3 🟡50%、CLAP 🟡40%（監査）。ミキサー・グラフ自体は DAW 相当に近く、真の格差はこれらプラグイン／MIDI 層。
