@@ -1,4 +1,6 @@
 #include <gtest/gtest.h>
+#include <QJsonArray>
+#include <QJsonObject>
 
 import Audio.Bus;
 import Audio.Mixer;
@@ -61,6 +63,42 @@ TEST(AudioMixerRoutingTest, PostFaderSendUsesSignalAfterBusFader)
 
     ASSERT_EQ(target->getSideChainBuffer().channelCount(), 2);
     EXPECT_NEAR(target->getSideChainBuffer().channelData[0][0], 0.5f, 0.002f);
+}
+
+TEST(AudioMixerRoutingTest, LegacySidechainSourceMigratesToActiveSend)
+{
+    AudioMixer mixer;
+    const auto source = mixer.createBus(String("Legacy Source"));
+    const auto target = mixer.createBus(String("Legacy Target"));
+    ASSERT_TRUE(source);
+    ASSERT_TRUE(target);
+
+    QJsonObject document = mixer.serialize();
+    QJsonArray buses = document[QStringLiteral("buses")].toArray();
+    for (int index = 0; index < buses.size(); ++index) {
+        auto bus = buses[index].toObject();
+        if (bus[QStringLiteral("name")] == QStringLiteral("Legacy Target")) {
+            bus[QStringLiteral("sidechain_source")] = QStringLiteral("Legacy Source");
+            bus[QStringLiteral("sends")] = QJsonArray{};
+            buses[index] = bus;
+        }
+    }
+    document[QStringLiteral("buses")] = buses;
+
+    AudioMixer restored;
+    ASSERT_TRUE(restored.deserialize(document));
+    const auto restoredSource = restored.findBusByName(String("Legacy Source"));
+    const auto restoredTarget = restored.findBusByName(String("Legacy Target"));
+    ASSERT_TRUE(restoredSource);
+    ASSERT_TRUE(restoredTarget);
+    restoredSource->clearInput(4, 48000);
+    restoredTarget->clearInput(4, 48000);
+    restoredSource->addInput(makeStereoInput(1.0f));
+    AudioSegment output = makeStereoInput(0.0f);
+    restored.process(output);
+
+    ASSERT_EQ(restoredTarget->getSideChainBuffer().channelCount(), 2);
+    EXPECT_NEAR(restoredTarget->getSideChainBuffer().channelData[0][0], 1.0f, 0.001f);
 }
 
 TEST(AudioMixerRoutingTest, VcaMembershipSurvivesSerialization)
