@@ -14,6 +14,7 @@
 - Audio Routing Depth の Phase 0〜3（Mixer自動有効化、Pre/Post-Fader send、VCA Core/UI）は実装済み。
 - 旧形式の `sidechain_source` を現行send graphへ移行する互換処理を追加済み。
 - `AudioMixerRoutingTest` にPre/Post-Fader、VCA保存復元、VCAゲイン、旧sidechain移行のケースを追加済み。
+- `ArtifactCoreAudioMixerRoutingTest` としてCMakeのテストターゲットへ登録済み（コミット `cbbb1fb`）。
 - ビルド、テスト、実素材でのPreview／Render Queue確認は未実施。
 
 ## 完了条件
@@ -32,7 +33,8 @@
 
 - `AudioMixerRoutingTest` の入力、フェーダ、send、VCA、legacy migrationの期待値を整理する。
 - 旧JSON互換ケースと、複数send／複数VCA所属の境界ケースを追加する。
-- test targetへの登録状態を確認する。
+- test targetへの登録状態を確認する（完了）。
+- build／test実行前に、テスト対象のモジュール依存と既存CMake登録の重複を確認する。
 
 ### Phase 2 — 実行経路の受入
 
