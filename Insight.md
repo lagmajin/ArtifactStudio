@@ -2,6 +2,14 @@
 
 未解決の設計判断・runtime 検証待ちだけを記録する。実装済みの局所修正と履歴は `docs/analysis/INSIGHT_ARCHIVE_2026-08-11.md` を参照する。
 
+## 2026-08-20 — 自動トランジション挿入は再生ヘッド操作の反復ではなく、候補計画の一括適用にする（未検証）
+
+- **関連:** `ArtifactPr/include/ArtifactPrEditorEngine.ixx`、`ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`ArtifactPr/src/ArtifactPrMainWindow.cppm`、`plans/transition-effects-expansion-2026-07-09.md`
+- **事実:** `EditorEngine::addTransitionAtPlayhead()` は選択クリップと現在の再生ヘッド位置から隣接クリップを解決して 1 件を追加する。映像トランジションの追加・削除・長さ変更は `TransitionStateCommand` により Undo/Redo の対象となる。既存の `addTransition()` は重複、隣接性、ハンドル長を検証しない。
+- **仮説（未検証）:** 複数の編集点に対して同 API を繰り返すと、再生ヘッドおよび選択状態に依存して対象がずれ、部分失敗時に一括 Undo できない。候補を先に固定してから、重複・ロック・隣接性・最小ハンドルを検証し、1 個の state command で適用する bulk operation が安全である。
+- **価値・懸念:** 制作時の「選択範囲に既定クロスフェード」を高速化しつつ、既存トランジションの二重配置と意図しない編集を防げる。一方、映像の実際の source handle と render 経路の接続は別課題であり、動画解析や AI 選択を初期範囲に含めるべきではない。
+- **次の確認:** `Auto Transition Plan`（候補、採用、スキップ理由、既定長）を純粋な計算として定義し、選択トラック／選択範囲／マーカー範囲の3入力で候補が安定すること、bulk apply の Undo/Redo・保存／再読込・重複回避を確認する。
+
 ## 2026-08-15 — Two-panel native dock MVP の境界（未検証）
 
 - **関連:** `Artifact/include/Widgets/ArtifactNativeDockSurface.ixx`、`Artifact/src/Widgets/ArtifactMainWindow.cppm`、`docs/planned/MILESTONE_INDEPENDENT_DOCK_MANAGER_2026-08-13.md`

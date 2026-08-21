@@ -1,20 +1,21 @@
 # マイルストーン: Audio Routing Hardening
 
-**最終更新:** 2026-08-15
-**ステータス:** Core routing contract partial / UI・runtime parity pending
+**最終更新:** 2026-08-20
+**ステータス:** Core/UI routing contract implemented / runtime parity pending
 **優先度:** 高
 **対象:** `Artifact/`, `ArtifactCore/`
 **関連:** [Audio Layer Integration](MILESTONE_AUDIO_LAYER_INTEGRATION_2026-03-27.md), [Audio Mixer Surface Phase 2](MILESTONE_AUDIO_MIXER_SURFACE_PHASE2_2026-05-25.md), [Multichannel Audio Output](MILESTONE_MULTICHANNEL_AUDIO_OUTPUT_2026-07-02.md)
 
 ## 現行コード監査 (2026-08-15)
 
-`AudioMixer` には Master／Layer／Group／Return の bus 種別、stable layer bus resolver、primary route、sidechain send、cycle／self-route／Master source 拒否、solo 到達判定、JSON の bus／edge 復元が実装されている。`ArtifactAudioService` と composition 側も `layer_<LayerID>` を利用している。一方、routing 操作の structured diagnostic、layer bus cleanup の単一 resolver、Composition Audio Mixer からの advanced routing の一貫した導線、route 編集の undo、preview/export parity、multichannel acceptance は未確認または未完である。従って基盤は「未着手」ではなく、Phase 0〜1の一部実装済みとして扱う。
+`AudioMixer` には Master／Layer／Group／Return／VCA の bus 種別、stable layer bus resolver、primary route、Pre/Post-Fader sidechain send、cycle／self-route／Master source 拒否、solo 到達判定、JSON の bus／edge／VCA 復元が実装されている。`ArtifactAudioService` と composition 側も `layer_<LayerID>` を利用している。Composition Audio Mixerからのadvanced routing導線、route編集のundo、入力寿命の修正、VCA編集UI、回帰テスト登録まで実装済みである。一方、preview/export parity、multichannel acceptance、runtime動作確認は未完了である。
 
 ## Update 2026-08-15
 
 - `AudioMixer` の Master／Layer／Group／Return、stable layer bus、primary route、sidechain、cycle／self-route／Master source 拒否、solo 到達判定、JSON 復元を再確認。
 - `AudioRoutingResult` による拒否理由、Composition Audio Mixer からの Advanced Routing 導線、bus kind persistence、group／return 作成、route visibility は実装済み。
-- route 編集の undo、layer bus cleanup の全状態遷移、preview／export parity、stereo／5.1／7.1 acceptance、sidechain solo policy は未完了・未検証。
+- route 編集の undo、layer bus cleanup、Pre/Post-Fader send、VCA assignment、preview/export parityの共通composition経路は実装済み。
+- stereo／5.1／7.1 acceptance、sidechain solo policy、runtime出力は未検証。
 
 ## 目的
 
@@ -57,10 +58,10 @@ sidechain send: source bus --(amount)--> target bus sidechain input
 
 目的: 実装前に、現状の graph と操作の成否を判定できるようにする。
 
-- [ ] bus 種別（Master / layer / group / return）と識別子の契約を明文化する。
-- [ ] `connect`、`disconnect`、bus 削除、send 追加/削除、deserialize の結果を structured diagnostic として取得できるようにする。
-- [ ] cycle、自己 route、存在しない target、壊れた ID、禁止された Master 操作を UI に理由付きで表示する。
-- [ ] audio callback と device thread には UI 操作や graph の所有権変更を持ち込まない。
+- [x] bus 種別（Master / layer / group / return / VCA）と識別子の契約を明文化する。
+- [x] `connect`、`disconnect`、bus 削除、send 追加/削除、deserialize の結果を routing result として取得できるようにする。
+- [x] cycle、自己 route、存在しない target、壊れた ID、禁止された Master 操作を UI に理由付きで表示する。
+- [x] audio callback と device thread には UI 操作や graph の所有権変更を持ち込まない。
 
 完了条件: routing 操作の成功・拒否・自動修復を、再生ログに依存せず確認できる。
 
@@ -68,11 +69,11 @@ sidechain send: source bus --(amount)--> target bus sidechain input
 
 目的: layer bus の生成・同期・削除が、編集、再生、再読込で同じ結果になるようにする。
 
-- [ ] layer ID と layer bus の対応を単一の resolver に集約する。
-- [ ] audio layer と audio を持つ video layer の volume / pan / mute / solo を、layer state と bus state のどちらが正か明確にして同期する。
-- [ ] layer 追加、削除、複製、source 差し替え、composition 切替時の stale bus 処理を定義する。
-- [ ] user-created group / return bus を layer bus の cleanup 対象から除外する。
-- [ ] solo は layer UI、Core bus、最終 mix の全てで同じ可聴結果になるようにする。
+- [x] layer ID と layer bus の対応を単一の resolver に集約する。
+- [x] audio layer と audio を持つ video layer の volume / pan / mute / solo を同期する。
+- [x] layer 追加、削除、複製、source 差し替え、composition 切替時の stale bus 処理を定義する。
+- [x] user-created group / return / VCA bus を layer bus cleanup の対象から除外する。
+- [ ] solo は layer UI、Core bus、最終 mix の全てで同じ可聴結果になるよう runtime確認する。
 
 完了条件: layer を増減・保存・再読込しても、意図しない Master 直結、孤立 bus、古い layer bus が残らない。
 
@@ -80,9 +81,9 @@ sidechain send: source bus --(amount)--> target bus sidechain input
 
 目的: Composition Audio Mixer から、通常の layer 操作と advanced routing を途切れずに行えるようにする。
 
-- [ ] channel strip に現在の output destination を短く表示し、Master 以外への route を明示する。
-- [ ] selected strip から destination 選択、Master への復帰、group / return bus の作成・削除を行えるようにする。
-- [ ] sidechain を dedicated control として表示し、source / target / amount / clear を編集できるようにする。
+- [x] channel strip に現在の output destination を短く表示し、Master 以外への route を明示する。
+- [x] selected strip から destination 選択、Master への復帰、group / return / VCA bus の作成・削除を行えるようにする。
+- [x] sidechain を dedicated control として表示し、source / target / amount / Pre/Post-Fader / clear を編集できるようにする。
 - [ ] route を変更する前に cycle / invalid target を UI 側でも予防し、Core 側の拒否理由を表示する。
 - [ ] routing graph を読む専用の compact view を用意する。timeline 左ペインに常時バッジや集約表示は追加しない。
 - [ ] 既存の `AudioMixerWidget` は duplicate implementation にせず、共通の routing controller / model を利用するか、明確に advanced panel として位置付ける。
@@ -96,7 +97,7 @@ sidechain send: source bus --(amount)--> target bus sidechain input
 - [ ] serialize には stable bus ID、kind、primary target ID、send target ID、amount を含める。
 - [ ] deserialize は全 bus を解決してから edge を適用し、無効 edge を安全に落として diagnostic を残す。
 - [ ] legacy project では layer bus が無い場合に Master route を既定とし、ユーザー定義 bus を勝手に生成しない。
-- [ ] routing edit を既存の composition mutation / undo-redo 経路へ統合する。
+- [x] routing edit を既存の composition mutation / undo-redo 経路へ統合する。
 - [ ] rename は ID 参照を壊さず、表示名の衝突を防ぐ。
 
 完了条件: route / send / bus 削除を undo-redo でき、保存した project を再読込しても同じ graph と可聴結果を保つ。
@@ -105,7 +106,7 @@ sidechain send: source bus --(amount)--> target bus sidechain input
 
 目的: UI の状態ではなく、実際の output を基準に完成を判定する。
 
-- [ ] preview playback と export が同じ composition mixer graph を使うことを確認する。
+- [ ] preview playback と export が同じ composition mixer graph を使うことをruntime確認する。
 - [ ] stereo、5.1、7.1 の layout で route ごとの channel conversion と Master output を確認する。
 - [ ] mute / solo / parent evaluation gain / limiter / clipping の適用順を固定し、route をまたいでも変わらないことを確認する。
 - [ ] empty source、decode failure、device unavailable、underflow 時に graph state を破壊しないことを確認する。

@@ -8,6 +8,8 @@ This project uses a **parent-child submodule structure**:
 
 If you are already working on a development branch, prefer keeping **parent and children aligned on the same development branch name** and push that branch as-is instead of pushing to `origin/main`.
 
+When working on a date-stamped development branch (for example, `codex/YYYY-MM-DD-dev`), keep the parent and every in-scope project module on that exact branch throughout the work. Commit and push each changed child to the same development branch first, update the parent gitlinks, then commit and push the parent to that same development branch. Do not redirect any part of that workflow to `main`.
+
 **Before any commit/push operation**, read and follow: [`.github/GIT_WORKFLOW_PARENT_CHILD.md`](.github/GIT_WORKFLOW_PARENT_CHILD.md)
 
 ### Golden Rules (MUST FOLLOW)
