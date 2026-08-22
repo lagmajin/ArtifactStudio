@@ -10,9 +10,15 @@
 
 ## 現状と判断
 
-- factory 登録は約141件、個別 `getProperties()` 実装は約80件ある。
+- factory 登録は約141件、`getProperties()` 実装は **98/101**（BlurEffect / NoiseEffect / SurfaceFXEffect の3件が未実装）。
+- 2026-08-22 の実測によるパラメータ数分布（getProperties body 内の property 登録呼び出しカウント）:
+  - **8+ params (production): 18 effects** — Glow(12), ApertureShapeBlur(10), ChromaKey(9), RadioWaves(9), LiftGammaGain(9), LensDistortion(9) 等
+  - **5–7 params (standard): 39 effects** — 大半の標準エフェクト
+  - **3–4 params (basic): 32 effects** — Exposure(3), Sharpen(3), Kuwahara(3) 等
+  - **1–2 params (minimal): 9 effects** — FreezeFrame(1), LumaKey(1), Invert(2), Grayscale(2) 等。機能が単純なため妥当なものも含む
 - Levels、Curves、IBK Keyer、Glow、Pixel Sort Pro は実制作に近い項目を持つ。
-- 一方で多くの effect は量・半径・中心程度に留まり、Mix、品質、境界、チャンネル、diagnostic preview の公開が揃っていない。
+- パラメータ「数」自体は中央値5前後で標準的だが、PIEC-2 のメタデータ正規化（tooltip/unit/animation flag/soft range）が全 effect の ~5% のみ完了しているのが主要ギャップ。
+- 一部 GPU-only effect（BlurEffect等）は cbuffer を直接持ち getProperties() を経由しないため Inspector から操作不可。
 - preview / GPU / CPU / render queue の画素 parity、HDR・premultiplied alpha の runtime 受入は未完了または未検証である。
 
 ## 範囲
