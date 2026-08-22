@@ -2,10 +2,85 @@
 
 未解決の設計判断・runtime 検証待ちだけを記録する。実装済みの局所修正と履歴は `docs/analysis/INSIGHT_ARCHIVE_2026-08-11.md` を参照する。
 
+## 2026-08-22 — 乱数生成の統合（RandomStream統一）
+
+- **関連:** `ArtifactCore/include/Math/Random.ixx`、`ArtifactCore/src/ImageProcessing/OpenCV/*.cppm`、`ArtifactCore/src/Geometry/Fracture.cppm`、`ArtifactCore/src/Generate/StarfieldGenerator.cppm`、`ArtifactCore/src/Animation/KeyframeEditingTools.cppm`
+- **事実:** 乱数生成が4系統混在(RandomStream/mt19937+random_device/QRandomGenerator/std::rand)。OpenCVエフェクト群(Noise/Glitch/VHS/Glow)とStarfield/Fracture/Scatterはrandom_deviceまたは固定seed mt19937で決定論性が分断。MpmSolver2Dの「rand()使用」は誤検出(関数名のみ)。
+- **対応状況 (2026-08-22):** (1) `Random` singletonにmutex追加でthread safety確保。(2) 8ファイルのmt19937+distributionをRandomStreamへ置換: Noise.cppm(gaussian+range)、GlitchCV.cppm(rangeInclusive+unitFloat)、VHS_CV.cppm(unitFloat)、Glow.cppm(unitFloat)、Scatter.cppm(nextU32)、Fracture.cppm(range、全関数signature変更)、StarfieldGenerator.cppm(regex一括置換で全distribution解消)、KeyframeEditingTools.cppm(gaussian+range、chrono entropy seed)。残るmt19937: TextAnimator(wiggly、既存seed決定論のため互換性維持)、ExpressionEvaluator(randomSeeded、同様)。残るrandom_device: ParticleSystem(TurbulenceForce)、SandSim2D、SoftwareRayTracer(thread_local、適切)、AudioTone。
+- **次の確認:** ビルド後、各エフェクトのseed再現性を同一seed+同一入力で確認。TextAnimator/ExpressionEvaluatorのRandomStream移行は互換性ブレーキがあるため別判断。
+
+## 2026-08-21 — ArtifactPr 二重モデル(NLEストア/legacy Demo*)の乖離とメタデータ欠落（未検証）
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`ArtifactPr/include/ArtifactPrEditorEngine.ixx`
+- **事実:** ArtifactPr は NLEProjectStore(真のモデル)と legacy Demo*(UI 読み取りビュー)の二重管理で、rebuildLegacySnapshotFromNLE() が一方向同期するが、splitClipAtPlayhead/duplicateSelectedClip/pasteClip/marker系/transition系は legacy 側のみ編集し nleStore_ を更新しない(乖離が蓄積)。通常インポート経路(addMediaToPool)は SourceRef を NLE ストアに登録せず、loadDemoProject 経由のみ固定ダミー(timeBase 30fps 固定・availableRange 0-100000f)で登録。saveProject/loadProject は legacy JSON のみで NLE ストアは非永続化。autoSaveIntervalSec_(エンジン)と MainWindow 固定60秒タイマーが二重管理。DemoClip には enabled フィールドがなく(NLE Clip.enabled は転記されず捨てられる)、トラック solo も合成側で未反映。
+- **仮説（未検証）:** シーケンス合成プレビュー(MILESTONE_ARTIFACTPR_SEQUENCE_PREVIEW_2026-08-21)は現状 legacy ビューを読んでいるため split/paste 系操作後に表示が実データとずれ得る。中期的には「legacy Demo* 廃止→NLE ストア直接読み」か「全操作の NLE ストア経由化」のどちらかが必要。SourceRef の実ファイルプローブ(frameSize/timeBase)も未実装で、速度変更クリップのソースフレーム→時間対応が正確でない。
+- **次の確認:** ビルド復帰後、split/duplicate/paste 操作直後のプレビュー表示ずれを再現確認する。
+
+## 2026-08-21 — コラボレーション機能の現状とセッションモデル新設（進行中）
+
+- **関連:** `ArtifactCore/src/Collaborate/CollaborationSession.cppm`(新設)、`ArtifactCore/src/Collaborate/CollaborationProtocol.cppm`、`ArtifactCore/include/Network/CollaborationWebSocket.ixx/.cppm`、`tools/collaboration-server/server.js`
+- **事実:** WebSocketクライアント(再接続/heartbeat/5メッセージ+rule sync)は完備だがアプリから未接続。サーバーはprojectId毎セッション+操作履歴中継+ロック権限+プレゼンス中継のプロトタイプ。セッションモデル(参加者名簿・ロック台帳・バージョン管理・エコー重複排除)が存在しなかった。operationペイロードはopaque JSONでスキーマ未定義。
+- **対応状況 (2026-08-21):** `CollaborationSession`(module `Collaborate.Session`)を新設。トランスポート非依存の純粋状態モデルとして、(1)参加者名簿(join/left/presence、離脱時にpeerロック自動解放)、(2)操作ログ(server版号採番・エコー重複排除・pending local op への版号確定)、(3)ロック台帳(grant/deny/release+local要求pending追跡+isLayerLockedByOther)、を提供。QObject/signal非依存でAGENTS.mdのsignal接続制約を回避、全ロジックunit test可能(`CollaborationSessionTest.cpp` 4ケース+CMake登録)。
+- **仮説（未検証）:** 次段階は (1) WebSocket→Session のアダプタ(signal接続のためAGENTS.md設計レビュー要)、(2) operation スキーマ定義(transform/property/layer追加削除のJSON契約)、(3) プレゼンスpayload標準化(カーソル・選択レイヤー・ビューポート)、(4) リモート操作とUndoの統合。
+- **対応状況 (2026-08-22):** `CollabPresenceState`(型付きpresence、未知キーraw保持)をSessionに追加。`CollabReview.cppm` 新設(コメント: composition/layer/frameアンカー+スレッド1階層+解決/所有者限定編集削除、提案: Pending→Accepted/Rejected/Withdrawn遷移強制・acceptは操作配列返しのみで状態非変更)。監査でエコー照合キー欠陥を発見→`opSeq`フィールド追加で修正(同一ミリ秒衝突とサーバーtimestamp上書きの双方に耐性、回帰テスト追加)。監査全文は `docs/analysis/COLLABORATION_IMPLEMENTATION_AUDIT_2026-08-22.md`。テスト合計35ケース。
+- **対応状況 (2026-08-22 追加):** `CollabOperations.cppm` 新設(operationスキーマ: property.set/layer.transform/layer.add/layer.remove のビルダー+バリデータ、未知type前方互換)。Sessionに `createLocalOperation(CollabOperationData)` オーバーロードと `staleParticipantClientIds(nowMs, timeoutMs)`(heartbeatタイムアウト検出)を追加。テスト合計38ケース。
+- **対応状況 (2026-08-22 追加2):** `CollabOperations.cppm` に提案検証パイプラインを追加(`validateCollabProposal`/`acceptValidatedProposal` — 全操作検証通過までacceptを遮断)。サーバー(server.js)の `clientTimestamp` 保持修正(監査#6)。Sessionに `createLocalOperation(CollabOperationData)` オーバーロードと staleParticipantClientIds を追加。テスト合計41ケース。
+- **対応状況 (2026-08-22 追加3):** `CollaborationSessionAdapter`(module `Collaborate.SessionAdapter`)新設 — WebSocket信号↔Sessionモデルのpoint-to-point接着(グローバル配線なし、接続はアダプタdtorで全解除)。signal 3種(userJoined/userLeft/remoteLockGranted)にclientIdパラメータを追加(セッションモデルに必須、既存使用箇所ゼロのため破壊的影響なし)。CollaborateターゲットがArtifactCoreNetworkへ依存。テスト合計42ケース(アダプタ経由のinboundルーティング: opSeq往復・roster・ロック・presence・離脱解放)。アダプタのoutbound(sendLocalOperation等)のruntime検証は実サーバー結合時に行う。
+- **次の確認:** ビルド・テスト実行後、実サーバー(tools/collaboration-server)に対する結合確認。UI層(presence描画・コメントパネル)は別マイルストーン。
+
+## 2026-08-21 — std代替レイヤー(Core.Artifact*)の充実方針と現状（進行中）
+
+- **関連:** `ArtifactCore/include/Core/Artifact*.ixx`、`ArtifactCore/src/Core/*.cppm`、親 `CMakeLists.txt`(import std gate)
+- **事実:** プロジェクトは実験的な `import std;`(C++23 std modules)を149ファイルで使用しており、これがコンパイルエラーの主要源。ユーザーの方針は std 依存の削減で、std再発明と思われた `Core.Artifact*` ファミリーは削除対象ではなく置換レイヤーとして完成させる方向。ハウススタイルは `artifact*` 接頭辞付き関数(artifactExchange/artifactBitCast/artifactCmp*)。import stdファイル内の実際の使用トップは max/clamp(算法~1000)、vector(331)、move/make_unique(~290)、string(117)、function(61)。既存: Array(自己完結vector)/String(SSO)/Span/Variant/Function/Dict(QHashラッパー)/Ptr+Ref/Mutex。
+- **対応状況 (2026-08-21):** `Core.ArtifactMath.ixx` を新設(artifactMax/Min/Clamp/Abs/IsFinite/IsNaN/Sqrt/Pow/Sin/Cos/Tan/Atan2/Floor/Ceil/Lround/Llround/Lerp)。ArtifactUtilityに artifactMove/artifactForward を追加。ArtifactPtrに UniquePtr/makeUnique を追加。Arrayに operator[]/data() を補完(at()はOptional返しのまま)。Foundationが全モジュールをexport import。テスト `tests/ArtifactCore/ArtifactFoundationTest.cpp` 新設(Math/Utility/UniquePtr/Array/String/Dict)。未着手: import std 149ファイルの段階移行、unordered_mapの自己完結版検討、chrono/mutex系の整理。
+- **対応状況 (2026-08-21 第2回):** `Core.ArtifactAlgorithms.ixx` を新設(artifactSort=heapsort/Find/FindIf/Contains/AllOf/AnyOf/NoneOf/MinElement/MaxElement/Fill/Reverse/RemoveIf/LowerBound/BinarySearch/IsSorted+コンテナオーバーロード)。ArtifactMathに `NumericTraits<T>` を追加。ArtifactUtilityに `Pair`/`artifactMakePair` を追加。Arrayに `StaticArray<T,N>`(std::array代替)を追加。既存の ArtifactHashMap が自己完結チェインバケット実装として完備済みであることを確認(Dict のQHash依存は別経路)。
+- **対応状況 (2026-08-21 第3回):** `Core.ArtifactTuple.ixx` を新設(再帰Tuple/artifactGet<I>/artifactMakeTuple/tupleSizeV/等値比較)。StringにASCIIユーティリティを追加(asciiLower/Upper/Trimmed/StartsWith/EndsWith/Split/Join — ロケール非依存)。ArtifactAlgorithmsに Accumulate/Iota/Count/CountIf/MinMaxElement を追加。ArtifactUtilityに `artifactHashCombine` を追加。
+- **対応状況 (2026-08-21 第4回):** `Core.ArtifactChrono.ixx` を新設(Duration(ns分解能)+SteadyClock(QueryPerformanceCounter/clock_gettimeのプラットフォーム分岐、秒毎tickキャッシュ)+Stopwatch)。`Core.ArtifactRegex.ixx` を新設(パーサ→AST→バイトコード→明示スタックbacktracking VM。文字クラス/量詞lazy含む/選択/グループ/アンカー/エスケープ対応。ステップ上限400万・プログラム8192命令・グループ9個上限)。replaceAllは $0-$9/$$ 置換対応。
+- **対応状況 (2026-08-21 第5回):** `ArtifactSet.ixx` を自己完結HashSetへ全面書き換え(チェインバケット+挿入順イテレーション、load factor 0.75で自動rehash、`HashSet<T>` + `ArtifactSet` エイリアス。旧raw()は削除—使用箇所ゼロ確認済み)。Regexに **lookahead `(?=...)` `(?!...)`** を追加(AST→子ノードをサブプログラムとして別コンパイル、VMはLookahead命令でネスト実行。positive成功時はキャプチャ保持・negativeは常にslot復元)と**後方参照 `\1`-`\9`**(パース時に既出グループ番号検証、VMはバイト一致比較、未設定グループはfail)。非対応: lookbehind・条件分岐・再帰をヘッダ明記。テスト合計31ケース(Set操作/lookahead消費なし検証/negative位置/後方参照繰り返し語/未開放グループエラー)。
+
+## 2026-08-21 — Frame/Timeクラス全面PImplのホットパスヒープ確保（未検証）
+
+- **関連:** `ArtifactCore/src/Time/RationalTime.cppm`、`ArtifactCore/src/Frame/FramePosition.cppm`、`Artifact/include/Layer/ArtifactAbstractLayer.ixx`(L433 currentFrame/inPoint)、`ArtifactCore/include/Property/AbstractProperty.ixx`(L296 evaluateValue)
+- **事実:** FramePosition/FrameRange/FrameRate/RationalTime/TimeCode/FrameOffset/FrameTime/Durationが全てインスタンスごとに`new Impl`。プロパティ評価`interpolateValue(RationalTime)`はレイヤー×プロパティ×フレームで呼ばれ毎回ヒープ確保。レイヤーAPIは`currentFrame()=int64_t`と`inPoint()/outPoint()=FramePosition`で混在。対照的にFloatColorは直接メンバ16バイト。RationalTimeの比較は連分数で正確だが、`operator+/−`は`value*(lcm/scale)`展開でfromSeconds(scale=1e7)長尺時にint64オーバーフローリスク、`rescaledTo`は切り捨て(llround非整合)。Durationはほぼコメントアウトの死にクラス、TimeCodeRangeは未接続。
+- **仮説（未検証）:** value型化(PImpl廃止)が性能の根本解だがABI影響大。まず実測(profiler)でRationalTime生成がフレーム時間に占める割合を確認し、ホットパス限定でint64オーバーロードやキャッシュを導入する段階的移行が安全。
+- **対応状況 (2026-08-21):** `rescaledTo` を半分離れ丸め(round-half-away-from-zero)に変更し、極端な大きさではdouble丸めへフォールバック。`operator+/−` は約分→checkedMul/checkedAdd/checkedNegate(移植可能なオーバーフロー検出)→失敗時 `fromSeconds` 経由のdouble合算、の順に修正。テストは `FrameTimeTest.cpp`(丸め・クロススケール・巨大値安全性)に追加。既存約90呼び出しのうち同一スケール変換は挙動不変、クロススケールは境界±1フレームがより正確な方向へ変化。
+
+## 2026-08-21 — 色域語彙の三重化(Gamut/SurfaceColorPrimaries/ColorSpace)とFloatColor::toLinearのsRGB固定（未検証）
+
+- **関連:** `ArtifactCore/include/Color/ColorGamutConversion.ixx`(Gamut enum+行列)、`ArtifactCore/include/Graphics/SurfaceColorContract.ixx`(SurfaceColorPrimaries)、`ArtifactCore/include/Color/ColorSpace.ixx`(ColorSpace enum)、`ArtifactCore/src/Color/FloatColor.cppm`(toLinear/fromLinear)
+- **事実:** 同じ「色域」概念に3つのenum(Gamut/SurfaceColorPrimaries/ColorSpace)が存在。ガムット変換行列はGamut側にのみ実装。FloatColor::toLinear/fromLinearはsRGBハードコードで、17種TransferFunctionを持つColorTransferFunction::encode/decodeとは接続されていない(TaggedColor::toTransferが正規経路として昨日追加)。LabColor/XYZColorはPImplヒープでCore内部のみ使用。FloatColorは直接メンバ16バイトで軽量(FloatRGBA統合の障害は低い)。
+- **仮説（未検証）:** Gamut↔SurfaceColorPrimariesのマップ関数を追加しTaggedColorにgamut変換を提供するのが正道。FloatColor::toLinearは[[deprecated]]化してTaggedColorへ誘導。ColorSpace enumはColor.ColorSpace利用者との互換確認後にGamutへ統合。
+- **対応状況 (2026-08-21):** `gamutForPrimaries()` / `primariesForGamut()` をTaggedColor.ixxに追加(SRGB_Rec709/DisplayP3/Rec2020/ACES_AP0-1のみ対応。DCI-P3/AdobeRGB/DWG/XYZは対応なしを明示)。`TaggedColor::toPrimaries()` が線形化→Bradford白色点適応済みの `ColorGamutConversion::convert`→再エンコードでgamut変換を提供(transfer維持、unknown transferは無変換通過)。`FloatColor::toLinear/fromLinear` は呼び出しゼロを確認の上 `[[deprecated]]` 化し、実装を `ColorTransferFunction` に委譲して数学を単一源へ統一。テストは `ColorBridgeTest.cpp`(語彙マップ・Rec709↔Rec2020往復1e-4・no-op/通過ケース)に追加。
+
+## 2026-08-21 — Color系のFloatColor/FloatRGBA重複とQColor境界変換の散在（未検証）
+
+- **関連:** `ArtifactCore/include/Color/FloatColor.ixx`、`ArtifactCore/include/Color/FloatRGBA.ixx`、`ArtifactCore/include/Color/ColorConversion.ixx`(HSVColor/HSLColor)、`Artifact/src/Layer/*`(toQColor/toFloatRGBA/colorFromJsonValue等86箇所)
+- **事実:** FloatColor(PImpl・Artifact側1425箇所)とFloatRGBA(constexpr・75/112箇所)がほぼ同一のfloat RGBA型として重複。QColor↔float色変換とJSON直列化(colorToJson/colorFromJson系)がレイヤー・エフェクト各ファイルで局所再実装されており、NLE marker色対応でも同様のローカル実装を追加した。NamedColor enum(FloatColor.ixx)は使用箇所ゼロ、FloatColor.ixxの前方宣言 `class HSV;` は未定義でデッド。LabColor/XYZColorはCore内部のみ。色値型に色空間タグはなく、sRGB↔linearのtoLinear/fromLinearのみ。画像側は ImageF32x4_RGBA::colorDescriptor が primaries/transfer/alphaMode/range を保持し値側と分離。
+- **対応状況 (2026-08-21):** `ArtifactCore/include/Color/ColorBridge.ixx`(module `Color.Bridge`)にQColor/JSON/hex境界を一元化(toQColor/toFloatColor/toFloatRGBA/colorToJson/floatColorFromJson/floatRgbaFromJson/colorToHexArgb)。JSONは `{"r","g","b","a"}` とhex文字列を受け付け、不正入力はfallback返し。`include/Color/TaggedColor.ixx`(module `Color.Tagged`)に色空間タグ付き値型を追加(SurfaceColorPrimaries/TransferFunction/SurfaceAlphaModeをSurfaceColorDescriptorと同一語彙で保持、toTransfer/premultiplied/straight/surfaceDescriptor)。gamut変換は未実装(次段階)。既存86箇所のローカル変換の一括置換は未実施(ビルド検証後に段階移行)。unit test `tests/ArtifactCore/ColorBridgeTest.cpp` 新設。
+- **価値・懸念:** 境界変換の一元化で直列化の微妙な不一致(丸め・alpha既定・16進形式)が解消される一方、FloatRGBA統合はテンプレート/constexpr利用箇所の書き換えが必要で影響大。
+
+## 2026-08-21 — Frame/Time系クラスの断片化とtimecode三重実装（未検証）
+
+- **関連:** `ArtifactCore/include/Frame/*`（FramePosition/FrameRange/FrameRate/FrameOffset/FrameTime）、`ArtifactCore/include/Time/*`（RationalTime/TimeCode/TimeRemap）、`ArtifactCore/include/NLE/Core.ixx`（TimeBase）
+- **事実:** 時間表現が6系統存在し相互変換APIが非対称(FramePosition→RationalTimeなし、FrameOffset→はあり)。FrameRateはfloat保持のみで30000/1001を表現できず、`hasDropframe()` は23.976を検出しない。timecode生成/解析が `FrameRange::toTimecode`(ノンドロップのみ)/`TimeCode`(drop対応だがtoStringが';'を出力せずsetFromQStringが';'をパースできない)/`NLE::TimeBase`(round-trip可能)の3重実装で挙動不一致。FrameTimeとFramePositionはほぼ重複しFrameTimeはArtifact側で62箇所現役使用。Frame/Time数学のunit testは存在しない。
+- **対応状況 (2026-08-21):** FrameRateに有理数保持(`fromRational/setRationalRate/numerator/denominator/hasExactRational/exactFps`)を追加し、分数文字列・JSONでexact維持。`hasDropframe()` は23.976/47.952も検出。TimeCodeのtoString/toStdStringがdrop時に';'を出力し、setFromQStringが';'をパースするよう修正。`FrameRange::toTimecode` はTimeCodeに委譲しdrop対応。`FramePosition↔RationalTime` 変換と `qHash(FramePosition)` を追加。unit test `tests/ArtifactCore/FrameTimeTest.cpp` を新設。未着手: TimeBase timecodeのTimeCode集約(strict validation維持のため現状分離)、FrameTime統合。
+- **仮説（未検証）:** FrameTime統合は使用箇所が多く別段階で機械的に行う必要がある。
+- **価値・懸念:** 放置するとUI表示のタイムコードが経路ごとに食い違い、NLE統合時にレート変換誤差がクリップ位置ずれとして表面化する。一方FrameRateの内部変更は全レート比較コードに波及するため段階的導入が必要。
+- **次の確認:** FrameRate有理化→timecode集約→FramePosition/RationalTime変換→unit test新設の順で段階実装するかを決める。
+
+## 2026-08-21 — 2Dリグ利用導線の3箇所の断絶（skinMesh生成・ボーン追加・キーフレーム）（未検証の改善案）
+
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm`（handleCreateRig L2414）、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`（RigSelect/RigWeight 入力 L22579 / ウェイト操作 L17620 / オーバーレイ L38485）、`Artifact/src/Layer/ArtifactAbstract2DLayer.cppm`（skinMesh JSON L320）、`ArtifactCore/include/Rig/Rig2D.ixx`（createSkinMesh L803）
+- **事実:** リグ導線は実装済み（Layer→リグレイヤー作成→RigSelect自動切替、Ctrl+Tabでモード切替、ボーン回転ドラッグ＋Undo、Bでウェイト、N/S/M、ポーズクリップボード/スロット）。一方コード検索で (1) `Rig2D::createSkinMesh()` / `setSkinMesh()` の呼び出し元がアプリ側にゼロ（skinMesh は JSON 読込経路でしか存在しない）ため RigWeight・正規化/スムーズ/ミラー・スキン変形描画はユーザーが到達不能なデッド導線、(2) `addRigBone` / `addRigPoint` の呼び出し元は handleCreateRig のみで、VP・右クリック・パネルのいずれにもボーン追加/削除/リネーム導線が無い（RigHierarchyPanel は未実装、VP の HIERARCHY は読み取り専用 HUD）、(3) `Bone2D::evaluate(time)` とキーフレーム API は Core 実装済みだが、ボーンドラッグは静的 localTransform 編集のみでキー追加導線が無く、タイムラインにボーントラック非表示。
+- **仮説（未検証）:** P0 は「画像レイヤー→SkinMesh 生成＋autoBind」の導線追加（spec SPEC_RIG_SYSTEM_UI_TASKS §8 相当）。これがないとリグ機能はユーザーから見て何も変形しない。次点で VP ダブルクリック/右クリックでの子ボーン追加、auto-key または手動キー追加＋タイムライン統合。Ctrl+Tab は ShortcutBindings 経由でないハードコードであり、プロジェクトのショートカット整合ルール（AGENTS.md）からも登録先の明示が望ましい。
+- **価値・懸念:** Core の評価・Undo・オーバーレイは完成度が高い半分、UI 導線の断絶により機能価値がユーザーに伝わらない。リグレイヤーは solid ベース（opacity 0.18 の平面が合成に残る）で、spec が意図した画像バインド型と食い違う。
+- **次の確認:** スキンメッシュ生成導線の設計（対象レイヤー選択 UI、メッシュ解像度、autoBind のボーン距離閾値）、リグレイヤーとソース画像レイヤーの関係（同一レイヤーか参照か）、ボーンキーの auto-key 有無の設計レビュー。
+
 ## 2026-08-21 — Text Animator のキーフレーム可視化と Undo 漏れ（未検証）
 
 - **関連:** `Artifact/src/Layer/ArtifactTextLayer.cppm`（`addAnimator` L2212 / `removeAnimator` L2220 / `updateGlyphEvaluation` L4577）、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`（`isTimelineHiddenLayerPropertyGroup` L166）、`Artifact/src/Widgets/Timeline/*`
 - **事実:** Text Animator の全プロパティ（Range start/end/offset、position/scale/opacity/tracking/fillColor等21項目）と Source Text キーフレームはキーフレーム化・時間評価・JSON round-trip まで実装済み。一方、(1) `isTimelineHiddenLayerPropertyGroup` が Transform 以外のグループ行を全て隠すため animator のキーがタイムラインに表示されず、用意済みの `displayLabelForPropertyPath` ラベルが標準経路で到達不能、(2) `addAnimator` / `removeAnimator` / Inspector の animator 値編集 / ◆トグル / タイムライン「Add/Remove Keyframe」に Undo push がなく、削除時はキーフレームごと失われる、(3) gpu-glyph パスの早期リターンは `rasterize==true` 条件のため、GPU描画では毎フレーム全再シェーピング＋animator評価＋不要な `animatedGlyphBounds`（per-glyph QPainterPath）が走る。surface cache キーは `animatorCount()>0` で `|frame=N` が付き enabled 依存なし。
+- **対応状況 (2026-08-21):** (2) は `SetTextAnimatorStackCommand`（animatorスタック全体のJSON snapshot/restore）と ◆トグル・タイムラインキー操作の `SetLayerPropertyKeyframesCommand` push で解消済み。auto-key連打のUndo化は履歴氾濫のため未実施。(3) はアニメーター無し・Source Text静的な場合にGPUパスでもglyph評価をキャッシュする保守版を適用済み（`applyAnimatorStack` は空スタックで即returnするためフィールド影響なしを確認）。有効animator＋静的値スタックのキャッシュ（Fix B）は、field×transformの時間依存とenvelope検出コストの分析が必要なため未実施。
 - **仮説（未検証）:** (2) のUndo対応がデータロス防止として最優先。(1) はAGENTS.mdの「左ペイン標準グループはTransformのみ」ルールと衝突するため、mask/matte型の専用行としての露出を設計レビューで決める必要がある。(3) はGPU glyph評価のキャッシュ（フレームキー＋source/styleキー）で圧縮可能。
 - **価値・懸念:** AEユーザーの基本ワークフロー（テキスト→animator→キー打ち→タイムライン調整）のうち、タイムライン調整の導線が事実上欠落している。削除のUndo不可は事故につながる。
 - **次の確認:** animator操作のUndo command化、タイムライン専用行の設計判断、glyph評価キャッシュの効果測定の順に扱う。

@@ -48,3 +48,46 @@ artifact_add_test(ArtifactCoreSourceResolutionContractTest
     LIBS
         ArtifactCore
 )
+
+artifact_add_test(ArtifactCoreNLETest
+    SOURCES
+        NLETest.cpp
+    LIBS
+        ArtifactCoreNLE
+)
+
+artifact_add_test(ArtifactCoreFrameTimeTest
+    SOURCES
+        FrameTimeTest.cpp
+    LIBS
+        ArtifactCore
+)
+
+artifact_add_test(ArtifactCoreColorBridgeTest
+    SOURCES
+        ColorBridgeTest.cpp
+    LIBS
+        ArtifactCore
+)
+
+artifact_add_test(ArtifactCoreArtifactFoundationTest
+    SOURCES
+        ArtifactFoundationTest.cpp
+    LIBS
+        ArtifactCore
+)
+
+artifact_add_test(ArtifactCoreCollaborationSessionTest
+    SOURCES
+        CollaborationSessionTest.cpp
+    LIBS
+        ArtifactCoreCollaborate
+        ArtifactCoreNetwork
+)
+
+artifact_add_test(ArtifactCoreCollabReviewTest
+    SOURCES
+        CollabReviewTest.cpp
+    LIBS
+        ArtifactCoreCollaborate
+)
