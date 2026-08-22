@@ -2,6 +2,54 @@
 
 未解決の設計判断・runtime 検証待ちだけを記録する。実装済みの局所修正と履歴は `docs/analysis/INSIGHT_ARCHIVE_2026-08-11.md` を参照する。
 
+## 2026-08-23 — オーディオレイヤー精査: getAudio のマルチスレッド呼び出しと単一スロットキャッシュ、死にコード（未検証）
+
+- **関連:** `Artifact/src/Layer/ArtifactAudioLayer.cppm`（getAudio :873 / resampledCache_ / decodeFrameToCache :826）、呼び出し元: PlaybackEngine(:756,:847)、AudioScrubController(:153)、TimelineWidget(:549)、RenderQueueService(:365,:407)、RenderController(:37174)
+- **事実:** (1) PCM は AssetManager の共有ペイロード（audio.pcm.f32）としてレイヤー間共有され、getAudio は線形補間リサンプル＋volume/clipGain/fade/pan/deClick を都度適用する設計。(2) getAudio は**再生エンジン・スクラブ・タイムライン UI・レンダーキュー worker の複数スレッドから呼ばれる**が、`impl_->resampledCache_` への読み書きは無ロック。（3）resampledCache_ は startSample 単一スロットで、連続再生ではほぼ毎フレーム miss（全リミックス再計算）。計算量は軽いので実害は限定的と推定（未検証）。(4) `decodeFrameToCache()` と `cache_` は**呼び出しゼロの死にコード**（.ixx private 宣言のみ）。(5) タイムリマップは非対応（画像シーケンスは対応済みで機能差）。
+- **価値・懸念:** (2) は画像レイヤーで指摘したものと同型のデータ競合で、audio スレッドと render worker が同時呼び出しする現実的な経路がある。修正案: mutex 保護 or 呼び出しスレッド別キャッシュ、(4) は削除で可。
+- **対応状況 (2026-08-23):** (5) タイムリマップ対応を実装。getAudio が `isTimeRemapEnabled()` 時はビデオレイヤーと同じ規約（comp フレーム → `getSourceFrameAtCompFrame`）で各出力フレームをマッピングし、remap 中は resampledCache_ をバイパス。残る (2) 競合修正・(4) 死にコード削除は未着手。
+- **次の確認:** (2) の競合修正（mutex 導入）、(4) の削除。リマップ時の音ズレを実機確認（remap キーはコンポフレーム基準）。
+
+## 2026-08-23 — 画像レイヤー精査: 連番は堅牢だがシーケンス GPU アップロードと const 経路の可變状態が懸念（未検証）
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm`（refreshSequenceFrame :1091 / draw :2134 / toQImage :2264 / canShareSourceGpuTexture :1517）、`ArtifactCore/src/Media/ImageSequenceSource.cppm`（frameIndexAtTime :482）
+- **事実:** (1) 連番再生は `ImageSequenceSource` 経由でフレーム追従し、タイムリマップ対応・in/out 境界のホールド契約・欠番時に stale pixel を返さない契約が明示実装されている。fps 不一致は `frameIndexAtTime` で時間ベース変換され二重適用はない。(2) `refreshSequenceFrame` は const メソッド（toQImage/draw）から mutable メンバ cache_/cacheBuffer_/sequenceSource_ を**ロック無しで書き換える**。ファイル内に mutex は存在しない。(3) `canShareSourceGpuTexture()` は連番を除外しており、シーケンス描画はフレーム毎の GPU 再アップロードになる構造。(4) $F テンプレートはロード時 frame=0 固定（既知・記録済み）。
+- **価値・懸念:** (2) はメインスレッドのサムネイル/プロパティ UI とレンダーワーカの toQImage 同時呼び出しでデータ競合になり得る（呼び出し直列化の保証を実装で確認していない）。(3) は長尺連番・4K で顕在化する性能懸念。改善候補: 軽量 mutex or ダブルバッファ化（B案）、`GPUTextureCacheManager` を使うシーケンスフレーム LRU（A案）、draw 時 $F 展開による連番テンプレート追従（C案、変数展開 milestone の次段と接続）。
+- **対応状況 (2026-08-23):** (1) `refreshSequenceFrame` を `sequenceStateMutex_` で直列化し、入れ替え前のフレームバッファを retired リスト（最大4世代）に退避させてリーダの使用中解放を回避。currentFrameBuffer 側の lazy 生成も二重検査ロック化。(2) ビューポート描画（CompositionViewDrawing）でシーケンスを `seq-f32:f<frame>|cs|tf` キーで GPUTextureCacheManager に乗せ、フレーム毎の再アップロードを解消（既存 budget/LRU で追い出し）。新公開 API `ArtifactImageLayer::sequenceCachedFrameIndex()`。
+- **次の確認:** マルチスレッド再生での競合消失確認（TSAN 相当は無いため実機観察）。シーケンス再生時の GPU メモリ使用が LRU 予算内に収まること。
+
+## 2026-08-22 — ArtifactPr コアの Core 共有モジュール統合（ビルド検証待ち）
+
+- **関連:** `ArtifactCore/include/Video/FFMpegVideoDecoder.ixx`(seekToFrame 公開化)、`ArtifactPr/include/ArtifactPrEditorEngine.ixx`、`ArtifactPr/include/EditCommand.ixx`、`ArtifactPr/src/MediaFrameDecoder.cppm`、`ArtifactPr/src/SequenceExporter.cppm`、`ArtifactPr/src/AudioPreviewMixer.cppm`、`ArtifactPr/CMakeLists.txt`
+- **事実:** ArtifactPr は手書き Undo スタック(QVector<UndoCommand*> + 独自基底)、cv::VideoCapture 直叩きデコード、float 手書き加算ミックスと、Core 既存機構(Command.Session / Codec.FFmpegVideoDecoder / Audio.Mixer)との三重実装だった。Core の Command/Audio/Video/NLE は集約ターゲットから分離した STATIC lib(ArtifactCoreCommand/Audio/Video/NLE)。FFmpegVideoDecoder の seek は Impl private で公開 API になかった。
+- **対応状況 (2026-08-22):** (1) Core FFMpegVideoDecoder に `seekToFrame(int64_t)`(既存 Impl::seekByFrameNumber を bool 返しで公開)+width/height/fps getter を追加。(2) Pr 全コマンド16種を Core SerializableCommand 派生に(commandType/serialize/deserialize 実装、description()→setText())、Engine のスタックを EditSession(QUndoStack)へ置換。QUndoStack::push が redo 即時実行するため「cmd->redo(); pushUndo()」パターンを廃止し push 一本化、未使用だった AddMarker/DeleteMarker コマンドは削除。(3) MediaFrameDecoder/SequenceExporter の同期デコードを FFmpegVideoDecoder へ置換(RGB24→RGBA 詰め替え、静止画は ImageF32x4_RGBA::load)。(4) AudioPreviewMixer を AudioMixer バスグラフ経由に(クリップ毎 createBus+master connect、addInput→process)。CMake は domain ターゲット4種を明示リンク。
+- **次の確認:** ビルド後、(1) undo/redo 一巡(move/trim/slip/slide/ripple-delete/insert/overwrite/lift/marker/transition)で状態完全復元、プロジェクト新規/読込でスタッククリア。(2) プレビューの動画シーク＋順次再生・静止画表示・エクスポート差分。(3) 2トラック音声のバランス・メーター・seek 整合。特に QUndoStack::push の redo 即時実行による二重適用が無いことを DeleteClip(旧コードは push 後手動 removeAt で二重になるパターンがあった)周辺で確認。
+- **価値・懸念:** serialize 実装により将来のコラボ同期(CommandFactory 経由の op 再現)の土台ができた。懸念は (a) EditSession.pushCommand が全コマンドを historyLog_ に蓄積し続ける(長時間セッションでメモリ増)、(b) ClipPropertyCommand の serialize が QVariant を toString で持つため数値型情報が落ちる(deserialize 後は文字列として再適用される — doApply は toDouble/toBool 変換するので実害は限定的だが厳密には非対称)、(c) rebuildBuses が mixer を丸ごと作り直すので setClips 頻発時にバスオブジェクトが再生成される。
+
+## 2026-08-22 — シェイプ領域: コアShapeLayerの孤立とSVG出力の未接続（→ 2026-08-23 接続実装済み、コアSVGは単色のみ）
+
+- **関連:** `ArtifactCore/src/IO/VectorExport.cppm`、`ArtifactCore/include/Shape/ShapeLayer.ixx`、`Artifact/src/Layer/ArtifactShapeLayer.cppm`、`Artifact/src/Render/ArtifactRenderQueueService.cppm`
+- **事実:** (1) `SvgFrameExporter`（コア、完全実装）の呼び出しは Artifact 配下にゼロで、RenderQueueService の SVG 出力分岐は黒矩形スタブだった。(2) アプリ→コア ShapeLayer の変換層は存在しない。(3) コア `svgStyleString()`（ShapeLayer.cppm:98）は fill/stroke を単色 HexArgb のみ出力し、`FillSettings::FillType` のグラデーション種別は無視される。
+- **対応状況 (2026-08-23):** 案Aで接続済み。`ArtifactShapeLayer::toCoreShapeLayer()` 新設＋RenderQueueService SVG 分岐を実パス出力に置換。P2 の shape.* キーフレームも `resolveShapeGeomDims()` 経由で全描画経路（GPU/ソフト/bounds/card points/SVG）一元評価し、キーフレーム有り時のみキャッシュをフレーム再構築。詳細は `docs/planned/MILESTONE_SHAPE_SVG_EXPORT_AND_KEYFRAME_VERIFY_2026-08-22.md`。
+- **次の確認:** (1) コア `svgStyleString` / `elementToSvg` を拡張し `<linearGradient>`/`<radialGradient>` defs 出力に対応すると、現在の中間色縮退（fill/stroke の start/end 中間色）と stroke taper / stroke align 未反映を解消できる。(2) ビルド後、SVG 出力・width キーフレーム再生の実機確認。
+
+## 2026-08-22 — 連番画像の欠番契約: MissingFramePolicy が実装に存在しない（archive記載と不一致）
+
+- **関連:** `ArtifactCore/include/Asset/AssetSequence.ixx`、`ArtifactCore/src/Media/ImageSequenceSource.cppm`、`Artifact/src/Service/ArtifactProjectService.cppm`（detectSequenceImportGroups）、`Artifact/src/Layer/ArtifactImageLayer.cppm`（refreshSequenceFrame）
+- **事実:** `docs/analysis/INSIGHT_ARCHIVE_2026-08-11.md` の2026-07-27項は「`MissingFramePolicy` を追加し、既定 `Split` / 明示 `Preserve` + `missingFrames` 返却」と記録しているが、現行ツリーにも `ArtifactStudio_merge_20260717_check` スナップショットにも `MissingFramePolicy` は存在しない（git log でも該当commit無し）。現状は gap での無条件 Split のみ。一方 `ImageSequenceSource::open()`（単一ファイルからのディレクトリ再スキャン経路）は元フレーム番号を保持して欠番を1本のシーケンスに残すため、**同一フォルダが「複数の連続シーケンス」（複数ファイルインポート経由）と「欠番を含む1本」（単一ファイルインポート経由）の2通りに解釈されうる**。Preserve/Split の選択導線は実装前のまま。
+- **価値・懸念:** 検出ロジックが std::regex（AssetSequence）と QRegularExpression（ImageSequenceSource）で二重化しており、suffix 文字クラスも `\.[a-zA-Z0-9]+` と `\.[^.]+` で微妙に異なる。契約が1か所に集約されていないため将来の UI 追加時に乖離が再発しやすい。また `tests/` 配下に `Asset.Sequence` / `ImageSequenceSource` の直接テストが皆無。
+- **対応状況 (2026-08-22):** (1) `Asset.Sequence` に `MissingFramePolicy`（既定 `Split`=現行挙動不変 / 明示 `Preserve`=1グループ保持+`SequenceGroup::missingFrames` 返却）を追加。既存呼び出し（ProjectService）はデフォルト引数のため無影響。(2) `ImageSequenceSource::parseSequencePattern` の suffix を `\.[a-zA-Z0-9]+` に整合。(3) `metadata()` の全フレーム stat ループを廃止し、open 時シード+フレームアクセス時遷移更新の `Impl::missingFrameCount` 追跡方式へ置換（数値欠番カウントとの累積は維持、欠番の検出が open/decode 時点ベースに変化）。ビルド未検証。
+- **次の確認:** (1) `J:\dev\ArtifactStudio_TestSequences\png_missing_frame`（manifest.json付きの準備済みfixture）を使った GTest で、detectSequences の Split/Preserve 境界・openFramePaths の欠番保持・metadata().missingFrameCount・tryFrameAt の負の結果キャッシュを固定化する。(2) 単一ファイルインポート経路と複数ファイルインポート経路で同一フォルダの解釈が分岐する件を、Project View 上での見え方込みで実機確認する。
+- **残タスク (2026-08-22 調査時に未修正):** `Artifact/src/Layer/` 直下に誤生成と思われるジャンクファイル `currentQImage_`・`drawSprite(0.0f` と放置の `ArtifactVideoLayer_draw.patch`（内容確認後に削除要）。`detectSequences` の GroupKey は padding を含むため `img_0001.png` と `img_000001.png` が別シーケンスに分離される（仕様として妥当かは要判断）。
+
+## 2026-08-22 — CPU合成パスのブレンドモード潰れ修正と残課題（ビルド検証待ち）
+
+- **関連:** `Artifact/src/Render/Software/ArtifactSoftwareImageCompositor.cppm`、`Artifact/include/Render/Software/ArtifactSoftwareImageCompositor.ixx`、`Artifact/src/Render/ArtifactRenderQueueService.cppm`
+- **事実:** オフライン監査(2026-08-22)で、CPUバックエンドの `renderSingleFrameComposition()` が全レイヤーを QPainter `setCompositionMode()` で合成しており、QPainter非対応の Subtract/Hue/Saturation/Color/Luminosity/Dissolve/DancingDissolve/LinearDodge/LinearBurn/Divide/PinLight/VividLight/LinearLight/HardMix/Classic系3種/Stencil/Silhouette が全て SourceOver に潰れ GPU と出力が不一致（パリティ破綻）。一方で同モジュール内に正確な float ブレンドエンジン(`blendColor()`)が匿名namespaceの死蔵コードとして存在していた。
+- **対応状況 (2026-08-22):** compositor に `qPainterSupportsBlendMode()`(QPainterネイティブ再現可否判定)と `blendSurface()`(RGBA8888直書きのfloatブレンド、既存blendColorエンジンを活用、DissolveはdeterministicNoiseで決定論的分岐)を追加し、render queue のソフトパスで非対応モードだけ「透明一時キャンバスにtransform描画→painter.end()→blendSurface→painter.begin()再開」へ迂回。QPainter対応13モード(Normal/Add/Multiply/Screen/Overlay/Darken/Lighten/Dodge/Burn/HardLight/SoftLight/Difference/Exclusion)は現行経路のまま挙動不変。
+- **次の確認:** ビルド・実行後、(1) Subtract/Hue/Luminosity レイヤーを含むコンポの CPU/GPU 出力差分、(2) transform+opacity付きレイヤーの位置ずれ、(3) Stencil/Silhouette のマット結果。GPU経路の `readbackToImageF32()` と同じ HSL 計算(ColorConversion)を使うため数学的一致は期待できるが8bit量子化差は残る。
+- **価値・懸念:** `composeToBuffer()`(ImageF32x4出力、呼び出しゼロ)と float エンジンを接続すれば QImage ホットパス違反の抜本解消になるが、レイヤーサーフェス生成自体が `toQImage()` 前提のため今回は見送り(最小差分優先)。MFR有効化(useMfr=false @ ArtifactRenderQueueService.cppm:6660)には S1–S15 の snapshot 分離が前提で別案件。SVG エクスポートは黒矩形スタブのまま。
+
 ## 2026-08-22 — 乱数生成の統合（RandomStream統一）
 
 - **関連:** `ArtifactCore/include/Math/Random.ixx`、`ArtifactCore/src/ImageProcessing/OpenCV/*.cppm`、`ArtifactCore/src/Geometry/Fracture.cppm`、`ArtifactCore/src/Generate/StarfieldGenerator.cppm`、`ArtifactCore/src/Animation/KeyframeEditingTools.cppm`
@@ -13,8 +61,16 @@
 
 - **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`ArtifactPr/include/ArtifactPrEditorEngine.ixx`
 - **事実:** ArtifactPr は NLEProjectStore(真のモデル)と legacy Demo*(UI 読み取りビュー)の二重管理で、rebuildLegacySnapshotFromNLE() が一方向同期するが、splitClipAtPlayhead/duplicateSelectedClip/pasteClip/marker系/transition系は legacy 側のみ編集し nleStore_ を更新しない(乖離が蓄積)。通常インポート経路(addMediaToPool)は SourceRef を NLE ストアに登録せず、loadDemoProject 経由のみ固定ダミー(timeBase 30fps 固定・availableRange 0-100000f)で登録。saveProject/loadProject は legacy JSON のみで NLE ストアは非永続化。autoSaveIntervalSec_(エンジン)と MainWindow 固定60秒タイマーが二重管理。DemoClip には enabled フィールドがなく(NLE Clip.enabled は転記されず捨てられる)、トラック solo も合成側で未反映。
-- **仮説（未検証）:** シーケンス合成プレビュー(MILESTONE_ARTIFACTPR_SEQUENCE_PREVIEW_2026-08-21)は現状 legacy ビューを読んでいるため split/paste 系操作後に表示が実データとずれ得る。中期的には「legacy Demo* 廃止→NLE ストア直接読み」か「全操作の NLE ストア経由化」のどちらかが必要。SourceRef の実ファイルプローブ(frameSize/timeBase)も未実装で、速度変更クリップのソースフレーム→時間対応が正確でない。
-- **次の確認:** ビルド復帰後、split/duplicate/paste 操作直後のプレビュー表示ずれを再現確認する。
+- **対応状況 (2026-08-21):** 大部分を解消 — split/duplicate/paste/lift/rippleDelete/insert/overwrite/marker系/transition系を NLE ストア経由に統一、Core へ `NLEProjectStore::removeMarker` 追加、rebuildLegacySnapshotFromNLE が markers/transitions 復元、save/load の NLE スナップショット永続化(+旧形式からの legacy→NLE 再構築 importLegacyProjectToNLE)、addMediaToPool プローブ登録、DemoClip.enabled 追加、solo/mute/enabled 合成反映。残課題: autoSave 二重管理のみ未着手。
+- **次の確認:** ビルド検証後、split/paste 操作直後のプレビュー表示ずれが解消しているか再現確認する。
+
+## 2026-08-22 — リポジトリに X:\Dev\ArtifactStudio の別コピーが存在し build/ がそちらに紐づく
+
+- **関連:** `J:\dev\ArtifactStudio` (作業ツリー)、`X:\Dev\ArtifactStudio` (別コピー)、ルート `build/CMakeCache.txt`
+- **事実:** ルート build/ の CMakeCache は source を `X:/Dev/ArtifactStudio` として生成されており(VS2022 Debug)、X 側 CMakeLists は ArtifactPr 無効の旧状態。J と X は同一ディレクトリではない(CMakeLists 内容不一致をハッシュで確認)。J 側で `cmake -S . -B build` すると "does not match the source used to generate cache" エラー。quick_build.bat / build_artifact.bat も `X:\dev\artifactstudio` 決め打ち。
+- **仮説（未検証）:** X: 側が古い実験コピーか、逆に X: が正規で J がサンドボックスの可能性。ユーザー確認まで J 側でのビルド構成新設(X 側 build の削除・上書き)は行わない。
+- **次の確認:** どちらが正規か、J 側へ新規 build dir (例: CMakePresets の out/build/x64-Debug-Agent)を作ってよいかユーザーに確認する。
+
 
 ## 2026-08-21 — コラボレーション機能の現状とセッションモデル新設（進行中）
 

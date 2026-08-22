@@ -26,13 +26,42 @@
     "layerNames": []
   },
   "diagnostics": {
-    "healthState": "ok",
-    "summary": "No diagnostics loaded."
+    "healthState": "error",
+    "summary": "Example preview failure.",
+    "latestSequence": 42,
+    "latestFailure": {
+      "severity": "error",
+      "code": "preview.frame_failed",
+      "message": "Frame 120 could not be rendered.",
+      "component": "RamPreview",
+      "operation": "renderFrame",
+      "objectId": "layer-7",
+      "sequence": 42,
+      "traceId": 9001,
+      "frameIndex": 120
+    },
+    "events": [
+      {
+        "severity": "error",
+        "code": "preview.frame_failed",
+        "message": "Frame 120 could not be rendered.",
+        "component": "RamPreview",
+        "operation": "renderFrame",
+        "objectId": "layer-7",
+        "sequence": 42,
+        "traceId": 9001,
+        "frameIndex": 120
+      }
+    ]
   },
   "trace": [
     {
       "timestamp": "2026-06-04T00:00:00.000Z",
       "message": "Bridge example snapshot."
+    },
+    {
+      "timestamp": "2026-06-04T00:00:00.100Z",
+      "message": "preview.frame_failed component=RamPreview frame=120 trace=9001"
     }
   ]
 }

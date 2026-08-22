@@ -2,6 +2,7 @@ module;
 #include <wobjectdefs.h>
 #include <QObject>
 #include <QPointer>
+#include <QUndoStack>
 #include <QVector>
 #include <QString>
 #include <QColor>
@@ -9,11 +10,16 @@ module;
 #include <QtGlobal>
 #include <QVariant>
 #include <QJsonObject>
+#include <atomic>
 #include <memory>
+#include <thread>
 
 export module ArtifactPr.EditorEngine;
 
 import NLE.Core;
+import Command.Serializable;
+import Command.Session;
+import ArtifactPr.SequenceExporter;
 
 export namespace ArtifactPr {
 
@@ -30,9 +36,11 @@ struct DemoClip {
     QString color = QStringLiteral("#4a9eff");
     bool selected = false;
     bool linked = false;
+    bool enabled = true;
     bool reversed = false;
     double speed = 1.0;
     double volume = 1.0;
+    double opacity = 1.0;
     QMap<QString, QVariant> effects;
 };
 
@@ -140,28 +148,30 @@ enum class PlaybackSpeed {
     Forward8x = 16
 };
 
-class UndoCommand
+class NLEStateCommand : public ArtifactCore::SerializableCommand
 {
 public:
-    virtual ~UndoCommand() = default;
-    virtual void undo() = 0;
-    virtual void redo() = 0;
-    virtual QString description() const = 0;
-};
+    static constexpr auto kType = QStringLiteral("nle.state");
 
-class NLEStateCommand : public UndoCommand
-{
-public:
     NLEStateCommand(const QJsonObject& before, const QJsonObject& after)
-        : before_(before), after_(after) {}
+    {
+        beforeJson_ = before;
+        afterJson_ = after;
+        setText(QStringLiteral("NLE Edit"));
+    }
 
     void undo() override;
     void redo() override;
-    QString description() const override { return QStringLiteral("NLE Edit"); }
+
+    QString commandType() const override { return kType; }
+    QJsonObject serialize() const override { return beforeJson_; }
+    bool deserialize(const QJsonObject& data) override { return true; }
 
 private:
-    QJsonObject before_;
-    QJsonObject after_;
+    void apply(const QJsonObject& snapshot);
+
+    QJsonObject beforeJson_;
+    QJsonObject afterJson_;
 };
 
 class EditorEngine : public QObject
@@ -260,6 +270,9 @@ public Q_SLOTS:
     void setClipReversed(const QString& clipId, bool reversed);
     void setClipVolume(const QString& clipId, double volume);
     void setClipName(const QString& clipId, const QString& name);
+    void setClipOpacity(const QString& clipId, double opacity);
+    void setTrackMuted(const QString& trackId, bool muted);
+    void setTrackSolo(const QString& trackId, bool solo);
 
     void addTransitionAtPlayhead(TransitionType type, FramePosition duration = 12);
 
@@ -355,15 +368,32 @@ Q_SIGNALS:
     void exportProgress(int percent) W_SIGNAL(exportProgress, percent);
     void exportFinished(bool success, const QString& message) W_SIGNAL(exportFinished, success, message);
 
-    /// UndoCommand を push する (UI レイヤから直接利用可)。
-    /// 内部実装は stack_ に積む + redoStack_ をクリア。
-    void pushUndo(UndoCommand* cmd);
+    /// RenderPlan + settings でエクスポートを開始する (worker thread)。
+    /// 完了/進捗は既存の exportStarted/exportProgress/exportFinished で通知。
+    void startExport(const ArtifactPr::RenderPlan& plan,
+                     const ArtifactPr::ExportSettings& settings);
+    void cancelExport();
+    bool isExporting() const { return isExporting_.load(); }
+
+    /// SerializableCommand を push する (UI レイヤから直接利用可)。
+    /// Core EditSession (QUndoStack) 経由。push 時に redo() が即座に実行される。
+    void pushUndo(std::unique_ptr<ArtifactCore::SerializableCommand> cmd);
+    QUndoStack* undoStack() { return editSession_.undoStack(); }
 
 private:
     QString generateId(const QString& prefix);
     static QString transitionTypeToString(TransitionType type);
     static TransitionType stringToTransitionType(const QString& str);
     void rebuildLegacySnapshotFromNLE();
+
+    /// sourceFile 用の SourceRef を用意する (既存ならそれを使い、
+    /// 無ければプローブして登録)。成功時 true。
+    bool resolveSourceForClip(const QString& sourceFile,
+                              ArtifactCore::NLE::SourceRef& outRef);
+
+    /// 旧形式 (nle スナップショット無し) プロジェクト読み込み後、
+    /// legacy Demo* の内容を NLE ストアへ再構築する。
+    void importLegacyProjectToNLE();
 
     static EditorEngine* s_instance;
 
@@ -388,19 +418,29 @@ private:
 
     bool snapEnabled_ = true;
 
-    QVector<UndoCommand*> undoStack_;
-    QVector<UndoCommand*> redoStack_;
+    ArtifactCore::EditSession editSession_;
+    std::thread exportThread_;
+    std::atomic_bool isExporting_{false};
+    std::atomic_bool cancelRequested_{false};
 };
 
-class MoveClipCommand : public UndoCommand
+class MoveClipCommand : public ArtifactCore::SerializableCommand
 {
 public:
+    static constexpr auto kType = QStringLiteral("nle.moveClip");
+
     MoveClipCommand(const QString& clipId, FramePosition oldStart, FramePosition newStart)
-        : clipId_(clipId), oldStart_(oldStart), newStart_(newStart) {}
+        : clipId_(clipId), oldStart_(oldStart), newStart_(newStart)
+    {
+        setText(QStringLiteral("Move Clip"));
+    }
 
     void undo() override;
     void redo() override { doMove(newStart_); }
-    QString description() const override { return QStringLiteral("Move Clip"); }
+
+    QString commandType() const override { return kType; }
+    QJsonObject serialize() const override;
+    bool deserialize(const QJsonObject& data) override;
 
 private:
     void doMove(FramePosition pos);
@@ -410,21 +450,29 @@ private:
     FramePosition newStart_;
 };
 
-class TrimClipCommand : public UndoCommand
+class TrimClipCommand : public ArtifactCore::SerializableCommand
 {
 public:
+    static constexpr auto kType = QStringLiteral("nle.trimClip");
+
     TrimClipCommand(const QString& clipId, FramePosition oldStart, FramePosition oldDuration,
-                   FramePosition oldSourceIn, FramePosition oldSourceOut,
-                   FramePosition newStart, FramePosition newDuration,
-                   FramePosition newSourceIn, FramePosition newSourceOut)
+                    FramePosition oldSourceIn, FramePosition oldSourceOut,
+                    FramePosition newStart, FramePosition newDuration,
+                    FramePosition newSourceIn, FramePosition newSourceOut)
         : clipId_(clipId), oldStart_(oldStart), oldDuration_(oldDuration),
           oldSourceIn_(oldSourceIn), oldSourceOut_(oldSourceOut),
           newStart_(newStart), newDuration_(newDuration),
-          newSourceIn_(newSourceIn), newSourceOut_(newSourceOut) {}
+          newSourceIn_(newSourceIn), newSourceOut_(newSourceOut)
+    {
+        setText(QStringLiteral("Trim Clip"));
+    }
 
     void undo() override;
     void redo() override { doTrim(newStart_, newDuration_, newSourceIn_, newSourceOut_); }
-    QString description() const override { return QStringLiteral("Trim Clip"); }
+
+    QString commandType() const override { return kType; }
+    QJsonObject serialize() const override;
+    bool deserialize(const QJsonObject& data) override;
 
 private:
     void doTrim(FramePosition start, FramePosition duration,
@@ -441,15 +489,26 @@ private:
     FramePosition newSourceOut_;
 };
 
-class DeleteClipCommand : public UndoCommand
+class DeleteClipCommand : public ArtifactCore::SerializableCommand
 {
 public:
+    static constexpr auto kType = QStringLiteral("nle.deleteClip");
+
     DeleteClipCommand(const QString& trackId, const DemoClip& clip, int index)
-        : trackId_(trackId), clip_(clip), index_(index) {}
+        : trackId_(trackId), clip_(clip), index_(index)
+    {
+        setText(QStringLiteral("Delete Clip"));
+    }
 
     void undo() override;
     void redo() override;
-    QString description() const override { return QStringLiteral("Delete Clip"); }
+
+    QString commandType() const override { return kType; }
+    QJsonObject serialize() const override;
+    bool deserialize(const QJsonObject& data) override;
+
+    // jsonToClip との共有のため Engine cppm 側ヘルパーへ委譲する
+    const DemoClip& clip() const { return clip_; }
 
 private:
     QString trackId_;
@@ -457,19 +516,27 @@ private:
     int index_;
 };
 
-class VideoTracksStateCommand : public UndoCommand
+class VideoTracksStateCommand : public ArtifactCore::SerializableCommand
 {
 public:
+    static constexpr auto kType = QStringLiteral("nle.videoTracksState");
+
     VideoTracksStateCommand(QVector<DemoTrack> before, QVector<DemoTrack> after,
                             FramePosition beforeDuration, FramePosition afterDuration,
                             QString beforeSelection, QString afterSelection)
         : before_(std::move(before)), after_(std::move(after)),
           beforeDuration_(beforeDuration), afterDuration_(afterDuration),
-          beforeSelection_(std::move(beforeSelection)), afterSelection_(std::move(afterSelection)) {}
+          beforeSelection_(std::move(beforeSelection)), afterSelection_(std::move(afterSelection))
+    {
+        setText(QStringLiteral("Change Video Clips"));
+    }
 
     void undo() override;
     void redo() override;
-    QString description() const override { return QStringLiteral("Change Video Clips"); }
+
+    QString commandType() const override { return kType; }
+    QJsonObject serialize() const override;
+    bool deserialize(const QJsonObject& data) override;
 
 private:
     void apply(const QVector<DemoTrack>& tracks, FramePosition duration,
@@ -483,44 +550,23 @@ private:
     QString afterSelection_;
 };
 
-class AddMarkerCommand : public UndoCommand
+class MarkerStateCommand : public ArtifactCore::SerializableCommand
 {
 public:
-    AddMarkerCommand(const Marker& marker)
-        : marker_(marker) {}
+    static constexpr auto kType = QStringLiteral("nle.markerState");
 
-    void undo() override;
-    void redo() override;
-    QString description() const override { return QStringLiteral("Add Marker"); }
-
-private:
-    Marker marker_;
-};
-
-class DeleteMarkerCommand : public UndoCommand
-{
-public:
-    DeleteMarkerCommand(const Marker& marker, int index)
-        : marker_(marker), index_(index) {}
-
-    void undo() override;
-    void redo() override;
-    QString description() const override { return QStringLiteral("Delete Marker"); }
-
-private:
-    Marker marker_;
-    int index_;
-};
-
-class MarkerStateCommand : public UndoCommand
-{
-public:
     MarkerStateCommand(QVector<Marker> before, QVector<Marker> after)
-        : before_(std::move(before)), after_(std::move(after)) {}
+        : before_(std::move(before)), after_(std::move(after))
+    {
+        setText(QStringLiteral("Change Markers"));
+    }
 
     void undo() override;
     void redo() override;
-    QString description() const override { return QStringLiteral("Change Markers"); }
+
+    QString commandType() const override { return kType; }
+    QJsonObject serialize() const override;
+    bool deserialize(const QJsonObject& data) override;
 
 private:
     void apply(const QVector<Marker>& markers);
@@ -529,15 +575,23 @@ private:
     QVector<Marker> after_;
 };
 
-class TransitionStateCommand : public UndoCommand
+class TransitionStateCommand : public ArtifactCore::SerializableCommand
 {
 public:
+    static constexpr auto kType = QStringLiteral("nle.transitionState");
+
     TransitionStateCommand(QVector<Transition> before, QVector<Transition> after)
-        : before_(std::move(before)), after_(std::move(after)) {}
+        : before_(std::move(before)), after_(std::move(after))
+    {
+        setText(QStringLiteral("Change Video Transition"));
+    }
 
     void undo() override;
     void redo() override;
-    QString description() const override { return QStringLiteral("Change Video Transition"); }
+
+    QString commandType() const override { return kType; }
+    QJsonObject serialize() const override;
+    bool deserialize(const QJsonObject& data) override;
 
 private:
     void apply(const QVector<Transition>& transitions);

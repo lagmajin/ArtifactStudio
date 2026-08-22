@@ -96,6 +96,7 @@ function createDefaultState() {
     breakConditions: [],
     nextWatchId: 1,
     watchDescriptors: [],
+    acknowledgedDiagnosticSequence: 0,
     lastBreakHit: null,
     history: [],
     mockSnapshot: createDefaultSnapshot(),
@@ -128,6 +129,7 @@ function createDefaultState() {
 
 function resetSessionState(state, clearBreakConditions = false) {
   state.session = createDefaultState().session;
+  state.acknowledgedDiagnosticSequence = 0;
   state.history = [];
   state.lastBreakHit = null;
   if (clearBreakConditions) {
@@ -204,6 +206,26 @@ function normalizeArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function normalizeTraceEntries(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (!value || typeof value !== 'object') {
+    return [];
+  }
+  const entries = [];
+  for (const key of ['events', 'frames', 'scopes', 'locks', 'crashes']) {
+    const group = Array.isArray(value[key]) ? value[key] : [];
+    for (const entry of group) {
+      entries.push({
+        ...entry,
+        traceGroup: key
+      });
+    }
+  }
+  return entries;
+}
+
 function normalizeSnapshot(snapshot) {
   const root = createDefaultSnapshot();
   if (!snapshot || typeof snapshot !== 'object') {
@@ -247,13 +269,16 @@ function normalizeSnapshot(snapshot) {
       value: entry && Object.prototype.hasOwnProperty.call(entry, 'value') ? entry.value : null,
       readOnly: entry && entry.readOnly !== false
     })),
-    trace: normalizeArray(snapshot.trace).map((entry) => {
+    trace: normalizeTraceEntries(snapshot.trace).map((entry) => {
       if (typeof entry === 'string') {
         return { timestamp: nowIso(), message: entry };
       }
       return {
+        ...entry,
         timestamp: String(entry && entry.timestamp ? entry.timestamp : nowIso()),
-        message: String(entry && entry.message ? entry.message : '')
+        message: String(entry && entry.message
+          ? entry.message
+          : JSON.stringify(entry || {}))
       };
     })
   };
@@ -350,6 +375,30 @@ function snapshotHealthState(snapshot) {
     : 'unknown');
 }
 
+function snapshotLatestFailure(snapshot) {
+  const diagnostics = snapshot && snapshot.diagnostics && typeof snapshot.diagnostics === 'object'
+    ? snapshot.diagnostics
+    : {};
+  if (diagnostics.latestFailure && typeof diagnostics.latestFailure === 'object') {
+    return diagnostics.latestFailure;
+  }
+  const events = Array.isArray(diagnostics.events) ? diagnostics.events : [];
+  let latestFailure = null;
+  let latestSequence = -1;
+  for (const event of events) {
+    const severity = String(event && event.severity || '').toLowerCase();
+    if (severity === 'error' || severity === 'fatal') {
+      const sequence = Number(event && event.sequence);
+      if (latestFailure === null ||
+          (Number.isFinite(sequence) && sequence >= latestSequence)) {
+        latestFailure = event;
+        latestSequence = Number.isFinite(sequence) ? sequence : latestSequence;
+      }
+    }
+  }
+  return latestFailure;
+}
+
 function snapshotTraceText(snapshot) {
   if (snapshot && typeof snapshot.traceText === 'string' && snapshot.traceText.trim()) {
     return snapshot.traceText;
@@ -378,11 +427,16 @@ function snapshotPropertiesText(snapshot) {
 
 function snapshotSignature(snapshot) {
   const selection = snapshotSelection(snapshot);
+  const failure = snapshotLatestFailure(snapshot) || {};
   return [
     `frame=${snapshotFrame(snapshot)}`,
     `selectionIds=${selection.ids.join(',')}`,
     `selectionNames=${selection.names.join(',')}`,
     `health=${snapshotHealthState(snapshot)}`,
+    `diagnosticSequence=${snapshot && snapshot.diagnostics ? snapshot.diagnostics.latestSequence || 0 : 0}`,
+    `diagnosticSeverity=${failure.severity || ''}`,
+    `diagnosticCode=${failure.code || ''}`,
+    `diagnosticComponent=${failure.component || ''}`,
     `trace=${snapshotTraceText(snapshot)}`,
     `properties=${snapshotPropertiesText(snapshot)}`
   ].join('|');
@@ -483,6 +537,27 @@ function matchesCondition(condition, snapshot) {
       const haystack = snapshotTraceText(snapshot).toLowerCase();
       const needle = String(condition.value).toLowerCase();
       return needle.length > 0 && haystack.includes(needle);
+    }
+
+    case 'diagnostic_severity_is': {
+      const failure = snapshotLatestFailure(snapshot);
+      return Boolean(failure) &&
+        String(failure.severity || '').toLowerCase() === String(condition.value).toLowerCase();
+    }
+
+    case 'diagnostic_code_is': {
+      const failure = snapshotLatestFailure(snapshot);
+      return Boolean(failure) &&
+        String(failure.code || '').toLowerCase() === String(condition.value).toLowerCase();
+    }
+
+    case 'diagnostic_matches': {
+      const failure = snapshotLatestFailure(snapshot);
+      const expected = condition.value && typeof condition.value === 'object' ? condition.value : {};
+      return Boolean(failure) &&
+        ['severity', 'code', 'component', 'objectId'].every((key) =>
+          expected[key] === undefined ||
+          String(failure[key] || '').toLowerCase() === String(expected[key]).toLowerCase());
     }
 
     case 'property_equals': {
@@ -592,6 +667,64 @@ function toolCatalog() {
       }
     ),
     makeTool(
+      'get_latest_failure',
+      'Return the latest structured Error/Fatal diagnostic from the live bridge, if available.',
+      { type: 'object', additionalProperties: false, properties: {} }
+    ),
+    makeTool(
+      'get_diagnostic_events',
+      'Return bounded structured Error/Fatal diagnostics from the live bridge.',
+      {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          component: { type: 'string' },
+          severity: { type: 'string' },
+          limit: { type: 'integer', minimum: 1, maximum: 32 },
+          sinceSequence: { type: 'integer', minimum: 0 }
+        }
+      }
+    ),
+    makeTool(
+      'acknowledge_diagnostic_sequence',
+      'Mark structured diagnostics up to a sequence as reviewed by this MCP session.',
+      {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          sequence: { type: 'integer', minimum: 0 }
+        },
+        required: ['sequence']
+      }
+    ),
+    makeTool(
+      'get_failure_context',
+      'Return the latest failure together with the live snapshot and bounded trace context.',
+      {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          traceLimit: { type: 'integer', minimum: 1, maximum: 40 }
+        }
+      }
+    ),
+    makeTool(
+      'set_diagnostic_breakpoint',
+      'Register a pseudo-breakpoint for the latest structured diagnostic matching severity, code, or component.',
+      {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          label: { type: 'string' },
+          enabled: { type: 'boolean' },
+          severity: { type: 'string' },
+          code: { type: 'string' },
+          component: { type: 'string' },
+          objectId: { type: 'string' }
+        }
+      }
+    ),
+    makeTool(
       'set_break_condition',
       'Register one semantic condition that can trigger a pseudo-breakpoint.',
       {
@@ -610,7 +743,10 @@ function toolCatalog() {
                   'selection_contains',
                   'health_is',
                   'trace_contains',
-                  'property_equals'
+                  'property_equals',
+                  'diagnostic_severity_is',
+                  'diagnostic_code_is',
+                  'diagnostic_matches'
                 ]
               },
               label: { type: 'string' },
@@ -682,7 +818,10 @@ function toolCatalog() {
                   'selection_contains',
                   'health_is',
                   'trace_contains',
-                  'property_equals'
+                  'property_equals',
+                  'diagnostic_severity_is',
+                  'diagnostic_code_is',
+                  'diagnostic_matches'
                 ]
               },
               label: { type: 'string' },
@@ -843,6 +982,149 @@ function callTool(state, name, args) {
         jsonText(formatSnapshotForTool(snapshot, state)),
         formatSnapshotForTool(snapshot, state)
       );
+
+    case 'get_latest_failure': {
+      const diagnostics = snapshot && snapshot.diagnostics && typeof snapshot.diagnostics === 'object'
+        ? snapshot.diagnostics
+        : {};
+      const latestFailure = snapshotLatestFailure(snapshot);
+      const acknowledgedSequence = Number(state.acknowledgedDiagnosticSequence || 0);
+      const result = {
+        source: readBridgeSnapshot() ? 'bridge-file' : 'mock',
+        latestSequence: diagnostics.latestSequence || 0,
+        eventsTruncated: diagnostics.eventsTruncated === true,
+        firstPublishedSequence: diagnostics.firstPublishedSequence || 0,
+        acknowledgedSequence,
+        hasUnacknowledgedFailure: Boolean(latestFailure) &&
+          Number(latestFailure.sequence || 0) > acknowledgedSequence,
+        latestFailure,
+        snapshotTimestamp: snapshot && snapshot.timestamp ? snapshot.timestamp : null
+      };
+      state.session.lastAction = 'get_latest_failure';
+      pushHistory(state, { type: 'diagnostic-read', mode: 'latest' });
+      saveState(state);
+      return contentResult(jsonText(result), result);
+    }
+
+    case 'acknowledge_diagnostic_sequence': {
+      const sequence = Number(args && args.sequence);
+      if (!Number.isFinite(sequence) || sequence < 0) {
+        const result = { ok: false, reason: 'sequence-required' };
+        return contentResult(jsonText(result), result);
+      }
+      state.acknowledgedDiagnosticSequence = Math.max(
+        Number(state.acknowledgedDiagnosticSequence || 0),
+        Math.trunc(sequence)
+      );
+      state.session.lastAction = 'acknowledge_diagnostic_sequence';
+      pushHistory(state, {
+        type: 'diagnostic-acknowledge',
+        sequence: state.acknowledgedDiagnosticSequence
+      });
+      saveState(state);
+      const result = {
+        ok: true,
+        acknowledgedSequence: state.acknowledgedDiagnosticSequence
+      };
+      return contentResult(jsonText(result), result);
+    }
+
+    case 'get_failure_context': {
+      const diagnostics = snapshot && snapshot.diagnostics && typeof snapshot.diagnostics === 'object'
+        ? snapshot.diagnostics
+        : {};
+      const requestedTraceLimit = Number(args && args.traceLimit);
+      const traceLimit = Number.isFinite(requestedTraceLimit)
+        ? Math.max(1, Math.min(40, Math.trunc(requestedTraceLimit)))
+        : 40;
+      const trace = Array.isArray(snapshot && snapshot.trace) ? snapshot.trace.slice(-traceLimit) : [];
+      const diagnosticEvents = Array.isArray(diagnostics.events) ? diagnostics.events : [];
+      const acknowledgedSequence = Number(state.acknowledgedDiagnosticSequence || 0);
+      const result = {
+        source: readBridgeSnapshot() ? 'bridge-file' : 'mock',
+        snapshotTimestamp: snapshot && snapshot.timestamp ? snapshot.timestamp : null,
+        latestSequence: diagnostics.latestSequence || 0,
+        eventsTruncated: diagnostics.eventsTruncated === true,
+        firstPublishedSequence: diagnostics.firstPublishedSequence || 0,
+        acknowledgedSequence,
+        latestFailure: snapshotLatestFailure(snapshot),
+        diagnosticEvents,
+        unacknowledgedEvents: diagnosticEvents.filter((event) =>
+          Number(event && event.sequence || 0) > acknowledgedSequence),
+        trace,
+        snapshot
+      };
+      state.session.lastAction = 'get_failure_context';
+      pushHistory(state, { type: 'diagnostic-read', mode: 'context' });
+      saveState(state);
+      return contentResult(jsonText(result), result);
+    }
+
+    case 'set_diagnostic_breakpoint': {
+      const value = {};
+      for (const key of ['severity', 'code', 'component', 'objectId']) {
+        const text = String(args && args[key] ? args[key] : '').trim();
+        if (text) value[key] = text;
+      }
+      if (Object.keys(value).length === 0) {
+        const result = { ok: false, reason: 'diagnostic-filter-required' };
+        return contentResult(jsonText(result), result);
+      }
+      const condition = {
+        id: state.nextConditionId++,
+        kind: 'diagnostic_matches',
+        label: String(args && args.label ? args.label : 'Diagnostic breakpoint'),
+        enabled: args && args.enabled !== false,
+        value,
+        createdAt: nowIso()
+      };
+      state.breakConditions.push(condition);
+      state.session.lastAction = 'set_diagnostic_breakpoint';
+      pushHistory(state, {
+        type: 'set-diagnostic-breakpoint',
+        conditionId: condition.id
+      });
+      saveState(state);
+      const result = { ok: true, condition };
+      return contentResult(jsonText(result), result);
+    }
+
+    case 'get_diagnostic_events': {
+      const diagnostics = snapshot && snapshot.diagnostics && typeof snapshot.diagnostics === 'object'
+        ? snapshot.diagnostics
+        : {};
+      const requestedLimit = Number(args && args.limit);
+      const limit = Number.isFinite(requestedLimit)
+        ? Math.max(1, Math.min(32, Math.trunc(requestedLimit)))
+        : 32;
+      const component = String(args && args.component ? args.component : '').trim();
+      const componentKey = component.toLowerCase();
+      const severity = String(args && args.severity ? args.severity : '').trim().toLowerCase();
+      const requestedSince = Number(args && args.sinceSequence);
+      const sinceSequence = Number.isFinite(requestedSince)
+        ? Math.max(0, Math.trunc(requestedSince))
+        : Number(state.acknowledgedDiagnosticSequence || 0);
+      const allEvents = Array.isArray(diagnostics.events) ? diagnostics.events : [];
+      const events = allEvents
+        .filter((event) => Number(event && event.sequence || 0) > sinceSequence)
+        .filter((event) => !component ||
+          String(event && event.component || '').toLowerCase() === componentKey)
+        .filter((event) => !severity ||
+          String(event && event.severity || '').toLowerCase() === severity)
+        .slice(-limit);
+      const result = {
+        source: readBridgeSnapshot() ? 'bridge-file' : 'mock',
+        latestSequence: diagnostics.latestSequence || 0,
+        sinceSequence,
+        component: component || null,
+        severity: severity || null,
+        events
+      };
+      state.session.lastAction = 'get_diagnostic_events';
+      pushHistory(state, { type: 'diagnostic-read', mode: 'events', count: events.length });
+      saveState(state);
+      return contentResult(jsonText(result), result);
+    }
 
     case 'set_debug_watch': {
       const input = args && typeof args.watch === 'object' ? args.watch : {};

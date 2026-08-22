@@ -91,3 +91,10 @@ artifact_add_test(ArtifactCoreCollabReviewTest
     LIBS
         ArtifactCoreCollaborate
 )
+
+artifact_add_test(ArtifactCoreTokenExpansionTest
+    SOURCES
+        TokenExpansionTest.cpp
+    LIBS
+        ArtifactCore
+)

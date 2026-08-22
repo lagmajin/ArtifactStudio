@@ -25,6 +25,8 @@ The default bridge file is `"%TEMP%/ArtifactStudio/debug-bridge.json"` on Window
 and the equivalent temp directory path on other platforms.
 Set `ARTIFACT_DEBUG_BRIDGE_FILE` to point at a different JSON file if needed.
 If no bridge file is present, the server falls back to the local mock snapshot.
+`bridge.example.json` contains a structured `preview.frame_failed` example for
+manual MCP smoke inspection.
 
 ## Runtime state
 
@@ -37,6 +39,10 @@ playback when a breakpoint condition matches.
 ## Tools
 
 - `get_debug_snapshot`
+- `get_latest_failure`
+- `get_diagnostic_events`
+- `acknowledge_diagnostic_sequence`
+- `get_failure_context`
 - `set_break_condition`
 - `set_debug_watch`
 - `list_debug_watches`
@@ -58,6 +64,33 @@ Watch paths use dotted snapshot fields such as `playback.frame` and
 `diagnostics.healthState`, or `property:<property-path>` for a registered
 property. A break hit stores the current watch values together with a bounded
 eight-snapshot window before and after playback resumes.
+
+Break conditions also support `diagnostic_severity_is` and
+`diagnostic_code_is`; `set_diagnostic_breakpoint` additionally combines
+severity, code, component, and objectId filters. These match the latest structured
+failure and trigger the existing cooperative playback pause path.
+
+`get_latest_failure` and `get_diagnostic_events` read the bounded structured
+`Error` / `Fatal` events published by the live application bridge. These events
+include the diagnostic code, component, operation, object/frame identity, and
+trace identifiers when available.
+
+`get_diagnostic_events` accepts `sinceSequence`, `component`, and `severity`;
+when `sinceSequence` is omitted, it starts after the session's acknowledged
+sequence.
+
+`acknowledge_diagnostic_sequence` stores the last reviewed event sequence in
+the MCP session state without deleting application diagnostics. `get_failure_context`
+returns the latest failure, diagnostic events, trace tail, and full current
+snapshot together. Bridge trace groups (`events`, `frames`, `scopes`, `locks`,
+and `crashes`) are normalized into that trace tail without discarding their
+original fields. It also returns `unacknowledgedEvents` alongside the full
+diagnostic history. Acknowledgement is monotonic and cannot move backwards.
+Diagnostic responses expose `eventsTruncated` and
+`firstPublishedSequence` when the bounded bridge history does not contain all
+recorded failures.
+If a bridge only provides `diagnostics.events`, the latest Error/Fatal event is
+used as `latestFailure` automatically.
 
 ## Example Flow
 

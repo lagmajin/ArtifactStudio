@@ -23,6 +23,25 @@ import ArtifactPr.MediaThumbnailer;
 
 namespace {
 
+bool isVideoExtension(const QString& suffix)
+{
+    return suffix == QStringLiteral("mp4")
+        || suffix == QStringLiteral("avi")
+        || suffix == QStringLiteral("mov")
+        || suffix == QStringLiteral("mkv");
+}
+
+bool isImageExtension(const QString& suffix)
+{
+    return suffix == QStringLiteral("png")
+        || suffix == QStringLiteral("jpg")
+        || suffix == QStringLiteral("jpeg")
+        || suffix == QStringLiteral("bmp")
+        || suffix == QStringLiteral("tif")
+        || suffix == QStringLiteral("tiff")
+        || suffix == QStringLiteral("webp");
+}
+
 /// ListWidget の item に thumbnail + filename を描画する delegate。
 /// QImage は paint() で QPixmap 化されるため、IO / 互換境界用途として OK。
 class MediaThumbnailDelegate : public QStyledItemDelegate {
@@ -201,7 +220,8 @@ void MediaPanel::refreshMediaList(const ArtifactPr::DemoSequence&)
 
     for (const auto& media : engine->mediaPool()) {
         if ((media.type == QStringLiteral("video") ||
-             media.type == QStringLiteral("audio"))
+             media.type == QStringLiteral("audio") ||
+             media.type == QStringLiteral("image"))
             && !media.filePath.isEmpty()
             && !alreadyListed(media.filePath)) {
             addMediaFile(media.filePath, media.name.isEmpty()
@@ -221,11 +241,7 @@ void MediaPanel::addMediaFile(const QString& filePath, const QString& displayNam
 
     // thumbnail を非同期要求 (映像ファイルの場合のみ)
     const QString suffix = QFileInfo(filePath).suffix().toLower();
-    const bool isVideo = suffix == QStringLiteral("mp4")
-        || suffix == QStringLiteral("avi")
-        || suffix == QStringLiteral("mov")
-        || suffix == QStringLiteral("mkv");
-    if (isVideo && QFileInfo::exists(filePath)) {
+    if (isVideoExtension(suffix) && QFileInfo::exists(filePath)) {
         ArtifactPr::ThumbnailRequest req;
         req.filePath = filePath;
         req.targetSize = QSize(160, 90);
@@ -237,15 +253,13 @@ void MediaPanel::addMediaFile(const QString& filePath, const QString& displayNam
 void MediaPanel::onImportClicked()
 {
     QStringList files = QFileDialog::getOpenFileNames(this, QStringLiteral("Import Media"), QString(),
-        QStringLiteral("Video Files (*.mp4 *.avi *.mov *.mkv);;Audio Files (*.mp3 *.wav *.aac *.flac);;All Files (*)"));
+        QStringLiteral("Media Files (*.mp4 *.avi *.mov *.mkv *.mp3 *.wav *.aac *.flac *.png *.jpg *.jpeg *.bmp *.tif *.tiff *.webp);;Video Files (*.mp4 *.avi *.mov *.mkv);;Audio Files (*.mp3 *.wav *.aac *.flac);;Image Files (*.png *.jpg *.jpeg *.bmp *.tif *.tiff *.webp);;All Files (*)"));
 
     if (!files.isEmpty()) {
         for (const auto& file : files) {
             const QString suffix = QFileInfo(file).suffix().toLower();
-            const bool isVideo = suffix == QStringLiteral("mp4")
-                || suffix == QStringLiteral("avi")
-                || suffix == QStringLiteral("mov")
-                || suffix == QStringLiteral("mkv");
+            const bool isVideo = isVideoExtension(suffix);
+            const bool isImage = isImageExtension(suffix);
             bool alreadyListed = false;
             for (int i = 0; i < list_->count(); ++i) {
                 const auto* item = list_->item(i);
@@ -261,21 +275,21 @@ void MediaPanel::onImportClicked()
                 || suffix == QStringLiteral("wav")
                 || suffix == QStringLiteral("aac")
                 || suffix == QStringLiteral("flac");
-            if (isVideo || isAudio) {
+            if (isVideo || isAudio || isImage) {
                 auto* engine = ArtifactPr::EditorEngine::instance();
+                QString mediaType;
+                if (isVideo) mediaType = QStringLiteral("video");
+                else if (isImage) mediaType = QStringLiteral("image");
+                else mediaType = QStringLiteral("audio");
                 bool alreadyRegistered = false;
                 for (const auto& media : engine->mediaPool()) {
-                    const QString mediaType = isVideo
-                        ? QStringLiteral("video") : QStringLiteral("audio");
                     if (media.filePath == file && media.type == mediaType) {
                         alreadyRegistered = true;
                         break;
                     }
                 }
                 if (!alreadyRegistered) {
-                    engine->addMediaToPool(
-                        file, QFileInfo(file).fileName(),
-                        isVideo ? QStringLiteral("video") : QStringLiteral("audio"));
+                    engine->addMediaToPool(file, QFileInfo(file).fileName(), mediaType);
                 }
             }
         }

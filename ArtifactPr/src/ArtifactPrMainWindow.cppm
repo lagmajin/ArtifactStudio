@@ -18,6 +18,7 @@ module;
 #include <QFont>
 #include <QFrame>
 #include <QGuiApplication>
+#include <QHash>
 #include <QHBoxLayout>
 #include <QLocale>
 #include <QCheckBox>
@@ -46,17 +47,28 @@ module;
 #include <QMessageBox>
 #include <QWindow>
 #include <QMouseEvent>
+#include <QPalette>
+#include <QSet>
+#include <cmath>
+#include <functional>
+#include <memory>
 
 module ArtifactPr.MainWindow;
 
+import ArtifactPr.AudioPreviewMixer;
 import ArtifactPr.EditorEngine;
 import ArtifactPr.ExportDialog;
+import ArtifactPr.MediaFrameDecoder;
 import ArtifactPr.MediaPanel;
 import ArtifactPr.MediaThumbnailer;
 import ArtifactPr.ProjectPanel;
+import ArtifactPr.SequenceCompositor;
 import ArtifactPr.TransportBarWidget;
 import ArtifactPr.VideoPlayerWidget;
 import ArtifactPr.AppTheme;
+
+import Image.ImageF32x4_RGBA;
+import FloatRGBA;
 
 namespace {
 
@@ -116,6 +128,15 @@ public:
 
     void setSpeed(double speed) { speed_ = speed; }
     void setReversed(bool reversed) { reversed_ = reversed; }
+
+    /// 実波形 peak envelope を差し替え (AudioPreviewMixer のデコード結果)。
+    /// peaks は 0..1 正規化。空ならランダムのまま描画しない。
+    void setWaveformPeaks(const QVector<float>& peaks)
+    {
+        if (peaks.isEmpty()) return;
+        waveform_ = peaks;
+        update();
+    }
 
 signals:
     void clipSelected(const QString& clipId) W_SIGNAL(clipSelected, clipId);
@@ -527,6 +548,13 @@ private Q_SLOTS:
             || suffix == QStringLiteral("wav")
             || suffix == QStringLiteral("aac")
             || suffix == QStringLiteral("flac");
+        const bool isImage = suffix == QStringLiteral("png")
+            || suffix == QStringLiteral("jpg")
+            || suffix == QStringLiteral("jpeg")
+            || suffix == QStringLiteral("bmp")
+            || suffix == QStringLiteral("tif")
+            || suffix == QStringLiteral("tiff")
+            || suffix == QStringLiteral("webp");
 
         QString trackId;
         const auto& tracks = isAudio
@@ -544,13 +572,16 @@ private Q_SLOTS:
         source.sourceIn = 0;
         ArtifactPr::FramePosition sourceDuration = engine->outPoint() - engine->inPoint();
         const ArtifactPr::FramePosition defaultWorkArea = engine->currentSequence().duration;
-        if (sourceDuration == defaultWorkArea && videoPlayer_->duration() > 0) {
+        if (isImage) {
+            // 静止画は既定のワークエリア長で張る
+            sourceDuration = qMax<ArtifactPr::FramePosition>(90, defaultWorkArea);
+        } else if (sourceDuration == defaultWorkArea && videoPlayer_->duration() > 0) {
             const int fps = sequenceFrameRate(engine->currentSequence());
             sourceDuration = (videoPlayer_->duration() * fps) / 1000;
         }
         source.sourceOut = qMax<ArtifactPr::FramePosition>(1, sourceDuration);
         source.duration = source.sourceOut - source.sourceIn;
-        source.color = QStringLiteral("#4a9eff");
+        source.color = isImage ? QStringLiteral("#a04aff") : QStringLiteral("#4a9eff");
 
         if (overwrite) {
             engine->overwriteClipFromSource(trackId, source, engine->currentFrame());
@@ -573,6 +604,65 @@ private:
 
 W_OBJECT_IMPL(SourceMonitorPanel)
 
+class SequenceCanvasWidget : public QWidget
+{
+public:
+    explicit SequenceCanvasWidget(QWidget* parent = nullptr)
+        : QWidget(parent)
+    {
+        setMinimumSize(320, 180);
+        // QPalette::Window を黒に寄せてレターボックス部を黒で見せる
+        setAutoFillBackground(true);
+        QPalette canvasPalette = palette();
+        canvasPalette.setColor(QPalette::Window, QColor(Qt::black));
+        setPalette(canvasPalette);
+    }
+
+    void setFrame(const ArtifactCore::ImageF32x4_RGBA& frame)
+    {
+        frame_ = frame;
+        // QImage 化は表示境界での明示変換 (AGENTS.md 整合)。
+        cachedImage_ = frame_.toQImage();
+        update();
+    }
+
+    void resetToBlack()
+    {
+        frame_ = ArtifactCore::ImageF32x4_RGBA();
+        cachedImage_ = QImage();
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent* event) override
+    {
+        Q_UNUSED(event);
+        QPainter p(this);
+        p.fillRect(rect(), Qt::black);
+
+        if (cachedImage_.isNull()) {
+            return;
+        }
+
+        const QSize target = size();
+        const QSize source = cachedImage_.size();
+        // アスペクト維持で widget いっぱいに描画
+        qreal scale = std::min(static_cast<double>(target.width()) / source.width(),
+                               static_cast<double>(target.height()) / source.height());
+        const int drawW = static_cast<int>(source.width() * scale);
+        const int drawH = static_cast<int>(source.height() * scale);
+        const int offsetX = (target.width() - drawW) / 2;
+        const int offsetY = (target.height() - drawH) / 2;
+
+        p.setRenderHint(QPainter::SmoothPixmapTransform);
+        p.drawImage(QRect(offsetX, offsetY, drawW, drawH), cachedImage_);
+    }
+
+private:
+    ArtifactCore::ImageF32x4_RGBA frame_;
+    QImage cachedImage_;
+};
+
 class ProgramMonitorPanel : public QWidget
 {
     W_OBJECT(ProgramMonitorPanel)
@@ -591,7 +681,7 @@ public:
         label->setFont(titleFont);
         layout->addWidget(label);
 
-        preview_ = new VideoPlayerWidget();
+        preview_ = new SequenceCanvasWidget();
         preview_->setMinimumSize(320, 180);
         layout->addWidget(preview_, 1);
 
@@ -601,18 +691,71 @@ public:
         timecode_->setFont(tcFont);
         layout->addWidget(timecode_);
 
+        decoder_ = new ArtifactPr::MediaFrameDecoder(this);
+        decoder_->setFrameReadyCallback([this](const ArtifactPr::FrameDecodeResult& result) {
+            onFrameDecoded(result);
+        });
+        decoder_->start();
+
+        audioMixer_ = std::make_unique<ArtifactPr::AudioPreviewMixer>();
+        audioMixer_->setLevelCallback([this](float leftPeakDb, float rightPeakDb) {
+            if (meterPanel_) {
+                meterPanel_->updateFromLevels(leftPeakDb, rightPeakDb);
+            }
+        });
+
         auto* engine = ArtifactPr::EditorEngine::instance();
 
         connect(engine, &ArtifactPr::EditorEngine::currentFrameChanged, this, &ProgramMonitorPanel::updateTimecode);
         connect(engine, &ArtifactPr::EditorEngine::sequenceChanged, this, &ProgramMonitorPanel::onSequenceChanged);
         connect(engine, &ArtifactPr::EditorEngine::playbackStateChanged, this, &ProgramMonitorPanel::onPlaybackStateChanged);
-        connect(engine, &ArtifactPr::EditorEngine::clipSelectionChanged, this, &ProgramMonitorPanel::onClipSelected);
+    }
+
+    /// AudioMeterPanel を後から登録 (MainWindow 構築順の解決用)。
+    void setMeterPanel(AudioMeterPanel* panel) { meterPanel_ = panel; }
+
+    /// TimelinePanel へ実波形を提供する (B2)。
+    std::function<const QVector<float>*(const QString&)> waveformProvider() const
+    {
+        return [this](const QString& filePath) {
+            return audioMixer_ ? audioMixer_->waveformPeaks(filePath) : nullptr;
+        };
+    }
+
+private:
+    /// audioTracks の音声クリップを mixer へ反映 (mute/solo 考慮)。
+    void syncAudioClips(const ArtifactPr::DemoSequence& sequence)
+    {
+        if (!audioMixer_) return;
+        bool anySolo = false;
+        for (const auto& track : sequence.audioTracks) {
+            if (track.solo) { anySolo = true; break; }
+        }
+
+        QVector<ArtifactPr::PreviewAudioClip> clips;
+        for (const auto& track : sequence.audioTracks) {
+            if (track.muted) continue;
+            if (anySolo && !track.solo) continue;
+            for (const auto& clip : track.clips) {
+                if (!clip.enabled || clip.sourceFile.isEmpty()) continue;
+                ArtifactPr::PreviewAudioClip entry;
+                entry.id = clip.id;
+                entry.filePath = clip.sourceFile;
+                entry.startFrame = clip.startFrame;
+                entry.durationFrames = clip.duration;
+                entry.sourceIn = clip.sourceIn;
+                entry.volume = clip.volume;
+                clips.append(entry);
+            }
+        }
+        audioMixer_->setClips(clips);
     }
 
 private Q_SLOTS:
     void updateTimecode(ArtifactPr::FramePosition frame)
     {
-        const int fps = sequenceFrameRate(ArtifactPr::EditorEngine::instance()->currentSequence());
+        auto* engine = ArtifactPr::EditorEngine::instance();
+        const int fps = sequenceFrameRate(engine->currentSequence());
         int totalSeconds = static_cast<int>(frame) / fps;
         int hours = totalSeconds / 3600;
         int minutes = (totalSeconds % 3600) / 60;
@@ -625,41 +768,229 @@ private Q_SLOTS:
                                .arg(seconds, 2, 10, QChar('0'))
                                .arg(frames, 2, 10, QChar('0')));
 
-        auto* engine = ArtifactPr::EditorEngine::instance();
-        qint64 positionMs = (frame * 1000) / fps;
-        preview_->seek(positionMs);
+        requestPreviewFrame(frame);
     }
 
     void onSequenceChanged(const ArtifactPr::DemoSequence& seq)
     {
         Q_UNUSED(seq);
-        preview_->stop();
-        preview_->loadFile(QString());
-        timecode_->setText(QStringLiteral("00:00:00:00"));
+        // 編集反映のたびに要求を無効化し、次フレーム位置で再合成する。
+        ++requestGeneration_;
+        decoder_->clearCache();
+        preview_->resetToBlack();
+        syncAudioClips(seq);
+        requestPreviewFrame(ArtifactPr::EditorEngine::instance()->currentFrame());
     }
 
     void onPlaybackStateChanged(bool isPlaying)
     {
+        if (!audioMixer_) return;
         if (isPlaying) {
-            preview_->play();
+            audioMixer_->play(ArtifactPr::EditorEngine::instance()->currentFrame());
         } else {
-            preview_->pause();
-        }
-    }
-
-    void onClipSelected(const QString& clipId)
-    {
-        if (clipId.isEmpty()) return;
-        auto* engine = ArtifactPr::EditorEngine::instance();
-        auto* clip = engine->findClip(clipId);
-        if (clip && !clip->sourceFile.isEmpty()) {
-            preview_->loadFile(clip->sourceFile);
+            audioMixer_->pause();
         }
     }
 
 private:
-    VideoPlayerWidget* preview_ = nullptr;
+    /// 表示中の 1 クリップ要求 (z-order 保持のため QVector で管理)。
+    struct PendingClipRequest {
+        QString clipId;
+        ArtifactPr::FrameDecodeRequest request;
+        double opacity = 1.0;
+    };
+
+    /// 指定 timeline フレーム位置で表示すべきクリップを収集し、
+    /// 各クリップのソースフレーム decode を要求する。
+    void requestPreviewFrame(FramePosition frame)
+    {
+        ++requestGeneration_;
+        const quint64 generation = requestGeneration_;
+
+        QVector<PendingClipRequest> pending;
+        const ArtifactPr::DemoSequence sequence =
+            ArtifactPr::EditorEngine::instance()->currentSequence();
+
+        // solo が一つでも有効なら solo トラックのみ表示 (D3)
+        bool anySolo = false;
+        for (const auto& track : sequence.videoTracks) {
+            if (track.solo) { anySolo = true; break; }
+        }
+
+        for (const auto& track : sequence.videoTracks) {
+            if (track.muted) continue;
+            if (anySolo && !track.solo) continue;
+            for (const auto& clip : track.clips) {
+                if (!clip.enabled) continue;
+                if (clip.sourceFile.isEmpty()) continue;
+                if (frame < clip.startFrame
+                    || frame >= clip.startFrame + clip.duration) {
+                    continue;
+                }
+
+                FramePosition sourceFrame = clip.sourceIn
+                    + static_cast<FramePosition>(
+                        std::llround(static_cast<double>(frame - clip.startFrame) * clip.speed));
+                if (clip.reversed) {
+                    sourceFrame = clip.sourceOut - (sourceFrame - clip.sourceIn);
+                    sourceFrame = qBound(clip.sourceIn, sourceFrame,
+                                         qMax(clip.sourceIn, clip.sourceOut - 1));
+                }
+                sourceFrame = qMax(sourceFrame, FramePosition(0));
+
+                PendingClipRequest entry;
+                entry.clipId = clip.id;
+                entry.opacity = clip.opacity
+                    * transitionOpacityAt(sequence, clip, frame);
+                entry.request.filePath = clip.sourceFile;
+                entry.request.stillImage = isStillImagePath(clip.sourceFile);
+                entry.request.sourceFrame = sourceFrame;
+                entry.request.generation = generation;
+                pending.append(entry);
+            }
+        }
+
+        pendingRequests_ = pending;
+        decodedFrames_.clear();
+
+        if (pending.isEmpty()) {
+            // 表示クリップなし → 黒画面へ戻す (generation 更新済みなので
+            // 遅延到着した旧結果は破棄される)
+            preview_->resetToBlack();
+            return;
+        }
+
+        for (const PendingClipRequest& entry : pending) {
+            decoder_->request(entry.request);
+        }
+    }
+
+    /// トランジション区間での opacity 変調係数 (D1)。
+    /// 範囲外は 1.0。Crossfade/Wipe は線形フェード、DipToBlack(Dissolve 扱い)
+    /// は両側が中央で減衰する三角カーブ。
+    static double transitionOpacityAt(const ArtifactPr::DemoSequence& sequence,
+                                      const ArtifactPr::DemoClip& clip,
+                                      FramePosition frame)
+    {
+        double factor = 1.0;
+        for (const auto& trans : sequence.transitions) {
+            if (trans.trackId != trackIdOfClip(sequence, clip.id)) continue;
+            if (trans.leftClipId != clip.id && trans.rightClipId != clip.id) continue;
+
+            const FramePosition transEnd = trans.startFrame + trans.duration;
+            if (frame < trans.startFrame || frame >= transEnd) continue;
+
+            // 区間内進捗 0..1
+            double t = static_cast<double>(frame - trans.startFrame)
+                / static_cast<double>(qMax<FramePosition>(1, trans.duration));
+
+            double local = 1.0;
+            switch (trans.type) {
+            case ArtifactPr::TransitionType::Crossfade:
+            case ArtifactPr::TransitionType::WipeLeft:
+            case ArtifactPr::TransitionType::WipeRight:
+                local = trans.leftClipId == clip.id ? t : 1.0 - t;
+                break;
+            case ArtifactPr::TransitionType::DipToBlack:
+                local = trans.leftClipId == clip.id ? 1.0 - 2.0 * t : 2.0 * t - 1.0;
+                local = qBound(0.0, local, 1.0);
+                break;
+            }
+            factor = std::min(factor, local);
+        }
+        return factor;
+    }
+
+    static QString trackIdOfClip(const ArtifactPr::DemoSequence& sequence,
+                                 const QString& clipId)
+    {
+        for (const auto& track : sequence.videoTracks) {
+            for (const auto& c : track.clips) {
+                if (c.id == clipId) return track.id;
+            }
+        }
+        for (const auto& track : sequence.audioTracks) {
+            for (const auto& c : track.clips) {
+                if (c.id == clipId) return track.id;
+            }
+        }
+        return QString();
+    }
+
+    void onFrameDecoded(const ArtifactPr::FrameDecodeResult& result)
+    {
+        if (result.generation != requestGeneration_) return;
+        if (!result.valid) return;
+        // 同一 filePath の要求が複数クリップあっても 1 つのデコードで共有される
+        bool needed = false;
+        for (const PendingClipRequest& entry : pendingRequests_) {
+            if (entry.request.filePath == result.filePath) {
+                needed = true;
+                break;
+            }
+        }
+        if (!needed) return;
+        if (decodedFrames_.contains(result.filePath)) return;
+
+        decodedFrames_.insert(result.filePath, result.image);
+
+        // 未完了の要求が残っていれば待つ (次の onFrameDecoded で再評価)
+        for (const PendingClipRequest& entry : pendingRequests_) {
+            if (!decodedFrames_.contains(entry.request.filePath)) {
+                return;
+            }
+        }
+
+        // 全クリップのフレームが揃ったので z-order 順に合成して表示
+        QVector<ArtifactPr::CompositeLayer> layers;
+        layers.reserve(pendingRequests_.size());
+        for (const PendingClipRequest& entry : pendingRequests_) {
+            const auto found = decodedFrames_.constFind(entry.request.filePath);
+            if (found == decodedFrames_.constEnd()) continue;
+            ArtifactPr::CompositeLayer layer;
+            layer.frame = found.value();
+            layer.opacity = entry.opacity;
+            layers.append(layer);
+        }
+
+        const QSize canvasSize = monitorResolution(
+            ArtifactPr::EditorEngine::instance()->currentSequence());
+        const ArtifactCore::FloatRGBA background(0.0f, 0.0f, 0.0f, 1.0f);
+        preview_->setFrame(ArtifactPr::composeSequenceLayers(canvasSize, layers, background));
+    }
+
+    static QSize monitorResolution(const ArtifactPr::DemoSequence& sequence)
+    {
+        const QStringList parts = sequence.resolution.split(QChar('x'));
+        bool okW = false;
+        bool okH = false;
+        const int w = parts.value(0).toInt(&okW);
+        const int h = parts.value(1).toInt(&okH);
+        if (okW && okH && w > 0 && h > 0) {
+            return QSize(w, h);
+        }
+        return QSize(1920, 1080);
+    }
+
+    static bool isStillImagePath(const QString& path)
+    {
+        const QString suffix = QFileInfo(path).suffix().toLower();
+        static const QSet<QString> imageExts = {
+            QStringLiteral("png"), QStringLiteral("jpg"), QStringLiteral("jpeg"),
+            QStringLiteral("bmp"), QStringLiteral("tif"), QStringLiteral("tiff"),
+            QStringLiteral("webp")
+        };
+        return imageExts.contains(suffix);
+    }
+
+    ArtifactPr::MediaFrameDecoder* decoder_ = nullptr;
+    std::unique_ptr<ArtifactPr::AudioPreviewMixer> audioMixer_;
+    AudioMeterPanel* meterPanel_ = nullptr;
+    SequenceCanvasWidget* preview_ = nullptr;
     QLabel* timecode_ = nullptr;
+    quint64 requestGeneration_ = 0;
+    QVector<PendingClipRequest> pendingRequests_;
+    QHash<QString, ArtifactCore::ImageF32x4_RGBA> decodedFrames_;
 };
 
 W_OBJECT_IMPL(ProgramMonitorPanel)
@@ -836,12 +1167,10 @@ public:
 private Q_SLOTS:
     void onMeterTick()
     {
-        float baseLevel = 0.3f + static_cast<float>(QRandomGenerator::global()->bounded(40)) / 100.0f;
-
+        // 実データ経路: AudioPreviewMixer のレベルコールバックが
+        // updateFromLevels() を呼ぶ。タイマーは減衰描画の維持用。
         for (auto* meter : meterWidgets_) {
-            float variation = static_cast<float>(QRandomGenerator::global()->bounded(20)) / 100.0f;
-            float level = baseLevel + variation;
-            meter->updateLevel(qMin(1.0f, level));
+            meter->update();
         }
     }
 
@@ -864,7 +1193,27 @@ private Q_SLOTS:
         }
     }
 
+public:
+    /// AudioPreviewMixer の level callback から呼ぶ (UI thread)。
+    void updateFromLevels(float leftPeakDb, float rightPeakDb)
+    {
+        if (meterWidgets_.size() >= 1) {
+            meterWidgets_[0]->updateLevel(dbToMeterLevel(leftPeakDb));
+        }
+        if (meterWidgets_.size() >= 2) {
+            meterWidgets_[1]->updateLevel(dbToMeterLevel(rightPeakDb));
+        }
+    }
+
 private:
+    static float dbToMeterLevel(float db)
+    {
+        // -60dBFS..0dBFS を 0..1 へ線形マップ
+        constexpr float kMinDb = -60.0f;
+        const float clamped = qBound(kMinDb, db, 0.0f);
+        return (clamped - kMinDb) / -kMinDb;
+    }
+
     QVector<AudioMeterWidget*> meterWidgets_;
     QTimer* meterTimer_ = nullptr;
 };
@@ -1082,6 +1431,21 @@ public:
         connect(reverseCheck_, &QCheckBox::toggled, this, &ClipPropertiesPanel::onReverseToggled);
         layout->addWidget(reverseCheck_);
 
+        auto* opacityLabel = new QLabel(trUi("Opacity:", "不透明度:"));
+        layout->addWidget(opacityLabel);
+
+        opacitySlider_ = new QSlider(Qt::Horizontal);
+        opacitySlider_->setRange(0, 100);
+        opacitySlider_->setValue(100);
+        opacitySlider_->setTickPosition(QSlider::TicksBelow);
+        opacitySlider_->setTickInterval(25);
+        connect(opacitySlider_, &QSlider::valueChanged, this, &ClipPropertiesPanel::onOpacityChanged);
+        layout->addWidget(opacitySlider_);
+
+        opacityValueLabel_ = new QLabel(percentLabel(100));
+        opacityValueLabel_->setAlignment(Qt::AlignCenter);
+        layout->addWidget(opacityValueLabel_);
+
         layout->addStretch();
 
         infoLabel_ = new QLabel(trUi("Select a clip to\nedit its properties.", "クリップを選択して\nプロパティを編集してください。"));
@@ -1104,6 +1468,8 @@ private slots:
             volumeValueLabel_->setText(percentLabel(100));
             speedCombo_->setCurrentIndex(2);
             reverseCheck_->setChecked(false);
+            opacitySlider_->setValue(100);
+            opacityValueLabel_->setText(percentLabel(100));
             infoLabel_->setText(uiText("Select a clip to\nedit its properties.", "クリップを選択して\nプロパティを編集してください。"));
             return;
         }
@@ -1119,6 +1485,12 @@ private slots:
         }
 
         reverseCheck_->setChecked(clip->reversed);
+
+        int opacityPercent = static_cast<int>(clip->opacity * 100);
+        opacitySlider_->blockSignals(true);
+        opacitySlider_->setValue(opacityPercent);
+        opacitySlider_->blockSignals(false);
+        opacityValueLabel_->setText(percentLabel(opacityPercent));
 
         QString info = uiText(
             "Duration: %1 frames\nStart: %2\nSource: %3-%4",
@@ -1199,12 +1571,34 @@ private slots:
         }
     }
 
+    void onOpacityChanged(int value)
+    {
+        auto* engine = ArtifactPr::EditorEngine::instance();
+        QString clipId = engine->selectedClipId();
+        if (!clipId.isEmpty()) {
+            auto* clip = engine->findClip(clipId);
+            if (clip) {
+                double oldOpacity = clip->opacity;
+                double newOpacity = value / 100.0;
+                if (qFuzzyCompare(oldOpacity, newOpacity)) {
+                    opacityValueLabel_->setText(percentLabel(value));
+                    return;
+                }
+                // NLE ストア経由 (Undo 可能) の opacity 変更
+                engine->setClipOpacity(clipId, newOpacity);
+            }
+        }
+        opacityValueLabel_->setText(percentLabel(value));
+    }
+
 private:
     QLabel* clipNameLabel_ = nullptr;
     QSlider* volumeSlider_ = nullptr;
     QLabel* volumeValueLabel_ = nullptr;
     QComboBox* speedCombo_ = nullptr;
     QCheckBox* reverseCheck_ = nullptr;
+    QSlider* opacitySlider_ = nullptr;
+    QLabel* opacityValueLabel_ = nullptr;
     QLabel* infoLabel_ = nullptr;
 };
 
@@ -1598,6 +1992,17 @@ private:
     QWidget* timelineHost_ = nullptr;
     QVBoxLayout* timelineLayout_ = nullptr;
 
+public:
+    /// 実波形 peak envelope の提供元 (AudioPreviewMixer)。MainWindow で接続。
+    void setWaveformProvider(std::function<const QVector<float>*(const QString&)> provider)
+    {
+        waveformProvider_ = std::move(provider);
+        refreshTimeline(ArtifactPr::EditorEngine::instance()->currentSequence());
+    }
+
+private:
+    std::function<const QVector<float>*(const QString&)> waveformProvider_;
+
     void addTrackRow(const ArtifactPr::DemoTrack& track, const QVector<ArtifactPr::Transition>& transitions);
 };
 
@@ -1965,6 +2370,30 @@ void TimelinePanel::addTrackRow(const ArtifactPr::DemoTrack& track, const QVecto
         nameLabel->setAutoFillBackground(true);
         trackLayout->addWidget(nameLabel);
 
+        // mute / solo トグル (TrackHeader 相当)。押下状態はトラック状態を反映。
+        const QString trackId = track.id;
+        auto* muteButton = new QPushButton(QStringLiteral("M"));
+        muteButton->setCheckable(true);
+        muteButton->setChecked(track.muted);
+        muteButton->setFixedSize(20, 20);
+        muteButton->setToolTip(trUi("Mute track", "トラックをミュート"));
+        QObject::connect(muteButton, &QPushButton::toggled, muteButton,
+            [trackId](bool checked) {
+                ArtifactPr::EditorEngine::instance()->setTrackMuted(trackId, checked);
+            });
+        trackLayout->addWidget(muteButton);
+
+        auto* soloButton = new QPushButton(QStringLiteral("S"));
+        soloButton->setCheckable(true);
+        soloButton->setChecked(track.solo);
+        soloButton->setFixedSize(20, 20);
+        soloButton->setToolTip(trUi("Solo track", "トラックをソロ"));
+        QObject::connect(soloButton, &QPushButton::toggled, soloButton,
+            [trackId](bool checked) {
+                ArtifactPr::EditorEngine::instance()->setTrackSolo(trackId, checked);
+            });
+        trackLayout->addWidget(soloButton);
+
         auto* trackContent = new QWidget();
         trackContent->setProperty(ArtifactPr::kPropSurfaceKind, QString::fromUtf8(ArtifactPr::kSurfaceTrackContent));
         trackContent->setAutoFillBackground(true);
@@ -1988,6 +2417,14 @@ void TimelinePanel::addTrackRow(const ArtifactPr::DemoTrack& track, const QVecto
             }
             if (clip.reversed) {
                 clipWidget->setReversed(true);
+            }
+
+            // 音声クリップは実波形 peak envelope を適用 (B2)。
+            if (isAudio && waveformProvider_) {
+                const QVector<float>* peaks = waveformProvider_(clip.sourceFile);
+                if (peaks) {
+                    clipWidget->setWaveformPeaks(*peaks);
+                }
             }
 
             connect(clipWidget, &TimelineClipWidget::clipSelected, this, &TimelinePanel::onClipSelected);
@@ -2309,6 +2746,9 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     audioMeterDock->setWidget(audioMeterPanel);
     audioMeterDock->setFeatures(ads::CDockWidget::AllDockWidgetFeatures);
     dockManager->addDockWidget(ads::RightDockWidgetArea, audioMeterDock);
+
+    programMonitorPanel->setMeterPanel(audioMeterPanel);
+    timelinePanel->setWaveformProvider(programMonitorPanel->waveformProvider());
 
     auto* transitionPanel = new TransitionPanel();
     auto* transitionDock = new ads::CDockWidget(trUi("Transitions", "トランジション"));

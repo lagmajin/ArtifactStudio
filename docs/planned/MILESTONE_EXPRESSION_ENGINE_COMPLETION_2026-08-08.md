@@ -1,7 +1,7 @@
 # Expression Engine Audit & Completion (2026-08-08)
 
-**最終更新:** 2026-08-15
-**状態:** コア評価・Copilot基本UIは実装済み。レイヤー実値参照、Marker API、Pick Whip、追加AE関数、runtime受入れが未完了。
+**最終更新:** 2026-08-21
+**状態:** コア評価・Copilot基本UIは実装済み。2026-08-21 に index 注入(部分)、posterizeTime、seedRandom を追加。レイヤー描画パスへの index 配線、レイヤー実値参照の通常評価への注入、Pick Whip の PropertyEditor 連携、座標変換関数、runtime受入れが未完了。
 
 ## 第一稿からの主な訂正
 
@@ -100,16 +100,17 @@ sin, cos, tan, degToRad, radToDeg, sqrt, pow, abs, floor, ceil, round, min, max,
 
 ---
 
-### Gap 2: `index` 変数が注入されていない 🔴
+### Gap 2: `index` 変数が注入されていない 🔴 → 🟢 部分解消(2026-08-21)
 
 **問題**: Copilot のプレビューでは `thisLayer.index` を注入しているが、通常の `AbstractProperty::evaluateValue()` 側への `index` 注入は確認できない。
 
 `evaluateValue()` (Line 484-504) は `time`, `value`, `frameRate`, `keyframes` を注入するが、`index` は未注入。
 
-**修正**: `evaluateValue()` に `evaluator->setVariable("index", ExpressionValue(layerIndex))` 追加。AbstractProperty にレイヤーインデックスを知る仕組み（プロパティオーナーレイヤーから取得）が必要。
+**修正(2026-08-21 実施)**:
+- `evaluateValue()` にオプショナル引数 `std::optional<int> layerIndex` を追加し、指定時のみ `setVariable("index", ...)` を行う(既存呼び出しは影響なし)。`ArtifactCore/src/Property/AbstractProperty.cppm:399,494`
+- Copilot プレビュー側も `previewLayerIndex + 1`(1始まり)をグローバル `index` 変数として注入。`ArtifactExpressionCopilotWidget.cppm:603`
 
-**ファイル**: `ArtifactCore/src/Property/AbstractProperty.cppm`（1行追加）
-**コスト**: 低
+**残作業**: レイヤー描画パス(`ArtifactTextLayer.cppm:280` 等)からレイヤー番号を渡す配線。プロパティが所属レイヤーの index を知る仕組み(コンポジションからの逆引き)が必要なため別途。
 
 ---
 
@@ -140,6 +141,8 @@ AE のマーカーはコンポジションとレイヤーの両方に存在す�
 
 **ファイル**: `Artifact/src/Widgets/ArtifactExpressionCopilotWidget.cppm`、`ExpressionEvaluator.cppm`
 **コスト**: 中
+
+**2026-08-21 部分解消**: `posterizeTime`(時間のフレーム単位量子化)と `seedRandom`(`randomSeeded` の AE 互換エイリアス)を追加済み。残りは `toComp/fromWorld/lookAt` 座標変換系(レイヤー空間情報の注入が前提)とピックウィップの PropertyEditor 連携。
 
 ---
 

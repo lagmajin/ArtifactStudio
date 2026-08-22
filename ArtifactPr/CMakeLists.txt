@@ -11,6 +11,10 @@ set(ARTIFACT_PR_SOURCES
     include/ProjectPanel.ixx
     include/AppTheme.ixx
     include/MediaThumbnailer.ixx
+    include/MediaFrameDecoder.ixx
+    include/SequenceCompositor.ixx
+    include/SequenceExporter.ixx
+    include/AudioPreviewMixer.ixx
     include/VideoSurface.ixx
     include/EditCommand.ixx
     include/PrShortcut.ixx
@@ -30,6 +34,10 @@ set(ARTIFACT_PR_SOURCES
     src/ProjectPanel.cppm
     src/AppTheme.cppm
     src/MediaThumbnailer.cppm
+    src/MediaFrameDecoder.cppm
+    src/SequenceCompositor.cppm
+    src/SequenceExporter.cppm
+    src/AudioPreviewMixer.cppm
     src/VideoSurface.cppm
     src/EditCommand.cppm
     src/PrShortcut.cppm
@@ -57,7 +65,7 @@ set_target_properties(ArtifactPr PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
 )
 
-target_link_libraries(ArtifactPr PRIVATE ArtifactCore ArtifactWidgets Qt6::Multimedia)
+target_link_libraries(ArtifactPr PRIVATE ArtifactCore ArtifactCoreCommand ArtifactCoreAudio ArtifactCoreVideo ArtifactCoreNLE ArtifactWidgets Qt6::Multimedia)
 
 target_include_directories(ArtifactPr PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"

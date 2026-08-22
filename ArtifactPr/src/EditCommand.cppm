@@ -1,5 +1,7 @@
 module;
 
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QObject>
 #include <QtGlobal>
 #include <QVariant>
@@ -16,11 +18,75 @@ namespace {
 
 int insertedClipCounter = 0;
 
+// serialize/deserialize 用のローカル DemoClip 変換 (Engine のプロジェクト保存
+// 形式と同じキー名)。コマンドは必要フィールドのみを扱う。
+QJsonObject commandClipToJson(const DemoClip& clip)
+{
+    QJsonObject obj;
+    obj[QStringLiteral("id")] = clip.id;
+    obj[QStringLiteral("name")] = clip.name;
+    obj[QStringLiteral("sourceFile")] = clip.sourceFile;
+    obj[QStringLiteral("startFrame")] = static_cast<qint64>(clip.startFrame);
+    obj[QStringLiteral("duration")] = static_cast<qint64>(clip.duration);
+    obj[QStringLiteral("sourceIn")] = static_cast<qint64>(clip.sourceIn);
+    obj[QStringLiteral("sourceOut")] = static_cast<qint64>(clip.sourceOut);
+    obj[QStringLiteral("color")] = clip.color;
+    obj[QStringLiteral("linked")] = clip.linked;
+    obj[QStringLiteral("selected")] = clip.selected;
+    obj[QStringLiteral("reversed")] = clip.reversed;
+    obj[QStringLiteral("speed")] = clip.speed;
+    obj[QStringLiteral("volume")] = clip.volume;
+    obj[QStringLiteral("enabled")] = clip.enabled;
+    obj[QStringLiteral("opacity")] = clip.opacity;
+    return obj;
+}
+
+DemoClip commandClipFromJson(const QJsonObject& obj)
+{
+    DemoClip clip;
+    clip.id = obj[QStringLiteral("id")].toString();
+    clip.name = obj[QStringLiteral("name")].toString();
+    clip.sourceFile = obj[QStringLiteral("sourceFile")].toString();
+    clip.startFrame = obj[QStringLiteral("startFrame")].toInteger<qint64>();
+    clip.duration = obj[QStringLiteral("duration")].toInteger<qint64>();
+    clip.sourceIn = obj[QStringLiteral("sourceIn")].toInteger<qint64>();
+    clip.sourceOut = obj[QStringLiteral("sourceOut")].toInteger<qint64>();
+    clip.color = obj[QStringLiteral("color")].toString(QStringLiteral("#4a9eff"));
+    clip.linked = obj[QStringLiteral("linked")].toBool();
+    clip.selected = obj[QStringLiteral("selected")].toBool();
+    clip.reversed = obj[QStringLiteral("reversed")].toBool();
+    clip.speed = obj[QStringLiteral("speed")].toDouble(1.0);
+    clip.volume = obj[QStringLiteral("volume")].toDouble(1.0);
+    clip.enabled = obj[QStringLiteral("enabled")].toBool(true);
+    clip.opacity = obj[QStringLiteral("opacity")].toDouble(1.0);
+    return clip;
+}
+
 } // namespace
 
 // =====================================================================
 // SlipClipCommand
 // =====================================================================
+QJsonObject SlipClipCommand::serialize() const {
+    return QJsonObject{
+        {QStringLiteral("clipId"), clipId_},
+        {QStringLiteral("oldSourceIn"), static_cast<qint64>(oldSourceIn_)},
+        {QStringLiteral("oldSourceOut"), static_cast<qint64>(oldSourceOut_)},
+        {QStringLiteral("newSourceIn"), static_cast<qint64>(newSourceIn_)},
+        {QStringLiteral("newSourceOut"), static_cast<qint64>(newSourceOut_)},
+    };
+}
+
+bool SlipClipCommand::deserialize(const QJsonObject& data) {
+    clipId_ = data[QStringLiteral("clipId")].toString();
+    oldSourceIn_ = data[QStringLiteral("oldSourceIn")].toInteger<qint64>();
+    oldSourceOut_ = data[QStringLiteral("oldSourceOut")].toInteger<qint64>();
+    newSourceIn_ = data[QStringLiteral("newSourceIn")].toInteger<qint64>();
+    newSourceOut_ = data[QStringLiteral("newSourceOut")].toInteger<qint64>();
+    setText(QStringLiteral("Slip Clip"));
+    return !clipId_.isEmpty();
+}
+
 void SlipClipCommand::doSlip(FramePosition sourceIn, FramePosition sourceOut) {
     auto* engine = EditorEngine::instance();
     auto* clip = engine->findClip(clipId_);
@@ -42,6 +108,34 @@ void SlipClipCommand::doSlip(FramePosition sourceIn, FramePosition sourceOut) {
 // =====================================================================
 // SlideClipCommand
 // =====================================================================
+QJsonObject SlideClipCommand::serialize() const {
+    return QJsonObject{
+        {QStringLiteral("clipId"), clipId_},
+        {QStringLiteral("oldStart"), static_cast<qint64>(oldStart_)},
+        {QStringLiteral("newStart"), static_cast<qint64>(newStart_)},
+        {QStringLiteral("leftClipId"), leftClipId_},
+        {QStringLiteral("oldLeftEnd"), static_cast<qint64>(oldLeftEnd_)},
+        {QStringLiteral("newLeftEnd"), static_cast<qint64>(newLeftEnd_)},
+        {QStringLiteral("rightClipId"), rightClipId_},
+        {QStringLiteral("oldRightStart"), static_cast<qint64>(oldRightStart_)},
+        {QStringLiteral("newRightStart"), static_cast<qint64>(newRightStart_)},
+    };
+}
+
+bool SlideClipCommand::deserialize(const QJsonObject& data) {
+    clipId_ = data[QStringLiteral("clipId")].toString();
+    oldStart_ = data[QStringLiteral("oldStart")].toInteger<qint64>();
+    newStart_ = data[QStringLiteral("newStart")].toInteger<qint64>();
+    leftClipId_ = data[QStringLiteral("leftClipId")].toString();
+    oldLeftEnd_ = data[QStringLiteral("oldLeftEnd")].toInteger<qint64>();
+    newLeftEnd_ = data[QStringLiteral("newLeftEnd")].toInteger<qint64>();
+    rightClipId_ = data[QStringLiteral("rightClipId")].toString();
+    oldRightStart_ = data[QStringLiteral("oldRightStart")].toInteger<qint64>();
+    newRightStart_ = data[QStringLiteral("newRightStart")].toInteger<qint64>();
+    setText(QStringLiteral("Slide Clip"));
+    return !clipId_.isEmpty();
+}
+
 void SlideClipCommand::computeNewEdges() {
     // newStart - oldStart = delta
     // newLeftEnd = oldLeftEnd + delta
@@ -82,6 +176,26 @@ void SlideClipCommand::doSlide(FramePosition start, FramePosition leftEnd, Frame
 // =====================================================================
 // RippleDeleteCommand
 // =====================================================================
+QJsonObject RippleDeleteCommand::serialize() const {
+    return QJsonObject{
+        {QStringLiteral("trackId"), trackId_},
+        {QStringLiteral("clip"), commandClipToJson(clip_)},
+        {QStringLiteral("index"), index_},
+        {QStringLiteral("oldDuration"), static_cast<qint64>(oldDuration_)},
+        {QStringLiteral("newDuration"), static_cast<qint64>(newDuration_)},
+    };
+}
+
+bool RippleDeleteCommand::deserialize(const QJsonObject& data) {
+    trackId_ = data[QStringLiteral("trackId")].toString();
+    clip_ = commandClipFromJson(data[QStringLiteral("clip")].toObject());
+    index_ = data[QStringLiteral("index")].toInt(-1);
+    oldDuration_ = data[QStringLiteral("oldDuration")].toInteger<qint64>();
+    newDuration_ = data[QStringLiteral("newDuration")].toInteger<qint64>();
+    setText(QStringLiteral("Ripple Delete Clip"));
+    return !trackId_.isEmpty();
+}
+
 void RippleDeleteCommand::doRipple(bool undo) {
     auto* engine = EditorEngine::instance();
     auto* track = engine->findTrack(trackId_);
@@ -118,6 +232,28 @@ void RippleDeleteCommand::doRipple(bool undo) {
 // =====================================================================
 // InsertEditCommand
 // =====================================================================
+QJsonObject InsertEditCommand::serialize() const {
+    return QJsonObject{
+        {QStringLiteral("trackId"), trackId_},
+        {QStringLiteral("sourceClip"), commandClipToJson(sourceClip_)},
+        {QStringLiteral("insertAt"), static_cast<qint64>(insertAt_)},
+        {QStringLiteral("oldDuration"), static_cast<qint64>(oldDuration_)},
+        {QStringLiteral("newDuration"), static_cast<qint64>(newDuration_)},
+        {QStringLiteral("insertedClipId"), insertedClipId_},
+    };
+}
+
+bool InsertEditCommand::deserialize(const QJsonObject& data) {
+    trackId_ = data[QStringLiteral("trackId")].toString();
+    sourceClip_ = commandClipFromJson(data[QStringLiteral("sourceClip")].toObject());
+    insertAt_ = data[QStringLiteral("insertAt")].toInteger<qint64>();
+    oldDuration_ = data[QStringLiteral("oldDuration")].toInteger<qint64>();
+    newDuration_ = data[QStringLiteral("newDuration")].toInteger<qint64>();
+    insertedClipId_ = data[QStringLiteral("insertedClipId")].toString();
+    setText(QStringLiteral("Insert Edit"));
+    return !trackId_.isEmpty();
+}
+
 void InsertEditCommand::doInsert(bool undo) {
     auto* engine = EditorEngine::instance();
     auto* track = engine->findTrack(trackId_);
@@ -167,6 +303,34 @@ void InsertEditCommand::doInsert(bool undo) {
 // =====================================================================
 // OverwriteEditCommand
 // =====================================================================
+QJsonObject OverwriteEditCommand::serialize() const {
+    QJsonArray removed;
+    for (const auto& c : removedClips_) {
+        removed.append(commandClipToJson(c));
+    }
+    return QJsonObject{
+        {QStringLiteral("trackId"), trackId_},
+        {QStringLiteral("sourceClip"), commandClipToJson(sourceClip_)},
+        {QStringLiteral("overwriteAt"), static_cast<qint64>(overwriteAt_)},
+        {QStringLiteral("insertedClipId"), insertedClipId_},
+        {QStringLiteral("removedClips"), removed},
+    };
+}
+
+bool OverwriteEditCommand::deserialize(const QJsonObject& data) {
+    trackId_ = data[QStringLiteral("trackId")].toString();
+    sourceClip_ = commandClipFromJson(data[QStringLiteral("sourceClip")].toObject());
+    overwriteAt_ = data[QStringLiteral("overwriteAt")].toInteger<qint64>();
+    insertedClipId_ = data[QStringLiteral("insertedClipId")].toString();
+    removedClips_.clear();
+    const auto removed = data[QStringLiteral("removedClips")].toArray();
+    for (const auto& v : removed) {
+        removedClips_.append(commandClipFromJson(v.toObject()));
+    }
+    setText(QStringLiteral("Overwrite Edit"));
+    return !trackId_.isEmpty();
+}
+
 void OverwriteEditCommand::doOverwrite(bool undo) {
     auto* engine = EditorEngine::instance();
     auto* track = engine->findTrack(trackId_);
@@ -221,6 +385,40 @@ void OverwriteEditCommand::doOverwrite(bool undo) {
 // =====================================================================
 // LiftEditCommand
 // =====================================================================
+QJsonObject LiftEditCommand::serialize() const {
+    QJsonArray original;
+    for (const auto& c : originalClips_) {
+        original.append(commandClipToJson(c));
+    }
+    QJsonArray removed;
+    for (const auto& c : removedClips_) {
+        removed.append(commandClipToJson(c));
+    }
+    return QJsonObject{
+        {QStringLiteral("trackId"), trackId_},
+        {QStringLiteral("from"), static_cast<qint64>(from_)},
+        {QStringLiteral("to"), static_cast<qint64>(to_)},
+        {QStringLiteral("originalClips"), original},
+        {QStringLiteral("removedClips"), removed},
+    };
+}
+
+bool LiftEditCommand::deserialize(const QJsonObject& data) {
+    trackId_ = data[QStringLiteral("trackId")].toString();
+    from_ = data[QStringLiteral("from")].toInteger<qint64>();
+    to_ = data[QStringLiteral("to")].toInteger<qint64>();
+    originalClips_.clear();
+    for (const auto& v : data[QStringLiteral("originalClips")].toArray()) {
+        originalClips_.append(commandClipFromJson(v.toObject()));
+    }
+    removedClips_.clear();
+    for (const auto& v : data[QStringLiteral("removedClips")].toArray()) {
+        removedClips_.append(commandClipFromJson(v.toObject()));
+    }
+    setText(QStringLiteral("Lift Edit"));
+    return !trackId_.isEmpty();
+}
+
 void LiftEditCommand::doLift(bool undo) {
     auto* engine = EditorEngine::instance();
     auto* track = engine->findTrack(trackId_);
@@ -271,14 +469,33 @@ void LiftEditCommand::doLift(bool undo) {
 // =====================================================================
 // ClipPropertyCommand
 // =====================================================================
-QString ClipPropertyCommand::description() const {
+QString ClipPropertyCommand::descriptionText() const {
     switch (kind_) {
     case Kind::Volume: return QStringLiteral("Change Clip Volume");
     case Kind::Speed:  return QStringLiteral("Change Clip Speed");
     case Kind::Reverse: return QStringLiteral("Reverse Clip");
     case Kind::Name:   return QStringLiteral("Rename Clip");
+    case Kind::Opacity: return QStringLiteral("Change Clip Opacity");
     }
     return QStringLiteral("Change Clip Property");
+}
+
+QJsonObject ClipPropertyCommand::serialize() const {
+    QJsonObject obj;
+    obj[QStringLiteral("clipId")] = clipId_;
+    obj[QStringLiteral("kind")] = static_cast<int>(kind_);
+    obj[QStringLiteral("oldValue")] = oldValue_.toString();
+    obj[QStringLiteral("newValue")] = newValue_.toString();
+    return obj;
+}
+
+bool ClipPropertyCommand::deserialize(const QJsonObject& data) {
+    clipId_ = data[QStringLiteral("clipId")].toString();
+    kind_ = static_cast<Kind>(data[QStringLiteral("kind")].toInt(0));
+    oldValue_ = data[QStringLiteral("oldValue")].toString();
+    newValue_ = data[QStringLiteral("newValue")].toString();
+    setText(descriptionText());
+    return !clipId_.isEmpty();
 }
 
 void ClipPropertyCommand::doApply(const QVariant& v) {
@@ -301,6 +518,10 @@ void ClipPropertyCommand::doApply(const QVariant& v) {
         break;
     case Kind::Name:
         clip->name = v.toString();
+        Q_EMIT engine->clipChanged(clipId_);
+        break;
+    case Kind::Opacity:
+        clip->opacity = v.toDouble();
         Q_EMIT engine->clipChanged(clipId_);
         break;
     }
