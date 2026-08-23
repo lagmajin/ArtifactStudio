@@ -2,13 +2,36 @@
 
 未解決の設計判断・runtime 検証待ちだけを記録する。実装済みの局所修正と履歴は `docs/analysis/INSIGHT_ARCHIVE_2026-08-11.md` を参照する。
 
+## 2026-08-24 — オーディオミックス契約: layer volume/pan の二重適用（静的確認済み、未修正）
+
+- **関連:** `Artifact/src/Composition/ArtifactAbstractComposition.cppm:3163-3170`（mixer 経路がレイヤー volume をバスフェーダー dB へ設定）、`ArtifactCore/src/Audio/AudioBus.cppm:306-364`（process が post-fader で volumeDb を線形ゲイン適用）、`Artifact/src/Layer/ArtifactAudioLayer.cppm`（getAudio がサンプルへ volume を乗算、pan もレイヤー内で定電力適用）、`Artifact/src/Layer/ArtifactVideoLayer.cppm:2791-2792`（video getAudio も audioVolume を内部適用）、`Artifact/src/Service/ArtifactAudioService.cppm:227-264`（setLayerBusVolume/setLayerBusPan がレイヤー property とバス両方に同値を書き込み）
+- **事実:** mixer 有効時、レイヤー volume は (1) getAudio 内のサンプル乗算と (2) バスフェーダー gain の二重適用になる（vol=0.5 で -6dB ではなく約 -12dB）。pan もレイヤー内定電力とバス post-fader の二重適用で center が落ちる。legacy 直加算経路（mixer 無効）はレイヤー内適用のみで単回。つまり mixer の有無で同じ project の音量・定位が変わる。Service/UI はレイヤー property とバス dB の両方を永続化しており、project 再読込後も二重適用が再現する。
+- **価値・懸念:** DAW 的にはゲインステージングの所有者を一本化する必要がある（案A: バスフェーダー唯一、レイヤー getAudio は raw 出力＋legacy 経路で明示適用／案B: レイヤー内唯一、layer bus のフェーダー適用をスキップ）。いずれも全 getAudio 呼び出し元（PlaybackEngine / Scrub / RenderQueue / RenderController）とエクスポート parity、meter 表示基準に波及するため、単独スライス＋実機検証が必要。
+- **次の確認:** 方向決定（設計レビュー）後、ゲインステージング単一化スライスとして実装し、mixer on/off での同一 project 音量一致を実機確認。
+
+## 2026-08-23 — Physics 全体監査: SoftBody LOD 反復上書きバグ、決定性リスク、死に経路（コード確認済み）
+
+- **関連:** `ArtifactCore/src/Physics/{SoftBodySolver,PhysicsSystem,FluidSolver2D,SandSim2D}.cppm`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`、`docs/planned/MILESTONE_PHYSICS_PRODUCTION_HARDENING.md`、`MILESTONE_LAYER_PHYSICS_COMPONENT_2026-06-13.md`
+- **事実:** (1) `SoftBodySolver::update()` の既定引数 `iterations=5`（L407）が `simulateStep` 内で `constraintIterations_` を毎ステップ無条件上書きし（L432）、`PhysicsSystem::update` の LOD 設定 `setConstraintIterations`（PhysicsSystem.cppm:424-426）が実質無効。`collisionIterations_` は影響なし。(2) `SandSim2D` は既定シード `std::random_device{}`（L16）で再生再現が非決定、`setRandomSeed` 明示時のみ決定的。(3) `FluidSolver2D::update(dt)` は dt 無 clamp・固定ステップなし、並列パス（`parallelEnabled_`/`advectRows`）は一度も使われない死蔵コード。(4) RigidBody(Box2D) 実行経路は入口 `enableRigidBodyPhysics` の呼び出しゼロで到達不能＋Box2D v3 ラップの friction/restitution 未適用（Physics2D.cppm:121-122,:144-145）。(5) 死に経路群: `PhysicsSystem::initFluid/getFluidSolver`（グローバル流体）、`setPhysicsLODSettings` UI、`softBodyDeformationMesh()`、`enabledLayerComponents(phase)`（phase 順は検証のみで実行順未使用）、`Graphics.RenderIndex`、`Graphics.BoidsCompute`、`FluidVisualizer`。(6) 物理ユニットテストはゼロ。(7) 共有 PhysicsWorld・Polygon collider は未実装のまま。**【2026-08-23 訂正】** 初回記載の「clone physics の `initialVelocityY/maxBounces` が solver 未消費」は誤り — `applyClonePhysicsTiming`（ArtifactCloneEffectSupport.ixx:450-453）がプロパティキャッシュ経由で消費している。真の問題は impl_ メンバーとプロパティキャッシュの二重管理で、プログラム経路（JSON 復元・undo・reaction・composition override）がメンバーのみ更新し、キャッシュ未同期またはミス時に physics timing が既定値 (0/4) にフォールバックする鮮度バグだった。
+- **価値・懸念:** (1) は LOD 機能の品質とパフォーマンスに直接響く確定バグ。(2) はベイク/再生一致を壊す要因。(3) は巨大 dt で速度場発散の可能性。
+- **対応状況 (2026-08-23):** (1) `SoftBodySolver::update/simulateStep` の既定引数を `-1`（維持）へ変更し `iterations > 0` 時のみ上書き。(2) 既定シードを固定値 `0x9E3779B9` へ変更。(3) `FluidSolver2D::update` に dt<=0 早期リターン＋0.05s clamp を追加し、死蔵並列パスを削除。決定性回帰テスト `tests/ArtifactCore/PhysicsDeterminismTest.cpp` を追加。(8) SoftBody 自己衝突を空間ハッシュ broadphase 化（候補順を edge→昇順 point に正規化し総当たりと同じ訪問順を維持）。(9) `SoftBodyCollider`/`MpmCollider2D` に `Polygon` 型追加（even-odd 内外判定＋最近傍辺へ射影、Core レベルのみで UI shape 0..2 は未拡張）。(10) clone physics の `initialVelocityY/maxBounces` を `persistentLayerProperty` 経由でキャッシュ同期（setter と JSON 復元の両経路）。未着手: (4) RigidBody 入口復活 or 削除判断、(5)(7) の残り死に経路整理、Polygon collider の UI/JSON 露出。
+- **次の確認:** ビルドと `ArtifactCorePhysicsDeterminismTest` 実行（許可待ち）。自己衝突ハッシュ化後の挙動比較（broadphase はステップ開始時位置基準のため、極端な押し出しが同一ステップ内で半径超過になる稀なケースで brute-force と差が出る可能性・未検証）。RigidBody/Box2D 経路の扱い判断。
+
+## 2026-08-24 — MPM GPU compute backend 実装: CPU fallback 付き設計、parity 未検証
+
+- **関連:** `ArtifactCore/src/Graphics/MpmCompute.cppm`（NEW）、`ArtifactCore/include/Graphics/MpmCompute.ixx`（NEW）、`ArtifactCore/src/Physics/MpmSolver2D.cppm`、`ArtifactCore/include/Physics/MpmSolver2D.ixx`
+- **事実:** (1) MPM GPU compute backend を `SandGPUCompute` パターンに倣い実装。5 つの HLSL ナレッジ（Clear/P2G/Forces/GridUpdate/G2P+F）を `groupshared` grid で ordered atomic 累積。P2G で `float32_t` 原子加算のみ使用（`uint32` reinterpret は SandGPUCompute からの直写に留める）。(2) `MpmSolver2D` は `setBackend(MpmBackend::GPU)` + `attachGPUSimulation(dev, ctx)` で GPU レーンに切替可能。CPU fallback は compute dispatch 失敗時に自動的。`(3)` GPU lane は elastic のみ parallelize し、plasticity/fracture/colliders は CPU tail で 1 回実行。parity は未検証（MPM の ordering dependency を nonatomic 化しているため last-bit nondeterminism が発生する可能性あり）。(4) `addImpulse` を正規化方向 + `isfinite` guard + zero-distance skip で改善。NaN guard を SoftBody/Fluid の simulation loop 末尾に追加。
+- **価値・懸念:** GPU パスは elastic のみが GPU kernel 内で処理され、plasticity/fracture は CPU で後処理されるため、CPU パスとの物理 parity は保証されない（MPM の ordering dependency を nonatomic 化しているため last-bit nondeterminism が発生する可能性あり）。反復回数/物質パラメータの parity は維持可能だが、exact replay は CPU のみで保証。
+- **未検証:** MpmCompute の HLSL パスが Diligent の DX12/Vulkan compute で正しく dispatch されるか、粒子数 0/1 のエッジケース、readback の遅延 sync 問題。
+- **次の確認:** ビルド許可後に MpmCompute ターゲットのコンパイル確認、`MpmSolver2D::setBackend(GPU)` + 10K particles の動作確認、CPU と GPU の結果 diff 比較（parity が許容範囲内か判断）。
+
 ## 2026-08-23 — オーディオレイヤー精査: getAudio のマルチスレッド呼び出しと単一スロットキャッシュ、死にコード（未検証）
 
 - **関連:** `Artifact/src/Layer/ArtifactAudioLayer.cppm`（getAudio :873 / resampledCache_ / decodeFrameToCache :826）、呼び出し元: PlaybackEngine(:756,:847)、AudioScrubController(:153)、TimelineWidget(:549)、RenderQueueService(:365,:407)、RenderController(:37174)
 - **事実:** (1) PCM は AssetManager の共有ペイロード（audio.pcm.f32）としてレイヤー間共有され、getAudio は線形補間リサンプル＋volume/clipGain/fade/pan/deClick を都度適用する設計。(2) getAudio は**再生エンジン・スクラブ・タイムライン UI・レンダーキュー worker の複数スレッドから呼ばれる**が、`impl_->resampledCache_` への読み書きは無ロック。（3）resampledCache_ は startSample 単一スロットで、連続再生ではほぼ毎フレーム miss（全リミックス再計算）。計算量は軽いので実害は限定的と推定（未検証）。(4) `decodeFrameToCache()` と `cache_` は**呼び出しゼロの死にコード**（.ixx private 宣言のみ）。(5) タイムリマップは非対応（画像シーケンスは対応済みで機能差）。
 - **価値・懸念:** (2) は画像レイヤーで指摘したものと同型のデータ競合で、audio スレッドと render worker が同時呼び出しする現実的な経路がある。修正案: mutex 保護 or 呼び出しスレッド別キャッシュ、(4) は削除で可。
-- **対応状況 (2026-08-23):** (5) タイムリマップ対応を実装。getAudio が `isTimeRemapEnabled()` 時はビデオレイヤーと同じ規約（comp フレーム → `getSourceFrameAtCompFrame`）で各出力フレームをマッピングし、remap 中は resampledCache_ をバイパス。残る (2) 競合修正・(4) 死にコード削除は未着手。
-- **次の確認:** (2) の競合修正（mutex 導入）、(4) の削除。リマップ時の音ズレを実機確認（remap キーはコンポフレーム基準）。
+- **対応状況 (2026-08-23):** (5) タイムリマップ対応を実装。getAudio が `isTimeRemapEnabled()` 時はビデオレイヤーと同じ規約（comp フレーム → `getSourceFrameAtCompFrame`）で各出力フレームをマッピングし、remap 中は resampledCache_ をバイパス。(2) は `resampledCacheMutex_` 導入済み（commit 60b68eb0）。同日の機能拡充スライスで追加修正: 作業ツリーに残っていたキャッシュ照会部の宣言前使用（`volume`/`effPan`/`effClipGainDb`、コンパイル不通）を解消。タイムリマップ経路が `producedFrames > 0` でも `false` を返し合成側が音声を破棄するバグを修正（remap 音声が無音になる確定バグ）。アニメート済み volume/pan/clipGain の評価をプレイヘッドではなく要求ブロックの comp フレーム基準に変更し preview/export の一致を改善。非破壊 trim in/out・playback rate API を追加。残る (4) 死にコード削除は未着手。
+- **次の確認:** (4) の削除。リマップ時の音ズレを実機確認（remap キーはコンポフレーム基準）。trim/rate の保存再読込とエクスポート parity の実機確認。
 
 ## 2026-08-23 — 画像レイヤー精査: 連番は堅牢だがシーケンス GPU アップロードと const 経路の可變状態が懸念（未検証）
 
