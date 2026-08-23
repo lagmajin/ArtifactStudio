@@ -98,3 +98,10 @@ artifact_add_test(ArtifactCoreTokenExpansionTest
     LIBS
         ArtifactCore
 )
+
+artifact_add_test(ArtifactCorePhysicsDeterminismTest
+    SOURCES
+        PhysicsDeterminismTest.cpp
+    LIBS
+        ArtifactCore
+)
