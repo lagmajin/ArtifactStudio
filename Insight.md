@@ -3115,3 +3115,10 @@
 - **事実:** 保存成功時の`onFinished`が、queuedな`currentProjectPath_`更新より先に呼ばれていた。
 - **対応:** 成功コールバックを状態更新・dirty解除・after-save hookの後へ移動し、保存直後のFile Menuが新しいproject pathを観測できる順序にした。
 - **未検証:** 保存直後の連続Save/Save As操作、UI thread上のcallback順序はruntime未確認。
+
+## 2026-08-24: text-animator-2026-08-14 ブランチの codex/2026-08-24-dev へのマージ
+
+- 関連: `ArtifactCore` / `Artifact` / `docs/planned/MILESTONE_TEXT_GLYPH_SUBMITTER_2026-08-14.md`
+- 事実: 2026-08-14〜15 の Text Glyph Submitter / shapedGlyphIndices / stringMappingValid 実装は `origin/codex/text-animator-2026-08-14` にのみ存在し、現行 dev ブランチには未取り込みだった。両子リポジトリへ merge し、conflict 17 ファイル（Core 8 + Artifact 9）は HEAD 側（NamedVector 移植・新 Parallel::For 構造・GlyphKey 拡張済み呼び出し側）を優先して解消した。
+- 未検証: feature 側が追加した `ImageMorphEffect`（text 無関係）は `cmake/ArtifactRenderModuleReferences.cake` マニフェストに登録されていない。GLOB 対象か split target 対象かでビルド影響が変わるため、ビルド時に要確認。
+- 次に確認: ビルド＋GPU smoke（Regional Indicator 🇯🇵、家族 emoji run bounds、複数 ZWJ）をこのブランチで再実行し、マイルストーン残ケースの実装を再開する。
