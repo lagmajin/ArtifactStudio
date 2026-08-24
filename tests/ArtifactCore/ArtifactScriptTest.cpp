@@ -3,6 +3,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <span>
 #include <variant>
 
 import Script.ArtifactScript;
@@ -399,4 +400,144 @@ class Skip : ArtifactBehaviour
     fields["total"] = 0.0;
     EXPECT_TRUE(evaluator.execute(*continueDefinition.rootClass.methods[0].body, {}, fields));
     EXPECT_DOUBLE_EQ(std::get<double>(fields.at("total")), 4.0);
+}
+
+TEST(ArtifactScriptTest, TernaryOperator) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class Pick : ArtifactBehaviour
+{
+    public float result = 0.0;
+    public string label = "";
+    void OnUpdate()
+    {
+        result = value > 10 ? 1.0 : -1.0;
+        label = value > 10 ? "big" : "small";
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptEvaluator evaluator;
+    ArtifactScriptSerializedFields fields;
+    fields["value"] = 20.0;
+    fields["result"] = 0.0;
+    fields["label"] = std::string();
+    EXPECT_TRUE(evaluator.execute(*definition.rootClass.methods[0].body, {}, fields));
+    EXPECT_DOUBLE_EQ(std::get<double>(fields.at("result")), 1.0);
+    EXPECT_EQ(std::get<std::string>(fields.at("label")), "big");
+}
+
+TEST(ArtifactScriptTest, ShortCircuitEvaluation) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class Guard : ArtifactBehaviour
+{
+    public float total = 0.0;
+    float sideEffect()
+    {
+        total = total + 1.0;
+        return true;
+    }
+    void OnUpdate()
+    {
+        // false && sideEffect() must not run sideEffect
+        if (false && sideEffect()) { total = 100.0; }
+        // true || sideEffect() must not run it either
+        if (true || sideEffect()) { }
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptEvaluator evaluator;
+    ArtifactScriptSerializedFields fields;
+    fields["total"] = 0.0;
+    EXPECT_TRUE(evaluator.execute(*definition.rootClass.methods[0].body, {}, fields));
+    EXPECT_DOUBLE_EQ(std::get<double>(fields.at("total")), 0.0);
+}
+
+TEST(ArtifactScriptTest, VarDeclarationAndForeach) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class Sum : ArtifactBehaviour
+{
+    public Array values;
+    public float total = 0.0;
+    void OnUpdate()
+    {
+        push(values, 2.0);
+        push(values, 3.0);
+        var sum = 0.0;
+        foreach (item in values) {
+            sum += item;
+        }
+        total = sum;
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptComponent component;
+    component.setScriptClass("Sum");
+    component.applyDefaults(definition);
+
+    ArtifactScriptEvaluator evaluator;
+    evaluator.executeMethod(definition, "OnUpdate", {}, component.publicFields());
+    EXPECT_FALSE(evaluator.hasError());
+    EXPECT_DOUBLE_EQ(std::get<double>(component.publicFields().at("total")), 5.0);
+}
+
+TEST(ArtifactScriptTest, HostBindingRegistry) {
+    ArtifactScriptHost& host = ArtifactScriptHost::global();
+    host.registerFunction("doubleIt", [&host](std::span<const ArtifactScriptValue> args) -> ArtifactScriptValue {
+        if (args.size() != 1 || !std::holds_alternative<double>(args[0])) {
+            host.setLastError("doubleIt expects one number");
+            return {};
+        }
+        return std::get<double>(args[0]) * 2.0;
+    });
+
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class Use : ArtifactBehaviour
+{
+    public float value = 0.0;
+    void OnUpdate() { value = doubleIt(21.0); }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptEvaluator evaluator;
+    ArtifactScriptSerializedFields fields;
+    fields["value"] = 0.0;
+    EXPECT_TRUE(evaluator.execute(*definition.rootClass.methods[0].body, {}, fields));
+    EXPECT_TRUE(evaluator.getLastError().empty());
+    EXPECT_DOUBLE_EQ(std::get<double>(fields.at("value")), 42.0);
+}
+
+TEST(ArtifactScriptTest, PrintLogCollectsOutput) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class Talker : ArtifactBehaviour
+{
+    void OnUpdate()
+    {
+        print("hello", 42);
+        log("second");
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptHost& host = ArtifactScriptHost::global();
+    host.drainLog();
+    ArtifactScriptEvaluator evaluator;
+    ArtifactScriptSerializedFields fields;
+    EXPECT_TRUE(evaluator.execute(*definition.rootClass.methods[0].body, {}, fields));
+
+    const auto lines = host.drainLog();
+    ASSERT_EQ(lines.size(), 2u);
+    EXPECT_EQ(lines[0], "hello 42");
+    EXPECT_EQ(lines[1], "second");
 }

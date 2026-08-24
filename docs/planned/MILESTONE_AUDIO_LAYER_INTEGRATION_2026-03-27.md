@@ -1,6 +1,6 @@
 # マイルストーン: オーディオレイヤー統合
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-08-23
 ステータス: Phase 1〜4 主要経路実装済み（runtime parity・異常系 UX 検証待ち、静的確認 2026-07-29）
 
 > 2026-03-27 作成
@@ -181,3 +181,36 @@ Feature Expansion 側で「音声を制作能力として増やす」と定義�
 未完了・未検証なのは、音声 clock と scrub の同期、solo／mute の実音声挙動、複数 audio layer の mix、sample rate／channel 変換、missing／decode failure／empty source の全 UI 状態、再生中 indicator の実機一致である。Phase 1〜4 の静的基盤は実装済み、runtime parity と異常系 UX は pending とする。
 
 Composition Audio Mixer の現行 owner-draw メーターには、左右レベル・ピーク線に加えて、左右いずれかのピークが 0 dBFS 以上になったとき赤いクリップインジケーターを表示する経路を追加した。既存の volume／pan／mute／solo／routing 同期と master メーターを壊さない範囲の診断表示であり、実機でのピーク保持時間や runtime parity は未検証とする。
+
+## Update 2026-08-23 — 機能拡充と API 整備（trim / playback rate / mute setter）
+
+ドナー比較（`J:/dev/ArtifactStudio_DAW_AUDIO_GAP_COMPARISON_2026-08-16.md` および RECHECK）の「非破壊範囲編集」P1 スライスとして、`ArtifactAudioLayer` に次の変更を行った。ビルド・実機検証はリポジトリ方針により未実施。
+
+### 不具合修正
+
+- 作業ツリーの `getAudio()` リサンプルキャッシュ照会部が、宣言より前のローカル変数 `volume` / `effPan` / `effClipGainDb` を参照しておりコンパイルが通らない状態だった。有効パラメータ算出をキャッシュ照会前に移動して解消した。
+- タイムリマップ有効時の `getAudio()` がサンプルを生成しても `false` を返し、composition の mixer / direct sum 両経路で音声が破棄される（remap 音声が無音になる）バグを修正。`producedFrames > 0` であれば remap 経路も `true` を返す。remap 中のキャッシュ保存は従来どおりバイパスする。
+- アニメート済み `audio.volume` / `audio.pan` / `audio.clipGainDb` の評価タイミングをプレイヘッド位置から要求ブロックの comp フレームへ変更し、preview と export のフレーム毎一致性を改善した。
+
+### 機能拡充
+
+- 非破壊 trim in/out（秒）を追加。`setTrimInSeconds` / `trimInSeconds` / `setTrimOutSeconds` / `trimOutSeconds`。`getAudio()` の再生元ソース区間を `[trimIn, duration - trimOut]` に制限し、fade in/out はこのウィンドウ内で測定する（trim=0 では従来動作と同一）。`buildWaveformData()` も同じ可聴ウィンドウを映す。
+- 定速 playback rate（0.1〜8.0 倍）を追加。`setPlaybackRate` / `playbackRate`。タイムリマップ無効時の非 remap 経路に適用され、remap 有効時は無視される。fade と波形もレートを反映する。
+- 明示的ミュート setter `setMuted(bool)` を追加（`mute()` はトグル互換で維持）。`audio.muted` property path、JSON 復元、`ArtifactAudioService::setLayerBusMuted`、`ArtifactAudioMixer`、Layer Panel の compare+toggle 経路をすべて setter 経由に統一した。
+
+### 永続化・UI・API 接続
+
+- JSON: `audio.trimInSeconds` / `audio.trimOutSeconds` / `audio.playbackRate` を保存・復元（旧プロジェクトは欠落キーでデフォルト値）。リサンプリング結果キャッシュのキーにも trim/rate を追加。
+- Property Editor: Audio グループに Trim In / Trim Out / Playback Rate を追加し、`setLayerPropertyValue` 経路を接続。
+- Service: `ArtifactAudioService` に `setLayerTrim` / `layerTrim` / `setLayerPlaybackRate` / `layerPlaybackRate` を追加。
+- WorkspaceAutomation: `setAudioLayerTrim` / `getAudioLayerTrim` / `setAudioLayerPlaybackRate` / `getAudioLayerPlaybackRate` コマンドをスキーマ・ディスパッチ・実装に登録し、`ArtifactTestAIToolBridge` に存在チェックを追加（未実行）。
+
+### 既知課題（今回の静的監査で確認、未修正）
+
+- mixer 有効時、レイヤー volume / pan が getAudio 内適用とバスフェーダー適用で二重にかかる（詳細は `Insight.md` 2026-08-24 項目）。legacy 直加算経路は単回のため、mixer の有無で音量・定位が変わる。ゲインステージング所有者の一元化は別スライスで対応する。
+
+### 未検証
+
+- trim/rate 設定時の実音声受入、project reopen 復元、エクスポート parity
+- playback rate 変更時の scrub / 再生中シークの挙動
+- remap + trim 同時使用時の境界（ウィンドウ外フレームの無音化）

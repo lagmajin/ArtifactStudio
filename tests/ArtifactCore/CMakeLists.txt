@@ -105,3 +105,10 @@ artifact_add_test(ArtifactCorePhysicsDeterminismTest
     LIBS
         ArtifactCore
 )
+
+artifact_add_test(ArtifactCoreMathVecTest
+    SOURCES
+        MathVecTest.cpp
+    LIBS
+        ArtifactCore
+)
