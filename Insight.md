@@ -25,6 +25,13 @@
 - **未検証:** MpmCompute の HLSL パスが Diligent の DX12/Vulkan compute で正しく dispatch されるか、粒子数 0/1 のエッジケース、readback の遅延 sync 問題。
 - **次の確認:** ビルド許可後に MpmCompute ターゲットのコンパイル確認、`MpmSolver2D::setBackend(GPU)` + 10K particles の動作確認、CPU と GPU の結果 diff 比較（parity が許容範囲内か判断）。
 
+## 2026-08-24 — Physics バグ修正バッチ: LOD/Fluid/Mpm/Box2D/決定性 (コード修正済み、ビルド未検証)
+
+- **関連:** `SoftBodySolver.cppm:131` `reduceGridResolution`, `FluidSolver2D.cppm:114` `computeSolverIterations`, `MpmSolver2D.cppm:1104` NaN guard, `PhysicsSystem.cppm:132` per-layer Fluid, `Physics2D.cppm:93` Box2D材質, `SandSim2D` seed
+- **事実:** (1) SoftBody LODが 0.75→0.5 と二段階で縮小する際に既縮小グリッドから再サンプルして劣化していたのをバックアップ元から再サンプルするように修正。(2) Fluid adaptive反復が閾値ちょうどで+4跳ねていたのを `(blocks-1)` にして閾値ではbaseline維持に平坦化。(3) Mpm `stepOnce`/GPU tail 末尾に `isfinite` ガード追加で非有限pos/velをゼロ化、Fをidentityリセット。(4) Box2D v3で `friction/restitution` がコメントアウトで無効だったのを `shapeDef.material` へ修正、static bodyも `bodies` に追跡。(5) SandSim 固定seed `0x9E3779B9` で決定性確保、Fluid/Sandの read-only getter、Mpm `particles()` view と `isGPUReady` 等を追加。per-layer Fluid と Pyro/Boids の PhysicsSystem 配線、`buildMpmParticleRenderData` ブリッジも追加。
+- **価値・懸念:** いずれも既存挙動の局所修正/追加で副作用は小。Box2D材質とFluid閾値は挙動が変わるため既存プロジェクトの再現に影響するが意図した修正。
+- **次の確認:** `ArtifactCorePhysicsDeterminismTest` と手動の Fluid/SoftBody LOD 変化の目視確認 (ビルド許可待ち)。
+
 ## 2026-08-23 — オーディオレイヤー精査: getAudio のマルチスレッド呼び出しと単一スロットキャッシュ、死にコード（未検証）
 
 - **関連:** `Artifact/src/Layer/ArtifactAudioLayer.cppm`（getAudio :873 / resampledCache_ / decodeFrameToCache :826）、呼び出し元: PlaybackEngine(:756,:847)、AudioScrubController(:153)、TimelineWidget(:549)、RenderQueueService(:365,:407)、RenderController(:37174)
