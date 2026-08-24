@@ -84,6 +84,9 @@
 6. Render Queueを含む受入実行は、ビルド・テスト許可後に行う。
 7. `ArtifactSoftwareRenderTestWidget` に保存済み Preview／Render Queue フレームの比較導線を追加した。`P`／`Q` で画像を読み込み、`D` で同一サイズを確認したうえで差分画素数・平均 RGBA 差・最大差を表示する。実素材での判定と Software Preview を含む三経路比較は未実行。
 
+8. project path／source path の保存・復元・relink 契約は、親側の static implementation として次を確認済み。`ArtifactProjectManager` は project path／root を absolute + clean path に正規化し、exporter は absolute／relative source path の project-relative 候補を保存する。importer は候補存在時に project directory 基準で解決し、service の footage relink／layer source replace は canonical path を使う。footage relink 時は参照 layer source も同期する。実素材の save/reload、missing、relink、Undo/Redo runtime確認は未実施。
+9. AssetMonitor は footage item に加えて composition 内の image／video／audio／svg layer source も監視対象へ収集し、source 更新時の AssetManager version invalidation を layer-only source にも適用できる static 経路にした。実ファイル上書き後の watcher 通知、decode／GPU cache 更新、表示結果の runtime確認は未実施。
+
 ### 色経路の実装ハンドオフ
 
 `ArtifactImageLayer::toQImage()` で raw `cache_` を早期返却せず、入力解釈後の `cacheBuffer_` を QImage 境界で明示変換してから crop を適用する修正を実装した。これにより GPU preview の `currentFrameBuffer()` と thumbnail / software export の色源を揃える。実装時は、(1) sequence frame 更新後の buffer、(2) associated alpha の unpremultiply / premultiply、(3) crop の pixel bounds、(4) no-color-transform 時の既存結果を個別に確認する。runtime検証は未実行。

@@ -1,17 +1,68 @@
 # C# Script Engine (hostfxr + CSX) 実装マイルストーン
 
 **日付**: 2026-08-04
-**最終更新**: 2026-08-15
-**ステータス**: Phase 0〜4 実装完了（hostfxr/CSX API、Roslynブートストラップ、Script Menu、テスト基盤を追加。ビルド・実行確認待ち）
+**最終更新:** 2026-08-21
+**ステータス**: Phase 0〜4 実装完了（hostfxr/CSX API、Roslynブートストラップ、Script Menu、テスト基盤を追加。Unity ライクな反復セッション API も追加。ビルド・実行確認待ち）
 **ベース**: hostfxr (.NET Hosting API) + Roslyn Scripting API
-**現状**: `CSharpScriptEngine.ixx` (66行) + `CSharpScriptEngine.cppm` (408行) で Singleton+Pimpl 実装済み。実装は `ARTIFACT_HAS_DOTNET` の有無で分岐する。`Script.ixx` 未登録、CMake 未配線。`.bak` に Qt 依存の旧実装あり（hostfxr.h / nethost.h / coreclr_delegates.h 使用）。
+**現状**: `CSharpScriptEngine.ixx` + `CSharpScriptEngine.cppm` で Singleton+Pimpl 実装済み。実装は `ARTIFACT_HAS_DOTNET` の有無で分岐する。`Script.ixx` 登録済み、CMake の hostfxr 有効化と Roslyn bootstrap 用明示ターゲットを配線済み。`.bak` に Qt 依存の旧実装あり（hostfxr.h / nethost.h / coreclr_delegates.h 使用）。
 **狙い**: .NET アセンブリ (.dll) の hostfxr ロード実行を産線にし、さらに CSX (.csx) スクリプトの Roslyn 経由実行まで通す。
 
 ## 2026-08-15 現行コード照合
 
 `CSharpScriptEngine` の C++20 module 登録、hostfxr の動的ロード実装、`ARTIFACT_HAS_DOTNET` 有無による stub 分岐、ArtifactScript Menu の .NET 呼び出し導線を確認した。現行ソース上は API／実装の土台はあるが、.NET 側の Roslyn ブートストラップ成果物、CMake の実環境検出、実 DLL／CSX のロードと評価を静的コードだけで完了とは判定できない。
 
-したがって Phase 0〜4 は「コード配置と契約の実装済み」とし、hostfxr 有効環境での DLL／CSX 実行、依存 Assembly 解決、エラー伝播、Menu 経由の runtime 受入れは pending。今回はビルド・テストを実行していない。
+したがって Phase 0〜4 は「コード配置と契約の実装済み」とし、hostfxr 有効環境での DLL／CSX 実行、依存 Assembly 解決、Menu 経由の runtime 受入れは pending。エラー本文の伝播とセッション状態管理は実装済みだが、runtime での確認は未実施。今回はビルド・テストを実行していない。
+
+## 2026-08-21 追加: Unity ライクな反復セッション
+
+`CSharpScriptEngine` に、単発評価とは分離した反復セッション API を追加した。
+
+- `beginScriptSession()` / `beginScriptSessionFile()` — Roslyn `ScriptState` を作成
+- `stepScriptSession()` — 同一 `ScriptState` へコードを継続評価
+- `reloadScriptSession()` / `reloadScriptSessionFile()` — 新しい状態の評価成功時のみ交換
+- `isScriptSessionSourceChanged()` — ソースファイルの更新時刻をポーリング
+- `endScriptSession()` — セッションとソース監視状態を破棄
+- `setScriptHostAssemblyPath()` — `Artifact.Scripting.dll` の配置を明示指定
+- `updateScriptSession(code, timeSeconds, deltaSeconds, frame)` — Roslyn globals の `Time` / `DeltaTime` / `Frame` を更新してから評価
+- `updateScriptSessionFile(path, timeSeconds, deltaSeconds, frame)` — ファイル読込、変更時の reload、globals 更新、tick 評価を一つの呼び出しに集約
+- `tickScriptSession(timeSeconds, deltaSeconds, frame)` — globals 更新後にセッション内の標準 `Update()` を呼び出す Unity 風 tick
+- `invokeScriptSessionCallback(functionName)` — セッション内の識別子付き callback を明示的に呼び出す
+- `requestScriptSessionStop()` — 次の step／update／callback／reload を拒否する協調停止
+- `clearScriptSessionStopRequest()` — session を破棄せず協調停止を解除して再開
+- ソース更新検知 — 更新時刻に加えて内容ハッシュも比較し、削除・置換保存を変更として扱う
+- 時間入力 — `Time` / `DeltaTime` は有限値のみ受け付け、C++ payload は classic locale で invariant に直列化
+- ファイル入力 — open 後の read error を検出し、部分 source を評価しない。変更検知の read error は変更ありとして扱う
+
+Roslyn 側の `ReloadSession` は候補状態をローカルで評価してから静的セッションを交換するため、コンパイル／実行失敗時には直前の状態を保持する。CMake には NuGet restore を通常の native build に連鎖させない明示ターゲット `ArtifactScriptingDotnet` を追加した。
+
+runtimeconfig が DLL に隣接せず、アプリ側の `Artifact.runtimeconfig.json` もない場合は、検出した `shared/Microsoft.NETCore.App` の最新 runtime version から一時 config を生成するフォールバックも追加した。生成ファイルは host 終了時に削除する。
+
+同一 host context の delegate が有効な場合は runtime を再初期化せず、追加 Assembly を既存 `load_assembly` delegate でロードする。
+
+SDK 付属 `coreclr_delegates.h` との静的照合で `load_assembly_fn` を 3 引数へ修正し、`evaluate()` も `UnmanagedCallersOnly` の UTF-8 bridge 経路へ統一した。
+
+さらに `hostfxr_delegate_type` の実 SDK enum 値（get function pointer=6、load assembly=7）と `UNMANAGEDCALLERSONLY_METHOD` sentinel を照合して修正した。
+
+hostfxr directory と shared runtime の候補選択は文字列比較から数値バージョン比較へ変更した。
+
+delegate 取得または初回 Assembly ロードに失敗した場合は host context を閉じ、無効な context を再利用しない後始末を追加した。
+
+この段階では C++ が毎フレーム評価コードを渡す汎用契約に加え、明示的な `tickScriptSession()` からセッション内の `Update()` を呼び出せる。`Update()` は暗黙の reflection 発見ではなく、固定名の script evaluation として扱う。`OnEnable`／`OnDisable` 相当の規約は、スクリプト API と例外・停止ポリシーを定義してから追加する。
+
+実ビルド、hostfxr 有効環境での状態継続、reload 失敗後の旧状態維持、配布先での DLL 解決は未検証である。
+
+### Unity 風 session runtime 受入れマトリクス（未実行）
+
+| ケース | 確認内容 |
+|---|---|
+| Begin → Step | 同一 `ScriptState` で変数・関数定義が次の評価へ継続する |
+| Tick | `Time` / `DeltaTime` / `Frame` が `Update()` から観測できる |
+| File tick | 同一 source では一回評価、変更 source では reload を一回だけ実行する |
+| Reload failure | compile／runtime error 時に直前の ScriptState と source metadata を保持する |
+| Stop / Resume | stop 中の step／tick／callback／reload を拒否し、clear 後に再開する |
+| Source I/O | read error／削除／replace-save を変更扱いにし、旧状態を壊さない |
+| Numeric contract | NaN／Infinity を拒否し、locale 非依存かつ倍精度 round-trip を維持する |
+| End / Restart | C++／C# の globals、frame、stop flag をゼロ化して新 session を開始する |
 
 ## 類似ツール参考
 
@@ -51,8 +102,8 @@ ArtifactCore の既存スクリプトエンジンはいずれも Singleton+Pimpl
     hostfxr_close_fn
   - coreclr_delegates.h 相当の型と enum を自己定義
     load_assembly_fn, get_function_pointer_fn
-    hdt_load_assembly=1, hdt_get_function_pointer=3
-    UNMANAGEDCALLERSONLY_METHOD=0
+    hdt_get_function_pointer=6, hdt_load_assembly=7
+    UNMANAGEDCALLERSONLY_METHOD=(const char_t*)-1
   - DotnetRuntimeHost クラス（Impl 内部）
     initialize(): host/fxr/ ディレクトリ走査、最新バージョン選択
       Windows: LoadLibraryW("hostfxr.dll") + GetProcAddress
@@ -60,8 +111,8 @@ ArtifactCore の既存スクリプトエンジンはいずれも Singleton+Pimpl
     loadAssembly(): runtimeconfig.json 推測 → ランタイム初期化 → delegate 取得 → アセンブリロード
     getFunctionPointer(): get_function_pointer_fn で型名・メソッド名から関数ポインタ取得
     shutdown(): closeFn → FreeLibrary/dlclose
-  - evaluate(): component_entry_point_fn シグネチャで呼び出し
-    int(__cdecl*)(wchar_t*, wchar_t*, wchar_t*, wchar_t*, void*, int)
+  - evaluate(): get_function_pointer_fn で UnmanagedCallersOnly メソッドを取得して呼び出し
+    int(__cdecl*)(void*, void*, int)
   - #else: 全メソッドがエラーメッセージ付き stub
 ```
 
@@ -77,7 +128,7 @@ hostfxr.cppm.bak (188行): Qt依存
   #pragma comment(lib,"libnethost.lib")
   QLibrary で hostfxr.dll を動的ロード
   QVersionNumber で最新バージョン選択
-  component_entry_point_fn 型定義
+  get_function_pointer_fn / load_assembly_fn 型定義
 ```
 
 ### CMake 既存パターン（参照: AngelScript / Python）
@@ -268,9 +319,9 @@ export import Script.CSharp.Engine;
 
 この Phase の完了条件: `CSharpScriptEngine::execute("path/to/MyPlugin.dll")` が実際に .NET アセンブリをロードし、`evaluate("MyClass", "MyMethod")` で関数を呼び出せること。
 
-### Step 2.1 — runtimeconfig.json の自動生成
+### Step 2.1 — runtimeconfig.json の自動生成（実装済み）
 
-`DotnetRuntimeHost::loadAssembly()` はアセンブリパスから runtimeconfig.json を自動推測するが、任意の .dll に runtimeconfig.json が常に存在するとは限らない。以下のフォールバックを追加:
+`DotnetRuntimeHost::loadAssembly()` はアセンブリパスから runtimeconfig.json を自動推測し、隣接ファイル、アプリケーションの設定、インストール済みランタイムからの生成の順でフォールバックする。生成先はまず DLL 隣接ディレクトリを試し、書き込み不可なら一時ディレクトリを使う。
 
 ```cpp
 // runtimeconfig.json がない場合、最小限の設定を自動生成
@@ -282,7 +333,7 @@ if (!fs::exists(configPath)) {
 
 ### Step 2.2 — C# からの Artifact コールバック登録
 
-`evaluate()` の `component_entry_point_fn` シグネチャに加え、C# 側から C++ の関数を呼べるコールバック登録を追加:
+`evaluate()` の UnmanagedCallersOnly 呼び出し経路に加え、C# 側から C++ の関数を呼べるコールバック登録を追加:
 - `registerCallback(name, callback)` — C# 側が `Artifact.Call("name", args)` で呼び出せるようにする
 - 出力キャプチャ（stdout/stderr → C++ 側の OutputCallback）
 
@@ -312,19 +363,20 @@ hostfxr だけでは .csx の JIT コンパイル・実行はできない。CSX 
 
 1. `Artifact.Scripting.dll` を作成（.NET 8.0/9.0）
    - `Microsoft.CodeAnalysis.CSharp.Scripting` NuGet パッケージに依存
-   - 公開 API:
+   - 現在の公開 API:
      ```csharp
-     public static class ArtifactScriptHost {
-         public static string Evaluate(string code);
-         public static string ExecuteFile(string path);
-         public static void SetOutputCallback(CallbackDelegate cb);
-     }
+     EvaluateCode(IntPtr code, IntPtr result, int capacity)
+     EvaluateSession(IntPtr code, IntPtr result, int capacity)
+     SetSessionTime(IntPtr payload, IntPtr result, int capacity)
+     ReloadSession(IntPtr code, IntPtr result, int capacity)
+     ExecuteFile(IntPtr path, IntPtr result, int capacity)
      ```
 2. C++ 側:
    ```cpp
    cs.initialize();                          // hostfxr 準備
-   cs.execute("Artifact.Scripting.dll");     // ブートストラップ .dll ロード
-   cs.evaluate("ArtifactScriptHost", "Evaluate", ".csx コード文字列");
+   cs.executeScript(".csx コード文字列");    // Roslyn bootstrap 経由で評価
+   cs.beginScriptSession("Update 定義");      // 継続評価を開始
+   cs.tickScriptSession(time, delta, frame);  // Update() を 1 tick 評価
    ```
 3. この方式の利点:
    - hostfxr 経路をそのまま使える
@@ -371,20 +423,13 @@ using Microsoft.CodeAnalysis.Scripting;
 
 public static class ArtifactScriptHost
 {
-    private static Action<string, bool>? _outputCallback;
-
-    // C++ から呼ばれる
-    public static int Evaluate(
-        [Runtime.InteropServices.UnmanagedCallersOnly] ...);
-    
-    // CSX ファイル実行
-    public static string ExecuteFile(string path) { ... }
-    
-    // CSX コード文字列実行
-    public static string EvaluateCode(string code) { ... }
-    
-    // NuGet パッケージ参照付き実行
-    public static string EvaluateWithImports(string code, string[] imports) { ... }
+    // C++ から呼ばれる UnmanagedCallersOnly bridge
+    public static int EvaluateCode(IntPtr code, IntPtr result, int capacity) { ... }
+    public static int EvaluateSession(IntPtr code, IntPtr result, int capacity) { ... }
+    public static int SetSessionTime(IntPtr payload, IntPtr result, int capacity) { ... }
+    public static int ReloadSession(IntPtr code, IntPtr result, int capacity) { ... }
+    public static int ResetSession(IntPtr ignored, IntPtr result, int capacity) { ... }
+    public static int ExecuteFile(IntPtr path, IntPtr result, int capacity) { ... }
 }
 ```
 

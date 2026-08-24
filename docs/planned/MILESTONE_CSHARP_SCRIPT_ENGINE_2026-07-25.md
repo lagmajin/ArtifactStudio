@@ -1,18 +1,18 @@
 # MILESTONE_CSHARP_SCRIPT_ENGINE_2026-07-25
 
 **ステータス:** Partial（C# engine と hostfxr 経路を実装済み。CMake 定義、複数プラットフォーム対応、Script export、実環境検証は未完了）
-**最終更新:** 2026-08-15
+**最終更新:** 2026-08-21
 **対象:** `ArtifactCore/include/Script/CSharpScriptEngine.ixx`, `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
 **位置づけ:** PythonEngine / AngelScriptEngine と同じ Singleton+Pimpl パターンで C# スクリプトエンジンを実装。
 **作成日:** 2026-07-25
 
 ## 2026-08-15 現行コード監査
 
-`CSharpScriptEngine.ixx`／`.cppm` と hostfxr の Windows 動的ロード、runtimeconfig 解決、assembly load／evaluate、error state の経路は現行ソースに存在する。Inspector／layer の Script component・binding 表示も別のアプリ導線として確認できる。
+`CSharpScriptEngine.ixx`／`.cppm` と hostfxr の動的ロード、runtimeconfig 解決、assembly load／UnmanagedCallersOnly bridge、error state、Unity 風の反復 session 経路は現行ソースに存在する。Inspector／layer の Script component・binding 表示も別のアプリ導線として確認できる。
 
-一方、`ARTIFACT_HAS_DOTNET` の CMake 定義、`Script.ixx` の composite export、Linux／macOS の hostfxr 経路、C# script の安全な sandbox／permission 契約、UI からの execute／export、実 .NET runtime での end-to-end 検証は未確認。ビルドを行っていないため、モジュール登録とリンク成立は静的確認を超えて断定しない。
+一方、C# script の安全な sandbox／permission 契約、UI からの session tick 接続、実 .NET runtime での end-to-end 検証は未確認。ビルドを行っていないため、モジュール登録とリンク成立は静的確認を超えて断定しない。
 
-判定: **C# engine のコード基盤は部分実装、build integration／cross-platform／安全境界／runtime 検証は pending。**
+判定: **C# engine のコード基盤と hostfxr／CSX の build integration は実装済み、UI session 接続／安全境界／runtime 検証は pending。**
 
 ## 1. 目的
 
@@ -37,6 +37,9 @@ Singleton (private ctor/dtor, delete copy, static instance()) + Pimpl (`class Im
 - `finalize()` — .NET ランタイムのシャットダウン
 - `execute(assemblyPath)` / `loadAssembly(assemblyPath)` — アセンブリのロード
 - `evaluate(typeName, methodName, argument)` — 関数の呼び出しと結果取得
+- `beginScriptSession` / `stepScriptSession` / `tickScriptSession` — Roslyn ScriptState の継続評価と `Update()` tick
+- `reloadScriptSessionFile` / `updateScriptSessionFile` — source 変更検知付き reload と file-driven tick
+- `requestScriptSessionStop` / `clearScriptSessionStopRequest` — 協調停止と再開
 - `setOutputCallback(callback)` / `getLastError()` / `hasError()` / `clearError()`
 
 ### CSharpScriptEngine.cppm
@@ -47,7 +50,7 @@ DotnetRuntimeHost を Impl として内蔵:
 - コンパイル時は `.bak` と異なり hostfxr.h/coreclr_delegates.h 不要（自己定義型で代替）
 - hostfxr.dll のバージョン検出 (最新版を自動選択)
 - runtimeconfig.json の自動解決 (アセンブリパスから推測)
-- `component_entry_point_fn` シグネチャによる関数呼び出し
+- `get_function_pointer_fn` で取得した `UnmanagedCallersOnly` bridge による関数呼び出し
 
 ## 4. 変更ファイル
 
@@ -58,7 +61,7 @@ DotnetRuntimeHost を Impl として内蔵:
 
 ## 5. 残タスク
 
-- [ ] `ARTIFACT_HAS_DOTNET` の CMake 定義追加
-- [ ] Linux/macOS での libhostfxr.so パス確認
-- [ ] Script.ixx (composite module) への export import 追加
+- [x] `ARTIFACT_HAS_DOTNET` の CMake 定義追加
+- [x] Linux/macOS での libhostfxr.so パス探索経路を実装
+- [x] Script.ixx (composite module) への export import 追加
 - [ ] エラーハンドリングの実環境テスト

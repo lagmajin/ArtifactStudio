@@ -121,12 +121,15 @@ function handleOperation(ws, msg) {
     if (!session) return;
 
     // Apply operation transformation if needed
-    // For now, simple broadcast with version tracking
+    // For now, simple broadcast with version tracking.
+    // clientTimestamp preserves the sender's wall clock for audit trails;
+    // `timestamp` remains the server receive time.
     const operation = {
         ...msg.operation,
         version: session.operations.length,
         clientId: clientInfo.clientId,
-        timestamp: msg.timestamp || new Date().toISOString()
+        clientTimestamp: msg.timestamp || msg.operation?.timestamp || null,
+        timestamp: new Date().toISOString()
     };
 
     session.operations.push(operation);

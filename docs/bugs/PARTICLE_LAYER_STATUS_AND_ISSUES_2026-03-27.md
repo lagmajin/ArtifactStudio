@@ -31,7 +31,7 @@ Relevant files:
 
 ## Open Issues
 
-### 1. Render settings are serialized and editable, but not fully consumed by the GPU path
+### 1. Render settings are serialized and editable, but not fully consumed by the GPU path — ✅ 部分解消 (2026-08-21)
 
 The particle layer exposes and saves:
 
@@ -43,11 +43,35 @@ The particle layer exposes and saves:
 
 Those values are visible in the property UI and are written to JSON, but `ArtifactCore::ParticleRenderer` still hardcodes the billboard draw path and additive blending in its PSO setup.
 
-In other words:
+**2026-08-21 修正**: ブレンドモード / billboard モード / depthTest / depthWrite は `coreRenderOptionsFromSettings()`(`ArtifactParticleLayer.cppm`)経由で `ParticleRenderData.options` に転写され、GPU パスでも反映されるようになった。残る未反映項目は `sortMode`(GPU パスはソート非対応)と `softParticles`。
 
-- the data model is richer than the GPU renderer
-- the GPU renderer still behaves like a simplified billboard path
-- UI changes may not yet produce the expected render-style variation
+### 1b. VS StructuredBuffer ストライド不一致 — ✅ 修正済み (2026-08-21)
+
+頂点シェーダー内の `ParticleData` 構造体に sprite 系 3 フィールドが欠落しており(60 バイト)、C++ の `ParticleVertex`(72 バイト)およびカリング CS のレイアウトと不一致だった。2 個目以降の粒子データが崩壊する/描画が拒否される原因。VS 側にフィールドを追加してストライドを一致させた(`ParticleRenderer.cppm`)。
+
+### 1c. 冒頭フレームの preWarm ポップ — ✅ 修正済み (2026-08-21)
+
+`ParticleSystem::goToFrame()` が frame<=1 で常に 0.5 秒分のプリウォームを実行し、frame 1→2 で粒子数が急減していた。プリウォーム時間を目標フレーム時刻以下に制限し、通常シミュレーションと連続になるよう修正(`ArtifactParticleGenerator.cppm`)。
+
+### 1d. 最小サイズ 4.0 クランプ — ✅ 修正済み (2026-08-21)
+
+寿命末にサイズ 0 で消える想定のプリセット(sparks/fire 等)が GPU パスで最低 4 単位(quad 幅 40px 相当)より小さくなれず、加算合成時に白飛びして残っていた。クランプを撤去(`ArtifactParticleLayer.cppm` の `transformParticleRenderData`)。
+
+### 1e. drag の数値不安定性 — ✅ 修正済み (2026-08-21)
+
+線形減衰 `v *= (1 - drag*dt)` は drag > 1/dt(=120)で係数が負になり速度が反転・発散していた。指数減衰 `v *= (1 - min(drag,1))^dt` に変更し、任意の drag 値で安定(`ArtifactParticleGenerator.cppm`)。
+
+### 1f. directionSpread の 180° クランプ — ✅ 修正済み (2026-08-21)
+
+UI/プリセット(dust/explosion/pollen)は 360° を使用するが内部で 180° にクランプされ、全方向放出が半円になっていた。360° まで許容するよう修正(`ArtifactParticleGenerator.cppm` の `getEmissionDirection`)。
+
+### 1g. FormParticleLayer がレイヤー opacity を無視 — ✅ 修正済み (2026-08-21)
+
+`buildRenderData()` に `layerOpacity` 引数を追加し、`draw()` から `opacity()` を渡すよう修正。キャッシュシグネチャにも opacity を混入させ、opacity 変更が即座に反映される(`ArtifactFormParticleLayer.cppm`)。
+
+### 1h. ソフト描画と GPU 描画のサイズ 2 倍差 — ✅ 修正済み (2026-08-21)
+
+ソフト経路は半径 `scale*10`(直径 20*scale)、GPU 経路は quad 幅 `10*size`(半幅 size*5)で、同一設定でもソフトが GPU の約 2 倍大きかった。GPU の halfWidth を `size*2.5`(直径 = ソフトと同一)に変更(`ParticleRenderer.cppm`)。
 
 ### 2. `drawParticles()` still depends on the renderer camera state being valid
 

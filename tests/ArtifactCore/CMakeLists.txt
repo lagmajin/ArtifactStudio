@@ -34,3 +34,81 @@ artifact_add_test(ArtifactCoreCreativeEffectTest
     LIBS
         ArtifactCore
 )
+
+artifact_add_test(ArtifactCoreAudioMixerRoutingTest
+    SOURCES
+        AudioMixerRoutingTest.cpp
+    LIBS
+        ArtifactCore
+)
+
+artifact_add_test(ArtifactCoreSourceResolutionContractTest
+    SOURCES
+        SourceResolutionContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+
+artifact_add_test(ArtifactCoreNLETest
+    SOURCES
+        NLETest.cpp
+    LIBS
+        ArtifactCoreNLE
+)
+
+artifact_add_test(ArtifactCoreFrameTimeTest
+    SOURCES
+        FrameTimeTest.cpp
+    LIBS
+        ArtifactCore
+)
+
+artifact_add_test(ArtifactCoreColorBridgeTest
+    SOURCES
+        ColorBridgeTest.cpp
+    LIBS
+        ArtifactCore
+)
+
+artifact_add_test(ArtifactCoreArtifactFoundationTest
+    SOURCES
+        ArtifactFoundationTest.cpp
+    LIBS
+        ArtifactCore
+)
+
+artifact_add_test(ArtifactCoreCollaborationSessionTest
+    SOURCES
+        CollaborationSessionTest.cpp
+    LIBS
+        ArtifactCoreCollaborate
+        ArtifactCoreNetwork
+)
+
+artifact_add_test(ArtifactCoreCollabReviewTest
+    SOURCES
+        CollabReviewTest.cpp
+    LIBS
+        ArtifactCoreCollaborate
+)
+
+artifact_add_test(ArtifactCoreTokenExpansionTest
+    SOURCES
+        TokenExpansionTest.cpp
+    LIBS
+        ArtifactCore
+)
+
+artifact_add_test(ArtifactCorePhysicsDeterminismTest
+    SOURCES
+        PhysicsDeterminismTest.cpp
+    LIBS
+        ArtifactCore
+)
+
+artifact_add_test(ArtifactCoreMathVecTest
+    SOURCES
+        MathVecTest.cpp
+    LIBS
+        ArtifactCore
+)

@@ -129,6 +129,20 @@ Phase 2 としてproject root基準のsource path解決責務をAssetManager／p
 - 比較結果を `PASS`／`FAIL` として表示し、超過ピクセル数、平均 RGBA 差分、最大チャンネル合計差分を同時に確認できるようにした。
 - これは受入判定の表示強化であり、実素材による Preview／Software Preview／Render Queue の runtime 実行と判定は未実施である。
 
+### 2026-08-20 — Phase 2 source path／relink 契約の親側実装
+
+- `ArtifactProjectManager` の project path／root path を absolute + clean path に正規化した。
+- `ArtifactProjectExporter` は absolute／relative source path を project file 基準の relative candidate として保存し、既存の absolute fallback を維持する。
+- `ArtifactProjectService` の footage relink、layer source replace、AssetDatabase 更新を canonical path に統一した。
+- footage relink 時に同一 source を参照する image／video／audio／svg layer の source path も更新し、既存の relink Undo／Redo 経路で逆方向にも追従させた。
+- static implementation の確認であり、save/reload、missing、relink、Undo/Redo の runtime 受入は未実施である。
+
+### 2026-08-20 — Phase 4 AssetMonitor の layer source 監視
+
+- footage item だけでなく、composition 内の image／video／audio／svg layer source を AssetMonitor の watcher 対象へ追加した。
+- source 更新時の AssetManager version invalidation が layer-only source にも届く親側経路を整えた。
+- watcher 通知後の decode／GPU cache 更新と表示結果は runtime 未確認である。
+
 ### 2026-08-08 — 入力色解釈別の共有デコードキャッシュ分離
 
 - `ArtifactImageLayer` の共有 `ImageF32x4_RGBA` キャッシュキーへ、入力色空間と transfer function の組を SHA-256 で識別する interpretation key を追加した。

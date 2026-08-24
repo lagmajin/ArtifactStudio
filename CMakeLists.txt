@@ -81,7 +81,6 @@ project(ArtifactSuite LANGUAGES C CXX)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 # Visual Studio / CMake IDEs should open the main Artifact app by default.
-# ArtifactPr is currently disabled due to W_Object MOC compilation issues.
 set(CMAKE_VS_STARTUP_PROJECT Artifact CACHE STRING "Visual Studio startup project" FORCE)
 
 # Re-assert v143 compiler if toolchain was used, in case vcpkg reset it
@@ -267,13 +266,7 @@ set(ARTIFACT_APP_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/Artifact"  CACHE PATH "Artifa
 set(ARTIFACT_DEPLOY_DIR "" CACHE PATH "Optional output directory for copying Artifact exe and runtime dlls")
 option(ARTIFACT_USE_SCCACHE "Use sccache compiler launcher when available" ON)
 option(ARTIFACT_ENABLE_SYCL "Enable Intel oneAPI DPC++/SYCL build flags" OFF)
-option(ARTIFACT_USE_LOCAL_QADS "Prefer vendored Qt Advanced Docking System source over vcpkg package" ON)
-
-set(ARTIFACT_QADS_SOURCE_DIR "${THIRD_PARTY_DIR}/Qt-Advanced-Docking-System")
-set(ARTIFACT_HAS_LOCAL_QADS OFF)
-if(ARTIFACT_USE_LOCAL_QADS AND EXISTS "${ARTIFACT_QADS_SOURCE_DIR}/CMakeLists.txt")
-    set(ARTIFACT_HAS_LOCAL_QADS ON)
-endif()
+option(ARTIFACT_BUILD_PR "Build the legacy ArtifactPr application" OFF)
 
 if(ARTIFACT_USE_SCCACHE)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR
@@ -662,15 +655,6 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.3")
         "451f2fe2-a8a2-47c3-bc32-94786d8fc91b"
         CACHE STRING "Required for import std (CMake 4.3)" FORCE)
 endif()
-if(ARTIFACT_HAS_LOCAL_QADS)
-    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(BUILD_STATIC OFF CACHE BOOL "" FORCE)
-    set(ADS_VERSION "4.4.0" CACHE STRING "Vendored QADS version" FORCE)
-    add_subdirectory(third_party/Qt-Advanced-Docking-System EXCLUDE_FROM_ALL)
-    if(TARGET qtadvanceddocking-qt6 AND MSVC)
-        target_compile_options(qtadvanceddocking-qt6 PRIVATE /Zm200 /bigobj)
-    endif()
-endif()
 # ufbx is a non-module third-party target and does not consume import std.
 # Hide the experimental gate while its standalone CMakeLists is evaluated;
 # otherwise CMake 4.3 rejects the older gate value used by that subtree.
@@ -706,6 +690,11 @@ add_subdirectory(ArtifactWidgets)
 add_subdirectory(Artifact)
 add_subdirectory(ArtifactRenderer)
 add_subdirectory(artifacts-plugin-runner)
+# ArtifactPr uses the retired QADS application surface and is opt-in while the
+# Native dock surface is the supported application path.
+if(ARTIFACT_BUILD_PR)
+    add_subdirectory(ArtifactPr)
+endif()
 
 # CMake's native __CMAKE::CXX23 provider and the project-owned MSVC std.ifc
 # cannot be enabled on the same target: MSVC reports an ambiguous `std` IFC.
@@ -724,10 +713,8 @@ if(MSVC AND ARTIFACT_USE_EXPLICIT_STD_IFC)
     endforeach()
 endif()
 
-# DISABLED: ArtifactPr has W_Object signal macros that require Qt MOC
-# Since MOC causes drive path issues, and ArtifactPr is a demo/utility,
-# we exclude it from the main build. Re-enable by uncommenting below.
-# add_subdirectory(ArtifactPr)
+# ArtifactPr is added above with the other child directories (Verdigris-based,
+# no Qt MOC pass required).
 
 add_custom_target(check_module_hygiene
     COMMAND ${CMAKE_COMMAND} -E env PYTHONUTF8=1

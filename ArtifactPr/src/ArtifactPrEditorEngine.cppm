@@ -10,16 +10,34 @@ module;
 #include <QDateTime>
 #include <QDir>
 #include <QMessageBox>
+#include <QMetaObject>
 #include <QHash>
+#include <QSet>
+#include <cmath>
 #include <memory>
+
+#include <opencv2/core.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/videoio.hpp>
 
 module ArtifactPr.EditorEngine;
 
 import ArtifactPr.EditCommand;
+import ArtifactPr.SequenceExporter;
 
 using namespace Qt::StringLiterals;
 
 namespace ArtifactPr {
+
+// コマンド serialize 用の前方向宣言 (定義はファイル後半・namespace ArtifactPr 直下)。
+QJsonObject clipToJson(const DemoClip& clip);
+DemoClip jsonToClip(const QJsonObject& obj);
+QJsonObject markerToJson(const Marker& marker);
+Marker jsonToMarker(const QJsonObject& obj);
+QJsonObject transitionToJson(const Transition& trans);
+Transition jsonToTransition(const QJsonObject& obj);
+QJsonObject trackToJson(const DemoTrack& track);
+DemoTrack jsonToTrack(const QJsonObject& obj);
 
 static QString generateLegacyId()
 {
@@ -119,6 +137,8 @@ void EditorEngine::rebuildLegacySnapshotFromNLE()
             clip.sourceOut = coreClip->sourceRange.isValid() ? coreClip->sourceRange.end() : clip.sourceIn + clip.duration;
             clip.speed = coreClip->speed;
             clip.reversed = coreClip->reversed;
+            clip.opacity = coreClip->opacity;
+            clip.enabled = coreClip->enabled;
             clip.linked = coreClip->linkedGroupId != 0;
             clip.selected = coreClip->selected;
             clip.color = track.kind == QStringLiteral("audio")
@@ -140,6 +160,48 @@ void EditorEngine::rebuildLegacySnapshotFromNLE()
         }
     }
 
+    // markers / transitions を NLE → legacy へ復元
+    for (const auto& coreMarkerId : sequence->markers) {
+        const auto* coreMarker = nleStore_->marker(coreMarkerId);
+        if (!coreMarker) continue;
+        Marker marker;
+        marker.id = coreMarker->id.toString();
+        marker.position = coreMarker->position;
+        marker.name = coreMarker->name;
+        marker.comment = coreMarker->note;
+        marker.color = coreMarker->color;
+        marker.type = Marker::Type::Comment;
+        snapshot.markers.append(marker);
+    }
+
+    for (const auto& trackId : sequence->trackOrder) {
+        for (const auto* coreTransition : nleStore_->transitions(trackId)) {
+            if (!coreTransition) continue;
+            Transition trans;
+            trans.id = coreTransition->id.toString();
+            trans.trackId = coreTransition->trackId.toString();
+            trans.leftClipId = coreTransition->leftClipId.toString();
+            trans.rightClipId = coreTransition->rightClipId.toString();
+            trans.startFrame = coreTransition->range.start();
+            trans.duration = static_cast<FramePosition>(coreTransition->duration + 0.5);
+            switch (coreTransition->kind) {
+            case ArtifactCore::NLE::TransitionKind::Dissolve:
+                trans.type = TransitionType::DipToBlack;
+                break;
+            case ArtifactCore::NLE::TransitionKind::Wipe:
+                trans.type = coreTransition->direction
+                        == ArtifactCore::NLE::Transition::Direction::RightToLeft
+                    ? TransitionType::WipeLeft
+                    : TransitionType::WipeRight;
+                break;
+            default:
+                trans.type = TransitionType::Crossfade;
+                break;
+            }
+            snapshot.transitions.append(trans);
+        }
+    }
+
     currentSequence_ = snapshot;
     for (auto& projectSequence : currentProject_.sequences) {
         if (projectSequence.id == snapshot.id) {
@@ -148,6 +210,152 @@ void EditorEngine::rebuildLegacySnapshotFromNLE()
         }
     }
     Q_EMIT sequenceChanged(currentSequence_);
+}
+
+bool EditorEngine::resolveSourceForClip(const QString& sourceFile,
+                                        ArtifactCore::NLE::SourceRef& outRef)
+{
+    if (sourceFile.isEmpty() || !nleStore_) return false;
+
+    // 既存の uri と一致するソースがあればそれを使う
+    for (const auto& seqId : nleStore_->sequenceIds()) {
+        for (const auto& tid : nleStore_->trackIds(seqId)) {
+            for (const auto& cid : nleStore_->clipIds(tid)) {
+                const auto* c = nleStore_->clip(cid);
+                if (!c) continue;
+                const auto* existing = nleStore_->source(c->sourceId);
+                if (existing && existing->uri == sourceFile) {
+                    outRef = *existing;
+                    return true;
+                }
+            }
+        }
+    }
+
+    // 無ければプローブして新規登録
+    ArtifactCore::NLE::SourceRef probe;
+    probe.uri = sourceFile;
+    probe.displayName = QFileInfo(sourceFile).fileName();
+
+    const QString suffix = QFileInfo(sourceFile).suffix().toLower();
+    static const QSet<QString> imageExts = {
+        QStringLiteral("png"), QStringLiteral("jpg"), QStringLiteral("jpeg"),
+        QStringLiteral("bmp"), QStringLiteral("tif"), QStringLiteral("tiff"),
+        QStringLiteral("webp")
+    };
+    const bool isImage = imageExts.contains(suffix);
+
+    bool probed = false;
+    cv::Mat imageOrFrame;
+    if (isImage) {
+        imageOrFrame = cv::imread(sourceFile.toStdString(), cv::IMREAD_COLOR);
+        probed = !imageOrFrame.empty();
+        if (probed) {
+            probe.mimeType = QStringLiteral("image");
+            probe.timeBase = ArtifactCore::NLE::TimeBase{1, 30, false};
+            probe.availableRange = ArtifactCore::FrameRange::fromFrameCount(0, 1);
+            probe.frameSize = QSize(imageOrFrame.cols, imageOrFrame.rows);
+        }
+    } else {
+        cv::VideoCapture capture(sourceFile.toStdString(), cv::CAP_FFMPEG);
+        if (capture.isOpened()) {
+            const double fps = capture.get(cv::CAP_PROP_FPS);
+            const double frameCount = capture.get(cv::CAP_PROP_FRAME_COUNT);
+            const int w = static_cast<int>(capture.get(cv::CAP_PROP_FRAME_WIDTH));
+            const int h = static_cast<int>(capture.get(cv::CAP_PROP_FRAME_HEIGHT));
+            if (w > 0 && h > 0 && fps > 0.0) {
+                // fps を有理数へ (numerator=1000, denominator=round(1000/fps))
+                const int den = qMax(1, static_cast<int>(std::lround(1000.0 / fps)));
+                probe.timeBase = ArtifactCore::NLE::TimeBase{1000, den, false};
+                const qint64 frames = frameCount > 0
+                    ? static_cast<qint64>(frameCount) : 0;
+                probe.availableRange = frames > 0
+                    ? ArtifactCore::FrameRange::fromFrameCount(0, frames)
+                    : ArtifactCore::FrameRange::infinite();
+                probe.frameSize = QSize(w, h);
+                probe.mimeType = QStringLiteral("video");
+                probed = true;
+            }
+        }
+    }
+
+    if (!probed) {
+        // プローブ失敗でもインポートは止めない。既定値で継続。
+        probe.timeBase = ArtifactCore::NLE::TimeBase{1, 30, false};
+        probe.availableRange = ArtifactCore::FrameRange::fromFrameCount(0, 100000);
+    }
+
+    outRef = probe;
+    return true;
+}
+
+void EditorEngine::importLegacyProjectToNLE()
+{
+    if (!nleStore_ || currentProject_.activeSequenceId.isEmpty()) return;
+
+    nleStore_->clear();
+
+    // アクティブシーケンスとトラックを再構築
+    DemoSequence* legacySequence = nullptr;
+    for (auto& seq : currentProject_.sequences) {
+        if (seq.id == currentProject_.activeSequenceId) {
+            legacySequence = &seq;
+            break;
+        }
+    }
+    if (!legacySequence) return;
+
+    const auto coreSequenceId = nleStore_->createSequence(
+        legacySequence->name, ArtifactCore::NLE::TimeBase{1, 30, false});
+    currentProject_.activeSequenceId = coreSequenceId.toString();
+
+    auto importTrack = [&](const DemoTrack& legacyTrack) {
+        const auto trackKind = legacyTrack.kind == QStringLiteral("audio")
+            ? ArtifactCore::NLE::TrackKind::Audio
+            : ArtifactCore::NLE::TrackKind::Video;
+        const auto coreTrackId = nleStore_->createTrack(coreSequenceId, trackKind, legacyTrack.name);
+        for (const auto& legacyClip : legacyTrack.clips) {
+            if (legacyClip.sourceFile.isEmpty()) continue;
+            ArtifactCore::NLE::SourceRef probe;
+            if (!resolveSourceForClip(legacyClip.sourceFile, probe)) continue;
+            const auto sourceId = nleStore_->registerSource(probe);
+
+            ArtifactCore::NLE::ClipDraft draft;
+            draft.sourceId = sourceId;
+            const FramePosition sourceLen = qMax<FramePosition>(
+                1, legacyClip.sourceOut - legacyClip.sourceIn);
+            draft.sourceRange = ArtifactCore::FrameRange::fromFrameCount(
+                legacyClip.sourceIn, sourceLen);
+            draft.timelineRange = ArtifactCore::FrameRange::fromFrameCount(
+                legacyClip.startFrame, qMax<FramePosition>(1, legacyClip.duration));
+            draft.trimRange = draft.sourceRange;
+            draft.name = legacyClip.name;
+            draft.speed = legacyClip.speed;
+            draft.opacity = legacyClip.opacity;
+            draft.enabled = legacyClip.enabled;
+            draft.reversed = legacyClip.reversed;
+            nleStore_->addClip(coreSequenceId, coreTrackId, draft);
+        }
+    };
+    for (const auto& legacyTrack : legacySequence->videoTracks) importTrack(legacyTrack);
+    for (const auto& legacyTrack : legacySequence->audioTracks) importTrack(legacyTrack);
+
+    // マーカーを再構築
+    for (const auto& legacyMarker : legacySequence->markers) {
+        nleStore_->createMarker(coreSequenceId,
+                                ArtifactCore::FramePosition(legacyMarker.position),
+                                legacyMarker.name, legacyMarker.comment,
+                                legacyMarker.color);
+    }
+
+    rebuildLegacySnapshotFromNLE();
+    currentSequence_ = *legacySequence;
+    for (auto& projectSequence : currentProject_.sequences) {
+        if (projectSequence.id == legacySequence->id) {
+            projectSequence = currentSequence_;
+            break;
+        }
+    }
 }
 
 EditorEngine* EditorEngine::s_instance = nullptr;
@@ -169,8 +377,47 @@ EditorEngine::EditorEngine()
 
 EditorEngine::~EditorEngine()
 {
-    qDeleteAll(undoStack_);
-    qDeleteAll(redoStack_);
+    cancelExport();
+    if (exportThread_.joinable()) {
+        exportThread_.join();
+    }
+    editSession_.undoStack()->clear();
+}
+
+void EditorEngine::startExport(const ArtifactPr::RenderPlan& plan,
+                               const ArtifactPr::ExportSettings& settings)
+{
+    bool expected = false;
+    if (!isExporting_.compare_exchange_strong(expected, true)) {
+        return;
+    }
+
+    cancelRequested_.store(false);
+    Q_EMIT exportStarted();
+
+    if (exportThread_.joinable()) {
+        exportThread_.join();
+    }
+    exportThread_ = std::thread([this, plan, settings]() {
+        auto progress = [this](int percent) {
+            QMetaObject::invokeMethod(this, [this, percent]() {
+                Q_EMIT exportProgress(percent);
+            }, Qt::QueuedConnection);
+        };
+
+        const ExportResult result =
+            exportSequence(plan, settings, cancelRequested_, progress);
+
+        isExporting_.store(false);
+        QMetaObject::invokeMethod(this, [this, result]() {
+            Q_EMIT exportFinished(result.success, result.error);
+        }, Qt::QueuedConnection);
+    });
+}
+
+void EditorEngine::cancelExport()
+{
+    cancelRequested_.store(true);
 }
 
 QJsonObject EditorEngine::nleSnapshot() const
@@ -223,12 +470,20 @@ bool EditorEngine::restoreNLESnapshot(const QJsonObject& snapshot)
 
 void NLEStateCommand::undo()
 {
-    EditorEngine::instance()->restoreNLESnapshot(before_);
+    apply(beforeJson_);
 }
 
 void NLEStateCommand::redo()
 {
-    EditorEngine::instance()->restoreNLESnapshot(after_);
+    apply(afterJson_);
+}
+
+void NLEStateCommand::apply(const QJsonObject& snapshot)
+{
+    if (snapshot.isEmpty()) {
+        return;
+    }
+    EditorEngine::instance()->restoreNLESnapshot(snapshot);
 }
 
 void EditorEngine::newProject()
@@ -287,10 +542,7 @@ void EditorEngine::newProject()
     playbackSpeed_ = PlaybackSpeed::Stop;
     selectedClipId_.clear();
 
-    qDeleteAll(undoStack_);
-    undoStack_.clear();
-    qDeleteAll(redoStack_);
-    redoStack_.clear();
+    editSession_.undoStack()->clear();
 
     Q_EMIT sequenceChanged(currentSequence_);
     Q_EMIT projectLoaded(true, QStringLiteral("New project created"));
@@ -346,10 +598,7 @@ void EditorEngine::newSequence()
     playbackSpeed_ = PlaybackSpeed::Stop;
     selectedClipId_.clear();
 
-    qDeleteAll(undoStack_);
-    undoStack_.clear();
-    qDeleteAll(redoStack_);
-    redoStack_.clear();
+    editSession_.undoStack()->clear();
 
     Q_EMIT sequenceChanged(currentSequence_);
     Q_EMIT projectModified();
@@ -720,7 +969,7 @@ void EditorEngine::deleteSelectedClip()
                 return;
             }
             const QJsonObject after = nleSnapshot();
-            pushUndo(new NLEStateCommand(before, after));
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
             selectedClipId_.clear();
             Q_EMIT clipSelectionChanged(QString());
             rebuildLegacySnapshotFromNLE();
@@ -758,9 +1007,8 @@ void EditorEngine::deleteSelectedClip()
                 if (track.clips[i].id == selectedClipId_) {
                     trackId = track.id;
                     index = i;
-                    auto cmd = new DeleteClipCommand(track.id, track.clips[i], i);
-                    pushUndo(cmd);
-                    track.clips.removeAt(i);
+                    // QUndoStack::push が redo() を即座に実行して clip を削除する
+                    pushUndo(std::make_unique<DeleteClipCommand>(track.id, track.clips[i], i));
                     break;
                 }
             }
@@ -772,7 +1020,7 @@ void EditorEngine::deleteSelectedClip()
     Q_EMIT clipSelectionChanged(QString());
     if (removedFromVideo) {
         setCurrentSequence(currentSequence_);
-        pushUndo(new VideoTracksStateCommand(beforeVideoTracks,
+        pushUndo(std::make_unique<VideoTracksStateCommand>(beforeVideoTracks,
                                              currentSequence_.videoTracks,
                                              beforeDuration,
                                              currentSequence_.duration,
@@ -795,7 +1043,7 @@ void EditorEngine::rippleDeleteSelectedClip()
                 return;
             }
             const QJsonObject after = nleSnapshot();
-            pushUndo(new NLEStateCommand(before, after));
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
             selectedClipId_.clear();
             Q_EMIT clipSelectionChanged(QString());
             rebuildLegacySnapshotFromNLE();
@@ -846,14 +1094,12 @@ void EditorEngine::rippleDeleteSelectedClip()
     if (isVideoTrack) {
         const FramePosition oldDuration = currentSequence_.duration;
         const FramePosition newDuration = oldDuration - deletedDuration;
-        auto* cmd = new RippleDeleteCommand(track->id, *clip, index,
-                                             oldDuration, newDuration);
-        cmd->redo();
-        pushUndo(cmd);
+        // QUndoStack::push が redo() を即座に実行する
+        pushUndo(std::make_unique<RippleDeleteCommand>(track->id, *clip, index,
+                                                       oldDuration, newDuration));
     } else {
-        auto cmd = new DeleteClipCommand(track->id, *clip, index);
-        pushUndo(cmd);
-        track->clips.removeAt(index);
+        // QUndoStack::push が redo() を即座に実行して clip を削除する
+        pushUndo(std::make_unique<DeleteClipCommand>(track->id, *clip, index));
 
         for (int i = index; i < track->clips.size(); ++i) {
             track->clips[i].startFrame -= deletedDuration;
@@ -870,26 +1116,65 @@ void EditorEngine::splitClipAtPlayhead()
 {
     if (selectedClipId_.isEmpty()) return;
 
-    const auto beforeVideoTracks = currentSequence_.videoTracks;
-    const FramePosition beforeDuration = currentSequence_.duration;
-    const QString beforeSelection = selectedClipId_;
-    bool selectedVideoClip = false;
-    for (const auto& track : currentSequence_.videoTracks) {
-        for (const auto& videoClip : track.clips) {
-            if (videoClip.id == selectedClipId_) {
-                selectedVideoClip = true;
-                break;
-            }
-        }
-        if (selectedVideoClip) break;
-    }
-
     auto* clip = findClip(selectedClipId_);
     if (!clip) return;
 
     if (currentFrame_ <= clip->startFrame || currentFrame_ >= clip->startFrame + clip->duration) {
         return;
     }
+
+    // NLE ストア経由: trimClip(左半分) + addClip(右半分) を 1 コマンドに。
+    // Core には split API が無いためこの組合せで実装する。
+    if (nleStore_) {
+        const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(clip->id);
+        if (auto* coreClip = nleStore_->clip(coreClipId)) {
+            const FramePosition splitPoint = currentFrame_ - coreClip->timelineRange.start();
+            const auto sequenceId = ArtifactCore::NLE::SequenceId::fromString(currentProject_.activeSequenceId);
+            const auto trackId = coreClip->trackId;
+            const auto sourceRange = coreClip->sourceRange;
+
+            ArtifactCore::NLE::ClipDraft rightDraft;
+            rightDraft.sourceId = coreClip->sourceId;
+            rightDraft.sourceRange = ArtifactCore::FrameRange::fromFrameCount(
+                sourceRange.start() + splitPoint,
+                qMax<qint64>(1, sourceRange.duration() - splitPoint));
+            rightDraft.timelineRange = ArtifactCore::FrameRange::fromFrameCount(
+                currentFrame_,
+                qMax<qint64>(1, coreClip->timelineRange.duration() - splitPoint));
+            rightDraft.trimRange = rightDraft.sourceRange;
+            rightDraft.name = coreClip->name;
+            rightDraft.speed = coreClip->speed;
+            rightDraft.opacity = coreClip->opacity;
+            rightDraft.enabled = coreClip->enabled;
+            rightDraft.reversed = coreClip->reversed;
+            rightDraft.linkedGroupId = coreClip->linkedGroupId;
+
+            const QJsonObject before = nleSnapshot();
+
+            // 左側を縮める (Source モード: sourceRange/timelineRange を同時調整)
+            const auto leftSourceRange = ArtifactCore::FrameRange::fromFrameCount(
+                sourceRange.start(), qMin(splitPoint, sourceRange.duration()));
+            if (!nleStore_->trimClip(coreClipId, leftSourceRange, ArtifactCore::NLE::TrimMode::Source)) {
+                return;
+            }
+
+            const auto newRightId = nleStore_->addClip(sequenceId, trackId, rightDraft);
+            if (!newRightId.isValid()) {
+                // ロールバックして legacy フォールバックへ
+                nleStore_->loadFromJson(before);
+                return;
+            }
+
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT projectModified();
+            Q_EMIT sequenceChanged(currentSequence_);
+            return;
+        }
+    }
+
+    const auto beforeVideoTracks = currentSequence_.videoTracks;
 
     FramePosition splitPoint = currentFrame_ - clip->startFrame;
     FramePosition newDuration = splitPoint;
@@ -937,7 +1222,7 @@ void EditorEngine::splitClipAtPlayhead()
 
     if (track && selectedVideoClip) {
         setCurrentSequence(currentSequence_);
-        pushUndo(new VideoTracksStateCommand(beforeVideoTracks,
+        pushUndo(std::make_unique<VideoTracksStateCommand>(beforeVideoTracks,
                                              currentSequence_.videoTracks,
                                              beforeDuration,
                                              currentSequence_.duration,
@@ -952,6 +1237,45 @@ void EditorEngine::splitClipAtPlayhead()
 void EditorEngine::duplicateSelectedClip()
 {
     if (selectedClipId_.isEmpty()) return;
+
+    auto* clip = findClip(selectedClipId_);
+    if (!clip) return;
+
+    // NLE ストア経由: 元クリップの複製を後ろへ overwrite 配置。
+    if (nleStore_) {
+        const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(clip->id);
+        if (auto* coreClip = nleStore_->clip(coreClipId)) {
+            const auto sequenceId = ArtifactCore::NLE::SequenceId::fromString(currentProject_.activeSequenceId);
+
+            ArtifactCore::NLE::ClipDraft draft;
+            draft.sourceId = coreClip->sourceId;
+            draft.sourceRange = coreClip->sourceRange;
+            const FramePosition newStart = coreClip->timelineRange.start()
+                + coreClip->timelineRange.duration();
+            draft.timelineRange = ArtifactCore::FrameRange::fromFrameCount(
+                newStart, coreClip->timelineRange.duration());
+            draft.trimRange = coreClip->trimRange;
+            draft.name = coreClip->name;
+            draft.speed = coreClip->speed;
+            draft.opacity = coreClip->opacity;
+            draft.enabled = coreClip->enabled;
+            draft.reversed = coreClip->reversed;
+            draft.linkedGroupId = coreClip->linkedGroupId;
+
+            const QJsonObject before = nleSnapshot();
+            const auto newClipId = nleStore_->overwriteClip(sequenceId, coreClip->trackId, draft);
+            if (!newClipId.isValid()) {
+                return;
+            }
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            selectClip(newClipId.toString());
+            Q_EMIT projectModified();
+            Q_EMIT sequenceChanged(currentSequence_);
+            return;
+        }
+    }
 
     const auto beforeVideoTracks = currentSequence_.videoTracks;
     const FramePosition beforeDuration = currentSequence_.duration;
@@ -1015,7 +1339,7 @@ void EditorEngine::duplicateSelectedClip()
             currentSequence_.duration = qMax<FramePosition>(
                 currentSequence_.duration, newClip.startFrame + newClip.duration);
             setCurrentSequence(currentSequence_);
-            pushUndo(new VideoTracksStateCommand(beforeVideoTracks,
+            pushUndo(std::make_unique<VideoTracksStateCommand>(beforeVideoTracks,
                                                  currentSequence_.videoTracks,
                                                  beforeDuration,
                                                  currentSequence_.duration,
@@ -1064,7 +1388,7 @@ void EditorEngine::slipClip(const QString& clipId, FramePosition delta)
                 return;
             }
             const QJsonObject after = nleSnapshot();
-            pushUndo(new NLEStateCommand(before, after));
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
             rebuildLegacySnapshotFromNLE();
             Q_EMIT clipChanged(clipId);
             Q_EMIT projectModified();
@@ -1090,9 +1414,8 @@ void EditorEngine::slipClip(const QString& clipId, FramePosition delta)
         if (isVideoClip) break;
     }
 
-    auto* cmd = new SlipClipCommand(clipId, oldIn, oldOut, newIn, newOut);
-    cmd->redo();
-    pushUndo(cmd);
+    // QUndoStack::push が redo() を即座に実行する
+    pushUndo(std::make_unique<SlipClipCommand>(clipId, oldIn, oldOut, newIn, newOut));
     if (isVideoClip) {
         setCurrentSequence(currentSequence_);
     }
@@ -1116,7 +1439,7 @@ void EditorEngine::slideClip(const QString& clipId, FramePosition delta)
                 return;
             }
             const QJsonObject after = nleSnapshot();
-            pushUndo(new NLEStateCommand(before, after));
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
             rebuildLegacySnapshotFromNLE();
             Q_EMIT clipChanged(clipId);
             Q_EMIT projectModified();
@@ -1146,13 +1469,13 @@ void EditorEngine::slideClip(const QString& clipId, FramePosition delta)
         ? track->clips[clipIndex + 1].startFrame
         : 0;
 
-    auto* cmd = new SlideClipCommand(clipId,
-                                     clip->startFrame, clip->startFrame + delta,
-                                     leftId, oldLeftEnd,
-                                     rightId, oldRightStart);
+    // QUndoStack::push が redo() を即座に実行する (computeNewEdges は ctor 後に実施)
+    auto cmd = std::make_unique<SlideClipCommand>(clipId,
+                                                  clip->startFrame, clip->startFrame + delta,
+                                                  leftId, oldLeftEnd,
+                                                  rightId, oldRightStart);
     cmd->computeNewEdges();
-    cmd->redo();
-    pushUndo(cmd);
+    pushUndo(std::move(cmd));
     setCurrentSequence(currentSequence_);
     Q_EMIT clipChanged(clipId);
     Q_EMIT projectModified();
@@ -1171,7 +1494,7 @@ void EditorEngine::moveClip(const QString& clipId, FramePosition newStart)
                 return;
             }
             const QJsonObject after = nleSnapshot();
-            pushUndo(new NLEStateCommand(before, after));
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
             rebuildLegacySnapshotFromNLE();
             Q_EMIT clipChanged(clipId);
             Q_EMIT projectModified();
@@ -1195,7 +1518,7 @@ void EditorEngine::moveClip(const QString& clipId, FramePosition newStart)
     }
     const FramePosition oldStart = clip->startFrame;
     clip->startFrame = newStart;
-    pushUndo(new MoveClipCommand(clipId, oldStart, newStart));
+    pushUndo(std::make_unique<MoveClipCommand>(clipId, oldStart, newStart));
     if (isVideoClip) {
         setCurrentSequence(currentSequence_);
     }
@@ -1226,7 +1549,7 @@ void EditorEngine::trimClip(const QString& clipId,
                 return;
             }
             const QJsonObject after = nleSnapshot();
-            pushUndo(new NLEStateCommand(before, after));
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
             rebuildLegacySnapshotFromNLE();
             Q_EMIT clipChanged(clipId);
             Q_EMIT projectModified();
@@ -1252,13 +1575,12 @@ void EditorEngine::trimClip(const QString& clipId,
     const FramePosition oldDuration = clip->duration;
     const FramePosition oldSourceIn = clip->sourceIn;
     const FramePosition oldSourceOut = clip->sourceOut;
-    auto* cmd = new TrimClipCommand(clipId,
+    // QUndoStack::push が redo() を即座に実行する
+    pushUndo(std::make_unique<TrimClipCommand>(clipId,
                                     oldStart, oldDuration,
                                     oldSourceIn, oldSourceOut,
                                     newStart, newDuration,
-                                    newSourceIn, newSourceOut);
-    cmd->redo();
-    pushUndo(cmd);
+                                    newSourceIn, newSourceOut));
     if (isVideoClip) {
         setCurrentSequence(currentSequence_);
     }
@@ -1268,6 +1590,27 @@ void EditorEngine::trimClip(const QString& clipId,
 
 void EditorEngine::rippleDeleteClipAt(const QString& clipId)
 {
+    // NLE ストア経由 (rippleDeleteSelectedClip と同じ経路に統一)。
+    if (nleStore_) {
+        const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(clipId);
+        if (nleStore_->hasClip(coreClipId)) {
+            const QJsonObject before = nleSnapshot();
+            if (!nleStore_->rippleDelete(coreClipId)) {
+                return;
+            }
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            if (selectedClipId_ == clipId) {
+                selectedClipId_.clear();
+                Q_EMIT clipSelectionChanged(QString());
+            }
+            Q_EMIT sequenceChanged(currentSequence_);
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
     auto* clip = findClip(clipId);
     if (!clip) return;
 
@@ -1284,10 +1627,9 @@ void EditorEngine::rippleDeleteClipAt(const QString& clipId)
     const FramePosition oldDuration = currentSequence_.duration;
     const FramePosition newDuration = oldDuration - clip->duration;
 
-    auto* cmd = new RippleDeleteCommand(track->id, *clip, index,
-                                        oldDuration, newDuration);
-    cmd->redo();
-    pushUndo(cmd);
+    // QUndoStack::push が redo() を即座に実行する
+    pushUndo(std::make_unique<RippleDeleteCommand>(track->id, *clip, index,
+                                                   oldDuration, newDuration));
     Q_EMIT sequenceChanged(currentSequence_);
     Q_EMIT projectModified();
 }
@@ -1299,13 +1641,52 @@ void EditorEngine::insertClipFromSource(const QString& trackId,
     auto* track = findTrackById(currentSequence_, trackId);
     if (!track) return;
 
+    // NLE ストア経由: addClip が後続クリップを押し出す (挿入 semantics)。
+    if (nleStore_) {
+        const auto sequenceId = ArtifactCore::NLE::SequenceId::fromString(currentProject_.activeSequenceId);
+        const auto coreTrackId = ArtifactCore::NLE::TrackId::fromString(trackId);
+        if (nleStore_->hasTrack(coreTrackId)) {
+            ArtifactCore::NLE::SourceRef sourceProbe;
+            ArtifactCore::NLE::SourceId sourceId;
+            if (resolveSourceForClip(sourceClip.sourceFile, sourceProbe)) {
+                sourceId = nleStore_->registerSource(sourceProbe);
+            }
+
+            ArtifactCore::NLE::ClipDraft draft;
+            draft.sourceId = sourceId;
+            const FramePosition sourceLen = qMax<FramePosition>(
+                1, sourceClip.sourceOut - sourceClip.sourceIn);
+            draft.sourceRange = ArtifactCore::FrameRange::fromFrameCount(
+                sourceClip.sourceIn, sourceLen);
+            draft.timelineRange = ArtifactCore::FrameRange::fromFrameCount(
+                insertAt, sourceClip.duration);
+            draft.trimRange = draft.sourceRange;
+            draft.name = sourceClip.name;
+            draft.speed = sourceClip.speed;
+            draft.opacity = sourceClip.opacity;
+            draft.enabled = true;
+            draft.reversed = sourceClip.reversed;
+
+            const QJsonObject before = nleSnapshot();
+            const auto newClipId = nleStore_->addClip(sequenceId, coreTrackId, draft);
+            if (!newClipId.isValid()) {
+                return;
+            }
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT sequenceChanged(currentSequence_);
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
     const FramePosition oldDuration = currentSequence_.duration;
     const FramePosition newDuration = oldDuration + sourceClip.duration;
 
-    auto* cmd = new InsertEditCommand(trackId, sourceClip, insertAt,
-                                      oldDuration, newDuration);
-    cmd->redo();
-    pushUndo(cmd);
+    // QUndoStack::push が redo() を即座に実行する
+    pushUndo(std::make_unique<InsertEditCommand>(trackId, sourceClip, insertAt,
+                                                 oldDuration, newDuration));
     Q_EMIT sequenceChanged(currentSequence_);
     Q_EMIT projectModified();
 }
@@ -1317,9 +1698,48 @@ void EditorEngine::overwriteClipFromSource(const QString& trackId,
     auto* track = findTrackById(currentSequence_, trackId);
     if (!track) return;
 
-    auto* cmd = new OverwriteEditCommand(trackId, sourceClip, overwriteAt);
-    cmd->redo();
-    pushUndo(cmd);
+    // NLE ストア経由: overwriteClip が重なりを削除してから配置する。
+    if (nleStore_) {
+        const auto sequenceId = ArtifactCore::NLE::SequenceId::fromString(currentProject_.activeSequenceId);
+        const auto coreTrackId = ArtifactCore::NLE::TrackId::fromString(trackId);
+        if (nleStore_->hasTrack(coreTrackId)) {
+            ArtifactCore::NLE::SourceRef sourceProbe;
+            ArtifactCore::NLE::SourceId sourceId;
+            if (resolveSourceForClip(sourceClip.sourceFile, sourceProbe)) {
+                sourceId = nleStore_->registerSource(sourceProbe);
+            }
+
+            ArtifactCore::NLE::ClipDraft draft;
+            draft.sourceId = sourceId;
+            const FramePosition sourceLen = qMax<FramePosition>(
+                1, sourceClip.sourceOut - sourceClip.sourceIn);
+            draft.sourceRange = ArtifactCore::FrameRange::fromFrameCount(
+                sourceClip.sourceIn, sourceLen);
+            draft.timelineRange = ArtifactCore::FrameRange::fromFrameCount(
+                overwriteAt, sourceClip.duration);
+            draft.trimRange = draft.sourceRange;
+            draft.name = sourceClip.name;
+            draft.speed = sourceClip.speed;
+            draft.opacity = sourceClip.opacity;
+            draft.enabled = true;
+            draft.reversed = sourceClip.reversed;
+
+            const QJsonObject before = nleSnapshot();
+            const auto newClipId = nleStore_->overwriteClip(sequenceId, coreTrackId, draft);
+            if (!newClipId.isValid()) {
+                return;
+            }
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT sequenceChanged(currentSequence_);
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
+    // QUndoStack::push が redo() を即座に実行する
+    pushUndo(std::make_unique<OverwriteEditCommand>(trackId, sourceClip, overwriteAt));
     if (track->kind == QStringLiteral("video")) {
         setCurrentSequence(currentSequence_);
     }
@@ -1333,11 +1753,90 @@ void EditorEngine::liftRange(const QString& trackId,
     auto* track = findTrackById(currentSequence_, trackId);
     if (!track) return;
 
-    auto* cmd = new LiftEditCommand(trackId, from, to, track->clips);
-    cmd->redo();
-    pushUndo(cmd);
+    // NLE ストア経由: 範囲に重なるクリップを removeClip。
+    if (nleStore_) {
+        const auto coreTrackId = ArtifactCore::NLE::TrackId::fromString(trackId);
+        if (nleStore_->hasTrack(coreTrackId)) {
+            QVector<ArtifactCore::NLE::ClipId> overlapping;
+            for (const auto& cid : nleStore_->clipIds(coreTrackId)) {
+                const auto* c = nleStore_->clip(cid);
+                if (!c) continue;
+                const auto range = c->timelineRange;
+                if (range.end() > from && range.start() < to) {
+                    overlapping.append(cid);
+                }
+            }
+            if (overlapping.isEmpty()) return;
+
+            const QJsonObject before = nleSnapshot();
+            for (const auto& cid : overlapping) {
+                nleStore_->removeClip(cid);
+            }
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT sequenceChanged(currentSequence_);
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
+    // QUndoStack::push が redo() を即座に実行する
+    pushUndo(std::make_unique<LiftEditCommand>(trackId, from, to, track->clips));
     if (track->kind == QStringLiteral("video")) {
         setCurrentSequence(currentSequence_);
+    }
+    Q_EMIT sequenceChanged(currentSequence_);
+    Q_EMIT projectModified();
+}
+
+void EditorEngine::setTrackMuted(const QString& trackId, bool muted)
+{
+    // NLE ストア経由
+    if (nleStore_) {
+        const auto coreTrackId = ArtifactCore::NLE::TrackId::fromString(trackId);
+        if (auto* coreTrack = nleStore_->track(coreTrackId)) {
+            const QJsonObject before = nleSnapshot();
+            coreTrack->mute = muted;
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
+    for (auto& track : currentSequence_.videoTracks) {
+        if (track.id == trackId) { track.muted = muted; break; }
+    }
+    for (auto& track : currentSequence_.audioTracks) {
+        if (track.id == trackId) { track.muted = muted; break; }
+    }
+    Q_EMIT sequenceChanged(currentSequence_);
+    Q_EMIT projectModified();
+}
+
+void EditorEngine::setTrackSolo(const QString& trackId, bool solo)
+{
+    // NLE ストア経由
+    if (nleStore_) {
+        const auto coreTrackId = ArtifactCore::NLE::TrackId::fromString(trackId);
+        if (auto* coreTrack = nleStore_->track(coreTrackId)) {
+            const QJsonObject before = nleSnapshot();
+            coreTrack->solo = solo;
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
+    for (auto& track : currentSequence_.videoTracks) {
+        if (track.id == trackId) { track.solo = solo; break; }
+    }
+    for (auto& track : currentSequence_.audioTracks) {
+        if (track.id == trackId) { track.solo = solo; break; }
     }
     Q_EMIT sequenceChanged(currentSequence_);
     Q_EMIT projectModified();
@@ -1351,7 +1850,7 @@ void EditorEngine::setClipSpeed(const QString& clipId, double speed)
             const QJsonObject before = nleSnapshot();
             coreClip->speed = speed;
             const QJsonObject after = nleSnapshot();
-            pushUndo(new NLEStateCommand(before, after));
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
             rebuildLegacySnapshotFromNLE();
             Q_EMIT clipChanged(clipId);
             Q_EMIT projectModified();
@@ -1363,10 +1862,8 @@ void EditorEngine::setClipSpeed(const QString& clipId, double speed)
     if (!clip) return;
 
     speed = qMax(0.01, speed);
-    auto* cmd = new ClipPropertyCommand(clipId, ClipPropertyCommand::Kind::Speed,
-                                        clip->speed, speed);
-    cmd->redo();
-    pushUndo(cmd);
+    pushUndo(std::make_unique<ClipPropertyCommand>(clipId, ClipPropertyCommand::Kind::Speed,
+                                                   clip->speed, speed));
 }
 
 void EditorEngine::setClipReversed(const QString& clipId, bool reversed)
@@ -1377,7 +1874,7 @@ void EditorEngine::setClipReversed(const QString& clipId, bool reversed)
             const QJsonObject before = nleSnapshot();
             coreClip->reversed = reversed;
             const QJsonObject after = nleSnapshot();
-            pushUndo(new NLEStateCommand(before, after));
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
             rebuildLegacySnapshotFromNLE();
             Q_EMIT clipChanged(clipId);
             Q_EMIT projectModified();
@@ -1388,10 +1885,8 @@ void EditorEngine::setClipReversed(const QString& clipId, bool reversed)
     auto* clip = findClip(clipId);
     if (!clip) return;
 
-    auto* cmd = new ClipPropertyCommand(clipId, ClipPropertyCommand::Kind::Reverse,
-                                        clip->reversed, reversed);
-    cmd->redo();
-    pushUndo(cmd);
+    pushUndo(std::make_unique<ClipPropertyCommand>(clipId, ClipPropertyCommand::Kind::Reverse,
+                                                   clip->reversed, reversed));
 }
 
 void EditorEngine::setClipVolume(const QString& clipId, double volume)
@@ -1400,10 +1895,32 @@ void EditorEngine::setClipVolume(const QString& clipId, double volume)
     if (!clip) return;
 
     volume = qMax(0.0, qMin(2.0, volume));
-    auto* cmd = new ClipPropertyCommand(clipId, ClipPropertyCommand::Kind::Volume,
-                                        clip->volume, volume);
-    cmd->redo();
-    pushUndo(cmd);
+    pushUndo(std::make_unique<ClipPropertyCommand>(clipId, ClipPropertyCommand::Kind::Volume,
+                                                   clip->volume, volume));
+}
+
+void EditorEngine::setClipOpacity(const QString& clipId, double opacity)
+{
+    if (nleStore_) {
+        const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(clipId);
+        if (auto* coreClip = nleStore_->clip(coreClipId)) {
+            const QJsonObject before = nleSnapshot();
+            coreClip->opacity = qBound(0.0, opacity, 1.0);
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT clipChanged(clipId);
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
+    auto* clip = findClip(clipId);
+    if (!clip) return;
+
+    opacity = qBound(0.0, opacity, 1.0);
+    pushUndo(std::make_unique<ClipPropertyCommand>(clipId, ClipPropertyCommand::Kind::Opacity,
+                                                   clip->opacity, opacity));
 }
 
 void EditorEngine::setClipName(const QString& clipId, const QString& name)
@@ -1414,7 +1931,7 @@ void EditorEngine::setClipName(const QString& clipId, const QString& name)
             const QJsonObject before = nleSnapshot();
             coreClip->name = name;
             const QJsonObject after = nleSnapshot();
-            pushUndo(new NLEStateCommand(before, after));
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
             rebuildLegacySnapshotFromNLE();
             Q_EMIT clipChanged(clipId);
             Q_EMIT projectModified();
@@ -1425,10 +1942,8 @@ void EditorEngine::setClipName(const QString& clipId, const QString& name)
     auto* clip = findClip(clipId);
     if (!clip) return;
 
-    auto* cmd = new ClipPropertyCommand(clipId, ClipPropertyCommand::Kind::Name,
-                                        clip->name, name);
-    cmd->redo();
-    pushUndo(cmd);
+    pushUndo(std::make_unique<ClipPropertyCommand>(clipId, ClipPropertyCommand::Kind::Name,
+                                                   clip->name, name));
 }
 
 void EditorEngine::cutClip(const QString& clipId)
@@ -1466,6 +1981,61 @@ void EditorEngine::pasteClip(FramePosition targetFrame)
     if (clipboard_.id.isEmpty()) return;
 
     if (targetFrame < 0) targetFrame = currentFrame_;
+
+    // NLE ストア経由: クリップボードを overwrite 配置。
+    if (nleStore_ && !clipboard_.sourceFile.isEmpty()) {
+        // クリップボードの所属種別 (video/audio) に合う最初のトラックを探す
+        QString targetTrackId;
+        for (const auto& trackId : nleStore_->trackIds(
+                 ArtifactCore::NLE::SequenceId::fromString(currentProject_.activeSequenceId))) {
+            const auto* coreTrack = nleStore_->track(trackId);
+            if (!coreTrack) continue;
+            const bool isAudioTrack = coreTrack->kind == ArtifactCore::NLE::TrackKind::Audio;
+            const bool clipboardIsAudio = clipboard_.color == QStringLiteral("#4eff4a");
+            if (isAudioTrack == clipboardIsAudio) {
+                targetTrackId = trackId.toString();
+                break;
+            }
+        }
+
+        const auto coreTrackId = ArtifactCore::NLE::TrackId::fromString(targetTrackId);
+        if (!targetTrackId.isEmpty() && nleStore_->hasTrack(coreTrackId)) {
+            ArtifactCore::NLE::SourceRef sourceProbe;
+            ArtifactCore::NLE::SourceId sourceId;
+            if (resolveSourceForClip(clipboard_.sourceFile, sourceProbe)) {
+                sourceId = nleStore_->registerSource(sourceProbe);
+            }
+
+            ArtifactCore::NLE::ClipDraft draft;
+            draft.sourceId = sourceId;
+            const FramePosition sourceLen = qMax<FramePosition>(
+                1, clipboard_.sourceOut - clipboard_.sourceIn);
+            draft.sourceRange = ArtifactCore::FrameRange::fromFrameCount(
+                clipboard_.sourceIn, sourceLen);
+            draft.timelineRange = ArtifactCore::FrameRange::fromFrameCount(
+                targetFrame, qMax<FramePosition>(1, clipboard_.duration));
+            draft.trimRange = draft.sourceRange;
+            draft.name = clipboard_.name;
+            draft.speed = clipboard_.speed;
+            draft.opacity = clipboard_.opacity;
+            draft.enabled = clipboard_.enabled;
+            draft.reversed = clipboard_.reversed;
+
+            const auto sequenceId = ArtifactCore::NLE::SequenceId::fromString(currentProject_.activeSequenceId);
+            const QJsonObject before = nleSnapshot();
+            const auto newClipId = nleStore_->overwriteClip(sequenceId, coreTrackId, draft);
+            if (!newClipId.isValid()) {
+                return;
+            }
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            selectClip(newClipId.toString());
+            Q_EMIT projectModified();
+            Q_EMIT sequenceChanged(currentSequence_);
+            return;
+        }
+    }
 
     const auto beforeVideoTracks = currentSequence_.videoTracks;
     const FramePosition beforeDuration = currentSequence_.duration;
@@ -1508,7 +2078,7 @@ void EditorEngine::pasteClip(FramePosition targetFrame)
             currentSequence_.duration = qMax<FramePosition>(
                 currentSequence_.duration, newClip.startFrame + newClip.duration);
             setCurrentSequence(currentSequence_);
-            pushUndo(new VideoTracksStateCommand(beforeVideoTracks,
+            pushUndo(std::make_unique<VideoTracksStateCommand>(beforeVideoTracks,
                                                  currentSequence_.videoTracks,
                                                  beforeDuration,
                                                  currentSequence_.duration,
@@ -1616,29 +2186,31 @@ FramePosition EditorEngine::snapToNearestEx(FramePosition frame, bool forLeftEdg
     return frame;
 }
 
-void EditorEngine::pushUndo(UndoCommand* cmd)
+void EditorEngine::pushUndo(std::unique_ptr<ArtifactCore::SerializableCommand> cmd)
 {
-    undoStack_.push_back(cmd);
-    qDeleteAll(redoStack_);
-    redoStack_.clear();
+    if (!cmd) {
+        return;
+    }
+    // EditSession.pushCommand が履歴ログ記録 + QUndoStack.push (redo 即時実行) を行う。
+    editSession_.pushCommand(std::move(cmd));
 }
 
 void EditorEngine::undo()
 {
-    if (undoStack_.isEmpty()) return;
-    auto* cmd = undoStack_.takeLast();
-    cmd->undo();
-    redoStack_.push_back(cmd);
+    if (!editSession_.undoStack()->canUndo()) {
+        return;
+    }
+    editSession_.undoStack()->undo();
     Q_EMIT projectModified();
     Q_EMIT sequenceChanged(currentSequence_);
 }
 
 void EditorEngine::redo()
 {
-    if (redoStack_.isEmpty()) return;
-    auto* cmd = redoStack_.takeLast();
-    cmd->redo();
-    undoStack_.push_back(cmd);
+    if (!editSession_.undoStack()->canRedo()) {
+        return;
+    }
+    editSession_.undoStack()->redo();
     Q_EMIT projectModified();
     Q_EMIT sequenceChanged(currentSequence_);
 }
@@ -1676,6 +2248,24 @@ void MoveClipCommand::undo()
     doMove(oldStart_);
 }
 
+QJsonObject MoveClipCommand::serialize() const
+{
+    return QJsonObject{
+        {QStringLiteral("clipId"), clipId_},
+        {QStringLiteral("oldStart"), static_cast<qint64>(oldStart_)},
+        {QStringLiteral("newStart"), static_cast<qint64>(newStart_)},
+    };
+}
+
+bool MoveClipCommand::deserialize(const QJsonObject& data)
+{
+    clipId_ = data[QStringLiteral("clipId")].toString();
+    oldStart_ = data[QStringLiteral("oldStart")].toInteger<qint64>();
+    newStart_ = data[QStringLiteral("newStart")].toInteger<qint64>();
+    setText(QStringLiteral("Move Clip"));
+    return !clipId_.isEmpty();
+}
+
 void TrimClipCommand::doTrim(FramePosition start, FramePosition duration,
                              FramePosition sourceIn, FramePosition sourceOut)
 {
@@ -1707,6 +2297,36 @@ void TrimClipCommand::undo()
     doTrim(oldStart_, oldDuration_, oldSourceIn_, oldSourceOut_);
 }
 
+QJsonObject TrimClipCommand::serialize() const
+{
+    return QJsonObject{
+        {QStringLiteral("clipId"), clipId_},
+        {QStringLiteral("oldStart"), static_cast<qint64>(oldStart_)},
+        {QStringLiteral("oldDuration"), static_cast<qint64>(oldDuration_)},
+        {QStringLiteral("oldSourceIn"), static_cast<qint64>(oldSourceIn_)},
+        {QStringLiteral("oldSourceOut"), static_cast<qint64>(oldSourceOut_)},
+        {QStringLiteral("newStart"), static_cast<qint64>(newStart_)},
+        {QStringLiteral("newDuration"), static_cast<qint64>(newDuration_)},
+        {QStringLiteral("newSourceIn"), static_cast<qint64>(newSourceIn_)},
+        {QStringLiteral("newSourceOut"), static_cast<qint64>(newSourceOut_)},
+    };
+}
+
+bool TrimClipCommand::deserialize(const QJsonObject& data)
+{
+    clipId_ = data[QStringLiteral("clipId")].toString();
+    oldStart_ = data[QStringLiteral("oldStart")].toInteger<qint64>();
+    oldDuration_ = data[QStringLiteral("oldDuration")].toInteger<qint64>();
+    oldSourceIn_ = data[QStringLiteral("oldSourceIn")].toInteger<qint64>();
+    oldSourceOut_ = data[QStringLiteral("oldSourceOut")].toInteger<qint64>();
+    newStart_ = data[QStringLiteral("newStart")].toInteger<qint64>();
+    newDuration_ = data[QStringLiteral("newDuration")].toInteger<qint64>();
+    newSourceIn_ = data[QStringLiteral("newSourceIn")].toInteger<qint64>();
+    newSourceOut_ = data[QStringLiteral("newSourceOut")].toInteger<qint64>();
+    setText(QStringLiteral("Trim Clip"));
+    return !clipId_.isEmpty();
+}
+
 void DeleteClipCommand::undo()
 {
     auto* engine = ArtifactPr::EditorEngine::instance();
@@ -1730,6 +2350,24 @@ void DeleteClipCommand::redo()
     }
 }
 
+QJsonObject DeleteClipCommand::serialize() const
+{
+    return QJsonObject{
+        {QStringLiteral("trackId"), trackId_},
+        {QStringLiteral("clip"), clipToJson(clip_)},
+        {QStringLiteral("index"), index_},
+    };
+}
+
+bool DeleteClipCommand::deserialize(const QJsonObject& data)
+{
+    trackId_ = data[QStringLiteral("trackId")].toString();
+    clip_ = jsonToClip(data[QStringLiteral("clip")].toObject());
+    index_ = data[QStringLiteral("index")].toInt(-1);
+    setText(QStringLiteral("Delete Clip"));
+    return !trackId_.isEmpty();
+}
+
 bool EditorEngine::runAutoSave()
 {
     if (!autoSaveEnabled_) return false;
@@ -1742,6 +2380,28 @@ bool EditorEngine::runAutoSave()
 void EditorEngine::addMarker(FramePosition position, const QString& name, const QString& comment)
 {
     position = qMax<FramePosition>(0, qMin(position, currentSequence_.duration));
+
+    // NLE ストア経由 (ID は MarkerId::toString() を legacy にも使う)。
+    if (nleStore_) {
+        const auto sequenceId = ArtifactCore::NLE::SequenceId::fromString(currentProject_.activeSequenceId);
+        if (nleStore_->hasSequence(sequenceId)) {
+            const QString markerName = name.isEmpty()
+                ? QStringLiteral("Marker %1").arg(currentSequence_.markers.size() + 1)
+                : name;
+            const QJsonObject before = nleSnapshot();
+            const auto coreMarkerId = nleStore_->createMarker(
+                sequenceId, ArtifactCore::FramePosition(position),
+                markerName, comment, QColor(Qt::yellow));
+            if (!coreMarkerId.isValid()) return;
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT markerChanged();
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
     const auto before = currentSequence_.markers;
     Marker marker;
     marker.id = generateMarkerId();
@@ -1753,18 +2413,33 @@ void EditorEngine::addMarker(FramePosition position, const QString& name, const 
 
     currentSequence_.markers.append(marker);
 
-    pushUndo(new MarkerStateCommand(before, currentSequence_.markers));
+    pushUndo(std::make_unique<MarkerStateCommand>(before, currentSequence_.markers));
     Q_EMIT markerChanged();
     Q_EMIT projectModified();
 }
 
 void EditorEngine::deleteMarker(const QString& markerId)
 {
+    // NLE ストア経由
+    if (nleStore_) {
+        const auto coreMarkerId = ArtifactCore::NLE::MarkerId::fromString(markerId);
+        if (nleStore_->marker(coreMarkerId)) {
+            const QJsonObject before = nleSnapshot();
+            if (!nleStore_->removeMarker(coreMarkerId)) return;
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT markerChanged();
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
     for (int i = 0; i < currentSequence_.markers.size(); ++i) {
         if (currentSequence_.markers[i].id == markerId) {
             const auto before = currentSequence_.markers;
             currentSequence_.markers.removeAt(i);
-            pushUndo(new MarkerStateCommand(before, currentSequence_.markers));
+            pushUndo(std::make_unique<MarkerStateCommand>(before, currentSequence_.markers));
             Q_EMIT markerChanged();
             Q_EMIT projectModified();
             return;
@@ -1774,12 +2449,27 @@ void EditorEngine::deleteMarker(const QString& markerId)
 
 void EditorEngine::moveMarker(const QString& markerId, FramePosition newPosition)
 {
+    // NLE ストア経由
+    if (nleStore_) {
+        const auto coreMarkerId = ArtifactCore::NLE::MarkerId::fromString(markerId);
+        if (auto* coreMarker = nleStore_->marker(coreMarkerId)) {
+            const QJsonObject before = nleSnapshot();
+            coreMarker->position = ArtifactCore::FramePosition(qMax<FramePosition>(0, newPosition));
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT markerChanged();
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
     const auto before = currentSequence_.markers;
     for (auto& marker : currentSequence_.markers) {
         if (marker.id == markerId) {
             marker.position = qMax<FramePosition>(0,
                 qMin(newPosition, currentSequence_.duration));
-            pushUndo(new MarkerStateCommand(before, currentSequence_.markers));
+            pushUndo(std::make_unique<MarkerStateCommand>(before, currentSequence_.markers));
             Q_EMIT markerChanged();
             Q_EMIT projectModified();
             return;
@@ -1789,11 +2479,26 @@ void EditorEngine::moveMarker(const QString& markerId, FramePosition newPosition
 
 void EditorEngine::setMarkerName(const QString& markerId, const QString& name)
 {
+    // NLE ストア経由
+    if (nleStore_) {
+        const auto coreMarkerId = ArtifactCore::NLE::MarkerId::fromString(markerId);
+        if (auto* coreMarker = nleStore_->marker(coreMarkerId)) {
+            const QJsonObject before = nleSnapshot();
+            coreMarker->name = name;
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT markerChanged();
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
     const auto before = currentSequence_.markers;
     for (auto& marker : currentSequence_.markers) {
         if (marker.id == markerId) {
             marker.name = name;
-            pushUndo(new MarkerStateCommand(before, currentSequence_.markers));
+            pushUndo(std::make_unique<MarkerStateCommand>(before, currentSequence_.markers));
             Q_EMIT markerChanged();
             Q_EMIT projectModified();
             return;
@@ -1803,11 +2508,26 @@ void EditorEngine::setMarkerName(const QString& markerId, const QString& name)
 
 void EditorEngine::setMarkerComment(const QString& markerId, const QString& comment)
 {
+    // NLE ストア経由
+    if (nleStore_) {
+        const auto coreMarkerId = ArtifactCore::NLE::MarkerId::fromString(markerId);
+        if (auto* coreMarker = nleStore_->marker(coreMarkerId)) {
+            const QJsonObject before = nleSnapshot();
+            coreMarker->note = comment;
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT markerChanged();
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
     const auto before = currentSequence_.markers;
     for (auto& marker : currentSequence_.markers) {
         if (marker.id == markerId) {
             marker.comment = comment;
-            pushUndo(new MarkerStateCommand(before, currentSequence_.markers));
+            pushUndo(std::make_unique<MarkerStateCommand>(before, currentSequence_.markers));
             Q_EMIT markerChanged();
             Q_EMIT projectModified();
             return;
@@ -1818,9 +2538,32 @@ void EditorEngine::setMarkerComment(const QString& markerId, const QString& comm
 void EditorEngine::clearMarkers()
 {
     if (currentSequence_.markers.isEmpty()) return;
+
+    // NLE ストア経由
+    if (nleStore_) {
+        const auto sequenceId = ArtifactCore::NLE::SequenceId::fromString(currentProject_.activeSequenceId);
+        QVector<ArtifactCore::NLE::MarkerId> toRemove;
+        for (const auto& mid : nleStore_->sequence(sequenceId) ? nleStore_->sequence(sequenceId)->markers
+                                                               : QVector<ArtifactCore::NLE::MarkerId>{}) {
+            toRemove.append(mid);
+        }
+        if (!toRemove.isEmpty()) {
+            const QJsonObject before = nleSnapshot();
+            for (const auto& mid : toRemove) {
+                nleStore_->removeMarker(mid);
+            }
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT markerChanged();
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
     const auto before = currentSequence_.markers;
     currentSequence_.markers.clear();
-    pushUndo(new MarkerStateCommand(before, currentSequence_.markers));
+    pushUndo(std::make_unique<MarkerStateCommand>(before, currentSequence_.markers));
     Q_EMIT markerChanged();
     Q_EMIT projectModified();
 }
@@ -1879,10 +2622,57 @@ void EditorEngine::addTransitionAtPlayhead(TransitionType type, FramePosition du
     }
 }
 
+namespace {
+
+// legacy TransitionType(4種) → Core TransitionKind の対応。
+// Core 側に DipToBlack/WipeLeft/WipeRight の列挙は無いため
+// DipToBlack→Dissolve、Wipe→Wipe (+Direction) に写像する。
+ArtifactCore::NLE::TransitionKind transitionKindForType(
+    TransitionType type, ArtifactCore::NLE::Transition::Direction& direction)
+{
+    direction = ArtifactCore::NLE::Transition::Direction::LeftToRight;
+    switch (type) {
+    case TransitionType::Crossfade: return ArtifactCore::NLE::TransitionKind::Crossfade;
+    case TransitionType::DipToBlack: return ArtifactCore::NLE::TransitionKind::Dissolve;
+    case TransitionType::WipeLeft:
+        direction = ArtifactCore::NLE::Transition::Direction::RightToLeft;
+        return ArtifactCore::NLE::TransitionKind::Wipe;
+    case TransitionType::WipeRight: return ArtifactCore::NLE::TransitionKind::Wipe;
+    }
+    return ArtifactCore::NLE::TransitionKind::Crossfade;
+}
+
+} // namespace
+
 void EditorEngine::addTransition(const QString& trackId, const QString& leftClipId, const QString& rightClipId,
                                  FramePosition startFrame, TransitionType type, FramePosition duration)
 {
     if (duration <= 0 || startFrame < 0) return;
+
+    // NLE ストア経由 (ID は TransitionId::toString() を legacy にも使う)。
+    if (nleStore_) {
+        const auto coreTrackId = ArtifactCore::NLE::TrackId::fromString(trackId);
+        const auto leftId = ArtifactCore::NLE::ClipId::fromString(leftClipId);
+        const auto rightId = ArtifactCore::NLE::ClipId::fromString(rightClipId);
+        if (nleStore_->hasTrack(coreTrackId)
+            && nleStore_->hasClip(leftId) && nleStore_->hasClip(rightId)) {
+            const auto range = ArtifactCore::FrameRange::fromDuration(
+                startFrame, duration);
+            ArtifactCore::NLE::Transition::Direction direction;
+            const auto kind = transitionKindForType(type, direction);
+            const QJsonObject before = nleSnapshot();
+            const auto coreTransId = nleStore_->createTransition(
+                coreTrackId, leftId, rightId, range,
+                kind, static_cast<double>(duration), direction);
+            if (!coreTransId.isValid()) return;
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT transitionChanged();
+            Q_EMIT projectModified();
+            return;
+        }
+    }
 
     bool isVideoTrack = false;
     for (const auto& track : currentSequence_.videoTracks) {
@@ -1905,7 +2695,7 @@ void EditorEngine::addTransition(const QString& trackId, const QString& leftClip
     currentSequence_.transitions.append(trans);
     if (isVideoTrack) {
         setCurrentSequence(currentSequence_);
-        pushUndo(new TransitionStateCommand(before, currentSequence_.transitions));
+        pushUndo(std::make_unique<TransitionStateCommand>(before, currentSequence_.transitions));
     }
     Q_EMIT transitionChanged();
     Q_EMIT projectModified();
@@ -1913,6 +2703,21 @@ void EditorEngine::addTransition(const QString& trackId, const QString& leftClip
 
 void EditorEngine::deleteTransition(const QString& transitionId)
 {
+    // NLE ストア経由
+    if (nleStore_) {
+        const auto coreTransId = ArtifactCore::NLE::TransitionId::fromString(transitionId);
+        if (nleStore_->transition(coreTransId)) {
+            const QJsonObject before = nleSnapshot();
+            if (!nleStore_->removeTransition(coreTransId)) return;
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT transitionChanged();
+            Q_EMIT projectModified();
+            return;
+        }
+    }
+
     for (int i = 0; i < currentSequence_.transitions.size(); ++i) {
         if (currentSequence_.transitions[i].id == transitionId) {
             const auto before = currentSequence_.transitions;
@@ -1925,7 +2730,7 @@ void EditorEngine::deleteTransition(const QString& transitionId)
             currentSequence_.transitions.removeAt(i);
             if (isVideoTrack) {
                 setCurrentSequence(currentSequence_);
-                pushUndo(new TransitionStateCommand(before, currentSequence_.transitions));
+                pushUndo(std::make_unique<TransitionStateCommand>(before, currentSequence_.transitions));
             }
             Q_EMIT transitionChanged();
             Q_EMIT projectModified();
@@ -1937,6 +2742,24 @@ void EditorEngine::deleteTransition(const QString& transitionId)
 bool EditorEngine::setVideoTransitionDuration(const QString& transitionId, FramePosition duration)
 {
     if (duration <= 0) return false;
+
+    // NLE ストア経由
+    if (nleStore_) {
+        const auto coreTransId = ArtifactCore::NLE::TransitionId::fromString(transitionId);
+        if (auto* coreTransition = nleStore_->transition(coreTransId)) {
+            const QJsonObject before = nleSnapshot();
+            coreTransition->duration = static_cast<double>(duration);
+            const auto range = coreTransition->range;
+            coreTransition->range = ArtifactCore::FrameRange::fromDuration(
+                range.start(), duration);
+            const QJsonObject after = nleSnapshot();
+            pushUndo(std::make_unique<NLEStateCommand>(before, after));
+            rebuildLegacySnapshotFromNLE();
+            Q_EMIT transitionChanged();
+            Q_EMIT projectModified();
+            return true;
+        }
+    }
 
     bool isVideoTransition = false;
     for (const auto& transition : currentSequence_.transitions) {
@@ -1959,7 +2782,7 @@ bool EditorEngine::setVideoTransitionDuration(const QString& transitionId, Frame
         }
     }
     setCurrentSequence(currentSequence_);
-    pushUndo(new TransitionStateCommand(before, currentSequence_.transitions));
+    pushUndo(std::make_unique<TransitionStateCommand>(before, currentSequence_.transitions));
     return true;
 }
 
@@ -1981,6 +2804,18 @@ void EditorEngine::addMediaToPool(const QString& filePath, const QString& name, 
     media.filePath = filePath;
     media.type = type;
     media.hasProxy = false;
+
+    // プローブして NLE ストアへ SourceRef 登録 (frameSize/timeBase/availableRange 取得)。
+    // 失敗してもインポートは止めない (resolveSourceForClip が既定値を用意する)。
+    ArtifactCore::NLE::SourceRef probe;
+    if (resolveSourceForClip(filePath, probe)) {
+        if (!probe.frameSize.isEmpty()) {
+            media.resolution = QStringLiteral("%1x%2")
+                .arg(probe.frameSize.width())
+                .arg(probe.frameSize.height());
+        }
+        nleStore_->registerSource(probe);
+    }
 
     currentProject_.mediaPool.push_back(media);
     currentProject_.modifiedAt = QDateTime::currentDateTime().toString(Qt::ISODate);
@@ -2304,6 +3139,9 @@ bool EditorEngine::saveProject(const QString& filePath)
     currentProject_.modifiedAt = QDateTime::currentDateTime().toString(Qt::ISODate);
 
     QJsonObject json = projectToJson(currentProject_);
+    // NLE ストアの完全スナップショットを併せて永続化
+    // (sources/markers/transitions/linkGroups を含む。nleSnapshot() = toJson())
+    json.insert(QStringLiteral("nle"), nleSnapshot());
     QJsonDocument doc(json);
     const QByteArray payload = doc.toJson(QJsonDocument::Indented);
 
@@ -2370,10 +3208,25 @@ bool EditorEngine::loadProject(const QString& filePath)
     playbackSpeed_ = PlaybackSpeed::Stop;
     selectedClipId_.clear();
 
-    qDeleteAll(undoStack_);
-    undoStack_.clear();
-    qDeleteAll(redoStack_);
-    redoStack_.clear();
+    // NLE スナップショットがあればストアを復元し legacy をそこから再構築。
+    // 無い旧形式ファイルは legacy → NLE 再構築して以後の編集を同期可能にする。
+    const QJsonObject nleJson = doc.object()[QStringLiteral("nle")].toObject();
+    if (nleStore_) {
+        if (!nleJson.isEmpty() && nleStore_->loadFromJson(nleJson)) {
+            rebuildLegacySnapshotFromNLE();
+            // rebuild 後に activeSequenceId が変わる可能性があるため再取得
+            for (const auto& seq : currentProject_.sequences) {
+                if (seq.id == currentProject_.activeSequenceId) {
+                    currentSequence_ = seq;
+                    break;
+                }
+            }
+        } else {
+            importLegacyProjectToNLE();
+        }
+    }
+
+    editSession_.undoStack()->clear();
 
     Q_EMIT sequenceChanged(currentSequence_);
     Q_EMIT projectLoaded(true, QStringLiteral("Project loaded successfully"));
@@ -2491,6 +3344,31 @@ void VideoTracksStateCommand::redo()
     apply(after_, afterDuration_, afterSelection_);
 }
 
+QJsonObject VideoTracksStateCommand::serialize() const
+{
+    QJsonArray tracks;
+    for (const auto& t : after_) {
+        tracks.append(trackToJson(t));
+    }
+    return QJsonObject{
+        {QStringLiteral("tracks"), tracks},
+        {QStringLiteral("duration"), static_cast<qint64>(afterDuration_)},
+        {QStringLiteral("selection"), afterSelection_},
+    };
+}
+
+bool VideoTracksStateCommand::deserialize(const QJsonObject& data)
+{
+    after_.clear();
+    for (const auto& v : data[QStringLiteral("tracks")].toArray()) {
+        after_.append(jsonToTrack(v.toObject()));
+    }
+    afterDuration_ = data[QStringLiteral("duration")].toInteger<qint64>();
+    afterSelection_ = data[QStringLiteral("selection")].toString();
+    setText(QStringLiteral("Change Video Clips"));
+    return true;
+}
+
 void MarkerStateCommand::apply(const QVector<Marker>& markers)
 {
     auto* engine = ArtifactPr::EditorEngine::instance();
@@ -2527,6 +3405,44 @@ void MarkerStateCommand::undo()
 void MarkerStateCommand::redo()
 {
     apply(after_);
+}
+
+QJsonObject MarkerStateCommand::serialize() const
+{
+    QJsonArray markers;
+    for (const auto& m : after_) {
+        markers.append(markerToJson(m));
+    }
+    return QJsonObject{{QStringLiteral("markers"), markers}};
+}
+
+bool MarkerStateCommand::deserialize(const QJsonObject& data)
+{
+    after_.clear();
+    for (const auto& v : data[QStringLiteral("markers")].toArray()) {
+        after_.append(jsonToMarker(v.toObject()));
+    }
+    setText(QStringLiteral("Change Markers"));
+    return true;
+}
+
+QJsonObject TransitionStateCommand::serialize() const
+{
+    QJsonArray transitions;
+    for (const auto& t : after_) {
+        transitions.append(transitionToJson(t));
+    }
+    return QJsonObject{{QStringLiteral("transitions"), transitions}};
+}
+
+bool TransitionStateCommand::deserialize(const QJsonObject& data)
+{
+    after_.clear();
+    for (const auto& v : data[QStringLiteral("transitions")].toArray()) {
+        after_.append(jsonToTransition(v.toObject()));
+    }
+    setText(QStringLiteral("Change Video Transition"));
+    return true;
 }
 
 } // namespace ArtifactPr

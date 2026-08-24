@@ -1,6 +1,6 @@
 # DCC ギャップ分析：3D レイヤー & テキスト機能 — 2026-08-18
 
-**最終更新:** 2026-08-18
+**最終更新:** 2026-08-21
 **調査対象:** ArtifactStudio 親リポジトリ、`Artifact`、`ArtifactCore` の現行ソース
 **調査方法:** ソースコード直接検証（`.cppm`/`.ixx`/`.cpp`）。`docs/analysis/` の既存レポートは参考のみ。
 **比較対象 DCC:**
@@ -36,7 +36,7 @@
 | **IBL / 環境マップ** | 🟡 実装済み・runtime未確認 | `MeshRenderer.cppm` の HDR/EXR→cubemap、CPU irradiance、BRDF LUT、PBR binding、`ArtifactIRenderer` の環境伝播、Skybox 接続まで実装。GPU prefilter と runtime受入れは未確認。 |
 | **3軸回転** | ❌ 未実装 | `AnimatableTransform3D.cppm:60` — `rotation_` は **1つの float** (degrees)。`setRotation(time, degrees)` (line 322) 唯一の回転 API。`rotationX/Y/Z`、クォータニオン、Euler 変換 **なし**。`StaticTransform3D.cppm:11` では `rotationX/Y/Z` が**ローカル変数**として宣言されているが実装は不明。 |
 | **デフォーマ/モディファイア** | ❌ 未実装 | `Bend`/`Twist`/`Taper`/`FFD`/`vertexDeform`/`Deformable` など **一切ヒットなし** (QColor の `#FFD700` 色定数以外)。`VolumeModifier.cppm` は体積レンダリングの modifier、3D メッシュ変形ではない。 |
-| **スキニング/アニメーション** | 🟡 部分実装 | `MeshImporter.cppm:853-886` — PMD フォーマットのみ boneIndices/boneWeights をパース。glTF/ufbx 経路 (`ufbx_mesh` の vertex_position/normal/uv) ではスキニングデータ **抽出なし**。`ufbx_scene` に `skin` / `joint` / `animation` / `sampler` **未検索**. Skeleton / joint hierarchy **未実装**。 |
+| **スキニング/アニメーション** | 🟡 部分実装 | `MeshImporter.cppm` の ufbx 経路で FBX/glTF/GLB の skin deformer、最大8 influence、bone hierarchy、anim stackを抽出。`Mesh::applySkinning()` がLBS/Rigid/Dual Quaternion/Blended DQをCPU評価し、Viewer/3D Layerに時刻・clip選択を接続。Diligent ViewerはLBSの4 influence GPU、Rigid/非LBS/追加influence・129本以上はCPU fallback。単純blend shapeのoffset/評価weight取り込み、Property Editor編集、JSON復元、timed reload時のweight保持も追加。複雑な制約・keyframe補間・実ファイルruntime受入れは未確認。 |
 | **ソフトシャドウ** | 🟡 基盤実装・runtime未確認 | `MeshRenderer.cppm` に 3×3 PCF と softness パラメータを実装。Variance Shadows、Point/Area shadow、runtime品質確認は未完了。 |
 | **Point/Area ライトシャドウ** | ❌ 未実装 | Directional/Spot のハードシャドウのみ。Point ライトキャスター非対応 (AE_PAIN_POINT 確認済み)。 |
 | **CSM (Cascaded Shadow Maps)** | ❌ 未実装 | `lightViewProjection` は単一行列 (single light space)。Cascade 制御 **なし**。 |
@@ -54,7 +54,7 @@
 | シャドウマッピング | ✅ | ✅ | ✅ | ✅ | ✅ (AO) | 🟡 (ハードのみ) | ソフト影・Point/AREA 影 |
 | 3軸回転 | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ (1軸のみ) | **🟡→❌ 根本欠落** |
 | デフォーマ | ✅ (20種) | ✅ | ✅ | ✅ | ❌ | ❌ | **🔴** |
-| スキニング | ✅ | ✅ | ✅ | ✅ | ❌ | 🟡 (PMDのみ) | **🟡→❌** |
+| スキニング | ✅ | ✅ | ✅ | ✅ | ❌ | 🟡 (FBX/glTF/GLB/PMDのCPU LBS/Rigid/DQ系、Viewer LBS GPU、単純blend shape) | 複雑な制約・keyframe補間・runtime受入れ |
 | パーティクルインスタンス | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | 🟡 (Cloner→Instancing 基盤はある) |
 | アニメーション再生 | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | **🔴** |
 | SSAO | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | 🟢 |
@@ -112,7 +112,7 @@
 ### P1 (重要 — 実用性に直結)
 
 4. **Text Viewport inline editing** — AE 最大の UX 差
-5. **3D スキニング/アニメーション** — glTF アニメーション再生未対応 (ufbx でスキニング抽出未実装)
+5. **3D スキニング/アニメーション** — FBX/glTF/GLB/PMDのCPU LBS/Rigid/DQ系、最大8 influence、Diligent ViewerのLBS 4 influence GPUとCPU fallback、clip時刻評価、単純blend shape適用は実装済み。複雑なリグ制約・keyframe補間・実ファイルruntime受入れが残る
 6. **Text Animator Expression Selector** — `textIndex`/`textTotal` 未実装
 
 ### P2 (中優先 — 機能拡充)

@@ -1,11 +1,60 @@
 module;
 #include <QApplication>
+#include <QComboBox>
+#include <QDialog>
+#include <QDir>
 #include <QFileDialog>
+#include <QFileInfo>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QMessageBox>
+#include <QProgressBar>
+#include <QPushButton>
 #include <QString>
+#include <QStringList>
+#include <QSlider>
 #include <QThread>
+#include <QVBoxLayout>
+#include <algorithm>
+#include <cstdint>
 #include <wobjectimpl.h>
 
 module ArtifactPr.ExportDialog;
+
+import ArtifactPr.EditorEngine;
+import ArtifactPr.SequenceExporter;
+
+namespace {
+
+int parseFrameRate(const QString& text)
+{
+    // "30 fps" / "29.97 fps" → fps 値
+    const QStringList parts = text.split(QChar(' '));
+    bool ok = false;
+    const int fps = qRound(parts.value(0).toDouble(&ok));
+    if (ok && fps > 0) {
+        return fps;
+    }
+    return 30;
+}
+
+bool parseResolutionParts(const QString& resolution, int* width, int* height)
+{
+    const QStringList parts = resolution.split(QChar('x'));
+    bool okW = false;
+    bool okH = false;
+    const int w = parts.value(0).toInt(&okW);
+    const int h = parts.value(1).toInt(&okH);
+    if (okW && okH && w > 0 && h > 0) {
+        *width = w;
+        *height = h;
+        return true;
+    }
+    return false;
+}
+
+} // namespace
 
 ExportDialog::ExportDialog(QWidget* parent)
     : QDialog(parent)
@@ -13,6 +62,9 @@ ExportDialog::ExportDialog(QWidget* parent)
     setWindowTitle(QStringLiteral("Export Settings"));
     setMinimumWidth(400);
     setModal(true);
+
+    auto* engine = ArtifactPr::EditorEngine::instance();
+    const ArtifactPr::DemoSequence sequence = engine->currentSequence();
 
     auto* layout = new QVBoxLayout(this);
 
@@ -27,7 +79,13 @@ ExportDialog::ExportDialog(QWidget* parent)
 
     layout->addWidget(new QLabel(QStringLiteral("Resolution:")));
     resolutionCombo_ = new QComboBox();
-    resolutionCombo_->addItems({QStringLiteral("1920x1080"), QStringLiteral("1280x720"), QStringLiteral("3840x2160"), QStringLiteral("Match Sequence")});
+    resolutionCombo_->addItems({
+        QStringLiteral("Match Sequence"),
+        QStringLiteral("1920x1080"),
+        QStringLiteral("1280x720"),
+        QStringLiteral("3840x2160"),
+    });
+    resolutionCombo_->setCurrentIndex(0);
     layout->addWidget(resolutionCombo_);
 
     layout->addWidget(new QLabel(QStringLiteral("Format:")));
@@ -42,7 +100,15 @@ ExportDialog::ExportDialog(QWidget* parent)
         QStringLiteral("Audio Only (WAV)"),
         QStringLiteral("Audio Only (MP3)"),
     });
-    // format 変更時に拡張子と help を更新
+    // 音声のみは未対応 (音声タップ未実装)。選択不可で理由を提示。
+    codecCombo_->setItemData(6, 0, Qt::UserRole - 1);
+    codecCombo_->setItemData(7, 0, Qt::UserRole - 1);
+    codecCombo_->model()->setData(
+        codecCombo_->model()->index(6, 0), QStringLiteral("音声エクスポートは今後対応予定"), Qt::ToolTipRole);
+    codecCombo_->model()->setData(
+        codecCombo_->model()->index(7, 0), QStringLiteral("音声エクスポートは今後対応予定"), Qt::ToolTipRole);
+
+    // format 変更時に拡張子を更新
     connect(codecCombo_, qOverload<int>(&QComboBox::currentIndexChanged),
             this, [this](int idx) {
         QString fmt = codecCombo_->itemText(idx);
@@ -57,21 +123,24 @@ ExportDialog::ExportDialog(QWidget* parent)
             outputPathEdit_->setText(replaceExtension(QStringLiteral(".png")));
         } else if (fmt == QStringLiteral("JPEG Sequence")) {
             outputPathEdit_->setText(replaceExtension(QStringLiteral(".jpg")));
-        } else if (fmt == QStringLiteral("Audio Only (WAV)")) {
-            if (!path.endsWith(QStringLiteral(".wav"), Qt::CaseInsensitive)) {
-                outputPathEdit_->setText(path + QStringLiteral(".wav"));
-            }
-        } else if (fmt == QStringLiteral("Audio Only (MP3)")) {
-            if (!path.endsWith(QStringLiteral(".mp3"), Qt::CaseInsensitive)) {
-                outputPathEdit_->setText(path + QStringLiteral(".mp3"));
-            }
+        } else if (fmt == QStringLiteral("ProRes") || fmt == QStringLiteral("DNxHD")) {
+            outputPathEdit_->setText(replaceExtension(QStringLiteral(".mov")));
+        } else {
+            outputPathEdit_->setText(replaceExtension(QStringLiteral(".mp4")));
         }
     });
     layout->addWidget(codecCombo_);
 
     layout->addWidget(new QLabel(QStringLiteral("Frame Rate:")));
     framerateCombo_ = new QComboBox();
-    framerateCombo_->addItems({QStringLiteral("24 fps"), QStringLiteral("25 fps"), QStringLiteral("30 fps"), QStringLiteral("60 fps"), QStringLiteral("Match Sequence")});
+    framerateCombo_->addItems({
+        QStringLiteral("Match Sequence"),
+        QStringLiteral("24 fps"),
+        QStringLiteral("25 fps"),
+        QStringLiteral("30 fps"),
+        QStringLiteral("60 fps"),
+    });
+    framerateCombo_->setCurrentIndex(0);
     layout->addWidget(framerateCombo_);
 
     layout->addWidget(new QLabel(QStringLiteral("Quality:")));
@@ -88,39 +157,171 @@ ExportDialog::ExportDialog(QWidget* parent)
     layout->addWidget(progressBar_);
 
     auto* buttonLayout = new QHBoxLayout();
-    auto* exportBtn = new QPushButton(QStringLiteral("Export"));
-    connect(exportBtn, &QPushButton::clicked, this, &ExportDialog::onExportClicked);
-    auto* cancelBtn = new QPushButton(QStringLiteral("Cancel"));
-    connect(cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
     buttonLayout->addStretch();
-    buttonLayout->addWidget(exportBtn);
-    buttonLayout->addWidget(cancelBtn);
+    exportButton_ = new QPushButton(QStringLiteral("Export"));
+    connect(exportButton_, &QPushButton::clicked, this, &ExportDialog::onExportClicked);
+    cancelButton_ = new QPushButton(QStringLiteral("Cancel"));
+    connect(cancelButton_, &QPushButton::clicked, this, [this]() {
+        auto* engine = ArtifactPr::EditorEngine::instance();
+        if (engine->isExporting()) {
+            engine->cancelExport();
+            progressLabel_->setText(QStringLiteral("Cancelling..."));
+        } else {
+            reject();
+        }
+    });
+    buttonLayout->addWidget(exportButton_);
+    buttonLayout->addWidget(cancelButton_);
     layout->addLayout(buttonLayout);
+
+    // 既存シグナル (初めて使用する)。新規 signal/slot 接続はこれらのみ。
+    connect(engine, &ArtifactPr::EditorEngine::exportProgress, this, [this](int percent) {
+        progressBar_->setValue(percent);
+    });
+    connect(engine, &ArtifactPr::EditorEngine::exportFinished,
+            this, &ExportDialog::onExportFinished);
+}
+
+ArtifactPr::ExportFormat::Value ExportDialog::selectedFormat() const
+{
+    switch (codecCombo_->currentIndex()) {
+    case 1: return ArtifactPr::ExportFormat::Value::HevcMp4;
+    case 2: return ArtifactPr::ExportFormat::Value::ProResMov;
+    case 3: return ArtifactPr::ExportFormat::Value::DnxhdMov;
+    case 4: return ArtifactPr::ExportFormat::Value::PngSequence;
+    case 5: return ArtifactPr::ExportFormat::Value::JpegSequence;
+    case 0:
+    default:
+        return ArtifactPr::ExportFormat::Value::H264Mp4;
+    }
 }
 
 void ExportDialog::onBrowseClicked()
 {
+    const ArtifactPr::ExportFormat format{selectedFormat()};
+    QString filter = QStringLiteral("MP4 Files (*.mp4)");
+    if (format.isImageSequence()) {
+        filter = format.value == ArtifactPr::ExportFormat::Value::PngSequence
+            ? QStringLiteral("PNG Sequence (*.png)")
+            : QStringLiteral("JPEG Sequence (*.jpg)");
+    } else if (selectedFormat() == ArtifactPr::ExportFormat::Value::ProResMov ||
+               selectedFormat() == ArtifactPr::ExportFormat::Value::DnxhdMov) {
+        filter = QStringLiteral("MOV Files (*.mov)");
+    }
     QString file = QFileDialog::getSaveFileName(this, QStringLiteral("Save Export"),
-        QStringLiteral("output.mp4"), QStringLiteral("MP4 Files (*.mp4);;All Files (*)"));
+        outputPathEdit_->text(), filter);
     if (!file.isEmpty()) {
         outputPathEdit_->setText(file);
     }
 }
 
+ArtifactPr::ExportSettings ExportDialog::collectSettings(QString* errorMessage) const
+{
+    auto* engine = ArtifactPr::EditorEngine::instance();
+    const ArtifactPr::DemoSequence sequence = engine->currentSequence();
+
+    ArtifactPr::ExportSettings settings;
+    settings.outputPath = outputPathEdit_->text().trimmed();
+    settings.format = ArtifactPr::ExportFormat{selectedFormat()};
+    settings.quality = qualitySlider_->value();
+
+    int width = 0;
+    int height = 0;
+    const QString resolutionChoice = resolutionCombo_->currentText();
+    if (resolutionChoice == QStringLiteral("Match Sequence")) {
+        parseResolutionParts(sequence.resolution, &width, &height);
+    } else {
+        parseResolutionParts(resolutionChoice, &width, &height);
+    }
+
+    int fps = 0;
+    const QString rateChoice = framerateCombo_->currentText();
+    if (rateChoice == QStringLiteral("Match Sequence")) {
+        fps = parseFrameRate(sequence.frameRate);
+    } else {
+        fps = parseFrameRate(rateChoice);
+    }
+
+    if (width <= 0 || height <= 0) {
+        width = 1920;
+        height = 1080;
+    }
+    settings.width = width;
+    settings.height = height;
+    settings.fps = fps;
+
+    if (settings.outputPath.isEmpty()) {
+        if (errorMessage) *errorMessage = QStringLiteral("出力ファイルが指定されていません");
+        return settings;
+    }
+    if (!settings.outputPath.contains(QChar('.')) && settings.format.isVideoFile()) {
+        settings.outputPath += QStringLiteral(".mp4");
+    }
+    if (errorMessage) {
+        const QFileInfo info(settings.outputPath);
+        const QDir dir = info.dir();
+        if (!dir.exists() && !dir.mkpath(QStringLiteral("."))) {
+            *errorMessage = QStringLiteral("出力ディレクトリを作成できません: %1").arg(dir.absolutePath());
+        }
+    }
+    return settings;
+}
+
 void ExportDialog::onExportClicked()
 {
+    auto* engine = ArtifactPr::EditorEngine::instance();
+    if (engine->isExporting()) {
+        return;
+    }
+
+    QString error;
+    const ArtifactPr::ExportSettings settings = collectSettings(&error);
+    if (!error.isEmpty()) {
+        QMessageBox::warning(this, QStringLiteral("Export"), error);
+        return;
+    }
+
+    // レンジ: in/out ポイント。out <= in の場合はシーケンス全長へフォールバック。
+    std::int64_t startFrame = engine->inPoint();
+    std::int64_t endFrame = engine->outPoint();
+    if (endFrame <= startFrame) {
+        startFrame = 0;
+        endFrame = std::max<std::int64_t>(0, engine->currentSequence().duration - 1);
+        if (endFrame < startFrame) {
+            QMessageBox::warning(this, QStringLiteral("Export"),
+                                 QStringLiteral("シーケンスが空のため書き出すフレームがありません"));
+            return;
+        }
+    }
+
+    const ArtifactPr::RenderPlan plan =
+        engine->createRenderPlan(ArtifactPr::RenderQualityPreset::Full, startFrame, endFrame);
+    if (!plan.isValid()) {
+        QMessageBox::warning(this, QStringLiteral("Export"),
+                             QStringLiteral("レンダープランを作成できませんでした"));
+        return;
+    }
+
     progressBar_->setVisible(true);
     progressBar_->setValue(0);
     progressLabel_->setText(QStringLiteral("Exporting..."));
+    exportButton_->setEnabled(false);
 
-    for (int i = 0; i <= 100; i += 10) {
-        progressBar_->setValue(i);
-        QApplication::processEvents();
-        QThread::msleep(100);
+    engine->startExport(plan, settings);
+}
+
+void ExportDialog::onExportFinished(bool success, const QString& message)
+{
+    exportButton_->setEnabled(true);
+    if (success) {
+        progressLabel_->setText(QStringLiteral("Export complete!"));
+        accept();
+    } else {
+        progressLabel_->setText(message.isEmpty()
+            ? QStringLiteral("Export failed")
+            : message);
+        progressBar_->setValue(0);
     }
-
-    progressLabel_->setText(QStringLiteral("Export complete!"));
-    accept();
 }
 
 W_OBJECT_IMPL(ExportDialog)

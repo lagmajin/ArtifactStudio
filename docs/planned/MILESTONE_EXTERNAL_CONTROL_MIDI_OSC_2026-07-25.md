@@ -1,10 +1,10 @@
 # MILESTONE_EXTERNAL_CONTROL_MIDI_OSC_2026-07-25
 
-**ステータス:** Partial（MIDI/OSC 入力基盤を実装済み。Artifact UI/Service 統合、追加メッセージ型、非 Windows backend、runtime 検証は未完了）
-**対象:** `ArtifactCore/include/Control/MidiInput.ixx`, `ArtifactCore/src/Control/MidiInput.cppm`, `ArtifactCore/include/Control/OscInput.ixx`, `ArtifactCore/src/Control/OscInput.cppm`
+**ステータス:** Partial（MIDI/OSC 入力基盤 + Artifact 起動配線を実装済み。設定 UI、追加メッセージ型、非 Windows backend、runtime 検証は未完了）
+**対象:** `ArtifactCore/include/Control/MidiInput.ixx`, `ArtifactCore/src/Control/MidiInput.cppm`, `ArtifactCore/include/Control/OscInput.ixx`, `ArtifactCore/src/Control/OscInput.cppm`, `Artifact/src/Service/ArtifactProjectService.cppm`
 **位置づけ:** ExternalControlManager の MIDI/OSC 入力バックエンドを実装。
 **作成日:** 2026-07-25
-**最終更新:** 2026-08-15
+**最終更新:** 2026-08-21
 
 ## 1. 目的
 
@@ -72,11 +72,12 @@ QObject::connect(oscInput, &OscInput::messageReceived, [](const QString& path, f
 
 ## 6. 残タスク
 
-- [ ] Artifact レイヤーでの統合 (Widgets/Services からの MidiInput/OscInput 生成)
+- [x] Artifact レイヤーでの統合 (Widgets/Services からの MidiInput/OscInput 生成) — 2026-08-21: `ArtifactProjectService::Impl::setupExternalControlInputs()` で OSC(ポート8000)と最初の利用可能 MIDI デバイスを起動し、`ExternalControlManager::observeInput()` へ接続
 - [ ] Note Off メッセージのハンドリング追加 (必要なら)
 - [ ] OSC バンドル (タイムタグ付き複数メッセージ) 対応
 - [ ] OSC 文字列/Blob タイプ対応 (現状は float/int のみ)
 - [ ] macOS CoreMIDI / Linux ALSA バックエンド (現状は WinMM のみ)
+- [ ] ポート番号・MIDIデバイス選択の設定 UI と永続化(現状はデフォルト固定)
 
 ## 2026-08-15 現行コード監査
 
@@ -86,3 +87,7 @@ QObject::connect(oscInput, &OscInput::messageReceived, [](const QString& path, f
 - 実機 MIDI／UDP 受信、スレッド／キュー遅延、Property／Expression への live recording は未検証。ビルド／テストは実行していない。
 
 判定: **Core の MIDI／OSC 入力基盤と外部制御マッピングは実装済み。Artifact 統合、追加メッセージ型、非 Windows backend、runtime 検証は pending。**
+
+## 2026-08-21 更新
+
+- Artifact 起動配線を実装(`ArtifactProjectService.cppm` の `setupExternalControlInputs()`)。上記監査の「Artifact 統合」は解消。設定 UI・永続化・runtime 検証は引き続き pending。

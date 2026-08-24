@@ -2,6 +2,192 @@
 
 未解決の設計判断・runtime 検証待ちだけを記録する。実装済みの局所修正と履歴は `docs/analysis/INSIGHT_ARCHIVE_2026-08-11.md` を参照する。
 
+## 2026-08-24 — オーディオミックス契約: layer volume/pan の二重適用（静的確認済み、未修正）
+
+- **関連:** `Artifact/src/Composition/ArtifactAbstractComposition.cppm:3163-3170`（mixer 経路がレイヤー volume をバスフェーダー dB へ設定）、`ArtifactCore/src/Audio/AudioBus.cppm:306-364`（process が post-fader で volumeDb を線形ゲイン適用）、`Artifact/src/Layer/ArtifactAudioLayer.cppm`（getAudio がサンプルへ volume を乗算、pan もレイヤー内で定電力適用）、`Artifact/src/Layer/ArtifactVideoLayer.cppm:2791-2792`（video getAudio も audioVolume を内部適用）、`Artifact/src/Service/ArtifactAudioService.cppm:227-264`（setLayerBusVolume/setLayerBusPan がレイヤー property とバス両方に同値を書き込み）
+- **事実:** mixer 有効時、レイヤー volume は (1) getAudio 内のサンプル乗算と (2) バスフェーダー gain の二重適用になる（vol=0.5 で -6dB ではなく約 -12dB）。pan もレイヤー内定電力とバス post-fader の二重適用で center が落ちる。legacy 直加算経路（mixer 無効）はレイヤー内適用のみで単回。つまり mixer の有無で同じ project の音量・定位が変わる。Service/UI はレイヤー property とバス dB の両方を永続化しており、project 再読込後も二重適用が再現する。
+- **価値・懸念:** DAW 的にはゲインステージングの所有者を一本化する必要がある（案A: バスフェーダー唯一、レイヤー getAudio は raw 出力＋legacy 経路で明示適用／案B: レイヤー内唯一、layer bus のフェーダー適用をスキップ）。いずれも全 getAudio 呼び出し元（PlaybackEngine / Scrub / RenderQueue / RenderController）とエクスポート parity、meter 表示基準に波及するため、単独スライス＋実機検証が必要。
+- **次の確認:** 方向決定（設計レビュー）後、ゲインステージング単一化スライスとして実装し、mixer on/off での同一 project 音量一致を実機確認。
+
+## 2026-08-23 — Physics 全体監査: SoftBody LOD 反復上書きバグ、決定性リスク、死に経路（コード確認済み）
+
+- **関連:** `ArtifactCore/src/Physics/{SoftBodySolver,PhysicsSystem,FluidSolver2D,SandSim2D}.cppm`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`、`docs/planned/MILESTONE_PHYSICS_PRODUCTION_HARDENING.md`、`MILESTONE_LAYER_PHYSICS_COMPONENT_2026-06-13.md`
+- **事実:** (1) `SoftBodySolver::update()` の既定引数 `iterations=5`（L407）が `simulateStep` 内で `constraintIterations_` を毎ステップ無条件上書きし（L432）、`PhysicsSystem::update` の LOD 設定 `setConstraintIterations`（PhysicsSystem.cppm:424-426）が実質無効。`collisionIterations_` は影響なし。(2) `SandSim2D` は既定シード `std::random_device{}`（L16）で再生再現が非決定、`setRandomSeed` 明示時のみ決定的。(3) `FluidSolver2D::update(dt)` は dt 無 clamp・固定ステップなし、並列パス（`parallelEnabled_`/`advectRows`）は一度も使われない死蔵コード。(4) RigidBody(Box2D) 実行経路は入口 `enableRigidBodyPhysics` の呼び出しゼロで到達不能＋Box2D v3 ラップの friction/restitution 未適用（Physics2D.cppm:121-122,:144-145）。(5) 死に経路群: `PhysicsSystem::initFluid/getFluidSolver`（グローバル流体）、`setPhysicsLODSettings` UI、`softBodyDeformationMesh()`、`enabledLayerComponents(phase)`（phase 順は検証のみで実行順未使用）、`Graphics.RenderIndex`、`Graphics.BoidsCompute`、`FluidVisualizer`。(6) 物理ユニットテストはゼロ。(7) 共有 PhysicsWorld・Polygon collider は未実装のまま。**【2026-08-23 訂正】** 初回記載の「clone physics の `initialVelocityY/maxBounces` が solver 未消費」は誤り — `applyClonePhysicsTiming`（ArtifactCloneEffectSupport.ixx:450-453）がプロパティキャッシュ経由で消費している。真の問題は impl_ メンバーとプロパティキャッシュの二重管理で、プログラム経路（JSON 復元・undo・reaction・composition override）がメンバーのみ更新し、キャッシュ未同期またはミス時に physics timing が既定値 (0/4) にフォールバックする鮮度バグだった。
+- **価値・懸念:** (1) は LOD 機能の品質とパフォーマンスに直接響く確定バグ。(2) はベイク/再生一致を壊す要因。(3) は巨大 dt で速度場発散の可能性。
+- **対応状況 (2026-08-23):** (1) `SoftBodySolver::update/simulateStep` の既定引数を `-1`（維持）へ変更し `iterations > 0` 時のみ上書き。(2) 既定シードを固定値 `0x9E3779B9` へ変更。(3) `FluidSolver2D::update` に dt<=0 早期リターン＋0.05s clamp を追加し、死蔵並列パスを削除。決定性回帰テスト `tests/ArtifactCore/PhysicsDeterminismTest.cpp` を追加。(8) SoftBody 自己衝突を空間ハッシュ broadphase 化（候補順を edge→昇順 point に正規化し総当たりと同じ訪問順を維持）。(9) `SoftBodyCollider`/`MpmCollider2D` に `Polygon` 型追加（even-odd 内外判定＋最近傍辺へ射影、Core レベルのみで UI shape 0..2 は未拡張）。(10) clone physics の `initialVelocityY/maxBounces` を `persistentLayerProperty` 経由でキャッシュ同期（setter と JSON 復元の両経路）。未着手: (4) RigidBody 入口復活 or 削除判断、(5)(7) の残り死に経路整理、Polygon collider の UI/JSON 露出。
+- **次の確認:** ビルドと `ArtifactCorePhysicsDeterminismTest` 実行（許可待ち）。自己衝突ハッシュ化後の挙動比較（broadphase はステップ開始時位置基準のため、極端な押し出しが同一ステップ内で半径超過になる稀なケースで brute-force と差が出る可能性・未検証）。RigidBody/Box2D 経路の扱い判断。
+
+## 2026-08-24 — MPM GPU compute backend 実装: CPU fallback 付き設計、parity 未検証
+
+- **関連:** `ArtifactCore/src/Graphics/MpmCompute.cppm`（NEW）、`ArtifactCore/include/Graphics/MpmCompute.ixx`（NEW）、`ArtifactCore/src/Physics/MpmSolver2D.cppm`、`ArtifactCore/include/Physics/MpmSolver2D.ixx`
+- **事実:** (1) MPM GPU compute backend を `SandGPUCompute` パターンに倣い実装。5 つの HLSL ナレッジ（Clear/P2G/Forces/GridUpdate/G2P+F）を `groupshared` grid で ordered atomic 累積。P2G で `float32_t` 原子加算のみ使用（`uint32` reinterpret は SandGPUCompute からの直写に留める）。(2) `MpmSolver2D` は `setBackend(MpmBackend::GPU)` + `attachGPUSimulation(dev, ctx)` で GPU レーンに切替可能。CPU fallback は compute dispatch 失敗時に自動的。`(3)` GPU lane は elastic のみ parallelize し、plasticity/fracture/colliders は CPU tail で 1 回実行。parity は未検証（MPM の ordering dependency を nonatomic 化しているため last-bit nondeterminism が発生する可能性あり）。(4) `addImpulse` を正規化方向 + `isfinite` guard + zero-distance skip で改善。NaN guard を SoftBody/Fluid の simulation loop 末尾に追加。
+- **価値・懸念:** GPU パスは elastic のみが GPU kernel 内で処理され、plasticity/fracture は CPU で後処理されるため、CPU パスとの物理 parity は保証されない（MPM の ordering dependency を nonatomic 化しているため last-bit nondeterminism が発生する可能性あり）。反復回数/物質パラメータの parity は維持可能だが、exact replay は CPU のみで保証。
+- **未検証:** MpmCompute の HLSL パスが Diligent の DX12/Vulkan compute で正しく dispatch されるか、粒子数 0/1 のエッジケース、readback の遅延 sync 問題。
+- **次の確認:** ビルド許可後に MpmCompute ターゲットのコンパイル確認、`MpmSolver2D::setBackend(GPU)` + 10K particles の動作確認、CPU と GPU の結果 diff 比較（parity が許容範囲内か判断）。
+
+## 2026-08-24 — Physics バグ修正バッチ: LOD/Fluid/Mpm/Box2D/決定性 (コード修正済み、ビルド未検証)
+
+- **関連:** `SoftBodySolver.cppm:131` `reduceGridResolution`, `FluidSolver2D.cppm:114` `computeSolverIterations`, `MpmSolver2D.cppm:1104` NaN guard, `PhysicsSystem.cppm:132` per-layer Fluid, `Physics2D.cppm:93` Box2D材質, `SandSim2D` seed
+- **事実:** (1) SoftBody LODが 0.75→0.5 と二段階で縮小する際に既縮小グリッドから再サンプルして劣化していたのをバックアップ元から再サンプルするように修正。(2) Fluid adaptive反復が閾値ちょうどで+4跳ねていたのを `(blocks-1)` にして閾値ではbaseline維持に平坦化。(3) Mpm `stepOnce`/GPU tail 末尾に `isfinite` ガード追加で非有限pos/velをゼロ化、Fをidentityリセット。(4) Box2D v3で `friction/restitution` がコメントアウトで無効だったのを `shapeDef.material` へ修正、static bodyも `bodies` に追跡。(5) SandSim 固定seed `0x9E3779B9` で決定性確保、Fluid/Sandの read-only getter、Mpm `particles()` view と `isGPUReady` 等を追加。per-layer Fluid と Pyro/Boids の PhysicsSystem 配線、`buildMpmParticleRenderData` ブリッジも追加。
+- **価値・懸念:** いずれも既存挙動の局所修正/追加で副作用は小。Box2D材質とFluid閾値は挙動が変わるため既存プロジェクトの再現に影響するが意図した修正。
+- **次の確認:** `ArtifactCorePhysicsDeterminismTest` と手動の Fluid/SoftBody LOD 変化の目視確認 (ビルド許可待ち)。
+
+## 2026-08-23 — オーディオレイヤー精査: getAudio のマルチスレッド呼び出しと単一スロットキャッシュ、死にコード（未検証）
+
+- **関連:** `Artifact/src/Layer/ArtifactAudioLayer.cppm`（getAudio :873 / resampledCache_ / decodeFrameToCache :826）、呼び出し元: PlaybackEngine(:756,:847)、AudioScrubController(:153)、TimelineWidget(:549)、RenderQueueService(:365,:407)、RenderController(:37174)
+- **事実:** (1) PCM は AssetManager の共有ペイロード（audio.pcm.f32）としてレイヤー間共有され、getAudio は線形補間リサンプル＋volume/clipGain/fade/pan/deClick を都度適用する設計。(2) getAudio は**再生エンジン・スクラブ・タイムライン UI・レンダーキュー worker の複数スレッドから呼ばれる**が、`impl_->resampledCache_` への読み書きは無ロック。（3）resampledCache_ は startSample 単一スロットで、連続再生ではほぼ毎フレーム miss（全リミックス再計算）。計算量は軽いので実害は限定的と推定（未検証）。(4) `decodeFrameToCache()` と `cache_` は**呼び出しゼロの死にコード**（.ixx private 宣言のみ）。(5) タイムリマップは非対応（画像シーケンスは対応済みで機能差）。
+- **価値・懸念:** (2) は画像レイヤーで指摘したものと同型のデータ競合で、audio スレッドと render worker が同時呼び出しする現実的な経路がある。修正案: mutex 保護 or 呼び出しスレッド別キャッシュ、(4) は削除で可。
+- **対応状況 (2026-08-23):** (5) タイムリマップ対応を実装。getAudio が `isTimeRemapEnabled()` 時はビデオレイヤーと同じ規約（comp フレーム → `getSourceFrameAtCompFrame`）で各出力フレームをマッピングし、remap 中は resampledCache_ をバイパス。(2) は `resampledCacheMutex_` 導入済み（commit 60b68eb0）。同日の機能拡充スライスで追加修正: 作業ツリーに残っていたキャッシュ照会部の宣言前使用（`volume`/`effPan`/`effClipGainDb`、コンパイル不通）を解消。タイムリマップ経路が `producedFrames > 0` でも `false` を返し合成側が音声を破棄するバグを修正（remap 音声が無音になる確定バグ）。アニメート済み volume/pan/clipGain の評価をプレイヘッドではなく要求ブロックの comp フレーム基準に変更し preview/export の一致を改善。非破壊 trim in/out・playback rate API を追加。残る (4) 死にコード削除は未着手。
+- **次の確認:** (4) の削除。リマップ時の音ズレを実機確認（remap キーはコンポフレーム基準）。trim/rate の保存再読込とエクスポート parity の実機確認。
+
+## 2026-08-23 — 画像レイヤー精査: 連番は堅牢だがシーケンス GPU アップロードと const 経路の可變状態が懸念（未検証）
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm`（refreshSequenceFrame :1091 / draw :2134 / toQImage :2264 / canShareSourceGpuTexture :1517）、`ArtifactCore/src/Media/ImageSequenceSource.cppm`（frameIndexAtTime :482）
+- **事実:** (1) 連番再生は `ImageSequenceSource` 経由でフレーム追従し、タイムリマップ対応・in/out 境界のホールド契約・欠番時に stale pixel を返さない契約が明示実装されている。fps 不一致は `frameIndexAtTime` で時間ベース変換され二重適用はない。(2) `refreshSequenceFrame` は const メソッド（toQImage/draw）から mutable メンバ cache_/cacheBuffer_/sequenceSource_ を**ロック無しで書き換える**。ファイル内に mutex は存在しない。(3) `canShareSourceGpuTexture()` は連番を除外しており、シーケンス描画はフレーム毎の GPU 再アップロードになる構造。(4) $F テンプレートはロード時 frame=0 固定（既知・記録済み）。
+- **価値・懸念:** (2) はメインスレッドのサムネイル/プロパティ UI とレンダーワーカの toQImage 同時呼び出しでデータ競合になり得る（呼び出し直列化の保証を実装で確認していない）。(3) は長尺連番・4K で顕在化する性能懸念。改善候補: 軽量 mutex or ダブルバッファ化（B案）、`GPUTextureCacheManager` を使うシーケンスフレーム LRU（A案）、draw 時 $F 展開による連番テンプレート追従（C案、変数展開 milestone の次段と接続）。
+- **対応状況 (2026-08-23):** (1) `refreshSequenceFrame` を `sequenceStateMutex_` で直列化し、入れ替え前のフレームバッファを retired リスト（最大4世代）に退避させてリーダの使用中解放を回避。currentFrameBuffer 側の lazy 生成も二重検査ロック化。(2) ビューポート描画（CompositionViewDrawing）でシーケンスを `seq-f32:f<frame>|cs|tf` キーで GPUTextureCacheManager に乗せ、フレーム毎の再アップロードを解消（既存 budget/LRU で追い出し）。新公開 API `ArtifactImageLayer::sequenceCachedFrameIndex()`。
+- **次の確認:** マルチスレッド再生での競合消失確認（TSAN 相当は無いため実機観察）。シーケンス再生時の GPU メモリ使用が LRU 予算内に収まること。
+
+## 2026-08-22 — ArtifactPr コアの Core 共有モジュール統合（ビルド検証待ち）
+
+- **関連:** `ArtifactCore/include/Video/FFMpegVideoDecoder.ixx`(seekToFrame 公開化)、`ArtifactPr/include/ArtifactPrEditorEngine.ixx`、`ArtifactPr/include/EditCommand.ixx`、`ArtifactPr/src/MediaFrameDecoder.cppm`、`ArtifactPr/src/SequenceExporter.cppm`、`ArtifactPr/src/AudioPreviewMixer.cppm`、`ArtifactPr/CMakeLists.txt`
+- **事実:** ArtifactPr は手書き Undo スタック(QVector<UndoCommand*> + 独自基底)、cv::VideoCapture 直叩きデコード、float 手書き加算ミックスと、Core 既存機構(Command.Session / Codec.FFmpegVideoDecoder / Audio.Mixer)との三重実装だった。Core の Command/Audio/Video/NLE は集約ターゲットから分離した STATIC lib(ArtifactCoreCommand/Audio/Video/NLE)。FFmpegVideoDecoder の seek は Impl private で公開 API になかった。
+- **対応状況 (2026-08-22):** (1) Core FFMpegVideoDecoder に `seekToFrame(int64_t)`(既存 Impl::seekByFrameNumber を bool 返しで公開)+width/height/fps getter を追加。(2) Pr 全コマンド16種を Core SerializableCommand 派生に(commandType/serialize/deserialize 実装、description()→setText())、Engine のスタックを EditSession(QUndoStack)へ置換。QUndoStack::push が redo 即時実行するため「cmd->redo(); pushUndo()」パターンを廃止し push 一本化、未使用だった AddMarker/DeleteMarker コマンドは削除。(3) MediaFrameDecoder/SequenceExporter の同期デコードを FFmpegVideoDecoder へ置換(RGB24→RGBA 詰め替え、静止画は ImageF32x4_RGBA::load)。(4) AudioPreviewMixer を AudioMixer バスグラフ経由に(クリップ毎 createBus+master connect、addInput→process)。CMake は domain ターゲット4種を明示リンク。
+- **次の確認:** ビルド後、(1) undo/redo 一巡(move/trim/slip/slide/ripple-delete/insert/overwrite/lift/marker/transition)で状態完全復元、プロジェクト新規/読込でスタッククリア。(2) プレビューの動画シーク＋順次再生・静止画表示・エクスポート差分。(3) 2トラック音声のバランス・メーター・seek 整合。特に QUndoStack::push の redo 即時実行による二重適用が無いことを DeleteClip(旧コードは push 後手動 removeAt で二重になるパターンがあった)周辺で確認。
+- **価値・懸念:** serialize 実装により将来のコラボ同期(CommandFactory 経由の op 再現)の土台ができた。懸念は (a) EditSession.pushCommand が全コマンドを historyLog_ に蓄積し続ける(長時間セッションでメモリ増)、(b) ClipPropertyCommand の serialize が QVariant を toString で持つため数値型情報が落ちる(deserialize 後は文字列として再適用される — doApply は toDouble/toBool 変換するので実害は限定的だが厳密には非対称)、(c) rebuildBuses が mixer を丸ごと作り直すので setClips 頻発時にバスオブジェクトが再生成される。
+
+## 2026-08-22 — シェイプ領域: コアShapeLayerの孤立とSVG出力の未接続（→ 2026-08-23 接続実装済み、コアSVGは単色のみ）
+
+- **関連:** `ArtifactCore/src/IO/VectorExport.cppm`、`ArtifactCore/include/Shape/ShapeLayer.ixx`、`Artifact/src/Layer/ArtifactShapeLayer.cppm`、`Artifact/src/Render/ArtifactRenderQueueService.cppm`
+- **事実:** (1) `SvgFrameExporter`（コア、完全実装）の呼び出しは Artifact 配下にゼロで、RenderQueueService の SVG 出力分岐は黒矩形スタブだった。(2) アプリ→コア ShapeLayer の変換層は存在しない。(3) コア `svgStyleString()`（ShapeLayer.cppm:98）は fill/stroke を単色 HexArgb のみ出力し、`FillSettings::FillType` のグラデーション種別は無視される。
+- **対応状況 (2026-08-23):** 案Aで接続済み。`ArtifactShapeLayer::toCoreShapeLayer()` 新設＋RenderQueueService SVG 分岐を実パス出力に置換。P2 の shape.* キーフレームも `resolveShapeGeomDims()` 経由で全描画経路（GPU/ソフト/bounds/card points/SVG）一元評価し、キーフレーム有り時のみキャッシュをフレーム再構築。詳細は `docs/planned/MILESTONE_SHAPE_SVG_EXPORT_AND_KEYFRAME_VERIFY_2026-08-22.md`。
+- **次の確認:** (1) コア `svgStyleString` / `elementToSvg` を拡張し `<linearGradient>`/`<radialGradient>` defs 出力に対応すると、現在の中間色縮退（fill/stroke の start/end 中間色）と stroke taper / stroke align 未反映を解消できる。(2) ビルド後、SVG 出力・width キーフレーム再生の実機確認。
+
+## 2026-08-22 — 連番画像の欠番契約: MissingFramePolicy が実装に存在しない（archive記載と不一致）
+
+- **関連:** `ArtifactCore/include/Asset/AssetSequence.ixx`、`ArtifactCore/src/Media/ImageSequenceSource.cppm`、`Artifact/src/Service/ArtifactProjectService.cppm`（detectSequenceImportGroups）、`Artifact/src/Layer/ArtifactImageLayer.cppm`（refreshSequenceFrame）
+- **事実:** `docs/analysis/INSIGHT_ARCHIVE_2026-08-11.md` の2026-07-27項は「`MissingFramePolicy` を追加し、既定 `Split` / 明示 `Preserve` + `missingFrames` 返却」と記録しているが、現行ツリーにも `ArtifactStudio_merge_20260717_check` スナップショットにも `MissingFramePolicy` は存在しない（git log でも該当commit無し）。現状は gap での無条件 Split のみ。一方 `ImageSequenceSource::open()`（単一ファイルからのディレクトリ再スキャン経路）は元フレーム番号を保持して欠番を1本のシーケンスに残すため、**同一フォルダが「複数の連続シーケンス」（複数ファイルインポート経由）と「欠番を含む1本」（単一ファイルインポート経由）の2通りに解釈されうる**。Preserve/Split の選択導線は実装前のまま。
+- **価値・懸念:** 検出ロジックが std::regex（AssetSequence）と QRegularExpression（ImageSequenceSource）で二重化しており、suffix 文字クラスも `\.[a-zA-Z0-9]+` と `\.[^.]+` で微妙に異なる。契約が1か所に集約されていないため将来の UI 追加時に乖離が再発しやすい。また `tests/` 配下に `Asset.Sequence` / `ImageSequenceSource` の直接テストが皆無。
+- **対応状況 (2026-08-22):** (1) `Asset.Sequence` に `MissingFramePolicy`（既定 `Split`=現行挙動不変 / 明示 `Preserve`=1グループ保持+`SequenceGroup::missingFrames` 返却）を追加。既存呼び出し（ProjectService）はデフォルト引数のため無影響。(2) `ImageSequenceSource::parseSequencePattern` の suffix を `\.[a-zA-Z0-9]+` に整合。(3) `metadata()` の全フレーム stat ループを廃止し、open 時シード+フレームアクセス時遷移更新の `Impl::missingFrameCount` 追跡方式へ置換（数値欠番カウントとの累積は維持、欠番の検出が open/decode 時点ベースに変化）。ビルド未検証。
+- **次の確認:** (1) `J:\dev\ArtifactStudio_TestSequences\png_missing_frame`（manifest.json付きの準備済みfixture）を使った GTest で、detectSequences の Split/Preserve 境界・openFramePaths の欠番保持・metadata().missingFrameCount・tryFrameAt の負の結果キャッシュを固定化する。(2) 単一ファイルインポート経路と複数ファイルインポート経路で同一フォルダの解釈が分岐する件を、Project View 上での見え方込みで実機確認する。
+- **残タスク (2026-08-22 調査時に未修正):** `Artifact/src/Layer/` 直下に誤生成と思われるジャンクファイル `currentQImage_`・`drawSprite(0.0f` と放置の `ArtifactVideoLayer_draw.patch`（内容確認後に削除要）。`detectSequences` の GroupKey は padding を含むため `img_0001.png` と `img_000001.png` が別シーケンスに分離される（仕様として妥当かは要判断）。
+
+## 2026-08-22 — CPU合成パスのブレンドモード潰れ修正と残課題（ビルド検証待ち）
+
+- **関連:** `Artifact/src/Render/Software/ArtifactSoftwareImageCompositor.cppm`、`Artifact/include/Render/Software/ArtifactSoftwareImageCompositor.ixx`、`Artifact/src/Render/ArtifactRenderQueueService.cppm`
+- **事実:** オフライン監査(2026-08-22)で、CPUバックエンドの `renderSingleFrameComposition()` が全レイヤーを QPainter `setCompositionMode()` で合成しており、QPainter非対応の Subtract/Hue/Saturation/Color/Luminosity/Dissolve/DancingDissolve/LinearDodge/LinearBurn/Divide/PinLight/VividLight/LinearLight/HardMix/Classic系3種/Stencil/Silhouette が全て SourceOver に潰れ GPU と出力が不一致（パリティ破綻）。一方で同モジュール内に正確な float ブレンドエンジン(`blendColor()`)が匿名namespaceの死蔵コードとして存在していた。
+- **対応状況 (2026-08-22):** compositor に `qPainterSupportsBlendMode()`(QPainterネイティブ再現可否判定)と `blendSurface()`(RGBA8888直書きのfloatブレンド、既存blendColorエンジンを活用、DissolveはdeterministicNoiseで決定論的分岐)を追加し、render queue のソフトパスで非対応モードだけ「透明一時キャンバスにtransform描画→painter.end()→blendSurface→painter.begin()再開」へ迂回。QPainter対応13モード(Normal/Add/Multiply/Screen/Overlay/Darken/Lighten/Dodge/Burn/HardLight/SoftLight/Difference/Exclusion)は現行経路のまま挙動不変。
+- **次の確認:** ビルド・実行後、(1) Subtract/Hue/Luminosity レイヤーを含むコンポの CPU/GPU 出力差分、(2) transform+opacity付きレイヤーの位置ずれ、(3) Stencil/Silhouette のマット結果。GPU経路の `readbackToImageF32()` と同じ HSL 計算(ColorConversion)を使うため数学的一致は期待できるが8bit量子化差は残る。
+- **価値・懸念:** `composeToBuffer()`(ImageF32x4出力、呼び出しゼロ)と float エンジンを接続すれば QImage ホットパス違反の抜本解消になるが、レイヤーサーフェス生成自体が `toQImage()` 前提のため今回は見送り(最小差分優先)。MFR有効化(useMfr=false @ ArtifactRenderQueueService.cppm:6660)には S1–S15 の snapshot 分離が前提で別案件。SVG エクスポートは黒矩形スタブのまま。
+
+## 2026-08-22 — 乱数生成の統合（RandomStream統一）
+
+- **関連:** `ArtifactCore/include/Math/Random.ixx`、`ArtifactCore/src/ImageProcessing/OpenCV/*.cppm`、`ArtifactCore/src/Geometry/Fracture.cppm`、`ArtifactCore/src/Generate/StarfieldGenerator.cppm`、`ArtifactCore/src/Animation/KeyframeEditingTools.cppm`
+- **事実:** 乱数生成が4系統混在(RandomStream/mt19937+random_device/QRandomGenerator/std::rand)。OpenCVエフェクト群(Noise/Glitch/VHS/Glow)とStarfield/Fracture/Scatterはrandom_deviceまたは固定seed mt19937で決定論性が分断。MpmSolver2Dの「rand()使用」は誤検出(関数名のみ)。
+- **対応状況 (2026-08-22):** (1) `Random` singletonにmutex追加でthread safety確保。(2) 8ファイルのmt19937+distributionをRandomStreamへ置換: Noise.cppm(gaussian+range)、GlitchCV.cppm(rangeInclusive+unitFloat)、VHS_CV.cppm(unitFloat)、Glow.cppm(unitFloat)、Scatter.cppm(nextU32)、Fracture.cppm(range、全関数signature変更)、StarfieldGenerator.cppm(regex一括置換で全distribution解消)、KeyframeEditingTools.cppm(gaussian+range、chrono entropy seed)。残るmt19937: TextAnimator(wiggly、既存seed決定論のため互換性維持)、ExpressionEvaluator(randomSeeded、同様)。残るrandom_device: ParticleSystem(TurbulenceForce)、SandSim2D、SoftwareRayTracer(thread_local、適切)、AudioTone。
+- **次の確認:** ビルド後、各エフェクトのseed再現性を同一seed+同一入力で確認。TextAnimator/ExpressionEvaluatorのRandomStream移行は互換性ブレーキがあるため別判断。
+
+## 2026-08-21 — ArtifactPr 二重モデル(NLEストア/legacy Demo*)の乖離とメタデータ欠落（未検証）
+
+- **関連:** `ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`ArtifactPr/include/ArtifactPrEditorEngine.ixx`
+- **事実:** ArtifactPr は NLEProjectStore(真のモデル)と legacy Demo*(UI 読み取りビュー)の二重管理で、rebuildLegacySnapshotFromNLE() が一方向同期するが、splitClipAtPlayhead/duplicateSelectedClip/pasteClip/marker系/transition系は legacy 側のみ編集し nleStore_ を更新しない(乖離が蓄積)。通常インポート経路(addMediaToPool)は SourceRef を NLE ストアに登録せず、loadDemoProject 経由のみ固定ダミー(timeBase 30fps 固定・availableRange 0-100000f)で登録。saveProject/loadProject は legacy JSON のみで NLE ストアは非永続化。autoSaveIntervalSec_(エンジン)と MainWindow 固定60秒タイマーが二重管理。DemoClip には enabled フィールドがなく(NLE Clip.enabled は転記されず捨てられる)、トラック solo も合成側で未反映。
+- **対応状況 (2026-08-21):** 大部分を解消 — split/duplicate/paste/lift/rippleDelete/insert/overwrite/marker系/transition系を NLE ストア経由に統一、Core へ `NLEProjectStore::removeMarker` 追加、rebuildLegacySnapshotFromNLE が markers/transitions 復元、save/load の NLE スナップショット永続化(+旧形式からの legacy→NLE 再構築 importLegacyProjectToNLE)、addMediaToPool プローブ登録、DemoClip.enabled 追加、solo/mute/enabled 合成反映。残課題: autoSave 二重管理のみ未着手。
+- **次の確認:** ビルド検証後、split/paste 操作直後のプレビュー表示ずれが解消しているか再現確認する。
+
+## 2026-08-22 — リポジトリに X:\Dev\ArtifactStudio の別コピーが存在し build/ がそちらに紐づく
+
+- **関連:** `J:\dev\ArtifactStudio` (作業ツリー)、`X:\Dev\ArtifactStudio` (別コピー)、ルート `build/CMakeCache.txt`
+- **事実:** ルート build/ の CMakeCache は source を `X:/Dev/ArtifactStudio` として生成されており(VS2022 Debug)、X 側 CMakeLists は ArtifactPr 無効の旧状態。J と X は同一ディレクトリではない(CMakeLists 内容不一致をハッシュで確認)。J 側で `cmake -S . -B build` すると "does not match the source used to generate cache" エラー。quick_build.bat / build_artifact.bat も `X:\dev\artifactstudio` 決め打ち。
+- **仮説（未検証）:** X: 側が古い実験コピーか、逆に X: が正規で J がサンドボックスの可能性。ユーザー確認まで J 側でのビルド構成新設(X 側 build の削除・上書き)は行わない。
+- **次の確認:** どちらが正規か、J 側へ新規 build dir (例: CMakePresets の out/build/x64-Debug-Agent)を作ってよいかユーザーに確認する。
+
+
+## 2026-08-21 — コラボレーション機能の現状とセッションモデル新設（進行中）
+
+- **関連:** `ArtifactCore/src/Collaborate/CollaborationSession.cppm`(新設)、`ArtifactCore/src/Collaborate/CollaborationProtocol.cppm`、`ArtifactCore/include/Network/CollaborationWebSocket.ixx/.cppm`、`tools/collaboration-server/server.js`
+- **事実:** WebSocketクライアント(再接続/heartbeat/5メッセージ+rule sync)は完備だがアプリから未接続。サーバーはprojectId毎セッション+操作履歴中継+ロック権限+プレゼンス中継のプロトタイプ。セッションモデル(参加者名簿・ロック台帳・バージョン管理・エコー重複排除)が存在しなかった。operationペイロードはopaque JSONでスキーマ未定義。
+- **対応状況 (2026-08-21):** `CollaborationSession`(module `Collaborate.Session`)を新設。トランスポート非依存の純粋状態モデルとして、(1)参加者名簿(join/left/presence、離脱時にpeerロック自動解放)、(2)操作ログ(server版号採番・エコー重複排除・pending local op への版号確定)、(3)ロック台帳(grant/deny/release+local要求pending追跡+isLayerLockedByOther)、を提供。QObject/signal非依存でAGENTS.mdのsignal接続制約を回避、全ロジックunit test可能(`CollaborationSessionTest.cpp` 4ケース+CMake登録)。
+- **仮説（未検証）:** 次段階は (1) WebSocket→Session のアダプタ(signal接続のためAGENTS.md設計レビュー要)、(2) operation スキーマ定義(transform/property/layer追加削除のJSON契約)、(3) プレゼンスpayload標準化(カーソル・選択レイヤー・ビューポート)、(4) リモート操作とUndoの統合。
+- **対応状況 (2026-08-22):** `CollabPresenceState`(型付きpresence、未知キーraw保持)をSessionに追加。`CollabReview.cppm` 新設(コメント: composition/layer/frameアンカー+スレッド1階層+解決/所有者限定編集削除、提案: Pending→Accepted/Rejected/Withdrawn遷移強制・acceptは操作配列返しのみで状態非変更)。監査でエコー照合キー欠陥を発見→`opSeq`フィールド追加で修正(同一ミリ秒衝突とサーバーtimestamp上書きの双方に耐性、回帰テスト追加)。監査全文は `docs/analysis/COLLABORATION_IMPLEMENTATION_AUDIT_2026-08-22.md`。テスト合計35ケース。
+- **対応状況 (2026-08-22 追加):** `CollabOperations.cppm` 新設(operationスキーマ: property.set/layer.transform/layer.add/layer.remove のビルダー+バリデータ、未知type前方互換)。Sessionに `createLocalOperation(CollabOperationData)` オーバーロードと `staleParticipantClientIds(nowMs, timeoutMs)`(heartbeatタイムアウト検出)を追加。テスト合計38ケース。
+- **対応状況 (2026-08-22 追加2):** `CollabOperations.cppm` に提案検証パイプラインを追加(`validateCollabProposal`/`acceptValidatedProposal` — 全操作検証通過までacceptを遮断)。サーバー(server.js)の `clientTimestamp` 保持修正(監査#6)。Sessionに `createLocalOperation(CollabOperationData)` オーバーロードと staleParticipantClientIds を追加。テスト合計41ケース。
+- **対応状況 (2026-08-22 追加3):** `CollaborationSessionAdapter`(module `Collaborate.SessionAdapter`)新設 — WebSocket信号↔Sessionモデルのpoint-to-point接着(グローバル配線なし、接続はアダプタdtorで全解除)。signal 3種(userJoined/userLeft/remoteLockGranted)にclientIdパラメータを追加(セッションモデルに必須、既存使用箇所ゼロのため破壊的影響なし)。CollaborateターゲットがArtifactCoreNetworkへ依存。テスト合計42ケース(アダプタ経由のinboundルーティング: opSeq往復・roster・ロック・presence・離脱解放)。アダプタのoutbound(sendLocalOperation等)のruntime検証は実サーバー結合時に行う。
+- **次の確認:** ビルド・テスト実行後、実サーバー(tools/collaboration-server)に対する結合確認。UI層(presence描画・コメントパネル)は別マイルストーン。
+
+## 2026-08-21 — std代替レイヤー(Core.Artifact*)の充実方針と現状（進行中）
+
+- **関連:** `ArtifactCore/include/Core/Artifact*.ixx`、`ArtifactCore/src/Core/*.cppm`、親 `CMakeLists.txt`(import std gate)
+- **事実:** プロジェクトは実験的な `import std;`(C++23 std modules)を149ファイルで使用しており、これがコンパイルエラーの主要源。ユーザーの方針は std 依存の削減で、std再発明と思われた `Core.Artifact*` ファミリーは削除対象ではなく置換レイヤーとして完成させる方向。ハウススタイルは `artifact*` 接頭辞付き関数(artifactExchange/artifactBitCast/artifactCmp*)。import stdファイル内の実際の使用トップは max/clamp(算法~1000)、vector(331)、move/make_unique(~290)、string(117)、function(61)。既存: Array(自己完結vector)/String(SSO)/Span/Variant/Function/Dict(QHashラッパー)/Ptr+Ref/Mutex。
+- **対応状況 (2026-08-21):** `Core.ArtifactMath.ixx` を新設(artifactMax/Min/Clamp/Abs/IsFinite/IsNaN/Sqrt/Pow/Sin/Cos/Tan/Atan2/Floor/Ceil/Lround/Llround/Lerp)。ArtifactUtilityに artifactMove/artifactForward を追加。ArtifactPtrに UniquePtr/makeUnique を追加。Arrayに operator[]/data() を補完(at()はOptional返しのまま)。Foundationが全モジュールをexport import。テスト `tests/ArtifactCore/ArtifactFoundationTest.cpp` 新設(Math/Utility/UniquePtr/Array/String/Dict)。未着手: import std 149ファイルの段階移行、unordered_mapの自己完結版検討、chrono/mutex系の整理。
+- **対応状況 (2026-08-21 第2回):** `Core.ArtifactAlgorithms.ixx` を新設(artifactSort=heapsort/Find/FindIf/Contains/AllOf/AnyOf/NoneOf/MinElement/MaxElement/Fill/Reverse/RemoveIf/LowerBound/BinarySearch/IsSorted+コンテナオーバーロード)。ArtifactMathに `NumericTraits<T>` を追加。ArtifactUtilityに `Pair`/`artifactMakePair` を追加。Arrayに `StaticArray<T,N>`(std::array代替)を追加。既存の ArtifactHashMap が自己完結チェインバケット実装として完備済みであることを確認(Dict のQHash依存は別経路)。
+- **対応状況 (2026-08-21 第3回):** `Core.ArtifactTuple.ixx` を新設(再帰Tuple/artifactGet<I>/artifactMakeTuple/tupleSizeV/等値比較)。StringにASCIIユーティリティを追加(asciiLower/Upper/Trimmed/StartsWith/EndsWith/Split/Join — ロケール非依存)。ArtifactAlgorithmsに Accumulate/Iota/Count/CountIf/MinMaxElement を追加。ArtifactUtilityに `artifactHashCombine` を追加。
+- **対応状況 (2026-08-21 第4回):** `Core.ArtifactChrono.ixx` を新設(Duration(ns分解能)+SteadyClock(QueryPerformanceCounter/clock_gettimeのプラットフォーム分岐、秒毎tickキャッシュ)+Stopwatch)。`Core.ArtifactRegex.ixx` を新設(パーサ→AST→バイトコード→明示スタックbacktracking VM。文字クラス/量詞lazy含む/選択/グループ/アンカー/エスケープ対応。ステップ上限400万・プログラム8192命令・グループ9個上限)。replaceAllは $0-$9/$$ 置換対応。
+- **対応状況 (2026-08-21 第5回):** `ArtifactSet.ixx` を自己完結HashSetへ全面書き換え(チェインバケット+挿入順イテレーション、load factor 0.75で自動rehash、`HashSet<T>` + `ArtifactSet` エイリアス。旧raw()は削除—使用箇所ゼロ確認済み)。Regexに **lookahead `(?=...)` `(?!...)`** を追加(AST→子ノードをサブプログラムとして別コンパイル、VMはLookahead命令でネスト実行。positive成功時はキャプチャ保持・negativeは常にslot復元)と**後方参照 `\1`-`\9`**(パース時に既出グループ番号検証、VMはバイト一致比較、未設定グループはfail)。非対応: lookbehind・条件分岐・再帰をヘッダ明記。テスト合計31ケース(Set操作/lookahead消費なし検証/negative位置/後方参照繰り返し語/未開放グループエラー)。
+
+## 2026-08-21 — Frame/Timeクラス全面PImplのホットパスヒープ確保（未検証）
+
+- **関連:** `ArtifactCore/src/Time/RationalTime.cppm`、`ArtifactCore/src/Frame/FramePosition.cppm`、`Artifact/include/Layer/ArtifactAbstractLayer.ixx`(L433 currentFrame/inPoint)、`ArtifactCore/include/Property/AbstractProperty.ixx`(L296 evaluateValue)
+- **事実:** FramePosition/FrameRange/FrameRate/RationalTime/TimeCode/FrameOffset/FrameTime/Durationが全てインスタンスごとに`new Impl`。プロパティ評価`interpolateValue(RationalTime)`はレイヤー×プロパティ×フレームで呼ばれ毎回ヒープ確保。レイヤーAPIは`currentFrame()=int64_t`と`inPoint()/outPoint()=FramePosition`で混在。対照的にFloatColorは直接メンバ16バイト。RationalTimeの比較は連分数で正確だが、`operator+/−`は`value*(lcm/scale)`展開でfromSeconds(scale=1e7)長尺時にint64オーバーフローリスク、`rescaledTo`は切り捨て(llround非整合)。Durationはほぼコメントアウトの死にクラス、TimeCodeRangeは未接続。
+- **仮説（未検証）:** value型化(PImpl廃止)が性能の根本解だがABI影響大。まず実測(profiler)でRationalTime生成がフレーム時間に占める割合を確認し、ホットパス限定でint64オーバーロードやキャッシュを導入する段階的移行が安全。
+- **対応状況 (2026-08-21):** `rescaledTo` を半分離れ丸め(round-half-away-from-zero)に変更し、極端な大きさではdouble丸めへフォールバック。`operator+/−` は約分→checkedMul/checkedAdd/checkedNegate(移植可能なオーバーフロー検出)→失敗時 `fromSeconds` 経由のdouble合算、の順に修正。テストは `FrameTimeTest.cpp`(丸め・クロススケール・巨大値安全性)に追加。既存約90呼び出しのうち同一スケール変換は挙動不変、クロススケールは境界±1フレームがより正確な方向へ変化。
+
+## 2026-08-21 — 色域語彙の三重化(Gamut/SurfaceColorPrimaries/ColorSpace)とFloatColor::toLinearのsRGB固定（未検証）
+
+- **関連:** `ArtifactCore/include/Color/ColorGamutConversion.ixx`(Gamut enum+行列)、`ArtifactCore/include/Graphics/SurfaceColorContract.ixx`(SurfaceColorPrimaries)、`ArtifactCore/include/Color/ColorSpace.ixx`(ColorSpace enum)、`ArtifactCore/src/Color/FloatColor.cppm`(toLinear/fromLinear)
+- **事実:** 同じ「色域」概念に3つのenum(Gamut/SurfaceColorPrimaries/ColorSpace)が存在。ガムット変換行列はGamut側にのみ実装。FloatColor::toLinear/fromLinearはsRGBハードコードで、17種TransferFunctionを持つColorTransferFunction::encode/decodeとは接続されていない(TaggedColor::toTransferが正規経路として昨日追加)。LabColor/XYZColorはPImplヒープでCore内部のみ使用。FloatColorは直接メンバ16バイトで軽量(FloatRGBA統合の障害は低い)。
+- **仮説（未検証）:** Gamut↔SurfaceColorPrimariesのマップ関数を追加しTaggedColorにgamut変換を提供するのが正道。FloatColor::toLinearは[[deprecated]]化してTaggedColorへ誘導。ColorSpace enumはColor.ColorSpace利用者との互換確認後にGamutへ統合。
+- **対応状況 (2026-08-21):** `gamutForPrimaries()` / `primariesForGamut()` をTaggedColor.ixxに追加(SRGB_Rec709/DisplayP3/Rec2020/ACES_AP0-1のみ対応。DCI-P3/AdobeRGB/DWG/XYZは対応なしを明示)。`TaggedColor::toPrimaries()` が線形化→Bradford白色点適応済みの `ColorGamutConversion::convert`→再エンコードでgamut変換を提供(transfer維持、unknown transferは無変換通過)。`FloatColor::toLinear/fromLinear` は呼び出しゼロを確認の上 `[[deprecated]]` 化し、実装を `ColorTransferFunction` に委譲して数学を単一源へ統一。テストは `ColorBridgeTest.cpp`(語彙マップ・Rec709↔Rec2020往復1e-4・no-op/通過ケース)に追加。
+
+## 2026-08-21 — Color系のFloatColor/FloatRGBA重複とQColor境界変換の散在（未検証）
+
+- **関連:** `ArtifactCore/include/Color/FloatColor.ixx`、`ArtifactCore/include/Color/FloatRGBA.ixx`、`ArtifactCore/include/Color/ColorConversion.ixx`(HSVColor/HSLColor)、`Artifact/src/Layer/*`(toQColor/toFloatRGBA/colorFromJsonValue等86箇所)
+- **事実:** FloatColor(PImpl・Artifact側1425箇所)とFloatRGBA(constexpr・75/112箇所)がほぼ同一のfloat RGBA型として重複。QColor↔float色変換とJSON直列化(colorToJson/colorFromJson系)がレイヤー・エフェクト各ファイルで局所再実装されており、NLE marker色対応でも同様のローカル実装を追加した。NamedColor enum(FloatColor.ixx)は使用箇所ゼロ、FloatColor.ixxの前方宣言 `class HSV;` は未定義でデッド。LabColor/XYZColorはCore内部のみ。色値型に色空間タグはなく、sRGB↔linearのtoLinear/fromLinearのみ。画像側は ImageF32x4_RGBA::colorDescriptor が primaries/transfer/alphaMode/range を保持し値側と分離。
+- **対応状況 (2026-08-21):** `ArtifactCore/include/Color/ColorBridge.ixx`(module `Color.Bridge`)にQColor/JSON/hex境界を一元化(toQColor/toFloatColor/toFloatRGBA/colorToJson/floatColorFromJson/floatRgbaFromJson/colorToHexArgb)。JSONは `{"r","g","b","a"}` とhex文字列を受け付け、不正入力はfallback返し。`include/Color/TaggedColor.ixx`(module `Color.Tagged`)に色空間タグ付き値型を追加(SurfaceColorPrimaries/TransferFunction/SurfaceAlphaModeをSurfaceColorDescriptorと同一語彙で保持、toTransfer/premultiplied/straight/surfaceDescriptor)。gamut変換は未実装(次段階)。既存86箇所のローカル変換の一括置換は未実施(ビルド検証後に段階移行)。unit test `tests/ArtifactCore/ColorBridgeTest.cpp` 新設。
+- **価値・懸念:** 境界変換の一元化で直列化の微妙な不一致(丸め・alpha既定・16進形式)が解消される一方、FloatRGBA統合はテンプレート/constexpr利用箇所の書き換えが必要で影響大。
+
+## 2026-08-21 — Frame/Time系クラスの断片化とtimecode三重実装（未検証）
+
+- **関連:** `ArtifactCore/include/Frame/*`（FramePosition/FrameRange/FrameRate/FrameOffset/FrameTime）、`ArtifactCore/include/Time/*`（RationalTime/TimeCode/TimeRemap）、`ArtifactCore/include/NLE/Core.ixx`（TimeBase）
+- **事実:** 時間表現が6系統存在し相互変換APIが非対称(FramePosition→RationalTimeなし、FrameOffset→はあり)。FrameRateはfloat保持のみで30000/1001を表現できず、`hasDropframe()` は23.976を検出しない。timecode生成/解析が `FrameRange::toTimecode`(ノンドロップのみ)/`TimeCode`(drop対応だがtoStringが';'を出力せずsetFromQStringが';'をパースできない)/`NLE::TimeBase`(round-trip可能)の3重実装で挙動不一致。FrameTimeとFramePositionはほぼ重複しFrameTimeはArtifact側で62箇所現役使用。Frame/Time数学のunit testは存在しない。
+- **対応状況 (2026-08-21):** FrameRateに有理数保持(`fromRational/setRationalRate/numerator/denominator/hasExactRational/exactFps`)を追加し、分数文字列・JSONでexact維持。`hasDropframe()` は23.976/47.952も検出。TimeCodeのtoString/toStdStringがdrop時に';'を出力し、setFromQStringが';'をパースするよう修正。`FrameRange::toTimecode` はTimeCodeに委譲しdrop対応。`FramePosition↔RationalTime` 変換と `qHash(FramePosition)` を追加。unit test `tests/ArtifactCore/FrameTimeTest.cpp` を新設。未着手: TimeBase timecodeのTimeCode集約(strict validation維持のため現状分離)、FrameTime統合。
+- **仮説（未検証）:** FrameTime統合は使用箇所が多く別段階で機械的に行う必要がある。
+- **価値・懸念:** 放置するとUI表示のタイムコードが経路ごとに食い違い、NLE統合時にレート変換誤差がクリップ位置ずれとして表面化する。一方FrameRateの内部変更は全レート比較コードに波及するため段階的導入が必要。
+- **次の確認:** FrameRate有理化→timecode集約→FramePosition/RationalTime変換→unit test新設の順で段階実装するかを決める。
+
+## 2026-08-21 — 2Dリグ利用導線の3箇所の断絶（skinMesh生成・ボーン追加・キーフレーム）（未検証の改善案）
+
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm`（handleCreateRig L2414）、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`（RigSelect/RigWeight 入力 L22579 / ウェイト操作 L17620 / オーバーレイ L38485）、`Artifact/src/Layer/ArtifactAbstract2DLayer.cppm`（skinMesh JSON L320）、`ArtifactCore/include/Rig/Rig2D.ixx`（createSkinMesh L803）
+- **事実:** リグ導線は実装済み（Layer→リグレイヤー作成→RigSelect自動切替、Ctrl+Tabでモード切替、ボーン回転ドラッグ＋Undo、Bでウェイト、N/S/M、ポーズクリップボード/スロット）。一方コード検索で (1) `Rig2D::createSkinMesh()` / `setSkinMesh()` の呼び出し元がアプリ側にゼロ（skinMesh は JSON 読込経路でしか存在しない）ため RigWeight・正規化/スムーズ/ミラー・スキン変形描画はユーザーが到達不能なデッド導線、(2) `addRigBone` / `addRigPoint` の呼び出し元は handleCreateRig のみで、VP・右クリック・パネルのいずれにもボーン追加/削除/リネーム導線が無い（RigHierarchyPanel は未実装、VP の HIERARCHY は読み取り専用 HUD）、(3) `Bone2D::evaluate(time)` とキーフレーム API は Core 実装済みだが、ボーンドラッグは静的 localTransform 編集のみでキー追加導線が無く、タイムラインにボーントラック非表示。
+- **仮説（未検証）:** P0 は「画像レイヤー→SkinMesh 生成＋autoBind」の導線追加（spec SPEC_RIG_SYSTEM_UI_TASKS §8 相当）。これがないとリグ機能はユーザーから見て何も変形しない。次点で VP ダブルクリック/右クリックでの子ボーン追加、auto-key または手動キー追加＋タイムライン統合。Ctrl+Tab は ShortcutBindings 経由でないハードコードであり、プロジェクトのショートカット整合ルール（AGENTS.md）からも登録先の明示が望ましい。
+- **価値・懸念:** Core の評価・Undo・オーバーレイは完成度が高い半分、UI 導線の断絶により機能価値がユーザーに伝わらない。リグレイヤーは solid ベース（opacity 0.18 の平面が合成に残る）で、spec が意図した画像バインド型と食い違う。
+- **次の確認:** スキンメッシュ生成導線の設計（対象レイヤー選択 UI、メッシュ解像度、autoBind のボーン距離閾値）、リグレイヤーとソース画像レイヤーの関係（同一レイヤーか参照か）、ボーンキーの auto-key 有無の設計レビュー。
+
+## 2026-08-21 — Text Animator のキーフレーム可視化と Undo 漏れ（未検証）
+
+- **関連:** `Artifact/src/Layer/ArtifactTextLayer.cppm`（`addAnimator` L2212 / `removeAnimator` L2220 / `updateGlyphEvaluation` L4577）、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`（`isTimelineHiddenLayerPropertyGroup` L166）、`Artifact/src/Widgets/Timeline/*`
+- **事実:** Text Animator の全プロパティ（Range start/end/offset、position/scale/opacity/tracking/fillColor等21項目）と Source Text キーフレームはキーフレーム化・時間評価・JSON round-trip まで実装済み。一方、(1) `isTimelineHiddenLayerPropertyGroup` が Transform 以外のグループ行を全て隠すため animator のキーがタイムラインに表示されず、用意済みの `displayLabelForPropertyPath` ラベルが標準経路で到達不能、(2) `addAnimator` / `removeAnimator` / Inspector の animator 値編集 / ◆トグル / タイムライン「Add/Remove Keyframe」に Undo push がなく、削除時はキーフレームごと失われる、(3) gpu-glyph パスの早期リターンは `rasterize==true` 条件のため、GPU描画では毎フレーム全再シェーピング＋animator評価＋不要な `animatedGlyphBounds`（per-glyph QPainterPath）が走る。surface cache キーは `animatorCount()>0` で `|frame=N` が付き enabled 依存なし。
+- **対応状況 (2026-08-21):** (2) は `SetTextAnimatorStackCommand`（animatorスタック全体のJSON snapshot/restore）と ◆トグル・タイムラインキー操作の `SetLayerPropertyKeyframesCommand` push で解消済み。auto-key連打のUndo化は履歴氾濫のため未実施。(3) はアニメーター無し・Source Text静的な場合にGPUパスでもglyph評価をキャッシュする保守版を適用済み（`applyAnimatorStack` は空スタックで即returnするためフィールド影響なしを確認）。有効animator＋静的値スタックのキャッシュ（Fix B）は、field×transformの時間依存とenvelope検出コストの分析が必要なため未実施。
+- **仮説（未検証）:** (2) のUndo対応がデータロス防止として最優先。(1) はAGENTS.mdの「左ペイン標準グループはTransformのみ」ルールと衝突するため、mask/matte型の専用行としての露出を設計レビューで決める必要がある。(3) はGPU glyph評価のキャッシュ（フレームキー＋source/styleキー）で圧縮可能。
+- **価値・懸念:** AEユーザーの基本ワークフロー（テキスト→animator→キー打ち→タイムライン調整）のうち、タイムライン調整の導線が事実上欠落している。削除のUndo不可は事故につながる。
+- **次の確認:** animator操作のUndo command化、タイムライン専用行の設計判断、glyph評価キャッシュの効果測定の順に扱う。
+
+## 2026-08-21 — GPU blend pipeline のレイヤー毎全画面パスは実測後に融合を判断する（未検証）
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`（`prepareGpuLayerForBlend` L11572、`blendGpuLayerIntoAccum` L11889、`drawGpuLayerToIntermediate` 内 `renderer_->flush()` L11394、`finalizeGpuRenderToViewport` L12002）、`Artifact/src/Render/GPUTextureCacheManager.cppm`、`Artifact/src/Render/PrimitiveRenderer2D.cppm`
+- **事実:** 非Normalブレンド・3D・SSGI・マルチチャネル構成のGPUパイプラインは、レイヤー毎に全画面 `convertLayerToFloat`（compute）＋ `blendLayers`（compute、ping-pong）＋ `ctx->Flush()` を発行し、Nレイヤーで 2N+1 回の全画面パスになる。3DレイヤーはAOV分で最大6回 `layer->draw()`。ゲート条件は L32150-32215。Normalブレンドのみの2D構成はフォールバック直描画で対象外。`beginFrameGpuProfiling` / `ProfileScope` / `RenderPerformanceMonitor` が実装済みで計測可能。
+- **事実（2026-08-21修正済み）:** `GPUTextureCacheManager::acquireOrCreate` はキャッシュ照会前にフルイメージ変換（QImage→RGBA8888、F32→Rgba32LinearStraight）しており、3Dカード・深度パスの毎フレーム無条件呼び出し（コントローラ L8622, L8699）と合わさってヒット時も全画像変換が発生していた。cache-first peek（`tryAcquireExistingLocked`）とpending早期リターンで解消。`PrimitiveRenderer2D` のスプライトキャッシュpruneもドロー数基準（60ドロー）だったため、高ドロー構成で恒久再アップロードの恐れがあり、pruneサイクル基準へ変更済み。両修正のruntime効果は未計測。
+- **仮説（未検証）:** convert+blendのcompute融合、flushのフレーム末尾集約（UAV barrier置換）でレイヤー数に比例するGPUパス時間を圧縮できる。ただし依存関係（レイヤー間のaccum直列化）とDiligentのバリア意味論を要確認で、AGENTS.mdのシビアなコード扱い。
+- **価値・懸念:** レイヤー数の多い3D/エフェクト構成でのプレビューfpsとRender Queue時間に直結する。一方、計測前に触ると表示品質リスクが高く、既存profilerでの実測が先。
+- **次の確認:** (1) 修正済みcache-first経路の効果を、3Dカードを含む構成でGPUタイム・フレーム時間を実測比較。(2) レイヤー数10/30/60の非Normal構成で `layerToFloatConvertCount` / `blendDispatchCount` とフレーム時間の相関を取得。(3) 融合の要否と安全な導入順（flush集約から先行）を判断する。
+
+## 2026-08-20 — 自動トランジション挿入は再生ヘッド操作の反復ではなく、候補計画の一括適用にする（未検証）
+
+- **関連:** `ArtifactPr/include/ArtifactPrEditorEngine.ixx`、`ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`ArtifactPr/src/ArtifactPrMainWindow.cppm`、`plans/transition-effects-expansion-2026-07-09.md`
+- **事実:** `EditorEngine::addTransitionAtPlayhead()` は選択クリップと現在の再生ヘッド位置から隣接クリップを解決して 1 件を追加する。映像トランジションの追加・削除・長さ変更は `TransitionStateCommand` により Undo/Redo の対象となる。既存の `addTransition()` は重複、隣接性、ハンドル長を検証しない。
+- **仮説（未検証）:** 複数の編集点に対して同 API を繰り返すと、再生ヘッドおよび選択状態に依存して対象がずれ、部分失敗時に一括 Undo できない。候補を先に固定してから、重複・ロック・隣接性・最小ハンドルを検証し、1 個の state command で適用する bulk operation が安全である。
+- **価値・懸念:** 制作時の「選択範囲に既定クロスフェード」を高速化しつつ、既存トランジションの二重配置と意図しない編集を防げる。一方、映像の実際の source handle と render 経路の接続は別課題であり、動画解析や AI 選択を初期範囲に含めるべきではない。
+- **次の確認:** `Auto Transition Plan`（候補、採用、スキップ理由、既定長）を純粋な計算として定義し、選択トラック／選択範囲／マーカー範囲の3入力で候補が安定すること、bulk apply の Undo/Redo・保存／再読込・重複回避を確認する。
+
 ## 2026-08-15 — Two-panel native dock MVP の境界（未検証）
 
 - **関連:** `Artifact/include/Widgets/ArtifactNativeDockSurface.ixx`、`Artifact/src/Widgets/ArtifactMainWindow.cppm`、`docs/planned/MILESTONE_INDEPENDENT_DOCK_MANAGER_2026-08-13.md`
@@ -1781,3 +1967,1151 @@
 - 価値/懸念: Material Inspector とプレビューの反射量・ガラス感の差を縮められる。プレビューは依然として簡略化した環境光であり、完全な IBL／透過の見た目一致ではない。
 - 次の確認: build/runtime を省略しているため、ColorCB の Diligent constant-buffer layout と specular／IOR の実機表示を確認する。
 - 追記: プレビューの transmission fallback を固定色から IOR による `refract` 方向ベースの簡略環境サンプルへ変更した。厚み・吸収・内部反射は持たないため、ガラスの物理的な透過表現ではなく、preview readability を目的とした近似である。
+
+# 2026-08-20 — ufbxスキニング属性の共通化
+
+- 関連: `ArtifactCore/src/Geometry/MeshImporter.cppm`、`ArtifactCore/src/Mesh/Mesh.cppm`
+- 事実: ufbx は `skin_deformers` の頂点ウェイトとクラスタを提供しているが、既存 importer はそれを Mesh 属性へ変換していなかった。既存 `applySkinning()` は内部 `BoneWeight` 型を探す一方、PMD importer は `QVector4D` 属性を書いていた。
+- 対応: ufbx の最大4影響を `boneIndices` / `boneWeights` の `QVector4D` 属性へ正規化し、`applySkinning()` がこの共通形式を処理できるようにした。
+- 価値/懸念: FBX/glTF のウェイトデータを後段のCPU LBSへ渡せる。ただしクラスタと骨ノードの名前・階層・アニメーションを Artifact のリグ契約へ保持する処理は未実装で、GPU skinning接続も未検証。
+- 次の確認: Mesh の骨格メタデータ契約を定め、clusterのbind matrix／bone node階層／animation stackを保持して、glTF/FBXの実ファイルで変形結果を確認する。
+
+# 2026-08-20 — 非PMDモデルの初期ポーズ表示接続
+
+- 関連: `ArtifactCore/src/Geometry/MeshImporter.cppm`、`Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- 対応: ufbx cluster の `geometry_to_world` を初期ポーズ行列として `Mesh::SkinBone` に保持し、モデル設定時に既存CPU LBSを適用してからDiligentの静的頂点バッファへアップロードする経路を追加した。
+- 価値/懸念: FBX/glTFの現在ポーズを既存viewerへ渡せる。現時点は読み込み時の一回適用で、アニメーション時間変更ごとの再評価・GPU skinning・bind/rest頂点の非破壊保持は未実装。
+- 次の確認: 実ファイルで座標系と `geometry_to_world` の二重変換がないことを確認し、時間サンプラーを導入する場合は元頂点から再計算するキャッシュ契約を追加する。
+
+# 2026-08-21 — 非PMDアニメーションクリップ契約
+
+- 関連: `ArtifactCore/include/Mesh/Mesh.ixx`、`ArtifactCore/src/Geometry/MeshImporter.cppm`
+- 対応: ufbx `anim_stacks` の名前・開始時刻・終了時刻を `Mesh::SkinAnimationClip` として保持するAPIを追加した。
+- 価値/懸念: FBX/glTFアセットのアニメーション候補を importer から後段へ渡せる。まだ `ufbx_evaluate_scene()` による時刻サンプリングとボーン行列更新は接続していない。
+- 次の確認: クリップ選択・時刻評価の所有者をviewerか再生サービスか決め、評価済みsceneの寿命とbind頂点キャッシュを同じ契約で管理する。
+
+# 2026-08-21 — RenderWindowのスキン姿勢更新API
+
+- 関連: `Artifact/include/Widgets/Render/ArtifactDiligentEngineRenderWindow.ixx`、同 cppm
+- 対応: 任意のボーン行列列を受け取り、元頂点からCPU LBSを再適用してGPU頂点バッファをdirty化する `setSkinPoseMatrices()` を追加した。初期ポーズも同じAPIを通す。
+- 価値/懸念: タイムラインやアニメーション評価側が毎フレーム同じ描画入口を使える。行列生成側はまだ未接続で、GPU skinningではなくCPU頂点再アップロードのため大規模メッシュではコストがある。
+
+# 2026-08-21 — Viewer経由のスキン姿勢更新
+
+- 関連: `Artifact/include/Widgets/Render/Artifact3DModelViewer.ixx`、同 cppm
+- 対応: Viewerから `setSkinPoseMatrices()` を呼べる薄い委譲APIを追加した。Viewerは現在のMeshとRenderWindowの存在を確認し、更新後にステータスと再描画を要求する。
+- 価値/懸念: 上位のアニメーション評価側がRenderWindow実装へ直接依存せずに姿勢を反映できる。時間サンプラー自体と、CPU再アップロードを間引く更新ポリシーは未実装。
+
+# 2026-08-21 — ufbx時刻評価付きMeshImporter入口
+
+- 関連: `ArtifactCore/include/Geometry/MeshImporter.ixx`、`ArtifactCore/src/Geometry/MeshImporter.cppm`
+- 対応: `importMeshFromFileAtTime(path, time, clipIndex)` を追加し、FBX/glTF/GLBでは対象anim stackを選択して `ufbx_evaluate_scene()` を通した評価済みシーンからメッシュ・ウェイト・ポーズ行列を抽出できるようにした。通常のimportは従来どおり未評価シーンを使う。
+- 価値/懸念: 時刻指定の非PMDスキニング評価をImporter単体で再現できる入口になった。評価済みsceneは元sceneを参照するため、解放順を維持する必要があり、毎フレーム再読込は高コスト。
+- 次の確認: viewer／再生サービスからこのAPIを呼ぶ更新方式か、sceneを長寿命保持するruntime evaluator方式かを選ぶ。
+
+# 2026-08-21 — Viewerの非PMDアニメーション再生入口
+
+- 関連: `Artifact/include/Widgets/Render/Artifact3DModelViewer.ixx`、同 cppm
+- 対応: `setAnimationPlaybackEnabled()`、`setAnimationClipIndex()` を追加し、既存の表示タイマーから `loadModelAtTime()` を呼ぶ再生経路を接続した。再生は既定OFF。
+- 価値/懸念: 評価済みsceneの現在姿勢をViewerへ反映できるため、非PMDのクリップ再生の最低限の動作経路ができた。現実装はフレームごとにファイルを再評価するため高コストで、長寿命ufbx scene保持またはGPU skinningへの置換が必要。
+# 2026-08-20 — hostfxr反復実行セッションの境界
+
+- 関連: `ArtifactCore/include/Script/CSharpScriptEngine.ixx`、`ArtifactCore/src/Script/CSharpScriptEngine.cppm`、`Artifact/scripts/dotnet/Artifact.Scripting/ArtifactScriptHost.cs`
+- 事実: 既存の CSX 実行は毎回 `CSharpScript.EvaluateAsync` を呼び、Roslyn の `ScriptState` を保持していなかった。そのため Unity の Play Mode のような変数・実行状態の継続ができなかった。
+- 対応: C++ 側に `beginScriptSession` / `stepScriptSession` / `endScriptSession` を追加し、C# 側に `ScriptState` を保持する `EvaluateSession` / `ResetSession` を追加した。既存の単発実行 API は維持している。
+- 価値/懸念: 同一セッション内の反復評価が可能になる。一方、ソース変更検知、コンパイル失敗時の旧状態維持、AssemblyLoadContext の完全なアンロードは未実装であり、次段階でセッション管理と再コンパイルポリシーを追加する必要がある。
+- 次の確認: hostfxr 有効環境で `begin → step → step → end` の状態継続、失敗後の状態、再初期化を実行確認する。
+# 2026-08-20 — hostfxrセッション再ロードのトランザクション境界
+
+- 関連: `ArtifactCore/include/Script/CSharpScriptEngine.ixx`、`ArtifactCore/src/Script/CSharpScriptEngine.cppm`、`Artifact/scripts/dotnet/Artifact.Scripting/ArtifactScriptHost.cs`
+- 事実: Roslyn `ScriptState` を継続するだけでは、ソース変更時に新しいスクリプトを検証してから旧状態を交換する契約がなかった。
+- 対応: `reloadScriptSession()` と `ReloadSession` を追加し、新しい `ScriptState` の評価成功後にだけ静的セッションを交換するようにした。失敗時は旧セッションを保持する。
+- 価値/懸念: Unity の再コンパイル失敗時に直前の実行状態を維持する挙動へ近づく。AssemblyLoadContext の分離・アンロードとファイル監視はまだ別段階。
+- 次の確認: 成功 reload、コンパイル失敗 reload 後の旧変数参照、次ステップ継続を実行確認する。
+# 2026-08-20 — hostfxrセッションのソース更新検知
+
+- 関連: `ArtifactCore/include/Script/CSharpScriptEngine.ixx`、`ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 対応: `reloadScriptSessionFile()` と `isScriptSessionSourceChanged()` を追加し、ファイルの更新時刻を成功した再ロードと一緒に記録するようにした。
+- 価値/懸念: UI／既存の更新ループから変更検知とトランザクション再ロードを呼べる。監視スレッドや新規シグナルは導入していないため、呼び出し側がポーリング周期を決める必要がある。ファイルシステムのタイムスタンプ精度に依存する。
+- 次の確認: 更新時刻変更、再ロード失敗時の旧セッション維持、ファイル削除時の扱いを hostfxr 有効環境で確認する。
+# 2026-08-20 — hostfxr delegate解決エラーの分離
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 対応: hostfxr の export 解決失敗時にロード済みライブラリを後始末し、`get_function_pointer` の戻り値を保存して型名・メソッド名とともに返すようにした。
+- 価値/懸念: セッション再ロード失敗と CLR delegate 解決失敗を診断しやすくする。実際の hostfxr バージョン別エラーコードと C# 例外の対応表は未整備。
+- 次の確認: hostfxr 有効環境で不在メソッド、未ロードアセンブリ、delegate 解決失敗のエラー文を確認する。
+# 2026-08-20 — hostfxrファイルセッションの初回ロード
+
+- 関連: `ArtifactCore/include/Script/CSharpScriptEngine.ixx`、`ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 対応: `beginScriptSessionFile()` を追加し、初回の `.csx` 読み込み時からソースパスと更新時刻をセッションへ結び付けた。
+- 価値/懸念: ファイル開始 → 反復 step → 更新検知 → トランザクション再ロードの一貫した導線ができる。初期コードも `EvaluateSession` で評価するため、最初の宣言・変数を次の step から利用できる。
+- 次の確認: `.csx` ファイルを使った初回ロードと再ロードの runtime 検証。
+# 2026-08-20 — Roslynブートストラップの明示ビルドターゲット
+
+- 関連: `Artifact/CMakeLists.txt`、`Artifact/scripts/dotnet/Artifact.Scripting/Artifact.Scripting.csproj`
+- 事実: CMake は `dotnet` の存在を検出していたが、Roslyn ブートストラップ DLL を生成する custom target は存在せず、C++ 側の探索候補が手動ビルド前提になっていた。
+- 対応: NuGet restore をネイティブビルドの副作用にしないため、明示実行用の `ArtifactScriptingDotnet` target を追加した。
+- 価値/懸念: `ArtifactScriptingDotnet` を個別に実行してから hostfxr セッションを利用できる。アプリ本体への自動依存は付けていないため、配布パッケージへの DLL コピーは次段階の課題。
+- 次の確認: CMake 再生成後に target が見え、Debug／Release の DLL 出力先が C++ の探索候補と一致することを確認する。
+# 2026-08-20 — RoslynホストDLLの明示パス指定
+
+- 関連: `ArtifactCore/include/Script/CSharpScriptEngine.ixx`、`ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 対応: `setScriptHostAssemblyPath()` を追加し、設定された `Artifact.Scripting.dll` を最優先でロードするようにした。未設定時は既存の相対候補探索へフォールバックする。
+- 価値/懸念: 起動ディレクトリやインストール配置が異なる環境でもブートストラップ DLL を解決できる。パス設定の保存・UI 統合と、配布時の既定パス決定は別途必要。
+- 次の確認: 明示パスでの hostfxr ロードと、存在しない明示パスから既定候補へ戻る挙動を runtime 確認する。
+# 2026-08-21 — hostfxrセッションのフレーム時間コンテキスト
+
+- 関連: `ArtifactCore/include/Script/CSharpScriptEngine.ixx`、`ArtifactCore/src/Script/CSharpScriptEngine.cppm`、`Artifact/scripts/dotnet/Artifact.Scripting/ArtifactScriptHost.cs`
+- 対応: `updateScriptSession(code, timeSeconds, deltaSeconds, frame)` を追加し、Roslyn globals の `Time`、`DeltaTime`、`Frame` を更新してから同一セッションを評価するようにした。
+- 価値/懸念: アプリの更新ループから Unity の `Update` 相当の時間情報をスクリプトへ渡せる。スクリプトの実行スレッド、停止処理、例外後のフレームポリシーはまだ呼び出し側の責務である。
+- 次の確認: 時間値の継続、フレーム番号、`updateScriptSession` 失敗時の状態保持を runtime 確認する。
+# 2026-08-21 — hostfxrセッションの明示ライフサイクルコールバック
+
+- 関連: `ArtifactCore/include/Script/CSharpScriptEngine.ixx`、`ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 対応: `invokeScriptSessionCallback(functionName)` を追加し、識別子として検証した関数名を同一 Roslyn セッション内で呼び出せるようにした。
+- 価値/懸念: `OnEnable`／`Update`／`OnDisable` 相当の規約を呼び出し側で選択できる。関数が存在しない場合の CLR 例外は返すが、コールバックの自動発火順序や停止時の保証はまだ定義していない。
+- 次の確認: セッション内で定義した callback の呼び出し、無効な識別子の拒否、例外後の状態継続を runtime 確認する。
+# 2026-08-21 — hostfxrセッションの状態スナップショット
+
+- 関連: `ArtifactCore/include/Script/CSharpScriptEngine.ixx`、`ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 対応: `ScriptSessionSnapshot` と `scriptSessionSnapshot()` を追加し、active 状態、ソースパス、時間、delta、フレーム番号、直近エラーを取得できるようにした。
+- 価値/懸念: UI／診断面が内部 `Impl` を直接参照せずにセッション状態を表示・記録できる。スナップショットは同期なしの値コピーであり、現時点ではメインスレッドからの利用を前提とする。
+- 次の確認: セッション開始・更新・再ロード・終了でスナップショットが期待どおり遷移することを runtime 確認する。
+# 2026-08-21 — hostfxrセッションの直列化
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 対応: セッション操作へ `std::recursive_mutex` を追加し、開始、step、フレーム更新、callback、reload、終了、更新検知、スナップショット取得を直列化した。ファイル開始／ファイル再ロードが内部 API を呼ぶため recursive mutex を選択した。
+- 価値/懸念: UI 更新と別の監視処理が同時にセッションへ入っても、hostfxr コンテキストと Roslyn `ScriptState` の同時利用を防げる。スクリプト実行そのものはロック中に同期実行されるため、長時間処理では UI 停滞が起こり得る。
+- 次の確認: 実行スレッドと状態取得スレッドを分けた場合の待ち時間、例外後のロック解放を runtime 確認する。
+# 2026-08-21 — hostfxrセッションの協調停止
+
+- 関連: `ArtifactCore/include/Script/CSharpScriptEngine.ixx`、`ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 対応: `requestScriptSessionStop()` と `isScriptSessionStopRequested()` を追加し、停止要求後の step／update／callback を拒否するようにした。`endScriptSession()` と新しい session 開始で停止フラグをクリアする。
+- 価値/懸念: Play／Stop の外側の状態機械から安全に次回実行を止められる。現在実行中の同期 C# 呼び出しを強制中断する機能ではなく、長時間処理の中断は別途協調キャンセル API が必要。
+- 次の確認: 停止要求後の状態スナップショットと再開始時のフラグ初期化を runtime 確認する。
+# 2026-08-21 — runtimeconfig.jsonの一時フォールバック
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 対応: DLL 隣接 config、`Artifact.runtimeconfig.json` の順に探索し、両方がない場合は検出した `shared/Microsoft.NETCore.App` の最新 runtime version から一時 `runtimeconfig.json` を生成するようにした。hostfxr shutdown 時に生成ファイルを削除する。
+- 価値/懸念: runtimeconfig を出力しない単純な .NET DLL でも hostfxr 初期化を試行できる。ターゲット DLL の TFM や依存 framework が runtime と一致する保証はなく、互換性エラーは hostfxr の診断へ委ねる。
+- 次の確認: config なし DLL、既存 `Artifact.runtimeconfig.json`、無効な runtime version の各ケースを runtime 確認する。
+# 2026-08-21 — ソース削除を変更として扱う監視契約
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 対応: `isScriptSessionSourceChanged()` は `last_write_time` の取得エラーも変更ありとして返すようにした。
+- 価値/懸念: ソース削除・一時的なアクセス失敗を監視側が検出できる。再ロード自体は失敗するため、呼び出し側はエラー表示や復旧待ちを行う必要がある。旧 `ScriptState` は破棄しない。
+- 次の確認: ファイル削除、再作成、短時間の置換保存を runtime 確認する。
+# 2026-08-21 — ソース内容ハッシュによる再ロード検知
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 対応: セッション開始／ファイル再ロード時にソース内容のハッシュを保存し、`isScriptSessionSourceChanged()` で内容差分も確認するようにした。ファイルが開けない場合は変更ありとして扱う。
+- 価値/懸念: 同一タイムスタンプや同一サイズで置換された保存も検出しやすくなる。ポーリングごとにファイル内容を読むため、大きなスクリプトや高頻度監視では呼び出し周期を抑える必要がある。
+- 次の確認: 同一サイズ・短時間保存、改行だけの変更、削除後の再作成を runtime 確認する。
+# 2026-08-21 — CSharpScriptEngine診断状態の直列化
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 対応: `isInitialized()`、出力 callback 設定、`getLastError()`、`hasError()`、`clearError()` をセッション mutex で保護した。
+- 価値/懸念: 更新処理と診断 UI／ログ取得が同時に走っても、エラー文字列や callback の参照競合を避けられる。単発 `executeScript()` 自体の完全な非同期実行モデルはまだ導入していない。
+- 次の確認: 実行失敗と診断取得を別スレッドから行った場合の runtime 挙動を確認する。
+# 2026-08-21 — hostfxr context再利用
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 対応: 既存の host context と `load_assembly`／`get_function_pointer` delegate が有効な場合は、runtime を再初期化せず Assembly の追加ロードへ進むようにした。
+- 価値/懸念: セッション開始後の追加 DLL ロードで host context を上書きしてリークするリスクを抑えられる。異なる runtimeconfig／TFM の Assembly を同一 context にロードできるかは CLR の解決結果に依存する。
+- 次の確認: 同一 runtime 上での複数 Assembly ロードと、異なる TFM の拒否時エラーを runtime 確認する。
+# 2026-08-21 — hostfxr load_assembly ABIの是正
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: 自己定義していた `load_assembly_fn` は coreclr delegate の呼び出し ABI と一致していなかった。
+- 対応: ローカルの .NET 8／9／10 SDK 付属 `coreclr_delegates.h` と照合し、assembly path・load context・reserved の 3 引数契約へ修正した。
+- 価値/懸念: hostfxr 有効環境での Assembly ロード時のスタック／レジスタ不整合リスクを下げる。実 SDK ヘッダを使った ABI 照合と runtime 検証は未実施。
+- 次の確認: `coreclr_delegates.h` の対象 SDK 版と宣言を照合し、実 DLL のロードを確認する。
+# 2026-08-21 — UnmanagedCallersOnly評価ABIの統一
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: `get_function_pointer` で取得した `UnmanagedCallersOnly` メソッドを、hostfxr の 6 引数 component entry point として直接呼ぶ旧 `evaluate()` 経路が実メソッド ABI と一致していなかった。
+- 対応: `evaluate()` を `DotnetRuntimeHost::invokeUtf8()` へ統一し、C# 側の `IntPtr argument`／`IntPtr result`／`int capacity` 契約で呼び出すようにした。
+- 価値/懸念: Windows／Linux の文字幅分岐と誤った 6 引数呼び出しを除去できる。任意の C# メソッドシグネチャを呼ぶ汎用 API ではなく、UnmanagedCallersOnly の UTF-8 bridge 専用である。
+- 次の確認: `EvaluateCode`／`EvaluateSession`／任意の UnmanagedCallersOnly メソッドを runtime 確認する。
+# 2026-08-21 — hostfxr delegate typeとUnmanagedCallersOnly指定の是正
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: 自己定義 enum は `hdt_load_assembly=1`／`hdt_get_function_pointer=3` としていたが、SDK の enum 連番では `hdt_get_function_pointer=6`／`hdt_load_assembly=7`。また `get_function_pointer` の delegate type に `nullptr` を渡すと既定 component delegate になり、`UnmanagedCallersOnly` 指定にならない。
+- 対応: .NET SDK の `hostfxr.h`／`coreclr_delegates.h` と照合し、enum 値を修正。`(const char_t*)-1` 相当の `UNMANAGEDCALLERSONLY_METHOD` を渡すようにした。
+- 価値/懸念: 正しい delegate 取得と C# bridge 呼び出しに必要な ABI 契約へ近づけた。SDK 版ごとの ABI 変更がないことは runtime で確認する必要がある。
+- 次の確認: `EvaluateCode` と `EvaluateSession` の function pointer 解決を runtime 確認する。
+# 2026-08-21 — hostfxr／runtime version選択の数値比較
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: hostfxr directory と `shared/Microsoft.NETCore.App` の候補選択が文字列比較だったため、`10.0.x` と `9.0.x` のようなメジャーバージョン順を誤る可能性があった。
+- 対応: ドット区切りの数値部分を比較する `runtimeVersionGreater()` を追加し、hostfxr と runtime config fallback の両方で使用するようにした。
+- 価値/懸念: 複数メジャー／パッチ版が共存する環境でも数値上の最新を選択できる。preview suffix の厳密な SemVer precedence は未定義で、数値部分を優先する。
+- 次の確認: 8／9／10 共存環境で選択された DLL と runtime version を runtime 確認する。
+# 2026-08-21 — hostfxr失敗時のcontext後始末
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 対応: delegate 取得または初回 `load_assembly` 失敗時に `hostfxr_close` を呼び、`hostContext_` と delegate pointer をクリアする `resetRuntimeContext()` を追加した。ライブラリ自体の解放は従来どおり shutdown 時に行う。
+- 価値/懸念: 失敗した CLR context を次回ロードへ持ち越さず、再初期化可能な状態へ戻せる。hostfxr が部分初期化状態でも close が安全であることは SDK runtime の確認が必要。
+- 次の確認: delegate 解決失敗、Assembly ロード失敗後の再初期化を runtime 確認する。
+# 2026-08-21 — runtimeconfig生成先の依存解決整合
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 対応: 自動生成する runtimeconfig をまず DLL 隣接の標準名 `<assembly>.runtimeconfig.json` とし、書き込み不可の場合だけ hash 付き temp パスへフォールバックするようにした。
+- 価値/懸念: Assembly と依存ファイルの基準ディレクトリを揃えやすくなる。DLL 配置先が読み取り専用の場合は temp config となり、依存 Assembly の解決は runtime／deps 契約に依存する。
+- 次の確認: 書き込み可能・読み取り専用の DLL 配置で Roslyn 依存 Assembly が解決されることを runtime 確認する。
+# 2026-08-21 — セッション終了時の時刻状態リセット
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: `finalize()` は `Time`／`DeltaTime`／`Frame` を初期化していたが、通常の `endScriptSession()` はソース監視だけを破棄し、時刻状態を保持していた。
+- 対応: `endScriptSession()` でも時刻・デルタ・フレームをゼロへ戻し、終了後の snapshot が次回セッションの状態を誤って示さないようにした。
+- 価値/懸念: セッション境界の状態が明確になる。実行中の C# 側 globals は `ResetSession` 後の次回評価で再利用されるため、runtime で再開始時の観測値を確認する必要がある。
+- 次の確認: セッション終了→再開始直後の `Time`／`DeltaTime`／`Frame` の runtime 確認。
+# 2026-08-21 — CSharpScriptEngine公開操作のhost状態保護
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: セッション API と診断 API は mutex を取得していたが、`initialize()`、`execute()`、`executeScript()`、`executeScriptFile()`、`evaluate()` は hostfxr state と `lastError_` を無保護で操作していた。
+- 対応: 既存の再帰 mutex をこれらの公開操作にも適用した。`loadAssembly()` や file wrapper の再入は `std::recursive_mutex` で許容する。
+- 価値/懸念: UI スレッドと preview／script 更新経路が同時に host state を触る場合の競合を抑えられる。C# callback が同一 engine を再入するケースは runtime で確認が必要。
+- 次の確認: 並行ロード・評価と callback 再入時の deadlock／再入挙動を runtime 確認する。
+# 2026-08-21 — ファイル駆動tick APIの集約
+
+- 関連: `ArtifactCore/include/Script/CSharpScriptEngine.ixx`, `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: Unity 風のファイル反復には、呼び出し側が毎フレーム source 読込、変更検知、reload、globals 更新、評価を個別に組み立てる必要があった。
+- 対応: `updateScriptSessionFile()` を追加し、active session の source path が変わった場合または内容が変わった場合に reload してから、同じ tick の code を `Time`／`DeltaTime`／`Frame` と共に評価するようにした。
+- 価値/懸念: preview／editor update loop からの導入面を一つにできる。reload 成功後の tick 評価が失敗した場合は新 source metadata が先に更新されるため、旧状態へ戻すトランザクション性は今後の検討対象。
+- 次の確認: 同一 path の変更、別 path への切替、reload 成功後の tick 失敗を runtime 確認する。
+# 2026-08-21 — C#例外本文のC++側伝播
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: C# の各 bridge は例外文字列を result buffer に書いていたが、C++ の `invokeUtf8()` は non-zero return 時に buffer を `result` へコピーせず、数値コードだけを保存していた。
+- 対応: return code 判定前に buffer を result へコピーし、例外本文がある場合は `lastError_` にも含めるようにした。
+- 価値/懸念: CSX の compile／runtime error を editor 側で表示しやすくなる。固定 64 KiB buffer を超える例外本文は従来どおり切り詰められる。
+- 次の確認: compile error、callback error、reload error で例外本文が UI まで届くことを runtime 確認する。
+# 2026-08-21 — Frame型の符号なし契約整合
+
+- 関連: `ArtifactCore/include/Script/CSharpScriptEngine.ixx`, `Artifact/scripts/dotnet/Artifact.Scripting/ArtifactScriptHost.cs`
+- 事実: C++ の session frame は `std::uint64_t` だが、C# `SessionGlobals.Frame` と `SetSessionTime()` の parser は `long` だった。
+- 対応: C# 側を `ulong`／`ulong.Parse` へ変更し、非負のフレーム番号契約を揃えた。
+- 価値/懸念: 大きなフレーム番号を符号反転させず保持できる。C# script 側で `Frame` を `long` 引数へ渡す場合は明示 cast が必要になる。
+- 次の確認: 通常範囲、`long.MaxValue` 近傍、符号付き変換エラーの runtime 確認。
+# 2026-08-21 — File session読み込みエラーの遮断
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: file open 成功後の read error を確認していなかったため、部分的な source を session bootstrap／reload／tick に渡す可能性があった。
+- 対応: `beginScriptSessionFile()`、`reloadScriptSessionFile()`、`updateScriptSessionFile()` で `file.bad()` を確認し、I/O error 時は評価せずエラーを返すようにした。
+- 価値/懸念: 部分 source による不可逆な状態更新を避けられる。replace-save 中の一時的な空／不完全ファイルは read 成功扱いになり得るため、変更検知と reload の runtime policy は残る。
+- 次の確認: read error、replace-save、file lock 中の reload で旧状態が維持されることを runtime 確認する。
+# 2026-08-21 — 単発CSX読み込みエラーの整合
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: session file API では read error を遮断したが、単発の `executeScriptFile()` は部分読み込み後にそのまま評価する可能性が残っていた。
+- 対応: `executeScriptFile()` にも `file.bad()` 検査を追加し、session／単発のファイル入力契約を揃えた。
+- 価値/懸念: 壊れた CSX source を Roslyn へ渡す経路を減らせる。replace-save の一時的な完全ファイルは引き続き通常の compile error として扱われる。
+- 次の確認: 単発 CSX の read error と replace-save 中の評価結果を runtime 確認する。
+# 2026-08-21 — Source変更検知のread error扱い
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: `isScriptSessionSourceChanged()` は source hash 用の iterator read 後に stream error を確認していなかった。
+- 対応: binary read 後に `file.bad()` を確認し、I/O error は変更ありとして reload／旧状態保持の判断へ渡すようにした。
+- 価値/懸念: 読み込み失敗を「内容が変わっていない」と誤認しない。呼び出し側が reload を試みるため、アクセス不能状態では毎 tick 変更ありになる可能性がある。
+- 次の確認: source lock／一時アクセス不能時に旧 ScriptState が保持され、復旧後に reload できることを runtime 確認する。
+# 2026-08-21 — Session time payloadのlocale固定
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`, `Artifact/scripts/dotnet/Artifact.Scripting/ArtifactScriptHost.cs`
+- 事実: C++ の `ostringstream` は process locale の影響を受け得る一方、C# `SetSessionTime()` は `InvariantCulture` で time／delta を解析していた。
+- 対応: `updateScriptSession()`、変更 source reload、`tickScriptSession()` の payload stream を `std::locale::classic()` に固定した。
+- 価値/懸念: 小数点がカンマになる環境でも C# parser と契約が一致する。NaN／Infinity の扱いは C# の `double.Parse` と runtime 契約に依存する。
+- 次の確認: comma-decimal locale 下で time／delta が正しく渡ること、特殊浮動小数値のエラー方針を runtime 確認する。
+# 2026-08-21 — Session timeの有限値検証
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: C# `double.Parse` は `NaN`／`Infinity` も入力として扱えるため、非有限の time／delta が globals に入る可能性があった。
+- 対応: `updateScriptSession()`、`updateScriptSessionFile()`、`tickScriptSession()` の入口で `std::isfinite()` を検証し、非有限値を host に渡さずエラーにした。
+- 価値/懸念: session の時間状態を有限値に限定できる。負の time／delta は逆再生や seek の用途があるため、現時点では許可している。
+- 次の確認: NaN／Infinity の拒否と、負の time／delta の意図した利用を runtime 確認する。
+# 2026-08-21 — Session timeの往復精度固定
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: session payload の `ostringstream` は既定 precision 6 で、time／delta の小数桁を丸める可能性があった。
+- 対応: 全 `SetSessionTime` payload に `std::numeric_limits<double>::max_digits10` の precision を設定し、locale と合わせて double の往復可能精度を確保した。
+- 価値/懸念: 高精度 delta と長時間 time の tick でも C# 側の値を安定させられる。C# 側で計算した値の再量子化は別契約である。
+- 次の確認: 小さい delta、長時間 time、倍精度 round-trip の runtime 確認。
+# 2026-08-21 — Session time payload生成の共通化
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: update、file reload、standard tick が locale／precision 設定を個別に持っていた。
+- 対応: `makeSessionTimePayload()` に classic locale、`max_digits10`、`time;delta;frame` 形式を集約し、3 経路から共通利用するようにした。
+- 価値/懸念: 将来の session tick API 追加時に数値直列化契約がずれにくい。payload の delimiter escape は不要な数値専用形式として維持する。
+- 次の確認: 共通 helper を通る全経路の C# round-trip を runtime 確認する。
+# 2026-08-21 — C#セッションglobalsの境界リセット
+
+- 関連: `Artifact/scripts/dotnet/Artifact.Scripting/ArtifactScriptHost.cs`
+- 事実: C++ の `endScriptSession()` は時刻状態をリセットしていたが、C# 側の static `SessionGlobals` は `ResetSession()` 後も前セッションの値を保持していた。
+- 対応: `ResetSession()` で `Time`／`DeltaTime`／`Frame` もゼロ化した。
+- 価値/懸念: 次の session bootstrap が前セッションの時間情報を誤って観測しない。初回 tick まで globals はゼロ値になる。
+- 次の確認: 終了→再開始→bootstrap 評価時の globals がゼロであることを runtime 確認する。
+# 2026-08-21 — 標準Update tickの追加
+
+- 関連: `ArtifactCore/include/Script/CSharpScriptEngine.ixx`, `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: 既存の `updateScriptSession()` は呼び出し側から毎フレーム評価コードを渡す汎用経路で、Unity 風の標準 `Update()` 呼び出しは別途組み立てる必要があった。
+- 対応: `tickScriptSession()` を追加し、`Time`／`DeltaTime`／`Frame` を更新してからセッション内の `Update()` を評価するようにした。
+- 価値/懸念: preview loop が固定ライフサイクルへ接続しやすくなる。`Update()` を定義しないスクリプトはエラーになるため、標準スクリプト契約または optional callback 方針を後続で決める必要がある。
+- 次の確認: `Update()` 定義あり／なし、停止要求中、callback 例外時の runtime 挙動を確認する。
+# 2026-08-21 — 変更フレームの二重評価回避
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: `updateScriptSessionFile()` は source 変更時に `reloadScriptSessionFile()` を実行した後、同じ source code を通常 update として再評価していた。
+- 対応: source 変更時は `SetSessionTime` を先に行い、reload 自体をその tick の評価として扱う。同一 source が継続している場合だけ `updateScriptSession()` を実行する。
+- 価値/懸念: 変更フレームの副作用・ログ・状態更新の二重実行を避けられる。reload code 内で `Update()` を明示的に呼ぶ設計では、その呼び出しが一度だけ行われる。
+- 次の確認: source 変更フレームの副作用が一回だけで、reload 失敗時に旧状態が維持されることを runtime 確認する。
+# 2026-08-21 — セッション停止要求の再開API
+
+- 関連: `ArtifactCore/include/Script/CSharpScriptEngine.ixx`, `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: `requestScriptSessionStop()` は stop flag を立てるだけで、session を破棄せずに再開する公開経路がなかった。
+- 対応: `clearScriptSessionStopRequest()` を追加し、active session の stop flag を明示的に解除できるようにした。
+- 価値/懸念: editor の pause／resume 操作を session lifetime と分離できる。停止要求は実行中コードを中断せず、次の host 呼び出しを拒否する協調停止である。
+- 次の確認: stop→clear→tick の再開、stop 中の reload／callback 拒否を runtime 確認する。
+# 2026-08-21 — PlaybackServiceとのscript tick境界
+
+- 関連: `Artifact/src/Service/ArtifactPlaybackService.cppm`, `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: `ArtifactPlaybackService` の frame tick は playback engine、composition 同期、RAM／disk preview、音声状態を横断しており、C# session lifecycle を直接受け取る専用境界は現状存在しない。
+- 判断: playback service に C# session を直接埋め込まず、`CSharpScriptEngine::tickScriptSession()`／`updateScriptSessionFile()` を独立した editor／preview tick API として維持する。
+- 価値/懸念: 既存再生・キャッシュ経路の責務拡大を避けられる。将来統合する場合は、再生フレーム通知・script 実行順序・停止時の session policy を先に定義する必要がある。
+- 次の確認: script tick を受け渡す専用 service または明示的な playback observer の設計が必要になった時点で再評価する。
+# 2026-08-21 — File session sourceの単一読込
+
+- 関連: `ArtifactCore/src/Script/CSharpScriptEngine.cppm`
+- 事実: `beginScriptSessionFile()`／`reloadScriptSessionFile()` は `ostringstream::str()` を評価、hash、metadata 設定で複数回呼び出していた。
+- 対応: 1 回生成した `code` を session 評価と source hash の両方へ渡すようにした。
+- 価値/懸念: 同一 file read の内容を評価と変更検知の基準に揃え、不要な一時 string 生成を減らす。ファイルが評価中に更新される race 自体は別途残る。
+- 次の確認: replace-save／同時書き換え時の source metadata と reload 結果を runtime 確認する。
+
+# 2026-08-21 — ufbxスキニング行列の契約（訂正）
+
+- 関連: `ArtifactCore/src/Geometry/MeshImporter.cppm`, `ArtifactCore/src/Mesh/Mesh.cppm`
+- 事実: ufbxのヘッダ実装では `geometry_to_world` がすでに `bone_node_to_world * geometry_to_bone` として更新される。別途 `pose * inverseBind` を合成すると逆バインドを二重適用する。
+- 対応: `Mesh::skinPoseMatrices()` は `geometry_to_world` に相当する `poseMatrix` をそのまま返す契約へ戻した。
+- 価値/懸念: FBX/glTFの初期姿勢とアニメーション時刻評価でufbxの行列契約を保てる。実ファイルごとの座標系・評価結果はruntime確認が必要。
+- 次の確認: 非TポーズのFBX/glTF/GLBでbind姿勢、clip先頭、clip中間時刻の変形を確認する。
+
+# 2026-08-21 — ufbx論理頂点と展開頂点の対応
+
+- 関連: `ArtifactCore/src/Geometry/MeshImporter.cppm`
+- 事実: ufbxのskin weightsは論理頂点単位だが、MeshImporterは面コーナー単位へ展開している。`vertex_indices` を介さずにウェイトを書き込むと、共有頂点・UV分割時に別頂点のウェイトが割り当たる。
+- 対応: いったん論理頂点用のウェイト配列へ保持し、面コーナー展開時に `vertex_indices[idx]` で出力頂点へコピーするようにした。
+- 価値/懸念: FBX/glTFのスキニング対象で頂点ウェイトと変形対象の対応が安定する。実ファイルの複数メッシュ・UV seamを含む受入れはruntime確認が必要。
+- 次の確認: 複数メッシュ、共有頂点、UV seamを含むモデルでウェイト対応を確認する。
+
+# 2026-08-21 — CPU LBSのゼロウェイト復元
+
+- 関連: `ArtifactCore/src/Mesh/Mesh.cppm`
+- 事実: 複数フレーム評価で有効なbone influenceがない頂点を何もしないままにすると、前フレームの変形位置が残る。
+- 対応: 各評価で元位置・元法線を基準にし、総ウェイトがゼロなら元データへ復元、1未満/超過なら位置を総ウェイトで正規化するようにした。
+- 価値/懸念: 部分的なskin deformerや壊れた入力でも、変形がフレーム間で蓄積しない。壊れた入力の診断表示は別途必要。
+- 次の確認: 無ウェイト頂点と非正規化ウェイトを含むモデルでフレーム往復を確認する。
+
+# 2026-08-21 — 3D Layer JSON復元コードの配置
+
+- 関連: `Artifact/src/Layer/Artifact3DModelLayer.cppm`
+- 事実: アニメーション設定のJSON復元コードが時刻指定ロード関数内に混入し、同関数のスコープに存在しない `obj` を参照していた。
+- 対応: 時刻指定ロードから除去し、`fromJsonProperties()` のモデルロード後にclip数で範囲制限して復元するようにした。
+- 価値/懸念: 非PMDアニメーションのロード経路とプロジェクト復元経路の責務を分離できる。JSON復元の実動作はruntime確認が必要。
+- 次の確認: 保存→再読込で animation.enabled と animation.clipIndex が維持されることを確認する。
+
+# 2026-08-21 — ufbxウェイトの有限値検証
+
+- 関連: `ArtifactCore/src/Geometry/MeshImporter.cppm`
+- 事実: skin weight の単純な `<= 0` 判定はNaNを除外できず、合計ウェイトの正規化結果を非有限値にする可能性がある。
+- 対応: influence と合計ウェイトを `std::isfinite` で検証し、有限かつ正の値だけを最大4 influenceへ採用するようにした。
+- 価値/懸念: 壊れたFBX/glTF入力で頂点位置へNaNが伝播する可能性を下げる。入力ファイル単位の警告・診断表示は未実装。
+- 次の確認: 不正ウェイトを含むファイルで、読み込み後のboundsと描画データが有限であることを確認する。
+
+# 2026-08-21 — ufbxアニメーション時刻の有限値フォールバック
+
+- 関連: `ArtifactCore/src/Geometry/MeshImporter.cppm`
+- 事実: 公開時刻評価APIへNaNが渡ると、`std::clamp` 後も非有限時刻のまま評価へ伝播する可能性がある。
+- 対応: 非有限時刻は選択clipの開始時刻へフォールバックしてから範囲clampするようにした。
+- 価値/懸念: 外部制御や壊れたキー値から評価結果が不定になるリスクを下げる。時刻入力元の診断表示は未実装。
+- 次の確認: 不正時刻入力時にclip開始姿勢が安定して返ることを確認する。
+
+# 2026-08-21 — Viewerの非PMDアニメーション既定再生
+
+- 関連: `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- 事実: Viewerにはclip再生APIがあったが、既定の再生フラグがfalseで、clipを持つFBX/glTF/GLBも静止表示になっていた。
+- 対応: モデル読み込み結果にanimation clipがある場合だけ、自動再生を有効化するようにした。clipのないモデルや読み込み失敗時は無効のままにする。
+- 価値/懸念: 非PMDスキニング対応がViewerの既定導線で視認できる。現状は時刻ごとに再importするため、複雑なモデルではCPU/I/O負荷のruntime確認が必要。
+- 次の確認: clipありモデルの初回表示、再生停止、clip切替、読み込み失敗後の再読み込みを確認する。
+
+# 2026-08-21 — Viewerアニメーション状態の可視化
+
+- 関連: `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- 事実: Viewer statusにはbone数とclip数は表示されていたが、再生フラグの状態は表示されていなかった。
+- 対応: `Animation: Playing/Stopped` をstatusへ追加した。
+- 価値/懸念: 非PMDモデルが「clipを持つが停止中」なのか「再生中」なのかを、追加のイベント配線なしで確認できる。
+- 次の確認: clipなしモデル、clipあり自動再生、明示停止の各status表示を確認する。
+
+# 2026-08-21 — Packed bone indexの有限値ガード
+
+- 関連: `ArtifactCore/src/Mesh/Mesh.cppm`
+- 事実: packed `QVector4D` のbone indexはfloatで保持されるため、壊れた入力のNaNを整数へ変換すると未定義な変換になり得る。
+- 対応: packed indexを整数化する前に有限値を確認し、非有限slotをスキップするようにした。
+- 価値/懸念: 不正な非PMDウェイト属性がskin評価を壊す可能性を下げる。小数indexの診断・拒否は未実装。
+- 次の確認: NaN/小数/範囲外indexを含む属性で、評価がクラッシュせず元頂点へ復元されることを確認する。
+
+# 2026-08-21 — LBSウェイトの有限値ガード
+
+- 関連: `ArtifactCore/src/Mesh/Mesh.cppm`
+- 事実: `+∞` のweightは `w > 0` を通過し、総ウェイトと変形位置の正規化を壊す可能性がある。
+- 対応: LBSへ加算するweightを有限かつ正の値に限定した。
+- 価値/懸念: 不正なpacked／歴史的weight属性からNaN位置が生成される経路をさらに狭める。
+- 次の確認: NaN/∞ weightを含む属性でboundsが有限に保たれることを確認する。
+
+# 2026-08-21 — LBS総ウェイトのオーバーフローガード
+
+- 関連: `ArtifactCore/src/Mesh/Mesh.cppm`
+- 事実: 個別weightが有限でも、異常に大きい値の累積で総ウェイトが∞になる可能性がある。
+- 対応: 総ウェイトが有限かつ正の場合だけ変形結果を採用し、それ以外は元頂点復元へ落とすようにした。
+- 価値/懸念: 異常な属性から無限大除算やNaN位置が生成される経路を閉じる。
+- 次の確認: 極端なweight合計でboundsと頂点配列が有限に保たれることを確認する。
+
+# 2026-08-21 — Packed bone indexの整数値検証
+
+- 関連: `ArtifactCore/src/Mesh/Mesh.cppm`
+- 事実: packed bone indexはfloat属性で運ばれるが、1.5のような小数を整数へ暗黙変換すると別boneを誤参照する。
+- 対応: 有限値に加えて `std::trunc(index) == index` を満たすslotだけをLBSへ採用するようにした。
+- 価値/懸念: 壊れたpacked属性によるbone誤参照を防ぐ。入力診断をUIへ出す経路は未実装。
+- 次の確認: 小数indexを含む属性で該当slotだけが無効化されることを確認する。
+
+# 2026-08-21 — Viewerのアクティブclip名表示
+
+- 関連: `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- 事実: Viewer statusはclip数を表示していたが、複数clipを持つモデルで現在の選択対象を識別できなかった。
+- 対応: 選択中clipの名前を `Clips: count (name)` として表示し、名前が空の場合は `-` を表示するようにした。
+- 価値/懸念: FBX/glTFのclip選択状態を追加操作なしで確認できる。clip選択UI自体は未追加。
+- 次の確認: 名前付きclip、空名clip、clip index変更後のstatus表示を確認する。
+
+# 2026-08-21 — Preview GPU skinningの大規模rig fallback
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`, `Artifact/include/Widgets/Render/ArtifactDiligentEngineRenderWindow.ixx`
+- 事実: Solid viewportの `SkinningCB` は128行列固定で、129本以上のboneをGPUへ渡すと高いindexのinfluenceが無視される。
+- 対応: 128本以下だけGPUスキニングを使い、超過rigは既存CPU LBSへフォールバックするようにした。
+- 価値/懸念: リグサイズによる部分変形を避け、DiligentのGPU経路とCPU互換経路の境界を明示できる。大規模rigのGPU palette拡張は未実装。
+- 次の確認: 128本・129本のrigで変形結果が連続し、後者が欠損しないことを確認する。
+
+# 2026-08-21 — Diligent PreviewのGPU skinning接続
+
+- 関連: `Artifact/include/Widgets/Render/ArtifactDiligentEngineRenderWindow.ixx`, `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- 事実: ViewerのDiligent Solid viewportは従来、MeshをCPU変形してから通常頂点だけを描画していた。既存のMesh importerが持つbone属性とpose行列はGPUへ渡されていなかった。
+- 対応: 頂点にbone index/weight入力を追加し、128本のSkinningCBをDiligent dynamic uniform bufferへ更新するGPU LBS VSを接続した。128本超はCPU fallbackとした。
+- 価値/懸念: FBX/glTF/GLBのViewer再生で、通常フレームはCPU頂点再書き込みを避けてGPUでスキニングできる。行列レイアウト、D3D12/Vulkan shader portability、実機表示は未検証。
+- 次の確認: D3D12/Vulkan双方でbind姿勢・clip中間姿勢・wireframeが一致し、GPU/CPU fallbackの境界が正しいことを確認する。
+
+# 2026-08-21 — GPU pose配列の完全性fallback
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- 事実: GPU経路へrigより少ない行列配列を渡すと、未提供boneがSkinningCBのidentity値を使い、部分的に誤変形する。
+- 対応: pose行列数がbone数以上の場合だけGPU LBSを使い、不足時はCPU LBSへfallbackするようにした。
+- 価値/懸念: 不完全な外部pose入力で静かにidentity変形される挙動を避ける。呼び出し側のpose不足を診断するUIは未実装。
+- 次の確認: 完全pose、不足pose、128本超rigの3ケースで変形結果を確認する。
+
+# 2026-08-21 — GPU pose更新時の頂点再upload抑制
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- 事実: GPU LBSへ切り替えた後もpose更新で `meshDirty_` を立てており、毎フレームbase頂点バッファを再uploadしていた。
+- 対応: 完全poseかつ128本以下のGPU経路ではSkinningCBだけを更新し、`meshDirty_` はCPU fallback時だけ立てるようにした。
+- 価値/懸念: GPUスキニングのCPU upload削減効果を保てる。GPU定数更新・描画同期の実機確認は未実施。
+- 次の確認: 連続pose更新中に頂点VB uploadが初回以外発生せず、GPU結果だけが更新されることを確認する。
+
+# 2026-08-21 — CPU fallback時のGPU bone属性無効化
+
+- 関連: `Artifact/include/Widgets/Render/ArtifactDiligentEngineRenderWindow.ixx`, `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- 事実: 128本超rigをCPU LBSへfallbackしてもbone属性をGPUへ残すと、GPUが128本未満のinfluenceだけ部分再評価し、混合ウェイトを壊す可能性がある。
+- 対応: `gpuSkinningActive_` を導入し、CPU fallback時はVBへゼロweightを出してGPU skinningを無効化するようにした。
+- 価値/懸念: CPUで完成したposeをGPUが再変形しない。GPU/CPU切替時のVB再uploadと実機表示は未確認。
+- 次の確認: 128本以下、129本以上、混合高indexウェイトの3ケースで結果が一致することを確認する。
+
+# 2026-08-21 — GPU LBS weight overflow guard
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- 事実: CPU LBSでは有限値を検証していたが、埋め込みGPU VSは正の無限大weightを受け入れる条件だった。
+- 対応: GPU VSでも極端なweightと総ウェイトを上限比較で除外し、CPU経路と同じく異常値を変形計算へ入れないようにした。
+- 価値/懸念: D3D12/Vulkanで共通のHLSL比較だけを使い、NaN/∞由来の頂点破壊を抑える。実機shader compilerの受入れは未確認。
+- 次の確認: GPU pathで異常weightを含む属性を描画し、頂点がNaN化しないことを確認する。
+
+# 2026-08-21 — Viewer skinning経路の可視化
+
+- 関連: `Artifact/include/Widgets/Render/ArtifactDiligentEngineRenderWindow.ixx`, `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`, `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- 事実: 128本以下のrigはGPU、超過rigや不完全poseはCPUへfallbackするが、Viewer statusから経路を識別できなかった。
+- 対応: `gpuSkinningActive()` を追加し、statusへ `Skinning: GPU/CPU/-` を表示するようにした。
+- 価値/懸念: 実機での経路確認と性能比較が容易になる。表示は経路選択を示すだけで、shader実行成功までは証明しない。
+- 次の確認: GPU対応rig、CPU fallback rig、非スキンmeshのstatus表示を確認する。
+
+# 2026-08-21 — SkinningCB dirty更新
+
+- 関連: `Artifact/include/Widgets/Render/ArtifactDiligentEngineRenderWindow.ixx`, `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- 事実: GPU LBS導入後も、poseが変化しない描画フレームで128行列のSkinningCBを毎回mapしていた。
+- 対応: mesh/pose変更時だけ `skinPoseDirty_` を立て、CB upload成功後にクリアするようにした。
+- 価値/懸念: 静止フレームのCPU submissionとbuffer mapを削減する。device lossやMap失敗時の再試行はdirtyを維持する。
+- 次の確認: 静止描画、pose更新、Map失敗後の再uploadを実機で確認する。
+
+# 2026-08-21 — 停止中のアニメーションクリップ切替
+
+- 関連: `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`, `Artifact/src/Layer/Artifact3DModelLayer.cppm`
+- 事実: クリップ番号だけを変更すると、再生中は次フレームで評価されるが、停止中は表示中のポーズが更新されなかった。
+- 対応: クリップ変更時に選択クリップの `timeBegin` を即時評価し、Viewerでは再生停止状態を保持するようにした。
+- 価値/懸念: InspectorやViewerのクリップ選択が停止中でも視覚的に反映される。再インポートによるコストは既存の時刻評価経路と同じ。
+- 次の確認: 再生停止中のクリップ切替、再生中の切替、クリップなしmeshの3ケースを実機で確認する。
+
+# 2026-08-21 — Viewerアニメーション状態表示の同期
+
+- 関連: `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- 事実: クリップ切替時の再インポート処理が一時的に再生状態を有効化するため、停止中に切り替えるとstatusが一瞬または継続してPlaying表示になる可能性があった。
+- 対応: 切替後に元の再生状態を復元し、statusと再描画要求を明示的に更新する。再生／停止操作自体もstatusへ反映する。
+- 価値/懸念: UI表示と実際の再生状態のずれを抑える。実機でのタイマー・再インポート競合は未確認。
+- 次の確認: 停止中のクリップ切替後にStopped表示と先頭ポーズが一致することを確認する。
+
+# 2026-08-21 — Viewerアニメーション時刻の異常delta保護
+
+- 関連: `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- 事実: タイマー停止復帰や時計異常で大きな負値・非有限のdeltaが入ると、クリップ時刻のfmodへ不正値が伝播し得た。
+- 対応: deltaを有限値かつ0〜0.25秒へ制限し、animationTimeが非有限の場合はclip先頭へ戻す。
+- 価値/懸念: 一時停止復帰時の大きなジャンプとNaN伝播を抑える。実際のタイマー再接続挙動は未確認。
+- 次の確認: 長時間停止後の再開、時計差分異常、通常再生の3ケースを実機で確認する。
+
+# 2026-08-21 — 3Dレイヤーのclipループ評価
+
+- 関連: `Artifact/src/Layer/Artifact3DModelLayer.cppm`
+- 事実: Viewerはclip範囲をループしていたが、3Dレイヤーのdraw経路はコンポジション時刻をそのまま渡し、ufbx側のclamp後に終端ポーズで停止していた。
+- 対応: 有効なclip範囲を使って相対時刻を `fmod` し、clip先頭から継続評価するようにした。不正な範囲や非有限時刻は評価をスキップする。
+- 価値/懸念: Viewerと3Dレイヤーでアニメーション再生の継続挙動を揃えられる。実ファイルのclip境界を跨ぐ実機確認は未実施。
+- 次の確認: clip開始・終端直前・終端超過の3時点でポーズが連続することを確認する。
+
+# 2026-08-21 — ufbx clip範囲の正規化
+
+- 関連: `ArtifactCore/src/Geometry/MeshImporter.cppm`
+- 事実: 外部ファイルのanim stackが終端より前の開始時刻を持つ保証は、インポート側では明示されていなかった。
+- 対応: 評価時刻のclampと公開clip metadataの双方で `min(begin,end)` / `max(begin,end)` を使い、逆順範囲を正規化した。
+- 価値/懸念: 逆順metadataがViewer・3Dレイヤーの時刻評価へ伝播しない。実ファイルでの異常metadataは未確認。
+- 次の確認: 正常範囲、同一時刻、逆順範囲のanim stackを読み込んで評価結果を確認する。
+
+# 2026-08-21 — ufbx null anim stackのclip番号整合
+
+- 関連: `ArtifactCore/src/Geometry/MeshImporter.cppm`
+- 事実: metadata公開側はnull stackを除外していた一方、時刻評価側は元の配列番号を直接参照しており、null stackが混在すると選択clipがずれる可能性があった。
+- 対応: 有効stackだけを数える選択処理に変更し、範囲外は最後の有効stackへ丸めた。
+- 価値/懸念: Viewer/3Dレイヤーが表示するclip番号と評価対象のstackを一致させる。null stack混在ファイルは未確認。
+- 次の確認: null stackを含むanim stack配列でclip選択と時刻評価を確認する。
+
+# 2026-08-21 — 3DレイヤーのSkin Animation無効化pose
+
+- 関連: `Artifact/src/Layer/Artifact3DModelLayer.cppm`
+- 事実: 再生中にSkin Animationを無効化すると、従来は最後に評価したアニメーションposeが残っていた。
+- 対応: 無効化時に選択clipの `timeBegin` を再評価し、初期poseへ戻すようにした。
+- 価値/懸念: 設定を無効化した状態の表示が静止した初期poseになり、Viewerの再生停止操作とは役割を分けられる。実機UI操作は未確認。
+- 次の確認: 再生中の無効化、再有効化、clipなしmeshの3ケースを確認する。
+
+# 2026-08-21 — Viewer clip選択番号の可視化
+
+- 関連: `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- 事実: statusはclip名だけを表示しており、無名clipや同名clipでは選択対象を区別しにくかった。
+- 対応: clip総数に加えて現在のclip index（0-based）を表示するようにした。
+- 価値/懸念: UI操作なしでも選択clipの評価対象を確認できる。表示変更のみで、clip選択UI自体は追加していない。
+- 次の確認: 無名・同名clipを含むモデルでstatusの番号が評価対象と一致することを確認する。
+
+# 2026-08-21 — Mesh rig変更時のskin base cache無効化
+
+- 関連: `ArtifactCore/src/Mesh/Mesh.cppm`
+- 事実: `setSkinBones()` はrig paletteだけを更新し、既存のLBS基準頂点cacheを保持していた。
+- 対応: ボーンpalette変更時に基準position/normal cacheを消去し、次回LBSで現在の頂点を再取得するようにした。
+- 価値/懸念: Mesh再利用時に旧rig由来の基準データが混ざる可能性を抑える。setter経由の複雑なrig差し替えは未確認。
+- 次の確認: 同一Meshへ異なるbone paletteを設定して再評価するケースを確認する。
+
+# 2026-08-21 — Mesh clip setterの時刻範囲正規化
+
+- 関連: `ArtifactCore/src/Mesh/Mesh.cppm`
+- 事実: importer経由ではclip範囲を正規化しているが、公開setterへ直接渡されるclipには同じ保証がなかった。
+- 対応: `setSkinAnimationClips()` でも有限値の逆順範囲を入れ替えるようにした。
+- 価値/懸念: importer外で生成されたMeshもViewer／レイヤーの時刻評価契約を満たす。非有限値はゼロ長clipへ正規化し、再生を停止状態にする。
+- 次の確認: setterへ正常・逆順・非有限clipを渡した場合の評価挙動を確認する。
+
+# 2026-08-21 — timed importerの非有限時刻入口
+
+- 関連: `ArtifactCore/src/Geometry/MeshImporter.cppm`
+- 事実: 非有限時刻をclip先頭へfallbackする処理は存在したが、評価条件が `evaluationTime >= 0` のみでNaN/Inf時には到達しなかった。
+- 対応: `-1` の予約された非評価値を除き、非有限時刻も評価経路へ通し、clip先頭へ正規化するようにした。
+- 価値/懸念: 公開timed APIへ異常時刻が入ってもbind poseへ不意に戻らず、選択clipの初期poseを返す。実ファイルruntimeは未確認。
+- 次の確認: 正常時刻、NaN/Inf、`-1` の3入力で結果が意図どおり分かれることを確認する。
+
+# 2026-08-21 — Viewer clip metadata API
+
+- 関連: `Artifact/include/Widgets/Render/Artifact3DModelViewer.ixx`, `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- 事実: Viewerはclip選択setterとstatus表示を持つが、外部UIがclip数や名前を取得するAPIはなかった。
+- 対応: `animationClipCount()` と `animationClipName()` を追加し、既存のclip index setterと組み合わせて利用できるようにした。
+- 価値/懸念: 新規signal/slotなしで、将来の既存UIやホスト側UIからclip選択を構成できる。UI自体は追加していない。
+- 次の確認: モデル未読込、範囲内、範囲外indexの戻り値を確認する。
+
+# 2026-08-21 — 3Dレイヤー clip metadata API
+
+- 関連: `Artifact/include/Layer/Artifact3DModelLayer.ixx`, `Artifact/src/Layer/Artifact3DModelLayer.cppm`
+- 事実: 3Dレイヤーはclip indexを保持・編集できたが、外部のInspector／ホストがclip数と名前を取得するAPIはなかった。
+- 対応: `skinAnimationClipCount()` と `skinAnimationClipName()` を追加した。
+- 価値/懸念: 既存のinteger propertyを置き換えずに、将来のclip selector実装へ接続できる。UIとruntime検証は未実施。
+- 次の確認: 未読込、範囲内、範囲外indexの戻り値を確認する。
+
+# 2026-08-21 — GPU/CPU skinning経路切替時の頂点属性再upload
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- 事実: 不完全poseのCPU fallback後に完全poseへ戻ると、GPU経路は有効化されても、直前のCPU uploadでゼロ化されたbone属性VBが再uploadされない可能性があった。
+- 対応: GPU/CPU経路の状態が変わった場合に `meshDirty_` を立て、bone属性を含む頂点VBを再uploadするようにした。
+- 価値/懸念: pose更新ごとの不要なVB uploadは増やさず、経路切替時だけ属性を同期する。実機での切替描画は未確認。
+- 次の確認: 完全pose→不完全pose→完全poseの順でGPU/CPU表示と変形結果を確認する。
+
+# 2026-08-21 — GPU skinning boundsの保守的フレーミング
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- 事実: GPU LBSではMeshのCPU boundsがbind poseのままなので、アニメーションposeがbind boundsを超えるとpreviewのworld framingで切れる可能性があった。
+- 対応: GPU pose行列でbind boundsの8隅を変換した保守的boundsをworld framingに使うようにした。CPU fallbackは既存の変形済みMesh boundsを使用する。
+- 価値/懸念: shader変形中の大きなposeでもpreview内に収まりやすい。実機でのbounds精度と過剰拡大は未確認。
+- 次の確認: bind pose、四肢が広がるpose、非uniform scale poseで表示範囲を確認する。
+
+# 2026-08-21 — GPU boundsの非有限pose保護
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- 事実: 保守的bounds計算へ異常なpose行列が入ると、NaN/Infがworld transformへ伝播する可能性があった。
+- 対応: 変換cornerが有限値のときだけboundsへ取り込み、全て不正なら元のbind boundsを維持する。
+- 価値/懸念: 異常poseでpreviewのカメラ行列が壊れる可能性を抑える。shader側の異常値挙動は別途runtime確認が必要。
+- 次の確認: 正常poseと異常poseを混在させたbounds計算を確認する。
+
+# 2026-08-21 — GPU boundsへのbind範囲union
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- 事実: bone変換cornerだけをbounds化すると、無ウェイト／不正ウェイトでbind位置に残る頂点を範囲から落とす可能性があった。
+- 対応: GPU skinned boundsの初期値にbind boundsを含め、変換後範囲とunionするようにした。
+- 価値/懸念: 部分的なスキン属性や異常ウェイトを含むmeshでも、静止頂点がpreview外へ出ない。保守的な範囲拡大は残る。
+- 次の確認: 無ウェイト頂点と大きく移動するweighted頂点が混在するmeshでフレーミングを確認する。
+
+# 2026-08-21 — Viewer再生再開時の先頭pose同期
+
+- 関連: `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- 事実: 再生有効化時はanimationTimeだけをclip先頭へ戻しており、表示中の旧poseは次のtimer tickまで残っていた。
+- 対応: 再生を有効化した時点でclip先頭を即時再importし、表示poseと時刻を同期するようにした。
+- 価値/懸念: 再生ボタン相当のAPI操作に対する表示遅延をなくす。再importコストは既存の時刻評価経路と同じ。
+- 次の確認: 停止中の途中poseから再生を有効化した直後に先頭poseが表示されることを確認する。
+
+# 2026-08-21 — Viewer clip切替時のclock再基準化
+
+- 関連: `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- 事実: 再生中のclip切替で再importに要した時間がanimation deltaへ混ざり、切替直後に不要な時間ジャンプが発生し得た。
+- 対応: clip切替と先頭pose再評価の完了後にanimation clockを現在時刻へ再基準化した。
+- 価値/懸念: clip切替直後の再生開始が安定する。実時間の再import負荷自体は変わらない。
+- 次の確認: 再生中にclipを切り替えた直後の時刻連続性を確認する。
+
+# 2026-08-21 — 通常モデル読み込み時のanimation clock同期
+
+- 関連: `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- 事実: 時刻付き読み込みやclip切替ではclockを再基準化していたが、通常の`loadModel()`では読み込み時間が初回deltaへ混ざる可能性があった。
+- 対応: 通常読み込みで初期animation stateを設定した直後にclockを現在時刻へ同期した。
+- 価値/懸念: モデル読込直後の再生開始が読み込み時間に依存しない。実タイマー接続は未確認。
+- 次の確認: アニメーション付きモデルの通常読み込み直後に初期poseから再生が始まることを確認する。
+
+# 2026-08-21 — timed load完了時のanimation clock同期
+
+- 関連: `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- 事実: 外部callerから`loadModelAtTime()`を直接呼ぶ場合、再import時間が次回の再生deltaへ混ざる余地が残っていた。
+- 対応: timed loadの成功・失敗を問わず、状態更新前にanimation clockを現在時刻へ再基準化した。
+- 価値/懸念: timer経路と外部時刻設定経路でclock初期化を統一する。再importコストは変わらない。
+- 次の確認: 外部時刻設定直後の再生再開とtimer再生のdelta連続性を確認する。
+
+# 2026-08-21 — Viewer内部animation timeのclip範囲正規化
+
+- 関連: `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- 事実: timed Importerは時刻をclip範囲へclampしていたが、Viewerの`animationTime_`には呼び出し元の範囲外／非有限値が残る可能性があった。
+- 対応: 読み込み後のactive clip metadataを使い、内部animation timeも有限値かつclip範囲内へ正規化した。
+- 価値/懸念: 表示poseとViewer内部時刻の不一致を抑える。clip metadataが無効な場合は0へ戻す。
+- 次の確認: 範囲内、範囲外、NaN/Infのtimed loadで内部時刻と表示poseが一致することを確認する。
+
+# 2026-08-21 — Viewer clear時のanimation clock初期化
+
+- 関連: `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- 事実: `clearModel()` は再生状態と時刻を初期化していたが、clock自体は古い時刻を保持していた。
+- 対応: モデル削除時にもclockを現在時刻へ再基準化した。
+- 価値/懸念: clear→loadの境界で古いdeltaが再利用されない。実タイマー接続は未確認。
+- 次の確認: 再生中のclear→新規モデルloadで初回poseが安定することを確認する。
+# 2026-08-21 — packed bone indexの整数範囲検証
+
+- **関連ファイル・機能:** `ArtifactCore/src/Mesh/Mesh.cppm` の `Mesh::applySkinning`
+- **確認できた事実:** packed `QVector4D` のbone indexはfloatで保持され、finiteかつ整数であることだけを確認してから `int` に変換していた。
+- **対応:** `int` の表現範囲外の値を変換前に除外し、破損したスキニング属性による範囲外変換を防いだ。
+- **価値または懸念:** 不正なインデックスは従来どおりその頂点の有効影響から除外され、通常のFBX/glTF/PMD経路には影響しない。
+- **次に確認すべきこと:** 実データでのGPU/CPU経路の表示確認は、ビルド・実行許可後に行う。
+# 2026-08-21 — skin cluster単位のbone palette
+
+- **関連ファイル・機能:** `ArtifactCore/src/Geometry/MeshImporter.cppm` のufbx skin import
+- **確認できた事実:** 以前はbone node単位でskin clusterを重複排除していたため、複数メッシュで同一nodeを使いながらgeometry行列が異なる場合、最初のclusterの行列を共有してしまう可能性があった。
+- **対応:** paletteとweight lookupを`ufbx_skin_cluster*`単位に変更し、node単位の対応は親階層の補助情報だけに限定した。
+- **価値または懸念:** 複数メッシュのgeometry-to-bone行列を保持でき、GPU上限を超えた場合も既存のCPUフォールバックへ自然に移行する。重複clusterによりbone数が増える可能性がある。
+- **次に確認すべきこと:** 複数メッシュ・共有boneを含むFBX/glTFで、実行時の姿勢とboundsを確認する。
+# 2026-08-21 — skin cluster lookupのelement ID fallback
+
+- **関連ファイル・機能:** `ArtifactCore/src/Geometry/MeshImporter.cppm` のufbx weight lookup
+- **確認できた事実:** weightが参照するclusterはdeformerのリスト要素であり、sceneのclusterリストと同一ポインタであることを前提にしていた。
+- **対応:** ポインタlookupに加えて`element_id` lookupを用意し、参照が別ポインタになっても同じclusterへ解決できるようにした。
+- **価値または懸念:** 既存のcluster単位paletteの精度を維持しつつ、ufbxリスト間の参照差によるウェイト消失を防ぐ。
+- **次に確認すべきこと:** 実FBX/glTFでウェイト数と表示姿勢を確認する。
+# 2026-08-21 — CPU LBSの非有限変換結果保護
+
+- **関連ファイル・機能:** `ArtifactCore/src/Mesh/Mesh.cppm` のCPU skinning
+- **確認できた事実:** bone indexとweightの検証はあったが、外部から渡された行列の変換結果がNaN/Infになる場合は頂点へ加算され得た。
+- **対応:** 各influenceの変換後position/normalを検証し、非有限な影響だけをスキップするようにした。
+- **価値または懸念:** 不正なpose行列によるbounds汚染と表示破綻を局所化する。GPU経路の行列検証は別途runtime確認が必要。
+- **次に確認すべきこと:** 異常poseを含むCPU fallbackで、bind頂点復元とboundsが維持されることを確認する。
+# 2026-08-21 — GPU pose行列の有限値検証
+
+- **関連ファイル・機能:** `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- **確認できた事実:** CPU LBSでは変換結果を検証したが、GPU経路はpose行列をそのままuniform bufferへ送っていた。
+- **対応:** 初期poseと更新poseの16要素を検証し、非有限値を含む場合はGPU skinningを無効化してCPU fallbackへ切り替える。
+- **価値または懸念:** shader内でNaNが頂点・boundsへ伝播するのを防ぐ。CPU fallback側でも不正influenceは既存の有限値検証で除外される。
+- **次に確認すべきこと:** 異常pose入力時のGPU/CPU切り替えとmesh属性再uploadをruntimeで確認する。
+# 2026-08-21 — Mesh boundsの非有限頂点スキップ
+
+- **関連ファイル・機能:** `ArtifactCore/src/Mesh/Mesh.cppm` の`Mesh::updateBounds`
+- **確認できた事実:** スキニング入力や外部mesh属性に非有限positionがあると、先頭頂点を初期値に使うbounds計算全体がNaN/Infへ汚染され得た。
+- **対応:** 有限なpositionだけでmin/maxを計算し、有限頂点が一つもない場合は既存boundsを保持する。
+- **価値または懸念:** CPU/GPU previewのframingへ不正頂点が伝播する範囲を抑える。入力データ自体の修復は行わない。
+- **次に確認すべきこと:** 異常poseと部分的に壊れたmesh属性で、既存bounds保持と再評価を確認する。
+# 2026-08-21 — CPU fallbackからGPU skinningへ戻す際のbind復元
+
+- **関連ファイル・機能:** `ArtifactCore/include/Mesh/Mesh.ixx`, `ArtifactCore/src/Mesh/Mesh.cppm`, `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- **確認できた事実:** 129骨以上・不正poseなどでCPU fallbackを通った後、128骨以下の有効poseへ戻ると、mesh属性がCPU変形済みのままGPU shaderへ渡る可能性があった。
+- **対応:** `Mesh::restoreSkinningBase()`を追加し、CPU→GPU切替時にbind-space position/normalを復元してからGPU属性を再uploadする。
+- **価値または懸念:** GPU/CPU切替やpose異常からの復帰で二重変形を防ぐ。runtimeでの切替確認は未実施。
+- **次に確認すべきこと:** 128骨境界と不正poseからの復帰で、GPU表示が一度だけposeを適用することを確認する。
+# 2026-08-21 — CPU LBSの加算結果finite検証
+
+- **関連ファイル・機能:** `ArtifactCore/src/Mesh/Mesh.cppm` の`Mesh::applySkinning`
+- **確認できた事実:** 各matrix変換結果がfiniteでも、極端なweightや複数influenceの加算でposition/normalの累積値がoverflowする可能性があった。
+- **対応:** 累積position/normalを頂点属性へ代入する前にfinite検証し、異常時は既存のbind-space復元分岐へ送る。
+- **価値または懸念:** CPU fallbackからNaN/Infがboundsやrendererへ伝播する経路をさらに抑える。
+- **次に確認すべきこと:** 極端なweightを含む破損meshでbind復元が機能することをruntime確認する。
+# 2026-08-21 — ufbx blend shape offsetのMesh取り込み基盤
+
+- **関連ファイル・機能:** `ArtifactCore/include/Mesh/Mesh.ixx`, `ArtifactCore/src/Mesh/Mesh.cppm`, `ArtifactCore/src/Geometry/MeshImporter.cppm`
+- **確認できた事実:** ufbxはblend deformer/channel/shapeとsource vertex単位のposition/normal offsetを公開しているが、Meshには保持契約がなかった。
+- **対応:** `Mesh::BlendShape`を追加し、ufbxのshape offsetをflatten後のface-corner vertexへ展開して保持する。target shapeとchannel keyframe shapeを重複統合する。
+- **価値または懸念:** 既存bone skinningとは独立した入力データとして、将来のmorph適用・アニメーション評価へ接続できる。現段階ではoffsetを頂点へ適用していない。
+- **次に確認すべきこと:** blend offsetをskin前に適用する順序、channel weightとkeyframe補間、複数meshの同名shape統合を実装・確認する。
+# 2026-08-21 — evaluated blend shapeのImporter適用
+
+- **関連ファイル・機能:** `ArtifactCore/src/Geometry/MeshImporter.cppm`
+- **確認できた事実:** ufbxのchannel weightは評価済みsceneに含まれるため、時間指定ロードごとに現在のblend状態を取得できる。
+- **対応:** channel weightを`Mesh::BlendShape::weight`へ保持し、flatten済みposition/normalへoffsetをImporter段階で適用してから既存bone skinningへ渡す。
+- **価値または懸念:** FBX/glTFの単純なblend shapeは、時間指定ロードとbone skinningの順序を維持したまま表示できる基盤になった。複数keyframeの厳密な補間とruntime UI制御は未実装。
+- **次に確認すべきこと:** keyframe effective weightの扱い、shape weight範囲、skin→morph順序が必要なデータでの実機確認。
+# 2026-08-21 — blend keyframeごとのeffective weight
+
+- **関連ファイル・機能:** `ArtifactCore/src/Geometry/MeshImporter.cppm`
+- **確認できた事実:** channelのtarget shapeとkeyframe shapeは同一weightではなく、ufbxがkeyframeごとに`effective_weight`を保持している。
+- **対応:** targetにはchannel weight、keyframe shapeには`effective_weight`を使用してMeshのblend shape weightへ反映する。
+- **価値または懸念:** 時間指定で評価された中間morphが、全keyframeへ一律channel weightを掛けるより正確になる。同名shapeの統合は最大weight方式のまま。
+- **次に確認すべきこと:** 複数keyframeの同時出現と同名shapeの合成規則をruntimeで確認する。
+# 2026-08-21 — Viewer statusへのmorph数表示
+
+- **関連ファイル・機能:** `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- **確認できた事実:** blend shapeをMeshへ取り込んでもViewer statusではbone数とclip数しか確認できなかった。
+- **対応:** 既存statusへ`Morphs`件数を追加し、読み込まれたdeformerデータの存在をinspection時に確認できるようにした。
+- **価値または懸念:** 新しいsignal/slotやQt CSSを追加せず、既存statusだけで診断情報を増やした。
+- **次に確認すべきこと:** 実ファイルでmorph数表示と実際の形状変化が一致することをruntime確認する。
+# 2026-08-21 — blend shapeの同一pointer二重加算防止
+
+- **関連ファイル・機能:** `ArtifactCore/src/Geometry/MeshImporter.cppm`
+- **確認できた事実:** ufbx channelはtarget shapeとkeyframe listの両方から同じshape pointerを返す場合があり、単純収集ではoffsetを二重加算する可能性があった。
+- **対応:** channel内のshape referenceをpointer単位で重複排除してからoffsetを収集する。
+- **価値または懸念:** 単純morphの形状量がtarget/keyframeの列挙形式に依存しなくなる。同名だが別pointerのshape合成規則は未確定。
+- **次に確認すべきこと:** 複数channelで同一shapeを共有するデータのweight合成をruntime確認する。
+# 2026-08-21 — mesh内共有blend shapeのoffset重複防止
+
+- **関連ファイル・機能:** `ArtifactCore/src/Geometry/MeshImporter.cppm`
+- **確認できた事実:** 複数channelが同じufbx blend shape pointerを参照する場合、channel単位の重複排除だけではoffsetがmesh内で複数回加算され得た。
+- **対応:** source mesh単位で収集済みshape pointerを記録し、offsetは一度だけ加算する。weight更新は既存の統合処理へ委ねる。
+- **価値または懸念:** shared corrective shapeの位置offsetがchannel数に比例して膨らむ問題を防ぐ。複数channelのweight合成は引き続き最大値規則。
+- **次に確認すべきこと:** 同一shapeを共有する複数channelの意図的な加算が必要なデータをruntime確認する。
+# 2026-08-21 — morph再適用順序の公開境界
+
+- **関連ファイル・機能:** `ArtifactCore/include/Mesh/Mesh.ixx`, `ArtifactCore/src/Mesh/Mesh.cppm`
+- **確認できた事実:** blend shapeのbase cacheはImporterでmorphをskin前に適用するため成立するが、skin後にweightだけを変更するとbone poseとの再評価順序を別途管理する必要がある。
+- **対応:** `applyBlendShapes()`は追加したが、順序管理なしの公開weight setterは追加しない。runtime編集はmorph→skinを一体で再評価できるAPI設計後に接続する。
+- **価値または懸念:** morph weight変更による二重変形を未完成APIから発生させない。
+- **次に確認すべきこと:** morph weight、skin pose、base cacheを一つのdeformer評価スナップショットへまとめる。
+# 2026-08-21 — deformer評価順序の統一
+
+- **関連ファイル・機能:** `ArtifactCore/include/Mesh/Mesh.ixx`, `ArtifactCore/src/Mesh/Mesh.cppm`, `Artifact/src/Layer/Artifact3DModelLayer.cppm`
+- **確認できた事実:** 3D layerの初期pose、時間pose、手動poseが個別に`applySkinning()`を呼び、morphを再評価する順序が共通化されていなかった。
+- **対応:** `Mesh::applyDeformers()`を追加し、skin base復元→blend shape適用→bone skinningの順序へ統一した。
+- **価値または懸念:** 将来のruntime morph weight編集でも、morphとskinの二重変形を避ける評価入口になる。Viewer専用GPU経路は既存のpose uploadを維持する。
+- **次に確認すべきこと:** morph weight変更とclip再生を同一meshで行った場合のbase cache更新をruntime確認する。
+# 2026-08-21 — runtime morph weightのskin pose再適用
+
+- **関連ファイル・機能:** `ArtifactCore/src/Mesh/Mesh.cppm`, `Artifact/src/Layer/Artifact3DModelLayer.cppm`
+- **確認できた事実:** Meshは最後に適用したskin poseを保持しておらず、weight変更後に同じposeを安全に再適用する経路が不足していた。
+- **対応:** `activeSkinMatrices`を保持し、`setBlendShapeWeight()`から`applyDeformers()`を呼ぶことで、base復元→morph→skinを一体で再評価する。
+- **価値または懸念:** runtime weight変更時の二重変形を避けられる。GPU preview側のmorph編集UIと実ファイルでのruntime確認は未実施。
+- **次に確認すべきこと:** clip再生中のweight変更、GPU/CPU切替後の再評価、morph名・weight編集UIの接続を確認する。
+# 2026-08-21 — 非スキンmeshのblend shape頂点対応
+
+- **関連ファイル・機能:** `ArtifactCore/src/Geometry/MeshImporter.cppm`
+- **確認できた事実:** face-corner展開時のblend shape offset転送がskin属性配列の存在条件に内包され、skinを持たないmorph meshではoffsetが全て失われていた。
+- **対応:** source vertex indexの取得をskin転送から分離し、skinなしでもblend shapeのposition/normal offsetをflattened vertexへ転送する。
+- **価値または懸念:** FBX/glTF/GLBの非スキンmorphとスキンmorphで同じoffset経路を使える。実ファイルでのruntime形状確認は未実施。
+- **次に確認すべきこと:** 複数source mesh、UV seamによるface-corner複製、skin有無混在モデルでoffset対応を確認する。
+# 2026-08-21 — blend shape weightの読取契約
+
+- **関連ファイル・機能:** `ArtifactCore/include/Mesh/Mesh.ixx`, `ArtifactCore/src/Mesh/Mesh.cppm`, `Artifact/include/Layer/Artifact3DModelLayer.ixx`, `Artifact/src/Layer/Artifact3DModelLayer.cppm`
+- **確認できた事実:** runtime weight setterは存在したが、現在値のgetterがなく、Inspectorや保存処理が編集状態を読み取れなかった。
+- **対応:** Meshと3D layerにindex検証付き`blendShapeWeight()`を追加した。
+- **価値または懸念:** 非PMD deformerをUI・JSONへ接続するための最小の読書き契約が揃う。実際のUI接続と永続化は未実装。
+- **次に確認すべきこと:** blend shape weightをProperty Editorの責務へ接続するか、専用Morph UIとして設計する。
+# 2026-08-21 — 3D deformer weightのJSON復元
+
+- **関連ファイル・機能:** `Artifact/src/Layer/Artifact3DModelLayer.cppm`
+- **確認できた事実:** blend shapeのruntime setter/getterは揃ったが、レイヤーJSONにはweightが保存されず、プロジェクト再読込でdeformer編集状態が失われていた。
+- **対応:** `deformers.blendShapes`配列へ名前とweightを保存し、モデル読込後に名前一致でweightを復元する。復元後はboundsも更新する。
+- **価値または懸念:** FBX/glTF/GLBのmorph編集状態をモデル再読込後も維持できる。未知のshape名は安全に無視し、複数同名shapeの編集規則は未定義。
+- **次に確認すべきこと:** JSON schemaの命名統一、同名shapeの扱い、skin animation再生と保存weightの組み合わせをruntime確認する。
+# 2026-08-21 — Morph weightのProperty Editor接続
+
+- **関連ファイル・機能:** `Artifact/src/Layer/Artifact3DModelLayer.cppm`
+- **確認できた事実:** 3D layerには既存の`setLayerPropertyValue()` overrideがあり、Morph専用の動的PropertyGroupを追加できる。
+- **対応:** `deformers.blendShapes.<index>.weight`を動的生成し、shape名を表示ラベルに設定。編集値は既存のdeformer再評価APIへ接続した。
+- **価値または懸念:** FBX/glTF/GLBのMorph weightを既存Property Editorから編集・保存できる導線が成立する。shape名変更や同名shapeの編集規則は未定義。
+- **次に確認すべきこと:** property cacheの再構築タイミング、アニメーション中のweight編集、0〜1以外のDCC weight表現をruntime確認する。
+# 2026-08-21 — timed skin reload時のMorph weight保持
+
+- **関連ファイル・機能:** `Artifact/src/Layer/Artifact3DModelLayer.cppm`
+- **確認できた事実:** `setAnimationTime()`は毎回importerでmeshを再生成するため、runtimeまたはProperty Editorで設定したMorph weightが新しい評価meshの初期値に戻っていた。
+- **対応:** timed load前に既存shapeの名前とweightを保存し、skin pose初期化後に同名shapeへ再適用する。
+- **価値または懸念:** skin animation再生中もMorph編集状態を維持できる。名前変更・同名shape・shape追加削除時の対応は名前一致の範囲に限定される。
+- **次に確認すべきこと:** Property Editorのweight animationとclip切替を組み合わせたruntime確認。
+# 2026-08-21 — Contents ViewerのMorph操作API
+
+- **関連ファイル・機能:** `Artifact/include/Widgets/Render/Artifact3DModelViewer.ixx`, `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`, `Artifact/include/Widgets/Render/ArtifactDiligentEngineRenderWindow.ixx`, `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- **確認できた事実:** Model ViewerはMorph数をstatus表示するだけで、shape名・weightの読書きAPIがなかった。Mesh更新後にGPU preview geometryを再uploadする明示入口も不足していた。
+- **対応:** ViewerへMorph count/name/weight getter/setterを追加し、RenderWindowに`refreshMeshGeometry()`を追加してrevision更新後のgeometry再uploadを要求する。
+- **価値または懸念:** Contents Viewerや将来の専用Morph UIから非PMD deformerを操作できる。既存animation poseを保持したままmesh geometryだけを更新するruntime確認は未実施。
+- **次に確認すべきこと:** GPU skin pose中のMorph変更、CPU fallbackからの復帰、Viewer UIからの操作導線。
+# 2026-08-21 — Morph後のLBS入力cache更新
+
+- **関連ファイル・機能:** `ArtifactCore/src/Mesh/Mesh.cppm`
+- **確認できた事実:** `applyDeformers()`はMorph適用後に`applySkinning()`を呼ぶが、LBS側の`skinBasePositions`が初回skin入力のままだと、後から変更したMorph offsetがskin計算へ入らない。
+- **対応:** Morph適用直後のposition/normalを当該skin評価の入力cacheへ更新する。次回評価では`applyBlendShapes()`がblend baseから再構成するため累積変形は起きない。
+- **価値または懸念:** MorphとLBSの順序が実際の評価データにも反映され、runtime weight変更・timed reload・CPU fallbackで同じ挙動になる。dual-quaternion等の別deformer順序は未対応。
+- **次に確認すべきこと:** Morph weight変更後の骨pose、weightを0へ戻す操作、GPU/CPU切替のruntime確認。
+# 2026-08-21 — Viewer CPU fallbackのdeformer入口統一
+
+- **関連ファイル・機能:** `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- **確認できた事実:** Diligent Viewerの129本以上または不正pose時のCPU fallbackだけが`applySkinning()`を直接呼び、Morph→LBSの共通順序を迂回していた。
+- **対応:** 初期CPU fallbackとpose更新時のCPU fallbackを`applyDeformers()`へ変更した。
+- **価値または懸念:** GPU ViewerのCPU fallbackでもMorph付き非PMDモデルのdeformer順序が3D layerと一致する。GPU shader側のblend shape直接評価は行わず、Morphはgeometry upload済みsourceへ適用する設計。
+- **次に確認すべきこと:** 128本境界でのMorph保持、CPU→GPU再入場、pose不正時の復帰をruntime確認する。
+# 2026-08-21 — Contents Viewer timed reload時のMorph保持
+
+- **関連ファイル・機能:** `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- **確認できた事実:** Viewerのanimation playbackも各時刻でmeshを再importするため、Viewer APIで設定したMorph weightだけが再評価時に初期化されていた。
+- **対応:** `loadModelAtTime()`で旧meshの名前付きweightを保存し、新meshの同名shapeへ再適用してからRenderWindowへ渡す。
+- **価値または懸念:** 3D layerとContents ViewerでMorph保持の挙動を統一できる。再import失敗時やshape名変更時のruntime挙動は未確認。
+- **次に確認すべきこと:** Viewer再生中のweight変更とGPU geometry refreshの組み合わせをruntime確認する。
+# 2026-08-21 — Morph animationと手動overrideの分離
+
+- **関連ファイル・機能:** `Artifact/src/Layer/Artifact3DModelLayer.cppm`, `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- **確認できた事実:** timed reload時に全Morph weightを保持すると、DCC側でアニメーションしているblend channelの評価結果まで固定してしまう。
+- **対応:** layerとViewerに名前ベースの手動weight override mapを持たせ、timed reloadではoverrideだけを再適用する。新規load/clearではViewer overrideを破棄する。
+- **価値または懸念:** DCCのMorph animationを維持しつつ、Property Editor／Viewerから明示的に編集したshapeだけを固定できる。override解除APIと同名shapeの規則は未実装。
+- **次に確認すべきこと:** animated Morphと手動overrideの混在、JSON復元後のclip再生、override解除UXをruntime確認する。
+# 2026-08-21 — Morph手動overrideの解除経路
+
+- **関連ファイル・機能:** `Artifact/include/Layer/Artifact3DModelLayer.ixx`, `Artifact/src/Layer/Artifact3DModelLayer.cppm`, `Artifact/include/Widgets/Render/Artifact3DModelViewer.ixx`, `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- **確認できた事実:** 手動Morph overrideを設定できても解除APIがなく、DCC側のMorph animationへ戻すにはモデル再読込が必要だった。
+- **対応:** Layer／Viewerに`clearBlendShapeWeightOverride()`を追加。Layerは現在フレームで再評価し、Viewerは現在時刻・clipで再importしてDCC評価へ戻す。
+- **価値または懸念:** 手動編集とDCCアニメーションの切替が明示的に可能になった。再評価時のファイルI/Oコストと同名shapeの扱いはruntime確認が必要。
+- **次に確認すべきこと:** 複数overrideの一部解除、animation disabled時の解除、Property Editorからの解除導線。
+# 2026-08-21 — JSONに評価済みMorph値を固定しない
+
+- **関連ファイル・機能:** `Artifact/src/Layer/Artifact3DModelLayer.cppm`
+- **確認できた事実:** JSONがmeshの全Morph weightを保存すると、DCC animationの現在フレーム評価値まで手動overrideとして復元され、保存後にMorph animationが停止する。
+- **対応:** JSONへは`blendShapeWeightOverrides_`の手動編集値だけを`override: true`付きで保存する。既存形式のname/weight entriesは後方互換として読み込む。
+- **価値または懸念:** animated Morphは保存・再読込後も評価継続し、手動編集だけを固定できる。旧JSONに含まれる評価値は手動値として解釈されるため、旧形式の完全な判別はできない。
+- **次に確認すべきこと:** animated Morphを含むJSONの保存・再読込、旧JSON互換、override解除後の保存状態をruntime確認する。
+# 2026-08-21 — LBS法線のnormal matrix適用
+
+- **関連ファイル・機能:** `ArtifactCore/src/Mesh/Mesh.cppm`
+- **確認できた事実:** skinning法線がbone matrixの`mapVector()`を直接使っており、非均一scaleを含むFBX/glTF/GLBリグでは法線が正しく直交化されない可能性があった。
+- **対応:** 各bone influenceの法線変換を`QMatrix4x4::normalMatrix()`（逆転置3x3）で評価し、既存のweight合成・正規化へ渡す。
+- **価値または懸念:** 非PMDモデルのスケール付きskin poseでライティング法線の破綻を抑えられる。GPU Viewerのshader側法線変換は別経路のため、GPU/CPUの非均一scale parityはruntime確認が必要。
+- **次に確認すべきこと:** 非均一scale骨、zero-scaleに近い行列、不正行列の有限値ガードをruntime確認する。
+# 2026-08-21 — Diligent GPU法線のnormal matrix parity
+
+- **関連ファイル・機能:** `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- **確認できた事実:** CPU LBSはnormal matrixへ改善した一方、Viewer HLSLはbone／world matrixの3x3を直接法線へ適用していた。
+- **対応:** HLSLでboneごと、およびworld transformに逆転置3x3を適用し、CPU経路と非均一scale時の法線変換前提を揃える。
+- **価値または懸念:** GPU previewとCPU fallbackのライティング法線差を縮小できる。singular matrix時のGPU inverse挙動はruntime未確認。
+- **次に確認すべきこと:** zero-scale近傍のpose、D3D12/Vulkan shader compiler parity、CPU fallbackとの画像比較。
+# 2026-08-21 — GPU normal matrixのsingular guard
+
+- **関連ファイル・機能:** `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- **確認できた事実:** HLSLの`inverse()`はzero-scaleまたは特異なbone/world matrixで未定義値を生成する可能性があり、CPU側の有限値ガードと一致していなかった。
+- **対応:** bone/worldの3x3行列式を検査し、閾値以下では入力法線をfallbackとして使う。通常行列では逆転置normal matrixを維持する。
+- **価値または懸念:** 不正poseでGPU previewのNaN伝播を抑制できる。GPU shader compilerごとの`determinant/inverse`挙動は未検証。
+- **次に確認すべきこと:** D3D12/Vulkan shader compile、zero-scale pose、CPU fallbackとの法線一致をruntime確認する。
+## 2026-08-21: JSON復元Morphはoverride mapにも登録する
+
+- **関連:** `Artifact/src/Layer/Artifact3DModelLayer.cppm` / 3DモデルMorphのJSON復元
+- **気づき:** 保存対象を手動Morph overrideだけに分離しても、JSON復元時にMeshのweightだけを書き換えると、後続の時刻再評価でoverride mapにない値が失われる。復元時は名前解決後に同じoverride mapへ登録し、Meshの評価値も更新する必要がある。
+- **価値・懸念:** Morphアニメーションを保持したまま、保存した手動編集値を再評価後も維持できる。重複名がある場合は既存の名前ベース仕様に従うため、名前一意性は別途確認が必要（未検証）。
+- **次に確認:** 実モデルのJSON再読込後に時刻を進めても手動Morph値が維持されることを実行確認する。
+## 2026-08-21: 初回GPUスキニング選択時もCPU変形を戻す
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm` / `setMesh()`
+- **気づき:** モデル読込側はソフトウェア経路でも利用できるよう初期ポーズをCPU評価している。その直後に初回GPUスキニングへ切り替えると、CPU変形済み頂点へGPUが同じポーズを再適用して二重変形になる可能性があった。
+- **対応:** 有限な128本以下の初期ポーズをGPU経路へ採用する直前に`restoreSkinningBase()`を呼び、Morph適用後・スキニング前のソース形状をGPUへ渡す。
+- **次に確認:** GPU初回表示とCPUフォールバック復帰で、同一ポーズが一度だけ適用されることをruntime確認する。
+## 2026-08-21: GPU表示中のMorph編集でも二重スキニングを防ぐ
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm` / `refreshMeshGeometry()`
+- **気づき:** `Mesh::setBlendShapeWeight()`はCPU経路を維持するためMorph適用後に現在のskin poseも評価する。GPUスキニング中にその結果をそのまま再アップロードすると、GPUが同じskin poseを二度適用する。
+- **対応:** GPUが有効なジオメトリ更新時は`restoreSkinningBase()`でMorph後・スキニング前へ戻してから頂点バッファを再構築する。
+- **次に確認:** GPU表示でMorph weightを変更したとき、CPU表示と同じ形状になることをruntime確認する。
+## 2026-08-21: PMD/PMXローダーとAsset Browserの形式一覧を一致させる
+
+- **関連:** `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`, `Artifact/src/Widgets/Menu/ArtifactFileMenu.cppm`
+- **確認できた事実:** `MeshImporter`にはPMDローダーがある一方、Asset Browserと共通ファイルフィルタの3D形式一覧にはPMDが含まれていなかった。旧来のPMX分岐はPMDバイナリ判定を共有しており、PMX対応を保証していなかった。
+- **対応:** 3Dフィルタとモデルアイコン判定へ実装済みの`pmd`を追加し、ファイルメニューの対応アセット／3Dフィルタにも追加した。PMXは実装済みと誤認しないよう入口へ追加していない。
+- **価値または懸念:** 既存のPMD系スキニングをAsset Browser経由でも選択できる。PMXは別形式のため、専用パーサーなしでは対応済みと扱えない。
+- **次に確認:** PMDファイルをAsset Browserから選択し、実際の読込結果と表示アイコンをruntime確認する。
+- **補足:** PMXは未対応としてProperty Editorのファイル選択候補からも除外した。
+- **追加確認:** `AssetDirectoryModel`の3D判定にも`pmd`を追加し、ファイルツリー段階でPMDが除外されないようにした。
+- **追加対応:** Viewerのbackend表示にも`PMD`を追加し、読込成功時に`none`と誤表示しないようにした。
+## 2026-08-21: GPUスキニング法線のゼロ長フォールバック
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm` / solid vertex shader
+- **気づき:** normal matrixや入力法線が退化している場合、GPU shaderの`normalize(0)`は不定値になり、NaN法線として表示へ伝播する可能性がある。
+- **対応:** bone合成後とworld変換後の法線長を検査し、閾値未満なら入力法線または固定Z法線へフォールバックする。
+- **次に確認:** 退化法線・特異変換を含むモデルで、GPU表示がNaN化せずCPU経路と同様に安定することをruntime確認する。
+## 2026-08-21: CPU LBS入力頂点・法線の有限値ガード
+
+- **関連:** `ArtifactCore/src/Mesh/Mesh.cppm` / `Mesh::applySkinning()`
+- **気づき:** GPU shaderには退化法線のフォールバックがあっても、CPU fallbackで入力position/normalがNaN・Infまたはゼロ長なら、無効値をそのまま復元してしまう可能性がある。
+- **対応:** LBS評価前にpositionを原点、normalを+Yへフォールバックし、CPU経路でも有限値と非ゼロ法線を保証する。
+- **次に確認:** 壊れた入力属性を含むFBX/glTFで、CPU fallbackがNaNを出力しないことをruntime確認する。
+## 2026-08-21: Blend Shape offsetの有限値ガード
+
+- **関連:** `ArtifactCore/src/Mesh/Mesh.cppm` / `Mesh::applyBlendShapes()`
+- **気づき:** shape weightだけを検証しても、position/normal offset自体がNaN・InfならMorph後の頂点・法線が壊れ、その後のLBSへ伝播する。
+- **対応:** base属性と各offsetを有限値検証し、退化法線は+Yへ戻す。normal offset適用後もゼロ長なら既存法線を保持する。
+- **次に確認:** 不正なMorph属性を含むモデルでCPU/GPU経路が無効値を出力しないことをruntime確認する。
+## 2026-08-21: Position offsetなしのMorphでもnormal offsetを適用
+
+- **関連:** `ArtifactCore/src/Mesh/Mesh.cppm` / `Mesh::applyBlendShapes()`
+- **気づき:** position offset配列のサイズをshape適用の入口条件にしていると、normal offsetだけを持つBlend Shapeが無視される。
+- **対応:** position offsetとnormal offsetを独立して範囲検証し、どちらか一方だけ存在するshapeも適用可能にした。
+- **次に確認:** normal-only shapeを含むFBX/glTFで法線変化が反映されることをruntime確認する。
+## 2026-08-21: JSON復元失敗時に旧Morph overrideを破棄
+
+- **関連:** `Artifact/src/Layer/Artifact3DModelLayer.cppm` / `fromJsonProperties()`
+- **気づき:** 新しいsourcePathが存在しない場合、表示は停止しても旧モデルのMorph override mapが残り、後続保存へ誤ったdeformer状態が混入する可能性があった。
+- **対応:** 欠落sourceの復元分岐でMorph override mapを明示的にクリアする。
+- **次に確認:** 既存モデル表示中に存在しないsourceをJSON復元した場合、旧Morph値が再保存されないことをruntime確認する。
+## 2026-08-21: 欠落source復元時に内部Meshも空にする
+
+- **関連:** `Artifact/src/Layer/Artifact3DModelLayer.cppm` / `fromJsonProperties()`
+- **気づき:** `meshLoaded_`だけをfalseにして旧Meshを保持すると、非表示状態でもboundsや動的Morph Propertyが旧モデル由来になる可能性がある。
+- **対応:** sourceが存在しない復元分岐でMeshを初期化し、source sizeも空Meshから再計算する。
+- **次に確認:** 欠落sourceを復元後にProperty Editorや保存処理が旧Morph情報を参照しないことをruntime確認する。
+## 2026-08-21: Morph JSONのoverrideフラグを復元時に尊重
+
+- **関連:** `Artifact/src/Layer/Artifact3DModelLayer.cppm` / Morph JSON restore
+- **気づき:** 保存形式に`override`フラグがあるのに、復元側が常にweightを手動overrideとして適用していた。
+- **対応:** `override:false`を明示したエントリは復元対象から除外し、未指定は従来互換でtrueとして扱う。
+- **次に確認:** DCC評価値を保存した旧JSONと手動override JSONの双方で、再評価後のMorph値が意図どおりになることをruntime確認する。
+## 2026-08-21: 同名MorphのJSON復元規則をtimed reloadと一致
+
+- **関連:** `Artifact/src/Layer/Artifact3DModelLayer.cppm` / Morph JSON restore
+- **気づき:** timed reloadは名前一致の全shapeへoverrideを適用する一方、JSON復元は最初の1件でループを終了していた。
+- **対応:** JSON復元の`break`を除去し、同名Morph全件へ同じweightを適用する挙動に統一した。
+- **次に確認:** 同名shapeを含むモデルで、初回JSON復元と時刻再評価後のMorph値が一致することをruntime確認する。
+## 2026-08-21: CPU/GPU LBS法線の退化フォールバックを一致
+
+- **関連:** `ArtifactCore/src/Mesh/Mesh.cppm` / `Mesh::applySkinning()`
+- **気づき:** GPU側は合成法線のゼロ長を入力法線へ戻す一方、CPU側は無条件に`normalized()`してゼロ法線を出す可能性があった。
+- **対応:** CPU側も合成法線の有限値・長さを検証し、退化時は元法線へフォールバックする。
+- **次に確認:** 同一モデル・同一poseでCPU fallbackとGPU skinningの法線が一致することをruntime確認する。
+## 2026-08-21: ufbxのnull mesh要素を安全にスキップ
+
+- **関連:** `ArtifactCore/src/Geometry/MeshImporter.cppm` / FBX・glTF mesh抽出
+- **気づき:** ufbxのmesh配列にnullまたは空meshが含まれる場合、頂点数集計・skin cluster抽出前の参照でクラッシュする可能性があった。
+- **対応:** 頂点数集計と実体抽出の双方でnull／空meshをスキップする。
+- **次に確認:** 部分的または破損したFBX/glTFを読み込んでも、残りの有効meshだけで安全に表示できることをruntime確認する。
+## 2026-08-21: ufbx抽出直後のposition/normalを有限化
+
+- **関連:** `ArtifactCore/src/Geometry/MeshImporter.cppm` / FBX・glTF vertex extraction
+- **気づき:** ViewerのGPU経路ではMeshがCPU LBSを通らず直接頂点バッファへ入る場合があり、インポート属性のNaN・Inf・ゼロ法線がCPU側ガードを経由しない可能性がある。
+- **対応:** ufbxからposition/normalを取り出した直後に有限値と法線長を検証し、positionは原点、normalは+Yへフォールバックする。
+- **次に確認:** 不正頂点属性を含むFBX/glTFをGPU経路へ直接渡しても表示が破綻しないことをruntime確認する。
+## 2026-08-21: 非LBS skinning方式をインポート時に明示
+
+- **関連:** `ArtifactCore/src/Geometry/MeshImporter.cppm` / ufbx skin deformer
+- **気づき:** ufbxはDual Quaternion／Blended DQを表現できるが、現在のMesh評価はLBSのみで、非LBSモデルを無言でLBSとして扱うと品質差を見落としやすい。
+- **対応:** 非LBS方式を検出したときに警告を出す。既存のLBS抽出・CPU/GPU経路は変更しない。
+- **次に確認:** 非LBSモデルのログで警告が出ること、LBSモデルでは警告が出ないことをruntime確認する。
+## 2026-08-21: Meshへskinning method metadataを保持
+
+- **関連:** `ArtifactCore/include/Mesh/Mesh.ixx`, `ArtifactCore/src/Mesh/Mesh.cppm`, `ArtifactCore/src/Geometry/MeshImporter.cppm`
+- **気づき:** 非LBS方式を警告するだけでは、後続のDual Quaternion実装やViewer診断が入力方式を参照できない。
+- **対応:** MeshにLinearBlend/Rigid/DualQuaternion/BlendedDualQuaternionの方式metadataを追加し、ufbx deformer方式をimport時に記録する。現行の評価自体は引き続きLBS。
+- **次に確認:** ViewerやCPU fallbackがmetadataを利用して方式表示・DQ経路選択へ発展できることを確認する。
+## 2026-08-21: skinning method metadataをViewer診断へ表示
+
+- **関連:** `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- **気づき:** Meshへ入力方式を記録しても、ViewerではGPU/CPUの実行経路しか表示されず、LBSとして評価されたDQ入力を見分けられなかった。
+- **対応:** statusへ実行経路（GPU/CPU）と入力方式（LBS/Rigid/DualQuaternion/BlendedDQ）を併記する。
+- **次に確認:** 各方式のモデルでstatus表示がImporter metadataと一致することをruntime確認する。
+## 2026-08-21: 非LBS metadataでGPUスキニングを無効化
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- **気づき:** GPU shaderはLBS専用なのに、DQ/Blended DQ入力でも128本以下ならGPU経路を選択し、入力方式と実装方式を混同する可能性があった。
+- **対応:** GPU選択条件をLinearBlend/Rigidに限定し、DQ系metadataはCPU fallbackへ送る。CPU側は現状LBS評価のため、DQ本体対応は未完了のまま明示される。
+- **次に確認:** DQ入力がGPUではなくCPU経路として表示され、LBS入力だけがGPUへ入ることをruntime確認する。
+## 2026-08-21: 混在deformerのskinning method優先順位を固定
+
+- **関連:** `ArtifactCore/src/Geometry/MeshImporter.cppm`
+- **気づき:** 1 meshに複数skin deformerがある場合、検出順によってDual QuaternionとBlended DQのmetadataが後勝ちし、方式表示・GPU fallback判定が不安定になる可能性があった。
+- **対応:** Blended DQを最優先、次にDQ、Rigid、LBSの順でmetadataを保持する。
+- **次に確認:** 複数deformerを含むFBX/glTFで、入力方式表示とGPU/CPU選択が順序に依存しないことをruntime確認する。
+## 2026-08-21: 非LBS警告をimport単位で抑制
+
+- **関連:** `ArtifactCore/src/Geometry/MeshImporter.cppm`
+- **気づき:** 複数meshを持つモデルでは、同じ非LBS方式の警告がmeshごとに繰り返され、診断ログが埋もれる。
+- **対応:** 1回のimport処理につき非LBS警告を1回だけ出すようにした。方式metadataの記録とLBS fallbackは維持する。
+- **次に確認:** 複数meshのDQ入力で警告が過剰出力されず、方式表示は維持されることをruntime確認する。
+## 2026-08-21: CPU Dual Quaternion skinningを追加
+
+- **関連:** `ArtifactCore/src/Mesh/Mesh.cppm` / `Mesh::applySkinning()`
+- **対応:** `SkinningMethod::DualQuaternion`では、bone行列をreal/dual quaternionへ変換し、符号整合した4 influenceを正規化ブレンドしてpositionとrotation-only normalを評価する。GPUは引き続きCPU fallback。
+- **制限:** Blended DQは頂点ごとの`dq_weight`をMeshへ保持していないため、現状LBS fallback。scale/shearを含む行列のDQ品質と実ファイルruntimeは未検証。
+- **次に確認:** DQモデルのCPU表示がLBS警告だけの状態から改善し、GPU選択されないことをruntime確認する。
+## 2026-08-21: Blended Dual Quaternionの頂点ブレンド率を保持
+
+- **関連:** `ArtifactCore/src/Geometry/MeshImporter.cppm` / `ArtifactCore/src/Mesh/Mesh.cppm`
+- **対応:** ufbxの`ufbx_skin_vertex::dq_weight`を`skinDQWeight`属性へコピーし、CPU側でLBS結果とDQ結果を頂点単位で補間する。DQ=0はLBS、DQ=1はDual Quaternionとなる。
+- **制限:** 複数deformerの値は最大値を採用。scale/shearを含む行列と実ファイルruntimeは未検証。
+- **次に確認:** runtimeで混合率が期待どおり変化することを確認する。
+## 2026-08-21: 実装対象外PMXのファイルフィルタ残骸を除去
+
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm`
+- **気づき:** PMX importerを撤去した後もレイヤー追加ダイアログの3DフィルタだけがPMXを提示していた。
+- **対応:** 実際に対応しているPMD、FBX、glTF等と一致するようPMXをフィルタから除去した。
+- **次に確認:** 他の3Dファイル選択導線にPMX表記が残っていないことを確認する。
+## 2026-08-21: flatten後のメッシュ方式を頂点属性で保持
+
+- **関連:** `ArtifactCore/src/Geometry/MeshImporter.cppm` / `ArtifactCore/src/Mesh/Mesh.cppm`
+- **気づき:** ufbxの複数メッシュを一つのMeshへflattenする構造では、ファイル全体のskinning methodだけで評価すると、DQメッシュの方式が別メッシュへ波及し得る。
+- **対応:** `skinMethod`属性へ各ソースメッシュの方式を保存し、CPU deformerは頂点属性を優先してLBS/Rigid/DQ/Blended DQを選択する。
+- **制限:** 一つのソースメッシュに複数skin deformerがある場合は最も非線形な方式を採用。runtime未検証。
+## 2026-08-21: Blended DQの変換失敗時にLBSへ復帰
+
+- **関連:** `ArtifactCore/src/Mesh/Mesh.cppm`
+- **気づき:** DQ行列を生成できない頂点でBlended DQが元頂点へ戻ると、LBS成分まで失われる。
+- **対応:** Blended DQでは有効なLBS積分があればそれをフォールバック出力にする。純粋なDQ方式は従来どおり元頂点へ戻す。
+## 2026-08-21: Dual Quaternion入力行列の有限値検証
+
+- **関連:** `ArtifactCore/src/Mesh/Mesh.cppm`
+- **対応:** DQ変換前にボーン行列16要素を検査し、NaN/Infを含む行列をQuaternion化しない。
+- **次に確認:** runtimeで破損行列が出ても変形結果が有限値を維持することを確認する。
+## 2026-08-21: SkinningMethod APIの未知値をLBSへ正規化
+
+- **関連:** `ArtifactCore/src/Mesh/Mesh.cppm`
+- **対応:** `setSkinningMethod()` の未知enum値をLinearBlendへ戻し、未定義の評価経路を防止する。
+## 2026-08-21: DQ実装状況のInsight記述を現行状態へ補正
+
+- **関連:** 上記のskinning metadata / CPU DQ / Blended DQ記録
+- **補正:** 過去の中間記録にある「DQはLBS評価」「Blended DQは未対応」は実装途中時点の記述。現在はCPU DQ、頂点`dq_weight`によるBlended DQ、メッシュ方式属性、LBSフォールバックまで実装済み。
+- **未検証:** 実ファイルruntimeとビルド確認は、ユーザー指定どおり未実施。
+## 2026-08-21: SkinningMethod変更をMesh revisionへ反映
+
+- **関連:** `ArtifactCore/src/Mesh/Mesh.cppm`
+- **対応:** `setSkinningMethod()` が実際に方式を変更したときだけMesh revisionを進め、描画側の更新監視へ変更を伝播する。
+## 2026-08-21: 8 influence超過の切り捨てをimport警告
+
+- **関連:** `ArtifactCore/src/Geometry/MeshImporter.cppm`
+- **対応:** CPU用の追加4 influence属性を追加し、最大8本まで保持する。8本を超える頂点がある場合はimportごとに一度だけ警告する。
+- **制限:** GPU shaderは4本入力のため、追加influenceがあるMeshはCPU経路へ送る。超過分は最弱影響から切り捨てる。
+## 2026-08-21: ufbxの追加skin influenceをCPUで最大8本保持
+
+- **関連:** `ArtifactCore/src/Geometry/MeshImporter.cppm`, `ArtifactCore/src/Mesh/Mesh.cppm`, `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- **対応:** `boneIndicesExtra` / `boneWeightsExtra` を追加し、LBS・DQ・Blended DQのCPU評価を最大8 influenceへ拡張。追加属性を持つMeshは4本入力のGPU shaderを使わずCPUへ送る。
+- **制限:** 8本を超える影響は最弱から切り捨てる。runtime未検証。
+## 2026-08-21: DCCギャップ分析を8 influence/DQ実装へ同期
+
+- **関連:** `docs/analysis/REPORT_DCC_GAP_3D_TEXT_2026-08-18.md`
+- **対応:** 旧来の「最大4 influence・CPU LBSのみ」という記述を、最大8 influence、CPU LBS/Rigid/DQ系、GPU4本＋CPU fallbackの現行実装へ更新した。
+- **未検証:** 実ファイルruntime受入れとビルド確認は未実施。
+## 2026-08-21: 3D Model milestoneを現行skinning実装へ同期
+
+- **関連:** `docs/planned/MILESTONE_3D_MODEL_IMPORT_AND_CONTENTS_VIEWER_2026-03-29.md`
+- **対応:** 旧来の最大4 influence / CPU LBS記述を、最大8 influence、方式別CPU評価、LinearBlend限定GPU、その他CPU fallbackの現行状態へ更新した。
+## 2026-08-21: Viewer statusへskin influence幅を表示
+
+- **関連:** `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`
+- **対応:** 既存statusに4本/8本以上のinfluence幅を追加し、追加influence時のCPU fallbackを画面上で判別できるようにした。
+- **補正:** ボーンを持たない静的Meshでは influence幅を `-` と表示し、未スキニング状態を明示する。
+## 2026-08-21: skinMethod属性の非整数値を拒否
+
+- **関連:** `ArtifactCore/src/Mesh/Mesh.cppm`
+- **対応:** 頂点方式属性は有限・整数・0〜3の値だけをenumへ変換し、それ以外はMesh既定方式へフォールバックする。
+## 2026-08-21: Rigid skinningを最大weightの単一bone評価へ分離
+
+- **関連:** `ArtifactCore/src/Mesh/Mesh.cppm`
+- **対応:** `SkinningMethod::Rigid`では複数influenceが入力されても最大weightのboneだけを選び、通常LBSと異なる方式の意味をCPU評価へ反映する。
+## 2026-08-21: Rigid方式のGPU LBS誤差を回避
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`
+- **対応:** RigidはCPUで単一最大weight評価を行うため、GPUのLBS shaderとは意味が異なる。GPU互換方式をLinearBlendだけに限定し、RigidはCPU fallbackへ送る。
+## 2026-08-21: scale/shear行列をDQ変換から除外
+
+- **関連:** `ArtifactCore/src/Mesh/Mesh.cppm`
+- **対応:** DQ化前に行列の有限性、行列式≈1、各回転軸の単位長・相互直交性を確認する。scale/shear/反転を含む行列は失敗扱いとし、Blended DQではLBSへ戻す。
+- **未検証:** 実モデルのアニメーション行列が常にこの許容範囲に収まるかはruntime未確認。
+## 2026-08-21: Blended DQで無効DQ影響のLBS寄与を維持
+
+- **関連:** `ArtifactCore/src/Mesh/Mesh.cppm`
+- **対応:** 各影響のLBS変換をDQ変換より先に評価し、scale/shear等でDQだけが失敗してもBlended DQのLBS側合成から影響を落とさないようにした。
+## 2026-08-21: ufbx疎形式のBlended DQ重みを取り込み
+
+- **関連:** `ArtifactCore/src/Geometry/MeshImporter.cppm`
+- **対応:** 頂点ごとの`dq_weight`に加えて、ufbxの`dq_vertices/dq_weights`疎配列表現も`skinDQWeight`へ統合する。
+
+## 2026-08-21: Preview Stopの非同期APIは既存だったが呼び出し側が同期経路を使用
+
+- **関連:** `Artifact/src/Playback/ArtifactPlaybackEngine.cppm`, `ArtifactCore/src/Audio/AudioRenderer.cppm`, `ArtifactCore/src/Audio/WASAPIBackend.cppm`
+- **事実:** `AudioRenderer::requestStop()` と `WASAPIBackend::requestStop()` は既に存在し、backend threadをjoinせず停止要求だけを出す契約になっていた。一方、再生エンジンの通常Stopは同期`audioRenderer_->stop()`を呼んでいた。
+- **対応:** 再生エンジンの通常Stopを`requestStop()`へ切り替え、joinは次回startまたはclose側に残した。
+- **未検証:** WASAPI実機でStop応答時間、Stop→Play競合、close時のjoin完了はruntime未確認。
+
+## 2026-08-21: File Menu recent project pathの重複を正規化
+
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactFileMenu.cppm`
+- **事実:** recent projectは保存時と表示時で絶対化・clean化されておらず、相対パスや表記差が重複項目になる可能性があった。
+- **対応:** 追加・pruneの両方でabsolute + clean pathへ正規化し、存在確認・重複排除・保存値を同じ契約へ揃えた。
+- **未検証:** 設定に残る旧相対パスを実環境で再構築した場合の表示と再オープンはruntime未確認。
+
+## 2026-08-21: Async project load/saveのパス契約を同期経路と統一
+
+- **関連:** `Artifact/src/Project/ArtifactProjectManager.cppm`
+- **事実:** `loadFromFileAsync` と `saveToFileAsync` は入力をtrimするだけで、完了後のcurrent pathやexporterへ相対パスが渡り得た。
+- **対応:** 両経路の入口でabsolute + clean pathへ正規化し、存在確認、保存先、project root、hook通知の基準を統一した。
+- **未検証:** 相対パスを指定した async save/load の実動作と、project移動後の全source relinkはruntime未確認。
+
+## 2026-08-21: Async save完了通知をcurrent path更新後へ移動
+
+- **関連:** `Artifact/src/Project/ArtifactProjectManager.cppm`
+- **事実:** 保存成功時の`onFinished`が、queuedな`currentProjectPath_`更新より先に呼ばれていた。
+- **対応:** 成功コールバックを状態更新・dirty解除・after-save hookの後へ移動し、保存直後のFile Menuが新しいproject pathを観測できる順序にした。
+- **未検証:** 保存直後の連続Save/Save As操作、UI thread上のcallback順序はruntime未確認。
