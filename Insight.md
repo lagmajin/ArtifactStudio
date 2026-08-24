@@ -1,3 +1,11 @@
+## 2026-08-24 — 製品rendererのglyph PSO取得を専用provider境界へ経由させた（G2移行の中間ステップ）
+
+- **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm`、`Artifact/include/Render/ArtifactTextGlyphSubmitter.ixx`、`Artifact/src/Render/ArtifactTextGlyphPipelineAdapter.cppm`、`Artifact/cmake/ArtifactSources.cmake`
+- **事実:** `ArtifactTextGlyphPipelineProvider` 契約と `makeArtifactTextGlyphPipelineProvider(ShaderManager&)` アダプタは TextRuntime/smoke ターゲット専用で存在し、製品ビルドの module グラフには入っていなかった。製品 `DiligentImmediateSubmitter::setPSOs()` は ShaderManager の glyph getter を直接呼んでいた。PSOAndSRB は refcount 手動管理（AddRef/Release）なので生ポインタからの再所有に AddRef が必要。
+- **対応状況 (2026-08-24):** setPSOs() の glyph PSO/SRB/sampler 取得を provider アダプタ経由に変更（同一オブジェクトのため描画挙動は不変）。Contract / Adapter の2モジュールを ArtifactSources.cmake へ明示登録。ビルド・実行検証はユーザー指示待ちで未実施。
+- **次の確認:** ビルド後に (1) テキストレイヤーの viewport 描画が退行しないこと、(2) `ArtifactTextGlyphSmoke` が引き続き通ること。その後の本命は ShaderManager 内の Glyph PSO 生成本体（シェーダソース＋PSO作成）を専用providerへ移動させ、DIS の glyph draw を `ArtifactTextGlyphSubmitter` 本体へ委譲するか判断すること。ただし製品 glyph 経路は outline/shadow-blur/stroke を持ち、検証用 submitter は未対応のため全面置換は機能退行リスクあり。
+
+
 # Insight Log
 
 未解決の設計判断・runtime 検証待ちだけを記録する。実装済みの局所修正と履歴は `docs/analysis/INSIGHT_ARCHIVE_2026-08-11.md` を参照する。
@@ -3122,3 +3130,65 @@
 - 事実: 2026-08-14〜15 の Text Glyph Submitter / shapedGlyphIndices / stringMappingValid 実装は `origin/codex/text-animator-2026-08-14` にのみ存在し、現行 dev ブランチには未取り込みだった。両子リポジトリへ merge し、conflict 17 ファイル（Core 8 + Artifact 9）は HEAD 側（NamedVector 移植・新 Parallel::For 構造・GlyphKey 拡張済み呼び出し側）を優先して解消した。
 - 未検証: feature 側が追加した `ImageMorphEffect`（text 無関係）は `cmake/ArtifactRenderModuleReferences.cake` マニフェストに登録されていない。GLOB 対象か split target 対象かでビルド影響が変わるため、ビルド時に要確認。
 - 次に確認: ビルド＋GPU smoke（Regional Indicator 🇯🇵、家族 emoji run bounds、複数 ZWJ）をこのブランチで再実行し、マイルストーン残ケースの実装を再開する。
+## 2026-08-24: ImageMorphEffect のマニフェスト未登録を静的確認
+
+- 関連: `Artifact/include/Effects/Distort/ImageMorphEffect.ixx`, `Artifact/src/Effects/ImageMorph/ImageMorphEffect.cppm`, `Artifact/cmake/ArtifactSources.cmake`, `cmake/ArtifactRenderModuleReferences.cake`（実体は `Artifact/cmake/ArtifactRenderModuleReferences.cmake`）
+- 確認事実（未検証からの更新）: マージで取り込まれた `ImageMorphEffect` の .ixx / .cppm は `ArtifactSources.cmake` の明示リストにも、Distort pack の pin（`TimeDisplacement` のみ）にも登録されていない。`ArtifactRenderModuleReferences.cmake` は Render 実装ユニット専用の BMI 参照リストであり、そもそも effects の登録先ではない。ソース収集は GLOB ではなく明示リストのため、未登録でもビルドへの悪影響はない（＝現状デッドファイル）。
+## 2026-08-24: Text Animator 構造の設計評価（AE 比較）
+
+- 関連: `ArtifactCore/include/Text/TextAnimator.ixx`, `ArtifactCore/src/Text/TextAnimator.cppm`, `Artifact/src/Layer/ArtifactTextLayer.cppm`
+- **対応状況 (2026-08-24):** (1) のタプル問題は第一段階として解消。`SelectorCombineMode` + `AnimatorSelectorSet` を追加し、純粋評価 `evaluateAnimatorWeights()` / `applyAnimatorSets()` を新設、legacy tuple 版は adapter として委譲、`ArtifactTextLayer` 側も名前付き構造へ移行済み。(2) の in-place 適用は現状維持（weight 合成のみ pure 化）。(3) の index property path は未対応。(4) の時間二重構造は未対応。
+
+- 事実: セレクター（Range/Wiggly/Expression）× AnimatorProperties の分離、per-glyph weight 評価、units/shape/order/grouping の網羅は AE モデルと整合しており自然。一方 (1) animator=固定タプル（Range+Wiggly+Expression+Props 各1個）で AE の「1アニメーターにセレクターを複数スタック（add/intersect/subtract/min/max）」が表現できない、(2) 複数 applyAnimatorStack オーバーロードの累積（「後方互換100%」コメント）と glyphs_ への in-place 変形適用で per-animator 寄与の分離が難しい、(3) ランタイム評価が `text.animators.N.*` の index ベース property path 参照で、animator の並べ替え・削除時に path identity がずれる、(4) 時間表現が RationalTime（プロパティ評価）と float seconds（applyAnimatorStack）の二重構造。
+- 未検証: (3) の並べ替え UI が存在するかは未確認（現状追加・削除のみなら実害は限定的）。
+- 価値: v1 としては自然だが、`MILESTONE_TEXT_ANIMATOR_SEMANTIC_PIPELINE_2026-07-04.md` の pure evaluator 移行でタプル→セレクターリスト化するのが次の自然な構造改善。
+
+- 次に確認: ImageMorphEffect を有効化するか、feature 側から意図的に除外したまま残すかを判断する。有効化する場合は `Artifact/CMakeLists.txt` の Distort pack foreach と `ArtifactSources.cmake` への追加が必要。text 無関係のため本マイルストーンの範囲外。
+
+
+## 2026-08-24: Layer Source コンポーネント化 Phase A/B の構造決定
+
+- 関連: `Artifact/include/Layer/ArtifactAbstractLayer.ixx`, `Artifact/src/Layer/ArtifactAbstractLayer.cppm`, `Artifact/src/Layer/ArtifactSolidImageLayer.cppm`
+- 事実: `LayerComponentHost` を保持する `ArtifactAbstractLayer::Impl` は outer クラスへの back-pointer を持たないため、`Impl::syncBuiltinComponentDescriptors()` 内から outer の仮想関数（レイヤー種別の取得など）は呼べない。このため Source 相 descriptor の種別登録は「仮想関数」ではなく「protected setter (`setBuiltinLayerSourceComponentType`) + Impl メンバー (`builtinSourceComponentType_`)」方式とした。派生クラスの ctor 本体で setter を呼ぶと、base ctor で走る初回 sync の後に遅延 resync 経路で即時反映される。
+- 事実: `resolveLayerSourceOverride()`（protected virtual, 既定 nullptr）を draw()/toQImage() の冒頭シームとして配線済み。現状オーバーライドは無いので挙動変化ゼロ。Solid 平面レイヤーのみ `builtin.source-solid-fill` / `artifact.component.source-solid-fill` descriptor が登録され、Source 相が初めて非ゼロになった。
+- 価値: `MILESTONE_SOLID_LAYER_NOISE_FILL_2026-08-18.md`（M-SOLID-NOISE）は Fill 拡張ではなく `resolveLayerSourceOverride()` の実装として載せると、将来の Image ソース component 化（Phase D）や sequence-player との責務整理と矛盾しない。
+- 未検証: ビルド・ランタイム未確認（指示時までビルド禁止ルール）。Components 専用面への source descriptor 表示は汎用列挙なら自動で出るはずだが、UI 側のフィルタ有無は未確認。
+- 次に確認すべきこと: Phase C で SolidImageLayer::Impl の塗り生成を buffer 化し override を返す実装。その際 GPU sprite path は QImage 境界での明示変換になるためキャッシュ設計が必要。
+
+## 2026-08-24: Solid Source Override 実装（Phase C）の設計判断
+
+- 関連: `Artifact/src/Layer/ArtifactSolidImageLayer.cppm`, `Artifact/include/Layer/ArtifactSolidImageLayer.ixx`
+- 事実: `toQImage()` を override 経由にすると `resolveLayerSourceOverride()` → `currentFillImage()` の呼び出しで循環・float→QImage 往復変換が発生するため、`currentFillImage()`（QImage キャッシュの正規生成元、generation カウンタ付き）を新設し、`toQImage()` はその委譲のみにした。override は「テクスチャ系フィル（現状グラデ）のとき `ImageF32x4_RGBA` バッファを返す」契約。単色は従来どおり `drawSolidRectTransformed` 直描の fast path を維持。
+- 事実: draw() の override 分岐ではバッファからではなく `currentFillImage()` を直接使うことで往復変換を回避。副作用としてグラデのクローン描画が「インスタンス毎の QGradient 再生成」から「キャッシュ済み QImage スプライト + opacity 引数」に変わる。
+- 変換は `ArtifactImageLayer.cppm` の `toFrameBuffer()` と同一経路（qImageToCvMat → CV_32FC4 → legacyOpenCvBgra32Float/Premultiplied）をローカル関数 `solidFillToFrameBuffer()` として複製。
+- 懸念: グラデ平面レイヤーは 1080p で約33MBの float バッファを追加保持する。ノイズフィル（M-SOLID-NOISE）がこのバッファを消費する前提のため許容したが、8bit backing（setFromRGBA8 への寄せ）で削減可能か要検討。
+- 未検証: スプライト経路での opacity 適用点の変化（旧: QColor アルファ焼き込み / 新: renderer の alpha 引数）による見た目差、ビルド・ランタイム全体が未確認。
+
+## 2026-08-24: Image Source Override 実装（Phase D）で draw 再配線が不要だった件
+
+- 関連: `Artifact/src/Layer/ArtifactImageLayer.cppm`, `Artifact/include/Layer/ArtifactImageLayer.ixx`
+- 事実: `ArtifactImageLayer::draw()` は既に `hasCurrentFrameBuffer()` → `currentFrameBuffer()`（`SharedPtr<ImageF32x4_RGBA>` の `cacheBuffer_`）→ `drawSpriteTransformed` バッファオーバーロードの順で、crop は UV リフレーム、シーケンスは refresh 後にバッファ描画と、内部構造が既に「ソースコンポーネント形状」だった。Phase B/C のようなシーム再配線は不要と判断し、descriptor 登録（`builtin.source-image`）と `resolveLayerSourceOverride()` の公開のみ実装。
+- 事実: override は `&currentFrameBuffer()` のアドレスを返す。`cacheBuffer_` は AssetManager 公開時に差し替わり得るが、既存 draw() の `const auto& buffer = currentFrameBuffer()` と同一の生存期間パターン（同スタック内で即時使用）なので等価。シーケンス時は currentFrameBuffer→toQImage 経由でフレーム refresh が走るため時間依存コンテンツになる。
+- 次に確認すべきこと: (1) descriptor settings のプロパティミラー（solid/image とも現状 kind 情報なしの空 settings）、(2) Components 専用面での source descriptor 表示・toggle セマンティクス、(3) sequence-player（Drive 相）との責務整理、(4) ビルド＋平面グラデ・画像・連番の目視回帰。
+
+## 2026-08-24: M-SOLID-NOISE Phase 1（CPU 経由のノイズフィル）を Source Override 上に実装
+
+- 関連: `Artifact/src/Layer/ArtifactSolidImageLayer.cppm`, `Artifact/include/Layer/ArtifactSolidImageLayer.ixx`, `Artifact/include/Layer/ArtifactLayerInitParams.ixx`
+- 実装: `ArtifactSolidFillType::Noise = 6` 追加。`ProceduralTextureSettings`（Core 流用、新規構造体なし）を Impl に保持し、`resolveLayerSourceOverride()` の Noise 分岐で `ProceduralTextureGenerator::generate(settings, buffer)` を直接 `ImageF32x4_RGBA` へ生成（QImage 経由ゼロ）。キャッシュ無効化は全パラメータ+カラーマップの署名文字列比較。カラーマッピングはグレースケール→colorA/B lerp の CPU ループ。draw() はバッファオーバーロードの `drawSpriteTransformed` で描画。`currentFillImage()` は Noise 時バッファ→QImage の明示変換のみ（thumbnail/export 境界）。JSON は `solidNoise` オブジェクト（kind は安定文字列、未知 kind は Perlin フォールバック）。プロパティは既存 solidGroup 内に `solid.noise.*` として露出。
+- 設計メモ: フィル種別切替時のバッファ混汚染対策として、Noise 経路は `sourceBufferGeneration_ = -1` でグラデ側世代同期を無効化し、グラデ経路は `noiseBufferSignature_.clear()` で逆方向も強制再生成する双方向ガードを入れた。
+- 未検証: ビルド・描画未確認。GPU compute パス（正規経路）、Create/Edit ダイアログ UI、プリセット、キーフレーム対応（offset/rotation 駆動アニメーション）は本マイルストーンの残フェーズ。
+
+## 2026-08-24: ノイズ実装を平面 Fill から独立レイヤーへ方針変更＋ファイル破損インシデント
+
+- 関連: `Artifact/src/Layer/ArtifactSolidImageLayer.cppm`, `docs/planned/MILESTONE_SOLID_LAYER_NOISE_FILL_2026-08-18.md`
+- 方針変更: M-SOLID-NOISE（平面 Fill 拡張）は Superseded。ユーザー決定により独立 `ArtifactNoiseLayer`（新規 LayerType::Noise）として実装する。平面側の solid.noise.* 実装一式（enum 値・アクセサ・シリアライズ・プロパティ・生成分岐）は revert 済み。Phase B/C のソース override アーキテクチャ（descriptor 登録、currentFillImage 分離、resolveLayerSourceOverride のグラデ経路）は維持。
+- 技術資産: `ProceduralTextureGenerator::generate(settings, ImageF32x4_RGBA&)` 直生成 + パラメータ署名キャッシュ + カラーマップ lerp の実装パターンは検証済み。新レイヤーで再利用する。kind 文字列契約（perlin/simplex/fbm/voronoiDistance/voronoiCell/voronoiEdge/white/value/gradientLinear/gradientRadial、未知は Perlin フォールバック）も流用。
+- インシデント: bash での部分文字列削除操作が ArtifactSolidImageLayer.cppm を二重化破損（関数ブロック全体の重複）。`git show HEAD:` からの復元は PowerShell の `>` リダイレクトが UTF-16LE を書くため二重に失敗し、`cmd /c` 経由の生バイト redirect で復旧。
+- 教訓: (1) 大きなブロック削除は edit ツールか git ベースで行い、bash の IndexOf/Remove 文字列手術を使わない。(2) PowerShell 5.1 の `>` リダイレクトは UTF-16LE。git オブジェクトをファイルへ落とすときは cmd /c 経由か [IO.File] API。(3) 親リポジトリの git diff は submodule 内ファイルの変更を表示しない。子リポジトリ側で status/diff を見る。
+
+## 2026-08-24: ArtifactNoiseLayer 独立レイヤー実装
+
+- 関連: `Artifact/include/Layer/ArtifactNoiseLayer.ixx`, `Artifact/src/Layer/ArtifactNoiseLayer.cppm`, `Artifact/src/Layer/ArtifactLayerFactory.cppm`, `docs/planned/MILESTONE_NOISE_LAYER_2026-08-24.md`
+- 実装: `LayerType::Noise = 30`。生成は `resolveLayerSourceOverride()` 内で `ProceduralTextureGenerator::generate(settings, buffer)` 直生成（QImage ゼロ、パラメータ署名キャッシュ、colorA/B カラーマッピング）。draw() は常にテクスチャ経路（単色 fast path 不要）。descriptor は `builtin.source-noise` として Source 相に登録。シリアライズは `type=30` + `noise` オブジェクト（kind 安定文字列、未知は Perlin フォールバック）。プロパティはレイヤー固有グループ `Noise`。
+- 事実: ファクトリの fromJson は数値 type を正規 discriminator とするため新 LayerType の roundtrip は switch case 追加のみで動く。legacy 文字列分岐は新タイプには不要だった。Artifact 側 CMake は「.ixx 対ありの純実装 .cppm」はそのまま APP_IMPL 残り、force list 不要だった。
+- 未検証: ビルド・描画・保存/再読込・タイムライン表示すべて未確認。作成 UI・automation 露出・プリセット・キーフレーム駆動・GPU compute は M-NOISE-LAYER の残フェーズ。

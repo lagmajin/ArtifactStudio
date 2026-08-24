@@ -1,6 +1,6 @@
 # Text Glyph Submitter 分離マイルストーン
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-08-24
 
 **ステータス:** GPU smoke path proven / submitter extraction pending
 
@@ -77,6 +77,10 @@ Glyph atlas の GPU 描画だけを実行できる検証経路を作る。
 - **完了（provider契約）**: `ArtifactTextGlyphPipelineProvider` を追加し、
   Glyph PSO/SRBとatlas samplerだけをSubmitterへ渡す境界を固定した。
 - **完了（検証用GPU実装）**: `ArtifactTextGlyphSubmitter` 経由のatlas upload、quad submit、変形submitを実GPUで確認済み。製品rendererへの全面移行と専用providerへの完全分離は未完了。
+- **進行中（2026-08-24）**: 製品 `DiligentImmediateSubmitter::setPSOs()` の glyph PSO/SRB/sampler 取得を
+  `makeArtifactTextGlyphPipelineProvider(ShaderManager&)` 経由に切り替えた（同一PSOオブジェクトで描画挙動は不変）。
+  provider契約module（Contract / Adapter）を製品ビルドの module グラフへ登録済み。
+  ShaderManager 内の Glyph PSO 生成本体の専用providerへの移動は残課題。
 - **検証結果**: ShaderManagerを公開IFCごと単独ターゲットへ取り込むと、
   `Graphics.Shader.Set` / `Graphics` などのtransitive module依存が発生する。
   そのため移行アダプタはTextRuntimeの正規moduleグラフ内に置き、真の独立化は

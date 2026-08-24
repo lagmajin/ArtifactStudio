@@ -1,6 +1,6 @@
 # Milestone: AE風 Text Animator システム (2026-03-25)
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-08-24
 
 **Status:** Partial（GlyphLayout、Range／Wiggly selector、per-glyph evaluation／rendering、Property／JSON 接続は実装済み。高度な編集 UI と runtime 検証は未完了）
 **Goal:** After Effects 風の Text Animator を段階導入。レンジセレクターで文字単位のアニメーションを実現。
@@ -24,6 +24,15 @@ ArtifactTextLayer
         ├── GlyphItem.opacity (animated)
         └── GlyphItem.color (animated)
 ```
+
+
+## Progress 2026-08-24: selector set 構造化（タプル撤去の第一歩）
+
+- `Text.Animator` に `SelectorCombineMode`（Multiply/Add/Subtract/Min/Max）と `AnimatorSelectorSet`（名前付きセレクター群 + combine モード）を追加。
+- 純粋評価 API `evaluateAnimatorWeights()`（glyph を変更しない weight 合成）と名前付き適用 API `applyAnimatorSets()` を追加。
+- legacy の tuple 版 `applyAnimatorStack()` は adapter として維持し、内部で `applyAnimatorSets` へ委譲（既定 Multiply = 従来挙動、JSON 互換維持）。
+- `ArtifactTextLayer` 側の `ResolvedTextAnimatorStack` を tuple から `std::vector<AnimatorSelectorSet>` へ移行。
+- 未実施: combine モードの UI / JSON シリアライズ、animator 内複数セレクタースタック、stable token。ビルド・GPU smoke 検証は未実施。
 
 ---
 

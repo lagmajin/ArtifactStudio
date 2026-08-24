@@ -1,8 +1,10 @@
 # MILESTONE: 平面レイヤー Noise Fill
 
-**最終更新:** 2026-08-18
+**最終更新:** 2026-08-24
 
-**ステータス:** Planned
+**ステータス:** Superseded（2026-08-24: 独立ノイズレイヤー方式へ方針変更。平面 Fill 拡張は実装断念）
+
+> **方針変更 (2026-08-24):** 本マイルストーンの「Fill Mode に Noise を追加」方式は取り下げ。ノイズ生成は独立した `LayerType::Noise` レイヤーとして実装する。`resolveLayerSourceOverride()` 経由で `ProceduralTextureGenerator` から `ImageF32x4_RGBA` へ直接生成する技術経路は検証済み（Insight.md 2026-08-24 参照）。平面レイヤー側の実装は revert 済み。
 
 **識別子:** M-SOLID-NOISE
 
