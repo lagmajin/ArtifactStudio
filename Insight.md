@@ -1,3 +1,16 @@
+## 2026-08-25 — モーションブラーが velocity ターゲット未生成のため通常プレビューで沈黙していた(修正)
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`(renderOneFrameImpl の pipeline initialize ~32401 行、Resolve pass の MotionBlurPass::apply ~33990 行、useLayerMsaa 条件)
+- **事実:** `RenderPipeline::hasVelocityTarget()` は `emissionEnabled_` を要求し、emission 系ターゲットは `auxiliary3DChannelRequested`(AOV デバッグチャネル / SSGI 表示)時のみ生成されていた。そのためタイムラインのモーションブラー設定が有効でも、デバッグチャネルを開いていない限り `MotionBlurPass::apply` は常にスキップされていた。
+- **対応:** `motionBlurVelocityRequested`(= timelineMotionBlurActive)を emission ターゲット生成条件に追加。併せて velocity パスが単一サンプル depth を前提とするため、モーションブラー有効時は per-layer MSAA を除外(AOV キャプチャと同じ扱い)。さらに AA モード設定(`compositionAntiAliasingMode`: 0=Off / 1=FXAA / 2=MSAA4x、既定 FXAA)と shutter phase 設定(`timelineMotionBlurShutterPhase`)を AppSettings に追加し、ApplicationSettingDialog の Preview Quality に UI を露出(AA コンボ + shutter angle/phase スピン)。FXAA は mode==1、per-layer MSAA は mode==2 のときのみ適用。
+- **次の確認:** ビルド後、モーションブラー ON + 3D レイヤー移動でブレが乗ること、OFF 時に velocity ターゲットが作られずメモリ増加がないこと。FXAA は 3D 表示時のみ適用される現行挙動を維持。
+
+## 2026-08-25 — World Position AOV のリソースは既存 offscreen API で用意可能、書き込みパスが本体
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`（`PrecompGpuOutputEntry`、`createOffscreenComputeTexture` 利用箇所）、`Artifact/src/Render/DiligentImmediateSubmitter.cppm`（mesh draw PSO）
+- **事実:** `ArtifactIRenderer` には float 系 offscreen texture（`createOffscreenComputeTexture`）と SRV 取得 API が既に存在するため、world position / depth AOV 用ターゲットの生成はバックエンド無変更で可能。一方、position 書き込みは mesh draw パスへの専用 PSO（または MRT）追加が必要で、これは Diligent シビアコードに触る。
+- **次の確認:** 専用 PSO スライスとして、(1) 既存 mesh VS を流用した position 出力 VS/PS の追加、(2) PrecompGpuOutputEntry と同型の target/SRV 保持、(3) DOF/fog 消費側の depth 契約（Phase 3 計画と合流）を順に設計レビューする。
+
 ## 2026-08-24 — 製品rendererのglyph PSO取得を専用provider境界へ経由させた（G2移行の中間ステップ）
 
 - **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm`、`Artifact/include/Render/ArtifactTextGlyphSubmitter.ixx`、`Artifact/src/Render/ArtifactTextGlyphPipelineAdapter.cppm`、`Artifact/cmake/ArtifactSources.cmake`
@@ -9,6 +22,13 @@
 # Insight Log
 
 未解決の設計判断・runtime 検証待ちだけを記録する。実装済みの局所修正と履歴は `docs/analysis/INSIGHT_ARCHIVE_2026-08-11.md` を参照する。
+
+## 2026-08-24 — Inspector を Composition Viewer ツールバー風に整理したいという要望の保留メモ
+
+- **関連:** `docs/WIDGET_MAP.md:21-26,33,82`（Inspector vs Composition Editor vs PropertyEditor 責務）、`Artifact/src/Widgets/ArtifactInspectorWidget.cppm`、`Artifact/docs/PROPERTY_EDITOR_AUDIT_2026-03-11.md`、`references/artifactstudio-property-editor-review.md`、ユーザー提示画像（AEの `Composition`ビューポート + 下部 `100% / 0:00:01:00 / フル画質 / アクティブカメラ / 1画面` ツールバー + `エフェクトコントロール: adjustment / CC Power Pin`）
+- **事実:** ユーザーが「下部のメニューみたいにインスペクタのメニューも整理したい」と要望。画像下部は `ArtifactCompositionEditor`相当のビューポート状態バー（ズーム・時間・画質・カメラ・レイアウト）で、インスペクタ（`ArtifactInspectorWidget` `Panel.Inspector`）とは責務が異なる。レビューはソースのみでランタイム未検証。
+- **判定（未実装・メモ止まり）:** インスペクタを下部ツールバー風の水平密詰めアイコン帯にすると (1) Inspectorがviewport責務を吸収する境界違反（AGENTS.mdの新規signal/global配線禁止に抵触）、(2) 常時表示クロームで編集領域がfold以下に押される密度問題、(3) ラベル-値スキャンとグループ階層の喪失、が起きる。AEも `Composition`ツールバーと `エフェクトコントロール`を別ドックに分離しており、混ぜないのが正規。
+- **次の確認（要望再開時）:** 下部バーはComposition Editorに残し、Inspector側は `PROPERTY_EDITOR_AUDIT` 方針通り `ArtifactPropertyWidget`/`ArtifactPropertyEditorRowWidget`内で行クローム（リセット/keyframe affordance）とグループ順（Transform優先、Components由来は露出しない）を整える最小修正で対応するか、ユーザーと再合意する。ユーザーは現時点では「よくわからない」とのことで一旦メモのみ。
 
 ## 2026-08-24 — オーディオミックス契約: layer volume/pan の二重適用（静的確認済み、未修正）
 
@@ -3171,7 +3191,7 @@
 - 事実: override は `&currentFrameBuffer()` のアドレスを返す。`cacheBuffer_` は AssetManager 公開時に差し替わり得るが、既存 draw() の `const auto& buffer = currentFrameBuffer()` と同一の生存期間パターン（同スタック内で即時使用）なので等価。シーケンス時は currentFrameBuffer→toQImage 経由でフレーム refresh が走るため時間依存コンテンツになる。
 - 次に確認すべきこと: (1) descriptor settings のプロパティミラー（solid/image とも現状 kind 情報なしの空 settings）、(2) Components 専用面での source descriptor 表示・toggle セマンティクス、(3) sequence-player（Drive 相）との責務整理、(4) ビルド＋平面グラデ・画像・連番の目視回帰。
 
-## 2026-08-24: M-SOLID-NOISE Phase 1（CPU 経由のノイズフィル）を Source Override 上に実装
+## 2026-08-24: [Superseded] M-SOLID-NOISE Phase 1（CPU 経由のノイズフィル）を Source Override 上に実装
 
 - 関連: `Artifact/src/Layer/ArtifactSolidImageLayer.cppm`, `Artifact/include/Layer/ArtifactSolidImageLayer.ixx`, `Artifact/include/Layer/ArtifactLayerInitParams.ixx`
 - 実装: `ArtifactSolidFillType::Noise = 6` 追加。`ProceduralTextureSettings`（Core 流用、新規構造体なし）を Impl に保持し、`resolveLayerSourceOverride()` の Noise 分岐で `ProceduralTextureGenerator::generate(settings, buffer)` を直接 `ImageF32x4_RGBA` へ生成（QImage 経由ゼロ）。キャッシュ無効化は全パラメータ+カラーマップの署名文字列比較。カラーマッピングはグレースケール→colorA/B lerp の CPU ループ。draw() はバッファオーバーロードの `drawSpriteTransformed` で描画。`currentFillImage()` は Noise 時バッファ→QImage の明示変換のみ（thumbnail/export 境界）。JSON は `solidNoise` オブジェクト（kind は安定文字列、未知 kind は Perlin フォールバック）。プロパティは既存 solidGroup 内に `solid.noise.*` として露出。
@@ -3191,4 +3211,34 @@
 - 関連: `Artifact/include/Layer/ArtifactNoiseLayer.ixx`, `Artifact/src/Layer/ArtifactNoiseLayer.cppm`, `Artifact/src/Layer/ArtifactLayerFactory.cppm`, `docs/planned/MILESTONE_NOISE_LAYER_2026-08-24.md`
 - 実装: `LayerType::Noise = 30`。生成は `resolveLayerSourceOverride()` 内で `ProceduralTextureGenerator::generate(settings, buffer)` 直生成（QImage ゼロ、パラメータ署名キャッシュ、colorA/B カラーマッピング）。draw() は常にテクスチャ経路（単色 fast path 不要）。descriptor は `builtin.source-noise` として Source 相に登録。シリアライズは `type=30` + `noise` オブジェクト（kind 安定文字列、未知は Perlin フォールバック）。プロパティはレイヤー固有グループ `Noise`。
 - 事実: ファクトリの fromJson は数値 type を正規 discriminator とするため新 LayerType の roundtrip は switch case 追加のみで動く。legacy 文字列分岐は新タイプには不要だった。Artifact 側 CMake は「.ixx 対ありの純実装 .cppm」はそのまま APP_IMPL 残り、force list 不要だった。
-- 未検証: ビルド・描画・保存/再読込・タイムライン表示すべて未確認。作成 UI・automation 露出・プリセット・キーフレーム駆動・GPU compute は M-NOISE-LAYER の残フェーズ。
+- 当時の未検証: この記録時点ではビルド・描画・保存/再読込・タイムライン表示を確認していなかった。作成 UI・automation 露出・プリセット・キーフレーム駆動は M-NOISE-LAYER の残フェーズで、GPU compute は後続記録で初期接続済みだが runtime parity 等は未検証。
+
+## 2026-08-24: Noise レイヤー GPU 接続点の確認（GPU 初期接続前）
+
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`, `ArtifactCore/include/ImageProcessing/ProceduralTexture.ixx`, `ArtifactCore/src/ImageProcessing/ProceduralTexture.cppm`
+- 事実（GPU 初期接続前）: `ProceduralTextureComputePipeline` は ArtifactCore に公開され、`initialize()` / `generate(IDeviceContext*, ITextureView*, settings)` / `createOutputTexture()` を持っていた。一方、この時点の Noise レイヤーの `resolveLayerSourceOverride()` は `ProceduralTextureGenerator::generate(settings, ImageF32x4_RGBA&)` の CPU 経路のみを呼び、GPU context・UAV・テクスチャ寿命を保持していなかった。後続の「Noise draw の GPU compute 初期接続」で、color mapping 無効時の GPU 経路と CPU fallback が追加された。
+- 当時の判断: GPU 接続は単純な関数置換ではなく、renderer の GPU context 所有境界、出力テクスチャのキャッシュキー、UAV→sprite resource の同期、CPU fallback をまとめて設計する必要がある。Diligent の低レベル実装を推測で変更せず、独立した設計・runtime確認フェーズに分離した。後続実装では既存 renderer 境界を使う初期接続まで進めた。
+- 未検証: 実 GPU backend での compute pipeline 初期化、Noise レイヤーとの texture cache 共有可否、color mapping の GPU 実装コスト。
+- 当時の次に確認: 既存 renderer の compute effect / texture cache が持つ context と同期契約を調査し、Noise 専用 pipeline を増やす前に再利用可能なサービス境界を特定する。後続実装では Noise レイヤーの draw 内で既存 `ProceduralTextureComputePipeline` を直接利用する初期接続を採用したため、GPUTextureCacheManager 統合と runtime 検証が現在の残課題になっている。
+
+## 2026-08-24: 既存 compute effect との比較
+
+- 関連: `Artifact/src/Effects/WhiteBalanceEffect.cppm`, `Artifact/src/Effects/Wave/WaveEffect.cppm`, `Artifact/src/Effects/Rasterizer/HexGridEffect.cppm`, `Artifact/include/Render/GPUTextureCacheManager.ixx`
+- 事実: 既存の GPU compute effect は effect 実行時に `GpuContext` / `ComputeExecutor` を構築または保持し、出力 texture を effect 内で所有して SRV/UAV を直接 bind している。Noise レイヤーの source override は renderer の GPU texture view を返す契約ではなく、CPU float buffer を返す契約である。
+- 事実: `GPUTextureCacheManager` は owner ID と cache handle を持つ renderer 側の別責務で、Noise レイヤーから直接利用できる接続は現状確認できない。
+- 当時の判断: 最初の GPU 化候補は `resolveLayerSourceOverride()` の置換ではなく、renderer が Noise source の compute output view を取得・保持し、CPU buffer を fallback として残す source texture provider 境界の追加である。既存 effect の局所 executor パターンをそのまま Layer に複製するのは texture cache／device reset 管理と衝突しやすい。実装ではまず Noise の draw 内に限定した初期接続を採用し、source provider／texture cache 統合は未実施のまま残している。
+- 未検証: `GPUTextureCacheManager` を Noise source provider の backing に使えるか、renderer の device reset 時に owner invalidation を正しく通知できるか。
+
+## 2026-08-24: Renderer 側に既存の GPU 出力資産を確認
+
+- 関連: `Artifact/include/Render/ArtifactIRenderer.ixx`, `Artifact/src/Render/ArtifactIRenderer.cppm`, `Artifact/include/Render/GPUTextureCacheManager.ixx`
+- 事実: `ArtifactIRenderer` は `device()`、`immediateContext()`、`createOffscreenComputeTexture(width, height)` を既に公開しているため、GPU 出力 texture の生成と compute dispatch に必要な renderer 所有資産は既にある。
+- 訂正: 直前の記録で `IDeviceContext*` の公開 accessor が未確認としたのは誤り。`immediateContext()` が存在するため、Noise GPU provider は新しい accessor を増やさず既存 renderer 境界を利用できる。
+- 判断: 残る設計課題は context の取得ではなく、Noise レイヤーの render-frame 内での compute 実行タイミング、出力 texture のキャッシュキー／寿命、GPUTextureCacheManager への登録、device reset 時の無効化である。
+
+## 2026-08-24: Noise draw の GPU compute 初期接続
+
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`, `ArtifactCore/include/ImageProcessing/ProceduralTexture.ixx`
+- 実装: Noise の `draw()` で color mapping 無効時に既存 `ArtifactIRenderer::device()` / `immediateContext()` と `ProceduralTextureComputePipeline` を使い、RGBA16F UAV を生成して compute dispatch 後に texture-view sprite として描画する経路を追加。compute 失敗時、device/context 不在時、color mapping 有効時は既存 CPU float-buffer 経路へ fallback する。
+- キャッシュ: Noise signature と device identity を基準に GPU texture を再生成し、device identity 変更時は pipeline/context/texture を破棄する。GPUTextureCacheManager への登録はまだ行っていない。
+- 未検証: ビルド、D3D12/Vulkan runtime parity、UAV→SRV transition の実機確認、cloner/fracture overlay との組み合わせ、GPU texture memory budget。
