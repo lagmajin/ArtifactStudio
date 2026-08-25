@@ -1,6 +1,6 @@
 # SurfaceFX System Design (2026-07-22)
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-08-26
 
 **ステータス:** In Progress
 
@@ -12,6 +12,24 @@
 
 - カメラレンズ表面の細い傷、擦り傷、汚れ、レンズフレアを伴う傷
 - 窓ガラス表面を流れる水滴、合流する水滴、残る水跡
+- カメラ前面に付着する血しぶき、泥、破片跡などの画面固定デカール
+
+## Product Surface: Lens Surface
+
+ユーザー向けには、カメラ前面に固定する `ScreenSpace` SurfaceFX を
+`Lens Surface` と呼ぶ。`Lens Surface` は別のレンダーシステムや Camera Layer の
+一般プロパティではなく、既存 `SurfaceFXEffect` の用途別編集面とプリセット集合である。
+
+- UI 名: `Lens Surface`
+- 内部 effect ID: `surfacefx`
+- 管理場所: `ArtifactEffectTabSurface` の effect stack
+- 初期 anchor: `ScreenSpace`、全画面
+- 主用途: Scratch / Blood / Mud / Dirt / Droplet / Streak / Condensation
+- 描画位置: composition image の後段、viewport guide / selection overlay の前
+- effect stack 上の順序で Lens Distortion、Chromatic Aberration、Vignette との前後関係を決める
+
+Camera Layer 自体にデータを所有させないことで、2D composition やカメラ未使用の
+composition にも同じ仕組みを適用でき、複数カメラ切替時にも表面効果が消えない。
 
 ## 設計方針
 
@@ -49,7 +67,7 @@ SurfaceFX がどの面に貼り付くかを定義する。
 
 表面上の要素を共通の要素配列として持つ。要素ごとに以下を持つ。
 
-- 種別: `Scratch`, `Droplet`, `Streak`, `Condensation`, `Dirt`
+- 種別: `Scratch`, `Droplet`, `Streak`, `Condensation`, `Dirt`, `TextureDecal`
 - 位置、サイズ、回転、深さ順
 - 強度、透明度、粗さ、色味
 - ランダム seed と seed offset
@@ -81,6 +99,24 @@ SurfaceFX がどの面に貼り付くかを定義する。
 ### Condensation / Streak / Dirt
 
 共通の Field 要素として後から追加する。結露は低周波の濁りと水滴マスク、Streak は流下後に残る細長いマスク、Dirt は低コントラストの粗い遮蔽として実装する。
+
+### TextureDecal / Blood
+
+血しぶき、泥、複雑な傷は、プリミティブ形状だけで近似せず、アルファ付き素材または
+単チャンネルマスクを参照する `TextureDecal` として扱う。`Blood` は独立したレンダー型ではなく、
+TextureDecal の用途プリセットとし、将来の素材追加で enum を増やし続けない。
+
+- asset identity / relink 情報を持つ texture reference
+- normalized position、size、rotation、pivot、depth order
+- tint、opacity、roughness、edge feather
+- blend mode: Normal / Multiply / Screen / Add / Darken
+- response: distortion、wet highlight、chromatic fringe
+- timing: in/out、fade in/out、growth、drip amount
+- `Before Lens Effects` / `After Lens Effects` は独自フラグを増やさず effect stack 順序で表現する
+
+初期プリセットは `Blood / Fine Spray`、`Blood / Heavy Splash`、
+`Blood / Dripping Edge`、`Mud / Camera Hit` を用意する。素材が欠損した場合は、
+要素の transform と timing を保持したまま missing-asset 状態を表示し、透明出力へ退避する。
 
 ## 時間評価
 
@@ -123,6 +159,8 @@ SurfaceFXElement
   type
   normalizedBounds
   parameters
+  textureReference
+  blendMode
   timing
   motion
   seedOffset
@@ -146,6 +184,9 @@ SurfaceFXElement
 
 - `Camera Lens / Fine Scratches`
 - `Camera Lens / Finger Smudge`
+- `Camera Lens / Blood Fine Spray`
+- `Camera Lens / Blood Heavy Splash`
+- `Camera Lens / Mud Hit`
 - `Window / Light Rain`
 - `Window / Heavy Rain`
 - `Window / Condensation`
@@ -192,10 +233,29 @@ Planar は正規化矩形として扱い、GPU pass と専用編集面は未実�
 
 - Effect 専用編集面
 - element 選択と viewport overlay
-- 5 種の初期プリセット
+- 用途別の初期プリセット
 - density/quality の preview 制御
 
 完了条件: カメラレンズと窓の代表例を、コード編集なしで作成できる。
+
+専用編集面は次の最小構成とする。
+
+- 上段: preset、全体 enable、quality、seed
+- 中段: element stack（追加、削除、複製、並べ替え、表示切替）
+- 下段: 選択 element の Transform / Appearance / Motion / Timing
+- viewport: 選択 element の bounds、pivot、回転ハンドル。非選択要素の常時枠表示は行わない
+- `Add Element`: Scratch / Droplet / Streak / Condensation / Dirt / Texture Decal
+
+### SFX-5: Lens Surface production slice
+
+- `TextureDecal` のデータ契約、asset identity、保存／再読込
+- 血・泥の初期素材プリセット
+- element stack と viewport direct manipulation
+- effect stack 順序による lens effects 前後配置
+- undo / redo、複製、素材欠損／relink
+
+完了条件: 血しぶき素材を追加し、画面上で変形・重ね順・不透明度・時間範囲を編集し、
+保存／再読込後と render queue で同じ結果を得られる。
 
 ## 非目標
 
@@ -213,10 +273,15 @@ Planar は正規化矩形として扱い、GPU pass と専用編集面は未実�
 - 複数 SurfaceFX の重なり順と effect stack 順序
 - 高密度時の処理時間、field atlas の再利用、GPU/CPU fallback
 - 不明 enum、旧バージョン JSON、欠損 preset の復元
+- TextureDecal の asset relink、missing asset、アルファ境界、色空間
+- 血デカールの複数 blend、effect stack 前後、複製／undo／redo
 
 ## 次の実装判断
 
-最初の実装対象は `SFX-1` とする。カメラと窓を別システムに分けず、`ScreenSpace` と `Planar` の二つの anchor で両方を表現できることを確認してから、水滴の時間評価を追加する。
+次の実装対象は `SFX-4` の専用編集面の接続点確認とする。既存データを変更せず、
+element stack で複数要素を選択・並べ替え・編集できる導線を先に成立させる。
+その後 `SFX-5` で `TextureDecal` と asset identity を追加し、血・泥プリセットを接続する。
+GPU SurfaceFX pass は制作導線と保存契約が固まった後に実装する。
 
 ## 2026-07-25 実装監査
 
@@ -231,3 +296,21 @@ Planar は正規化矩形として扱い、GPU pass と専用編集面は未実�
 - CPU fallback は `Scratch` / `Droplet` / `Streak` / `Dirt` / `Condensation` を処理し、`EffectContext::timeSeconds`、`fieldSeed`、`seedOffset` に基づく決定的な時間評価を行う。水滴の rim／highlight と最大 ±2px の局所サンプリングも現行実装に含まれる。
 - 独立 `SurfaceFXEvaluator`、GPU SurfaceFX pass、品質段階制御、field atlas 再利用、専用編集面／viewport overlay、preview／render queue の runtime parity は未実装または未検証である。
 - したがって SFX-1〜SFX-3 のCPU基盤は部分実装済みだが、SFX-4のコード編集なしの制作導線とGPU／runtime受入れは未完了とする。
+
+## Update 2026-08-25 — Lens Surface / decal 基盤監査
+
+- 目的としていた傷・水滴・結露・汚れの基盤は既に `SurfaceFXData`、`SurfaceFXElement`、`SurfaceFXEffect` に存在する。
+- `ScreenSpace` anchor、effect stack 登録、Composition JSON、決定的な droplet / streak 移動、CPU 局所屈折は再利用できる。
+- 現行 element enum に Blood / TextureDecal はなく、要素は texture asset identity、blend mode、tint、pivot、fade、growth を保持しない。
+- generic property は先頭 element だけを編集するため、複数デカールの制作UIとしては不足する。SFX-4 の element stack と viewport overlay を先に接続する。
+- GPU pass、field atlas、専用 SurfaceFX evaluator、preview / render queue parity は引き続き未実装または未検証である。
+
+## Update 2026-08-26 — TextureDecal initial slice
+
+- `SurfaceFXElementType::TextureDecal` と texture path、AssetDatabase asset ID、blend mode、tint、pivot、fade in/out、growth の JSON v3 契約を追加した。
+- generic Effect Editor に `Surface Element Index` を追加し、先頭要素固定ではなく複数要素を個別編集できるようにした。
+- `Camera Lens / Blood Fine Spray`、`Blood Heavy Splash`、`Mud Hit` の決定的プリセットを追加した。
+- CPU fallback は外部画像を `QImage` を介さず OpenCV で RGBA float としてデコード／キャッシュし、transform、tint、alpha、Normal / Multiply / Screen / Add / Darken を適用する。素材未指定時は決定的なプロシージャル splash、指定素材が欠損した場合は透明出力とする。
+- Composition JSON 復元を `SurfaceFXEffect::setData()` 経由に変更し、復元データを CPU impl へ即時同期する。
+- Effects detail panel に `Lens Surface Elements` の専用リストを追加し、`Add Decal` / `Duplicate` / `Delete` / 上下移動と、選択要素を既存 `ArtifactPropertyWidget` の編集対象へ切り替える導線を用意した。SurfaceFX 以外の effect ではこの面を隠す。
+- 専用 element list に Duplicate / Delete / Up / Down 操作を追加し、SurfaceFXData snapshot commandでUndo/Redoへ接続した。viewport direct manipulation、GPU pass、runtime parity は引き続き未実装または未検証である。AssetDatabaseのID解決と既存relink契約は接続済みだが、実プロジェクトのrelink受入れは未検証である。

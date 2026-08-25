@@ -1,15 +1,15 @@
 # 実装案: M-LYR-PHYS Layer Physics Component
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-08-25
 
-**ステータス:** 部分完了（Collision 設定の Inspector/JSON、RigidBody/SoftBody bounds 同期、Circle collider 再構築を実装。共有 PhysicsWorld・Polygon collider・ランタイム検証は未完了）
+**ステータス:** 部分完了（Collision 設定の Inspector/JSON、RigidBody/SoftBody bounds 同期、Circle collider 再構築、Polygon collider の Core〜UI 導線、component.joint レイヤー間ジョイント（Distance/Pin）を実装。ジョイントのアンカー編集・revolute角制限、Fracture/Fluid の共通 component 化、複数レイヤー接触の runtime parity、ビルド／ランタイム検証は未完了）
 
 ### 現行コード監査 (2026-08-15)
 
 - `ArtifactAbstractLayer` は `component.collision.*` を Component descriptor、Property、JSON 保存／復元へ接続し、Box／Circle の bounds 同期、floor／composition bounds、collision output を持つ。
 - `PhysicsSystem` は layer ID 単位の rigid world／soft body／collider／snapshot 管理を提供し、`ArtifactAbstractLayer` の RigidBody／SoftBody enable・disable・sync 経路から利用されている。
 - SoftBody は `createSoftBodyGrid()`、collider 登録、LOD／snapshot の基盤まで確認できる。旧「共有 PhysicsWorld 不在」は現状には適用しない。
-- Polygon collider の通常レイヤー導線、Fracture／Fluid／Constraint の共通 component 化、複数レイヤー接触の runtime parity、Inspector の専用 Physics surface、ビルド・実機検証は未完了または未確認。
+- Polygon collider の通常レイヤー導線は 2026-08-25 に実装（下記進捗参照）。Fracture／Fluid／Constraint の共通 component 化、複数レイヤー接触の runtime parity、Inspector の専用 Physics surface、ビルド・実機検証は未完了または未確認。
 
 > 2026-06-13 作成  
 > 物理シミュレーションをレイヤーのコンポーネントとして統合（エフェクトではない）
@@ -284,3 +284,24 @@ Impulse Force: [1000]
 - RigidBody初期生成時のCircle形状、および形状変更時の対象body再構築を追加
 - 既存のlayer-local spring / gravity / floor collisionは維持
 - 未実施: 複数レイヤー間の共有PhysicsWorld、Polygon collider、実行時のビルド／ランタイム検証
+
+## 2026-08-25 進捗（Polygon collider 導線）
+
+- `component.collision.shape` に `3=Polygon` を追加。tooltip enum（`0=Auto Bounds, 1=Box, 2=Circle, 3=Polygon`）、hard/soft range、setter・JSON復元のclampを 0..3 へ拡張。従来tooltip末尾の `.` がラベルに混入する問題も解消。
+- `ArtifactAbstractLayer` に仮想 `collisionOutlineLocalPoints()` を追加（既定は空）。`ArtifactShapeLayer` がoverrideし、custom path頂点 ≥3 / custom polygon ≥3 / 通常形状は `buildRenderablePoints()` の輪郭を返す。operator stack適用時とLineは空を返しauto-boundsへフォールバック。
+- 新helper `layerCollisionPolygonLocalPoints()` が shape==3 のoutlineに offsetX/Y を適用して返す。`layerCollisionLocalBounds()` は shape==3 でoutline bboxを返す（outline無しはauto-boundsフォールバック）。
+- `syncSoftBodyPhysicsColliderToBounds()`: outline ≥3 で `SoftBodyCollider::Type::Polygon` + interleaved `polygonPoints` を登録。それ以外は従来どおりBox。
+- `syncRigidBodyPhysicsToBounds()`: shape==3 で `Physics2D::addPolygonBody()` を使用（Box2D v3 hull最大8頂点のため8点へ等間隔ダウンサンプル、生成失敗時はBoxフォールバック）。`addPolygonBody` にfriction/restitution引数を追加しhull失敗時にbodyを破棄するよう修正。
+- Composition の `evaluateLayerCollisionPairs()`: source outlineをsource transform → target逆変換でtarget局所空間へマップし `MpmCollider2D::Type::Polygon` を登録。outline無しはBoxプロキシ。
+- Clone instance 経路 `collisionLocalBounds()` はoutline bboxをconservative proxyとして使用（vertex-exact判定はソルバー側）。
+- PhysicsSystem の死に経路だった deprecated グローバル流体（`initFluid` / `getFluidSolver()` / `fluidSolver_` 系メンバーとupdate/clear経路）を削除。per-layer `createFluidSolver(layerId)` が唯一の流体登録経路。
+- 未検証: ビルド・ランタイム（ユーザー指示待ち）。SoftBody経路の shape==2（Circle）は従来どおりBox扱い（既存挙動維持、Circle化は別判断）。
+
+## 2026-08-25 進捗（component.joint レイヤー間ジョイント）
+
+- 新component `builtin.joint` / `artifact.component.joint`（Dynamics/Composition, order 510, collision依存）を追加。`component.joint.enabled/type(0=Distance,1=Pin)/targetLayer(string)/length/stiffness(hertz)/damping(ratio)` のproperty group・Inspector Components面フィルタ・JSON保存/復元・descriptor settingsを実装。
+- joint有効化時に `enableRigidBodyPhysics()` を呼ぶため、監査で「到達不能」とされていたリジッド(Box2D)実行経路に初の実利用入口ができた。
+- Core `Physics2D`: `addStaticAnchor()`、joint id 管理、`removeJoint/clearJoints/getJoints` を追加。body再構築時・無効化時はjointを明示破棄してid鮮度を保証。
+- Composition `evaluateJointConstraints()` を `setFramePosition`/`goToFrame` のcollision評価直後に配線。target layer名解決 → target中心をowner局所空間へマップ → 静的アンカー(cloneIndex==-2)生成/追従 → signature変更時のみjoint再構築。Distance length=0 は作成時距離を採用。リジッド読み取り/body選択はproxyを除外して自レイヤーdynamic bodyを選択。
+- 制約: rigid worldはsnapshot非対応（スクラブ復帰は未対応）、target名重複時は先勝ち、アンカー手動オフセットとrevolute角制限は未実装。`Physics2D` world重力 {0,-9.8} の符号は要ランタイム確認。
+- 未検証: ビルド・ランタイム（ユーザー指示待ち）。

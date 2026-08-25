@@ -1,3 +1,24 @@
+## 2026-08-25 — component.joint（レイヤー間ジョイントcomponent）を実装（ビルド未検証）
+
+- **ビルド検証メモ (2026-08-25):** ビルド試行はユーザー指示で中断。座標検証は静的解析のみ実施済み（`Physics2D` 重力を `{0,-9.8}`→`{0,9.8}` に修正済み。MPM `+980` / SoftBody `+9.8` との整合）。環境側の未解決事項: J:コピーのビルドツリー `out/build/x64-Debug`（Ninja、classic vcpkg=C:\vcpkg）では新規 port の `find_package` が `<installed>/share/<pkg>` を探索できず（box2d/OpenCV は過去キャッシュの `_DIR` で通っているだけ）、`meshoptimizer:x64-windows` を C:\vcpkg へ入れても数分後に消失する現象が発生（別プロセス/manifest クリーンアップの疑い、要切り分け）。X:\Dev\ArtifactStudio 側は manifest mode (`out/build_ninja/vcpkg_installed`) で box2d 3.1.1 を確認済み。
+
+- **関連:** `ArtifactCore/include/Physics/2D/Physics2D.ixx` / `src/Physics/Physics2D.cppm`（joint管理API拡張）、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`（Joint property group・setter・JSON・descriptor）、`Artifact/include/Layer/ArtifactLayerComponentSystem.ixx`（`makeJointComponentDescriptor`）、`Artifact/src/Composition/ArtifactAbstractComposition.cppm`（`evaluateJointConstraints()`、setFramePosition/goToFrame に配線）、`Artifact/src/Widgets/ArtifactInspectorWidget.cppm` / `ArtifactPropertyWidgetShared.cppm`
+- **ドナー記録:** Domain=layer-to-layer 2D joints。Primary donor=vendored Box2D v3（MIT、`b2CreateDistanceJoint` hertz/dampingRatio 契約をそのまま使用）。新規ベンダーコードなし。Ten-Minute-Physics(MIT) は将来の anchor 編集・ロープ展開時の参照。
+- **事実:** `Physics2D::addDistanceJoint/addRevoluteJoint` は存在したが呼び出しゼロ・削除APIなし。`enableRigidBodyPhysics()` も呼び出しゼロでリジッド経路全体が到達不能だった。jointは同一world内の2体が必要なため、現行のレイヤー単位world構造では「相手レイヤー」を所有world内の静的プロキシとして表現する設計にした。
+- **変更:** (1) Core: `addStaticAnchor()` 追加、joint id ベクトル管理＋`removeJoint/clearJoints/getJoints`、`clear()` でjoint先破棄。(2) Layer: `component.joint.enabled/type(0=Distance,1=Pin)/targetLayer/length/stiffness(hertz)/damping(ratio)` をCollisionと同型のproperty group・JSON・descriptorで追加。**joint有効化が `enableRigidBodyPhysics()` の初の到達可能な呼び出し口になり、監査項目(4)を実質解消**。(3) Composition: `evaluateJointConstraints()` がフレーム毎にtarget layerを名前解決→targetのcomp空間中心をowner局所空間へマップ→静的アンカー(cloneIndex==-2)生成/追従→signature比較でjoint再生成。Distanceの length=0 は作成時の実距離を採用。(4) リジッド読み取り/body選択は cloneIndex!=-2 の自レイヤーbodyを選ぶよう修正（proxy混在でもfront()前提が壊れない）。shape/restitution変化でのbody再構築時は `clearJoints()` して再接続。
+- **価値:** 振り子・距離維持・ピン留めなど層間の物理的拘束がcomposition再生(fixed-step)に乗る。Box2D資産の初めての実利用経路。
+- **未検証・懸念:** ビルド・ランタイム未実施。**`Physics2D` world重力が {0,-9.8}（Y上向き）で、Y下向き画面座標と逆の疑い**——到達不能だったため露見していなかった。ランタイム検証時に最初に確認。rigid worldはsnapshot対象外のためスクラブ復元は非対応（softBody/materialのみ）。target名の重複時は先勝ち。アンカー編集UI・revolute角制限は未実装。
+- **次の確認:** ビルド後、Shape/ImageレイヤーでJoint有効+target指定→再生で振り子/距離維持が効くこと、重力符号、無効化時にproxy+jointが消えること。
+
+## 2026-08-25 — Polygon collider をレイヤー導線へ露出（Core〜UI、ビルド未検証）
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`（shape property/clamp/JSON/sync 経路）、`Artifact/include/Layer/ArtifactAbstractLayer.ixx`（仮想 `collisionOutlineLocalPoints()`）、`Artifact/src/Layer/ArtifactShapeLayer.cppm`（outline override）、`Artifact/src/Composition/ArtifactAbstractComposition.cppm`（MPM collider polygon 分岐）、`Artifact/include/Layer/ArtifactCloneEffectSupport.ixx`、`ArtifactCore/src/Physics/Physics2D.cppm`（`addPolygonBody` 拡張）、`ArtifactCore/src/Physics/PhysicsSystem.cppm`（グローバル流体死に経路削除）
+- **事実:** Core の `SoftBodyCollider` / `MpmCollider2D` には Polygon 型と resolver が 2026-08-23 追加済みだったが、`Artifact/` 側から `polygonPoints` を埋める経路はゼロで、layer collision shape は 0..2（Auto/Box/Circle）に固定されていた。ShapeLayer には `customPolygonPoints()` と通常形状の輪郭生成（`buildRenderablePoints`）が既存。Box2D v3 の `b2ComputeHull` は最大 `b2_maxPolygonVertices`(8) 頂点までしか受け付けず、超過入力は空 hull を返す。
+- **変更:** (1) `component.collision.shape` に `3=Polygon` を追加し tooltip enum・range・setter・JSON 復元 clamp を 0..3 へ拡張（tooltip 末尾 `.` が enum ラベルに混入する既存問題も解消）。(2) `ArtifactAbstractLayer::collisionOutlineLocalPoints()` 仮想メソッドを新設、ShapeLayer が custom path/custom polygon/通常形状輪郭を返す。operator stack 適用時と Line は空→auto-bounds フォールバック。(3) SoftBody sync は outline ≥3 で Polygon collider 登録、Rigid sync は `addPolygonBody`（8 点ダウンサンプル＋失敗時 Box フォールバック）を使用、Composition MPM 経路は source outline を target 局所空間へ vertex-exact マップ、Clone 経路は outline bbox の conservative proxy。(4) `addPolygonBody` に friction/restitution 引数を追加（既定値付き後方互換）し hull 失敗時に body を破棄。(5) 呼び出しゼロだった deprecated グローバル流体 API（`initFluid`/`getFluidSolver()`/`fluidSolver_` メンバー群）を PhysicsSystem から削除、per-layer `createFluidSolver(layerId)` に一本化。
+- **価値:** ShapeLayer の実際の輪郭で衝突判定ができるようになり、多角形レイヤー同士や MPM 材料との接触が頂点精度で解決される。死んだグローバル流体経路の削除で Fluid の正規経路が per-layer のみと明確化。
+- **未検証・懸念:** ビルド・ランタイム未実施（ユーザー指示待ち）。SoftBody 経路の shape==2 は従来どおり Box 扱い（挙動維持、Circle 化は別判断）。Rigid polygon は凸包になるため凹形輪郭は凸近似。clone instance の polygon は bbox proxy のまま。
+- **次の確認:** ビルド後、ShapeLayer(Polygon) で Collision 有効＋SoftBody/MPM を付けて落下接触が輪郭通りになること、shape 0..2 の既存プロジェクト JSON が無影響であること。
+
 ## 2026-08-25 — モーションブラーが velocity ターゲット未生成のため通常プレビューで沈黙していた(修正)
 
 - **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`(renderOneFrameImpl の pipeline initialize ~32401 行、Resolve pass の MotionBlurPass::apply ~33990 行、useLayerMsaa 条件)
@@ -3250,3 +3271,71 @@
 - 事実: シャドウマッピングは既にエンドツーエンドで接続済み。Controller が最初の castsShadows 有効な Directional／Spot を選び、D32 シャドウマップ深度プレパス → MeshRenderer の PCF 比較まで動く。
 - 事実: `ArtifactIRenderer.cppm:1066` の `setShadowMap()` 呼び出しは depthBias 既定値のみで、`shadowRadius` → softness 引数を渡していない。ライトレイヤーの Shadow Radius は UI 上存在するが影の柔らかさに反映されない可能性が高い（未検証: 実機描画）。
 - 未検証・残課題: Point/Area ライトは影なし（コードコメントで意図的に除外）、シャドウライトは 1 灯のみ、Directional の ortho extent は原点中心固定 2048（シーン境界未適合）、実機受入れ未確認。
+
+## 2026-08-25 — カメラレイヤー整備（POI / DoF / カメラMB）実装時の気づき
+
+**関連**: `Artifact/src/Layer/ArtifactCameraLayer.cppm`, `Artifact/include/Render/ArtifactDepthOfFieldPass.ixx`（新規）, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+
+1. **previewRenderSlot.depthTargetView は SSGI / MotionBlurPass と同じ「非線形 [0,1] window depth」契約**
+   - 事実: `offscreenTextureShaderResourceView(previewRenderSlot.depthTargetView)` の深度は `zNear*zFar/(zFar - d*(zFar-zNear))` で視線深度へ逆算するのが既存パス（SSGI）の規約。新規 DOF パスもこれに合わせた。
+   - 価値: 今後ポストエフェクトを追加する場合はこの変換を共通ヘルパー化すると二重実装を防げる（未検証の改善案）。
+
+2. **`ArtifactCameraLayer::draw()` のギズモは POI 有効時に `effectiveGlobalTransform()` を見るようにしたが、VP 上の POI ギズモ（ドラッグ移動）は未実装**
+   - AE 相当にするには POI の VP ハンドルが必要。次の候補作業。
+
+3. **カメラ MB はタイムライン MB 設定と独立に発火する設計にした**
+   - `cameraMotionBlurRequested` が velocity ターゲット確保条件に入ったため、カメラ MB 単独で ON のときもパイプライン初期化コストが増える。プレビュー性能への影響は要計測（未検証）。
+
+4. **DOF パスの CoC モデルは簡易リニア ramp（±focusDistance で最大半径）**
+   - 実レンズの f-stop ベースではない。`aperture` を物理単位で使う本格モデルへ拡張する余地あり。既存 `depthOfFieldParameters().maxCoc = aperture × blurScale` の意味論とも要整合確認。
+
+5. **`viewMatrix()` が POI モードで authored rotation を完全無視する**
+   - AE では 2ノードカメラでも rotation を微調整できる（POI + rotation オフセット）。現在実装は「POI 優先・rotation 無視」。ユーザー要件次第でオフセット合成へ拡張可能。
+
+## 2026-08-25 — Lens Surface は既存 SurfaceFX の用途別編集面として成立する
+
+- 関連: `docs/planned/MILESTONE_SURFACE_FX_SYSTEM_2026-07-22.md`、`ArtifactCore/include/Graphics/Effect/SurfaceFX.ixx`、`Artifact/include/Effects/SurfaceFX/SurfaceFXEffect.ixx`、`Artifact/src/Effects/SurfaceFX/SurfaceFXEffect.cppm`
+- 事実: ScreenSpace anchor、Scratch / Droplet / Streak / Condensation / Dirt、effect stack、Composition JSON、決定的な時間評価、CPU 局所屈折が既に存在する。
+- 事実: 現行データ契約には texture asset identity、blend mode、tint、pivot、fade / growth がなく、generic property は先頭 element しか編集できない。
+- 判断: Camera Layer 内に別の Virtual Lens システムを作らず、ユーザー向け `Lens Surface` を既存 `SurfaceFXEffect` の専用編集面として実装する。血・泥は enum を用途ごとに増やさず `TextureDecal` と素材プリセットで表現する。
+- 価値・懸念: レンダーと保存基盤を再利用しながら傷・血・雨を一つの制作導線へ統合できる。GPU pass、asset relink、専用 element stack、viewport 操作、preview / render queue parity は未実装または未検証。
+- 次に確認: `ArtifactEffectTabSurface` の専用 editor 差し込み口、既存 asset identity / relink 契約、effect stack undo command、composition viewport overlay の最小接続点。
+
+### Update 2026-08-26
+
+- `TextureDecal` のJSON v3契約、AssetDatabase asset identity、複数element選択、血／泥プリセット、OpenCV texture decode/cache、CPU blend、復元時のimpl同期を追加した。
+- Effects detail panel に `Lens Surface Elements` リストを追加し、既存の `Surface Element Index` property を介して汎用編集行を選択要素へ切り替える導線を作った。
+- 同リストに Duplicate / Delete / Up / Down を追加し、`SurfaceFXElementSnapshotCommand` で複数デカールの順序・複製・削除をUndo/Redo可能にした。viewport直接操作は未実装。
+- SurfaceFX element は `AssetDatabase::getAssetInfo(assetId)` から描画パスを解決する。既存 `relinkAssetPath()` がIDを維持するため、再配置後も同じデカールを参照できる契約になった。実プロジェクトでのrelink受入れは未検証。
+### 2026-08-26 — Lens Surface 専用UIからのデカール追加
+
+- **関連:** `Artifact/src/Widgets/ArtifactInspectorWidget.cppm`, SurfaceFX/Lens Surface
+- **事実:** `Lens Surface Elements` パネルに `Add Decal` を追加し、既存の要素スナップショット Undo コマンドで追加・取り消しを扱うようにした。
+- **価値:** 専用UIから要素数プロパティを探さずにデカールを作成でき、血・傷・雨の各要素を同じ編集導線に載せられる。
+- **未検証:** 実ビルド・実行時のウィジェット表示と Undo/Redo のランタイム挙動。
+
+## 2026-08-25 — POI VP ハンドル実装時の気づき
+
+**関連**: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`, `ArtifactCompositionRenderOverlay.cppm`, `ArtifactCompositionRenderWidget.cppm`
+
+1. **POI ドラッグ平面は「POI を通り view カメラに向く平面」で実装**
+   - 事実: `createPickingRay` の ray と、view 行列の逆変換で取った forward ベクトルを法線とする平面交差（`intersectPickingRayFixedPlaneAt` 同様の既存パターン）で実装。
+   - 価値: この平面では Z 軸方向の POI 移動はできない。AE の 2-node camera のような Z 変更は Inspector の POI X/Y/Z 数値入力で行う設計。
+
+2. **ビルド未検証**: POI overlay/drag/cancel 系はすべて新規追加コードのため diff 上の既存破壊なし。実機描画確認（特に `drawGizmoRing` の normal (0,0,1) が world 基準か view 基準か）が次の確認点。
+## 2026-08-25 — FOV ↔ focal length 整合
+
+**関連**: `Artifact/src/Layer/ArtifactCameraLayer.cppm`, `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm`, `ArtifactCompositionRenderOverlay.cppm`
+
+- **事実**: レイヤーに `focalLength()` / `setFocalLength()` を追加（35mm equivalent、水平 FOV、36mm センサ: fov = 2*atan(18/fl)）。読み出しは実効 FOV（manual/auto zoom 由来）から導出し、書き込みは manual FOV へ切替。`CreateCameraLayerDialog` の既存変換式と同一。
+- **価値**: ダイアログのプリセット単位系（15〜200mm）がそのままレイヤーへ保持され、AE 相当のレンズ指定が通る。カメラ選択パネルも「xx.xmm | FOV yy」表示に統一。
+- **未検証・懸念**: 水平 FOV ベースだが `projectionMatrix()` は垂直 FOV を使うため、アスペクト比によっては AE との厳密一致からずれる可能性（AE も同様の水平基準のため実害は小さい見込み、要視覚確認）。
+
+## 2026-08-25 — DOF f-stop 物理モデル拡張と配線再適用
+
+**関連**: `ArtifactDepthOfFieldPass.ixx/.cppm`, `ArtifactCompositionRenderController.cppm`
+
+- **事实**: `DepthOfFieldSettings` に thin-lens パラメータ（`focalLength` mm / `fStop`）を追加。fStop > 0 で物理モデル（CoC = |A*f*(d_f - d)| / |d_f*(d - f)|，aperture を f-stop スケールとして解釈）、<= 0 で従来の線形 ramp にフォールバック。
+- **事实(重要)**: 前回セッションで `git checkout --` により resolve パスへの DOF/カメラMB 配線が working tree から失われていた。今回再適用し、パイプライン初期化条件に `cameraMotionBlurRequested` も含めた。この種の再適用前は `git diff --stat` で存在確認が必要。
+- **未検証**: HLSL コンパイル、thin-lens CoC の視観確認（aperture 値のスケーリングは要調整の可能性）。
+
