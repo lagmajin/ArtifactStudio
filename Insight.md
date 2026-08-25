@@ -3242,3 +3242,11 @@
 - 実装: Noise の `draw()` で color mapping 無効時に既存 `ArtifactIRenderer::device()` / `immediateContext()` と `ProceduralTextureComputePipeline` を使い、RGBA16F UAV を生成して compute dispatch 後に texture-view sprite として描画する経路を追加。compute 失敗時、device/context 不在時、color mapping 有効時は既存 CPU float-buffer 経路へ fallback する。
 - キャッシュ: Noise signature と device identity を基準に GPU texture を再生成し、device identity 変更時は pipeline/context/texture を破棄する。GPUTextureCacheManager への登録はまだ行っていない。
 - 未検証: ビルド、D3D12/Vulkan runtime parity、UAV→SRV transition の実機確認、cloner/fracture overlay との組み合わせ、GPU texture memory budget。
+
+
+## 2026-08-25: 3D シャドウマップ経路は単一ライト実装済み、softness 未接続
+
+- 関連: `Artifact/src/Render/ArtifactIRenderer.cppm`（beginShadowMapFrame / renderShadowMapFrame）、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`（L31629 付近のライト選択）、`ArtifactCore/src/Graphics/MeshRenderer.cppm`（prepareShadow / drawShadow / setShadowMap）
+- 事実: シャドウマッピングは既にエンドツーエンドで接続済み。Controller が最初の castsShadows 有効な Directional／Spot を選び、D32 シャドウマップ深度プレパス → MeshRenderer の PCF 比較まで動く。
+- 事実: `ArtifactIRenderer.cppm:1066` の `setShadowMap()` 呼び出しは depthBias 既定値のみで、`shadowRadius` → softness 引数を渡していない。ライトレイヤーの Shadow Radius は UI 上存在するが影の柔らかさに反映されない可能性が高い（未検証: 実機描画）。
+- 未検証・残課題: Point/Area ライトは影なし（コードコメントで意図的に除外）、シャドウライトは 1 灯のみ、Directional の ortho extent は原点中心固定 2048（シーン境界未適合）、実機受入れ未確認。
