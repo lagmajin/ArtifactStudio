@@ -67,8 +67,36 @@
 
 いずれにせよ、これは新規機能の追加ではなく、**「コンテナ責務の重複整理」と「合成境界の再利用化」**が中心となる。
 
+## 採用方針（2026-08-27）
+
+案Bを、Layer継承ではなくComposition側の独立ノードとして実装する。
+
+```text
+Composition
+└── CompositionNode
+    ├── LayerNode
+    │   └── ArtifactAbstractLayer
+    └── ContainerNode
+        └── GroupContainer
+```
+
+`GroupContainer`は`ArtifactAbstractLayer`を継承しない。子管理・親子関係・表示順はComposition側のノードグラフを正とし、グループ全体の不透明度・ブレンド・マスクなどの合成境界は独立したRender Boundaryへ分離する。
+
+`ArtifactGroupLayer`は移行期間のみ互換アダプタとして残し、最終的には削除する。削除条件は、Factory、JSON、UI、Undo、Render Queue、Composition View、プラグイン/APIの参照を`GroupContainer`へ移行し、旧JSONの読み込み互換を別途確認できた時点とする。
+
+### 移行フェーズ
+
+1. `CompositionNode` / `ContainerNode` の責務とIDモデルを導入（既存Layer APIは維持）。
+2. Compositionを親子関係の唯一のsource of truthにする。
+3. `GroupContainer`へ子管理とグループ設定を移行する。
+4. 合成境界を独立Render Boundaryへ切り出す。
+5. Factory、JSON、UI、Undo、Preview、Exportを新型へ段階移行する。
+6. 旧`ArtifactGroupLayer`を非推奨化し、互換読み込みだけを残す。
+7. 参照ゼロを確認して`ArtifactGroupLayer`を削除する。
+
 ## 未決定事項
 
-- どちらの案を採るか（ユーザー判断待ち）。
-- 案 B の場合のコンテナ抽象の配置場所とモジュール分割。
-- 案 A の場合の「グループ全体へのブレンド／マスク」喪失を許容するか。
+- `CompositionNode`を型階層にするか、Composition内のNodeRecord/variantで保持するか。
+- `GroupContainer`の永続化形式と旧`type: Group` JSONの互換方法。
+- 合成境界をContainerの設定値として持つか、独立RenderGraphノードとして持つか。
+- 旧`ArtifactGroupLayer`削除のリリース境界。
