@@ -3364,3 +3364,11 @@
 - **判断:** まず item の型・JSON 往復・Layer 所有 API を追加し、描画 API を既存の矩形近似で代用しない。次段で `ArtifactIRenderer` の既存 primitive 契約を確認し、selection/editing と同時に接続する。
 - **未検証:** module ビルド、item の runtime 描画、既存プロジェクトとの round-trip 実行確認。
 
+## 2026-08-27 — GroupContainer の移行開始点
+
+**関連**: `Artifact/include/Composition/ArtifactCompositionNodes.ixx`, `Artifact/src/Composition/ArtifactCompositionNodes.cppm`, `Artifact/cmake/ArtifactSources.cmake`
+
+- **事実:** 既存 `ArtifactGroupLayer` は UI、AI、Undo、Composition View、描画経路に広く参照されているため、直ちに独立 Container へ置換するのは高リスク。
+- **対応:** Layer 非継承の `CompositionNode`／`ContainerNode`／`GroupContainerNode` を追加し、ID・parentId・kind・子 ID の重複拒否・JSON 往復を先行実装した。既存 Group は互換アダプタとして未変更。
+- **未検証:** module ビルド、Composition NodeStore への接続、循環親子関係の Composition 全体検証。
+
