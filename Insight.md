@@ -3339,3 +3339,28 @@
 - **事实(重要)**: 前回セッションで `git checkout --` により resolve パスへの DOF/カメラMB 配線が working tree から失われていた。今回再適用し、パイプライン初期化条件に `cameraMotionBlurRequested` も含めた。この種の再適用前は `git diff --stat` で存在確認が必要。
 - **未検証**: HLSL コンパイル、thin-lens CoC の視観確認（aperture 値のスケーリングは要調整の可能性）。
 
+## 2026-08-26 — シェイプレイヤー整備 4 項目（Pen パス作成 / VP 頂点編集 / 演算子アニメーション / パスキーフレーム）
+
+**関連**: `Artifact/src/Layer/ArtifactShapeLayer.cppm`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`, `ArtifactCompositionEditor.cppm`
+
+- **実装**: (1) Pen ツールが Shape レイヤー選択時はマスクではなくカスタムパスを作成（開始点クリック or Enter で確定、Backspace で頂点取消、Escape キャンセル）。(2) メイン VP でカスタムパス頂点＋タンジェントハンドルのヒットテスト・ドラッグ・smooth 反射・Undo（`ShapePathVertexEditCommand`）。(3) 演算子パラメータ（TrimPaths start/end/offset、Repeater copies/offset/rotation/opacity ほか）のキーフレーム評価 — 描画時に clone へ適用し静的値は Inspector 保持。`hasAnimatedShapeOperators()` でキャッシュ回避。(4) パス頂点自体のキーフレーム — `shape.path.keyframes` プロパティに JSON で頂点配列を格納し、`evaluatePathAt(frame)` が線形補間（トポロジ不一致時は snap）。
+- **事実:** `ArtifactRenderLayerWidgetv2`（LayerEditorPanel 内）に既存の頂点編集実装があり、それをメイン VP 契約へ移植した。既存 Pen 経路は完全に mask 専用のまま（Shape 分岐は前段で return）。
+- **未検証・懸念:** ビルド未実施。タンジェント smooth 反射の長さ保存比、パスキーフレームの UI（キー追加導線は API のみ）、`shape.path.keyframes` の timeline 表示統合は次段階。
+
+## 2026-08-26 — ラインレイヤー初期導線（作成メニュー / 既定値）
+
+**関連**: `Artifact/src/Layer/ArtifactShapeLayer.cppm`, `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm`
+
+- **事実:** Line は独立レイヤーではなく `ArtifactShapeLayer::ShapeType::Line` として実装済みだが、Shape 作成サイクルは6種類で Line を含まず、`setShapeType(Line)` も共有Shape既定値（fill on / stroke off / width 0）のままだった。
+- **対応:** 作成サイクルを7種類へ拡張して `Line 1` を追加。`setShapeType(Line)` 時に Fill OFF、Stroke ON、Stroke Width 1.0（既存幅が0以下の場合のみ）を設定し、新規Lineが不可視になる初期状態を防止。
+- **価値:** 既存のShape/JSON/描画モデルを変えず、Lineを作成直後から可視・利用可能にする最小導線になった。
+- **未検証・懸念:** ビルド・ランタイム未実施。Tool Options / Inspector ではLine専用表示になっておらず、Shape編集モードではLineの直接端点編集を意図的に除外している。GPU `PolylineStyle` は StrokeAlign を持たないため、Inside/Outside の表示差は別途設計・検証が必要。
+
+## 2026-08-27 — Construction Item の描画境界
+
+**関連**: `Artifact/include/Layer/ArtifactConstructionLayer.ixx`, `Artifact/src/Layer/ArtifactConstructionLayer.cppm`, `Artifact/include/Render/ArtifactIRenderer.ixx`
+
+- **事実:** Construction Layer は現在グリッド等を `drawSolidRectTransformed` で描画する一方、line/circle/text の transformed 共通 API は Construction Layer から直接利用できる形では揃っていない。
+- **判断:** まず item の型・JSON 往復・Layer 所有 API を追加し、描画 API を既存の矩形近似で代用しない。次段で `ArtifactIRenderer` の既存 primitive 契約を確認し、selection/editing と同時に接続する。
+- **未検証:** module ビルド、item の runtime 描画、既存プロジェクトとの round-trip 実行確認。
+
