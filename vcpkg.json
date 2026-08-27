@@ -30,6 +30,7 @@
     "boost-iostreams",
     "entt",
     "magic-enum",
+    "meshoptimizer",
     "gtest",
     {
       "name": "onnxruntime",
