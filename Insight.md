@@ -3372,3 +3372,11 @@
 - **対応:** Layer 非継承の `CompositionNode`／`ContainerNode`／`GroupContainerNode` を追加し、ID・parentId・kind・子 ID の重複拒否・JSON 往復を先行実装した。既存 Group は互換アダプタとして未変更。
 - **未検証:** module ビルド、Composition NodeStore への接続、循環親子関係の Composition 全体検証。
 
+## 2026-08-27 — GPU track matte の4枚以上は既存逐次GPU経路で処理可能
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`ArtifactCore::LayerBlendPipeline`
+- **事実:** 3枚以下は1回の `applyTrackMatte()` にまとめる一方、既存コードには任意枚数を1枚ずつ同じDiligent GPU APIへ適用するフォールバックがある。3枚超だけ早期returnしていたため、その経路へ到達せず無加工レイヤーが返っていた。
+- **対応:** 早期returnを除去し、3枚超は既存の逐次GPU適用経路で処理するようにした。D3D12/Vulkan固有コードやDiligentEngineには変更しない。
+- **価値・懸念:** CPU側と同じ複数source matte契約へ近づける。各referenceの順序・blend・opacityは逐次適用されるため、GPU/CPUの実画素受入と高枚数時のフレーム時間測定が必要。
+- **次に確認:** 4枚以上かつ Add / Intersect / Subtract / Difference を混在させた静止画で、Preview・Software・Render Queue の同一フレーム比較を実行する。
+
