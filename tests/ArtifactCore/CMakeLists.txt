@@ -21,6 +21,13 @@ artifact_add_test(ArtifactCoreArtifactScriptTest
         ArtifactCore
 )
 
+artifact_add_test(ArtifactCoreArtifactScriptHostApiTest
+    SOURCES
+        ArtifactScriptHostApiTest.cpp
+    LIBS
+        ArtifactCore
+)
+
 artifact_add_test(ArtifactCoreCSharpScriptEngineTest
     SOURCES
         CSharpScriptEngineTest.cpp
@@ -38,6 +45,20 @@ artifact_add_test(ArtifactCoreCreativeEffectTest
 artifact_add_test(ArtifactCoreAudioMixerRoutingTest
     SOURCES
         AudioMixerRoutingTest.cpp
+    LIBS
+        ArtifactCore
+)
+
+artifact_add_test(ArtifactCoreAudioModulationRouterTest
+    SOURCES
+        AudioModulationRouterTest.cpp
+    LIBS
+        ArtifactCore
+)
+
+artifact_add_test(ArtifactCoreAbstractPropertyModulationTest
+    SOURCES
+        AbstractPropertyModulationTest.cpp
     LIBS
         ArtifactCore
 )

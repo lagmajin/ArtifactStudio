@@ -44,6 +44,113 @@
 
 未解決の設計判断・runtime 検証待ちだけを記録する。実装済みの局所修正と履歴は `docs/analysis/INSIGHT_ARCHIVE_2026-08-11.md` を参照する。
 
+## 2026-08-29 — Layer modulation は opacity を最初の正規対象に限定
+
+- **関連:** `Artifact/include/Layer/ArtifactAbstractLayer.ixx`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`、`docs/planned/MILESTONE_PROPERTY_MODULATION_2026-08-29.md`
+- **事実:** `ArtifactAbstractLayer` は共通の永続プロパティキャッシュを持つが、Transform は keyframe、variant、animation layer、物理・レイアウト評価へそれぞれ異なる形で分岐している。`opacity()` は共通の単一評価点で、既存の順序が base → keyframe → animation layer → effect envelope と明確だった。
+- **変更:** layer ごとの `ModulationRouter` を追加し、stable path `layer.<layer-id>.layer.opacity` を base/keyframe/animation layer の後、effect envelope の前へ適用した。`goToFrame()` と `opacity()` の双方から同一フレーム idempotent な control clock を呼ぶため、通常の描画経路と直接の opacity 参照のどちらでも source を二重に進めない。
+- **価値または懸念:** 全 layer type で使える最小の runtime 接続になる。一方 Transform を同じパターンで一括適用すると、現在の variant/physics/layout と値の書き戻しを混同するリスクがあるため未実装。
+- **次に確認すべきこと:** Null/Image Layer へ constant/LFO mapping を設定し、preview/export・正逆シークで opacity が一致すること。次の対象は transform ではなく、保存可能な source/assignment state と Undo 境界の設計。
+
+## 2026-08-29 — Modulation source の保存は設定のみを値オブジェクト化
+
+- **関連:** `ArtifactCore/include/Audio/Modulation/{Modulator,Router}.ixx`、`tests/ArtifactCore/AudioModulationRouterTest.cpp`
+- **事実:** LFO は waveform/frequency/phase offset/pulse width/unipolar、ADSR は ADSR 値、Random は rate/smoothing/seed/unipolar を公開している。いずれも再生中の phase、sample-and-hold、gate/level をそのまま project state として保存する既存契約はない。
+- **変更:** `ModulationSourceDefinition` と `sourceDefinitions()` / `restoreSources()` を追加。source ID を維持し、assignment は既存の source ID 参照をそのまま再接続する。未知の実装型・ID 0・重複 ID は復元しない。
+- **価値または懸念:** JSON / Undo は C++ polymorphic source を直接扱わず値オブジェクトだけを扱える。runtime state を保存しないため project reopen は決定的に frame zero から開始するが、途中再生状態の復元は行わない。
+- **次に確認すべきこと:** effect / layer 所有側で source definitions と assignments を JSON 化し、deserialize 後に `restoreSources()` → assignment restore の順で呼ぶ。Undo は router snapshot を同じ値オブジェクトで保持する。
+
+## 2026-08-29 — Composition effect の modulation JSON 復元順を固定
+
+- **関連:** `Artifact/src/Composition/ArtifactAbstractComposition.cppm` の `serializeEffect()` / `deserializeEffect()`
+- **事実:** Composition effect は既に ID、一般プロパティ、keyframe/expression/envelope をこの局所 helper で JSON 化している。effect の instance ID は composition への追加時に一意化され、modulation target path に含まれる。
+- **変更:** `modulation.sources` と `modulation.assignments` を effect JSON に追加した。target ID は JSON の数値として保存せず、stable `targetPath` から再計算するため 64-bit hash を JSON double に落とさない。復元は source definitions を復元後に assignment を追加する。
+- **価値または懸念:** Composition effect は project reopen 後も LFO/ADSR/Random 設定と mapping を失わない構造になった。layer が所有する router は別シリアライザであり、まだ同じ JSON helper を利用していない。実ファイル round-trip と runtime は未検証。
+- **次に確認すべきこと:** Composition serialization のテスト対象を確立して modulation JSON の round-trip を追加し、layer serialization でも同一 schema を使うよう局所 helper を共有または移動する。
+
+## 2026-08-29 — Layer Router も effect と同一の modulation JSON schema を使用
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `toJson()` / `fromJsonProperties()`
+- **事実:** 全 concrete layer の読み込みは `ArtifactAbstractLayer::fromJsonProperties()` または 2D 派生経由へ到達する。共通 layer JSON には animation/property layer など共通状態を保存する正規の位置がある。
+- **変更:** layer 所有 router の `modulation.sources` / `modulation.assignments` を共通 layer JSON へ追加。source definitions を復元後に stable target path から assignment を復元する。`layer.opacity` の target path は layer ID を含むが、hash を保存しないため JSON 整数精度の影響を受けない。
+- **価値または懸念:** layer type ごとの個別 serializer を増やさずに opacity mapping を再読込できる。effect / layer の JSON field schema は同一だが、現在は各既存 serializer に局所 helper があり重複している。schema を Core の dedicated serializer へ寄せるのは将来の整理候補。
+- **次に確認すべきこと:** project save/open の round-trip test または runtime 確認を追加。Undo は property変更とは別に router snapshot を扱う command が必要。
+
+## 2026-08-29 — Router snapshot は保存・Undo とも完全置換にする
+
+- **関連:** `ArtifactCore/include/Audio/Modulation/Router.ixx`、`tests/ArtifactCore/AudioModulationRouterTest.cpp`、effect/layer JSON restore helper
+- **事実:** source definitions の復元だけでは、同じ source ID を参照する古い assignment が Router に残る可能性がある。JSON の load は通常 fresh instance だが、Undo/Redo と編集済み instance では完全置換が必要。
+- **変更:** `ModulationRouterSnapshot`（sources、assignments、smoothingTime）と `restoreSnapshot()` を追加。restore 前に assignment を clear し、source を復元後に assignment を追加する。JSON helpers も source restore 前に assignment を clear するよう統一した。
+- **価値または懸念:** save/load と Undo command が同じ state shape を共有でき、stale mapping を残さない。snapshot は runtime phase/gate を含まないため、Undo 後の source 再生位置は frame clock により再評価される。
+- **次に確認すべきこと:** existing UndoManager の command パターンに snapshot を接続し、assignment追加・削除・depth変更を同じ command で扱う。UI を作る前に effect と layer の所有者解決を含む command API が必要。
+
+## 2026-08-29 — Modulation Undo command は state のみを復元する
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`
+- **事実:** UndoManager は immediate redo を実行して history に積み、effect/layer を weak reference で保持する command と `notifyAnythingChanged()` の既存パターンを持つ。Animation Layer snapshot も選択・再生時刻を復元しない。
+- **変更:** `EffectModulationSnapshotCommand` / `LayerModulationSnapshotCommand` を追加。前後の `ModulationRouterSnapshot` を完全置換し、memory estimate は source definition / assignment path / label を含める。session history への command serialization は未実装で、通常の in-memory undo として扱う。
+- **価値または懸念:** assignment の add/remove/depth/source configuration を単一 command にまとめられる。target がすでに破棄済みでも安全に no-op となるが、全体更新通知は送る。選択・frame・dirty/cache の実ランタイム挙動は未検証。
+- **次に確認すべきこと:** Inspector 導線は effect/layer の owner を保持した上で before snapshot → mutate copy → `UndoManager::push` を使う。runtime で undo/redo、project dirty、preview 再描画、save/reopen を確認する。
+
+## 2026-08-29 — mapping は存在する source だけを参照できる
+
+- **関連:** `ArtifactCore/include/Audio/Modulation/Router.ixx`、`tests/ArtifactCore/AudioModulationRouterTest.cpp`
+- **事実:** assignment は source ID を保持するが、従来 `addAssignment()` は source の存在を確認していなかった。source を欠く assignment は評価時に無効扱いになるだけで、保存・編集状態に残り得た。
+- **変更:** `addAssignment()` が source ID 0、target ID 0、または未登録 source を拒否するように変更。source definition restore の後に assignment を追加する JSON / snapshot の順序と整合する。
+- **価値または懸念:** 削除済み source の mapping を UI や復元が生成しない。未対応の source type を含む将来ファイルでは、対応 source を復元できない限り mapping も drop されるため、migration 時には明示的な warning/diagnostic が必要。
+- **次に確認すべきこと:** Inspector 導線は assignment 作成失敗を表示可能な validation として扱う。UI 実装前に、既存 Property Editor の event/command 経路を確認する。
+
+## 2026-08-29 — Macro は最初の時間非依存 modulation source
+
+- **関連:** `ArtifactCore/include/Audio/Modulation/{Modulator,Router}.ixx`、effect/layer modulation JSON helper、`tests/ArtifactCore/AudioModulationRouterTest.cpp`
+- **事実:** LFO / ADSR / Random は時間または gate で変化する。一方、複数 mapping を同じ手動値で駆動する Macro は Bitwig の unified modulation workflow における基本 source だが、現行 Core にはなかった。
+- **変更:** `MacroSource` を追加。値は非有限値を 0、有限値を [0,1] へ clamp して process ごとに同一値を返す。`ModulationSourceDefinition` の `Macro` / `macroValue` と effect/layer JSON schema に追加し、snapshot も自動的に保持する。
+- **価値または懸念:** 音声入力や transport に依存せず、複数の property mapping を安全にまとめて制御できる。UI 未実装のため値は public source API 経由でのみ設定でき、automation/keyframe 化は未着手。
+- **次に確認すべきこと:** Property Editor の既存変更 command 経路から Macro value と mapping を編集する小さな専用 section を実装し、Undo / project dirty / save-open を runtime で確認する。
+
+## 2026-08-29 — Modulation JSON の source ID は符号付き int に狭めない
+
+- **関連:** `Artifact/src/{Composition/ArtifactAbstractComposition,Layer/ArtifactAbstractLayer}.cppm`
+- **事実:** Router の source ID は `uint32_t`。effect/layer JSON helper は以前 `int` へ cast して保存しており、ID が `INT_MAX` を越えると符号変換に依存した。
+- **変更:** source definition の `id` と assignment の `sourceId` を JSON double として保存するよう統一。uint32 の全整数値は JSON double の正確な整数範囲内であり、既存の `QVariant::toUInt()` 復元と互換。
+- **価値または懸念:** 長期編集・大量追加後にも source / assignment の参照一致を保てる。JSON helper は effect/layer に重複しているため、将来の schema version 追加時には Core serializer への統合が望ましい。
+- **次に確認すべきこと:** max-range source ID を含む serialization 回帰テスト（Artifact target または project round-trip harness）を追加し、実ファイル保存で確認する。
+
+## 2026-08-29 — source ID の wrap-around でも 0 を発行しない
+
+- **関連:** `ArtifactCore/include/Audio/Modulation/Router.ixx`、`tests/ArtifactCore/AudioModulationRouterTest.cpp`
+- **事実:** Router は source ID 0 を invalid として扱う。一方、単純な `nextSourceId_++` は `UINT32_MAX` の直後に 0 を発行し、assignment 作成が常に拒否される source を生み得た。
+- **変更:** `addSource()` は next candidate が 0 の場合 1 に戻し、既存 source ID をスキップして未使用 ID を選ぶ。全 ID が埋まる理論上のケースは 0 を返して失敗する。最大 ID 復元後に次の source が 1 になる回帰ケースを追加した。
+- **価値または懸念:** 長寿命 session や restore 後でも 0 が有効 source として混入しない。ID 枯渇時の UI feedback は未実装で、現状の public API は 0 を失敗値として返す。
+- **次に確認すべきこと:** UI 導線では `addSource()` の 0 を validation error として扱う。実用上の ID 枯渇は到達不能に近いが、diagnostic を追加するなら Router owner 側で行う。
+
+## 2026-08-29 — Effect service を modulation UI の正規 mutation 境界にする
+
+- **関連:** `Artifact/include/Service/ArtifactEffectService.ixx`、`Artifact/src/Service/ArtifactEffectService.cppm`、`Artifact/include/Undo/UndoManager.ixx`
+- **事実:** Effect service は layer/composition effect の解決、project dirty、LayerChangedEvent / ProjectChangedEvent、既存 `effectChanged` signal を既に担う。Router を UI が直接書き換えるとこれらを迂回する。
+- **変更:** `setEffectModulationSnapshot()` と `setCompositionEffectModulationSnapshot()` を追加。現在の Router snapshot を before、受け取った snapshot を after として既存 UndoManager command に積み、service の既存 mutation 通知を実行する。新規 signal/slot は追加しない。
+- **価値または懸念:** Inspector / Effect surface は owner 解決と Undo の詳細を持たずに編集できる。layer 自身の Router（opacity）は別の layer service mutation API が必要で、今回の effect service 対象外。
+- **次に確認すべきこと:** effect property surface から Macro source の値・assignment を編集する UI を追加し、service API 経由で project dirty と undo/redo を runtime 確認する。layer Router は Property Editor の既存 layer mutation service を調査して別途接続する。
+
+## 2026-08-28 — 画像エフェクト歪み系の再活性化（CC プリセット系は別タスク）
+
+- **関連:** [`docs/planned/MILESTONE_DISTORT_EFFECTS_COMPLETION.md`](docs/planned/MILESTONE_DISTORT_EFFECTS_COMPLETION.md)（ハブ、2026-08-28 再活性化）、[`docs/planned/MILESTONE_MESH_WARP_LIQUIFY_2026-06-02.md`](docs/planned/MILESTONE_MESH_WARP_LIQUIFY_2026-06-02.md)（集約先参照のみ追記）
+- **事実:** 2026-08-15 監査で歪み系は Phase 1〜3 とも未着手だった。`MILESTONE_DISTORT_EFFECTS_COMPLETION` をハブとして `**最終更新: 2026-08-28**` / `**ステータス: In Progress**` に再活性化。着手 Phase は **Phase 2 (TwistTransform / BendTransform)** から。`Artifact/include/Effects/Transform/{TwistTransform,BendTransform}.ixx` は header-only stub 82 行で `applyCPU()` 未実装。
+- **CC プリセット系判断:** CC Glass / CC Twirl / CC Ball Action / CC Power Pin / CC Grid Wipe / CC Kaleida 等は「汎用性が低いので単純導入はやめたほうがよい」（2026-08-28 ユーザー判断）。本書スコープ外、必要時に別マイルストーン化。
+- **価値:** Phase 2 は P0・工数最小。`applyCPU()` 追記 + キーフレーム `AnimatableFloat` 評価の薄い実装で成立。GPU パスは Phase 1 の `runDistortCompute()` 共通ヘルパー作成後に着手。
+- **未検証:** 既存歪み効果の GPU/CPU parity（LiquifyEffect 85%、Spherize 75%、Wave 65%、LensDistortion 75% — 2026-08-15 監査）。
+- **次の確認:** Phase 2 着手可否（ビルド・テスト実行はユーザー指示待ち）。Phase 2 完了後、Phase 1 → Phase 3 → Phase 4（CC 除く）の順。Liquify 部分は既存 `LiquifyEffect` 85% 完成の基盤を Phase 2 完了後に統合。
+
+## 2026-08-28 — Phase 2 (TwistTransform / BendTransform) CPU 実装（ビルド未検証）
+
+- **関連:** `Artifact/include/Effects/Transform/{TwistTransform,BendTransform}.ixx`（書き換え）、`Artifact/src/Effects/Transform/{TwistTransform,BendTransform}.cppm`（新規）、`Artifact/cmake/ArtifactSources.cmake:752-753`（明示リスト追加）、`Artifact/src/Service/ArtifactEffectService.cppm:90-91,613-621,1166-1167`（既存 import / ファクトリ / EffectID 登録）
+- **事実:** 既存 `.ixx` は `ArtifactAbstractFieldPtr field_` を保持する header-only stub で apply メソッドなし。新規 `.cppm` で **PIMPL + DualImpl パターン**（`SpherizeEffect` と同じ）に書き直し、`applyCPU` を OpenCV + `Core::Parallel::For` で実装。`applyGPU` は基底 `ArtifactEffectImplBase` デフォルトで CPU フォールバック。`ArtifactAbstractEffect::apply` 内で `cpuImpl_->applyCPU` / `gpuImpl_->applyGPU` が自動呼出。
+- **Twist 数式:** 中心 (cx, cy) からの距離 r に対する線形減衰 `factor = 1 - r/r_max`、各ピクセル (x, y) を `theta = angle · factor` で回転。`angle` は degree。bilinear サンプル。
+- **Bend 数式:** `nx = sin(2π·y/size)·amount` / `ny = sin(2π·x/size)·amount` を `direction` 角で H/V 合成。`amount` は pixel 振幅、`size` は波の周期。`direction = 0°` で水平波、`90°` で垂直波。
+- **価値:** 既存 `ArtifactAbstractFieldPtr` 経路を撤去し、既存歪み効果（Spherize / LensDistortion / Wave）と同じパターンに揃えることで、`ArtifactEffectService` の既存 catalog 登録（`"twist"` / `"bend"`）が機能する状態に。
+- **未検証・懸念:** ビルド・runtime 未実施。**`Bend` の `amount` を pixel 単位振幅で扱ってる**（AE 互換の degree 換算ではない）。AE 互換の degree 換算が必要なら `setAngle` 側で `amount_rad = angle · π/180` を施すラッパを後付け。Bilinear サンプル時の `OpenCV` `cv::Vec4f` 演算は `operator*`/`operator+` のスカラー対応に依存（OpenCV 4.x で提供）。`factor` のクランプ（中心 r=0 で factor=1、r=r_max で factor=0。`r > r_max` のピクセルは `factor < 0` で逆回転 — 仕様上問題なければ OK）。
+- **次の確認:** ビルド成功 → EffectService カタログ確認 → テスト画像（チェッカーボード/同心円）で Twist 45°/90°/180°、Bend direction 0°/90°/45°、amount 0/10/50 で期待通りの挙動。GPU パス化は Phase 1 `runDistortCompute()` ヘルパー作成後。
+
 ## 2026-08-24 — Inspector を Composition Viewer ツールバー風に整理したいという要望の保留メモ
 
 - **関連:** `docs/WIDGET_MAP.md:21-26,33,82`（Inspector vs Composition Editor vs PropertyEditor 責務）、`Artifact/src/Widgets/ArtifactInspectorWidget.cppm`、`Artifact/docs/PROPERTY_EDITOR_AUDIT_2026-03-11.md`、`references/artifactstudio-property-editor-review.md`、ユーザー提示画像（AEの `Composition`ビューポート + 下部 `100% / 0:00:01:00 / フル画質 / アクティブカメラ / 1画面` ツールバー + `エフェクトコントロール: adjustment / CC Power Pin`）
@@ -3380,3 +3487,149 @@
 - **価値・懸念:** CPU側と同じ複数source matte契約へ近づける。各referenceの順序・blend・opacityは逐次適用されるため、GPU/CPUの実画素受入と高枚数時のフレーム時間測定が必要。
 - **次に確認:** 4枚以上かつ Add / Intersect / Subtract / Difference を混在させた静止画で、Preview・Software・Render Queue の同一フレーム比較を実行する。
 
+## 2026-08-29 — ArtifactScript Composition API の最小境界
+
+**関連:** `ArtifactCore/include/Script/ArtifactScript/ArtifactScript.ixx`, `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm`
+
+- **事実:** 既存の `ArtifactScriptHost::registerFunction` は評価器から名前解決される汎用 callback registry であり、Composition API 専用の型境界は存在しなかった。
+- **対応:** `ArtifactScriptCompositionApi` の5 callback（layer取得・件数・時刻・property取得・設定）を追加し、`installCompositionApi()` から標準関数として登録した。Composition／UI の型には依存しない。
+- **価値:** 実際の Composition 実装を直接 ArtifactCore へ持ち込まず、アプリ側が callback を注入できる。`setProperty` の拒否理由は既存の host error 経路へ流せる。
+- **未検証:** module ビルド、テスト実行、Artifact 側 Composition API adapter の接続。
+## 2026-08-29 — Bitwig 着想の Property Modulation は既存 Router を正規化する
+
+**関連:** `ArtifactCore/include/Audio/Modulation/Router.ixx`, `docs/planned/MILESTONE_PROPERTY_MODULATION_2026-08-29.md`
+
+- **事実:** `Audio.Modulation.Router` はすでに `IModulatorSource`、source ID、target ID、depth、block 単位処理を持っていた。LFO/ADSR/Random と source→target 加算は新規設計を必要としない。
+- **対応:** property path を保持する assignment、Add/Multiply 合成、同一 mapping の更新、読み取り用 mapping 一覧を既存 Router に追加した。
+- **価値:** property の基準値を直接書き換えず、keyframe/envelope/expression の後に非破壊で合成できる。将来の UI・JSON・Undo は同じ mapping 契約を所有すればよい。
+- **追加対応:** `AbstractProperty::evaluateValue()` は明示的な router と stable target path を受け、keyframe/envelope/expression の評価後に Float/Integer へ modulation を適用する。既存 min/max 実値範囲は適用後も守る。
+- **未検証:** layer/effect が router 所有者と target path を渡す接続、mapping の JSON/Undo、Audio Follower の block-to-frame 時間変換、runtime の preview/export parity。
+
+### 2026-08-29 — Timeline modulation は stateful source の再現可能な clock が前提
+
+- **関連:** `ArtifactCore/include/Audio/Modulation/Router.ixx`, `ArtifactCore/include/Audio/Modulation/Modulator.ixx`
+- **事実:** audio block 用の `process(numFrames)` を effect の `setContext()` ごとに呼ぶと、同一 frame の再描画で LFO/Random が進み、preview と render の値が一致しない。
+- **対応:** `processAtFrame(frame, frameRate)` を追加し、同一 frame は idempotent、巻き戻しは reset/replay とした。`RandomSource` は seed を保持して reset 後の系列も再現する。
+- **未検証:** 長尺の大きな逆 seek のコスト、ADSR gate event の再生履歴、Audio Follower の音声時刻から control frame への変換。
+
+### 2026-08-29 — Effect modulation target は composition 内の instance ID を使う
+
+- **関連:** `Artifact/src/Effects/ArtifactAbstractEffect.cppm`, `Artifact/src/Composition/ArtifactAbstractComposition.cppm`
+- **事実:** effect factory ID は同種 effect 間で重複し得るが、composition へ追加される時点で `uniqueEffectIdForComposition()` が suffix 付きの一意 ID を割り当て、JSONにも保存する。
+- **対応:** effect target path を `effect.<instance-id>.<property-name>` とし、`ArtifactAbstractEffect` が per-effect router を所有して `EffectContext::compositionFrame` で進める。
+- **未検証:** layer effect 追加経路すべてで instance ID が重複しないこと、effect router/mapping の JSON 保存、preview・offline render の同一 frame parity。
+## 2026-08-29 — Property Modulation は row context menu を入口にできる
+
+- **関連:** `Artifact/src/Widgets/ArtifactPropertyWidget.cppm` / Property Editor
+- **事実:** animatable effect property の既存 row は context menu の auxiliary action を持てる。EffectService には modulation snapshot の Undo 適用 API がある。
+- **気づき:** 常時表示の modulation toolbar を増やさず、row の既存補助メニューから source / depth / mix mode を追加することで、Property Editor の責務と縦方向の密度を維持できる。
+- **価値・懸念:** 最小導線としては有効。ただし現実装は source の詳細パラメータ編集・既存 assignment の一覧／削除をまだ提供しない。
+- **次に確認:** UI runtime で context menu、Undo/Redo、JSON round-trip、複数 effect 選択時の対象表示を確認する。
+
+
+### 2026-08-29 - Timeline planned マイルストーンの「現状ステータス」棚卸し
+
+- 関連: docs/planned/MILESTONE_TIMELINE_STATUS_INDEX_2026-08-29.md (新規), docs/planned/MILESTONE_TIMELINE_INDEX_2026-04-22.md (既存), docs/DOC_LIFECYCLE.md
+- 事実: タイムライン系 planned マイルストーンは 26 件を超え、うち 11 件は冒頭 SUPERSEDED 注記で他文書に吸収済み。残り 15 件で Update 2026-08-15 の判定文を見たところ、4 件が「実装済み相当」、9 件が「部分実装」、2 件が「未着手」だった。SUPERSEDED 文書の吸収先は MILESTONE_KEYFRAME_STATE_SPEC_2026-06-17.md と MILESTONE_CURVE_EDITOR_DCC_IMPROVEMENTS_2026-07-22.md に集約されつつある。
+- 気づき: 既存の役割別 index (MILESTONE_TIMELINE_INDEX_2026-04-22.md) は「本筋/補助線」の語彙で整理しているが、最終更新日欄がなく、DOC_LIFECYCLE.md のルールからは外れている。ステータス棚卸し index は「判定基準 → 区分別表 → SUPERSEDED マップ → 着手目安」の順で組むと、未着手テーマを選ぶときの思考順序と一致しやすい。
+- 価値・懸念: 「着手テーマを選ぶ前に全体を見渡す」ための俯瞰図として機能する。ただし判定根拠は Update 節の語彙に依存するため、新しい milestone を作る人が Update 節を必ず書くようでないと、判定がすぐに陳腐化する。
+- 次に確認: python tools/generate_doc_inventory.py 実行で docs/INDEX_GENERATED.md の再生成と planned/ 残存 Complete 文書の警告を確認し、必要なら planned/ → done/ 移動や SUPERSEDED 文書のアーカイブ可否を別途検討する。
+
+
+## 2026-08-29 - Timeline が「ハイエンド DCC 感」を欠く理由
+
+- 関連: Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm (10,545 行), ArtifactLayerPanelWidget.cppm (7,827 行), ArtifactTimelineWidget.cppm, TimelineScaleWidget.cppm (161 行), TimelinePlayheadDraw.hpp, MILESTONE_TIMELINE_STATUS_INDEX_2026-08-29.md
+- 事実: TrackPainterView 本体で QPainter::Antialiasing 検索結果 0 件、QPainter::TextAntialiasing 0 件。Antialiasing を立てているのは TimelinePlayheadDraw.hpp と LayerPanel の 1 箇所のみ。TimelineScaleWidget は逆に setRenderHint(QPainter::Antialiasing, false) を明示。setMouseTracking は LayerPanel 1 箇所のみ。setStatusBar/zoom level 検索結果 0 件 (status bar に zoom level 表示なし)。frame 単位の ruler は「0f/10f/20f」の整数+「f」サフィックス固定、timecode・秒換算・sub-frame 切替なし。QFont::setFamily("Consolas") がハードコード。
+- 気づき: ハイエンド DCC 感は「機能の多寡」ではなく「触っている感を演出する視覚誘導の密度」で決まる。今回観察した現状は、機能の大半は実装されているが、表面仕上げが不足している。特に目立つのは (1) 描画の AA/TextAA が playhead 以外ほぼ無効、(2) status bar に zoom level/frame rate/selection 数が常に表示されない、(3) ruler の単位が frame 整数のみで timecode と秒の切替がない、(4) hover tracking がタイムライン右ペインまで降りていない、(5) 単一 widget に 1 万行近い責務集中 (TrackPainterView) で「機能の総体」は見えても「1 機能 1 widget」の分離感が薄い。AE/Blender/Houdini のルーラーは単位切替、minor/major 動的密度、playhead 同期、KB-driven increment (1/5/10/60 frame) を持ち、AA と TextAA が既定で立った ruler を 1 widget で描いている。Artifact の TimelineScaleWidget は 161 行で「最小機能」は持つが、timecode 表記、sub-frame tick、frame rate 反映、zoom level の常時表示が抜けている。
+- 価値・懸念: 「機能はあるが完成していない」を「未着手 planned」と誤認すると、棚卸し (status index) の方が機能過剰に見える。実作業は「機能の有無」ではなく「DCC 感の演出層の不足」を埋める方向に振った方が、体感品質と工数のバランスがよい。巨大単一 widget (10,545 行) の分割は AGENTS.md に従い別判断だが、もし着手するなら「Surface と Interaction を分離」してからの方が進めやすい。
+- 次に確認: AE/Blender/Nuke のタイムライン UI スクリーンショットで「ルーラー表記」「status bar 必須項目」「hover tracking 範囲」「AA/TextAA の境界」を実機サンプルとして並べ、Artifact の TimelineScaleWidget と TrackPainterView のギャップをピンポイントで書き出す。可能なら MILESTONE_TIMELINE_DCC_FEEL_GAPS_2026-08-29.md を planned/ に起こし、status index の着手目安に「DCC 感ギャップ解消」を 1 軸として加える。
+## 2026-08-29 — Timeline GPU化の前に track-indexed visual cache を共通基盤にできる
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`
+- **事実:** 右ペインはtrackの可視範囲を計算している一方、clipとkeyframe markerはpaintごとに全件走査してから可視判定していた。既存のmarker cache再構築点はselection/search用indexをまとめて更新している。
+- **気づき:** clip／markerをtrack indexごとに束ねれば、現行QPainter経路と将来のGPU instance packet生成で同じ可視visual抽出を再利用できる。
+- **価値・懸念:** 多数layer・keyframe時のpaint CPU負荷を減らし、GPU移行時のsnapshot境界になる。現段階ではUI thread上のcacheであり、worker thread化やGPU resource lifetimeは未実装。
+- **次に確認:** `TimelineTrackPaint`で大量layer／keyframe、縦scroll、marker drag、clip trim時の時間と表示回帰を測定する。
+
+## 2026-08-29 — Timeline GPU移行は immutable visual snapshot で旧UIと分離できる
+
+- **関連:** `Artifact/include/Widgets/Timeline/ArtifactDiligentTimelineRenderWindow.ixx`, `Artifact/src/Widgets/Timeline/ArtifactDiligentTimelineRenderWindow.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- **事実:** 既存のDiligent経路には共有device、backend選択、`PrimitiveRenderer2D`、`RenderCommandBuffer`、`DiligentImmediateSubmitter`が揃っている。既存タイムラインは選択・編集・Undo・スクロール同期を集約している。
+- **気づき:** モデルや入力をGPU windowへ移さず、完成済みの表示プリミティブだけを世代番号付きsnapshotとして渡せば、現行タイムラインを正規経路として保持したままDX12/Vulkan表示を並行開発できる。
+- **価値・懸念:** backend固有コードと編集回帰を抑えられる。一方、現段階のsnapshot生成はUI thread上であり、全marker/clipの取得コピーとGPU submitの計測は未検証。
+- **次に確認:** DX12/Vulkanでpreview切替、device初期化失敗時の復帰、長尺compositionのsnapshot構築時間、既存表示との画像parityを確認する。
+
+## 2026-08-29 — 3D Primitive mesh 描画の Provider 境界 (Phase 1 / L1) を導入
+- **関連:** Artifact/include/Render/Artifact3DPrimitiveSubmitter.ixx / Artifact3DPrimitivePipelineAdapter.ixx、Artifact/src/Render/Artifact3DPrimitiveSubmitter.cppm / Artifact3DPrimitivePipelineAdapter.cppm、Artifact/cmake/ArtifactSources.cmake、Artifact/cmake/ArtifactRenderModuleReferences.cmake、Artifact/docs/MILESTONE_PRIMITIVE3D_RENDER_PATH_2026-03-21.md (Phase 1 節追記)
+- **事実:** Artifact3DLayer::draw() は draw3DLine 経由の line 描画のみで mesh 実体の GPU PSO 経路に載っていない。ShaderManager は mesh PSO を集中保持しており、3D Primitive 用の variant (Unlit / FlatLit / Wire) は未分離。Text Glyph G2 移行で provider 境界 (Contract/Adapter) 整備は終わっており、3D 側にも同形の境界を切る素地がある。ArtifactIRenderer::drawMesh は ShaderManager 直結で shadingMode int を取る。ArtifactIRenderer / ShaderManager / DiligentImmediateSubmitter はシビアコード領域のため、AGENTS.md の方針に沿って境界導入のみで止めて実体化は次フェーズ。
+- **変更:** (1) Artifact3DPrimitivePipelineProvider 構造体に unlitPipeline/unlitBinding/flatLitPipeline/flatLitBinding/wirePipeline/wireBinding と hasUnlit/hasFlatLit/hasWire/isValid を追加。Phase 1 では全メンバーが nullptr。
+(2) Artifact3DPrimitiveSubmitter は Stage enum (Unlit/FlatLit/Wire) と SubmitPacket (positions/normals/indices/model/view/projection + BaseColor/Emission/Opacity) を export し、uploadMesh のみ動作 (CPU 側に staging copy)、submit は Phase 1 では常に false。
+(3) makeArtifact3DPrimitivePipelineProvider(ShaderManager&) は空 provider を返す stub。
+(4) Artifact3DLayer::draw() には未接続、既存 draw3DLine 経由の挙動は完全に維持。
+(5) CMake に 4 ファイル + module reference 2 エントリを追加。
+- **価値または懸念:** Text Glyph G2 移行と同形の provider 境界が 3D 側にも用意され、Phase 2 (ShaderManager に PSO getter 追加 + Adapter 実体化) と Phase 3 (Material 全部 PBR + Custom Shader 設計レビュー) の前提が揃う。Artifact3DLayer にはまだ繋いでいないため描画の回帰リスクはゼロ。AGENTS.md の PImpl / shared_ptr / unique_ptr 禁止ルールと DiligentEngine シビアコード慎重な扱いに沿った。
+- **未検証・懸念:** ビルド・ランタイム未実施 (ユーザー指示待ち)。Phase 2 で ShaderManager に PSO 取得関数を増やす際、PSO ライフタイム (ShaderManager 破棄時に Artifact3DPrimitiveSubmitter が AddRef した参照をどう扱うか) を Text Glyph と同じく検討必要。Material 全部 PBR 接続 (Phase 3) は設計レビュー前提。
+- **次の確認:** ビルド成功、既存 3D Primitive (Plane/Box/Sphere/Cylinder/Cone + Torus/Capsule/Pyramid) の line 表示が変わらないこと。
+
+
+## 2026-08-29 — 3D Particle 完成度マイルストーンを新設 (P4-1〜P4-6)
+- **関連:** Artifact/docs/MILESTONE_3D_PARTICLE_2026-08-29.md (新規)、Artifact/src/Layer/ArtifactParticleLayer.cppm:437 (Impl() 構築)、Artifact/src/Layer/ArtifactFormParticleLayer.cppm、Artifact/src/Render/ArtifactIRenderer.cppm:1483 (drawParticles)、ArtifactCore/include/Graphics/ParticleData.ixx (Core API)。
+- **事実:** ArtifactParticleLayer と ArtifactFormParticleLayer の Impl 構築で setIs3D(true) が未呼出 (他 3D 系 layer は呼出済み)。ArtifactCompositionRenderController.cppm:8913 の if (layer->is3D()) 3D bundle gate を通らず、drawParticles は常に 2D fallback (identity view + NDC proj) で billboard 描画。ArtifactCore::ParticleRenderer は setViewMatrix/setProjectionMatrix/GPU cull/indirect draw を実装済みだが、layer からの経路で view/proj が届く機会がない。ArtifactParticleLayer::draw() の 	ransformParticleRenderData は QTransform で (px, py) のみ写像し、pz/vx/vy/vz は source のまま GPU へ。emission/normal AOV gate (drawGpuLayerEmissionToTarget:11613 / drawGpuLayerNormalToTarget:11642) も Particle をスキップ。
+- **変更:** MILESTONE_3D_PARTICLE_2026-08-29.md を新設し、P4-1 (3D フラグ付け + default true for new / false for legacy JSON) → P4-2 (transformParticleRenderData の 2D/3D 分岐 + ParticleRenderData.modelMatrix + ParticleRenderer::setModelMatrix 新設) → P4-3 (FormParticleLayer 3D 経路) → P4-5 (AOV 経路) → P4-4 (VelocityAligned runtime 検証) → P4-6 (Diagnostics) の段階を定義。各段階で Functional / Visual / Performance の Quality Gate と回帰なし invariant を明文化。
+- **価値または懸念:** Phase 1 で Provider 境界導入のみで止めたのと同じ方針で、P4-1 は「setIs3D(true) 1 行 + JSON default 戦略」で最大効果・最小リスクを狙える。既存 2D particle プロジェクトは romJsonProperties 経由で is3D=false を保存しているため、default 戦略の判断 (新規 true / 既存 false) を P4-1 で明示する必要あり。
+- **未検証・懸念:** コード作成はまだ未着手 (マイルストーン文書のみ)。P4-2 で ParticleRenderData.modelMatrix を追加すると Core ABI に影響するため、関連テストの回帰確認が必要。
+- **次の確認:** P4-1 から着手。ArtifactParticleLayer::Impl 構築で setIs3D(true) を呼出し、ArtifactAbstractLayer::fromJsonProperties の復元戦略を P4-1 着手時に確定、ArtifactCompositionRenderController 11581 周辺の has3DCamera 判定に Particle Layer の is3D() を含める。
+
+### 2026-08-29 P4-1 着手 — ArtifactParticleLayer::Impl 構築に setIs3D(true) 追加
+
+- **追加実装:** `Artifact/src/Layer/ArtifactParticleLayer.cppm:441` の `ArtifactParticleLayer()` コンストラクタで `setIs3D(true)` を `createParticleSystem()` 直前に呼出 (1 行)。`ArtifactFormParticleLayer` は既に `Grid3D` preset 選択時に `syncSourceSize` 経由で `setIs3D(true)` 呼出済 (line 514)、`applyPropertiesFromJson` 復元経路も `syncSourceSize` を呼ぶ (line 1173) ため FormParticleLayer 側は完了済み。
+- **JSON default 戦略:** 新規作成 Particle は `is3D=true` (コンストラクタの `setIs3D(true)` が生きる)、既存 particle JSON は `ArtifactAbstractLayer::toJson` (line 4533) で `obj["is3D"]` が必ず書き込まれ、`fromJsonProperties` (line 5194-5195) で `obj.contains("is3D")` のときのみ復元。**既存 particle プロジェクト (1 度保存 = `is3D=false` 永続化) は復元時に `is3D=false` のまま → 表示は回帰しない**。
+- **Composition 側非改変:** `has3DCamera` 判定 (line 32874) は `activeCamera` (CameraLayer) 存在時のみ true になる設計で触らず。3D camera 行列配信の `if (layer->is3D())` bundle gate (line 8913) は `is3D()` ベースなので、Particle の `is3D()=true` で自動的に gate 通過。
+- **未検証 (AGENTS.md によりユーザー指示待ち):** (1) 新規 Particle Layer を 3D composition に追加して camera orbit で billboard が立体的に動くか、(2) 既存 particle JSON を開いて 2D 表示のまま無回帰か、(3) AOV (emission/normal) gate (line 11613/11642) 通過するか。P4-1 単独では Z が `transformParticleRenderData` (QTransform 経路) で潰れたままなので、P4-2 (`modelMatrix` + `setModelMatrix`) を伴って初めて立体的に動く。
+
+## 2026-08-29 — Liquid Container の spill ownership と長尺seek（2026-08-30更新）
+
+- **関連:** `ArtifactCore/include/Physics/FluidSolver2D.ixx`、`ArtifactCore/src/Physics/FluidSolver2D.cppm`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`
+- **事実:** `LiquidSolver2D` はレイヤー局所座標で状態を所有し、上辺を越えた粒子も現在のレイヤーtransformで描画する。2026-08-30に30フレーム間隔・最大256個のcheckpoint、snapshot restore、composition revision／fps／設定変更時のinvalidationを追加し、600フレーム上限は撤去した。
+- **気づき:** 制作品質では「容器内はlayer-local、流出後はcomposition/world-space」への所有権移行と、revision付きcheckpointが必要。2026-08-30に上辺通過粒子の抽出、流出フレームtransformによるposition／velocity移行、world-down更新を実装した。初期充填だけでは「容器へ注ぐ」制作ができないため、開口辺からのrate／width／speed／position付き決定的inflowも追加し、小数粒子carryをcheckpoint対象にした。inflowは開口幅に収まる1列、開口端1 spacing余白、既存粒子のuniform-grid占有判定で制限し、壁外や詰まった入口へ同座標粒子を重ねない。PolygonのOpening Edgeは-1自動／0以上手動指定とし、横口でもCore境界、流入、流出、壁previewが同じedgeを参照する。
+- **価値または懸念:** 容器を移動してもこぼれた水が追従せず、checkpointにはcontainerとspillを一組で保存するためseekでも所有権移行を再現できる。2026-08-30に既存CollisionのBox／Circle／Polygonへ低反発point-contactと前位置からのsweep判定を接続し、同一レイヤーのCollision Polygonは最上辺を自動開口したcontainerとしてCoreへ渡した。さらにcontainer／spill双方のCore stateへ法線衝突速度を指数減衰させるimpact履歴を持たせ、流出時にworld単位へ変換して引き継ぎ、surface foam抽出へ渡した。spillの弱い凝集・分離・近傍粘性に加え、container内の距離制約・粘性も決定的uniform gridへ移し、局所近傍外の総当たりを避けた。container Surface Tensionは反発stiffnessだけでなく1.55 spacing内の弱い凝集にも接続した。simulationと同じ矩形／Polygon辺を既存Diligent line commandで可視化し、開口辺は描かない。Polygon sweepは完全なswept-circleではなく、spillも非圧縮性液体solveではない。
+- **次に確認:** 容器を回転／移動しながら注ぐruntime確認、checkpointのメモリ・同一frame seek一致、凹Polygon／薄い斜辺、矩形／Polygon内部壁と外部床のimpact foam連続性、10万粒子時のgrid負荷、凝集係数の見た目、Spill Cull Margin境界を跨ぐframeの再現性を検証する。長尺粒子数対策は一律寿命ではなくcomposition外余白cullとし、床に溜まった水は保持する。Coreの同一入力、snapshot replay、不正snapshot、inflow occupancy／Polygon方向、spill相互作用、surface全laneの決定性は既存PhysicsDeterminismTestへ回帰ケースを追加済みだが未実行。surface sample全fieldの有限値／範囲検証とdensity radius 8cell上限も追加した。
+
+## 2026-08-30 — 2D Particleは既存Generatorを正規基盤にできる
+
+- **関連:** `Artifact/include/Generator/ArtifactParticleGenerator.ixx`、`Artifact/src/Generator/ArtifactParticleGenerator.cppm`、`Artifact/src/Layer/ArtifactParticleLayer.cppm`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`
+- **事実:** `Artifact.Generator.Particle` は既に fixedTimeStep、maxSubSteps、randomSeed、deterministic replay、self-collision broadphase、`ParticleRenderData` captureを持つ。一方、これらのsimulation設定はParticle LayerのPropertyとJSONに未接続だった。
+- **気づき:** Liquid内部粒子と通常Emitterを同じsolverへ統合する必要はなく、authoritative solverは分離したまま immutable snapshotを共通 `ParticleRenderData` に変換すれば、2D描画・LOD・Diligent backendだけを安全に共有できる。
+- **価値または懸念:** 通常Particleの既存制作機能を維持し、Liquid固有の密度制約をParticle emitterへ漏らさずに描画基盤を共通化できる。2026-08-30にLiquidだけはCoreで疎なdensity nodeからthickness付き三角形surface、同thresholdのcontour、高速・低density／impact sampleのfoam pointを抽出し、既存Diligent PrimitiveRenderer2DとParticleRendererへ渡した。Surface／Edge／Foam量とLiquid／Foam Colorはcomponent PropertyとJSONで調整でき、Colorは既存QColor UI境界・内部FloatColorに統一した。通常Liquid detail 95,000＋foam 4,096で100,000 vertex上限内に収め、authoritative simulationやGPU resourceをsurface cacheへ移していない。新規ParticleLayerは2D既定へ変更し、旧JSONの明示is3Dは維持する。通常Particle GPU drawの欠落captureと毎frame debug logも整理した。world-space変換ではpositionに加えてvelocityとparticle rotationも2D layer transformへ追従させ、VelocityAligned方向の不一致を解消した。
+- **次に確認:** 同一seed／frameの保存再読込一致、appearance／Color Propertyのpicker操作とJSON round-trip、Liquid thickness／contour／foamのD3D12／Vulkan表示、遠距離spillを含むsurface LOD、最大20,000 contour packetとfoam抽出のframe-timeをruntime確認する。
+
+## 2026-08-30 — 作成プリセットは生成定義と実体生成を分離する
+
+- **関連:** `Artifact/include/Project/ArtifactPresetManager.ixx`、`Artifact/src/Project/ArtifactPresetManager.cppm`
+- **事実:** エフェクト／マスクの既存プリセット管理へ、UIやComposition／Layer APIに未接続の作成プリセット定義を追加した。
+- **気づき:** 平面＋円形マスクのような時短構成は、まず型付きの生成定義として保存し、後から既存生成APIへ接続すると責務の混線を避けられる。
+- **価値または懸念:** 標準プリセット一覧とJSON交換の基盤を先に用意できる。一方、実際のマスク頂点生成とUI導線は未接続で、後続作業が必要。
+- **次に確認:** 既存Layer／Composition生成APIへ接続する際のUndo・選択・親子関係の契約を確認する。
+
+## 2026-08-30 — コンポジション作成プリセットをレイヤー構成まで拡張
+
+- **関連:** `Artifact/include/Project/ArtifactPresetManager.ixx`、`Artifact/src/Project/ArtifactPresetManager.cppm`
+- **事実:** 作成プリセットに背景色、フレームレート、尺、子レイヤー定義を追加し、背景＋円形画像の標準コンポジションプリセットを追加した。
+- **価値または懸念:** コンポジションを単一設定ではなく、順序付きレイヤー構成として交換できる。実体生成・画像パス・親子関係・Undo接続はまだ未実装。
+- **次に確認:** 既存のComposition／Layer生成APIへ、JSONの順序とマスク指定を安全に適用する変換境界を設計する。
+
+
+## 2026-08-29 - VP とタイムラインの「操作感の悪さ」「安定性のなさ」の正体
+
+- 関連: docs/bugs/COMPOSITION_EDITOR_PERFORMANCE_2026-03-26.md, COMPOSITION_EDITOR_PERF_ANALYSIS_2026-04-11.md, BUG_TIMELINE_4ISSUES_2026-04-19.md, BUG_RENDER_SCHEDULER_THREAD_FLOOD_2026-04-18.md, EVENTBUS_CASCADE_REDRAW_PERF_2026-04-05.md, EVENTBUS_FLOW_ANALYSIS_2026-04-12.md, BUG_FIX_COMPOSITION_VIEWPORT_INTERACTION_PERF_2026-03-25.md, BUG_CRITICAL_RENDER_MEDIA_STABILITY_2026-04-30.md, INSPECTOR_LAYER_SELECTION_NOT_UPDATING_2026-04-07.md, ISSUE_REPORT_LAYER_SELECTION.md, LAYER_OPACITY_UI_UPDATE_ISSUE_2026-04-05.md, PROPERTY_WIDGET_PERFORMANCE_2026-03-27.md, docs/analysis/SHARED_DEVICE_AND_IMAGE_CACHE_AUDIT_2026-08-11.md, docs/analysis/REPORT_CE_RENDER_ROI_2026-06-16.md
+- 事実: VP 側の重さ (60-70% が readbackToImage の GPU 同期ストール 10-30ms/frame, 20-25% が QImage::cacheKey ベース texture cache ミスで毎フレーム GPU テクスチャ再作成 5-15ms, 10-15% が renderOneFrame() の 31 箇所からの多重実行で 1 イベント最大 4 回の再描画) と、タイムライン 4 issues (composition 作成時 worker thread 一斉起動フリーズ, playhead ghost pixel, playhead と ruler で異なる orange hardcode, 左/右ペインのツリー展開後非同期) と、EventBus 二重発火 (Qt signal + EventBus publish 同居、ブレンドモード変更が ProjectChangedEvent を全体 broadcast、レイヤー追加で 5 種イベント連続発火) と、選択系バグ (LayerSelectionChangedEvent の compositionId が weak_ptr 期限切れで空になり Inspector が NoLayer 化、プロパティ編集時の selection リセット、Property Widget 1 選択変更で約 400 widget 破棄/再作成 + 230 回 icon ファイル I/O) が、2026-03 から 2026-04 にかけて大量に文書化されている。さらに docs/analysis/SHARED_DEVICE_AND_IMAGE_CACHE_AUDIT_2026-08-11.md は 2026-08-11 時点でも「GPU→CPU readback は同期的に Flush()/WaitForIdle() するため、hot path に追加しないこと」と注意喚起しており、構造的解決には至っていない。
+- 気づき: ユーザーが「操作感の悪さと安定性のなさが弱点」と感じるのは、planned milestone の「機能追加」とは別系統の「ホットパスの本質的な重さ」が解消されていないから。タイムラインは owner-draw 化など表示系の基盤が育った一方、VP 側は「CPU で QImage 化 → GPU 転送 → 同期 readback」の 3 段を経由する設計が hot path に残っており、1 操作あたりのフレーム予算を食い潰している。タイムラインと VP の相互作用 (タイムラインを触ると VP がフリーズ) は EventBus の「同じ操作で複数イベントが多重発火」+「購読者ごとに重い処理が再走する」構造に由来する。BUG_TIMELINE_4ISSUES_2026-04-19.md の 4 つは fix 報告されているが、SHARED_DEVICE_AND_IMAGE_CACHE_AUDIT_2026-08-11.md は 4 ヶ月経ってもなお hot path readback 禁止を喚起しており、4 issues fix 後も「体感の重さ」は構造的に残っている可能性が高い。
+- 価値・懸念: DCC 感ギャップ (MILESTONE_TIMELINE_DCC_FEEL_GAPS_2026-08-29.md) は表面の仕上げ、操作感/安定性はホットパスの重さそのもので、対策の粒度が違う。同時進行で進めると conflict するため、優先度設計が必要: (A) VP の GPU readback 廃止/QImage キャッシュキー修正/renderOneFrame 多重実行の統合、(B) EventBus publish+Qt signal 二重発火の解消、購読者ごとの dedup キー化、(C) Property Widget の widget pool 化と icon cache 永続化、(D) タイムラインの playhead/track 同期安定化、の 4 軸を独立 milestone として起こし、Phase ごとに GPU readback 廃止→Property Widget リビルド抑制→EventBus 統合→タイムライン同期 の順で攻めるのが現実的。
+- 次に確認: 個別の fix 済み/未修正を最新コードで再照合し、docs/analysis/SHARED_DEVICE_AND_IMAGE_CACHE_AUDIT_2026-08-11.md が言及する hot path readback が現在も生きているか、readbackToImage() の呼び出し点がエクスポート時限定になったか、PrimitiveRenderer2D.cppm の image.cacheKey() がレイヤー ID ベースに置換されたか、EventBus 移行が一段落したかを再確認。可能なら MILESTONE_VP_TIMELINE_HOTPATH_STABILITY_2026-08-29.md を planned/ に起こし、status index の「DCC 感ギャップ」と並列に「ホットパス安定性」を 1 軸として加える。
+## 2026-08-30 — Particleの次元は可変Propertyではなくレイヤーidentityにする
+
+- 関連: `Artifact/include/Layer/ArtifactAbstractLayer.ixx`、`Artifact/include/Layer/ArtifactParticleLayer.ixx`、Layer作成・JSON復元
+- 確認できた事実: 従来は単一`LayerType::Particle`と汎用`is3D`の組合せで2D／3Dを表しており、作成導線と保存上のidentityが曖昧だった。
+- 気づき: 2D／3Dではcamera、depth、transform、collisionの意味が異なるため、共通simulation／rendererを再利用してもレイヤーidentityは分けたほうが不正な中間状態を防げる。
+- 価値・懸念: 既存IDを維持した追加enumと旧`is3D=true`移行で互換性を確保できる。一方、3D Particleの完全なmodel/view/projection経路はruntime未検証。
+- 次に確認すべきこと: 新規2D／3D作成、JSON round-trip、旧3D指定Particle移行、3D camera orbitとdepthの実表示を同一buildで検証する。

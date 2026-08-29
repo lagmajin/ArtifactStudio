@@ -1,9 +1,16 @@
 # MILESTONE: Distort & Warp Effects Completion
 
 **日付**: 2026-08-04
-**最終更新**: 2026-08-15
+**最終更新**: 2026-08-28
+**ステータス**: In Progress（2026-08-28 再活性化、Phase 2 から着手）
+**関連**:
+- `docs/planned/MILESTONE_MESH_WARP_LIQUIFY_2026-06-02.md`（Liquify/Mesh Warp の UI 詳細。本書は集約ハブとして参照）
+- `docs/planned/MILESTONE_PRODUCTION_IMAGE_EFFECT_CONTROLS_2026-08-20.md`（PIEC、共通 controls・metadata 正規化）
+- `docs/planned/MILESTONE_IMAGE_EFFECT_AI_GAP_2026-08-18.md`（M-FX-AI、AI/セマンティック系）
+- 関連ソース: `ArtifactCore/include/ImageProcessing/Distortion.ixx`、`Artifact/src/Effects/{TurbulentDisplace,DisplacementMap,OpticsCompensation,Transform,Distort,Wave}/*`、`ArtifactCore/src/Graphics/Effect/`(将来)
+
 **現状**: 4効果がCPU+GPU実装済み（Liquify, Spherize, Wave, LensDistortion）。TurbulentDisplace GPUスタブ、TwistTransform/BendTransform 実装なし、Coreの DisplacementFunc 6種が未ブリッジ、CornerPin 旧パターン。AE互換の Bulge/Twirl/MeshWar/WaveWarp/Magnify/Ripple/PolarCoordinates 不在。2026-08-13 に `ArtifactCore::morphImages()` の CPU reference 基盤（対応制御点、進行率、bilinear/nearest、クロスディゾルブ）を追加。
-**目標**: 全既存スタブの完成、Core DisplacementFunc→Composition ブリッジ、主要AE distortの実装、統一GPUヘルパー。
+**目標**: 全既存スタブの完成、Core DisplacementFunc→Composition ブリッジ、主要AE distortの実装、統一GPUヘルパー。**CC プリセット系（CC Glass / CC Ball Action / CC Power Pin 等）は本書のスコープ外**（汎用性が低いため、個別判断で取り込み可否を決定する別タスク）。
 
 ## 現行コード監査 (2026-08-15)
 
@@ -135,6 +142,28 @@ float2 lensDistort(float2 uv, float2 center, float fov, float direction) {
 - [ ] OpticsCompensation の GPU パスが fov=10°〜180° で正しい逆歪みを生成
 - [ ] 3効果すべてが `supportsGPU() == true` を返す
 - [ ] GPU/CPU フォールバックが正常に動作（GPU 失敗時自動CPU）
+
+---
+
+## 着手優先順（2026-08-28 再活性化時点）
+
+2026-08-15 時点で Phase 1〜3 いずれにも実装進捗がないため、**Phase 2（TwistTransform / BendTransform の CPU+GPU 実装）から着手**する。理由は:
+- Phase 2 は `Artifact/include/Effects/Transform/TwistTransform.ixx` / `BendTransform.ixx` の header-only stub（82行）に `applyCPU()` を書くだけで成立する、工数最小の P0
+- Phase 1 (GPU パス 3 効果) は HLSL 追加 + `runDistortCompute()` 共通ヘルパー作成が必要で、Phase 2 完了後に着手する方が、ヘルパーの利用者側が先に固まる
+- Phase 3 (Core ブリッジ 6 効果) は Phase 2 完了後、または並行で進める
+
+Phase 2 → Phase 1 → Phase 3 → Phase 4 → Phase 5 の順。Phase 4 の AE 互換効果（Bulge / Pinch / WaveWarp / Ripple / Magnify / Polar Coordinates）は Phase 2 完了後に着手可否を判断する。**CC プリセット系（CC Glass / CC Twirl / CC Ball Action / CC Power Pin / CC Grid Wipe / CC Kaleida 等）は本書スコープ外**。2026-08-28 ユーザー判断により「単純導入はしない」方針のため、必要になった時点で別マイルストーンとして切り出す。
+
+## Phase 2 進捗（2026-08-28）
+
+- `Artifact/include/Effects/Transform/TwistTransform.ixx` — `ArtifactAbstractFieldPtr field_` を撤去し、`SpherizeEffect` と同型の **PIMPL + DualImpl** 宣言に書き換え。`TwistTransformCPUImpl` / `TwistTransformGPUImpl` / `TwistTransform::Impl*` の3構造体。
+- `Artifact/include/Effects/Transform/BendTransform.ixx` — 同様に `BendTransformCPUImpl` / `BendTransformGPUImpl` / `BendTransform::Impl*` 構造。
+- `Artifact/src/Effects/Transform/TwistTransform.cppm`（新規） — `TwistTransformCPUImpl::applyCPU` を `OpenCV` + `Core::Parallel::For` で実装。bilinear サンプル、中心からの距離に応じた回転角の線形減衰（`factor = 1 - r/r_max`）。`TwistTransformGPUImpl::applyGPU` は CPU へフォールバック（PIMPL+DualImpl 規約の `applyGPU` デフォルト動作を踏襲）。`TwistTransform::Impl` が CPU/GPU の `SharedPtr` を保持、コンストラクタで `setCPUImpl / setGPUImpl` を基底に登録。
+- `Artifact/src/Effects/Transform/BendTransform.cppm`（新規） — `BendTransformCPUImpl::applyCPU` を `sin(2π·y/size)·amount` と `sin(2π·x/size)·amount` を `direction` で重み付けしてオフセット。bilinear サンプル。`BendTransformGPUImpl::applyGPU` は CPU フォールバック。
+- `Artifact/cmake/ArtifactSources.cmake` — 新規 2 `.cppm` を明示リストに追加（line 752-753）。
+- 既存 `ArtifactEffectService.cppm` は line 90-91 で `import Artifact.Effect.Transform.Bend/Twist;`、line 613-621 でファクトリ、line 1166-1167 で EffectID 登録済み。`ArtifactAbstractEffect::apply` 経由で CPU/GPU Impl が自動呼出。
+- **未検証**: ビルド・runtime（AGENTS.md 制約によりユーザー指示待ち）。GPU パスは Phase 1 の `runDistortCompute()` 共通ヘルパー作成後に HLSL 化予定。
+- **次の確認**: ビルド成功 → Twist/Bend を適用して AE 互換の角 45°/90°/180° で期待通りの回転歪み・湾曲が生成されること、複素形状（円形パターン画像）で回帰チェック。
 
 ---
 

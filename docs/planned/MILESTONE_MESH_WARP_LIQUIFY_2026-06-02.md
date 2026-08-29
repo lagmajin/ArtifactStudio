@@ -1,7 +1,9 @@
 # M-MOTION-5 Mesh Warp / Liquify Deformation (2026-06-02)
 
 日付：2026-06-02
-**最終更新:** 2026-08-15
+**最終更新:** 2026-08-28
+**関連集約先**: [`MILESTONE_DISTORT_EFFECTS_COMPLETION.md`](MILESTONE_DISTORT_EFFECTS_COMPLETION.md)（2026-08-28 再活性化、歪み系ハブとして本書の Phase 1〜3 の歪み engine / UI / キーフレーム連携を継承）
+
 目標：画像を格子状のメッシュで自由に変形させる「メッシュワープ」ツールを実装する。顔修正、形状調整、 Liquify 風のプッシュ変形に対応。
 
 ---

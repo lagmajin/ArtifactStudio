@@ -81,7 +81,7 @@ struct MaskVertex {
 - [x] ドラッグでベジェハンドル付き頂点を作成（Ctrl+クリックでOutTangent操作）
 - [x] 3頂点以上で初回頂点に近づくとパスを閉じる（`finalizePendingMaskCreation`）
 - [x] 閉じると `MaskEditCommand` 経由で UndoManager に push
-- [ ] Esc キーで作成中マスクをキャンセル（`clearPendingMaskCreation`）
+- [x] Esc キーで作成中マスクをキャンセル（`clearPendingMaskCreation` via `cancelMaskInteraction`）
 
 ### 3.2 頂点追加（既存パス）
 - [x] セグメント上をクリック → `hitTestMaskSegment` → `insertVertexOnMaskSegment`
@@ -93,9 +93,9 @@ struct MaskVertex {
 - [x] パスを閉じると自動的に新しい空パスが追加され、連続作成が可能
 
 ### 3.4 パス削除
-- [ ] 頂点を Delete/Backspace で削除
-- [ ] 頂点数が2未満になったらパス全体を削除
-- [ ] パス削除の Undo 対応
+- [x] 頂点を Delete/Backspace で削除
+- [x] 頂点数が2未満になったらパス全体を削除
+- [x] パス削除の Undo 対応
 
 ---
 
@@ -114,15 +114,15 @@ struct MaskVertex {
 
 ### 4.3 頂点ドラッグの修飾キー
 - [x] なし: 自由移動
-- [ ] Shift: 軸ロック（水平/垂直/45度）
+- [x] Shift: 軸ロック（水平/垂直/45度）
 - [ ] Ctrl: スナップ（コンポジション境界、他レイヤー頂点）
 
 ### 4.4 頂点の複数選択
-- [ ] Shift+クリックで頂点を追加選択
-- [ ] ラバーバンド選択（矩形ドラッグで範囲内の頂点を選択）
-- [ ] 全選択（Ctrl+A）
-- [ ] 選択解除（クリックで何もない場所をクリック）
-- [ ] 複数選択頂点の同時ドラッグ
+- [x] Shift+クリックで頂点を追加選択
+- [x] ラバーバンド選択（矩形ドラッグで範囲内の頂点を選択）
+- [x] 全選択（Ctrl+A）
+- [x] 選択解除（クリックで何もない場所をクリック）
+- [x] 複数選択頂点の同時ドラッグ
 
 ---
 
@@ -135,8 +135,8 @@ struct MaskVertex {
 - [x] Alt キーでタンジェントをブレイク（独立操作）
 
 ### 5.2 タンジェントのリセット
-- [ ] ハンドルをダブルクリック → tangent = (0,0) にリセット
-- [ ] 頂点を Ctrl+クリック → タンジェントをリセット
+- [x] ハンドルをダブルクリック → tangent = (0,0) にリセット（`resetHoveredMaskTangent` / `resetHoveredMaskVertexTangents`）
+- [x] 頂点を Ctrl+クリック → タンジェントをリセット（Pen ツール mousePress で `ControlModifier` チェック）
 
 ### 5.3 ハンドル表示の切り替え
 - [x] 頂点選択時のみハンドル表示（現在は `LineDebugKind::MaskHandle` フラグ）
@@ -158,8 +158,8 @@ struct MaskVertex {
 
 ### 6.3 修飾キー
 - [x] なし: 自由矩形
-- [ ] Shift: 正方形
-- [ ] Alt: 中心から拡大
+- [x] Shift: 正方形（mouseMove でリアルタイム制約）
+- [x] Alt: 中心から拡大（mouseMove リアルタイム + mousePress 時 `rectangleToolFromCenter_` 記録）
 
 ---
 
@@ -167,30 +167,33 @@ struct MaskVertex {
 
 ### 7.1 合成モード変更
 - [x] マスクごとに MaskMode（Add/Subtract/Intersect/Difference）を設定可能
-- [ ] VP上で右クリック→コンテキストメニューから変更
+- [x] VP上で右クリック→コンテキストメニューから変更（`setHoveredMaskMode`）
 - [ ] Inspector で変更可能（Property Widget 経由）
 
 ### 7.2 マスクの有効/無効
 - [x] LayerMask::setEnabled() で切り替え
+- [x] VP上のコンテキストメニューからトグル（`toggleHoveredMaskEnabled`）
 - [ ] VP上のマスク名ラベルをクリックでトグル
 - [ ] 無効マスクは非表示（描画スキップ）
 
 ### 7.3 フェザー
 - [x] MaskPath に feather/featherHorizontal/featherVertical/featherInner/featherOuter プロパティ
-- [ ] VP上でフェザー範囲を視覚的に表示
-- [ ] VP上でフェザーハンドルをドラッグして調整
+- [x] VP上でフェザー範囲を視覚表示（太い半透明ライン）
+- [x] VP上でフェザーハンドルをドラッグして調整（`MaskHandleType::FeatherHandle`、頂点から法線方向にハンドル表示）
 
 ### 7.4 不透明度
 - [x] MaskPath::opacity() プロパティ
-- [ ] VP上で直接変更する UI
+- [x] VP上のコンテキストメニューから変更（`adjustHoveredMaskOpacity`）
+- [ ] VP上で直接ドラッグ変更する UI
 
 ### 7.5 拡張/収縮（Expansion）
 - [x] MaskPath::expansion() プロパティ
+- [x] VP上のコンテキストメニューから調整（`adjustHoveredMaskGeometry`）
 - [ ] VP上で拡張範囲を視覚的に表示
 
 ### 7.6 反転
 - [x] MaskPath::isInverted() プロパティ
-- [ ] VP上でトグル UI
+- [x] VP上のコンテキストメニューからトグル（`toggleHoveredMaskInverted`）
 
 ---
 
@@ -212,12 +215,12 @@ struct MaskVertex {
 ## 9. マスクのレイヤー操作
 
 ### 9.1 マスクの並び順
-- [ ] マスクの上下入れ替え（合成順序の変更）
-- [ ] マスクの複製（Ctrl+D）
+- [x] マスクの上下入れ替え（合成順序の変更）（`moveHoveredMask` / `moveHoveredMaskForSelectedLayers`）
+- [x] マスクの複製（`duplicateHoveredMask` / `duplicateHoveredMaskForSelectedLayers`）— Ctrl+D ショートカットは未割当
 
 ### 9.2 マスクのコピー/ペースト
-- [ ] 同一レイヤー内でマスクをコピー
-- [ ] レイヤー間でマスクをコピー
+- [x] 同一レイヤー内でマスクをコピー（`copyHoveredMask` → `pasteMask`）
+- [x] レイヤー間でマスクをコピー（`pasteMask` は選択レイヤーに貼り付け）
 - [ ] シェイプマスクとマスクパスの相互変換
 
 ### 9.3 マスクの親レイヤー追従
@@ -243,11 +246,11 @@ struct MaskVertex {
 
 ### 11.1 マスク右クリックメニュー
 - [ ] マスクの追加
-- [ ] マスクの削除
-- [ ] マスクモードの変更
-- [ ] 反転
-- [ ] マスクのロック
-- [ ] マスクの色変更
+- [x] マスクの削除（`deleteHoveredMask` / `deleteHoveredMaskForSelectedLayers`）
+- [x] マスクモードの変更（`setHoveredMaskMode`）
+- [x] 反転（`toggleHoveredMaskInverted`）
+- [x] マスクのロック（`toggleHoveredMaskLocked`）
+- [x] マスクの色変更（`setHoveredMaskColor` + `FloatColorPicker` ダイアログ）
 
 ---
 
@@ -255,11 +258,11 @@ struct MaskVertex {
 
 | キー | 動作 | 状態 |
 |------|------|------|
-| Delete/Backspace | 選択頂点を削除 | [ ] 未実装 |
-| Ctrl+A | 全頂点選択 | [ ] 未実装 |
-| Ctrl+D | マスク複製 | [ ] 未実装 |
-| Esc | ペンツールの作成中マスクキャンセル | [ ] 未実装 |
-| Shift+ドラッグ | 軸ロック | [ ] 未実装 |
+| Delete/Backspace | 選択頂点を削除 | [x] 実装済み |
+| Ctrl+A | 全頂点選択 | [x] 実装済み |
+| Ctrl+D | マスク複製 | [x] 実装済み |
+| Esc | ペンツールの作成中マスクキャンセル | [x] 実装済み |
+| Shift+ドラッグ | 軸ロック | [x] 実装済み |
 | Alt+ドラッグ | タンジェントブレイク | [x] 実装済み |
 | Ctrl+ドラッグ | 頂点スナップ | [ ] 未実装 |
 
@@ -285,29 +288,28 @@ struct MaskVertex {
 - [x] ホバー/ドラッグ中の色変更
 - [x] LineDebugKind フィルタ（MaskPath / MaskHandle）
 
+### 13.1 実装済み（2026-08-29 追記）
+- [x] 頂点の複数選択（Shift+クリック / ラバーバンド / 全選択 Ctrl+A）
+- [x] 複数頂点の同時ドラッグ
+- [x] 頂点ドラッグの Shift 軸ロック（45度刻み）
+- [x] 頂点/パスの削除（Delete/Backspace）— `deleteSelectedMaskVertices()` / `deleteHoveredMaskVertex()`
+- [x] Esc でペンツールキャンセル — `cancelMaskInteraction()` 経由
+- [x] タンジェントのダブルクリックリセット — `resetHoveredMaskTangent()` / `resetHoveredMaskVertexTangents()`
+- [x] マスクの並び順入れ替え — `moveHoveredMask()`
+- [x] マスクの複製 — `duplicateHoveredMask()` + Ctrl+D ショートカット
+- [x] マスクのコピー/ペースト（レイヤー間含む）— `copyHoveredMask()` / `pasteMask()`
+- [x] マスクのロック — `toggleHoveredMaskLocked()`
+- [x] コンテキストメニュー（削除/モード変更/反転/ロック/複製/コピー/ペースト/フェザー/不透明度/拡張）
+- [x] 矩形ツールの Shift 正方形 / Alt 中心拡大 — mouseMove でリアルタイム制約
+- [x] 角丸半径の調整 — `adjustRectangleToolRoundness()` / `adjustSelectedShapeCornerRadius()`
+- [x] フェザーハンドル（VP上のドラッグ可能なハンドル）— `MaskHandleType::FeatherHandle`、頂点から法線方向に表示
+- [x] マスクの色変更 — `LayerMask::color()` / `setColor()`、コンテキストメニューから `FloatColorPicker`
+
 ### 13.2 未実装
-- [ ] 頂点の複数選択（Shift+クリック / ラバーバンド / 全選択）
-- [ ] 複数頂点の同時ドラッグ
-- [ ] 頂点ドラッグの Shift 軸ロック
-- [ ] 頂点/パスの削除（Delete/Backspace）
-- [ ] Esc でペンツールキャンセル
-- [ ] タンジェントのダブルクリックリセット
-- [ ] 矩形ツールの Shift 正方形 / Alt 中心拡大
-- [ ] 角丸半径の調整
-- [ ] マスクの並び順入れ替え
-- [ ] マスクの複製（Ctrl+D）
-- [ ] マスクのコピー/ペースト（レイヤー間含む）
-- [ ] マスクモードのVP上変更UI
-- [ ] マスク有効/無効のVP上トグル
-- [ ] フェザーのVP上視覚表示とハンドル調整
-- [ ] 不透明度のVP上変更
-- [ ] 拡張/収縮のVP上視覚表示
-- [ ] 反転のVP上トグル
+- [ ] 全頂点のハンドル常時表示オプション
 - [ ] キーフレーム補間（線形/ベジェ/ホールド）
 - [ ] タイムライン上のマスクキーフレーム表示
 - [ ] シェイプトゥイーン（異なる頂点数間の補間）
 - [ ] プリセットマスクのドラッグ調整
 - [ ] プリセット→ベジェマスク変換
-- [ ] コンテキストメニュー
-- [ ] マスクのロック
-- [ ] マスクの色変更
+- [ ] コンテキストメニュー: マスクの追加
