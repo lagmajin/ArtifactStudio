@@ -1,5 +1,14 @@
 **最終更新:** 2026-08-31
 
+## 2026-08-31 — ArtifactPr の GPU Preview は ArtifactRenderer を再利用できない
+
+- **関連:** `ArtifactPr/CMakeLists.txt`、`ArtifactRenderer/CMakeLists.txt`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- **確認できた事実:** `ArtifactRenderer` は Qt Core/Gui/Svg だけに依存する外部レンダリング用 executable で、Diligent のリンク可能ライブラリではない。`ArtifactCore` は D3D12 の Diligent 基礎ライブラリを公開しており、`ImageF32x4RGBAWithCache` は GPU texture upload を提供するが、swap chain と共有 device を安全に所有する `DiligentDeviceManager` は `ArtifactRender` 側にある。一方、Artifact の GPU viewport は巨大な `CompositionRenderController` と AE 系 Composition/Layer モデルに結合している。
+- **気づき（未実装）:** ArtifactPr の `RenderPlan` と `ImageF32x4_RGBA` を入力にする専用 GPU compositor を新設し、CPU compositor を明示フォールバックとして残すのが適切。既存 Artifact viewport の直接 import や `ArtifactRenderer` への依存追加は、モデル・実行形態の不一致を解決しない。実装前に `DiligentDeviceManager` を共有レンダリング基盤へ移すか、ArtifactPr 専用の小さな GPU support target を新設するかを決める必要がある。
+- **対応 (2026-08-31):** `ArtifactGpuFoundation` static target を追加し、Config と DiligentDeviceManager を ArtifactRender から分離した。ArtifactRender はこの target を public link し、ArtifactPr は renderer 本体へ依存せず foundation だけを link する。CMake configure と runtime の device ownership は未検証。
+- **価値または懸念:** NLE の decode/RenderPlan/FFmpeg export 契約を維持しながら preview を GPU 化できる。Diligent device 所有、RGBA float upload、PSO、swap chain、GPU/CPU output parity と障害時の fallback を別途設計・実機検証する必要がある。
+- **次に確認すべきこと:** 共通 Diligent host/texture-upload API を ArtifactCore または ArtifactPr に最小依存で置けるか、GPU compositor の preview-only 導入後に RenderPlan の CPU export と同一フレームを比較できるかを確認する。
+
 ## 2026-08-31 — Layer選択Automationの結果を実状態で検証する
 
 - **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx` の `selectLayer`
