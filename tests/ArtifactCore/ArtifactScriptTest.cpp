@@ -95,6 +95,27 @@ class Move : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(fields["x"]), 1.0);
 }
 
+TEST(ArtifactScriptTest, EvaluatorReportsMethodDeclarationLocation) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class Broken : ArtifactBehaviour
+{
+    float fail() { return missingFunction(); }
+}
+)");
+
+    ASSERT_EQ(definition.rootClass.methods.size(), 1u);
+    EXPECT_EQ(definition.rootClass.methods[0].line, 4u);
+    EXPECT_GT(definition.rootClass.methods[0].column, 0u);
+
+    ArtifactScriptEvaluator evaluator;
+    ArtifactScriptSerializedFields fields;
+    evaluator.executeMethod(definition, "fail", {}, fields);
+
+    EXPECT_TRUE(evaluator.hasError());
+    EXPECT_EQ(evaluator.getLastError().rfind("line 4:", 0), 0u);
+}
+
 TEST(ArtifactScriptTest, EvaluatorHandlesIfElseAndForLoop) {
     ArtifactScriptParser parser;
     const auto conditionDefinition = parser.parse(R"(

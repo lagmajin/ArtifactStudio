@@ -98,6 +98,27 @@ artifact_add_test(ArtifactCoreArtifactFoundationTest
         ArtifactCore
 )
 
+artifact_add_test(ArtifactCoreArtifactExpectedTest
+    SOURCES
+        ArtifactExpectedTest.cpp
+    LIBS
+        ArtifactCore
+)
+
+artifact_add_test(ArtifactCoreArtifactFunctionRefTest
+    SOURCES
+        ArtifactFunctionRefTest.cpp
+    LIBS
+        ArtifactCore
+)
+
+artifact_add_test(ArtifactCoreArtifactSaturationTest
+    SOURCES
+        ArtifactSaturationTest.cpp
+    LIBS
+        ArtifactCore
+)
+
 artifact_add_test(ArtifactCoreCollaborationSessionTest
     SOURCES
         CollaborationSessionTest.cpp
@@ -130,6 +151,13 @@ artifact_add_test(ArtifactCorePhysicsDeterminismTest
 artifact_add_test(ArtifactCoreMathVecTest
     SOURCES
         MathVecTest.cpp
+    LIBS
+        ArtifactCore
+)
+
+artifact_add_test(ArtifactCoreShapeExtrudeTest
+    SOURCES
+        ShapeExtrudeTest.cpp
     LIBS
         ArtifactCore
 )

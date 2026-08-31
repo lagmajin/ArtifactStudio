@@ -59,6 +59,53 @@ TEST(ArtifactUtilityTest, MoveForwardExchangeBehaveLikeStdCounterparts)
     EXPECT_EQ(bits, 0x3F800000u);
 }
 
+TEST(ArtifactExpectedTest, StoresValueOrErrorWithoutReplacingResult)
+{
+    ArtifactExpected<int> value(42);
+    EXPECT_TRUE(value.hasValue());
+    EXPECT_EQ(value.value(), 42);
+    EXPECT_EQ(value.valueOr(7), 42);
+    EXPECT_TRUE(value.toOptional().has_value());
+
+    const ArtifactExpectedError expectedError{
+        ArtifactExpectedErrorCode::NotFound, "missing"};
+    ArtifactExpected<int> failure(expectedError);
+    EXPECT_TRUE(failure.hasError());
+    EXPECT_EQ(failure.valueOr(7), 7);
+    EXPECT_EQ(failure.error().code, ArtifactExpectedErrorCode::NotFound);
+
+    const auto doubled = value.transform([](const int input) { return input * 2; });
+    EXPECT_TRUE(doubled.hasValue());
+    EXPECT_EQ(doubled.value(), 84);
+}
+
+TEST(ArtifactFunctionRefTest, BorrowsCallableWithoutOwnership)
+{
+    int offset = 3;
+    auto addOffset = [&offset](const int value) { return value + offset; };
+    ArtifactFunctionRef<int(int)> ref(addOffset);
+    EXPECT_TRUE(ref.isValid());
+    EXPECT_EQ(ref(4), 7);
+    offset = 5;
+    EXPECT_EQ(ref.invoke(4), 9);
+    ref.clear();
+    EXPECT_FALSE(ref.isValid());
+}
+
+TEST(ArtifactSaturationTest, ClampsIntegralOverflowAndConversions)
+{
+    EXPECT_EQ(addSat<unsigned char>(250, 10), std::numeric_limits<unsigned char>::max());
+    EXPECT_EQ(subSat<unsigned char>(3, 10), 0);
+    EXPECT_EQ(mulSat<int>(std::numeric_limits<int>::max(), 2),
+              std::numeric_limits<int>::max());
+    EXPECT_EQ(mulSat<int>(std::numeric_limits<int>::lowest(), 2),
+              std::numeric_limits<int>::lowest());
+    EXPECT_EQ(saturateCast<unsigned char>(300), std::numeric_limits<unsigned char>::max());
+    EXPECT_EQ(saturateCast<unsigned char>(-4), 0);
+    EXPECT_EQ(saturateCast<int>(std::numeric_limits<unsigned int>::max()),
+              std::numeric_limits<int>::max());
+}
+
 TEST(ArtifactPtrTest, UniquePtrOwnsAndTransfers)
 {
     struct Token {
