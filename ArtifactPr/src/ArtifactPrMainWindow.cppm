@@ -50,7 +50,11 @@ module;
 #include <QWindow>
 #include <QMouseEvent>
 #include <QPalette>
+#include <QPointF>
+#include <QRectF>
 #include <QSet>
+#include <QWheelEvent>
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <memory>
@@ -638,6 +642,10 @@ public:
         : QWidget(parent)
     {
         setMinimumSize(320, 180);
+        setCursor(Qt::OpenHandCursor);
+        setToolTip(trUi(
+            "Mouse wheel: zoom. Middle-drag: pan. Double-click: fit. Ctrl+double-click: 100%.",
+            "ホイール: ズーム。中ボタンドラッグ: パン。ダブルクリック: フィット。Ctrl+ダブルクリック: 100%。"));
         // QPalette::Window を黒に寄せてレターボックス部を黒で見せる
         setAutoFillBackground(true);
         QPalette canvasPalette = palette();
@@ -657,6 +665,7 @@ public:
     {
         frame_ = ArtifactCore::ImageF32x4_RGBA();
         cachedImage_ = QImage();
+        resetView();
         update();
     }
 
@@ -671,23 +680,121 @@ protected:
             return;
         }
 
-        const QSize target = size();
         const QSize source = cachedImage_.size();
-        // アスペクト維持で widget いっぱいに描画
-        qreal scale = std::min(static_cast<double>(target.width()) / source.width(),
-                               static_cast<double>(target.height()) / source.height());
+        const qreal scale = fitScale() * zoom_;
         const int drawW = static_cast<int>(source.width() * scale);
         const int drawH = static_cast<int>(source.height() * scale);
-        const int offsetX = (target.width() - drawW) / 2;
-        const int offsetY = (target.height() - drawH) / 2;
+        const QPointF center = QRectF(rect()).center() + panOffset_;
+        const int offsetX = static_cast<int>(std::lround(center.x() - drawW * 0.5));
+        const int offsetY = static_cast<int>(std::lround(center.y() - drawH * 0.5));
 
         p.setRenderHint(QPainter::SmoothPixmapTransform);
         p.drawImage(QRect(offsetX, offsetY, drawW, drawH), cachedImage_);
     }
 
+    void wheelEvent(QWheelEvent* event) override
+    {
+        if (cachedImage_.isNull() || event->angleDelta().y() == 0) {
+            event->ignore();
+            return;
+        }
+
+        const qreal oldScale = fitScale() * zoom_;
+        const qreal factor = std::pow(1.0015, event->angleDelta().y());
+        zoom_ = std::clamp(zoom_ * factor, kMinimumZoom, kMaximumZoom);
+        const qreal newScale = fitScale() * zoom_;
+        const QPointF pointer = event->position();
+        const QPointF oldCenter = QRectF(rect()).center() + panOffset_;
+        panOffset_ = pointer - QRectF(rect()).center()
+            - (pointer - oldCenter) * (newScale / oldScale);
+        update();
+        event->accept();
+    }
+
+    void mousePressEvent(QMouseEvent* event) override
+    {
+        if (event->button() == Qt::MiddleButton) {
+            panning_ = true;
+            panStart_ = event->position();
+            setCursor(Qt::ClosedHandCursor);
+            event->accept();
+            return;
+        }
+        QWidget::mousePressEvent(event);
+    }
+
+    void mouseMoveEvent(QMouseEvent* event) override
+    {
+        if (!panning_) {
+            QWidget::mouseMoveEvent(event);
+            return;
+        }
+
+        panOffset_ += event->position() - panStart_;
+        panStart_ = event->position();
+        update();
+        event->accept();
+    }
+
+    void mouseReleaseEvent(QMouseEvent* event) override
+    {
+        if (event->button() == Qt::MiddleButton && panning_) {
+            panning_ = false;
+            setCursor(Qt::OpenHandCursor);
+            event->accept();
+            return;
+        }
+        QWidget::mouseReleaseEvent(event);
+    }
+
+    void mouseDoubleClickEvent(QMouseEvent* event) override
+    {
+        if (event->button() != Qt::LeftButton) {
+            QWidget::mouseDoubleClickEvent(event);
+            return;
+        }
+
+        if (event->modifiers().testFlag(Qt::ControlModifier)) {
+            showActualPixels();
+        } else {
+            resetView();
+        }
+        event->accept();
+    }
+
 private:
+    qreal fitScale() const
+    {
+        if (cachedImage_.isNull() || cachedImage_.width() <= 0 || cachedImage_.height() <= 0
+            || width() <= 0 || height() <= 0) {
+            return 1.0;
+        }
+        return std::min(static_cast<qreal>(width()) / cachedImage_.width(),
+                        static_cast<qreal>(height()) / cachedImage_.height());
+    }
+
+    void resetView()
+    {
+        zoom_ = 1.0;
+        panOffset_ = QPointF();
+    }
+
+    void showActualPixels()
+    {
+        const qreal scale = fitScale();
+        zoom_ = scale > 0.0 ? std::clamp(1.0 / scale, kMinimumZoom, kMaximumZoom) : 1.0;
+        panOffset_ = QPointF();
+        update();
+    }
+
+    static constexpr qreal kMinimumZoom = 0.1;
+    static constexpr qreal kMaximumZoom = 16.0;
     ArtifactCore::ImageF32x4_RGBA frame_;
     QImage cachedImage_;
+    qreal zoom_ = 1.0;
+    QPointF panOffset_;
+    QPointF panStart_;
+    bool panning_ = false;
 };
 
 class ProgramMonitorPanel : public QWidget
@@ -2178,6 +2285,7 @@ private:
     QScrollArea* scrollArea_ = nullptr;
     QWidget* timelineHost_ = nullptr;
     QVBoxLayout* timelineLayout_ = nullptr;
+    QHash<QString, TimelineClipWidget*> clipWidgets_;
 
 public:
     /// 実波形 peak envelope の提供元 (AudioPreviewMixer)。MainWindow で接続。
@@ -2209,6 +2317,9 @@ bool TimelinePanel::eventFilter(QObject* obj, QEvent* event)
 
 void TimelinePanel::refreshTimeline(const ArtifactPr::DemoSequence& seq)
     {
+        // 構造変更時だけ既存 row を破棄する。選択変更は
+        // onClipSelectionChanged() で clip 単位に反映する。
+        clipWidgets_.clear();
         while (timelineLayout_->count() > 0) {
             auto* item = timelineLayout_->takeAt(0);
             if (item->widget())
@@ -2236,7 +2347,12 @@ void TimelinePanel::refreshTimeline(const ArtifactPr::DemoSequence& seq)
     }
 
 void TimelinePanel::onFrameChanged(ArtifactPr::FramePosition) { ruler_->update(); }
-void TimelinePanel::onClipSelectionChanged(const QString&) { refreshTimeline(ArtifactPr::EditorEngine::instance()->currentSequence()); }
+void TimelinePanel::onClipSelectionChanged(const QString& clipId)
+    {
+        for (auto it = clipWidgets_.cbegin(); it != clipWidgets_.cend(); ++it) {
+            it.value()->setSelected(it.key() == clipId);
+        }
+    }
 void TimelinePanel::onMarkerChanged() { ruler_->update(); }
 void TimelinePanel::onTransitionChanged() { refreshTimeline(ArtifactPr::EditorEngine::instance()->currentSequence()); }
 
@@ -2595,6 +2711,7 @@ void TimelinePanel::addTrackRow(const ArtifactPr::DemoTrack& track, const QVecto
         for (const auto& clip : track.clips) {
             bool isAudio = (track.kind == QStringLiteral("audio"));
             auto* clipWidget = new TimelineClipWidget(clip.id, clip.name, trackColor, clip.id == selectedId, isAudio, trackContent);
+            clipWidgets_.insert(clip.id, clipWidget);
             int clipWidth = qMax(MIN_CLIP_WIDTH, static_cast<int>(clip.duration * FRAME_WIDTH));
             clipWidget->setMinimumWidth(clipWidth);
             clipWidget->setMaximumWidth(clipWidth);

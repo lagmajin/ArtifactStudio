@@ -69,7 +69,7 @@ set_target_properties(ArtifactPr PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
 )
 
-target_link_libraries(ArtifactPr PRIVATE ArtifactCore ArtifactCoreCommand ArtifactCoreAudio ArtifactCoreVideo ArtifactCoreNLE ArtifactWidgets Qt6::Multimedia)
+target_link_libraries(ArtifactPr PRIVATE ArtifactCore ArtifactCoreCommand ArtifactCoreAudio ArtifactCoreVideo ArtifactCoreNLE ArtifactWidgets ArtifactGpuFoundation Qt6::Multimedia)
 
 target_include_directories(ArtifactPr PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
