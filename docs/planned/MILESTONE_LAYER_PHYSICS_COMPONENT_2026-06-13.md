@@ -1,6 +1,6 @@
 # 実装案: M-LYR-PHYS Layer Physics Component
 
-**最終更新:** 2026-08-25
+**最終更新:** 2026-08-31
 
 **ステータス:** 部分完了（Collision 設定の Inspector/JSON、RigidBody/SoftBody bounds 同期、Circle collider 再構築、Polygon collider の Core〜UI 導線、component.joint レイヤー間ジョイント（Distance/Pin）を実装。ジョイントのアンカー編集・revolute角制限、Fracture/Fluid の共通 component 化、複数レイヤー接触の runtime parity、ビルド／ランタイム検証は未完了）
 
@@ -304,4 +304,27 @@ Impulse Force: [1000]
 - Core `Physics2D`: `addStaticAnchor()`、joint id 管理、`removeJoint/clearJoints/getJoints` を追加。body再構築時・無効化時はjointを明示破棄してid鮮度を保証。
 - Composition `evaluateJointConstraints()` を `setFramePosition`/`goToFrame` のcollision評価直後に配線。target layer名解決 → target中心をowner局所空間へマップ → 静的アンカー(cloneIndex==-2)生成/追従 → signature変更時のみjoint再構築。Distance length=0 は作成時距離を採用。リジッド読み取り/body選択はproxyを除外して自レイヤーdynamic bodyを選択。
 - 制約: rigid worldはsnapshot非対応（スクラブ復帰は未対応）、target名重複時は先勝ち、アンカー手動オフセットとrevolute角制限は未実装。`Physics2D` world重力 {0,-9.8} の符号は要ランタイム確認。
+
+## 2026-08-31 進捗（通常レイヤーの落下を Box2D へ接続）
+
+- `component.collision.enabled` が有効なレイヤーは、transform 評価時に `RigidBody2D` を自動生成するよう接続。
+- `Physics2D` にレイヤーごとの床 collider を再利用登録する `setStaticFloor()` を追加。床の高さは `collisionFloorY`、未設定時はコンポジション下端を使用する。
+- レイヤーの `gravityY` を Box2D world に反映し、剛体が存在する場合は従来の layer-local gravity / floor clamp を適用しないよう整理。
+- 床 proxy は `cloneIndex=-3` として、joint proxy（`-2`）およびレイヤー自身の dynamic body と区別する。
+- 通常の Collision レイヤーは Composition 単位の rigid world を共有し、body の `ownerLayerId` で各レイヤーの同期対象を識別するよう拡張。ジョイント専用レイヤーは既存の layer world を維持する。
+- 未確認: 複数レイヤー間の衝突結果、物理 snapshot のスクラブ復帰、ビルド／実機ランタイム挙動。
+- 未検証: ビルド・ランタイム（ユーザー指示待ち）。
+
+## 2026-08-31 進捗（レイヤー単体の落下調整）
+
+- 既存の `physics.linearDamping` を Inspector 上で `Air Drag` として明示し、固定値ではなく Box2D rigid body に反映するよう変更。
+- `physics.angularDamping`（`Angular Drag`）と `physics.gravityScale`（`Gravity Scale`）を追加。どちらも JSON 保存／復元と既存 body への即時反映に対応。
+- 物理 body を使わない既存の layer-local gravity 経路でも `Gravity Scale` を重力加速度へ乗算する。
+- 未検証: ビルド・ランタイム（ユーザー指示待ち）。
+
+## 2026-08-31 進捗（重力パラメータの操作性）
+
+- `physics.fallProfile` を追加。`Custom / Light / Normal / Heavy / Floaty` の5段階で `Gravity Scale`、`Air Drag`、`Angular Drag` をまとめて設定する。
+- 個別の倍率・抵抗を編集すると profile は自動で `Custom` に戻る。profile選択時は関連プロパティのキャッシュも更新し、Inspector 再構築を待たずに数値を同期する。
+- 生の `physics.gravityY` は `World Gravity Y (Advanced)` として表示し、既存の Box2D world がある場合は共有 world の重力へ即時適用する。通常のレイヤー調整は `Fall Profile` / `Gravity Scale` を使う。
 - 未検証: ビルド・ランタイム（ユーザー指示待ち）。
