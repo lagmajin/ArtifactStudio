@@ -22,6 +22,7 @@ module;
 
 module ArtifactPr.EditorEngine;
 
+import ArtifactPr.ClipEffects;
 import ArtifactPr.EditCommand;
 import ArtifactPr.SequenceExporter;
 
@@ -453,6 +454,40 @@ RenderPlan EditorEngine::createRenderPlan(RenderQualityPreset preset,
         plan.qualityScale = 1.0;
         plan.useProxyMedia = false;
         break;
+    }
+
+    // トランジション / クリップエフェクト / 音声クリップを legacy モデルから凍結。
+    plan.transitions = currentSequence_.transitions;
+    for (const auto& track : currentSequence_.videoTracks) {
+        for (const auto& clip : track.clips) {
+            if (!clip.effects.isEmpty()) {
+                plan.clipEffects.insert(clip.id, clip.effects);
+            }
+        }
+    }
+
+    bool anyAudioSolo = false;
+    for (const auto& track : currentSequence_.audioTracks) {
+        if (track.solo) {
+            anyAudioSolo = true;
+            break;
+        }
+    }
+    for (const auto& track : currentSequence_.audioTracks) {
+        if (track.muted) continue;
+        if (anyAudioSolo && !track.solo) continue;
+        for (const auto& clip : track.clips) {
+            if (!clip.enabled || clip.sourceFile.isEmpty()) continue;
+            AudioClipPlan entry;
+            entry.clipId = clip.id;
+            entry.sourceFile = clip.sourceFile;
+            entry.startFrame = clip.startFrame;
+            entry.durationFrames = clip.duration;
+            entry.sourceIn = clip.sourceIn;
+            entry.volume = clip.volume * audioGainFactor(clip.effects);
+            audioEqualizerDb(clip.effects, entry.eqLowDb, entry.eqMidDb, entry.eqHighDb);
+            plan.audioClips.append(entry);
+        }
     }
 
     return plan;
@@ -1921,6 +1956,16 @@ void EditorEngine::setClipOpacity(const QString& clipId, double opacity)
     opacity = qBound(0.0, opacity, 1.0);
     pushUndo(std::make_unique<ClipPropertyCommand>(clipId, ClipPropertyCommand::Kind::Opacity,
                                                    clip->opacity, opacity));
+}
+
+void EditorEngine::setClipEffects(const QString& clipId, const QMap<QString, QVariant>& effects)
+{
+    auto* clip = findClip(clipId);
+    if (!clip) return;
+    if (clip->effects == effects) return;
+
+    // pushUndo が redo() を即座に実行する。通知は ClipEffectsCommand 側で行う。
+    pushUndo(std::make_unique<ClipEffectsCommand>(clipId, clip->effects, effects));
 }
 
 void EditorEngine::setClipName(const QString& clipId, const QString& name)

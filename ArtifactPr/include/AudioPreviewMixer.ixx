@@ -28,6 +28,7 @@ export namespace ArtifactPr {
 using FramePosition = int64_t;
 
 /// ミキシング対象の 1 音声クリップ (durationFrames は timeline フレーム数)。
+/// volume には audioGain エフェクト係数を含む (syncAudioClips 側で乗算済み)。
 struct PreviewAudioClip {
     QString id;
     QString filePath;
@@ -35,6 +36,9 @@ struct PreviewAudioClip {
     FramePosition durationFrames = 0;
     FramePosition sourceIn = 0;
     double volume = 1.0;
+    double eqLowDb = 0.0;
+    double eqMidDb = 0.0;
+    double eqHighDb = 0.0;
 };
 
 /// シーケンス音声プレビューのミキサー/出力エンジン。
@@ -82,6 +86,7 @@ private:
 
     void loadClipAudio(ClipAudio& out);
     void loadClipAudioFor(ClipAudio& entry);
+    static QString clipCacheKey(const PreviewAudioClip& clip);
     void rebuildBuses();
     void onTick();
     void pushLevel(float leftPeak, float rightPeak);

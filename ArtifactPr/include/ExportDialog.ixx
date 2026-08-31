@@ -1,5 +1,6 @@
 module;
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
 #include <QFileDialog>
@@ -39,6 +40,7 @@ private:
     QComboBox* codecCombo_ = nullptr;
     QComboBox* framerateCombo_ = nullptr;
     QSlider* qualitySlider_ = nullptr;
+    QCheckBox* includeAudioCheck_ = nullptr;
     QLabel* progressLabel_ = nullptr;
     QProgressBar* progressBar_ = nullptr;
     QPushButton* exportButton_ = nullptr;

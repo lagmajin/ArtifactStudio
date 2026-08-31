@@ -14,6 +14,8 @@ set(ARTIFACT_PR_SOURCES
     include/MediaFrameDecoder.ixx
     include/SequenceCompositor.ixx
     include/SequenceExporter.ixx
+    include/SequenceAudioRenderer.ixx
+    include/ClipEffects.ixx
     include/AudioPreviewMixer.ixx
     include/VideoSurface.ixx
     include/EditCommand.ixx
@@ -37,6 +39,8 @@ set(ARTIFACT_PR_SOURCES
     src/MediaFrameDecoder.cppm
     src/SequenceCompositor.cppm
     src/SequenceExporter.cppm
+    src/SequenceAudioRenderer.cppm
+    src/ClipEffects.cppm
     src/AudioPreviewMixer.cppm
     src/VideoSurface.cppm
     src/EditCommand.cppm

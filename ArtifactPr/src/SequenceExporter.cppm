@@ -1,8 +1,13 @@
 module;
 
+#include <QDir>
+#include <QFile>
 #include <QFileInfo>
+#include <QMap>
 #include <QString>
 #include <QStringList>
+#include <QTemporaryFile>
+#include <QVariant>
 #include <QVector>
 
 #include <algorithm>
@@ -19,9 +24,13 @@ export module ArtifactPr.SequenceExporter;
 
 import ArtifactPr.SequenceExporter;
 import ArtifactPr.SequenceCompositor;
+import ArtifactPr.ClipEffects;
+import ArtifactPr.SequenceAudioRenderer;
+import ArtifactPr.EditorEngine;
 import Image.ImageF32x4_RGBA;
 import FloatRGBA;
 import Encoder.FFmpegEncoder;
+import Media.Encoder.FFmpegAudioEncoder;
 import Codec.FFmpegVideoDecoder;
 import Video.VideoFrame;
 import NLE.Core;
@@ -57,6 +66,30 @@ QSize parseResolution(const QString& resolution)
     return QSize(1920, 1080);
 }
 
+/// legacy Transition から trackId/clipId に一致するフェードスパンを組む。
+/// カーブ式は ClipEffects::transitionOpacityFactor (プレビューと同一)。
+QVector<ArtifactPr::TransitionFadeSpan> transitionSpansFor(
+    const QVector<ArtifactPr::Transition>& transitions,
+    const QString& trackId,
+    const QString& clipId)
+{
+    QVector<ArtifactPr::TransitionFadeSpan> spans;
+    for (const auto& trans : transitions) {
+        if (trans.trackId != trackId) continue;
+        const bool isLeft = trans.leftClipId == clipId;
+        if (!isLeft && trans.rightClipId != clipId) continue;
+        ArtifactPr::TransitionFadeSpan span;
+        span.startFrame = trans.startFrame;
+        span.duration = trans.duration;
+        span.isLeft = isLeft;
+        span.curve = trans.type == ArtifactPr::TransitionType::DipToBlack
+            ? ArtifactPr::TransitionFadeCurve::DipToBlack
+            : ArtifactPr::TransitionFadeCurve::Linear;
+        spans.append(span);
+    }
+    return spans;
+}
+
 } // namespace
 
 // =====================================================================
@@ -74,6 +107,8 @@ SequenceTimelineRenderer::SequenceTimelineRenderer(const RenderPlan& plan)
         static_cast<int>(std::lround(plan.qualityScale * parseResolution(plan.resolution).width())),
         static_cast<int>(std::lround(plan.qualityScale * parseResolution(plan.resolution).height())));
     canvasSize_ = QSize(std::max(16, canvasSize_.width()), std::max(16, canvasSize_.height()));
+    transitions_ = plan.transitions;
+    clipEffects_ = plan.clipEffects;
 }
 
 SequenceTimelineRenderer::~SequenceTimelineRenderer() = default;
@@ -196,6 +231,13 @@ bool SequenceTimelineRenderer::renderFrame(const int64_t frame,
     layers.reserve(active.size());
     for (const ActiveClip& entry : active) {
         const auto* clip = entry.clip;
+        const QString clipIdString = clip->id.toString();
+        const QString trackIdString = clip->trackId.toString();
+
+        // トランジション opacity 変調 (プレビュー transitionOpacityAt と同一カーブ)。
+        const double transitionFactor = ArtifactPr::transitionOpacityFactor(
+            transitionSpansFor(transitions_, trackIdString, clipIdString), frame);
+
         // プレビュー (requestPreviewFrame) と同じソースフレーム式。
         int64_t sourceFrame = clip->sourceRange.isValid()
             ? clip->sourceRange.start() +
@@ -215,9 +257,15 @@ bool SequenceTimelineRenderer::renderFrame(const int64_t frame,
             continue;
         }
 
+        // クリップエフェクト (プレビューと同一評価順)。
+        const auto fxIt = clipEffects_.constFind(clipIdString);
+        if (fxIt != clipEffects_.constEnd()) {
+            ArtifactPr::applyClipEffects(decoded, fxIt.value());
+        }
+
         ArtifactPr::CompositeLayer layer;
         layer.frame = std::move(decoded);
-        layer.opacity = clip->opacity;
+        layer.opacity = clip->opacity * transitionFactor;
         layers.append(layer);
     }
 
@@ -249,6 +297,58 @@ ExportResult exportSequence(const RenderPlan& plan,
         return result;
     }
 
+    // ---- 音声のみ形式 (WAV / MP3) ----
+    if (settings.format.isAudioOnly()) {
+        // テンプ WAV へミックスし、MP3 の場合は FFmpegAudioEncoder で変換する。
+        QTemporaryFile tempWav(QDir::tempPath() + QStringLiteral("/artifactpr_audio_XXXXXX.wav"));
+        tempWav.setAutoRemove(false);
+        if (!tempWav.open()) {
+            result.error = QStringLiteral("Failed to create temporary WAV file");
+            return result;
+        }
+        const QString wavPath = tempWav.fileName();
+        tempWav.close();
+
+        const bool cancelled = cancel.load(std::memory_order_relaxed);
+        if (cancelled) {
+            result.error = QStringLiteral("Cancelled by user");
+            QFile::remove(wavPath);
+            return result;
+        }
+
+        const auto audioResult = ArtifactPr::renderSequenceAudio(
+            plan, settings.fps, wavPath, 16, cancel, onProgress);
+        if (!audioResult.success) {
+            QFile::remove(wavPath);
+            result.error = audioResult.error;
+            return result;
+        }
+
+        if (settings.format.value == ExportFormat::Value::Mp3Audio) {
+            if (!ArtifactCore::FFmpegAudioEncoder::encodeAudio(
+                    wavPath, settings.outputPath, QStringLiteral("mp3"), 192000, 48000)) {
+                QFile::remove(wavPath);
+                result.error = QStringLiteral("Failed to encode MP3 audio");
+                return result;
+            }
+        } else {
+            // WAV はテンプを最終出力パスへ移動
+            QFile::remove(settings.outputPath);
+            if (!QFile::rename(wavPath, settings.outputPath)) {
+                // 移動失敗時は copy で救済
+                if (!QFile::copy(wavPath, settings.outputPath)) {
+                    QFile::remove(wavPath);
+                    result.error = QStringLiteral("Failed to write WAV output");
+                    return result;
+                }
+                QFile::remove(wavPath);
+            }
+        }
+        result.success = true;
+        result.framesWritten = static_cast<int>(plan.endFrame - plan.startFrame + 1);
+        return result;
+    }
+
     SequenceTimelineRenderer renderer(plan);
     if (!renderer.isValid()) {
         result.error = QStringLiteral("Failed to restore sequence snapshot");
@@ -261,6 +361,30 @@ ExportResult exportSequence(const RenderPlan& plan,
     if (totalFrames <= 0) {
         result.error = QStringLiteral("Empty render range");
         return result;
+    }
+
+    // ---- 動画形式 + 音声mux: 動画はテンパスへ出力してから mux する ----
+    // (muxAudioWithVideo は videoPath を読みながら outputPath を書くため
+    //  同一パス指定は不可)
+    const bool muxAudio = settings.format.isVideoFile()
+        && settings.includeAudio && !plan.audioClips.isEmpty();
+    QString videoOutputPath = settings.outputPath;
+    QString tempVideoPath;
+    if (muxAudio) {
+        const QString suffix = settings.format.value == ExportFormat::Value::ProResMov
+            || settings.format.value == ExportFormat::Value::DnxhdMov
+            ? QStringLiteral(".mov")
+            : QStringLiteral(".mp4");
+        QTemporaryFile tempVideo(QDir::tempPath()
+                                 + QStringLiteral("/artifactpr_video_XXXXXX") + suffix);
+        tempVideo.setAutoRemove(false);
+        if (!tempVideo.open()) {
+            result.error = QStringLiteral("Failed to create temporary video file");
+            return result;
+        }
+        tempVideoPath = tempVideo.fileName();
+        tempVideo.close();
+        videoOutputPath = tempVideoPath;
     }
 
     ArtifactCore::FFmpegEncoder encoder;
@@ -292,8 +416,11 @@ ExportResult exportSequence(const RenderPlan& plan,
             break;
         }
 
-        if (!encoder.open(settings.outputPath, encodeSettings)) {
+        if (!encoder.open(videoOutputPath, encodeSettings)) {
             result.error = encoder.lastError();
+            if (!tempVideoPath.isEmpty()) {
+                QFile::remove(tempVideoPath);
+            }
             return result;
         }
     } else if (settings.format.isImageSequence()) {
@@ -326,11 +453,16 @@ ExportResult exportSequence(const RenderPlan& plan,
     }
 
     ArtifactCore::ImageF32x4_RGBA frame;
+    // 音声段階 (mux) を行う場合はフレーム処理を 0-90 に圧縮する。
+    const double frameProgressScale = muxAudio ? 90.0 : 100.0;
     for (int64_t f = firstFrame; f <= lastFrame; ++f) {
         if (cancel.load(std::memory_order_relaxed)) {
             encoder.close();
             result.framesWritten = static_cast<int>(f - firstFrame);
             result.error = QStringLiteral("Cancelled by user");
+            if (!tempVideoPath.isEmpty()) {
+                QFile::remove(tempVideoPath);
+            }
             return result;
         }
 
@@ -339,6 +471,9 @@ ExportResult exportSequence(const RenderPlan& plan,
             if (!encoder.addImage(frame)) {
                 result.error = encoder.lastError();
                 encoder.close();
+                if (!tempVideoPath.isEmpty()) {
+                    QFile::remove(tempVideoPath);
+                }
                 return result;
             }
             ++result.framesWritten;
@@ -347,12 +482,50 @@ ExportResult exportSequence(const RenderPlan& plan,
 
         if (onProgress) {
             const int percent = static_cast<int>(
-                (static_cast<double>(f - firstFrame + 1) / static_cast<double>(totalFrames)) * 100.0);
+                (static_cast<double>(f - firstFrame + 1) / static_cast<double>(totalFrames))
+                * frameProgressScale);
             onProgress(std::clamp(percent, 0, 100));
         }
     }
 
     encoder.close();
+
+    if (muxAudio) {
+        // 音声ミックス → テンプ WAV → aac で mux (テンプ動画 + テンプ WAV → 最終出力)
+        QTemporaryFile tempWav(QDir::tempPath() + QStringLiteral("/artifactpr_audio_XXXXXX.wav"));
+        tempWav.setAutoRemove(false);
+        if (!tempWav.open()) {
+            QFile::remove(tempVideoPath);
+            result.error = QStringLiteral("Failed to create temporary WAV file");
+            return result;
+        }
+        const QString wavPath = tempWav.fileName();
+        tempWav.close();
+
+        const auto audioResult = ArtifactPr::renderSequenceAudio(
+            plan, settings.fps, wavPath, 16, cancel,
+            [&onProgress](int percent) {
+                if (onProgress) {
+                    onProgress(std::clamp(90 + percent * 10 / 100, 0, 100));
+                }
+            });
+        if (!audioResult.success) {
+            QFile::remove(wavPath);
+            QFile::remove(tempVideoPath);
+            result.error = audioResult.error;
+            return result;
+        }
+
+        if (!ArtifactCore::FFmpegAudioEncoder::muxAudioWithVideo(
+                tempVideoPath, wavPath, settings.outputPath, QStringLiteral("aac"))) {
+            QFile::remove(wavPath);
+            QFile::remove(tempVideoPath);
+            result.error = QStringLiteral("Failed to mux audio into video");
+            return result;
+        }
+        QFile::remove(wavPath);
+        QFile::remove(tempVideoPath);
+    }
 
     result.success = result.framesWritten > 0;
     if (!result.success && result.error.isEmpty()) {

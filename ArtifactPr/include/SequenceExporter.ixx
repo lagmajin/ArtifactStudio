@@ -1,7 +1,9 @@
 module;
 
+#include <QMap>
 #include <QString>
 #include <QSize>
+#include <QVariant>
 #include <QVector>
 #include <atomic>
 #include <cstdint>
@@ -31,6 +33,8 @@ struct ExportFormat {
         DnxhdMov,
         PngSequence,
         JpegSequence,
+        WavAudio,
+        Mp3Audio,
     };
     Value value = Value::H264Mp4;
 
@@ -43,6 +47,10 @@ struct ExportFormat {
     {
         return value == Value::PngSequence || value == Value::JpegSequence;
     }
+    bool isAudioOnly() const
+    {
+        return value == Value::WavAudio || value == Value::Mp3Audio;
+    }
 };
 
 /// ExportDialog から収集する設定一式。
@@ -53,6 +61,7 @@ struct ExportSettings {
     int height = 1080;
     double fps = 30.0;
     int quality = 80;            // 1-100 (quality → crf 変換は exportSequence 内)
+    bool includeAudio = true;    // 動画形式のみ有効 (音声ミックスを aac で mux)
 };
 
 struct ExportResult {
@@ -66,7 +75,8 @@ struct ExportResult {
 /// ProgramMonitorPanel のプレビュー組立て (requestPreviewFrame / onFrameDecoded) と
 /// 同じ意味論: 映像トラックの muted/solo 無視なし・clip.enabled / speed / reversed /
 /// opacity を反映し、composeSequenceLayers で fit 合成する。
-/// トランジションは未合成 (プレビューと同一挙動)。
+/// トランジション (Crossfade 等) の opacity 変調とクリップエフェクト (fx.*) を
+/// プレビューと同一のカーブ/評価順で反映する。
 class SequenceTimelineRenderer {
 public:
     explicit SequenceTimelineRenderer(const RenderPlan& plan);
@@ -94,6 +104,8 @@ private:
 
     std::unique_ptr<ArtifactCore::NLE::NLEProjectStore> store_;
     QSize canvasSize_{1920, 1080};
+    QVector<ArtifactPr::Transition> transitions_;
+    QMap<QString, QMap<QString, QVariant>> clipEffects_;
 
     // 同期デコーダキャッシュ (worker thread 専有、mutex 不要)。
     std::map<QString, ArtifactCore::FFmpegVideoDecoder> captures_;

@@ -1,6 +1,7 @@
 module;
 
 #include <QJsonObject>
+#include <QMap>
 #include <QString>
 #include <QVariant>
 #include <QVector>
@@ -244,6 +245,35 @@ private:
     Kind kind_;
     QVariant oldValue_;
     QVariant newValue_;
+};
+
+/// クリップエフェクト (fx.* パラメータマップ) の全置換。
+class ClipEffectsCommand : public ArtifactCore::SerializableCommand {
+public:
+    static constexpr auto kType = QStringLiteral("nle.clipEffects");
+
+    ClipEffectsCommand(const QString& clipId,
+                       QMap<QString, QVariant> oldEffects,
+                       QMap<QString, QVariant> newEffects)
+        : clipId_(clipId),
+          oldEffects_(std::move(oldEffects)), newEffects_(std::move(newEffects))
+    {
+        setText(QStringLiteral("Change Clip Effects"));
+    }
+
+    void undo() override { doApply(oldEffects_); }
+    void redo() override { doApply(newEffects_); }
+
+    QString commandType() const override { return kType; }
+    QJsonObject serialize() const override;
+    bool deserialize(const QJsonObject& data) override;
+
+private:
+    void doApply(const QMap<QString, QVariant>& effects);
+
+    QString clipId_;
+    QMap<QString, QVariant> oldEffects_;
+    QMap<QString, QVariant> newEffects_;
 };
 
 } // namespace ArtifactPr

@@ -1,3 +1,933 @@
+**最終更新:** 2026-08-31
+
+## 2026-08-31 — Layer選択Automationの結果を実状態で検証する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx` の `selectLayer`
+- **確認できた事実:** SelectionManagerはlocked／selection-locked layerに対して選択処理を無視するが、Automation APIは選択後の状態を確認せず常に成功を返していた。
+- **対応:** `isSelected` と `currentLayer` の両方を確認し、選択が成立しない場合は失敗を返すようにした。
+- **価値 / 懸念:** AIがロックされた対象を選択できたと誤認しない。選択はプロジェクトUndo対象ではなく、既存の選択イベント経路を維持している。
+- **次に確認:** 通常／locked／selection-locked layerと、既存選択がある状態でのruntime結果を確認する。
+
+## 2026-08-31 — Asset importの作成失敗と部分結果を明示する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx` の `importAssetsFromPaths`
+- **確認できた事実:** Automation経路は、暗黙のproject作成失敗を確認せず、Service不在や一部pathの失敗でも `success`／`failedCount`／`partial` を返していなかった。
+- **対応:** project作成結果を検証し、import結果に成功件数・失敗件数・部分成功・暗黙作成の有無を追加した。
+- **価値 / 懸念:** AIが空のimport結果を成功と誤認せず、project作成を含む失敗段階を判別できる。Service内部のcopy後にprojectへ追加できない場合のrollbackは別課題。
+- **次に確認:** 有効／無効path混在、空入力、project作成失敗、sequence importキャンセル時の結果契約をruntime確認する。
+
+## 2026-08-31 — UndoManager不在時の一括キーフレーム失敗を復元する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx` の `batchSetKeyframes` / generic keyframe wrapper
+- **確認できた事実:** UndoManagerが利用できないfallbackでは、複数プロパティを順に直接適用し、後続プロパティの検証失敗時に先行プロパティの変更が残る可能性があった。またgeneric wrapperが失敗時も `executed: true` を返していた。
+- **対応:** 一括適用失敗時に変更済みプロパティを適用前のkeyframe／animatable状態へ戻し、wrapperの `executed` を実際の成功値へ合わせた。
+- **価値 / 懸念:** UndoManagerの有無で一括操作の原子性と結果報告が変わる問題を縮小した。keyframe metadataの完全な復元は既存の直接fallback仕様に依存するためruntime確認が必要。
+- **次に確認:** UndoManager有／無の両経路で複数propertyの途中失敗、Undo/Redo、animatable状態をruntime確認する。
+
+## 2026-08-31 — 全資産削除の空状態を失敗として扱う
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx` の `removeAllAssets` / `removeAllAssetsConfirmed`
+- **確認できた事実:** 資産が0件のとき、削除対象がないにもかかわらず通常APIが成功扱いになり、確認付きAPIのdry-runも失敗予定を示していなかった。
+- **対応:** 対象0件を変更失敗として返し、通常／確認付きdry-runの `wouldFail` を同じ条件へ揃えた。
+- **価値 / 懸念:** 自動化が「削除できた」と誤認して後続処理を進めることを防ぐ。利用側が空状態を成功相当のno-opとして期待していないかはruntime確認が必要。
+- **次に確認:** 空プロジェクト、資産あり、削除後の再実行で結果とSafeWrite監査をruntime確認する。
+
+## 2026-08-31 — AIのEffect preset適用もUndo境界へ統合する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx` の `loadLayerEffectPreset`
+- **確認できた事実:** InspectorのEffect preset読込はUndo化した一方、AI／Automationの同名操作はServiceの直接適用だけで、履歴に入っていなかった。
+- **対応:** AI経路でも適用前後のJSONを `EffectPresetSnapshotCommand` に渡し、履歴登録失敗時は適用前へ復元する。最近使用プリセットの記録も成功後だけにした。
+- **価値 / 懸念:** UIとAIの同じEffect編集操作が同じUndo契約へ収束した。Effect固有setterとruntime/session復元は未検証。
+- **次に確認:** UI／AIを交互に使ったEffect preset適用、Undo/Redo、履歴オフロード復元をruntimeで確認する。
+
+## 2026-08-31 — Render Queue 音声設定のno-op通知を抑止する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx` のQueue音声設定API
+- **確認できた事実:** 音声ソース、codec、bitrateは正規化後の値が既存値と同じでもService setterを呼び、不要なjob更新を発生させていた。
+- **対応:** 正規化後の値を先に比較し、同値なら成功扱いのno-opとして即時返却するようにした。
+- **価値 / 懸念:** 自動化の同値入力でQueue UI更新やdirty相当の通知を増やさない。Service側の通知粒度はruntime確認が必要。
+- **次に確認:** 空文字codec、長いパス、bitrate境界を含むno-op／変更通知をruntimeで確認する。
+
+## 2026-08-31 — Render Queue 全件停止の結果検証とモデル同期
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/src/Render/ArtifactRenderQueueService.cppm`
+- **確認できた事実:** Queue全件pause/cancelのAutomation APIはService呼出し後に常に成功を返し、Serviceの全件操作もcore queue modelを同期していなかった。
+- **対応:** pause後にRenderingが残っていないこと、cancel後にPending/Renderingが残っていないことを確認するようにし、Serviceの全件操作後に既存の `syncCoreQueueModel()` を呼ぶようにした。
+- **価値 / 懸念:** AI結果と実Queue状態、Queue UI表示の乖離を抑えた。worker停止と外部rendererのruntimeタイミングは未検証。
+- **次に確認:** 複数Queueのpause/cancel、再開、UIモデル反映をruntimeで確認する。
+
+## 2026-08-31 — Batch relink の途中成功を逆順rollbackする
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx` の `batchRelinkFootageByPath`
+- **確認できた事実:** 複数relinkの途中で失敗すると、先行成功分が残ったまま失敗結果を返していた。
+- **対応:** 成功した旧パス／新パスを保持し、失敗時に逆順でrelinkを戻す。`rolledBackCount` と `rollbackSucceeded` を結果へ追加し、rollback自体の失敗も隠さない。
+- **価値 / 懸念:** 自動化のbatch操作が部分状態を残しにくくなった。パス交換や外部ファイル状態が競合するケースはruntime確認が必要。
+- **次に確認:** 複数 footage の全成功、途中失敗、逆順復元失敗、同一パス競合をruntimeで確認する。
+
+## 2026-08-31 — Effect preset 適用をJSONスナップショットUndo化する
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Widgets/ArtifactInspectorWidget.cppm`
+- **確認できた事実:** Effect preset読込はEffectを直接変更した後にUndoコマンドを作成しておらず、適用操作をUndo/Redoできなかった。
+- **対応:** 適用前後の正規化済みpreset JSONを `EffectPresetSnapshotCommand` に保存し、Undo/Redo時は既存のPresetManager適用APIと適用後のJSON一致検証を使うようにした。適用後の履歴登録に失敗した場合は適用前へ戻す。
+- **価値 / 懸念:** Effect preset適用を1操作として復元可能にした。Effect固有setterや画像データの完全一致はruntime確認が必要。
+- **次に確認:** Effect presetのマスク画像・複数プロパティを含むUndo/Redoと履歴オフロード復元をruntimeで確認する。
+
+## 2026-08-31 — Mask preset 適用を全UI導線でUndo化する
+
+- **関連:** `Artifact/src/Widgets/ArtifactInspectorWidget.cppm`、`Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm`、`Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`
+- **確認できた事実:** Inspector以外のMask preset適用導線が `clearMasks()` / `addMask()` を直接呼び、Undo履歴を迂回していた。
+- **対応:** レイヤーメニューとAsset Browserも既存の `MaskEditCommand` で置換・追加を記録し、manager不在時はcommandの結果を確認してから変更通知するようにした。
+- **価値 / 懸念:** UI導線によるマスク適用のUndo整合性と失敗時の表示整合性を揃えた。プリセット全体のファイル操作Undoは対象外。
+- **次に確認:** runtimeで置換・追加、Undo/Redo、UndoManager不在時の適用を確認する。
+
+## 2026-08-31 — Mask preset を適用前検証する
+
+- **関連:** `Artifact/src/Project/ArtifactPresetManager.cppm` の `applyPresetJsonToMask`
+- **確認できた事実:** paths 配列や頂点を構造検証せず、先に既存マスクを消去してから読み込んでいたため、不正エントリで既存状態を失う可能性があった。
+- **対応:** paths / vertices / animationKeyframes の配列・オブジェクト構造と頂点座標の有限値を適用前に検証するようにした。
+- **価値 / 懸念:** malformed なMask presetで既存マスクが部分的に消えるリスクを抑える。Mask preset全体のUndoは別途未実装。
+- **次に確認:** 実プリセットのアニメーション頂点・feather値を含む読み込みをruntimeで確認する。
+
+## 2026-08-31 — Effect enabled 切替の検証失敗時に復元する
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm` の layer / composition effect enabled setter とUndo command
+- **確認できた事実:** setter後の値検証に失敗した場合、layer・compositionの通常フォールバックと composition用Undo command が `false` を返すだけで、部分変更を残す可能性があった。
+- **対応:** 各経路で変更前のenabled状態を保持し、検証失敗時に旧状態を再適用するようにした。
+- **価値 / 懸念:** UIやAIが失敗と判断した操作がEffect状態だけ残すことを防ぐ。復元setter自体の失敗はruntime確認が必要。
+- **次に確認:** Effect実装ごとの enabled setter が失敗し得る条件をruntimeで確認する。
+
+## 2026-08-31 — Effect preset の既知パラメータを適用前検証する
+
+- **関連:** `Artifact/src/Project/ArtifactPresetManager.cppm` の `applyPresetJsonToEffect`
+- **確認できた事実:** 既知パラメータでも JSON の型を検査せず `toInt` / `toDouble` / `toBool` 等へ変換していたため、不正値を別の値として適用し、プリセット読み込みを成功扱いにする可能性があった。
+- **対応:** properties 配列、各エントリ、既知パラメータの型、有限な数値、色文字列を適用前に検証するようにした。未知パラメータは将来互換性のため従来どおり無視する。
+- **価値 / 懸念:** 不正プリセットによる部分変更や、型変換による意図しないEffect状態を抑える。setter後の完全な値一致やプリセット全体のUndoは別途runtime確認が必要。
+- **次に確認:** 各Effectの整数・色・Point2Dパラメータを含む実プリセットで読み込み結果を確認する。
+
+## 2026-08-31 — Batch relink の部分成功を結果に明示する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx` の `batchRelinkFootageByPath`
+- **確認できた事実:** batch relink は `requested` / `succeeded` / `failed` を返していたが、他の batch API と違い、部分成功を直接判定する `partial` と件数名の統一 alias がなかった。
+- **対応:** 既存キーを維持したまま `requestedCount` と `partial` を追加し、空入力では `partial: false` を返すようにした。
+- **価値 / 懸念:** 自動化側が全成功・全失敗・部分成功を同じ件数計算なしで判別できる。複数件途中失敗時に先行成功を巻き戻す処理は未実装。
+- **次に確認:** 呼び出し側が `partial` を使って再試行や警告表示を分けるか runtime で確認する。
+
+## 2026-08-31 — Effect 複製で存在しない対象を受け付けない
+
+- **関連:** `Artifact/src/Service/ArtifactEffectService.cppm` の `duplicateEffect`
+- **確認できた事実:** 指定された `effectId` がレイヤー内に存在しなくても、入力IDを型名候補として新規Effectを作り、複製成功に進む可能性があった。
+- **対応:** source effect の探索に失敗した場合は、Effect生成・Undo登録を行わず `Effect not found` を返すようにした。
+- **価値 / 懸念:** AIや外部自動化からの誤IDで、意図しないEffectが追加されることを防ぐ。
+- **次に確認:** composition effect の同等操作にも、対象IDの存在検証が揃っているか確認する。
+
+## 2026-08-31 — Effect property の検証失敗時に変更前値へ戻す
+
+- **関連:** `Artifact/src/Service/ArtifactEffectService.cppm` の layer / composition effect property setter
+- **確認できた事実:** UndoManager が利用できないフォールバック経路で、setter 後の値が期待値と異なる場合に `false` を返すだけで、setter が部分的に変更した値を復元していなかった。modulation snapshot、effect expression、effect keyframe にも同じ問題があった。
+- **対応:** layer と composition の effect property は `oldValue`、modulation snapshot は `before`、effect expression は `oldExpression`、effect keyframe は変更前の全キー集合を再適用してから失敗を返すようにした。
+- **価値 / 懸念:** 自動化呼び出し側の失敗表示とプロジェクト実状態の乖離を抑える。復元 setter 自体の失敗は既存APIでは検出できないため、runtime確認が必要。
+- **次に確認:** 各 effect property 型で setter の部分適用が起きるケースを runtime で確認する。
+
+## 2026-08-31 — Export Matrix の部分投入を完全成功と報告しない
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx` の `queueExportMatrixForCurrentComposition`
+- **確認できた事実:** 複数の export job のうち一部しか render queue に追加できなくても、1件以上追加されれば `success: true` になっていた。
+- **対応:** `requestedCount` / `addedCount` / `failedCount` を返し、全 job が追加された場合だけ成功と判定するようにした。
+- **価値 / 懸念:** 自動化側が部分投入を完全成功と誤認しない。既に追加された job の削除や再試行を自動で行う共通 rollback は未実装。
+- **次に確認:** render queue API が追加失敗時に job を残すかどうかを runtime で確認し、必要なら batch rollback を設計する。
+
+## 2026-08-31 — Export Matrix の空キューを成功扱いにしない
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx` の `queueExportMatrixForCurrentComposition`
+- **確認できた事実:** 有効な export matrix job が 0 件でも、また queue 追加件数が 0 件でも `success: true` を返していた。
+- **対応:** 有効 job がない場合は `NO_ENABLED_EXPORTS`、追加結果が 0 件の場合は `success: false` を返すようにした。
+- **価値 / 懸念:** 自動化側が「キュー投入できた」と誤認しない。個々の render queue setter は既存 API が戻り値を提供しないため、設定適用までの完全な検証は runtime 確認に残る。
+- **次に確認:** export matrix の不正な format / codec を含む場合に、追加後の queue job 設定を実値で検証する。
+
+## 2026-08-31 — WorkspaceAutomation の空バッチを成功扱いにしない
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx` の project item rename / move、footage relink バッチ
+- **確認できた事実:** 入力配列が空の場合、rename と project item move は実変更がないまま `success: true` を返し、relink も `failed == 0` 判定だけで成功になっていた。
+- **対応:** 3つの空入力を `success: false` とし、既存の件数・`details` / `failures` 形式を維持した。relink には `errorCode: NO_ITEMS` を追加した。
+- **価値 / 懸念:** AIやUI側が「成功した変更」と「何も依頼されなかった状態」を区別できる。既存の batch relink は複数件の途中失敗時に先行成功を巻き戻さないため、共通 rollback 化は別作業として残る。
+- **次に確認:** バッチ操作の呼び出し側が `success` と成功件数を併用して表示・再試行を判断しているか、runtime で確認する。
+
+### Audio Automation の複合設定フォールバックを原子的にする
+
+- **日付:** 2026-08-31
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx` の De-click 設定／Audio Trim
+- **事実:** UndoManager がないフォールバックでは、2項目のsetterを独立に呼んでいたため、後段の失敗時に前段だけ変更が残る可能性があった。
+- **修正:** 前段の適用失敗時は即時終了し、後段の適用失敗時は前段を保存済みの旧値へ戻す順序付き処理へ変更した。UndoManager利用時の既存macro境界は維持する。
+- **価値/懸念:** manager初期化前や履歴利用不能時にも複合音声設定の部分適用を抑えられる。復元setter自体の失敗はruntime確認が必要。
+- **次に確認:** De-click threshold／width、Trim in／outの各setter拒否と、片方だけ変更可能なケースで最終値がbeforeへ戻ることを確認する。
+
+### WorkspaceAutomation の実行executorにも明示的な effect target を通す
+
+- **日付:** 2026-08-31
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx` の内部 CommandIR executor
+- **事実:** 公開されている `executeCommand()` の実executorは `set_property` を常に汎用レイヤープロパティへ渡しており、effect編集の正しい引数経路へ到達しなかった。
+- **修正:** `target.effectId` と `effect.` 接頭辞が揃った場合だけ、effect enabled または接頭辞を除いた parameter 名で既存のUndo対応WorkspaceAutomation setterを呼ぶようにした。条件が揃わない場合は従来の汎用経路を維持する。
+- **価値/懸念:** AI／Python／CommandIRのeffect property編集で、property pathをeffect IDとして誤解釈しない。effect targetを必須化するvalidationとruntime確認は未実施。
+- **次に確認:** effect instance ID付きのenabled／parameter変更、ID欠落、存在しないID、Undo拒否時の結果を確認する。
+
+### CommandIR executor の返却型と effect target を一致させる
+
+- **日付:** 2026-08-31
+- **関連:** `Artifact/src/AI/CommandIRExecutor.cppm`
+- **事実:** WorkspaceAutomation の layer creation は `QVariantMap(success, layerId)`、effect creation は effect ID文字列を返すが、executor が両方を `toBool()` していた。また `set_property` の effect 経路は property path を effect IDとして渡していた。
+- **修正:** creation map の `success`、effect IDの非空値で結果を判定し、成功時の対象IDを `details` に返すようにした。effect property は明示的な `target.effectId` がある場合だけ正しい引数列で呼び出す。
+- **価値/懸念:** 成功したAI操作を失敗と誤認せず、曖昧な識別子による誤適用を防ぐ。実際のCommandIR payloadとruntime実行は未検証。
+- **次に確認:** layer作成、effect追加、effect.enabled、effect parameterの各CommandIRで結果とUndo件数を確認する。
+
+### Automation の batch property 結果は全件スキップを成功にしない
+
+- **日付:** 2026-08-31
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx` の `batchSetLayerProperties()`
+- **事実:** ロックされた対象は `skippedCount` だけを増やし `failureCount` を増やさないため、全件スキップでも従来の `failureCount == 0 && operations 非空` 判定が `success: true` を返していた。
+- **修正:** 成功には少なくとも1件の実適用と、failure／skip がないことを要求し、成功とスキップが混在する場合だけ `partial: true` とする。
+- **価値/懸念:** AI／Python automation が未適用の操作を成功済みと誤認しにくくなる。バッチ全体の単一Undo macro化は別途 runtime／設計確認が必要。
+- **次に確認:** ロック対象のみ、成功＋ロック混在、全件成功の3ケースで返却マップとUndo件数を確認する。
+
+### Audio Mixer の Undo 登録失敗時は変更前へ復元する
+
+- **日付:** 2026-08-31
+- **関連:** `Artifact/src/Widgets/ArtifactCompositionAudioMixerWidget.cppm` のミキサー・ルーティング変更
+- **事実:** レイヤー音量等のプロパティ変更と AudioMixer JSON スナップショット変更は、ライブ変更を変更前へ戻してから Undo コマンドの `redo()` で記録する構造になっている。
+- **修正:** `UndoManager::push()` が失敗した場合の復元先を `after` から `before` に修正した。
+- **価値/懸念:** 履歴容量超過やコマンド失敗時に、履歴へ登録されていない変更だけが残る不整合を防げる。実行時の容量超過経路は未検証。
+- **次に確認:** ミキサーの各編集で、Undo 登録失敗後に表示値・Mixer JSON・再描画が変更前で一致することを確認する。
+
+## 2026-08-31: 残存 custom Qt 接続の境界判定
+
+- 関連: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`, `Artifact/src/Widgets/Viewer/ArtifactContentsViewer.cppm`, `Artifact/src/Widgets/ArtifactCompositionAudioMixerWidget.cppm`
+- 事実: 横断抽出で残った custom Qt 接続の多くは、複合 widget 内の child→owner 更新、channel strip の操作、または小ボタン／入力であり、独立した widget 間の共有状態通知ではなかった。
+- 判断: `QModelIndex` のような model 所有権に依存する値や高頻度 audio level を、識別子・頻度制御なしに global EventBus へ載せない。現状の局所 Qt 境界を維持し、安定した ID／command payload と複数購読先が揃った時点で移行候補にする。
+- 価値/懸念: EventBus を単なる Qt signal の置換先にせず、責務境界と payload の寿命を確認してから段階移行できる。残存 signal 数だけで未移行と判断すると、逆に global routing と再描画を増やすリスクがある。
+- 次に確認: 複合 widget が独立 surface として再利用される時点で、child→owner 通知を stable ID／command event に分離できるか再監査する。ビルド・テストは未実施。
+
+## 2026-08-31: 3D Model Viewer の表示モード通知を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Render/Artifact3DModelViewer.ixx`, `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`, `Artifact/src/Widgets/Viewer/ArtifactContentsViewer.cppm`
+- 事実: Model Viewer の `displayModeChanged` は Contents Viewer の親側でヘッダ／surface metadata を更新するためだけに接続されていた。`EventBus::publish()` は同期 dispatch である。
+- 判断: Qt signal を削除し、発信元ポインタと mode を持つ `ModelViewerDisplayModeChangedEvent` を publish した。Contents Viewer は自分の `modelViewer` と一致する event だけを購読し、他の viewer の表示を更新しない。
+- 価値/懸念: 子 viewer から親の表示責務へ渡る状態通知を内部 EventBus に揃えられる。payload が widget pointer を持つため、非同期 queue へ送る用途には使わず、現在の同期 publish 前提を維持する。
+- 次に確認: Model Viewer の combo／programmatic mode change、複数 Contents Viewer、破棄時の subscription disconnect を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Asset Browser の EventBus 移行済み選択経路を通常呼び出しへ統一
+
+- 関連: `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`
+- 事実: Asset Browser の `selectionChanged()` は既に `AssetBrowserSelectionChangedEvent` を publish する通常メソッドだったが、ファイル選択の一経路だけ古い `emit selectionChanged(...)` 表記が残っていた。
+- 判断: payload、publish 処理、Breadcrumb の小さな `pathClicked` Qt 境界は変更せず、残存箇所を `selectionChanged(...)` の直接呼び出しへ置換した。
+- 価値/懸念: EventBus を正規経路とする Asset Browser の実装表記が揃う。新しい global event や接続は追加していない。
+- 次に確認: Asset Browser の選択／ダブルクリック経路と EventBus 購読先を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: ToolBar の孤立 display mode signal を撤去
+
+- 関連: `Artifact/include/Widgets/ArtifactToolBar.ixx`, `Artifact/src/Widgets/ArtifactToolBar.cppm`
+- 事実: `displayModeChanged` は ToolBar 内で発火されていたが、リポジトリ内に購読先・接続先がなく、状態更新のための通信ではなかった。
+- 判断: EventBus event を新設せず、未使用の Qt signal 宣言と発火だけを撤去した。`cameraToolRequested` など実際の操作入口と display mode の状態更新は維持した。
+- 価値/懸念: 孤立した Qt 境界と不要な `emit` を減らせる。外部バイナリがこの内部 widget signal に依存する場合は別途 API 影響確認が必要だが、同一リポジトリ内の参照はない。
+- 次に確認: ToolBar の表示モード変更が設定／呼び出し側で必要になった時点で、利用側の責務に応じて EventBus または通常 API を設計する。ビルド・テストは未実施。
+
+## 2026-08-31: Timeline Navigator の viewport range 通知を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Timeline/ArtifactTimelineNavigatorWidget.ixx`, `Artifact/src/Widgets/Timeline/ArtifactTimelineNavigatorWidget.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: Navigator の start／end signal は Timeline 親の `syncTimelineViewportFromNavigator()` を呼び、viewport zoom と水平 offset を更新していた。親からの viewport 同期では `setStart`／`setEnd` が programmatic に呼ばれる。
+- 判断: start／end を個別通知せず、mouse drag 中の実変更を `TimelineNavigatorRangeChangedEvent` として publish する形へ変更した。setter は無通知の状態反映に保ち、親の2本の Qt 接続を1本の EventBus 購読へ集約した。
+- 価値/懸念: Timeline の viewport 操作面から親への表示状態通知を typed internal event に揃えられる。global event のため複数 Timeline が同居する場合は instance routing が必要だが、既存の single Timeline 前提は維持している。
+- 次に確認: Navigator の handle trim／range move、viewport zoom、programmatic sync、Work Area／ScrubBar との表示同期を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Work Area Control の range command を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Timeline/ArtifactWorkAreaControlWidget.ixx`, `Artifact/src/Widgets/Timeline/ArtifactWorkAreaControlWidget.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: Work Area Control の start／end signal は Timeline 親で composition の work area range に変換されていた。composition からの programmatic 同期では `QSignalBlocker` と `setStart`／`setEnd` が使われている。
+- 判断: start／end を個別に通知せず、ユーザーの mouse drag 中に現在の normalized range を一つの `TimelineWorkAreaChangeRequestedEvent` として publish する形へ変更した。setter は状態反映専用に保ち、親の重複 Qt 接続を一つの EventBus 購読へ集約した。frame 変換、clamp、最小幅、composition 更新は維持した。
+- 価値/懸念: Work Area という独立した Timeline 操作面から composition への編集 command を typed event に揃えられる。global event のため複数 Timeline／composition が同時に存在する場合は composition／instance routing が必要になる。
+- 次に確認: handle trim、body move／scale、programmatic composition sync、work area event の再入と undo／保存同期を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Timeline ScrubBar の seek／drag lifecycle を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Timeline/ArtifactTimelineScrubBar.ixx`, `Artifact/src/Widgets/Timeline/ArtifactTimelineScrubBar.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: ScrubBar は Timeline 親へ `frameChanged`、`frameDragStarted`、`frameDragFinished` を渡し、親が seek、audio scrub 開始／位置更新／終了、停止後 preview を処理していた。既存の `TimelineSeekRequestedEvent` は他の Timeline seek 操作でも使われている。
+- 判断: `TimelineSeekRequestedEvent` を ScrubBar のユーザー操作 frame 通知に再利用し、drag lifecycle 用に `TimelineScrubStartedEvent`／`TimelineScrubFinishedEvent` を追加した。親の3本の Qt 接続を EventBus 購読へ置き換え、programmatic `setCurrentFrame()` では event を publish しないことで再配送ループを避けた。seek の適用、audio scrub 更新、停止後 preview の順序は維持した。
+- 価値/懸念: Timeline の独立した操作面から親への seek／lifecycle 通知を typed internal event に揃えられる。global bus のため複数 Timeline が同時に存在する場合は instance routing が必要で、今回も既存の single Timeline 前提を維持している。
+- 次に確認: mouse seek、handle drag、keyboard seek、audio scrub、停止後 preview、外部 seek からの `setCurrentFrame()` が再帰せず同期することを runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Timeline 親の EventBus 通知呼び出しを直接呼び出しへ統一
+
+- 関連: `Artifact/include/Widgets/ArtifactTimelineWidget.ixx`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: Timeline 親の `zoomLevelChanged` と `timelineDebugMessage` は通常メソッドとして実装され、各々 `TimelineZoomLevelChangedEvent`／`TimelineDebugMessageEvent` を publish していたが、編集操作・検索・waveform・keyframe 操作の内部呼び出しに `Q_EMIT` 表記が残っていた。
+- 判断: EventBus publish の実装、購読処理、payload、呼び出し順を変更せず、Timeline 実装内の `Q_EMIT` を通常のメソッド呼び出しへ置換した。Qt signal 宣言や標準 widget signal には触れていない。
+- 価値/懸念: Timeline の widget 間通知が Qt signal に見える残骸をさらに減らし、EventBus を正規経路として明確化できる。大きな実装ファイルのため、差分は表記置換だけであることを静的に確認する必要がある。
+- 次に確認: Timeline／TrackPainter／CurveEditor の `Q_EMIT` 残存、module hygiene、EventBus helper の整合をまとめて静的確認する。ビルド・テストは未実施。
+
+## 2026-08-31: EventBus 化済み widget API の残存 Q_EMIT 表記を除去
+
+- 関連: `Artifact/src/Widgets/ArtifactCurveEditorWidget.cppm`, `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`
+- 事実: CurveEditor と Timeline TrackPainter の外向き API はすでに通常メソッドとして EventBus event を publish していたが、内部の呼び出し側に `Q_EMIT` 表記が残っていた。両ヘッダに対象メソッドの `W_SIGNAL` 宣言はない。
+- 判断: 対象2ファイルだけ `Q_EMIT method(...)` を直接の `method(...)` 呼び出しへ機械的に置換した。既存の EventBus payload、呼び出し順、Qt signal の `shyToggled` など未移行経路は変更していない。
+- 価値/懸念: EventBus 移行済み処理が Qt signal に見える残骸を減らし、将来の signal 接続追加を防ぎやすくする。TrackPainter は大きな実装ファイルのため、差分で置換範囲を限定して確認する必要がある。
+- 次に確認: 対象ファイルの `Q_EMIT` 残存数、module self-import／post-module include、EventBus helper の実装整合を静的確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Playback Service の engine signal は内部処理、外部通知は EventBus 済み
+
+- 関連: `Artifact/src/Service/ArtifactPlaybackService.cppm`, `Artifact/include/Event/ArtifactEventTypes.ixx`
+- 事実: engine から Service への Qt 接続は、playback session／audio clock、composition frame 同期、RAM／disk cache、drop 集計など Service 内部の処理に使われている。外部 consumer 向けの state、frame、audio level 通知はそれぞれ `PlaybackStateChangedEvent`、`FrameChangedEvent`、`AudioLevelChangedEvent` として publish されている。
+- 判断: engine→Service の内部 Qt 接続は widget 間境界ではないため保持し、同じ情報を二重に EventBus 化しない。既存の外部 EventBus 経路を正規の通知経路とする。
+- 価値/懸念: worker thread からの frame backpressure、composition／cache の整合性、高頻度 audio level 配送を維持できる。内部 connection を外部 event と混同すると、thread affinity と処理順序を壊すリスクがある。
+- 次に確認: 主要な custom signal 接続について、今回の分類で残存 Qt を「局所 UI」「内部 service」「高頻度通知」「未接続 API」に整理し、今後の移行対象を独立面間の実動作 command に限定する。ビルド・テストは未実施。
+
+## 2026-08-31: Audio Mixer の strip／meter 通知は内部 Qt 境界として保持
+
+- 関連: `Artifact/include/Audio/ArtifactAudioMixer.ixx`, `Artifact/src/Widgets/ArtifactCompositionAudioMixerWidget.cppm`, `Artifact/src/Audio/ArtifactAudioMixer.cppm`
+- 事実: `AudioMixerChannelStrip`／`AudioMixerMasterBus` の volume、pan、mute、solo、level signal は、Composition Audio Mixer 内の strip row／master row が表示値・meter を同期するために購読している。`AudioMixer` 自身も strip／master の内部同期に同 signal を使っている。
+- 判断: これらは独立 widget 間の command ではなく、Audio Mixer 内部の子部品同期と高頻度 meter 通知であるため、今回 global EventBus へ移行しない。編集確定や composition 状態の外部通知が必要になった場合だけ、集約済みの typed event を別単位で設計する。
+- 価値/懸念: level の global 配送と instance routing を避け、既存の音量編集・undo・meter 更新の局所性を保てる。将来 Audio Mixer を複数 host で共有する場合は、UI 内 signal と外部状態 event を分離して再評価する。
+- 次に確認: Playback の service→widget 通知は高頻度経路と状態更新経路を分けて監査し、既存 EventBus で代替できる低頻度通知だけを候補化する。ビルド・テストは未実施。
+
+## 2026-08-31: 残存する小部品 signal は局所 Qt 境界として保持
+
+- 関連: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`, `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`, `Artifact/src/Widgets/Render/ArtifactLayerEditorPanel.cppm`
+- 事実: Project Manager の toolbox signal は直下のボタンから同じ親 widget の create／delete／proxy 処理へ、Asset Browser の breadcrumb signal は同じ Browser の folder navigation へ、Timeline の search／scrub signal は同じ Timeline の検索・playhead処理へ、Viewer Footer の snapshot signal は同じ editor panel の撮影処理へ接続されている。
+- 判断: いずれもボタン／入力部品と所有親の局所 UI 境界であり、独立した widget 間 command やアプリ状態通知ではないため、Qt 接続を保持する。大きな境界へ広げるためだけに EventBus event を追加しない。
+- 価値/懸念: EventBus の global routing と instance 識別を増やさず、検索・スクラブの高頻度処理や親子 UI の同期を局所に閉じ込められる。Project View の選択・double click など外部へ出る通知は既存の EventBus 経路を維持する。
+- 次に確認: 残る独立面間の custom signal 接続を再検索し、サービス／独立 editor／複数 host にまたがるものだけを次の移行候補にする。ビルド・テストは未実施。
+
+## 2026-08-31: ArtifactToolBar の未接続 signal は移行せず死蔵 API として監査
+
+- 関連: `Artifact/include/Widgets/ArtifactToolBar.ixx`, `Artifact/src/Widgets/ArtifactToolBar.cppm`, `Artifact/src/Widgets/ArtifactMainWindow.cppm`
+- 事実: `cameraToolRequested` はカメラ action から発火するがリポジトリ内の購読先がなく、`viewModeChanged` は宣言のみ、`displayModeChanged` は setter 内で発火するだけだった。一方、workspace mode は `WorkspaceModeChangedEvent`、tool 選択は `ToolChangedEvent` に既に接続されている。
+- 判断: 実動作する widget 間境界が存在しないため、3 signal を EventBus に置き換える作業は行わない。外部利用者や未実装のカメラ導線を壊さないよう、今回の段階では API を保持し、死蔵 API 整理候補として記録する。
+- 価値/懸念: EventBus に購読者のない global event を増やさず、既存の workspace／tool 状態通知との重複も避けられる。将来カメラ操作や表示モードを複数 widget で実装する場合は、用途を確定してから typed command／state event を追加する必要がある。
+- 次に確認: `ArtifactProjectManagerToolBox`、`ArtifactCompositionViewerFooter`、Timeline の検索・スクラブ部品に残る接続を、ボタン／子部品の局所境界として再確認する。ビルド・テストは未実施。
+
+## 2026-08-31: 3D Viewer の display mode signal は局所 Qt 境界として保持
+
+- 関連: `Artifact/include/Widgets/Render/Artifact3DModelViewer.ixx`, `Artifact/src/Widgets/Render/Artifact3DModelViewer.cppm`, `Artifact/src/Widgets/Viewer/ArtifactContentsViewer.cppm`
+- 事実: `Artifact3DModelViewer::displayModeChanged` の購読先は、所有元である `ArtifactContentsViewer` の `updateHeader()`／`updateSurfaceMeta()` を呼ぶ1本だけだった。アプリ全体の状態通知や別の独立ウィジェットへの command 伝播ではない。
+- 判断: この signal は小さな子ビューと親コンテナの局所境界に該当するため、今回の EventBus 移行対象から外し、Qt 接続を保持する。widget を越えるように見えるだけで、内部 EventBus を増やさない。
+- 価値/懸念: EventBus の global routing と instance 識別を増やさず、表示メタ情報の同期責務を所有元に閉じ込められる。将来、表示モードを Toolbar／Inspector／複数 Viewer が共有する場合は別の状態イベントとして再評価する。
+- 次に確認: Toolbar の未購読 signal（camera tool／view mode／display mode）の意図と利用箇所を監査し、実動作のある大きな境界だけを次の移行単位にする。ビルド・テストは未実施。
+
+## 2026-08-31: Layer Panel の重複 visible rows／vertical offset signal を撤去
+
+- 関連: `Artifact/include/Widgets/Timeline/ArtifactLayerPanelWidget.ixx`, `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: Layer Panel は visible rows 変更時に既存の `TimelineVisibleRowsChangedEvent`、縦スクロール変更時に既存の `TimelineVerticalScrollEvent` を publish していた一方、panel から wrapper へ Qt signal を転送していた。Timeline 親はすでに EventBus を購読している。
+- 判断: panel／wrapper の重複 signal と転送接続を削除した。LayerChanged の interactive 更新箇所は EventBus publish に置き換え、structure 更新の publish、縦スクロールの source／clamp／更新処理は維持した。
+- 価値/懸念: Layer Panel → Timeline の状態通知を EventBus 一本にできる。global event のため複数 Timeline では composition／timeline instance routing が必要になる。
+- 次に確認: layer create／remove、filter／search、縦スクロール、Timeline refresh、composition 切替時の同期を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Layer Panel の property focus 通知を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Timeline/ArtifactLayerPanelWidget.ixx`, `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: Layer Panel の `propertyFocusChanged` は wrapper が panel から受けて転送し、Timeline 親が TrackPainter の keyframe context と selection state を更新していた。wrapper の転送以外に同 signal の購読先はなかった。
+- 判断: `TimelinePropertyFocusChangedEvent` に compositionId／layerId／propertyPath を持たせ、panel から直接 publish、wrapper の転送 signal と Timeline 親の2本の Qt 接続を削除した。親では compositionId を確認してから従来の2処理を同じ順序で実行する。
+- 価値/懸念: Layer Panel → Timeline の focus 通知を internal event に揃え、global bus の誤配送リスクを composition 単位で抑えられる。将来同一 composition に複数 Timeline が存在する場合は timeline instance routing が追加で必要になる。
+- 次に確認: property focus の変更、keyframe context の切替、selection state、composition 切替時のイベントフィルタを runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: CurveEditor の key delete command を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/ArtifactCurveEditorWidget.ixx`, `Artifact/src/Widgets/ArtifactCurveEditorWidget.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: CurveEditor の `keyDeleted` は track／key index を親 Timeline に渡し、親が property lookup、frame-rate 変換、削除前後 snapshot、undo、失敗時復元、curve refresh を処理していた。
+- 判断: `CurveEditorKeyDeletedEvent` を追加し、CurveEditor の signal を EventBus publish helper、親の Qt 接続を EventBus 購読へ変更した。削除条件、snapshot、undo、復元、refresh は維持した。
+- 価値/懸念: CurveEditor → Timeline の編集 payload 通知を EventBus に揃えられる。global event のため複数 CurveEditor／Timeline では instance routing が必要になる。
+- 次に確認: key delete、最後の key、undo／redo、無効 index、composition 切替時の refresh を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: CurveEditor の key move command を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/ArtifactCurveEditorWidget.ixx`, `Artifact/src/Widgets/ArtifactCurveEditorWidget.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: CurveEditor の `keyMoved` は track／key index、新 frame、新 value を親 Timeline に渡し、親が validation、`applyCurveEditorMove()`、cached track 更新、refresh timer を実行していた。
+- 判断: `CurveEditorKeyMovedEvent` を追加し、CurveEditor の signal を EventBus publish helper、親の Qt 接続を EventBus 購読へ変更した。validation、property 更新、cache 更新、timer interval は維持した。keyDeleted は別単位として残した。
+- 価値/懸念: curve key 編集の widget 間 command を typed internal event に移せる。global event のため複数 CurveEditor／Timeline では instance routing が必要になる。
+- 次に確認: drag／tangent 操作による key move、frame／value 更新、refresh timer、undo session との連携を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: CurveEditor の key selection 通知を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/ArtifactCurveEditorWidget.ixx`, `Artifact/src/Widgets/ArtifactCurveEditorWidget.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: CurveEditor の `keySelected` は親 Timeline の curve property list focus／scroll にだけ使われ、keyIndex 自体は親処理で参照されていなかった。
+- 判断: `CurveEditorKeySelectedEvent` を追加し、CurveEditor の signal を EventBus publish helper、親の Qt 接続を EventBus 購読へ変更した。track focus、list 更新、scroll 条件は維持した。
+- 価値/懸念: curve focus の widget 間通知を typed internal event に移せる。global event のため複数 CurveEditor／Timeline では instance routing が必要になる。
+- 次に確認: key click、shift selection、property list の focus／scroll、curve context 切替を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: CurveEditor の current frame 通知を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/ArtifactCurveEditorWidget.ixx`, `Artifact/src/Widgets/ArtifactCurveEditorWidget.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: CurveEditor の `currentFrameChanged` は Timeline 親で frame 全体の表示更新、playhead 同期、Active Context の seek に使われていた。既存の `TimelineSeekRequestedEvent` は audio preview と interactive seek dedup を含むため処理は同一ではない。
+- 判断: `CurveEditorCurrentFrameChangedEvent` を追加し、CurveEditor の signal を EventBus publish helper、親の Qt 接続を EventBus 購読へ変更した。frame 更新と context seek の順序・内容は維持した。
+- 価値/懸念: CurveEditor の playhead 通知を widget 間 Qt 接続なしで共有できる。global event のため複数 CurveEditor／Timeline では instance routing が必要になる。
+- 次に確認: CurveEditor の playhead scrub、frame 表示、context seek、Timeline scrub／playback との同期を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: CurveEditor の interaction boundary を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/ArtifactCurveEditorWidget.ixx`, `Artifact/src/Widgets/ArtifactCurveEditorWidget.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: CurveEditor の `interactionStarted/Finished` は Timeline 親が curve 編集の undo snapshot、drag state、refresh timer を管理するために購読していた。key 移動／削除／focus 通知は別の payload と UI 責務を持つ。
+- 判断: 開始／終了の2 event を追加し、CurveEditor の Qt signal を EventBus publish helper、Timeline 親の2接続を EventBus 購読へ変更した。undo snapshot、selection restore、refresh、既存の key payload signal は維持した。
+- 価値/懸念: curve 編集セッションの widget 間境界を Qt signal なしで共有できる。global event のため複数 CurveEditor／Timeline が同居する場合は instance routing が必要になる。
+- 次に確認: curve drag、tangent／handle 編集、undo snapshot の開始・確定、途中キャンセル、refresh timer の挙動を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Composition Render Controller の debug 通知を EventBus 化
+
+- 関連: `Artifact/include/Widgets/Render/ArtifactCompositionRenderController.ixx`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`, `Artifact/include/Widgets/Render/ArtifactCompositionEditor.ixx`, `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`
+- 事実: Render Controller は `videoDebugMessage` Qt signal を発火し、CompositionEditor が受け取って同じ `TimelineDebugMessageEvent` を publish、StatusBar が EventBus を購読していた。
+- 判断: Controller の signal を EventBus publish を行う通常メソッドへ変更し、Editor の中継接続・中継メソッドを削除した。render loop の debug 判定、重複抑制、ログ出力は維持した。
+- 価値/懸念: controller → editor → status bar の Qt 中継をなくし、既存 internal event に一本化できる。event 名は既存互換のため維持しており、将来 video／timeline debug の分類が必要なら別 event を検討する。
+- 次に確認: GPU／fallback render の debug message 到達、StatusBar 表示、CompositionEditor 破棄時の安全性を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Timeline Track Painter の keyframe move command を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Timeline/ArtifactTimelineTrackPainterView.ixx`, `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: `keyframeMoveRequested` は TrackPainter が移動結果ごとに layerId／propertyPath／fromFrame／toFrame を渡し、Timeline 親が validation、snapshot undo、selection restore、refresh、debug 通知を処理していた。
+- 判断: `TimelineKeyframeMoveRequestedEvent` を追加し、TrackPainter の signal を EventBus publish helper、親の Qt 接続を EventBus 購読へ変更した。親の validation、undo／redo、失敗時 refresh、メッセージ内容は維持した。
+- 価値/懸念: keyframe 編集 command の widget 間境界を typed internal event に移せる。global event のため複数 Timeline では composition／timeline instance の routing が必要になる。
+- 次に確認: 単一／複数 keyframe の移動、既存 keyframe への merge、undo／redo、選択復元、無効 target の扱いを runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Timeline Track Painter の clip slide command を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Timeline/ArtifactTimelineTrackPainterView.ixx`, `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: `clipSlid` は TrackPainter の slide 完了時に clipId／startFrame を渡し、Timeline 親は composition lookup、timing lock 判定、snapshot 取得、`SlideClipCommand` の undo 分岐を実行していた。
+- 判断: `TimelineClipSlideRequestedEvent` を追加し、TrackPainter の signal を EventBus publish helper、親の Qt 接続を EventBus 購読へ変更した。snapshot、lock 判定、undo／redo、失敗時の早期 return は維持した。
+- 価値/懸念: slide 編集の widget 間 command を typed internal event に移せる。global event のため複数 Timeline では composition／timeline instance の routing が必要になる。
+- 次に確認: clip slide の境界条件、timing lock、undo／redo、composition 切替中の誤適用がないことを runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Timeline Track Painter の clip resize command を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Timeline/ArtifactTimelineTrackPainterView.ixx`, `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: `clipResized` は TrackPainter の resize 完了時に発火し、Timeline 親は `applyTimelineLayerTrim()` を呼ぶだけだった。
+- 判断: `TimelineClipResizeRequestedEvent` を追加し、TrackPainter の signal を EventBus publish helper、親の Qt 接続を EventBus 購読へ変更した。clip slide の undo snapshot 処理は別単位として残した。
+- 価値/懸念: clip resize の widget 間 command を typed internal event に移せる。global event のため複数 Timeline では composition／timeline instance の routing が必要になる。
+- 次に確認: clip resize の trim clamp、undo／redo、選択状態、他 Timeline UI の更新を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Timeline Track Painter の clip move command を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Timeline/ArtifactTimelineTrackPainterView.ixx`, `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: `clipMoved` は TrackPainter の move 操作完了時に発火し、Timeline 親は `applyTimelineLayerMove(compositionId, clipId, startFrame, 0.0)` を呼ぶだけだった。
+- 判断: `TimelineClipMoveRequestedEvent` を追加し、TrackPainter の signal を EventBus publish helper、親の Qt 接続を EventBus 購読へ置き換えた。slide／resize は異なる編集ロジックを持つため今回分離した。
+- 価値/懸念: レイヤー移動という widget 間 command を typed internal event に移せる。global event のため複数 Timeline では composition／timeline instance の routing が必要になる。
+- 次に確認: clip move の undo、開始フレーム、選択状態、他 Timeline UI の更新を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Timeline Track Painter の layer selection request を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Timeline/ArtifactTimelineTrackPainterView.ixx`, `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: TrackPainter の `clipSelected` は clip／keyframe marker のクリックから発火し、Timeline 親は clipId を使わず layerId だけで `ArtifactProjectService::selectLayer()` を呼んでいた。親の `syncingLayerSelection_` ガードもこの接続に含まれていた。
+- 判断: 結果通知の `LayerSelectionChangedEvent` とは分けて `TimelineLayerSelectionRequestedEvent` を追加し、TrackPainter の signal を publish helper、親の Qt 接続を EventBus 購読へ変更した。clipId も将来の routing 用に event に保持した。
+- 価値/懸念: Timeline surface から親への選択依頼を Qt signal なしで表現できる。global event のため複数 Timeline では layerId だけでなく composition／timeline instance の routing が必要になる。
+- 次に確認: clip／marker／keyframe area のクリック、modifier 選択、layer tree との相互同期、再入防止を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Timeline Track Painter の keyframe selection 通知を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Timeline/ArtifactTimelineTrackPainterView.ixx`, `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: `keyframeSelectionChanged` は TrackPainter の複数の選択変更箇所から発火し、Timeline 親は選択数を使わず `updateKeyframeState()` と `updateSelectionState()` を実行していた。
+- 判断: `TimelineKeyframeSelectionChangedEvent` を追加し、TrackPainter の同名 Qt signal を EventBus publish helper に変更、親の Qt 接続を EventBus 購読へ置き換えた。各選択操作と選択状態更新の順序は維持した。
+- 価値/懸念: keyframe selection の widget 間通知を typed internal event に移せる。global event のため複数 Timeline では instance routing が必要になり、イベントの selectedCount は現状将来の購読用に保持している。
+- 次に確認: marquee／marker／keyframe 移動後の選択表示、Inspector 同期、選択解除時の更新を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Timeline Track Painter の row height 通知を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Timeline/ArtifactTimelineTrackPainterView.ixx`, `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: TrackPainter の `trackRowHeightChanged` は行高変更時に発火し、Timeline 親は Layer Panel の row height を設定するだけだった。既存の親子 Qt 接続以外の購読先は確認できなかった。
+- 判断: `TimelineTrackRowHeightChangedEvent` を追加して TrackPainter が publish、Timeline 親が購読する経路へ変更した。最小行高 16 の既存 clamp と行高計算は維持した。
+- 価値/懸念: 行高変更の親子 widget 通知を typed internal event に移せる。global event のため複数 Timeline が同居する場合は instance routing が必要になる。
+- 次に確認: 行高ドラッグ、Layer Panel の追従、再描画とスクロール位置を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Timeline Track Painter の重複 vertical offset signal を撤去
+
+- 関連: `Artifact/include/Widgets/Timeline/ArtifactTimelineTrackPainterView.ixx`, `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: TrackPainter の `verticalOffsetChanged` は発火と同じ箇所で既存の `TimelineVerticalScrollEvent` を publish しており、Timeline 親は Qt 接続ではなく EventBus 購読で両パネルを同期している。
+- 判断: 重複する W_SIGNAL 宣言と発火だけを削除し、`TimelineVerticalScrollEvent`、source 識別、再入防止付き同期処理は維持した。
+- 価値/懸念: 縦スクロールの widget 間経路を EventBus 一本にできる。global event のため複数 Timeline が同居する場合は instance routing が必要になる。
+- 次に確認: TrackPainter／LayerPanel の縦スクロール相互同期と再入防止を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Timeline Track Painter の debug 通知を EventBus 化
+
+- 関連: `Artifact/include/Widgets/Timeline/ArtifactTimelineTrackPainterView.ixx`, `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: TrackPainter の `timelineDebugMessage` は Qt signal で Timeline 親へ渡され、親の同名メソッドが既存の `TimelineDebugMessageEvent` を publish していた。StatusBar と CompositionEditor は既存 EventBus を購読している。
+- 判断: TrackPainter の Qt signal 宣言を通常の内部 publish helper に変更し、同メソッドから EventBus へ直接 publish、Timeline 親の Qt 接続を削除した。既存のメッセージ生成箇所と親自身の debug publish は維持した。
+- 価値/懸念: Timeline surface から StatusBar 等へ伝播する debug 通知を widget 間 Qt 接続なしで共有できる。global event のため複数 Timeline のログ識別が必要になった場合は composition／timeline instance の routing を追加検討する。
+- 次に確認: keyframe／clip 編集時の debug 表示、StatusBar への到達、親 widget の破棄時に購読が残らないことを runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Timeline Track Painter の zoom 通知を EventBus 化
+
+- 関連: `Artifact/include/Widgets/Timeline/ArtifactTimelineTrackPainterView.ixx`, `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: TrackPainter の zoom 操作は `zoomLevelChanged` Qt signal で Timeline 親へ渡され、親が ruler／navigator／zoom summary／playhead を同期してから既存の `TimelineZoomLevelChangedEvent` を投稿していた。StatusBar も同 EventBus を購読している。
+- 判断: TrackPainter の zoom signal と親の Qt 接続を削除し、TrackPainter が既存 EventBus event を publish、Timeline 親が同 event を購読して従来の UI 同期処理を行う経路へ変更した。親自身の zoom 操作が既存の publish helper を通る処理は維持した。
+- 価値/懸念: 大きな Timeline surface から親 widget への zoom 通知を Qt 接続なしで共有できる。global event のため将来複数 Timeline が存在する場合は composition／timeline instance の routing が必要になる。
+- 次に確認: wheel／shortcut／navigator 操作時の ruler、navigator、zoom summary、playhead、StatusBar の同期を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Timeline Track Painter の未接続 deselect signal を撤去
+
+- 関連: `Artifact/include/Widgets/Timeline/ArtifactTimelineTrackPainterView.ixx`, `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: `clipDeselected` は TrackPainter の背景クリック時に発火していたが、Timeline 親の接続処理は `Q_UNUSED(this)` の no-op で、他の購読先も確認できなかった。選択状態の解除自体は TrackPainter 内部で別途処理されている。
+- 判断: `clipDeselected` の W_SIGNAL 宣言、発火、no-op 接続だけを削除した。実際に親へ選択を伝える `clipSelected` と、編集結果を伝える clip／keyframe signal は今回の単位に含めず残した。
+- 価値/懸念: widget 外へ意味のある情報を伝えていない Qt signal を減らせる。リポジトリ外 plugin が signal を参照していた可能性は静的検索では保証できない。
+- 次に確認: Timeline の背景クリックによる選択解除、marquee 選択、既存の layer selection 同期を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Toolbar／View Menu の Grid／Guide command を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/src/Widgets/ArtifactToolBar.cppm`, `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`, `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`
+- 事実: Toolbar と View Menu の Grid／Guide QAction は、CompositionEditor の `CompositionRenderController` と同じ表示状態を変更していた。Toolbar の旧 signal には購読先がなく、View Menu は active editor を直接参照していた。
+- 判断: 既存の `CompositionViewCommandRequestedEvent` に表示状態 command と `visible` 値を追加し、両 UI から EventBus へ publish、CompositionEditor で主／副 render controller と AppSettings に適用する経路へ揃えた。対応済みの Toolbar Grid／Guide signal は削除し、Camera と未発火の View mode signal は対象を確定できないため保留した。
+- 価値/懸念: widget 間の表示変更を Qt signal／直接 widget 参照から内部 command に寄せられる。CompositionEditor が複数になる場合は、現行の global subscription と active-view routing を見直す必要がある。Toolbar 固有設定と viewport 設定の既存キー差は今回維持した。
+- 次に確認: Toolbar／View Menu の Grid／Guide 操作、複数 preview の同期、再起動後の設定復元を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Secondary Preview の未接続 Qt 通知を撤去
+
+- 関連: `Artifact/include/Widgets/ArtifactSecondaryPreviewWindow.ixx`, `Artifact/src/Widgets/ArtifactSecondaryPreviewWindow.cppm`
+- 事実: `closed` と `fullscreenToggled` は Secondary Preview Window 内で発火するだけで、リポジトリ内の購読先がなかった。View Menu はウィンドウを保持・表示するが、これらの通知には接続していない。
+- 判断: 2本の W_SIGNAL 宣言と発火を削除し、フルスクリーン切替、OSD 表示、closeEvent、preview 更新の処理は維持した。購読先のない EventBus 通知も追加していない。
+- 価値/懸念: 画面外へ伝播しない Qt 通知を公開面から減らせる。リポジトリ外 plugin が signal を参照していた可能性は静的検索では保証できない。
+- 次に確認: Secondary Preview の表示／終了／フルスクリーン操作が既存の View Menu 管理で継続することを runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Looks Preset Browser の未接続 Qt 通知を撤去
+
+- 関連: `Artifact/include/Widgets/ArtifactLooksPresetBrowser.ixx`, `Artifact/src/Widgets/ArtifactLooksPresetBrowser.cppm`
+- 事実: `presetApplied` と `presetFavorited` はダイアログ内で発火するだけで、リポジトリ内に `LooksPresetBrowserDialog` の生成箇所や購読先がなかった。
+- 判断: 2本の W_SIGNAL 宣言と発火を削除し、preset の選択、適用表示、favorite 切替、thumbnail 更新は変更していない。未使用の EventBus 通知は追加していない。
+- 価値/懸念: 実際に接続されていない Qt API を公開面から減らせる。リポジトリ外からこのダイアログを生成・購読していた可能性は静的検索では保証できない。
+- 次に確認: 将来この dialog を実配置する際は、適用結果を返す dialog API または内部 command の責務を先に定義する。ビルド・テストは未実施。
+
+## 2026-08-31: Color Swatch の重複 Qt 通知を撤去
+
+- 関連: `Artifact/include/Widgets/Color/ArtifactColorSwatchWidget.ixx`, `Artifact/src/Widgets/Color/ArtifactColorSwatchWidget.cppm`
+- 事実: 色選択と swatch 変更は既存の `ColorSwatchSelectedEvent`／`ColorSwatchChangedEvent` を EventBus へ投稿しており、Qt の `colorSelected`／`swatchChanged` は同じ処理で重複発火していた。ウィジェットの生成・購読箇所もリポジトリ内に確認できなかった。
+- 判断: 2本の W_SIGNAL 宣言と発火を削除し、既存 EventBus 投稿、GPL の load/save、clear、一覧更新は維持した。
+- 価値/懸念: widget 間の色変更通知を Qt と EventBus の二重経路にせず、既存の内部イベントへ揃えられる。リポジトリ外 plugin が Qt signal を参照していた可能性は静的検索では保証できない。
+- 次に確認: 色選択・palette load・clear の購読側が既存 EventBus だけで必要な更新を行うことを runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Font Picker の重複 Qt 通知を撤去
+
+- 関連: `Artifact/include/Widgets/ArtifactFontPickerWidget.ixx`, `Artifact/src/Widgets/ArtifactFontPickerWidget.cppm`, `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorString.cppm`
+- 事実: Font Picker の選択処理は既存の `FontChangedEvent` を EventBus へ投稿しており、Qt の `fontChanged` は発火するだけだった。唯一の参照は `if (false)` 内の旧 Property Editor 接続だった。
+- 判断: `fontChanged` の W_SIGNAL 宣言と発火、およびそれを参照していた `if (false)` の旧接続を削除し、既存 EventBus 投稿と Property Editor の購読、picker の選択 UI は維持した。新しい signal／slot 接続や代替イベントは追加していない。
+- 価値/懸念: font 選択の widget 外通知を Qt と EventBus の二重経路から内部 EventBus に揃えられる。リポジトリ外 plugin が signal を参照していた可能性は静的検索では保証できない。
+- 次に確認: Property Editor の font 選択が現行 EventBus 購読設計で必要な変更を反映することを runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Color Palette の未接続 signal を撤去
+
+- 関連: `Artifact/include/Widgets/ArtifactColorPaletteWidget.ixx`, `Artifact/src/Widgets/ArtifactColorPaletteWidget.cppm`
+- 事実: `paletteSelected` は宣言のみで、`ArtifactColorPaletteWidget` の実装内に発火箇所もリポジトリ内の購読先もなかった。Palette Widget 自体は View Menu から生成される。
+- 判断: 未接続の W_SIGNAL 宣言だけを削除し、palette manager の設定、harmonic／smart extract、load／save、一覧更新は変更していない。購読先のない EventBus 通知は追加していない。
+- 価値/懸念: 実装されていない Qt 通知を公開面から除き、実際の palette 操作責務に合わせられる。リポジトリ外 plugin が signal を参照していた可能性は静的検索では保証できない。
+- 次に確認: Palette Widget の操作と View Menu の dock 表示を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Timeline Global Switches の Qt 境界を EventBus 化
+
+- 関連: `Artifact/include/Widgets/ArtifactTimelineGlobalSwitches.ixx`, `Artifact/src/Widgets/ArtifactTimelineGlobalSwitches.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: Global Switches の shy／motion blur／frame blending／graph editor は既存の4種類の EventBus state event を投稿していた。Timeline は shy について EventBus 購読済み、graph editor については親 widget への Qt 直接接続が残っていた。motion blur／frame blending の widget 外 Qt 購読は確認できなかった。
+- 判断: 4本の Qt signal と発火を削除し、Timeline の無効化済み shy 接続を撤去、graph editor の親処理を `TimelineGraphEditorToggledEvent` 購読へ移した。既存の settings 更新と EventBus 投稿、Timeline の graph 表示切替処理は維持した。
+- 価値/懸念: Global Switches から親 Timeline への状態通知を内部 EventBus に一本化できる。EventBus の queued dispatch に合わせたため、graph 表示切替のタイミングは旧 direct connection と異なり得る。ビルド未確認のため module／wobject 整合を静的確認する。
+- 次に確認: shy／graph の表示切替、shortcut、curve editor の focus／fit、設定復元を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Timeline Track Painter の seek command を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Timeline/ArtifactTimelineTrackPainterView.ixx`, `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- 事実: `seekRequested` は TrackPainter のクリック／scrub 処理から発火し、Timeline 親が購読して `applyTimelineSeek` を呼んでいた。また親自身の shortcut／wheel 処理も同じ signal を直接呼び出していた。
+- 判断: `TimelineSeekRequestedEvent` を追加し、TrackPainter と親の手動発火を EventBus publish に変更、Timeline 親は同 event を購読するようにした。seek の clamp、audio preview、playback 呼び出し、playhead 更新処理は維持し、他の clip／keyframe signal は今回触っていない。
+- 価値/懸念: 大きな Timeline surface から親 widget への seek 通知を Qt signal から内部 command に移せる。global event のため将来複数 Timeline が存在する場合は composition／timeline instance の routing が必要になる。
+- 次に確認: クリック、scrub-preview、wheel／shortcut seek の反応順、audio preview、frame clamp を runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Toolbar の重複 current-tool signal を撤去
+
+- 関連: `Artifact/include/Widgets/ArtifactToolBar.ixx`, `Artifact/src/Widgets/ArtifactToolBar.cppm`
+- 事実: `currentToolChanged` は `setCurrentTool()` から発火するだけで購読先がなく、ツール選択の状態通知は既存の `ToolChangedEvent` が発行・購読されている。
+- 判断: 重複する W_SIGNAL 宣言と発火を削除した。Toolbar の action 更新、ToolService の選択処理、ToolChangedEvent の経路は維持した。
+- 価値/懸念: 同じツール状態を Qt signal と EventBus の二重 API で持たず、widget 間の正規経路を一本化できる。外部 plugin が signal を参照していた可能性は静的検索では保証できない。
+- 次に確認: Toolbar 選択、CompositionEditor の tool label／edit mode 同期が ToolChangedEvent だけで継続することを runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: 未接続 Layer Menu の nullLayerCreated signal を撤去
+
+- 関連: `Artifact/include/Widgets/Menu/ArtifactLayerMenu.ixx`, `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm`
+- 事実: `nullLayerCreated` は Null layer 作成後に発火するだけで、リポジトリ内の購読先がなかった。作成処理は既存の Project Service 呼び出しで完了している。
+- 判断: W_SIGNAL 宣言と発火を削除し、Menu の QAction 接続と Null layer 作成処理は維持した。購読先のない EventBus 通知も追加していない。
+- 価値/懸念: Layer Menu の未使用 Qt 通知を減らし、実際の責務に合わせられる。外部 plugin がこの signal を参照していた可能性は静的検索では保証できない。
+- 次に確認: Null layer 作成後の selection／timeline／inspector 更新が既存の service／state event 経路で継続することを runtime で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: 未接続 Project Memo jump signal を撤去
+
+- 関連: `Artifact/include/Widgets/ArtifactProjectMemoWidget.ixx`, `Artifact/src/Widgets/ArtifactProjectMemoWidget.cppm`
+- 事実: `memoJumpRequested(qint64)` はダブルクリック時に発火するだけで購読先がなく、`ArtifactProjectMemoWidget` のアプリ内生成箇所も確認できなかった。Timeline 側にはフレーム移動 API があるが、この Memo UI との接続は存在しない。
+- 判断: 未接続の W_SIGNAL 宣言と発火を削除した。購読先のない新しい EventBus command は追加せず、Memo の表示・追加・編集・削除処理は変更していない。
+- 価値/懸念: 未接続の Qt widget API を増やさず、実装実態に合わせられる。将来 Memo を実際に配置する場合は、composition context を含む Timeline jump command を設計してから再導入する必要がある。
+- 次に確認: Memo surface を再接続する段階で、current composition と frame seek の対象境界を定義する。ビルド・テストは未実施。
+
+## 2026-08-31: Asset Browser の未使用 folder/drop signal を撤去
+
+- 関連: `Artifact/include/Widgets/ArtifactAssetBrowser.ixx`, `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`
+- 事実: `folderChanged` と `filesDropped` は実装内で発火するだけで、リポジトリ内に購読先がなかった。Breadcrumb の `pathClicked` は Asset Browser 親子内の接続であり、今回の対象外だった。
+- 判断: 2本の W_SIGNAL 宣言と発火を削除し、非同期 import の callback は既存の空 callback 形式へ揃えた。navigate／import／selection／double-click の既存 EventBus 経路は変更していない。
+- 価値/懸念: Asset Browser の公開面から実動作のない Qt signal を減らせる。リポジトリ外 plugin がこれらを購読していた可能性は静的検索では保証できない。
+- 次に確認: Asset Browser の import 完了後の表示更新、folder navigation、外部 API として signal を残す必要性を runtime／API 方針で確認する。ビルド・テストは未実施。
+
+## 2026-08-31: Toolbar の View command を EventBus 化
+
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/src/Widgets/ArtifactToolBar.cppm`, `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`
+- 事実: Toolbar の Home／Zoom 5 QAction は `ArtifactCompositionEditor` の reset／zoom 操作に対応する一方、旧 `homeRequested`／`zoom*Requested` signal の購読先は存在しなかった。CompositionEditor は実アプリ内で生成箇所が1つで、同じ操作メソッドを既に持つ。
+- 判断: `CompositionViewCommandKind` と `CompositionViewCommandRequestedEvent` を追加し、Toolbar から EventBus へ publish、CompositionEditor で購読して既存メソッドへ委譲した。Camera は `ToolType` に対応する値も実処理もないため、今回の移行対象から外した。
+- 価値/懸念: Menu／Toolbar などの widget 間 command 配線を Qt signal に依存せず統一できる。将来 CompositionEditor が複数になる場合は、イベントの対象識別子または active-view routing が必要になる。
+- 次に確認: 静的に旧5 signal の宣言・発火・購読が残っていないこと、EventBus subscription の module／wobject 整合を確認する。実行確認はビルド許可後に行う。
+
+## ProjectManager の未使用 file-drop signal を撤去
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Widgets/ArtifactProjectManagerWidget.ixx`, `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`
+- 確認できた事実: `ArtifactProjectManagerWidget::onFileDropped(const QStringList&)` は宣言以外に発火・購読・実装参照がなく、ドロップ処理は子の ProjectView 側で処理されていた。
+- 判断・仮説: EventBus 化する実動作がないため、死蔵していた W_SIGNAL 宣言だけを削除した。ProjectView→ProjectManager の親子接続と既存の ProjectItemActivatedEvent 経路は変更していない。
+- 価値・懸念: 未使用の Qt signal API を減らし、ProjectManager の公開面を実装実態へ合わせられる。外部 plugin がこの宣言を使っていた可能性はリポジトリ内検索では保証できない。
+- 次に確認すべきこと: Project View の file drop から import／asset 更新が従来どおり行われ、外部 ABI として file-drop signal を提供する要件がないことを runtime／API 方針で確認する。ビルド・テストは未実施。
+
+## AnimationMenu の未使用 expression/preset signal 6本を撤去
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Widgets/Menu/ArtifactAnimationMenu.ixx`, `Artifact/src/Widgets/Menu/ArtifactAnimationMenu.cppm`
+- 確認できた事実: `addExpressionRequested`／`editExpressionRequested`／`removeExpressionRequested`／`convertToKeyframesRequested`／`saveAnimationPresetRequested`／`loadAnimationPresetRequested` は宣言以外にリポジトリ内の発火・購読参照がなく、該当 QAction は AnimationMenu 内の直接処理へ分岐していた。
+- 判断・仮説: EventBus へ置き換える実動作が存在しないため、6本の W_SIGNAL 宣言だけを撤去した。expression 操作、keyframe 変換、preset 保存／適用の既存処理は変更していない。
+- 価値・懸念: 死蔵 Qt API を減らし、AnimationMenu の公開面を実際の責務に近づけられる。リポジトリ外の plugin が宣言を参照する可能性は検索では保証できないため、外部 ABI を提供する場合は別途互換方針が必要になる。
+- 次に確認すべきこと: 各 expression/preset QAction が従来どおり直接処理され、外部連携を正式に提供する必要がないことを runtime／API 方針で確認する。ビルド・テストは未実施。
+
+## 補間適用要求を型付き EventBus に移行
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Menu/ArtifactAnimationMenu.ixx`, `Artifact/src/Widgets/Menu/ArtifactAnimationMenu.cppm`, `Artifact/src/Widgets/ArtifactMenuBar.cppm`, `ArtifactCore/include/Geometry/Interpolate.ixx`
+- 確認できた事実: Linear／EaseIn／EaseOut／EaseInOut／Constant／Bezier の6 QAction は1本の `applyInterpolationRequested(InterpolationType)` signal に集約され、MenuBar の1箇所だけが購読して Timeline の同じメソッドを呼んでいた。`InterpolationType` は依存のない Core の `Math.Interpolate` module で定義されている。
+- 判断・仮説: `TimelineInterpolationCommandRequestedEvent` の payload に `ArtifactCore::InterpolationType` を直接保持し、整数化せずに EventBus へ移行した。不要になった `W_REGISTER_ARGTYPE` も削除し、補間適用処理と QAction 内部の `QMenu::triggered` 接続は維持した。
+- 価値・懸念: 補間種別の型安全性を維持したまま Menu と Timeline 間の Qt signal を除去できる。Event Types module が `Math.Interpolate` を import するため依存は増えるが、同 module に Event／UI 依存はなく循環リスクは低いと判断した。
+- 次に確認すべきこと: 6つの補間項目が選択キーフレームへ従来と同じ補間を適用し、Bezier を含む既存の値と Undo 通知が変わらないことを runtime で確認する。ビルド・テストは未実施。
+
+## 時間リマップ要求3本を EventBus command 化
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Menu/ArtifactAnimationMenu.ixx`, `Artifact/src/Widgets/Menu/ArtifactAnimationMenu.cppm`, `Artifact/src/Widgets/ArtifactMenuBar.cppm`
+- 確認できた事実: 時間リマップ有効化、フリーズフレーム、逆再生の要求は MenuBar の3本の Qt signal 接続だけが購読し、選択レイヤーと現在コンポジションを使う既存処理へ転送していた。
+- 判断・仮説: `TimelineTimeRemapCommandRequestedEvent` を追加し、3操作を `Enable`／`Freeze`／`Reverse` に分けて AnimationMenu から発行し、MenuBar の購読で従来の処理へ振り分けた。レイヤーのキー生成・クリア・有効化の順序は維持した。
+- 価値・懸念: Menu とレイヤー／Timeline のウィジェット間 Qt signal を減らし、時間リマップ要求の責務を型付き command に移せる。要求は現在の選択レイヤーとコンポジションを購読時点で解決するため、別 surface から発行する場合も同じ selection context を意図しているか確認が必要になる。
+- 次に確認すべきこと: 3つのメニュー項目で時間リマップのキー結果、単一フレーム時の逆再生、Undo／dirty 通知が従来どおりになることを runtime で確認する。ビルド・テストは未実施。
+
+## AnimationMenu のグラフ操作3本を command EventBus 化
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Menu/ArtifactAnimationMenu.ixx`, `Artifact/src/Widgets/Menu/ArtifactAnimationMenu.cppm`, `Artifact/src/Widgets/ArtifactMenuBar.cppm`, `Artifact/src/Widgets/ArtifactTimelineGlobalSwitches.cppm`
+- 確認できた事実: グラフエディタ表示、値グラフ表示、速度グラフ表示の3要求は MenuBar の Qt signal 接続だけが購読していた。既存の `TimelineGraphEditorToggledEvent` は GlobalSwitches の状態変更通知として発行されていた。
+- 判断・仮説: 状態通知と要求を混同しないため、`TimelineGraphCommandRequestedEvent` を新設し、3操作を `ShowEditor`／`ShowValue`／`ShowSpeed` に分けて発行・購読した。GlobalSwitches の既存 state event と Timeline の既存表示処理は変更していない。
+- 価値・懸念: Menu と Timeline／GlobalSwitches のウィジェット間 Qt signal を減らしつつ、状態通知と command intent の境界を保てる。現在は UI thread の同期 publish を前提にしており、別 thread から同じ要求を発行する場合は UI marshal が必要になる。
+- 次に確認すべきこと: 3つの Animation メニュー項目が従来どおりグラフモードと表示状態を切り替え、GlobalSwitches の state 通知と二重実行しないことを runtime で確認する。ビルド・テストは未実施。
+
+## キーフレーム反転要求4本を共通 EventBus command に統合
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Menu/ArtifactAnimationMenu.ixx`, `Artifact/src/Widgets/Menu/ArtifactAnimationMenu.cppm`, `Artifact/src/Widgets/ArtifactMenuBar.cppm`
+- 確認できた事実: 選択キーフレーム、現在レイヤー、選択レイヤー、コンポジション全体の反転要求は、MenuBar の4本の Qt signal 接続だけが購読し、それぞれ既存の Timeline 反転メソッドへ転送していた。
+- 判断・仮説: 既存の `TimelineKeyframeEditCommandRequestedEvent` に4種類の反転 command を加え、AnimationMenu から発行し、MenuBar の同じ購読で Timeline 呼び出しへ振り分けた。先行して移行した基本編集5本と同じ command event にまとめ、反転処理自体は変更していない。
+- 価値・懸念: AnimationMenu と Timeline 間の Qt signal をさらに4本減らし、キーフレーム編集要求の語彙を一箇所へ集約できる。event enum を拡張するたびに購読側の switch を更新する必要があるため、将来 command 数が増えすぎる場合は別の command routing 分割を検討する。
+- 次に確認すべきこと: 4つの反転メニュー項目が対象範囲だけを従来どおり反転し、Undo／選択状態／空選択時の挙動が変わらないことを runtime で確認する。ビルド・テストは未実施。
+
+## 基本キーフレーム編集要求5本を EventBus 化
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Menu/ArtifactAnimationMenu.ixx`, `Artifact/src/Widgets/Menu/ArtifactAnimationMenu.cppm`, `Artifact/src/Widgets/ArtifactMenuBar.cppm`
+- 確認できた事実: AnimationMenu の追加／削除／全選択／コピー／貼り付け要求は、MenuBar の5本の Qt signal 接続だけが購読先で、それぞれ既存の Timeline 操作へ1対1で転送されていた。
+- 判断・仮説: `TimelineKeyframeEditCommandRequestedEvent` と種別 enum を追加し、AnimationMenu は QAction 操作時に発行、MenuBar は既存の Timeline メソッドへ振り分ける形にした。局所的な QAction→QMenu の接続、実際の編集処理、ナビゲーション4本の EventBus 化は維持した。
+- 価値・懸念: 基本キーフレーム操作のウィジェット間 Qt signal を型付き要求へまとめられる。現在は UI thread の同期 publish と MenuBar の購読寿命を前提にしており、外部 thread 発行や別の実行コンテキストを追加する場合は UI marshal と重複購読の確認が必要になる。
+- 次に確認すべきこと: 5つのメニュー項目が従来どおり現在の Timeline に対して一度だけ作用し、選択・クリップボード・Undo 状態が壊れないことを runtime で確認する。ビルド・テストは未実施。
+
+## Timeline キーフレーム移動要求4本を EventBus 化
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/Menu/ArtifactAnimationMenu.ixx`, `Artifact/src/Widgets/Menu/ArtifactAnimationMenu.cppm`, `Artifact/src/Widgets/ArtifactMenuBar.cppm`
+- 確認できた事実: `ArtifactAnimationMenu` の次／前／先頭／末尾キーフレーム要求は、`ArtifactMenuBar` の4本の Qt signal 接続だけが購読先で、MenuBar は対応する既存 Timeline 操作を呼び出していた。
+- 判断・仮説: `TimelineKeyframeNavigationRequestedEvent` と種別 enum を追加し、AnimationMenu は QAction 操作時に EventBus へ発行、MenuBar は Impl の購読寿命内で同じ Timeline 呼び出しへ振り分ける形にした。QAction→AnimationMenu の局所接続と既存操作は維持した。
+- 価値・懸念: メニューと Timeline のウィジェット間 Qt signal を1つの型付き要求へ置き換え、将来別の command surface からも同じ要求へ合流できる。EventBus は UI thread の同期 publish を前提にしており、外部 thread から発行する経路を追加する場合は UI marshal が必要になる。
+- 次に確認すべきこと: 4つのメニュー項目から Timeline が従来と同じ方向・位置へ移動し、購読の再生成や MenuBar 破棄後に不正 callback が起きないことを runtime で確認する。ビルド・テストは未実施。
+
+## Toolbar の未使用 tool request signal 10 本を撤去
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Widgets/ArtifactToolBar.ixx`, `Artifact/src/Widgets/ArtifactToolBar.cppm`, `Artifact/include/Tool/ArtifactToolManager.ixx`, `Artifact/src/Tool/ArtifactToolManager.cppm`
+- 確認できた事実: `panBehindToolRequested`／`shapeToolRequested`／`penToolRequested`／`textToolRequested`／`brushToolRequested`／`cloneStampToolRequested`／`eraserToolRequested`／`puppetToolRequested`／`motionSketchToolRequested`／`scrubPreviewToolRequested` は Toolbar 内の発火以外にリポジトリ内の購読先がなかった。各 QAction は対応する `setTool()` を実行し、ToolService／ToolManager が `ToolChangedEvent` を発行していた。
+- 判断・仮説: 未使用 signal の宣言と発火だけを撤去し、各 tool の `setTool()` と既存 EventBus 通知を維持した。`homeRequested`／`cameraToolRequested` は代替実動作が未確認のため保留した。
+- 価値・懸念: Toolbar の死蔵 Qt 通知と重複 API をさらに減らせる。外部 plugin の ABI 互換性はリポジトリ内検索では保証できないため、公開 ABI を維持する場合は別途互換層が必要。
+- 次に確認すべきこと: 各 tool QAction、ショートカット、ToolChangedEvent 購読先でツール切替が従来どおり動くことを runtime で確認する。ビルド・テストは未実施。
+
+## Toolbar の未使用 selection/view request signal 3 本を撤去
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Widgets/ArtifactToolBar.ixx`, `Artifact/src/Widgets/ArtifactToolBar.cppm`, `Artifact/include/Tool/ArtifactToolManager.ixx`, `Artifact/src/Tool/ArtifactToolManager.cppm`
+- 確認できた事実: `selectToolRequested`／`handToolRequested`／`zoomToolRequested` は Toolbar 内の QAction 分岐以外にリポジトリ内の参照がなく、各分岐は `setTool()` と既存 `ToolChangedEvent` で実動作を完結していた。
+- 判断・仮説: 未使用 signal の宣言・発火だけを撤去し、Selection／Hand／Zoom の `setTool()` と EventBus 通知は変更しなかった。`cameraToolRequested` など、実動作が未確定な残りの signal は保留した。
+- 価値・懸念: Qt signal の死蔵 API と重複通知をさらに小さく減らせる。外部 plugin が参照する公開 ABI まではリポジトリ内検索で保証できないため、ABI 互換が必要な配布形態では別判断が必要。
+- 次に確認すべきこと: Selection／Hand／Zoom の QAction とショートカットから ToolChangedEvent が一度だけ発行され、各 surface の状態が更新されることを runtime で確認する。ビルド・テストは未実施。
+
+## Toolbar の未使用 transform request signal 3 本を撤去
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Widgets/ArtifactToolBar.ixx`, `Artifact/src/Widgets/ArtifactToolBar.cppm`, `Artifact/src/Widgets/ArtifactMainWindow.cppm`
+- 確認できた事実: `moveToolRequested`／`rotationToolRequested`／`scaleToolRequested` は MainWindow の qDebug 接続以外にリポジトリ内の購読先がなく、MainWindow の接続削除後は未使用だった。実際のツール変更は既存 `ToolChangedEvent` で通知されている。
+- 判断・仮説: 未使用の 3 signal の宣言と発火だけを撤去し、各 QAction から `setTool()` へ進む実動作と `ToolChangedEvent` の発行は維持した。Toolbar の他の request signal は利用先確認なしに一括削除していない。
+- 価値・懸念: Qt signal の死蔵 API と重複通知を小さく減らせる。外部 plugin がこの未使用 signal を参照する可能性はリポジトリ外からは確認できないため、公開 ABI を保証する場合は別途互換方針が必要になる。
+- 次に確認すべきこと: Move／Rotation／Scale の QAction、ショートカット、`ToolChangedEvent` 購読先が従来どおり動き、重複発火がないことを runtime で確認する。ビルド・テストは未実施。
+
+## Toolbar のツール選択ログを既存 ToolChangedEvent へ統一
+
+- 日付: 2026-08-31
+- 関連: `Artifact/src/Widgets/ArtifactMainWindow.cppm`, `Artifact/src/Widgets/ArtifactToolBar.cppm`, `Artifact/src/Service/ArtifactToolService.cppm`, `Artifact/src/Tool/ArtifactToolManager.cppm`
+- 確認できた事実: MainWindow の `moveToolRequested`／`rotationToolRequested`／`scaleToolRequested` 接続は qDebug ログだけを実行していた。ツールの実状態は ToolService／ToolManager／Toolbar が既存の `ToolChangedEvent` を発行し、複数の surface が購読していた。
+- 判断・仮説: MainWindow のログを `ToolChangedEvent` の購読へ移し、Toolbar→MainWindow の Qt 接続を 3 本削除した。新しいイベントや Qt signal は追加せず、Toolbar の QAction→Toolbar 内部処理は局所境界として維持した。
+- 価値・懸念: ツール状態の横断経路を既存 EventBus に統一できる。ログは全ツール変更のうち Move／Rotation／Scale に限定し、ToolManager の重複抑制に従って状態変更時だけ出力される。将来ログ目的が変わる場合は購読側の責務を再評価する。
+- 次に確認すべきこと: Toolbar、ショートカット、他の tool service 経路から Move／Rotation／Scale を選択したとき、ツール状態更新とログが一度だけ発生することを runtime で確認する。ビルド・テストは未実施。
+
+## Welcome の asset import 要求を EventBus 化
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/ArtifactWelcomeWidget.ixx`, `Artifact/src/Widgets/ArtifactWelcomeWidget.cppm`, `Artifact/src/Widgets/ArtifactMainWindow.cppm`
+- 確認できた事実: Welcome の `importAsset` は MainWindow にだけ接続され、MainWindow が project の確保、複数ファイル選択、import 確認ダイアログ、非同期 import、失敗通知を担当していた。
+- 判断・仮説: `ImportAssetsRequestedEvent` は引数なしの要求として発行し、ファイル選択以降の UI／サービス orchestration は MainWindow に維持した。Welcome 内のボタン→Welcome 接続は局所 Qt 境界として残した。
+- 価値・懸念: Welcome と MainWindow の最後の command signal を EventBus に統一できる。EventBus 購読は UI thread でダイアログを開く前提なので、別 thread 発行を追加する場合は MainWindow 側の marshal が必要になる。
+- 次に確認すべきこと: Welcome の Import Asset ボタンでキャンセル、確認ダイアログ、空選択、非同期失敗通知が従来どおり一度だけ動くことを runtime で確認する。ビルド・テストは未実施。
+
+## Welcome の project open 要求を EventBus 化
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/ArtifactWelcomeWidget.ixx`, `Artifact/src/Widgets/ArtifactWelcomeWidget.cppm`, `Artifact/src/Widgets/ArtifactMainWindow.cppm`
+- 確認できた事実: Welcome の `openProject` は引数なしで MainWindow に接続され、MainWindow 内で `QFileDialog` と `loadFromFileAsync()` を実行していた。ダイアログとロード処理そのものは MainWindow の UI／orchestration 責務だった。
+- 判断・仮説: `OpenProjectRequestedEvent` で要求だけを EventBus に渡し、ファイル選択・失敗ダイアログ・非同期ロードは既存の MainWindow 処理を維持した。ボタン→Welcome の Qt 接続は局所境界として残した。
+- 価値・懸念: Welcome と MainWindow の widget signal 依存を減らし、将来別 surface から同じ open 要求へ合流しやすくなる。要求の発行元が UI thread であることを前提にしているため、別 thread 発行を追加する場合は MainWindow 側の marshal を明示する必要がある。
+- 次に確認すべきこと: Welcome の Open Project ボタンでダイアログ、キャンセル、ロード失敗通知が従来どおり一度だけ動くことを runtime で確認する。ビルド・テストは未実施。
+
+## Welcome の recent project 通知を EventBus 化
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/ArtifactWelcomeWidget.ixx`, `Artifact/src/Widgets/ArtifactWelcomeWidget.cppm`, `Artifact/src/Widgets/ArtifactMainWindow.cppm`
+- 確認できた事実: recent project の選択は Welcome のリストから MainWindow の非同期 project loader へ path を渡す cross-widget 通知で、他の購読先や中間状態はなかった。
+- 判断・仮説: path を `OpenRecentProjectRequestedEvent` に値コピーして EventBus で渡し、Welcome 内の QListWidget→Welcome 接続だけを Qt の局所境界として残した。空 path の拒否も発行側で維持した。
+- 価値・懸念: QModelIndex／widget signal を MainWindow に露出せず、非同期 callback が使う path の寿命もイベント payload で確定できる。イベント購読は MainWindow の QObject thread で実行される前提のため、別 thread 発行を追加する場合は marshal 規約を明示する必要がある。
+- 次に確認すべきこと: recent project の選択で非同期ロード、失敗ダイアログ、Welcome の表示更新が従来どおり一度だけ動くことを runtime で確認する。ビルド・テストは未実施。
+
+## Welcome のコンポジション作成通知を EventBus 化
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Event/ArtifactEventTypes.ixx`, `Artifact/include/Widgets/ArtifactWelcomeWidget.ixx`, `Artifact/src/Widgets/ArtifactWelcomeWidget.cppm`, `Artifact/src/Widgets/ArtifactMainWindow.cppm`
+- 確認できた事実: Welcome の `createNewComposition` は MainWindow にだけ接続され、受信側では `ArtifactProjectService::ensureProject()` と HD preset の作成を行っていた。ボタンから Welcome への接続は同一 widget 内の局所境界だった。
+- 判断・仮説: コンポジション作成要求を payload のない `CreateCompositionRequestedEvent` として発行し、MainWindow が `const Event&` callback で購読することで、Welcome と MainWindow の widget 間 Qt signal を 1 本減らせる。ボタン→Welcome の局所 Qt 接続は残した。
+- 価値・懸念: 将来 File Menu など別 surface から同じ作成要求を扱う場合にも、同じ内部イベントへ合流できる。イベント名が UI 起点を抽象化しているため、作成 preset を要求に含める設計へ拡張する際は契約を見直す必要がある。
+- 次に確認すべきこと: Welcome の新規作成ボタンで ensureProject と composition 作成が一度だけ実行され、既存の project 状態・表示更新が維持されることを runtime で確認する。ビルド・テストは未実施。
+
+## PlaybackEngine のフレーム範囲通知を EventBus 化
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Playback/ArtifactPlaybackEngine.ixx`, `Artifact/src/Playback/ArtifactPlaybackEngine.cppm`, `Artifact/src/Service/ArtifactPlaybackService.cppm`
+- 確認できた事実: `frameRangeChanged` の Engine signal 利用先は PlaybackService の中継だけで、UI は既存の `PlaybackFrameRangeChangedEvent` を購読していた。発火は `setFrameRange()` と `setFrameRate()` の低頻度設定変更時に限られる。
+- 判断・仮説: `FrameRange` を開始・終了 frame の値へ変換して Engine の QObject スレッドから既存 EventBus event を発行すれば、範囲通知も widget 横断の Qt signal から分離できる。`setFrameRate()` が現在範囲を再通知する既存挙動は維持した。
+- 価値・懸念: PlaybackService の再生設定中継をさらに 1 本減らし、UI 更新経路を EventBus に統一できる。範囲値を scalar 化しているため、将来 `FrameRange` に開始・終了以外の意味を追加する場合は event 契約を見直す必要がある。
+- 次に確認すべきこと: composition 切替、work area、frame rate 変更時に timeline/control の範囲表示が一度ずつ更新されることを runtime で確認する。ビルド・テストは未実施。
+
+## PlaybackEngine のループ通知を EventBus 化
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Playback/ArtifactPlaybackEngine.ixx`, `Artifact/src/Playback/ArtifactPlaybackEngine.cppm`, `Artifact/src/Service/ArtifactPlaybackService.cppm`
+- 確認できた事実: `loopingChanged` の利用先は PlaybackService の EventBus 中継で、Engine では `setLooping()` の低頻度な設定変更時にだけ発火していた。フレーム画像や再生ワーカーの高頻度経路は関与しない。
+- 判断・仮説: 速度通知と同じく、Engine の QObject スレッドへ marshal して既存の `PlaybackLoopingChangedEvent` を直接発行することで、widget 横断通知の Qt signal を 1 本減らせる。
+- 価値・懸念: ループ状態の購読先を EventBus に統一できる。設定変更が Engine の所有スレッド以外から呼ばれた場合は従来の同期的な signal 発火ではなく queued 発行になるため、呼び出し側が即時通知を前提にしていないことを runtime で確認する必要がある。
+- 次に確認すべきこと: ループボタン、Time メニュー、再生設定からの切替で一度だけ状態が反映されることを確認する。ビルド・テストは未実施。
+
+## PlaybackEngine の速度通知を EventBus 化
+
+- 日付: 2026-08-31
+- 関連: `Artifact/include/Playback/ArtifactPlaybackEngine.ixx`, `Artifact/src/Playback/ArtifactPlaybackEngine.cppm`, `Artifact/src/Service/ArtifactPlaybackService.cppm`
+- 確認できた事実: `ArtifactPlaybackService` は `playbackSpeedChanged` を受けて `PlaybackSpeedChangedEvent` を発行するだけで、速度通知自体のサービス副作用は持っていなかった。速度変更は UI 操作と再生ワーカーの方向反転から発生し得る。
+- 判断・仮説: この低頻度の scalar 通知は Engine が既存の `PlaybackSpeedChangedEvent` を直接発行する境界へ移しても、widget 横断の Qt signal 接続を減らせる。Engine の QObject スレッドへ marshal してから発行することで、ワーカーからの発火も同じ実行規約に揃えた。
+- 価値・懸念: PlaybackService の Qt signal 中継を 1 本減らし、速度変更を EventBus の横断イベントとして一貫させられる。一方、再生状態には音声クロック・セッション処理、フレーム通知には `QImage` 変換があるため、それらを同時に移行すると責務と高頻度経路が混ざる。
+- 次に確認すべきこと: ビルド環境で Engine の C++20 module 依存と実行時の速度プリセット更新を確認する。今回の作業ではビルド・テストは未実施。
+
+## 2026-08-31 — Qt イベント境界の残存接続を責務分類
+
+- **関連:** `Artifact/src/Widgets/ArtifactMainWindow.cppm`、`Artifact/src/Widgets/ArtifactWelcomeWidget.cppm`、`Artifact/src/Widgets/ArtifactToolBar.cppm`、`Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`
+- **確認できた事実:** 横断状態・編集値に使われていた主要な widget 間通知は EventBus 化済み。残存する direct Qt 接続は、Welcome の open/import などの起動コマンド、ToolBar の単発ツール選択、Timeline／Composition 内の子 widget から親 orchestration への配線が中心である。
+- **判断:** 起動・ツール選択はユーザー操作コマンド、Timeline／Composition の子→親は同一機能内のレベル境界として、現段階では Qt のまま維持する。未使用 signal の一括撤去や、QImage を含む再生フレーム経路の置換は別設計・runtime 確認なしに進めない。
+- **価値または懸念:** EventBus 化の対象を「複数 surface に波及する状態／編集結果」に絞ることで、Qt を完全排除するための過剰な配線変更と module 依存の拡大を避けられる。残存接続が将来別 widget やサービスへ広がった場合は、今回の分類を再評価する必要がある。
+- **次に確認すべきこと:** runtime で各横断イベントの購読先と残存 Qt 配線を操作経路ごとに確認し、新たな cross-surface consumer が現れた通知から順に EventBus 化する。
+
+## 2026-08-31 — WorkspaceMode の状態通知を EventBus 化
+
+- **関連:** `Artifact/include/Event/ArtifactEventTypes.ixx`、`Artifact/include/Widgets/ArtifactToolBar.ixx`、`Artifact/src/Widgets/ArtifactToolBar.cppm`、`Artifact/src/Widgets/ArtifactMainWindow.cppm`
+- **確認できた事実:** ToolBar の `workspaceModeChanged` は MainWindow の表示構成と workspace ボタン表示を更新する状態通知で、ToolBar→MainWindow の direct Qt 接続が残っていた。WorkspaceMode enum は `Widgets.ToolBar` 側に所有され、汎用 EventTypes から直接 import すると循環しやすい。
+- **変更:** `WorkspaceModeChangedEvent` を追加し、境界 payload は enum の基底整数値に限定した。MainWindow は許容範囲を検証してから enum に戻し、既存の表示更新を行う。ToolBar 発行側と MainWindow 購読側の両方で QObject thread への marshal を維持した。
+- **価値または懸念:** workspace 状態を widget signal から内部イベントへ移し、enum module の責務を動かさずに循環を避けられた。整数値は enum 順序に依存するため、WorkspaceMode の追加・並べ替え時にはイベント契約と検証範囲を同時に更新する必要がある。
+- **次に確認すべきこと:** ToolBar、View menu、ショートカット、起動時復元からの workspace 切替で、MainWindow の表示構成・ボタン表示・設定保存が従来どおり一度ずつ更新され、無効な mode 値が UI に反映されないことを runtime で確認する。
+
+## 2026-08-31 — ToolOptionsBar の編集値通知を EventBus 化
+
+- **関連:** `Artifact/include/Event/ArtifactEventTypes.ixx`、`Artifact/include/Widgets/ArtifactToolOptionsBar.ixx`、`Artifact/src/Widgets/ArtifactToolOptionsBar.cppm`、`Artifact/src/Widgets/ArtifactMainWindow.cppm`
+- **確認できた事実:** ToolOptionsBar はブラシ、モーションスケッチ、テキスト、シェイプ等の編集値を `optionChanged(toolName, optionName, QVariant)` で MainWindow に渡し、MainWindow の受信側がツール／選択レイヤーへ適用していた。単一ボタン通知ではなく、複数の編集責務に波及する widget 境界だった。
+- **変更:** `ToolOptionChangedEvent` を追加し、ToolOptionsBar の発行メソッドから EventBus へ渡すようにした。MainWindow は EventBus を購読し、既存の値変換、設定保存、レイヤー dirty 通知、LayerChanged 発行ロジックを維持した。発行メソッドは別スレッドから呼ばれた場合に ToolOptionsBar の QObject スレッドへ marshal する。
+- **価値または懸念:** ToolOptionsBar と MainWindow の QObject signal 接続を除去し、編集値の安定 payload を内部境界に置けた。`QVariant` のキー名と値の単位は既存契約を引き継いでいるため、将来オプションを整理するときはイベント契約と適用ロジックを同時に見直す必要がある。
+- **次に確認すべきこと:** 各ツールの option UI 変更が MainWindow の適用結果、設定保存、選択レイヤーの dirty／表示更新に一度ずつ反映され、別スレッド呼び出し時も UI 操作が ToolOptionsBar／MainWindow のスレッド外で実行されないことを runtime で確認する。
+
+## 2026-08-31 — レイヤーノート通知を EventBus 化
+
+- **関連:** `Artifact/include/Event/ArtifactEventTypes.ixx`、`Artifact/include/Layer/ArtifactAbstractLayer.ixx`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`、`Artifact/src/Widgets/ArtifactInspectorWidget.cppm`、`Artifact/src/Widgets/ArtifactMarkdownNoteEditorWidget.cppm`
+- **確認できた事実:** レイヤーノート変更は `ArtifactAbstractLayer` の Qt 通知を経由し、Inspector と Markdown Note Editor の2ウィジェットが購読していた。両者はノート本文だけを必要とし、レイヤーの QObject ポインタを境界 payload に渡す必要はない。
+- **変更:** `LayerNoteChangedEvent`（composition ID、layer ID、note）を追加し、レイヤー側から EventBus 発行へ変更した。2ウィジェットは安定 ID で対象を照合し、別スレッド発行時は各ウィジェットの Qt スレッドへ marshal する。既存のウィジェット内 textChanged 接続と初期値読み込みは維持した。
+- **価値または懸念:** 複数ウィジェットへ広がるモデル通知を Qt signal から内部イベント境界へ移し、UI model／QObject 参照の漏出を避けられた。イベントは同期発行であり、破棄順序、選択変更と遅延イベントの前後関係、同一ノートを編集する際の再入を runtime で確認する必要がある。
+- **次に確認すべきこと:** Inspector と Markdown Note Editor のどちらから編集しても相互表示が更新され、composition／layer 切替後に古い遅延イベントが新しい対象へ反映されず、プロジェクト終了時に購読 callback が残らないことを runtime で確認する。
+
+## 2026-08-31 — Clip Buffer の貼り付け要求を EventBus 化
+
+- **関連:** `Artifact/include/Event/ArtifactEventTypes.ixx`、`Artifact/include/Widgets/ArtifactClipBufferWidget.ixx`、`Artifact/src/Widgets/ArtifactClipBufferWidget.cppm`、`Artifact/src/AppMain.cppm`
+- **確認できた事実:** Clip Buffer の double-click／Paste ボタンは、保存済みの JSON レイヤー配列を `QVariant` に保持し、AppMain へ Qt シグナルで渡していた。データは raw widget/model 参照ではなく、既存の `ClipCopiedEvent` と同じシリアライズ済み payload だった。
+- **変更:** `ClipPasteRequestedEvent` を追加し、Clip Buffer は貼り付け要求を EventBus 発行へ変更した。AppMain のレイヤー生成、親子／clone／matte 参照の再構築、選択処理は維持した。
+- **価値または懸念:** Clip Buffer と Main の Qt 直結を外し、モデルの `QModelIndex` を境界に出さずに済んだ。`QVariant` 内の payload 形式は JSON 配列である前提が残るため、将来の形式変更時はイベント契約を同時に更新する必要がある。
+- **次に確認すべきこと:** Clip Buffer の Paste／double-click で現在 composition に正しく追加され、親子・clone・matte参照と選択状態が従来どおり復元されることを runtime で確認する。
+
+## 2026-08-31 — Project View の選択通知を安定 payload 化
+
+- **関連:** `Artifact/include/Event/ArtifactEventTypes.ixx`、`Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`、`Artifact/src/AppMain.cppm`
+- **確認できた事実:** Project Manager は内部で `SelectionChangedEvent` を既に EventBus 発行していた一方、AppMain は Project View の `QModelIndex` 通知を2本直接購読し、proxy model と raw `ProjectItem*` を再解決していた。
+- **変更:** `SelectionChangedEvent` に現在の composition ID、現在の footage path、選択中 footage のパス一覧を追加し、Project Manager 発行側で解決した。AppMain はこの stable payload を購読し、旧 Project View→AppMain の2本の Qt 接続を削除した。
+- **価値または懸念:** 選択同期の境界から `QModelIndex` と model 構造を外へ漏らさず、既存イベントを再利用できた。選択変更と Asset Browser 逆同期は相互発火し得るため、既存 guard が再入を抑止することを runtime で確認する必要がある。
+- **次に確認すべきこと:** composition／footage／複数 footage／folder の選択、検索・proxy model 更新後の選択で、composition 切替、Contents Viewer、Asset Browser の各更新が従来どおり成立することを runtime で確認する。
+
+## 2026-08-31 — Project Manager のアイテム起動通知を EventBus 化
+
+- **関連:** `Artifact/include/Event/ArtifactEventTypes.ixx`、`Artifact/include/Widgets/ArtifactProjectManagerWidget.ixx`、`Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`、`Artifact/src/AppMain.cppm`
+- **確認できた事実:** Project View の double-click は Project Manager 内部で処理され、Project Manager から MainWindow へは `QModelIndex` を含む Qt 通知が直接接続されていた。発行時点ではモデルの役割から `ProjectItem::id`、composition ID、footage path を取得できる。
+- **変更:** `ProjectItemActivatedEvent` を追加し、Project Manager の公開 double-click 通知を安定 payload の EventBus 発行へ変更した。`QModelIndex` を跨 widget payload にせず、Project View→Project Manager の内部接続と composition／footage の既存起動処理は維持した。
+- **価値または懸念:** MainWindow が Project Manager の QObject シグナルと proxy model の構造に依存しなくなった。EventBus は同期発行のため、project item の再構築やアプリ終了時の購読寿命は runtime で確認が必要である。
+- **次に確認すべきこと:** composition／footage の double-click と context menu の Preview が、dock 起動・現在 composition・Asset Browser 同期・Contents Viewer 更新を一度ずつ行うことを runtime で確認する。
+
+## 2026-08-31 — Asset Browser から Main／Contents View への通知を EventBus 化
+
+- **関連:** `Artifact/include/Event/ArtifactEventTypes.ixx`、`Artifact/include/Widgets/ArtifactAssetBrowser.ixx`、`Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`、`Artifact/src/AppMain.cppm`
+- **確認できた事実:** Asset Browser の `selectionChanged` と `itemDoubleClicked` は AppMain が直接受け、Project Manager の選択同期と Contents Viewer の表示を行っていた。payload はファイルパス／パス一覧で、`QModelIndex` のような短命な UI model 参照ではなかった。
+- **変更:** `AssetBrowserSelectionChangedEvent`／`AssetBrowserItemDoubleClickedEvent` を追加し、2通知を EventBus 発行へ変更した。AppMain は QPointer で保持した対象へ購読側から処理し、既存の selection guard、Viewer の単一ファイル更新、double-click の dock 起動を維持した。folder／drop など未接続または別責務の通知は変更していない。
+- **価値または懸念:** Asset Browser から複数の UI へ伸びる Qt 直結を除去し、安定したファイルパスpayloadで内部境界を作れた。AppMain の長寿命購読はアプリ終了時の破棄順序と、選択同期による再入を runtime で確認する必要がある。
+- **次に確認すべきこと:** Asset Browser の単一／複数選択、double-click、Project View からの逆同期で、Contents Viewer と Project Manager の表示・選択が従来どおり一度だけ更新されることを runtime で確認する。
+
+## 2026-08-31 — Timeline／Composition Editor から StatusBar への通知を EventBus 化
+
+- **関連:** `Artifact/include/Event/ArtifactEventTypes.ixx`、`Artifact/include/Widgets/ArtifactTimelineWidget.ixx`、`Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`Artifact/include/Widgets/Render/ArtifactCompositionEditor.ixx`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/include/Widgets/ArtifactStatusBar.ixx`、`Artifact/src/Widgets/ArtifactStatusBar.cppm`、`Artifact/src/AppMain.cppm`
+- **確認できた事実:** StatusBar は Timeline の zoom／debug と Composition Editor の video debug を AppMain で直接購読していた。Timeline 側の通知は内部の TrackPainterView から親 widget へ伝える必要があるが、StatusBar は横断的な表示先だった。
+- **変更:** `TimelineZoomLevelChangedEvent`／`TimelineDebugMessageEvent` を追加し、StatusBar が EventBus を購読する形へ変更した。Timeline／Composition Editor の公開通知メソッドはイベント発行メソッドにし、TrackPainterView→Timeline の内部 Qt 接続は維持した。AppMain の widget→StatusBar 直結は削除した。
+- **価値または懸念:** StatusBar が特定 widget の QObject シグナル配線に依存しなくなり、複数 Timeline の通知も同じ内部経路で扱える。イベント購読は receiver thread へ marshal するため、StatusBar 破棄順序と複数 Timeline の表示優先順は runtime で確認が必要である。
+- **次に確認すべきこと:** Timeline の zoom／debug、Composition Editor の video debug が StatusBar に従来どおり反映され、複数 Timeline を開閉した際に遅延イベントや表示の取りこぼしがないことを runtime で確認する。
+
+## 2026-08-31 — AIClient のサービス通知を EventBus 化
+
+- **関連:** `Artifact/include/Event/ArtifactEventTypes.ixx`、`Artifact/include/AI/AIClient.ixx`、`Artifact/src/AI/AIClient.cppm`、`Artifact/src/Widgets/AIChatWidget.cppm`
+- **確認できた事実:** `AIClient` の5本の Qt 通知は、`AIChatWidget` がサービス境界を跨いで直接 `Qt::QueuedConnection` 購読していた。AIClient は初期化・クラウド処理・ローカルストリーミングを detached worker と queued callback の両方から通知している。
+- **変更:** 5種類を `AIClientChangedEvent` と変更種別へ統合し、AIClient の発行を EventBus 化した。AIChatWidget は1本の typed EventBus 購読にまとめ、受信側 QObject の thread へ明示的に marshal する。ウィジェット内のボタン等の Qt 接続とストリーミングの16ms更新制御は維持した。
+- **価値または懸念:** サービスからウィジェットへの Qt 直結を除去し、メッセージ本文・初期化結果を型付き内部境界で扱える。EventBus は同期発行なので、将来別の UI 購読者を追加する場合も receiver-side marshal と AIClient singleton の寿命を確認する必要がある。
+- **次に確認すべきこと:** ローカル／クラウド応答、ストリーミング、キャンセル、初期化成功・失敗、ウィジェット破棄中の遅延イベントで、表示更新と購読解除が従来どおり安全に完了することを runtime で確認する。
+
+## 2026-08-31 — Active composition の死んだ Qt 通知を整理
+
+- **関連:** `Artifact/include/Application/ActiveContextService.ixx`、`Artifact/src/Application/ActiveContextService.cppm`、`Artifact/include/Layer/ArtifactLayerSelectionManager.ixx`、`Artifact/src/Layer/ArtifactLayerSelectionManager.cppm`、`Artifact/src/Widgets/Menu/ArtifactEditMenu.cppm`
+- **確認できた事実:** `ActiveContextService::activeCompositionChanged()` と `ArtifactLayerSelectionManager::activeCompositionChanged()` は宣言と発火箇所だけが残り、購読・QObject 接続は存在しなかった。アクティブ composition の正規の横断通知は `ArtifactProjectService` が発行する `CurrentCompositionChangedEvent` である。
+- **変更:** 2つの未購読 Qt シグナルと発火処理を削除し、Edit Menu の Undo/Redo 同期に残っていた手動発火も削除した。既存の selection 内部イベント発行と `CurrentCompositionChangedEvent` は維持し、二重発行は追加していない。
+- **価値または懸念:** 状態保持と横断通知の責務が分離され、死んだ Qt 通知を将来の依存先と誤認しにくくなる。アクティブ composition の UI 更新経路は ProjectService 起点に揃っている前提のため、runtime で切替・Undo/Redo 後の更新を確認する必要がある。
+- **次に確認すべきこと:** composition 切替と Undo/Redo で Timeline、Menu、Inspector の表示が欠落せず、`CurrentCompositionChangedEvent` が一度だけ届くことを runtime で確認する。
+
+## 2026-08-31 — ApplicationService の未使用ライフサイクル通知を整理
+
+- **関連:** `Artifact/include/Service/ApplicationService.ixx`、`Artifact/src/Service/ApplicationService.cppm`
+- **確認できた事実:** `initialized`／`shutdownRequested` は自身の `initialize()`／`shutdown()` から発火するだけで購読者がなく、`projectOpened`／`projectClosed` はリポジトリ内で発火も購読もなかった。
+- **変更:** 4本の Qt シグナル宣言と、実際に呼ばれていた2本の発火処理を削除した。現在の正規プロジェクト通知を置き換える EventBus は追加していない。
+- **価値または懸念:** ApplicationService の公開面から、実動配線のないライフサイクル通知を除去できる。外部プラグインがこの未使用 API に依存していないことは、runtime／利用者側コードの確認が必要である。
+- **次に確認すべきこと:** アプリ初期化・終了時にサービス所有オブジェクトの生成／破棄が従来どおり完了することを runtime で確認する。
+
+## 2026-08-31 — CompositionPlaybackController の未購読通知を整理
+
+- **関連:** `Artifact/include/Composition/ArtifactCompositionPlaybackController.ixx`、`Artifact/src/Composition/ArtifactCompositionPlaybackController.cppm`
+- **確認できた事実:** コントローラの playback state／frame／speed／loop／range 通知は、コントローラ自身から発火するだけで、リポジトリ内に購読・QObject 接続がなかった。横断的な再生状態・フレーム通知は `ArtifactPlaybackService` の EventBus 経路が正規である。
+- **変更:** 5本の未使用 Qt シグナル宣言と、コントローラ内の発火処理を削除した。PlaybackService／PlaybackEngine の実動配線や既存の EventBus 通知は変更していない。
+- **価値または懸念:** 旧コントローラからウィジェットやサービスへ広がる未接続の Qt 通知を除去できる。外部利用者がコントローラ通知を参照していないことは runtime／利用者側コードで確認が必要である。
+- **次に確認すべきこと:** controller 経由の再生・移動操作が PlaybackService の状態・フレーム更新と従来どおり同期することを runtime で確認する。
+
+## 2026-08-31 — UndoManager の横断履歴通知を EventBus 化
+
+- **関連:** `Artifact/include/Event/ArtifactEventTypes.ixx`、`Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Widgets/ArtifactUndoHistoryWidget.cppm`、`Artifact/src/Widgets/ArtifactPropertyWidget.cppm`、`Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`
+- **確認できた事実:** `historyChanged` は Undo History、Property、Timeline Layer Panel の3 UIが購読していた。`propertyChanged`／`anythingChanged` は多数の編集経路から通知されるが、QObject購読は存在しなかった。
+- **変更:** `UndoManagerChangedEvent` と変更種別を追加し、3種の通知を EventBus へ同期発行する。3 UIは履歴種別だけを購読し、発火元がUIスレッドでない場合は各自の QObject スレッドへ queued dispatch する。旧 Qt シグナル接続は削除した。
+- **価値または懸念:** Undo 境界から複数ウィジェットへ伸びる通知を型付き内部イベントへ揃えられる。`anythingChanged` は高頻度になり得るため、将来購読者を追加する際もイベント種別の絞り込みと UI marshal を維持する必要がある。
+- **次に確認すべきこと:** push／undo／redo／clear／session復元で履歴表示、Property 値、Timeline の undo flash が従来どおり更新され、非UIスレッド発火でも安全であることを runtime で確認する。
+
+## 2026-08-31 — ColorScienceManager の通知を typed EventBus 化
+
+- **関連:** `Artifact/include/Event/ArtifactEventTypes.ixx`、`Artifact/include/Color/ArtifactColorScienceManager.ixx`、`Artifact/src/Color/ArtifactColorScienceManager.cppm`
+- **確認できた事実:** color science manager の `settingsChanged`／`lutChanged`／`compositionSettingsChanged` は Qt シグナルとして宣言・発火されていたが、リポジトリ内の購読・QObject 接続は存在しなかった。色管理は設定、LUT、composition単位の3種類に意味が分かれる。
+- **変更:** 3種類を `ColorScienceManagerChangedEvent` の変更種別へ移し、既存の発火回数・composition ID を維持した。Qt シグナル宣言と発火を削除し、既存の色変換・LUT処理は変更していない。
+- **価値または懸念:** 色管理の状態変化をウィジェット依存ではない内部イベント境界に置ける。現時点で購読者がないため、renderer がこのイベントを必要とする場合の接続は別途設計・runtime確認が必要である。
+- **次に確認すべきこと:** 設定変更、LUT読込／解除、composition固有設定変更で、必要な将来購読者が変更種別とIDを正しく受け取れることを runtime で確認する。
+
+## 2026-08-31 — Core ActionManager の横断通知を EventBus 化
+
+- **関連:** `ArtifactCore/include/UI/InputOperator.ixx`、`ArtifactCore/src/UI/InputOperator.cppm`
+- **確認できた事実:** `ActionManager` の action登録／解除／実行通知はアプリ全体のサービス境界にあったが、リポジトリ内に Qt購読・QObject接続はなかった。`InputOperator` には別途低レベルの key/action 通知があり、今回の対象から分離した。
+- **変更:** actionポインタを跨がせず、action ID・params・変更種別を持つ `ActionManagerChangedEvent` を追加し、3本の Qt通知を EventBus 発行へ変更した。Action／KeyMap／InputOperator の低レベル通知は未変更。
+- **価値または懸念:** command登録と実行の横断観測点を Core内の型付きイベントへ揃えられる。現時点で購読者はないため、将来の Command Palette／diagnostics 購読者は必要に応じて receiver thread を扱う必要がある。
+- **次に確認すべきこと:** action登録・解除・実行で event の種別、ID、params が一致し、Actionポインタの寿命に依存しないことを runtime で確認する。
+
+## 2026-08-31 — Core SelectionManager の選択通知を EventBus 化
+
+- **関連:** `ArtifactCore/include/UI/SelectionManager.ixx`
+- **確認できた事実:** Coreの `SelectionManager` は Artifact側で利用されておらず、3本の Qt シグナルに対する購読・QObject接続もなかった。一方、クラス自体はグローバルな composition／layer／asset 選択状態を所有している。
+- **変更:** 同じ `UI.SelectionManager` モジュール内に3つの typed event を定義し、inline setter の通知を EventBus 発行へ変更した。Qtシグナル宣言は削除し、選択状態の保持・query APIは維持した。Artifact.Event.Typesへの逆依存は追加していない。
+- **価値または懸念:** Coreのグローバル選択通知も widget 非依存の内部境界へ揃えられる。現時点で購読者がないため、Artifact側の正規 `ArtifactLayerSelectionManager` と統合するかは別設計として残る。
+- **次に確認すべきこと:** Core SelectionManager を利用する最小経路で composition／layer／asset 選択イベントが正しい payload で一度ずつ発行されることを runtime で確認する。
+
+## 2026-08-31 — AbstractAssetFile の未購読 status 通知を整理
+
+- **関連:** `ArtifactCore/include/Asset/AbstractAssetFile.ixx`、`ArtifactCore/src/Asset/AbstractAssetFile.cppm`
+- **確認できた事実:** `statusChanged` は `setStatus()` から発火するだけで、ArtifactCore／Artifact内に購読・QObject接続がなかった。status値は `status()` で同期取得できる。
+- **変更:** CoreからArtifactのEvent Typesへ逆依存を作らず、未購読の Qt シグナル宣言と発火処理を削除した。Asset status の保持・取得・load/unload 処理は変更していない。
+- **価値または懸念:** Asset file の責務から実動配線のない通知を除去できる。将来 Asset Browser が非同期 status 更新を必要とする場合は、Core側に依存方向を守った typed event／observer境界を別途設計する必要がある。
+- **次に確認すべきこと:** missing／modified status 更新と Asset Browser の表示判定が、同期 query と既存モデル更新経路で従来どおり成立することを runtime で確認する。
+
+## 2026-08-31 — HDRMonitor の通知を typed EventBus 化
+
+- **関連:** `Artifact/include/Render/ArtifactHDRMonitor.ixx`、`Artifact/src/Render/ArtifactHDRMonitor.cppm`
+- **確認できた事実:** `settingsChanged` は `setSettings()` から発火するだけで購読者がなく、`analysisComplete` は `analyzeFrame()` から発火していたが、リポジトリ内の購読・QObject接続はなかった。
+- **変更:** 2種類を `HDRMonitorSettingsChangedEvent`／`HDRAnalysisCompletedEvent` として EventBus へ移した。解析結果の内容と、設定変更・解析完了の発火タイミングは維持し、同期APIの戻り値も変更していない。
+- **価値または懸念:** HDR解析クラスから未接続のQt配線を除去し、将来のscope／diagnostics UIが内部イベントを購読できる。解析結果を含むイベントはデータ量が大きくなり得るため、高頻度購読者を追加する際はコピー負荷を確認する必要がある。
+- **次に確認すべきこと:** HDR設定変更と解析結果生成でイベントが一度ずつ届き、解析結果と同期戻り値が一致することを runtime で確認する。
+
+## 2026-08-31 — OCIOManager の色管理通知を EventBus 化
+
+- **関連:** `Artifact/include/Event/ArtifactEventTypes.ixx`、`Artifact/include/Color/ArtifactOCIOManager.ixx`、`Artifact/src/Color/ArtifactOCIOManager.cppm`、`Artifact/src/Widgets/Color/ArtifactColorSciencePanel.cppm`
+- **確認できた事実:** `configChanged` は Color Science Panel が直接購読しており、working-space／display-view 通知は宣言・発火だけで他の購読者がなかった。OCIO manager は singleton で、Panel の更新は UI QObject 上で行う必要がある。
+- **変更:** 3種類を `OCIOManagerChangedEvent` として EventBus へ移し、Panel は ConfigChanged を購読して所有パネルの thread へ marshal するようにした。既存の設定変更順序（詳細通知後に config 通知）は維持した。
+- **価値または懸念:** OCIO の service→widget 直結を除去し、将来 renderer 等が詳細な色管理変更を購読できる。イベントは同期発行なので、新規UI購読者も receiver-side marshal を必須とする。
+- **次に確認すべきこと:** preset／config／working space／display／view の変更で Panel の表示と ColorScience 同期が一度ずつ更新され、Panel破棄後に遅延通知が残らないことを runtime で確認する。
+
+## 2026-08-31 — PlaybackShortcuts の実動通知を EventBus 化
+
+- **関連:** `Artifact/include/Event/ArtifactEventTypes.ixx`、`Artifact/include/Service/ArtifactPlaybackShortcuts.ixx`、`Artifact/src/Service/ArtifactPlaybackShortcuts.cppm`
+- **確認できた事実:** `shortcutExecuted` は各ショートカット処理から実際に発火していたが、リポジトリ内に購読・QObject接続はなかった。`inPointSet`／`outPointSet`／`markerAdded` は発火処理がコメント化されていた。
+- **変更:** 実動していた通知を `PlaybackShortcutExecutedEvent` として EventBus へ移し、action ID を維持した。コメント化された3本の Qt シグナル宣言も削除し、InOutPoints／command の既存正規経路を残した。
+- **価値または懸念:** ショートカット実行の観測点をサービスから内部イベントへ移せる。現時点の購読者はないため、将来の監視・ヘルプUI等で購読する場合はUIスレッドへのmarshalを購読側で行う必要がある。
+- **次に確認すべきこと:** 各 playback shortcut の action ID が一度だけ発行され、in/out point・marker操作の状態変更が従来の command／InOutPoints 経路で行われることを runtime で確認する。
+
+## 2026-08-31 — ToolService の未購読モード通知を整理
+
+- **関連:** `Artifact/include/Service/ArtifactToolService.ixx`、`Artifact/src/Service/ArtifactToolService.cppm`
+- **確認できた事実:** `editModeChanged`／`displayModeChanged` は ToolService 内で発火するだけで、リポジトリ内に購読・QObject 接続がなかった。active tool の横断通知には既存の `ToolChangedEvent` がある。
+- **変更:** 2本の未使用 Qt シグナル宣言と発火処理を削除した。モード状態の保持、active tool の更新、既存の `ToolChangedEvent` は変更していない。
+- **価値または懸念:** ToolService の公開面から未接続の Qt 通知を除去し、tool変更とmode状態の責務を分けられる。外部利用者がこの未使用 API に依存していないことは runtime／利用者側コードで確認が必要である。
+- **次に確認すべきこと:** View／Transform／Mask 等の mode切替で active tool と各UIの表示が従来どおり同期することを runtime で確認する。
+
+## 2026-08-31 — Logger 横断通知の EventBus 化と receiver-side marshal
+
+- **関連:** `ArtifactCore/include/Diagnostics/Logger.ixx`、`ArtifactCore/src/Diagnostics/Logger.cppm`、`Artifact/src/AppMain.cppm`、`Artifact/src/Widgets/Diagnostics/ArtifactDebugConsoleWidget.cppm`
+- **確認できた事実:** Logger の `logAdded`／`logsCleared` は AppMain と Debug Console の複数 UI が購読し、Qt メッセージハンドラ経由で任意スレッドから発火し得た。旧 QObject 接続は receiver が UI だったため、Qt の AutoConnection が UI 側への queued dispatch を担っていた。
+- **変更:** Core の `LogAddedEvent`／`LogsClearedEvent` を追加し、Logger はスレッド固定を仮定せず EventBus へ同期発行する。各 UI 購読者は自分の QObject スレッドを確認し、必要な場合だけ `QMetaObject::invokeMethod(..., Qt::QueuedConnection)` で UI 操作を戻す。AppMain の長寿命購読には `QPointer` を使う。
+- **価値または懸念:** 複数 UI にまたがる通知が Qt シグナル配線から型付き内部イベントへ揃い、Logger を特定スレッドのイベントループへ依存させない。新しい非 UI 購読者を追加する場合も、UI API を直接触らずスレッド境界を個別に扱う必要がある。
+- **次に確認すべきこと:** 任意スレッドからのログ追加、クリア、UI 終了順序でイベント欠落・use-after-free・表示遅延がないことを runtime で確認する。
+
+## 2026-08-31 — Layer変更通知の移行前に通知網羅性を揃える
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`、`Artifact/src/Widgets/ArtifactPropertyWidget.cppm`、`Artifact/src/Widgets/ArtifactMainWindow.cppm`
+- **確認できた事実:** 旧 `changed()` は物理・レイアウト・親子設定などで `Q_EMIT` される一方、`notifyLayerMutation()` には既に `LayerChangedEvent` 経路があった。Property Editor／MainWindow の直結はこの変更通知を購読していた。
+- **変更:** `ArtifactAbstractLayer::changed()` を Qt シグナルではない内部通知メソッドへ変更し、全ての既存呼び出しから `LayerChangedEvent` を発行するようにした。ワーカースレッドからの通知は Layer の QObject スレッドへ marshal し、Property Editor／MainWindow は layer ID で絞った EventBus 購読へ移行した。
+- **価値または懸念:** レイヤー変更がウィジェット間の Qt 接続を経由せず、共通イベント境界へ揃った。イベントは同期発行を基本とし、UI操作は QObject スレッドへ戻すため、他の EventBus 購読者のスレッド安全性と高頻度更新の負荷は runtime で確認が必要である。
+- **次に確認すべきこと:** 旧 `changed()` の全派生レイヤー経路で `LayerChangedEvent` が一度だけ発行されること、Property Editor／MainWindow の更新、ワーカースレッド由来通知の UI 安全性を runtime で検証する。
+
 ## 2026-08-25 — component.joint（レイヤー間ジョイントcomponent）を実装（ビルド未検証）
 
 - **ビルド検証メモ (2026-08-25):** ビルド試行はユーザー指示で中断。座標検証は静的解析のみ実施済み（`Physics2D` 重力を `{0,-9.8}`→`{0,9.8}` に修正済み。MPM `+980` / SoftBody `+9.8` との整合）。環境側の未解決事項: J:コピーのビルドツリー `out/build/x64-Debug`（Ninja、classic vcpkg=C:\vcpkg）では新規 port の `find_package` が `<installed>/share/<pkg>` を探索できず（box2d/OpenCV は過去キャッシュの `_DIR` で通っているだけ）、`meshoptimizer:x64-windows` を C:\vcpkg へ入れても数分後に消失する現象が発生（別プロセス/manifest クリーンアップの疑い、要切り分け）。X:\Dev\ArtifactStudio 側は manifest mode (`out/build_ninja/vcpkg_installed`) で box2d 3.1.1 を確認済み。
@@ -3476,8 +4406,8 @@
 **関連**: `Artifact/include/Composition/ArtifactCompositionNodes.ixx`, `Artifact/src/Composition/ArtifactCompositionNodes.cppm`, `Artifact/cmake/ArtifactSources.cmake`
 
 - **事実:** 既存 `ArtifactGroupLayer` は UI、AI、Undo、Composition View、描画経路に広く参照されているため、直ちに独立 Container へ置換するのは高リスク。
-- **対応:** Layer 非継承の `CompositionNode`／`ContainerNode`／`GroupContainerNode` を追加し、ID・parentId・kind・子 ID の重複拒否・JSON 往復を先行実装した。既存 Group は互換アダプタとして未変更。
-- **未検証:** module ビルド、Composition NodeStore への接続、循環親子関係の Composition 全体検証。
+- **対応:** Layer 非継承の `CompositionNode`／`ContainerNode`／`GroupContainerNode` を追加し、ID・parentId・kind・子 ID の重複拒否・JSON 往復を先行実装した。現在は`ArtifactAbstractComposition`のNodeStore同期と`ArtifactGroupLayer`の互換アダプタまで接続済みである。
+- **未検証:** module ビルド、循環親子関係を含むComposition全体のruntime検証、独立Containerとしてのrender boundary／Preview／Export parity。
 
 ## 2026-08-27 — GPU track matte の4枚以上は既存逐次GPU経路で処理可能
 
@@ -3618,6 +4548,45 @@
 - **価値または懸念:** コンポジションを単一設定ではなく、順序付きレイヤー構成として交換できる。実体生成・画像パス・親子関係・Undo接続はまだ未実装。
 - **次に確認:** 既存のComposition／Layer生成APIへ、JSONの順序とマスク指定を安全に適用する変換境界を設計する。
 
+## 2026-08-30 — Bindlessはlegacy併存のopt-in経路として育てる
+
+- **関連:** `Artifact/include/Render/DiligentBindlessSubmitter.ixx`、`Artifact/src/Render/DiligentBindlessSubmitter.cppm`
+- **事実:** Bindless submitterは既存legacy submitterをfallbackとして内部保持しているが、常時有効／無効の明示的な運用ポリシーと送信結果カウンタは未整備だった。
+- **変更:** Bindlessをデフォルト無効にし、明示的な `setEnabled(true)` でのみ試せるようにした。未対応 packet、初期化失敗、upload失敗は既定でlegacyへ戻り、attempted／accepted／fallback／rejectedを取得できるようにした。
+- **価値または懸念:** 全面置換せず、限定 workload の canary として実機比較へ進められる。現時点ではArtifactIRendererの標準submitter自体をBindlessへ交換していない。
+- **次に確認:** 明示的な接続作業で、設定の保存場所、frame単位の統計リセット、legacy／bindless画像差分とD3D12／Vulkan parityを確認する。
+
+## 2026-08-30 — バッチテンプレート適用の安全性を先に固める
+
+- **関連:** `Artifact/src/Render/ArtifactBatchRenderer.cppm`
+- **事実:** テンプレート適用時の出力設定変数が、Render Queueから取得される前に条件式のfallback値として参照されていた。またテンプレート保存は直接ファイルへ書き込んでいた。
+- **変更:** 出力設定を取得してからoverride値を解決するよう修正し、テンプレート名・必須項目を検証、保存を `QSaveFile` のcommit方式へ変更した。
+- **価値または懸念:** バッチ追加時の未定義値利用と、保存途中の破損リスクを減らせる。実際の複数ジョブ並列化やruntimeレンダー性能は未検証。
+- **次に確認:** queue側のジョブ追加失敗を戻り値で追跡できる契約、並列化時のGPU context／readback所有権、frame順序保証を確認する。
+
+## 2026-08-30 — バッチテンプレートに共有検証入口を追加
+
+- **関連:** `Artifact/include/Render/ArtifactBatchRenderer.ixx`、`Artifact/src/Render/ArtifactBatchRenderer.cppm`
+- **事実:** テンプレート保存時だけ一部の入力検証を行い、テンプレート適用時には同じ制約が共有されていなかった。
+- **変更:** `BatchTemplate::isValid()` と `ArtifactBatchRenderer::validateTemplate()` を追加し、保存と一括ジョブ追加の両方で名前、出力先、ファイル名、解像度、FPS、フレーム範囲、bitrate、paddingを検証するようにした。
+- **価値または懸念:** UI未接続でも、バッチ入口ごとの入力制約を揃えられる。個別ジョブ追加の戻り値がvoidであるため、追加後の失敗理由まではまだ収集できない。
+- **次に確認:** Render Queue APIにジョブ追加結果を返す境界を設計し、並列レンダー導入前に失敗ジョブを明示的に分類する。
+
+## 2026-08-30 — バッチ診断の保持入口を先行追加
+
+- **関連:** `Artifact/include/Render/ArtifactBatchRenderer.ixx`、`Artifact/src/Render/ArtifactBatchRenderer.cppm`
+- **変更:** 直近バッチの診断を保持・消去する `lastBatchErrors()` / `clearBatchErrors()` を追加し、全コンポジション一括入口と通常のコンポジション一括入口で処理開始時に診断をリセットする契約を整えた。
+- **価値または懸念:** 後続でRender Queueの失敗結果を収集してもUIシグナルを増やさず公開できる。現時点では全ての失敗分岐への詳細記録と、実レンダー失敗の収集は未接続。
+- **次に確認:** job追加APIの戻り値化またはqueue snapshotから、コンポジションID単位の失敗理由をこの診断へ集約する。
+
+## 2026-08-30 — Timeline painter品質は既存surfaceへの局所適用から始める
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、`Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`、`Artifact/src/Widgets/Timeline/ArtifactTimelineNavigatorWidget.cppm`、`Artifact/src/Widgets/Timeline/ArtifactTimelineScrubBar.cppm`、`Artifact/src/Widgets/Timeline/ArtifactWorkAreaControlWidget.cppm`
+- **事実:** 正規右ペインの `ArtifactTimelineTrackPainterView` はAAを明示無効化していた一方、周辺surfaceはAAのみ部分的に有効化していた。`TimelineScaleWidget` はpixel-perfect tickのためAA無効化を意図的に維持している。
+- **変更:** 上記5 surfaceでアンチエイリアス、テキストアンチエイリアス、平滑pixmap変換を明示的に有効化した。
+- **価値または懸念:** 既存のowner-draw責務や入力経路を変えず、タイムラインの線・文字・アイコンの表示品質を揃えられる。実機でのrulerとの見え方、細線の鮮明さ、描画負荷は未検証。
+- **次に確認:** `Consolas` のtheme経由化、hover tracking、実機でのlight/dark表示と性能を確認する。
+
 
 ## 2026-08-29 - VP とタイムラインの「操作感の悪さ」「安定性のなさ」の正体
 
@@ -3633,3 +4602,2552 @@
 - 気づき: 2D／3Dではcamera、depth、transform、collisionの意味が異なるため、共通simulation／rendererを再利用してもレイヤーidentityは分けたほうが不正な中間状態を防げる。
 - 価値・懸念: 既存IDを維持した追加enumと旧`is3D=true`移行で互換性を確保できる。一方、3D Particleの完全なmodel/view/projection経路はruntime未検証。
 - 次に確認すべきこと: 新規2D／3D作成、JSON round-trip、旧3D指定Particle移行、3D camera orbitとdepthの実表示を同一buildで検証する。
+
+
+## 2026-08-30 - マイルストーンを「2026-08-30 更新版」として別ファイルで並存させた
+
+- 関連: docs/planned/MILESTONE_TIMELINE_STATUS_INDEX_2026-08-29.md（原本）, MILESTONE_TIMELINE_STATUS_INDEX_2026-08-30.md（更新版）, MILESTONE_TIMELINE_DCC_FEEL_GAPS_2026-08-29.md / _2026-08-30.md, MILESTONE_VP_TIMELINE_HOTPATH_STABILITY_2026-08-29.md / _2026-08-30.md, docs/DOC_LIFECYCLE.md
+- 事実: DOC_LIFECYCLE.md は「ファイル名に日付が含まれていても、最終更新日の代わりにはならない」と明記しており、本来は「ファイル名据え置き + ファイル内 **最終更新:** のみ更新」が正規運用。今回はユーザー指示で 2026-08-29 作成の 3 ファイルを 2026-08-30 ファイルとして新規作成し、原本は「別物として残す」並存構成とした。2026-08-30 ファイル群の冒頭には「2026-08-30 更新版」但し書きと原本リンクを入れ、相互参照は 2026-08-30 系列で揃えた。
+- 気づき: DOC_LIFECYCLE.md の正規運用と、ユーザー指示の「ファイル名日付も更新」は、updated by date と naming by date の 2 軸を分離する形に結果的になった。並存構成は「上書きによる履歴喪失」を避けられる一方、リンク集（status index など）が「最新版を指す」仕組みを別途用意しないと古い版と新しい版が混在して探索を阻害する。今回は status index 2026-08-30 自身と 2026-08-30 ファイル群を新系列で揃え、2026-08-29 ファイル群は自己完結として残したが、AGENTS.md にはこのルールが明文化されていない。
+- 価値・懸念: 並存構成の利点は (1) 作成日と最終更新日がファイル名から読める、(2) 過去の議論経緯を物理的に保持できる、(3) Index/検索で「2026-08-30 を見る」が明示できる。懸念は (1) 同名異日付のファイルが並ぶと新規着手者がどちらを正とするか迷う、(2) 相互参照を 2 系列並走させると更新漏れが出やすい、(3) DOC_LIFECYCLE.md に「ファイル名 = 最終更新日」運用を正式採用するか、「上書きで **最終更新:** のみ更新」を徹底するかをいずれかに統一したい。
+- 次に確認: ユーザー判断で「並存を続ける」か「次回以降は 2026-08-30 系列に集約して 2026-08-29 を archived/ へ移す」かを聞く。可能なら docs/DOC_LIFECYCLE.md に「ファイル名日付運用」セクションを 1 段落追加（並存 / 上書き / archived 移動の 3 選択肢）し、判断材料を残す。
+
+
+## 2026-08-30 - VP 上のモーションパス描画の問題点
+
+- 関連: Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm (42443 行), Artifact/src/Widgets/ArtifactTimelineGlobalSwitches.cppm, AGENTS.md L38, docs/planned/MILESTONE_APP_SETTINGS_WIDGET_GAP_2026-06-13.md, MILESTONE_VP_TIMELINE_HOTPATH_STABILITY_2026-08-30.md
+- 事実: (1) L35704-L35706 に「// Temporarily disable motion path overlay while debugging stray frame-like rectangles in the viewport.」とコメントで旧実装全体（170 行超）が残ったまま死蔵。L35708-L35800+ の旧ブロックは //  付きで描画パイプライン本体から呼ばれていない。(2) 新実装は L37009-L37350 と L41630-L41700 の 2 箇所に並走。L37011-37013 と L41632-41634 で同じ profile scope 名 "MotionPath" を持つブロックが 1 フレーム内に 2 回走る構造。(3) L37096-L37107 のキャッシュキーは (layerId, framePos, overlaySerial) の 3 要素のみで、複数選択時（selectedLayerIds）や layer 切替時には毎フレーム cache miss → 「300-iteration getGlobalTransformAt() loop is the main >1000ms bottleneck」と L37088-L37095 に注記された重いループが再走する。(4) L41680-L41698 で 
+enderer_->setZoom(1.0f) / setPan(0,0) でレンダラ内部状態を直接書き換え、drawPastFixedPlaneMotionFrames 後に setZoom(previousZoom) / setPan(previousPanX, previousPanY) で復元するが、例外/early return 時にレンダラが zoom=1 に固定される race condition のリスク。(5) L37319-L37350 で各 keyframe に対し drawDashedRectOutline を 影 + 本体の 2 回呼ぶ。keyframe が多いと描画コールが線形増。(6) L37080 の pathColor は FloatColor{0.9f, 0.4f, 0.8f, 0.9f} のピンク系だが、AGENTS.md Visual Language のレイヤー色ガイド（Video=青, Audio=緑, Text=紫, Effect=橙）と一貫していない。タイムラインのモーションパス色はタイムライン ruler の playhead orange / accent とも別系統。
+- 気づき: VP モーションパスの問題点は「機能がない」でも「描画品質が低い」でもない。**実装は揃っているが、(a) 旧実装が「一時無効」のコメントで残ったまま 170 行超の死蔵コード化し、(b) 新実装が本体パイプラインとは別の "Historical Plane frames" 経路に重複し、(c) キャッシュが 1 レイヤー前提で複数選択や layer 切替のたびに 1000ms 級の重いループが再発火し、(d) レンダラ内部状態を draw call の前後に書き換えるパターン（zoom=1→復元）が副作用リスクを抱え、(e) 色トークンが Visual Language 整備と整合していない**という 5 つの独立した問題が層になっている。AGENTS.md には「compositionShowMotionPathOverlay は timeline ボタン経由で設定更新される」と書いてあるが、その値を消費する新実装は Render Controller の奥深くに 2 箇所に分散しており、設定更新のシリアル（overlayInvalidationSerial_）で関連付けられている。
+- 価値・懸念: モーションパスは DCC の必須機能（AE / Blender / Nuke / Cavalry / Cavalry すべてで「VP 上のアニメ経路可視化」を提供）で、layer の時間編集の理解に直結する。現状でも単一レイヤー単一フレームでキャッシュが効いているときは軽いが、複数選択 / 連続 scrubbing / レイヤー切り替えで 1000ms を超えるボトルネックが再発する。MILESTONE_VP_TIMELINE_HOTPATH_STABILITY_2026-08-30.md の Phase 1〜3（GPU readback 排除 / texture cache key 安定化 / renderOneFrame 統合）が成立する前段として、モーションパスのホットループ（getGlobalTransformAt × 300）も具体的な着手対象になる。
+- 次に確認: (1) 
+enderMotionPathOverlayForLayer の本体定義（L37009 側と L41652 呼び出しのどちらが正典か）を追う、(2) motionPathPositionKeyTimes / motionPathAdaptiveSampleStep / motionPathPositionInterpolation / motionPathInterpolationColor のヘルパ定義を確認、(3) drawPastFixedPlaneMotionFrames の本体を確認、(4) 旧コメントアウトブロックの削除 or 復活の判断を整理。必要なら MILESTONE_VP_MOTIONPATH_OVERLAY_FIXES_2026-08-30.md を planned/ に起こし、5 つの問題を 5 Phase（コメントアウト削除 / 新実装の単一経路化 / キャッシュを複数選択対応 / draw call 削減 / 色トークン統一）で解消する計画を立てる。
+
+
+## 2026-08-30 - VP モーションパスの問題を planned milestone に起こした
+
+- 関連: docs/planned/MILESTONE_VP_MOTIONPATH_OVERLAY_FIXES_2026-08-30.md (新規), Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm (42443 行), docs/planned/MILESTONE_VP_TIMELINE_HOTPATH_STABILITY_2026-08-30.md, docs/planned/MILESTONE_TIMELINE_STATUS_INDEX_2026-08-30.md
+- 事実: VP モーションパス機能には (1) L35704-L35800+ に「// Temporarily disable motion path overlay while debugging stray frame-like rectangles」とコメントで残った 170 行+ の死蔵コード、(2) 新実装が L37009-L37350 と L41630-L41700 の 2 箇所に分散し同じ profile scope 名 "MotionPath" が 1 フレームに 2 回走る、(3) キャッシュキーが (layerId, framePos, overlaySerial) 単一で複数選択や layer 切替のたびに 300-iteration getGlobalTransformAt ループ（>1000ms bottleneck）が再発火する、(4) L41680-L41698 で renderer_ の zoom/pan/canvasSize/externalMatrices を draw call 前後に直書きして例外/early return で zoom=1 に固定される race condition リスク、(5) pathColor {0.9f, 0.4f, 0.8f, 0.9f} のピンクが AGENTS.md Visual Language のレイヤー色ガイドと非整合、(6) 各 keyframe で drawDashedRectOutline を影+本体 2 回呼ぶ O(N) 描画コールの 6 問題。MILESTONE_VP_TIMELINE_HOTPATH_STABILITY_2026-08-30.md の Phase 1 (renderOneFrame 統合) の前段として、Motion path のキャッシュが効くことで hot-path 計測が正確になるため、依存関係を明示して並走前提で planned に起こした。
+- 気づき: VP モーションパスは「機能がない」のではなく「層状に問題が積まれている」事例。layer の transform 計算 300 回ループのような重い処理を 1 レイヤー前提キャッシュで隠蔽している構造は、複数選択や layer 切替が日常の DCC では必ず破綻する。同様の「単一前提キャッシュで隠蔽した重い処理」は、Property Widget (約 400 widget 破棄/再作成)、selection reset (リフレッシュ時の選択保持漏れ) など、L2/L3 問題にも共通するパターン。AGENTS.md の「D3D12 / Diligent backend の低レベル実装を変更する場合は推測で広く触らない」ルールは Phase 6 (keyframe 描画 batch 化 / instanced 描画) で特に有効。Color token 化は MILESTONE_TIMELINE_DCC_FEEL_GAPS_2026-08-30.md Phase 4 と並走させることで、timeline 側と VP 側の両方で一貫したテーマ追従が得られる。
+- 価値・懸念: Phase 1 (死蔵コード削除) と Phase 2 (新実装統合) はビルド影響が局所的で着手しやすい。Phase 3 (複数選択キャッシュ) と Phase 6 (keyframe 描画 batch 化) は中〜高コストで、計測環境 (Frame Debug) の整備が先。Phase 4 (scope guard 化) は AGENTS.md の「helper 化、しかし変更範囲を最小化」を守りつつ RAII パターン導入で副作用リスクを下げられる。Phase 5 (色 token 統合) は Visual Language Phase 4 と協調が必要で、片方だけ進めると不整合が残る。
+- 次に確認: ユーザー判断で「Phase 1 (死蔵コード削除) から着手」「Phase 4 (scope guard 化) のみ先行」「マイルストーン全体は別判断」「status index の未着手カテゴリの優先度を再整理」のどれか。希望があれば Phase 1 の最小着手（grep で buildMotionPathSamples / MotionPathSample / MotionPathSampleKind の参照 0 を確認）を実行し、結果を返す。
+
+## 2026-08-30 - 操作状態の不一致は既存診断surfaceで観測する
+
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx`、`docs/analysis/OPERATION_STATE_MAP_2026-08-30.md`
+- 確認できた事実: ProjectService、ActiveContext、Playback は composition をそれぞれ保持し、通常の切替は ProjectService → ActiveContext → Playback の順に伝播する。`WorkspaceAutomation` は既に3サービスと選択状態をread-onlyで取得できる。
+- 気づき: 同期失敗を直ちに新しいグローバルイベントで埋めるより、同一snapshotで3 owner の ID を照合し不一致を可視化するほうが、原因の切り分けと既存経路の保全を両立できる。
+- 価値・懸念: `operationState` は検出だけなので既存操作を変更しない。一方で実ランタイムの切替・再生・Undo中の状態推移は未検証であり、自動修復の根拠にはできない。
+- 次に確認すべきこと: 2 composition を繰り返し切替え、再生中切替と選択変更を含む操作で `COMPOSITION_STATE_MISMATCH` が発生する条件と復旧経路をruntime受入表へ記録する。
+
+## 2026-08-30 - タイムラインのパン軸はドラッグ開始時に固定する
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、`docs/planned/MILESTONE_TIMELINE_ZOOM_PAN_2026-04-10.md`
+- 確認できた事実: 右ペインは既に中クリックによる両方向パンを持っていたが、Shift / Alt で軸を分ける処理はなかった。
+- 気づき: ドラッグ開始時の修飾キーを保持すると、操作中にキーを離した場合でも移動軸が変わらず、パンの意図が安定する。
+- 価値・懸念: この変更は表示offsetだけに限定され、selection、time、Undoを変えない。実機でtrackpad／高DPI環境を含む操作確認は未実施である。
+- 次に確認すべきこと: 通常、Shift、Alt の3ケースで長尺compositionをパンし、navigator、scrub bar、work area との同期を確認する。
+
+## 2026-08-30 - renderer state guard は観測可能な状態から小さく適用する
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/include/Render/ArtifactIRenderer.ixx`
+- 確認できた事実: Historical Plane frames の overlay は zoom / pan を変更してから手動で復元していた。`ArtifactIRenderer` は zoom / pan の getter を持つが、canvas size と external-matrices 有効状態の getter は持たない。
+- 気づき: 復元値を取得できない状態まで含めた汎用 guard を推測で追加すると、既存描画状態を逆に壊し得る。まず getter がある zoom / pan だけを RAII にして例外安全性を確保するのが安全な境界である。
+- 価値・懸念: Diligent の D3D12 / Vulkan 共通抽象の上だけで完結し、backend 固有の状態には触れない。canvas size と external matrices の完全な scope 化は getter 契約を設計した後に行う必要がある。
+- 次に確認すべきこと: Frame Debug で Historical Plane frames を描画した後の zoom / pan を確認し、external matrices / canvas size が後段の overlay に漏れないかをruntimeで検証する。
+
+## 2026-08-30 - GPU readback は用途別に分けて扱う
+
+- 関連: `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`Artifact/src/Export/ArtifactExportPreRenderPipeline.cppm`、`Artifact/src/Render/ArtifactOffscreenCompositionRenderer.cppm`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- 確認できた事実: 現行の `readbackToImage()` は主にexport / offscreen出力と明示viewport snapshot / channel表示にある。adjustment-layer fallback だけは通常描画でGPU targetを`QImage`へ戻している。
+- 気づき: すべてのreadbackを同じflagで止めると、正当なexport出力まで壊す。通常VPのfallbackだけを独立してGPU経路へ寄せる問題として切り出す必要がある。
+- 価値・懸念: 分類により高コスト箇所を狭められる一方、adjustment fallbackは互換性の責務を持つため、GPU代替の挙動と品質をruntimeで比較するまで置換できない。
+- 次に確認すべきこと: adjustment-layer fallbackの到達条件、GPUで代替可能な効果集合、D3D12/Vulkan両backendでの出力差をFrame Debugと実機で確認する。
+
+## 2026-08-30 - 操作信頼性はcommand境界とruntime受入を分離する
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`、`Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`docs/analysis/OPERATION_STATE_MAP_2026-08-30.md`
+- 確認できた事実: Particle drag、transform drag、keyframe edit、slide / ripple editは、既存のmacroまたはsnapshot commandを使い、差分がない場合のUndo pushを抑止している。
+- 気づき: 主要なUndo commandが存在することと、selection・current frame・preview cacheまで完全に復元することは別の検証項目である。静的調査は前者を示せるが後者を代替できない。
+- 価値・懸念: 新しいcommand基盤を増やさず、runtime受入で追うべき状態を絞り込める。複数選択やキャンセルの全組合せは未検証である。
+- 次に確認すべきこと: 4経路をUndo / Redo / Esc / 別pane移動 / 保存再読込で反復し、状態snapshotと目視結果を受入表へ追記する。
+
+## 2026-08-30 - Property surfaceもinput contextの正規ownerにする
+
+- 関連: `Artifact/include/Widgets/ArtifactPropertyWidget.ixx`、`Artifact/src/Widgets/ArtifactPropertyWidget.cppm`
+- 確認できた事実: Viewport、Timeline、Layer Panel、Inspectorはfocus時にInputOperator contextを設定する一方、`ArtifactPropertyWidget` には同等のfocus処理がなかった。
+- 気づき: Property Editorを独立surfaceとして扱うなら、focusだけでselectionやcompositionを変えず、入力routingを `Panel.Properties` として明示する必要がある。
+- 価値・懸念: 新規signal/slotなしで既存InputOperatorを再利用できる。子editorにfocusがある場合を含む実際のshortcut解決順はruntime未検証である。
+- 次に確認すべきこと: Property Editorの数値入力中、Viewport / Timelineへのfocus移動後、G/R/S・Undo/Redo・Escが正しいsurfaceで処理されるかを確認する。
+
+## 2026-08-30 - Dock Panel Add Menu は実装済みで検証待ち
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`、`Artifact/src/Widgets/ArtifactMenuBar.cppm`、`docs/planned/MILESTONE_DOCK_PANEL_ADD_MENU_2026-08-15.md`
+- 確認できた事実: Viewメニューのカテゴリ別追加／再表示、右上`+`、最近使用・お気に入り、アクセシビリティmetadataが実装されている。2026-08-30 時点で、`RecentDockIds`／`FavoriteDockIds` は表示タイトルを保存していたため、`ArtifactMainWindow` の ID 解決 API を介する Dock ID 保存と旧値の安全な正規化へ修正した。
+- 気づき: 文書のNot Started表記は現行コードと矛盾しており、未実装として追加変更を重ねるよりruntime受入へ移すべき状態だった。
+- 価値・懸念: 重複実装を避け、残課題を実際のdock復元・狭幅・キーボード確認に絞れる。各Dockの実機配置／保存復元は未検証である。
+- 次に確認すべきこと: closed / floating / tabbed のDockを追加・再表示し、recent/favoriteとworkspace save/reloadがDock IDで安定するか確認する。
+
+## 2026-08-30 - Modulation UIはservice境界の前にmutable routerを戻す必要がある
+
+- 関連: `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`、`Artifact/src/Service/ArtifactEffectService.cppm`、`Artifact/src/Undo/UndoManager.cppm`
+- 確認できた事実: `UndoManager::push()` はcommandの`redo()`を直ちに実行する。Property Editorのmodulation追加はrouterを直接変更してからserviceを呼んでいたため、serviceが取得するbefore snapshotがafterと同一になっていた。
+- 気づき: UIが編集用にmutable modelを一時利用する場合でも、正規serviceへ渡す前にbeforeへ復元しなければ、snapshot commandのUndo契約を破る。
+- 価値・懸念: 追加操作は既存のservice / commandを再利用した1 transactionになる。効果の編集UI全体で同じ一時変更パターンが残っていないかは未検証である。
+- 次に確認すべきこと: LFO / Random / Macroの追加でUndo / Redo、ダイアログキャンセル、source生成失敗時のrouter状態とdirty / preview通知をruntimeで確認する。
+
+## 2026-08-30 - ArtifactScriptの位置診断はmethod宣言を最小の安定アンカーにできる
+
+- 関連: `ArtifactCore/include/Script/ArtifactScript/ArtifactScript.ixx`、`ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm`、`tests/ArtifactCore/ArtifactScriptTest.cpp`
+- 確認できた事実: `ArtifactScriptHost::installCompositionApi()` はComposition API第一弾を既に登録する。パーサーはmethod宣言を行単位で読む一方、method body ASTにはstatementごとのsource locationを保持していなかった。
+- 気づき: 全ASTの位置追跡へ広げずとも、method宣言のline / columnを保存して評価器の入口でerrorを補足すれば、既存のtree-walkを壊さずに実用的な診断起点を出せる。
+- 価値・懸念: host呼出しや未知関数の失敗を該当methodへ結びつけられる。body内の正確なstatement位置、nested callの重複prefix、構文解析時の厳密な診断は未検証である。
+- 次に確認すべきこと: nested method呼出し、loop内エラー、parse失敗を含むテストを追加し、必要ならAST node単位のsource spanを別スライスとして導入する。
+
+## 2026-08-30 - Foundation拡張は集約exportと明示source manifestを同時に更新する
+
+- 関連: `ArtifactCore/include/Core/ArtifactFoundation.ixx`、`ArtifactCore/cmake/ArtifactCoreSources.cmake`、`tests/ArtifactCore/CMakeLists.txt`
+- 確認できた事実: ArtifactCoreは新規moduleを自動探索せず、明示source manifestで収集する。Foundationへのexportだけではコンパイル対象にならない。
+- 気づき: template-onlyのユーティリティでも、公開導線・module manifest・個別test targetを一つの変更単位で揃える必要がある。
+- 価値・懸念: 新型を既存Resultや所有Functionの置換なしで段階導入できる。C++20 modulesの実際のBMIスケジューリングと各test targetは未ビルドである。
+- 次に確認すべきこと: `ArtifactCore` buildと新規3 test targetを実行し、MSVCのmodule scanとborrowed callableの寿命契約を確認する。
+
+## 2026-08-30 - Noise Layer の GPU 化は接続済みで runtime parity が残る
+
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`、`docs/planned/MILESTONE_NOISE_LAYER_2026-08-24.md`
+- 確認できた事実: color mapping 無効時、Noise Layer は `ProceduralTextureComputePipeline` で RGBA16F texture を生成し、既存の texture-view sprite draw に渡す。設定署名キャッシュ、device 切替時の再初期化、生成失敗時および color mapping 時の `ImageF32x4_RGBA` fallback も実装済みである。
+- 気づき: GPU 経路を「未着手」としたまま追加実装を重ねるより、Diligent の D3D12/Vulkan 共通抽象にある既存経路を正典として、backend 出力・device reset・cache 統合の runtime 受入へ課題を絞るべきである。
+- 価値・懸念: 重複したGPU資源や同期機構を増やさずに済む。一方、GPU生成結果の実機品質・復旧・CPUとの差は未検証である。
+- 次に確認すべきこと: D3D12/Vulkan で各noise kindを表示し、設定変更・device reset後の再生成とCPU fallback出力を確認する。
+
+## 2026-08-30 - Shape Extrude はカード経路と別の mesh ownership を要する
+
+- 関連: `ArtifactCore/include/Geometry/ShapeExtrude.ixx`、`ArtifactCore/src/Geometry/ShapeExtrude.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`tests/ArtifactCore/ShapeExtrudeTest.cpp`
+- 確認できた事実: Shape Layer の3D表示は `DirectShape3DCard` が2D輪郭を受け取り `draw3DShape()` する経路で、生成 `Mesh` やmaterialを所有しない。一方 `extrudeContourMesh()` は position / normal / uv を持つ通常Meshを生成できる。
+- 変更: 閉じた矩形、bevel、不正入力時のoutput保持を `ArtifactCoreShapeExtrudeTest` の回帰対象にした。
+- 価値・懸念: 押し出し core の変更を守りつつ、既存のカード表示を退行させない。Shape→mesh 接続には3D render queueでのmesh cache・material・property/JSONの明示設計が必要であり、カード抽出へ暗黙に混ぜてはならない。
+- 次に確認すべきこと: test build後、Shape Layerの3D modeに独立したExtrude設定を導入し、通常カードとの切替、keyframe再生成、D3D12/Vulkanのmesh描画を確認する。
+
+## 2026-08-30 - Text Animator の selector combine は Layer state で明示する
+
+- 関連: `ArtifactCore/include/Text/TextAnimator.ixx`、`Artifact/src/Layer/ArtifactTextLayer.cppm`、`docs/planned/MILESTONE_TEXT_ANIMATOR_SYSTEM_2026-03-25.md`
+- 確認できた事実: Core の `AnimatorSelectorSet` と `evaluateAnimatorWeights()` は Multiply/Add/Subtract/Min/Max を実装済みだったが、Layer の `TextAnimatorState` は combine を持たず、評価時に常に Multiply を設定していた。
+- 変更: animator state に `combine` を追加し、Property `text.animators.<n>.combine`、JSON root field、評価用 selector set に接続した。旧 JSON の未指定値は Multiply に復元する。
+- 価値・懸念: 既存の Animator UI/Undo/JSON 経路をそのまま使い、selector 合成を実際のレイヤー評価へ届かせる。animator 内の複数 range/wiggly/expression selector を配列として編集する構造は別スライスである。
+- 次に確認すべきこと: 2 selectorを持つ animator の UI を導入する前に、各combine値で Range + Expression selector のweightとJSON round-tripをtestで確認する。
+
+## 2026-08-30 - Timelineの固定幅フォントはOS解決へ寄せる
+
+- **関連:** `Artifact/src/Widgets/Timeline/TimelineScaleWidget.cppm`、`Artifact/src/Widgets/Timeline/ArtifactTimeCodeWidget.cppm`、`docs/planned/MILESTONE_TIMELINE_DCC_FEEL_GAPS_2026-08-30.md`
+- **確認できた事実:** タイムラインの ruler と timecode が Windows 固有の `Consolas` を直接指定していた。`DccStyleTheme` にはフォント token がなく、そこへ広げると Core の公開型とテーマ読み込みまで変更範囲が広がる。
+- **変更:** Qt の `QFontDatabase::systemFont(QFontDatabase::FixedFont)` を使い、固定幅という表示契約を維持したままOSごとのフォント解決へ置換した。
+- **価値または懸念:** Linux/macOSを含む環境で文字幅の不一致を避けられる。一方、テーマごとにフォントを選ぶ仕様は未導入であり、必要なら別途明示的なテーマ token 設計が必要。
+- **次に確認すべきこと:** 各プラットフォームの ruler / timecode の桁幅、DPIスケーリング、フォント未提供時の代替表示をruntimeで確認する。
+
+## 2026-08-30 - Property 面の focus context は子 editor への移動を境界にしない
+
+- **関連:** `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`、`docs/planned/MILESTONE_OPERATION_RELIABILITY_DCC_2026-08-30.md`
+- **確認できた事実:** `ArtifactPropertyWidget` は focus-out で `Panel.Properties` を `Global` に戻していたが、focus の移動先が同じ面の子 editor かどうかを判定していなかった。
+- **変更:** 次の focus widget が Property 面自身またはその子孫なら context を維持し、面の外へ移った場合だけ `Global` に戻す条件を追加した。
+- **価値または懸念:** 数値欄や検索欄へ移動しただけで shortcut の入力面が失われる可能性を減らせる。他の panel の同型 focus-out、Qt の focus event 順序、子 editor 内のショートカット優先順位は未検証である。
+- **次に確認すべきこと:** Property 面内の tab 移動、別 panel への移動、Esc、G/R/S の入力先を runtime で確認する。
+
+## 2026-08-30 - 無効な layer 選択は空の解決結果を通知する
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm`、`Artifact/src/Widgets/ArtifactInspectorWidget.cppm`、`docs/planned/MILESTONE_OPERATION_RELIABILITY_DCC_2026-08-30.md`
+- **確認できた事実:** `selectLayer()` は現在 composition に存在しない ID を受けると selection manager をクリアする一方、解決済み layer がない場合に要求IDを `LayerSelectionChangedEvent` へ返していた。
+- **変更:** `resolvedCurrent` がない場合の通知IDを常に空の `LayerID` とし、selectionの実状態とイベントpayloadを一致させた。
+- **追加確認:** 同じ `LayerID` が別 composition に残る場合も、現在 composition に実在することを確認してから早期再選択するようにした。
+- **価値または懸念:** Inspectorやselection bridgeが無効な対象を保持し続ける可能性を減らせる。既存のイベント購読者が invalid reason と空IDをどう扱うか、runtimeでのcomposition切替中の競合は未検証である。
+- **次に確認すべきこと:** 存在しないID、別compositionのID、composition切替直後の選択を試し、InspectorがNoLayerになり selection manager / event payload が一致することを確認する。
+
+## 2026-08-30 - Status API は一時メッセージではなく常設値を保持できる
+
+- **関連:** `Artifact/src/Widgets/ArtifactMainWindow.cppm`、`docs/planned/MILESTONE_TIMELINE_DCC_FEEL_GAPS_2026-08-30.md`
+- **確認できた事実:** `setStatusZoomLevel()`、座標、メモリ、FPS は `QStatusBar::showMessage()` を使っていたため、別の状態更新で表示が上書きされ、常時参照できなかった。
+- **変更:** 既存の setter API とイベント経路を変えず、各値を `QStatusBar::addPermanentWidget()` の専用 `QLabel` に保持する lazy initializer を追加した。有限値でない zoom / FPS は安全な表示値へ正規化する。初期化前の setter 呼び出しや status bar 差し替え後も値を再表示できるよう、最新値と有効フラグを `Impl` に保持する。
+- **価値または懸念:** 操作中に複数の診断値を同時に読める土台ができる。現在のコードでは zoom／FPS等の供給元が限定的で、playhead・selection count・ruler unitの同期は未実装である。
+- **次に確認すべきこと:** status setterの呼び出し元を既存の controller／widget APIだけで接続できるか確認し、画面幅・focus mode・status bar差し替え時の表示をruntimeで受入する。
+
+`ArtifactStatusBar` が既に専用の permanent label を持つことも確認したため、MainWindow の fallback setter が同じ status bar 上へ重複ラベルを作らないよう、既存 label に安定した object name を付け、同名 label を再利用する境界を追加した。
+
+## 2026-08-30 - 保存確認経路は失敗理由を表示してから操作を止める
+
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactFileMenu.cppm`、`docs/planned/MILESTONE_OPERATION_RELIABILITY_DCC_2026-08-30.md`
+- **確認できた事実:** 未保存変更の保存確認で `saveToFile()` が失敗すると `false` を返して操作を中止していたが、`ArtifactProjectExporterResult::errorMessage` は表示されていなかった。
+- **変更:** 保存成功時は従来どおり続行し、失敗時は exporter のエラー理由または復旧案内を警告表示してから `false` を返すようにした。
+- **価値または懸念:** 新規作成・切替・終了・再起動が保存失敗を黙ってキャンセルしたように見える状態を減らせる。実際の exporter エラー文面とダイアログの runtime 可読性は未検証である。
+- **次に確認すべきこと:** 書き込み不可パス、空パス、validation failureで、元プロジェクトが閉じず、エラー理由と再試行手段が表示されることを確認する。
+
+## 2026-08-30 - ScrubBar の ruler 入力を WorkArea と同じ有限・非負契約へ揃える
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactTimelineScrubBar.cppm`、`docs/planned/MILESTONE_OPERATION_RELIABILITY_DCC_2026-08-30.md`
+- **確認できた事実:** `ArtifactTimelineScrubBar::setRulerPixelsPerFrame()` と `setRulerHorizontalOffset()` は、WorkArea 側と違って負数を受け入れ、非有限値では比較結果により不正値を保持し得た。
+- **変更:** 両 setter で有限値を確認し、0 未満と非有限値を 0 に正規化してから更新するようにした。
+- **価値または懸念:** navigator／zoom 同期や状態復元から不正な ruler mapping が侵入する可能性を減らせる。非有限値を受けた場合に 0（ruler無効／offset初期値）へ戻す仕様の runtime確認は未実施である。
+- **次に確認すべきこと:** ズームの最小値、ruler無効化、offset復元で handle・seek・cache range の位置が一致することを確認する。
+
+`ArtifactStatusBar` の Zoom／FPS setter も同じ診断値境界として有限値・範囲正規化を揃え、fallback の MainWindow status setter と custom status bar の入力契約を一致させた。
+
+## 2026-08-30 - MainWindow closeEvent も未保存確認の正本経路へ入れる
+
+- **関連:** `Artifact/src/Widgets/ArtifactMainWindow.cppm`、`Artifact/src/Widgets/Menu/ArtifactFileMenu.cppm`、`docs/planned/MILESTONE_OPERATION_RELIABILITY_DCC_2026-08-30.md`
+- **確認できた事実:** File Menu の終了・再起動・プロジェクト切替には未保存確認があったが、MainWindow の closeEvent は一般的な終了確認だけで、ウィンドウ close 操作から未保存変更が失われ得た。メニュー経路が `QApplication::quit()` を呼ぶため、closeEvent に同じ確認を単純追加すると二重確認になる。
+- **変更:** closeEvent に save／discard／cancel の確認と保存失敗理由表示を追加した。File Menu の終了・再起動は既存確認済み property を MainWindow に設定し、closeEvent の未保存確認だけを一度スキップする。
+- **価値または懸念:** ウィンドウ close、メニュー終了、再起動の全入口で未保存変更の保護を揃えられる。property 名の経路一致、Qt の quit→closeEvent 順序、discard 後の終了挙動は runtime 未検証である。
+- **次に確認すべきこと:** close button、File→Quit、File→Restart の各入口で dirty project を使い、Save／Discard／Cancel が一度だけ表示され、Cancel後にウィンドウが残ることを確認する。
+
+## 2026-08-30 - 非同期プロジェクト読込は最新要求の世代だけ適用する
+
+- **関連:** `Artifact/src/Project/ArtifactProjectManager.cppm`、`Artifact/src/Widgets/Menu/ArtifactFileMenu.cppm`、`docs/planned/MILESTONE_OPERATION_RELIABILITY_DCC_2026-08-30.md`
+- **確認できた事実:** `loadFromFileAsync()` は完了順だけで現在プロジェクトを置換し、複数要求を識別していなかった。後発の別ファイルを開いた後に先発の遅い読込が完了すると、古いプロジェクトが適用され得た。
+- **変更:** 新規 async/sync load、新規作成、close で進む `projectOperationGeneration_` を追加し、完了 callback と main-thread apply の双方で要求世代を照合する。古い成功・失敗結果は UI callback を実行せず破棄する。
+- **価値または懸念:** プロジェクト切替・再読込の順序が完了順に反転する可能性を抑えられる。バックグラウンド importer 自体のキャンセル、進捗表示の stale 文言、同時保存との相互作用は未検証である。
+- **次に確認すべきこと:** 大きいファイル→小さいファイルの順で連続 open、load中の新規作成／closeを行い、最後の要求だけが current project と UI に反映されることを確認する。
+
+## 2026-08-30 - 非同期保存の完了結果も project 境界を越えて適用しない
+
+- **関連:** `Artifact/src/Project/ArtifactProjectManager.cppm`、`Artifact/src/Widgets/Menu/ArtifactFileMenu.cppm`、`docs/planned/MILESTONE_OPERATION_RELIABILITY_DCC_2026-08-30.md`
+- **確認できた事実:** `saveToFileAsync()` は保存開始時の `projectPtr` を worker へ渡していたが、完了時は現在の project の path を変更し dirty を false にしていた。保存中に load／create／close／別 save が起きると、古い保存結果が新しい状態へ混入し得た。
+- **変更:** 保存要求と同期保存も `projectOperationGeneration_` を進め、完了 callback と success apply で世代および現在 `ArtifactProjectPtr` の一致を確認する。不一致の stale 結果は hook／callback／current state 更新を行わず破棄する。
+- **価値または懸念:** project切替境界で path と dirty state が古い保存に巻き戻る可能性を抑えられる。同一 project の保存中編集を検出する revision／snapshot 契約、worker中の exporter thread safety、stale progress表示は未検証である。
+- **次に確認すべきこと:** 大きな保存中の load／新規作成／別名保存を行い、最後に選択した project と path、dirty state、通知が古い完了で変化しないことを確認する。
+
+## 2026-08-30 - Timeline timecode は生成だけでなく playhead 同期まで必要
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`Artifact/src/Widgets/Timeline/ArtifactTimeCodeWidget.cppm`、`docs/planned/MILESTONE_TIMELINE_DCC_FEEL_GAPS_2026-08-30.md`
+- **確認できた事実:** `ArtifactTimeCodeWidget` は Timeline の左ヘッダーへ生成されていたが、`updateTimeCode()` の呼び出しがコードベースに存在せず、timecode と frame number は初期値から更新されなかった。
+- **変更:** 既存の全 playhead 更新が通る `setCurrentFrameForAll()` に timecode widget の更新を追加した。表示用 frame は丸めたうえで `int` の範囲へ安全に収め、新しい signal/slot は追加していない。
+- **追加変更:** `ArtifactTimeCodeWidget::setFps()` と現在 frame の保持を追加し、composition 切替時に既存 ScrubBar の正規化済み FPS を共有する。30 固定だった表示計算を実FPSへ切り替えた。
+- **価値または懸念:** scrub、keyboard、playback、curve editor、keyframe jump から同じ表示同期点へ収束でき、24/25/29.97/60fps等で frame-to-timecode 変換が実データに近づく。非整数FPSは既存の整数 FPS 表示契約に丸められる。
+- **次に確認すべきこと:** scrub の sub-frame 表示、整数 seek、playback、複数FPS、負値／長時間 frame で timecode と frame number が playhead と一致することを runtime で確認する。
+
+## 2026-08-30 - VPフレームラベルも固定幅フォントをOS解決へ揃える
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`docs/planned/MILESTONE_VP_MOTIONPATH_OVERLAY_FIXES_2026-08-30.md`
+- **確認できた事実:** モーションパスの選択／hoverフレームラベルと一部のVP HUDが `Consolas` を直接指定していた。
+- **変更:** 共通の `fixedWidthFont()` helperから `QFontDatabase::systemFont(QFontDatabase::FixedFont)` を使い、フォントサイズと描画位置を維持した。
+- **価値または懸念:** Windows固有フォントへの依存を減らせる。Diligentの描画経路やrenderer stateは変更していない。
+- **次に確認すべきこと:** VP上でラベル幅、DPIスケーリング、light/dark themeの可読性をruntime確認する。
+
+## 2026-08-30 - Motion Path キャッシュは単一スナップショットを壊さずレイヤー別に温存する
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`docs/planned/MILESTONE_VP_MOTIONPATH_OVERLAY_FIXES_2026-08-30.md`
+- **確認できた事実:** 既存の Motion Path cache は layer / frame / overlay serial を持つ単一エントリで、複数レイヤーを同じ overlay pass で処理すると前のレイヤーの結果を上書きしていた。
+- **変更:** コンポジション ID と layer ID の組み合わせごとの `QHash<QString, MotionPathCacheEntry>` を追加し、描画前に該当 layer の snapshot を復元する。適応サンプル密度に影響する zoom も cache 条件へ含めた。`invalidateMotionPathCache()` で単一・レイヤー別の両方を消去し、通常の overlay invalidation と高頻度ドラッグ中の stale データ防止を一致させた。
+- **価値または懸念:** 複数選択・layer 切替時の `getGlobalTransformAt()` 再計算を同一 invalidation 世代内で抑制でき、描画ループ後の tangent hit-test も選択 layer の snapshot を参照できる。キャッシュ値のコピーコスト、カメラ経路、実際の frame-time 改善は未検証である。
+- **次に確認すべきこと:** 複数選択で overlay pass が同一 frame に複数 layer を通ること、cache hit 時に表示と hit-test が一致すること、invalidating edit 後に再計算されることを runtime で確認する。
+
+## 2026-08-30 - 実行されない旧 Motion Path ブロックは現行経路と分離して削除できる
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`docs/planned/MILESTONE_VP_MOTIONPATH_OVERLAY_FIXES_2026-08-30.md`
+- **確認できた事実:** 描画関数内に旧 Motion Path 実装がコメントアウトされたまま残っていたが、現行の `renderMotionPathOverlayForLayer()` と `buildMotionPathSamples()` は別の実コード経路として使用されていた。
+- **変更:** コメントアウトされた旧実装だけを削除し、描画呼び出し、ProfileScope、renderer API、キャッシュ契約は変更しなかった。
+- **価値または懸念:** 二重実装の再有効化や古い Profile 名の誤参照を防ぎ、描画関数の責務を読みやすくできる。単一経路になったことのビルド・runtime確認は未実施である。
+- **次に確認すべきこと:** ビルド後に MotionPath profile が現行経路からのみ出ること、VPの見た目に差分がないことを確認する。
+
+## 2026-08-30 - タイムラインの frame grid は zoom に応じて 1/2/5 系列へ間引ける
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、`docs/planned/MILESTONE_TIMELINE_DCC_FEEL_GAPS_2026-08-30.md`
+- **確認できた事実:** 右ペインの縦 frame grid は major=10、minor=5 に固定されており、ズームアウトしても同じ密度で線を描いていた。
+- **変更:** 既存の paintEvent 内で、major 間隔を 1/2/5 系列から選び、medium=major/2、minor=major/5 として zoom に応じて間引くようにした。線の grid だけを対象にし、ruler の単位や値の変換は変更していない。
+- **価値または懸念:** 長い時間範囲を表示した際の視覚ノイズと不要な線描画を抑えられる。主要ラベルが別経路にある場合の見た目の整合、DPI、runtime性能は未検証である。
+- **次に確認すべきこと:** ppf の最小・標準・最大付近で major／medium／minor の間隔が安定し、frame seek／selection overlay とずれないことを確認する。
+
+
+## 2026-08-30 - Layer Effect トランジション追加 (Wipe / Slide / Dissolve / Zoom 13 個) を planned に起こした
+
+- 関連: docs/planned/MILESTONE_LAYER_EFFECT_WIPE_SLIDE_DISSOLVE_ZOOM_2026-08-30.md (新規), Artifact/src/Effects/LinearWipe/ (雛形), docs/planned/MILESTONE_TIMELINE_STATUS_INDEX_2026-08-30.md
+- 事実: Artifact/src/Effects/ 配下には 70+ のレイヤー effect があるも、Transitions ディレクトリ自体が存在せず、LinearWipe 1 個だけが独立ディレクトリで GPU effect として露出している。ArtifactCore/include/Video/Transitions/ には NLE 用動画トランジション 16 種が揃うも、Artifact/ からの参照は 0 件で UI 露出なし。本マイルストーンは Wipe 5 個 (RadialWipe / IrisWipe / GradientWipe / ClockWipe / BlockDissolve) と Slide/Dissolve/Zoom 8 個 (Slide / Push / SlidingDoors / CrossDissolve / DipToBlack / DipToWhite / Zoom / ZoomBoxes)、計 13 effect を LinearWipe 雛形 + 雛形からの差分のみで追加し、AE の Transitions カテゴリ 4 系統 18 個中 14 個 (Linear 既存 + 13 追加) を揃える計画。AGENTS.md「D3D12 / Diligent backend 触るときは慎重」「QImage の本流投入禁止」「QPainter::CompositionMode による合成実装禁止」「新規 signal/slot の追加禁止」を遵守し、ComputeMode::AUTO で CPU/GPU 両実装を持つパターンを雛形に固定。
+- 気づき: ユーザーは「トランジションを追加できないか」と発話したが、ArtifactCore 側 16 種 (NLE 用) は実装済みで未露出、LinearWipe は 1 個だけレイヤー effect として露出、Layer Styles 系は多く実装されているが Wipe/Slide/Dissolve/Zoom 系の露出は LinearWipe 1 個のみという状態。案の提示で A 段階 (Wipe 5 個) のみ着手する選択肢と A+B 両方を 1 milestone にまとめる選択肢があったが、ユーザは A+B を選択。LinearWipe 雛形が完全パターンとして確立されているおかげで 13 個の追加コストが「雛形 copy + shader 差分 + property 拡張」で済み、C 段階 (Layer Styles 5 個 + 3D 4 個) より低リスクで進められる構成。
+- 価値・懸念: 13 effect 追加で Inspector / Undo / JSON 連携の検証範囲が広がる。
+enderOneFrame() 経路の重さが微増するため MILESTONE_VP_TIMELINE_HOTPATH_STABILITY_2026-08-30.md Phase 3 (renderOneFrame 統合) との順序関係が要。B 段階の slide/push 系は単一 image mask ではなく 2 layer 合成の表現が必要で、ArtifactAbstractEffect::applyCPU(src, dst) の規約に合わせるため dst の alpha を 0 にして背景を露出させる形で表現する方針を Design Principles 7 に明記。
+- 次に確認: Phase 1 (RadialWipe) の雛形 copy 着手可否をユーザーに確認。AGENTS.md に従いビルド・runtime 受入れはユーザー指示待ち。着手するなら LinearWipe/ → RadialWipe/ の cppm/ixx コピー + class rename + applyCPU の中心座標+円弧判定差分 + HLSL shader 差分 + Artifact/CMakeLists.txt への GLOB/force list 追加が最小手順。
+
+## 2026-08-30 - Timeline playhead の非有限値を共有 setter 境界で止める
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`Artifact/src/Widgets/Timeline/ArtifactTimelineScrubBar.cppm`、`Artifact/src/Widgets/Timeline/ArtifactTimelineNavigatorWidget.cppm`、`Artifact/src/Widgets/Timeline/ArtifactWorkAreaControlWidget.cppm`
+- **確認できた事実:** `std::clamp` は `NaN` を自動的に除外しないため、Timeline の共有 playhead setter、ScrubBar の visual frame、Navigator、WorkArea に非有限値が入ると `NaN` を保持し得た。共有 setter ではさらに、整数 frame へ変換する前に値を収める処理が必要だった。
+- **変更:** 非有限値を 0 に戻し、共有 `setCurrentFrameForAll()` では非負かつ `int` 上限内へ正規化した。Navigator には `totalFrames - 1` の上限と total-frame 短縮時の再クランプを追加し、ScrubBar／WorkArea／右ペインと範囲外表示の契約を揃えた。WorkArea の total frames／FPS／ruler mapping も有限・非負へ正規化した。
+- **価値または懸念:** 異常な再生／同期入力が timecode、ScrubBar、Navigator、WorkArea の状態へ伝播することと、整数変換前の未定義動作を防げる。実際の異常入力発生源と runtime 表示確認は未検証である。
+- **次に確認すべきこと:** 通常の seek、sub-frame scrub、playback、composition 切替で表示が変わらないこと、および異常入力を注入した場合に playhead が 0 へ復帰することを runtime で確認する。
+
+## 2026-08-30 - 既存 selection event から status bar の選択数を更新する
+
+- **関連:** `Artifact/src/AppMain.cppm`、`Artifact/include/Widgets/ArtifactStatusBar.ixx`、`Artifact/src/Widgets/ArtifactStatusBar.cppm`、`docs/planned/MILESTONE_TIMELINE_DCC_FEEL_GAPS_2026-08-30.md`
+- **確認できた事実:** custom `ArtifactStatusBar` には Zoom／Frame／FPS／Layer などの常設項目があったが、選択数の表示項目はなく、Timeline 内部の selection summary だけが選択状態を表示していた。既存の `LayerSelectionChangedEvent` 購読では selection manager を参照できる。
+- **変更:** status bar に `Selection` item と `setSelectionCount()` を追加し、既存 selection event と composition-change event の処理時に選択集合の件数を更新する。composition が無くなった場合は 0 へ戻す。新しい signal／slot やグローバルイベント経路は追加していない。
+- **価値または懸念:** Timeline focus 外でも選択数を確認でき、選択変更後の状態フィードバックが増える。status bar の横幅、初期化直後、composition切替時の runtime 表示は未検証である。
+- **次に確認すべきこと:** 単一／複数／全解除／別 composition 切替で `SEL` が正しい件数を示し、既存の status item 表示切替と狭幅レイアウトを壊さないことを確認する。
+
+## 2026-08-30 - composition FPS の UI 変換前に有限値を確認する
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、`Artifact/src/Widgets/Timeline/ArtifactTimelineScrubBar.cppm`、`Artifact/src/Widgets/Timeline/ArtifactTimeCodeWidget.cppm`
+- **確認できた事実:** composition 切替時に `frameRate().framerate()` を直接 `int` へキャストして ScrubBar の FPS へ渡していた。異常な非有限値が入ると、整数変換前に入力契約を検査できない状態だった。
+- **変更:** 有限・正値を確認し、1〜10000 FPS に収めてから丸めるようにした。無効値は既存 UI の 30 FPS 契約へ戻す。
+- **追加変更:** TrackPainterView の keyframe 編集で散在していた FPS scale 変換も同じ helper へ統一した。
+- **価値または懸念:** timecode の除算と ScrubBar の tick 計算へ異常 FPS が伝播することを防げる。非整数 FPS を整数 UI 契約へ丸める制約と、実設定の保存／再読込は runtime 未検証である。
+- **次に確認すべきこと:** 24／25／29.97／60 FPS と無効値の composition 切替で、ScrubBar と timecode の表示・seek が一致することを確認する。
+
+## 2026-08-30 - Noise Layer の Workspace Automation を Python bridge へ露出する
+
+- **関連:** `Artifact/src/Script/ArtifactPythonHookManager.cppm`、`Artifact/include/AI/WorkspaceAutomation.ixx`、`docs/planned/MILESTONE_NOISE_LAYER_2026-08-24.md`
+- **確認できた事実:** Workspace Automation には `createNoiseLayer`／`addNoiseLayer` と kind／preset の引数契約が存在したが、`artifact.workspace` の Python 登録一覧には noise layer 用 bridge がなかった。
+- **変更:** 既存の `registerWorkspaceMethod()` を使い、両 Python 名を同じ callback に登録した。composition ID、名前、サイズ、seed、kind を既存 Automation へ渡し、結果は既存 API と同じ compact JSON で返す。
+- **価値または懸念:** Python hook／自動化から noise layer 作成を利用でき、UI／Automation／Python の作成導線が同じ責務へ収束する。Python engine の実行、引数省略、作成後の保存・再読込は未検証である。
+- **次に確認すべきこと:** `artifact.workspace.createNoiseLayer()` と `addNoiseLayer()` を current／明示 composition、各 kind、サイズ省略で呼び、成功 JSON と project round-trip を確認する。
+
+## 2026-08-30 - Noise Layer の Automation 引数を実設定へ反映する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/src/Layer/ArtifactLayerFactory.cppm`、`docs/planned/MILESTONE_NOISE_LAYER_2026-08-24.md`
+- **確認できた事実:** `WorkspaceAutomation::createNoiseLayer()` は `kind`／preset を `ArtifactNoiseLayerInitParams` へ設定していたが、手動生成した `ArtifactNoiseLayer` には seed しかコピーしていなかった。`ArtifactLayerFactory` には preset 生成と kind 設定を行う正規パターンが既にあった。
+- **変更:** Automation 側の手動生成でも、preset 時は `ProceduralTextureGenerator::makePreset()` を使い、通常 kind 時は `settings.primary.kind` を設定してから Noise Layer へ渡すようにした。
+- **価値または懸念:** Python／Workspace Automation から指定した Perlin 以外の kind と procedural preset が、実際の生成結果と保存設定へ反映される。各 kind の画素差、JSON round-trip、GPU／CPU parity は runtime 未検証である。
+- **次に確認すべきこと:** kind／preset ごとに生成後の `settings.primary` と JSON の値を確認し、保存・再読込後も指定した noise 表現が維持されることを確認する。
+
+## 2026-08-30 - workspace diagnostics の Python read-only bridge を補完する
+
+- **関連:** `Artifact/src/Script/ArtifactPythonHookManager.cppm`、`Artifact/include/AI/WorkspaceAutomation.ixx`、`docs/planned/MILESTONE_OPERATION_RELIABILITY_DCC_2026-08-30.md`
+- **確認できた事実:** `WorkspaceAutomation` には `workspaceDiagnostics()` と `agentPreflight()` があり、AI UI は C++ 側の診断を利用していたが、`artifact.workspace` の Python 登録は `agentPreflight()` のみで、診断単体の read-only 入口が欠けていた。
+- **変更:** 既存の `registerWorkspaceMethod()` パターンで `workspaceDiagnostics` を Python module に登録し、compact JSON を返すようにした。状態変更、signal／slot、イベント経路の追加は行っていない。
+- **価値または懸念:** Python hook／外部自動化が、操作後に composition state mismatch、selection、input context を単体観測できる。Python engine の実行、実際の不一致検知、長時間 hook 運用は未検証である。
+- **次に確認すべきこと:** `artifact.workspace.workspaceDiagnostics()` の返却 JSON が `operationState` と `warningCodes` を含み、agentPreflight の診断と同じ snapshot を返すことを確認する。
+
+## 2026-08-30 - Python workspace の read-only discovery surface を Automation と揃える
+
+- **関連:** `Artifact/src/Script/ArtifactPythonHookManager.cppm`、`Artifact/include/AI/WorkspaceAutomation.ixx`、`docs/planned/MILESTONE_OPERATION_RELIABILITY_DCC_2026-08-30.md`
+- **確認できた事実:** `WorkspaceAutomation::methodDescriptions()` と dispatch には agent contract、command vocabulary、selection／render queue snapshot、`get_*` の read-only alias が存在したが、Python bridge は一部の snapshot と write wrapper に限定されていた。
+- **変更:** `agentContract`、`commandVocabulary`、`selectionSnapshot`、`get_selected_layers`、`renderQueueSnapshot`、`get_render_queue_summary`、`get_project_overview`、`get_active_composition` を既存の JSON bridge へ登録した。既存の状態変更責務や signal／slot は変更していない。
+- **価値または懸念:** Python hook／外部自動化が、実行前の契約確認と実行後の selection／queue／composition 観測を同じ Automation surface で行える。Python engine の実行、API互換性、返却 JSON の実機確認は未検証である。
+- **次に確認すべきこと:** 各 `artifact.workspace` method の返却値が C++ `invokeMethod()` と一致し、`agentContract` の discovery／safe execution order を Python から取得できることを確認する。
+
+## 2026-08-30 - Python Workspace bridge の read-only／validation 欠落を機械比較で補完する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/src/Script/ArtifactPythonHookManager.cppm`、`docs/planned/MILESTONE_OPERATION_RELIABILITY_DCC_2026-08-30.md`
+- **確認できた事実:** `methodDescriptions()` には 220 件の Automation method がある一方、監査開始時の Python bridge 登録は 47 件だった。既存のC++ dispatchに存在する read-only／validation methodでも、Pythonから直接観測できないものが残っていた。
+- **変更:** 既存の `registerWorkspaceMethod()` と compact JSON変換を再利用し、viewport設定、project item／layer／effect／audio情報、render queue job照会、export形式、effect preset、playback read-only state、remove の dry-run／confirmation message、`validateCommand`／`validateViewportSettings` を追加登録した。比較後、今回選んだ候補の未登録は0件になり、Python登録は97件になった。
+- **価値または懸念:** Python hook／外部自動化が、書き込み前のvalidationと書き込み後の状態照会をC++／AI UIと同じ責務で実行できる。Python engine実行、引数JSONの不正入力、各返却値の実機互換性は未検証である。
+- **次に確認すべきこと:** Pythonから各read-only methodとvalidation methodを呼び、C++ direct invokeと同じJSON schema／error codeが返ることを確認する。
+
+## 2026-08-30 - Timeline hover は右ペインの入力・表示経路まで既に接続済み
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、`Artifact/include/Widgets/Timeline/ArtifactTimelineTrackPainterView.ixx`、`docs/planned/MILESTONE_TIMELINE_DCC_FEEL_GAPS_2026-08-30.md`
+- **確認できた事実:** 右ペインには `setMouseTracking(true)` があり、`mouseMoveEvent()` が clip／marker／keyframe area を hit-test して hover index、cursor、tooltip、dirty repaint を更新している。ドラッグ中の preview tooltip も既存経路にある。
+- **判断／変更:** hover tracking 自体を新規実装する必要はないためコード変更は行わず、マイルストーンを実装済み範囲と未検証範囲へ更新した。新しい signal／slot、QtCSS、別の hover event 経路は追加していない。
+- **価値または懸念:** 同じ課題を重複実装せず、残る空白領域 read-out、専用 edge visual、theme／DPI の runtime 受入へ焦点を絞れる。QToolTip の表示遅延や painter overlay との仕様差は未検証である。
+- **次に確認すべきこと:** runtime で marker／area／clip edge／空白領域を順に hover し、tooltip、cursor、局所再描画、Alt／slide 操作表示の期待値を確認する。
+
+## 2026-08-30 - Timeline 内部の keyframe 時間スケールも有限 FPS 境界へ揃える
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`docs/planned/MILESTONE_OPERATION_RELIABILITY_DCC_2026-08-30.md`
+- **確認できた事実:** Timeline の表示側だけでなく、keyframe snapshot 復元、layer slide、選択 keyframe の検索、curve editor の write-back、pattern／preset 生成などにも `frameRate().framerate()` の直接 `llround` が散在していた。`std::max(1.0, NaN)` は NaN を除外しない。
+- **変更:** `safeTimelineFrameRate()` と `timelineFrameRateScale()` を追加し、有限・正値・1〜10000 FPS の共通契約へ置換した。pattern の BPM は無効 FPS 時に従来の 120 BPM を維持するため 60 FPS fallback を使う。
+- **価値または懸念:** 不正な composition FPS が `RationalTime` の time scale や整数変換へ流れる経路を減らせる。実際の異常 FPS の生成・保存・再読込と runtime の keyframe 操作は未検証である。
+- **次に確認すべきこと:** 通常の 24／29.97／60 FPS と無効値で、keyframe 復元、slide、curve editor、pattern／preset、再生表示の時間位置が崩れないことを runtime で確認する。
+
+## 2026-08-30 - Property／pre-compose の FPS scale 変換も異常値を遮断する
+
+- **関連:** `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`、`Artifact/src/Widgets/ArtifactPropertyWidgetShared.cppm`、`Artifact/src/Service/ArtifactProjectService.cppm`
+- **確認できた事実:** expression の keyframe bake、共有 playback time、pre-compose の child work area 生成にも FPS の直接 `lround`／`llround` が残っていた。Property Editor 側には 30 FPS fallback が既にあり、pre-compose 側は最小 scale 1 を保証していた。
+- **変更:** 有限・正値・1〜10000 FPS を確認してから整数 scale へ変換し、無効値は各既存契約（Property／playback は 30、pre-compose は 1）を維持するようにした。必要な `<cmath>` も使用ファイルへ直接追加した。
+- **価値または懸念:** 異常な composition／playback FPS が expression bake、再生時刻、pre-compose work area の `RationalTime` に入り込む経路を減らせる。保存された不正 FPS の由来と runtime の bake／pre-compose は未検証である。
+- **次に確認すべきこと:** expression bake、再生、pre-compose を通常 FPS と無効 FPS の composition で確認し、既存の時間位置と child work area が変わらないことを確認する。
+
+## 2026-08-30 - Layer Panel／Playback Control の timecode FPS 入力を有限化する
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`、`Artifact/src/Widgets/Control/ArtifactPlaybackControlWidget.cppm`、`Artifact/src/Widgets/Control/ArtifactPlaybackControlTestWidget.cppm`
+- **確認できた事実:** Layer Panel の frame event と keyframe marker 時刻、Playback Control の timecode parser／range表示が playback service の FPS を `std::max` または無検証で利用していた。NaN は `std::max` だけでは除外できない。
+- **変更:** 各 UI ファイルに有限・正値・1〜10000 FPS のローカル helper を追加し、無効値は 30 FPS へ戻してから `RationalTime` と frame boundary に渡すようにした。
+- **価値または懸念:** 再生サービスの異常 FPS が Layer Panel の現在時刻、timecode 入力、範囲表示へ伝播することを防げる。異常値を実際に注入した runtime の表示・編集確認は未検証である。
+- **次に確認すべきこと:** 通常再生、timecode 入力、composition 切替、診断用 Playback Control で 24／29.97／60 FPS と無効値を確認する。
+
+## 2026-08-30 - Preview timer と Text／Subtitle の FPS 変換を有限化する
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`
+- **確認できた事実:** preview timer の `1000 / fps`、Text keyframe の `RationalTime`、SRT／WebVTT の integer timebase が composition FPS を直接使用していた。NaN は単純な `fps <= 0` 判定を通過し得る。
+- **変更:** preview timer は有限・正値・1〜10000 FPS を確認してから interval を計算し、Text／Subtitle は同じ範囲で安全な double／integer scale へ変換する。無効値時の既存 16ms／30 FPS fallback を維持した。
+- **価値または懸念:** 異常 FPS が preview timer の整数変換や字幕の時間基準へ伝播することを防げる。実ファイルの字幕 import／export、preview 再生、invalid FPS の runtime 受入は未検証である。
+- **次に確認すべきこと:** Text keyframe 編集と SRT／WebVTT import／export を 24／29.97／60 FPS と無効値で確認し、字幕位置と preview の応答性が変わらないことを確認する。
+
+## 2026-08-30 - Transform Gizmo の keyframe rate に有限値上限を追加する
+
+- **関連:** `Artifact/src/Widgets/Render/TransformGizmo.cppm`、`docs/planned/MILESTONE_OPERATION_RELIABILITY_DCC_2026-08-30.md`
+- **確認できた事実:** Transform Gizmo は FPS が正値ならそのまま transform keyframe の time scale に使っていたため、無限大が `RationalTime` へ入る余地があった。NaN は fallback へ落ちるが、上限はなかった。
+- **変更:** 有限・正値を確認し、1〜10000 FPS に収めてから keyframe rate として返すようにした。Diligent renderer／GPU path は変更していない。
+- **価値または懸念:** 異常な transform FPS が keyframe 時刻の time scale を壊す経路を塞げる。invalid FPS の runtime 注入と transform 編集の受入は未検証である。
+- **次に確認すべきこと:** Viewport transform の keyframe 作成・移動を通常 FPS と異常 FPS で確認し、frame position と保存結果が安定することを確認する。
+
+## 2026-08-30 - レイヤー評価と Layer Menu の FPS scale を有限化する
+
+- **関連:** `Artifact/src/Layer/ArtifactSolidImageLayer.cppm`、`Artifact/src/Layer/ArtifactShapeLayer.cppm`、`Artifact/src/Layer/ArtifactAudioLayer.cppm`、`Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm`
+- **確認できた事実:** Solid／Shape／Audio の animatable property 評価と Layer Menu の放射状 transform が composition FPS を直接 `llround` して `RationalTime` の scale にしていた。これらは通常レイヤー操作の局所経路だが、NaN／無限大が整数変換へ到達し得た。
+- **変更:** 有限・正値・1〜10000 FPS を確認してから scale 化し、無効値は既存の 30 FPS fallback へ戻すようにした。
+- **価値または懸念:** 静止画・シェイプ・音声の評価時刻とレイヤー一括変形で、異常 FPS による time scale 破壊を減らせる。各レイヤーの保存／再読込と invalid FPS の runtime 受入は未検証である。
+- **次に確認すべきこと:** 各レイヤーの animated property、current-frame preview、放射状 transform を通常 FPS と異常 FPS で確認し、keyframe の位置と undo が維持されることを確認する。
+
+## 2026-08-30 - Timeline 監査の J/K と Easy Ease 判定を現行ショートカットへ合わせる
+
+- **関連:** `docs/planned/MILESTONE_TIMELINE_DESIGN_AUDIT_2026-07-04.md`、`Artifact/include/Widgets/Timeline/ArtifactTimelineKeyBinding.ixx`、`ArtifactCore/src/UI/ShortcutBindings.cppm`、`Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- **確認できた事実:** 旧監査は J/K キーフレームジャンプを未実装、Easy Ease の速度ベース計算を未実装としていたが、現行コードには Previous／Next action、Timeline／Animation の context-safe shortcut、F9 系 shortcut、`tryComputeEasyEaseHandles()` がある。裸の J/K は Contents Viewer の shuttle／pause と競合する。
+- **判断／変更:** 既存実装を追加せず、監査表を「実装済みだが runtime 未確認」へ更新した。裸の J/K を新規上書きせず、既存の汎用変換・再生ショートカットとの整合を維持した。
+- **価値または懸念:** 未実装と誤認して重複 shortcut や競合する単一キーを追加することを防げる。modifier shortcut の実際の focus routing、F9 の各値型、Easy Ease の保存／再読込は未検証である。
+- **次に確認すべきこと:** Timeline／Animation／Contents Viewer の各 focus context で既定 shortcut を確認し、J/K の再生動作と keyframe navigation が相互に奪い合わないことを確認する。
+
+## 2026-08-30 - Transform Undo の固定 time scale を composition FPS へ戻す
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`、`ArtifactCore/src/Animation/AnimatableTransform3D.cppm`
+- **確認できた事実:** `MoveLayerCommand`、Align の復元、Viewport の Center in Comp が `RationalTime(frame, 30000)` を使っていた。`AnimatableTransform3D::setPosition()` は受け取った時刻を `toFrameCount(24)` で内部 keyframe 位置へ変換するため、30000 は composition の通常 frame scale と一致しない。
+- **変更:** 対象 composition の FPS を有限・正値・1〜10000 へ収めて time scale にし、Move／Align の Undo/Redo では Transform dirty flag／reason、既存 `changed`、既存 `LayerChangedEvent` を通知するようにした。Center in Comp も同じ scale と dirty flag を使う。
+- **価値または懸念:** 24／30／60 FPS 等で Undo/Redo や Center in Comp が別フレームへ keyframe を書く不整合を減らせる。複数選択、current frame 変更中の Undo、保存／再読込、runtime 表示更新は未検証である。
+- **次に確認すべきこと:** 24／29.97／60 FPS の composition で transform keyframe を作成し、drag／arrow nudge／Center／Align を Undo・Redo して、同じ frame の値と dirty／preview 更新が保たれることを確認する。
+
+## 2026-08-30 - SetLayerPropertyValueCommand が virtual setter を迂回していた
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`、`Artifact/src/Layer/ArtifactParticleLayer.cppm`
+- **確認できた事実:** `SetLayerPropertyValueCommand` は `getProperty()->setValue()` を直接呼んでいた。一方、Particle の `particle.emitter.*`／`particle.effectors.*` は `ArtifactParticleLayer::setLayerPropertyValue()` で実データ、frame cache、専用通知を更新する設計になっている。
+- **変更:** Undo／Redo は virtual `setLayerPropertyValue()` を先に呼び、未対応の汎用propertyだけ旧直接更新へフォールバックする共通 helperへ変更した。
+- **価値または懸念:** Particle viewport dragとProperty resetのUndo/Redoで、表示用property cacheだけが戻り実データが残る不整合を減らせる。各Particle path、通常Property reset、保存／再読込はruntime未検証である。
+- **次に確認すべきこと:** emitter位置・方向、effector位置・radiusを変更し、Undo／Redo後に実システム、Inspector、保存JSONが同じ値になることを確認する。
+
+## 2026-08-30 - Keyframe Undo command の layer ID 初期化漏れを修正する
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`Artifact/include/Undo/UndoManager.ixx`
+- **確認できた事実:** `SetLayerPropertyKeyframesCommand` は `commandType()`、`serialize()`、`deserialize()` を持つ一方、通常コンストラクタで `layerId_` を設定していなかった。そのため新規commandの `canSerialize()` が layer ID 空で失敗する。
+- **変更:** コンストラクタで対象 layer IDを保存し、serialize判定に weak pointer の有効性も加えた。
+- **価値または懸念:** keyframe編集commandがoffload／永続化対象から意図せず除外される問題を減らせる。JSON round-trip、offload閾値、Undo stack再起動復元は未検証である。
+- **次に確認すべきこと:** keyframe編集後にserialize payloadへ layer IDが入り、deserialize後の対象layer解決とUndo／Redoが成立することを確認する。
+
+## 2026-08-30 - Keyframe Undo の dirty／cache 通知を property path と揃える
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`
+- **確認できた事実:** keyframe snapshot復元と汎用property fallbackは property cache を変更した後、`changed()` のみを呼んでいた。通常の layer mutation 経路が行う dirty flag、dirty reason、`LayerChangedEvent` の通知が欠けていた。
+- **変更:** `transform.*`／`mask.*`／`source.*`／その他のproperty pathに応じて dirty flag を選ぶ共通通知を追加し、keyframe復元と直接property fallbackから利用した。
+- **価値または懸念:** Undo/Redo後に preview cache、保存対象、依存UIが古いまま残る可能性を減らせる。全property種別のdirty flag選択とruntime cache更新は未検証である。
+- **次に確認すべきこと:** transform／mask／source／effect系keyframeをUndo／Redoし、dirty state、preview再描画、保存JSON、LayerChangedEventの対象が一致することを確認する。
+
+## 2026-08-30 - Undo の保存済み判定を履歴位置の state token で管理する
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`docs/planned/MILESTONE_OPERATION_RELIABILITY_DCC_2026-08-30.md`
+- **確認できた事実:** `version_` は push 時だけ増加し、Undo／Redoでは更新されていなかった。そのため保存後に Undo してから Redo した場合や、Undo 後に別の編集を行った場合、保存済み位置と現在位置の比較が履歴状態を表さない可能性があった。
+- **変更:** Undo／Redo stack と並行する state ID を導入し、Undo は移動元 IDを Redo 側へ渡し、Redo は同じ IDを Undo 側へ戻すようにした。Undo 後の新規 push は Redo を破棄して新しい IDを割り当てる。履歴保存 JSONには現在位置を `currentVersion` として保持し、旧形式では `savedVersion` を fallback にする。
+- **価値または懸念:** `hasUnsavedChanges()` が「操作回数」ではなく履歴位置の同一性を判定でき、保存後のUndo／Redoと分岐編集の dirty 表示を安定させられる。履歴上限で古い command が破棄された場合や state ID の長期運用、runtime の保存確認は未検証である。
+- **次に確認すべきこと:** 編集→保存→Undo→Redo、編集→保存→Undo→別編集、履歴上限による古い command 破棄、saveSessionHistory/loadSessionHistory の各経路で `hasUnsavedChanges()` と保存確認が期待どおりになることを確認する。
+
+## 2026-08-30 - Layer property value Undo を session history の対象にする
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Widgets/ArtifactPropertyWidgetShared.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`
+- **確認できた事実:** `SetLayerPropertyValueCommand` は Property Editor の reset と Particle の viewport drag で使われていたが、layer IDを持たず、`commandType()`、`canSerialize()`、serialize／deserialize、factory登録もなかった。通常の Undo stack では動くが、macroの永続化・offload・session historyの再構成には参加できない状態だった。
+- **変更:** layer IDをconstructorで保持し、JSON表現可能な QVariantだけを serialize可能と判定するAPI、JSON round-trip、UndoManager factory登録を追加した。before／after値は既存の virtual `setLayerPropertyValue()` を通るため、Particleの実データ更新経路は維持している。
+- **価値または懸念:** layer property編集の履歴保持範囲を keyframe編集や他の layer command と揃えられる。QtがJSON化できない型、Particle専用型の保存表現、実際のoffload／session reloadは未検証である。
+- **次に確認すべきこと:** 数値・bool・文字列の layer property、Particle emitter／effector property、macro childについて、serialize→deserialize後の対象 layer解決と Undo／Redo結果が元の値・実データ・dirty stateに一致することを確認する。
+
+## 2026-08-30 - SetTextAnimatorStack の Undo factory 登録漏れを補完する
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`
+- **確認できた事実:** `commandType()` を持つ全 Undo command と `commandFactories_` の登録名を静的比較した結果、`SetTextAnimatorStackCommand` だけが factory未登録だった。serialize／deserialize本体は存在するため、保存データは作れても session load 時の `createCommand()` が失敗する経路があった。
+- **変更:** 既存 constructorの `beforeStack`／`afterStack`／label を空値で初期化する factoryを追加した。JSON deserializeが layer IDを解決する既存責務は変更していない。
+- **価値または懸念:** Text Animator stackのsession history再構成が他のserializable commandと同じ登録経路へ入る。stack JSONの内容検証、text layerの復元、実際のsave／loadは未検証である。
+- **次に確認すべきこと:** Text Animator編集後のmacro／offload／session historyで command typeがfactoryへ到達し、対象text layerのstackがUndo／Redoで before／afterへ戻ることを確認する。
+
+## 2026-08-30 - 通常 Property Editor の複数選択値を Undo snapshot 化する
+
+- **関連:** `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`、`Artifact/src/Widgets/ArtifactPropertyWidgetShared.cppm`、`Artifact/include/Undo/UndoManager.ixx`
+- **確認できた事実:** 通常の Property Editor 行と Channel Box は preview 中に `propertyPtr` と選択 target を直接変更し、commit 時も setter を直接呼んでいたため、複数選択を含む通常編集に before 値を持つ Undo command がなかった。
+- **変更:** 初回 preview／commit 前に各 target layer の property 値を path 別に snapshot し、commit 時は既存 `SetLayerPropertyValueCommand` を `MacroUndoCommand` にまとめて記録する callback 経路を追加した。preview の追従と virtual setter は維持している。
+- **価値または懸念:** 通常の layer property 編集を、選択レイヤー単位の before／after と一操作単位の Undo 境界へ揃えられる。keyframe mode／auto-key、キャンセル後の長時間 stale snapshot、runtime 表示更新は未検証である。
+- **次に確認すべきこと:** 単一・複数選択の数値／bool／文字列を編集し、preview→commit、slider／scrub、Undo／Redo、キャンセル後の再編集で各 layer の値と dirty 表示が一致することを確認する。
+
+## 2026-08-30 - Property keyframe action の直接変更を snapshot Undo 化する
+
+- **関連:** `Artifact/src/Widgets/ArtifactPropertyWidgetShared.cppm`、`Artifact/src/Widgets/ArtifactPropertyWidget.cppm`
+- **確認できた事実:** Property 行の全 keyframe Anchor／Color Label変更と Channel Box の Key All／Key Selected は、keyframe を直接変更していたが Undo command を作っていなかった。
+- **変更:** Anchor／Color Label は before／after keyframe sequence を `SetLayerPropertyKeyframesCommand` へ渡し、Channel Box の一括キー操作は選択 target ごとの child command を `MacroUndoCommand` にまとめた。
+- **価値または懸念:** keyframe metadata と追加操作を通常の Undo 履歴へ入れられる。`setAnimatable(true)` の flag 復元、expression bake、auto-key／keyframe mode の複合編集、runtime の selection／preview 更新は未検証である。
+- **次に確認すべきこと:** 既存 keyframe の anchor／label変更、Key All／Key Selected を Undo／Redoし、keyframe本体・animatable状態・timeline表示が一致することを確認する。
+
+## 2026-08-30 - Expression 操作の Undo 状態を分離して保存する
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Widgets/ArtifactPropertyWidget.cppm`
+- **確認できた事実:** active expression の Clear／Convert／Bake は expression または keyframe を直接更新しており、通常の Undo 履歴へ状態を登録していなかった。
+- **変更:** expression before／after を持つ `SetLayerPropertyExpressionCommand` と factory／JSON codec を追加し、Clear／Convert／Bake を既存 keyframe command と組み合わせて Undo 可能にした。
+- **価値または懸念:** expression と sampled keyframe の復元単位を明示できる。sampled value の非対応型、animatable flag、複数選択、runtime／session reload は未検証である。
+- **次に確認すべきこと:** expression Clear、Convert、Bake をそれぞれ Undo／Redoし、expression、keyframe、current frame、dirty state、timeline表示が一致することを確認する。
+
+## 2026-08-30 - Expression Copilot の確定処理を Undo 経路へ戻す
+
+- **関連:** `Artifact/src/Widgets/ArtifactPropertyWidgetShared.cppm`、`Artifact/src/Widgets/ArtifactPropertyWidget.cppm`
+- **確認できた事実:** Expression Copilot は apply callback の前に `propertyPtr->setExpression()` を直接実行していたため、Inspector の行メニュー経路だけでなく Copilot 経由の式変更も履歴から外れていた。
+- **変更:** Copilot 共通 launcher の直接更新を除去し、layer-owned の通常行・Property Widget の callback 側で before／after expression を取得して `SetLayerPropertyExpressionCommand` を push するようにした。同値入力は no-op とした。Effect-owned property は layer command の対象外なので既存の直接更新を維持した。
+- **価値または懸念:** Layer expression の確定を Clear／Convert／Bake と同じ Undo／Redo・dirty 通知経路へ揃えられる。Effect expression は従来どおり専用履歴がなく、Copilot の実画面操作、式評価エラー時の表示、session reload は未検証である。
+- **次に確認すべきこと:** 通常行と参照ドロップの両方で式を適用し、applyを連続実行した場合の履歴数、Undo／Redo、式評価結果、再読込後の復元を確認する。
+
+## 2026-08-30 - Keyframe snapshot のメタデータ復元を補強する
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Widgets/ArtifactPropertyWidget.cppm`
+- **確認できた事実:** `SetLayerPropertyKeyframesCommand` の復元は value／補間／制御点／roving までは渡していたが、Anchor と Color Label を復元・永続化していなかった。今回追加した metadata 操作では、Undo 後に見た目と内部状態が一致しない余地がある。
+- **変更:** `SetLayerPropertyKeyframesCommand` と composition resolution remap の keyframe snapshot 復元時に Anchor／Color Label を適用し、JSON codecにも roving／anchor／colorLabel を追加した。旧JSONで欠落するフィールドは既定値を使うため、形式の後方互換は維持する。
+- **価値または懸念:** Anchor／Color Label の Undo／Redo と session history が同じ keyframe 状態を扱える。JSON enum値の不正入力、実際の session reload、全 property 型は未検証である。
+- **次に確認すべきこと:** 既存 keyframe の Anchor／Color Label を変更し、Undo／Redoと履歴保存／再読込の各段階で値・metadata・Timeline表示が一致することを確認する。
+
+## 2026-08-30 - 複数選択の keyframe mirror を履歴化する
+
+- **関連:** `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`
+- **確認できた事実:** 複数選択時、Property 行の keyframe toggle／auto-key後に他の選択レイヤーへ keyframeを直接追加・削除する mirror 処理があり、対象レイヤーの変更は独立した Undo command を持っていなかった。
+- **変更:** mirror 前後の keyframe sequence を target ごとに snapshotし、変更がある場合だけ `MacroUndoCommand` と `SetLayerPropertyKeyframesCommand` を pushするようにした。
+- **価値または懸念:** mirror 対象の変更が履歴から消える問題を減らせる。primary layer の toggle command と target mirror command が完全な一つの履歴境界にはまだ統合されておらず、animatable flagも別管理していない。
+- **次に確認すべきこと:** 単一／複数選択で toggle on／off、auto-key、既存 keyframe 上書き、Undo／Redo、選択解除後の再編集を行い、全 target の keyframeと履歴単位を確認する。
+
+## 2026-08-30 - Keyframe Undo の animatable 状態も snapshot する
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Widgets/ArtifactPropertyWidget.cppm`、`Artifact/src/Widgets/ArtifactPropertyWidgetShared.cppm`
+- **確認できた事実:** keyframe を追加する操作は `setAnimatable(true)` を伴うが、`SetLayerPropertyKeyframesCommand` は keyframe 列だけを復元していた。そのため、元が非アニメーション property の Undo 後に `animatable` flagだけが残る可能性があった。
+- **変更:** command に optional な before／after `animatable` snapshot と JSON field を追加し、Property／Channel Box／Key All／Key Selected／複数選択 mirror／keyframe toggle の各経路から値を渡すようにした。通常値の macro は専用 setter 実行後の実値・実 `animatable` 状態を after として記録する。旧 command payloadでは optional fieldを適用せず、従来挙動を維持する。
+- **価値または懸念:** 新規に対象化した操作では keyframe列とアニメーション可否を同じ Undo境界で戻せる。Timeline の全編集経路、Effect-owned property、runtime／session reload は未検証である。
+- **次に確認すべきこと:** 非アニメーション propertyへ keyframeを追加・削除し、Undo／Redoと履歴保存／再読込後に `isAnimatable`、keyframe、row／Timeline表示が一致することを確認する。
+
+## 2026-08-30 - Timeline ローカル snapshot の復元状態を揃える
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`
+- **確認できた事実:** Timeline の `TimelineKeyframeSnapshotCommand` は keyframe 列を保存していたが、`animatable` と Anchor／Color Label を snapshot／restore していなかった。復元時も `changed()` のみで、keyframe cache を明示的に dirty にしていなかった。
+- **変更:** Timeline 共通 snapshot に `animatable` を加え、復元時に keyframe metadata、animatable flag、`LayerDirtyFlag::Property`、既存 `LayerChangedEvent` を適用するようにした。
+- **価値または懸念:** pattern／paste／area edit／curve editorを含む Timeline のローカル Undo でも、表示と内部 keyframe 状態の復元漏れを減らせる。通常操作直後の全キー変更経路、runtime cache、保存／再読込は未検証である。
+- **次に確認すべきこと:** 非アニメーション propertyへ Timeline からキーを生成・貼付・削除し、Undo／Redo後の `isAnimatable`、metadata、preview cache、dirty 表示が一致することを確認する。
+
+## 2026-08-30 - Keyframe Undo JSON の時刻精度を保持する
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`
+- **確認できた事実:** `SetLayerPropertyKeyframesCommand` の JSON は keyframe 時刻を `rescaledTo(30)` の frame 値だけで保存していたため、30fps以外の RationalTime を session history に出すと位置が変わり得た。
+- **変更:** JSONへ `timeValue`／`timeScale` を追加し、decodeは新形式を優先、旧 `frame` payloadは30fpsとして読む後方互換を維持した。
+- **価値または懸念:** 24／60fpsや小数fpsの keyframe Undo／Redo・session復元で時刻を正確に保持しやすくなる。実際のJSON round-tripと異常scale入力は未検証である。
+- **次に確認すべきこと:** 異なるFPSの compositionで keyframe commandを保存・再読込し、元の RationalTime と frame表示が一致することを確認する。
+
+## 2026-08-30 - Expression action の layer／effect ownership を分離する
+
+- **関連:** `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`
+- **確認できた事実:** Property Widget の active expression action と Copilot callback は layer commandを使う際、表示名から対象を推定しており、Effect-owned propertyでは layer側に存在しない pathへ no-op commandを積む余地があった。
+- **変更:** layerの実property pointerと対象 pointerが一致する場合だけ `SetLayerPropertyExpressionCommand` を生成し、それ以外は Effect-owned propertyの既存直接更新を維持した。Clear／Convert／Bakeにも同じ境界を適用した。
+- **価値または懸念:** 誤対象の Undo履歴と、見かけ上成功する no-op layer commandを減らせる。Effect-owned expression専用の永続Undo commandは未導入で、runtime確認も未実施である。
+- **次に確認すべきこと:** layer propertyとeffect propertyの両方で Copilot、Clear、Convert、Bakeを行い、履歴件数、値、式、keyframe、再読込結果を比較する。
+
+## 2026-08-30 - AI automation の直接 layer／composition mutation を Undo 境界へ接続する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`、`Artifact/src/Service/ArtifactEffectService.cppm`
+- **確認できた事実:** AI automation の代表 setter には、可視・ロック・Solo・Shy・Blend・Opacity、2D Transform、Parent、Layer／Composition Note を直接変更する経路が残っていた。Template Variation は同じ layer の Note を複数 slot 分更新するため、遅延した macro では中間状態を失う可能性があった。Effect scalar parameter もサービス内で直接変更されていた。
+- **変更:** 既存 layer state／blend／opacity command、`SetLayerPropertyValueCommand`、新規 `SetCompositionNoteCommand`、effect の `SetPropertyCommand` を利用し、同値入力を除外した。Parent／Note を汎用 layer property path として適用できるようにし、Template Variation は layer ごとの pending Note を追跡して macro child の before／after を正しく連鎖させた。
+- **価値または懸念:** AI 経由の通常編集が Undo／Redo と session history の対象へ揃い、同一 variation 内の slot 上書き事故を避けられる。Property Widget の Effect-owned 編集全体、グループ階層をまたぐ batch 移動、runtime／session reload は未検証であり、直接 setter は command の redo／fallback 内に限定して残る。
+- **次に確認すべきこと:** AI API の state／transform／parent／note／effect scalar を単独・連続・同値入力で実行し、履歴件数、Undo／Redo、dirty state、保存／再読込、同一 layer 複数 slot の最終 Note を確認する。
+
+## 2026-08-30 - AI の timing／layer create 操作を既存 command で一操作化する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`
+- **確認できた事実:** group／solid／noise の作成、指定時刻の split、ripple delete、sequential align は直接 layer list／timing を変更しており、AI経由では Undo 単位がなかった。遅延 macro を組む場合、align の次の layer は push 前の out pointを見てしまい、同じ処理内の基準時刻がずれる可能性もあった。
+- **変更:** 作成を `AddLayerCommand`、split を timing property＋`AddLayerCommand`＋index移動、ripple delete を timing property＋`RemoveLayerCommand`、sequential align を timing property macroへ接続した。align は更新後の out pointを次の基準値として保持する。direct fallback は UndoManager 不在時だけ残す。
+- **価値または懸念:** AI の非破壊編集と layer生成・削除・時間配置を一つの Undo 操作として戻せる。group move／ungroup の階層 membership・順序、runtimeでの選択／cache／保存再読込は未検証である。
+- **次に確認すべきこと:** split、ripple delete、alignを複数 layer・無効時刻・同値入力で実行し、Undo／Redo後の layer ID、index、in／out／start time、selection、dirty state を比較する。
+
+## 2026-08-30 - AI effect parameter 編集に専用の永続 Undo snapshot を追加する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Service/ArtifactEffectService.cppm`
+- **確認できた事実:** Effect scalar parameter は既存の `SetPropertyCommand` で値を保存できる一方、keyframe 列や expression は effect 所有 property の状態全体を復元する既存 command がなく、AI 経路では直接 setter が残っていた。
+- **変更:** effect keyframe 列を metadata 込みで復元する `SetEffectPropertyKeyframesCommand` と、expression を復元する `SetEffectPropertyExpressionCommand` を追加し、factory／JSON session historyへ登録した。AI の追加・削除・式変更から利用し、同値変更は履歴へ積まない。
+- **価値または懸念:** AI経由のEffect編集も scalar／keyframe／expressionをそれぞれUndo可能な境界に揃えられる。Property WidgetのEffect-owned全編集、runtime／session reload、property実装ごとのkeyframe順序は未検証である。
+- **次に確認すべきこと:** Effect parameterを異なるFPS、既存keyframe、Anchor／Color Label、expression付きで編集し、Undo／Redoとsession保存／再読込後の値・metadata・式が一致することを確認する。
+
+## 2026-08-30 - AI group hierarchy 編集を既存 command の macro に接続する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`
+- **確認できた事実:** group move／ungroup は composition の layer list と parent ID を直接変更しており、複数子の所属、groupの存在、orderを同じUndo境界で戻す経路がなかった。
+- **変更:** group moveは各対象の `layer.parent` を一つの `MacroUndoCommand` にまとめ、ungroupは子の親解除と `RemoveLayerCommand` を同じmacroへ収めた。親ID変更だけで既存のglobal orderを維持するため、従来の順序情報を別snapshotに複製せず復元できる。
+- **価値または懸念:** 階層 membershipとgroupの存在・位置を一操作としてUndo／Redoできる。選択状態、runtime cache、session reload、部分失敗時のUI受入は未検証である。
+- **次に確認すべきこと:** 複数子、既存親、空group、順序が異なるケースでmove／ungroup後にUndo／Redoし、parent ID、global order、selection、dirty stateが一致することを確認する。
+
+## 2026-08-30 - 共通ProjectServiceのlayer move／remove／duplicateをUndo境界へ揃える
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm`、`Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`
+- **確認できた事実:** AI wrapperが利用する共通ProjectServiceのlayer move／remove／duplicateは、move／removeが直接compositionを変更し、duplicateも完全な複製を作成・配置した後に履歴を作らなかった。
+- **変更:** moveは`MoveLayerIndexCommand`、removeは`RemoveLayerCommand`、duplicateは既存サービスで生成した複製layerをdetachして`AddLayerCommand`＋index移動macroへ接続した。同値移動は履歴へ積まない。
+- **価値または懸念:** AIと通常サービスのlayer list mutationが同じUndo境界へ揃う。duplicateは生成済みオブジェクトのdetach／再接続を伴うため、selectionイベントと保存時のcommand可搬性はruntime確認が必要である。
+- **次に確認すべきこと:** move／remove／duplicateを選択中・子layer・matte／parent参照付きで実行し、Undo／Redo後のlayer object、index、参照、selection、project dirty stateを比較する。
+
+## 2026-08-30 - AI一般keyframe APIをproperty snapshot Undoへ統一する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`
+- **確認できた事実:** `setKeyframe`、`batchSetKeyframes`、`deleteKeyframe` は `ArtifactTimelineKeyframeModel` を通じて直接keyframe列を変更しており、AI呼出し単位のUndo境界がなく、単発APIはcomposition FPSを使う一方、一括APIは30fps固定だった。
+- **変更:** propertyごとのbefore／after `KeyFrame`列とanimatable flagを作り、`SetLayerPropertyKeyframesCommand`（一括はmacro）へ接続した。単発keyframeのRationalTimeはcomposition FPSを保持する。
+- **価値または懸念:** AIの一般keyframe操作も既存Timeline／Property系と同じsnapshot復元経路になる。入力valueの型変換、重複時刻、runtime cache、session reloadは未検証である。
+- **次に確認すべきこと:** 24／30／60fps、既存キー上書き、複数property、削除後の最後のキーでUndo／Redoし、keyframe列、animatable、表示、保存履歴が一致することを確認する。
+
+## 2026-08-30 - AIの汎用keyframe commandとモーション生成を共通Undoへ揃える
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`
+- **確認できた事実:** CommandIR経由の`set_keyframes`／`batch_set_keyframes`は独自の直接スナップショットcommandを使っており、通常の`SetLayerPropertyKeyframesCommand`が持つmetadata復元・dirty通知・session serializationの恩恵を受けていなかった。モーションスケッチ／自動向き生成もサンプルごとに`setKeyframe`を呼び、1操作が複数Undoへ分裂していた。
+- **変更:** 汎用commandのsnapshot変換を`SetLayerPropertyKeyframesCommand`へ置き換え、Anchor／Color Label／rovingを含むkeyframeとanimatable状態を共通codecへ渡すようにした。モーション生成は入力検証後に`batchSetKeyframes`を一度だけ呼び、位置または回転キー全体を一つのUndo境界へまとめた。batch interpolationのEaseInOut／Bezier名も受け付けるようにした。
+- **価値または懸念:** AIのcommand APIと専用AI APIで履歴・復元経路が分裂しにくくなる。CommandIRの古いtimeScale省略payloadは30fps fallbackを維持し、実runtime／session reload／異常入力は未検証である。
+- **次に確認すべきこと:** 24／60fps、既存キー上書き、metadata付きキー、空／不正サンプル、Undo／Redo、session history再読込で、件数と時刻・metadata・animatableが一致することを確認する。
+
+## 2026-08-30 - AIのeffect複製を既存の追加effect Undoへ接続する
+
+- **関連:** `Artifact/src/Service/ArtifactEffectService.cppm`
+- **確認できた事実:** AIのeffect複製は複製オブジェクトを作成後、`addEffectToLayerInCurrentComposition()`で直接追加しており、同じサービスの追加・削除・有効状態変更が使うUndo境界から外れていた。
+- **変更:** 複製の追加を`addEffectToLayerWithUndo()`へ統一した。既存の複製ID／基本プロパティ生成は維持し、同じAddEffect commandでUndo／Redoできるようにした。
+- **価値または懸念:** AI経由のeffect追加系操作で履歴の責務が分裂しにくくなる。複製が全keyframe／expressionを完全コピーする仕様ではなく、runtime／session reloadは未検証である。
+- **次に確認すべきこと:** layer effectの複製を既存effect、同名effect、Rasterizer以外のpipelineで行い、ID、順序、値、Undo／Redo、保存／再読込を確認する。
+
+## 2026-08-30 - Command IR keyframe実行を一括transactionへ統一する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/src/AI/CommandIRExecutor.cppm`
+- **確認できた事実:** 外部Command IR executorの`set_keyframes`／`batch_set_keyframes`は、入力検証後も各キーを個別に`setKeyframe()`へ送り、WorkspaceAutomation側の一括Undo境界を迂回していた。WorkspaceAutomationのbatchも、property欠落や不正値を後続処理まで許す余地があった。
+- **変更:** executorは全キーを検証してから`batchSetKeyframes()`を一度だけ呼ぶようにし、結果詳細・件数・`valid`を返すようにした。WorkspaceAutomation側にも全件preflightを追加し、1件でも不正ならmutation前に拒否する。
+- **価値または懸念:** Command IRの「1 transaction・partial mutationなし」という契約に近づく。対象property setterの実行失敗やruntime cache、外部executorの全commandの実操作は未検証である。
+- **次に確認すべきこと:** 複数property、欠落property、不正frame/value、既存キー上書きで、実データが一部だけ変わらず、Undoが1回で戻ることを確認する。
+
+## 2026-08-30 - AI別名APIの入力拒否とUndo経路を補強する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/src/AI/CommandIRExecutor.cppm`
+- **確認できた事実:** 固体レイヤーのcurrent-composition別名は既存のUndo-awareな生成APIへ委譲できた一方、Command IRの空／非有限keyframe値は下位APIまで到達する余地があった。汎用property pathには`transform.opacity`の表記差もあった。
+- **変更:** 固体別名を`createSolidLayer("current", ...)`へ委譲し、Command IRとWorkspaceAutomationのkeyframe入力を空配列・非負frame・正のtimeScale・有限数値まで事前検証した。汎用property setterは`transform.opacity`を`opacity`と同じUndo経路で扱う。
+- **価値または懸念:** AI操作の入力不備による部分変更と、同じ操作の別名ごとの挙動差を減らせる。画像／SVG／音声／Text／Nullの既存作成別名は中央サービスの生成責務を保つため未変更で、runtime／session reloadは未検証である。
+- **次に確認すべきこと:** 各別名APIとCommand IRに対して、空値・NaN・無効frame、同値入力、Undo／Redo、dirty stateを実行確認する。
+
+## 2026-08-30 - AI音声編集をproperty／range snapshot Undoへ接続する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/include/Layer/ArtifactAudioLayer.ixx`、`Artifact/src/Layer/ArtifactAudioLayer.cppm`、`Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`
+- **確認できた事実:** AIのtrim、playback rate、de-click設定、de-click範囲は音声レイヤー／サービスを直接変更しており、AI呼出し単位のUndo境界がなかった。音声の`audio.*`数値propertyには既存のvirtual setter経路がある。
+- **変更:** trimとde-click設定はproperty commandのmacro、playback rateはproperty commandへ接続した。範囲列には`SetAudioDeClickRangesCommand`と音声レイヤーの正規化・マージsetterを追加し、Undo／Redo時にresampled cacheを無効化する。
+- **価値または懸念:** AI音声編集も一操作一Undo、JSON session history、cache invalidationの同じ境界へ揃えられる。通常の音声サービス呼出し、runtime／session reload、再生中cacheの受入は未検証である。
+- **次に確認すべきこと:** trim／rateの境界値、範囲の重複・逆順・空値、add／clearのUndo／Redo、dirty state、保存／再読込後の範囲列とcache更新を確認する。
+
+## 2026-08-30 - 共通layer renameを既存Undo commandへ接続する
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm`、`Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`
+- **確認できた事実:** AIが利用する共通 `renameLayerInCurrentComposition()` は、空名を拒否する以外はlayer nameを直接変更しており、既存の`RenameLayerCommand`を利用していなかった。
+- **変更:** 同値名をno-opとして除外し、UndoManagerが存在する場合は旧名／新名を保持する`RenameLayerCommand`、不在時だけ直接setterを使うfallbackへ切り替えた。
+- **価値または懸念:** AIと通常サービスのlayer renameが一回のUndo／Redoとsession historyの同じ境界へ揃う。selection、project item表示、runtime／session reloadは未検証である。
+- **次に確認すべきこと:** 通常名・同値名・前後空白・Undo／Redo、selection、Project View表示、保存／再読込後の名前を確認する。
+
+## 2026-08-30 - AI layer作成別名の成功結果を実体で検証する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/src/Service/ArtifactProjectService.cppm`
+- **確認できた事実:** 画像／SVG／音声／Text／NullのAI作成別名は共通ProjectServiceへ委譲した後、サービスの失敗や作成対象の不在を確認せず`success=true`を返していた。
+- **変更:** active compositionのlayer ID集合を作成前にsnapshotし、作成後に同じcompositionへ新規layer IDが増えた場合だけ成功と`layerId`を返す共通helperへ置き換えた。既存ProjectServiceの生成・selection責務は維持した。
+- **価値または懸念:** AI側が失敗を成功として次の操作へ進むリスクを減らせる。作成処理そのもののUndo境界、selection、runtime／session reloadは未検証である。
+- **次に確認すべきこと:** 有効／無効な画像・SVG・音声path、空project、active composition切替競合、layer ID返却、Undo／Redo、保存／再読込を確認する。
+
+## 2026-08-30 - composition renameを本体とProject ViewのUndo境界へ揃える
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm`、`Artifact/include/Service/ArtifactProjectService.ixx`、`Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`
+- **確認できた事実:** 共通 `renameComposition()` はcomposition本体とProject Viewの`CompositionItem`を直接変更していた。既存のUndoManagerには、両方の名前を一緒に戻すcommandがなかった。
+- **変更:** composition本体とproject itemを再帰的に同じ名前へ適用する`RenameCompositionCommand`をUndoManagerへ追加し、コマンドファクトリへ登録した。同値をno-op、UndoManager不在時を直接適用fallbackとした。
+- **価値または懸念:** AI／通常サービスのcomposition renameで、表示名の二重管理が一回のUndo／Redoへまとまり、履歴シリアライズ後もcomposition resolverで再接続できる。別project切替後の履歴、Project View選択、session reloadは未検証である。
+- **次に確認すべきこと:** root／nested folder内のcomposition、同値名、Undo／Redo、Project View表示、別composition切替、保存／再読込を確認する。
+
+## 2026-08-30 - 通常ProjectServiceのlayer state／parent変更を既存Undoへ接続する
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm`、`Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`
+- **確認できた事実:** 通常のProjectServiceの表示・ロック・Solo・Shy・親付け・親解除は、AI側に既存commandがあるにもかかわらず直接layer setterを呼んでいた。Solo Only／Smart Soloは複数layerを一括変更するため、単一setterだけではbefore stateをまとめて戻せない。
+- **変更:** 単一状態変更を既存の`SetLayerVisibilityCommand`／`SetLayerLockCommand`／`SetLayerSoloCommand`／`SetLayerShyCommand`へ接続した。Solo Only／Smart Soloは変更対象だけを`MacroUndoCommand`の子へ記録し、親変更にはbefore／after parent IDを保持する`ChangeLayerParentCommand`とJSON factoryを追加した。
+- **価値または懸念:** AIと通常サービスでレイヤー状態・階層変更のUndo境界が分裂しにくくなる。親レイヤー削除後の履歴、selection、runtime cache、session reloadは未検証である。
+- **次に確認すべきこと:** 表示・ロック・Solo・Shyの同値no-op、複数Solo状態、cycle拒否、parent解除、Undo／Redo、保存／再読込を確認する。
+
+## 2026-08-30 - split Undoの失敗時部分変更を抑止する
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm`
+- **確認できた事実:** `SplitLayerUndoCommand::redo()`は元layerのout pointを先に短縮してからProject取得とduplicate結果を確認していた。duplicate失敗時も`splitLayerWithUndo()`が無条件に成功を返していた。
+- **変更:** project／frame範囲／timing lockを事前確認し、duplicateが成功してtiming lockでない場合だけ元layerを短縮するよう順序を変更した。commandに成功状態を持たせ、Undo付き呼出しは結果を返す。失敗時に返されたtiming-locked duplicateはdetachして残さない。
+- **価値または懸念:** duplicate backendの失敗で元layerだけが短縮される部分変更を減らせる。`UndoManager::push()`後の失敗command保持仕様、backend例外、selection、runtime cache、session reloadは未検証である。
+- **次に確認すべきこと:** 範囲外frame、timing lock、空project、duplicate失敗、Undo／Redo、選択状態、保存／再読込を確認する。
+
+## 2026-08-30 - Project View項目の改名・移動をIDベースUndoへ接続する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/include/Service/ArtifactProjectService.ixx`、`Artifact/src/Service/ArtifactProjectService.cppm`、`Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`
+- **確認できた事実:** 非CompositionのProject View項目の改名とフォルダ移動は直接変更で、AI操作のUndo／Redo履歴から外れていた。履歴再適用時に古いraw pointerを使うと、project切替後に誤対象へ作用する危険がある。削除のsafe-write表示はUndo可能と宣言していたが、実装は所有項目を破棄するだけだった。
+- **変更:** 改名・移動を項目ID／親IDのcommandへ変更し、Undo／Redoごとに現在project treeから再解決するようにした。Composition項目の改名は既存`RenameCompositionCommand`を使う。削除とComposition削除のsafe-write `undoAvailable`はfalseへ補正した。
+- **価値または懸念:** Project ViewのAI操作で履歴境界と対象再解決の責務が明確になる。項目削除のUndo snapshot、selection、別project切替、session reloadは未検証である。
+- **次に確認すべきこと:** folder／footage／solidの改名、root／nested移動、cycle拒否、同一parent no-op、Undo／Redo、保存／再読込を確認する。
+
+## 2026-08-30 - AIフォルダ作成の成功結果を実体確認へ揃える
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`
+- **確認できた事実:** `createFolderInProject()`は戻り値を持たない`ArtifactProject::createFolder()`を呼んだ後、作成された項目を確認せず常に成功を返していた。
+- **変更:** 作成前後のProjectItem ID集合を比較し、新規項目がFolderで、指定名と親を満たす場合だけ成功を返すようにした。
+- **価値または懸念:** AIが作成失敗や別状態を成功扱いして後続操作へ進む可能性を減らせる。作成Undo、selection、session reload、runtimeは未検証である。
+- **次に確認すべきこと:** root／nested folder、同名folder、空project、作成後のID、Undo／Redo、保存／再読込を確認する。
+
+## 2026-08-30 - Project View一括改名・移動を一操作macroへ揃える
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`
+- **確認できた事実:** Project Viewの一括改名・フォルダ移動は、対象ごとのservice呼出しを繰り返すと途中失敗時にpartial mutationが残り、Undoも項目単位へ分裂し得た。
+- **変更:** 全対象を先に検証し、無効項目があれば変更を開始しないようにした。成功した改名・移動は`MacroUndoCommand`一つへまとめ、同値項目はno-opとして履歴へ積まない。
+- **価値または懸念:** AIの一括Project View操作で、部分変更とUndo境界の分裂を減らせる。項目IDのsession再解決、selection、runtime表示は未検証である。
+- **次に確認すべきこと:** 有効／無効項目の混在、同値入力、root／nested移動、cycle拒否、Undo／Redo、別project切替後の履歴復元を確認する。
+
+## 2026-08-30 - Group階層Undoの親変更を専用commandへ統一する
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/include/Undo/UndoManager.ixx`
+- **確認できた事実:** AIのgroup move／ungroupは親変更を`SetLayerPropertyValueCommand`の汎用property pathへ渡していたが、通常ProjectService側には親IDを明示的に保持する`ChangeLayerParentCommand`が存在していた。
+- **変更:** group move／ungroupのmacro childと、単一layerのAI parent setterを`ChangeLayerParentCommand`へ置き換え、old／new parent IDを`LayerID`として保存する経路へ揃えた。Ungroupではgroup削除commandを後段に残し、Undoの逆順復元を維持した。
+- **価値または懸念:** 親変更が専用のcycle-aware setterとJSON履歴境界を通り、汎用property表現との差異を減らせる。選択状態、composition order、runtime cache、session reloadは未検証である。
+- **次に確認すべきこと:** 複数子layerのmove、nested group、ungroup後のgroup再生成、Undo／Redo、selection、保存／再読込を確認する。
+
+## 2026-08-30 - 親変更Undoでもtransform変更通知を通す
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`
+- **確認できた事実:** `ChangeLayerParentCommand`は親IDを復元してUndo通知を出していたが、通常のlayer transform変更で使う既存のdirty／`LayerChangedEvent`通知経路を明示的には通していなかった。
+- **変更:** Undo／Redo後に実際のparent IDが期待値になった場合だけ、既存`notifyLayerTransformChanged()`を呼ぶようにした。無効な親IDでsetterが拒否された場合は成功通知を出さない。
+- **価値または懸念:** 親変更後のtransform系dirty状態・cache無効化・既存イベント観測を、通常の移動操作と同じ境界へ寄せられる。runtime cacheの再生成と二重changed通知の受入は未検証である。
+- **次に確認すべきこと:** parent設定／解除、cycle拒否、Undo／Redo、複数子layer、preview cache、保存／再読込を確認する。
+
+## 2026-08-30 - Timelineのplayhead分割・trimを共通Undo経路へ寄せる
+
+- **関連:** `Artifact/src/Application/ActiveContextService.cppm`、`Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/src/Service/ArtifactProjectService.cppm`
+- **確認できた事実:** Timelineのplayhead分割とActiveContextのIn／Out／Trim操作は、共通のUndo対応serviceやcommandを使わず直接layerを変更していた。AIのplayhead分割は成功判定も常にtrueだった。
+- **変更:** AIとActiveContextのplayhead分割を`splitLayerWithUndo()`へ接続し、In／Out／Trimは既存`SetLayerPropertyValueCommand`（Trim Inはmacro）へ接続した。同値・timing lockはno-opとして履歴へ積まない。UndoManager不在時も分割前後のlayer IDを比較して成功判定し、timing-lockedな複製はdetachする。
+- **価値または懸念:** UI操作とAI操作の分割・タイミング編集でUndo境界と失敗判定を共有できる。selection、current frame、cache、runtime／session reloadは未検証である。
+- **次に確認すべきこと:** playhead境界外、timing lock、In／Out／TrimのUndo／Redo、keyframed layerのretime、複数選択、保存／再読込を確認する。
+
+## 2026-08-30 - AIのWork Area／marker操作をPlaybackServiceのsnapshotへ寄せる
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/src/Service/ArtifactPlaybackService.cppm`、`Artifact/include/Undo/UndoManager.ixx`
+- **確認できた事実:** AIのIn／Out point、marker、chapter、marker clearは`ArtifactInOutPoints`を直接変更しており、既存PlaybackServiceのUndo snapshot経路を迂回していた。PlaybackServiceの一部marker操作はUndoManager不在時に無条件pushする可能性もあった。
+- **変更:** PlaybackServiceにbefore／after JSON比較を共通化し、In／Out pointとmarker系操作を`InOutPointsSnapshotCommand`へ接続した。AIはPlaybackServiceへ委譲するようにし、同値・空操作は履歴へ積まない。
+- **価値または懸念:** AIと通常Playback操作のUndo境界・JSON履歴・no-op判定が揃い、UndoManager不在時のnull pushも避けられる。Work Area本体、current frame、runtime cache、session reloadは未検証である。
+- **次に確認すべきこと:** In／Outの設定・解除、marker上書き・削除・clear、Undo／Redo、別composition切替、保存／再読込を確認する。
+
+## 2026-08-30 - レイヤー作成を初期配置込みの一操作Undoへ揃える
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm`、`Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`
+- **確認できた事実:** 共通ProjectServiceのlayer作成はProjectManagerで実体を生成した後、初期表示・時刻・選択layer基準の順序・親を直接調整していたため、AIと通常UIの作成操作がUndo履歴から外れていた。
+- **変更:** 作成後の完全なlayerを一度detachし、既存の`AddLayerCommand`、必要なindex移動、親ID変更を`MacroUndoCommand("Create Layer")`へまとめた。UndoManager不在時は従来の直接経路を維持し、detachに失敗した場合はcommandを積まない。
+- **価値または懸念:** 作成と初期配置・親付けを一回のUndo／Redo境界へ揃え、AIの成功結果確認と実体履歴の差を減らせる。selection、作成イベント、runtime cache、session reloadは未検証である。
+- **次に確認すべきこと:** image／SVG／audio／text／null／group、selected layer基準の順序、nested parent、current-frame placement、Undo／Redo、保存／再読込を確認する。
+
+## 2026-08-30 - Work Area変更を再生範囲同期付きUndoへ揃える
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/include/Service/ArtifactPlaybackService.ixx`、`Artifact/src/Service/ArtifactPlaybackService.cppm`
+- **確認できた事実:** Work Areaの開始・終了・現在frameへの移動はCompositionを直接変更し、Undo後にPlayback Engineの範囲を再同期する共通境界もなかった。
+- **変更:** `SetCompositionWorkAreaCommand`でbefore／afterの開始・終了frameを保持し、Undo／Redo時に既存`WorkAreaChangedEvent`とPlayback Engine同期を実行するようにした。同値操作はno-op、UndoManager不在時は既存の直接経路を維持する。
+- **価値または懸念:** In／Out、marker、Work Areaのタイムライン範囲操作が、UI更新と再生範囲同期を含む一操作Undoへ揃う。commandはPlaybackServiceの同期callbackを持つためsession history対象外であり、composition切替後の履歴・runtime cacheは未検証である。
+- **次に確認すべきこと:** Work Area 3操作、Undo／Redo、再生中の範囲同期、別composition切替、保存／再読込を確認する。
+
+## 2026-08-30 - Group／UngroupのUndo中に履歴を入れ子にしない
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm`
+- **確認できた事実:** `groupSelectedLayersWithUndo()` と `ungroupSelectedGroupWithUndo()` の専用commandは、UndoManagerのredo／undo中に通常のProjectService操作を呼んでいた。その操作もUndo対応済みになったため、履歴の入れ子、部分変更、成功結果の誤判定が起き得た。
+- **変更:** グループ作成はAdd／親変更、Ungroupは親解除／Removeをそれぞれ一つのmacroへ直接構成した。対象compositionと全layerを事前確認し、適用後の実体を検証する。失敗時は元の親IDへ戻し、作成されたgroupを除去する。
+- **価値または懸念:** 通常UI・Timeline・AIが同じグループ操作のUndo境界を使い、Undo中の追加履歴を避けられる。selection、order、予算超過時の全復元、runtime cache、session reloadは未検証である。
+- **次に確認すべきこと:** 複数選択、nested group、空group、失敗・予算超過、Undo／Redo、選択復元、保存／再読込を確認する。
+
+## 2026-08-30 - Group／UngroupのUndoでselection snapshotも復元する
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Service/ArtifactProjectService.cppm`
+- **確認できた事実:** group／ungroupの構造macroを一つにしても、group作成後のUndoでは削除されたgroupがselection managerのcurrent layerに残り、Redoではselectionが暗黙に戻らない余地があった。
+- **変更:** 既存`restoreLayerSelection()`を使う`LayerSelectionSnapshotCommand`を追加し、group／ungroup macroの最後にbefore／after selectionを記録した。Undoでは構造変更前、Redoではgroupまたは子layerの選択を適用する。
+- **価値または懸念:** 構造変更とselectionのUndo境界を一操作へ揃え、削除済み対象をInspectorが参照し続ける可能性を減らせる。selection managerが別compositionをactiveにしている場合、snapshotは意図的に適用しない。
+- **次に確認すべきこと:** 複数選択順、current layer、nested group、別composition切替中のUndo／Redo、保存／再読込を確認する。
+
+## 2026-08-31 - Project Viewのフォルダ作成をID保持Undoへ接続する
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/include/Service/ArtifactProjectService.ixx`、`Artifact/src/Service/ArtifactProjectService.cppm`、`Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`
+- **確認できた事実:** フォルダ作成はvoid APIを直接呼ぶだけで、AI側は作成前後のID差分を確認していたが、通常Project Viewと共通のUndo境界を持っていなかった。また同名フォルダを名前・親だけで探すと既存項目を誤認し得る。
+- **変更:** 作成前のID集合から新規Folderを特定し、`CreateProjectFolderCommand`へID・親ID・名前・tagを渡す。Undoは空フォルダだけを削除し、Redoは`addProjectItemsFromJson()`で同じIDを復元する。AIとProject Viewの両方をProjectService経由へ揃えた。
+- **価値または懸念:** 同名フォルダを誤って履歴対象にせず、フォルダ作成とRedo復元を一操作として扱える。後続項目を持つフォルダのUndoは安全のため拒否し、selection、session reload、runtimeは未検証である。
+- **次に確認すべきこと:** root／nested folder、同名既存項目、Undo／Redo、作成直後の子項目追加、保存／再読込を確認する。
+
+## 2026-08-31 - 非CompositionのProject item削除をサブツリーUndoへ接続する
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/include/Service/ArtifactProjectService.ixx`、`Artifact/src/Service/ArtifactProjectService.cppm`、`Artifact/include/AI/WorkspaceAutomation.ixx`
+- **確認できた事実:** Project item削除はCompositionのrender queue cleanupを含む専用経路と、その他の`removeItem()`直接経路に分かれていた。非Composition項目も削除後のUndo snapshotを持たず、safe-write計画は一律`undoAvailable=false`だった。
+- **変更:** Folder／Footage／Solidについて、親ID・兄弟indexとサブツリーのJSON snapshotを`RemoveProjectItemCommand`へ保存し、Undoは`addProjectItemsFromJson()`で同じIDを元位置へ復元、RedoはIDで再解決して削除する。Compositionを含むFolderは復元範囲がrender queueまで及ぶため対象外とし、snapshotがUndo単一エントリ上限を超える場合は削除前に拒否する。safe-writeのUndo可否も対象型へ合わせた。
+- **価値または懸念:** 通常のProject View／AI削除で、素材ツリーを一操作として戻せる。Composition、render queue、selection、session reload、runtimeは未検証であり、対象外項目は従来経路を維持する。
+- **次に確認すべきこと:** nested folder、sequence footage、solid、同一ID復元、Composition混在Folderの拒否、Undo／Redo、保存／再読込を確認する。
+
+## 2026-08-31 - Mask reorder commandをsession対応のsnapshotへ拡張する
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Widgets/ArtifactInspectorWidget.cppm`
+- **確認できた事実:** `MoveMaskCommand`はUndo／Redo自体は存在したが、layerをpointerだけで保持し、command type／JSON codec／factoryがなかった。またUndo／Redo中のlayer changed通知もなかった。
+- **変更:** layer IDと前後indexを保持するserialization／deserializeを追加し、履歴load時は既存`UndoManager::resolveLayer()`で再解決する。移動後に`layer->changed()`を呼ぶ。
+- **価値または懸念:** Mask reorderをsession history／offload対象へ含められ、Undo後の表示更新契約を揃えられる。maskの同一性が別操作で変わる場合、selection、runtime、session reloadは未検証である。
+- **次に確認すべきこと:** mask up／down、複数mask、Undo／Redo、履歴JSON round-trip、別操作後の再適用を確認する。
+
+## 2026-08-31 - Composition解像度Remapのsnapshotをsession codecへ接続する
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`
+- **確認できた事実:** `ChangeCompositionResolutionCommand`はmask・transform property・keyframeのbefore snapshotを保持していたが、composition ID、サイズ、policy、snapshotのJSON codec／factoryがなく、session history／offloadから外れていた。
+- **変更:** composition ID、旧／新サイズ、`RemapPolicy`、layer snapshot、mask codec、許可されたkeyframe valueをJSON化し、load時に既存composition resolverへ再接続する。unsupported valueはserializable対象から外す。
+- **価値または懸念:** 解像度変更のUndo情報をsession境界へ持ち越せる。maskの完全な入力検証、runtime remap表示、別composition、session reloadは未検証である。
+- **次に確認すべきこと:** mask／animated transform付きcomposition、各RemapPolicy、Undo／Redo、JSON round-trip、履歴load後の再適用を確認する。
+
+## 2026-08-31 - モジュレーションsnapshotのsession codec化
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Audio.Modulation.Router`
+- **確認できた事実:** effect／layerのモジュレーションUndoはsource定義とassignmentをsnapshotで保持していたが、pointer依存でJSON codec／factoryがなかった。assignmentの`targetId`は64bitで、JSON数値として扱うと精度を失う可能性がある。
+- **変更:** sourceの全設定、assignment、smoothingTimeをJSON化し、`targetId`は文字列として保存する。非有限値、重複source ID、存在しないsource参照、範囲外enumをdeserialize／serializable判定で拒否する。
+- **価値または懸念:** モジュレーション変更をsession historyへ含めても、source再構成時のIDとassignmentの対応を保持できる。音響runtime、session reload、別composition復元は未検証である。
+- **次に確認すべきこと:** LFO／ADSR／Random／Macro各source、assignmentのAdd／Multiply、64bit target ID、Undo／Redo、JSON round-trip、session再読込を確認する。
+
+補足として、Effect modulation setterのbefore／after snapshot比較も追加した。同一snapshotを受けた場合はUndo履歴・dirty通知・変更イベントを増やさず、DCC操作のno-op契約を維持する。runtime通知順序は未検証である。
+
+## 2026-08-31 - AI group操作のpartial mutation防止
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`
+- **確認できた事実:** `moveLayersToGroup()` は無効ID・自己移動・循環対象を黙ってスキップし、Undo pushが予算で拒否されても対象数を成功として返す可能性があった。`ungroupLayers()` もgroup削除や全子layerの親解除を確認せず成功を返していた。
+- **変更:** mutation前に全対象を検証し、移動後／ungroup後の親関係を検証する。適用失敗時は履歴済みならUndoし、未記録の場合は保持した旧親IDまたはgroup実体から復元する。
+- **価値または懸念:** AIの一括階層操作が部分成功を隠さず、失敗時に次の操作へ壊れた親関係を残しにくくなる。selection、order、runtime cache、session reloadは未検証である。
+- **次に確認すべきこと:** 正常な複数移動、重複ID、欠落ID、自己／循環移動、予算拒否、group内外のUndo／Redoを確認する。
+
+## 2026-08-31 - AI mutation後の実状態検証
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`
+- **確認できた事実:** AIのtransform、note、keyframe、Project View一括rename／moveはUndo commandを呼んでいても、UndoManagerの単一entry予算でpushが拒否された場合に成功を返し得た。batch macroの部分適用後も結果を確認していなかった。
+- **変更:** scalar値、keyframe存在／値、project itemの名前／親をpush後に検証する。batch失敗時は、macroが履歴に残っていればUndoし、残っていなければ保持した旧値・旧親・旧indexから復元する。
+- **価値または懸念:** API結果が実状態と一致し、予算制約やcommand適用失敗を隠さない。復元時のUI通知、selection、runtime cache、session reloadは未検証である。
+- **次に確認すべきこと:** 極小Undo予算、複数選択、keyframe既存置換、composition itemと一般assetのrename、同一parent移動、Undo／Redoを確認する。
+
+## 2026-08-31 - 共通ServiceのUndo postcondition統一
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm`、`Artifact/src/Service/ArtifactEffectService.cppm`、`Artifact/include/AI/WorkspaceAutomation.ixx`
+- **確認できた事実:** Project／Effect serviceの一部はUndo commandをpushした後、予算拒否やredo失敗を確認せず成功通知・dirty通知へ進んでいた。複製、layer／folder作成では実体を先に生成・移動するため、履歴登録失敗時にdetached objectが残る余地もあった。
+- **変更:** 既存commandのserializable／budget条件を確認してからpushし、layer／effect値、状態toggle、parent、audio range／trim、keyframe、expression、modulation、並び順、project treeをpush後に再読込する共通ヘルパーへ揃えた。作成・複製経路は失敗時に実体を元のtreeへ再接続する。
+- **価値または懸念:** APIの成功結果、Undo履歴、実データ、変更通知の乖離を減らせる。service全経路のruntime挙動、selection、通知順序、session reloadは未検証である。
+- **次に確認すべきこと:** 極小Undo予算、command適用失敗、layer複製・作成・削除、project folder作成／移動、effect scalar／modulation、audio設定のUndo／Redoと通知順序を確認する。
+
+## 2026-08-31 - session履歴とdisk offloadの破損境界を厳格化
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`docs/planned/MILESTONE_UNDO_FRAMEWORK_HARDENING.md`
+- **確認できた事実:** session historyのsave／loadは、serializable commandの空payloadや不正・未知entryを黙ってスキップし、部分的な履歴を成功として扱う余地があった。disk offloadの復元も、退避 envelopeのtype／label／estimatedBytesとwrapperの一致を確認していなかった。
+- **変更:** serializable commandのtype欠落・空payloadを保存失敗とし、load時は不正entry・復元不能command・不正versionを履歴全体の失敗として扱う。offloadのenvelopeとfactory生成commandのtypeも照合する。
+- **価値または懸念:** 履歴の欠落や別commandの誤復元を成功扱いしにくくなる。意図的に`canSerialize() == false`のcallback／selection snapshotは引き続きsession対象外で、実runtimeの破損復旧は未検証である。
+- **次に確認すべきこと:** 正常なsave／load、旧形式の`currentVersion`欠落、未知type、空payload、改変済みoffload JSON、Undo／Redoとdirty stateを確認する。
+
+補足として、退避wrapperが履歴から外れるときに対応ファイルをデストラクタで削除するようにした。budget eviction、session load、UndoManager破棄の各経路で退避ファイルが蓄積しない契約を揃えるが、権限エラーを含む実filesystem cleanupは未検証である。
+
+履歴envelopeのversion／estimatedBytes／state versionも、単なる数値変換ではなく有限・非負の整数として検証するようにした。小数や文字列を黙って切り捨てて状態ID・予算を解釈しないための境界である。
+
+keyframeの時刻・補間・制御点・metadata、mask／matte／text animator／effect maskの必須配列・オブジェクトも型検証するようにした。maskのpath数値・enum・Bezier頂点も有限値と要素数を検証する。旧keyframeのframe-only payloadは30fps fallbackで保持し、未対応のQVariantは`canSerialize()`で除外する。
+
+## 2026-08-31 - 追加codecの数値境界を厳格化
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`Artifact/include/Undo/UndoManager.ixx`
+- **確認できた事実:** Align snapshotは配列要素・座標・scaleを暗黙変換し、opacityとcomposition resolutionも文字列や小数を数値として扱える余地があった。
+- **変更:** Alignのsnapshot配列・layer ID・有限floatを検証し、旧scale欠落だけは1.0へfallbackする。opacityは有限値のみ、composition resolutionは正の整数サイズと整数RemapPolicyのみ受け入れる。
+- **追加:** session entryの`estimatedBytes`も復元後commandの実測値と照合し、サイズmetadataだけが改変された履歴を受け入れないようにした。旧形式でfieldがない場合は許容する。
+- **価値または懸念:** session／offloadから復元した履歴が、NaN相当や小数切り捨てによる座標・解像度でUndo／Redoを実行しにくくなる。runtimeのcodec受入は未検証である。
+- **次に確認すべきこと:** Alignの旧payload、新旧解像度、各RemapPolicy、opacity境界、JSON round-trip、Undo／Redoを確認する。
+
+## 2026-08-31 - 外部ファイル操作のUndo失敗を履歴へ反映
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`MoveAssetFileCommand`
+- **確認できた事実:** `UndoManager::push()`／`undo()`／`redo()` はcommandの`void`操作後に常にstackを進めるため、asset rename／moveの`QFile::rename()`失敗でも成功した履歴へ移される可能性があった。
+- **変更:** 任意commandが直前操作の成否を返す`lastOperationSucceeded()`を追加し、MoveAssetFileCommandでrename結果を記録する。失敗時はpush／undo／redoのstack位置を維持し、Macroとdisk offload wrapperも子command／復元commandの失敗を伝播する。
+- **価値または懸念:** 外部filesystemの失敗で、実ファイル状態とUndo履歴が乖離しにくくなる。既存のvoid commandは互換性のため成功既定値であり、個別の適用失敗検出は今後の対象である。
+- **次に確認すべきこと:** 同名衝突、権限拒否、欠落source、Macro内move、offload後のrename、失敗後のdirty stateと再試行を確認する。
+
+## 2026-08-31 - Asset Browserの外部操作をUndo成否へ接続
+
+- **関連:** `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`、`UndoManager::push()`、Asset Browserのrelink／delete／import
+- **確認できた事実:** Asset Browserのbatch relinkは実変更後にcommandを登録し、Undo予算でpushが拒否されても変更を残す可能性があった。deleteはredoのたびにbackupを上書きし、command破棄時のbackup cleanupもなかった。
+- **変更:** `UndoManager::push()`を成否を返すAPIへ拡張し、relink／import登録はpush失敗時に実データをrollbackする。deleteはbackupを一度だけ作成して再利用し、copy失敗時の部分ファイルを掃除し、destructorでbackupを削除する。batch relinkはfile／layerの適用失敗とpush拒否をrollbackする。
+- **価値または懸念:** 外部filesystem／project registryとUndo stackの乖離を減らし、削除用backupが履歴操作後に蓄積しにくくなる。実runtimeの権限・同名・サービス失敗は未検証である。
+- **次に確認すべきこと:** relink／delete／importの同名衝突、権限拒否、欠落ファイル、Undo予算拒否、Macro／redo／manager破棄後のfilesystemとproject treeを確認する。
+
+## 2026-08-31 - Undo push拒否をpostconditionより先に扱う
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx`、`Artifact/src/Service/ArtifactProjectService.cppm`、`Artifact/src/Service/ArtifactEffectService.cppm`
+- **確認できた事実:** 共通`pushUndoCommandAndVerify()`と一部のAI／ProjectService経路は、`UndoManager::push()`の失敗後もpostconditionや前回のoperation outcomeを評価していた。事前に実体を生成・変更する経路では、履歴へ登録できなくても成功を返す余地があった。
+- **変更:** `push()`のbool結果をpostcondition評価前に確認し、keyframe、batch、layer／effect、folder、precompose／ungroup操作で履歴登録失敗を即時失敗として返す。project item削除は先行する直接削除をやめ、既存`RemoveProjectItemCommand`に実行を委譲した。
+- **価値または懸念:** Undo履歴・実状態・API結果の三者が、budget拒否や初回redo失敗で食い違いにくくなる。runtime、selection、通知順序、session reloadは未検証である。
+- **次に確認すべきこと:** 極小Undo予算、初回redo失敗、folder／effect／precompose／ungroupの成功・拒否、失敗直後のdirty stateと再試行を確認する。
+
+## 2026-08-31 - Preview編集をUndo push拒否から復元
+
+- **関連:** `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`、`Artifact/src/Widgets/ArtifactPropertyWidgetShared.cppm`、`Artifact/src/Widgets/ArtifactTimelineWidget.cppm`
+- **確認できた事実:** Property／Channel BoxとTimelineの一部操作は、値やkeyframeを先に直接変更してからUndo commandをpushしていたため、Undo予算拒否時に実状態だけが残り、通知・selection・成功表示が先へ進む余地があった。
+- **変更:** Property側はkeyframe列、animatable、Anchor、Color Label、Expression、Text Animator、opacityのbefore snapshotを保持し、push拒否時に復元する。Timeline側もkeyframe／curve／trajectory／fringe／area value／pasteを復元し、ripple／slide／easingのcommand-only操作はpush結果だけを成功扱いにする。
+- **価値または懸念:** 履歴へ登録できない操作が編集結果だけを残す不整合を減らし、失敗時の再描画・成功メッセージを実状態に合わせられる。selection、cache、dirty state、実runtimeの極小Undo予算受入は未検証である。
+- **次に確認すべきこと:** Property／Timelineのpreview→commit、keyframe metadata、curve selection、ripple／paste、Undo予算拒否、失敗後の再試行とsession reloadを確認する。
+
+## 2026-08-31 - TimelineTrackPainterViewの選択編集を同じ失敗境界へ統合
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、Timelineのkeyframe range／drag／curve／context menu
+- **確認できた事実:** 選択keyframeの反転・削除・値・Anchor・Color Label・範囲変換・ドラッグ・接線・重複整理・ソーステキストは、編集後にUndo commandをpushする経路があり、budget拒否時に編集結果だけが残る可能性があった。
+- **変更:** 共通rollback helperでbefore keyframe snapshotを復元し、選択も戻す。補間・roving・ripple・slideはcommand-onlyのpush結果を件数、通知、成功表示へ伝播する。
+- **価値または懸念:** Timelineの主要なkeyframe編集で、履歴のない変更や誤った成功通知を減らせる。runtime、極小Undo予算、selection、dirty／cache受入は未検証である。
+- **次に確認すべきこと:** range／drag／curve／context menu各操作のpush拒否、metadata保持、selection復元、Undo／Redo、失敗後の再試行とsession reloadを確認する。
+
+## 2026-08-31 - PlaybackとMotion Sketchの先行変更を復元
+
+- **関連:** `Artifact/src/Service/ArtifactPlaybackService.cppm`、`Artifact/src/Service/ArtifactPlaybackShortcuts.cppm`、`Artifact/src/Application/ActiveContextService.cppm`、`Artifact/src/Tool/ArtifactMotionSketchTool.cppm`
+- **確認できた事実:** in/out point・marker・Motion Sketchは実状態を先に変更してからUndo commandを登録する経路があり、push拒否時に変更だけが残る可能性があった。ActiveContextのtrim系はcommand push結果を見ずに成功ログを続けていた。
+- **変更:** InOutPointsはbefore JSONへ、Motion Sketchはbefore position snapshotへ復元し、ActiveContextのlayer in/out／trimはpush拒否時に処理を中断する。
+- **価値または懸念:** playback範囲・marker・motion pathの実状態とUndo履歴・成功通知がbudget拒否で乖離しにくくなる。runtime、playback engine同期、極小Undo予算は未検証である。
+- **次に確認すべきこと:** marker／in-out／trim／motion sketchの拒否、Undo／Redo、engine frame range同期、dirty state、失敗後の再試行を確認する。
+
+## 2026-08-31 - Project Viewとsource/effect commandのpush結果を伝播
+
+- **関連:** `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`、`Artifact/src/Service/ArtifactProjectService.cppm`
+- **確認できた事実:** composition resolution remap、source relink／localize、composition effect追加はcommand-onlyのUndo pushを呼ぶが、拒否時も後続処理や成功結果へ進む経路が残っていた。
+- **変更:** pushのbool結果を確認し、拒否時は警告・処理結果・project mutation通知へ進まないようにした。
+- **価値または懸念:** resolution／source／effectの実状態と履歴・dirty通知の乖離を減らせる。runtime、composition／render cache、極小Undo予算は未検証である。
+- **次に確認すべきこと:** resolution policy、source path衝突・権限、effect追加のbudget拒否、dirty state、Undo／Redoを確認する。
+
+## 2026-08-31 - InspectorとTimeline左ペインのUndo拒否境界を統一
+
+- **関連:** `Artifact/src/Widgets/ArtifactInspectorWidget.cppm`、`Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`
+- **確認できた事実:** Inspectorのmatte／mask／effect mask／Surface FXとTimeline左ペインのvariant／状態列／mask削除／layer移動は、command-onlyのpush拒否後も再描画・成功扱いへ進む経路があり、mask presetとmask削除は実状態を先に変更していた。
+- **変更:** push結果を確認して更新処理を止め、mask presetは`MaskEditCommand`へ接続した。先行変更するmask削除はbefore snapshotへ復元し、Surface FXの選択indexもpush拒否時に戻す。
+- **価値または懸念:** matte・mask・effect mask・layer stateとUndo履歴、selection表示の乖離を減らせる。runtime、極小Undo予算、dirty／cache同期は未検証である。
+- **次に確認すべきこと:** mask preset／削除、matte drag、effect mask画像、Surface FX、複数選択macroのpush拒否、Undo／Redo、selection復元、再試行を確認する。
+
+## 2026-08-31 - Render Layer Widget v2のdrag commitを復元可能化
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactRenderLayerWidgetv2.cppm`、mask／polygon／parametric shape editing
+- **確認できた事実:** mask path、custom polygon、corner radius、star inner radiusはドラッグ中に実状態を変更し、release時にUndo commandをpushしていたため、push拒否時に編集だけが残る可能性があった。
+- **変更:** mask／polygon／corner radius／star inner radiusのpush結果を確認し、拒否時は保持していたbefore geometryへ戻す。
+- **価値または懸念:** render editingとUndo履歴の乖離を減らせる。maskの要素追加・削除を伴う構造変更、runtime、render cacheは未検証である。
+- **次に確認すべきこと:** mask path drag、polygon／tangent drag、corner／star dragの極小Undo予算、Undo／Redo、dirty state、render cache同期を確認する。
+
+## 2026-08-31 - Layer Menuの整列系先行変更をUndo拒否から復元
+
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm`、`Artifact/src/Service/ArtifactProjectService.cppm`
+- **確認できた事実:** 整列・分布・spacing・衝突解消はレイヤーのposition／scaleを先に書き換えてから`AlignLayersUndoCommand`をpushしていたため、拒否時に編集だけ残る可能性があった。layer作成macroもpush結果をpostconditionへ明示的に反映していなかった。
+- **変更:** 既存`AlignLayerSnapshot`のbefore位置／scaleを使う復元ヘルパーを追加し、4操作のpush拒否時に復元する。layer作成macroは`pushed`を検証結果へ含める。
+- **価値または懸念:** 複数レイヤーの配置実値とUndo履歴の乖離を減らせる。runtime、selection、dirty／cache同期は未検証である。
+- **次に確認すべきこと:** 整列／分布／衝突解消の極小Undo予算、Undo／Redo、選択保持、失敗後の再試行を確認する。
+
+## 2026-08-31 - Viewport transform系のUndo拒否復元を拡張
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/TransformGizmo.cppm`、`Artifact/src/Widgets/Render/ArtifactRenderLayerWidgetv2.cppm`
+- **確認できた事実:** viewportの3D／2D transform、anchor、複数選択transform、motion path、shape path、live field、camera POI、corner radiusは先に実状態を変更してからUndo commandをpushする経路が残っていた。
+- **変更:** 既存before snapshotと既存適用関数でpush拒否時に状態を復元し、失敗時のpublish／成功扱いを抑制した。shape path／operator変換とLayer Editorのpath transactionも同じ境界へ接続した。
+- **価値または懸念:** viewport編集とUndo履歴・通知・render dirtyの乖離を減らせる。runtime、極小Undo予算、selection／cache同期は未検証である。
+- **次に確認すべきこと:** multi-transform、anchor、motion path、shape conversion、operator stack、POI、corner radiusの拒否、Undo／Redo、selection復元、再試行を確認する。
+
+## 2026-08-31 - Rigとマスク一括操作のUndo拒否復元
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、Rig編集、mask編集、Puppet pin
+- **確認できた事実:** Rigの骨／制御点／ウェイト／ポーズと、選択レイヤーへのmask一括操作は実状態を先に変更してからUndo commandをpushし、拒否時にも変更・通知・選択更新を残す経路があった。mask色変更はtransaction開始なしでUndoへ接続されていなかった。
+- **変更:** push結果を確認し、拒否時はRig snapshot、Puppet pin、line endpoint、mask全体を復元する。複数レイヤーmask macroもbefore snapshotを保持して全対象をrollbackし、mask色変更を`MaskEditCommand`へ接続した。
+- **価値または懸念:** Rig／mask編集の実状態、Undo履歴、失敗結果の乖離を減らせる。runtime、極小Undo予算、selection／cache、Puppet deform同期は未検証である。
+- **次に確認すべきこと:** Rig drag／weight／pose、mask一括delete／toggle／reorder／geometry、Puppet pin、line endpointのpush拒否、Undo／Redo、失敗後の再試行を確認する。
+
+## 2026-08-31 - Dock layout snapshotのUndo拒否復元
+
+- **関連:** `Artifact/src/Widgets/ArtifactMainWindow.cppm`、Dock layout snapshot
+- **確認できた事実:** Dock layoutは画面状態を先に変更した後でsnapshot commandをpushするため、Undo予算拒否時に変更後レイアウトだけが残る可能性があった。
+- **変更:** snapshot pushのbool結果を確認し、拒否時は既存の`restoreDockManagerState()`で変更前状態へ戻す。
+- **価値または懸念:** Dock配置と履歴の乖離を減らせる。runtime、QADS backend差、dock状態のselection／cacheは未検証である。
+- **次に確認すべきこと:** dock移動・浮動化・閉じる／再表示、Undo予算拒否、Undo／Redo、アプリ再起動後のlayout復元を確認する。
+
+## 2026-08-31 - Text editorのAnimator snapshot復元
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、inline text editor
+- **確認できた事実:** Text editorはAnimator stackを直接更新した後で`SetTextAnimatorStackCommand`をpushしており、履歴登録拒否時にstackだけ残る可能性があった。
+- **変更:** command pushの失敗時に既存の`restoreTextAnimatorStack()`で変更前snapshotへ戻す。通常のstyle編集経路は今回の対象外とした。
+- **価値または懸念:** Animator stackとUndo履歴の部分的な乖離を減らせる。style項目全体の一操作Undo、runtime、極小Undo予算は未検証である。
+- **次に確認すべきこと:** Animator count／preset、style同時変更、push拒否、Undo／Redo、editor再open後のstack表示を確認する。
+
+## 2026-08-31 - Particle viewport dragのUndo拒否復元
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`、particle emitter／effector drag
+- **確認できた事実:** Particleのemitter位置・方向、effector位置・影響半径はdrag中に実体を更新し、release時にproperty commandをpushするため、登録拒否時にdrag結果だけが残る可能性があった。
+- **変更:** emitter／effectorのbefore値へ戻すrollbackを、4つのrelease commitへ追加した。
+- **価値または懸念:** Particle viewport操作とUndo履歴の乖離を減らせる。runtime、particle cache／simulation同期、極小Undo予算は未検証である。
+- **次に確認すべきこと:** emitter／direction／effector／radius dragの拒否、Undo／Redo、再生中のsimulation再同期を確認する。
+
+## 2026-08-31 - Composition Render Widgetのlayer nudge通知整合
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`、layer drag／arrow-key nudge
+- **確認できた事実:** realtime dragは一度beforeへ戻してから`MoveLayerCommand`をpushする構造だったが、push拒否でも最終変更通知を出していた。arrow-key nudgeもcommand-onlyのpush結果を見ずにchanged通知を出していた。
+- **変更:** push成功時だけ最終通知を出すようにした。push拒否時はdragがbefore位置のまま残る既存構造を維持する。
+- **価値または懸念:** viewportのlayer位置、履歴、変更通知の整合を高める。runtime、selection、cache、極小Undo予算は未検証である。
+- **次に確認すべきこと:** drag／arrow nudgeの拒否、通知回数、Undo／Redo、selectionとrender cache同期を確認する。
+
+## 2026-08-31 - Composition Editorの安全削除結果伝播
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、Safe Delete Layers
+- **確認できた事実:** Safe DeleteはRemoveLayer macroのpush結果を確認せず、Undo登録拒否後もselection clearと削除完了ダイアログを進めていた。
+- **変更:** macro pushが失敗した場合はselectionと完了表示を変更せず、処理を終了する。
+- **価値または懸念:** UI上の完了表示とUndo履歴の状態を一致させる。runtime、削除対象の依存関係、selection復元、極小Undo予算は未検証である。
+- **次に確認すべきこと:** Safe Deleteのpush拒否、RemoveLayer macroの部分失敗、Undo／Redo、selection保持を確認する。
+
+## 2026-08-31 - Layer Menuの作成・方針変更をUndo境界へ統合
+
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm`、Quick Layer、cache policy、proxy quality
+- **確認できた事実:** Quick Layerは生成済みlayerを一度compositionから外してmacroへ再包装するため、push拒否時にlayerが消える可能性があった。cache policyとproxy qualityは直接setterで変更し、履歴へ登録していなかった。
+- **変更:** Quick Layerのpush拒否時は元indexへlayerを復元し、cache policy／proxy qualityは既存`SetLayerPropertyValueCommand`へ接続した。
+- **価値または懸念:** Layer Menuの作成・表示方針変更で実体とUndo履歴が乖離しにくくなる。runtime、selection、proxy/cache同期、極小Undo予算は未検証である。
+- **次に確認すべきこと:** Quick Layerのmask／envelope／配置、cache policy、proxy qualityの拒否、Undo／Redo、selection保持を確認する。
+
+## 2026-08-31 - Composition Editorの一括タイミング操作とPaste復元
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、Paste Layers、Sequence Layers、Match Layer Duration、Center Layer
+- **確認できた事実:** Paste Layersは既存レイヤーを一時的にcompositionから外してからUndo macroへ再包装していたため、push拒否時に貼り付け済みレイヤーが消える余地があった。また、一括Sequence／Match DurationとCenter Layerは実状態を直接変更するだけで、同じ操作単位のUndo境界がなかった。
+- **変更:** Pasteのpush拒否時にレイヤーを元indexへ戻し、Sequence／Match Durationを既存`LayoutSnapshotCommand`へ接続して拒否時はbefore snapshotへ戻す。Center Layerは既存`MoveLayerCommand`へ接続し、cleanup候補のbool APIもpush結果を返すようにした。マスク単発編集はUndo commit成功後にだけ変更通知を発行する順序へ揃えた。
+- **価値または懸念:** 貼り付け・タイミング一括編集・中央配置の実状態とUndo履歴を一致させやすくする。Paste後のselection、timeline cache、runtime、極小Undo予算での実動作は未検証である。
+- **次に確認すべきこと:** Pasteの複数レイヤー順序・親／matte参照、Sequence／Match DurationのUndo／Redo、Center Layerのkeyframe時刻とselection保持を確認する。
+
+## 2026-08-31 - Pen確定とPending Maskの失敗境界
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、Pen tool、Shape Path、矩形／楕円mask
+- **確認できた事実:** Shape Path確定は直接pathを更新して通知していた。Pending MaskはUndo commit前にpending stateを消していたため、登録拒否後の再試行状態を失う余地があった。閉じパス・segment挿入・矩形maskもcommit前通知が残っていた。
+- **変更:** Shape Pathを`ShapePathVertexEditCommand`へ接続し、2頂点以上のpathを保持する。Pending Maskはcommit成功後にpending stateを消去し、閉じパス・矩形maskの通知をcommit成功後へ移動した。segment挿入はrelease時のcommit結果だけを通知する。
+- **価値または懸念:** Pen編集の実状態・Undo履歴・失敗後の再試行を一致させやすくする。path／mask cache、selection、runtime、極小Undo予算は未検証である。
+- **次に確認すべきこと:** Shape Pathの2／3頂点、Pending Maskの拒否後再試行、閉じパス、segment挿入、矩形／楕円maskのUndo／Redoを確認する。
+
+## 2026-08-31 - 一括編集の失敗表示整合
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、Auto Stagger／Adaptive Text Fit／Quick Replace Sources
+- **確認できた事実:** これらの一括操作はcommand-onlyで実体を先に変更しないため、Undo push拒否時に状態が残る問題はなかったが、戻り値を無視して後続の完了処理へ進む経路があった。
+- **変更:** push結果を確認し、失敗時は成功後の案内を出さず、操作を中断して失敗メッセージを表示するようにした。
+- **価値または懸念:** 実状態・Undo履歴・UI結果表示の不一致を減らせる。runtime、極小Undo予算、ダイアログ連続操作は未検証である。
+- **次に確認すべきこと:** 各一括操作のpush拒否、通常成功時の完了表示、Undo／Redoを確認する。
+
+## 2026-08-31 - 複数選択レイヤー順序の一操作化
+
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm`、Bring／Send layer order actions
+- **確認できた事実:** 複数選択の前後移動・最前面／最背面移動が個別commandを順番にpushしており、Undoが複数エントリへ分裂していた。初期indexをそのまま再利用するため、複数選択の相対順序が反転し得た。
+- **変更:** 現在順序をシミュレーションし、実行時点の旧indexを持つ既存`MoveLayerIndexCommand`を一つの`MacroUndoCommand`へまとめた。操作方向ごとに安全な適用順を選び、無効indexは除外する。command自身も移動後indexを検証し、macroへ失敗を伝播する。
+- **追加確認:** 共通の`AnimationLayerStackSnapshotCommand`と`LayoutSnapshotCommand`も復元後のsnapshot／callback結果を`lastOperationSucceeded()`へ返すようにし、初回redo失敗をUndoManagerが見逃さないようにした。復元callbackが部分変更して失敗した場合は、逆snapshotを補償適用してから失敗を返す。
+- **価値または懸念:** 複数選択の順序保持と一操作Undoを同時に扱える。runtime、selection、部分的なlayer移動失敗、保存／再読込後の順序は未検証である。
+- **次に確認すべきこと:** 非連続／連続選択での4操作、Undo／Redo、最上段・最下段混在、selection保持を確認する。
+
+## 2026-08-31 - Property commandの適用失敗伝播
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、layer／effect property command
+- **確認できた事実:** layer property valueのvirtual setter、layer／effectのkeyframe・expression復元は失敗可能な対象解決やproperty lookupの結果をcommandの成功状態へ返していなかった。
+- **変更:** 既存のbool setter／property存在確認を`lastOperationSucceeded()`へ伝播し、対象消失・不正propertyの初回redoやmacro内復元をUndoManagerが検知できるようにした。
+- **価値または懸念:** stale layer／effectに対して履歴だけ進む状態を抑えられる。keyframe setter内部の要素単位失敗、runtime、session reloadは未検証である。
+- **次に確認すべきこと:** layer／effect propertyのUndo／Redo、対象削除後の履歴、macro部分失敗、通知とdirty stateを確認する。
+
+## 2026-08-31 - Text commandの適用失敗伝播
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、Text Layer／Text Animator
+- **確認できた事実:** Text Layerの`text.value`復元とText Animator stack復元は、対象消失や対象型不一致をvoid適用として扱い、UndoManagerへ成功状態を返していなかった。
+- **変更:** 既存`setLayerPropertyValue()`のbool結果と`ArtifactTextLayer`へのdynamic cast結果を`lastOperationSucceeded()`へ伝播した。
+- **価値または懸念:** stale layerやText以外のlayerに対して履歴だけ進む状態を抑えられる。Animator内部JSONの妥当性、runtime、session reloadは未検証である。
+- **次に確認すべきこと:** Text LayerのUndo／Redo、対象削除後、Text Animatorの対象型不一致、macro部分失敗を確認する。
+
+## 2026-08-31 - 残存Undo commandの状態検証
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、layer／mask／matte／modulation command
+- **確認できた事実:** mask、matte、de-click、effect mask、source置換、modulation、layer追加／削除、visibility／lock／solo／shy／blend、rename／parentのcommandは、対象消失やsetter拒否を成功として扱う余地があった。
+- **変更:** 既存のbool戻り値、getterによる適用後検証、compositionのcontains判定、modulation snapshotの比較を`lastOperationSucceeded()`へ接続し、失敗時の変更通知を抑制した。追加／削除は挿入・除去後の存在状態も検証する。
+- **価値または懸念:** stale対象や部分的なsnapshot適用で履歴・UIだけが進む状態を抑えられる。mask／matteの要素内容、setter内部の副作用、runtime、session reloadは未検証である。
+- **次に確認すべきこと:** 各commandの初回redo、Undo／Redo、macro部分失敗、対象削除後、selection・dirty・cache同期を確認する。
+
+## 2026-08-31 - 残存Undo commandとProject itemの失敗伝播
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、整列／opacity／Variant／Project item／in-out／work area
+- **確認できた事実:** 整列は複数対象を順に適用し、途中の対象消失やsetter不成立を検知せず通知していた。Project item、in/out、work area、Variantもvoid適用や存在確認なしで履歴操作が成功扱いになり得た。
+- **変更:** 整列は全対象をpreflightし、各layerの位置・scaleを検証、失敗時は適用済み分を逆snapshotへ戻す。opacity／Variant／Project item／in-out／work areaは対象、getter、JSON、親・存在状態を`lastOperationSucceeded()`へ伝播した。
+- **価値または懸念:** 一括編集の部分適用とProject Viewの履歴・実体の乖離を抑える。opacityはanimation／variant／modulationの評価値が絡むため対象存在までをcommand内の保証とし、外側のpostconditionに委ねた。runtime、session reload、同期callbackの実動作は未検証である。
+- **次に確認すべきこと:** 整列の途中失敗rollback、Variant境界、Project itemの親・兄弟順、in/out・work areaの正規化、Undo／Redoとmacro伝播を確認する。
+
+## 2026-08-31 - Resolution Remapの復元結果伝播
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`ChangeCompositionResolutionCommand`
+- **確認できた事実:** resolution remapのundo／redoはcompositionやlayerが消えていても処理を打ち切るだけで、サイズ・mask・transform snapshotの復元結果を履歴状態へ返していなかった。
+- **変更:** undo／redo前に全snapshot layerをpreflightし、サイズ適用後の一致、mask数、復元対象propertyとkeyframe数を確認する。redo失敗時は旧サイズとbefore snapshotへ戻す。
+- **価値または懸念:** remapの部分復元を成功扱いしにくくする。mask要素内容・keyframe値の完全比較、runtime、session reloadは未検証である。
+- **次に確認すべきこと:** 異なるaspect比、mask／animated transform、対象layer消失、redo失敗後の再undoを確認する。
+
+## 2026-08-31 - Source localization callbackの結果伝播
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Service/ArtifactProjectService.cppm`
+- **確認できた事実:** Localize／RelinkのUndo callbackはasset APIのbool結果を捨ててvoid callbackとして実行していたため、asset managerの失敗でも履歴pushが成功扱いになり得た。
+- **変更:** callbackをbool型へ揃え、対象layerのlock失敗または`localizeSourceIdentity()`／`relinkSourceIdentityToShared()`のfalseを`lastOperationSucceeded()`へ返す。成功時だけ変更通知を行う。
+- **価値または懸念:** source identityの実体と履歴・ProjectService結果を一致させやすくする。外部asset managerの権限・同名・filesystem状態、runtime、session reloadは未検証である。
+- **次に確認すべきこと:** Localize／Relinkのasset拒否、対象消失、Undo／Redo、push予算拒否、source cache同期を確認する。
+
+## 2026-08-31 - Undo復元の部分適用補償
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、mask／property／Text Animator／Layout command
+- **確認できた事実:** mask復元は要素数不一致でも適用済み内容を残す可能性があり、property setter／keyframe／expressionとText Animator stackはsetter呼出しだけで完全適用を確認していなかった。Layout snapshotはrestore callback失敗時にも変更通知を発行していた。
+- **変更:** mask、matte、Text Animator、keyframe、value、expressionは適用後のgetter／snapshotを確認し、不一致時は直前スナップショットへ戻してfalseを返す。Layoutは成功時だけ変更通知を発行する。Add／Remove Layerの参照復元・解除とselection復元結果も成功状態へ反映した。
+- **価値または懸念:** Undo履歴の失敗だけでなく、部分的に残る実データ変更を抑えやすくする。setter内部の副作用、選択APIの一部適用、runtime、session reloadは未検証である。
+- **次に確認すべきこと:** mask要素追加失敗、keyframe metadata不一致、Text Animator型不一致、Layout callback失敗、Remove Layerのselection復元失敗後の再Undoを確認する。
+
+## 2026-08-31 - Layer関係復元とEffect scalarの検証境界
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、Add／Remove Layer、`SetPropertyCommand`
+- **確認できた事実:** Add／Remove Layerは本体の追加・削除後にmatte／parent／selectionを復元するため、依存関係の復元失敗を本体成功として履歴へ残す余地があった。Effect scalarは対象存在だけを確認し、editable propertyのsetter拒否を検証していなかった。
+- **変更:** Add／Remove Layerで関係状態を事前snapshotし、本体追加／削除後の参照・親・selectionの復元／解除結果を集約する。依存状態の不一致時は本体と関係状態を操作前へ補償し、成功通知を抑制する。Effectの既存editable propertyは適用後の値を比較し、不一致時に旧値へ戻す。custom Effect固有setterはAPI契約を推測せず対象存在判定を維持した。
+- **価値または懸念:** レイヤー構造の一部だけが変わった状態と、Effect propertyのsetter拒否をUndo成功と扱いにくくする。構造操作全体の失敗時rollback、custom Effect固有値、runtime、session reloadは未検証である。
+- **次に確認すべきこと:** Add／Removeの参照復元失敗時の再試行、editable／custom EffectのUndo／Redo、selection・dirty・cache同期を確認する。
+
+## 2026-08-31 - Stateful Variant commandの永続化境界
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`CreateVariantCommand`、Undo offload／session history
+- **確認できた事実:** `CreateVariantCommand`はUndo時に抽出した`LayerVariant`を`unique_ptr`で保持し、Redoはその実体を再挿入する。一方、既存JSONはlayer ID・name・indexしか保存せず、offload後の復元commandは抽出済みVariantを持たない。
+- **変更:** Variant本体を完全に表す既存の公開snapshot／再構成契約がないため、`CreateVariantCommand::canSerialize()`をfalseにしてsession historyとoffloadから除外した。通常session内のUndo／Redo経路は維持する。
+- **価値または懸念:** offload後Redoで別のVariantを生成する誤動作を防ぐ。Variantの完全な永続化は未実装で、runtime、session reloadは未検証である。
+- **次に確認すべきこと:** Variantのoverride／transform／active indexを含む正式なsnapshot APIを設計レビュー後に検討する。
+
+## 2026-08-31 - Session historyのversion順序検証
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`UndoManager::loadSessionHistory()`
+- **確認できた事実:** 履歴envelopeの`savedVersion`と`currentVersion`はいずれも非負整数として検証されていたが、保存済み位置が現在位置より後にある不正な組み合わせを受け入れていた。
+- **変更:** `savedVersion <= currentVersion`をload境界で必須にし、dirty判定とstate ID再構成が逆転した履歴を取り込まないようにした。
+- **価値または懸念:** 壊れた履歴metadataによるdirty表示・Undo位置の逆転を抑えられる。実ファイル破損、異なるprojectとの取り違え、runtime reloadは未検証である。
+- **次に確認すべきこと:** 保存位置へのUndo、Redo後保存、破損envelope、別project履歴の拒否を確認する。
+
+## 2026-08-31 - History envelopeの保存・load対称性
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`saveSessionHistory()`、`OffloadedUndoCommand`
+- **確認できた事実:** load側にはtype／labelの長さ制限と、estimatedBytesを`qint64`として扱う境界があったが、save／offload側は同じ入力制限を先に検証していなかった。
+- **変更:** save／offload前にもtype 256文字、label 4096文字、estimatedBytesのqint64範囲を検証し、保存直後にloadできないenvelopeを生成しにくくした。
+- **価値または懸念:** session historyとdisk offloadのcodec契約を対称化できる。ファイル権限、破損payload、runtime復元は未検証である。
+- **次に確認すべきこと:** 境界長のlabel／type、最大サイズ近辺のcommand、save→loadとoffload→Undo／Redoを確認する。
+
+## 2026-08-31 - History envelopeの型と再構成値の照合
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`loadSessionHistory()`
+- **確認できた事実:** load側は`toString()`でtype／labelを読み取っていたため、JSON型そのものの不一致を明示的に拒否していなかった。また、保存時のlabelとfactory再構成後のcommand labelを照合していなかった。
+- **変更:** type／labelがJSON stringであること、再構成後のlabelがenvelopeと一致すること、estimatedBytesの比較前にsize_tからqint64への変換範囲内であることを検証する。
+- **価値または懸念:** 履歴表示だけを改変したpayloadや、整数幅をまたぐcommandサイズを取り込まない。旧形式でlabelが欠落する履歴は互換性影響を受けるため、現行save形式の契約として扱う。
+- **次に確認すべきこと:** save→load、label改変、type／label型改変、estimatedBytes境界の拒否をruntimeで確認する。
+
+## 2026-08-31 - JSON整数のqint64境界
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`jsonInteger()`、session／offload codec
+- **確認できた事実:** 有限な整数かどうかだけを検証すると、JSONのdouble表現でqint64範囲外の値が`toInteger()`へ渡る可能性がある。
+- **変更:** 共通整数decoderでqint64の下限以上・上限未満を検証してから変換する。
+- **価値または懸念:** version、index、estimatedBytesなどの履歴metadataで暗黙の丸め・clampに依存しない。JSONの整数表現自体がdoubleであるため、qint64最大値近辺の保存互換性は未検証である。
+- **次に確認すべきこと:** qint64境界直前、上限値、上限超過、小数、指数表記をruntimeで確認する。
+
+## 2026-08-31 - Text GizmoのローカルUndo command失敗伝播
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactTextGizmo.cppm`、`SetTextAnimatorPropertyCommand`
+- **確認できた事実:** Text Gizmoの単一Animator値commandは`lastOperationSucceeded()`を実装せず、property setterの失敗や対象消失でもUndoManagerの既定値trueを返していた。
+- **変更:** setterのbool結果と適用後valueを検証し、不一致時は直前valueへ戻して失敗を返す。成功時だけ変更通知を出す。
+- **価値または懸念:** ドラッグ中の先行変更が履歴登録失敗後に残る状態を抑えられる。Animator固有setterの副作用とruntimeのUI復元は未検証である。
+- **次に確認すべきこと:** Text Animatorの値変更、対象消失、無効path、極小Undo予算でのドラッグ終了をruntimeで確認する。
+
+## 2026-08-31 - ProjectService内ローカルcommandの失敗状態
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm`、precompose／effect／group／split Undo command
+- **確認できた事実:** service wrapperが`UndoManager::push()`の結果を確認していても、内部commandが失敗時にbaseの既定値trueを返すと、失敗操作が履歴へ残り得た。
+- **変更:** precompose、unprecompose、layer／composition effect、group／ungroup、splitのcommandに成功状態を追加し、既存serviceのbool結果または適用後存在確認を履歴へ伝播する。effectのremove APIも対象存在と削除後状態を検証する。
+- **価値または懸念:** 対象消失・無効なeffect・初回redo失敗を、UndoManagerが成功操作として保持しにくくなる。group／precomposeの複雑な途中状態、selection、runtime復元は未検証である。
+- **次に確認すべきこと:** effect追加／削除／移動、group／ungroup、precompose、splitの対象消失とUndo予算拒否をruntimeで確認する。
+
+## 2026-08-31 - Timeline local commandの復元失敗伝播
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、ripple trim／delete、slide、interpolation
+- **確認できた事実:** Timelineのローカルcommandは適用関数のbool結果やsnapshot restoreの失敗を保持せず、対象消失時にもUndoManagerの既定成功値を返していた。
+- **変更:** layer snapshot restoreをbool化し、ripple／slide／interpolation commandが対象存在・復元結果・適用関数結果を`lastOperationSucceeded()`へ返す。interpolationは全対象をpreflightしてから適用する。
+- **価値または懸念:** 対象消失や部分的な復元不能を履歴成功として進めにくくなる。keyframe値・metadataの完全一致と途中setter失敗時の全体補償は未検証である。
+- **次に確認すべきこと:** ripple／slide／interpolationのUndo／Redo、layer削除後、timing lock、極小Undo予算をruntimeで確認する。
+
+## 2026-08-31 - Render Controllerローカルcommandの失敗状態
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、Gizmo／Rig／Puppet／Anchor／Shape corner radius／Motion Path／Live Field command
+- **確認できた事実:** Render Controller内のローカルcommandには、対象消失や型不一致時に`UndoCommand`既定の成功状態を返し、変更通知だけを発行するものが残っていた。
+- **変更:** 3D／2D Gizmo、複数選択Gizmo、Rigの骨・制御値・ウェイト・ポーズ、Puppet pin、Anchor、Shape corner radius、Motion Path、Live Fieldで適用結果をbool化し、対象不在・型不一致・主要getter不一致を`lastOperationSucceeded()`へ伝播する。成功時だけ変更通知を発行する。
+- **価値または懸念:** 対象消失やsetter拒否をUndo成功として扱いにくくする。Gizmoの全transform metadata、Puppet内部のpin存在・deform結果、複数対象の途中失敗補償、runtimeは未検証である。
+- **次に確認すべきこと:** 3D／2D Gizmo、Rig／Puppet、Anchor、corner radiusの対象消失・Undo予算拒否・keyframe metadata・deform同期をruntimeで確認する。
+
+## 2026-08-31 - Command Paletteマスク復元の成功状態
+
+- **関連:** `Artifact/src/Widgets/CommandPalette/ArtifactCommandPaletteWidget.cppm`、`AddCommandPaletteMaskCommand`
+- **確認できた事実:** Command Paletteのマスクsnapshot commandはlayer不在や追加後のmask数不一致を`UndoCommand`既定の成功状態として扱っていた。
+- **変更:** 適用をbool化し、対象不在・復元後mask数不一致を`lastOperationSucceeded()`へ伝播する。
+- **価値または懸念:** マスク要素の内容比較や途中追加失敗の全体補償は未実装・未検証である。
+- **次に確認すべきこと:** Command Paletteのマスク追加、対象消失、極小Undo予算、path内容の復元をruntimeで確認する。
+
+## 2026-08-31 - UndoManager初回redo失敗時の共通補償
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`UndoManager::push()`
+- **確認できた事実:** `push()`は初回`redo()`の`lastOperationSucceeded()==false`を検出しても、commandを破棄するだけで逆操作を実行していなかった。setter後のgetter不一致や複数対象の途中失敗では、履歴に入らない部分変更が残る可能性があった。
+- **変更:** 初回redo失敗時に`cmd->undo()`を一度実行してからfalseを返し、履歴へ登録されない操作の部分適用を共通境界で補償する。
+- **価値または懸念:** 個別commandの補償漏れを減らす。逆操作自体の失敗、非対称な外部I/O、複雑なmacro、runtimeは未検証である。
+- **次に確認すべきこと:** 初回redoの対象消失・setter拒否・複数対象途中失敗・Undo予算拒否で、状態・selection・dirty・cacheが変化しないことをruntimeで確認する。
+
+## 2026-08-31 - Undo／Redo失敗時の対称補償とMacro境界
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`MacroUndoCommand`、`UndoManager::undo()`／`redo()`
+- **確認できた事実:** 初回pushだけでなく、履歴上のundo／redoが部分適用後に失敗した場合も、失敗した状態を逆方向へ戻す共通処理がなかった。Macroは自身の失敗子と既適用子を補償するため、上位からさらに逆適用すると二重補償になる。
+- **変更:** Macroは失敗した子を逆方向へ補償してから既適用子を戻す。UndoManagerは非Macro commandの失敗undo／redoを逆操作で補償し、push時はMacroへの二重undoを避ける。
+- **価値または懸念:** 履歴移動失敗時に実データが履歴状態から外れる可能性を抑える。逆操作自体の失敗、外部ファイルI/O、非対称command、selection・cache・dirtyのruntimeは未検証である。
+- **次に確認すべきこと:** 個別command／Macroの初回push、undo失敗、redo失敗、途中子失敗で、スタック位置とプロジェクト状態が一致することをruntimeで確認する。
+
+## 2026-08-31 - Command-only呼び出し側の結果伝播
+
+- **関連:** `Artifact/src/Asset/AssetDirectoryModel.cppm`、`Artifact/src/Widgets/Menu/ArtifactAnimationMenu.cppm`
+- **確認できた事実:** Asset dropは`MoveAssetFileCommand`のpush結果を見ずにfilesystem状態だけで移動成功を判定していた。Audio Reactive bindingの追加／削除もUndoManagerが拒否した場合にtrueを返していた。
+- **変更:** Asset dropはpush成功後だけ移動済みとしてモデル更新し、Audio Reactive bindingの追加／削除はmanagerのpush結果をそのまま返す。
+- **価値または懸念:** Undo履歴に登録できなかったcommand-only操作を呼び出し側が成功扱いしにくくする。filesystem race、UI表示、runtimeは未検証である。
+- **次に確認すべきこと:** Asset dropの権限／重複先、binding操作のUndo予算拒否、dirty・表示更新をruntimeで確認する。
+
+
+## 2026-08-31 - Audio Reactive command-only結果の伝播
+
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactAnimationMenu.cppm`、Audio Reactive bake／record commit
+- **確認できた事実:** bake／record commitはUndoManagerのpush結果を無視して成功メッセージやtrueを返していた。
+- **変更:** managerがある場合はpush結果、managerがない場合はcommandの`lastOperationSucceeded()`を返し、失敗時は成功案内へ進まない。
+- **価値または懸念:** 履歴登録失敗とAudio Reactive UIの成功結果が食い違いにくくなる。recording state、音響結果、runtimeは未検証である。
+- **次に確認すべきこと:** bake／record commitのUndo予算拒否、対象消失、部分keyframe適用、成功メッセージ表示をruntimeで確認する。
+
+## 2026-08-31 - Audio Mixer routing失敗時のUI同期
+
+- **関連:** `Artifact/src/Widgets/ArtifactCompositionAudioMixerWidget.cppm`、advanced routing callback
+- **確認できた事実:** routing editor終了後は、Audio Mixer snapshot commandのpush結果に関係なくcomposition changedとcompact surface refreshを進めていた。
+- **変更:** callbackのpush結果を保持し、失敗時はcurrent graphを再表示してdirty／成功状態を確定せず警告する。
+- **価値または懸念:** Undo履歴へ登録できなかったrouting変更を成功更新として扱いにくくなる。外部AudioMixer widgetの先行変更補償とruntimeは未検証である。
+- **次に確認すべきこと:** routing変更の予算拒否、snapshot不一致、dialog cancel、再表示とdirty状態をruntimeで確認する。
+
+## 2026-08-31 - Template importのUndo transaction境界
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`importDroppedTemplate()`
+- **確認できた事実:** template importは生成した各layerを個別に`push()`していたため、複数layerの途中で予算拒否やredo失敗が起きると、templateが部分的にだけ挿入される可能性があった。
+- **変更:** instantiate済みlayerを1つの`MacroUndoCommand`へまとめ、template単位で初回redo・失敗補償・Undo境界を揃える。
+- **価値または懸念:** template importを部分的な複数履歴ではなく一操作として扱える。layer順序、selection、template内参照、runtimeは未検証である。
+- **次に確認すべきこと:** 複数layer templateのUndo／Redo、途中layer不正、Undo予算拒否、selection・parent／matte参照をruntimeで確認する。
+
+## 2026-08-31 - Nested Macroの補償責務
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`MacroUndoCommand`
+- **確認できた事実:** Macroの失敗子を外側Macroが常に逆適用すると、内側Macroが既に実行した失敗補償をさらに反転し、履歴状態から外れる可能性があった。
+- **変更:** `handlesFailedOperationCompensation()` を導入し、Macroの入れ子では内側の補償責務を外側が二重実行しないようにした。Undo／Redo両方向で同じ契約を使う。
+- **価値または懸念:** template importのようなMacro利用箇所を含め、失敗時の状態復元がMacro階層で一度だけ行われる。逆操作失敗とruntimeは未検証である。
+- **次に確認すべきこと:** nested Macroの初回redo、子undo失敗、子redo失敗、Undo／Redo stack位置をruntimeで確認する。
+
+## 2026-08-31 - Animation Layer commandのmanager不在経路
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、Animation Layer context menu
+- **確認できた事実:** Animation Layer操作は一度afterへ変更した後にbeforeへ戻してcommandをpushしていたが、UndoManagerが存在しない場合はafterを再適用せず、操作が失われていた。
+- **変更:** snapshot commit helperを追加し、managerがある場合はpush結果を確認し、無い場合はafter snapshotを直接復元する。push拒否時はbeforeへ戻す。
+- **価値または懸念:** Undo基盤の有無で操作結果が消える不整合を減らす。Animation Layer snapshotの完全内容、selection、runtimeは未検証である。
+- **次に確認すべきこと:** add／remove／bakeのmanager不在、Undo予算拒否、Undo／Redo、selection・dirty・cacheをruntimeで確認する。
+
+## 2026-08-31 - Composition Editor layer commandのnull安全化
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、layer visibility／lock／solo／shy／center
+- **確認できた事実:** context menuとlayer操作面の一部が`UndoManager::instance()`を無条件参照していた。
+- **変更:** 変更前に実体を触らない既存command経路を維持したまま、UndoManagerが利用できない場合は操作を安全に中断するnull-safe guardを追加した。
+- **価値または懸念:** 履歴基盤の初期化前にメニュー操作がクラッシュする可能性を下げる。manager不在時の代替編集は意図的に追加していないため、操作は適用されない。
+- **次に確認すべきこと:** editor初期化順序、manager不在、push拒否、メニュー再表示をruntimeで確認する。
+
+## 2026-08-31 - Editor／Render WidgetのUndoManager不在経路
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`
+- **確認できた事実:** Paste LayersとComposition CleanupはUndoManagerを無条件参照していた。Render Widgetのドラッグ確定は先にリアルタイム移動を戻してからpushするため、manager不在時はクラッシュし、編集結果も失われる構造だった。
+- **変更:** Paste／Cleanupはmanager不在時に安全に失敗を返す。Render Widgetはmanager不在時に確定差分を直接再適用し、通常の変更通知へ進める。
+- **価値または懸念:** 初期化順序によるクラッシュとドラッグ編集の消失を抑える。manager不在時はPaste／Cleanupを適用しない方針で、runtimeは未検証である。
+- **次に確認すべきこと:** manager不在・push拒否・ドラッグキャンセル、Pasteのselection／index、Cleanupのlayer lockをruntimeで確認する。
+
+## 2026-08-31 - Asset／Playback snapshotのmanager不在経路
+
+- **関連:** `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`、`Artifact/src/Service/ArtifactPlaybackShortcuts.cppm`
+- **確認できた事実:** Asset relink／import登録とPlayback marker fallbackは先に実体を変更してからUndoManagerへpushしており、manager不在時に無条件参照してクラッシュする可能性があった。
+- **変更:** push前にmanagerの存在を確認し、manager不在またはpush拒否時は既存のrelink／project／marker rollbackへ入るようにした。
+- **価値または懸念:** 履歴基盤未初期化時のクラッシュと、先行変更を履歴なしで残す可能性を抑える。filesystem競合、marker復元、runtimeは未検証である。
+- **次に確認すべきこと:** import／single relink／batch relink、marker追加・削除・全消去のmanager不在・push拒否・dirty・表示更新をruntimeで確認する。
+
+## 2026-08-31 - Layer Menuのnull-safe command入口
+
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm`、visibility／lock／solo／shy／mask-to-shape
+- **確認できた事実:** Layer Menuの一部command入口がUndoManagerを無条件参照しており、履歴基盤の初期化順序によってクラッシュし得た。
+- **変更:** 実体を先行変更しない既存command経路を維持したまま、UndoManagerが存在する場合だけpushするguardを追加した。
+- **価値または懸念:** 未初期化時のクラッシュを避ける。manager不在時は操作を適用しないため、fallback編集はruntime設計確認が必要である。
+- **次に確認すべきこと:** toggle各種、mask-to-shape、manager初期化前のメニュー操作、push拒否時の再表示をruntimeで確認する。
+
+## 2026-08-31 - Particle Render Widgetのdrag rollback整合性
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`、particle emitter／effector drag commit
+- **確認できた事実:** particle drag確定はUndoManagerを無条件参照していた。またEffector位置のpush拒否rollbackがEmitterの開始位置を使い、Influence Radiusには誤った開始値名を参照していた。
+- **変更:** emitter／direction／effector／radius dragのpushをmanager存在時だけ実行し、Effector rollbackをEffector開始値へ修正した。keyboard nudgeもnull-safe化した。
+- **価値または懸念:** manager不在時のクラッシュと、push拒否時に別の粒子要素へ戻してしまう不整合を抑える。particle property setterとcache同期はruntime未検証である。
+- **次に確認すべきこと:** emitter／effector／radiusのdrag、Undo予算拒否、manager不在、再描画・粒子cacheをruntimeで確認する。
+
+## 2026-08-31 - EditorのText／Timeline／Center command入口
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、Text編集、Sequence／Match Duration、Center Layer
+- **確認できた事実:** これらの一部command入口がUndoManagerを無条件参照していた。Sequence／Matchは先行してtimeline stateを変更してからpushしていた。
+- **変更:** Text／Centerはmanager不在時に安全に失敗し、Sequence／Matchはmanagerが存在する場合だけpushし、push拒否時のbefore復元を維持する。
+- **価値または懸念:** 履歴基盤未初期化時のクラッシュを避け、先行変更のrollback契約を保持する。manager不在時のSequence／Matchは直接適用が残るため、runtime確認が必要である。
+- **次に確認すべきこと:** Text編集、Sequence／Match、Centerのmanager不在・push拒否・selection・timeline cacheをruntimeで確認する。
+
+## 2026-08-31 - Safe DeleteのUndoManager境界
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、Safe Delete Layers
+- **確認できた事実:** Safe Deleteは複数RemoveLayer commandをmacroへまとめていたが、UndoManagerを無条件参照していた。
+- **変更:** macroをpushする前にmanager存在を確認し、manager不在またはpush拒否時はselection変更と成功表示へ進まないようにした。
+- **価値または懸念:** 履歴基盤未初期化時のクラッシュと、削除成功と誤認したUI更新を避ける。削除対象の依存関係とruntimeは未検証である。
+- **次に確認すべきこと:** Safe Deleteのparent／matte／effect依存、macro途中失敗、selection、dirty stateをruntimeで確認する。
+
+## 2026-08-31 - Timeline snapshot callbackの成功状態
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、`TimelineKeyframeSnapshotCommand`
+- **確認できた事実:** snapshot commandはvoid callbackのみを保持し、対象消失や復元不能でもUndoManagerの既定成功値を返していた。
+- **変更:** snapshot適用関数をpreflight付きboolへ変更し、commandにbool callbackと`lastOperationSucceeded()`を追加した。既存void callbackは互換ラッパーで維持し、Key PatternとKeyframe Area操作をbool callbackへ接続した。
+- **価値または懸念:** 主要Timeline操作で対象消失・復元失敗を履歴成功として扱いにくくなる。全callbackのbool化、要素単位のsetter失敗、runtimeは未検証である。
+- **次に確認すべきこと:** Key Pattern、Keyframe Area、Timelineのundo／redo、layer削除後、selection復元、極小Undo予算をruntimeで確認する。
+
+## 2026-08-31 - Timeline Curve Tangentのsnapshot成功状態
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、Curve Editor tangent操作
+- **確認できた事実:** tangent編集はcurveを先行変更してsnapshot commandへ渡していたが、復元callbackがvoidで対象消失やproperty欠落を成功扱いし得た。
+- **変更:** snapshot適用をpreflight付きbool化し、Curve Editor tangentのredo／undo callbackをbool callbackへ接続した。UI refreshは適用結果の確認後も既存順序を維持する。
+- **価値または懸念:** curve targetが失われた状態で履歴移動を成功扱いしにくくなる。setter内部の完全検証、selection、runtimeは未検証である。
+- **次に確認すべきこと:** Auto／Flat／Linear／Broken／Unified tangentの対象削除、Undo／Redo、push拒否、curve cacheをruntimeで確認する。
+
+## 2026-08-31 - Playhead keyframe snapshotの成功状態
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、Add／Remove Keyframe at Playhead
+- **確認できた事実:** Playhead keyframe操作は先行変更後にsnapshot commandへ渡していたが、callbackがvoidで対象消失やproperty復元失敗を伝えられなかった。
+- **変更:** Add／Remove Keyframe at Playheadをbool callbackへ接続し、snapshot適用のpreflight結果をUndoManagerへ返す。
+- **価値または懸念:** 対象消失時にkeyframe履歴を成功扱いしにくくなる。keyframe setter内部の完全検証、selection、runtimeは未検証である。
+- **次に確認すべきこと:** Playhead add／removeのUndo／Redo、対象削除、極小Undo予算、selection・cacheをruntimeで確認する。
+
+## 2026-08-31 - Keyframe Area Valueのsnapshot成功状態
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`applyValueToSelectedKeyframeArea()`
+- **確認できた事実:** Keyframe Area Valueはafter snapshotを先行適用してからvoid callback commandへ登録し、snapshot適用失敗を無視していた。
+- **変更:** after適用自体をboolで確認し、redo／undo callbackをbool callbackへ接続した。selection復元とUI refreshは既存の順序を保つ。
+- **価値または懸念:** 対象propertyが消失した状態でarea value変更を履歴成功として扱いにくくなる。keyframe setter完全検証、selection、runtimeは未検証である。
+- **次に確認すべきこと:** area valueの対象削除、Undo／Redo、push拒否、selection・curve cacheをruntimeで確認する。
+
+## 2026-08-31 - Layer Menu残存pushのnull安全化
+
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm`、quick layer creation、cache policy、proxy quality
+- **確認できた事実:** quick layer creationは実体を一度detachしてからtransactionをpushし、cache／proxy property変更もUndoManagerを無条件参照していた。
+- **変更:** manager存在を確認してpushし、quick layerはmanager不在またはpush拒否時に既存layer復元へ進む。property変更は安全に中断する。
+- **価値または懸念:** 初期化順序によるクラッシュとdetach済みlayerの取り残しを抑える。manager不在時のproperty fallbackは追加していない。
+- **次に確認すべきこと:** quick layerのplacement／mask／envelope、cache／proxy変更のmanager不在・push拒否・dirty／selectionをruntimeで確認する。
+
+## 2026-08-31 - Timeline Track Painterローカルcommandの失敗状態
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、ripple／slide／interpolation／roving command
+- **確認できた事実:** Track Painter側の重複ローカルcommandは、対象消失やsnapshot復元不能を無視して変更通知を出す経路が残っていた。
+- **変更:** timeline snapshot restoreをbool化し、ripple／slide／interpolation／roving commandへ対象・適用件数の成功状態を伝播する。
+- **価値または懸念:** Timeline Widget側とTrack Painter側で対象消失時の履歴結果が食い違いにくくなる。keyframe要素単位の完全比較、途中setter失敗時の全体補償、callback型のsnapshot commandは未検証である。
+- **次に確認すべきこと:** Track Painterのripple／slide／補間／rovingを対象削除後と極小Undo予算で確認する。
+
+## 2026-08-31 - Timeline snapshot callbackの成功状態拡張
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、Move／Paste／Trajectory／Fringe／Reverse／Set Value
+- **確認できた事実:** Timeline snapshot commandの一部callbackはvoidのままで、対象property消失や復元preflight失敗をUndoManagerへ返せなかった。Move Keyframeでは失敗メッセージ用のframe文字列も失敗分岐より後で宣言されていた。
+- **変更:** Motion Trajectory、Keyframe Fringe、Move Keyframe、Edit Curve Keyframes、Paste at Playhead、Track PainterのReverse／Set Valueをbool callbackへ接続し、適用結果を履歴境界へ返す。Moveのframe表示値を共通スコープへ移した。
+- **価値または懸念:** snapshot対象が消えた場合の誤った履歴成功と、失敗時の表示経路の不整合を抑える。keyframe setter内部の完全検証、選択・cache、runtimeは未検証である。
+- **次に確認すべきこと:** 各操作の対象削除、Undo／Redo、push拒否、selection復元、極小Undo予算をruntimeで確認する。
+
+## 2026-08-31 - Track Painterのkeyframe metadata callback
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、Delete／Reverse／Set Value／Set Anchor／Set Color Label
+- **確認できた事実:** keyframeの削除、反転、値・anchor・color label変更はsnapshot commandを使っていたが、callbackがvoidで、適用失敗を履歴境界へ返していなかった。
+- **変更:** 5操作のredo／undo callbackをboolへ接続し、共通snapshot preflightの結果を`UndoManager`へ伝播する。選択同期の既存順序は維持した。
+- **価値または懸念:** keyframe対象消失やproperty欠落を成功履歴として残しにくくする。metadata setter内部の完全比較、selection・cache、runtimeは未検証である。
+- **次に確認すべきこと:** metadata変更のUndo／Redo、対象削除、push拒否、selection復元、極小Undo予算をruntimeで確認する。
+
+## 2026-08-31 - Track Painterのkeyframe batch callback
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、Duplicate／Distribute／Repeat Selected Keyframes
+- **確認できた事実:** 複製・均等配置・反復の各操作もsnapshot commandへ登録していたが、redo／undo callbackはvoidで、対象propertyのpreflight結果を無視していた。
+- **変更:** 3操作をbool callbackへ接続し、既存のselection復元とpush拒否時rollbackを維持した。
+- **価値または懸念:** batch keyframe操作の対象消失を履歴成功として扱いにくくする。複数対象のsetter途中失敗、selection・cache、runtimeは未検証である。
+- **次に確認すべきこと:** 複製・均等配置・反復の対象削除、Undo／Redo、push拒否、selection復元をruntimeで確認する。
+
+## 2026-08-31 - Track Painterのkeyframe area value callback
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、context menuのSet Keyframe Area Value
+- **確認できた事実:** Track Painterのarea value編集は先行適用後にsnapshot commandへ登録していたが、callbackの適用結果を無視していた。
+- **変更:** redo／undo callbackをboolへ接続し、area selection復元の既存順序を維持した。
+- **価値または懸念:** 対象property消失時の履歴成功を抑える。setter完全検証、selection・cache、runtimeは未検証である。
+- **次に確認すべきこと:** area valueの対象削除、Undo／Redo、push拒否、selection復元をruntimeで確認する。
+
+## 2026-08-31 - Track Painterのtangent／range callback
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、Break／Unify Tangents、Transform Selected Keyframes
+- **確認できた事実:** tangent metadataと範囲変換もsnapshot commandを使っていたが、callbackがvoidで適用失敗を返していなかった。
+- **変更:** 両操作のredo／undo callbackをboolへ接続し、selection同期とpush拒否時rollbackを維持した。
+- **価値または懸念:** 対象property消失時の履歴成功を抑える。keyframe setter完全検証、複数対象途中失敗、selection・cache、runtimeは未検証である。
+- **次に確認すべきこと:** tangent／range変換の対象削除、Undo／Redo、push拒否、selection復元をruntimeで確認する。
+
+## 2026-08-31 - Track Painterの残存snapshot callback整理
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、Reverse All／Clean Keyframes／Break／Unify Tangents／Transform Selected Keyframes／Keyframe Area Value
+- **確認できた事実:** free-function経由のReverse Allとcontext menuのClean／Transformなどにもvoid callbackが残っており、snapshot適用失敗を履歴境界へ返していなかった。
+- **変更:** 対象 callback をbool `Operation`へ接続し、既存のselection復元・event処理・before snapshot rollbackを維持した。
+- **価値または懸念:** Track Painterの主要snapshot操作で対象消失を成功履歴にしにくくする。keyframe setter完全検証、複数対象途中失敗、selection・cache、runtimeは未検証である。
+- **次に確認すべきこと:** 残存するvoid互換callbackの用途を確認し、全操作の対象削除・Undo／Redo・push拒否をruntimeで検証する。
+
+## 2026-08-31 - Timeline snapshot commandのcallback契約固定
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`
+- **確認できた事実:** 両ファイルの`TimelineKeyframeSnapshotCommand`利用箇所はすべてbool `Operation`へ移行済みで、void互換コンストラクタの利用箇所はなかった。
+- **変更:** 未使用のvoid互換コンストラクタを削除し、snapshot commandのcallback契約をboolへ固定した。
+- **価値または懸念:** 将来のsnapshot操作が適用失敗を握りつぶしにくくなる。ABI／runtime／setter内部失敗は未検証である。
+- **次に確認すべきこと:** Timeline外への同名command依存がないことを確認し、Undo／Redoと対象消失をruntimeで検証する。
+
+## 2026-08-31 - Layer Panel inline renameのcommand所有権
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`、inline layer rename
+- **確認できた事実:** inline renameは`new RenameLayerCommand`をraw pointerで生成し、UndoManagerが未初期化の場合にpushされずリークしていた。manager不在時のrename中断自体は既存方針だった。
+- **変更:** command生成を`std::make_unique`へ変更し、managerが存在する場合だけmoveしてpushする。
+- **価値または懸念:** 履歴基盤の初期化順序に依存したcommandリークを防ぐ。renameのpush拒否・selection・runtimeは未検証である。
+- **次に確認すべきこと:** manager不在／push拒否時のrename、Undo／Redo、inline editorのfocus復帰をruntimeで確認する。
+
+## 2026-08-31 - Matte／Variant／Layer移動commandの所有権統一
+
+- **関連:** `Artifact/src/Widgets/ArtifactInspectorWidget.cppm`、`Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`
+- **確認できた事実:** matte reference、variant、layer move の一部経路はraw pointerを生成してから、managerが存在する場合だけ`unique_ptr`へ包んでいたため、manager未初期化時にリークし得た。
+- **変更:** command生成を`std::make_unique`へ統一し、pushには`std::move`で渡す。既存のmanager不在時の安全な中断とpush成功時のUI更新は維持した。
+- **価値または懸念:** Undo基盤の初期化順序に依存したcommandリークを除去する。push拒否時の状態、selection、runtimeは未検証である。
+- **次に確認すべきこと:** matte／variant／layer moveのmanager不在・push拒否・Undo／Redoをruntimeで確認する。
+
+## 2026-08-31 - Command raw pointer sweepの完了
+
+- **関連:** `Artifact/src/Widgets/ArtifactInspectorWidget.cppm`、`Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`
+- **確認できた事実:** Artifact の source 内で検索したraw `new *Command` は、今回対象にしたInspector／Layer Panel経路を含めて残っていない。
+- **変更:** matte、variant、layer move、inline renameを`std::make_unique`と`std::move`へ統一した。
+- **価値または懸念:** manager不在時の所有権リークを抑える。push拒否時の実体・selection・runtimeは未検証である。
+- **次に確認すべきこと:** 別形式のraw allocation、カスタムdeleter、Undo／Redoのruntime挙動を確認する。
+
+## 2026-08-31 - Layer PanelのUndoManager不在フォールバック
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`、Variant picker、inline rename
+- **確認できた事実:** Variant切替・Variant作成・inline renameは、UndoManagerが未初期化だとcommandを生成したまま破棄し、操作が無視される経路だった。各commandの`redo()`は対象レイヤーを直接更新できる。
+- **変更:** UndoManagerが存在する場合は履歴へpushし、存在しない場合はcommandの`redo()`を一度だけ実行してUIを更新するフォールバックを追加した。
+- **価値または懸念:** 履歴基盤の初期化順序にかかわらず、command可能なレイヤー操作が無操作にならない。push拒否時の表示、selection、runtimeは未検証である。
+- **次に確認すべきこと:** manager不在・push拒否・Undo／Redo時のVariantとrenameのモデル値、dirty通知、focus復帰をruntimeで確認する。
+
+## 2026-08-31 - Layer Panelの状態command fallback統一
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`、blend mode、visibility／lock／solo／shy
+- **確認できた事実:** Layer Panelのblend mode、単一選択トグル、複数選択macro、ショートカットトグルは、UndoManager不在時に操作を破棄していた。これらのcommandはモデルへ直接`redo()`可能だった。
+- **変更:** managerが存在すればpushし、存在しない場合はcommandまたはmacroの`redo()`を一度だけ実行し、成功時だけUIを更新するよう統一した。
+- **価値または懸念:** 履歴基盤の初期化順序による無操作と編集UIの取り残しを抑える。manager不在時は履歴が残らないため、Undo／Redo・dirty通知・runtimeは未検証である。
+- **次に確認すべきこと:** 各トグルのモデル値、macro途中失敗時の補償、表示更新、UndoManager初期化前後の通知をruntimeで確認する。
+
+## 2026-08-31 - Layer Panel matte helperのfallback
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`、matte type／enabled／opacity／blend／fit編集
+- **確認できた事実:** matte編集helperはcommandを作成しても、UndoManagerがない場合に即座に`false`を返して編集を破棄していた。
+- **変更:** managerがあれば履歴へpushし、なければ`ChangeLayerMatteReferencesCommand::redo()`を実行して`lastOperationSucceeded()`を返すようにした。
+- **価値または懸念:** matte編集の適用結果と呼び出し側の成功判定を一致させる。履歴なし時のdirty通知、selection、runtimeは未検証である。
+- **次に確認すべきこと:** 5種類のmatte編集でモデル値、通知、UndoManager初期化前後のUI反映をruntime確認する。
+
+## 2026-08-31 - Empty Macroの履歴登録防止
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`MacroUndoCommand`
+- **確認できた事実:** 子 command が0件のmacroでも`redo()`／`undo()`／`canSerialize()`が成功相当になり、状態を変更しない空履歴を作成できた。
+- **変更:** 空macroの`redo()`／`undo()`を失敗扱いにし、`canSerialize()`もfalseにした。
+- **価値または懸念:** batch対象が全て無効・消失した場合に、空のUndo履歴や保存対象を残さない。既存セッションに含まれる空macroのruntime復旧は未検証である。
+- **次に確認すべきこと:** 空macroのpush拒否、非空macroの部分失敗補償、Undo／Redo、session serializeをruntimeで確認する。
+
+## 2026-08-31 - Undo memory budgetの実行前拒否
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`UndoManager::push()`、`createCommand()`
+- **確認できた事実:** `maxMemoryBytes`が0、またはcommandの推定サイズより小さい場合、push後の`enforceBudget()`が実行済みcommandを履歴から削除しても、pushはtrueを返し得た。
+- **変更:** 保持不能なcommandを初回`redo()`前に拒否し、session復元時の`createCommand()`でも同じ容量条件を検証する。
+- **価値または懸念:** 編集実体が適用済みなのにUndo履歴だけ消える状態を防ぐ。既存履歴のbudget縮小、offload、runtimeは未検証である。
+- **次に確認すべきこと:** maxMemoryBytes=0、単一command超過、既存履歴の入替、session loadをruntimeで確認する。
+
+## 2026-08-31 - Undo sessionの部分保存防止
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`saveSessionHistory()`
+- **確認できた事実:** session保存は非シリアライズ commandを黙ってスキップしながら、履歴versionをそのまま保存していたため、保存成功後の履歴が実際より少なくなり得た。
+- **変更:** undo stackにnullまたは非シリアライズ commandが含まれる場合、entry生成前に保存を失敗させる。
+- **価値または懸念:** 「保存成功」と「復元可能な履歴全体」の不一致を防ぐ。非シリアライズ commandを含む既存プロジェクトの保存UXとruntimeは未検証である。
+- **次に確認すべきこと:** serializable／non-serializable混在履歴、offloaded履歴、保存失敗時の既存ファイル保持、session loadをruntimeで確認する。
+
+## 2026-08-31 - Undo memory accountingの飽和加算
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`UndoManager::Impl::stackBytes()`
+- **確認できた事実:** stack内commandの推定サイズを単純加算しており、異常に大きい値の組み合わせでは`size_t` wrapによってbudget超過を見逃す可能性があった。
+- **変更:** 合計が`size_t`上限を超える場合は上限値を返す飽和加算へ変更した。
+- **価値または懸念:** memory budget enforcementが異常値で無効化されることを防ぐ。実際の異常command生成・offload・runtimeは未検証である。
+- **次に確認すべきこと:** 通常サイズ、単一超過、合計超過、offload後のmemory accountingをruntimeで確認する。
+
+## 2026-08-31 - Undo offload cleanupのセッション分離
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、offload file lifecycle
+- **確認できた事実:** offload fileが固定の`undo_<index>.json`で、cleanupが同一directoryの`undo_*.json`を全削除していたため、別manager／別アプリの履歴ファイルを巻き込む可能性があった。
+- **変更:** manager生成時のUUIDをoffload file名とcleanup globへ含め、自分のsessionが所有するファイルだけを削除するようにした。
+- **価値または懸念:** 共有directoryで別履歴を破壊するリスクを抑える。既存旧形式孤児ファイルの移行・複数プロセス・runtimeは未検証である。
+- **次に確認すべきこと:** 同一directoryの複数manager、offload／clearHistory／destructor、save／load後のfile lifecycleをruntimeで確認する。
+
+## 2026-08-31 - Undo state IDの衝突回避
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`UndoManager::Impl::allocateStateId()`
+- **確認できた事実:** state IDが`INT64_MAX`到達後に1へ単純 wrapしており、既存履歴IDやsaved/current versionと衝突し得た。
+- **変更:** 新しいstate IDを割り当てる際、undo／redo stackの既存IDとsaved/current versionを避ける探索を追加した。
+- **価値または懸念:** 長時間実行時の履歴version衝突と未保存判定の誤りを抑える。破損状態でID空間が枯渇した場合とruntimeは未検証である。
+- **次に確認すべきこと:** 通常push、undo／redo、session load、ID wrap近傍のversion判定をruntimeで確認する。
+
+## 2026-08-31 - Undo／Redo履歴のbudget統合
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`enforceBudget()`、`currentMemoryBytes()`
+- **確認できた事実:** memory／entry budgetの超過判定がundo stackだけを対象にしており、undo後のredo stackが設定上限の外で保持され得た。
+- **変更:** undo／redo両stackを合算してentry数・memory・memory pressureを計算し、超過時は古いredo、次に古いundoから削除する。合算はoverflowしない飽和処理にした。
+- **価値または懸念:** redoを大量に積んだ状態でも履歴全体が設定budgetを超えない。budget縮小時の履歴淘汰順、offload、runtimeは未検証である。
+- **次に確認すべきこと:** undo／redo連続、分岐編集によるredo破棄、budget変更、offload併用時の履歴数とmemory表示をruntimeで確認する。
+
+## 2026-08-31 - Timeline キーフレームジャンプの責務境界
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、`Artifact/include/Widgets/Timeline/ArtifactTimelineKeyBinding.ixx`
+- **確認できた事実:** `JumpToFirst/Last/Next/PreviousKeyframe` は `ShortcutBindings` と Timeline の action resolver に登録済みで、親 `ArtifactTimelineWidget::handleTimelineAction()` が `jumpToKeyframeHit()` / `jumpToFirstKeyframe()` / `jumpToLastKeyframe()` を実行する。これらは選択キーフレームのフレーム収集、ラップ、playhead・viewport・keyframe state 同期まで担っている。
+- **判断:** 子の `ArtifactTimelineTrackPainterView::keyPressEvent()` に同じジャンプ処理を追加する必要はなく、追加すると選択範囲・ラップ規則・表示同期の二重実装になる。Timeline の未実装候補を静的検索するときは、子 widget の直接実装だけでなく親 widget の event propagation と action handler を先に確認する。
+- **価値または懸念:** DCC 操作のショートカットを単一の command/navigation owner に保ち、子ビューが独自の seek や current-frame 更新を行って状態不整合を起こすリスクを抑える。実際の Qt focus/event propagation は runtime 未検証。
+- **次に確認すべきこと:** Timeline child focus 時の Ctrl+PageUp/Down、選択 keyframe の有無、先頭／末尾での wrap、viewport center、graph editor focus 競合を runtime で確認する。
+
+## 2026-08-31 - Timeline Bake の一操作 Undo 境界
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、Animation Layer の Bake 操作
+- **確認できた事実:** 複数選択した layer の bake は、各 layer の before/after snapshot を個別の `AnimationLayerStackSnapshotCommand` として順に `UndoManager::push()` していたため、ユーザーの一回の Bake 操作が複数の Undo 単位に分かれていた。
+- **変更:** 変更のあった全 layer の snapshot command を `MacroUndoCommand("Bake Animation Layers")` に収集し、Bake 完了後に一度だけ push するようにした。UndoManager がない場合は従来どおり直接適用し、macro push が拒否された場合は変更件数を 0 として UI の成功表示を出さない。
+- **価値または懸念:** 複数 layer の Bake が一回の Undo で戻せる。macro の初回 redo、途中 layer の失敗補償、選択・cache・runtime表示は未検証である。
+- **次に確認すべきこと:** 複数 layer の Bake → Undo/Redo、Undo budget 拒否、locked layer 混在、保存／再読込後の macro 履歴を runtime で確認する。
+
+## 2026-08-31 - Timeline Slide の UndoManager 不在フォールバック
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、Alt+Left/Right の Slide Clips
+- **確認できた事実:** 親 Timeline と右ペインの両方で、複数 layer の Slide macro は UndoManager が存在するときだけ `push()` され、manager が未初期化の場合は macro を破棄したままイベントを受理していた。そのため履歴基盤の初期化前には、ユーザー操作が無操作になっていた。
+- **変更:** manager がある場合は従来どおり macro を履歴へ登録し、ない場合は macro の `redo()` を一度だけ実行して `lastOperationSucceeded()` を結果に使う fallback を両経路へ追加した。UndoManager が存在する場合の一操作 Undo 境界は維持した。
+- **価値または懸念:** manager の初期化順序による Slide 操作の無操作を防ぐ。manager 不在時は履歴が残らず、複数 layer の途中失敗補償、locked layer 混在、selection／dirty／runtime表示は未検証である。
+- **次に確認すべきこと:** manager 有無それぞれで Alt+Left/Right、Shift幅、複数 layer、locked layer、Undo／Redo、表示更新を runtime で確認する。
+
+## 2026-08-31 - Property Editor の manager 不在編集フォールバック
+
+- **関連:** `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`、Text Animator／複数レイヤー Opacity 編集
+- **確認できた事実:** Text Animator の commit は `UndoManager` がない場合を失敗として snapshot を復元し、複数レイヤー Opacity の commit も manager がない場合に `recorded=false` のまま old value を再設定していた。両方とも生成した command の `redo()` はモデルへ直接適用できる。
+- **変更:** manager が存在する場合は pushし、存在しない場合は command の `redo()` と `lastOperationSucceeded()` を使う fallback に変更した。push／redo が失敗した場合だけ従来の snapshot／old value 復元を行う。
+- **価値または懸念:** Undo 基盤の初期化順序によって Property 編集が無操作になる状態を解消する。manager 不在時は履歴が残らず、複数対象の途中失敗、dirty／通知、runtime は未検証である。
+- **次に確認すべきこと:** manager 有無、複数 text layer、Opacity の複数選択、push拒否、Undo／Redo、selection と Property UI 更新を runtime で確認する。
+
+## 2026-08-31 - Shared Property Reset の direct apply 整合性
+
+- **関連:** `Artifact/src/Widgets/ArtifactPropertyWidgetShared.cppm`、Property Reset handler
+- **確認できた事実:** keyframe を持つプロパティの Reset で UndoManager がない場合、`clearKeyFrames()` だけが実行され、editor 表示は default 値へ更新される一方、プロパティの実値は reset 前のまま残っていた。
+- **変更:** manager 不在の direct path でも keyframe を消去した後に `propertyPtr->setValue(defaultValue)` を実行し、既存の layer property animation 通知を発行するようにした。UndoManager がある場合の macro（keyframe reset＋value reset）は変更していない。
+- **価値または懸念:** UI表示とモデル値の乖離を防ぐ。component property、animatable flag、dirty/cache、runtime は未検証である。
+- **次に確認すべきこと:** keyframe 付き scalar／text／component property の Reset、manager 有無、Undo／Redo、再描画、保存／再読込を runtime で確認する。
+
+## 2026-08-31 - Composition Editor の destructive batch fallback
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、Safe Delete Layers／Keyframe Cleanup
+- **確認できた事実:** 確認ダイアログ後の複数 layer 削除と冗長 keyframe 削除は macro を構築するが、UndoManager がない場合を `!manager` として失敗扱いにし、macro を実行せず終了していた。
+- **変更:** manager が存在する場合は履歴へ pushし、存在しない場合は macro の `redo()` と `lastOperationSucceeded()` を使って直接適用するようにした。適用失敗時だけ削除後の selection 更新や成功表示へ進まない。Keyframe Cleanup の失敗文言も「Undo履歴へ記録できない」から「適用できない」へ修正した。
+- **価値または懸念:** 確認済みの destructive 操作が履歴基盤の初期化順序だけで無操作になる状態を防ぐ。manager 不在時は履歴が残らず、削除対象の途中失敗補償、selection／dirty／cache、runtime は未検証である。
+- **次に確認すべきこと:** manager 有無で Safe Delete／Keyframe Cleanup、キャンセル、locked layer、途中 macro failure、Undo／Redo、再描画を runtime で確認する。
+
+## 2026-08-31 - Composition Editor の layer command fallback
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、layer context menu／Center Layer／current layer visibility
+- **確認できた事実:** コンテキストメニューの表示、ロック、Solo、Shy、Center Layer、および current layer visibility は UndoManager が存在する場合だけ command を実行し、manager 不在時は操作を破棄していた。
+- **変更:** command を先に `std::make_unique` で生成し、manager があれば moveして push、なければ `redo()` を実行する fallback を追加した。Center Layer は direct redo の成功状態も確認して、失敗時を成功扱いにしない。
+- **価値または懸念:** layer の基本操作が履歴基盤の初期化順序に依存して無操作になる状態を防ぐ。manager 不在時は履歴が残らず、push拒否時の表示、dirty／selection、runtime は未検証である。
+- **次に確認すべきこと:** manager 有無で各 context menu 操作、3D／2D layer、lock状態、Center Layer、Undo／Redo、表示更新を runtime で確認する。
+
+## 2026-08-31 - Composition Editor Auto Stagger の direct snapshot fallback
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、Auto Stagger
+- **確認できた事実:** Auto Stagger は before/after の layout snapshot と `restore(state)` を準備していたが、UndoManager がない場合は push 条件が false となり、確認済みの timing 変更を適用せず終了していた。
+- **変更:** manager がある場合は従来どおり `LayoutSnapshotCommand` を pushし、ない場合は同じ `restore(afterState)` を直接実行するようにした。適用結果が false の場合だけ警告を出す。失敗文言も履歴記録限定から適用失敗へ一般化した。
+- **価値または懸念:** batch timing 編集が履歴基盤の初期化順序で無操作になる状態を防ぐ。direct path の dirty/cache、衝突時の実値、runtime は未検証である。
+- **次に確認すべきこと:** manager 有無、layer collision、locked layer、キャンセル、Undo／Redo、保存／再読込を runtime で確認する。
+
+## 2026-08-31 - Composition Editor の snapshot batch fallback 拡張
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、Sequence Layers End-to-End／Match Layer Duration／Adaptive Text Fit
+- **確認できた事実:** 3つの確認済み batch 操作は before/after snapshot と復元関数を持つが、UndoManager 不在時は `push()` 条件が false となり、計算済みの変更を適用せず終了していた。
+- **変更:** manager がある場合は `LayoutSnapshotCommand` を pushし、ない場合は同じ復元関数へ after snapshot を渡して direct apply するようにした。direct apply または push が失敗した場合は before snapshot を再適用する。
+- **価値または懸念:** timing／font-size の batch 操作が履歴基盤の初期化順序で無操作になる状態を防ぐ。snapshot復元関数の部分対象欠落、dirty/cache、runtime は未検証である。
+- **次に確認すべきこと:** manager 有無、locked layer、複数対象、キャンセル、適用失敗、Undo／Redo、保存／再読込を runtime で確認する。
+
+## 2026-08-31 - Quick Replace Sources の direct snapshot fallback
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、Quick Replace Selected Sources
+- **確認できた事実:** source replacement は互換性・layer順／名前対応・確認ダイアログ・before/after snapshot を備えていたが、UndoManager 不在時は `push()` 条件が false となり、確認済みの置換を適用せず終了していた。
+- **変更:** manager がある場合は `LayoutSnapshotCommand` を pushし、ない場合は既存の `restore(afterState)` を direct apply として実行するようにした。部分対象の失敗は既存の `allSucceeded` 結果で警告扱いにする。
+- **価値または懸念:** source replacement が履歴基盤の初期化順序で無操作になる状態を防ぐ。direct path の asset identity／cache／dirty、部分失敗時の復元、runtime は未検証である。
+- **次に確認すべきこと:** image／video／audio／SVG の互換性、複数 mapping、locked layer、manager 有無、部分失敗、Undo／Redo、保存／再読込を runtime で確認する。
+
+## 2026-08-31 - Composition Cleanup の direct snapshot fallback
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`applyCompositionCleanupCandidate()`
+- **確認できた事実:** Composition Cleanup は対象の before 値を検証し、`LayoutSnapshotCommand` 用の before/after と復元関数を構築していたが、UndoManager がない場合は常に false を返し、候補適用を実行しなかった。
+- **変更:** manager がある場合は既存 command を pushし、ない場合は after snapshot を復元関数へ渡して直接適用するようにした。direct apply が失敗した場合は before snapshot を再適用する。
+- **価値または懸念:** 検証・プレビュー・適用確認を経た cleanup 操作が manager 初期化順序で無操作になる状態を防ぐ。復元関数の対象欠落、dirty/cache、runtime は未検証である。
+- **次に確認すべきこと:** spacing cleanup の複数 layer、locked／変更済み layer、適用失敗、Undo／Redo、再描画、保存／再読込を runtime で確認する。
+
+## 2026-08-31 - Composition Cleanup の適用結果表示整合
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`showCompositionCleanupDialog()`
+- **確認できた事実:** cleanup dialog の適用側は `applyCompositionCleanupCandidate()` の戻り値を無視し、command／direct apply の失敗時も controller overlay を常に `Composition Cleanup Applied` と表示していた。
+- **変更:** 戻り値を `applied` として受け、成功時だけ Applied 表示と drop ghost preview の消去を行い、失敗時は Failed 表示にした。
+- **価値または懸念:** 実体の状態とUIフィードバックの不一致を防ぐ。失敗時の overlay 継続方針、runtime表示、controller状態は未検証である。
+- **次に確認すべきこと:** manager拒否、direct restore失敗、対象layer消失、再試行時の overlay と preview cleanup を runtime で確認する。
+
+
+## 2026-08-31 - Template Library importの取引境界
+
+- **関連:** `Artifact/src/Widgets/ArtifactTemplateLibraryWidget.cppm`、`applySelectedToCurrentComposition()`
+- **確認できた事実:** Template Libraryは生成した各layerを個別に`push()`し、push結果を見ずに追加件数を返していたため、複数layerの途中失敗で部分挿入と誤った件数表示が起こり得た。
+- **変更:** 生成layerを1つの`MacroUndoCommand`へまとめ、全layerが履歴へ登録できた場合だけ追加件数を返す。失敗時は0件とエラー文字列を返す。
+- **価値または懸念:** UIの追加件数とUndo履歴・実体の境界をtemplate単位で一致させる。layer順序、selection、template内参照、runtimeは未検証である。
+- **次に確認すべきこと:** 複数layer templateの初回redo失敗、Undo予算拒否、Undo／Redo、selection・parent／matte参照をruntimeで確認する。
+
+## 2026-08-30 - 3D パーティクルレイヤーがうまく描画できない問題を最小修正
+
+- 関連: Artifact/src/Layer/ArtifactParticleLayer.cppm:470-484, Artifact/include/Layer/ArtifactParticleLayer.ixx:181-186, Artifact/src/Layer/ArtifactParticleLayer3D.cppm, Artifact/docs/MILESTONE_3D_PARTICLE_2026-08-29.md, Artifact/src/Render/ArtifactIRenderer.cppm:589, 1279-1303, 1483, Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm:8913
+- 事実: 観察して判明した「3D パーティクル描画の真の問題」は (1) ArtifactParticleLayer::draw() (L441) は is3D() を見ずに常 に transformParticleRenderData(lodData, globalTransform, opacity()) (L472) を呼んで 2D QTransform で (px, py, vx, vy) を map し、(2) transformParticleRenderData は QTransform ベースで v.pz/v.vz は破壊しないが 2D map の safeCoordinate() で px/py/vx/vy を上書きし、(3) 結果として Composition 側で set3DCameraMatrices() 経由で 3D view/proj が particleViewMatrix_/particleProjMatrix_ に配線されても、Particle の world 座標が 2D 扱いになり 3D camera orbit 時に立体的に動かないこと。ArtifactParticle3DLayer は ArtifactParticleLayer を継承し draw() オーバーライドを持たないため親 draw() をそのまま通る (MILESTONE_3D_PARTICLE_2026-08-29 の 2026-08-30 追補方針「2D/3D を別 class で分離、3D は setIs3D(true) を明示、JSON migration」)。
+- 対応: ArtifactParticleLayer.cppm:470-484 で is3D() による分岐を追加し、3D パーティクルは transformParticleRenderData をスキップして lodData をそのまま drawParticles に渡す。2D パーティクルは従来通り transformParticleRenderData で 2D QTransform を適用。AGENTS.md 2026-08-15「D3D12 / Diligent backend 触るときは慎重」「QImage の本流投入禁止」「QPainter::CompositionMode による合成実装禁止」を守り、.cppm のみの変更で C++20 module purview には触らず、.ixx 宣言の追加なし (C++20 module purge リスク最小化)。L3634-3647 の ArtifactParticleDebugLayer::draw() 内の呼び出しは触らない (DebugLayer は is3D()=false 想定で、AGENTS.md の変更範囲最小化原則に従う)。
+- 価値: Composition 側で既に配線されている particle3DCameraActive_ 経路が活かされるようになり、3D camera orbit 時にパーティクル billboard が立体的に動くはず。LayerType::Particle3D で新規作成されたパーティクルレイヤーと、JSON migration で is3D=true になった既存プロジェクトの表示が両立する。AGENTS.md に従いビルドと runtime 受入れはユーザー指示待ち。
+- 未検証: (1) 3D camera orbit 時に Particle billboard が立体的に動くか (2) 既存 2D particle プロジェクトが回帰しないか (3) AOV (emission/normal) gate 経由で Particle が乗るかは依然未確認 (MILESTONE_3D_PARTICLE_2026-08-29 P4-2 以降の作業)。今回修正で「lodData.particles.empty() チェック」のパスで v.px/v.py が 2D QTransform に潰されなくなるが、lodData 自体が pz/vz を含むかは ParticleSystem 側の生成実装に依存。AGENTS.md のルールにより本 commit は cpppm のみ、CMake 変更なし、header 変更なし、module import 追加なし。
+**2026-08-31 — Composition Editor inline text fallback**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm` のインライン文字編集。
+- 事実: `commitTextEditorValue()` は UndoManager がない場合、通常テキストとソーステキストのどちらも編集を適用せず失敗していた。
+- 対応: ソーステキストは既存の `setSourceTextAtFrame()`、通常テキストは既存の `setLayerPropertyValue()` で直接適用し、適用後の値を確認する経路に整理した。
+- 価値/懸念: 履歴サービスが利用できない限定状態でも編集操作を失わない。ランタイムでの IME、キーフレーム時刻、通知経路の統合は未検証。
+- 次に確認: UndoManager 無効時のインライン編集、UndoManager 復帰後の履歴境界、既存キーフレームの編集結果を実機で確認する。
+
+**2026-08-31 — Composition Editor visibility shortcut result handling**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm` の現在レイヤー可視状態ショートカット。
+- 事実: 既存の Undo コマンドを実行していたが、`push()` または直接 `redo()` の成否を呼び出し側で確認していなかった。
+- 対応: UndoManager 経由と直接適用の両方で成功状態を記録し、失敗時は後続処理を行わないようにした。
+- 価値/懸念: 履歴追加失敗を成功操作として扱う曖昧さを減らす。ショートカットの実機入力と再描画通知は未検証。
+- 次に確認: UndoManager の容量制限時とサービス終了時に、可視状態と履歴表示が一致することを確認する。
+
+**2026-08-31 — Inspector mask context actions without undo service**
+
+- 関連: `Artifact/src/Widgets/ArtifactInspectorWidget.cppm` のマスク一括編集・並べ替え。
+- 事実: マスクの before/after を組み立てていたが、UndoManager がない場合は `MaskEditCommand` / `MoveMaskCommand` を実行せず無操作になっていた。
+- 対応: 既存のレイヤー mask API で snapshot を直接適用し、並べ替えは `moveMask()` の成否を確認する経路を追加した。
+- 価値/懸念: 履歴サービスの限定的な不在でも Inspector 操作を失わない。直接 snapshot の個別フィールド一致検証は未実施。
+- 次に確認: マスクの追加・無効化・パスモード変更・上下移動を UndoManager 無効状態で実機確認する。
+
+**2026-08-31 — Transform Gizmo release without undo service**
+
+- 関連: `Artifact/src/Widgets/Render/TransformGizmo.cppm` の複数レイヤー変形ドラッグ確定。
+- 事実: ドラッグ中に変形を直接反映した後、UndoManager がない場合も `cancelInteraction()` を呼び、確定操作を取り消していた。
+- 対応: UndoManager がある場合だけ push 失敗時にキャンセルし、サービスがない場合は既に反映済みの変形を保持するようにした。
+- 価値/懸念: Undo 履歴サービスの不在で変形が消える問題を避ける。直接変形の dirty/通知経路は未検証。
+- 次に確認: 単一・複数レイヤーの移動、回転、スケールを UndoManager 無効状態で確定し、保存内容と表示が一致することを確認する。
+
+**2026-08-31 — Motion path editing without undo service**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` のモーションパス位置・補間編集。
+- 事実: 編集時に transform のキーフレームを先に変更しているのに、UndoManager がない場合も before 状態へ戻していた。
+- 対応: UndoManager がある場合だけ push 失敗時に補償復元し、サービス不在時は既に適用された変更を保持するようにした。
+- 価値/懸念: パス編集を Undo 履歴サービスの有無で失わない。通知・キャッシュ無効化のランタイム挙動は未検証。
+- 次に確認: 位置キー追加・削除・補間変更と複数選択削除を UndoManager 無効状態で確認する。
+
+**2026-08-31 — Render Controller drag commit fallbacks**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` のタンジェント、カメラ POI、Past Plane、Transform Field、Gizmo 確定処理。
+- 事実: これらもドラッグ中に状態を直接変更した後、UndoManager 不在を push 失敗と同じ扱いにして before 状態へ復元していた。
+- 対応: UndoManager が存在する場合だけ push 失敗時に復元し、不在時は直接反映済みの変更を保持するようにした。
+- 価値/懸念: 描画編集の確定が履歴サービスの有無に依存しなくなる。各編集の通知・dirty 状態はランタイム未検証。
+- 次に確認: 各ドラッグ種別を UndoManager 無効状態で確定し、再描画・保存・再読込の整合を確認する。
+
+**2026-08-31 — Layer Menu direct property and layout fallbacks**
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm` のキャッシュ設定、Proxy 品質、整列・分布操作。
+- 事実: キャッシュ／Proxy は UndoManager がないと値を変更せず、整列・分布は座標を直接変更した後に UndoManager 不在を理由に before 状態へ戻していた。
+- 対応: 前者は既存の `setLayerPropertyValue()` を使い、後者は UndoManager が存在する場合だけ push 失敗時に復元するようにした。
+- 価値/懸念: メニュー操作が履歴サービスの一時的不在で無操作・誤復元にならない。メニュー表示と保存後の実機確認は未実施。
+- 次に確認: キャッシュ／Proxy 設定と整列・分布の直接適用、再描画、保存・再読込を確認する。
+
+**2026-08-31 — Render Controller explicit 3D transform fallbacks**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の 3D 変形・アンカー操作。
+- 事実: 変形・アンカーを先に直接反映した後、UndoManager 不在を push 失敗と同一視して before 状態へ戻していた。
+- 対応: UndoManager が存在する場合だけ push 失敗時に補償復元するようにした。
+- 価値/懸念: 3D 編集 API が履歴サービスの有無で編集結果を失わない。ランタイムの dirty/描画通知は未検証。
+- 次に確認: 3D 変形、アンカー中央化、リセット操作を UndoManager 無効状態で確定し、表示と保存内容を確認する。
+
+**2026-08-31 — Puppet and shape direct-edit fallbacks**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の Puppet Pin と Shape Corner Radius 操作。
+- 事実: 値を先に直接変更した後、UndoManager 不在を push 失敗と同じ扱いにして before 値へ戻していた。
+- 対応: UndoManager が存在する場合だけ push 失敗時に復元し、不在時は直接変更を保持するようにした。
+- 価値/懸念: ピンの回転・深度・重みと角丸変更が履歴サービス不在で消えない。Puppet tool の通知・描画更新はランタイム未検証。
+- 次に確認: 各ピン操作と角丸操作を直接適用し、表示・保存・再読込の整合を確認する。
+
+**2026-08-31 — Rig editing direct-commit fallback**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の Rig Bone、Control、Skin Weight、Pose、Puppet、Shape Path 編集。
+- 事実: これらは編集中に状態を直接変更してから Undo コマンドを登録する構造だが、UndoManager 不在を登録失敗として扱い before 状態へ復元していた。
+- 対応: UndoManager がない場合は push 成功相当として扱い、登録失敗時だけ rollback するようにした。
+- 価値/懸念: リグ編集の確定結果を履歴サービスの有無で失わない。通知・キャッシュ・変形表示の実機確認は未実施。
+- 次に確認: Bone/Control、Weight/Pose、Puppet、Shape Path を直接確定し、保存・再読込と undo 復帰後の挙動を確認する。
+
+**2026-08-31 — Shape conversion and path transaction fallback**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactRenderLayerWidgetv2.cppm` と `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の Shape Conversion、Mask Edit Transaction、Pending Shape Path Creation。
+- 事実: いずれも形状・マスク・パスを先に直接変更してから Undo コマンドを登録する構造で、UndoManager 不在時は rollback していた。
+- 対応: UndoManager がない場合は直接変更を保持し、登録失敗時だけ rollback するようにした。
+- 価値/懸念: 形状編集の確定結果を履歴サービスの有無で失わない。選択状態・キャッシュ・dirty 通知はランタイム未検証。
+- 次に確認: Polygon/Path 変換、マスク編集確定、未完了パス確定を直接適用して確認する。
+
+**2026-08-31 — Layer editor shape transaction fallback**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactRenderLayerWidgetv2.cppm` の Polygon/Path 編集、角丸、Shape Operator、Mask Transaction。
+- 事実: 直接変更後の rollback 条件に UndoManager 不在が含まれており、また Mask rollback は元より多いマスクを完全には削除していなかった。
+- 対応: UndoManager 不在時は変更を保持し、push 失敗時だけ rollback するように変更。Mask rollback は snapshot 全体を再構築し、状態もクリアするようにした。
+- 価値/懸念: 形状・マスク編集の確定と失敗時の復元境界が明確になる。選択・キャッシュ・実機入力は未検証。
+- 次に確認: 各 Shape 編集、マスク頂点編集、Undo 容量超過時の復元を確認する。
+
+**2026-08-31 — Asset Browser mutation fallbacks**
+
+- 関連: `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm` の Import、Relink、Rename、Delete。
+- 事実: Import 後の登録は UndoManager 不在時にプロジェクトから削除され、Relink は先に行った変更を UndoManager 不在時に戻し、Rename/Delete は UndoManager 不在時に no-op になっていた。
+- 対応: Import は既存の project API で登録、Relink は直接変更を保持、Rename/Delete はコマンドの `redo()` を直接実行して成否を確認するようにした。
+- 価値/懸念: Asset 操作が履歴サービスの一時的不在で消えない。Delete の復元用バックアップは UndoManager 不在時には保持されないため、実機での安全確認が必要。
+- 次に確認: Import/Relink/Rename/Delete とシーケンス素材の登録、保存・再読込を確認する。
+
+**2026-08-31 — Inspector SurfaceFX element fallback**
+
+- 関連: `Artifact/src/Widgets/ArtifactInspectorWidget.cppm` の SurfaceFX 要素操作。
+- 事実: 追加・複製・削除・上下移動で after snapshot を作成していたが、UndoManager 不在時は snapshot command を実行せず選択インデックスだけ戻していた。
+- 対応: UndoManager がない場合は同じ snapshot command の `redo()` を直接実行し、適用結果を確認するようにした。
+- 価値/懸念: SurfaceFX 要素の編集が履歴サービス不在で no-op にならない。SurfaceFX の描画更新と選択 UI はランタイム未検証。
+- 次に確認: 要素の追加・複製・削除・並べ替えと undo/redo 後の選択状態を確認する。
+
+**2026-08-31 — Layer Editor state toggle fallback**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactRenderLayerWidgetv2.cppm` の Visibility / Lock / Solo 切替。
+- 事実: この操作だけは UndoManager がない場合に即時 return し、状態変更が無操作になっていた。
+- 対応: 既存の layer setter を直接呼び、反映後の値を確認する fallback を追加した。
+- 価値/懸念: Layer Editor の基本状態切替が履歴サービス不在で使えなくならない。Solo の他レイヤー連動は既存 command と同様に個別 layer setter の範囲で、ランタイム未検証。
+- 次に確認: Visibility / Lock / Solo の直接切替と UI 状態同期を確認する。
+
+**2026-08-31 — Layer editor command postconditions**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactRenderLayerWidgetv2.cppm` の専用 Shape command 群。
+- 事実: layer/type が失われた場合でも command の既定 `lastOperationSucceeded()` が成功を返し、UndoManager が壊れた対象を履歴へ積む可能性があった。
+- 対応: Polygon、Path、Corner Radius、Star Inner Radius、Shape Conversion、Shape Operator command に適用結果の postcondition と失敗状態を追加した。
+- 価値/懸念: Undo／Redo の成功判定が実際の対象状態に近づく。JSON 正規化や shape setter の runtime 挙動は未検証。
+- 次に確認: 対象 layer 削除・型不一致・setter 拒否時の push failure と rollback を確認する。
+
+**2026-08-31 — Undo push zero-entry budget**
+
+- 関連: `Artifact/src/Undo/UndoManager.cppm` の `UndoManager::push()`。
+- 事実: `maxEntryCount == 0` でも command を一度 redo してから budget enforcement で削除し、push 成功を返す可能性があった。
+- 対応: 履歴を一件も保持できない予算では redo 前に push を拒否するようにした。
+- 価値/懸念: 呼び出し側が push 成功を「履歴へ記録済み」と誤認しない。各 UI fallback がこの拒否を期待通り扱うかはランタイム未検証。
+- 次に確認: 件数上限0、メモリ上限0、単一エントリ超過時の直接適用と履歴表示を確認する。
+
+**2026-08-31 — Macro serialization consistency**
+
+- 関連: `Artifact/src/Undo/UndoManager.cppm` の `MacroUndoCommand`。
+- 事実: `canSerialize()` は不正な子を拒否していたが、`serialize()` 単体では子を省略して部分的な JSON を返せた。また、子の推定サイズ加算に overflow 防止がなかった。
+- 対応: シリアライズ前に全子の妥当性を確認し、型・データが空なら失敗させ、推定サイズを飽和加算するようにした。
+- 価値/懸念: Macro の履歴状態と保存データの不一致やサイズ計算の wraparound を防ぐ。保存・復元の runtime 挙動は未検証。
+- 次に確認: 不正な子、空 JSON、巨大な推定サイズを含む Macro の保存拒否と通常 Macro の保存・復元を確認する。
+
+**2026-08-31 — Composition context toggle result handling**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm` のレイヤー Visibility / Lock / Solo / Shy コンテキスト操作。
+- 事実: コマンドの `push()` 戻り値を無視しており、履歴予算超過などで登録できない場合も操作結果を判定していなかった。
+- 対応: UndoManager 経由と直接 `redo()` fallback の双方で `lastOperationSucceeded()` / `push()` の結果を確認するようにした。
+- 価値/懸念: 履歴へ積めなかった操作を成功扱いしない。コンテキストメニュー上の失敗通知表示は既存責務のままで、runtime 未検証。
+- 次に確認: Visibility / Lock / Solo / Shy の通常操作、履歴予算拒否時、UndoManager 不在時の状態同期を確認する。
+
+**2026-08-31 — Macro restore symmetry**
+
+- 関連: `Artifact/src/Undo/UndoManager.cppm` の `MacroUndoCommand::deserialize()`。
+- 事実: 保存側は空 Macro をシリアライズ対象外としていたが、復元側は空の子配列を一度受け入れていた。
+- 対応: 復元時にも空の子配列を拒否し、Macro の保存・復元契約を対称化した。
+- 価値/懸念: 実体変更を持たない壊れた履歴エントリを復元しない。履歴ファイルの runtime 復元は未検証。
+- 次に確認: 空 Macro、無効な子、正常な Macro の保存・復元結果を確認する。
+
+**2026-08-31 — Group postcondition history compensation**
+
+- 関連: `Artifact/src/Service/ArtifactProjectService.cppm` の Group / Ungroup Undo 経路。
+- 事実: Macro の `push()` 後に親関係・group の存在を検証していたが、検証失敗時に実体だけを補修し、履歴へ残った Macro を取り消していなかった。
+- 対応: push 前の履歴件数を保持し、postcondition 失敗時は直前 Macro を Undo してから、必要な場合だけ明示的な実体補修を行うようにした。
+- 価値/懸念: 実体と Undo 履歴が異なる状態を防ぐ。Macro Undo 自体の途中失敗と selection 復元は runtime 未検証。
+- 次に確認: Group / Ungroup の通常操作、途中失敗、履歴予算拒否後の履歴件数・親関係・選択状態を確認する。
+
+**2026-08-31 — Structural operation result compensation**
+
+- 関連: `Artifact/src/Service/ArtifactProjectService.cppm` の Precompose / Unprecompose / Split。
+- 事実: UndoManager の `push()` 成功後に各操作固有の outcome／succeeded flag を検証していたが、検証失敗時も履歴エントリを残していた。
+- 対応: push 前の履歴件数を記録し、結果検証に失敗した場合は直前の command を Undo してから false を返すようにした。
+- 価値/懸念: 構造変更の実体と履歴成功状態の不一致を抑える。大規模な precompose の途中失敗・selection・cache は runtime 未検証。
+- 次に確認: Precompose / Unprecompose / Split の成功、境界拒否、途中失敗、Undo／Redo と履歴件数を確認する。
+
+**2026-08-31 — Timeline clip slide result handling**
+
+- 関連: `Artifact/src/Widgets/ArtifactTimelineWidget.cppm` の Track Painter `clipSlid` 接続。
+- 事実: Slide command の `push()` 戻り値と、UndoManager 不在時の `lastOperationSucceeded()` を確認せず、失敗しても処理を完了扱いにしていた。
+- 対応: manager 経由と直接 `redo()` fallback の双方で適用結果を確認し、失敗時は後続処理へ進まないようにした。
+- 価値/懸念: timing lock、予算拒否、対象消失時に Timeline の成功扱いと実体状態がずれにくい。selection、current frame、cache は runtime 未検証。
+- 次に確認: clip slide の通常操作、境界／lock 拒否、Undo／Redo と Track Painter の再描画を確認する。
+
+**2026-08-31 — Text Gizmo drag rejection rollback**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactTextGizmo.cppm` の Animator range drag commit。
+- 事実: ドラッグ中に scalar／keyframe を先行変更していたが、履歴 budget 超過または `push()` 失敗時に keyframe metadata を含む before 状態へ戻していなかった。
+- 対応: keyframe の interpolation、Bezier control point、roving、anchor、color label を復元する共通処理を追加し、単一エントリ／メモリ／件数拒否と push 失敗の双方で実行するようにした。
+- 価値/懸念: 履歴外の Text Animator 変更が残る経路を抑える。property setter の runtime 成否と表示更新は未検証。
+- 次に確認: scalar／keyframe Animator drag、budget 拒否、push 後 redo 失敗、Undo／Redo と text preview 更新を確認する。
+
+**2026-08-31 — Remaining single-action push results**
+
+- 関連: `Artifact/src/Widgets/CommandPalette/ArtifactCommandPaletteWidget.cppm` と `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`。
+- 事実: Command Palette の Add Mask と Layer Panel の inline rename は `push()` 戻り値を捨て、履歴予算拒否や適用失敗を明示的に扱っていなかった。
+- 対応: manager 経由の戻り値と manager 不在時の直接 command 実行結果を確認し、失敗時に後続処理へ進まないようにした。
+- 価値/懸念: 単一操作の失敗を成功扱いしない。Mask の完全 snapshot と inline editor の UI 状態は runtime 未検証。
+- 次に確認: Add Mask、inline rename の通常操作、対象消失、budget 拒否、Undo／Redo を確認する。
+
+**2026-08-31 — Composition Settings commit gating**
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactCompositionMenu.cppm` の Resolution Remap、Composition State、Master Property。
+- 事実: 各 command の `push()` 戻り値を無視し、履歴予算拒否や適用失敗後もダイアログの後続変更・確定処理へ進める可能性があった。
+- 対応: Resolution は direct fallback の反映値も確認し、3経路すべてで失敗時に警告して確定処理を中断するようにした。
+- 価値/懸念: 複合設定の一部だけが成功した状態を新しい確定処理へ進めにくくする。ダイアログ全体の変更を完全な一つの transaction にすること、runtime rollback は未検証。
+- 次に確認: Resolution／State／Master Property の同時編集、budget 拒否、対象消失、保存後の Undo／Redo を確認する。
+
+**2026-08-31 — Composition rename command boundary**
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactCompositionMenu.cppm` の Composition Settings 確定処理。
+- 事実: `renameComposition()` を呼ぶ前に composition 本体名を直接変更していたため、Rename command が旧名を取得できず、Project View 同期や Undo 境界が同値 no-op になる可能性があった。
+- 対応: 先行する直接 setter を除去し、既存の `ArtifactProjectService::renameComposition()` に名前変更を一本化した。
+- 価値/懸念: composition 本体・Project View item・履歴の名前変更責務を一つの経路へ戻す。設定ダイアログ全体の他プロパティ transaction は別途未統合、runtime 未検証。
+- 次に確認: Composition 名変更、同値名、Project View 表示、Undo／Redo、保存／再読込後の名前同期を確認する。
+
+**2026-08-31 — Work Area and Center Layer result handling**
+
+- 関連: `Artifact/src/Service/ArtifactPlaybackService.cppm` の Work Area 操作、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm` の Center Layer。
+- 事実: command-only 操作で `push()` の戻り値、または manager 不在時の直接 `redo()` 結果を確認せず、処理を成功経路として終えていた。
+- 対応: Work Area の開始・終了・移動と Center Layer で適用結果を確認し、失敗時に同期・後続処理へ進まないようにした。
+- 価値/懸念: 履歴予算拒否や対象不在を成功扱いしにくくする。Work Area の engine/cache 同期と Center Layer の表示更新は runtime 未検証。
+- 次に確認: Work Area 3操作、Center Layer、予算拒否、Undo／Redo、playback range/cache の同期を確認する。
+
+**2026-08-31 — Transform Field direct update fallback**
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm` の Live Transform Field 編集／有効切替。
+- 事実: UndoManager 不在時の fallback が更新対象を `addTransformField()` しており、既存 Field を編集する操作で重複 Field を作る可能性があった。
+- 対応: Field ID で既存要素を検索し、配列内の該当要素を置換して `setTransformFields()` するようにした。
+- 価値/懸念: 履歴サービス不在時も編集／切替が追加操作へ化けない。Field 配列 setter の通知・active selection は runtime 未検証。
+- 次に確認: Field の編集、有効切替、UndoManager 不在時の重複有無、active Field と描画結果を確認する。
+
+**2026-08-31 — Layer Menu state and radial transform fallback**
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm` の Visibility／Lock／Solo／Shy と Radial Transform。
+- 事実: 基本状態切替は UndoManager 不在時に無操作となり、Radial Transform は `push()` 結果を無視していた。
+- 対応: 4つの状態切替を command の直接 `redo()` fallback と成否確認付きにし、Radial Transform も同じ command 経路で manager 不在時に適用するようにした。
+- 価値/懸念: Layer Menu の基本操作と複数レイヤー変形が履歴サービスの状態に依存しすぎない。selection、dirty、preview cache は runtime 未検証。
+- 次に確認: 4状態切替、Radial Transform、予算拒否、Undo／Redo、複数選択の表示同期を確認する。
+
+**2026-08-31 — Layer Menu command execution boundary**
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm` の Transform Field／Parametric 操作。
+- 事実: Field 追加・選択・有効化・並べ替え・削除、および Parametric 定義変更が各所で `push()` を直接呼び、manager 不在時の直接適用と失敗判定が分散していた。
+- 対応: `applyLayerMenuUndoCommand()` を追加し、既存 command の manager 経路、直接 `redo()` fallback、`lastOperationSucceeded()` を一つの境界へ統合した。
+- 価値/懸念: command-only 操作の履歴拒否・対象消失・manager 不在時の無操作を同じ契約で扱える。通知・active selection・runtime は未検証。
+- 次に確認: Field／Parametric 各操作の通常・失敗・Undo／Redo、manager 不在、履歴 budget 拒否を確認する。
+
+**2026-08-31 — Layer mask conversion result handling**
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm` の Text→Mask、Shape→Mask、Mask→Shape。
+- 事実: 変換 command の `push()` 結果を無視し、manager 不在時は一部の変換が無操作になる可能性があった。
+- 対応: 共通 command 実行境界へ接続し、直接 fallback、適用成否確認、失敗時の警告を追加した。
+- 価値/懸念: マスク変換の履歴拒否・対象不在を成功扱いしない。生成 Shape の全要素 rollback と selection は runtime 未検証。
+- 次に確認: 3種類の変換、空／不正パス、予算拒否、Undo／Redo、生成レイヤー選択を確認する。
+
+**2026-08-31 — Composition settings and particle sketch fallback results**
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactCompositionMenu.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`、`Artifact/src/Tool/ArtifactMotionSketchTool.cppm`。
+- 事実: Composition Settings の直接 setter と、パーティクル／Motion Sketch のドラッグ確定処理で、適用後の値または UndoManager 不在時の処理結果を十分に確認していなかった。
+- 対応: Composition Settings の responsive layout・サイズ・フレーム設定・背景色を検証し、finalize 結果も確認。パーティクルと Motion Sketch は manager 不在時の既存直接変更を保持し、manager が存在して push に失敗した場合だけ before 状態へ戻す条件に整理した。
+- 価値/懸念: 履歴サービス不在を誤って無操作扱いせず、履歴予算拒否や適用失敗だけを rollback できる。Composition Settings 全体の単一 Undo transaction 化と runtime 動作は未検証。
+- 次に確認: 各ドラッグ操作、manager 不在、履歴予算拒否、Composition Settings の入力不正、Undo／Redo、再生範囲同期を確認する。
+
+**2026-08-31 — Particle and audio editor direct-commit fallback**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`、`Artifact/src/Tool/ArtifactMotionSketchTool.cppm`、`Artifact/src/Widgets/ArtifactCompositionAudioMixerWidget.cppm`。
+- 事実: これらの編集は live state を先に変更してから Undo command を記録するため、UndoManager 不在時に変更が無操作扱いになり、履歴 push 失敗時の復元条件も経路ごとに異なっていた。
+- 対応: manager 不在時は検証可能な live 変更を保持し、manager が存在して push に失敗した場合だけ before 状態へ戻すよう整理。Audio Mixer は manager 不在時もシリアライズ結果を検証し、失敗時は before JSON を復元する。
+- 価値/懸念: ドラッグ編集の実状態と履歴結果の不一致を減らす。UI 通知、Mixer の deserialize 後更新、runtime は未検証。
+- 次に確認: Particle／Motion Sketch／Audio Routing の manager 不在、履歴 budget 拒否、対象消失、Undo／Redo、表示更新を確認する。
+
+**2026-08-31 — Audio routing live-state verification**
+
+- 関連: `Artifact/src/Widgets/ArtifactCompositionAudioMixerWidget.cppm` の Advanced Audio Routing。
+- 事実: Routing editor は mixer を先に変更してから Undo callback を呼ぶため、UndoManager 不在をそのまま失敗扱いにすると、実際には変更済みなのに UI が失敗経路へ入る可能性があった。
+- 対応: manager がない場合は変更後 JSON を検証して直接適用を成功扱いにし、manager の push または検証が失敗した場合だけ before JSON に復元するようにした。
+- 価値/懸念: mixer の live state と履歴記録結果の不整合を抑える。deserialize 後のメーター／表示再構築は runtime 未検証。
+- 次に確認: Routing の追加・削除・並べ替え、manager 不在、履歴 budget 拒否、Undo／Redo、Mixer 表示更新を確認する。
+
+**2026-08-31 — Timeline matte and layer-drop command fallback**
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm` の Matte 追加／差し替えと layer index ドロップ。
+- 事実: これらの command-only 操作は UndoManager が存在する場合だけ push し、manager 不在時は変更を実行しない経路になっていた。
+- 対応: manager があれば push、なければ command の直接 `redo()` と `lastOperationSucceeded()` を使う共通の結果判定パターンへ揃えた。
+- 価値/懸念: Matte 操作とレイヤー並べ替えが履歴サービスの有無で無操作にならない。選択・dirty・タイムライン再構築の runtime 挙動は未検証。
+- 次に確認: Matte 追加／差し替え、レイヤー D&D、manager 不在、履歴 budget 拒否、Undo／Redo、選択同期を確認する。
+
+**2026-08-31 — Motion Dynamics preset transaction**
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm` の Motion Dynamics メニュー。
+- 事実: プリセットと Reset が複数の layer property setter を直接連続実行しており、Undo が一操作にまとまらず、履歴サービス不在時の結果判定もなかった。
+- 対応: enabled／mode／stiffness／damping／mass／lagTau／clampOvershoot／overshootLimit を既存の `SetLayerPropertyValueCommand` の `MacroUndoCommand` にまとめ、manager 不在時は直接 redo と成否確認を行うようにした。Reset の enabled=false／mode=0 も保持した。
+- 価値/懸念: プリセット適用と Reset が一回の Undo／Redo 単位になり、途中失敗時の Macro rollback 契約を利用できる。property 型の互換性と UI／runtime 通知は未検証。
+- 次に確認: 各プリセット、Reset、manager 不在、履歴 budget 拒否、Undo／Redo、再描画と Motion 挙動を確認する。
+
+**2026-08-31 — Layer Panel all-layer state transactions**
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm` の全レイヤー表示／ロック操作。
+- 事実: 全レイヤー表示・非表示・ロック・ロック解除が各 layer の setter を直接反復し、単一 Undo 単位も manager 不在時の適用結果確認もなかった。
+- 対応: 既存の Visibility／Lock command を MacroUndoCommand にまとめ、空 composition を除外し、manager 経路と直接 redo fallback の結果を確認するようにした。
+- 価値/懸念: バッチ状態変更を一操作として戻せ、途中失敗時の Macro 補償を利用できる。selection・dirty・preview 更新の runtime は未検証。
+- 次に確認: 全表示／非表示／ロック／解除、空 composition、履歴 budget 拒否、Undo／Redo、timeline 再描画を確認する。
+
+**2026-08-31 — Layer label color command boundary**
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm` のレイヤーラベル色メニュー。
+- 事実: ラベル色変更が直接 setter のみで、Undo 履歴・manager 不在時の成否確認・対象消失時の失敗判定がなかった。
+- 対応: panel 内の小さな `SetLayerLabelColorCommand` を追加し、before／after の色番号、適用後検証、manager push／直接 redo fallback を持たせた。
+- 価値/懸念: ラベル色の変更も他の layer state 操作と同じ Undo 境界になる。ラベル色の保存／再読込と UI 色表示は runtime 未検証。
+- 次に確認: 全ラベル色、同色選択、対象消失、履歴 budget 拒否、Undo／Redo、保存／再読込を確認する。
+
+**2026-08-31 — Layer Panel header and solo-only command reuse**
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm` の header state buttons と Ctrl+Alt+Click の solo-only 表示。
+- 事実: header の表示／ロック／ソロ切替と solo-only 操作が直接 setter で、既存の state command と異なる履歴境界になっていた。
+- 対応: panel 内の command 実行ヘルパーを追加し、header 3操作を既存 command へ接続。solo-only は全レイヤーの Visibility command を MacroUndoCommand にまとめた。
+- 価値/懸念: 同じ UI 操作でも UndoManager 有無と push 失敗を一貫して扱える。Audio／Video 列や layer property preset の残る直接 setter は別責務として未検証。
+- 次に確認: header 操作、solo-only、manager 不在、履歴 budget 拒否、Undo／Redo、選択・表示更新を確認する。
+
+**2026-08-31 — Layer Panel selected-menu command consistency**
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm` の選択メニュー、Proxy Quality、Light Linking。
+- 事実: 選択メニューの state setter、Proxy Quality、Light Linking 3操作は、同じ panel 内の他の操作と異なり直接変更または manager 依存で、Undo 単位と失敗判定が揃っていなかった。
+- 対応: 選択メニューの Visibility／Lock／Solo／Shy を共通 command helper に接続し、Proxy Quality は before／after の property command、Light Linking は3プロパティを1つの MacroUndoCommand にまとめた。
+- 価値/懸念: 入口による Undo 挙動の差を減らし、manager 不在・履歴拒否・property 欠落を成功扱いしにくくした。3D Material preset や一部の media setter は引き続き別途確認が必要。
+- 次に確認: 選択メニュー state、Proxy Quality、Light Linking、manager 不在、履歴 budget 拒否、Undo／Redo、表示と renderer 更新を確認する。
+
+**2026-08-31 — Layer property preset transaction helper**
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm` の 3D Material と Text Animator メニュー。
+- 事実: Material の6項目プリセットと Text Animator の preset setter が直接変更され、Undo 単位・property 欠落・型差異の扱いがなかった。
+- 対応: property の before 値を取得し、現在の QVariant 型へ変換して `SetLayerPropertyValueCommand` を MacroUndoCommand にまとめる共通 helper を追加。Material／Animator の適用後だけ UI 更新するようにした。
+- 価値/懸念: 複数値のプリセットを一操作で Undo／Redo でき、partial property 構成を誤って成功扱いしない。3D renderer 反映と Text Animator の実動作は runtime 未検証。
+- 次に確認: Material 各プリセット、Animator 各 preset／Clear、型変換、manager 不在、履歴 budget 拒否、Undo／Redo、描画更新を確認する。
+
+**2026-08-31 — Layer Panel media and group state routing**
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm` の Video mute／video enabled、Audio mute、Group output mode。
+- 事実: 専用 setter と property setter の二重適用、または直接 setter のみで、Undo 時に専用状態と property 表現が分離する可能性があった。
+- 対応: 既存の `setLayerPropertyValue()` 実装が専用 setter と dirty 更新を担うことを確認し、Video／Audio の mute、Video enabled、Group output mode を property command／共通 Macro helper へ接続した。
+- 価値/懸念: 専用状態と保存用 property の適用経路を一本化し、Undo／Redo と manager 不在時の結果判定を揃えた。音声再生・映像 renderer・Group compositor の runtime は未検証。
+- 次に確認: Video／Audio mute、Video enabled、Group output mode、manager 不在、履歴 budget 拒否、Undo／Redo、再生・描画反映を確認する。
+
+**2026-08-31 — Group active-child command boundary**
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm` の Group「Single の出力先」。
+- 事実: active child の選択が `setActiveChildId()` の直接呼び出しで、Output Mode と異なる Undo 境界になっていた。
+- 対応: child ID から有効な child index を解決し、既存の `group.activeChildIndex` property setter を before／after command として実行するようにした。
+- 価値/懸念: Group の出力先変更も Undo／Redo と manager 不在時の結果判定を持つ。composition-owned child 列挙と render 評価の runtime は未検証。
+- 次に確認: Single output の child 切替、非表示 child、manager 不在、履歴 budget 拒否、Undo／Redo、Group compositor の出力を確認する。
+
+**2026-08-31 — Text editor style transaction boundary remains separate**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm` の Text Editor commit。
+- 事実: Text Editor は多数の style setter をまとめて直接適用し、Animator Stack だけを既存 command で記録している。値の before snapshot は存在するが、style 全体と source text の transaction 境界は分離している。
+- 判断: ここを一括 command 化するには、font／layout／stroke／shadow／paragraph など各 property path と型、source text command、Animator Stack command の順序を一つの Macro に整理する必要がある。現時点で局所的な setter 置換をすると、部分 rollback や二重 command の危険があるため、推測で変更しない。
+- 価値/懸念: 未対応の Undo gap を明示し、次回は Text Layer の property path と command grouping を先に設計できる。runtime 未検証。
+- 次に確認: Text Editor style の全 before／after 対応表、source text／animator stack との Macro 境界、manager 不在・push 拒否・Undo／Redo を確認する。
+
+**2026-08-31 — Text editor style property snapshot command**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm` の Text Editor commit。
+- 事実: style setter 群は live state を先に変更する構造だったが、Undo 用の property 対応表と push 失敗時の復元経路がなかった。
+- 対応: font／layout／stroke／shadow／paragraph の before／after を `SetLayerPropertyValueCommand` の MacroUndoCommand にまとめ、manager 不在時は既存 live change を保持し、push 失敗時は before property 群へ戻すようにした。Animator count はスタック全体の snapshot command と競合するため、この Macro から分離した。
+- 価値/懸念: Text style の複数値を一操作として Undo／Redo できる。source text と Animator Stack は現在も別 command 境界で、単一 transaction 化および runtime は未検証。
+- 次に確認: style 全項目、型変換、source text／Animator Stack の同時編集、manager 不在、履歴 budget 拒否、Undo／Redo、render dirty 通知を確認する。
+
+**2026-08-31 — Text animator count must remain in stack snapshot boundary**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`, `Artifact/src/Layer/ArtifactTextLayer.cppm`。
+- 確認できた事実: `text.animatorCount` はスタック要素数だけを変更する一方、Animator の各要素と animated properties は `textAnimatorStackSnapshot()`／`restoreTextAnimatorStack()` で一括復元される。
+- 対応: Text style Macro から `text.animatorCount` を除外し、Animator count／preset の変更を既存のスタック snapshot command に限定した。manager 不在時は live 変更を保持し、push 失敗時はスタックを before snapshot に戻す結果フラグも修正した。
+- 価値/懸念: style Undo と Animator Stack Undo が同じ状態を二重に書き換えず、スタック要素と関連 property の整合性を保ちやすい。source text／style／Animator Stack の完全な一操作化と runtime は未検証。
+- 次に確認: animator count の増減、preset、style 同時変更、Undo／Redo、manager 不在、履歴 budget 拒否、render dirty 通知を確認する。
+
+**2026-08-31 — Reset transform group preserves live state without UndoManager**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の複数選択 Transform reset。
+- 確認できた事実: 各対象へ reset を live apply した後、UndoManager が存在する場合だけ `GizmoGroupTransformUndoCommand` を push しており、manager 不在時は `pushed == false` のまま before state へ rollback していた。
+- 対応: manager 不在時は live apply を成功扱いにし、変更通知・render dirty を継続するようにした。manager がある場合のみ push 失敗時に rollback する。
+- 価値/懸念: Undo サービス未接続時でも UI の複数選択 reset が見た目だけ取り消されない。Undo／Redo と複数レイヤーの runtime は未検証。
+- 次に確認: 2D／3D、複数選択、キーフレーム、manager 不在、履歴 budget 拒否、Undo／Redo、selection と render cache を確認する。
+
+**2026-08-31 — Inspector matte helpers apply without UndoManager**
+
+- 関連: `Artifact/src/Widgets/ArtifactInspectorWidget.cppm` のマット参照変更補助関数群。
+- 確認できた事実: matte type／layer source／project input／clear の各補助関数は `ChangeLayerMatteReferencesCommand` を作成するものの、UndoManager がない場合は `undo && push(...)` により常に false を返し、UI の操作結果を適用しなかった。
+- 対応: before／after の参照配列を受ける共通 helper を追加し、manager があれば既存 command、なければ `setMatteReferences(afterRefs)` を使うようにした。
+- 価値/懸念: Inspector と matte context menu の直接操作が Undo サービスの有無で挙動を変えず、既存の cycle／index 検証も維持される。manager 不在時の runtime と matte compositor の反映は未検証。
+- 次に確認: type／layer source／project input／clear、cycle、multiple references、manager 不在、Undo／Redo、render cache を確認する。
+
+**2026-08-31 — Layer order macro gets a direct fallback**
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm` の Bring／Send layer order 操作。
+- 確認できた事実: 選択レイヤーの並び替えは `MacroUndoCommand` のみを構築し、UndoManager がない場合は実行せず false を返していた。
+- 対応: 変更がある場合、manager があれば従来どおり一つの Macro として pushし、manager 不在時は同じ Macro を直接 redo して `lastOperationSucceeded()` を返すようにした。
+- 価値/懸念: 単一／複数選択のレイヤー順序変更が Undo サービスの有無で消失しない。順序変更後の timeline／render cache の runtime は未検証。
+- 次に確認: Bring Forward／Backward、Front／Back、複数選択順序、部分失敗、manager 不在、Undo／Redo、selection 同期を確認する。
+
+**2026-08-31 — Standalone AlignmentWidget uses the shared undo boundary**
+
+- 関連: `Artifact/src/Widgets/ArtifactAlignmentWidget.cppm` の Align／Distribute ボタン。
+- 確認できた事実: Layer Menu 側には `AlignLayersUndoCommand` がある一方、独立 AlignmentWidget は選択レイヤーの位置を直接変更するだけで、Undo／Redo や push 失敗時の復元を持っていなかった。
+- 対応: before／after の位置・scale snapshot を作成し、既存 `AlignLayersUndoCommand` を一操作として push。push 失敗時は位置を before に戻し、manager 不在時は既存の live 変更を保持する。選択 manager の null も防御した。
+- 価値/懸念: 2つの整列 UI で履歴境界が揃い、履歴拒否時の部分状態を残しにくくなった。現状は既存仕様どおり frame 0／30000 time scale を使い、runtime は未検証。
+- 次に確認: 各 Align／Distribute 種別、現在フレーム以外、複数選択、push 拒否、Undo／Redo、selection と render cache を確認する。
+
+**2026-08-31 — Anchor Point Tool records anchor and visual-position changes**
+
+- 関連: `Artifact/src/Widgets/ArtifactAnchorPointTool.cppm` の Anchor Point／Apply to Selected 操作。
+- 確認できた事実: anchor の変更と、見た目位置維持のための position 補正が直接 transform を変更していたが、Undo command は作成されていなかった。
+- 対応: 既存の `SetLayerPropertyValueCommand` と `MacroUndoCommand` を使い、anchor／position の before／after を記録するようにした。push 前に before へ戻し、拒否時も before を保持する。UndoManager 不在時は live 変更を保持する。
+- 価値/懸念: anchor 単体と visual-position 補正を同じレイヤー操作として Undo／Redo できる。複数選択は現行のレイヤー単位 push のままで、frame rate 24／current frame の runtime 整合性は未検証。
+- 次に確認: anchor 9種、visual-position on/off、keyframe、複数選択、push 拒否、Undo／Redo、selection と render cache を確認する。
+
+**2026-08-31 — Dope Sheet keyframe batches become one undo operation**
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactTimelineKeyframeModel.cppm` の keyframe add／Bezier add／move／remove／offset／scale。
+- 確認できた事実: 単一 keyframe API と Dope Sheet の offset／scale は property の keyframe 配列を直接変更していた。複数 property をまたぐ Dope Sheet 操作には Undo command がなかった。
+- 対応: 単一操作は before／after keyframe 配列を既存 `SetLayerPropertyKeyframesCommand` へ接続し、Dope Sheet の複数 property 変更は `MacroUndoCommand` にまとめた。manager がある場合は push 前に before へ戻し、拒否時は全変更を before へ復元する。
+- 価値/懸念: keyframe 編集の履歴境界が明確になり、部分的な Dope Sheet 変更を残しにくくなった。現行の frame scale／重複 keyframe の runtime と Undo／Redo は未検証。
+- 次に確認: add／Bezier／move／remove、offset／scale、同時刻衝突、manager 不在、履歴 budget 拒否、Undo／Redo、timeline repaint を確認する。
+
+**2026-08-31 — ArtifactPr export now matches preview (transitions / effects / audio)**
+
+- 関連: `ArtifactPr/src/SequenceExporter.cppm`、`ArtifactPr/src/ArtifactPrMainWindow.cppm`、新規 `ArtifactPr/{include,src}/ClipEffects.*`、`ArtifactPr/{include,src}/SequenceAudioRenderer.*`。
+- 確認できた事実: collectActiveClips は `store_->sequenceIds()` 全件を走査しており、NLE ストアに複数シーケンスが存在すると全シーケンスのアクティブクリップが 1 枚に重畳する既存挙動がある (SequenceExporter.cppm の sequenceIds ループ)。単一シーケンス運用では無害。
+- 価値/懸念: トランジション opacity 変調・fx.* クリップエフェクト・音声ミックスを RenderPlan 凍結経由でエクスポートへ反映し、プレビューと同一のカーブ/評価順に統一した。AudioPreviewMixer の durationFrames 未使用 (ソース終端まで鳴る) は既存のまま変更していない。
+- 次に確認: トランジション区間のプレビュー/エクスポート一致、WAV/MP3/動画+mux の手動再生確認 (ARTIFACT_BUILD_PR=ON ビルド後)。
+
+**2026-08-31 — Clip effect evaluation cost sits on the preview main thread**
+
+- 関連: `ArtifactPr/src/ClipEffects.cppm`、`ArtifactPr/src/ArtifactPrMainWindow.cppm` の onFrameDecoded。
+- 価値/懸念: エフェクト評価はデコード後のソース解像度フレームに対して行われる (4K ソース + blur 時にプレビュー fps が落ちる可能性)。toCanonicalRGBA32FC4 のコピーが 1 回/フレーム発生する。実測は未検証。
+- 次に確認: 重いエフェクト (gaussianBlur 半径大) + 4K ソースでのプレビュー性能。必要なら canvas スケール評価への変更を検討。
+
+**2026-08-31 — AudioPreviewMixer waveform peaks are computed after EQ**
+
+- 関連: `ArtifactPr/src/AudioPreviewMixer.cppm` の loadClipAudio。
+- 確認できた事実: waveform peak (0.5 秒バケット) は EQ 適用後のセグメントから計算するようになった。EQ 設定が波形表示に反映される。キャッシュキーは filePath+EQ 署名のため、同一ファイルで EQ の異なるクリップは別キャッシュになりメモリが増える (EQ 未使用時は従来どおり 1 キー)。
+- 次に確認: EQ 適用クリップの波形/メーター表示の整合。
+
+**2026-08-31 — Point tracker rejects empty exports without leaving layers or effects**
+
+- 関連: `Artifact/src/Tool/ArtifactPointTrackerTool.cppm` の tracking／planar export。
+- 確認できた事実: composition 範囲内に適用できるサンプルがない場合でも Null レイヤーを先に追加し、Corner Pin も有効なキーフレームの有無を確認する前に effect を追加していた。
+- 対応: 有効なサンプルを先に収集し、空の場合は false を返す。Null レイヤーは append 成功を確認してから確定し、Corner Pin は範囲内かつ有限な値のキーフレームがある場合だけ effect を追加する。
+- 価値/懸念: 失敗したトラッキング適用で空のレイヤー／壊れた effect が残りにくくなった。新規レイヤー＋effect＋キーフレーム全体を一つの Undo コマンドにまとめる既存公開 API は見つからず、Undo 統合は未実装。
+- 次に確認: 空範囲、NaN／巨大時刻、append failure、planar corner pin の Undo／Redo と effect 削除履歴を確認する。
+
+**2026-08-31 — Camera tracker requires a camera layer append to succeed**
+
+- 関連: `Artifact/src/Tool/ArtifactCameraTrackerTool.cppm` の camera tracking export。
+- 確認できた事実: solve 成功後に camera layer の生成または append が失敗しても、feature layer 作成へ進み最終的に true を返す可能性があった。
+- 対応: camera layer の生成と append 成功を必須化し、feature layer は append 成功数だけを数えるようにした。
+- 価値/懸念: カメラ本体が存在しないのに tracking 成功と報告する状態を避けられる。camera layer／feature layer 群を一つの Undo 操作にまとめる既存 API は未確認。
+- 次に確認: camera append failure、feature append 部分失敗、tracking 結果の再適用時の重複と Undo／Redo を確認する。
+
+**2026-08-31 — Curve Editor key deletion uses the timeline snapshot command**
+
+- 関連: `Artifact/src/Widgets/ArtifactTimelineWidget.cppm` の Curve Editor `keyDeleted` ハンドラ。
+- 確認できた事実: 削除操作だけは property から直接 `removeKeyFrame()` しており、Curve Editor の drag 操作で使うスナップショット履歴へ接続されていなかった。
+- 対応: 削除前後の property keyframe snapshot を取得し、既存 `TimelineKeyframeSnapshotCommand` に登録した。UndoManager の push 拒否時は削除前へ復元し、UndoManager 不在時は直接変更を保持する。
+- 価値/懸念: Curve Editor の削除も一操作一履歴になった。選択状態の自動復元はこの単独削除では追加していない。runtime の signal 順序と再描画は未検証。
+- 次に確認: 単独削除、複数選択削除、同時刻衝突、push 拒否、Undo／Redo、curve cache 再構築を確認する。
+
+**2026-08-31 — Audio mixer channel controls record layer property changes**
+
+- 関連: `Artifact/src/Widgets/ArtifactCompositionAudioMixerWidget.cppm` の channel strip。
+- 確認できた事実: volume／pan／mute の UI 操作はレイヤーへ値を反映していたが、UndoManager へ登録されていなかった。volume は 16ms timer でライブ更新されるため、更新ごとの command 化は履歴を細切れにする。
+- 対応: 既存 `SetLayerPropertyValueCommand` を使い、volume は slider 押下〜リリースを一件に集約、pan／mute は各操作を一件として記録した。manager push 前に before へ戻し、拒否時は after を復元する。audio/video のプロパティパスを型ごとに分けた。
+- 価値/懸念: フェーダー操作の履歴粒度と失敗時の復元が明確になった。Solo は既存の `setLayerSoloInCurrentComposition()` 経由で専用 `SetLayerSoloCommand` に接続し、Master Bus は Core Mixer の JSON snapshot command に接続した。runtime の signal 順序、再生中の mixer 同期、Undo／Redo は未検証。
+- 次に確認: volume drag／keyboard、pan、mute、video layer、push 拒否、Undo／Redo、audio engine の再同期を確認する。
+
+**2026-08-31 — Point tracker position export is one add-layer/keyframe macro**
+
+- 関連: `Artifact/src/Tool/ArtifactPointTrackerTool.cppm` の `applyTrackingResult()`。
+- 確認できた事実: 新規 Null 作成時の layer append と position／anchor keyframe 書き込みは、従来は直接変更で別々の履歴境界も持たなかった。
+- 対応: UndoManager がある場合、既存 `AddLayerCommand` と `SetLayerPropertyKeyframesCommand` を `MacroUndoCommand("Apply Tracking Result")` にまとめた。push 前に before snapshot へ戻し、拒否時は after を復元する。manager 不在時は従来の直接適用を保持する。
+- 価値/懸念: 新規 Null layer の生成と position／anchor の適用を一回の Undo で戻せる経路を追加した。planar Corner Pin の effect 追加を含む専用 tracker command、選択状態、runtime／session reload は未検証。
+- 次に確認: selected layer／new Null、anchor on/off、複数 point、履歴 budget 拒否、Undo／Redo、layer selection と render cache を確認する。
+
+**2026-08-31 — Planar Corner Pin export is one effect/keyframe macro**
+
+- 関連: `Artifact/src/Tool/ArtifactPointTrackerTool.cppm` の `applyPlanarResultAsCornerPin()`。
+- 確認できた事実: Corner Pin effect と 8 個の animatable property の keyframe 書き込みが直接実行され、effect 追加を含む一括 Undo 境界がなかった。
+- 対応: effect の追加／削除を検証する `AddLayerEffectUndoCommand` と既存 `SetEffectPropertyKeyframesCommand` を `Apply Planar Corner Pin` Macro にまとめた。UndoManager 不在時は直接適用を維持し、時刻・値・composition 範囲の検証後にだけ effect を追加する。
+- 価値/懸念: planar export の effect と keyframe を一回の Undo で戻せる。effect add command は UndoManager の factory と ID resolver に接続したが、実際の session save／reload、selection／runtime は未検証。
+- 次に確認: effect 重複、8 property の部分失敗、Undo／Redo、session save／reload、render cache と selection を確認する。
+
+**2026-08-31 — Interpolation apply keeps working without UndoManager**
+
+- 関連: `Artifact/src/Widgets/ArtifactTimelineWidget.cppm` の `applyInterpolationToSelectedKeyframesImpl()`。
+- 確認できた事実: UndoManager がある場合は `ApplyInterpolationCommand` を push するが、manager 不在時は records を作成した後に `0` を返し、選択キーフレームへ何も適用していなかった。
+- 対応: manager 不在時は既存 `applyInterpolationChangeRecords()` を after 側・通知なしで直接実行し、成功件数を返すようにした。manager がある場合の一操作一 Undo は維持する。
+- 価値/懸念: 初期化順序や限定環境でも interpolation 操作が無操作にならない。direct fallback の runtime 表示更新、部分失敗、selection は未検証。
+- 次に確認: Linear／Bezier／Easy Ease、複数選択、manager 不在、push 拒否、Undo／Redo、再描画を確認する。
+
+**2026-08-31 — Composition effect direct fallbacks verify postconditions**
+
+- 関連: `Artifact/src/Service/ArtifactProjectService.cppm` の composition effect 追加・削除・有効状態変更。
+- 確認できた事実: UndoManager 不在時の直接処理は存在したが、追加／削除後の effect 集合や enabled 状態を確認せず成功を返していた。
+- 対応: effect ID の追加・削除結果と enabled 値を事後確認し、期待状態に到達しなければ失敗を返すようにした。
+- 価値/懸念: Undo 経路と direct fallback の成功判定が揃う。runtime の effect container 実装と通知順序は未検証。
+- 次に確認: effect add／remove／enable、失敗時の UI 同期、Undo／Redo、project mutation 通知を確認する。
+
+**2026-08-31 — Layer parent direct fallback verifies assignment**
+
+- 関連: `Artifact/src/Service/ArtifactProjectService.cppm` の `setLayerParentInCurrentComposition()`。
+- 確認できた事実: UndoManager 不在時の親解除・親設定は直接実行されるが、実際の parent ID を確認せず成功を返していた。
+- 対応: 親解除後は nil、親設定後は指定 ID になったことを確認し、失敗時は false を返すようにした。
+- 価値/懸念: parent 操作の direct fallback でも postcondition を満たさない状態を成功扱いしない。runtime の Core 側 setter の失敗条件は未検証。
+- 次に確認: 親設定・解除、循環拒否、UndoManager 不在、push 拒否、Undo／Redo、selection 更新を確認する。
+
+**2026-08-31 — Marker shortcut fallback preserves edits without UndoManager**
+
+- 関連: `Artifact/src/Service/ArtifactPlaybackShortcuts.cppm` のサービス不在時 marker fallback。
+- 確認できた事実: marker add／chapter add／delete／clear は変更後に `!undo || !push` で before snapshot へ戻していたため、UndoManager 不在時は変更が常に消えていた。
+- 対応: UndoManager が存在する場合だけ push 失敗時に rollback し、manager 不在時は直接変更を保持するようにした。
+- 価値/懸念: 初期化順序や限定環境でも marker 操作が no-op にならない。marker persistence と UI refresh は未検証。
+- 次に確認: 各 marker 操作、manager 不在、push 拒否、Undo／Redo、保存・再読込を確認する。
+
+**2026-08-31 — Mask and asset direct fallbacks no longer rollback without UndoManager**
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の複数レイヤー mask 操作、`Artifact/src/Asset/AssetDirectoryModel.cppm` の asset file move。
+- 確認できた事実: mask 操作は変更済みの状態を UndoManager 不在時にも rollback していた。asset move は command を push できない場合に直接 redo する経路がなかった。
+- 対応: mask は manager が存在する場合だけ push 失敗時に rollback し、asset move は manager 不在時に command の redo を直接実行して成否を確認するようにした。
+- 価値/懸念: fallback 環境でも UI 編集と asset 移動が no-op にならない。mask の複数対象部分失敗と filesystem rename の race は未検証。
+- 次に確認: mask toggle／reorder／geometry、asset drag move、manager 不在、push 拒否、Undo／Redo、model refresh を確認する。
+
+**2026-08-31 — Workspace automation batch fallbacks are transactional**
+
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx` の batch rename／batch move。
+- 確認できた事実: composition rename の direct fallback は composition 本体だけを更新し ProjectItem 名を同期していなかった。batch move は途中の direct 操作が失敗しても先行した移動を残す可能性があった。
+- 対応: rename で composition と ProjectItem の両方を更新・検証し、失敗時は全件を旧値へ戻すようにした。move は各操作の戻り値と parent を検証し、失敗時は保存した親・位置へ逆順復元するようにした。
+- 価値/懸念: AI batch 操作の成功／失敗境界が明確になった。複数操作の外部変更競合と runtime の ProjectItem tree 通知は未検証。
+- 次に確認: composition rename、通常 item rename、複数 item move、途中失敗、Undo／Redo、project tree refresh を確認する。
+
+**2026-08-31 — Active context timing fallbacks verify frame changes**
+
+- 関連: `Artifact/src/Application/ActiveContextService.cppm` の layer In／Out／Trim 操作。
+- 確認できた事実: UndoManager 不在時は timing setter を直接呼ぶが、setter が要求 frame を反映したか確認していなかった。Trim In は二つの setter の片方だけ失敗する可能性もあった。
+- 対応: In／Out の direct fallback に事後確認を追加し、Trim In は inPoint と startTime の両方が一致しない場合に旧値へ復元して失敗扱いにした。
+- 価値/懸念: timing 操作が範囲外・拒否状態を成功扱いしにくくなった。runtime の setter が clamp する仕様と UI refresh は未検証。
+- 次に確認: Set In／Set Out／Trim In／Trim Out、境界 frame、timing lock、UndoManager 不在、再描画を確認する。
+
+**2026-08-31 — Work-area direct fallbacks verify applied ranges**
+
+- 関連: `Artifact/src/Service/ArtifactPlaybackService.cppm` の work area start／end／move 操作。
+- 確認できた事実: UndoManager 不在時の直接 `setWorkAreaRange()` 後に、要求した start/end が反映されたか確認せず通知・engine 同期へ進んでいた。
+- 対応: 3 操作で range の事後状態を検証し、反映されなければ旧 range へ戻して通知しないようにした。
+- 価値/懸念: work area と playback engine の不一致を減らせる。Core 側の clamp 仕様と runtime engine 同期は未検証。
+- 次に確認: start／end／move、範囲境界、manager 不在、setter 拒否、再生範囲同期を確認する。
+
+**2026-08-31 — Duplicate layer direct fallback verifies insertion index**
+
+- 関連: `Artifact/src/Service/ArtifactProjectService.cppm` の `duplicateLayerInCurrentComposition()`。
+- 確認できた事実: UndoManager 不在時の複製は、複製 layer の index 移動後に位置を検証せず、複製・選択を成功扱いしていた。
+- 対応: direct move 後に複製 layer の実 index を確認し、期待位置に到達しなければ複製を除去して false を返すようにした。
+- 価値/懸念: 複製と index 移動の atomicity を direct fallback でも維持する。Core の removeLayer 後の selection／project notification は未検証。
+- 次に確認: 複製位置、manager 不在、move 拒否、失敗時 layer 数、selection、Undo／Redo を確認する。
+
+**2026-08-31 — Tangent snapshot application failure is not reported as success**
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm` の Break／Unify Tangents。
+- 確認できた事実: after keyframe snapshot の適用結果を確認せず、Undo 登録または成功メッセージへ進む可能性があった。
+- 対応: after snapshot 適用を検証し、失敗時は before snapshot へ戻して処理を終了するようにした。
+- 価値/懸念: tangent 編集の部分適用を成功扱いしにくくなった。keyframe setter 内部の部分失敗と runtime 表示更新は未検証。
+- 次に確認: Break／Unify、複数選択、対象消失、setter 拒否、Undo／Redo、Timeline refresh を確認する。
+
+**2026-08-31 — Track Painter snapshot helpers propagate apply failure**
+
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm` の keyframe area value／numeric value／timeline layer snapshot helper。
+- 確認できた事実: after keyframe snapshot の適用結果を無視して成功を返す補助関数があり、失敗時に後続の Undo 登録や表示更新へ進み得た。layer timing は keyframe 復元前に先行変更されていた。
+- 対応: after snapshot 適用を検証し、失敗時は keyframe before と timing 旧値へ復元するようにした。出力 snapshot は適用成功後だけ返す。
+- 価値/懸念: pre-apply 段階の部分変更を成功扱いしにくくなった。複数 property の途中 setter failure と runtime cache は未検証。
+- 次に確認: area value、numeric value、slide／ripple snapshot、対象消失、setter 拒否、Undo／Redo、cache refresh を確認する。
+
+**2026-08-31 — Timeline snapshot restore is consistent across widgets**
+
+- 関連: `Artifact/src/Widgets/ArtifactTimelineWidget.cppm` の timeline layer snapshot 復元。
+- 確認できた事実: timing setter の反映確認後も keyframe snapshot の bool 結果を無視して成功を返しており、timing の一部失敗時に旧値へ戻していなかった。
+- 対応: timing 旧値を保持し、setter または keyframe 復元に失敗した場合は旧 timing へ戻して false を返すようにした。
+- 価値/懸念: Track Painter と Timeline Widget の snapshot command 成功判定・補償境界が一致した。複数 layer 復元時の全体補償と runtime cache は未検証。
+- 次に確認: slide／ripple／paste、対象消失、timing setter 拒否、keyframe setter 拒否、Undo／Redo、cache refresh を確認する。
+
+### 2026-08-31 — Motion trajectory undo failure must propagate
+
+- **関連ファイル・機能:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm` / Motion Trajectory keyframe application
+- **確認できた事実:** `applyTrajectoryToProperty()` は、キーフレーム適用後に `UndoManager::push()` が失敗した場合に before snapshot を復元していたが、最後は常に `true` を返していた。
+- **気づき:** 履歴登録に失敗した編集を呼び出し側が成功と扱うと、UI 通知や後続処理が実状態と一致しない。復元処理後は `undoAccepted` を結果として返すべきである。
+- **価値または懸念:** Undo の失敗を確実に上位へ伝え、操作成功表示や後続処理の誤実行を防ぐ。復元 API 自体の部分失敗は、別途ランタイム検証が必要。
+- **次に確認すべきこと:** UndoManager が存在する状態で履歴上限・メモリ上限に達した場合、対象プロパティが before 状態へ戻り、呼び出し側が失敗を表示することをランタイムで確認する。
+
+### 2026-08-31 — Localization mutation notification follows postcondition
+
+- **関連ファイル・機能:** `Artifact/src/Service/ArtifactProjectService.cppm` / layer source localization and shared relink
+- **確認できた事実:** localization／relink の直接経路は setter の戻り値を保持せず、状態確認と project mutation 通知へ進んでいた。失敗時にも通知が発生し得た。
+- **対応:** 直接経路で操作結果を保持し、期待する localized state を確認できた場合だけ project mutation を通知して成功を返すようにした。Undo 経路も同じ postcondition を確認してから通知する。
+- **価値または懸念:** 失敗操作による dirty／更新通知の誤発生を抑える。source identity の内部副作用と runtime UI 更新は未検証。
+- **次に確認すべきこと:** manager 有／無、localize／relink 成功・拒否、Undo／Redo、dirty 状態、asset 表示更新を runtime で確認する。
+
+### 2026-08-31 — Direct effect operations verify state and order
+
+- **関連ファイル・機能:** `Artifact/src/Service/ArtifactProjectService.cppm` / layer effect direct fallback
+- **確認できた事実:** UndoManager 不在時の effect enabled setter は反映後の値を検証せず通知していた。effect 並べ替えも再構築後の順序を確認せず成功扱いしていた。
+- **対応:** enabled 状態を確認し、並べ替えは effect ID 列を比較して期待順序に一致しない場合は元の列へ復元して false を返すようにした。
+- **価値または懸念:** direct fallback の部分失敗や表示順不一致が project／layer mutation 通知へ漏れるのを抑える。Core の effect container 更新通知と runtime 表示は未検証。
+- **次に確認すべきこと:** manager 有／無、同一 pipeline stage、境界 index、setter／再構築拒否、Undo／Redo、Effects 面の表示更新を runtime で確認する。
+
+### 2026-08-31 — Automation transform fallback verifies applied values
+
+- **関連ファイル・機能:** `Artifact/include/AI/WorkspaceAutomation.ixx` / position, scale, rotation, and opacity writes
+- **確認できた事実:** UndoManager 不在時の Automation setter は direct mutation 後に実値を検証せず、setter が拒否されても成功を返す可能性があった。
+- **対応:** position／scale／rotation／opacity の direct fallback で実値を確認し、反映できない場合は旧値へ戻して false を返すようにした。
+- **価値または懸念:** AI／外部自動化の成功応答と実状態の乖離を抑える。浮動小数点の変換境界と runtime の dirty／cache 通知は未検証。
+- **次に確認すべきこと:** manager 有／無、通常値・境界値・setter 拒否、Undo／Redo、selection、保存／再読込、viewport 表示を runtime で確認する。
+
+### 2026-08-31 — Automation layer state fallback verifies postconditions
+
+- **関連ファイル・機能:** `Artifact/include/AI/WorkspaceAutomation.ixx` / visibility, lock, solo, shy, blend, opacity, parent, and note writes
+- **確認できた事実:** layer state／note API の UndoManager 不在経路では direct setter 後の値を検証していない項目が残っていた。
+- **対応:** direct fallback で反映後の状態を検証し、失敗時は変更前の状態へ戻して false を返すようにした。Parent は循環検証済みの旧 parent ID を復元する。
+- **価値または懸念:** Automation の成功応答、通知、実状態の不一致を減らせる。Core setter の拒否時に復元 setter 自体が失敗する場合と runtime 通知は未検証。
+- **次に確認すべきこと:** manager 有／無、各 state setter の拒否・境界値、parent 循環、Undo／Redo、dirty／selection／viewport 更新を runtime で確認する。
+
+`setLayerOpacityInCurrentComposition()` には有限値の入力境界も追加し、NaN／無限大が clamp と setter を通過しないようにした。
+
+### 2026-08-31 — Ripple delete failure restores removed layer
+
+- **関連ファイル・機能:** `Artifact/include/AI/WorkspaceAutomation.ixx` / direct ripple delete
+- **確認できた事実:** direct fallback は target layer を削除した後、後続 layer の timing 検証に失敗すると timing だけを復元し、target layer を元の composition index に戻していなかった。
+- **対応:** 対象 index を削除前に記録し、複合検証失敗時に target layer を再挿入してから false を返すようにした。
+- **価値または懸念:** direct fallback の構造と timing の部分適用を抑える。再挿入 setter／selection／cache の副作用は未検証。
+- **次に確認すべきこと:** manager 有／無、削除拒否、timing setter 拒否、対象 index、後続 layer 複数、Undo／Redo、selection／cache を runtime で確認する。
+
+### 2026-08-31 — Direct ungroup fallback is atomic
+
+- **関連ファイル・機能:** `Artifact/include/AI/WorkspaceAutomation.ixx` / direct ungroup
+- **確認できた事実:** direct ungroup は child の append に失敗した場合でも、先に移動できた child を外へ残し、部分成功を返していた。
+- **対応:** 有効 child の全件移動を確認し、1件でも失敗した場合は composition 側の child を除去して全 child を group へ戻し、`success=false`／count 0 を返すようにした。
+- **価値または懸念:** Group 構造の部分破壊と成功応答の乖離を抑える。元の layer 順序、selection、cache、復元 setter の runtime 挙動は未検証。
+- **次に確認すべきこと:** manager 有／無、child append 拒否、空 group、複数 child、Undo／Redo、selection／cache を runtime で確認する。
+
+### 2026-08-31 — Render queue Automation verifies structural mutations
+
+- **関連ファイル・機能:** `Artifact/include/AI/WorkspaceAutomation.ixx` / render queue duplicate, move, and remove
+- **確認できた事実:** queue service の一部 API は `void` を返すため、Automation は対象 index の事前妥当性だけで duplicate／move／remove を成功扱いしていた。
+- **対応:** duplicate は job 数増加、move は job ID（ID がない場合は job payload）順序、remove は job 数減少と対象 ID 消失を確認してから成功を返すようにした。
+- **価値または懸念:** queue service の拒否や部分反映を外部自動化へ成功として返しにくくなる。job ID の永続性、非同期 queue 更新、runtime UI 同期は未検証。
+- **次に確認すべきこと:** duplicate／move／remove、境界 index、同一 index、実行中 job、queue refresh、失敗時の表示を runtime で確認する。
+
+Queue への composition 追加と全削除も、実行前後の job 数を確認して成功応答を返すようにした。
+
+### 2026-08-31 — Render queue scalar setters verify applied values
+
+- **関連ファイル・機能:** `Artifact/include/AI/WorkspaceAutomation.ixx` / job name, output path, and frame range
+- **確認できた事実:** queue の name／output path／frame range setter は `void` API で、Automation が呼び出し後の実値を確認せず成功を返していた。
+- **対応:** 正規化後の期待値と getter 結果を比較し、失敗時は変更前の name／path／range を再適用して false を返すようにした。
+- **価値または懸念:** queue 設定の拒否や clamp による成功応答の誤りを減らす。service 内部の非同期同期と frame range 正規化仕様は未検証。
+- **次に確認すべきこと:** 各 setter の通常値・空値・境界値、実行中 job、失敗時の復元、UI refresh、保存／再読込を runtime で確認する。
+
+Integrated render と audio source／codec／bitrate の queue setter も getter で適用結果を確認し、失敗時に旧値へ戻すようにした。
+
+Render queue の output settings 一括 setter も、実際の format／codec／profile／解像度／FPS／bitrate を取得して検証し、差異があれば旧設定へ復元するようにした。
+
+Render queue rerun reset は、Completed／Failed／Canceled 以外の job に対して成功を返さず、実行後に Pending へ戻ったことを検証するようにした。
+
+### 2026-08-31 — Generic property response matches execution result
+
+- **関連ファイル・機能:** `Artifact/include/AI/WorkspaceAutomation.ixx` / `setGenericLayerProperty()`
+- **確認できた事実:** position／scale／rotation／opacity の setter が失敗しても、結果 map の `executed` は常に true だった。
+- **対応:** setter の戻り値を一度保持し、`success` と `executed` の両方へ同じ結果を返すようにした。
+- **価値または懸念:** Automation の post-operation verification が、失敗を実行済みと誤認しにくくなる。上位 batch 応答と runtime の error message は未検証。
+- **次に確認すべきこと:** 正常値、無効 layer、非有限値、setter 拒否、batch 集計、Python／AI bridge の応答を確認する。
+### 2026-08-31 — Render Queue backend automation reports normalized state
+
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx` / render queue backend setter
+- 確認できた事実: `ArtifactRenderQueueService` は指定 backend を正規化して保存し、取得 API で正規化済み値を返す。
+- 気づき: Automation の setter が呼び出し完了だけで成功を返すと、無効値や内部更新失敗を成功として報告し得るため、取得値が空でないことを確認し、失敗時は旧 backend を復元するようにした。
+- 価値/懸念: 自動化クライアントが実際の適用結果を誤認しにくくなる。backend の許容値そのものはサービス側の正規化責務に委ねている。
+- 次に確認すべきこと: 実行時に有効な backend 値・無効値の正規化と復元を確認する（ビルド・実行未確認）。
+
+### 2026-08-31 — Render Queue control automation rejects no-op status transitions
+
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx` / render queue start, pause, cancel
+- 確認できた事実: 個別の queue control service API は void で、開始は `Pending`、一時停止は `Rendering`、取消は `Pending` または `Rendering` を対象に状態を変更する。
+- 気づき: Automation が対象状態を確認せず常に成功を返すと、完了済み job の取消や実行中でない job の一時停止を成功と誤認するため、許可される事前状態と変更後状態を確認するようにした。
+- 価値/懸念: 呼び出し元へ no-op／対象外状態を失敗として返せる。全体操作は worker の非同期状態変化があるため、存在する対象の有無を事前に検証し、詳細な完了状態の断定は避けている。
+- 次に確認すべきこと: queue worker 実行中の競合、個別／全体操作の status 通知、Automation 応答を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Playback scalar automation verifies service setters
+
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx` / playhead, work area, speed, looping
+- 確認できた事実: Playback service の対象 setter は void で、Automation 側は呼び出し後に成功を固定返却していた。
+- 気づき: frame、work area、speed、looping の getter が既に存在するため、適用後の値を比較して失敗を返せる。speed は有限値かつ float 範囲内に限定した。
+- 価値/懸念: Automation 呼び出し元が clamp／拒否／service 不在を成功と誤認しにくくなる。浮動小数点の exact compare は setter と getter が同じ float 値を扱う前提で、runtime 未確認。
+- 次に確認すべきこと: composition 範囲外 frame の扱い、work area の境界、speed の丸め、looping 切替を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Playback navigation automation verifies destination state
+
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx` / playhead navigation and in/out points
+- 確認できた事実: Playback service の移動・in/out point setter/clearer は void だが、current frame と point getter、frame range getter が公開されている。
+- 気づき: 呼び出し後の destination／point state を確認することで、範囲端での clamp や service 内部拒否を Automation の成功として返さないようにした。
+- 価値/懸念: marker/chapter navigation を含む playhead 操作の応答が実状態と一致しやすくなる。再生中の非同期 frame 更新がある場合は runtime で確認が必要。
+- 次に確認すべきこと: 再生中の移動、範囲端、marker/chapter の同一 frame、in/out point の履歴記録を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Playback marker automation verifies marker mutations
+
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx` / marker and chapter operations
+- 確認できた事実: In/Out point manager は marker lookup と marker count を公開しており、PlaybackService の marker mutation API は void だった。
+- 気づき: marker追加後に現在frameの marker 実体・chapter種別を確認し、全marker削除後は marker count が0であることを確認するようにした。
+- 価値/懸念: marker操作の失敗や対象manager不整合を固定成功として返しにくくなる。同一frameの既存marker更新は既存APIの仕様に従い成功と扱う。
+- 次に確認すべきこと: marker snapshot undo、同一frame更新、chapter変換、外部Automationからの応答を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Playback frame-step automation rejects boundary no-ops
+
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx` / next and previous frame
+- 確認できた事実: frame-step service API は void で、範囲端では current frame が変化しない場合がある。
+- 気づき: 実行前の frame と実行後の frame を比較し、範囲端で移動できなかった操作を成功扱いしないようにした。
+- 価値/懸念: Automation の成功応答が実際の playhead 変化に一致する。同一frameを意図的に再設定する操作とは異なり、frame-step は変化を伴う操作として扱う。
+- 次に確認すべきこと: work area端・composition端・再生中の frame-step 応答を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Empty-group removal propagates postcondition failure
+
+- 関連: `Artifact/src/Service/ArtifactProjectService.cppm` / `ungroupSelectedGroupWithUndo`
+- 確認できた事実: 空groupの解除は `RemoveLayerCommand` を push した後、groupがcompositionから消えたかを確認していたが、失敗時に履歴を戻していなかった。
+- 気づき: push成功と実体削除成功を分離し、削除後のpostconditionに失敗した場合は直前のUndoエントリをUndoして失敗を返すようにした。
+- 価値/懸念: 空group削除の部分適用が履歴に残りにくくなる。selection復元の完全性と runtime 挙動は未確認。
+- 次に確認すべきこと: 空groupの削除成功、command適用失敗、Undo後のselection／current layerを runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Render Queue automation verification follows normalization contracts
+
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx`, `Artifact/src/Render/ArtifactRenderQueueService.cppm`
+- 確認できた事実: queue service は output format／codec／profile を既定値・trim・container変換で正規化し、解像度・FPS・bitrate・audio bitrate を所定範囲へ clamp する。
+- 気づき: Automation の postcondition は入力値との単純な完全一致ではなく、service が返す正規化済み値の有効性を確認する必要がある。audio path／codecも同じ trim・既定値契約へ合わせた。
+- 価値/懸念: 有効な入力を誤って失敗扱いせず、更新失敗や異常な取得値は復元対象にできる。正規化仕様が変更された場合はこの検証境界も更新が必要。
+- 次に確認すべきこと: 空値、長大値、範囲外数値、container変換、復元失敗時の queue 状態を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Remove-all-assets automation verifies project scope and result
+
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx` / `removeAllAssets`
+- 確認できた事実: ProjectService の remove-all-assets API は void で、Automation は project 不在でも呼び出し後に固定成功を返していた。
+- 気づき: 現在 project の存在を確認し、project tree の Footage／Solid 件数を変更前後で比較して、対象assetが消えたことを成功条件にした。assetが元々ない場合は no-op 成功とする。
+- 価値/懸念: project不在・内部失敗・部分削除を成功と誤認しにくくなる。CompositionやFolderは削除対象外であるため、asset型だけを数えている。
+- 次に確認すべきこと: nested folder、空project、削除失敗、参照中asset、safe-write confirmation後の応答を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Remove-all-assets dry run reports actual asset count
+
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx` / `dryRunRemoveAllAssets`
+- 確認できた事実: safe-write の dry-run が常に `wouldChange=true`、asset件数 `-1`、project不在でも失敗なしとして計画を返していた。
+- 気づき: project tree を再帰走査する共通 helper を追加し、Footage／Solid の実数、変更有無、project不在時の失敗状態を dry-run に反映した。
+- 価値/懸念: 確認ダイアログと監査情報が対象規模に一致する。参照関係の安全性は既存警告どおり別途 snapshot／runtime確認が必要。
+- 次に確認すべきこと: nested folder、空project、compositionを含むtree、confirmation auditの表示を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Confirmed remove-all-assets uses the same preflight scope
+
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx` / `removeAllAssetsConfirmed`
+- 確認できた事実: dry-run はasset件数を算出する一方、confirmation実行側は service の存在だけで `wouldChange` を決め、project不在を正しく表現していなかった。
+- 気づき: confirmation gate 側も同じproject／asset countを使うようにし、dry-runと実行監査の対象範囲を一致させた。
+- 価値/懸念: project不在や空projectを削除操作の実行対象として誤表示しにくくなる。依存asset参照の復元は依然として自動Undo対象外。
+- 次に確認すべきこと: dry-run→confirmationの連続操作、空project、nested folder、監査ログの一貫性を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Playback control automation verifies state transitions
+
+- 関連: `Artifact/include/AI/WorkspaceAutomation.ixx` / playback start, pause, stop, toggle
+- 確認できた事実: PlaybackService の制御APIは void で、engine／controllerの状態取得APIが既に存在する。再生開始は `Playing`、pauseは `Paused`、stopは `Stopped` へ遷移する。
+- 気づき: Automation の固定成功をやめ、各制御操作後の `PlaybackState` を確認するようにした。toggle は実行前の状態から期待状態を決める。
+- 価値/懸念: composition未接続、対象状態外、engine／controller不整合を成功と誤認しにくくなる。再生開始や停止の非同期更新がある場合は runtime 確認が必要。
+- 次に確認すべきこと: engine／controller両経路、再生中のtoggle、composition未接続、停止時のcurrent frameを runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Playback state read automation uses the canonical service state
+
+- 関連: Artifact/include/AI/WorkspaceAutomation.ixx / playbackGetState
+- 確認できた事実: playbackGetState は engine専用の isPlaying()／isPaused() を使っており、PlaybackService が公開する controller対応の state() と観測経路が異なっていた。
+- 気づき: read-only stateも制御操作と同じ PlaybackState 正本から "playing"／"paused"／"stopped" へ変換するようにした。
+- 価値/懸念: Automation、UI、controller／engine間で状態観測が食い違いにくくなる。Buffering／Errorの公開語彙は既存の3状態契約を維持して stopped 相当とする。
+- 次に確認すべきこと: controller fallback、Buffering／Error、Python bridgeの state 応答を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Edit Menu cut reports deletion outcome
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactEditMenu.cppm` / Cut and Delete actions
+- 確認できた事実: Cut は Copy 後に Delete を呼び出し、Delete は void だったため、削除失敗や部分失敗でも `ClipCutEvent` を発行していた。
+- 気づき: Delete が全対象の削除結果を返すようにし、Cut は全件成功した場合だけ cut event を通知するようにした。通常のDelete actionは既存のUI呼び出しを維持する。
+- 価値/懸念: Clipboard上のコピー済みデータと実際の削除状態を外部通知が誤って同一視しにくくなる。複数選択の途中失敗後の選択表示は既存のclear方針を維持している。
+- 次に確認すべきこと: 複数layerの一部削除失敗、Undo後のselection、Clip Buffer表示、cut event受信側を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Edit Menu delete restores failed-layer selection
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactEditMenu.cppm` / Delete action
+- 確認できた事実: 複数選択の削除は対象ごとの結果を集計していたが、部分失敗時も最後に全選択を消去していた。
+- 気づき: 削除に失敗したlayerを記録し、処理後にcompositionへ残っている失敗対象だけ再選択するようにした。Cutの失敗復旧でも同じ選択が残る。
+- 価値/懸念: ユーザーが失敗対象を確認して再試行しやすくなる。削除成功対象のselectionは従来どおり解除される。
+- 次に確認すべきこと: 複数layerの部分失敗、Undo／再試行、selection event、Cut後のclipboard内容を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Edit Menu paste becomes one structural Undo operation
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactEditMenu.cppm` / Paste action
+- 確認できた事実: Paste は複数layerを直接appendし、anchor位置・parent／clone／matte参照を更新していたが、Undo commandや選択snapshotを持っていなかった。
+- 気づき: 貼り付け後の実レイヤー順を記録し、既存の `AddLayerCommand` と `MoveLayerIndexCommand`、`LayerSelectionSnapshotCommand` を一つの `Paste Layers` macroへまとめた。push失敗時は追加レイヤーと貼り付け後選択を復元する。
+- 価値/懸念: 貼り付け全体を一回のUndoで戻せ、失敗時に部分構造を残しにくくなる。parent／clone／matteのID remapは既存の貼り付け処理を再利用しているため、session reloadと複雑な階層のruntime確認が必要。
+- 次に確認すべきこと: 単一／複数paste、anchor位置、nested parent、clone／matte参照、Undo／Redo、selection復元を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Project View rename reuses ProjectService Undo boundary
+
+- 関連: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm` / Project View rename helper
+- 確認できた事実: inline／context rename helper は非Composition項目の `name` を直接変更して `projectChanged()` しており、ProjectServiceの `RenameProjectItemCommand` を迂回していた。
+- 気づき: helper の入力検証は維持し、実際の変更を `ArtifactProjectService::renameProjectItem()` へ委譲するようにした。これで inline／contextの両UI経路が同じUndo・postcondition経路を使う。
+- 価値/懸念: rename操作のUndo境界と失敗判定をUI間で統一できる。selection、別project切替、session reload、runtimeは未確認。
+- 次に確認すべきこと: inline編集、context rename、Composition／Folder／Footage、Undo／Redo、失敗時のeditor表示を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Project View tag edits reuse the project Undo boundary
+
+- 関連: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm` / Project View Edit Tags
+- 確認できた事実: context menuのタグ編集だけが `ProjectItem::tags` を直接変更し、ProjectService／UndoManagerを経由していなかった。
+- 気づき: `SetProjectItemTagsCommand` と `ArtifactProjectService::setProjectItemTags()` を追加し、旧タグ・新タグを一つのUndo操作として保存するようにした。UndoManagerなしの経路でも適用後のタグを検証してから変更通知する。
+- 価値/懸念: タグ検索対象の更新をUndo／Redo可能なプロジェクト編集として扱える。タグ正規化、別project切替、session reload、runtimeは未確認。
+- 次に確認すべきこと: 空タグ、重複タグ、大文字小文字違い、Undo／Redo、Project View検索更新を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Project View footage roles reuse the project Undo boundary
+
+- 関連: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm` / Footage Input Source Role
+- 確認できた事実: Production／Render Input と Render Input Role の変更が `FootageItem` のフィールドを直接変更し、dirty通知とUndo境界をUI側で個別に処理していた。
+- 気づき: `SetFootageAssetRoleCommand` と `ArtifactProjectService::setFootageAssetRole()` を追加し、usage／roleの組を一つのUndo操作として保存・復元するようにした。
+- 価値/懸念: 入力ソース役割変更のUndo／Redoと失敗判定を他のProject View編集と統一できる。選択変更、再読込、runtimeは未確認。
+- 次に確認すべきこと: Production、各Render Input Role、Undo／Redo、検索・再読込後の表示を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Responsive variant selection reports project changes
+
+- 関連: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm` / Project View Responsive Layout menu
+- 確認できた事実: Variant切替は composition setter に直接到達していたが、変更後にProjectServiceのcomposition settings finalize経路を呼んでいなかった。
+- 気づき: setter前後のactive variant IDを比較し、実際に変化した場合だけ `finalizeCompositionSettingsChange()` を呼ぶようにした。無効なIDや同一IDでは通知しない。
+- 価値/懸念: Variant切替がdirty状態・プロジェクト変更通知から漏れにくくなる。Responsive Layout全体のUndoスナップショットは既存のresolution/settings commandとの重複を避ける設計検討が必要で、未実装。
+- 次に確認すべきこと: Variant切替、同一／無効ID、保存・再読込、composition size連動を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Project item insertion is one transactional Undo operation
+
+- 関連: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm` / project item paste and Parametric Composition creation
+- 確認できた事実: Project View の項目貼り付けとParametric Composition作成は `addProjectItemsFromJson()` を直接呼び、複数項目または生成項目を一つのUndo操作として扱っていなかった。
+- 気づき: `AddProjectItemsCommand` を追加し、JSON payloadと親IDを保存してRedoで再生成、Undoでトップレベル項目を撤去するようにした。Redoの部分追加とUndoの途中失敗では、確認できた項目を撤去／スナップショット復元して原子性を保つ。Composition追加時はbefore／afterのcurrent composition IDも保存し、Undoで削除済みIDをcurrentに残さない。
+- 価値/懸念: Project Viewの貼り付けとParametric Composition作成を一回のUndoで戻せる。トップレベル項目IDを持たない外部payloadは安全のため拒否され、現在のUI clipboardはIDを含む。current composition選択のUndo復元とruntimeは未確認。
+- 次に確認すべきこと: 単一／複数貼り付け、folder階層、Parametric Composition、Undo／Redo、保存・再読込、部分失敗を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Multi-composition settings share one Undo transaction
+
+- 関連: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm` / `applySelectedCompositionSettings`
+- 確認できた事実: 複数Compositionへのサイズ、FPS、Frame Range、背景色変更は各compositionへ直接setterを呼び、Undo境界がなく、途中失敗時に部分適用が残り得た。
+- 気づき: サイズ（リマップを伴わない場合）、FPS、Frame Range、背景色の旧／新値を `SetCompositionSettingsCommand` に保存し、複数対象を一つのMacroへ集約した。コマンドは各setter後の値を検証し、Macro失敗時は既存の補償経路へ渡す。
+- 価値/懸念: 単一／複数Composition設定を一回のUndoで戻せる。リマップ付き変更は専用resolution commandを同じMacroへ含めるため、レイヤー変換も保持される。current composition選択のUndo復元とruntimeは未確認。
+- 次に確認すべきこと: 複数対象の一括設定、同値入力、途中失敗、Undo／Redo、再生中Compositionのframe range同期を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Context Composition Settings share the same Undo transaction
+
+- 関連: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm` / Project View context Composition Settings
+- 確認できた事実: Context Menu側のSettingsダイアログだけが名前、解像度リマップ、FPS、Frame Range、背景色を直接変更し、通常のSettings編集と異なるUndo境界を持っていた。
+- 気づき: 既存の `ChangeCompositionResolutionCommand`、`SetCompositionSettingsCommand`、`RenameCompositionCommand` を同じ Macroへ追加し、リマップ選択時もレイヤー変換を含む一操作に統合した。背景色のbefore値はプレビューで既にcompositionへ反映されるため、ダイアログ開始時の `originalBackgroundColor` から採取する。キャンセル時プレビュー復元は従来どおり保持する。
+- 価値/懸念: Context／通常UIでComposition SettingsのUndo単位と失敗経路を統一できる。背景色プレビュー中の外部変更、current composition選択のUndo復元、runtimeは未確認。
+- 次に確認すべきこと: Context Settingsのキャンセル、リマップ有／無、名前変更失敗、Undo／Redo、再生同期を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Responsive layout edits use JSON snapshot Undo
+
+- 関連: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm` / Responsive Layout menu
+- 確認できた事実: Variant追加・複製・編集・切替は `setResponsiveLayout()` または active ID setterを直接呼び、Variant集合全体のUndo境界がなかった。
+- 気づき: `SetCompositionResponsiveLayoutCommand` を追加し、`ResponsiveLayoutSet::toJson()` のbefore／afterを保存してRedo／Undoする共通helperへ4経路を移行した。setterの正規化後JSONを検証し、UndoManagerなしでも変更通知を行う。
+- 価値/懸念: Variant集合、active variant、レイアウト由来のcomposition size変更を一回のUndoで復元できる。外部変更との競合、runtime、選択中compositionの追加同期は未確認。
+- 次に確認すべきこと: Variant追加・複製・編集・切替、無効ID、Undo／Redo、保存・再読込を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Bundle IPC project-item insertion shares UI Undo
+
+- 関連: `Artifact/src/Application/ArtifactProjectBundleIpc.cppm` / project-items and parametric-composition bundle paste
+- 確認できた事実: IPC経由のProject Item／Parametric Composition貼り付けは `addProjectItemsFromJson()` を直接呼び、Project View UIのUndo経路と分かれていた。
+- 気づき: UIと同じ `AddProjectItemsCommand` をローカル適用へ接続し、Parametric payloadにも項目IDを付与した。UndoManagerが利用できない場合は既存の直接追加へフォールバックする。
+- 価値/懸念: UI貼り付けとIPC貼り付けのUndo単位を統一できる。Layer／Composition bundleの構造的Undo、外部送信元との競合、runtimeは未確認。
+- 次に確認すべきこと: IPC project-items、Parametric bundle、Undo／Redo、保存・再読込、無効／重複ID payloadを runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Bundle IPC composition insertion shares project-item Undo
+
+- 関連: `Artifact/src/Application/ArtifactProjectBundleIpc.cppm` / composition bundle paste
+- 確認できた事実: Composition Bundleだけが `addImportedComposition()` を直接呼び、Project Item／Parametric Bundleとは異なるUndo経路を持っていた。
+- 気づき: composition JSONをProject Item payloadへ組み立て、項目IDを付与して `AddProjectItemsCommand` へ接続した。UndoManagerなしでは既存の `addProjectItemsFromJson()` を使い、成功後のcurrent composition設定を維持する。
+- 価値/懸念: IPCの3種類のプロジェクト項目追加が同じ構造Undo境界になる。Composition container・render queue・current composition選択のUndo復元、runtimeは未確認。
+- 次に確認すべきこと: Composition Bundleの追加、重複composition ID、Undo／Redo、current composition、保存・再読込を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — IPC layer bundle paste becomes transactional
+
+- 関連: `Artifact/src/Application/ArtifactProjectBundleIpc.cppm` / layer bundle paste
+- 確認できた事実: IPCのLayer Bundle貼り付けは生成、並び替え、選択、parent／Clone／Matte IDリマップを直接適用し、失敗時に部分構造や選択を戻すUndo境界がなかった。
+- 気づき: 既存の生成・リマップ処理後に `AddLayerCommand`、`MoveLayerIndexCommand`、`LayerSelectionSnapshotCommand` を一つのMacroへまとめる経路を追加した。コマンド化前に一度取り外し、Redo後の存在・順序を検証し、push失敗や検証失敗時はレイヤーと選択を復元する。
+- 価値/懸念: IPC Layer BundleもUI Paste Layersと同じUndo単位になる。複雑な親子構造、Clone／Matte参照、remote failure、runtimeは未確認。
+- 次に確認すべきこと: 単一／複数layer、anchor位置、親子、Clone／Matte、Undo／Redo、部分失敗を runtime で確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — AppMain clip paste shares the layer Undo boundary
+
+- 関連: `Artifact/src/AppMain.cppm` / ClipPasteRequestedEvent
+- 確認できた事実: AppMainのクリップ貼り付け経路はレイヤー生成、参照リマップ、選択を直接適用しており、Composition Editor／IPCの貼り付け経路とは別にUndo境界がなかった。
+- 気づき: 既存の `AddLayerCommand`、`MoveLayerIndexCommand`、`LayerSelectionSnapshotCommand` をMacroへまとめ、リマップ後のレイヤーを一度取り外して再実行可能な状態にした。UndoManagerなしでは従来どおり直接状態を復元する。
+- 価値/懸念: AppMain経由のクリップ貼り付けも複数レイヤーを一回でUndoできる。選択マネージャー間の同期、親子／Matte参照、runtimeは未確認。
+- 次に確認すべきこと: ClipPasteRequestedEventの単一／複数layer、親子・Clone・Matte、Undo／Redo、UndoManager不在時の復元をruntimeで確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Debug particle menu insertion uses the shared layer command
+
+- 関連: `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm` / Debug Particle Layer
+- 確認できた事実: デバッグ用Particle Layerのメニュー追加だけが `appendLayerTop()` を直接呼び、通常のレイヤー追加と異なるUndo境界を持っていた。
+- 気づき: 既存の `AddLayerCommand` を共通適用ヘルパーへ接続し、UndoManagerなしでは同じcommandの直接Redoへフォールバックするようにした。追加失敗時は選択・完了通知を行わない。
+- 価値/懸念: メニューから生成するデバッグレイヤーも通常のレイヤー追加と同じUndo単位になる。runtime未確認。
+- 次に確認すべきこと: Debug Particle Layerの追加、Undo／Redo、生成済みpresetと配置フレーム、UndoManager不在時の動作をruntimeで確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Crop/Pan quick actions use property snapshot Undo
+
+- 関連: `Artifact/src/Widgets/ArtifactPropertyWidget.cppm` / Crop / Pan section
+- 確認できた事実: Crop/Panの有効化、リセット、無効化ボタンは複数のレイヤープロパティを直接変更していたが、通常のプロパティ行以外のUndo境界がなかった。
+- 気づき: 変更対象のbefore／after値を取得し、既存の `SetLayerPropertyValueCommand` をMacroへまとめる共通処理を追加した。Undo push失敗時はbefore値へ戻し、UndoManagerなしでは直接変更を維持する。
+- 価値/懸念: Crop/Panの一連のボタン操作を一回でUndoできる。プロパティのキーフレーム状態、外部同時変更、runtimeは未確認。
+- 次に確認すべきこと: 初回有効化時のcrop初期化、リセット、無効化、Undo／Redo、無効プロパティやUndoManager不在時の動作をruntimeで確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Cloner transform stack edits gain a structural snapshot command
+
+- 関連: `Artifact/include/Layer/ArtifactAbstractLayer.ixx`, `Artifact/src/Layer/ArtifactAbstractLayer.cppm`, `Artifact/include/Undo/UndoManager.ixx`, `Artifact/src/Undo/UndoManager.cppm`, Inspector / Property Editor
+- 確認できた事実: Clonerの追加・削除・複製・並べ替えは `component.cloner.transforms.*` の特殊setterで内部vectorを変更するため、通常の単一プロパティ値Undoでは削除後の要素数やindexを復元できなかった。
+- 気づき: Cloner transform配列専用のJSON snapshot APIと `ClonerTransformStackSnapshotCommand` を追加し、Inspector／Property Editorの4操作をbefore／after配列の一回のUndo境界へ接続した。復元後の配列を比較し、失敗時は反対側へ戻す。
+- 価値/懸念: Cloner構造の追加・削除・複製・順序変更を安全にUndo／Redoできる。JSON正規化、外部同時変更、runtimeは未確認。
+- 次に確認すべきこと: 空配列、単一／複数transform、編集済み値を含む複製、Undo／Redo、セッション履歴の保存・再読込をruntimeで確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Cloner snapshots are exposed through the layer boundary
+
+- 関連: `Artifact/include/Layer/ArtifactAbstractLayer.ixx` / `Artifact/src/Layer/ArtifactAbstractLayer.cppm`
+- 確認できた事実: Cloner transform内部vectorは特殊setterからしか操作できず、Undo command側から配列全体を検証付きで復元する公開境界がなかった。
+- 気づき: transform配列のJSON snapshot取得・復元APIをLayerへ追加し、Undo側の専用commandがその境界だけを利用する構造にした。復元は全要素を検証してから置換し、範囲制限後の配列を比較する。
+- 価値/懸念: UIが内部vectorへ依存せず構造編集をUndoできる。snapshot JSONの正規化、他コンポーネントとの同時変更、runtimeは未確認。
+- 次に確認すべきこと: 不正JSON、空配列、数値境界、Undo／Redo、履歴保存・再読込をruntimeで確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Inspector component toggles use value Undo
+
+- 関連: `Artifact/src/Widgets/ArtifactInspectorWidget.cppm` / component enable toggles
+- 確認できた事実: Physics／Script／Layout／Cloner／Fluid の有効・無効切替はレイヤーのBoolean propertyを直接変更していた。
+- 気づき: before／after値を `SetLayerPropertyValueCommand` へ渡し、UndoManagerなしでは同じcommandのRedoへフォールバックするようにした。UIのフォーカス更新はcommand成功後だけ行う。
+- 価値/懸念: Componentの有効状態切替を通常の編集Undo単位へ統一できる。依存コンポーネントの副作用、runtimeは未確認。
+- 次に確認すべきこと: 各Componentの切替、Undo／Redo、無効プロパティ、UndoManager不在時の表示更新をruntimeで確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Inspector descriptor stacks share one component snapshot boundary
+
+- 関連: `Artifact/src/Widgets/ArtifactInspectorWidget.cppm` / Generator・Field・Clone Modifier actions
+- 確認できた事実: Generator／Field／Clone Modifier の追加・削除・並べ替えは内部descriptorコンテナを特殊setterで変更し、通常の値Undoでは要素の追加削除や順序を復元できなかった。
+- 気づき: Cloner Transformを含むdescriptor配列全体のJSON snapshot APIと専用Undo commandを追加し、Inspectorの各構造操作をbefore／afterの一回のUndo境界へ接続した。復元前に全descriptorを検証し、最大要素数も制限する。
+- 価値/懸念: Inspectorから編集できる複数のComponent構造を、要素数・内容・順序込みでUndo／Redoできる。Effector chainは別のCloneLayer所有配列のため未対応、runtimeは未確認。
+- 次に確認すべきこと: Generator／Field／Modifierの追加・削除・順序変更、Undo／Redo、無効JSON、履歴保存・再読込、Effector chainの専用境界をruntimeで確認する（ビルド・テスト未確認）。
+
+### 2026-08-31 — Clone Effector chain edits use typed snapshots
+
+- 関連: `Artifact/include/Layer/ArtifactCloneLayer.ixx`, `Artifact/src/Layer/ArtifactCloneLayer.cppm`, `Artifact/include/Undo/UndoManager.ixx`, `Artifact/src/Undo/UndoManager.cppm`, `Artifact/src/Widgets/ArtifactInspectorWidget.cppm`
+- 確認できた事実: Clone Effectorの追加・削除は `ArtifactCloneLayer` の内部vectorを直接変更していたが、保存／読込用の型タグ付きJSON変換と復元処理は既に存在した。
+- 気づき: 既存JSON形式を公開snapshot APIへ切り出し、専用Undo commandでチェーン全体を検証付き復元するようにした。未知の型、要素数超過、復元後の不一致を拒否し、push失敗時はbeforeへ戻す。
+- 価値/懸念: Effectorの種類・順序・設定値を含むチェーン全体を一回のUndoで扱える。Effector内部の時刻依存評価、外部同時変更、runtimeは未確認。
+- 次に確認すべきこと: 各Effector型の追加・削除、設定変更後のUndo／Redo、空チェーン、無効型、履歴保存・再読込をruntimeで確認する（ビルド・テスト未確認）。

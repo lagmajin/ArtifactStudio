@@ -1,5 +1,6 @@
 module;
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
 #include <QDir>
@@ -100,15 +101,8 @@ ExportDialog::ExportDialog(QWidget* parent)
         QStringLiteral("Audio Only (WAV)"),
         QStringLiteral("Audio Only (MP3)"),
     });
-    // 音声のみは未対応 (音声タップ未実装)。選択不可で理由を提示。
-    codecCombo_->setItemData(6, 0, Qt::UserRole - 1);
-    codecCombo_->setItemData(7, 0, Qt::UserRole - 1);
-    codecCombo_->model()->setData(
-        codecCombo_->model()->index(6, 0), QStringLiteral("音声エクスポートは今後対応予定"), Qt::ToolTipRole);
-    codecCombo_->model()->setData(
-        codecCombo_->model()->index(7, 0), QStringLiteral("音声エクスポートは今後対応予定"), Qt::ToolTipRole);
 
-    // format 変更時に拡張子を更新
+    // format 変更時に拡張子と音声 checkbox の有効状態を更新
     connect(codecCombo_, qOverload<int>(&QComboBox::currentIndexChanged),
             this, [this](int idx) {
         QString fmt = codecCombo_->itemText(idx);
@@ -125,9 +119,16 @@ ExportDialog::ExportDialog(QWidget* parent)
             outputPathEdit_->setText(replaceExtension(QStringLiteral(".jpg")));
         } else if (fmt == QStringLiteral("ProRes") || fmt == QStringLiteral("DNxHD")) {
             outputPathEdit_->setText(replaceExtension(QStringLiteral(".mov")));
+        } else if (fmt == QStringLiteral("Audio Only (WAV)")) {
+            outputPathEdit_->setText(replaceExtension(QStringLiteral(".wav")));
+        } else if (fmt == QStringLiteral("Audio Only (MP3)")) {
+            outputPathEdit_->setText(replaceExtension(QStringLiteral(".mp3")));
         } else {
             outputPathEdit_->setText(replaceExtension(QStringLiteral(".mp4")));
         }
+        // 音声 checkbox は動画形式のみ有効
+        const ArtifactPr::ExportFormat format{selectedFormat()};
+        includeAudioCheck_->setEnabled(format.isVideoFile());
     });
     layout->addWidget(codecCombo_);
 
@@ -149,6 +150,10 @@ ExportDialog::ExportDialog(QWidget* parent)
     qualitySlider_->setMaximum(100);
     qualitySlider_->setValue(80);
     layout->addWidget(qualitySlider_);
+
+    includeAudioCheck_ = new QCheckBox(QStringLiteral("Include Audio (mixed tracks)"));
+    includeAudioCheck_->setChecked(true);
+    layout->addWidget(includeAudioCheck_);
 
     progressLabel_ = new QLabel();
     progressBar_ = new QProgressBar();
@@ -190,6 +195,8 @@ ArtifactPr::ExportFormat::Value ExportDialog::selectedFormat() const
     case 3: return ArtifactPr::ExportFormat::Value::DnxhdMov;
     case 4: return ArtifactPr::ExportFormat::Value::PngSequence;
     case 5: return ArtifactPr::ExportFormat::Value::JpegSequence;
+    case 6: return ArtifactPr::ExportFormat::Value::WavAudio;
+    case 7: return ArtifactPr::ExportFormat::Value::Mp3Audio;
     case 0:
     default:
         return ArtifactPr::ExportFormat::Value::H264Mp4;
@@ -200,12 +207,16 @@ void ExportDialog::onBrowseClicked()
 {
     const ArtifactPr::ExportFormat format{selectedFormat()};
     QString filter = QStringLiteral("MP4 Files (*.mp4)");
-    if (format.isImageSequence()) {
+    if (format.isAudioOnly()) {
+        filter = format.value == ArtifactPr::ExportFormat::Value::WavAudio
+            ? QStringLiteral("WAV Audio (*.wav)")
+            : QStringLiteral("MP3 Audio (*.mp3)");
+    } else if (format.isImageSequence()) {
         filter = format.value == ArtifactPr::ExportFormat::Value::PngSequence
             ? QStringLiteral("PNG Sequence (*.png)")
             : QStringLiteral("JPEG Sequence (*.jpg)");
-    } else if (selectedFormat() == ArtifactPr::ExportFormat::Value::ProResMov ||
-               selectedFormat() == ArtifactPr::ExportFormat::Value::DnxhdMov) {
+    } else if (format.value == ArtifactPr::ExportFormat::Value::ProResMov ||
+               format.value == ArtifactPr::ExportFormat::Value::DnxhdMov) {
         filter = QStringLiteral("MOV Files (*.mov)");
     }
     QString file = QFileDialog::getSaveFileName(this, QStringLiteral("Save Export"),
@@ -249,13 +260,22 @@ ArtifactPr::ExportSettings ExportDialog::collectSettings(QString* errorMessage) 
     settings.width = width;
     settings.height = height;
     settings.fps = fps;
+    settings.includeAudio = settings.format.isVideoFile()
+        ? includeAudioCheck_->isChecked()
+        : false;
 
     if (settings.outputPath.isEmpty()) {
         if (errorMessage) *errorMessage = QStringLiteral("出力ファイルが指定されていません");
         return settings;
     }
-    if (!settings.outputPath.contains(QChar('.')) && settings.format.isVideoFile()) {
-        settings.outputPath += QStringLiteral(".mp4");
+    if (!settings.outputPath.contains(QChar('.'))) {
+        if (settings.format.isVideoFile()) {
+            settings.outputPath += QStringLiteral(".mp4");
+        } else if (settings.format.value == ArtifactPr::ExportFormat::Value::WavAudio) {
+            settings.outputPath += QStringLiteral(".wav");
+        } else if (settings.format.value == ArtifactPr::ExportFormat::Value::Mp3Audio) {
+            settings.outputPath += QStringLiteral(".mp3");
+        }
     }
     if (errorMessage) {
         const QFileInfo info(settings.outputPath);

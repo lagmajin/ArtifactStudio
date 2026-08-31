@@ -19,6 +19,7 @@ module;
 export module ArtifactPr.AudioPreviewMixer;
 
 import ArtifactPr.AudioPreviewMixer;
+import ArtifactPr.ClipEffects;
 import Audio.Segment;
 import Audio.Mixer;
 import Audio.Bus;
@@ -96,7 +97,9 @@ void AudioPreviewMixer::rebuildBuses()
 
 const QVector<float>* AudioPreviewMixer::waveformPeaks(const QString& filePath)
 {
-    auto it = clipCache_.constFind(filePath);
+    PreviewAudioClip probe;
+    probe.filePath = filePath;
+    auto it = clipCache_.constFind(clipCacheKey(probe));
     if (it != clipCache_.constEnd()) {
         return &it.value().waveformPeaks;
     }
@@ -107,8 +110,19 @@ const QVector<float>* AudioPreviewMixer::waveformPeaks(const QString& filePath)
     if (entry.segments.isEmpty()) {
         return nullptr;
     }
-    it = clipCache_.insert(filePath, std::move(entry));
+    it = clipCache_.insert(clipCacheKey(probe), std::move(entry));
     return &it.value().waveformPeaks;
+}
+
+/// キャッシュキーは filePath + EQ パラメータ。同一ファイルでも EQ 設定が
+/// 異なるクリップは別キャッシュになる。
+QString AudioPreviewMixer::clipCacheKey(const PreviewAudioClip& clip)
+{
+    return clip.filePath
+        + QStringLiteral("|eq=%1,%2,%3")
+              .arg(QString::number(clip.eqLowDb),
+                   QString::number(clip.eqMidDb),
+                   QString::number(clip.eqHighDb));
 }
 
 /// clips_ の entry に対応するデコード済み音声を clipCache_ から写す
@@ -118,7 +132,8 @@ void AudioPreviewMixer::loadClipAudioFor(ClipAudio& entry)
     if (entry.clip.filePath.isEmpty()) return;
     if (!entry.segments.isEmpty()) return;
 
-    if (auto it = clipCache_.find(entry.clip.filePath); it != clipCache_.end()) {
+    const QString cacheKey = clipCacheKey(entry.clip);
+    if (auto it = clipCache_.find(cacheKey); it != clipCache_.end()) {
         entry.segments = it.value().segments;
         entry.totalFrames = it.value().totalFrames;
         entry.sampleRate = it.value().sampleRate;
@@ -127,15 +142,14 @@ void AudioPreviewMixer::loadClipAudioFor(ClipAudio& entry)
     }
 
     ClipAudio fresh;
-    fresh.clip.filePath = entry.clip.filePath;
+    fresh.clip = entry.clip;
     loadClipAudio(fresh);
     if (fresh.segments.isEmpty()) return;
-    const QString path = entry.clip.filePath;
     entry.segments = fresh.segments;
     entry.totalFrames = fresh.totalFrames;
     entry.sampleRate = fresh.sampleRate;
     entry.waveformPeaks = fresh.waveformPeaks;
-    clipCache_.insert(path, std::move(fresh));
+    clipCache_.insert(cacheKey, std::move(fresh));
 }
 
 void AudioPreviewMixer::loadClipAudio(ClipAudio& out)
@@ -151,25 +165,6 @@ void AudioPreviewMixer::loadClipAudio(ClipAudio& out)
     ArtifactCore::AudioSegment seg;
     while (decoder->decodeNextSegment(seg)) {
         const int segFrames = seg.frameCount();
-
-        // waveform peak envelope (0.5 秒バケット)
-        const int channels = seg.channelCount();
-        if (segFrames > 0 && channels > 0) {
-            const int bucketFrames = static_cast<int>(
-                static_cast<double>(out.sampleRate) * kPeakBucketSeconds);
-            for (int start = 0; start < segFrames; start += bucketFrames) {
-                const int end = std::min(segFrames, start + bucketFrames);
-                float peak = 0.0f;
-                for (int ch = 0; ch < channels; ++ch) {
-                    const float* data = seg.constData(ch);
-                    for (int i = start; i < end; ++i) {
-                        peak = std::max(peak, std::fabs(data[i]));
-                    }
-                }
-                out.waveformPeaks.append(std::clamp(peak, 0.0f, 1.0f));
-            }
-        }
-
         if (segFrames > 0) {
             frames += segFrames;
             out.segments.push_back(std::move(seg));
@@ -178,6 +173,48 @@ void AudioPreviewMixer::loadClipAudio(ClipAudio& out)
     }
     decoder->closeFile();
     out.totalFrames = frames;
+
+    // audioEqualizer エフェクト (3 帯 biquad)。セグメントを跨いで
+    // フィルタ状態を連続させるためチャンネル毎に 1 インスタンス使う。
+    ArtifactCore::ClipEqualizer eqLeft;
+    eqLeft.lowDb = out.clip.eqLowDb;
+    eqLeft.midDb = out.clip.eqMidDb;
+    eqLeft.highDb = out.clip.eqHighDb;
+    eqLeft.sampleRate = out.sampleRate;
+    eqLeft.configure();
+    if (eqLeft.active) {
+        ArtifactCore::ClipEqualizer eqRight = eqLeft;
+        for (auto& segment : out.segments) {
+            const int segFrames = segment.frameCount();
+            if (segFrames <= 0) continue;
+            if (!segment.channelData.isEmpty()) {
+                eqLeft.process(segment.channelData[0].data(), segFrames);
+            }
+            if (segment.channelCount() > 1) {
+                eqRight.process(segment.channelData[1].data(), segFrames);
+            }
+        }
+    }
+
+    // waveform peak envelope (0.5 秒バケット) — EQ 適用後のデータから計算。
+    for (const auto& segment : out.segments) {
+        const int segFrames = segment.frameCount();
+        const int channels = segment.channelCount();
+        if (segFrames <= 0 || channels <= 0) continue;
+        const int bucketFrames = static_cast<int>(
+            static_cast<double>(out.sampleRate) * kPeakBucketSeconds);
+        for (int start = 0; start < segFrames; start += bucketFrames) {
+            const int end = std::min(segFrames, start + bucketFrames);
+            float peak = 0.0f;
+            for (int ch = 0; ch < channels; ++ch) {
+                const float* data = segment.constData(ch);
+                for (int i = start; i < end; ++i) {
+                    peak = std::max(peak, std::fabs(data[i]));
+                }
+            }
+            out.waveformPeaks.append(std::clamp(peak, 0.0f, 1.0f));
+        }
+    }
 }
 
 void AudioPreviewMixer::play(FramePosition frame)

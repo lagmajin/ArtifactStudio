@@ -123,6 +123,20 @@ enum class RenderQualityPreset {
     Full,
 };
 
+/// エクスポート用に凍結した 1 音声クリップ (mute/solo/enabled フィルタ済み)。
+/// volume には clip.volume × audioGain エフェクト係数を含む。
+struct AudioClipPlan {
+    QString clipId;
+    QString sourceFile;
+    FramePosition startFrame = 0;
+    FramePosition durationFrames = 0;
+    FramePosition sourceIn = 0;
+    double volume = 1.0;
+    double eqLowDb = 0.0;
+    double eqMidDb = 0.0;
+    double eqHighDb = 0.0;
+};
+
 struct RenderPlan {
     QJsonObject nleSnapshot;
     QString resolution;
@@ -131,6 +145,13 @@ struct RenderPlan {
     FramePosition endFrame = 0;
     double qualityScale = 1.0;
     bool useProxyMedia = false;
+
+    /// legacy トランジションの凍結 (エクスポート側の opacity 変調用)。
+    QVector<Transition> transitions;
+    /// clipId → fx.* エフェクトパラメータの凍結 (エクスポート側の映像エフェクト用)。
+    QMap<QString, QMap<QString, QVariant>> clipEffects;
+    /// 音声トラックのミックス計画 (エクスポート側のオフライン音声レンダ用)。
+    QVector<AudioClipPlan> audioClips;
 
     bool isValid() const { return !nleSnapshot.isEmpty() && endFrame >= startFrame; }
 };
@@ -271,6 +292,7 @@ public Q_SLOTS:
     void setClipVolume(const QString& clipId, double volume);
     void setClipName(const QString& clipId, const QString& name);
     void setClipOpacity(const QString& clipId, double opacity);
+    void setClipEffects(const QString& clipId, const QMap<QString, QVariant>& effects);
     void setTrackMuted(const QString& trackId, bool muted);
     void setTrackSolo(const QString& trackId, bool solo);
 

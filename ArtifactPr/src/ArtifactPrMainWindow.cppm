@@ -11,7 +11,9 @@ module;
 #include <QDebug>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QDoubleSpinBox>
 #include <QFileDialog>
+#include <QGridLayout>
 #include <QInputDialog>
 #include <QLineEdit>
 #include <QFileInfo>
@@ -56,6 +58,7 @@ module;
 module ArtifactPr.MainWindow;
 
 import ArtifactPr.AudioPreviewMixer;
+import ArtifactPr.ClipEffects;
 import ArtifactPr.EditorEngine;
 import ArtifactPr.ExportDialog;
 import ArtifactPr.MediaFrameDecoder;
@@ -104,6 +107,30 @@ QString percentLabel(int value)
 QString trUi(const char* english, const char* japanese)
 {
     return isJapaneseSystemLocale() ? QString::fromUtf8(japanese) : QString::fromUtf8(english);
+}
+
+/// legacy Transition から clipId に一致するフェードスパンを組む。
+/// カーブ式は ClipEffects::transitionOpacityFactor (エクスポートと同一)。
+QVector<ArtifactPr::TransitionFadeSpan> transitionFadeSpansFor(
+    const QVector<ArtifactPr::Transition>& transitions,
+    const QString& trackId,
+    const QString& clipId)
+{
+    QVector<ArtifactPr::TransitionFadeSpan> spans;
+    for (const auto& trans : transitions) {
+        if (trans.trackId != trackId) continue;
+        const bool isLeft = trans.leftClipId == clipId;
+        if (!isLeft && trans.rightClipId != clipId) continue;
+        ArtifactPr::TransitionFadeSpan span;
+        span.startFrame = trans.startFrame;
+        span.duration = trans.duration;
+        span.isLeft = isLeft;
+        span.curve = trans.type == ArtifactPr::TransitionType::DipToBlack
+            ? ArtifactPr::TransitionFadeCurve::DipToBlack
+            : ArtifactPr::TransitionFadeCurve::Linear;
+        spans.append(span);
+    }
+    return spans;
 }
 
 class TimelineClipWidget : public QWidget
@@ -744,7 +771,9 @@ private:
                 entry.startFrame = clip.startFrame;
                 entry.durationFrames = clip.duration;
                 entry.sourceIn = clip.sourceIn;
-                entry.volume = clip.volume;
+                entry.volume = clip.volume * ArtifactPr::audioGainFactor(clip.effects);
+                ArtifactPr::audioEqualizerDb(clip.effects,
+                                             entry.eqLowDb, entry.eqMidDb, entry.eqHighDb);
                 clips.append(entry);
             }
         }
@@ -841,7 +870,8 @@ private:
                 PendingClipRequest entry;
                 entry.clipId = clip.id;
                 entry.opacity = clip.opacity
-                    * transitionOpacityAt(sequence, clip, frame);
+                    * ArtifactPr::transitionOpacityFactor(
+                        transitionFadeSpansFor(sequence.transitions, track.id, clip.id), frame);
                 entry.request.filePath = clip.sourceFile;
                 entry.request.stillImage = isStillImagePath(clip.sourceFile);
                 entry.request.sourceFrame = sourceFrame;
@@ -863,58 +893,6 @@ private:
         for (const PendingClipRequest& entry : pending) {
             decoder_->request(entry.request);
         }
-    }
-
-    /// トランジション区間での opacity 変調係数 (D1)。
-    /// 範囲外は 1.0。Crossfade/Wipe は線形フェード、DipToBlack(Dissolve 扱い)
-    /// は両側が中央で減衰する三角カーブ。
-    static double transitionOpacityAt(const ArtifactPr::DemoSequence& sequence,
-                                      const ArtifactPr::DemoClip& clip,
-                                      FramePosition frame)
-    {
-        double factor = 1.0;
-        for (const auto& trans : sequence.transitions) {
-            if (trans.trackId != trackIdOfClip(sequence, clip.id)) continue;
-            if (trans.leftClipId != clip.id && trans.rightClipId != clip.id) continue;
-
-            const FramePosition transEnd = trans.startFrame + trans.duration;
-            if (frame < trans.startFrame || frame >= transEnd) continue;
-
-            // 区間内進捗 0..1
-            double t = static_cast<double>(frame - trans.startFrame)
-                / static_cast<double>(qMax<FramePosition>(1, trans.duration));
-
-            double local = 1.0;
-            switch (trans.type) {
-            case ArtifactPr::TransitionType::Crossfade:
-            case ArtifactPr::TransitionType::WipeLeft:
-            case ArtifactPr::TransitionType::WipeRight:
-                local = trans.leftClipId == clip.id ? t : 1.0 - t;
-                break;
-            case ArtifactPr::TransitionType::DipToBlack:
-                local = trans.leftClipId == clip.id ? 1.0 - 2.0 * t : 2.0 * t - 1.0;
-                local = qBound(0.0, local, 1.0);
-                break;
-            }
-            factor = std::min(factor, local);
-        }
-        return factor;
-    }
-
-    static QString trackIdOfClip(const ArtifactPr::DemoSequence& sequence,
-                                 const QString& clipId)
-    {
-        for (const auto& track : sequence.videoTracks) {
-            for (const auto& c : track.clips) {
-                if (c.id == clipId) return track.id;
-            }
-        }
-        for (const auto& track : sequence.audioTracks) {
-            for (const auto& c : track.clips) {
-                if (c.id == clipId) return track.id;
-            }
-        }
-        return QString();
     }
 
     void onFrameDecoded(const ArtifactPr::FrameDecodeResult& result)
@@ -944,11 +922,18 @@ private:
         // 全クリップのフレームが揃ったので z-order 順に合成して表示
         QVector<ArtifactPr::CompositeLayer> layers;
         layers.reserve(pendingRequests_.size());
+        auto* engine = ArtifactPr::EditorEngine::instance();
         for (const PendingClipRequest& entry : pendingRequests_) {
             const auto found = decodedFrames_.constFind(entry.request.filePath);
             if (found == decodedFrames_.constEnd()) continue;
             ArtifactPr::CompositeLayer layer;
-            layer.frame = found.value();
+            // デコード結果は複数クリップで共有されるため DeepCopy してから
+            // クリップエフェクトを適用する。
+            ArtifactCore::ImageF32x4_RGBA frame = found.value().DeepCopy();
+            if (const auto* clip = engine->findClip(entry.clipId)) {
+                ArtifactPr::applyClipEffects(frame, clip->effects);
+            }
+            layer.frame = std::move(frame);
             layer.opacity = entry.opacity;
             layers.append(layer);
         }
@@ -1308,66 +1293,268 @@ public:
         label->setFont(titleFont);
         layout->addWidget(label);
 
-        auto* descLabel = new QLabel(trUi("Basic effects:", "基本エフェクト:"));
-        layout->addWidget(descLabel);
-
-        auto* searchEdit = new QLineEdit();
-        searchEdit->setPlaceholderText(trUi("Search effects...", "エフェクトを検索..."));
+        searchEdit_ = new QLineEdit();
+        searchEdit_->setPlaceholderText(trUi("Search effects...", "エフェクトを検索..."));
         {
-            QPalette p = searchEdit->palette();
+            QPalette p = searchEdit_->palette();
             p.setColor(QPalette::Base, ArtifactPr::prLegacyColors().inputBackground);
-            searchEdit->setPalette(p);
+            searchEdit_->setPalette(p);
         }
-        layout->addWidget(searchEdit);
+        layout->addWidget(searchEdit_);
 
-        auto* effectsList = new QListWidget();
-        {
-            QPalette p = effectsList->palette();
-            p.setColor(QPalette::Base, ArtifactPr::prLegacyColors().panelBackgroundAlt);
-            effectsList->setPalette(p);
-        }
+        auto* scroll = new QScrollArea();
+        scroll->setWidgetResizable(true);
+        scroll->setFrameShape(QFrame::NoFrame);
+        auto* content = new QWidget();
+        rowsLayout_ = new QVBoxLayout(content);
+        rowsLayout_->setContentsMargins(0, 0, 0, 0);
+        rowsLayout_->setSpacing(4);
+        rowsLayout_->addStretch(1);
+        scroll->setWidget(content);
+        layout->addWidget(scroll, 1);
 
-        QStringList effects = {
-            trUi("Color Correction > Brightness/Contrast", "色補正 > 明るさ/コントラスト"),
-            trUi("Color Correction > Hue/Saturation", "色補正 > 色相/彩度"),
-            trUi("Color Correction > Color Wheels", "色補正 > カラーホイール"),
-            trUi("Blur > Gaussian Blur", "ぼかし > ガウスぼかし"),
-            trUi("Blur > Box Blur", "ぼかし > ボックスぼかし"),
-            trUi("Sharpen > Unsharp Mask", "シャープ > アンシャープマスク"),
-            trUi("Stylize > Glow", "スタイライズ > グロー"),
-            trUi("Stylize > Posterize", "スタイライズ > ポスタリゼーション"),
-            trUi("Transform > Scale", "変形 > スケール"),
-            trUi("Transform > Rotate", "変形 > 回転"),
-            trUi("Audio > Gain", "オーディオ > ゲイン"),
-            trUi("Audio > Equalizer", "オーディオ > イコライザー")
-        };
+        infoLabel_ = new QLabel(trUi(
+            "Select a clip to edit its effects.",
+            "クリップを選択してエフェクトを編集します。"));
+        layout->addWidget(infoLabel_);
 
-        for (const auto& effect : effects) {
-            auto* item = new QListWidgetItem(effect);
-            item->setData(Qt::UserRole, effect);
-            effectsList->addItem(item);
-        }
-
-        layout->addWidget(effectsList, 1);
-
-        auto* infoLabel = new QLabel(trUi(
-            "Tip: Drag effects to clips\nin the timeline.",
-            "ヒント: エフェクトをタイムライン上の\nクリップへドラッグしてください。"));
-        layout->addWidget(infoLabel);
+        buildEffectRows();
 
         auto* engine = ArtifactPr::EditorEngine::instance();
         connect(engine, &ArtifactPr::EditorEngine::clipSelectionChanged, this, &EffectsPanel::onClipSelected);
+        connect(engine, &ArtifactPr::EditorEngine::clipChanged, this, &EffectsPanel::onClipSelected);
+        connect(searchEdit_, &QLineEdit::textChanged, this, [this]() { applySearchFilter(); });
+
+        updateWidgetsFromClip();
     }
 
 private slots:
     void onClipSelected(const QString& clipId)
     {
-        auto* engine = ArtifactPr::EditorEngine::instance();
-        auto* clip = engine->findClip(clipId);
-        bool hasEffects = clip && !clip->effects.isEmpty();
+        Q_UNUSED(clipId);
+        updateWidgetsFromClip();
     }
 
 private:
+    struct ParamSpec {
+        const char* key;
+        const char* labelEn;
+        const char* labelJa;
+        double min;
+        double max;
+        double step;
+        double defaultValue;
+        int decimals;
+    };
+
+    struct ParamWidget {
+        QString key;
+        QDoubleSpinBox* spin = nullptr;
+        double defaultValue = 0.0;
+    };
+
+    struct EffectRow {
+        QString effectId;
+        QCheckBox* enableCheck = nullptr;
+        QWidget* paramsWidget = nullptr;
+        QVector<ParamWidget> params;
+    };
+
+    void buildEffectRows()
+    {
+        addEffectRow("brightnessContrast",
+                     "Color Correction > Brightness/Contrast", "色補正 > 明るさ/コントラスト", {
+            { "brightness", "Brightness", "明るさ", -1.0, 1.0, 0.01, 0.0, 2 },
+            { "contrast", "Contrast", "コントラスト", 0.0, 2.0, 0.01, 1.0, 2 },
+        });
+        addEffectRow("hueSaturation",
+                     "Color Correction > Hue/Saturation", "色補正 > 色相/彩度", {
+            { "hue", "Hue", "色相", -180.0, 180.0, 1.0, 0.0, 1 },
+            { "saturation", "Saturation", "彩度", 0.0, 2.0, 0.01, 1.0, 2 },
+            { "lightness", "Lightness", "輝度", -1.0, 1.0, 0.01, 0.0, 2 },
+        });
+        addEffectRow("colorWheels",
+                     "Color Correction > Color Wheels", "色補正 > カラーホイール", {
+            { "shadowsR", "Shadows R", "シャドウ R", -0.5, 0.5, 0.01, 0.0, 2 },
+            { "shadowsG", "Shadows G", "シャドウ G", -0.5, 0.5, 0.01, 0.0, 2 },
+            { "shadowsB", "Shadows B", "シャドウ B", -0.5, 0.5, 0.01, 0.0, 2 },
+            { "midtonesR", "Midtones R", "ミッドトーン R", -0.5, 0.5, 0.01, 0.0, 2 },
+            { "midtonesG", "Midtones G", "ミッドトーン G", -0.5, 0.5, 0.01, 0.0, 2 },
+            { "midtonesB", "Midtones B", "ミッドトーン B", -0.5, 0.5, 0.01, 0.0, 2 },
+            { "highlightsR", "Highlights R", "ハイライト R", -0.5, 0.5, 0.01, 0.0, 2 },
+            { "highlightsG", "Highlights G", "ハイライト G", -0.5, 0.5, 0.01, 0.0, 2 },
+            { "highlightsB", "Highlights B", "ハイライト B", -0.5, 0.5, 0.01, 0.0, 2 },
+        });
+        addEffectRow("gaussianBlur",
+                     "Blur > Gaussian Blur", "ぼかし > ガウスぼかし", {
+            { "radius", "Radius (px)", "半径 (px)", 0.0, 50.0, 0.5, 8.0, 1 },
+        });
+        addEffectRow("boxBlur",
+                     "Blur > Box Blur", "ぼかし > ボックスぼかし", {
+            { "radius", "Radius (px)", "半径 (px)", 0.0, 50.0, 0.5, 8.0, 1 },
+        });
+        addEffectRow("unsharpMask",
+                     "Sharpen > Unsharp Mask", "シャープ > アンシャープマスク", {
+            { "amount", "Amount", "量", 0.0, 3.0, 0.05, 1.0, 2 },
+            { "radius", "Radius (px)", "半径 (px)", 0.0, 20.0, 0.5, 3.0, 1 },
+        });
+        addEffectRow("glow",
+                     "Stylize > Glow", "スタイライズ > グロー", {
+            { "intensity", "Intensity", "強さ", 0.0, 2.0, 0.05, 0.8, 2 },
+            { "radius", "Radius (px)", "半径 (px)", 0.0, 50.0, 0.5, 12.0, 1 },
+            { "threshold", "Threshold", "閾値", 0.0, 1.0, 0.01, 0.6, 2 },
+        });
+        addEffectRow("posterize",
+                     "Stylize > Posterize", "スタイライズ > ポスタリゼーション", {
+            { "levels", "Levels", "レベル数", 2.0, 32.0, 1.0, 8.0, 0 },
+        });
+        addEffectRow("scale",
+                     "Transform > Scale", "変形 > スケール", {
+            { "percent", "Scale (%)", "スケール (%)", 10.0, 400.0, 5.0, 100.0, 0 },
+        });
+        addEffectRow("rotate",
+                     "Transform > Rotate", "変形 > 回転", {
+            { "angle", "Angle (deg)", "角度 (度)", -180.0, 180.0, 1.0, 0.0, 1 },
+        });
+        addEffectRow("audioGain",
+                     "Audio > Gain", "オーディオ > ゲイン", {
+            { "gainDb", "Gain (dB)", "ゲイン (dB)", -24.0, 24.0, 0.5, 0.0, 1 },
+        });
+        addEffectRow("audioEqualizer",
+                     "Audio > Equalizer", "オーディオ > イコライザー", {
+            { "lowDb", "Low (200Hz, dB)", "ロウ (200Hz, dB)", -12.0, 12.0, 0.5, 0.0, 1 },
+            { "midDb", "Mid (1kHz, dB)", "ミッド (1kHz, dB)", -12.0, 12.0, 0.5, 0.0, 1 },
+            { "highDb", "High (4kHz, dB)", "ハイ (4kHz, dB)", -12.0, 12.0, 0.5, 0.0, 1 },
+        });
+    }
+
+    void addEffectRow(const char* effectId, const char* labelEn, const char* labelJa,
+                      const QVector<ParamSpec>& params)
+    {
+        EffectRow row;
+        row.effectId = QString::fromLatin1(effectId);
+
+        auto* rowWidget = new QWidget();
+        auto* rowLayout = new QVBoxLayout(rowWidget);
+        rowLayout->setContentsMargins(0, 0, 0, 0);
+        rowLayout->setSpacing(2);
+
+        row.enableCheck = new QCheckBox(trUi(labelEn, labelJa));
+        row.enableCheck->setEnabled(false);
+        rowLayout->addWidget(row.enableCheck);
+
+        row.paramsWidget = new QWidget();
+        auto* paramGrid = new QGridLayout(row.paramsWidget);
+        paramGrid->setContentsMargins(20, 0, 0, 0);
+        paramGrid->setSpacing(2);
+        int gridRow = 0;
+        for (const ParamSpec& spec : params) {
+            auto* paramLabel = new QLabel(trUi(spec.labelEn, spec.labelJa));
+            auto* spin = new QDoubleSpinBox();
+            spin->setRange(spec.min, spec.max);
+            spin->setSingleStep(spec.step);
+            spin->setDecimals(spec.decimals);
+            spin->setValue(spec.defaultValue);
+            spin->setEnabled(false);
+            {
+                QPalette p = spin->palette();
+                p.setColor(QPalette::Base, ArtifactPr::prLegacyColors().inputBackground);
+                spin->setPalette(p);
+            }
+            paramGrid->addWidget(paramLabel, gridRow, 0);
+            paramGrid->addWidget(spin, gridRow, 1);
+            ++gridRow;
+
+            ParamWidget pw;
+            pw.key = QString::fromLatin1(spec.key);
+            pw.spin = spin;
+            pw.defaultValue = spec.defaultValue;
+            row.params.append(pw);
+
+            connect(spin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
+                    [this]() { applyEffectsToEngine(); });
+        }
+        rowLayout->addWidget(row.paramsWidget);
+        row.paramsWidget->setVisible(false);
+
+        connect(row.enableCheck, &QCheckBox::toggled, this,
+                [this, row]() {
+                    row.paramsWidget->setVisible(row.enableCheck->isChecked());
+                    applyEffectsToEngine();
+                });
+
+        rowsLayout_->insertWidget(rowsLayout_->count() - 1, rowWidget);
+        rows_.append(row);
+    }
+
+    void updateWidgetsFromClip()
+    {
+        auto* engine = ArtifactPr::EditorEngine::instance();
+        auto* clip = engine->findClip(engine->selectedClipId());
+        const bool hasClip = clip != nullptr;
+
+        updating_ = true;
+        for (const EffectRow& row : rows_) {
+            row.enableCheck->setEnabled(hasClip);
+            const bool enabled = hasClip
+                && ArtifactPr::effectEnabled(clip->effects, row.effectId);
+            row.enableCheck->setChecked(enabled);
+            row.paramsWidget->setVisible(enabled);
+            for (const ParamWidget& pw : row.params) {
+                pw.spin->setEnabled(hasClip);
+                pw.spin->setValue(hasClip
+                    ? ArtifactPr::effectParam(clip->effects, row.effectId, pw.key,
+                                              pw.defaultValue)
+                    : pw.defaultValue);
+            }
+        }
+        updating_ = false;
+
+        infoLabel_->setText(hasClip
+            ? trUi("Editing effects of the selected clip.",
+                   "選択クリップのエフェクトを編集中。")
+            : trUi("Select a clip to edit its effects.",
+                   "クリップを選択してエフェクトを編集します。"));
+        applySearchFilter();
+    }
+
+    void applyEffectsToEngine()
+    {
+        if (updating_) return;
+        auto* engine = ArtifactPr::EditorEngine::instance();
+        const QString clipId = engine->selectedClipId();
+        if (!engine->findClip(clipId)) return;
+
+        // fx.* キーを UI 状態から毎回再構築する (無効化エフェクトの残骸を残さない)。
+        QMap<QString, QVariant> effects;
+        for (const EffectRow& row : rows_) {
+            if (!row.enableCheck->isChecked()) continue;
+            effects.insert(QStringLiteral("fx.%1.enabled").arg(row.effectId),
+                           QStringLiteral("1"));
+            for (const ParamWidget& pw : row.params) {
+                effects.insert(QStringLiteral("fx.%1.%2").arg(row.effectId, pw.key),
+                               QString::number(pw.spin->value()));
+            }
+        }
+        engine->setClipEffects(clipId, effects);
+    }
+
+    void applySearchFilter()
+    {
+        const QString filter = searchEdit_->text().trimmed();
+        for (const EffectRow& row : rows_) {
+            const bool visible = filter.isEmpty()
+                || row.enableCheck->text().contains(filter, Qt::CaseInsensitive);
+            row.enableCheck->parentWidget()->setVisible(visible);
+        }
+    }
+
+private:
+    QLineEdit* searchEdit_ = nullptr;
+    QVBoxLayout* rowsLayout_ = nullptr;
+    QLabel* infoLabel_ = nullptr;
+    QVector<EffectRow> rows_;
+    bool updating_ = false;
 };
 
 W_OBJECT_IMPL(EffectsPanel)

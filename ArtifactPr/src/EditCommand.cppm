@@ -2,6 +2,7 @@ module;
 
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QMap>
 #include <QObject>
 #include <QtGlobal>
 #include <QVariant>
@@ -534,6 +535,54 @@ void ClipPropertyCommand::doApply(const QVariant& v) {
             }
         }
     }
+    Q_EMIT engine->projectModified();
+}
+
+// =====================================================================
+// ClipEffectsCommand
+// =====================================================================
+QJsonObject clipEffectsToJson(const QMap<QString, QVariant>& effects)
+{
+    QJsonObject obj;
+    for (auto it = effects.constKeyValueBegin(); it != effects.constKeyValueEnd(); ++it) {
+        obj[it->first] = it->second.toString();
+    }
+    return obj;
+}
+
+QMap<QString, QVariant> clipEffectsFromJson(const QJsonObject& obj)
+{
+    QMap<QString, QVariant> effects;
+    for (const auto& key : obj.keys()) {
+        effects.insert(key, obj.value(key).toString());
+    }
+    return effects;
+}
+
+QJsonObject ClipEffectsCommand::serialize() const {
+    return QJsonObject{
+        {QStringLiteral("clipId"), clipId_},
+        {QStringLiteral("oldEffects"), clipEffectsToJson(oldEffects_)},
+        {QStringLiteral("newEffects"), clipEffectsToJson(newEffects_)},
+    };
+}
+
+bool ClipEffectsCommand::deserialize(const QJsonObject& data) {
+    clipId_ = data[QStringLiteral("clipId")].toString();
+    oldEffects_ = clipEffectsFromJson(data[QStringLiteral("oldEffects")].toObject());
+    newEffects_ = clipEffectsFromJson(data[QStringLiteral("newEffects")].toObject());
+    setText(QStringLiteral("Change Clip Effects"));
+    return !clipId_.isEmpty();
+}
+
+void ClipEffectsCommand::doApply(const QMap<QString, QVariant>& effects) {
+    auto* engine = EditorEngine::instance();
+    auto* clip = engine->findClip(clipId_);
+    if (!clip) return;
+
+    clip->effects = effects;
+    Q_EMIT engine->clipChanged(clipId_);
+    engine->setCurrentSequence(engine->currentSequence());
     Q_EMIT engine->projectModified();
 }
 
