@@ -1,6 +1,12 @@
 **最終更新:** 2026-08-31
 
-**ステータス:** Not Started
+**ステータス:** Phase 1-A 部分完了（CompositionChangeDetector を独立モジュール化。残りの Undo 群、Render Pass、Gizmo 状態、Motion Path、Onion Skin の分離は未完了）
+
+## 2026-08-31 進捗
+
+- `CompositionChangeDetector` を `Artifact.Render.CompositionChangeDetector` として interface / implementation に分離。
+- `ArtifactCompositionRenderController` の公開 API と検出ロジックは変更せず、実装側から新モジュールを import する構成に変更。
+- 未確認: ビルド、モジュール依存スキャン、既存テスト、実機ランタイム（ユーザー指示待ち）。
 
 # 実装案: 巨大 C++20 module / ソース分割
 
