@@ -1,5 +1,7 @@
 # マイルストーン: Object Fracture / Shatter Effect
 
+**最終更新:** 2026-08-31
+
 > 2026-03-25 作成
 
 ## 背景
@@ -251,3 +253,110 @@ CG ツールでよくある「オブジェクト破砕」「shatter」「destruc
 - したがって「Core基盤のみでアプリ層未接続」という初期説明は古く、最小限の Layer runtime／preview 描画まで実装済みとする。ただしこれは独立した `CreativeEffect` stack の完全なeffect登録を意味しない。
 - 現行コード検索では、通常の Effect menu／専用破砕UIからの作成導線、mesh material／texture UV 継承、実物理collision backend、HLSL／GPU破砕、source差し替え・再リンク、Undo専用コマンド、外部品質受入れは確認できない。
 - よって現状は `Phase 1〜3 and CPU layer preview: partial-to-implemented / CreativeEffect integration, material/source workflow, GPU path and runtime validation pending` と判定する。Core referenceのみ未完了とする旧判定は更新する。
+
+## Update 2026-08-31: Layer-owned Fragment Object Pipeline
+
+### 目的
+
+破砕した破片を新しいレイヤーへ分割せず、元レイヤーの `Fracture Component` が所有する
+一時的な `Fragment Object` として描画・シミュレーションする。レイヤー一覧、親子関係、
+Undo、保存単位を破片数に比例して増やさないことを優先する。
+
+### オブジェクト境界
+
+`Fragment Object` はレイヤーではなく、次の情報を持つ runtime object とする。
+
+- owner layer ID と deterministic fragment ID
+- 切り出し済みの shard geometry、または source geometry への参照
+- source material / color / texture UV の継承情報
+- layer-local transform、velocity、angular velocity
+- age、lifetime、opacity、active 状態
+- 必要な場合だけ接続する rigid-body handle
+
+元レイヤーは source と component state の owner として残し、Fragment Object の生成・更新・
+破棄を管理する。Fragment Object を Timeline の通常行、Layer Panel の通常ノード、通常の
+選択対象として公開しない。
+
+### 正規ライフサイクル
+
+```text
+source layer
+  -> deterministic shard generation
+  -> fragment object spawn
+  -> simulation / collision / lifetime
+  -> fragment render batch extraction
+  -> reset / scrub restore / release
+```
+
+破片の保存単位は、通常は component settings、seed、trigger、shard specification とする。
+実行中の個々の object は保存データの主単位にしない。スクラブ復帰では deterministic
+generation と fragment motion snapshot を組み合わせ、同じ入力から同じ object 集合を再構成する。
+
+### 実装フェーズ
+
+#### Phase F1: Fragment Object Contract
+
+- `FragmentObject` と `FragmentObjectSet` の Core データ契約を定義
+- source layer owner、fragment ID、geometry/material/transform/motion/lifetime を分離
+- layer split、QObject、UI tree 依存を持たせない
+
+完了条件: 破片をレイヤー以外のオブジェクト集合として一意に表現できる。
+
+#### Phase F2: Layer Component Ownership
+
+- `Fracture Component` が object set の生成、再生成、破棄を管理
+- trigger、preGenerate、preset、shardCount、seed の変更で object set を無効化
+- source bounds / mask / mesh の変更時に古い object を残さない
+
+完了条件: 元レイヤーを分割せず、破砕状態だけを再構築できる。
+
+#### Phase F3: Motion / Physics Bridge
+
+- fragment object の linear / angular motion を既存の fracture motion と接続
+- 必要な shard だけ Box2D body を作成し、body owner を fragment ID で追跡
+- gravity、drag、restitution、floor / collider を object 単位で適用
+- debris particle と mesh shard の状態を明確に分離
+
+完了条件: 破片が独立して移動・回転・衝突し、寿命終了時に解放される。
+
+#### Phase F4: Render Batch Extraction
+
+- object set から shard geometry と per-object transform を render batch へ抽出
+- source material / texture UV を維持し、破片ごとの draw call 増加を抑制
+- GPU/Diligent 経路を優先し、CPU は互換 preview / reference に限定
+- 既存の layer blend / mask / opacity 境界を壊さない
+
+完了条件: 通常の composition render と preview の両方で破片が見える。
+
+#### Phase F5: Timeline / Snapshot / Reset
+
+- trigger 前、破砕直後、寿命終了後の状態を定義
+- frame scrub、逆再生、loop で object set が重複生成されないようにする
+- snapshot は fragment ID と motion state の対応を検証して復元
+
+完了条件: 同じ frame へ移動したとき、同じ seed と設定から同じ破片配置を得られる。
+
+#### Phase F6: Optional Bake to Layers
+
+- 明示的な `Bake Fragments to Layers` 操作だけで layer 化する
+- bake は現在の object set を新しい編集可能レイヤーへ複製する別ワークフローとする
+- 通常の破砕再生では layer tree、selection、undo stack を増やさない
+
+完了条件: 必要な場合だけ編集可能なレイヤー群へ変換でき、通常経路と混ざらない。
+
+### 非目標
+
+- 破片ごとの通常レイヤー自動生成
+- 破片を独立した composition layer として常時公開すること
+- 破砕 object のための新しい Qt signal / slot 中央配線
+- 既存の `ReactiveEvents` を使った新規イベント経路
+- 破砕を単なる particle preset へ置き換えること
+
+### 受入条件
+
+- 100 個以上の破片を layer tree のノード増加なしに表示できる
+- source layer の差し替え、property reset、trigger 往復で古い破片が残らない
+- 同じ seed / frame / settings から同じ Fragment Object 集合を再生成できる
+- mesh shard と debris particle を別々に enable / lifetime / budget 制御できる
+- layerization は明示的な Bake 操作に限定される
+- GPU 経路、CPU reference、snapshot 復元、runtime 性能の状態を個別に検証できる
