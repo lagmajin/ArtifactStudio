@@ -1,7 +1,16 @@
 # GroupContainer 移行計画
 
 **作成日:** 2026-08-27  
+**最終更新:** 2026-08-30
+**ステータス:** Phase 0 / 1 実装済み、Phase 2 互換アダプタまで部分実装。独立Container実体とRender Boundary移行は未着手
 **対象:** `ArtifactGroupLayer` から Composition 所有の独立 Container への移行
+
+## Update 2026-08-30 — current implementation reconciliation
+
+- `CompositionNode`、`ContainerNode`、`GroupContainerNode`、`CompositionNodeStore` は実装済み。NodeStoreはID重複、自己親、存在しない親、親子cycleを拒否し、parent IDとorderからchild順を再構築する。
+- `ArtifactAbstractComposition` はlayer追加・階層変更・JSON保存／復元とNodeStoreを同期し、既存`childLayersOf()`を残している。`GroupContainerNode`はLayer非継承で、output mode、active child、enabled、opacity、blendをNode propertyとして往復する。
+- `ArtifactGroupLayer` は描画・UI・既存プロジェクト互換の正規ownerのまま、NodeStoreとの双方向アダプタを持つ。これはPhase 2の互換層であり、独立したComposition兄弟Containerへ置換済みではない。
+- GPU-native Render Boundary、Factory／UI／Undo／ExportのContainer実体化、旧`ArtifactGroupLayer`の廃止は未実装。ビルド・group JSON round-trip・Preview／Export parityはruntime未検証。
 
 ## 目的
 

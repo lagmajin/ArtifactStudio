@@ -71,10 +71,10 @@
 - **WALK-TL-4** 部分実装（2026-08-15 波形生成のレイアウト同期ブロックを遅延化）
   - `CachedAudioWaveform` が composition／layer／source signature 単位でフル長ピークを保持し、trim／zoom で再利用する経路は実装済み
   - `buildAudioWaveformForLayer()` のキャッシュミス時は `updateLayout()` 内で生成せず、次の UI event loop tick に一度だけ遅延実行し、完了後に track を再構築する。別スレッドから layer を読む unsafe な暫定実装は避けているため、decode／生成そのものの worker 化と runtime 負荷確認は未完了
-- **WALK-TL-5** 部分実装（2026-08-15 現行 PropertyEditor を再確認・Reset Undo を補強）
+- **WALK-TL-5** 部分実装（2026-08-30 通常編集・Channel Box・keyframe action の Undo を補強）
   - 数値行の slider、reset/default、keyframe、expression affordance を `PropertyEditor` row の共通機能として揃える
   - 旧 Knob 系を再拡張せず、現行 `Artifact.Widgets.PropertyEditor` を正規経路にする
-  - 数値 row の slider／spinbox、Slider before value の表示設定、default 値の reset、keyframe の追加／削除／anchor／color label、expression ボタンと Copilot 導線を確認した。Reset は `SetLayerPropertyValueCommand` と既存 `SetLayerPropertyKeyframesCommand` を `MacroUndoCommand` にまとめ、値とキーフレームを1回の Undo で戻すようにした。残課題は複数選択・通常編集の全経路 Undo・runtime 受入と、全 property 種別での表示整合確認。
+  - 数値 row の slider／spinbox、Slider before value の表示設定、default 値の reset、keyframe の追加／削除／anchor／color label、expression ボタンと Copilot 導線を確認した。Reset は `SetLayerPropertyValueCommand` と既存 `SetLayerPropertyKeyframesCommand` を `MacroUndoCommand` にまとめ、値とキーフレームを1回の Undo で戻すようにした。通常 Property 行と Channel Box の複数選択値編集、Channel Box の Key All／Key Selected、Property 行の Anchor／Color Label は既存 command 経路へ接続した。Expression の Clear／Convert／Bake も expression／keyframe command へ接続した。残課題は通常値編集と auto-key／keyframe mode の複合 Undo、animatable flag の復元、expression bake／Key All の全状態復元、runtime 受入と全 property 種別での表示整合確認。
 - **WALK-TL-6** ✅ Project open/save の非ブロッキング化（2026-08-13 静的確認）
   - 既存の async load/save 経路を File Menu、recent project、recovery、auto-save から統一利用する
   - 進行表示、編集中の変更との整合性、temp→rename の atomic 保存を確認する

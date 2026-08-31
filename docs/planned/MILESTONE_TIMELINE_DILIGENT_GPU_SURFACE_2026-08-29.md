@@ -1,8 +1,15 @@
 # Timeline Diligent GPU Surface
 
-**最終更新:** 2026-08-29
+**最終更新:** 2026-08-30
 
-**ステータス:** In Progress
+**ステータス:** Phase 1 実装済み・Phase 2 部分実装、runtime / backend 実機検証待ち
+
+## Update 2026-08-30 — current implementation reconciliation
+
+- `ArtifactDiligentTimelineRenderWindow` が既存の共有 Diligent device / immediate context を取得し、D3D12 / Vulkan の swap chain を backend-neutral な `PrimitiveRenderer2D`、`RenderCommandBuffer`、`DiligentImmediateSubmitter` 経由で描画する。
+- `ArtifactTimelineWidget` は明示 API と `ARTIFACT_GPU_TIMELINE_PREVIEW=1` でのみGPU pageへ切り替える。初期化失敗時は既存のQWidget/QPainter pageへ復帰し、編集・入力の正規経路は移管しない。
+- snapshot はmutex保護された latest-wins 交換、render eventはatomic flagでcoalesceされる。スナップショット生成は現状UI threadで行い、可視範囲のrow / clip / keyframeだけを記録する。
+- 背景、track row、grid、clip、playhead、keyframeは実装済み。glyph atlas、waveform / thumbnail texture、CPU/GPU時間の分離計測、D3D12・Vulkan各実機での表示・device loss受入は未実施。
 
 ## 目的
 

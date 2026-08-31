@@ -1,7 +1,7 @@
 # マイルストーン: Artifact* 標準ライブラリ拡張（C++23/26 ギャップ補完）
 
-**最終更新:** 2026-08-28
-**ステータス:** Not Started
+**最終更新:** 2026-08-30
+**ステータス:** Phase 1 静的実装済み・ビルド／テスト実行待ち。Phase 2 / 3 未着手
 **優先度:** Medium
 **関連:**
 - 計画: `~/.commandcode/plans/artifact-cxx23-26-library-gaps.md`
@@ -15,6 +15,13 @@
 ## 目的
 
 ArtifactStudio の `Core.ArtifactFoundation` は std 互換ユーティリティを `ArtifactCore` namespace + `artifact*` / `Artifact*` 命名規約で集約している。C++23/26 で標準入りした「自前実装がない or 薄い」型を追加し、同パターンで `Foundation` 経由で 1 ライナー `import` で使えるようにする。**堅実路線**：(1) 既存テストの回帰なし (2) 新規ユニットテスト追加 (3) 既存 std/Artifact 資産との共存（置換しない）。
+
+## Update 2026-08-30 — Phase 1 static implementation
+
+- `Core.ArtifactExpected`、`Core.ArtifactFunctionRef`、`Core.ArtifactSaturation` を追加し、`Core.ArtifactFoundation` から再exportした。既存 `Result`、`ArtifactFunction`、`ArtifactMath` は置換していない。
+- `ArtifactExpected` はvalue / error、`valueOr` / `errorOr`、`toOptional`、基本monadic操作を提供する。`ArtifactFunctionRef` はborrowed callableのみを保持し、temporaryを受け取らない。飽和演算はintegral型に制約した。
+- 明示 source manifest と専用の `ArtifactCoreArtifactExpectedTest` / `ArtifactCoreArtifactFunctionRefTest` / `ArtifactCoreArtifactSaturationTest` を登録し、集約Foundation testにも最小回帰を追加した。
+- 新規moduleのCMake生成、build、CTest実行はリポジトリ方針により未実施。
 
 ## 現状(2026-08-28 実測)
 

@@ -4,6 +4,12 @@
 **ステータス:** Phase 1 Core 実装済み・Effect と layer opacity の評価接続、effect property の最小編集導線まで実装。詳細管理 UI は未着手
 **優先度:** Medium
 
+## Update 2026-08-30 — effect row Undo transaction correction
+
+- Property Editor の最小「Add Modulation…」導線は、routerを直接変更して after snapshot を組み立てた後、service呼出し前に before snapshot へ復元するよう修正した。
+- これにより `ArtifactEffectService::setEffectModulationSnapshot()` が本来の before / after を `EffectModulationSnapshotCommand` に渡し、1回の追加を1 Undo transactionとして扱える。source作成またはassignment追加の失敗時もbeforeへ戻す。
+- selection、current frame、preview cacheのruntime復元挙動は引き続き未検証。
+
 ## 目的
 
 LFO、Random、将来の Audio Follower などの control source を、既存の property path に非破壊で重ねる。Bitwig Studio の Unified Modulation System を、UIやデバイス構造ではなく「source → target mapping と基準値を保持する」契約として参照する。

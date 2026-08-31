@@ -1,12 +1,17 @@
 # マイルストーン: タイムラインエディタ 機能監査 (2026-07-04)
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-08-30
 
 ## Update 2026-08-15
 
 - 現行構成は `ArtifactTimelineWidget`、Layer Panel、`ArtifactTimelineTrackPainterView`、Navigator、ScrubBar、WorkAreaControl、DopeSheet、Curve Editor まで分割され、各 widget の accessibility name／操作 API と owner-draw 経路が確認できる。
 - Timeline は keyframe copy／paste／selection／ease、split、marker、zoom、tool switching、marquee selection、work area、curve／graph mode、各種 EventBus 更新を実装済み。Curve Editor も tangent／interpolation／key value／frame 編集と fit／zoom を持つ。
 - 監査表に残る Shy／Solo／Audio／FX／Frame Blend／Motion Blur の専用スイッチ列、label／comment／custom column、roving／scale／reverse／auto-keying、keyframe info box、marker 管理、speed graph の完全統合、JKL／skip／play-around 等は未完了または未確認。基盤は大きく進んだが、P0／P1 の機能監査項目は未完了。
+
+## Update 2026-08-30
+
+- キーフレーム移動は `ArtifactTimelineWidget` の `JumpToFirst/Last/Next/PreviousKeyframe` として実装済み。Timeline の既定は `Ctrl+PageUp/Down`、Animation Navigation は `Ctrl+Shift+J/K` であり、裸の J/K は再生の shuttle／pause と競合するため別用途へ割り当てていない。
+- Easy Ease は F9（Ease In/Out 含む）のショートカット、選択キーフレーム適用、隣接値から速度ベースで Bezier ハンドルを算出する `tryComputeEasyEaseHandles()` まで実装済み。実機でのショートカット競合と各値型の runtime 受入れは未確認である。
 
 > 作成: 2026-07-04
 > 元依頼: 「タイムラインエディタの機能提案をいろいろのアプリから調べて」
@@ -61,7 +66,7 @@ AE のレイヤースイッチ列を基準に。Artifact のレイヤーパネ�
 | 機能 | 参照元 | 状態 |
 |---|---|---|
 | **Roving Keyframes** | AE | ❌ 複数キーフレームの相対間隔を保ったままドラッグ移動 |
-| **J/K キーフレームジャンプ** | AE/Premiere | ❌ J=前のキーフレーム、K=次のキーフレーム。全アプリ共通の文法 |
+| **J/K キーフレームジャンプ** | AE/Premiere | ⚠️ Timeline は `Ctrl+PageUp/Down`、Animation は `Ctrl+Shift+J/K` で実装済み。裸の J/K は再生操作と競合するため未割当 |
 | **キーフレーム時間方向スケール** | AE/Blender | ❌ 選択キーフレーム群を時間方向に均等伸縮（Alt+ドラッグ） |
 | **キーフレーム値スケール** | AE | ❌ 選択キーフレームの値を均等スケール |
 | **キーフレーム反転（時間/値）** | AE/Blender | ❌ 時間反転 + 値反転 |
@@ -73,7 +78,7 @@ AE のレイヤースイッチ列を基準に。Artifact のレイヤーパネ�
 
 | 機能 | 参照元 | 状態 |
 |---|---|---|
-| **Easy Ease / Easy Ease In / Out ワンキー適用** | AE (F9/Shift+F9) | ⚠️ F9 はあるが速度ベース自動イージング未実装 |
+| **Easy Ease / Easy Ease In / Out ワンキー適用** | AE (F9/Shift+F9) | ✅ F9 系ショートカット、選択適用、速度ベースの Bezier ハンドル計算を実装。runtime 未確認 |
 | **補間タイプ切替（Constant/Linear/Bezier/Auto/Hold）** | 全アプリ | ⚠️ |
 | **Exponential Scale** | AE | ❌ 2D ズームの指数補間（線形ズームの奥行き不自然さを解消） |
 | **イージングのコピペ** | AE (EaseCopy) | ✅ Timeline の `Ease Copy` / `Ease Paste` で対応済み |
@@ -97,9 +102,9 @@ P0 は、keyframe 編集とナビゲーションの正本を明示してから�
 
 ### P0A の着手点
 
-1. `J/K` のキーフレームジャンプを `Previous / Next Keyframe` として優先度高く整理する
+1. `Previous / Next Keyframe` の context-safe shortcut（Timeline `Ctrl+PageUp/Down`、Animation `Ctrl+Shift+J/K`）を runtime 確認する
 2. キーフレームの情報ボックスで時刻 / 値 / 補間タイプ / ハンドル値を読めるようにする
-3. `Easy Ease / Easy Ease In / Out` の適用前提を先に固定する
+3. `Easy Ease / Easy Ease In / Out` の既存 F9 系適用と速度ベース計算を runtime 確認する
 4. `Selected / Hovered / Current-frame-hit` と keyframe 色の役割を分ける
 
 ### P0 完了条件

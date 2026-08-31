@@ -1,6 +1,6 @@
 # M-CMD-1 Command IR / Automation Foundation
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-08-30
 作成日: 2026-06-28
 ステータス: 部分完了（Core contract、validation/vocabulary、App側CommandIRExecutor、WorkspaceAutomation経由のcommand facadeは実装済み。全commandのtransactional rollback、UI/automation経路統一、独立Resolver、preview/explain、runtime検証は未完了）
 対象:
@@ -27,6 +27,11 @@
 
 - `set_keyframes` / `batch_set_keyframes` に実行前 payload validation を追加し、空 property path、空 batch、frame/value 欠落を mutation 前に拒否するようにした。
 - これにより入力不備による partial mutation は防げるが、WorkspaceAutomation の runtime failure に対する全 command 共通 rollback、独立 Resolver、preview/explain は未完了。
+
+- 外部 `CommandIRExecutor` の `set_keyframes`／`batch_set_keyframes` は、キーごとの `setKeyframe()` 呼出しから `WorkspaceAutomation::batchSetKeyframes()` 一回へ移行した。WorkspaceAutomation側でも全件preflightを行い、property欠落・frame/value不正をmutation前に拒否する。各helperの `CommandResult.valid` は共通dispatchで検証結果を引き継ぐ。
+- これはkeyframe経路のtransaction境界を揃える補正であり、全commandの共通rollback、runtime／session reload、独立Resolver、preview/explainは引き続き未完了。
+
+- 画像／SVG／音声／Text／NullのAI作成別名は、既存ProjectServiceの生成処理を変更せず、前後のactive compositionを検査して実際の作成結果を返すようにした。サービスの失敗を成功として報告する隙間を塞いだが、作成自体のUndo境界、runtime／session reload、全command共通rollbackは未完了である。
 
 ## 1. 目的
 

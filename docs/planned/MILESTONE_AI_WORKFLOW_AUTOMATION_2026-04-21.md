@@ -1,7 +1,9 @@
 # MILESTONE: AI Workflow Automation
 
 作成日: 2026-04-21
-最終更新: 2026-08-15
+最終更新: 2026-08-31
+
+**最終更新:** 2026-08-31
 
 **進捗状態:** Phase 1〜3 は実装済み、Phase 4 は batch rename／batch move など一部実装。runtime 検証と共通 write schema の強化が残る。
 
@@ -29,6 +31,12 @@
 `WorkspaceAutomation` に `batchRelinkFootageByPath(QVariantList)` を追加した。既存の `relinkFootageByPath()` を再利用し、各項目の `oldFilePath`／`newFilePath`、成功・失敗件数、失敗理由を schemaVersion 付き `QVariantMap` で返す。空パスは `PATH_REQUIRED` として処理し、既存の個別 relink 経路は変更していない。
 
 batch import／render の共通 execution plan／rollback、長時間 queue の再実行、UI／runtime受入れは引き続き pending。
+
+## Update 2026-08-31
+
+空の batch rename／project item move／footage relink は、実変更がないため `success: false` を返すようにした。複数件の途中失敗時に先行成功を共通 rollback する対応と runtime 受入れは引き続き pending。
+
+同じ batch relink について、途中失敗時に先行成功分を逆順で戻す rollback を追加した。結果には `rolledBackCount` と `rollbackSucceeded` を含め、外部ファイル状態やパス競合による復元失敗を隠さない。batch import／render、長時間 queue 運用、runtime 受入れは引き続き pending。
 
 ## 目的
 

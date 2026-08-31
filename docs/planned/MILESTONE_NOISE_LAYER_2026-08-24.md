@@ -1,8 +1,8 @@
 # MILESTONE: 独立ノイズレイヤー（ArtifactNoiseLayer）
 
-**最終更新:** 2026-08-25
+**最終更新:** 2026-08-30
 
-**ステータス:** In Progress（コア実装・基本作成導線・Automation API 実装済み、詳細設定 UI と GPU 経路は未完了）
+**ステータス:** In Progress（コア実装・詳細設定付き作成導線・プリセット選択 UI・Automation API・GPU compute 経路を実装済み。アニメーション、runtime parity は未完了）
 
 **識別子:** M-NOISE-LAYER
 
@@ -25,14 +25,28 @@
 9. Workspace Automation に `createNoiseLayer(compositionId, name, width, height, seed)` を追加
 10. `createNoiseLayer` / `addNoiseLayer` の作成時 `kind` 指定（Perlin / Simplex / FBM / Voronoi / White / Value / Gradient）と既存プリセット指定（Marble / Clouds / Cellular / Fabric / Terrain / Metal）
 11. 詳細設定付き作成 UI（2026-08-25）: `CreateNoiseLayerDialog`（`include/Widgets/Dialog/CreateNoiseLayerDialog.ixx` / `src/Widgets/Dialog/CreateNoiseLayerDialog.cppm`）。名前 / 種別 / シード / サイズを指定可能。Project View の `Noise Layer...` と Composition Editor の `New Noise Layer...` から使用。初期サイズはコンポジションサイズ
+12. Project View / Composition Editor の New メニューから既存 procedural preset（Marble / Clouds / Cellular / Fabric / Terrain / Metal）を直接選択して Noise Layer を作成可能
 
 ## 未着手
 
-- Python API への `addNoiseLayer` 系露出（Workspace Automation の `createNoiseLayer` / `addNoiseLayer` は実装済み）
-- UI からのプリセット選択（Automation 経由の既存 ProceduralTexture プリセット適用は実装済み）
 - offset / rotation 等のキーフレーム駆動（流れるノイズ）
-- GPU compute 正規経路（`ProceduralTextureComputePipeline` の Noise draw 接続を追加。color mapping / pipeline failure / device reset は CPU fallback。runtime parity・texture cache 統合は未検証）
 - タイムライン / アセット系アイコン・表示名の整備
+
+## Update 2026-08-30 — Python workspace API exposure
+
+`ArtifactPythonHookManager` の既存 `artifact.workspace` 登録へ `createNoiseLayer` と `addNoiseLayer` を追加した。Workspace Automation と同じ composition ID、name、width、height、seed、kind 引数を JSON 結果付きで渡し、composition ID 省略時は `current`、サイズ省略時は composition サイズ、kind 省略時は `perlin` を使う。Project View / Composition Editor の New メニューには procedural preset 6 種が既に存在する。さらに、Workspace Automation が受け取った kind／preset を実レイヤー設定へ反映していなかったため、factory と同じ設定生成を追加した。Python engine 実行と noise layer の runtime／round-trip は未検証である。
+
+## GPU compute 経路の現状（2026-08-30 静的確認）
+
+- `ArtifactNoiseLayer::draw()` は color mapping 無効時に
+  `ProceduralTextureComputePipeline` で RGBA16F texture を生成し、既存
+  `ArtifactIRenderer::drawSpriteTransformed()` の texture-view 経路へ直接渡す。
+- レイヤー設定の署名と Diligent device を保持し、設定変更時のみ再生成する。
+  device が切り替わった場合は pipeline／context／texture を破棄して再初期化する。
+- pipeline 初期化・texture 作成・dispatch のいずれかが失敗した場合、または
+  color mapping 有効時は、既存 `ImageF32x4_RGBA` の CPU 生成・描画経路へ戻る。
+- D3D12／Vulkan の実機出力一致、device reset 後の再生成、GPU texture cache との
+  統合は未検証であり、完了扱いにはしない。
 
 ## 対象ファイル
 

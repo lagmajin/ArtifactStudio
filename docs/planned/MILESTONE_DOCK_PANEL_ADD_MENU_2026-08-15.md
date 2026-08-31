@@ -1,7 +1,13 @@
 # Dock Panel Add Menu / Frequently Used Panels
 
-**最終更新:** 2026-08-15
-**ステータス:** Not Started
+**最終更新:** 2026-08-30
+**ステータス:** Implemented — runtime verification pending
+
+## Update 2026-08-30 — stable ID persistence correction
+
+- `Workspace/RecentDockIds` と `Workspace/FavoriteDockIds` は、表示タイトルではなく登録済み Dock ID を保存するよう統一した。
+- 既存のタイトル値はメニューを開いた時点で、一意に解決できる Dock ID だけへ正規化する。重複タイトル・削除済み Dock は誤った面を開かないよう除外する。
+- View > Window Panels とタイトルバー右上 `+` の両方で同じ保存形式を使う。表示名は UI 表示とカテゴリ分類に限定する。
 
 ## Update 2026-08-15 — Phase 1 static audit
 
@@ -18,7 +24,7 @@
 ## Update 2026-08-15 — Phase 3 settings-backed panel lists
 
 - View > Window Panels に最近使ったパネルとお気に入りのサブメニューを追加。
-- `Workspace/RecentDockIds`（最大8件）と `Workspace/FavoriteDockIds` を Dock ID で保存し、存在しない ID は表示時に除外する。
+- 当時の実装はキー名に反して表示タイトルを保存していた。この問題は 2026-08-30 の stable ID persistence correction で修正済み。
 - title-bar `+` の専用ホストとカテゴリ descriptor は未実装。既存 View メニューで先行提供する。
 
 ## Update 2026-08-15 — Phase 2 category grouping
@@ -85,9 +91,9 @@ Project View、Asset Browser、Inspector / Property Editor、Components、Effect
 
 ### Phase 3: 最近使ったパネルとお気に入り
 
-- [ ] パネル ID ベースで最近使った順を保存
-- [ ] パネル ID ベースのお気に入りを保存
-- [ ] 保存・復元時に存在しない ID を安全に無視
+- [x] パネル ID ベースで最近使った順を保存
+- [x] パネル ID ベースのお気に入りを保存
+- [x] 保存・復元時に存在しない ID を安全に無視
 - [ ] 初期状態、壊れた設定、重複追加時の挙動を定義
 
 ### Phase 4: 密度とアクセシビリティの調整
@@ -143,3 +149,7 @@ Project View、Asset Browser、Inspector / Property Editor、Components、Effect
 
 - `+` メニューにも最近使用／お気に入りの submenu を追加し、表示時に `QSettings` と登録済み Dock を再読込するようにした。
 - `View > Window Panels` と同じ ID ベースの表示・activate／最近使用更新経路を使い、未登録 Dock は除外する。
+
+## Update 2026-08-30 — current-code reconciliation
+
+現行コードでは、`ArtifactViewMenu` にカテゴリ別の「パネルを追加／再表示」、最近使用／お気に入り、Dock の表示・activate／pin 操作があり、`ArtifactMenuBar` の右上 `+` からも登録済みDockを再表示できる。いずれも `QSettings` の `Workspace/RecentDockIds` と `Workspace/FavoriteDockIds` を使用し、存在しないDock IDを除外する。したがって Phase 1〜4 のコード実装は完了相当であり、残りは追加・再表示・保存復元・狭幅・キーボード操作のruntime受入である。

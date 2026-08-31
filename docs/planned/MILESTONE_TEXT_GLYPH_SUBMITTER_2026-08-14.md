@@ -1,12 +1,12 @@
 # Text Glyph Submitter 分離マイルストーン
 
-**最終更新:** 2026-08-24
+**最終更新:** 2026-08-30
 
-**ステータス:** GPU smoke path proven / submitter extraction pending
+**ステータス:** 独立 Submitter 実装・GPU smoke path proven / 製品 renderer 移行 pending
 
 ## 現行コード監査 (2026-08-15)
 
-既存コードと直近の GPU 監査記録から、製品 Renderer 内の glyph atlas upload、通常／変形 glyph submit、color emoji、ZWJ cluster 処理、readback は実証済みの範囲がある。G3 の focused runtime／smoke も記録上は `Text Sample1`、CJK、emoji、変形を通過している。一方、独立 `ArtifactTextGlyphSubmitter` 本体への資源・submit 処理の抽出、ShaderManager からの glyph PSO provider 分離、同一出力由来の runtime 再現性は未完または現ワークツリーで直接確認できないため、マイルストーン全体は未完とする。
+既存コードと直近の GPU 監査記録から、製品 Renderer 内の glyph atlas upload、通常／変形 glyph submit、color emoji、ZWJ cluster 処理、readback は実証済みの範囲がある。G3 の focused runtime／smoke も記録上は `Text Sample1`、CJK、emoji、変形を通過している。現ワークツリーには独立 `ArtifactTextGlyphSubmitter` 本体、shader source、pipeline provider contract/adapter が存在する。未完なのは製品 `DiligentImmediateSubmitter` から atlas/resource/submit の所有を移し、同一出力由来の runtime 再現性を確認することであり、マイルストーン全体は未完とする。
 
 ## 目的
 
@@ -68,7 +68,7 @@ Glyph atlas の GPU 描画だけを実行できる検証経路を作る。
 - **完了（ビルド境界）**: `ArtifactTextGlyphSubmitterRuntime` のDebugビルドに成功した。
 - **完了（契約）**: 色絵文字は atlas の RGBAを保持し、通常Glyphはcoverage tintを使う方針を固定した。
 - **完了（契約）**: `offsetRotation`、`offsetScale`、`offsetOpacity` をGPU packetへ反映するAPI境界を固定した。
-- **未完了（実装）**: 上記契約を実行する専用Submitter本体はまだ抽出中。
+- **完了（focused 実装）**: `ArtifactTextGlyphSubmitter.cppm` は atlas upload、通常／変形 glyph submit、target への描画を所有する。製品 renderer への移行は未完。
 
 ### G2: GPU資源抽出
 

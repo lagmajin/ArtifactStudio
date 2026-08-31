@@ -1,6 +1,6 @@
 # MILESTONE: Element 3D 相当機能 — Shape/Text 押し出しジオメトリと World Position AOV
 
-**最終更新:** 2026-08-25
+**最終更新:** 2026-08-30
 
 **ステータス:** In Progress（押し出しコアジオメトリ実装済み・レイヤー配線未着手。AOV は設計確定のみ）
 
@@ -20,6 +20,10 @@ Element 3D 相当の機能のうち、(1) Shape/Text 輪郭からの Extrude + B
      側壁クワッドで構成。position / normal / uv 属性付きで
      Model3D の `generateRenderData()` 経由 GPU 経路にそのまま乗る形式。
    - ベベル無効（bevelWidth <= 0）時は直角押し出しにフォールバック。
+2. `ArtifactCoreShapeExtrudeTest`（2026-08-30、ビルド未実行）
+   - 閉じた矩形の position / normal / uv 属性、depth 範囲、render data 生成を静的な
+     回帰対象へ追加。
+   - bevel による幾何増加と、不正 depth 入力時に既存 `Mesh` を置換しない契約を追加。
 
 ## 未着手
 
@@ -34,6 +38,13 @@ Element 3D 相当の機能のうち、(1) Shape/Text 輪郭からの Extrude + B
     に world position 用 float target（`createOffscreenComputeTexture` + SRV で Diligent バックエンド無変更でリソースは用意可能）
   - 書き込み自体は `DiligentImmediateSubmitter` の mesh draw パスへの PSO 追加が必要（シビアコードのため別スライスで実装する）
   - 消費側: DOF / fog / 2D エフェクトへの depth 参照は Phase 3 の depth/DOF 連携計画と合流
+
+## 未検証事項
+
+- `ArtifactCoreShapeExtrudeTest` を含む ArtifactCore build/test は、リポジトリ方針により未実行。
+- Shape Layer の 3D 表示は現時点では Composition Render Controller の
+  `DirectShape3DCard` 経路であり、`Mesh` ownership・再生成・material 契約を持たない。
+  押し出しを接続する際はこのカード経路を置換せず、明示的な 3D mesh slice として導入する。
 
 ## 対象ファイル
 

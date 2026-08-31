@@ -1,7 +1,7 @@
 # マイルストーン: ArtifactScript Binding API 強化 & クラス対応（Phase 2/3 実走）
 
-**最終更新:** 2026-08-28
-**ステータス:** Not Started
+**最終更新:** 2026-08-30
+**ステータス:** Phase A / C 実装済み、Phase B / D〜H 未着手。ビルド・テスト実行待ち
 **優先度:** High
 **関連:**
 - `docs/planned/MILESTONE_ARTIFACTSCRIPT_LANGUAGE_EVOLUTION_2026-08-21.md`（全体計画。本書は Phase 2 残 / Phase 3 の具体的スライス）
@@ -13,6 +13,12 @@
 ## 目的
 
 既存 Phase 1（文法 C++/C# 寄せ）は 2026-08-22 時点で大半実装済み。残る **Phase 2（バインディング API 実用化）** と **Phase 3（ユーザークラス対応）** を、評価器を壊さずに段階的に実装する。**堅実路線**で、(1) 既存テストの回帰なし (2) 新規ユニットテスト追加 (3) スクリプト→C++ 単方向の最小実用 I/F の 3 つを各スライスで確認する。AGENTS.md 制約によりビルド・テスト実行はユーザー指示待ち。
+
+## Update 2026-08-30 — Phase A / C reconciliation
+
+- `ArtifactScriptHost::installCompositionApi()` は `getLayer`、`getLayerCount`、`getTime`、`getProperty`、`setProperty` を既存のhost registryへ登録しており、Phase Aの最小標準ライブラリは実装済みだった。
+- `ArtifactScriptMethod` に宣言位置のline / columnを保存し、`executeMethod()` 経由でメソッド実行中に発生した評価エラーへ `line:column` 接頭辞を付けるようにした。`ArtifactScriptTest` に未知関数エラーの位置回帰ケースを追加した。
+- body内部の各statement単位の精密な構文診断、host object method dispatch、user class value model以降は未実装である。
 
 ## 現状(2026-08-28 実測)
 
