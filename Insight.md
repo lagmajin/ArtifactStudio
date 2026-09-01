@@ -7516,3 +7516,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: active-useの解放を保証したうえで、reader例外を`available=false`として返すようにした。
 - 価値/懸念: 1コンテナの診断失敗がAI向け全体応答やホスト処理へ波及しにくくなる。例外内容自体は公開せず、必要なら別途ログ経路を設計する。
 - 次に確認すべきこと: reader例外時に他の登録コンテナの一覧が継続し、登録解除も完了することをruntimeで確認する。
+
+### 2026-09-01: Container Debugテキスト出力から要素アドレスを除外
+- 関連: `ArtifactCore/include/Container/ContainerDebugText.ixx`
+- 確認できた事実: JSON serializerでは要素アドレスを除外済みだったが、テキストserializerは`ContainerElementSample::address`を16進相当の数値文字列として出力していた。
+- 対応: テキスト出力を要素indexと任意の注記だけに限定した。
+- 価値/懸念: JSON／テキストの両診断経路でポインタ情報を公開しない契約が揃う。開発者向けの生ポインタ調査が必要な場合は、AI公開面と分離した専用診断経路が必要。
+- 次に確認すべきこと: テキスト変換結果に`@`やアドレス値が含まれず、index／noteが維持されることをruntimeで確認する。
