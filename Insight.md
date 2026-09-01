@@ -7402,3 +7402,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: `kind`をconstantキーフレーム前提のアニメーション対象にし、expression／external overrideを含む現在フレーム値を生成設定へ反映した。
 - 価値/懸念: PerlinからVoronoi等への離散的な種別切替を時間軸・AI操作で表現できる。不正文字列は既存のPerlin fallbackに従い、runtime確認は未実施。
 - 次に確認すべきこと: 種別キーフレーム境界で生成署名が更新され、Voronoi／Gradientのサブモードも正しく切り替わることを確認する。
+
+### 2026-09-01: Noise post処理とnested generatorのJSON／署名を完全化
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: ProceduralTextureSettingsのnormalize／clamp／remap／blendとsecondary／warp generator設定がNoise JSONおよび生成キャッシュ署名から漏れていた。
+- 対応: post処理値とnested generator parametersの保存／復元、範囲正規化、生成署名への全項目反映を追加した。
+- 価値/懸念: Terrain／Marble等のpresetを保存・再読込しても、post処理やsecondary／warpを失いにくくなり、設定変更時の古い画像再利用も避けられる。runtime round-tripとGPU／CPU parityは未検証。
+- 次に確認すべきこと: 全presetと手動設定でJSON round-trip後の出力・署名が一致することを確認する。
