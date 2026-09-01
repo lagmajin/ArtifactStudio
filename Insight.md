@@ -7544,3 +7544,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: registryで1024バイト上限とseverity／authorのenum妥当性を検証してからwriterを呼ぶようにした。
 - 価値/懸念: 新しいコンテナ実装やC++直接呼び出しを追加しても、registry境界でAI向け注記契約を破りにくい。writer側の重複検証は防御として維持する。
 - 次に確認すべきこと: 汎用writerに対しても不正入力でwriterが呼ばれず、正当な入力だけが渡ることをruntimeで確認する。
+
+### 2026-09-01: 任意のdebugSnapshotコンテナ向け登録ヘルパーを追加
+- 関連: `ArtifactCore/include/Container/ContainerDebugRegistry.ixx`, `ArtifactCore/docs/CONTAINER_DEBUG_AI_INTERFACE.md`
+- 確認できた事実: NamedVectorには登録メンバー関数があったが、debugSnapshot()を実装する他の自作コンテナはregistry readerを個別に記述する必要があった。
+- 対応: `registerContainerDebugSnapshot()`を追加し、任意のdebugSnapshot()提供型を同じread-only registryへ登録できるようにした。
+- 価値/懸念: コンテナ実装ごとのMCP接続コードを減らし、登録ID・破棄順序・snapshot境界を共通化できる。メモ追記は型固有の明示writerが必要で、暗黙の可変APIは追加していない。
+- 次に確認すべきこと: SmallVector等の既存snapshot型をhelperで登録し、IDフィルタとsnapshot JSONが期待通り接続されることをruntimeで確認する。
