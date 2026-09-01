@@ -7409,3 +7409,5 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: post処理値とnested generator parametersの保存／復元、範囲正規化、生成署名への全項目反映を追加した。
 - 価値/懸念: Terrain／Marble等のpresetを保存・再読込しても、post処理やsecondary／warpを失いにくくなり、設定変更時の古い画像再利用も避けられる。runtime round-tripとGPU／CPU parityは未検証。
 - 次に確認すべきこと: 全presetと手動設定でJSON round-trip後の出力・署名が一致することを確認する。
+
+補足: 復元時のblend modeを定義済みの`Add`〜`Overlay`（0〜2）へ制限し、部分的なnested JSONでkind未指定の場合は既存kindを保持するようにした。
