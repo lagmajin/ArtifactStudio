@@ -7374,3 +7374,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: Noiseレイヤー本体とプリセット作成項目を`noise_layer.svg`へ切り替えた。エフェクトメニューのアイコンはエフェクト責務のため維持した。
 - 価値/懸念: レイヤーとエフェクトの視覚的な分類をUI上で区別できる。Composition Editorの作成項目は現状アイコン付きAPIの対象外でruntime表示は未確認。
 - 次に確認すべきこと: Project Viewの作成メニューで専用アイコンが表示されることを確認する。
+
+### 2026-09-01: NoiseのcolorMappingもAnimationLayerStackを合成
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: Noiseの数値Propertyは共通AnimationLayerStackを現在フレームへ合成していたが、booleanの`noise.colorMapping`はPropertyの評価値だけを返していた。
+- 対応: colorMappingのboolean評価にも現在フレームのAnimationLayerStackを適用し、数値値を閾値でboolean化した。
+- 価値/懸念: AI／自動化から追加されたPropertyレイヤーと通常キーフレームの合成規則をcolorMappingでも揃えられる。boolean stackの値域契約はruntime未検証。
+- 次に確認すべきこと: AnimationLayerStackでcolorMappingを切り替えたとき、CPU fallbackとGPU経路の選択およびキャッシュ無効化が一致することを確認する。
