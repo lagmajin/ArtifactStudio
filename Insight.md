@@ -7481,3 +7481,24 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: Noise側のサニタイズ／JSON復元の下限・上限をmagic numberではなくCore enum値から取得するようにした。
 - 価値/懸念: CoreとArtifact間の値域契約がコード上で明示され、enum変更時の追従漏れを検出しやすくなる。enumが非連続値へ変わる場合は単純clampを再設計する必要がある。
 - 次に確認すべきこと: Core enumの値域変更時にNoiseの正規化方針を再確認する。
+
+### 2026-09-01: Container DebugのAI JSONから要素アドレスを除外
+- 関連: `ArtifactCore/include/Container/ContainerDebugJson.ixx`, `ArtifactCore/docs/CONTAINER_DEBUG_AI_INTERFACE.md`
+- 確認できた事実: Container Debug仕様は要素やポインタをAIへ公開しない契約だったが、`ContainerElementSample::address`をMCP JSONへ文字列化して含めていた。
+- 対応: 内部スナップショットでのアドレス保持は変えず、AI向けJSON serializerから`address`フィールドを除外した。
+- 価値/懸念: AI診断面の情報をindex／noteだけに限定し、不要なアドレス情報やASLR関連情報の露出を抑えられる。既存の外部クライアントがaddressキーを前提にしていないことはruntime未確認。
+- 次に確認すべきこと: `debug.containers`応答に要素アドレスが含まれず、index／note／メモ履歴が維持されることを確認する。
+
+### 2026-09-01: Container Debugメモのenum値をAPI全体で検証
+- 関連: `ArtifactCore/include/Container/ContainerDebug.ixx`, `ArtifactCore/include/Container/NamedVector.ixx`
+- 確認できた事実: MCP入口ではseverityを検証していたが、C++の`NamedVector::addDebugNote()`へ不正なenum値を直接渡すと履歴へ記録できる余地があった。
+- 対応: severity／authorの許容値判定を共通constexpr関数として追加し、メモ追加時にも拒否するようにした。
+- 価値/懸念: AI・Runtime・Developerのどの呼出経路でも、仕様外のenum値がデバッグ履歴やJSONへ流れにくくなる。将来enumを追加する場合は判定関数も同時更新する必要がある。
+- 次に確認すべきこと: 不正enum値が履歴件数・JSON出力・timestampを変更しないことを確認する。
+
+### 2026-09-01: Container Debugの読み取り専用状態をMCP応答へ反映
+- 関連: `ArtifactCore/include/AI/McpBridge.ixx`, `ArtifactCore/include/Property/Property.ixx`
+- 確認できた事実: MCPのプロパティ応答が所有者の`readOnly`設定に関係なく常に`false`を返し、Live Patchも所有者の読み取り専用状態を確認せず変更していた。read-only adapterの単一プロパティ照会も所有者設定を反映していなかった。
+- 対応: MCP一覧／取得／設定の`readOnly`を所有者descriptorから算出し、Live Patchのapplyを読み取り専用所有者で拒否するようにした。単一プロパティ照会にも同じ状態を反映した。
+- 価値/懸念: AIが編集可能性を誤認しにくくなり、読み取り専用として登録された対象への動的変更を防げる。property個別の将来read-only属性を追加する場合は判定を統合する必要がある。
+- 次に確認すべきこと: read-only ownerのlist/get/set/patch各応答と、writable ownerの既存編集フローをruntimeで確認する。
