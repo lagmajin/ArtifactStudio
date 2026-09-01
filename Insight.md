@@ -7388,3 +7388,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: 3つのNoise評価ヘルパーで`hasExternalOverride()`も評価対象条件に追加した。
 - 価値/懸念: AI動的デバッグや外部自動化がProperty overrideだけでNoise生成値を差し替えられる。overrideの型妥当性とclear後のキャッシュ再生成はruntime未検証。
 - 次に確認すべきこと: override設定・解除時に生成署名が変化し、GPU／CPU経路が同じ値を使うことを確認する。
+
+### 2026-09-01: Noise詳細生成設定をProperty／アニメーション経路へ露出
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: ProceduralTextureSettingsにはcell jitter、seamless、domain warp、warp amplitude、secondary、gamma、invertが存在するが、Noise固有Property／キーフレーム保存対象には含まれていなかった。
+- 対応: 7項目をNoiseグループへ追加し、setter、現在フレーム評価、external override、animatedProperties保存／復元、範囲検証へ接続した。
+- 価値/懸念: Noiseの詳細な見た目をUI・AI・自動化から編集・時間変化させられる。GPU compute側の各詳細設定の実機反映と、既存プリセットの意図した値域はruntime未検証。
+- 次に確認すべきこと: 各詳細Propertyの変更が生成署名とGPU／CPU出力へ反映され、保存後も値とアニメーションが維持されることを確認する。
