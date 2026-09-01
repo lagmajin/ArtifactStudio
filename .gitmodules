@@ -13,6 +13,9 @@
 [submodule "third_party/verdigris"]
 	path = third_party/verdigris
 	url = https://github.com/woboq/verdigris
+[submodule "third_party/nanosvg"]
+	path = third_party/nanosvg
+	url = https://github.com/memononen/nanosvg.git
 [submodule "libs/llama.cpp"]
 	path = libs/llama.cpp
 	url = https://github.com/ggml-org/llama.cpp.git
