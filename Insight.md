@@ -7411,3 +7411,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 次に確認すべきこと: 全presetと手動設定でJSON round-trip後の出力・署名が一致することを確認する。
 
 補足: 復元時のblend modeを定義済みの`Add`〜`Overlay`（0〜2）へ制限し、部分的なnested JSONでkind未指定の場合は既存kindを保持するようにした。
+
+### 2026-09-01: Noise生成署名に出力サイズを含める
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: CPU／GPU共通のNoise生成署名が設定値を含む一方、出力幅・高さを含んでいなかった。
+- 対応: 署名へ`settings.width`と`settings.height`を追加した。
+- 価値/懸念: Noiseレイヤーのサイズ変更時に旧サイズのCPUバッファやGPUテクスチャを再利用しにくくなる。device resetや実機のリソース破棄はruntime未検証。
+- 次に確認すべきこと: サイズ変更後にCPU／GPU双方で出力寸法とキャッシュ内容が更新されることを確認する。
