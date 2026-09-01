@@ -7358,3 +7358,5 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: Factoryの認識一覧、文字列`type`分岐、legacy `layerType`分岐へNoiseを追加した。
 - 価値/懸念: 外部自動化や旧形式のJSONでもNoiseがSolidへフォールバックしにくくなる。文字列形式のruntime round-tripは未検証。
 - 次に確認すべきこと: 数値・文字列・legacy各形式でNoise型と固有設定が維持されることを確認する。
+
+補足: 入口の認識チェックも確認し、`type: "Noise"`だけのJSONが分岐前に拒否されないよう文字列型を追加した。
