@@ -7605,3 +7605,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: rollback前に全original targetの存在・owner登録・readOnly状態を検証し、1件でも不整合なら変更せずエラーを返すようにした。
 - 価値/懸念: 状態変化中の部分的なrollbackを防ぎ、Live Patchの安全側失敗を明確にした。エラー後はセッションを継続できるため、呼び出し側はcommitまたは再試行方針を選ぶ必要がある。
 - 次に確認すべきこと: rollback直前のowner変更／unregisterで値が変わらず、正常対象では全値が復元されることをruntimeで確認する。
+
+### 2026-09-01: Container Debug annotate応答に保存結果の時刻を返す
+- 関連: `ArtifactCore/include/AI/McpBridge.ixx`, `ArtifactCore/docs/CONTAINER_DEBUG_AI_INTERFACE.md`
+- 確認できた事実: annotate成功応答は`annotated`だけで、AIが保存されたメモのtimestampとobserved versionを知るには別途snapshot取得が必要だった。
+- 対応: 書き込み成功後に対象snapshotを再取得し、最新メモのtimestampMilliseconds・observedVersion・severityを応答へ追加した。
+- 価値/懸念: タイムスタンプ付きメモの記録結果を1回のAPIフローで確認できる。直後に対象が解除された場合は書き込み成功でも補足フィールドが省略される。
+- 次に確認すべきこと: annotate成功時のtimestampが直近保存メモと一致し、解除競合時も応答が安全に完了することをruntimeで確認する。
