@@ -7381,3 +7381,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: colorMappingのboolean評価にも現在フレームのAnimationLayerStackを適用し、数値値を閾値でboolean化した。
 - 価値/懸念: AI／自動化から追加されたPropertyレイヤーと通常キーフレームの合成規則をcolorMappingでも揃えられる。boolean stackの値域契約はruntime未検証。
 - 次に確認すべきこと: AnimationLayerStackでcolorMappingを切り替えたとき、CPU fallbackとGPU経路の選択およびキャッシュ無効化が一致することを確認する。
+
+### 2026-09-01: Noise評価でexternal overrideを共通Propertyへ接続
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: `AbstractProperty::evaluateValue()`はexternal overrideを最優先で返すが、Noiseの数値／boolean／color評価条件はanimatable・expression・envelopeしか見ていなかった。
+- 対応: 3つのNoise評価ヘルパーで`hasExternalOverride()`も評価対象条件に追加した。
+- 価値/懸念: AI動的デバッグや外部自動化がProperty overrideだけでNoise生成値を差し替えられる。overrideの型妥当性とclear後のキャッシュ再生成はruntime未検証。
+- 次に確認すべきこと: override設定・解除時に生成署名が変化し、GPU／CPU経路が同じ値を使うことを確認する。
