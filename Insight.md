@@ -7425,3 +7425,17 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: 両設定の保存／復元と署名反映を追加し、outputFormatを定義済み範囲へ制限した。
 - 価値/懸念: 設定の再読込時に実行モードや出力形式を失いにくくなり、モード変更時のキャッシュ再利用も避けられる。Noiseの現在CPU/GPU出力が両設定をどこまで利用するかはruntime未検証。
 - 次に確認すべきこと: outputFormat／parallel変更後の生成経路と保存round-tripを確認する。
+
+### 2026-09-01: Noise post処理Propertyを編集導線へ接続
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: normalize／clamp／remap／blendは保存・生成には存在したが、Noise固有Propertyグループとsetterには露出していなかった。
+- 対応: 有効フラグ、各入出力範囲、blend mode／weightをanimatable Propertyとして追加し、現在フレーム評価、override、保存対象、setterへ接続した。
+- 価値/懸念: post処理をUI・AI・自動化から直接編集でき、アニメーションも生成署名へ反映される。Property UIでのmode表現は整数値の既存汎用editorに依存しruntime未確認。
+- 次に確認すべきこと: blend modeの表示名、範囲Propertyの編集、post処理のGPU／CPU出力を確認する。
+
+## 2026-08-24: Source Component Settings ミラー + sequence-player 連動（B）
+
+- 関連: `Artifact/include/Layer/ArtifactAbstractLayer.ixx`, `Artifact/src/Layer/ArtifactAbstractLayer.cppm`, `Artifact/include/Layer/Artifact*Layer.ixx`, `Artifact/src/Layer/Artifact*Layer.cppm`
+- 事実: `syncBuiltinComponentDescriptors()` に `outer` 引数（既定 `nullptr`）を追加し、Source descriptor 生成時に `outer->sourceComponentSettingsSnapshot()` の結果を `settings` にコピーするようにした。63箇所の呼出を `this` 付きに一括置換（Impl ctor 内1箇所は `nullptr` 維持）。各ソース系レイヤーで snapshot を override：平面=色/グラデ/サイズ、画像=パス/連番/色管理、ノイズ=ProceduralTextureSettings 全量+色マップ。
+- 事実: `sequence-player` の `enabled` を従来の `false` 固定から `clonerSequenceEnabled_` 連動に変更し、`sequenceEnabled/sequenceRate/sequenceSoftness` の3キーを settings に追加。評価パイプライン（`enabledForPhase` 未呼出）の根本問題は未解消だが、descriptor の真実性は改善。
+- 未検証: ビルド未確認。descriptor `settings` の永続化は `fromJson` 直後の上書き問題（#8）の影響を受けるため、保存ファイル上の `componentGraph` 内 Source 設定は次回ロード時に再生成される。
