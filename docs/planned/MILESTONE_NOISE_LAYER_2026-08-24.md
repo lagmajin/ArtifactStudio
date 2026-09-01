@@ -2,7 +2,7 @@
 
 **最終更新:** 2026-09-01
 
-**ステータス:** In Progress（コア実装・詳細設定付き作成導線・プリセット選択 UI・Automation API・GPU compute 経路・数値プロパティのキーフレーム評価を実装済み。runtime parity とタイムライン表示整備は未完了）
+**ステータス:** In Progress（コア実装・詳細設定付き作成導線・プリセット選択 UI・Automation API・GPU compute 経路・Noise固有Propertyのアニメーション／保存を実装済み。runtime parity と実機確認は未完了）
 
 **識別子:** M-NOISE-LAYER
 
@@ -19,7 +19,7 @@
 3. `resolveLayerSourceOverride()` override による `ProceduralTextureGenerator::generate(settings, ImageF32x4_RGBA&)` 直生成（QImage 経由ゼロ）。パラメータ署名キャッシュ、グレースケール→colorA/B カラーマッピング付き
 4. draw(): ソース override 経由でバッファオーバーロードの `drawSpriteTransformed` + cloner effect + fracture overlay。単一色 fast path の概念は無く常にテクスチャ経路
 5. シリアライズ: `type=30` + `noiseWidth/Height` + `noise` オブジェクト（kind は安定文字列 `"perlin"` / `"simplex"` / `"fbm"` / `"voronoiDistance"` / `"voronoiCell"` / `"voronoiEdge"` / `"white"` / `"value"` / `"gradientLinear"` / `"gradientRadial"`、未知 kind は Perlin フォールバック）
-6. プロパティ露出: レイヤー固有グループ `Noise`（`noise.*` パス、kind/seed/scale/offset/rotation/amplitude/octaves/lacunarity/gain/colorMapping/colorA/colorB）
+6. プロパティ露出: レイヤー固有グループ `Noise`（`noise.*` パス、生成種別／基本パラメータ／post処理／カラーマッピングを含む）
 7. ファクトリ `case LayerType::Noise` 登録、`cmake/ArtifactSources.cmake` 明示登録
 8. Project View / Composition Editor の New メニューから `Noise Layer` を作成可能
 9. Workspace Automation に `createNoiseLayer(compositionId, name, width, height, seed)` を追加
@@ -40,6 +40,10 @@
 ## Update 2026-09-01 — Animated procedural settings
 
 `noise.seed`、`noise.scaleX/Y`、`noise.offsetX/Y`、`noise.rotation`、`noise.amplitude`、`noise.octaves`、`noise.lacunarity`、`noise.gain`、`noise.colorMapping`、`noise.colorA/B` をアニメーション可能なPropertyとして登録し、既存のPropertyキーフレーム／envelopeとAnimationLayerStackを現在フレームで評価してからCPU/GPU生成へ渡すようにした。キーフレームとexpression／envelopeは `noise.animatedProperties` へ保存・復元する。これによりOffset／Rotationを使った流れるノイズと色クロスフェードの基礎経路を追加した。ビルド・runtime parity・キーフレームUIからの実機確認は未実施。
+
+## Update 2026-09-01 — Full procedural settings persistence
+
+生成種別、cell jitter、seamless、domain warp、warp amplitude、secondary、gamma、invert、normalize、clamp、remap、blend、parallel、output formatをNoise Property／生成評価／`noise.animatedProperties`またはNoise JSONへ接続した。nested secondary／warp generator parametersも保存・復元し、生成署名には出力サイズと全設定を含める。外部overrideも共通Property評価経路へ接続済み。GPU／CPU parity、JSON round-trip、非整数fps、実機のProperty UI表示は未検証。
 
 ## Update 2026-08-30 — Python workspace API exposure
 
