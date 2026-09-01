@@ -1,4 +1,4 @@
-**最終更新:** 2026-08-31
+**最終更新:** 2026-09-01
 
 ## 2026-08-31 — ArtifactPr の GPU Preview は ArtifactRenderer を再利用できない
 
@@ -7160,3 +7160,117 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 気づき: 既存JSON形式を公開snapshot APIへ切り出し、専用Undo commandでチェーン全体を検証付き復元するようにした。未知の型、要素数超過、復元後の不一致を拒否し、push失敗時はbeforeへ戻す。
 - 価値/懸念: Effectorの種類・順序・設定値を含むチェーン全体を一回のUndoで扱える。Effector内部の時刻依存評価、外部同時変更、runtimeは未確認。
 - 次に確認すべきこと: 各Effector型の追加・削除、設定変更後のUndo／Redo、空チェーン、無効型、履歴保存・再読込をruntimeで確認する（ビルド・テスト未確認）。
+
+### 2026-09-01 — Parent main references an unavailable ArtifactCore commit
+
+- 関連: `ArtifactStudio` の `origin/main` 更新、子モジュールの開発ブランチ作成
+- 確認できた事実: 最新親 `origin/main` は `ArtifactCore` の `c5c2d984...` を参照するが、子リモートから取得できず、`ArtifactWidgets` も親の gitlink と子 `origin/main` が一致しない。
+- 気づき: 親子を同一開発ブランチへ作成する操作は可能だが、親最新コミットを完全に再現するには欠落した `ArtifactCore` オブジェクトの公開または参照修正が必要。
+- 価値/懸念: 取得不能な gitlink を推測で置換すると親子の履歴整合性を壊すため、現状は差分を残して停止するのが安全。
+- 次に確認すべきこと: `c5c2d984...` が存在するリモート／ブランチを確認し、取得後に親 gitlink を再同期する。
+
+### 2026-09-01 — Track matte GPU pass still depends on CPU-resolved sources
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`, `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`, `ArtifactCore/include/Graphics/Shader/Compute/HLSL/MatteTrack.ixx`
+- 確認できた事実: Alpha/Luma、反転、opacity、最大3ソースの合成を行うGPU compute passは存在するが、マット元は `QImage` として解決・リサイズされ、毎フレームGPUへアップロードされる。マット元のレイヤー変換・マスク・エフェクト込みのコンポジション空間レンダーではない経路が残る。
+- 気づき: GPU化の次段は切り抜きシェーダーの追加ではなく、マット元を同一フレームのGPU surface／textureとして解決し、対象と同じ座標・色・アルファ契約で参照することが本質になる。
+- 価値/懸念: 現状は静止画の単純な同サイズマットには使えるが、変換・ネスト・3D・動的エフェクト・高解像度連番では表示差、CPU転送コスト、欠落時の未マスク fallback が受入リスクになる。未検証の評価。
+- 次に確認すべきこと: マット元の transform／mask／effect／visibility／time を含むGPU surface cache契約、Rec.601/709/2020の色空間、異サイズのUV変換、欠落時の安全な出力、CPU/GPU parityをケース別に受入確認する。
+
+### 2026-09-01 — Simple same-size precomp mattes can reuse GPU SRV
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- 確認できた事実: 既存 `renderPrecomp2DGpuOutput()` は親コンポジションと同じサイズのGPUオフスクリーンSRVを返せる。Transform、Mask、Effect、自身のmatteを含む一般ケースの座標／後処理契約は別途必要。
+- 気づき: GPUトラックマットのsource入力へ、このSRVを直接渡す接続を追加した。ただし同一サイズ、global Transform identity、Mask／Effect／matteなしのPrecompだけに限定し、条件外は既存QImage経路へ戻す。
+- 価値/懸念: 単純PrecompではCPU画像化と再アップロードを避け、ネスト結果をGPU上のsourceとして利用できる。完全な一般レイヤーGPU surface化ではなく、GPU出力サイズと親座標の一致をruntimeで確認する必要がある。
+- 次に確認すべきこと: 同一サイズPrecompのAlpha／Luma、透明境界、フレーム切替、GPU／CPU parityを実機で確認し、次にTransform付きsourceのUV／オフスクリーン描画契約へ拡張する。
+
+### 2026-09-01 — GPU precomp matte fast path requires neutral placement
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- 確認できた事実: Precomp GPU SRVは親レイヤーのfit、global Transform、opacityを別途適用しないため、これらが非ニュートラルなsourceを直接渡すとCPU経路と結果が一致しない。
+- 気づき: GPU直接参照条件を、Stretch、identity Transform、opacity 1、親子同一サイズ、GPU出力サイズ一致、Mask／Effect／matteなしへ限定した。
+- 価値/懸念: GPU fast pathの適用範囲は狭くなるが、座標・濃度の黙った不一致を避けられる。Transform付きsourceは専用の親空間オフスクリーン合成が必要で、runtime未検証。
+- 次に確認すべきこと: 条件境界のCPU/GPU parityを実機で確認し、viewport downsampleを含む一般source向けのUV／transform適用surfaceを設計する。
+
+### 2026-09-01 — Matte sources now have a GPU intermediate render boundary
+
+- 関連: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+- 確認できた事実: 既存の `drawGpuLayerToIntermediate()` は任意のsource layerをcolor／depthのオフスクリーンRTへ描画できる。マット適用はその後の `LayerBlendPipeline::applyTrackMatte()` で行われる。
+- 気づき: source IDごとのcolor／depth出力を保持する `matteGpuOutputs_` と、frame／surface generation／sizeをキーにした再利用境界を追加し、GPU source SRVをtrack matteへ優先して渡すようにした。
+- 価値/懸念: Transform込みのsource surfaceをGPUで供給できる段階になった。GPU直接経路は現在 `Stretch` 配置に限定し、他のFitModeはCPU経路へ戻す。source自身のmatteは現状のresolver経路、rasterizer effectは既存の内部fallbackに依存し、RT状態復元、source再帰、色／アルファ parityはruntime未検証。
+- 次に確認すべきこと: 変換付き画像・Precomp・Mask／Effect付きsource、複数matte、viewport downsample、GPU失敗時のdiagnosticを実機で確認する。
+
+### 2026-09-01 — Render queue still has an independent QImage matte path
+
+- 関連: `Artifact/src/Render/ArtifactRenderQueueService.cppm`
+- 確認できた事実: GPUレンダーキューのsource収集は依然として `QHash<ArtifactCore::Id, QImage>` と `renderLayerSurface()` を使い、`drawLayerForCompositionView()` へ画像マップを渡している。ビューアのGPU intermediate surface cacheとは別経路である。
+- 気づき: ビューア側だけGPU source surface化しても、プレビューと書き出しでTransform／Mask／Effect付きtrack matteの結果が分岐し得る。両経路を同じsource surface resolverへ寄せる必要がある。
+- 価値/懸念: レンダーキューへビューア内部クラスを直接依存させず、共通のrenderer-facing surface resolverをArtifact側のRender層へ切り出すのが妥当。未実装・未検証。
+- 次に確認すべきこと: `ArtifactCompositionViewDrawing` またはRender共通層へ、source layer、frame、target size、camera、matte recursion policyを受ける共有APIを設計する。
+
+### 2026-09-01 — Container debug notes can provide an AI-readable runtime trail
+
+- 関連: `ArtifactCore/include/Container/ContainerDebug.ixx`, `ArtifactCore/include/Container/NamedVector.ixx`, `ArtifactCore/include/Container/ContainerDebugJson.ixx`
+- 確認できた事実: 既存のコンテナ診断は mutation、failed access、source location、snapshot、JSON 出力を持つが、実行中に自由記述を残す共通APIはなかった。
+- 気づき: `ContainerDebugNote` に epoch milliseconds、本文、source location を持たせ、`NamedVector::addDebugNote()` から最大32件を保持すると、将来のAI動的デバッグが時系列の判断材料を取得できる。
+- 価値/懸念: JSON snapshot と既存の診断テキスト経路へ拡張しやすい。現時点では `NamedVector` のみが書き込みAPIを公開し、スレッド同期と永続化は未検証・未対応。
+- 次に確認すべきこと: 他の自作コンテナへの同API展開、同時書き込み方針、note容量・個別本文サイズ制限、AIツールからのsnapshot取得経路を設計する。
+
+### 2026-09-01 — AI container debugging needs an explicit, read-only registry before edit exposure
+
+- 関連: `ArtifactCore/include/Container/ContainerDebugRegistry.ixx`, `ArtifactCore/include/Container/NamedVector.ixx`
+- 確認できた事実: `NamedVector` は診断snapshotを生成できるが、AIや診断UIが安全に対象を列挙・取得する共通の公開境界はなかった。
+- 気づき: registryは所有権を持たず、所有側が登録したsnapshot readerのみをIDで呼び出す。`Registration`はRAIIで解除し、registry消滅後も弱参照で安全に無効化する。値復帰は`NamedVector`だけに限定し、checkpointの発行元アドレスとAIが期待する現在versionを照合して他インスタンスへの誤適用・競合状態の上書きを拒否する。
+- 価値/懸念: AI公開対象を明示的にホワイトリスト化でき、直接ポインタや生の要素編集を露出しない。メモは1件1024 bytes・最大32件に制限する。registryの登録・解除・列挙は同期化し、reader実行中はregistryロックを保持しない。解除処理は進行中inspectionの終了を待つため、Registrationを先に破棄してから対象コンテナを破棄できる。対象コンテナ自体のsnapshot同期、AIからの編集API、アプリ全体のUndo接続は未対応。
+- 次に確認すべきこと: registryは登録IDとsnapshotを構造化JSONでexportでき、`debug.containers` MCP toolから取得できる。`debug.containers.annotate` はAI author固定の上限付きメモ追記だけを許可する。実際に公開するドメイン別adapterを明示登録し、可逆操作には専用Undo境界を置く。並行読み取りが必要な対象では所有側でsnapshot用の同期契約を定義する。
+### 2026-09-01: RenderQueueの直接描画分岐はマット適用を迂回し得る
+- 関連: `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` / `drawLayerForCompositionView`
+- 事実: Image/SVG/Video/Text/Particle と単純な Solid の一部は、ラスタライザ効果・マスクが無い場合に GPU/直接描画へ進み、従来は有効なトラックマットの有無を判定していなかった。
+- 対応: 有効なマット参照がある場合は既存の `applySurfaceAndDraw` 経路へ送り、QImage ソースマップを使ったマット適用を通すよう条件を狭く修正した。Video はGPUフレーム直接描画を避けてフレームバッファをQImage境界へ送り、Text/Image/SVG/Particle も同様に直接描画を抑制する。
+- 価値/懸念: CPU/RenderQueue側で単純レイヤーのマットが無視される穴を塞げる。一方、QImage境界は残るため、これはRenderQueue全体のGPU化完了ではなく、GPU中間面へ移行できないケースの正確性確保である。
+- 次に確認: マット付き各レイヤー種別（Solid/Image/SVG/Video/Text/Particle/Shape/FormParticle）で、GPUソース中間面とQImageフォールバックのアルファ結果を実フレーム比較する。未検証。
+
+### 2026-09-01: Shapeもマット付きではサーフェス境界が必要
+- 関連: `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` / `ArtifactShapeLayer`
+- 事実: Shapeは通常 `layer->draw(renderer)` の汎用フォールバックへ到達するが、既存の `toQImage()` によるサーフェス表現も持つ。
+- 対応: 有効なマット参照がある場合だけ `toQImage()` と既存の `applySurfaceAndDraw` を使い、マット適用を経由させた。
+- 価値/懸念: ShapeのCPU/RenderQueue経路でマットが抜ける可能性を減らせる。FormParticleは汎用GPUオフスクリーン経路では対象にできるが、CPUフォールバック側の専用サーフェス化は未対応。
+- 次に確認: ShapeのGPU描画結果と `toQImage()` 境界結果の座標・アンチエイリアス差を実フレーム比較する。
+
+### 2026-09-01: RenderQueueの単一GPUフレームにもMatteTrack中間面を導入
+- 関連: `Artifact/src/Render/ArtifactRenderQueueService.cppm` / `Impl::renderSingleFrame`
+- 事実: GPUレンダーキューは従来、マットソースとターゲットをQImageへ落としてから共通描画へ渡していた。
+- 対応: Stretch配置、最大3ソース、可視・アクティブ・非Adjustment・非Group親・自身のマットなしという安全条件を満たすソースをオフスクリーンGPU面へ描画し、対象レイヤーもオフスクリーン化して `ArtifactIRenderer::applyTrackMatte()` 後に本体ターゲットへ描画する経路を追加した。GPUパイプラインまたは条件が成立しない場合は既存QImage経路へ戻す。
+- 価値/懸念: RenderQueueの新しい単一フレームGPU経路でも、通常の2DマットをCPU readbackなしで処理できる範囲が広がる。複雑なソースの再帰合成、非StretchのFit/Fill/Original、旧GPUループ、FormParticleの専用キャッシュは未対応。
+- 次に確認: GPU経路で出力ターゲットの状態遷移、SRV/UAVエイリアス、CPUフォールバックとの画素差を実フレームで比較する。未検証。
+
+### 2026-09-01: RenderQueueのMatteTrack PSOはレンダラー寿命で再利用する
+- 関連: `Artifact/src/Render/ArtifactRenderQueueService.cppm` / `gpuMattePipeline_`
+- 事実: MatteTrackパイプラインの初期化はシェーダー生成を伴うため、フレーム処理内で毎回生成するとGPU化のコストを増やす。
+- 対応: `Impl` メンバーとして保持し、GPUレンダラーの解像度変更・再初期化時だけ破棄するようにした。
+- 価値/懸念: 連番レンダー時のフレームごとのPSO初期化を避けられる。実機での初回初期化時間と再利用率は未検証。
+
+### 2026-09-01: RenderQueue GPUマットの対象面はフラッシュ後に解放する
+- 関連: `Artifact/src/Render/ArtifactRenderQueueService.cppm` / `GpuMatteFrameResources`
+- 事実: マットソースSRVはフレーム後半の複数レイヤーから参照されるため保持が必要だが、対象レイヤー面とMatteTrack出力面は合成後に不要になる。
+- 対応: GPUコマンドを `flush()` してから対象面・深度面・出力面を解放し、ソース面だけフレーム終了まで保持するようにした。
+- 価値/懸念: 多数のマット付きレイヤーで不要なVRAM常駐を抑えられる。Diligent実機でのコマンド参照寿命とメモリ使用量は未検証。
+
+### 2026-09-01: RenderQueue GPUマットは未確定カメラ状態の3Dを対象外にする
+- 関連: `Artifact/src/Render/ArtifactRenderQueueService.cppm` / 単一GPUフレーム経路
+- 事実: この経路のソース中間面描画にはViewer側の明示的な3Dカメラ行列引き渡しがなく、3Dソースの投影結果をマット座標として断定できない。
+- 対応: 3Dソースおよび3D対象レイヤーはGPU MatteTrack経路から外し、既存経路へフォールバックさせた。
+- 価値/懸念: カメラ不整合による誤った切り抜きを防ぐ。RenderQueueへ明示的なカメラ状態を渡せる設計になった時点で再評価する。
+
+### 2026-09-01: RenderQueue GPUマットの中間面は実ターゲット寸法に合わせる
+- 関連: `Artifact/src/Render/ArtifactRenderQueueService.cppm` / `Impl::renderSingleFrame`
+- 事実: 解像度プリセットやCropにより、コンポジション論理サイズとGPU出力ターゲットサイズは一致しない場合がある。MatteTrackは全入力テクスチャの寸法一致を要求する。
+- 対応: マット用ソース・対象・出力の中間面を、コンポジションサイズではなく `gpuRendererWidth_` / `gpuRendererHeight_` に合わせた。
+- 価値/懸念: Half/Third/Quarter/Custom出力で寸法不一致によるGPUマット失敗を避けられる。実際のCrop座標・座標変換を含む画素一致は未検証。
+
+### 2026-09-01: 実運用のGPU連番経路を呼び出し関係で確定
+- 関連: `Artifact/src/Render/ArtifactRenderQueueService.cppm` / `Impl::renderSingleFrame` と `renderSingleFrameGPU`
+- 事実: リポジトリ内検索では `renderSingleFrameGPU()` に定義以外の参照がなく、フレーム処理のGPU分岐は `Impl::renderSingleFrame()` から実行される。
+- 対応: GPU MatteTrack導入の評価対象を `renderSingleFrame()` に絞り、未参照の旧GPU実装に残るQImageソース処理を実運用GPU経路の未適用と混同しないよう整理した。
+- 価値/懸念: 実際に使われる連番GPU経路の変更範囲を明確化できる。旧APIが将来再利用される場合は別途同じ処理を共有化する必要がある。
