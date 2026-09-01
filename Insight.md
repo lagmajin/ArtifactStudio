@@ -7344,3 +7344,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: 有効なfpsを四捨五入し、最低1の整数scaleとして渡すようにした。
 - 価値/懸念: 29.97fps等でのexpression／envelope／キーフレーム評価時刻の不用意な切り捨てを避けられる。プロジェクト全体の時間表現とのruntime整合は未検証。
 - 次に確認すべきこと: 非整数fpsでNoiseのキーフレーム境界とexpression結果が期待フレームに一致することを確認する。
+
+### 2026-09-01: Noiseのモジュール識別子と表示経路を統一
+- 関連: `Artifact/src/Project/ArtifactProject.cppm`, `Artifact/src/Widgets/Timeline/*`, `Artifact/src/Widgets/Render/*`
+- 確認できた事実: Noiseの公開モジュール名は`Artifact.Layers.Noise`だが、一部の参照が単数形の`Artifact.Layer.Noise`になっていた。また、Composition EditorとRender Layer WidgetではNoise専用の型表示が未接続だった。
+- 対応: importを公開モジュール名へ統一し、両UIでNoise Layer／Noise表示を追加した。
+- 価値/懸念: モジュール解決の不整合を減らし、タイムライン・編集メニュー・レンダーUIで同じレイヤー識別を維持できる。ビルド／runtime表示は未検証。
+- 次に確認すべきこと: モジュール依存スキャンと各UIの実機表示を確認する。
