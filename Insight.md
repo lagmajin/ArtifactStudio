@@ -7439,3 +7439,45 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 事実: `syncBuiltinComponentDescriptors()` に `outer` 引数（既定 `nullptr`）を追加し、Source descriptor 生成時に `outer->sourceComponentSettingsSnapshot()` の結果を `settings` にコピーするようにした。63箇所の呼出を `this` 付きに一括置換（Impl ctor 内1箇所は `nullptr` 維持）。各ソース系レイヤーで snapshot を override：平面=色/グラデ/サイズ、画像=パス/連番/色管理、ノイズ=ProceduralTextureSettings 全量+色マップ。
 - 事実: `sequence-player` の `enabled` を従来の `false` 固定から `clonerSequenceEnabled_` 連動に変更し、`sequenceEnabled/sequenceRate/sequenceSoftness` の3キーを settings に追加。評価パイプライン（`enabledForPhase` 未呼出）の根本問題は未解消だが、descriptor の真実性は改善。
 - 未検証: ビルド未確認。descriptor `settings` の永続化は `fromJson` 直後の上書き問題（#8）の影響を受けるため、保存ファイル上の `componentGraph` 内 Source 設定は次回ロード時に再生成される。
+
+### 2026-09-01: Noiseのアセット表示範囲を整理
+- 関連: `docs/planned/MILESTONE_NOISE_LAYER_2026-08-24.md`, `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`, `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`, `Artifact/src/Widgets/Timeline/*`
+- 確認できた事実: Noise専用アイコンと`Noise Layer`表示は、レイヤーを作成・表示するProject View／Composition Editor／Timelineへ接続済み。Asset Browserは外部ファイルアセットを扱うため、Noiseレイヤー用の追加表示経路ではない。
+- 対応: Noiseマイルストーンの未着手欄をruntime parity・実機確認へ整理し、アセット表示の対象範囲を明文化した。
+- 価値/懸念: Asset Browserへレイヤー専用項目を無理に追加せず、UI責務の混在を避けられる。実機でのアイコン表示自体は未確認。
+- 次に確認すべきこと: Project View／Composition Editor／TimelineでNoiseアイコンと表示名が実際に描画されることを確認する。
+
+### 2026-09-01: Noiseの部分JSON復元で未指定値を保持
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: `noise`オブジェクトが部分的な場合、未指定のkind／基本パラメータ／post処理値が固定初期値で上書きされ、既存のpresetや設定を壊す可能性があった。
+- 対応: kindはキーが存在するときだけ復元し、その他の値は現在の設定値を`QJsonValue`のfallbackに使うようにした。
+- 価値/懸念: Source Componentや外部自動化が部分設定だけを渡しても、指定していないNoise設定を保持できる。部分JSONのruntime round-tripは未検証。
+- 次に確認すべきこと: preset生成後に一部キーだけを復元した場合、未指定のprimary／post／nested設定が維持されることを確認する。
+
+### 2026-09-01: Noise JSON復元後のサニタイズと色設定保持
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: JSONから直接書き換える`ProceduralTextureSettings`に復元後の最終サニタイズがなく、部分的なcolorMapping／colorA／colorB指定では未指定値が既定値へ戻っていた。
+- 対応: nested設定の復元後に`sanitizeNoiseSettings()`を呼び、colorMappingと色チャンネルのfallbackを現在値へ変更した。
+- 価値/懸念: 外部自動化やSource Componentが部分JSONを渡しても、不正な範囲や既存の色・マッピング状態を不用意に失いにくい。runtime round-tripは未検証。
+- 次に確認すべきこと: 範囲外の部分JSONとチャンネル単位の色JSONを復元したとき、正規化と既存値保持が期待通りになることを確認する。
+
+### 2026-09-01: Noise生成署名のフィールド境界を明示
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: 生成キャッシュ署名で`outputFormat`とprimary `kind`の連結だけ区切り文字がなく、署名フィールドの一意な境界が他の項目と揃っていなかった。
+- 対応: primary `kind`の前に区切り文字を追加した。
+- 価値/懸念: CPU／GPU共通キャッシュ署名の構造が明確になり、将来の値域拡張でも連結表現の衝突リスクを抑えられる。実機でのキャッシュ再利用確認は未検証。
+- 次に確認すべきこと: 設定項目ごとの署名変更が意図した場合だけキャッシュを無効化することを確認する。
+
+### 2026-09-01: NoiseのoutputFormatを共通サニタイズ
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: `outputFormat`はJSON復元時には1〜3へ制限されていたが、公開`setSettings()`や評価済み設定へ渡る前の共通サニタイズでは範囲保証がなかった。
+- 対応: `sanitizeNoiseSettings()`で`outputFormat`を定義済み範囲へ正規化するようにした。
+- 価値/懸念: JSON・Property・AI自動化など設定入口が異なっても、CPU／GPU生成へ渡る設定の不変条件を揃えられる。enumの将来拡張時は範囲定数の見直しが必要。
+- 次に確認すべきこと: 不正なoutputFormatを直接設定した場合も、生成署名と各生成経路が正規化後の値を使うことを確認する。
+
+### 2026-09-01: NoiseのoutputFormat範囲をCore enumへ追従
+- 関連: `ArtifactCore/include/ImageProcessing/ProceduralTexture.ixx`, `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: Coreの`ProceduralTextureOutputFormat`は`Rgba8=1`、`Float32=2`、`Both=3`で定義されていた。
+- 対応: Noise側のサニタイズ／JSON復元の下限・上限をmagic numberではなくCore enum値から取得するようにした。
+- 価値/懸念: CoreとArtifact間の値域契約がコード上で明示され、enum変更時の追従漏れを検出しやすくなる。enumが非連続値へ変わる場合は単純clampを再設計する必要がある。
+- 次に確認すべきこと: Core enumの値域変更時にNoiseの正規化方針を再確認する。

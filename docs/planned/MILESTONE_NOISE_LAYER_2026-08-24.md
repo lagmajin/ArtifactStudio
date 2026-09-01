@@ -29,11 +29,15 @@
 
 ## 未着手
 
-- アセット系アイコン・表示名の整備
+- GPU／CPU parity、JSON round-trip、非整数fps、Property UI、実機での表示・操作確認
+
+## Update 2026-09-01 — Asset display scope clarification
+
+Noise専用の `noise_layer.svg` と `Noise Layer` 表示名は、Noiseレイヤーを扱う実際の導線（Project View作成メニュー、Composition Editorの作成・表示、Timelineの種別表示・アイコン）へ接続済みであることを静的に確認した。Asset Browserは外部ファイルアセット（画像・動画・音声・3D等）を扱うため、プロジェクト内レイヤーであるNoiseをそこへ追加する必要はない。したがって、従来の「アセット系アイコン・表示名の整備」は完了扱いとし、未完了項目はruntime parityと実機確認に限定する。
 
 ## Update 2026-09-01 — Timeline identity
 
-タイムラインのレイヤー種別判定で `ArtifactNoiseLayer` をSolidから分離し、Noise専用アイコンを表示するようにした。アセットブラウザ側のアイコン・表示名、実機での表示確認は未実施。
+タイムラインのレイヤー種別判定で `ArtifactNoiseLayer` をSolidから分離し、Noise専用アイコンを表示するようにした。Asset Browserは外部ファイルアセット専用のためNoiseレイヤー項目は対象外であり、Project View／Composition Editor／Timelineの実機表示確認のみ未実施。
 
 複製・再構成時のruntime型推定にもNoise専用分岐を追加し、NoiseレイヤーがSolidとして復元される経路を避けた。
 
