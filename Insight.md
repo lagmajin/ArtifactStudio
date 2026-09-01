@@ -7330,3 +7330,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: 現在フレームのSeedを生成設定へ反映し、既存のNoise署名キャッシュがSeed変更を検出できるようにした。
 - 価値/懸念: deterministicなノイズ系列をフレーム単位で切り替えられる。大量のSeedキーフレームによる再生成コストと実機の系列確認は未検証。
 - 次に確認すべきこと: Seedキーフレーム境界でCPU／GPUが同じ系列を生成し、古いテクスチャが再利用されないことを確認する。
+
+### 2026-09-01: Noiseのexpression評価には明示的なEvaluatorが必要
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: `AbstractProperty::evaluateValue()`はexpression evaluatorがnullptrの場合、keyframe／envelopeまでは評価するがexpression本体は実行しない。
+- 対応: Noiseの数値・boolean・color評価でexpressionが設定されている場合、既存Textレイヤーと同じ`ExpressionEvaluator`を生成して共通評価APIへ渡すようにした。
+- 価値/懸念: Noiseのexpressionを保存形式から生成処理まで接続できる。layer indexや他プロパティ参照など、評価コンテキストの拡張は既存ExpressionEvaluatorの契約に依存しruntime未検証。
+- 次に確認すべきこと: `time`／`value`／`noise()` 等のexpression、評価エラー時の安全なfallback、GPU署名更新を確認する。
