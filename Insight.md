@@ -7316,3 +7316,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: マッピング有効状態と色A／色Bを既存Propertyキーフレームから評価し、CPU生成の色変換とGPU／CPU経路選択、生成署名へ反映した。色Propertyのアニメーションデータも同じ`noise.animatedProperties`へ保存する。
 - 価値/懸念: ノイズ量だけでなく色のクロスフェードやマッピング切替を同一レイヤーで表現できる。QColor補間、GPU／CPU parity、expression／envelopeの実機評価は未検証。
 - 次に確認すべきこと: 色キーフレームの補間、マッピング切替時のキャッシュ破棄、保存・再読込、GPU fallback境界を確認する。
+
+### 2026-09-01: Noise生成はinterpolateValueではなく共通evaluateValueを使う
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: Noiseの設定評価はPropertyのkeyframe補間だけを直接呼び、保存可能なenvelopeやexpressionの評価契約を通っていなかった。
+- 対応: 数値、boolean、colorのNoise設定について、既存`AbstractProperty::evaluateValue()`を使い、keyframe／envelopeを共通経路で評価するようにした。
+- 価値/懸念: Property editorや保存形式と生成側の評価経路を分断しにくくできる。expressionは評価器の有無・既存契約に依存し、runtimeでの結果確認は未検証。
+- 次に確認すべきこと: envelopeの時系列変化、expression評価器を持つ呼び出し側、色補間とGPU fallbackの境界を確認する。

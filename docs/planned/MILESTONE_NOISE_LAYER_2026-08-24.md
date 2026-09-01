@@ -39,7 +39,7 @@
 
 ## Update 2026-09-01 — Animated procedural settings
 
-`noise.seed`、`noise.scaleX/Y`、`noise.offsetX/Y`、`noise.rotation`、`noise.amplitude`、`noise.octaves`、`noise.lacunarity`、`noise.gain`、`noise.colorMapping`、`noise.colorA/B` をアニメーション可能なPropertyとして登録し、既存のPropertyキーフレームとAnimationLayerStackを現在フレームで評価してからCPU/GPU生成へ渡すようにした。キーフレームとexpression／envelopeは `noise.animatedProperties` へ保存・復元する。これによりOffset／Rotationを使った流れるノイズと色クロスフェードの基礎経路を追加した。ビルド・runtime parity・キーフレームUIからの実機確認は未実施。
+`noise.seed`、`noise.scaleX/Y`、`noise.offsetX/Y`、`noise.rotation`、`noise.amplitude`、`noise.octaves`、`noise.lacunarity`、`noise.gain`、`noise.colorMapping`、`noise.colorA/B` をアニメーション可能なPropertyとして登録し、既存のPropertyキーフレーム／envelopeとAnimationLayerStackを現在フレームで評価してからCPU/GPU生成へ渡すようにした。キーフレームとexpression／envelopeは `noise.animatedProperties` へ保存・復元する。これによりOffset／Rotationを使った流れるノイズと色クロスフェードの基礎経路を追加した。ビルド・runtime parity・キーフレームUIからの実機確認は未実施。
 
 ## Update 2026-08-30 — Python workspace API exposure
 
