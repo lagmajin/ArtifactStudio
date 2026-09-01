@@ -7598,3 +7598,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: mutexでセッション状態を保護し、beginでUUID tokenを発行、apply／rollback／commitで一致tokenを必須化した。進行中の二重beginも拒否する。
 - 価値/懸念: AIクライアント間のpatch混線と同時アクセスによる状態破壊を抑えられる。現在は安全側として一度に1セッションのみで、複数独立セッションは将来の明示設計対象。
 - 次に確認すべきこと: token欠落・不一致・二重begin・正常なapply／rollback／commitの各応答をruntimeで確認する。
+
+### 2026-09-01: Live Patch rollbackの対象再検証
+- 関連: `ArtifactCore/include/AI/McpBridge.ixx`
+- 確認できた事実: token付きセッションでも、開始後にproperty ownerが読み取り専用化または登録解除された場合、rollbackが残存値を書き戻そうとしていた。
+- 対応: rollback前に全original targetの存在・owner登録・readOnly状態を検証し、1件でも不整合なら変更せずエラーを返すようにした。
+- 価値/懸念: 状態変化中の部分的なrollbackを防ぎ、Live Patchの安全側失敗を明確にした。エラー後はセッションを継続できるため、呼び出し側はcommitまたは再試行方針を選ぶ必要がある。
+- 次に確認すべきこと: rollback直前のowner変更／unregisterで値が変わらず、正常対象では全値が復元されることをruntimeで確認する。
