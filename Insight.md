@@ -7302,3 +7302,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: seed、scale、offset、rotation、amplitude、octaves、lacunarity、gainを明示的にanimatable=trueへ設定した。
 - 価値/懸念: 既存のProperty editor／keyframe command／AnimationLayerStackがNoise設定に適用される前提を満たす。ビルド・UI操作・フレーム更新のruntime確認は未検証。
 - 次に確認すべきこと: 数値Propertyへのキーフレーム追加と補間、seed変更時のdeterministic生成、GPU署名更新、JSON round-tripを確認する。
+
+### 2026-09-01: Noise固有Propertyのアニメーション保存は明示領域が必要
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: 基底LayerのJSONは共通アニメーションレイヤーとEffectのPropertyを保存するが、Noiseのpersistent layer propertyはNoise固有JSONの通常値以外を自動保存しない。
+- 対応: Noiseの数値Propertyについて、keyframes／expression／envelopesを`noise.animatedProperties`へシリアライズし、復元時にPropertySerializationBridgeで再構成する処理を追加した。
+- 価値/懸念: 流れるノイズの編集状態を保存・再読込後も保持できる契約をコード上で明示できる。保存形式のruntime round-trip、envelope評価、AnimationLayerStackとの組み合わせは未検証。
+- 次に確認すべきこと: keyframeありNoiseの保存JSON、再読込後のProperty cache、frame移動時の生成署名更新、expression／envelopeの評価を確認する。
