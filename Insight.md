@@ -7418,3 +7418,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: 署名へ`settings.width`と`settings.height`を追加した。
 - 価値/懸念: Noiseレイヤーのサイズ変更時に旧サイズのCPUバッファやGPUテクスチャを再利用しにくくなる。device resetや実機のリソース破棄はruntime未検証。
 - 次に確認すべきこと: サイズ変更後にCPU／GPU双方で出力寸法とキャッシュ内容が更新されることを確認する。
+
+### 2026-09-01: Noise設定のparallel／outputFormatを保存・署名へ追加
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: `ProceduralTextureSettings`のparallelとoutputFormatがNoise JSONおよび生成署名から漏れていた。
+- 対応: 両設定の保存／復元と署名反映を追加し、outputFormatを定義済み範囲へ制限した。
+- 価値/懸念: 設定の再読込時に実行モードや出力形式を失いにくくなり、モード変更時のキャッシュ再利用も避けられる。Noiseの現在CPU/GPU出力が両設定をどこまで利用するかはruntime未検証。
+- 次に確認すべきこと: outputFormat／parallel変更後の生成経路と保存round-tripを確認する。
