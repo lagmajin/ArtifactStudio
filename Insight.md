@@ -7530,3 +7530,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: optionalな`id`引数を追加し、指定時は一致する登録IDだけをJSON化するようにした。未指定時の全件取得は維持した。
 - 価値/懸念: 動的デバッグの追跡対象を明示でき、不要なスナップショットやメモ履歴の再送を抑えられる。未知IDは空の結果になるため、呼び出し側は`count`と`requestedId`を併せて確認する必要がある。
 - 次に確認すべきこと: 全件／既知ID／未知IDの3経路で、返却件数と対象IDが一致することをruntimeで確認する。
+
+### 2026-09-01: Container Debug注記のMCP入口でUTF-8上限を保証
+- 関連: `ArtifactCore/include/AI/McpBridge.ixx`
+- 確認できた事実: NamedVector側には1024バイト上限があったが、MCP入口は登録先のwriterへ渡すまで長さを検証していなかった。
+- 対応: MCPでUTF-8変換後の注記本文を1024バイト以内に制限し、検証済みバイト列をwriterへ渡すようにした。
+- 価値/懸念: 将来NamedVector以外のwriterを登録しても、AI入口から過大な注記を投入しにくい。C++直接呼び出し側の上限は各writerの責務として残る。
+- 次に確認すべきこと: マルチバイト文字を含む境界長の注記がバイト数基準で受理／拒否されることをruntimeで確認する。
