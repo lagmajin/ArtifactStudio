@@ -7523,3 +7523,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: テキスト出力を要素indexと任意の注記だけに限定した。
 - 価値/懸念: JSON／テキストの両診断経路でポインタ情報を公開しない契約が揃う。開発者向けの生ポインタ調査が必要な場合は、AI公開面と分離した専用診断経路が必要。
 - 次に確認すべきこと: テキスト変換結果に`@`やアドレス値が含まれず、index／noteが維持されることをruntimeで確認する。
+
+### 2026-09-01: Container Debugの対象インスタンス絞り込み
+- 関連: `ArtifactCore/include/AI/McpBridge.ixx`, `ArtifactCore/include/Container/ContainerDebugJson.ixx`
+- 確認できた事実: `debug.containers`は登録済み全インスタンスを返す入口だけで、AIが疑わしいIDを特定した後に単一対象だけを再取得する引数がなかった。
+- 対応: optionalな`id`引数を追加し、指定時は一致する登録IDだけをJSON化するようにした。未指定時の全件取得は維持した。
+- 価値/懸念: 動的デバッグの追跡対象を明示でき、不要なスナップショットやメモ履歴の再送を抑えられる。未知IDは空の結果になるため、呼び出し側は`count`と`requestedId`を併せて確認する必要がある。
+- 次に確認すべきこと: 全件／既知ID／未知IDの3経路で、返却件数と対象IDが一致することをruntimeで確認する。
