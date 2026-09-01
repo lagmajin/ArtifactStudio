@@ -7281,3 +7281,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: 既存のPropertyキーフレームとAnimationLayerStackを現在のcomposition frame／frame rateで評価し、scale、offset、rotation、amplitude、octaves、lacunarity、gainをCPU/GPU双方の生成設定へ渡すようにした。
 - 価値/懸念: Offset／Rotationをアニメーションさせる流れるノイズの基礎経路を、専用シグナルや別アニメーション実装なしで追加できる。ビルド・runtime parity・キーフレームUIからの実機確認は未検証。
 - 次に確認すべきこと: Property editorでのキーフレーム追加、フレーム移動時のキャッシュ更新、CPU/GPU出力一致、seed／kind／color mappingのアニメーション要否を確認する。
+
+### 2026-09-01: Noise layerはタイムラインでSolidと別の視覚識別が必要
+- 関連: `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`, `Artifact/App/Icon/Studio/noise_layer.svg`
+- 確認できた事実: タイムラインのレイヤーアイコン判定はNoise専用分岐を持たず、`ArtifactNoiseLayer`はSolid系の表示へ落ちていた。
+- 対応: Noise専用のアイコン種別・runtime型判定・Studio SVGを追加し、タイムライン上で独立レイヤーとして識別できるようにした。
+- 価値/懸念: Noise Fillではなく独立レイヤーである現在の設計をUI上でも明確にできる。アセットブラウザ側の表示と実機表示は未検証。
+- 次に確認すべきこと: タイムラインの通常表示・選択表示・高DPIでアイコンが読み込まれること、アセットブラウザのNoise表示方針を確認する。

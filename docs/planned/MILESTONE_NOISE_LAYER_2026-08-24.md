@@ -29,7 +29,11 @@
 
 ## 未着手
 
-- タイムライン / アセット系アイコン・表示名の整備
+- アセット系アイコン・表示名の整備
+
+## Update 2026-09-01 — Timeline identity
+
+タイムラインのレイヤー種別判定で `ArtifactNoiseLayer` をSolidから分離し、Noise専用アイコンを表示するようにした。アセットブラウザ側のアイコン・表示名、実機での表示確認は未実施。
 
 ## Update 2026-09-01 — Animated procedural settings
 
