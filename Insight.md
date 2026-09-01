@@ -7537,3 +7537,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: MCPでUTF-8変換後の注記本文を1024バイト以内に制限し、検証済みバイト列をwriterへ渡すようにした。
 - 価値/懸念: 将来NamedVector以外のwriterを登録しても、AI入口から過大な注記を投入しにくい。C++直接呼び出し側の上限は各writerの責務として残る。
 - 次に確認すべきこと: マルチバイト文字を含む境界長の注記がバイト数基準で受理／拒否されることをruntimeで確認する。
+
+### 2026-09-01: Container Debug registryで注記契約を再検証
+- 関連: `ArtifactCore/include/Container/ContainerDebugRegistry.ixx`
+- 確認できた事実: MCP入口とNamedVectorには注記の制約があったが、registryの公開`annotate()`を直接呼ぶ汎用writer経路では、空文字・サイズ・enum値をregistry自身が保証していなかった。
+- 対応: registryで1024バイト上限とseverity／authorのenum妥当性を検証してからwriterを呼ぶようにした。
+- 価値/懸念: 新しいコンテナ実装やC++直接呼び出しを追加しても、registry境界でAI向け注記契約を破りにくい。writer側の重複検証は防御として維持する。
+- 次に確認すべきこと: 汎用writerに対しても不正入力でwriterが呼ばれず、正当な入力だけが渡ることをruntimeで確認する。
