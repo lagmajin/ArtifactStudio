@@ -7367,3 +7367,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: Noiseの色A／色Bでは共通Property生成後の冗長な再代入を削除した。
 - 価値/懸念: Inspector再構築時にexpressionやキーフレームを持つ色Propertyの基底値を不用意に変えにくくなる。既存カラーUI全体の同様パターンは未監査。
 - 次に確認すべきこと: 色Propertyのexpression／キーフレーム表示更新後も評価値と保存値が維持されることを確認する。
+
+### 2026-09-01: Noiseレイヤー作成メニューに専用アイコンを使用
+- 関連: `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`, `Artifact/App/Icon/Studio/noise_layer.svg`
+- 確認できた事実: Project ViewのNoiseレイヤー作成項目が、エフェクト用`effect_ops_noise.svg`を共有していた。
+- 対応: Noiseレイヤー本体とプリセット作成項目を`noise_layer.svg`へ切り替えた。エフェクトメニューのアイコンはエフェクト責務のため維持した。
+- 価値/懸念: レイヤーとエフェクトの視覚的な分類をUI上で区別できる。Composition Editorの作成項目は現状アイコン付きAPIの対象外でruntime表示は未確認。
+- 次に確認すべきこと: Project Viewの作成メニューで専用アイコンが表示されることを確認する。
