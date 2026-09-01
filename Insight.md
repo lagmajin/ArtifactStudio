@@ -7288,3 +7288,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: Noise専用のアイコン種別・runtime型判定・Studio SVGを追加し、タイムライン上で独立レイヤーとして識別できるようにした。
 - 価値/懸念: Noise Fillではなく独立レイヤーである現在の設計をUI上でも明確にできる。アセットブラウザ側の表示と実機表示は未検証。
 - 次に確認すべきこと: タイムラインの通常表示・選択表示・高DPIでアイコンが読み込まれること、アセットブラウザのNoise表示方針を確認する。
+
+### 2026-09-01: Noise layerの複製時型推定も専用分岐が必要
+- 関連: `Artifact/src/Project/ArtifactProject.cppm`, `Artifact/src/Widgets/Timeline/ArtifactLayerPanelPresentation.cppm`
+- 確認できた事実: runtime type nameからLayerTypeを推定する複製経路にNoise判定がなく、`ArtifactNoiseLayer`は最終的にSolidへフォールバックしていた。タイムラインの共通presentationにもNoise専用表示がなかった。
+- 対応: Noiseのruntime型を先に判定して`LayerType::Noise`を返し、presentationにNoise Layer／Procedural Textureを追加した。
+- 価値/懸念: 複製・再構成時のNoise設定保持と、Inspector／タイムラインの型表示を独立レイヤー設計に揃えられる。runtimeでの複製・再読込と表示確認は未検証。
+- 次に確認すべきこと: Noiseの複製、Undo／Redo、JSON round-trip、Inspector表示、タイムライン表示を実機で確認する。

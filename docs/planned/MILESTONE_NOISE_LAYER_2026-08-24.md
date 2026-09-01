@@ -35,6 +35,8 @@
 
 タイムラインのレイヤー種別判定で `ArtifactNoiseLayer` をSolidから分離し、Noise専用アイコンを表示するようにした。アセットブラウザ側のアイコン・表示名、実機での表示確認は未実施。
 
+複製・再構成時のruntime型推定にもNoise専用分岐を追加し、NoiseレイヤーがSolidとして復元される経路を避けた。
+
 ## Update 2026-09-01 — Animated procedural settings
 
 `noise.scaleX/Y`、`noise.offsetX/Y`、`noise.rotation`、`noise.amplitude`、`noise.octaves`、`noise.lacunarity`、`noise.gain` は、既存のPropertyキーフレームとAnimationLayerStackを現在フレームで評価してからCPU/GPU生成へ渡すようにした。これによりOffset／Rotationを使った流れるノイズの基礎経路を追加した。ビルド・runtime parity・キーフレームUIからの実機確認は未実施。
