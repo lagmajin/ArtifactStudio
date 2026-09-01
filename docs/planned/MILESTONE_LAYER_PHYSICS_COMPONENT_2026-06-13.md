@@ -1,6 +1,6 @@
 # 実装案: M-LYR-PHYS Layer Physics Component
 
-**最終更新:** 2026-08-31
+**最終更新:** 2026-09-01
 
 **ステータス:** 部分完了（Collision 設定の Inspector/JSON、RigidBody/SoftBody bounds 同期、Circle collider 再構築、Polygon collider の Core〜UI 導線、component.joint レイヤー間ジョイント（Distance/Pin）を実装。ジョイントのアンカー編集・revolute角制限、Fracture/Fluid の共通 component 化、複数レイヤー接触の runtime parity、ビルド／ランタイム検証は未完了）
 
@@ -303,7 +303,14 @@ Impulse Force: [1000]
 - joint有効化時に `enableRigidBodyPhysics()` を呼ぶため、監査で「到達不能」とされていたリジッド(Box2D)実行経路に初の実利用入口ができた。
 - Core `Physics2D`: `addStaticAnchor()`、joint id 管理、`removeJoint/clearJoints/getJoints` を追加。body再構築時・無効化時はjointを明示破棄してid鮮度を保証。
 - Composition `evaluateJointConstraints()` を `setFramePosition`/`goToFrame` のcollision評価直後に配線。target layer名解決 → target中心をowner局所空間へマップ → 静的アンカー(cloneIndex==-2)生成/追従 → signature変更時のみjoint再構築。Distance length=0 は作成時距離を採用。リジッド読み取り/body選択はproxyを除外して自レイヤーdynamic bodyを選択。
-- 制約: rigid worldはsnapshot非対応（スクラブ復帰は未対応）、target名重複時は先勝ち、アンカー手動オフセットとrevolute角制限は未実装。`Physics2D` world重力 {0,-9.8} の符号は要ランタイム確認。
+- 制約: rigid worldはsnapshot非対応（スクラブ復帰は未対応）、target名重複時は先勝ち、アンカー手動オフセットは未実装。`Physics2D` world重力 {0,-9.8} の符号は要ランタイム確認。
+
+## 2026-09-01 進捗（Layer-owned joint relation 拡張）
+
+- `component.joint.type` を `Distance / Pin / Hinge / Spring`（0〜3）へ拡張。Pin/Hinge は Revolute joint、Distance / Spring は既存の hertz / damping ratio を持つ Distance joint として保存・評価する（既存 Distance の挙動は維持）。
+- `component.joint.angleLimitEnabled/lowerAngle/upperAngle` を追加。Pin/Hinge に対して Box2D Revolute の角度制限として度数入力をラジアンへ明示変換して渡す。
+- 既存の target-layer、joint component、static proxy 方式を維持し、Constraint 専用レイヤーや signal/slot は追加しない。
+- 未検証: Null を動かした際のアンカー追従、角度制限の符号、スクラブ復元、実機のばね安定性。
 
 ## 2026-08-31 進捗（通常レイヤーの落下を Box2D へ接続）
 

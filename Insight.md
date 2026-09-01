@@ -1,5 +1,26 @@
 **最終更新:** 2026-09-01
 
+### 2026-09-01 — Rigid wind の physics-step 統合候補
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`, `ArtifactCore/src/Physics/PhysicsSystem.cppm`
+- **確認できた事実:** 剛体の layer transform は Box2D body の位置・角度を読んでおり、wind force はこの既存の評価経路から一フレーム一度適用できる。`PhysicsSystem` は現時点で layer / composition の live-field 情報を持たない。
+- **価値/懸念:** 最小統合では既存 Live Field の対象・falloff を wind のマスクとして再利用できる。一方、非描画中にも厳密な fixed-step simulation を行う将来の用途では、force provider を `PhysicsSystem` に登録して step 直前に評価する設計へ移す必要がある。
+- **次に確認すべきこと:** playback / render queue / seek の各経路で wind の適用回数が期待どおり一フレーム一回かを runtime で確認し、headless simulation が必要になった時点で step-side provider を設計する。
+
+### 2026-09-01 — Soft Body の外部 collider 導線は未接続
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`, `ArtifactCore/src/Physics/PhysicsSystem.cppm`
+- **確認できた事実:** Soft Body grid は作成時に自己 bounds collider を明示的に除外しており、collider は solver ごとの登録リストとしてのみ保持される。通常レイヤーの Collision Component を別 Soft Body の collider として収集・同期する composition 側の配線は確認できない。
+- **価値/懸念:** 風付き布／ゼリーの基本動作は既存 solver と wind API で成立する一方、他レイヤーに当てる制作体験はまだ保証できない。自己 collider を機械的に登録すると初回 solve で全点が押し出されるため危険。
+- **次に確認すべきこと:** composition 座標へ変換済みの外部 static collider を対象 Soft Body に登録・更新する ownership と、移動 collider の同期時点を設計する。
+
+### 2026-09-01 — Layer joint の target は stable ID 化が必要
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`, `Artifact/src/Composition/ArtifactAbstractComposition.cppm`
+- **確認できた事実:** 現行の joint relation は `targetLayer` のレイヤー名を保存し、composition 評価時に同名の最初のレイヤーを探索する。Null を支点にする制作体験はこの経路で成立する。
+- **価値/懸念:** 名前変更または同名レイヤーで関係先が変わり得る。UI 表示名は維持しつつ、保存値を `LayerID` に移すことで AE 的な親子／constraint の参照安定性を得られる。
+- **次に確認すべきこと:** 既存 JSON の名前参照を一度だけ `LayerID` へ解決する移行規則と、対象レイヤー削除時の無効化 UX を設計する。
+
 ### 2026-09-01 — VP Gizumo ハンドル操作の理論的整合性レビュー
 
 - **関連:**
