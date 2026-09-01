@@ -7309,3 +7309,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: Noiseの数値Propertyについて、keyframes／expression／envelopesを`noise.animatedProperties`へシリアライズし、復元時にPropertySerializationBridgeで再構成する処理を追加した。
 - 価値/懸念: 流れるノイズの編集状態を保存・再読込後も保持できる契約をコード上で明示できる。保存形式のruntime round-trip、envelope評価、AnimationLayerStackとの組み合わせは未検証。
 - 次に確認すべきこと: keyframeありNoiseの保存JSON、再読込後のProperty cache、frame移動時の生成署名更新、expression／envelopeの評価を確認する。
+
+### 2026-09-01: Noiseの色マッピングもフレーム評価が必要
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: 数値設定は現在フレーム評価へ接続済みだったが、colorMapping、colorA、colorBは基底値を直接参照していた。
+- 対応: マッピング有効状態と色A／色Bを既存Propertyキーフレームから評価し、CPU生成の色変換とGPU／CPU経路選択、生成署名へ反映した。色Propertyのアニメーションデータも同じ`noise.animatedProperties`へ保存する。
+- 価値/懸念: ノイズ量だけでなく色のクロスフェードやマッピング切替を同一レイヤーで表現できる。QColor補間、GPU／CPU parity、expression／envelopeの実機評価は未検証。
+- 次に確認すべきこと: 色キーフレームの補間、マッピング切替時のキャッシュ破棄、保存・再読込、GPU fallback境界を確認する。
