@@ -7619,3 +7619,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: regression操作とstress操作それぞれを専用mutexで直列化した。baseline名の意味やstress結果の共有範囲は変更していない。
 - 価値/懸念: 複数AI／クライアントからの同時診断でハッシュ／JSON状態が破損しにくくなる。独立したクライアント別baselineが必要な場合は、将来コンテキスト単位の状態管理が必要。
 - 次に確認すべきこと: concurrent capture／compareとrun／resultの呼び出しで状態破損がなく、同名baselineの上書き方針が期待通りであることをruntimeで確認する。
+
+### 2026-09-01: 親リポジトリの孤立Artifact_dev_review gitlinkを特定
+- 関連: `Artifact_dev_review`, `.gitmodules`
+- 確認できた事実: 親HEADに`Artifact_dev_review`のgitlinkがある一方、`.gitmodules`に対応定義がなく、参照commitもローカルで解決できず、ディレクトリも空だった。これにより`git submodule status`が失敗していた。
+- 対応: 孤立gitlinkだけを親indexから除去する。既存のArtifact／ArtifactCore／ArtifactWidgetsや並行中の変更は対象外とする。
+- 価値/懸念: 親子リポジトリの状態確認コマンドが正常に動作し、存在しないレビュー用submoduleを誤って初期化しなくて済む。過去レビュー資料の実体は復元せず、必要なら履歴から参照する。
+- 次に確認すべきこと: `git submodule status`が全定義済みsubmoduleを列挙し、孤立パスを報告しないことを確認する。
