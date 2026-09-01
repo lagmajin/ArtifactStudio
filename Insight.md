@@ -7395,3 +7395,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: 7項目をNoiseグループへ追加し、setter、現在フレーム評価、external override、animatedProperties保存／復元、範囲検証へ接続した。
 - 価値/懸念: Noiseの詳細な見た目をUI・AI・自動化から編集・時間変化させられる。GPU compute側の各詳細設定の実機反映と、既存プリセットの意図した値域はruntime未検証。
 - 次に確認すべきこと: 各詳細Propertyの変更が生成署名とGPU／CPU出力へ反映され、保存後も値とアニメーションが維持されることを確認する。
+
+### 2026-09-01: Noise生成種別を離散アニメーションへ接続
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: Noiseの`kind`はProperty表示されていたが、animatable／保存対象／現在フレーム生成設定への評価が未接続だった。
+- 対応: `kind`をconstantキーフレーム前提のアニメーション対象にし、expression／external overrideを含む現在フレーム値を生成設定へ反映した。
+- 価値/懸念: PerlinからVoronoi等への離散的な種別切替を時間軸・AI操作で表現できる。不正文字列は既存のPerlin fallbackに従い、runtime確認は未実施。
+- 次に確認すべきこと: 種別キーフレーム境界で生成署名が更新され、Voronoi／Gradientのサブモードも正しく切り替わることを確認する。
