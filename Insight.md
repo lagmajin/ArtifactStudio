@@ -7337,3 +7337,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: Noiseの数値・boolean・color評価でexpressionが設定されている場合、既存Textレイヤーと同じ`ExpressionEvaluator`を生成して共通評価APIへ渡すようにした。
 - 価値/懸念: Noiseのexpressionを保存形式から生成処理まで接続できる。layer indexや他プロパティ参照など、評価コンテキストの拡張は既存ExpressionEvaluatorの契約に依存しruntime未検証。
 - 次に確認すべきこと: `time`／`value`／`noise()` 等のexpression、評価エラー時の安全なfallback、GPU署名更新を確認する。
+
+### 2026-09-01: Noise評価時刻のRationalTime scaleを整数fpsへ正規化
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: Noiseの現在時刻生成はdoubleのフレームレートを、整数scaleを要求する`RationalTime`へ暗黙変換していた。
+- 対応: 有効なfpsを四捨五入し、最低1の整数scaleとして渡すようにした。
+- 価値/懸念: 29.97fps等でのexpression／envelope／キーフレーム評価時刻の不用意な切り捨てを避けられる。プロジェクト全体の時間表現とのruntime整合は未検証。
+- 次に確認すべきこと: 非整数fpsでNoiseのキーフレーム境界とexpression結果が期待フレームに一致することを確認する。
