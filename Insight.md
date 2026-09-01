@@ -7502,3 +7502,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: MCP一覧／取得／設定の`readOnly`を所有者descriptorから算出し、Live Patchのapplyを読み取り専用所有者で拒否するようにした。単一プロパティ照会にも同じ状態を反映した。
 - 価値/懸念: AIが編集可能性を誤認しにくくなり、読み取り専用として登録された対象への動的変更を防げる。property個別の将来read-only属性を追加する場合は判定を統合する必要がある。
 - 次に確認すべきこと: read-only ownerのlist/get/set/patch各応答と、writable ownerの既存編集フローをruntimeで確認する。
+
+### 2026-09-01: Container Debug登録のRAII解除とメモ書き込み経路を修正
+- 関連: `ArtifactCore/include/Container/ContainerDebugRegistry.ixx`, `ArtifactCore/include/Container/NamedVector.ixx`
+- 確認できた事実: scoped登録はreader登録時の引数をコピーせず、登録関数が消費した後のIDをRegistrationへ渡していたため、Registration破棄時の解除対象IDが空になっていた。さらにNamedVectorのメモ書き込みwriterはconstメソッドから非const状態を変更する形になっていた。
+- 対応: 登録前のIDをRegistrationへ保持し、NamedVectorのdebug snapshot登録を非const経路へ揃えた。
+- 価値/懸念: スコープ終了時に登録が確実に解除され、破棄済みコンテナを参照するreaderが残りにくくなる。呼び出し側がregistrationをコンテナより先に破棄する所有順序は引き続き必要。
+- 次に確認すべきこと: registration破棄後のID非公開化と、NamedVectorのannotate writerが実体へ記録することをruntimeで確認する。
