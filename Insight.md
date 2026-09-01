@@ -1,5 +1,45 @@
 **最終更新:** 2026-09-01
 
+### 2026-09-01 — VP Gizumo ハンドル操作の理論的整合性レビュー
+
+- **関連:**
+  - 3D Gizumo: `Artifact/include/Widgets/Render/Artifact3DGizmo.ixx`, `Artifact/src/Widgets/Render/Artifact3DGizmo.cppm`
+  - 2D TransformGizmo: `Artifact/include/Widgets/Render/TransformGizmo.ixx`, `Artifact/src/Widgets/Render/TransformGizmo.cppm`
+  - Host/橋渡し: `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+  - 入力: `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`
+  - Undo: `Artifact/src/Widgets/Render/ArtifactCompositionGizmoUndoCommands.cppm`
+  - Viewport 数学: `Artifact/src/Widgets/Render/ViewportMath.cppm`, `Artifact/include/Widgets/Render/ViewportMath.ixx`
+- **確認できた事実 (致命的に怪しい):**
+  1. **`gizmoBasisFor` の World/View space 経路が空 `{}` を返す** (`Artifact3DGizmo.cppm:354-378`)。`worldAxisDirectionFor` (`Artifact3DGizmo.cppm:146-152`) は `(0,-1,0)` を返すが、basis を組み立てる経路が Local 以外で完全に欠落しており、`GizmoSpace::World` のギズモがピック／描画に失敗し得る。
+  2. **`hitTest` が `proj` を完全無視** (`Artifact3DGizmo.cppm:703-704`, `(void)proj;`)。距離しきい値は `impl_->currentScale` 基準の world-space 距離で、perspective 投影で depth 方向に膨張し、画面端ほどヒットしにくくなる。
+  3. **Modifier の意味が 2D/3D で食い違い Blender 互換ではない**:
+     - 3D `Artifact3DGizmo.cppm:1357, 1386, 1406, 1519`: `Shift` = precision (0.1倍) ✅ Blender 互換。
+     - 3D `ArtifactCompositionRenderController.cppm:25692-25696`: `Ctrl` = snap ON ✅ Blender 互換。
+     - 2D Anchor `TransformGizmo.cppm:2987-3025`: `Ctrl` = snap ON / `Alt` = snap OFF (Blender では逆)。
+     - 2D Scale corner `TransformGizmo.cppm:3370-3371`: `Shift` = preserveAspect OFF ❌ (Blender では precision)。
+     - 2D Move: `Shift` が precision として機能していない。
+- **確認できた事実 (怪しいが致命的ではない):**
+  - `cameraForwardForView` の符号が `QMatrix4x4` の column-major アクセスと view 行列規約に依存 (`Artifact3DGizmo.cppm:507-518`) — view 規約差で符号反転し、回転リングのヒットテストを誤らせ得る。
+  - `intersectRayPlane` の `t < 0` 排除 (`Artifact3DGizmo.cppm:125-135`) でカメラ背後・平面平行レイを完全拒否 → "動く時と動かない時がある" 系バグ要因。
+  - `axisHandleEndFor` の Z 軸が4%短い (`Artifact3DGizmo.cppm:542-547`) — 意図不明、コメントなし。
+  - Rotate モードで view と軸が平行なときの planeNormal フォールバック (`Artifact3DGizmo.cppm:1037-1048`) は任意の `(0,1,0)` 等から再クロスし、ビュー平面を完全無視 → ドラッグ開始時に `dragStartHitPoint` が `interactionCenter` にフォールバック (`Artifact3DGizmo.cppm:1063`) して最初のマウス移動がジャンプする。
+  - Scale (Screen) 経路 (`Artifact3DGizmo.cppm:1497-1518`) は `fullModeDrag_` の true/false で別ロジックになり、グループドラッグ時の pivot と整合しない可能性。
+  - `applyLiveGizmoTransform` の Undo 復元 (`ArtifactCompositionGizmoUndoCommands.cppm:66-77, 145-160, 244-256`) が `transform.positionX() - positionXAt(time)` を "position全体オフセット" とみなして snapshot から逆算する。`positionX()` の意味 (初期値か現在値か) が `AnimatableTransform3D` の内部実装に依存し、keyframe 化時に二重適用／消失し得る。
+  - `cancelGizmoInteraction` (`ArtifactCompositionRenderController.cppm:26342-`) は `gizmoUndoSnapshotValid_` をリセットしないため、後続 mouse release で空 undo が積まれる race が残る。
+  - Group basis リセット (`ArtifactCompositionRenderController.cppm:27599` + `Artifact3DGizmo.cppm:627-640`) は `hasLocalBasis = false` に戻すだけで、`localAxisX/Y/Z` の前回値が残る副作用を持つ。
+- **Blender 互換度:**
+  - G/R/S/X/Y/Z/Enter (commit) / Esc (restore pre-drag) は概ね Blender 風。
+  - Shift/Ctrl の意味が 2D/3D で逆になっている箇所があり、ユーザーが混乱する。
+  - `X` 押下中の Delete は仕様外 (timeline からの削除は別経路)。
+- **価値/懸念:** VP の Gizumo はほぼ Blender 互換で動いているが、World space の basis 欠落・`hitTest` の `proj` 無視・2D/3D Modifier 食い違いは実装未着手とはいえ放置すると致命的な操作性低下を招く。`cameraForwardForView` の符号や undo 復元前提は未検証だが、perspective + keyframed position で再現する可能性が高い。
+- **次に確認すべきこと:**
+  - `AnimatableTransform3D::positionX()` の意味（初期値か現在フレームか）と position offset の扱い。
+  - perspective view での `hitTest` 精度（depth 方向の膨張）を実フレームで確認。
+  - 2D と 3D の Modifier 意味を Blender 互換へ統一するか、HUD で明示するか。
+  - `cancelGizmoInteraction` → mouse release の race を Undo 履歴追加件数で検出。
+  - `cameraForwardForView` の符号を view 行列規約差で実機検証。
+  - ビルド・テストは未実行 (AGENTS.md の方針)。
+
 ## 2026-08-31 — ArtifactPr の GPU Preview は ArtifactRenderer を再利用できない
 
 - **関連:** `ArtifactPr/CMakeLists.txt`、`ArtifactRenderer/CMakeLists.txt`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
