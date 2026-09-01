@@ -7323,3 +7323,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: 数値、boolean、colorのNoise設定について、既存`AbstractProperty::evaluateValue()`を使い、keyframe／envelopeを共通経路で評価するようにした。
 - 価値/懸念: Property editorや保存形式と生成側の評価経路を分断しにくくできる。expressionは評価器の有無・既存契約に依存し、runtimeでの結果確認は未検証。
 - 次に確認すべきこと: envelopeの時系列変化、expression評価器を持つ呼び出し側、色補間とGPU fallbackの境界を確認する。
+
+### 2026-09-01: Noiseのアニメーション設定は生成署名まで反映する
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: Seedをアニメーション可能・保存対象へ追加した後も、評価済み設定へ代入していなかったため、フレームごとのノイズ系列が変化しなかった。
+- 対応: 現在フレームのSeedを生成設定へ反映し、既存のNoise署名キャッシュがSeed変更を検出できるようにした。
+- 価値/懸念: deterministicなノイズ系列をフレーム単位で切り替えられる。大量のSeedキーフレームによる再生成コストと実機の系列確認は未検証。
+- 次に確認すべきこと: Seedキーフレーム境界でCPU／GPUが同じ系列を生成し、古いテクスチャが再利用されないことを確認する。
