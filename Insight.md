@@ -7295,3 +7295,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: Noiseのruntime型を先に判定して`LayerType::Noise`を返し、presentationにNoise Layer／Procedural Textureを追加した。
 - 価値/懸念: 複製・再構成時のNoise設定保持と、Inspector／タイムラインの型表示を独立レイヤー設計に揃えられる。runtimeでの複製・再読込と表示確認は未検証。
 - 次に確認すべきこと: Noiseの複製、Undo／Redo、JSON round-trip、Inspector表示、タイムライン表示を実機で確認する。
+
+### 2026-09-01: Noise animationにはPropertyのanimatable登録が必要
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: Noiseの数値Propertyはpersistent propertyとして生成されていたが、`AbstractProperty`の初期値はanimatable=falseであるため、前段の現在フレーム評価処理だけではキーフレーム値を取得できなかった。
+- 対応: seed、scale、offset、rotation、amplitude、octaves、lacunarity、gainを明示的にanimatable=trueへ設定した。
+- 価値/懸念: 既存のProperty editor／keyframe command／AnimationLayerStackがNoise設定に適用される前提を満たす。ビルド・UI操作・フレーム更新のruntime確認は未検証。
+- 次に確認すべきこと: 数値Propertyへのキーフレーム追加と補間、seed変更時のdeterministic生成、GPU署名更新、JSON round-tripを確認する。
