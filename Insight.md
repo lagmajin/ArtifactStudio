@@ -7626,3 +7626,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: 孤立gitlinkだけを親indexから除去する。既存のArtifact／ArtifactCore／ArtifactWidgetsや並行中の変更は対象外とする。
 - 価値/懸念: 親子リポジトリの状態確認コマンドが正常に動作し、存在しないレビュー用submoduleを誤って初期化しなくて済む。過去レビュー資料の実体は復元せず、必要なら履歴から参照する。
 - 次に確認すべきこと: `git submodule status`が全定義済みsubmoduleを列挙し、孤立パスを報告しないことを確認する。
+
+### 2026-09-01: nanosvg gitlinkのsubmodule定義欠落を復元
+- 関連: `.gitmodules`, `third_party/nanosvg`
+- 確認できた事実: nanosvgのgitlinkはSVG描画依存として履歴に存在したが、`.gitmodules`に定義がなく、初期化／状態確認ができなかった。既存分析文書もCI初期化漏れを指摘していた。
+- 対応: `https://github.com/memononen/nanosvg.git`のsubmodule定義を追加した。現物のcheckoutや依存コードは変更していない。
+- 価値/懸念: `git submodule status`で孤立エラーが解消し、他環境でnanosvgを正しく初期化できる。現在のローカル実体は未取得のため、実ファイル利用には通常のsubmodule updateが必要。
+- 次に確認すべきこと: 依存取得を許可する環境で、記録済みcommitを初期化できることを確認する。
