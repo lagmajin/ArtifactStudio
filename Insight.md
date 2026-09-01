@@ -7274,3 +7274,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 事実: リポジトリ内検索では `renderSingleFrameGPU()` に定義以外の参照がなく、フレーム処理のGPU分岐は `Impl::renderSingleFrame()` から実行される。
 - 対応: GPU MatteTrack導入の評価対象を `renderSingleFrame()` に絞り、未参照の旧GPU実装に残るQImageソース処理を実運用GPU経路の未適用と混同しないよう整理した。
 - 価値/懸念: 実際に使われる連番GPU経路の変更範囲を明確化できる。旧APIが将来再利用される場合は別途同じ処理を共有化する必要がある。
+
+### 2026-09-01: Noise layerの数値設定を既存アニメーション経路へ接続
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`, `docs/planned/MILESTONE_NOISE_LAYER_2026-08-24.md`
+- 確認できた事実: Noiseのプロパティはpersistent propertyとして登録されていたが、生成処理は基底設定値を直接参照しており、キーフレーム補間値を使っていなかった。
+- 対応: 既存のPropertyキーフレームとAnimationLayerStackを現在のcomposition frame／frame rateで評価し、scale、offset、rotation、amplitude、octaves、lacunarity、gainをCPU/GPU双方の生成設定へ渡すようにした。
+- 価値/懸念: Offset／Rotationをアニメーションさせる流れるノイズの基礎経路を、専用シグナルや別アニメーション実装なしで追加できる。ビルド・runtime parity・キーフレームUIからの実機確認は未検証。
+- 次に確認すべきこと: Property editorでのキーフレーム追加、フレーム移動時のキャッシュ更新、CPU/GPU出力一致、seed／kind／color mappingのアニメーション要否を確認する。

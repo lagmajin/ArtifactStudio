@@ -1,8 +1,8 @@
 # MILESTONE: 独立ノイズレイヤー（ArtifactNoiseLayer）
 
-**最終更新:** 2026-08-30
+**最終更新:** 2026-09-01
 
-**ステータス:** In Progress（コア実装・詳細設定付き作成導線・プリセット選択 UI・Automation API・GPU compute 経路を実装済み。アニメーション、runtime parity は未完了）
+**ステータス:** In Progress（コア実装・詳細設定付き作成導線・プリセット選択 UI・Automation API・GPU compute 経路・数値プロパティのキーフレーム評価を実装済み。runtime parity とタイムライン表示整備は未完了）
 
 **識別子:** M-NOISE-LAYER
 
@@ -29,8 +29,11 @@
 
 ## 未着手
 
-- offset / rotation 等のキーフレーム駆動（流れるノイズ）
 - タイムライン / アセット系アイコン・表示名の整備
+
+## Update 2026-09-01 — Animated procedural settings
+
+`noise.scaleX/Y`、`noise.offsetX/Y`、`noise.rotation`、`noise.amplitude`、`noise.octaves`、`noise.lacunarity`、`noise.gain` は、既存のPropertyキーフレームとAnimationLayerStackを現在フレームで評価してからCPU/GPU生成へ渡すようにした。これによりOffset／Rotationを使った流れるノイズの基礎経路を追加した。ビルド・runtime parity・キーフレームUIからの実機確認は未実施。
 
 ## Update 2026-08-30 — Python workspace API exposure
 
