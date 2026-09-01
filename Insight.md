@@ -7351,3 +7351,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: importを公開モジュール名へ統一し、両UIでNoise Layer／Noise表示を追加した。
 - 価値/懸念: モジュール解決の不整合を減らし、タイムライン・編集メニュー・レンダーUIで同じレイヤー識別を維持できる。ビルド／runtime表示は未検証。
 - 次に確認すべきこと: モジュール依存スキャンと各UIの実機表示を確認する。
+
+### 2026-09-01: Noiseの文字列型シリアライズ復元をFactoryへ接続
+- 関連: `Artifact/src/Layer/ArtifactLayerFactory.cppm`
+- 確認できた事実: 数値`type`付きのNoise JSONは復元できる一方、`layerType`または文字列`type`だけを持つ`Noise`／`NoiseLayer`形式は認識一覧と分岐から漏れていた。
+- 対応: Factoryの認識一覧、文字列`type`分岐、legacy `layerType`分岐へNoiseを追加した。
+- 価値/懸念: 外部自動化や旧形式のJSONでもNoiseがSolidへフォールバックしにくくなる。文字列形式のruntime round-tripは未検証。
+- 次に確認すべきこと: 数値・文字列・legacy各形式でNoise型と固有設定が維持されることを確認する。
