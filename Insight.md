@@ -7591,3 +7591,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: `registerContainerDebugSnapshot()`を追加し、任意のdebugSnapshot()提供型を同じread-only registryへ登録できるようにした。
 - 価値/懸念: コンテナ実装ごとのMCP接続コードを減らし、登録ID・破棄順序・snapshot境界を共通化できる。メモ追記は型固有の明示writerが必要で、暗黙の可変APIは追加していない。
 - 次に確認すべきこと: SmallVector等の既存snapshot型をhelperで登録し、IDフィルタとsnapshot JSONが期待通り接続されることをruntimeで確認する。
+
+### 2026-09-01: Property Live Patchをtoken付き単一セッションへ隔離
+- 関連: `ArtifactCore/include/AI/McpBridge.ixx`, `ArtifactCore/docs/CONTAINER_DEBUG_AI_INTERFACE.md`
+- 確認できた事実: Live Patchのoriginal valuesとactive状態がMCP全体で共有され、別クライアントのbeginが進行中セッションを黙って上書きできた。状態アクセスにも排他がなかった。
+- 対応: mutexでセッション状態を保護し、beginでUUID tokenを発行、apply／rollback／commitで一致tokenを必須化した。進行中の二重beginも拒否する。
+- 価値/懸念: AIクライアント間のpatch混線と同時アクセスによる状態破壊を抑えられる。現在は安全側として一度に1セッションのみで、複数独立セッションは将来の明示設計対象。
+- 次に確認すべきこと: token欠落・不一致・二重begin・正常なapply／rollback／commitの各応答をruntimeで確認する。
