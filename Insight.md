@@ -7612,3 +7612,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: 書き込み成功後に対象snapshotを再取得し、最新メモのtimestampMilliseconds・observedVersion・severityを応答へ追加した。
 - 価値/懸念: タイムスタンプ付きメモの記録結果を1回のAPIフローで確認できる。直後に対象が解除された場合は書き込み成功でも補足フィールドが省略される。
 - 次に確認すべきこと: annotate成功時のtimestampが直近保存メモと一致し、解除競合時も応答が安全に完了することをruntimeで確認する。
+
+### 2026-09-01: MCP共有デバッグ状態の競合を抑制
+- 関連: `ArtifactCore/include/AI/McpBridge.ixx`
+- 確認できた事実: Live Patch以外にもregression baselineとstress resultが関数staticの共有mutable状態で、並行MCP呼び出し時にデータ競合が起こり得た。
+- 対応: regression操作とstress操作それぞれを専用mutexで直列化した。baseline名の意味やstress結果の共有範囲は変更していない。
+- 価値/懸念: 複数AI／クライアントからの同時診断でハッシュ／JSON状態が破損しにくくなる。独立したクライアント別baselineが必要な場合は、将来コンテキスト単位の状態管理が必要。
+- 次に確認すべきこと: concurrent capture／compareとrun／resultの呼び出しで状態破損がなく、同名baselineの上書き方針が期待通りであることをruntimeで確認する。
