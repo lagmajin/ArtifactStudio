@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-09-01 14:50
+> Generated: 2026-09-01 15:01
 > Total documents: 1305
 
 ---
@@ -132,7 +132,7 @@
 | 5 | `ArtifactCore/docs/ArtifactCore_Feature_List.zh.md` | ArtifactCore_Feature_List.zh | 2026-03-02 | --- | --- | 3.1 KB | ArtifactCore, Feature, List.zh |
 | 6 | `ArtifactCore/docs/AUDIO_PERFORMANCE_ARCHITECTURE_2026-06-05.md` | オーディオ再生パフォーマンス設計 | 2026-06-05 | --- | --- | 8.0 KB | AUDIO, PERFORMANCE, ARCHITECTURE |
 | 7 | `ArtifactCore/docs/CMAKE_MIGRATION_PREP_2026-03-02.md` | ArtifactCore CMake Migration Prep (2026-03-02) | 2026-03-02 | --- | --- | 3.6 KB | CMAKE, MIGRATION, PREP |
-| 8 | `ArtifactCore/docs/CONTAINER_DEBUG_AI_INTERFACE.md` | Container Debug / AI Interface | 2026-09-01 | --- | --- | 2.6 KB | CONTAINER, DEBUG, INTERFACE |
+| 8 | `ArtifactCore/docs/CONTAINER_DEBUG_AI_INTERFACE.md` | Container Debug / AI Interface | 2026-09-01 | --- | --- | 3.0 KB | CONTAINER, DEBUG, INTERFACE |
 | 9 | `ArtifactCore/docs/CORE_NATIVE_DIAGNOSTICS_PLAN_2026-07-11.md` | Core-native Diagnostics Plan | 2026-07-11 | In Progress | --- | 4.8 KB | CORE, NATIVE, DIAGNOSTICS, PLAN |
 | 10 | `ArtifactCore/docs/CORE_NATIVE_STRING_BOUNDARY_PLAN_2026-07-11.md` | Core-native String Boundary Plan | 2026-07-11 | In Progress | --- | 3.2 KB | CORE, NATIVE, STRING, BOUNDARY, PLAN |
 | 11 | `ArtifactCore/docs/CREATIVE_EFFECTS_MEMO.md` | Creative Effects Implementation Memo (Kaleidoscope & Halftone) | --- | --- | --- | 3.7 KB | CREATIVE, EFFECTS, MEMO |
@@ -1267,7 +1267,7 @@
 | 24 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.3 KB | IMPL, DOF |
 | 25 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.8 KB | IMPL, SSAO |
 | 26 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.6 KB | IMPL, TONE, MAPPING |
-| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-09-01 | --- | 2026-08-31 | 323.1 KB | INDEX, GENERATED |
+| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-09-01 | --- | 2026-09-01 | 323.1 KB | INDEX, GENERATED |
 | 28 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 29 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 12.0 KB | CAMERA, PROJECTION |
 | 30 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
