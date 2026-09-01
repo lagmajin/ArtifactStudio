@@ -7360,3 +7360,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 次に確認すべきこと: 数値・文字列・legacy各形式でNoise型と固有設定が維持されることを確認する。
 
 補足: 入口の認識チェックも確認し、`type: "Noise"`だけのJSONが分岐前に拒否されないよう文字列型を追加した。
+
+### 2026-09-01: Noise色Propertyの表示更新でアニメーション基底値を上書きしない
+- 関連: `Artifact/src/Layer/ArtifactNoiseLayer.cppm`
+- 確認できた事実: `persistentLayerProperty()`で既にQColor値を設定／保持しているのに、色表示生成後の`setColorValue()`が毎回Propertyの基底値を再代入していた。
+- 対応: Noiseの色A／色Bでは共通Property生成後の冗長な再代入を削除した。
+- 価値/懸念: Inspector再構築時にexpressionやキーフレームを持つ色Propertyの基底値を不用意に変えにくくなる。既存カラーUI全体の同様パターンは未監査。
+- 次に確認すべきこと: 色Propertyのexpression／キーフレーム表示更新後も評価値と保存値が維持されることを確認する。
