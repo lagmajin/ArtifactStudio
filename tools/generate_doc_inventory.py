@@ -10,6 +10,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / "docs" / "INDEX_GENERATED.md"
 
