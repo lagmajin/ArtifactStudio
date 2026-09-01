@@ -7509,3 +7509,10 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 対応: 登録前のIDをRegistrationへ保持し、NamedVectorのdebug snapshot登録を非const経路へ揃えた。
 - 価値/懸念: スコープ終了時に登録が確実に解除され、破棄済みコンテナを参照するreaderが残りにくくなる。呼び出し側がregistrationをコンテナより先に破棄する所有順序は引き続き必要。
 - 次に確認すべきこと: registration破棄後のID非公開化と、NamedVectorのannotate writerが実体へ記録することをruntimeで確認する。
+
+### 2026-09-01: Container Debug reader例外を診断応答へ閉じ込め
+- 関連: `ArtifactCore/include/Container/ContainerDebugRegistry.ixx`
+- 確認できた事実: 登録者が提供するsnapshot readerの例外をregistryの`inspect()`が再送出していたため、MCPのコンテナ一覧生成まで例外で中断する可能性があった。
+- 対応: active-useの解放を保証したうえで、reader例外を`available=false`として返すようにした。
+- 価値/懸念: 1コンテナの診断失敗がAI向け全体応答やホスト処理へ波及しにくくなる。例外内容自体は公開せず、必要なら別途ログ経路を設計する。
+- 次に確認すべきこと: reader例外時に他の登録コンテナの一覧が継続し、登録解除も完了することをruntimeで確認する。
