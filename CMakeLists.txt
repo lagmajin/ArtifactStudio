@@ -564,6 +564,12 @@ if(WIN32 AND MSVC AND _artifact_windows_sdk_include_version_dir)
         "${_artifact_windows_sdk_include_version_dir}/um"
         "${_artifact_windows_sdk_include_version_dir}/winrt"
         CACHE STRING "Windows SDK include directories for all MSVC targets" FORCE)
+    set(CMAKE_C_STANDARD_INCLUDE_DIRECTORIES
+        "${_artifact_windows_sdk_include_version_dir}/ucrt"
+        "${_artifact_windows_sdk_include_version_dir}/shared"
+        "${_artifact_windows_sdk_include_version_dir}/um"
+        "${_artifact_windows_sdk_include_version_dir}/winrt"
+        CACHE STRING "Windows SDK include directories for all MSVC C targets" FORCE)
 endif()
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,7 @@
 # Widget Map
 
+**最終更新:** 2026-09-02
+
 このファイルは、Artifact の主要ウィジェットの表示名、コード上の名前、役割を AI と人間の両方がすぐ確認できるようにするための一覧です。
 
 ## Main Window
@@ -81,8 +83,8 @@
   タイムライン左ペインの担当。レイヤー列と行操作に限定し、composition/preview の責務は持たない。
 - `ArtifactPropertyWidget` / `PropertyEditor`
   property row と編集 UI の担当。Properties は current-layer editor、Components / Effects は各専用面から埋め込み利用する。row chrome、pick-whip、reference linking の入口はここへ寄せる。
-- `ArtifactRenderLayerWidgetv2`
-  layer editor view wrapper。内部の実描画と widget shell を分けて扱う。
+- `ArtifactLayerEditorWidget`
+  Layer Solo View の編集 viewport 本体。描画、入力、shape / mask / transform の直接編集を担当する。旧 `ArtifactLayerEditorWidgetV2` / `Artifact.Widgets.RenderLayerWidgetv2` は互換名としてのみ残す。
 
 ## Timeline
 

@@ -1,4 +1,161 @@
-**最終更新:** 2026-08-31
+# Insight Archive (through 2026-09-01)
+
+**最終更新:** 2026-09-01
+
+> 2026-09-01時点のInsight全履歴。実装済みの局所変更、調査メモ、詳細なruntime検証候補を保存する。現在の未完・判断待ち・優先検証はルート `Insight.md` を参照。
+
+### 2026-09-01 — Gobo のレイヤー接続前に runtime SRV 入力を分離する
+
+- **関連:** `ArtifactCore/include/Graphics/MeshRenderer.ixx`、`ArtifactCore/src/Graphics/MeshRenderer.cppm`。
+- **確認できた事実:** 既存Spot Goboは `Light::goboTexturePath` のファイルを `MeshRenderer` がロードし、packed scene-light slotごとのSRVとしてbindしている。
+- **対応:** レイヤーID・永続化・UIを持たない `GoboProjectionTextureInput` を追加した。任意のDiligent SRVを同slotのファイルGoboより優先してbindでき、明示clearで既存のパスGoboへ戻る。
+- **価値 / 懸念:** Image LayerのGPU cacheなどを将来接続できるが、現段階では選択・参照・再bind責務を呼び出し側に残す。slotは`setSceneLights()`のpacked順序に従うため、将来の接続時は安定したLight ID対応表を別途導入する必要がある。
+
+### 2026-09-01 — 2.5Dは共通の投影契約から段階的に拡張する
+
+- **関連:** `Artifact/src/Render/PrimitiveRenderer2D.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`、2D layer群。
+- **確認できた事実:** 既存のDOF／motion blur pass は3D mesh の depth／velocity target 契約専用で、2Dスプライト／ベクターを混在させると3Dカメラの責務と衝突する。
+- **対応:** `ArtifactAbstractLayer` に局所2.5Dの投影・DOF・前フレーム位置由来のmotion blur passを追加し、ImageとShapeのDiligent描画コマンドへ接続した。Textはglyph ZごとのDOFを既存atlas command-buffer経路で解決する。
+- **価値 / 懸念:** D3D12/Vulkan共通のDiligent経路を維持し、3D depth bufferを2Dスタックへ書き込まない。現段階のDOF／motion blurはmulti-draw近似なので、最終出力での品質・負荷を確認後、専用velocity/depth targetへ発展させるか判断する。
+
+### 2026-09-01 — Text の glyph Z 値を2.5D描画へ接続
+
+- **関連:** `Artifact/src/Layer/ArtifactTextLayer.cppm`、`Artifact/src/Render/PrimitiveRenderer2D.cppm`。
+- **確認できた事実:** Text Animator は glyph ごとの `offsetZ` を評価済みで、実際のDiligent command-buffer経路もZを行列へ含めていたが、通常のcanvas投影は直交なので透視効果とdepth順がなかった。
+- **対応:** Text専用の2.5D有効化・camera distanceを保存可能なプロパティとして追加し、実際の `PrimitiveRenderer2D` glyph経路でZ由来の透視scaleとstableな遠方→手前順を解決した。既存atlasとglyph shapingを再利用する。
+- **価値 / 懸念:** D3D12/Vulkan共通のDiligent command-buffer経路で実現し、完全なmesh extrusionより範囲が小さい。一方、深度バッファを使う実3D遮蔽と半透明の順序問題は別フェーズとして明確に分けるべき。
+
+### 2026-09-01 — Composition のレスポンシブ情報を Layer LayoutComponent の実配置へ接続
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `LayoutComponent`、2D transform 解決。
+- **確認できた事実:** Composition にはサイズ別 variant と safe area のメタデータがあったが、既存 LayoutComponent は親子のスタック配置だけで、コンポジション寸法変更に追従するレイヤー矩形を解決していなかった。
+- **対応:** `Responsive to Composition` を LayoutComponent 専用プロパティとして追加し、Horizontal/Vertical Pin、Fit/Fill/Stretch、safe-area padding、px offset から2Dの位置・scaleを解決するようにした。保存／再読込と component descriptor も同じ値を保持する。
+- **価値 / 懸念:** 既存 Transform 値は上書きせず、レスポンシブ有効時の最終配置だけを合成する。3Dレイヤーと親子スタックとの同時レイアウトは意図を曖昧にしないため対象外にしている。実アプリで各pinとサイズ変更の確認が必要。
+
+### 2026-09-01 — Image Sequence metadata getter を同期化
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` の `sequenceFramePaths()`、`isImageSequence()`。
+- **確認できた事実:** frame cache／FPS getter は保護済みだったが、sequence paths のコピーと sequence 判定は無保護で、refresh／設定変更と同時に読む可能性が残っていた。
+- **対応:** 両 getter を `sequenceStateMutex_` で保護した。
+- **価値 / 懸念:** sequence 判定と paths 読み取りの途中状態を避けられる。load／JSON復元の複合 state 更新は UI 主導の既存経路として引き続き runtime 検証が必要。
+
+### 2026-09-01 — Image Sequence FPS 更新側を同期化
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` の `setImageSequence()`、`setLayerPropertyValue("image.sequenceFrameRate")`。
+- **確認できた事実:** FPS getter／refresh は mutex を使うようになったが、sequence paths／FPS／source reset の設定側に無保護の書き込みが残っていた。
+- **対応:** sequence 初期設定と FPS property 更新を mutex 内へ移し、既存 source への FPS反映も同じ保護範囲に含めた。
+- **価値 / 懸念:** 設定変更と frame refresh の競合を抑えられる。paths getter と source-path 全体の UI／worker 同期は別途整理が必要。
+
+### 2026-09-01 — Image Sequence FPS getter を同期化
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` の `sequenceFrameRate()`。
+- **確認できた事実:** sequence の frame rate は property／JSON 経路から更新され、frame refresh と cache key 周辺から読み取られるが getter は無保護だった。
+- **対応:** getter を `sequenceStateMutex_` で保護した。`$F` 動的展開は prefetch worker の入力契約を伴うため、今回は仕様を広げず保留した。
+- **価値 / 懸念:** sequence 設定値の読み取り世代を安定させる。setter 側の UI 全体同期と `$F` の runtime 対応は別途設計が必要。
+
+### 2026-09-01 — Image prefetch completion callback の世代判定を同期
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` の `ArtifactImageLayer` constructor 内 prefetch watcher callback。
+- **確認できた事実:** `adoptPrefetchResult()` は mutex 保護済みでも、callback が読む generation／`prefetchDone_`／cache と寸法は無保護だった。
+- **対応:** callback の判定を短い mutex scope に分割し、adopt の二重ロックを避けながら cache 寸法をスナップショットして source size／crop clamp に使用するようにした。
+- **価値 / 懸念:** 古い prefetch 完了通知が現在の sequence state を誤って処理する可能性を抑えられる。Qt callback と layer destruction の runtime 検証は未実施。
+
+### 2026-09-01 — Image prefetch 結果取り込みを sequence state と同期
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` の `Impl::adoptPrefetchResult()`。
+- **確認できた事実:** prefetch 完了時に `cache_`／`cacheBuffer_`／source metadata を置換する処理が、sequence frame refresh と別経路で mutex 外から実行されていた。
+- **対応:** prefetch 結果の世代確認から cache／buffer 反映、source version 再予約までを `sequenceStateMutex_` で保護した。
+- **価値 / 懸念:** 非同期 decode の完了と現在フレーム更新が異なる世代を混在させる可能性を下げる。worker／UI の実際のスケジューリングは未検証。
+
+### 2026-09-01 — Image source version refresh の cache 交換を同期化
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` の `Impl::refreshSourceVersionIfNeeded()`。
+- **確認できた事実:** 外部 source version の変化検知は `cache_`、`cacheBuffer_`、`sequenceSource_`、frame index を交換するが、sequence refresh と同じ mutex を取得していなかった。
+- **対応:** source version refresh の全体を `sequenceStateMutex_` で保護した。
+- **価値 / 懸念:** 外部ファイル更新と現在フレーム更新が異なる cache 世代を公開する競合を抑えられる。prefetch worker の完了結果取り込みは別の既存経路として runtime 検証が必要。
+
+### 2026-09-01 — Image frame buffer availability 判定を同期化
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` の `hasCurrentFrameBuffer()`。
+- **確認できた事実:** buffer の存在判定が sequence refresh の mutex 外にあり、直接合成側が stale な availability を読む可能性があった。
+- **対応:** source version 更新後の `cache_`／`cacheBuffer_` 判定を `sequenceStateMutex_` 内へ移した。null layer guard も明示した。
+- **価値 / 懸念:** availability 判定と frame buffer 交換の競合窓を縮小できる。判定直後の別スレッド交換を完全に防ぐ API 契約変更は行っていない。
+
+### 2026-09-01 — Image frame buffer 返却時の所有権を固定
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` の `currentFrameBuffer()`。
+- **確認できた事実:** sequence refresh は古い buffer を退避する設計だったが、`currentFrameBuffer()` は mutex 外の shared pointer を直接参照していた。
+- **対応:** mutex 内で lazy buffer 作成と取得を行い、ローカルの `SharedPtr` が ownership を保持した状態で参照を返すようにした。
+- **価値 / 懸念:** 更新と GPU／effect consumer の buffer 取得が同一世代を参照しやすくなる。raw reference API の長期保持を許す設計自体は未変更で、実機並行検証は未実施。
+
+### 2026-09-01 — Image Sequence cache key getter を同期化
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` の `sequenceCachedFrameIndex()`、`sequenceCachedFrameContentKey()`。
+- **確認できた事実:** フレーム更新側は `sequenceStateMutex_` で保護されていたが、Composition の surface／GPU texture cache key が読む getter は mutex 外で index と `QImage::cacheKey()` を取得していた。
+- **対応:** 両 getter を同じ mutex で保護し、更新中の frame index と content identity の不整合を避けるようにした。
+- **価値 / 懸念:** cache key が旧 index＋新 buffer の組み合わせになる競合を抑えられる。raw buffer を返す既存 API 全体の並行ランタイム検証は未実施。
+
+### 2026-09-01 — Image Sequence decode 失敗時の stale frame fallback を遮断
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` の `Impl::refreshSequenceFrame()`。
+- **確認できた事実:** 連番の対象フレーム decode に失敗すると旧キャッシュを破棄する一方、`toQImage()` が通常画像の prefetch fallback へ進み、先頭フレームや別の stale source を表示する可能性があった。
+- **対応:** 連番キャッシュを `Sequence frame unavailable` placeholder とその float buffer に置き換え、`sequenceCachedIndex_` は未解決のまま保持して次回呼び出しで再試行できるようにした。
+- **価値 / 懸念:** 壊れた連番フレームを別フレームで偽装せず、Preview／QImage／GPU buffer の失敗状態を揃えられる。ビルド・実素材ランタイムは未確認。
+
+### 2026-09-01 — Image Sequence の現在フレーム解決を共通化
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` の `draw()`、`toQImage()`、`refreshSequenceFrameForCurrentTime()`。
+- **確認できた事実:** GPU 描画と QImage 取得が Time Remap／start time のフレーム計算をそれぞれ重複して持っていた。
+- **対応:** 両経路を共通の現在時刻更新メソッドへ統一した。連番でない場合の早期 return、Time Remap、sequence FPS 変換は既存 helper に集約した。
+- **価値 / 懸念:** Preview／Render Queue／thumbnail 間でフレーム解決式がずれる可能性を減らせる。ビルド・実素材ランタイムは未確認。
+
+### 2026-09-01 — Shape Path キーフレームのソフトウェアキャッシュを同期
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm` の `Impl::rebuildCache()`、`toQImage()`、互換フォールバック。
+- **確認できた事実:** `toQImage()` の再構築条件はプリミティブ寸法のキーフレームだけを見ており、Path 頂点キーフレーム時も静的頂点でソフトウェア画像を再利用していた。
+- **対応:** 評価済み Path 頂点を `rebuildCache()` に渡せるようにし、`toQImage()` と互換フォールバックで現在フレームの Path キーフレームを評価して再構築するようにした。通常フレームの既存キャッシュ条件は維持した。
+- **価値 / 懸念:** GPU 経路で既に評価していた Path アニメーションと、QImage／ソフトウェアフォールバックの形状が揃う。ビルド・実素材ランタイムは未確認。
+
+### 2026-09-01 — Shape Path キーフレームのネイティブジオメトリキャッシュを同期
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm` の `Impl::shapeGeometry()` と通常 GPU 描画。
+- **確認できた事実:** Operator／互換フォールバック以外の通常 GPU 経路は `shapeGeometry()` の静的カスタム頂点を参照していたため、Path キーフレームを評価しても古いジオメトリを使う可能性があった。
+- **対応:** 評価済み頂点を任意に渡せる形へ拡張し、Path アニメーション中はキャッシュ判定を迂回して現在フレームのジオメトリと塗りルールを構築するようにした。
+- **価値 / 懸念:** Shape の通常 GPU、Operator GPU、QImage フォールバックで Path アニメーションの評価方針を揃えた。ビルド・実素材ランタイムは未確認。
+
+### 2026-09-01 — Shape Path キーフレームの bounds 評価を同期
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm` の `localBounds()`。
+- **確認できた事実:** 描画側は評価済み Path 頂点を使っていたが、`localBounds()` は Operator／カスタムパスで静的頂点を参照し、Path キーフレーム中も bounds cache を返す可能性があった。
+- **対応:** 評価済み頂点を Operator／カスタムパス／ポイント bounds に使用し、Path アニメーション中は bounds cache を再利用しないようにした。
+- **価値 / 懸念:** 再生中の bounds、gizmo、surface 判定が現在フレームの形状と揃う。ビルド・実素材ランタイムは未確認。
+
+### 2026-09-01 — Source Reframe の直接合成経路を同期
+
+- **関連:** `Artifact/include/Layer/ArtifactImageLayer.ixx`、`Artifact/src/Layer/ArtifactImageLayer.cppm`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`。
+- **確認できた事実:** Source Reframe のキーフレーム評価は `ArtifactImageLayer::draw()` 内に閉じていたが、CompositionView は条件により ImageLayer を直接呼ばず、現在の buffer を GPU sprite として描画していた。
+- **対応:** 現在フレームの Source Reframe 値を評価する公開メソッドを追加し、CompositionView の ImageLayer 分岐の入口で呼び出すようにした。これにより Enabled の切替を含む crop / pan / zoom / rotation / anchor / preserve-aspect が直接合成経路にも反映される。
+- **対応追加:** Rasterizer Effects／Mask 経由の surface cache でも、Source Reframe のキーフレーム中は現在フレームを cache key に含めるようにした。
+- **対応追加:** CompositionView の入口で time remap を含む Image Sequence の現在フレーム更新も行い、cache key 作成前と直接描画前の buffer を同じ解決フレームへ揃えた。
+- **整理:** ImageLayer::draw() 側も共有メソッドを呼ぶ構成に統一し、Source Reframe の評価ロジックを単一化した。ビルド・GPU／QImage 実素材確認は未実施。
+- **対応追加:** Source Reframe の全プロパティを animatable として Property Group に登録し、Inspector／Timeline の標準キーフレーム導線から扱えるようにした。
+- **次に確認:** 評価処理を単一メソッドへ整理し、直接 GPU sprite・QImage fallback・sequence の各経路でフレーム切替が一致することを確認する。
+
+### 2026-09-01 — 3D固定プリミティブのGPUメッシュキャッシュキーを形状依存化
+
+- **関連:** `Artifact/src/Layer/Artifact3DModelLayer.cppm` の `Artifact3DLayer::draw()`。
+- **確認できた事実:** 固定3D形状の mesh cache key が source path と layer ID だけで構成され、幅・高さ・奥行き・分割数・リング数を変更しても同じキーを再利用する可能性があった。
+- **対応:** FixedGeometry の種類と geometry パラメータを cache key に追加した。Imported model のキー形式と renderer API は変更していない。
+- **価値 / 懸念:** プリミティブ編集後に古い GPU メッシュが残る経路を縮小できる。実 GPU の再利用・再アップロードはビルド／ランタイム未確認。
+- **次に確認:** 固定形状ごとの寸法・分割数変更でメッシュが更新されること、同一フレーム内の cache hit が維持されることを確認する。
+
+### 2026-09-01 — Merge Paths の Mode 編集経路を接続
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm`、Shape Operators。
+- **確認できた事実:** Core の `MergePaths` は Add / Subtract / Intersect / Difference / Merge の処理、Shape Operator の追加メニュー、JSON 保存復元まで存在していた。一方、Shape 層の Property Group と `setLayerPropertyValue()` に Mode の分岐がなく、Inspector から変更できなかった。
+- **実装:** Mode プロパティを追加し、範囲を 0〜4 に制限。復元時の正規化、通常編集、Mode キーフレームのフレーム評価とキャッシュ回避を接続した。Merge Paths を含む場合は既存の `ShapePath::subpaths()` で入力輪郭を分解してから Operator 基盤へ渡すようにした。
+- **懸念 / 未検証:** Shape 層が複数の独立 PathShape を持つ編集モデルではないため、現状で扱える複数入力は同一 ShapePath 内のサブパスに限られる。ビルド・実素材ランタイムは未確認。
+- **次に確認:** 複数サブパスで Mode の各演算を実素材確認し、独立した複数 PathShape を編集できる Shape コンテンツモデルの要否を判断する。
 
 ## 2026-08-31 — ArtifactPr の GPU Preview は ArtifactRenderer を再利用できない
 
@@ -1073,7 +1230,7 @@
 
 ## 2026-08-28 — 画像エフェクト歪み系の再活性化（CC プリセット系は別タスク）
 
-- **関連:** [`docs/planned/MILESTONE_DISTORT_EFFECTS_COMPLETION.md`](docs/planned/MILESTONE_DISTORT_EFFECTS_COMPLETION.md)（ハブ、2026-08-28 再活性化）、[`docs/planned/MILESTONE_MESH_WARP_LIQUIFY_2026-06-02.md`](docs/planned/MILESTONE_MESH_WARP_LIQUIFY_2026-06-02.md)（集約先参照のみ追記）
+- **関連:** [`MILESTONE_DISTORT_EFFECTS_COMPLETION.md`](../planned/MILESTONE_DISTORT_EFFECTS_COMPLETION.md)（ハブ、2026-08-28 再活性化）、[`MILESTONE_MESH_WARP_LIQUIFY_2026-06-02.md`](../planned/MILESTONE_MESH_WARP_LIQUIFY_2026-06-02.md)（集約先参照のみ追記）
 - **事実:** 2026-08-15 監査で歪み系は Phase 1〜3 とも未着手だった。`MILESTONE_DISTORT_EFFECTS_COMPLETION` をハブとして `**最終更新: 2026-08-28**` / `**ステータス: In Progress**` に再活性化。着手 Phase は **Phase 2 (TwistTransform / BendTransform)** から。`Artifact/include/Effects/Transform/{TwistTransform,BendTransform}.ixx` は header-only stub 82 行で `applyCPU()` 未実装。
 - **CC プリセット系判断:** CC Glass / CC Twirl / CC Ball Action / CC Power Pin / CC Grid Wipe / CC Kaleida 等は「汎用性が低いので単純導入はやめたほうがよい」（2026-08-28 ユーザー判断）。本書スコープ外、必要時に別マイルストーン化。
 - **価値:** Phase 2 は P0・工数最小。`applyCPU()` 追記 + キーフレーム `AnimatableFloat` 評価の薄い実装で成立。GPU パスは Phase 1 の `runDistortCompute()` 共通ヘルパー作成後に着手。
@@ -7160,3 +7317,115 @@ Render queue rerun reset は、Completed／Failed／Canceled 以外の job に�
 - 気づき: 既存JSON形式を公開snapshot APIへ切り出し、専用Undo commandでチェーン全体を検証付き復元するようにした。未知の型、要素数超過、復元後の不一致を拒否し、push失敗時はbeforeへ戻す。
 - 価値/懸念: Effectorの種類・順序・設定値を含むチェーン全体を一回のUndoで扱える。Effector内部の時刻依存評価、外部同時変更、runtimeは未確認。
 - 次に確認すべきこと: 各Effector型の追加・削除、設定変更後のUndo／Redo、空チェーン、無効型、履歴保存・再読込をruntimeで確認する（ビルド・テスト未確認）。
+
+### 2026-09-01 — Main already contains the latest development branch
+
+- 関連: `origin/main` / `origin/codex/2026-08-31-dev` / `Artifact` / `ArtifactCore` / `ArtifactWidgets`
+- 確認できた事実: 親リポジトリでは最新候補の開発ブランチに対してmainが38コミットahead・0コミットbehindで、候補はmainの祖先だった。Artifact／ArtifactCoreもmain側が候補gitlinkより先で、ArtifactWidgetsは同一だった。現在の親作業ツリーにはDiligentEngine変更と未追跡ファイルが残っている。
+- 価値/懸念: mainは履歴上すでに候補を含んでおり、候補ブランチをmainへマージする必要はない。作業ツリーを整理せずに別の統合操作を行うと、DiligentEngineの意図しないgitlink変更や未追跡成果物の扱いを誤る可能性がある。
+- 次に確認すべきこと: mainを最新基準として維持し、未追跡ファイルの所有者・保存要否とDiligentEngine変更を明示的に扱う。必要な開発成果が別ブランチにある場合だけ、mainを起点に個別差分を確認して取り込む。
+
+### 2026-09-01 — Current priority is acceptance hardening before feature expansion
+
+- 関連: `docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` / `docs/analysis/OPERATION_STATE_MAP_2026-08-30.md` / `Artifact/docs/MILESTONE_PRIMITIVE3D_RENDER_PATH_2026-03-21.md`
+- 確認できた事実: 静止画のdecode・色変換・GPU cache・保存復元、操作マトリクス、Project／ActiveContext／Playbackの状態遷移、3D primitive backend parityはいずれも実装または静的確認が進んでいる一方、実素材runtime受入れやbackend parityの検証が未完了である。親mainには2026-09-01付のUI presentation分離コミットが連続している。
+- 価値/懸念: いま新機能を増やすと、既存の制作経路・状態同期・描画backendの未検証領域が広がる。静止画／連番画像／3Dの代表ケースを受け入れてから次の機能へ進む方が、mainを安定した最新基準として保ちやすい。
+- 次に確認すべきこと: ビルド・runtime実行の許可後、静止画／連番画像の保存再読込とPreview／Render Queue比較、UI分離後のselection／composition／focus遷移、3D primitiveのsoftware／Diligent parityをこの順で確認する。
+
+### 2026-09-01 — Selected keyframe work is already implemented
+
+- 関連: `docs/done/MILESTONE_KEYFRAME_COPY_PASTE_2026-06-16.md` / `Artifact/src/Widgets/ArtifactTimelineWidget.cppm` / `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`
+- 確認できた事実: TimelineのキーフレームCopy／PasteはClipboardManager、Timeline、Track Painterのcontext menu、Animation／Edit menu、ShortcutBindings、snapshot Undoまで既に接続されている。
+- 価値/懸念: 同じ機能を再実装すると、既存のselection・frame offset・Undo経路を二重化する。#8は実装ではなく、重複キー、複数layer mapping、異なるframe rate、Undo／Redoのruntime受入を先に行うべき対象である。
+- 次に確認すべきこと: 実行許可後に代表的な単一／複数property、複数layer、既存キーとの衝突、別frame rate、Undo／Redoを確認し、失敗が確認された場合だけ最小修正する。
+
+### 2026-09-01 — Image and sequence restore hardening stayed within existing boundaries
+
+- 関連: `Artifact/src/Layer/ArtifactImageLayer.cppm` / `Artifact/src/Project/ArtifactProjectImporter.cppm` / `ArtifactCore/src/Media/ImageSequenceSource.cppm`
+- 確認できた事実: Image restore now prefers an existing shared Asset ID registry path when it resolves to a file, while localized identity and importer relative-path handling remain separate. Sequence metadata previously reached `frames.front()` without an empty-frame guard.
+- 気づき: Asset identity recovery and sequence safety can be strengthened without changing decode, GPU, or Qt composition paths. The empty sequence guard and source-identity fallback were kept local to their existing implementation modules.
+- 価値/懸念: project relocation can reuse stable shared identities more reliably, and an empty/unopened sequence no longer risks invalid access. Runtime behavior, saved-project migration, and cache invalidation remain unverified.
+- 次に確認すべきこと: moved project with shared image ID, missing image, explicit sequence gap, empty sequence, and save/reload should be exercised after build/runtime verification is authorized.
+### 2026-09-01 — Timeline貼り付け経路の属性復元差
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`, `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`
+- **事実:** Timelineの2つの貼り付け経路で、片方だけ `roving`、`anchor`、`colorLabel` を復元していた。またTrack Painter経路では変更後の `LayerDirtyFlag::Property` が不足していた。
+- **対応/価値:** 通常のWidget経路にも同じ属性復元を追加し、両経路で変更をProperty dirtyとして記録することで、同一クリップボードデータの属性欠落と保存漏れを抑えた。
+- **次に確認:** 実行時に既存キーとの衝突、Undo/Redo後の選択状態、Bezier属性の保持を確認する。
+
+### 2026-09-01 — 連番再リンクはProjectItemだけでなくImage layer配列も更新する
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm` の `relinkFootage`
+- **事実:** 再リンク処理はFootageItemの `sequencePaths` と `sourcePath` を更新していたが、既存のImage layerが保持する全フレームパス配列は代表フレームの置換だけでは更新されなかった。
+- **対応/価値:** FootageItemの旧フレーム列とImage layerの各フレームを正規化パスで対応付け、対応する新しい全フレーム列を `setImageSequence` へ渡すようにした。Asset Browserで再リンクした連番がComposition側だけ旧パスへ戻る不整合を抑える。
+- **次に確認:** 連番の再リンク、保存／再読込、Undo／Redo、異解像度・欠番候補で、FootageItemとImage layerの全配列が一致するか確認する。
+
+### 2026-09-01 — 静止画三経路比較の結果をJSONへ保存
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactSoftwareRenderTestWidget.cppm`
+- **事実:** Preview／Software Preview／Render Queueの比較は既存UI上で実行できたが、結果は画面内の文字列だけで、受入記録として再利用できなかった。
+- **対応/価値:** 比較時の閾値、入力キャプチャ、各ペアのPASS／FAIL、差分画素数、平均差分、最大差分をJSONへ保存できるようにした。既存の描画・合成経路は変更していない。
+- **次に確認:** 実素材で三経路を比較し、保存したJSONが受入マトリクスの判定記録として十分か確認する。
+
+### 2026-09-01 — 連番の同一フレームキャッシュもsource差し替えを検査する
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm` の `refreshSequenceFrame`
+- **事実:** layer側の `sequenceCachedIndex_` が同じ場合に `tryFrameAt()` を呼ばず、同一パスのファイル差し替え後も古いフレームを保持する可能性があった。
+- **対応/価値:** source cacheの検査を先に行い、`QImage::cacheKey()` が変わった場合だけlayer bufferを再構築するようにした。通常の未変更フレームでは従来の早期returnを維持する。
+- **次に確認:** 同一サイズ・異なる内容の上書き、mtimeが近い差し替え、decode失敗後の復旧でstale pixelが残らないか確認する。
+
+### 2026-09-01 — Source解決の成功件数もProject Healthへ提示する
+
+- **関連:** `Artifact/src/Project/ArtifactProjectImporter.cppm`
+- **事実:** Importerは相対候補の採用・欠損保持を内部統計とログへ記録していたが、Project Healthには欠損時のwarningしか反映していなかった。
+- **対応/価値:** 既存候補の採用数、空パスからの採用数、空候補保持数をInfo issueとして表示し、プロジェクト移動後の復旧結果をUI上で確認可能にした。
+- **次に確認:** Project Health／Problem ViewでInfoとWarningが同じSourceResolutionカテゴリとして表示され、件数が実際の素材数と一致するか確認する。
+
+### 2026-09-01 — 連番再リンク候補の選択前にフレーム充足率を表示する
+
+- **関連:** `Artifact/include/Service/ArtifactProjectService.ixx`、`Artifact/src/Service/ArtifactProjectService.cppm`、`Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`
+- **事実:** 候補検索は連番の完全一致をスコアへ反映していたが、候補選択UIでは理由文を読まないと、期待フレームが何枚見つかったか判断できなかった。
+- **対応/価値:** `RelinkCandidate` に期待枚数と検出枚数を保持し、単一候補・一括候補の選択画面へ `found/expected frames` を表示する。候補を採用する前に欠番や不完全な連番を確認できる。
+- **次に確認:** 実素材の完全連番、欠番、パディング違いで表示件数と再リンク結果が一致するか確認する。
+
+### 2026-09-01 — ICCプロファイルの入出力境界を実データ保持へ修正
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm`、`ArtifactCore/src/IO/Image/ImageExporter.cppm`
+- **事実:** 入力側はOIIOの埋め込みICCバイト列を保持できていたが、出力側の `applyICCProfile()` はプロファイルを検証するだけで、ImageSpecへ設定していなかった。入力に色空間名がない場合の実変換も、現行依存関係では未提供だった。
+- **対応/価値:** OIIOの `uint8[]` 属性としてICCバイト列をImageSpecへ設定し、対応コーデックでのプロファイルラウンドトリップを可能にした。また、名前付き色空間へ解決できない埋め込みICCは、値を無変換で扱うことをFallbackTrackerへ明示する。
+- **未検証/次に確認:** 実ICC素材の読み込み・書き出し後のプロファイル一致と、LittleCMS等を追加せずにICC本体をworking-space変換できるかは未確認。後者が必要なら依存追加を含む設計判断が必要。
+
+### 2026-09-01 — CMYK＋アルファのKチャンネルを誤って捨てない
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm`
+- **事実:** CMYK判定がアルファ付き素材を対象外としていたため、CMYK＋Aは通常の4ch RGBAとして解釈され、Kがアルファ位置へ入る可能性があった。
+- **対応/価値:** アルファ付きCMYKではC/M/Y/K/Aの5ch中間バッファを作り、KでRGBを計算した後に元のAをRGBAのAへ保持する。8bit経路とfloat経路の両方を同じチャンネル順で扱う。
+- **次に確認:** CMYK＋Aの半透明、K=1、各チャンネルの境界値、および標準CMYK4chとの表示・保存結果を実素材で確認する。
+
+### 2026-09-01 — Source Reframeのキーフレームを描画時に解決する
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm`
+- **事実:** Source ReframeのプロパティとキーフレームUIは存在したが、Image layerの描画前にcrop/pan/zoom等の補間値をSourceCropへ反映する処理がなく、キーフレームが表示結果へ接続されていなかった。
+- **対応/価値:** 描画時のタイムライン時刻でSource Reframe各プロパティを補間し、プロパティモデルへ書き戻さずSourceCropの描画状態だけを更新する。これにより毎フレームのdirty化やchanged通知を避けつつ、GPUのスプライト経路と既存フォールバック経路で同じreframe状態を利用する。
+- **次に確認:** 複数プロパティの同時補間、範囲外フレーム、Undo/Redo後の静的値復元、保存／再読込後のキーフレーム結果を実ランタイムで確認する。
+
+### 2026-09-01 — 連番GPUキャッシュへフレーム内容キーを含める
+
+- **関連:** `Artifact/include/Layer/ArtifactImageLayer.ixx`、`Artifact/src/Layer/ArtifactImageLayer.cppm`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`
+- **事実:** 連番GPUテクスチャのキーは解決フレーム番号と色解釈だけで、同じフレーム番号のファイルを差し替えた場合に古いテクスチャを再利用する余地があった。サーフェスキャッシュ側も連番フレーム番号をキーへ含めていなかった。
+- **対応/価値:** 現在のQImageキャッシュ内容キーを公開し、連番のGPUキーとレイヤーサーフェスキーへフレーム番号・内容キーを追加した。フレーム番号が同じでも再decodeされた内容は別キャッシュとして扱える。
+- **次に確認:** 通常のフレーム進行、同一フレームの上書き、AssetMonitorのversion更新、GPUキャッシュbudget evictionで古いテクスチャが表示されないか確認する。
+
+### 2026-09-01 — シェイプ頂点キーフレームをGPU描画とサーフェスキャッシュへ接続する
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`
+- **事実:** シェイプの `evaluatePathAt()` は存在したが、GPU描画のoperator path生成が静的 `customPathVertices_` を参照しており、頂点キーフレームが描画に反映されなかった。また、サーフェスキャッシュキーにシェイプの時間依存性がなかった。
+- **対応/価値:** 描画時に評価済み頂点列を使い、頂点キーフレーム中はnative geometry cacheをバイパスする。さらにシェイプのプロパティキーフレームを検出した場合、サーフェスキャッシュへ現在フレームを含める。
+- **次に確認:** 頂点位置・タンジェント補間、トポロジー変更時のスナップ、GPU／Software／SVGの一致、フレーム跨ぎのキャッシュ再利用を実ランタイムで確認する。
+
+### 2026-09-01 — Solid Gradientの8パラメータをキーフレーム評価する
+
+- **関連:** `Artifact/src/Layer/ArtifactSolid2DLayer.cppm`、`Artifact/src/Layer/ArtifactSolidImageLayer.cppm`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`
+- **事実:** グラデーションの色、角度、反転、中心、拡大率、オフセットは保存・編集プロパティとして存在したが、キーフレーム可能フラグがなく、描画は静的メンバー値を参照していた。キャッシュキーも時間変化を表現していなかった。
+- **対応/価値:** Solid 2D／Solid Imageの8項目をanimatableにし、描画とSolid ImageのQImage生成で現在時刻の補間値を使用する。グラデーションキーフレームがある場合はサーフェスキャッシュをフレーム単位に分離する。
+- **次に確認:** 色の補間、角度・中心・スケールの補間、反転の離散値、GPU／QImageフォールバック一致、キャッシュヒット率を実ランタイムで確認する。

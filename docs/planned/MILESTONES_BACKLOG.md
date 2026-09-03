@@ -515,6 +515,13 @@ active milestone の重複名としては扱わない。
 - 詳細は `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_2026-04-21.md`
 - **部分実装（2026-08-15）**: `ArtifactRenderScheduler` の worker task に `startup/render-scheduler/*` の `TraceDomain::Render` scope と thread id を追加。render lane の burst 相関が Trace Timeline で可能になった。Decode／Asset／Playback／Project／AI lane の統一タグ、専用 startup hotspot 表示、pool 統合と runtime 計測は未完了。
 
+### M-DIAG-7 External Semantic Debugger / ArtifactDebugger.exe
+- ArtifactStudio本体の内部状態を覗くだけでなく、Layer／Property／Animation／RenderGraphの「なぜ」「誰が」「どのframeで」を外部プロセスの専用Debuggerから説明する
+- `ArtifactDebugRuntime` を本体側に置き、既存MCP／Trace／Shared Memory IPCの語彙・基盤を再利用する
+- Phase 1はread-only Attach、Phase 2はproperty provenance／原因chain、Phase 3はsemantic breakpoint／frame snapshot、Phase 4以降で限定的な巻き戻しとRenderGraph inspectorを扱う
+- 詳細は `docs/planned/MILESTONE_EXTERNAL_SEMANTIC_DEBUGGER_2026-09-02.md`
+- **Not Started（2026-09-02）**: 外部Debuggerの専用target、wire contract、semantic provenanceのruntime接続、実プロセスAttach、snapshot／RenderGraph表示は未着手。既存 `MILESTONE_MCP_AI_DEBUG_SYSTEM_2026-08-02.md` は基盤・tool vocabularyの先行成果として扱う。
+
 ## AI / Tooling
 
 ### M-AI-0 AI Tooling Expansion

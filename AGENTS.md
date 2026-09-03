@@ -105,6 +105,10 @@ QtCSS / `setStyleSheet()` は絶対に新規追加しないこと。見た目の
 - リンクエラーは「宣言だけ増えて実装がない」「実装はあるがビルド対象外」「wobject 実体不足」の順で疑う。
 - `QApplication`、`QRegularExpression`、`QPainterPath`、`QMetaObject` 系は特に include 漏れを疑う。
 
+### 独自コンテナ優先（2026-09-02）
+
+ArtifactCore / Artifact のコレクション実装では、原則として `NamedVector`、`ArtifactArray`、`HashMap`、`ArtifactSet`、`ArtifactQueue` など既存の独自コンテナを優先して使用する。`std::vector` / `std::unordered_map` / `std::set` などへの置き換えは、独自コンテナに必要な API が存在せず、追加しても責務・ABI・モジュール境界を不必要に広げる場合に限る。ローカル一時値でも、既存コードの監視・診断・命名・所有権の意味を失わせないか確認し、標準コンテナへ変更する場合は理由を最終報告に記載する。
+
 module purview（`module X;` の後）に `#include` を絶対に追加しないこと。`#include` はグローバルモジュールフラグメント（`module;` と `module X;` の間）にのみ置く。誤って purview 側に置くと、MSVC が TBB / CRT ヘッダのパースに失敗し、`profiling.h` の構文エラーや `iosfwd` の再定義エラーを引き起こす。やむを得ず purview に include が必要な場合は `import <header>;` 形式を用いる。
 
 C++20 modules の再発防止ルール:
