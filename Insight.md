@@ -258,3 +258,10 @@
 - **対応:** stable UUIDとAudio Object状態を追加し、JSON保存/復元、Property経路、最小ステレオspreadを既存レンダラーへ接続した。
 - **未検証:** ビルド・実機再生・旧プロジェクトfixtureによる復元は未実行（ユーザー許可待ち）。
 - **次の確認:** M-AU-9.2としてcallback境界でのallocation/lock不在、mono/stereo入力、seek/restart時の状態リセットを確認する。
+
+## 2026-09-04 — mono空間音源のstereo preview拡張
+
+- **関連:** `ArtifactCore/src/Audio/Spatial/SpatialRenderer.cppm`
+- **事実:** 入力がmonoの場合、従来の出力チャンネル数判定が1chを維持し、左右のazimuth gainを利用できなかった。
+- **対応:** Phase 1のpreview契約として、出力バッファが1ch以下でも最低2chを確保し、stereo layoutを設定するよう修正した。
+- **未検証:** 実機再生とサンプルレート別の音量・位相確認は未実行。
