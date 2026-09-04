@@ -1,6 +1,6 @@
 # Milestones Backlog
 
-**最終更新:** 2026-08-20
+**最終更新:** 2026-09-04
 
 ### Still Image / Production Readiness
 - **M-IMG-1** Still Image Layer Production Readiness
@@ -172,6 +172,11 @@
 以下は実装確認済みの完了マイルストーン。詳細は各マイルストーン文書を参照。
 
 ### Diagnostics / Profiling
+- **M-DIAG-8** AI Debug Location / Execution Context（Not Started）
+  - `std::source_location` の呼び出し箇所情報と thread/frame/task/object/parent event の実行時情報を分離し、AI Debugger が因果関係を構造化して追跡できる共通 contract を作る
+  - `callsiteId`、TLS `DebugContext`、event identity、read-only MCP/Trace integration を扱い、`ReactiveEvents` や新規 signal/slot には触れない
+  - 詳細: `docs/planned/MILESTONE_AI_DEBUG_LOCATION_CONTEXT_2026-09-04.md`
+
 - **M-DIAG-1** Audio Engine Profiler ✅ (2026-04-15)
   - `AudioEngineProfiler` lock-free singleton, callback timing, fill-loop timing, buffer level
   - `ProfilerPanelWidget` に "Audio Engine" セクション + Reset ボタン追加 (Ctrl+Shift+D)

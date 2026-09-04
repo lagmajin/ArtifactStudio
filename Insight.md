@@ -2,6 +2,13 @@
 
 # Insight Register
 
+## 2026-09-04 — 物体検出バックエンドの共通契約
+
+- **関連:** `ArtifactCore/include/AI/ObjectDetector.ixx`。
+- **確認できた事実:** 既存の物体検出は具体クラスしかなく、ONNX等の実検出器を同じ呼び出し側へ接続する抽象契約がなかった。`IObjectDetector` に ready、detect、error 状態を定義し、既存検出器を適合させた。
+- **価値／懸念:** 将来の実モデルを App API の変更なしに差し替えられる。現行の輝度ベース検出はフォールバックであり、物体認識の品質を保証しない。
+- **次に確認すべきこと:** 実ONNX検出モデルのラベル・矩形・NMS出力をこの契約へ正規化する。
+
 ## 2026-09-04 — 連番マスクの変化診断
 
 - **関連:** `ArtifactCore/include/AI/ImageSegmenter.ixx`。
