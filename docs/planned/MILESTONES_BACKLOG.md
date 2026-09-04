@@ -1279,6 +1279,12 @@ active milestone の重複名としては扱わない。
 
 ## Audio
 
+### M-AU-9 Spatial Audio Object Rendering (2026-09-04)
+- Dolby Atmos / Auro-3D と同種の空間音響制作体験を、公式 codec/SDK 互換とは分離した独自 Audio Object / Spatial Mixer として段階実装する
+- Audio Object 契約、stereo spatial mixer、Bed/Object routing UI、speaker layout、独自 JSON + WAV 交換を対象にする
+- Dolby Atmos ADM/DAMF、Auro-Codec、Dolby/AURO SDK の公式互換はライセンス確認後の別判断とする
+- 詳細: `docs/planned/MILESTONE_SPATIAL_AUDIO_OBJECT_RENDERING_2026-09-04.md`
+
 ### M-AU-1 Composition Audio Mixer
 - mute / solo / volume / layer 同期
 - **実装更新（Update 2026-08-15）**: `ArtifactCompositionAudioMixerWidget` と `ArtifactAudioMixer` の channel/master、volume／pan／mute／solo、level／peak、routing 表示・同期を確認。`AudioMixerWidget` のAdvanced Routing surfaceでbus rename／remove、output route、sidechain send／clear、cycle拒否まで接続済み。sidechain menuにも既存sendのamountとchecked状態を再表示するよう更新した。owner-draw メーターに 0 dBFS 超過時の赤い clip インジケーターも追加済み。composition再openの完全受入、routing編集のUndo、callback thread安全性、実機runtime parity、複数layerのsolo/mute受入れは未完了または未検証。
