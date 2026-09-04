@@ -251,3 +251,10 @@
 - ビルド・テスト・CMakeはユーザーの明示許可後に実行する。
 - runtime検証済みになった項目は、このファイルからアーカイブへ移す。
 - 実装済みの細かな履歴や重複した検証候補は、新規Insightとして追加せずアーカイブを更新する。
+## 2026-09-04 — Spatial Audio Object契約を既存3D Audio Layerへ接続
+
+- **関連:** `Artifact/src/Layer/ArtifactSpatialAudioLayer.cppm`、`ArtifactCore/include/Audio/Spatial/SpatialParams.ixx`、`ArtifactCore/src/Audio/Spatial/SpatialRenderer.cppm`
+- **事実:** 既存のSpatialRendererは距離減衰・azimuth panningを実装済みだったが、Audio Objectのstable ID、spread、gain、mute、enabledの保存契約が不足していた。
+- **対応:** stable UUIDとAudio Object状態を追加し、JSON保存/復元、Property経路、最小ステレオspreadを既存レンダラーへ接続した。
+- **未検証:** ビルド・実機再生・旧プロジェクトfixtureによる復元は未実行（ユーザー許可待ち）。
+- **次の確認:** M-AU-9.2としてcallback境界でのallocation/lock不在、mono/stereo入力、seek/restart時の状態リセットを確認する。
