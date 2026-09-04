@@ -1,7 +1,7 @@
 # Spatial Audio Object Rendering Milestone
 
 **最終更新:** 2026-09-04
-**ステータス:** M-AU-9.1 implemented; M-AU-9.2 partial
+**ステータス:** M-AU-9.1 implemented; M-AU-9.2 partial; M-AU-9.4 layout contract partial
 **マイルストーン ID:** M-AU-9
 
 ## 目的
@@ -13,6 +13,7 @@ Dolby Atmos / Auro-3D と同種の「音源を空間内のオブジェクトと�
 - `ArtifactPlaybackEngine` は PCM channel buffer、master volume/mute、audio clock、stereo RMS/peak を既に扱う。
 - `M-AU-1` の mixer/routing と `M-AU-4` の Audio Layer を再実装せず、既存の source、mute、volume、pan、保存経路を拡張する。
 - 2026-09-04時点で Audio Object の stable ID、spread、gain、mute、enabled と JSON 保存/復元を実装済み。既存の `SpatialRenderer` に最小ステレオ spread 処理を接続し、mono素材も stereo preview へ拡張する。
+- `Surround714` (12ch) を共通 `AudioChannelLayout`、`AudioBus`、`AudioDownMixer`、リングバッファ、FFmpeg channel mapping、spectrum LFE 判定へ追加した。スピーカー係数とUI／Render Queue選択は未接続。
 - `ReactiveEvents`、新規 signal/slot、QImage/QPainter 合成、Diligent の低レベル変更は対象外。
 - 公式 Atmos ADM BWF / DAMF、Auro-Codec、Dolby/AURO SDK の encode/decode は別途ライセンス判断が必要な将来課題とする。
 
