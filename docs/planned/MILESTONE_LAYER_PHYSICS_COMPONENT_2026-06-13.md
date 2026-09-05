@@ -1,10 +1,26 @@
 # 実装案: M-LYR-PHYS Layer Physics Component
 
-**最終更新:** 2026-08-31
+**最終更新:** 2026-09-05
 
 **ステータス:** 部分完了（Collision 設定の Inspector/JSON、RigidBody/SoftBody bounds 同期、Circle collider 再構築、Polygon collider の Core〜UI 導線、component.joint レイヤー間ジョイント（Distance/Pin）を実装。ジョイントのアンカー編集・revolute角制限、Fracture/Fluid の共通 component 化、複数レイヤー接触の runtime parity、ビルド／ランタイム検証は未完了）
 
 ### 現行コード監査 (2026-08-15)
+
+### 2026-09-05 Spring / Rope 接続点
+
+- Components → Jointの `Type=3` はSpring、`Type=4` はRope。Target Layerに一意な名前またはIDを指定する。名前はsetterでIDへ解決して保存し、改名に追従する。旧データの名前参照は引き続き読み取るが重複名は接続しない。
+- Owner / Target Anchor X/Yは各レイヤーのlocalBounds中心からのlocal px offset。両者をcomposition座標から各bodyのlocal座標へ変換する。length=0は両接続点の作成時距離を採用する。
+- Springは既存Box2D 3.1.1のenableSpringを有効化してhertz/dampingRatioを使う。Ropeはhertz=0と長さ上限で伸び切った時だけ拘束する。既存Distance/Pin/Hingeの番号は維持する。
+- 2DレイヤーのCollision / Joint有効bodyをcomposition共有worldへ統一。相手も有効なら実body同士を接続して反作用を返し、相手が無効ならowner所有のstatic proxyを使う。片側のJoint設定だけで双方向に作用する。3Dレイヤーへの接続は対象外。接続先ドロップダウン／pick-whip、VP接続点ハンドルは未実装。通常Properties面には露出せずComponents面を使う。
+- CoreのNamedVectorでowner別joint IDを管理。接続解除・target変更・body再生成時は関連jointだけを破棄し、他の接続は維持する。削除済みlayerのbody/proxyは評価時に除去する。
+- 剛体の初期位置はinitial値を含むsnapshotから取得し、描画には初期transformと剛体の差分移動・回転を合成する。body座標をレイヤー位置へ直接代入せず、radian/degrees混同を避ける。シミュレーション中のscale/anchorは初期値を維持し、明示的なbounds同期時に再構築する。
+- setFramePosition / goToFrameを同じclockへ統合。1〜8フレームの前進は固定刻みで当該compositionだけを進め、各stepで固定targetを更新する。逆行／大きなseek／明示resetは移動先の編集値から再生成する。完全なrigid snapshot復元・過去からの決定論的replayではない。非一様scale親のshear collider精度、階層layoutやmodifierとの併用は実機検証が残る。
+- Collisionの `Body Type` はDynamic / Static / Kinematic。Staticは衝突する固定物、Kinematicは編集Transformに追従し他のdynamic bodyへ力を伝える。Jointの `Type=5` はSlider（Prismatic）で、Axis、移動範囲、motor速度／最大力を持つ。
+- `Break Force` が0より大きいjointは、fixed step後のBox2D constraint forceが閾値以上なら切断する。切断状態はランタイム専用で保存しない。再生開始・巻き戻し・大きなseek・joint設定変更で再接続できる。破断イベントの見た目／音／particle発生は未実装。
+- 再生中のSelectionツールでは、選択済みDynamicレイヤーを左ドラッグするとランタイム専用のBox2D Mouse Jointで操作できる。保存済みjointとは別所有のため、既存のSpring/Rope/Sliderを置換せず、リリース時に破棄する。Static/Kinematic、ギズモ編集、パン／オービットは対象外。
+- Box2Dのtransient contact bufferをfixed step直後にCoreでコピーし、`LayerRigidBodyContactState` として各レイヤーへ反映する。開始／終了／hit件数はstep単位、active接触数は継続状態、最大接近速度・直近の相手／hit位置／法線を参照できる。床などレイヤー外の静的shapeは相手LayerIDがnilになる。保存・Undo・新規signalは使わない。
+- CPU物理のみ。GPU backend・同期の変更なし。ビルド／テスト／実機確認は未実行。振動・たるみ・接続点・Undo・保存復元の検証が残る。
+- 根拠: [Box2D Distance Joint](https://box2d.org/documentation/group__distance__joint.html)、[3.1.1 solver（MIT）](https://github.com/erincatto/box2d/blob/v3.1.1/src/distance_joint.c)。既存依存APIを使用し、外部コードの複製は行っていない。
 
 - `ArtifactAbstractLayer` は `component.collision.*` を Component descriptor、Property、JSON 保存／復元へ接続し、Box／Circle の bounds 同期、floor／composition bounds、collision output を持つ。
 - `PhysicsSystem` は layer ID 単位の rigid world／soft body／collider／snapshot 管理を提供し、`ArtifactAbstractLayer` の RigidBody／SoftBody enable・disable・sync 経路から利用されている。

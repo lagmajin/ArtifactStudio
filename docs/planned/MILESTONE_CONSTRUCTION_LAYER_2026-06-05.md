@@ -2,14 +2,14 @@
 
 **作成日**: 2026-06-05  
 **状態**: 部分完了（Construction Layerの基盤・保存・表示・UI導線を実装、拡張construction itemと専用animation/runtime検証は未完了）
-**最終更新:** 2026-08-15
+**最終更新:** 2026-09-05
 **優先度**: 中
 
 ---
 
 ## 目的
 
-`Construction Layer` は、**レンダーされない作業用の設計レイヤー** を正式な layer 概念として扱うための提案です。
+`Construction Layer` は、**既定ではレンダーしない作業用の設計レイヤー** です。ユーザーが最終出力への包含をONにした場合はレンダー対象にします。
 
 AE 風の制作では、レイアウト確認や構図検討のために次の情報を同じ制作文脈で持ちたい場面があります。
 
@@ -50,7 +50,7 @@ AE 風の制作では、レイアウト確認や構図検討のために次の�
 
 ## Non-Goals
 
-- final render に出すこと
+- 暗黙に final render に出すこと（明示オプションによる出力は対応）
 - review / annotation の履歴管理を置き換えること
 - viewport の一時 overlay を全部置き換えること
 - grid toggle や guide toggle の UI をそのまま廃止すること
@@ -209,8 +209,8 @@ Construction Layer は parent / child を持てます。
 
 ### Final Render
 
-- Construction Layer は最終出力に含めない
-- export / render queue / final frame ではスキップする
+- `construction.includeInFinalRender` は既定OFF。OFF時はexport / render queue / final frameでスキップする。
+- ON時は最終出力へ含める。`isGuide` も整合させ、既定のguide除外で再度落ちないようにする。
 
 ### Editor Render
 
@@ -277,12 +277,24 @@ Construction Layer は parent / child を持てます。
 1. Construction Layer を project 内に保存できる
 2. 親子付けしても破綻しない
 3. timeline で必要な項目をアニメーションできる
-4. final render に混入しない
+4. final render には明示的に包含をONにした場合だけ出力される
 5. editor では設計情報として十分読める
 
 ---
 
 ## 関連文書
+
+### 2026-09-05 実装追補
+
+- 任意Line / Circle / Annotationと保存済み水平・垂直GuideSetを既存ArtifactIRendererで描画する。円は128分割、注釈は既存の変換付き文字描画を使う。
+- Inspectorの `Construction · Line / Circle / Annotation` グループからenabled・opacity・座標・半径・文字を編集する。型ごとの末尾には無効な追加用項目を表示する（各型128項目まで）。enabledをONにすると表示され、OFFは内容を保持する。追加用グループの再表示にはInspectorの再構築／レイヤー再選択が必要な場合がある。
+- type/ordinalのプロパティパスを固定し、既存の値変更Undoに接続する。追加をUndoすると無効な項目が残るが、表示と編集値は復元する。項目の消去／並べ替えUIは未実装。
+- VPのSelectionツールで選択したConstruction Layerに固定ピクセルサイズのハンドルを表示する。Line端点／中央、Circle中心／4方向の半径ハンドル、Annotation配置点をドラッグできる。ドラッグ開始のカメラとworld inverseでローカル平面へrayを交差させる。Shiftは移動をローカルX/Yに拘束する（半径は距離操作）。
+- ドラッグのreleaseは `Edit construction item` Undoを1件追加し、Esc／右クリックは開始値へ戻す。ロック・選択ロック・非表示・選択レイヤー／時刻変更時は編集を拒否またはキャンセルする。項目更新はSource dirtyで描画キャッシュを無効化する。VPでの文字入力・新規項目の作図は未対応で、作成／文字編集はInspectorを使用する。
+- 表示中のgrid、thirds、center、safe area、baseline、custom guide、line端点／中点、circle中心／4基準点、annotation配置点をVP吸着候補へ渡す。親子transform適用後に投影し、既存のsnap ON/OFF・Alt解除・候補キャッシュを使う。
+- 極端に大きく密なgridは各方向約2048区間に制限し、表示と吸着で同じspacingを使う。
+- GPU/Diligent資源・同期・backendは変更しない。新規QImage／QtCSS／signal-slot接続なし。
+- ビルド・テスト・実機確認は未実行。Inspectorの編集・Undo・保存復元・親子transform・スナップと最終出力ON/OFFの実機検証が残る。項目固有のアニメーション、楕円、寸法線、下絵画像は今回の対象外。
 
 - `docs/WIDGET_MAP.md`
 - `ae_maturity_additional_analysis.md`

@@ -161,3 +161,57 @@ artifact_add_test(ArtifactCoreShapeExtrudeTest
     LIBS
         ArtifactCore
 )
+artifact_add_test(ArtifactCoreMeshImporterPlyTest
+    SOURCES
+        MeshImporterPlyTest.cpp
+    LIBS
+        ArtifactCore
+)
+artifact_add_test(ArtifactCoreMeshImporterLasTest
+    SOURCES
+        MeshImporterLasTest.cpp
+    LIBS
+        ArtifactCore
+)
+artifact_add_test(ArtifactCorePathTubeTrimTest
+    SOURCES
+        PathTubeTrimTest.cpp
+    LIBS
+        ArtifactCore
+)
+artifact_add_test(ArtifactCoreMeshGeometryTest
+    SOURCES
+        MeshGeometryTest.cpp
+    LIBS
+        ArtifactCore
+)
+artifact_add_test(ArtifactCoreBezierArcLengthTest
+    SOURCES
+        BezierArcLengthTest.cpp
+    LIBS
+        ArtifactCore
+)
+artifact_add_test(ArtifactCoreKeyframeSplineTest
+    SOURCES
+        KeyframeSplineTest.cpp
+    LIBS
+        ArtifactCore
+)
+artifact_add_test(ArtifactCoreEasingFunctionsTest
+    SOURCES
+        EasingFunctionsTest.cpp
+    LIBS
+        ArtifactCore
+)
+artifact_add_test(ArtifactCoreEasingLabCurveTest
+    SOURCES
+        EasingLabCurveTest.cpp
+    LIBS
+        ArtifactCore
+)
+artifact_add_test(ArtifactCoreMatteStackTest
+    SOURCES
+        MatteStackTest.cpp
+    LIBS
+        ArtifactCore
+)

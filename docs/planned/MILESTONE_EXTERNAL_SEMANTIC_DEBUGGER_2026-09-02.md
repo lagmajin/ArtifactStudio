@@ -1,6 +1,6 @@
 # MILESTONE: 外部 Semantic Debugger（ArtifactDebugger.exe）
 
-**最終更新:** 2026-09-02
+**最終更新:** 2026-09-05
 **ステータス:** Not Started
 **識別子:** M-DIAG-7
 
@@ -274,12 +274,14 @@ Phase 1〜2はread-onlyとする。将来のproperty patchは、既存のCommand
 | IPCの大量データ転送 | control planeとdata planeを分離し、必要なときだけshared memoryを使う |
 | デバッガが本体を不安定化 | 外部UIを分離し、endpoint切断時は本体を通常実行へ戻す |
 
-### ユーザー判断が必要な項目
+### ユーザー判断が必要な項目（2026-09-05 時点）
 
-1. `ArtifactDebugger.exe` を同一リポジトリ内の独立targetとして持つか、将来別リポジトリへ切り出せる境界を先に作るか
-2. Phase 1の接続方式を既存MCP TCP、QLocalSocket、Named Pipeのどれから始めるか
-3. snapshot復元を本milestoneに含めるか、Phase 4をread-only閲覧までで区切るか
-4. 通常buildにも低コストのdebug endpointを残すか、diagnostic build限定にするか
+| # | 項目 | 確定 | 備考 |
+|---|---|---|---|
+| 1 | `ArtifactDebugger.exe` のリポジトリ境界 | **同一リポジトリ内に独立 target として追加**（方針 A） | `tools/ArtifactDebugger/` または `apps/ArtifactDebugger/` を想定。将来別リポジトリへ切り出せる境界設計は別途検討 |
+| 2 | Phase 1 control plane の接続方式 | **未確定（保留）** | Phase 0 では transport を抽象化し、Phase 1 で MCP TCP / QLocalSocket / Named Pipe のいずれかを差し替え可能な interface だけ用意する |
+| 3 | Phase 4 snapshot 復元のスコープ | **Phase 4 で限定的な復元まで含める**（方針 B） | 安全な frame boundary でのみ復元を実行。deterministic replay は本 milestone の対象外 |
+| 4 | 通常 build の debug endpoint | **未確定（保留）** | debug build での recorder ON / 通常 build の低コスト stub について、判断を待つ |
 
 ## 10. Done Criteria
 
@@ -322,3 +324,4 @@ Phase 1〜2はread-onlyとする。将来のproperty patchは、既存のCommand
 ## 13. 更新履歴
 
 - 2026-09-02: 初版作成。既存のMCP AI debug計画を外部 `ArtifactDebugger.exe` のsemantic debugging milestoneとして再整理。
+- 2026-09-05: §9 のユーザー判断待ち項目を更新。1A（同一リポジトリ内に独立 target）/ 2 保留 / 3B（Phase 4 で限定的な復元まで含める）/ 4 保留、として整理。Phase 0 では transport を抽象化した interface のみ用意する方針を明記。
