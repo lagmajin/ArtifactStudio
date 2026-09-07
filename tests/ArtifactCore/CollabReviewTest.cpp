@@ -72,10 +72,12 @@ TEST(CollabReviewTest, EditAndRemoveEnforceOwnership)
                                     QStringLiteral("c2")));
     EXPECT_TRUE(review.editComment(commentId, QStringLiteral("final text"),
                                    QStringLiteral("c1")));
-    EXPECT_EQ(review.commentsFor(QStringLiteral("comp-1"), QString{}, true)
-                  .front()
-                  .text.toStdString(),
-              "final text");
+    const auto comments =
+        review.commentsFor(QStringLiteral("comp-1"), QString{}, true);
+    ASSERT_EQ(comments.size(), 1);
+    const auto firstComment = comments.first();
+    ASSERT_TRUE(firstComment.has_value());
+    EXPECT_EQ(firstComment->text.toStdString(), "final text");
 
     EXPECT_FALSE(review.removeComment(commentId, QStringLiteral("c2")));
     EXPECT_TRUE(review.removeComment(commentId, QStringLiteral("c1")));

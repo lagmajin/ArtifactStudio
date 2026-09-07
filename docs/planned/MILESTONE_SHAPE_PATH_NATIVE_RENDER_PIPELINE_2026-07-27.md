@@ -1,6 +1,6 @@
 > **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_SHAPE_PATH_CORE_IMPLEMENTATION_2026-04-16.md](MILESTONE_SHAPE_PATH_CORE_IMPLEMENTATION_2026-04-16.md)
 
-**最終更新:** 2026-08-08
+**最終更新:** 2026-09-05
 
 # ShapePath 自作ジオメトリ／描画経路移行マイルストーン
 
@@ -122,6 +122,9 @@ Phase 0 として、`ShapePath` のコマンド／サブパス／fill rule／fla
 - fallback理由は `gradient-fill`、`stroke-alignment`、`custom-stroke-effect`、`shape-operator` として明示的に診断ログへ記録する。
 - source変更時は native geometry cache と互換image cacheを同時にinvalid化する。
 - `MaskPath::fromShapePath()`／`toShapePath()` をApp境界に追加し、CoreからMaskへの逆依存を避けながらCubic tangentを保持する双方向変換を実装した。
+- `ArtifactShapeLayer` に順序付き `ShapeStackNode`（Path／Fill／Stroke／Operator）を追加した。空の stack は旧プロジェクトの content + layer-global operator 評価を維持し、stack を持つレイヤーだけが GPU 描画時に順序どおり評価される。stack は JSON 保存／復元、nativeShapePaths、bounds 計算、および content/operator の構造変更時の参照更新を行う。
+- この段階では stack を操作する専用リスト UI と、SVG／CPU fallback／bounds の同一評価器への統合は未完了である。
+- `WigglePaths` は旧 `amount`／`frequency` を保持したまま、Temporal Phase、Detail、Correlation、Smooth/Corner を JSON・clone・Property 経路へ追加した。ArtifactShapeLayer の GPU 評価では、複製した operator に composition time を加算して自動変化させる。
 - Layer Menuに独立した「マスクとシェイプ」面を追加し、「シェイプをマスクに変換」「マスクをシェイプに変換」をUndo対応で接続した。従来Proxy submenu内に混在していたmask preset／text mask導線も同面へ移した。
 - シェイプの互換キャッシュは一辺 16,384 px・合計 64 Mi px に正規化し、巨大な `QImage` 確保を防止する。縦横比は維持する。
 - 星形／多角形、custom polygon／Bézier、dash pattern の入力・復元上限を固定し、非有限値と座標絶対値 1,000,000 超を除外する。

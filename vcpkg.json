@@ -23,6 +23,7 @@
     "box2d",
     "fmt",
     "tbb",
+    "taskflow",
     "openimageio",
     "opencolorio",
     "glm",

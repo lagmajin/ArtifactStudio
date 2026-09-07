@@ -8,6 +8,7 @@
 #include <vector>
 
 import Geometry.ShapeExtrude;
+import Mesh;
 
 using namespace ArtifactCore;
 

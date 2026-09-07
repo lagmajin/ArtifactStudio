@@ -46,18 +46,16 @@ TEST(ColorBridgeTest, JsonRoundTripForObjectAndHexStrings)
     const FloatColor color(0.1f, 0.2f, 0.3f, 0.4f);
     const QJsonObject json = colorToJson(color);
 
-    const auto parsed = floatColorFromJson(QJsonValue(json));
-    ASSERT_TRUE(parsed.has_value());
-    EXPECT_NEAR(parsed->r(), 0.1f, kColorEpsilon);
-    EXPECT_NEAR(parsed->g(), 0.2f, kColorEpsilon);
-    EXPECT_NEAR(parsed->b(), 0.3f, kColorEpsilon);
-    EXPECT_NEAR(parsed->a(), 0.4f, kColorEpsilon);
+    const FloatColor parsed = floatColorFromJson(QJsonValue(json));
+    EXPECT_NEAR(parsed.r(), 0.1f, kColorEpsilon);
+    EXPECT_NEAR(parsed.g(), 0.2f, kColorEpsilon);
+    EXPECT_NEAR(parsed.b(), 0.3f, kColorEpsilon);
+    EXPECT_NEAR(parsed.a(), 0.4f, kColorEpsilon);
 
     const QString hex = colorToHexArgb(color);
-    const auto fromHex = floatColorFromJson(QJsonValue(hex));
-    ASSERT_TRUE(fromHex.has_value());
-    EXPECT_NEAR(fromHex->r(), 0.1f, kColorEpsilon);
-    EXPECT_NEAR(fromHex->a(), 0.4f, kColorEpsilon);
+    const FloatColor fromHex = floatColorFromJson(QJsonValue(hex));
+    EXPECT_NEAR(fromHex.r(), 0.1f, kColorEpsilon);
+    EXPECT_NEAR(fromHex.a(), 0.4f, kColorEpsilon);
 }
 
 TEST(ColorBridgeTest, JsonFallbackOnInvalidInput)
@@ -74,9 +72,8 @@ TEST(ColorBridgeTest, JsonFallbackOnInvalidInput)
     noAlpha.insert(QStringLiteral("r"), 1.0);
     noAlpha.insert(QStringLiteral("g"), 0.5);
     noAlpha.insert(QStringLiteral("b"), 0.0);
-    const auto opaque = floatColorFromJson(QJsonValue(noAlpha));
-    ASSERT_TRUE(opaque.has_value());
-    EXPECT_FLOAT_EQ(opaque->a(), 1.0f);
+    const FloatColor opaque = floatColorFromJson(QJsonValue(noAlpha));
+    EXPECT_FLOAT_EQ(opaque.a(), 1.0f);
 }
 
 TEST(TaggedColorTest, TransferConversionMatchesCoreMath)

@@ -165,7 +165,9 @@ TEST(CollaborationSessionTest, LockLedgerAndDenials)
 
     const auto locks = session.activeLocks();
     ASSERT_EQ(locks.size(), 1);
-    EXPECT_EQ(locks.front().layerId.toStdString(), "layer-9");
+    const auto firstLock = locks.first();
+    ASSERT_TRUE(firstLock.has_value());
+    EXPECT_EQ(firstLock->layerId.toStdString(), "layer-9");
 }
 
 TEST(CollaborationSessionTest, TypedPresenceRoundTripsAndPreservesUnknownKeys)
@@ -225,7 +227,9 @@ TEST(CollaborationSessionTest, StaleParticipantsDetectedByHeartbeatTimeout)
         session.staleParticipantClientIds(/*nowMs*/ kT0 + 200,
                                          /*timeoutMs*/ 150);
     ASSERT_EQ(stale.size(), 1);
-    EXPECT_EQ(stale.front().toStdString(), "stale");
+    const auto firstStale = stale.first();
+    ASSERT_TRUE(firstStale.has_value());
+    EXPECT_EQ(firstStale->toStdString(), "stale");
 
     // A new presence refresh clears staleness.
     session.processPresence(QStringLiteral("stale"), QJsonObject{}, kT0 + 195);
@@ -351,10 +355,12 @@ TEST(CollaborationSessionAdapterTest, InboundSignalsRouteIntoSessionModel)
     ws.remoteOperation(operation);
 
     ASSERT_EQ(session.operationLog().size(), 1);
-    EXPECT_EQ(session.operationLog().front().clientId.toStdString(), "c1");
-    EXPECT_EQ(session.operationLog().front().version, 4);
+    const auto firstOperation = session.operationLog().first();
+    ASSERT_TRUE(firstOperation.has_value());
+    EXPECT_EQ(firstOperation->clientId.toStdString(), "c1");
+    EXPECT_EQ(firstOperation->version, 4);
     // opSeq survived the round trip through the adapter.
-    EXPECT_EQ(session.operationLog().front().sequence, 3);
+    EXPECT_EQ(firstOperation->sequence, 3);
     EXPECT_EQ(session.latestVersion(), 4);
 
     ws.userJoined(QStringLiteral("c2"), QStringLiteral("u2"),

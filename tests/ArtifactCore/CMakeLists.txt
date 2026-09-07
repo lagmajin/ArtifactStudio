@@ -39,35 +39,35 @@ artifact_add_test(ArtifactCoreCreativeEffectTest
     SOURCES
         ColorVibranceEffectTest.cpp
     LIBS
-        ArtifactCore
+        ArtifactCoreVideo
 )
 
 artifact_add_test(ArtifactCoreAudioMixerRoutingTest
     SOURCES
         AudioMixerRoutingTest.cpp
     LIBS
-        ArtifactCore
+        ArtifactCoreAudio
 )
 
 artifact_add_test(ArtifactCoreAudioModulationRouterTest
     SOURCES
         AudioModulationRouterTest.cpp
     LIBS
-        ArtifactCore
+        ArtifactCoreAudio
 )
 
 artifact_add_test(ArtifactCoreAbstractPropertyModulationTest
     SOURCES
         AbstractPropertyModulationTest.cpp
     LIBS
-        ArtifactCore
+        ArtifactCoreAudio
 )
 
 artifact_add_test(ArtifactCoreSourceResolutionContractTest
     SOURCES
         SourceResolutionContractTest.cpp
     LIBS
-        ArtifactCore
+        ArtifactCoreAsset
 )
 
 artifact_add_test(ArtifactCoreNLETest
@@ -138,7 +138,15 @@ artifact_add_test(ArtifactCoreTokenExpansionTest
     SOURCES
         TokenExpansionTest.cpp
     LIBS
+        ArtifactCoreEnvironment
+)
+
+artifact_add_test(ArtifactCoreEnvScriptTest
+    SOURCES
+        EnvScriptTest.cpp
+    LIBS
         ArtifactCore
+        ArtifactCoreEnvironment
 )
 
 artifact_add_test(ArtifactCorePhysicsDeterminismTest
@@ -212,6 +220,12 @@ artifact_add_test(ArtifactCoreEasingLabCurveTest
 artifact_add_test(ArtifactCoreMatteStackTest
     SOURCES
         MatteStackTest.cpp
+    LIBS
+        ArtifactCore
+)
+artifact_add_test(ArtifactCoreTaskSystemMattePoC
+    SOURCES
+        TaskSystemMattePoCTest.cpp
     LIBS
         ArtifactCore
 )

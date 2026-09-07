@@ -1,5 +1,7 @@
 # After Effects 観点の現行不足機能メモ
 
+**最終更新:** 2026-09-05
+
 作成日: 2026-05-28
 対象: ArtifactStudio 現行リポジトリ
 目的: 「AE 風ツールとして見たとき、今なにが本当に不足しているか」を現行コード基準で短く整理する
@@ -11,6 +13,19 @@
 > - **Blend Mode**：`Layer.Blend` enum に **33 モード**実装済み（Dissolve/Stencil/Silhouette 系含む）。「18/38」は誤り。
 > - **Expression 標準関数**：`wiggle / valueAtTime / loopIn / loopOut / thisComp` は **実装済み**。不足は pick whip UI のみ。
 > したがって「§1 Graph Editor」「§補足メモ P0/P2」の「未着手/不足」表記は古い。
+
+> ⚠️ **2026-09-05 レイヤー別の追跡更新**
+> - **調整レイヤー**：Adjustment Layerの生成・保存復元は存在する。GPUのPointwise経路は Exposure、Brightness、Levels、Hue/Saturation、White Balance、Invert、Grayscale の一部条件へ接続した。Pointwise成功後も後段のMask / Track Matte / Blend passへ進むことを確認したが、AEとの合成順・境界条件の実動作一致は未検証。
+> - **Shape Layer**：Shape Content、Trim Paths、Repeater、Merge Paths、Offset Paths、Wiggle Paths、Zig Zag、Pucker & Bloat、Rounded Corners、Twist等のモデル・UI・描画・JSON処理を確認。残課題はGPU/ソフトウェア描画の一致、複雑な演算子のアニメーション、保存復元後の見た目の回帰検証。
+> - **Solid / Plane Layer**：色・サイズ・グラデーション・コンポジションサイズ初期化・PAR・JSON保持を確認。通常のSolid生成では `sourceItemId` を発行し、Solid Item追加とレイヤー追加を同一Undoマクロへ入れる経路を追加した。残りは再読込後のProject Item参照整合と実動作確認である。
+>
+> AdobeのSolidは「固体色のレイヤー」だけでなく、Project panelに自動保存されるソースフッテージとして扱われ、サイズ・色・ピクセルアスペクト比などを持つ。Artifactではサイズ・色・ピクセルアスペクト比の基本処理まで接続済みで、解釈設定とProject Item連携が残る。参照: [Adobe After Effects Reference](https://helpx.adobe.com/pdf/after_effects_reference.pdf)、[Importing and interpreting footage](https://helpx.adobe.com/after-effects/desktop/work-with-footage-items/import-and-interpret-footage-items/importing-interpreting-footage-items.html)。
+> `CreatePlaneLayerDialog` のピクセル縦横比は `ArtifactSolidLayerInitParams` へ渡され、Solid レイヤーの表示幅・保存データにも反映されるようになった。残る確認項目は、既存プロジェクトの解釈設定との統合と、Solid レイヤー生成時の Project Item / Undo 接続である。
+
+> **調整レイヤーの適用範囲**：GPU Pointwise経路は、マスク・変形・レイヤー不透明度がある場合は安全のためフォールバックする。Pointwise成功後も上位RenderPassのMask / Track Matte / Compositeへ継続するため、トラックマット自体は後段経路へ接続済み。ただし、AEと同じ順序・複数マット条件での実動作検証が残る。
+
+> **Shape ContentのローカルTransform**：`ShapeContent` にAnchor Point、Position、Scale、Rotation、Skew、Skew Axisを追加し、Geometry生成・プロパティ編集・JSON保存/復元へ接続した。残る課題はTransformのキーフレームアニメーション、Undo粒度、GPU/ソフトウェア描画の見た目一致である。
+> 参照: [Adobe Shape layers, paths, and vector graphics overview](https://helpx.adobe.com/ca/after-effects/using/overview-shape-layers-paths-vector.html)。
 
 ---
 

@@ -1,6 +1,184 @@
-**最終更新:** 2026-09-05
+**最終更新:** 2026-09-06
 
 # Insight Register
+
+## 2026-09-06 — AnimatableTransform3Dの24fps固定量子化(未検証・要修正)
+
+- **関連:** `ArtifactCore/src/Animation/AnimatableTransform3D.cppm` (`setPosition:355`、`positionXAt:498`ほか全域で`toFrameCount(24)`/`rescaledTo(24)`)、`ArtifactCore/include/Animation/AnimatableValue.ixx` (`addKeyFrame:225`は同フレーム上書き)。
+- **事実:** Transform3Dのキー格納・評価がコンポfps無関係に24で量子化される。30fpsでは評価バケットが5フレームに1回重複([3,8,13,18,23,28]が前フレームと同値)、60fpsでは半数以上が重複。重複書込みは上書きでキーを潰す。コンポが24fpsの場合は無害。
+- **価値／懸念:** 非24fpsコンポで平面等の移動が周期的に止まって跳ぶ「がたつき」の最有力原因(未検証)。修正はfpsの配管が必要で`AnimatableTransform3D`単体では完結しない。
+- **次に確認:** ユーザーのコンポfpsと平面がアニメーション有りかを確認し、再現すればfpsパラメータ化を実施する。
+
+## 2026-09-06 — カーブ/Gizmoの時刻スケールと二重書きの乖離
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm` (`applyCurveEditorMove`、`writeBackCurveEditorStructureDiffs`、削除ハンドラ)、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` (`gizmoTransformTime`、`applyLiveGizmoTransform`)。
+- **事実:** Gizmoは`RationalTime(frame, doubleのfps)`を暗黙のint64変換で作り(29.97→29)、カーブは`llround`(29.97→30)で作っていた。`RationalTime::operator==`は既約分数の厳密比較のため別時刻となり、カーブ移動の旧キー照合が失敗して無音破棄された。GizmoのPropertyミラー条件(`!empty || autoKey`)とTransform3D条件(`hasKey || animated || autoKey`)も不一致で片方だけ更新された。`addKeyFrame`は同時刻上書きのため移動先衝突で隣キーが消えた。
+- **対応:** fpsは`llround`+下限1に統一、キー照合は`rescaledTo(fpsInt)`のフレーム番号比較に変更、移動先衝突は拒否、ミラー条件はTransform3D側に合わせた。未検証: ビルド・実機確認は未実施(ユーザー指示待ち)。
+- **次に確認:** カーブ→Transform3D方向の逆同期(現状はPropertyのみ書き戻し)、`clear+再add`の一括置換のトランザクション化、既存の混合スケールキーの救済が必要か。
+
+## 2026-09-06 — Render Queue全消去を永続化する
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`。
+- **事実:** 個別削除は `handleJobRemoved()` 経由で `render-queue.json` を更新していたが、`removeAllRenderQueues()` は全消去後に `persistQueueState()` を呼んでいなかった。そのため再起動時の `loadPersistentQueue()` で過去ジョブが復元され得た。
+- **対応:** 全消去後に `impl_->persistQueueState()` を追加した。完了履歴の削除責務は既存の `clearCompletedJobHistory()` に残した。
+- **価値／懸念:** 「全削除した過去キューが再起動後に戻る」経路を塞げる。ビルド・実機確認は未実施。
+
+## 2026-09-06 — D3D12アダプタ列挙に有効なFeature Levelを渡す
+
+- **関連:** `Artifact/src/Render/DiligentDeviceManager.cppm`、Diligent `EngineFactoryD3DBase`。
+- **事実:** D3D12の `selectGpuAdapter()` が `EnumerateAdapters(Version{})` を呼び、Diligentの `GetD3DFeatureLevel()` にMajor/Minorが0の無効なVersionを渡してDebug assertionを発生させていた。
+- **対応:** D3D12最小Feature Levelである `Version{11, 0}` を2回の列挙呼び出しへ指定した。
+- **価値／懸念:** DiligentのD3D12アダプタ列挙契約に一致する。Vulkan経路やDiligentEngine本体は変更していない。ビルド・実機確認は未実施。
+
+## 2026-09-06 — TimelineのRAM previewイベントからUIスレッドへ復帰する
+
+- **関連:** `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`Artifact/src/Service/ArtifactPlaybackService.cppm`。
+- **事実:** Render Queue由来の `PlaybackRamPreviewStatsChangedEvent` が発行元スレッドでTimeline購読コールバックを実行し、`updateCacheVisuals()` 内の `QWidget::setToolTip()` が所有スレッド外から呼ばれてQt assertで停止していた。Stateイベントも同じ経路を持ち得る。
+- **対応:** 両イベントの購読コールバックから `QMetaObject::invokeMethod(..., Qt::QueuedConnection)` でTimeline所有スレッドへ処理を転送した。
+- **価値／懸念:** Render Queue実行中のUI操作をQtのスレッド規約に揃えられる。ビルド・実機再生による確認は未実施。
+
+## 2026-09-06 — MpmSnapshotのmap値をSharedPtr化してMSVCのvector ICEを回避する
+
+- **関連:** `ArtifactCore/src/Physics/PhysicsSystem.cppm`。
+- **事実:** MSVC 14.51が `std::map<LayerID, std::map<int64_t, MpmSnapshot2D>>` の値型デストラクタ展開中に、`MpmSnapshot2D` 内の `std::vector` でC1001／Access Violationを起こしていた。
+- **対応:** `materialSnapshots_` の値を既存の `SharedPtr<MpmSnapshot2D>` に変更し、保存・検証・復元箇所で明示的に生成／デリファレンスした。
+- **価値／懸念:** スナップショット内容とキャッシュ制御は維持しつつ、IFC経由のvectorデストラクタ実体化をmap値型から外せる。ビルドは未実施。
+
+## 2026-09-06 — ProjectManagerWidgetはGenerationPreset型を直接importする
+
+- **関連:** `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`、`Artifact/include/Layer/ArtifactGenerationPreset.ixx`、`Artifact/include/Layer/ArtifactGenerationPresetLibrary.ixx`。
+- **事実:** Widgetは `ArtifactGenerationPreset` を直接使っていたが、`GenerationPresetLibrary` は型定義モジュールを再エクスポートしていないため、利用側で型が未定義になっていた。
+- **対応:** `import Artifact.Layer.GenerationPreset;` をライブラリimportの前に追加した。
+- **価値／懸念:** C2065および後続のconst int誤推論を、再エクスポート拡張なしで解消できる。ビルドは未実施。
+
+## 2026-09-06 — SolidLayerテスト実装をArtifactのモジュールmanifestへ登録する
+
+- **関連:** `Artifact/cmake/ArtifactSources.cmake`、`Artifact/src/Test/ArtifactTestSolidLayer.cppm`、`Artifact/src/Test.cppm`。
+- **事実:** `ArtifactTestSolidLayer.cppm` は `Artifact.Test.SolidLayer` をexportし、`Test.cppm`も同モジュールをimportしていたが、Artifactの明示的なソースmanifestに実装ファイルが未登録だった。
+- **対応:** `ARTIFACT_APP_IMPL_SOURCES` 相当のテスト実装一覧へ `ArtifactTestSolidLayer.cppm` を追加した。
+- **価値／懸念:** C2230と連鎖する `runSolidLayerTests` 未定義を、モジュール依存追加ではなく正しいソース登録で解消できる。CMake再生成・ビルドは未実施。
+
+## 2026-09-06 — GenerationPresetのネストラムダ捕捉型を明示する
+
+- **関連:** `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`。
+- **事実:** プリセット追加用のネストラムダで `preset` の型解決がMSVCの診断上 `const int` として扱われ、`validateGenerationPreset` に渡せなかった。また `FrameRange` 初期化は関数宣言と解釈される形だった。型付きcapture initializerはこのMSVC環境で構文エラーになった。
+- **対応:** 外側で `ArtifactGenerationPreset presetValue` をコピーして通常の値捕捉へ分離し、内側の参照を `presetValue` に統一した。さらに外側のcallbackを `std::function<void(const ArtifactGenerationPreset&)>` として明示した。`FrameRange` はブレース初期化へ変更した。
+- **価値／懸念:** C2664とC4930を対象箇所だけで解消できる。ビルドによる確認は未実施。
+
+## 2026-09-06 — AbstractLayerのMSVC内部エラーをローカルラムダ依存から分離する
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`。
+- **事実:** MSVC 14.51 が巨大な `setLayerPropertyValue` 内で、ローカル `finiteClampedValue` を別のローカルラムダからcaptureする構造を処理中にC1001／アクセス違反で終了した。
+- **対応:** clamp処理をArtifact名前空間内の無名名前空間関数へ移し、`setJointFloat` のcapture依存を除去した。
+- **価値／懸念:** 挙動を変えずにMSVCのラムダcapture解析経路を単純化できる。再ビルドによる確認は未実施。
+
+## 2026-09-06 — ShapePathテストのShapeOperator import名を実モジュール名に合わせる
+
+- **関連:** `Artifact/src/Test/ArtifactTestShapePath.cppm`、`ArtifactCore/include/Shape/ShapeOperator.ixx`。
+- **事実:** テストは `Shape.ShapeOperator` をimportしていたが、Coreの公開モジュール名は `Shape.Operator` だった。
+- **対応:** importを `Shape.Operator` に修正した。
+- **価値／懸念:** C2230を依存追加なしで解消できる。ビルドによる確認は未実施。
+
+## 2026-09-06 — AbstractLayerの補助ラムダはローカルclamp関数を明示captureする
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`。
+- **事実:** `setJointFloat` ラムダが、同じ関数スコープの `finiteClampedValue` を既定キャプチャなしで参照していた。
+- **対応:** `finiteClampedValue` を参照captureに明示追加した。
+- **価値／懸念:** C3493/C2326を最小修正で解消できる。ビルドによる確認は未実施。
+
+## 2026-09-06 — AbstractLayerのRigidBody2D参照はPhysics2Dを直接importする
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`、`ArtifactCore/include/Physics/2D/Physics2D.ixx`。
+- **事実:** `RigidBody2D` は `Physics2D` モジュールの `ArtifactCore` 型だが、AbstractLayerは `Physics.System` のimportだけで直接参照していた。`Physics.System` は再エクスポートではないため型が可視にならない。
+- **対応:** 実装ファイル側に `import Physics2D;` を追加した。インターフェース側や広域依存は変更していない。
+- **価値／懸念:** C2039/C2065以下の連鎖エラーを最小依存で解消できる。ビルドによる確認は未実施。
+
+## 2026-09-06 — SpatialAudioのBooleanプロパティ名を既存enumに合わせる
+
+- **関連:** `Artifact/src/Layer/ArtifactSpatialAudioLayer.cppm`。
+- **事実:** `ArtifactCore::PropertyType` には `Bool` ではなく `Boolean` が定義されており、SpatialAudioの `muted` / `enabled` プロパティだけが存在しない列挙値を参照していた。
+- **対応:** 2箇所を `PropertyType::Boolean` に修正した。
+- **価値／懸念:** C2838/C2065の直接原因を依存追加なしで解消できる。ビルドによる確認は未実施。
+
+## 2026-09-06 — SpatialAudioLayerの3D判定は基底のvirtual契約に揃える
+
+- **関連:** `Artifact/include/Layer/ArtifactAbstractLayer.ixx`、`Artifact/include/Layer/ArtifactSpatialAudioLayer.ixx`、`Artifact/src/Layer/ArtifactSpatialAudioLayer.cppm`。
+- **事実:** `ArtifactAbstractLayer::is3D()` は実装を持つ非virtual関数だったが、SpatialAudioLayerが `override` として宣言していた。
+- **対応:** 基底の `is3D()` をvirtualへ変更し、SpatialAudioLayerの既存overrideを有効化した。SpatialAudioLayerは生成時に既存の `setIs3D(true)` も実行している。
+- **価値／懸念:** レイヤー種別ごとの3D判定を多態的な契約で扱える。既存呼び出し側の挙動差はビルド後に確認する。
+
+## 2026-09-06 — NoiseLayerはNoiseSourceの状態へImplアクセサ経由でアクセスする
+
+- **関連:** `Artifact/include/Source/ArtifactNoiseSource.ixx`、`Artifact/src/Layer/ArtifactNoiseLayer.cppm`。
+- **事実:** `ArtifactNoiseLayer::Impl` は `ArtifactNoiseSource` を継承しているが、`ArtifactNoiseLayer` の外側のメンバー関数から基底のprotected状態へ直接アクセスしていた。
+- **対応:** 設定、カラーマッピング、色、CPUバッファ、キャッシュに対する `Impl` の公開アクセサを追加し、外側の実装をアクセサ経由へ変更した。継承関係とキャッシュ所有権は維持した。
+- **価値／懸念:** protected境界を破らずLayer側の評価・保存処理を継続できる。アクセサの公開範囲が広がったため、将来はSource専用の評価サービスへ分離できるか確認する。
+
+## 2026-09-06 — WigglePathsの拡張プロパティはCore APIを先に揃える
+
+- **関連:** `ArtifactCore/include/Shape/AeOperators.ixx`、`Artifact/src/Layer/ArtifactShapeLayer.cppm`。
+- **事実:** ShapeLayer側は `temporalPhase`、`detail`、`correlation`、`smooth` を編集・正規化するコードを持っていたが、Coreの `WigglePaths` は `amount` と `frequency` だけを公開していた。
+- **対応:** Coreへ4値の最小アクセサ、clone、JSON保存／復元を追加し、`temporalPhase` を既存の揺らぎ位相へ反映した。新規signal／slotは追加していない。
+- **懸念:** `detail`、`correlation`、`smooth` は現段階では値の保持と編集基盤までで、形状評価への詳細な意味付けは未検証。
+
+## 2026-09-06 — GPUComputeContext実装のモジュール依存はGPUCapabilities IFCを明示する
+
+- **関連:** `ArtifactCore/include/Graphics/GPUComputeContext.ixx`、`ArtifactCore/src/Graphics/GPUComputeContext.cppm`、`ArtifactCore/CMakeLists.txt`。
+- **事実:** `GPUComputeContext.ixx` は `Graphics.GPUCapabilities` をimportしているが、実装 `.cppm` 用のMSVC `/reference` 一覧には `Graphics.GPU.Info` と自己モジュールしか登録されていなかった。そのため実装コンパイル時にGPUCapabilitiesのIFCを解決できなかった。
+- **対応:** `GPUComputeContext.cppm` のモジュール依存へ `Graphics.GPUCapabilities.ifc` の明示参照を追加した。
+- **追補:** `Compute.cppm` も `GPUComputeContext` 経由で同じ interface import を解決する実装単位のため、同じ `GPUCapabilities.ifc` 参照を追加した。
+- **確認:** 2026-09-06の実コンパイルコマンドには追加後の `GPUCapabilities` `/reference` と `MpmCompute` の `OBJECT_DEPENDS` が反映されておらず、生成済みCMakeビルドが古いことを確認した。
+- **追補:** 個別のCMake分岐だけではBoids／Compute系の漏れが再発するため、`CORE_IMPL` の実装ソースを `import Graphics.GPUcomputeContext;` で検出し、GPUCapabilitiesのIFC参照とGPU関連interfaceの順序依存を後段で共通追加する。
+- **再追補:** 実装 `.cppm` は同名の `.ixx` のimportを暗黙に引き継ぐため、実装本文だけのスキャンでは `BoidsCompute` や `LayerBlendPipeline` を検出できない。対応する `src/...cppm`→`include/...ixx` も走査対象にする。
+- **価値／懸念:** C++20 moduleの実装単位でもinterface側importの依存を解決できる。CMake再生成後の実ビルド確認は未実行。
+
+## 2026-09-06 — シェイプ形状からマスクを生成する責務はShapeLayerへ集約する
+
+- **関連:** `Artifact/include/Layer/ArtifactShapeLayer.ixx`、`Artifact/src/Layer/ArtifactShapeLayer.cppm`、`Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm`。
+- **事実:** シェイプの評価済みジオメトリを `MaskPath::fromShapePath()` へ渡す一回限りの変換処理がメニュー側に存在していた。`nativeShapePaths()` は複数コンテンツ、シェイプ演算子、現在フレームのパス評価後の形状を返す。
+- **対応:** `ArtifactShapeLayer::createMaskFromShape()` を追加し、変換と空結果の無効化をShapeLayer側へ集約した。メニューはUndo付きの既存導線を維持したまま新APIを利用する。
+- **価値／懸念:** 将来のライブ形状マット、自動化、別UIから同じ変換契約を再利用できる。現時点ではスナップショット変換であり、形状変更への自動追従や専用の保存形式は未実装。
+- **次に確認:** ライブ追従を導入する場合の所有関係、フレーム評価時の再生成コスト、マスクとシェイプの座標空間・反転／穴あきパスの受入れを定義する。ビルド・テスト・実機確認は未実行。
+
+## 2026-09-06 — Solver横断Physics Snapshotはruntime handleではなくauthoring topologyを識別子にする
+
+- **関連:** `ArtifactCore/include/Physics/2D/Physics2D.ixx`、`ArtifactCore/src/Physics/Physics2D.cppm`、`ArtifactCore/include/Physics/FluidSolver2D.ixx`、`ArtifactCore/src/Physics/PhysicsSystem.cppm`、`Artifact/src/Composition/ArtifactAbstractComposition.cppm`。
+- **事実:** Soft Body／MPMには既存Snapshotがあったが、FluidとBox2D worldはSolver横断の復元契約を持たなかった。Box2Dのbody IDはworld再構築で変わるruntime handleである。
+- **対応:** Rigid Bodyはbody index、LayerID、cloneIndex、transform、速度、typeをSnapshot化し、topology一致を検証してから復元する。Fluidもgrid dimensionsと作業バッファを含むSnapshotを追加し、PhysicsSystemに登録されたRigid／Soft／Fluid／MPMを同一frame keyでcapture／restoreする入口を追加した。既存のSoft/MPM専用復元APIは後方互換のため残した。
+- **価値／懸念:** スクラブ／ループの共通基盤を作れる。現在のRigid Snapshotはshape／joint topologyそのものを再構築するものではないため、body追加・削除・collider変更時はcacheを無効化し、将来はauthoring revisionをcache keyへ追加する必要がある。
+- **次に確認:** 現在Layer内で直接更新されるFluidSolver2Dを、入力注入とSolver更新の二重実行なしにPhysicsSystemへ移す。続いてPhysicsSystemの共通fixed-stepからframe indexを管理し、nearest snapshotからの前方向replay、loop range／cache offset、Fluidを含む実ランタイムのseek復元を接続する。ビルド・テスト・実機確認は未実行。
+
+## 2026-09-06 — 環境変数をスクリプトへ公開 (getEnv/setEnv/hasEnv)・unsetVariable整備
+
+- **関連:** `ArtifactCore/include+src/EnvironmentVariable/EnvironmentVariable.{ixx,cppm}`、`ArtifactCore/include/Script/Expression/ExpressionEvaluator.ixx`、`ArtifactCore/src/Script/Expression/ExpressionEvaluator.cppm`、`ArtifactCore/CMakeLists.txt`、`tests/ArtifactCore/EnvScriptTest.cpp`。
+- **事実:** `EnvironmentVariableManager` に単体削除がなく `clear()` 全消去のみだった。スクリプト (ExpressionEvaluator) から環境変数を読む手段がなく、OS直読み (`qEnvironmentVariable`) が各所に散在していた。ArtifactCore→ArtifactCoreEnvironment の参照は静的ライブラリのため終端リンクで解決し、CMakeのターゲット循環にはならない。モジュール参照は既存の `/reference` + `OBJECT_DEPENDS` パターンで配線できた。
+- **対応:** マネージャに `unsetVariable` (revision bump付き) を追加。式ビルトイン `getEnv(name[, default])` / `setEnv(name, value)` / `hasEnv(name)` を `registerStandardFunctions` に登録。setEnvはマネージャのオーバーレイのみに書き、OSプロセス環境は変更しない。新規テスト6件を追加。
+- **価値／懸念:** TokenExpansion と同じマネージャを参照するため `$VAR` 展開とスクリプトが一貫する。一方、ビルドツリーには無関係の作業中変更 (DebugIdentity/ArtifactRegex等) による既存コンパイルエラーがあり、検証時は一時退避→復元した。
+- **次に確認:** 実機での式エディタ経由の利用、OS環境への書戻しが必要かの判断、他スクリプト種別 (Python/C#/AngelScript) への公開要否。テスト実行は実績あり (6/6 passed)。
+
+## 2026-09-06 — Alembicは既存MeshImporterの静的経路とキャッシュ経路を分けるべき
+
+- **関連:** `ArtifactCore/include/Geometry/MeshImporter.ixx`、`ArtifactCore/src/Geometry/MeshImporter.cppm`、`Artifact/src/Layer/Artifact3DModelLayer.cppm`、`ArtifactCore/src/File/FileTypeDetector.cppm`。
+- **事実:** `.abc` はFileTypeDetectorとAssetImporterで認識されるが、MeshImporterのBackendと拡張子分岐にはAlembicがない。MeshImporterには既に`importMeshFromFileAtTime()`がある一方、Artifact3DLayerは読み込み済み単一`Mesh`を保持する。
+- **判断:** Alembicの対応準備では、代表時刻の静的ジオメトリ読み込みと、時間サンプルを再評価するキャッシュ再生を別フェーズにする必要がある。前者は既存MeshImporterへ閉じ込めやすいが、後者はframe/time変換、サンプルキャッシュ、メッシュ更新世代の契約が必要になる。
+- **価値／懸念:** 既存のOBJ／FBX／glTF経路を広げずにレベル1の受入れを作れる。一方、複数オブジェクトや階層を単一Meshへ早期に押し込むと、後のキャッシュ／シーン対応で再設計になる可能性がある。
+- **次に確認:** 採用ライブラリの配布条件、代表Alembicサンプルの分類、既存Meshのトポロジー更新API、GPUバッファ更新の必要範囲。今回、依存追加・ビルド・テストは未実施。
+
+## 2026-09-06 — 既存MeshとloadFromFileAtTimeはAlembicの初期接続点になる
+
+- **関連:** `ArtifactCore/include/Mesh/Mesh.ixx`、`Artifact/src/Layer/Artifact3DModelLayer.cppm`。
+- **事実:** `Mesh`はN-gon、頂点／face／face-vertex属性、revision、bounds更新、GPU向け三角形化を持つ。`Artifact3DLayer::loadFromFileAtTime()`は時間指定import結果をレイヤーのMeshへ差し替える既存入口である。
+- **判断:** Alembicの静的サンプルは既存Meshへ変換できる可能性が高い。時間キャッシュは既存入口を使って最小実装を試せるが、再生性能が必要になった時点でreaderのサンプルキャッシュとGPU更新境界を分離するべきである。
+- **価値／懸念:** 新規レンダラー経路を作らずに初期対応できる。一方、毎サンプルのMesh丸ごと差し替えを製品版の再生経路とみなすと、大きなキャッシュでCPUコピー・bounds計算・GPU再アップロードがボトルネックになる可能性がある（未検証）。
+- **次に確認:** Alembicサンプルのトポロジー固定／可変、既存GPU uploadがMesh revisionをどう扱うか、代表キャッシュの1秒再生時の更新量。公式依存情報はAlembicリポジトリと公式ドキュメントを参照した。
+
+## 2026-09-06 — 4分割VPは単一Swapchainのpresentation段で扱う
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`。
+- **事実:** 実際のComposition Editorは`CompositionRenderController`が単一の`ArtifactIRenderer`と物理pixelサイズのswapchainを所有する。`ArtifactCompositionRenderWidget`は同名目的の軽量surfaceだが、現行Editorから生成・参照されていない。Diligentはbackend-neutralな`SetViewports`/`SetScissorRects`をD3D12とVulkanの双方で実装している。
+- **対応:** rendererにoffset付きviewport/scissor APIを追加し、軽量surfaceには同一RT上で各paneをflushするQuad layoutの基礎を追加した。main controllerではGPU resolve済みのpresentation textureだけを4回drawし、重いcomposition-space cache／layer再合成は共有する。既存command infrastructureへ`View: Toggle Quad Presentation`を追加した。追加のswapchain、QSplitter、QImage合成は作らない。
+- **価値／懸念:** QuadはDiligentの単一swapchain上で動作し、GPU合成を4回実行しない。一方、現在は同一の最終表示を4ペインに表示するpresentation sliceであり、gizmo／hit test／独立camera stateはまだpane routingされない。
+- **次に確認:** D3D12/Vulkan双方でscissor復元、resize、overlay、GPU frame timeを実機確認する。次段階でpane固有cameraとinput routingを、controllerの既存camera stateを複製して接続する。ビルド・テストは未実行。
 
 ## 2026-09-05 — Box2D接触イベントはstep内で正規化する
 
@@ -259,6 +437,13 @@
 - **状態:** 実装済み、host UI実機確認待ち。
 - **判断:** worker の exit code だけでは成功とみなさず、completed message、final output、partial cleanup、timeout／強制終了後の状態を一組で検証する。これにより、ハングや中断を有効な proxy と誤認する経路を受入段階で検出できる。
 
+### 2026-09-06: 個別 proxy playback toggle の未接続を解消
+
+- **関連:** `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm` の Project View footage context menu、`ProxyMeta::enabled`、`syncProxyPathToProject()`。
+- **事実:** `ProxyMeta::enabled` と global proxy toggle は存在していたが、footage 単位で enabled を変更する操作がなく、生成完了時は常に `enabled=true` として同期していた。
+- **対応:** footage context menu に `Enable/Disable Proxy Playback` を追加し、個別設定を `syncProxyPathToProject()` へ接続。worker 成功時も既存の個別 enabled 設定を尊重し、生成時の source timestamp を成功メタデータへ確定するよう修正した。
+- **未検証:** runtime の context menu 操作、global toggle との組み合わせ、保存／再読込後の個別設定保持は未確認。ビルド・テストはユーザー指示待ち。
+
 ## 保留中の設計判断
 
 ### シェイプレイヤー VP 操作の増強範囲（2026-09-02 ユーザー質問）
@@ -481,7 +666,8 @@ ender.pointSize (0.25〜8.0、既定1.0、JSON保存・Inspector・set 反映、
 ## 2026-09-05 — 不足easingの一括実装
 
 - **関連:** ArtifactCore/include/Geometry/Interpolate.ixx、	ests/ArtifactCore/EasingFunctionsTest.cpp
-- **事実:** enumにありながら dispatch が Linear 落ちだった型が多数 (Smooth/EaseOutIn/Quadratic/Cubic/Quartic/Quintic/Exponential/Logarithmic/Sine/Circular/Cosine)。2点版 interpolate() の Bezier は eturn start のままだった。
+- **事実:** enumにありながら dispatch が Linear 落ちだった型が多数 (Smooth/EaseOutIn/Quadratic/Cubic/Quartic/Quintic/Exponential/Logarithmic/Sine/Circular/Cosine)。2点版 interpolate() の Bezier は 
+eturn start のままだった。
 - **対応:** 純alpha系19種を追加 (CubicIn/InOut、Quartic/Quintic各3種、SineIn/InOut、Circular各3種、Exponential各3種、Logarithmic、Cosine、EaseOutIn、Smooth; Quadratic→EaseIn、Cosine/Smoothは同一曲線)。新規は alpha clamp 付き。Bezierスタブは Linear フォールバックへ (呼び出し側はbezierInterpolateへ迂回済み)。gtest 5件 (端点・既知中点・dispatch・Keyframe経由・範囲外有限) を追加。
 - **検証:** 5件全成功。Spring/SmoothDamp (状態持ち)、CustomCurve/Polynomial (係数要)、色文脈系、2点Hermite/CR は対象外のまま。
 
@@ -505,3 +691,88 @@ ender.pointSize (0.25〜8.0、既定1.0、JSON保存・Inspector・set 反映、
 - **事実:** レイヤーローカル座標でハンドルのヒット距離を測ると、レイヤーの非一様スケールやズームにより見た目のクリック領域と判定がずれる。フェザー値ゼロでは実ハンドルが頂点と重なり、直接ドラッグを開始できない。
 - **対応:** ハンドル判定を viewport のピクセル距離に統一し、競合時は最も近い候補を選ぶ。ゼロ・フェザーには画面上だけの最小距離ハンドルを表示し、ドラッグ開始点からの法線方向差分でフェザーを立ち上げる。
 - **価値／次の確認:** マスク頂点とセグメントのヒット判定も同じ画面距離モデルへ段階的に揃えると、極端なレイヤー変形時の操作一貫性をさらに高められる。実機で非一様スケールしたレイヤーの操作感を確認する。
+
+## 2026-09-05 — 生成プリセットの既存基盤と拡張境界
+
+- **関連:** `Artifact/include/Project/ArtifactPresetManager.ixx`、`Artifact/include/Layer/ArtifactGenerationPreset.ixx`
+- **事実:** 既存の `ArtifactPresetManager` は平面・画像・Shape・Text と基本マスクの作成定義を JSON 化できるが、レイヤーエフェクトと Text Animator を同一トランザクションに含める表現を持たない。
+- **対応:** レイヤー／マスク／エフェクト／Animator を同じ JSON レシピで表す `ArtifactGenerationPreset` を追加し、`New > Presets` 実行時は既存 `AddLayerCommand`・`MaskEditCommand`・`AddLayerEffectCommand` を `MacroUndoCommand` に集約した。
+- **価値／次の確認:** 基本作成プリセットと生成プリセットの JSON 統合は将来候補。現時点では両者の機能範囲が異なるため、既存スキーマを変更せず併存させている。実機で redo/undo 後の選択状態とユーザー JSON 再読込を確認する。
+
+## 2026-09-06 — マルチスレッド基盤の段階移行 1+2: ThreadPoolのTBB shim化とTaskflow TaskSystemの併存
+
+- **関連:** ArtifactCore/include/Common/ThreadPool.ixx、ArtifactCore/include/Common/TaskSystem.ixx、ArtifactCore/CMakeLists.txt、ArtifactCore/cmake/ArtifactCoreSources.cmake、cpkg.json。
+- **事実:** ThreadPool は集中キュー+mutexでfine-grainedに弱く、Core.Parallel は既に tbb::parallel_for で TBB 依存だった。vcpkg には tbb のみで taskflow は未導入。ArtifactCore→ArtifactCoreEnvironment は静的リンクで参照循環しないが、モジュールは /reference + OBJECT_DEPENDS の既存パターンを踏襲する必要があった。
+- **対応:** 1) ThreadPool を TBB task_arena/task_group 背景の shim に置換。API(enqueue/enqueueTask/waitAll/globalInstance)は完全維持し、内部のみ work-stealing化。concurrency は hardware_concurrency()で統一。globalInstance は deprecated 付与し DAG は TaskSystem 推奨へ誘導。2) Taskflow (header-only) を vcpkg.json に追加し、Core.TaskSystem (tf::Executor ラッパ、async/silent_async/run/corun/wait_for_all、for_each_index ヘルパ)を新設。3) CMake は Taskflow::Taskflow を ArtifactCore にリンクし、TaskSystem.ixx を CORE_MODULES へ追加。configure/build の疎通を確認。無関係な作業中変更(ArtifactRegex等)によるビルド破綻は一時退避で分離し、検証後は復元せず除外。
+- **価値／懸念:** 既存呼び出しは再コンパイル不要で即座に work-stealing の恩恵。Taskflow は DAG/協調実行(corun)でデッドロック回避が可能。3プール(QThreadPool/TBB/Taskflow)が一時併存するためスレッド過剰生成に注意が必要だが concurrency 統一で緩和。P2300 全面採用は見送り、データ並列は TBB、DAG は Taskflow の分担で最新知見を段階導入。
+- **次に確認:** 実機での ThreadPool 呼び出しの順序依存有無、TaskSystem を用いた matte/DAG の PoC、QThreadPool との最終一本化、P2300 のコンパイラ対応推移。
+
+## 2026-09-06 — TaskSystem DAGのマットPoC
+
+- **関連:** ArtifactCore/include/Common/TaskSystem.ixx、	ests/ArtifactCore/TaskSystemMattePoCTest.cpp。
+- **事実:** ThreadPool はデータ並列向け、TaskSystem は DAG/協調実行向けに分担したが、マット処理は依然逐次の evaluateMatteStack のみだった。Taskflow の for_each_index はモジュール境界で ODR/link 問題を起こしやすい(今回も LNK2019)。
+- **対応:** PoC として TaskSystem を用いたマット並列評価を gtest 4件で実証。DAG依存(A→B,C→D)、corun デッドロック回避、Taskflow DAGで3ソースのマスク生成を並列化して逐次結果と一致(64x64 Add, 期待1.0)、並列 for 相当の動作。task_for ヘルパはモジュール内テンプレートのリンク問題で一旦除去し、直接 emplace で代替。テストは <taskflow/taskflow.hpp> を直接 include してモジュール透過問題を回避。
+- **検証:** 4/4 passed。MatteStack の実運用への組み込みは未着手だが、PoCで並列化の等価性と協調実行の有効性を確認。
+
+## 2026-09-06 — Phase2: 専用プールのTBB一本化 (AsyncAssetRead / RenderScheduler)
+
+- **関連:** Artifact/src/IO/AsyncAssetReadScheduler.cppm、Artifact/src/Render/ArtifactRenderScheduler.cppm、ArtifactCore/include/Common/TaskSystem.ixx。
+- **事実:** 専用プール2つが QThreadPool に依存していた。AsyncAssetRead は I/O バーストで priority 付き start、RenderScheduler は QThreadPool::start で並列実行し invokeMethod でメインへ帰着。どちらも QThread のイベントループには依存せず、ScopedThreadName/Trace は TBB スレッドでも有効。
+- **対応:** AsyncAssetRead: QThreadPool → TaskSystem (1-8 arena), setMaxThreadCount/expiryTimeout を除去、waitForDone→wait_for_all、priority は一旦無視 (別arenaで優先度エミュレート可能だが初期は均一)。RenderScheduler: unique_ptr<QThreadPool> → TaskSystem, ensureTaskSystem()で遅延生成+concurrence変更時は再生成、maxThreadCount 参照を concurrency() に、start→silent_async に。Thread.Helper の ScopedThreadName は維持。
+- **検証:** cmake configure 成功 (33s)。ビルドはユーザ指示で中断、オブジェクト個別の dyndep 生成は確認。QtConcurrent 13箇所・QThreadPool globalInstance は Phase3 で残置。
+
+## 2026-09-06 — Phase3ヘルパ: QFutureWatcher代替の asyncPostToObject
+
+- **関連:** ArtifactCore/include/Common/TaskSystem.ixx。
+- **事実:** 残る13箇所の QtConcurrent::run(&sharedBackgroundThreadPool()) は QFutureWatcher::finished でメインへ帰着していた。TaskSystem::async は std::future を返すため QFutureWatcher と非互換。
+- **対応:** TaskSystem に asyncPostToObject<T>(QObject* context, work, onFinished) を追加。TaskSystem::silent_async で実行し、結果を QPointer ガード付きで QMetaObject::invokeMethod(QueuedConnection) で context スレッドへ配送。QThreadPool 依存の prewarm/専用プールは Phase1/2 で除去済みのため、残りはこのヘルパで1行置換可能。ArtifactCore ビルド確認済み。
+- **次に確認:** VideoLayer/ImageLayer/AssetBrowser 等の各サイトを同ヘルパで順次置換し、QThreadPool globalInstance への依存を完全に除去するか検証。
+## 2026-09-06 — GPUジョブプール基盤の初期境界
+
+- **関連:** `ArtifactCore/include/Graphics/GPUThreadPool.ixx`、`ArtifactCore/src/Graphics/GPUThreadPool.cppm`
+- **事実:** GPU側には個別のCompute dispatch経路はあるが、共通のジョブ投入・容量制限・診断契約は無かった。
+- **対応:** Diligentを公開APIに露出させないホスト側キューを追加。`enqueue`、`drain(executor)`、キャンセル、ジョブハンドル、キュー統計を提供し、既存のレンダリング経路には接続していない。
+- **価値／懸念:** 将来のDiligent Compute executorを差し込めるが、現時点の完了状態はGPU fence完了ではなくexecutor受理結果である。GPU非同期完了を扱う段階でfence世代を追加する必要がある。
+- **次に確認:** 実際のDiligent command recording／submission境界と、D3D12・Vulkan共通のfence再利用契約を確定する。
+
+## 2026-09-06 — View メニューの情報設計整理
+
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`、`Artifact/src/Widgets/ArtifactMenuBar.cppm`。
+- **事実:** View の直下にはズーム、viewport 保存、比較、preview 品質、表示オーバーレイ、Rig 操作、workspace、個別パネル起動、パネル一覧、追加アセットブラウザ、secondary preview が同居する。さらに `Color Science` action は同一の QAction が直下へ二度追加されている。パネル追加／再表示は専用の `Window Panels` submenu とメニューバー右上 `+` にも既に存在する。
+- **対応:** 直下を Navigation / Preview / Overlays / Rig / Workspace / Window Panels に限定し、Grid & Snap と Rig 操作を各 submenu に入れた。個別パネル起動と新規 Asset Browser は Window Panels 内の Utility Panels に統合し、重複していた Color Science entry は一つにした。既存 QAction とショートカット、Dock registry の再表示経路は維持した。
+- **価値／次の確認:** 直下項目の走査負荷と重複を減らした。ビルド・runtime 確認は未実施のため、メニュー階層、アクセラレータ、パネル作成・再表示、狭幅表示を実機で確認する。
+
+
+## 2026-09-06 — エフェクト詳細の共有所有と複数展開
+
+- **関連:** `Artifact/src/Widgets/ArtifactInspectorWidget.cppm`、`Artifact/src/Widgets/ArtifactInspectorInteraction.cppm`。
+- **事実:** Effects面は1つのPropertyWidgetとSurfaceFX専用編集部を共有している。今回のインライン化でも1件だけを展開し、リスト項目の削除に編集部の寿命を連動させていない。
+- **仮説・未検証:** 将来複数エフェクトを同時展開する場合、単純な編集部の複製はfocusedEffectIdや専用編集操作の対象を混線させる可能性がある。
+- **価値／次に確認:** 同時展開を追加する前に、編集対象・コールバック・所有権を各エフェクト単位に分離できるか調べる。
+
+
+## 2026-09-06 — 左ペインのキー操作とUndo経路
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm` の `togglePropertyKeyframeAtCurrentTime` と今回追加した値編集。
+- **事実:** 既存の菱形クリックはプロパティのキーを直接追加・削除する。今回の値編集は既存のUndoコマンド／KeyframeModelを利用するため、同じペイン内でも操作経路が異なる。
+- **懸念・未検証:** 菱形クリックのUndo体験が値編集と一致しない可能性がある。今回はリデザイン対象の既存操作を保ち、この経路は変更していない。
+- **次に確認:** 菱形のキー追加・削除のUndo/Redoを確認し、別途KeyframeModelの共通経路へ統一する範囲を判断する。
+
+## 2026-09-07 — ツールバーの表示モード操作の実行先
+
+- **関連:** `Artifact/src/Widgets/ArtifactToolBar.cppm` の Normal / Grid / Detail actions。
+- **事実:** これらは既存のQActionGroupで選択状態を保持するが、同ファイル内に `viewModeChanged` の発火や表示サービスへの委譲が見当たらない。今回の配置変更では既存QActionをメニューに再利用した。
+- **懸念・未検証:** 表示切替が実際のビューに反映されない可能性がある。今回の外観変更とは分けて確認する必要がある。
+- **価値／次に確認:** 実アプリで3種の表示操作を確認し、必要なら既存の表示コマンドとの対応を調査する。
+
+### 2026-09-07 — カラーピッカーの色空間契約
+- 関連: Artifact/src/Widgets/Dialog/FloatColorPickerHooks.cppm、ArtifactCore/src/Color/LabColor.cppm、XYZColor.cppm。
+- 確認事実: Lab/XYZの既存変換はsRGB符号値・D65を前提とし、戻りRGBを0–1にクリップする。ピッカーのFloatColor引数には色空間タグがない。
+- 未検証: 全呼び出し元が同じ符号値契約であるかは未確認。
+- 懸念・次の確認: 将来のHDRや作業色空間対応時は、呼び出し元の色空間を明示してから変換へ渡す必要がある。今回の追加UIにはsRGB/D65基準を明記した。
+
+### 2026-09-07 — 3D回転の操作数学と表示の区別
+- 関連: Artifact/src/Widgets/Render/Artifact3DGizmo.cppm の updateDrag。
+- 確認事実: 現行回転は開始角との差をEuler成分へ加算し、スナップは各Euler成分へ適用する。atan2境界の差の連続化はこの経路にはない。
+- 未検証: ±180度をまたぐドラッグ、傾いたView回転、非ゼロ開始角でのスナップの操作整合性。
+- 懸念・次の確認: 今回は外観変更のため数学を変更していない。上記操作を再現してから、必要なら回転更新とピボット更新の一致を別途修正する。

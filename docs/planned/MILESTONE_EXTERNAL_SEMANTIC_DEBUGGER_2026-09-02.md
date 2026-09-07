@@ -158,6 +158,71 @@ Layer "PlayerShadow"
 
 完了条件: wire contractと責務分担が文書化され、live objectやGPU native handleを送らないことが静的に確認できる。
 
+### Phase 0 — 確定仕様（2026-09-05 時点）
+
+Phase 0 では **コード実装を行わず**、以下の contract だけを文書化する。型定義・状態機械・transport 抽象は Phase 1 接続方式確定後に最小範囲で実装する。
+
+#### 共通型
+
+| 型 | 役割 | 備考 |
+|---|---|---|
+| `DebugProtocolVersion` | major / minor / patch + capability flags | wire 上の最初の handshake で不一致を即時拒否する |
+| `DebugSessionToken` | 128bit ランダム + 有効期限 + scope | host 側生成。Debugger 側で再利用せず、attach ごとに新規発行 |
+| `DebugCapabilities` | capability negotiation 用 | read-only / watchpoint / breakpoint / snapshot / patch / render-graph / GPU-meta / extended / unknown をビット集合で表現 |
+| `DebugEndpointScope` | debug endpoint の有効化条件 | 明示 opt-in（環境変数 / CLI / 設定ファイルのいずれか）でのみ有効。既定 OFF |
+| `DebugWireMaxPayload` | 1 メッセージ最大サイズ | 既定 1 MiB。超過は control plane で拒否、data plane は shared memory 側で扱う |
+
+#### Wire safety
+
+- wire に **live pointer / GPU native handle / `IDeviceContext*` / 生メモリ範囲** を載せない
+- 載せられるのは stable な **debug ID / semantic path / 値 / revision / frame / source / trace-id** のみ
+- 静的検査: Phase 1 実装時に `IDebugWirePayload` の concept / static_assert で禁止型を列挙する
+
+#### Transport 抽象（Phase 1 で差し替え可能な interface）
+
+Phase 1 の接続方式（既存 MCP TCP / QLocalSocket / Named Pipe のいずれか）が未確定のため、Phase 0 では `IDebugTransport` の責務のみを定義する。具象 adapter は Phase 1 で実装する。
+
+```text
+IDebugTransport
+  - attach(token, protocolVersion, capabilities) -> Result<HelloAck>
+  - send(request) -> Result<response>                  // blocking / non-blocking
+  - heartbeat() -> Result<void>                        // Phase 0 では interval のみ定義
+  - detach(reason) -> Result<void>
+  - shutdown() -> Result<void>                         // host 終了時の graceful close
+
+Phase 1 adapter 候補:
+  - McpTcpDebugTransport     // 既存 McpBridge / McpTransport を尊重
+  - LocalSocketDebugTransport // 既存 ProjectBundleIpc と整合
+  - NamedPipeDebugTransport   // Windows 限定
+```
+
+Phase 1 着手時に「接続方式」「通常 build の debug endpoint」の判断結果を反映し、3 adapter のうち 1 つを縦切りで実装する。
+
+#### 状態機械（attach / detach / heartbeat / shutdown / stale session）
+
+`DebugSessionState` は次の状態を持つ。Phase 1 実装で同じ enum 名を利用する。
+
+```text
+Detached
+  ├─ Connecting        // handshake 中
+  │    ├─ Attached     // capability 検証成功、heartbeat 開始
+  │    │    ├─ HeartbeatLost   // heartbeat timeout
+  │    │    │    ├─ Attached  // heartbeat 復旧
+  │    │    │    └─ Stale      // 復旧失敗 → 自動 detach
+  │    │    ├─ Detaching       // user / Debugger からの明示 detach
+  │    │    └─ ShuttingDown    // host 終了経路
+  │    └─ Detached     // handshake 失敗（version / token / capability 不一致）
+  └─ ShuttingDown
+```
+
+遷移時の契約を以下に固定する。
+
+- `Detached → Connecting`: token 未提示 / version 不一致 / capability 未知のみ 拒否
+- `Attached → HeartbeatLost`: heartbeat interval 超過（既定 2 秒）。本体側は **実行継続**、`pending` を返す
+- `HeartbeatLost → Stale`: 復旧猶予（既定 10 秒）超過で自動 detach。Debugger 側の再接続は別 session
+- `Detaching / ShuttingDown`: 任意の in-flight request を **abort せず drain**（最大 250 ms）。timeout 超過は drop し、wire 上に `request aborted` を返す
+- 任意 thread suspend を行わない。pause は §7 通り frame boundary でのみ受理
+
 ### Phase 1: 外部Debuggerの読み取り専用縦切り
 
 - `ArtifactDebugger.exe` を単独起動できる
@@ -325,3 +390,4 @@ Phase 1〜2はread-onlyとする。将来のproperty patchは、既存のCommand
 
 - 2026-09-02: 初版作成。既存のMCP AI debug計画を外部 `ArtifactDebugger.exe` のsemantic debugging milestoneとして再整理。
 - 2026-09-05: §9 のユーザー判断待ち項目を更新。1A（同一リポジトリ内に独立 target）/ 2 保留 / 3B（Phase 4 で限定的な復元まで含める）/ 4 保留、として整理。Phase 0 では transport を抽象化した interface のみ用意する方針を明記。
+- 2026-09-05: Phase 0 を文書だけで完了。共通型（`DebugProtocolVersion` / `DebugSessionToken` / `DebugCapabilities` / `DebugEndpointScope` / `DebugWireMaxPayload`）、Wire safety、`IDebugTransport` 抽象、状態機械（`Detached / Connecting / Attached / HeartbeatLost / Detaching / Stale / ShuttingDown`）の contract を §5 Phase 0 直後の新節として確定。コード実装は Phase 1 接続方式確定後に着手する。
