@@ -805,6 +805,8 @@ eturn start のままだった。
 - **確認事実:** C1001 の報告位置は namespace 終端直後の空行だが、直前の追加処理には import された ClothSolver3D の値を `std::vector::insert(..., { ... })` で追加する箇所があった。
 - **仮説・未検証:** 大規模な module implementation unit での initializer-list overload 解決が MSVC の IFC 処理を誘発している可能性がある。`push_back` の明示列へ分解して回避した。
 - **価値／次に確認:** 再ビルドで C1001 が消えるか確認し、再発時は Cloth3D 実装を別の既存 `.cppm` 境界へ移す切り分けを行う。
+- **2026-09-08 追記・確認事実:** 同じ C1001 が継続し、当該実装unitには未使用の `Physics2D`、`Artifact.Composition.Nodes`、`Artifact.Effect.Generator.Cloner` import が残っていた。利用箇所がないことを静的確認して除去した。
+- **次に確認:** この依存グラフ縮小後も再現する場合は、次の候補を当てずっぽうに変えず、物理・component runtimeの大きな実装ブロックを既存moduleの実装unitへ分離する。
 
 ### 2026-09-08 — setComposition overload の再入リスク
 
