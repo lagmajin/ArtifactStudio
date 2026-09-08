@@ -1,5 +1,6 @@
 # 提案メモ: ファイル書き出し（レンダーキュー）効率化 — 2026-07-28
 
+**最終更新:** 2026-09-07
 **作成日:** 2026-07-28
 **ステータス:** 提案（未実装・未承認）
 **関連:** `docs/analysis/REPORT_TBB_WORK_STEALING_CANDIDATES_2026-07-28.md` §2.2-(5)
@@ -60,3 +61,6 @@
 ## 更新履歴
 
 - 2026-07-28: 初版（チャット提案の記録化）
+# 対応状況（2026-09-07）
+
+`ArtifactRenderQueueEncoder.cppm` の native／GPU encoder は codec ごとの品質設定を内部で組み立て、ジョブモデルには encoder preset の編集項目がない。`slow` を `medium` へ機械的に置換すると画質・圧縮率・既存出力仕様が変わるため、現時点では未変更。preset を `ArtifactRenderJob`／保存形式へ露出する設計が必要。

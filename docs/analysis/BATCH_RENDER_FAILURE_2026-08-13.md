@@ -1,6 +1,6 @@
 # バッチレンダリング 失敗原因の検証
 
-**最終更新:** 2026-08-13
+**最終更新:** 2026-09-07
 
 バッチレンダリング（複数コンポジション一括 / MFR マルチフレームレンダリング）が期待どおり動かない原因を、ソースコード（`.ixx` / `.cppm`）を一次情報として検証した。
 
@@ -95,9 +95,11 @@ void ArtifactBatchRenderer::batchJobsAdded(int) { }
 ```
 `batchJobsAdded` を発火しても何も起きない。
 
-### 4.4 プリセットがハードコード
-- `addCompositions` は `h264_mp4_standard` に固定（`:120`、`:127`）。
-- `addAllCompositions` → `addCompositions` の流れで、テンプレートの柔軟性が活かされていない。
+### 4.4 ✅ 対応済み（2026-09-07、runtime未確認）：プリセット／出力先のハードコード
+- **対応印:** 通常の `addCompositions()` とテンプレートの空 `presetId` が同じ `defaultTemplate().presetId` を参照するように統一した。既定値の変更時に複数箇所がずれない。
+- `addCompositions` はテンプレートを受け取らない既定APIのため、既定プリセットを使う動作自体は残っているが、値の直書きは廃止した。
+- `defaultTemplate()` の `~/Desktop` 固定は削除し、`QStandardPaths::DesktopLocation`（fallback: home）へ変更した。
+- `addAllCompositions` から任意のテンプレートを選択する柔軟性は未対応。
 
 ---
 
@@ -109,7 +111,7 @@ void ArtifactBatchRenderer::batchJobsAdded(int) { }
 | Farm | 実装済みだが `useMfr=false` で無効 | ファーム配信が実行されない |
 | `compositionFrameStateMutex_` | フレーム全体を直列化 | ワーカーが増えても 1 フレームずつ |
 | 共有コンポジション状態 | スナップショット分離未完成 | 並列化の前提が崩れている |
-| `ArtifactBatchRenderer` | 未初期化変数・空実装・ハードコード | バッチ追加ロジックが不安定 |
+| `ArtifactBatchRenderer` | ⚠️ 部分対応（2026-09-07） | 既定出力先・preset直書きの重複は整理済み。未初期化変数／空実装／template選択の残課題は継続 |
 
 **主因**: 「MFR/Farm の並列基盤は実装済みなのに、共有状態の分離が未完成で `useMfr=false` に固定され、さらにミューテックスで 1 フレームずつ直列化」されている。バッチはキュー追加の骨組みだけで、実行が単一ワーカー + 全体ロックで直列になり、`ArtifactBatchRenderer` 側のバグも重なる。
 
@@ -120,7 +122,7 @@ void ArtifactBatchRenderer::batchJobsAdded(int) { }
 1. **コンポジションスナップショットの分離**: `cloneCompositionSnapshot` をワーカー数ぶん用意し、per-worker の独立したコンポジション/レイヤー/レンダラー状態にする。JSON 経由の重さを解消するため、メモリ上コピー（COW）または render-state のみの軽量スナップショットを検討。
 2. **`useMfr` の再有効化**: 分離が完了したら `useMfr = true` に戻し、`MFRDispatcher` に `frameTask` を渡してフレーム並列を有効化。
 3. **ミューテックスの縮小**: `compositionFrameStateMutex_` を「状態遷移（goToFrame / evaluate）のみ」に限定し、レンダリング・readback をロック外へ。per-worker 分離後はミューテックス自体が不要になる。
-4. **`ArtifactBatchRenderer` の修正**: 未初期化変数の初期化、`batchJobsAdded` の実体化、フレーム範囲の適用、プリセットのハードコード解消。
+4. **`ArtifactBatchRenderer` の修正**: 既定出力先とプリセット参照の重複は対応済み。未初期化変数、`batchJobsAdded`、フレーム範囲、任意template選択は別残課題。
 5. **`ArtifactRenderScheduler` の接続**: 実装済みの優先度ジョブキューをレンダーキューへ接続し、既存機能を活用。
 
 ---

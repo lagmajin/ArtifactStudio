@@ -1,5 +1,22 @@
 # Render Manager redesign
 
+**最終更新:** 2026-09-07
+
+## 採用リファレンス（2026-09-07）
+
+![Render Manager compact queue redesign](render-manager-redesign-2026-09-07.png)
+
+ユーザーが採用した生成モック。大きなジョブカードをコンパクトな行へ整理し、一覧性とエラー対処を優先する。画像保存のみで、この新デザインの実装は未着手。
+
+- 左: 状態フィルタ、Presets、History。
+- 中央: 小さなサムネイル、ジョブ名、出力、状態を並べた一覧。進捗は実行中の行に表示。
+- 右: 選択ジョブの設定とエラー原因・対処を集約。
+- Activity logとAdvanced settingsは折りたたみ、開始操作は右下に集約。
+- 「Choose composition」「Render ready jobs」は提案機能。実装時に既存サービスとの対応を確認する。
+- 画像内のジョブ名・件数・時間・設定値は例示。画像中のCompletedフィルタアイコンなどの細部は、そのまま実装仕様として確定しない。
+
+以下は従来の構成・実装記録として維持する。
+
 **ステータス:** In Progress
 
 ## 目的

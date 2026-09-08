@@ -1,6 +1,7 @@
 # Media / Video / Codec / IO 詳細監査
 
 **日付**: 2026-08-02
+**最終更新:** 2026-09-07
 **調査範囲**: ソースコード直接読み込み（~50ヘッダ）
 
 ---
@@ -31,8 +32,7 @@
 | フレーム取得 | ✅ |
 | シーク | ✅ |
 
-**既知のバグ**: 成熟度分析 p2 より — 致命エラー時に `continue` でループ脱出せず無限ループ。修正済みか未確認。
-別途、AudioDecoder の fatal error で decoder drain をしないバグも報告あり。
+**2026-09-07対応印**: 現行コードでは`receive_frame`のEOF／エラー処理と`send_packet`の戻り値処理があり、致命エラー時に無条件`continue`する旧記述は現行コードと一致しない。AudioDecoderもEOF時のdrainと送信エラー処理を実装済み。実ファイルでのruntime受入れは未確認。
 
 ---
 
@@ -100,15 +100,15 @@
 
 ---
 
-## 7. Stabilizer — 🔴 機能しない
+## 7. Stabilizer — 🟡 部分実装（2026-09-07現行コード照合）
 
 `Video/include/Stabilizer.ixx`
 
-成熟度分析での報告:
+旧成熟度分析での報告:
 - `BatchStabilizer` が I/O 完全スキップして `return true`（スタブ）
-- Harris corner response の公式が誤り（`det = dx*dy - covxy*covxy` のべきが `dx*dy - pow(dx+dy, 2)`）
+- Harris corner response の公式が誤り
 
-**評価**: コード構造はあるが完全に機能しない。
+現行コードでは、`BatchStabilizer::process()` が入力検証、画像読込、`VideoStabilizer` 実行、出力保存、進捗通知を行い、Harris response も `det - 0.04 * trace * trace` の公式になっている。したがって「完全に機能しないスタブ」は現行コードと一致せず、単一画像処理の実装済み、動画シーケンスI/Oとruntime受入れは未確認として扱う。
 
 ---
 
@@ -117,13 +117,13 @@
 | コンポーネント | スコア | 所見 |
 |---------------|--------|------|
 | MediaReader | 🟢 85% | FFmpeg demuxer。安定 |
-| FFmpegVideoDecoder | 🟡 60% | 無限ループバグの修正状況未確認 |
-| FFmpegAudioDecoder | 🟡 55% | fatal error 検出不十分 |
+| FFmpegVideoDecoder | 🟡 部分対応（2026-09-07） | EOF／送信・受信エラー処理、stride範囲検証、FPS fallbackを確認。runtime未確認 |
+| FFmpegAudioDecoder | 🟡 部分対応（2026-09-07） | EOF drainとfatal error処理を確認。runtime未確認 |
 | FFmpegEncoder | 🟢 80% | H.264/H.265/ProRes + HDR。完成度高い |
 | ImageExporter | 🟢 85% | OIIO + QImage + 非同期 + MultiChannel |
 | MediaPlaybackController | 🟡 60% | UI スレッド sleep 問題 |
 | Transition システム | 🟢 85% | 15種。クリーン |
-| Stabilizer | 🔴 5% | 完全に機能しないスタブ |
+| Stabilizer | 🟡 部分対応（2026-09-07） | BatchStabilizerの単一画像I/O・安定化処理は実装済み。動画シーケンス処理とruntime未確認 |
 | GStreamer | 🟡 30% | インターフェースはあるが使用実績不明 |
 | MFEncoder/MFFrameExtractor | 🟡 30% | MediaFoundation バックエンド。状態不明 |
 

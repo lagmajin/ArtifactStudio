@@ -1,6 +1,6 @@
 ﻿# マイルストーン: Timeline DCC-Feel Gaps (2026-08-29)
 
-**最終更新:** 2026-08-30
+**最終更新:** 2026-09-07
 **ステータス:** In Progress
 
 > **このファイルは 2026-08-29 作成版の 2026-08-30 更新版です。** 元ファイル [MILESTONE_TIMELINE_DCC_FEEL_GAPS_2026-08-29.md](MILESTONE_TIMELINE_DCC_FEEL_GAPS_2026-08-29.md) は別物として残してあります。
@@ -14,6 +14,10 @@ Artifact のタイムラインは planned milestone の大半が「機能の実�
 参考: 関連棚卸し（2026-08-30 更新版） [MILESTONE_TIMELINE_STATUS_INDEX_2026-08-30.md](MILESTONE_TIMELINE_STATUS_INDEX_2026-08-30.md) / 2026-08-29 原本 [MILESTONE_TIMELINE_STATUS_INDEX_2026-08-29.md](MILESTONE_TIMELINE_STATUS_INDEX_2026-08-29.md)
 
 ## 背景
+
+### 2026-09-07 対応印
+
+Windows 固有の `Consolas` 直指定を、再生コントロール、作成ダイアログ、3Dギズモ、ArtifactWidgets のコンソール／コードエディタ／スコープ表示、ArtifactCore の ColorScopes 固定幅表示で `QFontDatabase::systemFont(QFontDatabase::FixedFont)` に置換した。固定幅という表示契約は維持し、OSごとのフォント解決に任せる。ビルド・実機確認は未実施。
 
 観察で得られた兆候（2026-08-29）:
 
@@ -222,3 +226,4 @@ Phase 1 の主要 painter 共通化と固定幅フォントの OS 解決は静�
 - DoD:
   - マウスが track pane 内に入ってから 1 フレーム以内に情報が出る
   - hover 中の clip / keyframe が「触る対象」として視覚的に強調される
+**最終更新:** 2026-09-07

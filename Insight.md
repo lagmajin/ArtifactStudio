@@ -1,6 +1,15 @@
-**最終更新:** 2026-09-06
+**最終更新:** 2026-09-07
 
 # Insight Register
+
+## 2026-09-07 — モーションパスUndoに残る24fps固定時刻
+
+- **対応追記（2026-09-07）:** ユーザー依頼により対象コマンドをRationalTime保持（複数キーは時刻スケール保持）へ変更し、関連ドラッグ・確定処理もコンポfpsに統一。以下は修正前の調査記録。静的確認済み、実操作検証待ち。
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionMotionPathCommands.cppm` の位置・接線・複数キーUndo、`ArtifactCompositionRenderController.cppm` の過去Planeリリース処理。
+- **事実:** これらには `RationalTime(frame, 24)` が残る。一方、通常の編集開始は `gizmoTransformTime` でコンポfpsを使う。
+- **懸念（未検証）:** 非24fpsでUndo対象時刻がずれる可能性がある。今回追加した過去枠Scaleは開始時のRationalTimeをコマンドへ保持する。
+- **次に確認:** 30/60fpsで位置・接線編集とUndoの対象キーを比較し、既存コマンドの時刻受け渡しを別途そろえる。
 
 ## 2026-09-06 — AnimatableTransform3Dの24fps固定量子化(未検証・要修正)
 
@@ -776,3 +785,22 @@ eturn start のままだった。
 - 確認事実: 現行回転は開始角との差をEuler成分へ加算し、スナップは各Euler成分へ適用する。atan2境界の差の連続化はこの経路にはない。
 - 未検証: ±180度をまたぐドラッグ、傾いたView回転、非ゼロ開始角でのスナップの操作整合性。
 - 懸念・次の確認: 今回は外観変更のため数学を変更していない。上記操作を再現してから、必要なら回転更新とピボット更新の一致を別途修正する。
+### 2026-09-07 — MSVC IFC C1001 と initializer-list append
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `cloth3DDeformationMesh()`。
+- **確認事実:** C1001 の報告位置は namespace 終端直後の空行だが、直前の追加処理には import された ClothSolver3D の値を `std::vector::insert(..., { ... })` で追加する箇所があった。
+- **仮説・未検証:** 大規模な module implementation unit での initializer-list overload 解決が MSVC の IFC 処理を誘発している可能性がある。`push_back` の明示列へ分解して回避した。
+- **価値／次に確認:** 再ビルドで C1001 が消えるか確認し、再発時は Cloth3D 実装を別の既存 `.cppm` 境界へ移す切り分けを行う。
+
+### 2026-09-08 — setComposition overload の再入リスク
+
+- **関連:** `Artifact/src/Layer/ArtifactAdjustableLayer.cppm`、`Artifact/src/Layer/ArtifactPaintLayer.cppm`、`Artifact/src/Layer/ArtifactSwitchLayer.cppm`。
+- **確認事実:** `QObject*` overload が `void*` overload を呼び、その `void*` overload が `ArtifactAbstractLayer::setComposition(void*)` を呼ぶと、base 実装内の virtual `QObject*` dispatch により派生 overload へ戻る。Adjustment Layer の実行スタックでこの循環を確認した。
+- **対応:** Adjustment Layer は base の `QObject*` 実装を明示呼出しするよう修正した。
+- **懸念・次に確認:** Paint Layer と Switch Layer に同じ実装パターンが残る。今回の依頼範囲外のため未変更であり、各レイヤー追加・composition attach の実機確認後に同じ修正を適用するか判断する。
+
+### 2026-09-08 — エフェクトのGPU常駐チェーン契約
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Effects/ArtifactAbstractEffect.cppm`、`ArtifactCore::LayerBlendPipeline`。
+- **確認事実:** Composition View の通常レイヤー用 raster surface builder は CPU の `ImageF32x4_RGBA` を入出力とする。一方、AUTO/GPU の各エフェクト実装は入力を個別アップロードし、dispatch後に staging texture、`WaitForIdle()`、CPU readbackを行うため、複数エフェクトでは同期往復が段数分発生する。調整レイヤーの対応済みpointwise処理だけは `LayerBlendPipeline` 内でGPU常駐する。
+- **対応:** CPU所有のsurface builderではCPU実装を明示利用し、GPU専用エフェクトだけ従来経路へフォールバックすることで同期往復を除去した。さらに通常レイヤーでも、完全に表現できる Exposure / Hue・Saturation / Levels / Brightness / White Balance(tintのみ) / Invert / Grayscale を既存 `LayerBlendPipeline` のF32 SRV/UAV pointwise passへ接続した。
+- **価値／次に確認:** 通常レイヤーの対応カラー処理は `layerFloat → pointwise → matte → blend` でGPU常駐する。region、effect mask、mix、未対応パラメータ、CPU明示、GPU専用エフェクトは互換性優先で既存経路を使う。残る根本拡張は、任意のエフェクトAPIへSRV/UAVまたはrender-graph resourceを渡すGPU常駐チェーン契約である。D3D12/Vulkan共通のDiligent境界、ping-pong texture寿命、mask/region/mixの適用順を先に確定する。

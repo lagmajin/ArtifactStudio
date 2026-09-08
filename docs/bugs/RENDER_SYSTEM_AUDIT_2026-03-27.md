@@ -1,5 +1,7 @@
 # レンダーシステム包括調査レポート (2026-03-27)
 
+**最終更新:** 2026-09-07
+
 ## 1. Render Queue Widget UI
 
 ### 1.1 ジョブ並べ替え D&D 未実装
@@ -17,10 +19,8 @@
 **場所:** `ArtifactRenderQueueManagerWidget.cpp:515-518, 571`
 - `saveCurrentSelectionAsPreset()` / `applyPresetToSelection()` が codecProfile を無視
 
-### 1.4 出力パスがハードコード
-**場所:** `ArtifactRenderQueueService.cppm:1480, 1501, 1545`
-- `QDir::homePath() + "/Desktop/output.mp4"` 固定
-- 非英語環境/Desktop なし環境で壊れる
+### 1.4 ✅ 対応済み（2026-09-07、runtime未確認）：出力パスがハードコード
+**対応印:** Render Queue の新規ジョブ／プリセット経路に加え、dummy render・全Composition追加・履歴書き出しに残っていた `QDir::homePath() + "/Desktop/..."` も `QStandardPaths::DesktopLocation`（Desktopなし時はhome）へ統一した。実環境での出力先確認は未実施。
 
 ### 1.5 ジョブパネルの Start ボタン未接続
 **場所:** `ArtifactRenderQueueJobPanel.cpp:224-227`
@@ -180,7 +180,9 @@
 - `ImageExporter::write()` に `ImageExportOptions` のデフォルトを使用
 - 圧縮レベル、品質、ビット深度がジョブ設定から渡されない
 
-### 6.3 ファイル名パターンがハードコード
+### 6.3 ⚠️ 部分対応（2026-09-07）：ファイル名パターンがハードコード
+- 連番→動画変換の入力パターンだけ固定だった `%05d` を `job.framePadding` に追従させた。
+- `%04d` 等のユーザー指定パターン、フレームオフセット、任意の命名規則は未対応。
 - `basename_0001.ext` のみ。`%04d` パターン、フレームオフセット、カスタム命名規則非対応
 
 ---

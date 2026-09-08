@@ -1,6 +1,6 @@
 # FFmpeg 8.1+ ProRes GPU Decode - Low Level AI Implementation Milestone
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-09-07
 
 ## 現行コード監査 (2026-08-15)
 
@@ -99,17 +99,17 @@ decode path is not implemented.
 
 | 課題 | ファイル:行 | 影響 |
 |---|---|---|
-| stride 計算 int overflow | `FFMpegVideoDecoder.cppm:69` | 4K+ で buffer overrun |
-| VFR/HFR シーク | `FFMpegVideoDecoder.cppm:311-314` | 高 FPS 素材でシーク不能 |
-| Audio decoder 致命エラー後 flush なし | `FFMpegAudioDecoder.cppm:305-307` | 音声デコード継続破損 |
+| ✅ stride 計算 int overflow（対応済み 2026-09-07、runtime未確認） | `FFMpegVideoDecoder.cppm` | `width * 3` を int64 計算して int 範囲を検証。異常値は無効 frame を返す |
+| ⚠️ VFR/HFR シーク（部分対応 2026-09-07、runtime未確認） | `FFMpegVideoDecoder.cppm` | `r_frame_rate` → `avg_frame_rate` fallback と `av_rescale_q` による frame/timebase変換は実装済み。真のVFRでのフレーム番号定義・実機検証は未完了 |
+| ✅ Audio decoder 致命エラー処理（静的対応済み 2026-09-07、runtime未確認） | `FFMpegAudioDecoder.cppm` | EOF drain／send error の状態遷移と packet unref を実装済み。致命エラー時は継続せず終了 |
 | UI スレッド sleep (video パス) | `MediaPlaybackController.cppm:1016-1020` | 再生中 UI ラグ |
-| `av_rescale_rnd` int64→int truncation | `FFMpegAudioDecoder.cppm:379` | 長時間音声でバッファ誤り |
+| ✅ `av_rescale_rnd` int64→int truncation（対応済み 2026-09-07、runtime未確認） | `FFMpegAudioDecoder.cppm` | `int64_t` 結果を `int` 範囲検証後に変換 |
 
 ### 次の一手
 
 - **P0**: Vulkan timeline semaphore bridge 実装 → `directVulkanVideoFramesEnabled()` を有効化可能に
-- **P0**: stride overflow 修正 (`width * 3` → `static_cast<int64_t>(width) * 3`)
-- **P1**: VFR/HFR シーク修正（`avg_frame_rate` ベース timebase を使用）
+- **P0**: stride overflow は対応済み。残るP0は Vulkan timeline semaphore bridge
+- **P1**: 真のVFRシーク仕様と runtime 検証（現行コードは rate fallback／timebase変換まで対応）
 - **P1**: HW decode 対応コーデックの自動検出（`avcodec_get_hw_config` + 診断ログ）
 
 ---

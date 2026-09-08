@@ -22,7 +22,7 @@
 
 ## 2. コンポジション作成時の待ち
 
-保存済み `C:/Users/lagma/AppData/Roaming/Artifact/WidgetCreationReports/` の以下のログに実測あり。
+保存済みのユーザー固有ログディレクトリ（`QStandardPaths::AppDataLocation/WidgetCreationReports/`）の以下のログに実測あり。
 
 | ログ名 | service create | projectCreateMs | managerCreateMs | Timeline Ready |
 |---|---:|---:|---:|---:|
@@ -40,7 +40,7 @@
 
 結論: 遅延の存在と大区間はログで確認済み。manager 内部の関数別・イベント購読者別の所要時間はログにないため、約1秒を占める単独関数は断定できない。次の確認箇所はモデル構築、イベント発行、各同期購読者の時間内訳。初回のプロジェクト新規作成と既存プロジェクトへの追加は分けて測定する。
 
-## 追加依頼への対応
+## 2026-09-07 対応印 — 追加依頼への対応
 
 ### キー修正
 
@@ -68,6 +68,10 @@
 別要因として、保存済み `Logs/PlaybackSessions/playback_session_20260907_000812_293.log` は30fps・speed=1・playEveryFrame=trueで、9,167ms中167フレーム進行（セッション全体の平均約18.2fps、開始・停止時間を含む）。120 tick時点も約6.085秒であり、設定30fpsより遅い。`ArtifactPlaybackEngine.cppm` の全フレーム再生は順番にフレームを送り、GUIの同期処理完了を待つ。タイムラインの予測位置は設定FPSで進むため、差が1.5フレームを超えた補正でも逆戻りが起こり得る。この補正と実処理の遅延は今回変更していない。
 
 同ログには `QWidget::mapFrom(): parent must be in parent hierarchy` の警告が繰り返しある。呼び出し元と所要時間は未確認のため、これを主原因と断定しない。
+
+### 環境依存パスの整理
+
+`Artifact/src/AppMain.cppm` に残っていた hostfxr のトレース出力先と DLL 検索先の個人環境依存パスを、TempLocation と実行ファイル配置ディレクトリから解決するように変更した。ログ・実機確認は未実施。
 
 ## 検証状況・次の確認
 

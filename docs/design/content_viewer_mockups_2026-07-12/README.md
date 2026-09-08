@@ -1,5 +1,7 @@
 # Content Viewer Design Mockups
 
+**最終更新:** 2026-09-08
+
 Date: 2026-07-12
 
 ## Selected Direction
@@ -15,6 +17,9 @@ and dock-based desktop layout.
 - `content-viewer-focus.png`: single-source inspection direction
 - `content-viewer-compare-selected.png`: selected A/B compare and wipe direction
 - `content-viewer-review-strip.png`: continuous asset browsing direction
+- `content-viewer-focus-2026-09-08.png`: refreshed single-source Focus Canvas direction
+- `content-viewer-compare-bench-2026-09-08.png`: refreshed A/B Compare Bench direction
+- `content-viewer-review-strip-selected-2026-09-08.png`: refreshed Review Strip direction selected for implementation
 
 ## Responsibility Boundary
 

@@ -35,3 +35,14 @@ Artifact の FloatColorPickerHooks で既存 FloatColorPicker を再配置。Art
 - Lab / XYZの専用グラデーションスライダーは未追加。RGB / HSL / HSVのスライダーと共通履歴は引き続き利用できる。
 
 QtCSS・新規シグナル接続・Core / ArtifactWidgets変更なし。ビルド・テスト・実画面検証は未実施。
+
+## モック追従調整 — 2026-09-07
+
+現行画面との比較を踏まえ、既存機能を維持したまま承認済みモックの視覚階層へ近づけた。
+
+- Previous / New の比較スウォッチを拡大し、編集対象と float RGBA 前提を上段へ集約。
+- タブ、チャンネル行、HEX、Recent colors、フッターをセパレーターで区切り、余白と数値欄の幅を統一。
+- 操作ラベルをモックに合わせて英語へ統一し、Apply を既定の主要アクションとして強調。
+- HSV / Lab / XYZ と 0–1 float 入力は既存要件のため維持。モックの 8-bit 切替、スポイト、Project palette、Live preview は引き続き未実装。
+
+QtCSS、新規シグナル接続、QColorDialog は追加していない。ユーザー指示によりビルド・テストは未実行。

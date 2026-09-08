@@ -1,7 +1,7 @@
 # マルチチャンネルオーディオ出力 設計書
 
 **作成日:** 2026-07-02
-**最終更新:** 2026-08-15
+**最終更新:** 2026-09-07
 **ステータス:** 基盤実装済み（実機出力・品質・切替検証待ち）
 **関連コンポーネント:** AudioRenderer, AudioMixer, AudioBus, AudioDownMixer, ArtifactAudioLayer, ArtifactPlaybackEngine, ArtifactAudioMixer
 
@@ -21,7 +21,11 @@ seg.channelData.resize(6);  // 5.1ch
 seg.layout = AudioChannelLayout::Surround51;
 ```
 
-### 1.2 現在のパイプライン（全て Stereo 固定）
+### 1.2 監査時点のパイプライン（旧記録：Stereo固定）
+
+### 2026-09-07 対応印（Layer／Composition の静的再確認）
+
+現行コードでは `ArtifactAudioLayer::getAudio()` が `sourceChannelCount_` を使って可変チャンネルを生成し、Composition の mixer 経路も `outputChannels`／`layerSegment.channelCount()` に基づいて出力幅を決めている。旧記録の `resize(2)` 固定指摘は現行実装には該当しない。legacy fallback の最小2ch確保、Viewer の解析用PCM、Spatial／DownMixer のStereo出力は、それぞれの責務上の固定として残る。
 
 ```
 ArtifactAbstractComposition::getAudio()
@@ -79,6 +83,10 @@ AudioRenderer
 ---
 
 ### Phase 1: AudioRenderer のマルチチャンネル出力対応
+
+### 2026-09-07 対応印（静的再確認）
+
+`AudioRenderer` は既に `setPreferredChannelCount()`、デバイスの実チャンネル数取得、未対応デバイス時の `preferredFormat()` fallback、1/2ch downmix を実装しており、ログに残る「`channels = 2` 固定」「`format.setChannelCount(2)` 固定」は現行コードでは解消済み。Composition／Layer 側の `channelData.resize(2)` と実機検証は未対応・未確認として残す。
 
 **目標:** Renderer が任意チャンネル数の AudioSegment を受け取れるようにする。
 

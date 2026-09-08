@@ -1,6 +1,6 @@
 # After Effects 観点の現行不足機能メモ
 
-**最終更新:** 2026-09-05
+**最終更新:** 2026-09-07
 
 作成日: 2026-05-28
 対象: ArtifactStudio 現行リポジトリ
@@ -20,6 +20,8 @@
 > - **Solid / Plane Layer**：色・サイズ・グラデーション・コンポジションサイズ初期化・PAR・JSON保持を確認。通常のSolid生成では `sourceItemId` を発行し、Solid Item追加とレイヤー追加を同一Undoマクロへ入れる経路を追加した。残りは再読込後のProject Item参照整合と実動作確認である。
 >
 > AdobeのSolidは「固体色のレイヤー」だけでなく、Project panelに自動保存されるソースフッテージとして扱われ、サイズ・色・ピクセルアスペクト比などを持つ。Artifactではサイズ・色・ピクセルアスペクト比の基本処理まで接続済みで、解釈設定とProject Item連携が残る。参照: [Adobe After Effects Reference](https://helpx.adobe.com/pdf/after_effects_reference.pdf)、[Importing and interpreting footage](https://helpx.adobe.com/after-effects/desktop/work-with-footage-items/import-and-interpret-footage-items/importing-interpreting-footage-items.html)。
+
+> **2026-09-07 対応印（Text Animator）**: `TextAnimatorEngine`、`GlyphLayout`、`ArtifactTextLayer`のper-glyph評価／描画、Range／Wiggly selector、`ArtifactTextGizmo`のレンジ・変形・回転・アンカー操作を現行コードで再確認した。旧来の「Text Animator未実装／TextGizmoスタブ」という判定は現行コードと一致しないため、残課題を専用UIの操作深度、複雑なshaping／パス配置、runtime受入れへ限定する。
 > `CreatePlaneLayerDialog` のピクセル縦横比は `ArtifactSolidLayerInitParams` へ渡され、Solid レイヤーの表示幅・保存データにも反映されるようになった。残る確認項目は、既存プロジェクトの解釈設定との統合と、Solid レイヤー生成時の Project Item / Undo 接続である。
 
 > **調整レイヤーの適用範囲**：GPU Pointwise経路は、マスク・変形・レイヤー不透明度がある場合は安全のためフォールバックする。Pointwise成功後も上位RenderPassのMask / Track Matte / Compositeへ継続するため、トラックマット自体は後段経路へ接続済み。ただし、AEと同じ順序・複数マット条件での実動作検証が残る。

@@ -1,5 +1,7 @@
 # セッション作業レポート
 
+**最終更新:** 2026-09-07
+
 > 2026-03-21 作業分
 
 ---
@@ -21,6 +23,10 @@
 | `fitToViewport()` (line 563) | `zoomLevel_ = 1.0f` → `fitToViewport()` 呼び出し後に `renderer_->getZoom()` で同期 |
 | `setTargetLayer` (line 547) | `zoomLevel_ = 1.0f` → `renderer_->getZoom()` で同期 |
 | Key_F handler (line 144) | `zoomLevel_ = 1.0f` → `renderer_->getZoom()` で同期 |
+
+### 2026-09-07 追補（対応印）
+
+静的再確認で `ArtifactLayerEditorWidget::resetView()` に同じ固定値が1箇所残っていたため、renderer の `resetView()` 後に `getZoom()` を読み、`zoomLevel_` を実値へ同期するよう修正した。ビルド・実機確認は未実施。
 
 ---
 

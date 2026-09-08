@@ -1,5 +1,6 @@
 # ArtifactCore カラーシステム分析レポート
 **作成日**: 2026-04-17  
+**最終更新:** 2026-09-07
 **対象**: ArtifactCore の Color モジュール（FloatColor, ColorManager, ColorLUT, 関連クラス）
 
 ---
@@ -67,10 +68,10 @@
 - `HDRMetadata` - HDRメタデータ構造体
 - `QObject` - QObject基底
 
-### ⚠️ 未実装・不足メソッド
+### ⚠️ 未実装・不足メソッド（旧記録。2026-09-07現行コード照合済み）
 ユーザー要求仕様との乖離：
-- `setDisplayProfile()` → **未実装**
-- `getDisplayProfile()` → **未実装**
+- `setDisplayProfile()` → **実装済み**
+- `getDisplayProfile()` → 旧API名。現行は **`displayProfile()`** として実装
 - `colorSpaceTransform()` → 同等機能は `getConversionMatrix()` で部分的に提供
 - `getWorkingSpace()` → `workingSpace()` として実装済み
 
@@ -130,11 +131,11 @@ Pimpl イディオムにより実装隠蔽。
 - メンバ: `r_`, `g_`, `b_`, `a_`（`float`）
 - 内部関数: `sumRGB()`, `sumRGBA()`, `averageRGB()`, `averageRGBA()`, `clamp()`
 
-### ⚠️ 未実装・不足メソッド
+### ⚠️ 未実装・不足メソッド（旧記録。2026-09-07対応印）
 ユーザー要求仕様との乖離：
-- `fromLinear()` → **未実装**（線形色空間からの変換）
-- `toLinear()` → **未実装**（線形色空間への変換）
-- **代替案**: `ColorTransferFunction` モジュール（`linearToSRGB()`, `srgbToLinear()` 等）を直接使用するか、`ColorManager` 経由で変換行列を適用
+ - `fromLinear()` → **実装済み**（`FloatColor.cppm`）
+ - `toLinear()` → **実装済み**（`FloatColor.cppm`）
+- **旧代替案**: `ColorTransferFunction` モジュールを直接使用する案。現行は`FloatColor.cppm`の実装を正規経路として扱う。
 
 ### 🎯 責務
 **IN**: RGB 浮動小数点値（0.0-1.0）  
@@ -148,7 +149,7 @@ Pimpl イディオムにより実装隠蔽。
 | 役割 | ファイルパス |
 |------|-------------|
 | 宣言（インターフェース） | `ArtifactCore/include/Color/FloatRGBA.ixx` |
-| 実装（スタブ） | `ArtifactCore/src/Color/FloatRGBA.cppm` |
+| 実装 | `ArtifactCore/src/Color/FloatRGBA.cppm`（変換演算子。主要本体は`.ixx`） |
 
 ### 🏷️ 名前空間
 `namespace ArtifactCore`
@@ -561,15 +562,21 @@ graph TD
 | 分類 | 内容 | 影響度 |
 |------|------|--------|
 | **API不一致** | `ColorManager` 宣言（`ColorSpace.ixx`）と実装（`ArtifactColorManagement.cppm`）で名前空間不整合 | 🟡 中（ビルド時にマージ必要） |
-| **未実装メソッド** | `ColorManager::setDisplayProfile()`, `getDisplayProfile()` が存在しない | 🟠 高（ユーザー要求仕様と不一致） |
-| **未実装メソッド** | `FloatColor::fromLinear()`, `toLinear()` が未定義 | 🟠 高（色空間変換が不便） |
-| **簡易実装** | `ColorManager::getConversionMatrix()` が identity 行列のみ返す（`ColorSpaceConverter::getConversionMatrix()` も同様） | 🔴 高（本格的な色空間変換不可） |
+| **表示プロファイルAPI** | `ColorManager::setDisplayProfile()` と `displayProfile()` は実装済み。旧`getDisplayProfile()`名は存在しない | 🟡 中（API名の互換確認が必要） |
+| **線形変換** | `FloatColor::fromLinear()`, `toLinear()` は実装済み | ✅ 対応済み（runtime未確認） |
+| **色域変換行列** | `ColorManager`／`ColorSpaceConverter`とも`ColorGamutConversion`の行列を使用 | ✅ 対応済み（OCIO等の高度な色管理は別課題） |
 | **未使用列挙** | `ColorSpace::ACES_AP0`, `ACES_AP1`, `Rec2020`, `P3` が宣言のみで実際の変換なし | 🟡 中 |
-| **未実装形式** | `ColorLUT::loadFromCsp()` が "not fully implemented" を返す | 🟢 低（CSP 使用頻度低） |
-| **簡易逆変換** | `ColorLUT::inverted()` が identity LUT 返却（実質未実装） | 🟢 低（高度な用途のみ） |
-| **実装未完** | `FloatRGBA` の `.cppm` がスタブ（本体は `.ixx` に定義） | 🟢 低（ixx側で完全定義） |
+| **CSP形式** | `ColorLUT::loadFromCsp()` はパーサー／データ格納まで実装 | ✅ 対応済み（runtime未確認） |
+| **逆変換** | `ColorLUT::inverted()` は固定小数点反復で近似逆LUTを生成 | ✅ 対応済み（精度runtime未確認） |
+| **FloatRGBA** | `.cppm`は変換演算子を実装し、主要本体は`.ixx`に定義 | ✅ スタブ表記を訂正 |
 
 ### 🔧 推奨対応
+
+### 2026-09-07 対応印
+
+現行コードを再確認し、`FloatColor`の線形変換、`ColorManager`の表示プロファイル保持、`ColorManager`／`ColorSpaceConverter`の色域行列、CSP LUT読込、近似逆LUT、`FloatRGBA`本体を実装済みとして訂正した。残る課題は、API名の互換整理、ACES／Rec.2020／P3の完全な色管理、OCIO統合、逆LUTの精度runtime検証である。
+
+以下は旧監査時点の推奨事項。未完了部分のみ次段階候補として残す。
 
 1. **ColorManager 実装統合**
    - `ColorSpace.ixx` と `ArtifactColorManagement.cppm` を単一 namespace（`ArtifactCore` or `Artifact`）に統一
@@ -594,7 +601,7 @@ graph TD
 ### ArtifactCore/src/Color/
 ```
 FloatColor.cppm          ← FloatColor 実装
-FloatRGBA.cppm           ← FloatRGBA スタブ（ixxに本体）
+FloatRGBA.cppm           ← FloatRGBA 実装（変換演算子。主要本体はixx）
 ColorLUT.cppm            ← ColorLUT & LUTManager 実装
 ColorSpace.cppm          ← ColorSpaceConverter 実装
 XYZColor.cppm            ← XYZColor 実装

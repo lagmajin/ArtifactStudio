@@ -2,7 +2,9 @@
 
 # コアモジュール品質調査メモ
 
-**結論: プロダクション級ではない。** 機能の幅は商用DCC並みだが、基盤の堅牢性はプロトタイプ〜アルファ相当。特に**保存したプロジェクトが復元できない**という致命的欠陥がある。
+**最終更新:** 2026-09-07
+
+**監査時点の結論:** プロダクション級ではない。機能の幅は商用DCC並みだが、基盤の堅牢性はプロトタイプ〜アルファ相当。以下には監査時点の重大指摘と、2026-09-07時点での対応状況を併記する。
 （静的解析のみ。AGENTS.md に従いビルド・テストは未実行）
 
 ---
@@ -20,7 +22,11 @@
 
 ## P0 — 出荷不可レベル
 
-### 1. プロジェクト保存→読込のラウンドトリップが壊れている（実測確認済み）
+### 1. ✅ 静的確認済み：プロジェクト保存→読込のラウンドトリップ（runtime未確認）
+
+**対応印（2026-09-07）:** 現行コードを再確認したところ、Importer は `ArtifactAbstractComposition::fromJson()` を使用している。保存済みのサイズ、frame rate、frame/work range、background color、layer factory、layer ID、parentId、track matte の復元処理が実装済み。`ArtifactAbstractLayer::fromJson()` も登録済み factory を呼び出す実装になっている。実際の保存→再読込と runtime 受入れは未確認。
+
+以下は過去監査時点の記録。
 
 `ArtifactProjectImporter.cppm:385` が呼ぶファクトリが**常に nullptr を返す**:
 
@@ -35,7 +41,9 @@ ArtifactAbstractLayerPtr ArtifactAbstractLayer::fromJson(const QJsonObject &obj)
 
 さらに `Importer.cppm:369` は `ArtifactCompositionInitParams params;` をデフォルト構築するだけで、保存済みの `width/height/frameRate/frameRange/backgroundColor` を一切読まない → **常に 1920×1080 / 30fps / 100 フレーム**に化ける。`guideSet` は書くだけで読む箇所が存在しない。レイヤー ID も復元されず、親子関係・トラックマットが全滅する。
 
-### 2. 保存が無言で拒否される
+### 2. ✅ 対応済み（runtime未確認）：保存が無言で拒否される
+
+**対応印（2026-09-07）:** 通常のプロジェクト保存ではMissing File診断を警告へ降格し、保存をブロックするのは構造不整合などの回復不能なErrorに限定した。保存成功時の `setDirty(false)` も `saveToFile()` と numbered save の両方に存在する。保存UI上のエラー表示と実ファイル保存のruntime確認は未実施。
 
 `ArtifactProjectManager.cppm:841` — Error 診断が1つでもあると保存中止。`ProjectDiagnostic.cppm:38` により**オフライン素材1件で `DiagnosticSeverity::Error`**。UI通知はなく `qWarning` のみ（`ArtifactFileMenu.cppm:364`）。ユーザーからは「保存ボタンが無反応」に見える。
 加えて `setDirty(false)` は全コードベースに 0 件（`setDirty(true)` は 19 件）→ 保存後も永久に未保存扱い。

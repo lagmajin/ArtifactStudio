@@ -1,6 +1,6 @@
 # Widget Map
 
-**最終更新:** 2026-09-02
+**最終更新:** 2026-09-07
 
 このファイルは、Artifact の主要ウィジェットの表示名、コード上の名前、役割を AI と人間の両方がすぐ確認できるようにするための一覧です。
 
@@ -254,7 +254,7 @@ AI への指示や短いメモでのみ使う略語。人間向けの正式名�
 - `ArtifactWorkAreaControlWidget`
   work area in/out の owner。drag で範囲を詰める操作を担当する。
 - `ArtifactTimelineTrackPainterView`
-  right-side timeline keymap の owner。clip / keyframe / playhead / selection の直接操作を担当する。
+  right-side timeline keymap の owner。clip / keyframe / playhead / selection の直接操作を担当し、focus中は `Panel.Timeline.Right` contextを明示する。
 - `TimelineTrackView`
   right-side legacy keymap / scene compatibility の owner。
 

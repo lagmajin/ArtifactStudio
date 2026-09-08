@@ -1,6 +1,6 @@
 # Milestone: AE風 Text Animator システム (2026-03-25)
 
-**最終更新:** 2026-08-30
+**最終更新:** 2026-09-07
 
 **Status:** Partial（GlyphLayout、Range／Wiggly selector、per-glyph evaluation／rendering、Property／JSON 接続は実装済み。高度な編集 UI と runtime 検証は未完了）
 **Goal:** After Effects 風の Text Animator を段階導入。レンジセレクターで文字単位のアニメーションを実現。
@@ -51,7 +51,7 @@ ArtifactTextLayer
 | `RangeSelector` (6形状) | ✅ 完成 | `ArtifactCore/include/Text/TextAnimator.ixx` |
 | `WigglySelector` | ✅ 完成 | `ArtifactCore/include/Text/TextAnimator.ixx` |
 | `AnimatorProperties` (pos/scale/rot/opacity) | ✅ 完成 | `ArtifactCore/include/Text/TextAnimator.ixx` |
-| `TextGizmo` (レンジ編集UI) | ⚠️ スタブ（ハードコード） | `Artifact/src/Widgets/Render/ArtifactTextGizmo.cppm` |
+| `TextGizmo` (レンジ編集UI) | ✅ 実装済み（runtime未確認） | `Artifact/src/Widgets/Render/ArtifactTextGizmo.cppm` |
 | テキストプロパティパネル | ✅ 18項目 | `ArtifactTextLayer.cppm:173-217` |
 
 ## 2026-08-15 現行コード照合
@@ -62,6 +62,10 @@ ArtifactTextLayer
 - ✅ `drawAnimatedGlyphRun()` による per-glyph 描画と、アニメータなしの通常テキスト描画経路が共存している。テキストパス描画、CJK／RTL／emoji 等の既存 shaping 基盤も確認できる。
 - ✅ Animator の追加／削除、プリセット、Property Editor／Text Gizmo の接続が存在する。旧記載の「GlyphLayout はヘッダーのみ」「Layer は GlyphItem を持たない」「per-glyph path は存在しない」は現状と不一致。
 - ⏳ Animator 専用 UI の操作深度、複雑な shaping／改行／パス配置との組合せ、GPU／大量文字の性能、実機 runtime 検証は未完了。
+
+### 2026-09-07 対応印
+
+`ArtifactTextGizmo.cppm` を再確認し、バウンディングボックスの角／辺ハンドル、RangeSelector の start/end/offset 操作、回転リング、アンカー、ドラッグ中のプロパティ更新、Undo／キャンセル復元が実装済みであることを確認した。旧「ハードコードされた2ハンドル」「レイヤーデータへのバインディング未実装」という記載は現行コードと一致しないため、対応済みへ更新した。ビルド・runtime確認は未実施。
 
 ### 未接続（Core にあるが Layer で使われていない）
 - `GlyphLayout::TextLayoutEngine::layout()` — テキストを GlyphItem[] に分解する関数
@@ -195,9 +199,9 @@ ArtifactTextLayer
 
 **目的:** ビューポート上でレンジセレクターを直接操作する。
 
-### 現状
-- `TextGizmo` はスタブ状態（ハードコードされた 2 つのハンドル）
-- レイヤーデータへのバインディングが未実装
+### 現状（旧記録。2026-09-07に現行コード照合済み）
+- `TextGizmo` は現行コードではレンジ／変形／回転／アンカー操作まで実装済み
+- レイヤーデータへのバインディングも実装済み。残る確認対象は複雑な shaping、パス配置との組合せ、runtime受入れ
 
 ### Implementation
 1. TextGizmo を ArtifactTextLayer のグリフデータにバインド:

@@ -4,7 +4,7 @@
 **対象:** `ArtifactCore/include/Rig/Rig2D.ixx`, `ArtifactCore/src/Rig/Rig2D.cppm`
 **位置づけ:** Maya / MotionBuilder のボーンキーフレームに相当する Rig2D の時間ベース評価を実装する。
 **作成日:** 2026-07-25
-**最終更新:** 2026-08-15
+**最終更新:** 2026-09-07
 
 ## Update 2026-08-15
 
@@ -70,7 +70,7 @@ Rig2D システムの `Bone2D::evaluate(RationalTime)` が常に静的な `local
 
 ## 5. 残タスク / 将来展望
 
-- [ ] Rig2D にデフォルト FPS を持たせる（現在 `evaluate()` 内でハードコード 30fps）
+- [x] ✅ fps固定解除（対応済み 2026-09-07）：`Bone2D::evaluate()` は `RationalTime::scale()` を使い、`30fps` 固定を廃止
 - [ ] ボーンごとに独立した補間タイプ設定（現在はキーフレームごと）
 - [ ] AnimationLayerStackT を利用したボーンアニメーションレイヤー（非破壊アニメーションブレンディング）
 - [ ] RigControl の時間ベースキーフレーミング

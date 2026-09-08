@@ -1,8 +1,8 @@
 # M-SCOPES-1 Scopes Milestone (Vector / Waveform / Parade)
 
 作成日: 2026-06-16
-最終更新: 2026-08-15
-ステータス: CPU／GPU scope 計算基盤は実装済み、統一 live panel／OCIO／保存・診断は未完了
+**最終更新:** 2026-09-08
+ステータス: Color Science 内の統合 2×2 scope dashboard と viewport preview 同期は実装済み。typed-buffer live path／OCIO／保存・診断は未完了
 対象: `Artifact/src/Widgets/Viewer/ArtifactContentsViewer.cpp`,
       `Artifact/src/Widgets/Color/ArtifactColorSciencePanel.cppm`,
       `Artifact/src/Widgets/Color/ArtifactColorSwatchWidget.cppm`,
@@ -381,3 +381,13 @@ QMatrix4x4 displayMatrix = OCIOManager::instance().sceneToDisplay(displayCS, cur
 - OCIO display-role 追従、highlight／shadow／gamut の Problem View 診断、scope 設定の project 保存、HDR／runtime 受入れは未完了。
 
 判定: **scope の CPU／GPU 計算基盤と既存表示の断片は実装済み。統一 panel、composition live 更新、色管理整合、保存・診断、QImage hot-path 整理は pending。**
+
+## 実装更新 (2026-09-08)
+
+- `ArtifactColorSciencePanel` の既存 Scopes タブ列を、RGB Parade／Vectorscope／Luma Waveform／Histogram の 2×2 dashboard に統合した。
+- 各 scope は既存の Composition Editor preview 同期を共有し、同じ frame を同時表示する。
+- dashboard の右クリックから 2×2／各 scope の単独表示を選択できる。各 tile のダブルクリックでも単独表示と 2×2 を往復できる。
+- 新規 signal/slot、QtCSS、`ArtifactWidgets` 変更、GPU resource、同期契約は追加していない。
+- 現在の frame 取得と既存 scope widget は `QImage` 境界を利用しているため、typed `ImageF32x4_RGBA`／GPU bin 直結の live hot path は引き続き未完了。
+
+判定: **統合表示 UI と既存 viewport preview による live 更新は partial 完了。GPU bin 表示契約、OCIO、設定保存、diagnostics、runtime visual validation は pending。**

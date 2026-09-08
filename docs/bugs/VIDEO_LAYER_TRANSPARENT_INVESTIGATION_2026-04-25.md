@@ -1,6 +1,7 @@
 # コンポジットエディタ ビデオレイヤー透明化 調査レポート (2026-04-25)
 
 **作成日:** 2026-04-25
+**最終更新:** 2026-09-07
 **ステータス:** 調査中（ログ挿入済み）
 **前回レポート:** `VIDEO_LAYER_NOT_DISPLAYING_HYPOTHESES_2026-03-27.md`
 
@@ -71,7 +72,7 @@ if (rgba.type() == CV_32FC4) {
 **影響:** 色ずれ（赤⇔青）。透明度には影響しない。
 **深刻度:** 中（色が正しくない）
 
-### 発見2 (DESIGN): `drawSpriteTransformed` の opacity 引数がデッドコード
+### 発見2 (DESIGN): `drawSpriteTransformed` の opacity 引数がデッドコード（静的再確認 2026-09-07）
 
 **場所:** `ArtifactCore\src\Graphics\Shader\BasicVertexShader.cppm:230`
 
@@ -79,6 +80,8 @@ if (rgba.type() == CV_32FC4) {
 頂点カラー ATTRIB2（opacity 格納先）を読み取らない。
 **影響:** 描画時に opacity が適用されない。ただしブレンドパイプラインが別途 opacity を適用するため合成結果には影響しない。
 **深刻度:** 低（実害なしだが混乱のもと）
+
+**対応印:** 現行コードでは opacity は `AtlasSpriteXformPkt::color.a` に保持される一方、Sprite Transform の頂点レイアウトは位置＋UVの2属性契約で、頂点色をshaderへ渡していない。shaderだけを変更するとPSO入力レイアウト不整合になるため、単独修正は行わず、GPU vertex-layout契約を整理する別タスクとして残す。
 
 ### 発見3: FFmpeg デコードはアルファなし QImage::Format_RGB888
 

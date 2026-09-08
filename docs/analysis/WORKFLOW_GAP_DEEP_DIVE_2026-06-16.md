@@ -1,6 +1,7 @@
 # Workflow Gap Deep Dive — 2026-06-16
 
 作成日: 2026-06-16
+**最終更新:** 2026-09-07
 目的: 痛みメモ / 機能 audit / 既存 milestone で繰り返し挙がる **未提案の 7 つのワークフロー不足** を 1 枚にまとめ、それぞれを掘り下げる。
 対象: 制作中ワークフローの **入力 → 操作 → 編集** までの細い不足
 参照:
@@ -40,9 +41,9 @@
 > 🟠 同じアセットを5回タイムラインに置くと、5回分全部メモリにロードされる
 > 1回だけ置いて何度も複製する。編集すると全部に反映されてしまうので最後に一個ずつ切り離す
 
-### 1.2 現状
+### 1.2 現状（2026-09-07対応印）
 
-- `ArtifactCore/src/Asset/AssetManager.cppm` (24 行) — ほぼ空の PImpl スタブ
+- `ArtifactCore/src/Asset/AssetManager.cppm` — 旧監査ではほぼ空のPImplスタブと判定していたが、現行コードではソース取得／解放、localize、version／health、decoded payload registry、snapshot復元を実装済み（runtime未確認）
 - `AssetImporter.cppm` / `AssetMetaFile.cppm` / `AssetDatabase.cppm` — import / meta / db のみ
 - `ArtifactAbstractLayer` 側に `sourcePath_` を保持する `ArtifactVideoLayer` / `ArtifactImageLayer` などは **それぞれが単独でロード**
 - **instance 概念なし**: 5 個の同じ image layer は 5 個の decode / 5 個の GPU texture upload

@@ -12,3 +12,5 @@ Adobe系のモーションパス編集を参考にした、ArtifactStudioのView
 - 現在フレームの表示を維持したまま、過去のTransformを編集できる。
 
 これは実装仕様ではなく、Viewport操作の方向性を共有するためのリファレンス画像。
+
+実装の進捗・範囲・未確認事項は [過去枠編集の実装ログ](../../worklog/MOTION_PATH_HISTORICAL_BOUNDS_2026-09-07.md) を参照。

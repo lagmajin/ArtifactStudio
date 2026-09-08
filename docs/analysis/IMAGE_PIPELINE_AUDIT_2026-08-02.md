@@ -1,6 +1,7 @@
 # Image / ImageProcessing 詳細監査
 
 **日付**: 2026-08-02
+**最終更新:** 2026-09-07
 **調査範囲**: ソースコード直接読み込み（~60ヘッダ）
 
 ---
@@ -117,15 +118,17 @@ GPU テクスチャ自動管理はまだ完全ではなく、明示的な `Updat
 
 ---
 
-## 7. OpenEXR — 🔴 空スタブ
+## 7. OpenEXR — 🟡 部分実装（2026-09-07現行コード照合）
 
-`Image/include/OpenEXR.ixx` — 24行。コンストラクタ/デストラクタのみ。実装ゼロ。
+### 2026-09-07 対応印
+
+現行コードでは`ArtifactCore/include/Image/OpenEXR.ixx`にRGBA32Fの読書き、Deep RGBAサンプルの読書き、merge／flatten APIが宣言され、`ArtifactCore/src/Image/OpenEXR.cppm`に実装が存在する。さらに`ImageExporter`とレンダーキューからEXR出力へ接続されているため、「24行の空スタブ」は旧スナップショットの記述として訂正する。Deep／multi-channelの実ファイル受入れとruntime性能は未確認。
 
 ---
 
-## 8. ImageInterface — 🟡 最小限
+## 8. ImageInterface — 🟡 最小限（2026-09-07対応印）
 
-`Image/include/ImageInterface.ixx` — `width()` / `height()` の純粋仮想のみ。名前空間未指定。
+`ArtifactCore/include/Image/ImageInterface.ixx` — `width()` / `height()` の純粋仮想だけを持つ最小境界だが、現行コードでは`ArtifactCore`名前空間が指定され、`ImageF32x4_RGBA`から継承されている。機能不足は意図的な小さな抽象契約として扱い、名前空間未指定という旧記述を訂正する。
 
 ---
 
@@ -260,7 +263,7 @@ CPU 版（ColorTransform + ImageProcessing）+ GPU 版（DirectCompute）+ Halid
 | Deep / Cryptomatte | 🟡 70% | DeepImageBuffer / DeepData / ranked Cryptomatte を実装。仕様互換は未検証 |
 | コード重複 | 🟡 60% | 3系統の重複実装。抽象化が必要 |
 
-**総合**: 🟡 75% — 主力画像型と色変換は完成度が高い。EXR/Deep/Cryptomatte の不在とコード重複が課題。
+**総合**: 🟡 75% — 主力画像型と色変換は完成度が高い。EXR／Deep／Cryptomatteは実装済みだが、multi-part／仕様互換のruntime確認とコード重複が課題。
 
 ---
 
@@ -268,24 +271,19 @@ CPU 版（ColorTransform + ImageProcessing）+ GPU 版（DirectCompute）+ Halid
 
 ### GPU連携評価の補正
 
-`ImageF32x4RGBAWithCache` の宣言上は CPU/GPU デュアルバッファ、dirty flag、同期 API が存在するが、実装を確認すると以下は未実装である。
+### 2026-09-07 対応印
 
-- `CreateGpuTextureInternal()`
-- `UpdateGpuTextureFromCpuData()`
-- `UpdateCpuDataFromGpuTexture()`
-- `ResetDirtyBox()` / `UnionDirtyBox()`
+`ImageF32x4RGBAWithCache` は宣言だけでなく、現行実装でGPUテクスチャ生成、CPU→GPU更新、GPU→CPU readback、dirty box更新／リセット、SRV／UAV取得を確認できる。`GetGpuTextureUAV()`もCPU dirty時にCPU→GPU更新を呼ぶため、旧記録の「未実装」「同期方向不一致」は現行コードと一致しない。
 
-さらに `GetGpuTextureUAV()` は CPU dirty 状態で `UpdateCpuDataFromGpuTexture()` を呼んでおり、CPU→GPU 同期の方向と一致していない。
-
-したがって GPU連携は「契約・型の骨格: 🟡」であり、「実動作: 🔴 未検証／未実装」と分けて扱う。監査表の GPU連携 70% は、実動作評価としては過大である。
+ただしDiligent実機での状態遷移、readbackの性能、UAV書込み後の`MarkGpuDataDirty()`運用はruntime未確認である。GPU連携は「静的実装済み・runtime未確認」として扱う。
 
 ### 実装順の確定
 
-1. `ArtifactCore` 側の GPU device/context 所有境界、upload format、readback policy を確認する。
-2. CPU→GPU の明示同期と dirty region 契約を実装する。
-3. flat named-channel EXR writer を実装する。
-4. その後に Cryptomatte / Deep EXR を追加する。
-5. CPU / DirectCompute / Halide の重複は、出力契約と精度差を比較してから統合方針を決める。
+1. `ArtifactCore` 側の GPU device/context 所有境界、upload format、readback policyをruntime確認する。
+2. CPU→GPUの明示同期とdirty region契約を実機で受入れ確認する。
+3. flat named-channel EXR writerをruntime確認する。
+4. その後にCryptomatte／Deep EXRの仕様互換を確認する。
+5. CPU／DirectCompute／Halideの重複は、出力契約と精度差を比較してから統合方針を決める。
 
 ### 未検証のまま残る項目
 
@@ -318,7 +316,7 @@ CPU 版（ColorTransform + ImageProcessing）+ GPU 版（DirectCompute）+ Halid
 | Cryptomatte 1.3準拠 | 🔴 未達／draft channelのみ |
 | Deep EXR | 🟡 DeepData read/write 実装あり。Nuke 相互運用は未検証 |
 
-監査上の「OpenEXR = 空スタブ」は facade の記述として維持し、flat AOV出力の欠落を意味しないよう補足する。
+旧監査上の「OpenEXR = 空スタブ」は現行コードと一致しないため訂正済み。flat／deep RGBAの実装は存在するが、実ファイル入出力とruntime性能は未確認として扱う。
 
 ### 検証入口
 

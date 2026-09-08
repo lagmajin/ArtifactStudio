@@ -1,6 +1,7 @@
 # Graphics / GPU / Diligent 詳細監査
 
 **日付**: 2026-08-02
+**最終更新:** 2026-09-07
 **調査範囲**: ソースコード直接読み込み（~30ヘッダ）
 
 ---
@@ -56,9 +57,9 @@
 | キュー種別 | ✅ Graphics / Compute / Copy |
 | 診断パス状態 | ✅ Scheduled / Disabled / Blocked |
 | リソース依存関係 | ✅ reads / writes 配列 |
-| トポロジカルソート | 🔴 **未実装**（注釈: 「ユーザーが正しい順で追加したと仮定」） |
+| トポロジカルソート | ✅ **実装済み（runtime未確認）**（reads／writesから依存辺・入次数を構築しKahn法で解決） |
 
-**コード内コメント問題**: 成熟度分析で指摘されていた「トポロジカルソート未実装」。依存順が狂うと不正描画。
+**2026-09-07対応印**: 現行`RenderGraph::compile()`にはreads／writesからの依存辺構築、入次数計算、Kahn法による`passOrder`生成、サイクル検出が実装されている。旧「未実装」判定は訂正済み。バックエンド実行とのruntime整合は未確認。
 
 ---
 
@@ -160,7 +161,7 @@ MSVC 14.51 C1116 の回避のため、多数のファイルで `RefCntAutoPtr.hp
 |---------------|--------|------|
 | GPUComputeContext | 🟢 85% | Diligent ラップ。D3D12+Vulkan。ランタイムコンパイル |
 | MeshRenderer | 🟢 90% | フル PBR 対応。インスタンシング。モーション対応 |
-| RenderGraph | 🟢 80% | リソースグラフ。トポロジカルソート未実装 |
+| RenderGraph | 🟢 80% | リソースグラフ。トポロジカルソート実装済み、runtime未確認 |
 | GIRenderPipeline | 🟡 65% | SSGI パイプライン実装中。プロトタイプ段階 |
 | PSOCache | 🟢 75% | シンプルで十分 |
 | GPUTexture | 🟡 30% | 最小限。実際の作成は Diligent 直 |
@@ -169,4 +170,4 @@ MSVC 14.51 C1116 の回避のため、多数のファイルで `RefCntAutoPtr.hp
 | RayTracingManager | 🟡 40% | HW RT 基盤あり。ユニットクワッドのみ |
 | PointwiseFusion | 🟢 80% | ポイントワイズエフェクト融合。GPU最適化 |
 
-**総合**: 🟡 70% — Diligent Engine 統合がしっかりしている。RenderGraph のトポロジカルソート不在と GL パイプラインの未完成が主な課題。HW レイトレーシング基盤はあるが応用はこれから。
+**総合**: 🟡 70% — Diligent Engine 統合がしっかりしている。GL パイプラインの未完成と、RenderGraph／バックエンド実行のruntime整合確認が主な課題。HW レイトレーシング基盤はあるが応用はこれから。

@@ -1,6 +1,7 @@
 # 不在モジュール一覧 — 完全に存在しない or 空のスタブ
 
 **日付**: 2026-08-01
+**最終更新**: 2026-09-07
 **定義**: 「不在」= ソースに1行も実装がない / 0バイト / 空名前空間 / 機能として存在しない
 
 ---
@@ -9,15 +10,15 @@
 
 | ファイル | 状態 |
 |----------|------|
-| `ArtifactRenderer/src/ExternalFrameRenderer.cpp` | acceptが"diagnostic"のみ。全backend fallbackがプレースホルダ |
-| `ArtifactRenderController.cppm` | 空の `namespace ArtifactCore {}` のみ。実装ゼロ |
-| `GeneratorManager.cppm` | 空の `namespace {}` のみ |
-| `ArtifactWidgets/src/Graphics/NodeWireGraphicItem.cpp` | 0バイト |
-| `ArtifactWidgets/src/Graphics/BackendSettingWidget.cpp` | 0バイト |
-| `SimpleSpline` (CloneGenerator) | `getPoint()` が固定 `{0,0,0}` / `pointCount()` が固定 `0` |
-| DSL `CommandNode::compile()` | 全メソッド `nullptr` 返却（QueryNode は部分修正済み） |
-| `MetadataVectorizer` | 入力を無視しハードコード固定値を返す |
-| `BatchStabilizer` | I/O 完全スキップ、progress emit だけして `return true` |
+| ⚠️ `ArtifactRenderer/src/ExternalFrameRenderer.cpp`（部分実装・runtime未確認） | 現行ファイルは Blender Cycles adapter、job検証、frame/range出力、cache／cancel処理を実装。backend全種類の対応完了とは言えないため「不在」から部分実装へ訂正 |
+| ✅ `ArtifactRenderController.cppm`（対応済み 2026-09-07） | 現行コードは command queue、clear／takeCommands、矩形・sprite登録、入力検証を実装 |
+| ✅ `GeneratorManager.cppm`（対応済み 2026-09-07） | 現行コードは create／add／remove／get／contains／ids／clear と mutex保護を実装 |
+| `ArtifactWidgets/src/Graphics/NodeWireGraphicItem.cppm` | 0バイト（未対応） |
+| `ArtifactWidgets/src/Graphics/BackendSettingWidget.cppm` | 0バイト（未対応） |
+| ✅ `SimpleSpline`（対応済み 2026-09-07） | 現行 `CloneGenerator.ixx` は保持点数を返し、Catmull-Rom補間で位置・接線を計算。空データ時の `{0,0,0}` は安全なfallback |
+| ✅ DSL `CommandNode::compile()`（対応済み 2026-09-07） | `DSLParser.cppm` に UseComp／SelectLayers／SetProperty／AddKey／Rename／Delete／Group／Transaction の compile 実装を確認。旧記録の全 `nullptr` 指摘は現行コードに該当しない |
+| ✅ `MetadataVectorizer`（対応済み 2026-09-07） | 現行コードは composition の duration / fps / 解像度 / layer / keyframe を読み取り、正規化してベクトル化。入力無視の固定値返却は確認されない |
+| ✅ `BatchStabilizer`（対応済み 2026-09-07） | 現行コードは入力検証、画像読込、`VideoStabilizer` 実行、出力書込、progress／完了通知まで実装。動画連番バッチではなく単一画像ファイル処理のAPI |
 
 ## B. 完全に存在しないモジュール・サブシステム
 

@@ -1,6 +1,6 @@
 # MILESTONE: Cloner 長期統合計画
 
-**最終更新:** 2026-08-23
+**最終更新:** 2026-09-07
 
 2026-08-23 のクローナー領域ウォーク（`CloneCore` → `CloneGenerator` → `ArtifactCloneLayer` → `ArtifactCloneEffectSupport`）で判明した課題を、移行フェーズ付きで整理する。
 
@@ -91,7 +91,7 @@
 
 | 項目 | Evidence | Scope |
 |---|---|---|
-| fps ハードコード解除 | `ArtifactCloneEffectSupport.ixx:655,686` `currentFrame()/30.0f` | Small |
+| ✅ fps ハードコード解除（対応済み 2026-09-07） | 旧記録の `ArtifactCloneEffectSupport.ixx:655,686` `currentFrame()/30.0f` は現行コードで `layer->compositionFrameRate()` 経由へ置換済み | Small |
 | PoissonDisk 改良（Bridson法 or グリッド加速） | `CloneGenerator.cppm:496` rejection 64回 | Small-Medium |
 | `blendCloneData` の Multiply/Max/Min の意味論文書化 | `CloneCore.ixx:111-129`（位置ベクトルへの要素積は直感とズレる） | Small |
 | Random 分布の `std::mt19937` → `RandomStream` 統合 | `ArtifactCloneLayer.cppm:377`（乱数統合方針に合わせる） | Small |

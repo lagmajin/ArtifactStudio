@@ -1,6 +1,6 @@
 # マイルストーン: Color Pipeline Parity Hardening
 
-**最終更新:** 2026-08-21
+**最終更新:** 2026-09-07
 **ステータス:** Not Started
 **優先度:** High
 **関連:** `docs/planned/MILESTONE_COLOR_BACKEND_HARDENING_2026-07-21.md`, `docs/planned/MILESTONE_COLOR_ALPHA_CONTRACT_UNIFICATION_2026-07-18.md`, `docs/analysis/COLOR_PIPELINE_AUDIT_2026-08-02.md`, `docs/analysis/IMAGE_BUFFER_PRECISION_AUDIT_2026-08-13.md`, `docs/analysis/COMPOSITION_EFFECT_FORMAT_PATH_MEMO_2026-07-13.md`
@@ -31,7 +31,7 @@
 | # | 項目 | 現状 |
 |---|---|---|
 | 2 | `createACESConfig()` 等がメタデータ列挙のみで変換定義を持たない | 既定状態では全変換が静的行列+ガンマフォールバック。「デフォルト ACES」はトーンマップなし近似 |
-| 3 | `ArtifactColorScienceManager::convertColor()` が完全ハードコード | OCIO を経由しない並行経路 |
+| 3 | ⚠️ `ArtifactColorScienceManager::convertColor()`（静的再確認 2026-09-07） | `ColorGamutConversion` と `ColorSpaceConverter` を使う静的行列／transfer fallback は実装済み。「完全ハードコード」は古い表現。ただし OCIO 経路への統合は未対応 |
 
 方針: 公式 ACES OCIO config を同梱して `CreateFromFile` するか、内蔵プリセットに Programmatic transform を定義する。`convertColor()` は OCIO 経路へ統合または廃止。
 

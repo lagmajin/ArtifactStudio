@@ -1,6 +1,6 @@
 # キーボードショートカットカスタマイズUIの実装
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-09-07
 **マイルストーン**: M-SC-1 Keyboard Shortcuts Customization UI
 **作成日**: 2026-04-10
 **見積もり**: 12-16h
@@ -13,6 +13,13 @@
 - ✅ Menu、Timeline、Composition、Viewer、Project、Render 等は中央の `ShortcutBindings` からショートカットを参照し、変更値を各 UI へ適用する経路がある。
 - ⚠️ 旧案の専用 `ArtifactShortcutEditorDialog` とワークスペース別 preset は現行構成では確認できない。競合検出／上書き確認も、Shortcut page の静的コード上で完全な警告 UI として確認できない。
 - ⏳ QWERTY／JIS差、コンテキスト別競合、runtime 再バインドの全 action、preset バージョン移行、実機 QA は未完了。
+
+## 2026-09-07 実装更新
+
+- Settings > Shortcuts に Artifact Studio / Blender tool keys / After Effects current defaults / Custom のpreset選択を追加。
+- Context列、context filter、action／shortcut検索、同一context内の重複検出を追加。
+- JSON import後と手動編集後はCustomとして扱う。既存のimport/export、Apply、Reset経路は維持する。
+- BlenderのG/R/S連続操作とtransform controllerは今回の対象外。設定UIは既存actionとして実行可能な範囲だけを変更する。
 
 ## 概要
 

@@ -1,6 +1,6 @@
 # M-SC-2 Shortcut Context Map / Blender-Like Keymap Routing
 **作成日:** 2026-04-21  
-**最終更新:** 2026-08-15
+**最終更新:** 2026-09-07
 **目的:** Blender 風の「場所とモードで意味が変わる」ショートカット構造を、Artifact の主要 surface に対して明文化し、`InputOperator` の widget-specific keymap と preset system の上に載せる。
 
 ## 背景
@@ -16,6 +16,12 @@
 - `InputOperator` は `KeyMap::context()`、`activeContext`、Global へのフォールバック、widget ごとの `registerWidgetKeyMap()` を実装済み。`ArtifactPlaybackShortcuts` は `Workspace.Timeline` を登録・切替している。
 - Timeline は専用 `Playback` keymap と `ShortcutBindings::matches()` の両方を使い、Curve Editor 切替、補間、ツール、マーカー、ズーム、削除、分割などを実装済み。Layer Panel と Track Painter View も一部の Timeline 操作を共有する。
 - `ArtifactContextShortcutProvider` と設定画面には Workspace 別のヘルプ表示・編集、JSON の import/export、既定値リセットがある。`WIDGET_MAP` と表示名の自動同期、context 階層の優先順位（Modal > Widget.Mode > Widget > Workspace > Global）、region 単位の独立登録、競合検出／revert、Blender／Default／Custom の context 別 preset は未完了または未確認。
+
+## Update 2026-09-07
+
+- Composition viewport は既存の `Viewport.Composition` routingを維持し、`InputOperator`にモーダルダイアログ、別surfaceのfocus、文字入力／数値入力／combo／buttonを判定する共通ガードを追加。
+- Timeline右ペインの `ArtifactTimelineTrackPainterView` はfocus中に `Panel.Timeline.Right` を明示する。
+- Settings > Shortcuts にpreset、context filter、検索、context単位の競合表示を追加。Blender presetではViewportの`R`をtransform modal用に予約し、Composition Viewportで既存のgizmo modal経路へ`G/R/S`を接続した。`X/Y/Z`軸拘束、数値入力、Shift精密操作、Ctrlスナップ、Enter／左クリック確定、Esc／右クリック／focus離脱取消を実装済み。
 
 ## 設計方針
 

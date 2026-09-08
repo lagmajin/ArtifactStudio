@@ -1,5 +1,7 @@
 # Code Review: ArtifactCompositionRenderController
 
+**最終更新:** 2026-09-07
+
 **Date:** 2026-05-11
 **Reviewer:** Kilo AI
 **Files Reviewed:**
@@ -89,9 +91,10 @@ qCDebug(compositionViewLog) << "[CompositionView] drawLayerForCompositionView: .
 ```
 Many debug statements in hot paths - consider compile-time guards.
 
-### 9. Magic Numbers
-- Hardcoded thresholds: `16` ms debounce, `12` px handle size, `0.05f` zoom limits
-- Should be named constants with documentation
+### 9. ⚠️ 部分対応（2026-09-07）: Magic Numbers
+- `16` ms の preview fallback interval と `0.05f` / `64.0f` の viewport zoom limits は名前付き定数へ移行済み。
+- `16` ms debounce は既存の `kRenderDebounceIntervalMs` を使用。
+- `12` px handle size など、同じファイル内のUI寸法ハードコードはまだ残るため継続調査。
 
 ### 10. Unused Parameters
 Line ~1477: `videoDebugOut` parameter is passed but only used for logging - could be removed or made optional.
