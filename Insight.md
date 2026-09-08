@@ -2,6 +2,13 @@
 
 # Insight Register
 
+## 2026-09-08 — ArtifactAbstractLayer の C++20 module 実装を内部パーティションへ分割する
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`、`Artifact/include/Layer/ArtifactAbstractLayer.ixx`、`Artifact/cmake/ArtifactSources.cmake`。
+- **確認事実:** `ArtifactAbstractLayer.cppm` は約13,700行で、約1,000行の `ArtifactAbstractLayer::Impl` と、物理、コンポーネント、エフェクト、プロパティ、マスク、JSON保存を一つの実装モジュール単位に集約している。MSVC 14.51 は13,683行、14.52 Previewは5,026行および診断用の単純化後7,591行で IFC import を伴う C1001 を起こした。
+- **価値／懸念:** 公開 `.ixx` を維持したまま `Impl` を内部パーティションへ置き、責務別の同一モジュール実装単位へ分割すれば、公開API・所有権・イベント経路を変えずにコンパイラのシンボル処理量を下げられる。パーティションのCMake dyndep登録は未検証であり、最初に最小単位で確認する必要がある。
+- **次に確認:** `Impl` 状態パーティションを導入し、物理／シリアライズ／プロパティ／マスクの順に実装を移動する。各段階で対象オブジェクトのMSVCビルド、module hygiene、親子リポジトリのgitlink更新を確認する。
+
 ## 2026-09-08 — Audio Mixer のパン編集トランザクション
 
 - **関連:** `Artifact/src/Widgets/ArtifactCompositionAudioMixerPresentation.cppm` の `setPanChangedCallback` と `recordMixerLayerPropertyChange`。
