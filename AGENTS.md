@@ -1,5 +1,9 @@
 # AGENTS
 
+### Composition Viewport 採用モックの参照範囲（2026-09-08・必須）
+
+`docs/design/composition-viewport/composition-viewport-dcc-concept-2026-09-08.png` は **VP 周辺 UI のみ採用**。参照可能なのは描画領域外のタブ、上部ツールバー、下部の表示／再生コントロール、ステータス行の配置・密度・配色である。キャンバス内の絵・文字・背景・構図、選択枠、ハンドル、アンカー、変換軸、ギズモ、セーフガイド、HUD／方向表示は **参照・再現・変更の根拠にしてはならない**。既存の承認済みギズモ仕様、描画・入力・レンダリング経路を維持する。採用画像を理由に新機能・ショートカット・ビュー構造を追加変更しない。対象外の変更はユーザーの別途明示要求が必要。詳細は `docs/design/composition-viewport/README.md` を必ず読み、その採用範囲を画像および生成プロンプトより優先する。
+
 ## 🚫 CRITICAL: Parent-Child Repository Git Workflow
 
 This project uses a **parent-child submodule structure**:

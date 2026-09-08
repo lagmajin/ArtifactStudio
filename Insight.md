@@ -1,6 +1,21 @@
-**最終更新:** 2026-09-07
+**最終更新:** 2026-09-08
 
 # Insight Register
+
+## 2026-09-08 — Audio Mixer のパン編集トランザクション
+
+- **関連:** `Artifact/src/Widgets/ArtifactCompositionAudioMixerPresentation.cppm` の `setPanChangedCallback` と `recordMixerLayerPropertyChange`。
+- **確認事実:** 既存のパン編集は値変更ごとにUndoコマンドを記録する。音量フェーダーにはドラッグ開始／終了単位の記録経路があるが、パンには同じ境界がない。
+- **未検証:** 長いパン操作で履歴が細分化する程度、およびLayerChangedによる行再構築がドラッグ継続へ与える影響。
+- **価値／次に確認:** 実機でパンの連続ドラッグとUndo回数を確認し、必要なら既存のUndo統合仕様を調査して1操作へまとめる。今回は採用デザインの反映と操作部品の整備に留め、履歴システムの構造は変更していない。
+
+## 2026-09-08 — プレビュー重さの主犯はテキスト毎フレーム shaping と平面グラデ再生成(対応済み3点)
+
+- **関連:** `Artifact/src/Layer/ArtifactTextLayer.cppm:3057-3078` (plain stroke)、`Artifact/src/Layer/ArtifactSolidImageLayer.cppm:643-670` (gradient分岐)、`Artifact/src/Render/PrimitiveRenderer2D.cppm:970-1024,1035-1090` (qCDebug/ sprite cache)、`Artifact/src/Render/DiligentImmediateSubmitter.cppm:1536-1780` (shape+atlas)。
+- **事実:** plain text の stroke がレイヤー側で8方向 `drawTextTransformed` を発行し、submitter 側でパケット毎に `shapeGlyphsForRender + FontManager::makeFont + atlas.acquire` が再実行されていた。SolidImage の gradient 分岐が `currentFillImage()` のキャッシュを使わず `makeSolidGradientImage()` (QImage+QPainter 全画面生成) をクローン毎・毎フレーム実行していた。`drawSpriteTransformed / drawMaskedTextureLocal` が毎スプライト `qCDebug` と先頭4KB hash+IMMUTABLE 再生成を行っていた。
+- **対応:** stroke 8連打を `outlineColor/outlineThickness` 付き単発 `drawTextTransformed` に集約 (submitter の8方向 outline に委譲)。gradient 分岐を `currentFillImage()` キャッシュ参照+opacity パラメータ渡しに変更 (QImage 新規生成なし)。ホットパスの `qCDebug` を撤去 (挙動不変)。
+- **価値／懸念:** GPU 経路優先・QImage/QPainter 新規なし・signal 追加なし。stroke 見た目はシェーダ側 outline (対角 0.707 補正) に寄るため厳密には非同一 (未検証)。rich text (`QTextDocument` 毎フレーム再構築+run毎 shaping) は未着手で残る。
+- **次に確認:** ユーザー環境でテキスト (plain/rich/stroke/shadow)・平面 (Solid/SolidImage gradient) の体感比較、rich 側の CacheKey 付き runs キャッシュ、plain 側 QFont キャッシュの要否。ビルド・実機計測は未実施 (ユーザー指示待ち)。
 
 ## 2026-09-07 — モーションパスUndoに残る24fps固定時刻
 
