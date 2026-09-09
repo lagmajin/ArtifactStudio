@@ -1,4 +1,4 @@
-**最終更新:** 2026-09-08
+**最終更新:** 2026-09-09
 
 # Insight Register
 
@@ -46,6 +46,9 @@
 - **事実:** Gizmoは`RationalTime(frame, doubleのfps)`を暗黙のint64変換で作り(29.97→29)、カーブは`llround`(29.97→30)で作っていた。`RationalTime::operator==`は既約分数の厳密比較のため別時刻となり、カーブ移動の旧キー照合が失敗して無音破棄された。GizmoのPropertyミラー条件(`!empty || autoKey`)とTransform3D条件(`hasKey || animated || autoKey`)も不一致で片方だけ更新された。`addKeyFrame`は同時刻上書きのため移動先衝突で隣キーが消えた。
 - **対応:** fpsは`llround`+下限1に統一、キー照合は`rescaledTo(fpsInt)`のフレーム番号比較に変更、移動先衝突は拒否、ミラー条件はTransform3D側に合わせた。未検証: ビルド・実機確認は未実施(ユーザー指示待ち)。
 - **次に確認:** カーブ→Transform3D方向の逆同期(現状はPropertyのみ書き戻し)、`clear+再add`の一括置換のトランザクション化、既存の混合スケールキーの救済が必要か。
+- **2026-09-09追加調査:** 単一フレームギズモの拡縮をアンカー固定に変更し、開始snapshotにPropertyの時間評価値を反映。通常レイヤーのtoJsonはTransform3DのpositionKeyframes/scaleKeyframes等を書き出す一方、PropertySerializationBridgeは同関数ではeffect用に使用されている。二重保存の解消は、ライブ編集のミラー削除だけでは保存データを失う恐れがある。共有チャンネルへの集約と、既存Transform3Dの初期値＋位置オフセット、補間、空間タンジェント、旧JSON、Undo snapshotの移行を一体で設計する必要がある。2026-09-09に共有Propertyチャンネルへ移行。Transform3Dは同じPropertyへの互換APIとし、JSONはchannelsへ一本化、旧配列は読込のみ。初期値読込はキーを生成しない。Undoはキーと基底値を同じPropertyへ復元する。ビルド・実機未検証。
+- **保存互換性:** 新形式のTransformキーは`channelSchema: 1` / `channels`のみを正本にするため、旧アプリへの保存互換性はない。旧ファイルにそもそも保存されなかったProperty専用キーや初期オフセットを、移行処理で復元することはできない。旧配列が存在する範囲で読込を維持する。
+- **2026-09-09追記（静的確認）:** 左ペインのキー切替はPropertyを直接変更し、UndoとsetDirtyを迂回していたため共通TimelineKeyframeModelへ統合。LayerChangedで最終プレビューとoverlayキャッシュの更新漏れも修正。共有化後はmotionPathPositionKeyTimesのnativeフォールバックも同じキー集合を読む。空間タンジェントは対応する位置キーが残る場合だけ有効にした。次に、位置X単独削除・Y保持・空間タンジェント・Undo/Redo・保存再読込を同じキー正本で成立させる境界を確認する（実機未検証）。
 
 ## 2026-09-06 — Render Queue全消去を永続化する
 
