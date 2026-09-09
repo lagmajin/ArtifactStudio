@@ -90,3 +90,4 @@ Artifact のローカルブランチ `codex/review-artifact-fixes` を、現在�
 - 99d0978e のうち、現行 main と競合しない Composition preset の前回選択記憶を ArtifactFileMenu::handleNewComposition() に移植。既存 QSettings を使用し、名前入力キャンセル時は保存しない。
 - Shape Operator / ショートカット群は引き続き個別レビュー待ち。
 - コマンドパレットは現行 `StandardActionRegistry::registerAll()` を基盤にしており、旧コミットのダミー登録を移植する必要はない。現行の ActionManager に存在しない操作だけを追加対象とする。
+- Composition cycling は旧実装が新規 `QShortcut` と signal 接続に依存するため、現行のショートカット／ActionManager 経路へ再設計してから導入する。
