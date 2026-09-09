@@ -1,4 +1,11 @@
-**最終更新:** 2026-09-09
+**最終更新:** 2026-09-10
+
+## 2026-09-10 — Composition VP の直接編集導線（V1〜V6）
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`ArtifactCompositionRenderController.cppm`、`TransformGizmo.cppm`。
+- **確認できた事実:** 画像クロップ、平面サイズ／グラデーション、Fit／Align／Distribute、画像ソース差し替え、アンカー編集のコア処理は途中実装として既存ギズモ／数値プロパティと接続済みだったが、差し替え時の配置選択、9点プリセット、Comp／他レイヤーガイドへのアンカースナップ、Fit後の結果枠表示、VP下部の整列導線が不足していた。
+- **対応（2026-09-10）:** 無修飾ドロップは変形を維持し、Shiftドロップは新素材を原寸・Comp中央へ置くUndo付き差し替えへ拡張。アンカー9点を既存Pivotメニューから選択できるようにし、CtrlスナップはComp端／中心と他レイヤーの可視境界へ拡張。Fit／Fill／Stretch後はComp枠と結果枠をVPへ重ね、下部Arrange HUDから同操作へ到達できるようにした。
+- **懸念／未検証:** Shiftの配置リセットは現在フレームのTransform3Dへ書き込み、既存アニメーションの他時刻は変更しない。Qt／C++20 moduleのビルド、D&Dの実機修飾キー取得、回転・親子変形下のアンカーガイド位置、Fit結果枠の複数選択表示は未検証（ビルド・実行はユーザー許可後）。
 
 ## 2026-09-09 — ポイントトラッカーのコンポジション切替境界
 
@@ -706,6 +713,31 @@ ender.pointSize (0.25〜8.0、既定1.0、JSON保存・Inspector・set 反映、
 - **今回の対応:** SpatialAudio の出力 scratch を空から開始し、mono/stereo 素材の stereo preview に限定した。
 - **懸念（未検証）:** 先読み／export 時の位置評価が要求音声時刻からずれる可能性がある。汎用レンダラーへ 12ch scratch を直接渡す将来経路では固定長配列の範囲外アクセスに注意が必要。
 - **価値／次の確認:** 任意時刻の親子 transform 評価を共通 API で提供できるか確認する。7.1.4 接続前に出力 layout と係数容量の契約を確定する。
+
+
+## 2026-09-10 — プリコンポーズ改善 B/F 採用と A/C/D/E 見送り
+
+- **関連:** `docs/planned/MILESTONE_PRECOMPOSE_BREADCRUMB_DUPLICATE_2026-09-10.md`、`docs/planned/COMPOSITION_PRECOMPOSE_ANALYSIS_2026-04-17.md`、`docs/planned/GROUP_CONTAINER_MIGRATION_PLAN_2026-08-27.md`、`docs/analysis/AE_PAIN_POINT_IMPROVEMENT_MAP_2026-08-13.md`。
+- **確認できた事実:** ユーザー指示は B (Breadcrumb + In-place) と F (Duplicate Deep / Instance / Un-precompose) を採用、残りは検討。`PreComposeManager::precompose()` は未実装部あり、`GroupContainer` 移行は Phase 0/1 済み・実体化未着手。Viewport モックは周辺 UI のみ採用でキャンバス内変更不可。
+- **対応:** B/F の契約定義 milestone を `docs/planned/` に新規作成。親ゴースト表示は既定範囲外、A/C/D/E は着手条件付きの検討事項として記録。子 repo 変更・ビルド実行なし。
+
+## 2026-09-10 — AE メニューバー不満の付録化
+
+- **関連:** `docs/planned/MILESTONE_PRECOMPOSE_BREADCRUMB_DUPLICATE_2026-09-10.md` 付録。
+- **確認できた事実:** ユーザー承認で前回回答のメニュー別不満・改善を同 milestone へ付録追記した。B/F 本体との対応表付き。コード変更なし。
+- **価値／懸念:** Navigate と複製命名を B/F と同一に縛り、メニュー肥大・用語分裂を防ぐ。コマンドパレット・配置保存は範囲外として分離。
+
+## 2026-09-10 — AE タイムライン不満の付録化
+
+- **関連:** `docs/planned/MILESTONE_PRECOMPOSE_BREADCRUMB_DUPLICATE_2026-09-10.md` 付録。
+- **確認できた事実:** ユーザー承認でタイムライン不満・改善を同 milestone へ付録追記した。左ペイン痩身・Baseline 維持・B/F 連動・ホットパス制約を含む。コード変更なし。
+- **価値／懸念:** 親子切替・複製命名を B/F と同一に縛り、Timeline 肥大・用語分裂を防ぐ。時間集約・検索は定義のみで独立スライス候補。
+- **次に確認:** 付録が肥大化したら独立 milestone へ分割する。
+
+- **次に確認:** 付録が肥大化したら独立 milestone へ分割する。
+
+- **価値／懸念:** 往復コストと複製事故の解消に絞り、GroupContainer 移行との依存を契約先行で吸収する。一方 F-2 実装は PreCompose 未実装部と Container 実体化に依存するため、定義だけでは動作確認できない。
+- **次に確認:** B-2 共有状態の保存先、F-1 既定選択、Tracker 状態除外の維持をレビューする。
 
 ## 2026-09-05 — 点群のvoxel間引き (LOD最小スライス)
 
