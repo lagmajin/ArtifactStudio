@@ -7,8 +7,9 @@
 - **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm` の `processFramesForJob()`。
 - **確認事実:** フレームの render begin／render end／encode begin／encode end 周辺で `Logger::flushFile()` がフレームごとに複数回呼ばれている。GPU readback、画像変換、プレビュー生成と同じ逐次処理経路にあり、ストレージ待ちをフレーム処理へ直接持ち込む構造になっている。
 - **未検証:** 実ジョブでの flush 所要時間、OS キャッシュやログ出力先による差、障害復旧時に必要な永続化粒度。
-- **価値／懸念:** 通常時をバッファリングし、失敗・終了・一定間隔だけ flush できれば描画結果を変えずに待ち時間を減らせる可能性がある。一方でクラッシュ直前のログ保持量が減るため、診断・復旧要件を確認してから変更する必要がある。
-- **次に確認:** 代表的な Render Queue ジョブで flush の呼出回数と所要時間を計測し、セッション台帳との永続化責務を確認する。
+- **対応（2026-09-09）:** 詳細なframe begin/end・encode begin/endを既定無効の`artifact.render.queue.frames` categoryへ移し、通常時のストリーム整形を遅延評価した。同期flushはフレーム失敗、encoder拒否、ジョブ終了の境界へ集約した。
+- **価値／懸念:** 通常レンダリングからフレーム単位のログ整形・mutex・ファイルflushを除外した。categoryを明示的に有効化すれば従来相当の詳細イベントは取得できるが、正常フレームごとの即時永続化は行わない。
+- **次に確認:** 代表的なRender Queueジョブで通常時とcategory有効時のログ内容、失敗時ログ、終了時flushを確認する。
 
 ## 2026-09-08 — ArtifactAbstractLayer の C++20 module 実装を内部パーティションへ分割する
 
