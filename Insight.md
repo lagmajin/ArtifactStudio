@@ -2,6 +2,14 @@
 
 # Insight Register
 
+## 2026-09-09 — Render Queue のフレーム単位ログ flush
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm` の `processFramesForJob()`。
+- **確認事実:** フレームの render begin／render end／encode begin／encode end 周辺で `Logger::flushFile()` がフレームごとに複数回呼ばれている。GPU readback、画像変換、プレビュー生成と同じ逐次処理経路にあり、ストレージ待ちをフレーム処理へ直接持ち込む構造になっている。
+- **未検証:** 実ジョブでの flush 所要時間、OS キャッシュやログ出力先による差、障害復旧時に必要な永続化粒度。
+- **価値／懸念:** 通常時をバッファリングし、失敗・終了・一定間隔だけ flush できれば描画結果を変えずに待ち時間を減らせる可能性がある。一方でクラッシュ直前のログ保持量が減るため、診断・復旧要件を確認してから変更する必要がある。
+- **次に確認:** 代表的な Render Queue ジョブで flush の呼出回数と所要時間を計測し、セッション台帳との永続化責務を確認する。
+
 ## 2026-09-08 — ArtifactAbstractLayer の C++20 module 実装を内部パーティションへ分割する
 
 - **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`、`Artifact/include/Layer/ArtifactAbstractLayer.ixx`、`Artifact/cmake/ArtifactSources.cmake`。
