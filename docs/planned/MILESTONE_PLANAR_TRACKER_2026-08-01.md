@@ -1,9 +1,16 @@
 # プレーナートラッカー 実装マイルストーン
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-09-09
 **日付**: 2026-08-01
 **ベース**: Mocha Pro / Nuke PlanarTracker / AE 3D Camera Tracker
-**現状**: `MotionTracker` にPlanarモード、ROI／4点、厳格なhomography追跡、RANSAC／ECC fallback、結果JSON、Corner Pin書き出し、UIのPlanar切替が実装済み。独立 `PlanarTracker` も特徴点＋PyrLK＋RANSAC homographyを持つ。Insert／Removeの製品操作とruntime受入は未完。
+**現状**: `MotionTracker` にPoint／Planarモード、ROI／4点、厳格なhomography追跡、RANSAC／ECC fallback、結果JSON、Corner Pin書き出し、UI切替、非同期キャプチャ＋バックグラウンドsolveが実装済み。独立 `PlanarTracker` も特徴点＋PyrLK＋RANSAC homographyを持つ。Insert／Removeの製品操作とruntime受入は未完。
+
+## Update 2026-09-09
+
+- TrackPoint のキャプチャをUIタイマーで分割し、solveを共有バックグラウンドプールへ移した。
+- Point／Planar の前後／全範囲操作、キャンセル、問題フレーム確認、モード永続化を接続した。
+- GPU／オフスクリーンキャプチャ失敗時は部分列を解かず停止する。実機での長尺・欠落フレーム受入は未検証。
+- コンポジション切替／コントローラ破棄時の一時トラッカー解放と、単一フレーム結果の受入条件を補強した。
 
 ## 現行コード監査 (2026-08-15)
 
@@ -170,8 +177,7 @@ std::vector<std::vector<QPointF>> autoDetectPlanes(
 低解像度（1/4）で粗く追跡 → フル解像度でリファイン。
 
 ### Step 5.2 — バックグラウンド追跡
-`BackgroundTaskWorkerPool` で全フレームの追跡を非同期実行。
-VP操作をブロックしない。
+**実装済み（2026-09-09）**: VP側でオフスクリーン画像列を分割キャプチャし、`QtConcurrent` の共有バックグラウンドプールで全フレームの追跡を非同期実行する。進捗表示、キャンセル、世代ガード、キャプチャ失敗時の中断を備え、VP操作をブロックしない。実機受入は未確認。
 
 ### Step 5.3 — GPU オプティカルフロー
 既存の `TrackingMethod::OpticalFlow` の OpenCV 実装を Diligent GPU コンピュートに置き換え。

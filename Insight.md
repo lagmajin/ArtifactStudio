@@ -1,6 +1,57 @@
 **最終更新:** 2026-09-09
 
+## 2026-09-09 — ポイントトラッカーのコンポジション切替境界
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の `setComposition()` / `trackerDelete()`。
+- **確認できた事実:** トラッカーは `CompositionRenderController` が `TrackerManager` から一時生成し、現在の選択レイヤーをオフスクリーン取得して解析するコントローラローカル状態である。
+- **対応:** 同一コンポジションの再バインド時は解析状態を維持し、別コンポジション（同一 ID の置換インスタンスを含む）へ切り替える場合だけトラッカーを停止・破棄する。
+- **価値／懸念:** 前コンポジションの軌跡や ROI が新しいコンポジションに残る誤表示と、`TrackerManager` に残る一時トラッカーを防ぐ。永続保存が必要な場合は、コントローラ一時状態とは別のプロジェクト保存契約を設計する必要がある。
+- **次に確認:** コンポジション切替を含む UI 操作でトラッカーパネルの表示・非表示とギズモ再接続が期待通りになるかを手動確認する（ビルド／実行はユーザー許可後）。
+
+## 2026-09-09 — 単一フレームのポイントトラッキング
+
+- **関連:** `ArtifactCore/src/Tracking/MotionTracker.cppm` の `trackRange()` / `trackBackwardRange()`。
+- **確認できた事実:** 既存の成功条件は「シード後に少なくとも 1 ステップの信頼できる測定があること」だったため、フレームが 1 枚だけの静止画では有効なシード結果まで `false` になっていた。
+- **対応:** サンプル数が 1 の場合はシードフレームを有効結果として扱い、2 フレーム以上では従来どおり測定ステップを要求する。
+- **価値／懸念:** 単一フレームでも位置／アンカー適用を使える。移動量や品質を推定したわけではないため、長い範囲の品質判定は緩めていない。
+- **次に確認:** 単一フレームの UI 操作で適用ボタンがシード位置を使うことを手動確認する（ビルド／実行はユーザー許可後）。
+
+## 2026-09-09 — コントローラ破棄時の一時トラッカー解放
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の `destroy()`。
+- **確認できた事実:** 解析ジョブの停止・待機は行われていたが、`TrackerManager` に登録したコントローラ専用トラッカーを破棄する経路がコンポジション切替以外にはなかった。
+- **対応:** 破棄時も `trackerDelete()` を通し、ジョブ待機後に manager から除去し、ギズモ参照を切る。
+- **価値／懸念:** エディタ再生成や renderer 再初期化を繰り返しても、古いポイント軌跡と manager 所有オブジェクトが残らない。破棄中は再描画を要求するだけで、GPU リソース解放順序は従来のまま。
+- **次に確認:** エディタタブの閉じる／再オープンを繰り返したときの tracker 数とパネル状態を手動確認する（ビルド／実行はユーザー許可後）。
+
 # Insight Register
+
+## 2026-09-09 — Planar Tracker の連番・非同期実行境界
+
+- **関連:** `ArtifactCore/src/Tracking/MotionTracker.cppm`、`ArtifactCore/src/Tracking/PlanarTracker.cppm`、`Artifact/src/Widgets/Render/ArtifactPointTrackerGizmo.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Tool/ArtifactPointTrackerTool.cppm`。
+- **確認事実:** `MotionTracker` のPlanarモードは4点＋ROI、Shi-Tomasi/PyrLK、RANSAC、ECC fallback、homography/confidence/JSONを持つ。Composition VPにはPlanar切替、4点投影overlay、Forward/Backward/All実行、Corner Pin keyframeへのUndo付き適用が接続済みだった。一方、旧Forward/Backwardは範囲内の連番ではなく始点・終点の1ペアだけを解いており、Backwardの画像入力順も現在点から過去点への写像と逆だった。
+- **対応（2026-09-09）:** 最初の受入対象を選択中の静止画／画像連番レイヤーに限定した。GPU offscreen取得はUIスレッド上で1フレームずつイベントループへ返し、OpenCV solveは共有background poolへ分離した。Forward/Allは隣接フレーム順、Backwardは新設した`trackBackwardRange()`で逆順の隣接フレームを追い、VP toolbarにBackward／Stop／Forward／Allと進捗HUDを追加した。Cancel、tracker削除、controller破棄ではjob寿命を収束させる。
+- **懸念:** `setFrame()`は互換境界の`QImage`から内部`cv::Mat`へ正規化して全対象フレームを保持するため、UIの連続停止は避けられても長尺・高解像度ではCPUメモリ量が大きい。GPU readback自体は安全のためUIスレッドに残しており、1フレームのreadback時間は隠蔽しない。動画素材、部分結果の採用、problem frame reviewは今回の対象外。
+- **価値／次に確認:** 短い静止画連番で4点ROI→Forward/Backward/All→途中Stop→overlay→Corner Pin Bakeを実機確認する。次段ではリングバッファによる逐次solve、native frame snapshot、失敗フレームのreview UIを検討する。
+
+## 2026-09-09 — Point Tracker の現状とPlanar共存
+
+- **関連:** `ArtifactCore/src/Tracking/MotionTracker.cppm`、`Artifact/src/Widgets/Render/ArtifactPointTrackerGizmo.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`。
+- **確認事実:** Point modeはPyrLKベースの単一点追跡、feature/search boxのサイズ調整、motion path表示、path pointの手動補正、Position／Anchor／Nullへの適用を既に持つ。Tracking実行はPlanar専用に固定されておらず、Tracker typeをPointに戻せば同じ非同期範囲jobを利用できる。
+- **対応（2026-09-09）:** Planar job開始時の強制的なtype変更を外し、Point／PlanarのTracker typeを保持するようにした。VPにPoint／Planarのモードボタンとコンテキストメニュー導線を追加し、Point modeではROI外のクリックで追跡点を直接配置できるようにした。Gizmoの現在位置表示もフレーム番号の丸めではなく、結果フレームのtimeに最も近いpath pointを選ぶよう修正した。Point modeではFeature枠からLK windowを設定し、Search枠をPyrLK/NCC候補の境界として解析へ渡すようにした。完了HUDにはproblem frame数を表示し、Reviewボタン／メニューから次のproblem frameへジャンプできるようにした。
+- **追加対応（2026-09-09）:** Forward／Backward範囲解析は開始フレームだけで結果を有効化せず、少なくとも1つの隣接フレームが信頼度閾値を通過した場合だけ成功扱いにした。全失敗トラックが誤ってBake可能になる経路を閉じた。
+- **追加対応（2026-09-09）:** Point modeでROI外へ再配置した場合は旧トラック結果をクリアし、再配置点と過去のmotion pathが混在しないようにした。
+- **追加対応（2026-09-09）:** Point modeのFeature枠はNCC template sizeにも反映し、Search枠全体を候補範囲として探索できるようにした。大きなSearch枠では探索コストが増えるため、実機で上限とPreview品質のバランスを確認する。
+- **追加対応（2026-09-09）:** Point modeのpath point hit-testをROI内部より先に評価し、追跡後もFeature枠内の点を直接ドラッグ補正できるようにした。
+- **懸念／次に確認:** Point modeには検索品質のproblem-frame一覧、テンプレート／補正履歴のreview UI、multi-pointの個別品質表示がまだない。まず単一点の短い連番で初期点→Forward→path correction→Bakeを確認し、Planarとの差をUI上のTrack Type選択へ整理する。
+
+## 2026-09-09 — Composition VP と Layer Solo View のマスク編集能力差
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactLayerEditorWidget.cppm`、`Artifact/src/Widgets/LayerEditorMaskOverlay.cppm`、`Artifact/src/Widgets/LayerEditorMaskDragController.cppm`。
+- **確認事実:** Composition VP は複数頂点選択、ラバーバンド選択、辺上頂点挿入、cubic Bezier の表示・hit-test、in/out tangent と feather handle、linked/broken 表示、Alt 分離、Ctrl reset、Undo snapshot を持つ。一方 Layer Solo View は既存 anchor／in-out handle の hit-test・単点 drag・Delete・close・Undo・proportional edit は持つが、overlay のセグメント描画は anchor 間の直線で、複数頂点選択、辺上挿入、feather handle、linked/broken tangent 操作文法、マスク新規作成の経路は確認できなかった。
+- **対応（2026-09-09）:** `MaskVertexAddress` を共通の選択アドレスとして `MaskPath` module に置き、Composition VP と Layer Solo View の選択集合を同じ型にした。Solo View は18分割Cubic Bezierの描画・segment hit-test、単一／Shift追加／矩形選択、選択集合の一括移動・削除へ対応した。overlay には選択集合をポインタで渡し、フレームごとのコピー確保を避けた。
+- **価値／懸念:** Solo View でも曲線上の選択と複数頂点操作がComposition VPに近づいた。Bezierサンプラー実装自体は両面に重複しているため、完全な数値共有は今後の検討対象。プロパティ／モード導線と実機受入れも別途確認が必要。
+- **次に確認:** 実機で曲線表示、セグメント選択、Shift追加、矩形選択、一括移動／削除、Undoを確認する。続いてAlt/Ctrl tangent操作とfeather handleのSolo View parityを判断する。
 
 ## 2026-09-09 — Render Queue のフレーム単位ログ flush
 
@@ -846,3 +897,73 @@ eturn start のままだった。
 - **確認事実:** controllerのARGB32画像はCV_32FC4へ数値変換した後、descriptorなしのsetFromCVMatへ渡る。一方、同関数はCV_32FC4をRGBAとして記録する。controllerのコメントはupload側でBGRA変換すると説明しており、現行のdescriptor依存変換との不整合がある。
 - **未検証:** 実機で赤青が反転する条件と、もう一つのCompositionViewDrawing経路との差。新しい単色GPU経路では従来controllerの格納順・transfer境界を維持し、この調査を色補正変更に広げていない。
 - **価値／次に確認:** 赤・青・半透明の固定入力で両描画経路を比較し、色descriptor修正を別途扱う。GPU常駐化の性能比較と色仕様修正を混ぜない。
+
+## 2026-09-09 — Light Layer 作成時の初期設定境界
+
+- **関連:** `Artifact/src/Widgets/Dialog/CreateLightLayerDialog.cppm`、`Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`Artifact/include/Layer/ArtifactLightLayer.ixx`。
+- **確認できた事実:** Light Layer は Point / Spot / Parallel / Ambient / Area、色、強度、距離、Spot cone、Area shape/size、影を既存APIとして持つ一方、2つの作成導線はいずれも `Light 1` の既定値を即時作成していた。
+- **対応:** 作成ダイアログで初期値だけを選べるようにし、GOBO / Glow / Light Linking は既存Inspector責務として残した。要約表示はダイアログ入力値から導出するだけで、GPU preview / readback / texture確保を増やさない。
+- **価値／懸念:** 作成時に重要な種別差を明示できるが、作成直後の設定適用は既存Camera作成と同じ選択レイヤー取得経路に依存する。
+- **次に確認:** 実機でLayerメニュー／Composition Editor双方から各5種を作成し、選択同期、保存・再読込、Spot/Areaの描画、影の有効状態を確認する。
+
+## 2026-09-09 — Quick Layer 作成ダイアログの再配置境界
+
+- **関連:** `Artifact/src/Widgets/Dialog/QuickLayerCreationDialog.cppm`、`docs/design/quick-layer-creation-dialog/README.md`。
+- **確認できた事実:** 既存ダイアログは Source、Size、Mask、Envelope、Placement を縦一列に表示していたが、作成オプションと `QSettings` 保存は UI の並び順に依存しない。
+- **対応:** Source / Size と Mask / Placement を二列化し、Entry / Exit Envelope を下段に残した。入力値、既存の接続、設定キー、作成オプション、画像選択経路は変更していない。
+- **価値／懸念:** 視線移動を減らせる一方、狭い画面では最小幅が従来より広くなる。
+- **次に確認:** 実機でPlane/Image切替時の画像入力有効化、各Placement、Mask、Entry/Exitの保存復元と作成結果を確認する。
+
+## 2026-09-09 — ダイアログモック反映時の選択モデル維持
+
+- **関連:** `ArtifactResolutionRemapDialog`、`ArtifactImportAssetsDialog`、`ArtifactObjectPickerDialog`。
+- **確認できた事実:** 3ダイアログとも表示構造と選択結果の取得が分離されており、追加イベント配線なしでレイアウトと選択面を整理できる。Resolution Remap の policy は index 順が `RemapPolicy` の列挙値と一致する。
+- **対応:** Remap policy を同じ順序の単一選択リストへ置換し、Import と Object Picker は既存モデル／接続を保ったまま視覚階層のみ変更した。
+- **価値／懸念:** モックに近い一覧性を得つつ処理境界は維持できる。Remap policy の列挙順変更時はリスト構築と結果変換を同時に確認する必要がある。
+- **次に確認:** 実機でキーボード選択、ダブルクリック、Cancel／Skip、各policyのApply結果、狭い画面での最小サイズを確認する。
+
+## 2026-09-09 — Point / Planar Tracker のモード永続化
+
+- **関連:** `ArtifactCore/src/Tracking/MotionTracker.cppm` の `setTrackerType`、`setSettings`、`fromJson`。
+- **確認できた事実:** トラッカー種別はトップレベルの `trackerType` と設定内の `settings.type` の二箇所へ保存される。切替 setter が片方だけを更新すると、保存・再読込時に Point / Planar が食い違う余地があった。
+- **対応:** setter 同士で両フィールドを同期し、旧形式で `settings.type` が欠落した JSON はトップレベル種別を既定値として復元するようにした。
+- **価値／懸念:** UI のモード切替とプロジェクト再読込の整合性を保てる。既存ファイルの不正な種別値は従来どおり setter の範囲 clamp に委ねる。
+- **次に確認:** 実機で Point / Planar 切替後に保存・再読込し、ツールバー選択状態、検索領域、結果フレームが同じモードで復元されるかを確認する。
+
+## 2026-09-09 — Tracker キャプチャ失敗の受け入れ境界
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` の `trackerCaptureNextFrame`。
+- **確認できた事実:** オフスクリーンレンダラーが `QImage` を返せない場合でも、従来はフレーム数だけを進めて不完全な画像列を解く可能性があった。
+- **対応:** null 画像を検出した時点でキャプチャとジョブを停止し、ユーザーへ失敗フレームを表示する。部分的なトラッキング結果を完了扱いにしない。
+- **懸念／次に確認:** 実機でGPU初期化失敗・対象レイヤー範囲外・画像シーケンス欠落の各ケースを確認し、必要なら再試行導線を追加する。
+
+## 2026-09-09 — Tracker point ID の固定値依存
+
+- **関連:** `MotionTracker::addTrackPoint`、`ArtifactPointTrackerGizmo`、`ArtifactPointTrackerTool`。
+- **確認できた事実:** `MotionTracker` の点ID採番は1始まりだが、軌跡表示・補正・単一点書き出しがID `0` を固定参照していたため、最初の点が表示／適用されない経路があった。
+- **対応:** Coreに最初の登録点の実ID取得APIを追加し、GizmoとApply経路がそのIDを使うようにした。Toolの既定値も「最初の登録点を解決」に変更した。
+- **価値／次に確認:** 既存の1始まりIDとJSON復元を壊さず、Point Trackerの軌跡・補正・Bakeが同じ点を参照できる。複数点の明示選択UIは別途検討する。
+- **追記:** JSON復元時に次の点／領域IDも最大既存IDの後ろへ再同期し、追加登録時のID衝突を避けるようにした。
+
+## 2026-09-09 — Motion path と結果フレームの対応
+
+- **関連:** `ArtifactPointTrackerGizmo` の軌跡描画・PathPoint補正。
+- **確認できた事実:** `motionPath(pointId)` は点が存在するフレームだけを返すため、path index と `result.frames` index は常に一致するとは限らない。
+- **対応:** 点IDの存在を基準に結果フレームを解決してから信頼度表示・現在点表示・補正時刻を決めるようにした。
+- **価値／次に確認:** 欠落点を含む結果でも別フレームへ補正を書き込まない。欠落フレームの補間表示は既存 `TrackResult::interpolateAt` の責務として残す。
+
+## 2026-09-09 — Tracker入力のレイヤー境界
+
+- **関連:** `ArtifactCompositionRenderController::trackerCaptureNextFrame`、`OffscreenCompositionRenderer`。
+- **確認できた事実:** 追跡キャプチャがコンポジション全体を入力にしていたため、選択画像レイヤー以外の模様が特徴点候補へ混ざる可能性があった。
+- **対応:** 指定レイヤーだけを透明背景へ描画して読み戻す `renderLayerToQImage` を追加し、Point／Planar Trackerのキャプチャを選択画像レイヤーに限定した。
+- **懸念／次に確認:** レイヤー変換・親子階層・マスクを含む画像レイヤーで、VP座標と読み戻し画像の座標が一致するか実機で確認する。
+- **追記:** レイヤー専用読み戻し後は元の `currentFrame()` へ戻し、キャプチャだけで編集対象レイヤーの表示時刻を変更しないようにした。
+
+## 2026-09-09 — TrackPoint のVP操作面
+
+- **関連:** `ArtifactCompositionEditor` の上部ツールバーと `compositionTrackerPanel`。
+- **確認できた事実:** 追跡コマンド自体はツールバー／コンテキストメニューに接続済みだったが、モックアップの右側Tracker操作面は未実装だった。
+- **対応:** VP内にTrackerパネルを追加し、Point設定、Planar切替、前後／全範囲解析、停止、問題フレーム確認、Position／Anchor／全ポイント／Corner Pin適用を既存controllerへ接続した。信頼度・問題数・結果フレーム数はcontrollerの読み取りAPIで表示する。
+- **懸念／次に確認:** パネルはVP上に重ねる方式のため、Four-Up時の占有範囲と狭い画面での折り返しを実機確認する。QtCSSや新規signal/slotは追加していない。
+- **追記:** ネイティブswap-chain面による子Widgetの遮蔽を避けるため、パネルをviewportHostの子から外側の横レイアウトへ移し、表示時はVP幅を確保して並べる構造に変更した。
