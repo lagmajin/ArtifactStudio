@@ -1,6 +1,7 @@
 # AE / Nuke 機能ギャップ分析
 
 **日付**: 2026-08-01
+**最終更新:** 2026-09-10
 **比較対象**: Adobe After Effects 2025/2026 + Nuke 15（参考）
 
 ---
@@ -21,7 +22,7 @@
 | 動画 | 🟡 70% | ArtifactVideoLayer | デコード安定性・キャッシュに課題あり |
 | 平面（Solid） | 🟢 95% | ArtifactSolid2DLayer | 十分 |
 | テキスト | 🟡 50% | ArtifactTextLayer | データモデルはあるがTextツール未実装 |
-| シェイプ | 🟠 20% | ArtifactShapeLayer | 作成・編集ツール未実装 |
+| シェイプ | 🟡 60% | ArtifactShapeLayer | Solo ViewとメインVPの頂点/tangent/segment・角丸/星ハンドル・polygon編集・一部operator HUD/ハンドル・KF評価を実装。残りはプリセット/複数シェイプ/グループ、Merge本物化、SVG import、Taper/Wave完全化、runtime検証。詳細は下記追補2026-09-10 |
 | カメラ | 🟢 80% | ArtifactCameraLayer | ステレオ・被写界深度あり |
 | ライト | 🟡 60% | ArtifactLightLayer | 基本のみ |
 | Null | 🟢 90% | ArtifactNullLayer | 十分 |
@@ -283,3 +284,21 @@
 **最重要P0（クリティカルバグ）**: 成熟度分析で報告された メモリリーク、use-after-free、double-free、null dereference、スタブ多数。機能以前に安定性の課題がある。
 
 **最重要P1（機能差）**: エフェクト不足（キーイング・歪みゼロ）、テキストツール不在、ワープスタビライザーがスタブ、OCIO不在。
+
+---
+
+## 追補 2026-09-10: シェイプ再評価（20%→60%）
+
+再棚卸し根拠: `Artifact/include/Layer/ArtifactShapeLayer.ixx`(375行)、`Artifact/src/Layer/ArtifactShapeLayer.cppm`(7572行)、`ArtifactCore/include/Shape/`(8ファイル)、Solo View分割モジュール(`LayerEditorShape*`)、メインVP(`ArtifactCompositionRenderController.cppm`/`ArtifactCompositionRenderOverlay.cppm`)、`AFTER_EFFECTS_MISSING_FEATURES_CURRENT_2026-05-28.md:328-329`。
+
+### 実装済み（AE対比で加点）
+- プリミティブ7種(Rect/Ellipse/Star/Polygon/Line/Triangle/Square)、fill単色+2色gradient(Linear/Radial/Conic)、stroke(幅/cap/join/align/dash/dashOffset/taper/gradient)、fillRule(Winding/EvenOdd)
+- `CustomPathVertex{pos/inTangent/outTangent/smooth}`+open/closed、頂点KF(`shape.path.keyframes` JSON+`evaluatePathAt`線形補間)、ジオメトリ6種・operator群の時間評価(`resolveShapeGeomDims`/`applyAnimatedOperatorParameters`)
+- operator 10種(Trim/Repeater/Merge/Offset/Pucker/Rounded/Wiggle/ZigZag/Twist/Wobble)+stack add/remove/move/clear+JSON Undo、Solo Viewで頂点/tangent/segment grammar(Shift/Ctrl)・挿入・削除(ポリゴンのみ)・角丸/星内径ハンドル・context menu/tooltip・ToolOptionsBar連動
+- GPU native描画(multi-content/operator/unified/legacy)、`toCoreShapeLayer`→SVG出力(gradient defs、Inside/Outside輪郭化)、Shape↔Mask双方向変換action、`ShapePath::interpolate`・`pointAtPercent/tangent/normal/sampleEquidistant`・`MergePaths(Add/Subtract/Intersect/Difference/Merge)`
+
+### 未導入（下記「導入すべき機能」へ）
+- D-3プリセットUIとD-6のopen/closed・smooth操作、1レイヤー複数シェイプ/グループ・Contents・Group Transform、Merge native本物化、SVG import、マルチストップgradient・Taper/Wave完全化・Trim同時/個別・Repeater Composite順、Convert To Bezierのrevert・marquee・proportional・split、パスモーフィングUI・operatorの全種類編集・式/pick-whip、pixel parity・3経路一致・保存往復のruntime受入
+
+### 導入すべき機能（概要）
+1. D-1 overlay移植 2. D-2 パラメータハンドル移植 3. D-3 ShapeプリセットUI 4. D-4 選択grammar完成 5. D-5 operator HUD/ハンドル 6. D-6 open/closed・smooth・corner/bezier 7. グループ/複数シェイプ 8. Merge本物化 9. SVG import 10. gradient/pattern/noise fill拡充 11. Taper/Wave・Trim同時/個別・Repeater順 12. Convert/marquee/proportional/split 13. パスモーフィング・式連携 14. runtime受入・perf(詳細は `docs/analysis/REPORT_SHAPE_GAP_UPDATE_2026-09-10.md`)。
