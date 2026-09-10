@@ -1,4 +1,15 @@
-**最終更新:** 2026-09-10
+**最終更新:** 2026-09-11
+
+## 2026-09-10 — シェイプレイヤーの画像エフェクト適用時のサーフェスキャッシュ統合と最適化
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`、`ArtifactShapeLayer.cppm`。
+- **確認できた事実:** シェイプレイヤー（`ArtifactShapeLayer`）に画像エフェクト（`EffectPipelineStage::Rasterizer`）やマスクが適用された際、`drawLayerForCompositionView` 内に ShapeLayer の専用分岐がなくフォールバック描画（`layer->draw(renderer)`）に落ちていた。また、エフェクト適用時のラスタライズ結果をキャッシュするキー（`buildLayerSurfaceCacheKey`）にシェイプの形状・アニメーション判定が含まれておらず、毎フレームCPUでのフルラスタライズおよびGPU再アップロードが走って激重となっていた。
+- **対応:** `buildLayerSurfaceCacheKey` に ShapeLayer の幅・高さ・タイプおよびアニメーションプロパティ（パスキーフレーム等）判定を追加し、静止時はキャッシュヒットするように改善。さらに `drawLayerForCompositionView`（コントローラ側およびビューポート描画側）に `dynamic_cast<ArtifactShapeLayer*>` 分岐を新設し、エフェクトまたはマスクが存在する場合にのみ `toQImage()` / `downsampleForLOD` を経由して `applySurfaceAndDraw`（サーフェスキャッシュと低解像度LODスケール）を通すように接続した。エフェクトなし時は従来の高速GPUベクターダイレクト描画を維持。
+- **価値または懸念:** プレビュー時の解像度スケーリング（ドラフト時1/4など）や静止フレームでのサーフェス再利用が効くようになり、大幅なプレビュー軽量化を実現。将来的な完全オフスクリーンFBOレンダリング（GPU上でのラスタライズ＆コンピュートエフェクト結合）へのステップとなる。
+- **次に確認:** ビルド不可環境ルールに基づきコンパイル・手動確認の要否をユーザーと連携。エフェクト適用時のプレビュー滑らかさおよびアニメーション更新時のキャッシュ破棄を確認すること。
+- **2026-09-11 追記・確認事実:** 対応済みのRasterizer effect列については、Shape分岐が `shapeLayer->draw(renderer)` を再利用可能な layer RTV へ直接出力し、F32 GPU texture上で処理できる。既存の個別GPU effectは入力upload／staging readback／`WaitForIdle()` を含むものがあり、GPU実装であってもGPU常駐とは限らない。
+- **対応:** `ArtifactAbstractEffect` に具体型非依存の `GpuRasterEffectDomain`／固定容量 `GpuSpatialEffectNode` を設け、pointwiseとspatialを順序どおり実行するGPU planへ接続した。Gaussian Blur、Sharpen、Vignette、Chromatic Aberration、Stripes、Hex Grid をDiligent共通のSRV/UAV compute passへ移し、対応ShapeではCPU画像境界を通さない。
+- **懸念・次に確認:** LayerMask は `LayerMask::applyToImage()` のOpenCV実装だけで、Bezier path、feather、invert、各modeのGPU契約は未確立。マスクありを無理に部分GPU化せず、mask raster／alpha-composite passを仕様化してからGPU化する。対応エフェクトのCPU/GPU pixel parity、アニメーション時のframe time、D3D12/Vulkan両backendでのshader compilationをビルド後に確認する。
 
 ## 2026-09-10 — Shape Core縦断（WavePaths新設・Repeater複合順・SVG多段化）
 
