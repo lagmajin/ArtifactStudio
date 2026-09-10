@@ -93,11 +93,11 @@
 - `ArtifactDopeSheetWidget`
   timeline-adjacent な Dope Sheet 専用面。複数 property の keyframe 一覧と時間編集に寄せる。
 - `ArtifactAnimationTimelineWidget`
-  選択レイヤーのキー群を `ENTER` / `ANIMATE` / `EXIT` などの意味区間として扱う独立ドック。区間境界のドラッグは、含まれるプロパティキーを単一 Undo 操作で比率リタイムする。
+  選択レイヤーのキー時刻クラスタを `ENTER` / `IDLE` / `ANIMATE` / `EXIT` の意味区間として扱う独立ドック。区間境界のドラッグは、含まれるプロパティキーを単一 Undo 操作で比率リタイムする。
 - `ArtifactAudioMiniWidget`
-  コンポジション内の音声波形と transient cue を常駐表示する独立ナビゲーションドック。波形クリックによる seek と前後 cue 移動を担当し、ミキサーや本格的な音声編集は担当しない。
+  コンポジション内の音声波形、推定 Beat / Section、transient cue を常駐表示する独立ナビゲーションドック。波形クリック／前後 Beat seek、Transient marker 一括追加、4 Beat ごとの marker 追加を担当し、ミキサーや本格的な音声編集は担当しない。
 - `ArtifactHistoryTimelineWidget`
-  Undo 履歴を編集工程として表示する独立ドック。User / AI / Checkpoint の分類、分岐した redo 状態、非破壊の状態 inspection、明示的な選択地点への復元を担当する。Source Patch History は別タブとして責務を分離する。
+  Undo 履歴を編集工程として表示する独立ドック。User / AI / Checkpoint の分類、Checkpoint ノード追加、分岐した redo 状態、非破壊の状態 inspection、明示的な選択地点への復元を担当する。Source Patch History は別タブとして責務を分離する。
 - `ArtifactLayerPanelWidget`
   タイムライン左ペイン。レイヤー名、親、ブレンド列などを持つ独自ツリーパネル。
 - `ArtifactTimelineNavigatorWidget`

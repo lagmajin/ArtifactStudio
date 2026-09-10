@@ -1,5 +1,37 @@
 **最終更新:** 2026-09-10
 
+## 2026-09-10 — Shape Core縦断（WavePaths新設・Repeater複合順・SVG多段化）
+
+- **関連:** `ArtifactCore/.../ShapeOperator.ixx`、`AeOperators.ixx`、`Repeater.ixx`、`ShapeTypes.ixx`、`ShapeGroup.cppm`、`ShapeLayer.cppm`、`ArtifactShapeLayer.cppm`、`LayerEditorContextMenu.*`、`ArtifactCompositionRenderOverlay.cppm`、`ArtifactCompositionRenderController.cppm`。子リポ編集はユーザー許可済み。
+- **確認できた事実:** Wave operatorはCoreに不存在、Repeater複合順フィールドも不存在、SVG出力は2-stop固定だった。Trim同時/個別・Repeater本体は実装済み。親子ともoperator type分岐はdefault付きで新enum値に安全だった。
+- **対応:** Coreに`WavePaths`（振幅・周波数・位相、弧長一様サイン変位、clone/JSON/process、`ShapeGroup` factory含む）、Repeater `compositeBelow`（clone/JSON/process末尾反転）、`FillSettings::gradientStops`+SVG `<stop>`列出力（空=従来2-stop、キャッシュキーにstops混入）を追加。親側はcreate/name/value読取/property群/setter/正規化/KF検出（`phase`/`composite`含む）/時刻評価/Solo追加メニュー/HUD表示・詳細/VPダイヤ量編集/`toCoreShapeLayer` stops受渡を接続。
+- **価値または懸念:** 新規`.ixx`なし・CMake変更なし・旧ファイルは未知type/欠落キーを無視して読める。Wave processは~4px細分（上限128/seg）で滑らかさを確保。
+- **次に確認:** ビルド不可PCのため未検証。特にCore側`W_OBJECT_IMPL(WavePaths)`、Q_PROPERTY NOTIFY配線、SVGの`<stop>`列とキャッシュキー、旧版での新type=int 11読飛ばしを確認すること。
+
+## 2026-09-10 — Audio Mini をモーショングラフィックス用時間ナビゲーターとして分離
+
+- **関連:** `ArtifactAudioWaveform`、`AudioSyncTools::detectBeats()`、`ArtifactTimelineWidget`、`ArtifactTimelineTrackPainterView`、composition marker / keyframe snapshot Undo。
+- **確認できた事実:** 音声レイヤーの peak/RMS 波形キャッシュとタイムライン描画は既存の正規経路である。`AudioSyncTools` はサンプル位置の beat 検出と tempo 推定を持ち、Keyframe Pattern には手入力 BPM の Beat Sync がある。一方、検出 beat / transient / section を composition 時刻・marker・snap target・選択キー操作へ結ぶ編集契約と常設の全体波形 UI は未実装。
+- **対応（2026-09-10）:** `ArtifactAudioMiniWidget` を通常 Timeline から独立した dock として追加した。最初に見つかる loaded audio layer の全体 waveform と、peak envelope のローカル最大値から得る transient cue を composition frame へ正規化して表示する。クリックで seek、`B` / `Shift+B` で次／前 cue へ移動できる。`ArtifactAnimationTimelineWidget` も別 dock とし、選択レイヤーの keyframe 時間域を `ENTER` / `ANIMATE` / `EXIT` の読み取り用 semantic span として表示・クリック seek できる。
+- **価値または懸念:** main timeline に巨大な audio lane を常設せず、motion の時間合わせを速くできる。複数 audio layer 時の guide source 選択、tempo half/double の信頼度、section 推定の誤認、trim / slip / time-remap 後の sample→composition frame 対応、解析のバックグラウンド実行とキャッシュ無効化は先に固定が必要。
+- **次に確認:** Waveform cache が保持する source offset と layer timing の対応を確認し、beat marker と keyframe snap の Undo 境界を定義する。transient / section 推定と自動 marker 大量生成は信頼度表示・preview / undo policy を決めてから追加する。
+
+## 2026-09-10 — Shape F11/F13 表現系（stroke波・テーパーイーズ・Trim同時/個別・モーフ再サンプル）
+
+- **関連:** `ArtifactShapeLayer.ixx/.cppm`、`ArtifactCompositionRenderOverlay.cppm`、`LayerEditorContextMenu.ixx/.cppm`。子リポ（ArtifactCore）のoperatorクラスはAGENTS.md制約で不変とした。
+- **確認できた事実:** Trim同時/個別とRepeater本体はCore側に完成済みで親側の露出だけが不足、Wave operatorはCoreに存在せず、テーパーは線形rampのみ、頂点数不一致のパスKFはsnapだった。GPU/ソフトのstroke描画は`drawTaperedPolylineGPU`/`drawStrokePath`の2経路に集約され、legacy GPUは`GpuPaintItem.stroke`（=ShapeContentStroke）経由だった。
+- **対応:** strokeに`waveEnabled/Amount/Frequency/Phase`+`taperEase`を追加し、新旧両描画経路・新旧JSON・property（wave系とeaseはキーフレーム可、`hasAnimatedShapeGeometry`の検出にも追加）へ接続。wave無効/量ゼロ時は従来経路と同一結果になる早期設計。HUDのTrim行へM:Sim/Ind表示、Solo ViewのManage Operatorsへ同時/個別トグル（JSONスナップショットUndo再利用）。頂点数不一致KFは`ShapePath::interpolate`+等間隔再サンプルでモーフ補間し、失敗時のみsnapへ縮退。
+- **価値または懸念:** Repeater Composite順・SVG多段出力・contents stroke KF・式/pick-whip配線は親だけでは完結しないため対象外（Core改修または別器が必要）。モーフ再サンプルは不一致KF区間のみ毎フレーム64点評価する。
+- **次に確認:** ビルド不可PCのため未検証（ユーザー申告）。特に描画シグネチャ変更の呼び出し3件、property order id -191〜-187、旧JSON再読込、wave+Dash併用時のDash優先を確認すること。
+
+## 2026-09-10 — Shape F1/F2/F4/F5/F9/F10 メインVP移植とfill拡充
+
+- **関連:** `ArtifactCompositionRenderController.cppm`、`ArtifactCompositionRenderOverlay.cppm`(+`.ixx`)、`ArtifactShapeLayer.ixx/.cppm`、`ArtifactCompositionEditor.cppm`、`ArtifactLayerMenu.cppm`、`ArtifactCompositionLayerUndoCommands.cppm`、`ArtifactPropertyWidgetShared.cppm`。
+- **確認できた事実:** Solo View側のShape編集資産（頂点/tangent/segment grammar、角丸/星ハンドル、operator stack、Pen生成、頂点KF）は実装済みだったが、メインVP側は頂点ドラッグの断片と点描画のみで、ホバー・選択保持・パラメータハンドル・operator HUD・SVG入力導線・多段グラデーションが未接続だった。SVGパース（`parseShapeContentsFromSvg`）と`ShapeContent`モデル自体は存在し、UI呼び出しだけがなかった。
+- **対応:** F1 overlay強調（頂点/tangent/選択/挿入マーカー/開閉、DTO渡し）+ホバー更新、F2 角丸/星ドラッグ（既存`ShapeCornerRadiusUndoCommand`+新`ShapeStarInnerRadiusUndoCommand`）とポリゴン頂点ドラッグ/Shift挿入（新`ShapePolygonPointsUndoCommand`）、F4 選択文法（Shift toggle/Ctrl add/置換、ボディクリック解除、Delete/Backspace削除、Ctrl+A、Escape解除）、F5 operator HUD（常時パネル）+Trim三角/ダイヤハンドル（新`ShapeOperatorValueUndoCommand`、`shapeOperatorValue`読取API）、F9 レイヤーメニュー2導線（SVG取込は新`ShapeSvgImportUndoCommand`、ベクターから作成は`AddLayerCommand`取引）、F10 マルチストップ（`ShapeGradientStop`+`gradientStops`、CPU/QGradient/JSON/property露出、空=従来2色に縮退）。
+- **価値または懸念:** いずれも既存関数の拡張と既存パターンの再利用に留め、新規モジュール・CMake変更・シグナル追加なし。`WigglePaths`無条件キャッシュ回避、SVGグラデーションのCore単色縮退、stroke多段・Noise/pattern fill、Repeater対話編集は対象外として残る。
+- **次に確認:** ビルド（`check_module_hygiene`含む）と実機runtime検証は未実施（AGENTS.md制約でユーザー許可待ち）。特にF5のTrim百分率クランプ、F2 Starクランプ（Solo View踏襲0.05〜0.99）、F4 Deleteのmask優先順位、F10旧JSON再読込互換を確認すること。
+
 ## 2026-09-10 — Composition VP の直接編集導線（V1〜V6）
 
 - **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`ArtifactCompositionRenderController.cppm`、`TransformGizmo.cppm`。
