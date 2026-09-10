@@ -21,6 +21,20 @@ artifact_add_test(ArtifactCoreArtifactScriptTest
         ArtifactCore
 )
 
+artifact_add_test(ArtifactCoreArtifactScriptObjectTest
+    SOURCES
+        ArtifactScriptObjectTest.cpp
+    LIBS
+        ArtifactCore
+)
+
+artifact_add_test(ArtifactCoreArtifactScriptHostMethodTest
+    SOURCES
+        ArtifactScriptHostMethodTest.cpp
+    LIBS
+        ArtifactCore
+)
+
 artifact_add_test(ArtifactCoreArtifactScriptHostApiTest
     SOURCES
         ArtifactScriptHostApiTest.cpp
