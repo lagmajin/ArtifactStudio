@@ -1058,3 +1058,10 @@ eturn start のままだった。
 - **対応:** Artifact 側の command-buffer と immediate-submitter の両経路を updateable texture の再利用へ移し、既存 texture へ upload するようにした。glyph 提出用の一時配列も renderer lifetime の scratch buffer として初期化時に確保し、通常のテキスト編集では再確保しない。
 - **価値／懸念:** texture object の再生成は解消したが、現行 Core API は dirty rectangle を公開しないため、upload は atlas 全体になる。
 - **次に確認すること:** Core を変更できる作業で、`GlyphAtlas` が追加・clear 時の dirty bounds を返す契約を設計し、atlas reset 時だけ全量、それ以外は矩形 upload にする。これは未検証の性能改善候補であり、実機プロファイルで帯域を測る。
+
+## 2026-09-11 — 基本テキストの shaping 再利用境界
+
+- **関連:** `Artifact/src/Layer/ArtifactTextLayer.cppm`。
+- **確認できた事実:** fill-only の通常テキストは layout cache に `GlyphItem` を持つ一方、従来は `drawTextTransformed()` が immediate submit 時に同じ文字列を再 shaping していた。
+- **対応:** decoration/effect なしの基本テキストだけを cached glyph direct-draw へ切り替えた。underline / strikethrough / stroke / shadow は表示差を導入しないため既存経路を維持する。
+- **価値／懸念:** 静的な基本テキストでは layout 成果を再利用できる。実機で alignment・CJK fallback・cloner transform・長文の frame cost を比較するまで parity / 性能は未検証。
