@@ -1073,6 +1073,14 @@ eturn start のままだった。
 - **対応:** `TextStyle` が同一の間は code point ごとの解決済み `QFont` を renderer lifetime cache に保持する。キャッシュは最大 2,048 glyph で clear し、font style 変更時にも clear する。
 - **価値／懸念:** CJK fallback の glyph 単位意味論を維持したまま、静的テキストの font database 問い合わせを避ける。font install/uninstall 中の動的更新は未検証。
 
+## 2026-09-11 — transformed glyph key の再利用
+
+- **関連:** `Artifact/src/Render/PrimitiveRenderer2D.cppm`。
+- **確認できた事実:** transformed glyph の提出は、font fallback cache が hit しても glyph ごとに `GlyphKey` と `fontFamily` の UTF-8 文字列を再構築していた。
+- **対応:** style と code point ごとの fallback cache に `GlyphKey` も保持し、atlas acquire にその値を渡すようにした。
+- **価値／懸念:** static text の CPU submit で繰り返される文字列確保を避ける。atlas clear 時の glyph rect は保持せず、従来どおり atlas から都度取得する。
+- **次に確認すること:** CJK fallback、emoji、style切替と atlas clear 後に正しい key で再取得されることを実機で確認し、長文の CPU submission cost を測定する。
+
 ## 2026-09-11 — rich GPU run の callback copy
 
 - **関連:** `Artifact/src/Layer/ArtifactTextLayer.cppm`、`Artifact/include/Layer/ArtifactCloneEffectSupport.ixx`。
