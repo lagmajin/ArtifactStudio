@@ -1065,3 +1065,10 @@ eturn start のままだった。
 - **確認できた事実:** fill-only の通常テキストは layout cache に `GlyphItem` を持つ一方、従来は `drawTextTransformed()` が immediate submit 時に同じ文字列を再 shaping していた。
 - **対応:** decoration/effect なしの基本テキストだけを cached glyph direct-draw へ切り替えた。underline / strikethrough / stroke / shadow は表示差を導入しないため既存経路を維持する。
 - **価値／懸念:** 静的な基本テキストでは layout 成果を再利用できる。実機で alignment・CJK fallback・cloner transform・長文の frame cost を比較するまで parity / 性能は未検証。
+
+## 2026-09-11 — glyph 単位 font fallback の再利用
+
+- **関連:** `Artifact/src/Render/PrimitiveRenderer2D.cppm`。
+- **確認できた事実:** cached glyph direct-draw は `GlyphAtlas` が hit しても、各 glyph ごとに `FontManager::makeFont()` を呼び、fallback family を解決していた。
+- **対応:** `TextStyle` が同一の間は code point ごとの解決済み `QFont` を renderer lifetime cache に保持する。キャッシュは最大 2,048 glyph で clear し、font style 変更時にも clear する。
+- **価値／懸念:** CJK fallback の glyph 単位意味論を維持したまま、静的テキストの font database 問い合わせを避ける。font install/uninstall 中の動的更新は未検証。
