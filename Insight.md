@@ -11,6 +11,14 @@
 - **対応:** `ArtifactAbstractEffect` に具体型非依存の `GpuRasterEffectDomain`／固定容量 `GpuSpatialEffectNode` を設け、pointwiseとspatialを順序どおり実行するGPU planへ接続した。Gaussian Blur、Sharpen、Vignette、Chromatic Aberration、Stripes、Hex Grid をDiligent共通のSRV/UAV compute passへ移し、対応ShapeではCPU画像境界を通さない。
 - **懸念・次に確認:** LayerMask は `LayerMask::applyToImage()` のOpenCV実装だけで、Bezier path、feather、invert、各modeのGPU契約は未確立。マスクありを無理に部分GPU化せず、mask raster／alpha-composite passを仕様化してからGPU化する。対応エフェクトのCPU/GPU pixel parity、アニメーション時のframe time、D3D12/Vulkan両backendでのshader compilationをビルド後に確認する。
 
+## 2026-09-10 — Shape F6 open/closed・smooth/corner-bezier メインVP移植
+
+- **関連:** `Artifact/src/Widgets/LayerEditorGeometry.cppm`（新`togglePathVertexSmooth`）・`LayerEditorContextMenu.cppm`（Solo TogglePathSmooth）・`ArtifactCompositionRenderController.ixx/.cppm`（hovered頂点5メソッド）・`ArtifactCompositionEditor.cppm`（右クリックShapeメニュー）。Artifactリポ内のみ、Core不変・新規ファイルなし・新規シグナルなし。
+- **確認できた事実:** Solo側はOpen/Close・Smooth切替＋Undoが既存だがsmooth反転はフラグのみでtangent初期化なしだった（handle非表示のまま）。メインVP右クリックはmask分岐のみでshape分岐なし。`evaluatePathAt`はtangentを直接cubic評価するため、tangent初期化が描画・補間に直結する。`contextMenuEvent`は先頭で`handleMouseMove`済みのためhoverは新鮮。
+- **対応:** Geometry共有ヘルパー追加（smooth化は隣接弦方向へ±ハンドル初期化・長さは隣接距離25%を4〜64pxにクランプ・既存非ゼロハンドルは保持、corner化は両ハンドル破棄、開パス端点は単一隣接方向）。Solo切替をヘルパーへ寄せ。メインVPは`hasHoveredShapePathVertex`/`hoveredShapePathVertexSmooth`/`isSelectedShapePathClosed`/`toggleHoveredShapePathClosed`/`toggleHoveredShapePathSmooth`を追加し、既存`ShapePathVertexEditCommand`＋delete系と同一ガード（pending作成中は無効・lock・drag中・3頂点未満のclose抑止）・同一Undo末尾処理で接続。右クリックはmask分岐踏襲のQMenu（Make Smooth/Corner＋Open/Close Path）で確定。
+- **価値または懸念:** marquee・multi-move・proportional・handle-only選択はF12残件として対象外。smooth化のハンドル長は固定ヒューリスティック（ズーム非依存・local px）。
+- **次に確認:** ビルド・`check_module_hygiene`・実機runtimeは未実施（AGENTS.md制約でユーザー許可待ち）。特に`.cppm`追加import（Geometry）のdyndep、右クリック時のhover更新、`contextMenuEvent`のShape/menuフォールバック順、旧JSON再読込（ix/iy/ox/oy/smoothキーは既存のため互換のはず）を確認すること。
+
 ## 2026-09-10 — Shape Core縦断（WavePaths新設・Repeater複合順・SVG多段化）
 
 - **関連:** `ArtifactCore/.../ShapeOperator.ixx`、`AeOperators.ixx`、`Repeater.ixx`、`ShapeTypes.ixx`、`ShapeGroup.cppm`、`ShapeLayer.cppm`、`ArtifactShapeLayer.cppm`、`LayerEditorContextMenu.*`、`ArtifactCompositionRenderOverlay.cppm`、`ArtifactCompositionRenderController.cppm`。子リポ編集はユーザー許可済み。
