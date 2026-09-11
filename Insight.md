@@ -1063,8 +1063,8 @@ eturn start のままだった。
 
 - **関連:** `Artifact/src/Layer/ArtifactTextLayer.cppm`。
 - **確認できた事実:** fill-only の通常テキストは layout cache に `GlyphItem` を持つ一方、従来は `drawTextTransformed()` が immediate submit 時に同じ文字列を再 shaping していた。
-- **対応:** decoration/effect なしの基本テキストだけを cached glyph direct-draw へ切り替えた。underline / strikethrough / stroke / shadow は表示差を導入しないため既存経路を維持する。
-- **価値／懸念:** 静的な基本テキストでは layout 成果を再利用できる。実機で alignment・CJK fallback・cloner transform・長文の frame cost を比較するまで parity / 性能は未検証。
+- **対応:** plain text の fill / stroke / shadow を cached glyph direct-draw へ切り替えた。stroke の 8 方向 outline と shadow offset は既存 immediate path と同じ値を glyph quad へ渡す。underline / strikethrough は既存 immediate glyph submit でも独立線として描かれていないため、今回の経路切替で表示を増減させない。
+- **価値／懸念:** 静的な通常テキストでは layout 成果を再利用できる。実機で alignment・CJK fallback・stroke / shadow・cloner transform・長文の frame cost を比較するまで parity / 性能は未検証。
 
 ## 2026-09-11 — glyph 単位 font fallback の再利用
 
