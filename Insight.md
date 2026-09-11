@@ -1072,3 +1072,10 @@ eturn start のままだった。
 - **確認できた事実:** cached glyph direct-draw は `GlyphAtlas` が hit しても、各 glyph ごとに `FontManager::makeFont()` を呼び、fallback family を解決していた。
 - **対応:** `TextStyle` が同一の間は code point ごとの解決済み `QFont` を renderer lifetime cache に保持する。キャッシュは最大 2,048 glyph で clear し、font style 変更時にも clear する。
 - **価値／懸念:** CJK fallback の glyph 単位意味論を維持したまま、静的テキストの font database 問い合わせを避ける。font install/uninstall 中の動的更新は未検証。
+
+## 2026-09-11 — rich GPU run の callback copy
+
+- **関連:** `Artifact/src/Layer/ArtifactTextLayer.cppm`、`Artifact/include/Layer/ArtifactCloneEffectSupport.ixx`。
+- **確認できた事実:** rich text の GPU run は `drawWithClonerEffect` へ値 capture され、同期 callback を受ける `std::function` の構築時に glyph 配列全体をコピーしていた。
+- **対応:** run を参照 capture に変更した。clone helper は callback をその呼び出し内で直ちに実行し、保持しない。
+- **価値／懸念:** rich text の clone pass ごとに発生していた run copy を除去する。QTextDocument の再構築・run 分解は残るため、次段階で別 cache を検討する。
