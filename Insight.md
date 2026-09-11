@@ -1121,3 +1121,11 @@ eturn start のままだった。
 - **対応:** animator 未使用時だけ、既存のテキスト cache key と同じ入力で GPU run を保持して再利用する。画像 object を含む rich text と animator 有効時は cache を使わず、従来どおり毎フレーム構築する。
 - **価値／懸念:** 静的な rich text の CPU 側レイアウト作業を避けられる。一方、run の実フレーム時間と画像 object を含む文書の fallback parity は未検証。
 - **次に確認すること:** 実機でHTML書式、複数行・box alignment、CJK fallback、underline / strikethrough、animator 有効／無効切替を確認し、長文の frame cost を計測する。
+
+## 2026-09-11 — Shape F12 主ビューポートの頂点マーキー選択
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`。
+- **確認できた事実:** Shape のカスタムパス／ポリゴンにはクリック選択と単一頂点ドラッグがある一方、主ビューポートで頂点を矩形選択し、複数頂点を同じデルタで移動する導線がなかった。
+- **対応:** 空キャンバスからの通常ドラッグ、または選択Shape上でのShift/Ctrlドラッグを頂点マーキーとして追加し、Replace/Add/Toggleを既存の選択文法へ接続した。カスタムパスとポリゴンの両方で選択でき、選択済み複数頂点の移動は既存の単一Undoトランザクション内で相対移動する。Clonerと重複するRepeater操作や新規ショートカットは追加していない。
+- **価値／懸念:** レイヤー内部の通常クリック移動、Altオービット、既存ギズモ／Pen操作を優先順位ごと維持したまま、Shape編集の基本選択文法を補完した。ハンドルのみ、比例編集、分割、ミラーなどF12残項目は未実装。
+- **次に確認すること:** ビルド・`check_module_hygiene`・実機runtimeは未実施（AGENTS.md制約でユーザー許可待ち）。変形済みShape、Replace/Add/Toggle、空キャンバス上の既存レイヤーマーキー、Undo／再読込時の選択状態を確認する。
