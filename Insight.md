@@ -1091,6 +1091,14 @@ eturn start のままだった。
 - **価値／懸念:** 動的 text でも glyph 提出に伴う局所ヒープ確保を避ける。cache は2,048 entryで clear するため、それを超える多言語文書の warm-up は未検証。
 - **次に確認すること:** animator 有効なCJK・emoji長文で、glyph color override、opacity、atlas reset 後の表示と frame cost を確認する。
 
+## 2026-09-11 — 未接続の ArtifactTextGlyphSubmitter
+
+- **関連:** `Artifact/src/Render/ArtifactTextGlyphSubmitter.cppm`。
+- **確認できた事実:** この submitter は atlas を `clear()` して immutable texture、vertex buffer、constant buffer を submit ごとに作る。一方、現行の `ArtifactTextLayer` GPU 経路は `PrimitiveRenderer2D` と `DiligentImmediateSubmitter` を使い、検索上この submitter の呼び出し元は確認できなかった。
+- **判断:** 稼働中の GPU text 経路を重複実装へ切り替えず、部分 upload を既存二経路へ適用した。
+- **価値／懸念:** 未接続コードを性能根拠にして現行経路を誤って置換しない。将来この contract を有効化する場合は、resource reuse と呼び出し ownership を先に設計する必要がある。
+- **次に確認すること:** module registration と将来の consumer を監査し、不要なら削除、必要なら既存 atlas uploader へ統合する判断を別作業として行う。
+
 ## 2026-09-11 — rich GPU run の callback copy
 
 - **関連:** `Artifact/src/Layer/ArtifactTextLayer.cppm`、`Artifact/include/Layer/ArtifactCloneEffectSupport.ixx`。
