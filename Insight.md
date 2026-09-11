@@ -1081,6 +1081,14 @@ eturn start のままだった。
 - **価値／懸念:** static text の CPU submit で繰り返される文字列確保を避ける。atlas clear 時の glyph rect は保持せず、従来どおり atlas から都度取得する。
 - **次に確認すること:** CJK fallback、emoji、style切替と atlas clear 後に正しい key で再取得されることを実機で確認し、長文の CPU submission cost を測定する。
 
+## 2026-09-11 — animator glyph 提出の一時表撤去
+
+- **関連:** `Artifact/src/Render/PrimitiveRenderer2D.cppm` の `drawGlyphs()`。
+- **確認できた事実:** animator などが使う pre-laid-out glyph 経路は、呼び出しごとに unique glyph table を確保し、同じ fallback font と atlas key を作っていた。
+- **対応:** renderer lifetime の style / code point cache を使い、atlas acquire の二段階処理は維持したまま局所 vector を撤去した。
+- **価値／懸念:** 動的 text でも glyph 提出に伴う局所ヒープ確保を避ける。cache は2,048 entryで clear するため、それを超える多言語文書の warm-up は未検証。
+- **次に確認すること:** animator 有効なCJK・emoji長文で、glyph color override、opacity、atlas reset 後の表示と frame cost を確認する。
+
 ## 2026-09-11 — rich GPU run の callback copy
 
 - **関連:** `Artifact/src/Layer/ArtifactTextLayer.cppm`、`Artifact/include/Layer/ArtifactCloneEffectSupport.ixx`。
