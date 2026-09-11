@@ -1,5 +1,85 @@
 **最終更新:** 2026-09-11
 
+## 2026-09-11 — Clone生成数の上限(巨大グリッドのハング防止)
+
+- **関連:** `Artifact/src/Layer/ArtifactCloneLayer.cppm`(`generateCloneData`)。
+- **確認できた事実:** clone数・grid各次元・radial数は下限1のみで上限なし。Gridは`cols*rows*depth`がint64オーバーフローし得て、毎drawの生成でハングする。描画側は4096でclamp済みだが生成側が無制限だった。
+- **対応:** `kMaxGeneratedClones=4096`を全モードへ適用。Gridはint64で積算しreserveはcap、3重loopはprefix順でbreak。既定小規模の見た目は不変。
+- **価値または懸念:** 上限超過は黙って切捨て(描画clampと同一方針)。UIへの上限表示は未追加。
+- **次に確認:** ビルド・実機runtimeは未実施(AGENTS.md制約でユーザー許可待ち)。大grid指定時の打切りを確認すること。
+
+## 2026-09-11 — カメラのクリックフォーカス(Alt+ダブルクリック)
+
+- **関連:** `ArtifactCompositionRenderController.ixx/.cppm`(`focusActiveCameraAtViewportPos`)、`ArtifactCompositionEditor.cppm`(`mouseDoubleClickEvent`+操作ヒント)。
+- **確認できた事実:** 3Dレイ・三角ヒット距離(`intersectModelLayerPickingRay`)とactive camera解決が既存。フォーカス面ギズモ(`ArtifactCameraLayer.cppm:179-182`)・DOF/MB実配線も済みで、欠落はヒット点→フォーカス距離の導線だけだった。
+- **対応:** ヒット点をactive camera前方軸へ投影した真のフォーカス面距離を near/far でclampし、既存property path(`Camera Options/Focus Distance`)経由で設定。Alt+単クリック=オービット・素ダブルクリック=既存動作は不変。新規signalなし。
+- **価値または懸念:** depth readback不要でview非依存。2D層・空振り・非正ヒットは無操作。skinning変形後の頂点には未対応(静止mesh基準)。
+- **次に確認:** ビルド・実機runtimeは未実施(AGENTS.md制約でユーザー許可待ち)。Alt+ダブルクリックでのフォーカス変化とHUD表示を確認すること。
+
+## 2026-09-11 — 3Dマテリアル環境強度(IBL間接光の個別スケール)
+
+- **関連:** `ArtifactCore/.../Material`、`MeshRenderer`(`MaterialConstants` 32→36 floats、`EnvFactors`、PS乗算)、`ArtifactIRenderer::drawMesh`、`Artifact3DLayer`(JSON/property/signature)。
+- **確認できた事実:** 環境強度はグローバル(`EnvironmentSettings.y`)のみで、マテリアル別の反射調整(E3Dの常用操作)がなかった。
+- **対応:** `environmentIntensity_` (0〜4、既定1)を追加し、間接diffuse/specular/transmission合算へ乗算。ベースambient・直接光は不変。既定値1で既存見た目不変。
+- **価値または懸念:** Look-devの基本操作を低コストで補完。環境なし時は効果なし。
+- **次に確認:** ビルド・実機runtimeは未実施(AGENTS.md制約でユーザー許可待ち)。0/1/2での間接光変化と保存再読込を確認すること。
+
+## 2026-09-11 — 3Dアニメ再生モード/速度(Loop固定の拡張)
+
+- **関連:** `Artifact/src/Layer/Artifact3DModelLayer.cppm` (Impl/draw/toJson/fromJson/property)。
+- **確認できた事実:** draw時のclip評価は`fmod`固定Loopで、Holdや速度調整がなかった。毎フレーム`loadFromFileAtTime`再importは既存仕様のため対象外。
+- **対応:** `animationPlaybackMode_` (0 Loop/1 Hold/2 PingPongの無状態三角波)+`animationSpeed_` (0〜8、0は静止)を追加し、評価・JSON・property・setterへ接続。変更時は`lastSkinAnimationFrame_`を無効化して同フレームでも再評価。
+- **価値または懸念:** E3D式の再生制御の最小形。PingPong・逆再生・Bakeは対象外。
+- **次に確認:** ビルド・実機runtimeは未実施(AGENTS.md制約でユーザー許可待ち)。Loop/Hold/速度0・2倍と保存再読込を確認すること。
+
+## 2026-09-11 — Cloner 3D最小接続(Phase2→描画の接続)
+
+- **関連:** `Artifact/include/Render/ArtifactIRenderer.ixx`、`Artifact/src/Render/ArtifactIRenderer.cppm`(`drawMesh`/`drawMeshInstanced`)、`ArtifactCore/.../MeshRenderer`(`maxInstances`)、`Artifact/include/Layer/Artifact3DModelLayer.ixx`(`material()`追加)、`Artifact/src/Layer/ArtifactCloneLayer.cppm`(`drawInstancedSource`)。
+- **確認できた事実:** `getInstanceData()`は呼出し元ゼロ、`CloneLayer::draw()`は2D矩形のみでソース内容を見ない。`MeshRenderer::draw(ctx,count)`はN instance対応済みだが`initialize(1,...)`でinstance bufferが1固定だった。
+- **対応:** `Impl::drawMesh`へinstance配列引数を追加し、容量不足時は`initialize(wanted,...)`+再upload、ray登録・mesh-shader LODは単一時のみ、ID pass時のみ複写。Clone側は`sourceLayerId→layerById→Artifact3DLayer`解決(`Procedural3D`と同型)、clone行列×globalのworld化+層opacity bake、`clone3d|src|rev`キーで`drawMeshInstanced`。Phase2変換器は転置なし複写のためGPU提出に再利用せず新helperで置換(旧関数は残す)。
+- **価値または懸念:** Grid/Random/Linear等の既存配置・effectorが3Dメッシュにそのまま適用、頂点色/UV変換/影は同一経路で効く。4096上限、source可視時の二重描画は仕様未定、debug shading mode・rayは単一のみ。
+- **次に確認:** ビルド・`check_module_hygiene`・実機runtimeは未実施(AGENTS.md制約でユーザー許可待ち)。3Dソース指定時の散布・影・保存再読込を確認すること。
+
+## 2026-09-11 — 3D読込時PBR係数(metallic/roughness factor)の適用
+
+- **関連:** `ArtifactCore/include/Geometry/MeshImporter.ixx`、`ArtifactCore/src/Geometry/MeshImporter.cppm`(`detectTexturesFromUfbx`)、`Artifact/src/Layer/Artifact3DModelLayer.cppm`(`loadFromFile`)。
+- **確認できた事実:** 読込はテクスチャパスのみ採取し、glTF/FBXのmetallic/roughnessスカラー係数を捨てていた。`ufbx_material_map`は`has_value`/`value_real`を持つため未指定と既定値1.0を区別できる。base-color係数はsRGB/linear曖昧のため対象外。
+- **対応:** 先勝ちで係数採取(`hasLastMetallicFactor`/`lastMetallicFactor`等、ufbxパスのみ有効)。層側はufbx系backendかつマテリアルが既定値(metallic 0.0/roughness 0.5)の場合のみ適用し、ユーザー編集の上書きとtimed再評価経路への波及なし。
+- **価値または懸念:** 金属質glTFが誘電体表示になる誤りを解消。色係数は色空間メタ欠落(`FloatColor`素float4)のため別途要設計。
+- **次に確認:** ビルド・実機runtimeは未実施(AGENTS.md制約でユーザー許可待ち)。metallic glTFでの質感と既存JSON再読込を確認すること。
+
+## 2026-09-11 — 3D層Transformの3軸露出(Core済み・UI未整理の接続)
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`(`getLayerPropertyGroups`、`transformChannelProperty`)。Core `AnimatableTransform3D`はX/Y/Z・保存・行列・ギズモ済み。
+- **確認できた事実:** 共有Transformグループは2D subset(posX/Y・scaleX/Y・単一rotation・anchorX/Y)のみで、`transform.rotation.x/y`等のchannel pathは解決できるのにUIに露出していなかった。`transform.rotation.z`のpath自体が未定義だった(Rotation=Z互換の別名なし)。
+- **対応:** `transform.rotation.z`→Rotation channelの別名を追加。`is3D()`時のみ同TransformグループへPosition Z・Rotation X・Rotation Y・Rotation Z(alias)・Scale Z・Anchor Zを追加し、既存Rotation表示を「Rotation Z」へ(3Dのみ)。新規グループ・signalなし。
+- **価値または懸念:** 3軸編集・キーフレーム・式解決が既存Property経路で通る。2D層の表示は不変。
+- **次に確認:** ビルド・実機runtimeは未実施(AGENTS.md制約でユーザー許可待ち)。3D層での表示・編集・保存再読込を確認すること。
+
+## 2026-09-11 — 3Dソフトシャドウ仕上げ(UI飽和の解消)
+
+- **関連:** `Artifact/src/Layer/ArtifactLightLayer.cppm`。受渡しは`ArtifactCompositionRenderController.cppm:4945-4946`(radius/10→softness)、`ArtifactIRenderer.cppm:1098-1106`、`MeshRenderer.cppm:892-903,3143-3160`で接続済み。
+- **確認できた事実:** UI hard 0〜500・soft 0〜200に対し、MeshRendererはsoftness 0〜2へclampするため、radius 20超は描画不変だった。`setShadowRadius()`にfinite/clampがなく、fromJsonも無制限だった。
+- **対応:** 格納を0〜20へclamp(既定10)、UI hard 0〜20・soft 0〜10へ整合、tooltip/whatsthisを「20 = softest」へ修正。fromJsonとproperty setterは同setter経由で自動整合。
+- **価値または懸念:** 単一caster・Directional/Spotのみ・CSM/Point cubeなしの範囲は不変(コントローラ側に明記)。見た目の既定値は不変。
+- **次に確認:** ビルド・実機runtimeは未実施(AGENTS.md制約でユーザー許可待ち)。radius 0/10/20の影 edge を確認すること。
+
+## 2026-09-11 — 3Dテクスチャトランスフォーム共有UV(offset/scale/rotation)
+
+- **関連:** `ArtifactCore/include/Material/Material.ixx`、`ArtifactCore/src/Material/Material.cppm`、`ArtifactCore/include/Graphics/MeshRenderer.ixx`、`ArtifactCore/src/Graphics/MeshRenderer.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`、`Artifact/src/Layer/Artifact3DModelLayer.cppm`。
+- **確認できた事実:** テクスチャトランスフォームは存在せず、glTF `KHR_texture_transform`相当も未対応。全テクスチャが`In.UV`直サンプリングだった。
+- **対応:** Materialへ共有UV `offsetU/V(-10〜10)`・`scaleU/V(0.01〜10)`・`rotation度(-360〜360)`を追加。`MaterialConstants`へ`uvTransformA/B` 8 floats追加(24→32 floats、static_assert更新)。PSは`transformMeshUv()`でscale→UV中心回転→offsetを適用し、全6テクスチャと法線マップ接線フレームへ反映。`ArtifactIRenderer::drawMesh()`で受渡し、3D層のJSON/property/signatureへ接続。既定値(0,0,1,1,0)は恒等で既存見た目不変。
+- **価値または懸念:** E3D/他DCCの質感調整の基本操作を低コストで補完。per-texture個別変換・glTF import時自動反映は対象外。
+- **次に確認:** ビルド・`check_module_hygiene`・実機runtimeは未実施(AGENTS.md制約でユーザー許可待ち)。回転中心・法線接線・旧JSON既定値を確認すること。
+
+## 2026-09-11 — 3D頂点カラー描画反映(MeshImporter保持→Mesh描画断絶の接続)
+
+- **関連:** `ArtifactCore/include/Mesh/Mesh.ixx`、`ArtifactCore/src/Mesh/Mesh.cppm`、`ArtifactCore/include/Graphics/MeshRenderer.ixx`、`ArtifactCore/src/Graphics/MeshRenderer.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`。メモ:`docs/analysis/THREED_AE_E3D_C4D_GAP_IMPROVEMENT_2026-09-11.md`。
+- **確認できた事実:** `MeshImporter.cppm:880-884`はufbx頂点カラーを`color`属性へ保持するが、`Mesh::generateRenderData()`はcolorsを持たず、`MeshRenderer::updateMeshGeometry()`も位置/法線/UVのみで頂点カラーバッファ・シェーダ入力がなかった。Wicked系`surfaceHF/objectHF`の頂点色対応とは別系統のMesh PBR経路が対象。
+- **対応:** `RenderData`へ`colors`追加、生成時に`color`属性から展開(欠落時白)、meshlet remap用`PackedVertex`へcolorを含めて異色頂点の統合を防止。`MeshRenderer`へ`pColorBuffer_`追加、VS `ATTRIB3`/PS `TEXCOORD7`で受渡し、baseColorへ`vertexColor(rgb linear, a)`乗算。欠落時は白で既存見た目不変。`ArtifactIRenderer::drawMesh()`でcolors構築・hash・upload。
+- **価値または懸念:** glTF/PLY等の頂点色付き資産がそのままPBR表示される。確保は形状キャッシュ更新時のコールドパスのみ。ホットパスはバインド済みバッファ参照のみ。
+- **次に確認:** ビルド・`check_module_hygiene`・実機runtimeは未実施(AGENTS.md制約でユーザー許可待ち)。頂点色付きglTF/PLYでの色反映、白資産の不変、D3D12/VulkanのATTRIB3レイアウトを確認すること。
+
 ## 2026-09-10 — シェイプレイヤーの画像エフェクト適用時のサーフェスキャッシュ統合と最適化
 
 - **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`、`ArtifactShapeLayer.cppm`。
@@ -10,6 +90,14 @@
 - **2026-09-11 追記・確認事実:** 対応済みのRasterizer effect列については、Shape分岐が `shapeLayer->draw(renderer)` を再利用可能な layer RTV へ直接出力し、F32 GPU texture上で処理できる。既存の個別GPU effectは入力upload／staging readback／`WaitForIdle()` を含むものがあり、GPU実装であってもGPU常駐とは限らない。
 - **対応:** `ArtifactAbstractEffect` に具体型非依存の `GpuRasterEffectDomain`／固定容量 `GpuSpatialEffectNode` を設け、pointwiseとspatialを順序どおり実行するGPU planへ接続した。Gaussian Blur、Sharpen、Vignette、Chromatic Aberration、Stripes、Hex Grid をDiligent共通のSRV/UAV compute passへ移し、対応ShapeではCPU画像境界を通さない。
 - **懸念・次に確認:** LayerMask は `LayerMask::applyToImage()` のOpenCV実装だけで、Bezier path、feather、invert、各modeのGPU契約は未確立。マスクありを無理に部分GPU化せず、mask raster／alpha-composite passを仕様化してからGPU化する。対応エフェクトのCPU/GPU pixel parity、アニメーション時のframe time、D3D12/Vulkan両backendでのshader compilationをビルド後に確認する。
+
+## 2026-09-10 — Shape F6 open/closed・smooth/corner-bezier メインVP移植
+
+- **関連:** `Artifact/src/Widgets/LayerEditorGeometry.cppm`（新`togglePathVertexSmooth`）・`LayerEditorContextMenu.cppm`（Solo TogglePathSmooth）・`ArtifactCompositionRenderController.ixx/.cppm`（hovered頂点5メソッド）・`ArtifactCompositionEditor.cppm`（右クリックShapeメニュー）。Artifactリポ内のみ、Core不変・新規ファイルなし・新規シグナルなし。
+- **確認できた事実:** Solo側はOpen/Close・Smooth切替＋Undoが既存だがsmooth反転はフラグのみでtangent初期化なしだった（handle非表示のまま）。メインVP右クリックはmask分岐のみでshape分岐なし。`evaluatePathAt`はtangentを直接cubic評価するため、tangent初期化が描画・補間に直結する。`contextMenuEvent`は先頭で`handleMouseMove`済みのためhoverは新鮮。
+- **対応:** Geometry共有ヘルパー追加（smooth化は隣接弦方向へ±ハンドル初期化・長さは隣接距離25%を4〜64pxにクランプ・既存非ゼロハンドルは保持、corner化は両ハンドル破棄、開パス端点は単一隣接方向）。Solo切替をヘルパーへ寄せ。メインVPは`hasHoveredShapePathVertex`/`hoveredShapePathVertexSmooth`/`isSelectedShapePathClosed`/`toggleHoveredShapePathClosed`/`toggleHoveredShapePathSmooth`を追加し、既存`ShapePathVertexEditCommand`＋delete系と同一ガード（pending作成中は無効・lock・drag中・3頂点未満のclose抑止）・同一Undo末尾処理で接続。右クリックはmask分岐踏襲のQMenu（Make Smooth/Corner＋Open/Close Path）で確定。
+- **価値または懸念:** marquee・multi-move・proportional・handle-only選択はF12残件として対象外。smooth化のハンドル長は固定ヒューリスティック（ズーム非依存・local px）。
+- **次に確認:** ビルド・`check_module_hygiene`・実機runtimeは未実施（AGENTS.md制約でユーザー許可待ち）。特に`.cppm`追加import（Geometry）のdyndep、右クリック時のhover更新、`contextMenuEvent`のShape/menuフォールバック順、旧JSON再読込（ix/iy/ox/oy/smoothキーは既存のため互換のはず）を確認すること。
 
 ## 2026-09-10 — Shape Core縦断（WavePaths新設・Repeater複合順・SVG多段化）
 
@@ -1113,3 +1201,11 @@ eturn start のままだった。
 - **対応:** animator 未使用時だけ、既存のテキスト cache key と同じ入力で GPU run を保持して再利用する。画像 object を含む rich text と animator 有効時は cache を使わず、従来どおり毎フレーム構築する。
 - **価値／懸念:** 静的な rich text の CPU 側レイアウト作業を避けられる。一方、run の実フレーム時間と画像 object を含む文書の fallback parity は未検証。
 - **次に確認すること:** 実機でHTML書式、複数行・box alignment、CJK fallback、underline / strikethrough、animator 有効／無効切替を確認し、長文の frame cost を計測する。
+
+## 2026-09-11 — Shape F12 主ビューポートの頂点マーキー選択
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`。
+- **確認できた事実:** Shape のカスタムパス／ポリゴンにはクリック選択と単一頂点ドラッグがある一方、主ビューポートで頂点を矩形選択し、複数頂点を同じデルタで移動する導線がなかった。
+- **対応:** 空キャンバスからの通常ドラッグ、または選択Shape上でのShift/Ctrlドラッグを頂点マーキーとして追加し、Replace/Add/Toggleを既存の選択文法へ接続した。カスタムパスとポリゴンの両方で選択でき、選択済み複数頂点の移動は既存の単一Undoトランザクション内で相対移動する。Clonerと重複するRepeater操作や新規ショートカットは追加していない。
+- **価値／懸念:** レイヤー内部の通常クリック移動、Altオービット、既存ギズモ／Pen操作を優先順位ごと維持したまま、Shape編集の基本選択文法を補完した。ハンドルのみ、比例編集、分割、ミラーなどF12残項目は未実装。
+- **次に確認すること:** ビルド・`check_module_hygiene`・実機runtimeは未実施（AGENTS.md制約でユーザー許可待ち）。変形済みShape、Replace/Add/Toggle、空キャンバス上の既存レイヤーマーキー、Undo／再読込時の選択状態を確認する。
