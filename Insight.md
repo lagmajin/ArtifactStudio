@@ -1057,7 +1057,8 @@ eturn start のままだった。
 - **確認できた事実:** `GlyphAtlas` は固定 2048×2048 の CPU atlas と dirty bool を持つ。従来の GPU 側は新規 glyph の追加ごとに immutable texture を破棄・再作成していた。
 - **対応:** Artifact 側の command-buffer と immediate-submitter の両経路を updateable texture の再利用へ移し、既存 texture へ upload するようにした。glyph 提出用の一時配列も renderer lifetime の scratch buffer として初期化時に確保し、通常のテキスト編集では再確保しない。
 - **対応（追記）:** `GlyphAtlasDirtyRegion` を公開し、追加 glyph の矩形を union、clear と初回を全量更新として表す契約を追加した。
-- **価値／懸念:** texture object の再生成は解消し、差分 upload の範囲を明示できる。Diligent 側の二つの uploader がこの契約を利用するまで、帯域削減は未完了である。
+- **対応（追記）:** `PrimitiveRenderer2D` と `DiligentImmediateSubmitter` は、Diligent の `UpdateTexture` に image stride を保った矩形 source pointer と destination box を渡す。新規 GPU texture は dirty state にかかわらず全量初期化する。
+- **価値／懸念:** texture object の再生成を避けたまま、通常の新規 glyph 追加では更新領域だけを転送できる。全量／矩形の実転送量と backend parity は未検証である。
 - **次に確認すること:** atlas reset 時は全量、それ以外は矩形 upload になること、CJK／emoji glyph と複数 glyph の同フレーム追加で union 範囲が正しいことを実機プロファイルで測る。
 
 ## 2026-09-11 — 基本テキストの shaping 再利用境界
