@@ -1050,3 +1050,11 @@ eturn start のままだった。
 - **気づき:** History Timeline の安全な部分復元は、UI側でコマンド型を推測するのではなく、コマンドが復元可能payloadの種類・対象ID・preview値を明示する契約を持つと Project History と Source Patch History の双方で再利用できる。
 - **価値／懸念:** 共通契約があれば部分復元ボタンを実データにのみ有効化できる。契約なしで実装すると、型別分岐がUIへ漏れ、誤った対象への適用や復元不能状態を招く。
 - **次に確認すること:** `UndoCommand` の serialization schema と AI patch metadata を横断し、read-only の `restorablePayloads()` 相当を追加できるか設計レビューする。現段階では未対応コマンドに対する部分復元を無効表示に留める。
+
+## 2026-09-11 — Glyph atlas の差分アップロード境界
+
+- **関連:** `Artifact/src/Render/PrimitiveRenderer2D.cppm`、`Artifact/src/Render/DiligentImmediateSubmitter.cppm`、`ArtifactCore/include/Text/GlyphAtlas.ixx`。
+- **確認できた事実:** `GlyphAtlas` は固定 2048×2048 の CPU atlas と dirty bool を持つ。従来の GPU 側は新規 glyph の追加ごとに immutable texture を破棄・再作成していた。
+- **対応:** Artifact 側の command-buffer と immediate-submitter の両経路を updateable texture の再利用へ移し、既存 texture へ upload するようにした。glyph 提出用の一時配列も renderer lifetime の scratch buffer として初期化時に確保し、通常のテキスト編集では再確保しない。
+- **価値／懸念:** texture object の再生成は解消したが、現行 Core API は dirty rectangle を公開しないため、upload は atlas 全体になる。
+- **次に確認すること:** Core を変更できる作業で、`GlyphAtlas` が追加・clear 時の dirty bounds を返す契約を設計し、atlas reset 時だけ全量、それ以外は矩形 upload にする。これは未検証の性能改善候補であり、実機プロファイルで帯域を測る。
