@@ -1,8 +1,14 @@
 # Timeline Diligent GPU Surface
 
-**最終更新:** 2026-08-30
+**最終更新:** 2026-09-13
 
 **ステータス:** Phase 1 実装済み・Phase 2 部分実装、runtime / backend 実機検証待ち
+
+## Update 2026-09-13 — snapshot更新のcoalesceとムーブ引き渡し
+
+- `ArtifactTimelineWidget`のGPU snapshot要求をqueued turn単位でcoalesceし、同一UIイベント内の連続refreshから重複した可視範囲配列構築とrender event投稿を抑制した。
+- `ArtifactDiligentTimelineRenderWindow`にrvalue snapshot APIを追加し、UI側で構築済みのrect／line／triangle配列を共有snapshotへムーブする。既存のconst参照API、latest-wins世代判定、Diligentのwindow thread限定submit／presentは維持する。
+- Phase 2のCPU snapshot構築時間・GPU時間の分離計測、D3D12／Vulkan実機、device loss受入は未検証のまま。ビルド／runtime確認は許可後に実施する。
 
 ## Update 2026-08-30 — current implementation reconciliation
 

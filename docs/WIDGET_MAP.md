@@ -1,6 +1,6 @@
 # Widget Map
 
-**最終更新:** 2026-09-10
+**最終更新:** 2026-09-12
 
 このファイルは、Artifact の主要ウィジェットの表示名、コード上の名前、役割を AI と人間の両方がすぐ確認できるようにするための一覧です。
 
@@ -19,6 +19,18 @@
   左側の Project パネル。コンポジションやアセットの一覧管理。
 - `ArtifactAssetBrowser`
   左側の Asset Browser。ファイル探索、サムネイル、favorites、recent sources、Project View への選択同期を担当する。
+- `ArtifactMediaImportPickerDialog`
+  Import前のファイル探索、対応種別フィルター、複数選択、連番候補の展開を担当する専門ピッカー。Project登録やコピーは行わない。
+- `ArtifactImportAssetsDialog`
+  Media Import Pickerで選択済みのパスをグループ確認し、Project/Assetsへのコピー対象を確定する。ファイル探索は担当しない。
+- `ArtifactLutColorReferencePickerDialog`
+  Color Science Panelから開くLUTライブラリ選択ダイアログ。built-in／ファイルLUTの探索、検索、互換性詳細、外部LUTの選択を担当し、実際のロードはColor Science Managerへ委譲する。
+- `ArtifactProjectOpenPickerDialog`
+  recent project の検索・タイル選択とSystem Picker fallbackを担当するOpen Project専用ダイアログ。load、migration、health／missing-source検証、recent更新はProject Serviceの責務として委譲する。
+- `RenderDestinationPickerDialog`
+  Render Output Settings内の保存先・base name・version・frame token・衝突回避を担当するローカルなdestination picker。format／codec／frame rangeとRender Queue mutationには介入しない。
+- `RelinkCandidatePickerDialog`
+  Asset Browserの候補検索結果を比較し、score、path、候補理由、連番一致数を読んで採用するための専用ダイアログ。候補rankingとrelink適用は既存Project Service／Undo commandへ委譲する。
 - `ArtifactInspectorWidget`
   右側の Inspector パネル。現在のコンポジション / レイヤー概要を担当する。Components / Effects / Properties は独立ドックとして扱う。
 - `ArtifactComponentTabSurface`

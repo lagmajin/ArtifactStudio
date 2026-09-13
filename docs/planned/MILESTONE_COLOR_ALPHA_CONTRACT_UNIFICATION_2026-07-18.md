@@ -16,6 +16,7 @@
 ### 2026-07-25 sequential audit
 
 The typed `SurfaceColorDescriptor` and explicit conversion boundary are present, and the repository still contains a large, explicitly documented migration population: direct `QImage`/OpenCV paths, local transfer helpers, and presentation/export conversions remain. The current evidence supports “contract foundation implemented, repository-wide migration incomplete”; it does not support completion of the canonical premultiplied path or pixel parity across preview, GPU, CPU, export, and external renderer. No build or runtime verification was run.
+**最終更新:** 2026-09-13
 **日付:** 2026-07-18
 **対象:** `ArtifactStudio`, `Artifact`, `ArtifactCore`, `ArtifactRenderer`
 
@@ -39,6 +40,17 @@ blend、preview、export の全経路を同じ契約へ統一する。
 
 `sRGB`、`QImage`、OpenCV BGR/BGRA、straight alpha、encoded media は境界表現であり、
 内部合成標準にはしない。
+
+## 2026-09-13 基本ルール
+
+GPU compositing、GPU effect、mask / matte、intermediate cache の内部surfaceは、
+**linear-premultiplied RGBA** を必須とする。straight alpha や encoded sRGB は
+asset decode、Qt / OpenCV interop、display、export の明示境界だけで許可する。
+
+`layerToFloat` はこの規則を破る unpremultiply を行わない。blend shader は
+premultiplied source / destination を受け、opacity は source RGB と alpha へ一度だけ
+適用する。spatial effect は `float4` 全体を filter し、effect pass 間で
+premultiply / unpremultiply を往復しない。
 
 ## 背景と現状
 

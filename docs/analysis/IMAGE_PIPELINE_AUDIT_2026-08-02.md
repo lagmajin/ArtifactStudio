@@ -1,7 +1,7 @@
 # Image / ImageProcessing 詳細監査
 
 **日付**: 2026-08-02
-**最終更新:** 2026-09-07
+**最終更新:** 2026-09-12
 **調査範囲**: ソースコード直接読み込み（~60ヘッダ）
 
 ---
@@ -333,4 +333,4 @@ CPU 版（ColorTransform + ImageProcessing）+ GPU 版（DirectCompute）+ Halid
 
 追加確認の結果、`ArtifactRenderQueueService` は `cryptomatte/<id>/name`、`hash`、`manifest` metadata を出力側へ付加している。一方、`ImageExporter` の draft channel は `CryptoObject00.*` / `CryptoMaterial00.*` という名前で、4本のうち実際に値を生成するのは ID と coverage に対応する先頭2本だけである。
 
-また、render queue 側の診断文にも「single-hit coverage」「full ranked coverage layers 未提供」「MurmurHash-based standard hashing 未提供」と明記されている。よって現状は「Cryptomatte metadata付きの単一ヒットdraft」であり、標準Cryptomatteの複数rank・ハッシュ・アンチエイリアスcoverageを満たす実装とは判定しない。
+Render Queue は `MurmurHash3_32` と `uint32_to_float32`、標準の7桁metadata IDを出力する。一方で診断文にもあるとおり、現在のGPU AOVは最前面の単一IDだけであり、full ranked coverage layers は未提供である。よって現状は「標準hash/metadata付きの単一ヒットdraft」であり、標準Cryptomatteの複数rank・アンチエイリアスcoverageを満たす実装とは判定しない。

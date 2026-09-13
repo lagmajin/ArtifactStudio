@@ -1,13 +1,13 @@
 # Deepコンポジット 実装マイルストーン
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-09-12
 **日付**: 2026-08-01
 **ベース**: Nuke Deep Compositing / Foundry Deep EXR 仕様
-**現状**: `DeepImageBuffer` に可変長サンプル、深度ソート、flatten、Deep over、holdout、flat↔Deep 合成、CPU 深度依存 DoF を実装済み。`OpenExr` は Deep RGBA32F の read/write と buffer 接続まで実装済み。GPU Packed契約・往復変換とDirectCompute front-to-back shaderも追加済み。GPU resource binding、制作UI統合、大規模runtime検証は未完了。
+**現状**: `DeepImageBuffer` に可変長サンプル、深度ソート、flatten、Deep over、holdout、flat↔Deep 合成、CPU 深度依存 DoF を実装済み。`OpenExr` は `Z`／`ZBack` を含むDeep RGBA32F read/writeを提供する。Render QueueはBeauty/Depth AOVから1 pixel 1 sampleのDeep EXRを書き出せる。GPU Packed契約・往復変換とDirectCompute front-to-back shaderも追加済み。native multi-sample生成、Deep制作UI、大規模runtime検証は未完了。
 
 ## 現行コード監査 (2026-08-15)
 
-`DeepImageBuffer`、Deep over／holdout／flat変換／depth matte／DoF、OpenEXR deep read/write、packed GPU契約、`DeepComposite.hlsl` の front-to-back shader は現行コードで確認できる。通常の Composition Render Controller や Render Queue の最終描画へ Deep buffer を接続するGPU resource binding、Deep専用の制作UI、実運用の大規模サンプル受入は確認できない。従ってCore／codec基盤は実装済みだが、アプリ統合段階は未完という従来の判定を維持する。
+`DeepImageBuffer`、Deep over／holdout／flat変換／depth matte／DoF、OpenEXR deep read/write、packed GPU契約、`DeepComposite.hlsl` の front-to-back shader は現行コードで確認できる。Render Queueはreadback済みBeauty/Depth AOVからDeep bufferを構築し、Deep EXRを書き出す。これはflat-to-deep bridgeであり、複数visibility sampleを生成するGPU resource bindingではない。Deep専用の制作UI、native multi-sample受入、大規模runtime検証は未完である。
 
 ## Update 2026-08-15
 

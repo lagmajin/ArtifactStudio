@@ -1,14 +1,14 @@
 # Cryptomatte 実装マイルストーン
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-09-12
 **日付**: 2026-08-01
 **ベース**: Cryptomatte Specification 1.3 by Psyop
-**現状**: ObjectId／MaterialId AOVに加え、`Image.Cryptomatte` の CryptoPixel／CryptoImage／manifest、Object／Material buffer変換、rank付きCrypto EXR writer、Cryptomatte metadata生成まで実装済み。通常のrenderer／Render QueueのCryptomatte生成・選択UI・大規模runtime検証は未完。
-**不足**: 通常の最終レンダーから複数ID／coverageを生成し、Render Queueの標準AOV設定とCryptomatte EXR writerを一貫して接続する経路。
+**現状**: ObjectId／MaterialId AOVに加え、`Image.Cryptomatte` の CryptoPixel／CryptoImage／manifest、Object／Material buffer変換、rank付きCrypto EXR writer、Cryptomatte metadata生成まで実装済み。Render Queueは標準hash/metadata付きの単一ヒット `CryptoObject00`／`CryptoMaterial00` をEXRへpackし、ViewportのID表示ではクリック選択ができる。外部consumerと大規模runtime検証は未完。
+**不足**: 通常の最終レンダーから複数ID／coverageを生成するnative Cryptomatte pass。現行AOVは最前面の単一IDのみであり、rank付きcoverageを正しく供給できない。
 
 ## 現行コード監査 (2026-08-15)
 
-`CryptoPixel.cppm`、`CryptoImage.cppm`、`CryptoExrWriter.cppm` と `ImageExporter` の `cryptomatte/<manifestId>/manifest`／rank channel 処理を確認した。既存の ObjectId／MaterialId readbackを入力に変換する基盤と、OpenEXR metadata の出力はある。一方、通常の `CompositionRenderController`／Render Queue からこの writer を呼ぶ統合、実際の coverage付き複数サンプル生成、Cryptomatteを選択してマスクを作る制作UIは今回の静的確認では見つからない。従ってデータ／codec層は部分実装、製品workflowは未完と判定する。
+`CryptoPixel.cppm`、`CryptoImage.cppm`、`CryptoExrWriter.cppm`、`ImageExporter`、`ArtifactRenderQueueService`、`CompositionRenderController`を確認した。既存の ObjectId／MaterialId readbackは、標準のMurmurHash3 32bit payload、7桁metadata ID、`uint32_to_float32` metadataを伴うrank 0 channelへ変換される。ViewportではObject／Material IDクリックで対応layerを選択できる。一方、実際のcoverage付き複数サンプル生成と、名前ベースでCryptomatte選択をマスク化する制作UIは未完である。従って製品workflowは単一ヒットdraft段階と判定する。
 
 ---
 
@@ -40,14 +40,13 @@ export module Core.Image.Cryptomatte.Pixel;
 
 export namespace ArtifactCore::Image::Cryptomatte {
 
-/// Float エンコードされた Cryptomatte ID
-/// Cryptomatte は 32bit float の指数部 + 仮数部に ID + coverage をエンコードする
+/// Float ビット列として保持する Cryptomatte ID
+/// IDはMurmurHash3 x86 32bit payloadをuint32_to_float32で再解釈する
 struct CryptoSample {
-    float id;       // 32bit: [7bit exponent] [25bit id_lo]
+    float id;       // 32bit hash payloadをfloat bitsとして保持
     float coverage; // 通常は 0.0-1.0
-    
-    /// IDをマニフェスト名でルックアップできる 64bit ハッシュに変換
-    static uint64_t idToHash(const QString& objectName);
+
+    static uint32_t nameToId(const QString& objectName);
 };
 
 /// 1ピクセルあたりの Cryptomatte データ（max 16サンプル/px）
@@ -99,14 +98,14 @@ enum class CryptoLayer {
 
 struct CryptoManifestEntry {
     QString originalName;  // 元のオブジェクト名
-    uint64_t hash;         // MurmurHash3_64(name) または UUID
+    uint32_t hash;         // adjusted MurmurHash3 x86 32bit payload
 };
 
 class CryptoManifest {
 public:
     void addEntry(const QString& name);
-    QString findName(uint64_t hash) const;
-    uint64_t findHash(const QString& name) const;
+    QString findName(uint32_t hash) const;
+    uint32_t findHash(const QString& name) const;
     int entryCount() const;
     void merge(const CryptoManifest& other);
     QString toMetadata() const;    // EXR metadata 文字列
@@ -203,38 +202,30 @@ PSOutput main(VSOutput input) {
 ### Cryptomatte の ID エンコード方式
 
 ```
-32bit float:
-  [s:1] [e:8] [m:23]
-  
-Cryptomatte 方式:
-  [s:1] [e:8] [id_lo:7] [unused:6] [id_hi:10]
-                     ↑ rank番号に使われることも
-  
-実際の方式 (仕様1.3):
-  float = (id >> 2) & 0x00FFFFFF を float として再解釈
-  coverage = 元のcoverage (0-1)
+MurmurHash3 x86 32bit(name) を計算し、IEEE-754 floatのbit patternとして
+再解釈する。指数部が0または255になるpayloadだけはbit 23を反転して、
+zero／NaN／Infを避ける。coverageは元の0〜1値を別channelに保存する。
 ```
 
 ```cpp
 namespace CryptoEncoding {
 
 inline float encodeId(uint32_t id) {
-    // 下位 24bit を float の仮数部に埋め込む
-    uint32_t encoded = id & 0x00FFFFFF;
-    return *reinterpret_cast<float*>(&encoded);
+    float encoded = 0.0f;
+    std::memcpy(&encoded, &id, sizeof(encoded));
+    return encoded;
 }
 
 inline uint32_t decodeId(float encoded) {
-    uint32_t bits = *reinterpret_cast<uint32_t*>(&encoded);
-    return bits & 0x00FFFFFF;
+    uint32_t bits = 0;
+    std::memcpy(&bits, &encoded, sizeof(bits));
+    return bits;
 }
 
 // 文字列名 → ハッシュ → ID
-// Cryptomatte では MurmurHash3_x64_128 の下位64bit
-// or SHA-1 の先頭7バイト
+// Cryptomatte metadataはMurmurHash3_32 / uint32_to_float32を記録する。
 inline uint32_t nameToId(const QString& name) {
-    uint64_t hash = murmurHash64(name.toUtf8().data(), name.size());
-    return static_cast<uint32_t>(hash & 0x00FFFFFF);
+    return adjustedMurmurHash3x86_32(name.toUtf8());
 }
 
 } // namespace CryptoEncoding
@@ -264,9 +255,10 @@ struct CryptomatteExrMetadata {
 // crypto_object/02/R, crypto_object/02/G
 // crypto_object/03/R, crypto_object/03/G
 //
-// メタデータ: cryptomatte/17A5CF54/name = "crypto_object"
-// メタデータ: cryptomatte/17A5CF54/hash = MurmurHash3
-// メタデータ: cryptomatte/17A5CF54/manifest = "{ 'obj1': 'Cube_001', ... }"
+// メタデータ: cryptomatte/17a5cf5/name = "CryptoObject"
+// メタデータ: cryptomatte/17a5cf5/hash = "MurmurHash3_32"
+// メタデータ: cryptomatte/17a5cf5/conversion = "uint32_to_float32"
+// メタデータ: cryptomatte/17a5cf5/manifest = "{ 'Cube_001': '17a5cf54', ... }"
 ```
 
 ### Step 4.2 — readbackToCryptomatte
