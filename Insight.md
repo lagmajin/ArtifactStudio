@@ -1225,3 +1225,11 @@ eturn start のままだった。
 - **対応:** 一致する論理UUIDを再リンク候補の最上位スコアにし、複数選択時のID一覧コピーも追加した。
 - **価値／懸念:** 命名規則に依存せずアセットを復旧できる。一方、サイドカーが欠落・複製された場合は従来のファイル特徴量へフォールバックするため、同一UUIDの重複検出は別途必要。
 - **次に確認すること:** 実ファイルを移動・改名し、サイドカーを保持した状態で候補順位と再リンク後のID維持をruntimeで確認する。
+
+## 2026-09-14 — Render Contract を Core の再現性境界にする
+
+- **関連:** `ArtifactCore/include/Graphics/RenderPipelineFoundation.ixx`、`ArtifactCore/include/Graphics/RenderIndex.ixx`、`ArtifactCore/src/Diagnostics/CoreDiagnostic.Test.cppm`。
+- **確認できた事実:** Render Foundation には snapshot／capability／cache の共通契約がなく、`RenderIndex::snapshot()` は `unordered_map` の走査順に依存していた。
+- **対応:** frame/time、resolution、color descriptor、quality、revision、backend を持つ `RenderInputSnapshot` と安定 `RenderCacheKey`、typed backend capability/fallback、GPU→software selection を追加し、RenderIndex snapshot を stable ID 順に固定した。Core contract test へ deterministic key、fallback reason、順序の検証を追加した。
+- **価値または懸念:** preview／export／fallback が同じ入力契約を共有する土台になり、backend 差や cache 混同を診断しやすくなる。現段階では Composition evaluator／Diligent resource ownership／runtime parity への接続は未実装。
+- **次に確認すること:** Composition から実際の snapshot を生成し、render queue と GPU／software backend の境界へ接続したうえで、同一 snapshot の再実行結果と cache invalidation を実機で確認する。
