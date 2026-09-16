@@ -1616,3 +1616,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** 既存のフォントキャッシュを利用し、コードポイントの重複解決用scratch容量をrenderer寿命で再利用するようにした。glyph atlas、command buffer、D3D12／Vulkanのresource lifetimeは変更していない。
 - **価値または懸念:** staticラベルを含むTimeline再描画で一時確保とフォントフォールバック問い合わせを減らせる。`UniString::toStdU32String()`とglyph packet appendは現状維持で、完全なゼロアロケーションを意味しない。
 - **次に確認すること:** ビルド許可後、長いクリップ名・CJK・emojiを含むTimelineでatlas更新、ラベル表示、D3D12／VulkanのCPU submit時間を確認する。未検証のため、キャッシュ変更だけで表示 parityを断定しない。
+
+## 2026-09-16 — Timeline waveform fallbackは表示幅で線分数を上限化できる
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactDiligentTimelineRenderWindow.cppm` のwaveform fallback描画。
+- **確認できた事実:** immutableなピークpayloadは最大64本へ縮約していたが、表示幅が狭いclipでも同じ本数をsubmitしていた。細いバーは隣接線と同じpixelへ重なり、視認情報を増やさない。
+- **対応:** fallback線分数を`min(64, peakCount, clipWidthInPixels)`でbounded化し、波形色のlinear変換結果も波形単位で共有する。texture payload、Diligentのresource所有、Qt fallbackは変更しない。
+- **価値または懸念:** 小さいaudio clipやズームアウト時のcommand buffer append量を減らせる。1px未満の幅は1本に丸めるため、極端に狭いclipの表現はruntimeで確認が必要。
+- **次に確認すること:** ビルド許可後、ズーム・スクロール中のaudio clipで波形の連続性、選択色、D3D12／Vulkan submit時間を比較する。
