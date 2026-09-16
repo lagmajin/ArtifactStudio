@@ -1624,3 +1624,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** fallback線分数を`min(64, peakCount, clipWidthInPixels)`でbounded化し、波形色のlinear変換結果も波形単位で共有する。texture payload、Diligentのresource所有、Qt fallbackは変更しない。
 - **価値または懸念:** 小さいaudio clipやズームアウト時のcommand buffer append量を減らせる。1px未満の幅は1本に丸めるため、極端に狭いclipの表現はruntimeで確認が必要。
 - **次に確認すること:** ビルド許可後、ズーム・スクロール中のaudio clipで波形の連続性、選択色、D3D12／Vulkan submit時間を比較する。
+
+## 2026-09-16 — TimelineラベルのTextStyle一時値をsnapshot描画内で再利用する
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactDiligentTimelineRenderWindow.cppm` の`drawSnapshot()`。
+- **確認できた事実:** static／dynamic laneのラベル描画で、同じ`TextStyle`の値をclip／markerごとに構築していた。glyph cacheはstyle一致を前提にしているため、描画側での一時値生成は不要だった。
+- **対応:** snapshot単位で`ArtifactCore::TextStyle`を1つ再利用し、ラベルのpixel sizeだけ更新して既存`drawGlyphText()`へ渡すようにした。
+- **価値または懸念:** ラベル数に比例する小さな一時オブジェクト生成を抑え、既存glyph atlasのキャッシュ契約を維持する。フォント選択やラベル内容の意味は変更しない。
+- **次に確認すること:** ビルド許可後、clip／markerの異なるpixel sizeが混在するケースで表示とglyph cache更新が正しいことを確認する。

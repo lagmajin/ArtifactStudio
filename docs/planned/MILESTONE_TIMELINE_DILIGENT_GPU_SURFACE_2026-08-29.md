@@ -16,6 +16,7 @@
 - `ArtifactTimelineTrackPainterView`の正本`trackTopsView()`をsnapshot builderから参照し、Diligent側で同じトラックgeometryを複製保持しない。
 - Diligent描画時の`QColor`→linear `FloatColor`変換をフレーム内の固定長キャッシュで共有し、primitiveごとの重複した色変換を抑える。
 - `PrimitiveRenderer2D::drawGlyphText()`は既存のrenderer寿命フォントキャッシュとコードポイントscratchを再利用し、staticラベルのpresentごとのフォント解決と一時vector確保を抑える。
+- Timeline snapshot描画内の`TextStyle`も再利用し、ラベルごとの一時値生成を抑える。
 - waveform fallbackの線分数をclipの表示幅でもbounded化し、狭いaudio clipで重複するsubmitを抑える。
 - waveformをsnapshot内のimmutable payload（描画矩形・正規化ピーク列・色）として保持し、現行は線分fallbackで描画する。将来のtexture uploadは同じpayloadを直接消費する。
 - GPU command再利用や入力hit testの完全移管は未実装。CPU snapshot構築／GPU submit時間の実計測とD3D12／Vulkan runtime検証は許可後に実施する。
