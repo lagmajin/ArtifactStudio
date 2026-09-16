@@ -12,9 +12,14 @@ from typing import Iterable
 
 SOURCE_SUFFIXES = {".cpp", ".cppm", ".ixx", ".h", ".hpp"}
 KEY_PATTERNS = (
+    re.compile(r"\btt\s*\(\s*[\"']([^\"']+)[\"']"),
     re.compile(r"\b(?:tr|AT_TR)\s*\(\s*[\"']([^\"']+)[\"']"),
     re.compile(r"TranslationManager::instance\(\)\.tr\s*\(\s*[\"']([^\"']+)[\"']"),
 )
+
+# Dotted snake_case namespaces, e.g. layer_panel.menu_delete, timeline.kind_video.
+# Full English sentences must never be used as keys (use tt("ns.key", "English")).
+KEY_NAME_RE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$")
 
 
 def iter_sources(source_dirs: Iterable[Path]) -> Iterable[Path]:
@@ -68,9 +73,13 @@ def main() -> int:
     parser.add_argument("--baseline", type=Path)
     parser.add_argument("--min-coverage", type=float, default=0.0)
     parser.add_argument("--max-untranslated", type=int, default=None)
+    parser.add_argument("--max-invalid-keys", type=int, default=0)
+    parser.add_argument("--allow-same", nargs="*", default=[],
+                        help="keys intentionally identical to the baseline (e.g. system tokens)")
     args = parser.parse_args()
 
     source_keys = extract_keys(args.source)
+    invalid_keys = sorted(key for key in source_keys if not KEY_NAME_RE.match(key))
     locale_values = load_locale(args.locale)
     translated = set(locale_values)
     baseline_values = load_locale(args.baseline) if args.baseline else {}
@@ -90,8 +99,12 @@ def main() -> int:
         key for key in expected
         if key in locale_values and key in baseline_values
         and locale_values[key] == baseline_values[key]
+        and key not in set(args.allow_same or [])
     )
     print(f"Untranslated (same as baseline): {len(untranslated)}")
+    if invalid_keys:
+        print(f"Invalid key names: {len(invalid_keys)}")
+        print("\n".join(f"  - {key}" for key in invalid_keys))
     if missing:
         print("Missing keys:")
         print("\n".join(f"  - {key}" for key in missing))
@@ -99,6 +112,8 @@ def main() -> int:
         print(f"Unused locale keys: {len(unused)}")
 
     if args.max_untranslated is not None and len(untranslated) > args.max_untranslated:
+        return 1
+    if len(invalid_keys) > args.max_invalid_keys:
         return 1
     return 1 if coverage < args.min_coverage else 0
 

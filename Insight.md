@@ -1,5 +1,64 @@
 **最終更新:** 2026-09-16
 
+## 2026-09-16 — VP描画は2実装が同名で併存し、scene light lift は offline 側にしかない
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm:8306`（モジュール内ローカル `drawLayerForCompositionView`、21引数）、
+  `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm:1460`（export 版、11引数）、
+  `Artifact/src/Render/ArtifactRenderQueueService.cppm:3882/6019`（export 版の呼び元）。
+- **確認できた事実:** 対話VPの `renderOneFrameImpl`（同 cppm:39599 直接パス / 11484 GPUパス）は引数個数からモジュール内ローカル実装を呼び、
+  Render Queue / offline は `import Artifact.Render.CompositionViewDrawing` の export 版を呼ぶ。両者は同名・別実装で、キャッシュ・マット・マスク処理を二重に持つ。
+  非3Dレイヤーへの決定的な明度リフト（`min(0.18, 0.03 * lightCount)`）は export 版の `applySurfaceAndDraw` 内にのみ存在し、
+  ローカル実装は 3D（`setSceneLights`）以外にライトを適用しない。したがって lit な 2D レイヤーは VP と レンダー出力で見え方が異なる。
+- **価値または懸念:** 「VPの scene light CPU ループ」という指摘は実は offline（Render Queue）側の話であり、VP のフレーム時間には効かない。
+  逆に 2D ライトのパリティ差は未整理の仕様差であり、どちらが正なのかは未確定。実装を片方だけ直すと差が広がる。
+- **次に確認:** VP と offline の 2D ライト適用を統一するか、VP を正として offline のリフトを撤去するかをユーザー判断で決める。
+  統合する場合はローカル実装の削除（マスク・マット・GPUラスタ効果の順序parity確認が前提）が本筋の整理。
+
+## 2026-09-16 — Normal-only コンポジションの GPU ブレンド経路（帯域見積りと opt-in 化）
+
+- **関連:** `ArtifactCompositionRenderController.cppm`（`hasGpuBlendJustification`、`gpuBlendPathRequested`、新規 `gpuBlendForNormalCompositionEnabled()`）。
+- **確認できた事実:** 既定の直接パスは、レイヤー内容がキャッシュに乗っていれば sprite draw のみ。GPUパスはレイヤー毎に
+  全画面 `convertLayerToFloat` + 全画面 `blendLayers` + ping-pong を追加する。1080p・10層の概算で、GPUパスは
+  約 20 回の全画面 32F read/write（≒0.6GB/frame、RTX4070Ti で約2ms超）に対し、直接パスは 10 枚の quad（≒0.17GB）で、単純な Normal 構成では逆効果になり得る。
+- **仮説（未検証）:** 効果（特に spatial）・マット・マスクを持つ層、または毎フレーム内容が変わる層（アニメーション効果、video、particle）だけを
+  GPUパスへ寄せれば bandwidth は正当化できる。逆に静的効果層は CPU 側キャッシュ（signature 一致）で既にスキップされているため対象外が妥当。
+- **対応:** 既定挙動を変えず、`ARTIFACT_COMPOSITION_GPU_BLEND_NORMAL=1` で Normal-only も GPU パスへ入る opt-in を追加（計測用）。
+- **次に確認:** 同条件（1/10/30層、Normal と Mixed、効果あり/なし）で `[CompositionView][Perf]` の frameMs/layerPassMs を A/B し、
+  既定を反転してよい構成条件（層種別・効果種別）を確定する。反転する場合は 8bit sRGB 合成→float linear 合成の画質差も同時に確認する。
+
+## 2026-09-16 — 確定できていないVPホットパス候補（未着手・要計測）
+
+- **関連:** `ArtifactCompositionRenderController.cppm:38688/38830/38865`（層ごとの `FunctionalRenderPass` 3個）、
+  `:10563`（`RenderGraph::execute` が層ごとに `std::function` を構築）、`ArtifactCore/include/Graphics/RenderGraph.ixx:108`、
+  `ArtifactCompositionRenderController.cppm:36065`（30フレームごとの診断）。
+- **仮説（未検証）:** 層×フレームで `std::function`（キャプチャ4参照＝SSO超過）と RenderGraph 実行記録が確保される可能性がある。
+  また `captureRenderDiagnostics` が30フレーム毎に RenderCostCaptureGuard / TraceGuard / frame RenderGraph 構築+compile を走らせるため、
+  周期的な stutter になり得る。`flushMs` は2026-08-15のInsight以降、累積差分として算出されるようになっており意味が変わっている。
+- **価値または懸念:** どちらも描画結果を変えずに検証・修正できる低リスク候補。ただし確保量は未計測で、推測で消すと
+  RenderGraph の検証経路を失う可能性がある。
+- **次に確認:** allocation トレースで層数比例の確保を確認してから、`runAllWithRenderGraph` の素通し化（`run` 直呼び）と
+  診断の延実行を検討する。
+## 2026-09-16 — i18n P0-1：監査の実効化とtimeline tooltip 137キーの翻訳リンク
+
+- **関連:** `tools/i18n/audit_translations.py`、`.github/workflows/i18n-check.yml`、
+  `Artifact/src/Widgets/Timeline/ArtifactTimelineTrackPainterView.cppm`、
+  `Artifact/src/Widgets/Menu/ArtifactScriptMenu.cppm`、`Artifact/translations/{en,ja}.json`。
+- **確認できた事実:** 監査の `KEY_PATTERNS` が `tt()` を抽出できず `Keys used: 3` だった。
+  CIの99.6%は虚偽で、実際には `timeline.*` 133キーがJSON未登録（JAでも英語表示）だった。
+  文面そのままキー2件は `QObject::tr`（Qt側、JSON系と無関係）で常時英語だった。
+  同一キーに複数フォールバック（メニュー`...`付き vs ダイアログタイトル素形）が7件あった。
+- **対応:** 監査に `tt(` 抽出＋命名規約lint（`^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$`、`--max-invalid-keys` 既定0）＋
+  意図的同一値の `--allow-same` を追加。文キーは正式キーへ移行（`script.*` 2件、
+  `layer_panel.keyframe_value_hint`／`matte_list_hint`）。衝突5キーはメニュー形を基本キー、
+  ダイアログ形を `*_title` へ分離（`rename` のみ既存 `layer_panel.rename_layer_title` 再利用）。
+  ENはコードのフォールバックから採取、`timeline.*` 137件にJA訳を付けて両JSONへ追加。
+- **価値または懸念:** 監査は `Keys used: 410`・coverage 100%・untranslated 4（既存技術表記のみ）で真緑になった。
+  JAロケールでタイムライン tooltip が日本語表示になる。`linear`／`linear_word` のように
+  大文字小文字だけが違う文脈依存キーが今後も増える余地あり（命名規約では検出不可）。
+- **次に確認:** ビルド許可後に tooltip の日英表示、`--lang en/ja` 両方での監査通過。
+  **注意：本ツリーには別作業の未コミット変更が混在**（`ArtifactCompositionViewDrawing.cppm`、
+  `ArtifactCompositionRenderController.cppm`）。コミット時は本件分離のこと。
+
 ## 2026-09-16 — タイムライン左メニューの翻訳リンクと潜在バグ3件
 
 - **関連:** `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`（レイヤーパネル右クリックメニュー）、`Artifact/src/Widgets/CommonStyle.cppm`（`sizeFromContents`／`drawControl` の CT_MenuItem／CE_MenuItem）、`Artifact/translations/{en,ja}.json`（`layer_panel`）。

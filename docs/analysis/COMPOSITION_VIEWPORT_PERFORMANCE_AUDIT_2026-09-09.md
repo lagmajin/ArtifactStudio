@@ -1,6 +1,6 @@
 # Composition Viewport パフォーマンス監査メモ
 
-**最終更新:** 2026-09-09
+**最終更新:** 2026-09-16
 
 **状態:** 静的ソーストレース完了。実機プロファイル・ビルド・ランタイム検証は未実施。
 
@@ -294,6 +294,39 @@ render tick は常時描画ではなく、dirty がなく interaction 中でも�
 - adjustment readback count / wait time
 - composition `goToFrame()` 呼び出し回数
 - hot-path allocation count
+
+## 実装メモ（2026-09-16）
+
+優先度 3（sceneLights の全画素 CPU ループ）と 5（Normal-only の GPU ブレンド適用）について、以下を実装した。ビルド・実機計測は未実施。
+
+### 3. 非3Dレイヤーの scene light lift
+
+- 対象は `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`（Render Queue / offline 経路）。
+  対話VPは Controller モジュール内の同名ローカル実装（21引数）を使っており、そちらには非3Dライトの lift が存在しない。
+  このため本修正は VP のフレーム時間ではなく Render Queue 側のコストに効く（VP 側のパリティ差は `Insight.md` に記録）。
+- lift を毎フレーム全画素で再計算していたのを、surface/GPU キャッシュへ書き込む時点で一度だけ焼き込む形へ変更した。
+  キャッシュヒット時は lift 済みの内容をそのまま使うため、フレーム毎の float バッファ確保・コピー・W×H ループが消える。
+- 併せて、lift 込みの内容をキャッシュできるようになったため、lit レイヤーを GPU テクスチャキャッシュ対象から除外していた条件を外した。
+  共有アセットテクスチャ（`asset:` キー）への alias は lit レイヤーでは行わない（層固有の lift を含むため）。
+- キャッシュ同一性は従来どおり `|scene-light-lift=...` を signature に含めるため、ライト数が変われば再構築される。
+- 残る CPU コスト: 内容が毎フレーム変わる lit レイヤー（アニメーション効果・video・particle 等）はキャッシュが効かず、
+  lift は依然として CPU で走る。完全な GPU pointwise 化には `ArtifactIRenderer` / `RenderPipeline` を
+  `ArtifactCompositionViewDrawing` へ配線する必要があり、レンダーパス設計変更として別途レビューが必要。
+
+### 5. Normal-only コンポジションの GPU ブレンド経路
+
+- `ArtifactCompositionRenderController.cppm` の `hasGpuBlendJustification` に `gpuBlendForNormalComposition` を追加した。
+  有効化は `ARTIFACT_COMPOSITION_GPU_BLEND_NORMAL=1` の opt-in。
+- **既定は無効のまま**。直接パスはキャッシュ済みレイヤーを sprite draw するだけであり、GPU パスは層ごとに
+  全画面 convert + 全画面 blend を追加するため、単純な Normal 構成では帯域が増える側に倒れる可能性が高い（概算は `Insight.md`）。
+  既定反転は、下記 A/B 計測と画質差（8bit sRGB 合成 → float linear 合成）の確認後に行う。
+- 計測手順:
+  1. `QT_LOGGING_RULES="artifact.compositionview.debug=true"` で `[CompositionView][Perf]` を取得。
+  2. 同一プロジェクト・同一解像度・同一 backend で `ARTIFACT_COMPOSITION_GPU_BLEND_NORMAL` あり/なしを比較。
+  3. 比較構成: Solid 1枚 / 静止画 10 Normal / 静止画 30 Mixed / Text 10 / 調整1 / 効果あり（pointwise・spatial）。
+  4. 見る値: `frameMs` / `layerPassMs` / `submit2DMs` / `presentMs`、`path=gpu-blend|fallback`、GPU frame time。
+- 反転の判断材料として、効果・マット・マスクを持つ層や内容が毎フレーム変わる層だけを GPU パスへ寄せる部分適用案も検討候補。
+  静的効果層は CPU 側で signature 一致によりスキップされるため、全層を一律に GPU 化する必然性は現時点でない。
 
 ## 現在の working tree について
 
