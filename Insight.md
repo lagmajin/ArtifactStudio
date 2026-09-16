@@ -1608,3 +1608,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** 32スロットの固定長cacheをrender-localに置き、`QColor::rgba()`が一致するprimitiveは変換結果を再利用する。cacheはヒープを使わず、snapshotの所有権やD3D12／Vulkan resource lifetimeを変更しない。
 - **価値または懸念:** 色変換の`pow`回数を減らせる一方、色数が32を超える場合は循環置換される。未検証: 実機のprimitive分布とGPU submit時間への寄与はプロファイルで確認する。
 - **次に確認すること:** static／dynamic両laneを同一renderで記録する場合のcache hit率と、D3D12／Vulkan別のCPU submit時間を計測する。低hit率ならスロット数を増やす前に、色tokenの共有化を検討する。
+
+## 2026-09-16 — Timeline glyph描画のフォント解決をrenderer寿命へ寄せる
+
+- **関連:** `Artifact/src/Render/PrimitiveRenderer2D.cppm` の `drawGlyphText()`、`Artifact/src/Widgets/Timeline/ArtifactDiligentTimelineRenderWindow.cppm`。
+- **確認できた事実:** Diligent Timelineのstatic snapshotはprimitive配列を再利用できても、各presentでラベルをglyphへ展開する際にコードポイントごとの一時vector、`QFont`解決、`GlyphKey`構築を行っていた。既存のrenderer寿命フォントキャッシュは実装済みだが、この入口では使われていなかった。
+- **対応:** 既存のフォントキャッシュを利用し、コードポイントの重複解決用scratch容量をrenderer寿命で再利用するようにした。glyph atlas、command buffer、D3D12／Vulkanのresource lifetimeは変更していない。
+- **価値または懸念:** staticラベルを含むTimeline再描画で一時確保とフォントフォールバック問い合わせを減らせる。`UniString::toStdU32String()`とglyph packet appendは現状維持で、完全なゼロアロケーションを意味しない。
+- **次に確認すること:** ビルド許可後、長いクリップ名・CJK・emojiを含むTimelineでatlas更新、ラベル表示、D3D12／VulkanのCPU submit時間を確認する。未検証のため、キャッシュ変更だけで表示 parityを断定しない。
