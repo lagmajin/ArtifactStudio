@@ -42,3 +42,33 @@
 **Final result**
 
 final result: blocked
+
+---
+
+## OFX Plugin Manager — empty state redesign
+
+**Source visual truth**
+
+- `docs/design/ofx-plugin-manager/ofx-plugin-manager-empty-state-concept-2026-09-15.png`
+
+**Implementation screenshot**
+
+- Awaiting a user-provided native application screenshot.
+
+**Viewport and state**
+
+- 700 × 490 modal dialog with no detected OFX plug-ins.
+
+**Comparison history**
+
+- Pass 1: implemented the selected compact empty-state direction and verified a successful Debug build.
+
+**Primary interactions verified in code**
+
+- Rescan still invokes the existing host rescan path and refreshes the view.
+- Close still accepts the modal dialog.
+- Loaded plug-ins still show identifier, version, and path.
+
+**Final result**
+
+final result: blocked — native screenshot comparison pending

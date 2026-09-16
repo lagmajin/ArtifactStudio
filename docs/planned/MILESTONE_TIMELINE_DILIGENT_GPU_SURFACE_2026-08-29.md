@@ -1,8 +1,25 @@
 # Timeline Diligent GPU Surface
 
-**最終更新:** 2026-09-13
+**最終更新:** 2026-09-16
 
 **ステータス:** Phase 1 実装済み・Phase 2 部分実装、runtime / backend 実機検証待ち
+
+## Update 2026-09-16 — static/dynamic snapshot lanes
+
+- タイムラインGPU面のsnapshotを、row／grid／clip／keyframe等の静的laneと、playhead／現在フレームの強調だけを含む動的laneに分離した。静的な可視範囲・編集内容が変わらない限り、GUI threadは大きなprimitive配列をコピー・再構築しない。
+- Diligent windowは両laneを同じD3D12／Vulkan共通のcommand bufferへ順に記録する。既存の単一snapshot APIはCurve Editorおよび互換用途のため保持する。
+- GPU command再利用や入力hit testの完全移管は未実装。CPU snapshot構築／GPU submit時間の実計測とD3D12／Vulkan runtime検証は許可後に実施する。
+
+## Update 2026-09-16 — native wheel navigation seam
+
+- GPU windowはホイール操作をQt widgetへ`sendEvent`転送せず、位置・delta・modifierだけを明示のnavigation APIへ渡す。縦横スクロール、Ctrlズーム、Ctrl+Altの行高変更は既存の状態更新・EventBus経路を保つ。
+- クリップ／キーフレームのhit testとUndo編集は引き続き互換入力モデルであり、次段階の移管対象とする。
+
+## Update 2026-09-16 — direct-manipulation present lane
+
+- Diligent surfaceはアイドル時の33ms Present上限を維持しつつ、互換入力モデルがdrag／scrub／pan／marquee等の操作中である間は16ms上限（60Hz）へ切り替える。
+- snapshot更新の16ms間引きと同じ上限に揃え、操作中に33ms Present待ちが追加される状態を除去した。GPU面は依然Diligentのbackend-neutralなD3D12／Vulkan経路であり、Qt版は初期化失敗時のフォールバックとして残す。
+- 入力はまだQtの既存interaction modelへ転送している。次段階ではmodelをwidgetから分離し、Diligent側へヒットテストとdrag stateを移す。CPU snapshot構築／GPU submit時間の実計測とD3D12／Vulkan runtime検証は未実施。
 
 ## Update 2026-09-13 — snapshot更新のcoalesceとムーブ引き渡し
 
@@ -23,8 +40,8 @@
 
 ## 不変条件
 
-- 現在の QWidget/QPainter タイムラインを既定表示、編集入力、選択、Undo/Redo、フォールバックの正規経路として残す。
-- GPU面からモデルを変更しない。初期段階は表示専用とする。
+- Diligent面を通常の表示経路とし、Qt版はGPU初期化失敗時に即時復帰できるフォールバックとして残す。Qt版の削除は行わない。
+- Diligent入力移管の完了までは、既存のQt interaction modelを入力転送先として利用し、Undo/Redoの正規経路を維持する。
 - UI状態から immutable な `DiligentTimelineVisualSnapshot` を作り、GPU面は最新の完成済みスナップショットだけを消費する。
 - UIワーカースレッドから Diligent の immediate context や swap chain を直接操作しない。`setSnapshot()` はmutex保護された最新snapshotの交換とthread-safeなevent投稿だけを行い、初期化・resize・submit・presentはwindow所有threadに限定する。
 - CPU readback、フレームごとの `WaitForIdle`、Qt合成への迂回をホットパスに入れない。

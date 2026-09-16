@@ -2694,11 +2694,21 @@ void EditorEngine::addTransition(const QString& trackId, const QString& leftClip
 {
     if (duration <= 0 || startFrame < 0) return;
 
+    // 重複ガード: 同一クリップ対に区間が重なるトランジションがあれば何もしない。
+    // ボタン連打・ショートカット重複押下での二重配置と Undo/保存の肥大化を防ぐ。
+    // 置換したい場合は先に deleteTransition で削除する。
+    const FramePosition newEnd = startFrame + duration;
+
     // NLE ストア経由 (ID は TransitionId::toString() を legacy にも使う)。
     if (nleStore_) {
         const auto coreTrackId = ArtifactCore::NLE::TrackId::fromString(trackId);
         const auto leftId = ArtifactCore::NLE::ClipId::fromString(leftClipId);
         const auto rightId = ArtifactCore::NLE::ClipId::fromString(rightClipId);
+        for (const auto* existing : nleStore_->transitions(coreTrackId)) {
+            if (!existing) continue;
+            if (existing->leftClipId != leftId || existing->rightClipId != rightId) continue;
+            if (startFrame < existing->range.end() && existing->range.start() < newEnd) return;
+        }
         if (nleStore_->hasTrack(coreTrackId)
             && nleStore_->hasClip(leftId) && nleStore_->hasClip(rightId)) {
             const auto range = ArtifactCore::FrameRange::fromDuration(
@@ -2725,6 +2735,13 @@ void EditorEngine::addTransition(const QString& trackId, const QString& leftClip
             isVideoTrack = true;
             break;
         }
+    }
+
+    for (const auto& existing : currentSequence_.transitions) {
+        if (existing.trackId != trackId) continue;
+        if (existing.leftClipId != leftClipId || existing.rightClipId != rightClipId) continue;
+        if (startFrame < existing.startFrame + existing.duration &&
+            existing.startFrame < newEnd) return;
     }
 
     Transition trans;

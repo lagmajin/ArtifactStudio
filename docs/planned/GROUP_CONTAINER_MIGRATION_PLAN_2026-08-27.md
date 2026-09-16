@@ -1,8 +1,8 @@
 # GroupContainer 移行計画
 
 **作成日:** 2026-08-27  
-**最終更新:** 2026-08-30
-**ステータス:** Phase 0 / 1 実装済み、Phase 2 互換アダプタまで部分実装。独立Container実体とRender Boundary移行は未着手
+**最終更新:** 2026-09-16
+**ステータス:** Phase 0 / 1 実装済み、Phase 2 は独立GroupContainerの作成・保存・Timeline表示まで部分実装。Render Boundary移行は未着手
 **対象:** `ArtifactGroupLayer` から Composition 所有の独立 Container への移行
 
 ## Update 2026-08-30 — current implementation reconciliation
@@ -11,6 +11,14 @@
 - `ArtifactAbstractComposition` はlayer追加・階層変更・JSON保存／復元とNodeStoreを同期し、既存`childLayersOf()`を残している。`GroupContainerNode`はLayer非継承で、output mode、active child、enabled、opacity、blendをNode propertyとして往復する。
 - `ArtifactGroupLayer` は描画・UI・既存プロジェクト互換の正規ownerのまま、NodeStoreとの双方向アダプタを持つ。これはPhase 2の互換層であり、独立したComposition兄弟Containerへ置換済みではない。
 - GPU-native Render Boundary、Factory／UI／Undo／ExportのContainer実体化、旧`ArtifactGroupLayer`の廃止は未実装。ビルド・group JSON round-trip・Preview／Export parityはruntime未検証。
+
+## Update 2026-09-16 — standalone creation and Timeline surface
+
+- 選択レイヤーからLayer非継承の`GroupContainerNode`を直接作成するComposition APIとUndo経路を追加した。子の所属はNodeStoreのparentIdで保持し、既存レンダー経路の`parentLayerId`は変更しない。
+- Timelineの行descriptorにNode IDとContainer行種別を追加し、独立Containerの名称、子数、展開／折り畳み、選択、子レイヤー行を表示する。右クリックから名称変更、子レイヤー選択、グループ解除をUndo対応で実行できる。
+- Timeline右ペインには子レイヤーのin/out和集合をContainerバーとして表示する。Containerバーはレイヤー操作対象にしない。
+- `compositionNodes`へのJSON保存／復元経路を利用するためContainerと子parentIdは永続化される。ビルド、runtime表示、保存後再起動の往復確認は未実施。
+- Render Boundary、ネストContainer、Inspector、Export移行は引き続き未実装。
 
 ## 目的
 
