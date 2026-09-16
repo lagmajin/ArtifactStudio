@@ -1,5 +1,13 @@
 **最終更新:** 2026-09-16
 
+## 2026-09-16 — タイムライン左メニューの翻訳リンクと潜在バグ3件
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`（レイヤーパネル右クリックメニュー）、`Artifact/src/Widgets/CommonStyle.cppm`（`sizeFromContents`／`drawControl` の CT_MenuItem／CE_MenuItem）、`Artifact/translations/{en,ja}.json`（`layer_panel`）。
+- **確認できた事実:** ① メニュートップが英語の `Frequent`／`All` の開発者用語2階層で、最大4階層ネスト＋「整理」の同名重複があった。② `CommonStyle` の CT_MenuItem 幅計算（68/58px予約）が CE_MenuItem 実描画（84/72px使用）よりサブメニュー項目で約16px・通常項目で約14px不足し、長い項目混在で文字が切れていた。③ `kColNames` が5要素なのに `kLayerPropertyColumnCount`（6）でループし `kColNames[5]` が範囲外参照だった（6列目は Pick Whip／親リンク列）。④ 同ブロックとラベル色ブロックが `QString::fromLatin1` で日本語を渡しており非Latin文字化けの状態だった。
+- **対応:** Frequent／All を廃止して全項目をトップレベルへ＋区切り線3本＋重複整理の改名。CT_MenuItem の左右予約幅を描画と一致させた。`tt("layer_panel.*", "English")` へ約160箇所を変換し en／ja に計153＋14＋6キーを追加（既存12キーは再利用）。6列目 `Parent Link`／`親リンク` を追加し tt 化で fromLatin1 と範囲外参照を同時解消。日本語表示は従来文言と同一。
+- **価値または懸念:** ロケール切替で英日メニューが切り替わる（起動時 `loadFromDirectory`＋CMake が translations を出力へ複写）。QInputDialog の種別名（Crossfade 等）は保存値と往復するため翻訳対象外に据え置き。Undo ラベルも英語のまま。
+- **次に確認:** ビルド許可後に右クリックメニューの表示・幅・英日切替、`missingKeys()` が空であること。`Matte`／`<missing>` の他箇所（2010行付近・7874行付近）およびダイアログ文言は未リンクの残件。
+
 ## 2026-09-16 — Animation Layer Inspector評価とMSVC Modules ICE
 
 - **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`（`getLayerPropertyGroups()`）、`ArtifactCore/include/Animation/AnimatableValue.ixx`、`ArtifactCore/include/Geometry/Interpolate.ixx`。
@@ -1585,3 +1593,18 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実:** 通常レイヤーのクリップ移動／トリムは既存の`MoveLayerToFrameCommand`／`TrimLayerToFrameCommand`へ接続できる一方、トランジションは同じイベント購読内で`setTimelineTransitionRange()`を直接呼び、Undo snapshotを作成していない。
 - **価値または懸念:** Diligent面とQPainter面は同じ入力経路を共有するため、トランジションだけUndo不能という差は両表示面に現れる。今回の通常クリップ編集対応へ混在させるとcomposition-owned transition契約まで範囲が広がる。
 - **次に確認すること:** transition範囲・関連レイヤー・重なり制約を復元できる既存command／snapshot所有者を調べ、単一ドラッグを1 Undoへまとめる。未検証のため今回の実装対象外。
+
+## 2026-09-16 — Diligent TimelineのPhase 3は既存GPUテキスト経路を再利用する
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactDiligentTimelineRenderWindow.cppm`、`Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`docs/planned/MILESTONE_TIMELINE_DILIGENT_GPU_SURFACE_2026-08-29.md`。
+- **確認できた事実:** Timeline snapshotの`texts`は既に`PrimitiveRenderer2D::drawGlyphText()`へ渡されており、Diligent側にラベル描画の入口が存在する。新しいQt描画経路や個別GPU実装は不要。
+- **価値または懸念:** Phase 3のglyph atlasは既存の共通glyph／shader管理を拡張する形で進めるべきで、Timeline専用のテキスト資源を増やすとD3D12／Vulkan parityとキャッシュ寿命が二重化する。
+- **次に確認すること:** `PrimitiveRenderer2D`のglyph atlasキャッシュ、atlas更新タイミング、device loss後の再生成契約を確認してからTimelineラベルの実機受入条件を定義する。未検証のため実装は次段階とする。
+
+## 2026-09-16 — Timeline primitiveの色変換はrender-local cacheで共有できる
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactDiligentTimelineRenderWindow.cppm` のDiligent draw loop。
+- **確認できた事実:** snapshotは`QColor`を保持し、描画時にlinear `FloatColor`へ変換していた。同一フレーム内ではrow／clip／markerの色が繰り返し現れる。
+- **対応:** 32スロットの固定長cacheをrender-localに置き、`QColor::rgba()`が一致するprimitiveは変換結果を再利用する。cacheはヒープを使わず、snapshotの所有権やD3D12／Vulkan resource lifetimeを変更しない。
+- **価値または懸念:** 色変換の`pow`回数を減らせる一方、色数が32を超える場合は循環置換される。未検証: 実機のprimitive分布とGPU submit時間への寄与はプロファイルで確認する。
+- **次に確認すること:** static／dynamic両laneを同一renderで記録する場合のcache hit率と、D3D12／Vulkan別のCPU submit時間を計測する。低hit率ならスロット数を増やす前に、色tokenの共有化を検討する。

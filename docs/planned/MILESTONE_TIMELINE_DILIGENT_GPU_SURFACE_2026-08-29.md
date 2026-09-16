@@ -8,6 +8,12 @@
 
 - タイムラインGPU面のsnapshotを、row／grid／clip／keyframe等の静的laneと、playhead／現在フレームの強調だけを含む動的laneに分離した。静的な可視範囲・編集内容が変わらない限り、GUI threadは大きなprimitive配列をコピー・再構築しない。
 - Diligent windowは両laneを同じD3D12／Vulkan共通のcommand bufferへ順に記録する。既存の単一snapshot APIはCurve Editorおよび互換用途のため保持する。
+- 静的lane更新時はUI側の一時snapshotをDiligent windowへムーブして所有権を一度だけ渡す。UIキャッシュ側に同じ大きなprimitive配列を保持しないため、行・グリッド・クリップ変更時の一時メモリと深いコピーを抑える。
+- 静的lane構築時の選択行判定を事前集計し、トラック数×クリップ数の二重走査を避ける。大量レイヤーでの編集・スクラブ時も、描画結果とQtフォールバックの責務は変えない。
+- 動的laneの矩形・線・三角形・テキスト配列にboundedな初期容量を設定し、プレイヘッド更新時の段階的な再確保を抑える。
+- 動的laneの入力状態（現在フレーム、ズーム、スクロール、viewport、visual revision、ドラッグ中クリップ、キーフレームプレビュー）が前回と同一なら、snapshot生成とGPU通知をスキップする。
+- トラック上端の可視座標配列（`trackTops`）を静的lane更新時に構築して保持し、動的lane更新では再利用する。
+- Diligent描画時の`QColor`→linear `FloatColor`変換をフレーム内の固定長キャッシュで共有し、primitiveごとの重複した色変換を抑える。
 - GPU command再利用や入力hit testの完全移管は未実装。CPU snapshot構築／GPU submit時間の実計測とD3D12／Vulkan runtime検証は許可後に実施する。
 
 ## Update 2026-09-16 — native wheel navigation seam
@@ -75,6 +81,42 @@
 - GPU glyph atlasでラベルを追加する。
 - 波形・サムネイルは非同期キャッシュからGPU textureへ供給する。
 - 入力移管は表示パリティと安定性の確認後に別マイルストーンで判断する。
+
+## 次期マイルストーン: Diligent Timeline Phase 3 — 表示パリティと入力移管
+
+### スコープ
+
+- `PrimitiveRenderer2D` の既存共通描画経路にglyph atlasを接続し、クリップ名・マーカーコメントをGPU面で表示する。
+- 波形・サムネイルを非同期キャッシュからGPU textureへ供給する。UI threadでのreadbackやフレームごとの再生成は行わない。
+- GPU面の座標変換と可視範囲を使ったhit-testを追加し、選択・scrub・dragの候補を既存interaction modelへ明示的に渡す。
+- D3D12／Vulkanの両backendで表示、リサイズ、device loss後のQt復帰を確認する。
+
+### 非スコープ
+
+- Qt版タイムラインの削除・置換。
+- Undo/Redo経路やReactiveEventsの再設計。
+- CPU readback、Qt合成、フレーム中の`WaitForIdle`導入。
+
+### 完了条件
+
+- GPU面でラベル、波形、サムネイルが既存Qt面と同じ編集状態に同期する。
+- 選択・scrub・dragがGPU面上で入力可能で、既存のUndo/Redo結果と一致する。
+- D3D12／Vulkan双方で実機確認を行い、GPU初期化失敗・resize・device loss時にQt面へ復帰できる。
+- CPU snapshot構築時間、GPU submit／present時間、入力から表示までの遅延を計測し、基準値を記録する。
+
+### Phase 3 resource境界
+
+- CPU側は既存の正規化済み`waveformPeaks`とasset identityだけをsnapshotへ渡し、音声解析や画像デコードをDiligent window threadで実行しない。
+- GPU texture、staging resource、upload fenceは`ArtifactDiligentTimelineRenderWindow::Impl`が所有し、作成・更新・破棄を同一のwindow threadへ限定する。
+- 非同期cacheの結果は世代番号付きのimmutable payloadとして交換し、古い波形／サムネイルが新しい静的laneを上書きしないlatest-wins契約を維持する。
+- device lossまたはswap chain再生成時はtexture viewを破棄してcache payloadから再uploadし、CPU readbackやQt合成へフォールバックしない。GPU初期化自体が失敗した場合のみ既存Qt面へ復帰する。
+
+### Phase 3 runtime受入マトリクス
+
+- D3D12 × 通常表示／スクロール／scrub／clip drag：ラベル・波形・サムネイルとplayheadが同じフレームで更新され、入力遅延が基準値以内であること。
+- Vulkan × 通常表示／resize／device loss復帰：texture view再生成後に古いpayloadが混入せず、失敗時はQt面へ復帰すること。
+- GPU初期化失敗 × preview有効化：編集状態・selection・Undo履歴を失わず、Qt面へ即時復帰すること。
+- 全条件 × preview無効化：GPU resourceを新規生成せず、既存QPainter面の描画・入力・保存経路が変わらないこと。
 
 ## 完了条件
 

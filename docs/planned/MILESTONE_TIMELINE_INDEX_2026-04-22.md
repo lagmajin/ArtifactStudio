@@ -1,5 +1,7 @@
 # Timeline Milestone Index
 
+**最終更新:** 2026-09-16
+
 > 2026-04-22 作成
 
 タイムライン系のマイルストーンは数が増えてきたので、役割ごとに棚卸しした入口をここにまとめる。
@@ -24,6 +26,8 @@
 
 ### 3. 表示と入力の土台
 
+- [MILESTONE_TIMELINE_DILIGENT_GPU_SURFACE_2026-08-29.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_DILIGENT_GPU_SURFACE_2026-08-29.md)
+- Diligent版の表示パリティ、GPU resource境界、Phase 3入力移管の実行計画
 - [MILESTONE_TIMELINE_RIGHT_PANE_FULL_OWNER_DRAW_2026-04-08.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_RIGHT_PANE_FULL_OWNER_DRAW_2026-04-08.md)
 - [MILESTONE_TIMELINE_VISUAL_LANGUAGE_2026-03-31.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_TIMELINE_VISUAL_LANGUAGE_2026-03-31.md)
 - [MILESTONE_DAW_STYLE_INPUT_SURFACE_2026-04-08.md](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_DAW_STYLE_INPUT_SURFACE_2026-04-08.md)
