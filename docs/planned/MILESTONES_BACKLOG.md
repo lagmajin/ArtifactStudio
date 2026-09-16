@@ -955,7 +955,7 @@ active milestone の重複名としては扱わない。
 ### M-TL-18 Diligent Timeline Phase 3 — 表示パリティと入力移管
 
 - Diligent面のglyph atlasラベル、非同期waveform／thumbnail texture、GPU座標hit-testを段階実装する。
-- **基盤完了（2026-09-16）**: static／dynamic snapshot分離、ムーブ受け渡し、track座標cache、dynamic更新スキップ、bounded primitive容量、render-local色変換cacheを実装済み。
+- **基盤完了（2026-09-16）**: static／dynamic snapshot分離、ムーブ受け渡し、track座標cache、dynamic更新スキップ、bounded primitive容量、render-local色変換cache、glyphフォント解決scratch再利用を実装済み。
 - D3D12／Vulkan共通のwindow-thread resource所有、latest-wins payload、device loss後の再uploadを完了条件とする。
 - Qt版は削除せず、GPU初期化失敗時のフォールバックとして維持する。
 - 詳細: `docs/planned/MILESTONE_TIMELINE_DILIGENT_GPU_SURFACE_2026-08-29.md`
