@@ -21,6 +21,13 @@
 - **価値または懸念:** 既存の GPU spatial/raster effect 完全互換パス、時刻指定の親子カメラ評価 API、または selection の immutable revisioned snapshot なしに置換すると、settled 出力、motion vector、選択操作のいずれかを壊す可能性がある。
 - **次に確認:** 各 CPU rasterizer effect の GPU 対応表と adjustment mask の semantics、parent transform を含む camera-at-time API、selection snapshot の所有／寿命を先に設計レビューする。runtime parity なしにこの3項目を有効化しない。
 
+## 2026-09-17 — A5 の GPU matte output は frame 内共有済みで、跨 frame cache には time identity が不足する
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm:38232`、`:10097`。
+- **確認できた事実:** `matteGpuOutputs_` は matte source ID ごとの offscreen texture を保持し、同一 frame・同一 size・同一 `surfaceGeneration` の source を複数の target layer が参照する場合に再レンダリングを避ける。CPU fallback は GPU intermediate を使えない matte に限定される。
+- **価値または懸念:** `surfaceGeneration` は layer mutation を追跡するが、keyframe transform、親 transform、時刻依存 source/effect の各評価を単独では表さない。この条件から `frame == frame` を外すと、静的に見える matte が別フレームで古い位置・内容になるおそれがある。
+- **次に確認:** source layer の全時間依存性（transform / parent / effect / mask / source mapping）を表す revisioned render identity を整備し、その identity が不変な matte だけ frame をまたいで再利用する。
+
 ## 2026-09-17 — 3D AOV は target reset で queue submit 済みのため per-AOV Flush を不要化できる
 
 - **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm:11568` 以降、`Artifact/src/Render/ArtifactIRenderer.cppm:2865`（render target override）、`:3125`（`flush()`）。
