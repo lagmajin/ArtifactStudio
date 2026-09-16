@@ -1,4 +1,32 @@
-**最終更新:** 2026-09-16
+**最終更新:** 2026-09-17
+
+## 2026-09-17 — A6 の Text offline raster cache は既存 TextLayer が所有済み
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm:2268`、`Artifact/src/Layer/ArtifactTextLayer.cppm:2725`。
+- **確認できた事実:** offline/Render Queue 側は `textLayer->toQImage()` を呼ぶが、`ArtifactTextLayer` は `isDirty_` または未生成の `renderedImage_` のときだけ `updateImage()` を実行し、それ以外では保持済み `renderedImage_` を返す。通常の非編集フレームで Text raster を再実行する経路ではない。
+- **価値または懸念:** A6 を別の Composition View キャッシュとして重ねると、既存の TextLayer dirty invalidation と二重化し、古い画像を返すリスクがある。最適化対象は `toQImage()` 自体ではなく、Text の dirty 化頻度または後段の surface/effect 処理を計測してから決めるべきである。
+- **次に確認:** 実機プロファイルで `ArtifactTextLayer::updateImage()` が非編集フレームに現れる場合だけ、dirty 要因とアニメータ時刻評価を分けて調査する。
+
+## 2026-09-17 — A3 と A10 の一部は既に実装済み、残る有効化は runtime parity が条件
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm:37546`（Composition-space GPU cache）、`:38486`（timeline transition 評価）、`:42920`（選択レイヤー overlay）。
+- **確認できた事実:** composition-space GPU cache は `Render/Experimental/CompositionSpaceGpuCache` の opt-in で、キーに pan/zoom を含めず、hit 時には保持済み composition texture を現在の表示変換で描画する。A3 の camera-only reuse 自体はこの限定構成（2D solid/still、Normal、非3D、mask/effectなし）で成立している。timeline transition progress は層ループ外で一度だけ評価されているため、A10 の同呼び出しを層数比例で削減する余地は現状ない。
+- **価値または懸念:** A3 の既定有効化は Diligent backend ごとの offscreen presentation / color-transform parity を runtime で確認してから行う必要がある。選択 overlay では `selectedLayersInOrder()` が `QVector` の値コピーを返すが、reference API へ変えると選択変更時の寿命・スレッド境界契約を再検討する必要がある。
+- **次に確認:** D3D12 と Vulkan で pan/zoom 中および停止後の full-resolution presentation を比較する。overlay copy は selection manager の immutable snapshot 契約を明文化できる場合のみ reference/view API を検討する。
+
+## 2026-09-17 — A4/A7/A10 残部は正本契約の整理が先行する
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm:2410`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm:36813`、`:40106`。
+- **確認できた事実:** controller の調整レイヤー主経路には、pointwise GPU effect と interaction/draft 時の CPU readback 短絡が実装済みである。一方 exported drawing fallback の `readbackToImage()` は CPU rasterizer effect 正本へ渡す唯一の完全品質入口だった。カメラの前フレーム行列は、親子 transform と shake を含めるため composition 全体を N-1/N と往復評価している。mask overlay の選択頂点は多くの入力 controller が共有する可変 vector であり、描画時だけの hash 化は毎フレーム確保を生む。
+- **価値または懸念:** 既存の GPU spatial/raster effect 完全互換パス、時刻指定の親子カメラ評価 API、または selection の immutable revisioned snapshot なしに置換すると、settled 出力、motion vector、選択操作のいずれかを壊す可能性がある。
+- **次に確認:** 各 CPU rasterizer effect の GPU 対応表と adjustment mask の semantics、parent transform を含む camera-at-time API、selection snapshot の所有／寿命を先に設計レビューする。runtime parity なしにこの3項目を有効化しない。
+
+## 2026-09-17 — 3D AOV は target reset で queue submit 済みのため per-AOV Flush を不要化できる
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm:11568` 以降、`Artifact/src/Render/ArtifactIRenderer.cppm:2865`（render target override）、`:3125`（`flush()`）。
+- **確認できた事実:** `setOverrideRTV` / `setOverrideDSV` は override 値を変更する前に `submitQueuedDraws()` を呼ぶ。3D mesh の AOV mode / ID 値は `ArtifactIRenderer::Impl::drawMesh()` の呼び出し時に primitive renderer へ反映される。したがって AOV の `layer->draw()` 後に target reset する順序は維持したまま、各 AOV の `IDeviceContext::Flush()` を省ける。
+- **価値または懸念:** emission / normal / velocity / object ID / material ID / albedo の per-layer 強制 submission がなくなる。beauty path の MSAA resolve 前 flush は queued draw の提出順序を担うため残す。backend 共有経路なので D3D12/Vulkan の multi-channel output を runtime で確認する必要がある。
+- **次に確認:** 3D layer で beauty + 全 AOV を出力し、各 channel の内容と `flushCount` を修正前後で比較する。
 
 ## 2026-09-16 — VP描画は2実装が同名で併存し、scene light lift は offline 側にしかない
 
