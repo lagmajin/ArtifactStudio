@@ -13,6 +13,7 @@
 - 動的laneの矩形・線・三角形・テキスト配列にboundedな初期容量を設定し、プレイヘッド更新時の段階的な再確保を抑える。
 - 動的laneの入力状態（現在フレーム、ズーム、スクロール、viewport、visual revision、ドラッグ中クリップ、キーフレームプレビュー）が前回と同一なら、snapshot生成とGPU通知をスキップする。
 - トラック上端の可視座標配列（`trackTops`）を静的lane更新時に構築して保持し、動的lane更新では再利用する。
+- `ArtifactTimelineTrackPainterView`の正本`trackTopsView()`をsnapshot builderから参照し、Diligent側で同じトラックgeometryを複製保持しない。
 - Diligent描画時の`QColor`→linear `FloatColor`変換をフレーム内の固定長キャッシュで共有し、primitiveごとの重複した色変換を抑える。
 - GPU command再利用や入力hit testの完全移管は未実装。CPU snapshot構築／GPU submit時間の実計測とD3D12／Vulkan runtime検証は許可後に実施する。
 
