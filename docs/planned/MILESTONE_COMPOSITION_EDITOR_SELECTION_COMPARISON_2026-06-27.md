@@ -1,7 +1,18 @@
 # Milestone: Composition Editor Selection / Comparison Upgrade (2026-06-27)
 
-**Status:** 部分完了（矩形／Altラッソ選択・selection HUD・A/B/Diff・reference frame pinning を実装、runtime検証未完了）
-**最終更新:** 2026-08-15
+**Status:** 部分完了（選択・A/B 切替・比較状態は存在。Diff／固定参照フレームの比較描画接続と runtime 検証は未完了）
+**最終更新:** 2026-09-17
+
+## 2026-09-17 実装予定の追記
+
+- **優先度:** 矩形指定の部分プレビュー（Interactive ROI）の後続。ユーザー依頼により比較表示の完成を実装予定として記録する。今回の作業は文書更新のみ。
+- **静的確認:** `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm` に Compare: Diff／Reference Pin の導線、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` に `setCompositionCompareMode` 等の状態管理がある。一方、今回の調査では Diff 状態・固定参照フレームを消費する VP 比較描画を確認できなかった。A/B の State Variant 切替は存在するため、比較機能全体を未実装とは扱わない。
+- **予定範囲:** 比較元と比較先の契約を決め、固定フレームの画像保持・更新・解除と Diff の GPU 表示を既存 VP 経路へ接続する。色空間・解像度・alpha の扱いを合わせ、編集後のキャッシュ更新と参照側の固定を区別する。
+- **責務:** Contents Viewer の既存 Wipe／Split／Difference と VP の比較は別サーフェス。下絵用の参照画像 overlay と固定フレーム比較も区別する。Wipe 追加は [M-VP-F の F4](MILESTONE_VP_PLANE_IMAGE_DIRECT_EDIT_TODO_2026-09-04.md) と調整し、まず既存 Diff／Pin の表示を成立させる。
+- **受入条件:** 同一画像の差分がゼロ、変更箇所のみ差分が出る、シーク後も参照フレームが変わらない、解除で通常表示に戻る、比較表示が Render Queue 出力へ混入しない。保存／再読込時の扱いは実装前に決める。
+- **制約／未確認:** 新規 signal/slot、Qt 合成、暗黙の画像変換を追加しない。GPU リソース容量・寿命と D3D12／Vulkan の表示整合を確認する。実装規模は中〜大、描画接続と実機挙動は要検証。
+
+以下の旧監査でいう「A/B／Diff・reference frame」は状態基盤を含む表現であり、比較画像の完成を保証しない。
 
 ## 2026-08-15 現行コード監査
 

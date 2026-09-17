@@ -16,6 +16,6 @@ jobs:
           python tools/i18n/audit_translations.py Artifact ArtifactCore
           --locale Artifact/translations/ja.json
           --baseline Artifact/translations/en.json
-          --min-coverage 80
+          --min-coverage 95
           --max-untranslated 4
           --allow-same layer_panel.menu_matte_missing

@@ -12,9 +12,10 @@ from typing import Iterable
 
 SOURCE_SUFFIXES = {".cpp", ".cppm", ".ixx", ".h", ".hpp"}
 KEY_PATTERNS = (
-    re.compile(r"\btt\s*\(\s*[\"']([^\"']+)[\"']"),
-    re.compile(r"\b(?:tr|AT_TR)\s*\(\s*[\"']([^\"']+)[\"']"),
-    re.compile(r"TranslationManager::instance\(\)\.tr\s*\(\s*[\"']([^\"']+)[\"']"),
+    re.compile(r"\btt\s*\(\s*(?:QStringLiteral\s*\(\s*)?[\"']([^\"']+)[\"']"),
+    re.compile(r"\b(?:tr|AT_TR)\s*\(\s*(?:QStringLiteral\s*\(\s*)?[\"']([^\"']+)[\"']"),
+    re.compile(r"TranslationManager::instance\(\)\.tr\s*\(\s*(?:QStringLiteral\s*\(\s*)?[\"']([^\"']+)[\"']"),
+    re.compile(r"\bmenuText\s*\(\s*(?:QStringLiteral\s*\(\s*)?[\"']([^\"']+)[\"']"),
 )
 
 # Dotted snake_case namespaces, e.g. layer_panel.menu_delete, timeline.kind_video.
@@ -33,6 +34,11 @@ def iter_sources(source_dirs: Iterable[Path]) -> Iterable[Path]:
             )
 
 
+def _is_valid_key(key: str) -> bool:
+    """Reject partial keys from string concatenation (e.g. "components.")."""
+    return "." in key and not key.endswith(".") and not key.startswith(".")
+
+
 def extract_keys(source_dirs: Iterable[Path]) -> set[str]:
     keys: set[str] = set()
     for path in iter_sources(source_dirs):
@@ -43,7 +49,7 @@ def extract_keys(source_dirs: Iterable[Path]) -> set[str]:
         for pattern in KEY_PATTERNS:
             keys.update(
                 key for match in pattern.finditer(content)
-                if "." in (key := match.group(1))
+                if _is_valid_key(key := match.group(1))
             )
     return keys
 

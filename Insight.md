@@ -1,5 +1,23 @@
 **最終更新:** 2026-09-17
 
+## 2026-09-17 — Core キーフレーム監査: 保存時刻と評価時刻の契約を分離しない
+
+- **関連:** `J:/dev/ArtifactStudio/ArtifactCore/src/Property/AbstractProperty.cppm:650-699,736-777,827-932`、`J:/dev/ArtifactStudio/ArtifactCore/include/Geometry/Interpolate.ixx:670-734`、`J:/dev/ArtifactStudio/ArtifactCore/include/Animation/AnimatableValue.ixx:127-154,198-235`、`J:/dev/ArtifactStudio/ArtifactCore/include/Property/PropertySerializationBridge.ixx:218-260`。
+- **確認できた事実（静的監査）:** Property の値のみ addKeyFrame は既存キーの補間・ハンドル・roving を既定値へ戻す一方、AnimatableValueT は保持する。Property の Constant は中央キー時刻でも直前キー値を返すが、テンプレート側の Constant は alpha=1 で次キー値を返す。retime は Absolute にも newInPoint.scale() への丸めを行い、衝突を sort/unique で削除する。数値評価は毎回全キーを補間器へコピーして各挿入で再ソートし、evaluateValue も式なしで全キーをコピーする。既存 Property へ deserializeProperty すると、空の expression は適用されず旧式が残る。
+- **懸念／設計仮説（未検証）:** RationalTime の比較・保存が厳密でも、評価用 double 時刻への変換で近接キーが同一時刻へ潰れる。時刻の一意性をストレージだけで保証しても不十分。評価区間の探索は RationalTime のまま行い、選んだ区間内の差だけを数値化する設計を検討する。time.scale() を式の FPS として使う現在の経路も、同一時刻を別 scale で表した際の評価一致と衝突するため、FPS を時刻分母から分離する契約確認が必要。
+- **価値:** 「保存往復に成功」「個別 getter にロックあり」だけで production-ready と判断せず、キー時刻での値一致、編集メタデータ保持、非破壊 retime、評価スナップショットの一貫性を受入条件にできる。
+- **2026-09-17 修正:** 値のみ更新は既存メタデータを保持し、Property と共通補間器は正確なキー時刻でそのキー値を返すよう変更。Absolute はリタイム対象から除外。リタイムは編集時だけ一時コピー上で処理し、衝突・範囲外は Property 全体の変更を拒否して lastError に記録する。既存の標準 vector ストレージをコピーするため追加の標準コンテナへの置換はない。フレーム評価への追加確保はない。既存 PropertyKeyframe テストへ値更新・全型 Hold 境界・Absolute・衝突・アンカーの回帰を追加。ビルド・テストは未実行。
+- **残る境界（未検証）:** レイヤーの setInPoint/setOutPoint はリタイム前に尺を確定し、Property の lastError を確認しない。今回の拒否は Property 単位であり、レイヤー全体の尺変更はロールバックしない。複数 Property と尺変更を一括で確定／拒否する設計は別途判断が必要。
+- **次に確認:** 追加した回帰テストの実行、空式の既存オブジェクト復元、並行編集・評価とアロケーションの実測。既存テストの呼び出しは Test.cppm の runAllTests 経由で、PropertyKeyframe 専用の実行フィルタは確認できていない。
+
+
+## 2026-09-17 — キー編集時刻統一後に残る独立した確認事項
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactTextGizmo.cppm`（`cancelInteraction` / `pushTransformUndoIfNeeded`）、`Artifact/src/Widgets/ArtifactTimelineWidget.cppm`（`applyTimelineSeek`）、`Artifact/src/Service/ArtifactPlaybackService.cppm`（`publishFrame`）。
+- **確認できた事実:** Text の anchor 操作は静的チャンネルにもキーを作るが、キャンセル／Undo 分岐は操作開始時の `before.animated` を使用する。タイムラインの表示フレーム更新は停止時の queued な composition 同期に先行する。主コントローラーの単発リセット等には今回のドラッグ修正とは別に `layer->currentFrame()` を使用する箇所が残る。
+- **懸念（未検証）:** 静的 anchor のキャンセルでキーが残る可能性と、シーク未反映時の diamond toggle が直前フレームのキーを削除する可能性がある。今回報告されたアニメーション不成立との一致は未確認。既存の誤った時刻のキーは自動移行していない。
+- **次に確認:** 別途、静的 anchor の Undo／キャンセル契約、編集直前の seek 完了契約、単発リセットの時刻を個別に検証する。今回のドラッグ時刻・FPS 統一とは分離し、追加配線やシーク方式変更は行わない。
+
 ## 2026-09-17 — A6 の Text offline raster cache は既存 TextLayer が所有済み
 
 - **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm:2268`、`Artifact/src/Layer/ArtifactTextLayer.cppm:2725`。
