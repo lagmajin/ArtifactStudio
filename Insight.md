@@ -7,6 +7,8 @@
 - **懸念／設計仮説（未検証）:** RationalTime の比較・保存が厳密でも、評価用 double 時刻への変換で近接キーが同一時刻へ潰れる。時刻の一意性をストレージだけで保証しても不十分。評価区間の探索は RationalTime のまま行い、選んだ区間内の差だけを数値化する設計を検討する。time.scale() を式の FPS として使う現在の経路も、同一時刻を別 scale で表した際の評価一致と衝突するため、FPS を時刻分母から分離する契約確認が必要。
 - **価値:** 「保存往復に成功」「個別 getter にロックあり」だけで production-ready と判断せず、キー時刻での値一致、編集メタデータ保持、非破壊 retime、評価スナップショットの一貫性を受入条件にできる。
 - **2026-09-17 修正:** 値のみ更新は既存メタデータを保持し、Property と共通補間器は正確なキー時刻でそのキー値を返すよう変更。Absolute はリタイム対象から除外。リタイムは編集時だけ一時コピー上で処理し、衝突・範囲外は Property 全体の変更を拒否して lastError に記録する。既存の標準 vector ストレージをコピーするため追加の標準コンテナへの置換はない。フレーム評価への追加確保はない。既存 PropertyKeyframe テストへ値更新・全型 Hold 境界・Absolute・衝突・アンカーの回帰を追加。ビルド・テストは未実行。
+- **2026-09-17 検証（実行済み）:** `out/build/x64-Debug`（Ninja/MSVC 14.51）で `ArtifactCore` を差分ビルド → 成功（`Interpolate.ixx` / `AbstractProperty.ixx|.cppm` 再コンパイル、警告は既存 C5202 のみ、エラーなし、`ArtifactCore.lib` 再リンク）。変更後の ifc/ライブラリを実際に import/link する検証 exe（`temp/verify_keyframe_behavior.cpp`）をビルドし実行 → 14/14 PASS（値更新のメタデータ保持、NaN 拒否、Hold の 9/10/11/20/25 フレーム境界、Color/Point2D、Absolute の 1/48・1/24・巨大整数保持、衝突時の全体拒否、既存の置換・削除・整列・線形補間）。リポジトリ追加分の回帰テストは実ビルドの単一モジュールターゲットでコンパイル確認済み（`ArtifactTestPropertyKeyframe.cppm.obj` 06:03 更新、エラーなし）。検証用スクリプトは `temp/run_verify.bat`、`temp/run_verify.ps1`、`temp/build_test_module.bat`。
+- **未検証:** `Artifact.TestRunner` の全テスト実行（アプリ exe のビルドが必要なため未実施）。修正前コードでの失敗再現（意図的なロールバックビルド）は未実施で、旧挙動は差分からの読み取りに基づく。空式の復元、並行編集・評価、アロケーション計測は未着手。
 - **残る境界（未検証）:** レイヤーの setInPoint/setOutPoint はリタイム前に尺を確定し、Property の lastError を確認しない。今回の拒否は Property 単位であり、レイヤー全体の尺変更はロールバックしない。複数 Property と尺変更を一括で確定／拒否する設計は別途判断が必要。
 - **次に確認:** 追加した回帰テストの実行、空式の既存オブジェクト復元、並行編集・評価とアロケーションの実測。既存テストの呼び出しは Test.cppm の runAllTests 経由で、PropertyKeyframe 専用の実行フィルタは確認できていない。
 

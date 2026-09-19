@@ -1,9 +1,47 @@
 # MILESTONE: 翻訳システム作り込み (i18n Hardening)
 
-**最終更新:** 2026-09-16
+**最終更新:** 2026-09-18
 
 前段 `MILESTONE_I18N_IMPLEMENTATION.md`（2026-08-15）の続編。エンジン統合は済んだが、
 実効カバレッジ・運用・実行時切替に穴がある。本書は 2026-09-16 時点の実測に基づく残課題と実装順序を定義する。
+
+## 進捗（2026-09-18）
+
+### P0-1 完了：監査ツールと CI の実効化
+
+- `tools/i18n/audit_translations.py` の `KEY_PATTERNS` に `menuText(` を追加し、
+  `QStringLiteral(...)` で包まれたキーも抽出できるよう改善（`tt(`/`tr(`/AT_TR/`TranslationManager::instance().tr(` は既存）。
+- 文字列連結の断片（`"components."` 等）を除外する `_is_valid_key()` を追加。
+- `.github/workflows/i18n-check.yml` の `--min-coverage` を 80 → 95 へ引き上げ。
+- 結果：`Keys used` は 410 → **1104**、ja カバレッジ **100%**（未翻訳4件は技術表記のため `--allow-same` 除外）。
+
+### P0-2 進行：主要4ファイルの移行完了
+
+`tools/i18n/migrate_hardcoded.py`（マッピング駆動の移行スクリプト）と
+`tools/i18n/mappings/*.json` を新設し、以下を移行した。
+
+| ファイル | 移行件数 | 使用ラッパー |
+|---------|---------|-------------|
+| `ArtifactFileMenu.cppm` | 約100件 | `menuText()` |
+| `ArtifactViewMenu.cppm` | 137件 | `TranslationManager::instance().tr()` |
+| `ArtifactLayerMenu.cppm` | 305件 | `TranslationManager::instance().tr()` |
+| `ArtifactRenderOutputSettingDialog.cppm` | 120件 | `TranslationManager::instance().tr()`（`import Translation.Manager;` を追加） |
+
+移行スクリプトの要件（再発防止）:
+- **文字列長の降順**で置換（部分文字列の破損防止）。
+- 既存の `menuText(`/`tt(`/`tr(` 呼び出しの**フォールバック引数は保護**（二重置換防止）。
+- **隣接リテラル連結**（`"a" "b"` が複数行にまたがるもの）の断片は置換対象外。
+  連結全体は手動で 1 キーにまとめて `tr()` 化する。
+
+残件: 本書の対象4ファイル以外にもハードコード日本語が存在する
+（`ArtifactToolOptionsBar`、`ParticleEmitterDescription`、各種ダイアログ等。
+`tools/i18n/scan_hardcoded.py` で一覧化できる）。
+ただし保存値と往復するデータ文字列・生成物の既定名・Undo ラベルは翻訳対象外として除外判断が必要。
+
+### P1 / P2 未着手
+
+既知の未対応: 未使用キー（`unused_in_locale`）の整理方針は未決定のまま。
+
 
 ## 実測スナップショット（2026-09-16）
 
@@ -39,6 +77,7 @@
   英語文そのままキー（現行2件：`Double-click the value...`、`Put .csx files in %1`）は別キーへ移行。
 - `unused_in_locale`（JSONにあってコードにないキー）の扱いを決定：削除 or 保持リスト化。
 - 完了条件：監査の `Keys used` が `tt()` 込みの実数と一致し、CIが実効カバレッジを gate する。
+  **[完了 2026-09-18]** `menuText(` 対応と `--min-coverage 95` を適用済み。残るは `unused_in_locale` の方針決定のみ。
 
 ### P0-2 残りハードコードの計画移行
 
@@ -48,6 +87,8 @@
 - ファイル毎の `static tt()` 重複定義を `Translation.Manager` の共通 inline へ寄せる。
 - ダイアログ文言（`QInputDialog` タイトル等）はメニュー移行後に別パスで対応。
 - 完了条件：ハードコード日本語が0件、または残件リスト化して本書へ追記。
+  **[対象4ファイル完了 2026-09-18]** FileMenu／ViewMenu／LayerMenu／RenderOutputSettingDialog を移行済み。
+  他ファイルの残件は `tools/i18n/scan_hardcoded.py` の出力を参照し、翻訳対象外（データ文字列等）を除外して縮小する。
 
 ## P1: 実行時と言語資産
 
@@ -58,12 +99,27 @@
 2. オンデマンド構築メニュー（コンテキストメニュー等）は通知後の再取得で即時反映。
 3. メニューバー等の静的構築UIの再翻訳は影響調査の上で別途（`retranslateUi` 相当の所有者責務を決める）。
 - 完了条件：設定変更→再起動で言語が切り替わり、永続化される。`--lang` との優先順位を文書化。
+  **[第1段 完了 2026-09-18]** 設定画面と言語資産、起動時適用まで実装：
+  - `ArtifactAppSettings` に `appLanguageCode()` / `setAppLanguageCode()` を追加
+    （保存キー `General/LanguageCode`、空文字はシステム追従）。`ConfigSchema` にも登録済み。
+  - 環境設定ダイアログの `GeneralSettingPage` に **Language** グループとセレクタを追加
+    （Auto (System) / English / 日本語 / 简体中文 / 繁體中文 / 한국어 / Français / Deutsch / Español / Português / Русский / العربية）。
+    「次回起動時に適用」の注記付き。設定はダイアログの OK で保存される。
+  - 起動時の優先順位を **`--lang` > 保存設定 > システムロケール > `en`** に確定し、決定理由をログに1行出力。
+  - 即時再翻訳と `Event.Bus` の `localeChanged` 通知は未実装（第2段）。
+    現時点で購読者が存在せず、死んだ通知を増やさないため意図的に保留。
+  優先順位の文書化：`--lang` が最優先。次に設定画面で保存した言語。未設定ならシステムロケール。
+  設定画面には `--lang` の値は保存されないため、`--lang` 起動と保存設定が食い違う場合は `--lang` が勝つ。
 
 ### P1-2 起動経路の整理
 
 - `AppMain.cppm` の言語判定三重実装（2595／2619／2671行付近）を一本化。
 - `loadFromDirectory` 二重実行を除去。
 - 完了条件：起動ログで言語決定理由が1回だけ出力される。
+  **[完了 2026-09-18]** 起動時に `--lang` → システムロケール → `en` の順で一度だけ
+  `localeCode` を確定し `LocalizationManager::setLanguageCode()` を呼ぶ形へ統一。
+  カタログのロードは `QApplication` 構築後に `loc.loadFromDirectory()` 1回のみ。
+  ログは `[AppMain] Language decided: <code> by <--lang|system locale>` の1行に集約。
 
 ### P1-3 フォールバック連鎖と言語資産方針
 
@@ -71,6 +127,22 @@
 - スタブ言語（11キー）の扱いを決定：翻訳追加 or 選択肢から除外。`availableLocales()` はロード済みのみ返す現行仕様と整合させる。
 - 複数形：最低限 en／ru／ar の CLDR ルール helper。呼出側三項演算子は段階的に移行。
 - 完了条件：zh-TW 実効カバレッジ向上、複数形 helper の単体確認。
+  **[完了 2026-09-18]**
+  - **連鎖フォールバック**：`LocalizationManager::translate` に `fallbackChainFor()` を導入。
+    現在の言語 → 英語の順に解決し、繁体字中国語のみ 繁中 → 簡中 → 英語 の三連鎖にした。
+    これにより zh-TW の 358 欠落キーは簡中 → 英語へ段階的に落ちる。
+  - **言語資産方針**：環境設定の言語セレクタは `LocalizationManager::availableLocales()`
+    （= ロード済みのみ）と整合させ、カタログが存在しない言語は候補に出さない。
+    保存済み言語が候補に無い場合は、値を失わないよう候補へ動的追加して選択する。
+    低カバレッジ（スタブ11キー）の除外は、ロケール別カバレッジ API が無いため今後の課題。
+  - **複数形**：`PluralCategory` と `pluralCategoryFor()`（en / ru / ar の CLDR ルール、
+    他言語は one / other の二値）、`LocalizationManager::pluralCategory()` /
+    `translatePlural(baseKey, count, fallbackSingular, fallbackPlural)` を追加
+    （`baseKey.one|few|many|other` を引き、無ければ `baseKey.other`、最後に呼出側フォールバック）。
+    ルールの期待値は `tools/i18n/check_plurals.py` のミラーで確認済み
+    （en: 1→one / 他→other、ru: 21,101→one, 2-4,22-24→few, 5-20,25→many、
+    ar: 0→zero, 1→one, 2→two, 3-10→few, 11-99→many, 100→other）。
+    C++ 側のコンパイルと実機単体テストは未実施（ビルド禁止のため）。呼出側の三項演算子移行は未着手。
 
 ## P2: 開発者体験
 

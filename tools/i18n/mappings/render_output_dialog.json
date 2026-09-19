@@ -1,0 +1,602 @@
+[
+  {
+    "jp": " / 音声なし",
+    "key": "dialog.render_output.audio_none_suffix",
+    "en": " / No audio"
+  },
+  {
+    "jp": "1  何に使いますか？",
+    "key": "dialog.render_output.step1_title",
+    "en": "1  What is it for?"
+  },
+  {
+    "jp": "16:9  •  MP4 / H.264  •  透過なし",
+    "key": "dialog.render_output.recommended_summary",
+    "en": "16:9  •  MP4 / H.264  •  No transparency"
+  },
+  {
+    "jp": "2  透明を残しますか？",
+    "key": "dialog.render_output.step2_title",
+    "en": "2  Keep transparency?"
+  },
+  {
+    "jp": "2-pass / HW 支援 / 連続書き出し",
+    "key": "dialog.render_output.encode_help",
+    "en": "2-pass / HW assisted / sequential export"
+  },
+  {
+    "jp": "3  透明の計算方法",
+    "key": "dialog.render_output.step3_title",
+    "en": "3  Transparency method"
+  },
+  {
+    "jp": "48 kHz（映像向け推奨）",
+    "key": "dialog.render_output.sample_rate_48k",
+    "en": "48 kHz (recommended for video)"
+  },
+  {
+    "jp": "7.1.4 (立体音響)",
+    "key": "dialog.render_output.channels_714",
+    "en": "7.1.4 (immersive audio)"
+  },
+  {
+    "jp": "Alpha が必要なら、コンテナとコーデックを確認してください。",
+    "key": "dialog.render_output.alpha_hint",
+    "en": "If you need Alpha, check the container and codec."
+  },
+  {
+    "jp": "Alpha モード:",
+    "key": "dialog.render_output.alpha_mode",
+    "en": "Alpha mode:"
+  },
+  {
+    "jp": "Alpha 状態:",
+    "key": "dialog.render_output.alpha_state",
+    "en": "Alpha state:"
+  },
+  {
+    "jp": "Alpha: あり",
+    "key": "dialog.render_output.alpha_yes",
+    "en": "Alpha: Yes"
+  },
+  {
+    "jp": "Alpha: なし",
+    "key": "dialog.render_output.alpha_no",
+    "en": "Alpha: No"
+  },
+  {
+    "jp": "Alphaあり",
+    "key": "dialog.render_output.alpha_yes_short",
+    "en": "Alpha present"
+  },
+  {
+    "jp": "Alphaなし",
+    "key": "dialog.render_output.alpha_no_short",
+    "en": "No Alpha"
+  },
+  {
+    "jp": "Alphaなし。透過は書き出されません。",
+    "key": "dialog.render_output.alpha_no_message",
+    "en": "No Alpha. Transparency will not be exported."
+  },
+  {
+    "jp": "Beauty と Depth AOV から1ピクセルあたり1サンプルの Deep EXR を書き出します。",
+    "key": "dialog.render_output.deep_exr_note",
+    "en": "Exports a 1-sample-per-pixel Deep EXR from the Beauty and Depth AOVs."
+  },
+  {
+    "jp": "H.264 + AAC / 配布向け / %1",
+    "key": "dialog.render_output.h264_distribution",
+    "en": "%1 / H.264 + AAC / For distribution"
+  },
+  {
+    "jp": "MP4 / H.264\\n軽い・すぐ見られる",
+    "key": "dialog.render_output.preset_mp4",
+    "en": "MP4 / H.264\\nLight and quick to view"
+  },
+  {
+    "jp": "PC 配布版",
+    "key": "dialog.render_output.variant_pc",
+    "en": "PC Distribution"
+  },
+  {
+    "jp": "PCMは非圧縮のためビットレート指定を使用しません。",
+    "key": "dialog.render_output.pcm_note",
+    "en": "PCM is uncompressed, so the bitrate setting is not used."
+  },
+  {
+    "jp": "Preflight: Alpha は無効です",
+    "key": "dialog.render_output.preflight_alpha_disabled",
+    "en": "Preflight: Alpha is disabled"
+  },
+  {
+    "jp": "Preflight: 設定確認",
+    "key": "dialog.render_output.preflight_settings",
+    "en": "Preflight: Check settings"
+  },
+  {
+    "jp": "Preflight: 透過対応",
+    "key": "dialog.render_output.preflight_alpha_ok",
+    "en": "Preflight: Transparency supported"
+  },
+  {
+    "jp": "ProRes / DNxHD\\n高品質・再編集向け",
+    "key": "dialog.render_output.preset_prores",
+    "en": "ProRes / DNxHD\\nHigh quality, for re-editing"
+  },
+  {
+    "jp": "ProRes 4444 / PNG連番",
+    "key": "dialog.render_output.container_prores4444_png",
+    "en": "ProRes 4444 / PNG sequence"
+  },
+  {
+    "jp": "ProRes 4444 推奨 / 透過対応",
+    "key": "dialog.render_output.prores4444_recommended",
+    "en": "ProRes 4444 recommended / Transparency supported"
+  },
+  {
+    "jp": "ProRes 4444 系の透過設定を確認できます。",
+    "key": "dialog.render_output.prores4444_note",
+    "en": "You can check the transparency settings for the ProRes 4444 family."
+  },
+  {
+    "jp": "Project Service を利用できません。",
+    "key": "dialog.render_output.project_service_unavailable",
+    "en": "Project Service is unavailable."
+  },
+  {
+    "jp": "Render Queue を利用できません。",
+    "key": "dialog.render_output.render_queue_unavailable",
+    "en": "Render Queue is unavailable."
+  },
+  {
+    "jp": "Stereo（配布向け推奨）",
+    "key": "dialog.render_output.channels_stereo",
+    "en": "Stereo (recommended for distribution)"
+  },
+  {
+    "jp": "Web 確認・透過素材の共有向け",
+    "key": "dialog.render_output.purpose_web",
+    "en": "For web review and sharing transparent assets"
+  },
+  {
+    "jp": "WebM / VP9 / 透過向け",
+    "key": "dialog.render_output.container_webm",
+    "en": "WebM / VP9 / For transparency"
+  },
+  {
+    "jp": "WebM / VP9 は透過向けの候補です。",
+    "key": "dialog.render_output.webm_note",
+    "en": "WebM / VP9 are candidates for transparency."
+  },
+  {
+    "jp": "Web向け。ブラウザで直接開ける self-contained player。",
+    "key": "dialog.render_output.purpose_web_player",
+    "en": "For web. A self-contained player that opens directly in a browser."
+  },
+  {
+    "jp": "Web向け。透過を扱いやすい。",
+    "key": "dialog.render_output.purpose_web_alpha",
+    "en": "For web. Easy to handle transparency."
+  },
+  {
+    "jp": "─ プリセットを選択 ─",
+    "key": "dialog.render_output.select_preset",
+    "en": "─ Select a preset ─"
+  },
+  {
+    "jp": "あり",
+    "key": "dialog.render_output.yes",
+    "en": "Yes"
+  },
+  {
+    "jp": "おすすめ: 再生・配布用 / MP4 / H.264 / 透過なし",
+    "key": "dialog.render_output.recommend_playback",
+    "en": "Recommended: For playback/distribution / MP4 / H.264 / No transparency"
+  },
+  {
+    "jp": "おすすめ: 編集用中間素材 / ProRes 422 / 透過なし",
+    "key": "dialog.render_output.recommend_intermediate_422",
+    "en": "Recommended: Editing intermediate / ProRes 422 / No transparency"
+  },
+  {
+    "jp": "おすすめ: 編集用中間素材 / ProRes 4444 / Straight",
+    "key": "dialog.render_output.recommend_intermediate_4444",
+    "en": "Recommended: Editing intermediate / ProRes 4444 / Straight"
+  },
+  {
+    "jp": "この設定では透過は書き出されません",
+    "key": "dialog.render_output.no_alpha_exported",
+    "en": "Transparency is not exported with these settings"
+  },
+  {
+    "jp": "この設定では透過は書き出されません。",
+    "key": "dialog.render_output.no_alpha_exported_period",
+    "en": "Transparency is not exported with these settings."
+  },
+  {
+    "jp": "この設定でレンダー",
+    "key": "dialog.render_output.render_with_settings",
+    "en": "Render with These Settings"
+  },
+  {
+    "jp": "その他の設定",
+    "key": "dialog.render_output.other_settings",
+    "en": "Other Settings"
+  },
+  {
+    "jp": "なし",
+    "key": "dialog.render_output.no",
+    "en": "No"
+  },
+  {
+    "jp": "まず用途と透過を決め、必要なときだけ詳細設定を開きます。",
+    "key": "dialog.render_output.intro",
+    "en": "First decide the purpose and transparency, then open advanced settings only when needed."
+  },
+  {
+    "jp": "アクティブなコンポジションがありません。",
+    "key": "dialog.render_output.no_active_composition",
+    "en": "There is no active composition."
+  },
+  {
+    "jp": "エンコード補助:",
+    "key": "dialog.render_output.encode_assist",
+    "en": "Encode assistance:"
+  },
+  {
+    "jp": "カラーメタデータ:",
+    "key": "dialog.render_output.color_metadata",
+    "en": "Color metadata:"
+  },
+  {
+    "jp": "キャンセル",
+    "key": "dialog.render_output.cancel",
+    "en": "Cancel"
+  },
+  {
+    "jp": "サンプルレート:",
+    "key": "dialog.render_output.sample_rate",
+    "en": "Sample rate:"
+  },
+  {
+    "jp": "スマホ版",
+    "key": "dialog.render_output.variant_mobile",
+    "en": "Mobile"
+  },
+  {
+    "jp": "ソース準拠",
+    "key": "dialog.render_output.source_compliant",
+    "en": "Source compliant"
+  },
+  {
+    "jp": "ソース準拠 / %1 fps",
+    "key": "dialog.render_output.source_compliant_fps",
+    "en": "Source compliant / %1 fps"
+  },
+  {
+    "jp": "ソース準拠ではチャンネル数を引き継ぎます。Mono・Stereo・5.1・7.1・7.1.4を選ぶとFFmpegで変換します。",
+    "key": "dialog.render_output.channels_note",
+    "en": "Source compliant inherits the channel count. Selecting Mono, Stereo, 5.1, 7.1, or 7.1.4 converts via FFmpeg."
+  },
+  {
+    "jp": "タイムコード:",
+    "key": "dialog.render_output.timecode",
+    "en": "Timecode:"
+  },
+  {
+    "jp": "ネイティブな複数可視サンプル出力ではありません。",
+    "key": "dialog.render_output.not_native_multi_sample",
+    "en": "Not native multi-visible-sample output."
+  },
+  {
+    "jp": "ファイル名規則:",
+    "key": "dialog.render_output.filename_pattern",
+    "en": "Filename pattern:"
+  },
+  {
+    "jp": "マトリックスの使い方",
+    "key": "dialog.render_output.matrix_usage",
+    "en": "How to use the matrix"
+  },
+  {
+    "jp": "レビュー版",
+    "key": "dialog.render_output.variant_review",
+    "en": "Review"
+  },
+  {
+    "jp": "レンダーマトリックス",
+    "key": "dialog.render_output.render_matrix",
+    "en": "Render Matrix"
+  },
+  {
+    "jp": "レンダーマトリックス…",
+    "key": "dialog.render_output.render_matrix_dots",
+    "en": "Render Matrix…"
+  },
+  {
+    "jp": "レンダー出力の設定",
+    "key": "dialog.render_output.title",
+    "en": "Render Output Settings"
+  },
+  {
+    "jp": "一般配布用は MP4/H.264 が基本です。",
+    "key": "dialog.render_output.mp4_basic",
+    "en": "MP4/H.264 is the standard for general distribution."
+  },
+  {
+    "jp": "不要",
+    "key": "dialog.render_output.not_needed",
+    "en": "Not needed"
+  },
+  {
+    "jp": "再生・配布用",
+    "key": "dialog.render_output.purpose_playback",
+    "en": "For playback/distribution"
+  },
+  {
+    "jp": "再生・配布用 — MP4 / H.264",
+    "key": "dialog.render_output.purpose_playback_detail",
+    "en": "For playback/distribution — MP4 / H.264"
+  },
+  {
+    "jp": "出力の詳細",
+    "key": "dialog.render_output.output_details",
+    "en": "Output Details"
+  },
+  {
+    "jp": "出力バリエーション",
+    "key": "dialog.render_output.output_variations",
+    "en": "Output Variations"
+  },
+  {
+    "jp": "出力パッケージ: この形式では音声同梱を利用できません。",
+    "key": "dialog.render_output.package_audio_unavailable",
+    "en": "Output package: Audio embedding is not available in this format."
+  },
+  {
+    "jp": "出力パッケージ: 動画1ファイル（映像のみ）",
+    "key": "dialog.render_output.package_video_only",
+    "en": "Output package: Single video file (video only)"
+  },
+  {
+    "jp": "出力パッケージ: 動画1ファイル（映像＋音声を同梱）",
+    "key": "dialog.render_output.package_video_audio",
+    "en": "Output package: Single video file (video + audio embedded)"
+  },
+  {
+    "jp": "出力パッケージ: 画像連番のみ。連番には音声を格納できません。",
+    "key": "dialog.render_output.package_image_sequence",
+    "en": "Output package: Image sequence only. Audio cannot be stored in a sequence."
+  },
+  {
+    "jp": "出力内容:",
+    "key": "dialog.render_output.output_content",
+    "en": "Output content:"
+  },
+  {
+    "jp": "動画ファイルに音声を含める",
+    "key": "dialog.render_output.include_audio",
+    "en": "Include audio in the video file"
+  },
+  {
+    "jp": "受け渡し先の指定時のみ\\n誤ると輪郭にフチ",
+    "key": "dialog.render_output.matte_note",
+    "en": "Only when specifying a delivery target\\nMistakes cause fringing on the edges"
+  },
+  {
+    "jp": "各行は既存の出力プリセットに対応します。ここでは出力の意図を選び、\\n",
+    "key": "dialog.render_output.matrix_hint",
+    "en": "Each row corresponds to an existing output preset. Here you choose the output intent, and\\n"
+  },
+  {
+    "jp": "同じコンポジションから、用途別の出力をまとめて作成",
+    "key": "dialog.render_output.matrix_subtitle",
+    "en": "Create multiple purpose-specific outputs from the same composition at once"
+  },
+  {
+    "jp": "少なくとも1つの出力を選択してください。",
+    "key": "dialog.render_output.select_at_least_one",
+    "en": "Please select at least one output."
+  },
+  {
+    "jp": "必要",
+    "key": "dialog.render_output.needed",
+    "en": "Needed"
+  },
+  {
+    "jp": "書き出し",
+    "key": "dialog.render_output.export",
+    "en": "Export"
+  },
+  {
+    "jp": "有効にすると Beauty RGBA に加えて Depth / Normal / Velocity / ObjectID / MaterialID / Albedo / Emission チャンネルを含む EXR を書き出します。コンテナは自動で EXR に切り替わります。",
+    "key": "dialog.render_output.multi_channel_note",
+    "en": "When enabled, exports an EXR containing Depth / Normal / Velocity / ObjectID / MaterialID / Albedo / Emission channels in addition to Beauty RGBA. The container switches to EXR automatically."
+  },
+  {
+    "jp": "未選択",
+    "key": "dialog.render_output.unselected",
+    "en": "Not selected"
+  },
+  {
+    "jp": "標準配布(H.264 MP4)",
+    "key": "dialog.render_output.variant_standard",
+    "en": "Standard Distribution (H.264 MP4)"
+  },
+  {
+    "jp": "用途に応じてコンテナとコーデックを選ぶ。",
+    "key": "dialog.render_output.purpose_note",
+    "en": "Choose the container and codec according to the purpose."
+  },
+  {
+    "jp": "用途を並べて、同時にキューへ追加",
+    "key": "dialog.render_output.matrix_add_note",
+    "en": "Line up purposes and add them to the queue at once"
+  },
+  {
+    "jp": "用途を選ぶと、コンテナとコーデックの意味がここに表示されます。",
+    "key": "dialog.render_output.purpose_detail_placeholder",
+    "en": "When you select a purpose, the meaning of the container and codec appears here."
+  },
+  {
+    "jp": "用途サマリ",
+    "key": "dialog.render_output.purpose_summary",
+    "en": "Purpose Summary"
+  },
+  {
+    "jp": "用途プリセット:",
+    "key": "dialog.render_output.purpose_preset",
+    "en": "Purpose preset:"
+  },
+  {
+    "jp": "用途別の複数出力をまとめて Render Queue に追加します",
+    "key": "dialog.render_output.matrix_tooltip",
+    "en": "Add multiple purpose-specific outputs to the Render Queue at once"
+  },
+  {
+    "jp": "画像シーケンスのフレーム番号の桁数（例: 4 → frame_0001.png）",
+    "key": "dialog.render_output.frame_digits",
+    "en": "Number of digits in the frame number of the image sequence (e.g. 4 → frame_0001.png)"
+  },
+  {
+    "jp": "編集ソフト用(ProRes 4444 MOV)",
+    "key": "dialog.render_output.variant_editing",
+    "en": "For Editing Software (ProRes 4444 MOV)"
+  },
+  {
+    "jp": "編集向け。ProRes 4444 なら透過を残しやすい。",
+    "key": "dialog.render_output.purpose_editing",
+    "en": "For editing. ProRes 4444 preserves transparency more easily."
+  },
+  {
+    "jp": "編集用の中間素材",
+    "key": "dialog.render_output.purpose_intermediate",
+    "en": "Intermediate material for editing"
+  },
+  {
+    "jp": "編集用中間素材",
+    "key": "dialog.render_output.intermediate_short",
+    "en": "Editing intermediate"
+  },
+  {
+    "jp": "編集用中間素材 — ProRes 422",
+    "key": "dialog.render_output.purpose_intermediate_422",
+    "en": "Editing intermediate — ProRes 422"
+  },
+  {
+    "jp": "背景透過動画(WebM/VP9)",
+    "key": "dialog.render_output.variant_webm",
+    "en": "Transparent Background Video (WebM/VP9)"
+  },
+  {
+    "jp": "自動",
+    "key": "dialog.render_output.auto",
+    "en": "Auto"
+  },
+  {
+    "jp": "自動 / Rec.709",
+    "key": "dialog.render_output.auto_rec709",
+    "en": "Auto / Rec.709"
+  },
+  {
+    "jp": "解像度・フレーム範囲・保存先の最終調整は Render Queue で行います。\\n\\n",
+    "key": "dialog.render_output.final_adjust_note",
+    "en": "Final adjustments to resolution, frame range, and destination are made in the Render Queue.\\n\\n"
+  },
+  {
+    "jp": "透過つき編集素材 — ProRes 4444",
+    "key": "dialog.render_output.purpose_intermediate_4444",
+    "en": "Editing material with transparency — ProRes 4444"
+  },
+  {
+    "jp": "透過を保持します",
+    "key": "dialog.render_output.keep_transparency",
+    "en": "Keeps transparency"
+  },
+  {
+    "jp": "透過素材は ProRes 4444 または WebM/VP9 を選択してください。\\n",
+    "key": "dialog.render_output.transparency_container_note",
+    "en": "For transparent material, select ProRes 4444 or WebM/VP9.\\n"
+  },
+  {
+    "jp": "透過設定を確認してください",
+    "key": "dialog.render_output.check_transparency_settings",
+    "en": "Please check the transparency settings"
+  },
+  {
+    "jp": "通常の動画・配布向け",
+    "key": "dialog.render_output.purpose_general",
+    "en": "For normal video/distribution"
+  },
+  {
+    "jp": "通常はこちら\\n色と透明度を別に保持",
+    "key": "dialog.render_output.straight_note",
+    "en": "Usually this one\\nKeeps color and transparency separate"
+  },
+  {
+    "jp": "連番素材 — PNG Sequence",
+    "key": "dialog.render_output.purpose_png_sequence",
+    "en": "Sequence material — PNG Sequence"
+  },
+  {
+    "jp": "選択したバリエーションはレンダーキューへ個別ジョブとして追加されます。",
+    "key": "dialog.render_output.variations_note",
+    "en": "Selected variations are added to the render queue as individual jobs."
+  },
+  {
+    "jp": "選択した出力: 既存の Render Queue プリセットとして追加",
+    "key": "dialog.render_output.selected_as_preset",
+    "en": "Selected output: added as an existing Render Queue preset"
+  },
+  {
+    "jp": "選択した出力をキューに追加",
+    "key": "dialog.render_output.add_selected_to_queue",
+    "en": "Add Selected Output to Queue"
+  },
+  {
+    "jp": "配布向け。迷ったら H.264 + AAC が無難。",
+    "key": "dialog.render_output.h264_safe",
+    "en": "For distribution. H.264 + AAC is a safe choice."
+  },
+  {
+    "jp": "静止画連番。1枚ずつ透明を保てる。",
+    "key": "dialog.render_output.png_sequence_note",
+    "en": "Still image sequence. Transparency is preserved per frame."
+  },
+  {
+    "jp": "音声が必要な場合はレンダーキューで音声形式（WAV PCM）を別ジョブとして追加してください。",
+    "key": "dialog.render_output.audio_job_note",
+    "en": "If you need audio, add the audio format (WAV PCM) as a separate job in the render queue."
+  },
+  {
+    "jp": "音声の扱い:",
+    "key": "dialog.render_output.audio_handling",
+    "en": "Audio handling:"
+  },
+  {
+    "jp": "音声コーデック:",
+    "key": "dialog.render_output.audio_codec",
+    "en": "Audio codec:"
+  },
+  {
+    "jp": "音声チャンネル:",
+    "key": "dialog.render_output.audio_channels",
+    "en": "Audio channels:"
+  },
+  {
+    "jp": "音声ビットレート:",
+    "key": "dialog.render_output.audio_bitrate",
+    "en": "Audio bitrate:"
+  },
+  {
+    "jp": "高品質  •  Alpha / Straight を想定",
+    "key": "dialog.render_output.high_quality_alpha",
+    "en": "High quality  •  Assumes Alpha / Straight"
+  },
+  {
+    "jp": "高画質配布(H.264 MP4)",
+    "key": "dialog.render_output.variant_high_quality",
+    "en": "High Quality Distribution (H.264 MP4)"
+  }
+]

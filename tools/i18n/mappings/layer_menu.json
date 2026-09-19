@@ -1,0 +1,1527 @@
+[
+  {
+    "jp": "%1 → %2 に割り当てました。",
+    "key": "dialog.layer.assigned",
+    "en": "Assigned %1 → %2."
+  },
+  {
+    "jp": "1/2 画質",
+    "key": "dialog.layer.proxy_half",
+    "en": "1/2 Quality"
+  },
+  {
+    "jp": "1/4 画質",
+    "key": "dialog.layer.proxy_quarter",
+    "en": "1/4 Quality"
+  },
+  {
+    "jp": "1/8 画質",
+    "key": "dialog.layer.proxy_eighth",
+    "en": "1/8 Quality"
+  },
+  {
+    "jp": "1つ前面へ(&W)",
+    "key": "menu.layer.bring_forward",
+    "en": "Bring Forward(&W)"
+  },
+  {
+    "jp": "1つ背面へ(&B)",
+    "key": "menu.layer.send_backward",
+    "en": "Send Backward(&B)"
+  },
+  {
+    "jp": "2D パーティクル(&P)",
+    "key": "menu.layer.new_particle_2d",
+    "en": "2D Particle(&P)"
+  },
+  {
+    "jp": "2Dレイヤー(&2)",
+    "key": "menu.layer.new_2d",
+    "en": "2D Layer(&2)"
+  },
+  {
+    "jp": "2D平面と初期ボーンを作成します",
+    "key": "menu.layer.new_2d_tooltip",
+    "en": "Create a 2D plane with an initial bone."
+  },
+  {
+    "jp": "3D Boxレイヤー(&B)",
+    "key": "menu.layer.new_3d_box",
+    "en": "3D Box Layer(&B)"
+  },
+  {
+    "jp": "3D Capsuleレイヤー(&A)",
+    "key": "menu.layer.new_3d_capsule",
+    "en": "3D Capsule Layer(&A)"
+  },
+  {
+    "jp": "3D Coneレイヤー(&N)",
+    "key": "menu.layer.new_3d_cone",
+    "en": "3D Cone Layer(&N)"
+  },
+  {
+    "jp": "3D Cylinderレイヤー(&Y)",
+    "key": "menu.layer.new_3d_cylinder",
+    "en": "3D Cylinder Layer(&Y)"
+  },
+  {
+    "jp": "3D Pyramidレイヤー(&R)",
+    "key": "menu.layer.new_3d_pyramid",
+    "en": "3D Pyramid Layer(&R)"
+  },
+  {
+    "jp": "3D Sphereレイヤー(&S)",
+    "key": "menu.layer.new_3d_sphere",
+    "en": "3D Sphere Layer(&S)"
+  },
+  {
+    "jp": "3D Torusレイヤー(&T)",
+    "key": "menu.layer.new_3d_torus",
+    "en": "3D Torus Layer(&T)"
+  },
+  {
+    "jp": "3D パーティクル",
+    "key": "menu.layer.new_particle_3d",
+    "en": "3D Particle"
+  },
+  {
+    "jp": "3Dオーディオ...",
+    "key": "menu.layer.new_audio_3d",
+    "en": "3D Audio..."
+  },
+  {
+    "jp": "3Dカメラと深度を使うパーティクルレイヤーを追加します",
+    "key": "menu.layer.new_particle_3d_tooltip",
+    "en": "Add a particle layer that uses a 3D camera and depth."
+  },
+  {
+    "jp": "3Dカメラトラッキング(&T)",
+    "key": "menu.layer.camera_tracking_3d",
+    "en": "3D Camera Tracking(&T)"
+  },
+  {
+    "jp": "3Dモデルを選択",
+    "key": "dialog.layer.select_3d_model",
+    "en": "Select 3D Model"
+  },
+  {
+    "jp": "3Dモデルレイヤー(&3)...",
+    "key": "menu.layer.new_3d_model",
+    "en": "3D Model Layer(&3)..."
+  },
+  {
+    "jp": "3Dレイヤー(&3)",
+    "key": "menu.layer.new_3d",
+    "en": "3D Layer(&3)"
+  },
+  {
+    "jp": "3D平面レイヤー(&P)",
+    "key": "menu.layer.new_3d_plane",
+    "en": "3D Plane Layer(&P)"
+  },
+  {
+    "jp": "Bindless sprite batch の検証用にテクスチャ平面だけを追加します",
+    "key": "menu.layer.bindless_test_tooltip",
+    "en": "Add only texture planes to verify bindless sprite batches."
+  },
+  {
+    "jp": "Bindless テスト平面 A の追加に失敗しました。",
+    "key": "dialog.layer.bindless_test_a_failed",
+    "en": "Failed to add Bindless test plane A."
+  },
+  {
+    "jp": "Bindless テスト平面 B の追加に失敗しました。",
+    "key": "dialog.layer.bindless_test_b_failed",
+    "en": "Failed to add Bindless test plane B."
+  },
+  {
+    "jp": "Bindless テスト平面 C の追加に失敗しました。",
+    "key": "dialog.layer.bindless_test_c_failed",
+    "en": "Failed to add Bindless test plane C."
+  },
+  {
+    "jp": "Controller Learn を現在Propertyへ適用",
+    "key": "menu.layer.controller_learn_apply",
+    "en": "Apply Controller Learn to Current Property"
+  },
+  {
+    "jp": "Debug Billboard Particle を追加しました。\n\n",
+    "key": "dialog.layer.debug_billboard_added",
+    "en": "Added Debug Billboard Particle.\n\n"
+  },
+  {
+    "jp": "Debug Bindless Sprite Planes を追加しました。\n\n",
+    "key": "dialog.layer.debug_bindless_added",
+    "en": "Added Debug Bindless Sprite Planes.\n\n"
+  },
+  {
+    "jp": "Debug Particle Layer を追加しました。\n\n",
+    "key": "dialog.layer.debug_particle_added",
+    "en": "Added Debug Particle Layer.\n\n"
+  },
+  {
+    "jp": "Debug blend test layers を追加しました。\n\n",
+    "key": "dialog.layer.debug_blend_added",
+    "en": "Added Debug blend test layers.\n\n"
+  },
+  {
+    "jp": "Debug 用の合成テストレイヤーをまとめて追加します",
+    "key": "menu.layer.debug_composite_tooltip",
+    "en": "Add a set of debug layers for compositing tests."
+  },
+  {
+    "jp": "Field を反転しますか?",
+    "key": "dialog.layer.invert_field_confirm",
+    "en": "Invert the field?"
+  },
+  {
+    "jp": "Inspector を開く",
+    "key": "menu.layer.open_inspector",
+    "en": "Open Inspector"
+  },
+  {
+    "jp": "Learn 先の property を特定できませんでした。",
+    "key": "dialog.layer.learn_target_missing",
+    "en": "Could not determine the target property for Learn."
+  },
+  {
+    "jp": "Lip Sync の適用は現在のビルドでは無効化されています。",
+    "key": "dialog.layer.lipsync_disabled",
+    "en": "Lip Sync application is disabled in this build."
+  },
+  {
+    "jp": "Lip Sync を Switch Layer に適用",
+    "key": "menu.layer.apply_lipsync",
+    "en": "Apply Lip Sync to Switch Layer"
+  },
+  {
+    "jp": "Multiply テストレイヤーの追加に失敗しました。",
+    "key": "dialog.layer.multiply_test_failed",
+    "en": "Failed to add the Multiply test layer."
+  },
+  {
+    "jp": "Parameter を追加できませんでした。",
+    "key": "dialog.layer.parameter_add_failed",
+    "en": "Could not add the parameter."
+  },
+  {
+    "jp": "Parameter を追加できませんでした。既に同名の parameter がある可能性があります。",
+    "key": "dialog.layer.parameter_add_failed_dup",
+    "en": "Could not add the parameter. A parameter with the same name may already exist."
+  },
+  {
+    "jp": "ParameterをPublished Controlにする...",
+    "key": "menu.layer.parameter_publish",
+    "en": "Publish Parameter as Control..."
+  },
+  {
+    "jp": "Parametric Parameterを追加...",
+    "key": "menu.layer.parameter_add_parametric",
+    "en": "Add Parametric Parameter..."
+  },
+  {
+    "jp": "Particle レイヤーの生成に失敗しました。",
+    "key": "dialog.layer.particle_create_failed",
+    "en": "Failed to create the particle layer."
+  },
+  {
+    "jp": "Project dock が見つかりません。",
+    "key": "dialog.layer.project_dock_missing",
+    "en": "Project dock not found."
+  },
+  {
+    "jp": "ProjectService が利用できません。",
+    "key": "dialog.layer.project_service_unavailable",
+    "en": "ProjectService is unavailable."
+  },
+  {
+    "jp": "Properties を開く",
+    "key": "menu.layer.open_properties",
+    "en": "Open Properties"
+  },
+  {
+    "jp": "Proxy 画質(&Q)",
+    "key": "menu.layer.proxy_quality",
+    "en": "Proxy Quality(&Q)"
+  },
+  {
+    "jp": "Published Control を作成できませんでした。既に公開済みの可能性があります。",
+    "key": "dialog.layer.published_create_failed",
+    "en": "Could not create the Published Control. It may already be published."
+  },
+  {
+    "jp": "Published Control を更新できませんでした。",
+    "key": "dialog.layer.published_update_failed",
+    "en": "Could not update the Published Control."
+  },
+  {
+    "jp": "Published Control を解除",
+    "key": "menu.layer.published_release",
+    "en": "Release Published Control"
+  },
+  {
+    "jp": "Published Control を解除できませんでした。",
+    "key": "dialog.layer.published_release_failed",
+    "en": "Could not release the Published Control."
+  },
+  {
+    "jp": "Published Controlを編集",
+    "key": "menu.layer.published_edit",
+    "en": "Edit Published Control"
+  },
+  {
+    "jp": "Published Controlを編集...",
+    "key": "menu.layer.published_edit_dots",
+    "en": "Edit Published Control..."
+  },
+  {
+    "jp": "Published Controlを解除...",
+    "key": "menu.layer.published_release_dots",
+    "en": "Release Published Control..."
+  },
+  {
+    "jp": "SVG を読み込めませんでした。",
+    "key": "dialog.layer.svg_load_failed",
+    "en": "Could not load the SVG."
+  },
+  {
+    "jp": "SVG シェイプレイヤー(&V)...",
+    "key": "menu.layer.new_svg_shape",
+    "en": "SVG Shape Layer(&V)..."
+  },
+  {
+    "jp": "SVG ファイルを選択してください。",
+    "key": "dialog.layer.svg_select_prompt",
+    "en": "Please select an SVG file."
+  },
+  {
+    "jp": "SVGをシェイプに取り込み",
+    "key": "menu.layer.svg_import",
+    "en": "Import SVG as Shape"
+  },
+  {
+    "jp": "SVGをシェイプに取り込み...",
+    "key": "menu.layer.svg_import_dots",
+    "en": "Import SVG as Shape..."
+  },
+  {
+    "jp": "SVGを選択",
+    "key": "dialog.layer.svg_select",
+    "en": "Select SVG"
+  },
+  {
+    "jp": "SVGソースを読み込めませんでした。",
+    "key": "dialog.layer.svg_source_load_failed",
+    "en": "Could not load the SVG source."
+  },
+  {
+    "jp": "SVGソースを開けません。",
+    "key": "dialog.layer.svg_source_open_failed",
+    "en": "Could not open the SVG source."
+  },
+  {
+    "jp": "Screen テストレイヤーの追加に失敗しました。",
+    "key": "dialog.layer.screen_test_failed",
+    "en": "Failed to add the Screen test layer."
+  },
+  {
+    "jp": "Source file が見つかりません。",
+    "key": "dialog.layer.source_file_missing",
+    "en": "Source file not found."
+  },
+  {
+    "jp": "Source file を Project で選択できませんでした。",
+    "key": "dialog.layer.source_select_failed",
+    "en": "Could not select the source file in Project."
+  },
+  {
+    "jp": "X半径",
+    "key": "dialog.layer.radius_x",
+    "en": "X Radius"
+  },
+  {
+    "jp": "Y半径",
+    "key": "dialog.layer.radius_y",
+    "en": "Y Radius"
+  },
+  {
+    "jp": "composition 描画では SpriteXform packet の bindless batch を検証できます。",
+    "key": "dialog.layer.debug_composition_note",
+    "en": "Composition rendering verifies SpriteXform packet bindless batches."
+  },
+  {
+    "jp": "gradient solid planes だけで構成されるため、",
+    "key": "dialog.layer.debug_gradient_note",
+    "en": "Because it consists only of gradient solid planes,"
+  },
+  {
+    "jp": "sparkles プリセットを使うので、ビルボード描画の見え方を",
+    "key": "dialog.layer.debug_sparkles_note",
+    "en": "it uses the sparkles preset, so you can check how billboard rendering looks"
+  },
+  {
+    "jp": "このコンポジションにライブFieldはありません。",
+    "key": "dialog.layer.no_live_field",
+    "en": "This composition has no live fields."
+  },
+  {
+    "jp": "このレイヤーには既存のトラッカー #%1 が紐づいています。",
+    "key": "dialog.layer.tracker_already_linked",
+    "en": "This layer is already linked to tracker #%1."
+  },
+  {
+    "jp": "これ以上上へ移動できません。",
+    "key": "dialog.layer.cannot_move_up",
+    "en": "Cannot move up any further."
+  },
+  {
+    "jp": "これ以上下へ移動できません。",
+    "key": "dialog.layer.cannot_move_down",
+    "en": "Cannot move down any further."
+  },
+  {
+    "jp": "アクティブFieldを上へ",
+    "key": "menu.layer.field_move_up",
+    "en": "Move Active Field Up"
+  },
+  {
+    "jp": "アクティブFieldを下へ",
+    "key": "menu.layer.field_move_down",
+    "en": "Move Active Field Down"
+  },
+  {
+    "jp": "アクティブな Field がありません。先に Field を選択してください。",
+    "key": "dialog.layer.no_active_field",
+    "en": "No active field. Select a field first."
+  },
+  {
+    "jp": "アクティブコンテキストが利用できません。",
+    "key": "dialog.layer.no_active_context",
+    "en": "No active context available."
+  },
+  {
+    "jp": "オーディオ(&A)",
+    "key": "menu.layer.new_audio",
+    "en": "Audio(&A)"
+  },
+  {
+    "jp": "オーディオ(&U)...",
+    "key": "menu.layer.new_audio_dots",
+    "en": "Audio(&U)..."
+  },
+  {
+    "jp": "オーディオを選択",
+    "key": "dialog.layer.select_audio",
+    "en": "Select Audio"
+  },
+  {
+    "jp": "カメラ(&C)",
+    "key": "menu.layer.new_camera",
+    "en": "Camera(&C)"
+  },
+  {
+    "jp": "ガイド長",
+    "key": "dialog.layer.guide_length",
+    "en": "Guide Length"
+  },
+  {
+    "jp": "クイックレイヤー作成...",
+    "key": "menu.layer.quick_create",
+    "en": "Quick Layer Creation..."
+  },
+  {
+    "jp": "グラデーション半幅",
+    "key": "dialog.layer.gradient_half_width",
+    "en": "Gradient Half Width"
+  },
+  {
+    "jp": "グループを解除できませんでした。グループを選択してください。",
+    "key": "dialog.layer.ungroup_failed",
+    "en": "Could not ungroup. Select a group."
+  },
+  {
+    "jp": "グループ化",
+    "key": "menu.layer.group",
+    "en": "Group"
+  },
+  {
+    "jp": "グループ化(&G)...",
+    "key": "menu.layer.group_dots",
+    "en": "Group(&G)..."
+  },
+  {
+    "jp": "グループ名:",
+    "key": "dialog.layer.group_name",
+    "en": "Group name:"
+  },
+  {
+    "jp": "グループ解除",
+    "key": "menu.layer.ungroup",
+    "en": "Ungroup"
+  },
+  {
+    "jp": "グループ解除(&U)",
+    "key": "menu.layer.ungroup_accel",
+    "en": "Ungroup(&U)"
+  },
+  {
+    "jp": "コンポジション",
+    "key": "menu.layer.composition",
+    "en": "Composition"
+  },
+  {
+    "jp": "コンポジションが選択されていません。",
+    "key": "dialog.layer.no_composition_selected",
+    "en": "No composition selected."
+  },
+  {
+    "jp": "コンポジションをレイヤーとして追加",
+    "key": "menu.layer.add_composition",
+    "en": "Add Composition as Layer"
+  },
+  {
+    "jp": "コンポジションをレイヤーとして追加...",
+    "key": "menu.layer.add_composition_dots",
+    "en": "Add Composition as Layer..."
+  },
+  {
+    "jp": "コンポジションを追加",
+    "key": "menu.layer.add_composition_short",
+    "en": "Add Composition"
+  },
+  {
+    "jp": "コンポジション平面で動作する2Dパーティクルレイヤーを追加します",
+    "key": "menu.layer.new_particle_2d_tooltip",
+    "en": "Add a 2D particle layer that works on the composition plane."
+  },
+  {
+    "jp": "コンポジション開始",
+    "key": "menu.layer.at_composition_start",
+    "en": "At Composition Start"
+  },
+  {
+    "jp": "シェイプ(&S)",
+    "key": "menu.layer.new_shape",
+    "en": "Shape(&S)"
+  },
+  {
+    "jp": "シェイプへ取り込めませんでした。",
+    "key": "dialog.layer.shape_import_failed",
+    "en": "Could not import into the shape."
+  },
+  {
+    "jp": "シェイプをマスクにリンク",
+    "key": "menu.layer.link_shape_to_mask",
+    "en": "Link Shape to Mask"
+  },
+  {
+    "jp": "シェイプをマスクにリンク（live）",
+    "key": "menu.layer.link_shape_to_mask_live",
+    "en": "Link Shape to Mask (live)"
+  },
+  {
+    "jp": "シェイプをマスクに変換",
+    "key": "menu.layer.shape_to_mask",
+    "en": "Convert Shape to Mask"
+  },
+  {
+    "jp": "シェイプをマスクへ変換できませんでした。",
+    "key": "dialog.layer.shape_to_mask_failed",
+    "en": "Could not convert the shape to a mask."
+  },
+  {
+    "jp": "シェイプを次々作成",
+    "key": "menu.layer.create_shapes_sequentially",
+    "en": "Create Shapes One After Another"
+  },
+  {
+    "jp": "シェイプを逆順で次々作成",
+    "key": "menu.layer.create_shapes_reverse",
+    "en": "Create Shapes One After Another in Reverse"
+  },
+  {
+    "jp": "シェイプレイヤーを作成できませんでした。",
+    "key": "dialog.layer.shape_layer_create_failed",
+    "en": "Could not create the shape layer."
+  },
+  {
+    "jp": "シェイプ内容を追加できませんでした。",
+    "key": "dialog.layer.shape_content_add_failed",
+    "en": "Could not add the shape content."
+  },
+  {
+    "jp": "シャイにする",
+    "key": "menu.layer.make_shy",
+    "en": "Make Shy"
+  },
+  {
+    "jp": "シャイを切替",
+    "key": "menu.layer.toggle_shy",
+    "en": "Toggle Shy"
+  },
+  {
+    "jp": "シャイを解除",
+    "key": "menu.layer.unshy",
+    "en": "Unshy"
+  },
+  {
+    "jp": "スイッチ(&S)",
+    "key": "menu.layer.new_switch",
+    "en": "Switch(&S)"
+  },
+  {
+    "jp": "ソロにする",
+    "key": "menu.layer.make_solo",
+    "en": "Make Solo"
+  },
+  {
+    "jp": "ソロを切替",
+    "key": "menu.layer.toggle_solo",
+    "en": "Toggle Solo"
+  },
+  {
+    "jp": "ソロを解除",
+    "key": "menu.layer.unsolo",
+    "en": "Unsolo"
+  },
+  {
+    "jp": "タイムライン上で並び替えたり、不透明度を変えて合成検証できます。",
+    "key": "dialog.layer.debug_composite_note",
+    "en": "You can reorder them on the timeline and change opacity to test compositing."
+  },
+  {
+    "jp": "テキスト(&T)",
+    "key": "menu.layer.new_text",
+    "en": "Text(&T)"
+  },
+  {
+    "jp": "テキストからマスクパスを作成",
+    "key": "menu.layer.text_to_mask_path",
+    "en": "Create Mask Path from Text"
+  },
+  {
+    "jp": "テキストマスク",
+    "key": "menu.layer.text_mask",
+    "en": "Text Mask"
+  },
+  {
+    "jp": "テキストマスクを適用できませんでした。",
+    "key": "dialog.layer.text_mask_failed",
+    "en": "Could not apply the text mask."
+  },
+  {
+    "jp": "デバッグレイヤー(&D)",
+    "key": "menu.layer.debug_layers",
+    "en": "Debug Layers(&D)"
+  },
+  {
+    "jp": "デバッグ用パーティクルレイヤーの生成に失敗しました。",
+    "key": "dialog.layer.debug_particle_failed",
+    "en": "Failed to create the debug particle layer."
+  },
+  {
+    "jp": "デバッグ用ベースレイヤーの追加に失敗しました。",
+    "key": "dialog.layer.debug_base_failed",
+    "en": "Failed to add the debug base layer."
+  },
+  {
+    "jp": "トラッカー #%1 を作成してレイヤーに紐づけました。",
+    "key": "dialog.layer.tracker_created",
+    "en": "Created tracker #%1 and linked it to the layer."
+  },
+  {
+    "jp": "トラッカーを作成できませんでした。",
+    "key": "dialog.layer.tracker_create_failed",
+    "en": "Could not create the tracker."
+  },
+  {
+    "jp": "トラッキングが完了しました。カメラと特徴点レイヤーが作成されました。",
+    "key": "dialog.layer.tracking_done",
+    "en": "Tracking complete. A camera and feature-point layers were created."
+  },
+  {
+    "jp": "トラッキングに失敗しました。十分な特徴点が見つからなかった可能性があります。",
+    "key": "dialog.layer.tracking_failed",
+    "en": "Tracking failed. Not enough feature points may have been found."
+  },
+  {
+    "jp": "ヌルオブジェクト(&N)",
+    "key": "menu.layer.new_null",
+    "en": "Null Object(&N)"
+  },
+  {
+    "jp": "パーティクル(&P)",
+    "key": "menu.layer.new_particle",
+    "en": "Particle(&P)"
+  },
+  {
+    "jp": "ビルボード描画の検証用に、見やすい粒子レイヤーを追加します",
+    "key": "menu.layer.billboard_test_tooltip",
+    "en": "Add an easy-to-see particle layer to verify billboard rendering."
+  },
+  {
+    "jp": "ファイルを読み込めませんでした。",
+    "key": "dialog.layer.file_load_failed",
+    "en": "Could not load the file."
+  },
+  {
+    "jp": "ファイルを開けません(64MB上限)。",
+    "key": "dialog.layer.file_too_large",
+    "en": "Could not open the file (64MB limit)."
+  },
+  {
+    "jp": "フォーカス中の animatable property が見つかりません。",
+    "key": "dialog.layer.no_focused_property",
+    "en": "No focused animatable property found."
+  },
+  {
+    "jp": "フル画質",
+    "key": "dialog.layer.proxy_full",
+    "en": "Full Quality"
+  },
+  {
+    "jp": "プリコンポーズ",
+    "key": "menu.layer.precompose",
+    "en": "Pre-compose"
+  },
+  {
+    "jp": "プリコンポーズ(&P)...",
+    "key": "menu.layer.precompose_dots",
+    "en": "Pre-compose(&P)..."
+  },
+  {
+    "jp": "プリコンポーズに失敗しました。",
+    "key": "dialog.layer.precompose_failed",
+    "en": "Pre-compose failed."
+  },
+  {
+    "jp": "プリコンポーズの解除に失敗しました。",
+    "key": "dialog.layer.unprecompose_failed",
+    "en": "Failed to undo pre-compose."
+  },
+  {
+    "jp": "プリコンポーズを解除",
+    "key": "menu.layer.unprecompose",
+    "en": "Undo Pre-compose"
+  },
+  {
+    "jp": "プロキシを削除",
+    "key": "menu.layer.proxy_delete",
+    "en": "Delete Proxy"
+  },
+  {
+    "jp": "プロキシを生成",
+    "key": "menu.layer.proxy_create",
+    "en": "Create Proxy"
+  },
+  {
+    "jp": "プロキシを表示",
+    "key": "menu.layer.proxy_show",
+    "en": "Show Proxy"
+  },
+  {
+    "jp": "プロキシファイルを削除できませんでした。",
+    "key": "dialog.layer.proxy_delete_failed",
+    "en": "Could not delete the proxy file."
+  },
+  {
+    "jp": "プロキシフォルダを開けませんでした。",
+    "key": "dialog.layer.proxy_folder_open_failed",
+    "en": "Could not open the proxy folder."
+  },
+  {
+    "jp": "ベクターからシェイプを作成",
+    "key": "menu.layer.vector_to_shape",
+    "en": "Create Shape from Vector"
+  },
+  {
+    "jp": "ベクターレイヤーからシェイプを作成",
+    "key": "menu.layer.vector_layer_to_shape",
+    "en": "Create Shape from Vector Layer"
+  },
+  {
+    "jp": "ベジェパスを直線に戻す",
+    "key": "menu.layer.bezier_to_line",
+    "en": "Convert Bezier Path to Line"
+  },
+  {
+    "jp": "ベジェ曲線",
+    "key": "menu.layer.bezier_curve",
+    "en": "Bezier Curve"
+  },
+  {
+    "jp": "ペイントレイヤー(&R)...",
+    "key": "menu.layer.new_paint",
+    "en": "Paint Layer(&R)..."
+  },
+  {
+    "jp": "マスクとシェイプ",
+    "key": "menu.layer.mask_and_shape",
+    "en": "Mask and Shape"
+  },
+  {
+    "jp": "マスクをシェイプに変換",
+    "key": "menu.layer.mask_to_shape",
+    "en": "Convert Mask to Shape"
+  },
+  {
+    "jp": "マスクをシェイプへ変換できませんでした。",
+    "key": "dialog.layer.mask_to_shape_failed",
+    "en": "Could not convert the mask to a shape."
+  },
+  {
+    "jp": "マスクをプリセットとして保存...",
+    "key": "menu.layer.save_mask_preset",
+    "en": "Save Mask as Preset..."
+  },
+  {
+    "jp": "マスクプリセットを保存",
+    "key": "dialog.layer.mask_preset_save",
+    "en": "Save Mask Preset"
+  },
+  {
+    "jp": "マスクプリセットを保存できませんでした。",
+    "key": "dialog.layer.mask_preset_save_failed",
+    "en": "Could not save the mask preset."
+  },
+  {
+    "jp": "マスクプリセットを読み込めませんでした。",
+    "key": "dialog.layer.mask_preset_load_failed",
+    "en": "Could not load the mask preset."
+  },
+  {
+    "jp": "マスクプリセットを適用",
+    "key": "dialog.layer.mask_preset_apply",
+    "en": "Apply Mask Preset"
+  },
+  {
+    "jp": "マスクプリセットを適用...",
+    "key": "menu.layer.mask_preset_apply_dots",
+    "en": "Apply Mask Preset..."
+  },
+  {
+    "jp": "マスク化できる文字がありません。",
+    "key": "dialog.layer.no_text_to_mask",
+    "en": "There is no text that can be turned into a mask."
+  },
+  {
+    "jp": "モーショントラッカーを作成(&M)",
+    "key": "menu.layer.create_motion_tracker",
+    "en": "Create Motion Tracker(&M)"
+  },
+  {
+    "jp": "ライト(&L)",
+    "key": "menu.layer.new_light",
+    "en": "Light(&L)"
+  },
+  {
+    "jp": "ライブBox Field",
+    "key": "menu.layer.live_box_field",
+    "en": "Live Box Field"
+  },
+  {
+    "jp": "ライブBox Fieldを作成...",
+    "key": "menu.layer.live_box_field_create",
+    "en": "Create Live Box Field..."
+  },
+  {
+    "jp": "ライブFieldの順序を変更",
+    "key": "menu.layer.live_field_reorder",
+    "en": "Reorder Live Fields"
+  },
+  {
+    "jp": "ライブFieldを上へ...",
+    "key": "menu.layer.live_field_up",
+    "en": "Move Live Field Up..."
+  },
+  {
+    "jp": "ライブFieldを下へ...",
+    "key": "menu.layer.live_field_down",
+    "en": "Move Live Field Down..."
+  },
+  {
+    "jp": "ライブFieldを削除",
+    "key": "menu.layer.live_field_delete",
+    "en": "Delete Live Field"
+  },
+  {
+    "jp": "ライブFieldを削除...",
+    "key": "menu.layer.live_field_delete_dots",
+    "en": "Delete Live Field..."
+  },
+  {
+    "jp": "ライブFieldを有効/無効",
+    "key": "menu.layer.live_field_toggle",
+    "en": "Enable/Disable Live Field"
+  },
+  {
+    "jp": "ライブFieldを有効/無効...",
+    "key": "menu.layer.live_field_toggle_dots",
+    "en": "Enable/Disable Live Field..."
+  },
+  {
+    "jp": "ライブFieldを編集",
+    "key": "menu.layer.live_field_edit",
+    "en": "Edit Live Field"
+  },
+  {
+    "jp": "ライブFieldを編集...",
+    "key": "menu.layer.live_field_edit_dots",
+    "en": "Edit Live Field..."
+  },
+  {
+    "jp": "ライブFieldを選択",
+    "key": "menu.layer.live_field_select",
+    "en": "Select Live Field"
+  },
+  {
+    "jp": "ライブFieldを選択...",
+    "key": "menu.layer.live_field_select_dots",
+    "en": "Select Live Field..."
+  },
+  {
+    "jp": "ライブLinear Field",
+    "key": "menu.layer.live_linear_field",
+    "en": "Live Linear Field"
+  },
+  {
+    "jp": "ライブLinear Fieldを作成...",
+    "key": "menu.layer.live_linear_field_create",
+    "en": "Create Live Linear Field..."
+  },
+  {
+    "jp": "ライブNoise Field",
+    "key": "menu.layer.live_noise_field",
+    "en": "Live Noise Field"
+  },
+  {
+    "jp": "ライブNoise Fieldを作成...",
+    "key": "menu.layer.live_noise_field_create",
+    "en": "Create Live Noise Field..."
+  },
+  {
+    "jp": "ライブSolid Field",
+    "key": "menu.layer.live_solid_field",
+    "en": "Live Solid Field"
+  },
+  {
+    "jp": "ライブSolid Fieldを作成...",
+    "key": "menu.layer.live_solid_field_create",
+    "en": "Create Live Solid Field..."
+  },
+  {
+    "jp": "ライブ放射状Field",
+    "key": "menu.layer.live_radial_field",
+    "en": "Live Radial Field"
+  },
+  {
+    "jp": "ライブ放射状Fieldを作成...",
+    "key": "menu.layer.live_radial_field_create",
+    "en": "Create Live Radial Field..."
+  },
+  {
+    "jp": "ライン",
+    "key": "menu.layer.line",
+    "en": "Line"
+  },
+  {
+    "jp": "ラインをベジェパスに変換",
+    "key": "menu.layer.line_to_bezier",
+    "en": "Convert Line to Bezier Path"
+  },
+  {
+    "jp": "リグレイヤー(&G)",
+    "key": "menu.layer.new_rig",
+    "en": "Rig Layer(&G)"
+  },
+  {
+    "jp": "レイヤー(&L)",
+    "key": "menu.layer.label",
+    "en": "Layer(&L)"
+  },
+  {
+    "jp": "レイヤーの追加に失敗しました。",
+    "key": "dialog.layer.add_failed",
+    "en": "Failed to add the layer."
+  },
+  {
+    "jp": "レイヤーを次々作成",
+    "key": "menu.layer.create_layers_sequentially",
+    "en": "Create Layers One After Another"
+  },
+  {
+    "jp": "レイヤーを複製(&D)",
+    "key": "menu.layer.duplicate",
+    "en": "Duplicate Layer(&D)"
+  },
+  {
+    "jp": "レイヤーを逆順で次々作成",
+    "key": "menu.layer.create_layers_reverse",
+    "en": "Create Layers One After Another in Reverse"
+  },
+  {
+    "jp": "レイヤー分割(&L)",
+    "key": "menu.layer.split",
+    "en": "Split Layer(&L)"
+  },
+  {
+    "jp": "レイヤー削除",
+    "key": "menu.layer.delete",
+    "en": "Delete Layer"
+  },
+  {
+    "jp": "レイヤー削除に失敗しました。",
+    "key": "dialog.layer.delete_failed",
+    "en": "Failed to delete the layer."
+  },
+  {
+    "jp": "レイヤー名の変更",
+    "key": "menu.layer.rename",
+    "en": "Rename Layer"
+  },
+  {
+    "jp": "レイヤー名の変更に失敗しました。",
+    "key": "dialog.layer.rename_failed",
+    "en": "Failed to rename the layer."
+  },
+  {
+    "jp": "レイヤー名を変更(&R)...",
+    "key": "menu.layer.rename_dots",
+    "en": "Rename Layer(&R)..."
+  },
+  {
+    "jp": "レイヤー複製に失敗しました。",
+    "key": "dialog.layer.duplicate_failed",
+    "en": "Failed to duplicate the layer."
+  },
+  {
+    "jp": "ロックする",
+    "key": "menu.layer.lock",
+    "en": "Lock"
+  },
+  {
+    "jp": "ロックを切替",
+    "key": "menu.layer.toggle_lock",
+    "en": "Toggle Lock"
+  },
+  {
+    "jp": "ロックを解除",
+    "key": "menu.layer.unlock",
+    "en": "Unlock"
+  },
+  {
+    "jp": "一定の影響を持つ live field を作成",
+    "key": "menu.layer.live_solid_field_tooltip",
+    "en": "Create a live field with a uniform influence."
+  },
+  {
+    "jp": "三角形",
+    "key": "menu.layer.triangle",
+    "en": "Triangle"
+  },
+  {
+    "jp": "上端を揃える",
+    "key": "menu.layer.align_top",
+    "en": "Align Top"
+  },
+  {
+    "jp": "下端を揃える",
+    "key": "menu.layer.align_bottom",
+    "en": "Align Bottom"
+  },
+  {
+    "jp": "中心は元のスケールを維持します。",
+    "key": "dialog.layer.center_scale_note",
+    "en": "The center keeps its original scale."
+  },
+  {
+    "jp": "作成位置(&O)",
+    "key": "menu.layer.create_position",
+    "en": "Creation Position(&O)"
+  },
+  {
+    "jp": "保存するマスクがありません。",
+    "key": "dialog.layer.no_mask_to_save",
+    "en": "There is no mask to save."
+  },
+  {
+    "jp": "元のTransformを保ったまま、選択レイヤーへ放射状変形を適用します",
+    "key": "menu.layer.radial_warp_tooltip",
+    "en": "Apply a radial warp to the selected layers while keeping their original transform."
+  },
+  {
+    "jp": "元のTransformを保ったまま、選択レイヤーへ方向付きField変形を適用します",
+    "key": "menu.layer.directional_warp_tooltip",
+    "en": "Apply a directional field warp to the selected layers while keeping their original transform."
+  },
+  {
+    "jp": "元のTransformを保ったまま、選択レイヤーへ矩形範囲の変形を適用します",
+    "key": "menu.layer.box_warp_tooltip",
+    "en": "Apply a box-range warp to the selected layers while keeping their original transform."
+  },
+  {
+    "jp": "先にコンポジションを作成してください。",
+    "key": "dialog.layer.create_composition_first",
+    "en": "Please create a composition first."
+  },
+  {
+    "jp": "先にコンポジションを開いてください。",
+    "key": "dialog.layer.open_composition_first",
+    "en": "Please open a composition first."
+  },
+  {
+    "jp": "公開できる parameter がありません。先に parameter を追加してください。",
+    "key": "dialog.layer.no_publishable_parameter",
+    "en": "There is no publishable parameter. Add a parameter first."
+  },
+  {
+    "jp": "円弧",
+    "key": "menu.layer.arc",
+    "en": "Arc"
+  },
+  {
+    "jp": "再生ヘッド",
+    "key": "menu.layer.at_playhead",
+    "en": "At Playhead"
+  },
+  {
+    "jp": "分割するレイヤーが選択されていません。",
+    "key": "dialog.layer.no_layer_to_split",
+    "en": "No layer is selected to split."
+  },
+  {
+    "jp": "分布(&D)",
+    "key": "menu.layer.distribute",
+    "en": "Distribute(&D)"
+  },
+  {
+    "jp": "削除(&X)",
+    "key": "menu.layer.delete_accel",
+    "en": "Delete(&X)"
+  },
+  {
+    "jp": "削除できるプロキシがありませんでした。",
+    "key": "dialog.layer.no_proxy_to_delete",
+    "en": "There was no proxy to delete."
+  },
+  {
+    "jp": "削除失敗",
+    "key": "dialog.layer.delete_failed_title",
+    "en": "Delete Failed"
+  },
+  {
+    "jp": "前のFieldをアクティブ",
+    "key": "menu.layer.activate_previous_field",
+    "en": "Activate Previous Field"
+  },
+  {
+    "jp": "動画レイヤーを選択してください。",
+    "key": "dialog.layer.select_video_layer",
+    "en": "Please select a video layer."
+  },
+  {
+    "jp": "半径",
+    "key": "dialog.layer.radius",
+    "en": "Radius"
+  },
+  {
+    "jp": "双方向矢印",
+    "key": "menu.layer.double_arrow",
+    "en": "Double Arrow"
+  },
+  {
+    "jp": "右端を揃える",
+    "key": "menu.layer.align_right",
+    "en": "Align Right"
+  },
+  {
+    "jp": "同じ Control ID が既に存在します。",
+    "key": "dialog.layer.duplicate_control_id",
+    "en": "A control with the same ID already exists."
+  },
+  {
+    "jp": "四角形",
+    "key": "menu.layer.rectangle",
+    "en": "Rectangle"
+  },
+  {
+    "jp": "垂直中央を分布",
+    "key": "menu.layer.distribute_vertical_center",
+    "en": "Distribute Vertical Centers"
+  },
+  {
+    "jp": "垂直中央を揃える",
+    "key": "menu.layer.align_vertical_center",
+    "en": "Align Vertical Centers"
+  },
+  {
+    "jp": "変形ロックされていないレイヤーを2つ以上選択してください。",
+    "key": "dialog.layer.select_two_unlocked",
+    "en": "Please select at least two layers that are not transform-locked."
+  },
+  {
+    "jp": "変換可能なシェイプがありません。",
+    "key": "dialog.layer.no_convertible_shape",
+    "en": "There is no shape that can be converted."
+  },
+  {
+    "jp": "変換可能なパスがありません。",
+    "key": "dialog.layer.no_convertible_path",
+    "en": "There is no path that can be converted."
+  },
+  {
+    "jp": "変換可能なマスクパスがありません。",
+    "key": "dialog.layer.no_convertible_mask_path",
+    "en": "There is no mask path that can be converted."
+  },
+  {
+    "jp": "外側レイヤーの移動量 (%)",
+    "key": "dialog.layer.outer_layer_amount",
+    "en": "Outer layer amount (%)"
+  },
+  {
+    "jp": "外側レイヤーの移動量 (%)\n",
+    "key": "dialog.layer.outer_layer_amount_nl",
+    "en": "Outer layer amount (%)\n"
+  },
+  {
+    "jp": "多角形",
+    "key": "menu.layer.polygon",
+    "en": "Polygon"
+  },
+  {
+    "jp": "左端を揃える",
+    "key": "menu.layer.align_left",
+    "en": "Align Left"
+  },
+  {
+    "jp": "平面(&Y)...",
+    "key": "menu.layer.new_solid",
+    "en": "Solid(&Y)..."
+  },
+  {
+    "jp": "平面、マスク、入場・退場をまとめて作成します",
+    "key": "menu.layer.quick_create_tooltip",
+    "en": "Create a solid, mask, and in/out transitions together."
+  },
+  {
+    "jp": "強さ (strength)",
+    "key": "dialog.layer.strength",
+    "en": "Strength (strength)"
+  },
+  {
+    "jp": "循環参照、またはレイヤー追加により失敗しました。",
+    "key": "dialog.layer.add_failed_cycle",
+    "en": "Failed due to a circular reference or adding the layer."
+  },
+  {
+    "jp": "放射状変形",
+    "key": "menu.layer.radial_warp",
+    "en": "Radial Warp"
+  },
+  {
+    "jp": "放射状変形...",
+    "key": "menu.layer.radial_warp_dots",
+    "en": "Radial Warp..."
+  },
+  {
+    "jp": "整列(&L)",
+    "key": "menu.layer.align",
+    "en": "Align(&L)"
+  },
+  {
+    "jp": "新しい名前:",
+    "key": "dialog.layer.new_name",
+    "en": "New name:"
+  },
+  {
+    "jp": "新規(&N)",
+    "key": "menu.layer.new",
+    "en": "New(&N)"
+  },
+  {
+    "jp": "新規レイヤーをコンポジション開始に配置します",
+    "key": "menu.layer.create_at_start_tooltip",
+    "en": "Place new layers at the composition start."
+  },
+  {
+    "jp": "新規レイヤーを再生ヘッドに配置します",
+    "key": "menu.layer.create_at_playhead_tooltip",
+    "en": "Place new layers at the playhead."
+  },
+  {
+    "jp": "新規レイヤーを表示オフのまま追加します",
+    "key": "menu.layer.create_hidden_tooltip",
+    "en": "Add new layers with visibility off."
+  },
+  {
+    "jp": "方向 (degrees)",
+    "key": "dialog.layer.direction",
+    "en": "Direction (degrees)"
+  },
+  {
+    "jp": "既にliveリンク中です。",
+    "key": "dialog.layer.already_live_linked",
+    "en": "Already live-linked."
+  },
+  {
+    "jp": "星形",
+    "key": "menu.layer.polygon_star",
+    "en": "Star"
+  },
+  {
+    "jp": "最前面へ(&F)",
+    "key": "menu.layer.bring_to_front",
+    "en": "Bring to Front(&F)"
+  },
+  {
+    "jp": "最外周のスケール (%)",
+    "key": "dialog.layer.outer_scale",
+    "en": "Outermost scale (%)"
+  },
+  {
+    "jp": "最外周のスケール (%)\n",
+    "key": "dialog.layer.outer_scale_nl",
+    "en": "Outermost scale (%)\n"
+  },
+  {
+    "jp": "最後に観測した controller input がありません。address を入力してください。",
+    "key": "dialog.layer.no_controller_input",
+    "en": "There is no last observed controller input. Enter an address."
+  },
+  {
+    "jp": "最背面へ(&K)",
+    "key": "menu.layer.send_to_back",
+    "en": "Send to Back(&K)"
+  },
+  {
+    "jp": "有効",
+    "key": "menu.layer.enabled",
+    "en": "Enabled"
+  },
+  {
+    "jp": "楕円",
+    "key": "menu.layer.ellipse",
+    "en": "Ellipse"
+  },
+  {
+    "jp": "次のFieldをアクティブ",
+    "key": "menu.layer.activate_next_field",
+    "en": "Activate Next Field"
+  },
+  {
+    "jp": "正数で外側へ、負数で中心へ移動します。",
+    "key": "dialog.layer.direction_note",
+    "en": "Positive values move outward, negative values move toward the center."
+  },
+  {
+    "jp": "正方形",
+    "key": "menu.layer.square",
+    "en": "Square"
+  },
+  {
+    "jp": "水平中央を分布",
+    "key": "menu.layer.distribute_horizontal_center",
+    "en": "Distribute Horizontal Centers"
+  },
+  {
+    "jp": "水平中央を揃える",
+    "key": "menu.layer.align_horizontal_center",
+    "en": "Align Horizontal Centers"
+  },
+  {
+    "jp": "決定的なノイズ影響を持つ live field を作成",
+    "key": "menu.layer.live_noise_field_tooltip",
+    "en": "Create a live field with a deterministic noise influence."
+  },
+  {
+    "jp": "無効",
+    "key": "menu.layer.disabled",
+    "en": "Disabled"
+  },
+  {
+    "jp": "独立したデバッグ用パーティクルレイヤーを追加します",
+    "key": "menu.layer.debug_particle_tooltip",
+    "en": "Add an independent debug particle layer."
+  },
+  {
+    "jp": "現在のコンポジションを取得できません。",
+    "key": "dialog.layer.no_current_composition",
+    "en": "Could not get the current composition."
+  },
+  {
+    "jp": "異なる親を持つレイヤーは座標系が異なるため、同じ親のレイヤーだけを選択してください。",
+    "key": "dialog.layer.same_parent_required",
+    "en": "Layers with different parents use different coordinate systems; select only layers with the same parent."
+  },
+  {
+    "jp": "矢印",
+    "key": "menu.layer.arrow",
+    "en": "Arrow"
+  },
+  {
+    "jp": "破線",
+    "key": "menu.layer.dashed",
+    "en": "Dashed"
+  },
+  {
+    "jp": "確認しやすいはずです。",
+    "key": "dialog.layer.debug_visibility_note",
+    "en": "should be easier to check."
+  },
+  {
+    "jp": "等間隔に配置",
+    "key": "menu.layer.distribute_evenly",
+    "en": "Distribute Evenly"
+  },
+  {
+    "jp": "編集できる Published Control がありません。",
+    "key": "dialog.layer.no_editable_published",
+    "en": "There is no editable Published Control."
+  },
+  {
+    "jp": "衝突を自動回避",
+    "key": "menu.layer.auto_avoid_collisions",
+    "en": "Automatically Avoid Collisions"
+  },
+  {
+    "jp": "表示/非表示を切替",
+    "key": "menu.layer.toggle_visibility",
+    "en": "Toggle Visibility"
+  },
+  {
+    "jp": "表示する",
+    "key": "menu.layer.show",
+    "en": "Show"
+  },
+  {
+    "jp": "表示できるプロキシがありません。",
+    "key": "dialog.layer.no_proxy_to_show",
+    "en": "There is no proxy to show."
+  },
+  {
+    "jp": "補助レイヤー(&U)",
+    "key": "menu.layer.utility_layers",
+    "en": "Utility Layers(&U)"
+  },
+  {
+    "jp": "複数の動画レイヤーを選択してください。",
+    "key": "dialog.layer.select_multiple_video",
+    "en": "Please select multiple video layers."
+  },
+  {
+    "jp": "親を解除",
+    "key": "menu.layer.unparent",
+    "en": "Unparent"
+  },
+  {
+    "jp": "親を解除 (%1)",
+    "key": "menu.layer.unparent_named",
+    "en": "Unparent (%1)"
+  },
+  {
+    "jp": "親を選択",
+    "key": "menu.layer.select_parent",
+    "en": "Select Parent"
+  },
+  {
+    "jp": "親を選択 (%1)",
+    "key": "menu.layer.select_parent_named",
+    "en": "Select Parent (%1)"
+  },
+  {
+    "jp": "解除できる Published Control がありません。",
+    "key": "dialog.layer.no_releasable_published",
+    "en": "There is no releasable Published Control."
+  },
+  {
+    "jp": "調整レイヤー(&A)",
+    "key": "menu.layer.new_adjustment",
+    "en": "Adjustment Layer(&A)"
+  },
+  {
+    "jp": "追加できる別コンポジションがありません。",
+    "key": "dialog.layer.no_other_composition",
+    "en": "There is no other composition to add."
+  },
+  {
+    "jp": "通常の ParticleLayer とは独立したデバッグ用レイヤーです。",
+    "key": "dialog.layer.debug_particle_note",
+    "en": "This debug layer is independent of the normal ParticleLayer."
+  },
+  {
+    "jp": "選択(&E)",
+    "key": "menu.layer.select",
+    "en": "Select(&E)"
+  },
+  {
+    "jp": "選択したプリコンポーズを解除しますか？",
+    "key": "dialog.layer.confirm_unprecompose",
+    "en": "Undo the selected pre-compose?"
+  },
+  {
+    "jp": "選択レイヤーがありません。",
+    "key": "dialog.layer.no_selected_layer",
+    "en": "No layer is selected."
+  },
+  {
+    "jp": "選択レイヤーが同じ位置にあるため、Fieldを作成できません。",
+    "key": "dialog.layer.same_position_field_failed",
+    "en": "Cannot create a field because the selected layers are at the same position."
+  },
+  {
+    "jp": "選択レイヤーが同じ位置にあるため、距離に基づく変形を計算できません。",
+    "key": "dialog.layer.same_position_warp_failed",
+    "en": "Cannot compute a distance-based warp because the selected layers are at the same position."
+  },
+  {
+    "jp": "選択レイヤーと必要な Parent / Matte をまとめてソロ表示します",
+    "key": "menu.layer.solo_with_dependencies_tooltip",
+    "en": "Solo the selected layers together with their required parent / matte."
+  },
+  {
+    "jp": "選択レイヤーのプロキシを削除",
+    "key": "menu.layer.proxy_delete_selected",
+    "en": "Delete Proxy of Selected Layers"
+  },
+  {
+    "jp": "選択レイヤーのプロキシを生成",
+    "key": "menu.layer.proxy_create_selected",
+    "en": "Create Proxy for Selected Layers"
+  },
+  {
+    "jp": "選択レイヤーをグループ化できませんでした。",
+    "key": "dialog.layer.group_failed",
+    "en": "Could not group the selected layers."
+  },
+  {
+    "jp": "選択レイヤーを取得できませんでした。",
+    "key": "dialog.layer.selected_layers_unavailable",
+    "en": "Could not get the selected layers."
+  },
+  {
+    "jp": "選択中心からの距離に応じて、複数レイヤーの位置とスケールを一度だけ変更します",
+    "key": "menu.layer.radial_warp_apply_tooltip",
+    "en": "Change the position and scale of multiple layers once, based on distance from the selection center."
+  },
+  {
+    "jp": "配置(&A)",
+    "key": "menu.layer.arrange",
+    "en": "Arrange(&A)"
+  },
+  {
+    "jp": "非表示にする",
+    "key": "menu.layer.hide",
+    "en": "Hide"
+  },
+  {
+    "jp": "非表示のまま追加",
+    "key": "menu.layer.add_hidden",
+    "en": "Add Hidden"
+  },
+  {
+    "jp": "音声レイヤーと Switch Layer の両方を選択してください。",
+    "key": "dialog.layer.select_audio_and_switch",
+    "en": "Please select both an audio layer and a Switch Layer."
+  }
+]

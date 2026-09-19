@@ -1,0 +1,692 @@
+[
+  {
+    "jp": "ウィンドウパネル(&W)",
+    "key": "menu.view.window_panel",
+    "en": "Window Panels(&W)"
+  },
+  {
+    "jp": "パネルを追加／再表示",
+    "key": "menu.view.add_panel",
+    "en": "Add / Reopen Panel"
+  },
+  {
+    "jp": "Project パネル(&P)",
+    "key": "menu.view.project_panel",
+    "en": "Project Panel(&P)"
+  },
+  {
+    "jp": "Project パネル",
+    "key": "menu.view.project_panel_title",
+    "en": "Project Panel"
+  },
+  {
+    "jp": "Project パネルが見つかりません。",
+    "key": "menu.view.project_panel_not_found",
+    "en": "Project panel not found."
+  },
+  {
+    "jp": "最近使ったパネル",
+    "key": "menu.view.recent_panels",
+    "en": "Recent Panels"
+  },
+  {
+    "jp": "ナビゲーション(&N)",
+    "key": "menu.view.navigation",
+    "en": "Navigation(&N)"
+  },
+  {
+    "jp": "プレビュー(&P)",
+    "key": "menu.view.preview",
+    "en": "Preview(&P)"
+  },
+  {
+    "jp": "表示(&V)",
+    "key": "menu.view.label",
+    "en": "View(&V)"
+  },
+  {
+    "jp": "ズームイン(&I)",
+    "key": "menu.view.zoom_in",
+    "en": "Zoom In(&I)"
+  },
+  {
+    "jp": "ズームアウト(&O)",
+    "key": "menu.view.zoom_out",
+    "en": "Zoom Out(&O)"
+  },
+  {
+    "jp": "画面に合わせる(&F)",
+    "key": "menu.view.fit_to_view",
+    "en": "Fit to View(&F)"
+  },
+  {
+    "jp": "100% ズーム",
+    "key": "menu.view.zoom_100",
+    "en": "100% Zoom"
+  },
+  {
+    "jp": "解像度(&R)",
+    "key": "menu.view.resolution_label",
+    "en": "Resolution(&R)"
+  },
+  {
+    "jp": "フル画質",
+    "key": "menu.view.resolution.full",
+    "en": "Full Quality"
+  },
+  {
+    "jp": "1/2画質",
+    "key": "menu.view.resolution.half",
+    "en": "1/2 Quality"
+  },
+  {
+    "jp": "1/3画質",
+    "key": "menu.view.resolution.third",
+    "en": "1/3 Quality"
+  },
+  {
+    "jp": "1/4画質",
+    "key": "menu.view.resolution.quarter",
+    "en": "1/4 Quality"
+  },
+  {
+    "jp": "セカンドモニタープレビュー(&S)",
+    "key": "menu.view.second_monitor_preview",
+    "en": "Second Monitor Preview(&S)"
+  },
+  {
+    "jp": "セカンドモニタープレビュー",
+    "key": "menu.view.second_monitor_preview_title",
+    "en": "Second Monitor Preview"
+  },
+  {
+    "jp": "2つ目のモニターが検出されていません。\\nマルチディスプレイ環境でご利用ください。",
+    "key": "menu.view.second_monitor_not_found",
+    "en": "Second monitor not detected.\\nPlease use in a multi-display environment."
+  },
+  {
+    "jp": "グリッドとスナップ(&G)",
+    "key": "menu.view.grid_snap",
+    "en": "Grid & Snap(&G)"
+  },
+  {
+    "jp": "グリッドを表示(&G)",
+    "key": "menu.view.show_grid",
+    "en": "Show Grid(&G)"
+  },
+  {
+    "jp": "グリッドにスナップ(&S)",
+    "key": "menu.view.snap_to_grid",
+    "en": "Snap to Grid(&S)"
+  },
+  {
+    "jp": "ガイドを表示",
+    "key": "menu.view.show_guides",
+    "en": "Show Guides"
+  },
+  {
+    "jp": "コンポジション／ガイドにスナップ",
+    "key": "menu.view.snap_to_composition",
+    "en": "Snap to Composition / Guides"
+  },
+  {
+    "jp": "正面ビューでコンポジションとレイヤーの端・中心に吸着。Altで一時解除",
+    "key": "menu.view.snap_tooltip",
+    "en": "Snap to composition and layer edges/center in front view. Release with Alt."
+  },
+  {
+    "jp": "定規を表示(&R)",
+    "key": "menu.view.show_rulers",
+    "en": "Show Rulers(&R)"
+  },
+  {
+    "jp": "コンポジション境界を表示",
+    "key": "menu.view.show_composition_bounds",
+    "en": "Show Composition Bounds"
+  },
+  {
+    "jp": "セーフマージンを表示",
+    "key": "menu.view.show_safe_margins",
+    "en": "Show Safe Margins"
+  },
+  {
+    "jp": "ピクセルグリッドを表示",
+    "key": "menu.view.show_pixel_grid",
+    "en": "Show Pixel Grid"
+  },
+  {
+    "jp": "オーバーレイ(&O)",
+    "key": "menu.view.overlay",
+    "en": "Overlay(&O)"
+  },
+  {
+    "jp": "オニオンスキンを表示",
+    "key": "menu.view.onion_skin",
+    "en": "Show Onion Skin"
+  },
+  {
+    "jp": "ウェイトマップを表示",
+    "key": "menu.view.show_weight_map",
+    "en": "Show Weight Map"
+  },
+  {
+    "jp": "リグオーバーレイを表示",
+    "key": "menu.view.show_rig_overlay",
+    "en": "Show Rig Overlay"
+  },
+  {
+    "jp": "エフェクトパレット",
+    "key": "menu.view.effect_palette",
+    "en": "Effect Palette"
+  },
+  {
+    "jp": "X-Ray (透過)",
+    "key": "menu.view.xray",
+    "en": "X-Ray (Transparency)"
+  },
+  {
+    "jp": "Isolation (選択のみ)",
+    "key": "menu.view.isolation",
+    "en": "Isolation (Selection Only)"
+  },
+  {
+    "jp": "Draft (編集優先)",
+    "key": "menu.view.quality.draft",
+    "en": "Draft (Editing Priority)"
+  },
+  {
+    "jp": "Preview (標準)",
+    "key": "menu.view.quality.preview",
+    "en": "Preview (Standard)"
+  },
+  {
+    "jp": "Final (品質優先)",
+    "key": "menu.view.quality.final",
+    "en": "Final (Quality Priority)"
+  },
+  {
+    "jp": "品質プリセット(&Q)",
+    "key": "menu.view.quality_preset",
+    "en": "Quality Preset(&Q)"
+  },
+  {
+    "jp": "RAM キャッシュを有効化",
+    "key": "menu.view.ram_cache",
+    "en": "Enable RAM Cache"
+  },
+  {
+    "jp": "ディスクキャッシュを有効化",
+    "key": "menu.view.disk_cache",
+    "en": "Enable Disk Cache"
+  },
+  {
+    "jp": "ディスプレイのカラーマネジメントを使用",
+    "key": "menu.view.color_management",
+    "en": "Use Display Color Management"
+  },
+  {
+    "jp": "グリッド設定",
+    "key": "menu.view.grid_settings",
+    "en": "Grid Settings"
+  },
+  {
+    "jp": "主間隔を変更…",
+    "key": "menu.view.grid_major_interval",
+    "en": "Change Major Interval…"
+  },
+  {
+    "jp": "主間隔を変更… (%1)",
+    "key": "menu.view.grid_major_interval_value",
+    "en": "Change Major Interval… (%1)"
+  },
+  {
+    "jp": "主グリッドの分割数:",
+    "key": "menu.view.grid_major_divisions",
+    "en": "Major grid divisions:"
+  },
+  {
+    "jp": "主グリッド間隔:",
+    "key": "menu.view.grid_major_spacing",
+    "en": "Major grid spacing:"
+  },
+  {
+    "jp": "分割数を変更…",
+    "key": "menu.view.grid_subdivisions",
+    "en": "Change Subdivisions…"
+  },
+  {
+    "jp": "分割数を変更… (%1)",
+    "key": "menu.view.grid_subdivisions_value",
+    "en": "Change Subdivisions… (%1)"
+  },
+  {
+    "jp": "ズーム連動ステップ",
+    "key": "menu.view.zoom_dependent_step",
+    "en": "Zoom-Dependent Step"
+  },
+  {
+    "jp": "ズーム連動グリッド間隔",
+    "key": "menu.view.zoom_dependent_grid",
+    "en": "Zoom-Dependent Grid Interval"
+  },
+  {
+    "jp": "ズーム連動間隔を変更…",
+    "key": "menu.view.zoom_dependent_interval",
+    "en": "Change Zoom-Dependent Interval…"
+  },
+  {
+    "jp": "ズーム連動間隔を変更… (%1 px)",
+    "key": "menu.view.zoom_dependent_interval_value",
+    "en": "Change Zoom-Dependent Interval… (%1 px)"
+  },
+  {
+    "jp": "ピン留め",
+    "key": "menu.view.pin",
+    "en": "Pin"
+  },
+  {
+    "jp": "極座標グリッド",
+    "key": "menu.view.polar_grid",
+    "en": "Polar Grid"
+  },
+  {
+    "jp": "アイソメトリックグリッド",
+    "key": "menu.view.isometric_grid",
+    "en": "Isometric Grid"
+  },
+  {
+    "jp": "グリッド主間隔",
+    "key": "dialog.grid.major_interval",
+    "en": "Major Grid Interval"
+  },
+  {
+    "jp": "グリッド分割数",
+    "key": "dialog.grid.subdivisions",
+    "en": "Grid Subdivisions"
+  },
+  {
+    "jp": "ビューポート上の目標間隔 (px):",
+    "key": "dialog.grid.target_spacing",
+    "en": "Target grid spacing (px):"
+  },
+  {
+    "jp": "原点軸を表示",
+    "key": "menu.view.show_origin_axis",
+    "en": "Show Origin Axis"
+  },
+  {
+    "jp": "デフォルトレイアウトにリセット",
+    "key": "menu.view.reset_layout",
+    "en": "Reset Layout"
+  },
+  {
+    "jp": "デフォルトレイアウトを復元できません。",
+    "key": "menu.view.reset_layout_failed",
+    "en": "Could not reset layout."
+  },
+  {
+    "jp": "ワークスペース",
+    "key": "menu.view.workspace",
+    "en": "Workspace"
+  },
+  {
+    "jp": "ワークスペース(&K)",
+    "key": "menu.view.workspace_accel",
+    "en": "Workspace(&K)"
+  },
+  {
+    "jp": "ワークスペースを保存",
+    "key": "menu.view.save_workspace",
+    "en": "Save Workspace"
+  },
+  {
+    "jp": "ワークスペースを復元",
+    "key": "menu.view.restore_workspace",
+    "en": "Restore Workspace"
+  },
+  {
+    "jp": "ワークスペースの保存に失敗しました。",
+    "key": "menu.view.save_workspace_failed",
+    "en": "Failed to save workspace."
+  },
+  {
+    "jp": "最近使ったパネル",
+    "key": "menu.view.recent_panels_list",
+    "en": "Recent Panels"
+  },
+  {
+    "jp": "ユーティリティパネル",
+    "key": "menu.view.utility_panel",
+    "en": "Utility Panel"
+  },
+  {
+    "jp": "リアクティブイベントエディタ(&E)...",
+    "key": "menu.view.reactive_event_editor",
+    "en": "Reactive Event Editor(&E)…"
+  },
+  {
+    "jp": "現在のビュー設定を保存...",
+    "key": "menu.view.save_view_settings",
+    "en": "Save View Settings…"
+  },
+  {
+    "jp": "現在のレイアウトを保存...",
+    "key": "menu.view.save_layout",
+    "en": "Save Layout…"
+  },
+  {
+    "jp": "現在の選択を保存...",
+    "key": "menu.view.save_selection",
+    "en": "Save Selection…"
+  },
+  {
+    "jp": "現在のカメラを保存...",
+    "key": "menu.view.save_camera",
+    "en": "Save Camera…"
+  },
+  {
+    "jp": "ビュー設定を削除...",
+    "key": "menu.view.delete_view_settings",
+    "en": "Delete View Settings…"
+  },
+  {
+    "jp": "View Template を保存",
+    "key": "menu.view.save_view_template",
+    "en": "Save View Template"
+  },
+  {
+    "jp": "View Template を削除",
+    "key": "menu.view.delete_view_template",
+    "en": "Delete View Template"
+  },
+  {
+    "jp": "Camera ブックマークを保存",
+    "key": "menu.view.save_camera_bookmark",
+    "en": "Save Camera Bookmark"
+  },
+  {
+    "jp": "Camera ブックマークを削除...",
+    "key": "menu.view.delete_camera_bookmark",
+    "en": "Delete Camera Bookmark…"
+  },
+  {
+    "jp": "Camera ブックマーク",
+    "key": "menu.view.camera_bookmark",
+    "en": "Camera Bookmark"
+  },
+  {
+    "jp": "Camera ブックマーク(&B)",
+    "key": "menu.view.camera_bookmark_accel",
+    "en": "Camera Bookmark(&B)"
+  },
+  {
+    "jp": "Selection セット(&S)",
+    "key": "menu.view.selection_set",
+    "en": "Selection Set(&S)"
+  },
+  {
+    "jp": "Selection セット",
+    "key": "menu.view.selection_set_title",
+    "en": "Selection Set"
+  },
+  {
+    "jp": "Selection セットを保存",
+    "key": "menu.view.save_selection_set",
+    "en": "Save Selection Set"
+  },
+  {
+    "jp": "(なし)",
+    "key": "menu.view.selection_set_empty",
+    "en": "(None)"
+  },
+  {
+    "jp": "プリセット",
+    "key": "menu.view.presets",
+    "en": "Presets"
+  },
+  {
+    "jp": "プリセットを削除",
+    "key": "menu.view.delete_presets",
+    "en": "Delete Presets"
+  },
+  {
+    "jp": "プリセットを削除...",
+    "key": "menu.view.delete_presets_dialog",
+    "en": "Delete Presets…"
+  },
+  {
+    "jp": "現在のRigポーズをCapture",
+    "key": "menu.view.capture_rig_pose",
+    "en": "Capture Current Rig Pose"
+  },
+  {
+    "jp": "現在のRigポーズをSlot 1へ保存",
+    "key": "menu.view.save_rig_pose_slot1",
+    "en": "Save Current Rig Pose to Slot 1"
+  },
+  {
+    "jp": "Rig Pose Slotを消去",
+    "key": "menu.view.clear_rig_pose_slot",
+    "en": "Clear Rig Pose Slot"
+  },
+  {
+    "jp": "Rig Pose Slot 1を適用 (50%)",
+    "key": "menu.view.apply_rig_pose_slot1",
+    "en": "Apply Rig Pose Slot 1 (50%)"
+  },
+  {
+    "jp": "セット名を入力してください",
+    "key": "menu.view.enter_set_name",
+    "en": "Please enter a set name."
+  },
+  {
+    "jp": "テンプレート名を入力してください",
+    "key": "menu.view.enter_template_name",
+    "en": "Please enter a template name."
+  },
+  {
+    "jp": "削除するテンプレートを選択してください",
+    "key": "menu.view.select_template_to_delete",
+    "en": "Select a template to delete."
+  },
+  {
+    "jp": "削除するブックマークを選択してください",
+    "key": "menu.view.select_bookmark_to_delete",
+    "en": "Select a bookmark to delete."
+  },
+  {
+    "jp": "削除するプリセットを選択してください",
+    "key": "menu.view.select_preset_to_delete",
+    "en": "Select a preset to delete."
+  },
+  {
+    "jp": "削除できるビュー設定がありません。",
+    "key": "menu.view.no_deletable_view_settings",
+    "en": "No deletable view settings."
+  },
+  {
+    "jp": "削除できるブックマークがありません。",
+    "key": "menu.view.no_deletable_bookmarks",
+    "en": "No deletable bookmarks."
+  },
+  {
+    "jp": "削除できるプリセットがありません。",
+    "key": "menu.view.no_deletable_presets",
+    "en": "No deletable presets."
+  },
+  {
+    "jp": "ビュー設定の保存に失敗しました。",
+    "key": "menu.view.save_view_settings_failed",
+    "en": "Failed to save view settings."
+  },
+  {
+    "jp": "ビュー設定の削除に失敗しました。",
+    "key": "menu.view.delete_view_settings_failed",
+    "en": "Failed to delete view settings."
+  },
+  {
+    "jp": "ビュー設定「%1」を読み込めませんでした。",
+    "key": "menu.view.load_view_settings_failed",
+    "en": "Failed to load view settings '%1'."
+  },
+  {
+    "jp": "ビュー設定「%1」の復元に失敗しました。",
+    "key": "menu.view.restore_view_settings_failed",
+    "en": "Failed to restore view settings '%1'."
+  },
+  {
+    "jp": "ビュー設定「%1」を削除しますか？",
+    "key": "menu.view.delete_view_settings_confirm",
+    "en": "Delete view settings '%1'?"
+  },
+  {
+    "jp": "ブックマークの保存に失敗しました。",
+    "key": "menu.view.save_bookmark_failed",
+    "en": "Failed to save bookmark."
+  },
+  {
+    "jp": "ブックマークの削除に失敗しました。",
+    "key": "menu.view.delete_bookmark_failed",
+    "en": "Failed to delete bookmark."
+  },
+  {
+    "jp": "ブックマーク「%1」を読み込めませんでした。",
+    "key": "menu.view.load_bookmark_failed",
+    "en": "Failed to load bookmark '%1'."
+  },
+  {
+    "jp": "ブックマーク「%1」の復元に失敗しました。",
+    "key": "menu.view.restore_bookmark_failed",
+    "en": "Failed to restore bookmark '%1'."
+  },
+  {
+    "jp": "ブックマーク「%1」を削除しますか？",
+    "key": "menu.view.delete_bookmark_confirm",
+    "en": "Delete bookmark '%1'?"
+  },
+  {
+    "jp": "ブックマーク名を入力してください",
+    "key": "menu.view.enter_bookmark_name",
+    "en": "Please enter a bookmark name."
+  },
+  {
+    "jp": "プリセットの保存に失敗しました。",
+    "key": "menu.view.save_preset_failed",
+    "en": "Failed to save preset."
+  },
+  {
+    "jp": "プリセットの削除に失敗しました。",
+    "key": "menu.view.delete_preset_failed",
+    "en": "Failed to delete preset."
+  },
+  {
+    "jp": "プリセットの復元に失敗しました。",
+    "key": "menu.view.restore_preset_failed",
+    "en": "Failed to restore preset."
+  },
+  {
+    "jp": "プリセット「%1」を削除しますか？",
+    "key": "menu.view.delete_preset_confirm",
+    "en": "Delete preset '%1'?"
+  },
+  {
+    "jp": "プリセット名を入力してください",
+    "key": "menu.view.enter_preset_name",
+    "en": "Please enter a preset name."
+  },
+  {
+    "jp": "Selection set の保存に失敗しました。",
+    "key": "menu.view.save_selection_set_failed",
+    "en": "Failed to save selection set."
+  },
+  {
+    "jp": "Selection set「%1」を読み込めませんでした。",
+    "key": "menu.view.load_selection_set_failed",
+    "en": "Failed to load selection set '%1'."
+  },
+  {
+    "jp": "保存先のコンポジションまたは viewport が見つかりません。",
+    "key": "menu.view.viewport_not_found",
+    "en": "Viewport or composition not found for destination."
+  },
+  {
+    "jp": "保存先のコンポジションまたは選択が見つかりません。",
+    "key": "menu.view.destination_not_found",
+    "en": "Destination composition or selection not found."
+  },
+  {
+    "jp": "削除対象のコンポジションが見つかりません。",
+    "key": "menu.view.composition_not_found",
+    "en": "Composition to delete not found."
+  },
+  {
+    "jp": "現在の viewport 状態を取得できませんでした。",
+    "key": "menu.view.viewport_state_not_found",
+    "en": "Could not get current viewport state."
+  },
+  {
+    "jp": "現在の viewport 設定を取得できませんでした。",
+    "key": "menu.view.viewport_settings_not_found",
+    "en": "Could not get current viewport settings."
+  },
+  {
+    "jp": "現在の選択を取得できませんでした。",
+    "key": "menu.view.selection_not_found",
+    "en": "Could not get current selection."
+  },
+  {
+    "jp": "復元できるセッションがありません。",
+    "key": "menu.view.no_session_to_restore",
+    "en": "No session to restore."
+  },
+  {
+    "jp": "復元先の viewport が見つかりません。",
+    "key": "menu.view.restore_viewport_not_found",
+    "en": "Viewport to restore not found."
+  },
+  {
+    "jp": "最後のセッションを復元",
+    "key": "menu.view.restore_last_session",
+    "en": "Restore Last Session"
+  },
+  {
+    "jp": "新規アセットブラウザ(&A)",
+    "key": "menu.view.new_asset_browser",
+    "en": "New Asset Browser(&A)"
+  },
+  {
+    "jp": "お気に入り",
+    "key": "menu.view.favorite",
+    "en": "Favorite"
+  },
+  {
+    "jp": "Major グリッドを表示",
+    "key": "menu.view.grid_show_major",
+    "en": "Show Major Grid"
+  },
+  {
+    "jp": "Minor グリッドを表示",
+    "key": "menu.view.grid_show_minor",
+    "en": "Show Minor Grid"
+  },
+  {
+    "jp": "グリッド数値を表示",
+    "key": "menu.view.grid_show_numbers",
+    "en": "Show Grid Numbers"
+  },
+  {
+    "jp": "カラーパレット(&P)",
+    "key": "menu.view.color_palette",
+    "en": "Color Palette(&P)"
+  },
+  {
+    "jp": "Camera ブックマークを削除",
+    "key": "menu.view.camera_bookmark_delete",
+    "en": "Delete Camera Bookmark"
+  },
+  {
+    "jp": "カメラブックマークを削除...",
+    "key": "menu.view.delete_camera_bookmark_dots",
+    "en": "Delete Camera Bookmark..."
+  }
+]
