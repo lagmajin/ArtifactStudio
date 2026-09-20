@@ -189,6 +189,7 @@ def main() -> int:
     alternation = "|".join(re.escape(e["jp"]) for e in sorted_map)
     pattern = re.compile(
         r'QStringLiteral\s*\(\s*"(' + alternation + r')"\s*\)'
+        r'|u8"(' + alternation + r')"'
         r'|"(' + alternation + r')"'
     )
 
@@ -205,7 +206,7 @@ def main() -> int:
         return before.endswith('"') or after.startswith('"')
 
     def replacer(m):
-        text = m.group(1) or m.group(2)
+        text = m.group(1) or m.group(2) or m.group(3)
         if is_protected(m.start()):
             return m.group(0)
         if is_concatenated(m.start(), m.end()):
