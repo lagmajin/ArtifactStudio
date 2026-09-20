@@ -1,6 +1,35 @@
 # DCC button color comparison
 
-**最終更新:** 2026-09-12
+**最終更新:** 2026-09-20
+
+## External JSON theme keys (2026-09-20)
+
+`ArtifactCore::loadDCCThemePresetFromFile()` が読むキー一覧。見本は
+`theme-external-sample-2026-09-20.json` (Studio基準の全20キー)。
+`base` は `DccStylePreset` 名 (`Studio`/`Maya`/...) で、欠落キーは
+`getDCCTheme(base)` の派生既定値で補完される。無効な色文字列は無視。
+
+| キー | 旧キー (互換) | 用途 |
+|---|---|---|
+| `base` | — | 派生元プリセット名 |
+| `accentColor` | — | 主操作・選択の強調 |
+| `textColor` | — | 通常文字 |
+| `textMutedColor` | — | 補助文字 (#888相当) |
+| `textSecondaryColor` | — | 二次文字 (#aaa相当) |
+| `backgroundColor` | — | 面背景 |
+| `secondaryBackgroundColor` | — | 二次背景 |
+| `trackBackgroundColor` | — | トラック内容 (#1e1e1e相当) |
+| `placeholderBackgroundColor` | — | メディア placeholder (#1a1a1a相当) |
+| `inputBackgroundColor` | — | 入力欄背景。`QPalette::Base` に反映 |
+| `selectionColor` | — | 選択範囲 |
+| `borderColor` | — | 境界線 |
+| `borderSubtleColor` | — | 細境界 (#555相当) |
+| `buttonColor`/`buttonHoverColor`/`buttonPressedColor` | — | ボタン面の状態 |
+| `buttonInfoColor` | — | 情報ボタン (Pr proxy create相当)。通常ボタン・Warning/Danger/Successには流用しない |
+| `buttonSuccessColor` | — | 成功ボタン (Pr proxy use相当)。同上 |
+| `sliderHandleColor` | — | スライダー handle |
+| `focusRingColor` | — | keyboard-focus 外周リング。accent上書き時は未指定ならaccent派生 |
+| `disabledTextColor` | — | 無効時文字。`Disabled/{WindowText,Text,ButtonText}` に反映 |
 
 ## Scope and evidence
 

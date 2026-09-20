@@ -1,0 +1,23 @@
+{
+  "base": "Studio",
+  "accentColor": "#E4B76C",
+  "textColor": "#EEF1F5",
+  "textMutedColor": "#888888",
+  "textSecondaryColor": "#AAAAAA",
+  "backgroundColor": "#24272D",
+  "secondaryBackgroundColor": "#30343B",
+  "trackBackgroundColor": "#1E1E1E",
+  "placeholderBackgroundColor": "#1A1A1A",
+  "inputBackgroundColor": "#2B3038",
+  "selectionColor": "#45505A",
+  "borderColor": "#4A515C",
+  "borderSubtleColor": "#555555",
+  "buttonColor": "#32363D",
+  "buttonHoverColor": "#3A4048",
+  "buttonPressedColor": "#292D33",
+  "buttonInfoColor": "#4A6A8A",
+  "buttonSuccessColor": "#4A8A4A",
+  "sliderHandleColor": "#4A9EFF",
+  "focusRingColor": "#8FBAFF",
+  "disabledTextColor": "#808080"
+}
