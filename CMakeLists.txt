@@ -155,8 +155,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 endif()
 
 # CMake 4.3 does not yet populate __cmake_cxx_std_23 for MSVC 14.51, leaving
-# that target without sources. Build the MSVC standard module explicitly and
-# keep the existing /reference;std=... contract for local C++20 modules.
+# that target without sources. Build the MSVC standard module explicitly; the
+# reference is attached later only to sources that directly import `std`.
 if(MSVC AND ARTIFACT_MSVC_MODULES_JSON)
     set(ARTIFACT_USE_EXPLICIT_STD_IFC ON CACHE BOOL
         "Use the project-owned MSVC std IFC producer" FORCE)
@@ -700,6 +700,48 @@ add_subdirectory(artifacts-plugin-runner)
 # Native dock surface is the supported application path.
 if(ARTIFACT_BUILD_PR)
     add_subdirectory(ArtifactPr)
+endif()
+
+# The explicit MSVC std.ifc is needed only by translation units that directly
+# import the named standard-library module.  Do not place it on an entire
+# target: modules that include STL headers in their global module fragment
+# would then mix two representations of the same standard-library entities
+# when importing their IFCs (MSVC C1116, commonly reported in stop_token).
+if(MSVC AND ARTIFACT_USE_EXPLICIT_STD_IFC AND _artifact_std_ifc)
+    get_property(_artifact_all_child_directories DIRECTORY PROPERTY SUBDIRECTORIES)
+    foreach(_artifact_child_directory IN LISTS _artifact_all_child_directories)
+        get_property(_artifact_child_targets
+            DIRECTORY "${_artifact_child_directory}" PROPERTY BUILDSYSTEM_TARGETS)
+        foreach(_artifact_target IN LISTS _artifact_child_targets)
+            if(NOT _artifact_target MATCHES "^Artifact")
+                continue()
+            endif()
+            get_target_property(_artifact_target_type ${_artifact_target} TYPE)
+            if(NOT _artifact_target_type MATCHES
+               "^(EXECUTABLE|STATIC_LIBRARY|SHARED_LIBRARY|MODULE_LIBRARY|OBJECT_LIBRARY)$")
+                continue()
+            endif()
+            get_target_property(_artifact_target_sources ${_artifact_target} SOURCES)
+            foreach(_artifact_source IN LISTS _artifact_target_sources)
+                if(NOT IS_ABSOLUTE "${_artifact_source}")
+                    get_filename_component(_artifact_source
+                        "${CMAKE_CURRENT_SOURCE_DIR}/${_artifact_source}" ABSOLUTE)
+                endif()
+                if(NOT EXISTS "${_artifact_source}")
+                    continue()
+                endif()
+                file(STRINGS "${_artifact_source}" _artifact_import_std_lines
+                    REGEX "^[ \t]*import[ \t]+std[ \t]*;")
+                if(NOT _artifact_import_std_lines)
+                    continue()
+                endif()
+                set_property(SOURCE "${_artifact_source}" APPEND PROPERTY
+                    COMPILE_OPTIONS "/reference;std=${_artifact_std_ifc}")
+                set_property(SOURCE "${_artifact_source}" APPEND PROPERTY
+                    OBJECT_DEPENDS "${_artifact_std_ifc}")
+            endforeach()
+        endforeach()
+    endforeach()
 endif()
 
 # CMake's native __CMAKE::CXX23 provider and the project-owned MSVC std.ifc
