@@ -1,4 +1,24 @@
-**最終更新:** 2026-09-17
+**最終更新:** 2026-09-20
+
+## 2026-09-20 — Detached Task 実装中に判明した既存構造の前提違い
+
+- **関連:** `Artifact/src/AI/AIClient.cppm`（`tryHandleToolCallResponse` `:241-262`、`runCloudChatWithToolLoop` `:354-420`）、`Artifact/src/Widgets/AI/ArtifactAICloudWidget.cppm`（承認ダイアログ）、`Artifact/src/Undo/UndoManager.cppm`（`push` `:4799-4810`、`beginActionRecording` `:4822`、`endActionRecording` `:4831`、`cancelActionRecording` `:4845`）、`Artifact/include/AI/WorkspaceAutomation.ixx:3660-3668`、`Artifact/include/AI/AgentApprovalPolicy.ixx`（本作業で新規）、`docs/planned/MILESTONE_DETACHED_TASK_2026-09-20.md`
+- **確認できた事実（静的読み取り）:**
+  - `AIClient` のツールループは承認を一切通さず `ToolBridge::executeToolCall` を実行する。承認判定を持つのは `ArtifactAICloudWidget` の経路だけ。したがって「承認を尊重する非モーダルな AI ツールループ」は現存しない。
+  - `beginActionRecording` / `endActionRecording` は名前に反して Undo をまとめない。記録中も 1 コマンド = 1 履歴で push され、`endActionRecording` は 5〜10 件のシリアライズ済みコマンドを JSON で返すだけ（リプレイ用の観測機構）。5 件未満・11 件以上・非シリアライズ可では空を返す。`cancelActionRecording` は適用済み変更を戻さない。複数コマンドを 1 Undo ステップへまとめる「push 保留」機構は存在しない。
+  - `delete_layer` は `WorkspaceAutomation::removeLayerFromCurrentComposition`（`:3660-3668`）を通り、確認 gate を通らない。`SafeWriteRemovalGate` が入っているのは `*Confirmed` 系 6 メソッドのみ。
+  - コマンド実行（`WorkspaceAutomation::executeCommand`）は Qt ウィジェット・Undo・各サービスを触るため UI スレッド必須。`Core.Thread.BackgroundTaskWorkerPool` の worker thread からは実行できない。
+  - `ToolApprovalMode` と `isReadOnlyToolCall` は `ArtifactAICloudWidget.cppm` の匿名 namespace に閉じており他から再利用できなかった。read-only 判定も二重で、`isReadOnlyToolCall` はツールメソッド名の接頭辞、`CommandIR::isReadOnlyType` は語彙の完全一致。
+- **価値または懸念:** 承認が UI ウィジェット側にしかなく、`AIClient` 経由のツール実行は無承認で通る。自動化経路を増やすたびに承認が漏れる構造なので、承認判定は共通モジュールへ寄せ、呼び出し側ではなく実行経路で強制するのが望ましい。`delete_layer` が確認 gate の外にあることも、安全契約の適用が `*Confirmed` 系に偏っていることを示す。
+- **次に確認:** `AIClient` 経由のツール実行が実際に無承認で書込みを行うこと（実機で承認設定を `AskEveryTime` にし、`AIChatWidget` から書込み系ツールを呼ぶ）。既存コードに `BackgroundTaskWorkerPool` の worker thread から `WorkspaceAutomation` を呼ぶ箇所が無いこと。
+
+## 2026-09-19 — VP操作時にキー時刻スケールが実ストレージとずれるとキー付きフレームへ書けない
+
+- **関連:** `Artifact/src/Widgets/Render/TransformGizmo.cppm`（`captureTransformSnapshot`、`transformKeyframeTimeAtFrame`、`beginHandleDrag`、`handleMouseRelease`）、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`（`gizmoTransformTime`）、`Artifact/src/Widgets/Render/ArtifactCompositionGizmoUndoCommands.cppm`（`transformTime`）、`ArtifactCore/src/Animation/AnimatableTransform3D.cppm`（`setRotation` は `offset_=initialRotation_` を加算）、`Artifact/src/Layer/ArtifactAbstractLayer.cppm:2046`（`setComposition` が `setKeyframeTimeScale`）。
+- **確認できた事実（静的読み取り）:** キーは `AnimatableTransform3D::timeScale_`（層が composition へ参加する時点の `FrameRate::storageScaleForFps(fps,24)`）へ保存される。一方 VP 側のドラッグ・Undo・キャンセルはコンポジション fps から `storageScaleForFps` を再計算していた。両者が一致しない場合（例: 29.97fps で旧タイムラインが作った 29 scale のキー、fps 変更前に作られたキー、保存データの移行前キー）、`captureGizmoPropertyKeys`/`has*KeyFrameAt` の厳密比較が既存キーを見つけられず、`setInitialPosition` 系の分岐へ落ちて「そのフレームのキーが更新されない」状態になる。`setKeyframeTimeScale` は spatial tangent は再スケールするが既存キー時刻は書き換えないため、fps 変更後のキーは自動移行されない。
+- **対応:** レイヤー自身がキー時刻ドメインの唯一の定義を持つようにした（`ArtifactAbstractLayer::keyframeTimeScale()` / `keyframeTimeAtFrame(frame)` / `currentKeyframeTime()`、`Artifact/include/Layer/ArtifactAbstractLayer.ixx` に宣言）。VP 側の時刻生成を、コンポジション fps からの再計算ではなくこの API へ統一した: `TransformGizmo`（`transformKeyframeTimeAtFrame`、`multiDragState_->timeScale`、`captureTransformSnapshot`、未使用の `effectiveTransformKeyframeRate` と `import Frame.Rate` を削除）、`ArtifactCompositionRenderController`（`gizmoTransformTime`）、`ArtifactCompositionGizmoUndoCommands` / `ArtifactCompositionEditUndoCommands` / `ArtifactCompositionLayerUndoCommands`（各 `transformTime`。Edit/Layer の2件は double fps をそのまま `RationalTime` へ渡す**切り捨て**バグも同時に解消）。`TransformSnapshot` も同ドメインの frame/timeScale を保持するため Undo・Redo・キャンセルが同じ時刻を指す。加えて `TransformGizmo::handleMouseRelease` で最終状態の `changed()` と `LayerChangedEvent` を1回発行する（ドラッグ中の通知は 33ms スロットルのため、最後の書き込みがタイムライン／Inspector に届かない経路があった）。回帰テスト `Artifact/src/Test/ArtifactTestPropertyKeyframe.cppm` に 29.97fps のキー付きフレーム更新、レイヤー API 一致、`setFrameRate` によるドメイン再ピン留め（キー時刻は移動しない）のケースを追加。`ArtifactTextGizmo` の `textAuthoringTimeScale` はテキストプロパティ（Transform3D チャンネル外）の時刻でありコンポ fps が正のため現状維持。
+- **未検証:** ビルド・実機確認は未実施（ユーザー指示待ち）。ユーザー報告の再現条件（コンポ fps、fps 変更の有無、Auto-Key 状態、キーの作成元が左ペイン／タイムライン／過去の VP ドラッグのどれか）は未確認。2026-09-17 の項目で挙げた「シーク未反映時に編集が直前フレームへ書く」可能性（`gizmoUndoFrame_` は `comp->framePosition()` を読む）は今回の変更では扱っていない。
+- **次に確認:** 30fps と 29.97fps の両方で「既存キーありフレームでの VP ドラッグ」→ キー値更新、キー数不変、Undo/Redo 一致を比較する。再現が続く場合は `gizmoUndoFrame_` と UI プレイヘッドの一致（seek 完了契約）を次の候補として調べる。残る重複: タイムライン左ペイン（`ArtifactLayerPanelWidget`）と `ArtifactTimelineTrackPainterView` は Transform3D チャンネル以外（opacity 等）の時刻も同じ算出で作っており、これらは Transform3D ドメインとは無関係なため今回の対象外。
 
 ## 2026-09-17 — Core キーフレーム監査: 保存時刻と評価時刻の契約を分離しない
 
@@ -1746,3 +1766,49 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** snapshot単位で`ArtifactCore::TextStyle`を1つ再利用し、ラベルのpixel sizeだけ更新して既存`drawGlyphText()`へ渡すようにした。
 - **価値または懸念:** ラベル数に比例する小さな一時オブジェクト生成を抑え、既存glyph atlasのキャッシュ契約を維持する。フォント選択やラベル内容の意味は変更しない。
 - **次に確認すること:** ビルド許可後、clip／markerの異なるpixel sizeが混在するケースで表示とglyph cache更新が正しいことを確認する。
+
+## 2026-09-19 — i18n hardening 進捗: 翻訳キー移行と共通ラッパーの二重化
+
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactFileMenu.cppm`（完了）、
+  `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm`・`ArtifactRenderMenu.cppm`（残6＋12を `TranslationManager::instance().tr(key, fallback)` 化）、
+  `ArtifactCore/src/Localization/Localization.cppm`（連鎖フォールバック + 複数形 helper）、
+  `tools/i18n/migrate_remaining_menus.py`（自動移行スクリプト）。
+- **確認できた事実:** 4メニューファイルのうち `ArtifactFileMenu.cppm`・`ArtifactViewMenu.cppm` は翻訳可能なハードコード日本語0行。`ArtifactLayerMenu.cppm` 残4行は開発者コメント（翻訳対象外）、`ArtifactRenderMenu.cppm` 残2行もコメント。監査は `Keys used 1121 / Expected 1344, Coverage 100%` を維持。`--min-coverage 95` は `.github/workflows/i18n-check.yml` で既に設定済み。
+- **懸念／仮説（未検証）:** 各メニューファイルで `static QString tt()`/`static QString menuText()` が独自に再定義されているが、名前は重複している。`tt()` は `TranslationManager::tr(key, fallback)` の薄いラッパー（フォールバックを必須にするだけ）で、`menuText()` は `tt()` に同じ。これらを `Core.Localization` の `inline` ヘルパーへ集約すれば、ハードコード移行の指示ミス（ラッパー定義忘れ）をコンパイルエラーで検知できる。ただし集約は呼び出しを大幅に書き換えるため、ビルド検証後に別フェーズで実施。
+- **次に確認:** ビルド許可後、`tr(key, fallback)` の fallback を含む新規キー18が en/ja JSON に正しく載り、`added_to_queue` の `%1 ... .arg(added)` チェーンが維持されていることをコンパイル＋監査で確みめる。
+## 2026-09-19 — 2Dフレームギズモの拡縮ゴースト基盤
+
+- **関連:** `Artifact/src/Widgets/Render/TransformGizmo.cppm`、Composition Viewport の2D拡縮オーバーレイ。
+- **確認済み事実:** 2D TransformGizmo はドラッグ開始時の global transform／local bounds／canvas bounding box を既に保持し、拡縮中の破線ゴースト、サイズバッジ、スマートガイド、Undo境界まで同じ所有者で扱っていた。新しいオーバーレイサービスやイベント配線は不要だった。
+- **対応:** 元枠ゴーストを固定低透明度へ変更し、バッジを操作ハンドル外側へ配置。現在サイズ、X/Y倍率、幅・高さ差分、中央基準時の Anchor 表示を既存の `ArtifactIRenderer` 描画内へ統合した。
+- **価値／懸念:** GPU資源・同期・レンダリング本流を変えずに操作フィードバックを強化できる。一方、表示値は既存 `targetBox` のcanvas-space寸法であり、回転レイヤーや特殊なsource-size編集でユーザーが期待する「素材ピクセル寸法」と一致するかは実機確認が必要。ドラッグ中の `QString` 更新は既存方式を踏襲しており、アロケーション実測は未実施。
+- **次に確認:** 回転済み平面、辺／角／中央ハンドル、複数選択、Shiftによる初期サイズ編集、ズーム端、画面端でのHUDクランプを実機で確認する。
+
+## 2026-09-19 — i18n: 言語切替のオンデマンド再翻訳はメニューの aboutToShow で既に成立していた
+
+- **関連:** `ArtifactCore/src/Localization/Localization.cppm`（`setLanguage` → `LocaleChangedEvent` 発火、`fallbackChainFor`、`pluralCategoryFor`）、`ArtifactCore/include/Utils/Localization.ixx`（`LocaleChangedEvent` / `TranslationsReloadedEvent`）、`Artifact/src/Widgets/Dialog/ApplicationSettingDialog.cppm`（`GeneralSettingPage::saveSettings`）、`Artifact/src/Widgets/Menu/*.cppm`（全メニューが `QMenu::aboutToShow` で `rebuildMenu()`）。
+- **確認できた事実:** `ArtifactFileMenu` を除く全メニュー（View/Edit/Layer/Render/Time/Option/Script/Composition 等）が `aboutToShow` で `rebuildMenu()` を呼ぶ。したがって「設定 OK でアクティブ言語を切り替える」だけで、次にメニューを開いた時点で新言語のラベルになる。購読者を各メニューへ新規配線する必要はなく、`LocaleChangedEvent` は将来の即時再翻訳（常時表示UI・ステータスバー等）用の通知として用意した。
+- **対応:** `ArtifactAppSettings` に `General/LanguageCode` を追加し、環境設定の Language セレクタで保存。`saveSettings` で保存＋`LocalizationManager::setLanguageCode()` 即時適用。起動時は `--lang` > 保存設定 > システムロケール > `en` の順で確定し、`[AppMain] Language decided: <code> by <reason>` を1行出力。
+- **価値／懸念:** 言語切替の即時反映を新しいシグナル／スロット配線なしで実現できる（既存の `aboutToShow` 再構築に乗る）。一方、メニューバーのトップレベルやステータスバーなど「常時表示で再構築されない」UIは次回起動まで旧言語が残り得る。また `LocalizationManager` に `QReadWriteLock` と `Event.Bus` 依存が入ったため、**コンパイル未検証**（AGENTS.md のビルド禁止による）。ロックは `translate()` の読取、`loadFromDirectory`/`reload`/`addTranslation`/`clearTranslations` の書込に限定し、`loadFromFile` は呼出側がロック済み前提（再入デッドロック回避）。
+- **次に確認:** ビルド許可後、`QReadWriteLock` の再入（`translatePlural` → `translate` / `pluralCategory` の読取ロック重複）が Qt の仕様どおり安全か、`reload()` 中の `availableLocales()` 呼出がデッドロックしないかを確認する。常時表示UIの再翻訳は `retranslateUi` 相当の所有者責務を決めてから着手する。
+
+## 2026-09-19 — i18n: 同一性比較に使う表示文字列は「同じキー」で両側を翻訳しないと壊れる
+
+- **関連:** `Artifact/src/Widgets/Dialog/ArtifactImportAssetsDialog.cppm:72`（`group.title == QStringLiteral("連番")` の比較）と `:689`（`ImportGroup sequences{QStringLiteral("連番")}` の構築）。
+- **確認できた事実:** `ImportGroup.title` は UI 表示ラベルでありながら、ツールチップ判定で `== "連番"` の同一性比較にも使われていた。片側だけを翻訳するとロケールによって一致しなくなる。両側を同じキー `import.group.sequence` で `tr()` 化したため、どのロケールでも比較が成立する。
+- **価値または懸念:** i18n 移行時の典型的な罠。表示文字列を識別子として流用している箇所（グループ名・種別名の `==` 比較、`switch` の対象、保存値との照合）は、単に `tr()` で包むと壊れる。移行前に「この文字列は表示専用か、識別子も兼ねているか」を必ず確認し、識別子兼用なら同じキーで両側を揃えるか、enum/ID へ置き換えるべき。
+- **次に確認（実施済み 2026-09-19）:** 横断検索の結果、`==` による日本語識別子比較は次の3ファイルに限られる。
+  - `Artifact/src/Widgets/ArtifactMainWindow.cppm:1562-1696`（`toolName == "ブラシ" / "消しゴム" / "コピースタンプ" / "モーションスケッチ" / "テキスト"`）
+  - `Artifact/src/Widgets/ArtifactToolOptionsBar.cppm:1136-1507`（`toolName == "選択" / "移動" / "回転" / "スケール" / "アンカー" / "ペン" / "シェイプ" / "楕円" / "テキスト" / "モーションスケッチ" / "ブラシ" / "コピースタンプ" / "消しゴム"`、`primaryLabel == "点数" / "辺数"`）
+  - `Artifact/src/Widgets/ArtifactLooksPresetBrowser.cppm:895`（`activeLibrary_ == "お気に入り"`）
+  `startsWith` / `contains` / `endsWith` / `compare` に日本語リテラルを渡す箇所は0件。
+  **結論:** これら3ファイルはツール名／ライブラリ名を識別子として流用しているため、P0-2 の単純な `tr()` 置換の対象にしてはならない。移行するなら「表示名は翻訳しつつ、識別子は enum/ID へ分離する」設計変更が必要。当面は除外リストとして扱う。
+  残りの P0-2 対象（`ArtifactAnimationMenu` / `ArtifactCompositionMenu` / `CreatePlaneLayerDialog` / `CreateCameraLayerDialog` / `PrecomposeDialog` / `ColorSwatchDialog` / `QuickLayerCreationDialog`）にはこの比較が無いため、通常の移行で問題ない。
+
+## 2026-09-20 — `<stop_token>` C1116はAPI置換だけでは除去できない
+
+- **関連:** `ArtifactCore/include/Animation/AnimatableTransform3D.ixx`、`ArtifactCore/include/Thread/BackgroundTaskRuntime.ixx`、`ArtifactCore/include/Thread/LightweightTask.ixx`、MSVC 14.51 C++ Modules。
+- **確認できた事実:** 製品コード内に `std::stop_token`、`std::stop_source`、`std::stop_callback`、`std::jthread` の直接利用は見つからない。一方、独自の `CancelToken` と `LightweightTaskContext::requestCancel()` が既にあり、キャンセル契約は `std::atomic<bool>` ベースで実装されている。今回のC1116は `Animation.Transform3D` のIFC import中にMSVC標準ライブラリ内部の `<stop_token>` 特殊化で発生しており、`<thread>`／`<future>`／`<memory>` 等から間接的に入る経路である。
+- **仮説（未検証）:** キャンセルAPIを独自型へ統一すること自体は可能だが、それだけではMSVC標準ヘッダーの間接依存を消せず、今回のIFCエラーは解消しない。解消には、IFCへ取り込まれる標準ヘッダー面の縮小、header-based STLとnamed std BMIの混在防止、または該当implementation unitの非module化／分離が必要になる可能性が高い。
+- **価値または懸念:** 独自キャンセル契約の統一は設計上有益だが、C1116回避と混同すると広範な置換を行ってもビルド障害が残る。標準ライブラリ完全置換はthread、future、condition_variable、memoryまで波及し、費用対効果が悪い。
+- **次に確認すること:** 許可を得て該当IFCのみ再生成し、再現する場合は `/showIncludes` とproducer／consumerのcompile optionsを比較する。その後、`Artifact.Layer.Abstract` implementation群のGMF標準ヘッダーを1つずつ最小化し、C1116を起こす具体的なinclude境界を特定する。
