@@ -1,7 +1,34 @@
 # Accessibility Foundation (2026-08-08)
 
-**最終更新:** 2026-08-15
-**状態:** 設定・UI・一部入力統合を実装済み。描画適用と拡大鏡の実装、実機受入れは未完了。
+**最終更新:** 2026-09-20
+**状態:** 設定・UI・一部入力統合を実装済み。Composition Viewport の常設操作にキーボード活性化、大ターゲット、主要状態のアクセシブル通知を追加。拡大鏡の実装と実機受入れは未完了。
+
+## Update 2026-09-20 (Phase 2)
+
+Composition Viewport で、表示レイアウト、編集ツール、Workspace mode、
+viewport display、transform gizmo、再生状態、composition の解像度／fps が変化した時に、
+対象ウィジェットの accessible description を更新し、アクセシビリティが有効な環境では
+`QAccessible::DescriptionChanged` を通知する。フレームごとの timecode 更新は通知対象に
+含めず、読み上げキューの過剰な更新を避ける。
+
+Timeline 右上の transport controls も、独自の mouse release 専用 callback を
+`QToolButton` の標準活性化経路へ統合した。Start / Previous / Play-Pause / Next / End は
+すべて `ArtifactPlaybackService` を通し、keyboard／assistive technology の実行と
+UI 間のframe同期が別経路にならないようにする。
+
+## Update 2026-09-20
+
+Composition Viewport の常設操作について、独自ボタンのマウス専用コールバックを
+Qt 標準のボタン活性化経路へ統合した。これによりマウスクリックに加え、標準の
+キーボード活性化と支援技術からのボタン実行が同じ処理を通る。Viewport layout、
+Cleanup、Workspace mode、下部 layout、transport controls をフォーカス可能にし、
+accessible name／description を追加した。
+
+`preferLargeTargets` 有効時は、Composition Viewport の上下バー、主要ボタン、
+アイコン、timecode、status strip の寸法へ `Accessibility::scaledSize()` を適用する。
+設定無効時の既存寸法は維持する。描画領域、ギズモ仕様、レンダリング経路、
+ショートカット定義は変更していない。実機でのフォーカス順、スクリーンリーダー、
+大ターゲット時の狭幅レイアウト検証は未実施。
 
 ## Update 2026-08-15
 
