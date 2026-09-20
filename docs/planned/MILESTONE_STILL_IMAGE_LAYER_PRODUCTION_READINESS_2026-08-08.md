@@ -1,10 +1,15 @@
 # MILESTONE: 静止画レイヤー Production Readiness
 
-**最終更新:** 2026-08-20
+**最終更新:** 2026-09-19
 
 **ステータス:** Static implementation partial / runtime acceptance pending
 
 **識別子:** M-IMG-1
+
+## 2026-09-19 検証済み範囲
+
+- 比較ハーネス、Software flat mesh rasterizer、Artifact フルビルド、module hygiene、GPU blend／組み込みテスト、起動スモークは完了扱いとする。
+- 実素材の Preview／Software Preview／Render Queue 三経路比較、save/reload、missing／relink、source 更新後の cache invalidation は未受入れのため、マイルストーン全体は Complete にしない。
 
 ## 目的
 
