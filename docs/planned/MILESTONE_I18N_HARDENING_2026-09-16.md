@@ -33,10 +33,32 @@
 - **隣接リテラル連結**（`"a" "b"` が複数行にまたがるもの）の断片は置換対象外。
   連結全体は手動で 1 キーにまとめて `tr()` 化する。
 
-残件: 本書の対象4ファイル以外にもハードコード日本語が存在する
-（`ArtifactToolOptionsBar`、`ParticleEmitterDescription`、各種ダイアログ等。
-`tools/i18n/scan_hardcoded.py` で一覧化できる）。
-ただし保存値と往復するデータ文字列・生成物の既定名・Undo ラベルは翻訳対象外として除外判断が必要。
+P0-2 ステータス: **対象4ファイル + RenderMenu（bonus）を完了**。翻訳可能なハードコード日本語0行（残りは開発者コメントのみ）。
+
+**追加移行（2026-09-18 / P0-2残の一次バッチ）**: 小規模メニュー5ファイルを完了。
+- `ArtifactOptionMenu.cppm`（7件・`menuText` ローカルヘルパーを追加して移行）
+- `ArtifactEditMenu.cppm`（9件）
+- `ArtifactEffectMenu.cppm`（9件・`effect.category.*` は既存）
+- `ArtifactTimeMenu.cppm`（13件・`menu.time.*`）
+- `ArtifactTestMenu.cppm`（8件＋複数行連結2件を手動統合）
+- 監査は `Keys used 1172 / Expected 1395 / Coverage 100%` を維持。
+
+**二次バッチ完了（2026-09-19）**: `FloatColorPickerHooks` 4、`ArtifactImportAssetsDialog` 11、
+`ArtifactCompositionMenu` 26、`QuickLayerCreationDialog` 27、`ColorSwatchDialog` 30、`ArtifactAnimationMenu` 52 を移行。
+監査は `Keys used 1321 / Expected 1544 / Coverage 100%` を維持。
+
+**三次バッチ完了（2026-09-19）**: `PrecomposeDialog` 39（`u8"..."` 形式のため移行スクリプトに `u8` プレフィックス対応を追加）、
+`CreateCameraLayerDialog` 40 を移行。監査は `Keys used 1396 / Expected 1619 / Coverage 100%` を維持。
+
+**残り（P0-2残・最終）**: `CreatePlaneLayerDialog` 約78件のみ。
+それ以外の検出残（`ArtifactTestMenu` / `ColorSwatchDialog` / `QuickLayerCreationDialog` / `CreateCameraLayerDialog` /
+`PrecomposeDialog` の各1〜2件）は複数行フォールバックまたは開発者コメントの検出誤差（実体は移行済み）。
+`ApplicationSettingDialog` の2件は言語セレクタの endonym 表示（意図的未翻訳）なので除外。
+`PrecomposeDialog` の既定名 `"プリコンプ 1"`、`QuickLayerCreationDialog` の既定名 `"平面 1"` はデータ文字列として除外。
+
+**除外リスト（翻訳してはならない）**: `ArtifactMainWindow.cppm` / `ArtifactToolOptionsBar.cppm` /
+`ArtifactLooksPresetBrowser.cppm` はツール名・ライブラリ名を `==` の識別子として流用しているため、
+単純な `tr()` 置換の対象にしない（Insight.md 2026-09-19 参照）。データ文字列（既定レイヤー名等）も対象外。
 
 ### P1 / P2 未着手
 
@@ -106,8 +128,18 @@
     （Auto (System) / English / 日本語 / 简体中文 / 繁體中文 / 한국어 / Français / Deutsch / Español / Português / Русский / العربية）。
     「次回起動時に適用」の注記付き。設定はダイアログの OK で保存される。
   - 起動時の優先順位を **`--lang` > 保存設定 > システムロケール > `en`** に確定し、決定理由をログに1行出力。
-  - 即時再翻訳と `Event.Bus` の `localeChanged` 通知は未実装（第2段）。
-    現時点で購読者が存在せず、死んだ通知を増やさないため意図的に保留。
+  - 即時再翻訳と `Event.Bus` の `localeChanged` 通知は第2段として実装済み（下記）。
+  - **[第2段 完了 2026-09-18]** 言語切替の即時反映と通知：
+    - `Core.Localization` に `LocaleChangedEvent { QString locale; }` を追加。
+    - `LocalizationManager::setLanguage` が確定後に `globalEventBus().publish(LocaleChangedEvent{...})` を発火
+      （起動時の `--lang` 決定でも発火するが、この時点では購読者がいないため無害）。
+    - 環境設定ダイアログの `GeneralSettingPage::saveSettings` は、保存に加えて
+      `LocalizationManager::setLanguageCode(selectedLanguage)` を即時実行する。
+      空文字 (Auto) は次回起動時にシステムロケールで再解決するため即時適用しない。
+    - メニューは全て `aboutToShow` で `rebuildMenu()` するため、言語変更後にメニューを
+      開いた時点で新言語のラベルへ再構築される（オンデマンド再翻訳が構造的に成立）。
+      常時表示の静的UI（メニューバーのトップレベル等）は再構築タイミング次第で
+      次回起動まで旧言語が残り得る。この残差は別途 `retranslateUi` 相当の所有者責務を決めて対応する。
   優先順位の文書化：`--lang` が最優先。次に設定画面で保存した言語。未設定ならシステムロケール。
   設定画面には `--lang` の値は保存されないため、`--lang` 起動と保存設定が食い違う場合は `--lang` が勝つ。
 
@@ -134,7 +166,16 @@
   - **言語資産方針**：環境設定の言語セレクタは `LocalizationManager::availableLocales()`
     （= ロード済みのみ）と整合させ、カタログが存在しない言語は候補に出さない。
     保存済み言語が候補に無い場合は、値を失わないよう候補へ動的追加して選択する。
-    低カバレッジ（スタブ11キー）の除外は、ロケール別カバレッジ API が無いため今後の課題。
+    **[2026-09-19 追記]** ロケール別キー数 API `LocalizationManager::translationCount(code)` を追加し、
+    環境設定の言語セレクタは「英語キー数の 1/10（最低50キー）」未満のカタログを除外するようにした。
+    実測: en 1409 / zh 165 / zh-TW 165 / ko・fr・de・es・pt・ru・ar 各 11。
+    しきい値 140 により zh・zh-TW は残り、スタブ7言語は選択肢から外れる（英語は常に残す）。
+  - **[2026-09-19 連鎖の実測]** `tools/i18n/check_chain_coverage.py` で zh-TW の実効カバレッジを計測した結果、
+    `zh-TW` と `zh` のキー集合は**完全に同一（各165キー）**で、連鎖による追加解決は **0件**（全体の 11.7%、残り 1244 は英語へ）。
+    つまり `zh-TW → zh → en` の連鎖実装は正しいが、**現状は利得が出ない**。
+    利得を出すには zh / zh-TW のカタログ自体を拡充する必要がある（チェーン側の問題ではない）。
+    `startsWith`/`contains` 等の判定は不要で、`fallbackChainFor` の順序と `translate` の走査が正しいことを
+    `tools/i18n/check_chain_coverage.py` / `check_locale_keysets.py` / `check_plurals.py` の3スクリプトで確認済み。
   - **複数形**：`PluralCategory` と `pluralCategoryFor()`（en / ru / ar の CLDR ルール、
     他言語は one / other の二値）、`LocalizationManager::pluralCategory()` /
     `translatePlural(baseKey, count, fallbackSingular, fallbackPlural)` を追加
@@ -157,12 +198,34 @@
 - JSON に `_meta`（version／translators／lastUpdated）を導入。`flattenJson` は `_` 始まりを除外。
 - `tt()` 対応のキー抽出→JSON雛形（en=フォールバック、ja=空）生成モードを監査ツールへ追加。
 - 完了条件：新規メニュー作業が「抽出→雛形→翻訳」の定型フローで回る。
+  **[完了 2026-09-18]**
+  - `Artifact/translations/{en,ja}.json` の先頭に `_meta`（version / language / locale /
+    translators / lastUpdated）を追加。
+  - `LocalizationManager::Impl::flattenJson` は `_` 始まりのキー（`_meta` 等）を読み込み対象から除外。
+    同様に `tools/i18n/audit_translations.py` の `flatten_strings` も `_` 始まりを除外し、
+    メタ情報が翻訳キーとして集計されないようにした。
+  - 監査ツールに `--emit-template <path>` を追加。ソース（`tt()` / `menuText()` /
+    `tr()` / `TranslationManager::instance().tr()`）から抽出したキーのうち baseline に無いものを
+    `{"en": {…: ""}, "ja": {…: ""}}` の入れ子雛形として出力する。
+    動作確認済み（`tt("probe.new_key", …)` と `menuText(QStringLiteral("probe.other_key"), …)` を
+    抽出し、`probe.new_key` / `probe.other_key` の雛形を生成）。
+  - 監査は `_meta` 追加後も `Keys used 1124 / Expected 1347 / Coverage 100%` を維持。
 
 ### P2-3 `LocaleFormatting` の実利用
 
 - 数値・日付表示を `LocaleFormatting` 経由へ段階移行（現状0件）。
   タイムコード・フレーム番号はロケール非依存のまま（SMPTE維持）。
 - 完了条件：ステータスバー・情報パネルの主要表示がロケール対応。
+  **[初回適用 2026-09-18]** `LocaleFormatting` の実利用を開始：
+  - 環境設定の「Memory & CPU」ページ（`MemoryAndCpuSettingPage::Impl::updateStats`）の
+    メモリ表示を `LocaleFormatting::formatFileSize` / `formatPercentage` 経由へ移行
+    （旧: `usedMB / totalMB (%)` の手計算 → 新: `1.23 GiB / 15.9 GiB (45 %)`）。
+    プロセス CPU 表示も `formatPercentage` へ移行。
+  - `ApplicationSettingDialog.cppm` に `import Localization.LocaleFormatting;` を追加。
+    `LocaleFormatting` モジュールは `ArtifactCore/CMakeLists.txt` に登録済みであることを確認。
+  - タイムコード・フレーム番号は SMPTE 非依存のまま（`formatTimecode` / `formatFrame` は維持）。
+  - 残る表示（ステータスバー・Inspector・情報パネル）への展開は段階的に行う。
+    優先度の高い数値表示から順に `LocaleFormatting` へ寄せる。
 
 ## 対象ファイル一覧
 
@@ -182,8 +245,8 @@
 | Phase | 優先度 | 工数 | 理由 |
 |-------|--------|------|------|
 | P0-1 監査実効化 | **P0** | 小 | 計測なしに改善は回らない。`tt` パターン追加＋lint |
-| P0-2 ハードコード移行 | **P0** | 中 | 4ファイル約580件。機械的だが量が多い |
-| P1-1 実行時切替 | **P1** | 中 | 通知＋設定＋永続化。静的UI再翻訳は別途 |
-| P1-2 起動整理 | **P1** | 小 | 一本化と二重ロード除去 |
-| P1-3 連鎖・複数形 | **P1** | 小〜中 | 連鎖は小、複数形と資産方針は判断が必要 |
+| P0-2 ハードコード移行 | **P0** | 中 | 4ファイル約580件。機械的だが量が多い | → **完了**（4対象 + RenderMenu bonus）。残393文字列は対象外15ファイル。
+| P1-1 実行時切替 | **P1** | 中 | 通知＋設定＋永続化。静的UI再翻訳は別途 | → **完了（第1段）** |
+| P1-2 起動整理 | **P1** | 小 | 一本化と二重ロード除去 | → **完了** |
+| P1-3 連鎖・複数形 | **P1** | 小〜中 | 連鎖は小、複数形と資産方針は判断が必要 | → **完了** |
 | P2-1/2/3 開発体験 | **P2** | 小 | 余力で順次 |
