@@ -46,6 +46,51 @@
 複数選択の中央基準拡縮では `Anchor Center` を追加表示する。長い寸法線と
 変化領域の塗りは常設せず、今回の実装対象外とした。
 
+## ルーラー／永続ガイド／Smart Guide検討モック（2026-09-19）
+
+自由配置ガイドの作成、Smart Guideとの同時表示、配置済みガイドの管理状態を
+分けて検討するための3状態。ルーラーと永続ガイドは未実装部分を含み、現時点では
+実装仕様の確定を意味しない。
+
+- [ルーラーから水平ガイドをドラッグ](composition-viewport-guide-drag-from-ruler-2026-09-19.png)
+- [永続ガイドとSmart Guideへのスナップ](composition-viewport-guide-smart-snap-2026-09-19.png)
+- [配置済みガイドの選択／ロック／削除](composition-viewport-guide-manage-lock-2026-09-19.png)
+
+ルーラーはキャンバス上端／左端に限定し、通常状態では低コントラストに抑える。
+永続ガイドはシアン、操作中の選択ガイドは明るいシアン、一時的なSmart Guideは
+マゼンタ系として責務を区別する。座標HUDはカーソル近傍へ小さく表示し、スナップ
+距離は必要な区間だけブラケット表示する。ロック済みガイドはルーラー上の小さな
+ロック記号と破線で示し、ガイド管理操作はコンテキストメニューへ置く案とする。
+
+## Full品質復帰中ステータス検討モック（2026-09-19）
+
+- [操作終了後のFull品質Refining表示](composition-viewport-full-quality-refining-2026-09-19.png)
+
+インタラクション中のDraft表示からFull品質へ戻る短時間だけ、下部Viewer
+コントロールの `Full` の隣に `Refining… 72%` と細い進捗線を表示する案。
+ステータス行には補助情報として `Full quality · 0.4 s` を置き、完了後は両方を
+自動的に消す。キャンバス中央のモーダル、スピナー、トーストは使用せず、未精細な
+領域が残る場合も処理状態が視線移動の少ない位置で分かることを目的とする。
+
+## 2D Collider Viewport編集検討モック（2026-09-19）
+
+Collision componentを選択した状態で、レイヤー本体のTransformとは分離して
+2D colliderをViewportから直接確認・編集する案。ユーザーから明示された
+キャンバス内オーバーレイの検討であり、通常のTransformギズモ変更は含まない。
+
+- [Box：サイズ変更、元形状ゴースト、寸法HUD](composition-viewport-collider-box-edit-2026-09-19.png)
+- [Circle：中心オフセットと半径変更](composition-viewport-collider-circle-edit-2026-09-19.png)
+- [Polygon：ソース輪郭と物理用簡略輪郭の比較](composition-viewport-collider-polygon-preview-2026-09-19.png)
+
+Colliderはシアン、レイヤーの表示境界は低彩度のグレーとして責務を分ける。
+Boxは辺／角ハンドルと中心オフセット、Circleは中心オフセットと単一の半径ハンドルを
+使用し、ドラッグ中だけ元形状の破線ゴーストと数値HUDを表示する案とする。
+
+Polygonは現状のシェイプレイヤー輪郭から導出され、RigidBody経路では最大8頂点へ
+簡略化されるため、このモックではソース輪郭と実効コライダーを比較する読み取り中心の
+Previewとしている。画像中の頂点表示は独立Collider Pathの編集機能を確定するものではない。
+独立した頂点編集には保存データ、Undo、フォールバック、物理ボディ再構築境界の別設計が必要。
+
 2026-09-12 の上部クローム状態モックは、Composition タブ、Viewport
 ツールバーの ON/OFF 表現、Dock タブの閉じるボタンだけを対象とする。
 選択状態はテーマのアクセント色による薄い面と下線で示し、閉じるボタンは
