@@ -59,6 +59,9 @@ def flatten_strings(value: object, prefix: str = "") -> dict[str, str]:
         return {}
     result: dict[str, str] = {}
     for key, child in value.items():
+        # `_`-prefixed keys are metadata (e.g. _meta), not translatable strings.
+        if key.startswith("_"):
+            continue
         full_key = f"{prefix}.{key}" if prefix else key
         if isinstance(child, dict):
             result.update(flatten_strings(child, full_key))
@@ -82,9 +85,35 @@ def main() -> int:
     parser.add_argument("--max-invalid-keys", type=int, default=0)
     parser.add_argument("--allow-same", nargs="*", default=[],
                         help="keys intentionally identical to the baseline (e.g. system tokens)")
+    parser.add_argument("--emit-template", type=Path, default=None,
+                        help="write a JSON skeleton (en=fallback text, ja=empty) for keys "
+                             "found in source but missing from --baseline, then exit")
     args = parser.parse_args()
 
     source_keys = extract_keys(args.source)
+
+    if args.emit_template is not None:
+        baseline_values = load_locale(args.baseline) if args.baseline else {}
+        new_keys = sorted(k for k in source_keys if k not in set(baseline_values))
+        skeleton_en: dict[str, str] = {}
+        skeleton_ja: dict[str, str] = {}
+        for key in new_keys:
+            parts = key.split(".")
+            cur_en = skeleton_en
+            cur_ja = skeleton_ja
+            for part in parts[:-1]:
+                cur_en = cur_en.setdefault(part, {})
+                cur_ja = cur_ja.setdefault(part, {})
+            cur_en[parts[-1]] = ""  # English fallback text to be filled by the author
+            cur_ja[parts[-1]] = ""  # Japanese translation
+        template = {"en": skeleton_en, "ja": skeleton_ja}
+        args.emit_template.write_text(
+            json.dumps(template, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(f"Wrote template for {len(new_keys)} new keys to {args.emit_template}")
+        for key in new_keys:
+            print(f"  {key}")
+        return 0
+
     invalid_keys = sorted(key for key in source_keys if not KEY_NAME_RE.match(key))
     locale_values = load_locale(args.locale)
     translated = set(locale_values)

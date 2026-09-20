@@ -398,6 +398,9 @@ def artifact_core_pack_wiring() -> list[str]:
     module_owners: dict[tuple[str, str], tuple[str, str]] = {}
     for owner, kinds in sorted(packs.items()):
         suffix = owner.removeprefix("ARTIFACTCORE_")
+        if not suffix:
+            problems.append(f"ArtifactCore: pack variable has no owner suffix {owner}")
+            continue
         target = "ArtifactCore" + special_suffixes.get(
             suffix,
             "".join(part.title() for part in suffix.split("_")),
