@@ -73,6 +73,7 @@ import ArtifactPr.SequenceCompositor;
 import ArtifactPr.TransportBarWidget;
 import ArtifactPr.VideoPlayerWidget;
 import ArtifactPr.AppTheme;
+import Widgets.Utils.CSS;
 
 import Image.ImageF32x4_RGBA;
 import FloatRGBA;
@@ -361,8 +362,11 @@ public:
 
         proxyList_ = new QListWidget();
         {
+            // 昇格 token (inputBackgroundColor) を正規参照。空は Dark 既定へ fallback。
+            const QColor fromToken(ArtifactCore::currentDCCTheme().inputBackgroundColor);
+            const QColor legacy = ArtifactPr::prLegacyColors().panelBackgroundAlt;
             QPalette p = proxyList_->palette();
-            p.setColor(QPalette::Base, ArtifactPr::prLegacyColors().panelBackgroundAlt);
+            p.setColor(QPalette::Base, fromToken.isValid() ? fromToken : legacy);
             proxyList_->setPalette(p);
         }
         layout->addWidget(proxyList_, 1);
@@ -370,12 +374,24 @@ public:
         auto* buttonLayout = new QHBoxLayout();
 
         auto* createProxyBtn = new QPushButton(QStringLiteral("Create Proxy"));
-        createProxyBtn->setProperty(ArtifactPr::kPropAccentColor, ArtifactPr::prLegacyColors().buttonProxyCreate);
+        {
+            // 昇格 token (buttonInfoColor) を正規参照。旧 JSON 由来の空は Dark 既定へ fallback。
+            const QColor fromToken(ArtifactCore::currentDCCTheme().buttonInfoColor);
+            const QColor legacy = ArtifactPr::prLegacyColors().buttonProxyCreate;
+            createProxyBtn->setProperty(ArtifactPr::kPropAccentColor,
+                fromToken.isValid() ? fromToken : legacy);
+        }
         connect(createProxyBtn, &QPushButton::clicked, this, &ProxyPanel::onCreateProxy);
         buttonLayout->addWidget(createProxyBtn);
 
         auto* useProxyBtn = new QPushButton(QStringLiteral("Use Proxy"));
-        useProxyBtn->setProperty(ArtifactPr::kPropAccentColor, ArtifactPr::prLegacyColors().buttonProxyUse);
+        {
+            // 昇格 token (buttonSuccessColor) を正規参照。旧 JSON 由来の空は Dark 既定へ fallback。
+            const QColor fromToken(ArtifactCore::currentDCCTheme().buttonSuccessColor);
+            const QColor legacy = ArtifactPr::prLegacyColors().buttonProxyUse;
+            useProxyBtn->setProperty(ArtifactPr::kPropAccentColor,
+                fromToken.isValid() ? fromToken : legacy);
+        }
         connect(useProxyBtn, &QPushButton::clicked, this, &ProxyPanel::onUseProxy);
         buttonLayout->addWidget(useProxyBtn);
 
@@ -1403,8 +1419,10 @@ public:
         searchEdit_ = new QLineEdit();
         searchEdit_->setPlaceholderText(trUi("Search effects...", "エフェクトを検索..."));
         {
+            const QColor fromToken(ArtifactCore::currentDCCTheme().inputBackgroundColor);
+            const QColor legacy = ArtifactPr::prLegacyColors().inputBackground;
             QPalette p = searchEdit_->palette();
-            p.setColor(QPalette::Base, ArtifactPr::prLegacyColors().inputBackground);
+            p.setColor(QPalette::Base, fromToken.isValid() ? fromToken : legacy);
             searchEdit_->setPalette(p);
         }
         layout->addWidget(searchEdit_);
@@ -1564,8 +1582,10 @@ private:
             spin->setValue(spec.defaultValue);
             spin->setEnabled(false);
             {
+                const QColor fromToken(ArtifactCore::currentDCCTheme().inputBackgroundColor);
+                const QColor legacy = ArtifactPr::prLegacyColors().inputBackground;
                 QPalette p = spin->palette();
-                p.setColor(QPalette::Base, ArtifactPr::prLegacyColors().inputBackground);
+                p.setColor(QPalette::Base, fromToken.isValid() ? fromToken : legacy);
                 spin->setPalette(p);
             }
             paramGrid->addWidget(paramLabel, gridRow, 0);
@@ -1714,8 +1734,10 @@ public:
         speedCombo_->addItem(percentLabel(400), QVariant(4.0));
         speedCombo_->setCurrentIndex(2);
         {
+            const QColor fromToken(ArtifactCore::currentDCCTheme().inputBackgroundColor);
+            const QColor legacy = ArtifactPr::prLegacyColors().inputBackground;
             QPalette p = speedCombo_->palette();
-            p.setColor(QPalette::Base, ArtifactPr::prLegacyColors().inputBackground);
+            p.setColor(QPalette::Base, fromToken.isValid() ? fromToken : legacy);
             speedCombo_->setPalette(p);
         }
         connect(speedCombo_, &QComboBox::currentIndexChanged, this, &ClipPropertiesPanel::onSpeedChanged);

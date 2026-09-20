@@ -8,6 +8,7 @@ module;
 #include <QStyleFactory>
 #include <QStyleOption>
 #include <QStyleOptionButton>
+#include <QStyleOptionSlider>
 #include <QWidget>
 #include <QPainter>
 #include <QString>
@@ -15,6 +16,7 @@ module;
 export module ArtifactPr.AppTheme;
 
 import ArtifactPr.AppTheme;
+import Widgets.Utils.CSS;
 
 namespace ArtifactPr {
 
@@ -54,11 +56,16 @@ public:
         QProxyStyle::polish(palette);
         if (!palette) return;
 
+        // 昇格 token を正規参照。旧 JSON / 旧プリセット由来で空の場合は
+        // PrLegacyColors (Dark 既定) へ fallback し、既存見た目を維持する。
+        const auto& t = ArtifactCore::currentDCCTheme();
         const auto& c = prLegacyColors();
+        auto pick = [](const QString& token, const QColor& legacy) -> QColor {
+            const QColor v(token);
+            return v.isValid() ? v : legacy;
+        };
 
-        // WindowText (label text) - 既定 theme を保ちつつ、
-        // 26 件で頻出した muted / info / secondary を ColorRole として用意
-        palette->setColor(QPalette::WindowText, c.labelMuted);
+        palette->setColor(QPalette::WindowText, pick(t.textMutedColor, c.labelMuted));
 
         // Window / Base (背景) - 既存 setStyleSheet の panel / track / placeholder を
         // 異なる ColorRole で表現するのではなく、setAutoFillBackground(true) を
@@ -75,30 +82,36 @@ public:
         QProxyStyle::polish(widget);
         if (!widget) return;
 
+        // 昇格 token を正規参照。空 token は Dark 既定 (prLegacyColors) へ fallback。
+        const auto& t = ArtifactCore::currentDCCTheme();
         const auto& c = prLegacyColors();
+        auto pick = [](const QString& token, const QColor& legacy) -> QColor {
+            const QColor v(token);
+            return v.isValid() ? v : legacy;
+        };
         const QString surfaceKind = widget->property(kPropSurfaceKind).toString();
 
         if (surfaceKind == kSurfaceTimelineRuler) {
             widget->setAutoFillBackground(true);
             QPalette p = widget->palette();
-            p.setColor(QPalette::Window, c.panelBackgroundAlt);
-            p.setColor(QPalette::WindowText, c.labelMuted);
+            p.setColor(QPalette::Window, pick(t.secondaryBackgroundColor, c.panelBackgroundAlt));
+            p.setColor(QPalette::WindowText, pick(t.textMutedColor, c.labelMuted));
             widget->setPalette(p);
         } else if (surfaceKind == kSurfacePanelToolbar) {
             widget->setAutoFillBackground(true);
             QPalette p = widget->palette();
-            p.setColor(QPalette::Window, c.panelBackground);
+            p.setColor(QPalette::Window, pick(t.secondaryBackgroundColor, c.panelBackground));
             widget->setPalette(p);
         } else if (surfaceKind == kSurfaceTrackContent) {
             widget->setAutoFillBackground(true);
             QPalette p = widget->palette();
-            p.setColor(QPalette::Window, c.trackContent);
+            p.setColor(QPalette::Window, pick(t.trackBackgroundColor, c.trackContent));
             widget->setPalette(p);
         } else if (surfaceKind == kSurfaceMediaPlaceholder) {
             widget->setAutoFillBackground(true);
             QPalette p = widget->palette();
-            p.setColor(QPalette::Window, c.mediaPlaceholder);
-            p.setColor(QPalette::WindowText, c.labelInfo);
+            p.setColor(QPalette::Window, pick(t.placeholderBackgroundColor, c.mediaPlaceholder));
+            p.setColor(QPalette::WindowText, pick(t.textMutedColor, c.labelInfo));
             widget->setPalette(p);
         }
     }
@@ -153,7 +166,10 @@ public:
                             QPainter* painter,
                             const QWidget* widget = nullptr) const override {
         if (control == CC_Slider && widget) {
-            const auto& c = prLegacyColors();
+            // 昇格 token (sliderHandleColor) を正規参照。空は Dark 既定へ fallback。
+            const QColor legacy = prLegacyColors().sliderHandle;
+            const QColor fromToken(ArtifactCore::currentDCCTheme().sliderHandleColor);
+            const QColor handleColor = fromToken.isValid() ? fromToken : legacy;
             // 一旦 QProxyStyle に任せてから、handle の上にアクセント色を描画
             QProxyStyle::drawComplexControl(control, option, painter, widget);
 
@@ -167,7 +183,7 @@ public:
             const int radius = std::max(2, handle.width() / 3);
             painter->setRenderHint(QPainter::Antialiasing, true);
             painter->setPen(Qt::NoPen);
-            painter->setBrush(c.sliderHandle);
+            painter->setBrush(handleColor);
             painter->drawEllipse(center, radius, radius);
             return;
         }

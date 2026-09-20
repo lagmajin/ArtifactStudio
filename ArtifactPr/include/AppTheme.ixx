@@ -27,6 +27,11 @@ inline constexpr const char* kSurfaceMediaPlaceholder = "mediaPlaceholder";
 // 26 件の既存 setStyleSheet が指定していた色値を token 化。
 // PrProxyStyle::polish() がこの値を読み取って palette を構築する。
 // 既存見た目を維持しつつ、setStyleSheet を完全に削除するのが目的。
+//
+// NOTE(2026-09-20): 色の正規定義は ArtifactCore::DccStyleTheme へ昇格済み。
+// 下記は Dark 既定の fallback / 旧見た目維持のための互換層として残す。
+// 新規コードは Core token (textMutedColor / trackBackgroundColor / ...)
+// を参照し、こちらへ新色を追加しないこと。
 // =====================================================================
 
 struct PrLegacyColors {
