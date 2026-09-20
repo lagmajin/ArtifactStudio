@@ -1,0 +1,11 @@
+[
+  {"jp": "選択", "key": "menu.edit.select_group", "en": "Select"},
+  {"jp": "検索", "key": "dialog.find.title", "en": "Find"},
+  {"jp": "レイヤー名の一部を入力:", "key": "dialog.find.layer_name_prompt", "en": "Enter part of a layer name:"},
+  {"jp": "元に戻す: %1 (&U)", "key": "menu.edit.undo_label", "en": "Undo: %1 (&U)"},
+  {"jp": "元に戻す (&U)", "key": "menu.edit.undo_accel", "en": "Undo (&U)"},
+  {"jp": "やり直し: %1 (&R)", "key": "menu.edit.redo_label", "en": "Redo: %1 (&R)"},
+  {"jp": "やり直し (&R)", "key": "menu.edit.redo_accel", "en": "Redo (&R)"},
+  {"jp": "貼り付け (&P): %1", "key": "menu.edit.paste_label", "en": "Paste (&P): %1"},
+  {"jp": "貼り付け (&P)", "key": "menu.edit.paste_accel", "en": "Paste (&P)"}
+]

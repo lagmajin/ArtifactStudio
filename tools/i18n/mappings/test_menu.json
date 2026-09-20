@@ -1,0 +1,10 @@
+[
+  {"jp": "ProjectService が利用できません。", "key": "menu.test.project_service_unavailable", "en": "ProjectService is unavailable."},
+  {"jp": "先にコンポジションを開いてください。", "key": "menu.test.no_composition", "en": "Please open a composition first."},
+  {"jp": "デバッグ用ベースレイヤーの追加に失敗しました。", "key": "menu.test.debug_base_failed", "en": "Failed to add the debug base layer."},
+  {"jp": "Multiply テストレイヤーの追加に失敗しました。", "key": "menu.test.multiply_failed", "en": "Failed to add the Multiply test layer."},
+  {"jp": "Screen テストレイヤーの追加に失敗しました。", "key": "menu.test.screen_failed", "en": "Failed to add the Screen test layer."},
+  {"jp": "Software Test Pipeline を開始", "key": "menu.test.start_pipeline", "en": "Start Software Test Pipeline"},
+  {"jp": "コンポジション作成に失敗しました。", "key": "menu.test.composition_create_failed", "en": "Failed to create the composition."},
+  {"jp": "平面レイヤー追加に失敗しました。", "key": "menu.test.plane_layer_failed", "en": "Failed to add the plane layer."}
+]

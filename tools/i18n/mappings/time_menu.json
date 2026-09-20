@@ -1,0 +1,15 @@
+[
+  {"jp": "再生", "key": "menu.time.play", "en": "Play"},
+  {"jp": "停止", "key": "menu.time.stop", "en": "Stop"},
+  {"jp": "一時停止", "key": "menu.time.pause", "en": "Pause"},
+  {"jp": "1 フレーム戻る", "key": "menu.time.step_backward", "en": "Step Backward One Frame"},
+  {"jp": "1 フレーム進む", "key": "menu.time.step_forward", "en": "Step Forward One Frame"},
+  {"jp": "先頭へ移動", "key": "menu.time.seek_start", "en": "Go to Start"},
+  {"jp": "末尾へ移動", "key": "menu.time.seek_end", "en": "Go to End"},
+  {"jp": "前のマーカーへ", "key": "menu.time.prev_marker", "en": "Go to Previous Marker"},
+  {"jp": "次のマーカーへ", "key": "menu.time.next_marker", "en": "Go to Next Marker"},
+  {"jp": "In Point を現在位置に設定", "key": "menu.time.set_in_point", "en": "Set In Point at Current Position"},
+  {"jp": "Out Point を現在位置に設定", "key": "menu.time.set_out_point", "en": "Set Out Point at Current Position"},
+  {"jp": "In/Out をクリア", "key": "menu.time.clear_in_out", "en": "Clear In/Out"},
+  {"jp": "ループ再生", "key": "menu.time.loop", "en": "Loop Playback"}
+]

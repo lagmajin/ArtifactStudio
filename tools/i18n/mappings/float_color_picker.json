@@ -1,0 +1,6 @@
+[
+  {"jp": "CIELAB · D65 · sRGB 基準", "key": "dialog.color_picker.reference_cielab", "en": "CIELAB · D65 · sRGB reference"},
+  {"jp": "CIE XYZ · D65 · Y = 1 · sRGB 基準", "key": "dialog.color_picker.reference_ciexyz", "en": "CIE XYZ · D65 · Y = 1 · sRGB reference"},
+  {"jp": "RGB範囲外の入力は 0–1 にクリップされます", "key": "dialog.color_picker.out_of_range_hint", "en": "Input outside the RGB range is clipped to 0–1"},
+  {"jp": "入力をsRGB範囲へクリップしました。表示は変換後の値です。", "key": "dialog.color_picker.clipped_notice", "en": "Input was clipped to the sRGB range. Values shown are post-conversion."}
+]

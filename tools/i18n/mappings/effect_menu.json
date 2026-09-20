@@ -1,0 +1,11 @@
+[
+  {"jp": "カラー", "key": "effect.category.color", "en": "Color"},
+  {"jp": "ブラー / ライト", "key": "effect.category.blur_light", "en": "Blur / Light"},
+  {"jp": "ディストート", "key": "effect.category.distort", "en": "Distort"},
+  {"jp": "キーイング / マット", "key": "effect.category.keying_matte", "en": "Keying / Matte"},
+  {"jp": "ノイズ", "key": "effect.category.noise", "en": "Noise"},
+  {"jp": "トランジション", "key": "effect.category.transition", "en": "Transition"},
+  {"jp": "スタイライズ / 生成", "key": "effect.category.stylize_generate", "en": "Stylize / Generate"},
+  {"jp": "エフェクトコントロール", "key": "menu.effect.controls", "en": "Effect Controls"},
+  {"jp": "選択レイヤーのエフェクトをすべて削除", "key": "menu.effect.remove_all", "en": "Remove All Effects from Selected Layer"}
+]

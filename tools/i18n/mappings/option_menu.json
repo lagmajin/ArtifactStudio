@@ -1,0 +1,9 @@
+[
+  {"jp": "環境設定 (&P)...", "key": "menu.option.preferences", "en": "Preferences (&P)..."},
+  {"jp": "セーフモード", "key": "menu.option.safe_mode", "en": "Safe Mode"},
+  {"jp": "メニューフォントを既定に戻す", "key": "menu.option.reset_menu_font", "en": "Reset Menu Font to Default"},
+  {"jp": "ドックフォントを既定に戻す", "key": "menu.option.reset_dock_font", "en": "Reset Dock Font to Default"},
+  {"jp": "アプリデータフォルダを開く", "key": "menu.option.open_app_data", "en": "Open App Data Folder"},
+  {"jp": "アプリデータ", "key": "dialog.app_data.title", "en": "App Data"},
+  {"jp": "アプリデータフォルダを開けませんでした。", "key": "dialog.app_data.open_failed", "en": "Could not open the app data folder."}
+]

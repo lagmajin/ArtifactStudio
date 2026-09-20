@@ -1,0 +1,13 @@
+[
+  {"jp": "連番", "key": "import.group.sequence", "en": "Sequence"},
+  {"jp": "%1 ほか", "key": "import.other_files_suffix", "en": "%1 and others"},
+  {"jp": "静止画（連番以外）", "key": "import.group.still_images", "en": "Still Images (non-sequence)"},
+  {"jp": "動画系", "key": "import.group.video", "en": "Video"},
+  {"jp": "音声", "key": "import.group.audio", "en": "Audio"},
+  {"jp": "その他", "key": "import.group.other", "en": "Other"},
+  {"jp": "選択したアセットは現在のプロジェクトの Assets フォルダへコピーしてから取り込みます。", "key": "dialog.import_assets.copy_notice", "en": "Selected assets are copied into the current project's Assets folder and then imported."},
+  {"jp": "⚠ %1 件の同名ファイルは確認が必要です", "key": "dialog.import_assets.duplicate_warning", "en": "⚠ %1 file(s) with the same name need review"},
+  {"jp": "取り込み候補: %1 ファイル / %2", "key": "dialog.import_assets.candidate_summary", "en": "Import candidates: %1 file(s) / %2"},
+  {"jp": "Project/Assets にコピーして取り込む", "key": "dialog.import_assets.copy_and_import", "en": "Copy to Project/Assets and Import"},
+  {"jp": "キャンセル", "key": "dialog.button.cancel", "en": "Cancel"}
+]
