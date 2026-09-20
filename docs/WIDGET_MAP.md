@@ -1,6 +1,6 @@
 # Widget Map
 
-**最終更新:** 2026-09-12
+**最終更新:** 2026-09-20
 
 このファイルは、Artifact の主要ウィジェットの表示名、コード上の名前、役割を AI と人間の両方がすぐ確認できるようにするための一覧です。
 
@@ -51,6 +51,14 @@
 
 - `ArtifactAICloudWidget`
   Cloud AI の会話 UI。右側で送信や会話履歴を扱い、左側には接続設定・ツール・MCP の詳細をまとめる。既定では左ペインを隠し、必要時だけ表示する。
+
+## Tasks / Detached
+
+- `ArtifactDetachedTaskTray`
+  Detached Task の浮動トレイ。タスク投入で自動展開し、全完了で小さなバッジに畳む。`Qt::Tool` + `WA_ShowWithoutActivating` の非アクティブ化ウィンドウで、作業中のフォーカスとビューを奪わない。ドックではなくトップレベル窓として扱う。
+- `ArtifactDetachedTaskService`
+  Detached 実行の唯一の窓口。CommandIR を UI スレッドで 1 件ずつ到着順に直列実行し、ビューポート操作中・モーダル表示中は Deferred、削除系は承認待ちでトレイに滞留させる。実行前後でアクティブコンポジションを退避・復元し、表示を切り替えない。
+- `ArtifactDetachedTaskTray` の表示トグルは View メニューの `Detached タスク`（`ShortcutId::ViewDetachedTasks`、既定は未割当て）から行う。
 
 ## Responsibility Boundaries
 
