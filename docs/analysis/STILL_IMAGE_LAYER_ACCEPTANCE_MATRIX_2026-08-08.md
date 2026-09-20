@@ -1,6 +1,6 @@
 # 静止画レイヤー制作受入マトリクス
 
-**最終更新:** 2026-08-20
+**最終更新:** 2026-09-19
 
 **対象マイルストーン:** `M-IMG-1 Still Image Layer Production Readiness`
 
@@ -13,6 +13,21 @@
 保存フレーム比較は `ArtifactSoftwareRenderTestWidget` の判定基準に合わせ、各チャンネル差分が `2` 以下の画素を許容し、許容値を超える画素が全体の `0.1%` 以下であれば `PASS` とする。Preview と Render Queue に加えて Software Preview のキャプチャも読み込み可能で、3経路が揃った場合は3組のペア比較がすべて合格したときだけ全体を `PASS` とする。平均 RGBA 差分と最大チャンネル合計差分も記録し、サイズ不一致または許容超過時は `FAIL` とする。実素材での runtime 実行結果は未記録である。
 
 ## 現行経路
+
+## 2026-09-19 検証済み項目
+
+以下は今回の作業で完了扱いにした静的実装／ビルドゲートである。実素材を使った受入行の `Pass` とは分けて記録する。
+
+| 項目 | 判定 | 根拠 |
+|---|---|---|
+| Preview／Render Queue 保存フレーム比較ハーネス | ✅ 実装完了 | `ArtifactSoftwareRenderTestWidget` の `P`／`Q`／`D` 導線、サイズ差、差分画素数、平均差、最大差、差分範囲、透明画素差分を実装済み |
+| Software flat mesh rasterizer の基盤 | ✅ 実装完了 | `FlatMeshRasterRequest` と深度付き三角形ラスタライズを `ArtifactSoftwareImageCompositor` に追加済み |
+| Artifact フルビルド | ✅ Pass | `out/build/x64-Debug-Agent/bin/Debug/Artifact.exe` のリンク成功 |
+| module hygiene | ✅ Pass | `check_module_hygiene` 成功 |
+| GPU blend／組み込みテスト | ✅ Pass | `ARTIFACT_RUN_GPU_BLEND_TESTS=1` および `ARTIFACT_RUN_BUILTIN_TESTS=1` の offscreen 実行が終了コード 0 |
+| 起動スモーク | ✅ Pass | `Artifact.exe --no-splash` が起動後もプロセスを維持 |
+
+この表は実素材の pixel parity、save/reload、missing/relink、Software Preview を含む三経路比較を完了扱いにはしない。
 
 | 段階 | 正規経路 | 現在の静的根拠 | 状態 |
 |---|---|---|---|
