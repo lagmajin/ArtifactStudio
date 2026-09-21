@@ -104,6 +104,8 @@ QtCSS / `setStyleSheet()` は絶対に新規追加しないこと。見た目の
 
 ### レンダリング／ホットパスのアロケーション規則
 
+詳細な禁止事項、bounded backpressure、例外条件、GPU readback、レビュー項目は [`docs/technical/HOT_PATH_RULES.md`](docs/technical/HOT_PATH_RULES.md) を必ず参照する。
+
 レンダリング、合成、フレーム更新、入力処理、GPU コマンド構築などの時間制約が厳しいホットパスでは、**重い非ゼロアロケーションを発生させない**設計を原則とする。特にフレームごとの大容量確保、頻繁な再確保、深いコピー、所有権移動を伴う確保、ロックを伴う汎用アロケータ呼び出し、GPU texture／staging resource の再生成、大容量 readback、画像形式変換、プレビュー画像の再生成を避けること。新規のクラス／構造体は、可能な限り値型・固定容量・呼び出し側から渡す作業領域・事前確保済みのプール／アリーナを使い、`new` / `delete`、暗黙のコンテナ拡張、コピーによる一時確保、文字列の再構築、Qt／標準ライブラリの隠れたヒープ確保をホットパスへ持ち込まないこと。診断ログも同じ規則の対象とし、無効なログのために `QString::arg()`、文字列連結、ストリーム整形、JSON 化を先に実行しないこと。詳細なフレームログは category／明示フラグで遅延評価し、ファイル flush は失敗・終了・チェックポイントなどの境界にまとめること。
 
 フレーム外の初期化、リサイズ、キャッシュ構築、シーン変更などのコールドパスで必要な確保は許容するが、ホットパスとの境界を明確にし、容量不足時の再確保や所有権移動がフレーム中に発生しないことを確認する。小さく bounded で影響が明確な確保まで一律禁止はしないが、例外的なアロケーションは理由、発生箇所、頻度、代替できない理由をコードレビューおよび最終報告に記載する。性能を推測で判断せず、可能ならアロケーション計測・プロファイリングで影響を検証すること。
@@ -220,6 +222,30 @@ AI は実装・調査中に、現在の依頼に直接含まれない改善案�
 GPU/Diligent経路を優先し、ユーザーの明示的な指示がない限り、ソフトレンダラーの新機能追加・大規模な最適化・構造変更は行わないこと。ソフトレンダラーは互換性維持、クラッシュ・データ破損・表示不能などの重大な不具合修正、GPU経路が利用できない環境の最低限のフォールバックに限定する。ソフトレンダラーを変更する必要がある場合は、変更理由、GPU経路で代替できない理由、影響範囲、確認方法を先に整理し、既存の挙動を不用意に変えないこと。
 
 結果報告はできる限り簡潔にすること。不要な前置きや冗長な説明は避け、変更点・影響・未確認事項を短くまとめる。
+
+### 再生 Transport の所有権・経路統一
+
+- `ArtifactPlaybackService` を、Composition / Timeline / Composition Viewer /
+  Playback Control / Time menu をまたぐ再生 Transport の唯一の状態・実行所有者とする。
+  Play / Pause / Stop / Toggle、Start / End、前後フレーム、marker seek、speed、loop、
+  in/out、playback range はすべて同サービスの公開 API を通すこと。
+- UI から `ArtifactAbstractComposition`、Playback Engine、または個別 Controller へ
+  Transport 操作を直接送らない。UI ごとの直接呼び出しはフレーム位置、イベント通知、
+  RAM preview、音声クロック、再生状態表示を不整合にするため禁止する。
+- `ArtifactActiveContextService` はフォーカス上の再生所有者へ委譲する必要がある場合だけ
+  使用する。Timeline と Playback Control の常設 Transport は、原則として
+  `ArtifactPlaybackService` を直接使い、経路を混在させない。
+- 同一の Transport 操作を複数の UI に置く場合も、各 UI は同じ Playback Service API と
+  event bus の状態通知だけを使用する。UI ローカルの再生状態、独自 timer、または
+  Composition だけを更新する代替経路を追加しない。
+- カスタムボタンはマウスイベントだけで操作を実行してはならない。`QToolButton` /
+  `QAbstractButton` の標準活性化経路（mouse、keyboard、assistive technology）へ
+  コールバックを統合し、ボタンの外観処理と実行処理を分離する。新規 signal/slot は
+  導入せず、既存の command / service 経路を再利用する。
+- Transport を変更した作業では、少なくとも Play / Pause / Stop、Start / End、前後フレーム、
+  scrub、loop の各操作が service state、Composition frame、Timeline、Viewport、
+  Playback Control で一致することを確認する。ビルド・実機確認はユーザーの明示指示を
+  必要とする。
 
 ### ショートカットキー整合ルール
 

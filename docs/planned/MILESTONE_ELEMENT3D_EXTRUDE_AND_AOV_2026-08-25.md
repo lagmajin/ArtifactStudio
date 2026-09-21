@@ -1,8 +1,8 @@
 # MILESTONE: Element 3D 相当機能 — Shape/Text 押し出しジオメトリと World Position AOV
 
-**最終更新:** 2026-08-30
+**最終更新:** 2026-09-21
 
-**ステータス:** In Progress（押し出しコアジオメトリ実装済み・レイヤー配線未着手。AOV は設計確定のみ）
+**ステータス:** In Progress（押し出しコア・TextExtrude レイヤー配線・Position/UV AOV 実装済み。Shape 3Dモード・runtime検証残）
 
 ## 目的
 
@@ -27,17 +27,17 @@ Element 3D 相当の機能のうち、(1) Shape/Text 輪郭からの Extrude + B
 
 ## 未着手
 
-- **レイヤー配線**: `ArtifactShapeLayer` の `cachedNativeGeometry_`（triangles + flattenSubpaths 済み輪郭）を
-  `extrudeContourMesh()` に渡し、生成 Mesh を Model3D 描画経路へ接続する導線。
-  配線候補は (a) Shape レイヤーの 3D モードで mesh draw へ切替、(b) `ArtifactProcedural3DLayer` に
-  `PathExtrude` kind 追加。Text は glyph 輪郭→ShapePath 化して同じ関数へ渡す。
+- **レイヤー配線 (2026-09-21 TextExtrude まで実装)**: `ArtifactProcedural3DLayer` に
+  `Procedural3DLayerKind::TextExtrude` を追加。`Procedural3DGenerators::generateTextExtrude`
+  (QFont/QPainterPath → toSubpathPolygons → `extrudeContourMesh` → `generateRenderData`)
+  で Mesh 化し、既存 drawMesh/material/AOV 経路へ接続。text/fontFamily/fontSize/bold/italic/
+  depth/bevelWidth/bevelSegments をプロパティ・JSON・プリセット(`beveledText3D`)・
+  Layerメニュー(`Text 3D (Extrude)`)へ露出。残りは (a) Shape レイヤーの 3D モード切替。
 - **UI**: extrude depth / bevel width / bevel segments のプロパティ露出（Inspector）。
-- **World Position / Depth AOV**: メッシュ描画パスでの world position 書き込みパス（専用 PSO または MRT）が本体。
-  静的調査済みの統合点:
-  - `ArtifactCompositionRenderController.cppm` の `PrecompGpuOutputEntry`（~10297 行付近、color/depth target + SRV を保持）
-    に world position 用 float target（`createOffscreenComputeTexture` + SRV で Diligent バックエンド無変更でリソースは用意可能）
-  - 書き込み自体は `DiligentImmediateSubmitter` の mesh draw パスへの PSO 追加が必要（シビアコードのため別スライスで実装する）
-  - 消費側: DOF / fog / 2D エフェクトへの depth 参照は Phase 3 の depth/DOF 連携計画と合流
+  ※TextExtrude 分は実装済み。Shape 3Dモード分が残。
+- **World Position / Depth AOV**: 2026-09-21 に Position(XYZ)/UV チャンネルとして実装済み
+  (`ChannelType` 拡張 + mesh only-pass mode 9/10 + pipeline target + EXR/Queue/VP 配線)。
+  残りは DOF / fog / 2D エフェクトへの depth 参照で Phase 3 の depth/DOF 連携計画と合流。
 
 ## 未検証事項
 

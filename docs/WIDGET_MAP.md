@@ -1,6 +1,6 @@
 # Widget Map
 
-**最終更新:** 2026-09-20
+**最終更新:** 2026-09-21
 
 このファイルは、Artifact の主要ウィジェットの表示名、コード上の名前、役割を AI と人間の両方がすぐ確認できるようにするための一覧です。
 
@@ -15,6 +15,8 @@
 
 ## Project / Inspector
 
+- `ArtifactRenameDialog`
+  Composition、Layer、Project Item の小型名称変更ダイアログ。入力と検証結果だけを返し、実際の変更は既存 Project Service／Undo command に委譲する。
 - `ArtifactProjectManagerWidget`
   左側の Project パネル。コンポジションやアセットの一覧管理。
 - `ArtifactAssetBrowser`
@@ -33,6 +35,8 @@
   Asset Browserの候補検索結果を比較し、score、path、候補理由、連番一致数を読んで採用するための専用ダイアログ。候補rankingとrelink適用は既存Project Service／Undo commandへ委譲する。
 - `ArtifactInspectorWidget`
   右側の Inspector パネル。現在のコンポジション / レイヤー概要を担当する。Components / Effects / Properties は独立ドックとして扱う。
+- `Tracker` (`ArtifactCompositionEditor::trackerPanelWidget()`)
+  右側の独立 Tracker ドック。Point／Planar セッション、解析、品質確認、結果適用を担当する。Composition Viewport は追跡形状の表示・直接編集だけを担当する。
 - `ArtifactComponentTabSurface`
   右側の独立 Components ドック。レイヤーコンポーネントの追加、選択、並べ替え、詳細編集を担当する。
 - `ArtifactEffectTabSurface`
@@ -68,6 +72,8 @@
   ファイル探索とプロジェクト素材の参照窓口。Project View との selection sync までは担当するが、composition 編集責務は持たない。
 - `ArtifactCompositionEditor`
   composition 編集と viewport 操作の担当。Contents Viewer の比較導線とは別責務。
+- `Tracker`
+  tracking session／analysis／quality／apply の担当。Viewport toolbar や描画 surface に解析操作を持ち込まない。
 - `ArtifactCompositionEditor`
   editor shell / playback controls / surface orchestration の担当。
 

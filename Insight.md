@@ -1,4 +1,11 @@
-**最終更新:** 2026-09-20
+**最終更新:** 2026-09-21
+
+## 2026-09-21 — Position/UV AOV 追加と既存 Velocity CPU フォールバックの疑義
+
+- **関連:** `ArtifactCore/include/Channel/Channel.ixx`(PositionX/Y/Z・U/V 追加)、`ArtifactCore/src/Graphics/MeshRenderer.cppm`(PS mode 9/10)、`Artifact/src/Render/ArtifactIRenderer.cppm`(only-pass・readback)、`Artifact/include/Render/ArtifactRenderLayerPipeline.ixx`+`Artifact/src/Render/ArtifactRenderLayerPipeline.cppm`(position_/uv_ ターゲット)、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`(要求・描画・表示・CPUフォールバック)、`Artifact/src/Render/ArtifactRenderQueueService.cppm`(キー・既定)、`Artifact/src/Widgets/Dialog/ArtifactRenderOutputSettingDialog.cppm`(チェック)、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`(表示メニュー)、`docs/analysis/GAP_AE_NUKE_2026-08-01.md`(追補)
+- **確認できた事実（静的読み取り）:** Position=ワールド位置raw・UV=頂点UV raw(マテリアルuv transformなし)を RGBA16F/32F ターゲットへ描画し、readback は無変換で書込む(Normal/Velocity の 2.0/-1.0 デコードなし)。VP合成表示は displayComposite mode 1(raw RGB)、単体表示は displayComponent。2Dレイヤーは only-pass が `is3D()` で弾くため対象外。`readbackChannelToImage` のグレー抽出に Position/UV を追加したため CPU フォールバックの単体表示も成立する。
+- **懸念（未検証）:** 既存 `composeVelocity` は `readChannel(VelocityX/Y)` の先頭バイト(R)を両方に使うが、VelocityX/Y はグレー抽出対象外のため両画像とも velocity ターゲットの RGBA 全体で、先頭バイトはどちらも X 成分のはず。CPU フォールバックの Velocity 合成表示は G に X が入っている可能性がある。今回 U/V・Position はグレー抽出へ入れたため同問題なし。実機の CPU フォールバック表示での確認が必要。
+- **次に確認:** ビルド・実機 (3Dシーンで Position/UV の VP 表示・EXR 出力・RenderQueue 既定キー)。`check_module_hygiene` ターゲット。Velocity フォールバック表示の実機確認。
 
 ## 2026-09-20 — Detached Task 実装中に判明した既存構造の前提違い
 

@@ -1,7 +1,43 @@
 # Accessibility Foundation (2026-08-08)
 
-**最終更新:** 2026-09-20
-**状態:** 設定・UI・一部入力統合を実装済み。Composition Viewport の常設操作にキーボード活性化、大ターゲット、主要状態のアクセシブル通知を追加。拡大鏡の実装と実機受入れは未完了。
+**最終更新:** 2026-09-21
+**状態:** 設定・UI・一部入力統合に加え、各 menu の標準 QAction セマンティクス（Phase 7 初期実装）を追加。Composition Viewport の常設操作にキーボード活性化、大ターゲット、主要状態のアクセシブル通知を追加。ビューポート拡大鏡（Phase 5）を実装（静的・実機受入れは未完了）。
+
+## Update 2026-09-21 (Phase 7 initial implementation)
+
+QAction は QWidget ではないため、setAccessibleName() /
+setAccessibleDescription() を持たない。この誤った API 使用を menu 群から除去し、
+標準 action の情報経路へ移行した。
+
+- action 名は既存の QAction::text() を正とする。メニュー表示・キーボード mnemonic・
+  支援技術が解釈する標準 action 名を二重管理しない。
+- action の操作説明は、既存の toolTip() を優先して statusTip() へ補完する。
+  説明が未設定の action は mnemonic を除いた表示名を status hint に使う。
+- メニューを開く時に再帰的に補完するため、live field 一覧のように遅延構築する submenu
+  も同じ契約に従う。既存の明示的な status tip は上書きしない。
+
+この段階では QAction 継承や独自 QAccessibleInterface は導入しない。継承だけでは
+支援技術へ metadata を公開できず、独自 interface は widget/menu item の role、状態、
+親子関係、実行 action まで個別に保守する必要があるためである。
+
+## Update 2026-09-21 (Phase 5)
+
+ビューポート拡大鏡（Phase 5）を実装した。既存の `Accessibility/ViewportMagnifierEnabled` /
+`Accessibility/ViewportMagnifierScale` 設定を、`CompositionRenderController` の描画側で消費する。
+
+- オーバーレイパス末尾で合成済み straight-alpha テクスチャ（`lastPresentedReadbackSRV_`）を
+  拡大オフセット描画し、`setViewportRect` のハードウェア scissor でルーペ矩形にクリップする。
+  GPU readback は行わず、新規テクスチャ・新規 signal/slot・新規ファイルも追加しない。
+- 倍率は 2〜8x。ルーペ上のホイールで変更し設定へ永続化する。
+- 配置は右下固定インセットとカーソル追従の 2 モード。
+- View メニュー「オーバーレイ > 拡大鏡を表示」と `Alt+Z`（`ShortcutId::ViewToggleMagnifier`）でトグル。
+- 倍率ラベルとフォントはメンバにキャッシュし、フレーム毎の文字列／フォント生成を行わない。
+
+既知の制限: ルーペのソースは合成済みコンポジション画像であり、オーバーレイパスで描かれる
+ギズモ／選択枠／マスク頂点オーバーレイ／HUD はルーペ内に含まれない。オーバーレイ込みの拡大は
+バックバッファのオフスクリーンコピー、または実倍率を掛ける Zoom Peek モードで対応可能（未実装）。
+
+実機確認（フォーカス順、スクリーンリーダー読み上げ、高 DPI でのルーペ位置、狭幅レイアウト）は未実施。
 
 ## Update 2026-09-20 (Phase 2)
 
@@ -171,7 +207,7 @@ CapsLock ライクな挙動だが、次の通常キー入力で自動解除す�
 
 ---
 
-## Phase 5: ビューポート拡大鏡（未実装）
+## Phase 5: ビューポート拡大鏡（実装済み・受入れ待ち）
 
 **目的**: フォントスケールの設定を超えて、ビューポートの任意領域をピクセル単位で拡大表示する。弱視ユーザーが細かいマスク頂点やギズモハンドルを正確に操作するための補助。
 
@@ -214,6 +250,40 @@ CapsLock ライクな挙動だが、次の通常キー入力で自動解除す�
 
 ---
 
+## Phase 7: 標準 QAction セマンティクス（初期実装済み・受入れ待ち）
+
+**目的**: QAction を QWidget API で扱わず、Qt が提供する action metadata を一貫して
+利用する。メニュー構造や command dispatch を変えず、支援技術・status bar・ツールチップ
+へ渡す文言の正規の所有者を action に保つ。
+
+| 情報 | 正規 API | 方針 |
+|---|---|---|
+| 操作名 | QAction::text() | 表示名と同じ翻訳済み文字列。重複した accessible-name は保持しない |
+| 操作説明 | QAction::toolTip() / statusTip() | 詳細 tooltip を status tip に補完。未指定時は mnemonic 除去済み text |
+| キーボード操作 | QAction::shortcut() | 既存の ShortcutBindings だけを定義元とする |
+| icon-only 操作 | 表示 widget の setAccessibleName/Description() | QToolButton 等の QWidget 側で設定する |
+
+**初期実装**: Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm で、Layer menu の
+通常 action と遅延生成 submenu action に status hint を補完する。加えて、Edit /
+Composition / Animation / View / Render / Time / Option / Help / Script / Test /
+Effect menu の QAction 呼び出しを toolTip / statusTip へ移行した。
+
+**完了条件**
+
+- QAction へ QWidget 専用の accessible setter を呼ばない。
+- Layer menu の通常 action と遅延生成 submenu action が空の status hint を持たない。
+- 既存 action の明示 status tip、shortcut、enabled/checkable 状態、dispatch 経路を変更しない。
+
+**次段階**
+
+1. File / Edit / Composition / Animation / View / Render / Time menu を同じ静的監査へ追加する。
+2. icon-only toolbar action は、既存どおり実体 QToolButton へ name/description を設定する。
+3. OS スクリーンリーダーで menu item の name、shortcut、disabled/checkable state を確認する。
+4. 標準 action metadata で表せない複合 menu item が確認された場合だけ、局所的な
+   QWidgetAction + QAccessibleWidget を設計レビュー対象とする。
+
+---
+
 ## 実装優先順位
 
 | Phase | 内容 | コスト | 効果範囲 | リスク |
@@ -224,6 +294,7 @@ CapsLock ライクな挙動だが、次の通常キー入力で自動解除す�
 | 4 | シングルハンド | 中（マウスフィルタ） | 運動障碍者 | 中（右クリック長押しの誤爆） |
 | 5 | 拡大鏡 | 高（オーバーレイ描画） | 弱視ユーザー | 低 |
 | 6 | アニメーション無効化 | 低 | 前庭/光過敏 | 極小 |
+| 7 | 標準 QAction セマンティクス | 低 | menu 全体 | 極小 |
 
 ## 変更対象ファイル一覧
 
