@@ -10,8 +10,8 @@
 
 ### Viewport DCC パリティ（C4D / Houdini / Maya）
 - **M-VP-DCC-1** ビューポート DCC パリティ導入（Not Started）
-  - C4D / Houdini / Maya / Maxon Autograph の公式ドキュメント比較で、種類別ビューポートフィルタ、Interactive Render Region、Box zoom/crop、tumble pivot のカーソル下設定、ghosted context、isolate 状態復元、Viewer exposure controls、チャンネル表示の Straight/Luminance/Matte、パス overlay の可視性モード、ビューポート単位フォーマット上書きなどが未導入と判明
-  - P0（Box zoom/crop、tumble pivot、IRR、タイプ別フィルタ）→ P1（isolate 復元、ghost、per-viewport 設定、シェーディングトグル、露出コントロール、チャンネルバリアント、パス overlay モード）→ P2（HUD、fog/bloom、tear-off、作業平面、フォーマット上書き）の順で導入
+  - C4D / Houdini / Maya / Maxon Autograph / Blender / 3ds Max / Unreal / Nuke の比較で、種類別ビューポートフィルタ、Interactive Render Region、Box zoom/crop、tumble pivot のカーソル下設定、ghosted context、isolate 状態復元、Viewer exposure controls、チャンネル表示の Straight/Luminance/Matte、パス overlay の可視性モード、ビューポート単位フォーマット上書き、per-viewport Local Camera、Local View/Collections の分離、View Regions、Cavity/Studio Shadow などが未導入と判明
+  - P0（Box zoom/crop、tumble pivot、IRR、タイプ別フィルタ）→ P1（isolate 復元、ghost、per-viewport 設定、シェーディングトグル、露出コントロール、チャンネルバリアント、パス overlay モード、per-viewport カメラ、Local View）→ P2（HUD、fog/bloom、tear-off、作業平面、フォーマット上書き、Cavity/Shadow、View Region）の順で導入
   - 詳細: `docs/planned/MILESTONE_VIEWPORT_DCC_PARITY_2026-09-22.md`、`docs/analysis/VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22.md`
 
 ### Text Animator（テキストアニメーション）

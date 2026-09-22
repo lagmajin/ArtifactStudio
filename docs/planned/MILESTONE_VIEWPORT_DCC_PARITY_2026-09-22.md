@@ -2,7 +2,8 @@
 
 **最終更新:** 2026-09-22
 
-**ステータス:** Not Started（分析完了。未着手の欠落は P0 4項目、P1 7項目、P2 6項目。Autograph を含む）
+**ステータス:** P0-1 / P0-2 / P0-3a 着手済み（コード変更のみ、ビルド・実機確認はユーザー明示指示待ち）。P0-3b（RenderContext 統合） / P0-4 / P1〜P2 は未着手（分析完了）。
+C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 
 ## 目的
 
@@ -23,9 +24,9 @@
 
 | Phase | 内容 | 状態 | 主な変更対象 |
 | --- | --- | --- | --- |
-| P0-1 | Box zoom / Box crop | Not Started | `ArtifactCompositionEditor` / `ArtifactCompositionRenderController` |
-| P0-2 | Tumble pivot under cursor | Not Started | 同上 |
-| P0-3 | Interactive Render Region（ROI + Progressive） | Not Started | `ArtifactFrameCache` / ROI / overlay |
+| P0-1 | Box zoom / Box crop | Code Changes Pending（実装追加、ビルド未確認） | `ArtifactCompositionEditor` / `ArtifactCompositionRenderController` |
+| P0-2 | Tumble pivot under cursor | Code Changes Pending（実装追加、ビルド未確認） | 同上 |
+| P0-3 | Interactive Render Region（ROI + Progressive） | 着手分割: P0-3a / P0-3b.0 / P0-3b.1 / P0-3b.2 着手済み、P0-3c 以降未着手 | `ArtifactFrameCache` / ROI / overlay / `ArtifactCompositionRenderController` / `ArtifactRenderLayerPipeline` |
 | P0-4 | ビューポート タイプ別フィルタ | Not Started | `ArtifactCompositionRenderController` |
 | P1-1 | Isolate Select の状態復元 | Not Started | 同上 |
 | P1-2 | Ghosted context display | Not Started | 同上 |
@@ -34,12 +35,16 @@
 | P1-5 | Viewer exposure controls（Gain/Gamma/Saturation） | Not Started | 表示ポストプロセス |
 | P1-6 | チャンネル表示の Straight / Luminance / Matte バリアント | Not Started | `ViewportChannelDisplayMode` |
 | P1-7 | パス overlay の可視性モードと種類別フィルタ | Not Started | overlay / 表示フィルタ |
+| P1-8 | Per-viewport Local Camera / Focal Length / Clip | Not Started | `PaneState` / カメラ状態 |
+| P1-9 | Local View / Local Collections の分離と復元 | Not Started | Isolation overlay / 選択管理 |
 | P2-1 | C4D HUD 相当のパラメータ常設表示 | Not Started | オーバーレイ / 既存 modal gizmo |
 | P2-2 | Hardware fog / volumetric fog / bloom | Not Started | Diligent パス |
 | P2-3 | Viewport tear-off copy | Not Started | ペイン管理 |
 | P2-4 | Construction plane handle | Not Started | Construction Layer / 既存ギズモ |
 | P2-5 | Object Type Filter のビューポート拡張 | Not Started | レンダーフィルタ / overlay |
 | P2-6 | Viewer format overriding（VP 単位の解像度/PAR） | Not Started | ペイン / レンダーターゲット |
+| P2-7 | Cavity / Studio Shadow | Not Started | シェーディングパス |
+| P2-8 | View Regions（表示クリップ領域） | Not Started | `ArtifactCompositionEditor` / renderer |
 
 ### P0-1 Box zoom / Box crop
 
@@ -109,6 +114,17 @@
   4モードで切替（既存のシェイプ・マスク overlay 描画に可視性ゲートを追加する形）。
 - P0-4 のレイヤー種別フィルタとは別の、パス単位の表示制御として実装する。
 
+### P1-8 Per-viewport Local Camera / Focal Length / Clip Start-End（Blender Sidebar 相当）
+
+- ペインごとに視点カメラの焦点距離と near/far クリップ範囲を上書きできるようにする
+  （`PaneState` の拡張）。P1-3（ペイン単位の表示設定）および P2-6（フォーマット上書き）と
+  同じ所有境界に置く。カメラレイヤーのパラメータは変更しない。
+
+### P1-9 Local View / Local Collections の分離と復元（Blender 相当）
+
+- 既存の Isolation overlay（選択ベース）を拡張し、グループ/コレクション単位・ペイン単位の
+  分離と復元を提供する。Maya Isolate の状態復元（P1-1）と同じ snapshot 機構を共有する。
+
 ### P2 以降
 
 - P2-1 は既存 modal gizmo 入力とドラッグ HUD を再利用する。P2-2 は Diligent パス追加のため
@@ -117,6 +133,14 @@
   既存のペイン管理方針を確認してから着手する。
 - P2-6 Viewer format overriding は、ペイン単位のレンダーターゲット解像度・Pixel Aspect Ratio
   の上書きと、既存 View テンプレート/ブックマークへの保存要否の設計が先行条件。
+- P2-7 Cavity / Studio Shadow は Solid シェーディング用の小さなポストプロセス
+  （World / Screen の2方式、Ridge / Valley の強度）。
+- P2-8 View Regions は IRR（部分レンダー）と違い表示のみをクリップする。ROI の
+  描画スキップ機構を表示クリップにも流用できるかを P0-3 で確認する。
+- 未確認候補: Fly / Walk navigation、Annotations（VP 注釈）、Measurement overlay、
+  View Lock（Lock to Object / Camera to View）、X-Ray 不透明度スライダ、
+  SteeringWheels、Sample Points、Dope Sheet in Viewer、Show Flags。
+  着手前に現行コードでの有無を再確認する。
 
 ## 受入条件
 
@@ -133,13 +157,87 @@
 
 - **実装順序の推奨:** P0-1 / P0-2（ナビゲーション基礎）→ P1-5 / P1-6（表示ポストプロセスと
   チャンネルバリアント。既存経路の小拡張で受入が容易）→ P0-3 IRR → P0-4 / P1-1 / P1-2 / P1-7 →
-  P1-3 / P1-4、以降 P2。
+  P1-3 / P1-8 / P1-9（ペイン単位の状態管理をまとめて実施）、以降 P2。
 
 ## 検証状況
 
 - 2026-09-22: 分析（`docs/analysis/VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22.md`）のみ完了。
   実装・ビルド・実機確認は未実施。
 - 本環境では git が起動しないため、差分・コミット・gitlink の確認は未実施。
+- 2026-09-22: P0-1 / P0-2 を着手。`CompositionRenderController.ixx/cppm` に
+  Box zoom / Tumble pivot の公開 API と modality ガード、render loop の
+  target 差し替え、overlay 描画、mouse handler 経路、Esc 経路を追加。
+  `ShortcutBindings` に `ViewBoxZoom` / `ViewTumblePivotUnderCursor` を
+  追加（`Count = 155`）。`CompositionEditor` に right-click cancel、
+  command palette、keyPressEvent 経由の発動を追加。`docs/planned/P0_DESIGN_NOTES_2026-09-22.md`
+  に着手前メモ、 `Insight.md` に 2026-09-22 の着手記録を追加。
+  ビルド・実機確認は未実施（ユーザー明示指示待ち）。
+- 2026-09-22: P0-3a（矩形 ROI のみ）を着手。実装前の再照合で
+  `RenderContext::roi` は CompositionRenderController から現在呼ばれて
+  いないことが判明したため、当初の「RenderContext に矩形を注入」計画を
+  「矩形保持 + overlay + HUD のみ」に切り替え、RenderContext 統合は
+  P0-3b（または別マイルストーン）に分離。`CompositionRenderController.ixx/cppm`
+  に `setInteractiveRenderRegion / clearInteractiveRenderRegion /
+  isInteractiveRenderRegionActive / interactiveRenderRegion /
+  setInteractiveRenderRegionResolutionScale /
+  interactiveRenderRegionResolutionScale` およびハンドル hit-test /
+  drag API（`interactiveRenderRegionHandleAt /
+  beginInteractiveRenderRegionDrag / updateInteractiveRenderRegionDrag /
+  endInteractiveRenderRegionDrag / cancelInteractiveRenderRegionDrag /
+  isInteractiveRenderRegionDragActive`）を追加。overlay に矩形枠 +
+  8 ハンドル + 移動 hitbox を描画。HUD は既存 `setInfoOverlayText` を
+  使用し `"IRR"` タイトル + `"N% res  W x H"` 詳細を表示。マウス
+  ハンドラに IRR ドラッグ modality を追加。`ShortcutBindings` に
+  `ViewInteractiveRenderRegion` を追加（`Count = 156`、既定キー
+  `Ctrl+Shift+R`）。`CompositionEditor` に keyPressEvent トグル、
+  right-click クリア、コマンドパレット、mousePressEvent のハンドル
+  ヒットテスト発動を追加。`Insight.md` に P0-3a の着手記録と
+  RenderContext 統合先送り理由を記載。ビルド・実機確認は未実施。
+- 2026-09-22: P0-3b.0（`RenderContext` getter 追加のみ）を着手。
+  `docs/planned/DESIGN_INTERACTIVE_RENDER_REGION_2026-09-22.md`
+  decision doc の D8（getter のみ、setter なし）に従い、
+  `CompositionRenderController.ixx` に `import Artifact.Render.Context`
+  と `const RenderContext& renderContext() const` を追加。
+  `CompositionRenderController.cppm` に `Impl::renderContext_` を
+  所有させ、`initialize` で `setMode(RenderMode::Editor)` を呼び、
+  `destroy` で `renderContext_.reset()` を呼ぶ。ROI 矩形はまだ
+  pipeline に流さない（P0-3b.1 の範囲）。`Insight.md` に着手記録を
+  追加。ビルド・実機確認は未実施。
+- 2026-09-22: P0-3b.1（render path への RenderContext 同期）を着手。
+  `CompositionRenderController::Impl::renderOneFrameImpl` の冒頭
+  （host 可視性チェック直後）に同期ブロックを追加し、毎フレーム
+  `setViewportSize(hostWidth_, hostHeight_)` →
+  `canvasSize = composition->effectiveCompositionSize()` →
+  `setZoom(renderer_->getZoom())` → `setPan(renderer_->getPan)`
+  → `setResolutionScale(interactiveRenderRegionActive_ ?
+  interactiveRenderRegionResolutionScale_ : 1.0f)` →
+  `setROI(interactiveRenderRegionActive_ ? RenderROI(rect) : RenderROI())`
+  の順で `RenderContext` を更新。`setROI` 1 回で `updateViewportROI`
+  と `updateScissorROI` が連動発火するため、二重計算を回避。IRR
+  非アクティブ時は空 `RenderROI()` を渡し full-frame にフォールバック
+  （decision doc D6 P0-3b 段階 = 矩形外キャッシュ保持）。
+  composition の size は `composition->size()` が存在しないため
+  `effectiveCompositionSize()` を使用。`currentFrame` は同期ブロック
+  に含めず default (0) のまま。矩形はまだ `RenderPipeline::renderComposition`
+  に届かず（P0-3b.2 の範囲）、`RenderContext.viewportROI / scissorROI`
+  の更新だけが効果。`Insight.md` に着手記録を追加。ビルド・実機確認は
+  未実施。
+- 2026-09-22: P0-3b.2（`RenderPipeline::renderComposition` に `RenderROI`
+  引数追加 + `SetScissorRects` 呼び出し + `ArtifactIRenderer::setViewportRect`
+  適用）を着手。`ArtifactRenderLayerPipeline.ixx` に
+  `Artifact.Render.ROI` を import し、`renderComposition` のシグネチャに
+  `const RenderROI& renderROI = RenderROI()`（デフォルト引数）を追加。
+  cppm 実装で `renderROI` が空でないとき `ctx->SetScissorRects` を呼び、
+  `impl_->width_/height_` を render target size として渡す。スタブで
+  あるため、既存呼び出し側への影響なし（grep で他からの呼び出しが
+  無いことを確認）。CompositionRenderController 側は `renderOneFrameImpl`
+  の comp あり入口に `irrScissorApplied` フラグ +
+  `setViewportRect(s.x, s.y, s.w, s.h, hostWidth, hostHeight)` を追加し、
+  `present()` 直後に `setViewportRect(hostWidth_, hostHeight_)` で
+  full-frame に restore。`ArtifactIRenderer` の `setViewportRect` 5引数版
+  が既存の `SetViewports + SetScissorRects` 一括呼び出し経路を使うため、
+  新規 API を追加せずに済む。`Insight.md` に着手記録を追加。ビルド・実機
+  確認は未実施。
 
 ## 関連文書
 
@@ -147,4 +245,6 @@
 - `docs/planned/MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md`
 - `docs/planned/MILESTONE_VIEWPORT_NAVIGATION_CONTRACT_TODO_2026-09-04.md`
 - `docs/planned/MILESTONE_3D_VIEWPORT_HARDENING.md`
+- `docs/planned/P0_DESIGN_NOTES_2026-09-22.md`（P0 着手前調査メモ）
+- `docs/planned/DESIGN_INTERACTIVE_RENDER_REGION_2026-09-22.md`（P0-3b/c 設計統合 decision doc）
 - `Insight.md`（2026-09-22 の項目）

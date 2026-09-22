@@ -1,7 +1,7 @@
 # Bitwig-inspired Motion Modulation and Reusable Animation Blocks
 
 **最終更新:** 2026-09-22
-**ステータス:** In Progress (Phase 0 監査・契約固定済み → Phase 1 待ち)
+**ステータス:** In Progress (Phase 0 監査・契約固定済み → Phase 1 実装済み → Phase 2 実装済み・ビルド待ち)
 **対象:** ArtifactStudio / ArtifactCore
 
 ## 目的
@@ -41,6 +41,8 @@ Bitwig Studio の UI、実装、アセット、名称を移植するものでは
 
 ### Phase 1 — 共通変調源
 
+> 進捗 2026-09-22: `Constant` / `Noise`（Seed 付き）/ `Steps` を `Audio.Modulation` の `IModulatorSource` として追加し、`ModulatorSourceType` 4-6・JSON/Undo 往復・`ModulationBinding`（amount/offset/range/clamp）・Transform 5ch＋Opacity 接続まで実装。`LFO` / `Envelope（ADSR）` / `Macro` は既存実装を再利用。ビルド・テストは未実施。
+
 最初に以下だけを実装する。
 
 - `Constant`
@@ -67,6 +69,8 @@ ModulationBinding(source, destination, amount, offset, range, blendMode)
 - 同じ Seed、同じ frame、同じ入力で CPU / GPU 用 snapshot が一致する。
 
 ### Phase 2 — 再利用可能な Automation Clip
+
+> 進捗 2026-09-22: 所有者は Composition 共有パターン＋Layer インスタンスに決定。Core 型・評価・保存/復元・Undo コマンド・Timeline Clip 化・Property 割当/再利用の最小導線まで実装。`curvature` 評価適用と Color remap は後続へ先送り。ビルド・テストは未実施。
 
 `AutomationClip` を独立データとして追加する。
 

@@ -1,4 +1,4 @@
-# ビューポート DCC パリティ分析（C4D / Houdini / Maya / Autograph → ArtifactStudio）
+# ビューポート DCC パリティ分析（C4D / Houdini / Maya / Autograph / Blender / その他 → ArtifactStudio）
 
 **最終更新:** 2026-09-22
 
@@ -15,6 +15,8 @@ Composition Viewport に不足している機能を特定して導入候補を�
 | Maya | `help.autodesk.com/.../GUID-9BBB6035-...`（Viewport 2.0 Options）、`.../GUID-C6188583-...`（Panel menu: Shading） |
 | C4D | `help.maxon.net/c4d/2026/en-us/Content/html/5593.html`（HUD）、`/c4d/en-us/Content/html/5860.html`（Display）、`/DBASEDRAW-BASEDRAW_GROUP_FILTER.html`（Filter）、`/52991.html`（Viewport Solo Mode）、`/c4d/r25/en-us/Content/html/OSNIPER.html`（Interactive Render Region）、`/45030.html`（Options） |
 | Autograph | `help.maxon.net/ag/en-us/Content/html/Category_Viewer.html`（Viewer）、`/Connecting_and_Navigating.html`、`/Creation_and_editing_tools.html`、`/Path_overlays.html`、`/Vierwer_format_override.html` |
+| Blender | `docs.blender.org/manual/en/latest/editors/3dview/display/shading.html`（Viewport Shading）、`/display/overlays.html`（Viewport Overlays）、`/3dview/sidebar.html`（Sidebar）。Navigation は `display` 配下の目次から確認（`editors/3dview/navigation/index.html` は 404） |
+| 3ds Max / Unreal / Nuke | 新規調査はせず、`docs/planned/MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md` の比較表（2026-08-15 更新）を引用 |
 
 注: C4D の Display / Options / Filter / HUD ページはナビゲーション領域が大きく本文抽出が部分的なため、
 機能名の完全一致は未確認。Houdini / Maya / Autograph は主要項目を本文から取得できた。
@@ -114,6 +116,41 @@ Composition Viewport に不足している機能を特定して導入候補を�
   Filter and Supersampling、Preserve underlying Transparency、Guide Layer、
   Motion Path / Motion Path Tool、Retiming。
 
+### Blender（2026-09-22 追補）
+
+- **Shading modes**: Wireframe / Solid / Material Preview / Rendered。Solid は Studio lighting
+  と MatCap、Background（Theme/World/Custom）、Backface Culling、Outline、Specular
+  Highlighting、**X-Ray（Alt+Z、不透明度スライダ付き）**、Shadow（darkness / direction /
+  offset / focus）、Depth of Field（アクティブカメラの設定を VP で使用）、
+  **Cavity（World / Screen / Both、Ridge / Valley）**。Material Preview は HDRI 環境
+  （rotation / world space lighting / strength / world opacity / blur）、**Render Pass
+  selector**、Compositor プレビュー（Disabled / Camera / Always）。
+- **Overlays**: Guides、Objects、Geometry（edge/face/vertex 関連）、Viewer Node、Motion
+  Tracking、Mesh Edit Mode、Shading、**Mesh Analysis**、Measurement、Normals、Freestyle、
+  Sculpt / Vertex Paint / **Weight Paint（Weight Contours 含む）**、Texture Paint、
+  Pose Mode（Fade Geometry）、Grease Pencil（Onion Skin、Fade Inactive Layers/Objects、
+  Edit Lines、Handles、Canvas grid）。
+- **Navigation / 表示管理**: Fly / Walk Navigation、Align View、Perspective/Orthographic、
+  **Local View（isolate）**、Camera View、Viewpoint、**View Regions（表示クリップ領域）**、
+  3D Cursor、Snapping、Proportional Editing、**Object Type Visibility**、Viewport Gizmos、
+  Viewport Overlays、Measure、Viewport Render Image。
+- **Sidebar（N パネル）**: Item（Transform）、Tool、View（**Focal Length**、
+  **Clip Start/End**、**Local Camera（ビューポート固有のカメラ）**、Passepartout、
+  **Render Region（Ctrl+B）**、View Lock（**Lock to Object** / To 3D Cursor /
+  **Camera to View** / Rotation）、3D Cursor（location / rotation mode）、
+  **Collections（ビューポート単位の可視性と isolate）**、Annotations、Global Transform。
+
+### その他（3ds Max / Unreal / Nuke — 既存監査からの引用）
+
+`docs/planned/MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md` の比較表（2026-08-15 更新）による。
+
+- **3ds Max / Unreal**: Viewport Background Image（部分）、Viewport Clipping Planes（部分）、
+  **Show Flags（要素別表示切替）なし**、Immersive Mode 実装済み、**SteeringWheels なし**、
+  Action Centers（部分）、Work Plane Auto-Align なし、Isolate Selection with State Restore（部分）。
+- **Nuke**: **Sample Points（永続サンプル点の RGBA 表示）なし**、Dope Sheet in Viewer なし、
+  Layer Cop なし、Buffer Visualization は `ViewportChannelDisplayMode` 拡張で到達、
+  **Pre-render Region なし**（C4D IRR と同じく ROI + Progressive の再利用候補）。
+
 
 ## 突き合わせ結果（Artifact 現状）
 
@@ -195,6 +232,10 @@ Composition Viewport に不足している機能を特定して導入候補を�
     `ViewportChannelDisplayMode` へ Unpremultiplied / Luminance（Rec 709）/ Matte を追加。
 11. **パス overlay の可視性モードと種類別フィルタ**（Autograph）: Always / Never /
     Hovered or selected / Selected Layers の4モードと、shape / mask / その他の切替。
+12. **Per-viewport Local Camera / Focal Length / Clip Start-End**（Blender Sidebar）:
+    ペイン単位のカメラ・焦点距離・クリップ範囲（P1-3 / P2-6 と関連）。
+13. **Local View / Local Collections の分離と復元**（Blender）:
+    Isolation overlay を選択ベースから、コレクション/グループ単位・ペイン単位の分離へ拡張。
 
 ### P2 — 品質・診断
 
@@ -206,6 +247,13 @@ Composition Viewport に不足している機能を特定して導入候補を�
 16. **Object Type Filter のビューポート拡張**（Maya）: 要素種別の除外を VP 側にも適用。
 17. **Viewer format overriding**（Autograph）: ビューポート単位の解像度 / Pixel Aspect Ratio
     の上書き（Responsive Design 相当）。
+18. **View Regions（表示クリップ領域）**（Blender）: IRR と別の、表示をクリップする矩形。
+19. **Cavity / Studio Shadow**（Blender Solid shading）: 凹凸強調（World/Screen）と簡易影。
+20. **Fly / Walk navigation**（Blender）: WASD 系の一人称ナビゲーション。
+21. **SteeringWheels / Sample Points / Dope Sheet in Viewer / Show Flags**
+    （3ds Max / Unreal / Nuke、既存監査引用）。Show Flags は P0-4 で部分的に代替可能。
+- 未確認の追加候補: X-Ray の不透明度スライダ、Annotations（VP 注釈）、Measurement overlay、
+  View Lock（Lock to Object / Camera to View）、Backface culling の表示トグル。
 
 ## 実装制約（AGENTS.md 準拠）
 
@@ -242,3 +290,13 @@ Composition Viewport に不足している機能を特定して導入候補を�
 | パス overlay の可視性モードと種類別フィルタ | Autograph Path Overlays | **部分** | シェイプ/マスクの overlay はあるが、Always / Never / Hovered or selected / Selected Layers の4モードと種類別（shape/mask/その他）の切替が無い |
 | Viewer lock / freeze（接続アイテムの凍結） | Autograph | **部分** | Reference overlay の pin / frame 指定が近いが、ビューポート接続スロットの凍結ではない |
 | ホバーによるチャンネル仮プレビュー | Autograph | **なし** | チャンネル selector のホバーで一時的に別チャンネルを表示する UX |
+| X-Ray の不透明度スライダ | Blender（Alt+Z） | **部分** | `setShowXRayOverlay` はトグル。透過度の段階調整は未確認 |
+| Per-viewport Local Camera / Focal Length / Clip Start-End | Blender Sidebar | **部分** | ペイン単位のカメラ・焦点距離・クリップ範囲は未確認（P1-3 / P2-6 と関連） |
+| View Lock（Lock to Object / Camera to View） | Blender | **部分** | カメラフラスタム overlay はある。orbit 中心のオブジェクトロック、カメラをビューへ貼り付ける経路は未確認 |
+| Local View / Local Collections（ビューポート単位の分離） | Blender | **部分** | Isolation overlay は選択ベース。コレクション/グループ単位・ペイン単位の分離と復元は未実装 |
+| View Regions（表示クリップ領域） | Blender | **なし** | IRR（部分レンダー）と別の、表示をクリップする矩形領域 |
+| Cavity / Studio Shadow | Blender Solid shading | **なし** | 凹凸強調（World/Screen）と簡易影の表示パスが無い |
+| Mesh Analysis / Measurement overlay | Blender | **部分** | Density heatmap はあるが、メッシュ解析・計測オーバーレイは未確認 |
+| Fly / Walk navigation | Blender | **なし** | WASD 系の一人称ナビゲーション |
+| Annotations（ビューポート注釈） | Blender | **部分** | レイヤー note はあるが、VP 上の注釈描画は別 |
+| SteeringWheels / Show Flags / Sample Points / Dope Sheet in Viewer | 3ds Max / UE / Nuke | **なし** | 既存監査（2026-08-15）の通り。Show Flags は P0-4 のタイプ別フィルタで部分的に代替可能 |

@@ -70,6 +70,13 @@ artifact_add_test(ArtifactCoreAudioModulationRouterTest
         ArtifactCoreAudio
 )
 
+artifact_add_test(ArtifactCoreAutomationClipTest
+    SOURCES
+        AutomationClipTest.cpp
+    LIBS
+        ArtifactCore
+)
+
 artifact_add_test(ArtifactCoreAbstractPropertyModulationTest
     SOURCES
         AbstractPropertyModulationTest.cpp

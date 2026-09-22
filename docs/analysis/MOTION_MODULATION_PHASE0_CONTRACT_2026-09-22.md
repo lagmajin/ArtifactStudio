@@ -98,7 +98,18 @@
 - Transform 適用時の QString 構築は割当存在時のみ（bounded・小容量）。共通ケース（変調なし）は `empty()` で回避した旨をレビュー記録とする。
 - UI（Property Editor の source 追加導線）は Phase 1 では変更なし。変調割当は既存の snapshot API・Undo 経路のまま利用する。
 
-## 7. 参照
+## 7. Phase 2 実装記録（2026-09-22）
+
+所有者決定: **パターンは Composition 共有、インスタンスは Layer 所有**。Phase 3 の Alias（同一パターン複数参照）がそのまま載る形にした。`AutomationClipPattern`（points/interp/seed/安定id）と配置（offset/stretch/loop/timePolicy/weight）を分離した。
+
+- Core 型は新規モジュールを作らず `Animation.Value`（`AnimatableValue.ixx`）へ追記。評価は無確保・ステートレスな純関数（`evaluateAutomationClipPattern` / `applyAutomationClipInstance` / `mapAutomationClipLoop`）。`curvature` は保存・往復のみで評価未適用（予約）。
+- 評価対象は Phase 2 では float 6ch のみ（`isAutomationClipEvaluatedPath` で明示）。順序は keyframe→modulation→clips→dynamics（Transform）/ envelope（Opacity）。
+- 保存: Composition JSON `automationClips`、Layer JSON `automationClipInstances`。id は uint32・0予約（source と同一規則）。
+- Undo: `LayerAutomationClipInstancesCommand`（before/after＋生成パターン任意同梱、factory 登録済み）。
+- 最小 UI 導線: Timeline カーブ More メニュー「Convert Selection to Automation Clip」（選択グループ毎にパターン化・非破壊・Undo 付き）、Property 行右クリック「Automation Clip」サブメニュー（割当・再利用・全解除、Undo 付き）。
+- 未実施: ビルド・テスト実行（明示指示待ち）。`tests/ArtifactCore/AutomationClipTest.cpp` を新規登録済み（CMake のみ編集）。
+
+## 8. 参照
 
 - `docs/planned/MILESTONE_BITWIG_INSPIRED_MOTION_MODULATION_2026-09-22.md`
 - `docs/planned/MILESTONE_PROPERTY_MODULATION_2026-08-29.md`
