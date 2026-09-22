@@ -2,7 +2,7 @@
 
 **最終更新:** 2026-09-22
 
-**ステータス:** P0-1 / P0-2 / P0-3a 着手済み（コード変更のみ、ビルド・実機確認はユーザー明示指示待ち）。P0-3b（RenderContext 統合） / P0-4 / P1〜P2 は未着手（分析完了）。
+**ステータス:** P0-1 / P0-2 / P0-3（a / b.0 / b.1 / b.2 / d）着手済み（コード変更のみ、ビルド・実機確認はユーザー明示指示待ち）。P0-3d.1（ProgressiveRenderer 統合）/ P0-4 / P1〜P2 は未着手（分析完了）。
 C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 
 ## 目的
@@ -26,17 +26,22 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 | --- | --- | --- | --- |
 | P0-1 | Box zoom / Box crop | Code Changes Pending（実装追加、ビルド未確認） | `ArtifactCompositionEditor` / `ArtifactCompositionRenderController` |
 | P0-2 | Tumble pivot under cursor | Code Changes Pending（実装追加、ビルド未確認） | 同上 |
-| P0-3 | Interactive Render Region（ROI + Progressive） | 着手分割: P0-3a / P0-3b.0 / P0-3b.1 / P0-3b.2 着手済み、P0-3c 以降未着手 | `ArtifactFrameCache` / ROI / overlay / `ArtifactCompositionRenderController` / `ArtifactRenderLayerPipeline` |
-| P0-4 | ビューポート タイプ別フィルタ | Not Started | `ArtifactCompositionRenderController` |
+| P0-3 | Interactive Render Region（ROI + Progressive） | **P0-3a / P0-3b.0 / P0-3b.1 / P0-3b.2 / P0-3d 実装済み（ビルド・実機未確認）** / P0-3d.1（ProgressiveRenderer 統合）は未着手 | `ArtifactFrameCache` / ROI / overlay / `ArtifactCompositionRenderController` / `ArtifactRenderLayerPipeline` |
+| P0-4 | ビューポート タイプ別フィルタ | **実装済み（コード変更のみ、ビルド・実機未確認）** | `ArtifactCompositionRenderController` |
 | P1-1 | Isolate Select の状態復元 | Not Started | 同上 |
 | P1-2 | Ghosted context display | Not Started | 同上 |
 | P1-3 | Per-viewport 設定 + Apply to all split views | Not Started | `PaneState` / 表示設定 |
 | P1-4 | Maya 風シェーディングトグル | Not Started | 同上 |
 | P1-5 | Viewer exposure controls（Gain/Gamma/Saturation） | Not Started | 表示ポストプロセス |
-| P1-6 | チャンネル表示の Straight / Luminance / Matte バリアント | Not Started | `ViewportChannelDisplayMode` |
+| P1-6 | チャンネル表示の Straight / Luminance / Matte バリアント | **enum 拡張済み（コード変更のみ、ビルド・実機未確認）** / readback overlay での実描画反映は別マイルストーン | `ViewportChannelDisplayMode` |
 | P1-7 | パス overlay の可視性モードと種類別フィルタ | Not Started | overlay / 表示フィルタ |
 | P1-8 | Per-viewport Local Camera / Focal Length / Clip | Not Started | `PaneState` / カメラ状態 |
 | P1-9 | Local View / Local Collections の分離と復元 | Not Started | Isolation overlay / 選択管理 |
+| P1-10 | Clipping 警告（over/under exposure の false color、HieroPlayer 由来） | Not Started | 表示ポストプロセス |
+| P1-11 | スコープ（Histogram / Waveform / Vector）+ ROI（HieroPlayer 由来） | Not Started | 表示パネル / readback |
+| P1-12 | カラーサンプルバー（ソース RGBA 生値、HieroPlayer 由来） | Not Started | HUD / readback |
+| P1-13 | OCIO 表示色空間切替（Viewer color transform、HieroPlayer 由来） | Not Started | 表示ポストプロセス / 設定 |
+| P1-14 | アスペクトマスク（16:9 等の表示専用マスク、HieroPlayer 由来） | Not Started | overlay / safe-area |
 | P2-1 | C4D HUD 相当のパラメータ常設表示 | Not Started | オーバーレイ / 既存 modal gizmo |
 | P2-2 | Hardware fog / volumetric fog / bloom | Not Started | Diligent パス |
 | P2-3 | Viewport tear-off copy | Not Started | ペイン管理 |
@@ -124,6 +129,37 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 
 - 既存の Isolation overlay（選択ベース）を拡張し、グループ/コレクション単位・ペイン単位の
   分離と復元を提供する。Maya Isolate の状態復元（P1-1）と同じ snapshot 機構を共有する。
+
+### P1-10 Clipping 警告（HieroPlayer Clipping warnings 相当）
+
+- 表示画像の under（青）/ over（赤）exposure を false-color の警告表示で示す。
+  P1-5 と同じ表示専用ポストプロセス段に追加し、保存・出力・カラーサンプルの読み取り値は変えない。
+- 警告閾値は設定可能とし、トグルは `ShortcutBindings` の Viewport ローカルコンテキストへ登録する。
+
+### P1-11 スコープ（Histogram / Waveform / Vector）+ ROI（HieroPlayer Scopes 相当）
+
+- ヒストグラムから開始し、waveform / vector を段階追加する。ROI 矩形でスコープ集計範囲を
+  限定できるようにする（IRR 矩形との共有を検討）。
+- 集計は GPU reduce または小さな CPU readback に留め、`ImageF32x4_RGBA` 系バッファから
+  直接計算する。`QImage` / `QPainter` 合成の新規利用は禁止（AGENTS.md）。
+- フレームごとの大規模アロケーションを避け、事前確保済みバッファで集計する（HOT_PATH_RULES）。
+
+### P1-12 カラーサンプルバー（HieroPlayer Color Sample 相当）
+
+- カーソル下ピクセルのソース RGBA 生値（表示変換・exposure 適用前）を常時バーに表示する。
+- 1px 程度の readback に限定し、ホットパスでの大容量 readback を避ける。
+
+### P1-13 OCIO 表示色空間切替（HieroPlayer Viewer color transform 相当）
+
+- sRGB / rec709 等の表示色空間をビューポート単位で切替える。適用位置は renderer の
+  final output 段に固定し、P1-5 の exposure 調整は linear 段（変換前）に置く。
+- OCIO 統合の大枠は M-FE-7-2（`setLUT` / `setOCIOConfig`、
+  `docs/planned/MILESTONE_REVIEW_WORKSPACE_2026-04-03.md`）と共有し、二重実装しない。
+
+### P1-14 アスペクトマスク（HieroPlayer Viewer masks 相当）
+
+- 16:9 / 1.85:1 等の表示専用マスクを既存 safe-area overlay の派生として追加する。
+  最終出力・合成結果には影響しない。
 
 ### P2 以降
 
@@ -238,10 +274,37 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
   が既存の `SetViewports + SetScissorRects` 一括呼び出し経路を使うため、
   新規 API を追加せずに済む。`Insight.md` に着手記録を追加。ビルド・実機
   確認は未実施。
+- 2026-09-22: P0-3d（`renderPartialRegion(RenderQuality, RenderROI)`
+  private 関数 + D4 Preview 強制ダウングレード）を着手。
+  `ProgressiveRenderer::setRenderCallback` のシグネチャが
+  `std::function<bool(RenderQuality)>` 1 引数固定で decision doc D3
+  と互換しないため、ProgressiveRenderer は所有せず
+  `CompositionRenderController::Impl::renderPartialRegion` を private
+  関数として実装する方針に変更。`ArtifactCompositionRenderController.ixx`
+  に `import Artifact.Render.FrameCache;` を追加し `RenderQuality` を
+  解決可能に。`Impl` に `previewQualityPreset_` / `irrForcedPreview_` /
+  `lastPartialRenderQuality_` / `partialRenderCount_` を追加し、
+  `setPreviewQualityPreset` で enum を保存。`setInteractiveRenderRegion`
+  入口で `Final` なら `Preview` にダウングレードし `irrForcedPreview_`
+  を true に、HUD に `(quality forced to Preview)` を追記。
+  `clearInteractiveRenderRegion` で preset を復元。
+  `renderContext_.setMode` を `interactiveRenderRegionActive_` 時に
+  `RenderMode::Preview` に強制（decision doc D4）。`renderOneFrameImpl`
+  の `damageTracker_.clearAll()` 直後で
+  `interactiveRenderRegionResolutionScale_` を
+  `RenderQuality`（閾値 0.34 / 0.67）にマッピングし、
+  `renderPartialRegion(owner, quality, rect)` を呼ぶ。本体は品質記録 +
+  `markFullRedraw + invalidateBaseComposite + markRenderDirty` で
+  再描画要求を出す。実描画は既存 `renderOneFrameImpl` 経路に委譲し、
+  IRR scissor が active なため矩形内だけ再レンダーされる。
+  decision doc §3 P0-3d.1 で ProgressiveRenderer 統合または別経路で
+  実装する想定。`Insight.md` に着手記録を追加。ビルド・実機確認は
+  未実施。
 
 ## 関連文書
 
 - `docs/analysis/VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22.md`
+- `docs/analysis/HIEROPLAYER_GAP_ANALYSIS_2026-09-22.md`（P1-10〜P1-14 の由来。2026-09-22 に P0「Viewer Inspection Controls」として本マイルストーンへ統合決定）
 - `docs/planned/MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md`
 - `docs/planned/MILESTONE_VIEWPORT_NAVIGATION_CONTRACT_TODO_2026-09-04.md`
 - `docs/planned/MILESTONE_3D_VIEWPORT_HARDENING.md`

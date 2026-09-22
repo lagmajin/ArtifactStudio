@@ -7,13 +7,23 @@
 
 既定の `NativeDockSurface` のドックタブを、QADS と比較して日常操作に十分な水準へ引き上げる。対象は `Composition Viewer`、`Project`、`Inspector` などの**ドック／パネルタブ**であり、ドキュメントタブの保存・複製・未保存表示は含めない。
 
+加えて、Visual Studio のタブエリアに相当する要素のうち、ドックパネルのタブへ適用できるものを M5 で扱う。Visual Studio はタブ配置として Top / Left / Right を提供し**下端は提供しない**ため、下端配置は本アプリ独自の拡張として、VS 準拠の要素と区別して設計・実装する。
+
+タイムラインは既定で下領域に置かれ、コンポジションごとに 1 つのタブ（`timeline::<compositionId>`、タブ名はコンポジション名）になる。このコンポジション対応タブへ未保存の印を出す要望を M6 で扱う。ロックは対象外とし、`Pin＋Lock` の分離は `MILESTONE_DOCK_ENHANCEMENT_PACK_2026-09-13.md` の 7 に委ねる。
+
 ## 現状と比較の基準
 
 - 現行コードにはタブの選択、同一バー内の並べ替え、別領域へのドラッグ、ダブルクリック／領域外ドロップによる単一パネルのフロート化、閉じる、ピン、横スクロール、長名省略、簡易ドロップ予告がある。`Artifact/include/Widgets/ArtifactNativeDockSurface.ixx` の実装を基準とする。
 - QADS の公式説明には、タブが多い場合のタブメニュー、ドック領域単位のドラッグ、フローティング領域内へのドッキング、キャンセル可能なドラッグ、挿入順を示すプレビューがある。これらは比較対象であり、全機能を同時に移植する要求ではない。
+- Visual Studio の公式ドキュメントでは、タブ配置は `Set tab layout` で **Top / Left / Right** を選べる（下端は無い）。タブ関連の公式機能には、複数行タブとピン留めタブの別行表示、タブドロップダウンでの非表示タブのイタリック表示、タブの色分け、閉じたタブの復元、プレビュータブ、未保存マーク（大きいドット）がある。このうちドックパネルのタブへ適用するのは**配置・複数行・ピン行・一覧表示・復元**であり、プレビュータブとプロジェクト基準の色分けはドキュメント専用のため対象外とする。未保存マークは M5 の対象外とし、コンポジションに 1 対 1 で対応するタブに限った例外として M6 で扱う。
+- 現行 Native の chrome 描画はタブバー上端を前提にしている。`DockTabBar::paintEvent` の選択タブ contour は下辺を開けて描き、`DockTabSurface::paintEvent` の `contentTop` は `tabBar()->geometry().bottom() + 1` を基準に外枠を組み立てる。タブ一覧ボタンは `Qt::TopRightCorner` に固定されている。下端配置はこの 3 箇所の反転を伴う。
+- タイムライン系のドックはコンポジション単位で生成される。`timeline::<compositionId>`、`dopesheet::<compositionId>`、`animation-timeline::<compositionId>`、`audio-mini::<compositionId>` があり、タイムラインのタブ名は解決時点のコンポジション名を使う（`Artifact/src/AppMain.cppm` の `timelineDockTitle` / `timelineDockObjectId` 系）。
+- 未保存の状態は現状プロジェクト全体でしか持たない。`UndoManager::hasUnsavedChanges()` は単一の `version_` と `savedVersion_` の比較で、`ArtifactProject::isDirty()` もプロジェクト単位。コンポジションごとの dirty は無く、`UndoCommand` の基底はコンポジションの scope を問い合わせる口を持たない（`compositionId_` は各サブクラスの private メンバ）。`Composition Viewer` の編集コンテキストタブは、このプロジェクト全体の値を `artifactDocumentDirty` として表示している。
+- `NativeDockSurface` は登録済みドックのタイトル／タブ文字列を後から更新する公開 API を持たない。`titles_` はタブ文字列、浮動ウィンドウのタイトル、タブ一覧、保存・復元の各経路から参照される。
+- `AGENTS.md`、`docs/design/composition-viewport/README.md` のタブ責務、`MILESTONE_DOCK_ENHANCEMENT_PACK_2026-09-13.md` は「未保存マークを Dock タブに出さない」と定めている。タイムラインのコンポジションタブは `timeline::<compositionId>` の Dock タブであるため、M6 の実施には規則の扱いを決める必要がある。
 - 現行 Native は五つの固定領域と単一パネルごとのフローティングダイアログを中心に構成される。任意の分割ツリーや複数タブを持つフローティンググループは、現在のデータモデルと保存形式の確認なしに追加しない。
 
-参考: [QADS 公式 README](https://github.com/githubuser0xFFFF/Qt-Advanced-Docking-System)、[既存の QADS 比較調査](../../Artifact/docs/INVESTIGATION_QADS_UPSTREAM_COMPARISON_2026-06-23.md)、[ドック／ドキュメントタブの責務](../../AGENTS.md)。
+参考: [QADS 公式 README](https://github.com/githubuser0xFFFF/Qt-Advanced-Docking-System)、[Visual Studio: Customize window layouts and personalize tabs](https://learn.microsoft.com/en-us/visualstudio/ide/customizing-window-layouts-in-visual-studio?view=visualstudio)、[既存の QADS 比較調査](../../Artifact/docs/INVESTIGATION_QADS_UPSTREAM_COMPARISON_2026-06-23.md)、[ドック／ドキュメントタブの責務](../../AGENTS.md)。
 
 ## 実装段階
 
@@ -60,14 +70,84 @@
 
 **進捗（2026-09-22）:** Native surface のフロート化、グループフロート化、再ドック、領域移動、タブグループ移動、タブ並べ替え、右クリックからのピン／閉じるを、既存の `LayoutSnapshotCommand` に渡すコールバックへ接続した。グループ復帰は一つの履歴単位として扱う。復元時は履歴記録を抑止する。J用の既存Debug構成で `Artifact` ビルドを試行したが、変更対象外の `ArtifactCoreEnvironment` が `EnvironmentVariable` IFC の曖昧な解決で停止したため、今回の対象のコンパイルおよびUndo／Redo実機確認は未実施。
 
+### M5 — タブエリアの VS 風整理と上下配置
+
+タブバーをペイン上端だけでなく**下端にも置けるようにする**。既定は上端とし、既存レイアウトの見た目を変えない。あわせて VS のタブエリア要素のうちドックパネルへ適用できるものを段階的に取り込む。
+
+#### M5-1 — タブ配置の切替（上端／下端）
+
+1. タブ領域ごとに、タブバーの配置を上端／下端で切り替えられるようにする。
+2. 導線は、タブの右クリックメニュー（`タブを下に置く` / `タブを上に置く`）とタブ一覧ボタンのメニューに置き、**対象タブバーを明示**して適用する。選択中タブを誤って対象にしない。
+3. 配置はタブ領域単位の属性として保存し、再起動・レイアウトのリセット・既存の Undo／Redo 経路で往復させる。`saveLayoutState`／`restoreLayoutState` は領域単位の属性を持たないため、保存契約を先に決める（M5 の着手条件を参照）。
+4. キーボードから実行する場合だけ `ShortcutBindings` に専用 `ShortcutId`（Dock ローカルコンテキスト）を追加する。既定キーは空とし、固定キーを実装へ直書きしない。
+5. 下端は VS の `Set tab layout` に存在しない本アプリ独自の拡張であるため、メニュー文言とドキュメントで VS 準拠要素と区別する。
+
+#### M5-2 — 下端配置時の chrome 反転（描画のみ）
+
+1. `DockTabBar::paintEvent` の選択タブ contour は現在 `rect.bottom()` を開けて描いている。下端配置では開く辺を**上辺へ反転**する。
+2. `DockTabSurface::paintEvent` の `contentTop` は `tabBar()->geometry().bottom() + 1` 基準。下端配置では `tabBar()->geometry().top() - 1` 基準へ切り替え、外枠 outline を上方向へ組み立てる。
+3. タイトル下線は文字の近傍に保ち、下端配置でもペイン接合部と重ならない位置へ上下対称に置く。
+4. タブ一覧ボタンは `Qt::TopRightCorner` 固定。下端配置では `Qt::BottomRightCorner` へ付け替え、古い corner からは外す。`installEventFilter` の corner 参照 3 箇所（`NativeDockSurface` コンストラクタ、`createFloatingTabSurface`、`createTabSurface`）を配置に追随させる。
+5. `DockSurfaceStyle` の `PE_FrameTabWidget` 抑止と `SE_TabWidgetTabContents` ガターは配置非依存のため変更しない。余白の対称性のみ実機で確認する。
+6. タブ形状そのものは `QStyleOptionTab::position` が `South` を返すことで自動反転する想定とし、反転しない箇所だけを 1〜4 で補う。
+7. D&D の挿入予告、領域判定（`areaAt`）、タブ並べ替えは `tabRect()` と領域矩形基準で配置非依存。反転後も予告位置と確定位置が一致することを確認する。
+
+**受け入れ条件（M5-1 / M5-2）:** 上下どちらの配置でも、選択タブの接続表現、フォーカス枠、タイトル下線、タブ一覧ボタン位置が破綻しない。切替後もタブ選択・並べ替え・別領域への D&D・フロート化・再ドック・ピン／閉じるの結果が変わらない。配置は保存・再読込・リセット・Undo／Redo で往復し、旧データは上端へフォールバックする。
+
+#### M5-3 — タブ一覧と復元
+
+1. タブ一覧メニューで、省略・スクロールされたタブを選べるようにし、一覧上の非表示項目をイタリックで示す（VS の "Show invisible tabs in italic in tab dropdown menu" 相当）。
+2. 直前に閉じたドックパネルを元のタブ領域・元の位置へ戻す操作を追加する。パネル実体は再生成せず、既存の visibility とピンの契約を通す。ドキュメントの未保存復元とは混ぜない。
+3. ピンの別行表示は複数行タブの導入を前提とするため M5-4 の従属項目とし、既存のピン契約（閉じる抑止）は変更しない。
+
+#### M5-4 — 複数行タブ（設計先行）
+
+1. VS の複数行タブとピンの別行表示は、単一行＋スクロールボタンの `QTabBar` では表現できない。タブバーを自前レイアウトへ置き換えるか、行数分の `QTabBar` を並べるかを決めてから着手する。置き換えはドラッグ並べ替え・D&D・タブ一覧・ピン行・chrome 描画の全経路へ波及する。
+2. 方式決定までは着手せず、現行の1行＋横スクロールを維持する。
+
+**受け入れ条件（M5-3 / M5-4）:** 一覧から選んだパネルと実際に切り替わるタブが一致する。復元したパネルが元の領域・順序・可視状態へ戻り、重複や消失が起きない。
+
+**着手条件・未確認（M5）:**
+
+- `QTabWidget::setTabPosition(QTabWidget::South)` のタブ形状、`QStyleOptionTab::position`、スクロールボタンと一覧ボタンの位置は未確認。owner-draw chrome が上端前提のため、実機で contour と外枠の一致を確認する。
+- 下端配置を `Bottom` ドック領域へ適用すると、ウィンドウ下端の領域タブとステータス行が近接する。混同しない余白・区切りは要判断（`Insight.md` に記録）。
+- 保存契約: `kDockLayoutDocumentVersion`（現在 `1`）は `DockLayoutDocument::fromJson` と `restoreLayoutState` の両方で厳密一致し、不一致時は entries を破棄する。フィールド追加は **version 据え置きの任意フィールド追加**（未知キーは読み飛ばし、欠落時は上端）を第一候補とする。あわせて領域単位属性の置き場所（`DockLayoutEntry` への重複保持か `DockLayoutDocument` の領域テーブルか）を決める。
+- 浮動タブグループの保存表現は `floating-tabs:` の並び文字列で、安定したグループ ID ではない。浮動グループ単位の配置保存は M3 の着手条件と同じ ID 整備を前提とする。
+- `QTabBar` のスクロールボタンと省略表示（`setElideMode(Qt::ElideRight)`）は下端配置でも維持し、一覧ボタンと重ならないことを確認する。
+
+**進捗（2026-09-22）:** 未着手。実装案のみ記録（下端配置の要望を反映）。
+
+### M6 — コンポジションのタブの未保存表示
+
+既定で下領域に置かれるタイムラインの、**コンポジションに 1 対 1 で対応するタブ**（`timeline::<compositionId>`、タブ名はコンポジション名）へ未保存の印を出す。ロックは対象外とし、`Pin＋Lock` の分離は `MILESTONE_DOCK_ENHANCEMENT_PACK_2026-09-13.md` の 7 が担当する。
+
+1. 対象はコンポジション対応のタイムラインタブだけにする。同じコンポジションから生成される `<名前> Dope Sheet` / `<名前> Animation Timeline` / `<名前> Audio Mini`、および Layer Solo などの編集コンテキストタブは対象外とする。
+2. 印はタブ名の隣の小さな状態マークとし、タブ名そのものは変更しない。常時表示する操作はタブ名と閉じるボタンのままとし、印だけを足す。
+3. 状態が変化したときだけ更新する。コンポジションの改名、タブの並べ替え、フロート化、再ドック、領域移動、レイアウトの保存・復元によって印が消えないようにする。
+4. 保存・上書き保存・プロジェクト読み込みの完了で解除する。既存の未保存経路（`UndoManager` の saved version、`ArtifactProject` の dirty）から取得し、新しいグローバル signal／slot を追加しない。
+5. `NativeDockSurface` にタイトルを後から更新する公開 API が無いため、`titles_` とタブ文字列を更新し、浮動ウィンドウのタイトル・タブ一覧・保存／復元へ同じ名前を反映する setter を追加する。`titles_` の参照箇所は複数あるため、更新漏れを作らない。
+6. 未保存の判定粒度は現状プロジェクト全体しかないため、表示する意味を先に決める（下記「要判断」）。暫定案を採る場合も、コンポジション固有の未保存と誤認させない文言・tooltip を付ける。
+
+**受け入れ条件:** タブの印と実際の未保存状態が一致し、保存後に消える。改名・並べ替え・フロート化・再ドック・領域移動・レイアウト保存／復元・リセットを経ても印と状態が維持される。対象外のタブに印が出ない。ドキュメントタブの `artifactDocumentDirty` と二重管理にならない。
+
+**要判断（M6 の着手条件）:**
+
+- **未保存の粒度:** (a) 暫定案 = 既存のプロジェクト全体の dirty を使う。タブ文字列と印の更新だけで実装でき、変更範囲は `NativeDockSurface` とタイムラインタブの生成側に閉じる。ただし未編集のコンポジションのタブにも同じ印が出るため、「このコンポジションが未保存」という意味にはならない。(b) 本来案 = コンポジション単位の dirty を新設する。`UndoCommand` の基底（`Artifact/include/Undo/UndoManager.ixx` の `class UndoCommand`）はコンポジションの scope を問い合わせる口を持たず、`compositionId_` は各サブクラスの private メンバに散在するため、基底へ仮想アクセサを追加して該当サブクラスで override するか、コンポジション単位の revision を別に持つ必要がある。正確だが変更範囲は Undo コアへ広がる。
+- **規則の改訂:** `AGENTS.md`、`docs/design/composition-viewport/README.md` のタブ責務、`MILESTONE_DOCK_ENHANCEMENT_PACK_2026-09-13.md` は「未保存マークを Dock タブに出さない」と定めている。タイムラインのコンポジションタブは Dock タブであるため、実施には**例外の明示**（コンポジションに 1 対 1 で対応するタブに限る）か、当該タブを編集コンテキストタブとして扱う再分類が必要。規則そのものは AI 側で書き換えず、ユーザーの決定を待つ。
+
+**進捗（2026-09-22）:** 未着手。実装案のみ記録（未保存表示の要望を反映、ロックは対象外）。
+
 ## 実装上の制約
 
-- 変更対象は主に `Artifact/include/Widgets/ArtifactNativeDockSurface.ixx`、必要に応じて `Artifact/src/Widgets/ArtifactMainWindow.cppm` とドックレイアウト契約。子リポジトリの変更は別途明示依頼を受けてから行う。
+- 変更対象は主に `Artifact/include/Widgets/ArtifactNativeDockSurface.ixx`、必要に応じて `Artifact/src/Widgets/ArtifactMainWindow.cppm` とドックレイアウト契約（`Artifact/include/Widgets/ArtifactDockManager.ixx`）。子リポジトリの変更は別途明示依頼を受けてから行う。
 - 既存のサービス／コマンド経路を使用し、新規 signal／slot、QtCSS、`QColorDialog` を導入しない。
 - パネルのドラッグ・タブ UI と Composition Viewer 内の描画、入力、ギズモは分離する。採用モックのキャンバス内表現を根拠に変更しない。
-- ドックタブとドキュメントタブのメニュー項目を混在させない。
+- タブバー配置の切替は `QTabWidget::setTabPosition` と owner-draw chrome の上下反転を組で扱う。`DockTabBar`／`DockTabSurface`／`DockSurfaceStyle`／タブ一覧ボタンの corner の 4 箇所を同時に更新し、片側だけ反転した状態を残さない。
+- ドックレイアウトの保存形式を変更する場合は、既存データが読めなくなる挙動を避ける。`kDockLayoutDocumentVersion` の厳密一致と entries 破棄の現行仕様を前提に、任意フィールド追加を第一候補として扱う。
+- ドックタブとドキュメントタブのメニュー項目を混在させない。未保存マーク、複製、色分け、プレビュータブをドックタブへ持ち込まない。M6 の未保存表示はこの規則に対する明示的な例外であり、規則を変更する場合は `AGENTS.md` 側の記述もユーザーの承認を得て同時に更新する。
+- M6 のタブ名更新は、`NativeDockSurface` のタイトル保持とタイムラインタブの生成・改名の経路を一組で扱う。タブ文字列だけを更新して浮動ウィンドウのタイトルやタブ一覧が古いままになる状態を残さない。
 - ビルド、CMake、テスト、実機確認はユーザーの明示指示後に実施する。実装レビュー時には静的確認と実機未確認の範囲を分けて報告する。
 
 ## 着手順
 
-M1 → M2 → 保存契約の確認 → M3 → M4。各段階で既存機能の回帰を確認してから次へ進む。
+M1 → M2 → 保存契約の確認 → M3 → M4 → M5-2（描画の上下反転のみ）→ 保存契約の決定 → M5-1（配置の切替と保存）→ M5-3 → M5-4（設計先行）。M6 は M5-2 で入れるタイトル更新 API と表示器を再利用できるため、M5-1 の後、M5-3 と並行して着手する（粒度と規則の決定後）。各段階で既存機能の回帰を確認してから次へ進む。
