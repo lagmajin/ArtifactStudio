@@ -3,11 +3,11 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
-#include <vector>
 
 import Physics.SoftBody;
 import Physics.Fluid;
 import Physics.SandSim2D;
+import Container.NamedVector;
 
 using namespace ArtifactCore;
 
@@ -134,6 +134,38 @@ TEST(SoftBodyDeterminismTest, DefaultIterationsStayAtFive)
     expectSameSoftBodyState(implicitDefault.snapshot(), explicitDefault.snapshot());
 }
 
+TEST(SoftBodyFallTest, AuthoredGravityDrivesUnpinnedPoints)
+{
+    SoftBodySolver solver;
+    solver.addPoint(0.0f, 0.0f);
+    solver.setGravity(0.0f, 980.0f);
+
+    // Use the configured-force overload: PhysicsSystem must not replace this
+    // per-layer gravity with its legacy global default.
+    solver.update(1.0f / 30.0f);
+
+    EXPECT_GT(solver.point(0).y, 0.0f);
+}
+
+TEST(SoftBodyFallTest, AirDragReducesFreeFallVelocity)
+{
+    SoftBodySnapshot moving;
+    moving.points.push_back({0.0f, 0.0f, 0.0f, -60.0f, 1.0f, false});
+
+    SoftBodySolver withoutDrag;
+    SoftBodySolver withDrag;
+    ASSERT_TRUE(withoutDrag.restoreSnapshot(moving));
+    ASSERT_TRUE(withDrag.restoreSnapshot(moving));
+    withoutDrag.setGravity(0.0f, 0.0f);
+    withDrag.setGravity(0.0f, 0.0f);
+    withDrag.setLinearDamping(12.0f);
+
+    withoutDrag.update(1.0f / 60.0f);
+    withDrag.update(1.0f / 60.0f);
+
+    EXPECT_LT(withDrag.point(0).y, withoutDrag.point(0).y);
+}
+
 TEST(FluidDeterminismTest, IdenticalInputsProduceIdenticalDensity)
 {
     FluidSolver2D a(32, 32);
@@ -232,7 +264,7 @@ TEST(LiquidDeterminismTest, InvalidSnapshotIsRejectedWithoutMutation)
     const LiquidSnapshot2D before = solver.snapshot();
     LiquidSnapshot2D invalid = before;
     ASSERT_FALSE(invalid.particles.empty());
-    invalid.particles.front().x = std::numeric_limits<float>::quiet_NaN();
+    invalid.particles.front()->x = std::numeric_limits<float>::quiet_NaN();
 
     EXPECT_FALSE(solver.restore(invalid));
     expectSameLiquidState(before, solver.snapshot());
@@ -241,9 +273,9 @@ TEST(LiquidDeterminismTest, InvalidSnapshotIsRejectedWithoutMutation)
 TEST(LiquidSurfaceTensionTest, PullsNearbySeparatedParticlesTogether)
 {
     LiquidSnapshot2D initial;
-    initial.particles = {
+    initial.particles.assign({
         {0.445f, 0.5f, 0.0f, 0.0f},
-        {0.555f, 0.5f, 0.0f, 0.0f}};
+        {0.555f, 0.5f, 0.0f, 0.0f}});
 
     LiquidSolver2D withoutTension;
     LiquidSolver2D withTension;
@@ -294,10 +326,10 @@ TEST(LiquidInflowTest, PositionMovesSourceAlongOpening)
     ASSERT_EQ(nearStart.emitFromOpening(1, 0.0f, 0.5f, 0.2f), 1U);
     ASSERT_EQ(nearEnd.emitFromOpening(1, 0.0f, 0.5f, 0.8f), 1U);
 
-    EXPECT_LT(nearStart.particles().front().x,
-              nearEnd.particles().front().x);
-    EXPECT_EQ(nearStart.particles().front().y,
-              nearEnd.particles().front().y);
+    EXPECT_LT(nearStart.particles().front()->x,
+              nearEnd.particles().front()->x);
+    EXPECT_EQ(nearStart.particles().front()->y,
+              nearEnd.particles().front()->y);
 }
 
 TEST(LiquidInflowTest, WideSourceAtEdgeStaysInsideOpeningSegment)
@@ -330,7 +362,9 @@ TEST(LiquidInflowTest, PolygonOpeningEmitsInsideContainer)
 {
     LiquidSolver2D solver;
     ASSERT_TRUE(solver.setContainerPolygon(
-        {{0.1f, 0.1f}, {0.9f, 0.1f}, {0.9f, 0.9f}, {0.1f, 0.9f}},
+        NamedVector<LiquidContainerPoint2D>{
+            ContainerName{"Test.LiquidInflowPolygon"},
+            {{0.1f, 0.1f}, {0.9f, 0.1f}, {0.9f, 0.9f}, {0.1f, 0.9f}}},
         0));
     solver.reset(0.0f, 0.05f);
 
@@ -350,7 +384,9 @@ TEST(LiquidOpeningTest, ManualSideEdgeControlsInflowAndEscape)
 {
     LiquidSolver2D solver;
     ASSERT_TRUE(solver.setContainerPolygon(
-        {{0.1f, 0.1f}, {0.9f, 0.1f}, {0.9f, 0.9f}, {0.1f, 0.9f}},
+        NamedVector<LiquidContainerPoint2D>{
+            ContainerName{"Test.LiquidOpeningPolygon"},
+            {{0.1f, 0.1f}, {0.9f, 0.1f}, {0.9f, 0.9f}, {0.1f, 0.9f}}},
         1));
     solver.reset(0.0f, 0.05f);
 
@@ -362,21 +398,22 @@ TEST(LiquidOpeningTest, ManualSideEdgeControlsInflowAndEscape)
     }
 
     LiquidSnapshot2D crossing;
-    crossing.particles = {
+    crossing.particles.assign({
         {0.96f, 0.5f, 0.0f, 0.0f},
-        {0.5f, 0.04f, 0.0f, 0.0f}};
+        {0.5f, 0.04f, 0.0f, 0.0f}});
     ASSERT_TRUE(solver.restore(crossing));
     const auto escaped = solver.takeEscapedParticles();
 
     ASSERT_EQ(escaped.size(), 1U);
-    EXPECT_GT(escaped.front().x, 0.9f);
+    EXPECT_GT(escaped.front()->x, 0.9f);
     ASSERT_EQ(solver.particles().size(), 1U);
-    EXPECT_LT(solver.particles().front().y, 0.1f);
+    EXPECT_LT(solver.particles().front()->y, 0.1f);
 }
 
 TEST(LiquidSpillTest, NeighborInteractionsAreDeterministic)
 {
-    std::vector<LiquidSpillParticle2D> a;
+    NamedVector<LiquidSpillParticle2D> a{
+        ContainerName{"Test.LiquidSpillParticles"}};
     for (int y = 0; y < 5; ++y) {
         for (int x = 0; x < 7; ++x) {
             LiquidSpillParticle2D particle;
@@ -404,7 +441,8 @@ TEST(LiquidSpillTest, NeighborInteractionsAreDeterministic)
 
 TEST(LiquidSurfaceTest, ExtractionIsDeterministicAndProducesAllLanes)
 {
-    std::vector<LiquidSurfaceSample2D> samples;
+    NamedVector<LiquidSurfaceSample2D> samples{
+        ContainerName{"Test.LiquidSurfaceSamples"}};
     for (int y = 0; y < 6; ++y) {
         for (int x = 0; x < 8; ++x) {
             LiquidSurfaceSample2D sample;
@@ -444,7 +482,9 @@ TEST(LiquidSurfaceTest, InvalidSamplesDoNotReachRenderSnapshot)
     outOfRange.foamBias = 1.0f;
 
     const auto snapshot = LiquidSolver2D::buildSurfaceSnapshot(
-        {invalidVelocity, outOfRange});
+        NamedVector<LiquidSurfaceSample2D>{
+            ContainerName{"Test.InvalidLiquidSurfaceSamples"},
+            {invalidVelocity, outOfRange}});
 
     EXPECT_TRUE(snapshot.triangles.empty());
     EXPECT_TRUE(snapshot.contourSegments.empty());
@@ -463,7 +503,10 @@ TEST(LiquidSurfaceTest, CollisionImpactCanCreateFoamAfterMotionSlows)
     impactSample.collisionImpact = 30.0f;
 
     const auto snapshot =
-        LiquidSolver2D::buildSurfaceSnapshot({impactSample});
+        LiquidSolver2D::buildSurfaceSnapshot(
+            NamedVector<LiquidSurfaceSample2D>{
+                ContainerName{"Test.ImpactLiquidSurfaceSamples"},
+                {impactSample}});
 
     EXPECT_FALSE(snapshot.foamPoints.empty());
 }

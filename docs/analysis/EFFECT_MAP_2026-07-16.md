@@ -1,5 +1,6 @@
 # ArtifactStudio Effect Map
 
+**最終更新:** 2026-09-22
 **Status:** Living analysis
 
 ## Purpose
@@ -12,7 +13,7 @@ This map separates four facts that are currently easy to confuse:
 4. its GPU path executes HLSL rather than falling back to CPU.
 
 The map is the source for effect-catalog cleanup and GPU parity prioritization.
-The current source audit finds 47 public `supportsGPU() == true` contracts and
+The 2026-07 source audit found 47 public `supportsGPU() == true` contracts and
 49 effect implementation files containing an HLSL literal; these are different
 counts because one implementation file can serve multiple effect modes and
 some declared contracts still use CPU fallback paths.
@@ -82,11 +83,20 @@ Composition `ArtifactEffectService` catalog. The bridge is incomplete.
 | Glitch | `Artifact/src/Effect/ArtifactCreativeEffects.cppm` | CPU reference implementation |
 | Halftone | `Artifact/src/Effect/ArtifactCreativeEffects.cppm` | CPU reference implementation |
 | Old TV | `Artifact/src/Effect/ArtifactCreativeEffects.cppm` | CPU reference implementation |
+| Gaussian Blur | `Artifact/src/Effects/Blur/GauusianBlur.cppm` | Dedicated resident separable path; CPU parity pending |
 | Vignette | `Artifact/src/Effects/Rasterizer/VignetteEffect.cppm` | CPU reference implementation |
 | Stripes | `Artifact/src/Effects/Rasterizer/StripesEffect.cppm` | CPU reference implementation |
-| Add Noise | `Artifact/src/Effects/AddNoise/AddNoiseEffect.cppm` | CPU reference implementation |
+| Rasterizer Glow | `Artifact/src/Effects/Rasterizer/GlowEffect.cppm` | GPU-resident only for radius ≤ 4; CPU reference for larger kernels; parity pending |
+| Add Noise | `Artifact/src/Effects/AddNoise/AddNoiseEffect.cppm` | Generic resident HLSL; CPU parity pending |
 | Grayscale | `Artifact/src/Effects/ColorCorrection/GrayscaleEffect.cppm` | CPU reference implementation |
-| Linear Wipe | `Artifact/src/Effects/LinearWipe/LinearWipeEffect.cppm` | CPU reference implementation |
+| Linear Wipe | `Artifact/src/Effects/LinearWipe/LinearWipeEffect.cppm` | Generic resident HLSL; CPU parity pending |
+| Fill | `Artifact/src/Effects/ColorCorrection/FillEffect.cppm` | Generic resident HLSL mirrors the CPU fill and alpha equations; runtime parity pending |
+| Colorama | `Artifact/src/Effects/ColorCorrection/ColoramaEffect.cppm` | Generic resident HLSL mirrors the CPU palette, HSL, and luma-preservation operations; runtime parity pending |
+| Photo Filter | `Artifact/src/Effects/ColorCorrection/PhotoFilterEffect.cppm` | Generic resident HLSL mirrors the CPU correction order, HSL saturation, and luma preservation; runtime parity pending |
+| Dithering | `Artifact/src/Effects/Dithering/DitheringEffect.cppm` | Generic resident HLSL for Bayer 2×2/4×4; larger matrices and error diffusion remain CPU-reference-only |
+| Difference Key | `Artifact/src/Effects/Keying/DifferenceKeyEffect.cppm` | Generic resident HLSL when choke and matte blur are disabled; those finishing operations retain CPU reference behavior |
+| Luma Key | `Artifact/src/Effects/Keying/LumaKeyEffect.cppm` | Generic resident HLSL when choke and matte blur are disabled; those finishing operations retain CPU reference behavior |
+| White Balance | `Artifact/src/Effects/WhiteBalanceEffect.cppm` | Generic resident HLSL now covers temperature, tint, and brightness; runtime parity pending |
 | Find Edges | `Artifact/src/Effects/FindEdges/FindEdgesEffect.cppm` | CPU reference implementation |
 | White Balance | `Artifact/src/Effects/WhiteBalanceEffect.cppm` | CPU reference implementation |
 | Gradient Ramp | `Artifact/src/Effects/ColorCorrection/GradientRampEffect.cppm` | CPU reference implementation |
@@ -103,12 +113,13 @@ but their OpenCV CPU compositing and GPU shader compositing are not yet proven
 pixel-identical. They remain `HLSL implemented / parity pending` until a
 runtime CPU-vs-GPU comparison is performed.
 
-The current source audit found 47 effects advertising `supportsGPU() == true`.
+The 2026-07 source audit found 47 effects advertising `supportsGPU() == true`.
 Several legacy declarations still need classification because their current
 `applyGPU()` body delegates directly to `applyCPU()`. Lens Distortion, Drop
 Shadow, Wave, and Spherize now have concrete HLSL candidates/paths. Bevel,
-Chromatic Glow, and Radial Blur now have real HLSL paths; Turbulent Displace
-remains CPU-only despite its legacy declaration.
+Chromatic Glow, Radial Blur, and Turbulent Displace now have resident HLSL
+paths. Turbulent Displace uses deterministic hash jitter in the resident path;
+CPU's mt19937 sequence remains its parity reference until runtime comparison.
 
 ## CPU MT Progress
 
@@ -195,7 +206,8 @@ The following spatial CPU reference implementations now use
 - Film Damage: deterministic per-row grain/noise and composite path
 - Dithering: Bayer 2x2/4x4/8x8/16x16 modes; error-diffusion modes remain serial
 - Turbulent Displace: deterministic noise-field generation and the final
-  bilinear remap are both row-parallel; GPU remains intentionally undeclared
+  bilinear remap are both row-parallel; a generic resident HLSL path is now
+  available, with CPU/GPU jitter parity pending
 
 The shared `ArtifactAbstractEffect::applyConfigured()` mask-composite pass is
 also row-parallelized, covering mask-enabled effects across both CPU reference
@@ -223,8 +235,9 @@ pending. `Radial Blur` now has a Compute/HLSL sampling path matching its
 current displacement contract; interpolation and edge behavior still require
 runtime parity verification. `Chromatic Glow` now has a Compute/HLSL bright
 sample path; its blur kernel differs from the CPU GaussianBlur reference, so
-parity remains pending. `Turbulent Displace` is CPU-only despite having a
-private fallback implementation. `Satin` now has a Compute/HLSL offset-and-
+parity remains pending. `Turbulent Displace` now has a generic resident HLSL
+path; its deterministic GPU hash jitter has not yet been compared against the
+CPU mt19937 reference. `Satin` now has a Compute/HLSL offset-and-
 sample path; its sample kernel differs from the CPU GaussianBlur reference,
 so parity remains pending.
 
@@ -256,7 +269,8 @@ continue to use the CPU implementation deliberately, so this is a partial GPU
 contract rather than a claim of full brush-mode parity.
 
 The remaining direct GPU-to-CPU delegates are limited to non-public/legacy
-paths and Turbulent Displace; they are not counted as completed HLSL paths.
+paths; Turbulent Displace no longer belongs to that set when its resident plan
+is accepted.
 
 Static audit result: among conventional effect headers that explicitly return
 `true` from the inline `supportsGPU()` contract, no corresponding `.cppm`

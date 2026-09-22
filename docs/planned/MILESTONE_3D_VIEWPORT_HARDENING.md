@@ -1,6 +1,7 @@
 # MILESTONE: 3D Viewport & Rendering Production Hardening
 
 **日付**: 2026-08-15
+**最終更新:** 2026-09-21
 **現状**: 2D Gizmo と 3D Axis／Projected Frame Gizmo の描画・ヒットテスト・ドラッグ経路は実装済み。RayTracing は mesh の vertex/index buffer、content hash、BLAS create/update、TLAS build に加え、warmup 用 ray-generation／miss／closest-hit shader、PSO、SBT、出力 UAV、`TraceRays()` dispatch まで Core に実装されている。ただし最終描画／lighting 連携と実ジオメトリ用 shader 契約は未確認。CPU レイトレーサーは動いているがエディタ未接続。Volume レンダリングは CPU のみ。照明は shadow map の生成／SRV 接続まで部分実装で、全面的な寄与は未確認。DOF はカメラパラメータと shader 資産が存在するが Diligent の DOF pass は未統合。
 **目標**: Frame Gizmo 修正、DXR に実ジオメトリ投入、Volume GPU 化、照明パイプライン接続、DOF 有効化。
 
@@ -160,14 +161,24 @@ if (frameGizmo_->isDragging()) {
 }
 ```
 
-### 1.3 完了条件
+### 1.3 完了条件（2026-09-21 実コード照合）
 
-- [ ] 3D Frame Gizmo のコーナードラッグでレイヤーの scale が正しく変更される
-- [ ] 対角のコーナーが固定されたままアスペクト比を保って拡大縮小
-- [ ] エッジハンドル（上下左右中央）のドラッグで一軸拡大縮小
-- [ ] RotateRing のドラッグで Z 軸回転
-- [ ] 内部ドラッグでレイヤーをレイヤー平面上で移動
-- [ ] モード別のハンドル表示フィルタリング（Move=コーナーのみ, Scale=コーナー+エッジ, Rotate=リングのみ）
+- [x] 3D Frame Gizmo のコーナードラッグでレイヤーの scale が正しく変更される
+- [x] エッジハンドル（上下左右中央）のドラッグで一軸拡大縮小
+- [x] RotateRing のドラッグで Z 軸回転
+- [x] 内部ドラッグでレイヤーをレイヤー平面上で移動
+- [x] モード別のハンドル表示フィルタリング（Scale=コーナー+エッジ, Move=移動のみ, Rotate=リングのみ）
+- [~] 「対角のコーナーが固定されたままアスペクト比を保って拡大縮小」は**単一レイヤーでは
+      アンカー固定（AE準拠）**として実装されている。対角／対辺固定は包絡フレーム（複数選択）で扱う。
+      Shift併用時のアスペクト維持は実装済み。
+- [ ] runtime 受入（ビルド・実機での描画／操作確認）。リポジトリ方針によりビルドはユーザー指示待ち。
+
+**2026-09-21 追補:** リサイズ中のガイド（固定点マーク、ドラッグ開始ハンドル位置マーク、
+固定点と駆動点を結ぶ線）を `projectedFrameGuidePoints` と
+`CompositionRenderController::Impl::drawViewportInteractionOverlay` に追加した。
+詳細な照合結果は `docs/spec/SPEC_3D_FRAME_GIZMO_REQUIREMENTS_2026-07-31.md` の 7章を参照。
+残作業（runtime 受入、`ArtifactProjectedFrameGizmo` 分離、回転マーク、Zオーダー、対角線の切替）は
+`docs/planned/MILESTONE_PROJECTED_FRAME_GIZMO_2026-09-21.md` を予定として記録した。
 
 ---
 

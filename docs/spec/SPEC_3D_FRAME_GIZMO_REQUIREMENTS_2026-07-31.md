@@ -1,6 +1,7 @@
 # AE 3Dフレームギズモ 要求動作一覧
 
 **日付**: 2026-07-31
+**最終更新:** 2026-09-21
 **参照**: docs/memo/BUG_3D_FRAME_GIZMO_DRAG_2026-07-31.md（既知の不具合）
 **ベース**: Adobe After Effects CC の 3Dレイヤーフレームギズモ挙動
 
@@ -166,38 +167,58 @@
 
 ## 7. 実装の現状とギャップ
 
-### 7.1 実装済み
+### 7.1 実装済み（2026-09-21 実コード照合）
+
+以下は `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` と
+`ArtifactCompositionRenderOverlay.cppm` の現行コードで確認した状態。行番号は移動するため
+関数・状態名で示す。
+
 - [x] 投影フレーム枠の描画 (`drawSelectionFrameOverlay`)
-- [x] 4隅コーナーハンドルの描画（投影空間）
-- [x] コーナーハンドルのヒットテスト（投影空間、`hitTestProjectedFrameCorner`）
+- [x] コーナーハンドルの描画・ヒットテスト（投影空間、`hitTestProjectedFrameCorner`）
+- [x] エッジハンドル（上下左右中央）の描画・ヒットテスト・ドラッグ（`Scale_T/B/L/R`）
 - [x] カーソル形状の切り替え（`cursorForProjectedFrameCorner`）
-- [x] 3D軸ギズモの描画・インタラクション（`Artifact3DGizmo`）
-- [x] 2Dレイヤー向けフレームギズモ（コーナー・エッジ・移動・回転すべて完了）
+- [x] 3D軸ギズモの描画・インタラクション（`Artifact3DGizmo` の Move/Rotate/Scale へ委譲）
+- [x] フレーム内ドラッグ移動（レイヤー平面上、`hitTestProjectedFrameInterior` → `projectedFrameMove_`）
+- [x] リサイズバッジ（`projectedFrameWidthBadgeRect_` / `projectedFrameHeightBadgeRect_`）
+- [x] ドラッグHUD（X/Y/Z、dX/dY/dZ、S、倍率、RZ、dR、操作種別を1パネルに集約）
+- [x] スナップ（`snapProjectedFramePointer` + `ProjectedFrameSnapCache`、スナップライン、Alt一時解除）
+- [x] Undo（`beginGizmoUndoSnapshot` → `GizmoTransformUndoCommand`、不成立時の破棄経路あり）
+- [x] ダブルクリックリセット（`resetProjectedFrameHandleAt`）
+- [x] 最小サイズ制約（localBounds 由来の `minScaleX` / `minScaleY` でクランプ）
+- [x] near/far クリップ判定と部分可視の減衰（`projectedLayerFrameCorners` の可視コーナー数）
+- [x] 数値入力（`beginFrameSizeBadgeInput` → モーダルScale + `modalTransformNumericInput_` の `w`/`h` 入力、Enter確定）
+- [x] 3D軸ギズモとの競合解決（press 経路でフレームハンドルを先に判定し早期return）
+- [x] モード別フィルタ（`projectedFrameHandleEnabled`。Move ではフレームのスケールハンドルを出さない）
+- [x] マルチセレクト（`projectedSelectionFrameBounds` の包絡フレーム + 包絡内の各レイヤー細枠 + グループ変換）
+- [x] リサイズガイド（固定点マーク、ドラッグ開始ハンドル位置マーク、固定点と駆動点を結ぶ線。`projectedFrameGuidePoints`）
 
-### 7.2 未実装・不具合
-- [ ] **コーナードラッグが機能しない**（根本原因特定済み: 2Dキャンバス空間と3D投影空間の不一致）
-- [ ] エッジハンドルの描画・ヒットテスト・ドラッグ（Scale_T/B/L/R）
-- [ ] フレーム内ドラッグ移動（3Dレイヤー平面上）
-- [ ] 回転ハンドルの描画・ドラッグ（Z軸回転）
-- [ ] リサイズバッジ表示（3D投影空間での適切な配置）
-- [ ] スナップ（3D空間での他レイヤーとの位置合わせ）
-- [ ] アンドゥ対応（3Dフレームリサイズの TransformSnapshot 取得と復元）
-- [ ] ダブルクリックによるスケール/回転/位置リセット
-- [ ] 最小サイズ制約（1px未満のクランプ）
-- [ ] カメラクリッピング判定（背面/ビューポート外のフレーム非表示）
-- [ ] 数値入力（バッジクリック → テキストフィールドで width/height 入力）
-- [ ] 3D軸ギズモとの競合解決（コーナーハンドルと軸のZオーダー）
-- [ ] ガイド線の延長表示（対角線・垂直線）
-- [ ] マルチセレクト対応（複数3Dレイヤーの同時リサイズ + 包絡フレーム）
-- [ ] フレーム回転の15度スナップ + leader line 表示
-- [ ] コーナーリサイズ時の対角線リファレンスマーク
-- [ ] new: `ArtifactProjectedFrameGizmo` クラスの新設（2D TransformGizmoからの分離）
+### 7.2 SPEC との差分・未着手
 
-### 7.3 修正に必要な作業
-1. 3Dフレームドラッグを2D TransformGizmoに流すのではなく、3D投影空間でデルタを計算する専用パスを追加する
-2. `hitTestProjectedFrameCorner` の結果を `gizmo3D_->beginDrag()` にルーティングするか、新規の3Dフレームリサイズ用インタラクションクラスを作成する
-3. レイヤー平面上でのマウス位置を取得するために、`createPickingRay` + レイ-平面交差（または unproject）を使用する
-4. ドラッグデルタを localBounds の width/height 変更に変換し、Transform3D の scale を更新する
+- **回転ハンドル（フレーム上のZ回転）は意図的に非表示。** `showProjectedRotationHandle = !projectedFrame`
+  とし、Z回転は3D回転リングと既存HUDへ委譲する。`hitTestProjectedFrameCorner` もコーナー／エッジのみを返す。
+  SPEC 5章のフレーム回転ハンドルはこの決定で置き換えられている。
+- **単一レイヤーのリサイズ固定点は「対角コーナー」ではなく「アンカー」。** AE準拠として
+  `projectedFrameCorrectedLocalPosition_` でアンカーを維持する。「反対側固定」は包絡フレーム
+  （複数選択）側で `projectedFrameScaleFixedPoint` が担う。
+- **モード別フィルタの解釈差。** SPEC 12.4 は Move=コーナーのみとしているが、現行は Move では
+  フレームのスケールハンドルを出さず移動のみ（Scale/All でコーナー＋エッジ）。
+- **常設の対角線（SPEC 13.1）は既定で無効のまま。** `Viewport/ProjectedFrame/ShowDiagonals` は
+  `ArtifactCore::LayeredConfigStore` から関数内 `static const bool` として1回だけ読まれ、
+  枠内のXがドラッグ可能なハンドルと誤認されるため無効が既定。今回追加したガイドはドラッグ中だけ
+  表示される固定点基準の線とマークで、常設の対角線表示とは別経路。
+- **残り:** `ArtifactProjectedFrameGizmo` クラス分離（`docs/planned/MILESTONE_3D_VIEWPORT_HARDENING.md` Phase 1）、
+  回転0/90/180/270マーク（3Dリング側HUDのみ）、Zオーダー調整を要する追加の競合ケース。
+  これらと runtime 受入の段取りは `docs/planned/MILESTONE_PROJECTED_FRAME_GIZMO_2026-09-21.md` に予定として記録した。
+- **未検証:** ビルド・実機での描画／操作確認は未実施（リポジトリ方針によりビルドはユーザー指示待ち）。
+
+### 7.3 修正に必要な作業（2026-09-21 時点の扱い）
+
+1. 3D投影空間でデルタを計算する専用パス → `projectedFrameScalePointerBasisValid_` と
+   `projectedFrameScaleStartPointer_` / `projectedFrameScaleFixedPointer_` によるビューポート空間解決で実装済み
+2. `hitTestProjectedFrameCorner` の結果を 3D ギズモのドラッグへルーティング → 実装済み
+   （`beginDrag` に Scale モードで委譲。`ArtifactProjectedFrameGizmo` の分離は未着手）
+3. レイヤー平面上のマウス位置取得 → `createPickingRay` と投影中心判定で実装済み
+4. ドラッグデルタ → localBounds と scale への変換 → 実装済み（角はScreen軸、辺はY/X軸へ振り分け）
 
 ## 8. ダブルクリックでリセット
 

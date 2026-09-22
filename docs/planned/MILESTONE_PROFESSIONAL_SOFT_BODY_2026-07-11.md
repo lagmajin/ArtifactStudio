@@ -2,6 +2,8 @@
 
 **ステータス:** In Progress
 
+**最終更新:** 2026-09-22
+
 > 2026-07-11 作成  
 > 矩形Shape向けの試作格子を、制作で再現・ベイク・レンダーできる変形システムへ発展させる。
 
@@ -96,3 +98,9 @@
 - `Physics.SoftBody` の固定 timestep／substep、snapshot／restore、layer 単位の solver 管理と、`Physics.Mpm2D` の材質 preset／collision proxy／fracture event 連携を現行コードで再確認した。
 - Composition の seek から snapshot restore へ入る経路と、Shape の deformable grid は存在するが、cache miss の reset policy、Image／Video の UV GPU grid、authoring UX、bake／export は未完了のまま。
 - 判定は変更なし: **Soft Body／MPM の基盤実装は進行済み。Preview／Bake／Render の同一 snapshot 契約、GPU parity、外部 collider filter、runtime 受入は未検証。ビルド・テストは未実施。**
+
+## Update 2026-09-22
+
+- Shape の Soft Body Grid は既定で上辺を pin しないため、重力下でレイヤー全体が落下できる。固定が必要な布は solver の明示的な pin 設定を使う。
+- Soft body はレイヤーの `physics.gravityY`、`physics.gravityScale`、`physics.linearDamping` を保持して fixed-step 更新する。Composition の汎用重力値で上書きしないため、Rigid Body と同じ Authoring の落下量／空気抵抗を使える。
+- 既存の外部 collider、反発、摩擦、固定 timestep、snapshot 契約は維持する。Preview／Bake／Render parity と runtime 受入は引き続き未検証。

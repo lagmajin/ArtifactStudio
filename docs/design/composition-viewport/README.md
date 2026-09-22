@@ -1,12 +1,24 @@
 # Composition Viewport concept
 
-**最終更新:** 2026-09-19
+**最終更新:** 2026-09-22
 
 **採用状況:** 2026-09-08 ユーザー採用済み。2026-09-09 に VP 周辺 UI の初回実装を反映。描画領域外のタブ状ヘッダー、上部ツールバー、下部の表示／再生コントロール、解像度・fps ステータスを対象とし、キャンバス内は変更していない。内蔵 imagegen を使用。
 
 [モック画像](composition-viewport-dcc-concept-2026-09-08.png)
 
 [上部クローム状態モック](composition-viewport-top-chrome-states-2026-09-12.png)
+
+## パイメニュー／右クリックメニュー（2026-09-22）
+
+- [8方向ラジアル案](composition-viewport-pie-context-radial-2026-09-22.png)
+- [4象限＋コンパクトメニュー案](composition-viewport-pie-context-quadrant-2026-09-22.png)
+
+パイメニューは8方向ラジアル案を実装基準とし、Select / Hand / Pen / Fit /
+100% / Reset / Grid / Safe Area の8項目に固定する。右クリックメニューは
+4象限案の密度と階層を採用し、選択、表示調整、表示トグル、Snapshot を初段へ
+まとめる。既存の専門的なコンテキスト操作は削除せず、`More Viewport Actions…`
+から従来の詳細メニューへ進む。パイメニュー起動は
+`CompositionViewportPieMenu` のローカルバインドで解決し、既定値は Tab とする。
 
 ## 表示パス／比較ビュー検討モック（2026-09-19）
 

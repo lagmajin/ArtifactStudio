@@ -1,4 +1,65 @@
-**最終更新:** 2026-09-21
+**最終更新:** 2026-09-22
+
+## 2026-09-22 — C4D/Houdini/Maya ビューポート比較と、DCC パリティ導入の着手前状態
+
+- **関連:** `docs/analysis/VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22.md`、`docs/planned/MILESTONE_VIEWPORT_DCC_PARITY_2026-09-22.md`、`docs/planned/MILESTONE_VIEWPORT_NAVIGATION_CONTRACT_TODO_2026-09-04.md`、`ArtifactCompositionRenderController.ixx`、`ArtifactCompositionEditor.cppm`、`ArtifactFrameCache.cppm`。
+- **確認できた事実（静的読み取り＋公式ドキュメント）:**
+  - Houdini の Display Options は Markers/Guides/Visualize/Geometry/Scene/Camera/Lights/Material/Fog/Grid/Background/Texture/Optimize のタブ構成。ナビゲーションは Box zoom/crop、Screen pan、Space+Z の tumble pivot、Home all/selected/c-plane、tear-off viewport copy、Ghosted objects を持つ。
+  - Maya の Shading メニューは Wireframe on Shaded / X-Ray / X-Ray Joints / Backface Culling / Smooth Wireframe / Bounding Box / Cycle rig display など。Viewport 2.0 Options は Transparency Algorithm（Simple/Object Sorting/Weighted Average/Depth Peeling）、GPU Instancing、Light Limit、Hardware Fog、Object Type Filter を持つ。
+  - C4D は IRR（領域レンダー＋解像度スライダ＋Alpha Mode/Lock to View/Gadget Overlay）、Viewport Solo、Filter タブ、HUD、Workplane/Snapping/Quantize、Camera Navigation プリセットを持つ。
+  - 一方 ArtifactStudio は `ViewportChannelDisplayMode` で Depth/Emission/ObjectId/MaterialId/Albedo/Normal/Velocity/Position/UV まで分離表示できており、バッファ可視化は Nuke/Maya 相当に届いている。逆に未導入は、種類別ビューポートフィルタ（`CompositionLayerRenderFilter` は All/SelectedOnly の2値）、IRR 相当（`ArtifactRenderROI` と `ProgressiveRenderer` は既存だが VP の矩形 UI が無い）、Box zoom/crop、tumble pivot のカーソル下設定、ghosted context、isolate の状態復元、tear-off viewport。
+  - `CompositionViewport::NavigationSessionState` が既に存在し、`PreviewOrbitSnapshot` に接続済み。ナビゲーション契約 TODO の T2 は実装済みだった（TODO 文書を最新化）。
+  - Maxon Autograph の Viewer も比較に追加した。接続スロット＋Lock/Freeze、2要素比較（ブレンド込み）、Channel Selector（premult / Straight / Luminance / Matte）、Gain/Gamma/Saturation の露出コントロール、ビューポート単位のフォーマット上書き（Responsive Design 相当）、パス overlay の4モード可視性（Always/Never/Hovered or selected/Selected Layers）を持つ。ArtifactStudio はズーム/フィット/100%、回転スナップ、`setCompareMode` による A/B 比較は既にあるが、露出コントロール・チャンネルバリアント・フォーマット上書き・パス overlay の可視性モードが未導入（計画の P1-5〜P1-7、P2-6 に追加）。
+  - Editor のナビゲーション入力は Qt イベント経路と Win32 ネイティブ経路（WM_LBUTTONDOWN 等）の二重構造。Box zoom を追加する場合は両経路に同じ状態遷移を実装する必要がある。
+- **価値または懸念:** 既存監査（2026-07-04）で「未実装」とされた項目の一部は既に実装済みで、ドキュメントが実装に追いついていない。逆に IRR やタイプ別フィルタのように、既存インフラ（ROI/Progressive/filter）が揃っていて UI だけ未着手の項目は低コストで導入できる。P0 の実装は `ArtifactCompositionRenderController` / `ArtifactCompositionEditor` 触りとなるが、両ファイルは並行セッションが同日中に更新しており、着手タイミングの調整が必要。
+- **対応:** 分析と導入計画を新設し、監査文書・ナビゲーション契約 TODO・バックログを最新化した。実装は未着手。
+- **次に確認すること:** 並行セッションの完了後に P0-1（Box zoom/crop）と P0-2（tumble pivot）を実装する。いずれも `ShortcutBindings` の Viewport ローカルコンテキスト登録と、Qt/Win32 の二重入力経路の両方への反映が前提。IRR（P0-3）は `ArtifactRenderROI` と `ProgressiveRenderer` の契約確認から始める。
+
+## 2026-09-22 — Dithering の Bayer 8×8／16×16 CPU 参照には行列境界の不整合がある
+
+- **関連:** `Artifact/src/Effects/Dithering/DitheringEffect.cppm`（`DitheringEffectCPUImpl::applyCPU`、Bayer 分岐）。
+- **確認できた事実（静的読み取り）:** 2×2 と 4×4 の行列だけが定義されている一方、Bayer 8×8／16×16 選択時には `bayerN` をそれぞれ 8／16 に変更して、4×4行列ポインタのまま `bi % (bayerN * bayerN)` を参照する。参照インデックスが16以上になり得るため、CPU参照の境界外読み取りになる。
+- **価値または懸念:** 8×8／16×16をGPU常駐化する前に、CPU側の正規行列と期待出力を定義し直す必要がある。今回のGPU常駐化はBayer 2×2／4×4だけに限定し、この不整合の修正は含めていない。
+- **次に確認すること:** 8×8／16×16の正規Bayer行列を追加し、色数・pattern scale別のCPU基準画像を作成してから、GPU多段／常駐化の対象可否を決める。
+
+## 2026-09-22 — Bitwig着想モーション変調 Phase 0/1: Router拡張＋Transform接続（ビルド未実施）
+
+- **関連:** `ArtifactCore/include/Audio/Modulation/Modulator.ixx`（Constant/Noise/Steps追加）、`Router.ixx`（型4-6・Binding・empty）、`Artifact/src/Layer/ArtifactAbstractLayer.cppm:1401`（getLocalTransform変調適用）、`ArtifactAbstractLayerModulation.cppm`、`ArtifactAbstractComposition.cppm:809`、`UndoManager.cppm:1401`、`tests/ArtifactCore/AudioModulationRouterTest.cpp`、`docs/analysis/MOTION_MODULATION_PHASE0_CONTRACT_2026-09-22.md`。
+- **確認できた事実（静的読み取りのみ、ビルド・テスト未実行）:** 2026-08-29実装のRouter（LFO/ADSR/Random/Macro・processAtFrame冪等・snapshot往復）を正規基盤として再利用し、置換していない。Transform適用はkeyframe評価→変調→dynamicsの順でopacity()と同順序。割当なし時は`empty()`ガードで無負荷。
+- **価値または懸念:** (a) 並行セッションがArtifactAbstractLayerを*Support.cppmへ分割中のため（本ファイル冒頭の2026-09-22記録）、getLocalTransform周辺の移動と衝突する可能性がある。分割完了後に同関数の所在確認が必要。(b) Transform適用時のQString構築は割当存在時のみだがbounded確保の例外として記録済み。(c) Phase 2のAutomationClip所有者（レイヤー所有か共有アセットか）は未解決事項のまま。
+- **次に確認すること:** (a) ビルド許可後に`AudioModulationRouterTest`実行、(b) layer JSON round-tripとpreview/export一致、(c) 並行分割との突合せ後にPhase 2（AutomationClip）着手。
+
+## 2026-09-22 — 並行セッションによる ArtifactAbstractLayer 分割中にプロパティグループ述語の定義が宙吊り
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`（2026-09-22 01:22 に別プロセスが更新）、`Artifact/include/Layer/ArtifactAbstractLayer.ixx:340`、`Artifact/src/Layer/ArtifactAbstractLayerUtilities.cppm:99`、今夜新設の `ArtifactAbstractLayer*Support.cppm` 群（23:35–01:37 に連続更新）。
+- **確認できた事実:** `isTimelineHiddenLayerPropertyGroup` ほか isTimeline*/isInspector* 系述語の定義が `.cppm` から削除され、どのファイルにも再配置されていない（宣言と呼出しは残存）。別プロセスがレイヤーモジュールを `*Support.cppm` 群へ分割中。私が P2 作業で追加した `isTimelineTextAnimatorLayerPropertyGroup` の宣言は `.ixx:344` に残っているが、実装・呼出しは未配置のためリンク影響はない。
+- **価値または懸念:** 並行セッションと同じモジュールを同時に編集すると変更が衝突する。分割が完了するまで同モジュールの編集は控えるべき。
+- **次に確認すること:** 並行作業の完了後に述語の新しい定義場所を確認し、P2（Timeline 左ペインへの Text Animator 露出）の実装（述語の実装＋8箇所の呼出し例外）を再開する。手順は `docs/planned/MILESTONE_TEXT_ANIMATOR_ADD_WORKFLOW_2026-09-21.md` の P2 に記録した。
+
+## 2026-09-21 — Text Animator の追加機構は実装済み。残るのは Timeline 左ペインのポリシー例外と個別追加導線
+
+- **関連:** `ArtifactCore/include/Text/TextAnimator.ixx`、`Artifact/src/Layer/ArtifactTextLayer.cppm`、`Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`（4974 行付近の Text Animator サブメニュー）、`Artifact/src/Widgets/Render/ArtifactCompositionRenderWidget.cppm`（1148 行付近）、`Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorTextAnimatorColor.cppm`（Animator count エディタ）、`Artifact/src/Layer/ArtifactAbstractLayerUtilities.cppm`（`computeTimelineHiddenLayerPropertyGroup`）、`docs/done/MILESTONE_TEXT_ANIMATOR_INTEGRATION_2026-04-27.md`。
+- **確認できた事実（静的読み取り）:**
+  - `TextAnimatorEngine`（Range/Wiggly/Expression セレクター、`AnimatorSelectorSet` のスタック適用）は Core に実装済み。`ArtifactTextLayer` は `addAnimator()` / `setAnimatorCount()`（最大16）/ プリセット7種 / Undo スナップショットを持ち、`perGlyphMode_` で `resolvedTextAnimatorStackAtTime()` → `applyAnimatorSets()` をタイムライン時刻で評価する。
+  - 追加導線は3箇所: Inspector の `text.animatorCount` エディタ（Add ボタン＋プリセットメニュー）、Timeline 左ペイン右クリックの `Text Animator` サブメニュー（プリセット7種＋Clear）、VP 右クリックの `Add Text Animator`。`text.animators.N.*` は `getLayerPropertyGroups()` 経由で Inspector とキーフレームモデルに接続済み。
+  - 一方で `computeTimelineHiddenLayerPropertyGroup` は Transform 以外をすべて非表示にするため、Timeline 左ペインでは Animator グループが見えない。2026-08 の分析が「timeline 未配線」としたのはこの表示ポリシーに起因する。`collectAnimatablePropertyRefs()` 自体は収集するが、左ペインの表示で遮られる。
+  - `docs/spec/SPEC_TEXT_TOOL_REQUIREMENTS_2026-07-31.md` 5.2 は Text Animator を「未実装」のままだった（今回、実コード照合で更新）。
+- **価値または懸念:** 「追加できない」ではなく「追加後に Timeline でキーフレームが見えない」「個別プロパティ追加がない」が実質のギャップ。Timeline 左ペインのポリシー変更は AGENTS.md の例外手続き（明示要求または設計レビュー）が必要で、今回の依頼が例外承認に相当するかはユーザー確認が要る。
+- **対応:** 現状照合と残作業を `docs/planned/MILESTONE_TEXT_ANIMATOR_ADD_WORKFLOW_2026-09-21.md` に計画として記録した。
+- **次に確認すること:** (a) Timeline 露出の例外承認をユーザーから得るか、(b) P0 の runtime 受入（ビルド許可後）、(c) リッチテキスト境界（`perGlyphMode_ = !isRichText`）の実機挙動。
+
+## 2026-09-21 — Projected frame の SPEC は実装より古く、未完項目はガイド線だけではなかった
+
+- **関連:** `docs/spec/SPEC_3D_FRAME_GIZMO_REQUIREMENTS_2026-07-31.md`（7章）、`docs/planned/MILESTONE_3D_VIEWPORT_HARDENING.md`（Phase 1）、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderOverlay.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`。
+- **確認できた事実（静的読み取り）:**
+  - SPEC 7.2 の「未実装」リストは大半が実装済みだった。コーナー／エッジのヒットテスト（`hitTestProjectedFrameCorner`、`Scale_T/B/L/R`）、フレーム内移動（`hitTestProjectedFrameInterior`）、リサイズバッジ（`projectedFrameWidthBadgeRect_` / `projectedFrameHeightBadgeRect_`）、ドラッグHUD（W/H・X/Y/Z・dX/dY/dZ・S・倍率・RZ/dR・操作種別）、スナップ（`snapProjectedFramePointer` + `ProjectedFrameSnapCache`）、Undo（`beginGizmoUndoSnapshot` → `GizmoTransformUndoCommand`）、ダブルクリックリセット（`resetProjectedFrameHandleAt`）、最小サイズクランプ、near/far クリップと部分可視の減衰（`projectedLayerFrameCorners`）、数値入力（`beginFrameSizeBadgeInput` + editor の `modalTransformNumericInput_` で `w`/`h` 入力→Enter確定）、3D軸ギズモとの優先順位、モード別フィルタ（`projectedFrameHandleEnabled`）、複数選択の包絡フレーム＋包絡内の各レイヤー細枠（`projectedSelectionFrameBounds`）はすべて現行コードに存在する。
+  - 「回転ハンドル（Z軸回転）」だけは設計変更で置き換えられている。`showProjectedRotationHandle = !projectedFrame` として projected frame に回転ハンドルを描かず、`hitTestProjectedFrameCorner` もコーナー／エッジしか返さない。Z回転は3D回転リングと既存HUDが担う。
+  - 単一レイヤーのリサイズ固定点は SPEC の「対角コーナー固定」ではなく `projectedFrameCorrectedLocalPosition_` によるアンカー固定（AE準拠）。対角／対辺固定は複数選択の `projectedFrameScaleFixedPoint` 側の挙動。
+  - Move モードでは `showProjectedScaleHandles` によりフレームのスケールハンドルを出さない（SPEC 12.4 の「Move=コーナーのみ」とは差がある）。
+  - `Viewport/ProjectedFrame/ShowDiagonals` は `ArtifactCompositionRenderOverlay.cppm` の関数内 `static const bool` として `ArtifactCore::LayeredConfigStore` から1回だけ読まれ、既定は無効で UI からは切り替えられない。コードコメントには「枠内の X がドラッグ可能なハンドルと誤認される」ため無効のままにする旨が書かれている。SPEC 13.1 の対角線はこの常設表示であり、今回追加したドラッグ中だけのガイドとは別物。
+- **対応（今回の実装）:** リサイズ中のガイドを追加した。`projectedFrameGuidePoints`（コーナーは対角、辺は対辺中点を固定点として返す）を追加し、ドラッグ開始時に `projectedFrameScaleStartHandlePoint_` へハンドル投影位置を記録、`drawViewportInteractionOverlay` で固定点と駆動点を結ぶ線・固定点マーク・開始位置マークをビューポート画素空間に描く。包絡フレーム（複数選択）は対象外。新しい signal/slot、QtCSS、QImage、外部行列の変更は追加していない。
+- **価値または懸念:** SPEC を「実装予定リスト」として読むと、既に終わっている項目を再実装する危険がある。今回は差分を SPEC 7章と MILESTONE Phase 1 へ反映したので、次に着手すべきは `ArtifactProjectedFrameGizmo` の分離と runtime 受入（ビルド・実機）になる。`ShowDiagonals` は起動時に固定されるため、UI から切り替えるには `static` を外す必要がある（未検証・未着手）。
+- **次に確認すること:** ビルド許可後に (a) 単一レイヤーのコーナー／エッジ／Shift・Ctrl 併用で、ガイド線・固定点マーク・開始位置マークが投影フレームへ追従すること、(b) Move モードと包絡フレームではガイドが出ないこと、(c) 数値入力（バッジクリック→`w`/`h`→Enter→Undo）の往復、(d) D3D12/Vulkan 双方での描画。実機操作が必要。今回の変更は静的確認のみでビルド未検証。段取りと残項目は `docs/planned/MILESTONE_PROJECTED_FRAME_GIZMO_2026-09-21.md` に予定として記録した。
 
 ## 2026-09-21 — Position/UV AOV 追加と既存 Velocity CPU フォールバックの疑義
 
@@ -1819,3 +1880,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **仮説（未検証）:** キャンセルAPIを独自型へ統一すること自体は可能だが、それだけではMSVC標準ヘッダーの間接依存を消せず、今回のIFCエラーは解消しない。解消には、IFCへ取り込まれる標準ヘッダー面の縮小、header-based STLとnamed std BMIの混在防止、または該当implementation unitの非module化／分離が必要になる可能性が高い。
 - **価値または懸念:** 独自キャンセル契約の統一は設計上有益だが、C1116回避と混同すると広範な置換を行ってもビルド障害が残る。標準ライブラリ完全置換はthread、future、condition_variable、memoryまで波及し、費用対効果が悪い。
 - **次に確認すること:** 許可を得て該当IFCのみ再生成し、再現する場合は `/showIncludes` とproducer／consumerのcompile optionsを比較する。その後、`Artifact.Layer.Abstract` implementation群のGMF標準ヘッダーを1つずつ最小化し、C1116を起こす具体的なinclude境界を特定する。
+
+## 2026-09-21 — ArtifactHashMap iteratorは衝突チェーンの巡回確認が必要
+
+- **関連:** `ArtifactCore/src/Core/ArtifactHashMap.cppm`、`Physics.System` の標準連想コンテナ移行。
+- **確認できた事実:** `ArtifactHashMap::iterator::operator++()` は現在のnodeの `next` を確認せず、直ちに次bucketへ進む。bucket内に複数nodeがある場合、range-forとiterator走査から2件目以降が見えない可能性がある。
+- **対応:** 今回のphysics registryには採用せず、キー順を維持する `NamedVector` 基盤の内部registryを使用した。
+- **価値または懸念:** `find()` / `operator[]` はbucket chainを走査するため、個別参照と全件走査で見える要素数が異なる恐れがある。未検証のため、既存利用箇所を一括変更しない。
+- **次に確認すること:** collisionを意図的に発生させる小さなcontainer testを用意し、iterator、rehash、erase後の走査を確認してから共通mapとして採用する。

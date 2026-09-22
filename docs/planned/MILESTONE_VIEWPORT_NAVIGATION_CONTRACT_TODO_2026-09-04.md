@@ -1,7 +1,7 @@
 # MILESTONE: Viewport Navigation Contract TODO (2026-09-04)
 
-**最終更新:** 2026-09-04
-**ステータス:** Draft (未着手)
+**最終更新:** 2026-09-22
+**ステータス:** Draft (T2 実装済み。T1/T3/T4/T5 未着手)
 **マイルストーン ID:** M-VP-9-TODO
 **統合先:** `docs/planned/MILESTONE_VIEWPORT_DESIGN_AUDIT_2026-07-04.md` (M-VP-9 / M-VP-2)
 
@@ -28,17 +28,14 @@
 - **優先度:** 中（M-VP-9 の Phase 1 着手点だが、Pivot / Orbit source selector に比べて
   視覚的効果が分かりやすい）
 
-### T2. Preview-orbit snapshot に navigation session を含める
+### T2. Preview-orbit snapshot に navigation session を含める ✅ 実装済み（2026-09-22 確認）
 
 - **内容:** `setPreviewOrbitMode` の `PreviewOrbitSnapshot` に
   `isAltOrbiting_` / `isPanning_` / `isAltZooming_` フラグを含める
-- **既存経路:** `ArtifactCompositionEditor.cppm:9238-9247` の `PreviewOrbitSnapshot` 構造
-- **依存:** なし（同一ファイル内）
-- **制約:** Editor 側 Impl にフラグ保存、`PreviewOrbitSnapshot` 構造拡張、
-  `setPreviewOrbitMode(false)` 復元経路でフラグも復元
-- **確認:** Preview Orbit ON 中に Alt+LMB orbit → OFF 時に orbit 状態が完全復元
-- **優先度:** 中（M-VP-9 「preview-only view state と camera layer state の厳密分離」
-  の核）
+- **実装状況:** `CompositionViewport::NavigationSessionState`（`ArtifactCompositionEditor.cppm:924`）と
+  `navigationSessionState()` / `restoreNavigationSessionState()` が存在し、
+  `setPreviewOrbitMode` の snapshot 保存（`:10083`）と復元（`:10107`）に接続済み。
+  確認は静的読み取りのみで、実機の orbit 往復は未検証。
 
 ### T3. Active viewport 細い枠表示
 

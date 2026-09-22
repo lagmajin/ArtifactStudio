@@ -1,6 +1,24 @@
 # Milestones Backlog
 
-**最終更新:** 2026-09-19
+**最終更新:** 2026-09-21
+
+### Projected Frame Gizmo（3D投影フレーム）
+- **M-VP-PFRAME-1** Projected Frame Gizmo 仕上げ（In Progress）
+  - 2026-09-21 の実コード照合で残ったのは runtime 受入、`ArtifactProjectedFrameGizmo` のクラス分離、回転 0/90/180/270 マーク、3D軸ギズモとの Z オーダー、`ShowDiagonals` の runtime 切替
+  - 実装済み範囲（ヒットテスト・HUD・スナップ・Undo・数値入力・包絡フレーム・リサイズガイド）は SPEC 7章の照合結果を正とし、再実装しない
+  - 詳細: `docs/planned/MILESTONE_PROJECTED_FRAME_GIZMO_2026-09-21.md`
+
+### Viewport DCC パリティ（C4D / Houdini / Maya）
+- **M-VP-DCC-1** ビューポート DCC パリティ導入（Not Started）
+  - C4D / Houdini / Maya / Maxon Autograph の公式ドキュメント比較で、種類別ビューポートフィルタ、Interactive Render Region、Box zoom/crop、tumble pivot のカーソル下設定、ghosted context、isolate 状態復元、Viewer exposure controls、チャンネル表示の Straight/Luminance/Matte、パス overlay の可視性モード、ビューポート単位フォーマット上書きなどが未導入と判明
+  - P0（Box zoom/crop、tumble pivot、IRR、タイプ別フィルタ）→ P1（isolate 復元、ghost、per-viewport 設定、シェーディングトグル、露出コントロール、チャンネルバリアント、パス overlay モード）→ P2（HUD、fog/bloom、tear-off、作業平面、フォーマット上書き）の順で導入
+  - 詳細: `docs/planned/MILESTONE_VIEWPORT_DCC_PARITY_2026-09-22.md`、`docs/analysis/VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22.md`
+
+### Text Animator（テキストアニメーション）
+- **M-TXT-ANIM-1** Text Animator の追加ワークフロー仕上げ（In Progress）
+  - 追加機構・評価経路・Inspector／右クリック導線・キーフレームモデル接続は実装済み（2026-09-21 実コード照合）
+  - 残りは runtime 受入、AE 風の個別プロパティ追加（Animate▼相当）、Timeline 左ペインへの Animator グループ露出（AGENTS の例外承認が必要）、プリセット拡充
+  - 詳細: `docs/planned/MILESTONE_TEXT_ANIMATOR_ADD_WORKFLOW_2026-09-21.md`
 
 ### Still Image / Production Readiness
 - **M-IMG-1** Still Image Layer Production Readiness

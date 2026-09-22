@@ -1,7 +1,25 @@
 # マイルストーン: ビューポート（Composition Editor）デザイン監査 (2026-07-04)
 
+**最終更新:** 2026-09-22
+
 > 作成: 2026-07-04 / 更新: 2026-08-15 (現行コード再確認 + 実装済み項目反映)
 > 元依頼: 「ビューポートでできることが少ない不満、足りないものは？」
+
+## 2026-09-22 追補: C4D / Houdini / Maya ビューポート比較の更新
+
+C4D / Houdini / Maya の公式ドキュメントベースでビューポート機能を再棚卸しし、
+未導入機能の優先度を付けた。詳細と突き合わせ表は次を参照。
+
+- 分析: `docs/analysis/VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22.md`
+- 導入計画: `docs/planned/MILESTONE_VIEWPORT_DCC_PARITY_2026-09-22.md`（M-VP-DCC-1）
+
+本監査との差分の要点: チャンネル/バッファ分離表示は `ViewportChannelDisplayMode` の拡張で
+Nuke/Maya 相当まで届いた一方、C4D の種類別ビューポートフィルタ（`CompositionLayerRenderFilter`
+は All/SelectedOnly の2値）、C4D IRR 相当の部分レンダー、Houdini の Box zoom/crop と
+tumble pivot のカーソル下設定、Maya の isolate 状態復元が未導入として残る。
+2026-09-22 に Maxon Autograph の Viewer も比較に追加した（接続スロット＋Lock/Freeze、
+2要素比較、Channel Selector の Straight/Luminance/Matte、Gain/Gamma/Saturation の
+露出コントロール、ビューポート単位のフォーマット上書き、パス overlay の4モード可視性）。
 
 ## 監査サマリー
 

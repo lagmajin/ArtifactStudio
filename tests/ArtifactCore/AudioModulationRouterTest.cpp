@@ -9,19 +9,6 @@ import Audio.Modulation.Modulator;
 
 using namespace ArtifactCore::Audio::Modulation;
 
-namespace {
-class ConstantSource final : public IModulatorSource {
-public:
-    explicit ConstantSource(float value) : value_(value) {}
-    void setSampleRate(float) override {}
-    void reset() override {}
-    float process(std::uint32_t) override { return value_; }
-    bool bipolar() const override { return true; }
-private:
-    float value_;
-};
-}
-
 TEST(AudioModulationRouterTest, PropertyPathMappingAddsToBaseValue) {
     ModulationRouter router;
     router.setSmoothingTime(0.0f);
@@ -209,4 +196,90 @@ TEST(AudioModulationRouterTest, SnapshotReplacesPriorRouterState) {
     ASSERT_EQ(assignments.size(), 1u);
     EXPECT_EQ(assignments.front().targetPath, "effect.example.amount");
     EXPECT_FLOAT_EQ(target.smoothingTime(), 0.1f);
+}
+
+TEST(AudioModulationRouterTest, ConstantNoiseStepsRoundTrip) {
+    ModulationRouter router;
+    auto constant = std::make_unique<ConstantSource>(2.5f);
+    const auto constantId = router.addSource(std::move(constant));
+
+    auto noise = std::make_unique<NoiseSource>();
+    noise->setSeed(7u);
+    noise->setRate(2.0f);
+    noise->setUnipolar(true);
+    const auto noiseId = router.addSource(std::move(noise));
+
+    auto steps = std::make_unique<StepsSource>();
+    steps->setStepCount(4u);
+    steps->setRate(1.0f);
+    steps->setSeed(11u);
+    const auto stepsId = router.addSource(std::move(steps));
+
+    ASSERT_TRUE(router.addAssignment(ModulationAssignment::forPropertyPath(
+        constantId, "transform.position.x", 1.0f)));
+    ASSERT_TRUE(router.addAssignment(ModulationAssignment::forPropertyPath(
+        noiseId, "transform.position.y", 1.0f)));
+    ASSERT_TRUE(router.addAssignment(ModulationAssignment::forPropertyPath(
+        stepsId, "transform.rotation", 1.0f)));
+
+    ModulationRouter restored;
+    restored.restoreSources(router.sourceDefinitions());
+    const auto definitions = restored.sourceDefinitions();
+    ASSERT_EQ(definitions.size(), 3u);
+    EXPECT_EQ(definitions[0].type, ModulatorSourceType::Constant);
+    EXPECT_FLOAT_EQ(definitions[0].constantValue, 2.5f);
+    EXPECT_EQ(definitions[1].type, ModulatorSourceType::Noise);
+    EXPECT_EQ(definitions[1].seed, 7u);
+    EXPECT_TRUE(definitions[1].unipolar);
+    EXPECT_EQ(definitions[2].type, ModulatorSourceType::Steps);
+    EXPECT_EQ(definitions[2].stepCount, 4u);
+    EXPECT_EQ(definitions[2].seed, 11u);
+}
+
+TEST(AudioModulationRouterTest, NoiseAndStepsReplayDeterministically) {
+    ModulationRouter router;
+    router.setSmoothingTime(0.0f);
+    auto noise = std::make_unique<NoiseSource>();
+    noise->setSeed(99u);
+    const auto noiseId = router.addSource(std::move(noise));
+    auto steps = std::make_unique<StepsSource>();
+    steps->setStepCount(4u);
+    steps->setSeed(5u);
+    const auto stepsId = router.addSource(std::move(steps));
+    const auto noiseMapping = ModulationAssignment::forPropertyPath(
+        noiseId, "transform.position.x");
+    const auto stepsMapping = ModulationAssignment::forPropertyPath(
+        stepsId, "transform.rotation");
+    ASSERT_TRUE(router.addAssignment(noiseMapping));
+    ASSERT_TRUE(router.addAssignment(stepsMapping));
+
+    router.processAtFrame(8, 30.0f);
+    const float noiseFirst = router.targetModulation(noiseMapping.targetId);
+    const float stepsFirst = router.targetModulation(stepsMapping.targetId);
+    router.processAtFrame(2, 30.0f);
+    router.processAtFrame(8, 30.0f);
+    EXPECT_FLOAT_EQ(router.targetModulation(noiseMapping.targetId), noiseFirst);
+    EXPECT_FLOAT_EQ(router.targetModulation(stepsMapping.targetId), stepsFirst);
+}
+
+TEST(AudioModulationRouterTest, ZeroAmountBindingReturnsBaseValue) {
+    ModulationBinding binding;
+    binding.amount = 0.0f;
+    binding.offset = 0.0f;
+    EXPECT_FLOAT_EQ(applyModulationBinding(3.0f, 9.0f, binding), 3.0f);
+
+    ModulationBinding scaled;
+    scaled.amount = 0.5f;
+    EXPECT_FLOAT_EQ(applyModulationBinding(2.0f, 6.0f, scaled), 4.0f);
+
+    ModulationBinding clamped;
+    clamped.amount = 1.0f;
+    clamped.clampEnabled = true;
+    clamped.rangeMin = 0.0f;
+    clamped.rangeMax = 1.0f;
+    EXPECT_FLOAT_EQ(applyModulationBinding(0.5f, 5.0f, clamped), 1.5f);
+
+    EXPECT_FLOAT_EQ(remapClamp(0.5f, 0.0f, 1.0f, 0.0f, 100.0f), 50.0f);
+    EXPECT_FLOAT_EQ(remapClamp(2.0f, 0.0f, 1.0f, 0.0f, 100.0f), 100.0f);
+    EXPECT_FLOAT_EQ(remapClamp(-1.0f, 0.0f, 1.0f, 0.0f, 100.0f), 0.0f);
 }
