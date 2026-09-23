@@ -1,6 +1,15 @@
 # ArtifactAbstractLayer 段階分割計画
 
-**最終更新:** 2026-09-22
+**最終更新:** 2026-09-23
+
+## 2026-09-23 実装単位の追加分割
+
+作業ツリーの `Artifact.Layer.Abstract:Impl` implementation partition を基に、
+transform、fracture runtime、layer JSON 保存・復元、property group、property routing、
+component routing、physics routing、layout/time routing を別の `.cppm` へ移した。
+主 `ArtifactAbstractLayer.cppm` は 9,949 行から約 3,200 行になった。公開 API と JSON key は変更していない。
+`ArtifactSources.cmake` では `:Impl` を implementation source として登録し、追加した各実装単位も登録した。
+ビルド、リンク、実機動作はユーザー指示待ちで未確認。分割による C1001 改善も未検証である。
 
 ## 2026-09-22 追加分割
 
@@ -242,8 +251,9 @@ validation auto-fix の未使用 `toRemove` は除去し、disable 対象の重�
 利用箇所のなかった property-group 判定 wrapper 6件は、既存 Utilities の正規 helper を残して主 unit から
 削除した。公開 API ではなく translation-unit 内の未使用 forwarding だけを対象にしている。
 
-private module partition は `Impl` を共有するための回避策として使わない。各 companion unit は主 interface を
-import し、既存の public member definition として private state に触れる方式を維持する。
+この段落までの分割では private module partition を使わなかった。2026-09-23 の作業ツリーでは
+`Impl` 完全型を共有する implementation partition が追加され、今回移動した member definition は
+`import :Impl` を用いる。循環依存と MSVC の module scan / IFC import はビルド許可後に確認する。
 
 ### State object 抽出の設計境界
 
