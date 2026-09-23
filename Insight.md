@@ -1,16 +1,46 @@
 **最終更新:** 2026-09-23
 
+## 2026-09-23 — 2D Deformer連番のメッシュトポロジー
+
+- **関連:** `Artifact/src/Tool/ArtifactPuppetTool.cppm`、`Artifact/src/Layer/ArtifactImageLayer.cppm`、`ArtifactCore/src/ImageProcessing/OpenCV/OpenCVPuppetEngine.cppm`。
+- **確認できた事実（コード読取のみ、未ビルド・未実機）:** `ArtifactImageLayer` は解決済みSequenceフレームを `ImageF32x4_RGBA` として保持し、同寸法でないフレームは拒否する。GPU texture cacheはresolved frame indexとcontent keyを区別する。静止画Deformerは初回ソースのalpha輪郭から三角meshを構築し、Sequence Deformerは初回bind時に矩形トポロジーを構築する。いずれもUVは実際の現在フレームテクスチャを参照する。
+- **実装:** Deformer描画をSequenceにも呼び出し、ImageF32→OpenCV surface viewを使う。初回または寸法変更時だけSequence用の矩形トポロジーを作り、解決フレームが変わっても同寸法なら再利用する。矩形meshはアルファ255でトポロジー化し、実際の透明度は各フレームのGPU textureが保持する。Sequenceを拒否していたGrid切替、位置キー確定、キー復元の条件を外し、Composition-frameで同じアニメーション経路を使う。輪郭生成／トポロジー確保はcold bind時のみ。
+- **価値または懸念:** 初回シルエットの外側へ被写体が移動しても矩形meshが全画面を覆える。一方、alpha-aware silhouetteより頂点／三角形数が増え、MLS評価時間と画質が変わる可能性がある。8-bit矩形トポロジー生成はcold pathだが大解像度時の一時バッファと初回コストは未計測。
+- **次に確認すること:** 同解像度でシルエットが異なる複数フレーム、細部の透過境界、大解像度SequenceでGPU結果・画質・bind時間を確認する。ビルド・実機確認待ち。
+
+## 2026-09-23 — 2D Deformer描画経路の統合境界
+
+- **関連:** `Artifact/src/Tool/ArtifactPuppetTool.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`、`Artifact/src/Layer/ArtifactImageLayer.cppm`。
+- **確認できた事実（静的読み取りのみ、実機未確認）:** Puppet GPU描画フックは CompositionRenderController の画像描画ブランチ内にあり、ラスターeffect／maskなし、source cropなし、current frame bufferありの場合だけ呼ばれる。PuppetToolはSequenceのcurrent frame bufferへ接続済みで、source cropは引き続き拒否する。通常のeffect/maskは `ArtifactCompositionViewDrawing` の別surface path、ShapeLayerは専用draw pathを通る。
+- **価値または懸念:** source cropを現状のPuppet APIへ単純追加すると、source UVと表示キャンバスの対応、mask/effect適用順がずれる。フレームごとのQImage変換やCPU画像warpはホットパス規則に反する。GPUメッシュ処理とsurface合成の共有境界を明確にする価値がある。
+- **実装更新 (2026-09-23):** 通常GPUベクター描画ではShapeの三角形／ストローク点にローカル点写像を接続した。PinsはMLS、Gridは双線形評価を使い、描画公開APIはモジュール依存を増やさない関数ポインタ契約にした。GPU effect planが成立してレイヤーマスクが無い場合は後段のGPU effect/matteも通る。レイヤーマスクやGPU plan非対応effectはQImage surfaceへ落ちてDeformer未適用。ShapeのMLSは頂点ごとの評価なので多数制御点／多数パス頂点での時間は未検証。
+- **次に確認すること:** cropの非破壊source-viewを既存F32 buffer/textureへ渡すAPIがあるか調査し、Sequenceのsource frame cacheと同じ所有権・version keyを使う設計を確認する。ビルド許可後にShapeの両方式、アニメーション、Undo/Redo、通常変換との組み合わせを確認し、マスク／effect surfaceへGPU経路で変形を統合する。
+
+## 2026-09-23 — 2D Deformerの有効状態とSequence編集導線
+
+- **関連:** `Artifact/src/Widgets/ArtifactToolOptionsBar.cppm`、`Artifact/src/Widgets/ArtifactMainWindow.cppm`、`Artifact/src/Tool/ArtifactPuppetTool.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionTextPuppetUndoCommands.cppm`。
+- **確認できた事実:** Tool Optionsには2D DeformerのPins/Gridと格子密度があったが、描画をバイパスする永続有効状態はなかった。またMainWindowはSequence選択時にPuppet Optionsを無効化し、Grid方式を選べなかった。
+- **実装:** Tool Optionsに有効checkboxを追加し、`deformation2D.enabled`をJSONへ保存、既存のDeformation state Undo commandで切替を戻せるようにした。古いJSONでenabledが欠落する場合はtrue。SequenceをOptionsから除外する条件を削除し、既存のImageLayer frame-key経路へ渡す。
+- **価値または懸念:** Deformerを破壊せず一時バイパスでき、制御点とキーを保持したまま比較できる。保存再読込・Undo/Redo・Sequenceの実操作確認は未実施。
+- **次に確認すること:** checkbox切替→Undo/Redo→保存／再読込、disabled時は原画像表示かつoverlay編集可能、SequenceでPins/Grid・frame-keyがCompositionフレームと一致することをruntimeで確認する。
+
+## 2026-09-23 — XPU P0/P3 追補（S15 atomic・S9 容量メモ・clone check・preset override）
+
+- **関連:** `Artifact/src/Layer/ArtifactSolidImageLayer.cppm:653`（`drawLogSamples` atomic 化）、`Artifact/src/IO/AsyncAssetReadScheduler.cppm:101`（容量コメント）、`Artifact/src/Render/ArtifactRenderQueueService.cppm`（`xpuCloneCheckEnabled`/`verifyCloneParityForJob`）、`Artifact/src/Render/ArtifactRenderQueueEncoder.cppm`（`xpuPresetOverride`）。
+- **事実:** `drawLogSamples` は `static std::atomic<int>` に置換し UB を解消。`AsyncAssetReadScheduler` は worker 3・maxQueuedJobs 256・512 MiB を維持し、MFR concurrency（4–8）との合算でも飽和しないことをコメントで固定。clone parity は `ARTIFACT_XPU_CLONE_CHECK=on` で job 先頭フレームの software path のみを hash 比較し、simulation 使用時は skip。preset は `ARTIFACT_XPU_PRESET` / `preset=` で opt-in 上書き可（未設定は slow/p4 維持、出力が変わるため既定では使わない）。ビルド・実機未確認。
+- **次に確認すべきこと:** 実機で `clonecheck=on` の ok/reason ログ、preset override 時の出力差と bench、S9 の実キュー飽和を 4K 連番で確認。
+
+## 2026-09-23 — XPU P4 部分（iGPU assist 予約＋preview 縮小の async 雛形＋throughput 計測）
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`（`xpuIgpuRole`/`buildXpuPlan`/`shouldIncludeIntegratedGpuWorkers`、preview 縮小の `assistPreview` 分岐、`xpuFrameTimer`/`xpuCpuMs`/`xpuGpuMs`）、`Artifact/src/Render/ArtifactRenderQueueEncoder.cppm`（`ARTIFACT_XPU_MAX_HW_ENCODERS`）。
+- **事実:** `igpu=assist` は plan 上で `GpuAssist` として列挙されるのみで、full worker にはならない。preview 縮小だけを assist 時に `std::async` で実行する雛形を入れ、full/off では同期のまま。throughput は frame 毎の `QElapsedTimer` で `xpuCpuMs`/`xpuGpuMs` を蓄積し、job summary に `gpuAvgMs`/`cpuAvgMs`/`weightCpu(=gpuAvg/cpuAvg)` を出すが dispatch への反映はまだしない。NVENC/QSV 上限は env でログのみで実 backoff は未接続。既定動作は従来と同一。
+- **次に確認すべきこと:** 実機で `igpu=assist`/`full`/`off` での plan 列挙と preview/出力の差分、weight の妥当性、VRAM 競合時の fallback を確認。
+
 ## 2026-09-23 — XPU P3 3-stage pipeline 最小（pipeline=on で convert parallel→encode serial）
 
 - **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`（`xpuPipelineEnabled`、`isVideo` 分岐の `std::async` convert→`addFrame` serial）。
 - **事実:** pipeline は `ARTIFACT_XPU_PIPELINE=on` / `ARTIFACT_XPU=pipeline=on` でのみ有効、既定 off（従来の `addFrame(qimg)` 直呼び）。parallel 段は RGBA8888 への detach のみを `std::async` で実行し、encode は `serial_in_order` を維持して順序・出力不変。preview 縮小は既に時間間引き済みで pipeline とは独立。
 - **次に確認すべきこと:** 実機で pipeline on/off での出力同一と wallMs 内訳、例外時の failureReason 伝播を確認。
-
-## 2026-09-23 — XPU P4 部分（iGPU assist 予約＋preview 縮小の async 雛形）
-
-- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`（`xpuIgpuRole`/`buildXpuPlan`/`shouldIncludeIntegratedGpuWorkers`、preview 縮小の `assistPreview` 分岐）。
-- **事実:** `igpu=assist` は plan 上で `GpuAssist` として列挙されるのみで、full worker にはならない。preview 縮小だけを assist 時に `std::async` で実行する雛形を入れ、full/off では同期のまま。device 生成の直列・専有、VRAM 競合の backoff、throughput autotune は未実装で既定動作は従来と同一。
-- **次に確認すべきこと:** 実機で `igpu=assist`/`full`/`off` での plan 列挙と preview/出力の差分、VRAM 競合時の fallback を確認。
 
 ## 2026-09-23 — XPU P5 部分（job summary＋parity hash＋bench JSON opt-in）
 
@@ -2034,3 +2064,10 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実（静的読み取りのみ、ビルド・実機未確認）:** (a) タブバー配置は全領域で Qt 既定（上端）のまま。`Artifact` 配下に `setTabPosition` は存在しない（grep 0 件）。(b) owner-draw chrome は上端前提で、反転対象は `DockTabBar::paintEvent` の選択タブ contour（`rect.bottom()` を開けて描画、86 / 93 行付近）、`DockTabSurface::paintEvent` の `contentTop`（`tabBar()->geometry().bottom() + 1` 基準、191-193 行付近）、タブ一覧ボタンの `Qt::TopRightCorner`（`createTabSurface` 1776 行付近と corner 参照 2 箇所）。(c) ドックレイアウト保存は `DockLayoutEntry`（dockId / area / tabGroup / geometry / visible / active / pinned / floating）にタブ領域そのものを表す項目が無く、`kDockLayoutDocumentVersion = 1` を `DockLayoutDocument::fromJson` と `restoreLayoutState` が厳密一致で検査し、不一致時は entries を破棄する。(d) Visual Studio 公式ドキュメントの `Set tab layout` は Top / Left / Right のみで、下端配置は提供されていない。(e) タイムライン系ドックはコンポジション単位で生成され（`timeline::<compId>` / `dopesheet::<compId>` / `animation-timeline::<compId>` / `audio-mini::<compId>`、`AppMain.cppm` 4107-4130）、タブ名は解決時点のコンポジション名（同 4088-4106、4166）。(f) 未保存はプロジェクト全体のみで、`UndoManager::hasUnsavedChanges()` は単一の `version_` / `savedVersion_` 比較（`UndoManager.cppm` 714-715、5481）。`UndoCommand` の基底（`UndoManager.ixx` 72-93）にコンポジション scope のアクセサは無く、`compositionId_` は各サブクラスの private メンバに散在する。(g) `NativeDockSurface` に登録済みドックのタイトルを後から更新する公開 API は無く、`titles_` はタブ文字列・浮動ウィンドウタイトル・タブ一覧・保存／復元から参照される。
 - **価値または懸念:** (a) 下端配置を `Bottom` ドック領域で使うと、ウィンドウ下端の領域タブとステータス行が近接して混同しやすい。特別扱い（下端配置を禁止する、余白や区切りを足す、のいずれか）を決める必要がある（ユーザー判断待ち）。(b) 保存フィールドの追加は version 据え置きの任意フィールド追加が安全だが、`restoreLayoutState` の配列形式フォールバックと旧ビルドとの相互運用も含めて方針を決める必要がある（ユーザー判断待ち）。(c) 浮動タブグループは安定したグループ ID を持たないため、浮動グループ単位の配置保存は M3 の ID 整備が前提。(d) タイムラインのコンポジションタブへの未保存表示（M6）は、`AGENTS.md` / `docs/design/composition-viewport/README.md` / `MILESTONE_DOCK_ENHANCEMENT_PACK_2026-09-13.md` の「未保存マークを Dock タブに出さない」規則に触れる。例外を明示するか、当該タブを編集コンテキストタブへ再分類するかの決定が必要（ユーザー判断待ち）。(e) 同表示の粒度は、既存のプロジェクト全体 dirty を使う暫定案と、コンポジション単位 dirty を新設する本来案がある。暫定案は未編集のコンポジションのタブにも印が出るため、意味を誤解させない文言が要る。本来案は Undo コアの基底インターフェース追加を伴う（ユーザー判断待ち）。
 - **次に確認すること:** (a) 実機で `QTabWidget::South` のタブ形状と owner-draw contour／外枠が一致するか、(b) 下端配置時の D&D 挿入予告と確定位置が一致するか、(c) 複数行タブの方式（自前レイアウトへ置き換えるか、行数分の `QTabBar` を並べるか）、(d) `titles_` を更新する setter を入れたとき、タブ文字列・浮動ウィンドウタイトル・タブ一覧・保存／復元の全経路で名前が一致するか、(e) コンポジション改名時にタイムラインタブの名前と未保存印が両方追随するか。
+
+## 2026-09-23 — CLI の property.set と Command IR の二重編集経路
+
+- **関連:** `Artifact/src/Application/ArtifactInteractiveShell.cppm`、`Artifact/include/AI/WorkspaceAutomation.ixx`、`docs/planned/MILESTONE_CLI_PYTHON_AUTOMATION_2026-09-23.md`。
+- **確認できた事実（静的読み取り）:** CLI `property.set` は限られたプロパティを JSON ファイルへ直接書き換え、CLI 内部だけの project snapshot undo/redo を使う。一方、WorkspaceAutomation の `set_property` は現在ロード中のレイヤーへサービス経由で適用し、Command IR の結果型を返す。Python bridge はアプリ API の戻り値を JSON から dict/list/scalar へ復元する。
+- **価値または懸念:** CLIシェルとアプリ自動化 API で同じ編集でも Undo・dirty state・型検証・戻り値の意味が異なる。AI が一方から他方へスクリプトを移すと、動作差を誤認する可能性がある。
+- **次に確認すること:** CLI起動時に headless の Application / Project service を安全に初期化できる境界を確定し、安定した layer ID と property path を含む構造化 Command IR request を既存 executor へ渡せるか調査する。既存の `property.set` は互換挙動を確認するまで拙速に置換しない。
