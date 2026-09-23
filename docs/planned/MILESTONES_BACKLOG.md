@@ -1,6 +1,12 @@
 # Milestones Backlog
 
-**最終更新:** 2026-09-21
+**最終更新:** 2026-09-23
+
+### CLI・Python 対話実行
+
+- **M-CLI-1** CLI・Python 対話実行・自動化の統合（In Progress: `--command --json`、`--request` JSONL / catalog、`command-ir` catalog / validate / execute / JSONL / opt-in project save、Python `run` / `eval` / `repl --jsonl`）
+  - PowerShell と AI エージェントが Artifact をツールとして呼び出せる単発／バッチ実行、共通 JSON 結果と終了コード、Python ファイル・式・REPL、Command IR 操作を段階的に整備する
+  - 詳細: `docs/planned/MILESTONE_CLI_PYTHON_AUTOMATION_2026-09-23.md`
 
 ### Projected Frame Gizmo（3D投影フレーム）
 - **M-VP-PFRAME-1** Projected Frame Gizmo 仕上げ（In Progress）
@@ -11,7 +17,8 @@
 ### Viewport DCC パリティ（C4D / Houdini / Maya）
 - **M-VP-DCC-1** ビューポート DCC パリティ導入（Not Started）
   - C4D / Houdini / Maya / Maxon Autograph / Blender / 3ds Max / Unreal / Nuke の比較で、種類別ビューポートフィルタ、Interactive Render Region、Box zoom/crop、tumble pivot のカーソル下設定、ghosted context、isolate 状態復元、Viewer exposure controls、チャンネル表示の Straight/Luminance/Matte、パス overlay の可視性モード、ビューポート単位フォーマット上書き、per-viewport Local Camera、Local View/Collections の分離、View Regions、Cavity/Studio Shadow などが未導入と判明
-  - P0（Box zoom/crop、tumble pivot、IRR、タイプ別フィルタ）→ P1（isolate 復元、ghost、per-viewport 設定、シェーディングトグル、露出コントロール、チャンネルバリアント、パス overlay モード、per-viewport カメラ、Local View）→ P2（HUD、fog/bloom、tear-off、作業平面、フォーマット上書き、Cavity/Shadow、View Region）の順で導入
+  - P0（Box zoom/crop、tumble pivot、IRR、タイプ別フィルタ）→ P1（isolate 復元、ghost、per-viewport 設定、シェーディングトグル、露出コントロール、チャンネルバリアント、パス overlay モード、per-viewport カメラ、Local View、Viewer Inspection Controls）→ P2（HUD、fog/bloom、tear-off、作業平面、フォーマット上書き、Cavity/Shadow、View Region）の順で導入
+  - 2026-09-22: HieroPlayer ギャップ分析（`docs/analysis/HIEROPLAYER_GAP_ANALYSIS_2026-09-22.md`）の P0 を「Viewer Inspection Controls」として統合。P1-10 Clipping 警告、P1-11 スコープ+ROI、P1-12 カラーサンプルバー、P1-13 OCIO 表示色空間切替、P1-14 アスペクトマスクを追加（P1-5 露出コントロールが核）。比較・アノテーション・バージョンスキャン等の P1/P2 候補は既存の M-FE-7 系マイルストーン側で扱い、本マイルストーンには統合しない
   - 詳細: `docs/planned/MILESTONE_VIEWPORT_DCC_PARITY_2026-09-22.md`、`docs/analysis/VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22.md`
 
 ### Text Animator（テキストアニメーション）

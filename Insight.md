@@ -11,10 +11,11 @@
 ## 2026-09-23 — 2D Deformer描画経路の統合境界
 
 - **関連:** `Artifact/src/Tool/ArtifactPuppetTool.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`、`Artifact/src/Layer/ArtifactImageLayer.cppm`。
-- **確認できた事実（静的読み取りのみ、実機未確認）:** Puppet GPU描画フックは CompositionRenderController の画像描画ブランチ内にあり、ラスターeffect／maskなし、source cropなし、current frame bufferありの場合だけ呼ばれる。PuppetToolはSequenceのcurrent frame bufferへ接続済みで、source cropは引き続き拒否する。通常のeffect/maskは `ArtifactCompositionViewDrawing` の別surface path、ShapeLayerは専用draw pathを通る。
+- **確認できた事実（静的読み取りのみ、実機未確認）:** Puppet GPU描画フックは CompositionRenderController の画像描画ブランチ内にあり、current frame bufferあり・ラスターeffect／maskなしの場合に呼ばれる。ImageLayerのsource crop layoutからcrop pixel rect、表示rect、回転を受け取り、メッシュUVは元フレームbufferを参照する。通常のeffect/maskは `ArtifactCompositionViewDrawing` の別surface path、ShapeLayerは専用draw pathを通る。
+- **実装更新 (2026-09-23):** ImageLayer自身の通常描画も `sourceCropDrawLayout()` を使うよう統一し、source crop矩形、preserve-aspect letterbox、回転transformの算出元をメッシュ描画と共有した。静的読み取りのみで直接描画との実機parityは未確認。
 - **価値または懸念:** source cropを現状のPuppet APIへ単純追加すると、source UVと表示キャンバスの対応、mask/effect適用順がずれる。フレームごとのQImage変換やCPU画像warpはホットパス規則に反する。GPUメッシュ処理とsurface合成の共有境界を明確にする価値がある。
 - **実装更新 (2026-09-23):** 通常GPUベクター描画ではShapeの三角形／ストローク点にローカル点写像を接続した。PinsはMLS、Gridは双線形評価を使い、描画公開APIはモジュール依存を増やさない関数ポインタ契約にした。GPU effect planが成立してレイヤーマスクが無い場合は後段のGPU effect/matteも通る。レイヤーマスクやGPU plan非対応effectはQImage surfaceへ落ちてDeformer未適用。ShapeのMLSは頂点ごとの評価なので多数制御点／多数パス頂点での時間は未検証。
-- **次に確認すること:** cropの非破壊source-viewを既存F32 buffer/textureへ渡すAPIがあるか調査し、Sequenceのsource frame cacheと同じ所有権・version keyを使う設計を確認する。ビルド許可後にShapeの両方式、アニメーション、Undo/Redo、通常変換との組み合わせを確認し、マスク／effect surfaceへGPU経路で変形を統合する。
+- **次に確認すること:** ビルド許可後にShapeの両方式、crop回転・aspect保持、アニメーション、Undo/Redo、通常変換との組み合わせを確認し、マスク／effect surfaceへGPU経路で変形を統合する。
 
 ## 2026-09-23 — 2D Deformerの有効状態とSequence編集導線
 
@@ -2068,6 +2069,6 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 ## 2026-09-23 — CLI の property.set と Command IR の二重編集経路
 
 - **関連:** `Artifact/src/Application/ArtifactInteractiveShell.cppm`、`Artifact/include/AI/WorkspaceAutomation.ixx`、`docs/planned/MILESTONE_CLI_PYTHON_AUTOMATION_2026-09-23.md`。
-- **確認できた事実（静的読み取り）:** CLI `property.set` は限られたプロパティを JSON ファイルへ直接書き換え、CLI 内部だけの project snapshot undo/redo を使う。一方、WorkspaceAutomation の `set_property` は現在ロード中のレイヤーへサービス経由で適用し、Command IR の結果型を返す。Python bridge はアプリ API の戻り値を JSON から dict/list/scalar へ復元する。
+- **確認できた事実（静的読み取り）:** CLI `property.set` は限られたプロパティを JSON ファイルへ直接書き換え、CLI 内部だけの project snapshot undo/redo を使う。一方、WorkspaceAutomation の `set_property` は現在ロード中のレイヤーへサービス経由で適用し、Command IR の結果型を返す。Python bridge はアプリ API の戻り値を JSON から dict/list/scalar へ復元し、引数側も JSON 値で型を保つ。`artifact.core.automation` から command vocabulary、validate、execute を呼べる。さらにCLI `command-ir` は catalog / validate / execute requestを受け、executeの `saveProject:true` で既存Project Exporterを呼ぶ実装を追加した。`command-ir -` はJSON Linesを同一プロジェクトsessionで処理する（いずれも実行未検証）。
 - **価値または懸念:** CLIシェルとアプリ自動化 API で同じ編集でも Undo・dirty state・型検証・戻り値の意味が異なる。AI が一方から他方へスクリプトを移すと、動作差を誤認する可能性がある。
-- **次に確認すること:** CLI起動時に headless の Application / Project service を安全に初期化できる境界を確定し、安定した layer ID と property path を含む構造化 Command IR request を既存 executor へ渡せるか調査する。既存の `property.set` は互換挙動を確認するまで拙速に置換しない。
+- **次に確認すること:** 実行許可後、headless service 初期化、project load、active composition fallback、Command IR execute、`saveProject:true` の保存結果をCLI runtimeで確認し、コマンドシェル／JSONL request 経路での統合も検討する。既存の `property.set` は互換挙動を確認するまで拙速に置換しない。
