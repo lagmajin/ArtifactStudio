@@ -1,4 +1,40 @@
-**最終更新:** 2026-09-22
+**最終更新:** 2026-09-23
+
+## 2026-09-23 — XPU P3 3-stage pipeline 最小（pipeline=on で convert parallel→encode serial）
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`（`xpuPipelineEnabled`、`isVideo` 分岐の `std::async` convert→`addFrame` serial）。
+- **事実:** pipeline は `ARTIFACT_XPU_PIPELINE=on` / `ARTIFACT_XPU=pipeline=on` でのみ有効、既定 off（従来の `addFrame(qimg)` 直呼び）。parallel 段は RGBA8888 への detach のみを `std::async` で実行し、encode は `serial_in_order` を維持して順序・出力不変。preview 縮小は既に時間間引き済みで pipeline とは独立。
+- **次に確認すべきこと:** 実機で pipeline on/off での出力同一と wallMs 内訳、例外時の failureReason 伝播を確認。
+
+## 2026-09-23 — XPU P4 部分（iGPU assist 予約＋preview 縮小の async 雛形）
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`（`xpuIgpuRole`/`buildXpuPlan`/`shouldIncludeIntegratedGpuWorkers`、preview 縮小の `assistPreview` 分岐）。
+- **事実:** `igpu=assist` は plan 上で `GpuAssist` として列挙されるのみで、full worker にはならない。preview 縮小だけを assist 時に `std::async` で実行する雛形を入れ、full/off では同期のまま。device 生成の直列・専有、VRAM 競合の backoff、throughput autotune は未実装で既定動作は従来と同一。
+- **次に確認すべきこと:** 実機で `igpu=assist`/`full`/`off` での plan 列挙と preview/出力の差分、VRAM 競合時の fallback を確認。
+
+## 2026-09-23 — XPU P5 部分（job summary＋parity hash＋bench JSON opt-in）
+
+## 2026-09-23 — XPU P3 部分（encode threads・preview間引き・maxInFlight可変化・bounded async sequence）
+
+- **関連:** `ArtifactCore/include/Video/FFMpegEncoder.ixx`（`threadCount`）、`ArtifactCore/src/Image/FFmpegEncoder.cppm`（`codecCtx_->thread_count`）、`Artifact/src/Render/ArtifactRenderQueueEncoder.cppm`（`xpuEncoderThreadCount`）、`Artifact/src/Render/ArtifactRenderQueueService.cppm`（`resolveMaxInFlightFrames`/`xpuPreviewMinIntervalMs`/`xpuAsyncSequenceEnabled`、consumer preview 間引き＋bounded async）。
+- **事実:** `threadCount<=0` は encoder default（現行動作そのまま）、preset/crf/gop は不変。preview 間引きは最終フレーム以外のみ 250ms 既定で publish を間引き、`lastPreviewPublishTime_` は consumer スレッドのみが触る。`maxInFlightFrames_` は env で 1–64 にクランプ、未設定 4。連番 async は単チャンネル image sequence のみ、`std::async` で `2*maxInFlight` を上限に並列書込し、失敗は ledger/failureReason へ反映して consumer を止める。multi-channel/deep/video/HTML/SVG は同期のまま。ビルド・実機未確認。
+- **閃き・仮説（未検証）:** 4K での consumer 律速は sws/YUV 変換と preview scaled の直列が主因のはず。P3 の残り（本格的な 3段 pipeline＋sws 並列＋`AsyncImageWriterManager` 置換）が無い限り encode thread＋async sequence だけでは律速が render→consumer 間で移動するだけで wall-time 改善は限定的。
+- **次に確認すべきこと:** 実機で 4K 連番の出力同一（hash）＋ async on/off での wall-time と I/O エラー伝播＋ preview が間引かれても最終フレームが必ず publish されることを確認。`ARTIFACT_XPU_ENCODER_THREADS` と `_PREVIEW_MIN_INTERVAL_MS` と `_ASYNC_SEQUENCE` の env が既定時に挙動を変えないことも確認。
+
+## 2026-09-23 — XPU P2 最小作動（mixed=on の CPU+GPU 混在、既定不変）
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`（`xpuMixedRequested`、`xpuMixedCpuCompositions`、`renderOneFrame(forceCpuPath)`、worker 割当）、`docs/planned/MILESTONE_HETERO_COMPUTE_FOUNDATION_2026-09-14.md`（P2）。
+- **事実:** CPU worker は MFR と同一契約（isolated snapshot＋software path）で mutex を取らず並列する。合計 thread は `maxInFlightFrames_` 以内（GPU 優先）。順序復元は既存 outputBuffer、失敗は既存 ledger/consumer 経路。Tiled・HTML・multi-channel/deep・simulation は混在対象外にゲート。spec 未設定時の動作は従来と同一。
+- **閃き・仮説（未検証）:** 混在の parity リスクは CPU-vs-GPU の画素差（M-IR 未達分）に集約される。P2 DoD の「逐次一致」は実機 hash 比較（P5）でしか証明できない。`mixed=on` を付けたジョブの `xpu-cpu` frame 比率と wall-time 内訳が最初の観測点。
+- **次に確認すべきこと:** 実機で opt-in 混在の全 frame 成功＋順序＋逐次一致＋cancel を確認。ビルド・ベンチはユーザー指示待ち。コミット時は子→親順（現 main）。
+
+## 2026-09-23 — XPU 正式命名＋P1残分（XpuNodeDesc 統一 plan・起動ログ）
+
+- **関連:** `docs/planned/MILESTONE_HETERO_COMPUTE_FOUNDATION_2026-09-14.md`、`Artifact/src/Render/ArtifactRenderQueueService.cppm:2699-2812`（XpuNodeDesc・buildXpuPlan）、`:3402-3410` 付近（shouldIncludeIntegratedGpuWorkers）、`:6627-6639`（XPU plan ログ）。
+- **事実:** `buildXpuPlan()` はジョブ setup のコールドパスでのみ動き、既存 `GpuFinalWorker` ディスパッチは変えていない。新規 include/import・signal/slot・QImage・QtCSS なし。`ARTIFACT_XPU` 正規、`ARTIFACT_HETERO`／`ARTIFACT_MULTI_GPU_INCLUDE_INTEGRATED` は後方互換別名。
+- **閃き・仮説（未検証）:** 計画書 P1 の「iGPU=assist 既定」と実装済み挙動（iGPU を独立 full worker 化）が食い違うため、既定 `full`＋`igpu=assist` opt-in 予約に倒した。assist を既定にすると現行の multi-GPU 挙動が変わる。P4 で consumer offload を接続する時に既定値の再レビューが要る。
+- **価値または懸念:** plan 列挙ログは multi active 時と single fallback 時の両方に出るが、`mainRendererUsesD3D12 && totalFrames > 1` の外（CPU backend・単フレーム）では出ない。P5 診断で全 backend カバーが必要。
+- **次に確認すべきこと:** 実機で `xpuPlan` ログの列挙正しさ（単GPU／複数dGPU／iGPU混在）を確認。ビルド・ベンチはユーザー指示待ち。コミット時は子→親順（Artifact→親 gitlink更新→親push、現 main）。
 
 ## 2026-09-22 — HieroPlayer ギャップ分析：レビュー系機能は既存計画と大きく重なる
 

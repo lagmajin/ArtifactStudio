@@ -1,7 +1,8 @@
-# ヘテロコンピューティング基盤（CPU複数＋dGPU複数＋iGPU）詳細計画 — 2026-09-14
+# XPU ヘテロコンピューティング基盤（CPU複数＋dGPU複数＋iGPU）詳細計画 — 2026-09-14
 
-**最終更新:** 2026-09-21
-**ステータス:** Partial — D3D12 final render の iGPU フレーム worker 参加は実装済み。CPU/GPU 統合 scheduler、adapter 別 budget、iGPU assist、実機 parity／性能検証は未完了。
+**最終更新:** 2026-09-23
+**ステータス:** Partial — D3D12 final render の iGPU フレーム worker 参加は実装済み。XPU 正式名称・`XpuNodeDesc` 統一 plan・budget 判定・起動ログ（P1残分）を実装中。CPU/GPU 統合 scheduler、adapter 別 in-flight 適用、iGPU assist 本格化、実機 parity／性能検証は未完了。
+**正式名称:** XPU（旧称 hetero。コード上の正規型は `XpuNodeDesc`、`HeteroNodeDesc` は別名として残す。正規環境変数は `ARTIFACT_XPU`、`ARTIFACT_HETERO` と `ARTIFACT_MULTI_GPU_INCLUDE_INTEGRATED` は後方互換の別名）
 **作成日:** 2026-09-14
 **対象:** ファイル書き出し（レンダーキュー）経路の CPU＋GPU 併用と、将来の複雑なヘテロ実行の土台
 **範囲:** `Artifact/src/Render/` 中心。`ArtifactCore` 変更は提案のみ（子リポ編集は承認必須）
@@ -139,6 +140,7 @@ struct HeteroNodeDesc {
   - `ARTIFACT_GPU_POLICY`: 既存 `auto/high-performance/power-saving/specific`
 - `ARTIFACT_MULTI_GPU_INCLUDE_INTEGRATED`: `0` / `false` / `off` / `no` で iGPU final worker を除外。未設定時は D3D12 Integrated を含める。
 - 将来の `ARTIFACT_HETERO`（例: `cpu=auto,gpu=all,igpu=assist`）は、CPU/GPU 統合 scheduler を導入する P2 まで追加しない。
+- 2026-09-23: 正式名称を XPU に変更。正規 spec 変数は `ARTIFACT_XPU`（例: `igpu=assist` で将来の assist 予約、`igpu=off` で除外、`igpu=full` で明示参加）。`ARTIFACT_HETERO` は後方互換の別名として読み替える。iGPU 包含の真偽判定は `ARTIFACT_XPU_INCLUDE_INTEGRATED` を正規とし、`ARTIFACT_MULTI_GPU_INCLUDE_INTEGRATED` は別名として残す。既定動作は現行実装（D3D12 Integrated を独立 full worker として含める）と同一に保つ。`assist` は P4 まで実ディスパッチに接続しない予約値。
 - `Software` adapter は既定除外。
 
 ### 5.3 Scheduler（frame 粒度・順序不問・join で復元）
@@ -179,10 +181,11 @@ parallel(連番のみ): ファイル書込（AsyncImageWriterManager）
 
 ## 6. フェーズ計画
 
-### P0: 前提分離（MFR Phase 0 の完遂・再発明なし）
+### P0: 前提分離（MFR Phase 0 の完遂・再発明なし）— 2026-09-23 静的確認（DoD 未達）
 
 - 作業: MFR 文書 S8（AssetManager 保護確認）、S10（Registry mutex）、S9（queue 容量）、S15（atomic）、複製一致テスト。
-- DoD: `clone→renderSingleFrame` が逐次と一致。全レイヤー種別。CompositionContext/3D カメラの toJson 欠落があれば先に `COMPOSITION_API_HARDENING` P1。
+- 静的確認（ビルド・実機なし）: S8 `ArtifactCore/src/Asset/AssetManager.cppm` は `QMutex`＋`QMutexLocker` で全公開操作を保護済み。S10 `Artifact/include/Render/ArtifactRenderContext.ixx:472` は `mutable std::mutex mutex_` で `registerSnapshot`/`contains`/`snapshot`/`clear` を保護済み（従来の無保護記述は現行コードでは解消）。S9 `Artifact/src/IO/AsyncAssetReadScheduler.cppm:838` は `static AsyncAssetReadScheduler(3)` で同時実行 3、キュー容量は `setMaxQueuedJobs`/`setQueuedByteBudget` で可変だが MFR concurrency と合算した飽和レビューは未実施。S15 `Artifact/src/Layer/ArtifactSolidImageLayer.cppm:653` は `static int drawLogSamples` のまま非 atomic（S15 低リスク、ログ欠落のみ）。`compositionFrameStateMutex_` は XPU P2 でも温存し、S1–S7 の複製分離が前提のため撤去しない。
+- DoD: `clone→renderSingleFrame` が逐次と一致。全レイヤー種別。CompositionContext/3D カメラの toJson 欠落があれば先に `COMPOSITION_API_HARDENING` P1（未受入・実機テスト要）。
 - 対象: MFR 文書の Phase 0 に準拠。新規設計なし。
 
 ### P1: DeviceRegistry＋ポリシー（Partial）
@@ -196,6 +199,8 @@ parallel(連番のみ): ファイル書込（AsyncImageWriterManager）
 - DoD: 単GPU／複数dGPU／iGPU混在の各環境で plan のみ正しく列挙される（render 挙動不変）。
 - 非DoD: 実分配の変更なし。
 - 2026-09-21 実装済み: `ArtifactRenderQueueService` の既存 final worker 分配で、D3D12 Integrated adapter を Discrete adapter と同じ独立 worker として候補化した。`ARTIFACT_MULTI_GPU_INCLUDE_INTEGRATED=0` で除外できる。`HeteroNodeDesc`、統一 plan、budget 判定、実機検証は未実装。
+- 2026-09-23 実装済み（P1残分）: 正規型 `XpuNodeDesc`（`HeteroNodeDesc` は別名）を `ArtifactRenderQueueService` に追加。`buildXpuPlan()` が CPU group＋非 Software adapter 列挙（Discrete→`GpuFull`、Integrated→`igpu=` 指定、既定 `full`）＋adapter 別 memory budget（local→unified フォールバック）を構築し、multi-GPU active 時と single-GPU fallback 時の両方で `xpuPlanDebugState()` を起動ログに出す。実機での plan 列挙確認は未実施。
+- 2026-09-23 実装中（P2 最小作動・opt-in）: `ARTIFACT_XPU=mixed=on` でのみ CPU worker＋GPU worker 混在。条件は multi-GPU 成立＋simulation なし＋FullFrame＋非HTML＋非マルチチャンネル/deep＋残フレーム・残 in-flight あり。CPU worker は MFR と同じ契約（isolated snapshot＋software path、`renderSingleFrame` の mutex を取らない）で `renderOneFrame(forceCpuPath)` に接続し、frame ログは `xpu-cpu` 識別。合計 thread 数は `maxInFlightFrames_` 以内（GPU 優先、CPU は残枠）。clone 失敗・条件不成立は既存 multi-GPU 動作へ fallback。`compositionFrameStateMutex_` は維持（MFR Phase 0 未完のため撤去しない）。`useMfr`／`useMultiGpu` の既定判定は不変。実機の混在受入（全 frame 成功＋順序復元＋逐次一致＋cancel/failure/ledger）は未実施。
 
 ### P2: Hetero dispatcher（CPU+GPU 混在の最小作動）
 
@@ -208,37 +213,33 @@ parallel(連番のみ): ファイル書込（AsyncImageWriterManager）
 - DoD: 混在 opt-in 時に全 frame 成功＋順序復元＋逐次一致。cancel/failure/ledger が従来通り。
 - 注意: `compositionFrameStateMutex_` は P0 未了なら残す。外すのは P0 受入後。
 
-### P3: Consumer pipeline＋encode 効率（利用率の主戦場）
+### P3: Consumer pipeline＋encode 効率（利用率の主戦場）— 2026-09-23 部分実装（DoD 未達）
 
-- 作業（PROPOSAL 順）:
-  1. FFmpeg `thread_count/thread_type`（Core・承認要）＋ preset 露出設計（機械的 `slow→medium` 置換はしない）。
-  2. preview 縮小間引き。
-  3. consumer 3段 pipeline（取得 serial／変換 parallel／encode serial）。連番書込は parallel 段へ。
-  4. sws 変換の並列化（threads option or `Parallel::For` 前処理）。
-  5. `maxInFlightFrames_` 可変化（HW＋memory 連動）。
-- 対象: `ArtifactCore/src/Image/FFmpegEncoder.cppm`、`ArtifactRenderQueueService.cppm`（consumer）、`AsyncImageWriterManager` 接続。
-- DoD: 同一出力で wall-time 短縮、画質・仕様不変、4K 時の変換律速が緩和。
+- 済（出力不変・既定不変）: (1) `FFmpegEncoderSettings.threadCount` を追加し `codecCtx_->thread_count` へ接続。未設定時は encoder default（=現行動作）。`ARTIFACT_XPU_ENCODER_THREADS` で上書き可（0〜64、0 は default）、`buildNativeVideoSettings`/`buildGpuVideoSettings` 共通。preset の機械的変更なし。(2) 進捗 preview の時間間引き（既定 250ms、最終フレームは常時 publish）。`ARTIFACT_XPU_PREVIEW_MIN_INTERVAL_MS` で上書き可（0 で従来どおり、出力に影響しない）。(3a) 連番書込の bounded async（`ARTIFACT_XPU_ASYNC_SEQUENCE=on` または `ARTIFACT_XPU=asyncseq=on` でのみ有効、既定 off）。単チャンネル image sequence のみを `std::async` で並列書込し、pending 上限は `2*maxInFlightFrames_`、最終 drain で失敗を ledger へ反映。video/HTML/SVG/multi-channel/deep は同期のまま。(3b) 動画向け 3-stage pipeline の最小形（`ARTIFACT_XPU_PIPELINE=on` または `ARTIFACT_XPU=pipeline=on` でのみ有効、既定 off）。取得 serial→変換 parallel（RGBA8888 への detach を `std::async` で並列）→encode serial（`addFrame` は順序必須）の構造を consumer thread 内で実現。出力不変。(5) `maxInFlightFrames_` を `ARTIFACT_XPU_MAX_IN_FLIGHT` で可変化（既定 4=現行動作）。
+- 残（P3 DoD 向け）: sws/YUV 変換の本格並列化（`thread_count` 有効範囲の bench と `AsyncImageWriterManager` への置換検討）＋ 4K wall-time 受入。preset 露出設計は P3 で機械的 `slow→medium` を行わない方針を維持。
+- 対象: `ArtifactCore/src/Image/FFmpegEncoder.cppm`、`ArtifactCore/include/Video/FFMpegEncoder.ixx`、`Artifact/src/Render/ArtifactRenderQueueEncoder.cppm`（(1)）、`Artifact/src/Render/ArtifactRenderQueueService.cppm`（(2)(3a)(3b)(5)）。
+- DoD: 同一出力で wall-time 短縮、画質・仕様不変、4K 時の変換律速が緩和（未受入・実機 bench 要）。
 
-### P4: iGPU assist 本格化＋適応調整
+### P4: iGPU assist 本格化＋適応調整 — 2026-09-23 部分実装（DoD 未達）
 
-- 作業:
-  - iGPU を convert/scale/scope/proxy/encode 補助に正式接続。
-  - device 別 throughput 計測→重み autotune（起動時固定＋job 内 slow-start）。
-  - NVENC/QSV 同時実行上限・PCIe 競合の backoff（失敗時は CPU/GPU-full へ fallback）。
-- DoD: iGPU on/off で破綻なし。律速が render→consumer へ移動しない。
+- 済（出力不変・opt-in/plan 予約）: `buildXpuPlan` で `igpu=assist` 時に `GpuAssist` ノードを列挙し、`xpuPlanDebugState` と job summary に出す。preview 縮小のみ `igpu=assist` 時に async（将来の iGPU offload 雛形）で実行し、full/off では同期のまま。device 生成は従来どおり直列・専有を維持。
+- 残: convert/scale/scope/proxy/encode 補助への本格接続、device 別 throughput 計測→重み autotune（起動時固定＋job 内 slow-start）、NVENC/QSV 同時実行上限・PCIe 競合の backoff（失敗時は CPU/GPU-full へ fallback）。
+- 対象: `Artifact/src/Render/ArtifactRenderQueueService.cppm`（`xpuIgpuRole`/`buildXpuPlan`/`shouldIncludeIntegratedGpuWorkers`、preview assist 分岐）。
+- DoD: iGPU on/off で破綻なし。律速が render→consumer へ移動しない（未受入・実機 bench 要）。
 
-### P5: 観測・受入・文書化
+### P5: 観測・受入・文書化 — 2026-09-23 部分実装（DoD 未達）
 
-- 作業:
-  - frame 別 `renderBackend` ログ（既存 `renderBackend=gpu-multi/gpu/cpu` 拡張で `cpu/gpu:N/igpu` 識別）。
-  - `RenderPerformanceMonitor`/`FrameCache` 集計＋bench harness（4K 固定条件・再現手順）。
-  - parity hash の job 終了時記録。
-- DoD: M-IR-6 の「再現可能な bench」未達を本基盤で解消。数値目標はここで確定。
+- 済（cold path のみ、出力不変）: frame 別 `renderBackend` を `gpu-multi`/`xpu-cpu`/`gpu`/`cpu` に拡張（P2）、XPU plan を起動ログと job summary の両方に出す（P1/P5）、job 終了時に wallMs＋gpuFrames/xpuCpuFrames＋mixed/asyncSeq＋parity＋pipeline を `XPU job summary` として出す。parity は `ARTIFACT_XPU_PARITY_HASH=on` または `ARTIFACT_XPU=parity=on` でのみ FNV-sample hash を frame 毎に累積し、逐次 vs ヘテロの同一性検証に使える（既定 off）。bench JSON は `ARTIFACT_XPU_BENCH=on` または `ARTIFACT_XPU=bench=on` でのみ `temp/ArtifactStudio/xpu-bench/xpu_job*.json` に plan/wallMs/内訳/parity を残す（既定 off、出力不変）。`RenderPerformanceMonitor`/`FrameCache` の既存集計は温存。
+- 再現手順（固定条件・受入用）: 4K comp（3840x2160/30fps/100frames/png sequence または h264 mp4）で `ARTIFACT_XPU` 未設定（逐次）vs `ARTIFACT_XPU=mixed=on`/`asyncseq=on`/`pipeline=on`/`parity=on`/`bench=on` の組合せを同一入力で実行し、`XPU job summary` の wallMs と bench JSON の hash 一致で parity と consumer 律速の内訳を比較する。`threads` は `ARTIFACT_XPU_ENCODER_THREADS`、`maxInFlight` は `ARTIFACT_XPU_MAX_IN_FLIGHT` で固定し、preset は変えない。
+- 残: 上記手順での実機 bench と数値目標の確定（M-IR-6 受入。harness 自体は上記 JSON で最小は揃う）。
+- 対象: `Artifact/src/Render/ArtifactRenderQueueService.cppm`（`xpuWallTimer`/`xpuCpuFrames`/`xpuGpuFrames`/`xpuParityCombined`/`xpuBenchEnabled`/`writeXpuBenchRecord`/`xpuPipelineEnabled`、`XPU job summary`）。
+- DoD: M-IR-6 の「再現可能な bench」未達を本基盤で解消。数値目標はここで確定（未受入・実機 bench 要）。
 
-### §7 予約: タイル内分散（本計画では実装しない）
+### §7 予約: タイル内分散（本計画では実装しない）— 2026-09-23 再確認
 
-- 条件: P0–P5 受入後、かつ halo・決定論・parity の設計レビュー通過後のみ。
+- 条件: P0–P5 受入後、かつ halo・決定論・parity の設計レビュー通過後のみ。本計画の P1–P5 が DoD 未達のため着手しない。
 - 候補: 大フレームの効果適用タイル分割、CPU タイル＋GPU タイルの合成。`ComputeMode::AUTO` の device 拡張として扱い、dispatcher とは層を分ける。
+- 留意: タイル分割は halo（エフェクトの周辺参照）、決定論（加算順・spawn 順）、parity（CPU/GPU 画素差）、メモリ budget、QImage 経路禁止の各制約を同時に満たす必要があり、frame 粒度のヘテロ基盤とは独立した設計レビューが必須。2026-09-23 時点では着手せず、XPU の実機 bench（P5）で frame 粒度の効果を確定してから再検討する。
 
 ---
 
