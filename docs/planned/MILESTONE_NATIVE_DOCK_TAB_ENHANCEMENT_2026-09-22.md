@@ -82,6 +82,8 @@
 4. キーボードから実行する場合だけ `ShortcutBindings` に専用 `ShortcutId`（Dock ローカルコンテキスト）を追加する。既定キーは空とし、固定キーを実装へ直書きしない。
 5. 下端は VS の `Set tab layout` に存在しない本アプリ独自の拡張であるため、メニュー文言とドキュメントで VS 準拠要素と区別する。
 
+**進捗（2026-09-24）:** タブ右クリックとタブ一覧メニューに、対象領域名を明示した上下配置の選択肢を追加した。配置は `DockLayoutDocument.areaTabPositions` に任意 JSON object として保存し、version 1 のまま欠落・不明値を上端扱いにする。Undo／Redo は既存のレイアウト snapshot 経路で往復させる。浮動タブグループは固定領域属性とグループ識別子が未整備のため対象外。ビルド・保存復元・Undo／Redo の実機確認は未実施。
+
 #### M5-2 — 下端配置時の chrome 反転（描画のみ）
 
 1. `DockTabBar::paintEvent` の選択タブ contour は現在 `rect.bottom()` を開けて描いている。下端配置では開く辺を**上辺へ反転**する。
@@ -111,11 +113,11 @@
 
 - `QTabWidget::setTabPosition(QTabWidget::South)` のタブ形状、`QStyleOptionTab::position`、スクロールボタンと一覧ボタンの位置は未確認。owner-draw chrome が上端前提のため、実機で contour と外枠の一致を確認する。
 - 下端配置を `Bottom` ドック領域へ適用すると、ウィンドウ下端の領域タブとステータス行が近接する。混同しない余白・区切りは要判断（`Insight.md` に記録）。
-- 保存契約: `kDockLayoutDocumentVersion`（現在 `1`）は `DockLayoutDocument::fromJson` と `restoreLayoutState` の両方で厳密一致し、不一致時は entries を破棄する。フィールド追加は **version 据え置きの任意フィールド追加**（未知キーは読み飛ばし、欠落時は上端）を第一候補とする。あわせて領域単位属性の置き場所（`DockLayoutEntry` への重複保持か `DockLayoutDocument` の領域テーブルか）を決める。
+- 保存契約: `kDockLayoutDocumentVersion`（現在 `1`）は `DockLayoutDocument::fromJson` と `restoreLayoutState` の両方で厳密一致し、不一致時は entries を破棄する。M5-1 は version 据え置きの任意 `areaTabPositions` object を採用した。未知キーは読み飛ばし、欠落・不明値は上端へ戻す。旧 JSON 配列形式も上端へ戻す。
 - 浮動タブグループの保存表現は `floating-tabs:` の並び文字列で、安定したグループ ID ではない。浮動グループ単位の配置保存は M3 の着手条件と同じ ID 整備を前提とする。
 - `QTabBar` のスクロールボタンと省略表示（`setElideMode(Qt::ElideRight)`）は下端配置でも維持し、一覧ボタンと重ならないことを確認する。
 
-**進捗（2026-09-24）:** `DockTabBar` と `DockTabSurface` に、タブ位置が South の場合の選択 contour／フォーカス外枠／タイトル下線の反転を追加した。タブ一覧ボタンはリサイズ時に `TopRightCorner` / `BottomRightCorner` へ追随させる。現在の呼び出し側は上端配置のままで、下端へ切り替える M5-1 は未着手。QStyle の South 形状、切替後の実描画・D&D・余白は未確認。ビルド・実機確認は未実施。
+**進捗（2026-09-24）:** `DockTabBar` と `DockTabSurface` に、タブ位置が South の場合の選択 contour／フォーカス外枠／タイトル下線の反転を追加した。タブ一覧ボタンはリサイズ・レイアウト要求時に `TopRightCorner` / `BottomRightCorner` へ追随させる。QStyle の South 形状、切替後の実描画・D&D・余白は未確認。ビルド・実機確認は未実施。
 
 ### M6 — コンポジションのタブの未保存表示
 
