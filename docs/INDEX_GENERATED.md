@@ -1,7 +1,7 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-09-23 21:54
-> Total documents: 1419
+> Generated: 2026-09-24 01:47
+> Total documents: 1420
 
 ---
 
@@ -582,7 +582,7 @@
 |---|------|-------|------|--------|----------|------|----------|
 | 1 | `docs/personas/MULTITHREADING_PROGRAMMER_PERSONA.md` | Multithreading Programmer Persona | 2026-08-14 | --- | 2026-08-14 | 4.5 KB | MULTITHREADING, PROGRAMMER, PERSONA |
 
-## planned (733 files)
+## planned (734 files)
 
 | # | File | Title | Date | Status | Modified | Size | Keywords |
 |---|------|-------|------|--------|----------|------|----------|
@@ -1319,6 +1319,8 @@
 | 731 | `docs/planned/TEAM_PROJECT_USAGE_EXAMPLE.md` | チームプロジェクト 使用例 | --- | --- | 2026-04-13 | 4.5 KB | TEAM, PROJECT, USAGE, EXAMPLE |
 | 732 | `docs/planned/TEXT_LAYER_ROUTE_2026-04-29.md` | Text Layer Route Note - 2026-04-29 | 2026-04-29 | --- | 2026-04-30 | 1.1 KB | TEXT, LAYER, ROUTE |
 | 733 | `docs/planned/ZONE_EFFECT_DESIGN_2026-08-23.md` | Zone Effect 設計案 | 2026-08-23 | --- | 2026-08-24 | 6.5 KB | ZONE, EFFECT, DESIGN |
+
+| 734 | `docs/planned/MILESTONE_AUDIO_PLUGIN_EDITOR_WINDOWS_2026-09-24.md` | Audio Plugin Editor Windows Milestone | 2026-09-24 | In Progress | --- | 7.5 KB | AUDIO, PLUGIN, EDITOR, WINDOWS |
 
 ## plans (7 files)
 

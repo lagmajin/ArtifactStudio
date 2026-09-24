@@ -1,4 +1,76 @@
-**最終更新:** 2026-09-23
+**最終更新:** 2026-09-24
+
+## 2026-09-24 — Collaboration review operations need ordered acknowledgement
+
+- **関連:** `ArtifactCore/src/Collaborate/CollaborationSessionAdapter.cppm`, `CollaborationSession.cppm`, `CollabOperations.cppm`, `CollabReview.cppm`。
+- **確認できた事実:** ローカル operation は送信時点で session log に version `-1` の pending として記録され、サーバー echo 時に同じ dedupe key へ version が付与される。レビューコメントを送信前に UI モデルへ適用すると、他クライアントの operation より先にローカル状態だけが進む可能性がある。
+- **対応:** レビュー操作は echo で session が確定した後に同じ apply 経路で反映し、operation adapter の適用 callback をリモート operation とローカル echo の両方で呼ぶようにした。編集・削除は author identity を schema と現在の review model の双方で検証し、削除は返信表示と operation replay のため tombstone として保持する。
+- **価値または懸念:** サーバー version 順でレビュー状態を反映できる。operation は JSONL に保存され再参加・再起動後に replay される。ファイルは暗号化されず保持期限はない。コメントと返信本文を含むため、保存先へのアクセス制御と容量管理が必要。
+- **追記 (2026-09-24):** WebSocket client の reconnect queue は上限時に先頭を捨てていたため、bounded rejection に変更。durable operation は非接続時に queue へ積まず、送信拒否時は session の pending operation log と dedupe key を戻す。lock request/release の UI pending 状態も拒否時に戻し、presence payload は bounded exponential backoff で再送する。
+- **追記 (2026-09-24):** サーバーは空 room を破棄するため memory-only history は最後の離脱で消失することを確認。project ID を SHA-256 でファイル名化した JSONL append log、起動時の履歴 replay、壊れた末尾行の回復を追加した。`clientId + opSeq` を冪等キーにし、同一内容の再送は元の version で応答、異なる内容の再利用は拒否する。さらに WebSocket control ping/pong で半開き接続を検出し、切断 cleanup による lock/presence の解放へ繋げた。既存クライアントの application ping も server が pong 応答し、通常通信として処理する。
+- **追記 (2026-09-24):** 長期運用で JSONL と参加時の全件 replay が無制限に拡大する問題に対し、プロジェクト単位で既定 16 MiB／100,000 operation の上限を設けた。設定値は環境変数で変更でき、上限到達時は古い履歴を自動削除せず新規 operation を拒否する。snapshot／圧縮がない状態で履歴を切り詰めると replay 結果が変わるため。既存の上限超過ファイルは読み込めるが追記は拒否する。
+- **追記 (2026-09-24):** operation の JSONL 追記後に `fsync` を行い、成功前に ACK／broadcast しないようにした。部分書込みは元のファイルサイズへ truncate して再同期する。rollback 自体に失敗した場合は room を fail-closed にし、再起動・履歴調査まで追記を拒否する。これは OS の file sync 境界までであり、directory entry やストレージの電源断耐性を保証しない。
+- **追記 (2026-09-24):** WebSocket の受信 frame 2 MiB、operation 1 MiB、presence 64 KiB と join identity／layer ID の byte 長を制限し、入力経路でメモリ・永続化を無制限に消費しにくくした。これは DoS 耐性の一部にすぎず、接続数制限、認証、権限、rate limit は依然ない。
+- **追記 (2026-09-24):** 起動時の JSONL 回復が不正行の位置を問わず、その後ろのレコードを黙って削除し得ることを確認。最終レコードのみ回復し、途中破損は元ファイルを保持して join を拒否するようにした。これで履歴の自動回復可能性とデータ保持を区別できる。
+- **追記 (2026-09-24):** project ID を自由に作れる prototype server では room 数・同時接続によるメモリ圧迫もあるため、全体 256／room 64 の上限を join 時に履歴読込前に検査する。client identity は認証済みではないため、これは資源上限であって権限境界ではない。
+- **追記 (2026-09-24):** manual layer reservation を編集拒否へ接続するには初期 lock roster 完了境界が必要。`room_ready` を初期 history／participants／locks の後に送り、UndoManager へ layer target を公開した command は push／undo／redo の前に guard する。対象 ID が未実装の command は guard を通らないため、すべての mutation 経路をカバーしたと扱わない。
+- **追記 (2026-09-24):** 他者の lock がある場合だけ拒否すると、未ロック layer を複数人が同時に編集でき、予約が排他制御にならない。追跡対象 Undo command は collaboration session 中に自分の lock 保持も要求し、server の既知 property／transform/remove operation も送信者が lock owner の場合だけ受理する。未追跡 command と operation type は依然 enforcement 外。
+- **追記 (2026-09-24):** layer ID を持つ Undo command をさらに棚卸しし、mask/matte、text/source、components、modulation、automation、variants、layer effects 等を lock guard 対象へ追加した。multi-layer alignment と composition resolution remap も全対象 ID を列挙して検査する。Add/Remove layer は参照が変わる既存 layer を含め、Add の新規 ID は生成前の push では lock を要求せず、後の undo では既存 ID として検査する。
+- **追記 (2026-09-24):** effect Undo command は effect ID だけを持ち owner layer を直接保持しない。project item tree 上の全 Composition の layer effect stack から pointer identity で owner を解決し、複数 owner がある場合は全 layer lock を要求する。未所属／Composition 直結など owner を解決できない場合は mutation scope unknown として collaboration guard が拒否する。Composition-wide effect lock UI は未実装。
+- **追記 (2026-09-24):** 通常の `property.set`／`layer.transform`／`layer.add`／`layer.remove` は Session の dedupe/version history と server broadcast に届くが、MainWindow の operation-applied callback は review operation にだけ接続している。送信元の編集 UI と remote project mutation の経路は未接続。次段階では「編集 command → 安定 layer/property identity を持つ semantic operation → server echo/version → remote apply」と undo の補償操作・重複 echo の扱いを同じ仕様にしてから接続する。変換値を直接 setter に流すだけではローカル undo 履歴と競合順序がずれるため、適用モデルの具体案は未検証。
+- **追記 (2026-09-24):** review operation の編集は operation log に旧本文が残るが、review model は最新本文だけを表示していた。各クライアントが同じ version 順で replay して旧本文・editor ID・時刻を revision として保持し、後日再参加しても表示名が残るよう編集者名だけを operation payload に追加した。実装では deletion tombstone の履歴本文を UI に露出させない。
+- **追記 (2026-09-24):** revision をコメントごとに全件保持すると `CollabComment` の値コピー（一覧表示・lookup）でも履歴配列を深く複製するため、review model は直近 50 版に制限してコピーコストを bounded にした。元 operation は JSONL に残るため、model の保持数と永続履歴 retention は別責務である。
+- **追記 (2026-09-24):** 静的な `setLayerPropertyValue()` 使用箇所の調査で、Inspector、Property Widget、Text Editor、Content/Text Gizmo などに UI 直接 mutation が複数残っていることを確認した。検索結果には command の undo/rollback と初期化経路も混ざるため、直接編集経路の総数や共同編集中の到達可能性は未検証。UndoManager の command preflight だけでは、これらの直接 setter 経路へ lock と operation sync を強制できない。次はユーザー操作の入口ごとに対象 layer、編集開始／commit／cancel の境界、undo 所有者を分類し、専用 command 化か共通 mutation gateway 化の順序を決める。
+- **次に確認すること:** 実サーバー再起動後の履歴 replay、同時編集競合時の利用者向け状態、運用者がバックアップ・整理する保持手順、snapshot 導入後の履歴圧縮を確認する。ビルド・実機動作は未確認。
+
+## 2026-09-24 — EffectContract の C++ module 依存を所有元へ限定
+
+- **関連:** `Artifact/CMakeLists.txt` の `ArtifactEffectContract`、`ArtifactRender`、`ArtifactRenderSupport`、`ArtifactRenderSupportContracts` のリンク設定。
+- **確認できた事実:** EffectContract の `.ddi` が import するモジュールは ArtifactCore、ArtifactCoreAudio、RenderSupportContracts の所有範囲に収まる。`ArtifactRender` と `ArtifactRenderSupport` を同時にリンクしていた状態では、同一 ArtifactCore モジュールの BMI が複数の `@synth_*` パスとして解決され、CMake 4.4.3 が dyndep 生成時に location disagreement を報告した。両ターゲットを外し、直接 import している所有ターゲットに絞った後は、同じ dyndep が成功し、BMI が各所有ターゲットの `.ifc` に一意に解決された。
+- **仮説:** CMake の synthetic partition を介して広い公開リンク閉包を重ねると、モジュール所有ターゲットの BMI 解決が曖昧になる可能性がある。今回の修正では再現エラーが消えたが、他ターゲットでも同じ制約になるかは未検証。
+- **価値または懸念:** モジュール利用側は、実際に import するモジュールの所有ターゲットをリンクすることで、不要な依存伝播と BMI 配置の競合を抑えられる。通常の静的リンクシンボルが Render 実装ライブラリに依存するかは別途確認が必要。
+- **次に確認すること:** `ArtifactEffectContract` の通常コンパイルとリンクを進め、Render / RenderSupport 実装シンボルの未解決がないことを確認する。
+
+## 2026-09-24 — MSVC C3474 の単一 IFC 再試行
+
+- **関連:** `ArtifactCore/include/Script/Expression/ExpressionEvaluator.ixx` と `out/build/x64-Debug-cmake443` の Ninja/MSVC 出力。
+- **確認できた事実:** C3474 で `Script.Expression.Evaluator.ifc` を開けなかった後、IFC と `.obj` は前回時刻のファイルとして残っていた。排他的な読み書きテストではロックや書き込み拒否がなく、`CXX.dd` 上の IFC provider も1件だった。対象オブジェクトを `ninja -j 1` で再実行すると、依存7件の更新後にコンパイルが成功した。
+- **未検証の仮説:** 失敗時だけ発生した一時的なファイルシステム／コンパイラ出力障害の可能性があるが、元の失敗時点のハンドル状態は取得できず、原因は確定できない。
+- **価値または懸念:** C3474 が単発で、同じ出力を持つ provider が1件なら、クリーンビルドより先に対象を直列で再試行することで回復し、原因の切り分けにもなる。再発時は失敗時のプロセスと出力ファイル状態を採取する必要がある。
+- **次に確認すること:** 同種の C3474 が再発した場合、失敗時点の Ninja/CL プロセス、provider 数、出力ファイルのアクセス状態を比較する。
+
+## 2026-09-24 — Plugin editor window ownership and thread boundary
+
+- **関連:** `ArtifactCore/include/CLAP/CLAPHost.ixx`, `ArtifactCore/src/CLAP/CLAPHost.cppm`, `ArtifactCore/include/VST3/VST3Interfaces.ixx`, `Artifact/src/VST/VSTHost.cppm`。
+- **確認できた事実:** VST2 の editor path は VST3 を除外し、`effEditOpen` / `effEditClose` opcode 値も VST2 ABI と不一致だった。Audio Mixer は `openEditor(nullptr)` を渡す一方、VSTHost は有効な native handle を要求する。Mixer の挿入メニューに CLAP はなかった。VST3 の `IEditController::createView()` 宣言はあるが、`IPlugView` / `IPlugFrame` の契約は未実装だった。加えて現 CLAP 手書き ABI は official `clap_host` の version/name/vendor/url 領域、descriptor/process layouts と一致せず、`clap_plugin.reset` slot も欠落している。さらに公式 entry は plugin factory を返す `get_factory` 構成だが、現宣言は entry 自体に plugin count/create 関数を置いている。CLAP GUI の lifecycle は main-thread 操作を要求し、host callback は thread-safe な非同期通知を含む。ビルドでは CLAP host と VST3 loader はコンパイルしたが、Audio Mixer/VST 実装は別の既存 dirty collaboration module のコンパイルエラーで未到達。
+- **対応:** VST3 の既存 `VST3EffectHost` を `VSTEffect` から使い、UI thread 上で native child window に editor view を attach/detach する実装を追加。CLAP entry/factory、host、descriptor、plugin/process、audio buffer、parameter event の ABI 宣言を公式仕様に合わせ、bounded parameter queue / audio scratch と mono/stereo 単一 bus 制約を追加。各 format の mono/stereo 変換は preallocated scratch 上で行い、host segment のチャンネル数を保つ。Audio Mixer から CLAP を挿入し、CLAP GUI を浮動 host window に attach する経路を追加。
+- **価値または懸念:** plugin editor は audio effect 本体と異なる thread / native-window lifetime を持つ。window close で effect を unload せず、plugin/library の破棄前に view を閉じる所有権が必要。現 CLAP host GUI callback は plugin からの resize/show/hide 要求を拒否し、multi-bus / sidechain / floating-only GUI は未対応。実プラグインでの ABI と native handle は未検証。
+- **次に確認すること:** CLAP descriptor selection、非同期 GUI request のbounded UI-thread dispatch、VST/CLAP の unload 順と repeated open/close のソース監査を続ける。VSTHost / VSTEffect / AudioMixerWidget は個別コンパイルでき、serialized Ninjaもこれらを通過した。フルアプリビルドは未変更の `ArtifactShapeLayer.cppm:4713` にある重複 `this` capture の C3483 で停止した。これは本作業外の既存ソースなので触らず、リンク/runtime の確認はこのエラー解消後に続ける。並列 Ninja では別途 assertion が出たため、直列を維持する。
+
+## 2026-09-23 — Procedural3DGenerators の ShapeExtrude IFC順序
+
+- **関連:** `ArtifactCore/CMakeLists.txt` の `ARTIFACTCORE_IMPLEMENTATION_MODULE_REFERENCES` 最終化処理と `src/Geometry/Procedural3DGenerators.cppm`。
+- **確認できた事実:** 前段の個別設定は `ShapeExtrude.ixx.obj` を `OBJECT_DEPENDS` に追加するが、後段の一般処理が同プロパティを主インターフェースだけで上書きしていた。実装は module scanner 無効で `/reference` を手動指定するため、ShapeExtrude IFC producer の順序が失われると `Geometry.ShapeExtrude` が見つからず、後続の `ShapeExtrudeParams` も未定義になる。
+- **対応:** 最終化処理の上書き後に `ShapeExtrude.ixx.obj` を再追加した。CMake 再生成・ビルドは未実施。
+- **次に確認すること:** ユーザーのビルド環境で CMake を再生成し、ArtifactCore を並列ビルドして IFC順序と Procedural3DGenerators のコンパイルを確認する。
+
+## 2026-09-23 — パーティクル完全非表示（症状1）の簡単修正
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm`（`draw`）、`Artifact/src/Render/ArtifactIRenderer.cppm`（`drawParticles` の `ParticlePkt` 構築）、`Artifact/include/Generator/ArtifactParticleGenerator.ixx`（`ParticleRenderSettings.depthTest`）。
+- **実装（静的コード変更のみ、未ビルド・未実機）:**
+  1. GPU 経路で `particleDebugState` が `state=queued` でない場合（no-rtv / invalid-viewport / device-null 等）はソフトフォールバックへフォールスルーし、GPU 失敗時にレイヤーが真っ白にならないようにした。
+  2. `submitParticles()` は color RTV のみバインドするため、キュー投入時の `pkt.data.options.depthTest/depthWrite` を強制 `false`。`ParticleRenderSettings.depthTest` の既定も `true`→`false` に変更（DSV なしの DepthEnable は破棄要因になり得る）。
+  3. `draw()` 内の完全再シム直後に `impl_->lastTime` を同期し、ソフトフォールバックの二重 `update` を抑制。ソフト側のフレーム時刻も `max(1, frameNumber)` で揃えた。
+  4. JSON の `emitters` が空／無効のみで復元0件の場合、`changed()` を発火しない直接 create でデフォルトエミッターを確保。
+- **価値または懸念:** FormParticle の一部 preset（`starfield` 等）は `depthTest=true` のまま。FormParticle が同じ `drawParticles` キュー経由なら強制 false の影響を受ける。既存 JSON の `depthTest:true` はキュー側で無効化される。
+- **次に確認すること:** ビルド許可後に新規パーティクルレイヤー表示、GPU 初期化失敗時のフォールバック、空 emitters 保存後の再読込を確認する。
+
+## 2026-09-23 — パーティクル描画経路のシミュレーション不整合（調査）
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm`（`draw` 503、`goToFrame` 1966、`renderToImage` 2019）、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`（particle 分岐 2318）、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`（`layerNeedsFrameSyncForCompositionView` 4706、`drawLayerForCompositionView` 9921）、`Artifact/src/Generator/ArtifactParticleGenerator.cppm`（`ParticleSystem::goToFrame` 1518）、`ArtifactCore/src/Graphics/ParticleRenderer.cppm`（VS `halfWidth` 187）。
+- **確認できた事実（静的コード読取のみ、未ビルド・未実機）:** GPU 経路の `ArtifactParticleLayer::draw()` は毎回 `particleSystem->goToFrame`（reset + 固定ステップ完全再シム）で決定論を取るが、`lastTime` を更新しない。`renderToImage` は `playing`（既定 true）かつ `time > lastTime` のとき `particleSystem::update(deltaTime)` をさらに走らせるため、`draw()` のソフトフォールバック（`!rendererReady`）では完全再シム直後に二重シミュレーションになり得る。一方 `CompositionViewDrawing` のラスター／非初期化経路は `layer->goToFrame` → `renderFrame` で、`playing` 時は layer 側 `lastTime` を先に同期するため同フレームでの二重 `update` は起きにくいが、シムは增量（`lastTime` 差分）であり GPU の「フレーム 0 から完全再シム」と同一状態にならない。`playing == false` の `layer->goToFrame` は `particleSystem` を進めずキャッシュ無効化のみで、ソフト面経路はシム未実行のまま描く。サイズはソフト `drawEllipse` 半径 `scale*10`（直径 20×scale、`ArtifactParticleGenerator.cppm:2053,2089`）、GPU VS は `c_Offsets=±0.5` と `localOffset = c_Offsets*(halfWidth*2)` により quad 全幅 `2*halfWidth = 5*size`（`halfWidth=max(0.375,size*2.5)`、`ParticleRenderer.cppm:145-147,187-189`）で、`captureRenderData` の `v.size=p.scale` 時にソフト直径が GPU の約 4 倍。`PARTICLE_LAYER_STATUS_AND_ISSUES_2026-03-27.md` の「halfWidth=size*2.5 で直径一致」は現コードと不整合（直径一致なら halfWidth≈size*10 相当が必要、未検証の数式推論）。シェーダコメント「halfWidth = size」も実装と不一致。`transformParticleRenderData` は GPU 2D で `v.size = size * layerScale` を掛ける。
+- **価値または懸念:** 症状が「ソフト面と GPU で見た目が違う」「pause/シークで粒子が進まない」「GPU 粒子だけ小さい」「フォールバック時だけ壊れる」のどれかで優先修正が変わる。実機ログ（`[ParticleRenderer] state=` / `submitParticles drawn` / `layer->debugState()`）無しに単一原因を断定できない。
+- **次に確認すること:** 症状の特定（非表示／サイズ／フレーム同期／2D・3D の別）、`playing` false 時のシーク、ラスター effect 付き particle のソフト面と GPU 直描画の parity、ビルド・実機はユーザー指示待ち。
 
 ## 2026-09-23 — 2D Deformer連番のメッシュトポロジー
 
@@ -123,8 +195,9 @@
 
 - **関連:** `Artifact/src/Effects/Dithering/DitheringEffect.cppm`（`DitheringEffectCPUImpl::applyCPU`、Bayer 分岐）。
 - **確認できた事実（静的読み取り）:** 2×2 と 4×4 の行列だけが定義されている一方、Bayer 8×8／16×16 選択時には `bayerN` をそれぞれ 8／16 に変更して、4×4行列ポインタのまま `bi % (bayerN * bayerN)` を参照する。参照インデックスが16以上になり得るため、CPU参照の境界外読み取りになる。
-- **価値または懸念:** 8×8／16×16をGPU常駐化する前に、CPU側の正規行列と期待出力を定義し直す必要がある。今回のGPU常駐化はBayer 2×2／4×4だけに限定し、この不整合の修正は含めていない。
-- **次に確認すること:** 8×8／16×16の正規Bayer行列を追加し、色数・pattern scale別のCPU基準画像を作成してから、GPU多段／常駐化の対象可否を決める。
+- **対応:** CPU Bayer 経路を行列配列参照から、座標ビットごとに順位を計算する `bayerRank` へ変更。2×2／4×4 は既存行列と同じ順位になり、8×8／16×16 も範囲内の順位を生成する。固定容量の整数演算のみで追加確保はない（ビルド・画像 parity 未確認）。
+- **価値または懸念:** 8×8／16×16をGPU常駐化する場合も、CPU側の正規順位との画素一致を先に確認する必要がある。今回のGPU常駐化はBayer 2×2／4×4だけに限定されている。
+- **次に確認すること:** 許可後に2×2／4×4既存出力との一致、8×8／16×16の色数・pattern scale別CPU基準画像、GPU経路との差を確認する。
 
 ## 2026-09-22 — Bitwig着想モーション変調 Phase 0/1: Router拡張＋Transform接続（ビルド未実施）
 
@@ -2070,5 +2143,216 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 
 - **関連:** `Artifact/src/Application/ArtifactInteractiveShell.cppm`、`Artifact/include/AI/WorkspaceAutomation.ixx`、`docs/planned/MILESTONE_CLI_PYTHON_AUTOMATION_2026-09-23.md`。
 - **確認できた事実（静的読み取り）:** CLI `property.set` は限られたプロパティを JSON ファイルへ直接書き換え、CLI 内部だけの project snapshot undo/redo を使う。一方、WorkspaceAutomation の `set_property` は現在ロード中のレイヤーへサービス経由で適用し、Command IR の結果型を返す。Python bridge はアプリ API の戻り値を JSON から dict/list/scalar へ復元し、引数側も JSON 値で型を保つ。`artifact.core.automation` から command vocabulary、validate、execute を呼べる。さらにCLI `command-ir` は catalog / validate / execute requestを受け、executeの `saveProject:true` で既存Project Exporterを呼ぶ実装を追加した。`command-ir -` はJSON Linesを同一プロジェクトsessionで処理する（いずれも実行未検証）。
+- **追加修正:** CLI `property.set` で文字列プロパティ `layerNote` に `true` / `false` / 数値文字列を渡すと、共通の値判定が JSON bool / number に変換していた。プロパティ種別ごとに代入を分け、文字列は常に文字列、bool は bool、数値は有限値のみ保存するよう修正した（ビルド・実行未確認）。
 - **価値または懸念:** CLIシェルとアプリ自動化 API で同じ編集でも Undo・dirty state・型検証・戻り値の意味が異なる。AI が一方から他方へスクリプトを移すと、動作差を誤認する可能性がある。
 - **次に確認すること:** 実行許可後、headless service 初期化、project load、active composition fallback、Command IR execute、`saveProject:true` の保存結果をCLI runtimeで確認し、コマンドシェル／JSONL request 経路での統合も検討する。既存の `property.set` は互換挙動を確認するまで拙速に置換しない。
+
+## 2026-09-24 — Collaboration operation schema の二重定義
+
+- **関連:** `ArtifactCore/src/Collaborate/CollabSchema.cppm`、`ArtifactCore/src/Collaborate/CollabOperations.cppm`、`ArtifactCore/src/Collaborate/CollaborationSessionAdapter.cppm`、`Artifact/src/AppMain.cppm`。
+- **確認できた事実:** `CollabSchema.cppm` は `Collaborate.Schema` として transform.move / transform.rotate / transform.scale などを定義するが、現在の ArtifactCore / Artifact から import されていない。実際に adapter と MainWindow が import する `Collaborate.Operations` は property.set / layer.transform など別名の operation 群とその validator を持つ。MainWindow の operation-applied callback は review operation のみを project state に適用する。
+- **価値または懸念（未検証）:** 未使用 schema を整理せずに mutation sync を足すと、旧 schema と現行 wire schema のどちらを producer / consumer が使うか不明確になり、移行時に互換性のない operation が混在する可能性がある。
+- **次に確認すること:** `Collaborate.Schema` の外部参照と履歴データ利用を再確認し、現行 `Collaborate.Operations` を正規 wire contract とするか決めたうえで、Undo 履歴との競合方針を含めた property / transform remote-apply 経路を設計する。
+
+## 2026-09-24 — Live operation sync の前提になる project snapshot
+
+- **関連:** `ArtifactCore/src/Collaborate/CollaborationSessionAdapter.cppm`、`Artifact/src/AppMain.cppm`、`Artifact/src/Project/ArtifactProjectManager.cppm`、`tools/collaboration-server/server.js`。
+- **確認できた事実:** server は project ID ごとに operation JSONL を replay するが、join 時に client の project state を交換・照合する protocol はない。ArtifactProjectManager には local project の保存 API がある一方、CollaborationSessionAdapter は review operation のみを project state に適用する。したがって operation history の順序だけでは、late joiner の baseline state が同一であることを証明できない。
+- **価値または懸念:** Undo 方針だけを選んで `property.set` / `layer.transform` を自動適用すると、異なる project copy や既に反映済みの snapshot に対して operation を適用する可能性がある。静的調査で見つかった範囲では、これは競合処理より前に解くべき document-sync の欠落。
+- **次に確認すること:** read-only project snapshot の形式、サイズ／chunking、server の authoritative baseline と snapshot version、asset path の扱い、late join/reconnect の replay 開始位置を定義する。基準が固まるまでは remote project mutation を自動適用しない。
+## 2026-09-24 — Property Widget preview は Undo command 前に直接 mutation する
+
+- **関連:** `Artifact/src/Widgets/ArtifactPropertyWidgetShared.cppm`, `Artifact/src/Undo/UndoManager.cppm`。
+- **確認できた事実:** 共通 Property Widget 行の preview／commit は `AbstractProperty::setValue()` を呼び、後から commit callback へ渡す。UndoManager の command guard だけでは preview 中の直接 mutation を止められない。
+- **対応:** UndoManager の layer guard を直接照会する API を追加し、共通 Property Widget 行の preview と commit で値を変える前に適用した。
+- **価値または懸念:** 共同編集の layer reservation が値のプレビュー段階から効き、全選択 layer を一括して確認する。guard が preview 中に拒否へ変わった場合と cancel の双方で全対象の編集開始 value/keyframe/animatable 状態を戻す。Inspector、Timeline、専用 editor、ツールなど他の直接 mutation 経路には未適用で、対象範囲を全 UI に一般化したとは言えない。ロック lease 失効を含む実機動作は未検証。
+- **次に確認:** `setLayerPropertyValue()` と keyframe/property API を呼ぶ UI 入口を、ユーザー操作・プレビュー・初期化／rollback に分類し、guard 適用と取消時の復元を検討する。
+## 2026-09-24 — Undo command の未指定 layer scope は collaboration guard を通過する
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`, `Artifact/src/Widgets/Render/ArtifactCompositionTextPuppetUndoCommands.cppm`。
+- **確認できた事実:** UndoCommand の既定 `collaborationTargetScopeResolved()` は true で、UndoManager は layer ID が空かつ scope resolved の場合に layer guard を呼ばず許可する。Text/Puppet custom command は owner layer identity を持っていたが guard API に公開していなかった。
+- **対応:** TextContent、PuppetPin、Deformation2D state、Deformer keyframe command が layer ID を公開し、identity 解決不能時は scope unresolved を返す。
+- **価値または懸念:** これらの未対応 operation は session 中に lock gate と dispatch fail-closed を通り、owner lock のない編集として漏れない。remote 同期は未実装のため command は push preflight で拒否される。
+- **次に確認:** Undo command 全種について mutation scope の ID が guard に届くか棚卸しし、直接 setter は mutation 前 guard と rollback を分けて追加する。
+## 2026-09-24 — Composition-wide Undo command は scope 未解決で閉じる
+
+- **関連:** `Artifact/src/Widgets/ArtifactCompositionAudioMixerPresentation.cppm`, `UndoManager` collaboration target contract。
+- **確認できた事実:** `AudioMixerSnapshotUndoCommand` は Composition の AudioMixer 全体を serialize/deserialize する一方、layer ID を保持せず、UndoCommand の既定 collaboration scope は resolved 扱いだった。
+- **対応:** snapshot command の collaboration scope を unresolved として明示し、共同 session の mutation guard で fail-closed にした。呼び出し元 helper には push 拒否時に変更前 snapshot を再適用する rollback がある。
+- **価値または懸念:** Composition-wide mixer mutation が layer lock のない状態で共同編集 guard をすり抜けない。mixer state の remote operation と composition-level lock model は未実装。
+- **次に確認:** 他の project/composition-wide Undo command を同じ scope contract で棚卸しし、layer lock で表せない操作の lock model を検討する。
+## 2026-09-24 — Inspector stack helper は command push 前に model を変える
+
+- **関連:** `Artifact/src/Widgets/ArtifactInspectorWidget.cppm` の component descriptor、clone effector stack、cloner transform stack helper。
+- **確認できた事実:** これらは snapshot を取得した後に setter／stack mutation を実行し、その後 Undo command を push する。UndoManager guard だけでは lock 未取得時の直接 mutation を先に防げない。
+- **対応:** 各 helper の mutation 前に UndoManager layer guard を呼び、lock 未取得なら早期 return するようにした。
+- **価値または懸念:** 対象 Inspector edit は lock がない状態で model を一時変更しない。共同 operation dispatcher はこれらの command type に未対応であり、lock があっても preflight 拒否後の既存 rollback が必要。
+- **次に確認:** Inspector の他の専用 action、Timeline、各 tool について同じ「setter が command push より前か」を追跡し、mutation 前 guard と rollback を個別に接続する。
+
+## 2026-09-24 — Legacy layer.transform wire shape is not a safe transform-sync boundary
+
+- **関連:** `ArtifactCore/src/Collaborate/CollabOperations.cppm`, `tools/collaboration-server/server.js`, `Artifact/src/AppMain.cppm`, `Artifact/src/Widgets/Render/ArtifactCompositionGizmoUndoCommands.cppm`, `Artifact/src/Widgets/Render/TransformGizmo.cppm`.
+- **確認できた事実:** `layer.transform` remains a server-known and lock-protected operation with five finite fields (position X/Y, rotation degrees, scale X/Y). Search found no producer call to `makeLayerTransformOperation`; the MainWindow receive callback reports `layer.transform` as unhandled. Transform gizmo Undo commands retain richer frame-aware snapshots, including keyed channel state, anchor values, and (for text) box dimensions.
+- **価値または懸念:** Reusing this legacy payload for current transform commands would omit animated/keyed and 3D state and has no expected-value snapshot for conflict detection. Applying it directly risks overwriting divergent collaborator state.
+- **次に確認すること:** Before enabling transform synchronization, define a versioned frame-aware snapshot/CAS contract and handle single- and multi-layer transforms atomically, including local Undo compensation and text box state; then retire or migrate the unused five-field operation.
+
+## 2026-09-24 — 構造編集同期は layer.add の単体化から始める
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`（`AddLayerCommand` / `RemoveLayerCommand`）、`Artifact/src/AppMain.cppm`（remote operation routing / `ArtifactLayerFactory::createFromJson`）、`Artifact/src/Layer/ArtifactLayerFactory.cppm`、`Artifact/src/Composition/ArtifactAbstractComposition.cppm`、`tools/collaboration-server/server.js`。
+- **確認できた事実（静的読み取り）:** サーバーは `layer.add` の `layerType` と `layerJson` を検証するが、クライアントの remote handler は `layer.add` / `layer.remove` / legacy `layer.transform` を「適用できない」と扱う。`AddLayerCommand` は layer本体の JSON を durable undo serialization に含まず、親参照・matte参照の影響を受ける dependent layer を検出している。remote reconstruction factory と composition insertion API は既存で利用可能。
+- **実装した設計（runtime 未検証）:** `AddLayerCommand` の bounded snapshot operation を追加し、composition ID／index／左右 anchor／layer JSON を送る。既存 composition の追加には anchor layer reservation を要求し、空 composition で同時追加が発生した場合は layer ID 順で整列する。remove は path-free layer snapshot を比較し、dependent parent／matte reference があれば fail-closed とした。Core と server は AddLayer snapshot に加え、source path 系 property、batch、component／stack snapshot の path field も履歴へ保存しない。
+- **価値または懸念:** layer構造同期を安全に広げるには、composition identity、payload上限、挿入順序、参照依存、lock対象の一貫した契約が必要。見かけだけの layer.add/remove broadcast は別クライアントで異なる構造を作る恐れがある。
+- **次に確認すること:** 複数 client で同時追加／undo／redo の最終順序を実機確認する。asset identity／blob portability と path string 以外の private metadata を監査し、remote operation を shared Undo history に統合する契約を設計する。
+
+## 2026-09-24 — Layer reorder collaboration uses index CAS
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/AppMain.cppm`、`ArtifactCore/src/Collaborate/CollabOperations.cppm`、`tools/collaboration-server/server.js`。
+- **確認できた事実:** `MoveLayerIndexCommand` は通常の layer index 移動を undo/redo できるが、collaboration encoder と remote handler がなく、同期中は未対応 command として fail-closed だった。
+- **対応:** `layer.reorder` を追加し、composition ID、expected index、target index を送る。server は対象 layer reservation を要求し、remote apply は expected index を照合してから Composition の既存 move API を呼ぶ。
+- **価値または懸念:** per-layer reservation で操作対象を限定し、index CAS で古い reorder の適用を拒否できる。一方、別 layer の追加・削除が index をずらす場合や同時 reorder の解決方針は未検証。
+- **次に確認:** 複数 client で reorder と add/remove が交錯する場合の convergence、layer parent／matte／clone 参照や描画順への影響を実機確認する。
+
+## 2026-09-24 — Opacity undo now compares shared state
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/AppMain.cppm`、`ArtifactCore/src/Collaborate/CollabOperations.cppm`、`tools/collaboration-server/server.js`。
+- **確認できた事実:** `ChangeLayerOpacityCommand` は layer ID と before／after float を保持し、共同編集 encoder はまだなかった。Abstract layer opacity setter は値を 0〜1 に clamp する。
+- **対応:** `layer.opacity` expected/value operation、server lock/schema 検証、UndoManager remote CAS apply を追加した。local Undo／Redo も現在値が command の期待値と異なる場合は拒否する。
+- **価値または懸念:** opacity を同期でき、古い undo が後から届いた変更を黙って上書きしない。共通 Property Widget row の preview／commit は UndoManager に全対象 layer ID を照会するため、opacity preview も同じ guard を通る。調査時点で preview 値の開始 opacity は単一値しか保持せず、multi-selection の remote expected value が誤る可能性を確認した。layer ごとの開始値 map を追加し、cancel／lock 失効時も個別値を戻す。
+- **次に確認:** opacity preview／cancel と lock 失効の実機挙動、multi-client の競合を確認する。
+
+## 2026-09-24 — Parent changes can reuse the layer setter as the hierarchy validator
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Service/ArtifactProjectService.cppm`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`、collaboration operation adapter/server。
+- **確認できた事実:** `ChangeLayerParentCommand` は child layer の parent ID を変更する。ProjectService は parent が同一 composition 内にあり cycle がないことを確認し、`ArtifactAbstractLayer::setParentById` も self-parent、存在しない parent、循環を拒否する。
+- **対応:** `layer.parent` CAS と remote apply を追加し、同じ setter の拒否結果を照合する。Undo／Redo も expected parent ID が一致するときだけ適用する。
+- **価値または懸念:** parent ID を共有しながら既存の階層制約を維持できる。child と旧／新 parent IDs を command lock scope に公開し、server も同じ parent IDs の予約を要求する。これにより parent remove と parent change の交錯を reservation で直列化するが、runtime での確認は未実施。
+- **次に確認:** multi-client の親変更／削除交錯、階層描画と transform propagation を実機で確認する。
+
+## 2026-09-24 — Text animator stack fits the bounded layer stack protocol
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`ArtifactCore/src/Collaborate/CollabOperations.cppm`、`tools/collaboration-server/server.js`。
+- **確認できた事実:** `SetTextAnimatorStackCommand` stores before/after JSON snapshots, and `ArtifactTextLayer` exposes snapshot restore and readback APIs. The collaboration stack protocol already bounds each snapshot and applies expected-value checks.
+- **対応:** Added the `textAnimators` `layer.stack` kind, command encoder, remote apply, and local undo/redo precondition. Failed restore returns to the compensation snapshot.
+- **価値または懸念:** Text animator stack structure can travel without introducing a new operation family. Expression strings remain part of animator snapshot data and are bounded by the same JSON cap.
+- **次に確認:** Runtime creation/reorder/removal, playback evaluation, and undo/redo parity across two clients.
+
+## 2026-09-24 — Animation layer stack command exposes a complete collaboration boundary
+
+- **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`、`ArtifactCore/src/Collaborate/CollabOperations.cppm`、`tools/collaboration-server/server.js`。
+- **確認できた事実:** `AnimationLayerStackSnapshotCommand` already exposes layer identity and before/after object snapshots; its UI helper applies the snapshot before pushing the Undo command. Its collaboration target method was declared without a definition.
+- **対応:** Implemented target IDs, bounded `layer.animationStack` expected/value schema, encoder, remote apply, and local undo/redo CAS. Initial redo accepts an already-applied after snapshot to preserve the caller's existing sequence.
+- **価値または懸念:** Animation layer structure can sync while enforcing the same layer lock and snapshot size limits. Other directly edited animation fields may still use different command paths.
+- **次に確認:** Animation layer create/reorder/delete, undo compensation, and playback evaluation parity across clients.
+
+## 2026-09-24 — Audio de-click ranges use exact integer collaboration payloads
+
+- **関連:** Artifact/src/Undo/UndoManager.cppm、ArtifactCore/src/Collaborate/CollabOperations.cppm、	ools/collaboration-server/server.js。
+- **確認できた事実:** de-click range endpoints are qint64 sample indices and the audio layer normalizes range ordering/overlap. JSON numbers cannot represent all qint64 values exactly.
+- **対応:** Added bounded expected/value synchronization using canonical decimal strings, validation for normalized non-touching ranges, layer lock enforcement, and CAS for local undo/redo and remote apply.
+- **価値または懸念:** Sample indices retain exact values through server persistence and replay. Runtime parity is unverified.
+- **次に確認:** Exercise range add/clear, undo/redo, and conflicting edits across two clients.
+
+## 2026-09-24 — Deformation 2D snapshots require PuppetTool cache restoration
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionTextPuppetUndoCommands.cppm`、`Artifact/src/Tool/ArtifactPuppetTool.cppm`、`Artifact/src/AppMain.cppm`。
+- **確認できた事実:** Deformation 2D edit paths mutate layer JSON state before pushing `Deformation2DStateUndoCommand`. `ArtifactPuppetTool::restoreLayerData` resets/rebinds cached pin state after restoring the layer snapshot.
+- **対応:** Added bounded `layer.deformation2D` expected/value snapshots. Initial redo accepts the caller pre-applied after state; later local undo/redo compare the expected snapshot. Remote apply uses the PuppetTool restore API and compensates to the expected state if verification fails.
+- **価値または懸念:** Sync transfers only semantic layer deformation data, not renderer/GPU state. Runtime determinism across clients remains unverified.
+- **次に確認:** Compare pin add/delete/type changes, undo/redo, and rendered deformation on two clients.
+
+- **追記 2026-09-24:** Puppet pin keyframe drag では、`persistLayerData` 後の deformation JSON が keyframe data を含み、`restoreLayerData` が persistent property を再構築する。before/after snapshot があるケースは専用 sub-property command より `Deformation2DStateUndoCommand` に集約して送る経路へ接続した。snapshot 欠落 fallback と複数 client の評価結果は未検証。
+
+## 2026-09-24 — Solid Gradient drag maps to the existing property batch protocol
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionGizmoUndoCommands.cppm`、`Artifact/src/Widgets/Render/ArtifactContentGizmo.cppm`、`ArtifactCore/src/Collaborate/CollabOperations.cppm`。
+- **確認できた事実:** Viewport commits three `solid.gradient*` property values through `SolidGradientUndoCommand`; the existing `property.batch` protocol already validates layer-scoped value CAS and atomically compensates failed remote batches.
+- **対応:** Added layer lock targets and a three-entry `property.batch` encoder. Local undo/redo preflight all three expected values; first push accepts only the complete after snapshot already written by the viewport.
+- **価値または懸念:** One drag stays one semantic operation and reuses existing server lock and remote conflict handling. The grouped setter rollback and two-client visual parity are runtime unverified.
+- **次に確認:** Validate solid gradient drag, undo/redo, server rejection rollback, and competing edits on two clients.
+
+## 2026-09-24 — Source Crop CAS needs an explicit empty-rectangle restore path
+
+- **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionGizmoUndoCommands.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`。
+- **確認できた事実:** Source Crop property setters materialize a full-source rectangle when the current rectangle is invalid; width/height setters clamp to at least 1. An initial disabled crop can therefore have an empty rectangle that cannot be reconstructed by replaying the five current property setters.
+- **対応:** Added `ArtifactImageLayer::restoreSourceCropSnapshot`, which round-trips the canonical SourceCrop JSON without clamping empty rectangles and refreshes cached non-keyframed property values.
+- **価値または懸念:** Sending the current five values as a batch could make undo or rejection rollback leave a one-pixel crop, so a property-only collaboration patch would be unsafe.
+- **次に確認:** Define whether empty crop means reset/default/full-source, then add an exact restore API before synchronizing SourceCrop commands.
+
+## 2026-09-24 — Solid size is a bounded layer operation
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionGizmoUndoCommands.cppm`、`Artifact/src/AppMain.cppm`、`ArtifactCore/src/Collaborate/CollabOperations.cppm`、`tools/collaboration-server/server.js`。
+- **確認できた事実:** Solid2D and SolidImage source dimensions use integer setters clamped to 1..16384; SolidImage size changes also update rigid/soft body collider state.
+- **対応:** Added a layer-scoped `layer.solidSize` expected/value operation. Local undo/redo and remote apply compare dimensions before setting and verify readback; failed readback restores the prior dimensions.
+- **価値または懸念:** A viewport resize is synchronized as one semantic operation while retaining existing size setter side effects. Runtime parity, especially physics collider updates, is unverified.
+- **次に確認:** Compare Solid2D/SolidImage resize, undo/redo, and collider behavior across two clients.
+
+- **追記 2026-09-24:** Static review found that accepting `current == next` for every Undo/Redo could let stale local history report success. Solid size and gradient now permit this idempotence only for the first redo after the viewport pre-applies the edit; later Undo/Redo require the expected state.
+
+- **追記 2026-09-24:** Added `layer.sourceCrop` as a bounded full-snapshot operation with server lock/schema validation, local Undo/Redo CAS, and remote snapshot CAS. Empty crop geometry survives restore; cross-client rendering with animated crop properties and differing source dimensions remains unverified.
+
+## 2026-09-24 — Shape parameter drags need the same property CAS as inspector edits
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionLayerUndoCommands.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`。
+- **確認できた事実:** Viewport corner-radius and star-inner-radius edits already create dedicated Undo commands, while the layer exposes the matching `shape.cornerRadius` and `shape.starInnerRadius` property paths.
+- **対応:** Connected both commands to the existing `property.set` expected-value operation and exposed their layer lock scope. Their first redo permits the already-applied viewport value; later undo/redo requires expected-state equality.
+- **価値または懸念:** Viewport shape edits now use the same collaboration property CAS lane as inspector edits without a new wire schema. Cross-client rendering and stale-history behavior still need runtime verification.
+- **次に確認:** Compare both parameter edits, undo/redo, and concurrent conflict rejection across two clients.
+
+## 2026-09-24 — Editable polygon points require whole-state collaboration snapshots
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionLayerUndoCommands.cppm`、`ArtifactCore/src/Collaborate/CollabOperations.cppm`、`tools/collaboration-server/server.js`。
+- **確認できた事実:** Polygon vertex drags update a vector of points before recording a dedicated undo command; the setter filters unsupported coordinates, so a partial decode could silently produce a different shape.
+- **対応:** Added a bounded expected/value geometry snapshot for the complete Polygon/Bézier override state. Core/server validate all coordinates and sizes; restore verifies exact readback and repairs prior state if a setter drops any point.
+- **価値または懸念:** A vertex edit is atomic at the collaboration layer and preserves the full polygon state through undo/redo. Concurrent drags and rendering parity remain unverified.
+- **次に確認:** Exercise vertex drag, insertion, undo/redo, stale conflict rejection, and cross-client shape output.
+
+## 2026-09-24 — Bézier path edits share one vertex-state command
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionEditUndoCommands.cppm`、`Artifact/src/Layer/ArtifactShapeLayer.cppm`、`Artifact/src/AppMain.cppm`。
+- **確認できた事実:** Path vertex drags, deletion, smooth/closed toggles, and pending path creation all record `ShapePathVertexEditCommand`; `CustomPathVertex` carries position, relative tangents, and a smooth flag.
+- **対応:** Connected this command to bounded `layer.shapePath` snapshots and exact restore/readback. Core/server validate each coordinate and require the layer lock; first redo alone accepts caller pre-application.
+- **価値または懸念:** A follow-up found that path creation can start while a custom polygon override exists and `setCustomPathVertices()` clears it. `ShapePathVertexEditCommand` and `layer.shapePath` now capture the complete mutually exclusive polygon/path geometry so Undo can restore that override. Cross-client rendering remains unverified.
+- **次に確認:** Verify path creation over a polygon override, vertex/tangent editing, toggle/delete, and undo/redo across two clients.
+
+- **追記 2026-09-24:** Static review found that the polygon command's previous CAS failure branch could apply `expected` after discovering the current state differed, overwriting a newer edit. It now returns immediately on mismatch and only attempts compensation after a matched expected state entered restore.
+
+## 2026-09-24 — Shape operator viewport drags need direct value CAS
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionLayerUndoCommands.cppm`、`Artifact/src/Layer/ArtifactShapeLayer.cppm`、`Artifact/src/AppMain.cppm`。
+- **確認できた事実:** Shape operator viewport drags use `ShapeOperatorValueUndoCommand` and update through `shapeOperatorValue`/`setLayerPropertyValue`. Generic property CAS reads the layer's cached `AbstractProperty`, which may lag direct operator mutation.
+- **対応:** Added `layer.shapeOperator` with bounded operator index/field and finite expected/value numbers. Local Undo/Redo and remote apply compare the operator's direct getter; remote restore uses its existing setter and verifies readback.
+- **価値または懸念:** This avoids using potentially stale property-cache values for a direct viewport mutation. Supported fields still rely on the shape operator setter to reject fields invalid for the current operator type.
+- **次に確認:** Verify trim, merge, repeater, and other supported operator fields with drag, Undo/Redo, and conflicting remote edits.
+
+## 2026-09-24 — SVG import synchronization must preserve stack order
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionLayerUndoCommands.cppm`、`ArtifactCore/src/Collaborate/CollabOperations.cppm`。
+- **確認できた事実:** Shape rendering stores contents and ordered stack nodes separately; adding the first content to a legacy shape materializes that legacy shape at content index 0. A content-only snapshot would lose evaluation order and could change the rendered result.
+- **対応:** Added a single bounded snapshot containing contents, stack nodes, and active content index, then connected SVG import undo/redo and remote apply through expected-value CAS.
+- **価値または懸念:** Import and Undo now move the rendering-order state together, and restore validates all nodes before replacing live arrays. Cross-client render parity remains unverified.
+- **次に確認:** Compare SVG import, Undo/Redo, mixed path/operator ordering, and legacy-shape restoration across two clients.
+
+
+## 2026-09-24 — Puppet pin fallback coordinates are not portable
+
+- **関連:** `Artifact/src/Tool/ArtifactPuppetTool.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionTextPuppetUndoCommands.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`。
+- **確認できた事実:** `pinPosition()` returns a display-space canvas position when the owner layer is selected; `movePin()` converts display to authored space only through the current selected layer. The fallback Undo command is chosen when the current composition cannot provide a layer state snapshot.
+- **価値または懸念:** Sending the fallback's position and rotation alone could apply in a different coordinate space or against a different selected layer. Its unresolved collaboration operation should remain fail-closed until a layer-independent authored-state API exists.
+- **次に確認:** Review remaining collaboration gaps for operations with stable, project-addressable state; do not promote this fallback to a coordinate-only wire operation.
+
+
+## 2026-09-24 — Layer move undo needs a frame-scoped CAS
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`Artifact/src/AppMain.cppm`、`ArtifactCore/src/Collaborate/CollabOperations.cppm`。
+- **確認できた事実:** `MoveLayerCommand` applies position deltas at a frame using `AnimatableTransform3D::setPosition`; remote `layer.transform` had no apply handler and its payload did not identify a frame.
+- **対応:** Added `layer.moveAtFrame` with expected/value position X/Y, frame, and time scale. Local undo/redo and remote apply compare evaluated values at that exact time before calling the same transform setter.
+- **価値または懸念:** Frame-keyed layer move now has a replayable semantic operation without collapsing it into an unframed transform. The separate Transform Gizmo snapshot command and generic `layer.transform` remain unsupported.
+- **次に確認:** Validate keyed/unkeyed moves, conflicts, and undo/redo against a second client; then address gizmo snapshots with full keyframe semantics.
+
+## 2026-09-24 — Gizmo collaboration must distinguish key existence from animatable capability
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionGizmoUndoCommands.cppm`、`property.batch` collaboration path。
+- **確認できた事実:** Gizmo snapshot の `animated` は keyframe 配列が空でないことを表す一方、`AbstractProperty::isAnimatable()` は property capability flag を表す。両者は独立しており、同じ wire flag にすると remote apply が capability を誤変更する。
+- **対応:** Snapshot に capability を別保持し、keyframe serialization の `expectedAnimatable`／`animatable` には capability を用いる。key existence は keyframe list のみから復元する。
+- **価値または懸念:** Keyed transform の複数 frame を維持しつつ property capability のずれを防ぐ。複数 client runtime と変換対象すべてでの実機 parity は未検証。
+- **次に確認:** Check single/group gizmo edits on keyed and unkeyed frames, capability preservation, stale CAS rejection, and Undo/Redo on two clients.

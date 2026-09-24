@@ -17,7 +17,26 @@ npm run check
 ```
 
 - `npm start` runs the MCP server.
-- `npm run check` verifies `server.js` syntax before or after a change.
+- `npm run check` verifies syntax for the MCP server and its DAP/reproduction helpers.
+
+## Native debugger (DAP)
+
+`dap_connect` connects to an adapter executable over stdio or to an existing
+adapter over TCP. `dap_launch` and `dap_attach` pass adapter-specific
+configuration through unchanged. The remaining DAP tools expose continue,
+pause, stepping, threads, stack frames, scopes, variables, expression
+evaluation, exception information, source breakpoints, and connection status.
+The server supports adapter protocols through DAP rather than implementing a
+debugger for one compiler or platform.
+
+## Reproduce and diagnose
+
+`run_repro_diagnose` runs a local executable with an argument array (without a
+shell), waits for completion, captures the current bridge snapshot and recent
+debugger events, then evaluates optional dotted-path assertions. Use
+`get_debug_snapshot` first to see which diagnostic fields the connected build
+publishes. The executable runs with the current user's permissions and is not
+sandboxed; only pass a command you trust.
 
 ## Optional bridge file
 
@@ -38,6 +57,11 @@ playback when a breakpoint condition matches.
 
 ## Tools
 
+- `dap_connect`, `dap_launch`, `dap_attach`
+- `dap_continue`, `dap_pause`, `dap_step`
+- `dap_threads`, `dap_stack_trace`, `dap_scopes`, `dap_variables`
+- `dap_evaluate`, `dap_exception_info`, `dap_set_breakpoints`, `dap_status`
+- `run_repro_diagnose`
 - `get_debug_snapshot`
 - `get_latest_failure`
 - `get_diagnostic_events`

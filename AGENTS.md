@@ -162,7 +162,7 @@ C++20 modules の再発防止ルール:
 - `std::unique_ptr<Impl>` をヘッダで持つ場合、デストラクタはヘッダ inline にせず `.cppm` / `.cpp` 側で定義すること。
 - Qt 型は「他ヘッダ経由で見えるはず」と考えず、使うファイル側で直接 `#include` すること。
 - 特に `QApplication`、`QStatusBar`、`QPainterPath`、`QRegularExpression`、`QMetaObject`、各種 Event 型は include 漏れを優先的に疑うこと。
-- `module X;` 以降に `#include` を追加しないこと。`#include` は global module fragment (`module;`) 側にのみ置くこと。
+- `module X;` 以降に `#include` を追加しないこと。`#include` は global module fragment (`module;` と `module X;` の間) 側にのみ置くこと。
 - 循環参照が疑われる場合、まず `.ixx` の不要な `import` を疑い、実装側へ移せないか確認すること。
 - `export import` は依存を広く伝播させるため、エラー回避目的で安易に追加しないこと。
 
@@ -177,6 +177,12 @@ C++20 modules の再発防止ルール:
 ビルド・テスト・CMake はユーザーが明示的に指示するまで禁止。ビルドスクリプトの実行、CMake の生成・再実行、テストの起動を AI の判断で行わないこと。必要と判断した場合でも、まず「実行してもいいですか」と確認してからにすること。
 
 ### CMake モジュール登録ルール
+
+### MSVC / Ninja ビルド出力
+
+- ビルド出力に MSVC の `/showIncludes` が出す「Note: including file:」または「メモ: インクルード ファイル:」の一覧を表示させないこと。C++ modules の依存スキャンに必要な `/showIncludes` 自体は外さず、Ninja が接頭辞を認識して一覧を消費できるようにする。
+- MSVC + Ninja では、Ninja が認識できる英語の接頭辞を維持するため、CMake configure とコンパイルの両方で `VSLANG=1033` を設定する。生成済み `rules.ninja` の `msvc_deps_prefix` と実際の cl.exe 出力接頭辞が一致していることを確認する。
+- `/showIncludes` の一覧がユーザー向けログへ漏れた場合は、`/showIncludes` を無効化せず、`VSLANG` と Ninja の `msvc_deps_prefix` の不一致を直す。
 
 **ArtifactCore** の `CMakeLists.txt` は拡張子ベースでモジュールを分類している：
 - `.ixx` → 常にモジュールインターフェース（内容スキャン不要）

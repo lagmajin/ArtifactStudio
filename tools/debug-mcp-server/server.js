@@ -1,6 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { DapClient } = require('./dap-client');
+const { runOperation, checkAssertions } = require('./debug-loop');
+
+const dap = new DapClient();
 
 const DEFAULT_STATE_FILE = path.join(os.tmpdir(), 'ArtifactStudio', 'debug-mcp-state.json');
 const DEFAULT_BRIDGE_FILE = path.join(os.tmpdir(), 'ArtifactStudio', 'debug-bridge.json');
@@ -657,6 +661,55 @@ function makeTool(name, description, inputSchema) {
 
 function toolCatalog() {
   return [
+    makeTool('dap_connect', 'Connect to a DAP adapter over stdio or TCP and initialize it.', {
+      type: 'object', additionalProperties: false, properties: {
+        adapter: { type: 'string' }, adapterArgs: { type: 'array', items: { type: 'string' } },
+        adapterId: { type: 'string' }, cwd: { type: 'string' }, host: { type: 'string' }, port: { type: 'number' }
+      }
+    }),
+    makeTool('dap_launch', 'Launch Artifact through the connected DAP adapter.', {
+      type: 'object', additionalProperties: false, properties: { configuration: { type: 'object', additionalProperties: true } }, required: ['configuration']
+    }),
+    makeTool('dap_attach', 'Attach the connected DAP adapter to an Artifact process.', {
+      type: 'object', additionalProperties: false, properties: { configuration: { type: 'object', additionalProperties: true } }, required: ['configuration']
+    }),
+    makeTool('dap_continue', 'Continue a stopped DAP thread.', {
+      type: 'object', additionalProperties: false, properties: { threadId: { type: 'number' }, singleThread: { type: 'boolean' } }, required: ['threadId']
+    }),
+    makeTool('dap_pause', 'Pause a DAP thread.', {
+      type: 'object', additionalProperties: false, properties: { threadId: { type: 'number' } }, required: ['threadId']
+    }),
+    makeTool('dap_step', 'Step over, into, or out on a DAP thread.', {
+      type: 'object', additionalProperties: false, properties: { threadId: { type: 'number' }, kind: { type: 'string', enum: ['next', 'stepIn', 'stepOut'] }, granularity: { type: 'string' } }, required: ['threadId', 'kind']
+    }),
+    makeTool('dap_threads', 'List debugger threads.', { type: 'object', additionalProperties: false, properties: {} }),
+    makeTool('dap_stack_trace', 'Read a debugger stack trace.', {
+      type: 'object', additionalProperties: false, properties: { threadId: { type: 'number' }, startFrame: { type: 'number' }, levels: { type: 'number' } }, required: ['threadId']
+    }),
+    makeTool('dap_scopes', 'Read scopes for a stack frame.', {
+      type: 'object', additionalProperties: false, properties: { frameId: { type: 'number' } }, required: ['frameId']
+    }),
+    makeTool('dap_variables', 'Read variables for a scope or expandable variable.', {
+      type: 'object', additionalProperties: false, properties: { variablesReference: { type: 'number' }, start: { type: 'number' }, count: { type: 'number' } }, required: ['variablesReference']
+    }),
+    makeTool('dap_evaluate', 'Evaluate an expression in an optional stack frame.', {
+      type: 'object', additionalProperties: false, properties: { expression: { type: 'string' }, frameId: { type: 'number' }, context: { type: 'string' } }, required: ['expression']
+    }),
+    makeTool('dap_exception_info', 'Read exception details for a stopped thread.', {
+      type: 'object', additionalProperties: false, properties: { threadId: { type: 'number' } }, required: ['threadId']
+    }),
+    makeTool('dap_set_breakpoints', 'Replace source breakpoints for one file.', {
+      type: 'object', additionalProperties: false, properties: { source: { type: 'object', additionalProperties: true }, breakpoints: { type: 'array', items: { type: 'object', additionalProperties: true } } }, required: ['source', 'breakpoints']
+    }),
+    makeTool('dap_status', 'Return DAP connection state and recent adapter events.', { type: 'object', additionalProperties: false, properties: {} }),
+    makeTool('run_repro_diagnose', 'Run an operation command without a shell, then capture Artifact diagnostics and evaluate assertions.', {
+      type: 'object', additionalProperties: false, properties: {
+        program: { type: 'string' }, args: { type: 'array', items: { type: 'string' } }, cwd: { type: 'string' },
+        env: { type: 'object', additionalProperties: { type: 'string' } }, timeoutMs: { type: 'number' },
+        settleMs: { type: 'number', minimum: 0, maximum: 10000 },
+        assertions: { type: 'array', items: { type: 'object', properties: { path: { type: 'string' }, operator: { type: 'string', enum: ['equals', 'notEquals', 'exists', 'contains', 'greaterThan', 'lessThan'] }, value: {} }, required: ['path'] } }
+      }, required: ['program']
+    }),
     makeTool(
       'get_debug_snapshot',
       'Return the current app-level debug snapshot, merged with the optional bridge file.',
@@ -971,9 +1024,77 @@ function contentResult(text, structuredContent) {
   return result;
 }
 
-function callTool(state, name, args) {
+async function callTool(state, name, args) {
   const snapshot = effectiveSnapshot(state);
   switch (name) {
+    case 'dap_connect':
+      return contentResult(jsonText(await dap.connect(args || {})), { ok: true, status: dap.status() });
+    case 'dap_launch':
+      return contentResult(jsonText(await dap.start('launch', args.configuration)), { ok: true, status: dap.status() });
+    case 'dap_attach':
+      return contentResult(jsonText(await dap.start('attach', args.configuration)), { ok: true, status: dap.status() });
+    case 'dap_continue': {
+      const body = await dap.request('continue', { threadId: args.threadId, singleThread: Boolean(args.singleThread) });
+      return contentResult(jsonText(body), body);
+    }
+    case 'dap_pause': {
+      const body = await dap.request('pause', { threadId: args.threadId });
+      return contentResult(jsonText(body), body);
+    }
+    case 'dap_step': {
+      const body = await dap.request(args.kind, { threadId: args.threadId, granularity: args.granularity });
+      return contentResult(jsonText(body), body);
+    }
+    case 'dap_threads': {
+      const body = await dap.request('threads');
+      return contentResult(jsonText(body), body);
+    }
+    case 'dap_stack_trace': {
+      const body = await dap.request('stackTrace', { threadId: args.threadId, startFrame: args.startFrame, levels: args.levels });
+      return contentResult(jsonText(body), body);
+    }
+    case 'dap_scopes': {
+      const body = await dap.request('scopes', { frameId: args.frameId });
+      return contentResult(jsonText(body), body);
+    }
+    case 'dap_variables': {
+      const body = await dap.request('variables', { variablesReference: args.variablesReference, start: args.start, count: args.count });
+      return contentResult(jsonText(body), body);
+    }
+    case 'dap_evaluate': {
+      const body = await dap.request('evaluate', { expression: args.expression, frameId: args.frameId, context: args.context || 'watch' });
+      return contentResult(jsonText(body), body);
+    }
+    case 'dap_exception_info': {
+      const body = await dap.request('exceptionInfo', { threadId: args.threadId });
+      return contentResult(jsonText(body), body);
+    }
+    case 'dap_set_breakpoints': {
+      const body = await dap.request('setBreakpoints', { source: args.source, breakpoints: args.breakpoints, sourceModified: false });
+      return contentResult(jsonText(body), body);
+    }
+    case 'dap_status': {
+      const status = dap.status();
+      return contentResult(jsonText(status), status);
+    }
+    case 'run_repro_diagnose': {
+      const operation = await runOperation(args.program, args.args || [], args);
+      const requestedSettleMs = Number(args.settleMs);
+      const settleMs = Number.isFinite(requestedSettleMs)
+        ? Math.max(0, Math.min(10000, requestedSettleMs))
+        : 250;
+      if (settleMs) await new Promise((resolve) => setTimeout(resolve, settleMs));
+      const captured = effectiveSnapshot(state);
+      const assertions = checkAssertions(captured, args.assertions || []);
+      const result = {
+        ok: operation.ok && assertions.every((item) => item.passed),
+        operation,
+        diagnostics: formatSnapshotForTool(captured, state),
+        assertions,
+        debugger: dap.status()
+      };
+      return contentResult(jsonText(result), result);
+    }
     case 'get_debug_snapshot':
       state.session.lastAction = 'get_debug_snapshot';
       pushHistory(state, { type: 'snapshot-read' });
@@ -1492,7 +1613,7 @@ function callTool(state, name, args) {
   }
 }
 
-function handleRequest(state, request) {
+async function handleRequest(state, request) {
   const id = Object.prototype.hasOwnProperty.call(request, 'id') ? request.id : undefined;
   const method = String(request.method || '').trim();
   const params = request.params && typeof request.params === 'object' ? request.params : {};
@@ -1521,7 +1642,7 @@ function handleRequest(state, request) {
       protocolVersion: PROTOCOL_VERSION,
       serverInfo: {
         name: SERVER_NAME,
-        version: '0.1.0'
+        version: '0.2.0'
       },
       capabilities: {
         tools: {
@@ -1552,7 +1673,14 @@ function handleRequest(state, request) {
     if (!name) {
       return makeError(-32602, 'tools/call is missing a tool name');
     }
-    return makeResponse(callTool(state, name, args));
+    try {
+      return makeResponse(await callTool(state, name, args));
+    } catch (error) {
+      return makeResponse({
+        isError: true,
+        content: [{ type: 'text', text: error && error.message ? error.message : String(error) }]
+      });
+    }
   }
 
   if (method === 'ping') {
@@ -1605,6 +1733,7 @@ function parseFrame(buffer) {
 function main() {
   let state = loadState();
   let buffer = Buffer.alloc(0);
+  let requestQueue = Promise.resolve();
 
   process.stdin.on('data', (chunk) => {
     buffer = Buffer.concat([buffer, chunk]);
@@ -1627,10 +1756,17 @@ function main() {
         continue;
       }
 
-      const response = handleRequest(state, parsed.message);
-      if (response) {
+      requestQueue = requestQueue.then(async () => {
+        const response = await handleRequest(state, parsed.message);
+        if (response) process.stdout.write(encodeFrame(response));
+      }).catch((error) => {
+        const response = {
+          jsonrpc: '2.0',
+          id: parsed.message && parsed.message.id,
+          error: { code: -32603, message: error && error.message ? error.message : 'Internal error' }
+        };
         process.stdout.write(encodeFrame(response));
-      }
+      });
     }
   });
 

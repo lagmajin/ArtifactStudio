@@ -1,7 +1,17 @@
 # バグ報告: パーティクルレイヤー非表示調査
 
+**最終更新:** 2026-09-23
+
 > 2026-06-14 調査  
 > マイルストーン: `M-CE-CRIT-1` Critical Render / Media Stability Program
+
+## 2026-09-23 追記（症状1・簡単修正）
+
+- GPU `drawParticles` が `state=queued` 以外のときソフトフォールバックへフォールスルー
+- キュー時の `depthTest`/`depthWrite` を強制 off（submit は DSV 非バインド）、`ParticleRenderSettings.depthTest` 既定を false
+- 完全再シム直後に layer `lastTime` を同期（ソフト二重 `update` 抑制）
+- JSON `emitters` 復元0件時にデフォルトエミッターを確保（dirty 発火なし）
+- ビルド・実機未確認
 
 ---
 
