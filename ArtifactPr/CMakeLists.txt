@@ -25,6 +25,8 @@ set(ARTIFACT_PR_SOURCES
     include/TimecodeOverlayWidget.ixx
     include/MarkerEditDialog.ixx
     include/PrColorPickerDialog.ixx
+    include/ArtifactPrCLI.ixx
+    src/ArtifactPrCLI.cppm
     src/main.cpp
     src/ArtifactPrMainWindow.cppm
     src/ArtifactPrDemoData.cppm
@@ -56,6 +58,48 @@ set(ARTIFACT_PR_SOURCES
 # qt6_wrap_cpp(ARTIFACT_PR_MOC_SOURCES
 #     include/ArtifactPrEditorEngine.hpp
 # )
+
+
+# Console-only entry point. The existing WIN32 GUI target remains unchanged.
+set(ARTIFACT_PR_CLI_SOURCES
+    ${ARTIFACT_PR_SOURCES}
+    src/main_cli.cpp
+)
+list(REMOVE_ITEM ARTIFACT_PR_CLI_SOURCES src/main.cpp)
+add_executable(ArtifactPrCLI ${ARTIFACT_PR_CLI_SOURCES})
+
+set_target_properties(ArtifactPrCLI PROPERTIES
+    CXX_STANDARD 23
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+)
+
+target_link_libraries(ArtifactPrCLI PRIVATE ArtifactCore ArtifactCoreCommand ArtifactCoreAudio ArtifactCoreVideo ArtifactCoreNLE ArtifactWidgets ArtifactGpuFoundation Qt6::Multimedia)
+target_include_directories(ArtifactPrCLI PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
+if(ARTIFACT_COMPILER_MSVC_CL)
+    target_compile_options(ArtifactPrCLI PRIVATE /Zf /Zc:__cplusplus /utf-8 /wd5050 /WX-)
+    target_compile_definitions(ArtifactPrCLI PRIVATE
+        PLATFORM_WIN32
+        _GUARDOVERFLOW_CRT_ALLOCATORS=1
+        _SILENCE_CXX23_ALIGNED_STORAGE_DEPRECATION_WARNING
+        _WIN32_WINNT=0x0A00
+    )
+elseif(ARTIFACT_FRONTEND_MSVC)
+    target_compile_options(ArtifactPrCLI PRIVATE /Zc:__cplusplus /utf-8 /WX- /wd5050)
+    target_compile_definitions(ArtifactPrCLI PRIVATE
+        PLATFORM_WIN32
+        _GUARDOVERFLOW_CRT_ALLOCATORS=1
+        _SILENCE_CXX23_ALIGNED_STORAGE_DEPRECATION_WARNING
+        _WIN32_WINNT=0x0A00
+    )
+endif()
 
 add_executable(ArtifactPr WIN32 ${ARTIFACT_PR_SOURCES})
 
@@ -96,4 +140,6 @@ endif()
 
 find_package(qtadvanceddocking-qt6 REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Multimedia MultimediaWidgets)
+target_link_libraries(ArtifactPrCLI PRIVATE ads::qtadvanceddocking-qt6 Qt6::Multimedia Qt6::MultimediaWidgets)
+
 target_link_libraries(ArtifactPr PRIVATE ads::qtadvanceddocking-qt6 Qt6::Multimedia Qt6::MultimediaWidgets)

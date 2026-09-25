@@ -2418,7 +2418,14 @@ bool EditorEngine::runAutoSave()
     if (!autoSaveEnabled_) return false;
     if (autoSaveFilePath_.isEmpty()) return false;
 
+    // Auto-save must not replace the user's Save target.  projectSaved is
+    // emitted synchronously by saveProject(), so the in-progress flag lets
+    // MainWindow keep the document dirty; restore the user path afterwards.
+    const QString userProjectPath = projectFilePath_;
+    autoSaveInProgress_ = true;
     const bool result = saveProject(autoSaveFilePath_);
+    autoSaveInProgress_ = false;
+    projectFilePath_ = userProjectPath;
     return result;
 }
 

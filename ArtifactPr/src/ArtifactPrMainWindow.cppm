@@ -3144,7 +3144,8 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
             this, &ArtifactPrMainWindow::onProjectModified);
     connect(ArtifactPr::EditorEngine::instance(), &ArtifactPr::EditorEngine::projectSaved,
             this, [this](bool success, const QString&) {
-        if (success) {
+        auto* editor = ArtifactPr::EditorEngine::instance();
+        if (success && !editor->isAutoSaveInProgress()) {
             projectDirty_ = false;
             setWindowTitle(trUi("ArtifactPr", "ArtifactPr"));
         }

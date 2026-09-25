@@ -328,6 +328,7 @@ public Q_SLOTS:
 
     /// 手動で auto-save をトリガ。
     bool runAutoSave();
+    bool isAutoSaveInProgress() const { return autoSaveInProgress_; }
     void pasteClip(FramePosition targetFrame);
 
     // 6 種類の NLE 編集操作 (UndoCommand 経由)
@@ -433,6 +434,7 @@ private:
     bool autoSaveEnabled_ = false;
     int autoSaveIntervalSec_ = 60;
     QString autoSaveFilePath_;
+    bool autoSaveInProgress_ = false;
 
     QString selectedClipId_;
 

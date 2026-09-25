@@ -134,6 +134,14 @@ MediaPanel::MediaPanel(QWidget* parent)
     list_->setDragEnabled(true);
     list_->setItemDelegate(new MediaThumbnailDelegate(list_));
     connect(list_, &QListWidget::itemDoubleClicked, this, &MediaPanel::onItemDoubleClicked);
+    connect(list_, &QListWidget::currentItemChanged, this,
+            [this](QListWidgetItem* item) {
+        if (!item) return;
+        const QString filePath = item->data(Qt::UserRole).toString();
+        if (!filePath.isEmpty()) {
+            Q_EMIT mediaSelected(filePath);
+        }
+    });
 
     // 検索バー (PrSearchFilter)
     searchEdit_ = new QLineEdit(this);

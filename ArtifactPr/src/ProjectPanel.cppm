@@ -1,5 +1,8 @@
 module;
+#include <QTreeWidget>
 #include <QTreeWidgetItem>
+#include <QStringList>
+#include <QVariant>
 #include <wobjectimpl.h>
 
 module ArtifactPr.ProjectPanel;
@@ -26,6 +29,18 @@ ProjectPanel::ProjectPanel(QWidget* parent)
 
     auto* engine = ArtifactPr::EditorEngine::instance();
     connect(engine, &ArtifactPr::EditorEngine::sequenceChanged, this, &ProjectPanel::refreshProjectTree);
+    connect(engine, &ArtifactPr::EditorEngine::projectModified, this, [this]() {
+        refreshProjectTree(ArtifactPr::EditorEngine::instance()->currentSequence());
+    });
+    connect(tree_, &QTreeWidget::itemClicked, this, [this](QTreeWidgetItem* item, int) {
+        if (!item) return;
+        const QVariant roleValue = item->data(0, Qt::UserRole);
+        const QString sequenceId = roleValue.toString();
+        if (sequenceId.startsWith(QStringLiteral("sequence:"))) {
+            ArtifactPr::EditorEngine::instance()->selectSequence(
+                sequenceId.mid(QStringLiteral("sequence:").size()));
+        }
+    });
     refreshProjectTree(engine->currentSequence());
 }
 
@@ -39,12 +54,22 @@ void ProjectPanel::refreshProjectTree(const ArtifactPr::DemoSequence& seq)
     auto* sequencesNode = new QTreeWidgetItem(QStringList{QStringLiteral("Sequences")});
     sequencesNode->setExpanded(true);
 
-    auto* seqItem = new QTreeWidgetItem(QStringList{seq.name});
-    seqItem->setData(0, Qt::UserRole, seq.id);
-    sequencesNode->addChild(seqItem);
+    const auto& project = ArtifactPr::EditorEngine::instance()->currentProject();
+    for (const auto& projectSequence : project.sequences) {
+        auto* seqItem = new QTreeWidgetItem(QStringList{projectSequence.name});
+        seqItem->setData(0, Qt::UserRole,
+                         QStringLiteral("sequence:") + projectSequence.id);
+        sequencesNode->addChild(seqItem);
+        if (projectSequence.id == seq.id) seqItem->setSelected(true);
+    }
+
+    auto* mediaNode = new QTreeWidgetItem(QStringList{QStringLiteral("Media")});
+    for (const auto& media : ArtifactPr::EditorEngine::instance()->mediaPool()) {
+        mediaNode->addChild(new QTreeWidgetItem(QStringList{media.name}));
+    }
 
     projectNode->addChild(sequencesNode);
-    projectNode->addChild(new QTreeWidgetItem(QStringList{QStringLiteral("Media")}));
+    projectNode->addChild(mediaNode);
     projectNode->addChild(new QTreeWidgetItem(QStringList{QStringLiteral("Bins")}));
     projectNode->addChild(new QTreeWidgetItem(QStringList{QStringLiteral("Exports")}));
     tree_->addTopLevelItem(projectNode);

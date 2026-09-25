@@ -77,14 +77,12 @@ TransportBarWidget::TransportBarWidget(QWidget* parent)
 void TransportBarWidget::onStopClicked()
 {
     auto* engine = ArtifactPr::EditorEngine::instance();
-    playbackTimer_->stop();
     engine->stop();
 }
 
 void TransportBarWidget::onStepBackClicked()
 {
     auto* engine = ArtifactPr::EditorEngine::instance();
-    playbackTimer_->stop();
     engine->stepBackward();
 }
 
@@ -92,19 +90,11 @@ void TransportBarWidget::onPlayClicked()
 {
     auto* engine = ArtifactPr::EditorEngine::instance();
     engine->togglePlayPause();
-
-    if (engine->isPlaying()) {
-        const int fps = sequenceFrameRate(engine->currentSequence());
-        playbackTimer_->start(qMax(1, 1000 / fps));
-    } else {
-        playbackTimer_->stop();
-    }
 }
 
 void TransportBarWidget::onStepFwdClicked()
 {
     auto* engine = ArtifactPr::EditorEngine::instance();
-    playbackTimer_->stop();
     engine->stepForward();
 }
 
@@ -169,6 +159,14 @@ void TransportBarWidget::updateTimecode(ArtifactPr::FramePosition frame)
 void TransportBarWidget::updatePlayState(bool isPlaying)
 {
     playBtn_->setText(isPlaying ? QStringLiteral("⏸") : QStringLiteral("▶"));
+
+    auto* engine = ArtifactPr::EditorEngine::instance();
+    if (isPlaying) {
+        const int fps = sequenceFrameRate(engine->currentSequence());
+        playbackTimer_->start(qMax(1, 1000 / fps));
+    } else {
+        playbackTimer_->stop();
+    }
 }
 
 void TransportBarWidget::updateSpeedDisplay(ArtifactPr::PlaybackSpeed speed)

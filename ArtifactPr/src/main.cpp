@@ -1,12 +1,35 @@
 #include <QApplication>
+#include <QCoreApplication>
+#include <QString>
+#include <QStringList>
 #include <QStyleFactory>
 
 import ArtifactCore;
 import ArtifactPr.AppTheme;
 import ArtifactPr.MainWindow;
+import ArtifactPr.CLI;
 
 int main(int argc, char *argv[])
 {
+    bool cliMode = false;
+    for (int i = 1; i < argc; ++i) {
+        if (QString::fromLocal8Bit(argv[i]) == QStringLiteral("--cli")) {
+            cliMode = true;
+            break;
+        }
+    }
+    if (cliMode) {
+        // CLI must not construct QApplication or any GUI widget. EditorEngine
+        // remains the single document/undo/render owner for both front ends.
+        QCoreApplication cliApp(argc, argv);
+        QStringList cliArguments = cliApp.arguments();
+        const int cliMarker = cliArguments.indexOf(QStringLiteral("--cli"));
+        if (cliMarker >= 0) {
+            cliArguments.removeAt(cliMarker);
+        }
+        return runArtifactPrCli(cliArguments);
+    }
+
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("ArtifactPr"));
     app.setOrganizationName(QStringLiteral("ArtifactStudio"));
