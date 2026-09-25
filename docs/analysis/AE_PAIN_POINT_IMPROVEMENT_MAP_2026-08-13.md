@@ -1,6 +1,6 @@
 # AE 不満点 → ArtifactStudio 改善マップ
 
-**最終更新:** 2026-08-20
+**最終更新:** 2026-09-25
 
 After Effects 利用者の不満点を、ArtifactStudio のソースコード現状（2026-08-13 調査時点）に照らして、改善・差別化できる点を優先度順に整理したもの。
 
@@ -159,13 +159,13 @@ After Effects 利用者の不満点を、ArtifactStudio のソースコード現
 
 **改善**: Expression Selector + 複数 selector 合成 + color 系の細分化。
 
-### 14. 3D レイヤーの 3 軸回転（3D・最優先ギャップ）
+### 14. 3D レイヤーの 3 軸回転編集（3D・高優先）
 
 **AE の不満**: 3D 配置が面倒、Cinema 4D 連携が重い。
 
-**現状**: `AnimatableTransform3D` は既存単一rotationをZ互換として維持しつつ、X/Y/Zの値・キーフレーム・スナップショット・保存／再読込に対応。3Dモデル、Procedural3D、共通行列、ギズモ、Undoも3軸化済み。プロパティ専用UIの軸別編集契約は未整理。
+**現状（2026-09-25）**: `AnimatableTransform3D` は旧 `transform.rotation` を Z チャンネルの互換パスとして保ち、X/Y/Z の値・キーフレーム・スナップショット・保存／再読込を扱う。3D model、Procedural3D、共通行列、gizmo、Undo も3軸対応済み。Properties の Transform group は X/Y/Z を表示していたが、Z 本体と同一 channel の `transform.rotation.z` alias を両方追加し、Rotation Z が重複する構造だった。alias は `getProperty()` のパス解決で利用できるため、専用の重複 UI row は除去した。Euler 合成は `Rz * Ry * Rx` 順であり、rotation order をユーザーが選ぶ設定や quaternion orientation 専用チャンネルはない。runtime 確認は未実施。
 
-**改善**: フル 3 軸回転（Euler/Quaternion）と `transform3D()` の拡張。AE 比較で最も根本的な未実装。
+**改善余地**: 既存の X/Y/Z 操作・アニメーションを維持しつつ、回転順序／Orientation の意味と gizmo の Local/World 軸の対応を一貫して編集・保存できる契約を整理する。quaternion 化は Euler channel、expression path、timeline、Undo、project compatibility の移行設計を伴うため、実装前に独立レビューが必要。
 
 ### 15. 環境マップ / IBL の実配線（3D）
 

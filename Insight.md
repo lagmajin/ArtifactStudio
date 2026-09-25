@@ -1,4 +1,41 @@
-**最終更新:** 2026-09-24
+**最終更新:** 2026-09-26
+
+## 2026-09-26 — Timeline glyph submission allocated a UTF-32 string every draw
+
+- **関連:** `Artifact/src/Render/PrimitiveRenderer2D.cppm` (`drawGlyphText`), `Artifact/include/Render/PrimitiveRenderer2D.ixx`, `ArtifactCore/include/Utils/UniString.ixx`。
+- **確認できた事実:** TimelineのDiligent rendererはlabelsを各presentで再送する。`drawGlyphText()`は既存のglyph scratch vectorを再利用していたが、`UniString::toStdU32String()`の戻り値として毎call `std::u32string`を作っていた。ArtifactCoreのpublic `UniString`にはallocation-free codepoint view/iteratorがない。
+- **対応:** `UniString::toQString()`のimplicitly shared copyを読み取り、UTF-16 surrogate pairを直接decodeして、既存のrenderer-owned `glyphCodePointScratch_`を2回走査するよう変更。UTF-32のtemporary stringをなくし、QtのUCS-4 conversionと同じく不正surrogateをU+FFFDとして扱う。constructorで1024個分reserve済みのscratchは`clear()`後もcapacityを保つため、入力UTF-16長に基づく過大reserveも外した。
+- **価値または懸念（未検証）:** static timeline labelsからper-present UTF-32 heap buffer生成がなくなる。QString shared copyはQt documented O(1) copy-on-write。scratch vectorは実際のunique codepoint数がcapacityを越すと拡張する。新規glyph font/atlas cache miss、実際のallocation削減量とCPU時間は未計測。
+- **次に確認すべきこと:** allocation counterでlabel長別のsteady-presentを測り、scratch growth後にUTF-32/string allocationが残らないこと、BMP・supplementary plane・孤立surrogateが従来のUCS-4変換と一致することを確認する。
+- **資料:** [Qt QString implicit sharing and UTF-16/UCS-4 conversion](https://doc.qt.io/qt-6/qstring.html), [Qt implicit sharing](https://doc.qt.io/qt-6/implicit-sharing.html)。
+
+## 2026-09-26 — Sprite texture cache collision and QImage identity
+
+- **関連:** `Artifact/src/Render/PrimitiveRenderer2D.cppm` (`computeImageContentKey`, `m_spriteTexCache`, `m_maskTexCache`).
+- **確認できた事実:** The ImageF32 fallback cache key uses a bounded pixel sample and cannot provide exact identity; Qt documents `QImage::cacheKey()` as identifying image contents, changing when the image is altered, and remaining shared for implicitly-shared copies.
+- **対応:** Replaced the QImage sampled fingerprint with `QImage::cacheKey()`. Added a stable ImageF32 texture-key overload for image-layer, composition draw, SVG, Text raster fallback, and Puppet paths, keyed by source UUID/version, optional sequence-frame or timeline-frame key, dimensions, and color descriptor. Temporary source overrides keep using the transient sampled fingerprint. Added a UV-aware texture-view sprite draw overload so cropped paths preserve UV mapping while reusing the keyed texture; the existing no-UV overload retains its prior packet path.
+- **video経路の境界:** Stable frame identity is not added to Video. `cachedFrameImageBuffer()` and `isFrameCached()` query the decoded frame cache without first calling `refreshSourceVersionIfNeeded()`, so a stale decoded frame can briefly be paired with the current Asset version. A source/frame cache key alone could then retain old pixels under the new version. Decoder and last-good repeat behavior remain unchanged.
+- **確認追記:** Text fallback uses `contentRevision()` plus the layer's `currentFrame()`. `ArtifactAbstractLayer::setCurrentFrame()` maps each composition frame to `globalFrame - inPoint + startTime`, so the frame portion remains distinct while text keyframes/animators are evaluated at the composition timeline frame.
+- **価値または懸念（未検証）:** Prevents QImage cache hits across distinct contents while preserving hits for implicitly-shared copies. Stable ImageF32 callers avoid pixel sampling; transient fallback reads at most 4096 evenly spaced bytes and mixes them into a 64-bit fingerprint instead of hashing only the leading 4 KiB into 32 bits. This reduces alias risk for changes elsewhere in the image, but remains a lossy key. Separately materialized but identical QImages no longer deduplicate. Build and runtime behavior remain unverified.
+- **追記 (2026-09-26):** Composition draw call sites include transient overlay images, generated ghost/frame images, and rasterized layer surfaces; some composition surfaces already have owner/version handles in `GPUTextureCacheManager`, while the low-level sprite map receives only pixels. Masked texture draws also use the sampled key. This confirms that one universal source ID is unavailable at the primitive API boundary.
+- **次に確認すべきこと:** Continue classifying transient ImageF32 call sites by mutation lifetime; prefer owner/version keys where available, and measure the bounded sampler cost and collision behavior on representative generated surfaces.
+
+## 2026-09-26 — Viewport culling repeats effect-expanded bounds work
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` (`effectExpandedLayerBounds`, `recordLayerDamage`, partial-recompose eligibility, composition draw loops).
+- **確認できた事実:** TGFX 2.1.1 release notes call out culling layers outside the visible area. Artifact already skips layers whose effect-expanded bounds miss the ROI, but the bounds helper calls `enabledRasterizerOverscanPixels()`, which walks the layer effect list. The render controller calls this helper from damage recording, partial-recompose eligibility, and drawing loops; eligible partial frames can evaluate the same layer bounds in the eligibility pass and again in the draw pass.
+- **確認できた事実:** `effectRevision()` advances through `setDirty(LayerDirtyFlag::Effect)`. `hasAnimatedEffectProperties()` recognizes keyframes, expressions, envelopes, and modulation and memoizes that classification by the same revision. Effect-service property edits mark the layer's Effect dirty.
+- **対応:** Added a per-layer rasterizer-overscan cache keyed by `effectRevision()` for effects classified as static. Animated effects keep the direct evaluation path, preserving frame-varying `roiHint()` behavior.
+- **価値または懸念（未検証）:** Repeated bounds expansion no longer walks static effect lists after the first evaluation at a revision. The cache uses a short mutex for concurrent access; contention and the net CPU effect are unmeasured. Correct invalidation depends on effect mutations continuing to advance Effect revision.
+- **次に確認すべきこと:** Trace enabled-state and undo/redo edits through `setDirty(Effect)`; compare overscan before/after property edits and across animated frames; measure effect-list traversals in representative compositions.
+
+## 2026-09-25 — Solid2D multi-stop fill needs a bounded GPU packet contract
+
+- **関連:** `Artifact/src/Layer/ArtifactSolid2DLayer.cppm`, `Artifact/src/Render/PrimitiveRenderer2D.cppm`, `Artifact/src/Render/DiligentImmediateSubmitter.cppm`, `Artifact/include/Render/ArtifactIRenderer.ixx`。
+- **確認できた事実:** Solid2DのGPU経路は `drawGradientRectTransformed` に開始色・終了色・形状パラメーターのみを渡し、PrimitiveRenderer2DからGradientRect packetへ送る。Shapeのmulti-stop modelをSolid2Dへそのまま公開しても、このrenderer経路では描画されない。SolidImageの共有gradient utilityはQImage生成を使うため、GPU描画の共通実装にはならない。
+- **仮説（未検証）:** Solid2D／Shape共通Fillを完成するには、描画呼出しごとにvectorを確保せず、stop上限32の固定容量データか事前確保されたGPU bufferをGradientRect packetへ渡し、Diligent shaderでstop rampを評価する契約が必要。固定配列の定数buffer負荷とper-draw upload量は測定前で、現在のTriangle paint pathとの品質・速度比較も未確認。
+- **価値または懸念:** UI／serializationだけを共通化して描画が2色のまま残る見かけの対応を防げる。Diligentとrenderer packetの変更は低レベル影響が大きいため、GPU shader・resource lifetime・hot-path allocationを調査してから、最小限のGPU実装とする。
+- **次に確認すること:** `GradientRectPkt`／parameter bufferの容量・更新頻度・renderer queue ownershipを追跡し、固定32-stopのupload案とstop texture案を比較。ユーザーの許可がない間はビルド・GPU runtime計測をしない。
 
 ## 2026-09-24 — Collaboration review operations need ordered acknowledgement
 
@@ -2356,3 +2393,596 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** Snapshot に capability を別保持し、keyframe serialization の `expectedAnimatable`／`animatable` には capability を用いる。key existence は keyframe list のみから復元する。
 - **価値または懸念:** Keyed transform の複数 frame を維持しつつ property capability のずれを防ぐ。複数 client runtime と変換対象すべてでの実機 parity は未検証。
 - **次に確認:** Check single/group gizmo edits on keyed and unkeyed frames, capability preservation, stale CAS rejection, and Undo/Redo on two clients.
+
+## 2026-09-26 — Composition View matte self-reference filter allocation
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`、`docs/technical/HOT_PATH_RULES.md`。
+- **確認できた事実:** Composition frame rendering copied each layer's matte references into `effectiveMatteReferences` with `reserve`/`push_back` solely to exclude a self-reference before applying mattes. The matte application helper now accepts an excluded source layer ID and skips it during its existing loops, removing that extra per-frame vector allocation. `ArtifactAbstractLayer::matteReferences()` still returns a vector by value; changing that API's ownership/thread-safety contract is a separate, unverified design question.
+- **価値または懸念（未検証）:** This reduces allocator work in matte-enabled composition rendering without changing the matte stack order or the incomplete-source behavior. Runtime allocation and image parity have not been measured.
+- **次に確認すること:** After build/runtime authorization, compare self-reference, disabled reference, multiple matte blend modes, and missing-source diagnostics against the prior behavior; profile allocation counts. Consider a read-only matte-reference view only after checking mutation synchronization and lifetime guarantees.
+
+## 2026-09-26 — LOD source conversion precedes surface-cache lookup
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`、`buildLayerSurfaceCacheKey()`、`drawLayerForCompositionView()`。
+- **確認できた事実:** The image branch with rasterizer effects or masks calls `toQImage()` and `downsampleForLOD()` before `applySurfaceAndDraw()` checks the surface cache. The cache key uses source version, crop signature, sequence frame/content key, LOD surface dimensions, and frame only for animated inputs. A cache hit can therefore still pay for source conversion and downsampling first. `ArtifactImageLayer::toQImage()` caches its F32-to-QImage conversion and crop only on the main thread; the background path converts the buffer on each call. `ArtifactRenderQueueService` calls the same drawing helper for each rendered frame with a persistent surface cache, so unchanged static image inputs may repeatedly cross that boundary before hitting the effect-surface cache.
+- **対応:** `buildLayerSurfaceCacheKey()`を`QSize`ベースにし、静止画は現行F32 buffer、連番画像はsequence更新後のsource寸法とresolved frame identity、SVGはloaded sourceのversionとsource寸法、legacy shapeはparametric width/heightから既存経路のsurface寸法を求め、crop状態更新後に既存のstatic/surface cacheを先行照合する。全レイヤーのkeyに`maskRevision()`と`effectRevision()`を追加する。Effect revisionはLayerDirtyFlag::Effectを含むsetDirty、effect stack操作、Effect Serviceのproperty setter、enable操作、UndoManagerのproperty／modulation／effect-mask変更通知、layer effect JSON restoreから進める。animated effect propertyの判定結果をrevision-keyed atomic stateに保持し、steady frameでの`getEffects()`／`editableProperties()` snapshotとkeyframe走査を避ける。`AbstractProperty::hasKeyFrames()`を追加し、cache key内のgradient/crop/shape animation判定とlayer opacity評価ではkeyframe vectorをコピーせずshared lock下で有無だけを見る。さらに`keyFrameCount()`を追加し、変換チャンネル、Undo検証、テキストキー復元、アニメーションコマンドの件数比較では配列をコピーせず件数だけ取得する。純粋な有無判定の残存箇所にも同APIを適用する。静止画／連番画像／legacy shapeのsurface寸法は既存どおりLOD縮小後、SVGは既存どおりsource寸法とする。連番のresolved indexが無効なら従来経路へ戻す。shape contents stackは`localBounds()`と既存の64Mpx上限から寸法を求める。Shapeのcache keyには新設した`contentRevision()`を含め、shape `markDirty()`とpath-keyframe編集で進める。静的Textはanimator、source-text keyframe、scene lightがない場合にF32処理結果をsurface cacheへ保存し、以降のcache hitでは`toQImage()`とeffect処理を避ける。enabled external matte、cache miss、source buffer不在、無効なGPU handleとCPU content不在でも従来のQImage経路へ戻す。ヒット時は既存の処理済みbuffer/surfaceまたは有効textureを直接描画し、ミス時には同じmatte reference snapshotを既存処理へ渡す。
+- **価値または懸念（未検証）:** 背景Render Queueでの反復F32→QImage変換、LOD縮小、およびrasterizer処理をcache hit時に避けられる見込み。cache identity構築とopacity判定でkeyframe vectorの一時コピーも避ける。連番についてはフレーム更新処理自体のdecode/refreshは残る。静的Textでは最初のcache miss時だけ処理済みF32 bufferを共有cacheへ移し、draw時に同じbufferを参照する。通常経路と色・alphaが一致すること、surface generationやlayer mutation後にstale entryを拾わないこと、GPU再uploadが正しいkeyで行われることは静的変更のみでは証明できない。ArtifactPropertyWidgetのeffect edit通知は`setDirty(Effect)`を行う一方、`ArtifactEffectService::setEffectProperty()`は成功後にLayerChangedEventを発行するだけだったため、Effect Service setterにもeffect dirty revision更新を加えた。UndoManagerのproperty／modulation／effect-mask通知も所有layerを走査してrevisionを更新する。layer effect JSON restoreも既存effectのenabled／stage／property値を適用した後にrevisionを進める。Shapeのrevisionを通らない直接mutation経路も呼出し元レビューとruntimeで確認する。effect parameter identityは次の調査対象とする。
+- **次に確認すること:** ビルド・実行許可後、静止画像のeffect/mask、crop、LOD切替、scene light、matte source有無、cache eviction/device resetをfull pathと比較する。toQImage/downsample/effect実行数とGPU時間をRender Queueで測定し、差がない場合やkeyのずれがあれば早期経路を修正する。
+
+
+## 2026-09-26 — Static layer cache trim runs only on insertion
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`、`trimStaticLayerGpuCache()`、`applySurfaceAndDraw()`、`tryDrawCachedRasterizedSurface()`。
+- **確認できた事実:** Before this change, cache trim traversed the entire static layer cache before and after surface draws and before every cached rasterized-surface lookup. The cache is capped at 128 entries and 512 MiB; entries are inserted in the surface draw path and the static text path.
+- **対応:** Removed trim calls from lookup/hit paths and run maintenance only after a static cache insertion or replacement. The existing entry and byte limits and LRU-by-frame eviction remain unchanged. Cache byte total is now maintained by subtracting the replaced/evicted entry and adding the inserted entry; trim no longer sums every entry on each insertion. Diagnostics read the maintained total.
+- **価値または懸念（未検証）:** A cache hit no longer scans all static entries, and a normal in-budget insert performs no full-cache byte scan. Over-budget eviction still searches the bounded 128-entry cache and may evict the just-inserted entry if its size exceeds the cache budget; the active draw retains its local shared buffer. Runtime cache pressure and frame-time effect have not been measured.
+- **次に確認すること:** Build/runtime authorization後、steady hitsでtrimが起動しないこと、128件／512MiB超のinsertで上限維持とcurrent draw成功を確認し、cache hit pathのCPU時間を計測する。
+
+
+## 2026-09-26 — Surface cache keys must preserve authored numeric precision
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`、`Artifact/src/Layer/ArtifactImageLayer.cppm`。
+- **確認できた事実:** Solid surface identity serialized RGBA values and gradient parameters with fixed precision of four decimals (and bounds with two); crop signature used 12 significant digits; source-time identity used three fractional digits. A distinct input could therefore serialize to the same key and reuse a stale processed surface.
+- **対応:** Float key components now use 9 significant digits and double components use 17, including Solid colors/gradient values, Solid bounds, crop state, and source-time mapping.
+- **価値または懸念（未検証）:** This removes decimal-rounding aliases for finite float/double values at the cache-key boundary. Longer keys may cost more to format and compare; rendered output and timing have not been measured.
+- **次に確認すること:** Compare full-frame and cache-hit output for parameter edits smaller than 1e-4, crop changes below 1e-12, and nearby source-time values; profile key construction cost.
+
+
+## 2026-09-26 — Move processed F32 surfaces into the cache
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`、`ArtifactCore/include/Image/ImageF32x4_RGBA.ixx`。
+- **確認できた事実:** Three cache-miss paths wrapped a local processed `ImageF32x4_RGBA` in `SharedPtr` by lvalue, invoking its deep-copy constructor even though the local value was not used afterward. The type already provides a `noexcept` move constructor that transfers its backing `cv::Mat`.
+- **対応:** Those paths now move the processed image into the shared cache entry.
+- **価値または懸念（未検証）:** Avoids one full processed-image copy and its temporary peak memory on each of those cache-miss paths. Cache-hit behavior is unchanged; frame-time savings have not been measured.
+- **次に確認すること:** Profile cache-miss allocation and copy time at representative surface sizes; verify later cache hits and fallback draws preserve the same pixels.
+
+
+## 2026-09-26 — First-applied effect presets must invalidate layer surfaces
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm`、`EffectPresetSnapshotCommand`、layer surface cache revision key。
+- **確認できた事実:** Effect preset callers mutate the effect before pushing `EffectPresetSnapshotCommand`. Its first `redo()` intentionally skips the already-applied snapshot, but also skipped `notifyPropertyChanged()`. Later undo/redo notified owners, so the initial preset application alone could leave the layer's cached effect revision unchanged.
+- **対応:** The first redo now emits the same effect-owner property notification as later redo/undo, advancing each owning layer's effect revision.
+- **価値または懸念（未検証）:** This prevents the surface cache from accepting the pre-preset entry under an unchanged revision after preset application. Runtime cache hit behavior is unverified.
+- **次に確認すること:** Apply an effect preset to a cached layer, compare the next render to a full rebuild, then verify undo/redo and preset rejection compensation.
+
+
+## 2026-09-26 — Layer effect envelopes participate in surface invalidation
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`。
+- **確認できた事実:** `LayerEffectEnvelope` drives per-frame effect strength in the rasterizer effect context. Its setter marked only the generic `Property` flag, leaving the effect revision unchanged, and both surface cache keys omitted the frame unless an effect property itself was animated. Thus an enabled envelope with effects could reuse a processed surface across frames or after envelope edits.
+- **対応:** Envelope mutation now marks both Property and Effect and records both reasons. Both surface key paths include the requested frame, layer-relative frame, and active composition frame when the envelope is enabled and the layer has effects (or effect properties are animated). The Render Controller also uses the cached `hasAnimatedEffectProperties()` query instead of taking and scanning effect/property snapshots on every key build.
+- **価値または懸念（未検証）:** Avoids stale surface reuse when effect context frames differ and removes recurring snapshot/scan work. Using effect count is conservative: disabled or non-rasterizer effects can still cause per-frame cache entries when the envelope is enabled. Runtime correctness and cache pressure are unverified.
+- **次に確認すべきこと:** With build/runtime authorization, compare envelope scrubbing and edit/undo in Composition View and Render Controller against forced surface rebuilds; inspect opacity/effect dirty consumers and measure cache churn.
+
+
+## 2026-09-26 — Render Controller surface identity omitted effect revision
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`buildLayerSurfaceCacheKey()`。
+- **確認できた事実:** The Render Controller key contained surface generation and mask revision but no effect revision, unlike Composition View. A static effect value mutation could therefore keep the same key when no animated-frame field was present.
+- **対応:** Added the layer effect revision to the controller key.
+- **価値または懸念（未検証）:** Static effect changes now invalidate that surface identity consistently with Composition View. Actual cache eviction/replacement and output parity need runtime verification.
+- **次に確認すべきこと:** Edit a cached static effect parameter and enabled state, then check cache miss/replacement and undo/redo against a full surface rebuild.
+
+
+## 2026-09-26 — Controller cache key retained rounded numeric aliases
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`buildLayerSurfaceCacheKey()`。
+- **確認できた事実:** The Render Controller owns a separate key builder from Composition View. It formatted remapped source time/blend/rate at three decimals, Solid/SolidImage colors at four fixed decimals, and bounds at two decimals. Different authored inputs could produce the same key.
+- **対応:** Raised float identity fields to 9 significant digits and double identity fields to 17 significant digits in this key builder.
+- **価値または懸念（未検証）:** Avoids stale surface reuse caused by those rounding aliases; larger serialized keys may have a small formatting and comparison cost.
+- **次に確認すべきこと:** Exercise small parameter edits through the controller cache against full rebuild output and measure key generation cost.
+
+
+## 2026-09-26 — Render Controller key omitted Shape and SVG content revisions
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`buildLayerSurfaceCacheKey()`。
+- **確認できた事実:** Composition View keys track Shape `contentRevision()` and SVG `sourceVersion()`, but the controller did not. A Shape fill/path edit with stable dimensions/type or same-path SVG reload could collide with the old controller surface identity.
+- **対応:** Added those two revision fields to the Render Controller key.
+- **価値または懸念（未検証）:** Prevents stale cache identity for these content mutations. Cache replacement behavior and pixel parity need runtime verification.
+- **次に確認すべきこと:** Exercise Shape path/fill edits and SVG reload with unchanged bounds/path through the controller cache, compare against full surface rebuilds.
+
+
+## 2026-09-26 — Render Controller image key omitted sequence and animated crop state
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、image `buildLayerSurfaceCacheKey()` branch and image rasterizer path.
+- **確認できた事実:** Composition View tracks sequence index/content and frame-scopes animated crop properties. The controller did neither, and its effect/mask path converted to QImage without refreshing animated crop first.
+- **対応:** Added sequence frame identity, animated crop frame scope, and crop refresh before the controller's rasterizer/mask image conversion.
+- **価値または懸念（未検証）:** Prevents stale sequence/crop surfaces and ensures effect processing sees the evaluated crop. Runtime frame/parity behavior remains unverified.
+- **次に確認すべきこと:** Test sequence advance plus animated source crop with effects/masks through both cache paths against forced surface rebuilds.
+
+
+## 2026-09-26 — Animated cache identity should include evaluated clocks
+
+- **関連:** Both `buildLayerSurfaceCacheKey()` implementations in Composition View and Render Controller.
+- **確認できた事実:** Effect keys carry requested, layer-relative, and active composition frames. Animated crop, Shape, Video, and Text branches had only the requested frame even though render inputs may use `layer->currentFrame()` or active composition state.
+- **対応:** Added the three-clock identity to these animated/time-dependent branches in both builders.
+- **価値または懸念（未検証）:** Prevents cache hits across differing evaluation clocks; it may conservatively split entries where the resulting pixels are equivalent.
+- **次に確認すべきこと:** Exercise explicit-frame/offline rendering with caller, layer, and composition frames intentionally desynchronized, then compare each animated input against uncached output.
+
+
+## 2026-09-26 — Controller solid keys omitted gradient inputs
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、Solid2D/SolidImage branches in `buildLayerSurfaceCacheKey()`.
+- **確認できた事実:** Controller identities included only base color and bounds, while the rasterized source also depends on fill type and gradient endpoints/angle/reverse/center/scale/offset. Composition View tracked those inputs and gradient keyframes.
+- **対応:** Added those parameters and animated-gradient frame identity to both controller branches.
+- **価値または懸念（未検証）:** Prevents same-key reuse after gradient edits; key formatting and property checks may add a small CPU cost. Runtime cache behavior is unverified.
+- **次に確認すべきこと:** Validate gradient edits and animation scrubbing with effect/mask surfaces against forced rebuild output.
+
+
+## 2026-09-26 — Unsupported controller surface types must not inherit generic identities
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`buildLayerSurfaceCacheKey()` and `applySurfaceAndDraw()`.
+- **確認できた事実:** Unknown surface types received only common layer/effect fields. Precomp pixels also depend on referenced composition revision, child frame, and per-instance overrides. The caller appended option suffixes even when the base key was empty, defeating an unsupported-key opt-out.
+- **対応:** The key builder now returns empty for unsupported layer types, and cache-affecting suffixes are applied only to nonempty source identities. Unsupported types render through the existing uncached processing path.
+- **価値または懸念（未検証）:** Avoids stale surface reuse for precomp and future unkeyed sources. Effect/mask precomp rendering may cost more until a complete instance-aware key is implemented.
+- **次に確認すべきこと:** Verify child edits, child-frame changes, and instance overrides against uncached output; profile the recomputation cost before designing a complete precomp key.
+
+
+## 2026-09-26 — Solid gradient frame keys needed the same evaluated clocks
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`、Solid2D/SolidImage branches of `buildLayerSurfaceCacheKey()`.
+- **確認できた事実:** Gradient animation entries in Composition View keyed only the requested frame, while Render Controller used requested, layer-relative, and active composition frames.
+- **対応:** Aligned both Composition View gradient branches to the same three-clock identity.
+- **価値または懸念（未検証）:** Removes cache aliases when clocks diverge without affecting static gradients. Runtime parity remains unverified.
+- **次に確認すべきこと:** Compare gradient animation through both cache paths with caller and active clocks out of sync.
+
+
+## 2026-09-26 — Static solid pointwise GPU hits can bypass stack reconstruction
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`SolidPointwisePreviewCache::resolve()`.
+- **確認できた事実:** The bounded cache checked its signature only after copying effect vectors and reconstructing the pointwise stack. Static supported inputs are identified by the layer effect revision and quantized opaque source color; animated effect properties and layer envelopes need dynamic evaluation.
+- **対応:** Added a pre-stack hit for static inputs after device/context validation. Envelope cases bypass it and include current sampled strength; exact-signature hits refresh the cached revision.
+- **価値または懸念（未検証）:** Avoids repeated vector allocation and stack work on steady static hits. GPU command ordering, animated behavior, and hit performance need runtime verification.
+- **次に確認すべきこと:** Measure static-hit CPU cost and compare output across static edits, animated Exposure, envelope scrubbing, and device/context reset.
+
+
+## 2026-09-26 — Effect modulation was absent from animated cache classification
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm`、`hasAnimatedEffectProperties()`；`Artifact/src/Service/ArtifactEffectService.cppm`、`setEffectModulationSnapshot()`.
+- **確認できた事実:** Effects evaluate modulation assignments in `setContext()` each composition frame. The layer animation detector ignored router targets, and the direct no-Undo service path did not advance effect revision after restoring a changed modulation snapshot.
+- **対応:** Include active modulation targets in animated-effect detection and mark layer effects dirty after successful direct modulation changes. Undo paths already notify owners.
+- **価値または懸念（未検証）:** Prevents modulated values from taking the static GPU shortcut and invalidates the detector's revision cache on direct edits. Runtime modulation behavior needs verification.
+- **次に確認すべきこと:** Scrub LFO/Macro-driven Exposure and edit/undo router assignments while comparing cached output to uncached evaluation.
+
+
+## 2026-09-26 — Text cache identity omitted animated style properties
+
+- **関連:** `Artifact/src/Layer/ArtifactTextLayer.cppm` (`draw()` animated property paths)、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` (Text surface keys).
+- **確認できた事実:** Text drawing evaluates keyframes for 33 font, layout, color, stroke, and shadow properties. The surface key included frame clocks only for source-text keyframes or animator stacks, allowing stale reuse when only a style property was animated.
+- **対応:** Keep one static list for the 33 Text draw-evaluation paths. Cache identity and Composition View's separate static raster cache use `hasAnimatedTextProperties()` to scan registered `text.*` entries with one property-cache lock rather than 33 independent path lookups.
+- **価値または懸念（未検証）:** Prevents stale Text surfaces for text-property animation while leaving static Text reusable and reduces lock acquisition count in both cache paths. Runtime parity and relative cost of map scan versus path lookups remain unmeasured.
+- **次に確認すべきこと:** Compare font-size/color/shadow animation against forced rebuilds and confirm static cache hits after build/runtime authorization.
+
+
+## 2026-09-26 — Shape cache key used display sorting for an animation predicate
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` (Shape cache keys)、`ArtifactCore/src/Property/PropertyGroup.cppm` (`allProperties()` / `sortedProperties()`).
+- **確認できた事実:** Both Shape cache key paths only test for any keyed property but called `sortedProperties()`. That method copies the property list and invokes `std::stable_sort`; `allProperties()` returns the same insertion-ordered property snapshot without display sorting. The returned collections and Shape layer property-group construction remain allocations.
+- **対応:** Switched both cache-key scans to `allProperties()` so they do not sort properties for a boolean keyframe check.
+- **価値または懸念（未検証）:** Removes unneeded ordering work and sorting workspace in a render hot path. It does not remove the property group/vector allocations, so runtime effect may be small.
+- **次に確認すべきこと:** Profile Shape cache-key cost and allocation count; investigate a non-copying Shape-owned animation summary only if measurements justify it and it can include dynamic content/operator properties.
+
+
+## 2026-09-26 — Shape surface keys can inspect registered properties without rebuilding groups
+
+- **関連:** `Artifact/include/Layer/ArtifactAbstractLayer.ixx`、`Artifact/src/Layer/ArtifactAbstractLayerPropertyRouting.cppm`、Shape surface keys in `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` and `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`.
+- **確認できた事実:** `persistentLayerProperty()` stores property objects in the layer's `propertyCache_`; Shape's `getLayerPropertyGroups()` repeatedly constructs vectors and dynamic property groups from those objects. Keyframe mutation operates on the cached property object, so the keyframe state can be queried by scanning registered `shape.*` cache entries.
+- **対応:** Added a prefix-based cached-property query that holds one cache lock, visits registered property handles without copying the map or building groups, and checks keyframe state. Both surface keys use it while retaining the explicit path-keyframe query.
+- **価値または懸念（未検証）:** Removes group/vector/sort construction from Shape surface key generation and still covers dynamic content/operator paths that have been registered. Map traversal and nested property shared locks remain; actual CPU/allocation impact needs profiling. Keyframe state created before the property is registered is not discoverable by this API, so load/edit ordering must be verified.
+- **次に確認すべきこと:** Verify fresh-project load and timeline keyframe creation for legacy and dynamic Shape paths, then compare the query's cache contents and resulting rendered surfaces against forced rebuilds.
+
+
+## 2026-09-26 — Source Crop cache identity can use a mutation revision
+
+- **関連:** `Artifact/include/Layer/ArtifactSourceCrop.ixx`、`Artifact/src/Layer/ArtifactSourceCrop.cppm`、`Artifact/src/Layer/ArtifactImageLayer.cppm`、Composition View and Render Controller image surface keys.
+- **確認できた事実:** Both image surface key builders called `sourceCropSignature()`, which formatted 12 numeric/boolean fields, and the cropped-QImage cache built the same string for equality on each access. Crop state mutations use `SourceCrop` setter methods, `fromJson()`, or `clampToSource()`.
+- **対応:** Added a monotonic revision in `SourceCrop`, exposed it through `ArtifactImageLayer`, and replaced cache-key and cropped-QImage comparisons with that revision. Both key builders use a `sourceCrop.*` property-cache scan to detect animated fields; animated crop still includes its three frame clocks.
+- **価値または懸念（未検証）:** Removes repeated formatted-string work and repeated per-field property lookups from crop cache checks. The revision advances only when normalized state changes, so repeated evaluation of a held keyframe can hit the same entry; static crop reuse and animated correctness remain runtime-unverified.
+- **次に確認すべきこと:** Verify every crop field through edit/undo, animated scrubbing, source dimension changes, and relink; compare both cache paths to forced rebuild output.
+
+
+## 2026-09-26 — Video surface keys omitted the asset source version
+
+- **関連:** `Artifact/include/Layer/ArtifactVideoLayer.ixx`、`Artifact/src/Layer/ArtifactVideoLayer.cppm`、Video branches of `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` and `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`.
+- **確認できた事実:** Video cache identity used the source path, frame clocks, proxy quality, and dimensions but not `AssetManager::sourceVersion()`. Asset content can be revised while retaining the same asset identity/path.
+- **対応:** Exposed the current AssetManager source version from `ArtifactVideoLayer` and added it to both surface keys.
+- **価値または懸念（未検証）:** Prevents a cache hit from selecting an older frame surface after source revision changes. Version propagation through decode queues and both render paths still needs runtime verification.
+- **次に確認すべきこと:** Replace/relink a Video asset at the same identity, then compare Composition View and Render Controller output with cache disabled.
+
+
+## 2026-09-26 — Solid gradient cache keys repeated property lookups
+
+- **関連:** Solid2D/SolidImage branches in `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` and `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`.
+- **確認できた事実:** Each branch tested eight gradient paths separately to determine whether frame clocks belong in the key. Each `getProperty()` locks the layer property cache; static and animated keys both ran that path list.
+- **対応:** Replaced the loops with one cached-property prefix scan for `solid.gradient*` in both branches. The exact gradient values and animation clocks in the keys are unchanged.
+- **価値または懸念（未検証）:** Reduces repeated mutex acquisition for the predicate. Whether scanning the full cached-property map beats eight path lookups depends on cache size and still needs profiling.
+- **次に確認すべきこと:** Validate static gradient cache hits and gradient-only animation against forced rebuilds, then measure key-build time and allocations.
+
+
+## 2026-09-26 — Matte eligibility copied its reference vector
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` (`hasEnabledMatteReferences()`)、`Artifact/include/Layer/ArtifactAbstractLayer.ixx` and `Artifact/src/Layer/ArtifactAbstractLayer.cppm`.
+- **確認できた事実:** The cache eligibility predicate needed a boolean for enabled external matte presence, but `matteReferences()` returned a copied `std::vector` before the scan. The layer already owns these entries in `NamedVector`.
+- **対応:** Added a layer query that iterates the owned `NamedVector` directly, replaced copied-vector scans in cache eligibility and cached-surface lookup, and deferred `applySurfaceAndDraw`'s reference copy until a matte will actually be applied. Image, Shape, SVG, and static Text cache hits no longer snapshot matte references.
+- **価値または懸念（未検証）:** Removes vector copies on no-matte draws, cache hits, and draws without matte source images while retaining enabled/source/self-reference conditions. Runtime allocation impact and matte behavior remain unverified.
+- **次に確認すべきこと:** Compare the new predicate to previous semantics across enabled, disabled, unresolved, and self-referencing mattes, then measure allocation count.
+
+
+## 2026-09-26 — Partial recompose skipped missing layer resources
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` (opt-in `TGFXPartialRecompose` layer pass).
+- **確認できた事実:** Three layer-stage resource guards (intermediate draw, float conversion, and blend) used `continue` regardless of whether partial recompose was active. A skipped intersecting layer could therefore leave the partial region incomplete while the frame pass continued toward damage consumption.
+- **対応:** Each guard now aborts the active partial pass and sets its failure state; the existing failure path prevents presentation and requests a full redraw. Non-partial full rendering retains its prior continue behavior.
+- **価値または懸念（未検証）:** Keeps the retained composition and damage tracker consistent when a required GPU resource is missing. Recovery behavior and backend parity have not been exercised.
+- **次に確認すべきこと:** Exercise each resource failure point and verify no partial region is presented or consumed, followed by a complete D3D12 and Vulkan redraw.
+
+
+## 2026-09-26 — Render reuse eligibility copied effect lists
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`, `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`, `Artifact/src/Layer/ArtifactImageLayer.cppm`, and `Artifact/src/Render/ArtifactRenderQueueService.cppm`.
+- **確認できた事実:** Cache eligibility/frame-sync, image texture-sharing, and Render Queue format predicates used `getEffects()` snapshots for count/emptiness; rasterizer-work helpers copied the list to inspect enabled pipeline stages, and the surface-cache probe repeated the caller's effect check. `getEffects()` materializes a `std::vector` copy from the layer-owned `NamedVector`.
+- **対応:** Replaced count/emptiness snapshots with `effectCount()`, added `hasEnabledRasterizerEffect()` to scan owned entries directly, and removed the redundant cache-probe effect check after verifying all callers are gated.
+- **価値または懸念（未検証）:** Removes temporary vector construction and duplicate effect scans from render reuse, frame-sync, image texture-sharing, Render Queue format selection, and rasterized-surface probe paths while preserving effect-presence/enabled-stage semantics. Allocation and frame-time impact are unmeasured.
+- **次に確認すべきこと:** Confirm predicate equivalence and measure allocations when the opt-in reuse settings are enabled.
+
+
+## 2026-09-26 — Render Controller matte predicates copied references
+
+- **関連:** `Artifact/include/Layer/ArtifactAbstractLayer.ixx`, `Artifact/src/Layer/ArtifactAbstractLayer.cppm`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`.
+- **確認できた事実:** Render Controller's matte presence and count helpers called the vector-returning `matteReferences()` API. Its pre-render matte-source pass also copied each active layer's references before checking whether any existed. Most call sites needed only a boolean or count, and the layer state stores references in `NamedVector`.
+- **対応:** Added an external matte count query over the owned entries, routed the presence query through it, replaced helper snapshots, and gated the pre-render source enumeration on enabled external-reference presence.
+- **価値または懸念（未検証）:** Avoids temporary reference-vector construction in render eligibility, damage dependency checks, matte diagnostics, and matte-free prepass scans, preserving the current enabled/non-nil/non-self predicate. Thread-safety remains governed by the existing layer mutation/rendering contract; runtime behavior is unverified.
+- **次に確認すべきこと:** Verify semantic equivalence for disabled, nil, self, and multiple valid references; measure allocations and render-side lock/thread assumptions.
+
+
+## 2026-09-26 — Rasterized surfaces had cache-dependent LOD dimensions
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` (`applySurfaceAndDraw`, Image/Shape/Particle branches).
+- **確認できた事実:** Image, Shape, and Particle branches downsampled their QImage before calling the helper, then could downsample again when matte processing bypassed the surface cache. SVG cache lookup intentionally used source dimensions, but its cache-free fallback downsampled.
+- **対応:** The helper now accepts whether LOD scaling should be skipped; pre-downsampled Image/Shape/Particle inputs avoid a second resize, while SVG keeps source resolution in cache-free fallback.
+- **価値または懸念（未検証）:** Aligns cache and matte fallback dimensions with each source type's cache identity and avoids duplicate CPU scaling. Pixel parity and runtime cost are unmeasured.
+- **次に確認すべきこと:** Compare matte-enabled cache-bypass output with cache-enabled output at Low/Medium/High LOD; compare SVG cache/no-cache output and measure resize counts.
+
+
+## 2026-09-26 — Export snapshot predicates copied effect and matte lists
+
+- **関連:** `Artifact/src/Export/ArtifactExportSession.cppm` (export layer snapshot construction).
+- **確認できた事実:** Export snapshot construction copied `matteReferences()` to compute a single active-external-matte boolean and called `getEffects()` twice only to test whether effects existed. It also called `layerHasCpuRasterizerWork()` once while deciding pre-render eligibility and again while building the reason label.
+- **対応:** Reused `hasEnabledExternalMatteReference()` and `effectCount()` for those predicates, and cached the rasterizer-work predicate once per layer snapshot; references/effects are still enumerated by actual export work where needed.
+- **価値または懸念（未検証）:** Avoids unnecessary vector snapshots and duplicate enabled-stage scans during export preflight while preserving matte/effect selection. Export output is unaffected by these predicate-only substitutions in the inspected path.
+- **次に確認すべきこと:** Compare pre-render selection and reason labels for layers with disabled, self, and valid matte refs, and zero/nonzero effect stacks.
+
+
+## 2026-09-26 — Inspector matte presence copied references
+
+- **関連:** `Artifact/include/Layer/ArtifactAbstractLayer.ixx`, `Artifact/src/Layer/ArtifactAbstractLayer.cppm`, and `Artifact/src/Widgets/ArtifactInspectorWidget.cppm` (`setMatteContext()`).
+- **確認できた事実:** Inspector interaction state only tested whether the matte reference list was empty, which copied the entire `std::vector`. Its existing semantics count every stored reference, including disabled and self references.
+- **対応:** Added `matteReferenceCount()` over the layer-owned `NamedVector` and used it for the presence check, preserving the all-reference semantics.
+- **価値または懸念（未検証）:** Avoids allocating a temporary vector while updating Inspector cursor affordance without changing which stored matte references enable it.
+- **次に確認すべきこと:** Verify Inspector affordance for empty, disabled-only, self-only, and valid external-reference lists.
+
+
+## 2026-09-26 — Matte application copied references before discovering no work
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` (CPU and GPU matte application helpers).
+- **確認できた事実:** Two CPU matte application helpers and the GPU layer-matte preparation path copied the layer's full reference vector before filtering enabled, non-nil, non-self entries. For lists with no active external matte, the vector was used only to return without processing.
+- **対応:** Added an owned-entry predicate guard before each snapshot; the QImage helper now also handles a null layer before dereferencing it.
+- **価値または懸念（未検証）:** Removes avoidable temporary vector allocations on matte-free paths without changing active-reference iteration. Runtime behavior and allocation impact are unverified.
+- **次に確認すべきこと:** Verify CPU/GPU results for empty, disabled-only, self-only, missing-source, and valid references, then profile matte-free rendering.
+
+
+## 2026-09-26 — Matte summary predicates copied reference lists
+
+- **関連:** `Artifact/src/Widgets/LayerEditorSurfaceInfo.cppm`, `Artifact/src/Widgets/ArtifactTimelineWidget.cppm`.
+- **確認できた事実:** Layer Editor's surface summary counted enabled external matte references by iterating the vector-returning accessor. Timeline's layer-tone summary copied the same list only to determine whether any active external matte existed.
+- **対応:** The count now uses `enabledExternalMatteReferenceCount()` and the Timeline badge predicate uses `hasEnabledExternalMatteReference()`.
+- **価値または懸念（未検証）:** Avoids vector snapshots while preserving the same enabled, non-nil, non-self filters; runtime UI behavior and allocation impact are unmeasured.
+- **次に確認すべきこと:** Compare summary counts and Timeline tones for empty, disabled-only, self-only, and valid matte references.
+
+
+## 2026-09-26 — Rasterizer surface builders copied effects for eligibility
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`.
+- **確認できた事実:** Both surface builders copied and traversed the effect list to detect enabled rasterizer work. The snapshot was consumed only in the actual rasterizer application branch, so mask-only/matte-only work still paid for that copy. Render Controller also performed the check when CPU rasterizer effects were deferred to GPU.
+- **対応:** Both paths now use `hasEnabledRasterizerEffect()` and retrieve effect snapshots only when applying CPU rasterizer effects; the controller skips the query when those effects are deferred.
+- **価値または懸念（未検証）:** Reduces temporary effect-vector construction and duplicate scans for surfaces without CPU rasterizer work. Concurrent effect mutation consistency and runtime output remain unverified under the existing render mutation contract.
+- **次に確認すべきこと:** Compare effect-free, mask-only, matte-only, CPU rasterizer, and GPU-deferred outputs; profile effect-free surface processing.
+
+
+## 2026-09-26 — Composition final effects copied an empty stack
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` (`applyCompositionFinalEffectsToBuffer`).
+- **確認できた事実:** The final-effect helper copied the composition-owned effect list before checking whether any entries existed. Composition View may call this helper after producing its surface even when the stack is empty.
+- **対応:** Added an `effectCount()` guard before the list snapshot.
+- **価値または懸念（未検証）:** Removes a temporary empty vector on effect-free compositions; output is unchanged by inspection because the previous path returned false without modifying the buffer when no rasterizer effect was enabled.
+- **次に確認すべきこと:** Confirm empty-stack helper behavior and profile compositions without final effects.
+
+
+## 2026-09-26 — Overscan calculation copied inactive effect stacks
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` (`layerOverscanPixels`).
+- **確認できた事実:** Damage-expanded bounds calculation retrieved the effect vector for each non-adjustment layer, even when no enabled rasterizer effect could contribute expansion.
+- **対応:** Added a `hasEnabledRasterizerEffect()` early return before retrieving the list.
+- **価値または懸念（未検証）:** Avoids vector construction for empty, disabled-only, and non-rasterizer-only stacks; those cases previously produced zero expansion after traversal.
+- **次に確認すべきこと:** Compare bounds for empty, disabled-only, non-rasterizer, rasterizer-without-overscan, and overscan stacks.
+
+
+## 2026-09-26 — Composition final-effect eligibility copied disabled stacks
+
+- **関連:** `Artifact/include/Composition/ArtifactAbstractComposition.ixx`, `Artifact/src/Composition/ArtifactAbstractComposition.cppm`, `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`.
+- **確認できた事実:** Composition View final-effect processing copied all composition effects to determine whether any enabled rasterizer effect existed, then reused the copy for ordered application. Composition owned the effect entries but exposed only count and vector snapshot queries.
+- **対応:** Added an owned-entry `hasEnabledRasterizerEffect()` query to Composition and use it to return before taking the effect snapshot when no rasterizer stage is active.
+- **価値または懸念（未検証）:** Removes vector creation and a duplicate scan for disabled-only/non-rasterizer stacks. The new public module API and runtime behavior are not build-verified.
+- **次に確認すべきこと:** Compare the query against the prior predicate for null/disabled/non-rasterizer/rasterizer entries and verify composition effect rendering after build authorization.
+
+
+## 2026-09-26 — Final rasterizer sorting copied already ordered stacks
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` (layer and composition final rasterizer paths).
+- **確認できた事実:** Each path retrieved an effect-list snapshot and then unconditionally called `sortedByStage()`, which copied it again. `ArtifactAbstractEffect::isStageOrderValid()` checks enabled effects in their existing order.
+- **対応:** Reuse the retrieved vector when enabled effects are already stage-ordered and invoke stable sorting only for out-of-order stacks.
+- **価値または懸念（未検証）:** Saves a second vector copy on canonical stacks. Null and disabled effects are ignored during both order validation and rendering, so their position does not change the executed stage sequence; visual behavior remains unverified.
+- **次に確認すべきこと:** Verify ordered/out-of-order, disabled, and null entries against the old sort behavior, then profile allocations and output.
+
+
+## 2026-09-26 — GPU raster plan copied stacks with no active rasterizer work
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` (`buildGpuRasterEffectPlan`).
+- **確認できた事実:** The GPU raster plan builder retrieved the full effect vector before determining that no enabled rasterizer effect could produce a plan. The builder runs during GPU layer preparation.
+- **対応:** Added a direct enabled-rasterizer predicate to its initial eligibility checks.
+- **価値または懸念（未検証）:** Avoids the effect-list snapshot and plan setup for empty, disabled-only, or non-rasterizer-only stacks, returning the same ineligible result by inspection.
+- **次に確認すべきこと:** Compare plan eligibility for those cases and for supported/unsupported active rasterizer stacks; profile layer preparation.
+
+
+## 2026-09-26 — Damage invalidation copied effects for a full-frame predicate
+
+- **関連:** `Artifact/include/Layer/ArtifactAbstractLayer.ixx`, `Artifact/src/Layer/ArtifactAbstractLayerImpl.cppm`, `Artifact/src/Layer/ArtifactAbstractLayer.cppm`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`.
+- **確認できた事実:** Damage invalidation copied the layer effect vector solely to test whether an enabled effect's `roiHint()` required a full redraw.
+- **対応:** Added `hasEnabledFullFrameEffect()` over the owned effect list and routed invalidation through it.
+- **価値または懸念（未検証）:** Avoids a temporary vector on damage recording and preserves the exact enabled/full-frame condition by inspection. Render-thread mutation assumptions remain unchanged.
+- **次に確認すべきこと:** Compare against the old loop for empty, disabled, full-frame, and bounded-ROI effects; verify property damage is promoted to full redraw only for full-frame hints.
+
+
+## 2026-09-26 — Overscan sum required only a scalar query
+
+- **関連:** `Artifact/include/Layer/ArtifactAbstractLayer.ixx`, `Artifact/src/Layer/ArtifactAbstractLayerImpl.cppm`, `Artifact/src/Layer/ArtifactAbstractLayer.cppm`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`.
+- **確認できた事実:** `layerOverscanPixels()` copied the layer effect vector only to sum `max(0, roiHint.expansionPixels)` for enabled, overscan-enabled rasterizer effects whose hints were not full-frame.
+- **対応:** Added `enabledRasterizerOverscanPixels()` on the layer and moved this exact filter/sum over owned entries; the controller now asks for the scalar directly.
+- **価値または懸念（未検証）:** Avoids per-call vector construction and shared-pointer copies in render bounds expansion. Numeric equivalence is based on matching the old predicates; runtime impact is unmeasured.
+- **次に確認すべきこと:** Compare scalar results for all effect eligibility combinations and verify damage bounds before measuring allocations.
+
+
+## 2026-09-26 — Mask rasterization copies paths during frame work
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`, `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`, `Artifact/src/Layer/ArtifactAbstractLayer.cppm`, `Artifact/src/Layer/ArtifactLayerMaskPropertySupport.cppm`, `Artifact/src/Layer/ArtifactLayerMaskMatteState.cppm`.
+- **確認できた事実:** Composition View and Render Controller mask application loops call `layer->mask(index)` per render. That API copies the stored `LayerMask`, then applies animated property values to the copy. `applyMaskPropertyState()` also copies each `MaskPath` before applying property overrides. The base mask collection is layer-owned `NamedVector` storage.
+- **仮説（未検証）:** Mask-heavy previews may spend notable CPU time and allocate while copying path collections and reconstructing property-path strings on each evaluated frame. A resolved-mask cache keyed by mask revision plus relevant property/frame revision, or a lazy override view over immutable base paths, could remove repeated work while preserving animation. Cache invalidation and concurrent editing make this more delicate than the effect/matte boolean queries.
+- **価値または懸念:** Avoiding these copies could reduce frame preparation cost for masked layers, but a stale cache would render incorrect masks. No implementation or performance claim is made yet.
+- **次に確認すべきこと:** Trace mask property revision and frame identity ownership; determine whether an existing per-layer cache can own resolved mask data; profile path-copy and property-lookup counts on static and animated masks before designing the API.
+
+
+## 2026-09-26 — Animated mask properties were missing from surface keys
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayerPropertyRouting.cppm`, `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`, `Artifact/src/Layer/ArtifactLayerMaskPropertySupport.cppm`, `Artifact/src/Layer/ArtifactLayerTimelineSupport.cppm`.
+- **確認できた事実:** Mask property overrides are evaluated at `currentTimelineTime()`, which reads the active composition frame. Both layer-surface key builders included `maskRevision` but omitted frame identity for animated `mask.*` properties. The existing `hasCachedAnimatedPropertiesWithPrefix()` predicate recognized keyframes but ignored expressions, although mask properties use `evaluateValue(time)`.
+- **対応:** Broadened the predicate to include expressions and added requested/layer/composition frame identity to both surface keys when `mask.*` properties are time-varying.
+- **価値または懸念（未検証）:** Prevents stale mask surfaces across animation frames in both paths. Expression-driven properties that are effectively static may lose cache hits conservatively; pixel parity and invalidation behavior are runtime-unverified.
+- **次に確認すべきこと:** Compare keyframed and expression-driven mask output across frames to forced rebuild, and confirm static mask cache reuse remains intact.
+
+
+## 2026-09-26 — Static masks resolved unused property paths every draw
+
+- **関連:** `Artifact/src/Layer/ArtifactLayerMaskPropertySupport.cppm`, `Artifact/src/Layer/ArtifactAbstractLayerPropertyRouting.cppm`, `Artifact/src/Layer/ArtifactLayerMaskMatteState.cppm`.
+- **確認できた事実:** `applyMaskPropertyState()` constructed per-mask/per-path property names, looked up all supported fields, and copied each `MaskPath` even when no relevant property had keyframes or an expression. Static mask property writes route through `setLayerPropertyValue()`, update the base mask, and advance `maskRevision`.
+- **対応:** Added an exact per-mask dynamic-property prefix check before time lookup and resolution work. The prefix includes a trailing dot to avoid index 1 matching index 10.
+- **価値または懸念（未検証）:** Avoids repeated path copies, property lookups, and path string construction for static masks; dynamic overrides keep the existing resolver. Rendering parity remains unverified.
+- **次に確認すべきこと:** Compare static edits and animated overrides, test adjacent mask indices, and profile static/animated path resolution.
+
+
+## 2026-09-26 — Static mask rendering can borrow immutable base paths
+
+- **関連:** `Artifact/include/Layer/ArtifactLayerMaskMatteState.ixx`, `Artifact/src/Layer/ArtifactLayerMaskMatteState.cppm`, `Artifact/include/Layer/ArtifactAbstractLayer.ixx`, `Artifact/src/Layer/ArtifactAbstractLayer.cppm`, `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`.
+- **確認できた事実:** The two main CPU mask rasterization loops copied `LayerMask` values from the layer-owned `NamedVector`. Static masks need no property resolution; any dynamic override is evaluated into a copy by `mask(index)`.
+- **対応:** Added `maskView()` as an immediate-read borrowed pointer, returning null for invalid indices. Surface rasterization borrows the stored value for static masks and uses the resolved copy only when the matching `mask.N.` property prefix contains keyframes or expressions.
+- **価値または懸念（未検証）:** Removes deep copies of mask path collections from static surface processing. The borrowed pointer is invalidated by mask mutation, so callers must not retain it or race with edits; current render-thread assumptions must be verified.
+- **次に確認すべきこと:** Verify static/animated output parity, null handling, and mask mutation lifetime; profile allocations and CPU time on path-heavy layers.\n- **追記 (2026-09-26):** `resolvedMaskView()` still calls the general animated-property prefix query per mask. The query now parses each cached path directly, avoiding prefix-string construction, and requires a dot after the numeric index so mask 1 cannot match mask 10. It still locks and scans entries; per-frame rasterization trades some path copies for repeated lookup/lock work. Do not extend this borrowed-view path into more render or hit-test loops until profiling shows a net win; consider revisioned precomputed metadata if cache scans are material.
+
+
+## 2026-09-26 — Effect-free composition images were converted before eligibility
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` (`applyCompositionFinalEffectsToImage`).
+- **確認できた事実:** The image helper performed LOD downsampling, QImage normalization, OpenCV conversion, and F32 buffer construction before calling a helper that returned false when no enabled composition rasterizer effect existed.
+- **対応:** Added the direct composition effect predicate before those conversions.
+- **価値または懸念（未検証）:** Avoids heavyweight temporary image work for empty/inactive final-effect stacks while preserving the helper's prior false result and leaving the input image untouched.
+- **次に確認すべきこと:** Verify false/no-mutation behavior for empty, disabled-only, and non-rasterizer-only stacks; measure effect-free finalization cost.
+
+
+## 2026-09-26 — Composition image finalization repeated effect lookup
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` (`applyCompositionFinalEffectsToImage` and buffer helper).
+- **確認できた事実:** The image finalizer's new eligibility query was followed by a call to the public buffer helper, which repeated that query and copied the effect list separately after QImage/OpenCV conversion.
+- **対応:** Added a private buffer helper that consumes the already retrieved effect list. The image finalizer now shares one snapshot with application; standalone buffer callers keep their own validation and snapshot.
+- **価値または懸念（未検証）:** Removes redundant stage detection and effect-vector allocation from the image finalizer while preserving the public function contract and stage ordering.
+- **次に確認すべきこと:** Compare image/buffer output for ordered and out-of-order stacks and measure scans/allocations.
+
+## 2026-09-26 — 3D card texture cache needed a hard entry bound
+
+- **関連:** `Artifact/src/Render/PrimitiveRenderer3D.cppm` (`textureFromImage`, `textureCache_`).
+- **追記して確認できた事実:** The old `frameCount_` advanced inside each billboard draw call and triggered an O(cache size) prune scan every 60 calls; it was not synchronized to presented frames. `textureFromImage()` updates usage on lookup, so the entry limit and access-order eviction already provide bounded retention without age scanning.
+- **対応:** Kept least-recently-accessed eviction and estimated RGBA8 byte accounting. Cache misses evict until both the 50-entry ceiling and 512 MiB byte budget hold; a single larger image is returned for drawing without being retained. Removed the draw-call-based age sweep and its misleading frame counter.
+- **価値または懸念（未検証）:** Bounds retained entries and estimated pixel storage while removing periodic full-cache sweeps and false frame-based expiration. The byte estimate is width × height × 4 and excludes backend allocation overhead; evictions can cause re-uploads for larger working sets. GPU residency and pixel behavior remain unverified.
+- **次に確認すること:** Exercise >50 images and mixed-size images around 512 MiB on a GPU device; inspect cache residency and confirm oversized one-off images render while leaving the cache unchanged.
+
+
+## 2026-09-26 — Deferred sprite packets require pinned texture lifetime
+
+- **関連:** `Artifact/src/Render/PrimitiveRenderer2D.cppm` (`m_spriteTexCache`, `m_maskTexCache`), `Artifact/include/Render/RenderCommandBuffer.ixx` (`SpritePkt`, `MaskedSpritePkt`), `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`.
+- **確認できた事実:** PrimitiveRenderer2D appends sprite packets containing raw `ITextureView*` values to `RenderCommandBuffer`; those packets are submitted later. `ArtifactCompositionRenderController` explicitly submits queued sprites before replacing/evicting a texture they reference. Therefore cache-entry eviction during packet collection can invalidate a queued packet even if the texture was valid when the packet was appended.
+- **追記:** PrimitiveRenderer2D now keeps sprite and mask caches to 50 entries each and a shared 512 MiB estimated RGBA8 budget, evicting the globally least-recently-used entry when over budget. `createBuffers()` reserves 50 buckets for each cache. If one requested texture exceeds the byte budget, other cache entries are evicted and that single texture is retained so existing raw-view callers still receive a cache-owned resource.
+- **追記:** `RenderCommandBuffer::append()` now forwards packet values directly into its vector's `DrawPacket` variant and pins views in place, removing the intermediate by-value `DrawPacket` move for common typed packet callers. This is a bounded copy/move reduction, not a measured frame-time claim.
+- **価値または懸念（未検証）:** Cache eviction no longer invalidates views in queued packets. The per-textured-packet strong reference adds reference-count traffic; GPU output, backend resource retention through deferred execution, and performance impact are unverified. The 512 MiB estimate covers cache-owned entries only: views pinned by the pending packet list can keep evicted textures alive until submit/reset, and the packet count currently has no explicit cap. Byte estimates omit backend allocation overhead; one oversized texture may exceed the cache budget by itself.
+- **追加確認できた事実:** Every `ITextureView*` stored directly in a `DrawPacket` is covered by `pinTextureViews()`, including both views in `MaskedSpritePkt` and `BillboardPkt`. `ParticleRenderData` contains CPU particle values and transforms, no GPU view/resource pointer, so `ParticlePkt` needs no additional pin field.
+- **次に確認すべきこと:** Verify every packet texture reference survives through D3D12/Vulkan submit and deferred execution, then check sprite ordering across target switches and inspect cache sizes with more than 50 distinct images. Measure packet-size, allocation, and AddRef overhead; inspect cache accounting with mixed-size images and an oversized single texture. If peak in-flight memory proves material, add a bounded submit/backpressure policy instead of assuming cache eviction releases those resources.
+
+
+## 2026-09-26 — Glyph atlas dirty upload already uses a bounded rectangle
+
+- **関連:** `ArtifactCore/include/Text/GlyphAtlas.ixx`, `ArtifactCore/src/Text/GlyphAtlas.cppm`, `Artifact/src/Render/PrimitiveRenderer2D.cppm` (`uploadGlyphAtlasIfNeeded`).
+- **確認できた事実:** A newly packed glyph marks its atlas rectangle dirty, and the Artifact uploader sends only that box with `UpdateTexture()`. Atlas initialization/reset marks a full upload. Multiple glyph writes before upload are merged into one union rectangle.
+- **価値または懸念（未検証）:** The main partial-upload optimization already exists; duplicating it in Artifact would be redundant. If many distant glyphs are created before upload, the union may include substantial untouched pixels, but changing that requires a bounded multi-rectangle contract at the ArtifactCore ownership boundary.
+- **次に確認すべきこと:** Instrument dirty-region area versus glyph bytes on font-cache cold starts. Only consider a bounded multi-region API if profiling shows meaningful wasted transfer, and make that a separately scoped ArtifactCore request/change.
+
+
+## 2026-09-26 — Resolved glyph font lookup was linear in the full cache
+
+- **関連:** `Artifact/src/Render/PrimitiveRenderer2D.cppm` (`resolvedGlyphFont`, `glyphFontCache_`).
+- **確認できた事実:** The renderer caches up to 2048 resolved fonts per TextStyle, but each codepoint lookup scanned the full vector. `drawGlyphText()` invokes that lookup during preload and packet generation; repeated timeline labels can therefore repeat the scan each presentation.
+- **対応:** Added a fixed 4096-slot open-address index of 16-bit vector indices. The existing vector remains the owner and 2048-entry reset policy is unchanged; style changes and capacity resets clear the table without allocating.
+- **価値または懸念（未検証）:** Reduces lookup probes from up to 2048 comparisons to a bounded hash probe sequence with at most 50% table occupancy, while adding a fixed 8 KiB per-renderer index. CPU impact and hash clustering on real multilingual projects are unmeasured.
+- **次に確認すべきこと:** Exercise repeated Latin, CJK, combining-mark, and supplementary-plane text with style changes and the 2048-entry rollover; compare glyph output with the previous resolver and profile lookup probes/frame time.
+
+
+## 2026-09-26 — Per-string glyph deduplication was quadratic
+
+- **関連:** `Artifact/src/Render/PrimitiveRenderer2D.cppm` (`drawGlyphText`, `glyphCodePointScratch_`).
+- **確認できた事実:** `drawGlyphText()` retained unique code points in first-appearance order but linearly scanned the accumulated scratch vector for every decoded code point. A string with many distinct characters therefore required quadratic duplicate-check comparisons before atlas upload.
+- **対応:** Added a renderer-owned fixed 4096-slot open-address index and a fixed list of occupied slots. The first call initializes empty-slot sentinels; later calls clear only previously occupied slots, preserving first-appearance order and avoiding a full-table clear each label. Once all 4096 slots are occupied, the existing linear scan is used for additional characters so arbitrary input length remains supported.
+- **価値または懸念（未検証）:** Up to 4096 unique code points, duplicate checks use bounded probing instead of rescanning all prior unique values. Adds 24 KiB fixed scratch metadata per renderer. Hash distribution, table-saturation behavior, output parity, and actual frame cost are unmeasured.
+- **次に確認すべきこと:** Test empty/repeated/mixed-script/4096-plus-unique input; verify slot reset between calls and preserve atlas acquisition order; profile repeated long timeline labels and measure scratch capacity growth.
+
+
+## 2026-09-26 — Render pass diagnostics are collected on every submit
+
+- **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm` (`recordDebugPass`, `submitGlyphTextTransformed`) and `Artifact/include/Render/DiligentImmediateSubmitter.ixx`.
+- **確認できた事実:** `recordDebugPass()` unconditionally copies each `FrameDebugPassRecord` into `m_currentFrameDebugPasses_`; `endFrameDebugCapture()` copies that vector into the last-frame vector every frame. The transformed text submit path also constructs formatted QString debug bindings before recording. App Debugger's one-second visible timer refreshes summary counters only; detailed snapshots, which query `frameDebugPasses()`, are captured only through the detailed refresh path. A request/configuration gate was not found in submitter collection.
+- **価値または懸念（未検証）:** This may create per-frame vector growth/copies and QString formatting work even when the debugger is closed. Simple show/hide gating would lose the latest render-pass details when the user manually requests a snapshot, so demand-driven collection needs an explicit freshness/request contract. Aggregate cost per frame remains unmeasured.
+- **次に確認すべきこと:** Trace all detailed-refresh triggers and renderer ownership to design a request that reaches the render submission lane before the desired capture frame without adding cross-thread races or stale snapshots; then measure allocations and formatting cost before changing the capture contract.
+
+
+## 2026-09-26 — Diligent glyph submission repeated font fallback resolution
+
+- **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm` (`submitGlyphText`, `submitGlyphTextTransformed`) and `Artifact/include/Render/DiligentImmediateSubmitter.ixx`.
+- **確認できた事実:** Both submit paths shape glyphs, then for every shaped glyph create a one-codepoint `QString`, call `FontManager::makeFont()`, and convert the resolved family to UTF-8 while constructing `GlyphKey`. The submitter owns one atlas and is reused across submits.
+- **対応:** Added a submitter-owned 2048-entry resolved-font/key cache shared by both paths, indexed by input `QFont`, code point, and glyph render mode. Multiple QFont settings coexist in the cache; a 4096-slot index hashes common QFont properties and verifies full QFont equality on hits. The font fingerprint is computed once per submitted text packet rather than once per glyph. Empty-slot sentinels initialize on first use; capacity rollover clears the table, and maximum entry capacity is reserved during buffer setup. The entry collection uses the existing `ArtifactArray` container rather than introducing a new `std::vector` member.
+- **価値または懸念（未検証）:** Repeated text can reuse fallback resolution and family conversion across frames, including when several font settings alternate. Cache memory is entry-bounded but variable because each entry stores source/resolved QFonts and a GlyphKey family string. `FontManager::loadFontFromFile()` can mutate Qt's application font database, although no in-repository caller was found; if runtime font registration becomes active, cached fallback results may need a font-database generation in their identity. Hash clustering, QFont equality behavior, device/runtime behavior, output parity, and frame-time effect are not yet verified.
+- **次に確認すべきこと:** Compare cache hits and misses for Latin, CJK fallback, color emoji, mixed render modes, QFont changes, font registration, and the 2048-entry rollover; verify fallback family and GlyphKey equality against the previous per-glyph path; measure CPU time and allocation counts on both text submit paths.
+
+
+## 2026-09-26 — Diligent glyph scratch copied unused cluster payloads
+
+- **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm` (`submitGlyphText`, `submitGlyphTextTransformed`) and `Artifact/include/Render/DiligentImmediateSubmitter.ixx` (`GlyphSubmission`).
+- **確認できた事実:** The shaped `GlyphItem` contains several QString fields and a vector of shaped glyph indices. After atlas acquisition, the Diligent outline/fill loops read only base position, offset position, offset rotation, offset scale, offset opacity, and `GlyphRect` from the scratch entries.
+- **対応:** Reduced `GlyphSubmission` to those two positions, three scalar offsets, and `GlyphRect`; both submit paths copy only these fields instead of copying the full `GlyphItem` into the reusable scratch vector. Increased its cold-path reserved capacity from 1024 to 2048 entries, matching the adjacent resolved-glyph working-set bound.
+- **価値または懸念（未検証）:** Removes per-glyph copies of unused cluster metadata and any shaped-index vector storage from the submit scratch path while preserving values consumed by fill and outline passes. The doubled up-front scratch reservation is about a small fixed CPU memory cost; runs longer than 2048 glyphs may still grow during submission. Pixel parity and copy/allocation impact remain unverified.
+- **次に確認すべきこと:** Compare transformed and untransformed fill/outline output for ligatures, emoji clusters, offsets, rotations, scale and opacity overrides; inspect scratch capacity behavior with long strings and profile memory/copy cost.
+
+
+## 2026-09-26 — Glyph atlas rects cannot be reused across the prewarm pass
+
+- **関連:** `Artifact/src/Render/PrimitiveRenderer2D.cppm` (`drawGlyphText`) and `ArtifactCore/src/Text/GlyphAtlas.cppm` (`acquire`, `clear`, `packGlyph`).
+- **確認できた事実:** `drawGlyphText()` prewarms unique code points, uploads the atlas, then calls `GlyphAtlas::acquire()` again while emitting per-character packets. `GlyphAtlas::acquire()` clears the full atlas and its key map when shelf packing fails, so a rect returned during prewarm can become stale if a later unique glyph triggers a reset.
+- **価値または懸念（未検証）:** Reusing prewarm rects could eliminate repeated hash lookups for common repeated characters, but without an atlas generation/epoch exposed to Artifact, it can point at overwritten pixels after a large run resets the atlas. The second acquire is a correctness guard, not a redundant operation that can simply be removed.
+- **次に確認すべきこと:** If profiling shows these repeated lookups matter, add a read-only atlas generation counter at its owner boundary, then reuse per-call rects only when the generation stayed stable; any such ArtifactCore API change requires a separate explicit scope.
+
+
+## 2026-09-26 — Frame debug pass publication deep-copied and returned discarded data
+
+- **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm` (`beginFrameDebugCapture`, `endFrameDebugCapture`) and `Artifact/src/Render/ArtifactIRenderer.cppm` (`endFrameCostCapture`).
+- **確認できた事実:** Every render frame called `endFrameDebugCapture()` and ignored its returned `std::vector`. The method deep-copied `m_currentFrameDebugPasses_` into `m_lastFrameDebugPasses_`, then returned another by-value copy; the public consumer reads the stored last-frame vector separately through `frameDebugPasses()`.
+- **対応:** Changed `endFrameDebugCapture()` to return void and swap current/last vectors. `beginFrameDebugCapture()` clears the reused current vector next frame, preserving the prior publication behavior while removing both deep copies at the end boundary.
+- **価値または懸念（未検証）:** Avoids per-frame copies of all diagnostic records, QString bindings, and nested arrays. The vectors alternate their retained capacities; data freshness and debugger snapshots remain source-equivalent but runtime behavior is unverified.
+- **次に確認すべきこと:** Compare `frameDebugPasses()` before and after each begin/end cycle, including empty frames and frames with many text bindings; measure copy/allocation counts during rendering and ensure all call sites use the new void signature.
+
+
+## 2026-09-26 — Completed debug pass records were copied into the frame list
+
+- **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm` (`recordDebugPass` call sites and implementation).
+- **確認できた事実:** Five submit paths construct a local `FrameDebugPassRecord`, finish filling its strings/bindings, and never use it after `recordDebugPass()`. The method accepted a const reference and copied the record into the current frame vector.
+- **対応:** Changed the private recorder to take an rvalue reference, and moved each completed local record into the vector.
+- **価値または懸念（未検証）:** Avoids copying implicitly shared QString/QVector members and their reference-count traffic for each recorded pass. Vector growth behavior and frame-time effect remain unmeasured.
+- **次に確認すべきこと:** Confirm every recorder call moves a one-use local; compare recorded pass fields and binding contents before/after; count copies/allocations during representative draw workloads.
+
+
+## 2026-09-26 — Particle rendering formatted unconditional success logs per frame
+
+- **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm` (`drawParticles`) and `Artifact/src/Render/DiligentImmediateSubmitter.cppm` (`submitParticles`).
+- **確認できた事実:** The particle path emitted qDebug/qInfo success records on empty submission, every active draw, every frame's view/projection matrices, and successful GPU submission. The submitter success log also requested a formatted `debugState()` string. Warnings are separately used for invalid resources and failed preparation.
+- **対応:** Added the `artifact.render.particles` logging category and moved recurring informational/success records to `qCDebug`; renderer initialization uses `qCInfo`. Failure `qWarning()` paths remain unconditional.
+- **価値または懸念（未検証）:** Disabled particle debug logging can skip per-frame stream formatting and the submitter's `debugState()` construction while retaining explicit opt-in diagnostics and failure warnings. Logging-category configuration and frame-time impact are unverified.
+- **次に確認すべきこと:** Run with the category disabled and enabled; verify no success records are formatted/emitted when disabled, matrix and particle counts remain available in explicit diagnostics, and warning paths still report missing resources; profile long particle playback.
+
+
+## 2026-09-26 — Particle queue state now stands apart from diagnostic text
+
+- **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm` (`drawParticles`, `particleDebugState`) and `Artifact/src/Layer/ArtifactParticleLayer.cppm`.
+- **対応:** Added `particleDrawQueued()` as an explicit ArtifactIRenderer result and changed ArtifactParticleLayer to use it. Queued draw metadata is stored as scalar fields; the existing diagnostic string is assembled only when `particleDebugState()` is requested for a snapshot. Both a new particle draw and `beginFrameCostCapture()` clear the queued flag, while device/viewport/RTV failures continue to publish their prior diagnostic strings.
+- **価値または懸念（未検証）:** The render decision no longer creates, returns, or searches a QString. Successful diagnostic formatting moves from every queued draw to explicit snapshot reads. `particleDebugState()` content parity, interface/module integration, and runtime fallback behavior remain unverified because build and runtime checks are not authorized.
+- **次に確認すべきこと:** Compare queued debug strings byte-for-byte for 2D/3D camera modes and ensure empty, invalid-viewport, no-RTV, device-null, and next-frame-without-draw paths all clear the public queued result; profile queued rendering with snapshots enabled and disabled.
+
+
+## 2026-09-26 — RenderCommandBuffer retains packet-vector high-water capacity
+
+- **関連:** `Artifact/include/Render/RenderCommandBuffer.ixx` (`RenderCommandBuffer::reset`, `append`, `packets_`).
+- **確認できた事実:** `reset()` calls `packets_.clear()`, which destroys packet objects and their `RefCntAutoPtr` texture pins but retains the `std::vector` capacity. `DiligentImmediateSubmitter::submit2D()` consumes the packet array and calls `buf.reset()` after finishing the deferred command list and executing it on the immediate context. Ordinary frames therefore reuse prior peak packet storage, while a one-off packet-heavy frame can keep that allocation until renderer destruction.
+- **価値または懸念（未検証）:** This is useful for steady-frame reuse, but retained high-water size is not currently observable or bounded. Shrinking on every reset would reintroduce recurring allocations; any trim policy belongs after packet consumption and needs frame-level allocation measurements.
+- **次に確認すべきこと:** Record packet count and capacity at submit/reset across representative static, text-heavy, and particle-heavy scenes. If rare spikes materially retain memory, evaluate a hysteretic trim at the post-submit reset boundary and measure the next-frame allocation tradeoff.
+
+
+## 2026-09-26 — GPU texture cache hits can use the existing composite index
+
+- **関連:** `Artifact/src/Render/GPUTextureCacheManager.cppm` (`tryAcquireExistingLocked`).
+- **確認できた事実:** The cache maintains `ownerCacheKeyToIds_` with format on each entry, but every `tryAcquireExistingLocked()` call previously concatenated owner, cache key, and format into a temporary QString before consulting `keyToId_`, including ordinary texture hits.
+- **対応:** Added an owner/cache-key index lookup that checks the existing candidate entries for the requested format and returns on a valid hit before constructing the composite key. Misses retain the original composite-key path for pending-upload and stale-entry bookkeeping.
+- **価値または懸念（未検証）:** Removes composite key allocation/formatting from the common hit path while keeping the authoritative entry map, full key, and existing invalidation bookkeeping. Variant count, cache-hit behavior, and lock-time improvement are statically reasoned but runtime-unverified.
+- **次に確認すべきこと:** Compare cache hit/miss counters and handle identity for same source with multiple formats; profile QString allocations and mutex hold time for image, F32, and Vulkan frame hits.
+
+
+## 2026-09-26 — F32 color-aware cache keys avoid chained QString formatting
+
+- **関連:** `Artifact/src/Render/GPUTextureCacheManager.cppm` (`colorAwareImageCacheKey`).
+- **確認できた事実:** F32 `acquireOrCreate()` and `findExisting()` construct a color-aware key on each call. The helper chained seven `QString::arg()` calls for descriptor fields, creating intermediate formatted strings before cache lookup.
+- **対応:** Replaced the chain with one reserved QString and stack-buffer signed-decimal appends. The append path preserves negative underlying `TransferFunction` values too, including the `int` minimum. The serialized suffix remains `|color:<storage>,<order>,<primaries>,<transfer>,<alpha>,<range>,<known>`.
+- **価値または懸念（未検証）:** Removes intermediate QString formatting from repeated F32 lookup and allows the suffix to append into pre-reserved capacity. Exact key parity, allocation count, and lookup time remain unmeasured.
+- **次に確認すべきこと:** Compare generated keys against the prior `QString::arg()` form for every SurfaceColorDescriptor enumerator combination, invalid/negative transfer values, and descriptors differing in exactly one field; then verify cache hit/miss behavior.
+
+
+## 2026-09-26 — Texture-cache expiration scan is bounded by the configured entry cap
+
+- **関連:** `Artifact/src/Render/GPUTextureCacheManager.cppm` (`pruneExpiredLocked`) and `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` (cache setup).
+- **確認できた事実:** The app configures `setMaxEntries(256)`. Expiration performs one pass over `entries_` and keeps at most eight oldest expired candidates in fixed arrays before deleting them. The scan is therefore bounded to 256 entries in this app path; the public setter permits larger bounds for other callers.
+- **価値または懸念（未検証）:** No extra heap-backed age queue or secondary ordering structure is needed for the configured cap. A caller that raises the entry limit also raises worst-case per-frame expiration scan work.
+- **次に確認すべきこと:** Measure expiration scan duration at 256 entries before considering an auxiliary index; if external consumers need a strict ceiling, review a setter cap separately against their memory-budget use cases.
+
+
+## 2026-09-26 — Cache-miss upload payload copy holds the cache mutex
+
+- **関連:** `Artifact/src/Render/GPUTextureCacheManager.cppm` (`acquireOrCreateFromRgbaBytes`) and `Artifact/include/Render/DiligentUploadCoordinator.hpp`.
+- **確認できた事実:** On a miss, the manager holds `mutex_` while constructing `QByteArray(bytes, memoryBytes)`, which copies the image payload, and while calling `uploadCoordinator_->enqueue()`. The viewport render tick is marshalled to the controller QObject thread; Render Queue uses separate cache managers per GPU worker. `EventBus::publishRaw()` invokes subscribers synchronously on the publisher thread, and the controller's `LayerChangedEvent` callback calls `invalidateLayerSurfaceCache()` → `GPUTextureCacheManager::invalidateOwner()`.
+- **価値または懸念（未検証）:** The manager lock serializes publication against owner invalidation as well as protecting its maps. Moving payload preparation outside the lock could allow an invalidation between cache check and upload enqueue, republishing stale content; concurrent same-key misses could also duplicate full payload copies. A safe change needs per-owner invalidation generations or a bounded reservation protocol, plus proof of producer-thread ownership.
+- **次に確認すべきこと:** Trace all manager creation/callers and characterize payload sizes and lock wait/hold time. If contention is material, design an invalidation-safe bounded reservation that prevents duplicate copies and rejects a payload whose owner changed during preparation; compare the same upload workload before and after.
+
+
+## 2026-09-26 — Bounded partial recompose must schedule its deferred tiles
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` (`renderOneFrameImpl`, `damageTileCursor`, `markRenderDirty`).
+- **確認できた事実:** The TGFX-inspired partial recompose schedules at most eight tiles per frame, consumes only the presented region, and retains the cursor while slot damage remains. The render tick clears `renderDirty_` before calling `renderOneFrameImpl()` and stops on a later clean tick. In addition, `renderOneFrameImpl()` returns early when its render key is unchanged, before the partial damage planner is reached.
+- **対応:** After a successful frame, the controller schedules another tick only if any preview slot's remaining damage produces a non-empty plan inside the current visible ROI, regardless of whether that frame used a partial pass or a full redraw for its selected slot. A dedicated atomic continuation flag bypasses the render-key early return for that requested follow-up; it is consumed after slot acquisition so the draw-plan check is not repeated before and after every tick. Offscreen-only damage does not keep the ticker running; failed partials retain the existing full-redraw recovery path.
+- **価値または懸念（未検証）:** Visible-area damage larger than one batch can continue across the independently retained preview slots, including when a selected slot first needs a full redraw, while offscreen damage stays pending until the viewport changes. The static control flow now allows continuation frames to reach slot acquisition and recompose planning with one bounded damage-map scan per successful frame; runtime convergence and tick pacing still require viewport verification, and build/runtime checks remain unauthorized.
+- **次に確認すべきこと:** With more than eight visible dirty tiles and no interaction, verify repeated partial commits advance the cursor until the visible plan is empty, then confirm the ticker stops while offscreen damage remains pending. Pan to the deferred region and verify it is then rendered; also test ROI movement and a failure during a later batch.
+
+
+## 2026-09-26 — Failed render recovery now schedules one bounded retry
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` (`renderOneFrameImpl`, `markRenderDirty`, `scheduleFailedFrameRetry`).
+- **確認できた事実:** A failed frame invalidates retained preview slots, marks every slot for full redraw, sets `fullRedrawPending_`, and clears the render key. The render tick consumes `renderDirty_` before calling the frame routine, so these state changes alone do not schedule another attempt when the viewport is idle.
+- **対応:** Failure now requests one retry by setting the dirty flag and starting the existing ticker if needed. An atomic guard prevents an ongoing device/present failure from causing an unbounded retry loop. A successful frame or a new external `markRenderDirty()` request resets the guard.
+- **価値または懸念（未検証）:** A transient pass/present failure can recover without waiting for another user action, while persistent failures stop after one automatic retry and retain full-redraw damage for later activity. Retry timing and device-loss behavior remain unverified; build/runtime checks are not authorized.
+- **次に確認すべきこと:** Inject one transient pass failure and confirm the following full redraw succeeds and clears damage; inject repeated failures and confirm exactly one automatic retry, then trigger a new dirty event and confirm the retry allowance resets.
+
+
+## 2026-09-26 — RR4 must not retain the current DrawPacket variant directly
+
+- **関連:** `Artifact/include/Render/RenderCommandBuffer.ixx` (`DrawPacket`, `RenderCommandBuffer::reset/append`) and `Artifact/src/Render/DiligentImmediateSubmitter.cppm`.
+- **確認できた事実:** `DrawPacket` stores already-transformed matrices and a mix of borrowed `ITextureView*` pointers plus `RefCntAutoPtr` pins, QString/QFont text state, QImage billboard payloads, and particle render data. It carries no layer ID, content revision, cache-handle generation, or device generation. `reset()` clears all packets and releases pins after submission. `GPUTextureCacheHandle` does carry ID/generation, but `textureView()` returns a raw pointer after releasing the cache mutex. The composition loop has per-layer ROI/opacity checks around `drawLayerForCompositionView()`, whose implementation may emit multiple primitive packets.
+- **価値または懸念（未検証）:** Retaining these variants as-is would freeze frame-specific transforms and extend resource pins beyond the established submit/reset lifetime; cache eviction or device reset would have no packet-level stale check. Re-resolving a raw texture pointer and pinning it later also leaves a lifetime race with concurrent cache invalidation. RR4 should first establish RR0 packet-build measurements and a layer-scoped immutable-content/frame-state boundary, then test a narrow static Image/Simple Shape candidate with atomic generation validation and pin acquisition. Text, Particle, Billboard, and temporary/masked sources need separate lifetime contracts.
+- **次に確認すべきこと:** Measure static-scene packet reconstruction cost; trace all Composition View layer draw call sites and ownership of their emitted packet ranges; design a generation-checked pinned texture acquisition API that does not expose Diligent backend types through the public module.

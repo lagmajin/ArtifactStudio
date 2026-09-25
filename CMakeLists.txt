@@ -678,6 +678,21 @@ endif()
 set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "${_artifact_import_std_gate_for_ufbx}" CACHE STRING "Restore import std gate" FORCE)
 set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "${_artifact_import_std_gate_for_ufbx}")
 set(CMAKE_CXX_MODULE_STD "${_artifact_cxx_module_std_for_ufbx}" CACHE BOOL "Restore import std setting" FORCE)
+# OpenUSD is another non-modular third-party tree. Keep the same isolation
+# Diligent and ufbx use so its source-file try_compile probes and generated
+# headers cannot mix with the project's import-std / module-scan settings.
+set(_artifact_import_std_gate_for_usd "${CMAKE_EXPERIMENTAL_CXX_IMPORT_STD}")
+set(_artifact_cxx_module_std_for_usd "${CMAKE_CXX_MODULE_STD}")
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "" CACHE STRING "Disable import std for openusd" FORCE)
+set(CMAKE_CXX_MODULE_STD OFF CACHE BOOL "Disable import std for openusd" FORCE)
+set(PXR_BUILD_TESTS OFF CACHE BOOL "Disable OpenUSD tests" FORCE)
+set(PXR_BUILD_DOCUMENTATION OFF CACHE BOOL "Disable OpenUSD documentation" FORCE)
+set(PXR_ENABLE_PYTHON_SUPPORT OFF CACHE BOOL "Disable OpenUSD python support" FORCE)
+set(PXR_BUILD_USD_TOOLS OFF CACHE BOOL "Disable OpenUSD command line tools" FORCE)
+add_subdirectory(libs/openusd EXCLUDE_FROM_ALL)
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "${_artifact_import_std_gate_for_usd}" CACHE STRING "Restore import std gate" FORCE)
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "${_artifact_import_std_gate_for_usd}")
+set(CMAKE_CXX_MODULE_STD "${_artifact_cxx_module_std_for_usd}" CACHE BOOL "Restore import std setting" FORCE)
 # TaskFlow submodule was removed
 # set(TF_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
 # set(TF_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)

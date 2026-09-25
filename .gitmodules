@@ -19,3 +19,6 @@
 [submodule "libs/NRD"]
 	path = libs/NRD
 	url = https://github.com/NVIDIA-RTX/NRD.git
+[submodule "libs/openusd"]
+	path = libs/openusd
+	url = https://github.com/PixarAnimationStudios/OpenUSD.git

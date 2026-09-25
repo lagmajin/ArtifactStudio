@@ -1,6 +1,6 @@
 # Shapeギャップ更新 2026-09-10（導入すべき機能の全詳細）
 
-**最終更新:** 2026-09-10
+**最終更新:** 2026-09-25
 
 親調査 `docs/analysis/GAP_AE_NUKE_2026-08-01.md`（追補2026-09-10でシェイプ20%→60%）の詳細版。
 コード読取のみ。ビルド・テスト・runtime検証は未実施。
@@ -11,7 +11,7 @@ AE基準: Contents > Group > Path/Fill/Stroke/Operator + Group Transform/Layer T
 
 - データ: `Artifact/include/Layer/ArtifactShapeLayer.ixx`(375行)に7種primitive、fill/gradient/stroke/dash/cap/join/align/taper、fillRule、`CustomPathVertex`、stack API、頂点KF API。`Artifact/src/Layer/ArtifactShapeLayer.cppm`(7572行)に`resolveShapeGeomDims`、`applyAnimatedOperatorParameters`、`createShapeOperator`10種、`toCoreShapeLayer`、`collisionOutlineLocalPoints`。Core `ArtifactCore/include/Shape/`8ファイルに`interpolate`、`MergePaths`等。
 - Solo View: `LayerEditorShape*`分割済み。頂点/tangent/segment grammar、挿入、削除(ポリゴンのみ)、角丸/星ハンドル、operator context menu+Undo、tooltip、`ToolOptionsBar::setShapeOptions`連動。
-- メインVP: custom path/polygonの頂点・tangent・segment overlay、ホバー/選択、角丸/星内径ハンドル、polygon挿入、削除/Ctrl+A/Escapeの選択grammar、一部operator HUD/Trim・primary handleを実装。プリセットUI、open/closed・smooth操作、operator全種類の直接編集、runtime受入は残存。
+- メインVP: custom path/polygonの頂点・tangent・segment overlay、ホバー/選択、角丸/星内径ハンドル、polygon挿入、削除/Ctrl+A/Escapeの選択grammar、一部operator HUD/Trim・primary handleを実装。右クリックのOpen/Close・Make Smooth/Corner操作も接続済み。ツールオプションの形状種別欄から新規作成形状（Rect/Ellipse/Star/Polygon/Line/Triangle/Square）を選択・保存できる。operator全種類の直接編集とruntime受入は残存。
 - Property: `getLayerPropertyGroups:4450`にShape/Appearance/Parameters/Contents/Stack/Operatorあり。`shape.path.keyframes`は内部のみでGroup露出なし。
 
 ## F1. D-1 頂点/tangent/segment overlay移植（実装済み・受入残）
@@ -29,9 +29,9 @@ AE基準: Contents > Group > Path/Fill/Stroke/Operator + Group Transform/Layer T
 
 ## F3. D-3 ShapeプリセットUI
 
-- 現状: `ToolType::Shape/Rectangle/Ellipse`定義済み、`RectangleToolMode::EllipseShape/StarShape/...:29798-29806`あり。UIは`ArtifactCompositionEditor.cppm:10899-10901`のShape単独のみで6プリセットトグルなし。
-- 導入: ツールバー/ツールオプションにRect/Ellipse/Star/Polygon/Triangle/Line切替(`shapeToolPreset_`を`ToolType`と別stateで保持)。`ToolType::Shape`分岐で振り分け。Line時はAlt+FromCenter無効化+ヘルプ。
-- 検証: 6種ドラッグ作成、Lineの端点ドラッグ(`draggingLineLayer_`踏襲)確認。
+- 現状: 形状種別欄は選択中Shapeの編集に加え、新規Shape作成時の既定形状としても使う。種別はQSettingsに保存し、Shapeツールのドラッグ作成時に反映する。7種を既存のprimitive layer経路で扱う。
+- 残存: Lineは水平線primitiveのため、ドラッグ方向を持つ斜線作成ではない。作成中previewはprimitiveの輪郭ではなく矩形領域を表示する。
+- 検証: ソース静的確認のみ。7種のドラッグ作成、保存、既存Shapeの種別変更、レイヤー選択時のmask動作はビルド・runtime未確認。
 
 ## F4. D-4 選択grammar完成（主要経路実装済み・受入残）
 
@@ -47,9 +47,8 @@ AE基準: Contents > Group > Path/Fill/Stroke/Operator + Group Transform/Layer T
 
 ## F6. D-6 open/closed・smooth・corner/bezier
 
-- 現状: `customPathClosed_`/`CustomPathVertex::smooth`データとmain VPのtangentハンドル表示は有るが、open/closed切替・smooth/corner/bezier操作のmain VP導線は未整備。
-- 導入: 端点右クリックOpen/Close、選択頂点右クリックToggle Smooth、corner↔bezier切替（bezier化で`in/outTangent=pos±ベクトル`初期化、corner戻しで破棄）。`ShapePathVertexEditCommand`亜種でUndo。pending pathでは無効。
-- 検証: 4頂点開閉の`evaluatePathAt`反映、smoothでハンドル出没。
+- 現状: custom path頂点の右クリックメニューにMake Smooth/CornerとOpen/Close Pathがあり、pending path中はhover頂点がないため無効。controller操作は既存のpath編集command経路を使用する。
+- 検証: ソース静的確認のみ。開閉後の評価結果、smooth切替、Undo/Redoとruntime操作は未確認。
 
 ## F7. 1レイヤー複数シェイプ/グループ・Contents
 
@@ -72,9 +71,11 @@ AE基準: Contents > Group > Path/Fill/Stroke/Operator + Group Transform/Layer T
 
 ## F10. fill拡充（マルチストップ・noise・pattern）
 
-- 現状: 2色固定(`FillSettings` Linear/Radial/Conic、`ArtifactSolidFillType`)。
-- 導入: 多段停止点{位置・色・KF}モデル+評価+Property UI（平面・シェイプ共通、最高優先の1つ）。`ProceduralTexture`(7種noise+GPU)露出は`ArtifactSolidFillType::Noise=6`追加+Core bridge（GPU優先）。pattern/checker/brick/hex/dot/stripe/halftone/scanlineはGenerator派生でセル・角度・色パラメータ化。パレット自動配色・深度パララックス・ピクセルソートは`IDEAS:6,7,9`の任意拡張。
-- 検証: 旧JSON(staticのみ)再読込互換、新キーのみ書込み、無KF時ゼロコストearly-return、GPU/ソフト視覚比較。
+- 現状確認（2026-09-25）: Shapeの多段階stopモデル、Shape/Core変換、Shape JSONの`fillGradStops`保存・復元、空配列時の旧2色評価、Property経由の更新は実装済み。Property EditorはJSON文字列直接編集から、stop一覧UI（追加・削除、位置、FloatColorPickerによる色編集）へ置換した。stop上限32、位置/色の範囲補正、同位置stopの入力順保持を実装した。旧JSONの読み込み形式と保存キーは維持。モデル側と編集UI側のJSON読み込みでは16Ki文字上限を設け、不正な非オブジェクト／空オブジェクトstop要素を読み飛ばす。legacy stop propertyとShape Contents各Fillのstop propertyをanimatable channelにし、既存keyframe／Undo経路でランプ全体を記録・復元する。停止点プロパティのkeyframeはShape専用JSONにも保存・復元し、再読込後も補間区間とInterpolationTypeを保持する。両端キーのstop数が一致する区間は位置/RGBAをキーのInterpolationType（Bezier、Catmull-Rom、Hermiteを含む）で評価し、トポロジーが異なる区間は破綻を避けてHoldする。ロービングキーも既存String channelに合わせてHoldへフォールバックする。Property Coreは現在区間の共有値スナップショットを返し、Shapeのフレーム評価でキー配列全体をコピーしない。legacy/Contents両方のGPU描画、legacyとContentsのQImage経路、Core変換、legacy Core SVG export、Contents SVG exportで評価時刻のstop列を参照する。GPU paint itemはstop列をspanで借用し、stop-vector複製を避ける。キーJSONは区間端点が変わった時だけ再パースし、ランプ補間結果はstop数上限32の事前確保領域で評価する。
+- JSON受入: Property JSON文字列、legacyの`fillGradStops`配列、Contentsの`gradStops`配列は共通の32-stop parser/normalizerを通し、静的JSONも上限を超えるvector確保をしない。編集UI parserは入力16Ki文字で上限を設ける。
+- 未完了: Planeとの共通編集・評価経路、GPU/ソフト描画の視覚比較とruntime受入。noise/pattern fillも未実装。したがってF10全体は部分実装。
+- 次段階: Planeとのstop編集・評価共有、`ProceduralTexture`（7種noise+GPU）の露出、pattern/checker/brick/hex/dot/stripe/halftone/scanlineのGenerator化。NoiseはGPU優先でCore bridgeを追加する。パレット自動配色・深度パララックス・ピクセルソートは`IDEAS:6,7,9`の任意拡張。
+- 検証待ち: 旧JSON再読込互換、新stopキー保存往復の実行確認、無KF時ゼロコストearly-return、GPU/ソフト視覚比較。既存の`ArtifactTestShapePath`には停止点／stop-keyframeのassertがなく、この回帰確認は未カバー。ビルド・テスト・runtime検証は未実施。
 
 ## F11. stroke表現完成（Taper/Wave・Trim同時/個別・Repeater順）
 
