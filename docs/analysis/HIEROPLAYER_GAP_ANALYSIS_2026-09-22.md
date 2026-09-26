@@ -1,6 +1,8 @@
 # HieroPlayer 機能ギャップ分析（2026-09-22）
 
-**最終更新:** 2026-09-22
+**最終更新:** 2026-09-26
+
+更新内容: #1 露出調整と #4 カラーサンプルについて実コード照合し、いずれも実装済みへ更新。
 
 The Foundry HieroPlayer（Nuke ファミリーのデスクトップレビューツール）の公式情報をもとに、
 ArtifactStudio とのギャップを整理する。目的は「レビュー・比較・注釈」周辺の機能取り込み候補の特定。
@@ -62,10 +64,10 @@ ArtifactStudio とのギャップを整理する。目的は「レビュー・�
 ### 🔴 P0: 静止画にも効く「見る精度」系（開発優先方針と整合）
 | # | HieroPlayer 機能 | ArtifactStudio 現状 | 提案 |
 |---|---|---|---|
-| 1 | gain / gamma / saturation の表示専用調整 | 未実装（M-VP-DCC-1 の「Viewer exposure controls」P1 と同一課題） | M-VP-DCC-1 に統合。表示変換後段の GPU pass として実装 |
-| 2 | Clipping 警告（over/under exposure の false color） | 未実装 | 1 と同じ表示 pass で警告色 overlay に |
+| 1 | gain / gamma / saturation の表示専用調整 | **✅ 実装済み（2026-09-26）**：M-VP-DCC-1 の P1-5 として `Color` モードの表示専用 compute 段へ実装。`finalPresentSRV` / `lastPresentedReadbackSRV_` を無変更で保つため出力・color sampler・scopes には影響しない | 既定値は厳密な恒等変換。ビルド・実機・D3D12/Vulkan parity は未確認 |
+| 2 | Clipping 警告（over/under exposure の false color） | **コード実装済み（2026-09-26、ビルド・実機未確認）** | P1-5 の表示専用 compute 段で linear luminance under（青）/ RGB over（赤）を判定。閾値は View > Overlays > Viewport Exposure、トグルは viewport-local shortcut。出力/readback は非変更 |
 | 3 | スコープ（histogram / waveform / vector）+ ROI | 未実装 | ヒストグラムから開始。GPU reduce または小さな readback + 専用描画。QImage 禁止に注意 |
-| 4 | カラーサンプル（生 RGBA 値の常時バー） | 未実装 | カーソル下 1px readback で実現可能 |
+| 4 | カラーサンプル（生 RGBA 値の常時バー） | **✅ 実装済み（2026-09-26 実コード照合）**：`updateColorSamplerOverlay` がカーソル下の 1px を `captureCurrentFrameImage()` から読み、RGB / HSL / hex / Layer ID / canvas XY / image pixel を HUD パネルへ表示する。表示トグルと状態復元は `ArtifactCompositionEditor` に既存 | 残る差は HieroPlayer の「常時バー」形式（複数点・複数試料）への拡張のみ。1 点サンプルの実体は導入済み |
 | 5 | OCIO ベースの表示色空間切替 | OCIO 基盤は計画内（M-FE-7-2 の setLUT/setOCIOConfig は未実装） | 表示変換を renderer final output 段に固定 |
 | 6 | アスペクトマスク（16:9 等） | safe margin は既存、マスクは未実装 | 既存 safe-area overlay の派生として軽量に追加可能 |
 
@@ -90,7 +92,7 @@ ArtifactStudio とのギャップを整理する。目的は「レビュー・�
 
 ## 推奨アクション
 
-1. **短期（静止画優先方針と整合）**: P0 の 1〜6 を「Viewer Inspection Controls」として束ね、M-VP-DCC-1 に統合して重複計画を避ける → **決定済み（2026-09-22）**: P1-5（既存 exposure controls）を核に、P1-10 Clipping 警告 / P1-11 スコープ+ROI / P1-12 カラーサンプルバー / P1-13 OCIO 表示色空間切替 / P1-14 アスペクトマスク として `docs/planned/MILESTONE_VIEWPORT_DCC_PARITY_2026-09-22.md` へ統合した
+1. **短期（静止画優先方針と整合）**: P0 の 1〜6 を「Viewer Inspection Controls」として束ね、M-VP-DCC-1 に統合して重複計画を避ける → **決定済み（2026-09-22）**: P1-5 露出調整 / P1-10 Clipping 警告 / P1-11 スコープ+ROI / P1-12 カラーサンプルバー / P1-13 OCIO 表示色空間切替 / P1-14 アスペクトマスク として `docs/planned/MILESTONE_VIEWPORT_DCC_PARITY_2026-09-22.md` へ統合した。**更新（2026-09-26）**: 実コード照合の結果、#1（P1-5 露出調整）、#2（P1-10 Clipping 警告）、#4（P1-12 カラーサンプルバー）はコード実装済み。ビルド・実機確認は残る。よって未実装は #3 / #5 / #6 のみ。
 2. **中期**: P1 の 7〜10 は `MILESTONE_REVIEW_WORKSPACE_2026-04-03.md` / `MILESTONE_REVIEW_COMPARE_ANNOTATION_2026-03-28.md` の未完成 Phase を HieroPlayer 仕様で具体化する形が効率的（新規マイルストーン乱立を避け既存文書を更新）
 3. **長期**: P2 は動画対応の優先度が戻った段階で再評価（開発優先方針 2026-07-27 に従う）
 
