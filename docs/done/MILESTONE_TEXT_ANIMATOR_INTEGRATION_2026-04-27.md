@@ -1,5 +1,6 @@
 # MILESTONE: Text Animator (ArtifactCore) → Application Layer Integration
 
+**最終更新:** 2026-09-26
 **Date**: 2026-04-27 (updated 2026-06-25)
 **Status**: ✅ Completed — Phase 1-4 done, Phases 5-8 deferred as separate milestones
 **Priority**: High
@@ -64,7 +65,7 @@ Phase 1-4 の完了により、property panel 編集・timeline keyframe アニ�
 ```
 collectAnimatablePropertyRefs() → getLayerPropertyGroups()
   → text.animators.N.positionX (persistentLayerProperty, setAnimatable(true))
-  → displayLabelForPropertyPath("text.animators.0.positionX") = "Text Animator 1 / Positionx"
+  → displayLabelForPropertyPath("text.animators.0.positionX") = "Text Animator 1 / Position X"
 setLayerPropertyValue("text.animators.0.positionX", val) → parseAnimatorPropertyPath → animator.properties.position.setX()
 updateImage() → applyAllAnimators() → perGlyphMode_ rendering
 ```

@@ -1,7 +1,7 @@
 # Text Tool 要求動作一覧
 
 **日付**: 2026-07-31
-**最終更新:** 2026-09-21
+**最終更新:** 2026-09-26
 **ベース**: Adobe After Effects CC Text Tool
 
 ---
@@ -112,8 +112,10 @@
 - [ ] **テキスト編集中のUndo管理**
 - [ ] **Character/Paragraph プロパティのVP上プレビュー**
 - [ ] **フォントプレビュー（フォント選択時のリアルタイム反映）**
-- [x] **Text Animator（Range/Wiggly Selector）**（2026-09-21 実コード照合で実装済みを確認。
-  追加導線: Inspector の `text.animatorCount` エディタ（Add＋プリセット）、Timeline 左ペイン右クリックの
-  「Text Animator」サブメニュー（プリセット7種＋Clear）、VP 右クリック「Add Text Animator」。
-  残りは個別プロパティ追加（AE の Animate▼相当）と Timeline 左ペインへの Animator グループ露出で、
-  段取りは `docs/planned/MILESTONE_TEXT_ANIMATOR_ADD_WORKFLOW_2026-09-21.md` に記録した）
+- [x] **Text Animator（Range/Wiggly Selector）**（2026-09-26 実コード照合。
+  Inspector の `text.animatorCount` エディタ、Timeline 左ペイン右クリック、VP 右クリックから追加できる。
+  Inspector と Timeline の `Animate` メニューは Position / Scale / Rotation / Opacity / Fill Color /
+  Stroke Color / Tracking / Skew / Blur の個別追加に対応し、Timeline 左ペインも
+  `text.animators.<index>.*` の厳密なパス判定でAnimatorグループを露出する。
+  完全stack snapshot Undo、保存／再読込経路まで静的確認済み。runtime受入は
+  `docs/planned/MILESTONE_TEXT_ANIMATOR_ADD_WORKFLOW_2026-09-21.md` のP0として継続する）
