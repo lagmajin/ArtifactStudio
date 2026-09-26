@@ -1,6 +1,8 @@
 # ビューポート DCC パリティ分析（C4D / Houdini / Maya / Autograph / Blender / その他 → ArtifactStudio）
 
-**最終更新:** 2026-09-22
+**最終更新:** 2026-09-26
+
+更新内容: 露出コントロール P1-5 とカラーサンプルバー P1-12 が実装済みであることを実コード照合で確認。
 
 ## 目的
 
@@ -226,8 +228,7 @@ Composition Viewport に不足している機能を特定して導入候補を�
 7. **Per-viewport 設定 + Apply to all split views**（Houdini）: ペイン単位の表示設定と一括適用。
 8. **Maya 風シェーディングトグル**: Wireframe on Shaded / Backface Culling / Bounding Box /
    Cycle rig display（Alt+A 相当）を既存の `render.mode`・LOD・X-Ray・Rig overlay に接続。
-9. **Viewer exposure controls**（Autograph）: Gain / Gamma / Saturation を表示専用ポスト
-   プロセスとして追加（linear / 32bit パイプライン上）。
+9. ~~**Viewer exposure controls**（Autograph）~~ → **2026-09-26 実装済み（P1-5）**。Gain / Gamma / Saturation を表示専用 compute 段として追加。`Color` モードの `finalizeGpuRenderToViewport` で scratch surface に書き、`presentationSRV` 選択時のみ差し込むため出力・サンプリング値は不変。ビルド・実機未確認。
 10. **チャンネル表示の Straight / Luminance / Matte バリアント**（Autograph）:
     `ViewportChannelDisplayMode` へ Unpremultiplied / Luminance（Rec 709）/ Matte を追加。
 11. **パス overlay の可視性モードと種類別フィルタ**（Autograph）: Always / Never /
@@ -284,7 +285,7 @@ Composition Viewport に不足している機能を特定して導入候補を�
 - `docs/analysis/THREED_LAYER_FEATURE_GAP_DCC_COMPARISON_2026-08-08.md`
 
 | Camera Navigation プリセット切替 | C4D | **未確認** | Blender 系 Alt+LMB が既定。C4D/Maya 互換プリセット切替の有無は未確認 |
-| Viewer exposure controls（Gain / Gamma / Saturation） | Autograph Post-processing | **なし** | HDR の明部・暗部確認用のビューポート露出コントロールが無い。linear / 32bit パイプライン上でポストプロセスとして実装可能 |
+| Viewer exposure controls（Gain / Gamma / Saturation） | Autograph Post-processing | **実装済み（2026-09-26）** | P1-5 として表示専用 compute 段へ実装。`finalPresentSRV` / `lastPresentedReadbackSRV_` を無変更で保つため出力・color sampler・scopes には影響しない。UI は View > Overlays > 露出調整。ビルド・実機未確認 |
 | チャンネル表示の Straight / Luminance / Matte バリアント | Autograph Channel Selector | **部分** | `ViewportChannelDisplayMode` は premultiplied 前提。Unpremultiplied（Straight）、Luminance（Rec 709）、Matte（αを赤へ加算）の表示モードが無い |
 | Viewer format overriding（VP 単位の解像度/PAR 上書き） | Autograph | **なし** | 同一コンポジションを複数ビューポートで別定義に表示する仕組みが無い（Responsive Design 相当） |
 | パス overlay の可視性モードと種類別フィルタ | Autograph Path Overlays | **部分** | シェイプ/マスクの overlay はあるが、Always / Never / Hovered or selected / Selected Layers の4モードと種類別（shape/mask/その他）の切替が無い |

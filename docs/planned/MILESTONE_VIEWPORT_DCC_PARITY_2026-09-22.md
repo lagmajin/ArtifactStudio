@@ -1,8 +1,8 @@
 # M-VP-DCC-1: ビューポート DCC パリティ導入（C4D / Houdini / Maya）
 
-**最終更新:** 2026-09-22
+**最終更新:** 2026-09-26
 
-**ステータス:** P0-1 / P0-2 / P0-3（a / b.0 / b.1 / b.2 / d）着手済み（コード変更のみ、ビルド・実機確認はユーザー明示指示待ち）。P0-3d.1（ProgressiveRenderer 統合）/ P0-4 / P1〜P2 は未着手（分析完了）。
+**ステータス:** P0-1 / P0-2 / P0-3（a / b.0 / b.1 / b.2 / d）/ P0-4 / P1-5 / P1-10 着手済み（コード変更のみ、ビルド・実機確認はユーザー明示指示待ち）。P0-3d.1（ProgressiveRenderer 統合）/ P1-1〜P1-4 / P1-6 の readback 反映 / P1-7〜P1-9 / P1-11 以降 / P2 は未着手（分析完了）。
 C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 
 ## 目的
@@ -32,15 +32,15 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 | P1-2 | Ghosted context display | Not Started | 同上 |
 | P1-3 | Per-viewport 設定 + Apply to all split views | Not Started | `PaneState` / 表示設定 |
 | P1-4 | Maya 風シェーディングトグル | Not Started | 同上 |
-| P1-5 | Viewer exposure controls（Gain/Gamma/Saturation） | Not Started | 表示ポストプロセス |
+| P1-5 | Viewer exposure controls（Gain/Gamma/Saturation） | **実装済み（コード変更のみ、ビルド・実機未確認、2026-09-26）** | 表示専用 compute 段（`ArtifactIRenderer` / `ViewerHelperShaders`） |
 | P1-6 | チャンネル表示の Straight / Luminance / Matte バリアント | **enum 拡張済み（コード変更のみ、ビルド・実機未確認）** / readback overlay での実描画反映は別マイルストーン | `ViewportChannelDisplayMode` |
 | P1-7 | パス overlay の可視性モードと種類別フィルタ | Not Started | overlay / 表示フィルタ |
 | P1-8 | Per-viewport Local Camera / Focal Length / Clip | Not Started | `PaneState` / カメラ状態 |
 | P1-9 | Local View / Local Collections の分離と復元 | Not Started | Isolation overlay / 選択管理 |
-| P1-10 | Clipping 警告（over/under exposure の false color、HieroPlayer 由来） | Not Started | 表示ポストプロセス |
-| P1-11 | スコープ（Histogram / Waveform / Vector）+ ROI（HieroPlayer 由来） | Not Started | 表示パネル / readback |
-| P1-12 | カラーサンプルバー（ソース RGBA 生値、HieroPlayer 由来） | Not Started | HUD / readback |
-| P1-13 | OCIO 表示色空間切替（Viewer color transform、HieroPlayer 由来） | Not Started | 表示ポストプロセス / 設定 |
+| P1-10 | Clipping 警告（over/under exposure の false color、HieroPlayer 由来） | **コード変更のみ、ビルド・実機未確認（2026-09-26）** | P1-5 の表示専用 compute 段 |
+| P1-11 | スコープ（Histogram / Waveform / Vector）+ ROI（HieroPlayer 由来） | **⚠ 一部実装済（2026-09-26 実コード照合）** — 4 スコープの表示は**既に存在**（`ArtifactColorSciencePanel` の 2×2 ダッシュボード、`ArtifactCompositionEditor` の dialog）。GPU 版 `ScopeComputer` / `Histogram` はソース完全だが `.cppm` がビルド除外。**残るのは ROI 集計と部分 readback のみ**。GPU 化は submodule 変更を要する | 既存 4 スコープ widget / `ArtifactColorSciencePanel` |
+| P1-12 | カラーサンプルバー（ソース RGBA 生値、HieroPlayer 由来） | **✅ 実装済み（2026-09-26 実コード照合）** — 再実装不要。`updateColorSamplerOverlay` がカーソル下 1px を `captureCurrentFrameImage()` から読み、RGB / HSL / hex / Layer ID / canvas XY / image pixel を HUD 表示。トグルと状態復元は `ArtifactCompositionEditor` に既存。`finalPresentReadbackSRV_` を読むため今回の露出（P1-5）の影響を受けない |
+| P1-13 | OCIO 表示色空間切替（Viewer color transform、HieroPlayer 由来） | **⚠ 一部実装済（2026-09-26 実コード照合）** — OCIO は実依存として**統合済み**、`bakeViewTransformLUT` による 33³ LUT も存在する。ただし適用は `applyDisplayColorTransform` 経由で **composition-space cache 経路の 2 か所だけ**で、メインの `finalizeGpuRenderToViewport` には入っていない。**残るのは present 経路への適用・per-pane 状態・UI 接続**。`setOCIOConfig` は未実装（文書の通り） | `ViewportColorPipeline` / `PaneState` |
 | P1-14 | アスペクトマスク（16:9 等の表示専用マスク、HieroPlayer 由来） | Not Started | overlay / safe-area |
 | P2-1 | C4D HUD 相当のパラメータ常設表示 | Not Started | オーバーレイ / 既存 modal gizmo |
 | P2-2 | Hardware fog / volumetric fog / bloom | Not Started | Diligent パス |
@@ -105,6 +105,7 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
   HDR の明部・暗部を確認できるようにする。全体トグルと個別スイッチを付ける。
 - 既存の linear / 32bit 合成パイプライン上の表示ポストプロセスとして実装し、
   保存・出力・カラーサンプラの読み取り値は変えない（表示専用であることを HUD に明示）。
+- **2026-09-26 実装:** `Color` モードの `finalizeGpuRenderToViewport` に表示専用 compute 段を追加した。`finalPresentSRV` と `lastPresentedReadbackSRV_` は無変更のまま維持し、露出結果は `tempUAV()` に書いて `presentationSRV` の選択時のみ差し込むため、color sampler・Color Science・虫眼鏡・RAM preview・Render Queue のいずれにも影響しない。compute は `ArtifactIRenderer::Impl` の自己完結 executor で `ArtifactCore::LayerBlendPipeline` に依存せず、`Artifact` 側のみで完結する（新規 `.cppm` / `.ixx` は追加していない）。PSO と 32 byte parameter buffer は `ArtifactIRenderer::initialize()` で一度だけ作り、フレーム中の初回生成を避ける。設定は `LayeredConfigStore` の `Viewport/Exposure/{Gain,Gamma,Saturation,Enabled}` に保存し、UI は View > Overlays > 露出調整（`QWidgetAction` のスライダーパネルとリセット）。既定値は厳密な恒等変換。ビルド・実機・D3D12/Vulkan の parity は未確認。
 
 ### P1-6 チャンネル表示の Straight / Luminance / Matte バリアント
 
@@ -134,7 +135,16 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 
 - 表示画像の under（青）/ over（赤）exposure を false-color の警告表示で示す。
   P1-5 と同じ表示専用ポストプロセス段に追加し、保存・出力・カラーサンプルの読み取り値は変えない。
-- 警告閾値は設定可能とし、トグルは `ShortcutBindings` の Viewport ローカルコンテキストへ登録する。
+- 警告閾値は View > Overlays > Viewport Exposure から設定し、トグルは
+  `ShortcutBindings` の `Viewport.Composition` ローカルコンテキストで切替える。
+- **2026-09-26 実装:** P1-5 compute shader に under threshold（linear luminance）と
+  over threshold（linear RGB channel）の比較を追加。既定値は 0.01 / 1.0。
+  露出調整を無効にしても clipping warnings は独立して動作する。露出設定が恒等値かつ警告が
+  無効なら全画素 dispatch を省略する。PSO と parameter buffer は renderer 初期化時に作り、
+  フレーム中の初回生成を避ける。最終合成面、readback、Render Queue は変更しない。
+  入力 accumulator は premultiplied のため、変換と閾値判定は
+  alpha で戻した straight linear RGB に対して行い、出力 RGB は元の alpha で再乗算する。
+  完全透明ピクセルはゼロのまま警告対象外。ビルド・実機確認待ちで、透明エッジの実表示は未検証。
 
 ### P1-11 スコープ（Histogram / Waveform / Vector）+ ROI（HieroPlayer Scopes 相当）
 
@@ -148,6 +158,7 @@ C4D / Houdini / Maya / Autograph / Blender / 3ds Max / Unreal / Nuke を含む
 
 - カーソル下ピクセルのソース RGBA 生値（表示変換・exposure 適用前）を常時バーに表示する。
 - 1px 程度の readback に限定し、ホットパスでの大容量 readback を避ける。
+- **2026-09-26 実コード照合: 満た済み（再実装不要）**。`CompositionRenderController::Impl::updateColorSamplerOverlay` が `captureCurrentFrameImage()` から 1px を読み、`drawColorSamplerOverlay` が RGB / HSL / hex / Layer ID / canvas XY / image pixel を HUD パネルへ描画する。表示トグルは `setShowColorSamplerOverlay`、UI と状態復元は `ArtifactCompositionEditor` に既存。readback は `lastPresentedReadbackSRV_`（露出適用前の合成面）基準なので、表示専用露出（P1-5）を入れても値は変わらない。残る差は HieroPlayer の複数点・常時バー形式への拡張のみで、これは本マイルストーンのスコープ外。
 
 ### P1-13 OCIO 表示色空間切替（HieroPlayer Viewer color transform 相当）
 
