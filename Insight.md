@@ -1,5 +1,54 @@
 **最終更新:** 2026-09-26
 
+## 2026-09-26 — 式エディタを ReSharper 化。署名基盤・AST 位置情報・診断・Pick Whip・フォーマッタを実装
+
+- **関連:** `ArtifactCore/include/Script/Expression/ExpressionEvaluator.ixx`、`ArtifactCore/src/Script/Expression/ExpressionEvaluator.cppm`、`ArtifactCore/include/Script/Expression/ExpressionParser.ixx`、`ArtifactCore/src/Script/Expression/ExpressionParser.cppm`、`Artifact/src/Widgets/ArtifactExpressionCopilotWidget.cppm`、`ArtifactCore/include/UI/ShortcutBindings.ixx`、`Artifact/src/Widgets/Dialog/ApplicationSettingDialog.cppm`。
+- **確認できた事実（実コード照合）:** ① 構文エラーの波線は既に動作（`getErrorPosition/getErrorLength` → `applyErrorSelection`）。② `ExprNode::Impl` は位置情報ゼロ（メンバ 5 個のみ）。③ 一方 `Token` は既に start offset を保持し、ノード生成箇所では `tokens_[currentToken_-1]` が取れた。④ `ExpressionEvaluator::Impl::error_` は `ZeroString` のみで評価エラーに位置が無く、public に `getErrorPosition()` も無かった。⑤ **補完リストが実エンジンと乖離**：`registerStandardFunctions()` は 47 関数だが UI 側 `rootSuggestions()` は 16 個のみで **31 関数が補完に現れなかった**。⑥ `registerFunction()` は map 代入のみでシグネチャ情報の記録先がどこにも無かった。⑦ `ArtifactProblemViewWidget` はコンパイルされるが `import`/`new` の実使用箇所ゼロ（UI 未マウント）。⑧ **レイヤーの名前取得は `name()` ではなく `layerName()`**（`ArtifactAbstractLayer.ixx:393`）。⑨ `ArtifactProblemViewWidget` が使う `ProjectDiagnostic` には line/column フィールドが無い。
+- **対応:** `ExpressionFunctionInfo` / `ExpressionParamInfo` を evaluator に追加し、`registerStandardFunctionInfos()` で **47 関数すべてに実挙動に基づくシグネチャ**を張った（登録 47 / 署名 47 の完全一致を powershell で diff 検証済み）。UI のハードコード 16 個は削除し、署名から候補を生成する形に変更。`ExprNode` に source range、`Token` に end offset、`lastConsumedTokenEnd()` を追加（全 `makeShared<ExprNode>` 箇所で `setSourceRange`、quoted string の start が開き引用符の後を指す不整合も修正）。評価エラーは `setErrorAt()` で失敗ノードの範囲に紐付け。`getErrorPosition/getErrorLength` を public 化。UI 側は行番号＋現在行ハイライト、署名ホバー、Problems ストリップ、`thisComp.layer("...")` の Ctrl+クリック Pick Whip、ロールバック付きフォーマッタを追加。ショートカットは AGENTS.md に従い `ShortcutBindings` のローカルバインド 11 件として登録。
+- **価値または懸念（未検証）:** 評価器は `evaluateNode` が**最初のエラーで打ち切る**ため、Problems は現状 1 件表示に確定した。複数件を本当に成立させるには評価器の error recovery が必要だが、挙動リスクが高い。署名の `ExprValueType` は保守的に決め、判断できない引数は `Null`(=any) のままにして型を隠していない。`error_` をメモ化ハッシュが読んでいる（`ExpressionEvaluator.cppm:203`）ため、位置は別フィールドに分離してある。**署名は評価結果を左右しない純粋な記述データ**なので、誤った記述があっても実行結果には影響しないが、补完表示の誤りは残る。フォーマットは字句処理のみで識別子名を変えず、整形後に再パースして失敗時は元に戻す。ビルド・実機は未確認。
+- **次に確認すること:** ビルド許可後に (a) 補完に `sqrt` `loopIn` `valueAtTime` `posterizeTime` 等 47 関数が出ること、(b) `wiggl(3,50)` で波線＋Problems ストリップが**評価エラー位置**（構文でなく）に出ること、(c) `thisComp.layer("Text1")` の Ctrl+クリックでタイムライン選択が変わること、(d) 意図的に構文を壊した式に Format を当て元に戻ること、(e) Ctrl+= / Ctrl+- / Ctrl+0 が Timeline 側と衝突せず式エディタ内だけで効くこと、(f) Ctrl+F / Ctrl+H / F3 / Shift+F3 が式エディタ内でだけ効き、Find バーが表示・非表示になること。
+- **補足（自己レビューで判明した不整合）:** ショートカット 11 件のうち `ExpressionFind` / `ExpressionReplace` / `ExpressionFindNext` / `ExpressionFindPrevious` は**初期登録だけしてイベント側を配線していなかった**ため、設定画面には「Ctrl+F 検索」と表示されながら実際には何も起きない状態だった。发现自己で Find/Replace バー（検索入力、件数表示、Next/Previous、Replace、Replace All、Close）を追加し、11 件すべてを配線済み。`Replace All` はカーソル走査ではなく `QString::replace` で実装しており、置換文字列自身に検索語が含まれる場合の無限ループを構造的に排除している。
+
+## 2026-09-26 — `ArtifactWidgets::CodeEditor` は死にコードで、記述した 2 文書が実態と乖離
+
+- **関連:** `ArtifactWidgets/include/Code/CodeEditor.ixx`、`ArtifactWidgets/src/Code/CodeEditor.cppm`、`ArtifactWidgets/src/Code/SyntaxHighlighter.cppm`、`docs/FEATURE_DICTIONARY_2026-04-17.md:131`、`docs/CHILD_MODULE_IMPLEMENTATION_MAP_2026-07-02.md:104`。
+- **確認できた事実（実コード照合）:** `ArtifactWidgets::CodeEditor` は行番号ガターが実装済み（`CodeEditor.cppm:61-100`）だが、**ハイライタの `highlightBlock` が空関数**（`SyntaxHighlighter.cppm:99-102`）で、number/string/comment/builtin の regex は宣言のみ（`:59-62`）。**参照元はゼロ** — `import CodeEditor` / `import Code.` の grep 結果は自身のファイル内のみ。`ArtifactWidgets/CMakeLists.txt` の GLOB でコンパイルされるが誰も使わない。
+- **価値または懸念:** 上記 2 文書はこれを「実装済み コードエディタ」として記載しているが実態と一致しない。再実装を選ぶ場合はまずこの 2 文書の記述を訂正し、新規実装（死にコードの蘇生ではなく）とするのが妥当。**今回は Expression エディタのみを対象にしたため未着手。**
+- **次に確認すること:** 2 文書の記述訂正をユーザー判断で行うか。「内蔵コードエディタ」という名称を今後は実動中の `ArtifactExpressionCopilotWidget` を指す運用に統一するか。
+
+## 2026-09-26 — Project Open ダイアログの採用モックと実装の乖離を画像モックで可視化
+
+- **関連:** `docs/design/project-open-picker/README.md`、`generate_project_open_v2_mockups.py`、`Artifact/src/Widgets/Dialog/ArtifactImportAssetsDialog.cppm:263-371`、`ArtifactProjectOpenPickerDialog`。
+- **確認できた事実（実コード照合）:** 2026-09-12 に採用された DCC モック（3 ペイン、project tile、preview、health、composition/asset 数、外部 source 警告、Favorites、grid/list 切替）が存在するが、実装の `ArtifactProjectOpenPickerDialog` は約 110 行で、その意図をまだ満たしていない。Places は `QListWidget` の 2 項目（Recent / System Files）のみ、tile は `QIcon::fromTheme("document-open")` の同一アイコンと basename + lastModified テキストのみ、inspector は `No project selected` と固定文言のラベルだけ。health / composition 数 / asset 数 / 外部 source 警告 / preview 画像 / Favorites / grid-list 切替はいずれも未実装。`QFrame::StyledPanel` と `QListWidget::IconMode` の素の Qt 既定スタイルをそのまま使っているため、密度も色も採用モックと離れている。
+- **対応:** 採用モックの 3 ペイン骨格を維持したまま情報密度を埋める Ver2 候補と、現行との before/after 対比を PIL で生成した（既存の `generate_project_view_v2_mockups.py` と同じ流儀）。採用済み画像は読み取り専用として一切変更していない。README に現状と Ver2 の差分表を追記した。
+- **価値または懸念（未検証）:** プレビュー画像の実データ取得経路は未設計。project の最終 composition を 1 枚レンダリングしてキャッシュする想定だが、`ArtifactProjectService` 側に project 単位の thumbnail 所有者が存在するかは未確認。health も「未計算なら Healthy と推測せず Unknown / Not checked」とする責務境界があるため、値を推測で埋める実装を 1 枚に決めてはならない。D3D12/Vulkan での preview 取得は未確認。コード実装・ビルドはいずれも未実施。
+- **次に確認すること:** project thumbnail の既存所有者があるか（`ArtifactProjectService` / recent project キャッシュ）、health 計算の既存トリガーは何か。preview と health のデータ経路を確定してから実装に入る。ユーザーの承認が得られるまでモックは未採用のまま。
+
+## 2026-09-26 — ビューポート露出コントロール (P1-5) は表示専用 compute 段として新規実装
+
+- **関連:** `Artifact/include/Render/ViewerHelperShaders.ixx`（`g_viewportExposureCS`）、`Artifact/src/Render/ArtifactIRenderer.cppm`（`applyViewportExposure`）、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`（`finalizeGpuRenderToViewport`）、`Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`（exposure submenu）。
+- **確認できた事実（静的読み取り）:** `finalizeGpuRenderToViewport` の戻り値 `finalPresentSRV` は表示専用ではない。`:12778` で `lastPresentedReadbackSRV_` に代入され、color sampler（`updateColorSamplerOverlay`）、Color Science / Scopes パネル（`ArtifactColorSciencePanel.cppm:1257`）、虫眼鏡オーバーレイ、RAM preview readback がこれを参照する。また `Color` モードはチャンネル表示 compute を通らない（`channelComponentSource` が null のままで `presentationSRV = finalPresentSRV`）ため、Beauty 経路には表示専用 compute 段が従来 1 つも存在しなかった。
+- **対応:** 露出結果を `renderPipeline.tempUAV()` に書き、`presentationSRV` の選択時にだけ差し込む設計にした。`finalPresentSRV` と `lastPresentedReadbackSRV_` は無変更のまま維持するため、サンプリング値・出力・Render Queue には露出が一切掛からない。`Color` モード限定なので AOV 表示との衝突は構造上起きない。compute は `ArtifactIRenderer::Impl` の自己完結 executor とし、`ArtifactCore::LayerBlendPipeline`（子リポジトリ）には依存していない。既存 `BlendParams` の `static_assert(sizeof == 48)` も無変更。
+- **identity 保証:** 既定値（gain 0 stop / gamma 1 / saturation 1）は shader 側で厳密な恒等変換になる（`exp2(0)=1`、`pow(c,1)=c`、`lerp(luma,c,1)=c`）。alpha は無変更で通し、color sampler が alpha を参照するため表示専用でも不変が安全。`saturate` は表示専用パスにしか掛からない。
+- **価値または懸念（未検証）:** Render Queue は `CompositionRenderController` を参照しないため影響を受けない。一方 `tempUAV` を露出とチャンネル表示の双方が使うため、両者が同一フレームで走ることはないものの、将来的に `Color` 以外のモードへ露出を拡張する場合はこの共有頂点に注意が必要。hot path の毎フレーム確保はゼロ（executor と 16 byte の cbuffer は初回のみ確保、以降は map/memcpy のみ）。PSO 構築失敗時は fail-soft で無露出表示へ素通しする。ビルド・実機・D3D12/Vulkan の parity は未確認。
+- **次に確認すること:** ビルド許可後に `check_module_hygiene`、Gain をプラス・マイナスに動かして HDR 明暗が変化し、**color sampler と Color Science の値が変わらない**こと、Render Queue で同じ project をレンダーして出力に露出がかからないこと、既定値では表示が完全に同一であること。P1-10 Clipping 警告と P1-12 カラーサンプルバーも同じ表示専用ポストプロセス段の派生として接続できる。
+
+## 2026-09-26 — P1-12 カラーサンプルバーは既に実装済みで、マイルストーンだけが「未着手」だった
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`（`updateColorSamplerOverlay:46315`、`drawColorSamplerOverlay:46405`、`captureCurrentFrameImage:22477`）、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`（トグルと状態復元）、`docs/planned/MILESTONE_VIEWPORT_DCC_PARITY_2026-09-22.md`（P1-12）、`docs/analysis/HIEROPLAYER_GAP_ANALYSIS_2026-09-22.md`（#4）。
+- **確認できた事実（実コード照合）:** M-VP-DCC-1 の P1-12「カラーサンプルバー（ソース RGBA 生値）」は `Not Started` と書かれていたが、実装は既に存在した。`updateColorSamplerOverlay` が `captureCurrentFrameImage()` から 1px を読み、RGB / HSL / hex / Layer ID / canvas XY / image pixel を保持し、`drawColorSamplerOverlay` がそれを HUD パネルへ描画する。表示トグルは `setShowColorSamplerOverlay`、UI と状態復元は `ArtifactCompositionEditor` に既にある。一方 `docs/analysis/VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22.md` は「Color Sampler = 実装済み」と正しく記録しており、**マイルストーンだけがコードと乖離していた**。
+- **対応:** 3 文書（マイルストーン、HieroPlayer 分析、DCC パリティ分析）の P1-12 / #4 / 優先順位 #9 相当を「実装済み・再実装不要」へ更新した。HieroPlayer 分析の #1 露出調整も今回実装済みなので「未実装」から更新し、未実装は #2 Clipping / #3 スコープ / #5 OCIO / #6 アスペクトマスクの 4 件のみとした。
+- **価値または懸念（未検証）:** 今回の P1-5 露出は `lastPresentedReadbackSRV_` を無変更で保つため、Color Sampler の読み取り値は露出の影響を受けない（要件どおり）。ただし両者が同じ readback 面を共有しているので、将来 Color Sampler を「表示後（露出適用後）」の値に変更する場合は P1-5 と明示的に切断する必要がある。P1-12 の残る差は HieroPlayer の複数点・常時バー形式への拡張のみで、これは本マイルストーンのスコープ外とした。実機表示は未確認。
+- **次に確認すること:** ビルド許可後に Color Sampler の表示が従来どおりであること、露出を動かすと Sampler の数値が**変わらない**ことを確認する。
+
+## 2026-09-26 — Hiero 残り 4 件（P1-10/11/13/14）を実コード照合。2 件が「未着手」表記と乖離
+
+- **関連:** `docs/planned/HIEROPLAYER_VIEWER_INSPECTION_PRESTUDY_2026-09-26.md`（新設）、`Artifact/src/Widgets/Color/ArtifactColorSciencePanel.cppm`、`ArtifactCore/cmake/ArtifactCoreSources.cmake:279-281`、`Artifact/src/Widgets/Render/ViewportColorPipeline.cppm:63-69`、`Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm:1541`。
+- **確認できた事実（実コード照合）:** P1-12 に続いて、残り 4 件も 2 件がマイルストーンの「Not Started」と実態が乖離していた。**P1-11** は 4 スコープ（Histogram / Waveform / Vectorscope / Parade）が既に実装済みで、`ArtifactColorSciencePanel` の 2×2 ダッシュボードと `ArtifactCompositionEditor` の dialog 両方から開ける。GPU 版の `ScopeComputer` / `Histogram` はソースが完全なまま `.cppm` だけビルド除外されている（`.ixx` のみ `ArtifactCoreSources.cmake:279,281` に登録）。**P1-13** は OCIO が実依存（`find_package(OpenColorIO CONFIG REQUIRED)`）で統合済み、`bakeViewTransformLUT` による 33³ LUT も存在するが、適用は `applyDisplayColorTransform` 経由で **composition-space cache 経路の 2 か所だけ**（`:42141` / `:42155`）で、メインの `finalizeGpuRenderToViewport` には入っていない。View menu の `useDisplayColorManagementAction` は connect が無く dead。
+- **対応:** 検討文書を作成し、4 件の判定を「P1-10 / P1-14 = 未着手（導入可）」「P1-11 / P1-13 = 一部実装済（接続と範囲の設計が先行）」に分けた。コード変更はゼロ。
+- **価値または懸念（未検証）:** P1-11 の GPU 化と既存スコープ widget の改修は ArtifactCore / ArtifactWidgets（いずれも submodule）の変更を要し、AGENTS.md により親だけでは完結しない。fork／パッチ運用の判断か、CPU 側で完結する実装（既存 widget へ ROI 矩形だけ渡す）の選択が必要。`docs/memo/OCIO_MISSING_FEATURES_2026-08-01.md` の「実 OCIO 未統合」「TransferFunction は 4 種のみ」はいずれも古い（実際は 17 種）。ビルド・実機は未実施。
+- **次に確認すること:** マイルストーンの P1-11 / P1-13 行を本検討の判定へ書き換える。P1-11 の ROI 集計を CPU 側で完結させるか GPU 化するか、P1-13 の per-pane 状態の期待動作をどうするかをユーザー判断で確認する。
+
 ## 2026-09-26 — Timeline glyph submission allocated a UTF-32 string every draw
 
 - **関連:** `Artifact/src/Render/PrimitiveRenderer2D.cppm` (`drawGlyphText`), `Artifact/include/Render/PrimitiveRenderer2D.ixx`, `ArtifactCore/include/Utils/UniString.ixx`。
@@ -249,6 +298,10 @@
 - **確認できた事実:** `isTimelineHiddenLayerPropertyGroup` ほか isTimeline*/isInspector* 系述語の定義が `.cppm` から削除され、どのファイルにも再配置されていない（宣言と呼出しは残存）。別プロセスがレイヤーモジュールを `*Support.cppm` 群へ分割中。私が P2 作業で追加した `isTimelineTextAnimatorLayerPropertyGroup` の宣言は `.ixx:344` に残っているが、実装・呼出しは未配置のためリンク影響はない。
 - **価値または懸念:** 並行セッションと同じモジュールを同時に編集すると変更が衝突する。分割が完了するまで同モジュールの編集は控えるべき。
 - **次に確認すること:** 並行作業の完了後に述語の新しい定義場所を確認し、P2（Timeline 左ペインへの Text Animator 露出）の実装（述語の実装＋8箇所の呼出し例外）を再開する。手順は `docs/planned/MILESTONE_TEXT_ANIMATOR_ADD_WORKFLOW_2026-09-21.md` の P2 に記録した。
+- **更新 (2026-09-26):** 上記の宙吊りは解消済み。分割は完了し、述語は `Artifact/src/Layer/ArtifactAbstractLayerPropertyGroups.cppm` に定義が戻っている（`isTimelineHiddenLayerPropertyGroup:108`、`isTimelineTextAnimatorLayerPropertyGroup:149`）。`ArtifactAbstractLayerPropertyGroups.cppm` はモジュール partition（`:Impl`）なので `Artifact/cmake/ArtifactSources.cmake:926` への明示登録も存在する。`isTimelineTextAnimatorLayerPropertyGroup` は宣言・実装・登録の三方が揃った**未接続コード**（呼出し 0 件）として残っていた。
+- **対応 (2026-09-26):** P2 の配線を完了した。既存述語 `isTimelineHiddenLayerPropertyGroup` はグループ名文字列のみで判定するため、Text Animator グループ（AGENTS.md により表示名ではなくプロパティパスで識別해야する）を判定できない。そこで `ArtifactTimelineKeyframeModel::shouldHideTimelinePropertyGroup` に `PropertyGroup` 版オーバーロードを追加し、`isTimelineTextAnimatorLayerPropertyGroup(group)` が true なら非表示にせず、false のときだけ既存の名引判定へ委譲する。呼出し側は 9 箇所すべてが `group.name()` だけを渡していたため、`group` 全体を渡す形へ置換した（`ArtifactTimelineKeyframeModel.cppm:366,758`、`ArtifactTimelineTrackPainterView.cppm:1028,1248,4558,5391`、`ArtifactLayerPanelWidget.cppm:1218,1250,2970`）。名引版オーバーロードは削除せず温存している。
+- **懸念 (2026-09-26):** `ArtifactLayerPanelWidget.cppm:1250` は判定後に `result.push_back(group)` があり、`PropertyGroup` のコピコンは `Impl` を新規確保して `properties_` をベクタコピーする（`ArtifactCore/src/Property/PropertyGroup.cppm:56-59`）。この経路で `allProperties()` を呼ぶと確保が増えるが、左ペイン再構築のみでフレーム毎ではないため追加の最適化はしていない。`AGENTS.md` の Transform 限定条項には、本件を例外とする追記を同日行った。
+- **次に確認すること:** ビルド許可後に `check_module_hygiene`、テキストレイヤーで Animator 追加 → 左ペイン露出 → キー追加 → 再生 → 他レイヤー（Image / Shape）で非 Transform が出ないこと、Undo/Redo を確認する。
 
 ## 2026-09-21 — Text Animator の追加機構は実装済み。残るのは Timeline 左ペインのポリシー例外と個別追加導線
 
@@ -2270,7 +2323,8 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **関連:** `Artifact/include/Undo/UndoManager.ixx`、`Artifact/src/Undo/UndoManager.cppm`、`ArtifactCore/src/Collaborate/CollabOperations.cppm`、`tools/collaboration-server/server.js`。
 - **確認できた事実:** `SetTextAnimatorStackCommand` stores before/after JSON snapshots, and `ArtifactTextLayer` exposes snapshot restore and readback APIs. The collaboration stack protocol already bounds each snapshot and applies expected-value checks.
 - **対応:** Added the `textAnimators` `layer.stack` kind, command encoder, remote apply, and local undo/redo precondition. Failed restore returns to the compensation snapshot.
-- **価値または懸念:** Text animator stack structure can travel without introducing a new operation family. Expression strings remain part of animator snapshot data and are bounded by the same JSON cap.
+- **2026-09-26 追記:** AE風の個別プロパティ追加は Animator 数だけでなく、名前、Range Selector、対象プロパティ値、override flagを同時に増やす構造変更になる。Inspector／Timelineの新しい `Animate` 導線に加え、InspectorのDefault／Preset追加・末尾削除・既存Preset列のstack置換／Clear、TimelineのPreset置換／Clear、Composition Viewport右クリックのDefault追加も、`text.animatorCount` や `text.animatorPreset` の一時値または直接変更ではなく、変更前後の完全snapshotを `SetTextAnimatorStackCommand` へ渡す形に統一した。これにより削除・置換のUndoもAnimator内容とキーフレームを復元し、全追加導線がcollaboration mutation guardを共有する。Inspectorの複数対象は1 Macro Undoで扱う。さらに `SetTextAnimatorStackCommand` の Undo/Redo が `text.animators` の既存プロパティ変更通知を発行するようにし、snapshot復元後のlayer dirty・再描画・Timeline更新もコマンド責務として閉じた。
+- **価値または懸念:** Text animator stack structure can travel without introducing a new operation family. Expression strings remain part of animator snapshot data and are bounded by the same JSON cap. 単一レイヤーの `SetTextAnimatorStackCommand` は `layer.stack` として同期できるが、複数選択時の `MacroUndoCommand` は `AppMain.cppm` の共同編集batchが property value / keyframe / expression 子だけを許可しており、stack子コマンドはpreflightで拒否される。ローカル編集とロック安全性は維持されるものの、複数レイヤー同時Animator追加の共同編集同期には、複数CASを原子的に扱う専用batch設計が別途必要。
 - **次に確認:** Runtime creation/reorder/removal, playback evaluation, and undo/redo parity across two clients.
 
 ## 2026-09-24 — Animation layer stack command exposes a complete collaboration boundary
@@ -2986,3 +3040,38 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実:** `DrawPacket` stores already-transformed matrices and a mix of borrowed `ITextureView*` pointers plus `RefCntAutoPtr` pins, QString/QFont text state, QImage billboard payloads, and particle render data. It carries no layer ID, content revision, cache-handle generation, or device generation. `reset()` clears all packets and releases pins after submission. `GPUTextureCacheHandle` does carry ID/generation, but `textureView()` returns a raw pointer after releasing the cache mutex. The composition loop has per-layer ROI/opacity checks around `drawLayerForCompositionView()`, whose implementation may emit multiple primitive packets.
 - **価値または懸念（未検証）:** Retaining these variants as-is would freeze frame-specific transforms and extend resource pins beyond the established submit/reset lifetime; cache eviction or device reset would have no packet-level stale check. Re-resolving a raw texture pointer and pinning it later also leaves a lifetime race with concurrent cache invalidation. RR4 should first establish RR0 packet-build measurements and a layer-scoped immutable-content/frame-state boundary, then test a narrow static Image/Simple Shape candidate with atomic generation validation and pin acquisition. Text, Particle, Billboard, and temporary/masked sources need separate lifetime contracts.
 - **次に確認すべきこと:** Measure static-scene packet reconstruction cost; trace all Composition View layer draw call sites and ownership of their emitted packet ranges; design a generation-checked pinned texture acquisition API that does not expose Diligent backend types through the public module.
+
+
+## 2026-09-26 — 対抗案 UI モックはコード描画（Pillow）にすると既存画像を壊さずに回帰できる
+
+- **関連:** `docs/design/timeline/generate_counter_timeline_mockups.py`、`docs/design/aidaw-widgets/generate_mockups.py`、`docs/design/timeline/README.md`。
+- **確認できた事実:** 既存の UI モックは 1832×858 等の固定サイズで、承認済み PNG は約 1.1MB のフルカラー画像である一方、本スクリプトの出力は 50〜65KB。`docs/design/composition-viewport/` には既に「対抗案」同士のペア（radial / quadrant）があり、比較用モックを別ファイルで持つ運用が定着している。生成スクリプトはネットワークや外部 API を使わず、Windows のローカルフォント（segoeui / seguisb）に依存する。
+- **対応:** 共通関数（chrome / ruler / cache bar / work area / playhead / transport / clip bar）を共有し、3案でペイン構成パラメータだけを差し切った。同じサイズ・同じ配色・同じレイヤー定義にそろえ、差分がペイン構成だけになるようにした。
+- **価値または懸念（未検証）:** 文言・色・行高をスクリプト側で diff できるため、承認済み画像を一切触らずに反復改善できる。懸念はフォント環境依存（Windows の Segoe UI 前提）と、`docs/design` 配下に Python スクリプトが常駐することのノイズ。実機 UI との差分確認・DPI・ビルド検証は一切未実施。
+- **次に確認すべきこと:** 対抗案のいずれかを採用する場合、先に「生成スクリプトを正とする」か「採用画像を正とする」かを決める。画像を正とするなら生成画像は履歴扱いに降格させる。
+
+
+## 2026-09-26 — Viewer clipping warnings can share the exposure display pass
+
+- **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`, and `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`.
+- **確認できた事実:** The viewer exposure pass writes to a scratch surface before presentation, while `lastPresentedReadbackSRV_` continues to reference the unmodified composite. The pass already owns a persistent compute executor and fixed parameter buffer.
+- **対応:** Added optional under/over false-color checks to the same pass, preserving the source/readback surface and avoiding a second GPU resource/pipeline. The warnings can run with exposure disabled. Since the incoming accumulator is premultiplied, the pass now unpremultiplies nonzero-alpha RGB for linear transforms and threshold tests, then premultiplies the result by the original alpha; fully transparent pixels remain zero and warning-free. Review found the first-use path created the PSO and parameter buffer during a frame; creation now happens once in `ArtifactIRenderer::initialize()`. The controller skips the full-surface dispatch when exposure remains at identity and warnings are off; otherwise the presentation path maps the fixed 32-byte parameter block and dispatches.
+- **価値または懸念（未検証）:** A single display transform keeps warning colors out of Render Queue and pixel sampling while avoiding per-frame resource creation and the default identity dispatch. Threshold interpretation is linear luminance for under and per-channel linear RGB for over. The alpha-edge behavior is code-reviewed but still unverified in runtime; visual usability, initialization cost, and D3D12/Vulkan behavior also remain unverified.
+- **次に確認すべきこと:** After an authorized runtime check on the existing executable or a later build, inspect toggle/defaults and thresholds in the View menu; verify gain/exposure off plus warnings on, fully transparent pixels, semi-transparent edges, below/above thresholds, unchanged sampler/readback/output, renderer reinitialization, and both Diligent backends.
+
+
+## 2026-09-26 — Scope signal excursion and delivery-gamut checks need separate contracts
+
+- **関連:** `Artifact/include/Render/ArtifactHDRMonitor.ixx`、`Artifact/src/Render/ArtifactHDRMonitor.cppm`、将来の CIE chromaticity scope。
+- **確認できた事実:** `ScopeAnalysisDescriptor` は入力 `primaries` と納品先 `targetGamut` を別々に保持し、解析時に scene-linear RGB を既存の XYZ／Bradford 経路で target RGB へ変換してから 0..1 包含判定と legal-range 判定を行うようになった。これにより Rec.2020 素材を Rec.709 納品域に照合できる。単なる入力信号の 0..1 逸脱は clipping 集計として別に残る。
+- **価値または懸念（未検証）:** delivery-gamut 判定と signal clipping の意味が分離され、UIでも Gamut と Low／High を別々に表示できる。一方、これは target RGB cube の包含判定であり、CIE xy 図そのものや perceptual gamut mapping の結果ではない。
+- **次に確認すべきこと:** CIE scope実装時に target gamut三角形、輝度0近傍の色度不定、境界epsilon、実際の出力変換／gamut mapper後の判定を追加し、RGB cube判定との数値整合を比較する。
+
+
+## 2026-09-26 — GPU scope buffers now share a clear/barrier pattern
+
+- **関連:** `ArtifactCore/src/Graphics/Compute/ScopeComputer.cppm`、`ArtifactCore/src/Graphics/Compute/Histogram.cppm`。
+- **確認できた事実:** Scope と Histogram はどちらも `RWStructuredBuffer<uint>` をフレームごとにゼロ初期化し、同じ UAV へ集計dispatchを続ける。両実装に固定CB、256-thread clear shader、UAV barrierという同じ処理が必要になった。
+- **対応:** 現段階では各computer内に閉じたclear pipelineを持たせ、公開APIやモジュール依存を広げずに正しい同期を優先した。
+- **価値または懸念（未検証）:** 重複は小さいが、今後GPU解析器が増えるとclear shaderとバッファ検証が分散する。早期に共通化すると逆に低レベル依存を広げるため、3個目の利用箇所と実測されたPSO初期化コストが揃うまでは保留が妥当。
+- **次に確認すべきこと:** 新しいGPU解析器を追加する時点で、内部限定のbounded UAV-clear utilityへ切り出すか、バックエンド標準clear APIの利用可否をD3D12/Vulkan両方で確認する。
