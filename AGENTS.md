@@ -197,6 +197,8 @@ C++20 modules の再発防止ルール:
 
 タイムライン左ペインの標準プロパティグループは `Transform` のみに限定すること。`Motion` / `Components` / 物理 / エフェクト / 素材 / ソース固有プロパティを `getLayerPropertyGroups()` からそのまま露出させず、Inspector または各専用エディタの責務とする。マスク／マットは既存の専用行だけを使い、例外はユーザーの明示要求または設計レビューがある場合に限る。
 
+Text Animator の動的グループ（`text.animators.<index>.*` 配下のグループ）は、2026-09-26 のユーザー明示承認により、タイムライン左ペインに表示する例外とする。ただし表示名ではなくプロパティパスで識別し、テキストレイヤーでのみ表示する。他レイヤーの非 `Transform` グループは引き続き非表示のままである。`ArtifactTimelineKeyframeModel::shouldHideTimelinePropertyGroup` の `PropertyGroup` 版オーバーロードがこの例外を実装しており、`Components` / `Cloner` などの専用 UI への誤分類とは扱わない。
+
 ### 実装中の閃き・Insight の記録
 
 AI は実装・調査中に、現在の依頼に直接含まれない改善案、設計上の仮説、将来のリファクタリング案、再利用できそうな知見に気づいた場合、それを捨てずにルートの [`Insight.md`](Insight.md) に追記すること。
