@@ -1,6 +1,6 @@
 # Milestones Backlog
 
-**最終更新:** 2026-09-23
+**最終更新:** 2026-09-26
 
 ### CLI・Python 対話実行
 
@@ -24,7 +24,8 @@
 ### Text Animator（テキストアニメーション）
 - **M-TXT-ANIM-1** Text Animator の追加ワークフロー仕上げ（In Progress）
   - 追加機構・評価経路・Inspector／右クリック導線・キーフレームモデル接続は実装済み（2026-09-21 実コード照合）
-  - 残りは runtime 受入、AE 風の個別プロパティ追加（Animate▼相当）、Timeline 左ペインへの Animator グループ露出（AGENTS の例外承認が必要）、プリセット拡充
+  - 2026-09-26: AE風の個別プロパティ追加（Animate▼相当）をInspector／Timeline右クリックへ実装。Timeline左ペインのAnimatorグループ露出も例外承認済みで配線・静的レビュー完了
+  - 残りは runtime受入、module hygiene、Undo/RedoとD3D12/Vulkan実機確認、プリセット拡充
   - 詳細: `docs/planned/MILESTONE_TEXT_ANIMATOR_ADD_WORKFLOW_2026-09-21.md`
 
 ### Still Image / Production Readiness

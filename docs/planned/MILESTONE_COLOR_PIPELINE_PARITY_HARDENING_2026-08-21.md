@@ -1,7 +1,7 @@
 # マイルストーン: Color Pipeline Parity Hardening
 
-**最終更新:** 2026-09-07
-**ステータス:** Not Started
+**最終更新:** 2026-09-26
+**ステータス:** In Progress（Phase 1の明示的な単色変換APIと主要GPU描画境界を接続。残る生成色経路と実機検証は未完了）
 **優先度:** High
 **関連:** `docs/planned/MILESTONE_COLOR_BACKEND_HARDENING_2026-07-21.md`, `docs/planned/MILESTONE_COLOR_ALPHA_CONTRACT_UNIFICATION_2026-07-18.md`, `docs/analysis/COLOR_PIPELINE_AUDIT_2026-08-02.md`, `docs/analysis/IMAGE_BUFFER_PRECISION_AUDIT_2026-08-13.md`, `docs/analysis/COMPOSITION_EFFECT_FORMAT_PATH_MEMO_2026-07-13.md`
 
@@ -67,6 +67,33 @@
 - 描画境界ヘルパー(例: `toWorkingSpaceFloatColor(QColor)`)を新設し、text/shape/solid/particle の色設定箇所から呼ぶ。
 - 表示・QImage 互換境界での逆変換も明示関数として対称に用意する。
 - 既存プロジェクトの見た目が変わるため、working space が sRGB/Linear の既定構成では挙動不変であることを確認してから ACEScg 構成で検証する。
+
+#### 2026-09-26 進捗
+
+- `ArtifactOCIOManager::generatedSrgbToWorkingColor()` と
+  `workingToGeneratedSrgbColor()` を追加し、生成色の双方向境界を明示した。
+- `GeneratedColorPolicy` をJSONへ保存し、値がない既存プロジェクトは
+  `LegacyEncoded`へ確定する互換契約を追加した。新規プロジェクトは
+  `ConvertToWorkingSpace`を明示的に採用し、旧形式を開いた後の新規作成でも同値へ戻す。
+- `resolveGeneratedColorForRender()` を追加し、Solid／Solid2DレイヤーのGPU描画境界へ
+  solid／gradient色を接続した。Cloner反復の外で変換し、変換はpolicy有効時だけとした。
+- Shapeレイヤーのsolid／gradient／multi-content／stroke GPU経路も同じpolicyへ接続した。
+  gradient stop変換は最大32件の固定長作業領域を使い、描画中の追加heap確保を避ける。
+- Textのplain／shaped／rich GPU経路へfill・stroke・shadowを接続した。rich textは
+  run単位で変換しglyph単位の基底色変換を避ける。Text Animatorのfill／stroke overrideは
+  animator stack単位で先に変換し、glyph単位の色変換を避ける。
+- 通常ParticleのGPU変換コピー境界へ粒子色を接続した。既存の頂点コピーと同じ走査内で
+  変換し、追加バッファや別走査は増やさない。legacy policyでは変換を省略する。
+- Form Particleはキャッシュ生成時にsolid／gradient端点を一度だけ変換し、working space上で
+  補間する。policyまたはworking space変更もキャッシュ署名へ含め、古い色を再利用しない。
+  Layer Map由来のsource colorは生成色ではないため、この変換対象から除外した。
+- 旧プロジェクトは`LegacyEncoded`で従来の描画結果を維持し、新規プロジェクトだけ
+  working-space経路を既定とする。policy変更は既存のOCIO変更イベントで再描画側へ通知する。
+  CPU／QImage互換経路は未接続。
+- 変換はRGBのみへ適用し、alphaとHDRレンジを保持する。描画ホットパスへの導入時は
+  working-space変更時に行列を事前計算し、run/style単位で変換してglyph単位の処理を避ける。
+- 既存のSolidLayerテストへ、sRGB 0.5のlinear decode、逆変換round-trip、policy保存、
+  policy欠損JSONのlegacy復元を追加した。AGENTS.md制約によりテスト実行は未実施。
 
 ### Phase 2 — OCIO 実体化(P2)
 

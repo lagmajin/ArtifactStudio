@@ -1,5 +1,41 @@
 > **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_SHAPE_LAYERS_2026-03-29.md](MILESTONE_SHAPE_LAYERS_2026-03-29.md)
 
+**最終更新:** 2026-09-26
+**ステータス:** In Progress（Core生成とArtifactの型・描画・JSON・作成ツール・汎用SVG経路を接続。専用パラメータの完全分離とruntime検証は未完了）
+
+## 2026-09-26 現行コード照合
+
+- `ArtifactCore::ShapeLayer` には Arrow／Heart／Diamond／Gear／Cross の
+  factory と形状生成処理が実装済み。
+- `ArtifactShapeLayer::ShapeType` は既存7種に上記5形状を末尾追加済みで、通常の
+  パラメトリックShapeとしてJSON、Property、作成UI、native pathへ統合された。
+- 既存の線矢印メニューはcustom path、追加したBlock Arrowは専用ShapeTypeとして分離し、
+  意味と保存形式を混在させない。
+- 以降の未完了範囲はCore再実装ではなく、専用パラメータモデルの拡張とruntime受入に限定する。
+
+### 2026-09-26 実装進捗
+
+- 既存の永続化値を維持し、`Artifact::ShapeType` の末尾へ Arrow／Heart／Diamond／
+  Gear／Crossを追加した。
+- GPU/native pathと互換描画が共有するShapePath生成、Timeline／Composition表示名、
+  Shape Toolの作成種別へ接続した。
+- Gearは既存の`polygonSides`を歯数、`starInnerRadius`を谷径として利用し、Crossは
+  `starInnerRadius`を腕幅として利用する。これらは既存JSON/property/keyframe経路で保存・評価される。
+- Block Arrowは`starInnerRadius`の既存保存・keyframe経路を互換利用して矢頭長比率
+  （10〜50%、既定30%）を調整可能にした。Tool OptionsとProperty Editorの表示名・範囲を
+  形状別に切り替え、Star／Polygon以外へ無関係なPoints／Sidesを常時露出しない。
+- Heartも同じ互換経路を曲率（凹み深さ、10〜80%、既定50%）として利用し、native path、
+  JSON、keyframe、Tool Options、Property Editorへ接続した。
+- Diamondは既存の`cornerRadius`経路を利用し、4頂点の各角を二次曲線サンプルへ展開する。
+  native pathと互換描画が同じ点列を使うため、SVG／bounds／hit geometryでも角丸が一致する。
+- 既存の`shapeContentsToSvg()`はnative `ShapePath`を`<path>`へbakeするため、5形状も
+  追加のSVG分岐なしで出力できる。SVG入力は汎用custom contentとして受け入れ、
+  プリセット型へ逆推定しない契約を維持する。
+- 既存ShapePathテストへ5形状それぞれのnative path生成、JSON型round-trip、SVG path出力を
+  追加した。AGENTS.md制約によりテスト実行は未実施。
+- 専用のArrow方向・矢頭幅、Heart先端丸め、Diamond縦横比など、旧計画にある全パラメータの
+  独立モデル化は未完了。既存値の互換性を壊さない追加propertyとして次段で扱う。
+
 # M-AB-7: Shape Layer 複雑プリセット形状拡張
 
 **マイルストーンID**: M-SL-CP-2026-06-28  
