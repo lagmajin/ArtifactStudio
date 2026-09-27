@@ -46,8 +46,8 @@ Premiere Pro 風の動画編集試作アプリ (`ArtifactPr/README.md` に "Pr-l
 | Trim: Roll | UI での露出は限定的 | ⚠️ |
 | Trim: Slip | UI 未着手 | ❌ |
 | Trim: Slide | UI 未着手 (`WORKFLOW_GAP_DEEP_DIVE_2026-06-16.md` §4 で計画) | ❌ |
-| Clip Linking (V/A, Selection, Move) | `LinkingService` 定義済、未接続 | ⚠️ 計画のみ |
-| Conform (メディア再リンク) | `ConformService` 定義済、未接続 | ⚠️ 計画のみ |
+| Clip Linking (V/A, Selection, Move) | `LinkingService` 経由で trim/slide/move/select に伝播。UI は Clip Properties とクリップ右クリックメニューから操作 | ✅ (2026-09-27) |
+| Conform (メディア再リンク) | `ConformService::conformSequence` 経由。Project パネルの Conform ボタンから実行 | ✅ (2026-09-27) |
 | プロキシ生成 | `MediaItem::proxyPath` フィールドのみ、生成 UI なし | ⚠️ |
 | マルチカメラ同期 | なし | ❌ |
 | Dynamic Link (AE / Ps) | なし | ❌ |
@@ -62,22 +62,50 @@ Premiere Pro 風の動画編集試作アプリ (`ArtifactPr/README.md` に "Pr-l
 
 ---
 
-## NLE コアに既に存在し ArtifactPr で未活用なもの
+## NLE コアの接続状況 (2026-09-27 訂正)
 
-`ArtifactCore/include/NLE/Core.ixx` で定義済みだが、`ArtifactPr/include/ArtifactPrEditorEngine.ixx`
-の `DemoClip / DemoTrack / DemoSequence` には取り込まれていない:
+**この節の旧記述は実態と逆이었다。** 「ArtifactPr の編集操作と NLE ストアが分離されたまま」
+という前提はすでに失効している。
 
-- `LinkingService` (`createLinkGroup`, `addClipToLinkGroup`, `propagateTrimLink/MoveLink/SelectionLink`)
-- `NLEEditHistory` (ArtifactPr 側は `QUndoStack` 直結)
-- `ConformService` (`conformSequence`, `conformAll`)
-- `TrimMode { Source, Ripple, Roll, Slip, Slide }`
-- ID 体系 (`SequenceId / TrackId / ClipId / MarkerId / TransitionId / SourceId`) と
-  `SourceRef` (`proxyAvailable`, `useProxy`, `online` を含む)
-- `NLEProjectStore::createTransition`, `SequenceEditor::insertTransition/setTransitionKind`
+現在の構造:
 
-→ `plans/transition-effects-expansion-2026-07-09.md` の M2 (`ArtifactPr/src/NLETransitionMirror.cppm`)
-で write-through 経由で初めて NLE コアへ書き込まれる計画であり、現時点では
-**ArtifactPr の編集操作と NLE ストアが分離されたまま**。
+- `NLEProjectStore` が canonical。`EditorEngine` の編集操作は `nleStore_->` を直接叩き、
+  変更のたびに `rebuildLegacySnapshotFromNLE()` で `Demo*` 構造を再構築する。
+- JSON 保存も NLE スナップショット (`nleSnapshot()`, `ArtifactPrEditorEngine.cppm:426`) を
+  経由し、`loadFromJson` で復元後に再構築する。
+- Undo は `NLEStateCommand` が NLE 全体のスナップショットを単位に取る。
+
+そのため `plans/transition-effects-expansion-2026-07-09.md` の M2
+(`ArtifactPr/src/NLETransitionMirror.cppm` による write-through ミラー) は
+**設計ごと不要になった (superseded)**。M2 は「Demo* が canonical」という前提で
+計画されていたが、実際には NLE ストア側が正になっており、最初から前提が成立して
+いなかった。同じ M2 が要求していた `transitionKindForType()` のマッピングは既に
+`ArtifactPrEditorEngine.cppm:2682-2695` で実装済み。
+
+### 2026-09-27 に接続した経路
+
+`SequenceEditor` / `LinkingService` / `ConformService` を `EditorEngine` が保持し、
+リンク伝播の入口を一本化した。従来ストアを直叩きしていた操作を置換している:
+
+| 操作 | 旧 | 新 |
+|---|---|---|
+| `slipClip` | `nleStore_->slipClip` | `nleEditor_->slipClip` (propagateTrimLink / Slip) |
+| `slideClip` | `nleStore_->slideClip` | `nleEditor_->slideClip` (propagateMoveLink) |
+| `trimClip` | `nleStore_->trimClip` | `nleEditor_->trimClip` (propagateTrimLink) |
+| `moveClip` | `nleStore_->moveClip` | `nleLinking_->propagateMoveLink` |
+| `rippleDelete` (2 箇所) | `nleStore_->rippleDelete` | `nleEditor_->rippleDelete` |
+| `selectClip` / `clearSelection` | legacy 構造を直接走査 | `nleEditor_->selectClip` (propagateSelectionLink) |
+
+`EditorEngine` 内の `nleStore_->trimClip / slipClip / slideClip / moveClip / rippleDelete`
+の直接呼び出しは 0 件になった。
+
+### 残る未活用
+
+- `NLEEditHistory` は ArtifactPr 側で未使用 (`QUndoStack` + `NLEStateCommand` を使用)。
+- `SequenceEditor::rollTrim` と字幕 API (`addSubtitle` / `updateSubtitle` /
+  `removeSubtitle` / `clearSubtitles`) は ArtifactPr から未使用。
+- `ConformService::conformAll` (プロジェクト全体) は未使用。UI は現在の
+  シーケンス単位の `conformSequence` のみ。
 
 ---
 

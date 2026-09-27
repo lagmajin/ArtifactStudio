@@ -1,5 +1,20 @@
 # トランジションエフェクト拡充 — 計画（2026-07-09）
 
+> **2026-09-27 訂正: 本計画の M2 (ArtifactPr→NLE write-through ミラー) は
+> superseded である。**
+>
+> M2 は「Demo* 構造が canonical、JSON も現状維持」という前提で書かれていたが、
+> 実際には `NLEProjectStore` が canonical で、`EditorEngine` の全編集操作が
+> `nleStore_->` を直接叩き `rebuildLegacySnapshotFromNLE()` で Demo* を再構築する
+> 構造に既になっていた。JSON も NLE スナップショットを経由する。
+> したがって `ArtifactPr/src/NLETransitionMirror.cppm` を新設してミラーする必要は
+> なく、M2 が要求していた `transitionKindForType()` のマッピングも既に実装済み。
+> 詳細は `plans/ARTIFACT_PR_GAP_ANALYSIS_VS_PREMIERE_2026-08-29.md` の
+> 「NLE コアの接続状況 (2026-09-27 訂正)」を参照。
+>
+> M0 / M1 (NLE→Video ブリッジ) の状態は本計画の「実装」節を参照。
+> M1b (駆動配線) と M3 (alpha 修正) の状態は**未確認**。
+
 ## 方針（ユーザー確定）
 - 3系統のトランジション列挙は**現状維持（独立）**し、必要なブリッジのみ追加。
 - NLE→Video エンジン配線（M1）は**新規ブリッジ .cppm**（.ixx は変更しない）。
