@@ -1,6 +1,6 @@
 # MILESTONE: ArtifactPr Independent Project
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-09-27
 
 ステータス: Phase 0〜4 実装済み相当（静的確認 2026-07-29、ビルド／runtime parity 検証待ち）
 
@@ -9,6 +9,40 @@
 - `ArtifactPr` には独立した `main.cpp`、workspace window、Project／Media panel、Transport／Video surface、EditorEngine、NLE の sequence／track／clip 操作、split／ripple delete／duplicate、marker、export dialog の実装が存在する。
 - ただしルート `CMakeLists.txt` では ArtifactPr の `add_subdirectory(ArtifactPr)` が無効化されており、W_OBJECT／MOC のパス問題を理由にビルドターゲットから外れている。
 - したがって「独立アプリとして成立」「Phase 4 の再生・書き出し完了」は静的コード上の実装相当であり、現行 checkout での build／起動／NLE と preview・export の接続 parity は未検証。実行可能な独立ターゲットへの復帰が残課題。
+
+### 位置付けの再宣言 (2026-09-27)
+
+- `ArtifactPr` は正式なアプリケーションターゲットとして扱う。`ArtifactPr/README.md` の
+  「intentionally separate … grow in different directions」という旧記述と、
+  ルート `CMakeLists.txt` の `option(ARTIFACT_BUILD_PR "... legacy ...")` 表現、
+  `retired QADS application surface` 注記を削除した。
+- `ARTIFACT_BUILD_PR` は既定 OFF のまま。ただしこれは「legacy だから外す」ためでは
+  なく、2 つのエディタを同一 configure でビルドするとビルド範囲が広がるため、
+  明示的に有効化する運用とする。
+- 分岐軸は UI / タイムラインの責務分担であり，共有コードの置き場を変える提案では
+  ない。共有コードは `ArtifactCore` と `ArtifactGpuFoundation` に置く。
+- 実装の進捗は `MILESTONE_ARTIFACTPR_GPU_PREVIEW_2026-08-31.md`（P1 / P2 実装済み）を参照。
+
+### Dock 共有 pack の追加 (2026-09-27)
+
+共有 leaf pack に `ArtifactDockFoundation` を追加し、docking 実装も一系統にまとめた。
+`Artifact.DockManager`（バックエンド非依存契約）と `Artifact.NativeDockSurface`
+（QSplitter + QTabWidget + 所有 QDialog の浮動）の両方がこの pack の提供モジュールで、
+`Artifact` と `ArtifactPr` / `ArtifactPrCLI` の双方がリンクする。`ArtifactGpuFoundation`
+と同じ「app 層の private pack を切り出して他アプリからも使う」方式。
+
+これに伴い `ArtifactPr.DockSurface`（`ArtifactPr/include/DockSurface.ixx` +
+`src/DockSurface.cppm`、約 1700 行）は削除した。同ファイルは `NativeDockSurface` の
+部分的な fork で、`Area` enum の値、`pinned`、owner-draw タブ、drop preview、
+`qApp->installEventFilter` などが欠けていた。
+
+**統合時に判明した潜在コンパイル阻害**: 旧 `DockSurface` は PImpl のみで
+`QWidget` を継承しておらず、`ArtifactPrMainWindow::cppm` の
+`setCentralWidget(dockSurface)` に渡せていなかった。`ARTIFACT_BUILD_PR` が既定 OFF
+で一度もビルドされていないため潜伏していた。`NativeDockSurface` は `QWidget` 継承なので
+この経路が解決する。**実ビルドと実機確認は未実施**。
+
+詳細は `MILESTONE_INDEPENDENT_DOCK_MANAGER_2026-08-13.md` の Phase 6 を参照。
 
 > 2026-04-22 作成
 

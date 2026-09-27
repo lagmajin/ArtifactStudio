@@ -1,7 +1,7 @@
 # 独自ドッキングウィジェットマネージャ移行マイルストーン
 
-**最終更新:** 2026-08-15
-**ステータス:** Phase 1–3 partial / two-panel MVP implementation complete, runtime verification pending。floating lifecycle and backend switch pending
+**最終更新:** 2026-09-27
+**ステータス:** Phase 1–3 partial / Phase 6 (2系統統合) 実装完了、runtime verification pending。floating lifecycle と backend switch pending
 
 ## 現行コード監査 (2026-08-15)
 
@@ -124,6 +124,23 @@ MVP の目的は機能数を増やすことではなく、独自 backend が実�
 - [ ] 旧 layout の移行期間と fallback 方針を決定する
 - [ ] レイアウト復元、floating、workspace mode、focus mode の回帰確認を完了する
 
+### Phase 6 — ArtifactPr との 2系統統合 (2026-09-27)
+
+`ArtifactPr` が `Artifact.NativeDockSurface` の独立 fork（`ArtifactPr.DockSurface`、約 1700 行）を持っていたため、共有 pack `ArtifactDockFoundation` に一本化した。
+
+- [x] `ArtifactDockFoundation`（STATIC leaf pack）を `Artifact` サブツリーに新設する
+- [x] `Artifact.DockManager` と `Artifact.NativeDockSurface` を pack へ移設する
+- [x] `Artifact` 自身を `ArtifactDockFoundation` にリンクする
+- [x] `ArtifactPr` の重複実装（`ArtifactPr.DockSurface`）を削除する
+- [x] `ArtifactPr` / `ArtifactPrCLI` を `ArtifactDockFoundation` にリンクする
+- [x] `setAreaTabPosition` / `areaTabPositionAtBottom` を public 契約へ昇格する
+- [x] `QMainWindow::saveState` / `restoreState` の無効な永続化を削除する
+- [ ] `ARTIFACT_BUILD_PR=ON` で ArtifactPr を首次ビルドして 10 パネルの配置を確認する
+- [ ] ArtifactPr の dock レイアウト保存・復元（QSettings）を実機確認する
+- [ ] Artifact 側の dock 操作が変更前と同一に動くことを回帰確認する
+
+.pack の配置方針は `MILESTONE_ARTIFACTPR_GPU_PREVIEW_2026-08-31.md:126-129` および `MILESTONE_ARTIFACTPR_INDEPENDENT_PROJECT_2026-04-22.md:22-23` の明文方針（共有コードは `ArtifactCore` と `ArtifactGpuFoundation` に置く）に従い、`ArtifactGpuFoundation` と同じ方式の leaf pack とした。
+
 ## 設計方針
 
 - 既存の `ArtifactMainWindow` 公開 API を急激に変更せず、段階的に facade へ移す。
@@ -147,6 +164,9 @@ MVP の目的は機能数を増やすことではなく、独自 backend が実�
 ## 検証メモ
 
 - 静的確認済み: `Artifact/include/Widgets/**/*.ixx` にQADS型・QADSヘッダ参照なし。
-- 静的確認済み: `ArtifactSources.cmake` に `ArtifactDockManager.ixx` と `ArtifactNativeDockSurface.ixx` を登録済み。
+- 静的確認済み: `ArtifactSources.cmake` に `Widgets/Dock/DockManager.ixx` と `Widgets/Dock/NativeDockSurface.ixx` を登録済み。
 - 静的確認済み: `git -C Artifact diff --check` 通過。
+- 静的確認済み (2026-09-27): `scripts/check_module_hygiene.py` 合格。
+- 静的確認済み (2026-09-27): 移設した 2 ファイルは rename 100%（差分 0 行）、改行コード LF を維持。
 - 未確認: ビルド、module hygiene、native surfaceの実機表示、floating／drag-drop回帰。
+- 未確認 (2026-09-27): Phase 6 の全項目（ArtifactPr 実ビルド、両アプリの dock 実機回帰）。AGENTS.md によりビルド・実機はユーザー明示指示が必要。

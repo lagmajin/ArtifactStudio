@@ -18,7 +18,8 @@
 `ArtifactPr/CMakeLists.txt:72` の依存:
 ```
 ArtifactCore, ArtifactCoreCommand, ArtifactCoreAudio, ArtifactCoreVideo, ArtifactCoreNLE, ArtifactWidgets```
-加えて `qtadvanceddocking-qt6` を link。
+**訂正 (2026-09-27):** `qtadvanceddocking-qt6` は link していない。`ArtifactPr.DockSurface`
+（`QTabWidget` + `QSplitter` + 所有する浮动 `QDialog`）へ移行済み。
 
 **`Artifact` 本体 / `ArtifactRenderer` / `DiligentEngine` には一切依存していない**。grep `Diligent|IRenderer|RenderQueue|RenderPass` を `ArtifactPr/` 配下に実施 → 結果 0 件(2026-08-31 時点)。
 
@@ -192,8 +193,10 @@ ComponentEvaluators
 
 ### 4.7 複数ウィンドウ / DCC 的なドッキング不足
 
-- ArtifactPr は `qtadvanceddocking-qt6` を link している(`ArtifactPr/CMakeLists.txt:97-98`)が、`ArtifactPrMainWindow` 内で固定パネル構成を組んでいる
-- ユーザー側でパレットを動かせるドッキングフル活用はしていない
+**訂正 (2026-09-27):** QtAdvancedDocking への依存は撤去した。`ArtifactPr.DockSurface` が
+タブ化・エリア移動・浮动・ドラッグ&ドロップ・レイアウト保存/復元を自前で実装している。
+残るのは 5 エリア固定の workspace 構造（中央Releイ同期の workspace が無い）だけで、
+「パネルを自由に動かせるか」自体は解消した。
 
 ### 4.8 依存する外部 plugin / shared 機能の少なさ
 
@@ -236,9 +239,14 @@ ArtifactPr に Artifact の VP/レンダリング機能を移植する計画が�
 - `ArtifactPr` のビルド状態(最新ビルドが通っているか、warning / error の有無)
 - Artifact 側 `ArtifactRenderer` との接続プラン(`ArtifactPr` 側で GPU パスを使う将来計画の有無)
 - Artifact 側にも動画エクスポート経路があるか(エクスポートの代替が GPU offline render 経由で同等か)
-- `qtadvanceddocking` の活用度(`ArtifactPrMainWindow` 内で `DockManager.h` を include しているが、レイアウトをユーザーが動かせるかは未確認)
 - `LayerEvaluationState` の Composition 側 evaluator 本体(`ArtifactCore` 側 `NLE` モジュールに類似の evaluator がいるか)
 - `ArtifactPr` 側のソースモニター / プログラムモニターのフレームレート実測値(FPS がターゲットに達しているか)
+
+**更新 (2026-09-27):**
+- `qtadvanceddocking-qt6` 依存は撤去し、`ArtifactPr.DockSurface` へ移行した
+  (タブ化・エリア移動・浮动・ドラッグ&ドロップ・レイアウト保存/復元を自前実装)。
+- GPU present は `ArtifactPr.GpuProgramMonitor` として実装済み。ただし実機検証は未実施。
+- 「ArtifactPr のビルド状態」は依然として未確認。
 
 ---
 
