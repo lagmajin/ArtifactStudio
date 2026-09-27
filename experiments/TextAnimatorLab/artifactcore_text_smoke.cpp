@@ -4,10 +4,12 @@ import Text.Animator;
 import Text.GlyphAtlas;
 import Text.GlyphLayout;
 import Text.Style;
+import Text.ShapingBackend;
 import Font.FreeFont;
 import Utils.String.UniString;
 
 #include <QGuiApplication>
+#include <QFile>
 #include <QFont>
 #include <QImage>
 #include <QFontDatabase>
@@ -21,8 +23,107 @@ import Utils.String.UniString;
 #include <QString>
 #include <iostream>
 #include <cstdio>
+#include <cmath>
 #include <tuple>
 #include <vector>
+
+namespace {
+
+// Describes one backend's result in a form both backends can be compared on.
+struct BackendDigest {
+  bool produced = false;
+  int glyphCount = 0;
+  double totalAdvance = 0.0;
+  double minBaselineY = 0.0;
+  double maxBaselineY = 0.0;
+  int firstShapedGlyph = -1;
+  int lastShapedGlyph = -1;
+  int zeroShapedGlyphs = 0;
+  int bidiRunCount = 0;
+  QString resolvedBase;
+  QStringList scriptTags;
+  std::vector<int> clusterIndexes;
+  std::vector<uint32_t> shapedGlyphIndexes;
+};
+
+ArtifactCore::TextShapingRequest makeRequest(const QString &text,
+                                             const ArtifactCore::TextStyle &style,
+                                             const ArtifactCore::ParagraphStyle &paragraph) {
+  ArtifactCore::TextShapingRequest request;
+  request.text = text;
+  request.style = style;
+  request.paragraph = paragraph;
+  request.writingMode = ArtifactCore::TextWritingMode::Horizontal;
+  request.baseDirection = ArtifactCore::TextDirection::Auto;
+  return request;
+}
+
+BackendDigest digest(const ArtifactCore::TextShapingResult &result) {
+  BackendDigest digest;
+  digest.produced = true;
+  digest.glyphCount = static_cast<int>(result.glyphs.size());
+  digest.clusterIndexes.reserve(result.glyphs.size());
+  digest.shapedGlyphIndexes.reserve(result.glyphs.size());
+  bool baselineSeen = false;
+  for (const auto &glyph : result.glyphs) {
+    digest.totalAdvance += glyph.basePosition.x();
+    const double y = glyph.basePosition.y();
+    if (!baselineSeen) {
+      digest.minBaselineY = y;
+      digest.maxBaselineY = y;
+      baselineSeen = true;
+    } else {
+      digest.minBaselineY = std::min(digest.minBaselineY, y);
+      digest.maxBaselineY = std::max(digest.maxBaselineY, y);
+    }
+    digest.clusterIndexes.push_back(glyph.clusterIndex);
+    digest.shapedGlyphIndexes.push_back(glyph.shapedGlyphIndex);
+    if (glyph.shapedGlyphIndex == 0) ++digest.zeroShapedGlyphs;
+  }
+  if (!digest.shapedGlyphIndexes.empty()) {
+    for (const uint32_t value : digest.shapedGlyphIndexes) {
+      if (value == 0) continue;
+      if (digest.firstShapedGlyph < 0) {
+        digest.firstShapedGlyph = static_cast<int>(value);
+      }
+      digest.lastShapedGlyph = static_cast<int>(value);
+    }
+  }
+  digest.bidiRunCount = static_cast<int>(result.contract.bidiRuns.size());
+  digest.resolvedBase = result.contract.baseDirection ==
+                                ArtifactCore::TextDirection::RightToLeft
+                            ? QStringLiteral("rtl")
+                            : QStringLiteral("ltr");
+  for (const auto &run : result.contract.scriptRuns) {
+    digest.scriptTags.append(run.scriptTag);
+  }
+  return digest;
+}
+
+QJsonObject digestToJson(const BackendDigest &digest) {
+  QJsonObject json;
+  json.insert(QStringLiteral("produced"), digest.produced);
+  json.insert(QStringLiteral("glyphCount"), digest.glyphCount);
+  json.insert(QStringLiteral("totalAdvance"), digest.totalAdvance);
+  json.insert(QStringLiteral("minBaselineY"), digest.minBaselineY);
+  json.insert(QStringLiteral("maxBaselineY"), digest.maxBaselineY);
+  json.insert(QStringLiteral("zeroShapedGlyphs"), digest.zeroShapedGlyphs);
+  json.insert(QStringLiteral("firstShapedGlyph"), digest.firstShapedGlyph);
+  json.insert(QStringLiteral("lastShapedGlyph"), digest.lastShapedGlyph);
+  json.insert(QStringLiteral("bidiRunCount"), digest.bidiRunCount);
+  json.insert(QStringLiteral("resolvedBase"), digest.resolvedBase);
+  json.insert(QStringLiteral("scriptTags"),
+              QJsonArray::fromStringList(digest.scriptTags));
+  QJsonArray clusters;
+  for (const int cluster : digest.clusterIndexes) clusters.append(cluster);
+  json.insert(QStringLiteral("clusterIndexes"), clusters);
+  QJsonArray shaped;
+  for (const uint32_t value : digest.shapedGlyphIndexes) shaped.append(static_cast<qint64>(value));
+  json.insert(QStringLiteral("shapedGlyphIndexes"), shaped);
+  return json;
+}
+
+} // namespace
 
 int main(int argc, char **argv) {
   std::fprintf(stderr, "smoke: entered-main\n");
@@ -43,6 +144,126 @@ int main(int argc, char **argv) {
                                : loadedFamilies.front());
   style.fontSize = 64.0f;
   style.pixelSize = 64.0f;
+
+  // Dual-run comparison: run the same request through both shaping backends and
+  // record comparable digests.  The HarfBuzz route is still opt-in at the call
+  // sites, so nothing below changes the render path; this only reports what each
+  // backend would produce for the same input.
+  {
+    struct ComparisonCase {
+      const char *label;
+      QString text;
+    };
+    const QVector<ComparisonCase> cases{
+        {"latin", QStringLiteral("Text Sample1")},
+        {"cjk", QString::fromUtf8("\xE6\x97\xA5\xE6\x9C\xAC\xE8\xAA\x9E")},
+        {"hiragana", QString::fromUtf8("\xE3\x81\xB2\xE3\x82\x8A")},
+        {"katakana", QString::fromUtf8("\xE3\x82\xAB\xE3\x82\xBF")},
+        {"arabic", QString::fromUtf8("\xD9\x85\xD8\xB1\xD8\xAD\xD8\xA8\xD8\xA7")},
+        {"hebrew", QString::fromUtf8("\xD7\xA9\xD7\x9C\xD7\x95\xD7\x9D")},
+        {"devanagari", QString::fromUtf8("\xE0\xA4\xA8\xE0\xA4\xAE")},
+        {"emoji-zwj", QString::fromUtf8("\xF0\x9F\x91\x8D\xF0\x9F\x8F\xBD")},
+    };
+
+    ArtifactCore::QtShapingBackend qtBackend;
+    ArtifactCore::HarfBuzzShapingBackend hbBackend;
+    QJsonArray comparison;
+    for (const auto &item : cases) {
+      ArtifactCore::ParagraphStyle singleLine;   // boxWidth == 0: no wrapping
+      const auto request = makeRequest(item.text, style, singleLine);
+      const BackendDigest qtDigest = digest(qtBackend.shape(request));
+      const BackendDigest hbDigest = digest(hbBackend.shape(request));
+
+      QJsonObject entry;
+      entry.insert(QStringLiteral("label"), QString::fromLatin1(item.label));
+      entry.insert(QStringLiteral("text"), item.text);
+      entry.insert(QStringLiteral("fontFamily"), style.fontFamily.toQString());
+      entry.insert(QStringLiteral("qt"), digestToJson(qtDigest));
+      entry.insert(QStringLiteral("harfbuzz"), digestToJson(hbDigest));
+      entry.insert(QStringLiteral("glyphCountMatch"),
+                   qtDigest.glyphCount == hbDigest.glyphCount);
+      const bool harfBuzzIsFallback =
+          hbDigest.produced && qtDigest.glyphCount == hbDigest.glyphCount &&
+          hbDigest.firstShapedGlyph == qtDigest.firstShapedGlyph &&
+          hbDigest.totalAdvance == qtDigest.totalAdvance;
+      entry.insert(QStringLiteral("harfbuzzLooksLikeQtFallback"), harfBuzzIsFallback);
+      comparison.append(entry);
+
+      std::fprintf(stderr,
+                   "dual-run: %-11s qt(glyphs=%d adv=%.2f runs=%d base=%s "
+                   "scripts=%s) hb(glyphs=%d adv=%.2f runs=%d base=%s "
+                   "hbFirst=%d hbZero=%d sameAsQt=%d)\n",
+                   item.label, qtDigest.glyphCount, qtDigest.totalAdvance,
+                   qtDigest.bidiRunCount, qtDigest.resolvedBase.toUtf8().constData(),
+                   qtDigest.scriptTags.join(QLatin1Char(',')).toUtf8().constData(),
+                   hbDigest.glyphCount, hbDigest.totalAdvance,
+                   hbDigest.bidiRunCount, hbDigest.resolvedBase.toUtf8().constData(),
+                   hbDigest.firstShapedGlyph, hbDigest.zeroShapedGlyphs,
+                   harfBuzzIsFallback ? 1 : 0);
+    }
+
+    // Multi-line / wrapping cases must be handed to Qt: HarfBuzz does not break
+    // lines, so the two backends are expected to differ there.
+    {
+      ArtifactCore::ParagraphStyle wrapped;
+      wrapped.boxWidth = 200.0f;
+      const QString wrappingText = QStringLiteral("Wrapping text sample");
+      const auto request = makeRequest(wrappingText, style, wrapped);
+      const BackendDigest qtDigest = digest(qtBackend.shape(request));
+      const BackendDigest hbDigest = digest(hbBackend.shape(request));
+      QJsonObject entry;
+      entry.insert(QStringLiteral("label"), QStringLiteral("wrapped-boxwidth"));
+      entry.insert(QStringLiteral("text"), wrappingText);
+      entry.insert(QStringLiteral("qt"), digestToJson(qtDigest));
+      entry.insert(QStringLiteral("harfbuzz"), digestToJson(hbDigest));
+      entry.insert(QStringLiteral("expectQtFallback"), true);
+      comparison.append(entry);
+      std::fprintf(stderr,
+                   "dual-run: %-10s qt(glyphs=%d adv=%.2f) hb(glyphs=%d adv=%.2f "
+                   "expectQtFallback=1\n",
+                   "wrapped", qtDigest.glyphCount, qtDigest.totalAdvance,
+                   hbDigest.glyphCount, hbDigest.totalAdvance);
+    }
+
+    // Mixed-direction line: UAX #9 must split this into several bidi runs and
+    // produce a non-identity visual mapping.
+    {
+      const QString mixed =
+          QStringLiteral("abc ") + QString::fromUtf8("\xD7\xA9\xD7\x9C\xD7\x95\xD7\x9D") +
+          QStringLiteral(" def");
+      ArtifactCore::ParagraphStyle singleLine;
+      const auto request = makeRequest(mixed, style, singleLine);
+      const BackendDigest qtDigest = digest(qtBackend.shape(request));
+      const BackendDigest hbDigest = digest(hbBackend.shape(request));
+      QJsonObject entry;
+      entry.insert(QStringLiteral("label"), QStringLiteral("mixed-bidi"));
+      entry.insert(QStringLiteral("text"), mixed);
+      entry.insert(QStringLiteral("qt"), digestToJson(qtDigest));
+      entry.insert(QStringLiteral("harfbuzz"), digestToJson(hbDigest));
+      entry.insert(QStringLiteral("expectMultipleBidiRuns"), true);
+      comparison.append(entry);
+      std::fprintf(stderr,
+                   "dual-run: %-10s qt(runs=%d base=%s) hb(runs=%d base=%s)\n",
+                   "mixed-bidi", qtDigest.bidiRunCount,
+                   qtDigest.resolvedBase.toUtf8().constData(),
+                   hbDigest.bidiRunCount,
+                   hbDigest.resolvedBase.toUtf8().constData());
+    }
+
+    const QString comparisonPath =
+        argc > 2 ? QString::fromLocal8Bit(argv[2])
+                 : QStringLiteral("artifactcore_shaping_dual_run.json");
+    QJsonObject payload;
+    payload.insert(QStringLiteral("cases"), comparison);
+    QFile reportFile(comparisonPath);
+    bool comparisonSaved = false;
+    if (reportFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+      reportFile.write(QJsonDocument(payload).toJson(QJsonDocument::Indented));
+      comparisonSaved = true;
+    }
+    std::fprintf(stderr, "dual-run: report path=%s saved=%d\n",
+                 comparisonPath.toLocal8Bit().constData(), comparisonSaved ? 1 : 0);
+  }
   {
     QTextLayout diagnosticLayout(text, ArtifactCore::FontManager::makeFont(style, text));
     diagnosticLayout.beginLayout();

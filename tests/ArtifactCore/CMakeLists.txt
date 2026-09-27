@@ -250,3 +250,9 @@ artifact_add_test(ArtifactCoreTaskSystemMattePoC
     LIBS
         ArtifactCore
 )
+artifact_add_test(ArtifactCoreTextShapingTest
+    SOURCES
+        TextShapingTest.cpp
+    LIBS
+        ArtifactCore
+)
