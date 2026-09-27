@@ -73,6 +73,12 @@
 
 したがって Phase 0 の作業は「`target_compile_definitions` で `ARTIFACT_ENABLE_PYRO` を定義する」の 1 行追加に留まる。
 
+実装（2026-09-27）:
+
+- `ArtifactCore/CMakeLists.txt:4367-4372` に OpenVDB ブロック直後へ追加。`target_compile_definitions(ArtifactCore PUBLIC ARTIFACT_ENABLE_PYRO=1)`。
+- コメントで「CPUReference のみ。`PyroBackendKind::GPUCompute` は dispatch path が無いため GPU 加速の約束ではない」ことを明記。
+- `PUBLIC` とした理由: `PhysicsSystem.cppm` は `ArtifactCore` 本体の private ソース（`ArtifactCore/CMakeLists.txt:4197-4200` の `${CORE_IMPL}`）だが、`ArtifactCoreSimulation` が `ArtifactCore` へ `PUBLIC` で依存している（`:6210`）ため、定義は `ArtifactCore` に置き、推移的に必要な側へ届く形にした。
+
 残る留意点:
 
 - `PyroSimulation` には `LIBRARY_DLL_API` が付いていない（`PyroSimulation.ixx:258` の `class PyroSimulation` が生宣言）。ただし `ArtifactCore` 全体が static ライブラリ構成のため、既存の同系統（`PhysicsSystem` 自体も `LIBRARY_DLL_API` 無し、`PhysicsSystem.cppm:161`）と同じ扱いであり、障害ではない。
@@ -81,21 +87,32 @@
 
 受入:
 
-- [x] `ARTIFACT_ENABLE_PYRO` 定義の追加根拠（CPUReference 経路のみ有効、GPU 実装を暗示しない）をコードコメントに残す — **Phase 0 調査完了。実装は次段階**
-- [x] `createPyroSimulation` / `getPyroSimulation` / 毎フレーム `step()` が実際にコンパイル対象になる — **CMake 配線済み。マクロ定義のみで有効化される**
+- [x] `ARTIFACT_ENABLE_PYRO` 定義の追加根拠（CPUReference 経路のみ有効、GPU 実装を暗示しない）をコードコメントに残す — **2026-09-27 実装済み**
+- [x] `createPyroSimulation` / `getPyroSimulation` / 毎フレーム `step()` が実際にコンパイル対象になる — **CMake 配線済み。マクロ定義で有効化される。ビルドは未実施**
 - [x] ビルド／実機確認はユーザー明示指示待ちである旨を本文に明記する — **本項に明記済み**
 
-### Phase 1 — component descriptor と Property
+### Phase 1 — component descriptor と Property（2026-09-27 実装済み）
 
-- `artifact.component.pyro` の `makePyroComponentDescriptor()` を `Artifact/include/Layer/ArtifactLayerComponentSystem.ixx` に追加する。`fluid` の `makeFluidComponentDescriptor()`（`:881-893`、phase=`Dynamics` / scope=`Composition` / order=`750`）と同じ形にする。
-- `component.pyro.*` の Property を `getComponentPropertyGroups()` に登録する。
-  - **注意**: 既存 fluid で同じ抜けがある。`getComponentPropertyGroups` に登録されるのは `component.fluid.enabled` **のみ**（`Artifact/src/Layer/ArtifactAbstractLayerPropertyGroups.cppm:1098`）で、setter（`Artifact/src/Layer/ArtifactAbstractLayerPhysicsRouting.cppm:514-762` に 27 個）・descriptor settings・JSON（`Artifact/src/Layer/ArtifactAbstractLayerPersistence.cppm:456-506`）は揃っているが UI からは到達できない。pyro ではこの抜けを再現しない。
-- JSON 保存／復元を追加する。既存の流体と同じ **2 系統**（`components` フラットオブジェクトと `componentGraph` 配列）が並存する構造を踏襲し、値の往復は前者で確実に行う。
+実装した内容:
+
+- `Artifact/include/Layer/ArtifactLayerComponentSystem.ixx:895-910` に `makePyroComponentDescriptor(bool)` を追加。`builtin.pyro` / `artifact.component.pyro` / version 1 / phase=`Dynamics` / scope=`Composition` / order=`760`。fluid（order 750）の直後に置き、phase と scope を揃えた（`PhysicsSystem` はレイヤーごとに1インスタンスを登録するため、clip や生成コピー単位ではなく composition スコープが正しい）。
+- `Artifact/src/Layer/ArtifactAbstractLayerImpl.cppm:298-324` に pyro 設定フィールド 24 個を追加。既定値は `ArtifactCore/include/Simulation/PyroSimulation.ixx:150-160` の `PyroSimulationSettings` と、domain の既定（`PyroSimulation.ixx:67-79`）に揃えた。**既定の `PyroSimulation` は不活性なボリュームなので、`component.pyro.enabled` を明示的に true にした時だけこの component が効く前提で値を選んだ。**
+- `Artifact/src/Layer/ArtifactAbstractLayer.cppm:404-457` で descriptor の settings へ 24 項目を書き込み `componentHost_.upsert()`。`:476` で `pyroComponentEnabled_ = boolFromHost("artifact.component.pyro")` を追加。
+- `Artifact/src/Layer/ArtifactAbstractLayerPhysicsRouting.cppm:763-934` に `component.pyro.*` の setter を 24 個追加。範囲チェックを既存 fluid setter と同じ `std::clamp` 形式で適用。`boundaryMode` は 0/1 の2値なので float で持つ実装にした（Property 側で int に変換）。
+- `Artifact/src/Layer/ArtifactAbstractLayerPropertyGroups.cppm:1101-1131` に `PropertyGroup("Pyro")` を追加し、24 項目をすべて登録。**これは既存 fluid で発生している欠陥（setter と descriptor と JSON は揃っているが `getComponentPropertyGroups` には `component.fluid.enabled` しか登録されていない）を pyro では再現しないための措置。**
+- `Artifact/src/Widgets/ArtifactPropertyWidgetShared.cppm:215` に `component.pyro.enabled` を `isComponentActivationProperty` の有効化プロパティに追加。
+- `Artifact/src/Widgets/ArtifactInspectorWidget.cppm:2090-2092` に `componentInspectorFilter("Pyro")` を追加。
+- `Artifact/src/Layer/ArtifactAbstractLayerPersistence.cppm` の保存（`:507-541`）と復元（`:1259-1361`）に 24 項目を追加。復元は各項目に既定値と `std::clamp` があり、未知値・欠損キーでも既定で破綻しない。`components` キー自体が無い場合の無効化リセット（`:1019`）にも `pyroComponentEnabled_ = false` を追加。
+
+未実施（この Phase のスコープ外）:
+
+- **Inspector のコンポーネントボタン（`pyroComponentButton`）は新設していない。** `fluidComponentButton` は生成・ヘッダ設定・配置・状態更新・追加メニュー・toggle で 12 箇所配線されており（`ArtifactInspectorWidget.cppm:1377, 2244, 2252, 2402-2413, 5382, 5408, 5413, 5441-5462, 5487, 5535, 5830-5842, 5869-5871, 5896, 5911`）、同型のボタン新設は別単位の作業になるため Phase 2 の入口で判断する。現状 pyro の設定は Inspector の「Components」グループ内の `Pyro` グループ（`getComponentPropertyGroups`）から編集でき、`component.pyro.enabled` で有効化できるが、コンポーネント一覧のボタンや追加メニューには pyro が現れない。
+- ビルド／実機確認は未実施。
 
 受入:
 
-- [ ] `component.pyro.*` の全 Property が Inspector から編集でき、値を再起動後も保持する
-- [ ] 未知 enum 値・欠損キーから復元しても既定値で破綻しない
+- [x] `component.pyro.*` の全 Property が Inspector から編集でき、値を再起動後も保持する — **コード変更のみ。ビルド未実施のため実 UI での確認は未了**
+- [x] 未知 enum 値・欠損キーから復元しても既定値で破綻しない — **復元側に既定値と `std::clamp` を実装済み。実データでの確認は未了**
 
 ### Phase 2 — emitter と collider
 
