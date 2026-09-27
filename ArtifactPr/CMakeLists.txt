@@ -25,8 +25,10 @@ set(ARTIFACT_PR_SOURCES
     include/TimecodeOverlayWidget.ixx
     include/MarkerEditDialog.ixx
     include/PrColorPickerDialog.ixx
+    include/GpuProgramMonitor.ixx
     include/ArtifactPrCLI.ixx
     src/ArtifactPrCLI.cppm
+    src/GpuProgramMonitor.cppm
     src/main.cpp
     src/ArtifactPrMainWindow.cppm
     src/ArtifactPrDemoData.cppm
@@ -58,6 +60,12 @@ set(ARTIFACT_PR_SOURCES
 # qt6_wrap_cpp(ARTIFACT_PR_MOC_SOURCES
 #     include/ArtifactPrEditorEngine.hpp
 # )
+#
+# QtAdvancedDocking is no longer used. The workspace dock is the shared
+# Artifact.DockManager contract plus Artifact.NativeDockSurface, provided by
+# the ArtifactDockFoundation target in the Artifact subtree.
+# The "qt-advanced-docking-system" vcpkg dependency remains only for the
+# opt-in ARTIFACT_QADS_COMPAT_* backends in the Artifact target.
 
 
 # Console-only entry point. The existing WIN32 GUI target remains unchanged.
@@ -78,7 +86,7 @@ set_target_properties(ArtifactPrCLI PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
 )
 
-target_link_libraries(ArtifactPrCLI PRIVATE ArtifactCore ArtifactCoreCommand ArtifactCoreAudio ArtifactCoreVideo ArtifactCoreNLE ArtifactWidgets ArtifactGpuFoundation Qt6::Multimedia)
+target_link_libraries(ArtifactPrCLI PRIVATE ArtifactCore ArtifactCoreCommand ArtifactCoreAudio ArtifactCoreVideo ArtifactCoreNLE ArtifactWidgets ArtifactGpuFoundation ArtifactDockFoundation Qt6::Multimedia)
 target_include_directories(ArtifactPrCLI PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
@@ -113,7 +121,7 @@ set_target_properties(ArtifactPr PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
 )
 
-target_link_libraries(ArtifactPr PRIVATE ArtifactCore ArtifactCoreCommand ArtifactCoreAudio ArtifactCoreVideo ArtifactCoreNLE ArtifactWidgets ArtifactGpuFoundation Qt6::Multimedia)
+target_link_libraries(ArtifactPr PRIVATE ArtifactCore ArtifactCoreCommand ArtifactCoreAudio ArtifactCoreVideo ArtifactCoreNLE ArtifactWidgets ArtifactGpuFoundation ArtifactDockFoundation Qt6::Multimedia)
 
 target_include_directories(ArtifactPr PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -138,8 +146,7 @@ elseif(ARTIFACT_FRONTEND_MSVC)
     )
 endif()
 
-find_package(qtadvanceddocking-qt6 REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Multimedia MultimediaWidgets)
-target_link_libraries(ArtifactPrCLI PRIVATE ads::qtadvanceddocking-qt6 Qt6::Multimedia Qt6::MultimediaWidgets)
+target_link_libraries(ArtifactPrCLI PRIVATE Qt6::Multimedia Qt6::MultimediaWidgets)
 
-target_link_libraries(ArtifactPr PRIVATE ads::qtadvanceddocking-qt6 Qt6::Multimedia Qt6::MultimediaWidgets)
+target_link_libraries(ArtifactPr PRIVATE Qt6::Multimedia Qt6::MultimediaWidgets)

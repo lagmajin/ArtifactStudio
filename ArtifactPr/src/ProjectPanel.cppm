@@ -27,6 +27,24 @@ ProjectPanel::ProjectPanel(QWidget* parent)
     tree_->setContextMenuPolicy(Qt::CustomContextMenu);
     layout->addWidget(tree_, 1);
 
+    // Media re-link (conform).  Sources whose files moved become offline
+    // until conform re-resolves their available ranges.
+    auto* conformRow = new QHBoxLayout();
+    conformButton_ = new QPushButton(QStringLiteral("Conform"));
+    conformButton_->setToolTip(QStringLiteral(
+        "Re-resolve clip source ranges against the currently available media "
+        "and report clips that stay offline."));
+    connect(conformButton_, &QPushButton::clicked, this, &ProjectPanel::runConform);
+    conformRow->addWidget(conformButton_);
+
+    conformStatusLabel_ = new QLabel();
+    QFont statusFont = conformStatusLabel_->font();
+    statusFont.setPointSize(qMax(6, statusFont.pointSize() - 1));
+    conformStatusLabel_->setFont(statusFont);
+    conformStatusLabel_->setWordWrap(true);
+    conformRow->addWidget(conformStatusLabel_, 1);
+    layout->addLayout(conformRow);
+
     auto* engine = ArtifactPr::EditorEngine::instance();
     connect(engine, &ArtifactPr::EditorEngine::sequenceChanged, this, &ProjectPanel::refreshProjectTree);
     connect(engine, &ArtifactPr::EditorEngine::projectModified, this, [this]() {
@@ -42,6 +60,19 @@ ProjectPanel::ProjectPanel(QWidget* parent)
         }
     });
     refreshProjectTree(engine->currentSequence());
+}
+
+void ProjectPanel::runConform()
+{
+    auto* engine = ArtifactPr::EditorEngine::instance();
+    const auto summary = engine->conformCurrentSequenceDetailed();
+    if (summary.success) {
+        conformStatusLabel_->setText(QStringLiteral("All clips online"));
+    }
+    else {
+        conformStatusLabel_->setText(
+            QStringLiteral("%1 offline").arg(summary.unresolvedClipIds.size()));
+    }
 }
 
 void ProjectPanel::refreshProjectTree(const ArtifactPr::DemoSequence& seq)

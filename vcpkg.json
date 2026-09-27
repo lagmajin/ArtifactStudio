@@ -28,6 +28,8 @@
     "opencolorio",
     "glm",
     "stb",
+    "harfbuzz",
+    "icu",
     "boost-iostreams",
     "entt",
     "magic-enum",

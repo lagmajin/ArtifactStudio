@@ -2,6 +2,7 @@ module;
 #include <QMainWindow>
 #include <QKeyEvent>
 #include <QCloseEvent>
+#include <QSettings>
 #include <wobjectdefs.h>
 
 export module ArtifactPr.MainWindow;
@@ -13,6 +14,10 @@ import ArtifactPr.TimecodeOverlayWidget;
 
 export class TransportBarWidget;
 export class MediaPanel;
+
+namespace Artifact {
+class NativeDockSurface;
+} // namespace Artifact
 
 export class ArtifactPrMainWindow : public QMainWindow
 {
@@ -35,6 +40,9 @@ Q_SIGNALS:
     void requestZoomReset();
 
 private:
+    void saveDockLayout();
+    void restoreDockLayout();
+
     TransportBarWidget* transportBar_ = nullptr;
     ArtifactPr::PrShortcutRegistry shortcutRegistry_;
     ArtifactPr::PrStatusNotifier statusNotifier_;
@@ -42,5 +50,6 @@ private:
     QTimer* autoSaveTimer_ = nullptr;
     ArtifactPr::TimecodeOverlayWidget* timecodeOverlay_ = nullptr;
     MediaPanel* mediaPanel_ = nullptr;
+    Artifact::NativeDockSurface* dockSurface_ = nullptr;
     bool projectDirty_ = false;
 };

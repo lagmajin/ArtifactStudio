@@ -266,7 +266,7 @@ set(ARTIFACT_APP_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/Artifact"  CACHE PATH "Artifa
 set(ARTIFACT_DEPLOY_DIR "" CACHE PATH "Optional output directory for copying Artifact exe and runtime dlls")
 option(ARTIFACT_USE_SCCACHE "Use sccache compiler launcher when available" ON)
 option(ARTIFACT_ENABLE_SYCL "Enable Intel oneAPI DPC++/SYCL build flags" OFF)
-option(ARTIFACT_BUILD_PR "Build the legacy ArtifactPr application" OFF)
+option(ARTIFACT_BUILD_PR "Build the ArtifactPr NLE application" OFF)
 
 if(ARTIFACT_USE_SCCACHE)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR
@@ -711,8 +711,14 @@ add_subdirectory(ArtifactWidgets)
 add_subdirectory(Artifact)
 add_subdirectory(ArtifactRenderer)
 add_subdirectory(artifacts-plugin-runner)
-# ArtifactPr uses the retired QADS application surface and is opt-in while the
-# Native dock surface is the supported application path.
+# ArtifactPr is an opt-in target: it is a supported application, but building
+# both editors in one configure pass widens the build. Enable it explicitly
+# with -DARTIFACT_BUILD_PR=ON.
+# ArtifactPr no longer depends on QtAdvancedDocking; it shares the
+# Artifact.DockManager contract and Artifact.NativeDockSurface from the
+# ArtifactDockFoundation target. The vcpkg "qt-advanced-docking-system"
+# dependency remains only for the opt-in ARTIFACT_QADS_COMPAT_* backends
+# in Artifact.
 if(ARTIFACT_BUILD_PR)
     add_subdirectory(ArtifactPr)
 endif()

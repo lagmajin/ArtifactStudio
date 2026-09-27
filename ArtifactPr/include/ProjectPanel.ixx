@@ -5,6 +5,8 @@ module;
 #include <QLabel>
 #include <QFont>
 #include <QStringList>
+#include <QPushButton>
+#include <QHBoxLayout>
 #include <wobjectdefs.h>
 
 export module ArtifactPr.ProjectPanel;
@@ -20,4 +22,7 @@ public:
 
 private:
     QTreeWidget* tree_ = nullptr;
+    QPushButton* conformButton_ = nullptr;
+    QLabel* conformStatusLabel_ = nullptr;
+    void runConform();
 };

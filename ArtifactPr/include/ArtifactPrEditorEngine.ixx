@@ -261,6 +261,49 @@ public:
     QString selectedClipId() const { return selectedClipId_; }
     void selectClip(const QString& clipId);
     void clearSelection();
+
+    /// V/A リンク編集 (NLE LinkingService 経由)。
+    ///
+    /// 選択中の映像/音声クリップを同じ link group へ入れ、以降の trim /
+    /// slide / selection 編集を peer へ伝播させる。Premiere の
+    /// "Link Selection" 相当。
+    /// \param videoAudioLinked 同一 link group を V/A 共有するか
+    /// \param selectionLinked 選択を peer へ伝播するか
+    /// \param trimLinked trim を peer へ伝播するか
+    /// \return グループを作成できた true。対象clipが足りない場合は false。
+    bool linkSelectedClips(bool videoAudioLinked = true,
+                            bool selectionLinked = true,
+                            bool trimLinked = true);
+
+    /// link group のリンク種別フラグを更新する。選択中の clip が
+    /// どれかの group に属している場合にのみ効く。
+    bool setSelectedClipLinkFlags(bool videoAudioLinked,
+                                   bool moveLinked,
+                                   bool selectionLinked,
+                                   bool trimLinked);
+
+    /// 選択中のクリップを link group から外す。
+    bool unlinkSelectedClips();
+
+    /// 選択中のクリップが属する link group の ID。未リンクなら 0。
+    quint64 selectedClipLinkGroupId() const;
+
+    /// 選択中のクリップとリンクされている peer clip の ID 一覧。
+    QVector<QString> linkedPeerClipIds() const;
+
+    /// メディア再リンク (conform)。nleConform_->conformSequence を使い、
+    /// 現在のシーケンスで解決できなかった clip 数を QString に入れて返す。
+    /// 全部解決できた場合は空文字。
+    QString conformCurrentSequence();
+
+    /// conform 結果のサマリ (Offline になった clip の ID と理由)。
+    struct ConformSummary {
+        bool success = false;
+        QVector<QString> unresolvedClipIds;
+        QVector<QString> messages;
+    };
+    ConformSummary conformCurrentSequenceDetailed();
+
     DemoClip* findClip(const QString& clipId);
     DemoTrack* findTrack(const QString& trackId);
     const QVector<Marker>& markers() const { return currentSequence_.markers; }
@@ -421,6 +464,14 @@ private:
     static EditorEngine* s_instance;
 
     std::unique_ptr<ArtifactCore::NLE::NLEProjectStore> nleStore_;
+    /// NLE 編集の正規入口。LinkingService を通した trim/slide/selection
+    /// 連動を適用するのはこのクラスだけ。nleStore_ と同一ストアを参照する。
+    std::unique_ptr<ArtifactCore::NLE::SequenceEditor> nleEditor_;
+    /// V/A リンクグループの作成・解除と、LinkingService の明示伝播。
+    /// SequenceEditor が内部で持つものと同じストアを参照する。
+    std::unique_ptr<ArtifactCore::NLE::LinkingService> nleLinking_;
+    /// メディア再リンク (conform)。ソース path が変わった後の解決。
+    std::unique_ptr<ArtifactCore::NLE::ConformService> nleConform_;
 
     DemoProject currentProject_;
     DemoSequence currentSequence_;

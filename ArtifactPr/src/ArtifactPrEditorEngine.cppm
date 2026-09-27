@@ -373,6 +373,11 @@ EditorEngine::EditorEngine()
 {
     s_instance = this;
     nleStore_ = std::make_unique<ArtifactCore::NLE::NLEProjectStore>();
+    // 3 つのサービスは同一ストアを参照する。setStore を明示的に呼ばないと
+    // 内部 LinkingService が空ストアを見るため、生成直後に結線する。
+    nleEditor_ = std::make_unique<ArtifactCore::NLE::SequenceEditor>(nleStore_.get());
+    nleLinking_ = std::make_unique<ArtifactCore::NLE::LinkingService>(nleStore_.get());
+    nleConform_ = std::make_unique<ArtifactCore::NLE::ConformService>(nleStore_.get());
     newProject();
 }
 
@@ -836,6 +841,39 @@ void EditorEngine::setCurrentFrame(FramePosition frame)
 
 void EditorEngine::selectClip(const QString& clipId)
 {
+    // NLE ストア側は LinkingService 経由で選択を伝播する (peer clip も
+    // selected になる)。legacy Demo* 構造は再構築で反映される。
+    if (nleStore_ && nleLinking_ && !clipId.isEmpty()) {
+        const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(clipId);
+        if (nleStore_->hasClip(coreClipId)) {
+            const QJsonObject before = nleSnapshot();
+            // 先に全クリップの選択を解除してから、伝播つきの選択を行う。
+            if (nleEditor_) {
+                for (const auto& trackId : nleStore_->trackIds(
+                         ArtifactCore::NLE::SequenceId::fromString(
+                             currentProject_.activeSequenceId))) {
+                    for (const auto& otherId : nleStore_->clipIds(trackId)) {
+                        if (otherId != coreClipId) {
+                            nleEditor_->selectClip(otherId, false);
+                        }
+                    }
+                }
+            }
+            const auto selectResult =
+                nleEditor_ ? nleEditor_->selectClip(coreClipId, true)
+                           : ArtifactCore::NLE::EditResult{};
+            if (selectResult.success) {
+                const QJsonObject after = nleSnapshot();
+                if (before != after) {
+                    rebuildLegacySnapshotFromNLE();
+                }
+                selectedClipId_ = clipId;
+                Q_EMIT clipSelectionChanged(clipId);
+                return;
+            }
+        }
+    }
+
     bool found = false;
     for (auto& track : currentSequence_.videoTracks) {
         for (auto& clip : track.clips) {
@@ -862,6 +900,15 @@ void EditorEngine::selectClip(const QString& clipId)
 
 void EditorEngine::clearSelection()
 {
+    if (nleStore_ && nleEditor_) {
+        const auto sequenceId = ArtifactCore::NLE::SequenceId::fromString(
+            currentProject_.activeSequenceId);
+        for (const auto& trackId : nleStore_->trackIds(sequenceId)) {
+            for (const auto& clipId : nleStore_->clipIds(trackId)) {
+                nleEditor_->selectClip(clipId, false);
+            }
+        }
+    }
     for (auto& track : currentSequence_.videoTracks) {
         for (auto& clip : track.clips) {
             clip.selected = false;
@@ -874,6 +921,179 @@ void EditorEngine::clearSelection()
     }
     selectedClipId_.clear();
     Q_EMIT clipSelectionChanged(QString());
+}
+
+// =====================================================================
+// V/A リンク編集 (NLE LinkingService)
+// =====================================================================
+
+quint64 EditorEngine::selectedClipLinkGroupId() const
+{
+    if (!nleStore_ || selectedClipId_.isEmpty()) {
+        return 0;
+    }
+    const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(selectedClipId_);
+    const auto* coreClip = nleStore_->clip(coreClipId);
+    return coreClip ? coreClip->linkedGroupId : 0;
+}
+
+QVector<QString> EditorEngine::linkedPeerClipIds() const
+{
+    QVector<QString> result;
+    if (!nleLinking_ || selectedClipId_.isEmpty()) {
+        return result;
+    }
+    const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(selectedClipId_);
+    for (const auto& peerId : nleLinking_->linkedClips(coreClipId)) {
+        result.append(ArtifactCore::NLE::ClipId::toString(peerId));
+    }
+    return result;
+}
+
+bool EditorEngine::linkSelectedClips(bool videoAudioLinked,
+                                      bool selectionLinked,
+                                      bool trimLinked)
+{
+    if (!nleLinking_ || !nleStore_ || selectedClipId_.isEmpty()) {
+        return false;
+    }
+    const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(selectedClipId_);
+    if (!nleStore_->hasClip(coreClipId)) {
+        return false;
+    }
+
+    const QJsonObject before = nleSnapshot();
+
+    // 既に別の group に属している場合は、既存 group へ追加する (group を作り
+    // 直さないと V/A ペアが分断されるため)。
+    quint64 groupId = selectedClipLinkGroupId();
+    if (groupId == 0) {
+        groupId = nleLinking_->createLinkGroup(videoAudioLinked,
+                                               /*selectionLinked=*/true,
+                                               /*trimLinked=*/trimLinked);
+        if (groupId == 0) {
+            return false;
+        }
+    }
+    else if (!nleLinking_->setLinkGroupFlags(groupId, videoAudioLinked,
+                                             /*moveLinked=*/videoAudioLinked,
+                                             selectionLinked, trimLinked)) {
+        return false;
+    }
+
+    if (!nleLinking_->addClipToLinkGroup(coreClipId, groupId)) {
+        return false;
+    }
+
+    // peer の選択状態を合わせてから反映する (Link Selection)。
+    if (selectionLinked) {
+        nleLinking_->propagateSelectionLink(coreClipId, true);
+    }
+
+    const QJsonObject after = nleSnapshot();
+    if (before == after) {
+        return true;
+    }
+    pushUndo(std::make_unique<NLEStateCommand>(before, after));
+    rebuildLegacySnapshotFromNLE();
+    Q_EMIT projectModified();
+    Q_EMIT sequenceChanged(currentSequence_);
+    return true;
+}
+
+bool EditorEngine::setSelectedClipLinkFlags(bool videoAudioLinked,
+                                            bool moveLinked,
+                                            bool selectionLinked,
+                                            bool trimLinked)
+{
+    if (!nleLinking_) {
+        return false;
+    }
+    const quint64 groupId = selectedClipLinkGroupId();
+    if (groupId == 0) {
+        return false;
+    }
+    const QJsonObject before = nleSnapshot();
+    if (!nleLinking_->setLinkGroupFlags(groupId, videoAudioLinked, moveLinked,
+                                        selectionLinked, trimLinked)) {
+        return false;
+    }
+    const QJsonObject after = nleSnapshot();
+    if (before != after) {
+        pushUndo(std::make_unique<NLEStateCommand>(before, after));
+        rebuildLegacySnapshotFromNLE();
+        Q_EMIT projectModified();
+    }
+    return true;
+}
+
+bool EditorEngine::unlinkSelectedClips()
+{
+    if (!nleLinking_ || selectedClipId_.isEmpty()) {
+        return false;
+    }
+    const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(selectedClipId_);
+    const QJsonObject before = nleSnapshot();
+    if (!nleLinking_->removeClipFromLinkGroup(coreClipId)) {
+        return false;
+    }
+    const QJsonObject after = nleSnapshot();
+    if (before == after) {
+        return true;
+    }
+    pushUndo(std::make_unique<NLEStateCommand>(before, after));
+    rebuildLegacySnapshotFromNLE();
+    Q_EMIT projectModified();
+    Q_EMIT sequenceChanged(currentSequence_);
+    return true;
+}
+
+// =====================================================================
+// Conform (メディア再リンク)
+// =====================================================================
+
+EditorEngine::ConformSummary EditorEngine::conformCurrentSequenceDetailed()
+{
+    ConformSummary summary;
+    if (!nleConform_ || !nleStore_) {
+        summary.messages.append(QStringLiteral("NLE conform service unavailable"));
+        return summary;
+    }
+    const auto sequenceId = ArtifactCore::NLE::SequenceId::fromString(
+        currentProject_.activeSequenceId);
+    if (!sequenceId.isValid()) {
+        summary.messages.append(QStringLiteral("No active sequence"));
+        return summary;
+    }
+
+    const QJsonObject before = nleSnapshot();
+    const auto report = nleConform_->conformSequence(sequenceId);
+    summary.success = report.success;
+    for (const auto& unresolved : report.unresolvedClips) {
+        summary.unresolvedClipIds.append(
+            ArtifactCore::NLE::ClipId::toString(unresolved));
+    }
+    for (const auto& warning : report.warnings) {
+        summary.messages.append(warning);
+    }
+
+    const QJsonObject after = nleSnapshot();
+    if (before != after) {
+        pushUndo(std::make_unique<NLEStateCommand>(before, after));
+        rebuildLegacySnapshotFromNLE();
+        Q_EMIT projectModified();
+        Q_EMIT sequenceChanged(currentSequence_);
+    }
+    return summary;
+}
+
+QString EditorEngine::conformCurrentSequence()
+{
+    const auto summary = conformCurrentSequenceDetailed();
+    if (summary.success) {
+        return QString();
+    }
+    return QStringLiteral("%1 clip(s) offline").arg(summary.unresolvedClipIds.size());
 }
 
 DemoClip* EditorEngine::findClip(const QString& clipId)
@@ -1074,7 +1294,8 @@ void EditorEngine::rippleDeleteSelectedClip()
         const auto clipId = ArtifactCore::NLE::ClipId::fromString(selectedClipId_);
         if (nleStore_->hasClip(clipId)) {
             const QJsonObject before = nleSnapshot();
-            if (!nleStore_->rippleDelete(clipId)) {
+            const auto rippleResult = nleEditor_->rippleDelete(clipId);
+            if (!rippleResult.success) {
                 return;
             }
             const QJsonObject after = nleSnapshot();
@@ -1189,7 +1410,11 @@ void EditorEngine::splitClipAtPlayhead()
             // 左側を縮める (Source モード: sourceRange/timelineRange を同時調整)
             const auto leftSourceRange = ArtifactCore::FrameRange::fromFrameCount(
                 sourceRange.start(), qMin(splitPoint, sourceRange.duration()));
-            if (!nleStore_->trimClip(coreClipId, leftSourceRange, ArtifactCore::NLE::TrimMode::Source)) {
+            // SequenceEditor 経由にして、同一 link group の peer へ
+            // trim のデルタが伝播するようにする。
+            const auto trimResult = nleEditor_->trimClip(
+                coreClipId, leftSourceRange, ArtifactCore::NLE::TrimMode::Source);
+            if (!trimResult.success) {
                 return;
             }
 
@@ -1418,8 +1643,11 @@ void EditorEngine::slipClip(const QString& clipId, FramePosition delta)
                 return;
             }
             const QJsonObject before = nleSnapshot();
-            if (!nleStore_->slipClip(coreClipId,
-                                     ArtifactCore::FramePosition(coreClip->sourceRange.start() + delta))) {
+            // SequenceEditor::slipClip は LinkingService::propagateTrimLink
+            // (TrimMode::Slip) を通すため、peer の source in/out も同期する。
+            const auto slipResult = nleEditor_->slipClip(
+                coreClipId, ArtifactCore::FramePosition(coreClip->sourceRange.start() + delta));
+            if (!slipResult.success) {
                 return;
             }
             const QJsonObject after = nleSnapshot();
@@ -1468,9 +1696,12 @@ void EditorEngine::slideClip(const QString& clipId, FramePosition delta)
                 return;
             }
             const QJsonObject before = nleSnapshot();
-            if (!nleStore_->slideClip(
-                    coreClipId,
-                    ArtifactCore::FramePosition(coreClip->timelineRange.start() + delta))) {
+            // SequenceEditor::slideClip は LinkingService::propagateMoveLink
+            // を通すため、peer の timeline 位置と隣接クリップ境界も同期する。
+            const auto slideResult = nleEditor_->slideClip(
+                coreClipId,
+                ArtifactCore::FramePosition(coreClip->timelineRange.start() + delta));
+            if (!slideResult.success) {
                 return;
             }
             const QJsonObject after = nleSnapshot();
@@ -1524,8 +1755,11 @@ void EditorEngine::moveClip(const QString& clipId, FramePosition newStart)
         const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(clipId);
         if (nleStore_->hasClip(coreClipId)) {
             const QJsonObject before = nleSnapshot();
-            if (!nleStore_->moveClip(
-                    coreClipId, ArtifactCore::FramePosition(newStart))) {
+            // 単純な timeline 移動。slideClip (境界を-press する操作) とは別物
+            // なので、LinkingService::propagateMoveLink を直接適用する。
+            const auto moveResult = nleLinking_->propagateMoveLink(
+                coreClipId, ArtifactCore::FramePosition(newStart));
+            if (!moveResult.success) {
                 return;
             }
             const QJsonObject after = nleSnapshot();
@@ -1577,10 +1811,19 @@ void EditorEngine::trimClip(const QString& clipId,
         if (nleStore_->hasClip(coreClipId)) {
             const QJsonObject before = nleSnapshot();
             const ArtifactCore::FrameRange sourceRange(newSourceIn, newSourceOut);
-            if (!nleStore_->trimClip(coreClipId, sourceRange,
-                                     ArtifactCore::NLE::TrimMode::Source)
-                || !nleStore_->moveClip(
-                    coreClipId, ArtifactCore::FramePosition(newStart))) {
+            // trim と move の両方を link 伝播つきで適用する。片方だけ
+            // SequenceEditor を通すと peer 側だけ範囲がずれた状態になるため、
+            // LinkingService を両操作に明示する。
+            const auto trimResult = nleEditor_->trimClip(
+                coreClipId, sourceRange, ArtifactCore::NLE::TrimMode::Source);
+            if (!trimResult.success) {
+                return;
+            }
+            const auto moveResult = nleLinking_->propagateMoveLink(
+                coreClipId, ArtifactCore::FramePosition(newStart));
+            if (!moveResult.success) {
+                // move が失敗したら trim まで戻す。
+                nleStore_->loadFromJson(before);
                 return;
             }
             const QJsonObject after = nleSnapshot();
@@ -1630,7 +1873,10 @@ void EditorEngine::rippleDeleteClipAt(const QString& clipId)
         const auto coreClipId = ArtifactCore::NLE::ClipId::fromString(clipId);
         if (nleStore_->hasClip(coreClipId)) {
             const QJsonObject before = nleSnapshot();
-            if (!nleStore_->rippleDelete(coreClipId)) {
+            // SequenceEditor::rippleDelete は LinkingService::propagateMoveLink
+            // を通すため、後続 clip の timeline 位置の伝播も扱える。
+            const auto rippleResult = nleEditor_->rippleDelete(coreClipId);
+            if (!rippleResult.success) {
                 return;
             }
             const QJsonObject after = nleSnapshot();

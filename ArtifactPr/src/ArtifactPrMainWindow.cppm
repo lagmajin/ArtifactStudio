@@ -2,8 +2,6 @@ module;
 
 #include <wobjectdefs.h>
 #include <wobjectimpl.h>
-#include <DockManager.h>
-#include <DockWidget.h>
 
 #include <QAction>
 #include <QApplication>
@@ -35,6 +33,7 @@ module;
 #include <QProgressBar>
 #include <QScrollArea>
 #include <QComboBox>
+#include <QSettings>
 #include <QSplitter>
 #include <QStatusBar>
 #include <QStringList>
@@ -65,6 +64,7 @@ import ArtifactPr.AudioPreviewMixer;
 import ArtifactPr.ClipEffects;
 import ArtifactPr.EditorEngine;
 import ArtifactPr.ExportDialog;
+import ArtifactPr.GpuProgramMonitor;
 import ArtifactPr.MediaFrameDecoder;
 import ArtifactPr.MediaPanel;
 import ArtifactPr.MediaThumbnailer;
@@ -73,6 +73,8 @@ import ArtifactPr.SequenceCompositor;
 import ArtifactPr.TransportBarWidget;
 import ArtifactPr.VideoPlayerWidget;
 import ArtifactPr.AppTheme;
+import Artifact.DockManager;
+import Artifact.NativeDockSurface;
 import Widgets.Utils.CSS;
 
 import Image.ImageF32x4_RGBA;
@@ -669,9 +671,52 @@ public:
         setPalette(canvasPalette);
     }
 
+    /// GPU present がこのウィジェットを native render surface として使う場合、
+    /// Qt の paint 経路は迂回される。CPU 合成 fallback 用の属性は GPU 有効時に
+    /// 外さないと、プログラムが黒のまま何も描画されない。
+    void setGpuPresentEnabled(bool enabled)
+    {
+        gpuPresent_ = enabled;
+        if (enabled) {
+            setAttribute(Qt::WA_NativeWindow);
+            setAttribute(Qt::WA_DontCreateNativeAncestors);
+            setAttribute(Qt::WA_PaintOnScreen);
+            setAttribute(Qt::WA_NoSystemBackground);
+            setAutoFillBackground(false);
+        }
+    }
+
+    bool gpuPresentEnabled() const { return gpuPresent_; }
+
+    /// GPU 有効時に Fit / zoom / pan が変化したら通知する。CPU 経路では
+    /// update() で再描画されるため、このコールバックは GPU 時だけ呼ばれる。
+    void setGpuInvalidateCallback(std::function<void()> callback)
+    {
+        gpuInvalidateCallback_ = std::move(callback);
+    }
+
+    /// pan / zoom 操作後の再描画要求。GPU 有効時は swap chain への
+    /// 再 present を行い、無効時は通常の Qt 再描画に任せる。
+    void requestGpuRepaint()
+    {
+        if (!gpuPresent_) {
+            update();
+            return;
+        }
+        if (gpuInvalidateCallback_) {
+            gpuInvalidateCallback_();
+        }
+    }
+
     void setFrame(const ArtifactCore::ImageF32x4_RGBA& frame)
     {
         frame_ = frame;
+        if (gpuPresent_) {
+            // GPU 経路では QImage 化しない (AGENTS.md: GPU 正常時は
+            // QImage / QPainter を使わない)。resize 無効時の表示は GPU 側が
+            // swap chain で保持するため、ここでは何もしない。
+            return;
+        }
         // QImage 化は表示境界での明示変換 (AGENTS.md 整合)。
         cachedImage_ = frame_.toQImage();
         update();
@@ -681,14 +726,52 @@ public:
     {
         frame_ = ArtifactCore::ImageF32x4_RGBA();
         cachedImage_ = QImage();
-        resetView();
+        if (!gpuPresent_) {
+            resetView();
+        }
         update();
+    }
+
+    bool hasFrame() const { return !frame_.isEmpty(); }
+
+    /// GPU 経路でも CPU 経路と同じ Fit / zoom / pan の配置を再現するための
+    /// 正規化済みビュー矩形 (0..1, 上下反転) を返す。GPU が無効な場合は
+    /// nullptr を返し、呼び出し側は CPU 表示に 任せる。
+    ///
+    /// view は「テクスチャ空間で描画矩形が占める範囲」を表す:
+    /// scaleX/scaleY は 1  Fitz 時に 1.0 となる正規化スケール、offset は
+    /// 中心からのずらし。
+    bool gpuViewTransform(float& scaleX, float& scaleY,
+                          float& offsetX, float& offsetY) const
+    {
+        if (!gpuPresent_ || frame_.isEmpty() || width() <= 0 || height() <= 0) {
+            return false;
+        }
+        const qreal scale = fitScale() * zoom_;
+        if (scale <= 0.0) {
+            return false;
+        }
+        const QPointF center = QRectF(rect()).center() + panOffset_;
+        const qreal drawW = frame_.width() * scale;
+        const qreal drawH = frame_.height() * scale;
+        // 描画矩形を widget 中央基準で [-1,1] の NDC に写す。
+        scaleX = static_cast<float>(drawW / width());
+        scaleY = static_cast<float>(drawH / height());
+        offsetX = static_cast<float>((center.x() - drawW * 0.5 - width() * 0.5)
+                                    / (width() * 0.5));
+        offsetY = static_cast<float>((center.y() - drawH * 0.5 - height() * 0.5)
+                                    / (height() * 0.5));
+        return true;
     }
 
 protected:
     void paintEvent(QPaintEvent* event) override
     {
         Q_UNUSED(event);
+        if (gpuPresent_) {
+            // GPU swap chain が surface を所有している。
+            return;
+        }
         QPainter p(this);
         p.fillRect(rect(), Qt::black);
 
@@ -710,7 +793,7 @@ protected:
 
     void wheelEvent(QWheelEvent* event) override
     {
-        if (cachedImage_.isNull() || event->angleDelta().y() == 0) {
+        if (sourceSize().isEmpty() || event->angleDelta().y() == 0) {
             event->ignore();
             return;
         }
@@ -723,7 +806,7 @@ protected:
         const QPointF oldCenter = QRectF(rect()).center() + panOffset_;
         panOffset_ = pointer - QRectF(rect()).center()
             - (pointer - oldCenter) * (newScale / oldScale);
-        update();
+        requestGpuRepaint();
         event->accept();
     }
 
@@ -748,7 +831,7 @@ protected:
 
         panOffset_ += event->position() - panStart_;
         panStart_ = event->position();
-        update();
+        requestGpuRepaint();
         event->accept();
     }
 
@@ -774,19 +857,31 @@ protected:
             showActualPixels();
         } else {
             resetView();
+            requestGpuRepaint();
         }
         event->accept();
     }
 
 private:
+    /// ソースフレームの基準サイズ。GPU 有効時は QImage を作らないので
+    /// frame_ を、CPU 経路では 変換済み cachedImage_ を使う。
+    QSize sourceSize() const
+    {
+        if (gpuPresent_) {
+            return frame_.isEmpty() ? QSize() : QSize(frame_.width(), frame_.height());
+        }
+        return cachedImage_.size();
+    }
+
     qreal fitScale() const
     {
-        if (cachedImage_.isNull() || cachedImage_.width() <= 0 || cachedImage_.height() <= 0
+        const QSize source = sourceSize();
+        if (source.width() <= 0 || source.height() <= 0
             || width() <= 0 || height() <= 0) {
             return 1.0;
         }
-        return std::min(static_cast<qreal>(width()) / cachedImage_.width(),
-                        static_cast<qreal>(height()) / cachedImage_.height());
+        return std::min(static_cast<qreal>(width()) / source.width(),
+                        static_cast<qreal>(height()) / source.height());
     }
 
     void resetView()
@@ -800,7 +895,7 @@ private:
         const qreal scale = fitScale();
         zoom_ = scale > 0.0 ? std::clamp(1.0 / scale, kMinimumZoom, kMaximumZoom) : 1.0;
         panOffset_ = QPointF();
-        update();
+        requestGpuRepaint();
     }
 
     static constexpr qreal kMinimumZoom = 0.1;
@@ -811,11 +906,20 @@ private:
     QPointF panOffset_;
     QPointF panStart_;
     bool panning_ = false;
+    bool gpuPresent_ = false;
+    std::function<void()> gpuInvalidateCallback_;
 };
 
 class ProgramMonitorPanel : public QWidget
 {
     W_OBJECT(ProgramMonitorPanel)
+
+    enum class GpuState {
+        NotTried,
+        Ready,
+        Disabled,
+    };
+
 public:
     explicit ProgramMonitorPanel(QWidget* parent = nullptr)
         : QWidget(parent)
@@ -834,6 +938,17 @@ public:
         preview_ = new SequenceCanvasWidget();
         preview_->setMinimumSize(320, 180);
         layout->addWidget(preview_, 1);
+
+        preview_->setGpuInvalidateCallback([this]() { presentGpuFrame(); });
+
+        gpuRenderer_ = std::make_unique<ArtifactPr::GpuProgramMonitorRenderer>();
+        gpuStatusLabel_ = new QLabel();
+        gpuStatusLabel_->setObjectName(QStringLiteral("programMonitorGpuStatus"));
+        QFont statusFont = gpuStatusLabel_->font();
+        statusFont.setPointSize(qMax(6, statusFont.pointSize() - 1));
+        gpuStatusLabel_->setFont(statusFont);
+        layout->addWidget(gpuStatusLabel_);
+        updateGpuStatusLabel();
 
         timecode_ = new QLabel(QStringLiteral("00:00:00:00"));
         QFont tcFont = timecode_->font();
@@ -861,6 +976,21 @@ public:
         connect(engine, &ArtifactPr::EditorEngine::playbackStateChanged, this, &ProgramMonitorPanel::onPlaybackStateChanged);
     }
 
+protected:
+    void resizeEvent(QResizeEvent* event) override
+    {
+        QWidget::resizeEvent(event);
+        if (gpuState_ != GpuState::Ready) {
+            return;
+        }
+        // Program Monitor の resize は連続発生し頻度も高くない
+        // (パネルリサイズ / ウィンドウ最大化) ため、debounce せず
+        // swapChain_->Resize() に直接任せる。
+        if (gpuRenderer_->recreateSwapChain(preview_)) {
+            presentGpuFrame();
+        }
+    }
+
     /// AudioMeterPanel を後から登録 (MainWindow 構築順の解決用)。
     void setMeterPanel(AudioMeterPanel* panel) { meterPanel_ = panel; }
 
@@ -873,6 +1003,111 @@ public:
     }
 
 private:
+    /// GPU present 経路の初期化。ウィジェットが実際のサイズを持つ最初の
+    /// フレームで一度だけ试行し、失敗したら CPU 表示へ留まる。
+    bool ensureGpuPreviewReady()
+    {
+        if (gpuState_ == GpuState::Ready) {
+            return true;
+        }
+        if (gpuState_ == GpuState::Disabled) {
+            return false;
+        }
+
+        if (!preview_->isVisible() && gpuAttempts_ == 0) {
+            // まだレイアウトに入っていないので先延ばしする。
+            return false;
+        }
+
+        ++gpuAttempts_;
+        if (!gpuRenderer_->ensureInitialized(preview_)) {
+            gpuState_ = GpuState::Disabled;
+            updateGpuStatusLabel();
+            qWarning() << "[ProgramMonitor] GPU preview unavailable, using CPU path:"
+                       << gpuRenderer_->lastFailureReason();
+            return false;
+        }
+
+        preview_->setGpuPresentEnabled(true);
+        gpuState_ = GpuState::Ready;
+        updateGpuStatusLabel();
+        return true;
+    }
+
+    void updateGpuStatusLabel()
+    {
+        if (!gpuStatusLabel_) {
+            return;
+        }
+        switch (gpuState_) {
+        case GpuState::Ready:
+            gpuStatusLabel_->setText(trUi(
+                "GPU Preview: %1",
+                "GPU プレビュー: %1").arg(gpuRenderer_ ? gpuRenderer_->backendName()
+                                                        : QStringLiteral("unknown")));
+            break;
+        case GpuState::Disabled:
+            gpuStatusLabel_->setText(trUi(
+                "GPU Preview: CPU fallback",
+                "GPU プレビュー: CPU フォールバック"));
+            break;
+        case GpuState::NotTried:
+            gpuStatusLabel_->setText(trUi("GPU Preview: pending",
+                                          "GPU プレビュー: 待機中"));
+            break;
+        }
+    }
+
+    /// GPU 経路が有効なときだけ present する。
+    void presentGpuFrame()
+    {
+        if (gpuState_ != GpuState::Ready) {
+            return;
+        }
+        float scaleX = 1.0f;
+        float scaleY = 1.0f;
+        float offsetX = 0.0f;
+        float offsetY = 0.0f;
+        if (preview_->gpuViewTransform(scaleX, scaleY, offsetX, offsetY)) {
+            gpuRenderer_->setViewTransform(scaleX, scaleY, offsetX, offsetY);
+        }
+        gpuRenderer_->renderAndPresent();
+
+        // device loss / surface loss は Present() が例外を投げて通知する。
+        // 記録された reason があれば GPU 経路を破棄して CPU 表示へ退避し、
+        // export の CPU 出力には影響させない。
+        const QString reason = gpuRenderer_->lastFailureReason();
+        if (reason.isEmpty()) {
+            return;
+        }
+        qWarning() << "[ProgramMonitor] GPU present failed, falling back to CPU:"
+                   << reason;
+        gpuRenderer_->reset();
+        preview_->setGpuPresentEnabled(false);
+        preview_->setAutoFillBackground(true);
+        QPalette canvasPalette = preview_->palette();
+        canvasPalette.setColor(QPalette::Window, QColor(Qt::black));
+        preview_->setPalette(canvasPalette);
+        preview_->setFrame(gpuLastComposedFrame_);
+        gpuState_ = GpuState::Disabled;
+        updateGpuStatusLabel();
+    }
+
+    /// 合成済みフレームを表示する。GPU 経路が有効なら upload して present、
+    /// 無効なら CPU の QImage 表示に任せる。
+    void displayComposedFrame(const ArtifactCore::ImageF32x4_RGBA& composed)
+    {
+        if (ensureGpuPreviewReady()) {
+            // requestGeneration_ を upload にも通し、遅延到着した古い合成
+            // 結果が新しいフレームの後に present されるのを防ぐ。
+            gpuLastComposedFrame_ = composed;
+            gpuRenderer_->setFrame(composed, requestGeneration_);
+            presentGpuFrame();
+            return;
+        }
+        preview_->setFrame(composed);
+    }
+
     /// audioTracks の音声クリップを mixer へ反映 (mute/solo 考慮)。
     void syncAudioClips(const ArtifactPr::DemoSequence& sequence)
     {
@@ -929,7 +1164,14 @@ private Q_SLOTS:
         // 編集反映のたびに要求を無効化し、次フレーム位置で再合成する。
         ++requestGeneration_;
         decoder_->clearCache();
-        preview_->resetToBlack();
+        if (gpuState_ == GpuState::Ready) {
+            // GPU 経路では preview_->setFrame() の QImage 化を行わないため、
+            // renderer 側のキャッシュを明示的に落とす必要がある。
+            gpuRenderer_->setFrame(ArtifactCore::ImageF32x4_RGBA());
+            presentGpuFrame();
+        } else {
+            preview_->resetToBlack();
+        }
         syncAudioClips(seq);
         requestPreviewFrame(ArtifactPr::EditorEngine::instance()->currentFrame());
     }
@@ -1009,7 +1251,12 @@ private:
         if (pending.isEmpty()) {
             // 表示クリップなし → 黒画面へ戻す (generation 更新済みなので
             // 遅延到着した旧結果は破棄される)
-            preview_->resetToBlack();
+            if (gpuState_ == GpuState::Ready) {
+                gpuRenderer_->setFrame(ArtifactCore::ImageF32x4_RGBA());
+                presentGpuFrame();
+            } else {
+                preview_->resetToBlack();
+            }
             return;
         }
 
@@ -1064,7 +1311,8 @@ private:
         const QSize canvasSize = monitorResolution(
             ArtifactPr::EditorEngine::instance()->currentSequence());
         const ArtifactCore::FloatRGBA background(0.0f, 0.0f, 0.0f, 1.0f);
-        preview_->setFrame(ArtifactPr::composeSequenceLayers(canvasSize, layers, background));
+        displayComposedFrame(
+            ArtifactPr::composeSequenceLayers(canvasSize, layers, background));
     }
 
     static QSize monitorResolution(const ArtifactPr::DemoSequence& sequence)
@@ -1093,10 +1341,15 @@ private:
 
     ArtifactPr::MediaFrameDecoder* decoder_ = nullptr;
     std::unique_ptr<ArtifactPr::AudioPreviewMixer> audioMixer_;
+    std::unique_ptr<ArtifactPr::GpuProgramMonitorRenderer> gpuRenderer_;
     AudioMeterPanel* meterPanel_ = nullptr;
     SequenceCanvasWidget* preview_ = nullptr;
     QLabel* timecode_ = nullptr;
+    QLabel* gpuStatusLabel_ = nullptr;
     quint64 requestGeneration_ = 0;
+    int gpuAttempts_ = 0;
+    GpuState gpuState_ = GpuState::NotTried;
+    ArtifactCore::ImageF32x4_RGBA gpuLastComposedFrame_;
     QVector<PendingClipRequest> pendingRequests_;
     QHash<QString, ArtifactCore::ImageF32x4_RGBA> decodedFrames_;
 };
@@ -1762,6 +2015,53 @@ public:
         opacityValueLabel_->setAlignment(Qt::AlignCenter);
         layout->addWidget(opacityValueLabel_);
 
+        // ---- V/A リンク編集 (NLE LinkingService) ----
+        auto* linkHeader = new QLabel(trUi("AV Link", "V/A リンク"));
+        QFont linkFont = linkHeader->font();
+        linkFont.setBold(true);
+        linkHeader->setFont(linkFont);
+        layout->addWidget(linkHeader);
+
+        auto* linkButtonRow = new QHBoxLayout();
+        linkButton_ = new QPushButton(trUi("Link", "リンク"));
+        linkButton_->setToolTip(trUi(
+            "Link the selected clip into an AV link group so trim, slide and "
+            "selection propagate to its peers.",
+            "選択したクリップを V/A リンクグループに追加し、trim・slide・選択を"
+            "リンク先に伝播させます。"));
+        connect(linkButton_, &QPushButton::clicked, this, &ClipPropertiesPanel::onLinkClicked);
+        linkButtonRow->addWidget(linkButton_);
+
+        unlinkButton_ = new QPushButton(trUi("Unlink", "リンク解除"));
+        unlinkButton_->setToolTip(trUi(
+            "Remove the selected clip from its AV link group.",
+            "選択したクリップを V/A リンクグループから外します。"));
+        connect(unlinkButton_, &QPushButton::clicked, this, &ClipPropertiesPanel::onUnlinkClicked);
+        linkButtonRow->addWidget(unlinkButton_);
+        layout->addLayout(linkButtonRow);
+
+        linkTrimCheck_ = new QCheckBox(trUi("Link trim", "trim を連動"));
+        linkTrimCheck_->setToolTip(trUi(
+            "Propagate trim edits to linked peers.",
+            "trim 編集をリンク先へ伝播させます。"));
+        linkTrimCheck_->setChecked(true);
+        connect(linkTrimCheck_, &QCheckBox::toggled, this, &ClipPropertiesPanel::onLinkFlagToggled);
+        layout->addWidget(linkTrimCheck_);
+
+        linkSelectionCheck_ = new QCheckBox(trUi("Link selection", "選択を連動"));
+        linkSelectionCheck_->setToolTip(trUi(
+            "Select linked peers together with this clip.",
+            "このクリップと一緒にリンク先も選択します。"));
+        linkSelectionCheck_->setChecked(true);
+        connect(linkSelectionCheck_, &QCheckBox::toggled, this, &ClipPropertiesPanel::onLinkFlagToggled);
+        layout->addWidget(linkSelectionCheck_);
+
+        linkStatusLabel_ = new QLabel();
+        QFont linkStatusFont = linkStatusLabel_->font();
+        linkStatusFont.setPointSize(qMax(6, linkStatusFont.pointSize() - 1));
+        linkStatusLabel_->setFont(linkStatusFont);
+        layout->addWidget(linkStatusLabel_);
+
         layout->addStretch();
 
         infoLabel_ = new QLabel(trUi("Select a clip to\nedit its properties.", "クリップを選択して\nプロパティを編集してください。"));
@@ -1787,6 +2087,7 @@ private slots:
             opacitySlider_->setValue(100);
             opacityValueLabel_->setText(percentLabel(100));
             infoLabel_->setText(uiText("Select a clip to\nedit its properties.", "クリップを選択して\nプロパティを編集してください。"));
+            refreshLinkState();
             return;
         }
 
@@ -1813,6 +2114,7 @@ private slots:
             "長さ: %1 フレーム\n開始: %2\nソース: %3-%4")
             .arg(clip->duration).arg(clip->startFrame).arg(clip->sourceIn).arg(clip->sourceOut);
         infoLabel_->setText(info);
+        refreshLinkState();
     }
 
     void onClipChanged(const QString& clipId)
@@ -1821,6 +2123,67 @@ private slots:
         if (clipId == engine->selectedClipId()) {
             onClipSelected(clipId);
         }
+    }
+
+    void onLinkClicked()
+    {
+        auto* engine = ArtifactPr::EditorEngine::instance();
+        if (engine->selectedClipId().isEmpty()) {
+            return;
+        }
+        engine->linkSelectedClips(/*videoAudioLinked=*/true,
+                                  linkSelectionCheck_->isChecked(),
+                                  linkTrimCheck_->isChecked());
+        refreshLinkState();
+    }
+
+    void onUnlinkClicked()
+    {
+        auto* engine = ArtifactPr::EditorEngine::instance();
+        if (engine->selectedClipId().isEmpty()) {
+            return;
+        }
+        engine->unlinkSelectedClips();
+        refreshLinkState();
+    }
+
+    void onLinkFlagToggled()
+    {
+        auto* engine = ArtifactPr::EditorEngine::instance();
+        if (engine->selectedClipLinkGroupId() == 0) {
+            return;
+        }
+        const bool trim = linkTrimCheck_->isChecked();
+        const bool selection = linkSelectionCheck_->isChecked();
+        engine->setSelectedClipLinkFlags(/*videoAudioLinked=*/true,
+                                         /*moveLinked=*/true,
+                                         selection,
+                                         trim);
+    }
+
+    /// リンク状態表示とボタンの有効/無効を、現在の選択に同期する。
+    void refreshLinkState()
+    {
+        auto* engine = ArtifactPr::EditorEngine::instance();
+        const bool hasSelection = !engine->selectedClipId().isEmpty();
+        linkButton_->setEnabled(hasSelection);
+        unlinkButton_->setEnabled(hasSelection);
+        linkTrimCheck_->setEnabled(hasSelection);
+        linkSelectionCheck_->setEnabled(hasSelection);
+
+        if (!hasSelection) {
+            linkStatusLabel_->clear();
+            return;
+        }
+
+        const quint64 groupId = engine->selectedClipLinkGroupId();
+        if (groupId == 0) {
+            linkStatusLabel_->setText(trUi("Not linked", "リンクなし"));
+            return;
+        }
+        const QVector<QString> peers = engine->linkedPeerClipIds();
+        linkStatusLabel_->setText(trUi(
+            "Linked to %1 peer(s)", "%1 件のリンク先").arg(peers.size()));
     }
 
     void onVolumeChanged(int value)
@@ -1916,6 +2279,11 @@ private:
     QSlider* opacitySlider_ = nullptr;
     QLabel* opacityValueLabel_ = nullptr;
     QLabel* infoLabel_ = nullptr;
+    QPushButton* linkButton_ = nullptr;
+    QPushButton* unlinkButton_ = nullptr;
+    QCheckBox* linkTrimCheck_ = nullptr;
+    QCheckBox* linkSelectionCheck_ = nullptr;
+    QLabel* linkStatusLabel_ = nullptr;
 };
 
 W_OBJECT_IMPL(ClipPropertiesPanel)
@@ -2489,6 +2857,41 @@ void TimelinePanel::onClipRightClicked(const QString& clipId, const QPoint& pos)
 
         menu->addSeparator();
 
+        // V/A リンク編集 (NLE LinkingService 経由)
+        {
+            engine->selectClip(clipId);
+            const quint64 groupId = engine->selectedClipLinkGroupId();
+            const QVector<QString> peers = engine->linkedPeerClipIds();
+
+            if (groupId == 0) {
+                auto* linkAction = menu->addAction(trUi("Link AV", "V/A をリンク"));
+                linkAction->setToolTip(uiText(
+                    "Link this clip so trim, slide and selection propagate to peers.",
+                    "このクリップをリンクし、trim・slide・選択をリンク先へ伝播させます。"));
+                connect(linkAction, &QAction::triggered, [engine]() {
+                    engine->linkSelectedClips();
+                });
+            }
+            else {
+                auto* unlinkAction = menu->addAction(trUi("Unlink AV", "V/A のリンクを解除"));
+                unlinkAction->setToolTip(uiText(
+                    "Linked peers: %1", "リンク先: %1").arg(peers.size()));
+                connect(unlinkAction, &QAction::triggered, [engine]() {
+                    engine->unlinkSelectedClips();
+                });
+
+                auto* clearPeerMenu = menu->addMenu(trUi("Linked Clips", "リンク先クリップ"));
+                for (const QString& peerId : peers) {
+                    auto* peerAction = clearPeerMenu->addAction(peerId);
+                    connect(peerAction, &QAction::triggered, [engine, peerId]() {
+                        engine->selectClip(peerId);
+                    });
+                }
+            }
+        }
+
+        menu->addSeparator();
+
         auto* volumeMenu = menu->addMenu(trUi("Volume", "ボリューム"));
 
         auto* vol100 = volumeMenu->addAction(QStringLiteral("100%"));
@@ -3035,76 +3438,69 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
         helpDialog_->activateWindow();
     });
 
-    auto* dockManager = new ads::CDockManager(this);
-    setCentralWidget(dockManager);
+    // QtAdvancedDocking を撤去し、共有の dock surface を使う。
+    auto* dockSurface = new Artifact::NativeDockSurface();
+    setCentralWidget(dockSurface);
 
     auto* projectPanel = new ProjectPanel();
-    auto* projectDock = new ads::CDockWidget(QStringLiteral("Project"));
-    projectDock->setWidget(projectPanel);
-    projectDock->setFeatures(ads::CDockWidget::AllDockWidgetFeatures);
-    auto* projectArea = dockManager->addDockWidget(ads::LeftDockWidgetArea, projectDock);
+    dockSurface->addDockWidget(QStringLiteral("project"), QStringLiteral("Project"),
+                               projectPanel, Artifact::DockArea::Left);
 
     mediaPanel_ = new MediaPanel();
     auto* mediaPanel = mediaPanel_;
-    auto* mediaDock = new ads::CDockWidget(QStringLiteral("Media"));
-    mediaDock->setWidget(mediaPanel);
-    mediaDock->setFeatures(ads::CDockWidget::AllDockWidgetFeatures);
-    dockManager->addDockWidgetTabToArea(mediaDock, projectArea);
-    projectDock->raise();
+    dockSurface->addDockWidgetToTab(QStringLiteral("media"), QStringLiteral("Media"),
+                                    mediaPanel, QStringLiteral("project"));
 
     auto* sourceMonitorPanel = new SourceMonitorPanel();
-    auto* sourceDock = new ads::CDockWidget(QStringLiteral("Source Monitor"));
-    sourceDock->setWidget(sourceMonitorPanel);
-    sourceDock->setFeatures(ads::CDockWidget::AllDockWidgetFeatures);
-    auto* sourceArea = dockManager->addDockWidget(ads::RightDockWidgetArea, sourceDock);
+    dockSurface->addDockWidget(QStringLiteral("sourceMonitor"),
+                               QStringLiteral("Source Monitor"),
+                               sourceMonitorPanel, Artifact::DockArea::Right);
 
     connect(mediaPanel, &MediaPanel::mediaSelected, sourceMonitorPanel, &SourceMonitorPanel::loadMedia);
 
     auto* programMonitorPanel = new ProgramMonitorPanel();
-    auto* programDock = new ads::CDockWidget(QStringLiteral("Program Monitor"));
-    programDock->setWidget(programMonitorPanel);
-    programDock->setFeatures(ads::CDockWidget::AllDockWidgetFeatures);
-    dockManager->addDockWidgetTabToArea(programDock, sourceArea);
-    sourceDock->raise();
+    dockSurface->addDockWidgetToTab(QStringLiteral("programMonitor"),
+                                    QStringLiteral("Program Monitor"),
+                                    programMonitorPanel, QStringLiteral("sourceMonitor"));
+
+    // timelinePanel は 1990 行付近 (サブクラス) で生成されるため、ここで
+    // 先行生成して後続の配線へ渡す。
+    auto* timelinePanel = new TimelinePanel();
+    dockSurface->addDockWidget(QStringLiteral("timeline"), QStringLiteral("Timeline"),
+                               timelinePanel, Artifact::DockArea::Bottom);
 
     auto* audioMeterPanel = new AudioMeterPanel();
-    auto* audioMeterDock = new ads::CDockWidget(QStringLiteral("Audio Meters"));
-    audioMeterDock->setWidget(audioMeterPanel);
-    audioMeterDock->setFeatures(ads::CDockWidget::AllDockWidgetFeatures);
-    dockManager->addDockWidget(ads::RightDockWidgetArea, audioMeterDock);
+    dockSurface->addDockWidget(QStringLiteral("audioMeters"),
+                               QStringLiteral("Audio Meters"),
+                               audioMeterPanel, Artifact::DockArea::Right);
 
     programMonitorPanel->setMeterPanel(audioMeterPanel);
     timelinePanel->setWaveformProvider(programMonitorPanel->waveformProvider());
 
     auto* transitionPanel = new TransitionPanel();
-    auto* transitionDock = new ads::CDockWidget(trUi("Transitions", "トランジション"));
-    transitionDock->setWidget(transitionPanel);
-    transitionDock->setFeatures(ads::CDockWidget::AllDockWidgetFeatures);
-    dockManager->addDockWidget(ads::RightDockWidgetArea, transitionDock);
+    dockSurface->addDockWidget(QStringLiteral("transitions"),
+                               trUi("Transitions", "トランジション"),
+                               transitionPanel, Artifact::DockArea::Right);
 
     auto* effectsPanel = new EffectsPanel();
-    auto* effectsDock = new ads::CDockWidget(trUi("Effects", "エフェクト"));
-    effectsDock->setWidget(effectsPanel);
-    effectsDock->setFeatures(ads::CDockWidget::AllDockWidgetFeatures);
-    dockManager->addDockWidget(ads::RightDockWidgetArea, effectsDock);
+    dockSurface->addDockWidget(QStringLiteral("effects"),
+                               trUi("Effects", "エフェクト"),
+                               effectsPanel, Artifact::DockArea::Right);
 
     auto* proxyPanel = new ProxyPanel();
-    auto* proxyDock = new ads::CDockWidget(QStringLiteral("Proxy"));
-    proxyDock->setWidget(proxyPanel);
-    proxyDock->setFeatures(ads::CDockWidget::AllDockWidgetFeatures);
-    dockManager->addDockWidget(ads::RightDockWidgetArea, proxyDock);
+    dockSurface->addDockWidget(QStringLiteral("proxy"), QStringLiteral("Proxy"),
+                               proxyPanel, Artifact::DockArea::Right);
 
     auto* clipPropsPanel = new ClipPropertiesPanel();
-    auto* clipPropsDock = new ads::CDockWidget(QStringLiteral("Clip Properties"));
-    clipPropsDock->setWidget(clipPropsPanel);
-    clipPropsDock->setFeatures(ads::CDockWidget::AllDockWidgetFeatures);
-    dockManager->addDockWidget(ads::RightDockWidgetArea, clipPropsDock);
+    dockSurface->addDockWidget(QStringLiteral("clipProperties"),
+                               QStringLiteral("Clip Properties"),
+                               clipPropsPanel, Artifact::DockArea::Right);
 
-    auto* timelinePanel = new TimelinePanel();
-    auto* timelineDock = new ads::CDockWidget(QStringLiteral("Timeline"));
-    timelineDock->setWidget(timelinePanel);
-    timelineDock->setFeatures(ads::CDockWidget::AllDockWidgetFeatures);
-    dockManager->addDockWidget(ads::BottomDockWidgetArea, timelineDock);
+    dockSurface_ = dockSurface;
+
+    // 10 パネルをすべて登録し終えてからレイアウトを復元する。
+    // 先に復元すると、未登録の dock が drop される。
+    restoreDockLayout();
 
     connect(this, &ArtifactPrMainWindow::requestZoomIn, [timelinePanel]() {
         auto* slider = timelinePanel->findChild<QSlider*>("zoomSlider_");
@@ -3358,6 +3754,11 @@ void ArtifactPrMainWindow::onUndoRedo()
 
 void ArtifactPrMainWindow::closeEvent(QCloseEvent* event)
 {
+    // レイアウトは未保存のプロジェクトとは独立なので、dirty に関係なく
+    // 保存する。QADS 版は saveState() を呼んでいたが、TODO 扱いで
+    // 永続化されていなかった。
+    saveDockLayout();
+
     if (!projectDirty_) {
         event->accept();
         return;
@@ -3390,6 +3791,39 @@ void ArtifactPrMainWindow::closeEvent(QCloseEvent* event)
         return;
     }
     event->accept();
+}
+
+void ArtifactPrMainWindow::saveDockLayout()
+{
+    if (!dockSurface_) {
+        return;
+    }
+    QSettings settings(QSettings::IniFormat, QSettings::UserScope,
+                       QStringLiteral("ArtifactStudio"), QStringLiteral("ArtifactPr"));
+    settings.setValue(QStringLiteral("dock/layout"),
+                      QString::fromLatin1(dockSurface_->saveLayoutState()));
+    settings.setValue(QStringLiteral("dock/geometry"), saveGeometry());
+}
+
+void ArtifactPrMainWindow::restoreDockLayout()
+{
+    if (!dockSurface_) {
+        return;
+    }
+    QSettings settings(QSettings::IniFormat, QSettings::UserScope,
+                       QStringLiteral("ArtifactStudio"), QStringLiteral("ArtifactPr"));
+    // ウィンドウの幾何は dock より先に復元する。DockSurface が
+    // splitter サイズを確定させるのに親のサイズが必要。
+    const QByteArray geometry =
+        settings.value(QStringLiteral("dock/geometry")).toByteArray();
+    if (!geometry.isEmpty()) {
+        restoreGeometry(geometry);
+    }
+    const QByteArray layout =
+        settings.value(QStringLiteral("dock/layout")).toString().toLatin1();
+    if (!layout.isEmpty()) {
+        dockSurface_->restoreLayoutState(layout);
+    }
 }
 
 W_OBJECT_IMPL(ArtifactPrMainWindow)
