@@ -1,4 +1,52 @@
-**最終更新:** 2026-09-26
+**最終更新:** 2026-09-27
+
+## 2026-09-27 — 2D 流体のコアは既に実装済みだった。pyro は CMake マクロ未定義でコンパイルされず、smoke の発生源はプロシージャル固定だった
+
+- **関連:** `ArtifactCore/include/Physics/FluidSolver2D.ixx`、`ArtifactCore/src/Physics/FluidSolver2D.cppm`、`ArtifactCore/include/Simulation/PyroSimulation.ixx`、`ArtifactCore/src/Simulation/PyroSimulation.cppm`、`ArtifactCore/src/Physics/PhysicsSystem.cppm`、`Artifact/src/Layer/ArtifactLayerFluidRuntimeState.cppm`、`Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cppm`、`docs/planned/MILESTONE_PYRO_DOMAIN_LAYER_INTEGRATION_2026-09-27.md`、`docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`。
+- **確認できた事実（実コード照合）:** 「2D 流体シミュのコア」を `rg FluidSolver2D` で引くと `Physics.Fluid` モジュール（`FluidSolver2D` = Stable Fluids グリッド、`LiquidSolver2D` = 粒子液体、同一 `.ixx`/`.cppm`）が既に CMake 登録・`PhysicsDeterminismTest` でテスト済みだった。**pyro 側は逆で**、`Artifact/` に `pyro|Pyro|PYRO` の出現がゼロで、`PhysicsSystem.cppm` の pyro ブリッジ 5 箇所（`:19, 501, 1044, 1065, 1177`）は全て `#ifdef ARTIFACT_ENABLE_PYRO` 囲み。**そのマクロを定義する `.txt`/`.cmake` がリポジトリに存在しない**（全構成ファイルに grep してヒットなし）ため、`createPyroSimulation` / 毎フレーム `step()` は現状コンパイルされない。`PyroBackendKind::GPUCompute` は `toString` の case ラ벨（`PyroSimulation.cppm:889`）だけが唯一の参照。`PyroFieldChannel::Color` も `PyroFieldSet` に storage が無い宣言のみ。pyro のテストもゼロ件。
+- **訂正したドキュメント:** `docs/planned/MILESTONE_FLUID_COMPONENT_VS_PYRO_DOMAIN_SPLIT_2026-07-01.md:9` の「GPU backend は enum／契約上の存在に留まり」は 2026-09-27 時点で**そのまま正しい**（過大評価ではなく）。一方同 doc の Phase ログ（`:145, 257, 264, 279, 287, 294, 315, 322`）が「**Property** へ接続した」と書く `component.fluid.*` 設定 26 個は、`getComponentPropertyGroups` に登録されているのが `component.fluid.enabled` **1 個だけ**（`ArtifactAbstractLayerPropertyGroups.cppm:1098`）だった。setter（`ArtifactAbstractLayerPhysicsRouting.cppm:514-762`）・descriptor settings・JSON 保存は揃っているが **UI から到達できない**。Inspector の `componentInspectorFilter("Fluid")` はこの1件にのみマッチする。
+- **smoke 経路の実態:** `renderLayerSmokeRuntime`（`ArtifactLayerFluidRuntimeState.cppm:43-151`）は注入を 1 点（`centerX = gridWidth/2`, `centerY = gridHeight-3`）に固定し、`sin(frame*0.07f)` のプロシージャル渦を `addDensity`/`addVelocity` している。`emitterCount`/`emitterSpeed` は fluid 設定ではなく **Particle Emitter component から供給**されている（`ArtifactAbstractLayerFractureRuntime.cppm:737-738` が `impl_->particleEmitterCount_`/`particleEmitterSpeed_` を aggregate init している）。描画色は `r=0.42, g=0.72, b=1.0` の固定青、28x28=784 粒子を Additive+VelocityAligned で描く。**`FluidVisualizer`（`ImageProcessing.FluidVisualizer`）は完全に孤立**——`import` する箇所も `render()` を呼ぶ箇所も grep ゼロで、fire-gradient 分岐も到達不能。`ToolType` 30 値に流体関連は無く、マウス/ギズモからの流体注入経路は**存在しない**（非テストの `addDensity` 呼び出しはプロシージャル emitter と `ParticleSystem.ixx:422-429` の audio reactivity のみ）。
+- **対応:** コード変更はせず、`docs/planned/` に 2 マイルストーンを新設した——`MILESTONE_PYRO_DOMAIN_LAYER_INTEGRATION_2026-09-27.md`（Phase 0 で `ARTIFACT_ENABLE_PYRO` の有効化可否を切り分け、Phase 1-4 で component/Property/emitter/可視化/テスト。GPU 実装は非対象）と `MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md`（Phase 0 で入力経路の評価、Phase 1-2 で emitter と色の Property 化、Phase 3 でビューポートかき混ぜ、Phase 4 で parity）。**Phase 1 で既存 fluid と同じ「setter はあるが Property 未登録」の欠陥を再現しないことを受入条件に明記した。**
+- **価値または懸念（未検証）:** 2 つのマイルストーンいずれも**ビルド未実施**。Phase 0 の `ARTIFACT_ENABLE_PYRO` 有効化は `PhysicsSystem.cppm` の 5 ブロックを新たにコンパイル対象にし、**モジュール境界や型不一致によるビルド破壊の可能性がある**ため工程の最初に置いた。また Phase 3 のビューポート注入は毎フレーム drag 状態を読み取る形でないと、solver の毎フレーム再計算（`renderLayerSmokeRuntime.cppm:70-94` で 10 フレーム以上 ギャップで reset）に食われて消えるという設計上の制約を明記した。
+- **次に確認すべきこと:** ① `ARTIFACT_ENABLE_PYRO` を有効化したとき `PhysicsSystem.cppm` がコンパイルできるか（Phase 0 の実測）、② pyro の `PyroFieldChannel::Color` を宣言のまま残すか実装するか、③ smoke の fluid 側 Property 26 個が Inspector から本当に到達せずグループ表示されないのか（実 UI 確認）、④ `FluidVisualizer` の孤立コードを削除するか、別用途（CPU 屈折の受け口）へ移すか。
+
+## 2026-09-27 — pyro / smoke 両マイルストーンの Phase 0 調査完了。pyro は宏1行、smoke は新規 ToolType 不要と確定
+
+- **関連:** `ArtifactCore/src/Physics/PhysicsSystem.cppm`、`ArtifactCore/include/Simulation/PyroSimulation.ixx`、`ArtifactCore/CMakeLists.txt`、`Artifact/CMakeLists.txt`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`Artifact/src/Tool/ArtifactBrushTool.cppm`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm`。
+- **pyro Phase 0 の結論（実コード照合）:** **`ARTIFACT_ENABLE_PYRO` の `target_compile_definitions` 1 行追加でよい。** CMake の接続は既に完了していた。`ArtifactCoreSimulation` STATIC は定義済み（`ArtifactCore/CMakeLists.txt:6202-6214`）、`include/Simulation/` は依存ターゲットが `ArtifactCoreSimulation.dir` に解決される（`:2577-2578`）、`PhysicsSystem.cppm` は既に `Core.Simulation.Pyro.ifc` の `/reference`（`:1227`）と `OBJECT_DEPENDS`（`:1234`）を持ち、`Artifact` の `target_link_libraries` に `ArtifactCoreSimulation` は列挙済み（`Artifact/CMakeLists.txt:2727`）。`PyroSimulation` は `PyroSimulation() = default` を持つ（`PyroSimulation.ixx:260`）ため `makeShared<PyroSimulation>()` と整合する。**ファイル単位やリンク順の問題は存在しなかった。**
+- **pyro の留意点:** `PyroSimulation` に `LIBRARY_DLL_API` が無い（`PyroSimulation.ixx:258`）が、`PhysicsSystem` 自体も無い（`PhysicsSystem.cppm:161`）ため全 static 構成では問題にならない。`checkpointCache_` は `std::unordered_map<uint64_t, PyroFieldSnapshot>` で、レイヤー側 checkpoint と二重管理にならないよう注意が必要。
+- **smoke Phase 0 の結論（実コード照合）:** **新しい `ToolType` は不要。既存 `Brush` 系に mode flag を足す。** press/move の入力は既に 2 箇所に集約されている——press は `ArtifactCompositionRenderController.cppm:26452-26509`（`viewportToCanvas` は `:26490-26492`、`mousePressEvent` は `:26502-26503`）、move は `:29255-29274`（`viewportToCanvas` は `:29261-29263`、`mouseMoveEvent` は `:29269`）。両方とも既に `markRenderDirty()` を呼ぶ。`ArtifactBrushTool` には既に `setRotoInputMode(bool)` / `setEraserMode(bool)` があり（`ArtifactCompositionRenderController.cppm:26500-26501` で使用）、fluid も対称に `setFluidInputMode(bool)` を追加できる。**Undo は行わない**方針を確定（solver バッファは毎フレーム再計算されるため意味が無い）。
+- **smoke の重大な発見:** **`ArtifactAbstractLayer` に fluid コンポーネントの有効状態を取得する公開 API が無い。** `fluidComponentEnabled_` は `ArtifactAbstractLayer::Impl` の private メンバで、`boolFromHost`（`ArtifactAbstractLayer.cppm:420-430`）が内部で同期するだけで、layer 外から読み取る接口が存在しない。`ArtifactAbstractLayer.ixx` に `findByType` / `hasComponent` 系の宣言は 0 件。**Phase 3 には読み取り専用 getter の追加が必須**になる。これは新規 signal ではなく既存方針と矛盾しない。
+- **対応:** コード変更はせず、2 つのマイルストーンの Phase 0 節を実コード照合結果で書き換えた（pyro は「1 行追加でよい」と明記、smoke は「新規 ToolType 不要 / Undo なし / getter 追加が必須」を明記）。smoke の Phase 3 節も新知見に合わせて更新。
+- **価値または懸念（未確認）:** Phase 0 は調査のみ。**ビルドは未実施**のため、pyro の宏1行追加が実際に通るかは未確認。smoke の getter 追加は `ArtifactAbstractLayer.ixx` のモジュール変更になるため、モジュール再スキャンの影響を持ちうる。
+- **次に確認すべきこと:** ① `target_compile_definitions(ArtifactCore PUBLIC ARTIFACT_ENABLE_PYRO)` を追加して `PhysicsSystem.cppm` が通るか（実装＋ビルド）、② `ArtifactAbstractLayer` に fluid 有効 getter を追加することが妥当か、または既存の `getComponentPropertyGroups` 経由で判定する方が既存方針に沿うか。
+
+## 2026-09-27 — SolidRect バッチは clear-only 回帰のため保留、診断ゲートは既存 opt-in に追従させた
+
+- **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`、`Artifact/src/Render/ArtifactTextGlyphSubmitter.cppm`。
+- **確認できた事実（実コード照合）:** `kSolidRectBatchValidated = false`（`DiligentImmediateSubmitter.cppm:925`）は、batchReady が常に false になるため `DrawIndexedIndirect` 経路（`:944`）が到達不能。`m_batch_solid_rect_cpu_` の頂点計算（`:1153-1172`）は `row0.x*u + row0.y*vv + row0.w` を `row3` の w で除算し、非Xform パス（`:1128-1139`）とは別経路。**clear-only frame の原因はこの2経路の clip 空間変換のいずれかに起因する可能性があるが、静的レビューでは特定できない**（描画されたフレームが必要）。
+- **対応:** D（バッチ有効化）は保留し、コメントに「1行で有効化できる価値」と「静的レビューでは確定できない」を明記した。採用した3点はいずれも正しさがコードで明白なもの：A（FrameDebug レコード生成を `ARTIFACT_ENABLE_CONTINUOUS_RENDER_DIAGNOSTICS` に追従させてゲート）、B（`present()` の 9連続 `.arg()` を `SubmitDiagnosticKey` タプル比較の `if` 内へ移動）、C（`ArtifactTextGlyphSubmitter` の atlas texture / VB / CB をキャッシュ再利用、`DRAW_FLAG_VERIFY_ALL` を `DRAW_FLAG_NONE` に）。
+- **価値または懸念（未検証）:** A のゲートは FrameDebug 画面から submitter 由来のパス行が消える。`ARTIFACT_ENABLE_CONTINUOUS_RENDER_DIAGNOSTICS=1` で従来と同一内容に戻る。C の atlas キャッシュは `GlyphAtlas::isDirty()`（`GlyphAtlas.ixx:119`）をキーにし、upload 後に `clearDirty()` する。`QImage` のアドレスや `sizeInBytes()` をキャッシュキーにすると in-place な画素更新を検出できず危険。**A/B/C の効果量・ビルド・実機はすべて未確認。** また作業ツリーには本件以外の未コミット変更（HarfBuzz shaping 化、emoji glyph キャッシュ拡張）があり、diff 混在状態。
+- **次に確認すべきこと:** ビルド許可を得たうえで ① FrameDebug 画面が診断 on/off で期待どおり変化するか、② `ARTIFACT_ENABLE_CONTINUOUS_RENDER_DIAGNOSTICS=1` で従来内容と一致するか、③ glyph テキスト描画がキャッシュ導入後も正しく atlas 差分更新されるか（特に atlas 満杯時の `clear()` 後）、④ SolidRect バッチの clear-only 回帰を実フレームで再現し、clip 空間変換の2経路の差分を特定する。
+
+
+## 2026-09-27 — SolidRect/Checkerboard/Grid/GradientRect の頂点バッファは「色込み」で毎 draw 上書きされていたが、シェーダーは位置しか読んでいなかった
+
+- **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm`、`Artifact/include/Render/DiligentImmediateSubmitter.ixx`、`Artifact/src/Render/ShaderManager.cppm`、`ArtifactCore/src/Graphics/Shader/BasicVertexShader.cppm`。
+- **確認できた事実（実コード照合）:** solid 系 PSO の頂点レイアウトは `LayoutElement{0, 0, 2, VT_FLOAT32, false, 0, 6*sizeof(float)}`（`ShaderManager.cppm:744-746`）で **ATTRIB0 = float2（位置のみ）**。シェーダー側も `drawSolidRectVSSource`（`BasicVertexShader.cppm:114-146`）と `drawSolidRectTransformVSSource`（`:170-198`）はいずれも `VSInput{ float2 pos : ATTRIB0 }` のみで、`PSInput` は `pos` と `uv` を持つだけ。**頂点色はどの solid 系シェーダーからも読まれていない**。にもかかわらず `submitSolidRect` / `submitSolidRectXform` / `submitGradientRect` / `submitCheckerboard` / `submitGrid` は 4頂点（position + color, 24 byte/頂点）を**毎 draw .MapBuffer→memcpy→Unmap** していた。Checkerboard/Grid は元から色 `{1,1,1,1}` 固定で完全に冗長、SolidRect 系は packet の色が焼かれてTakashi Shigeruも読まれていない。
+- **対応:** `USAGE_IMMUTABLE` の unit quad VB `m_draw_solid_rect_unit_quad_vb_`（`{{0,0},{1,0},{0,1},{1,1}}`, 色白）を `createBuffers` に追加し、上記5 submitter の頂点アップロードと `SetVertexBuffers` バッファ指定を差し替え。`submitLine`（`p.p1/p.p2` が可変）と `submitRectOutline`（`p.xform.scale` から幅高算出）は可変座標のため共有動的バッファ `m_draw_solid_rect_vertex_buffer` のまま据え置き。
+- **価値または懸念（未検証）:** SolidRect 密集フレーム（2D 合成・画面|Chrome）に 5 draw あたり 1回の MapBuffer 削減。**ただし `mapWriteDiscard` は `MAP_FLAG_DISCARD` で GPU 待ちと直列化しないため、削減量は未計測。** 別途 GradientRect は元実装で `vertexColor = {1,1,1,p.opacity}` を焼いていたが、gradient PS は `GradientCB.startColor/endColor.w` に opacity を適用済みで（`DiligentImmediateSubmitter.cppm:1434-1436`）頂点色は未使用だったことを確認済み。**ビルド・実機は未確認。**
+- **次に確認すべきこと:** ビルド後、solid 矩形・グラデーション・チェック柄・グリッドの表示が従来と同一か（特に Checkerboard/Grid は元から色白固定で、頂点を白へ固定した影響がゼロであることの目視確認）。`ARTIFACT_ENABLE_CONTINUOUS_RENDER_DIAGNOSTICS=1` で solid 系の debug パスが不変か。`bufferUpdates` カウンタ（`RenderCostStats::bufferUpdates`）が減っているかの確認。
+
+
+## 2026-09-27 — ParticleRenderer の debugState_ を QString から enum へ（ホットパスの文字列生成をゼロに）
+
+- **関連:** `ArtifactCore/include/Graphics/ParticleRenderer.ixx`、`ArtifactCore/src/Graphics/ParticleRenderer.cppm`、`Artifact/src/Render/DiligentImmediateSubmitter.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`、`docs/technical/HOT_PATH_RULES.md`。
+- **確認できた事実（実コード照合）:** `debugState_` は `QString` メンバで、24 箇所の関数から `QStringLiteral(...).arg(...)` で**毎フレーム再構築**されていた。ホットパス上の実行は `setProjectionMatrix` / `setViewMatrix` / `setModelMatrix` / `updateBuffer` / `prepare` / `draw` の 6 関数（`submitParticles` がParticlePkt ごとに全部呼ぶ）。 PARTICLE が無いフレームでも `setXxxMatrix` は `submitParticles` からのみ呼ばれるため影響は粒子使用時のみ。**より深刻なのは `DiligentImmediateSubmitter.cppm:1353-1354` の `const QString preparedState = debugState(); if (!preparedState.startsWith("state=prepared"))` で、制御フロー判定に文字列を使っていた**。
+- **対応:** `DebugState` enum（`std::uint8_t`、24 値）を追加し、状態は `debugState_`（値）+ 数値/フラグメンバ（`debugCount_` / `debugUploaded_` / `debugMax_` / `debugA_` / `debugB_` / `debugFlagA_`〜`debugFlagC_`）で保持。文字列生成は `debugStateText()` の switch に集約し、**実際に報告する時だけ**呼ばれる。公開 API は `debugState()` が enum を返す（inline、アロケーションゼロ）、`isPrepared()` を追加、`debugStateText()` を追加。`submitParticles` の判定は `debugState().startsWith()` ではなく `isPrepared()` を使う。`ArtifactIRenderer::particleDebugState()`（`frameDebugSnapshot` 経由、UI ポーリング時のみ）だけが `debugStateText()` を呼ぶ。
+- **価値または懸念（未検証）:** 粒子使用フレームで QString 生成がゼロになる。`HOT_PATH_RULES.md:100`「診断が無効なときは文字列を構築しない」に合致。**ただし旧 `debugState_` は「最後に何か起きた状態」を保持していたのに対し、新実装も同じ（enum 上書き）**ため、`debugStateText()` の出力内容は状態ごとに同じフィールド 조합を再現しない场合がある（特に `PsoReady` と `Drawn` は別 enum 値なので互いに上書きしない）。`setModelMatrix` は旧実装で成功時に状態更新していなかったが、新実装では `MatrixUpdatedModel` を設定するため `debugStateText()` の出力が `state=matrix-updated model=1` に変わる。**ビルド・実機は未確認。**
+- **次に確認すべきこと:** ビルド後、粒子レイヤーの描画が従来と同一か。`ArtifactIRenderer::particleDebugState()`（Frame Debug 画面）で `state=` 文字列が従来とacceptableか、特に `state=matrix-updated` の変化。`qWarning` の警告メッセージは文字列を直接 `<<` している箇所は変更していないため、警告出力のログは同一であるべき。
+
 
 ## 2026-09-26 — Text Animator 整合性監査：3つの追加関数がプロパティキャッシュを更新せず、Undo でキーフレームが消える
 
@@ -3083,3 +3131,90 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** 現段階では各computer内に閉じたclear pipelineを持たせ、公開APIやモジュール依存を広げずに正しい同期を優先した。
 - **価値または懸念（未検証）:** 重複は小さいが、今後GPU解析器が増えるとclear shaderとバッファ検証が分散する。早期に共通化すると逆に低レベル依存を広げるため、3個目の利用箇所と実測されたPSO初期化コストが揃うまでは保留が妥当。
 - **次に確認すべきこと:** 新しいGPU解析器を追加する時点で、内部限定のbounded UAV-clear utilityへ切り出すか、バックエンド標準clear APIの利用可否をD3D12/Vulkan両方で確認する。
+
+
+## 2026-09-27 — Qt 6 はフォントファイルパスと sfnt bytes 全体を公開していない
+
+- **関連:** `ArtifactCore/include/Font/FreeFont.ixx`（`FontManager::fontFileBytes`）、`ArtifactCore/src/Text/TextShapingBackend.cppm`（`acquireHarfBuzzFace`）、`build/vcpkg_installed/x64-windows/include/Qt6/QtGui/qfontdatabase.h`。
+- **確認できた事実:** Qt 6.10.2 の `QFontDatabase` に `findFontFile()` は存在せず、`QRawFont::fontTable(const char*)` / `fontTable(QFont::Tag)` は単一 OpenType テーブルしか返さない（`qrawfont.h:107-108`）。したがって公開 API だけで `QFont` → ファイル bytes の変換は不可能で、harfbuzz の `hb_face_t` を得るには自前の解決が必要。既存コードには OS フォントの解決済み経路として `GlyphAtlas.cppm:49-69` の DirectWrite（Windows 専用）がある。
+- **対応:** `FontManager::fontFileBytes(family, style)` を追加し、`addApplicationFont()` で登録した family→path の対応表と、OS フォントディレクトリ走査（Windows は `%WINDIR%\Fonts`、その他は `/usr/share/fonts` 等）の2段で解決する。解決できないフォントは Qt fallback のまま残る。
+- **価値または懸念（未検証）:** 家族名→実ファイル名の照合は Windows のフォント登録規則に依存する approximated match（`contains()` フォールバック含む）であり、誤マッチの可能性が残る。実測・実行検証は行っていない。
+- **次に確認すべきこと:** 主要フォント（Yu Gothic UI / Segoe UI / Arial / Noto CJK）で `fontFileBytes()` が正しいファイルを返すか、family 名に空白やスタイル名を含む場合の照合精度、陈腐化したキャッシュ（OS フォント追加／削除後の再解決）を確認する。
+
+
+## 2026-09-27 — HarfBuzz は行分割を行わないため座標系が Qt 経路と一致しない
+
+- **関連:** `ArtifactCore/src/Text/TextShapingBackend.cppm`（`shapeWithHarfBuzz`、`layoutWithQtTextLayout`）、`ArtifactCore/include/Text/TextLayoutContract.ixx`（`GlyphItem::basePosition` / `bounds`）。
+- **確認できた事実:** `GlyphItem::basePosition` は Qt 経路では絶対 pen 位置（`xOffset + localX`, `y + line.ascent`）、`bounds` は矩形（`TextShapingBackend.cppm:980,987`）で、行分割・折り返し・整列（Center/Right/Justify）を Qt の `QTextLayout` が担当している。HarfBuzz は run の shaping のみで ink.box と仮 advance を返すため、x_advance をそのまま `basePosition` に書くと contract の座標契約に反する。`hb_glyph_position_t` の `y_advance` は通常の水平書記では常に 0。
+- **対応:** pen を明示的に積み上げて絶対 `basePosition` と `bounds` を生成し、26.6 fixed point は `1/64` で float 変換。行分割が未実装の段階では、`boxWidth > 0`（折り返し指定）または改行文字を含むテキストは Qt へ委譲するガードを入れ、単一行の unwrapped テキストのみ HarfBuzz 経路で処理する。`info.cluster` は UTF-32 インデックスなので既存の `buildContract()` / `makeIdentityResult()`（codepoint 基準）とそのまま整合する。
+- **価値または懸念（未検証）:** 単一行テキストに対する HarfBuzz の glyph 並びは正しく並ぶはずだが、実機での位置合わせ・ベースライン・Platform 差（DirectWrite と FreeType の hinting）は未検証。`logicalToVisual` / `visualToLogical` は `makeIdentityResult()` の恒等写像のままで、RTL・bidi は visual reverse されない。`FontManager::fontFileBytes()` の解決失敗時も Qt へ落ちるため、family 名の合致 oversight は「HarfBuzz 経路が静かに使われない」形で現れる可能性がある。
+- **次に確認すべきこと:** Latin / CJK / アラビア語 / 絵文字 ZWJ（`👍🏽`, `🏳️‍🌈`）で Qt 経路と並走し、glyph 数・cluster・ベースライン位置を pixel 比較する。複数行テキストと `boxWidth` 指定が確実に Qt へ落ちること、RTL テキストの visual 順序が壊れていないことを確認する。
+
+## 2026-09-27 — ArtifactPr の合成結果は descriptor が Unknown のため、CPU/GPU で同じ色になるとは限らない
+
+- **関連:** `ArtifactCore/include/Image/SurfacePixelConversion.ixx`（`convertSurfacePixels`、`decodeToLinear`、`decodeLegacySrgbBoundary`）、`ArtifactCore/include/Graphics/SurfaceColorContract.ixx`（`unknownRgba32Float`）、`ArtifactPr/src/SequenceCompositor.cppm`、`ArtifactPr/src/GpuProgramMonitor.cppm`。
+- **確認できた事実:** `ArtifactPr` の合成結果は `ImageF32x4_RGBA::resize` / `fill` で作られ、その descriptor は `SurfaceColorDescriptor::unknownRgba32Float()`（`transferKnown == false`, `primaries == Unknown`, `alphaMode == Unknown`）のまま。`toQImage()` は `convertSurfacePixels(..., Rgba8SrgbStraight)` を通り、`decodeToLinear` は `!transferKnown` のため `decodeLegacySrgbBoundary`（範囲内なら `srgbToLinear`）を選び、続けて `linearToSRGB` で再エンコードする。つまり CPU 経路は「sRGB として_decode→linear→sRGB 往復」しており、identity ではない。GPU シェーダーもこれと同じ往復を実装して初めて CPU とピクセル値が比較できる。
+- **対応:** `kProgramMonitorPS` に `srgbToLinear` / `linearToSRGB` / `decodeLegacySrgbBoundary` を同じ定数（0.04045 / 12.92 / 0.0031308 / 1.055 / 2.4 / 0.055）で入れ、`toQImage` と同じ順序・同じ alpha クランプ・`alpha <= 1e-6` のゼロ化も揃えた。uv の orientation は `Artifact/shaders/globals.hlsli:1074-1080` の `vertexID_create_fullscreen_triangle` と同じ式にした。
+- **価値または懸念（未検証）:** descriptor が Unknown なので「本来は linear 前提」の画像（OpenCV で読んだ素材など）は CPU 側で意図せず 2 度高彩度になる可能性がある。今回 GPU にしたことで surface が揃いやすくなったので、この contract を `SequenceCompositor` 側で正規 descriptor（`canonicalLinearPremultiplied` など）へ明示するかどうかは別途検討が必要。PSO の RTV format は swap chain の実 format に合わせているが、HDR 有効時の `RGBA16_FLOAT` で表示が変わらないかは未確認。viewport は Diligent 側が `devicePixelRatio` を適用した値を使っている。
+- **次に確認すべきこと:** 同一 `ImageF32x4_RGBA` を CPU `toQImage` と GPU present で side-by-side 撮影し、pixel diff を取る（平坦なグレーと彩度の高い赤で差が出るはず）。`setGpuPresentEnabled(false)` から CPU 復帰時に `WA_PaintOnScreen` が完全に解除されて再描画されるか、device loss 時に `reset()` 後の子 HWND `DestroyWindow` が成功するかを確認する。
+
+## 2026-09-27 — ArtifactPr の QtAdvancedDocking 依存を撤去し、DockSurface を自前実装した
+
+- **関連:** `ArtifactPr/include/DockSurface.ixx`、`ArtifactPr/src/DockSurface.cppm`、`ArtifactPr/src/ArtifactPrMainWindow.cppm`、`ArtifactPr/CMakeLists.txt`。
+- **背景:** ArtifactPr は QADS (`qtadvanceddocking-qt6`) を REQUIRED で link していたが、接触は `ArtifactPrMainWindow` の 1 ブロック（10 個の `ads::CDockWidget` 生成と `addDockWidget` / `addDockWidgetTabToArea`）だけだった。レイアウト永続化は QADS 既定の `saveState()` を呼ぶだけで、QSettings への書き出しは未実装だった。
+- **実装:** `DockSurface` を PImpl で新設。5 エリア (Left/Center/Right/Top/Bottom) を `QSplitter` + `QTabWidget` で構成し、`floatDockWidget` / `floatDockTabGroup` は所有するトップレベル `QDialog` として表現。タブのドラッグは `QDrag` で `application/x-artifactpr-dock-id` MIME を運び、drop 先が `QTabWidget` ならタブ挿入、area なら `moveDockWidget`。`saveLayoutState()` / `restoreLayoutState()` は JSON（version 1、entries + areaTabPositions）で往復し、`ArtifactPrMainWindow::closeEvent` が QSettings (ArtifactStudio/ArtifactPr) へ保存、コンストラクタ終端で復元する。
+- **価値（確度高い）:** vcpkg の `qt-advanced-docking-system` 依存が、Artifact 側の opt-in `ARTIFACT_QADS_COMPAT_*`（既定 OFF）だけを残して消えた。QADS の floating resize や palette propagation の既知バグ（`docs/bugs/BUG_QADS_FLOATING_*.md` 群）からも解放される。
+- **懸念（未検証）:** 実ビルド・実機確認は未実施。QADS と異なる点として、(1) アクティブタブのフォーカスアクセント（violet contour + underline）は未実装で、標準 `QTabWidget` のスタイルに委ねている。(2) タブを誤って閉じないための pinned 機能は未実装で、Artifact 側の `NativeDockSurface` が持つ `setDockPinned` 相当がない。(3) ドラッグの `areaForPosition` は QADS の dock guide のようなガイド表示を持たず、位置からの推定のみ。(4) `dropEvent` の `event->target()` 経路がタブ挿入優先の判定を簡易化しており、実 drag で意図したタブへ入らない可能性がある。
+- **次に確認すべきこと:** `cmake -DARTIFACT_BUILD_PR=ON` で configure して `ArtifactPr` ターゲットが通るか。通ったら ① タブ drag の順序変更 ② float → 再 dock ③ 終了→再起動でレイアウト復元 ④ close タブ → tab list から restore、を順に実機で確認する。特に (4) の drop 判定は最初に見るべき。
+
+
+## 2026-09-27 — ICU は qtbase の推移依存で既にディスク上にあったが、名前が無かった
+
+- **関連:** `vcpkg.json`、`ArtifactCore/CMakeLists.txt`（`find_package(ICU REQUIRED COMPONENTS uc)`）、`build/vcpkg_installed/x64-windows/include/unicode/`、`build/vcpkg_installed/x64-windows/share/harfbuzz/harfbuzzConfig.cmake`。
+- **確認できた事実:** ICU 78.2 のヘッダ（`uscript.h` / `ubidi.h` / `uchar.h`、205ファイル）は既に `vcpkg_installed` にあり、qtbase の feature として導入されていた。`icuuc.lib` も存在した。一方 `harfbuzzConfig.cmake:39` の `HARFBUZZ_FEATURES` は `core;freetype` のみで、同ファイルの `icu` ブロック（`:71-74`）は dead コードだった。**つまり HarfBuzz の unicode 関数は ICU ではなく内蔵実装のままで、ICU をリンクしても HarfBuzz の unicode 関数が ICU になるわけではない。**
+- **対応:** `vcpkg.json` に `icu` を名前として追加し、`ArtifactCore` から `ICU::uc` をリンク。script property と UAX #9 は ArtifactCore 側が ICU を**直接**使う。
+- **価値または懸念（未検証）:** 名前が無い依存は「使えるのに使っていない」状態で、発見にはディスク上の実体確認が必要になる。icuuc / icuin / icudt / icutu / icuio のうち `uc` のみで十分なのは、script と bidi が `uc` にあるため。リンク時間への影響は未計測。
+- **次に確認すべきこと:** `find_package(ICU REQUIRED COMPONENTS uc)` が `icuuc.lib` のみに解決されることを確認する。`icu` feature を HarfBuzz に有効化する必要があるか（unicode 関数を ICU 実装に切り替えたい場合）を判断する。
+
+
+## 2026-09-27 — 「未検出」を既定値にするとセレクタが嘘を伝播する
+
+- **関連:** `ArtifactCore/src/Text/TextShapingBackend.cppm`（`scriptTagForCodepoint`、`isComplexScriptTag`）、`ArtifactCore/include/Font/FreeFont.ixx`（`resolvedFamilyForText`）。
+- **確認できた事実:** 旧 `scriptTagForCodepoint()` は未検出の文字に `Latn` を返していた。これは単なる「未対応」ではなく、`contract.scriptRuns` 経由で Text Animator のセレクタとインスペクタに誤った値を渡すことになる。**同じ「既定値が嘘になる」形が `FreeFont.ixx:227` にもあり、`needsFallback` が `containsCjkCharacters() || containsEmojiCharacters()` で AND されているため、Devanagari / Thai / Arabic / Hebrew の glyph 欠落を検出しても fallback が発火しない。** 検出できた場合は正しいが、検出できなかった場合の既定値が「無害な fallback」ではなく「存在しない字体」になっている。
+- **対応:** script は `Zyyy`(Common) / `Zinh`(Inherited) をそのまま返すようにした。「スクリプトを持たない文字」は「スクリプトを持つ文字」ではない、という区別を contract に残す。`isComplexScript` の判定も「`Latn` 以外」ではなく複雑 script の明示リストにした（`Zyyy` / `Zinh` は複雑ではない）。
+- **価値または懸念（未検証）:** **フォント fallback の gate は未修正**。script 判定が正しくなっても、Preferred 字体が Devanagari を持たない場合 `needsFallback` は false のままで、豆腐のまま描画される。script を正しくするだけではフォールバックは直らない。
+- **次に確認すべきこと:** `FreeFont.ixx:227` の gate を撤廃して「Preferred 字体有这个 codepoint の glyph があるか」だけを条件にする。script キーの fallback テーブル（Devanagari → Noto Sans Devanagari、Thai → Noto Sans Thai、Arabic → Noto Naskh Arabic など）を追加し、対応する字体を同梱するかどうかを決める。
+
+
+## 2026-09-27 — shaping 成果が「正しいのに描かれない」原因はキャッシュのキーが狭すぎた
+
+- **関連:** `Artifact/src/Render/PrimitiveRenderer2D.cppm`（`ResolvedGlyphFont`、`resolvedGlyphFont`）、`Artifact/src/Render/DiligentImmediateSubmitter.cppm`（同名のキャッシュ）、`ArtifactCore/src/Text/GlyphAtlas.cppm`（`acquire`）、`ArtifactCore/include/Text/GlyphAtlas.ixx`（`GlyphKey`）。
+- **確認できた事実:** `GlyphKey` は `shapedGlyphIndex` / `shapedGlyphIndices` / `sequenceUtf8` を持っており、`GlyphAtlas::acquire` も `shapedGlyphIndex != 0` ならそちらを優先する（`GlyphAtlas.cppm:355`）。**しかし production の2つのレンダラは `charCode` だけで GlyphKey を作り、これらの欄を空にしていた。** atlas は `glyphIndexesForString(QString::fromUcs4(&key.codePoint, 1)).first()` で1 codepoint の glyph を引くので、U+0301 は glyph index 0 になり `valid=false`（`:360-365`）で描かれない。`shapedGlyphIndex` を実際に埋めていたのは `ArtifactTextGlyphSubmitter.cppm` だけで、Insight.md に「未接続」と記録された smoke 用 Piece だった。emoji ZWJ も同じ理由で最初の codepoint だけになり、ZWJ（index 0）が飛ばされた。
+- **対応:** キャッシュの同一性判定に `shapedGlyphIndex` と `clusterText` を含め、`resolvedGlyphFont` を `GlyphItem` を受ける形にした。ハッシュには `shapedGlyphIndex` と `clusterText.size()` を使い、全文比較は衝突時のみ行う。`renderModeForCodePoint` の再推測もやめ、contract の `glyph.renderMode` を使う。
+- **価値または懸念（未検証）:** **「データ構造は準備済みなのに production パスへ接続していなかった」典型例。** 契約（`GlyphKey::shapedGlyphIndex`）と実装（`acquire` の優先分岐）は 2026-08-14 の時点で既に正しく、production 2箇所の接続だけが欠けていた。shaping を正しくしても、キャッシュのキーが狭ければ情報は黙って捨てられる。Font キャッシュを `codePoint` だけで持つ設計は「1 codepoint → 1 glyph」が暗黙の前提になっている場合にだけ安全で、shaping を入れると破綻する。
+- **次に確認すべきこと:** `ResolvedGlyphFont` の 2048枠が `clusterText` の QString コピー込みで足りるかを測る。script run ごとに `shapedGlyphIndex` が変わるため、cache hit 率が下がっていないかプロファイルする。`ArtifactTextGlyphSubmitter` を production に繋ぐか smoke 専用として残すかを決める（`Insight.md` の「未接続」記録を解消する）。
+
+
+## 2026-09-27 — QLocale::name() は POSIX 形式、HarfBuzz は BCP-47 を期待する
+
+- **関連:** `ArtifactCore/src/Text/TextShapingBackend.cppm`（`toBcp47LanguageTag`、`shapeWithHarfBuzz`）、`ArtifactCore/src/Text/GlyphLayout.cppm`（`TextLayoutEngine::layout`）、`Artifact/src/Layer/ArtifactTextLayer.cppm` / `Artifact/src/Render/DiligentImmediateSubmitter.cppm`（`request.locale` の設定）。
+- **確認できた事実:** production の3経路は `request.locale = QLocale::system().name()` を設定していたが、Windows 上の値は `"tr_TR"` のようなアンダースコア形式。HarfBuzz の `hb_language_from_string` は BCP-47（`"tr-TR"`）を期待し、アンダースコア形式は `HB_LANGUAGE_INVALID` を返す。つまり **トルコ語の点なし i が反映されない状態だった。** さらに `TextLayoutEngine::layout` は空文字を渡し、HarfBuzz 経路に language が渡らないケースがあった。
+- **対応:** `toBcp47LanguageTag()` でアンダースコアをハイフンに変換してから `hb_buffer_set_language` に渡す。language だけでなく script も明示的に渡す（`locl` の選択には script が必要）。`TextLayoutEngine::layout` も `QLocale::system().name()` に変更。
+- **価値または懸念（未検証）:** locale は**テキストの言語ではなく宿主の言語**。`QLocale::system().name()` は OS の UI 言語なので、ファイルやペーストされたテキストの言語とは一致しない。OS が `tr_TR` なら無関係なテキストに点なし i が適用される可能性もある。テキストごとの locale 指定は `TextShapingRequest.locale` で既に可能だが、それを設定する UI が存在するかは**未確認**。
+- **次に確認すべきこと:** `TextShapingRequest.locale` を UI から設定できる経路があるか確認する。テキストの言語を自動判定するなら、script 検出（ICU 済）と Unicode の language tag（script からの推定）から求める手もある。`locl` の実効を `i` / `İ` / `ı` の3形態で shaped glyph index を比較して検証する。
+
+## 2026-09-27 — ArtifactPr の dock は一度もビルドされていないため、PImpl 型ミスマッチが潜伏していた
+
+- **関連:** `ArtifactPr/include/DockSurface.ixx`（削除済み）、`ArtifactPr/src/DockSurface.cppm`（削除済み）、`ArtifactPr/src/ArtifactPrMainWindow.cppm`（`setCentralWidget`、10 パネルの `addDockWidget`）、`ArtifactPr/include/ArtifactPrMainWindow.ixx`、`ArtifactPr/CMakeLists.txt`、`Artifact/include/Widgets/Dock/NativeDockSurface.ixx`、`Artifact/include/Widgets/Dock/DockManager.ixx`、`Artifact/CMakeLists.txt`（`ArtifactDockFoundation`）。
+- **確認できた事実（静的読み取り、ビルド未実行）:** `ArtifactPr` には `Artifact.NativeDockSurface` の独立 fork である `ArtifactPr.DockSurface` が存在した。データモデル（`QHash<QString,QWidget*>` の dock 登録、固定 5 個の `QTabWidget` メンバ、`QHash<QString,QDialog*>` の浮動管理）、JSON キー構造、`tabGroup` の `tabs:` / `floating-tabs:` 規則、`area` の文字列表現は `Artifact` 側と**一致**していた。差分は `Area` enum の**数値**（Artifact は `Right=1, Center=4`、ArtifactPr は `Center=1, Right=2`）、`pinned`、`DockTabBar` / `DockSurfaceStyle` の owner-draw、`DockDropPreview`、`DockSplitter`、`qApp->installEventFilter` の欠落だった。**旧 `DockSurface` は PImpl のみで `QWidget` を継承しておらず**、`ArtifactPrMainWindow.cppm` の `setCentralWidget(dockSurface)` に暗黙変換が成立しない。`ARTIFACT_BUILD_PR` は既定 OFF（全 preset で OFF）で `out/build/x64-Debug/CMakeCache.txt` でも OFF であり、**一度もコンパイルされたことが潜在阻害として潜伏していた**。
+- **訂正した誤情報:** 調査過程で「ArtifactPr の dock レイアウトは永続化されていない」という記述を一旦得たが、これは誤り。`saveDockLayout()` / `restoreDockLayout()`（`ArtifactPrMainWindow.cppm:3795-3832`）が `closeEvent` とコンストラクタから呼ばれ、`QSettings` INI に `dock/layout` と `dock/geometry` を保存していた。同様に「`ArtifactPr/CMakeLists.txt:145` に QADS リンクが残存」も誤りで、同ファイルは 153 行で `:145` は `target_compile_definitions` であり、QADS リンクは既に削除済み（ソース内 `ads::` 参照 0 件）。`grep` の行番号を鵜呑みにした推測だった。
+- **対応:** 共有 leaf pack `ArtifactDockFoundation`（STATIC）を `Artifact` サブツリーに新設し、`Artifact.DockManager` と `Artifact.NativeDockSurface` を移設。`Artifact` と `ArtifactPr` / `ArtifactPrCLI` の双方がリンクする形にした。`ArtifactPr.DockSurface` は削除。`setAreaTabPosition` / `areaTabPositionAtBottom` は `NativeDockSurface` の private を public 契約へ昇格した。無効だった `QMainWindow::saveState` / `restoreState` の永続化も削除した。
+- **価値または懸念（未検証）:** **「一度もビルドされていないターゲットには、コンパイル阻害が静かに積み上がる」典型例。** `ARTIFACT_BUILD_PR=OFF` のため、型ミスマッチも enum 数値の不一致も検出されずに残っていた。さらに `Artifact` 側は `QMainWindow::saveState()` を意図的に不使用（`ArtifactWorkspaceManager.cppm:124-125`）のに、ArtifactPr 側はこれを永続化していた。中身は `QDockWidget` を登録していないので空だった。**統合は機能追加ではなく、この潜在阻害を解消する作業だった。** 残る懸念は、`NativeDockSurface` が `import Widgets.Utils.CSS;` しており pack 側が `ArtifactCore` 経由でそのモジュールを提供している構成になっている点（静的確認のみ、実ビルド未検証）。
+- **次に確認すべきこと:** `ARTIFACT_BUILD_PR=ON` で configure し、`ArtifactPr` が首次にコンパイルされることを確認する。その後 10 パネル（project / media / sourceMonitor / programMonitor / timeline / audioMeters / transitions / effects / proxy / clipProperties）の 5 エリア配置、QSettings 経由の保存・復元、`Artifact` 側の既存 dock 操作（タブ drag / float / dock back / pinned / close）の無回帰を確認する。実ビルド・実機は AGENTS.md によりユーザー明示指示が必要。
+
+## 2026-09-27 — ArtifactViewMenu の補助パレットだけ生 QDockWidget のまま
+
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactViewMenu.cppm`（`addFloatingDock`、`setFloating`）、`Artifact/src/Widgets/Menu/ArtifactTimeMenu.cppm`、`Artifact/src/Widgets/Menu/ArtifactRenderMenu.cppm`、`Artifact/include/Widgets/Dock/NativeDockSurface.ixx`。
+- **確認できた事実（静的読み取り）:** `addFloatingDock()` が生の `QDockWidget` を `setFloating(true)` + `setGeometry()` で生成している。Color Palette / Effect Palette / Color Science などの補助パレットが対象で，`NativeDockSurface` とは別系統のまま混入している。`QMainWindow::saveState()` を使わないため、これらの floating は `main_window_layout.cbor` に永続化されない見込み。`setAllowedAreas` は `Artifact` 配下に grep 0 件。
+- **価値または懸念（未検証）:** 同一画面内に 2 系統の docking が混在している状態。用户在補助パレットを float しても、workspace 保存・復元では戻らない可能性が高い。ただしこれは既存の挙動であり、本統合（`ArtifactDockFoundation`）の範囲外として意図的に残した。
+- **次に確認すべきこと:** 補助パレットを `NativeDockSurface` の floating へ統一するか、生 `QDockWidget` のまま受け入れるかを決める。統一する場合は `ArtifactMainWindow.cppm` の dock 登録側が変わるので、workspace モードの可視性ルール（`workspaceVisibilityRuleFor`）との整合も確認が必要。
