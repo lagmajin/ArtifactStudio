@@ -509,5 +509,6 @@ public:
 - stroke 開始時の Paint layer ID を保持し、selection が変化しても move／release／cancel はその stroke の surface へ送る。各入力点は対象の crop／pixel-aspect を含む surface transform の逆変換で buffer 座標へ変換する。
 - 対象付き Paint layer の active frame は target の source frame を使う。Video layer は `currentSourceFrameValue()`、連番 Image は表示中の cached sequence frame を採用し、通常 Image／Plane は target layer frame を使う。Brush は press 時に frame を固定し、Clone Stamp は target／source frame の両方を drag 中固定するため、再生中の一 stroke が複数 source frame へ分裂しない。
 - Onion Skin は float frame buffer の `QImage` 化をやめ、Paint layer と共有する revision 付き GPU texture cache／surface transform から描画する。
+- brush cursor／stroke preview overlay もドラッグ中に pin した Paint layer の transform を使う。renderer の `drawPolyline(std::vector<...>)` API 用 scratch を controller 初期化時に確保し、Brush preview／RotoBrush 用点列は最大 4096 点を既存領域内で間引く。
 - これはフレーム別ペイントバッファの時間キーを source に合わせる基礎であり、Video を Brush／Eraser の選択対象にすることや動画デコード／編集 UI はまだ追加していない。
 - **未検証:** Undo stack を含む作成失敗経路、選択変更中のドラッグ、Image crop／回転、Plane pixel aspect の描画位置と表示一致は runtime 確認が必要。ビルド・テストは AGENTS.md の指示により未実行。
