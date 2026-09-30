@@ -1,8 +1,11 @@
 # M-PAINT-1 Paint Layer / Raster Editing Foundation Milestone
 
+**最終更新:** 2026-09-30
+**ステータス:** In Progress
+
 作成日: 2026-06-16
-最終更新: 2026-08-15
-ステータス: PaintLayer／Brush stroke／消しゴムモード／frame別 undo／JSON は実装済み、専用 Inspector／診断／GPU表示経路は未完了
+最終更新: 2026-09-30
+ステータス: PaintLayer／Brush stroke／消しゴムモード／frame別 undo／JSON／GPU表示経路は実装済み、専用 Inspector／診断／runtime受入れは未完了
 対象: `Artifact/src/Layer/ArtifactAbstractLayer.cppm`,
       `Artifact/src/Layer/ArtifactImageLayer.cppm`,
       `Artifact/src/Layer/ArtifactNullLayer.cppm`,
@@ -487,3 +490,12 @@ public:
 - 専用 Paint Inspector、Problem View の `paint.*` 診断、PSD pixel-layer 互換、stroke の runtime／保存再読込、pressure 実入力の受入れは未確認。高度な brush（smear／healer）は別 scope とする。
 
 判定: **PaintLayer foundation と基本編集 workflow は実装済み。保存・undo・overlay の静的経路も進展しているが、表示の QImage 境界、専用 UI／diagnostics、実機 round-trip は pending。**
+
+## 対象レイヤー上の描画 (2026-09-30)
+
+- Brush／EraserでImageまたはPlaneを選んで描き始めると、対象のsource sizeに合わせた非破壊Paint layerを対象の直上へ作成する導線を追加した。対象レイヤーのsource pixel座標へ入力を変換し、表示側では対象の現在のtransformとImageのcrop/reframeを使って描画するため、対象の位置・変形変更後もPaint layerが追従する構成とした。
+- 対象 layer ID は Paint layer JSON に保存し、Undo/Redo・再読込後も対象参照を維持する。通常の独立Paint layerは従来どおり自身の座標・transformを使う。
+- PaintバッファとUndo履歴は既存どおり `FramePosition` ごとに保持するため、対象レイヤーの時間に沿ったフレーム別描画を拡張できる基礎はある。現時点で動画レイヤーへの直接描画や動画デコード連携は実装していない。
+- `ArtifactPaintLayer::draw()` は revision付き `ImageF32x4_RGBA` GPU texture cache を使い、ペイント表示のQImage変換を除去した。
+- 対象変換は描画と入力ごとに解決し、Brush cursor／stroke previewも同じ変換で表示する。Paint表示の対象IDはnil UUIDを初期値とし、ホットパスで文字列からUUIDを解析しない。
+- **未検証:** ビルド・実行・Undo/Redo・保存再読込・Image crop/rotation・Sequence Imageでの描画一致。AGENTS.mdの指示によりビルドとテストは実行していない。Plane/Image以外の選択状態からBrush/Eraserを開始する場合は対象選択を案内する。
