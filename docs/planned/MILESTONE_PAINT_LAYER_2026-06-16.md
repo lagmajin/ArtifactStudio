@@ -498,6 +498,7 @@ public:
 - PaintバッファとUndo履歴は既存どおり `FramePosition` ごとに保持するため、対象レイヤーの時間に沿ったフレーム別描画を拡張できる基礎はある。現時点で動画レイヤーへの直接描画や動画デコード連携は実装していない。
 - `ArtifactPaintLayer::draw()` は revision付き `ImageF32x4_RGBA` GPU texture cache を使い、ペイント表示のQImage変換を除去した。
 - Paint frame の JSON 復元上限（RGBA float 512 MiB）を超える Image／Plane は、直接描画面の作成前に拒否し、保存後に読み戻せない面を生成しない。
+- Paint frame の JSON 復元は decoded RGBA float が期待 byte 数と完全一致することを要求し、base64 decode 前に encoded 長も 512 MiB frame 上限から算出する。過大な末尾 payload を受け入れない。
 - 対象変換は描画と入力ごとに解決し、Brush cursor／stroke previewも同じ変換で表示する。Paint表示の対象IDはnil UUIDを初期値とし、ホットパスで文字列からUUIDを解析しない。
 - Brush stroke / Clone Stamp の Undo はフレーム全体ではなく、変更矩形の RGBA float パッチをストローク最大20件保持する実装に変更した。ブラシと Clone Stamp の逐次適用バッチを同じ stroke 記録へ追加し、Undo 時に逆順復元する。Clone Stamp は同一フレームの重なりを走査方向で保護し、描画先の Undo パッチは変更前に保存する。Clone drag release は履歴を確定し、キャンセルは進行中 stroke だけを復元する。
 - **残課題:** Undo パッチ総量はストロークの長さ・間隔に依存する。高解像度・長時間操作での実メモリ量と Undo の完全復元は未計測・未実機確認。

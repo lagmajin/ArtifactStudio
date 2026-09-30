@@ -1,5 +1,13 @@
 **最終更新:** 2026-09-30
 
+## 2026-09-30 — Paint frame の base64 展開前に宣言サイズで上限を掛ける
+
+- **関連:** `Artifact/src/Layer/ArtifactPaintLayer.cppm`（`frameBufferFromJson`）。
+- **確認できた事実:** 1 frame の RGBA float 展開後 byte 数は 512 MiB 以下に検査されていたが、その前に JSON 文字列を Latin-1 化して base64 decode しており、余分な decoded bytes も受理していた。
+- **対応:** base64 encoded 長を必要 pixel 数から計算した最大長と比較してから複製・decode し、decoded byte 数が期待値と完全一致する場合だけ buffer を復元する。
+- **価値または懸念（未検証）:** Paint frame 読み込みで宣言幅高を超える一時 base64 buffer と、末尾データを含む不正 payload の受理を防ぐ。既存 project の base64 が正規 padding を省略するケースは exact decoded length で許容されるが、代表 project の round-trip は runtime 未確認。
+- **次に確認すべきこと:** 空 transparent frame、正規 frame、padding 省略 payload、短い／過大／不正 base64 の JSON 復元と project round-trip を確認する。
+
 ## 2026-09-30 — target-bound Paint layer の未解決参照を独立レイヤーへ暗黙 fallback しない
 
 - **関連:** `Artifact/src/Layer/ArtifactPaintLayer.cppm`、`Artifact/src/Tool/ArtifactBrushTool.cppm`。
