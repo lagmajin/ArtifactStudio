@@ -1,4 +1,5 @@
 module;
+#include <QContextMenuEvent>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
@@ -19,6 +20,9 @@ public:
 
 Q_SIGNALS:
     void requestExport() W_SIGNAL(requestExport);
+
+protected:
+    void contextMenuEvent(QContextMenuEvent* event) override;
 
 private Q_SLOTS:
     void onStopClicked();

@@ -7,10 +7,11 @@ module;
 #include <QtGlobal>
 #include <QVariant>
 #include <QVector>
+#include <algorithm>
+#include <cmath>
 
 module ArtifactPr.EditCommand;
 
-import ArtifactPr.EditCommand;
 import ArtifactPr.EditorEngine;
 
 namespace ArtifactPr {
@@ -61,6 +62,19 @@ DemoClip commandClipFromJson(const QJsonObject& obj)
     clip.enabled = obj[QStringLiteral("enabled")].toBool(true);
     clip.opacity = obj[QStringLiteral("opacity")].toDouble(1.0);
     return clip;
+}
+
+DemoClip slicedClip(const DemoClip& clip, FramePosition begin, FramePosition end)
+{
+    DemoClip result = clip;
+    const double ratio = static_cast<double>(clip.sourceOut - clip.sourceIn) / clip.duration;
+    const auto first = static_cast<FramePosition>(std::llround((begin - clip.startFrame) * ratio));
+    const auto last = static_cast<FramePosition>(std::llround((end - clip.startFrame) * ratio));
+    result.startFrame = begin;
+    result.duration = end - begin;
+    result.sourceIn = clip.reversed ? clip.sourceOut - last : clip.sourceIn + first;
+    result.sourceOut = clip.reversed ? clip.sourceOut - first : clip.sourceIn + last;
+    return result;
 }
 
 } // namespace
@@ -205,6 +219,9 @@ void RippleDeleteCommand::doRipple(bool undo) {
     if (undo) {
         // 再挿入
         if (index_ >= 0 && index_ <= track->clips.size()) {
+            for (int j = index_; j < track->clips.size(); ++j) {
+                track->clips[j].startFrame += clip_.duration;
+            }
             track->clips.insert(index_, clip_);
         }
         // duration 復元
@@ -267,7 +284,7 @@ void InsertEditCommand::doInsert(bool undo) {
                 track->clips.removeAt(i);
                 // 後続 clip を元位置に戻す
                 for (int j = i; j < track->clips.size(); ++j) {
-                    track->clips[j].startFrame += sourceClip_.duration;
+                    track->clips[j].startFrame -= sourceClip_.duration;
                 }
                 break;
             }
@@ -309,7 +326,11 @@ QJsonObject OverwriteEditCommand::serialize() const {
     for (const auto& c : removedClips_) {
         removed.append(commandClipToJson(c));
     }
+    QJsonArray original;
+    for (const auto& c : originalClips_) original.append(commandClipToJson(c));
     return QJsonObject{
+        {QStringLiteral("originalClips"), original},
+        {QStringLiteral("snapshotCaptured"), snapshotCaptured_},
         {QStringLiteral("trackId"), trackId_},
         {QStringLiteral("sourceClip"), commandClipToJson(sourceClip_)},
         {QStringLiteral("overwriteAt"), static_cast<qint64>(overwriteAt_)},
@@ -323,6 +344,10 @@ bool OverwriteEditCommand::deserialize(const QJsonObject& data) {
     sourceClip_ = commandClipFromJson(data[QStringLiteral("sourceClip")].toObject());
     overwriteAt_ = data[QStringLiteral("overwriteAt")].toInteger<qint64>();
     insertedClipId_ = data[QStringLiteral("insertedClipId")].toString();
+    snapshotCaptured_ = data[QStringLiteral("snapshotCaptured")].toBool();
+    originalClips_.clear();
+    for (const auto& value : data[QStringLiteral("originalClips")].toArray())
+        originalClips_.append(commandClipFromJson(value.toObject()));
     removedClips_.clear();
     const auto removed = data[QStringLiteral("removedClips")].toArray();
     for (const auto& v : removed) {
@@ -338,19 +363,18 @@ void OverwriteEditCommand::doOverwrite(bool undo) {
     if (!track) return;
     const bool isVideoTrack = track->kind == QStringLiteral("video");
 
+    if (!undo && insertedClipId_.isEmpty())
+        insertedClipId_ = QStringLiteral("overwrite_%1").arg(++insertedClipCounter);
     if (undo) {
-        // 元の clip を除去 + removedClips を復元
-        for (int i = 0; i < track->clips.size(); ++i) {
-            if (track->clips[i].id == insertedClipId_) {
-                track->clips.removeAt(i);
-                break;
-            }
-        }
-        for (const auto& c : removedClips_) {
-            track->clips.append(c);
+        if (snapshotCaptured_) track->clips = originalClips_;
+        else { // Compatibility with command history written before track snapshots.
+            for (int i = 0; i < track->clips.size(); ++i)
+                if (track->clips[i].id == insertedClipId_) { track->clips.removeAt(i); break; }
+            for (const auto& clip : removedClips_) track->clips.append(clip);
         }
     } else {
         // 衝突範囲の clip を saved + 削除
+        if (!snapshotCaptured_) { originalClips_ = track->clips; snapshotCaptured_ = true; }
         removedClips_.clear();
         const FramePosition overlapStart = overwriteAt_;
         const FramePosition overlapEnd = overwriteAt_ + sourceClip_.duration;
@@ -364,6 +388,14 @@ void OverwriteEditCommand::doOverwrite(bool undo) {
             } else {
                 // 衝突あり -> 削除して保存
                 removedClips_.append(c);
+                if (c.startFrame < overlapStart)
+                    remaining.append(slicedClip(c, c.startFrame, overlapStart));
+                if (cEnd > overlapEnd) {
+                    auto tail = slicedClip(c, overlapEnd, cEnd);
+                    tail.id = c.id + QStringLiteral("_tail_") + insertedClipId_;
+                    tail.linked = false;
+                    remaining.append(tail);
+                }
             }
         }
         track->clips = remaining;
@@ -377,7 +409,9 @@ void OverwriteEditCommand::doOverwrite(bool undo) {
         newClip.id = insertedClipId_;
         track->clips.append(newClip);
     }
-    if (isVideoTrack) {
+    std::stable_sort(track->clips.begin(), track->clips.end(),
+        [](const DemoClip& left, const DemoClip& right) { return left.startFrame < right.startFrame; });
+    if (isVideoTrack || track->kind == QStringLiteral("audio")) {
         engine->setCurrentSequence(engine->currentSequence());
     }
     Q_EMIT engine->projectModified();
@@ -431,7 +465,7 @@ void LiftEditCommand::doLift(bool undo) {
         track->clips = originalClips_;
     } else {
         // from ~ to 区間にある clip 部分を抜き取る
-        originalClips_ = track->clips;
+
         removedClips_.clear();
 
         QVector<DemoClip> remaining;
@@ -447,13 +481,13 @@ void LiftEditCommand::doLift(bool undo) {
                 // 部分的に区間内 -> 切り詰める
                 DemoClip trimmed = c;
                 if (c.startFrame < from_) {
-                    trimmed.duration = from_ - c.startFrame;
+                    trimmed = slicedClip(c, c.startFrame, from_);
                     remaining.append(trimmed);
                 }
                 if (cEnd > to_) {
-                    DemoClip right = c;
-                    right.startFrame = to_;
-                    right.duration = cEnd - to_;
+                    DemoClip right = slicedClip(c, to_, cEnd);
+                    right.id = c.id + QStringLiteral("_lift_%1_%2").arg(from_).arg(to_);
+                    right.linked = false;
                     remaining.append(right);
                     removedClips_.append(right);  // 元の clip 範囲を記録
                 }
@@ -461,7 +495,9 @@ void LiftEditCommand::doLift(bool undo) {
         }
         track->clips = remaining;
     }
-    if (isVideoTrack) {
+    std::stable_sort(track->clips.begin(), track->clips.end(),
+        [](const DemoClip& left, const DemoClip& right) { return left.startFrame < right.startFrame; });
+    if (isVideoTrack || track->kind == QStringLiteral("audio")) {
         engine->setCurrentSequence(engine->currentSequence());
     }
     Q_EMIT engine->projectModified();

@@ -1,4 +1,5 @@
 module;
+#include <QContextMenuEvent>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHBoxLayout>
@@ -29,6 +30,9 @@ public:
 
 Q_SIGNALS:
     void mediaSelected(const QString& filePath) W_SIGNAL(mediaSelected, filePath);
+
+protected:
+    void contextMenuEvent(QContextMenuEvent* event) override;
 
 private Q_SLOTS:
     void onImportClicked();

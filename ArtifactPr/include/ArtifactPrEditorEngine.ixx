@@ -1,4 +1,5 @@
 module;
+#include <QStringList>
 #include <wobjectdefs.h>
 #include <QObject>
 #include <QPointer>
@@ -255,6 +256,18 @@ public:
         Q_EMIT inOutPointChanged(inPoint_, outPoint_);
     }
 
+    // Playback range uses exclusive Out, matching NLE FrameRange.
+    void setPlaybackRange(FramePosition start, FramePosition end);
+    void clearPlaybackRange();
+    bool isPlaybackRangeEnabled() const { return playbackRangeEnabled_; }
+    FramePosition playbackRangeStart() const { return playbackRangeEnabled_ ? inPoint_ : 0; }
+    FramePosition playbackRangeEnd() const { return playbackRangeEnabled_ ? outPoint_ : currentSequence_.duration; }
+    bool editSourceRange(const QString& trackId, const DemoClip& source,
+                         bool overwrite, bool fitToPlaybackRange);
+    QStringList offlineMediaList() const;
+    void scanOfflineMedia();
+    bool relinkMedia(const QString& oldUri, const QString& newUri);
+
     PlaybackSpeed playbackSpeed() const { return playbackSpeed_; }
     bool isPlaying() const { return playbackSpeed_ != PlaybackSpeed::Stop && playbackSpeed_ != PlaybackSpeed::Pause; }
 
@@ -479,6 +492,7 @@ private:
     FramePosition currentFrame_ = 0;
     FramePosition inPoint_ = 0;
     FramePosition outPoint_ = 350;
+    bool playbackRangeEnabled_ = false;
     PlaybackSpeed playbackSpeed_ = PlaybackSpeed::Stop;
 
     // Auto-save (M-PR-AUTOSAVE)

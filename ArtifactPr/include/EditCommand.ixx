@@ -182,6 +182,8 @@ private:
     DemoClip sourceClip_;
     FramePosition overwriteAt_;
     QString insertedClipId_;
+    QVector<DemoClip> originalClips_;
+    bool snapshotCaptured_ = false;
     QVector<DemoClip> removedClips_;  // 上書きで消えた clip (redo 冪等化のため保持)
 };
 

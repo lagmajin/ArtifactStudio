@@ -1,4 +1,7 @@
 module;
+#include <QContextMenuEvent>
+#include <QMenu>
+#include <QAction>
 
 #include <QFont>
 #include <QFileDialog>
@@ -247,6 +250,9 @@ void MediaPanel::addMediaFile(const QString& filePath, const QString& displayNam
     item->setData(Qt::UserRole, filePath);
     list_->addItem(item);
 
+    if (!QFileInfo(filePath).isFile() && !filePath.startsWith(QLatin1Char(':')))
+        item->setText(displayName + QStringLiteral(" (offline)"));
+
     // thumbnail を非同期要求 (映像ファイルの場合のみ)
     const QString suffix = QFileInfo(filePath).suffix().toLower();
     if (isVideoExtension(suffix) && QFileInfo::exists(filePath)) {
@@ -311,6 +317,25 @@ void MediaPanel::onItemDoubleClicked(QListWidgetItem* item)
     if (!filePath.isEmpty()) {
         Q_EMIT mediaSelected(filePath);
     }
+}
+
+void MediaPanel::contextMenuEvent(QContextMenuEvent* event)
+{
+    auto* engine = ArtifactPr::EditorEngine::instance();
+    QMenu menu(this);
+    auto* rescan = menu.addAction(QStringLiteral("Rescan Media"));
+    auto* relink = menu.addAction(QStringLiteral("Relink Selected Media…"));
+    auto* item = list_->currentItem();
+    const auto oldUri = item ? item->data(Qt::UserRole).toString() : QString();
+    relink->setEnabled(!oldUri.isEmpty());
+    const auto* action = menu.exec(event->globalPos());
+    if (action == rescan) engine->scanOfflineMedia();
+    else if (action == relink && !oldUri.isEmpty()) {
+        const auto newUri = QFileDialog::getOpenFileName(this,
+            QStringLiteral("Relink Media"), QFileInfo(oldUri).absolutePath());
+        if (!newUri.isEmpty()) engine->relinkMedia(oldUri, newUri);
+    }
+    refreshMediaList(engine->currentSequence());
 }
 
 W_OBJECT_IMPL(MediaPanel)

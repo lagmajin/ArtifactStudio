@@ -33,6 +33,8 @@ namespace ArtifactPr {
 // コマンド serialize 用の前方向宣言 (定義はファイル後半・namespace ArtifactPr 直下)。
 QJsonObject clipToJson(const DemoClip& clip);
 DemoClip jsonToClip(const QJsonObject& obj);
+QJsonObject mediaItemToJson(const MediaItem& media);
+MediaItem jsonToMediaItem(const QJsonObject& obj);
 QJsonObject markerToJson(const Marker& marker);
 Marker jsonToMarker(const QJsonObject& obj);
 QJsonObject transitionToJson(const Transition& trans);
@@ -503,7 +505,13 @@ bool EditorEngine::restoreNLESnapshot(const QJsonObject& snapshot)
     if (!nleStore_ || !nleStore_->loadFromJson(snapshot)) {
         return false;
     }
+    if (snapshot.contains(QStringLiteral("prMediaPool"))) {
+        currentProject_.mediaPool.clear();
+        for (const auto& value : snapshot.value(QStringLiteral("prMediaPool")).toArray())
+            currentProject_.mediaPool.append(jsonToMediaItem(value.toObject()));
+    }
     rebuildLegacySnapshotFromNLE();
+    Q_EMIT sequenceChanged(currentSequence_);
     Q_EMIT projectModified();
     return true;
 }
@@ -577,6 +585,7 @@ void EditorEngine::newProject()
     currentProject_ = project;
     currentSequence_ = seq;
     currentFrame_ = 0;
+    playbackRangeEnabled_ = false;
     inPoint_ = 0;
     outPoint_ = 350;
     playbackSpeed_ = PlaybackSpeed::Stop;
@@ -633,6 +642,7 @@ void EditorEngine::newSequence()
     currentProject_.modifiedAt = QDateTime::currentDateTime().toString(Qt::ISODate);
     currentSequence_ = sequence;
     currentFrame_ = 0;
+    playbackRangeEnabled_ = false;
     inPoint_ = 0;
     outPoint_ = sequence.duration;
     playbackSpeed_ = PlaybackSpeed::Stop;
@@ -652,6 +662,7 @@ bool EditorEngine::selectSequence(const QString& sequenceId)
         currentProject_.activeSequenceId = sequence.id;
         currentSequence_ = sequence;
         currentFrame_ = 0;
+        playbackRangeEnabled_ = false;
         inPoint_ = 0;
         outPoint_ = qMax<FramePosition>(0, sequence.duration);
         playbackSpeed_ = PlaybackSpeed::Stop;
@@ -1915,18 +1926,183 @@ void EditorEngine::rippleDeleteClipAt(const QString& clipId)
     Q_EMIT projectModified();
 }
 
+void EditorEngine::setPlaybackRange(FramePosition start, FramePosition end)
+{
+    const auto duration = qMax<FramePosition>(0, currentSequence_.duration);
+    inPoint_ = qBound<FramePosition>(0, start, duration);
+    outPoint_ = qBound<FramePosition>(inPoint_, end, duration);
+    playbackRangeEnabled_ = outPoint_ > inPoint_;
+    Q_EMIT inOutPointChanged(inPoint_, outPoint_);
+}
+
+void EditorEngine::clearPlaybackRange()
+{
+    playbackRangeEnabled_ = false;
+    playbackRangeEnabled_ = false;
+    inPoint_ = 0;
+    outPoint_ = qMax<FramePosition>(0, currentSequence_.duration);
+    Q_EMIT inOutPointChanged(inPoint_, outPoint_);
+}
+
+bool EditorEngine::editSourceRange(const QString& trackId, const DemoClip& source,
+                                  bool overwrite, bool fitToPlaybackRange)
+{
+    if (!findTrack(trackId) || source.sourceFile.isEmpty() ||
+        source.sourceIn < 0 || source.sourceOut <= source.sourceIn) return false;
+    DemoClip clip = source;
+    const FramePosition sourceDuration = source.sourceOut - source.sourceIn;
+    FramePosition at = currentFrame_;
+    if (fitToPlaybackRange) {
+        if (!playbackRangeEnabled_ || outPoint_ <= inPoint_ ||
+            outPoint_ > currentSequence_.duration) return false;
+        clip.duration = outPoint_ - inPoint_;
+        clip.speed = static_cast<double>(sourceDuration) / clip.duration;
+        at = inPoint_;
+    } else {
+        if (!std::isfinite(source.speed) || source.speed <= 0.0) return false;
+        clip.duration = qMax<FramePosition>(1, static_cast<FramePosition>(
+            std::llround(sourceDuration / source.speed)));
+    }
+    const QJsonObject before = nleSnapshot();
+    if (overwrite) overwriteClipFromSource(trackId, clip, at);
+    else insertClipFromSource(trackId, clip, at);
+    return before != nleSnapshot();
+}
+
+QStringList EditorEngine::offlineMediaList() const
+{
+    QStringList result;
+    if (!nleStore_) return result;
+    const auto sources = nleSnapshot().value(QStringLiteral("sources")).toArray();
+    for (const auto& value : sources) {
+        const auto obj = value.toObject();
+        const auto id = ArtifactCore::NLE::SourceId::fromString(
+            obj.value(QStringLiteral("sourceId")).toString());
+        const auto* source = nleStore_->source(id);
+        if (source && !source->online && !result.contains(source->uri))
+            result.append(source->uri);
+    }
+    return result;
+}
+
+void EditorEngine::scanOfflineMedia()
+{
+    if (!nleStore_) return;
+    const auto before = nleSnapshot();
+    nleStore_->refreshSourceAvailability();
+    const auto after = nleSnapshot();
+    if (before == after) return;
+    pushUndo(std::make_unique<NLEStateCommand>(before, after));
+    rebuildLegacySnapshotFromNLE();
+    Q_EMIT sequenceChanged(currentSequence_);
+    Q_EMIT projectModified();
+}
+
+bool EditorEngine::relinkMedia(const QString& oldUri, const QString& newUri)
+{
+    if (!nleStore_ || !QFileInfo(newUri).isFile()) return false;
+    auto before = nleSnapshot();
+    QJsonArray originalMedia;
+    for (const auto& media : currentProject_.mediaPool) originalMedia.append(mediaItemToJson(media));
+    before[QStringLiteral("prMediaPool")] = originalMedia;
+    const auto sources = before.value(QStringLiteral("sources")).toArray();
+    bool changed = false;
+    for (const auto& value : sources) {
+        const auto obj = value.toObject();
+        const auto id = ArtifactCore::NLE::SourceId::fromString(
+            obj.value(QStringLiteral("sourceId")).toString());
+        const auto* source = nleStore_->source(id);
+        if (source && source->uri == oldUri)
+            changed = nleStore_->relinkSource(id, newUri) || changed;
+    }
+    if (!changed) return false;
+    for (auto& media : currentProject_.mediaPool)
+        if (media.filePath == oldUri) media.filePath = newUri;
+    auto after = nleSnapshot();
+    QJsonArray updatedMedia;
+    for (const auto& media : currentProject_.mediaPool) updatedMedia.append(mediaItemToJson(media));
+    after[QStringLiteral("prMediaPool")] = updatedMedia;
+    pushUndo(std::make_unique<NLEStateCommand>(before, after));
+    rebuildLegacySnapshotFromNLE();
+    Q_EMIT sequenceChanged(currentSequence_);
+    Q_EMIT projectModified();
+    return true;
+}
+
+// Preserve the untouched pieces before the store removes overwritten clips.
+// Source offsets follow the authored source span, including reversed playback.
+static void preserveOutsideRange(ArtifactCore::NLE::NLEProjectStore& store,
+                                 const ArtifactCore::NLE::SequenceId& sequenceId,
+                                 const ArtifactCore::NLE::TrackId& trackId,
+                                 FramePosition from, FramePosition to)
+{
+    const auto ids = store.clipIds(trackId);
+    for (const auto& id : ids) {
+        auto* live = store.clip(id);
+        if (!live) continue;
+        const auto original = *live;
+        const auto begin = original.timelineRange.start();
+        const auto end = original.timelineRange.end();
+        if (end <= from || begin >= to) continue;
+        const auto slice = [&original, begin, end](FramePosition a, FramePosition b) {
+            auto piece = original;
+            const auto sourceBegin = original.sourceRange.start();
+            const auto sourceEnd = original.sourceRange.end();
+            const double ratio = static_cast<double>(sourceEnd - sourceBegin) / (end - begin);
+            const auto first = static_cast<FramePosition>(std::llround((a - begin) * ratio));
+            const auto last = static_cast<FramePosition>(std::llround((b - begin) * ratio));
+            piece.timelineRange = ArtifactCore::FrameRange(a, b);
+            piece.sourceRange = original.reversed
+                ? ArtifactCore::FrameRange(sourceEnd - last, sourceEnd - first)
+                : ArtifactCore::FrameRange(sourceBegin + first, sourceBegin + last);
+            piece.trimRange = piece.sourceRange;
+            return piece;
+        };
+        if (begin < from) {
+            *live = slice(begin, from);
+            if (end > to) {
+                const auto tail = slice(to, end);
+                ArtifactCore::NLE::ClipDraft draft;
+                draft.sourceId = tail.sourceId;
+                draft.sourceRange = tail.sourceRange;
+                draft.timelineRange = tail.timelineRange;
+                draft.trimRange = tail.trimRange;
+                draft.speed = tail.speed;
+                draft.opacity = tail.opacity;
+                draft.enabled = tail.enabled;
+                draft.locked = tail.locked;
+                draft.reversed = tail.reversed;
+                draft.name = tail.name;
+                draft.nestedSequenceId = tail.nestedSequenceId;
+                // A newly split piece is not automatically placed in the old link group.
+                store.overwriteClip(sequenceId, trackId, draft);
+            }
+        } else if (end > to) {
+            *live = slice(to, end);
+        }
+    }
+}
+
 void EditorEngine::insertClipFromSource(const QString& trackId,
                                         const DemoClip& sourceClip,
                                         FramePosition insertAt)
 {
     auto* track = findTrackById(currentSequence_, trackId);
-    if (!track) return;
+    if (!track || sourceClip.duration <= 0 || sourceClip.sourceIn < 0 ||
+        sourceClip.sourceOut <= sourceClip.sourceIn || insertAt < 0) return;
 
     // NLE ストア経由: addClip が後続クリップを押し出す (挿入 semantics)。
     if (nleStore_) {
         const auto sequenceId = ArtifactCore::NLE::SequenceId::fromString(currentProject_.activeSequenceId);
         const auto coreTrackId = ArtifactCore::NLE::TrackId::fromString(trackId);
         if (nleStore_->hasTrack(coreTrackId)) {
+            const auto* coreTrack = nleStore_->track(coreTrackId);
+            if (!coreTrack || coreTrack->locked) return;
+            for (const auto& id : nleStore_->clipIds(coreTrackId)) {
+                const auto* clip = nleStore_->clip(id);
+                if (clip && clip->locked && clip->timelineRange.end() > insertAt) return;
+            }
+            const QJsonObject before = nleSnapshot();
             ArtifactCore::NLE::SourceRef sourceProbe;
             ArtifactCore::NLE::SourceId sourceId;
             if (resolveSourceForClip(sourceClip.sourceFile, sourceProbe)) {
@@ -1948,9 +2124,10 @@ void EditorEngine::insertClipFromSource(const QString& trackId,
             draft.enabled = true;
             draft.reversed = sourceClip.reversed;
 
-            const QJsonObject before = nleSnapshot();
+            preserveOutsideRange(*nleStore_, sequenceId, coreTrackId, insertAt, insertAt);
             const auto newClipId = nleStore_->addClip(sequenceId, coreTrackId, draft);
             if (!newClipId.isValid()) {
+                nleStore_->loadFromJson(before);
                 return;
             }
             const QJsonObject after = nleSnapshot();
@@ -1977,13 +2154,22 @@ void EditorEngine::overwriteClipFromSource(const QString& trackId,
                                            FramePosition overwriteAt)
 {
     auto* track = findTrackById(currentSequence_, trackId);
-    if (!track) return;
+    if (!track || sourceClip.duration <= 0 || sourceClip.sourceIn < 0 ||
+        sourceClip.sourceOut <= sourceClip.sourceIn || overwriteAt < 0) return;
 
     // NLE ストア経由: overwriteClip が重なりを削除してから配置する。
     if (nleStore_) {
         const auto sequenceId = ArtifactCore::NLE::SequenceId::fromString(currentProject_.activeSequenceId);
         const auto coreTrackId = ArtifactCore::NLE::TrackId::fromString(trackId);
         if (nleStore_->hasTrack(coreTrackId)) {
+            const auto* coreTrack = nleStore_->track(coreTrackId);
+            if (!coreTrack || coreTrack->locked) return;
+            for (const auto& id : nleStore_->clipIds(coreTrackId)) {
+                const auto* clip = nleStore_->clip(id);
+                if (clip && clip->locked && clip->timelineRange.end() > overwriteAt &&
+                    clip->timelineRange.start() < overwriteAt + sourceClip.duration) return;
+            }
+            const QJsonObject before = nleSnapshot();
             ArtifactCore::NLE::SourceRef sourceProbe;
             ArtifactCore::NLE::SourceId sourceId;
             if (resolveSourceForClip(sourceClip.sourceFile, sourceProbe)) {
@@ -2005,9 +2191,11 @@ void EditorEngine::overwriteClipFromSource(const QString& trackId,
             draft.enabled = true;
             draft.reversed = sourceClip.reversed;
 
-            const QJsonObject before = nleSnapshot();
+            preserveOutsideRange(*nleStore_, sequenceId, coreTrackId,
+                                 overwriteAt, overwriteAt + sourceClip.duration);
             const auto newClipId = nleStore_->overwriteClip(sequenceId, coreTrackId, draft);
             if (!newClipId.isValid()) {
+                nleStore_->loadFromJson(before);
                 return;
             }
             const QJsonObject after = nleSnapshot();
@@ -2032,26 +2220,33 @@ void EditorEngine::liftRange(const QString& trackId,
                              FramePosition from, FramePosition to)
 {
     auto* track = findTrackById(currentSequence_, trackId);
-    if (!track) return;
+    if (!track || from < 0 || to <= from) return;
 
     // NLE ストア経由: 範囲に重なるクリップを removeClip。
     if (nleStore_) {
         const auto coreTrackId = ArtifactCore::NLE::TrackId::fromString(trackId);
         if (nleStore_->hasTrack(coreTrackId)) {
+            const auto* coreTrack = nleStore_->track(coreTrackId);
+            if (!coreTrack || coreTrack->locked) return;
             QVector<ArtifactCore::NLE::ClipId> overlapping;
             for (const auto& cid : nleStore_->clipIds(coreTrackId)) {
                 const auto* c = nleStore_->clip(cid);
                 if (!c) continue;
                 const auto range = c->timelineRange;
                 if (range.end() > from && range.start() < to) {
+                    if (c->locked) return;
                     overlapping.append(cid);
                 }
             }
             if (overlapping.isEmpty()) return;
 
             const QJsonObject before = nleSnapshot();
+            const auto sequenceId = ArtifactCore::NLE::SequenceId::fromString(currentProject_.activeSequenceId);
+            preserveOutsideRange(*nleStore_, sequenceId, coreTrackId, from, to);
             for (const auto& cid : overlapping) {
-                nleStore_->removeClip(cid);
+                const auto* clip = nleStore_->clip(cid);
+                if (clip && clip->timelineRange.end() > from && clip->timelineRange.start() < to)
+                    nleStore_->removeClip(cid);
             }
             const QJsonObject after = nleSnapshot();
             pushUndo(std::make_unique<NLEStateCommand>(before, after));
@@ -3518,6 +3713,7 @@ bool EditorEngine::loadProject(const QString& filePath)
     }
 
     currentFrame_ = 0;
+    playbackRangeEnabled_ = false;
     inPoint_ = 0;
     outPoint_ = qMax<FramePosition>(0, currentSequence_.duration);
     playbackSpeed_ = PlaybackSpeed::Stop;

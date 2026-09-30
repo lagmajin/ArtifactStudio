@@ -3624,3 +3624,20 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** Store start/current positions as ScreenPhysicalPoint2, use the named logical-to-physical point conversion, calculate the drag delta as a same-space typed vector, and unwrap only at legacy Qt geometry/draw boundaries. Convert the fit center back to logical coordinates before calling the zoom anchor API.
 - **価値または懸念（未検証）:** This makes the DPI space of persistent interaction state explicit and removes direct QPointF operations from the logical API boundary. Numeric and UI parity are not verified because build/runtime checks are not authorized.
 - **次に確認すべきこと:** Compile and exercise Box Zoom at DPR 1 and greater than 1, including tiny drags, crop-window mode, cancellation, and fit center anchoring.
+
+## 2026-09-30 — ArtifactPr の別ドライブ作業コピーに共通Undo問題が残る
+
+- **関連:** `ArtifactPr/src/EditCommand.cppm`、`X:/Dev/ArtifactStudio/ArtifactPr/src/EditCommand.cppm`、`docs/analysis/REPORT_ARTIFACTPR_X_DRIVE_IMPORT_REVIEW_2026-09-30.md`。
+- **確認できた事実:** 両コピーのInsert Undoは、挿入時に後続クリップをduration分加算した後、Undo時にも加算する。X側Overwrite/Liftのtail生成はtimeline位置とdurationのみ変更し、source範囲を維持する。
+- **価値または懸念:** X側の取り込みだけでは共通Undo問題を解消しない。分割のソース範囲補正も必要になる。
+- **未検証:** 操作時のCoreストア投影・Undo同期・速度や逆再生を含む実行結果。ソース修正とビルド・実機確認は未実施。
+- **次に確認すべきこと:** J側の編集サービスとUndoへの同期を追い、Insert/Overwrite/Liftの往復とsource範囲を限定修正する。
+- **対応（2026-10-01）:** J側の選別移植でInsert Undoの後続位置、Ripple Undoの位置復元、Overwrite/Liftの部分保持とsource範囲補正を実装した。正規NLE経路は既存store snapshot Undoを維持する。新規tailの旧link groupへの自動加入は避けており、split後のリンク編集方針は将来の設計確認対象。コンパイル・実機確認は未実施。
+
+## 2026-09-30 — 前後フレーム依存エフェクトの基盤（調査とA/B/C実装）
+
+- **関連:** `Artifact/include/Effects/ArtifactEffectFrameSampler.ixx`、`src/Effects/ArtifactEffectFrameSampler.cppm`、`include/Render/ArtifactRenderLayerPipeline.ixx`、`src/Render/ArtifactRenderLayerPipeline.cppm`、`include/Effects/ArtifactAbstractEffect.ixx`、`src/Widgets/Render/ArtifactCompositionRenderController.cppm`。
+- **確認できた事実（実ファイルで確認）:** 既に約20個の時制ラスタライザエフェクト（Echo / Ghost / Feedback / FrameBlend / TimeWarp / OpticalFlowBlur 等）が `IEffectFrameSampler::sampleCurrentLayerFrameRelative` を使っており、基盤は緑地ではない。`storeLayerFrame` は CPU ラスタライザ経路の1箇所のみ。履歴は `unordered_map<layerId, map<frame, image>>` で64フレーム上限、evict は「最小フレーム番号の線形走査」。`ImageF32x4RGBAWithCache::operator=` は `DeepCopy()` なのでサンプルごとに全画像コピー。invalidation フックは grep で0件。`TemporalHistoryRegistry`（`ArtifactCore/include/Graphics/TemporalHistory.ixx`）は `CameraCut` / `TimeDiscontinuity` 等の無効化理由を型で持つが**呼び出し元ゼロの死にコード**。`CreativeEffectManager` / `CreativeEffectContext` も `applyAll` 无人呼び出しで未接続。
+- **対応:** (A) サンプラに revision 追跡（`effectRevision()` で実装パラメータ/内容を識別）、挿入順 `std::list` による O(1) evict、バイト予算（既定256MB）、`invalidateIfRevisionChanged` / `invalidateLayer` / `invalidateAll` を追加し、controller の store 前に revision 無効化と discontinuity 全無効化を配線。(B) `GpuSpatialEffectNode` に `historyFrameOffset` / `historyValid` を追加し、generic resident shader に `g_HistoryTexture`（t1）と `g_HistoryValid`（uniform）を追加。`RenderPipeline` に固定長8スロットの ping-pong 履歴プール（`recordLayerFrame` / `layerHistoryView` / `invalidateLayerHistory` / `invalidateAllLayerHistory`）を追加し、GPU→GPU copy のみで readback なし。(C) render tick で連続性を判定し、不連続時は無効化後に**1フレームだけ** pre-roll（N-1 を描いて復元）して N が N-1 をサンプルできるようにした。
+- **価値または懸念（未検証）:** 時制エフェクトが `historyFrameOffset` を設定するだけで GPU 経路でも効くが、**まだ1つも設定していない**（既存エフェクトは `supportsGPU()==false` の CPU 実装のみ）。C の pre-roll は 1 フレーム固定なので、2フレーム以上戻る effect（TimeBlur 等）は 2段目以降がまだ空。履歴は深度1の ping-pong のため GPU 側は ±2 以上の参照は未対応。`LayerFrameHistory::eraseFrame` の `order` 走査は O(n)（evict 1回あたり）。全編未ビルド・未実機（AGENTS.md により明示指示なし）。`invalidateIfRevisionChanged` は毎フレーム vector 確保するため、HOT_PATH_RULES §1 に対して発生条件を明示して計測が必要。
+- **次に確認すべきこと:** (1) ビルドして `ArtifactEffectFrameSampler` と pipeline の new API が通るか (2) Echo を 1 本 generic resident shader（`g_HistoryTexture` 読み）へ移して GPU 経路で works するか (3) スクラブ/逆再生で pre-roll が 1 フレーム埋めるか (4) エフェクトパラメータ変更直後に履歴が破棄されるか (5) 履歴プールの 8 スロット枯渇時に CPU フォールバックが正しく効くか (6) `invalidateIfRevisionChanged` の毎フレーム vector 確保を `SmallVector` / 固定バッファへ置き換えるべき計測。

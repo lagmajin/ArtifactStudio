@@ -448,6 +448,20 @@ private:
 
 W_OBJECT_IMPL(ProxyPanel)
 
+// Standard button activation (mouse, keyboard and accessibility) owns callbacks.
+class SourceRangeButton final : public QPushButton {
+public:
+    SourceRangeButton(const QString& text, std::function<void()> action)
+        : QPushButton(text), action_(std::move(action)) {}
+protected:
+    void nextCheckState() override {
+        QPushButton::nextCheckState();
+        if (action_) action_();
+    }
+private:
+    std::function<void()> action_;
+};
+
 class SourceMonitorPanel : public QWidget
 {
     W_OBJECT(SourceMonitorPanel)
@@ -490,6 +504,15 @@ public:
         connect(overwriteBtn, &QPushButton::clicked, this, &SourceMonitorPanel::onOverwriteClicked);
         headerLayout->addWidget(overwriteBtn);
 
+        auto* fitInsert = new SourceRangeButton(QStringLiteral("Fit Insert"),
+            [this]() { insertSourceAtPlayhead(false, true); });
+        fitInsert->setToolTip(QStringLiteral("Fit source In/Out to timeline In/Out (four-point edit)"));
+        headerLayout->addWidget(fitInsert);
+        auto* fitOverwrite = new SourceRangeButton(QStringLiteral("Fit Overwrite"),
+            [this]() { insertSourceAtPlayhead(true, true); });
+        fitOverwrite->setToolTip(fitInsert->toolTip());
+        headerLayout->addWidget(fitOverwrite);
+
         layout->addLayout(headerLayout);
 
         videoPlayer_ = new VideoPlayerWidget();
@@ -527,6 +550,10 @@ public:
             videoPlayer_->loadFile(filePath);
             videoPlayer_->play();
             currentFilePath_ = filePath;
+            sourceIn_ = 0;
+            sourceOut_ = -1;
+            inLabel_->setText(QStringLiteral("In: 0"));
+            outLabel_->setText(QStringLiteral("Out: end"));
             generateThumbnailStrip(filePath);
         }
     }
@@ -573,7 +600,8 @@ private Q_SLOTS:
         qint64 positionMs = videoPlayer_->position();
         const int fps = sequenceFrameRate(engine->currentSequence());
         FramePosition frame = (positionMs * fps) / 1000;
-        engine->setInPoint(frame);
+        sourceIn_ = frame;
+        if (sourceOut_ >= 0 && sourceOut_ <= sourceIn_) sourceOut_ = -1;
         inLabel_->setText(QStringLiteral("In: %1").arg(frame));
     }
 
@@ -583,11 +611,11 @@ private Q_SLOTS:
         qint64 positionMs = videoPlayer_->position();
         const int fps = sequenceFrameRate(engine->currentSequence());
         FramePosition frame = (positionMs * fps) / 1000;
-        engine->setOutPoint(frame);
+        sourceOut_ = frame;
         outLabel_->setText(QStringLiteral("Out: %1").arg(frame));
     }
 
-    void insertSourceAtPlayhead(bool overwrite)
+    void insertSourceAtPlayhead(bool overwrite, bool fit = false)
     {
         auto* engine = ArtifactPr::EditorEngine::instance();
         if (currentFilePath_.isEmpty()) return;
@@ -618,25 +646,15 @@ private Q_SLOTS:
         ArtifactPr::DemoClip source;
         source.name = QFileInfo(currentFilePath_).completeBaseName();
         source.sourceFile = currentFilePath_;
-        source.sourceIn = 0;
-        ArtifactPr::FramePosition sourceDuration = engine->outPoint() - engine->inPoint();
-        const ArtifactPr::FramePosition defaultWorkArea = engine->currentSequence().duration;
-        if (isImage) {
-            // 静止画は既定のワークエリア長で張る
-            sourceDuration = qMax<ArtifactPr::FramePosition>(90, defaultWorkArea);
-        } else if (sourceDuration == defaultWorkArea && videoPlayer_->duration() > 0) {
-            const int fps = sequenceFrameRate(engine->currentSequence());
-            sourceDuration = (videoPlayer_->duration() * fps) / 1000;
-        }
-        source.sourceOut = qMax<ArtifactPr::FramePosition>(1, sourceDuration);
+        source.sourceIn = sourceIn_;
+        const auto mediaFrames = (videoPlayer_->duration() * sequenceFrameRate(engine->currentSequence())) / 1000;
+        source.sourceOut = sourceOut_ >= 0 ? sourceOut_ :
+            (isImage ? sourceIn_ + qMax<FramePosition>(90, engine->currentSequence().duration) : mediaFrames);
+        if (source.sourceOut <= source.sourceIn ||
+            (!isImage && mediaFrames > 0 && source.sourceOut > mediaFrames)) return;
         source.duration = source.sourceOut - source.sourceIn;
         source.color = isImage ? QStringLiteral("#a04aff") : QStringLiteral("#4a9eff");
-
-        if (overwrite) {
-            engine->overwriteClipFromSource(trackId, source, engine->currentFrame());
-        } else {
-            engine->insertClipFromSource(trackId, source, engine->currentFrame());
-        }
+        engine->editSourceRange(trackId, source, overwrite, fit);
     }
 
     void onInsertClicked() { insertSourceAtPlayhead(false); }
@@ -649,6 +667,8 @@ private:
     QListWidget* thumbnailStrip_ = nullptr;
     ArtifactPr::MediaThumbnailer* thumbnailer_ = nullptr;
     QString currentFilePath_;
+    FramePosition sourceIn_ = 0;
+    FramePosition sourceOut_ = -1;
 };
 
 W_OBJECT_IMPL(SourceMonitorPanel)

@@ -1,4 +1,7 @@
 module;
+#include <QContextMenuEvent>
+#include <QMenu>
+#include <QAction>
 #include <QFont>
 #include <QChar>
 #include <QLabel>
@@ -111,28 +114,15 @@ void TransportBarWidget::onPlaybackTick()
         return;
     }
 
-    if (speed > 1) {
-        if (frame < engine->currentSequence().duration) {
-            engine->setCurrentFrame(frame + speed / 2);
-        } else {
-            playbackTimer_->stop();
-            engine->stop();
-        }
-    } else if (speed < -1) {
-        if (frame > 0) {
-            engine->setCurrentFrame(frame + speed / 2);
-        } else {
-            playbackTimer_->stop();
-            engine->stop();
-        }
-    } else {
-        if (frame < engine->currentSequence().duration) {
-            engine->setCurrentFrame(frame + 1);
-        } else {
-            playbackTimer_->stop();
-            engine->stop();
-        }
-    }
+    const auto start = engine->playbackRangeStart();
+    const auto end = engine->playbackRangeEnd();
+    if (end <= start) { engine->stop(); return; }
+    const ArtifactPr::FramePosition step = speed > 1 ? speed / 2 : speed;
+    const auto lastFrame = end - 1;
+    const auto next = qBound<ArtifactPr::FramePosition>(start, frame + step, lastFrame);
+    engine->setCurrentFrame(next);
+    if ((step > 0 && next == lastFrame) || (step < 0 && next == start))
+        engine->stop();
 }
 
 void TransportBarWidget::onExportClicked()
@@ -162,6 +152,10 @@ void TransportBarWidget::updatePlayState(bool isPlaying)
 
     auto* engine = ArtifactPr::EditorEngine::instance();
     if (isPlaying) {
+        const auto start = engine->playbackRangeStart();
+        const auto end = engine->playbackRangeEnd();
+        if (end > start && (engine->currentFrame() < start || engine->currentFrame() >= end))
+            engine->setCurrentFrame(static_cast<int>(engine->playbackSpeed()) < 0 ? end - 1 : start);
         const int fps = sequenceFrameRate(engine->currentSequence());
         playbackTimer_->start(qMax(1, 1000 / fps));
     } else {
@@ -179,8 +173,29 @@ void TransportBarWidget::updateSpeedDisplay(ArtifactPr::PlaybackSpeed speed)
     } else if (speedVal > 1) {
         speedLabel_->setText(QStringLiteral("%1x").arg(speedVal / 2));
     } else {
-        speedLabel_->setText(QStringLiteral("%1x R").arg(-speedVal / 2));
+        speedLabel_->setText(QStringLiteral("%1x R").arg(-speedVal));
     }
+}
+
+void TransportBarWidget::contextMenuEvent(QContextMenuEvent* event)
+{
+    auto* engine = ArtifactPr::EditorEngine::instance();
+    QMenu menu(this);
+    auto* markIn = menu.addAction(QStringLiteral("Set Timeline In Here"));
+    auto* markOut = menu.addAction(QStringLiteral("Set Timeline Out After This Frame"));
+    auto* clear = menu.addAction(QStringLiteral("Clear Playback Range"));
+    auto* start = menu.addAction(QStringLiteral("Go to Range Start"));
+    auto* end = menu.addAction(QStringLiteral("Go to Range End"));
+    const auto* action = menu.exec(event->globalPos());
+    if (action == markIn) engine->setPlaybackRange(engine->currentFrame(), engine->outPoint());
+    else if (action == markOut) engine->setPlaybackRange(engine->inPoint(), engine->currentFrame() + 1);
+    else if (action == clear) engine->clearPlaybackRange();
+    else if (action == start) engine->seekToFrame(engine->playbackRangeStart());
+    else if (action == end) engine->seekToFrame(qMax<ArtifactPr::FramePosition>(
+        engine->playbackRangeStart(), engine->playbackRangeEnd() - 1));
+    setToolTip(engine->isPlaybackRangeEnabled()
+        ? QStringLiteral("Playback range: [%1, %2)").arg(engine->inPoint()).arg(engine->outPoint())
+        : QStringLiteral("Playback range: full sequence"));
 }
 
 W_OBJECT_IMPL(TransportBarWidget)

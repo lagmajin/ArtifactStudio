@@ -1,7 +1,7 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-09-27 22:45
-> Total documents: 1426
+> Generated: 2026-10-01 08:14
+> Total documents: 1428
 
 ---
 
@@ -171,7 +171,7 @@
 | 44 | `ArtifactCore/docs/REFERENCE_UTILITY_PATTERNS_WICKED_ENGINE.md` | Utility Patterns Reference (from Wicked Engine) | --- | --- | --- | 6.7 KB | REFERENCE, UTILITY, PATTERNS, WICKED, ENGINE |
 | 45 | `ArtifactCore/docs/TimelineClock_Architecture.md` | Timeline Clock �A�[�L�e�N�`�� | --- | --- | --- | 7.3 KB | TimelineClock, Architecture |
 
-## analysis (82 files)
+## analysis (83 files)
 
 | # | File | Title | Date | Status | Modified | Size | Keywords |
 |---|------|-------|------|--------|----------|------|----------|
@@ -235,28 +235,29 @@
 | 58 | `docs/analysis/REPORT_ARTIFACT_PR_IMPLEMENTABILITY_2026-06-16.md` | ArtifactPr 実装可能性レポート — 2026-06-16 | 2026-06-16 | --- | 2026-06-18 | 16.7 KB | ARTIFACT, IMPLEMENTABILITY |
 | 59 | `docs/analysis/REPORT_ARTIFACT_PR_NLE_2026-06-16.md` | ArtifactPr (Premiere-like NLE) 機能ギャップレポート — 2026-06-16 | 2026-06-16 | --- | 2026-06-18 | 10.5 KB | ARTIFACT, NLE |
 | 60 | `docs/analysis/REPORT_ARTIFACTPR_VP_RENDERING_VS_ARTIFACT_2026-08-31.md` | ArtifactPr VP / レンダリング — Artifact との比較レポート 2026-08-31 | 2026-08-31 | --- | 2026-09-27 | 22.3 KB | ARTIFACTPR, RENDERING, ARTIFACT |
-| 61 | `docs/analysis/REPORT_CE_RENDER_ROI_2026-06-16.md` | CompositionEditor / 低レベル Render / ROI 適合調査 — 2026-06-16 | 2026-06-16 | --- | 2026-06-20 | 10.5 KB | RENDER, ROI |
-| 62 | `docs/analysis/REPORT_CROSS_APP_FEATURE_OPPORTUNITIES_2026-07-04.md` | 他アプリ横断 Artifact 機能機会レポート — 2026-07-04 | 2026-07-04 | --- | 2026-07-24 | 19.6 KB | CROSS, APP, FEATURE, OPPORTUNITIES |
-| 63 | `docs/analysis/REPORT_DCC_GAP_3D_TEXT_2026-08-18.md` | DCC ギャップ分析：3D レイヤー & テキスト機能 — 2026-08-18 | 2026-08-18 | --- | 2026-08-21 | 13.6 KB | DCC, GAP, TEXT |
-| 64 | `docs/analysis/REPORT_DCC_GAP_UPDATE_2026-08-15.md` | AE・他 DCC 機能差ギャップ最新レポート — 2026-08-15 | 2026-08-15 | --- | 2026-08-18 | 10.8 KB | DCC, GAP, UPDATE |
-| 65 | `docs/analysis/REPORT_JS_ANIMATION_EXPORT_2026-06-16.md` | JS アニメーション出力 実現可能性レポート — 2026-06-16 | 2026-06-16 | --- | 2026-06-18 | 15.0 KB | ANIMATION, EXPORT |
-| 66 | `docs/analysis/REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md` | Late-Stage & DCC Gap レポート — 2026-06-16 | 2026-06-16 | --- | 2026-07-07 | 16.0 KB | LATE, STAGE, AND, DCC, GAP |
-| 67 | `docs/analysis/REPORT_PREVIEW_RENDER_PERF_FIXES_2026-07-30.md` | 🔴 プレビューレンダリング パフォーマンス要修正レポート | 2026-07-30 | --- | 2026-08-03 | 8.9 KB | PREVIEW, RENDER, PERF, FIXES |
-| 68 | `docs/analysis/REPORT_QADS_AE_FOCUS_FRAME_IMPLEMENTATION_2026-08-09.md` | QADSにおけるAEスタイルフォーカスフレームの実装監査レポート | 2026-08-09 | --- | 2026-08-10 | 6.4 KB | QADS, FOCUS, FRAME, IMPLEMENTATION |
-| 69 | `docs/analysis/REPORT_SHAPE_GAP_UPDATE_2026-09-10.md` | Shapeギャップ更新 2026-09-10（導入すべき機能の全詳細） | 2026-09-10 | --- | 2026-09-26 | 13.9 KB | SHAPE, GAP, UPDATE |
-| 70 | `docs/analysis/REPORT_TBB_WORK_STEALING_CANDIDATES_2026-07-28.md` | oneTBB ワークスティーリング適用候補 調査書 — 2026-07-28 | 2026-07-28 | --- | 2026-07-28 | 11.8 KB | TBB, WORK, STEALING, CANDIDATES |
-| 71 | `docs/analysis/REPORT_UPSCALE_TECH_FEASIBILITY_2026-07-28.md` | 調査メモ: アップスケール技術の導入可否 — 2026-07-28 | 2026-07-28 | 調査メモ（実装未着手） | 2026-07-28 | 5.9 KB | UPSCALE, TECH, FEASIBILITY |
-| 72 | `docs/analysis/REVIEW_ARTIFACT_FIXES_2026-09-09.md` | `review-artifact-fixes` 精査台帳 | 2026-09-09 | --- | 2026-09-09 | 8.4 KB | REVIEW, ARTIFACT, FIXES |
-| 73 | `docs/analysis/SEQUENCE_GROUP_DESIGN_NOTE_2026-07-26.md` | Sequence Group 設計メモ (2026-07-26) | 2026-07-26 | --- | 2026-07-26 | 10.8 KB | SEQUENCE, GROUP, DESIGN, NOTE |
-| 74 | `docs/analysis/SHARED_DEVICE_AND_IMAGE_CACHE_AUDIT_2026-08-11.md` | Shared Device Lease / Image Cache Audit | 2026-08-11 | --- | 2026-08-13 | 2.1 KB | SHARED, DEVICE, AND, IMAGE, CACHE |
-| 75 | `docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` | 静止画レイヤー制作受入マトリクス | 2026-09-19 | --- | 2026-09-21 | 11.5 KB | STILL, IMAGE, LAYER, ACCEPTANCE, MATRIX |
-| 76 | `docs/analysis/TECH_ADOPTION_CANDIDATES_2026-07-27.md` | 採用候補技術調査 — アプリ改良のための技術選定メモ | 2026-07-27 | --- | 2026-07-28 | 11.7 KB | TECH, ADOPTION, CANDIDATES |
-| 77 | `docs/analysis/THREED_AE_E3D_C4D_GAP_IMPROVEMENT_2026-09-11.md` | 3Dレイヤー AE/Element3D/C4D 劣位点と改善メモ | 2026-09-11 | --- | 2026-09-11 | 4.3 KB | THREED, E3D, C4D, GAP |
-| 78 | `docs/analysis/THREED_LAYER_FEATURE_GAP_DCC_COMPARISON_2026-08-08.md` | 3D Layer Feature Gap Analysis — DCC Comparison (2026-08-08) | 2026-08-08 | ** 分析完了 | 2026-08-10 | 9.7 KB | THREED, LAYER, FEATURE, GAP, DCC |
-| 79 | `docs/analysis/VIDEO_LAYER_PREVIEW_LATENCY_2026-08-06.md` | 動画レイヤー プレビュー再生遅延 原因調査メモ | 2026-08-06 | --- | 2026-08-06 | 4.7 KB | VIDEO, LAYER, PREVIEW, LATENCY |
-| 80 | `docs/analysis/VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22.md` | ビューポート DCC パリティ分析（C4D / Houdini / Maya / Autograph / Blender / その他 → ArtifactStu | 2026-09-26 | --- | 2026-09-26 | 28.6 KB | VIEWPORT, DCC, PARITY, C4D, HOUDINI |
-| 81 | `docs/analysis/WIDGET_GAP_ANALYSIS_2026-06-03.md` | 各ウィジェット 不足機能分析 — 2026-06-03 | 2026-06-03 | --- | 2026-06-04 | 9.1 KB | WIDGET, GAP, ANALYSIS |
-| 82 | `docs/analysis/WORKFLOW_GAP_DEEP_DIVE_2026-06-16.md` | Workflow Gap Deep Dive — 2026-06-16 | 2026-06-16 | --- | 2026-09-08 | 21.1 KB | WORKFLOW, GAP, DEEP, DIVE |
+| 61 | `docs/analysis/REPORT_ARTIFACTPR_X_DRIVE_IMPORT_REVIEW_2026-09-30.md` | Xドライブ ArtifactPr 取り込みレビュー | 2026-10-01 | --- | --- | 9.9 KB | ARTIFACTPR, DRIVE, IMPORT, REVIEW |
+| 62 | `docs/analysis/REPORT_CE_RENDER_ROI_2026-06-16.md` | CompositionEditor / 低レベル Render / ROI 適合調査 — 2026-06-16 | 2026-06-16 | --- | 2026-06-20 | 10.5 KB | RENDER, ROI |
+| 63 | `docs/analysis/REPORT_CROSS_APP_FEATURE_OPPORTUNITIES_2026-07-04.md` | 他アプリ横断 Artifact 機能機会レポート — 2026-07-04 | 2026-07-04 | --- | 2026-07-24 | 19.6 KB | CROSS, APP, FEATURE, OPPORTUNITIES |
+| 64 | `docs/analysis/REPORT_DCC_GAP_3D_TEXT_2026-08-18.md` | DCC ギャップ分析：3D レイヤー & テキスト機能 — 2026-08-18 | 2026-08-18 | --- | 2026-08-21 | 13.6 KB | DCC, GAP, TEXT |
+| 65 | `docs/analysis/REPORT_DCC_GAP_UPDATE_2026-08-15.md` | AE・他 DCC 機能差ギャップ最新レポート — 2026-08-15 | 2026-08-15 | --- | 2026-08-18 | 10.8 KB | DCC, GAP, UPDATE |
+| 66 | `docs/analysis/REPORT_JS_ANIMATION_EXPORT_2026-06-16.md` | JS アニメーション出力 実現可能性レポート — 2026-06-16 | 2026-06-16 | --- | 2026-06-18 | 15.0 KB | ANIMATION, EXPORT |
+| 67 | `docs/analysis/REPORT_LATE_STAGE_AND_DCC_GAP_2026-06-16.md` | Late-Stage & DCC Gap レポート — 2026-06-16 | 2026-06-16 | --- | 2026-07-07 | 16.0 KB | LATE, STAGE, AND, DCC, GAP |
+| 68 | `docs/analysis/REPORT_PREVIEW_RENDER_PERF_FIXES_2026-07-30.md` | 🔴 プレビューレンダリング パフォーマンス要修正レポート | 2026-07-30 | --- | 2026-08-03 | 8.9 KB | PREVIEW, RENDER, PERF, FIXES |
+| 69 | `docs/analysis/REPORT_QADS_AE_FOCUS_FRAME_IMPLEMENTATION_2026-08-09.md` | QADSにおけるAEスタイルフォーカスフレームの実装監査レポート | 2026-08-09 | --- | 2026-08-10 | 6.4 KB | QADS, FOCUS, FRAME, IMPLEMENTATION |
+| 70 | `docs/analysis/REPORT_SHAPE_GAP_UPDATE_2026-09-10.md` | Shapeギャップ更新 2026-09-10（導入すべき機能の全詳細） | 2026-09-10 | --- | 2026-09-26 | 13.9 KB | SHAPE, GAP, UPDATE |
+| 71 | `docs/analysis/REPORT_TBB_WORK_STEALING_CANDIDATES_2026-07-28.md` | oneTBB ワークスティーリング適用候補 調査書 — 2026-07-28 | 2026-07-28 | --- | 2026-07-28 | 11.8 KB | TBB, WORK, STEALING, CANDIDATES |
+| 72 | `docs/analysis/REPORT_UPSCALE_TECH_FEASIBILITY_2026-07-28.md` | 調査メモ: アップスケール技術の導入可否 — 2026-07-28 | 2026-07-28 | 調査メモ（実装未着手） | 2026-07-28 | 5.9 KB | UPSCALE, TECH, FEASIBILITY |
+| 73 | `docs/analysis/REVIEW_ARTIFACT_FIXES_2026-09-09.md` | `review-artifact-fixes` 精査台帳 | 2026-09-09 | --- | 2026-09-09 | 8.4 KB | REVIEW, ARTIFACT, FIXES |
+| 74 | `docs/analysis/SEQUENCE_GROUP_DESIGN_NOTE_2026-07-26.md` | Sequence Group 設計メモ (2026-07-26) | 2026-07-26 | --- | 2026-07-26 | 10.8 KB | SEQUENCE, GROUP, DESIGN, NOTE |
+| 75 | `docs/analysis/SHARED_DEVICE_AND_IMAGE_CACHE_AUDIT_2026-08-11.md` | Shared Device Lease / Image Cache Audit | 2026-08-11 | --- | 2026-08-13 | 2.1 KB | SHARED, DEVICE, AND, IMAGE, CACHE |
+| 76 | `docs/analysis/STILL_IMAGE_LAYER_ACCEPTANCE_MATRIX_2026-08-08.md` | 静止画レイヤー制作受入マトリクス | 2026-09-19 | --- | 2026-09-21 | 11.5 KB | STILL, IMAGE, LAYER, ACCEPTANCE, MATRIX |
+| 77 | `docs/analysis/TECH_ADOPTION_CANDIDATES_2026-07-27.md` | 採用候補技術調査 — アプリ改良のための技術選定メモ | 2026-07-27 | --- | 2026-07-28 | 11.7 KB | TECH, ADOPTION, CANDIDATES |
+| 78 | `docs/analysis/THREED_AE_E3D_C4D_GAP_IMPROVEMENT_2026-09-11.md` | 3Dレイヤー AE/Element3D/C4D 劣位点と改善メモ | 2026-09-11 | --- | 2026-09-11 | 4.3 KB | THREED, E3D, C4D, GAP |
+| 79 | `docs/analysis/THREED_LAYER_FEATURE_GAP_DCC_COMPARISON_2026-08-08.md` | 3D Layer Feature Gap Analysis — DCC Comparison (2026-08-08) | 2026-08-08 | ** 分析完了 | 2026-08-10 | 9.7 KB | THREED, LAYER, FEATURE, GAP, DCC |
+| 80 | `docs/analysis/VIDEO_LAYER_PREVIEW_LATENCY_2026-08-06.md` | 動画レイヤー プレビュー再生遅延 原因調査メモ | 2026-08-06 | --- | 2026-08-06 | 4.7 KB | VIDEO, LAYER, PREVIEW, LATENCY |
+| 81 | `docs/analysis/VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22.md` | ビューポート DCC パリティ分析（C4D / Houdini / Maya / Autograph / Blender / その他 → ArtifactStu | 2026-09-26 | --- | 2026-09-26 | 28.6 KB | VIEWPORT, DCC, PARITY, C4D, HOUDINI |
+| 82 | `docs/analysis/WIDGET_GAP_ANALYSIS_2026-06-03.md` | 各ウィジェット 不足機能分析 — 2026-06-03 | 2026-06-03 | --- | 2026-06-04 | 9.1 KB | WIDGET, GAP, ANALYSIS |
+| 83 | `docs/analysis/WORKFLOW_GAP_DEEP_DIVE_2026-06-16.md` | Workflow Gap Deep Dive — 2026-06-16 | 2026-06-16 | --- | 2026-09-08 | 21.1 KB | WORKFLOW, GAP, DEEP, DIVE |
 
 ## arch (3 files)
 
@@ -856,7 +857,7 @@
 | 267 | `docs/planned/MILESTONE_DIAGNOSTICS_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: 診断 / デバッグ機能監査 (2026-07-04) | 2026-08-04 | --- | 2026-08-06 | 2.8 KB | DIAGNOSTICS, DESIGN, AUDIT |
 | 268 | `docs/planned/MILESTONE_DILIGENT_LOW_LEVEL_API_2026-04-01.md` | Milestone: Diligent Low-Level Rendering API Expansion (2026-04-01) | 2026-04-01 | --- | 2026-08-16 | 13.4 KB | DILIGENT, LOW, LEVEL, API |
 | 269 | `docs/planned/MILESTONE_DISK_CACHE_SYSTEM_2026-03-26.md` | Disk Cache System Milestone | 2026-08-04 | --- | 2026-08-06 | 5.8 KB | DISK, CACHE, SYSTEM |
-| 270 | `docs/planned/MILESTONE_DISTORT_EFFECTS_COMPLETION.md` | MILESTONE: Distort & Warp Effects Completion | 2026-08-04 | --- | 2026-08-30 | 19.2 KB | DISTORT, EFFECTS, COMPLETION |
+| 270 | `docs/planned/MILESTONE_DISTORT_EFFECTS_COMPLETION.md` | MILESTONE: Distort & Warp Effects Completion | 2026-08-04 | --- | 2026-08-30 | 19.5 KB | DISTORT, EFFECTS, COMPLETION |
 | 271 | `docs/planned/MILESTONE_DOCK_EMPTY_STATE_2026-09-13.md` | Dock Empty State マイルストーン | 2026-09-13 | Not Started | 2026-09-14 | 5.7 KB | DOCK, EMPTY, STATE |
 | 272 | `docs/planned/MILESTONE_DOCK_ENHANCEMENT_PACK_2026-09-13.md` | Dock Enhancement Pack — 1/2/4/5/7/9 | 2026-09-13 | Not Started | 2026-09-14 | 7.4 KB | DOCK, ENHANCEMENT, PACK |
 | 273 | `docs/planned/MILESTONE_DOCK_PANEL_ADD_MENU_2026-08-15.md` | Dock Panel Add Menu / Frequently Used Panels | 2026-08-30 | Implemented — runtime verification pending | 2026-08-31 | 9.7 KB | DOCK, PANEL, ADD, MENU |
@@ -1007,7 +1008,7 @@
 | 418 | `docs/planned/MILESTONE_M12_POLISH_AND_STABILITY_2026-03-17.md` | M12 Polish and Stability (2026-03-17) | 2026-03-17 | --- | 2026-08-16 | 10.9 KB | M12, POLISH, AND, STABILITY |
 | 419 | `docs/planned/MILESTONE_MAIN_WINDOW_SHELL_REDESIGN_2026-07-15.md` | Main Window Shell Redesign (2026-07-15) | 2026-07-15 | Implemented — runtime verification pending | 2026-08-16 | 2.9 KB | MAIN, WINDOW, SHELL, REDESIGN |
 | 420 | `docs/planned/MILESTONE_MARKER_FOUNDATION_2026-06-16.md` | M-MARKER-1 Marker Foundation Milestone | 2026-06-16 | 部分完了（Marker Core API・検索・前後移動・XML/AI経路あり、専用Timeline/Inspector/project JSON/Undo/shortcut/diagnostics統合は未完了） | 2026-08-16 | 19.8 KB | MARKER, FOUNDATION |
-| 421 | `docs/planned/MILESTONE_MASK_ALPHA_ROUNDTRIP_LITE_2026-09-10.md` | Milestone: Mask Alpha Roundtrip Lite (Trace to Mask) | 2026-09-10 | --- | 2026-09-10 | 9.3 KB | MASK, ALPHA, ROUNDTRIP, LITE |
+| 421 | `docs/planned/MILESTONE_MASK_ALPHA_ROUNDTRIP_LITE_2026-09-10.md` | Milestone: Mask Alpha Roundtrip Lite (Trace to Mask) | 2026-09-10 | --- | 2026-09-10 | 9.4 KB | MASK, ALPHA, ROUNDTRIP, LITE |
 | 422 | `docs/planned/MILESTONE_MASK_FEATHER_DIRECTIONAL_AND_RENDER_FPS_SAFETY_2026-06-07.md` | MILESTONE: Mask Feather Directional / Render FPS Safety - 2026-06-07 | 2026-06-07 | Mask directional feather 実装済み、FPS safety 統合・runtime/export検証 pending | 2026-08-16 | 10.5 KB | MASK, FEATHER, DIRECTIONAL, AND, RENDER |
 | 423 | `docs/planned/MILESTONE_MASTER_PROPERTIES_2026-07-08.md` | Milestone: Master Properties / Essential Properties（プリコンプ外部プロパティ上書き） (2026-07-08 | 2026-07-08 | Phase 3 Completed (static verified 2026-07-22; runtime/build verification pending) | 2026-08-16 | 8.2 KB | MASTER, PROPERTIES |
 | 424 | `docs/planned/MILESTONE_MATERIAL_CONTAINER_LAYER_2026-06-25.md` | M-MATCON-1: 素材コンテナーレイヤー設計 | 2026-06-25 | Phase 1 実装済み; clone 連携・編集導線・diagnostics・runtime verification pending | 2026-08-16 | 12.0 KB | MATERIAL, CONTAINER, LAYER |
@@ -1262,7 +1263,7 @@
 | 673 | `docs/planned/MILESTONE_TOP_LEVEL_WIDGET_ARCHITECTURE_2026-07-13.md` | Top-Level Widget Architecture Migration | 2026-08-15 | `ArtifactMainWindow : QWidget` 化と DockManager／backend-neutral layout 基盤は実装済み。workspace facade への全面移行、floating lifecycle、backend switch、runtime 検証は未完了。 | 2026-08-16 | 13.6 KB | TOP, LEVEL, WIDGET, ARCHITECTURE |
 | 674 | `docs/planned/MILESTONE_TRACK_MATTE_DRAG_LINK_UX_2026-06-01.md` | Milestone: Track Matte Drag-Link UX | 2026-06-01 | --- | 2026-08-16 | 6.5 KB | TRACK, MATTE, DRAG, LINK |
 | 675 | `docs/planned/MILESTONE_TRACKING_REVIEW_BAKE_2026-09-22.md` | M-TRACK-REVIEW-1 Tracking Review / Bake Acceptance | 2026-09-22 | In Progress | 2026-09-22 | 3.0 KB | TRACKING, REVIEW, BAKE |
-| 676 | `docs/planned/MILESTONE_TYPED_COORDINATE_SPACES_2026-09-27.md` | 座標空間・単位の強型化マイルストーン | 2026-09-27 | In Progress | --- | 5.8 KB | TYPED, COORDINATE, SPACES |
+| 676 | `docs/planned/MILESTONE_TYPED_COORDINATE_SPACES_2026-09-27.md` | 座標空間・単位の強型化マイルストーン | 2026-09-30 | In Progress | 2026-09-30 | 77.4 KB | TYPED, COORDINATE, SPACES |
 | 677 | `docs/planned/MILESTONE_TYPOGRAPHY_PRESET_UI_2026-03-30.md` | Milestone: Typography Preset & Motion Style UI (M-TY-2) | 2026-08-04 | --- | 2026-08-06 | 2.6 KB | TYPOGRAPHY, PRESET |
 | 678 | `docs/planned/MILESTONE_UI_EVENT_BUS_ADOPTION_2026-04-01.md` | UI EventBus Adoption Milestone | 2026-08-15 | --- | 2026-08-16 | 3.6 KB | EVENT, BUS, ADOPTION |
 | 679 | `docs/planned/MILESTONE_UI_LAYOUT_UNDO_HISTORY_2026-06-07.md` | UI Layout Undo History Milestone | 2026-06-07 | Phase 0〜2 と安全な default reset は実装済み。全操作の granular undo、menu 同期、recovery の runtime 受入れは未完了。 | 2026-08-16 | 5.9 KB | LAYOUT, UNDO, HISTORY |
@@ -1381,7 +1382,7 @@
 | 24 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.3 KB | IMPL, DOF |
 | 25 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.8 KB | IMPL, SSAO |
 | 26 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.6 KB | IMPL, TONE, MAPPING |
-| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-09-27 | --- | 2026-09-27 | 349.0 KB | INDEX, GENERATED |
+| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-09-27 | --- | 2026-09-27 | 349.2 KB | INDEX, GENERATED |
 | 28 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 29 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 12.0 KB | CAMERA, PROJECTION |
 | 30 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
@@ -1466,7 +1467,7 @@
 | 14 | `docs/spec/SPEC_VIEWPORT_NAVIGATION_TOOLS_2026-07-31.md` | Hand / Zoom / Rotation / AnchorPoint ツール 要求動作一覧 | 2026-07-31 | --- | 2026-08-03 | 6.5 KB | SPEC, VIEWPORT, NAVIGATION, TOOLS |
 | 15 | `docs/spec/SPEC_VIEWPORT_RULER_SCALE_OVERLAY_2026-07-31.md` | Maya-style Viewport Scale / Ruler Overlay 設計 | 2026-07-31 | --- | 2026-08-03 | 12.4 KB | SPEC, VIEWPORT, RULER, SCALE, OVERLAY |
 
-## technical (59 files)
+## technical (60 files)
 
 | # | File | Title | Date | Status | Modified | Size | Keywords |
 |---|------|-------|------|--------|----------|------|----------|
@@ -1522,13 +1523,14 @@
 | 50 | `docs/technical/ROI_SPECIFICATION_2026-03-28.md` | ROI (Region of Interest) 仕様書 | 2026-03-28 | 仕様確定 | 2026-03-30 | 11.9 KB | ROI, SPECIFICATION |
 | 51 | `docs/technical/SHAPEPATH_GEOMETRY_CONTRACT_2026-07-27.md` | ShapePath ジオメトリ契約 | 2026-07-27 | ** Phase 0 documented; implementation and design-review follow-up pending | 2026-07-30 | 4.5 KB | SHAPEPATH, GEOMETRY, CONTRACT |
 | 52 | `docs/technical/SHORTCUT_SYSTEM_PHASE1_3_IMPLEMENTATION_2026-03-28.md` | Blender 風ショートカットシステム 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 11.2 KB | SHORTCUT, SYSTEM, PHASE1, IMPLEMENTATION |
-| 53 | `docs/technical/STATUSBAR_COMPOSITION_INFO_IMPLEMENTATION_2026-03-28.md` | ステータスバー コンポジション情報表示 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 7.6 KB | STATUSBAR, COMPOSITION, INFO, IMPLEMENTATION |
-| 54 | `docs/technical/STD_REPLACEMENT_PRIORITY_GUIDE_2026-06-19.md` | Standard Library Replacement Priority Guide | 2026-06-19 | --- | 2026-06-19 | 3.8 KB | STD, REPLACEMENT, PRIORITY, GUIDE |
-| 55 | `docs/technical/TIMELINE_PERFORMANCE_HYPOTHESES_2026-03-27.md` | レイヤータイムラインウィンドウ 性能改善仮説レポート (2026-03-27) | 2026-03-27 | 調査完了・仮説立案 | 2026-03-27 | 14.8 KB | TIMELINE, PERFORMANCE, HYPOTHESES |
-| 56 | `docs/technical/TRACKING_APP_BRIDGE_DESIGN_2026-07-11.md` | Tracking App Bridge Design | 2026-07-11 | --- | 2026-07-12 | 2.5 KB | TRACKING, APP, BRIDGE, DESIGN |
-| 57 | `docs/technical/UNDO_REDO_INTEGRATION_PHASE1_2026-03-28.md` | Undo/Redo 統合 実装レポート 段階 1 | 2026-03-28 | 段階 1 完了 | 2026-03-30 | 8.5 KB | UNDO, REDO, INTEGRATION, PHASE1 |
-| 58 | `docs/technical/UNDO_REDO_INTEGRATION_PHASE2_2026-04-13.md` | Undo/Redo 統合 実装レポート 段階 2 | 2026-04-13 | 段階 2 完了 | 2026-04-13 | 1.3 KB | UNDO, REDO, INTEGRATION, PHASE2 |
-| 59 | `docs/technical/VIDEOLAYER_PROXY_PROJECT_MANAGEMENT_IMPLEMENTATION_2026-03-28.md` | VideoLayer Proxy & プロジェクト管理 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 7.9 KB | VIDEOLAYER, PROXY, PROJECT, MANAGEMENT, IMPLEMENTATION |
+| 53 | `docs/technical/STARTUP_FLAGS_CONTRACT_2026-09-29.md` | 起動設定（ArtifactStartup.json）仕様 | 2026-09-29 | --- | 2026-09-30 | 6.8 KB | STARTUP, FLAGS, CONTRACT |
+| 54 | `docs/technical/STATUSBAR_COMPOSITION_INFO_IMPLEMENTATION_2026-03-28.md` | ステータスバー コンポジション情報表示 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 7.6 KB | STATUSBAR, COMPOSITION, INFO, IMPLEMENTATION |
+| 55 | `docs/technical/STD_REPLACEMENT_PRIORITY_GUIDE_2026-06-19.md` | Standard Library Replacement Priority Guide | 2026-06-19 | --- | 2026-06-19 | 3.8 KB | STD, REPLACEMENT, PRIORITY, GUIDE |
+| 56 | `docs/technical/TIMELINE_PERFORMANCE_HYPOTHESES_2026-03-27.md` | レイヤータイムラインウィンドウ 性能改善仮説レポート (2026-03-27) | 2026-03-27 | 調査完了・仮説立案 | 2026-03-27 | 14.8 KB | TIMELINE, PERFORMANCE, HYPOTHESES |
+| 57 | `docs/technical/TRACKING_APP_BRIDGE_DESIGN_2026-07-11.md` | Tracking App Bridge Design | 2026-07-11 | --- | 2026-07-12 | 2.5 KB | TRACKING, APP, BRIDGE, DESIGN |
+| 58 | `docs/technical/UNDO_REDO_INTEGRATION_PHASE1_2026-03-28.md` | Undo/Redo 統合 実装レポート 段階 1 | 2026-03-28 | 段階 1 完了 | 2026-03-30 | 8.5 KB | UNDO, REDO, INTEGRATION, PHASE1 |
+| 59 | `docs/technical/UNDO_REDO_INTEGRATION_PHASE2_2026-04-13.md` | Undo/Redo 統合 実装レポート 段階 2 | 2026-04-13 | 段階 2 完了 | 2026-04-13 | 1.3 KB | UNDO, REDO, INTEGRATION, PHASE2 |
+| 60 | `docs/technical/VIDEOLAYER_PROXY_PROJECT_MANAGEMENT_IMPLEMENTATION_2026-03-28.md` | VideoLayer Proxy & プロジェクト管理 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 7.9 KB | VIDEOLAYER, PROXY, PROJECT, MANAGEMENT, IMPLEMENTATION |
 
 ## theme-presets (1 files)
 
@@ -1591,7 +1593,7 @@
 | Artifact/bugs | 1 |
 | Artifact/planned | 3 |
 | ArtifactCore | 45 |
-| analysis | 82 |
+| analysis | 83 |
 | arch | 3 |
 | archived | 1 |
 | bugs | 90 |
@@ -1610,9 +1612,9 @@
 | root | 61 |
 | shared | 24 |
 | spec | 15 |
-| technical | 59 |
+| technical | 60 |
 | theme-presets | 1 |
 | trash | 1 |
 | verification | 1 |
 | worklog | 28 |
-| **Total** | **1426** |
+| **Total** | **1428** |
