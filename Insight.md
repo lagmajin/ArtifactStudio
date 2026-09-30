@@ -1,4 +1,12 @@
-**最終更新:** 2026-09-27
+**最終更新:** 2026-09-30
+
+## 2026-09-30 — 同一フレーム内の Clone Stamp は走査方向で source snapshot を省ける
+
+- **関連:** `Artifact/src/Layer/ArtifactPaintLayer.cppm`（`applyCloneStampFromLayerAtFrame`）。
+- **確認できた事実:** Clone Stamp の source pixel 矩形と destination 矩形は各 dab 内で一定の平行移動関係にある。同一 layer／同一 frame で矩形が重なる場合、source と destination の相対 offset に応じて行・列を逆順に走査すれば、書き込み前に必要な source pixel を読むことができる。前実装は毎 dab の source RGBA 全域を `std::vector<float>` へ複製しており、UI radius 上限 2500 では最大 5000×5000×4 float（約 381 MiB）の一時領域を要求し得た。
+- **対応:** 同一フレームは overlap を避ける行・列順で直接 sample し、異なる layer/frame は source から直接 sample する形に変更した。一時 source 配列と per-dab heap allocation を除去した。
+- **価値または懸念（未検証）:** 入力 hot path の一時メモリと巨大確保を除ける一方、端で clamp される source sample と横・縦の重複方向が混在するケースで描画結果が従来 snapshot 方式と完全一致するかは未実機確認。
+- **次に確認すべきこと:** 同一 layer の clone source/destination を左右・上下・斜めに重ね、source の全画素を変更前 snapshot と比較し、端外 source の clamp、消しゴム・Undo・キャンセルも確認する。
 
 ## 2026-09-27 — 2D 流体のコアは既に実装済みだった。pyro は CMake マクロ未定義でコンパイルされず、smoke の発生源はプロシージャル固定だった
 
