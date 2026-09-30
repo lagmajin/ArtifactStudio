@@ -502,3 +502,9 @@ public:
 - Brush stroke / Clone Stamp の Undo はフレーム全体ではなく、変更矩形の RGBA float パッチをストローク最大20件保持する実装に変更した。ブラシと Clone Stamp の逐次適用バッチを同じ stroke 記録へ追加し、Undo 時に逆順復元する。Clone Stamp は同一フレームの重なりを走査方向で保護し、描画先の Undo パッチは変更前に保存する。Clone drag release は履歴を確定し、キャンセルは進行中 stroke だけを復元する。
 - **残課題:** Undo パッチ総量はストロークの長さ・間隔に依存する。高解像度・長時間操作での実メモリ量と Undo の完全復元は未計測・未実機確認。
 - **未検証:** ビルド・実行・Undo/Redo・保存再読込・Image crop/rotation・Sequence Imageでの描画一致。AGENTS.mdの指示によりビルドとテストは実行していない。Plane/Image以外の選択状態からBrush/Eraserを開始する場合は対象選択を案内する。
+
+### 2026-09-30 入力経路の整合修正
+
+- 自動生成 Paint layer を対象 Image／Plane の直上に配置し、実寸が許容サイズ外の場合は layer を作る前に拒否するようにした。失敗した作成・削除を Undo 履歴へ残さない。
+- stroke 開始時の Paint layer ID を保持し、selection が変化しても move／release／cancel はその stroke の surface へ送る。各入力点は対象の crop／pixel-aspect を含む surface transform の逆変換で buffer 座標へ変換する。
+- **未検証:** Undo stack を含む作成失敗経路、選択変更中のドラッグ、Image crop／回転、Plane pixel aspect の描画位置と表示一致は runtime 確認が必要。ビルド・テストは AGENTS.md の指示により未実行。
