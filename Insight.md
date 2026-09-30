@@ -8,6 +8,14 @@
 - **価値または懸念（未検証）:** 削除済み target に結び付いた既存 pixels を維持しながら誤った frame や独立 transform で編集・表示するのを避ける。target の復元／再リンク後に既存 paint frame が期待どおり再表示・Undo 可能かは runtime 未検証。
 - **次に確認すべきこと:** Paint 対象の削除・Undo 復元・再リンク、保存再読込後の対象 ID 解決、連番 Image の cache 未準備／切替中に描画が保留されることを確認する。
 
+## 2026-09-30 — レイヤー削除時の release は入力 tool 状態も終端させる
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`（Brush／Eraser／RotoBrush release と cancel）。
+- **確認できた事実:** release は controller の `paintStrokeLayerId_` を消していたが、layer ID が composition から消えていた場合や Paint surface transform が非可逆だった場合、`ArtifactBrushTool::mouseReleaseEvent()`／`cancelStroke()` を呼ばず、`dragging_` が残る経路があった。
+- **対応:** layer／renderer が見つからない release と非可逆 transform の release を cancel 終端へ寄せる。明示 cancel も layer pointer が無効な場合に BrushTool の一時入力状態を消去する。
+- **価値または懸念（未検証）:** 次のストロークへ dragging／Undo 状態が漏れるのを防ぐ。削除直前までに適用済みの dab が対象 layer の Undo patch へ戻るか、Composition 更新と pointer cancel の実際の順序は runtime 未検証。
+- **次に確認すべきこと:** drag 中に Paint layer／target を削除、renderer を失効、非可逆 transform にし、release／Esc cancel 後に次の Brush stroke が正常開始することと Undo 履歴を確認する。
+
 ## 2026-09-30 — 同一フレーム内の Clone Stamp は走査方向で source snapshot を省ける
 
 - **関連:** `Artifact/src/Layer/ArtifactPaintLayer.cppm`（`applyCloneStampFromLayerAtFrame`）。

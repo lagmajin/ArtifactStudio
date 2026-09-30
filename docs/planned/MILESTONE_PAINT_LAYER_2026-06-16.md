@@ -511,5 +511,6 @@ public:
 - Onion Skin は float frame buffer の `QImage` 化をやめ、Paint layer と共有する revision 付き GPU texture cache／surface transform から描画する。
 - brush cursor／stroke preview overlay もドラッグ中に pin した Paint layer の transform を使う。renderer の `drawPolyline(std::vector<...>)` API 用 scratch を controller 初期化時に確保し、Brush preview／RotoBrush 用点列は最大 4096 点を既存領域内で間引く。
 - 対象 Image／Plane が削除または未解決の Paint layer は source frame を `-1` で無効化し、描画・Undo・Brush／Clone の frame 更新を止める。連番画像の表示 frame が未キャッシュの場合も同様に待機し、独立 Paint layer の frame へ誤書き込みしない。対象が非表示／未解決なら GPU texture cache の取得前に描画を抜ける。
+- ストローク終了時に Paint layer が削除済み／解決不能、renderer が利用不能、surface 変換が非可逆の場合は BrushTool のドラッグ状態も cancel して解放する。明示 cancel は対象 layer ID が既に解決できない場合にも BrushTool の入力状態を閉じる。
 - これはフレーム別ペイントバッファの時間キーを source に合わせる基礎であり、Video を Brush／Eraser の選択対象にすることや動画デコード／編集 UI はまだ追加していない。
 - **未検証:** Undo stack を含む作成失敗経路、選択変更中のドラッグ、対象削除中／連番 frame 未キャッシュ時の入力、Image crop／回転、Plane pixel aspect の描画位置と表示一致は runtime 確認が必要。ビルド・テストは AGENTS.md の指示により未実行。
