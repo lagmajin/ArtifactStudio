@@ -3641,3 +3641,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** (A) サンプラに revision 追跡（`effectRevision()` で実装パラメータ/内容を識別）、挿入順 `std::list` による O(1) evict、バイト予算（既定256MB）、`invalidateIfRevisionChanged` / `invalidateLayer` / `invalidateAll` を追加し、controller の store 前に revision 無効化と discontinuity 全無効化を配線。(B) `GpuSpatialEffectNode` に `historyFrameOffset` / `historyValid` を追加し、generic resident shader に `g_HistoryTexture`（t1）と `g_HistoryValid`（uniform）を追加。`RenderPipeline` に固定長8スロットの ping-pong 履歴プール（`recordLayerFrame` / `layerHistoryView` / `invalidateLayerHistory` / `invalidateAllLayerHistory`）を追加し、GPU→GPU copy のみで readback なし。(C) render tick で連続性を判定し、不連続時は無効化後に**1フレームだけ** pre-roll（N-1 を描いて復元）して N が N-1 をサンプルできるようにした。
 - **価値または懸念（未検証）:** 時制エフェクトが `historyFrameOffset` を設定するだけで GPU 経路でも効くが、**まだ1つも設定していない**（既存エフェクトは `supportsGPU()==false` の CPU 実装のみ）。C の pre-roll は 1 フレーム固定なので、2フレーム以上戻る effect（TimeBlur 等）は 2段目以降がまだ空。履歴は深度1の ping-pong のため GPU 側は ±2 以上の参照は未対応。`LayerFrameHistory::eraseFrame` の `order` 走査は O(n)（evict 1回あたり）。全編未ビルド・未実機（AGENTS.md により明示指示なし）。`invalidateIfRevisionChanged` は毎フレーム vector 確保するため、HOT_PATH_RULES §1 に対して発生条件を明示して計測が必要。
 - **次に確認すべきこと:** (1) ビルドして `ArtifactEffectFrameSampler` と pipeline の new API が通るか (2) Echo を 1 本 generic resident shader（`g_HistoryTexture` 読み）へ移して GPU 経路で works するか (3) スクラブ/逆再生で pre-roll が 1 フレーム埋めるか (4) エフェクトパラメータ変更直後に履歴が破棄されるか (5) 履歴プールの 8 スロット枯渇時に CPU フォールバックが正しく効くか (6) `invalidateIfRevisionChanged` の毎フレーム vector 確保を `SmallVector` / 固定バッファへ置き換えるべき計測。
+- **次に確認すべきこと:** (1) ビルドして `ArtifactEffectFrameSampler` と pipeline の new API が通るか (2) Echo を 1 本 generic resident shader（`g_HistoryTexture` 読み）へ移して GPU 経路で works するか (3) スクラブ/逆再生で pre-roll が 1 フレーム埋めるか (4) エフェクトパラメータ変更直後に履歴が破棄されるか (5) 履歴プールの 8 スロット枯渇時に CPU フォールバックが正しく効くか (6) `invalidateIfRevisionChanged` の毎フレーム vector 確保を `SmallVector` / 固定バッファへ置き換えるべき計測。
+
+## 2026-10-01 — Text shaping の公開フォントAPIとUTF-16境界
+
+- **関連:** `ArtifactCore/include/Font/FreeFont.ixx`、`ArtifactCore/src/Text/TextShapingBackend.cppm`。
+- **確認できた事実:** `FontManager::makeFont` はTextShapingBackendとGlyphLayoutから呼ばれている一方、FontManager内ではprivate宣言範囲にあった。Windows ICUの`UChar`は`char16_t`で、Qt `QString::utf16()`は`ushort*`を返す。HarfBuzzのbuffer language setterは文字列でなくintern済み`hb_language_t`を受け取る。
+- **対応:** `makeFont`を公開側へ配置し、ICU境界では`std::u16string`のデータを渡し、HarfBuzzでは`hb_language_from_string`を通して言語を設定した。
+- **価値または懸念（未検証）:** API型の境界を明示し、現在のMSVCコンパイルエラーを解消した。UTF-16の一時コピーに伴う割り当て頻度は実測していない。
+- **次に確認すべきこと:** アプリのテキスト描画・複雑文字スクリプトで整形結果を実機確認し、必要ならUTF-16変換の割り当てを計測する。
