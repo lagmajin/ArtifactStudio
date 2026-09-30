@@ -497,5 +497,7 @@ public:
 - 対象 layer ID は Paint layer JSON に保存し、Undo/Redo・再読込後も対象参照を維持する。通常の独立Paint layerは従来どおり自身の座標・transformを使う。
 - PaintバッファとUndo履歴は既存どおり `FramePosition` ごとに保持するため、対象レイヤーの時間に沿ったフレーム別描画を拡張できる基礎はある。現時点で動画レイヤーへの直接描画や動画デコード連携は実装していない。
 - `ArtifactPaintLayer::draw()` は revision付き `ImageF32x4_RGBA` GPU texture cache を使い、ペイント表示のQImage変換を除去した。
+- Paint frame の JSON 復元上限（RGBA float 512 MiB）を超える Image／Plane は、直接描画面の作成前に拒否し、保存後に読み戻せない面を生成しない。
 - 対象変換は描画と入力ごとに解決し、Brush cursor／stroke previewも同じ変換で表示する。Paint表示の対象IDはnil UUIDを初期値とし、ホットパスで文字列からUUIDを解析しない。
+- **残課題:** Brush stroke の Undo は既存経路でフレーム全体の float image を最大20件コピーする。直接描画は対象解像度の面を使うため、高解像度では CPU／メモリ負荷が大きくなり得る。差分またはタイル単位で Undo を保持する設計と実測が必要。
 - **未検証:** ビルド・実行・Undo/Redo・保存再読込・Image crop/rotation・Sequence Imageでの描画一致。AGENTS.mdの指示によりビルドとテストは実行していない。Plane/Image以外の選択状態からBrush/Eraserを開始する場合は対象選択を案内する。
