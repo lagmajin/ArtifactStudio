@@ -499,6 +499,6 @@ public:
 - `ArtifactPaintLayer::draw()` は revision付き `ImageF32x4_RGBA` GPU texture cache を使い、ペイント表示のQImage変換を除去した。
 - Paint frame の JSON 復元上限（RGBA float 512 MiB）を超える Image／Plane は、直接描画面の作成前に拒否し、保存後に読み戻せない面を生成しない。
 - 対象変換は描画と入力ごとに解決し、Brush cursor／stroke previewも同じ変換で表示する。Paint表示の対象IDはnil UUIDを初期値とし、ホットパスで文字列からUUIDを解析しない。
-- Brush stroke / Clone Stamp の Undo はフレーム全体ではなく、変更矩形の RGBA float パッチをストローク最大20件保持する実装に変更した。ブラシの逐次適用バッチは同じ stroke 記録へ追加し、Undo 時に逆順復元する。
+- Brush stroke / Clone Stamp の Undo はフレーム全体ではなく、変更矩形の RGBA float パッチをストローク最大20件保持する実装に変更した。ブラシの逐次適用バッチは同じ stroke 記録へ追加し、Undo 時に逆順復元する。Clone Stamp は描画元を作業バッファへ先に退避し、描画先の Undo パッチを変更前に保存する。
 - **残課題:** Undo パッチ総量はストロークの長さ・間隔に依存する。高解像度・長時間操作での実メモリ量と Undo の完全復元は未計測・未実機確認。
 - **未検証:** ビルド・実行・Undo/Redo・保存再読込・Image crop/rotation・Sequence Imageでの描画一致。AGENTS.mdの指示によりビルドとテストは実行していない。Plane/Image以外の選択状態からBrush/Eraserを開始する場合は対象選択を案内する。
