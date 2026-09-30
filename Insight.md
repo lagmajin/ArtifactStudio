@@ -1,5 +1,13 @@
 **最終更新:** 2026-09-30
 
+## 2026-09-30 — target-bound Paint layer の未解決参照を独立レイヤーへ暗黙 fallback しない
+
+- **関連:** `Artifact/src/Layer/ArtifactPaintLayer.cppm`、`Artifact/src/Tool/ArtifactBrushTool.cppm`。
+- **確認できた事実:** Paint layer は target の `LayerID` を保持し、見つからない場合 `paintSurfaceLayout()` は表示を隠す一方、`paintFramePosition()` は Paint layer 自身の frame へ fallback していた。さらに `drawFrameOverlay()` は表示判定前に GPU texture cache を要求していた。
+- **対応:** target-bound layer の target または composition が未解決なら frame `-1` を返し、frame buffer への Brush／Clone 更新・Undo・描画を止める。Sequence Image の cached frame が無効な時も更新を保留し、描画対象確認後に GPU cache を取得する。
+- **価値または懸念（未検証）:** 削除済み target に結び付いた既存 pixels を維持しながら誤った frame や独立 transform で編集・表示するのを避ける。target の復元／再リンク後に既存 paint frame が期待どおり再表示・Undo 可能かは runtime 未検証。
+- **次に確認すべきこと:** Paint 対象の削除・Undo 復元・再リンク、保存再読込後の対象 ID 解決、連番 Image の cache 未準備／切替中に描画が保留されることを確認する。
+
 ## 2026-09-30 — 同一フレーム内の Clone Stamp は走査方向で source snapshot を省ける
 
 - **関連:** `Artifact/src/Layer/ArtifactPaintLayer.cppm`（`applyCloneStampFromLayerAtFrame`）。
