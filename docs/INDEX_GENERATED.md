@@ -602,7 +602,7 @@
 | 12 | `docs/planned/DILIGENT_RENDER_EXTENSION_REPORT_2026-06-17.md` | Diligent レンダリング拡充 — 実装報告書 | 2026-06-17 | --- | 2026-06-17 | 11.5 KB | DILIGENT, RENDER, EXTENSION, REPORT |
 | 13 | `docs/planned/EDITOR_RENDER_RULES.md` | Editor / Render Rules | --- | --- | 2026-06-24 | 3.8 KB | EDITOR, RENDER, RULES |
 | 14 | `docs/planned/FEATURE_EFFECT_LEVEL_MASK_2026-07-02.md` | エフェクト単位の個別マスク設定 | 2026-07-02 | ** 実装済み・実機未確認 | 2026-07-14 | 3.8 KB | FEATURE, EFFECT, LEVEL, MASK |
-| 15 | `docs/planned/GROUP_CONTAINER_MIGRATION_PLAN_2026-08-27.md` | GroupContainer 移行計画 | 2026-08-27 | Phase 0 / 1 実装済み、Phase 2 は独立GroupContainerの作成・保存・Timeline表示まで部分実装。Render Boundary移行は未着手 | 2026-09-16 | 6.1 KB | GROUP, CONTAINER, MIGRATION, PLAN |
+| 15 | `docs/planned/GROUP_CONTAINER_MIGRATION_PLAN_2026-08-27.md` | GroupContainer 移行計画 | 2026-08-27 | Phase 0 / 1 実装済み、Phase 2 は独立GroupContainerの作成・保存・Timeline表示・switch列まで部分実装。展開状態の永続化は追加実装。Render Boundary移行は未着手 | 2026-10-01 | 10.2 KB | GROUP, CONTAINER, MIGRATION, PLAN |
 | 16 | `docs/planned/HIEROPLAYER_VIEWER_INSPECTION_PRESTUDY_2026-09-26.md` | HieroPlayer 由来「Viewer Inspection Controls」導入前検討 | 2026-09-26 | 導入前検討（コード変更なし・ビルド未実施） | 2026-09-26 | 17.9 KB | HIEROPLAYER, VIEWER, INSPECTION, PRESTUDY |
 | 17 | `docs/planned/IMPLEMENTATION_ANIMATION_PHYSICS_2026-03-22.md` | Animation-Style Physics for Layer Transforms — Implementation Proposal | 2026-03-22 | --- | 2026-03-22 | 13.3 KB | IMPLEMENTATION, ANIMATION, PHYSICS |
 | 18 | `docs/planned/IMPLEMENTATION_PLAN_MULTI_VIEWPORT_2026-06-02.md` | Implementation Plan: Multi-Viewport Layout System (M-VP-1) | 2026-06-02 | --- | 2026-06-02 | 16.3 KB | IMPLEMENTATION, PLAN, MULTI, VIEWPORT |
