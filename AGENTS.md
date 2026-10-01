@@ -1,6 +1,6 @@
 # AGENTS
 
-**最終更新:** 2026-09-29
+**最終更新:** 2026-10-01
 
 ### Composition Viewport 採用モックの参照範囲（2026-09-08・必須）
 
@@ -39,6 +39,13 @@ When working on a date-stamped development branch (for example, `codex/YYYY-MM-D
    ```
 
 5. **Never edit child repos unless explicitly requested by user**
+
+### GitHub 主運用と GitLab バックアップ
+
+- 通常のコミット／プッシュ先は GitHub の `origin` とする。現在の開発ブランチを使い、`main` へ切り替えない。
+- GitLab の `gitlab` remote はバックアップ用とする。GitHub へのプッシュごとに毎回二重プッシュせず、まとまった機能・作業マイルストーンの完了時、またはユーザーから依頼された時に更新する。
+- GitLab のバックアップも親子で同じブランチ名を使う。バックアップ時は、親が参照する子のコミットが GitLab 側で取得可能になるよう、必要な子リポジトリを先にプッシュし、親の gitlink を確認してから親をプッシュする。
+- push コマンドでは宛先を `origin` または `gitlab` と明示し、GitHub を通常運用、GitLab を低頻度のバックアップとして扱う。ユーザーが宛先や頻度を指定した場合はその指示を優先する。
 
 ---
 

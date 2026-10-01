@@ -1,8 +1,8 @@
 # GroupContainer 移行計画
 
 **作成日:** 2026-08-27  
-**最終更新:** 2026-09-16
-**ステータス:** Phase 0 / 1 実装済み、Phase 2 は独立GroupContainerの作成・保存・Timeline表示まで部分実装。Render Boundary移行は未着手
+**最終更新:** 2026-10-01
+**ステータス:** Phase 0 / 1 実装済み、Phase 2 は独立GroupContainerの作成・保存・Timeline表示・switch列まで部分実装。展開状態の永続化は追加実装。Render Boundary移行は未着手
 **対象:** `ArtifactGroupLayer` から Composition 所有の独立 Container への移行
 
 ## Update 2026-08-30 — current implementation reconciliation
@@ -19,6 +19,39 @@
 - Timeline右ペインには子レイヤーのin/out和集合をContainerバーとして表示する。Containerバーはレイヤー操作対象にしない。
 - `compositionNodes`へのJSON保存／復元経路を利用するためContainerと子parentIdは永続化される。ビルド、runtime表示、保存後再起動の往復確認は未実施。
 - Render Boundary、ネストContainer、Inspector、Export移行は引き続き未実装。
+
+## Update 2026-10-01 — 展開状態の永続化と開示Trianglesのヒット領域
+
+### 実施内容
+
+- `ArtifactAbstractComposition::groupContainerExpanded()` / `setGroupContainerExpanded()` を追加し、`GroupContainerNode` の `properties["expanded"]` を正式な保存先とした。生成時に `expanded=true` を書いていたが読み戻す経路が無く、再起動で常に全展開に戻っていた。
+- 左ペインの行生成は `expandedByGroupKey` のセッション内上書きを優先し、未上書きのときだけノードから読む。
+- Container行のクリック処理を、開示Triangleのヒット矩形内だけに限定した。従来はContainer行のどこをクリックしても折り畳み／展開がtoggleされ、コンテナ行の選択が事実上不可能になっていた。レイヤー行の16px規律（`ArtifactLayerPanelWidget.cppm` の `disclosureRect`）と一致させている。
+- `SetGroupContainerExpandedCommand` を追加し、展開／折り畳みをUndo可能にした。あわせて `RemoveGroupContainerCommand` はundo時に `expanded` を復元する（`createGroupContainer` は `expanded=true` でseedするため、そのままだとUngroup→Redoでグループが勝手に開く）。
+
+### Container switch（2026-10-01 追加）
+
+**設計判断: 子上方向のみ（Aggregate + Write-through）**
+
+- Containerは `ArtifactAbstractLayer` を継承せず独自の switch 状態を持たない。`properties` に switch を保存するとCoreの `hasParent()` / `childLayersOf()` / `shouldEvaluateLayer()` と状態モデルが二重化する。
+- そのため Container switch は**子の集約値であり、書き込みは子への伝播**とした。逆方向（子の個別操作を Container に反映して状態に書き戻す）は採用しない。
+- 集約値はCoreの単一責務として `ArtifactAbstractComposition::groupContainerSwitchStates()` に集約した。全4 switch を1回の子走査で返すため、paint がセルごとに Core を叩かない。状態は `On`（全子オン）/ `Mixed`（一部オン）/ `Off`（全子オフ）。空グループは `Off`。
+- 書き込みは既存の `SetLayerVisibilityCommand` / `SetLayerLockCommand` / `SetLayerSoloCommand` / `SetLayerShyCommand` を `MacroUndoCommand` で束ねて実行する。新しい signal/slot や新しい永続化先は追加していない。
+- ロック済み子は非lock switchの対象から除外する（レイヤー行の既存ルールと同じ）。全子ロック時はロック拒否の通知を出し、lock switch のみ有効。
+- クリック時のトグルは集約値で決める: `Off` なら全子オン、それ以外は全子オフ。
+- Audio列(3)とPick Whip列(5)は Container レベルの意味を持たないため無効のまま描画する。
+
+### 左ペインの現状と残るギャップ
+
+Container行は「集約行」として成立し、switch列はレイヤー行と揃った。残る未実装点:
+
+| 項目 | 状態 |
+| --- | --- |
+| Container switch列（Visible / Lock / Solo / Shy） | 実装済み。集約表示 + 子への書き戻し、Macro Undo、ロック拒否の適用 |
+| ドラッグによるContainerへのparent link付け | 不可。すべてのdrop経路が `visibleRows[i].layer != nullptr` を要求し、Container行は `layer == nullptr`。ContainerはNodeStoreの親なので、別のNodeStore `setParent` 経路を新設する必要がある |
+| 入れ子Container | 未実装。`appendNode` は container の子に固定depth 1で渡す |
+| .Render Boundary | 未実装。`createGroupContainer` は `parentLayerId_` を触らないため `hasParent()` / `childLayersOf()` / `shouldEvaluateLayer()` から所属が見えない。これはswitch実装の前提条件でもある |
+| 子からContainerへの状態逆反映 | 採用しない（子上方向のみで確定） |
 
 ## 目的
 
