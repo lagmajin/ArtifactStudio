@@ -523,6 +523,85 @@ TEST(ArtifactRegexTest, BackreferencesMatchRepeatedText)
     EXPECT_FALSE(forward.isValid());
 }
 
+TEST(ArtifactSetTest, StdCompatibleSpellingsAndCopySemantics)
+{
+    HashSet<int> values;
+    EXPECT_TRUE(values.insert(10));
+    EXPECT_FALSE(values.insert(10));
+
+    const int missing = 20;
+    EXPECT_FALSE(values.find(missing).has_value());
+    EXPECT_TRUE(values.find(10).has_value());
+
+    EXPECT_TRUE(values.erase(10));
+    EXPECT_FALSE(values.erase(10));
+    EXPECT_TRUE(values.isEmpty());
+
+    HashSet<int> source;
+    source.add(1);
+    source.add(2);
+    source.add(3);
+
+    HashSet<int> copied(source);
+    EXPECT_EQ(copied.size(), 3u);
+
+    copied.remove(1);
+    EXPECT_EQ(source.size(), 3u);
+    EXPECT_TRUE(source.contains(1));
+    EXPECT_FALSE(copied.contains(1));
+
+    HashSet<int> assigned;
+    assigned = source;
+    EXPECT_EQ(assigned.size(), 3u);
+
+    int visited = 0;
+    for (const int value : source) {
+        (void)value;
+        ++visited;
+    }
+    EXPECT_EQ(visited, 3);
+}
+
+TEST(ArtifactHashMapTest, AtReturnsOptionalInsteadOfThrowing)
+{
+    ArtifactHashMap<int, int> map;
+    map.insert(1, 100);
+
+    auto found = map.at(1);
+    ASSERT_TRUE(found.has_value());
+    EXPECT_EQ(*found, 100);
+
+    auto missing = map.at(999);
+    EXPECT_FALSE(missing.has_value());
+
+    EXPECT_NE(map.findValue(1), nullptr);
+    EXPECT_EQ(map.findValue(999), nullptr);
+    EXPECT_TRUE(map.contains(1));
+}
+
+TEST(ArtifactDictTest, SafeDictionaryRoundTrip)
+{
+    ArtifactDict<int, int> dict;
+    dict.set(1, 42);
+
+    EXPECT_TRUE(dict.contains(1));
+    EXPECT_EQ(dict.getOr(1, 0), 42);
+    EXPECT_EQ(dict.getOr(7, -1), -1);
+
+    int out = 0;
+    EXPECT_TRUE(dict.tryGet(1, out));
+    EXPECT_EQ(out, 42);
+    EXPECT_FALSE(dict.tryGet(7, out));
+
+    const auto got = dict.get(1);
+    ASSERT_TRUE(got.has_value());
+    EXPECT_EQ(*got, 42);
+    EXPECT_FALSE(dict.get(7).has_value());
+
+    dict.remove(1);
+    EXPECT_TRUE(dict.isEmpty());
+}
+
 TEST(ArtifactSetTest, SelfContainedHashSetOperations)
 {
     HashSet<int> values;

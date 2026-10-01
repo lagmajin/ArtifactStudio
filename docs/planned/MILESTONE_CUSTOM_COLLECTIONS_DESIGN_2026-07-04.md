@@ -1,7 +1,7 @@
 # 自前コレクションライブラリ 全体設計 (2026-07-04)
 
-**最終更新:** 2026-08-15
-**Status:** HashMap／Optional／Atomic／Span／Variant など一部基盤は存在するが、Array／String／Ptr 等の全面置換は未達
+**最終更新:** 2026-09-30
+**Status:** 基盤型（Array／HashMap／Set／Dict／Optional など）はいずれも std／Qt 非依存で実装済み。既存の `std::vector` 利用箇所の全面移行は未着手。
 
 > std も Qt も使わない。純粋 C++20。`ArtifactHashMap` と同じ哲学。
 > 依存: `<cstddef>`, `<cstdint>`, `<cassert>`, `<new>`, `<utility>` のみ。
@@ -15,19 +15,31 @@
 | P0-3 | `Ptr<T>` / `Ref<T>` / `Owned<T>` | `shared_ptr`/`unique_ptr` | 1,132 | 大 |
 | P1-1 | `Mutex` / `Lock` / `Cond` | `std::mutex`等 | 808 | 中 |
 | P1-2 | `Callback<Sig>` | `std::function` | 406 | 小 |
-| P1-3 | `Set<T>` | `std::set`/`unordered_set` | 14 | 小 |
-| P2-1 | `Queue<T>` | `std::queue` | 3 | 小 |
+| P1-3 | `Set<T>` | `std::set`/`unordered_set` | 66 | ✅ 実装済み・基盤整備済み |
+| P2-1 | `Queue<T>` | `std::queue` | 40 | 保留（削除済み・必要時に再実装） |
 | P2-2 | `Thread` | `std::thread` | 43 | 中 |
 
 ### 既存の自前実装（完了済み）
 
 | 型 | 状態 |
 |---|---|
+| `Array<T>` / `StaticArray<T,N>` | ✅ 完全実装 (`ArtifactArray`) |
 | `HashMap<K,V>` | ✅ 完全実装 (`ArtifactHashMap`) |
+| `HashSet<T>` / `ArtifactSet<T>` | ✅ 完全実装 (`ArtifactSet`) |
+| `Dict<K,V>` | ✅ 完全実装 (`ArtifactDict`) |
 | `Optional<T>` | ✅ 完全実装 (`ArtifactOptional`) |
 | `Atomic<T>` | ✅ 薄いラッパー (`ArtifactAtomic`) |
 | `Span<T>` | ✅ 完全実装 (`ArtifactSpan`) |
 | `Variant` | ✅ 完全実装 (`ArtifactVariant`) |
+
+> **Update 2026-09-30**
+> - `Queue<T>` は削除。`ArtifactQueue` は `QQueue<T>` ラッパで「std も Qt も使わない」方針に違反し、実使用箇所も 0 だった。必要になれば std 非依存で再実装する。
+> - `ArtifactSet` は API を整備して実用に供した（`insert`/`erase`/`find` を std 互換名で追加、`Iterator::operator++(int)` 追加、deep copy と `swap` を実装）。コピー禁止だったため値コピーが必要な用法では置換できなかった。
+> - `ArtifactFoundation` の `export import` に `Core.ArtifactSet` を追加。
+> - `ArtifactHashMap::at()` は例外送出（`std::out_of_range`）を廃止し `Optional` 返却に変更。`findValue()` を追加。`const find()` / `const_iterator` を追加。`std::unique_ptr` を生配列所有に置き換え `<memory>` を除去。未使用だった `<algorithm>`/`<list>`/`<mutex>`/`<stdexcept>` も除去。
+> - `ArtifactDict` は `QHash`/`QMap` から `ArtifactHashMap` へ移行し Qt 依存を解消。
+> - `NamedVector` の内部 `std::vector<T> values_` を `Array<T>` へ、`NameMap` の内部 `std::map<K,V>` を `ArtifactHashMap<K,V>` へ、`SmallVector` の `mutationHistory_` を `Array` へ置換。
+> - 残存する `toStdVector()` / `fromStdVector()` / `toStdMap()` は公開 API 境界としての意図的な変換点として維持する。
 
 ---
 

@@ -331,3 +331,7 @@
 **進捗 (2026-09-30, Phase 3):** Mask vertex drag開始点、handle drag開始点、feather/expansion drag開始位置をLayerLocalPoint2化。これらは対象layerのglobal transform逆変換後に取得されることをcall pathで確認。既存QPointF geometry計算へ出る直前だけnamed conversionを使用し、constrained vertex、feather距離、expansion/feather delta式は維持。コンパイル・mask操作確認は未実施。
 
 **型基盤・進捗 (2026-09-30, Phase 3):** LayerParentPoint2 / LayerParentVector2を追加し、CompositionPoint2との暗黙混合拒否をstatic assertionで固定。Motion Path dragの公開helper入力をCompositionPoint2、開始／更新positionをLayerParentPoint2、差分をLayerParentVector2にする。親付きlayerはparent global inverse、root layerはroot-parent frameとしてComposition値を明示写像し、Qt geometry境界でのみunwrapする。既存transform key式・group操作を維持。コンパイル・親子motion-path drag確認は未実施。
+
+**進捗 (2026-09-30, Phase 3):** Motion Path position Undo snapshotのx/y scalar pairをLayerParentPoint2へ変更し、単一key／複数key group capture・restore・change判定まで同じ親座標型を保持する。transform keyframe scalar API境界でcomponentを明示的に渡す。group pivotとdrag開始／更新位置はLayerParent frameとして変換済み。keyframe値・Undo/Redo・親付きlayer parityのcompile/runtime確認は未実施。
+
+**補足 (2026-09-30):** Multi-key Motion Path group pivotも親座標point型で保持する。平均化は座標componentのdouble精度累積・除算を維持し、Qt group geometry境界でだけQPointFへ変換する。

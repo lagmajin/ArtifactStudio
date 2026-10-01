@@ -1604,9 +1604,9 @@ active milestone の重複名としては扱わない。
 - **実装更新（Update 2026-08-15）**: `ArtifactProjectService::ensureProject()` と `currentProjectAssetsPath()` を追加し、MainWindow の新規コンポジション／アセット導線および Asset Browser の assets path helper から `ArtifactProjectManager` 直接参照を除去した。ファイル open、WebUI の composition count、open/save/close facade と current project path API の整理は未完了。
 - **実装確認（Update 2026-08-15）**: 通常の編集・asset・composition 操作は `ArtifactProjectService` 経由が中心。一方、`ArtifactMainWindow` の welcome/recent project の open と create/import fallback、`ArtifactProjectManagerWidget` / Asset Browser の path helper、WebUI の composition count には `ArtifactProjectManager` 直接参照が残る。現行 service に async open/save/close の facade がないため、今回の置換は API 増設を伴い、runtime 契約確認なしには安全に進められない。境界整理は未完了。
 
-### M-AR-2 import std Rollout
+### M-AR-2 import std Rollout — 取り下げ（2026-09-30）
 - 安全な module から順に C++23 / `import std;` 化
-- **実装確認（Update 2026-08-15）**: 既存の導入済み範囲を棚卸しし、標準ライブラリ依存が `std::max` / `std::clamp` に閉じた `Artifact/src/Settings/AccessibilitySettings.cppm` を追加移行。global module fragment の `<algorithm>` と未使用 `<cmath>` を除去し、module 宣言後へ `import std;` を配置。CMake／ビルド未実行のため toolchain 受入は未確認。
+- **記録訂正（Update 2026-09-30）**: 上の記録（Update 2026-08-15）は `import std;` を導入済みとしていたが、`ArtifactCore`／`Artifact` 全体で実コードを再検索した結果 `import std;` は **0 件** であり当該移行は行われていない。`AGENTS.md` の「module purview（`module X;` の後）に `#include` を追加しない」規則と、`MILESTONE_STD_TO_QT_MIGRATION_2026-07-04.md` の Update 2026-08-15（全面一括置換を見送る）の方針に整合させ、本項は取り下げとする。標準ヘッダ include の削減は本項とは別の課題として扱う。
 
 ### M-AR-3 Serialization Cleanup — 基盤実装完了・全面typed envelope移行 pending（2026-09-19）
 - layer / composition / effect の JSON 保存整理

@@ -1,7 +1,7 @@
 # MILESTONE: Distort & Warp Effects Completion
 
 **日付**: 2026-08-04
-**最終更新**: 2026-08-28
+**最終更新**: 2026-09-30
 **ステータス**: In Progress（2026-08-28 再活性化、Phase 2 から着手）
 **関連**:
 - `docs/planned/MILESTONE_MESH_WARP_LIQUIFY_2026-06-02.md`（Liquify/Mesh Warp の UI 詳細。本書は集約ハブとして参照）
@@ -31,7 +31,7 @@
 | TurbulentDisplaceEffect | ✅ | ❌ applyCPU()委譲 | PIMPL+DualImpl | 55% |
 | DisplacementMapEffect | ✅ | ❌ | 単一Impl | 45% |
 | KaleidoscopeEffect | ✅ | ✅ 宣言あり | PIMPL | 70% |
-| OpticsCompensationEffect | ✅ Core委譲 | ❌ | Direct apply() | 30% |
+| OpticsCompensationEffect | ✅ Core委譲 | ❌ | CPUImpl 単一 | 45% |
 | ArtifactCornerPinEffect | ✅ cv::warpPerspective | ❌ | Direct apply() | 50% |
 | TwistTransform | ❌ | ❌ | Header-only stub | 10% |
 | BendTransform | ❌ | ❌ | Header-only stub | 10% |
@@ -233,7 +233,7 @@ void TwistTransform::applyCPU(ImageF32x4_RGBA& input, ImageF32x4_RGBA& output,
 
 ### 3.2 統一ラッパーパターン
 
-OpticsCompensationEffect の薄いラッパー（57行）を参照パターンとし、全ブリッジに適用:
+統一ラッパーパターンとして、PinchBulge / Ripple / PolarCoordinates 等の displacement 系 Effector を参照（いずれも `ArtifactEffectImplBase` 派生的 CPUImpl に値を sync する形）。OpticsCompensation も 2026-09-30 に同じ形へ移行済み（以前は private 非 virtual `applyCPU` を定義するだけで `setCPUImpl()` を呼ばず、`apply()` が素通しになっていた）:
 
 ```cpp
 class PinchBulgeEffect : public ArtifactAbstractEffect {

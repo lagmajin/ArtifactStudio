@@ -689,6 +689,11 @@ set(PXR_BUILD_TESTS OFF CACHE BOOL "Disable OpenUSD tests" FORCE)
 set(PXR_BUILD_DOCUMENTATION OFF CACHE BOOL "Disable OpenUSD documentation" FORCE)
 set(PXR_ENABLE_PYTHON_SUPPORT OFF CACHE BOOL "Disable OpenUSD python support" FORCE)
 set(PXR_BUILD_USD_TOOLS OFF CACHE BOOL "Disable OpenUSD command line tools" FORCE)
+# The importer consumes usd / usdGeom / usdShade; rendering stays with Diligent.
+# Imaging defaults to ON upstream and requires OpenSubdiv even with USD tools off.
+set(PXR_BUILD_IMAGING OFF CACHE BOOL "Disable unused OpenUSD imaging components" FORCE)
+set(PXR_BUILD_USD_IMAGING OFF CACHE BOOL "Disable unused OpenUSD scene imaging" FORCE)
+set(PXR_BUILD_USDVIEW OFF CACHE BOOL "Disable unused OpenUSD viewer" FORCE)
 add_subdirectory(libs/openusd EXCLUDE_FROM_ALL)
 set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "${_artifact_import_std_gate_for_usd}" CACHE STRING "Restore import std gate" FORCE)
 set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "${_artifact_import_std_gate_for_usd}")
@@ -706,6 +711,9 @@ set(CMAKE_CXX_MODULE_STD "${_artifact_cxx_module_std_for_usd}" CACHE BOOL "Resto
 # ---------------------------------------------------------------------------
 # Project targets use C++ modules heavily; enable scanning for local code.
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
+# Math.Vec and other application modules use GLM GTX extensions. Set the
+# opt-in consistently for local targets, including C++ module dependency scans.
+add_compile_definitions(GLM_ENABLE_EXPERIMENTAL)
 add_subdirectory(ArtifactCore)
 add_subdirectory(ArtifactWidgets)
 add_subdirectory(Artifact)
