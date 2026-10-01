@@ -3650,3 +3650,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** `makeFont`を公開側へ配置し、ICU境界では`std::u16string`のデータを渡し、HarfBuzzでは`hb_language_from_string`を通して言語を設定した。
 - **価値または懸念（未検証）:** API型の境界を明示し、現在のMSVCコンパイルエラーを解消した。UTF-16の一時コピーに伴う割り当て頻度は実測していない。
 - **次に確認すべきこと:** アプリのテキスト描画・複雑文字スクリプトで整形結果を実機確認し、必要ならUTF-16変換の割り当てを計測する。
+
+## 2026-10-01 — ショートカットID配列はenumの永続ordinal順を保つ
+
+- **関連:** `ArtifactCore/include/UI/ShortcutBindings.ixx`、`ArtifactCore/src/UI/ShortcutBindings.cppm`。
+- **確認できた事実:** `ProjectRevealInExplorer` は既存ordinalをずらさないよう `ShortcutId::Count` 直前へ追加されたが、`allShortcutIds()` にはカテゴリ位置と配列末尾の両方に登録され、固定長配列の初期化子が1つ超過していた。既定キー`R`は回転操作の予約キーと重複していた。
+- **対応:** 永続ordinal順の末尾登録だけを残し、Project Revealは既定キーなしとした。
+- **価値または懸念（未検証）:** 設定一覧と永続ordinalの対応を保ち、基本変換キーとの衝突を避ける。プロジェクトビュー内のカスタム割り当て動作は実機未確認。
+- **次に確認すべきこと:** ショートカット設定一覧で行順・保存復元・ユーザー割り当てを確認する。
