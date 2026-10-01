@@ -3658,3 +3658,15 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** 永続ordinal順の末尾登録だけを残し、Project Revealは既定キーなしとした。
 - **価値または懸念（未検証）:** 設定一覧と永続ordinalの対応を保ち、基本変換キーとの衝突を避ける。プロジェクトビュー内のカスタム割り当て動作は実機未確認。
 - **次に確認すべきこと:** ショートカット設定一覧で行順・保存復元・ユーザー割り当てを確認する。
+
+## 2026-10-01 — リビールマップによるブラシストローク表示アニメーション案
+
+- **実装（2026-10-01）:** Artifactに共通Reveal設定・Properties・保存、Linear/Radial/Noise/Brush/Custom、Timing/Support生成、32slotのGPU cache、GPU ViewportとRender QueueのCoverage適用を追加した。進行度はOpacityから独立し、GPU resident境界ではpremultiplied RGBA全成分を乗算する。Sprite出力境界は既存PSOのSRC_ALPHAに合わせてstraightへ明示変換する。初版の契約は仕様書末尾に記録した。
+- **確認できた事実と次の確認:** `OffscreenCompositionRenderer` はlayerのdrawを直接呼ぶ別経路であり、今回の合成境界を通らない。Source preview等の用途ごとにRevealを適用すべきかを将来確認する。CPU生成mapは2 MiB/所有レイヤー、GPU cacheは64 MiB/pipelineであり、多数レイヤー・複数workerでの合計メモリと資源解放は未実測。ブラシ生成は編集確定時の同期処理で、最大256点での編集確定遅延を計測すること。新しい実装は未ビルド・未実機検証。
+
+- **仕様化（2026-10-01）:** ユーザー依頼により `docs/technical/REVEAL_COVERAGE_SPEC.md` と `docs/planned/MILESTONE_REVEAL_COVERAGE.md` を作成。Opacity独立、TimingとSupportの分離、端点保証、premultiplied RGBA全成分の乗算を提案契約として定義。Text/Shapeの空間Revealと厳密なTrim Pathsは別機能として計画し、実装開始前の経路確認項目を明示した。
+
+- **関連:** ユーザー添付 `C:/Users/kukul/Downloads/ea56a8a0-42b2-4713-b39c-63868ac13c2a.webp`、レイヤーエフェクト／マスク描画経路（実装箇所未特定）。
+- **確認できた事実（画像の説明）:** 画像はレイヤー全体の不透明度を下げるのでなく、ピクセルごとのリビール値と進行度 0〜1 を比較し、マップの値に応じてブラシストロークを順次見せる概念を示す。図示例では、事前生成する白黒マップの値を使って表示順を決め、softness で境界を調整する。マップ例としてストローク方向、中心から外側、ノイズ、複数ストローク、手描き線、粒子、カスタム形状が描かれている。
+- **価値または懸念（未検証）:** 静止画・ペイント系の演出に使える可能性がある一方、これは画像中の提案であり、ArtifactStudioに同等機能を追加すべきという仕様決定ではない。画像の擬似コード（`smoothstep` による比較）や「事前生成なら再生時に軽い」という説明は、既存の画像／マスク表現、キャッシュ無効化、GPU経路、ホットパス制約への適合が未検証。アニメーションのプロパティ責務や Inspector 面も未決定。
+- **次に確認すべきこと:** 実装を依頼された場合、既存の Gradient/Wipe 系エフェクト、マスク・ペイントデータの保持経路、GPU shader とプロパティ／キーフレーム API を調べ、リビールマップを永続データにする必要性と事前計算・キャッシュの境界を決める。当初は提案記録にとどめたが、後続のユーザー指示により上記の仕様化とソース実装へ進んだ。
