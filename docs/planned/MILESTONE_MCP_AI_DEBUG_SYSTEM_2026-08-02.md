@@ -2,14 +2,14 @@
 
 **ステータス:** Protocol and tool surface substantial / live integration acceptance pending
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-10-02
 **日付**: 2026-08-02
 **統合元**: `MILESTONE_MCP_LIVE_DEBUG`, `MILESTONE_MCP_DEBUG_BREAKPOINTS`, `MILESTONE_AI_DEBUGGER_EXTENSIONS`
 **先行成果**: `DEBUG_MCP_PSEUDO_BREAKPOINT_PLAN_2026-06-04`（初期構想）, `DEBUG_AGENT_RESIDENT_VERTICAL_SLICE_2026-07-26`（常駐 Debug Agent 実装済み）
 
 ## 現行コード監査 (2026-08-15)
 
-`McpBridge` は JSON-RPC framing、tools/list・tools/call、ログ／state／composition／layer／render queue／GPU memory／property／step／pause／trace／breakpoint／watchpoint／patch／query／performance 系の分岐を持つ。`McpTransport` は QProcess ベースのセッションを提供し、`Trace`／`FrameDebug` には render snapshot の記録経路がある。したがって初期計画の「21種ツール未実装」という前提は古い。一方、実行中アプリへの接続、実際の `debug-bridge.json`／state file 更新、safe write の権限・rollback、各ツールの UI／renderer 状態との完全な一致は今回の静的確認では受入できないため、統合は未完として扱う。
+`McpBridge` は JSON-RPC framing、tools/list・tools/call、ログ／state／composition／layer／render queue／GPU memory／property／step／pause／breakpoint／watchpoint／patch／query／performance 系の分岐を持つ。`McpTransport` は QProcess ベースのセッションを提供し、`Trace`／`FrameDebug` には render snapshot の記録経路がある。`debug.trace` のみ handler は未接続のスタブで（常に空 structuredContent を返す）、残りはいずれも分岐として実装済み。したがって初期計画の「21種ツール未実装」という前提は古い。一方、実行中アプリへの接続、実際の `debug-bridge.json`／state file 更新、safe write の権限・rollback、各ツールの UI／renderer 状態との完全な一致は今回の静的確認では受入できないため、統合は未完として扱う。
 
 ## 既存インフラ（すべて実装済み）
 
@@ -486,7 +486,7 @@ MCP: `debug.predict.risks` / `debug.predict.autoWatch`
 - [x] Phase 1: `--mcp-debug` をstdio MCPサーバー入口として受け付ける
 - [x] Phase 1: `--mcp-debug --mcp-port <port>` でlocalhost TCP MCPサーバーを起動（静的実装確認済み、runtime未確認）
 - [x] Phase 1: `debug.state` / `debug.pause` / `debug.resume` を既存の `debug-mcp-state.json` 契約へ接続（静的実装確認済み、runtime未確認）
-- [x] Phase 1: `debug.trace` で `TraceRecorder` の直近スナップショットを取得（静的実装確認済み、runtime未確認）
+- [ ] Phase 1: `debug.trace` で `TraceRecorder` の直近スナップショットを取得（2026-10-02 時点でスタブ。structuredContent が常に空オブジェクトを返す未実装）
 - [x] Phase 3: `debug.flow` で直近traceからMermaid sequence diagramを生成（静的実装確認済み、runtime未確認）
 - [x] Phase 3: `debug.rootCause` で最新crash/trace eventと関連イベントを返却（ヒューリスティック、runtime未確認）
 - [x] Phase 3: `debug.diff` で2フレーム間のtrace scope差分を返却（静的実装確認済み、runtime未確認）
@@ -516,7 +516,7 @@ MCP: `debug.predict.risks` / `debug.predict.autoWatch`
 - [x] Phase 2: Watchpoint が登録パスの値を定期取得し `lastWatchSnapshot` に保存（静的実装確認済み、runtime未確認）
 - [x] Phase 2: Stepper がMCP状態経由でPlayback frameを更新（静的実装確認済み、runtime未確認）
 - [x] Phase 2: MemoryInspector が `DebugIdentity` のライブ登録からオブジェクト／所有関係グラフを返す（静的実装確認済み、runtime未確認）
-- [x] Phase 2: `debug.gpuMemory` / `debug.getRig` のsnapshot観測経路を追加（静的実装確認済み、runtime未確認）
+- [x] Phase 2: `debug.gpuMemory` / `debug.getRig` のsnapshot観測経路を追加（2026-10-02 修正：読み取り専用分岐の漏れで state 書き込み側に落ちていた不具合を解消）
 - [x] Phase 2: `debug.stress.run` が ExpressionEvaluator の steps を反復実行し、失敗位置を返す（静的実装確認済み、runtime未確認）
 - [x] Phase 3: `debug.predict.risks` / `debug.predict.autoWatch` をTraceとWatchpoint状態へ接続（ヒューリスティック、runtime未確認）
 - [x] Phase 3: RootCauseAnalyzer相当の `debug.rootCause` ヒューリスティックをTraceへ接続（runtime未確認）

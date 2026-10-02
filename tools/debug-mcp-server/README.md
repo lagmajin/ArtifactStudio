@@ -19,6 +19,66 @@ npm run check
 - `npm start` runs the MCP server.
 - `npm run check` verifies syntax for the MCP server and its DAP/reproduction helpers.
 
+## Relationship with the integrated C++ MCP server
+
+Artifact ships **two** MCP servers that intentionally coexist:
+
+| | `ArtifactCore/include/AI/McpBridge.ixx` | `tools/debug-mcp-server` |
+|---|---|---|
+| Role | Integrated server built into the app | Compatibility harness for file-backed sessions |
+| Transport | stdio / localhost TCP via `--mcp-server`, `--mcp-debug` | stdio only |
+| Tool names | dotted, e.g. `debug.log`, `debug.listLayers` | snake_case, e.g. `get_debug_snapshot`, `list_break_conditions` |
+| Native debugger | none | full DAP client (`dap_*`) |
+| State | reads and writes the same `%TEMP%/ArtifactStudio/debug-mcp-state.json` | same file |
+
+The C++ side is the primary implementation. This Node server is kept for
+protocol smoke checks and for external clients that cannot launch the
+application directly. The two tool namespaces are **not** interchangeable —
+a client configured with both servers sees them as separate tool sets.
+
+Both servers now emit the same wire format: `capabilities.tools.listChanged`,
+and tool entries carrying a JSON Schema `inputSchema` rather than the older
+`parameters` array. Both write the state file atomically (`QSaveFile` on the
+C++ side, write-temp-then-rename here), so a concurrent reader cannot observe
+a half-written file and silently lose breakpoint conditions.
+
+## Registering with an MCP client (manual step)
+
+This server is **not** registered automatically. Add it to the MCP server list
+of whichever client you use, e.g. `~/.commandcode/settings.json` or a project
+`.commandcode/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "artifact-debug": {
+      "command": "node",
+      "args": ["J:/dev/ArtifactStudio/tools/debug-mcp-server/server.js"]
+    }
+  }
+}
+```
+
+Use an absolute path to `server.js` — the server is spawned with the client's
+working directory, not the repository root.
+
+To use the integrated server instead, point the same entry at the application
+executable and pass the server flag:
+
+```json
+{
+  "mcpServers": {
+    "artifact-studio": {
+      "command": "J:/path/to/Artifact.exe",
+      "args": ["--mcp-server"]
+    }
+  }
+}
+```
+
+Call tools using the dotted names for the C++ server (`debug.listLayers`) and
+the snake_case names for this one (`list_break_conditions`).
+
 ## Native debugger (DAP)
 
 `dap_connect` connects to an adapter executable over stdio or to an existing
