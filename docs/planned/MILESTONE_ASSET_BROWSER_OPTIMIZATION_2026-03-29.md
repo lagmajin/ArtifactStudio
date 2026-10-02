@@ -23,6 +23,11 @@ Asset Browser には imported path の `QSet` キャッシュ、thumbnail の me
 - Asset Browserのmissing判定を存在確認から通常ファイル確認へ揃えた。素材pathと連番frame pathが同名directoryを指す場合、missingとして扱う。
 - Render Queue preflightには同等のファイル種別確認が既にあり、browser statusとの判定差を縮小した。UIの実行確認は未実施。
 
+## 2026-10-02 Unused pathのcanonical化
+
+- `isUnusedAssetPath()` が同一候補の`canonicalFilePath()`を条件判定と値取得で二度実行していたため、一度だけ解決し、失敗時は同じ`QFileInfo`のabsolute pathを使うようにした。
+- 逐次スキャン中の余分なfilesystem問い合わせを1候補あたり1回削減する。計測値は未取得。
+
 ---
 
 ## 現状の課題 (Bottleneck Analysis)

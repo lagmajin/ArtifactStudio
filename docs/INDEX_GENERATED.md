@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-02 14:20
+> Generated: 2026-10-02 14:22
 > Total documents: 1431
 
 ---
@@ -732,7 +732,7 @@
 | 142 | `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_PHASE3_EXECUTION_2026-04-03.md` | マイルストーン: Asset Browser Navigator Phase 3 Execution | 2026-08-04 | Phase 3 implemented; runtime density/auto-list/consistency verification pending | 2026-08-06 | 2.9 KB | ASSET, BROWSER, NAVIGATOR, PHASE3, EXECUTION |
 | 143 | `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_PHASE4_EXECUTION_2026-04-03.md` | マイルストーン: Asset Browser Navigator Phase 4 Execution | 2026-08-04 | Phase 4 implemented; folder workflow/runtime verification pending | 2026-08-06 | 3.4 KB | ASSET, BROWSER, NAVIGATOR, PHASE4, EXECUTION |
 | 144 | `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_SEARCH_PRESENTATION_2026-04-03.md` | マイルストーン: Asset Browser Navigator / Search / Presentation Surface | 2026-04-03 | Partial; Phases 1〜5 implementation scope essentially complete, search-history switching, D&D preview ghost, and runtime performance/UX verification pending | 2026-08-16 | 9.7 KB | ASSET, BROWSER, NAVIGATOR, SEARCH, PRESENTATION |
-| 145 | `docs/planned/MILESTONE_ASSET_BROWSER_OPTIMIZATION_2026-03-29.md` | Milestone: Asset Browser Optimization (2026-03-29) | 2026-03-29 | 部分実装（パス判定・キャッシュ改善済み、並列スキャン／並列サムネイル生成は未着手） | 2026-10-02 | 6.6 KB | ASSET, BROWSER, OPTIMIZATION |
+| 145 | `docs/planned/MILESTONE_ASSET_BROWSER_OPTIMIZATION_2026-03-29.md` | Milestone: Asset Browser Optimization (2026-03-29) | 2026-03-29 | 部分実装（パス判定・キャッシュ改善済み、並列スキャン／並列サムネイル生成は未着手） | 2026-10-02 | 7.0 KB | ASSET, BROWSER, OPTIMIZATION |
 | 146 | `docs/planned/MILESTONE_ASSET_BROWSER_RELINK_WORKFLOW_2026-06-28.md` | Milestone: Asset Browser Relink Workflow (M-AB-10) | 2026-10-02 | Partial implementation（基本 relink／missing／Undo 実装済み、参照追跡・全体 UX・runtime 検証待ち、静的確認 2026-07-29） | 2026-10-02 | 52.3 KB | ASSET, BROWSER, RELINK, WORKFLOW |
 | 147 | `docs/planned/MILESTONE_ASSET_BROWSER_SEQUENCE_GROUPING_2026-03-31.md` | マイルストーン: Asset Browser Sequence Grouping | 2026-08-15 | Phase 1〜3 implemented; runtime consistency/missing-frame verification pending | 2026-08-16 | 4.6 KB | ASSET, BROWSER, SEQUENCE, GROUPING |
 | 148 | `docs/planned/MILESTONE_ASSET_BROWSER_TAG_SYSTEM_2026-06-28.md` | Milestone: Asset Browser Tag System (M-AB-12) | 2026-10-02 | 部分実装（Project footage の既存 tags を編集し、`tag:名前`／`tags:all(a,b)`／`tags:any(a,b)`／`tags:not(a)` の完全一致 filter が可能。専用タグ管理・bulk・分類機能は未実装。runtime 検証待ち） | 2026-10-02 | 54.5 KB | ASSET, BROWSER, TAG, SYSTEM |

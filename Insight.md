@@ -3814,3 +3814,4 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** Asset Browserのpath status判定を`QFileInfo::isFile()`へ変更し、同名directoryをmissingとして扱う。
 - **価値／懸念（未検証）:** Asset BrowserとRender Queueの基本的なfile-type判定が一致する。特殊なvirtual/network sourceがAsset Browserの通常filesystem一覧へ混在するかは未確認。
 - **次に確認すべきこと:** missing／sequence statusのUIで既存file、missing file、同名directoryを比較する。並列filteringとは独立した正確性修正。
+- **追加対応:** `isUnusedAssetPath()` のcanonical path ternaryは`canonicalFilePath()`を条件・結果で二度呼んでいた。`QFileInfo`とresolved pathを一度ずつ保持し、逐次一覧走査の重複filesystem問い合わせを除去した。性能改善幅は未計測。
