@@ -28,6 +28,11 @@ Asset Browser には imported path の `QSet` キャッシュ、thumbnail の me
 - `isUnusedAssetPath()` が同一候補の`canonicalFilePath()`を条件判定と値取得で二度実行していたため、一度だけ解決し、失敗時は同じ`QFileInfo`のabsolute pathを使うようにした。
 - 逐次スキャン中の余分なfilesystem問い合わせを1候補あたり1回削減する。計測値は未取得。
 
+## 2026-10-02 scan内のentry metadata再利用
+
+- [x] **実装済み:** `applyFilters()` の1回のscan内でentryごとのabsolute pathとdirectory判定を一度取得し、directory分類／sequence収集／standalone行生成で再利用する。
+- 親要件のPhase 2（filtering非同期化・TBB並列scan）とPhase 3（thumbnail並列生成）は未完了。UI応答、数千entry目標、実性能のruntime計測も未確認。
+
 ---
 
 ## 現状の課題 (Bottleneck Analysis)

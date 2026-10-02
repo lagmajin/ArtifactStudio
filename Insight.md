@@ -3831,3 +3831,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** source cluster indexの安定ソートで論理glyph順を作り、backend出力配列ordinalとの相互逆写像を構築する。公開型コメントに配列の単位を明記する。
 - **価値／懸念（未検証）:** マッピングの相互整合性とglyph単位の契約を保証できる。mixed-bidi段落、異体glyph cluster、および呼び出し側がこの配列を使う動作は実行確認していない。
 - **次に確認すべきこと:** LTR/RTL/mixed-bidi、ligature、1 cluster複数glyphで両配列が完全な逆permutationになること、およびQt backendとの意味差をruntimeで確認する。
+
+## 2026-10-02 — Asset Browserのscan中はentry metadataを再利用する
+
+- **関連:** `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`、Asset Browserのfilter／sequence走査。
+- **確認できた事実:** `applyFilters()` は一覧entryに対してdirectory判定とabsolute path構築を、folder分類・sequence収集・standalone行作成の各走査で繰り返していた。
+- **対応:** 1回のfilter scan内にentry名→`QFileInfo`／directory判定の小さなlookupを作り、各passで共有する。
+- **価値／懸念（未検証）:** 1entryにつき`isDir()`をscan開始時に一度だけ呼ぶ。mapによる追加メモリの一方で、削減できたOS metadata I/Oと全体性能は未計測。並列化や非同期化はこの変更には含まない。
+- **次に確認すべきこと:** 同じ種類／検索／タグ／status filterの結果一致と、大規模directoryでのUI応答時間・filesystem probe回数をruntime計測する。
