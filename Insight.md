@@ -3824,6 +3824,14 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **価値／懸念（未検証）:** 任意のユーザー文字列をpathとしてfilesystem正規化しない。relative path fieldはproject rootを使った解決が別途必要なため対象外。参照dialogの実素材確認は未実施。
 - **次に確認すべきこと:** static image、sequence、nested source groupの既知キーで参照を検出し、同じパス文字列を持つtag／label／expressionでは誤検出しないことを確認する。
 
+## 2026-10-02 — Find Referencesの結果から所有layerへ移動できる
+
+- **関連:** `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`、`ArtifactProjectService`。
+- **確認できた事実:** Project Serviceにはcomposition切替とlayer選択APIがあり、既存のProblem Viewでも順番に呼び出して参照先へ移動している。
+- **対応:** Asset BrowserのFind References結果を選択式にし、compositionを切り替えてからlayerを選択する。
+- **価値／懸念（未検証）:** 結果を発見するだけだった導線から、編集対象へ移動できる。実行時の切替後選択保持は未確認。
+- **次に確認すべきこと:** 複数compositionに参照がある場合の選択、composition切替失敗時の表示、選択対象のハイライトをruntimeで確認する。
+
 ## 2026-10-02 — Shaping順序mapはglyph ordinalの逆写像にする
 
 - **関連:** `ArtifactCore/src/Text/TextShapingBackend.cppm`、`ArtifactCore/include/Text/TextShapingBackend.ixx`、複雑文字 shaping。

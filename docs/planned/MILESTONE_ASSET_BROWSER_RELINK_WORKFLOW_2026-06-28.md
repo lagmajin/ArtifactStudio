@@ -14,7 +14,7 @@
 ## 2026-10-02 Find References の照合範囲
 
 - Asset BrowserのFind Referencesはlayer JSONのsource path／sequence path／footage file pathキーだけを比較する。タグや表示名など別用途の文字列が素材パスと偶然同じでも参照扱いしない。
-- 参照ごとのcomposition／layer表示は既存ダイアログに留まり、専用の参照一覧／jump導線、相対path復元、runtime確認は未完了。
+- Find References は照合した composition／layer を選択し、既存の Project Service API でその composition を開いて layer を選択できる（実装済み、runtime未確認）。専用の参照一覧、相対path復元、runtime確認は未完了。
 
 ## 目的
 
