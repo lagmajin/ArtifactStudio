@@ -3776,6 +3776,7 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 
 - **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm` の `appendMissingAssetDiagnostics()`、`docs/planned/MILESTONE_SMART_FALLBACKS_2026-06-07.md`。
 - **確認できた事実:** preflight は重複診断防止のため `sourcePath` を既処理集合へ先行登録していた。代表pathが `image.sequencePaths` の欠落frameと一致すると、そのframeの専用diagnosticが重複扱いで飛ばされ、通常のmissing-file診断だけが残る。
-- **対応:** 代表pathがsequence listに含まれるかを判定し、sequenceのframe列挙に診断を委ねる。listに含まれない代表pathだけを通常missing-file診断にする。重複sequence pathはframe列内で引き続き一度だけ診断する。
+- **追加で確認した事実:** 通常ファイルの代表path確認が `exists()` だけだったため、同名ディレクトリを有効な素材と誤認する。sequence frame側は既に `isFile()` を要求していた。
+- **対応:** 代表pathがsequence listに含まれるかを判定し、sequenceのframe列挙に診断を委ねる。listに含まれない代表pathだけを通常missing-file診断にし、代表pathと各frameの両方で存在と通常ファイル種別を確認する。重複sequence pathはframe列内で引き続き一度だけ診断する。
 - **価値／懸念（未検証）:** 先頭frameを含む欠落frameをすべてsequence単位で正しく示せる。runtimeでの診断表示は未確認。
 - **次に確認すべきこと:** sourcePathが先頭frame／sequence外path／既存frameの場合と、重複frame pathを含むsequenceの各preflight結果を確認する。

@@ -13,7 +13,7 @@
 ## Update 2026-10-02
 
 - Render Queue preflight の `appendMissingAssetDiagnostics()` が Composition layer の source path に加えて `image.sequencePaths` の全フレームを確認し、欠落フレームを File error として job preflight に集約する。
-- 連番の代表 `sourcePath` が `sequencePaths` のフレームと同一の場合も、先に代表pathとして登録してframe診断を抑制しないよう修正した。欠落している各sequence frameはframe専用診断で報告し、sequence listに含まれない代表pathは従来のmissing file診断で扱う。
+- 連番の代表 `sourcePath` が `sequencePaths` のフレームと同一の場合も、先に代表pathとして登録してframe診断を抑制しないよう修正した。欠落している各sequence frameはframe専用診断で報告し、sequence listに含まれない代表pathはmissing file診断で扱う。どちらも存在だけでなく通常ファイルであることを要求し、同名ディレクトリを素材として誤認しない。
 - `FallbackTracker` のイベントには composition/job identity が無いため、job 単位の fallback warning 集約は未実装のまま。missing asset preflight の拡張だけで Fallback phase を完了扱いにしない。
 - ビルド・export runtime 確認は未実施。**コード修正済み、runtime受入待ち**。
 
