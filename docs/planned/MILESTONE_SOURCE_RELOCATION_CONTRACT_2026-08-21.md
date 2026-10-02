@@ -11,12 +11,14 @@
 - Importer の source registry と layer／footage の relative path 復元は `resolveProjectRelativeSource()` に統一されている。
 - `ArtifactImageLayer::fromJsonProperties()` は保存済み `image.sourceAssetId` を Asset Database で解決し、既存の画像ファイルがあれば importer が設定した path よりその Asset ID の path を優先する。source registry の relative path を先に復元してからレイヤーの Asset ID を適用するため、相対パスと Asset ID の候補が異なる場合は有効な Asset ID が優先される。
 - Project health checker は Footage の代表 path と AssetManager の `AssetPathMissing` を診断する。今回、Footage の `sequencePaths` を各フレーム検査し、欠落フレームを `MissingAsset` として報告する経路を追加した。
+- Importer の layer／footage sequence 復元は、absolute path と relative path 配列の長さが異なる場合も両配列の長い方まで走査する。relative slot が無い要素は元 path を保持し、従来の frame index を切り詰めない。
 - Asset ID 解決は画像 layer の source に限られ、全 sequence frame 個別の ID 解決ではない。保存／再読込、移動素材、missing frame の runtime 確認は未実施。
 
 ### 完了記録
 
 - [x] 画像 layer の保存済み Asset ID による既存 source の復旧（静的確認済み）
 - [x] Project health report で sequence の欠落 frame を個別に検出
+- [x] relative path 配列が短い／長い場合も元 sequence frame の index を維持する
 - [ ] 移動後の保存／再読込、Asset ID・relative・absolute fallback の実素材受入
 - [ ] missing／relink 後の runtime health report と source cache invalidation の受入
 

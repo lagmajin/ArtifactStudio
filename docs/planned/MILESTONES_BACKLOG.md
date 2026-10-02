@@ -42,10 +42,11 @@
 
 ## Next Walk TODO: Still Image and Production Workflow
 
-- **WALK-IMG-1** 部分実装（2026-08-10 project path／Asset ID の relocation 復旧を修正）
+- **WALK-IMG-1** 部分実装（sequence path 配列の要素保持を追加、2026-10-02）
   - project root、relative path、Asset ID、absolute fallback、relink の優先順位を AssetManager／project 保存境界で統一する
   - 静止画・連番画像・動画で共通利用できる relocation 契約を先に定義する
   - `setCurrentProjectPath()` と `setCurrentProjectRootPath()` の trim／absolute 化と root 同期、project item の `filePathRelative`／`sequencePathsRelative` 併記、composition layer の `*.sourcePathRelative`／`*.sequencePathsRelative` 併記、source registry の `pathRelative` 併記と既存絶対 path fallback は実装済み。Asset ID は registry 復元時に相対候補を優先して再登録する。
+  - layer／footage の `sequencePaths` と `sequencePathsRelative` の長さが一致しない場合も、両方の最大要素数を走査して元パスを保持し、相対候補配列による sequence の切り詰めを防ぐ。
 - **WALK-IMG-2** 部分実装（2026-08-10 静止画 crop の Preview／Render Queue 整合を修正）
   - source、decode、color、CPU buffer、GPU upload、cache、save/reload の状態を一画面で確認できる診断導線を追加する
   - 既存の Project Health / App Debugger の責務と重複しない範囲で設計する

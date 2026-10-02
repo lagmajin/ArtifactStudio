@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-02 13:22
+> Generated: 2026-10-02 13:33
 > Total documents: 1431
 
 ---
@@ -1189,7 +1189,7 @@
 | 599 | `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md` | M-FLUID-SMOKE-1: Smoke / Ink の emitter 制御とビューポートかき混ぜ | 2026-09-27 | Not Started | 2026-09-27 | 14.7 KB | SMOKE, EMITTER, AND, VIEWPORT, INTERACTION |
 | 600 | `docs/planned/MILESTONE_SNAP_ADVANCED_2026-04-10.md` | 高度なスナップ機能の実装 | 2026-08-15 | --- | 2026-08-16 | 2.9 KB | SNAP, ADVANCED |
 | 601 | `docs/planned/MILESTONE_SOLID_LAYER_NOISE_FILL_2026-08-18.md` | MILESTONE: 平面レイヤー Noise Fill | 2026-08-24 | Superseded（2026-08-24: 独立ノイズレイヤー方式へ方針変更。平面 Fill 拡張は実装断念） | 2026-08-24 | 16.9 KB | SOLID, LAYER, NOISE, FILL |
-| 602 | `docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md` | マイルストーン: Source Relocation Contract（Image / Image Sequence） | 2026-10-02 | Not Started | 2026-10-02 | 11.2 KB | SOURCE, RELOCATION, CONTRACT |
+| 602 | `docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md` | マイルストーン: Source Relocation Contract（Image / Image Sequence） | 2026-10-02 | Not Started | 2026-10-02 | 11.6 KB | SOURCE, RELOCATION, CONTRACT |
 | 603 | `docs/planned/MILESTONE_SOURCE_TEXT_KEYFRAME_2026-06-16.md` | M-TXT-3 Source Text Keyframe Milestone | 2026-07-16 | --- | 2026-08-16 | 18.8 KB | SOURCE, TEXT, KEYFRAME |
 | 604 | `docs/planned/MILESTONE_SPATIAL_AUDIO_OBJECT_RENDERING_2026-09-04.md` | Spatial Audio Object Rendering Milestone | 2026-09-05 | 最小再生、speaker VBAP、解析的headphone、距離音色、明示LFE send、Property編集はコード接続済み・実行未検証。測定HRIR、room、routing／exportは未実装。 | 2026-09-05 | 25.7 KB | SPATIAL, AUDIO, OBJECT, RENDERING |
 | 605 | `docs/planned/MILESTONE_STARTUP_AND_COMPOSITION_OPEN_LATENCY_2026-04-28.md` | マイルストーン: Startup / Composition Open Latency Reduction | 2026-04-28 | In Progress | 2026-08-16 | 9.2 KB | STARTUP, AND, COMPOSITION, OPEN, LATENCY |
@@ -1305,7 +1305,7 @@
 | 715 | `docs/planned/MILESTONE_WORKSPACE_MANAGER_2026-03-29.md` | Milestone: Workspace Manager (2026-03-29) | 2026-03-29 | Implemented | 2026-08-16 | 3.8 KB | WORKSPACE, MANAGER |
 | 716 | `docs/planned/MILESTONE_WORKSPACE_PRESETS_2026-04-10.md` | ワークスペースプリセット管理の実装 | 2026-08-04 | --- | 2026-08-06 | 5.3 KB | WORKSPACE, PRESETS |
 | 717 | `docs/planned/MILESTONE_ZOOM_TO_FIT_2026-04-10.md` | ズームtoフィット機能の拡張 | 2026-08-15 | 実装完了（runtime検証待ち） | 2026-08-16 | 5.9 KB | ZOOM, FIT |
-| 718 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-10-02 | --- | 2026-10-02 | 286.3 KB | BACKLOG |
+| 718 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-10-02 | --- | 2026-10-02 | 286.6 KB | BACKLOG |
 | 719 | `docs/planned/NEXT_PHASE_ROADMAP.md` | プロジェクトビュー → タイムライン統合の次フェーズ提案 | 2026-06-07 | --- | 2026-07-05 | 9.1 KB | NEXT, PHASE, ROADMAP |
 | 720 | `docs/planned/P0_DESIGN_NOTES_2026-09-22.md` | P0 設計メモ — VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22 着手前調査 | 2026-09-22 | 着手前調査のみ。コード変更なし。 | 2026-09-22 | 22.2 KB | DESIGN, NOTES |
 | 721 | `docs/planned/PHYSICAL_LENS_FLARE_IMPLEMENTATION_2026-08-13.md` | 物理ベース・レンズフレア実装 手順書 | 2026-08-13 | --- | 2026-08-16 | 17.8 KB | PHYSICAL, LENS, FLARE, IMPLEMENTATION |

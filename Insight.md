@@ -3747,3 +3747,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実:** 分離 glyph submitter の PSO は triangle strip を使う。各 glyph の quad を単純連結すると quad 間に意図しない三角形ができるため、縮退頂点を挿入して1 drawへまとめる試作を追加した。
 - **価値または懸念（未検証）:** glyphごとの Draw 呼出しを減らせる可能性がある。一方、縮退三角形の接続、alpha blending時の順序、GPU driver間の出力一致は実機確認していない。製品 submitter への統合も別途必要。
 - **次に確認すべきこと:** standalone smoke を許可された環境で実行し、複数 glyph／重なり／回転 glyph の画像差分と draw-call 数を測定する。
+
+## 2026-10-02 — Sequence relocation は relative 配列欠落時も元 frame index を維持する
+
+- **関連:** `Artifact/src/Project/ArtifactProjectImporter.cppm` の layer／footage sequence relative-path 復元。
+- **確認できた事実:** 復元ループが `sequencePathsRelative` の要素数だけを走査していたため、同じJSONの `sequencePaths` がより長い場合、relative path未記録の後続frameが再構築配列から落ち得た。
+- **対応:** 両配列の最大長を走査し、relative slot が無い要素には元の absolute path を渡すようにした。余分なrelative slotは元pathが空の候補として従来どおり解決する。
+- **価値または懸念（未検証）:** 不完全な旧／外部JSONでもsequence frame数とindexを維持できる。保存・再読込のruntime round-tripは未確認。
+- **次に確認すべきこと:** relative配列が短い／長い／同長で、欠番と移動済みframeを含むprojectを往復し、frame indexとmissing状態を確認する。
