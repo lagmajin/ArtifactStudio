@@ -1,19 +1,20 @@
 # MILESTONE: シェイプ機能拡充（SVG品質・ブール演算・複数シェイプ・性能・頂点編集）
 
-**最終更新:** 2026-09-02
+**最終更新:** 2026-10-02
+**ステータス:** In Progress
 
 ユーザー承認済みの拡充案 6 項目。段階的に実装する。
 
 | Phase | 項目 | 状態 |
 |---|---|---|
 | A | 1. SVG グラデーション出力 / 2. SVG ストローク属性 | **実装済み (2026-08-23)、ビルド検証待ち** |
-| B | 6. キャッシュのフレームキー化（アニメ時の差分再構築） | 未着手 |
+| B | 6. キャッシュのフレームキー化（アニメ時の差分再構築） | **実装済み（bounded 2-frame geometry cache。性能・runtime 検証 pending）** |
 | C | 3. Merge Paths（ブール演算オペレータ） | 未着手（設計メモあり） |
-| D | 7. キャンバス頂点編集（メイン VP のシェイプ VP 操作増強） | **未着手（2026-09-02 計画追加）** |
-| D-1 | 7a. vertex / tangent / segment overlay を `ArtifactCompositionRenderOverlay` に統合 | 未着手 |
-| D-2 | 7b. Rect `cornerRadius` ハンドル、Star `starInnerRadius_` ハンドル、Polygon 頂点ドラッグ挿入を RenderController mousePress/Move に追加 | 未着手 |
+| D | 7. キャンバス頂点編集（メイン VP のシェイプ VP 操作増強） | **部分実装（ユーザー依頼範囲の頂点／接線編集は実装済み。残る Phase D 項目は継続）** |
+| D-1 | 7a. vertex / tangent / segment overlay を `ArtifactCompositionRenderOverlay` に統合 | **実装済み（runtime 検証 pending）** |
+| D-2 | 7b. Rect `cornerRadius` ハンドル、Star `starInnerRadius_` ハンドル、Polygon 頂点ドラッグ挿入を RenderController mousePress/Move に追加 | **基本ハンドル／Polygon 頂点編集は実装済み（runtime 検証 pending）** |
 | D-3 | 7c. `ToolType::Shape` のプリセット選択 UI（Rect/Ellipse/Star/Polygon/Line/Triangle のアクティブ切替）をツールバー／ツールオプションに追加 | 未着手 |
-| D-4 | 7d. メイン VP 上の vertex / segment / tangent 選択 grammar 完成（Shift / Ctrl toggle、空クリック頂点追加、segment 挿入、Proportional 編集） | 未着手 |
+| D-4 | 7d. メイン VP 上の vertex / segment / tangent 選択 grammar 完成（Shift / Ctrl toggle、空クリック頂点追加、segment 挿入、Proportional 編集） | **頂点／接線の選択・ドラッグ・追加／削除と Undo は実装済み。Proportional 編集など残項目あり** |
 | D-5 | 7e. Shape operator stack（TrimPaths / Merge Paths / Offset / Pucker / Rounded / Wiggle / ZigZag / Twist / HandDrawnWobble）の VP 上数値ハンドル／HUD 編集 | 未着手 |
 | D-6 | 7f. パス open/closed トグル、smooth toggle、corner ↔ bezier 切替の VP ハンドル化 | 未着手 |
 | E | 4. 1レイヤー複数シェイプ（グループコンテンツ） | 未着手（最大・設計レビュー推奨） |
@@ -187,7 +188,7 @@
 
 ## Phase D/E メモ
 
-- D（頂点編集）: データモデルは `CustomPathVertex` 済み。CompositionEditor の gizmo/hit-test に vertex handle 層を追加する UI 実装が本体
+- D（頂点編集）: 2026-10-02 現行コード照合で、メイン Viewport の頂点／接線 overlay、hit-test、drag、選択、Undo の経路を確認。以下の Phase D 細目で残作業を管理する。
 - E（複数シェイプ）: アプリ単一プリミティブ→コア `ShapeGroup` モデル移行を伴うため設計レビューを推奨。`toCoreShapeLayer()` が変換層の雛形
 
 ## 未検証（ビルド検証待ち）
@@ -220,16 +221,22 @@
 
 - `effectiveShapeTimelineTime()` / `animatedShapeNumber()` ヘルパーを新設（composition framePosition + fps から RationalTime を生成）
 - **`ShapeGeomDims` 一元化**: `resolveShapeGeomDims()` を唯一のジオメトリ解決入口とし、GPU draw（native operator / soft-body / compatibility cache の全分岐）、ソフト描画 `toQImage()`、`localBounds()`、D3D card points、SVG 出力（`toCoreShapeLayer` → `nativeShapePaths`）のすべてが同一の評価値を使う
-- キーフレーム存在時（`hasAnimatedShapeGeometry()`）は該当キャッシュをフレームごとに再構築（nativeGeometry は `cacheable=false`、rebuildCache/bounds/card points は再計算）。キーフレーム無しの場合は従来のキャッシュ経路・メンバ値フォールバックでホットパス影響ゼロ
+- 2026-10-02: animated native path geometry に固定 2 slot の frame-key cache を追加。key は frame／frame rate／content revision／（shape geometryではdimensions）／tolerance。operator animation も動的経路として扱う。互換 `QImage` cache と bounds のフレーム間再利用は対象外。
 - 新規 import（`.cppm` 実装側のみ）: `Property.Abstract` / `Artifact.Composition.Abstract` / `Time.Rational`
 
 ### 未検証（ビルド検証待ち）
 
 - width キーフレームを打って再生追従を実機確認（GPU path / 互換キャッシュ path の両方）
 - 式プロパティ（wiggle 等）との併用時の非影響
-- キーフレーム有り時のキャッシュ再構築コスト（大サイズシェイプでのフレームレート影響）
+- animated geometry cache の hit rate、再生・scrub 性能、大サイズ geometry でのメモリ／フレームレート影響
 
 ## 関連メモ
+
+## 2026-10-02 ユーザー依頼範囲の実装状態
+
+- Phase B: animated native path geometry に対する bounded frame-key cache を実装済み。ビルド・性能測定は未実施。
+- Phase D: メイン Viewport のパス頂点／接線編集（選択、ドラッグ、追加／削除、Undo）は現行コードに実装済み。ビルド・実機確認は未実施。
+- Phase D 全体（shape preset UI、全 operator の viewport 編集など）と runtime QA は未完了のため、当マイルストーン全体は In Progress のままとする。
 
 - GPU path の非ソリッドフィル（グラデーション等）は QImage 互換キャッシュ経由のフォールバック（設計通り、fallback ログ付き）。P1 を進める際は SVG 側のグラデーション属性マッピングと合わせて扱う。
 - `ShapePath::triangulate`（fill rule 対応・キャッシュ付き）とオペレータ5種のソフト/GPU 接続は良好、本計画では変更しない。

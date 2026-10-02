@@ -1,8 +1,9 @@
 # Milestone: Shape Layers (2026-03-29)
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-10-02
 
-**Status:** Phase 1+3 Complete、Phase 2 は部分実装（パラメータ／property／JSON は接続済み、アニメーションと runtime 検証は未完了）
+**ステータス:** In Progress
+**実装状態:** シェイプパラメータ／パスのアニメーション評価は実装済み。ビルド・実機検証は未実施。
 **Goal:** パラメトリックシェイプをレイヤーとして追加。円、星、多角形をタイムラインから即座に生成。
 
 ---
@@ -14,7 +15,7 @@
 | Solid レイヤー | ✅ 実装済み |
 | SVG インポート | ✅ 実装済み |
 | パラメトリックシェイプ | ✅ 実装済み |
-| シェイプアニメーション | ❌ 未実装 |
+| シェイプアニメーション | ✅ 実装済み（数値パラメータ、カスタムパス、オペレーターの評価経路。runtime 検証 pending）|
 | インスペクタUI | ✅ 実装済み |
 
 ## 2026-08-15 現行コード照合
@@ -30,6 +31,12 @@
 - `ArtifactShapeLayer` の Rect／Ellipse／Star／Polygon、custom path、fill／stroke／gradient、dash／cap／join、operator と persistent property／JSON 経路を現行コードで再確認。
 - Core の `ShapePath`／`ShapeLayer`、native path、renderer と software fallback の両経路が存在するため、旧来の「基本形状のみ」「Path 未実装」という記載は現状に合わせて扱う。
 - shape parameter のキーフレーム評価が全描画経路で一貫して反映されること、パスポイント編集 UI、複雑な operator chain、保存再読込と renderer／fallback の pixel parity は未検証。
+
+## 2026-10-02 実装状態の更新
+
+- `shape.width`／`height`／`cornerRadius`／`starPoints`／`starInnerRadius`／`polygonSides` と既存 stroke／operator のアニメーション値を、共有の描画・bounds 評価経路へ接続済み。
+- カスタムパスは `shape.path.keyframes` からフレームごとに評価し、頂点数が異なるキー間も可能な場合はパス補間する。
+- パラメータ評価を「未実装」とする旧表記を更新した。保存再読込、GPU／互換描画間の一致、および再生中の挙動はビルド・実機確認が必要なため、マイルストーン自体は `In Progress` のまま。
 
 ---
 
