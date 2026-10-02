@@ -3839,3 +3839,10 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** 1回のfilter scan内にentry名→`QFileInfo`／directory判定の小さなlookupを作り、各passで共有する。
 - **価値／懸念（未検証）:** 1entryにつき`isDir()`をscan開始時に一度だけ呼ぶ。mapによる追加メモリの一方で、削減できたOS metadata I/Oと全体性能は未計測。並列化や非同期化はこの変更には含まない。
 - **次に確認すべきこと:** 同じ種類／検索／タグ／status filterの結果一致と、大規模directoryでのUI応答時間・filesystem probe回数をruntime計測する。
+
+## 2026-10-02 — Material presetはUIごとに定義が分岐している
+
+- **関連:** `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`、`ArtifactCore/src/Material/Material.cppm`、`Artifact/include/AI/MaterialAutomation.ixx`、3D Material Browser候補。
+- **確認できた事実:** Layer PanelはMetalをmetallic 0.9／roughness 0.24、Glassをroughness 0.08／transmission 0.82／IOR 1.5で適用する。Core factoryはMetal 1.0／0.2、Glass roughness 0／opacity 0.2。AI AutomationはMetal 1.0／0.2、Glass 0.05／specular alpha 220として保持する。Plastic roughnessもLayer Panel 0.3、Core factory 0.4で異なる。
+- **価値／懸念:** Browserを追加しても、適用面ごとに同名presetの材質結果が変わる可能性がある。どの値が既存プロジェクト／ユーザーにとって正かは未確認であり、既存メニューを独断で変更しない。
+- **次に確認すべきこと:** Material presetの単一所有API／データ表を設け、Layer Panel・Browser・Automationが同じ定義を適用する。既存差異の移行方針を決めてから Browser の一覧・適用へ進む。

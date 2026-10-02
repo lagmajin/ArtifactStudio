@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-02 14:39
+> Generated: 2026-10-02 14:45
 > Total documents: 1431
 
 ---
@@ -616,7 +616,7 @@
 | 26 | `docs/planned/MILESTONE_2D_POINT_TRACKER_2026-06-02.md` | M-MOTION-1 2D Point Tracker (2026-06-02) | 2026-08-04 | Initial design; implementation status moved to 2026-06-16 execution milestone | 2026-08-06 | 6.4 KB | POINT, TRACKER |
 | 27 | `docs/planned/MILESTONE_2D_POINT_TRACKER_2026-06-16.md` | M-2DTRACK-1 2D Point Tracker Milestone | 2026-06-16 | Phase 1〜3 基盤実装済み; planar/undo/diagnostics/performance/runtime verification pending | 2026-08-16 | 18.9 KB | POINT, TRACKER |
 | 28 | `docs/planned/MILESTONE_3D_COMPOSITING_2026-07-08.md` | Milestone: 3D Compositing（コンポジション内ライブ 3D シーン） (2026-07-08) | 2026-07-08 | Phase 1A〜1K の静的実装を確認済み。Phase 2/3 の本格統合と実機検証待ち。 | 2026-08-16 | 10.6 KB | COMPOSITING |
-| 29 | `docs/planned/MILESTONE_3D_MATERIAL_SYSTEM_2026-03-31.md` | MILESTONE: 3D Material System | 2026-10-02 | Material core、3D layer assignment、PBR texture input、shader/render 接続、Inspector／JSON、Matte／Metal／Plastic／Glass の preset 適用はコード実装済み。独立 Material Browser／asset 管理、高度 mapping と runtime verification は pending。 | 2026-10-02 | 8.2 KB | MATERIAL, SYSTEM |
+| 29 | `docs/planned/MILESTONE_3D_MATERIAL_SYSTEM_2026-03-31.md` | MILESTONE: 3D Material System | 2026-10-02 | Material core、3D layer assignment、PBR texture input、shader/render 接続、Inspector／JSON、Matte／Metal／Plastic／Glass の preset 適用はコード実装済み。独立 Material Browser／asset 管理、高度 mapping と runtime verification は pending。 | 2026-10-02 | 8.5 KB | MATERIAL, SYSTEM |
 | 30 | `docs/planned/MILESTONE_3D_MODEL_IMPORT_AND_CONTENTS_VIEWER_2026-03-29.md` | マイルストーン: 3D Model Import and Contents Viewer Integration | 2026-03-29 | ** Phase 1〜4 は実装済み、Phase 5 は拡張余地と runtime 検証が残る。 | 2026-08-21 | 10.0 KB | MODEL, IMPORT, AND, CONTENTS |
 | 31 | `docs/planned/MILESTONE_3D_MODEL_REVIEW_IN_CONTENTS_VIEWER_2026-03-28.md` | マイルストーン: 3D Model Review in Contents Viewer | 2026-08-04 | Phase 1〜4 implemented, Phase 5 compare hooks and runtime verification pending | 2026-08-06 | 8.1 KB | MODEL, REVIEW, CONTENTS |
 | 32 | `docs/planned/MILESTONE_3D_ROTATION_MODEL_2026-08-14.md` | 3Dレイヤー回転モデルの3軸化 | 2026-08-15 | --- | 2026-08-16 | 3.5 KB | ROTATION, MODEL |
