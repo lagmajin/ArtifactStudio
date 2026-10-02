@@ -1,4 +1,25 @@
-**最終更新:** 2026-10-02
+**最終更新:** 2026-10-03
+
+## 2026-10-03 — ギズモの静的 Transform とプロパティ保存値の同期
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactTextGizmo.cppm`、`TransformGizmo.cppm` の `syncAnimatedProperty()`、`Artifact/src/Layer/ArtifactAbstractLayerTransform.cppm`。
+- **確認できた事実:** Global Transform の評価はキーなしプロパティも読み取る。TextGizmo は従来キー付きプロパティだけを更新し、静的ドラッグでは Transform とプロパティ保存値がずれていたため、今回 TextGizmo の保存値も同期した。通常 TransformGizmo の同期 helper にもキー付きだけを更新する同じ条件がある。
+- **未検証の仮説:** 通常ギズモの別 caller が保存値を更新しなければ、他のレイヤーでも静的 Transform の表示や Undo に影響し得る。
+- **価値／次の確認:** 他レイヤーは今回変更せず、通常ギズモの mutation caller とプロパティ再取得を調べてから、保存値同期の責務を確認する。
+
+## 2026-10-03 — Animator の値変更と文字組みキャッシュの分離候補
+
+- **関連:** `Artifact/src/Layer/ArtifactTextLayer.cppm` の `markDirty()`、Animator setter、`updateGlyphEvaluation()`。
+- **確認できた事実:** Animator の位置・回転・Opacity 変更でも `markDirty()` が `shapedBaselineKey_` を破棄する。評価処理は元の glyph 配列を再利用して Animator を適用できる構造だが、現在の setter では文字組みのキャッシュも失われる。
+- **未検証の仮説:** 長文の Animator 数値ドラッグで文字組みを繰り返し、即時プレビューの応答性に影響する可能性がある。今回の描画キャッシュ無効化・値反映の修正とは別の性能課題として扱う。
+- **価値／次の確認:** 実機計測で文字組み時間を確認してから、文字・フォント・レイアウト変更と Animator 評価変更の dirty 管理を分離できるか検討する。今回この分離は実装していない。
+
+## 2026-10-02 — Components 専用プロパティの UI 呼び出し漏れ
+
+- **関連:** `Artifact/src/Widgets/ArtifactInspectorWidget.cppm`、`Artifact/src/Widgets/ArtifactPropertyWidget.cppm`、`Artifact/src/Layer/ArtifactAbstractLayerPropertyGroups.cppm`。
+- **確認できた事実:** 通常の `getLayerPropertyGroups()` はコンポーネント固有グループを生成しない。Cloner ヘッダーは通常グループだけを準備して `getProperty("component.cloner.enabled")` を読み、キャッシュ未生成時は切替処理が途中で終了していた。ヘッダーの状態取得で必要時に `getComponentPropertyGroups()` を呼ぶ修正を追加した。
+- **別途の懸念:** `ArtifactPropertyWidget` のグループ取得も通常グループだけを使い、Components 専用グループを取得する呼び出しが検索上見つからない。また Cloner の count 等の setter は存在するが、現行 Components グループに Cloner 設定群の登録は見つからない。設定面の到達性への影響は実機未検証。
+- **価値／次の確認:** Components 専用面でだけ専用グループを取得する導線と Cloner 設定登録を確認する。通常 Properties へコンポーネント項目を再露出させず、変更は別途の依頼範囲で行う。ビルド・実機は未実施。
 
 ## 2026-10-02 — 同期 EventBus からの Qt UI 更新は GUI thread に送る
 
@@ -3889,3 +3910,20 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** ツール名の namespace はそのままに、形式だけを揃えた。`McpBridge` に `toInputSchema()`（既存 `parameters` 配列→JSON Schema 変換）、`toMcpTools()`、`mcpCapabilities()` を追加し、`initialize`／`tools/list`／`debug.getTools` を MCP 準拠出力へ変更。内部利用者（`ToolBridge::toolSchemaJson()` 経由の UI）は `capabilityList()` のまま据え置き、出力だけを分けることで挙動を変えていない。state 読み書きを `resolveStatePath()`／`readStateFile()`／`writeStateFile()` に集約し、書き込みを `QSaveFile` 化。Node 版は既に atomic 実装済み/read 時の空ファイルフォールバックも持つので変更不要だった。あわせて `debug.memory.*` と `debug.stress.run` の未宣言パラメータ（M3）も handler の実読引数に合わせて schema へ足した。README へ2者の関係表と MCP クライアントへの手動登録手順を追記。
 - **価値／懸念（未検証）:** 標準 MCP クライアントが C++ サーバとも相互運用できるようになり、state の JSON 破損による breakpoint 損失の経路を塞いだ。ツール名の2 namespace は非互換のままなので、1クライアントから両方を使うなら設定を分ける必要がある（README に記載）。C++ `McpBridge` のツール名から Node 版への変換は行っておらず、相互変換は未検討。実行時確認はしていない（ビルド／テストは依頼されていないため未実施）。残る既知差分は `debug.addDataBreakpoint` の kind が Node 側 enum と乖離、`responseBuffer_` が未読、`debug.trace` がスタブ。
 - **次に確認すべきこと:** 標準 MCP クライアントから C++ サーバの `tools/list` が inputSchema 付きで取れるか、MCP サーバと AppMain poller を同時に動かして state が壊れないか、Node 版と C++ 版を同じクライアントに同時登録して干渉しないかを確認する。
+
+## 2026-10-02 — テキストレイヤー Gizmo が反応しない: Text ツールの押下横取りとドラッグ判定漏れ
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`（`handleMousePress` の Text ツール分岐、`isGizmoDragActive`）、`Artifact/src/Widgets/Render/ArtifactCompositionEditor.cppm`（`CompositionViewport::isSpatialGizmoDragging`）、`Artifact/include/Widgets/Render/ArtifactCompositionRenderController.ixx`。
+- **確認できた事実（静的読み取り、ビルド・実機未確認）:** (1) `handleMousePress` の Text ツール分岐（`:27587`）は 2D ギズモのヒットテスト（`:29445`）より前に無条件 return し、release で `createTextLayerAtCanvas`（`:33008`）を呼ぶ。そのため Text ツール中はギズモが描画されていても押下が必ず「新規テキスト作成」に流れていた。(2) `CompositionViewport::isSpatialGizmoDragging()`（`ArtifactCompositionEditor.cppm:8238`）が `controller_->gizmo()` と `gizmo3D()` しか見ておらず、テキスト選択時に束縛される `textGizmo_`（`sync2DGizmosForLayer` が `gizmo_->setLayer(nullptr)` にして束縛する `:16400`）と `contentGizmo_` を認識しなかった。press で SetCapture/grabMouse せず、move 中の連続更新もスキップしていた。
+- **対応:** (1) `CompositionRenderController::isGizmoDragActive()` を追加し、`gizmo_` / `gizmo3D_` / `textGizmo_` / `contentGizmo_` の `isDragging()` を集約。ビューポートの `isSpatialGizmoDragging()` はこれへ委譲。(2) Text ツール分岐で、選択中テキストレイヤーのギズモに当たる押下は `textGizmo_->handleMousePress` へ渡し、当たらなければ従来どおり新規テキスト候補を立てる（ユーザー選択「ギズモ操作を優先」）。
+- **価値または懸念（未検証）:** Text ツール中でもギズモのハンドルが操作可能になり、テキスト／コンテンツギズモのドラッグが他ギズモと同じくマウスキャプチャ・後始末の対象になる。副作用として、Text ツールで既存テキスト本体をクリックしても点テキストの新規作成はできなくなる（ギズモの Offset が優先）。`trackerGizmo_` は従来どおり対象外。ビルド・実機は未実施（AGENTS.md 制約）。
+- **次に確認すべきこと:** Selection ツールと Text ツールの双方で移動(Offset)／回転／アンカー／ボックスリサイズがドラッグでき、カーソルがビューポート外に出ても継続すること。何も無い場所のクリック／ドラッグで新規テキストが作られること。ContentGizmo（画像／ソリッドのコンテンツ編集）の押下・キャプチャに回帰がないこと。
+
+## 2026-10-02 — 動画レンダーが0バイトで終わる/0%で固まる: HWエンコーダ未検証とプロデューサ未解放
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueEncoder.cppm`（`ffmpegExeSupportsEncoder`、`PipeFFmpegExeBackend::open`）、`Artifact/src/Render/ArtifactRenderQueueService.cppm`（`processFramesForJob`、`startAllJobs` のワーカー本体）、`ArtifactCore/src/Image/FFmpegEncoder.cppm`（未修正・別リポジトリ）、実行ログ `%APPDATA%\Logs\artifact.log`。
+- **確認できた事実（ログ＋コード読み取り、ビルド・実機未確認）:** 動画ジョブ（既定 `encoderBackend=auto`）が pipe-hw (NVENC) を選び、同梱 ffmpeg は NVENC API 13.1 を要求するが実ドライバは 13.0 のため `h264_nvenc` を開けず ffmpeg が exit -40 で死亡。エンコーダ選択の `ffmpegExeSupportsEncoder` は `ffmpeg -encoders` の一覧に名前があるかしか見ないため `open` が「成功」してしまい、ソフトウェアへフォールバックしなかった。最初の `addFrame` がタイムアウトしてジョブ失敗し、ffmpeg が作成済みの 0 バイト出力が残った。さらに消費者ループが encode 失敗で `break` しても、出力バッファ満杯で待機中のプロデューサ（`renderOneFrame` 内 wait の解除条件が `shutdownRequested_` のみ）を起こさないため `renderWorkers` の join が返らず、ジョブが 0% のままアプリ終了まで固まった。ログに `[h264_nvenc] Driver does not support the required nvenc API version. Required: 13.1 Found: 13.0`、`encoder rejected frame ... Timed out while writing frame 2 to ffmpeg.exe`、`[Encode][Pipe] finalize failed ... exitCode=-40` を確認。
+- **対応（親リポジトリ `Artifact` のみ変更）:** (1) `ffmpegExeCanOpenEncoder` を追加し、1 フレームの rawvideo 試しエンコードで HW エンコーダが実際に開けるか検証。失敗時は `open` を false にして Auto 経路がソフトウェア（libx264）へフォールバックできるようにした。(2) `processFramesForJob` に `producerCancel` を追加し、消費者ループ終了後に解放＋`notify_all`。`renderOneFrame` の待機条件・早期 return とプロデューサの while 条件へ組み込んだ。(3) ジョブ失敗時、`videoRenderPath`／`outputPath` が 0 バイトなら削除。
+- **価値／懸念（未検証）:** 非対応 HW エンコーダでもソフトウェアで描画が完了し、0 バイトファイルを残さず、失敗時もジョブが固まらず終了する見込み。ビルド・実機は未実施（AGENTS.md 制約）。試しエンコードは HW ジョブ開始時に約 1 フレーム分の ffmpeg 起動コストが増える（未計測）。Vulkan 経路の probe は `-init_hw_device`/`-filter_hw_device` を渡すが実機確認なし。
+- **未修正（記録のみ・別リポジトリ）:** `ArtifactCore/src/Image/FFmpegEncoder.cppm` の `open()` は `avio_open` 後に `avformat_write_header` 等で失敗すると `isOpen_=false` のまま false を返し、`close()` が冒頭 `if(!isOpen_) return;` で早期 return するため `avio_closep` されず 0 バイトのファイルハンドルが残る。Core 側の修正は子リポジトリのため今回は未着手。
+- **次に確認すべきこと:** (a) 実機でハードウェア非対応環境の動画レンダーが libx264 にフォールバックし再生可能な mp4 が出ること。(b) HW 対応環境では NVENC が使われ続けること。(c) レンダー失敗時に 0 バイトファイルが残らずジョブが失敗表示で速やかに終わること。(d) `pipe`／`native` を明示選択した場合も同様であること。
