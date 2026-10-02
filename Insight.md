@@ -3793,6 +3793,7 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 
 - **関連:** `ArtifactCore/include/Physics/Collider2DEdit.ixx`、`docs/planned/MILESTONE_2D_COLLIDER_VIEWPORT_EDIT_2026-09-19.md`。
 - **確認できた事実:** Colliderの値DTOと一括適用入口は存在したが、Box/Circle handle位置、hit test、drag deltaから authored valueを更新する処理は無かった。
-- **対応:** DTOへlocal-space handle位置、nearest hit test、offset／box辺・角／circle radiusのdelta編集関数を追加した。反対側固定、最小寸法0、非有限値とfloat範囲外の拒否を計算モデルに含める。
+- **対応:** DTOへlocal-space handle位置、nearest hit test、offset／box辺・角／circle radiusのdelta編集関数を追加した。反対側固定、最小寸法0.001、非有限値とfloat範囲外の拒否を計算モデルに含める。
+- **追加で確認した事実／修正:** 既存の物理解決ではwidth／height／radiusの0がAuto Boundsへのフォールバックを意味する。0まで縮めると見た目／保存値が崩れるため、BoxとCircleの寸法下限を0.001に揃えた。
 - **価値／懸念（未検証）:** ViewportとUndoの状態機械から独立して編集幾何を使える。まだどのUI経路からも呼ばれず、physics同期回数・Undo・描画結果は未検証。
 - **次に確認すべきこと:** 既存modal gizmo経路へ接続し、ドラッグ中DTO previewと確定時一度だけのsetter／Undoを行う。Parent transform、locked/hidden、Auto Bounds、Polygonについて編集を拒否する。
