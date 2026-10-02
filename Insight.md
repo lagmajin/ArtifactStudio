@@ -3797,3 +3797,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **追加で確認した事実／修正:** 既存の物理解決ではwidth／height／radiusの0がAuto Boundsへのフォールバックを意味する。0まで縮めると見た目／保存値が崩れるため、BoxとCircleの寸法下限を0.001に揃えた。
 - **価値／懸念（未検証）:** ViewportとUndoの状態機械から独立して編集幾何を使える。まだどのUI経路からも呼ばれず、physics同期回数・Undo・描画結果は未検証。
 - **次に確認すべきこと:** 既存modal gizmo経路へ接続し、ドラッグ中DTO previewと確定時一度だけのsetter／Undoを行う。Parent transform、locked/hidden、Auto Bounds、Polygonについて編集を拒否する。
+
+## 2026-10-02 — Collider編集DTOは元boundsと既存値も検証する
+
+- **関連:** `ArtifactCore/include/Physics/Collider2DEdit.ixx`、`docs/planned/MILESTONE_2D_COLLIDER_VIEWPORT_EDIT_2026-09-19.md`。
+- **確認できた事実:** handle／drag処理はpointer deltaと算出後の値を検証していたが、入力DTOの`sourceBounds`や`offset`、既存寸法・半径にNaN／Infが入った場合の入口検証は無かった。負のsource boundsも有効な幾何とは扱えない。
+- **対応:** `hasFiniteGeometry()`を追加し、handle位置・hit test・dragの各入口でbounds・offset・寸法・半径を検査する。source boundsの負寸法も拒否する。
+- **価値／懸念（未検証）:** 不正な復元値や呼び出し側の破損値がhandle位置へ伝播したり、offset操作で有効化されたりするのを防ぐ。実際の永続値がこの不正値を取り得るか、呼出し経路での拒否が期待動作かはruntime未確認。
+- **次に確認すべきこと:** 永続値の読み込み境界とViewport側のエラー／編集拒否表現を確認する。UI・Undo接続後にinvalid DTOで編集開始されないことを確認する。
+- **追加対応:** QPointF上で有限でもrenderer／物理側float表現の範囲を超えるhandle座標は後段でoverflowし得る。また既存setterはoffsetを±100000、寸法／半径を0〜100000に制限する。DTO入口とdrag結果をこの永続値域に一致させ、保存確定時のclampでpreview形状が変わるケースを避ける。
