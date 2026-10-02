@@ -1,7 +1,7 @@
 # M-CLI-1: CLI・Python 対話実行・自動化の統合
 
-**最終更新:** 2026-09-23
-**ステータス:** In Progress（単発 `--command --json`、versioned `--request` / persistent command JSONL、Command IR catalog / validate / execute と stdin JSONL CLI、Python `run` / `eval` / 人向け・JSONL REPL を実装。Windows console 入口保証と実行検証は未完了）
+**最終更新:** 2026-10-01
+**ステータス:** In Progress（単発 `--command --json`、versioned `--request` / persistent command JSONL、Command IR catalog / validate / execute と stdin JSONL CLI、Python `run` / `eval` / 人向け・JSONL REPL を実装。2026-10-01 に Windows console 入口の静的保証（wide argv・接続診断・中断 130）を追加。実行検証は未完了）
 
 ## 目的と完了像
 
@@ -28,7 +28,7 @@ if ($LASTEXITCODE -ne 0) { throw $r.error.message }
 | Artifact CLI | `ArtifactCommandLine.cppm` が `--interactive` / `--script` / `--command` / `--request` / `command-ir` を選択し、コマンドシェルは stderr に診断を出した command を失敗として記録する。単発 command と stdin JSONL stream は共通 envelope を返し、JSON request は schema version 1 と requestId を扱う。`help --json` は usage・説明・副作用区分付きの登録 command catalog を返す。Command IR の JSON request は catalog / validate / execute と構造化結果を扱い、`command-ir -` はプロジェクト session を維持して複数要求を処理する。 | 引数型 schema / project・GPU capability 発見、script の共通 result stream、console subsystem の PowerShell 動作保証は未完了。 |
 | Python | `PythonEngine` に initialize、execute、executeFile、evaluate、`pushConsoleLine`、出力 callback、最終エラーがある。CLI に Python `run` / `eval` / 人向け `repl` と app API 登録を接続し、`repl --jsonl` は JSON request / response と session state を扱う。WorkspaceAutomation bridge は引数を JSON 値で受け渡し、戻り値も JSON から Python 値へ復元する。Python から command vocabulary、validate、execute を呼べる。 | Python CLI は未ビルド・未実行。外部 Python fallback では Artifact C++ API と永続 REPL を提供しない。対話 API は bool と `hasError()` の組合せで、公開結果型への整理が残る。 |
 | 自動化 | `CommandResult` は success、valid、executed、errorCode、diagnostics 等を持ち、App 側に `CommandIRExecutor` がある。 | CLI シェルは別の JSON 直接操作を含み、Command IR・GUI の結果と Undo 境界の統一は未完了。 |
-| 起動・出力 | `Artifact/CMakeLists.txt` は GUI 本体を `add_executable(Artifact WIN32)` で作る。`AppMain.cppm` に CLI モード時の親 console 接続と CRT 標準 handle の再結合を追加した。 | Windows PowerShell / ConPTY からのパイプ・入力・待機・`$LASTEXITCODE` は未実行で保証未確認。 |
+| 起動・出力 | `Artifact/CMakeLists.txt` は GUI 本体を `add_executable(Artifact WIN32)` で作る。`AppMain.cppm` に CLI モード時の親 console 接続と CRT 標準 handle の再結合を追加した。2026-10-01 に wide argv（`CommandLineToArgvW`）、`GetModuleFileNameW` による実行ファイル位置、`AttachConsole` 戻り値と handle 再結合失敗の診断、Ctrl+C/Ctrl+Break を 130 終了コードへ変換する console control ハンドラを追加した。 | Windows PowerShell / ConPTY からのパイプ・入力・待機・`$LASTEXITCODE` は未実行で保証未確認。ブロック中の読み取りは割り込まない制約が残る。 |
 | アプリ内端末 | `PowerShellWidget` は外部 shell を QProcess で起動する UI。 | Artifact の CLI と Python REPL の実行・結果契約とは別の責務。専用 Script Console 計画とも混同しない。 |
 
 現状はコード読取による観測であり、ビルド・実行による検証済み判定ではない。作業ツリーには本件以外の既存変更があるため、この文書は既存ファイルの完了判定を書き換えない。
@@ -116,3 +116,11 @@ AGENTS.md に従い、この計画作成時はビルド、CMake、テストを�
 `PythonEngine::pushConsoleLine()` は bool で継続待ちを返す設計だが、fallback 側では完了したコードの `execute()` 失敗も bool に重ねている。P1 では呼出側が `hasError()` に頼るだけでなく、実行結果型を明確にしてこの曖昧さを解消する。`Artifact.exe` の `WIN32` 指定と CLI stdout の実動作も P0 最初の確認対象とする。
 
 本マイルストーンは計画文書であり、上記のコマンド例は現時点で実行可能な機能一覧を示すものではない。
+
+## 2026-10-01 Windows console 入口保証（静的実装）
+
+- **wide argv:** `main()` は CRT の窄い `argv`（システム ANSI コードページ経由）を読まず、`GetCommandLineW()` を `CommandLineToArgvW()` で分解して `QString::fromWCharArray()` で構成する。引用符・空白・日本語パスなどの非 ANSI 文字が壊れない。実行ファイル位置も `argv[0]` ではなく `GetModuleFileNameW()` から求める。`CommandLineToArgvW` 失敗時だけ旧来の `fromLocal8Bit(argv)` へ戻す。
+- **接続の診断:** `configureWindowsCliConsole()` は `AttachConsole(ATTACH_PARENT_PROCESS)` の戻り値を確認し、失敗時（親 console がない切り離し起動など）に stderr へ診断を出す。継承されたパイプ handle は引き続き再結合で使える。`bindWindowsStandardHandleToCrt()` の各失敗経路（`GetStdHandle` 不可、`DuplicateHandle`／`_open_osfhandle`／`_dup2` 失敗）は従来無言だったのを `OutputDebugStringW()` で記録する。
+- **中断 130:** `Artifact::noteConsoleInterrupt()`／`consoleInterruptRequested()` を `Artifact.Application.InteractiveShell` へ追加し、`SetConsoleCtrlHandler` で `CTRL_C_EVENT`／`CTRL_BREAK_EVENT` を記録する。`command-ir -` の JSONL stream、`python repl`（人向け・`--jsonl`）、対話シェルの request stream と REPL の各読み取りループが要求の合間にフラグを参照し、中断時に 130 を返す。ハンドラはフラグを立てるだけで即時終了させない（Qt サービスと保存中のファイルの破棄を避ける）。
+- **既存確認（静的）:** `--script` の複数行は `*scriptFailed` を論理和で集約し、最後の成功が前の失敗を消さずに終了コード 1 を返す。`help --json` の機械向け catalog は既存のまま。
+- **残る制約・未実施:** ブロック中の `std::cin` 読み取りは割り込まない。Ctrl+C を受けた後も次の入力が届く（または pipe  close による EOF）までプロセスは待機する。完全な割り込みには overlapped I/O が必要で、別作業とする。PowerShell / ConPTY での `$LASTEXITCODE`・パイプ待機・実行検証はビルドと実機確認が必要（AGENTS.md に従い未実施）。独立 `ArtifactCli.exe` は今回の静的保証では不要と判断し、実機検証で失敗が残る場合に限り評価する。

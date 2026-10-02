@@ -1,6 +1,6 @@
 # 2D デフォーマ統合計画
 
-**最終更新:** 2026-09-23
+**最終更新:** 2026-10-01
 **ステータス:** In Progress
 
 ## 目的
@@ -43,7 +43,7 @@
 
 ## 実装順
 
-Phase 0 の監査後、「静止画レイヤー + ピン + 非破壊評価 + 保存／Undo」を実装し、静止画用格子、連番の同フレームImageF32テクスチャ描画とフレーム単位の制御キー操作を接続した。連番は後続フレームのシルエット移動を覆うため、初回bindで全フレーム矩形のトポロジーを作る。通常GPUベクター描画のShapeにも同じ制御点状態とローカル点写像（PinsはMLS、Gridは双線形）を接続した。画像の通常GPU描画ではsource cropの矩形・UV・表示回転をメッシュに接続した。次はShapeのmask／非対応effect surfaceと画像のmask／effect surfaceを共通変形出力へ接続し、連番・Shape・cropの再生、Undo、保存往復を確認する。
+Phase 0 の監査後、「静止画レイヤー + ピン + 非破壊評価 + 保存／Undo」を実装し、静止画用格子、連番の同フレームImageF32テクスチャ描画とフレーム単位の制御キー操作を接続した。連番は後続フレームのシルエット移動を覆うため、初回bindで全フレーム矩形のトポロジーを作る。通常GPUベクター描画のShapeにも同じ制御点状態とローカル点写像（PinsはMLS、Gridは双線形）を接続した。画像の通常GPU描画ではsource cropの矩形・UV・表示回転をメッシュに接続した。2026-10-01にShape／画像のmask／非対応effect surfaceを共通変形出力へ接続した（詳細は下記の追記）。次は連番・Shape・cropの再生、Undo、保存往復の実機確認と、mask/effect との適用順の設計レビュー確定である。
 
 ## 実装進捗 (2026-09-23)
 
@@ -66,6 +66,16 @@ Phase 0 の監査後、「静止画レイヤー + ピン + 非破壊評価 + 保
 - Sequenceの通常描画は `refreshSequenceFrameForCurrentTime()` と `currentFrameBuffer()` を使い、同解像度でないフレームを取り込まず、resolved frame index とcontent keyをGPU texture cache identityに含める。Deformer GPU pathも同フレームImageF32をテクスチャに使う。静止画は初回の8-bit alpha輪郭をメッシュ化し、Sequenceは同解像度のフレーム間でシルエットが移動しても覆えるよう初回bind時に全矩形を不透明にしたトポロジーを作る。いずれも同寸法中はメッシュを再生成しない。Sequence矩形メッシュの品質・性能は実素材で未確認。
 - shapeの通常描画は `ArtifactShapeLayer::draw()`、surface合成は `drawLayerForCompositionView()` を通る。通常GPUベクター描画ではShape Layerの平坦化された三角形／ストローク点へDeformerのローカル点写像を適用する。GPU effect planが成立しレイヤーマスクが無い場合は、この後GPU effect/matteへ進む。レイヤーマスクまたはGPU plan非対応のeffectはQImage surface経路へ切り替わり、Deformerは未適用。現方式はパス頂点単位の評価で、画像用のUVメッシュとは別に描画頂点を写す。実機品質・性能は未確認。単純な `toQImage()` 変形統合は採用しない。
 - `restoreLayerData()` はJSONのcontrol状態を適用した後、control IDごとの永続property cacheを破棄し、制御点JSONから再水和する。これによりUndo/Redo時の古いキーキャッシュ再利用を防ぐ。実行時の往復確認は未実施。
+
+## 2026-10-01 mask／非対応effect surface 接続
+
+- **接続点:** `ArtifactCompositionRenderController::drawLayerForCompositionView()` のCPU surface経路（画像は `toQImage()` 分岐、Shapeは `layerHasRasterizerEffectsOrMasks()` 分岐）へ変形を接続した。これまで変形が抜けていた4経路（画像＋レイヤーマスク、画像＋ラスタライズeffect、Shape＋レイヤーマスク、Shape＋GPU plan非対応effect）を覆盖する。
+- **画像:** `ArtifactPuppetTool::renderDeformedSurface()` を追加。`renderDeformedLayer()` と同じ評価 preamble（`prepareDeformedImageMesh()` へ抽出）を走らせ、変形メッシュの三角形をアフィン変換でワープして straight-alpha `QImage::Format_RGBA8888` 表面を作る。画素は `ImageF32x4_RGBA::toCVMat()`（CV_32FC4／RGBA バイト順）由来なので、変形なし `toQImage()` とフォーマットが一致する。ワープは三角形ごとに宛先バウンディングボックスへ限定し、スクラッチ Mat はサイズ変化時だけ再確保する（フレーム毎アロケーション回避）。
+- **Shape:** `ArtifactShapeLayer::toDeformedQImage()` を追加。`draw()` と同じ `ShapeDeformerPointMapper`／`ShapeDeformerPrepare` 契約を取り、`renderContentsToImage()`／`rebuildCache()` の QPainterPath 全要素（MoveTo/LineTo/CubicTo 制御点）を点写像経由で再構築してからラスタライズする。結果は共有キャッシュへ書かない。
+- **適用順（実装の判断・設計レビュー確定待ち）:** 変形 → マスク → エフェクト。デフォーマはレイヤー内容の非破壊変形なので source surface を先に変形し、既存の mask/effect 順序（CPU surface 経路は mask → effect）は変えない。GPU 直接描画経路と意味論を揃える。2026-09-23 時点の「設計レビューで確定する」を受けてこの順序を採用したが、正式な確定はレビュー待ち。
+- **キャッシュ:** `ArtifactPuppetTool::deformationSurfaceSignature()` が変形状態の署名（方式・制御点編集 generation・格子寸法・deformation2D.\* アニメ有無時のフレーム）を返し、`buildLayerSurfaceCacheKey()` へ追加する。制御点の編集はすべて `markDeformDirty()` 経由で generation が進むため、静止した制御点ならフレームをまたいでも表面キャッシュが命中する。再生中は generation がフレーム変化で進むためフレーム毎に再ワープする（CPU surface 経路自体が既にフレーム毎処理であることと釣り合う範囲）。
+- **未実装のまま:** TPS／ARAP、書き出し経路の実機確認、アルファ端のにじみの実機評価、範囲外制御点のクリップ判定の実機確認、CPU warp の性能計測（ワープ总面积が実素材でどうなるか）。未ビルド。
+- **単純な `toQImage()` 変形統合は採用しない** 方針は維持する。画像はメッシュ三角形のアフィンワープ（UV メッシュと同じ式）、Shape はパス要素の点写像（GPU vector draw と同じ式）で、CPU surface 経路でも GPU 経路と同じ変形式を使う。
 
 ## 受け入れ確認
 

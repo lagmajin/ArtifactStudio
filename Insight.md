@@ -1,4 +1,20 @@
-**最終更新:** 2026-09-30
+**最終更新:** 2026-10-01
+
+## 2026-10-01 — 2D デフォーマの mask/effect surface 接続は「変形→マスク→エフェクト」順
+
+- **関連:** `Artifact/src/Tool/ArtifactPuppetTool.cppm`、`Artifact/src/Layer/ArtifactShapeLayer.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`docs/planned/MILESTONE_2D_DEFORMER_2026-09-23.md`。
+- **確認できた事実:** 変形が抜けていたのは CPU surface 経路の4経路（画像/Shape × レイヤーマスク/ラスタライズeffect）。`markDeformDirty()` は制御点の編集経路すべてで `shapeConstraintGeneration` を進めるが、`renderDeformedLayer()` の preamble はフレーム変化でも進めるため、generation をそのまま表面キャッシュ key に使うと再生中は毎フレーム失効する。`evaluatePinPositionsAtCurrentFrame()` はフレーム評価で generation を進めない。
+- **判断・対応:** 適用順は変形→マスク→エフェクトとした（デフォーマは source 内容の非破壊変形なので surface を先に変形し、既存の CPU surface 経路の mask→effect 順序は変えない）。キャッシュ key には generation ＋ deformation2D.* アニメ有無時のみフレームを足す署名を使い、静止画の変形なし層はゼロコスト（`deformation2DData().isEmpty()` で早期退出）にした。適用順はマイルストーンの「設計レビューで確定する」を受けての暫定判断として追記してある。
+- **価値または懸念（未検証）:** CPU warp は三角形ごとに宛先 bbox へ限定するが、メッシュ三角形数 × bbox 面積が実素材でどうなるかは計測していない。アルファ端の線形補間のにじみ（straight-alpha を補間）は GPU 三角形描画と同じ性質だが実機比較していない。crop 回転が有効な層では CPU surface 経路は従来どおり回転なし crop を返す既存挙動を変えていない。
+- **次に確認すべきこと:** ビルド許可後に mask/effect あり層の変形描画、GPU 経路との絵一致、再生中のワープ性能、保存/再読込・Undo 往復を確認する。
+
+## 2026-10-01 — GUI サブシステム exe の CLI 入口は wide argv + 遅延 console 接続で閉じられる
+
+- **関連:** `Artifact/src/AppMain.cppm`、`Artifact/src/Application/ArtifactInteractiveShell.cppm`、`Artifact/include/Application/ArtifactInteractiveShell.ixx`、`docs/planned/MILESTONE_CLI_PYTHON_AUTOMATION_2026-09-23.md`。
+- **確認できた事実:** `main(int argc, char* argv[])` の窄い argv はシステム ANSI コードページ経由でしか渡らず、日本語 Windows では CP932 外のパスが壊れる。`AttachConsole(ATTACH_PARENT_PROCESS)` の戻り値と `bindWindowsStandardHandleToCrt()` の失敗経路は無言だった。GUI サブシステムのプロセスは Ctrl+C を既定で処理しない（130 終了コードの契約が守られない）。
+- **判断・対応:** argv は `GetCommandLineW()` + `CommandLineToArgvW()` で組み、実行ファイル位置は `GetModuleFileNameW()` から求めた。console control ハンドラは `Artifact::noteConsoleInterrupt()` でフラグを立てるだけで即終了せず、JSONL/REPL の各読み取りループが要求の合間に 130 を返す。ハンドラ状態は `Artifact.Application.InteractiveShell` モジュールへ置き、新規 .cppm（CMake 再スキャン要因）を増やさなかった。
+- **価値または懸念（runtime未検証）:** ブロック中の `std::cin` 読み取りは割り込まない。Ctrl+C 後も次の入力か pipe close の EOF まで待機する。完全な割り込みには overlapped I/O が必要。`CommandLineToArgvW` 失敗時の ANSI フォールバックは CP932 内文字のみ正しい。
+- **次に確認すべきこと:** ビルド許可後に PowerShell/ConPTY からの pipe・`$LASTEXITCODE`・日本語 path・Ctrl+C 130 を実行確認する。
 
 ## 2026-09-30 — Layer Editor のイベント座標と renderer viewport は物理 px
 
