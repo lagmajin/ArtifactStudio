@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-02 14:06
+> Generated: 2026-10-02 14:20
 > Total documents: 1431
 
 ---
@@ -611,7 +611,7 @@
 | 21 | `docs/planned/IMPROVEMENT_SUGGESTIONS.md` | Artifact ドラッグ&ドロップ・ワークフロー改善提案 | --- | --- | 2026-03-20 | 6.5 KB | IMPROVEMENT, SUGGESTIONS |
 | 22 | `docs/planned/LAYER_MASK_ANALYSIS_2026-04-17.md` | LayerMask クラス分析レポート | 2026-04-17 | --- | 2026-04-18 | 14.5 KB | LAYER, MASK, ANALYSIS |
 | 23 | `docs/planned/LIBRARY_SPLIT_PROPOSAL_2026-08-12.md` | ライブラリ分割提案（第2段階） | 2026-08-13 | In Progress（P1/P2/P3/P4/P5/P6/P7/P8/P9/P10/P11/P12/P13/P14/P15/P16/P17/P18/P19/P20/P21/P22/P23/P24/P25/P26/P27/P28/P29/P30/P31/P32/P33/P34/P35/P36/P37/P38/P39/P40/P41/P42/P43/P44/P45/P46/P47/P48/P49/P50/P51/P52/P53/P54/P55/P56/P57/P58/P59/P60/P61/P62/P63/P64/P65/P66/P67/P68/P69/P70/P71/P72/P73/P74/P75/P76/P77/P78/P79/P80/P81/P82/P83/P84/P85/P86/P87/P88/P89/P90/P91/P92/P93/P94/P95/P96/P97/P98/P99/P100/P101/P102/P103/P104/P105 CMake分割実装済み・ビルド未検証） | 2026-08-13 | 53.7 KB | LIBRARY, SPLIT, PROPOSAL |
-| 24 | `docs/planned/MILESTONE_2D_COLLIDER_VIEWPORT_EDIT_2026-09-19.md` | M-COLLIDER-VP-1: 2D Collider Viewport Edit | 2026-10-02 | ** Phase 0 実装完了。Coreの値DTOとレイヤーの一括適用入口に加え、Layer Editorの読み取り専用輪郭プレビューを確認。専用編集モード、ハンドル、入力、Undo接続、実機検証は未完了。 | 2026-10-02 | 5.8 KB | COLLIDER, VIEWPORT, EDIT |
+| 24 | `docs/planned/MILESTONE_2D_COLLIDER_VIEWPORT_EDIT_2026-09-19.md` | M-COLLIDER-VP-1: 2D Collider Viewport Edit | 2026-10-02 | ** Phase 0 実装完了。Coreの値DTOとレイヤーの一括適用入口に加え、Layer Editorの読み取り専用輪郭プレビューを確認。専用編集モード、ハンドル、入力、Undo接続、実機検証は未完了。 | 2026-10-02 | 5.9 KB | COLLIDER, VIEWPORT, EDIT |
 | 25 | `docs/planned/MILESTONE_2D_DEFORMER_2026-09-23.md` | 2D デフォーマ統合計画 | 2026-10-02 | In Progress | 2026-10-02 | 15.1 KB | DEFORMER |
 | 26 | `docs/planned/MILESTONE_2D_POINT_TRACKER_2026-06-02.md` | M-MOTION-1 2D Point Tracker (2026-06-02) | 2026-08-04 | Initial design; implementation status moved to 2026-06-16 execution milestone | 2026-08-06 | 6.4 KB | POINT, TRACKER |
 | 27 | `docs/planned/MILESTONE_2D_POINT_TRACKER_2026-06-16.md` | M-2DTRACK-1 2D Point Tracker Milestone | 2026-06-16 | Phase 1〜3 基盤実装済み; planar/undo/diagnostics/performance/runtime verification pending | 2026-08-16 | 18.9 KB | POINT, TRACKER |
@@ -732,7 +732,7 @@
 | 142 | `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_PHASE3_EXECUTION_2026-04-03.md` | マイルストーン: Asset Browser Navigator Phase 3 Execution | 2026-08-04 | Phase 3 implemented; runtime density/auto-list/consistency verification pending | 2026-08-06 | 2.9 KB | ASSET, BROWSER, NAVIGATOR, PHASE3, EXECUTION |
 | 143 | `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_PHASE4_EXECUTION_2026-04-03.md` | マイルストーン: Asset Browser Navigator Phase 4 Execution | 2026-08-04 | Phase 4 implemented; folder workflow/runtime verification pending | 2026-08-06 | 3.4 KB | ASSET, BROWSER, NAVIGATOR, PHASE4, EXECUTION |
 | 144 | `docs/planned/MILESTONE_ASSET_BROWSER_NAVIGATOR_SEARCH_PRESENTATION_2026-04-03.md` | マイルストーン: Asset Browser Navigator / Search / Presentation Surface | 2026-04-03 | Partial; Phases 1〜5 implementation scope essentially complete, search-history switching, D&D preview ghost, and runtime performance/UX verification pending | 2026-08-16 | 9.7 KB | ASSET, BROWSER, NAVIGATOR, SEARCH, PRESENTATION |
-| 145 | `docs/planned/MILESTONE_ASSET_BROWSER_OPTIMIZATION_2026-03-29.md` | Milestone: Asset Browser Optimization (2026-03-29) | 2026-03-29 | 部分実装（パス判定・キャッシュ改善済み、並列スキャン／並列サムネイル生成は未着手） | 2026-10-02 | 6.2 KB | ASSET, BROWSER, OPTIMIZATION |
+| 145 | `docs/planned/MILESTONE_ASSET_BROWSER_OPTIMIZATION_2026-03-29.md` | Milestone: Asset Browser Optimization (2026-03-29) | 2026-03-29 | 部分実装（パス判定・キャッシュ改善済み、並列スキャン／並列サムネイル生成は未着手） | 2026-10-02 | 6.6 KB | ASSET, BROWSER, OPTIMIZATION |
 | 146 | `docs/planned/MILESTONE_ASSET_BROWSER_RELINK_WORKFLOW_2026-06-28.md` | Milestone: Asset Browser Relink Workflow (M-AB-10) | 2026-10-02 | Partial implementation（基本 relink／missing／Undo 実装済み、参照追跡・全体 UX・runtime 検証待ち、静的確認 2026-07-29） | 2026-10-02 | 52.3 KB | ASSET, BROWSER, RELINK, WORKFLOW |
 | 147 | `docs/planned/MILESTONE_ASSET_BROWSER_SEQUENCE_GROUPING_2026-03-31.md` | マイルストーン: Asset Browser Sequence Grouping | 2026-08-15 | Phase 1〜3 implemented; runtime consistency/missing-frame verification pending | 2026-08-16 | 4.6 KB | ASSET, BROWSER, SEQUENCE, GROUPING |
 | 148 | `docs/planned/MILESTONE_ASSET_BROWSER_TAG_SYSTEM_2026-06-28.md` | Milestone: Asset Browser Tag System (M-AB-12) | 2026-10-02 | 部分実装（Project footage の既存 tags を編集し、`tag:名前`／`tags:all(a,b)`／`tags:any(a,b)`／`tags:not(a)` の完全一致 filter が可能。専用タグ管理・bulk・分類機能は未実装。runtime 検証待ち） | 2026-10-02 | 54.5 KB | ASSET, BROWSER, TAG, SYSTEM |

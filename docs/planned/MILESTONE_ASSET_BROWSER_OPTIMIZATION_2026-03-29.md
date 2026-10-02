@@ -18,6 +18,11 @@ Asset Browser には imported path の `QSet` キャッシュ、thumbnail の me
 - imported-path QSet、mtime-aware bounded thumbnail cache 等の先行改善は継続して使われている。現状を **Phase 1 実装済み、Phase 2〜3 未実装／数千件性能測定 pending** とする。
 - 今回の依頼では並列化方式やUI応答目標の実測ができないため、並列走査は追加していない。ビルド・runtime 性能計測も未実施。
 
+## 2026-10-02 Missing判定のファイル種別
+
+- Asset Browserのmissing判定を存在確認から通常ファイル確認へ揃えた。素材pathと連番frame pathが同名directoryを指す場合、missingとして扱う。
+- Render Queue preflightには同等のファイル種別確認が既にあり、browser statusとの判定差を縮小した。UIの実行確認は未実施。
+
 ---
 
 ## 現状の課題 (Bottleneck Analysis)

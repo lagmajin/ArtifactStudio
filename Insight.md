@@ -3806,3 +3806,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **価値／懸念（未検証）:** 不正な復元値や呼び出し側の破損値がhandle位置へ伝播したり、offset操作で有効化されたりするのを防ぐ。実際の永続値がこの不正値を取り得るか、呼出し経路での拒否が期待動作かはruntime未確認。
 - **次に確認すべきこと:** 永続値の読み込み境界とViewport側のエラー／編集拒否表現を確認する。UI・Undo接続後にinvalid DTOで編集開始されないことを確認する。
 - **追加対応:** QPointF上で有限でもrenderer／物理側float表現の範囲を超えるhandle座標は後段でoverflowし得る。また既存setterはoffsetを±100000、寸法／半径を0〜100000に制限する。DTO入口とdrag結果をこの永続値域に一致させ、保存確定時のclampでpreview形状が変わるケースを避ける。
+
+## 2026-10-02 — Asset Browserはdirectoryを素材ファイル扱いしない
+
+- **関連:** `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`、`docs/planned/MILESTONE_ASSET_BROWSER_OPTIMIZATION_2026-03-29.md`。
+- **確認できた事実:** browserのmissing判定は`QFileInfo::exists()`のみだったため、既存directoryがsource／sequence frame pathになった場合はMissingでないと表示された。Render Queue preflightは既に通常ファイル種別まで要求する。
+- **対応:** Asset Browserのpath status判定を`QFileInfo::isFile()`へ変更し、同名directoryをmissingとして扱う。
+- **価値／懸念（未検証）:** Asset BrowserとRender Queueの基本的なfile-type判定が一致する。特殊なvirtual/network sourceがAsset Browserの通常filesystem一覧へ混在するかは未確認。
+- **次に確認すべきこと:** missing／sequence statusのUIで既存file、missing file、同名directoryを比較する。並列filteringとは独立した正確性修正。
