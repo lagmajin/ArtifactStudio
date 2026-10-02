@@ -3780,3 +3780,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** 代表pathがsequence listに含まれるかを判定し、sequenceのframe列挙に診断を委ねる。listに含まれない代表pathだけを通常missing-file診断にし、代表pathと各frameの両方で存在と通常ファイル種別を確認する。重複sequence pathはframe列内で引き続き一度だけ診断する。
 - **価値／懸念（未検証）:** 先頭frameを含む欠落frameをすべてsequence単位で正しく示せる。runtimeでの診断表示は未確認。
 - **次に確認すべきこと:** sourcePathが先頭frame／sequence外path／既存frameの場合と、重複frame pathを含むsequenceの各preflight結果を確認する。
+
+## 2026-10-02 — GPU glyph packetはfloat化の前後で有限値を確認する
+
+- **関連:** `Artifact/src/Render/ArtifactTextGlyphSubmitter.cppm`、`Artifact/docs/planned/MILESTONE_GPU_TEXT_ANIMATOR_TRANSFORM_BUFFER_2026-08-13.md`。
+- **確認できた事実:** 分離submitterはglyph位置・scale・rotation・opacityを検査せず頂点へ変換し、NaN／Infが混ざると頂点bufferへ非有限値が入り得た。global opacityや色、計算後UVも同様に無検査だった。
+- **対応:** パケット生成前に座標・各offset値、scale、rotation、opacityを検証し、float範囲外／非有限座標と負scaleのglyphを除外する。opacity／色および最終座標・UV・alphaも有限値であることを要求する。
+- **価値／懸念（未検証）:** 不正なanimator値が実験GPU経路のbufferへ伝播するのを防ぐ。これは分離submitter限定の防御で、製品renderer側の契約検証やGPU描画結果は未確認。
+- **次に確認すべきこと:** 不正値を含む入力のSoftware/GPU双方の扱いを比較し、同じglyphを落とすか、上流で値を正規化するかを決める。製品経路にも移す際はその経路のbounded buffer設計と合わせる。

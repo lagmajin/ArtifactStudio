@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-02 13:53
+> Generated: 2026-10-02 13:55
 > Total documents: 1431
 
 ---
@@ -117,7 +117,7 @@
 
 | # | File | Title | Date | Status | Modified | Size | Keywords |
 |---|------|-------|------|--------|----------|------|----------|
-| 1 | `Artifact/docs/planned/MILESTONE_GPU_TEXT_ANIMATOR_TRANSFORM_BUFFER_2026-08-13.md` | GPU Text Animator Transform Buffer / Instancing | 2026-10-02 | 部分実装（分離 Submitter の連続 Glyph quad を1 drawへバッチ化。Animator本線の Transform Buffer／Instancing は未実装） | --- | 14.6 KB | GPU, TEXT, ANIMATOR, TRANSFORM, BUFFER |
+| 1 | `Artifact/docs/planned/MILESTONE_GPU_TEXT_ANIMATOR_TRANSFORM_BUFFER_2026-08-13.md` | GPU Text Animator Transform Buffer / Instancing | 2026-10-02 | 部分実装（分離 Submitter の連続 Glyph quad を1 drawへバッチ化。Animator本線の Transform Buffer／Instancing は未実装） | --- | 15.1 KB | GPU, TEXT, ANIMATOR, TRANSFORM, BUFFER |
 | 2 | `Artifact/docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md` | Milestone: Mask Keyframe Foundation | 2026-07-25 | Phase 1-3 implemented, runtime verification pending | --- | 3.8 KB | MASK, KEYFRAME, FOUNDATION |
 | 3 | `Artifact/docs/planned/MILESTONE_MULTI_FRAME_PREVIEW_RENDERING_2026-06-29.md` | Milestone: Multi-Frame Preview Rendering | 2026-06-29 | Phase 0 audit complete, Phase 1 implemented; Phase 2+ planned | --- | 18.4 KB | MULTI, FRAME, PREVIEW, RENDERING |
 
