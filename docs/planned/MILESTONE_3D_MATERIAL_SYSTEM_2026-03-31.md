@@ -1,9 +1,14 @@
 # MILESTONE: 3D Material System
 
-**最終更新:** 2026-08-20
-**Status:** Material core、3D layer assignment、PBR texture input、shader/render 接続、Inspector／JSON は実装済み。高度機能の一部と runtime verification は pending。
+**最終更新:** 2026-10-02
+**Status:** Material core、3D layer assignment、PBR texture input、shader/render 接続、Inspector／JSON、Matte／Metal／Plastic／Glass の preset 適用はコード実装済み。独立 Material Browser／asset 管理、高度 mapping と runtime verification は pending。
 
 > 2026-03-31 作成
+
+## 2026-10-02 現行コード再監査
+
+- `ArtifactLayerPanelWidget.cppm` の 3D Material menu は `applyMaterialPreset` を通し、Matte／Metal／Plastic／Glass の色・metallic・roughness・specular／transmission／IOR 値を既存 Undo command で適用する。
+- よって Material preset 適用はコード実装済みとして記録する。独立 Material Browser／asset 管理は確認できず未実装。preset 適用、透明境界、texture更新の runtime 検証も未実施。
 
 ## 現行コード監査 (2026-08-20)
 
@@ -16,7 +21,7 @@
 
 現行コードを追加確認した。`ArtifactCore::Material` は base color／emission／metallic／roughness／alpha、normal strength、occlusion、opacity、sheen、texture path を保持し、`Artifact3DModelLayer` の Inspector／JSON／import material 情報と接続されている。CompositionRenderController／Diligent renderer にはPBR parameter、metallic-roughness／normal texture、opacity／depth、Light Layer連携がある。Sheen は直接光・IBL の shader 経路へ接続されている。
 
-未完了・未検証なのは、Material Browser／asset管理の独立導線、preset／高度なmapping、実機でのshading、透明境界、texture更新受入れである。基本Material／PBR接続は実装済み、拡張UXとruntime検証は pending とする。
+未完了・未検証なのは、Material Browser／asset管理の独立導線、高度なmapping、実機でのshading、透明境界、texture更新受入れである。Layer Panel の Material menu から Matte／Metal／Plastic／Glass を適用する preset は実装済み。基本Material／PBR接続と preset 適用はコード上で確認済み、拡張UXとruntime検証は pending とする。
 
 ## 目的
 
@@ -183,10 +188,10 @@ Phase 1 は material の器を先に作り、見た目の自由度を少しず�
 - `Artifact3DModelLayer` が material を保存・復元し、Property Editor の編集値を反映する。
 - base-color、metallic-roughness、normal、emission、occlusion、opacity texture の読み込み経路がある。
 - `MeshRenderer` が material constant buffer と PBR-like shader を使用して描画する。
-- Phase 5 の高度な normal/specular mapping、独立した Material Browser／asset preset UI、および実機確認は未完了。
+- Phase 5 の高度な normal/specular mapping、独立した Material Browser／asset 管理 UI、および実機確認は未完了。Matte／Metal／Plastic／Glass の Layer Panel preset 適用は実装済み。
 
 ## Static audit follow-up (2026-07-25)
 
 - The implemented core type is `ArtifactCore::Material` (not the originally proposed `Material3D` name). It is assigned by `Artifact3DModelLayer`, persisted in JSON, exposed through the existing Property Editor, and included in the layer material signature/cache boundary.
 - `MeshRenderer` binds base-color, opacity, metallic-roughness, normal, emission, and occlusion textures and sends the material factors through a GPU constant buffer. The shader applies tangent-space normal mapping, metallic/roughness response, occlusion, emission, alpha, and scene/studio lighting.
-- Phases 1-4 are supported by static source evidence. The remaining scope is Phase 5 preset/material-browser work plus runtime verification; no build or runtime execution was performed under the repository policy.
+- Phases 1-4 and Matte／Metal／Plastic／Glass preset application are supported by static source evidence (`ArtifactLayerPanelWidget.cppm`, `applyMaterialPreset`). The remaining scope is an independent Material Browser/asset-management UI, advanced mapping, and runtime verification; no build or runtime execution was performed under the repository policy.

@@ -1,6 +1,6 @@
 # 2D デフォーマ統合計画
 
-**最終更新:** 2026-09-23
+**最終更新:** 2026-10-02
 **ステータス:** In Progress
 
 ## 目的
@@ -56,7 +56,13 @@ Phase 0 の監査後、「静止画レイヤー + ピン + 非破壊評価 + 保
 - `deformation2D.<controlId>.x/y` をレイヤーの動的プロパティとして Timeline Keyframe Model と Undo 復元経路から解決し、ピン／格子制御点位置をCompositionフレームで評価する。ドラッグ中はプレビュー位置を更新し、マウス解放でキーを確定する。
 - ピンの `rotation/weight` も動的プロパティ化し、JSON保存、Timeline行、キーフレームUndo／Redo、同一フレームでの再評価に接続した。位置と属性キーには補間、Bezier接線、roving、anchor、color labelを保存する。
 - Deformer制御点は通常の Property Widget グループに追加せず、Timeline内の折りたたみ可能な専用グループへ表示する。Dope Sheetキー収集、選択編集、レイヤー時間シフト、キー属性変更、Undo復元は動的プロパティを解決する。
-- **未完了:** 左Timeline行と位置／属性キー編集のコードは追加したが未ビルド・未実機で、保存再読込、Undo／Redo、カーブ編集、クリップ時間シフトの動作は未確認。Tool OptionsにDeformer有効／無効を追加し、`deformation2D.enabled`へ保存して状態Undoへ接続した（欠落値はtrueとして後方互換）。GPUメッシュ経路は静止画と連番の通常画像描画に接続した。source cropはImageLayerから描画矩形・source pixel矩形・回転をまとめたlayoutを取得し、mesh UVを元フレームへ戻して通常GPU描画に接続した。Sequenceは初回bind時に矩形トポロジーを作り、同解像度の各フレームImageF32バッファをテクスチャとして描く。source cropもcrop矩形が変わったときだけトポロジーを再bindする。crop回転を制御点表示・ヒットテスト・ドラッグにも反映する。いずれもレイヤーマスク／ラスタライズエフェクトなしの通常画像GPU分岐に限る。Grid切替、ドラッグキー確定、キーUndo復元からsequence限定拒否を除去し、通常画像と同じComposition-frame評価へ接続した。矩形メッシュ品質・性能、effect mask／非対応effect、レイヤーマスク合成、書き出し一致は未実施。Shape通常GPU vector drawはPins/Gridを接続したが、レイヤーマスクまたはGPU plan非対応effectでは未適用。2026-09-23の静的監査で、`restoreLayerData()` はUndo対象control IDのキャッシュ済みdynamic propertiesを消してからJSON状態を再水和する必要があり、その順序を追加した。未ビルド。
+- **未完了:** 左Timeline行と位置／属性キー編集のコードは追加したが未ビルド・未実機で、保存再読込、Undo／Redo、カーブ編集、クリップ時間シフトの動作は未確認。Tool OptionsにDeformer有効／無効を追加し、`deformation2D.enabled`へ保存して状態Undoへ接続した（欠落値はtrueとして後方互換）。GPUメッシュ経路は静止画と連番の通常画像描画に接続した。source cropはImageLayerから描画矩形・source pixel矩形・回転をまとめたlayoutを取得し、mesh UVを元フレームへ戻して通常GPU描画に接続した。Sequenceは初回bind時に矩形トポロジーを作り、同解像度の各フレームImageF32バッファをテクスチャとして描く。source cropもcrop矩形が変わったときだけトポロジーを再bindする。crop回転を制御点表示・ヒットテスト・ドラッグにも反映する。2026-10-02 に静止画・連番の画像レイヤー経路を拡張し、GPU raster effect plan が成立し、レイヤーマスクがない場合は Deformer を先に描画して後段のGPU effectへ渡す。CPU effect／effect mask／レイヤーマスク経路は引き続き未適用。Grid切替、ドラッグキー確定、キーUndo復元からsequence限定拒否を除去し、通常画像と同じComposition-frame評価へ接続した。矩形メッシュ品質・性能、非対応effect、レイヤーマスク合成、書き出し一致、Undo／Redo・保存再読込は未実施。Shape通常GPU vector drawはPins/Gridを接続したが、レイヤーマスクまたはGPU plan非対応effectでは未適用。2026-09-23の静的監査で、`restoreLayerData()` はUndo対象control IDのキャッシュ済みdynamic propertiesを消してからJSON状態を再水和する必要があり、その順序を追加した。未ビルド。
+
+## 2026-10-02 GPU-compatible image effect connection
+
+- `ArtifactCompositionRenderController::drawLayerForCompositionView()` now permits `renderDeformedLayer()` when the effect stack was accepted by `buildGpuRasterEffectPlan()` and the layer has no masks. The deformed image is drawn into the existing per-layer GPU target, then the existing GPU effect plan runs afterward.
+- CPU-only effects, layer masks, and unsupported surface paths still bypass the Deformer. No source pixels are rewritten and no new QImage processing path was added.
+- Static call-path inspection only. GPU output parity, effect ordering, crop/sequence combinations, and runtime quality remain unverified; the milestone stays In Progress.
 - **格子の制約:** 初版は規則格子頂点を直接ドラッグする方式で、領域選択、滑らかさ制約は未実装。密度変更では旧制御点から双線形補間する。方式・密度変更と制御点の追加／移動／削除は状態 Undo に接続したが、未実機確認。
 - **Shape接続 (2026-09-23):** 通常のComposition GPUベクター経路から Shape の描画へ制御点写像コールバックを渡し、塗り三角形とストローク点を共通のローカル座標写像で変形する。Pinsは既存OpenCV MLSと同じ制約点生成／剛体MLS式、Gridは格子制御点の双線形評価を使う。変形無効時および制御点なしでは通常描画へ戻す。C++モジュール依存を避けるため、Shape公開APIは関数ポインタのコールバック契約を使う。GPU effect planに適合しレイヤーマスクが無い場合は後段のGPU pointwise/spatial effectとGPU matteを維持する。レイヤーマスクまたはGPU plan非対応のeffect（CPU effect、effect mask/region、mix等）はCPU surface経路になりDeformer未適用。他のレイヤー内蔵物理格子との同時使用、再生・実機品質・性能は未確認。未ビルド。
 

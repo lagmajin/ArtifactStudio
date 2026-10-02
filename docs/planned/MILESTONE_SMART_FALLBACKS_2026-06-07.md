@@ -2,13 +2,19 @@
 
 日付: 2026-06-07
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-10-02
 
 ## Update 2026-08-15
 
 - `FallbackPolicy`／`FallbackTracker` はカテゴリ別 action、fallback value、warning、イベント履歴を持ち、Font／Image／Color／Effect の主要経路で記録される。`FallbackDiagnosticsPanel` はイベント一覧、カテゴリ filter、clear を提供する。
 - 画像 layer の missing／readback 経路、未知 effect の bypass、無効 color token の magenta、font 解決の fallback を現行コードで確認できる。レンダー側にも software／CPU／RAM preview 等の個別 fallback reason がある。
 - Asset loading 全体への統一 policy 適用、プロジェクト設定からの policy 編集、export 前の missing／fallback 集約は未完了または未確認。判定は Phase 1 完了、Phase 2 部分実装、Phase 3 表示まで実装済みだが運用機能未完了を維持する。
+
+## Update 2026-10-02
+
+- Render Queue preflight の `appendMissingAssetDiagnostics()` が Composition layer の source path に加えて `image.sequencePaths` の全フレームを確認し、欠落フレームを File error として job preflight に集約する。
+- `FallbackTracker` のイベントには composition/job identity が無いため、job 単位の fallback warning 集約は未実装のまま。missing asset preflight の拡張だけで Fallback phase を完了扱いにしない。
+- ビルド・export runtime 確認は未実施。
 
 フォント、画像、色、エフェクトが見つからないときに、安全で説明可能な代替ルールへ落とし込む。
 

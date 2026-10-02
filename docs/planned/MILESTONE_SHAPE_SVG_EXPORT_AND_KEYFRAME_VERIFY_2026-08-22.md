@@ -9,11 +9,11 @@
 |---|---|---|
 | A | 1. SVG グラデーション出力 / 2. SVG ストローク属性 | **実装済み (2026-08-23)、ビルド検証待ち** |
 | B | 6. キャッシュのフレームキー化（アニメ時の差分再構築） | **実装済み（bounded 2-frame geometry cache。性能・runtime 検証 pending）** |
-| C | 3. Merge Paths（ブール演算オペレータ） | 未着手（設計メモあり） |
+| C | 3. Merge Paths（ブール演算オペレータ） | **実装済み（静的確認済み、runtime 検証 pending）** |
 | D | 7. キャンバス頂点編集（メイン VP のシェイプ VP 操作増強） | **部分実装（ユーザー依頼範囲の頂点／接線編集は実装済み。残る Phase D 項目は継続）** |
 | D-1 | 7a. vertex / tangent / segment overlay を `ArtifactCompositionRenderOverlay` に統合 | **実装済み（runtime 検証 pending）** |
 | D-2 | 7b. Rect `cornerRadius` ハンドル、Star `starInnerRadius_` ハンドル、Polygon 頂点ドラッグ挿入を RenderController mousePress/Move に追加 | **基本ハンドル／Polygon 頂点編集は実装済み（runtime 検証 pending）** |
-| D-3 | 7c. `ToolType::Shape` のプリセット選択 UI（Rect/Ellipse/Star/Polygon/Line/Triangle のアクティブ切替）をツールバー／ツールオプションに追加 | 未着手 |
+| D-3 | 7c. `ToolType::Shape` のプリセット選択 UI と専用パラメータをツールオプションに追加 | **コード実装済み（12種 selector、形状別パラメータ、作成ルート接続。runtime 検証 pending）** |
 | D-4 | 7d. メイン VP 上の vertex / segment / tangent 選択 grammar 完成（Shift / Ctrl toggle、空クリック頂点追加、segment 挿入、Proportional 編集） | **頂点／接線の選択・ドラッグ・追加／削除と Undo は実装済み。Proportional 編集など残項目あり** |
 | D-5 | 7e. Shape operator stack（TrimPaths / Merge Paths / Offset / Pucker / Rounded / Wiggle / ZigZag / Twist / HandDrawnWobble）の VP 上数値ハンドル／HUD 編集 | 未着手 |
 | D-6 | 7f. パス open/closed トグル、smooth toggle、corner ↔ bezier 切替の VP ハンドル化 | 未着手 |
@@ -39,9 +39,25 @@
 
 ## Phase C 設計メモ（Merge Paths）
 
+> 以下は実装前の設計メモ。2026-10-02 の現行コード再監査で Phase C は実装済みと確認した。
+
 - `ArtifactCore::ShapeOperatorType::Merge` 新設、`ShapeOperator` 派生で mode(Add/Subtract/Intersect/Exclude) 保持
 - パスブール演算はコア新規実装が必要（候補: Clipper2 相当の even-odd boolean、または triangulate 前提の領域演算）。`ShapePath` 単位で apply
 - アプリ側は既存オペレータ UI 枠組み（createShapeOperator / getLayerPropertyGroups の operator group）に追加するのみ
+
+## 2026-10-02 現行コード再監査: Phase C
+
+- `ArtifactCore::MergePaths::process()` に Add / Subtract / Intersect / Difference / Merge の5 modeを実装し、結果を `ShapePath` に戻す。
+- Artifact の shape operator stack は Merge Paths を生成・複製し、operator property として mode を保存／復元し、mode animation を評価する。
+- Layer Editor の Add Operator menu に Merge Paths が登録されている。
+- 判定: **Phase C のコード実装は済。** boolean境界ケース・複数subpath・Fill Rule の表示受入とビルド／runtime確認は未実施。
+
+## 2026-10-02 現行コード再監査: Phase D-3
+
+- `ArtifactToolOptionsBar` の Shape options に Rect／Ellipse／Star／Polygon／Line／Triangle を含む12種の Shape Type selector がある。
+- 同 Tool Options に幅／高さ、角丸、star points／inner radius、polygon sides、fill／stroke、stroke width／cap／join／align／dash の設定欄がある。`ArtifactMainWindow` は選択済み Shape Layer の値を反映し、既存 layer へ編集を適用する。
+- `ToolOptionChangedEvent` で `shape/createType` を保存し、Composition RenderController が同設定を読み、対応する作成 mode と `rectangleToolShapeType_` に反映する。
+- 判定: **selector、形状別パラメータ、作成／選択 layer 編集のコード経路は実装済み。** 各プリセットの操作・作成結果は runtime 確認 pending。
 
 ## Phase D — シェイプ VP 操作増強（2026-09-02 計画追加）
 
@@ -236,7 +252,7 @@
 
 - Phase B: animated native path geometry に対する bounded frame-key cache を実装済み。ビルド・性能測定は未実施。
 - Phase D: メイン Viewport のパス頂点／接線編集（選択、ドラッグ、追加／削除、Undo）は現行コードに実装済み。ビルド・実機確認は未実施。
-- Phase D 全体（shape preset UI、全 operator の viewport 編集など）と runtime QA は未完了のため、当マイルストーン全体は In Progress のままとする。
+- Phase D-3 の shape preset UI／専用パラメータはコード実装済み。Phase D 全体（残る operator の viewport 編集など）と runtime QA は未完了のため、当マイルストーン全体は In Progress のままとする。
 
 - GPU path の非ソリッドフィル（グラデーション等）は QImage 互換キャッシュ経由のフォールバック（設計通り、fallback ログ付き）。P1 を進める際は SVG 側のグラデーション属性マッピングと合わせて扱う。
 - `ShapePath::triangulate`（fill rule 対応・キャッシュ付き）とオペレータ5種のソフト/GPU 接続は良好、本計画では変更しない。

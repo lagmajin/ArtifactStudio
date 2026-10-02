@@ -1,12 +1,12 @@
 # Milestone: Asset Browser Tag System (M-AB-12)
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-10-02
 **マイルストーンID**: M-AB-12
 **作成日**: 2026-06-28
 **優先度**: P2 (Medium)
 **推定工数**: 2-3日
 **カテゴリ**: Asset Browser / Metadata / Organization
-**状態**: 未実装（共通 metadata/tag 型は部分的に存在するが、Asset Browser の tag workflow は未接続）
+**状態**: 部分実装（Project footage の既存 tags を Asset Browser のコンテキストメニューから編集し、検索欄の `tag:名前` で完全一致 filter 可能。タグ管理・bulk・分類機能は未実装。runtime 検証待ち）
 **依存**: M-AB (Asset Browser base), M-AB-11 (Advanced Sort)
 
 ---
@@ -20,9 +20,9 @@
 ## 背景
 
 ### 現状
-- Asset Browser の現行 filter はファイルタイプ、status、検索文字列が中心で、asset tag による filter/assignment は確認できない。
+- Asset Browser の現行 filter はファイルタイプ、status、検索文字列が中心。Project footage への tag assignment/edit と、検索欄の `tag:名前` による完全一致 filter がある。タグ管理・複合条件・bulk 操作は未実装。
 - `ArtifactAssetMetaFile` の tags、`MultipleTag`、Project の AI tags など共通・周辺のタグ表現は存在するが、Asset Browser の project-scoped custom tag database / editor には接続されていない。
-- Favorites は status として存在するが、ユーザー定義タグ、tag cloud、tag group、import/export は未実装。
+- Favorites は status として存在し、Project footage は tags を保持できる。tag definitions、tag cloud/group、filter、import/export は未実装。
 
 ### 要件
 - **Tag Management**: タグの作成、編集、削除
@@ -1348,7 +1348,7 @@ struct TagManagerUpdatedEvent : Event {
 | タスク | 優先度 | 推定時間 | 依存 | 並行可能 |
 |---|---|---|---|---|
 | タグUIコンポーネント配置 | P1 | 2h | Phase 3 | ❌ (UIスレッド) |
-| コンテキストメニューにアクション追加 | P1 | 1h | Phase 3 | ❌ (UIスレッド) |
+| imported footage のコンテキストメニューにタグ編集追加 | P1 | 1h | Phase 3 | ◐ (編集経路のみ実装) |
 | 選択変更時のタグエディタ更新 | P1 | 1h | Phase 4 | ❌ (UIスレッド) |
 | タグ変更時のUI更新 | P1 | 1h | Phase 4 | ❌ (UIスレッド) |
 
@@ -1452,8 +1452,9 @@ struct TagManagerUpdatedEvent : Event {
 - [ ] P0全てのテストがパス
 - [ ] P1の80%以上のテストがパス
 - [ ] 重大なバグなし
-- [ ] タグ付与が正しく動作
-- [ ] タグフィルタリングが正しく動作
+- [x] Project footage へのタグ付与／編集経路（既存 Undo/API を利用。runtime 確認 pending）
+- [x] 単一タグの完全一致 filter 実装（`tag:名前`。runtime 確認 pending）
+- [ ] AND／OR／NOT のタグフィルタリングが正しく動作
 - [ ] タグ管理が正しく動作
 - [ ] UIが直感的で使いやすい
 - [ ] 全てのテスト項目がパス
@@ -1529,14 +1530,14 @@ struct TagManagerUpdatedEvent : Event {
 ## テスト項目
 
 - [ ] タグの作成、編集、削除
-- [ ] アセットに対するタグの付与/削除
+- [x] Project footage に対するタグの付与/削除（runtime 確認 pending）
 - [ ] 複数アセットに対する一括タグ付与
-- [ ] タグによるフィルタリング（AND, OR, NOT）
+- [ ] タグによる複合フィルタリング（AND, OR, NOT）
 - [ ] タグクラウドの表示
 - [ ] タグの保存/読み込み
 - [ ] タグの色分け表示
 - [ ] タググループの管理
-- [ ] タグの検索
+- [x] 単一タグの完全一致検索（`tag:名前`、runtime 確認 pending）
 - [ ] 性能テスト（1000+アセット、100+タグ）
 
 ---
@@ -1594,5 +1595,14 @@ struct TagManagerUpdatedEvent : Event {
 - 現行コードでは `ArtifactAssetMetaFile::tags()`、`addTag()`、`removeTag()` が存在し、アセット単位の metadata file に複数タグを保存できる。Asset Browser の選択情報欄も保存済みタグを読み取り、表示している。
 - ただし `ArtifactAssetBrowser` の検索・フィルタはファイル名、ファイル種別、status、未使用／お気に入り等が中心で、タグの assignment UI、タグによる filter、AND/OR 条件、タグ一覧・使用数表示は接続されていない。
 - `AssetTag`／`TagManager`／`TagDatabase`、TagEditor／TagFilter／TagCloud／TagManagementDialog、タグ変更イベントの専用実装も確認できない。タグの色・グループ・import/export・一括編集も未実装のままである。
-- 判定は **Planned／未着手（metadata の低レベル API と表示のみ部分実装）** を維持する。次の実装単位は、既存 `ArtifactAssetMetaFile` を直接 UI から変更するのではなく、プロジェクトスコープのタグ定義・asset path/UUID との割り当て・再読込契約を先に確定すること。
+- この時点の判定は **Planned／未着手（metadata の低レベル API と表示のみ部分実装）**。次の実装単位は、既存 `ArtifactAssetMetaFile` を直接 UI から変更するのではなく、プロジェクトスコープのタグ定義・asset path/UUID との割り当て・再読込契約を先に確定すること。
 - ビルド・テスト・runtime 確認は未実施。
+
+## Update 2026-10-02
+
+- imported footage の Asset Browser context menu に `Edit Tags...` を追加。既存の `FootageItem::tags` をカンマ区切りで編集し、`ArtifactProjectService::setProjectItemTags()` 経由で保存する。既存の Undo command 経路を利用する。
+- 操作後に情報面と一覧を更新する。メニュー選択は `QMenu::exec()` の返却値で処理し、この機能のための新規 signal/slot 接続は追加していない。
+- `FootageItem::tags` の Project JSON 保存／復元と情報面での表示は既存経路を利用する。tag definition 管理、filter、bulk assignment、color/group、import/export は引き続き未実装。
+- 検索欄の `tag:名前` を接続し、import 済み footage のタグに対する完全一致（case-insensitive）filter を追加。sequence は登録された各フレームに親 Footage のタグを適用し、一覧では sequence を一件として絞る。`tag:` 単独はタグ付き素材すべてを表示する。
+- filter は単一タグのみ。AND/OR、タグ一覧・管理、bulk assignment、color/group、import/export は未実装。
+- 状態を **部分実装** へ更新。ビルド・UI runtime 確認は未実施。

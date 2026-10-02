@@ -1,4 +1,4 @@
-**最終更新:** 2026-09-30
+**最終更新:** 2026-10-02
 
 ## 2026-09-30 — Motion tracking: persistence, Undo, hot path, and solver conventions
 
@@ -3741,3 +3741,9 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **残存する既知の不一致（未修正・記録のみ）:** (a) Dissolve の出力アルファ — GPU は `float4(src.rgb, 1.0)` で強制不透明（`LayerBlendComputeShader.ixx:623,645`）、CPU は `dstRow[i+3] = srcRow[i+3]` で保持（`ArtifactSoftwareImageCompositor.cppm:699`）。(b) `Classic*` 3 モード（`ClassicColorBurn`/`ClassicColorDodge`/`ClassicDifference`）は GPU・CPU 両方で非 Classic と同一式だが、`BlendModeInfo.ixx:69-72` の `isClassic=true` は別挙動を暗示している。(c) `BlendKind` のグループ分類（`BlendModeInfo.ixx:51-52`）が AE と相違し `blendModeGroupName()` は UI 側から未使用。(d) レイヤー本体の blendMode に Property Editor / Inspector の受け皿が無い（`ArtifactAbstractLayerPropertyGroups.cppm` に登録なし）。Timeline のインラインコンボ（`ArtifactLayerPanelWidget.cppm:4630-4675`）のみ。(e) `ArtifactExportLottieWriter.cppm:278` の `clamp(0,16)` で 17 以降が Luminosity に潰れる。(f) `ArtifactTimelineTrackPainterView.cppm:9604` の `editBlendModeAct` は宣言のみで代入が無いデッドコード。
 - **価値または懸念（未検証）:** GPU/CPU の Stencil/Silhouette は α のみ/色保持で AE 的意味論に合流し、部分再合成が全ブレンドモードで機能するようになった。ただしビルド未実行（AGENTS.md 方針）、実機での領域再合成挙動は未確認。(a) の Dissolve アルファは 半透明背景で GPU/CPU 差が出るため実害あり、(b) のメタデータと実装の矛盾は UI が嘘をつく形になるため注意。**ArtifactCore には本作業の前から差分が存在する**（CMakeLists.txt / cmake/ArtifactCoreSources.cmake / include/Plugin/PluginRegistry.ixx / src/CLAP/CLAPHost.cppm / src/Plugin/PluginRegistry.cppm — いずれも本作業と無関係）。
 - **次に確認すべきこと:** (1) ArtifactCore と Artifact をビルドしてシェーダコンパイルとリンクが通ることを確認 (2) 部分再合成（damage region）発動時の Add / Multiply 等で領域内プレビューが正しく更新されるか実機確認 (3) PSD ファイルを開き「Divide」レイヤーが `Divide` として読込まれるか確認 (4) StencilLuma / SilhouetteLuma のグラデーション matte で GPU と CPU の見た目が揃ったか確認 (5) Classic* のメタデータ `isClassic` を実装に合致させるか、別式を実装するか方針決定 (6) Dissolve のアルファ出力（GPU=1.0 / CPU=保持）のどちらを正とするか決定。
+## 2026-10-02 — Glyph quad を triangle strip にまとめる際の接続規則
+
+- **関連:** `Artifact/src/Render/ArtifactTextGlyphSubmitter.cppm`、`Artifact/docs/planned/MILESTONE_GPU_TEXT_ANIMATOR_TRANSFORM_BUFFER_2026-08-13.md`。
+- **確認できた事実:** 分離 glyph submitter の PSO は triangle strip を使う。各 glyph の quad を単純連結すると quad 間に意図しない三角形ができるため、縮退頂点を挿入して1 drawへまとめる試作を追加した。
+- **価値または懸念（未検証）:** glyphごとの Draw 呼出しを減らせる可能性がある。一方、縮退三角形の接続、alpha blending時の順序、GPU driver間の出力一致は実機確認していない。製品 submitter への統合も別途必要。
+- **次に確認すべきこと:** standalone smoke を許可された環境で実行し、複数 glyph／重なり／回転 glyph の画像差分と draw-call 数を測定する。

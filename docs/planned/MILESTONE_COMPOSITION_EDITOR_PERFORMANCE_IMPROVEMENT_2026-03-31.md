@@ -1,15 +1,17 @@
 # Milestone: Composition Editor Performance Improvement (M-CP-IMP-1)
 
-**Status:** 部分完了（cache／dirty基盤と CompositionChangeDetector 型は存在。変更通知から差分再描画までの接続、GPU binding／compute最適化、性能測定、runtime検証は未完了）
+**Status:** 部分完了（dirty tracking と制約付き GPU 部分再合成は実装済み。独立 CompositionChangeDetector のレンダー判断への統合、GPU binding／compute最適化、性能測定、runtime検証は未完了）
 **最終更新:** 2026-10-02
 
 ## 2026-10-02 現行コード再監査
 
 - `Artifact/src/Render/CompositionChangeDetector.cppm` に変更 layer ID の保持、full redraw 判定、reset API が存在することを確認。
-- 現在の `Artifact/src/Render` では render controller から detector を呼び出す経路を確認できなかった。型の存在だけでは Phase 1 完了とはしない。
+- `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` は `CompositionChangeDetector::markLayerChanged` を呼び出すが、同 detector の `needsFullRedraw`／変更 ID を実レンダー判断に使う経路は確認できない。
+- 実際の差分再合成は別の `RenderDamageTracker` 経路で確認できる。レイヤー無効化領域を追跡し、対応可能なレイヤー／合成条件に絞って部分 GPU 再合成を実行し、描画・表示成功後に領域を消費する。非対応条件では全体再描画へ戻す。
+- bounded tile plan と readback/presentation 成功後の damage 消費も実装されている。コード上の経路確認であり、性能効果・画質・runtime受入は未検証。
 - SRV/UAV batch binding、compute dispatch 最適化、応答性の計測、および GPU runtime 検証も今回確認していない。未実装／未検証として保持する。
 
-判定: **部分実装。CompositionChangeDetector の実経路統合と性能効果が未確認のため、完了マークは付けない。**
+判定: **差分更新基盤は実装済み、マイルストーン全体は部分実装。独立 detector の判断統合、GPU binding／compute 最適化、性能計測／runtime受入が残るため完了マークは付けない。**
 
 ## 2026-08-15 現行コード監査
 

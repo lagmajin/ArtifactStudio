@@ -1,6 +1,6 @@
 # Milestones Backlog
 
-**最終更新:** 2026-09-27
+**最終更新:** 2026-10-02
 
 ### CLI・Python 対話実行
 
@@ -1755,6 +1755,13 @@ active milestone の重複名としては扱わない。
 - Update 2026-09-27: `HarfBuzzShapingBackend` を Qt fallback スタブから実動作する実装へ置換。`vcpkg.json` に `harfbuzz` を直接依存として追加し、`ArtifactCore/CMakeLists.txt` で `harfbuzz::harfbuzz` をリンク。`FontManager::fontFileBytes()` を追加して `QFont` からディスク上の sfnt bytes を解決（Qt 6 には `QFontDatabase::findFontFile()` が無く、`QRawFont::fontTable()` は単一テーブルのみ返すため、application font の family→path 対応表とOSフォントディレクトリ走査で組み立てる）。`FT_Library` は `thread_local`、`FT_Face` は family+style+size をkey としたcache。cluster はUTF-32 インデックスなので既存の `buildContract()` / `makeIdentityResult()` と整合。**利用側はまだ `QtShapingBackend` を直接指名しており描画挙動は未変化。** 残件は利用側の切り替え、行レイアウト（折り返し・整列）が未実装のため複数行/`boxWidth` 指定は Qt fallback、縦書き・ruby・tate-chu-yoko の Qt 依存、bidi visual reorder、`logicalToVisual`/`visualToLogical` の恒等写像、実機DX12/Vulkan受入れとstroke／AA parity。
 - Update 2026-09-27 (多言語): ICU 78.2 を正式リンク（`vcpkg.json` に `icu`、`ArtifactCore/CMakeLists.txt` に `find_package(ICU REQUIRED COMPONENTS uc)` + `ICU::uc`）。① `scriptTagForCodepoint()` の手書き範囲表（約12%、**未検出を全て `Latn` と名乗っていた**）を ICU `uscript_getScript()` + `uscript_getShortName()` に置換。**default を `Latn` にせず `Zyyy`(Common)/`Zinh`(Inherited) を返す**ため数字・記号・結合文字が誤判定されなくなった。Hiragana/Katakana/Kanji も区別される。`isComplexScriptTag()` を追加し `scriptRuns.isComplexScript` の判定を「`Latn` 以外」から複雑 script 明示リストに変更。④ 恒等写像だった `logicalToVisual`/`visualToLogical` と1本固定の `bidiRuns` を ICU `ubidi_*`（UAX #9 準拠）に置換し、混在方向の行が複数 run に分割されるようになった。run 境界は UTF-16 単位なので code point インデックスへ変換。③ `hb_buffer_set_cluster_level(MONOTONE_GRAPHEMES)` と `hb_feature_t`（kern/liga/calt/clig/locl）を追加し、`hb_shape(..., nullptr, 0)` を置き換え。**production 4箇所を `HarfBuzzShapingBackend` に接続**（`GlyphLayout.cppm`、`ArtifactTextLayer.cppm` の shapeText と rich text metadata、`DiligentImmediateSubmitter.cppm`）。`QtShapingBackend` は HarfBuzz 経路の fallback としてのみ残る。残件はフォント fallback の script キー化（`FreeFont.ixx` の `containsCjk || containsEmoji` gate により Devanagari/Thai/Arabic/Hebrew の glyph 欠落を検出しても fallback しない）、Indic conjunct（`visualLength = 1` の構造的仮定が残る）、縦書き（`vert`/`vrt2`、`QFont::setVertical`）、HarfBuzz 経路の複数行レイアウト、`TextLayoutContract` の Qt 型置換、実機DX12/Vulkan受入れ。
 - 実行メモは親文書へ統合済み
+
+#### Update 2026-10-02: Script-aware font fallback
+
+- `ArtifactCore/include/Font/FreeFont.ixx` の `FontManager::resolvedFamilyForText()` を拡張し、preferred font の欠字検出を印字可能な全 codepoint へ広げた。
+- Arabic／Hebrew／Thai／主要 Indic／Khmer／Myanmar／Lao／Armenian／Georgian／Ethiopic の script-aware candidate list を追加。候補はインストール済みで、かつ sample 全体を描ける場合だけ選択する。
+- 同一入力の steady-state lookup は固定8枠 thread-local cache を使い、FontManager 経由の application font 登録で revision を更新する。fallback 診断も script ごとに一度だけ記録する。
+- 混在 script の per-run fallback、候補 family の網羅、Indic conjunct／縦書き、実機描画の受入は未完了。ビルド・テスト・runtime 確認は未実施。
 
 ### Text Workstream Index
 - `docs/planned/MILESTONE_TEXT_WORKSTREAM_INDEX_2026-04-30.md`

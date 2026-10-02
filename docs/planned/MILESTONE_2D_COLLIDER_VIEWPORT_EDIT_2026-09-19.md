@@ -1,8 +1,16 @@
 # M-COLLIDER-VP-1: 2D Collider Viewport Edit
 
-**最終更新:** 2026-09-19
+**最終更新:** 2026-10-02
 
-**状態:** Phase 0 実装完了。Coreの値DTOとレイヤーの一括適用入口を追加済み。ArtifactCoreターゲットはビルド確認済み。Viewport表示、入力、Undo接続、実機検証は未実装。
+**状態:** Phase 0 実装完了。Coreの値DTOとレイヤーの一括適用入口に加え、Layer Editorの読み取り専用輪郭プレビューを確認。専用編集モード、ハンドル、入力、Undo接続、実機検証は未完了。
+
+## 2026-10-02 現行コード再監査
+
+- `drawLayerEditorColliderOverlay()` は Collision enabled のレイヤーに Box／Circle／Polygon の輪郭を描く。呼び出しは Layer Editor の通常 Edit 面で、専用 Collider Edit モードではない。
+- Box／Circle のハンドルや寸法 HUD、入力・ドラッグ・Undo は確認できない。Polygon は `collisionOutlineLocalPoints()` を輪郭表示するだけで頂点編集はしない。
+- よって既存プレビューを専用 viewport editing の完了として数えず、Phase 1 の「表示」部分のみ実装済み、明示的なモード選択と編集 affordance は pending とする。
+
+判定: **値 DTO／一括適用と Layer Editor 輪郭表示はコード上確認済み。Collider の直接編集は未実装。**
 
 ## 目的
 

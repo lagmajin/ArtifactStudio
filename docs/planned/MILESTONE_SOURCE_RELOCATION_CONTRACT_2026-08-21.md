@@ -9,8 +9,16 @@
 ### 進捗 (2026-10-02 再監査)
 
 - Importer の source registry と layer／footage の relative path 復元は `resolveProjectRelativeSource()` に統一されている。
-- 今回確認した importer の該当経路には、保存済み Asset ID を使った source 解決の先行処理は見当たらない。Asset ID → relative → absolute の順序と `AssetPathMissing` health report との突合は未完了として扱う。
-- ビルド・保存再読込・移動素材を使った runtime 確認は未実施。
+- `ArtifactImageLayer::fromJsonProperties()` は保存済み `image.sourceAssetId` を Asset Database で解決し、既存の画像ファイルがあれば importer が設定した path よりその Asset ID の path を優先する。source registry の relative path を先に復元してからレイヤーの Asset ID を適用するため、相対パスと Asset ID の候補が異なる場合は有効な Asset ID が優先される。
+- Project health checker は Footage の代表 path と AssetManager の `AssetPathMissing` を診断する。今回、Footage の `sequencePaths` を各フレーム検査し、欠落フレームを `MissingAsset` として報告する経路を追加した。
+- Asset ID 解決は画像 layer の source に限られ、全 sequence frame 個別の ID 解決ではない。保存／再読込、移動素材、missing frame の runtime 確認は未実施。
+
+### 完了記録
+
+- [x] 画像 layer の保存済み Asset ID による既存 source の復旧（静的確認済み）
+- [x] Project health report で sequence の欠落 frame を個別に検出
+- [ ] 移動後の保存／再読込、Asset ID・relative・absolute fallback の実素材受入
+- [ ] missing／relink 後の runtime health report と source cache invalidation の受入
 
 ### 進捗 (2026-08-21)
 
@@ -44,8 +52,8 @@
 
 ## 残課題
 
-- Image／Video／Audio layerの復元順序は依然「absolute path第一候補 → Asset ID後追い」であり、契約案（Asset ID → relative → absolute）と逆。Phase 2で `loadFromPath()` 前にAsset ID／registry経路を先に試行する変更が必要。
-- 解決結果のhealth reportへの反映（`AssetPathMissing` との突合）は未実装。
+- `ArtifactImageLayer` の保存済み Asset ID は registry で既存ファイルに解決できる場合に relative 候補より優先される。sequence の各フレームには個別 Asset ID を持たず、relative path 解決が正規経路になる。
+- Health report は Footage の単一 path／全 sequence paths と、loaded layer source registry をそれぞれ診断する。missing／relink を含む保存・再読込・runtime health report の一連の受入は未実施。
 
 ## 背景
 
@@ -91,19 +99,20 @@ projectを別ディレクトリへ移動した場合でも、静止画・連番�
 
 - source resolution候補、採用理由、missing理由を共通の診断表現へ整理する（完了: `SourceResolutionCandidateKind` / `SourceCandidateOutcome` / `SourceCandidateResolution`）。
 - Image／Sequenceで共通の保存キーと、既存JSONの互換読込を棚卸しする（完了: 本書の保存キー棚卸し表）。
-- Asset ID、relative path、absolute fallbackの優先順位を仕様化する（仕様は本書の解決優先順位のまま。実装適用はPhase 2）。
+- Asset ID、relative path、absolute fallbackの優先順位を仕様化する（完了: 本書の解決優先順位）。
 
 ### Phase 1 — Project境界の統一
 
-- project root設定時の正規化、相対化、root変更時の再解決責務を一箇所へ寄せる。
-- exporter／importer、composition layer、source registryで同じ relative path policyを使う。
+- [x] `setCurrentProjectPath()` の入力正規化と project root 算出を統一する。
+- [x] exporter／importer、composition layer、source registryで共通 relative path policy を使う。
 - project移動後に absolute pathだけへ戻る経路を検出する。
 
 ### Phase 2 — Image／Sequence適用
 
-- 単一画像と連番画像で同じ resolution result を layerへ適用する。
-- 欠番、missing、relink成功、source更新時の generation／cache invalidation を保持する。
-- 同一sourceの複数参照で Asset ID と decoded cache を誤って複製しない。
+- [x] 単一画像と連番画像の relative 候補を共通 resolution result で採用する。
+- [x] source更新時の generation／cache invalidation と、欠番を維持した sequence path list を実装する。
+- [x] 単一画像の saved Asset ID と shared decoded cache の identity 経路を実装する。
+- [ ] relink・missing復帰を含む保存／再読込と cache invalidation のruntime受入。
 
 ### Phase 3 — 受入マトリクス
 
@@ -114,9 +123,9 @@ projectを別ディレクトリへ移動した場合でも、静止画・連番�
 ## 完了条件
 
 - [ ] Image／Sequenceのsource解決順位が文書・実装・診断で一致する。
-- [ ] project移動後、relative pathまたはAsset IDから自動復旧できる。
-- [ ] absolute path fallbackは互換用途として残るが、正常時の第一候補にならない。
-- [ ] missing状態でもsource identity、metadata、relative候補が保持される。
+- [x] project移動後、relative pathまたはAsset IDから自動復旧するコード経路がある（runtime受入 pending）。
+- [x] absolute path fallbackは旧形式互換として維持され、relative／有効な saved Asset ID の後に採用される（静的確認済み）。
+- [x] missing状態でも source path と source metadata を保持するコード経路がある（runtime受入 pending）。
 - [ ] relink成功後に参照layer／sequence、Asset registry、cache generationが一貫して更新される。
 - [ ] 保存／再読込でdirty副作用、sourceの意図しない書換え、重複Asset登録が発生しない。
 - [ ] 単一画像と連番画像の代表ケースが受入表へ記録される。

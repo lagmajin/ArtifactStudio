@@ -1,6 +1,8 @@
 # Milestone: Mask Keyframe Foundation
 
-**Status:** Partial — mask path keyframe storage/interpolation/sampling and snapshot serialization exist; full property-pipeline description and evaluated render handoff remain pending verification.
+**最終更新:** 2026-10-02
+
+**ステータス:** ✅ 実装済み（scalar mask property、current-time evaluation、Timeline property/keyframe routing、render handoff。runtime acceptance は pending）
 
 > Parent-side planning index for the mask time-addressable slice.
 
@@ -42,6 +44,12 @@ The execution-level implementation notes live in the `Artifact` submodule and sh
 - [Inline Interaction Surfaces Milestone](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_INLINE_INTERACTION_SURFACES_2026-03-31.md)
 - [Phase 1 Execution: Mask Parameter Exposure](/x:/Dev/ArtifactStudio/docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_PHASE1_EXECUTION_2026-05-10.md)
 - `Artifact/docs/planned/MILESTONE_MASK_KEYFRAME_FOUNDATION_2026-05-10.md`
+
+## 2026-10-02 Code Status Reconciliation
+
+- The child implementation plan records Phase 1–3 as implemented: per-mask animatable properties, evaluation at the current timeline time, render-path handoff, and reuse of the existing property/keyframe pipeline.
+- The parent backlog independently marks M-UI-7a complete (verified 2026-06-26). The stale `Partial` status above contradicted both records and is corrected here.
+- Interpolation edge cases, no-keyframe fallback, multiple mask paths, spatial editor interaction, and runtime acceptance remain verification items; this code-status update does not claim those were exercised.
 
 ## Next Step
 

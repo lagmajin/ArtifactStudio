@@ -22,6 +22,11 @@
 - Asset Browser の sequence 単位の展開・状態集計・relink/import 表示と、Composition 投入時の `sequencePaths`／`sequenceFrameRate` 保存経路も確認できる。
 - 実素材での欠番・missing・relink・source 差し替え、保存／再読込、scrub 時の cache 挙動は未検証。実装完了・runtime verification pending の判定を維持する。
 
+## Update 2026-10-02
+
+- `ArtifactProjectHealthChecker` now walks every saved `FootageItem::sequencePaths` entry and reports missing sequence frame paths individually as `MissingAsset` health issues.
+- Runtime verification of missing-frame health issues remains pending; do not mark the sequence milestone's runtime acceptance complete.
+
 ### 2026-07-27 Progress
 
 > 注意: 本節の実装は Artifact / ArtifactCore の `codex/cpu-render-main-sync`（リモート `origin/codex/2026-07-27`）で行われ、**2026-07-28 に main へマージ済み**（コンフリクトなし、Artifact +82 / ArtifactCore +55 コミット）。

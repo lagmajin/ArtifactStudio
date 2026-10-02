@@ -1,4 +1,15 @@
-> **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_TEXT_ANIMATOR_SYSTEM_2026-03-25.md](MILESTONE_TEXT_ANIMATOR_SYSTEM_2026-03-25.md)
+> **統合先** — 2026-08-04: 全体の判断は [MILESTONE_TEXT_ANIMATOR_SYSTEM_2026-03-25.md](MILESTONE_TEXT_ANIMATOR_SYSTEM_2026-03-25.md) および supporting slice を参照。この文書は複雑文字・縦書きの詳細仕様として維持する。
+
+**最終更新:** 2026-10-02
+
+## 2026-10-02 現行コード再監査
+
+- `GlyphLayout.cppm`、`ArtifactTextLayer.cppm` の plain/rich text shaping、`DiligentImmediateSubmitter.cppm` の製品 glyph layout は `HarfBuzzShapingBackend` を利用する。`HarfBuzzShapingBackend` は横書きを HarfBuzz で処理し、縦書きは現状 `QtShapingBackend` へ fallback する。
+- `TextShapingBackend.cppm` は script 情報と bidi run を ICU によって構築し、HarfBuzz buffer に grapheme cluster level と shaping features を設定する実装を持つ。
+- `FontManager::resolvedFamilyForText()` は preferred font の missing glyph 検出を CJK／emoji だけでなく全ての印字可能 codepoint に適用する。Arabic／Hebrew／Thai／主要 Indic／Khmer／Myanmar／Lao／Armenian／Georgian／Ethiopic の候補 family を script ごとに列挙し、インストール済みかつ sample 全体を描ける場合に限って fallback する。解決結果は font 登録 revision 付きの固定8枠 thread-local cache に保持し、fallback 診断は script ごとに一度だけ記録する。
+- これにより旧記述の「利用側未切替」「HarfBuzz backend は Qt fallback のみ」は現行コードに当たらない。
+- 未完了: 縦書きの HarfBuzz `vert`/`vrt2` shaping、複数行 box layout の backend parity、Indic conjunct の cluster mapping、混在 script ごとの per-run font fallback と未収録 family 対応、selector と source edit の cluster 保持、ruby/tate-chu-yoko/kinsoku の実描画品質、実機 DX12/Vulkan の受入。
+- 判定: **横書き複雑文字の shaping/bidi 基盤はコード実装済み。複雑文字全域・縦書きの統合要件は部分実装／runtime 検証 pending。**
 
 # MILESTONE: Text Animator Complex Script And Vertical Writing
 

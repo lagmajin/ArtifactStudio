@@ -1,6 +1,6 @@
 # Milestone: Asset Browser Relink Workflow (M-AB-10)
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-10-02
 **マイルストーンID**: M-AB-10
 **作成日**: 2026-06-28
 **優先度**: P1 (High)
@@ -1471,6 +1471,13 @@ struct MissingAssetsDetectedEvent : Event {
 - Missing filter と sequence の欠落 frame 集約、`Find Relink Candidates`、batch 候補選択、候補 score/reason 表示が Asset Browser の context-menu 経路に存在する。
 - relink 後の layer source 変更を記録する `RelinkLayerSourceChange` もあり、単なる project item のパス変更より広い復旧経路になっている。
 - ただし専用 `AssetReferenceTracker`、References Panel、Find References の一覧表示、Select Unused の確定導線、同名候補の衝突解決、進捗／キャンセル UI は未確認または未完了。
+
+## 2026-10-02 現行コード再監査
+
+- Asset Browser の既存 `Find References` を、layer JSON の全文字列を部分一致検索する方法から、JSON 値を再帰走査して正規化済み path の完全一致で比較する方法へ変更した。これにより、ファイル名や他の値に含まれる部分文字列を参照として誤検出しにくくする。
+- `Select Unused Visible Assets` が現行一覧から未使用のトップレベル素材を複数選択する。展開済みsequenceの個別frame行は重複選択しない。
+- `Find References` は引き続き単発のメッセージ表示導線。専用 tracker／references panel、batch diagnostics、候補衝突解決は未実装。
+- ビルド・UI runtime 確認は未実施。
 - runtime での batch rollback、sequence の欠落 frame 復旧、外部ドライブ復帰、複数ファイル結果は未検証。ステータスは Partial を維持する。
 
 ビルド・実行確認はリポジトリ方針により未実施。
