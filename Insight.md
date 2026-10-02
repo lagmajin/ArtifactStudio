@@ -3763,3 +3763,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** 通常操作ではmissing targetを拒否する既定値を保ち、Undoとrollback経路のみ明示フラグでmissing file／sequence frameの復元を許容する。既存対象の型・sequence frameの読み取り可能性検証は維持。
 - **価値または懸念（未検証）:** AssetDatabase、footage、参照レイヤーの状態をUndoで元に戻しやすくする。runtimeのUndo/Redo・sequence欠落動作は確認していない。
 - **次に確認すべきこと:** 素材移動→relink→Undo→Redo、および一部sequence frameが欠落した状態でのbatch失敗rollbackをruntime確認する。
+
+## 2026-10-02 — Glyph Submitter試作を製品ホットパスへ直結しない
+
+- **関連:** `Artifact/src/Render/ArtifactTextGlyphSubmitter.cppm`、`Artifact/CMakeLists.txt`、`Artifact/docs/planned/MILESTONE_GPU_TEXT_ANIMATOR_TRANSFORM_BUFFER_2026-08-13.md`、`docs/technical/HOT_PATH_RULES.md`。
+- **確認できた事実:** `ArtifactTextGlyphSubmitterRuntime` は `EXCLUDE_FROM_ALL` の分離ターゲットであり、通常の `DiligentImmediateSubmitter` から呼び出されていない。`submit()` は呼び出しごとに動的な `std::vector<SubmitVertex>` を組み立て、GlyphAtlas画像を `QImage` としてGPU textureへ転送する。
+- **気づき:** 連続Glyph quadの単一draw化は有用な試作だが、現在の実装を製品の毎フレーム描画へそのまま接続すると、ホットパスの割当規則とQImage境界の制約に抵触する。製品統合の前に、固定容量／呼び出し側scratchを含む作業領域設計とGPU atlas uploadの既存境界を確認する必要がある。
+- **価値／懸念:** 実験用draw-call削減と製品の安全なTransform Buffer移行を混同せず、フレームごとの確保や画像転送を新しい恒常経路へ持ち込むことを避けられる。代替設計の性能・互換性は未検証。
+- **次に確認すべきこと:** 製品submitterの現在のGlyph vertex／atlas upload所有者を追跡し、bounded scratchまたは再利用可能なGPU bufferでパケット更新を分離できるかを設計してから統合する。
