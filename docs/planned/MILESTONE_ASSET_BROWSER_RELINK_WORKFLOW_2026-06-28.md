@@ -11,6 +11,11 @@
 
 ---
 
+## 2026-10-02 Find References の照合範囲
+
+- Asset BrowserのFind Referencesはlayer JSONのsource path／sequence path／footage file pathキーだけを比較する。タグや表示名など別用途の文字列が素材パスと偶然同じでも参照扱いしない。
+- 参照ごとのcomposition／layer表示は既存ダイアログに留まり、専用の参照一覧／jump導線、相対path復元、runtime確認は未完了。
+
 ## 目的
 
 アセットブラウザーに再リンクワークフロー機能を実装する。ユーザーは移動されたファイルを再リンクし、プロジェクト内の参照を修復できる。また、未使用アセットの特定と参照関係の追跡機能を提供する。

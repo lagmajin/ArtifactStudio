@@ -3815,3 +3815,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **価値／懸念（未検証）:** Asset BrowserとRender Queueの基本的なfile-type判定が一致する。特殊なvirtual/network sourceがAsset Browserの通常filesystem一覧へ混在するかは未確認。
 - **次に確認すべきこと:** missing／sequence statusのUIで既存file、missing file、同名directoryを比較する。並列filteringとは独立した正確性修正。
 - **追加対応:** `isUnusedAssetPath()` のcanonical path ternaryは`canonicalFilePath()`を条件・結果で二度呼んでいた。`QFileInfo`とresolved pathを一度ずつ保持し、逐次一覧走査の重複filesystem問い合わせを除去した。性能改善幅は未計測。
+
+## 2026-10-02 — Find Referencesはsource path fieldだけを照合する
+
+- **関連:** `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm`、`docs/planned/MILESTONE_ASSET_BROWSER_RELINK_WORKFLOW_2026-06-28.md`。
+- **確認できた事実:** Find Referencesはlayer JSONの全ての文字列値に対してcanonical／absolute path化を行い、素材path集合と照合していた。JSON内の任意テキストがfilesystem pathと偶然一致した場合も参照と誤認し得る。
+- **対応:** `sourcePath`、`*.sourcePath`、`sequencePaths`、`*.sequencePaths`、`filePath`の値だけ（sequence array要素も含む）をsource参照として比較する。
+- **価値／懸念（未検証）:** 任意のユーザー文字列をpathとしてfilesystem正規化しない。relative path fieldはproject rootを使った解決が別途必要なため対象外。参照dialogの実素材確認は未実施。
+- **次に確認すべきこと:** static image、sequence、nested source groupの既知キーで参照を検出し、同じパス文字列を持つtag／label／expressionでは誤検出しないことを確認する。
