@@ -34,6 +34,13 @@ Collision componentが有効な2Dレイヤーについて、物理シミュレ�
 - 既存の `component.collision.*` をDTOへ投影し、一度だけ物理同期する一括適用入口を追加。
 - Polygonはソース頂点数とRigidBody用の最大8頂点Preview数だけを返し、頂点編集は行わない。
 
+## 2026-10-02 — Collider handle geometry foundation
+
+- Core DTOにBox/Circle各handleのローカル位置取得、許容距離付きhit test、Offset／Box edge・corner／Circle radiusのdelta適用を追加した。
+- Boxはドラッグした側だけを動かし、反対側を固定する。辺が反対側を越えた場合は幅／高さ0で止める。Auto BoundsとPolygonはhit test／直接編集対象外のまま。
+- 無効な状態、非有限pointer delta、float範囲を超える半径／寸法は状態へ書き込まない。
+- これはUIとUndoから独立した幾何計算基盤である。Layer Editor／Composition Viewportへのハンドル描画・入力接続、ドラッグ中のpreview transaction、確定時一回の物理同期とUndoは未実装。Phase 1／2完了とは数えない。
+
 ## Phase 1 — 表示とモード選択
 
 - ComponentsのCollision詳細面から明示的にCollider Editを開始・終了する。

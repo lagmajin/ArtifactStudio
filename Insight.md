@@ -3788,3 +3788,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** パケット生成前に座標・各offset値、scale、rotation、opacityを検証し、float範囲外／非有限座標と負scaleのglyphを除外する。opacity／色および最終座標・UV・alphaも有限値であることを要求する。
 - **価値／懸念（未検証）:** 不正なanimator値が実験GPU経路のbufferへ伝播するのを防ぐ。これは分離submitter限定の防御で、製品renderer側の契約検証やGPU描画結果は未確認。
 - **次に確認すべきこと:** 不正値を含む入力のSoftware/GPU双方の扱いを比較し、同じglyphを落とすか、上流で値を正規化するかを決める。製品経路にも移す際はその経路のbounded buffer設計と合わせる。
+
+## 2026-10-02 — Collider handleの編集幾何はCore DTOでUIから分離する
+
+- **関連:** `ArtifactCore/include/Physics/Collider2DEdit.ixx`、`docs/planned/MILESTONE_2D_COLLIDER_VIEWPORT_EDIT_2026-09-19.md`。
+- **確認できた事実:** Colliderの値DTOと一括適用入口は存在したが、Box/Circle handle位置、hit test、drag deltaから authored valueを更新する処理は無かった。
+- **対応:** DTOへlocal-space handle位置、nearest hit test、offset／box辺・角／circle radiusのdelta編集関数を追加した。反対側固定、最小寸法0、非有限値とfloat範囲外の拒否を計算モデルに含める。
+- **価値／懸念（未検証）:** ViewportとUndoの状態機械から独立して編集幾何を使える。まだどのUI経路からも呼ばれず、physics同期回数・Undo・描画結果は未検証。
+- **次に確認すべきこと:** 既存modal gizmo経路へ接続し、ドラッグ中DTO previewと確定時一度だけのsetter／Undoを行う。Parent transform、locked/hidden、Auto Bounds、Polygonについて編集を拒否する。
