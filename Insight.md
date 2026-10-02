@@ -3845,5 +3845,6 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **関連:** `Artifact/src/Widgets/Timeline/ArtifactLayerPanelWidget.cppm`、`ArtifactCore/src/Material/Material.cppm`、`Artifact/include/AI/MaterialAutomation.ixx`、3D Material Browser候補。
 - **確認できた事実:** Layer PanelはMetalをmetallic 0.9／roughness 0.24、Glassをroughness 0.08／transmission 0.82／IOR 1.5で適用する。Core factoryはMetal 1.0／0.2、Glass roughness 0／opacity 0.2。AI AutomationはMetal 1.0／0.2、Glass 0.05／specular alpha 220として保持する。Plastic roughnessもLayer Panel 0.3、Core factory 0.4で異なる。
 - **対応:** 旧汎用factoryを変更せずに`Material::makeStudioPreset()`を追加し、Layer PanelとAI Automationの4 preset適用を共通化した。Automationはspecular／transmission／IORも保存済みlayer propertyへ渡し、presetに無い emission color は上書きしない。
-- **価値／懸念（未検証）:** Browserや別UIが同じCore factoryを再利用できる。コード上の適用経路は集約済みだが、実行時のUndo／property反映／renderer shadingは未確認。AI Automationに同名のユーザー定義materialが既に存在する場合は、従来どおりその保存値を維持する。
-- **次に確認すべきこと:** 独立Material Browserとasset管理を共通factoryの上に追加し、preset適用のruntime・Undo・D3D12/Vulkan shadingを確認する。
+- **対応:** Layer Panelの3D Material menuにpreset browser pickerを追加し、共有factoryから値ラベルを作って選択適用できるようにした。適用は既存property／Undo経路を使い、新規signal-slot接続は作らない。
+- **価値／懸念（未検証）:** preset値を参照・選択しやすくしたが、これは永続Material assetの作成／一覧／編集を持つ完全なBrowserではない。runtimeのUndo／property反映／renderer shadingは未確認。AI Automationに同名のユーザー定義materialが既に存在する場合は、従来どおりその保存値を維持する。
+- **次に確認すべきこと:** 保存可能Material assetの所有モデルとproject保存場所を設計し、preset適用のruntime・Undo・D3D12/Vulkan shadingも確認する。
