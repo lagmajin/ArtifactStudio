@@ -3839,6 +3839,7 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** source cluster indexの安定ソートで論理glyph順を作り、backend出力配列ordinalとの相互逆写像を構築する。公開型コメントに配列の単位を明記する。
 - **価値／懸念（未検証）:** マッピングの相互整合性とglyph単位の契約を保証できる。mixed-bidi段落、異体glyph cluster、および呼び出し側がこの配列を使う動作は実行確認していない。
 - **次に確認すべきこと:** LTR/RTL/mixed-bidi、ligature、1 cluster複数glyphで両配列が完全な逆permutationになること、およびQt backendとの意味差をruntimeで確認する。
+- **追加対応:** `TextClusterSpan.visualStart/visualLength`もlogical-order grapheme連番のままで、mixed-bidiとmulti-codepoint graphemeを表現できなかった。ICU bidiのlogical-to-visual codepoint mapからspanを作り、公開コメントにcodepoint ordinalでありglyph ordinalではないことを記載した。Indic conjunctのglyph cluster mapping自体は未解決。
 
 ## 2026-10-02 — Asset Browserのscan中はentry metadataを再利用する
 

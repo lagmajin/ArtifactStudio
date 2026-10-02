@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-02 15:06
+> Generated: 2026-10-02 15:12
 > Total documents: 1431
 
 ---
@@ -1213,7 +1213,7 @@
 | 623 | `docs/planned/MILESTONE_TEST_QA_INFRASTRUCTURE_2026-03-28.md` | テスト・QA 基盤 Milestone | 2026-03-28 | Phase 1 実装済み | 2026-04-08 | 8.1 KB | TEST, INFRASTRUCTURE |
 | 624 | `docs/planned/MILESTONE_TEXT_ANIMATOR_ADD_WORKFLOW_2026-09-21.md` | M-TXT-ANIM-1: Text Animator の追加ワークフロー仕上げ（AE 風個別追加・Timeline 露出） | 2026-09-26 | In Progress（P1 の個別プロパティ追加と P2 の Timeline 左ペイン露出は 2026-09-26 に実装・静的確認済み。ビルド・実機は未確認） | 2026-09-26 | 12.1 KB | TEXT, ANIMATOR, ADD, WORKFLOW |
 | 625 | `docs/planned/MILESTONE_TEXT_ANIMATOR_COMPLETION.md` | MILESTONE: Text Animator Completion & Inline Editing | 2026-08-04 | ** 2026-08-08 ソース実装完了、runtime確認待ち。`RangeSelector::order` を正規状態として追加し、通常評価と source-aware 評価、selector preview、JSON 保存復元、Inspector の `Order` プロパティへ接続した。既存データは `Natural` を既定値として互換維持する。 | 2026-08-16 | 24.5 KB | TEXT, ANIMATOR, COMPLETION |
-| 626 | `docs/planned/MILESTONE_TEXT_ANIMATOR_COMPLEX_SCRIPT_VERTICAL_2026-06-12.md` | MILESTONE: Text Animator Complex Script And Vertical Writing | 2026-08-04 | --- | 2026-10-02 | 17.9 KB | TEXT, ANIMATOR, COMPLEX, SCRIPT, VERTICAL |
+| 626 | `docs/planned/MILESTONE_TEXT_ANIMATOR_COMPLEX_SCRIPT_VERTICAL_2026-06-12.md` | MILESTONE: Text Animator Complex Script And Vertical Writing | 2026-08-04 | --- | 2026-10-02 | 18.2 KB | TEXT, ANIMATOR, COMPLEX, SCRIPT, VERTICAL |
 | 627 | `docs/planned/MILESTONE_TEXT_ANIMATOR_NEXT_GEN_2026-04-18.md` | MILESTONE: 次世代テキストアニメーター | 2026-08-04 | --- | 2026-08-06 | 5.5 KB | TEXT, ANIMATOR, NEXT, GEN |
 | 628 | `docs/planned/MILESTONE_TEXT_ANIMATOR_SEMANTIC_PIPELINE_2026-07-04.md` | MILESTONE: Text Animator Semantic Pipeline | 2026-08-04 | In Progress | 2026-08-06 | 12.9 KB | TEXT, ANIMATOR, SEMANTIC, PIPELINE |
 | 629 | `docs/planned/MILESTONE_TEXT_ANIMATOR_SYSTEM_2026-03-25.md` | Milestone: AE風 Text Animator システム (2026-03-25) | 2026-03-25 | Partial（GlyphLayout、Range／Wiggly selector、per-glyph evaluation／rendering、Property／JSON 接続は実装済み。高度な編集 UI と runtime 検証は未完了） | 2026-09-08 | 17.4 KB | TEXT, ANIMATOR, SYSTEM |

@@ -5,6 +5,7 @@
 ## 2026-10-02 現行コード再監査
 
 - [x] **実装済み（2026-10-02）:** `TextShapingResult` のglyph-order mapsを論理／視覚の逆permutationとして修正。コードポイント数とグリフ数が一致しない合字・複数glyph clusterを考慮した。runtime受け入れ確認は未実施。
+- [x] **実装済み（2026-10-02）:** `TextClusterSpan` の visual span を paragraph bidi map から導出し、複数codepoint graphemeとRTL clusterが論理順／長さ1に固定されないようにした。単位はcodepoint ordinalでありshaped glyph ordinalとは区別する。Indic conjunctのHarfBuzz glyph-cluster対応とruntime受入れは未完了。
 
 - `GlyphLayout.cppm`、`ArtifactTextLayer.cppm` の plain/rich text shaping、`DiligentImmediateSubmitter.cppm` の製品 glyph layout は `HarfBuzzShapingBackend` を利用する。`HarfBuzzShapingBackend` は横書きを HarfBuzz で処理し、縦書きは現状 `QtShapingBackend` へ fallback する。
 - `TextShapingBackend.cppm` は script 情報と bidi run を ICU によって構築し、HarfBuzz buffer に grapheme cluster level と shaping features を設定する実装を持つ。
