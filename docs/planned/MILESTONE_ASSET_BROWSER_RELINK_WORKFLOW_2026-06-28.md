@@ -1480,4 +1480,11 @@ struct MissingAssetsDetectedEvent : Event {
 - ビルド・UI runtime 確認は未実施。
 - runtime での batch rollback、sequence の欠落 frame 復旧、外部ドライブ復帰、複数ファイル結果は未検証。ステータスは Partial を維持する。
 
+## 2026-10-02 Undo復元の静的修正
+
+- relink service に `allowMissingTarget`（既定 false）を追加し、通常の relink は従来どおり既存ファイルを要求する。
+- Undo、失敗時 rollback、WorkspaceAutomation の補償処理だけが明示的に true を渡し、元の missing path と欠落sequence frameを復元できるようにした。既存パスがディレクトリなら引き続き拒否し、存在するsequence候補は読み取り可能なファイルであることを検証する。
+- 変更箇所: `ArtifactProjectService`、Asset Browserの単一／batch relink rollback、Undo command、WorkspaceAutomationのrollback。
+- これは静的コード確認に基づく修正であり、Undo/Redo、sequence欠落、外部ドライブのruntime確認は未実施。M-AB-10はPartialのまま。
+
 ビルド・実行確認はリポジトリ方針により未実施。

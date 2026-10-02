@@ -3755,3 +3755,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** 両配列の最大長を走査し、relative slot が無い要素には元の absolute path を渡すようにした。余分なrelative slotは元pathが空の候補として従来どおり解決する。
 - **価値または懸念（未検証）:** 不完全な旧／外部JSONでもsequence frame数とindexを維持できる。保存・再読込のruntime round-tripは未確認。
 - **次に確認すべきこと:** relative配列が短い／長い／同長で、欠番と移動済みframeを含むprojectを往復し、frame indexとmissing状態を確認する。
+
+## 2026-10-02 — Relink Undo はmissing pathの復元を許容する
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm`、Asset BrowserのUndo／rollback、`WorkspaceAutomation`。
+- **確認できた事実:** relink serviceは新パスの存在を要求していたため、既に欠落している素材を有効な候補へ再リンクした後、Undoで元の欠落パスへ戻す処理が失敗する。batch rollbackにも同じ条件が影響する。
+- **対応:** 通常操作ではmissing targetを拒否する既定値を保ち、Undoとrollback経路のみ明示フラグでmissing file／sequence frameの復元を許容する。既存対象の型・sequence frameの読み取り可能性検証は維持。
+- **価値または懸念（未検証）:** AssetDatabase、footage、参照レイヤーの状態をUndoで元に戻しやすくする。runtimeのUndo/Redo・sequence欠落動作は確認していない。
+- **次に確認すべきこと:** 素材移動→relink→Undo→Redo、および一部sequence frameが欠落した状態でのbatch失敗rollbackをruntime確認する。
