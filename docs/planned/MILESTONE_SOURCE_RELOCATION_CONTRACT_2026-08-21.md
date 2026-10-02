@@ -1,10 +1,16 @@
 # マイルストーン: Source Relocation Contract（Image / Image Sequence）
 
-**最終更新:** 2026-08-21
+**最終更新:** 2026-10-02
 **ステータス:** In Progress
 **優先度:** High
 **識別子:** M-SRC-RELOC-1
 **関連:** `docs/planned/MILESTONE_STILL_IMAGE_LAYER_PRODUCTION_READINESS_2026-08-08.md`, `docs/planned/MILESTONE_IMAGE_SEQUENCE_WORKFLOW_COMPLETION_2026-07-27.md`, `docs/planned/MILESTONE_ASSET_BROWSER_RELINK_WORKFLOW_2026-06-28.md`
+
+### 進捗 (2026-10-02 再監査)
+
+- Importer の source registry と layer／footage の relative path 復元は `resolveProjectRelativeSource()` に統一されている。
+- 今回確認した importer の該当経路には、保存済み Asset ID を使った source 解決の先行処理は見当たらない。Asset ID → relative → absolute の順序と `AssetPathMissing` health report との突合は未完了として扱う。
+- ビルド・保存再読込・移動素材を使った runtime 確認は未実施。
 
 ### 進捗 (2026-08-21)
 

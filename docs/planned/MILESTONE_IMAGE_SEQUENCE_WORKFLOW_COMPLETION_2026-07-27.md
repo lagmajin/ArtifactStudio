@@ -3,7 +3,7 @@
 > 開始日: 2026-07-27
 > 状態: Implementation complete (runtime verification pending)
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-10-02
 
 ## 目的
 
@@ -14,7 +14,7 @@
 - 連番候補の検出と欠番によるグループ分割を実装済み。
 - `ImageSequenceSource` に限定サイズのフレームキャッシュを追加済み。
 - Asset Browser側にはsequenceの代表フレーム、開始フレーム、桁数、構成パスを保持する既存経路がある。
-- Asset Browser上の明示的な展開、sequence単位の状態表示、preview導線の一貫性は未完了。
+- Asset Browser上の明示的な展開、sequence単位の状態表示、preview導線は実装済み（下記の静的監査を参照）。
 
 ## Update 2026-08-15
 

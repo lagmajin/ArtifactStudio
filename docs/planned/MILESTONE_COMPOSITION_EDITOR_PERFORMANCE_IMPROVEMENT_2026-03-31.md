@@ -1,7 +1,15 @@
 # Milestone: Composition Editor Performance Improvement (M-CP-IMP-1)
 
-**Status:** 部分完了（layer surface/GPU texture cache、dirty/invalidation、render key、debounce/coalescing、interactive downsampleを実装、CompositionChangeDetectorの独立実装・性能測定・SRV/UAV/compute runtime検証未完了）
-**最終更新:** 2026-08-15
+**Status:** 部分完了（cache／dirty基盤と CompositionChangeDetector 型は存在。変更通知から差分再描画までの接続、GPU binding／compute最適化、性能測定、runtime検証は未完了）
+**最終更新:** 2026-10-02
+
+## 2026-10-02 現行コード再監査
+
+- `Artifact/src/Render/CompositionChangeDetector.cppm` に変更 layer ID の保持、full redraw 判定、reset API が存在することを確認。
+- 現在の `Artifact/src/Render` では render controller から detector を呼び出す経路を確認できなかった。型の存在だけでは Phase 1 完了とはしない。
+- SRV/UAV batch binding、compute dispatch 最適化、応答性の計測、および GPU runtime 検証も今回確認していない。未実装／未検証として保持する。
+
+判定: **部分実装。CompositionChangeDetector の実経路統合と性能効果が未確認のため、完了マークは付けない。**
 
 ## 2026-08-15 現行コード監査
 
