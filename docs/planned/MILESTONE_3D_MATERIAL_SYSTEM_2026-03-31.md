@@ -9,7 +9,8 @@
 
 - `ArtifactLayerPanelWidget.cppm` の 3D Material menu は `applyMaterialPreset` を通し、Matte／Metal／Plastic／Glass の色・metallic・roughness・specular／transmission／IOR 値を既存 Undo command で適用する。
 - よって Material preset 適用はコード実装済みとして記録する。独立 Material Browser／asset 管理は確認できず未実装。preset 適用、透明境界、texture更新の runtime 検証も未実施。
-- 同名の Matte／Metal／Plastic／Glass preset 値がLayer Panel、`ArtifactCore::Material` factory、AI `MaterialAutomation` で一致しない。独立Browserを作る前に共通preset定義へ集約し、UIとautomationの適用値を同じ所有者から取得する必要がある。現状の preset menu は既存挙動維持のため未変更。
+- [x] **実装済み（2026-10-02）:** 同名preset値の分岐を解消するため、CoreにLayer Panel既存値を基準とする`Material::makeStudioPreset()`を追加。Layer PanelとAI `MaterialAutomation`のMatte／Metal／Plastic／Glass適用を同じfactoryへ集約し、AI適用はspecular／transmission／IORもlayer propertyへ反映する。旧汎用`makeMetal`等の挙動は維持。
+- **未完了:** 独立Material Browser／material asset管理、高度mapping、およびpresetの実行時shading確認。
 
 ## 現行コード監査 (2026-08-20)
 
