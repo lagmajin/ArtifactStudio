@@ -1,6 +1,27 @@
 # 内蔵軽量VCS アーキテクチャ調査
 作成日: 2026-04-19
 
+**最終更新:** 2026-10-01
+
+> ⚠️ **訂正（2026-10-01）**
+>
+> 本書は 2026-04-19 時点の調査記録であり、以降の実測と一部矛盾している。
+> 設計の前提に使う場合は以下の訂正事項を考慮すること。
+> 詳細な設計と移行方針は
+> `docs/planned/MILESTONE_OPERATION_IR_AND_REVISION_DAG_2026-10-01.md` を参照。
+>
+> | 本書の記述 | 2026-10-01 時点の実測 |
+> |---|---|
+> | 「バックグラウンド保存 / UIスレッドを一切ブロックしない」 | **誤り。** `ArtifactRevisionService.cppm:608-613` の `QTimer::singleShot` からの**主スレッド同期**実行で、`project->toJson()` と `QSaveFile::commit()` がそのまま走る（`:373-388`） |
+> | 「スナップショット作成 < 50ms」「コミット保存 < 100ms」 | **未検証。** 測定記録が存在しない |
+> | 「差分ビューワーの接続のみ未実装」 | 接続済み（`ArtifactSnapshotCompareWidget.cppm:288-292`）。ただし diff は配列インデックス比較（`ArtifactRevisionService.cppm:120-127`）のため、レイヤー1枚削除すると以降がすべて `modified` に化ける |
+> | 「❌ ブランチ機能：設計済み 未実装」 | 引き続き未実装。ただし branch は tag 文字列への退避で表現されている（`ArtifactSnapshotCompareWidget.cppm:459`） |
+>
+> 追加で把握すべき点: `ArtifactRevisionService` は共同編集と**独立した**系統であり、
+> `UndoCommand` には永続化用 `serialize()` と wire 用
+> `buildCollaborationOperation()` の二系統が併存する。
+> 正式な後継設計は上記マイルストーンで扱う。
+
 ---
 
 ## ✅ 現状実装状況
