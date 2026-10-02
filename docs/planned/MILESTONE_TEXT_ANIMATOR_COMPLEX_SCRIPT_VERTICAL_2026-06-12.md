@@ -4,6 +4,8 @@
 
 ## 2026-10-02 現行コード再監査
 
+- HarfBuzzの`TextShapingResult` glyph-order mapsを論理／視覚の逆permutationとして修正。コードポイント数とグリフ数が一致しない合字・複数glyph clusterを考慮した。runtime受入れは未確認。
+
 - `GlyphLayout.cppm`、`ArtifactTextLayer.cppm` の plain/rich text shaping、`DiligentImmediateSubmitter.cppm` の製品 glyph layout は `HarfBuzzShapingBackend` を利用する。`HarfBuzzShapingBackend` は横書きを HarfBuzz で処理し、縦書きは現状 `QtShapingBackend` へ fallback する。
 - `TextShapingBackend.cppm` は script 情報と bidi run を ICU によって構築し、HarfBuzz buffer に grapheme cluster level と shaping features を設定する実装を持つ。
 - `FontManager::resolvedFamilyForText()` は preferred font の missing glyph 検出を CJK／emoji だけでなく全ての印字可能 codepoint に適用する。Arabic／Hebrew／Thai／主要 Indic／Khmer／Myanmar／Lao／Armenian／Georgian／Ethiopic の候補 family を script ごとに列挙し、インストール済みかつ sample 全体を描ける場合に限って fallback する。解決結果は font 登録 revision 付きの固定8枠 thread-local cache に保持し、fallback 診断は script ごとに一度だけ記録する。

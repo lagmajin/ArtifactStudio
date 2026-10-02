@@ -3823,3 +3823,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** `sourcePath`、`*.sourcePath`、`sequencePaths`、`*.sequencePaths`、`filePath`の値だけ（sequence array要素も含む）をsource参照として比較する。
 - **価値／懸念（未検証）:** 任意のユーザー文字列をpathとしてfilesystem正規化しない。relative path fieldはproject rootを使った解決が別途必要なため対象外。参照dialogの実素材確認は未実施。
 - **次に確認すべきこと:** static image、sequence、nested source groupの既知キーで参照を検出し、同じパス文字列を持つtag／label／expressionでは誤検出しないことを確認する。
+
+## 2026-10-02 — Shaping順序mapはglyph ordinalの逆写像にする
+
+- **関連:** `ArtifactCore/src/Text/TextShapingBackend.cppm`、`ArtifactCore/include/Text/TextShapingBackend.ixx`、複雑文字 shaping。
+- **確認できた事実:** shaping結果の`logicalToVisual`と`visualToLogical`へ同じ値を追加しており、逆写像ではなかった。また配列長はglyph countなのに、変換処理ではcodepoint ordinalをglyph ordinalとして扱っていた。合字や複数glyph clusterでは両数が一致しない。
+- **対応:** source cluster indexの安定ソートで論理glyph順を作り、backend出力配列ordinalとの相互逆写像を構築する。公開型コメントに配列の単位を明記する。
+- **価値／懸念（未検証）:** マッピングの相互整合性とglyph単位の契約を保証できる。mixed-bidi段落、異体glyph cluster、および呼び出し側がこの配列を使う動作は実行確認していない。
+- **次に確認すべきこと:** LTR/RTL/mixed-bidi、ligature、1 cluster複数glyphで両配列が完全な逆permutationになること、およびQt backendとの意味差をruntimeで確認する。
