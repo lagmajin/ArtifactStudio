@@ -3771,3 +3771,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **気づき:** 連続Glyph quadの単一draw化は有用な試作だが、現在の実装を製品の毎フレーム描画へそのまま接続すると、ホットパスの割当規則とQImage境界の制約に抵触する。製品統合の前に、固定容量／呼び出し側scratchを含む作業領域設計とGPU atlas uploadの既存境界を確認する必要がある。
 - **価値／懸念:** 実験用draw-call削減と製品の安全なTransform Buffer移行を混同せず、フレームごとの確保や画像転送を新しい恒常経路へ持ち込むことを避けられる。代替設計の性能・互換性は未検証。
 - **次に確認すべきこと:** 製品submitterの現在のGlyph vertex／atlas upload所有者を追跡し、bounded scratchまたは再利用可能なGPU bufferでパケット更新を分離できるかを設計してから統合する。
+
+## 2026-10-02 — sequence preflightは代表sourcePathをframeとして診断する
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm` の `appendMissingAssetDiagnostics()`、`docs/planned/MILESTONE_SMART_FALLBACKS_2026-06-07.md`。
+- **確認できた事実:** preflight は重複診断防止のため `sourcePath` を既処理集合へ先行登録していた。代表pathが `image.sequencePaths` の欠落frameと一致すると、そのframeの専用diagnosticが重複扱いで飛ばされ、通常のmissing-file診断だけが残る。
+- **対応:** 代表pathがsequence listに含まれるかを判定し、sequenceのframe列挙に診断を委ねる。listに含まれない代表pathだけを通常missing-file診断にする。重複sequence pathはframe列内で引き続き一度だけ診断する。
+- **価値／懸念（未検証）:** 先頭frameを含む欠落frameをすべてsequence単位で正しく示せる。runtimeでの診断表示は未確認。
+- **次に確認すべきこと:** sourcePathが先頭frame／sequence外path／既存frameの場合と、重複frame pathを含むsequenceの各preflight結果を確認する。

@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-02 13:47
+> Generated: 2026-10-02 13:51
 > Total documents: 1431
 
 ---
@@ -1184,7 +1184,7 @@
 | 594 | `docs/planned/MILESTONE_SHORTCUT_IMPROVEMENTS_2026-06-02.md` | ショートカット・操作感改善 マイルストーン | 2026-06-02 | --- | 2026-08-16 | 4.3 KB | SHORTCUT, IMPROVEMENTS |
 | 595 | `docs/planned/MILESTONE_SIMPLE_PREFRACTURE_2026-07-22.md` | M-PREFRACTURE: シンプルな事前破砕（Pre-Fracture）導入 — 設計メモとギャップ修正 | 2026-07-22 | Implemented — runtime verification pending | 2026-08-16 | 7.7 KB | SIMPLE, PREFRACTURE |
 | 596 | `docs/planned/MILESTONE_SINGLE_IMAGE_LAYERIZATION_2026-08-17.md` | MILESTONE: 単一画像レイヤー化（Single Image Layerization） | 2026-08-17 | In Progress（standalone prototype implemented; app integration not started） | 2026-08-18 | 12.5 KB | SINGLE, IMAGE, LAYERIZATION |
-| 597 | `docs/planned/MILESTONE_SMART_FALLBACKS_2026-06-07.md` | MILESTONE: Smart Fallbacks | 2026-06-07 | Partial (FallbackPolicy/FallbackTracker, category event recording, font/image/effect/color fallbacks, Diagnostics Panel, and event display implemented; Asset loading integration, project-configurable policy UI, export preflight aggregation, and runtime verification pending) | 2026-10-02 | 7.0 KB | SMART, FALLBACKS |
+| 597 | `docs/planned/MILESTONE_SMART_FALLBACKS_2026-06-07.md` | MILESTONE: Smart Fallbacks | 2026-06-07 | Partial (FallbackPolicy/FallbackTracker, category event recording, font/image/effect/color fallbacks, Diagnostics Panel, and event display implemented; Asset loading integration, project-configurable policy UI, export preflight aggregation, and runtime verification pending) | 2026-10-02 | 7.4 KB | SMART, FALLBACKS |
 | 598 | `docs/planned/MILESTONE_SMART_GUIDES_2026-04-10.md` | スマートガイドシステムの実装 | 2026-08-15 | --- | 2026-08-16 | 2.8 KB | SMART, GUIDES |
 | 599 | `docs/planned/MILESTONE_SMOKE_EMITTER_AND_VIEWPORT_INTERACTION_2026-09-27.md` | M-FLUID-SMOKE-1: Smoke / Ink の emitter 制御とビューポートかき混ぜ | 2026-09-27 | Not Started | 2026-09-27 | 14.7 KB | SMOKE, EMITTER, AND, VIEWPORT, INTERACTION |
 | 600 | `docs/planned/MILESTONE_SNAP_ADVANCED_2026-04-10.md` | 高度なスナップ機能の実装 | 2026-08-15 | --- | 2026-08-16 | 2.9 KB | SNAP, ADVANCED |
