@@ -6,7 +6,7 @@
 **優先度**: P2 (Medium)
 **推定工数**: 2-3日
 **カテゴリ**: Asset Browser / Metadata / Organization
-**状態**: 部分実装（Project footage の既存 tags を Asset Browser のコンテキストメニューから編集し、検索欄の `tag:名前` で完全一致 filter 可能。タグ管理・bulk・分類機能は未実装。runtime 検証待ち）
+**状態**: 部分実装（Project footage の既存 tags を編集し、`tag:名前`／`tags:all(a,b)`／`tags:any(a,b)`／`tags:not(a)` の完全一致 filter が可能。専用タグ管理・bulk・分類機能は未実装。runtime 検証待ち）
 **依存**: M-AB (Asset Browser base), M-AB-11 (Advanced Sort)
 
 ---
@@ -1606,3 +1606,9 @@ struct TagManagerUpdatedEvent : Event {
 - 検索欄の `tag:名前` を接続し、import 済み footage のタグに対する完全一致（case-insensitive）filter を追加。sequence は登録された各フレームに親 Footage のタグを適用し、一覧では sequence を一件として絞る。`tag:` 単独はタグ付き素材すべてを表示する。
 - filter は単一タグのみ。AND/OR、タグ一覧・管理、bulk assignment、color/group、import/export は未実装。
 - 状態を **部分実装** へ更新。ビルド・UI runtime 確認は未実施。
+
+## 2026-10-02 複合タグfilter
+
+- Asset Browser検索欄に `tags:all(tagA,tagB)`（AND）、`tags:any(tagA,tagB)`（OR）、`tags:not(tagA)`（除外）を追加。既存 `tag:名前` の完全一致は維持する。
+- タグ比較は大文字小文字を区別せず、検索対象の既存 `FootageItem::tags` キャッシュを使う。新しい保存形式やイベント配線は追加しない。
+- 判定: **複合filterのコードは実装済み。** UI操作・連番フレーム・大小文字・不正な空引数のruntime確認は未実施。専用タグ管理、bulk編集、分類、色、import/exportは引き続き未実装のためマイルストーン全体は部分実装。

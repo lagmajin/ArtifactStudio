@@ -1829,7 +1829,7 @@ active milestone の重複名としては扱わない。
 - Update 2026-08-15: name／date／size／type、natural name、安定tie-break、Type→Name等の固定複合preset、sort key／方向の設定保存を確認。任意multi-keyの個別方向、ユーザー保存preset、custom order／drag sort、大量アセットruntimeは未完了または未検証。
 - 実装完了確認（Update 2026-09-19）: name／date／size／type、natural name、安定tie-break、Type→Name等の固定複合preset、sort key／方向の設定保存をコード上で再確認した。残件は任意multi-keyの個別方向、ユーザー保存preset、custom order／drag sort、大量アセットruntime。
 
-### M-AB-12 Asset Browser Tag System
+### M-AB-12 Asset Browser Tag System — 複合filter実装済み・管理UI/runtime受入 pending（2026-10-02）
 - アセットにタグ付け機能を追加
 - タグデータベース、タグエディタウィジェット、フィルタリング、クラウド表示を実装
 - 詳細は `docs/planned/MILESTONE_ASSET_BROWSER_TAG_SYSTEM_2026-06-28.md`
