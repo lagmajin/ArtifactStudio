@@ -1481,7 +1481,7 @@ struct MissingAssetsDetectedEvent : Event {
 
 - Asset Browser の既存 `Find References` を、layer JSON の全文字列を部分一致検索する方法から、JSON 値を再帰走査して正規化済み path の完全一致で比較する方法へ変更した。これにより、ファイル名や他の値に含まれる部分文字列を参照として誤検出しにくくする。
 - `Select Unused Visible Assets` が現行一覧から未使用のトップレベル素材を複数選択する。展開済みsequenceの個別frame行は重複選択しない。
-- `Find References` は引き続き単発のメッセージ表示導線。専用 tracker／references panel、batch diagnostics、候補衝突解決は未実装。
+- `Find References` の結果は選択式になり、選択した composition を開いて対象 layer を選択する。専用 tracker／references panel、batch diagnostics、候補衝突解決は未実装。
 - ビルド・UI runtime 確認は未実施。
 - runtime での batch rollback、sequence の欠落 frame 復旧、外部ドライブ復帰、複数ファイル結果は未検証。ステータスは Partial を維持する。
 
