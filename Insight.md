@@ -1,5 +1,13 @@
 **最終更新:** 2026-10-03
 
+## 2026-10-04 — Build log: Artifact script field map API and Qt widget API mismatches
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayer.cppm` (`migrateScriptFields`), `Artifact/src/Widgets/ArtifactCompositionAudioMixerPresentation.cppm` (`showAllEffectsMenu`), `Artifact/src/Widgets/Dialog/ArtifactRenderOutputSettingDialog.cppm` (timecode editor).
+- **確認できた事実:** The pasted MSVC log showed `ArtifactScriptSerializedFields` is a `std::unordered_map`, but `migrateScriptFields` used Qt `constFind` / `value()` calls. It also showed `QVariant::toInt(-1)` passed an integer where Qt expects `bool*`, and `QTimeEdit::setSection` / `FixOffset` do not exist in the Qt 6 API in this workspace. The mixer source already included the missing `QDialog` definition; that diagnostic is consistent with the incomplete type error cascading from header/module visibility and should be rechecked after the other compile fixes.
+- **対応:** Replaced the map lookup with `find` / `end` / `it->second`; changed the QVariant conversion to `toInt(&indexOk)` with an invalid-data guard; removed the unsupported QTimeEdit call while preserving the display format and widget behavior.
+- **価値または懸念（未検証）:** These edits directly address the reported API errors while preserving unrelated pre-existing changes. Build/test were not run under the repository instruction, so remaining diagnostics (including QDialog/connect overload resolution) are unverified.
+- **次に確認すべきこと:** After an authorized build, verify these three translation units compile and inspect subsequent diagnostics independently. The QTimeEdit `HH:mm:ss.ff` display-format semantics should also be checked at runtime because Qt's sub-second formatting is millisecond-based.
+
 ## 2026-10-03 — ProxyWorker の batch モード（protocolVersion 2）とプロセス起動コスト実測
 
 - **関連:** `Artifact/src/Worker/ArtifactProxyWorker.cpp`（`runProxyJob` / `main` の request 分岐）、`Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`（`ProxyWorkerSlot::Entry` / `pollProxyWorkerSlot` / `finalizeProxyEntry` / `findProxyEntry` / `processNextProxyJob` / `cancelProxyQueue` / `~Impl`）、`tools/proxy_worker_smoke_test.py`（`--batch`）。
