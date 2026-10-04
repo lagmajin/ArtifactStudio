@@ -8,6 +8,38 @@
 - **価値または懸念（未検証）:** These edits directly address the reported API errors while preserving unrelated pre-existing changes. Build/test were not run under the repository instruction, so remaining diagnostics (including QDialog/connect overload resolution) are unverified.
 - **次に確認すべきこと:** After an authorized build, verify these three translation units compile and inspect subsequent diagnostics independently. The QTimeEdit `HH:mm:ss.ff` display-format semantics should also be checked at runtime because Qt's sub-second formatting is millisecond-based.
 
+## 2026-10-04 — Qt global types in public module declarations
+
+- **関連:** `Artifact/include/Widgets/AudioMixerWidget.ixx` (`createParameterEditor`), `Artifact/src/Widgets/ArtifactCompositionAudioMixerPresentation.cppm`.
+- **確認できた事実:** `QDialog` / `QLabel` forward declarations were after `export module`, so those declarations were attached to `Artifact.Widgets.AudioMixer` even though the exported function's pointer types are Qt global types. Including Qt's complete `QDialog` definition in a consumer cannot complete a distinct module-attached class declaration.
+- **対応:** Moved the forward declarations into the global module fragment so the public function and Qt headers refer to the same global class types.
+- **価値または懸念（未検証）:** This addresses a class-identity mismatch in addition to the visible incomplete-type diagnostic. Build remains unverified under the repository's no-build instruction.
+- **次に確認すべきこと:** On an authorized build, check `AudioMixerWidget.ixx`, its implementation unit, and presentation consumer compile with the relocated declarations.
+
+## 2026-10-04 — Build log: standard vector API and direct OIIO type include
+
+- **関連:** `Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm` (`ProxyWorkerSlot` batch), `Artifact/src/Render/ArtifactRenderQueueService.cppm` (bit-depth output type mapping).
+- **確認できた事実:** The proxy worker batch is `std::vector<ProxyWorkerSlot::Entry>` but used Qt's `isEmpty()` spelling. The render service declared `OIIO::TypeDesc` without including an OpenImageIO header in its global module fragment.
+- **対応:** Changed the vector check to `empty()` and added the focused `<OpenImageIO/typedesc.h>` include before `module Artifact.Render.Queue.Service;`.
+- **価値または懸念（未検証）:** This should resolve the reported container API error and make the OIIO declaration visible at its source. Build remains unverified under repository policy.
+- **次に確認すべきこと:** On an authorized build, verify both translation units compile; then check the EXR/TIFF output types at runtime.
+
+## 2026-10-04 — Native script functions must match the host callback signature
+
+- **関連:** `Artifact/src/Composition/ArtifactAbstractComposition.cppm` (`installCompositionScriptApi`), `ArtifactCore/include/Script/ArtifactScript/ArtifactScript.ixx` (`ArtifactScriptHost::registerFunction`).
+- **確認できた事実:** `registerFunction` stores callbacks shaped as `ArtifactScriptValue(std::span<const ArtifactScriptValue>)`. The new `getFrame` and `fps` callbacks were zero-argument lambdas returning scalar values, so they could not convert to that callback signature.
+- **対応:** Changed both callbacks to accept the argument span and return an explicit `ArtifactScriptValue`, matching the neighboring `timeToFrame` / `frameToTime` registrations.
+- **価値または懸念（未検証）:** The host can now register and invoke the functions through the same native callback ABI as its other functions. Build and script execution remain unverified.
+- **次に確認すべきこと:** On an authorized build, verify the composition translation unit and evaluate `getFrame()` / `fps()` with and without a composition.
+
+## 2026-10-04 — Script library callbacks must capture their shared argument converter
+
+- **関連:** `Artifact/src/Composition/ArtifactAbstractComposition.cppm` (`installScriptLibraryFunctions`).
+- **確認できた事実:** `numberAt` is a local stateless lambda used by the registered math, random, and temporal callbacks. Those callback lambdas had empty capture lists, while `wiggle`, `loopOut`, and `posterizeTime` already captured shared helpers explicitly.
+- **対応:** Added explicit `numberAt` value captures to every callback that uses it, including `linear` / `ease` alongside `sampleTemporal`.
+- **価値または懸念（未検証）:** The callback closures own the tiny stateless helper by value and no longer rely on illegal implicit capture. Build and expression evaluation remain unverified.
+- **次に確認すべきこと:** On an authorized build, verify `installScriptLibraryFunctions` compiles and the math / temporal functions still evaluate with optional arguments.
+
 ## 2026-10-03 — ProxyWorker の batch モード（protocolVersion 2）とプロセス起動コスト実測
 
 - **関連:** `Artifact/src/Worker/ArtifactProxyWorker.cpp`（`runProxyJob` / `main` の request 分岐）、`Artifact/src/Widgets/ArtifactProjectManagerWidget.cppm`（`ProxyWorkerSlot::Entry` / `pollProxyWorkerSlot` / `finalizeProxyEntry` / `findProxyEntry` / `processNextProxyJob` / `cancelProxyQueue` / `~Impl`）、`tools/proxy_worker_smoke_test.py`（`--batch`）。
@@ -4000,3 +4032,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **価値または懸念（未確認）:** script の有効性が保存/再読込を往復しても保持されるようになる。Components パネルの toggle が Undo/Redo の対象になる。ビルド・実機は未実施（AGENTS.md 制約）。script descriptor を追加したことで `componentGraph` に `builtin.script` が新規に現れるため、**既存プロジェクトを読み込むと componentGraph の descriptor が 1 件増える**。共同作業のグラフ diff（`UndoManager.cppm:6433` が `componentDescriptorSnapshot()` を比較）に影響する可能性がある。
 - **未修正（記録のみ）:** (1) `jointComponentEnabled_` は descriptor に書くだけで、`syncBuiltinBoolsFromHost` 側の読み戻しが無い。(2) source component は factory を迂回して ID を文字列連結し、cloner と `order = 100` が重複（`:459-473`）。(3) `component.fields.<index>` 系パスが `count() + 1` で ID を生成するため、削除→追加で `extra.*` ID が衝突する（`ComponentRouting.cppm:161,356,522`）。(4) `syncBuiltinComponentDescriptors()` が `const` アクセサから呼ばれ UI スレッドとレンダースレッドで `NamedVector` を競合しうる（`:3004` の `validateLayerComponents() const` など）。(5) `autoFixValidationIssues`（`LayerComponentSystem.ixx:610-653`）が 44 行あるが呼び出し元ゼロで、validate エラーを直す UI 手段が無い。(6) `sequence-player` は `makeSequencePlayerComponentDescriptor(false)` で常に disabled、3 つの settings が書かれるだけで読まれない。
 - **次に確認すべきこと:** (a) script component を有効にしたレイヤーを保存→再読込して有効のままか。(b) Cloner / Layout / Fluid 等の toggle を Undo/Redo して元に戻るか。(c) 既存プロジェクトを読み込んで `componentGraph` に `builtin.script` が増えても問題がないか、共同作業のグラフ diff が壊れないか。(d) `validateLayerComponents() const` を UI とレンダーの両スレッドから同時に呼んで競合しないか。
+# 2026-10-04 — Script vector normalization narrows double results
+
+- **関連:** `Artifact/src/Composition/ArtifactAbstractComposition.cppm`, `installScriptLibraryFunctions()` の `normalize`。
+- **確認できた事実:** `ArtifactScriptVec2` / `ArtifactScriptVec3` の成分型は `float` だが、正規化長 `len` は `double`。成分を `len` で割ると `double` となり、braced aggregate initialization からの暗黙縮小変換は MSVC C2397 になる。
+- **追加で確認した事実:** 同じ `normalize` コールバック内の Vec2/Vec3 補間 (`mix`) も、`double` の補間係数 `t` により各成分演算の結果が `double` になる。また、ping-pong loop の `phase` は負値補正で再代入される。
+- **変更:** 正規化と補間の各成分を `float` に明示変換した。数値演算は従来どおり `double` で行い、ベクトル格納境界でのみ縮小する。`phase` から `const` を外して負値補正を可能にした。
+- **未検証:** ビルドは AGENTS.md の制約に従い実施していない。
+- **次に確認すべきこと:** ユーザー側の再ビルドでこのエラーが解消し、normalize の後続診断がないこと。
