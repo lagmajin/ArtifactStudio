@@ -88,7 +88,64 @@ OpenFX (OFX) 標準プラグイン規格のサポートを実装し、Nuke / DaV
 
 ---
 
-## 実装タスク
+## Update 2026-10-01（機能拡張：キーフレーム・メタデータ・追加スイート）
+
+**キーフレーム API を実装した。** 事前調査の結果、`AbstractProperty` にキーフレーム機構（`addKeyFrame` / `removeKeyFrame` / `clearKeyFrames` / `interpolateValue`）が既に完備しており、毎フレーム評価の駆動点も `ArtifactAbstractEffect::setContext` が既に持つことを確認した。新規モジュールは不要で、`ParamState` に `AbstractProperty` を値所有で持たせて既存機構に乗せるだけだった。
+
+- `paramGetNumKeys` / `paramGetKeyTime` / `paramGetKeyIndex` / `paramDeleteKey` / `paramDeleteAllKeys` を `kOfxStatErrUnsupported` から実実装に置き換え
+- `paramGetValueAtTime` は `property.interpolateValue()` で時刻評価、`paramSetValueAtTime` は `property.addKeyFrame()` でキーフレームを積む
+- ホストとパラメータのアニメーション対応申告値を 0 → 1 に復元（実態に一致）
+- ブリッジはキーフレームがあれば現在フレーム時刻で評価した値をプラグインへ渡す
+
+**パラメータメタデータを完全対応にした。** `toAbstractProperty` は従来 6 プロパティしか読まなかったが、`kOfxParamPropDefault` / `Min` / `Max` / `DisplayMin` / `DisplayMax` / `Increment` を読み `setDefaultValue` / `setHardRange` / `setSoftRange` / `setStep` に反映するようになった。プラグイン定義のスライダ範囲と既定値がそのまま反映される。
+
+**Progress / Interact スイートを追加した。** OFX C++ Support Library が無条件に fetch する Progress（V1 / V2 両方）と Interact を `fetchSuiteCallback` から供給する。Progress はホストに UI がないため受理して no-op にする（`Failed` を返すとプラグインが処理を中止するため）。Interact は `SupportsCustomInteract = 0` を申告しているため失敗を返す。
+
+**GPU テクスチャ共有は打ち切った。** OFX 1.5 標準の GPU 経路は OpenGL texture name が前提で、ホストは Diligent（D3D12 / Vulkan）のため**技術的に到達不能**。理由は三つ：(1) `CMakeLists.txt:640` で `DILIGENT_NO_OPENGL` が ON であり、submodule に GL バックエンドのソースは存在してもビルド対象から除外されている。(2) Diligent は `ImportTexture` / `ExportTexture` / `OpenSharedHandle` 等の API 間 interop を一切提供せず、`GetNativeHandle` は GL バックエンド自身が生成したテクスチャにしか GLuint を返さない。(3) OFX パスには GPU ハンドルが存在しない（`SetGpuResources` の実呼び出しは既定で無効な `ArtifactPr` のみ）。CPU readback + `glTexSubImage2D` や GL バックエンド有効化という代替案は検討したが、どちらもゼロコピーにならず実益がないため採用しない。GPU 表現のプラグインは CPU フォールバックで動作する。
+
+**残存の analysis API を実装した。**
+
+- `paramGetDerivative` を中央差分（1フレーム幅）で実装。キーフレームのないパラメータは定数なので導関数 0。数値解析が定義されない型（string / choice / boolean / integer）は `kOfxStatErrUnsupported`
+- `paramGetIntegral` を Simpson 積分で実装。キーフレーム境界で区間を分割するので Hold や Step 区間が平滑化されない。キーフレームなしは `値 × 区間幅` の厳密解。符号は `time1 → time2` の向きで、仕様書に符号規約の記載がないため本実装の規約を採った
+- `paramCopy` をキー列コピーとして実装。`frameRange` の `[0,0]` は仕様書上の「全キー」番兵として扱い、null も全キーとして解釈。オフセットは秒から整数フレームへ変換し、8 引数版 `addKeyFrame` で補間種別・Bezier ハンドル・roving を保持。アンカーとカラーラベルも `setKeyFrameAnchorAt` / `setKeyFrameColorLabelAt` で引き継ぐ
+
+**クラッシュ隔離とブラックリストを実装した。** 調査の結果、既存の `PluginSandbox` は OFX プラグインを supervise できないことが判明した。理由は (1) runner が `ArtifactPlugin_GetAPIVersion` / `ArtifactPlugin_GetPluginCount` という自作 ABI の 2 シンボルを前提にしており、サードパーティの OFX DLL はエクスポートしない。(2) さらに pong 応答のフィールド名が一致せず（`PluginSandbox.cppm:88-89` は `cmd` を待ち、`artifacts-plugin-runner/src/main.cpp:95` は `event` を返す）、监督対象が常にクラッシュ扱いになってリスタートループする。この 2 点とも本作業の前に存在する問題であり、OFX 側は一切利用していない。GPU テクスチャ共有の判断に合わせて、PluginSandbox の再利用は中止した。代わりに以下を実装した。
+
+- SEH ガード（`callPluginEntryPoint`）。`__try/__except` でアクセス違反を失敗ステータスに変換し、プラグインがホストを巻き込んで落ちるのを防ぐ。SEH と C++ アンワインディングは同一関数内で共存できないため、ガード関数は POD ローカルしか持たない
+- 全 10 箇所の `mainEntry` 呼び出しを `dispatchAction` 経由に変更。直接呼び出しは残っていない
+- プラグイン識別子ごとのクラッシュカウンタ。3 回（`kOfxCrashLimit`）で自動ブラックリスト
+- ブラックリストを `QSettings`（`ArtifactStudio` / `Artifact` / `OfxPlugins` グループ）に永続化。再起動後も無効のまま
+- `describePlugin` がブラックリスト対象をスキップするため、悪いプラグインは記述もインスタンス化もされずエフェクトカタログにも載らない
+- Plugin Manager に「Disabled after repeated crashes」行と `Re-enable` ボタンを追加
+
+クラッシュ対策の限界として、SEH はハードウェア例外のみを捕捉する。スタックオーバーフロー、後で検出されるヒープ破壊、プラグイン内部の CRT チェックによる abort は捕捉できない。
+
+**残存（未実装・未検証）**
+
+- 実プラグインでの互換性検証は未実施。描画経路・キーフレーム・クラッシュ対策が今回初めて成立したため、実際の動作確認が必要
+
+## Update 2026-10-01（残存4件：PluginSandbox 修正・abort 記録・非 Windows ロード）
+
+**PluginSandbox の pong 応答バグを修正した。** 監督側は `cmd` フィールドで pong を待っていたが、runner は `event` フィールドで返すため `expectingPong` が一度も解除されず、監督対象のプラグインが毎回クラッシュ扱いになってリスタートループしていた。`event` を主として `cmd` も受理するようにした。
+
+**ランナー実行ファイル名の不整合を修正した。** `PluginLoader` は `ArtifactPluginRunner.exe` を検索するが、CMake は `artifacts-plugin-runner` というターゲット名でビルドしていた。ターゲットに `OUTPUT_NAME "ArtifactPluginRunner"` を設定し、ロード側もプラットフォーム別拡張子を返す `runnerExecutableName()` を使うようにした（ハードコードされた `.exe` は非 Windows ホストで必ず失敗する）。
+
+**非 Windows のプラグインロードを実装した。** `openPluginLibrary` / `closePluginLibrary` / `resolvePluginSymbol` の 3 ヘルパーでプラットフォームローダーを抽象化し、Win32 では `LoadLibraryW` / `FreeLibrary` / `GetProcAddress`、それ以外では `dlopen` / `dlclose` / `dlsym` を使う。`scanBinary` と `clearLoadedPlugins` の `#ifdef _WIN32` ガードを外し、効果ブリッジの `findPlugin` も `resolvePluginSymbol` 経由に変更した（`GetProcAddress` の直接使用はゼロ）。
+
+**CRT abort の記録を実装した。** `abort()` は例外を発生させないため `__try/__except` では捕捉できない。そこで `AddVectoredExceptionHandler` で `STATUS_FATAL_APP_EXIT` / `STATUS_STACK_BUFFER_OVERRUN` / `STATUS_HEAP_CORRUPTION` を監視し、実行中のプラグイン識別子を `OutputDebugStringA` に出す向量ハンドラを追加した。ハンドラは割り当てを一切行わない（ヒープが壊れた状態で実行され得るため）。`dispatchAction` が呼び出し中プラグインの識別子を `activePluginIdentifier()` に公開する。
+
+**ただし以下の限界は解消していない。**
+
+- スタックオーバーフローは `__try/__except` のガード領域に到達しないため捕捉できない。ガード用の予約スタックを維持する方法は SEH の枠組みでは機能しない
+- CRT abort は記録されるが**捕捉されない**（プロセスは終了する）。向量ハンドラは観測のみ行い `EXCEPTION_CONTINUE_SEARCH` を返す
+- **ヒープ破壊は原理的に in-process では捕捉不能**。検出は破壊した後の無関係なアロケータ処理時に起きるため、リリースビルドでは不可能。この 3 つすべてを本当に含有するにはプロセス間隔離が必須で、これは未実装
+
+**残存（未実装・未検証）**
+
+- GPU テクスチャ共有（打ち切り済み）
+- プロセス間隔離（複数週規模の新規サブシステム）
+- 非 Windows の `dl` リンク依存。glibc 2.34 以降と macOS では libc / libSystem に含まれるため `-ldl` 不要だが、最小 glibc バージョンは未確認
+- 実プラグインでの互換性検証は未実施
 
 ### Phase 1: OFX ホストコア実装
 

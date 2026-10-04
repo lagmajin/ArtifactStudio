@@ -26,6 +26,8 @@ def main() -> int:
     parser.add_argument("--require-audio", action="store_true")
     parser.add_argument("--cancel-after-ms", type=int,
                         help="Create the cancel token after this many milliseconds")
+    parser.add_argument("--batch", type=int, default=1,
+                        help="Send N identical jobs in one batch request (protocolVersion 2)")
     parser.add_argument("--timeout-seconds", type=float, default=120.0,
                         help="Fail if the worker does not exit within this many seconds")
     parser.add_argument("--ffprobe", type=Path, help="Optional ffprobe executable")
@@ -37,6 +39,8 @@ def main() -> int:
         parser.error("--cancel-after-ms must be positive")
     if args.timeout_seconds <= 0:
         parser.error("--timeout-seconds must be positive")
+    if args.batch < 1:
+        parser.error("--batch must be at least 1")
 
     worker = args.worker.resolve()
     source = args.source.resolve()
@@ -52,23 +56,33 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix="artifact-proxy-smoke-") as temp:
         root = Path(temp)
-        output = root / "proxy.mp4"
-        partial_output = root / "proxy.partial.mp4"
         request = root / "request.json"
         cancel = root / "cancel.token"
-        request.write_text(json.dumps({
-            "protocolVersion": 1,
-            "jobId": "smoke-test",
-            "sourcePath": str(source),
-            "outputPath": str(output),
-            "temporaryOutputPath": str(partial_output),
-            "scale": args.scale,
-            "qualityPreset": expected_quality,
-            "backend": args.backend,
-            "hardwareAccel": args.hardware_accel,
-            "audioReencode": args.audio_reencode,
-            "cancelPath": str(cancel),
-        }), encoding="utf-8")
+
+        def make_job(index: int) -> dict:
+            suffix = "" if args.batch == 1 else f".{index}"
+            return {
+                "jobId": "smoke-test" if args.batch == 1 else f"smoke-test-{index}",
+                "sourcePath": str(source),
+                "outputPath": str(root / f"proxy{suffix}.mp4"),
+                "temporaryOutputPath": str(root / f"proxy{suffix}.partial.mp4"),
+                "scale": args.scale,
+                "qualityPreset": expected_quality,
+                "backend": args.backend,
+                "hardwareAccel": args.hardware_accel,
+                "audioReencode": args.audio_reencode,
+                "cancelPath": str(cancel),
+            }
+
+        jobs = [make_job(index) for index in range(args.batch)]
+        if args.batch == 1:
+            payload = dict(jobs[0])
+            payload["protocolVersion"] = 1
+        else:
+            payload = {"protocolVersion": 2, "jobs": jobs}
+        request.write_text(json.dumps(payload), encoding="utf-8")
+        output = Path(jobs[0]["outputPath"])
+        partial_output = Path(jobs[0]["temporaryOutputPath"])
 
         process = subprocess.Popen(
             [str(worker), "--request", str(request)],
@@ -106,6 +120,23 @@ def main() -> int:
         failed = next((m for m in messages if m.get("type") == "failed"), None)
         cancelled = args.cancel_after_ms is not None
         expect_failure = args.expect_failure or cancelled
+
+        # In batch mode every job must report exactly once, in order.
+        batch_ok = True
+        if args.batch > 1 and not expect_failure:
+            reported = [m.get("jobId") for m in messages if m.get("type") == "completed"]
+            batch_ok = reported == [job["jobId"] for job in jobs]
+            batch_summary = next((m for m in messages if m.get("type") == "batchCompleted"), None)
+            batch_ok = batch_ok and batch_summary is not None and \
+                batch_summary.get("succeeded") == args.batch and \
+                batch_summary.get("total") == args.batch
+            for job in jobs:
+                job_output = Path(job["outputPath"])
+                if not job_output.is_file() or job_output.stat().st_size <= 0:
+                    batch_ok = False
+                if Path(job["temporaryOutputPath"]).exists():
+                    batch_ok = False
+
         valid = ((
             result.returncode != 0
             and completed is None
@@ -117,7 +148,7 @@ def main() -> int:
             not timed_out
             and result.returncode == 0
             and completed is not None
-            and completed.get("jobId") == "smoke-test"
+            and completed.get("jobId") == jobs[0]["jobId"]
             and Path(completed.get("outputPath", "")).resolve() == output.resolve()
             and output.is_file()
             and output.stat().st_size > 0
@@ -126,6 +157,7 @@ def main() -> int:
             and completed.get("qualityPreset") == expected_quality
             and completed.get("audioReencodeRequested") is args.audio_reencode
             and completed.get("hardwareAccelRequested") is args.hardware_accel
+            and batch_ok
             and (args.expect_backend is None or
                  str(completed.get("backend", "")).lower() == args.expect_backend.lower())
         ))

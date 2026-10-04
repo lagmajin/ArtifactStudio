@@ -256,3 +256,9 @@ artifact_add_test(ArtifactCoreTextShapingTest
     LIBS
         ArtifactCore
 )
+artifact_add_test(ArtifactCoreImageDistortionMapperTest
+    SOURCES
+        ImageDistortionMapperTest.cpp
+    LIBS
+        ArtifactCore
+)
