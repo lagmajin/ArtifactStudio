@@ -1,6 +1,20 @@
-**最終更新:** 2026-09-12
+**最終更新:** 2026-10-05
 
 # 汎用GPU常駐 設計メモ（Halftoneパイロット）
+
+## 2026-10-05 — CPU消費境界の同期待ち除去
+
+以下は現行コードの補足であり、後続の2026-09-12設計スナップショットに優先する。
+
+- GPU常駐実行は既存の `buildGpuRasterEffectPlan` / `RenderPipeline::applySpatialEffect` を使う。
+- CPU画像を消費する Controller の rasterized surface、Composition View の rasterized surface / final effects、Preview の rasterizer stack は、共通の `ArtifactAbstractEffect::applyToCpuSurface` を使う。既知のCPU参照実装があれば `applyCPUOnly`、なければ configured backend を保持する。
+- CPU能力は `supportsCPU()` で表す。既定値は `cpuImpl_` の有無だが、`apply()` 内にCPU参照を持つ Glitch / Halftone / Old TV は明示的に `true` を返す。従来の `cpuImpl()` 判定ではこの3種が漏れ、CPUフォールバック中に `runCreativeCompute` の upload / cache mutex / `WaitForIdle` / readback を踏んでいた。
+- `applyCPUOnly` は処理の正常終了・例外伝播の両方で元の compute mode を復元する。effect mix、region、mask、descriptor の適用は既存の `applyConfigured` を通す。
+- 上記3種のCPU参照は入力の shallow snapshot を保持し、`SetCpuImage` で作った最終出力へ直接書く。入力と出力が同じwrapperでも元の画素を保持し、出力複製を3回から1回へ減らす。行／タイル並列化と計算式は既存のまま。
+
+確認はソース上の経路・所有権・差分・LFの静的確認のみ。ビルド、実機計測、CPU/GPU parity は未実施。CPU参照とGPU実装に既知の差異があるため、実機確認では混在effect stack、mask/mix、composition final effects、GPU-only effect、明示GPU modeの復元を含める。
+
+`runCreativeCompute` を直接呼ぶ旧式GPU経路のmutexと同期待ちは残る。キャッシュslotの寿命だけでなく、共有immediate contextの実行所有権が前提になるため、mutexだけを外して複数threadからdispatchしてはならない。
 
 ## 1. 背景・現状（ソース確認済み）
 

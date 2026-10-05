@@ -1,5 +1,19 @@
 **最終更新:** 2026-10-05
 
+## 2026-10-05 — Effect profiling 設定参照のホットパス候補
+
+- **関連:** `Artifact/src/Effects/ArtifactAbstractEffect.cppm` の `effectProfilingEnabled()` / `applyConfigured()`。
+- **確認できた事実:** effect適用ごとに `QSettings` を構築し、`Diagnostics/EffectProfiling` のcontains/valueを参照する。設定がなければ環境変数を読み、`std::string` も構築する。profiling無効時にも判定処理は毎段実行される。
+- **懸念・仮説（未検証）:** 設定アクセスや内部同期が軽いeffectを多数重ねた場合の余分なCPUコストになり得る。今回の修正には含めていない。動的に切り替えるユーザー設定か起動時の開発フラグかを確認せず、単純なstatic cacheへ変更してはならない。
+- **次に確認すべきこと:** 設定変更の正規の導線と通知、`STARTUP_FLAGS_CONTRACT_2026-09-29.md` との責務を確認し、無効時の設定参照コストを計測する。
+
+## 2026-10-05 — Effect CPU capability と adapter 所有の区別
+
+- **関連:** `Artifact/include/Effects/ArtifactAbstractEffect.ixx`、`Artifact/src/Effects/ArtifactAbstractEffect.cppm`、`Artifact/src/Effect/ArtifactCreativeEffects.cppm`、CPU画像を消費する Controller / Composition View / Preview。
+- **確認できた事実・今回の対応:** Glitch / Halftone / Old TV は `apply()` 内にCPU参照を持つが `cpuImpl_` を登録しない。adapter pointer の有無だけでCPU能力を判定すると、GPU常駐計画からのCPUフォールバックでもGPU upload・global cache mutex・同期待ち・readbackを実行していた。`supportsCPU()` と共通の `applyToCpuSurface()` を追加し、この3種のCPU能力を明示した。
+- **再利用できる知見・懸念:** 参照実装の能力と adapter の実装形式は別の契約として扱う。今後 `apply()` をoverrideしてCPU/GPUを両方実装するeffectはCPU能力も明示する。旧式GPUヘルパーのmutexはslotの再利用と共有context操作を囲むため、ロック範囲だけの短縮を並列化の根拠にできない。速度改善幅とCPU/GPU出力一致は未検証。
+- **次に確認すべきこと:** ビルド許可後に混在stackでGPU常駐→CPU参照の境界、modeの復元、入力／出力alias、mask/mix、αとchannel orderを確認し、GPU submission / readback / copyの時間を分けて計測する。
+
 ## 2026-10-05 — Checked float color views: first effect-boundary migration
 
 - **関連:** `ArtifactCore/include/Image/ImageSurfaceView.ixx`; CPU kernels in ColorWheels, LiftGammaGain, Curves, ColorBalance and WhiteBalance.
