@@ -10,7 +10,7 @@
 - CPU画像を消費する Controller の rasterized surface、Composition View の rasterized surface / final effects、Preview の rasterizer stack は、共通の `ArtifactAbstractEffect::applyToCpuSurface` を使う。既知のCPU参照実装があれば `applyCPUOnly`、なければ configured backend を保持する。
 - CPU能力は `supportsCPU()` で表す。既定値は `cpuImpl_` の有無だが、`apply()` 内にCPU参照を持つ Glitch / Halftone / Old TV は明示的に `true` を返す。従来の `cpuImpl()` 判定ではこの3種が漏れ、CPUフォールバック中に `runCreativeCompute` の upload / cache mutex / `WaitForIdle` / readback を踏んでいた。
 - `applyCPUOnly` は処理の正常終了・例外伝播の両方で元の compute mode を復元する。effect mix、region、mask、descriptor の適用は既存の `applyConfigured` を通す。
-- 上記3種のCPU参照は入力の shallow snapshot を保持し、`SetCpuImage` で作った最終出力へ直接書く。入力と出力が同じwrapperでも元の画素を保持し、出力複製を3回から1回へ減らす。行／タイル並列化と計算式は既存のまま。
+- 上記3種のCPU参照は入力の独立した deep snapshot を保持し、`SetCpuImage` で作った最終出力へ直接書く。入力と出力が同じwrapperでも元の画素を保持し、画像複製を4回から2回へ減らす。行／タイル並列化と計算式は既存のまま。
 
 確認はソース上の経路・所有権・差分・LFの静的確認のみ。ビルド、実機計測、CPU/GPU parity は未実施。CPU参照とGPU実装に既知の差異があるため、実機確認では混在effect stack、mask/mix、composition final effects、GPU-only effect、明示GPU modeの復元を含める。
 

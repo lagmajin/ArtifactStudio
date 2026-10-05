@@ -4144,3 +4144,10 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **2026-10-05 実装:** controller 内の所有者 resolver と操作 session に、draw / hover / press / move / release / cancel を統合。Text / Content の重複ドラッグフラグを撤去し、既存3D snapshot / Undo を再利用。選択・frame・tool・lock・対象削除で取消、終了時は再入を抑止して viewport の mouse capture を解放する。Text の4種 Position 更新を共通化し、静的 anchor の不要なキー生成も避けた。
 - **追加確認できた事実:** `ArtifactAbstractLayer::getProperty` は transform path で `transform3D().channelProperty` を返し、Core の `TransformPropertyChannel` が絶対 property と相対 track 値を変換する。transform と cached property が別所有という旧コメントは現行コードに合わないため更新した。Core は読み取りのみ。
 - **検証残:** 差分・API・開始終了経路の静的確認のみ。ビルド・テスト・実機は未実施。初回 box property 準備は layer binding の cold 境界に限定。混在 selection の Text primary は既存単体編集を維持し、group 対応追加はしていない。
+
+## 2026-10-05 — 開発ブランチ取り込み時の画像コピー契約確認
+
+- **関連:** `origin/codex/2026-10-02-dev`、`ArtifactCore/src/Image/ImageF32x4_RGBA.cppm`、`Artifact/src/Effect/ArtifactCreativeEffects.cppm`。
+- **確認できた事実:** 通常の画像コピーも `Impl` の copy constructor で `cv::Mat::clone()` を呼ぶ。Glitch / Halftone / Old TV の変更は source snapshot と `SetCpuImage` の2回の画像複製であり、元の4回（source snapshot、出力 DeepCopy、一時 wrapper 構築、wrapper 代入）より2回減る。shallow snapshot / 1回というコメントと文書を訂正した。重複領域に対する `sourceSnapshot.emplace(sourceImage)` も独立コピーになるため、追加の DeepCopy は不要。
+- **価値・懸念:** `auto` や move の表記だけでコピー費用・alias の安全性を判断せず、所有型の実装まで確認する必要がある。既存画像 move の1x1再初期化確保も残る。
+- **次に確認すべきこと（未検証）:** 許可後のビルド、CPU/GPU parity、履歴保持、ソフトキーのUndo/保存、追加マスク初回確保の計測。取り込みの個別判断は `docs/analysis/REMOTE_BRANCH_INTEGRATION_REVIEW_2026-10-05.md` に記録。
