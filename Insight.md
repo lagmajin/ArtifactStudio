@@ -1,11 +1,21 @@
 **最終更新:** 2026-10-05
 
+## 2026-10-05 — レンダリング性能修正の所有権と安全な範囲
+
+- **関連:** `ArtifactEffectFrameSampler`、`buildRasterizedSurfaceBuffer()`、`ArtifactAbstractEffect::applyConfigured()`、`RenderPipeline::applySpatialEffect()` / `applyPointwise()`。
+- **確認できた事実・変更:** CPU履歴はnamed inputにも使われるため保存対象は減らさず、出力を独立コピーした後に完成CPU画像を履歴へ移譲する経路を追加した。既存のコピー保存API、サンプル取得時の独立コピー、保持数・容量・revision・seekの無効化は維持する。既存の履歴mapは保存値だけをCPU画像へ変更し、GPU資源を保持しない。履歴無効化の一時vector、pointwiseのsegment複製vectorを撤去した。HexGrid / Voronoi / Bricks / StripesとGenericのGenerator契約は入力を読まないので、最終UAVへ直接出力する。FilterやBlurの中間バッファは維持する。CPUマスク/Mixは入力・出力のメモリ領域が重ならない場合だけsource cloneを省き、重なる場合はsnapshotを残す。
+- **例外的に残る確保:** CPU履歴のmap/listノードと、`ImageF32x4_RGBA`既存move実装が移譲元に作る小さな1x1初期画像は残る。画像サイズに比例する履歴保存cloneは撤去したが、ゼロアロケーション化を達成したとは扱わない。固定pool化は既存の保持・named input・eviction契約を確認してから別途検討する。
+- **2026-10-05 続行分:** layer pointwiseのsegmentは同形式・同寸法の既存output/scratchを交互に使い、最終結果がscratchに残った場合だけ固定outputへコピーする。追加マスクのRGBA32F作業領域をpipeline所有の独自`Array<float>`で再利用し、初回cache構築時のみ確保、resize/destructionで解放する。保持するCPU容量は現在のpipeline寸法に制限される（RGBA32F相当の作業領域を保持するメモリ増は未計測）。参照可能なsurface/static cacheがない場合はlookupのsignature構築を省略する。画像のsource/crop更新はcallerの既存経路で維持する。ロックの除去、非対応effectの省略、GPU contextの並列操作は行っていない。
+- **未検証・残る候補:** ビルド、テスト、実機計測は未実施。GPU非対応条件の拡張、調整レイヤーのreadback撤去、フレームロック分離、キャッシュキー契約変更には画質・マスク・履歴・context所有権の受入れ確認が必要。既存ロックを単純に外す根拠はない。
+- **次に確認すべきこと:** 時間参照とnamed input、seek/逆再生、容量超過のeviction、マスク/Mixの別バッファ・同一バッファ、生成系の後のFilter/Blur/マスク、D3D12/Vulkanのresource stateを実機確認し、CPU/GPU/Present時間、コピー量、アロケーションを比較する。
+
 ## 2026-10-05 — Effect profiling 設定参照のホットパス候補
 
 - **関連:** `Artifact/src/Effects/ArtifactAbstractEffect.cppm` の `effectProfilingEnabled()` / `applyConfigured()`。
 - **確認できた事実:** effect適用ごとに `QSettings` を構築し、`Diagnostics/EffectProfiling` のcontains/valueを参照する。設定がなければ環境変数を読み、`std::string` も構築する。profiling無効時にも判定処理は毎段実行される。
 - **懸念・仮説（未検証）:** 設定アクセスや内部同期が軽いeffectを多数重ねた場合の余分なCPUコストになり得る。今回の修正には含めていない。動的に切り替えるユーザー設定か起動時の開発フラグかを確認せず、単純なstatic cacheへ変更してはならない。
 - **次に確認すべきこと:** 設定変更の正規の導線と通知、`STARTUP_FLAGS_CONTRACT_2026-09-29.md` との責務を確認し、無効時の設定参照コストを計測する。
+- **2026-10-05 追加確認・最小修正:** `ArtifactPerformanceProfilerWidget::mousePressEvent()` が実行中にこの設定を切り替える。固定化はせず、環境変数比較の一時 `std::string` と無効時の時計取得だけを除去した。設定参照の集約には、この動的操作を保つ更新経路が必要（未実装・未計測）。
 
 ## 2026-10-05 — Effect CPU capability と adapter 所有の区別
 
