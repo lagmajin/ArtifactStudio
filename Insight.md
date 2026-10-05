@@ -4094,3 +4094,14 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **仮説（未検証）:** QApplication が管理する QWidget / QObject 登録状態、または Qt のプロセス終了時 cleanup が無効なポインタを参照している可能性がある。トップレベルウィンドウの明示破棄が完了しているため、単純な main window の未破棄だけでは説明できない。
 - **価値または懸念:** shutdown 経路は UI teardown までは正常に進む証拠が得られた。発生条件や first-chance exception 時の Qt 内部フレームが不明なまま cleanup 順序を変えると、別の所有権問題を隠すおそれがある。
 - **次に確認すべきこと:** 毎回の終了か、特定操作後だけかを確認する。次回発生時は `shutdown_*.log` が引き続き `COMPLETE top-level UI teardown` まで進むか確認し、Visual Studio で first-chance access violation 時の call stack と `QApplication::topLevelWidgets()` の残存一覧を採取する。
+
+## 2026-10-05 — TextGizmo の press / move 所有者不一致を調査
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`docs/bugs/TEXT_GIZMO_INPUT_OWNERSHIP_INVESTIGATION_2026-10-05.md`。2026-09-12 の未バインド対策、2026-10-03 の Text ツール押下対策の後にも残る別経路。
+- **確認できた事実:** 投影フレーム press（29224）の条件だけテキスト除外がなく、orientation matrices が valid ならテキストで 3D beginDrag が成立し得る。一方 3D move（31822）、hover（39260）、draw（50446）はテキスト除外済み。TextGizmo press より先に return すると両ギズモとも変換を更新しない。
+- **価値または懸念:** 同じ操作所有者の判定を draw / hover / press / move に分散させると、1か所のガード漏れで「表示されるが操作不能」になる。将来の再利用候補は所有者判定の共通化だが、この調査で構造変更は行っていない。
+- **未検証:** 実行中バイナリとの一致、実機の具体的 hit、混在複数選択の期待動作。ビルド・テスト・実機確認は未実施。
+- **次に確認すべきこと:** 単独テキストを Selection と Text ツールで比較し、press 後の textGizmo / gizmo3D の isDragging を確認。最小修正は投影フレーム press のテキスト除外を揃えること。
+- **2026-10-05 実装:** controller 内の所有者 resolver と操作 session に、draw / hover / press / move / release / cancel を統合。Text / Content の重複ドラッグフラグを撤去し、既存3D snapshot / Undo を再利用。選択・frame・tool・lock・対象削除で取消、終了時は再入を抑止して viewport の mouse capture を解放する。Text の4種 Position 更新を共通化し、静的 anchor の不要なキー生成も避けた。
+- **追加確認できた事実:** `ArtifactAbstractLayer::getProperty` は transform path で `transform3D().channelProperty` を返し、Core の `TransformPropertyChannel` が絶対 property と相対 track 値を変換する。transform と cached property が別所有という旧コメントは現行コードに合わないため更新した。Core は読み取りのみ。
+- **検証残:** 差分・API・開始終了経路の静的確認のみ。ビルド・テスト・実機は未実施。初回 box property 準備は layer binding の cold 境界に限定。混在 selection の Text primary は既存単体編集を維持し、group 対応追加はしていない。
