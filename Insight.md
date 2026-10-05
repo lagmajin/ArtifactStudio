@@ -1,5 +1,20 @@
 **最終更新:** 2026-10-05
 
+## 2026-10-05 — キーの仮状態は表示側だけに持たせない
+
+- **関連:** `Property.Abstract::KeyFrame`、`PropertySerializationBridge`、Timeline snapshot/clipboard、layer/text/deformationの独自保存、gizmo/Undoのキー復元。
+- **確認できた事実・今回の対応:** キーは複数の編集経路でaddKeyFrameから再構築される。Timelineのmarkerにだけ仮状態を持たせると移動やUndoで失われるため、Coreのキーに既定falseのsoft属性を追加し、既存metadataを引き継ぐ経路にも伝播した。通常の補間評価は変えず、選択キーのソフト化・確定・破棄を既存snapshot commandで扱う。新規soft追加は既存キーを上書きせず、破棄はsoftだけを削除する。
+- **懸念・仮説（未検証）:** キー属性の復元が多数箇所に分散しており、今後の属性追加でも漏れが発生し得る。メタデータを含むキー全体の復元APIを将来整理できる可能性があるが、今回は既存保存形式・module依存・編集契約を広く変更しない。旧版アプリで再保存した場合の新属性保持は保証できない。
+- **次に確認すべきこと:** 許可後にCore/Artifactをビルドし、仮/通常の混在選択、Undo/Redo、移動・複製・保存再読込、独自deformation/text経路を実機確認する。今回はビルド・テスト・実機確認をスキップしている。
+
+## 2026-10-05 — 調整レイヤーのGPU常駐対応を限定拡張
+
+- **関連:** `ArtifactCompositionRenderController::drawGpuLayerToIntermediate()`、`ChannelMixerEffect::appendGpuPointwiseNodes()`、`RenderPipeline::applySpatialEffect()`。
+- **確認できた事実・変更:** 調整レイヤーのpointwise計画でeffect所有の既存契約を利用し、Channel Mixerの通常行列処理を追加した。CPU実装にあるRGBの0..1 clampをGPUノードにも追加した。Normal blend、非MSAA、CPU指定なし、effect個別の範囲・マスク・Mixなしに限定する。調整レイヤー自体のマスク・opacityは既存pointwise経路で扱う。調整マスクのcache hitでは読み取り専用uploadのための全画像copyを省いた。
+- **Blurの限定範囲:** 高品質・等倍pipeline、非MSAA、変換なし、レイヤーマスクなし、opacity 1、Normal blendの全Blur stackのみ既存resident shaderを使う。effectの既存premultiplied/strength/幅/容量契約に加え、CPUのkernel幅とGPUのceil(3*sigma)が一致することを各effect内の全passで確認する。GPU内の専用snapshotで背景を保存し、途中失敗では復元して従来経路へ進む。混在stack・overscan・時間参照は対応を広げない。
+- **懸念・未検証:** SharpenはCPUとresident shaderでstraight/premultiplied alphaやthresholdの扱いが異なるため追加対象から除外した。Blurの数値誤差、色変換境界、半透明・HDRの見た目、D3D12/Vulkan resource stateと性能は未検証。既存shader/PSOの初回遅延初期化は残るが、毎フレームの新規画像確保やreadbackは追加しない。GPU snapshot分のcopyは成功時にも必要であり、ゼロcopyではない。
+- **次に確認すべきこと:** ユーザーが確認を再開した際に対象設定と対象外設定、GPU途中失敗、mask/opacity、半透明・HDR、backend別の描画を比較し、readback・待ち時間とGPU snapshot費用を計測する。今回は依頼によりビルド・テスト・実機計測をスキップした。
+
 ## 2026-10-05 — レンダリング性能修正の所有権と安全な範囲
 
 - **関連:** `ArtifactEffectFrameSampler`、`buildRasterizedSurfaceBuffer()`、`ArtifactAbstractEffect::applyConfigured()`、`RenderPipeline::applySpatialEffect()` / `applyPointwise()`。
