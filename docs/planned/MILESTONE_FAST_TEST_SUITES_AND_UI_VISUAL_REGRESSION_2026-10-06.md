@@ -1,6 +1,6 @@
 # Artifact.exe 非依存テストスイートと UI ビジュアル回帰計画
 
-**最終更新:** 2026-10-06
+**最終更新:** 2026-10-07
 **ステータス:** In Progress
 
 ## 進捗 2026-10-06
@@ -20,10 +20,15 @@
 - Artifact CMakeの2つの軽量GPU text runtimeは現ArtifactCoreが定義する`ArtifactCoreText`ではなく旧名`ArtifactCoreTextRuntime`をlinkしていた。子repoを変更せずに依存を成立させるため、親の`CMakeLists.txt`で実在する`ArtifactCoreText`を指すcompatibility ALIASをArtifact追加前に定義した。CMake configure/buildは行っておらず、target解決は未確認。
 - `tools/ui_visual_compare.py` はpixel-exactを既定とし、明示的なchannel tolerance / changed-pixel count / fraction gate、50% overlay、差分画像、SHA-256と環境manifestを含むJSON reportを生成する。名前付きregionごとに `--region-limit NAME,MAX_DIFF_PIXELS,MAX_DIFF_FRACTION` を指定でき、全体gateを通ってもregion gateに違反すれば失敗する。画像寸法が異なる場合も透明RGBA canvasへ左上揃えし、必ず不合格にしたうえでoverlay/diff/metricsとregion metricsを保存する。screenshot capture、UI interaction、承認基準画像自体はまだ用意していない。
 - `tools/ui_visual_loop.py` は実行ごとにランダムなrun prefixを付け、同じ `--output-prefix` で再実行しても前回のcapture/overlay/diff/reportを上書きしないようにした。外部captureコマンドを各iterationのPNG出力先付きで実行する。`--region-limit` を比較器へ渡し、差分時はoverlay/diffを保存する。既定では修正担当者のEnterを待つ。`--retry-delay-seconds` 指定時は自動で再撮影し、`--max-iterations` で上限を設定できる。`--compare-only` は1回で終了する。pixel exactが既定。Timeline／Render Manager専用capture・操作fixtureと基準画像はまだ未整備。
-- `tests/ui_visual/test_ui_visual_compare.py` に比較器の回帰用Python unittestを追加した。全体budget内でもregion limit違反なら失敗、exact matchのartifact生成、channel tolerance境界、寸法違い時のregion metricsと個別gate状態、同寸法／寸法違い双方での未定義region limit拒否の6項目を固定する。実行コマンドは `python tests/ui_visual/test_ui_visual_compare.py`。AGENTS.mdの指示によりこのsuiteは未実行。
+- `tests/ui_visual/test_ui_visual_compare.py` に比較器の回帰用Python unittestを追加した。全体budget内でもregion limit違反なら失敗、exact matchのartifact生成、channel tolerance境界、寸法違い時のregion metricsと個別gate状態、同寸法／寸法違い双方での未定義region limit拒否の6項目を固定する。runner suiteと合わせた実行コマンドは `python -m unittest discover -s tests/ui_visual -v`。
 - Timeline constructor はグローバルなwidget/service群を集成し、RenderQueueManagerWidget は永続化する `ArtifactRenderQueueService::instance()` を生成時に取得する。静的所有を再確認すると、現行 `ArtifactRenderCenterWindow` が使う `Artifact.Widgets.Render.QueueManager`、`Artifact.Render.Queue.Service`、Timeline implementationはいずれも `Artifact/cmake/ArtifactSources.cmake` の app module/implementation群にあり、`Artifact.exe` 非依存でそのWidgetをlinkする現行test targetはない。`ArtifactWidgets` childには `setService(QObject*)` を持つ別のlegacy `RenderQueueManagerWidget` があるが、現行 `ArtifactRenderCenterWindow` はそれをimportしないため、現行UIの試験代用にしてはならない。RenderJobModel suite はWidget interactionの代わりにはならない。親側単独では固定UI状態を注入できないため、Artifact childにtestable library/service seamと隔離可能な保存先を用意し、capture runner・承認基準画像を加えるまでUI visual gateは未実装扱いとする。
 - UI比較器とloop runnerは一時的な5x4/3x2 RGBA fixtureで動作確認した。同一画像はpixel-exactで合格、1 channel値差の全20画素は不合格となり、region metrics/overlay/diff/JSONを生成。runnerはcompare-only成功と、意図的な差分で2回の自動再撮影後に上限で失敗終了することを確認した。これはツール自身のfixture確認であり、Timeline/Render ManagerのUIテスト結果ではない。
-- 静的レビューのみ。CMake configure/build/CTestとArtifact UI/GPU/renderの実行は AGENTS.md の明示指示待ち。Layer save/restore、時間依存 keyframe、render parity、全 effect pack coverage、通常Blur独立target seam、effect stack integration、CPU/GPU実計算parity、full composition render golden、UI interaction/visual suites は未実装。
+- CMake configure/build/CTestとArtifact UI/GPU/renderの実行は未実施。Layer save/restore、時間依存 keyframe、render parity、全 effect pack coverage、通常Blur独立target seam、effect stack integration、CPU/GPU実計算parity、full composition render golden、UI interaction/visual suites は未実装。
+
+## 進捗 2026-10-07
+
+- `tests/ui_visual/test_ui_visual_loop.py` を追加し、fake capture processを使ったrunnerのend-to-end unittestを9ケース用意した。compare-only成功、同じoutput prefixで連続実行した際の成果物分離、region gateを含む自動再撮影後の成功、Enter後の再撮影、`q`での停止、iteration上限での失敗と診断画像保持、capture exit code伝播、PNG未生成時の失敗、`{actual}` 欠落の早期拒否を確認する。fixture・出力・スクリプトのパスに空白を含め、Windowsの引数分割も通す。実行コマンドは `python -m unittest discover -s tests/ui_visual -v`。
+- 上記コマンドを Windows / Python 3.14.2 / Pillow の環境で実行し、比較器6ケースとrunner9ケースの計15ケースが成功した。Timeline/Render Managerのcapture fixtureやbaselineを使った実UI回帰ではない。
 
 ## 目的
 
