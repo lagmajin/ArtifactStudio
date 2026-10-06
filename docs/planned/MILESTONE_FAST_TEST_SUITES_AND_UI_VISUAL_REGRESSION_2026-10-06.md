@@ -3,6 +3,10 @@
 **最終更新:** 2026-10-07
 **ステータス:** In Progress
 
+## 進捗 2026-10-07
+
+- オブジェクト経由のユーザーメソッドdispatchに、call-site／実行時class／definition世代を使う評価器内キャッシュを追加した。32 methodを持つclassで同じmethodをhook内16回呼ぶMSVC Debug fixtureは、キャッシュ前110.19、キャッシュ後85.03 µs/hookだった。続けて `callInstanceMethod` が毎回オブジェクト全field mapを複製していたため、既存のfield overlayで読み書き分だけ保持し、成功時のみ親mapへcommitするようにした。これにより同fixtureは初回71.97、再計測66.59 µs/hookとなり、64 allocation / hookから0 allocation / hookへ変化した。失敗時のscalar field rollback、4件を超えるfield overlayのcommit、1 call-siteへ基底／派生instanceを順に渡すdispatchを回帰テスト化した。ArtifactScript関連5 suiteはすべて成功。測定は単一MSVC Debugの合成fixtureであり、Releaseや実scriptの性能保証ではない。
+
 ## 進捗 2026-10-06
 
 - 既存 `ArtifactCoreKeyframeSplineTest` に4ケース追加した。空track、逆順挿入後のsortと範囲外時刻clamp、Constant segmentから次のexact keyへの境界、frame単位のlinear speedを固定する（現12 cases）。別target `ArtifactCoreKeyframePatternGeneratorTest` を追加し、12 preset全種の有限・昇順・frame scale、Ramp/Stagger/Stepの境界、seeded Shakeの再現性、trajectoryの非有限sample除去と等間隔再サンプルを6ケースで検査する。両suiteは共通Core APIの契約であり、Text Animator layerのproperty keyframe保存・読込・seek連携を証明するものではない。

@@ -586,6 +586,52 @@ class BenchmarkMethodLookup : ArtifactBehaviour
               << " us/hook (" << iterations * repetitions << " calls)\n";
     EXPECT_DOUBLE_EQ(std::get<double>(methodLookupInstance.fields().at("total")),
                      (100.0 + repetitions * iterations) * 16.0);
+
+    std::string objectMethodLookupSource = R"(
+class BenchmarkObjectMethodLookup : ArtifactBehaviour
+{
+    public float total = 0.0;
+    void OnCreate() { counter = new Counter(); }
+    void OnUpdate()
+    {
+        for (int index = 0; index < 16; index += 1) total = counter.increment(total);
+    }
+}
+class Counter : ArtifactBehaviour
+{
+)";
+    for (int i = 0; i < 32; ++i) {
+        objectMethodLookupSource += "    float filler" + std::to_string(i) +
+            "(float value) { return value; }\n";
+    }
+    objectMethodLookupSource += R"(
+    float increment(float value) { return value + 1.0; }
+}
+)";
+    auto objectMethodLookupDefinition = parser.parse(objectMethodLookupSource);
+    ASSERT_TRUE(objectMethodLookupDefinition.diagnostics.empty());
+    ArtifactScriptInstance objectMethodLookupInstance(std::move(objectMethodLookupDefinition));
+    ASSERT_TRUE(objectMethodLookupInstance.invokeHook(ArtifactScriptHook::OnCreate))
+        << objectMethodLookupInstance.lastError();
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(objectMethodLookupInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << objectMethodLookupInstance.lastError();
+    }
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            ASSERT_TRUE(objectMethodLookupInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+                << objectMethodLookupInstance.lastError();
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript object method lookup(32 methods, 16 calls) benchmark: "
+              << totalMicroseconds / (repetitions * iterations)
+              << " us/hook (" << iterations * repetitions << " calls)\n";
+    EXPECT_DOUBLE_EQ(std::get<double>(objectMethodLookupInstance.fields().at("total")),
+                     (100.0 + repetitions * iterations) * 16.0);
     const std::vector<ArtifactScriptValue> noArguments;
     constexpr int allocationIterations = 2000;
     const auto countCalls = [&](auto&& call) {
@@ -656,6 +702,7 @@ class BenchmarkMethodLookup : ArtifactBehaviour
     const auto wideLocalsAllocationRate = countAllocations(wideLocalsInstance);
     const auto methodLookupAllocationRate = countAllocations(methodLookupInstance);
     const auto fiveArgumentAllocationRate = countAllocations(fiveArgumentInstance);
+    const auto objectMethodLookupAllocationRate = countAllocations(objectMethodLookupInstance);
     const auto expectNoSteadyStateAllocations = [](const auto& rate) {
         EXPECT_DOUBLE_EQ(rate.first, 0.0);
         EXPECT_DOUBLE_EQ(rate.second, 0.0);
@@ -669,9 +716,13 @@ class BenchmarkMethodLookup : ArtifactBehaviour
     expectNoSteadyStateAllocations(wideLocalsAllocationRate);
     expectNoSteadyStateAllocations(methodLookupAllocationRate);
     expectNoSteadyStateAllocations(fiveArgumentAllocationRate);
+    expectNoSteadyStateAllocations(objectMethodLookupAllocationRate);
     std::cout << "ArtifactScript allocations/hook (5-arg method): "
               << fiveArgumentAllocationRate.first << ", "
               << fiveArgumentAllocationRate.second << " bytes\n";
+    std::cout << "ArtifactScript allocations/hook (object method): "
+              << objectMethodLookupAllocationRate.first << ", "
+              << objectMethodLookupAllocationRate.second << " bytes\n";
     expectNoSteadyStateAllocations(stringForeachAllocationRate);
     expectNoSteadyStateAllocations(emptyForeachAllocationRate);
     expectNoSteadyStateAllocations(oneLongStringAllocationRate);

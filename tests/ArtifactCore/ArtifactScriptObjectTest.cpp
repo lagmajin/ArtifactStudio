@@ -95,6 +95,73 @@ class Point : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(fields.at("total")), 8.0);
 }
 
+TEST(ArtifactScriptObjectTest, FailedMethodRollsBackInstanceFieldWrites) {
+    auto definition = parseOk(R"(
+class Use : ArtifactBehaviour
+{
+    void OnCreate() { counter = new Counter(); }
+    void OnUpdate() { counter.fail(); }
+}
+class Counter : ArtifactBehaviour
+{
+    public float value = 3.0;
+    void fail()
+    {
+        this.value = 9.0;
+        var invalid = 1.0 / 0.0;
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate)) << instance.lastError();
+    EXPECT_FALSE(instance.invokeHook(ArtifactScriptHook::OnUpdate));
+    EXPECT_NE(instance.lastError().find("div0"), std::string::npos);
+
+    const auto counter = std::get<ArtifactScriptObjectInstancePtr>(
+        instance.fields().at("counter"));
+    ASSERT_TRUE(counter);
+    EXPECT_DOUBLE_EQ(std::get<double>(counter->fields.at("value")), 3.0);
+}
+
+TEST(ArtifactScriptObjectTest, SuccessfulMethodCommitsFieldsBeyondInlineOverlay) {
+    auto definition = parseOk(R"(
+class Use : ArtifactBehaviour
+{
+    public float total = 0.0;
+    void OnUpdate()
+    {
+        var counter = new Counter();
+        counter.update();
+        total = counter.sum();
+    }
+}
+class Counter : ArtifactBehaviour
+{
+    public float a = 0.0;
+    public float b = 0.0;
+    public float c = 0.0;
+    public float d = 0.0;
+    public float e = 0.0;
+    void update()
+    {
+        this.a = 1.0;
+        this.b = 2.0;
+        this.c = 3.0;
+        this.d = 4.0;
+        this.e = 5.0;
+    }
+    float sum() { return this.a + this.b + this.c + this.d + this.e; }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 15.0);
+}
+
 TEST(ArtifactScriptObjectTest, InheritanceAndIsOperator) {
     auto definition = parseOk(R"(
 class Use : ArtifactBehaviour
@@ -132,6 +199,38 @@ class Child : Base
     EXPECT_DOUBLE_EQ(std::get<double>(fields.at("a")), 12.0);
     EXPECT_DOUBLE_EQ(std::get<double>(fields.at("b")), 1.0);
     EXPECT_TRUE(std::get<bool>(fields.at("flag")));
+}
+
+TEST(ArtifactScriptObjectTest, ObjectMethodCallSiteCacheTracksRuntimeClass) {
+    auto definition = parseOk(R"(
+class Use : ArtifactBehaviour
+{
+    public float total = 0.0;
+    void OnUpdate()
+    {
+        var baseItem = new Base();
+        var childItem = new Child();
+        for (int index = 0; index < 4; index += 1) {
+            if (index < 2) { target = childItem; }
+            else { target = baseItem; }
+            total = total + target.who();
+        }
+    }
+}
+class Base : ArtifactBehaviour
+{
+    float who() { return 1.0; }
+}
+class Child : Base
+{
+    float who() { return 2.0; }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 6.0);
 }
 
 TEST(ArtifactScriptObjectTest, MultiClassRegistry) {
