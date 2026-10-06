@@ -46,6 +46,11 @@ class Use : ArtifactBehaviour
     ASSERT_TRUE(definition.diagnostics.empty());
 
     ArtifactScriptHost& host = ArtifactScriptHost::global();
+    host.registerFunction("getLayer",
+        [](std::span<const ArtifactScriptValue> args) -> ArtifactScriptValue {
+            if (args.size() != 1 || !std::holds_alternative<std::string>(args[0])) return {};
+            return ArtifactScriptRef{std::get<std::string>(args[0])};
+        });
     host.registerMethod("ObjectRef", "addLayer",
         [&host](const ArtifactScriptValue& self,
                 std::span<const ArtifactScriptValue> args) -> ArtifactScriptValue {
@@ -61,7 +66,8 @@ class Use : ArtifactBehaviour
     ArtifactScriptEvaluator evaluator;
     ArtifactScriptSerializedFields fields;
     fields["created"] = 0.0;
-    EXPECT_TRUE(evaluator.executeMethod(definition, "OnUpdate", {}, fields));
+    const auto result = evaluator.executeMethod(definition, "OnUpdate", {}, fields);
+    EXPECT_TRUE(std::holds_alternative<std::monostate>(result));
     EXPECT_FALSE(evaluator.hasError()) << evaluator.getLastError();
     EXPECT_DOUBLE_EQ(std::get<double>(fields.at("created")), 1.0);
 }
@@ -79,8 +85,16 @@ class Use : ArtifactBehaviour
 )");
     ASSERT_TRUE(definition.diagnostics.empty());
 
+    ArtifactScriptHost::global().registerFunction("getLayer",
+        [](std::span<const ArtifactScriptValue> args) -> ArtifactScriptValue {
+            if (args.size() != 1 || !std::holds_alternative<std::string>(args[0])) return {};
+            return ArtifactScriptRef{std::get<std::string>(args[0])};
+        });
+
     ArtifactScriptEvaluator evaluator;
     ArtifactScriptSerializedFields fields;
-    EXPECT_FALSE(evaluator.executeMethod(definition, "OnUpdate", {}, fields));
+    const auto result = evaluator.executeMethod(definition, "OnUpdate", {}, fields);
+    EXPECT_TRUE(std::holds_alternative<std::monostate>(result));
+    ASSERT_TRUE(evaluator.hasError());
     EXPECT_NE(evaluator.getLastError().find("unknown method"), std::string::npos);
 }

@@ -30,6 +30,7 @@
 - `tests/ui_visual/test_ui_visual_loop.py` にfake capture processを使ったrunnerのend-to-end unittestを用意した。compare-only成功、同じoutput prefixで連続実行した際の成果物分離、region gateを含む自動再撮影後の成功、Enter後の再撮影、`q`での停止、iteration上限での失敗と診断画像保持、capture exit code伝播、PNG未生成時の失敗、`{actual}` 欠落の早期拒否に加え、`{iteration}` 展開とenvironment manifestの比較レポート伝播を検査する（runner 11 cases）。fixture・出力・スクリプトのパスに空白を含め、Windowsの引数分割も通す。実行コマンドは `python -m unittest discover -s tests/ui_visual -v`。
 - 上記コマンドを Windows / Python 3.14.2 / Pillow の環境で再実行し、比較器6ケースとrunner11ケースの計17ケースが成功した。Timeline/Render Managerのcapture fixtureやbaselineを使った実UI回帰ではない。
 - ArtifactScript の既存 `ArtifactCoreArtifactScriptTest` が22件中18件で失敗していた状態を最新ソースで再ビルドして調査した。型付きメソッド引数が `ArtifactScriptMethod::parameters` に登録されず、引数参照とネストしたユーザーメソッド呼び出しが失敗していた。また、初期値なしフィールド宣言の末尾 `;` がフィールド名に残り、配列既定値と `foreach` の収集元フィールドを解決できなかった。パーサを修正し、短絡評価テストも先頭メソッドの直呼び出しから `OnUpdate` の名前解決実行へ直した。ArtifactScript 22件とLayerScriptComponent 2件を Windows / Debug でビルド・CTest実行し、両suiteが成功した。ビルドには `VSLANG=1033` と Windows SDK `rc.exe` のPATH、実行にはvcpkg/VS debug runtimeのPATHが必要だった。
+- Object／Host contract suiteも実行対象に加え、コンパイル不能だった `executeMethod()` の真偽値assertと、root class／Host callbackの不足したfixtureを修正した。テストで `this.field` がメソッド実行用の一時fields mapではなく元インスタンスへ書かれて破棄される不具合、および式中の `this.field` をパーサが消費できない不具合を発見・修正した。ArtifactScript、LayerScriptComponent、ArtifactScriptObject、ArtifactScriptHostMethod、ArtifactScriptHostApi の5 suiteを再ビルド・CTest実行し、計33ケースが成功した。
 - Pythonビジュアルsuiteは17/17成功。Artifact.exe、UI実撮影、GPU/render parity、全Core suiteは今回の検証範囲外。
 
 ## 目的
