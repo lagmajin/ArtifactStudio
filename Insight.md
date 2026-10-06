@@ -1,5 +1,25 @@
 **最終更新:** 2026-10-05
 
+## 2026-10-05 — 効果の「②型（登録済みで無言の素通し）」機械検査を完了、144/145 が健全
+
+- **関連:** `Artifact/src/Service/ArtifactEffectService.cppm`（`createEffect()` が生成する 145 個の concrete 型）、`Artifact/include/Effects/Render/PBRMaterialEffect.ixx`、`Artifact/src/Widgets/InspectorEffectCatalog.cppm:46`。
+- **着手の経緯:** 2026-09-30 のエントリが「① CompileEnum misspelling / ② Impl 未登録で apply の素通し / ③ UI 未登録」の3分類を実例で確定し、次回の検査手順として「`createEffect` が生成しうる全 effect 型に対し `setCPUImpl|setGPUImpl` の呼出が1つ以上あるか」を grep で機械検査すると提案していた。本日これを実行した。
+- **検査方法（実測・再現可能）:** `createEffect()` 内の `std::make_unique<T>` から型名を抽出し（抽象基底 `ArtifactAbstractEffect` と Core-creative adapter `ArtifactCoreCreativeEffect` は除外）、`Artifact/include`・`Artifact/src`・`ArtifactCore/include`・`ArtifactCore/src` の全 2768 ファイルに対して **その型名を mention する全ファイル**を対象に `setCPUImpl` / `setGPUImpl` / `apply()` override / `appendGpuPointwiseNodes` の有無を集計した。教訓として記録する価値がある点: 効果の宣言（`.ixx`）と実際の登録（ctor 内の `setCPUImpl`）は別ディレクトリに分離して存在することがあるため、宣言ファイルとその sibling だけを見ると誤検出になる。初回実行で 94 件を誤検出したのはこのため。
+- **結果:** 145 型中、CPU+GPU 両実装登録 94 / CPU のみ 48（GPU 未登録は正常） / **②型（`setCPUImpl`・`setGPUImpl`・`apply()` のいずれもなく、無言で `dst = src.DeepCopy()` の素通しになる）の残存は 0**。9/30 の `OpticsCompensationEffect` は既に修正済みで、同種の残存 defect は無い。**既存テストでは捕まりにくいという 9/30 の懸念は、在庫としては解消された**。
+- **残る1件の性質（②型ではない別カテゴリ）:** `PBRMaterialEffect`（`Artifact/include/Effects/Render/PBRMaterialEffect.ixx:48-281`）は②型ではない。ctor で `setPipelineStage(EffectPipelineStage::MaterialRender)` するのみで、`setCPUImpl`/`setGPUImpl` も `apply()` override も持たない **パラメータキャリア型**。15項目の material パラメータを保持し `toMaterial()` で `ArtifactCore::Material` を構築するが、**`toMaterial()` の呼び出し元はリポジトリ全体でゼロ**（grep で `Artifact/src` にヒットなし。ヒットは `Artifact_dev_review/` の旧 fork とドキュメントのみ）。UI 登録は揃っている（`ArtifactEffectService.cppm:747` の `createEffect("pbr_material")`、`:1297` の `availableEffects()` push、`InspectorEffectCatalog.cppm:46` のカタログエントリ）。したがって現状は「Inspector から追加でき、15項目のパラメータを編集できるが、レンダラーはどこもそれを読みない」状態。**本件の真の意味は「3D レイヤーの材質適用経路が未接続」である**（UI 側の箱は完成済みなので、本効果クラスを触っても結果は出ない）。3D は開発優先方針上低位のため、現時点では着手しない判断が妥当。
+- **未検証:** 本検査はソース静的な grep であり、コンパイル・実行はしていない（AGENTS.md によりビルド禁止）。`setCPUImpl` は呼んでいるが引数の中身が空のような「登録はあるが中身が空」の変種は、本検査では検出できない。検出範囲は「登録が1本も無い」ケースに限る。
+- **次に確認すべきこと:** 将来①型（CompileEnum 誤り）や③型（UI 未登録）を機械検査する場合は、本検査の走査方法（型名を mention する全ファイルを横断）を再利用する価値がある。PBR を着手するなら、先に「3D レイヤーの材質適用経路が存在するか」を別途確認する。
+
+## 2026-10-05 — シェイプレイヤーの全プロパティが Inspector に到達できない
+
+- **関連:** `Artifact/src/Widgets/ArtifactPropertyPresentation.cppm:26-63`（`propertyPresentationProfile()`）、`Artifact/src/Layer/ArtifactShapeLayer.cppm:5669-6400`（`getLayerPropertyGroups()`）、`Artifact/src/Widgets/ArtifactPropertyWidgetShared.cppm:403-429` / `:431-462`。
+- **確認できた事実（実コード読みで確定）:** `propertyPresentationProfile()` の分岐は Text（`:28`）/ `solid.color` 所持（`:33`）/ `image.sourcePath` 所持（`:41`）/ `geometry.width` かつ `geometry.depth` 無し（`:55`）/ `basic` フォールバック（`:61`）の5系統のみで、`shape` プロファイルは存在しない。`ArtifactShapeLayer` は `solid.color` / `image.sourcePath` / `geometry.width` をいずれも持たない（プロパティは全て `shape.*` 名で、`ArtifactShapeLayer.cppm:5685` 以降）。したがって必ず `basic` に落ち、許可リストは `{"Initial","Transform"}` だけになる。その他のグループ名は `Shape`（`:5683`）/ `Appearance`（`:5721`）/ `Shape Parameters`（`:5977`）/ `Contents`（`:6056`）/ `Shape Stack`（`:6220`）/ `Operator %1 (%2)`（`:6259`）で、全て `ArtifactPropertyWidget.cppm:2542-2545` の `presentationAllowsGroup()` 判定で `continue` スキップされる。
+- **失われているもの（実測）:** Stroke の taper 3 項目（`shape.strokeTaperStart/End`・`shape.taperEase`, `:5841-5863`）、wave 4 項目（`:5870-5897`）、stroke gradient 3 項目（`:5903-5930`）、`shape.dashOffset`（`:5964`）、shape parameters（`shape.cornerRadius` / `starPoints` / `starInnerRadius` / `polygonSides`, `:5979-6036`）、Contents の複数図形合成と個別トランスフォーム（`:6056-6217`）、Operator 群のパラメータ（`:6259` 以降、Repeater は 9 項目）。幅と高さのみツールバー経由で変更可能。`ArtifactPropertyWidgetShared.cppm:403-429`（Appearance のグラデーションフィルタ）と `:431-462`（Contents の `shape.content.N.fillType` フィルタ）は Shape 専用に書かれた完成コードだが到達不能の死にコードになっている。
+- **修正方針と唯一の継ぎ目:** `ArtifactPropertyPresentation.cppm` に `shape` プロファイルを追加し、`Artifact.Layer.Shape` の import を1行足すのが基本形。**ただし Operator グループは `setName("Operator %1 (%2)")` と動的命名のため、許可リストの完全一致（`presentationAllowsGroup()` は `QStringList::contains()`）では書けない。** 第三次案として「許可リストに無いグループでも接頭辞一致で通す」例外ルールを1つ追加する案が有力で、既存の Text Animator 例外（`shouldHideTimelinePropertyGroup` の `PropertyGroup` 版オーバーロイド、`text.animators.<index>.*` のパス判定）も表示名一致ではなくパス判定で実装されているため、同じ形式に寄せるのが整合的。
+- **影響範囲:** Inspector のみ。タイムライン左ペインは `computeTimelineHiddenLayerPropertyGroup`（`ArtifactAbstractLayerUtilities.cppm:99-102`）が `Transform` 以外を隠す別経路なので変更なし。AGENTS.md の「タイムライン左ペインは Transform のみ」規制には抵触しない。
+- **未検証:** 本日ビルド・実機確認はしていない（AGENTS.md によりビルド禁止）。上記はソース読解に基づく。GUI 上での実際の見え方（グループが展開可能か、Operator の行数増による可読性）は未確認。
+- **次に確認すべきこと:** ビルド許可後に (1) シェイレイヤーを選択して6グループが現れること、(2) Operator が動的名前でも通ること、(3) Contents のグラデーションフィルタが実際に効くこと、(4) 各プロパティの Undo/Redo と保存再読込が成立すること、を実機で確認する。
+
 ## 2026-10-05 — キーの仮状態は表示側だけに持たせない
 
 - **関連:** `Property.Abstract::KeyFrame`、`PropertySerializationBridge`、Timeline snapshot/clipboard、layer/text/deformationの独自保存、gizmo/Undoのキー復元。
@@ -4151,3 +4171,45 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実:** 通常の画像コピーも `Impl` の copy constructor で `cv::Mat::clone()` を呼ぶ。Glitch / Halftone / Old TV の変更は source snapshot と `SetCpuImage` の2回の画像複製であり、元の4回（source snapshot、出力 DeepCopy、一時 wrapper 構築、wrapper 代入）より2回減る。shallow snapshot / 1回というコメントと文書を訂正した。重複領域に対する `sourceSnapshot.emplace(sourceImage)` も独立コピーになるため、追加の DeepCopy は不要。
 - **価値・懸念:** `auto` や move の表記だけでコピー費用・alias の安全性を判断せず、所有型の実装まで確認する必要がある。既存画像 move の1x1再初期化確保も残る。
 - **次に確認すべきこと（未検証）:** 許可後のビルド、CPU/GPU parity、履歴保持、ソフトキーのUndo/保存、追加マスク初回確保の計測。取り込みの個別判断は `docs/analysis/REMOTE_BRANCH_INTEGRATION_REVIEW_2026-10-05.md` に記録。
+
+# 2026-10-05 — オフライン GPU readback は同期版固定で、非同期 3-slot ring が未接続
+
+- **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm`（`readbackToImageAsync` `:2679-2940`、リング `:584-589`）、`Artifact/src/Render/ArtifactRenderQueueService.cppm` `:6967/6990/7002/7019`（同期版直呼び）。`temp/offline_render_performance_2026-10-05.md` の第1便。
+- **確認できた事実:** オフライン GPU フレームは同期 readback（CopyTexture→EnqueueSignal→Flush→`fence->Wait`、`:2239-2242` / `:2452`）で毎フレーム最低 1 回の CPU ハードストールが入る。3 スロットの非同期リングと QtConcurrent 消化は実装済みだが、呼び出し元はライブビュー系のみ。単一 GPU オフラインは `numWorkers = 1` の意図的直列化（`ArtifactRenderQueueService.cppm:7142-7147`）。
+- **価値または懸念（未検証）:** 非同期版への差し替えで fence 待ちをフレーム並列の背後に隠せ、HOT_PATH_RULES の staging ring 契約と整合。readback 完了順の前倒れに世代照合が必要。Deep AOV は最大 9＋1 回の同期 readback 反復で、非同期化以上にバッチ化の調査が望ましい。
+- **次に確認すべきこと:** AOV 有効時のフレーム内 readback 回数と `flushCount_ / flushContextTimeUs_` によるストール実割合の確認。
+
+# 2026-10-05 — GPUTextureCacheManager の upload gate がオフライン経路で beginFrame 未呼び出しの疑い
+
+- **関連:** `Artifact/src/Render/GPUTextureCacheManager.cppm:243-247（beginFrame で解除）, 811-816（gate）, 905-934（stats）`、フォールバック経路 `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm:1743-1773`。
+- **確認できた事実（静的）:** `processPendingUploadsLocked` は one-shot フラグで早退し、フラグを解除する `beginFrame()` の呼び出し元はライブビューのみ。オフライン Render Queue は呼ばないため、ジョブ初回の 1 回しか upload が捌かれず、以降は AOV binding invalid のまま直接スプライト upload フォールバックに偏向する可能性がある。
+- **価値または懸念（未確認）:** 事実なら、オフライン GPU のテクスチャ更新が毎フレーム「即時生成＋直接 upload」に落ちて GPU パスの性能を食んでいる。既存 stats（hit/miss/pendingUploadCount）で静的に判別できる「半分は実装済み」型の課題。
+- **次に確認すべきこと:** stats の実測と、必要ならオフライン側への upload 消化ループの接続。
+
+# 2026-10-05 — 静的レイヤー GPU キャッシュが process-global QHash でロック無し
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm:312-316, 1688-1700`。
+- **確認できた事実（静的）:** `drawLayerForCompositionView` が使う `staticLayerGpuCache()` はロック無しの `static QHash`。マルチ GPU ワーカーは `renderSingleFrameNoLock` をロック通過せずに直呼びするため、発動条件（`usesStaticGpuCache`）が満たされると並行アクセスになり得る。
+- **価値または懸念（未確認）:** データ競合の正確性リスク。GPU 経路の並列化（マルチ GPU / 後続の MFR 拡張）を広げる前の前提条件。
+- **次に確認すべきこと:** 発動条件の特定と、renderer-per-worker への局所化要否の判断。
+
+# 2026-10-05 — `renderSingleFrameImpl` と `Impl::frameBuffer` がデッドコード疑い
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm:4421, 2410-2427, 2483`。
+- **確認できた事実（静的）:** 呼び出し元がファイル内に見つからず、Impl の private 成員のため外部接続もない（`frameBuffer` は FFmpeg エンコーダ無効化に伴い実質未使用）。
+- **価値または懸念:** 保守負担のみ。本レポートの改善候補とは独立。プリプロ条件込みで最終確認して削除または接続の判断材料にする。
+- **次に確認すべきこと:** 条件コンパイルの有無の最終確認。
+
+## 2026-10-06 — Python スクリプトの ARTIFACT 環境参照
+
+- **関連:** `Artifact/src/Export/Python/ArtifactPythonAPI.cppm` の `registerUtilityAPI()`。
+- **確認できた事実・対応:** embedded Python 用に `artifact.environment.get(name, default)` / `has(name)` / `names()` を追加し、`ARTIFACT_*` 環境変数だけを読み取り専用で公開した。一般のプロセス環境には資格情報などが含まれる可能性があるため、アプリ固有 prefix で境界を設けた。値は実行時に読むため、プロセス環境に対する既存の動的な参照性を保つ。`ArtifactStartup.json` の設定値は環境変数とは別系統のためこの API には含めない。
+- **価値または懸念（未検証）:** アプリの Python menu / hook / CLI script から診断用 `ARTIFACT_*` 値を同じ API で確認できる。外部 Python fallback はこの in-process API を持たず、実行検証もしていない。
+- **次に確認すべきこと:** ビルド許可後、未設定・設定済み・空文字・既定値・非 `ARTIFACT_` 名と Windows の Unicode 値を GUI / CLI の embedded Python で確認する。
+
+## 2026-10-06 — ArtifactScript コンポーネントの環境参照
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptHost`。
+- **確認できた事実・対応:** レイヤーの Script component は Python ではなく `ArtifactScriptHost::global()` を通る独自ランタイムで、環境参照関数が未登録だった。既存の `EnvironmentVariableManager` を通じて `getEnv(name[, default])` / `hasEnv(name)` を登録し、Python API と同じ `ARTIFACT_*` 名だけを読み取り可能にした。
+- **価値または懸念（未検証）:** Python menu scripts と Layer Script component scripts の両方でアプリ固有の環境変数を参照できる。ArtifactScript の host は process-wide global なので、この関数は同ランタイムを使う全スクリプトから利用可能になる。実行・ビルドは未確認。
+- **次に確認すべきこと:** ビルド許可後、Layer Script component の hook 内で既知の `ARTIFACT_*` 値、未設定値の default、一般環境名の拒否を確認する。

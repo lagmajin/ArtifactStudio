@@ -1,6 +1,6 @@
 # M-TXT-ANIM-1: Text Animator の追加ワークフロー仕上げ（AE 風個別追加・Timeline 露出）
 
-**最終更新:** 2026-09-26
+**最終更新:** 2026-10-06
 
 **ステータス:** In Progress（P1 の個別プロパティ追加と P2 の Timeline 左ペイン露出は 2026-09-26 に実装・静的確認済み。ビルド・実機は未確認）
 
@@ -49,9 +49,9 @@
 
 - Timeline 左ペイン右クリックの `Text Animator` サブメニュー、または Inspector の Animator count エディタに、個別プロパティ（Position / Scale / Rotation / Opacity / Fill Color / Stroke Color / Tracking / Skew / Blur）を1プロパティ＝1 Animator として追加する項目を追加する。
 - 個別追加は `ArtifactTextLayer::addAnimatorProperty()` に集約し、構造変更の Undo は完全な Animator stack snapshot を扱う `SetTextAnimatorStackCommand` へ畳む。
-- 追加直後は Range Selector（Start/End/Offset/Shape）を既定値のまま残し、対象プロパティのみ「変化量あり」の初期値にする。
-- **実装メモ（2026-09-26）:** `ArtifactTextLayer::addAnimatorProperty()` を追加し、Position / Scale / Rotation / Opacity / Fill Color / Stroke Color / Tracking / Skew / Blur を1項目＝1 Animatorとして末尾へ追加する。Inspector の `+` メニューと Timeline 左ペイン右クリックの `Text Animator > Animate` の両方から同じIDへ接続した。構造変更は汎用プロパティ値Undoではなく、既存の `SetTextAnimatorStackCommand` に before/after snapshot を渡して1 Undoへ畳む。Inspectorは複数対象を1 Macro Undoへまとめ、Default／Preset追加、末尾Animator削除、既存の`Preset`列によるstack置換／Clearも同じ経路を使う。これにより削除・置換前のAnimator名、Selector、プロパティ値、キーフレームをUndoで復元する。TimelineのPreset置換／Clearに加え、Composition Viewport右クリックのDefault Animator追加もmutation guard・完全スタックUndo・`LayerChangedEvent`を通る経路へ統一した。`SetTextAnimatorStackCommand` の Undo/Redo 本体も `text.animators` の既存プロパティ変更通知を発行し、レイヤーdirty・再描画・Timeline更新を復元後に再評価させる。単一レイヤー操作は既存の `layer.stack` 共同編集プロトコルへ載る。複数選択Macroは全対象のmutation guardを通すが、現在の共同編集batchがstack子コマンドを未対応のため共同編集セッション中はpreflightで安全に拒否される。新規 signal/slot は追加していない。
-- 初期変化量は Position Y=72、Scale=0、Rotation=35°、Opacity=0、Tracking=24、Skew=20°、Blur=10。Fill Color は赤の color override、Stroke Color は赤の stroke override と幅2を有効化する。Range Selector は既存既定値を維持する。
+- 追加直後は Range Selector（Start/End/Offset/Shape）を既定値のまま残し、対象プロパティは neutral 値で初期化する。効果はユーザーが値を変更するか、キーフレームを設定して作る。
+- **実装メモ（2026-09-26）:** `ArtifactTextLayer::addAnimatorProperty()` を追加し、Position / Scale / Rotation / Opacity / Fill Color / Stroke Color / Tracking / Skew / Blur を1項目＝1 Animatorとして末尾へ追加する。Inspector の `+` メニューと Timeline 左ペイン右クリックの `Text Animator > Animate` の両方から同じIDへ接続した。構造変更は汎用プロパティ値Undoではなく、既存の `SetTextAnimatorStackCommand` に before/after snapshot を渡して1 Undoへ畳む。Inspectorは複数対象を1 Macro Undoへまとめ、Default／Preset追加、末尾Animator削除、Preset stack置換／Clearも同じ経路を使う。これにより削除・置換前のAnimator名、Selector、プロパティ値、キーフレームをUndoで復元する。TimelineのPreset置換／Clearに加え、Composition Viewport右クリックのDefault Animator追加もmutation guard・完全スタックUndo・`LayerChangedEvent`を通る経路へ統一した。`SetTextAnimatorStackCommand` の Undo/Redo 本体も `text.animators` の既存プロパティ変更通知を発行し、レイヤーdirty・再描画・Timeline更新を復元後に再評価させる。単一レイヤー操作は既存の `layer.stack` 共同編集プロトコルへ載る。複数選択Macroは全対象のmutation guardを通すが、現在の共同編集batchがstack子コマンドを未対応のため共同編集セッション中はpreflightで安全に拒否される。新規 signal/slot は追加していない。
+- **UX調整（2026-10-06）:** 単独プロパティ追加の初期値を neutral に統一した。Position / Rotation / Tracking / Skew / Blur は 0、Scale / Opacity は 1、Fill Color は現在の文字色、Stroke Color は現在の線色かつ幅 0 とし、追加だけでテキストの見た目が変わらないようにした。通常の Inspector にあった Preset 選択行を外し、プリセットは追加メニュー内の `Presets` に集約した。Inspector と Timeline のメニューでは空の Animator と個別プロパティ追加を先に示し、プリセット適用はどちらも既存スタックへ追加する動作に統一した。静的差分確認のみ。実機確認は未実施。
 - Timelineのプロパティ表示名はcamelCaseを分割し、`positionX` / `fillColor` / `strokeColor` を `Position X` / `Fill Color` / `Stroke Color` と表示する。
 
 ### P2 — Timeline 左ペインへの Animator グループ露出

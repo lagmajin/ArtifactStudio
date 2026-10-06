@@ -1,6 +1,6 @@
 # Widget Map
 
-**最終更新:** 2026-09-21
+**最終更新:** 2026-10-06
 
 このファイルは、Artifact の主要ウィジェットの表示名、コード上の名前、役割を AI と人間の両方がすぐ確認できるようにするための一覧です。
 
@@ -50,6 +50,11 @@
   画像 / 動画 / 音声 / 3D model / source-final-compare を横断する閲覧 surface。比較・履歴・inspection はここで扱うが、composition 編集本体ではない。
 - `ArtifactCompositionEditor`
   コンポジションビューア本体。再生、停止、ズーム、フィットなどを持つ。
+
+## Color / Image Inspection
+
+- `ArtifactColorSciencePanel`
+  Color Science と live Scopes の統合面。スコープの最新プレビューからカーソル位置の画素値を表示し、Scopes のコンテキストメニューから選択したフレームの 2D 空間周波数を明示的に解析する。
 
 ## AI / Assistant
 
