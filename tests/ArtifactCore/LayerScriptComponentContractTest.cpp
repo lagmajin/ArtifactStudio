@@ -551,6 +551,24 @@ class BenchmarkWideLocals : ArtifactBehaviour
     const auto wideAllocationRate = countAllocations(wideFieldsInstance);
     const auto largeForeachAllocationRate = countAllocations(largeForeachInstance);
     const auto stringForeachAllocationRate = countAllocations(stringForeachInstance);
+    const auto stringValues = std::get<ArtifactScriptArrayPtr>(
+        stringForeachInstance.fields().at("values"));
+    ASSERT_TRUE(stringValues);
+    stringValues->values.clear();
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(stringForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate));
+    }
+    const auto emptyForeachAllocationRate = countAllocations(stringForeachInstance);
+    stringValues->values.emplace_back(std::string("a long string value for the one element case"));
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(stringForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate));
+    }
+    const auto oneLongStringAllocationRate = countAllocations(stringForeachInstance);
+    stringValues->values[0] = "short";
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(stringForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate));
+    }
+    const auto oneShortStringAllocationRate = countAllocations(stringForeachInstance);
     const auto wideLocalsAllocationRate = countAllocations(wideLocalsInstance);
     const auto expectNoSteadyStateAllocations = [](const auto& rate) {
         EXPECT_DOUBLE_EQ(rate.first, 0.0);
@@ -563,8 +581,10 @@ class BenchmarkWideLocals : ArtifactBehaviour
     expectNoSteadyStateAllocations(wideAllocationRate);
     expectNoSteadyStateAllocations(largeForeachAllocationRate);
     expectNoSteadyStateAllocations(wideLocalsAllocationRate);
-    EXPECT_LE(stringForeachAllocationRate.first, 3.0);
-    EXPECT_LE(stringForeachAllocationRate.second, 96.0);
+    expectNoSteadyStateAllocations(stringForeachAllocationRate);
+    expectNoSteadyStateAllocations(emptyForeachAllocationRate);
+    expectNoSteadyStateAllocations(oneLongStringAllocationRate);
+    expectNoSteadyStateAllocations(oneShortStringAllocationRate);
     std::cout << "ArtifactScript allocations/hook (count, bytes): no-op="
               << noOpAllocationRate.first << ", " << noOpAllocationRate.second
               << "; simple="
@@ -579,6 +599,12 @@ class BenchmarkWideLocals : ArtifactBehaviour
               << stringForeachAllocationRate.first << ", "
               << stringForeachAllocationRate.second << "; wide-locals="
               << wideLocalsAllocationRate.first << ", "
-              << wideLocalsAllocationRate.second << '\n';
+              << wideLocalsAllocationRate.second << "; string-empty="
+              << emptyForeachAllocationRate.first << ", "
+              << emptyForeachAllocationRate.second << "; string-one-long="
+              << oneLongStringAllocationRate.first << ", "
+              << oneLongStringAllocationRate.second << "; string-one-short="
+              << oneShortStringAllocationRate.first << ", "
+              << oneShortStringAllocationRate.second << '\n';
 #endif
 }
