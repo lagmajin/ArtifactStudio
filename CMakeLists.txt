@@ -715,6 +715,12 @@ set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 # opt-in consistently for local targets, including C++ module dependency scans.
 add_compile_definitions(GLM_ENABLE_EXPERIMENTAL)
 add_subdirectory(ArtifactCore)
+# Artifact's standalone text GPU runtimes still link the historical
+# ArtifactCoreTextRuntime name. Keep that dependency mapped to the current
+# ArtifactCoreText module owner at the parent integration boundary.
+if(TARGET ArtifactCoreText AND NOT TARGET ArtifactCoreTextRuntime)
+    add_library(ArtifactCoreTextRuntime ALIAS ArtifactCoreText)
+endif()
 add_subdirectory(ArtifactWidgets)
 add_subdirectory(Artifact)
 add_subdirectory(ArtifactRenderer)

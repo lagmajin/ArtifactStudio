@@ -84,3 +84,60 @@ TEST(KeyframeSplineTest, BezierSymmetricMidpoint) {
     auto interp = makeKeys(InterpolationType::Bezier);
     EXPECT_NEAR(interp.evaluate(0.5), 5.0f, 1e-3f);
 }
+
+TEST(KeyframeSplineTest, EmptyTrackReturnsDefaultValue)
+{
+    KeyframeInterpolator<float> interp;
+
+    EXPECT_TRUE(interp.isEmpty());
+    EXPECT_EQ(interp.size(), 0u);
+    EXPECT_FLOAT_EQ(interp.evaluate(12.0), 0.0f);
+    EXPECT_FLOAT_EQ(interp.speedAt(12.0), 0.0f);
+}
+
+TEST(KeyframeSplineTest, InsertionOrderIsNormalizedAndOutOfRangeTimeClampsToEnds)
+{
+    KeyframeInterpolator<float> interp;
+    typename KeyframeInterpolator<float>::KeyframeEntry later;
+    later.time = 8.0;
+    later.value = 80.0f;
+    typename KeyframeInterpolator<float>::KeyframeEntry earlier;
+    earlier.time = 2.0;
+    earlier.value = 20.0f;
+
+    interp.addKeyframe(later);
+    interp.addKeyframe(earlier);
+
+    const auto keys = interp.keyframes();
+    ASSERT_EQ(keys.size(), 2u);
+    EXPECT_DOUBLE_EQ(keys[0].time, 2.0);
+    EXPECT_DOUBLE_EQ(keys[1].time, 8.0);
+    EXPECT_FLOAT_EQ(interp.evaluate(-100.0), 20.0f);
+    EXPECT_FLOAT_EQ(interp.evaluate(100.0), 80.0f);
+}
+
+TEST(KeyframeSplineTest, ConstantSegmentHoldsUntilTheNextExactKey)
+{
+    KeyframeInterpolator<float> interp;
+    typename KeyframeInterpolator<float>::KeyframeEntry first;
+    first.time = 1.0;
+    first.value = 3.0f;
+    first.type = InterpolationType::Constant;
+    typename KeyframeInterpolator<float>::KeyframeEntry second;
+    second.time = 4.0;
+    second.value = 9.0f;
+    second.type = InterpolationType::Linear;
+    interp.addKeyframe(first);
+    interp.addKeyframe(second);
+
+    EXPECT_FLOAT_EQ(interp.evaluate(1.0), 3.0f);
+    EXPECT_FLOAT_EQ(interp.evaluate(2.5), 3.0f);
+    EXPECT_FLOAT_EQ(interp.evaluate(4.0), 9.0f);
+}
+
+TEST(KeyframeSplineTest, LinearSpeedUsesFrameTimeUnits)
+{
+    auto interp = makeKeys(InterpolationType::Linear);
+
+    EXPECT_NEAR(interp.speedAt(1.25), 10.0f, 0.02f);
+}

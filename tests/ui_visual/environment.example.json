@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "platform": {
+    "os": "Windows",
+    "version": "replace-with-runner-value"
+  },
+  "display": {
+    "screen_size_px": [1920, 1080],
+    "device_pixel_ratio": 1.0,
+    "color_profile": "sRGB"
+  },
+  "application": {
+    "qt_version": "replace-with-runner-value",
+    "theme": "replace-with-theme-token",
+    "locale": "en-US",
+    "font_families": ["replace-with-resolved-font-family"]
+  },
+  "capture": {
+    "widget": "Timeline",
+    "widget_size_px": [1536, 1024],
+    "fixture_id": "replace-with-deterministic-ui-fixture",
+    "state": "replace-with-explicit-selection-playhead-and-panel-state"
+  }
+}

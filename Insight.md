@@ -4213,3 +4213,125 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実・対応:** レイヤーの Script component は Python ではなく `ArtifactScriptHost::global()` を通る独自ランタイムで、環境参照関数が未登録だった。既存の `EnvironmentVariableManager` を通じて `getEnv(name[, default])` / `hasEnv(name)` を登録し、Python API と同じ `ARTIFACT_*` 名だけを読み取り可能にした。
 - **価値または懸念（未検証）:** Python menu scripts と Layer Script component scripts の両方でアプリ固有の環境変数を参照できる。ArtifactScript の host は process-wide global なので、この関数は同ランタイムを使う全スクリプトから利用可能になる。実行・ビルドは未確認。
 - **次に確認すべきこと:** ビルド許可後、Layer Script component の hook 内で既知の `ARTIFACT_*` 値、未設定値の default、一般環境名の拒否を確認する。
+
+## 2026-10-06 — UI visual loop の capture 依存と Widget test seam
+
+- **関連:** `tools/ui_visual_loop.py`、`tools/ui_visual_compare.py`、`Artifact/src/Widgets/ArtifactTimelineWidget.cppm`、`Artifact/src/Widgets/Render/ArtifactRenderQueueManagerWidget.cppm`、`Artifact/src/Render/ArtifactRenderQueueService.cppm`。
+- **確認できた事実（静的読み取り）:** visual loop は capture command を外部必須依存としており、Timeline 専用 fixture/capture と Render Queue 専用 fixture/capture は repo に見当たらない。Timeline constructor は多数のグローバルサービス／widgetを集成し、RenderQueueManagerWidget は `ArtifactRenderQueueService::instance()` を生成時に取得する。同 service constructor は `ArtifactAppSettings::instance()` と永続キューを読み込む。RenderJobModel contract suite は存在するが、Widget interaction / pixels の証拠ではない。
+- **改善:** visual loop に待機なしの単発比較と、指定秒数ごとの自動再撮影を加えた。capture コマンド自身が固定状態を再現する責務は変わらない。
+- **価値または懸念（未検証）:** 人手修正を挟む既定フローに加えて、アプリ起動・captureを外部で繰り返すrunnerを接続可能になった。一方、実UIの状態注入、service隔離、承認基準画像がないため、UI gate 完了とは扱えない。
+- **次に確認すべきこと:** (1) service/fixture境界をCMake独立ターゲットに抽出できるかArtifact側の依存閉包を確認する。(2) TimelineとRender Managerそれぞれの固定状態生成・操作・capture runnerを用意する。(3) runner環境を固定し、承認済みbaselineを用意する。(4) ユーザーが許可した後に限りUI suiteを実行し、interactionとpixel exactの結果を得る。
+
+## 2026-10-06 — テスト契約と実装改善候補の区別
+
+- **関連:** `tests/ArtifactCore/TextAnimatorContractTest.cpp`、`tests/ArtifactCore/RenderImageContractTest.cpp`、ArtifactCoreのText Animator／Image実装。
+- **確認できた事実:** Text Animatorのfield extra weightへNaNを渡すと最終weightへNaNが伝播し、+Infは`std::clamp`により上限へ丸められる。Image cropのAPIコメントは範囲外なら空画像を返す契約を明記し、現実装もそう動作する。`alphaBlend`は色descriptorを更新しないが、異なるdescriptor入力時の結果descriptor契約は公開コメントから確認できない。
+- **設計判断:** このテスト整備では、既存の公開契約に記載のないsanitizeやdescriptor変更を期待するcaseは登録しない。既知の差異・未定義の契約は計画書に残し、子repo実装修正が許可される場合に仕様を先に決める。
+- **価値または懸念（未検証）:** 期待動作を先取りしたテストによる誤検出を減らせる一方、非有限値の扱いやalpha blend後の色意味論は仕様化が必要。
+- **次に確認すべきこと:** sanitize方針とdescriptor伝播の規則を決めてから、Core実装とcontract suiteを同じ変更で更新する。
+
+## 2026-10-06 — UI visual comparison の領域別合否
+
+- **関連:** `tools/ui_visual_compare.py`、`tools/ui_visual_loop.py`。
+- **確認できた事実:** 比較器は従来、region metricsをreportへ記録するだけでregionごとのpass/fail制約がなく、画像寸法が異なる場合はregionsを一切出力していなかった。
+- **対応:** `--region-limit NAME,MAX_DIFF_PIXELS,MAX_DIFF_FRACTION` を追加し、全体制約に加えregion固有制約も合格条件へ含めた。寸法不一致は常に全体不合格としながら、透明canvas上のregion metricsと各region gateの判定も保存する。寸法差時も未知region名を拒否する。loop runnerからもregion limitsを渡せる。
+- **価値または懸念（未検証）:** UIの主要領域（例: Timeline ruler / tracks）ごとに厳しいpixel gateを持てる。real UI baseline/capture fixture上での実行はまだない。
+- **次に確認すべきこと:** 承認済みTimeline／Render Manager baselineと固定runner環境で領域境界・gate値をレビューし、pixel-exact loopを接続する。
+
+## 2026-10-06 — UI visual comparator の回帰用 unittest
+
+- **関連:** `tests/ui_visual/test_ui_visual_compare.py`。
+- **対応:** region gate、pixel-exact成功、per-channel tolerance境界、寸法差診断、同寸法／寸法差双方の未定義region指定拒否を検査する6ケースを追加した。
+- **価値または懸念（未検証）:** UI本体のcapture fixtureが未完成でも比較ゲート自体の契約を継続的に保護できる。今回のturnではAGENTS.mdの明示許可条件に従いsuiteを実行していない。
+- **次に確認すべきこと:** `python tests/ui_visual/test_ui_visual_compare.py` を実行し、続いて実UI fixture上でcapture loopとregion boundaryを確認する。
+
+## 2026-10-06 — ArtifactScript プロパティ／キーフレーム API 拡充（スライス1〜3）
+
+- **関連:** `ArtifactCore/include/Script/ArtifactScript/ArtifactScript.ixx`（`ArtifactScriptCompositionApi` に任意フィールド + `KeyframeRow` 追加）、`ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm`（`installCompositionApi` の登録ラッパ）、`Artifact/src/Composition/ArtifactAbstractComposition.cppm`（`installCompositionScriptApi()` への実注入）、`tests/ArtifactCore/ArtifactScriptHostApiTest.cpp`。
+- **確認できた事実・対応:** スライス1（`hasProperty` / `getPropertyNames` / `isAnimatable` / `hasKeyframes` / `getKeyframeCount` / `hasKeyframeAt` / `getValueAtFrame`）、スライス2（`addKeyframe` / `removeKeyframe` / `clearKeyframes`）、スライス3（`getKeyframes` → クラス名 `Keyframe` の ObjectInstance 行配列）を追加。キー時刻は `layer->keyframeTimeAtFrame(frame)` に固定し、Insight 2026-09-17 の「レイヤーがキー時刻ドメインの唯一の定義元」規約に従った。interp 名は `WorkspaceAutomation::setKeyframe` の別名表と揃え、追加時 `setAnimatable(true)` + `layer->changed()` で Timeline 経路と挙動を一致させた。コールバック未設定時は登録を省略する optional 契約で既存ホスト互換を維持。ターゲット解決は既存 `getProperty` と同一規約。
+- **価値または懸念（未検証）:** スクリプトからキーの一括生成・整え（例: OnUpdate での補助キー付与）が可能になった。一方 (1) キー書込みは Undo 履歴を bypass する（既存スクリプト `setProperty` と同じ直接経路。OnUpdate 毎フレーム書込みを履歴化すると履歴が爆発するため意図的に非履歴）、(2) interp の未知名は警告なく Linear に落ちる、(3) `getKeyframes` の戻りを `rows[i].frame` のように Index→FieldAccess 連鎖で読む構文はパーサ未検証、(4) ビルド・ctest 未実行。
+- **次に確認すべきこと:** ビルド許可後に `ArtifactCoreArtifactScriptHostApiTest` を含む ArtifactScript 系テストの実行。実機で OnUpdate 中の `addKeyframe` が Timeline 表示・保存／再読込・再生評価と一致すること。interp 未知名の診断化（`setLastError`）は必要性を見て追加検討。
+
+## 2026-10-06 — WorkspaceAutomation::setKeyframe の時刻 scale がコンポ fps double をそのまま切捨てている疑い（既存）
+
+- **関連:** `Artifact/include/AI/WorkspaceAutomation.ixx:5088-5089`（`const auto frameRate = std::max<double>(1.0, ...); const RationalTime time(frameNumber, frameRate);`）。
+- **確認できた事実（静的）:** `RationalTime(int64_t, int64_t)` コンストラクタに double を渡しているため、29.97fps など小数 fps では scale が 29 へ切り捨てられる。Insight 2026-09-17 では VP／Undo 系の同種バグ（double fps を RationalTime へ直接渡す切り捨て）が修正済みで、キー時刻ドメインは `FrameRate::storageScaleForFps`（丸め）＋レイヤー `keyframeTimeScale()` に統一された。この経路はその対象外だった。
+- **価値または懸念（未検証）:** 事実なら、AI / automation 経由で NTSC 系 fps のコンポに書いたキーだけが別 scale に置かれ、以降の `hasKeyFrameAt` / 評価が別フレームを指す。24/30/60fps では無害。
+- **次に確認すべきこと:** 29.97fps コンポで `WorkspaceAutomation.setKeyframe` を呼び、`getKeyFrames()` の `time.scale()` とレイヤーの `keyframeTimeScale()` の一致を確認。不一致なら `layer->keyframeTimeAtFrame(frame)` へ統一する。
+
+## 2026-10-06 — Blur GPU descriptor と実行 backend の境界
+
+- **関連:** `Artifact/include/Effects/Blur/BlurEffect.ixx`、`Artifact/src/Effects/Blur/BlurEffect.cppm`、`Artifact/src/Render/ArtifactCompositionRenderController.cppm`、`tests/Artifact/BlurEffectContractTest.cpp`。
+- **確認できた事実（静的読み取り）:** Blur のresident GPU空間ノード採用条件は premultiplied、strengthほぼ1、sigma<3、GPU stack容量内のpass数で制限される。条件外はdomainがNoneとなり、CPU implementationへ戻る。旧 `BlurEffectGPUImpl` には upload/dispatch/readback と `WaitForIdle()` が残るが、同ファイルの説明では現composition経路から到達せず、条件外でもCPU fallbackする。CMakeを読むと、`ArtifactEffectsBlur` targetが所有するのは別の3つのblur実装であり、通常の `BlurEffect` moduleはこのtargetに含まれずArtifact executableのsource群に残っている。
+- **価値または懸念:** GPU node descriptorだけのテストは、実GPU shader parityやbackend選択の証明にならない。suite結果にはdescriptor contractとpixel backend parityを分けて報告する必要がある。
+- **次に確認すべきこと:** 通常Blur implementationをArtifact.exe非依存でlinkできるtarget seamを設計レビュー付きで抽出する（現時点ではArtifact submoduleを編集せず、実行テストを追加していない）。その後、実際のrender planを通す小画像GPU fixtureを用意し、選択backend/fallback理由とCPU基準との差分を記録する。旧readback実装を新たなテスト経路から呼び出さない。
+
+## 2026-10-06 — Text Animator extra weight の非有限値がClampを通過
+
+- **関連:** `ArtifactCore/src/Text/TextAnimator.cppm` の `evaluateAnimatorWeights()`、`tests/ArtifactCore/TextAnimatorContractTest.cpp`。
+- **確認できた事実（静的読み取り）:** 合成値は `std::clamp(weight * extraWeight, 0, 1)` に直接渡される。C++ comparator semanticsではNaNは比較がfalseとなりNaNのまま返り、+Infは上限1へclampされる。これによりglyph weightのfinite invariantを破り、invalid external layer/effect weightがselector結果に影響する。
+- **設計判断:** 非有限extra weightの処理契約は公開仕様に記載されていないため、実装変更を伴わない現テストsuiteには期待値として追加しない。
+- **価値または懸念（未検証）:** NaNの伝播はglyph transform/opacityへ波及する可能性があるが、対応値と互換性を先に定義する必要がある。
+- **次に確認すべきこと:** Core変更が許可された作業でsanitize規則を仕様化し、contract suiteと実装を同時に更新して実行する。
+
+## 2026-10-06 — float RGBA Image API のweight/opacity境界
+
+- **関連:** `ArtifactCore/src/Image/ImageF32x4_RGBA.cppm` の `blend()` / `alphaBlend()`、`tests/ArtifactCore/RenderImageContractTest.cpp`。
+- **確認できた事実（静的読み取り）:** Image API はweight/opacityを引数のまま `cv::addWeighted` またはalpha演算へ使い、finite検証・0..1 clampを行わない。既存のLayerBlend Pipelineには独立してopacity finite guard/clampを行った記録があるが、低レベルImage APIでは同じ入力契約を保証していない。
+- **対応:** RGBA unit contract suiteでは、公開契約に記載された範囲内の画素処理とdescriptor動作を検証する。範囲外weight/opacityと負crop寸法は、API仕様が未確定のためsuiteへ含めていない。
+- **価値または懸念（未検証）:** 実装はweight/opacityをclampせず画像演算へ渡す。呼び出し側が範囲を保証しているか、低level APIがsanitizeすべきかを決める必要がある。
+- **次に確認すべきこと:** 公開仕様と既存callerを調査し、range policyを決めてから対応pixel casesを追加する。
+
+## 2026-10-06 — Levels per-channel property path のvalidation差
+
+- **関連:** `Artifact/src/Effects/ColorCorrection/LevelsEffect.cppm` の `LevelsEffect::setPropertyValue()`、`tests/Artifact/ColorCorrectionEffectContractTest.cpp`。
+- **確認できた事実（静的読み取り）:** master の `levels.master` string property は数値をfinite確認し、 black/white/gamma/output rangeを整合させる。一方 `Red/Green/Blue ...` 個別 property path は `QVariant::toDouble()` の結果を対応フィールドへ直接代入し、finite・相互範囲・gamma範囲を検証しない。 per-channel CPU処理はその値を `applyLevels()` へ渡す。
+- **対応:** per-channel各RGB curveをproperty API経由で独立制御するpixel contract caseを追加した。追加caseでは各channelが正常値のため、invalid property値の修正までは行わない。
+- **価値または懸念（未検証）:** Property editor経由で不正・非有限値が到達した場合、出力画素へNaN/Infが伝播する可能性がある。有限値を直接セットできるテストだけではこの安全性を証明できない。
+- **次に確認すべきこと:** Artifact変更が許可された作業で per-channel property のfinite fallbackとrange invariantを定義し、master parserと同じ正規化契約にできるか確認する。ビルド/CPU画素テストでNaN/±Inf・逆転範囲・zero gammaを検証する。
+
+## 2026-10-06 — Color effect の独立target ownership gap
+
+- **関連:** `Artifact/cmake/ArtifactSources.cmake`、`Artifact/CMakeLists.txt` の `ArtifactEffectsColor`、`tests/Artifact/CMakeLists.txt`。
+- **確認できた事実（静的読み取り）:** `VibranceEffect` / `PosterizeEffect` / `ThresholdEffect` はapp source manifestのmodule/implementationに存在するが、`ArtifactEffectsColor` targetの明示source listから除外されている。Color Correction suiteは同targetだけをlinkする。
+- **対応:** これら3 moduleのimport・pixel/descriptor casesを軽量Color suiteから除いた。suiteに存在しないtarget-owned BMIへ依存する可能性を避けた。planにownershipと必要なseamを記録した。
+- **価値または懸念:** suiteをArtifact.exe相当の依存へ広げず、テスト対象library所有境界とmodule importを一致できる。3 effectの直接テストcoverageは独立target seamができるまで欠ける。
+- **次に確認すべきこと:** Artifact submodule変更が許可された場合、これらが他 effect packと共通の小さなtargetへ安全に抽出できるか依存closureを確認する。代替として親側からsource moduleを専用test libraryへ登録する方法はCMake module/file-set境界のレビュー後に判断する。現時点ではArtifact submodule・CMakeを変更しない。
+
+## 2026-10-06 — Lift/Gamma/Gain の CPU と resident GPU alpha 処理差（未検証）
+
+- **関連:** `Artifact/src/Effects/LiftGammaGainEffect.cppm`、`tests/Artifact/ColorCorrectionEffectContractTest.cpp`。
+- **確認できた事実（静的読み取り）:** CPU実装 `applyLiftGammaGainCore()` は source descriptor がpremultipliedなら alpha でRGBをunpremultiplyし、処理後にalphaを戻す。一方、同ファイル冒頭の `kLiftGammaGainResidentHlsl` は `pixel.rgb` を直接処理してから `pixel.a` を維持する。`appendGpuSpatialNodes()` はresident generic keyと3群parameterをspatial stackへ登録する。
+- **価値または懸念（未検証）:** resident spatial path がpremultiplied surfaceへ適用される場合、低alpha画素のCPU結果とのRGB差が大きくなり得る。別GPU実装のHLSLにはalpha-aware処理があるため、実際の経路選択とresident shaderの入力alpha契約を確認するまで不具合とは断定できない。
+- **次に確認すべきこと:** 固定の半透明・premultiplied画素で `applyCPUOnly()` と実resident spatial dispatchを比較し、選択backend、descriptor、alpha mode、fallback理由を記録する。GPU実行はユーザーの明示指示後に行う。
+
+## 2026-10-06 — Text Render Target test のmodule link owner
+
+- **関連:** `tests/Artifact/TextRenderTargetContractTest.cpp`、`tests/Artifact/CMakeLists.txt`、Artifactの`ArtifactTextRenderTargetRuntime` / `ArtifactTextGlyphSubmitterRuntime`。
+- **確認できた事実（静的読み取り）:** test sourceは`Artifact.Render.TextRenderTarget`と`Artifact.Render.TextGpuDevice`をimportする。前者のCMake module interfaceは`ArtifactTextRenderTargetRuntime`が所有するが、test targetは後者だけをlinkしていた。`TextGpuDevice`はsubmitter runtimeが公開する。
+- **対応:** 親側test targetから両runtimeをlinkするよう修正し、module ownerとAPI提供元を明示した。
+- **価値または懸念（未検証）:** C++ modulesのBMI依存を正しいtarget dependencyへ接続できる。実際のconfigure/buildでBMI解決とlinkが通るかは未確認。
+- **次に確認すべきこと:** 許可後にArtifactTextRenderTargetContractTestのtargetをconfigure/buildし、D3D12 hostでCTestを実行する。
+
+## 2026-10-06 — GPU glyph submitter の画素契約suite
+
+- **関連:** `tests/Artifact/TextGlyphRenderContractTest.cpp`、`tests/Artifact/CMakeLists.txt`、既存Artifact text glyph submitter API。
+- **対応:** headless QGuiApplicationと既存D3D12 glyph submitter境界を利用し、5つのGPU pixel integration caseを追加した。要求色を持つ実グリフ画素、同一入力の決定性、zero opacity、非有限transform拒否、`TextAnimatorEngine::applyAnimatorSets`を通したAnimator→GPU glyph描画とalpha総量低下を確認する内容。
+- **価値または懸念（未検証）:** これまでのGPU target clear/readback smokeを越え、shader/atlas/vertex/pipeline/submitter/render target/readback経路を同じsuiteで通せる。機械的なフォント選択差を避けるためpixel golden hashではなく、同一process再現性と色・可視性契約をassertする。GPUが使えない環境はskipとなるためCIでは実GPU runnerを別に必要とする。
+- **次に確認すべきこと:** configure/build/CTest許可後にMSVC modules依存を確認し、対応Windows D3D12 runnerで実行する。次段階でArtifactTextLayer／composition統合とkeyframe時系列render goldenを追加する。
+
+## 2026-10-06 — ArtifactCore text runtime target の旧名参照
+
+- **関連:** root `CMakeLists.txt`、`Artifact/CMakeLists.txt` のGPU text runtimes、`ArtifactCore/CMakeLists.txt`。
+- **確認できた事実（静的読み取り）:** ArtifactCoreはtext module ownerを`ArtifactCoreText`として定義するが、Artifactの`ArtifactTextGlyphSubmitterRuntime`と`ArtifactTextGlyphSmoke`は`ArtifactCoreTextRuntime`をlinkする。repoのCMake定義中に後者のtargetは存在しない。
+- **対応:** 子repoを変更せず、rootでArtifactCore追加後・Artifact追加前に`ArtifactCoreTextRuntime`を`ArtifactCoreText`へのALIASとして公開した。
+- **価値または懸念（未検証）:** 軽量glyph renderer runtimeのmodule/implementation依存を現target ownerに接続できる。CMake configureでALIAS scopeとMSVC BMI linkが成立するかは未確認。
+- **次に確認すべきこと:** 許可後にtests有効／無効の両方でconfigureし、2つのArtifact GPU text runtimeがArtifactCoreText BMIを消費できることを確認する。
+
+## 2026-10-06 — Text Animator GPU fixture のIndex domain
+
+- **関連:** `tests/Artifact/TextGlyphRenderContractTest.cpp`、`ArtifactCore/src/Text/TextAnimator.cppm`。
+- **確認できた事実:** `SelectorUnits::Index` は`glyphIndex`を0-basedで位置として使用する。fixtureは単一glyph（index 0）だったため、範囲1を指定するとAnimatorは適用されない。
+- **対応:** Animator→GPU render integration caseのstart/endを0へ修正し、assertするposition/rotation/scale/opacityが選択glyphへ実際に適用されるようにした。
+- **価値または懸念（実行未確認）:** 未選択の入力をGPUへ渡し、別理由の画素差だけで誤合格する可能性を防ぐ。C++ suiteは未実行なので、実際のmodule/CTest結果は未確認。
+- **次に確認すべきこと:** 許可後にTextAnimatorEngineの適用値assertとalpha総量差をD3D12 runnerで実行する。
