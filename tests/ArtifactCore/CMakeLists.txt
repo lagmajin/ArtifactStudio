@@ -226,6 +226,18 @@ artifact_add_test(ArtifactCoreKeyframeSplineTest
     LIBS
         ArtifactCore
 )
+set_tests_properties(ArtifactCoreKeyframeSplineTest PROPERTIES
+    LABELS "animation;keyframe;cpu;contract"
+)
+artifact_add_test(ArtifactCoreKeyframePatternGeneratorTest
+    SOURCES
+        KeyframePatternGeneratorTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreKeyframePatternGeneratorTest PROPERTIES
+    LABELS "animation;keyframe;cpu;contract"
+)
 artifact_add_test(ArtifactCoreEasingFunctionsTest
     SOURCES
         EasingFunctionsTest.cpp
@@ -256,9 +268,37 @@ artifact_add_test(ArtifactCoreTextShapingTest
     LIBS
         ArtifactCore
 )
+artifact_add_test(ArtifactCoreTextAnimatorContractTest
+    SOURCES
+        TextAnimatorContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreTextAnimatorContractTest PROPERTIES
+    LABELS "animation;text;cpu;contract"
+)
 artifact_add_test(ArtifactCoreImageDistortionMapperTest
     SOURCES
         ImageDistortionMapperTest.cpp
     LIBS
         ArtifactCore
+)
+artifact_add_test(ArtifactCoreRenderImageContractTest
+    SOURCES
+        RenderImageContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreRenderImageContractTest PROPERTIES
+    LABELS "renderer;image;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreRenderJobModelContractTest
+    SOURCES
+        RenderJobModelContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreRenderJobModelContractTest PROPERTIES
+    LABELS "render-manager;model;cpu;contract"
 )

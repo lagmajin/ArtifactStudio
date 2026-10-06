@@ -88,6 +88,65 @@ TEST(TextAnimatorContractTest, EverySelectorShapeMatchesItsBoundaryAndMidpointCo
     }
 }
 
+TEST(TextAnimatorContractTest, SelectorWeightsStayFiniteAndBoundedAcrossRangeMatrix)
+{
+    const auto glyphs = makeGlyphs(QStringLiteral("abcdefghij"));
+    const SelectorEvaluationContext context{
+        QStringLiteral("abcdefghij"), glyphs, TextSelectorOrder::Logical};
+    const SelectorShape shapes[] = {
+        SelectorShape::Square, SelectorShape::RampUp,
+        SelectorShape::RampDown, SelectorShape::Triangle,
+        SelectorShape::Round, SelectorShape::Smooth,
+    };
+    const float boundaries[] = {
+        -100.0f, -1.0f, 0.0f, 0.125f, 1.0f, 2.5f, 5.0f,
+        9.0f, 10.0f, 50.0f, 99.0f, 100.0f, 101.0f, 250.0f,
+    };
+    const float offsets[] = {
+        -150.0f, -10.0f, -1.0f, 0.0f, 1.0f, 10.0f, 150.0f,
+    };
+
+    for (const auto shape : shapes) {
+        for (const float start : boundaries) {
+            for (const float end : boundaries) {
+                for (const float offset : offsets) {
+                    RangeSelector selector;
+                    selector.units = SelectorUnits::Index;
+                    selector.shape = shape;
+                    selector.start = start;
+                    selector.end = end;
+                    selector.offset = offset;
+                    selector.easeHigh = 4.0f;
+                    selector.easeLow = 2.0f;
+
+                    const auto result = TextAnimatorEngine::evaluateSelector(
+                        context, selector);
+                    ASSERT_EQ(result.weights.size(), glyphs.size());
+                    for (qsizetype glyphIndex = 0;
+                         glyphIndex < result.weights.size(); ++glyphIndex) {
+                        const float weight = result.weights[glyphIndex];
+                        EXPECT_TRUE(std::isfinite(weight))
+                            << "shape=" << static_cast<int>(shape)
+                            << " start=" << start << " end=" << end
+                            << " offset=" << offset
+                            << " glyph=" << glyphIndex;
+                        EXPECT_GE(weight, 0.0f)
+                            << "shape=" << static_cast<int>(shape)
+                            << " start=" << start << " end=" << end
+                            << " offset=" << offset
+                            << " glyph=" << glyphIndex;
+                        EXPECT_LE(weight, 1.0f)
+                            << "shape=" << static_cast<int>(shape)
+                            << " start=" << start << " end=" << end
+                            << " offset=" << offset
+                            << " glyph=" << glyphIndex;
+                    }
+                }
+            }
+        }
+    }
+}
+
 TEST(TextAnimatorContractTest, NonFiniteRangeBoundarySelectsNoGlyphs)
 {
     const auto glyphs = makeGlyphs(QStringLiteral("abc"));

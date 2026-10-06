@@ -34,8 +34,7 @@ endfunction()
 # ArtifactCore tests
 add_subdirectory(ArtifactCore)
 
-# Artifact tests (later)
-# add_subdirectory(Artifact)
+add_subdirectory(Artifact)
 
 # ArtifactWidgets tests (later)
 # add_subdirectory(ArtifactWidgets)

@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <initializer_list>
 #include <vector>
 
 import FloatRGBA;
@@ -102,6 +103,117 @@ TEST(RenderImageContractTest, WeightedBlendZeroAndOneWeightsMatchEndpoints)
 
     expectPixelNear(zero, 0, 0, FloatRGBA(0.15f, 0.25f, 0.35f, 0.45f));
     expectPixelNear(one, 0, 0, FloatRGBA(0.85f, 0.75f, 0.65f, 0.55f));
+}
+
+TEST(RenderImageContractTest, WeightedBlendMatchesPerChannelFormulaAcrossImageShapes)
+{
+    for (int height = 1; height <= 5; ++height) {
+        for (int width = 1; width <= 7; ++width) {
+            std::vector<float> basePixels;
+            std::vector<float> overlayPixels;
+            basePixels.reserve(static_cast<size_t>(width * height * 4));
+            overlayPixels.reserve(static_cast<size_t>(width * height * 4));
+            for (int pixel = 0; pixel < width * height; ++pixel) {
+                for (int channel = 0; channel < 4; ++channel) {
+                    const int baseCode = (pixel * 37 + channel * 53 + 11) % 101;
+                    const int overlayCode = (pixel * 71 + channel * 29 + 7) % 101;
+                    basePixels.push_back(static_cast<float>(baseCode) / 100.0f);
+                    overlayPixels.push_back(static_cast<float>(overlayCode) / 100.0f);
+                }
+            }
+
+            const auto base = makeImage(width, height, basePixels);
+            const auto overlay = makeImage(width, height, overlayPixels);
+            for (const float weight : {0.0f, 0.125f, 0.5f, 0.875f, 1.0f}) {
+                const auto result = base.blend(overlay, weight);
+                ASSERT_EQ(result.width(), width);
+                ASSERT_EQ(result.height(), height);
+                for (int y = 0; y < height; ++y) {
+                    for (int x = 0; x < width; ++x) {
+                        const auto source = base.getPixel(x, y);
+                        const auto foreground = overlay.getPixel(x, y);
+                        const auto actual = result.getPixel(x, y);
+                        const float expected[] = {
+                            source.r() * (1.0f - weight) + foreground.r() * weight,
+                            source.g() * (1.0f - weight) + foreground.g() * weight,
+                            source.b() * (1.0f - weight) + foreground.b() * weight,
+                            source.a() * (1.0f - weight) + foreground.a() * weight,
+                        };
+                        EXPECT_NEAR(actual.r(), expected[0], 2e-6f)
+                            << "size=" << width << 'x' << height
+                            << " pixel=" << x << ',' << y << " weight=" << weight;
+                        EXPECT_NEAR(actual.g(), expected[1], 2e-6f)
+                            << "size=" << width << 'x' << height
+                            << " pixel=" << x << ',' << y << " weight=" << weight;
+                        EXPECT_NEAR(actual.b(), expected[2], 2e-6f)
+                            << "size=" << width << 'x' << height
+                            << " pixel=" << x << ',' << y << " weight=" << weight;
+                        EXPECT_NEAR(actual.a(), expected[3], 2e-6f)
+                            << "size=" << width << 'x' << height
+                            << " pixel=" << x << ',' << y << " weight=" << weight;
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(RenderImageContractTest, AlphaBlendMatchesStraightAlphaFormulaAcrossOpacityGrid)
+{
+    const float opacities[] = {0.0f, 0.125f, 0.5f, 0.875f, 1.0f};
+    for (int height = 1; height <= 4; ++height) {
+        for (int width = 1; width <= 6; ++width) {
+            std::vector<float> basePixels;
+            std::vector<float> overlayPixels;
+            basePixels.reserve(static_cast<size_t>(width * height * 4));
+            overlayPixels.reserve(static_cast<size_t>(width * height * 4));
+            for (int pixel = 0; pixel < width * height; ++pixel) {
+                for (int channel = 0; channel < 4; ++channel) {
+                    const int baseCode = (pixel * 31 + channel * 43 + 13) % 101;
+                    const int overlayCode = (pixel * 67 + channel * 19 + 3) % 101;
+                    basePixels.push_back(static_cast<float>(baseCode) / 100.0f);
+                    overlayPixels.push_back(static_cast<float>(overlayCode) / 100.0f);
+                }
+            }
+
+            const auto base = makeImage(width, height, basePixels);
+            const auto overlay = makeImage(width, height, overlayPixels);
+            for (const float opacity : opacities) {
+                auto result = base;
+                result.alphaBlend(overlay, opacity);
+                for (int y = 0; y < height; ++y) {
+                    for (int x = 0; x < width; ++x) {
+                        const auto background = base.getPixel(x, y);
+                        const auto foreground = overlay.getPixel(x, y);
+                        const float effectiveAlpha = foreground.a() * opacity;
+                        const float expectedAlpha = background.a() +
+                            effectiveAlpha * (1.0f - background.a());
+                        const FloatRGBA expected(
+                            foreground.r() * effectiveAlpha +
+                                background.r() * (1.0f - effectiveAlpha),
+                            foreground.g() * effectiveAlpha +
+                                background.g() * (1.0f - effectiveAlpha),
+                            foreground.b() * effectiveAlpha +
+                                background.b() * (1.0f - effectiveAlpha),
+                            expectedAlpha);
+                        const auto actual = result.getPixel(x, y);
+                        EXPECT_NEAR(actual.r(), expected.r(), 2e-6f)
+                            << "size=" << width << 'x' << height
+                            << " pixel=" << x << ',' << y << " opacity=" << opacity;
+                        EXPECT_NEAR(actual.g(), expected.g(), 2e-6f)
+                            << "size=" << width << 'x' << height
+                            << " pixel=" << x << ',' << y << " opacity=" << opacity;
+                        EXPECT_NEAR(actual.b(), expected.b(), 2e-6f)
+                            << "size=" << width << 'x' << height
+                            << " pixel=" << x << ',' << y << " opacity=" << opacity;
+                        EXPECT_NEAR(actual.a(), expected.a(), 2e-6f)
+                            << "size=" << width << 'x' << height
+                            << " pixel=" << x << ',' << y << " opacity=" << opacity;
+                    }
+                }
+            }
+        }
+    }
 }
 
 TEST(RenderImageContractTest, BlendMarksIncompatibleColorDescriptorsUnknown)
