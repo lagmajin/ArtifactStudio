@@ -329,6 +329,37 @@ class BenchmarkMethodCounter : ArtifactBehaviour
               << totalMicroseconds / (repetitions * iterations)
               << " us/hook (" << iterations * repetitions << " calls)\n";
 
+    auto fiveArgumentDefinition = parser.parse(R"(
+class BenchmarkFiveArgumentCall : ArtifactBehaviour
+{
+    public float total = 0.0;
+    float sum(float a, float b, float c, float d, float e)
+    {
+        return a + b + c + d + e;
+    }
+    void OnUpdate() { total = sum(1.0, 2.0, 3.0, 4.0, 5.0); }
+}
+)");
+    ASSERT_TRUE(fiveArgumentDefinition.diagnostics.empty());
+    ArtifactScriptInstance fiveArgumentInstance(std::move(fiveArgumentDefinition));
+    for (int i = 0; i < warmupIterations; ++i) {
+        ASSERT_TRUE(fiveArgumentInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << fiveArgumentInstance.lastError();
+    }
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            ASSERT_TRUE(fiveArgumentInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+                << fiveArgumentInstance.lastError();
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript method(5 args) benchmark: "
+              << totalMicroseconds / (repetitions * iterations)
+              << " us/hook (" << iterations * repetitions << " calls)\n";
+
     auto foreachDefinition = parser.parse(R"(
 class BenchmarkForeachCounter : ArtifactBehaviour
 {
@@ -624,6 +655,7 @@ class BenchmarkMethodLookup : ArtifactBehaviour
     const auto oneShortStringAllocationRate = countAllocations(stringForeachInstance);
     const auto wideLocalsAllocationRate = countAllocations(wideLocalsInstance);
     const auto methodLookupAllocationRate = countAllocations(methodLookupInstance);
+    const auto fiveArgumentAllocationRate = countAllocations(fiveArgumentInstance);
     const auto expectNoSteadyStateAllocations = [](const auto& rate) {
         EXPECT_DOUBLE_EQ(rate.first, 0.0);
         EXPECT_DOUBLE_EQ(rate.second, 0.0);
@@ -636,6 +668,10 @@ class BenchmarkMethodLookup : ArtifactBehaviour
     expectNoSteadyStateAllocations(largeForeachAllocationRate);
     expectNoSteadyStateAllocations(wideLocalsAllocationRate);
     expectNoSteadyStateAllocations(methodLookupAllocationRate);
+    expectNoSteadyStateAllocations(fiveArgumentAllocationRate);
+    std::cout << "ArtifactScript allocations/hook (5-arg method): "
+              << fiveArgumentAllocationRate.first << ", "
+              << fiveArgumentAllocationRate.second << " bytes\n";
     expectNoSteadyStateAllocations(stringForeachAllocationRate);
     expectNoSteadyStateAllocations(emptyForeachAllocationRate);
     expectNoSteadyStateAllocations(oneLongStringAllocationRate);
