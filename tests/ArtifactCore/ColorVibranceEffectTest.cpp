@@ -12,6 +12,11 @@ import Graphics.Effect.Creative.Halftone;
 import Graphics.Effect.Creative.Kaleidoscope;
 import Graphics.Effect.Creative.ChromaticAberration;
 import Graphics.Effect.Creative.Emboss;
+import Graphics.Effect.Creative.EdgeEcho;
+import Graphics.Effect.Creative.LightPressure;
+import Graphics.Effect.Creative.OldTV;
+import Graphics.Effect.Creative.SurfaceMemory;
+import Graphics.Effect.Creative.TemporalFossil;
 import Video.VideoFrame;
 import Channel;
 
@@ -627,5 +632,100 @@ TEST(CreativeImageEffectContractTest, EmbossUsesDiagonalDifferenceAndPreservesUn
     for (int index = 0; index < 4; ++index) {
         EXPECT_FLOAT_EQ(alpha->data()[index], static_cast<float>(index) / 4.0f)
             << "pixel=" << index;
+    }
+}
+
+TEST(CreativeImageEffectContractTest, EdgeEchoLightPressureAndOldTvHaveExactNeutralNoOp) {
+    const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
+    const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
+    const float inputBlue[] = {0.2f, 0.4f, 0.6f, 0.8f};
+    const float inputAlpha[] = {0.0f, 0.2f, 0.4f, 0.6f};
+    VideoFrame frame(2, 2);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    for (int index = 0; index < 4; ++index) {
+        red->data()[index] = inputRed[index];
+        green->data()[index] = inputGreen[index];
+        blue->data()[index] = inputBlue[index];
+        alpha->data()[index] = inputAlpha[index];
+    }
+
+    EdgeEchoEffect edgeEcho;
+    edgeEcho.setParameter("Intensity", 0.0f);
+    edgeEcho.setParameter("Tint", 0.0f);
+    edgeEcho.process(frame, CreativeEffectContext{});
+    LightPressureEffect lightPressure;
+    lightPressure.setParameter("Pressure", 0.0f);
+    lightPressure.setParameter("Bloom", 0.0f);
+    lightPressure.setParameter("Spread", 0.0f);
+    lightPressure.setParameter("Compression", 0.0f);
+    lightPressure.process(frame, CreativeEffectContext{});
+    OldTVEffect oldTv;
+    oldTv.setParameter("Scanline", 0.0f);
+    oldTv.setParameter("Curvature", 0.0f);
+    oldTv.setParameter("Flicker", 0.0f);
+    oldTv.setParameter("Fringe", 0.0f);
+    oldTv.process(frame, CreativeEffectContext{});
+
+    for (int index = 0; index < 4; ++index) {
+        EXPECT_FLOAT_EQ(red->data()[index], inputRed[index]) << "red pixel=" << index;
+        EXPECT_FLOAT_EQ(green->data()[index], inputGreen[index])
+            << "green pixel=" << index;
+        EXPECT_FLOAT_EQ(blue->data()[index], inputBlue[index])
+            << "blue pixel=" << index;
+        EXPECT_FLOAT_EQ(alpha->data()[index], inputAlpha[index])
+            << "alpha pixel=" << index;
+    }
+}
+
+TEST(CreativeImageEffectContractTest, TemporalEffectsInitializeHistoryFromFirstFrameWithoutChangingPixels) {
+    const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
+    const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
+    const float inputBlue[] = {0.2f, 0.4f, 0.6f, 0.8f};
+    const float inputAlpha[] = {0.0f, 0.2f, 0.4f, 0.6f};
+    const CreativeEffectContext firstFrame{.time = 2.0, .frameIndex = 12};
+
+    VideoFrame surfaceMemoryFrame(2, 2);
+    VideoFrame temporalFossilFrame(2, 2);
+    const ChannelType channels[] = {
+        ChannelType::Red, ChannelType::Green,
+        ChannelType::Blue, ChannelType::Alpha,
+    };
+    const float* expectedChannels[] = {
+        inputRed, inputGreen, inputBlue, inputAlpha,
+    };
+    for (int channelIndex = 0; channelIndex < 4; ++channelIndex) {
+        auto surfacePlane = surfaceMemoryFrame.getChannel(channels[channelIndex]);
+        auto fossilPlane = temporalFossilFrame.getChannel(channels[channelIndex]);
+        ASSERT_TRUE(surfacePlane);
+        ASSERT_TRUE(fossilPlane);
+        for (int pixel = 0; pixel < 4; ++pixel) {
+            surfacePlane->data()[pixel] = expectedChannels[channelIndex][pixel];
+            fossilPlane->data()[pixel] = expectedChannels[channelIndex][pixel];
+        }
+    }
+
+    SurfaceMemoryEffect surfaceMemory;
+    surfaceMemory.process(surfaceMemoryFrame, firstFrame);
+    TemporalFossilEffect temporalFossil;
+    temporalFossil.process(temporalFossilFrame, firstFrame);
+
+    for (int channelIndex = 0; channelIndex < 4; ++channelIndex) {
+        const auto surfacePlane = surfaceMemoryFrame.getChannel(channels[channelIndex]);
+        const auto fossilPlane = temporalFossilFrame.getChannel(channels[channelIndex]);
+        ASSERT_TRUE(surfacePlane);
+        ASSERT_TRUE(fossilPlane);
+        for (int pixel = 0; pixel < 4; ++pixel) {
+            EXPECT_FLOAT_EQ(surfacePlane->data()[pixel], expectedChannels[channelIndex][pixel])
+                << "surface channel=" << channelIndex << " pixel=" << pixel;
+            EXPECT_FLOAT_EQ(fossilPlane->data()[pixel], expectedChannels[channelIndex][pixel])
+                << "fossil channel=" << channelIndex << " pixel=" << pixel;
+        }
     }
 }
