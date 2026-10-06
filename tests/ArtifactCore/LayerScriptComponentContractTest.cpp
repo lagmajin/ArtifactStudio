@@ -7,9 +7,57 @@
 #include <utility>
 #include <variant>
 
+#if defined(_MSC_VER) && defined(_DEBUG)
+#include <atomic>
+#include <crtdbg.h>
+#endif
+
 import Script.ArtifactScript;
 
 using namespace ArtifactCore;
+
+#if defined(_MSC_VER) && defined(_DEBUG)
+namespace {
+
+std::atomic_size_t g_scriptAllocationCount{0};
+std::atomic_size_t g_scriptAllocatedBytes{0};
+
+int __cdecl countScriptAllocation(int allocationType, void*, std::size_t size,
+                                  int, long, unsigned char const*, int) {
+    if (allocationType == _HOOK_ALLOC || allocationType == _HOOK_REALLOC) {
+        g_scriptAllocationCount.fetch_add(1, std::memory_order_relaxed);
+        g_scriptAllocatedBytes.fetch_add(size, std::memory_order_relaxed);
+    }
+    return 1;
+}
+
+class ScriptAllocationCounter {
+public:
+    ScriptAllocationCounter() {
+        g_scriptAllocationCount.store(0, std::memory_order_relaxed);
+        g_scriptAllocatedBytes.store(0, std::memory_order_relaxed);
+        previousHook_ = _CrtSetAllocHook(countScriptAllocation);
+    }
+
+    ~ScriptAllocationCounter() { stop(); }
+
+    std::pair<std::size_t, std::size_t> stop() {
+        if (active_) {
+            _CrtSetAllocHook(previousHook_);
+            active_ = false;
+        }
+        return {
+            g_scriptAllocationCount.load(std::memory_order_relaxed),
+            g_scriptAllocatedBytes.load(std::memory_order_relaxed)};
+    }
+
+private:
+    _CRT_ALLOC_HOOK previousHook_ = nullptr;
+    bool active_ = true;
+};
+
+}  // namespace
+#endif
 
 TEST(LayerScriptComponentContractTest,
      RunsLifecycleHooksAndPreservesFieldsAcrossFrames) {
@@ -368,4 +416,78 @@ class BenchmarkWideForeachCounter : ArtifactBehaviour
     std::cout << "ArtifactScript foreach(8, 50 fields) benchmark: "
               << totalMicroseconds / (repetitions * iterations)
               << " us/hook (" << iterations * repetitions << " calls)\n";
+
+#if defined(_MSC_VER) && defined(_DEBUG)
+    auto noOpDefinition = parser.parse(R"(
+class BenchmarkNoOp : ArtifactBehaviour
+{
+    public float value = 0.0;
+    void OnUpdate() { }
+}
+)");
+    ASSERT_TRUE(noOpDefinition.diagnostics.empty());
+    ArtifactScriptInstance noOpInstance(std::move(noOpDefinition));
+    noOpInstance.fields()["value"] = 0.0;
+    const ArtifactScriptMethod* noOpMethod = nullptr;
+    for (const auto& method : noOpInstance.definition().rootClass.methods) {
+        if (method.name == "OnUpdate") noOpMethod = &method;
+    }
+    ASSERT_NE(noOpMethod, nullptr);
+    const std::vector<ArtifactScriptValue> noArguments;
+    constexpr int allocationIterations = 2000;
+    const auto countCalls = [&](auto&& call) {
+        ScriptAllocationCounter counter;
+        bool succeeded = true;
+        for (int i = 0; i < allocationIterations; ++i) {
+            if (!call()) {
+                succeeded = false;
+                break;
+            }
+        }
+        const auto totals = counter.stop();
+        EXPECT_TRUE(succeeded);
+        return std::pair<double, double>{
+            static_cast<double>(totals.first) / allocationIterations,
+            static_cast<double>(totals.second) / allocationIterations};
+    };
+    const auto lookupAllocationRate = countCalls([&] {
+        return noOpInstance.hasHook(ArtifactScriptHook::OnUpdate);
+    });
+    std::cout << "ArtifactScript allocation split (count, bytes/hook): lookup="
+              << lookupAllocationRate.first << ", " << lookupAllocationRate.second
+              << "; direct-body=";
+    ArtifactScriptEvaluator directEvaluator;
+    ArtifactScriptSerializedFields directFields;
+    directFields["value"] = 0.0;
+    const auto bodyAllocationRate = countCalls([&] {
+        return directEvaluator.execute(*noOpMethod->body, noArguments, directFields);
+    });
+    std::cout << bodyAllocationRate.first << ", " << bodyAllocationRate.second
+              << '\n';
+
+    const auto countAllocations = [&](ArtifactScriptInstance& target) {
+        std::string error;
+        const auto result = countCalls([&] {
+            const bool succeeded = target.invokeHook(ArtifactScriptHook::OnUpdate);
+            if (!succeeded) error = target.lastError();
+            return succeeded;
+        });
+        EXPECT_TRUE(error.empty()) << error;
+        return result;
+    };
+    const auto noOpAllocationRate = countAllocations(noOpInstance);
+    const auto simpleAllocationRate = countAllocations(instance);
+    const auto methodAllocationRate = countAllocations(callInstance);
+    const auto foreachAllocationRate = countAllocations(foreachInstance);
+    const auto wideAllocationRate = countAllocations(wideFieldsInstance);
+    std::cout << "ArtifactScript allocations/hook (count, bytes): no-op="
+              << noOpAllocationRate.first << ", " << noOpAllocationRate.second
+              << "; simple="
+              << simpleAllocationRate.first << ", " << simpleAllocationRate.second
+              << "; method=" << methodAllocationRate.first << ", "
+              << methodAllocationRate.second << "; foreach="
+              << foreachAllocationRate.first << ", " << foreachAllocationRate.second
+              << "; wide-foreach=" << wideAllocationRate.first << ", "
+              << wideAllocationRate.second << '\n';
+#endif
 }
