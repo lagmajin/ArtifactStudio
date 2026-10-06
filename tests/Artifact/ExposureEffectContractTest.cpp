@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <initializer_list>
 #include <limits>
 
 import Artifact.Render.PointwiseEffectFusion;
@@ -193,4 +194,57 @@ TEST(ExposureEffectContractTest, PointwiseGpuDescriptionMatchesConfiguredParamet
     EXPECT_FLOAT_EQ(stack.parameters()[1][0], 0.125f);
     EXPECT_FLOAT_EQ(stack.parameters()[2][0], 2.0f);
     EXPECT_EQ(slot, 3u);
+}
+
+TEST(ExposureEffectContractTest, CpuFormulaAndMixMatchParameterGridForEveryPixel)
+{
+    const float pixels[] = {
+        0.0f, 0.125f, 0.25f, 0.0f,
+        0.10f, 0.30f, 0.60f, 0.2f,
+        0.25f, 0.50f, 0.75f, 0.4f,
+        0.40f, 0.60f, 0.80f, 0.6f,
+        0.70f, 0.85f, 1.00f, 0.8f,
+        1.00f, 0.50f, 0.00f, 1.0f,
+    };
+    const float exposureValues[] = {-3.0f, 0.0f, 2.0f};
+    const float offsets[] = {-0.3f, 0.0f, 0.4f};
+    const float gammas[] = {0.5f, 1.0f, 2.0f};
+    const float mixes[] = {0.0f, 0.3f, 1.0f};
+    const auto source = makeSurface(2, 3, pixels);
+
+    for (const float exposure : exposureValues) {
+        for (const float offset : offsets) {
+            for (const float gamma : gammas) {
+                for (const float mix : mixes) {
+                    ExposureEffect effect;
+                    effect.setExposure(exposure);
+                    effect.setOffset(offset);
+                    effect.setGammaCorrection(gamma);
+                    effect.setMix(mix);
+                    ImageF32x4RGBAWithCache output;
+                    effect.applyCPUOnly(source, output);
+
+                    ASSERT_EQ(output.width(), 2);
+                    ASSERT_EQ(output.height(), 3);
+                    for (int y = 0; y < 3; ++y) {
+                        for (int x = 0; x < 2; ++x) {
+                            const FloatRGBA input = source.image().getPixel(x, y);
+                            const auto transform = [&](const float channel) {
+                                const float adjusted = std::max(
+                                    0.0f, channel * std::pow(2.0f, exposure) + offset);
+                                const float graded = std::clamp(
+                                    std::pow(adjusted, 1.0f / gamma), 0.0f, 1.0f);
+                                return channel * (1.0f - mix) + graded * mix;
+                            };
+                            expectPixelNear(
+                                output, x, y,
+                                FloatRGBA(transform(input.r()), transform(input.g()),
+                                          transform(input.b()), input.a()),
+                                2e-6f);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
