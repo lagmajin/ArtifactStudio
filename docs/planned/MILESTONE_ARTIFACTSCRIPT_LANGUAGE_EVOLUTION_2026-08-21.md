@@ -1,9 +1,16 @@
 # マイルストーン: ArtifactScript Language Evolution
 
-**最終更新:** 2026-08-22
+**最終更新:** 2026-10-07
 **ステータス:** In Progress
 **優先度:** High
 **関連:** `docs/planned/MILESTONE_ARTIFACTSCRIPT_ENGINE_2026-07-21.md`(完了済みコア), `docs/planned/MILESTONE_SCRIPT_CONSOLE_2026-06-16.md`, `docs/planned/MILESTONE_AUTOMATED_TESTING_FOUNDATION_2026-08-21.md`
+
+## 進捗 2026-10-07
+
+- `tests/ArtifactCore/LayerScriptComponentContractTest.cpp` と `ArtifactCoreLayerScriptComponentTest` を追加。2件の契約テストで、コア ArtifactScript ランタイムのライフサイクルフック順、空フック、public フィールドの初期値、複数フレームにわたる `dt` / `time` / `frame` の受け渡しと状態保持、行／ブロックコメントの解析を検証する。
+- ビルドを妨げていた `ArtifactScript.cppm` の `EnvironmentVariable` モジュール参照・ビルド順依存の CMake 登録漏れを修正。クラス `{` 単独行でのパーサー停止、字下げ後のインラインメソッド本体位置、複数行メソッド本体の括弧走査、空メソッドを定義済みとして扱わない問題を修正し、メソッド本体の `//` / `/* */` コメントを読み飛ばすようにした。
+- MSVC Debug ビルド成功。`ArtifactCoreLayerScriptComponentTest` は **2/2 passed**。既存 `ArtifactCoreArtifactScriptTest` は **18/22 passed**。`EvaluatorCallsUserMethodFromScript`、`ArrayFieldDefaultsAndReads`、`ShortCircuitEvaluation`、`VarDeclarationAndForeach` が失敗しており、既存スイート全件成功は未確認。
+- このテストは ArtifactCore のスクリプトランタイムを対象とし、Artifact サブモジュールの `ArtifactAbstractLayer` にあるレイヤーコンポーネント連携や UI / プロジェクト読込を通した統合動作は対象外。統合受入確認は未完了。
 
 ## 目的
 

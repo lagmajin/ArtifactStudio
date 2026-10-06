@@ -21,6 +21,13 @@ artifact_add_test(ArtifactCoreArtifactScriptTest
         ArtifactCore
 )
 
+artifact_add_test(ArtifactCoreLayerScriptComponentTest
+    SOURCES
+        LayerScriptComponentContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+
 artifact_add_test(ArtifactCoreArtifactScriptObjectTest
     SOURCES
         ArtifactScriptObjectTest.cpp
