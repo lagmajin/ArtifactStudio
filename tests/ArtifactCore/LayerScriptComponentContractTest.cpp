@@ -433,6 +433,31 @@ class BenchmarkNoOp : ArtifactBehaviour
         if (method.name == "OnUpdate") noOpMethod = &method;
     }
     ASSERT_NE(noOpMethod, nullptr);
+
+    auto largeForeachDefinition = parser.parse(R"(
+class BenchmarkLargeForeach : ArtifactBehaviour
+{
+    public Array values;
+    public float total = 0.0;
+    void OnCreate()
+    {
+        for (int index = 0; index < 257; index += 1) push(values, index);
+    }
+    void OnUpdate()
+    {
+        total = 0.0;
+        foreach (item in values) total += item;
+    }
+}
+)");
+    ASSERT_TRUE(largeForeachDefinition.diagnostics.empty());
+    ArtifactScriptInstance largeForeachInstance(std::move(largeForeachDefinition));
+    ASSERT_TRUE(largeForeachInstance.invokeHook(ArtifactScriptHook::OnCreate))
+        << largeForeachInstance.lastError();
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(largeForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << largeForeachInstance.lastError();
+    }
     const std::vector<ArtifactScriptValue> noArguments;
     constexpr int allocationIterations = 2000;
     const auto countCalls = [&](auto&& call) {
@@ -480,6 +505,7 @@ class BenchmarkNoOp : ArtifactBehaviour
     const auto methodAllocationRate = countAllocations(callInstance);
     const auto foreachAllocationRate = countAllocations(foreachInstance);
     const auto wideAllocationRate = countAllocations(wideFieldsInstance);
+    const auto largeForeachAllocationRate = countAllocations(largeForeachInstance);
     const auto expectNoSteadyStateAllocations = [](const auto& rate) {
         EXPECT_DOUBLE_EQ(rate.first, 0.0);
         EXPECT_DOUBLE_EQ(rate.second, 0.0);
@@ -489,6 +515,7 @@ class BenchmarkNoOp : ArtifactBehaviour
     expectNoSteadyStateAllocations(methodAllocationRate);
     expectNoSteadyStateAllocations(foreachAllocationRate);
     expectNoSteadyStateAllocations(wideAllocationRate);
+    expectNoSteadyStateAllocations(largeForeachAllocationRate);
     std::cout << "ArtifactScript allocations/hook (count, bytes): no-op="
               << noOpAllocationRate.first << ", " << noOpAllocationRate.second
               << "; simple="
@@ -497,6 +524,8 @@ class BenchmarkNoOp : ArtifactBehaviour
               << methodAllocationRate.second << "; foreach="
               << foreachAllocationRate.first << ", " << foreachAllocationRate.second
               << "; wide-foreach=" << wideAllocationRate.first << ", "
-              << wideAllocationRate.second << '\n';
+              << wideAllocationRate.second << "; large-foreach="
+              << largeForeachAllocationRate.first << ", "
+              << largeForeachAllocationRate.second << '\n';
 #endif
 }

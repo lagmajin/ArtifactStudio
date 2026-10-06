@@ -659,7 +659,7 @@ class LargeMutatingForeach : ArtifactBehaviour
     public float total = 0.0;
     void OnCreate()
     {
-        for (int index = 0; index < 257; index += 1) {
+        for (int index = 0; index < 1025; index += 1) {
             push(values, index);
         }
     }
@@ -677,14 +677,14 @@ class LargeMutatingForeach : ArtifactBehaviour
     ArtifactScriptInstance instance(std::move(definition));
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate)) << instance.lastError();
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
-    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 32896.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 524800.0);
     auto values = std::get<ArtifactScriptArrayPtr>(instance.fields().at("values"));
     ASSERT_TRUE(values);
-    ASSERT_EQ(values->values.size(), 258u);
+    ASSERT_EQ(values->values.size(), 1026u);
 
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
-    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 66792.0);
-    EXPECT_EQ(values->values.size(), 259u);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 1050600.0);
+    EXPECT_EQ(values->values.size(), 1027u);
 }
 
 TEST(ArtifactScriptTest, DeepForeachFallsBackAfterReusableSnapshotLimit) {
