@@ -34,6 +34,7 @@
 - ArtifactScript の保存契約テストを追加した。公開フィールドと `[SerializeField]` 付き private フィールドの保存対象、未指定 private フィールドの除外、コンポーネント JSON の round-trip、未知キーの保持、保存型が既定値と異なる場合の既定値復帰を確認した。ArtifactScript を含む5 suiteを再実行し、全 suite 成功（新規2ケースを含む計35ケース）。
 - レイヤースクリプトの統合寄り契約として、保存 JSON の復元 → ArtifactScriptInstance へのフィールド引き渡し → OnCreate / OnUpdate 実行 → 実行状態の再シリアライズまでを1ケースで通した。複数フレーム相当の dt/frame、SerializeField の状態維持、未シリアライズ private field の除外も確認。5 suite 全36ケース成功。これは Core の保存・実行 API 間の統合テストであり、ArtifactAbstractLayer やアプリ起動を通した実機統合確認ではない。
 - OnUpdate の軽量スクリプト（フィールドに `dt` を加算）の Debug microbenchmark を追加し、60,000 hook の各計測前に2,000 hookをwarm-upして5回計測した。ArtifactScriptInstance がフックごとに新規 ArtifactScriptEvaluator / Impl を確保していた経路を、instance所有 evaluator の再利用へ変更した。変更前中央値5.73 µs/hook、変更後中央値5.20 µs/hook（約9%短縮）。加えて、実行エラー後に同じ evaluator で次のフックが正常実行できる回復テストを追加した。この性能値は単一ワークロードのローカル Debug 測定であり、Releaseや複雑なスクリプト、ヒープ確保数は計測していない。ArtifactScript関連5 suiteは再実行し全成功（38ケース）。
+- 続けてhook/method lookupの重複を除去した。ライフサイクルhookを1回だけ解決して評価器へ渡し、評価器内でも名前で解決したmethodをそのまま実行する。スクリプト内呼び出しとオブジェクトmethod呼び出しも、解決済みmethodを再探索しない。追加した継承hookの回帰ケースで派生クラスより基底クラスを優先してしまう検索不具合も見つかり、derived-firstへ修正した。軽量Debug microbenchmarkは変更前中央値5.18 µs/hook、変更後3.38 µs/hook（追加約35%短縮）。累積では直近の元版5.73から約41%短縮。測定は同じローカルDebug単一ワークロードのみで、Release、実レイヤー、複雑なscriptの性能保証ではない。ArtifactScript関連5 suiteは39ケースすべて成功。
 - Pythonビジュアルsuiteは17/17成功。Artifact.exe、UI実撮影、GPU/render parity、全Core suiteは今回の検証範囲外。
 
 ## 目的

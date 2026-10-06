@@ -122,6 +122,27 @@ class RecoveringScript : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("value")), 1.0);
 }
 
+TEST(LayerScriptComponentContractTest, DerivedLifecycleHookOverridesBaseHook) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class DerivedCounter : BaseCounter
+{
+    public float value = 0.0;
+    void OnUpdate() { value += 1.0; }
+}
+class BaseCounter : ArtifactBehaviour
+{
+    void OnUpdate() { value += 10.0; }
+}
+)");
+
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.hasHook(ArtifactScriptHook::OnUpdate));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("value")), 1.0);
+}
+
 TEST(LayerScriptComponentContractTest,
      RestoresSerializedComponentRunsHooksAndSerializesRuntimeState) {
     constexpr auto source = R"(
