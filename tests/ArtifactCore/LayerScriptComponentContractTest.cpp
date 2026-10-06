@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstdint>
 #include <iostream>
+#include <string>
 #include <utility>
 #include <variant>
 
@@ -318,6 +319,53 @@ class BenchmarkForeachCounter : ArtifactBehaviour
             std::chrono::steady_clock::now() - start).count();
     }
     std::cout << "ArtifactScript foreach(8) benchmark: "
+              << totalMicroseconds / (repetitions * iterations)
+              << " us/hook (" << iterations * repetitions << " calls)\n";
+
+    std::string wideFieldsSource = R"(
+class BenchmarkWideForeachCounter : ArtifactBehaviour
+{
+    public Array values;
+    public float total = 0.0;
+)";
+    for (int i = 0; i < 48; ++i) {
+        wideFieldsSource += "    public float unused" + std::to_string(i) + " = 0.0;\n";
+    }
+    wideFieldsSource += R"(
+    void OnCreate()
+    {
+        push(values, 1.0); push(values, 2.0); push(values, 3.0); push(values, 4.0);
+        push(values, 5.0); push(values, 6.0); push(values, 7.0); push(values, 8.0);
+    }
+    void OnUpdate()
+    {
+        total = 0.0;
+        foreach (item in values) { total += item; }
+    }
+}
+)";
+    auto wideFieldsDefinition = parser.parse(wideFieldsSource);
+    ASSERT_TRUE(wideFieldsDefinition.diagnostics.empty());
+    ArtifactScriptInstance wideFieldsInstance(std::move(wideFieldsDefinition));
+    ASSERT_TRUE(wideFieldsInstance.invokeHook(ArtifactScriptHook::OnCreate))
+        << wideFieldsInstance.lastError();
+    for (int i = 0; i < warmupIterations; ++i) {
+        if (!wideFieldsInstance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+            FAIL() << wideFieldsInstance.lastError();
+        }
+    }
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            if (!wideFieldsInstance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+                FAIL() << wideFieldsInstance.lastError();
+            }
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript foreach(8, 50 fields) benchmark: "
               << totalMicroseconds / (repetitions * iterations)
               << " us/hook (" << iterations * repetitions << " calls)\n";
 }

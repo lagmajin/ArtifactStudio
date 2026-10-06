@@ -587,6 +587,7 @@ class MutatingForeach : ArtifactBehaviour
 {
     public Array values;
     public float total = 0.0;
+    public float item = 41.0;
     void OnCreate()
     {
         push(values, 2.0);
@@ -612,6 +613,65 @@ class MutatingForeach : ArtifactBehaviour
     ASSERT_EQ(values->values.size(), 4u);
     EXPECT_DOUBLE_EQ(std::get<double>(values->values[2]), 2.0);
     EXPECT_DOUBLE_EQ(std::get<double>(values->values[3]), 3.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("item")), 41.0);
+}
+
+TEST(ArtifactScriptTest, NestedForeachScopesCommitFieldWrites) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class NestedForeach : ArtifactBehaviour
+{
+    public Array outerValues;
+    public Array innerValues;
+    public float total = 0.0;
+    void OnCreate()
+    {
+        push(outerValues, 2.0);
+        push(outerValues, 3.0);
+        push(innerValues, 4.0);
+        push(innerValues, 5.0);
+    }
+    void OnUpdate()
+    {
+        foreach (outer in outerValues) {
+            foreach (inner in innerValues) {
+                total += outer * inner;
+            }
+        }
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate)) << instance.lastError();
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 45.0);
+}
+
+TEST(ArtifactScriptTest, FailedForeachDoesNotCommitScalarFieldWrites) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class FailedForeach : ArtifactBehaviour
+{
+    public Array values;
+    public float total = 7.0;
+    void OnCreate() { push(values, 1.0); }
+    void OnUpdate()
+    {
+        foreach (item in values) {
+            total += 1.0;
+            missing;
+        }
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate)) << instance.lastError();
+    EXPECT_FALSE(instance.invokeHook(ArtifactScriptHook::OnUpdate));
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 7.0);
 }
 
 TEST(ArtifactScriptTest, UserMethodArgumentsUseOverflowStorageWhenNeeded) {
