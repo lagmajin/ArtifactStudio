@@ -17,6 +17,9 @@ import Graphics.Effect.Creative.LightPressure;
 import Graphics.Effect.Creative.OldTV;
 import Graphics.Effect.Creative.SurfaceMemory;
 import Graphics.Effect.Creative.TemporalFossil;
+import Graphics.Effect.Creative.DepthMelt;
+import Graphics.Effect.Creative.Glitch;
+import Graphics.Effect.Creative.PigmentSeparation;
 import Video.VideoFrame;
 import Channel;
 
@@ -727,5 +730,125 @@ TEST(CreativeImageEffectContractTest, TemporalEffectsInitializeHistoryFromFirstF
             EXPECT_FLOAT_EQ(fossilPlane->data()[pixel], expectedChannels[channelIndex][pixel])
                 << "fossil channel=" << channelIndex << " pixel=" << pixel;
         }
+    }
+}
+
+TEST(CreativeImageEffectContractTest, DepthMeltPreservesUniformGrayAndAlpha) {
+    VideoFrame frame(3, 2);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    for (int index = 0; index < 6; ++index) {
+        red->data()[index] = 0.5f;
+        green->data()[index] = 0.5f;
+        blue->data()[index] = 0.5f;
+        alpha->data()[index] = static_cast<float>(index) / 10.0f;
+    }
+
+    DepthMeltEffect effect;
+    effect.setParameter("Melt", 0.0f);
+    effect.setParameter("Heat", 0.0f);
+    effect.process(frame, CreativeEffectContext{.time = 3.25});
+
+    for (int index = 0; index < 6; ++index) {
+        EXPECT_FLOAT_EQ(red->data()[index], 0.5f) << "red pixel=" << index;
+        EXPECT_FLOAT_EQ(green->data()[index], 0.5f) << "green pixel=" << index;
+        EXPECT_FLOAT_EQ(blue->data()[index], 0.5f) << "blue pixel=" << index;
+        EXPECT_FLOAT_EQ(alpha->data()[index], static_cast<float>(index) / 10.0f)
+            << "alpha pixel=" << index;
+    }
+}
+
+TEST(CreativeImageEffectContractTest, GlitchIsRepeatableAtFixedTimeAndAppliesSharedGrainToRgb) {
+    VideoFrame first(4, 2);
+    VideoFrame second(4, 2);
+    const ChannelType channels[] = {
+        ChannelType::Red, ChannelType::Green,
+        ChannelType::Blue, ChannelType::Alpha,
+    };
+    for (const ChannelType channelType : channels) {
+        auto firstPlane = first.getChannel(channelType);
+        auto secondPlane = second.getChannel(channelType);
+        ASSERT_TRUE(firstPlane);
+        ASSERT_TRUE(secondPlane);
+        for (int index = 0; index < 8; ++index) {
+            const float value = channelType == ChannelType::Alpha
+                ? static_cast<float>(index) / 10.0f
+                : 0.5f;
+            firstPlane->data()[index] = value;
+            secondPlane->data()[index] = value;
+        }
+    }
+
+    GlitchCreativeEffect firstEffect;
+    GlitchCreativeEffect secondEffect;
+    const CreativeEffectContext context{.time = 1.75, .frameIndex = 52};
+    firstEffect.process(first, context);
+    secondEffect.process(second, context);
+
+    const auto firstRed = first.getChannel(ChannelType::Red);
+    const auto firstGreen = first.getChannel(ChannelType::Green);
+    const auto firstBlue = first.getChannel(ChannelType::Blue);
+    const auto firstAlpha = first.getChannel(ChannelType::Alpha);
+    const auto secondRed = second.getChannel(ChannelType::Red);
+    const auto secondGreen = second.getChannel(ChannelType::Green);
+    const auto secondBlue = second.getChannel(ChannelType::Blue);
+    const auto secondAlpha = second.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(firstRed);
+    ASSERT_TRUE(firstGreen);
+    ASSERT_TRUE(firstBlue);
+    ASSERT_TRUE(firstAlpha);
+    ASSERT_TRUE(secondRed);
+    ASSERT_TRUE(secondGreen);
+    ASSERT_TRUE(secondBlue);
+    ASSERT_TRUE(secondAlpha);
+    for (int index = 0; index < 8; ++index) {
+        EXPECT_TRUE(std::isfinite(firstRed->data()[index]));
+        EXPECT_FLOAT_EQ(firstRed->data()[index], firstGreen->data()[index]);
+        EXPECT_FLOAT_EQ(firstRed->data()[index], firstBlue->data()[index]);
+        EXPECT_FLOAT_EQ(firstRed->data()[index], secondRed->data()[index]);
+        EXPECT_FLOAT_EQ(firstGreen->data()[index], secondGreen->data()[index]);
+        EXPECT_FLOAT_EQ(firstBlue->data()[index], secondBlue->data()[index]);
+        EXPECT_FLOAT_EQ(firstAlpha->data()[index], static_cast<float>(index) / 10.0f);
+        EXPECT_FLOAT_EQ(secondAlpha->data()[index], static_cast<float>(index) / 10.0f);
+    }
+}
+
+TEST(CreativeImageEffectContractTest, PigmentSeparationUniformZeroTextureMatchesExpectedPaperMix) {
+    VideoFrame frame(2, 2);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    for (int index = 0; index < 4; ++index) {
+        red->data()[index] = 0.5f;
+        green->data()[index] = 0.5f;
+        blue->data()[index] = 0.5f;
+        alpha->data()[index] = static_cast<float>(index) / 4.0f;
+    }
+
+    PigmentSeparationEffect effect;
+    effect.setParameter("Spread", 0.0f);
+    effect.setParameter("Bleed", 0.0f);
+    effect.setParameter("Flow", 0.0f);
+    effect.setParameter("Granulation", 0.0f);
+    effect.process(frame, CreativeEffectContext{.time = 4.0});
+
+    constexpr float expected = 0.47525f;
+    for (int index = 0; index < 4; ++index) {
+        EXPECT_NEAR(red->data()[index], expected, 1e-6f) << "red pixel=" << index;
+        EXPECT_NEAR(green->data()[index], expected, 1e-6f) << "green pixel=" << index;
+        EXPECT_NEAR(blue->data()[index], expected, 1e-6f) << "blue pixel=" << index;
+        EXPECT_FLOAT_EQ(alpha->data()[index], static_cast<float>(index) / 4.0f)
+            << "alpha pixel=" << index;
     }
 }
