@@ -65,7 +65,7 @@ class Spin : ArtifactBehaviour
     private float time = 0.0;
 }
 )");
-
+    ASSERT_TRUE(definition.diagnostics.empty());
     ArtifactScriptComponent component;
     component.setScriptClass("Spin");
     component.applyDefaults(definition);
@@ -73,6 +73,75 @@ class Spin : ArtifactBehaviour
     ASSERT_TRUE(std::holds_alternative<double>(component.publicFields().at("speed")));
     EXPECT_DOUBLE_EQ(std::get<double>(component.publicFields().at("speed")), 90.0);
     EXPECT_EQ(component.publicFields().find("time"), component.publicFields().end());
+}
+
+TEST(ArtifactScriptTest, SerializedFieldsIncludePublicAndOptedInPrivateFields) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class Settings : ArtifactBehaviour
+{
+    public float speed = 2.0;
+    [SerializeField]
+    private float seed = 7.0;
+    private float runtimeCache = 0.0;
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ASSERT_EQ(definition.rootClass.fields.size(), 3u);
+    EXPECT_EQ(definition.rootClass.fields[0].name, "speed");
+    EXPECT_EQ(definition.rootClass.fields[1].name, "seed");
+    EXPECT_EQ(definition.rootClass.fields[2].name, "runtimeCache");
+
+    ArtifactScriptComponent component;
+    component.setScriptClass("Settings");
+    component.applyDefaults(definition);
+    component.publicFields()["speed"] = 4.0;
+    component.publicFields()["seed"] = 9.0;
+
+    const auto saved = component.serializedFields(definition);
+    ASSERT_EQ(saved.size(), 2u);
+    EXPECT_DOUBLE_EQ(std::get<double>(saved.at("speed")), 4.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(saved.at("seed")), 9.0);
+    EXPECT_EQ(saved.find("runtimeCache"), saved.end());
+}
+
+TEST(ArtifactScriptTest, SerializedComponentRoundTripsAndFallsBackOnTypeMismatch) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class Settings : ArtifactBehaviour
+{
+    public float speed = 2.0;
+    [SerializeField]
+    private float seed = 7.0;
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptSerializedComponent source;
+    source.className = "Settings";
+    source.values["speed"] = 4.5;
+    source.values["seed"] = 11.25;
+    source.unknown["futureOption"] = std::string("keep me");
+
+    const auto json = serializeScriptComponent(source);
+    ArtifactScriptSerializedComponent decoded;
+    std::string error;
+    ASSERT_TRUE(deserializeScriptComponent(json, decoded, error)) << error;
+    EXPECT_EQ(decoded.className, "Settings");
+    EXPECT_DOUBLE_EQ(std::get<double>(decoded.values.at("speed")), 4.5);
+    EXPECT_DOUBLE_EQ(std::get<double>(decoded.values.at("seed")), 11.25);
+    EXPECT_EQ(std::get<std::string>(decoded.unknown.at("futureOption")), "keep me");
+
+    ArtifactScriptComponent component;
+    component.applySerializedComponent(definition, decoded);
+    EXPECT_EQ(component.scriptClass(), "Settings");
+    EXPECT_DOUBLE_EQ(std::get<double>(component.publicFields().at("speed")), 4.5);
+    EXPECT_DOUBLE_EQ(std::get<double>(component.publicFields().at("seed")), 11.25);
+    EXPECT_EQ(std::get<std::string>(component.publicFields().at("futureOption")), "keep me");
+
+    decoded.values["speed"] = std::string("wrong type");
+    component.applySerializedComponent(definition, decoded);
+    EXPECT_DOUBLE_EQ(std::get<double>(component.publicFields().at("speed")), 2.0);
 }
 
 TEST(ArtifactScriptTest, EvaluatorExecutesAssignment) {
