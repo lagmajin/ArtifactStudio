@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <cstdint>
+#include <iostream>
 #include <utility>
 #include <variant>
 
@@ -99,6 +101,27 @@ class CommentedCounter : ArtifactBehaviour
     EXPECT_TRUE(instance.lastError().empty());
 }
 
+TEST(LayerScriptComponentContractTest, ReusedEvaluatorClearsPriorHookError) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class RecoveringScript : ArtifactBehaviour
+{
+    public float value = 0.0;
+    void OnUpdate() { value = lateBound; }
+}
+)");
+
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    EXPECT_FALSE(instance.invokeHook(ArtifactScriptHook::OnUpdate));
+    EXPECT_FALSE(instance.lastError().empty());
+
+    instance.fields()["lateBound"] = 1.0;
+    EXPECT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_TRUE(instance.lastError().empty());
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("value")), 1.0);
+}
+
 TEST(LayerScriptComponentContractTest,
      RestoresSerializedComponentRunsHooksAndSerializesRuntimeState) {
     constexpr auto source = R"(
@@ -162,4 +185,41 @@ class PersistedCounter : ArtifactBehaviour
     EXPECT_EQ(std::get<std::int64_t>(roundTripped.values.at("observedFrame")), 42);
     EXPECT_DOUBLE_EQ(std::get<double>(roundTripped.values.at("savedCount")), 9.5);
     EXPECT_EQ(roundTripped.values.find("transient"), roundTripped.values.end());
+}
+
+TEST(LayerScriptComponentContractTest, HookExecutionMicrobenchmark) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class BenchmarkCounter : ArtifactBehaviour
+{
+    public float value = 0.0;
+    void OnUpdate() { value += dt; }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    instance.fields()["dt"] = 0.016;
+
+    constexpr int repetitions = 3;
+    constexpr int iterations = 20000;
+    constexpr int warmupIterations = 2000;
+    for (int i = 0; i < warmupIterations; ++i) {
+        if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+            FAIL() << instance.lastError();
+        }
+    }
+    double totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+                FAIL() << instance.lastError();
+            }
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript OnUpdate benchmark: "
+              << totalMicroseconds / (repetitions * iterations)
+              << " us/hook (" << iterations * repetitions << " calls)\n";
 }
