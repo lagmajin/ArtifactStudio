@@ -168,7 +168,7 @@ class MathBehaviour : ArtifactBehaviour
     ArtifactScriptEvaluator evaluator;
     ArtifactScriptSerializedFields fields;
     const auto result = evaluator.executeMethod(definition, "twice", {3.0}, fields);
-    ASSERT_TRUE(std::holds_alternative<double>(result));
+    ASSERT_TRUE(std::holds_alternative<double>(result)) << evaluator.getLastError();
     EXPECT_DOUBLE_EQ(std::get<double>(result), 6.0);
 }
 
@@ -191,6 +191,7 @@ class Points : ArtifactBehaviour
     ArtifactScriptComponent component;
     component.setScriptClass("Points");
     component.applyDefaults(definition);
+    ASSERT_NE(component.publicFields().find("points"), component.publicFields().end());
     ASSERT_TRUE(std::holds_alternative<ArtifactScriptArrayPtr>(component.publicFields().at("points")));
 
     ArtifactScriptEvaluator evaluator;
@@ -474,7 +475,8 @@ class Guard : ArtifactBehaviour
     ArtifactScriptEvaluator evaluator;
     ArtifactScriptSerializedFields fields;
     fields["total"] = 0.0;
-    EXPECT_TRUE(evaluator.execute(*definition.rootClass.methods[0].body, {}, fields));
+    EXPECT_TRUE(std::holds_alternative<std::monostate>(
+        evaluator.executeMethod(definition, "OnUpdate", {}, fields)));
     EXPECT_DOUBLE_EQ(std::get<double>(fields.at("total")), 0.0);
 }
 
@@ -505,7 +507,7 @@ class Sum : ArtifactBehaviour
 
     ArtifactScriptEvaluator evaluator;
     evaluator.executeMethod(definition, "OnUpdate", {}, component.publicFields());
-    EXPECT_FALSE(evaluator.hasError());
+    EXPECT_FALSE(evaluator.hasError()) << evaluator.getLastError();
     EXPECT_DOUBLE_EQ(std::get<double>(component.publicFields().at("total")), 5.0);
 }
 
