@@ -580,6 +580,60 @@ class Sum : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(component.publicFields().at("total")), 5.0);
 }
 
+TEST(ArtifactScriptTest, ForeachUsesSnapshotWhenSourceArrayMutates) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class MutatingForeach : ArtifactBehaviour
+{
+    public Array values;
+    public float total = 0.0;
+    void OnCreate()
+    {
+        push(values, 2.0);
+        push(values, 3.0);
+    }
+    void OnUpdate()
+    {
+        foreach (item in values) {
+            total += item;
+            push(values, item);
+        }
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate)) << instance.lastError();
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 5.0);
+    const auto values = std::get<ArtifactScriptArrayPtr>(instance.fields().at("values"));
+    ASSERT_TRUE(values);
+    ASSERT_EQ(values->values.size(), 4u);
+    EXPECT_DOUBLE_EQ(std::get<double>(values->values[2]), 2.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(values->values[3]), 3.0);
+}
+
+TEST(ArtifactScriptTest, UserMethodArgumentsUseOverflowStorageWhenNeeded) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class FiveArguments : ArtifactBehaviour
+{
+    public float total = 0.0;
+    float sum(float a, float b, float c, float d, float e)
+    {
+        return a + b + c + d + e;
+    }
+    void OnUpdate() { total = sum(1.0, 2.0, 3.0, 4.0, 5.0); }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 15.0);
+}
+
 TEST(ArtifactScriptTest, HostBindingRegistry) {
     ArtifactScriptHost& host = ArtifactScriptHost::global();
     host.registerFunction("doubleIt", [&host](std::span<const ArtifactScriptValue> args) -> ArtifactScriptValue {
