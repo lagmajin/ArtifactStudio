@@ -480,6 +480,15 @@ class BenchmarkNoOp : ArtifactBehaviour
     const auto methodAllocationRate = countAllocations(callInstance);
     const auto foreachAllocationRate = countAllocations(foreachInstance);
     const auto wideAllocationRate = countAllocations(wideFieldsInstance);
+    const auto expectNoSteadyStateAllocations = [](const auto& rate) {
+        EXPECT_DOUBLE_EQ(rate.first, 0.0);
+        EXPECT_DOUBLE_EQ(rate.second, 0.0);
+    };
+    expectNoSteadyStateAllocations(noOpAllocationRate);
+    expectNoSteadyStateAllocations(simpleAllocationRate);
+    expectNoSteadyStateAllocations(methodAllocationRate);
+    expectNoSteadyStateAllocations(foreachAllocationRate);
+    expectNoSteadyStateAllocations(wideAllocationRate);
     std::cout << "ArtifactScript allocations/hook (count, bytes): no-op="
               << noOpAllocationRate.first << ", " << noOpAllocationRate.second
               << "; simple="

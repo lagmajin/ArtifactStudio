@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <span>
+#include <string>
 #include <variant>
 
 import Script.ArtifactScript;
@@ -649,6 +650,104 @@ class NestedForeach : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 45.0);
 }
 
+TEST(ArtifactScriptTest, LargeForeachUsesSnapshotWhenSourceArrayMutates) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class LargeMutatingForeach : ArtifactBehaviour
+{
+    public Array values;
+    public float total = 0.0;
+    void OnCreate()
+    {
+        for (int index = 0; index < 257; index += 1) {
+            push(values, index);
+        }
+    }
+    void OnUpdate()
+    {
+        foreach (item in values) {
+            total += item;
+            if (item == 0.0) push(values, 1000.0);
+        }
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate)) << instance.lastError();
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 32896.0);
+    auto values = std::get<ArtifactScriptArrayPtr>(instance.fields().at("values"));
+    ASSERT_TRUE(values);
+    ASSERT_EQ(values->values.size(), 258u);
+
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 66792.0);
+    EXPECT_EQ(values->values.size(), 259u);
+}
+
+TEST(ArtifactScriptTest, DeepForeachFallsBackAfterReusableSnapshotLimit) {
+    std::string source = R"(
+class DeepForeach : ArtifactBehaviour
+{
+    public Array values;
+    public float visits = 0.0;
+    void OnCreate() { push(values, 1.0); }
+    void OnUpdate() {
+)";
+    constexpr int nestedDepth = 9;
+    for (int depth = 0; depth < nestedDepth; ++depth) {
+        source += "foreach (item" + std::to_string(depth) + " in values) {\n";
+    }
+    source += "visits += 1.0;\n";
+    for (int depth = 0; depth < nestedDepth; ++depth) source += "}\n";
+    source += "}\n}\n";
+
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(source);
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate)) << instance.lastError();
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("visits")), 1.0);
+}
+
+TEST(ArtifactScriptTest, ForeachOverlayOverflowCommitsFields) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ForeachOverlayOverflow : ArtifactBehaviour
+{
+    public Array values;
+    public float first = 0.0;
+    public float second = 0.0;
+    public float third = 0.0;
+    public float fourth = 0.0;
+    public float fifth = 0.0;
+    void OnCreate() { push(values, 1.0); }
+    void OnUpdate()
+    {
+        foreach (item in values) {
+            first += item;
+            second += item;
+            third += item;
+            fourth += item;
+            fifth += item;
+        }
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate)) << instance.lastError();
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    for (const auto* field : {"first", "second", "third", "fourth", "fifth"}) {
+        EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at(field)), 1.0);
+    }
+}
+
 TEST(ArtifactScriptTest, FailedForeachDoesNotCommitScalarFieldWrites) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
@@ -692,6 +791,35 @@ class FiveArguments : ArtifactBehaviour
     ArtifactScriptInstance instance(std::move(definition));
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
     EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 15.0);
+}
+
+TEST(ArtifactScriptTest, MoreThanEightLocalsUseOverflowStorage) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ManyLocals : ArtifactBehaviour
+{
+    public float total = 0.0;
+    void OnUpdate()
+    {
+        float a = 1.0;
+        float b = 2.0;
+        float c = 3.0;
+        float d = 4.0;
+        float e = 5.0;
+        float f = 6.0;
+        float g = 7.0;
+        float h = 8.0;
+        float i = 9.0;
+        float j = 10.0;
+        total = a + b + c + d + e + f + g + h + i + j;
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 55.0);
 }
 
 TEST(ArtifactScriptTest, HostBindingRegistry) {
