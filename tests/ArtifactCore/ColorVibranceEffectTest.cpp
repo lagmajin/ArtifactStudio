@@ -5,6 +5,9 @@
 import Graphics.Effect.Creative.ColorVibrance;
 import Graphics.Effect.Creative.Posterize;
 import Graphics.Effect.Creative.Solarize;
+import Graphics.Effect.Creative.Fisheye;
+import Graphics.Effect.Creative.Mirror;
+import Graphics.Effect.Creative.Pixelate;
 import Video.VideoFrame;
 import Channel;
 
@@ -357,4 +360,118 @@ TEST(CreativeImageEffectContractTest, SolarizeLeavesFrameUnchangedWhenRequiredCh
     EXPECT_FALSE(frame.getChannel(ChannelType::Green));
     EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Blue)->data()[0], 0.75f);
     EXPECT_FLOAT_EQ(frame.getChannel(ChannelType::Alpha)->data()[0], 0.40f);
+}
+
+TEST(CreativeImageEffectContractTest, FisheyeUnitStrengthAndZoomUseExpectedNearestSamples) {
+    VideoFrame frame(3, 3);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    for (int index = 0; index < 9; ++index) {
+        red->data()[index] = static_cast<float>(index) / 10.0f;
+        green->data()[index] = static_cast<float>(8 - index) / 10.0f;
+        blue->data()[index] = static_cast<float>((index * 3) % 9) / 10.0f;
+        alpha->data()[index] = static_cast<float>(index + 1) / 10.0f;
+    }
+    const float expectedAlpha[9] = {
+        0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f,
+    };
+
+    FisheyeEffect effect;
+    effect.setParameter("Strength", 0.0f);
+    effect.setParameter("Zoom", 2.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    const int expectedSourceIndices[9] = {
+        0, 1, 1,
+        3, 4, 4,
+        3, 4, 4,
+    };
+    for (int index = 0; index < 9; ++index) {
+        const int sourceIndex = expectedSourceIndices[index];
+        EXPECT_FLOAT_EQ(red->data()[index], static_cast<float>(sourceIndex) / 10.0f)
+            << "pixel=" << index;
+        EXPECT_FLOAT_EQ(green->data()[index], static_cast<float>(8 - sourceIndex) / 10.0f)
+            << "pixel=" << index;
+        EXPECT_FLOAT_EQ(blue->data()[index],
+                        static_cast<float>((sourceIndex * 3) % 9) / 10.0f)
+            << "pixel=" << index;
+        EXPECT_FLOAT_EQ(alpha->data()[index], expectedAlpha[index])
+            << "pixel=" << index;
+    }
+}
+
+TEST(CreativeImageEffectContractTest, MirrorReflectsOnlyTheSelectedHalfAcrossVerticalAxis) {
+    VideoFrame frame(4, 1);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    const float inputRed[] = {0.1f, 0.3f, 0.6f, 0.9f};
+    const float inputGreen[] = {0.9f, 0.7f, 0.4f, 0.1f};
+    const float inputBlue[] = {0.2f, 0.4f, 0.6f, 0.8f};
+    const float inputAlpha[] = {0.0f, 0.2f, 0.4f, 0.6f};
+    for (int index = 0; index < 4; ++index) {
+        red->data()[index] = inputRed[index];
+        green->data()[index] = inputGreen[index];
+        blue->data()[index] = inputBlue[index];
+        alpha->data()[index] = inputAlpha[index];
+    }
+
+    MirrorEffect effect;
+    effect.setParameter("Angle", 0.0f);
+    effect.setParameter("CenterX", 0.5f);
+    effect.setParameter("CenterY", 0.5f);
+    effect.process(frame, CreativeEffectContext{});
+
+    const int expectedSources[] = {0, 1, 2, 1};
+    for (int index = 0; index < 4; ++index) {
+        const int sourceIndex = expectedSources[index];
+        EXPECT_FLOAT_EQ(red->data()[index], inputRed[sourceIndex]);
+        EXPECT_FLOAT_EQ(green->data()[index], inputGreen[sourceIndex]);
+        EXPECT_FLOAT_EQ(blue->data()[index], inputBlue[sourceIndex]);
+        EXPECT_FLOAT_EQ(alpha->data()[index], inputAlpha[index]);
+    }
+}
+
+TEST(CreativeImageEffectContractTest, PixelateAveragesPartialEdgeBlocksWithoutChangingAlpha) {
+    VideoFrame frame(3, 2);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    for (int index = 0; index < 6; ++index) {
+        red->data()[index] = static_cast<float>(index);
+        green->data()[index] = static_cast<float>(10 + index);
+        blue->data()[index] = static_cast<float>(20 + index);
+        alpha->data()[index] = static_cast<float>(index) / 10.0f;
+    }
+
+    PixelateEffect effect;
+    effect.setParameter("BlockSize", 2.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    const float expectedRed[] = {2.0f, 2.0f, 3.5f, 2.0f, 2.0f, 3.5f};
+    const float expectedGreen[] = {12.0f, 12.0f, 13.5f, 12.0f, 12.0f, 13.5f};
+    const float expectedBlue[] = {22.0f, 22.0f, 23.5f, 22.0f, 22.0f, 23.5f};
+    for (int index = 0; index < 6; ++index) {
+        EXPECT_FLOAT_EQ(red->data()[index], expectedRed[index]) << "pixel=" << index;
+        EXPECT_FLOAT_EQ(green->data()[index], expectedGreen[index]) << "pixel=" << index;
+        EXPECT_FLOAT_EQ(blue->data()[index], expectedBlue[index]) << "pixel=" << index;
+        EXPECT_FLOAT_EQ(alpha->data()[index], static_cast<float>(index) / 10.0f)
+            << "pixel=" << index;
+    }
 }
