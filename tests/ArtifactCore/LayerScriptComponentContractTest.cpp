@@ -243,4 +243,40 @@ class BenchmarkCounter : ArtifactBehaviour
     std::cout << "ArtifactScript OnUpdate benchmark: "
               << totalMicroseconds / (repetitions * iterations)
               << " us/hook (" << iterations * repetitions << " calls)\n";
+
+    auto callDefinition = parser.parse(R"(
+class BenchmarkMethodCounter : ArtifactBehaviour
+{
+    public float value = 0.0;
+    float combine(float a, float b, float c, float d)
+    {
+        float intermediate = a * 2.0;
+        return intermediate + b + c + d;
+    }
+    void OnUpdate() { value = combine(value, dt, 1.0, 2.0); }
+}
+)");
+    ASSERT_TRUE(callDefinition.diagnostics.empty());
+    ArtifactScriptInstance callInstance(std::move(callDefinition));
+    callInstance.fields()["value"] = 0.0;
+    callInstance.fields()["dt"] = 0.016;
+    for (int i = 0; i < warmupIterations; ++i) {
+        if (!callInstance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+            FAIL() << callInstance.lastError();
+        }
+    }
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            if (!callInstance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+                FAIL() << callInstance.lastError();
+            }
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript method/local benchmark: "
+              << totalMicroseconds / (repetitions * iterations)
+              << " us/hook (" << iterations * repetitions << " calls)\n";
 }
