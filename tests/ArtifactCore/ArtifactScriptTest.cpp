@@ -795,6 +795,10 @@ class ForeachOverlayOverflow : ArtifactBehaviour
     public float third = 0.0;
     public float fourth = 0.0;
     public float fifth = 0.0;
+    public float sixth = 0.0;
+    public float seventh = 0.0;
+    public float eighth = 0.0;
+    public float ninth = 0.0;
     void OnCreate() { push(values, 1.0); }
     void OnUpdate()
     {
@@ -804,6 +808,10 @@ class ForeachOverlayOverflow : ArtifactBehaviour
             third += item;
             fourth += item;
             fifth += item;
+            sixth += item;
+            seventh += item;
+            eighth += item;
+            ninth += item;
         }
     }
 }
@@ -813,7 +821,8 @@ class ForeachOverlayOverflow : ArtifactBehaviour
     ArtifactScriptInstance instance(std::move(definition));
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate)) << instance.lastError();
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
-    for (const auto* field : {"first", "second", "third", "fourth", "fifth"}) {
+    for (const auto* field : {"first", "second", "third", "fourth", "fifth",
+                              "sixth", "seventh", "eighth", "ninth"}) {
         EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at(field)), 1.0);
     }
 }

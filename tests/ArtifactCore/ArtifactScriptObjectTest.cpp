@@ -144,6 +144,10 @@ class Counter : ArtifactBehaviour
     public float c = 0.0;
     public float d = 0.0;
     public float e = 0.0;
+    public float f = 0.0;
+    public float g = 0.0;
+    public float h = 0.0;
+    public float i = 0.0;
     void update()
     {
         this.a = 1.0;
@@ -151,15 +155,23 @@ class Counter : ArtifactBehaviour
         this.c = 3.0;
         this.d = 4.0;
         this.e = 5.0;
+        this.f = 6.0;
+        this.g = 7.0;
+        this.h = 8.0;
+        this.i = 9.0;
     }
-    float sum() { return this.a + this.b + this.c + this.d + this.e; }
+    float sum()
+    {
+        return this.a + this.b + this.c + this.d + this.e +
+               this.f + this.g + this.h + this.i;
+    }
 }
 )");
     ASSERT_TRUE(definition.diagnostics.empty());
 
     ArtifactScriptInstance instance(std::move(definition));
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
-    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 15.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 45.0);
 }
 
 TEST(ArtifactScriptObjectTest, InheritanceAndIsOperator) {

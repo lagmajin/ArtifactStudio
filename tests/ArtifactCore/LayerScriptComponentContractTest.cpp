@@ -632,6 +632,60 @@ class Counter : ArtifactBehaviour
               << " us/hook (" << iterations * repetitions << " calls)\n";
     EXPECT_DOUBLE_EQ(std::get<double>(objectMethodLookupInstance.fields().at("total")),
                      (100.0 + repetitions * iterations) * 16.0);
+
+    auto wideObjectMethodDefinition = parser.parse(R"(
+class BenchmarkWideObjectMethod : ArtifactBehaviour
+{
+    public float total = 0.0;
+    void OnCreate() { counter = new Counter(); }
+    void OnUpdate()
+    {
+        for (int index = 0; index < 16; index += 1) {
+            counter.update(total);
+            total += 1.0;
+        }
+    }
+}
+class Counter : ArtifactBehaviour
+{
+    public float a = 0.0;
+    public float b = 0.0;
+    public float c = 0.0;
+    public float d = 0.0;
+    public float e = 0.0;
+    void update(float value)
+    {
+        this.a = value;
+        this.b = value;
+        this.c = value;
+        this.d = value;
+        this.e = value;
+    }
+}
+)");
+    ASSERT_TRUE(wideObjectMethodDefinition.diagnostics.empty());
+    ArtifactScriptInstance wideObjectMethodInstance(std::move(wideObjectMethodDefinition));
+    ASSERT_TRUE(wideObjectMethodInstance.invokeHook(ArtifactScriptHook::OnCreate))
+        << wideObjectMethodInstance.lastError();
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(wideObjectMethodInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << wideObjectMethodInstance.lastError();
+    }
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            ASSERT_TRUE(wideObjectMethodInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+                << wideObjectMethodInstance.lastError();
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript object method(5 fields, 16 calls) benchmark: "
+              << totalMicroseconds / (repetitions * iterations)
+              << " us/hook (" << iterations * repetitions << " calls)\n";
+    EXPECT_DOUBLE_EQ(std::get<double>(wideObjectMethodInstance.fields().at("total")),
+                     (100.0 + repetitions * iterations) * 16.0);
     const std::vector<ArtifactScriptValue> noArguments;
     constexpr int allocationIterations = 2000;
     const auto countCalls = [&](auto&& call) {
@@ -703,6 +757,7 @@ class Counter : ArtifactBehaviour
     const auto methodLookupAllocationRate = countAllocations(methodLookupInstance);
     const auto fiveArgumentAllocationRate = countAllocations(fiveArgumentInstance);
     const auto objectMethodLookupAllocationRate = countAllocations(objectMethodLookupInstance);
+    const auto wideObjectMethodAllocationRate = countAllocations(wideObjectMethodInstance);
     const auto expectNoSteadyStateAllocations = [](const auto& rate) {
         EXPECT_DOUBLE_EQ(rate.first, 0.0);
         EXPECT_DOUBLE_EQ(rate.second, 0.0);
@@ -717,6 +772,10 @@ class Counter : ArtifactBehaviour
     expectNoSteadyStateAllocations(methodLookupAllocationRate);
     expectNoSteadyStateAllocations(fiveArgumentAllocationRate);
     expectNoSteadyStateAllocations(objectMethodLookupAllocationRate);
+    expectNoSteadyStateAllocations(wideObjectMethodAllocationRate);
+    std::cout << "ArtifactScript allocations/hook (object method, 5 fields): "
+              << wideObjectMethodAllocationRate.first << ", "
+              << wideObjectMethodAllocationRate.second << " bytes\n";
     std::cout << "ArtifactScript allocations/hook (5-arg method): "
               << fiveArgumentAllocationRate.first << ", "
               << fiveArgumentAllocationRate.second << " bytes\n";
