@@ -8,6 +8,9 @@ import Graphics.Effect.Creative.Solarize;
 import Graphics.Effect.Creative.Fisheye;
 import Graphics.Effect.Creative.Mirror;
 import Graphics.Effect.Creative.Pixelate;
+import Graphics.Effect.Creative.Halftone;
+import Graphics.Effect.Creative.Kaleidoscope;
+import Graphics.Effect.Creative.ChromaticAberration;
 import Video.VideoFrame;
 import Channel;
 
@@ -473,5 +476,114 @@ TEST(CreativeImageEffectContractTest, PixelateAveragesPartialEdgeBlocksWithoutCh
         EXPECT_FLOAT_EQ(blue->data()[index], expectedBlue[index]) << "pixel=" << index;
         EXPECT_FLOAT_EQ(alpha->data()[index], static_cast<float>(index) / 10.0f)
             << "pixel=" << index;
+    }
+}
+
+TEST(CreativeImageEffectContractTest, HalftoneCreatesExpectedDotCenterAndCornerValues) {
+    VideoFrame frame(4, 4);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    for (int index = 0; index < 16; ++index) {
+        red->data()[index] = 0.25f;
+        green->data()[index] = 0.5f;
+        blue->data()[index] = 0.75f;
+        alpha->data()[index] = static_cast<float>(index) / 20.0f;
+    }
+
+    HalftoneEffect effect;
+    effect.setParameter("Size", 4.0f);
+    effect.setParameter("Angle", 0.0f);
+    effect.setParameter("Contrast", 0.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    EXPECT_NEAR(red->data()[0], 0.5004f, 1e-3f);
+    EXPECT_FLOAT_EQ(green->data()[0], red->data()[0]);
+    EXPECT_FLOAT_EQ(blue->data()[0], red->data()[0]);
+    EXPECT_FLOAT_EQ(red->data()[2 * 4 + 2], 0.0f);
+    EXPECT_FLOAT_EQ(green->data()[2 * 4 + 2], 0.0f);
+    EXPECT_FLOAT_EQ(blue->data()[2 * 4 + 2], 0.0f);
+    for (int index = 0; index < 16; ++index) {
+        EXPECT_FLOAT_EQ(alpha->data()[index], static_cast<float>(index) / 20.0f)
+            << "pixel=" << index;
+    }
+}
+
+TEST(CreativeImageEffectContractTest, KaleidoscopeCountOneFoldsUpperRightTowardLowerWedge) {
+    VideoFrame frame(3, 3);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    for (int index = 0; index < 9; ++index) {
+        red->data()[index] = static_cast<float>(index) / 10.0f;
+        green->data()[index] = static_cast<float>(10 + index) / 10.0f;
+        blue->data()[index] = static_cast<float>(20 + index) / 10.0f;
+        alpha->data()[index] = static_cast<float>(index) / 10.0f;
+    }
+
+    KaleidoscopeEffect effect;
+    effect.setParameter("Count", 1.0f);
+    effect.setParameter("Angle", 0.0f);
+    effect.setParameter("CenterX", 0.5f);
+    effect.setParameter("CenterY", 0.5f);
+    effect.process(frame, CreativeEffectContext{});
+
+    const int destinationIndex = 1 * 3 + 2;
+    const int expectedSourceIndex = 2 * 3 + 2;
+    EXPECT_FLOAT_EQ(red->data()[destinationIndex],
+                    static_cast<float>(expectedSourceIndex) / 10.0f);
+    EXPECT_FLOAT_EQ(green->data()[destinationIndex],
+                    static_cast<float>(10 + expectedSourceIndex) / 10.0f);
+    EXPECT_FLOAT_EQ(blue->data()[destinationIndex],
+                    static_cast<float>(20 + expectedSourceIndex) / 10.0f);
+    for (int index = 0; index < 9; ++index) {
+        EXPECT_FLOAT_EQ(alpha->data()[index], static_cast<float>(index) / 10.0f)
+            << "pixel=" << index;
+    }
+}
+
+TEST(CreativeImageEffectContractTest, ChromaticAberrationShiftsRedAndBlueInOppositeDirections) {
+    VideoFrame frame(3, 1);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    const float inputRed[] = {0.1f, 0.2f, 0.3f};
+    const float inputGreen[] = {0.4f, 0.5f, 0.6f};
+    const float inputBlue[] = {0.7f, 0.8f, 0.9f};
+    const float inputAlpha[] = {0.2f, 0.4f, 0.6f};
+    for (int index = 0; index < 3; ++index) {
+        red->data()[index] = inputRed[index];
+        green->data()[index] = inputGreen[index];
+        blue->data()[index] = inputBlue[index];
+        alpha->data()[index] = inputAlpha[index];
+    }
+
+    ChromaticAberrationEffect effect;
+    effect.setParameter("Amount", 1.0f);
+    effect.setParameter("Angle", 0.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    const float expectedRed[] = {0.2f, 0.3f, 0.3f};
+    const float expectedBlue[] = {0.7f, 0.7f, 0.8f};
+    for (int index = 0; index < 3; ++index) {
+        EXPECT_FLOAT_EQ(red->data()[index], expectedRed[index]) << "pixel=" << index;
+        EXPECT_FLOAT_EQ(green->data()[index], inputGreen[index]) << "pixel=" << index;
+        EXPECT_FLOAT_EQ(blue->data()[index], expectedBlue[index]) << "pixel=" << index;
+        EXPECT_FLOAT_EQ(alpha->data()[index], inputAlpha[index]) << "pixel=" << index;
     }
 }
