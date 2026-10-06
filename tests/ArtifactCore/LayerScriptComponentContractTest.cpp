@@ -515,6 +515,46 @@ class BenchmarkWideLocals : ArtifactBehaviour
     std::cout << "ArtifactScript locals(12) benchmark: "
               << totalMicroseconds / (repetitions * iterations)
               << " us/hook (" << iterations * repetitions << " calls)\n";
+
+    std::string methodLookupSource = R"(
+class BenchmarkMethodLookup : ArtifactBehaviour
+{
+    public float total = 0.0;
+)";
+    for (int i = 0; i < 32; ++i) {
+        methodLookupSource += "    float filler" + std::to_string(i) +
+            "(float value) { return value; }\n";
+    }
+    methodLookupSource += R"(
+    float increment(float value) { return value + 1.0; }
+    void OnUpdate()
+    {
+        for (int index = 0; index < 16; index += 1) total = increment(total);
+    }
+}
+)";
+    auto methodLookupDefinition = parser.parse(methodLookupSource);
+    ASSERT_TRUE(methodLookupDefinition.diagnostics.empty());
+    ArtifactScriptInstance methodLookupInstance(std::move(methodLookupDefinition));
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(methodLookupInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << methodLookupInstance.lastError();
+    }
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            ASSERT_TRUE(methodLookupInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+                << methodLookupInstance.lastError();
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript method lookup(32 methods, 16 calls) benchmark: "
+              << totalMicroseconds / (repetitions * iterations)
+              << " us/hook (" << iterations * repetitions << " calls)\n";
+    EXPECT_DOUBLE_EQ(std::get<double>(methodLookupInstance.fields().at("total")),
+                     (100.0 + repetitions * iterations) * 16.0);
     const std::vector<ArtifactScriptValue> noArguments;
     constexpr int allocationIterations = 2000;
     const auto countCalls = [&](auto&& call) {
@@ -583,6 +623,7 @@ class BenchmarkWideLocals : ArtifactBehaviour
     }
     const auto oneShortStringAllocationRate = countAllocations(stringForeachInstance);
     const auto wideLocalsAllocationRate = countAllocations(wideLocalsInstance);
+    const auto methodLookupAllocationRate = countAllocations(methodLookupInstance);
     const auto expectNoSteadyStateAllocations = [](const auto& rate) {
         EXPECT_DOUBLE_EQ(rate.first, 0.0);
         EXPECT_DOUBLE_EQ(rate.second, 0.0);
@@ -594,6 +635,7 @@ class BenchmarkWideLocals : ArtifactBehaviour
     expectNoSteadyStateAllocations(wideAllocationRate);
     expectNoSteadyStateAllocations(largeForeachAllocationRate);
     expectNoSteadyStateAllocations(wideLocalsAllocationRate);
+    expectNoSteadyStateAllocations(methodLookupAllocationRate);
     expectNoSteadyStateAllocations(stringForeachAllocationRate);
     expectNoSteadyStateAllocations(emptyForeachAllocationRate);
     expectNoSteadyStateAllocations(oneLongStringAllocationRate);
@@ -612,7 +654,9 @@ class BenchmarkWideLocals : ArtifactBehaviour
               << stringForeachAllocationRate.first << ", "
               << stringForeachAllocationRate.second << "; wide-locals="
               << wideLocalsAllocationRate.first << ", "
-              << wideLocalsAllocationRate.second << "; string-empty="
+              << wideLocalsAllocationRate.second << "; method-lookup="
+              << methodLookupAllocationRate.first << ", "
+              << methodLookupAllocationRate.second << "; string-empty="
               << emptyForeachAllocationRate.first << ", "
               << emptyForeachAllocationRate.second << "; string-one-long="
               << oneLongStringAllocationRate.first << ", "

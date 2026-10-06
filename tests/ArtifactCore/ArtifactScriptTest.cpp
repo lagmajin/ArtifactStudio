@@ -242,6 +242,36 @@ class MathBehaviour : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(result), 6.0);
 }
 
+TEST(ArtifactScriptTest, ReplacingDefinitionMethodsInvalidatesCallSiteCache) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class CachedCalls : ArtifactBehaviour
+{
+    public float value = 0.0;
+    float step(float input) { return input + 1.0; }
+    void OnUpdate() { value = step(value); }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("value")), 1.0);
+
+    auto replacement = parser.parse(R"(
+class CachedCalls : ArtifactBehaviour
+{
+    public float value = 0.0;
+    float step(float input) { return input + 10.0; }
+    void OnUpdate() { value = step(value); }
+}
+)");
+    ASSERT_TRUE(replacement.diagnostics.empty());
+    instance.definition().rootClass.methods =
+        std::move(replacement.rootClass.methods);
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("value")), 11.0);
+}
+
 TEST(ArtifactScriptTest, ArrayFieldDefaultsAndReads) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(
