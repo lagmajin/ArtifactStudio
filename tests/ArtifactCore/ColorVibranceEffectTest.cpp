@@ -11,6 +11,7 @@ import Graphics.Effect.Creative.Pixelate;
 import Graphics.Effect.Creative.Halftone;
 import Graphics.Effect.Creative.Kaleidoscope;
 import Graphics.Effect.Creative.ChromaticAberration;
+import Graphics.Effect.Creative.Emboss;
 import Video.VideoFrame;
 import Channel;
 
@@ -585,5 +586,46 @@ TEST(CreativeImageEffectContractTest, ChromaticAberrationShiftsRedAndBlueInOppos
         EXPECT_FLOAT_EQ(green->data()[index], inputGreen[index]) << "pixel=" << index;
         EXPECT_FLOAT_EQ(blue->data()[index], expectedBlue[index]) << "pixel=" << index;
         EXPECT_FLOAT_EQ(alpha->data()[index], inputAlpha[index]) << "pixel=" << index;
+    }
+}
+
+TEST(CreativeImageEffectContractTest, EmbossUsesDiagonalDifferenceAndPreservesUnprocessedEdges) {
+    VideoFrame frame(2, 2);
+    auto red = frame.getChannel(ChannelType::Red);
+    auto green = frame.getChannel(ChannelType::Green);
+    auto blue = frame.getChannel(ChannelType::Blue);
+    auto alpha = frame.getChannel(ChannelType::Alpha);
+    ASSERT_TRUE(red);
+    ASSERT_TRUE(green);
+    ASSERT_TRUE(blue);
+    ASSERT_TRUE(alpha);
+    const float inputRed[] = {0.1f, 0.2f, 0.3f, 0.8f};
+    const float inputGreen[] = {0.8f, 0.3f, 0.6f, 0.2f};
+    const float inputBlue[] = {0.2f, 0.1f, 0.3f, 0.6f};
+    for (int index = 0; index < 4; ++index) {
+        red->data()[index] = inputRed[index];
+        green->data()[index] = inputGreen[index];
+        blue->data()[index] = inputBlue[index];
+        alpha->data()[index] = static_cast<float>(index) / 4.0f;
+    }
+
+    EmbossEffect effect;
+    effect.setParameter("Strength", 1.0f);
+    effect.setParameter("Height", 2.0f);
+    effect.process(frame, CreativeEffectContext{});
+
+    EXPECT_FLOAT_EQ(red->data()[0], 1.0f);
+    EXPECT_FLOAT_EQ(green->data()[0], 0.0f);
+    EXPECT_FLOAT_EQ(blue->data()[0], 1.0f);
+    for (int index = 1; index < 4; ++index) {
+        EXPECT_FLOAT_EQ(red->data()[index], inputRed[index]) << "red pixel=" << index;
+        EXPECT_FLOAT_EQ(green->data()[index], inputGreen[index])
+            << "green pixel=" << index;
+        EXPECT_FLOAT_EQ(blue->data()[index], inputBlue[index])
+            << "blue pixel=" << index;
+    }
+    for (int index = 0; index < 4; ++index) {
+        EXPECT_FLOAT_EQ(alpha->data()[index], static_cast<float>(index) / 4.0f)
+            << "pixel=" << index;
     }
 }
