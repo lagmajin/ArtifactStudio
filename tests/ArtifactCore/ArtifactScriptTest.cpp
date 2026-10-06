@@ -833,7 +833,7 @@ class FiveArguments : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 15.0);
 }
 
-TEST(ArtifactScriptTest, MoreThanEightLocalsUseOverflowStorage) {
+TEST(ArtifactScriptTest, MoreThanTwelveLocalsUseOverflowStorage) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
 class ManyLocals : ArtifactBehaviour
@@ -851,7 +851,11 @@ class ManyLocals : ArtifactBehaviour
         float h = 8.0;
         float i = 9.0;
         float j = 10.0;
-        total = a + b + c + d + e + f + g + h + i + j;
+        float k = 11.0;
+        float l = 12.0;
+        float m = 13.0;
+        float n = 14.0;
+        total = a + b + c + d + e + f + g + h + i + j + k + l + m + n;
     }
 }
 )");
@@ -859,7 +863,7 @@ class ManyLocals : ArtifactBehaviour
 
     ArtifactScriptInstance instance(std::move(definition));
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
-    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 55.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 105.0);
 }
 
 TEST(ArtifactScriptTest, HostBindingRegistry) {
