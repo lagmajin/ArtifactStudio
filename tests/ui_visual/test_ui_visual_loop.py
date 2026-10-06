@@ -42,6 +42,8 @@ from PIL import Image
 parser = argparse.ArgumentParser()
 parser.add_argument('--output', required=True, type=Path)
 parser.add_argument('--counter', required=True, type=Path)
+parser.add_argument('--iteration', type=str)
+parser.add_argument('--iteration-output', type=Path)
 parser.add_argument('--mismatch-captures', type=int, default=0)
 parser.add_argument('--exit-code', type=int, default=0)
 parser.add_argument('--omit-output', action='store_true')
@@ -50,6 +52,8 @@ if args.exit_code:
     raise SystemExit(args.exit_code)
 if args.omit_output:
     raise SystemExit(0)
+if args.iteration_output is not None:
+    args.iteration_output.write_text(args.iteration or '')
 count = int(args.counter.read_text() if args.counter.exists() else '0') + 1
 args.counter.write_text(str(count))
 image = Image.new('RGBA', (4, 3), (20, 40, 60, 255))
@@ -124,6 +128,27 @@ image.save(args.output)
         actuals = self.artifacts("iteration-001.png")
         self.assertEqual(len(actuals), 2)
         self.assertNotEqual(actuals[0].name, actuals[1].name)
+
+    def test_iteration_placeholder_is_expanded_for_capture_command(self) -> None:
+        iteration_path = self.root / "captured iteration.txt"
+        result = self.run_loop(
+            "--compare-only",
+            capture_extra=("--iteration", "{iteration}", "--iteration-output", str(iteration_path)),
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(iteration_path.read_text(encoding="utf-8"), "1")
+
+    def test_environment_manifest_reaches_comparison_report(self) -> None:
+        environment_path = self.root / "environment.json"
+        manifest = {"dpi": 144, "theme": "dark", "locale": "ja-JP"}
+        environment_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+        result = self.run_loop("--compare-only", "--environment-json", str(environment_path))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(self.artifacts("json")[0].read_text(encoding="utf-8"))
+        self.assertEqual(report["environment"], manifest)
 
     def test_automatic_retry_reaches_match_and_forwards_region_gate(self) -> None:
         result = self.run_loop(

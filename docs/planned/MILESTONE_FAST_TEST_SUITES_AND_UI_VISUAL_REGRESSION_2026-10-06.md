@@ -27,8 +27,8 @@
 
 ## 進捗 2026-10-07
 
-- `tests/ui_visual/test_ui_visual_loop.py` を追加し、fake capture processを使ったrunnerのend-to-end unittestを9ケース用意した。compare-only成功、同じoutput prefixで連続実行した際の成果物分離、region gateを含む自動再撮影後の成功、Enter後の再撮影、`q`での停止、iteration上限での失敗と診断画像保持、capture exit code伝播、PNG未生成時の失敗、`{actual}` 欠落の早期拒否を確認する。fixture・出力・スクリプトのパスに空白を含め、Windowsの引数分割も通す。実行コマンドは `python -m unittest discover -s tests/ui_visual -v`。
-- 上記コマンドを Windows / Python 3.14.2 / Pillow の環境で実行し、比較器6ケースとrunner9ケースの計15ケースが成功した。Timeline/Render Managerのcapture fixtureやbaselineを使った実UI回帰ではない。
+- `tests/ui_visual/test_ui_visual_loop.py` にfake capture processを使ったrunnerのend-to-end unittestを用意した。compare-only成功、同じoutput prefixで連続実行した際の成果物分離、region gateを含む自動再撮影後の成功、Enter後の再撮影、`q`での停止、iteration上限での失敗と診断画像保持、capture exit code伝播、PNG未生成時の失敗、`{actual}` 欠落の早期拒否に加え、`{iteration}` 展開とenvironment manifestの比較レポート伝播を検査する（runner 11 cases）。fixture・出力・スクリプトのパスに空白を含め、Windowsの引数分割も通す。実行コマンドは `python -m unittest discover -s tests/ui_visual -v`。
+- 上記コマンドを Windows / Python 3.14.2 / Pillow の環境で再実行し、比較器6ケースとrunner11ケースの計17ケースが成功した。Timeline/Render Managerのcapture fixtureやbaselineを使った実UI回帰ではない。
 
 ## 目的
 
