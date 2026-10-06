@@ -502,6 +502,19 @@ class BenchmarkWideLocals : ArtifactBehaviour
         ASSERT_TRUE(wideLocalsInstance.invokeHook(ArtifactScriptHook::OnUpdate))
             << wideLocalsInstance.lastError();
     }
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            ASSERT_TRUE(wideLocalsInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+                << wideLocalsInstance.lastError();
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript locals(12) benchmark: "
+              << totalMicroseconds / (repetitions * iterations)
+              << " us/hook (" << iterations * repetitions << " calls)\n";
     const std::vector<ArtifactScriptValue> noArguments;
     constexpr int allocationIterations = 2000;
     const auto countCalls = [&](auto&& call) {
