@@ -458,6 +458,30 @@ class BenchmarkLargeForeach : ArtifactBehaviour
         ASSERT_TRUE(largeForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate))
             << largeForeachInstance.lastError();
     }
+
+    auto stringForeachDefinition = parser.parse(R"(
+class BenchmarkStringForeach : ArtifactBehaviour
+{
+    public Array values;
+    void OnCreate()
+    {
+        push(values, "this string is longer than the small string buffer");
+        push(values, "another long string to expose copy allocations");
+    }
+    void OnUpdate()
+    {
+        foreach (item in values) { }
+    }
+}
+)");
+    ASSERT_TRUE(stringForeachDefinition.diagnostics.empty());
+    ArtifactScriptInstance stringForeachInstance(std::move(stringForeachDefinition));
+    ASSERT_TRUE(stringForeachInstance.invokeHook(ArtifactScriptHook::OnCreate))
+        << stringForeachInstance.lastError();
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(stringForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << stringForeachInstance.lastError();
+    }
     const std::vector<ArtifactScriptValue> noArguments;
     constexpr int allocationIterations = 2000;
     const auto countCalls = [&](auto&& call) {
@@ -506,6 +530,7 @@ class BenchmarkLargeForeach : ArtifactBehaviour
     const auto foreachAllocationRate = countAllocations(foreachInstance);
     const auto wideAllocationRate = countAllocations(wideFieldsInstance);
     const auto largeForeachAllocationRate = countAllocations(largeForeachInstance);
+    const auto stringForeachAllocationRate = countAllocations(stringForeachInstance);
     const auto expectNoSteadyStateAllocations = [](const auto& rate) {
         EXPECT_DOUBLE_EQ(rate.first, 0.0);
         EXPECT_DOUBLE_EQ(rate.second, 0.0);
@@ -516,6 +541,8 @@ class BenchmarkLargeForeach : ArtifactBehaviour
     expectNoSteadyStateAllocations(foreachAllocationRate);
     expectNoSteadyStateAllocations(wideAllocationRate);
     expectNoSteadyStateAllocations(largeForeachAllocationRate);
+    EXPECT_LE(stringForeachAllocationRate.first, 3.0);
+    EXPECT_LE(stringForeachAllocationRate.second, 96.0);
     std::cout << "ArtifactScript allocations/hook (count, bytes): no-op="
               << noOpAllocationRate.first << ", " << noOpAllocationRate.second
               << "; simple="
@@ -526,6 +553,8 @@ class BenchmarkLargeForeach : ArtifactBehaviour
               << "; wide-foreach=" << wideAllocationRate.first << ", "
               << wideAllocationRate.second << "; large-foreach="
               << largeForeachAllocationRate.first << ", "
-              << largeForeachAllocationRate.second << '\n';
+              << largeForeachAllocationRate.second << "; string-foreach="
+              << stringForeachAllocationRate.first << ", "
+              << stringForeachAllocationRate.second << '\n';
 #endif
 }

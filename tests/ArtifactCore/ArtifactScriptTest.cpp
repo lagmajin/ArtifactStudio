@@ -617,6 +617,46 @@ class MutatingForeach : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("item")), 41.0);
 }
 
+TEST(ArtifactScriptTest, StringForeachSnapshotSurvivesMutationAndRepeatedHooks) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class MutatingStringForeach : ArtifactBehaviour
+{
+    public Array values;
+    public float visited = 0.0;
+    void OnCreate()
+    {
+        push(values, "first string longer than small string storage");
+        push(values, "second string also longer than small string storage");
+    }
+    void OnUpdate()
+    {
+        foreach (item in values) {
+            visited += 1;
+            push(values, item);
+        }
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate)) << instance.lastError();
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("visited")), 2.0);
+    auto values = std::get<ArtifactScriptArrayPtr>(instance.fields().at("values"));
+    ASSERT_TRUE(values);
+    ASSERT_EQ(values->values.size(), 4u);
+    EXPECT_EQ(std::get<std::string>(values->values[2]),
+              "first string longer than small string storage");
+    EXPECT_EQ(std::get<std::string>(values->values[3]),
+              "second string also longer than small string storage");
+
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("visited")), 6.0);
+    EXPECT_EQ(values->values.size(), 8u);
+}
+
 TEST(ArtifactScriptTest, NestedForeachScopesCommitFieldWrites) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
