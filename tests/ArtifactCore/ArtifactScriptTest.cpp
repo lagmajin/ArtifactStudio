@@ -441,6 +441,33 @@ class LoopReturnProbe : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(execute("fromForeach"), 1.0);
 }
 
+TEST(ArtifactScriptTest, BreakAndContinueRequireAnEnclosingLoop) {
+    ArtifactScriptParser parser;
+    const auto parseBody = [&](std::string_view body) {
+        std::string source =
+            "class InvalidLoopControl : ArtifactBehaviour\n{\n"
+            "    void OnUpdate()\n    {\n";
+        source.append(body);
+        source.append("\n    }\n}\n");
+        return parser.parse(source);
+    };
+
+    const auto breakOutsideLoop = parseBody("        break;");
+    ASSERT_EQ(breakOutsideLoop.diagnostics.size(), 1u);
+    EXPECT_EQ(breakOutsideLoop.diagnostics.front().line, 5u);
+    EXPECT_EQ(breakOutsideLoop.diagnostics.front().column, 9u);
+
+    const auto continueOutsideLoop = parseBody("        continue;");
+    ASSERT_EQ(continueOutsideLoop.diagnostics.size(), 1u);
+    EXPECT_EQ(continueOutsideLoop.diagnostics.front().line, 5u);
+    EXPECT_EQ(continueOutsideLoop.diagnostics.front().column, 9u);
+
+    const auto loopDepthDoesNotLeak = parseBody(
+        "        while (false) { break; }\n        continue;");
+    ASSERT_EQ(loopDepthDoesNotLeak.diagnostics.size(), 1u);
+    EXPECT_EQ(loopDepthDoesNotLeak.diagnostics.front().line, 6u);
+}
+
 TEST(ArtifactScriptTest, ComponentStoresPublicOverrides) {
     ArtifactScriptComponent component;
     component.setScriptClass("Spin");

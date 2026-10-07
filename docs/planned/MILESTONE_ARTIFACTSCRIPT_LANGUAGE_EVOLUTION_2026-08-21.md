@@ -7,6 +7,7 @@
 
 ## 進捗 2026-10-07
 
+- `break` / `continue` を loop 外で使った場合に parser error とし、loop depth が終了後に漏れないよう本文解析だけを scope guard で囲む。これにより runtime の break/continue state flag が後続 loop へ残る入力を実行前に拒否する。loop 内の既存構文と nested control flow は維持し、評価器の実行経路・AST allocation は増やさない。loop 外使用と loop-depth 復帰を診断テストで確認。ArtifactScript関連5 CTest suitesは5/5 passed。
 - `while` / `for` / `foreach` の本体で `return` した後もループが継続し、後続 iteration が戻り値を上書きする不具合を修正。`do ... while` と同じく、本文後に return 状態を確認して loop を抜ける。各 loop が最初の iteration の値で直ちに戻ることを統合テストで確認。追加分岐の速度影響は未計測。ArtifactScript関連5 CTest suitesは5/5 passed。
 - `do ... while` を追加。AST は既存 while 条件／本体の slot を再利用し、追加の子ポインタや配列確保を発生させない。本文を先に実行してから条件を評価し、`continue` は条件判定へ、`break` はループ外へ進み、本文内 `return` は直ちに抜ける。false 条件での初回実行、continue/break、return、末尾 `;` 欠落診断をテスト。実行時間の比較は未計測。ArtifactScript関連5 CTest suitesは5/5 passed。
 - `if` / `while` / `for` / `foreach` の必須括弧・区切り記号を parser で検証し、不足時に構文エラー位置を返す。従来は `matchCh()` の失敗を無視する箇所があり、閉じ括弧や `for` の区切りを欠いた入力を受理し得た。parser 内で記録した失敗位置が外側で文頭へ上書きされる問題も修正し、4種類の不正 control statement を回帰テスト化。変更は parse 時のみで評価器の実行経路は不変。parser throughput の比較は未計測。ArtifactScript関連5 CTest suitesは5/5 passed。
