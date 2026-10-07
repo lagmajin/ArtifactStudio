@@ -1784,6 +1784,65 @@ TEST(ArtifactScriptTest, ArraySumRejectsNonNumbersAndIntegerOverflow) {
               std::string::npos);
 }
 
+TEST(ArtifactScriptTest, ArrayAverageUsesCheckedSumAndReturnsDouble) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ArrayAverage : ArtifactBehaviour
+{
+    public float integerAverage = -1.0;
+    public float mixedAverage = -1.0;
+    public float preciseAverage = -1.0;
+    void OnUpdate()
+    {
+        integerAverage = average([1, 2, 3, 4]);
+        mixedAverage = average([1, 2.5, 3]);
+        preciseAverage = average([9007199254740993, 1]);
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(
+                         instance.fields().at("integerAverage")), 2.5);
+    EXPECT_DOUBLE_EQ(std::get<double>(
+                         instance.fields().at("mixedAverage")), 6.5 / 3.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(
+                         instance.fields().at("preciseAverage")),
+                     4503599627370497.0);
+}
+
+TEST(ArtifactScriptTest, ArrayAverageRejectsEmptyNullInvalidAndOverflow) {
+    ArtifactScriptParser parser;
+    const auto run = [&](std::string_view expression) {
+        auto definition = parser.parse(
+            "class InvalidArrayAverage : ArtifactBehaviour\n{\n"
+            "    public Array nullValues;\n"
+            "    public float result = 0.0;\n"
+            "    void OnUpdate() { result = " + std::string(expression) + "; }\n"
+            "}\n");
+        EXPECT_TRUE(definition.diagnostics.empty());
+        ArtifactScriptInstance instance(std::move(definition));
+        instance.fields()["nullValues"] = ArtifactScriptArrayPtr{};
+        EXPECT_FALSE(instance.invokeHook(ArtifactScriptHook::OnUpdate));
+        return instance.lastError();
+    };
+
+    EXPECT_NE(run("average([])").find("non-empty array of numbers"),
+              std::string::npos);
+    EXPECT_NE(run("average(nullValues)").find("non-empty array of numbers"),
+              std::string::npos);
+    EXPECT_NE(run("average([1, \"x\"])").find("average expects an array of numbers"),
+              std::string::npos);
+    EXPECT_NE(run("average([9223372036854775807, 1])")
+                  .find("integer overflow"),
+              std::string::npos);
+    EXPECT_NE(run("average(1)").find("average expects a non-empty array"),
+              std::string::npos);
+}
+
 TEST(ArtifactScriptTest, ArrayMinMaxPreserveSelectedNumericTypes) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
