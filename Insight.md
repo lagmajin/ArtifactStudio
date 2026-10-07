@@ -4385,6 +4385,6 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 ## 2026-10-07 — ArtifactScript host allocation probe includes temporary names
 
 - **関連:** `tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の `HookExecutionMicrobenchmark`、`ArtifactScriptHost::callFunctionView()` / `callMethodView()`。
-- **確認できた事実:** allocation probeは各反復で文字列リテラルを `const std::string&` 引数へ渡していた。名前を反復前に作った永続 `std::string` へ置き換えた試行では、直接function / method APIの計測値がともに0 allocation / 0 bytesになった。試行全体は後続のdirect-body計測でSEH access violationとなり、その差分は戻した。
+- **確認できた事実:** allocation probeは各反復で文字列リテラルを `const std::string&` 引数へ渡していた。名前を反復前に作った永続 `std::string` へ置き換えた試行では、直接function / method APIとdirect-bodyの計測値が0 allocation / 0 bytesになった。その後、no-op / host-function / host-method計測は通ったが、simple script計測中にSEH access violationが起き、その差分は戻した。
 - **価値または懸念:** 従来のdirect-host baselineにはAPI内dispatchだけでなく、呼出側の一時文字列生成も含まれる。1 / 2 allocationsをそのままcallback registryのコストと解釈できない。
 - **次に確認すべきこと:** 名前を事前確保したallocation fixtureを安定して実行できる形にし、scriptから呼ぶ場合の残存allocationを直接計測してからhost dispatchを変更する。
