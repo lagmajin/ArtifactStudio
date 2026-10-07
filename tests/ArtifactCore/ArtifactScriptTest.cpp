@@ -1481,6 +1481,38 @@ class StringIndexOf : ArtifactBehaviour
                   instance.fields().at("choosesFirstOverlappingMatch")), 0);
 }
 
+TEST(ArtifactScriptTest, StringLastIndexOfReturnsLastUtf8ByteOffset) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class StringLastIndexOf : ArtifactBehaviour
+{
+    public int repeatedMatch = -1;
+    public int acceptsEmptySubstring = -1;
+    public int rejectsMissingSubstring = 0;
+    public int findsUnicodeBytes = -1;
+    void OnUpdate()
+    {
+        repeatedMatch = lastIndexOf("ababa", "aba");
+        acceptsEmptySubstring = lastIndexOf("value", "");
+        rejectsMissingSubstring = lastIndexOf("value", "missing");
+        findsUnicodeBytes = lastIndexOf("猫と犬猫", "猫");
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("repeatedMatch")), 2);
+    EXPECT_EQ(std::get<std::int64_t>(
+                  instance.fields().at("acceptsEmptySubstring")), 5);
+    EXPECT_EQ(std::get<std::int64_t>(
+                  instance.fields().at("rejectsMissingSubstring")), -1);
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("findsUnicodeBytes")),
+              9);
+}
+
 TEST(ArtifactScriptTest, StringPrefixSuffixMatchLiteralUtf8ByteSequences) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
@@ -1573,6 +1605,7 @@ class ArraySearch : ArtifactBehaviour
     public bool mismatchedTypeContains = true;
     public float mixedIndex = -1.0;
     public float stringIndex = -1.0;
+    public float mixedLastIndex = -1.0;
     void OnUpdate()
     {
         mixedContains = contains(values, 7.0);
@@ -1582,6 +1615,7 @@ class ArraySearch : ArtifactBehaviour
         mismatchedTypeContains = contains(values, false);
         mixedIndex = indexOf(values, 7.0);
         stringIndex = indexOf(values, "tag");
+        mixedLastIndex = lastIndexOf(values, 7.0);
     }
 }
 )");
@@ -1593,7 +1627,8 @@ class ArraySearch : ArtifactBehaviour
     object->className = "SearchTarget";
     auto values = makeShared<ArtifactScriptArray>();
     values->values = {
-        std::int64_t{7}, true, std::string("tag"), nestedArray, object};
+        std::int64_t{7}, true, std::string("tag"), nestedArray, object,
+        std::int64_t{7}};
     instance.fields()["values"] = values;
     instance.fields()["mixedContains"] = false;
     instance.fields()["boolContains"] = false;
@@ -1602,6 +1637,7 @@ class ArraySearch : ArtifactBehaviour
     instance.fields()["mismatchedTypeContains"] = true;
     instance.fields()["mixedIndex"] = -1.0;
     instance.fields()["stringIndex"] = -1.0;
+    instance.fields()["mixedLastIndex"] = -1.0;
 
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
         << instance.lastError();
@@ -1612,6 +1648,8 @@ class ArraySearch : ArtifactBehaviour
     EXPECT_FALSE(std::get<bool>(instance.fields().at("mismatchedTypeContains")));
     EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("mixedIndex")), 0);
     EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("stringIndex")), 2);
+    EXPECT_EQ(std::get<std::int64_t>(
+                  instance.fields().at("mixedLastIndex")), 5);
 }
 
 TEST(ArtifactScriptTest, HotReloadMigratesFields) {

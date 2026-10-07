@@ -258,7 +258,7 @@ class SplitLayerPath : ArtifactBehaviour
 }
 
 TEST(LayerScriptComponentContractTest,
-     StringContainsAvoidsCopyingFieldAndLocalOperands) {
+     StringSearchBuiltinsAvoidCopyingFieldAndLocalOperands) {
     ArtifactScriptParser parser;
     const auto makeDefinition = [&](std::string_view className,
                                     bool forceStringCopy) {
@@ -277,6 +277,8 @@ TEST(LayerScriptComponentContractTest,
     public bool objectSuffix;
     public int fieldIndex;
     public int localIndex;
+    public int localLastIndex;
+    public int objectLastIndex;
     void OnCreate()
     {
         source = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxneedle";
@@ -297,8 +299,10 @@ TEST(LayerScriptComponentContractTest,
             "        localSuffix = endsWith(" + sourceExpression + ", localQuery);\n"
             "        fieldIndex = target.find(query);\n"
             "        localIndex = indexOf(" + sourceExpression + ", localQuery);\n"
+            "        localLastIndex = lastIndexOf(" + sourceExpression + ", localQuery);\n"
             "        objectPrefix = target.matchesPrefix(localPrefixQuery);\n"
             "        objectSuffix = target.matchesSuffix(query);\n"
+            "        objectLastIndex = target.findLast(query);\n"
             "    }\n}\n";
         source += update;
         const std::string objectFieldExpression = forceStringCopy
@@ -314,6 +318,9 @@ TEST(LayerScriptComponentContractTest,
         source += objectFieldExpression;
         source += ", query); }\n"
                   "    bool matchesSuffix(string query) { return endsWith(";
+        source += objectFieldExpression;
+        source += ", query); }\n"
+                  "    int findLast(string query) { return lastIndexOf(";
         source += objectFieldExpression;
         source += ", query); }\n"
                   "    int find(string query) { return indexOf(";
@@ -343,6 +350,10 @@ TEST(LayerScriptComponentContractTest,
                   128);
         EXPECT_EQ(std::get<std::int64_t>(instance->fields().at("localIndex")),
                   128);
+        EXPECT_EQ(std::get<std::int64_t>(
+                      instance->fields().at("localLastIndex")), 128);
+        EXPECT_EQ(std::get<std::int64_t>(
+                      instance->fields().at("objectLastIndex")), 128);
     }
 
 #if defined(_MSC_VER) && defined(_DEBUG)
@@ -383,7 +394,7 @@ TEST(LayerScriptComponentContractTest,
     };
     const double directMicros = measureMicros(direct);
     const double copyMicros = measureMicros(copied);
-    std::cout << "ArtifactScript contains/indexOf(field/local, 134-byte source): "
+    std::cout << "ArtifactScript string search(field/local, 134-byte source): "
               << directAllocations / allocationIterations << " / "
               << copyAllocations / allocationIterations
               << " allocations/hook, "
