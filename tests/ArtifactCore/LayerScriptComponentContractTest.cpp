@@ -1048,4 +1048,48 @@ class ScriptMethodAllocationProbe : ArtifactBehaviour
         << "bytes/hook=" << allocations.second / allocationIterations;
     EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 1100.0);
 }
+
+TEST(LayerScriptComponentContractTest, ScriptIsOperatorAvoidsSteadyStateAllocations) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ScriptIsAllocationProbe : ArtifactBehaviour
+{
+    public ObjectRef target;
+    public bool matchesBase = false;
+    void OnCreate() { target = new LongNamedScriptChildClass(); }
+    void OnUpdate() { matchesBase = target is LongNamedScriptBaseClass; }
+}
+class LongNamedScriptBaseClass : ArtifactBehaviour
+{
+}
+class LongNamedScriptChildClass : LongNamedScriptBaseClass
+{
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate)) << instance.lastError();
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    }
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("matchesBase")));
+
+    ScriptAllocationCounter counter;
+    constexpr std::size_t allocationIterations = 1000;
+    bool succeeded = true;
+    for (std::size_t i = 0; i < allocationIterations; ++i) {
+        if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+            succeeded = false;
+            break;
+        }
+    }
+    const auto allocations = counter.stop();
+    EXPECT_TRUE(succeeded) << instance.lastError();
+    EXPECT_EQ(allocations.first, 0)
+        << "allocations/hook=" << allocations.first / allocationIterations;
+    EXPECT_EQ(allocations.second, 0)
+        << "bytes/hook=" << allocations.second / allocationIterations;
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("matchesBase")));
+}
 #endif

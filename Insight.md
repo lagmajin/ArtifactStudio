@@ -4382,6 +4382,14 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **価値または懸念:** 観測平均は3-class workloadで約35.3%短縮した。setごとに固定cache entryを1つ（全体32 entries）増やし、実行中のheap allocationは増やさない。4-class workloadも計測したところ、3-way平均104.32、4-way平均101.08 µs/hookで4-wayは約3.1%短かった一方、3-classでは3-way平均93.31に対し4-way平均99.00 µs/hookだった。Debugの少数runではway増加の総合的な利点が確認できず、3-wayを維持する。
 - **次に確認すべきこと:** Release相当の安定した計測とcall-site set collisionを調べる。4-wayは3-classやmonomorphic workloadを遅くする可能性があり、現時点では採用根拠が不足している。
 
+## 2026-10-07 — ArtifactScript `is` inheritance check copied class names
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `isInstanceOf()`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の `ScriptIsOperatorAvoidsSteadyStateAllocations`。
+- **確認できた事実:** 継承判定はinstance class nameを`std::string`にコピーし、parentへ進む時も同じstringへparent nameをコピーしていた。長い名前の派生クラスに対するMSVC Debug testで、元実装は2 allocations / 48 bytes per hook、`std::string_view`化後は0 / 0となった。結果と継承判定の両方をassertする。
+- **対応:** 判定中の`current`をinstanceまたはactive definitionが所有するnameへの`std::string_view`にした。所有元は判定期間中生存し、文字列値は変更しない。
+- **価値または懸念:** `is`演算子のsteady-state class-name heap allocationsを除去した。判定深度上限と継承検索順は維持する。Release計測は未実施。
+- **次に確認すべきこと:** ArtifactScript関連5 suitesを再実行し、Release相当のCPU時間とallocationを計測する。
+
 ## 2026-10-07 — ArtifactScript host allocation probe includes temporary names
 
 - **関連:** `tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の `HookExecutionMicrobenchmark`、`ArtifactScriptHost::callFunctionView()` / `callMethodView()`。
