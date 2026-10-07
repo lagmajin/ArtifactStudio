@@ -9,6 +9,8 @@
 
 - field overlayの固定容量を4から8 bindingへ拡張した。5-field object methodをhook内16回呼ぶfixtureは16 allocation / 3584 bytesから0 allocation / hookになったが、Debugの時間は122.95から120.35 µs/hookでほぼ同じだった。各 `ArtifactScriptFields` scopeは4 binding分大きくなり、foreach用の8 workspaceも各4 binding分増える。8件を超えるfieldは従来のoverflowへfallbackし、9-field commitテストで確認する。overlay名の固定hash indexも試したがforeach fixtureの時間が悪化したため採用せず、線形検索を維持した。計測は単一MSVC Debug合成fixtureであり、Releaseの性能保証ではない。
 
+- オブジェクトmethod cacheのslot選択を実行時class名hashへ変え、cache hit時はdefinition所有のclass名を比較してから `findClass` を省くようにした。同じcall-site／classの反復では、1 hook内のclass registry線形検索を初回だけにする。単一class／32 methodsのMSVC Debug fixtureは変更前70.46、変更後69.98 µs/hookで差は計測揺れの範囲、CRT allocationは0のまま。8以上のclass registryでの短縮量は未確認であり、この値から性能向上率は主張しない。base／derived classを同じcall-siteで切り替える契約テストでdispatch結果を確認する。
+
 ## 進捗 2026-10-06
 
 - 既存 `ArtifactCoreKeyframeSplineTest` に4ケース追加した。空track、逆順挿入後のsortと範囲外時刻clamp、Constant segmentから次のexact keyへの境界、frame単位のlinear speedを固定する（現12 cases）。別target `ArtifactCoreKeyframePatternGeneratorTest` を追加し、12 preset全種の有限・昇順・frame scale、Ramp/Stagger/Stepの境界、seeded Shakeの再現性、trajectoryの非有限sample除去と等間隔再サンプルを6ケースで検査する。両suiteは共通Core APIの契約であり、Text Animator layerのproperty keyframe保存・読込・seek連携を証明するものではない。
