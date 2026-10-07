@@ -1,5 +1,14 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactScriptのdouble複合代入をin-place化
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptEvaluator::Impl::execStmt()`、`tests/ArtifactCore/ArtifactScriptTest.cpp`。
+- **確認できた事実:** `double` targetへの `+= -= *= /= %=` は右辺評価後、`evalBinary()`で計算結果variantを一度作り、targetへ代入していた。foreach fixtureの内側も `total += item` を反復する。
+- **対応:** targetがdoubleかつ右辺がdouble/int64の場合に限り、targetを直接更新する。ゼロ除算は同じ`div0`診断を返し、その他の型・演算は既存経路を維持する。field、local、array item、int RHSと各算術演算をテストし、division-by-zeroも確認した。
+- **Debug性能計測:** 既存hook benchmarkを変更前後各2回実行。8要素foreachは平均約6.05から5.18 µs/hook（約14%短縮）、257要素numeric foreachは104.12から70.48 / 83.35（変更後平均76.92、約26%短縮）。257個の128文字string比較fixtureは252.33から219.28 / 242.13（変更後平均230.71、約9%短縮）。fixture間に測定揺らぎがあり、Release性能や汎用的な短縮率は未確認。
+- **確認結果:** MSVC DebugでArtifactScript関連5 CTest suitesが5/5 passed。計測値は実装の速度差を示すが、allocation数の計測は行っていない。
+- **次に確認すべきこと:** Release buildが既に利用可能になった時点で同じfixtureを再測定し、double compound assignmentが支配的な実script workloadでも効果を確認する。JIT判断にはこのDebug計測だけを使わない。
+
 ## 2026-10-07 — ArtifactScript foreach のloop binding探索を一度にする
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptFields::prepareLoopBinding()` / `bindLoopValue()` と foreach実行。

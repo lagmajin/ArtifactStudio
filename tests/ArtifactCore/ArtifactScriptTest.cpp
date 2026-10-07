@@ -644,6 +644,71 @@ class Math : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(fields.at("value")), 7.0);
 }
 
+TEST(ArtifactScriptTest, NumericCompoundAssignmentUpdatesAllTargets) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class NumericCompoundAssignment : ArtifactBehaviour
+{
+    public float value = 10.0;
+    public int step = 2;
+    public Array values;
+    void OnCreate() { push(values, 3.0); }
+    float run()
+    {
+        var local = 10.0;
+        local += step;
+        values[0] *= local;
+        value += step;
+        value -= 2.0;
+        value *= 2.0;
+        value /= 4.0;
+        value %= 4.0;
+        return values[0] + value;
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptEvaluator evaluator;
+    ArtifactScriptComponent component;
+    component.setScriptClass("NumericCompoundAssignment");
+    component.applyDefaults(definition);
+    auto& fields = component.publicFields();
+    evaluator.executeMethod(definition, "OnCreate", {}, fields);
+    ASSERT_FALSE(evaluator.hasError()) << evaluator.getLastError();
+    const auto result = evaluator.executeMethod(definition, "run", {}, fields);
+    ASSERT_FALSE(evaluator.hasError()) << evaluator.getLastError();
+    ASSERT_TRUE(std::holds_alternative<double>(result));
+    // local = 12, array value = 3 * 12, and field value = (((10 + 2 - 2) * 2) / 4) % 4.
+    EXPECT_DOUBLE_EQ(std::get<double>(result), 37.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(fields.at("value")), 1.0);
+    const auto& values = std::get<ArtifactScriptArrayPtr>(fields.at("values"));
+    ASSERT_TRUE(values);
+    ASSERT_EQ(values->values.size(), 1u);
+    EXPECT_DOUBLE_EQ(std::get<double>(values->values[0]), 36.0);
+}
+
+TEST(ArtifactScriptTest, NumericCompoundDivisionByZeroKeepsDiagnostic) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class NumericCompoundDivisionByZero : ArtifactBehaviour
+{
+    public float value = 10.0;
+    void OnUpdate() { value /= 0.0; }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptEvaluator evaluator;
+    ArtifactScriptSerializedFields fields;
+    fields["value"] = 10.0;
+    const auto result =
+        evaluator.executeMethod(definition, "OnUpdate", {}, fields);
+    EXPECT_TRUE(std::holds_alternative<std::monostate>(result));
+    EXPECT_NE(evaluator.getLastError().find("div0"), std::string::npos);
+    EXPECT_DOUBLE_EQ(std::get<double>(fields.at("value")), 10.0);
+}
+
 TEST(ArtifactScriptTest, StringCompoundAssignmentUpdatesLocalsFieldsAndArrayItems) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(

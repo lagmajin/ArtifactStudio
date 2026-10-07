@@ -7,6 +7,7 @@
 
 ## 進捗 2026-10-07
 
+- double targetへの `+= -= *= /= %=` は、右辺がdouble/int64なら `ArtifactScriptValue` の計算結果一時値を経由せずtargetを直接更新する。division/modulo by zeroの診断とfallbackを保ち、field/local/array item、int RHS、各演算の回帰テストを追加。変更前後各2回のMSVC Debug hook benchmarkでは、8要素foreachが平均6.05→5.18 µs/hook（約14%短縮）、257要素numeric foreachが104.12→平均76.92（約26%短縮）、257個の128文字string比較fixtureが252.33→平均230.71（約9%短縮）。ArtifactScript関連5 CTest suitesは5/5 passed。fixture測定のためRelease・実script性能への一般化は未確認。
 - `a + b + c + d` のような加算ASTは、全leafが既存literalまたはstring variableのときに限り、固定深さ上限64の2-pass走査で最終長を数え、1つの結果stringへ一度だけappendする。callや非string leaf、上限超過は従来評価へfallbackし、式の副作用を重複実行しない。128文字string 4個のfixtureはMSVC Debugで15 allocations / 2366 bytesから3 / 560 per hookへ減少。call副作用が1回であることもテスト。
 - string targetの `+=` は右辺がstringでなくてもtargetへ直接appendする。整数 / bool / doubleは従来と同じ `to_string` / `ostringstream` 表記で追記し、その他の型は従来同様空文字相当で維持する。128文字string + int fixtureはMSVC Debugで6 allocations / 352 bytesから3 / 176 per hookへ半減。string・int・bool・doubleの結果を回帰テストで確認。
 - 文字列同士の `+` は、simple variable / literal operandなら `evalExpr()` の値copyを避け、合計サイズをreserveした結果stringへ直接appendする。複合式やmixed scalar/stringも `evalBinary()` 内で一時文字列を介さず結果へappendする。128文字×2の連結fixtureはMSVC Debugで11 allocations / 944 bytesから3 / 304 per hookへ減少。整数・boolとの連結結果を確認するテストを追加。
