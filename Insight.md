@@ -4519,3 +4519,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** `ArtifactScriptCallArguments` のinline capacityを4へ変更。引数が5以上の経路は既存のworkspace-backed overflowを維持し、追加heap確保や動的workspace拡張は導入しない。
 - **価値または懸念:** call frameごとの初期化slotを1つ減らし、測定した4・6引数ケースは少し短くなった。5引数は同等〜少し遅い可能性があり、benchmarkはMSVC Debugのみ。実scriptでの引数個数分布は未計測。
 - **次に確認すべきこと:** 実用scriptの呼び出し引数個数分布を取得し、4枠が実 workload に合うかを確認する。Release構成でも再測定する。
+
+## 2026-10-07 — Avoid duplicate hashing when inserting ArtifactScript locals
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptLocals::operator[]` / `emplace` / `append()`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` のmethod-localとlocals(12/20) benchmark。
+- **仮説:** 新しいlocalの挿入で`find()`と`append()`が同じ名前hashを二度計算するため、挿入側でhashを共有すればparameter・declarationのframe setupを短縮できる。
+- **実験:** precomputed hashを`findHashed()`と`append()`へ渡す実装を試した。最初は通常read検索もhelperへ委譲したため、MSVC Debugでmethod/localとlocals(12)の正規化時間が悪化した。read検索を従来どおり関数内に戻し、挿入経路だけhelperを使うvariantも測った。
+- **確認できた事実:** baselineに対し、read pathをhelper化したvariantではmethod/local ratioが約3.49から3.64〜3.70、locals(12) ratioが約5.08から5.37〜5.78へ悪化した。read pathを戻したvariantもmethod/local ratioは約3.56、locals(12)/locals(20)は約5.14 / 9.06で、baseline約3.49 / 5.08 / 8.98より少し遅かった。MSVC Debug run間の揺れはあるが、安定した改善は観測できず、試行コードは戻した。
+- **価値または懸念:** 重複hashを除いても、追加helper境界とinsert検索のコストが相殺し得る。共通read pathへhelperを持ち込む案は特に遅かった。
+- **次に確認すべきこと:** local-name slot化のようなlookup回数自体を減らす案を検討する場合、mutable ASTとmethod scope/shadowingの意味を先に整理し、DebugだけでなくRelease計測も用意して評価する。
