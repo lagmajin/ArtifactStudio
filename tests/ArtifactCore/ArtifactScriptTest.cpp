@@ -1926,6 +1926,68 @@ class Coalesce : ArtifactBehaviour
     EXPECT_EQ(std::get<std::string>(instance.fields().at("label")), "");
 }
 
+TEST(ArtifactScriptTest, NullCoalescingAssignmentIsLazyAcrossLvalueKinds) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class CoalesceAssignment : ArtifactBehaviour
+{
+    public float calls = 0.0;
+    public float result = 0.0;
+    public Array values;
+    public Payload payload;
+
+    float fallback()
+    {
+        calls += 1.0;
+        return 7.0;
+    }
+
+    void OnUpdate()
+    {
+        var localValue = 3.0;
+        localValue ??= fallback();
+        result += localValue;
+
+        var missingValue = null;
+        missingValue ??= fallback();
+        result += missingValue;
+
+        values = [1.0, null];
+        values[0] ??= fallback();
+        values[1] ??= fallback();
+        result += values[1];
+
+        payload = new Payload();
+        payload.value ??= fallback();
+        payload.value ??= fallback();
+        result += payload.value;
+    }
+}
+class Payload : ArtifactBehaviour
+{
+    public var value = null;
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty())
+        << (definition.diagnostics.empty()
+                ? ""
+                : definition.diagnostics.front().message);
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("calls")), 3.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 24.0);
+    const auto& values = std::get<ArtifactScriptArrayPtr>(
+        instance.fields().at("values"))->values;
+    EXPECT_DOUBLE_EQ(std::get<double>(values[0]), 1.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(values[1]), 7.0);
+    const auto& payload = std::get<ArtifactScriptObjectInstancePtr>(
+        instance.fields().at("payload"));
+    ASSERT_NE(payload, nullptr);
+    EXPECT_DOUBLE_EQ(std::get<double>(payload->fields.at("value")), 7.0);
+}
+
 TEST(ArtifactScriptTest, VarDeclarationAndForeach) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(

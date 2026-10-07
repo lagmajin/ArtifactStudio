@@ -7,6 +7,7 @@
 
 ## 進捗 2026-10-07
 
+- null合体代入 `??=` を追加し、既存値がnullでない場合は右辺を評価せず、nullの場合だけ代入する。ローカル変数・field・array index・nested object fieldでfallback副作用回数と値を確認。通常代入経路は値を直接初期化し、不要なvariant再代入によるallocation増加を避ける。ArtifactScript／レイヤー関連5 CTest suitesは **5/5 passed**。CPU実行時間差は未計測。
 - null合体演算子 `??` を追加。`&&` / `||` と同様に右辺を遅延評価し、左辺がnullのときだけfallback式を実行する。`false` / `0` / 空文字は有効な値として保持する。演算子は右結合で三項演算子より優先する。fallbackの副作用回数、右結合AST、優先順位、null以外の値をテストし、ArtifactScript関連5 CTest suitesは5/5 passed。fallbackが省かれるケースのCPU性能差は未計測。
 - 整数literalを`int64`として解析し、int同士の加減乗除・剰余・大小比較を整数精度で実行する。`2^53+1`の保持、負の最小値literal、整数除算/剰余、加算・乗算・`INT64_MIN / -1`のoverflow診断をテストした。mixed int/float arithmeticは従来のdouble経路を維持。整数の実script比率や実行速度の変化は未計測。ArtifactScript関連5 CTest suitesは5/5 passed。
 - mixed `int64` / `double` の比較を、整数をdoubleへ丸めてから比べる経路から範囲検査付きの正確な比較へ変更。`2^53+1`と隣接doubleの等値・大小関係、および`INT64_MIN` / `2^63`境界をテスト。NaNは従来どおり大小比較false・非等値として扱い、mixed arithmeticは従来のdouble演算を維持。ArtifactScript関連5 CTest suitesは5/5 passed。
