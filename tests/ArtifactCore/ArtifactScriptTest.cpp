@@ -601,6 +601,58 @@ class Settings : ArtifactBehaviour
     EXPECT_EQ(saved.find("runtimeCache"), saved.end());
 }
 
+TEST(ArtifactScriptTest, FieldAttributesDecodeTextAndValidateRanges) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class MotionSettings : ArtifactBehaviour
+{
+    [Range(-2.5, +4e1)]
+    [Header("Motion] Control")]
+    [Tooltip("Adjust \"speed\"")]
+    public float speed = 2.0;
+    public Array values;
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty())
+        << (definition.diagnostics.empty() ? "" : definition.diagnostics.front().message);
+    ASSERT_EQ(definition.rootClass.fields.size(), 2u);
+    const auto& speed = definition.rootClass.fields[0];
+    ASSERT_TRUE(speed.hasRange);
+    EXPECT_DOUBLE_EQ(speed.rangeMin, -2.5);
+    EXPECT_DOUBLE_EQ(speed.rangeMax, 40.0);
+    EXPECT_EQ(speed.header, "Motion] Control");
+    EXPECT_EQ(speed.tooltip, "Adjust \"speed\"");
+    ASSERT_TRUE(std::holds_alternative<ArtifactScriptArrayPtr>(
+        definition.rootClass.fields[1].defaultValue));
+    EXPECT_TRUE(std::get<ArtifactScriptArrayPtr>(
+        definition.rootClass.fields[1].defaultValue)->values.empty());
+
+    const auto parseRange = [&](std::string_view range) {
+        const std::string source =
+            "class InvalidRange : ArtifactBehaviour\n{\n    " +
+            std::string(range) +
+            "\n    public float value = 0.0;\n}\n";
+        return parser.parse(source);
+    };
+    for (const auto invalidRange : {
+             "[Range(0, 1tail)]", "[Range(2, 1)]", "[Range(0, 1, 2)]",
+             "[Range(0, 1)"}) {
+        const auto invalid = parseRange(invalidRange);
+        ASSERT_FALSE(invalid.diagnostics.empty()) << invalidRange;
+        EXPECT_EQ(invalid.diagnostics.front().line, 3u) << invalidRange;
+    }
+
+    const auto invalidHeader = parser.parse(R"(
+class InvalidHeader : ArtifactBehaviour
+{
+    [Header("unterminated)]
+    public float value = 0.0;
+}
+)");
+    ASSERT_FALSE(invalidHeader.diagnostics.empty());
+    EXPECT_EQ(invalidHeader.diagnostics.front().line, 4u);
+}
+
 TEST(ArtifactScriptTest, SerializedComponentRoundTripsAndFallsBackOnTypeMismatch) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(

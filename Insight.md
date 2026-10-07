@@ -1,5 +1,13 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactScript field attributes の括弧と値を厳密に解析する
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のfield attribute classification/parser、`tests/ArtifactCore/ArtifactScriptTest.cpp`。
+- **確認できた事実:** 属性行の分類は行内に `(` と `)` があるかを先に見ていたため、`Range(...)` / `Header(...)` / `Tooltip(...)` を含む行をmethod宣言扱いにしていた。`Range` は `std::stod` の部分parseを使うため末尾の不正文字を受け入れ得た。quoted metadata内の `]` は属性終端と区別されず、public Array defaultは同じfield parseで2度生成されていた。
+- **対応:** 属性行を括弧形状に依存せず分類し、quote/escapeを考慮して閉じ括弧を探す。Header/TooltipのtextはArtifactScriptのstring escape decoderを通し、Rangeは `from_chars` で値全体を消費する有限の数値かつ `min <= max` を検証する。未閉じ・不正値は属性行の位置でdiagnostic化。Array default parseも1回にした。属性行の誤分類をテスト追加時に再現し、修正後ArtifactScript関連5 suitesが通過した。
+- **価値または懸念:** serialized field metadataが値と範囲を正しく保持できるparser契約になり、public Array fieldのcold parseで不要な一時Array生成を除いた。未知attributeのスキーマ検査や属性のInspector表示・保存との統合は未着手。
+- **次に確認すべきこと:** Range/Header/Tooltipを受け取るInspector側の利用箇所を調べ、範囲制約やセクション表示がmetadataから実際の編集UIへ接続しているかを別途統合確認する。
+
 ## 2026-10-07 — ArtifactScriptの定義差し替えで古い実行エラーを消す
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptLayerRuntime::replaceDefinition()`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm` のreload成功経路、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。
