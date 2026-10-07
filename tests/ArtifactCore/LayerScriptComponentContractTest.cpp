@@ -388,6 +388,65 @@ class LayerRuntimeCounter : ArtifactBehaviour
 }
 
 TEST(LayerScriptComponentContractTest,
+     SharedLayerRuntimeInitializesPrivateFieldsAndReloadDefaults) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class PrivateRuntimeSettings : ArtifactBehaviour
+{
+    public float result = 0.0;
+    private float runtimeCache = 4.0;
+    [SerializeField]
+    private float persistedSeed = 7.0;
+    void OnUpdate() {
+        result = runtimeCache + persistedSeed;
+        runtimeCache += dt;
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptLayerRuntime runtime;
+    runtime.bind(std::move(definition));
+    ASSERT_NE(runtime.instance(), nullptr);
+    EXPECT_DOUBLE_EQ(std::get<double>(runtime.instance()->fields().at("runtimeCache")),
+                     4.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(runtime.instance()->fields().at("persistedSeed")),
+                     7.0);
+    ASSERT_TRUE(runtime.advanceLifecycle(ArtifactScriptLayerRunState::Enabled,
+                                         true));
+    ASSERT_TRUE(runtime.evaluateFrame(1, 0.5, 0.5)) << runtime.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(runtime.instance()->fields().at("result")),
+                     11.0);
+
+    auto reloadedDefinition = parser.parse(R"(
+class PrivateRuntimeSettings : ArtifactBehaviour
+{
+    public float result = 0.0;
+    private float runtimeCache = 20.0;
+    [SerializeField]
+    private float persistedSeed = 8.0;
+    void OnUpdate() {
+        result = runtimeCache + persistedSeed;
+        runtimeCache += dt;
+    }
+}
+)");
+    ASSERT_TRUE(reloadedDefinition.diagnostics.empty());
+    ArtifactScriptSerializedFields migrated;
+    migrated.emplace("persistedSeed", ArtifactScriptValue(9.0));
+    runtime.replaceDefinition(std::move(reloadedDefinition), std::move(migrated));
+    EXPECT_DOUBLE_EQ(std::get<double>(runtime.instance()->fields().at("runtimeCache")),
+                     20.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(runtime.instance()->fields().at("persistedSeed")),
+                     9.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(runtime.instance()->fields().at("result")),
+                     0.0);
+    ASSERT_TRUE(runtime.evaluateFrame(2, 1.0, 0.25)) << runtime.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(runtime.instance()->fields().at("result")),
+                     29.0);
+}
+
+TEST(LayerScriptComponentContractTest,
      SharedLayerRuntimeClearsExecutionErrorAfterDefinitionReplacement) {
     ArtifactScriptParser parser;
     auto failingDefinition = parser.parse(R"(

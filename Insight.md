@@ -1,5 +1,14 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactScriptの hot reload は SerializeField も移行する
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptHotReload::reload()` / `reloadWithSaved()` / `addFile()`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `migrateScriptFields()`。
+- **確認できた事実:** Core hot reloadとArtifact layer独自のreload helperが、fieldの永続化フラグ `serialized` ではなく `isPublic` を条件にしていた。`[SerializeField] private` は `ArtifactScriptComponent::serializedFields()` の保存対象なのに、reload時は移行されず値を失う。また、新しく追加されたprivate serialized fieldは、public-only defaults適用経路ではmigration mapに含まれない。Core layer runtimeの `bind()` もpublic-only defaultsだけをinstance fieldsへコピーし、private fieldの宣言初期値を実行時に作っていなかった。
+- **対応:** old/new両definitionの `serialized` と型一致をmigration条件にし、migration/default mapへ全serialized fieldを反映する。初期file registrationもserialized private overrideを受け付ける。runtime bind / definition replacementは全fieldをdefault初期化した後に移行値を上書きし、unserialized private fieldはreloadごとに初期値へ戻す。
+- **確認結果:** Core testでpublic値とprivate SerializeField値の保持、新規private serialized fieldのdefault、runtime-only fieldの除外、private field値をhookから読む動作を検証した。ArtifactScript関連5 CTest suitesは5/5成功。Artifact側の重複helperは同じ条件へ修正したが、Artifact app moduleのcompile/runtimeは既存ImageAnalyzer依存エラーで未確認。
+- **価値または懸念:** 保存APIが示すserialized契約とreload経路の判定が一致した。アプリ層の実レイヤー reloadでprivate fieldが維持されることは、Artifact側module/runtime確認後に再確認する。
+- **次に確認すべきこと:** Artifact layerのproject save/restoreからlive reloadまで、public・SerializeField private・unserialized privateを跨いだ実データを統合テストする。
+
 ## 2026-10-07 — ArtifactScript field attributes の括弧と値を厳密に解析する
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のfield attribute classification/parser、`tests/ArtifactCore/ArtifactScriptTest.cpp`。

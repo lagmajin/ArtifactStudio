@@ -7,6 +7,7 @@
 
 ## 進捗 2026-10-07
 
+- hot reload時のfield migrationを public 判定から `serialized` 契約へ統一。Coreの `ArtifactScriptHotReload::reload()` / `addFile()` と Artifact layer独自migrationの両方で `[SerializeField] private` の同名・同型値を保持し、unserialized private fieldを除外、新しいserialized fieldには初期値を入れる。Core runtimeのbind / definition replacementでは全fieldの初期値を作り、serialized private valueを移行、runtime-only private値は新しいdefaultから再開する契約も追加。値保持・新規既定値・runtime-only field除外と実行時readをテストし、ArtifactScript関連5 CTest suitesは5/5 passed。Artifact側module/application runtimeは別途未確認。
 - field attribute parserを堅牢化。`Range(...)` / `Header(...)` / `Tooltip(...)` を含む属性行をmethod宣言と誤認していた分類を修正し、quoted text中の `]` と既存escapeを尊重する。Rangeはlocale依存・末尾文字を許す `std::stod` からstrict `std::from_chars` に変更し、finite・完全消費・min<=maxを検証、不正属性と未閉じ `]` はattribute行の位置で診断する。加えてpublic Array defaultを二重に作っていたparseを1回にし、属性metadata・malformed range・array初期値をテスト。ArtifactScript関連5 CTest suitesは5/5 passed。
 - `ArtifactScriptLayerRuntime::replaceDefinition()` がスクリプト実行エラー後の定義差し替えでも旧 `lastError` を保持する契約漏れを修正。Artifact側の呼び出し元は既に明示クリアしていたが、Core runtime単体でエラー→修正版reload→次frame実行を検証し、エラー消去・Lifecycle状態維持・同一frame抑止・移行field値の継続を確認。MSVC Debugの `ArtifactCoreLayerScriptComponentTest` は1/1 passed。
 - ArtifactCoreに共有 `ArtifactScriptLayerRuntime` を追加し、レイヤースクリプトのlifecycle / frame実行をテスト可能な単位へ抽出。Core contract testで OnCreate〜OnDestroy の順序、同一frame再評価抑止、`dt/time/frame`、hot reload後の状態継続を検証し、ArtifactScript関連5 suitesは5/5 passed。Artifact側もこのランタイムへ委譲するよう変更してpush済み。全体module再構築は変更外の `ArtifactCoreAnalyze/ImageAnalyzer.cppm`（`ImageByteSurfaceView` 不完全型）で停止したため、Artifact側compile/runtime確認は未完了。

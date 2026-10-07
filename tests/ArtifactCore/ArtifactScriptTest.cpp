@@ -1157,6 +1157,45 @@ class Spin : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(result.migratedFields.at("angle")), 0.0);
 }
 
+TEST(ArtifactScriptTest, HotReloadMigratesSerializedPrivateFields) {
+    constexpr auto sourceV1 = R"(
+class Settings : ArtifactBehaviour
+{
+    public float speed = 2.0;
+    [SerializeField]
+    private float seed = 7.0;
+    private float runtimeCache = 0.0;
+}
+)";
+    constexpr auto sourceV2 = R"(
+class Settings : ArtifactBehaviour
+{
+    public float speed = 2.0;
+    [SerializeField]
+    private float seed = 9.0;
+    [SerializeField]
+    private int persistedMode = 3;
+    private float runtimeCache = 1.0;
+}
+)";
+    ArtifactScriptParser parser;
+    const auto previous = parser.parse(sourceV1);
+    const auto saved = parser.parse(sourceV2);
+    ASSERT_TRUE(previous.diagnostics.empty());
+    ASSERT_TRUE(saved.diagnostics.empty());
+    ArtifactScriptSerializedFields fields{{"speed", 4.5}, {"seed", 11.0},
+                                          {"runtimeCache", 8.0}};
+
+    ArtifactScriptHotReload hotReload;
+    const auto result = hotReload.reload(sourceV2, &previous, &fields);
+    ASSERT_TRUE(result.success) << result.errorMessage;
+    EXPECT_DOUBLE_EQ(std::get<double>(result.migratedFields.at("speed")), 4.5);
+    EXPECT_DOUBLE_EQ(std::get<double>(result.migratedFields.at("seed")), 11.0);
+    EXPECT_EQ(std::get<std::int64_t>(result.migratedFields.at("persistedMode")), 3);
+    EXPECT_EQ(result.migratedFields.find("runtimeCache"),
+              result.migratedFields.end());
+}
+
 TEST(ArtifactScriptTest, FileAddEditAndReload) {
     const auto path = std::filesystem::temp_directory_path() / "artifact_script_hot_reload_test.artscript";
     constexpr auto sourceV1 = R"(
