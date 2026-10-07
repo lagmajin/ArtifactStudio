@@ -271,6 +271,47 @@ TEST(ArtifactScriptTest, MissingCallAndIndexArgumentsReportSourceLocations) {
     EXPECT_TRUE(validEmptyArguments.diagnostics.empty());
 }
 
+TEST(ArtifactScriptTest,
+     ControlStatementDelimitersReportMalformedSyntaxLocations) {
+    ArtifactScriptParser parser;
+    const auto parseBody = [&](std::string_view body) {
+        std::string source =
+            "class BrokenControl : ArtifactBehaviour\n{\n"
+            "    void OnUpdate()\n    {\n";
+        source.append(body);
+        source.append("\n    }\n}\n");
+        return parser.parse(source);
+    };
+
+    const auto missingIfOpen = parseBody("        if true) { value = 1.0; }");
+    ASSERT_EQ(missingIfOpen.diagnostics.size(), 1u);
+    EXPECT_EQ(missingIfOpen.diagnostics.front().line, 5u);
+    EXPECT_NE(missingIfOpen.diagnostics.front().column, 0u);
+
+    const auto missingWhileClose = parseBody("        while (true { value = 1.0; }");
+    ASSERT_EQ(missingWhileClose.diagnostics.size(), 1u);
+    EXPECT_EQ(missingWhileClose.diagnostics.front().line, 5u);
+    EXPECT_NE(missingWhileClose.diagnostics.front().column, 0u);
+
+    const auto missingForInitializerSeparator = parseBody(
+        "        for (int i = 0 i < 2; i++) { value += 1.0; }");
+    ASSERT_EQ(missingForInitializerSeparator.diagnostics.size(), 1u);
+    EXPECT_EQ(missingForInitializerSeparator.diagnostics.front().line, 5u);
+    EXPECT_NE(missingForInitializerSeparator.diagnostics.front().column, 0u);
+
+    const auto missingForSeparator = parseBody(
+        "        for (int i = 0; i < 2 i++) { value += 1.0; }");
+    ASSERT_EQ(missingForSeparator.diagnostics.size(), 1u);
+    EXPECT_EQ(missingForSeparator.diagnostics.front().line, 5u);
+    EXPECT_NE(missingForSeparator.diagnostics.front().column, 0u);
+
+    const auto missingForeachClose = parseBody(
+        "        foreach (item in values { value += item; }");
+    ASSERT_EQ(missingForeachClose.diagnostics.size(), 1u);
+    EXPECT_EQ(missingForeachClose.diagnostics.front().line, 5u);
+    EXPECT_NE(missingForeachClose.diagnostics.front().column, 0u);
+}
+
 TEST(ArtifactScriptTest, ComponentStoresPublicOverrides) {
     ArtifactScriptComponent component;
     component.setScriptClass("Spin");

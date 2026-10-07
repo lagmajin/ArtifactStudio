@@ -7,6 +7,7 @@
 
 ## 進捗 2026-10-07
 
+- `if` / `while` / `for` / `foreach` の必須括弧・区切り記号を parser で検証し、不足時に構文エラー位置を返す。従来は `matchCh()` の失敗を無視する箇所があり、閉じ括弧や `for` の区切りを欠いた入力を受理し得た。parser 内で記録した失敗位置が外側で文頭へ上書きされる問題も修正し、4種類の不正 control statement を回帰テスト化。変更は parse 時のみで評価器の実行経路は不変。parser throughput の比較は未計測。ArtifactScript関連5 CTest suitesは5/5 passed。
 - 数値literal parserを`string`一時コピー+`strtod`からsource viewの`std::from_chars`へ置換し、`1e-6` / `2E2`の指数表記と`.5`を追加。指数部の桁不足、double範囲外はmethod source位置のdiagnosticにする。同じ長さのscriptで`1.0`と長い指数表記を200回ずつparseしたMSVC Debug計測では、どちらも43 allocations / 1,460 bytes per parse。時間は14.097対14.284 µs/parseで、差は小さく速度差とは主張しない。以前のparserとのCPU A/Bは未実施。ArtifactScript関連5 CTest suitesは5/5 passed。
 - array built-inの`contains` / `indexOf`が独自で不完全な型比較をしていたため、script `==`の比較処理を再利用するよう統一。int配列要素とfloat引数の一致、bool/string、配列identity、異なる型の不一致をテストし、危険なdouble→int64 castも除去。ArtifactScript関連5 CTest suitesは5/5 passed。
 - chained lvalue assignmentを追加し、`matrix[0][1] = value`と`nodes[0].score += value`を実行可能にした。ASTは既存Index / FieldAccess式をlvalueとして保持し、評価器の同じ境界検査・compound演算を使う。連鎖targetのprefix / postfix `++` / `--`も対応。既存`this.x = value`の`fieldAssign` AST契約も維持。nested array書込みとobject field compound/increment/decrementを含めArtifactScript関連5 CTest suitesは5/5 passed。新しいASTポインタ分のstatement storageとassignment分岐を追加したが、性能差は未計測。
