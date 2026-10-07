@@ -1287,6 +1287,53 @@ class ScriptMethodAllocationProbe : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 1100.0);
 }
 
+TEST(LayerScriptComponentContractTest,
+     ScriptObjectMethodMovesLongStringArgumentsIntoParameters) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ScriptStringArgumentProbe : ArtifactBehaviour
+{
+    public ObjectRef target;
+    public string source = "seed";
+    void OnCreate() { target = new ScriptStringSink(); }
+    void OnUpdate() { target.consume(source); }
+}
+class ScriptStringSink : ArtifactBehaviour
+{
+    void consume(string value) { }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate))
+        << instance.lastError();
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    instance.fields()["source"] = std::string(128, 'x');
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << instance.lastError();
+    }
+
+    ScriptAllocationCounter counter;
+    constexpr std::size_t allocationIterations = 1000;
+    bool succeeded = true;
+    for (std::size_t i = 0; i < allocationIterations; ++i) {
+        if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+            succeeded = false;
+            break;
+        }
+    }
+    const auto allocations = counter.stop();
+    EXPECT_TRUE(succeeded) << instance.lastError();
+    EXPECT_EQ(allocations.first, allocationIterations * 4)
+        << "allocations/hook=" << allocations.first / allocationIterations;
+    EXPECT_GT(allocations.second, 0u)
+        << "bytes/hook=" << allocations.second / allocationIterations;
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("source")).size(), 128u);
+}
+
 TEST(LayerScriptComponentContractTest, ScriptIsOperatorAvoidsSteadyStateAllocations) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
