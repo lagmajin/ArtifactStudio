@@ -4831,3 +4831,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認結果:** `2^53+1`のpostfix increment、結果のprefix increment/postfix decrementとint64 variant保持、`INT64_MAX++`のoverflow diagnosticを追加。ArtifactScript関連5 CTest suitesは **5/5 passed**。
 - **価値または懸念:** 明示的な整数増減が整数演算意味と揃い、doubleへの不要な変換も避ける。速度差は計測していない。
 - **次に確認すべきこと:** host-provided数値やint fieldの実利用で`++` / `--` variant変更が期待どおりか確認し、他の合成numeric AST literalも同様の型漏れがないか監査する。
+
+## 2026-10-07 — ArtifactScript logical operators returned operand values
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`evalExpr()` short-circuit branch、`tests/ArtifactCore/ArtifactScriptTest.cpp`。
+- **確認できた事実:** `&&` / `||`は評価器内の`evalBinary()`ではboolを返すが、短絡対応の早期分岐では左または右operandをそのまま返していた。結果型が式の実行経路で不一致になり、たとえばnumeric operandsの`1 && 2`はint値`2`になっていた。
+- **実装:** operand truthinessと短絡条件を保ちつつ、決定値または評価済み右辺をboolへ変換して返す。右辺のscript errorは引き続き伝播する。
+- **確認結果:** `1 && 2`と`0 || 2`がboolを返し、`0 && sideEffect()` / `1 || sideEffect()`で右辺を評価しないことを確認。ArtifactScript関連5 CTest suitesは **5/5 passed**。
+- **価値または懸念:** 論理式の結果型をboolに揃え、短絡の意味は維持する。現在のtruthiness受理型はbool/int/doubleに限定しており、C#のbool-only operator semanticsとは異なる。numeric operandsを許す既存契約を今回維持したが、これは言語仕様として未整理。
+- **次に確認すべきこと:** 他の式コンテキストでlogical resultがoperand valueとして使われている依存を調べ、truthinessとbool-only演算子の方針を言語仕様で確定する。

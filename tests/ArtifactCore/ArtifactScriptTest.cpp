@@ -1793,6 +1793,10 @@ TEST(ArtifactScriptTest, ShortCircuitEvaluation) {
 class Guard : ArtifactBehaviour
 {
     public float total = 0.0;
+    public bool conjunction = false;
+    public bool disjunction = false;
+    public bool falseConjunction = true;
+    public bool trueDisjunction = false;
     float sideEffect()
     {
         total = total + 1.0;
@@ -1800,6 +1804,10 @@ class Guard : ArtifactBehaviour
     }
     void OnUpdate()
     {
+        conjunction = 1 && 2;
+        disjunction = 0 || 2;
+        falseConjunction = 0 && sideEffect();
+        trueDisjunction = 1 || sideEffect();
         // false && sideEffect() must not run sideEffect
         if (false && sideEffect()) { total = 100.0; }
         // true || sideEffect() must not run it either
@@ -1815,6 +1823,10 @@ class Guard : ArtifactBehaviour
     EXPECT_TRUE(std::holds_alternative<std::monostate>(
         evaluator.executeMethod(definition, "OnUpdate", {}, fields)));
     EXPECT_DOUBLE_EQ(std::get<double>(fields.at("total")), 0.0);
+    EXPECT_TRUE(std::get<bool>(fields.at("conjunction")));
+    EXPECT_TRUE(std::get<bool>(fields.at("disjunction")));
+    EXPECT_FALSE(std::get<bool>(fields.at("falseConjunction")));
+    EXPECT_TRUE(std::get<bool>(fields.at("trueDisjunction")));
 }
 
 TEST(ArtifactScriptTest, NullCoalescingIsLazyRightAssociativeAndNullSpecific) {
