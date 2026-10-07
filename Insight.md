@@ -1,5 +1,13 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactScriptの局所名ハッシュ事前計算は未採用
+
+- **関連:** `ArtifactCore::ArtifactScriptLocals::find()`、`ArtifactScriptExpr::variableName`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の `HookExecutionMicrobenchmark`。
+- **確認できた事実:** ローカル検索は呼び出しごとに名前のFNV hashを計算する。AST名ハッシュをparse時に保持する候補をDebugで試作し、可変ASTアクセス時は再計算へfallbackする経路とテストも追加した。
+- **計測:** 同一MSVC Debug microbenchmarkの1回ずつの結果で、OnUpdateは1.73→1.76 µs/hook、method/localは6.63→6.81、12 localsは13.14→13.03、20 localsは24.20→23.01。ほかのケースも上下し、結果は一貫しなかった。
+- **判断:** 可変AST名の回帰テストは2/2成功したが、コストモデル上の有望さに対し単回Debug比較では改善を示せず、分岐・ASTサイズの増加を正当化できないため実装を戻した。Release性能や統計的な差は未確認。
+- **次に確認すべきこと:** Release構成でローカル数別の専用microbenchmarkを反復し、中央値とばらつきを取る。再検討時は小数localsの基準ケースも含める。
+
 ## 2026-10-07 — ArtifactScriptのnull合体はfallbackを遅延評価する
 
 - **関連:** `ArtifactCore/include/Script/ArtifactScript/ArtifactScript.ixx` のbinary operator、`ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のparser/evaluator、`tests/ArtifactCore/ArtifactScriptTest.cpp`。
