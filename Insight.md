@@ -4420,3 +4420,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** workspaceの最大保持数32件を固定open-addressed indexで引けるようにした。これを越えるtransient fallback分は既存の線形走査に残し、table拡張や新たなheap確保はしない。空scopeのlookupはhash計算前に返す。
 - **価値または懸念:** 観測された20-local Debug hook時間はbaselineより約4.8〜5.9%短い。ローカル変数検索の意味、名前のAST参照寿命、最大深度64、allocation-free steady stateは維持。indexは生存中のlocals scopeごとに64 bytes増え、最大64 call framesで約4 KiBの追加stack使用となる。Debug測定はrun間に時間揺れがあり、Release性能は未検証。
 - **次に確認すべきこと:** Release相当で再測定する。44 localsを越える大きなscopeが実用scriptにあるかを利用例で確認し、必要性が見つかる場合だけfallback側もbounded index化を検討する。
+
+## 2026-10-07 — ArtifactScript object construction allocated a temporary inheritance chain
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptExpr::Kind::New` 評価、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp`、`tests/ArtifactCore/ArtifactScriptObjectTest.cpp`。
+- **確認できた事実:** `new Class()` は初期化フィールドをbase-firstで列挙するため、毎回 `std::vector<const ArtifactScriptClass*>` を作り、通常の継承深度でもheap確保を1回行っていた。MSVC Debug allocation probeでは`new Thing()` が8 allocations / hookだった。
+- **対応:** 最初の32クラスを固定`std::array`へ収め、32段を超えた残りだけ既存vectorへ退避する。base-firstの適用順は維持。probeは7 allocations / hookをassertし、一時chain確保1回の除去を検証する。33段の継承fixtureで全base fieldが初期化されることも確認する。
+- **追加で確認した問題:** 不正なクラスメンバーを読むtop-level parser loopに進捗保証がなく、入力位置を進めないまま回るケースがあった。クラスメンバー行のfallback guardを追加し、diagnosticを返して次行へ進むテストを追加した。33段fixture生成で試した同一行class bodyはこのパーサーの対応形式ではなく、その入力がこの停止経路を発見した。
+- **価値または懸念:** 通常の0〜32段のconstructor evaluationから一時vector確保を外した。固定stack領域は256 bytes / active `new` expression。33段以上では超過部分用vectorが残る。`new`自体のobject/shared ownershipやfield map allocationは残る。比較・テストはMSVC DebugのみでRelease未計測。
+- **次に確認すべきこと:** 深い継承の実用script有無とRelease性能を確認する。既存ビルドディレクトリにはNinja Debug構成のみあり、CMake再生成なしでのRelease検証はできていない。

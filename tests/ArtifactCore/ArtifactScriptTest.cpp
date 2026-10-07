@@ -32,6 +32,21 @@ class Spin : ArtifactBehaviour
     EXPECT_TRUE(definition.diagnostics.empty());
 }
 
+TEST(ArtifactScriptTest, InvalidClassMemberReportsDiagnosticWithoutStalling) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class Broken : ArtifactBehaviour
+{
+    this is not a supported declaration;
+}
+)");
+
+    ASSERT_FALSE(definition.diagnostics.empty());
+    EXPECT_NE(definition.diagnostics.front().message.find(
+                  "unsupported or invalid class member syntax"),
+              std::string::npos);
+}
+
 TEST(ArtifactScriptTest, MethodBodyParserRejectsUnsupportedTokenWithoutStalling) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(

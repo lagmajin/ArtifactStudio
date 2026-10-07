@@ -213,6 +213,37 @@ class Child : Base
     EXPECT_TRUE(std::get<bool>(fields.at("flag")));
 }
 
+TEST(ArtifactScriptObjectTest,
+     DeepInheritanceObjectConstructionPreservesAllBaseFields) {
+    std::string source = R"(
+class Use : ArtifactBehaviour
+{
+    public float total = 0.0;
+    void OnUpdate()
+    {
+        var value = new Level32();
+        total = )";
+    for (int i = 0; i < 33; ++i) {
+        if (i != 0) source += " + ";
+        source += "value.value" + std::to_string(i);
+    }
+    source += ";\n    }\n}\n";
+    for (int i = 0; i < 33; ++i) {
+        source += "class Level" + std::to_string(i) + " : ";
+        source += i == 0 ? "ArtifactBehaviour" : "Level" + std::to_string(i - 1);
+        source += "\n{\n    public float value" + std::to_string(i) + " = " +
+                  std::to_string(i + 1) + ".0;\n}\n";
+    }
+
+    auto definition = parseOk(source);
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 561.0);
+}
+
 TEST(ArtifactScriptObjectTest, ObjectMethodCallSiteCacheTracksRuntimeClass) {
     auto definition = parseOk(R"(
 class Use : ArtifactBehaviour

@@ -1093,6 +1093,42 @@ class LongNamedScriptChildClass : LongNamedScriptBaseClass
     EXPECT_TRUE(std::get<bool>(instance.fields().at("matchesBase")));
 }
 
+TEST(LayerScriptComponentContractTest,
+     ScriptObjectConstructionReportsSteadyStateAllocations) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ScriptObjectConstructionProbe : ArtifactBehaviour
+{
+    public ObjectRef target;
+    void OnUpdate() { target = new Thing(); }
+}
+class Thing : ArtifactBehaviour
+{
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << instance.lastError();
+    }
+
+    ScriptAllocationCounter counter;
+    constexpr std::size_t allocationIterations = 1000;
+    bool succeeded = true;
+    for (std::size_t i = 0; i < allocationIterations; ++i) {
+        if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+            succeeded = false;
+            break;
+        }
+    }
+    const auto allocations = counter.stop();
+    EXPECT_TRUE(succeeded) << instance.lastError();
+    EXPECT_EQ(allocations.first, allocationIterations * 7)
+        << "allocations/hook=" << allocations.first / allocationIterations;
+}
+
 TEST(LayerScriptComponentContractTest, DeepRecursiveCallsReuseOverflowWorkspaces) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
