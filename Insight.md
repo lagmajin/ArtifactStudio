@@ -4500,3 +4500,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実:** MSVC Debugで30-class inherited hookはclass-index-only 6.35 / 7.11からpersistent cache 1.56 / 1.59 µs/hook（約75%短縮）。31-class root hookは1.98 / 2.09から1.55 / 1.58（約21〜25%短縮）。root hookの探索は早期終了し、通常の1-class hookには固定index構築がない。mutable accessor後に`new First()`を`new Second()`へ変更し、さらにcached hook bodyをremoveする回帰テストとArtifactScript関連5 suitesがpassした。
 - **価値または懸念:** 深い継承hookのper-frame lookupとclass index再構築がなくなる。不変定義ならhook cacheは固定6 entry、indexは固定128 slot。mutable accessorを一度でも使うと安全のためcache reuseはinstance寿命中無効になり、深い継承では以前の再構築コストへ戻る。MSVC Debugのみの測定。
 - **次に確認すべきこと:** 実際のscript authoring flowがmutable definition accessorをhook実行前後に利用する頻度を調べる。将来dirty tracking APIへ移行できるなら、無制限にescapeするmutable referenceより明示的なmutation boundaryを設けられるか検討する。
+
+## 2026-10-07 — ArtifactScript no-copy field reads did not improve hook timing
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptFields::find()`とnested field scope、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の5-field object method benchmark。
+- **仮説:** expression readが親fieldをtransaction overlayへコピーしているため、const readで親値を直接参照すればfield-heavy scriptのコピーとoverlay登録を避けられる。
+- **実験:** variable、`this.field`、foreach collection readにreadonly parent traversalを使い、5フィールドを16回呼ぶobject method workloadへfield-readを追加してDebug時間を比較した。
+- **確認できた事実:** MSVC Debugのread/write workloadはreadonly traversalなしで149.6 µs/hook、ありで163.8 µs/hookと約9.5%遅くなった。通常のmicrobenchmarkにも数%のrun間揺れがあるが、この主要workloadでは逆方向だった。readonly実装とbenchmark変更は戻した。別のfor-loop中心fixtureは既存のaccess violationを再現し、安全な測定ケースとして使えなかった。
+- **価値または懸念:** overlayの小さな線形検索と親hash lookupを比べた場合、毎回親へ抜ける方が高コストになり得る。読み取りコピーを無条件に外す最適化は採用しない。
+- **次に確認すべきこと:** field name解決が実測ボトルネックか、またtransaction scope単位の読み取りスロット解決をbounded・allocation-freeで再利用できるかを、意味論を変えないfixtureで調べる。
