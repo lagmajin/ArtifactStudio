@@ -1443,6 +1443,52 @@ class ScriptStringConstructorSink : ArtifactBehaviour
               << allocations.second / allocationIterations << " bytes/hook\n";
 }
 
+TEST(LayerScriptComponentContractTest,
+     ScriptDirectMethodMovesMultipleLongStringArgumentsIntoParameters) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ScriptMultipleStringArgumentProbe : ArtifactBehaviour
+{
+    public string first = "seed";
+    public string second = "seed";
+    void consume(string a, string b) { }
+    void OnUpdate() { consume(first, second); }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    instance.fields()["first"] = std::string(128, 'a');
+    instance.fields()["second"] = std::string(128, 'b');
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << instance.lastError();
+    }
+
+    ScriptAllocationCounter counter;
+    constexpr std::size_t allocationIterations = 1000;
+    bool succeeded = true;
+    for (std::size_t i = 0; i < allocationIterations; ++i) {
+        if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+            succeeded = false;
+            break;
+        }
+    }
+    const auto allocations = counter.stop();
+    EXPECT_TRUE(succeeded) << instance.lastError();
+    EXPECT_EQ(allocations.first, allocationIterations * 8)
+        << "allocations/hook=" << allocations.first / allocationIterations;
+    EXPECT_GT(allocations.second, 0u)
+        << "bytes/hook=" << allocations.second / allocationIterations;
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("first")).size(), 128u);
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("second")).size(), 128u);
+    std::cout << "ArtifactScript multiple direct string arguments: "
+              << allocations.first / allocationIterations << " allocations/hook, "
+              << allocations.second / allocationIterations << " bytes/hook\n";
+}
+
 TEST(LayerScriptComponentContractTest, ScriptIsOperatorAvoidsSteadyStateAllocations) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
