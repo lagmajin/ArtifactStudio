@@ -1445,6 +1445,42 @@ class StringContains : ArtifactBehaviour
     EXPECT_TRUE(std::get<bool>(instance.fields().at("findsUnicode")));
 }
 
+TEST(ArtifactScriptTest, StringIndexOfReturnsUtf8ByteOffsets) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class StringIndexOf : ArtifactBehaviour
+{
+    public int findsSuffix = -1;
+    public int acceptsEmptySubstring = -1;
+    public int rejectsMissingSubstring = 0;
+    public int findsUnicodeBytes = -1;
+    public int choosesFirstOverlappingMatch = -1;
+    void OnUpdate()
+    {
+        findsSuffix = indexOf("ArtifactScript", "Script");
+        acceptsEmptySubstring = indexOf("value", "");
+        rejectsMissingSubstring = indexOf("value", "missing");
+        findsUnicodeBytes = indexOf("猫と犬", "犬");
+        choosesFirstOverlappingMatch = indexOf("ababa", "aba");
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("findsSuffix")), 8);
+    EXPECT_EQ(std::get<std::int64_t>(
+                  instance.fields().at("acceptsEmptySubstring")), 0);
+    EXPECT_EQ(std::get<std::int64_t>(
+                  instance.fields().at("rejectsMissingSubstring")), -1);
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("findsUnicodeBytes")),
+              6);
+    EXPECT_EQ(std::get<std::int64_t>(
+                  instance.fields().at("choosesFirstOverlappingMatch")), 0);
+}
+
 TEST(ArtifactScriptTest, EvaluatorBuiltinFunctions) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(

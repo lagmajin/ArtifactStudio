@@ -271,6 +271,8 @@ TEST(LayerScriptComponentContractTest,
     public ObjectRef target;
     public bool fieldMatch;
     public bool localMatch;
+    public int fieldIndex;
+    public int localIndex;
     void OnCreate()
     {
         source = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxneedle";
@@ -286,6 +288,8 @@ TEST(LayerScriptComponentContractTest,
             "        string localQuery = \"needle\";\n"
             "        fieldMatch = target.matches(query);\n"
             "        localMatch = contains(" + sourceExpression + ", localQuery);\n"
+            "        fieldIndex = target.find(query);\n"
+            "        localIndex = indexOf(" + sourceExpression + ", localQuery);\n"
             "    }\n}\n";
         source += update;
         const std::string objectFieldExpression = forceStringCopy
@@ -295,6 +299,9 @@ TEST(LayerScriptComponentContractTest,
                   "    public string value;\n"
                   "    void OnConstruct(string input) { this.value = input; }\n"
                   "    bool matches(string query) { return contains(";
+        source += objectFieldExpression;
+        source += ", query); }\n"
+                  "    int find(string query) { return indexOf(";
         source += objectFieldExpression;
         source += ", query); }\n}\n";
         return parser.parse(source);
@@ -313,6 +320,10 @@ TEST(LayerScriptComponentContractTest,
             << instance->lastError();
         EXPECT_TRUE(std::get<bool>(instance->fields().at("fieldMatch")));
         EXPECT_TRUE(std::get<bool>(instance->fields().at("localMatch")));
+        EXPECT_EQ(std::get<std::int64_t>(instance->fields().at("fieldIndex")),
+                  128);
+        EXPECT_EQ(std::get<std::int64_t>(instance->fields().at("localIndex")),
+                  128);
     }
 
 #if defined(_MSC_VER) && defined(_DEBUG)
@@ -353,7 +364,7 @@ TEST(LayerScriptComponentContractTest,
     };
     const double directMicros = measureMicros(direct);
     const double copyMicros = measureMicros(copied);
-    std::cout << "ArtifactScript contains(field/local, 134-byte source): "
+    std::cout << "ArtifactScript contains/indexOf(field/local, 134-byte source): "
               << directAllocations / allocationIterations << " / "
               << copyAllocations / allocationIterations
               << " allocations/hook, "

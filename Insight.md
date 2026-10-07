@@ -4926,3 +4926,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認結果:** CMake再実行を避けるため既存build.ninjaの compile / link recipesとmodule mapを使い、変更対象の実装・テストtranslation unitを直接ビルドしてlayer contract executableを更新した。ArtifactBehaviour layer hookとscript object method内の `this.field` を含むcontract suiteは **42/42 passed**。MSVC Debug 134-byte field fixtureでdirect-reference / forced-copyは6 / 21 allocations/hook、96 / 720 bytes/hook、CPU中央値9.44 / 17.48 µs/hook（各3,000 hooks×3回）。
 - **価値または懸念:** この固定fixtureではcall argument用string copiesを避け、割当を71%、割当byteを87%、CPU中央値を46%減らした。MSVC Debug測定でありReleaseや実script全般への一般化は未検証。通常のArtifactBehaviourの `this.field` はhost property解決になるため、`this.field` fast pathの統合確認はscript object method内で行う必要がある。
 - **次に確認すべきこと:** Release構成または実script workloadでCPU・allocation差をprofileし、literal / local / fieldの各形を分離して比較する。
+
+## 2026-10-07 — ArtifactScript string indexOf can share reference lookup with contains
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のbuiltin `indexOf` / `contains` dispatch、`ArtifactScriptTest.cpp`、`LayerScriptComponentContractTest.cpp`。
+- **確認できた事実:** `indexOf(Array, value)` は既存で、文字列 `contains` はcase-sensitiveなUTF-8 byte sequence検索を行う。文字列 `indexOf` は存在していなかった。
+- **実装:** `indexOf(string, string)` を追加。最初の一致を0-based byte offsetで返し、空needleは0、未一致は-1。literal・local・field・script object method内の `this.field` は `contains` と共通の参照fast pathを通し、その他は従来の値評価へfallbackする。
+- **確認結果:** ArtifactScriptTest **85/85**、LayerScriptComponentContractTest **42/42**。134-byte fixture内でcontainsとindexOfを各1回/hook呼ぶMSVC Debug比較はdirect-reference / forced-copyで9 / 39 allocations/hook、144 / 1,392 bytes/hook、CPU中央値15.99 / 32.68 µs/hook（3,000 hooks×3回）。
+- **価値または懸念:** 固定Debug fixtureではcopy用のallocationが減り、割当を約77%、bytesを約90%、CPU中央値を約51%削減した。Releaseおよび実script全般への一般化は未検証。Unicode code pointではなくUTF-8 byte offsetを返す。
+- **次に確認すべきこと:** Releaseまたは代表的なlayer scriptでallocationとCPUを分けて計測し、byte offset契約が利用側のpath/text用途に合うか確認する。
