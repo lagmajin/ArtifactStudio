@@ -298,6 +298,95 @@ class ForeachExpression : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(numericValue(instance.fields().at("calls")), 1.0);
 }
 
+TEST(LayerScriptComponentContractTest,
+     SharedLayerRuntimeDrivesLifecycleAndFrameHooks) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class LayerRuntimeCounter : ArtifactBehaviour
+{
+    public float lifecycle = 0.0;
+    public float elapsed = 0.0;
+    public float observedTime = 0.0;
+    public int observedFrame = 0;
+
+    void OnCreate() { lifecycle = lifecycle * 10.0 + 1.0; }
+    void OnStart() { lifecycle = lifecycle * 10.0 + 2.0; }
+    void OnEnable() { lifecycle = lifecycle * 10.0 + 3.0; }
+    void OnUpdate() {
+        elapsed += dt;
+        observedTime = time;
+        observedFrame = frame;
+    }
+    void OnDisable() { lifecycle = lifecycle * 10.0 + 5.0; }
+    void OnDestroy() { lifecycle = lifecycle * 10.0 + 6.0; }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty())
+        << (definition.diagnostics.empty() ? "" : definition.diagnostics.front().message);
+
+    ArtifactScriptLayerRuntime runtime;
+    runtime.bind(std::move(definition));
+    ASSERT_TRUE(runtime.hasInstance());
+    ASSERT_TRUE(runtime.advanceLifecycle(ArtifactScriptLayerRunState::Enabled,
+                                         true));
+    auto* instance = runtime.instance();
+    ASSERT_NE(instance, nullptr);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance->fields().at("lifecycle")), 123.0);
+
+    EXPECT_TRUE(runtime.evaluateFrame(50, 2.0, 0.5)) << runtime.lastError();
+    EXPECT_FALSE(runtime.evaluateFrame(50, 9.0, 9.0));
+    EXPECT_DOUBLE_EQ(std::get<double>(instance->fields().at("elapsed")), 0.5);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance->fields().at("observedTime")), 2.0);
+    EXPECT_EQ(std::get<std::int64_t>(instance->fields().at("observedFrame")), 50);
+
+    EXPECT_TRUE(runtime.evaluateFrame(51, 2.25, 0.25)) << runtime.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance->fields().at("elapsed")), 0.75);
+
+    auto reloadedDefinition = parser.parse(R"(
+class LayerRuntimeCounter : ArtifactBehaviour
+{
+    public float lifecycle = 0.0;
+    public float elapsed = 0.0;
+    public float observedTime = 0.0;
+    public int observedFrame = 0;
+
+    void OnCreate() { lifecycle = lifecycle * 10.0 + 1.0; }
+    void OnStart() { lifecycle = lifecycle * 10.0 + 2.0; }
+    void OnEnable() { lifecycle = lifecycle * 10.0 + 3.0; }
+    void OnUpdate() {
+        elapsed += dt * 2.0;
+        observedTime = time;
+        observedFrame = frame;
+    }
+    void OnDisable() { lifecycle = lifecycle * 10.0 + 5.0; }
+    void OnDestroy() { lifecycle = lifecycle * 10.0 + 6.0; }
+}
+)");
+    ASSERT_TRUE(reloadedDefinition.diagnostics.empty())
+        << (reloadedDefinition.diagnostics.empty()
+                ? ""
+                : reloadedDefinition.diagnostics.front().message);
+    ArtifactScriptSerializedFields migrated = instance->fields();
+    runtime.replaceDefinition(std::move(reloadedDefinition), std::move(migrated));
+    instance = runtime.instance();
+    ASSERT_NE(instance, nullptr);
+    EXPECT_FALSE(runtime.evaluateFrame(51, 3.0, 1.0));
+    EXPECT_TRUE(runtime.evaluateFrame(52, 2.5, 0.25)) << runtime.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance->fields().at("elapsed")), 1.25);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance->fields().at("lifecycle")), 123.0);
+
+    EXPECT_TRUE(runtime.advanceLifecycle(ArtifactScriptLayerRunState::Unbound,
+                                         true));
+    EXPECT_DOUBLE_EQ(std::get<double>(instance->fields().at("lifecycle")),
+                     12356.0);
+
+    runtime.release();
+    EXPECT_FALSE(runtime.hasInstance());
+    EXPECT_EQ(runtime.instance(), nullptr);
+    EXPECT_FALSE(runtime.advanceLifecycle(ArtifactScriptLayerRunState::Enabled,
+                                          true));
+}
+
 TEST(LayerScriptComponentContractTest, HookExecutionMicrobenchmark) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
