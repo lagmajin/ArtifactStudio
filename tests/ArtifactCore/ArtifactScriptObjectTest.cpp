@@ -310,6 +310,33 @@ class Child : Base
     EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 24.0);
 }
 
+TEST(ArtifactScriptObjectTest, MutableDefinitionInvalidatesPersistentMethodCallCache) {
+    auto definition = parseOk(R"(
+class Use : ArtifactBehaviour
+{
+    public float result = 0.0;
+    float first() { return 1.0; }
+    float second() { return 2.0; }
+    void OnUpdate() { result = first(); }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 1.0);
+
+    auto& mutableDefinition = instance.definition();
+    auto& call = mutableDefinition.rootClass.methods[2]
+                     .body->statements[0]->assignValue;
+    ASSERT_TRUE(call);
+    ASSERT_EQ(call->kind, ArtifactScriptExpr::Kind::Call);
+    call->callName = "second";
+
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 2.0);
+}
+
 TEST(ArtifactScriptObjectTest, MultiClassRegistry) {
     auto definition = parseOk(R"(
 class First : ArtifactBehaviour

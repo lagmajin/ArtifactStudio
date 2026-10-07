@@ -7,6 +7,14 @@
 - **性能上の注意:** 128文字fieldのread-only benchmarkでは基準3.923 µs/hook、修正版4.028 µs/hook（OnUpdate基準は1.738対1.756 µs/hook）で、今回の測定では速度改善を確認できなかった。CRT計測もread-only method fixtureで両方6 allocations / 352 bytes per hookだった。したがって現段階ではこの変更を正しさの修正として扱い、実行効率向上とは主張しない。別fixtureでの差と測定揺らぎは未検証。
 - **懸念・次に確認すること:** 親fieldが安定したアドレスを保つ間だけaliasが有効という前提を維持する。将来、nested object methodを含む長時間・複数fieldのfixtureで命令数やwall timeを計測し、alias lookup costとmaterializeされた文字列copy数を分離して確認する。性能改善を目的にする場合は、この実験とは別にプロファイルで支配的な経路を特定する。
 
+## 2026-10-07 — ArtifactScript call-site cache を不変定義のhook間で再利用
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `findMethodAtCallSite()` / `findObjectMethodAtCallSite()` と `executeResolvedMethod()`。
+- **仮説・変更:** `ArtifactScriptInstance` が不変の `ArtifactScriptDefinition` を使うhookでは、call-siteと解決済みmethodの対応はフレームをまたいで変わらない。definition pointerとreuse状態を保持し、`executeResolvedMethod(..., reuseDefinitionCache=true)` の同一定義ではcall-site cache generationを維持する。通常の `execute()` / `executeMethod()`、定義変更可能APIに触れたinstanceは毎回cacheを無効化する。
+- **正しさの確認:** 既存のruntime class切替テストに加え、hookを一度実行した後にmutable definition経由でcallNameを変更し、次回hookで変更後methodへ切り替わるテストを追加して通過した。ArtifactScript関連5 CTest suiteを変更後に再実行する。
+- **性能計測:** MSVC Debugの同一HookExecutionMicrobenchmarkで、cache無効化版はOnUpdate 1.715 µs/hook、method/local 6.129、5引数method 5.626、6引数nested 10.683、32-method lookup 52.577だった。cache保持版2 runはOnUpdate 1.730 / 1.739、method/local 5.771 / 5.844、5引数 5.328 / 5.356、6引数 10.055 / 10.126、32-method lookup 50.890 / 50.941。単純hookで正規化するとmethod/local・5引数・6引数で約6%短縮し、32-method lookupで約4〜5%短縮。通常object methodは約1〜2%、polymorphic 3/4 classは約3〜5%短縮。baselineは1 runのため小さい差は暫定値で、Release未計測。
+- **懸念・次に確認すること:** 長寿命のinstanceと定義変更後のcache無効化は回帰テストで確認した。mutable definitionを取得した後のinstanceは性能より正しさを優先し、以後cache reuseを行わない。Release測定と実scriptの呼び出し分布を今後確認する。
+
 ## 2026-10-07 — Host dispatch の残存allocation切り分け
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptHost::callMethodView` と evaluator の Host method dispatch。
