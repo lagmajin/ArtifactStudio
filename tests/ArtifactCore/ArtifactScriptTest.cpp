@@ -733,6 +733,42 @@ class ReplacedForeachSource : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(values->values.front()), 9.0);
 }
 
+TEST(ArtifactScriptTest, ForeachLoopItemWriteDoesNotMutateArrayOrExistingField) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class WritableForeachItem : ArtifactBehaviour
+{
+    public Array values;
+    public float total = 0.0;
+    public float item = 41.0;
+    void OnCreate()
+    {
+        push(values, 2.0);
+        push(values, 3.0);
+    }
+    void OnUpdate()
+    {
+        foreach (item in values) {
+            item += 1.0;
+            total += item;
+        }
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate)) << instance.lastError();
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 7.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("item")), 41.0);
+    const auto values = std::get<ArtifactScriptArrayPtr>(instance.fields().at("values"));
+    ASSERT_TRUE(values);
+    ASSERT_EQ(values->values.size(), 2u);
+    EXPECT_DOUBLE_EQ(std::get<double>(values->values[0]), 2.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(values->values[1]), 3.0);
+}
+
 TEST(ArtifactScriptTest, StringForeachSnapshotSurvivesMutationAndRepeatedHooks) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(

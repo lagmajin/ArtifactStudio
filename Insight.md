@@ -1,5 +1,13 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactScript foreach のloop itemをcopy-on-write aliasにする
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptFields::bindLoopValue()` と `ForeachSnapshotScope`、`tests/ArtifactCore/ArtifactScriptTest.cpp`。
+- **確認できた事実:** snapshotを省略できるread-only foreachでも、各要素をloop item overlayへ値コピーしていた。loop itemの値を書き換える必要がある場合は、field overlayの既存 `inheritedValue` を使えば書き込み時だけmaterializeできる。
+- **対応:** loop item bindingは要素への一時aliasとし、書き込み時は既存の `findForWrite()` / `operator[]` がprivate copyを作る。foreach workspace再利用時にalias pointerをclearし、完了後に配列やsnapshotへぶら下がったまま残さない。追加テストでloop itemへの複合代入が元配列や同名fieldへ漏れないことを確認する。
+- **性能計測:** 257個の128文字stringを回すDebug fixture（各測定は20,000 hook×3回）で、copy版は26.44 µs/hook、alias版は別runで23.62および14.36 µs/hook。run間の差が大きいため時間短縮率は確定値として扱わない。大配列のread-only経路がalias利用であることと、この測定fixtureのcaseを追加した。
+- **制約・次に確認すべきこと:** 値型・短いloopでの時間差はノイズと区別できていない。Release測定と複数runでの再確認が必要。aliasは現在の同期的なforeach statementの実行期間だけ有効とし、workspaceを再利用する前に必ず破棄する。
+
 ## 2026-10-07 — 読み取り専用 ArtifactScript foreach の配列snapshotを省略
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の foreach 実行、`tests/ArtifactCore/ArtifactScriptTest.cpp` と `tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。

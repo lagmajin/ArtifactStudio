@@ -672,6 +672,41 @@ class BenchmarkStringForeach : ArtifactBehaviour
         ASSERT_TRUE(stringForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate))
             << stringForeachInstance.lastError();
     }
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            ASSERT_TRUE(stringForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+                << stringForeachInstance.lastError();
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript foreach(2 long strings, read-only) benchmark: "
+              << totalMicroseconds / (repetitions * iterations)
+              << " us/hook (" << iterations * repetitions << " calls)\n";
+    const auto stringValues = std::get<ArtifactScriptArrayPtr>(
+        stringForeachInstance.fields().at("values"));
+    ASSERT_TRUE(stringValues);
+    stringValues->values.clear();
+    for (int i = 0; i < 257; ++i) stringValues->values.push_back(longFieldValue);
+    for (int i = 0; i < warmupIterations; ++i) {
+        ASSERT_TRUE(stringForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << stringForeachInstance.lastError();
+    }
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            ASSERT_TRUE(stringForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+                << stringForeachInstance.lastError();
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript foreach(257 long strings, read-only) benchmark: "
+              << totalMicroseconds / (repetitions * iterations)
+              << " us/hook (" << iterations * repetitions << " calls)\n";
 
     auto wideLocalsDefinition = parser.parse(R"(
 class BenchmarkWideLocals : ArtifactBehaviour
