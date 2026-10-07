@@ -4464,3 +4464,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実:** 30クラス鎖からbase `OnUpdate`を探すMSVC Debug benchmarkは線形時27.91、index後6.53 / 7.11 µs/hook（約75%短縮）。単純hookは1.80対1.82 µs/hookでほぼ同じ。関連5 suitesは5/5 passed。stack領域はtable約1 KiBで、9〜64 classの場合のみtableを初期化する。
 - **価値または懸念:** 深い継承スクリプトの毎hook lookupが短くなった。65 class以上では引き続き線形であり、Release性能は未検証。
 - **次に確認すべきこと:** 実際のscriptで継承深度分布を確認し、64-class cutoffを維持するか判断する。MSVC Release構成が利用可能になった時点で再計測する。
+
+## 2026-10-07 — Skip lifecycle index for root-defined hooks
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptInstance::findLifecycleHookInDefinition()`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の31-class root-hook benchmark。
+- **仮説:** 多くのscriptではroot class自身がlifecycle hookを定義する。毎回継承indexを作ってからrootを探すのは不要で、root優先の仕様を使えば先に即時解決できる。
+- **実装:** root classのmethod listを最初に調べ、一致するhook bodyがあれば直ちに返す。その後だけ派生先のindex構築／継承検索を行う。root methodにbodyがない場合は既存どおりbase hookへ続く。
+- **確認できた事実:** 31-class定義のroot hook benchmarkはMSVC Debugで2.81から1.98 µs/hook（約30%短縮）。単純root hookは1.80から1.70 µs/hook。派生hookがbase hookをoverrideする既存テストとArtifactScript関連5 suitesがすべてpassした。
+- **価値または懸念:** class数の多い通常root hookではindex構築・継承走査が不要になる。差はDebug benchmarkで測定し、Release値は未確認。
+- **次に確認すべきこと:** root hookを持つ大規模definitionの分布を計測し、index cutoffsと合わせて評価する。

@@ -1050,6 +1050,38 @@ class BenchmarkInheritedHook : Level29
               << inheritedHookIterations << " calls)\n";
     EXPECT_DOUBLE_EQ(std::get<double>(inheritedHookInstance.fields().at("total")),
                      inheritedHookWarmup + inheritedHookIterations);
+
+    std::string rootHookSource = R"(
+class BenchmarkRootHook : ArtifactBehaviour
+{
+    public float total = 0.0;
+    void OnUpdate() { total += 1.0; }
+}
+)";
+    for (int i = 0; i < 30; ++i) {
+        rootHookSource += "class Extra" + std::to_string(i) +
+            " : ArtifactBehaviour\n{\n    public float value = 0.0;\n}\n";
+    }
+    auto rootHookDefinition = parser.parse(rootHookSource);
+    ASSERT_TRUE(rootHookDefinition.diagnostics.empty());
+    ArtifactScriptInstance rootHookInstance(std::move(rootHookDefinition));
+    for (int i = 0; i < inheritedHookWarmup; ++i) {
+        ASSERT_TRUE(rootHookInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << rootHookInstance.lastError();
+    }
+    const auto rootHookStart = std::chrono::steady_clock::now();
+    for (int i = 0; i < inheritedHookIterations; ++i) {
+        ASSERT_TRUE(rootHookInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << rootHookInstance.lastError();
+    }
+    const auto rootHookMicroseconds = std::chrono::duration<double, std::micro>(
+        std::chrono::steady_clock::now() - rootHookStart).count() /
+        inheritedHookIterations;
+    std::cout << "ArtifactScript root hook lookup (31 classes) benchmark: "
+              << rootHookMicroseconds << " us/hook ("
+              << inheritedHookIterations << " calls)\n";
+    EXPECT_DOUBLE_EQ(std::get<double>(rootHookInstance.fields().at("total")),
+                     inheritedHookWarmup + inheritedHookIterations);
 #endif
 }
 
