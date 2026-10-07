@@ -4509,3 +4509,13 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実:** MSVC Debugのread/write workloadはreadonly traversalなしで149.6 µs/hook、ありで163.8 µs/hookと約9.5%遅くなった。通常のmicrobenchmarkにも数%のrun間揺れがあるが、この主要workloadでは逆方向だった。readonly実装とbenchmark変更は戻した。別のfor-loop中心fixtureは既存のaccess violationを再現し、安全な測定ケースとして使えなかった。
 - **価値または懸念:** overlayの小さな線形検索と親hash lookupを比べた場合、毎回親へ抜ける方が高コストになり得る。読み取りコピーを無条件に外す最適化は採用しない。
 - **次に確認すべきこと:** field name解決が実測ボトルネックか、またtransaction scope単位の読み取りスロット解決をbounded・allocation-freeで再利用できるかを、意味論を変えないfixtureで調べる。
+
+## 2026-10-07 — Reduce ArtifactScript call argument inline capacity to four
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptCallArguments`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` のmethod/local、5-argument、6-argument benchmark。
+- **仮説:** 全callで5個の`ArtifactScriptValue` inline slotを構築するより4個に減らすと、4引数以下の一般的なscript callのstack初期化を減らせる。5引数以上は既存のworkspace overflowへ移る。
+- **実験:** inline capacity 5と4をMSVC Debugで比較し、hook benchmark内のno-call baselineに対するmethod/local時間を複数回比較した。6引数benchmarkは外側6引数と内側6引数のnested callを追加し、workspace再利用経路も測る。
+- **確認できた事実:** method/local（4 arguments）のbaseline ratioは3.539、capacity 4の4 runは3.475 / 3.486 / 3.520 / 3.490で平均約1.2%低かった。6 nested argumentsはbaseline ratio 6.309、capacity 4の2 runは6.153 / 6.174で約2.3%低かった。5 argumentsはbaseline ratio 3.213、capacity 4は3.200〜3.283で概ね同等だがrun揺れを含む。関連ArtifactScript 5 suitesはcapacity 4で5/5 passed。
+- **対応:** `ArtifactScriptCallArguments` のinline capacityを4へ変更。引数が5以上の経路は既存のworkspace-backed overflowを維持し、追加heap確保や動的workspace拡張は導入しない。
+- **価値または懸念:** call frameごとの初期化slotを1つ減らし、測定した4・6引数ケースは少し短くなった。5引数は同等〜少し遅い可能性があり、benchmarkはMSVC Debugのみ。実scriptでの引数個数分布は未計測。
+- **次に確認すべきこと:** 実用scriptの呼び出し引数個数分布を取得し、4枠が実 workload に合うかを確認する。Release構成でも再測定する。

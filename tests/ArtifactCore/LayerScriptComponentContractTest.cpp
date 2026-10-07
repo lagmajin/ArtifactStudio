@@ -384,6 +384,19 @@ class BenchmarkSixArgumentCall : ArtifactBehaviour
             << sixArgumentInstance.lastError();
     }
     EXPECT_DOUBLE_EQ(std::get<double>(sixArgumentInstance.fields().at("total")), 36.0);
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            ASSERT_TRUE(sixArgumentInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+                << sixArgumentInstance.lastError();
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript method(6 nested args) benchmark: "
+              << totalMicroseconds / (repetitions * iterations)
+              << " us/hook (" << iterations * repetitions << " calls)\n";
 
     auto foreachDefinition = parser.parse(R"(
 class BenchmarkForeachCounter : ArtifactBehaviour
