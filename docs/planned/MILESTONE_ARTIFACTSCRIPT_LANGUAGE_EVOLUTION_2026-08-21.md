@@ -9,7 +9,9 @@
 
 - `tests/ArtifactCore/LayerScriptComponentContractTest.cpp` と `ArtifactCoreLayerScriptComponentTest` を追加。2件の契約テストで、コア ArtifactScript ランタイムのライフサイクルフック順、空フック、public フィールドの初期値、複数フレームにわたる `dt` / `time` / `frame` の受け渡しと状態保持、行／ブロックコメントの解析を検証する。
 - ビルドを妨げていた `ArtifactScript.cppm` の `EnvironmentVariable` モジュール参照・ビルド順依存の CMake 登録漏れを修正。クラス `{` 単独行でのパーサー停止、字下げ後のインラインメソッド本体位置、複数行メソッド本体の括弧走査、空メソッドを定義済みとして扱わない問題を修正し、メソッド本体の `//` / `/* */` コメントを読み飛ばすようにした。
-- object method call-site cache のslot選択を、毎回のruntime class name hashからAST call-site addressへ変更。cache hit時のクラス名一致確認を維持し、同一call-siteで異なるruntime classへ切り替える既存テストも保持した。Debug benchmarkは実行ごとの揺れがあり、速度改善を確定できるほどの差は未確認。
+- object method call-site cacheをcall-site address基準の2-way set-associativeに変更。runtime class nameのhashをhit経路から外しつつ、同一call-siteでよくある2種類のruntime classを保持できる。テストを16回交互に呼ぶ形へ増やし、override結果の合計値を検証する。
+- expression parserの乗除算層へ`%`を接続し、式内moduloを実行可能にした。また、method body parserでstatementが入力位置を進めない場合に解析を打ち切り、diagnosticを返すようにした。未知operatorによるparse停滞・AST増殖を回帰テストで検出する。
+- MSVC Debug microbenchmarkではobject method lookupが68.54 µs/hook、5-field object methodが118.64 µs/hookだった。直近の1-way cache計測値より低いが実行間変動があるため、速度改善は未確定として扱う。
 - MSVC DebugでArtifactScript関連5 test targetsをビルドし、CTest **5/5 passed**（`ArtifactCoreArtifactScriptTest`、`ArtifactCoreLayerScriptComponentTest`、`ArtifactCoreArtifactScriptObjectTest`、`ArtifactCoreArtifactScriptHostMethodTest`、`ArtifactCoreArtifactScriptHostApiTest`）。call-site cache変更後も同一call-siteでのruntime class切替を含めて通過した。
 - このテストは ArtifactCore のスクリプトランタイムを対象とし、Artifact サブモジュールの `ArtifactAbstractLayer` にあるレイヤーコンポーネント連携や UI / プロジェクト読込を通した統合動作は対象外。統合受入確認は未完了。
 

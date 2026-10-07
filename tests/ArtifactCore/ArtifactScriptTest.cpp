@@ -32,6 +32,25 @@ class Spin : ArtifactBehaviour
     EXPECT_TRUE(definition.diagnostics.empty());
 }
 
+TEST(ArtifactScriptTest, MethodBodyParserRejectsUnsupportedTokenWithoutStalling) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class Broken : ArtifactBehaviour
+{
+    void OnUpdate()
+    {
+        float value = 1.0;
+        value ^ 2.0;
+    }
+}
+)");
+
+    ASSERT_FALSE(definition.diagnostics.empty());
+    EXPECT_NE(definition.diagnostics.front().message.find(
+                  "unsupported or invalid syntax in method body"),
+              std::string::npos);
+}
+
 TEST(ArtifactScriptTest, ComponentStoresPublicOverrides) {
     ArtifactScriptComponent component;
     component.setScriptClass("Spin");

@@ -222,8 +222,8 @@ class Use : ArtifactBehaviour
     {
         var baseItem = new Base();
         var childItem = new Child();
-        for (int index = 0; index < 4; index += 1) {
-            if (index < 2) { target = childItem; }
+        for (int index = 0; index < 16; index += 1) {
+            if (index % 2 == 0) { target = childItem; }
             else { target = baseItem; }
             total = total + target.who();
         }
@@ -242,7 +242,7 @@ class Child : Base
 
     ArtifactScriptInstance instance(std::move(definition));
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
-    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 6.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 24.0);
 }
 
 TEST(ArtifactScriptObjectTest, MultiClassRegistry) {

@@ -4359,3 +4359,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** slotをcall-site addressだけから選ぶよう変更し、runtime classの一致確認は維持した。同じcall-siteでChildとBaseを切り替えるテストが既存suiteにある。関連5 suiteは変更後にも実行し、5/5 passした。
 - **価値または懸念:** hit時のhash loopをなくす。Debug microbenchmarkは実行間の変動があり、対象2ケースで短い結果が複数回出た一方、確定的な速度差とは断定できない。複数runtime classが同じcall-siteへ来る場合、同じslotを置き換えるためcache hit率が下がる可能性がある。
 - **次に確認すべきこと:** release profileまたは安定したCPU計測でmonomorphic / polymorphic call-siteを分けて測り、slot衝突とhit率も記録する。差がなければslot選択を再検討する。
+
+## 2026-10-07 — ArtifactScript modulo parsing と non-progress guard
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `parseMulDiv()` / `parseMethodBody()`、`tests/ArtifactCore/ArtifactScriptTest.cpp`、`tests/ArtifactCore/ArtifactScriptObjectTest.cpp`。
+- **確認できた事実:** evaluatorには`ArtifactScriptBinaryOp::Mod`があるが、parserの乗除算層は`*`と`/`しか受け付けていなかった。未知tokenで`parseStmt()`が位置を進めない場合、`parseMethodBody()`は同じ位置を繰り返し読み、AST statement配列を増やし続ける。`%`を含む大きな実験scriptは実際に過剰なメモリを消費した。
+- **対応:** `%`を既存のMod評価へ接続し、method bodyとnested block parsingにprogress guardを追加した。停滞時は部分ASTを返さずdiagnosticにする。object cacheを2-wayにし、同じcall-siteでChild/Baseを16回交互に呼ぶtestで結果24をassertする。別testで未知operatorがdiagnosticになることも確認する。
+- **価値または懸念:** 有効なmodulo式が実行可能になり、未対応tokenでparserが無限にASTを増やす経路を防ぐ。Debug関連5 suitesは5/5 pass。object method benchmarkは68.54 µs/hook、5-field object methodは118.64 µs/hookだったが、以前の測定揺れと重なるため速度差は未確定。
+- **次に確認すべきこと:** malformed inputを複数token（演算子、閉じ括弧欠落、空expression）で検証し、method body以外のlexer/parser loopにもnon-progress guardが必要か調べる。2-way cacheは3種類以上のruntime classでhit率を計測する。
