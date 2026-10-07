@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <array>
 #include <chrono>
 #include <cstdint>
 #include <iostream>
@@ -746,11 +747,27 @@ class Counter : ArtifactBehaviour
             static_cast<double>(totals.first) / allocationIterations,
             static_cast<double>(totals.second) / allocationIterations};
     };
+    const std::array<ArtifactScriptValue, 5> directHostArguments{
+        1.0, 2.0, 3.0, 4.0, 5.0};
+    const ArtifactScriptValue directHostSelf{ArtifactScriptRef{"benchmark"}};
+    ArtifactScriptValue directHostResult;
+    const auto directHostFunctionAllocationRate = countCalls([&] {
+        return scriptHost.callFunctionView("allocationProbe", directHostArguments,
+                                           directHostResult);
+    });
+    const auto directHostMethodAllocationRate = countCalls([&] {
+        return scriptHost.callMethodView("ObjectRef", "allocationProbe", directHostSelf,
+                                         directHostArguments, directHostResult);
+    });
     const auto lookupAllocationRate = countCalls([&] {
         return noOpInstance.hasHook(ArtifactScriptHook::OnUpdate);
     });
     std::cout << "ArtifactScript allocation split (count, bytes/hook): lookup="
               << lookupAllocationRate.first << ", " << lookupAllocationRate.second
+              << "; direct-host-function=" << directHostFunctionAllocationRate.first
+              << ", " << directHostFunctionAllocationRate.second
+              << "; direct-host-method=" << directHostMethodAllocationRate.first
+              << ", " << directHostMethodAllocationRate.second
               << "; direct-body=";
     ArtifactScriptEvaluator directEvaluator;
     ArtifactScriptSerializedFields directFields;
@@ -808,10 +825,14 @@ class Counter : ArtifactBehaviour
         EXPECT_DOUBLE_EQ(rate.second, 0.0);
     };
     expectNoSteadyStateAllocations(noOpAllocationRate);
-    EXPECT_LT(hostFunctionAllocationRate.first, 2.0);
-    EXPECT_LT(hostFunctionAllocationRate.second, 32.0);
-    EXPECT_LT(hostMethodAllocationRate.first, 6.0);
-    EXPECT_LT(hostMethodAllocationRate.second, 112.0);
+    EXPECT_DOUBLE_EQ(hostFunctionAllocationRate.first,
+                     directHostFunctionAllocationRate.first);
+    EXPECT_DOUBLE_EQ(hostFunctionAllocationRate.second,
+                     directHostFunctionAllocationRate.second);
+    EXPECT_DOUBLE_EQ(hostMethodAllocationRate.first,
+                     directHostMethodAllocationRate.first + 1.0);
+    EXPECT_DOUBLE_EQ(hostMethodAllocationRate.second,
+                     directHostMethodAllocationRate.second + 16.0);
     expectNoSteadyStateAllocations(simpleAllocationRate);
     expectNoSteadyStateAllocations(methodAllocationRate);
     expectNoSteadyStateAllocations(foreachAllocationRate);

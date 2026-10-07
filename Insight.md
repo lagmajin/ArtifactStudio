@@ -3,9 +3,9 @@
 ## 2026-10-07 — Host dispatch の残存allocation切り分け
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptHost::callMethodView` と evaluator の Host method dispatch。
-- **確認できた事実:** method registryから `className + "." + methodName` の検索用文字列をなくし、Host functionの重複lookupも1回へまとめた。5引数のwarm-up済みMSVC Debug hookはHost function 2 allocation / 32 bytesから1 / 16 bytes、Host method 6 / 112 bytesから3 / 48 bytesへ減った。Host APIの既存vector overloadとHost method contract suiteは維持されている。
-- **価値または懸念（未検証）:** Host functionに1、Host methodに3 allocation / hookが残る。どの処理に対応するかは未特定であり、単一のDebug fixture以外で同様の差が出るかも未検証。
-- **次に確認すべきこと:** allocation callsiteを特定し、通常のComposition API callbackや長いclass/method名でも計測する。definitionまたはHost registry更新を伴うcacheを導入する場合は、登録置換後のinvalidate契約も確認する。
+- **確認できた事実:** method registryから `className + "." + methodName` の検索用文字列をなくし、Host functionの重複lookupも1回へまとめた。5引数のwarm-up済みMSVC Debug hookはHost function 2 allocation / 32 bytesから1 / 16 bytes、Host method 6 / 112 bytesから3 / 48 bytesへ減った。評価器外の直接Host API呼び出しはそれぞれ1 / 16、2 / 32。script経由はfunctionで同数、methodで1 allocation / 16 bytes多い。Host APIの既存vector overloadとHost method contract suiteは維持されている。
+- **価値または懸念（未検証）:** Host method pathに追加される1 allocation / 16 bytesと、直接API呼び出しに残る1 / 16、2 / 32 bytesのcallsiteは未特定。単一Debug fixture以外で同様の差が出るかも未検証。
+- **次に確認すべきこと:** CRT allocation hookでcall stackを記録するか、評価器処理を段階的に迂回してallocation callsiteを特定する。通常のComposition API callbackや長いclass/method名でも計測する。definitionまたはHost registry更新を伴うcacheを導入する場合は、登録置換後のinvalidate契約も確認する。
 
 ## 2026-10-05 — 効果の「②型（登録済みで無言の素通し）」機械検査を完了、144/145 が健全
 
