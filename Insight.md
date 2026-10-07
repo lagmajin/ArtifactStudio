@@ -15,11 +15,11 @@
 - **性能計測:** MSVC Debugの同一HookExecutionMicrobenchmarkで、cache無効化版はOnUpdate 1.715 µs/hook、method/local 6.129、5引数method 5.626、6引数nested 10.683、32-method lookup 52.577だった。cache保持版2 runはOnUpdate 1.730 / 1.739、method/local 5.771 / 5.844、5引数 5.328 / 5.356、6引数 10.055 / 10.126、32-method lookup 50.890 / 50.941。単純hookで正規化するとmethod/local・5引数・6引数で約6%短縮し、32-method lookupで約4〜5%短縮。通常object methodは約1〜2%、polymorphic 3/4 classは約3〜5%短縮。baselineは1 runのため小さい差は暫定値で、Release未計測。
 - **懸念・次に確認すること:** 長寿命のinstanceと定義変更後のcache無効化は回帰テストで確認した。mutable definitionを取得した後のinstanceは性能より正しさを優先し、以後cache reuseを行わない。Release測定と実scriptの呼び出し分布を今後確認する。
 
-## 2026-10-07 — ArtifactScript object method 引数の長いstring copyを削減
+## 2026-10-07 — ArtifactScript method 引数の長いstring copyを削減
 
-- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptCallArguments` と `callInstanceMethod()`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の `ScriptObjectMethodMovesLongStringArgumentsIntoParameters`。
-- **確認できた事実・変更:** evaluatorが所有する評価済みcall argumentは、script object method / constructorへ渡した後に呼び出し側で再利用されない。mutable span経由でscript parametersへmoveし、host function / host methodへ渡すconst argument pathは維持した。MSVC Debug CRT allocation hookで128文字stringを渡す同一hookは6から4 allocations/hookへ減少し、warm-up後1,000回で一定だった。元source fieldの長さ128も維持される。
-- **限界・次に確認すること:** allocation countの削減は確認済みだが、bytesとwall timeの差は未計測。ArtifactScript関連5 CTest suiteは変更後に全件成功。constructor引数、複数string引数、長期のRelease workloadでcopy数・実時間を分けて確認する。
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptCallArguments`、`callUserMethod()`、`callInstanceMethod()`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の長いstring引数allocation tests。
+- **確認できた事実・変更:** evaluatorが所有する評価済みcall argumentはscript methodへ渡した後に呼び出し側で再利用されない。直接methodとobject methodのparameter slotへmoveし、host function / host methodへ渡すconst argument pathは維持した。MSVC Debug CRT allocation hookでは128文字stringの両fixtureで6から4 allocations/hookへ減少。直接method fixtureは352から192 bytes/hook。warm-up後1,000回の計測で、元source fieldの長さ128も維持された。
+- **限界・次に確認すること:** wall timeの差は未計測。ArtifactScript関連5 CTest suiteは変更後に全件成功。constructor引数、複数string引数、長期のRelease workloadでcopy数・実時間を分けて確認する。
 
 ## 2026-10-07 — Host dispatch の残存allocation切り分け
 
