@@ -1726,14 +1726,18 @@ TEST(ArtifactScriptTest, ArraySumPreservesIntegerAndMixedNumericSemantics) {
 class ArraySum : ArtifactBehaviour
 {
     public int integerTotal = -1;
+    public int exactIntegerTotal = -1;
     public float mixedTotal = -1.0;
+    public float mixedPrecisionTotal = -1.0;
     public int emptyTotal = -1;
     public int nullTotal = -1;
     public Array nullValues;
     void OnUpdate()
     {
         integerTotal = sum([1, 2, 3]);
+        exactIntegerTotal = sum([9007199254740993, 1]);
         mixedTotal = sum([1, 2.5, 3]);
+        mixedPrecisionTotal = sum([9007199254740993, 0.0]);
         emptyTotal = sum([]);
         nullTotal = sum(nullValues);
     }
@@ -1746,7 +1750,12 @@ class ArraySum : ArtifactBehaviour
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
         << instance.lastError();
     EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("integerTotal")), 6);
+    EXPECT_EQ(std::get<std::int64_t>(
+                  instance.fields().at("exactIntegerTotal")), 9007199254740994LL);
     EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("mixedTotal")), 6.5);
+    EXPECT_DOUBLE_EQ(std::get<double>(
+                         instance.fields().at("mixedPrecisionTotal")),
+                     9007199254740992.0);
     EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("emptyTotal")), 0);
     EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("nullTotal")), 0);
 }
@@ -1768,6 +1777,8 @@ TEST(ArtifactScriptTest, ArraySumRejectsNonNumbersAndIntegerOverflow) {
     EXPECT_NE(run("sum([1, \"x\"])").find("sum expects an array of numbers"),
               std::string::npos);
     EXPECT_NE(run("sum([9223372036854775807, 1])").find("integer overflow"),
+              std::string::npos);
+    EXPECT_NE(run("sum([-9223372036854775808, -1])").find("integer overflow"),
               std::string::npos);
     EXPECT_NE(run("sum(1)").find("sum expects one array of numbers"),
               std::string::npos);
