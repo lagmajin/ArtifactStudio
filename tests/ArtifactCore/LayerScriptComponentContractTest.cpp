@@ -923,6 +923,53 @@ class Counter : ArtifactBehaviour
               << " us/hook (" << iterations * repetitions << " calls)\n";
     EXPECT_DOUBLE_EQ(std::get<double>(wideObjectMethodInstance.fields().at("total")),
                      (100.0 + repetitions * iterations) * 16.0);
+
+    auto objectConstructionDefinition = parser.parse(R"(
+class BenchmarkObjectConstruction : ArtifactBehaviour
+{
+    public float total = 0.0;
+    void OnUpdate()
+    {
+        var value = new Thing();
+        total += value.f0 + value.f1 + value.f2 + value.f3 +
+                 value.f4 + value.f5 + value.f6 + value.f7;
+    }
+}
+class Thing : ArtifactBehaviour
+{
+    public float f0 = 1.0;
+    public float f1 = 2.0;
+    public float f2 = 3.0;
+    public float f3 = 4.0;
+    public float f4 = 5.0;
+    public float f5 = 6.0;
+    public float f6 = 7.0;
+    public float f7 = 8.0;
+}
+)");
+    ASSERT_TRUE(objectConstructionDefinition.diagnostics.empty());
+    ArtifactScriptInstance objectConstructionInstance(
+        std::move(objectConstructionDefinition));
+    for (int i = 0; i < warmupIterations; ++i) {
+        ASSERT_TRUE(objectConstructionInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << objectConstructionInstance.lastError();
+    }
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            ASSERT_TRUE(objectConstructionInstance.invokeHook(
+                ArtifactScriptHook::OnUpdate))
+                << objectConstructionInstance.lastError();
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript object construction (8 defaults) benchmark: "
+              << totalMicroseconds / (repetitions * iterations)
+              << " us/hook (" << iterations * repetitions << " calls)\n";
+    EXPECT_DOUBLE_EQ(std::get<double>(objectConstructionInstance.fields().at("total")),
+                     (warmupIterations + repetitions * iterations) * 36.0);
 #endif
 }
 

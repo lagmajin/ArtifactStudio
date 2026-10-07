@@ -4424,8 +4424,8 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 ## 2026-10-07 — ArtifactScript object construction allocated a temporary inheritance chain
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptExpr::Kind::New` 評価、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp`、`tests/ArtifactCore/ArtifactScriptObjectTest.cpp`。
-- **確認できた事実:** `new Class()` は初期化フィールドをbase-firstで列挙するため、毎回 `std::vector<const ArtifactScriptClass*>` を作り、通常の継承深度でもheap確保を1回行っていた。MSVC Debug allocation probeでは`new Thing()` が8 allocations / hookだった。
-- **対応:** 最初の32クラスを固定`std::array`へ収め、32段を超えた残りだけ既存vectorへ退避する。base-firstの適用順は維持。probeは7 allocations / hookをassertし、一時chain確保1回の除去を検証する。33段の継承fixtureで全base fieldが初期化されることも確認する。
+- **確認できた事実:** `new Class()` は初期化フィールドをbase-firstで列挙するため、毎回 `std::vector<const ArtifactScriptClass*>` を作り、通常の継承深度でもheap確保を1回行っていた。MSVC Debug allocation probeでは`new Thing()` が8 allocations / hookだった。加えて、各初期化fieldで`unordered_map::find()`後に`emplace()`を呼び、同じキーを2回検索していた。8 default field object construction benchmarkは変更前19.04 µs/hookだった。
+- **対応:** 最初の32クラスを固定`std::array`へ収め、32段を超えた残りだけ既存vectorへ退避する。base-firstの適用順は維持。field登録を`try_emplace()`へ統合し、既存fieldのfirst-wins挙動を保ったまま二重lookupを除去した。probeは7 allocations / hookをassertし、一時chain確保1回の除去を検証する。33段の継承fixtureで全base fieldが初期化されることも確認する。
 - **追加で確認した問題:** 不正なクラスメンバーを読むtop-level parser loopに進捗保証がなく、入力位置を進めないまま回るケースがあった。クラスメンバー行のfallback guardを追加し、diagnosticを返して次行へ進むテストを追加した。33段fixture生成で試した同一行class bodyはこのパーサーの対応形式ではなく、その入力がこの停止経路を発見した。
-- **価値または懸念:** 通常の0〜32段のconstructor evaluationから一時vector確保を外した。固定stack領域は256 bytes / active `new` expression。33段以上では超過部分用vectorが残る。`new`自体のobject/shared ownershipやfield map allocationは残る。比較・テストはMSVC DebugのみでRelease未計測。
+- **価値または懸念:** 通常の0〜32段のconstructor evaluationから一時vector確保を外した。8-default benchmarkは`try_emplace()`後17.57 µs/hook（約7.7%短縮）。固定stack領域は256 bytes / active `new` expression。33段以上では超過部分用vectorが残る。`new`自体のobject/shared ownershipやfield map allocationは残る。比較・テストはMSVC DebugのみでRelease未計測。変更後のArtifactScript関連5 suitesは5/5 passed。
 - **次に確認すべきこと:** 深い継承の実用script有無とRelease性能を確認する。既存ビルドディレクトリにはNinja Debug構成のみあり、CMake再生成なしでのRelease検証はできていない。
