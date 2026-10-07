@@ -560,6 +560,55 @@ class SafeArrayIndex : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(values->values[1]), 20.0);
 }
 
+TEST(ArtifactScriptTest, PostfixAccessChainsAcrossArrayIndicesAndObjects) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class PostfixAccess : ArtifactBehaviour
+{
+    public Array matrix;
+    public Array nodes;
+    public float indexResult = 0.0;
+    public float fieldResult = 0.0;
+    public float methodResult = 0.0;
+    void OnUpdate()
+    {
+        indexResult = matrix[0][1];
+        fieldResult = nodes[0].score;
+        methodResult = nodes[0].getScore();
+    }
+}
+class ChainNode : ArtifactBehaviour
+{
+    public float score = 0.0;
+    float getScore() { return score; }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+
+    auto firstRow = makeShared<ArtifactScriptArray>();
+    firstRow->values = {2.0, 7.0};
+    auto matrix = makeShared<ArtifactScriptArray>();
+    matrix->values = {firstRow};
+
+    auto node = makeShared<ArtifactScriptObjectInstance>();
+    node->className = "ChainNode";
+    node->fields["score"] = 5.0;
+    auto nodes = makeShared<ArtifactScriptArray>();
+    nodes->values = {node};
+
+    instance.fields()["matrix"] = matrix;
+    instance.fields()["nodes"] = nodes;
+    instance.fields()["indexResult"] = 0.0;
+    instance.fields()["fieldResult"] = 0.0;
+    instance.fields()["methodResult"] = 0.0;
+    const bool invoked = instance.invokeHook(ArtifactScriptHook::OnUpdate);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("indexResult")), 7.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("fieldResult")), 5.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("methodResult")), 5.0);
+    ASSERT_TRUE(invoked) << instance.lastError();
+}
+
 TEST(ArtifactScriptTest, SimpleAssignmentMovesValuesAcrossLocalAndArrayTargets) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(

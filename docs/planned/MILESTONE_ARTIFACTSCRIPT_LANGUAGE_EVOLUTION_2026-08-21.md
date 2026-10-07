@@ -7,6 +7,7 @@
 
 ## 進捗 2026-10-07
 
+- expressionの後置index/member/methodを連鎖可能にし、`matrix[0][1]`、`nodes[0].score`、`nodes[0].getScore()`を追加。既存のindex/field/method evaluatorを再利用し、新しいAST種別や実行時lookupは増やしていない。統合fixtureで3経路の値を確認し、ArtifactScript関連5 CTest suitesは5/5 passed。既存4 KiB string parser fixtureのMSVC Debug測定は未escape 51.3、末尾escape 48.5 µs/parse（各1回）で、過去記録の52.8 / 55.7より悪化は見えないが、単回測定のため速度向上とは断定しない。
 - 配列indexのint/double変換を共通の境界検査へ集約。負数、NaN、無限大、配列長を超える値は`size_t`変換前に拒否し、正の小数は従来どおり切り捨てる。通常読み込み、binary比較の参照最適化、代入の3経路で不正値診断を維持する。回帰テストを追加し、ArtifactScript関連5 CTest suitesは5/5 passed。
 - `==` / `!=`を型に応じて比較するよう修正。bool同士はbool値、int同士は整数値、int/float混在は数値、string・Vec2/3/4・Colorは値、ObjectRefはid、script objectとarrayは参照identityで判定し、異なる非数値型を数値0へcoerceしない。従来は`true == true`がfalse、別々のarrayも等しい判定になり得た。各型の回帰テストとArtifactScript関連5 suitesは5/5 passed。
 - string literalでC#式の引用符・slash・制御文字escapeと4桁/8桁Unicode escapeをdecodeし、UnicodeはUTF-8化、UTF-16 surrogate pairも結合する。未知escape、不正hex、孤立surrogateは式と文字列field initializerでescape位置を診断する。escapeなし文字列の終端探索は`find_first_of`より単純な2条件ループが速かったため採用。4 KiB unescaped literalを含むMSVC Debug parse 200回×3では`find_first_of`版の94.9 / 96.1 / 106.6 µs/parseから単純ループ版の54.2 / 49.0 / 53.3へ（平均約47%短縮）。Unicode対応後も同fixtureは52.8 µs/parse、末尾にnewline escapeを置くと55.7 µs/parse。限定したDebug fixtureの結果であり、Release・短い文字列・実script全般には一般化しない。既定フィールド文字列もescapeをdecodeし、field initializer末尾の`;`を値から除外してquote/semicolon混入の既存不具合を修正。escape位置・Unicode・初期値・brace scan testsを含むArtifactScript関連5 suitesは5/5 passed。
