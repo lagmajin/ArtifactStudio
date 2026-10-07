@@ -1089,3 +1089,53 @@ class Counter : ArtifactBehaviour
               << oneShortStringAllocationRate.second << '\n';
 #endif
 }
+
+#if defined(_MSC_VER) && defined(_DEBUG)
+TEST(LayerScriptComponentContractTest, ScriptObjectHostMethodReducesSteadyStateAllocations) {
+    auto& host = ArtifactScriptHost::global();
+    host.registerMethod("LongNamedHostTarget", "hostPing",
+        [](const ArtifactScriptValue&, std::span<const ArtifactScriptValue>) {
+            return ArtifactScriptValue(1.0);
+        });
+    host.setLastError({});
+
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ScriptObjectHostMethodProbe : ArtifactBehaviour
+{
+    public ObjectRef target;
+    public float result = 0.0;
+    void OnCreate() { target = new LongNamedHostTarget(); }
+    void OnUpdate() { result = target.hostPing(); }
+}
+class LongNamedHostTarget : ArtifactBehaviour
+{
+    public float value = 1.0;
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate)) << instance.lastError();
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    }
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 1.0);
+
+    ScriptAllocationCounter counter;
+    constexpr std::size_t allocationIterations = 1000;
+    bool succeeded = true;
+    for (std::size_t i = 0; i < allocationIterations; ++i) {
+        if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+            succeeded = false;
+            break;
+        }
+    }
+    const auto allocations = counter.stop();
+    EXPECT_TRUE(succeeded) << instance.lastError();
+    EXPECT_LE(allocations.first, allocationIterations)
+        << "allocations/hook=" << allocations.first / allocationIterations;
+    EXPECT_LE(allocations.second, allocationIterations * 16)
+        << "bytes/hook=" << allocations.second / allocationIterations;
+}
+#endif

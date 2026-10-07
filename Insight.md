@@ -4387,4 +4387,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **関連:** `tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の `HookExecutionMicrobenchmark`、`ArtifactScriptHost::callFunctionView()` / `callMethodView()`。
 - **確認できた事実:** allocation probeは各反復で文字列リテラルを `const std::string&` 引数へ渡していた。名前を反復前に作った永続 `std::string` へ置き換えた試行では、直接function / method APIとdirect-bodyの計測値が0 allocation / 0 bytesになった。その後、no-op / host-function / host-method計測は通ったが、simple script計測中にSEH access violationが起き、その差分は戻した。
 - **価値または懸念:** 従来のdirect-host baselineにはAPI内dispatchだけでなく、呼出側の一時文字列生成も含まれる。1 / 2 allocationsをそのままcallback registryのコストと解釈できない。
-- **次に確認すべきこと:** 名前を事前確保したallocation fixtureを安定して実行できる形にし、scriptから呼ぶ場合の残存allocationを直接計測してからhost dispatchを変更する。
+- **次に確認すべきこと:** direct-host API用のpersistent-name基準値を独立fixtureへ移し、script経由の計測も安定させる。現行の直接API値には呼出側の一時文字列生成が含まれる。
+
+## 2026-10-07 — ArtifactScript host fallback copied class labels per hook
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のscript-object host method fallback、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の `ScriptObjectHostMethodReducesSteadyStateAllocations`。
+- **確認できた事実:** host fallbackは元々 `instance->className` を毎回 `std::string` へコピーしていた。class名が長いscript objectを1,000 hook実行し、変更前は3 allocations / 64 bytes per hook、class名を参照する変更後は1 / 16だった。関連ArtifactScript CTestは5/5 passed。
+- **価値または懸念:** 変更で2 allocations / 48 bytes per hookを削減した。固定配列cacheやAPI境界は変えていない。残る1 allocation / 16 bytes per hookは未特定。
+- **次に確認すべきこと:** allocation counterを小さな独立fixtureに保ったまま残る一確保の呼出箇所を特定し、削除できるか評価する。
