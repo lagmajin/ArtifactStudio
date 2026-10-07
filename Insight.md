@@ -4612,3 +4612,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実:** MSVC Debugで128文字のfield値をlocalへ読み、別fieldへ書く1000-hook計測は旧実装10 allocations / 672 bytes per hook、新実装8 / 512。hookあたり2 allocations / 160 bytes減り、sourceと観測fieldの文字列一致も確認した。ArtifactScript関連5 suitesはCTest **5/5 passed**。測定はMSVC Debug。
 - **価値または懸念:** string・arrayなど所有値を含む宣言で不要なvariant copyを省く。Release実行時間および他型の実workloadは未測定。
 - **次に確認すべきこと:** ローカル宣言の実script分布とRelease時のCPU時間を測り、Debug allocation減少が通常workloadでも有益か確認する。
+
+## 2026-10-07 — Move ArtifactScript method results out of return slots
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`runUserMethodBody()` / `callInstanceMethod()` と、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` のlong-string return allocation probe。
+- **仮説:** メソッド戻り値を`returnValue_`から外側へ返す前にcopyし、その直後にnested call用の以前の値をrestoreしている。return slotの値は一時所有なので、restore前にmoveすれば戻り値copyを避けられる。
+- **実装:** user methodとscript object methodの両経路で、`returnValue_`を結果へmoveしてから以前のnested-call stateをrestoreする。
+- **確認できた事実:** MSVC Debugで128文字stringをuser methodとobject methodの両方から返す1000-hook fixtureは、旧実装20 allocations / 1344 bytes、新実装17 / 912 per hook。hookあたり3 allocations / 432 bytes減り、source・observed fieldの内容一致を確認した。ArtifactScript関連5 suitesはCTest **5/5 passed**。
+- **価値または懸念:** string等所有値を返すcallのtemporary copyを減らす。測定は両method経路を使うMSVC Debug fixtureで、Release時間および片方だけの寄与は未測定。
+- **次に確認すべきこと:** 実scriptの戻り値型・call頻度を調べ、Release構成が使える時にCPU時間も測る。
