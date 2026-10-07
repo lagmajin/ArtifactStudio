@@ -1,5 +1,14 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactScriptの配列index値を比較式へ直接渡す
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の Binary evaluation / pure operand reference resolution、`tests/ArtifactCore/ArtifactScriptTest.cpp`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。
+- **確認できた事実:** `values[0] == target` は通常、array handleとindexを評価してから要素のlong stringをcopyし、さらにfield stringもcopyして比較していた。MSVC Debug CRT allocation hookの1000-hook対照fixtureではindex参照経路なしが4000 allocations / 160000 bytes（4 / 160 per hook）だった。
+- **対応:** literal/variable/indexだけで構成されるread-only reference expressionを両operandが満たす場合、配列elementと他operandをconst referenceとして`evalBinary()`へ渡す。callを含むindex expression・field access・`this`・無効なindexは従来評価へfallbackする。配列へのfield/index read、mutable AST name、short-circuit、long-string comparison allocationsをテストした。
+- **確認結果:** 同fixtureは直接参照経路でsteady-state 0 allocations / 0 bytes per hook。ArtifactScript関連5 CTest suitesは5/5 passed。
+- **性能上の注意:** このターンのCPU microbenchmarkは他プロセスの高いCPU使用で値が大きく揺れたため、time improvementとは主張しない。広いFieldAccess no-copy案も試験したが、独立した速度効果を確認できず撤回し、今回の変更はindex copy削減に限定した。
+- **次に確認すべきこと:** CPU負荷が落ち着いたときに、同じlong-string index fixtureのbaseline/candidate wall timeとshort numeric array indexを測り、Release/optimized profileでもallocation以外の損益を確認する。
+
 ## 2026-10-07 — ArtifactScriptの単純な二項式で値を再検索・copyしない
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptEvaluator::Impl::evalExpr()` Binary path、`tests/ArtifactCore/ArtifactScriptTest.cpp`。

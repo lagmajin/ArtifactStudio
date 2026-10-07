@@ -1223,6 +1223,56 @@ class BenchmarkRootHook : ArtifactBehaviour
 }
 
 #if defined(_MSC_VER) && defined(_DEBUG)
+TEST(LayerScriptComponentContractTest,
+     ArrayIndexStringComparisonAvoidsSteadyStateCopies) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ArrayStringComparisonProbe : ArtifactBehaviour
+{
+    public Array values;
+    public string target = "";
+    public float matches = 0.0;
+    void OnCreate()
+    {
+        push(values, "this is a long string stored inside the script array");
+    }
+    void OnUpdate()
+    {
+        if (values[0] == target) matches += 1.0;
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate))
+        << instance.lastError();
+    instance.fields()["target"] =
+        std::string("this is a long string stored inside the script array");
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << instance.lastError();
+    }
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("matches")), 100.0);
+
+    ScriptAllocationCounter counter;
+    constexpr std::size_t allocationIterations = 1000;
+    bool succeeded = true;
+    for (std::size_t i = 0; i < allocationIterations; ++i) {
+        if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+            succeeded = false;
+            break;
+        }
+    }
+    const auto allocations = counter.stop();
+    EXPECT_TRUE(succeeded) << instance.lastError();
+    EXPECT_EQ(allocations.first, 0)
+        << "allocations/hook=" << allocations.first / allocationIterations;
+    EXPECT_EQ(allocations.second, 0)
+        << "bytes/hook=" << allocations.second / allocationIterations;
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("matches")), 1100.0);
+}
+
 TEST(LayerScriptComponentContractTest, ScriptObjectHostMethodAvoidsSteadyStateAllocations) {
     auto& host = ArtifactScriptHost::global();
     host.registerMethod("LongNamedHostTarget", "hostPing",

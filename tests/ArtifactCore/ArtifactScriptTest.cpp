@@ -594,6 +594,31 @@ class MutableBinaryOperands : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(fields.at("result")), 9.0);
 }
 
+TEST(ArtifactScriptTest, BinaryIndexOperandsReadCurrentValues) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class BinaryIndexOperands : ArtifactBehaviour
+{
+    public Array values;
+    public float result = 0.0;
+    void OnCreate()
+    {
+        push(values, 3.0);
+        push(values, 4.0);
+    }
+    void OnUpdate() { result = values[0] + values[1]; }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate))
+        << instance.lastError();
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 7.0);
+}
+
 TEST(ArtifactScriptTest, StringCompoundAssignmentAppendsScalarValues) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(
