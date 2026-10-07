@@ -862,14 +862,64 @@ class SixArguments : ArtifactBehaviour
     {
         return a + b + c + d + e + f;
     }
-    void OnUpdate() { total = sum(1.0, 2.0, 3.0, 4.0, 5.0, 6.0); }
+    void OnUpdate() {
+        total = sum(1.0, 2.0, 3.0, 4.0, 5.0,
+                    sum(1.0, 2.0, 3.0, 4.0, 5.0, 6.0));
+    }
 }
 )");
     ASSERT_TRUE(definition.diagnostics.empty());
 
     ArtifactScriptInstance instance(std::move(definition));
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
-    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 21.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 36.0);
+}
+
+TEST(ArtifactScriptTest, UserMethodArgumentsAboveReusableLimitUseFallback) {
+    std::string parameters;
+    std::string arguments;
+    for (int i = 0; i < 33; ++i) {
+        if (i != 0) {
+            parameters += ", ";
+            arguments += ", ";
+        }
+        parameters += "float p" + std::to_string(i);
+        arguments += std::to_string(i + 1) + ".0";
+    }
+    const std::string source =
+        "class ThirtyThreeArguments : ArtifactBehaviour {\n"
+        "public float total = 0.0;\n"
+        "float edge(" + parameters + ") { return p0 + p32; }\n"
+        "void OnUpdate() { total = edge(" + arguments + "); }\n"
+        "}";
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(source);
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 34.0);
+}
+
+TEST(ArtifactScriptTest, NestedCallsBeyondReusableDepthUseFallback) {
+    std::string nestedCall = "1.0";
+    for (int depth = 0; depth < 10; ++depth) {
+        nestedCall = "sum6(0.0, 0.0, 0.0, 0.0, 0.0, " + nestedCall + ")";
+    }
+    const std::string source =
+        "class DeepArgumentCalls : ArtifactBehaviour {\n"
+        "public float total = 0.0;\n"
+        "float sum6(float a, float b, float c, float d, float e, float f) "
+        "{ return a + b + c + d + e + f; }\n"
+        "void OnUpdate() { total = " + nestedCall + "; }\n"
+        "}";
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(source);
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 1.0);
 }
 
 TEST(ArtifactScriptTest, MoreThanTwelveLocalsUseOverflowStorage) {

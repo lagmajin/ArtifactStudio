@@ -362,6 +362,29 @@ class BenchmarkFiveArgumentCall : ArtifactBehaviour
               << totalMicroseconds / (repetitions * iterations)
               << " us/hook (" << iterations * repetitions << " calls)\n";
 
+    auto sixArgumentDefinition = parser.parse(R"(
+class BenchmarkSixArgumentCall : ArtifactBehaviour
+{
+    public float total = 0.0;
+    float sum(float a, float b, float c, float d, float e, float f)
+    {
+        return a + b + c + d + e + f;
+    }
+    void OnUpdate()
+    {
+        total = sum(1.0, 2.0, 3.0, 4.0, 5.0,
+                    sum(1.0, 2.0, 3.0, 4.0, 5.0, 6.0));
+    }
+}
+)");
+    ASSERT_TRUE(sixArgumentDefinition.diagnostics.empty());
+    ArtifactScriptInstance sixArgumentInstance(std::move(sixArgumentDefinition));
+    for (int i = 0; i < warmupIterations; ++i) {
+        ASSERT_TRUE(sixArgumentInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << sixArgumentInstance.lastError();
+    }
+    EXPECT_DOUBLE_EQ(std::get<double>(sixArgumentInstance.fields().at("total")), 36.0);
+
     auto foreachDefinition = parser.parse(R"(
 class BenchmarkForeachCounter : ArtifactBehaviour
 {
@@ -818,6 +841,7 @@ class Counter : ArtifactBehaviour
     const auto wideLocalsAllocationRate = countAllocations(wideLocalsInstance);
     const auto methodLookupAllocationRate = countAllocations(methodLookupInstance);
     const auto fiveArgumentAllocationRate = countAllocations(fiveArgumentInstance);
+    const auto sixArgumentAllocationRate = countAllocations(sixArgumentInstance);
     const auto objectMethodLookupAllocationRate = countAllocations(objectMethodLookupInstance);
     const auto wideObjectMethodAllocationRate = countAllocations(wideObjectMethodInstance);
     const auto expectNoSteadyStateAllocations = [](const auto& rate) {
@@ -841,6 +865,7 @@ class Counter : ArtifactBehaviour
     expectNoSteadyStateAllocations(wideLocalsAllocationRate);
     expectNoSteadyStateAllocations(methodLookupAllocationRate);
     expectNoSteadyStateAllocations(fiveArgumentAllocationRate);
+    expectNoSteadyStateAllocations(sixArgumentAllocationRate);
     expectNoSteadyStateAllocations(objectMethodLookupAllocationRate);
     expectNoSteadyStateAllocations(wideObjectMethodAllocationRate);
     std::cout << "ArtifactScript allocations/hook (object method, 5 fields): "
@@ -854,6 +879,9 @@ class Counter : ArtifactBehaviour
     std::cout << "ArtifactScript allocations/hook (5-arg method): "
               << fiveArgumentAllocationRate.first << ", "
               << fiveArgumentAllocationRate.second << " bytes\n";
+    std::cout << "ArtifactScript allocations/hook (nested 6-arg method): "
+              << sixArgumentAllocationRate.first << ", "
+              << sixArgumentAllocationRate.second << " bytes\n";
     std::cout << "ArtifactScript allocations/hook (object method): "
               << objectMethodLookupAllocationRate.first << ", "
               << objectMethodLookupAllocationRate.second << " bytes\n";
