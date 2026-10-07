@@ -7,6 +7,7 @@
 
 ## 進捗 2026-10-07
 
+- foreach bodyの配列mutation判定を同一immutable `ArtifactScriptInstance` definitionのhook間で64-entry固定cacheする。mutable definition accessorとdirect evaluator pathは従来の毎回scanへfallbackし、collisionも再scanする。空配列・256 statement bodyのMSVC Debug fixtureは2.52 / 2.49 / 2.81から1.75 / 1.73 / 1.73 µs/hook（平均約33%短縮）。ASTをhook後に差し替えるfallback testと、mutation foreach既存testsを含むArtifactScript関連5 suitesは5/5 passed。Release/workload性能とfixed memory costは今後確認する。
 - function/new/vector/arrayの引数リストをdelimiter-awareにparseし、空リストを維持しつつ抜け引数・不正separator・missing closing delimiterを診断する。index式、dot member名、unary operandも診断対象。呼び出し引数、constructor引数、空indexの各failure offsetと、valid zero-argument call / constructorをテスト。ArtifactScript関連5 CTest suitesは5/5 passed。
 - binary operand / assignment・declaration RHS / `if`・`while` conditionで必須式が欠落した場合、partial ASTのまま受理せずsource位置付きdiagnosticを出す。`value = 1.0 + ;` の失敗位置が6行23列であることを確認。`return;`と省略可能な`for` conditionは許容。引数・indexの診断は後続entryで拡張し、他のdelimiter positionsは引き続き確認する。
 - method bodyを所有済みdefinition sourceの`std::string_view`で直接解析し、一時string copyを除去。長いliteralを含む本文の100-parse MSVC Debug fixtureは87 allocations / 5,246 bytesから84 / 4,686 bytes per parseへ減少。method brace scanはstringとcomment内のbraceを無視し、parser stall診断に正確なsource line/columnを付ける。parse CPU時間とRelease profileは未確認。

@@ -1021,6 +1021,60 @@ class Sum : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(component.publicFields().at("total")), 5.0);
 }
 
+TEST(ArtifactScriptTest,
+     MutableDefinitionInvalidatesForeachMutationAnalysisCache) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ForeachMutationCacheProbe : ArtifactBehaviour
+{
+    public Array values;
+    public float total = 0.0;
+    void OnUpdate()
+    {
+        foreach (item in values) { total += item; }
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    auto values = makeShared<ArtifactScriptArray>();
+    values->values.push_back(1.0);
+    values->values.push_back(2.0);
+    instance.fields()["values"] = values;
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 3.0);
+
+    auto updatedDefinition = parser.parse(R"(
+class ForeachMutationCacheProbe : ArtifactBehaviour
+{
+    public Array values;
+    public float total = 0.0;
+    void OnUpdate()
+    {
+        foreach (item in values) {
+            values[1] = 9.0;
+            total += item;
+        }
+    }
+}
+)");
+    ASSERT_TRUE(updatedDefinition.diagnostics.empty());
+    auto& mutableDefinition = instance.definition();
+    ASSERT_EQ(mutableDefinition.rootClass.methods.size(), 1u);
+    mutableDefinition.rootClass.methods[0].body =
+        std::move(updatedDefinition.rootClass.methods[0].body);
+    values->values[0] = 1.0;
+    values->values[1] = 2.0;
+    instance.fields()["total"] = 0.0;
+
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 3.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(values->values[1]), 9.0);
+}
+
 TEST(ArtifactScriptTest, ForeachUsesSnapshotWhenSourceArrayMutates) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(

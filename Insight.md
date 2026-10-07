@@ -1,5 +1,14 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactScript foreachのmutation解析結果をhook間で再利用
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`statementMayMutateArray()`とforeach execution、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。
+- **確認できた事実:** foreach本体が配列を変更する可能性があるかを、hook実行ごとにAST全体へ再帰走査していた。空配列でも走査するため、loop bodyが256個のliteral declarationだけのfixtureではこの解析が毎hook発生していた。
+- **対応:** 64-entry固定direct-mapのstatement-pointer cacheを追加。通常の`ArtifactScriptInstance`が同じ不変definitionをhook間で使う場合だけ結果を再利用し、直接Evaluator実行・mutable definition経路は従来の毎回scanへfallbackする。cache collisionも正しさを保って再scanする。固定領域の追加はx64で概ね1 KiB/evaluator、heap allocationなし。
+- **性能確認:** MSVC Debug、256文の空foreachを10,000 hook×3回。変更前2.52 / 2.49 / 2.81 µs/hook、変更後1.75 / 1.73 / 1.73。平均で約33%短縮した targeted fixtureの結果であり、Releaseや実script一般への短縮率とは扱わない。
+- **正しさ確認:** 初回read-only hook後に`ArtifactScriptInstance::definition()`経由で本体を配列書き込みへ差し替えるfixtureを追加。mutable accessでcacheを無効化し、snapshotを再解析するため結果は3（stale read-only判定なら10）となることを確認。ArtifactScript関連5 CTest suitesは5/5 passed。
+- **次に確認すべきこと:** 1, 2, 8, 64以上のforeach statementを持つmethodでcache collision時の再scan頻度と損益を測り、Release/optimized profileで固定1 KiBのtradeoffを検証する。
+
 ## 2026-10-07 — ArtifactScriptの呼び出し引数・index構文を位置診断
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のprimary expression parser、`tests/ArtifactCore/ArtifactScriptTest.cpp`。

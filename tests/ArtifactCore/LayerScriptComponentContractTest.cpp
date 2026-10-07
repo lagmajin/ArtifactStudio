@@ -1222,6 +1222,55 @@ class BenchmarkRootHook : ArtifactBehaviour
 #endif
 }
 
+TEST(LayerScriptComponentContractTest,
+     EmptyForeachMutationAnalysisBenchmark) {
+    ArtifactScriptParser parser;
+    std::string source = R"(
+class EmptyForeachMutationAnalysisProbe : ArtifactBehaviour
+{
+    public Array values;
+    void OnUpdate()
+    {
+        foreach (item in values) {
+)";
+    for (int i = 0; i < 256; ++i) {
+        source += "            float unused" + std::to_string(i) + " = " +
+                  std::to_string(i) + ".0;\n";
+    }
+    source += R"(
+        }
+    }
+}
+)";
+    auto definition = parser.parse(source);
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    instance.fields()["values"] = makeShared<ArtifactScriptArray>();
+
+    constexpr int warmupIterations = 100;
+    constexpr int repetitions = 3;
+    constexpr int iterations = 10000;
+    for (int i = 0; i < warmupIterations; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << instance.lastError();
+    }
+    std::array<double, repetitions> microsecondsPerHook{};
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+                << instance.lastError();
+        }
+        microsecondsPerHook[repetition] =
+            std::chrono::duration<double, std::micro>(
+                std::chrono::steady_clock::now() - start).count() / iterations;
+    }
+    std::cout << "ArtifactScript empty foreach with 256-statement mutation scan: "
+              << microsecondsPerHook[0] << ", "
+              << microsecondsPerHook[1] << ", "
+              << microsecondsPerHook[2] << " us/hook\n";
+}
+
 #if defined(_MSC_VER) && defined(_DEBUG)
 TEST(LayerScriptComponentContractTest,
      ArrayIndexStringComparisonAvoidsSteadyStateCopies) {
