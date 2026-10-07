@@ -1,5 +1,14 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactScriptのnull合体はfallbackを遅延評価する
+
+- **関連:** `ArtifactCore/include/Script/ArtifactScript/ArtifactScript.ixx` のbinary operator、`ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のparser/evaluator、`tests/ArtifactCore/ArtifactScriptTest.cpp`。
+- **確認できた事実:** evaluatorは `&&` / `||` の右辺を短絡評価するが、null fallbackを書く演算子はなかった。
+- **対応:** 右結合の `??` を追加し、左辺がnullのときだけfallback式を実行する。`false`・0・空文字はnullとして扱わず左辺を返す。
+- **確認結果:** fallbackの実行回数、右結合AST、三項演算子との優先順位、false・0・空文字の保持を実行テスト化。ArtifactScript関連5 CTest suitesは5/5成功。
+- **価値または懸念:** fallbackが不要なケースで式や呼び出しを丸ごと省略できる。実ワークロードでの速度向上量は未計測であり、速さを数値では主張しない。
+- **次に確認すべきこと:** Releaseビルドの代表的なfallback workloadを測り、実行系の次段階（再利用可能な中間表現やtiered execution）を決める。
+
 ## 2026-10-07 — ArtifactScriptの hot reload は SerializeField も移行する
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptHotReload::reload()` / `reloadWithSaved()` / `addFile()`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm` の `migrateScriptFields()`。

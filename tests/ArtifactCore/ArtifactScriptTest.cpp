@@ -1676,6 +1676,55 @@ class Guard : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(fields.at("total")), 0.0);
 }
 
+TEST(ArtifactScriptTest, NullCoalescingIsLazyRightAssociativeAndNullSpecific) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class Coalesce : ArtifactBehaviour
+{
+    public float calls = 0.0;
+    public float result = 0.0;
+    public string label = "";
+    float fallback()
+    {
+        calls += 1.0;
+        return 7.0;
+    }
+    void OnUpdate()
+    {
+        var absent = null;
+        var present = 3.0;
+        var zero = 0.0;
+        result = absent ?? null ?? fallback();
+        result += present ?? fallback();
+        result += zero ?? fallback();
+        var precedence = null ?? false ? 1.0 : 2.0;
+        result += precedence;
+        label = "" ?? "fallback";
+        if (false ?? true) { calls += 100.0; }
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ASSERT_EQ(definition.rootClass.methods.size(), 2u);
+    const auto& updateStatements =
+        definition.rootClass.methods[1].body->statements;
+    ASSERT_GE(updateStatements.size(), 4u);
+    const auto& chainedCoalesce = *updateStatements[3]->assignValue;
+    ASSERT_EQ(chainedCoalesce.kind, ArtifactScriptExpr::Kind::Binary);
+    ASSERT_EQ(chainedCoalesce.binaryOp, ArtifactScriptBinaryOp::Coalesce);
+    ASSERT_NE(chainedCoalesce.right, nullptr);
+    EXPECT_EQ(chainedCoalesce.right->kind, ArtifactScriptExpr::Kind::Binary);
+    EXPECT_EQ(chainedCoalesce.right->binaryOp, ArtifactScriptBinaryOp::Coalesce);
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("calls")), 1.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 12.0);
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("label")), "");
+}
+
 TEST(ArtifactScriptTest, VarDeclarationAndForeach) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(
