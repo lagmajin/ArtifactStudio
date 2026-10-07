@@ -4483,6 +4483,15 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **価値または懸念:** 12〜20 localsを使うhookのDebug評価が少し短くなった。差は数%の範囲であり、Release測定はない。
 - **次に確認すべきこと:** 実scriptのlocals分布が16枠を支持するかを計測し、Release buildで再確認する。
 
+## 2026-10-07 — ArtifactScript inline locals linear-scan trial rejected
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptLocals::find()`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の`locals(12)` / `locals(20)` benchmark。
+- **仮説:** 最大16個のinline localsなら、FNV hashとopen-address indexの代わりに小さな線形走査を使うとlookup・local insertionが軽くなる可能性がある。
+- **実験:** inline local index tableを一時的に削除し、mutable/const `find()`をinline entriesの線形比較、overflow entriesを既存hash table検索に分けた。関連5 suitesは変更variantで5/5 passした。
+- **確認できた事実:** Debug benchmark 2 runの`locals(12) / method-local`比は1.684 / 1.657で、hash table版の復帰後baselineは1.436 / 1.428。`locals(20) / method-local`比は3.190 / 3.179で、復帰後は2.433 / 2.401。線形variantは相対で約12〜16%および約32%遅かった。
+- **対応:** 線形variantを採用せず、16-capacity inline locals向けopen-address tableへ戻した。同一復帰版を2回再測定し、性能差が走査方式に由来することを確認した。
+- **次に確認すべきこと:** 別の改善候補では、variable name lookupのhash計算再利用を再試行する前に、実行単位の名前／スロット解決を計測・設計する。既存AST hash cache試行は以前の実測で無効だったため、同じ方式は再利用しない。
+
 ## 2026-10-07 — Reuse ArtifactScript lifecycle lookup for immutable definitions
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptInstance::findLifecycleHookInDefinition()` / `invokeHook()` とevaluator class lookup、`ArtifactCore/include/Script/ArtifactScript/ArtifactScript.ixx` の`ArtifactScriptInstance::definition()` mutable accessor。
