@@ -1,5 +1,14 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactScriptの必須式欠落を位置付き構文エラーにする
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の式parser / method body diagnostics、`tests/ArtifactCore/ArtifactScriptTest.cpp`。
+- **確認できた事実:** binary operatorの右辺や代入右辺が欠けた式（例 `value = 1.0 + ;`）はnull operandの部分ASTを作り、従来はparse errorとして必ずしも拒否されなかった。
+- **対応:** 必須の二項演算子右辺、`if` / `while`条件、declaration / assignment右辺をrequired-expressionとして検証し、失敗source offsetを既存line/column診断へ渡す。省略可能な`return;`や`for`条件はrequired扱いしない。
+- **確認結果:** `value = 1.0 + ;` に対して正確な6行23列の診断をassertし、既存のif/else/for・文字列式・parser stallテストとArtifactScript関連5 suitesが通過。
+- **価値または懸念:** 実行時にnull値へすり替わる構文ミスをparse時に検出できる。関数引数、index、ternary、未閉じ括弧など他の必須構文位置への適用範囲は未完了。
+- **次に確認すべきこと:** call/new/vector arguments、index、ternary colon、closing delimitersの欠落を一つずつfixture化し、正当な空引数や`return;`を維持する。
+
 ## 2026-10-07 — ArtifactScript method bodyをsource viewで解析し位置診断を正確化
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の method body scanner / `parseMethodBody()`、`tests/ArtifactCore/ArtifactScriptTest.cpp`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。

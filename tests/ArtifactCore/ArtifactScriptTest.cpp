@@ -109,6 +109,26 @@ class BraceProbe : ArtifactBehaviour
               "a } b { c");
 }
 
+TEST(ArtifactScriptTest, MissingExpressionReportsItsSourceLocation) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class BrokenExpression : ArtifactBehaviour
+{
+    void OnUpdate()
+    {
+        value = 1.0 + ;
+    }
+}
+)");
+
+    ASSERT_EQ(definition.diagnostics.size(), 1u);
+    EXPECT_EQ(definition.diagnostics.front().line, 6u);
+    EXPECT_EQ(definition.diagnostics.front().column, 23u);
+    EXPECT_NE(definition.diagnostics.front().message.find(
+                  "unsupported or invalid syntax in method body"),
+              std::string::npos);
+}
+
 TEST(ArtifactScriptTest, ComponentStoresPublicOverrides) {
     ArtifactScriptComponent component;
     component.setScriptClass("Spin");

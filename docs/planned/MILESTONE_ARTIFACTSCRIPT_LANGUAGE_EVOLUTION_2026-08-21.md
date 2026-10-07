@@ -7,6 +7,7 @@
 
 ## 進捗 2026-10-07
 
+- binary operand / assignment・declaration RHS / `if`・`while` conditionで必須式が欠落した場合、partial ASTのまま受理せずsource位置付きdiagnosticを出す。`value = 1.0 + ;` の失敗位置が6行23列であることを確認。`return;`と省略可能な`for` conditionは許容。引数・index・括弧など他のrequired grammar位置は未対応。
 - method bodyを所有済みdefinition sourceの`std::string_view`で直接解析し、一時string copyを除去。長いliteralを含む本文の100-parse MSVC Debug fixtureは87 allocations / 5,246 bytesから84 / 4,686 bytes per parseへ減少。method brace scanはstringとcomment内のbraceを無視し、parser stall診断に正確なsource line/columnを付ける。parse CPU時間とRelease profileは未確認。
 - pureなbinary operandにscript object `FieldAccess`を加え、field mapの値を再帰的にconst参照で比較へ渡す。`target.value == expected` のlong-string fixtureはMSVC Debug CRTで変更前4 allocations / 160 bytes per hook、変更後0 / 0。top-level `this`、呼び出し、objectでない値、missing fieldは従来評価へfallback。ArtifactScript関連5 CTest suitesは5/5 passed。CPU時間・Release性能は未確認。
 - pure `variable/literal/index` operandsをbinary expressionから参照解決し、array itemやlong stringを中間`ArtifactScriptValue`へcopyせず`evalBinary()`へ渡す。call・`this`・field access・invalid indexは従来の評価/fallback pathを維持する。`values[0] == target` のMSVC Debug CRT allocation baselineは4 allocations / 160 bytes per hook、直接参照後は0 / 0。数値array index結果、長文string一致回数をassertし、ArtifactScript関連5 CTest suitesは5/5 passed。CPU時間は他プロセス負荷で揺れたため改善を主張せず、Release/optimized workloadでのtime comparisonは未確認。
