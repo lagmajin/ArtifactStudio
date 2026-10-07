@@ -1890,6 +1890,7 @@ class Coalesce : ArtifactBehaviour
         calls += 1.0;
         return 7.0;
     }
+
     void OnUpdate()
     {
         var absent = null;
@@ -1932,7 +1933,11 @@ TEST(ArtifactScriptTest, NullCoalescingAssignmentIsLazyAcrossLvalueKinds) {
 class CoalesceAssignment : ArtifactBehaviour
 {
     public float calls = 0.0;
+    public float indexCalls = 0.0;
     public float result = 0.0;
+    public bool enabled = false;
+    public int zeroValue = 0;
+    public string label = "";
     public Array values;
     public Payload payload;
 
@@ -1942,18 +1947,37 @@ class CoalesceAssignment : ArtifactBehaviour
         return 7.0;
     }
 
+    int nextIndex()
+    {
+        indexCalls += 1.0;
+        return 0;
+    }
+
+    int invalidFallback()
+    {
+        return 9223372036854775807 + 1;
+    }
+
     void OnUpdate()
     {
+        enabled ??= fallback();
+        zeroValue ??= fallback();
+        label ??= "fallback";
+
         var localValue = 3.0;
         localValue ??= fallback();
         result += localValue;
+
+        var preservedValue = 9.0;
+        preservedValue ??= invalidFallback();
+        result += preservedValue;
 
         var missingValue = null;
         missingValue ??= fallback();
         result += missingValue;
 
         values = [1.0, null];
-        values[0] ??= fallback();
+        values[nextIndex()] ??= fallback();
         values[1] ??= fallback();
         result += values[1];
 
@@ -1977,7 +2001,11 @@ class Payload : ArtifactBehaviour
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
         << instance.lastError();
     EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("calls")), 3.0);
-    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 24.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("indexCalls")), 1.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 33.0);
+    EXPECT_FALSE(std::get<bool>(instance.fields().at("enabled")));
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("zeroValue")), 0);
+    EXPECT_TRUE(std::get<std::string>(instance.fields().at("label")).empty());
     const auto& values = std::get<ArtifactScriptArrayPtr>(
         instance.fields().at("values"))->values;
     EXPECT_DOUBLE_EQ(std::get<double>(values[0]), 1.0);

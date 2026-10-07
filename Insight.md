@@ -4801,6 +4801,8 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `??=` assignment evaluator と ArtifactScript language evolution milestone。
 - **確認できた事実:** 新しい `??=` は対象がnullでないとき右辺を実行せず、nullのときだけfallback式を評価する。これは言語機能追加が、fallback内部の処理や副作用を省く実行経路も同時に作れる例になる。
 - **確認できた事実:** 最初の統合では通常代入の右辺を空の`ArtifactScriptValue`へ後から代入し、既存のallocation contract tests 7件で各hookあたり1 allocation増加した。通常経路を条件式による直接初期化に戻すと7件すべて従来の期待値へ戻り、5つのArtifactScript関連CTest suitesが通った。
+- **確認できた事実:** `??=` regression fixtureでも、既存値に対するoverflowing fallbackを省略し、side-effecting index expressionを1回だけ評価することを確認するよう追加した。
+- **確認できた事実:** assignment variantでfalse・整数0・空文字もnull扱いされず保持され、fallbackを呼ばないことを専用assertで確認する。
 - **推論（未検証）:** 実scriptでnullでない頻度が高く、fallbackが高コストなら実行時間短縮につながる可能性がある。追加分岐・target resolutionを含む全体差は計測していない。
 - **次に確認すべきこと:** fallbackが常にnull / 非nullとなる小さな対照fixtureと実script profileでCPU時間を測り、意味上の短絡と速度上の効果を別々に確認する。
 
