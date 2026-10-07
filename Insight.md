@@ -4473,3 +4473,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実:** 31-class定義のroot hook benchmarkはMSVC Debugで2.81から1.98 µs/hook（約30%短縮）。単純root hookは1.80から1.70 µs/hook。派生hookがbase hookをoverrideする既存テストとArtifactScript関連5 suitesがすべてpassした。
 - **価値または懸念:** class数の多い通常root hookではindex構築・継承走査が不要になる。差はDebug benchmarkで測定し、Release値は未確認。
 - **次に確認すべきこと:** root hookを持つ大規模definitionの分布を計測し、index cutoffsと合わせて評価する。
+
+## 2026-10-07 — ArtifactScript local inline capacity A/B
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptLocals::inlineCapacity_` と、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の`locals(12)` / `locals(20)` benchmark。
+- **仮説:** 12 localsで一部がoverflowへ回る一方、毎call frameに12個のvariant slotを初期化している。8または16への変更がsteady-state時間を改善するか比較する。
+- **確認できた事実:** MSVC Debugで8枠は`locals(12) / method-local`比1.556、`locals(20) / method-local`比2.590となり、12枠版baseline比で有利でなかった。16枠は2 runで比が各1.432 / 1.444および2.409 / 2.430、baseline 12枠版の1.478および2.513から約2.7% / 3.7%改善。関連5 suitesは16枠版で5/5 passed。
+- **対応:** 16枠を採用し、8枠は戻した。追加stack領域は4 binding per active method frame、最大call depth 64でbounded。大きいlocals集合は既存のworkspace-backed overflow経路を維持する。
+- **価値または懸念:** 12〜20 localsを使うhookのDebug評価が少し短くなった。差は数%の範囲であり、Release測定はない。
+- **次に確認すべきこと:** 実scriptのlocals分布が16枠を支持するかを計測し、Release buildで再確認する。

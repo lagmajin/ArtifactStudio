@@ -19,6 +19,7 @@
 - `ArtifactScriptInstance::findLifecycleHookInDefinition()` に、クラス数9〜64の定義だけで使う固定128-slot class indexを追加。毎hook invocationで行う継承チェーンのクラス検索を平均定数時間にし、8クラス以下は従来の線形検索、65クラス以上もbounded fallbackの線形検索を維持する。definitionは呼び出しごとに再索引するため、mutable definition APIの変更も反映される。
 - 30クラス継承チェーンでbase classの`OnUpdate`を探索するMSVC Debug benchmarkを追加。linear lookup 27.91 µs/hookに対しindex後6.53 / 7.11 µs/hook（約75%短縮）。通常の単純hookは1.80 / 1.82 µs/hook。ArtifactScript関連5 suitesは変更後もCTest **5/5 passed**。
 - root class自身にhookがある場合はclass index構築前に返すようにし、派生クラスが多数あっても不要な索引構築を省略。30-class定義でroot hookを呼ぶMSVC Debug benchmarkは変更前2.81、変更後1.98 µs/hook（約30%短縮）。派生hook優先順位とbase fallbackを既存契約テストで確認し、関連5 suitesはCTest **5/5 passed**。
+- `ArtifactScriptLocals` のinline容量を12から16へ変更。MSVC Debugで12枠版に対するmethod/local比を2回測り、`locals(12)`が平均約2.7%、`locals(20)`が約3.7%短縮した。8枠版は有利でなかったため採用せず、16枠を超える値は既存の固定32-entry evaluator workspaceへ送る。追加stack領域は4 local binding / active call frame、最大call depth 64でbounded。
 - このテストは ArtifactCore のスクリプトランタイムを対象とし、Artifact サブモジュールの `ArtifactAbstractLayer` にあるレイヤーコンポーネント連携や UI / プロジェクト読込を通した統合動作は対象外。統合受入確認は未完了。
 
 ## 目的
