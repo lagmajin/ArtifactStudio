@@ -34,6 +34,41 @@ class Spin : ArtifactBehaviour
     EXPECT_TRUE(definition.diagnostics.empty());
 }
 
+TEST(ArtifactScriptTest, NumericLiteralsSupportScientificNotationAndRejectInvalidRanges) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ScientificNumbers : ArtifactBehaviour
+{
+    public float result = 0.0;
+    void OnUpdate()
+    {
+        result = 1.25e-3 + 2E2 + .5 + 1.0 + 1. - 4e-2;
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    instance.fields()["result"] = 0.0;
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")),
+                     202.46125);
+
+    const auto incompleteExponent = parser.parse(
+        "class BrokenNumber : ArtifactBehaviour\n{\n"
+        "    public float result = 0.0;\n"
+        "    void OnUpdate() { result = 1e+; }\n}\n");
+    ASSERT_FALSE(incompleteExponent.diagnostics.empty());
+    EXPECT_EQ(incompleteExponent.diagnostics.front().line, 4u);
+
+    const auto overflowingNumber = parser.parse(
+        "class OverflowNumber : ArtifactBehaviour\n{\n"
+        "    public float result = 0.0;\n"
+        "    void OnUpdate() { result = 1e309; }\n}\n");
+    ASSERT_FALSE(overflowingNumber.diagnostics.empty());
+    EXPECT_EQ(overflowingNumber.diagnostics.front().line, 4u);
+}
+
 TEST(ArtifactScriptTest, InvalidClassMemberReportsDiagnosticWithoutStalling) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(
