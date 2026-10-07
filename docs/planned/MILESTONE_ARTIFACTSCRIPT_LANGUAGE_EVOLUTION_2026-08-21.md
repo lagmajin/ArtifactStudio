@@ -7,6 +7,7 @@
 
 ## 進捗 2026-10-07
 
+- string literalで`\"`、`\\`、`\n`、`\r`、`\t`をdecodeし、未知escapeは式および文字列field initializerでescape位置を診断する。escapeなし文字列は`string_view::find_first_of`で閉じquoteまたはescapeまで一度に探し、既定フィールド文字列も同じescapeをdecodeする。あわせてfield initializer末尾の`;`を値から除外し、文字列のfield defaultにquote/semicolonが混入する既存不具合を修正。escape位置、初期値、既存brace scanを含むArtifactScript関連5 suitesは5/5 passed。scan速度の差は未計測。
 - `null`リテラルを追加し、`null == null`をtrue、`null == 0`と`null == false`をfalseとして評価する。`null` prefixの識別子（`null_value`）をキーワードと誤認しない境界判定も修正。null比較はgeneric numeric coercionを通らない早期分岐にした（性能差は未計測）。null値、異なる型との比較、underscore識別子をまとめた実行テストと、ArtifactScript関連5 CTest suitesは5/5 passed。
 - foreach bodyの配列mutation判定を同一immutable `ArtifactScriptInstance` definitionのhook間で64-entry固定cacheする。mutable definition accessorとdirect evaluator pathは従来の毎回scanへfallbackし、collisionも再scanする。空配列・256 statement bodyのMSVC Debug fixtureは2.52 / 2.49 / 2.81から1.75 / 1.73 / 1.73 µs/hook（平均約33%短縮）。ASTをhook後に差し替えるfallback testと、mutation foreach既存testsを含むArtifactScript関連5 suitesは5/5 passed。Release/workload性能とfixed memory costは今後確認する。
 - function/new/vector/arrayの引数リストをdelimiter-awareにparseし、空リストを維持しつつ抜け引数・不正separator・missing closing delimiterを診断する。index式、dot member名、unary operandも診断対象。呼び出し引数、constructor引数、空indexの各failure offsetと、valid zero-argument call / constructorをテスト。ArtifactScript関連5 CTest suitesは5/5 passed。

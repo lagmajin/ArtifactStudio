@@ -109,6 +109,47 @@ class BraceProbe : ArtifactBehaviour
               "a } b { c");
 }
 
+TEST(ArtifactScriptTest, StringLiteralDecodesEscapesAndKeepsUnescapedText) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class EscapedStrings : ArtifactBehaviour
+{
+    public string observed = "";
+    public string defaultValue = "default\nvalue";
+    void OnUpdate()
+    {
+        observed = "quote: \" slash: \\ newline: \n return: \r tab: \t";
+    }
+}
+)");
+
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ASSERT_EQ(definition.rootClass.fields.size(), 2u);
+    EXPECT_EQ(std::get<std::string>(definition.rootClass.fields[1].defaultValue),
+              "default\nvalue");
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("observed")),
+              "quote: \" slash: \\ newline: \n return: \r tab: \t");
+
+    const auto invalidEscape = parser.parse(
+        "class BrokenEscape : ArtifactBehaviour\n{\n"
+        "    void OnUpdate()\n    {\n"
+        "        value = \"bad\\q\";\n"
+        "    }\n}\n");
+    ASSERT_EQ(invalidEscape.diagnostics.size(), 1u);
+    EXPECT_EQ(invalidEscape.diagnostics.front().line, 5u);
+    EXPECT_EQ(invalidEscape.diagnostics.front().column, 21u);
+
+    const auto invalidFieldEscape = parser.parse(
+        "class BrokenFieldEscape : ArtifactBehaviour\n{\n"
+        "    public string value = \"bad\\q\";\n}\n");
+    ASSERT_EQ(invalidFieldEscape.diagnostics.size(), 1u);
+    EXPECT_EQ(invalidFieldEscape.diagnostics.front().line, 3u);
+    EXPECT_EQ(invalidFieldEscape.diagnostics.front().column, 31u);
+}
+
 TEST(ArtifactScriptTest, MissingExpressionReportsItsSourceLocation) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(
