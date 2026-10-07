@@ -468,6 +468,65 @@ TEST(ArtifactScriptTest, BreakAndContinueRequireAnEnclosingLoop) {
     EXPECT_EQ(loopDepthDoesNotLeak.diagnostics.front().line, 6u);
 }
 
+TEST(ArtifactScriptTest, ForLoopWithoutConditionRunsUntilControlFlowExits) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class UnconditionalForProbe : ArtifactBehaviour
+{
+    public float result = 0.0;
+    void OnUpdate()
+    {
+        var count = 0;
+        for (;;)
+        {
+            count += 1;
+            if (count >= 3) break;
+        }
+        result = count;
+    }
+    float initializedLoop()
+    {
+        for (int index = 0;; index += 1)
+        {
+            if (index >= 3) break;
+        }
+        return index;
+    }
+    void exhaustLoopLimit()
+    {
+        for (;;) { }
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty())
+        << (definition.diagnostics.empty()
+                ? std::string()
+                : definition.diagnostics.front().message + " at " +
+                      std::to_string(definition.diagnostics.front().line) + ":" +
+                      std::to_string(definition.diagnostics.front().column));
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    ASSERT_TRUE(std::holds_alternative<double>(instance.fields().at("result")));
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 3.0);
+
+    ArtifactScriptEvaluator evaluator;
+    ArtifactScriptSerializedFields fields;
+    const auto initializedResult = evaluator.executeMethod(
+        instance.definition(), "initializedLoop", {}, fields);
+    ASSERT_TRUE(std::holds_alternative<double>(initializedResult))
+        << evaluator.getLastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(initializedResult), 3.0);
+
+    ArtifactScriptEvaluator limitedEvaluator;
+    const auto limitedResult = limitedEvaluator.executeMethod(
+        instance.definition(), "exhaustLoopLimit", {}, fields);
+    EXPECT_TRUE(std::holds_alternative<std::monostate>(limitedResult));
+    EXPECT_NE(limitedEvaluator.getLastError().find("loop limit"),
+              std::string::npos);
+}
+
 TEST(ArtifactScriptTest, ComponentStoresPublicOverrides) {
     ArtifactScriptComponent component;
     component.setScriptClass("Spin");

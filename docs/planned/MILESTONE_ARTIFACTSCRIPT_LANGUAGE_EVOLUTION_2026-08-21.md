@@ -7,6 +7,7 @@
 
 ## 進捗 2026-10-07
 
+- `for` 条件省略時の意味を修正。`for (;;)` は以前 parse できても evaluator が null condition を false とみなし、loop 本体を一度も実行しなかった。省略 condition を true として評価し、`break` での終了、initializer/increment 付き、10,000 iteration limit を統合テストで確認。synthetic condition value の確保はなく、速度差は未計測。ArtifactScript関連5 CTest suitesは5/5 passed。
 - `break` / `continue` を loop 外で使った場合に parser error とし、loop depth が終了後に漏れないよう本文解析だけを scope guard で囲む。これにより runtime の break/continue state flag が後続 loop へ残る入力を実行前に拒否する。loop 内の既存構文と nested control flow は維持し、評価器の実行経路・AST allocation は増やさない。loop 外使用と loop-depth 復帰を診断テストで確認。ArtifactScript関連5 CTest suitesは5/5 passed。
 - `while` / `for` / `foreach` の本体で `return` した後もループが継続し、後続 iteration が戻り値を上書きする不具合を修正。`do ... while` と同じく、本文後に return 状態を確認して loop を抜ける。各 loop が最初の iteration の値で直ちに戻ることを統合テストで確認。追加分岐の速度影響は未計測。ArtifactScript関連5 CTest suitesは5/5 passed。
 - `do ... while` を追加。AST は既存 while 条件／本体の slot を再利用し、追加の子ポインタや配列確保を発生させない。本文を先に実行してから条件を評価し、`continue` は条件判定へ、`break` はループ外へ進み、本文内 `return` は直ちに抜ける。false 条件での初回実行、continue/break、return、末尾 `;` 欠落診断をテスト。実行時間の比較は未計測。ArtifactScript関連5 CTest suitesは5/5 passed。
