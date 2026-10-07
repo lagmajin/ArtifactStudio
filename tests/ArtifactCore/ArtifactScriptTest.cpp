@@ -543,7 +543,11 @@ class StringScalarConcatenation : ArtifactBehaviour
 {
     public int count = 12;
     public string label = "";
-    void build() { label = "count=" + count + ", enabled=" + true; }
+    void build()
+    {
+        label = "count=" + count + ", enabled=" + true;
+        label += 2.5;
+    }
 }
 )");
     ASSERT_TRUE(definition.diagnostics.empty());
@@ -555,7 +559,35 @@ class StringScalarConcatenation : ArtifactBehaviour
     ASSERT_TRUE(std::holds_alternative<std::monostate>(result));
     EXPECT_FALSE(evaluator.hasError()) << evaluator.getLastError();
     EXPECT_EQ(std::get<std::string>(fields.at("label")),
-              "count=12, enabled=true");
+              "count=12, enabled=true2.5");
+}
+
+TEST(ArtifactScriptTest, StringCompoundAssignmentAppendsScalarValues) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class StringScalarCompoundAssignment : ArtifactBehaviour
+{
+    public string label = "start";
+    void appendValues()
+    {
+        label += "-text";
+        label += 12;
+        label += false;
+        label += 0.5;
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptSerializedFields fields;
+    fields["label"] = std::string("start");
+    ArtifactScriptEvaluator evaluator;
+    const auto result = evaluator.executeMethod(
+        definition, "appendValues", {}, fields);
+    ASSERT_TRUE(std::holds_alternative<std::monostate>(result));
+    EXPECT_FALSE(evaluator.hasError()) << evaluator.getLastError();
+    EXPECT_EQ(std::get<std::string>(fields.at("label")),
+              "start-text12false0.5");
 }
 
 TEST(ArtifactScriptTest, CompoundAssignmentAndIncrement) {

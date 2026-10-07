@@ -4649,6 +4649,15 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認結果:** string addition変更後もArtifactScript関連5 CTest suitesは **5/5 passed**。他のallocation fixture期待値への変動はなかった。Release測定と短いstring workloadは未確認。
 - **次に確認すべきこと:** Release測定でCPU時間とallocation削減の関係を確認し、短いstring workloadでreserveが過剰にならないか測る。
 
+## 2026-10-07 — Append scalar values directly for ArtifactScript string +=
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `execStmt()` 内 `appendStringCompound` と、ArtifactScriptのcompound assignment tests。
+- **確認できた事実:** `string += integer/bool/double` は通常の `evalBinary(Add)` を経由し、左文字列と結合結果を作ってからtargetを置換していた。targetがstringである場合、右辺は `evalBinary` と同じ文字列表現へその場でappendできる。
+- **実装・計測:** `+=` のstring targetはstring、bool、int64、doubleをtargetへ直接appendするようにした。非文字列同士や他operatorは従来pathを維持。128文字stringへint64 `7` を足すMSVC Debug fixtureは6 allocations / 352 bytesから3 / 176 per hookへ減少した。
+- **価値または懸念:** 文字列とscalarのcompound appendで結合結果用stringを省く。double conversionは従来同様 `ostringstream` を使うためconversion自身の確保は残る。計測はMSVC DebugのみでCPU時間・Releaseは未測定。
+- **確認結果:** field targetでstring・int・bool・doubleの組み合わせを確認し、ArtifactScript関連5 CTest suitesは **5/5 passed**。既存allocation assertionsに予期しない変化はなかった。
+- **次に確認すべきこと:** Release profilingでCPU時間とallocation削減の関係を確認する。
+
 ## 2026-10-07 — Reserving wide ArtifactScript object field maps traded speed for bytes
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptExpr::Kind::New`で行う継承field登録、24-default-field object construction fixture。
