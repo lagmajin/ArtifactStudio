@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <cstdint>
+#include <span>
 #include <string>
 #include <variant>
 
@@ -28,6 +30,28 @@ TEST(ArtifactScriptHostMethodTest, DispatchesRegisteredMethod) {
     ASSERT_TRUE(std::holds_alternative<ArtifactScriptRef>(result));
     EXPECT_EQ(std::get<ArtifactScriptRef>(result).id, "layer:Shape");
     EXPECT_FALSE(host.callMethod("Composition", "missing", self, {}, result));
+}
+
+TEST(ArtifactScriptHostMethodTest, KeepsClassAndMethodNamesAsDistinctKeyParts) {
+    ArtifactScriptHost host;
+    host.registerMethod("A.B", "C",
+        [](const ArtifactScriptValue&, std::span<const ArtifactScriptValue>) {
+            return ArtifactScriptValue(std::int64_t{1});
+        });
+    host.registerMethod("A", "B.C",
+        [](const ArtifactScriptValue&, std::span<const ArtifactScriptValue>) {
+            return ArtifactScriptValue(std::int64_t{2});
+        });
+
+    EXPECT_TRUE(host.hasMethod("A.B", "C"));
+    EXPECT_TRUE(host.hasMethod("A", "B.C"));
+    ArtifactScriptValue result;
+    EXPECT_TRUE(host.callMethod("A.B", "C", {}, {}, result));
+    ASSERT_TRUE(std::holds_alternative<std::int64_t>(result));
+    EXPECT_EQ(std::get<std::int64_t>(result), 1);
+    EXPECT_TRUE(host.callMethod("A", "B.C", {}, {}, result));
+    ASSERT_TRUE(std::holds_alternative<std::int64_t>(result));
+    EXPECT_EQ(std::get<std::int64_t>(result), 2);
 }
 
 TEST(ArtifactScriptHostMethodTest, ScriptEntryPointCallsHostMethod) {

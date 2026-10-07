@@ -808,10 +808,10 @@ class Counter : ArtifactBehaviour
         EXPECT_DOUBLE_EQ(rate.second, 0.0);
     };
     expectNoSteadyStateAllocations(noOpAllocationRate);
-    EXPECT_LT(hostFunctionAllocationRate.second,
-              static_cast<double>(sizeof(ArtifactScriptValue) * 5));
-    EXPECT_LT(hostMethodAllocationRate.second,
-              static_cast<double>(sizeof(ArtifactScriptValue) * 5));
+    EXPECT_LT(hostFunctionAllocationRate.first, 2.0);
+    EXPECT_LT(hostFunctionAllocationRate.second, 32.0);
+    EXPECT_LT(hostMethodAllocationRate.first, 6.0);
+    EXPECT_LT(hostMethodAllocationRate.second, 112.0);
     expectNoSteadyStateAllocations(simpleAllocationRate);
     expectNoSteadyStateAllocations(methodAllocationRate);
     expectNoSteadyStateAllocations(foreachAllocationRate);

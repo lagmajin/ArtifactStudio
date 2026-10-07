@@ -1,11 +1,11 @@
 **最終更新:** 2026-10-07
 
-## 2026-10-07 — Host method dispatch に残る文字列キー生成
+## 2026-10-07 — Host dispatch の残存allocation切り分け
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptHost::callMethodView` と evaluator の Host method dispatch。
-- **確認できた事実:** 5引数のwarm-up済みMSVC Debug hookでHost functionは2 allocation / 32 bytes、Host methodは6 allocation / 112 bytesを計測した。引数vector materializationを除いた後も確保が残っており、現在のmethod registry lookupは `className + "." + methodName` を作る。
-- **価値または懸念（未検証）:** `ObjectRef` method keyの合成文字列はlookupごとの確保候補であり、Host method pathの余分な確保へ寄与している可能性がある。残りすべてのallocationとの対応関係はまだ測定できていない。
-- **次に確認すべきこと:** registry key lookupとclass label生成を個別に計測し、透明lookupまたはcall-site cacheで削減できるかを調べる。公開Host API互換性と定義更新後のcache invalidationも確認する。
+- **確認できた事実:** method registryから `className + "." + methodName` の検索用文字列をなくし、Host functionの重複lookupも1回へまとめた。5引数のwarm-up済みMSVC Debug hookはHost function 2 allocation / 32 bytesから1 / 16 bytes、Host method 6 / 112 bytesから3 / 48 bytesへ減った。Host APIの既存vector overloadとHost method contract suiteは維持されている。
+- **価値または懸念（未検証）:** Host functionに1、Host methodに3 allocation / hookが残る。どの処理に対応するかは未特定であり、単一のDebug fixture以外で同様の差が出るかも未検証。
+- **次に確認すべきこと:** allocation callsiteを特定し、通常のComposition API callbackや長いclass/method名でも計測する。definitionまたはHost registry更新を伴うcacheを導入する場合は、登録置換後のinvalidate契約も確認する。
 
 ## 2026-10-05 — 効果の「②型（登録済みで無言の素通し）」機械検査を完了、144/145 が健全
 
