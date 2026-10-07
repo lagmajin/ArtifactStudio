@@ -292,3 +292,47 @@ class Second : ArtifactBehaviour
     EXPECT_EQ(definition.classes[0].name, "First");
     EXPECT_EQ(definition.classes[1].name, "Second");
 }
+
+TEST(ArtifactScriptObjectTest, MutableDefinitionDisablesPersistentClassLookupCache) {
+    auto definition = parseOk(R"(
+class Use : ArtifactBehaviour
+{
+    public ObjectRef target;
+    void OnUpdate() { target = new First(); }
+}
+class First : ArtifactBehaviour
+{
+    public float value = 1.0;
+}
+class Second : ArtifactBehaviour
+{
+    public float value = 2.0;
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    ASSERT_TRUE(std::holds_alternative<ArtifactScriptObjectInstancePtr>(
+        instance.fields().at("target")));
+    EXPECT_EQ(std::get<ArtifactScriptObjectInstancePtr>(
+        instance.fields().at("target"))->className, "First");
+
+    auto& mutableDefinition = instance.definition();
+    auto& expression = mutableDefinition.rootClass.methods[0]
+                           .body->statements[0]->assignValue;
+    ASSERT_TRUE(expression);
+    ASSERT_EQ(expression->kind, ArtifactScriptExpr::Kind::New);
+    expression->newClassName = "Second";
+
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    ASSERT_TRUE(std::holds_alternative<ArtifactScriptObjectInstancePtr>(
+        instance.fields().at("target")));
+    EXPECT_EQ(std::get<ArtifactScriptObjectInstancePtr>(
+        instance.fields().at("target"))->className, "Second");
+
+    mutableDefinition.rootClass.methods[0].body.reset();
+    EXPECT_FALSE(instance.invokeHook(ArtifactScriptHook::OnUpdate));
+}

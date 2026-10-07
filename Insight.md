@@ -4482,3 +4482,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** 16枠を採用し、8枠は戻した。追加stack領域は4 binding per active method frame、最大call depth 64でbounded。大きいlocals集合は既存のworkspace-backed overflow経路を維持する。
 - **価値または懸念:** 12〜20 localsを使うhookのDebug評価が少し短くなった。差は数%の範囲であり、Release測定はない。
 - **次に確認すべきこと:** 実scriptのlocals分布が16枠を支持するかを計測し、Release buildで再確認する。
+
+## 2026-10-07 — Reuse ArtifactScript lifecycle lookup for immutable definitions
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptInstance::findLifecycleHookInDefinition()` / `invokeHook()` とevaluator class lookup、`ArtifactCore/include/Script/ArtifactScript/ArtifactScript.ixx` の`ArtifactScriptInstance::definition()` mutable accessor。
+- **仮説:** class indexを毎hookで再構築し、継承hook methodを毎フレーム再探索するのは、定義を保持する`ArtifactScriptInstance`の通常実行では不要なコールドデータ処理である。
+- **実装:** evaluator内で固定128-slot class indexをdefinition単位で再利用し、lifecycle hook種別ごとの固定6-entry cacheへ解決methodを保持する。`ArtifactScriptInstance::definition()` のmutable overloadは参照を返す前に両cacheをdisable/clearする。取得したmutable referenceが呼び出し元に保持されてもstale cacheを使わないよう、そのinstanceでは以降の再利用を行わない。一般`ArtifactScriptEvaluator::executeMethod()`はcaller definitionが変更可能なため既存どおりexecutionごとにindexを再構築する。
+- **確認できた事実:** MSVC Debugで30-class inherited hookはclass-index-only 6.35 / 7.11からpersistent cache 1.56 / 1.59 µs/hook（約75%短縮）。31-class root hookは1.98 / 2.09から1.55 / 1.58（約21〜25%短縮）。root hookの探索は早期終了し、通常の1-class hookには固定index構築がない。mutable accessor後に`new First()`を`new Second()`へ変更し、さらにcached hook bodyをremoveする回帰テストとArtifactScript関連5 suitesがpassした。
+- **価値または懸念:** 深い継承hookのper-frame lookupとclass index再構築がなくなる。不変定義ならhook cacheは固定6 entry、indexは固定128 slot。mutable accessorを一度でも使うと安全のためcache reuseはinstance寿命中無効になり、深い継承では以前の再構築コストへ戻る。MSVC Debugのみの測定。
+- **次に確認すべきこと:** 実際のscript authoring flowがmutable definition accessorをhook実行前後に利用する頻度を調べる。将来dirty tracking APIへ移行できるなら、無制限にescapeするmutable referenceより明示的なmutation boundaryを設けられるか検討する。
