@@ -4640,6 +4640,15 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認結果:** localの再代入・array item・fieldで値とsource保持を検証し、ArtifactScript関連5 CTest suitesは **5/5 passed**。最適化がlocal declaration、method return、string `+=` のfixtureにも影響し、既存期待値はlocal declaration 8→6 allocations / 512→352 bytes、method returns 17→13 / 912→592、string `+=` 7→5 / 752→592 per hookへ更新した。
 - **次に確認すべきこと:** Release計測を後日行い、文字列以外の大きな所有値でも同じく無駄なcopyを避けられるか確認する。
 
+## 2026-10-07 — Build ArtifactScript string addition directly into its result
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の Binary expression path と `ArtifactScriptEvaluator::Impl::evalBinary()`、`tests/ArtifactCore/ArtifactScriptTest.cpp` / `tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。
+- **確認できた事実:** `source + suffix` はvariable評価でstring値をcopyした後、`evalBinary()` の `toString()` でも両文字列をcopyし、さらに `operator+` が結合結果を作っていた。単純なVariable / Literalのstring operandは読み取り専用lookupで直接参照でき、式副作用はない。
+- **実装・計測:** simple string operandsは必要な連結長をreserveした結果stringへ直接appendし、complex/mixed operandsのfallbackも各operandを一時 `std::string` 化せず結果bufferへappendする。128+128文字MSVC Debug fixtureは11 allocations / 944 bytesから3 / 304 per hookへ削減（8 allocations / 640 bytes少ない）。integerとboolのstring conversion、および既存の連結・比較fixtureを確認した。
+- **価値または懸念:** 長いstring同士の通常 `+` でoperand copyと中間連結stringを省く。allocation削減は大きいがDebug計測のみで、CPU時間・Release性能は未測定。double変換は従来と同じ `ostringstream` 表現を維持する。
+- **確認結果:** string addition変更後もArtifactScript関連5 CTest suitesは **5/5 passed**。他のallocation fixture期待値への変動はなかった。Release測定と短いstring workloadは未確認。
+- **次に確認すべきこと:** Release測定でCPU時間とallocation削減の関係を確認し、短いstring workloadでreserveが過剰にならないか測る。
+
 ## 2026-10-07 — Reserving wide ArtifactScript object field maps traded speed for bytes
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptExpr::Kind::New`で行う継承field登録、24-default-field object construction fixture。

@@ -1589,6 +1589,56 @@ class ScriptStringAssignmentProbe : ArtifactBehaviour
               << allocations.second / allocationIterations << " bytes/hook\n";
 }
 
+TEST(LayerScriptComponentContractTest,
+     ScriptStringAdditionReportsAllocations) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ScriptStringAdditionProbe : ArtifactBehaviour
+{
+    public string source = "seed";
+    public string suffix = "tail";
+    public string observed = "";
+    void OnUpdate() { observed = source + suffix; }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    instance.fields()["source"] = std::string(128, 'a');
+    instance.fields()["suffix"] = std::string(128, 'b');
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << instance.lastError();
+    }
+
+    ScriptAllocationCounter counter;
+    constexpr std::size_t allocationIterations = 1000;
+    bool succeeded = true;
+    for (std::size_t i = 0; i < allocationIterations; ++i) {
+        if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+            succeeded = false;
+            break;
+        }
+    }
+    const auto allocations = counter.stop();
+    EXPECT_TRUE(succeeded) << instance.lastError();
+    EXPECT_EQ(allocations.first, allocationIterations * 3)
+        << "allocations/hook=" << allocations.first / allocationIterations;
+    EXPECT_EQ(allocations.second, allocationIterations * 304)
+        << "bytes/hook=" << allocations.second / allocationIterations;
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("source")),
+              std::string(128, 'a'));
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("suffix")),
+              std::string(128, 'b'));
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("observed")),
+              std::string(128, 'a') + std::string(128, 'b'));
+    std::cout << "ArtifactScript long-string +: "
+              << allocations.first / allocationIterations << " allocations/hook, "
+              << allocations.second / allocationIterations << " bytes/hook\n";
+}
+
 TEST(LayerScriptComponentContractTest, ScriptMethodCallAvoidsSteadyStateAllocations) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(

@@ -536,6 +536,28 @@ class Greet : ArtifactBehaviour
               "hello world! yes ne lt gt le ge");
 }
 
+TEST(ArtifactScriptTest, StringConcatenationPreservesScalarConversions) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class StringScalarConcatenation : ArtifactBehaviour
+{
+    public int count = 12;
+    public string label = "";
+    void build() { label = "count=" + count + ", enabled=" + true; }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptSerializedFields fields;
+    fields["count"] = std::int64_t{12};
+    ArtifactScriptEvaluator evaluator;
+    const auto result = evaluator.executeMethod(definition, "build", {}, fields);
+    ASSERT_TRUE(std::holds_alternative<std::monostate>(result));
+    EXPECT_FALSE(evaluator.hasError()) << evaluator.getLastError();
+    EXPECT_EQ(std::get<std::string>(fields.at("label")),
+              "count=12, enabled=true");
+}
+
 TEST(ArtifactScriptTest, CompoundAssignmentAndIncrement) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(
