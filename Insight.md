@@ -4935,3 +4935,9 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認結果:** ArtifactScriptTest **85/85**、LayerScriptComponentContractTest **42/42**。134-byte fixture内でcontainsとindexOfを各1回/hook呼ぶMSVC Debug比較はdirect-reference / forced-copyで9 / 39 allocations/hook、144 / 1,392 bytes/hook、CPU中央値15.99 / 32.68 µs/hook（3,000 hooks×3回）。
 - **価値または懸念:** 固定Debug fixtureではcopy用のallocationが減り、割当を約77%、bytesを約90%、CPU中央値を約51%削減した。Releaseおよび実script全般への一般化は未検証。Unicode code pointではなくUTF-8 byte offsetを返す。
 - **次に確認すべきこと:** Releaseまたは代表的なlayer scriptでallocationとCPUを分けて計測し、byte offset契約が利用側のpath/text用途に合うか確認する。
+
+## 2026-10-07 — ArtifactScript JIT は interpreter の実測後に判断する
+
+- **関連:** `docs/planned/MILESTONE_ARTIFACTSCRIPT_LANGUAGE_EVOLUTION_2026-08-21.md` の対象外項目、`ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のAST tree-walk evaluator、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の固定Debug microbenchmarks。
+- **確認できた事実:** 現行実行器はASTを再帰評価し、言語Evolution計画はbytecode VM / JIT置換を速度不足の実測後まで保留している。今回の文字列検索4種fixtureでは参照経路のほうがコピー経路より割当とCPU中央値が低かったが、JIT導入可否を示す比較ではない。
+- **価値または懸念（未検証）:** JITは実装コストだけでなく、module/ABI境界・ホットリロード・診断位置・デバッグ実行の維持が必要になる。まずReleaseまたは代表的なLayerScriptでCPU、割当、AST node別の実行頻度を計測し、時間の大半を占める経路を特定する。必要性が確認された場合も、既存AST evaluatorを残したbytecode実験経路からA/B比較する方が退行を見分けやすい可能性がある。

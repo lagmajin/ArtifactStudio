@@ -1481,6 +1481,67 @@ class StringIndexOf : ArtifactBehaviour
                   instance.fields().at("choosesFirstOverlappingMatch")), 0);
 }
 
+TEST(ArtifactScriptTest, StringPrefixSuffixMatchLiteralUtf8ByteSequences) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class StringPrefixSuffix : ArtifactBehaviour
+{
+    public bool findsPrefix;
+    public bool findsSuffix;
+    public bool rejectsWrongPrefix;
+    public bool rejectsWrongSuffix;
+    public bool acceptsEmptyPrefix;
+    public bool acceptsEmptySuffix;
+    public bool findsUnicodePrefix;
+    public bool findsUnicodeSuffix;
+    void OnUpdate()
+    {
+        findsPrefix = startsWith("ArtifactScript", "Artifact");
+        findsSuffix = endsWith("ArtifactScript", "Script");
+        rejectsWrongPrefix = startsWith("ArtifactScript", "script");
+        rejectsWrongSuffix = endsWith("ArtifactScript", "artifact");
+        acceptsEmptyPrefix = startsWith("value", "");
+        acceptsEmptySuffix = endsWith("value", "");
+        findsUnicodePrefix = startsWith("猫と犬", "猫");
+        findsUnicodeSuffix = endsWith("猫と犬", "犬");
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("findsPrefix")));
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("findsSuffix")));
+    EXPECT_FALSE(std::get<bool>(instance.fields().at("rejectsWrongPrefix")));
+    EXPECT_FALSE(std::get<bool>(instance.fields().at("rejectsWrongSuffix")));
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("acceptsEmptyPrefix")));
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("acceptsEmptySuffix")));
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("findsUnicodePrefix")));
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("findsUnicodeSuffix")));
+}
+
+TEST(ArtifactScriptTest, StringPrefixSuffixRejectInvalidArguments) {
+    ArtifactScriptParser parser;
+    const auto run = [&](std::string_view expression) {
+        auto definition = parser.parse("class InvalidStringMatch : ArtifactBehaviour\n{\n"
+                                       "    void OnUpdate()\n    {\n        " +
+                                       std::string(expression) +
+                                       ";\n    }\n}\n");
+        EXPECT_TRUE(definition.diagnostics.empty());
+        ArtifactScriptInstance instance(std::move(definition));
+        EXPECT_TRUE(instance.hasHook(ArtifactScriptHook::OnUpdate));
+        EXPECT_FALSE(instance.invokeHook(ArtifactScriptHook::OnUpdate));
+        return instance.lastError();
+    };
+
+    EXPECT_NE(run("startsWith(1, \"x\")").find("startsWith expects"),
+              std::string::npos);
+    EXPECT_NE(run("endsWith(\"value\")").find("endsWith expects"),
+              std::string::npos);
+}
+
 TEST(ArtifactScriptTest, EvaluatorBuiltinFunctions) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(

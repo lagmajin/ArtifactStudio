@@ -271,6 +271,10 @@ TEST(LayerScriptComponentContractTest,
     public ObjectRef target;
     public bool fieldMatch;
     public bool localMatch;
+    public bool localPrefix;
+    public bool localSuffix;
+    public bool objectPrefix;
+    public bool objectSuffix;
     public int fieldIndex;
     public int localIndex;
     void OnCreate()
@@ -286,10 +290,15 @@ TEST(LayerScriptComponentContractTest,
         const std::string update =
             "\n    void OnUpdate()\n    {\n"
             "        string localQuery = \"needle\";\n"
+            "        string localPrefixQuery = \"x\";\n"
             "        fieldMatch = target.matches(query);\n"
             "        localMatch = contains(" + sourceExpression + ", localQuery);\n"
+            "        localPrefix = startsWith(" + sourceExpression + ", localPrefixQuery);\n"
+            "        localSuffix = endsWith(" + sourceExpression + ", localQuery);\n"
             "        fieldIndex = target.find(query);\n"
             "        localIndex = indexOf(" + sourceExpression + ", localQuery);\n"
+            "        objectPrefix = target.matchesPrefix(localPrefixQuery);\n"
+            "        objectSuffix = target.matchesSuffix(query);\n"
             "    }\n}\n";
         source += update;
         const std::string objectFieldExpression = forceStringCopy
@@ -299,6 +308,12 @@ TEST(LayerScriptComponentContractTest,
                   "    public string value;\n"
                   "    void OnConstruct(string input) { this.value = input; }\n"
                   "    bool matches(string query) { return contains(";
+        source += objectFieldExpression;
+        source += ", query); }\n"
+                  "    bool matchesPrefix(string query) { return startsWith(";
+        source += objectFieldExpression;
+        source += ", query); }\n"
+                  "    bool matchesSuffix(string query) { return endsWith(";
         source += objectFieldExpression;
         source += ", query); }\n"
                   "    int find(string query) { return indexOf(";
@@ -320,6 +335,10 @@ TEST(LayerScriptComponentContractTest,
             << instance->lastError();
         EXPECT_TRUE(std::get<bool>(instance->fields().at("fieldMatch")));
         EXPECT_TRUE(std::get<bool>(instance->fields().at("localMatch")));
+        EXPECT_TRUE(std::get<bool>(instance->fields().at("localPrefix")));
+        EXPECT_TRUE(std::get<bool>(instance->fields().at("localSuffix")));
+        EXPECT_TRUE(std::get<bool>(instance->fields().at("objectPrefix")));
+        EXPECT_TRUE(std::get<bool>(instance->fields().at("objectSuffix")));
         EXPECT_EQ(std::get<std::int64_t>(instance->fields().at("fieldIndex")),
                   128);
         EXPECT_EQ(std::get<std::int64_t>(instance->fields().at("localIndex")),
