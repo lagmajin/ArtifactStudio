@@ -4603,3 +4603,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実:** MSVC Debugの128文字stringを配列へpushするwarm hook計測で、従来copyは5 allocations / 336 bytes per hook、move後は4 allocations / 192 bytes per hookとなり、hookあたり1 allocation / 144 bytesを削減した。ArtifactScript関連5 suitesは5/5 passed。
 - **価値または懸念:** 評価済み引数のコピーを避け、配列の意味・source fieldの値は維持する。allocation測定とテストはMSVC Debugのみで、Release計測はない。
 - **次に確認すべきこと:** 実scriptのpush/pop頻度と格納値の型を測り、長いstring以外でも実 workload に効果があるか、Release構成が利用可能になった際に再確認する。
+
+## 2026-10-07 — Move evaluated ArtifactScript declaration values into locals
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptStmt::Kind::Decl` と、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の長いstring local declaration allocation probe。
+- **仮説:** 宣言初期値は`evalExpr()`で既に値になっているが、`locals[name] = init`がもう一度`ArtifactScriptValue`をcopyする。ローカルbindingへ所有権をmoveすれば、文字列の再割当を避けられる。
+- **実装:** 初期化式または既定Arrayがある宣言は`init`をlocal bindingへmoveし、初期化なしの宣言は既定値を設定する。
+- **確認できた事実:** MSVC Debugで128文字のfield値をlocalへ読み、別fieldへ書く1000-hook計測は旧実装10 allocations / 672 bytes per hook、新実装8 / 512。hookあたり2 allocations / 160 bytes減り、sourceと観測fieldの文字列一致も確認した。ArtifactScript関連5 suitesはCTest **5/5 passed**。測定はMSVC Debug。
+- **価値または懸念:** string・arrayなど所有値を含む宣言で不要なvariant copyを省く。Release実行時間および他型の実workloadは未測定。
+- **次に確認すべきこと:** ローカル宣言の実script分布とRelease時のCPU時間を測り、Debug allocation減少が通常workloadでも有益か確認する。
