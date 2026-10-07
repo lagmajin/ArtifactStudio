@@ -19,7 +19,8 @@
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptCallArguments`、`callUserMethod()`、`callInstanceMethod()`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の長いstring引数allocation tests。
 - **確認できた事実・変更:** evaluatorが所有する評価済みcall argumentはscript methodへ渡した後に呼び出し側で再利用されない。直接methodとobject methodのparameter slotへmoveし、host function / host methodへ渡すconst argument pathは維持した。MSVC Debug CRT allocation hookでは128文字stringの両fixtureで6から4 allocations/hookへ減少。直接method fixtureは352から192 bytes/hook。warm-up後1,000回の計測で、元source fieldの長さ128も維持された。
-- **限界・次に確認すること:** wall timeの差は未計測。ArtifactScript関連5 CTest suiteは変更後に全件成功。constructor引数、複数string引数、長期のRelease workloadでcopy数・実時間を分けて確認する。
+- **暫定時間比較:** 直接method fixtureを3×10,000 hookで測り、非move版4.906 µs/hook、move版4.442 µs/hook（約9.5%短縮）だった。ただし各variant 1 runのみで測定揺れを含むため、allocation削減ほど確かな結果ではない。
+- **限界・次に確認すること:** ArtifactScript関連5 CTest suiteは変更後に全件成功。constructor引数、複数string引数、複数runとRelease workloadでcopy数・実時間を分けて確認する。
 
 ## 2026-10-07 — Host dispatch の残存allocation切り分け
 

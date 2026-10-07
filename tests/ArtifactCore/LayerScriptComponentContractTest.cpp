@@ -1356,6 +1356,22 @@ class ScriptDirectStringArgumentProbe : ArtifactBehaviour
             << instance.lastError();
     }
 
+    constexpr int timingRepetitions = 3;
+    constexpr int timingIterations = 10000;
+    double totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < timingRepetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < timingIterations; ++i) {
+            ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+                << instance.lastError();
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript direct method long-string arguments: "
+              << totalMicroseconds / (timingRepetitions * timingIterations)
+              << " us/hook\n";
+
     ScriptAllocationCounter counter;
     constexpr std::size_t allocationIterations = 1000;
     bool succeeded = true;
