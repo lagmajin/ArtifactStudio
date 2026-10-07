@@ -1013,6 +1013,43 @@ class BenchmarkDeepClassLookup : ArtifactBehaviour
               << " us/hook (" << iterations * repetitions << " calls)\n";
     EXPECT_DOUBLE_EQ(std::get<double>(deepClassLookupInstance.fields().at("total")),
                      (warmupIterations + repetitions * iterations) * 1.0);
+
+    std::string inheritedHookSource = R"(
+class BenchmarkInheritedHook : Level29
+{
+    public float total = 0.0;
+}
+)";
+    for (int i = 0; i < 30; ++i) {
+        inheritedHookSource += "class Level" + std::to_string(i) + " : ";
+        inheritedHookSource += i == 0 ? "ArtifactBehaviour" :
+            "Level" + std::to_string(i - 1);
+        inheritedHookSource += "\n{\n";
+        if (i == 0) inheritedHookSource += "    void OnUpdate() { total += 1.0; }\n";
+        inheritedHookSource += "}\n";
+    }
+    auto inheritedHookDefinition = parser.parse(inheritedHookSource);
+    ASSERT_TRUE(inheritedHookDefinition.diagnostics.empty());
+    ArtifactScriptInstance inheritedHookInstance(std::move(inheritedHookDefinition));
+    constexpr int inheritedHookWarmup = 20;
+    constexpr int inheritedHookIterations = 3000;
+    for (int i = 0; i < inheritedHookWarmup; ++i) {
+        ASSERT_TRUE(inheritedHookInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << inheritedHookInstance.lastError();
+    }
+    const auto inheritedHookStart = std::chrono::steady_clock::now();
+    for (int i = 0; i < inheritedHookIterations; ++i) {
+        ASSERT_TRUE(inheritedHookInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << inheritedHookInstance.lastError();
+    }
+    const auto inheritedHookMicroseconds = std::chrono::duration<double, std::micro>(
+        std::chrono::steady_clock::now() - inheritedHookStart).count() /
+        inheritedHookIterations;
+    std::cout << "ArtifactScript inherited hook lookup (30 classes) benchmark: "
+              << inheritedHookMicroseconds << " us/hook ("
+              << inheritedHookIterations << " calls)\n";
+    EXPECT_DOUBLE_EQ(std::get<double>(inheritedHookInstance.fields().at("total")),
+                     inheritedHookWarmup + inheritedHookIterations);
 #endif
 }
 

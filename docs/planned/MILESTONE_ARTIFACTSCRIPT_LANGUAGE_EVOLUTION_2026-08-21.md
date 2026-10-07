@@ -16,6 +16,8 @@
 - 4-class交互caseも追加し、3-way（106.33 / 102.31）と4-way（100.05 / 102.10 µs/hook）を比較した。4-wayは4-classで約3.1%短い一方、3-class caseでは4-wayの平均が3-wayより約6.1%遅かったため、Debug計測の範囲ではcache容量・hit比較数との総合的な利点が確認できず、3-wayを維持した。
 - script objectのhost-method fallbackで `instance->className` を毎hook copyする経路を参照渡しへ変更。long-name host objectのDebug allocation testでは変更前3 allocations / 64 bytes、変更後1 / 16 per hookとなり、残る1 allocationも上限としてassertする。ArtifactScript関連5 targetsは変更後もCTest 5/5 passed。
 - MSVC DebugでArtifactScript関連5 test targetsをビルドし、CTest **5/5 passed**（`ArtifactCoreArtifactScriptTest`、`ArtifactCoreLayerScriptComponentTest`、`ArtifactCoreArtifactScriptObjectTest`、`ArtifactCoreArtifactScriptHostMethodTest`、`ArtifactCoreArtifactScriptHostApiTest`）。call-site cache変更後も同一call-siteでのruntime class切替を含めて通過した。
+- `ArtifactScriptInstance::findLifecycleHookInDefinition()` に、クラス数9〜64の定義だけで使う固定128-slot class indexを追加。毎hook invocationで行う継承チェーンのクラス検索を平均定数時間にし、8クラス以下は従来の線形検索、65クラス以上もbounded fallbackの線形検索を維持する。definitionは呼び出しごとに再索引するため、mutable definition APIの変更も反映される。
+- 30クラス継承チェーンでbase classの`OnUpdate`を探索するMSVC Debug benchmarkを追加。linear lookup 27.91 µs/hookに対しindex後6.53 / 7.11 µs/hook（約75%短縮）。通常の単純hookは1.80 / 1.82 µs/hook。ArtifactScript関連5 suitesは変更後もCTest **5/5 passed**。
 - このテストは ArtifactCore のスクリプトランタイムを対象とし、Artifact サブモジュールの `ArtifactAbstractLayer` にあるレイヤーコンポーネント連携や UI / プロジェクト読込を通した統合動作は対象外。統合受入確認は未完了。
 
 ## 目的

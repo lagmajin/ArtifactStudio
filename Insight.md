@@ -4447,3 +4447,20 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実:** MSVC Debugで30-class chain object constructionはindex前62.03 µs/hook、index後14.95 µs/hook（約75.9%短縮、各60,000 calls）。定義の同一ASTをFirstからSecondへ書き換えて再実行するテスト、およびArtifactScript関連5 suitesがすべてpassした。
 - **価値または懸念:** 固定table領域は約2 KiB/evaluator。効果はクラス検索を多数行う大きなdefinitionに偏り、65クラス以上では従来性能のまま。測定はMSVC DebugのみでRelease値ではない。
 - **次に確認すべきこと:** 実際の大規模scriptでclass count分布を調べ、64-class cutoffが現実的か確認する。Release profileはRelease build configurationを用意した時点で再測定する。
+
+## 2026-10-07 — ArtifactScript instance field transaction wrapper trial
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptEvaluator::Impl::callInstanceMethod()` と`ArtifactScriptFields`、`tests/ArtifactCore/ArtifactScriptObjectTest.cpp` の`FailedMethodRollsBackInstanceFieldWrites`。
+- **仮説:** instance methodごとにfield wrapperを二段構成するため、root mapとtransaction overlayを一つのwrapperで扱えばstack stateを減らせる。
+- **確認できた事実:** root mapへ直接書く単純化では、メソッド内エラー時にinstance field変更をrollbackする契約を維持できず、`FailedMethodRollsBackInstanceFieldWrites` が失敗した。rollbackを維持するtransactional-root variantも試したが、MSVC Debugの全体時間はrun間で揺れ、5-field object methodはbaseline 126.23 µs/hookに対して157.56 / 165.30 µs/hookだった。同時にobject constructionや30-class chainも遅いrunとなり、全体負荷の差を切り分けられず、性能向上を立証できなかった。
+- **対応:** 両variantを採用せず、既存の二段wrapperとrollback動作を維持した。rollbackを外す最適化は意味を変えるため不採用とする。
+- **次に確認すべきこと:** field transactionのallocation/CPU costを分離測定できる専用benchmarkを作り、構造を変更する場合は失敗時rollbackと成功時commitを別々に測る。
+
+## 2026-10-07 — ArtifactScript lifecycle hook lookup in deep class hierarchies
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptInstance::findLifecycleHookInDefinition()` と、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の30-class inherited-hook benchmark。
+- **仮説:** evaluator内のclass indexは`new`やmethod dispatchを速くするが、各`invokeHook()`前に走るlifecycle method探索は引き続き各継承段で全class listを線形走査している。深い継承では約O(depth × class count)の探索が重複する。
+- **実装:** lifecycle hook探索時、class数9〜64の範囲だけ固定128-slot indexをスタック上のoptional storageへ構築し、root優先・duplicate first-matchを保って検索する。8以下はindex構築を避けた線形lookup、65以上も無制限なtable拡張をせず従来線形lookupへfallbackする。各hook呼び出しでindexを構築するため、mutable definition APIで変更されたclass名・継承関係も次の呼び出しで反映される。
+- **確認できた事実:** 30クラス鎖からbase `OnUpdate`を探すMSVC Debug benchmarkは線形時27.91、index後6.53 / 7.11 µs/hook（約75%短縮）。単純hookは1.80対1.82 µs/hookでほぼ同じ。関連5 suitesは5/5 passed。stack領域はtable約1 KiBで、9〜64 classの場合のみtableを初期化する。
+- **価値または懸念:** 深い継承スクリプトの毎hook lookupが短くなった。65 class以上では引き続き線形であり、Release性能は未検証。
+- **次に確認すべきこと:** 実際のscriptで継承深度分布を確認し、64-class cutoffを維持するか判断する。MSVC Release構成が利用可能になった時点で再計測する。
