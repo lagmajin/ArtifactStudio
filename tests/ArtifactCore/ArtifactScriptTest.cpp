@@ -49,6 +49,23 @@ class Broken : ArtifactBehaviour
     EXPECT_NE(definition.diagnostics.front().message.find(
                   "unsupported or invalid syntax in method body"),
               std::string::npos);
+
+    const auto nestedDefinition = parser.parse(R"(
+class NestedBroken : ArtifactBehaviour
+{
+    void OnUpdate()
+    {
+        if (true) {
+            float value = 1.0;
+            value ^ 2.0;
+        }
+    }
+}
+)");
+    ASSERT_FALSE(nestedDefinition.diagnostics.empty());
+    EXPECT_NE(nestedDefinition.diagnostics.front().message.find(
+                  "unsupported or invalid syntax in method body"),
+              std::string::npos);
 }
 
 TEST(ArtifactScriptTest, ComponentStoresPublicOverrides) {

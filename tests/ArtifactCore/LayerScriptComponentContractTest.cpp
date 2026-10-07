@@ -734,6 +734,65 @@ class Counter : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(objectMethodLookupInstance.fields().at("total")),
                      (100.0 + repetitions * iterations) * 16.0);
 
+    auto polymorphicObjectMethodDefinition = parser.parse(R"(
+class BenchmarkPolymorphicObjectMethodLookup : ArtifactBehaviour
+{
+    public float total = 0.0;
+    public ObjectRef target;
+    void OnCreate()
+    {
+        first = new Base();
+        second = new Child();
+    }
+    void OnUpdate()
+    {
+        for (int index = 0; index < 16; index += 1) {
+            if (index % 2 == 0) { target = second; }
+            else { target = first; }
+            total = total + target.who();
+        }
+    }
+}
+class Base : ArtifactBehaviour
+{
+    float who() { return 1.0; }
+}
+class Child : Base
+{
+    float who() { return 2.0; }
+}
+)");
+    ASSERT_TRUE(polymorphicObjectMethodDefinition.diagnostics.empty());
+    ArtifactScriptInstance polymorphicObjectMethodInstance(
+        std::move(polymorphicObjectMethodDefinition));
+    ASSERT_TRUE(polymorphicObjectMethodInstance.invokeHook(ArtifactScriptHook::OnCreate))
+        << polymorphicObjectMethodInstance.lastError();
+    constexpr int polymorphicRepetitions = 3;
+    constexpr int polymorphicIterations = 1000;
+    constexpr int polymorphicWarmupIterations = 100;
+    for (int i = 0; i < polymorphicWarmupIterations; ++i) {
+        ASSERT_TRUE(polymorphicObjectMethodInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << polymorphicObjectMethodInstance.lastError();
+    }
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < polymorphicRepetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < polymorphicIterations; ++i) {
+            ASSERT_TRUE(polymorphicObjectMethodInstance.invokeHook(
+                ArtifactScriptHook::OnUpdate))
+                << polymorphicObjectMethodInstance.lastError();
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript polymorphic object method (2 classes, 16 calls) benchmark: "
+              << totalMicroseconds / (polymorphicRepetitions * polymorphicIterations)
+              << " us/hook (" << polymorphicIterations * polymorphicRepetitions
+              << " calls)\n";
+    EXPECT_DOUBLE_EQ(std::get<double>(polymorphicObjectMethodInstance.fields().at("total")),
+                     (polymorphicWarmupIterations +
+                      polymorphicRepetitions * polymorphicIterations) * 24.0);
+
     auto wideObjectMethodDefinition = parser.parse(R"(
 class BenchmarkWideObjectMethod : ArtifactBehaviour
 {
