@@ -955,6 +955,26 @@ class ManyLocals : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 105.0);
 }
 
+TEST(ArtifactScriptTest, LocalsBeyondReusableOverflowCapacityUseFallback) {
+    std::string source =
+        "class FortyFiveLocals : ArtifactBehaviour {\n"
+        "public float total = 0.0;\n"
+        "void OnUpdate() {\n";
+    for (int i = 0; i < 45; ++i) {
+        source += "float value" + std::to_string(i) + " = " +
+                  std::to_string(i + 1) + ".0;\n";
+    }
+    source += "total = value0 + value44;\n}\n}";
+
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(source);
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 46.0);
+}
+
 TEST(ArtifactScriptTest, HostBindingRegistry) {
     ArtifactScriptHost& host = ArtifactScriptHost::global();
     host.registerFunction("doubleIt", [&host](std::span<const ArtifactScriptValue> args) -> ArtifactScriptValue {

@@ -614,6 +614,40 @@ class BenchmarkWideLocals : ArtifactBehaviour
               << totalMicroseconds / (repetitions * iterations)
               << " us/hook (" << iterations * repetitions << " calls)\n";
 
+    std::string overflowLocalsSource =
+        "class BenchmarkOverflowLocals : ArtifactBehaviour {\n"
+        "public float total = 0.0;\nvoid OnUpdate() {\n";
+    std::string overflowLocalsSum;
+    for (int i = 0; i < 20; ++i) {
+        const auto name = "local" + std::to_string(i);
+        overflowLocalsSource += "float " + name + " = " +
+                                std::to_string(i + 1) + ".0;\n";
+        if (i != 0) overflowLocalsSum += " + ";
+        overflowLocalsSum += name;
+    }
+    overflowLocalsSource += "total = " + overflowLocalsSum + ";\n}\n}";
+    auto overflowLocalsDefinition = parser.parse(overflowLocalsSource);
+    ASSERT_TRUE(overflowLocalsDefinition.diagnostics.empty());
+    ArtifactScriptInstance overflowLocalsInstance(std::move(overflowLocalsDefinition));
+    for (int i = 0; i < warmupIterations; ++i) {
+        ASSERT_TRUE(overflowLocalsInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << overflowLocalsInstance.lastError();
+    }
+    EXPECT_DOUBLE_EQ(std::get<double>(overflowLocalsInstance.fields().at("total")), 210.0);
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            ASSERT_TRUE(overflowLocalsInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+                << overflowLocalsInstance.lastError();
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript locals(20, overflow workspace) benchmark: "
+              << totalMicroseconds / (repetitions * iterations)
+              << " us/hook (" << iterations * repetitions << " calls)\n";
+
     std::string methodLookupSource = R"(
 class BenchmarkMethodLookup : ArtifactBehaviour
 {
@@ -839,6 +873,7 @@ class Counter : ArtifactBehaviour
     }
     const auto oneShortStringAllocationRate = countAllocations(stringForeachInstance);
     const auto wideLocalsAllocationRate = countAllocations(wideLocalsInstance);
+    const auto overflowLocalsAllocationRate = countAllocations(overflowLocalsInstance);
     const auto methodLookupAllocationRate = countAllocations(methodLookupInstance);
     const auto fiveArgumentAllocationRate = countAllocations(fiveArgumentInstance);
     const auto sixArgumentAllocationRate = countAllocations(sixArgumentInstance);
@@ -863,6 +898,7 @@ class Counter : ArtifactBehaviour
     expectNoSteadyStateAllocations(wideAllocationRate);
     expectNoSteadyStateAllocations(largeForeachAllocationRate);
     expectNoSteadyStateAllocations(wideLocalsAllocationRate);
+    expectNoSteadyStateAllocations(overflowLocalsAllocationRate);
     expectNoSteadyStateAllocations(methodLookupAllocationRate);
     expectNoSteadyStateAllocations(fiveArgumentAllocationRate);
     expectNoSteadyStateAllocations(sixArgumentAllocationRate);
@@ -876,6 +912,9 @@ class Counter : ArtifactBehaviour
               << hostFunctionAllocationRate.second << " bytes; "
               << hostMethodAllocationRate.first << ", "
               << hostMethodAllocationRate.second << " bytes\n";
+    std::cout << "ArtifactScript allocations/hook (20 locals): "
+              << overflowLocalsAllocationRate.first << ", "
+              << overflowLocalsAllocationRate.second << " bytes\n";
     std::cout << "ArtifactScript allocations/hook (5-arg method): "
               << fiveArgumentAllocationRate.first << ", "
               << fiveArgumentAllocationRate.second << " bytes\n";
