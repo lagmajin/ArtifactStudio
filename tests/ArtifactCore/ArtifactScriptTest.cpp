@@ -80,6 +80,13 @@ class ExactIntegers : ArtifactBehaviour
     public int negativeQuotient = 0;
     public int remainder = 0;
     public int minimum = 0;
+    public bool roundedDoubleEqual = true;
+    public bool roundedDoubleNotEqual = false;
+    public bool greaterThanRoundedDouble = false;
+    public bool lessThanUpperDouble = false;
+    public bool reverseGreaterThanRoundedDouble = false;
+    public bool minimumEqualsDouble = false;
+    public bool maximumLessThanUpperDouble = false;
     void OnUpdate()
     {
         large = 9007199254740993;
@@ -88,6 +95,13 @@ class ExactIntegers : ArtifactBehaviour
         negativeQuotient = -7 / 2;
         remainder = -7 % 2;
         minimum = -9223372036854775808;
+        roundedDoubleEqual = large == 9007199254740992.0;
+        roundedDoubleNotEqual = large != 9007199254740992.0;
+        greaterThanRoundedDouble = large > 9007199254740992.0;
+        lessThanUpperDouble = large < 9007199254740994.0;
+        reverseGreaterThanRoundedDouble = 9007199254740992.0 < large;
+        minimumEqualsDouble = minimum == -9223372036854775808.0;
+        maximumLessThanUpperDouble = 9223372036854775807 < 9223372036854775808.0;
     }
 }
 )");
@@ -105,6 +119,15 @@ class ExactIntegers : ArtifactBehaviour
     EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("remainder")), -1);
     EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("minimum")),
               std::numeric_limits<std::int64_t>::min());
+    EXPECT_FALSE(std::get<bool>(instance.fields().at("roundedDoubleEqual")));
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("roundedDoubleNotEqual")));
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("greaterThanRoundedDouble")));
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("lessThanUpperDouble")));
+    EXPECT_TRUE(std::get<bool>(
+        instance.fields().at("reverseGreaterThanRoundedDouble")));
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("minimumEqualsDouble")));
+    EXPECT_TRUE(std::get<bool>(
+        instance.fields().at("maximumLessThanUpperDouble")));
 }
 
 TEST(ArtifactScriptTest, IntegerArithmeticReportsOverflow) {

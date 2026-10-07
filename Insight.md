@@ -4813,3 +4813,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認結果:** `2^53+1`とその加算、負の最小値、正負の整数除算・剰余、加算・乗算・除算overflowをテスト。既存のdynamic numeric result testはint/double双方を許容するよう更新。変更後のArtifactScript関連5 CTest suitesは **5/5 passed**。
 - **価値または懸念:** int64を公開している言語データモデルと式評価の精度が一致する。整数literalのvariant型がdoubleからint64へ変わるため、外部host bindingや既存scriptが値のvariant型に依存していないかは受け入れ確認が必要。整数workloadの実行速度は計測しておらず、高速化効果は未確認。
 - **次に確認すべきこと:** 実レイヤースクリプトとhost callbackの数値型期待を確認し、int literal変更の互換性を調査する。性能改善は代表的なscriptで別途profileする。
+
+## 2026-10-07 — Mixed ArtifactScript integer/double comparisons also rounded
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`evalBinary()` mixed numeric equality / ordering pathsと、`tests/ArtifactCore/ArtifactScriptTest.cpp`。
+- **確認できた事実:** int literalをint64化した後も、mixed `int64` / `double` equalityはintegerをdoubleへ変換していた。binary64では`2^53+1`を表現できないため、`9007199254740993 == 9007199254740992.0`が誤ってtrueになり、大小比較も誤り得る。
+- **実装:** int/doubleの比較をdouble境界`2^63`で先に範囲判定し、安全な範囲のみdoubleをint64へtruncating castして比較する。fractional doubleはtruncated integerとの残差方向から順序を決める。int-intとdouble-double、mixed arithmeticの経路は維持。
+- **確認結果:** `2^53+1`と隣接doubleの`== != < >`、順序を逆にした比較、`INT64_MIN`との等値、`INT64_MAX`と`2^63`の比較をテスト。ArtifactScript関連5 CTest suitesは **5/5 passed**。
+- **価値または懸念:** int64精度をmixed comparisonでも保つ。比較用分岐のCPU差は未計測。
+- **次に確認すべきこと:** NaN・±infinityを含むmixed comparisonとRelease workloadのprofileを確認する。
