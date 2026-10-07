@@ -7,6 +7,7 @@
 
 ## 進捗 2026-10-07
 
+- 括弧付き式を実装し、`(2 + 3) * 4`の優先順位指定、nested grouping、`(values)[1]`のような括弧後のpostfix accessを追加。group用AST/runtime nodeを生成せず内側expressionを返すため、実行時評価経路を増やさない。閉じ括弧欠落時のsource line診断もテストし、ArtifactScript関連5 CTest suitesは5/5 passed。
 - expressionの後置index/member/methodを連鎖可能にし、`matrix[0][1]`、`nodes[0].score`、`nodes[0].getScore()`を追加。既存のindex/field/method evaluatorを再利用し、新しいAST種別や実行時lookupは増やしていない。統合fixtureで3経路の値を確認し、ArtifactScript関連5 CTest suitesは5/5 passed。既存4 KiB string parser fixtureのMSVC Debug測定は未escape 51.3、末尾escape 48.5 µs/parse（各1回）で、過去記録の52.8 / 55.7より悪化は見えないが、単回測定のため速度向上とは断定しない。
 - 配列indexのint/double変換を共通の境界検査へ集約。負数、NaN、無限大、配列長を超える値は`size_t`変換前に拒否し、正の小数は従来どおり切り捨てる。通常読み込み、binary比較の参照最適化、代入の3経路で不正値診断を維持する。回帰テストを追加し、ArtifactScript関連5 CTest suitesは5/5 passed。
 - `==` / `!=`を型に応じて比較するよう修正。bool同士はbool値、int同士は整数値、int/float混在は数値、string・Vec2/3/4・Colorは値、ObjectRefはid、script objectとarrayは参照identityで判定し、異なる非数値型を数値0へcoerceしない。従来は`true == true`がfalse、別々のarrayも等しい判定になり得た。各型の回帰テストとArtifactScript関連5 suitesは5/5 passed。

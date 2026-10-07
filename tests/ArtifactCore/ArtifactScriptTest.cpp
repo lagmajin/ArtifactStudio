@@ -609,6 +609,53 @@ class ChainNode : ArtifactBehaviour
     ASSERT_TRUE(invoked) << instance.lastError();
 }
 
+TEST(ArtifactScriptTest, ParenthesizedExpressionsControlPrecedenceWithoutRuntimeNodes) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class GroupedExpressions : ArtifactBehaviour
+{
+    public Array values;
+    public float groupedResult = 0.0;
+    public float nestedResult = 0.0;
+    public float indexedResult = 0.0;
+    void OnUpdate()
+    {
+        groupedResult = (2.0 + 3.0) * 4.0;
+        nestedResult = 2.0 * (3.0 + (4.0 * 5.0));
+        indexedResult = (values)[1];
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    auto values = makeShared<ArtifactScriptArray>();
+    values->values = {11.0, 23.0};
+    instance.fields()["values"] = values;
+    instance.fields()["groupedResult"] = 0.0;
+    instance.fields()["nestedResult"] = 0.0;
+    instance.fields()["indexedResult"] = 0.0;
+
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    EXPECT_DOUBLE_EQ(
+        std::get<double>(instance.fields().at("groupedResult")), 20.0);
+    EXPECT_DOUBLE_EQ(
+        std::get<double>(instance.fields().at("nestedResult")), 46.0);
+    EXPECT_DOUBLE_EQ(
+        std::get<double>(instance.fields().at("indexedResult")), 23.0);
+
+    const auto malformed = parser.parse(R"(
+class MissingGroupingDelimiter : ArtifactBehaviour
+{
+    public float result = 0.0;
+    void OnUpdate() { result = (1.0 + 2.0; }
+}
+)");
+    ASSERT_FALSE(malformed.diagnostics.empty());
+    EXPECT_EQ(malformed.diagnostics.front().line, 5u);
+    EXPECT_GT(malformed.diagnostics.front().column, 0u);
+}
+
 TEST(ArtifactScriptTest, SimpleAssignmentMovesValuesAcrossLocalAndArrayTargets) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(
