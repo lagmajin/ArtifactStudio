@@ -54,6 +54,28 @@ TEST(ArtifactScriptHostMethodTest, KeepsClassAndMethodNamesAsDistinctKeyParts) {
     EXPECT_EQ(std::get<std::int64_t>(result), 2);
 }
 
+TEST(ArtifactScriptHostMethodTest, ExposesNonOwningErrorView) {
+    ArtifactScriptHost host;
+    host.registerMethod("Probe", "run",
+        [&host](const ArtifactScriptValue&, std::span<const ArtifactScriptValue> args) {
+            if (args.empty()) {
+                host.setLastError("missing argument");
+                return ArtifactScriptValue{};
+            }
+            return ArtifactScriptValue(std::int64_t{7});
+        });
+
+    ArtifactScriptValue result;
+    EXPECT_TRUE(host.callMethod("Probe", "run", {}, {}, result));
+    EXPECT_EQ(host.lastErrorView(), "missing argument");
+    EXPECT_EQ(host.lastError(), "missing argument");
+
+    const std::string_view retainedError = host.lastErrorView();
+    EXPECT_EQ(retainedError, "missing argument");
+    host.setLastError("updated error");
+    EXPECT_EQ(host.lastErrorView(), "updated error");
+}
+
 TEST(ArtifactScriptHostMethodTest, ScriptEntryPointCallsHostMethod) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(

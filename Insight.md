@@ -4389,9 +4389,10 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **価値または懸念:** 従来のdirect-host baselineにはAPI内dispatchだけでなく、呼出側の一時文字列生成も含まれる。1 / 2 allocationsをそのままcallback registryのコストと解釈できない。
 - **次に確認すべきこと:** direct-host API用のpersistent-name基準値を独立fixtureへ移し、script経由の計測も安定させる。現行の直接API値には呼出側の一時文字列生成が含まれる。
 
-## 2026-10-07 — ArtifactScript host fallback copied class labels per hook
+## 2026-10-07 — ArtifactScript host dispatch copied strings per hook
 
-- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のscript-object host method fallback、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の `ScriptObjectHostMethodReducesSteadyStateAllocations`。
-- **確認できた事実:** host fallbackは元々 `instance->className` を毎回 `std::string` へコピーしていた。class名が長いscript objectを1,000 hook実行し、変更前は3 allocations / 64 bytes per hook、class名を参照する変更後は1 / 16だった。関連ArtifactScript CTestは5/5 passed。
-- **価値または懸念:** 変更で2 allocations / 48 bytes per hookを削減した。固定配列cacheやAPI境界は変えていない。残る1 allocation / 16 bytes per hookは未特定。
-- **次に確認すべきこと:** allocation counterを小さな独立fixtureに保ったまま残る一確保の呼出箇所を特定し、削除できるか評価する。
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のscript-object host method fallbackとhost callback error path、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` のsteady-state allocation tests。
+- **確認できた事実:** host fallbackは元々 `instance->className` を毎回 `std::string` へコピーしていた。class名が長いscript objectを1,000 hook実行し、変更前は3 allocations / 64 bytes per hook、class名を参照する変更後は1 / 16だった。今回、allocation hook内でstackを採取し、残る16-byte allocationは `ArtifactScriptHost::lastError()` が空の `std::string` を値返却する経路と確認した。MSVC Debugのstring copyは空でもcontainer proxyを確保していた。
+- **対応:** `lastErrorView()` を追加し、evaluatorのhost function / method成功経路で文字列コピーを避けた。1,000 hookの独立テストでhost method / host functionの双方が0 allocations / 0 bytesとなることを確認した。既存の時間ベンチマーク内で繰り返していたallocation counterはSEHの再現箇所だったため、計測を独立テストへ分離した。
+- **価値または懸念:** class名コピー削減と合わせ、host method fallbackは3 allocations / 64 bytesから0 / 0へ減少。公開 `lastError()` の互換性を保ちつつ、ホットパス内ではnon-owning viewを使う。viewは次回のhost callまたは`setLastError()`までのみ有効。
+- **次に確認すべきこと:** Release相当構成では未計測。Debug関連ArtifactScript 5 suitesは今回の変更後に5/5 passed。

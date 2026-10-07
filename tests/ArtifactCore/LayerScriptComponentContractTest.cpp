@@ -923,175 +923,11 @@ class Counter : ArtifactBehaviour
               << " us/hook (" << iterations * repetitions << " calls)\n";
     EXPECT_DOUBLE_EQ(std::get<double>(wideObjectMethodInstance.fields().at("total")),
                      (100.0 + repetitions * iterations) * 16.0);
-    const std::vector<ArtifactScriptValue> noArguments;
-    constexpr int allocationIterations = 2000;
-    const auto countCalls = [&](auto&& call) {
-        ScriptAllocationCounter counter;
-        bool succeeded = true;
-        for (int i = 0; i < allocationIterations; ++i) {
-            if (!call()) {
-                succeeded = false;
-                break;
-            }
-        }
-        const auto totals = counter.stop();
-        EXPECT_TRUE(succeeded);
-        return std::pair<double, double>{
-            static_cast<double>(totals.first) / allocationIterations,
-            static_cast<double>(totals.second) / allocationIterations};
-    };
-    const std::array<ArtifactScriptValue, 5> directHostArguments{
-        1.0, 2.0, 3.0, 4.0, 5.0};
-    const ArtifactScriptValue directHostSelf{ArtifactScriptRef{"benchmark"}};
-    ArtifactScriptValue directHostResult;
-    const auto directHostFunctionAllocationRate = countCalls([&] {
-        return scriptHost.callFunctionView("allocationProbe", directHostArguments,
-                                           directHostResult);
-    });
-    const auto directHostMethodAllocationRate = countCalls([&] {
-        return scriptHost.callMethodView("ObjectRef", "allocationProbe", directHostSelf,
-                                         directHostArguments, directHostResult);
-    });
-    const auto lookupAllocationRate = countCalls([&] {
-        return noOpInstance.hasHook(ArtifactScriptHook::OnUpdate);
-    });
-    std::cout << "ArtifactScript allocation split (count, bytes/hook): lookup="
-              << lookupAllocationRate.first << ", " << lookupAllocationRate.second
-              << "; direct-host-function=" << directHostFunctionAllocationRate.first
-              << ", " << directHostFunctionAllocationRate.second
-              << "; direct-host-method=" << directHostMethodAllocationRate.first
-              << ", " << directHostMethodAllocationRate.second
-              << "; direct-body=";
-    ArtifactScriptEvaluator directEvaluator;
-    ArtifactScriptSerializedFields directFields;
-    directFields["value"] = 0.0;
-    const auto bodyAllocationRate = countCalls([&] {
-        return directEvaluator.execute(*noOpMethod->body, noArguments, directFields);
-    });
-    std::cout << bodyAllocationRate.first << ", " << bodyAllocationRate.second
-              << '\n';
-
-    const auto countAllocations = [&](ArtifactScriptInstance& target) {
-        std::string error;
-        const auto result = countCalls([&] {
-            const bool succeeded = target.invokeHook(ArtifactScriptHook::OnUpdate);
-            if (!succeeded) error = target.lastError();
-            return succeeded;
-        });
-        EXPECT_TRUE(error.empty()) << error;
-        return result;
-    };
-    const auto noOpAllocationRate = countAllocations(noOpInstance);
-    const auto hostFunctionAllocationRate = countAllocations(hostFunctionInstance);
-    const auto hostMethodAllocationRate = countAllocations(hostMethodInstance);
-    const auto simpleAllocationRate = countAllocations(instance);
-    const auto methodAllocationRate = countAllocations(callInstance);
-    const auto foreachAllocationRate = countAllocations(foreachInstance);
-    const auto wideAllocationRate = countAllocations(wideFieldsInstance);
-    const auto largeForeachAllocationRate = countAllocations(largeForeachInstance);
-    const auto stringForeachAllocationRate = countAllocations(stringForeachInstance);
-    const auto stringValues = std::get<ArtifactScriptArrayPtr>(
-        stringForeachInstance.fields().at("values"));
-    ASSERT_TRUE(stringValues);
-    stringValues->values.clear();
-    for (int i = 0; i < 100; ++i) {
-        ASSERT_TRUE(stringForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate));
-    }
-    const auto emptyForeachAllocationRate = countAllocations(stringForeachInstance);
-    stringValues->values.emplace_back(std::string("a long string value for the one element case"));
-    for (int i = 0; i < 100; ++i) {
-        ASSERT_TRUE(stringForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate));
-    }
-    const auto oneLongStringAllocationRate = countAllocations(stringForeachInstance);
-    stringValues->values[0] = "short";
-    for (int i = 0; i < 100; ++i) {
-        ASSERT_TRUE(stringForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate));
-    }
-    const auto oneShortStringAllocationRate = countAllocations(stringForeachInstance);
-    const auto wideLocalsAllocationRate = countAllocations(wideLocalsInstance);
-    const auto overflowLocalsAllocationRate = countAllocations(overflowLocalsInstance);
-    const auto methodLookupAllocationRate = countAllocations(methodLookupInstance);
-    const auto fiveArgumentAllocationRate = countAllocations(fiveArgumentInstance);
-    const auto sixArgumentAllocationRate = countAllocations(sixArgumentInstance);
-    const auto objectMethodLookupAllocationRate = countAllocations(objectMethodLookupInstance);
-    const auto wideObjectMethodAllocationRate = countAllocations(wideObjectMethodInstance);
-    const auto expectNoSteadyStateAllocations = [](const auto& rate) {
-        EXPECT_DOUBLE_EQ(rate.first, 0.0);
-        EXPECT_DOUBLE_EQ(rate.second, 0.0);
-    };
-    expectNoSteadyStateAllocations(noOpAllocationRate);
-    EXPECT_DOUBLE_EQ(hostFunctionAllocationRate.first,
-                     directHostFunctionAllocationRate.first);
-    EXPECT_DOUBLE_EQ(hostFunctionAllocationRate.second,
-                     directHostFunctionAllocationRate.second);
-    EXPECT_DOUBLE_EQ(hostMethodAllocationRate.first,
-                     directHostMethodAllocationRate.first + 1.0);
-    EXPECT_DOUBLE_EQ(hostMethodAllocationRate.second,
-                     directHostMethodAllocationRate.second + 16.0);
-    expectNoSteadyStateAllocations(simpleAllocationRate);
-    expectNoSteadyStateAllocations(methodAllocationRate);
-    expectNoSteadyStateAllocations(foreachAllocationRate);
-    expectNoSteadyStateAllocations(wideAllocationRate);
-    expectNoSteadyStateAllocations(largeForeachAllocationRate);
-    expectNoSteadyStateAllocations(wideLocalsAllocationRate);
-    expectNoSteadyStateAllocations(overflowLocalsAllocationRate);
-    expectNoSteadyStateAllocations(methodLookupAllocationRate);
-    expectNoSteadyStateAllocations(fiveArgumentAllocationRate);
-    expectNoSteadyStateAllocations(sixArgumentAllocationRate);
-    expectNoSteadyStateAllocations(objectMethodLookupAllocationRate);
-    expectNoSteadyStateAllocations(wideObjectMethodAllocationRate);
-    std::cout << "ArtifactScript allocations/hook (object method, 5 fields): "
-              << wideObjectMethodAllocationRate.first << ", "
-              << wideObjectMethodAllocationRate.second << " bytes\n";
-    std::cout << "ArtifactScript allocations/hook (5-arg host function/method): "
-              << hostFunctionAllocationRate.first << ", "
-              << hostFunctionAllocationRate.second << " bytes; "
-              << hostMethodAllocationRate.first << ", "
-              << hostMethodAllocationRate.second << " bytes\n";
-    std::cout << "ArtifactScript allocations/hook (20 locals): "
-              << overflowLocalsAllocationRate.first << ", "
-              << overflowLocalsAllocationRate.second << " bytes\n";
-    std::cout << "ArtifactScript allocations/hook (5-arg method): "
-              << fiveArgumentAllocationRate.first << ", "
-              << fiveArgumentAllocationRate.second << " bytes\n";
-    std::cout << "ArtifactScript allocations/hook (nested 6-arg method): "
-              << sixArgumentAllocationRate.first << ", "
-              << sixArgumentAllocationRate.second << " bytes\n";
-    std::cout << "ArtifactScript allocations/hook (object method): "
-              << objectMethodLookupAllocationRate.first << ", "
-              << objectMethodLookupAllocationRate.second << " bytes\n";
-    expectNoSteadyStateAllocations(stringForeachAllocationRate);
-    expectNoSteadyStateAllocations(emptyForeachAllocationRate);
-    expectNoSteadyStateAllocations(oneLongStringAllocationRate);
-    expectNoSteadyStateAllocations(oneShortStringAllocationRate);
-    std::cout << "ArtifactScript allocations/hook (count, bytes): no-op="
-              << noOpAllocationRate.first << ", " << noOpAllocationRate.second
-              << "; simple="
-              << simpleAllocationRate.first << ", " << simpleAllocationRate.second
-              << "; method=" << methodAllocationRate.first << ", "
-              << methodAllocationRate.second << "; foreach="
-              << foreachAllocationRate.first << ", " << foreachAllocationRate.second
-              << "; wide-foreach=" << wideAllocationRate.first << ", "
-              << wideAllocationRate.second << "; large-foreach="
-              << largeForeachAllocationRate.first << ", "
-              << largeForeachAllocationRate.second << "; string-foreach="
-              << stringForeachAllocationRate.first << ", "
-              << stringForeachAllocationRate.second << "; wide-locals="
-              << wideLocalsAllocationRate.first << ", "
-              << wideLocalsAllocationRate.second << "; method-lookup="
-              << methodLookupAllocationRate.first << ", "
-              << methodLookupAllocationRate.second << "; string-empty="
-              << emptyForeachAllocationRate.first << ", "
-              << emptyForeachAllocationRate.second << "; string-one-long="
-              << oneLongStringAllocationRate.first << ", "
-              << oneLongStringAllocationRate.second << "; string-one-short="
-              << oneShortStringAllocationRate.first << ", "
-              << oneShortStringAllocationRate.second << '\n';
 #endif
 }
 
 #if defined(_MSC_VER) && defined(_DEBUG)
-TEST(LayerScriptComponentContractTest, ScriptObjectHostMethodReducesSteadyStateAllocations) {
+TEST(LayerScriptComponentContractTest, ScriptObjectHostMethodAvoidsSteadyStateAllocations) {
     auto& host = ArtifactScriptHost::global();
     host.registerMethod("LongNamedHostTarget", "hostPing",
         [](const ArtifactScriptValue&, std::span<const ArtifactScriptValue>) {
@@ -1133,9 +969,83 @@ class LongNamedHostTarget : ArtifactBehaviour
     }
     const auto allocations = counter.stop();
     EXPECT_TRUE(succeeded) << instance.lastError();
-    EXPECT_LE(allocations.first, allocationIterations)
+    EXPECT_EQ(allocations.first, 0)
         << "allocations/hook=" << allocations.first / allocationIterations;
-    EXPECT_LE(allocations.second, allocationIterations * 16)
+    EXPECT_EQ(allocations.second, 0)
         << "bytes/hook=" << allocations.second / allocationIterations;
+}
+
+TEST(LayerScriptComponentContractTest, ScriptHostFunctionAvoidsSteadyStateAllocations) {
+    auto& host = ArtifactScriptHost::global();
+    host.registerFunction("hostPing",
+        [](std::span<const ArtifactScriptValue>) {
+            return ArtifactScriptValue(1.0);
+        });
+
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ScriptHostFunctionProbe : ArtifactBehaviour
+{
+    public float result = 0.0;
+    void OnUpdate() { result = hostPing(); }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    }
+
+    ScriptAllocationCounter counter;
+    constexpr std::size_t allocationIterations = 1000;
+    bool succeeded = true;
+    for (std::size_t i = 0; i < allocationIterations; ++i) {
+        if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+            succeeded = false;
+            break;
+        }
+    }
+    const auto allocations = counter.stop();
+    EXPECT_TRUE(succeeded) << instance.lastError();
+    EXPECT_EQ(allocations.first, 0)
+        << "allocations/hook=" << allocations.first / allocationIterations;
+    EXPECT_EQ(allocations.second, 0)
+        << "bytes/hook=" << allocations.second / allocationIterations;
+}
+
+TEST(LayerScriptComponentContractTest, ScriptMethodCallAvoidsSteadyStateAllocations) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ScriptMethodAllocationProbe : ArtifactBehaviour
+{
+    public float result = 0.0;
+    float addOne(float value) { return value + 1.0; }
+    void OnUpdate() { result = addOne(result); }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    }
+
+    ScriptAllocationCounter counter;
+    constexpr std::size_t allocationIterations = 1000;
+    bool succeeded = true;
+    for (std::size_t i = 0; i < allocationIterations; ++i) {
+        if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+            succeeded = false;
+            break;
+        }
+    }
+    const auto allocations = counter.stop();
+    EXPECT_TRUE(succeeded) << instance.lastError();
+    EXPECT_EQ(allocations.first, 0)
+        << "allocations/hook=" << allocations.first / allocationIterations;
+    EXPECT_EQ(allocations.second, 0)
+        << "bytes/hook=" << allocations.second / allocationIterations;
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 1100.0);
 }
 #endif
