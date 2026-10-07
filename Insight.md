@@ -4906,6 +4906,6 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `evalCall()` builtin dispatch、ArtifactScript / layer contract tests。
 - **確認できた事実:** `split`と`join`のliteral string handlingが既にあり、string valuesは`std::string`で所有される。標準的な左からの非重複置換では、search回数と最終byte長をappend前に決められる。
 - **実装:** `replace(source, search, replacement)` はempty searchを拒否し、一致数を数えてsize overflowを検査した後、出力を一度reserveしてsourceの範囲とreplacementを直接appendする。対象型は3つのstringに限定。
-- **確認結果:** 全置換、no match、deletion、overlapping candidate、日本語literal、bad argument / empty searchをテストし、layer hook上の `split` / `join` と組み合わせたpath normalizationを確認。ArtifactScript関連5 CTest suitesは **5/5 passed**。
-- **価値または懸念:** script側での文字列置換ループと一時連結を避ける専用経路を作れた。replace固有のCPU / allocation比較は未実施であり、性能向上量は未検証。
-- **次に確認すべきこと:** `join` と同じ長さ・要素数でreplaceのallocation / CPUを測定し、一般的なscript loopと比較する。UTF-8 code point基準ではなくliteral byte sequence searchである点を言語仕様に明記するか検討する。
+- **確認結果:** 全置換、no match、deletion、overlapping candidate、日本語literal、bad argument / empty searchをテストし、layer hook上の `split` / `join` と組み合わせたpath normalizationを確認。ArtifactScript関連5 CTest suitesは **5/5 passed**。50-byte出力のMSVC Debug allocation fixtureではreplaceが10 allocations / 256 bytes、`join(split(...))` が25 / 704 per hook。3回×3,000 hooksのCPU中央値（replace vs split+join）は3×16 chars: 7.07 vs 13.24、8×64: 6.49 vs 16.83、32×256: 10.49 vs 59.78 µs/hook。
+- **価値または懸念:** script側での置換処理に中間配列・部分文字列を作らない専用経路を作れた。このDebug fixtureではhook内割当を60%、割当byte数を約64%減らし、CPU時間も各サイズで短かった。固定Debug fixtureの結果であり、Releaseや実script全般への一般化は未検証。
+- **次に確認すべきこと:** Release workloadと実際にreplaceが使われるlayer scriptでCPU・allocationをprofileする。UTF-8 code point基準ではなくliteral byte sequence searchである点を言語仕様に明記するか検討する。

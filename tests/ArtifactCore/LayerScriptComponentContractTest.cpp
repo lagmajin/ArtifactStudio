@@ -430,6 +430,126 @@ TEST(LayerScriptComponentContractTest, JoinBuiltinCpuScalingBenchmark) {
 #endif
 }
 
+TEST(LayerScriptComponentContractTest,
+     ReplaceBuiltinAvoidsSplitJoinIntermediates) {
+#if defined(_MSC_VER) && defined(_DEBUG)
+    ArtifactScriptParser parser;
+    const auto makeDefinition = [&](std::string_view className,
+                                    std::size_t segmentCount,
+                                    std::size_t segmentLength,
+                                    bool useReplace) {
+        std::string sourceValue;
+        std::string expected;
+        for (std::size_t i = 0; i < segmentCount; ++i) {
+            if (i != 0) {
+                sourceValue += "--";
+                expected += '|';
+            }
+            sourceValue.append(segmentLength, 'x');
+            expected.append(segmentLength, 'x');
+        }
+
+        std::string script = "class ";
+        script.append(className);
+        script += " : ArtifactBehaviour\n{\n"
+                  "    public string source;\n"
+                  "    public string output;\n"
+                  "    void OnCreate() { source = \"";
+        script += sourceValue;
+        script += "\"; }\n    void OnUpdate() { output = ";
+        script += useReplace ? "replace(source, \"--\", \"|\")" :
+                               "join(split(source, \"--\"), \"|\")";
+        script += "; }\n}\n";
+        return std::pair{parser.parse(script), std::move(expected)};
+    };
+
+    const std::array<std::pair<std::size_t, std::size_t>, 3> workloads{{
+        {3, 16}, {8, 64}, {32, 256}}};
+    constexpr std::size_t timingIterations = 3000;
+    constexpr std::size_t timingRepetitions = 3;
+    for (std::size_t workloadIndex = 0;
+         workloadIndex < workloads.size(); ++workloadIndex) {
+        const auto [segmentCount, segmentLength] = workloads[workloadIndex];
+        auto [replaceDefinition, expected] = makeDefinition(
+            "ReplaceBuiltinProbe", segmentCount, segmentLength, true);
+        auto [splitJoinDefinition, splitJoinExpected] = makeDefinition(
+            "ReplaceSplitJoinProbe", segmentCount, segmentLength, false);
+        ASSERT_TRUE(replaceDefinition.diagnostics.empty());
+        ASSERT_TRUE(splitJoinDefinition.diagnostics.empty());
+        ASSERT_EQ(expected, splitJoinExpected);
+        ArtifactScriptInstance replaceInstance(std::move(replaceDefinition));
+        ArtifactScriptInstance splitJoinInstance(std::move(splitJoinDefinition));
+        ASSERT_TRUE(replaceInstance.invokeHook(ArtifactScriptHook::OnCreate))
+            << replaceInstance.lastError();
+        ASSERT_TRUE(splitJoinInstance.invokeHook(ArtifactScriptHook::OnCreate))
+            << splitJoinInstance.lastError();
+        ASSERT_TRUE(replaceInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << replaceInstance.lastError();
+        ASSERT_TRUE(splitJoinInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << splitJoinInstance.lastError();
+        EXPECT_EQ(std::get<std::string>(replaceInstance.fields().at("output")),
+                  expected);
+        EXPECT_EQ(std::get<std::string>(splitJoinInstance.fields().at("output")),
+                  expected);
+
+        if (workloadIndex == 0) {
+            constexpr std::size_t allocationIterations = 1000;
+            const auto measureAllocations = [&](ArtifactScriptInstance& measured) {
+                ScriptAllocationCounter counter;
+                std::string failure;
+                for (std::size_t i = 0; i < allocationIterations; ++i) {
+                    if (!measured.invokeHook(ArtifactScriptHook::OnUpdate)) {
+                        failure = measured.lastError();
+                        break;
+                    }
+                }
+                const auto allocations = counter.stop();
+                EXPECT_TRUE(failure.empty()) << failure;
+                return allocations;
+            };
+            const auto [replaceAllocations, replaceBytes] =
+                measureAllocations(replaceInstance);
+            const auto [splitJoinAllocations, splitJoinBytes] =
+                measureAllocations(splitJoinInstance);
+            std::cout << "ArtifactScript replace vs split+join: "
+                      << replaceAllocations / allocationIterations << " / "
+                      << splitJoinAllocations / allocationIterations
+                      << " allocations/hook, "
+                      << replaceBytes / allocationIterations << " / "
+                      << splitJoinBytes / allocationIterations
+                      << " bytes/hook\n";
+            EXPECT_LT(replaceAllocations, splitJoinAllocations);
+            EXPECT_LT(replaceBytes, splitJoinBytes);
+        }
+
+        const auto measureTime = [&](ArtifactScriptInstance& measured) {
+            std::array<double, timingRepetitions> samples{};
+            for (auto& sample : samples) {
+                const auto start = std::chrono::steady_clock::now();
+                for (std::size_t i = 0; i < timingIterations; ++i) {
+                    if (!measured.invokeHook(ArtifactScriptHook::OnUpdate)) {
+                        ADD_FAILURE() << measured.lastError();
+                        break;
+                    }
+                }
+                sample = std::chrono::duration<double, std::micro>(
+                    std::chrono::steady_clock::now() - start).count() /
+                    timingIterations;
+            }
+            std::sort(samples.begin(), samples.end());
+            return samples[samples.size() / 2];
+        };
+        const double replaceMicros = measureTime(replaceInstance);
+        const double splitJoinMicros = measureTime(splitJoinInstance);
+        std::cout << "ArtifactScript replace CPU (" << segmentCount << " x "
+                  << segmentLength << " chars, " << expected.size()
+                  << " output bytes): " << replaceMicros << " vs "
+                  << splitJoinMicros << " us/hook (median of "
+                  << timingRepetitions << " x " << timingIterations << ")\n";
+    }
+#endif
+}
+
 TEST(LayerScriptComponentContractTest, ReusedEvaluatorClearsPriorHookError) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
