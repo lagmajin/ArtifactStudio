@@ -3,6 +3,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <span>
 #include <string>
 #include <string_view>
@@ -501,6 +502,62 @@ class Points : ArtifactBehaviour
     const auto result = evaluator.executeMethod(definition, "first", {}, component.publicFields());
     ASSERT_TRUE(std::holds_alternative<double>(result));
     EXPECT_DOUBLE_EQ(std::get<double>(result), 9.25);
+}
+
+TEST(ArtifactScriptTest, ArrayIndexRejectsNegativeAndNonFiniteValuesSafely) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class SafeArrayIndex : ArtifactBehaviour
+{
+    public Array values;
+    public float index = 0.0;
+    public float result = 0.0;
+    public bool writeMode = false;
+    public bool compareMode = false;
+    void OnUpdate()
+    {
+        if (writeMode) { values[index] = 99.0; }
+        else if (compareMode) { result = values[index] == 10.0 ? 1.0 : 0.0; }
+        else { result = values[index]; }
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    auto values = makeShared<ArtifactScriptArray>();
+    values->values = {10.0, 20.0};
+    instance.fields()["values"] = values;
+    instance.fields()["index"] = -1.0;
+    instance.fields()["result"] = 0.0;
+    instance.fields()["writeMode"] = false;
+    instance.fields()["compareMode"] = false;
+
+    const auto expectIndexError = [&](ArtifactScriptValue index) {
+        instance.fields()["index"] = std::move(index);
+        EXPECT_FALSE(instance.invokeHook(ArtifactScriptHook::OnUpdate));
+        EXPECT_NE(instance.lastError().find("array index out of range"),
+                  std::string::npos);
+    };
+    expectIndexError(-1.0);
+    expectIndexError(std::numeric_limits<double>::quiet_NaN());
+    expectIndexError(std::numeric_limits<double>::infinity());
+    expectIndexError(std::numeric_limits<double>::max());
+    expectIndexError(std::numeric_limits<std::int64_t>::max());
+    instance.fields()["compareMode"] = true;
+    expectIndexError(-1.0);
+    instance.fields()["compareMode"] = false;
+
+    instance.fields()["index"] = 1.9;
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 20.0);
+
+    instance.fields()["writeMode"] = true;
+    instance.fields()["index"] = -0.5;
+    EXPECT_FALSE(instance.invokeHook(ArtifactScriptHook::OnUpdate));
+    EXPECT_NE(instance.lastError().find("array index out of range"),
+              std::string::npos);
+    EXPECT_DOUBLE_EQ(std::get<double>(values->values[1]), 20.0);
 }
 
 TEST(ArtifactScriptTest, SimpleAssignmentMovesValuesAcrossLocalAndArrayTargets) {
