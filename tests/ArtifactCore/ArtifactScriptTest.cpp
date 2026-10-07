@@ -116,22 +116,29 @@ class EscapedStrings : ArtifactBehaviour
 {
     public string observed = "";
     public string defaultValue = "default\nvalue";
+    public string unicode = "";
+    public string unicodeDefault = "\u732b";
     void OnUpdate()
     {
         observed = "quote: \" slash: \\ newline: \n return: \r tab: \t";
+        unicode = "\u732b\U0001F680\ud83d\ude00";
     }
 }
 )");
 
     ASSERT_TRUE(definition.diagnostics.empty());
-    ASSERT_EQ(definition.rootClass.fields.size(), 2u);
+    ASSERT_EQ(definition.rootClass.fields.size(), 4u);
     EXPECT_EQ(std::get<std::string>(definition.rootClass.fields[1].defaultValue),
               "default\nvalue");
+    EXPECT_EQ(std::get<std::string>(definition.rootClass.fields[3].defaultValue),
+              std::string("\xE7\x8C\xAB", 3));
     ArtifactScriptInstance instance(std::move(definition));
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
         << instance.lastError();
     EXPECT_EQ(std::get<std::string>(instance.fields().at("observed")),
               "quote: \" slash: \\ newline: \n return: \r tab: \t");
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("unicode")),
+              std::string("\xE7\x8C\xAB\xF0\x9F\x9A\x80\xF0\x9F\x98\x80", 11));
 
     const auto invalidEscape = parser.parse(
         "class BrokenEscape : ArtifactBehaviour\n{\n"
@@ -148,6 +155,22 @@ class EscapedStrings : ArtifactBehaviour
     ASSERT_EQ(invalidFieldEscape.diagnostics.size(), 1u);
     EXPECT_EQ(invalidFieldEscape.diagnostics.front().line, 3u);
     EXPECT_EQ(invalidFieldEscape.diagnostics.front().column, 31u);
+
+    const auto invalidFieldUnicode = parser.parse(
+        "class BrokenFieldUnicode : ArtifactBehaviour\n{\n"
+        "    public string value = \"\\uD800\";\n}\n");
+    ASSERT_EQ(invalidFieldUnicode.diagnostics.size(), 1u);
+    EXPECT_EQ(invalidFieldUnicode.diagnostics.front().line, 3u);
+    EXPECT_EQ(invalidFieldUnicode.diagnostics.front().column, 28u);
+
+    const auto invalidUnicode = parser.parse(
+        "class BrokenUnicode : ArtifactBehaviour\n{\n"
+        "    void OnUpdate()\n    {\n"
+        "        value = \"\\uD800\";\n"
+        "    }\n}\n");
+    ASSERT_EQ(invalidUnicode.diagnostics.size(), 1u);
+    EXPECT_EQ(invalidUnicode.diagnostics.front().line, 5u);
+    EXPECT_EQ(invalidUnicode.diagnostics.front().column, 18u);
 }
 
 TEST(ArtifactScriptTest, MissingExpressionReportsItsSourceLocation) {
