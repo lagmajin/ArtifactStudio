@@ -4874,3 +4874,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **次に確認すべきこと:** Core dependency failure解消後にArtifact側compileを通し、公開field・`[SerializeField]` private・型変更・missing script・異なるbindingの保存/復元をproject-level integration testで確認する。
 - **価値または懸念:** int64を使ったscript stateがproject保存・再読込で正確に戻る。過去に不正なfractional/out-of-range JSONがtyped intとして読めたケースは今後default fallbackになるため、互換性の差は不正値入力に限定される想定。
 - **次に確認すべきこと:** Artifact側の実project save/load pathでもserialized componentのlarge int保持を確認し、非標準JSON number tokenを追加でfuzz/testする。
+
+## 2026-10-07 — ArtifactScript split builtin can pre-size its result
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `evalCall()` builtin dispatch、`tests/ArtifactCore/ArtifactScriptTest.cpp`。
+- **確認できた事実:** `ArtifactScriptArray::values` は `std::vector<ArtifactScriptValue>` で、既知要素数の配列リテラルでは事前 `reserve()` によりhook中のvector拡張を削減できた。splitの結果要素数も、delimiterの出現回数から生成前に確定できる。
+- **実装:** `split(source, delimiter)` はliteral separatorの非重複位置を2回走査し、一度目で要素数を数えてから配列を正確にreserveする。空delimiterはscript errorとし、leading / repeated / trailing separatorsによる空要素を保持する。
+- **確認結果:** empty source、delimiter不一致、非重複一致、空要素保持、型不一致、空delimiterを含むテストに加え、layer hookから複数回呼ぶ契約テストを追加。ArtifactScript関連5 CTest suitesは **5/5 passed**。後者は今回focused testを実行して通過。
+- **価値または懸念:** 言語機能の追加と同時に、結果vectorの成長再確保を避ける設計にできる。一方、文字列ごとの`substr`と配列value自体の所有 allocationは残る。現時点でsplit固有のallocation / CPU benchmarkはなく、全体の高速化効果は未検証。
+- **次に確認すべきこと:** 代表的な短・長文字列や区切り数に対してsplitの割当量とCPU時間を測り、2回走査と文字列コピーのコストを比較する。必要性を計測で確認してからstring-view的な所有権変更を検討する。

@@ -1244,6 +1244,76 @@ class Points : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(result), 2.5);
 }
 
+TEST(ArtifactScriptTest, StringSplitPreservesEmptyAndNonOverlappingParts) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class SplitStrings : ArtifactBehaviour
+{
+    public Array parts;
+    public Array noMatch;
+    public Array emptySource;
+    public Array overlappingDelimiter;
+    void OnUpdate()
+    {
+        parts = split(",red,,blue,", ",");
+        noMatch = split("unchanged", "--");
+        emptySource = split("", "|");
+        overlappingDelimiter = split("aaaaa", "aa");
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+
+    const auto readArray = [&](const char* name) -> const auto& {
+        return *std::get<ArtifactScriptArrayPtr>(instance.fields().at(name));
+    };
+    const auto& parts = readArray("parts").values;
+    ASSERT_EQ(parts.size(), 5u);
+    EXPECT_TRUE(std::get<std::string>(parts[0]).empty());
+    EXPECT_EQ(std::get<std::string>(parts[1]), "red");
+    EXPECT_TRUE(std::get<std::string>(parts[2]).empty());
+    EXPECT_EQ(std::get<std::string>(parts[3]), "blue");
+    EXPECT_TRUE(std::get<std::string>(parts[4]).empty());
+
+    const auto& noMatch = readArray("noMatch").values;
+    ASSERT_EQ(noMatch.size(), 1u);
+    EXPECT_EQ(std::get<std::string>(noMatch[0]), "unchanged");
+
+    const auto& emptySource = readArray("emptySource").values;
+    ASSERT_EQ(emptySource.size(), 1u);
+    EXPECT_TRUE(std::get<std::string>(emptySource[0]).empty());
+
+    const auto& overlapping = readArray("overlappingDelimiter").values;
+    ASSERT_EQ(overlapping.size(), 3u);
+    EXPECT_TRUE(std::get<std::string>(overlapping[0]).empty());
+    EXPECT_TRUE(std::get<std::string>(overlapping[1]).empty());
+    EXPECT_EQ(std::get<std::string>(overlapping[2]), "a");
+}
+
+TEST(ArtifactScriptTest, StringSplitRejectsInvalidArguments) {
+    ArtifactScriptParser parser;
+    const auto run = [&](std::string_view expression) {
+        auto definition = parser.parse("class InvalidSplit : ArtifactBehaviour\n{\n"
+                                       "    void OnUpdate()\n    {\n        " +
+                                       std::string(expression) +
+                                       ";\n    }\n}\n");
+        EXPECT_TRUE(definition.diagnostics.empty());
+        ArtifactScriptInstance instance(std::move(definition));
+        EXPECT_TRUE(instance.hasHook(ArtifactScriptHook::OnUpdate));
+        EXPECT_FALSE(instance.invokeHook(ArtifactScriptHook::OnUpdate));
+        EXPECT_FALSE(instance.lastError().empty());
+        return instance.lastError();
+    };
+
+    EXPECT_NE(run("split(1.0, \",\")").find("split expects"),
+              std::string::npos);
+    EXPECT_NE(run("split(\"value\", \"\")").find("delimiter must not be empty"),
+              std::string::npos);
+}
+
 TEST(ArtifactScriptTest, EvaluatorBuiltinFunctions) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(

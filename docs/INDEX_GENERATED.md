@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-07 20:27
+> Generated: 2026-10-07 20:33
 > Total documents: 1437
 
 ---
@@ -720,7 +720,7 @@
 | 127 | `docs/planned/MILESTONE_ARTIFACTPR_SEQUENCE_PREVIEW_2026-08-21.md` | MILESTONE: ArtifactPr シーケンス合成プレビュー | 2026-08-21 | --- | 2026-08-24 | 8.2 KB | ARTIFACTPR, SEQUENCE, PREVIEW |
 | 128 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_BINDING_AND_CLASS_2026-08-28.md` | マイルストーン: ArtifactScript Binding API 強化 & クラス対応（Phase 2/3 実走） | 2026-08-30 | Phase A / C 実装済み、Phase B / D〜H 未着手。ビルド・テスト実行待ち | 2026-08-31 | 11.6 KB | ARTIFACTSCRIPT, BINDING, AND, CLASS |
 | 129 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_ENGINE_2026-07-21.md` | MILESTONE_ARTIFACTSCRIPT_ENGINE_2026-07-21 | 2026-07-21 | ✅ Complete (3/3) | 2026-08-16 | 3.2 KB | ARTIFACTSCRIPT, ENGINE |
-| 130 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_LANGUAGE_EVOLUTION_2026-08-21.md` | マイルストーン: ArtifactScript Language Evolution | 2026-10-07 | In Progress | 2026-10-07 | 36.4 KB | ARTIFACTSCRIPT, LANGUAGE, EVOLUTION |
+| 130 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_LANGUAGE_EVOLUTION_2026-08-21.md` | マイルストーン: ArtifactScript Language Evolution | 2026-10-07 | In Progress | 2026-10-07 | 37.0 KB | ARTIFACTSCRIPT, LANGUAGE, EVOLUTION |
 | 131 | `docs/planned/MILESTONE_ASIO_STUB_IMPLEMENTATION_PLAN_2026-03-28.md` | ASIO スタブ実装 計画案 | 2026-03-28 | ASIO stub 実装済み・実機検証待ち | 2026-08-16 | 13.0 KB | ASIO, STUB, IMPLEMENTATION, PLAN |
 | 132 | `docs/planned/MILESTONE_ASPECT_RATIO_RESOLUTION_REMAP_WIZARD_2026-06-07.md` | MILESTONE: Aspect Ratio / Resolution Remap Wizard - 2026-06-07 | 2026-06-07 | Partial (preview, resolution remap apply, undo/redo, mask/keyframe remap, policy offsets, and impact diagnostics are documented as implemented; preflight/policy selection UI, actual anchor remap, and build/runtime verification remain pending) | 2026-08-16 | 8.5 KB | ASPECT, RATIO, RESOLUTION, REMAP, WIZARD |
 | 133 | `docs/planned/MILESTONE_ASSET_BROWSER_ADVANCED_SORT_2026-06-28.md` | Milestone: Asset Browser Advanced Sort (M-AB-11) | 2026-06-28 | Partial implementation（単一キー／natural name／固定複合 preset／sort key・方向の設定保存を実装、個別方向の multi-key／custom order／runtime 検証 pending） | 2026-08-16 | 50.8 KB | ASSET, BROWSER, ADVANCED, SORT |
@@ -1389,7 +1389,7 @@
 | 24 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.3 KB | IMPL, DOF |
 | 25 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.8 KB | IMPL, SSAO |
 | 26 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.6 KB | IMPL, TONE, MAPPING |
-| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-07 | --- | 2026-10-07 | 350.0 KB | INDEX, GENERATED |
+| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-07 | --- | 2026-10-07 | 351.6 KB | INDEX, GENERATED |
 | 28 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 29 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 12.0 KB | CAMERA, PROJECTION |
 | 30 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |

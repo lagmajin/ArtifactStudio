@@ -211,6 +211,37 @@ class ArrayLiteralCounter : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(array->values[3]), 40.0);
 }
 
+TEST(LayerScriptComponentContractTest,
+     SplitBuiltinRunsInsideRepeatedLayerHooks) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class SplitLayerPath : ArtifactBehaviour
+{
+    public string path = "/assets//layer/";
+    public Array segments;
+    void OnUpdate() { segments = split(path, "/"); }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+
+    for (int i = 0; i < 3; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << instance.lastError();
+    }
+
+    const auto& segments = std::get<ArtifactScriptArrayPtr>(
+        instance.fields().at("segments"));
+    ASSERT_NE(segments, nullptr);
+    ASSERT_EQ(segments->values.size(), 5u);
+    EXPECT_TRUE(std::get<std::string>(segments->values[0]).empty());
+    EXPECT_EQ(std::get<std::string>(segments->values[1]), "assets");
+    EXPECT_TRUE(std::get<std::string>(segments->values[2]).empty());
+    EXPECT_EQ(std::get<std::string>(segments->values[3]), "layer");
+    EXPECT_TRUE(std::get<std::string>(segments->values[4]).empty());
+    EXPECT_TRUE(instance.lastError().empty());
+}
+
 TEST(LayerScriptComponentContractTest, ReusedEvaluatorClearsPriorHookError) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
