@@ -1,5 +1,13 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactScript foreach のloop binding探索を一度にする
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptFields::prepareLoopBinding()` / `bindLoopValue()` と foreach実行。
+- **確認できた事実:** 旧ループは要素ごとにloop item名をoverlayから再検索していた。foreach scopeはbody実行前に新規作成され、item bindingが最初に追加されるため、そのbinding entryをループ期間中は固定参照できる。
+- **対応:** loop scope作成後にbinding entryを一度だけ準備し、各要素ではそのentryのread-only aliasだけを更新する。既存のループitem書き込みは `findForWrite()` を通じてcopy-on-writeのまま。
+- **暫定計測:** Debugの257 long-string comparison fixtureで、固定binding版214.97 µs/hook、binding名を各要素で引き直す対照版260.83 µs/hook。別の固定binding runは248.63 µs/hookだった。測定のrun間分散があるため効果量は確定しない。
+- **次に確認すべきこと:** Release/最適化buildと複数runで短い・長い配列の損益を確認する。scope生成順やoverlay容量を変える場合は、binding entryへのポインタが固定領域内に残る契約を再検証する。
+
 ## 2026-10-07 — ArtifactScript の文字列比較で一時値コピーを省く
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptFields::findWithoutCaching()` と binary expression evaluation、ArtifactScript の foreach loop item alias。
