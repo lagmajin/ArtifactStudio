@@ -491,6 +491,10 @@ class Greet : ArtifactBehaviour
         label = "hello " + name + "!";
         if (name == "world") { label += " yes"; }
         if (name != "no") { label += " ne"; }
+        if (name < "zzz") { label += " lt"; }
+        if (name > "a") { label += " gt"; }
+        if (name <= "world") { label += " le"; }
+        if (name >= "world") { label += " ge"; }
         return label;
     }
 }
@@ -501,7 +505,8 @@ class Greet : ArtifactBehaviour
     ArtifactScriptSerializedFields fields;
     const auto result = evaluator.executeMethod(definition, "build", {}, fields);
     ASSERT_TRUE(std::holds_alternative<std::string>(result));
-    EXPECT_EQ(std::get<std::string>(result), "hello world! yes ne");
+    EXPECT_EQ(std::get<std::string>(result),
+              "hello world! yes ne lt gt le ge");
 }
 
 TEST(ArtifactScriptTest, CompoundAssignmentAndIncrement) {

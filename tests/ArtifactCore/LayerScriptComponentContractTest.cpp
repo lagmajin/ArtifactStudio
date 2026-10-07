@@ -653,6 +653,8 @@ class BenchmarkLargeForeach : ArtifactBehaviour
 class BenchmarkStringForeach : ArtifactBehaviour
 {
     public Array values;
+    public string target = "";
+    public float matches = 0.0;
     void OnCreate()
     {
         push(values, "this string is longer than the small string buffer");
@@ -660,7 +662,9 @@ class BenchmarkStringForeach : ArtifactBehaviour
     }
     void OnUpdate()
     {
-        foreach (item in values) { }
+        foreach (item in values) {
+            if (item == target) matches += 1.0;
+        }
     }
 }
 )");
@@ -668,6 +672,7 @@ class BenchmarkStringForeach : ArtifactBehaviour
     ArtifactScriptInstance stringForeachInstance(std::move(stringForeachDefinition));
     ASSERT_TRUE(stringForeachInstance.invokeHook(ArtifactScriptHook::OnCreate))
         << stringForeachInstance.lastError();
+    stringForeachInstance.fields()["target"] = longFieldValue;
     for (int i = 0; i < 100; ++i) {
         ASSERT_TRUE(stringForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate))
             << stringForeachInstance.lastError();
@@ -690,6 +695,7 @@ class BenchmarkStringForeach : ArtifactBehaviour
     ASSERT_TRUE(stringValues);
     stringValues->values.clear();
     for (int i = 0; i < 257; ++i) stringValues->values.push_back(longFieldValue);
+    stringForeachInstance.fields()["matches"] = 0.0;
     for (int i = 0; i < warmupIterations; ++i) {
         ASSERT_TRUE(stringForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate))
             << stringForeachInstance.lastError();
@@ -707,6 +713,10 @@ class BenchmarkStringForeach : ArtifactBehaviour
     std::cout << "ArtifactScript foreach(257 long strings, read-only) benchmark: "
               << totalMicroseconds / (repetitions * iterations)
               << " us/hook (" << iterations * repetitions << " calls)\n";
+    EXPECT_DOUBLE_EQ(std::get<double>(
+                         stringForeachInstance.fields().at("matches")),
+                     static_cast<double>(
+                         (warmupIterations + repetitions * iterations) * 257));
 
     auto wideLocalsDefinition = parser.parse(R"(
 class BenchmarkWideLocals : ArtifactBehaviour

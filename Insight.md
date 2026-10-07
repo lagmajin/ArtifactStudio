@@ -1,5 +1,13 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactScript の文字列比較で一時値コピーを省く
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptFields::findWithoutCaching()` と binary expression evaluation、ArtifactScript の foreach loop item alias。
+- **確認できた事実:** Variable / literal の string比較は両側を `evalExpr()` で `ArtifactScriptValue` 化してから `evalBinary()` に渡すため、比較だけでも文字列値を複製していた。単純な変数・リテラルを直接参照する経路なら、必要な比較結果だけを返して一時stringを作らずに済む。
+- **対応:** `== != < > <= >=` で単純なstring Variable / Literal同士の場合、const・非materializing lookupで元値を参照して直接比較する。他の式、非string、未定義変数は従来の評価経路へ戻し、式の副作用やエラー処理を維持する。string比較契約テストで6演算子を確認し、foreach内の長い文字列比較fixtureで反復結果も検証する。
+- **性能計測:** Debugの257要素×128文字、string field比較＋scalar集計fixture（各測定20,000 hook×3回）では、値copy版576.86 µs/hook、aliasのみ556.46、alias＋直接比較248.63。個々は別runでノイズを含むが、直接比較を加えたfixtureではcopy版に対して観測上約57%短い。Release測定と実利用scriptの分布は未確認。
+- **次に確認すべきこと:** Releaseまたは最適化buildで複数回測定し、単純比較以外のloop・string concatenation・property accessのprofilingと合わせ、実script上の効果と互換性を確認する。
+
 ## 2026-10-07 — ArtifactScript foreach のloop itemをcopy-on-write aliasにする
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptFields::bindLoopValue()` と `ForeachSnapshotScope`、`tests/ArtifactCore/ArtifactScriptTest.cpp`。
