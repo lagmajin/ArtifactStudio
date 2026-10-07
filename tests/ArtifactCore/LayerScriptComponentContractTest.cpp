@@ -800,6 +800,76 @@ class Sibling : Base
                      (polymorphicWarmupIterations +
                       polymorphicRepetitions * polymorphicIterations) * 32.0);
 
+    auto fourClassObjectMethodDefinition = parser.parse(R"(
+class BenchmarkFourClassObjectMethodLookup : ArtifactBehaviour
+{
+    public float total = 0.0;
+    public ObjectRef target;
+    public ObjectRef third;
+    public ObjectRef fourth;
+    void OnCreate()
+    {
+        first = new Base();
+        second = new Child();
+        third = new Sibling();
+        fourth = new Other();
+    }
+    void OnUpdate()
+    {
+        for (int index = 0; index < 16; index += 1) {
+            if (index % 4 == 0) { target = second; }
+            else if (index % 4 == 1) { target = first; }
+            else if (index % 4 == 2) { target = third; }
+            else { target = fourth; }
+            total = total + target.who();
+        }
+    }
+}
+class Base : ArtifactBehaviour
+{
+    float who() { return 1.0; }
+}
+class Child : Base
+{
+    float who() { return 2.0; }
+}
+class Sibling : Base
+{
+    float who() { return 3.0; }
+}
+class Other : Base
+{
+    float who() { return 4.0; }
+}
+)");
+    ASSERT_TRUE(fourClassObjectMethodDefinition.diagnostics.empty());
+    ArtifactScriptInstance fourClassObjectMethodInstance(
+        std::move(fourClassObjectMethodDefinition));
+    ASSERT_TRUE(fourClassObjectMethodInstance.invokeHook(ArtifactScriptHook::OnCreate))
+        << fourClassObjectMethodInstance.lastError();
+    for (int i = 0; i < polymorphicWarmupIterations; ++i) {
+        ASSERT_TRUE(fourClassObjectMethodInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << fourClassObjectMethodInstance.lastError();
+    }
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < polymorphicRepetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < polymorphicIterations; ++i) {
+            ASSERT_TRUE(fourClassObjectMethodInstance.invokeHook(
+                ArtifactScriptHook::OnUpdate))
+                << fourClassObjectMethodInstance.lastError();
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript polymorphic object method (4 classes, 16 calls) benchmark: "
+              << totalMicroseconds / (polymorphicRepetitions * polymorphicIterations)
+              << " us/hook (" << polymorphicIterations * polymorphicRepetitions
+              << " calls)\n";
+    EXPECT_DOUBLE_EQ(std::get<double>(fourClassObjectMethodInstance.fields().at("total")),
+                     (polymorphicWarmupIterations +
+                      polymorphicRepetitions * polymorphicIterations) * 40.0);
+
     auto wideObjectMethodDefinition = parser.parse(R"(
 class BenchmarkWideObjectMethod : ArtifactBehaviour
 {

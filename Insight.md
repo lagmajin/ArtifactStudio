@@ -4379,5 +4379,5 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `findObjectMethodAtCallSite()`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の `HookExecutionMicrobenchmark`。
 - **確認できた事実:** 2-way版は各setに2 entryを持ち、cache miss時に最初のstale entry、または常に最後のwayを置き換えていた。3-way版は3 runtime classまで同じcall-siteに保持する。Base / Child / Siblingの同一scriptを用いたMSVC Debug A/Bで、3-class caseは2-way 145.30 / 145.81、3-way 95.31 / 92.28 / 95.01 µs/hookだった。3-way版で該当suiteは通過し、ArtifactScript関連CTestは5/5 passed。
-- **価値または懸念:** 観測平均は3-class workloadで約35.3%短縮した。setごとに固定cache entryを1つ（全体32 entries）増やし、実行中のheap allocationは増やさない。一方、測定はDebug・少数runであり、Release性能と4種類以上のclass workloadは未検証。
-- **次に確認すべきこと:** Release相当の安定した計測で再確認し、4-class evictionとcall-site set collisionを調べる。3-way cacheはhitごとに最大3 entryを比較するため、monomorphic / 2-class workloadsも同じscriptのまま評価する。
+- **価値または懸念:** 観測平均は3-class workloadで約35.3%短縮した。setごとに固定cache entryを1つ（全体32 entries）増やし、実行中のheap allocationは増やさない。4-class workloadも計測したところ、3-way平均104.32、4-way平均101.08 µs/hookで4-wayは約3.1%短かった一方、3-classでは3-way平均93.31に対し4-way平均99.00 µs/hookだった。Debugの少数runではway増加の総合的な利点が確認できず、3-wayを維持する。
+- **次に確認すべきこと:** Release相当の安定した計測とcall-site set collisionを調べる。4-wayは3-classやmonomorphic workloadを遅くする可能性があり、現時点では採用根拠が不足している。

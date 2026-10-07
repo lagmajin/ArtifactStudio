@@ -13,6 +13,7 @@
 - expression parserの乗除算層へ`%`を接続し、式内moduloを実行可能にした。また、method body parserでstatementが入力位置を進めない場合に解析を打ち切り、diagnosticを返すようにした。未知operatorによるparse停滞・AST増殖を回帰テストで検出する。
 - MSVC Debugで同じ交互クラスcaseを一時的な1-way call-site cacheと2-way cacheでA/B比較した。1-wayは107.68 µs/hook、2-wayは92.57 µs/hook（各3,000 hook、各16 calls、約14%短縮）。単一クラスのobject method lookupは1-way 68.66、2-way 71.29 µs/hookで測定揺れを含む小差、5-field object methodは120.00対119.58 µs/hookだった。各variant 1 runのDebug結果なのでrelease性能の断定には使わない。交互case込みのbenchmark suite全体は約19秒で完了した。
 - 同じ3-class script・16 calls/hookのMSVC Debug A/Bを実行した。2-wayは145.30 / 145.81（平均145.56）、3-wayは95.31 / 92.28 / 95.01（平均94.20）µs/hook、約35.3%短縮した（各3,000 hook）。32-method object lookupは2-way 98.82 / 94.98、3-way 70.67 / 70.13 / 68.59、5-field object methodは159.10 / 159.64対120.74 / 121.77 / 121.45 µs/hook。Debugの少数runのためrelease性能は未検証。ArtifactScript関連5 targetsは3-way化後もCTest 5/5 passed。
+- 4-class交互caseも追加し、3-way（106.33 / 102.31）と4-way（100.05 / 102.10 µs/hook）を比較した。4-wayは4-classで約3.1%短い一方、3-class caseでは4-wayの平均が3-wayより約6.1%遅かったため、Debug計測の範囲ではcache容量・hit比較数との総合的な利点が確認できず、3-wayを維持した。
 - MSVC DebugでArtifactScript関連5 test targetsをビルドし、CTest **5/5 passed**（`ArtifactCoreArtifactScriptTest`、`ArtifactCoreLayerScriptComponentTest`、`ArtifactCoreArtifactScriptObjectTest`、`ArtifactCoreArtifactScriptHostMethodTest`、`ArtifactCoreArtifactScriptHostApiTest`）。call-site cache変更後も同一call-siteでのruntime class切替を含めて通過した。
 - このテストは ArtifactCore のスクリプトランタイムを対象とし、Artifact サブモジュールの `ArtifactAbstractLayer` にあるレイヤーコンポーネント連携や UI / プロジェクト読込を通した統合動作は対象外。統合受入確認は未完了。
 
