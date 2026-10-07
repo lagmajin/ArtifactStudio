@@ -519,6 +519,94 @@ TEST(LayerScriptComponentContractTest,
 }
 
 TEST(LayerScriptComponentContractTest,
+     ArraySumBuiltinMatchesForeachAndAvoidsInterpreterLoopWork) {
+    ArtifactScriptParser parser;
+    constexpr std::size_t itemCount = 64;
+    constexpr std::int64_t expectedSum =
+        static_cast<std::int64_t>(itemCount * (itemCount + 1) / 2);
+    const auto makeInstance = [&](std::string_view className, bool useBuiltin) {
+        std::string source = "class ";
+        source.append(className);
+        source += R"( : ArtifactBehaviour
+{
+    public Array values;
+    public int total = 0;
+    void OnCreate() { values = [)";
+        for (std::size_t i = 0; i < itemCount; ++i) {
+            if (i != 0) source += ", ";
+            source += std::to_string(i + 1);
+        }
+        source += "];}\n";
+        if (useBuiltin) {
+            source += "    void OnUpdate() { total = sum(values); }\n";
+        } else {
+            source += "    void OnUpdate() { total = 0; foreach (item in values) { total += item; } }\n";
+        }
+        source += "}\n";
+        auto definition = parser.parse(source);
+        EXPECT_TRUE(definition.diagnostics.empty());
+        return ArtifactScriptInstance(std::move(definition));
+    };
+
+    auto builtin = makeInstance("ArraySumBuiltinProbe", true);
+    auto scriptLoop = makeInstance("ArraySumLoopProbe", false);
+    for (auto* instance : {&builtin, &scriptLoop}) {
+        ASSERT_TRUE(instance->invokeHook(ArtifactScriptHook::OnCreate))
+            << instance->lastError();
+        ASSERT_TRUE(instance->invokeHook(ArtifactScriptHook::OnUpdate))
+            << instance->lastError();
+        EXPECT_EQ(std::get<std::int64_t>(instance->fields().at("total")),
+                  expectedSum);
+    }
+
+#if defined(_MSC_VER) && defined(_DEBUG)
+    constexpr std::size_t allocationIterations = 1000;
+    const auto measureAllocations = [&](ArtifactScriptInstance& instance) {
+        ScriptAllocationCounter counter;
+        for (std::size_t i = 0; i < allocationIterations; ++i) {
+            if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+                ADD_FAILURE() << instance.lastError();
+                break;
+            }
+        }
+        return counter.stop();
+    };
+    const auto [builtinAllocations, builtinBytes] = measureAllocations(builtin);
+    const auto [loopAllocations, loopBytes] = measureAllocations(scriptLoop);
+    constexpr std::size_t timingIterations = 1500;
+    constexpr std::size_t timingRepetitions = 3;
+    const auto measureMicros = [&](ArtifactScriptInstance& instance) {
+        std::array<double, timingRepetitions> samples{};
+        for (auto& sample : samples) {
+            const auto start = std::chrono::steady_clock::now();
+            for (std::size_t i = 0; i < timingIterations; ++i) {
+                if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+                    ADD_FAILURE() << instance.lastError();
+                    break;
+                }
+            }
+            sample = std::chrono::duration<double, std::micro>(
+                std::chrono::steady_clock::now() - start).count() /
+                timingIterations;
+        }
+        std::sort(samples.begin(), samples.end());
+        return samples[samples.size() / 2];
+    };
+    const double builtinMicros = measureMicros(builtin);
+    const double loopMicros = measureMicros(scriptLoop);
+    std::cout << "ArtifactScript sum(Array[64]) vs foreach: "
+              << builtinAllocations / allocationIterations << " / "
+              << loopAllocations / allocationIterations
+              << " allocations/hook, "
+              << builtinBytes / allocationIterations << " / "
+              << loopBytes / allocationIterations << " bytes/hook, "
+              << builtinMicros << " / " << loopMicros
+              << " us/hook (median of " << timingRepetitions << " x "
+              << timingIterations << ")\n";
+#endif
+}
+
+TEST(LayerScriptComponentContractTest,
      JoinBuiltinReducesAllocationsComparedWithScriptLoop) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
