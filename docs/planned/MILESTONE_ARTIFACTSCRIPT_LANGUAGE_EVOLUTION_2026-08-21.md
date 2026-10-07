@@ -9,10 +9,10 @@
 
 - `tests/ArtifactCore/LayerScriptComponentContractTest.cpp` と `ArtifactCoreLayerScriptComponentTest` を追加。2件の契約テストで、コア ArtifactScript ランタイムのライフサイクルフック順、空フック、public フィールドの初期値、複数フレームにわたる `dt` / `time` / `frame` の受け渡しと状態保持、行／ブロックコメントの解析を検証する。
 - ビルドを妨げていた `ArtifactScript.cppm` の `EnvironmentVariable` モジュール参照・ビルド順依存の CMake 登録漏れを修正。クラス `{` 単独行でのパーサー停止、字下げ後のインラインメソッド本体位置、複数行メソッド本体の括弧走査、空メソッドを定義済みとして扱わない問題を修正し、メソッド本体の `//` / `/* */` コメントを読み飛ばすようにした。
-- object method call-site cacheをcall-site address基準の2-way set-associativeに変更。runtime class nameのhashをhit経路から外しつつ、同一call-siteでよくある2種類のruntime classを保持できる。テストを16回交互に呼ぶ形へ増やし、override結果の合計値を検証する。
+- object method call-site cacheをcall-site address基準の3-way set-associativeに変更。runtime class nameのhashをhit経路から外しつつ、同一call-siteの3種類までのruntime classを固定容量cacheに保持できる。増加分はsetごとに1 entry（32 entries）で、heap allocationはない。
 - expression parserの乗除算層へ`%`を接続し、式内moduloを実行可能にした。また、method body parserでstatementが入力位置を進めない場合に解析を打ち切り、diagnosticを返すようにした。未知operatorによるparse停滞・AST増殖を回帰テストで検出する。
 - MSVC Debugで同じ交互クラスcaseを一時的な1-way call-site cacheと2-way cacheでA/B比較した。1-wayは107.68 µs/hook、2-wayは92.57 µs/hook（各3,000 hook、各16 calls、約14%短縮）。単一クラスのobject method lookupは1-way 68.66、2-way 71.29 µs/hookで測定揺れを含む小差、5-field object methodは120.00対119.58 µs/hookだった。各variant 1 runのDebug結果なのでrelease性能の断定には使わない。交互case込みのbenchmark suite全体は約19秒で完了した。
-- 3種類のruntime class（Base / Child / Sibling）を同じcall-siteから交互に呼ぶケースも追加した。MSVC Debugで145.30 µs/hook（3,000 hook、各16 calls）、該当CTest suiteは1/1 passed、約24.5秒。分岐形状も異なるため2-class計測との速度比較には使わず、3-class workloadの基準値として扱う。
+- 同じ3-class script・16 calls/hookのMSVC Debug A/Bを実行した。2-wayは145.30 / 145.81（平均145.56）、3-wayは95.31 / 92.28 / 95.01（平均94.20）µs/hook、約35.3%短縮した（各3,000 hook）。32-method object lookupは2-way 98.82 / 94.98、3-way 70.67 / 70.13 / 68.59、5-field object methodは159.10 / 159.64対120.74 / 121.77 / 121.45 µs/hook。Debugの少数runのためrelease性能は未検証。ArtifactScript関連5 targetsは3-way化後もCTest 5/5 passed。
 - MSVC DebugでArtifactScript関連5 test targetsをビルドし、CTest **5/5 passed**（`ArtifactCoreArtifactScriptTest`、`ArtifactCoreLayerScriptComponentTest`、`ArtifactCoreArtifactScriptObjectTest`、`ArtifactCoreArtifactScriptHostMethodTest`、`ArtifactCoreArtifactScriptHostApiTest`）。call-site cache変更後も同一call-siteでのruntime class切替を含めて通過した。
 - このテストは ArtifactCore のスクリプトランタイムを対象とし、Artifact サブモジュールの `ArtifactAbstractLayer` にあるレイヤーコンポーネント連携や UI / プロジェクト読込を通した統合動作は対象外。統合受入確認は未完了。
 
