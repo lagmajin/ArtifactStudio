@@ -1054,6 +1054,49 @@ class Use : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(fields.at("value")), 42.0);
 }
 
+TEST(ArtifactScriptTest, ClassLookupIndexTracksDefinitionChangesBetweenExecutions) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class LookupRoot : ArtifactBehaviour
+{
+    public ObjectRef target;
+    void OnUpdate()
+    {
+        target = new First();
+    }
+}
+class First : ArtifactBehaviour
+{
+    public float value = 1.0;
+}
+class Second : ArtifactBehaviour
+{
+    public float value = 2.0;
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ASSERT_EQ(definition.rootClass.methods.size(), 1u);
+    ASSERT_EQ(definition.rootClass.methods[0].body->statements.size(), 1u);
+
+    ArtifactScriptEvaluator evaluator;
+    ArtifactScriptSerializedFields fields;
+    evaluator.executeMethod(definition, "OnUpdate", {}, fields);
+    ASSERT_FALSE(evaluator.hasError()) << evaluator.getLastError();
+    ASSERT_TRUE(std::holds_alternative<ArtifactScriptObjectInstancePtr>(fields.at("target")));
+    ASSERT_TRUE(std::get<ArtifactScriptObjectInstancePtr>(fields.at("target")));
+    EXPECT_EQ(std::get<ArtifactScriptObjectInstancePtr>(fields.at("target"))->className, "First");
+
+    auto& newExpression = definition.rootClass.methods[0].body->statements[0]->assignValue;
+    ASSERT_TRUE(newExpression);
+    ASSERT_EQ(newExpression->kind, ArtifactScriptExpr::Kind::New);
+    newExpression->newClassName = "Second";
+
+    evaluator.executeMethod(definition, "OnUpdate", {}, fields);
+    ASSERT_TRUE(std::holds_alternative<ArtifactScriptObjectInstancePtr>(fields.at("target")));
+    ASSERT_TRUE(std::get<ArtifactScriptObjectInstancePtr>(fields.at("target")));
+    EXPECT_EQ(std::get<ArtifactScriptObjectInstancePtr>(fields.at("target"))->className, "Second");
+}
+
 TEST(ArtifactScriptTest, PrintLogCollectsOutput) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(

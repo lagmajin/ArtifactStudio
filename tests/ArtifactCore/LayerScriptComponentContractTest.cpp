@@ -970,6 +970,49 @@ class Thing : ArtifactBehaviour
               << " us/hook (" << iterations * repetitions << " calls)\n";
     EXPECT_DOUBLE_EQ(std::get<double>(objectConstructionInstance.fields().at("total")),
                      (warmupIterations + repetitions * iterations) * 36.0);
+
+    std::string deepClassLookupSource = R"(
+class BenchmarkDeepClassLookup : ArtifactBehaviour
+{
+    public ObjectRef target;
+    public float total = 0.0;
+    void OnUpdate()
+    {
+        target = new Level29();
+        total += 1.0;
+    }
+}
+)";
+    for (int i = 0; i < 30; ++i) {
+        deepClassLookupSource += "class Level" + std::to_string(i) + " : ";
+        deepClassLookupSource += i == 0 ? "ArtifactBehaviour" :
+            "Level" + std::to_string(i - 1);
+        deepClassLookupSource += "\n{\n}\n";
+    }
+    auto deepClassLookupDefinition = parser.parse(deepClassLookupSource);
+    ASSERT_TRUE(deepClassLookupDefinition.diagnostics.empty());
+    ArtifactScriptInstance deepClassLookupInstance(
+        std::move(deepClassLookupDefinition));
+    for (int i = 0; i < warmupIterations; ++i) {
+        ASSERT_TRUE(deepClassLookupInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << deepClassLookupInstance.lastError();
+    }
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            ASSERT_TRUE(deepClassLookupInstance.invokeHook(
+                ArtifactScriptHook::OnUpdate))
+                << deepClassLookupInstance.lastError();
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript object construction (30-class chain) benchmark: "
+              << totalMicroseconds / (repetitions * iterations)
+              << " us/hook (" << iterations * repetitions << " calls)\n";
+    EXPECT_DOUBLE_EQ(std::get<double>(deepClassLookupInstance.fields().at("total")),
+                     (warmupIterations + repetitions * iterations) * 1.0);
 #endif
 }
 

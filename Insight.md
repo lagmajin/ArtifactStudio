@@ -4429,3 +4429,21 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **追加で確認した問題:** 不正なクラスメンバーを読むtop-level parser loopに進捗保証がなく、入力位置を進めないまま回るケースがあった。クラスメンバー行のfallback guardを追加し、diagnosticを返して次行へ進むテストを追加した。33段fixture生成で試した同一行class bodyはこのパーサーの対応形式ではなく、その入力がこの停止経路を発見した。
 - **価値または懸念:** 通常の0〜32段のconstructor evaluationから一時vector確保を外した。8-default benchmarkは`try_emplace()`後17.57 µs/hook（約7.7%短縮）。固定stack領域は256 bytes / active `new` expression。33段以上では超過部分用vectorが残る。`new`自体のobject/shared ownershipやfield map allocationは残る。比較・テストはMSVC DebugのみでRelease未計測。変更後のArtifactScript関連5 suitesは5/5 passed。
 - **次に確認すべきこと:** 深い継承の実用script有無とRelease性能を確認する。既存ビルドディレクトリにはNinja Debug構成のみあり、CMake再生成なしでのRelease検証はできていない。
+
+## 2026-10-07 — ArtifactScript variable-name hash cache trial did not improve timing
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptLocals::find()` / variable-expression evaluation、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の`locals(20)` microbenchmark。
+- **仮説:** 同じAST variable expressionはhookごとに同じ識別子を検索するため、固定長のevaluator-side cacheでFNV hashを再利用できる。
+- **実験:** expression pointerをdirect-map keyにし、16 byteまでの名前をinline snapshotと比較してAST名変更も検知する32-entry cacheを試した。`ArtifactScriptTest.VariableHashCacheTracksMutatedAstName`でparse後にvariableNameを変更した場合の正しい再検索を確認した。
+- **確認できた事実:** MSVC Debug `locals(20)`はcache前15.81 µs/hook、cache後16.44と16.42 µs/hook。対照となる複数の未変更benchmarkもcache後runでは約4〜6%遅くなった。`locals(20) / method-local` 比はbaseline約2.50、cache後約2.50で、環境揺れを補正しても効果が確認できなかった。
+- **対応:** variable-name hash cacheと専用mutation testを採用せず戻した。実行後のArtifactScript関連5 suitesは前回のtry_emplace版で5/5 passしている。追加cacheはevaluatorあたり約1.25 KiBの固定状態も必要としていた。
+- **次に確認すべきこと:** Release profileか、より長い名前の専用fixtureでhash計算が実測ボトルネックとなると判明した場合にだけ、別の安全な方法を再評価する。現行環境のbuild treeはDebugだけなのでRelease値はない。
+
+## 2026-10-07 — ArtifactScript evaluator-scoped class lookup index
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptEvaluator::Impl::findClass()` と `new ClassName()` の継承field初期化、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の30-class chain benchmark、`tests/ArtifactCore/ArtifactScriptTest.cpp` の定義変更回帰テスト。
+- **仮説:** クラス定義を線形検索し続けると、深い継承のobject constructionで同じ名前検索を繰り返す。評価開始時にクラス名 index を固定領域へ作れば、名前検索を平均定数時間にできる。
+- **実装:** evaluatorごとに128-slot open-address tableを保持し、定義が64クラス以下の場合だけ`executeResolvedMethod()`の開始時に構築する。root classの既存優先順位と重複名のfirst-match挙動を維持する。65クラス以上は従来の線形lookupへfallback。定義ごとにgenerationを進め、同じevaluatorの実行間でASTのclass nameが変更されたケースはindexを再構築して追従する。索引は固定配列で、構築・lookupに動的確保はない。
+- **確認できた事実:** MSVC Debugで30-class chain object constructionはindex前62.03 µs/hook、index後14.95 µs/hook（約75.9%短縮、各60,000 calls）。定義の同一ASTをFirstからSecondへ書き換えて再実行するテスト、およびArtifactScript関連5 suitesがすべてpassした。
+- **価値または懸念:** 固定table領域は約2 KiB/evaluator。効果はクラス検索を多数行う大きなdefinitionに偏り、65クラス以上では従来性能のまま。測定はMSVC DebugのみでRelease値ではない。
+- **次に確認すべきこと:** 実際の大規模scriptでclass count分布を調べ、64-class cutoffが現実的か確認する。Release profileはRelease build configurationを用意した時点で再測定する。
