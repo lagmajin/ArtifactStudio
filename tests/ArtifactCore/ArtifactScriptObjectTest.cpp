@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <string>
 #include <variant>
 
@@ -93,6 +94,77 @@ class Point : ArtifactBehaviour
     EXPECT_FALSE(evaluator.hasError()) << evaluator.getLastError();
     ASSERT_TRUE(std::holds_alternative<double>(fields.at("total")));
     EXPECT_DOUBLE_EQ(std::get<double>(fields.at("total")), 8.0);
+}
+
+TEST(ArtifactScriptObjectTest, EqualityUsesValueAndReferenceSemantics) {
+    auto definition = parseOk(R"(
+class EqualityProbe : ArtifactBehaviour
+{
+    public float result = 0.0;
+    public int count = 1;
+    public float amount = 1.0;
+    public ObjectRef refA;
+    public ObjectRef refAlias;
+    public ObjectRef refB;
+    public Vec2 vec2A;
+    public Vec2 vec2B;
+    public Vec3 vec3A;
+    public Vec3 vec3B;
+    public Vec4 vec4A;
+    public Vec4 vec4B;
+    public Color colorA;
+    public Color colorB;
+    void OnUpdate()
+    {
+        if (false == false) { result += 1.0; }
+        if (true == true) { result += 2.0; }
+        if (false != true) { result += 4.0; }
+        if (true != 1.0) { result += 8.0; }
+        if (false == 0.0) { result += 16.0; }
+        if (count == amount) { result += 2048.0; }
+
+        var first = new IdentityNode();
+        var alias = first;
+        var second = new IdentityNode();
+        if (first == alias) { result += 32.0; }
+        if (first != second) { result += 64.0; }
+
+        var array = [1.0];
+        var arrayAlias = array;
+        var otherArray = [1.0];
+        if (array == arrayAlias) { result += 128.0; }
+        if (array != otherArray) { result += 256.0; }
+
+        if (refA == refAlias) { result += 512.0; }
+        if (refA != refB) { result += 1024.0; }
+        if (vec2A == vec2B) { result += 4096.0; }
+        if (vec3A == vec3B) { result += 8192.0; }
+        if (vec4A == vec4B) { result += 16384.0; }
+        if (colorA == colorB) { result += 32768.0; }
+    }
+}
+class IdentityNode : ArtifactBehaviour { }
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    instance.fields()["result"] = 0.0;
+    instance.fields()["count"] = std::int64_t{1};
+    instance.fields()["amount"] = 1.0;
+    instance.fields()["refA"] = ArtifactScriptRef{"shared"};
+    instance.fields()["refAlias"] = ArtifactScriptRef{"shared"};
+    instance.fields()["refB"] = ArtifactScriptRef{"different"};
+    instance.fields()["vec2A"] = ArtifactScriptVec2{1.0f, 2.0f};
+    instance.fields()["vec2B"] = ArtifactScriptVec2{1.0f, 2.0f};
+    instance.fields()["vec3A"] = ArtifactScriptVec3{1.0f, 2.0f, 3.0f};
+    instance.fields()["vec3B"] = ArtifactScriptVec3{1.0f, 2.0f, 3.0f};
+    instance.fields()["vec4A"] = ArtifactScriptVec4{1.0f, 2.0f, 3.0f, 4.0f};
+    instance.fields()["vec4B"] = ArtifactScriptVec4{1.0f, 2.0f, 3.0f, 4.0f};
+    instance.fields()["colorA"] = ArtifactScriptColor{0.1f, 0.2f, 0.3f, 0.4f};
+    instance.fields()["colorB"] = ArtifactScriptColor{0.1f, 0.2f, 0.3f, 0.4f};
+
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 65519.0);
 }
 
 TEST(ArtifactScriptObjectTest, SameObjectNestedMethodMutationIsVisibleAfterRead) {
