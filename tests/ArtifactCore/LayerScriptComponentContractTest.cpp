@@ -6,6 +6,7 @@
 #include <iostream>
 #include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <variant>
 
@@ -1404,6 +1405,72 @@ TEST(LayerScriptComponentContractTest,
               << allocations.first / parseIterations << " allocations/parse, "
               << allocations.second / parseIterations << " bytes/parse ("
               << parseIterations << " parses)\n";
+}
+
+TEST(LayerScriptComponentContractTest,
+     NumericLiteralParsingAvoidsTokenCopyAllocations) {
+    constexpr std::string_view shortToken = "1.0";
+    constexpr std::string_view scientificToken = "1.234567890123456e-12";
+    constexpr std::size_t parseIterations = 200;
+    ArtifactScriptParser parser;
+
+    const auto makeSource = [](std::string_view token,
+                               std::size_t targetTokenLength) {
+        const std::string prefix =
+            "class NumericParseProbe : ArtifactBehaviour {\n"
+            " public float value = ";
+        const std::string suffix = ";\n}\n";
+        std::string source = prefix;
+        source.append(token);
+        source.append(targetTokenLength - token.size(), ' ');
+        source.append(suffix);
+        return source;
+    };
+    const std::string shortSource = makeSource(shortToken, scientificToken.size());
+    const std::string scientificSource =
+        makeSource(scientificToken, scientificToken.size());
+    ASSERT_EQ(shortSource.size(), scientificSource.size());
+
+    const auto countAllocations = [&](const std::string& source) {
+        ScriptAllocationCounter counter;
+        std::size_t parsedDefinitions = 0;
+        for (std::size_t i = 0; i < parseIterations; ++i) {
+            auto definition = parser.parse(source);
+            if (definition.diagnostics.empty()) ++parsedDefinitions;
+        }
+        return std::pair{parsedDefinitions, counter.stop()};
+    };
+    const auto shortResult = countAllocations(shortSource);
+    const auto scientificResult = countAllocations(scientificSource);
+
+    ASSERT_EQ(shortResult.first, parseIterations);
+    ASSERT_EQ(scientificResult.first, parseIterations);
+    EXPECT_EQ(scientificResult.second.first, shortResult.second.first);
+    EXPECT_EQ(scientificResult.second.second, shortResult.second.second);
+
+    const auto measureParseTime = [&](const std::string& source) {
+        const auto start = std::chrono::steady_clock::now();
+        for (std::size_t i = 0; i < parseIterations; ++i) {
+            const auto definition = parser.parse(source);
+            if (!definition.diagnostics.empty()) return -1.0;
+        }
+        return std::chrono::duration<double, std::micro>(
+                   std::chrono::steady_clock::now() - start)
+                   .count() /
+               parseIterations;
+    };
+    const double shortMicroseconds = measureParseTime(shortSource);
+    const double scientificMicroseconds = measureParseTime(scientificSource);
+    ASSERT_GE(shortMicroseconds, 0.0);
+    ASSERT_GE(scientificMicroseconds, 0.0);
+    std::cout << "ArtifactScript numeric literal parse allocations: short "
+              << shortResult.second.first / parseIterations << " / "
+              << shortResult.second.second / parseIterations
+              << " bytes, scientific "
+              << scientificResult.second.first / parseIterations << " / "
+              << scientificResult.second.second / parseIterations
+              << " bytes per parse; time " << shortMicroseconds << " vs "
+              << scientificMicroseconds << " us/parse\n";
 }
 
 TEST(LayerScriptComponentContractTest, ParserStringScanBenchmark) {
