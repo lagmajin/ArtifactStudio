@@ -730,6 +730,60 @@ class Test : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(fields["value"]), 100.0);
 }
 
+TEST(ArtifactScriptTest, ArraySearchBuiltinsUseScriptEqualitySemantics) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ArraySearch : ArtifactBehaviour
+{
+    public Array values;
+    public bool mixedContains = false;
+    public bool boolContains = false;
+    public bool sameArrayContains = false;
+    public bool freshArrayContains = true;
+    public bool mismatchedTypeContains = true;
+    public float mixedIndex = -1.0;
+    public float stringIndex = -1.0;
+    void OnUpdate()
+    {
+        mixedContains = contains(values, 7.0);
+        boolContains = contains(values, true);
+        sameArrayContains = contains(values, values[3]);
+        freshArrayContains = contains(values, [3.0]);
+        mismatchedTypeContains = contains(values, false);
+        mixedIndex = indexOf(values, 7.0);
+        stringIndex = indexOf(values, "tag");
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    auto nestedArray = makeShared<ArtifactScriptArray>();
+    nestedArray->values = {3.0};
+    auto object = makeShared<ArtifactScriptObjectInstance>();
+    object->className = "SearchTarget";
+    auto values = makeShared<ArtifactScriptArray>();
+    values->values = {
+        std::int64_t{7}, true, std::string("tag"), nestedArray, object};
+    instance.fields()["values"] = values;
+    instance.fields()["mixedContains"] = false;
+    instance.fields()["boolContains"] = false;
+    instance.fields()["sameArrayContains"] = false;
+    instance.fields()["freshArrayContains"] = true;
+    instance.fields()["mismatchedTypeContains"] = true;
+    instance.fields()["mixedIndex"] = -1.0;
+    instance.fields()["stringIndex"] = -1.0;
+
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("mixedContains")));
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("boolContains")));
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("sameArrayContains")));
+    EXPECT_FALSE(std::get<bool>(instance.fields().at("freshArrayContains")));
+    EXPECT_FALSE(std::get<bool>(instance.fields().at("mismatchedTypeContains")));
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("mixedIndex")), 0);
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("stringIndex")), 2);
+}
+
 TEST(ArtifactScriptTest, HotReloadMigratesFields) {
     constexpr auto sourceV1 = R"(
 class Spin : ArtifactBehaviour
