@@ -1,5 +1,14 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactScriptの単純な二項式で値を再検索・copyしない
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptEvaluator::Impl::evalExpr()` Binary path、`tests/ArtifactCore/ArtifactScriptTest.cpp`。
+- **確認できた事実:** `+` と比較のstring専用fast pathは、variable/literalが数値だった場合もstringとして直接読めるかを調べた後、通常の`evalExpr()`へ戻り、同じvariableをもう一度検索して値copyを作っていた。構文がliteral/variableだけのbinary nodeなら両方とも副作用なく参照解決できる。
+- **対応:** simple variable/literal pairは参照を一度ずつ解決し、string/string additionだけは既存のreserve済み経路、それ以外は`evalBinary()`へ直接渡す。`&&` / `||` は短絡評価と既存の戻り値挙動を維持するため除外。AST variable nameをparse後に変更する回帰テストを追加し、キャッシュを持たず毎回現在名を解決することも確認した。
+- **Debug性能計測:** MSVC Debug `HookExecutionMicrobenchmark`を変更前後各2回実行。32-method lookup（16 calls/hook）は平均60.30→52.40 µs/hook（約13%短縮）、object method lookupは75.80→68.59（約9.5%短縮）、3-class polymorphic callは106.31→96.97（約8.8%短縮）、4-class caseは111.79→103.61（約7.3%短縮）。run間の揺れがあるため目安として扱い、Release性能は未検証。
+- **確認結果:** ArtifactScript関連5 CTest suitesは5/5 passed。literal/variable pair以外と未定義名は従来の評価経路を維持する。
+- **次に確認すべきこと:** variable/literal以外（index / field access）のbinary評価は副作用・診断・transaction semanticsを確認してから別fixtureで検討する。現状のDebug値だけでJIT要否を判断しない。
+
 ## 2026-10-07 — ArtifactScriptのdouble複合代入をin-place化
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptEvaluator::Impl::execStmt()`、`tests/ArtifactCore/ArtifactScriptTest.cpp`。

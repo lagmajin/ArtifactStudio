@@ -562,6 +562,38 @@ class StringScalarConcatenation : ArtifactBehaviour
               "count=12, enabled=true2.5");
 }
 
+TEST(ArtifactScriptTest, SimpleBinaryOperandsTrackMutableAstNames) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class MutableBinaryOperands : ArtifactBehaviour
+{
+    public float result = 0.0;
+    void OnUpdate() { result = input + 1.0; }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptEvaluator evaluator;
+    ArtifactScriptSerializedFields fields;
+    fields["input"] = 2.0;
+    fields["replacement"] = 8.0;
+    evaluator.executeMethod(definition, "OnUpdate", {}, fields);
+    ASSERT_FALSE(evaluator.hasError()) << evaluator.getLastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(fields.at("result")), 3.0);
+
+    auto& expression = definition.rootClass.methods[0]
+                           .body->statements[0]->assignValue;
+    ASSERT_TRUE(expression);
+    ASSERT_EQ(expression->kind, ArtifactScriptExpr::Kind::Binary);
+    ASSERT_TRUE(expression->left);
+    ASSERT_EQ(expression->left->kind, ArtifactScriptExpr::Kind::Variable);
+    expression->left->variableName = "replacement";
+
+    evaluator.executeMethod(definition, "OnUpdate", {}, fields);
+    ASSERT_FALSE(evaluator.hasError()) << evaluator.getLastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(fields.at("result")), 9.0);
+}
+
 TEST(ArtifactScriptTest, StringCompoundAssignmentAppendsScalarValues) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(
