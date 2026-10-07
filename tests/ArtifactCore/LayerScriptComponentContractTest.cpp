@@ -1391,6 +1391,58 @@ class ScriptDirectStringArgumentProbe : ArtifactBehaviour
               << allocations.second / allocationIterations << " bytes/hook\n";
 }
 
+TEST(LayerScriptComponentContractTest,
+     ScriptConstructorMovesLongStringArgumentsIntoParameters) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ScriptStringConstructorProbe : ArtifactBehaviour
+{
+    public ObjectRef target;
+    public string source = "seed";
+    void OnUpdate() { target = new ScriptStringConstructorSink(source); }
+}
+class ScriptStringConstructorSink : ArtifactBehaviour
+{
+    public string value = "";
+    void OnConstruct(string input) { this.value = input; }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    instance.fields()["source"] = std::string(128, 'x');
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << instance.lastError();
+    }
+    const auto target = std::get<ArtifactScriptObjectInstancePtr>(
+        instance.fields().at("target"));
+    ASSERT_TRUE(target);
+    ASSERT_EQ(std::get<std::string>(target->fields.at("value")).size(), 128u);
+
+    ScriptAllocationCounter counter;
+    constexpr std::size_t allocationIterations = 1000;
+    bool succeeded = true;
+    for (std::size_t i = 0; i < allocationIterations; ++i) {
+        if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+            succeeded = false;
+            break;
+        }
+    }
+    const auto allocations = counter.stop();
+    EXPECT_TRUE(succeeded) << instance.lastError();
+    EXPECT_EQ(allocations.first, allocationIterations * 22)
+        << "allocations/hook=" << allocations.first / allocationIterations;
+    EXPECT_GT(allocations.second, 0u)
+        << "bytes/hook=" << allocations.second / allocationIterations;
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("source")).size(), 128u);
+    std::cout << "ArtifactScript constructor long-string arguments: "
+              << allocations.first / allocationIterations << " allocations/hook, "
+              << allocations.second / allocationIterations << " bytes/hook\n";
+}
+
 TEST(LayerScriptComponentContractTest, ScriptIsOperatorAvoidsSteadyStateAllocations) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
