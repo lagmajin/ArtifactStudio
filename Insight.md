@@ -4822,3 +4822,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認結果:** `2^53+1`と隣接doubleの`== != < >`、順序を逆にした比較、`INT64_MIN`との等値、`INT64_MAX`と`2^63`の比較をテスト。ArtifactScript関連5 CTest suitesは **5/5 passed**。
 - **価値または懸念:** int64精度をmixed comparisonでも保つ。比較用分岐のCPU差は未計測。
 - **次に確認すべきこと:** NaN・±infinityを含むmixed comparisonとRelease workloadのprofileを確認する。
+
+## 2026-10-07 — ArtifactScript increment syntax bypassed int64 arithmetic
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のprefix/postfix `++` / `--` parser sugarと、`tests/ArtifactCore/ArtifactScriptTest.cpp`。
+- **確認できた事実:** 3種類のincrement/decrement文法は、`+=` / `-=`の右辺としてdouble literal `1.0`をASTへ埋め込んでいた。直近のint64 arithmeticを導入しても、これらはmixed int/double経路に入って値の型・精度を失い得る。
+- **実装:** 合成literalを`std::int64_t{1}`へ変更。int64のoverflowチェックを含む整数演算経路をそのまま使う。
+- **確認結果:** `2^53+1`のpostfix increment、結果のprefix increment/postfix decrementとint64 variant保持、`INT64_MAX++`のoverflow diagnosticを追加。ArtifactScript関連5 CTest suitesは **5/5 passed**。
+- **価値または懸念:** 明示的な整数増減が整数演算意味と揃い、doubleへの不要な変換も避ける。速度差は計測していない。
+- **次に確認すべきこと:** host-provided数値やint fieldの実利用で`++` / `--` variant変更が期待どおりか確認し、他の合成numeric AST literalも同様の型漏れがないか監査する。

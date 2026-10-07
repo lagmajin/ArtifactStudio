@@ -76,6 +76,7 @@ class ExactIntegers : ArtifactBehaviour
 {
     public int large = 0;
     public int sum = 0;
+    public int incremented = 0;
     public int quotient = 0;
     public int negativeQuotient = 0;
     public int remainder = 0;
@@ -102,6 +103,10 @@ class ExactIntegers : ArtifactBehaviour
         reverseGreaterThanRoundedDouble = 9007199254740992.0 < large;
         minimumEqualsDouble = minimum == -9223372036854775808.0;
         maximumLessThanUpperDouble = 9223372036854775807 < 9223372036854775808.0;
+        large++;
+        incremented = large;
+        ++incremented;
+        incremented--;
     }
 }
 )");
@@ -111,8 +116,12 @@ class ExactIntegers : ArtifactBehaviour
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
         << instance.lastError();
     EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("large")),
-              INT64_C(9007199254740993));
+              INT64_C(9007199254740994));
     EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("sum")),
+              INT64_C(9007199254740994));
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("large")),
+              INT64_C(9007199254740994));
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("incremented")),
               INT64_C(9007199254740994));
     EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("quotient")), 3);
     EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("negativeQuotient")), -3);
@@ -170,6 +179,23 @@ class IntegerMultiplicationOverflow : ArtifactBehaviour
     EXPECT_FALSE(multiplicationInstance.invokeHook(
         ArtifactScriptHook::OnUpdate));
     EXPECT_NE(multiplicationInstance.lastError().find("integer overflow"),
+              std::string::npos);
+
+    auto incrementDefinition = parser.parse(R"(
+class IntegerIncrementOverflow : ArtifactBehaviour
+{
+    public int result = 0;
+    void OnUpdate()
+    {
+        result = 9223372036854775807;
+        result++;
+    }
+}
+)");
+    ASSERT_TRUE(incrementDefinition.diagnostics.empty());
+    ArtifactScriptInstance incrementInstance(std::move(incrementDefinition));
+    EXPECT_FALSE(incrementInstance.invokeHook(ArtifactScriptHook::OnUpdate));
+    EXPECT_NE(incrementInstance.lastError().find("integer overflow"),
               std::string::npos);
 }
 
