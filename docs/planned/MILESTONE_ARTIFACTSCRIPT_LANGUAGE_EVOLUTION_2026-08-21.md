@@ -7,7 +7,7 @@
 
 ## 進捗 2026-10-07
 
-- chained lvalue assignmentを追加し、`matrix[0][1] = value`と`nodes[0].score += value`を実行可能にした。ASTは既存Index / FieldAccess式をlvalueとして保持し、評価器の同じ境界検査・compound演算を使う。連鎖targetのpostfix `++` / `--`も対応。既存`this.x = value`の`fieldAssign` AST契約も維持。nested array書込みとobject field compound/increment/decrementを含めArtifactScript関連5 CTest suitesは5/5 passed。新しいASTポインタ分のstatement storageとassignment分岐を追加したが、性能差は未計測。
+- chained lvalue assignmentを追加し、`matrix[0][1] = value`と`nodes[0].score += value`を実行可能にした。ASTは既存Index / FieldAccess式をlvalueとして保持し、評価器の同じ境界検査・compound演算を使う。連鎖targetのprefix / postfix `++` / `--`も対応。既存`this.x = value`の`fieldAssign` AST契約も維持。nested array書込みとobject field compound/increment/decrementを含めArtifactScript関連5 CTest suitesは5/5 passed。新しいASTポインタ分のstatement storageとassignment分岐を追加したが、性能差は未計測。
 - 括弧付き式を実装し、`(2 + 3) * 4`の優先順位指定、nested grouping、`(values)[1]`のような括弧後のpostfix accessを追加。group用AST/runtime nodeを生成せず内側expressionを返すため、実行時評価経路を増やさない。閉じ括弧欠落時のsource line診断もテストし、ArtifactScript関連5 CTest suitesは5/5 passed。
 - expressionの後置index/member/methodを連鎖可能にし、`matrix[0][1]`、`nodes[0].score`、`nodes[0].getScore()`を追加。既存のindex/field/method evaluatorを再利用し、新しいAST種別や実行時lookupは増やしていない。統合fixtureで3経路の値を確認し、ArtifactScript関連5 CTest suitesは5/5 passed。既存4 KiB string parser fixtureのMSVC Debug測定は未escape 51.3、末尾escape 48.5 µs/parse（各1回）で、過去記録の52.8 / 55.7より悪化は見えないが、単回測定のため速度向上とは断定しない。
 - 配列indexのint/double変換を共通の境界検査へ集約。負数、NaN、無限大、配列長を超える値は`size_t`変換前に拒否し、正の小数は従来どおり切り捨てる。通常読み込み、binary比較の参照最適化、代入の3経路で不正値診断を維持する。回帰テストを追加し、ArtifactScript関連5 CTest suitesは5/5 passed。

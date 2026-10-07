@@ -573,11 +573,13 @@ class PostfixAccess : ArtifactBehaviour
     void OnUpdate()
     {
         matrix[0][0] == 2.0;
+        ++matrix[0][0];
         matrix[0][0]++;
         matrix[0][1] = 9.0;
         matrix[0][1] += 2.0;
         matrix[0][1] %= 6.0;
         nodes[0].score += 2.0;
+        --nodes[0].score;
         nodes[0].score--;
         indexResult = matrix[0][0] + matrix[0][1];
         fieldResult = nodes[0].score;
@@ -610,9 +612,9 @@ class ChainNode : ArtifactBehaviour
     instance.fields()["fieldResult"] = 0.0;
     instance.fields()["methodResult"] = 0.0;
     const bool invoked = instance.invokeHook(ArtifactScriptHook::OnUpdate);
-    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("indexResult")), 8.0);
-    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("fieldResult")), 6.0);
-    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("methodResult")), 6.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("indexResult")), 9.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("fieldResult")), 5.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("methodResult")), 5.0);
     ASSERT_TRUE(invoked) << instance.lastError();
 }
 
