@@ -833,6 +833,54 @@ class Settings : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(component.publicFields().at("speed")), 2.0);
 }
 
+TEST(ArtifactScriptTest, SerializedInt64ValuesRoundTripWithoutDoubleRounding) {
+    ArtifactScriptSerializedComponent source;
+    source.className = "ExactSerializedIntegers";
+    source.values["aboveDoublePrecision"] = INT64_C(9007199254740993);
+    source.values["minimum"] = std::numeric_limits<std::int64_t>::min();
+    source.values["maximum"] = std::numeric_limits<std::int64_t>::max();
+    auto array = makeShared<ArtifactScriptArray>();
+    array->values.emplace_back(INT64_C(9007199254740993));
+    array->values.emplace_back(1.5);
+    source.values["items"] = ArtifactScriptArrayPtr(std::move(array));
+
+    const std::string json = serializeScriptComponent(source);
+    ArtifactScriptSerializedComponent decoded;
+    std::string error;
+    ASSERT_TRUE(deserializeScriptComponent(json, decoded, error)) << error;
+    EXPECT_EQ(std::get<std::int64_t>(decoded.values.at("aboveDoublePrecision")),
+              INT64_C(9007199254740993));
+    EXPECT_EQ(std::get<std::int64_t>(decoded.values.at("minimum")),
+              std::numeric_limits<std::int64_t>::min());
+    EXPECT_EQ(std::get<std::int64_t>(decoded.values.at("maximum")),
+              std::numeric_limits<std::int64_t>::max());
+    const auto decodedArray =
+        std::get<ArtifactScriptArrayPtr>(decoded.values.at("items"));
+    ASSERT_NE(decodedArray, nullptr);
+    ASSERT_EQ(decodedArray->values.size(), 2u);
+    EXPECT_EQ(std::get<std::int64_t>(decodedArray->values[0]),
+              INT64_C(9007199254740993));
+    EXPECT_DOUBLE_EQ(std::get<double>(decodedArray->values[1]), 1.5);
+
+    ArtifactScriptValue parsedInteger;
+    ASSERT_TRUE(deserializeScriptValue(
+        "9223372036854775807", ArtifactScriptValueType::Int,
+        parsedInteger, error)) << error;
+    EXPECT_EQ(std::get<std::int64_t>(parsedInteger),
+              std::numeric_limits<std::int64_t>::max());
+    EXPECT_FALSE(deserializeScriptValue(
+        "9223372036854775808", ArtifactScriptValueType::Int,
+        parsedInteger, error));
+    EXPECT_EQ(error, "expected int64");
+    EXPECT_FALSE(deserializeScriptValue(
+        "-9223372036854775809", ArtifactScriptValueType::Int,
+        parsedInteger, error));
+    EXPECT_EQ(error, "expected int64");
+    EXPECT_FALSE(deserializeScriptValue(
+        "1.5", ArtifactScriptValueType::Int, parsedInteger, error));
+    EXPECT_EQ(error, "expected int64");
+}
+
 TEST(ArtifactScriptTest, EvaluatorExecutesAssignment) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(

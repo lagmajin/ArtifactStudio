@@ -4840,3 +4840,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認結果:** `1 && 2`と`0 || 2`がboolを返し、`0 && sideEffect()` / `1 || sideEffect()`で右辺を評価しないことを確認。ArtifactScript関連5 CTest suitesは **5/5 passed**。
 - **価値または懸念:** 論理式の結果型をboolに揃え、短絡の意味は維持する。現在のtruthiness受理型はbool/int/doubleに限定しており、C#のbool-only operator semanticsとは異なる。numeric operandsを許す既存契約を今回維持したが、これは言語仕様として未整理。
 - **次に確認すべきこと:** 他の式コンテキストでlogical resultがoperand valueとして使われている依存を調べ、truthinessとbool-only演算子の方針を言語仕様で確定する。
+
+## 2026-10-07 — ArtifactScript JSON numbers erased serialized int64 precision
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ScriptJsonValue` / `parseJsonNumber()` / `jsonToScriptValue()` / `deserializeScriptComponent()`。
+- **確認できた事実:** JSON parserは数値tokenを`double`だけで保持していた。serialized int64 `9007199254740993`は再読込時にdouble roundingされ、typed int deserializationとgeneric array conversionは範囲確認のないdouble→int64 castを行っていた。int fieldへのfractional numberも暗黙に切り捨てる。
+- **実装:** 整数表記のJSON numberは可能ならexact `int64` payloadを保持する。typed int conversionはfractional/out-of-rangeを拒否し、generic fields/arraysはexact integer tokenを使い、integer token外ではfinite・integral・int64範囲内を検証してからcastする。JSON number parserにも完全token消費を要求する。
+- **確認結果:** `2^53+1`、`INT64_MIN/MAX`、array内のlarge intとfractional doubleのcomponent serialization往復、typed intの最大値・overflow・fractional rejectionをテスト。ArtifactScript関連5 CTest suitesは **5/5 passed**。
+- **価値または懸念:** int64を使ったscript stateがproject保存・再読込で正確に戻る。過去に不正なfractional/out-of-range JSONがtyped intとして読めたケースは今後default fallbackになるため、互換性の差は不正値入力に限定される想定。
+- **次に確認すべきこと:** Artifact側の実project save/load pathでもserialized componentのlarge int保持を確認し、非標準JSON number tokenを追加でfuzz/testする。
