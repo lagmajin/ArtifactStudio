@@ -1363,6 +1363,59 @@ TEST(ArtifactScriptTest, StringJoinRejectsInvalidArgumentsAndElementTypes) {
               std::string::npos);
 }
 
+TEST(ArtifactScriptTest, StringReplaceUsesLiteralNonOverlappingMatches) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ReplaceStrings : ArtifactBehaviour
+{
+    public string repeated;
+    public string noMatch;
+    public string removed;
+    public string overlapping;
+    public string unicode;
+    void OnUpdate()
+    {
+        repeated = replace("--a----b--", "--", "/");
+        noMatch = replace("stable", "--", "/");
+        removed = replace("banana", "na", "");
+        overlapping = replace("aaaaa", "aa", "x");
+        unicode = replace("猫/猫", "猫", "犬");
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("repeated")), "/a//b/");
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("noMatch")), "stable");
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("removed")), "ba");
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("overlapping")), "xxa");
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("unicode")), "犬/犬");
+}
+
+TEST(ArtifactScriptTest, StringReplaceRejectsInvalidArgumentsAndEmptySearch) {
+    ArtifactScriptParser parser;
+    const auto run = [&](std::string_view expression) {
+        auto definition = parser.parse("class InvalidReplace : ArtifactBehaviour\n{\n"
+                                       "    void OnUpdate()\n    {\n        " +
+                                       std::string(expression) +
+                                       ";\n    }\n}\n");
+        EXPECT_TRUE(definition.diagnostics.empty());
+        ArtifactScriptInstance instance(std::move(definition));
+        EXPECT_TRUE(instance.hasHook(ArtifactScriptHook::OnUpdate));
+        EXPECT_FALSE(instance.invokeHook(ArtifactScriptHook::OnUpdate));
+        return instance.lastError();
+    };
+
+    EXPECT_NE(run("replace(1.0, \",\", \":\")").find("replace expects"),
+              std::string::npos);
+    EXPECT_NE(run("replace(\"value\", \"\", \"x\")").find(
+                  "search string must not be empty"),
+              std::string::npos);
+}
+
 TEST(ArtifactScriptTest, EvaluatorBuiltinFunctions) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(

@@ -4900,3 +4900,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **仮説（未検証）:** 言語機能追加とJITを同時に進めるなら、ASTから直接machine codeを出すより、まず意味を一つに保てるbytecode / execution IRとAST interpreterとの共有契約を作る方が、機能間の意味ずれとcache invalidationを抑えやすい。Hot methodだけを後段でnative compileする段階構成が候補。
 - **価値または懸念:** 性能改善を継続しながら、JIT導入時に構文・演算子ごとの二重実装を避ける道筋になる。ただしIR設計、definition revisioning、デバッグ位置情報、native backend選定、実 workloadでの損益は未調査であり、JIT実装の採用根拠にはまだならない。
 - **次に確認すべきこと:** 代表的なlayer scriptをprofileし、AST dispatchが主要コストかを確かめる。次にbytecode化するstatement/expressionの最小集合と、mutable definition / hot reload時のcompiled cache invalidation契約を調査する。
+
+## 2026-10-07 — ArtifactScript replace can pre-size literal replacement output
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `evalCall()` builtin dispatch、ArtifactScript / layer contract tests。
+- **確認できた事実:** `split`と`join`のliteral string handlingが既にあり、string valuesは`std::string`で所有される。標準的な左からの非重複置換では、search回数と最終byte長をappend前に決められる。
+- **実装:** `replace(source, search, replacement)` はempty searchを拒否し、一致数を数えてsize overflowを検査した後、出力を一度reserveしてsourceの範囲とreplacementを直接appendする。対象型は3つのstringに限定。
+- **確認結果:** 全置換、no match、deletion、overlapping candidate、日本語literal、bad argument / empty searchをテストし、layer hook上の `split` / `join` と組み合わせたpath normalizationを確認。ArtifactScript関連5 CTest suitesは **5/5 passed**。
+- **価値または懸念:** script側での文字列置換ループと一時連結を避ける専用経路を作れた。replace固有のCPU / allocation比較は未実施であり、性能向上量は未検証。
+- **次に確認すべきこと:** `join` と同じ長さ・要素数でreplaceのallocation / CPUを測定し、一般的なscript loopと比較する。UTF-8 code point基準ではなくliteral byte sequence searchである点を言語仕様に明記するか検討する。
