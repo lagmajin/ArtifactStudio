@@ -218,8 +218,13 @@ TEST(LayerScriptComponentContractTest,
 class SplitLayerPath : ArtifactBehaviour
 {
     public string path = "/assets//layer/";
+    public string roundTrip;
     public Array segments;
-    void OnUpdate() { segments = split(path, "/"); }
+    void OnUpdate()
+    {
+        segments = split(path, "/");
+        roundTrip = join(segments, "/");
+    }
 }
 )");
     ASSERT_TRUE(definition.diagnostics.empty());
@@ -239,7 +244,91 @@ class SplitLayerPath : ArtifactBehaviour
     EXPECT_TRUE(std::get<std::string>(segments->values[2]).empty());
     EXPECT_EQ(std::get<std::string>(segments->values[3]), "layer");
     EXPECT_TRUE(std::get<std::string>(segments->values[4]).empty());
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("roundTrip")),
+              "/assets//layer/");
     EXPECT_TRUE(instance.lastError().empty());
+}
+
+TEST(LayerScriptComponentContractTest,
+     JoinBuiltinReducesAllocationsComparedWithScriptLoop) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class JoinAllocationProbe : ArtifactBehaviour
+{
+    public Array parts;
+    public string joined;
+    void OnCreate()
+    {
+        parts = ["first segment has enough bytes", "second segment also has enough bytes", "third segment"];
+    }
+    void OnUpdate() { joined = join(parts, " :: "); }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate))
+        << instance.lastError();
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+
+    const std::string expected =
+        "first segment has enough bytes :: second segment also has enough bytes :: third segment";
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("joined")), expected);
+
+#if defined(_MSC_VER) && defined(_DEBUG)
+    auto baselineDefinition = parser.parse(R"(
+class JoinLoopAllocationProbe : ArtifactBehaviour
+{
+    public Array parts;
+    public string joined;
+    void OnCreate()
+    {
+        parts = ["first segment has enough bytes", "second segment also has enough bytes", "third segment"];
+    }
+    void OnUpdate()
+    {
+        joined = "";
+        for (int i = 0; i < size(parts); i++)
+        {
+            if (i > 0) joined += " :: ";
+            joined += parts[i];
+        }
+    }
+}
+)");
+    ASSERT_TRUE(baselineDefinition.diagnostics.empty());
+    ArtifactScriptInstance baseline(std::move(baselineDefinition));
+    ASSERT_TRUE(baseline.invokeHook(ArtifactScriptHook::OnCreate))
+        << baseline.lastError();
+    ASSERT_TRUE(baseline.invokeHook(ArtifactScriptHook::OnUpdate))
+        << baseline.lastError();
+    EXPECT_EQ(std::get<std::string>(baseline.fields().at("joined")), expected);
+
+    constexpr std::size_t allocationIterations = 1000;
+    const auto measureAllocations = [&](ArtifactScriptInstance& measured) {
+        ScriptAllocationCounter counter;
+        std::string failure;
+        for (std::size_t i = 0; i < allocationIterations; ++i) {
+            if (!measured.invokeHook(ArtifactScriptHook::OnUpdate)) {
+                failure = measured.lastError();
+                break;
+            }
+        }
+        const auto allocations = counter.stop();
+        EXPECT_TRUE(failure.empty()) << failure;
+        return allocations;
+    };
+    const auto [joinAllocations, joinBytes] = measureAllocations(instance);
+    const auto [loopAllocations, loopBytes] = measureAllocations(baseline);
+    std::cout << "ArtifactScript join vs += loop (" << expected.size()
+              << " output bytes): "
+              << joinAllocations / allocationIterations << " / "
+              << loopAllocations / allocationIterations << " allocations/hook, "
+              << joinBytes / allocationIterations << " / "
+              << loopBytes / allocationIterations << " bytes/hook\n";
+    EXPECT_LT(joinAllocations, loopAllocations);
+    EXPECT_LT(joinBytes, loopBytes);
+#endif
 }
 
 TEST(LayerScriptComponentContractTest, ReusedEvaluatorClearsPriorHookError) {

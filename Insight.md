@@ -4883,3 +4883,20 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認結果:** empty source、delimiter不一致、非重複一致、空要素保持、型不一致、空delimiterを含むテストに加え、layer hookから複数回呼ぶ契約テストを追加。ArtifactScript関連5 CTest suitesは **5/5 passed**。後者は今回focused testを実行して通過。
 - **価値または懸念:** 言語機能の追加と同時に、結果vectorの成長再確保を避ける設計にできる。一方、文字列ごとの`substr`と配列value自体の所有 allocationは残る。現時点でsplit固有のallocation / CPU benchmarkはなく、全体の高速化効果は未検証。
 - **次に確認すべきこと:** 代表的な短・長文字列や区切り数に対してsplitの割当量とCPU時間を測り、2回走査と文字列コピーのコストを比較する。必要性を計測で確認してからstring-view的な所有権変更を検討する。
+
+## 2026-10-07 — ArtifactScript join can size its output before appending
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `evalCall()` builtin dispatch、`tests/ArtifactCore/ArtifactScriptTest.cpp`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。
+- **確認できた事実:** 既存の`print` / `log`は複数型を文字列化するが、要素ごとに一時`std::string`を作る。`split`と対になる再結合用途では文字列配列に限定すれば、各要素を直接appendでき、必要な出力サイズを事前に計算できる。
+- **実装:** `join(Array<string>, delimiter)` は総バイト数をoverflow-check付きで算出して一度reserveし、その後、要素参照とdelimiterを直接appendする。空配列は空文字列、空delimiterと空要素は許容し、null array・型不一致・混在要素はエラーにする。
+- **確認結果:** 空／単一／複数要素、空delimiter、mixed element・argument errorをテストし、layer hookでsplit→joinしたpathの完全往復を確認。join関連のfocused test 3件が通過。87-byte出力を同等のscript `+=` loopと比較するMSVC Debug allocation contractは5 allocations / 160 bytes対12 / 455 per hook。
+- **価値または懸念:** 文字列化の一時値を避け、必要量を一度だけ確保する設計になり、このfixtureではhook内割当を約58%、割当byte数を約65%減らした。Debugの固定fixtureの割当結果であり、CPU時間・Release・他サイズへの効果は未検証。
+- **次に確認すべきこと:** 短い／長い要素と配列サイズを振り、join-only workloadのCPU・allocation双方をprofileする。generic stringify joinが必要になった場合は、変換契約と一時割当を別途定める。
+
+## 2026-10-07 — ArtifactScript JIT should follow a stable execution IR
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `evalExpr()`、`execStmt()`、`executeResolvedMethod()`、lookup caches。
+- **確認できた事実:** 現在の実行経路は保存済みASTを `evalExpr()` / `execStmt()` で直接再帰評価する。hook / method lookup等の限定cacheはあるが、bytecodeやnative codeを保持する層は見当たらない。`ArtifactScriptInstance::definition()` はmutable accessを許すため、definition lookup cacheのreuseを無効化する経路も存在する。
+- **仮説（未検証）:** 言語機能追加とJITを同時に進めるなら、ASTから直接machine codeを出すより、まず意味を一つに保てるbytecode / execution IRとAST interpreterとの共有契約を作る方が、機能間の意味ずれとcache invalidationを抑えやすい。Hot methodだけを後段でnative compileする段階構成が候補。
+- **価値または懸念:** 性能改善を継続しながら、JIT導入時に構文・演算子ごとの二重実装を避ける道筋になる。ただしIR設計、definition revisioning、デバッグ位置情報、native backend選定、実 workloadでの損益は未調査であり、JIT実装の採用根拠にはまだならない。
+- **次に確認すべきこと:** 代表的なlayer scriptをprofileし、AST dispatchが主要コストかを確かめる。次にbytecode化するstatement/expressionの最小集合と、mutable definition / hot reload時のcompiled cache invalidation契約を調査する。

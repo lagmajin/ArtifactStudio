@@ -1314,6 +1314,55 @@ TEST(ArtifactScriptTest, StringSplitRejectsInvalidArguments) {
               std::string::npos);
 }
 
+TEST(ArtifactScriptTest, StringJoinPreallocatesAndPreservesEmptyParts) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class JoinStrings : ArtifactBehaviour
+{
+    public string joined;
+    public string emptyArray;
+    public string onePart;
+    public string emptyDelimiter;
+    void OnUpdate()
+    {
+        joined = join(["red", "", "blue"], "|");
+        emptyArray = join([], "|");
+        onePart = join(["solo"], "|");
+        emptyDelimiter = join(["a", "b"], "");
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("joined")), "red||blue");
+    EXPECT_TRUE(std::get<std::string>(instance.fields().at("emptyArray")).empty());
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("onePart")), "solo");
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("emptyDelimiter")), "ab");
+}
+
+TEST(ArtifactScriptTest, StringJoinRejectsInvalidArgumentsAndElementTypes) {
+    ArtifactScriptParser parser;
+    const auto run = [&](std::string_view expression) {
+        auto definition = parser.parse("class InvalidJoin : ArtifactBehaviour\n{\n"
+                                       "    void OnUpdate()\n    {\n        " +
+                                       std::string(expression) +
+                                       ";\n    }\n}\n");
+        EXPECT_TRUE(definition.diagnostics.empty());
+        ArtifactScriptInstance instance(std::move(definition));
+        EXPECT_TRUE(instance.hasHook(ArtifactScriptHook::OnUpdate));
+        EXPECT_FALSE(instance.invokeHook(ArtifactScriptHook::OnUpdate));
+        return instance.lastError();
+    };
+
+    EXPECT_NE(run("join(1.0, \",\")").find("join expects an array"),
+              std::string::npos);
+    EXPECT_NE(run("join([\"ok\", 2], \",\")").find("array of strings"),
+              std::string::npos);
+}
+
 TEST(ArtifactScriptTest, EvaluatorBuiltinFunctions) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(
