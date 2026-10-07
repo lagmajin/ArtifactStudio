@@ -95,6 +95,40 @@ class Point : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(fields.at("total")), 8.0);
 }
 
+TEST(ArtifactScriptObjectTest, SameObjectNestedMethodMutationIsVisibleAfterRead) {
+    auto definition = parseOk(R"(
+class Use : ArtifactBehaviour
+{
+    public ObjectRef counter;
+    public float result = 0.0;
+    void OnCreate() { counter = new Counter(); }
+    void OnUpdate() { result = counter.outer(); }
+}
+class Counter : ArtifactBehaviour
+{
+    public float value = 1.0;
+    float outer()
+    {
+        var before = this.value;
+        this.bump();
+        return before + this.value;
+    }
+    void bump() { this.value = this.value + 1.0; }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate)) << instance.lastError();
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 3.0);
+    const auto counter = std::get<ArtifactScriptObjectInstancePtr>(
+        instance.fields().at("counter"));
+    ASSERT_TRUE(counter);
+    EXPECT_DOUBLE_EQ(std::get<double>(counter->fields.at("value")), 2.0);
+}
+
 TEST(ArtifactScriptObjectTest, FailedMethodRollsBackInstanceFieldWrites) {
     auto definition = parseOk(R"(
 class Use : ArtifactBehaviour

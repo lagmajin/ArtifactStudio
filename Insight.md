@@ -1,5 +1,12 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactScript の読み取りoverlayは親値を参照する
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptFields`、nested object method dispatch。
+- **確認できた事実:** nested method の外側が `this.value` を読んだ後、同一objectの内側methodがそのfieldを書き換えると、従来実装は回帰テストでアクセス違反を起こした。読み取りoverlayを親値へのaliasとして保持し、書き込み時だけmaterializeする実装では同ケースが通り、`outer()` の戻り値3と最終field値2を確認した。従来実装に戻す対照実験では同じテストが再びアクセス違反となった。ArtifactScript関連5 CTest suiteは修正版で全件通過。
+- **性能上の注意:** 128文字fieldのread-only benchmarkでは基準3.923 µs/hook、修正版4.028 µs/hook（OnUpdate基準は1.738対1.756 µs/hook）で、今回の測定では速度改善を確認できなかった。CRT計測もread-only method fixtureで両方6 allocations / 352 bytes per hookだった。したがって現段階ではこの変更を正しさの修正として扱い、実行効率向上とは主張しない。別fixtureでの差と測定揺らぎは未検証。
+- **懸念・次に確認すること:** 親fieldが安定したアドレスを保つ間だけaliasが有効という前提を維持する。将来、nested object methodを含む長時間・複数fieldのfixtureで命令数やwall timeを計測し、alias lookup costとmaterializeされた文字列copy数を分離して確認する。性能改善を目的にする場合は、この実験とは別にプロファイルで支配的な経路を特定する。
+
 ## 2026-10-07 — Host dispatch の残存allocation切り分け
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptHost::callMethodView` と evaluator の Host method dispatch。

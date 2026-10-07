@@ -330,6 +330,37 @@ class BenchmarkCounter : ArtifactBehaviour
               << totalMicroseconds / (repetitions * iterations)
               << " us/hook (" << iterations * repetitions << " calls)\n";
 
+    const std::string stringReadOnlySource = R"(
+class BenchmarkStringFieldReadOnly : ArtifactBehaviour
+{
+    public string source = "seed";
+    void OnUpdate() { var snapshot = source; }
+}
+)";
+    auto stringReadOnlyDefinition = parser.parse(stringReadOnlySource);
+    ASSERT_TRUE(stringReadOnlyDefinition.diagnostics.empty());
+    ArtifactScriptInstance stringReadOnlyInstance(std::move(stringReadOnlyDefinition));
+    ASSERT_TRUE(stringReadOnlyInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << stringReadOnlyInstance.lastError();
+    stringReadOnlyInstance.fields()["source"] = longFieldValue;
+    for (int i = 0; i < warmupIterations; ++i) {
+        ASSERT_TRUE(stringReadOnlyInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << stringReadOnlyInstance.lastError();
+    }
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            ASSERT_TRUE(stringReadOnlyInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+                << stringReadOnlyInstance.lastError();
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript string field read-only(128 chars) benchmark: "
+              << totalMicroseconds / (repetitions * iterations)
+              << " us/hook (" << iterations * repetitions << " calls)\n";
+
     auto callDefinition = parser.parse(R"(
 class BenchmarkMethodCounter : ArtifactBehaviour
 {
