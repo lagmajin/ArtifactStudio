@@ -4342,3 +4342,20 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** Animator→GPU render integration caseのstart/endを0へ修正し、assertするposition/rotation/scale/opacityが選択glyphへ実際に適用されるようにした。
 - **価値または懸念（実行未確認）:** 未選択の入力をGPUへ渡し、別理由の画素差だけで誤合格する可能性を防ぐ。C++ suiteは未実行なので、実際のmodule/CTest結果は未確認。
 - **次に確認すべきこと:** 許可後にTextAnimatorEngineの適用値assertとalpha総量差をD3D12 runnerで実行する。
+
+
+## 2026-10-07 — ArtifactScript AST local-name bucket cache
+
+- **関連:** `ArtifactCore/include/Script/ArtifactScript/ArtifactScript.ixx` の `ArtifactScriptExpr`、`ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptLocals::find()`。
+- **確認できた事実:** parserがvariable expressionを作る時に固定32 bucketの開始位置を保存し、評価器がその位置からprobeする実験を行った。対象5 suitesは通過した。Debug microbenchmarkの単発結果は12 localsで8.94 µs/hook、20 localsで15.72 µs/hook（前回記録値はそれぞれ9.13、17.46）だった。単発計測のため時間差は改善の確証ではない。
+- **設計上の懸念:** `ArtifactScriptExpr::variableName` は公開・可変フィールドであり、parse後に名前が変更された場合に保存bucketが古くなる。リポジトリ内に現在のparse後変更callerは見つからなかったが、API自体は変更を防がない。
+- **対応:** キャッシュ案は正しさの契約が不足しているため実装から戻した。外部callerも含めASTを実行中不変とする契約を定めるか、変更を検知できる内部表現が必要。
+- **次に確認すべきこと:** ArtifactScript ASTの公開変更互換性と実行時所有権を整理し、キャッシュを安全に持たせる方法が決まってから、同じ計測を複数回・同一条件で比較する。
+
+## 2026-10-07 — ArtifactScript object method cache のruntime class hash
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `findObjectMethodAtCallSite()`、`tests/ArtifactCore/ArtifactScriptObjectTest.cpp` の `ObjectMethodCallSiteCacheTracksRuntimeClass`。
+- **確認できた事実:** cache hit前にruntime class name全体をFNV hashしてslotを計算していた。hit条件はcall-site、definition、cached target class nameの一致をすでに確認している。
+- **対応:** slotをcall-site addressだけから選ぶよう変更し、runtime classの一致確認は維持した。同じcall-siteでChildとBaseを切り替えるテストが既存suiteにある。関連5 suiteは変更後にも実行し、5/5 passした。
+- **価値または懸念:** hit時のhash loopをなくす。Debug microbenchmarkは実行間の変動があり、対象2ケースで短い結果が複数回出た一方、確定的な速度差とは断定できない。複数runtime classが同じcall-siteへ来る場合、同じslotを置き換えるためcache hit率が下がる可能性がある。
+- **次に確認すべきこと:** release profileまたは安定したCPU計測でmonomorphic / polymorphic call-siteを分けて測り、slot衝突とhit率も記録する。差がなければslot選択を再検討する。

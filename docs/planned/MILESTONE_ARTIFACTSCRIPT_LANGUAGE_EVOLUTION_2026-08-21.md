@@ -9,7 +9,8 @@
 
 - `tests/ArtifactCore/LayerScriptComponentContractTest.cpp` と `ArtifactCoreLayerScriptComponentTest` を追加。2件の契約テストで、コア ArtifactScript ランタイムのライフサイクルフック順、空フック、public フィールドの初期値、複数フレームにわたる `dt` / `time` / `frame` の受け渡しと状態保持、行／ブロックコメントの解析を検証する。
 - ビルドを妨げていた `ArtifactScript.cppm` の `EnvironmentVariable` モジュール参照・ビルド順依存の CMake 登録漏れを修正。クラス `{` 単独行でのパーサー停止、字下げ後のインラインメソッド本体位置、複数行メソッド本体の括弧走査、空メソッドを定義済みとして扱わない問題を修正し、メソッド本体の `//` / `/* */` コメントを読み飛ばすようにした。
-- MSVC Debug ビルド成功。`ArtifactCoreLayerScriptComponentTest` は **2/2 passed**。既存 `ArtifactCoreArtifactScriptTest` は **18/22 passed**。`EvaluatorCallsUserMethodFromScript`、`ArrayFieldDefaultsAndReads`、`ShortCircuitEvaluation`、`VarDeclarationAndForeach` が失敗しており、既存スイート全件成功は未確認。
+- object method call-site cache のslot選択を、毎回のruntime class name hashからAST call-site addressへ変更。cache hit時のクラス名一致確認を維持し、同一call-siteで異なるruntime classへ切り替える既存テストも保持した。Debug benchmarkは実行ごとの揺れがあり、速度改善を確定できるほどの差は未確認。
+- MSVC DebugでArtifactScript関連5 test targetsをビルドし、CTest **5/5 passed**（`ArtifactCoreArtifactScriptTest`、`ArtifactCoreLayerScriptComponentTest`、`ArtifactCoreArtifactScriptObjectTest`、`ArtifactCoreArtifactScriptHostMethodTest`、`ArtifactCoreArtifactScriptHostApiTest`）。call-site cache変更後も同一call-siteでのruntime class切替を含めて通過した。
 - このテストは ArtifactCore のスクリプトランタイムを対象とし、Artifact サブモジュールの `ArtifactAbstractLayer` にあるレイヤーコンポーネント連携や UI / プロジェクト読込を通した統合動作は対象外。統合受入確認は未完了。
 
 ## 目的
