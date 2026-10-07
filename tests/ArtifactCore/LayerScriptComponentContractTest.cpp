@@ -1406,6 +1406,87 @@ TEST(LayerScriptComponentContractTest,
               << parseIterations << " parses)\n";
 }
 
+TEST(LayerScriptComponentContractTest, ParserStringScanBenchmark) {
+    constexpr std::size_t stringLength = 4096;
+    constexpr std::size_t scanIterations = 20000;
+    constexpr std::size_t parseIterations = 200;
+    const std::string scanSource(stringLength, 'x');
+    const std::string scanInput = scanSource + '"';
+    ArtifactScriptParser parser;
+    const std::string script =
+        "class ParserStringScanProbe : ArtifactBehaviour {\n"
+        " public string value = \"\";\n"
+        " void OnUpdate() { value = \"" + scanSource + "\"; }\n"
+        "}\n";
+    const std::string escapedScript =
+        "class ParserEscapedStringScanProbe : ArtifactBehaviour {\n"
+        " public string value = \"\";\n"
+        " void OnUpdate() { value = \"" + scanSource + "\\n\"; }\n"
+        "}\n";
+
+    for (int warmup = 0; warmup < 5; ++warmup) {
+        const auto definition = parser.parse(script);
+        ASSERT_TRUE(definition.diagnostics.empty());
+    }
+
+    std::size_t linearChecksum = 0;
+    const auto linearStart = std::chrono::steady_clock::now();
+    for (std::size_t iteration = 0; iteration < scanIterations; ++iteration) {
+        std::size_t position = 0;
+        while (position < scanInput.size() && scanInput[position] != '"' &&
+               scanInput[position] != '\\') {
+            ++position;
+        }
+        linearChecksum += position;
+    }
+    const auto linearElapsed = std::chrono::steady_clock::now() - linearStart;
+
+    std::size_t findChecksum = 0;
+    const auto findStart = std::chrono::steady_clock::now();
+    for (std::size_t iteration = 0; iteration < scanIterations; ++iteration) {
+        const auto marker = scanInput.find_first_of("\\\"");
+        findChecksum += marker == std::string::npos ? scanInput.size() : marker;
+    }
+    const auto findElapsed = std::chrono::steady_clock::now() - findStart;
+
+    std::size_t parsedDefinitions = 0;
+    const auto parseStart = std::chrono::steady_clock::now();
+    for (std::size_t iteration = 0; iteration < parseIterations; ++iteration) {
+        const auto definition = parser.parse(script);
+        if (definition.diagnostics.empty()) ++parsedDefinitions;
+    }
+    const auto parseElapsed = std::chrono::steady_clock::now() - parseStart;
+
+    std::size_t parsedEscapedDefinitions = 0;
+    const auto escapedParseStart = std::chrono::steady_clock::now();
+    for (std::size_t iteration = 0; iteration < parseIterations; ++iteration) {
+        const auto definition = parser.parse(escapedScript);
+        if (definition.diagnostics.empty()) ++parsedEscapedDefinitions;
+    }
+    const auto escapedParseElapsed =
+        std::chrono::steady_clock::now() - escapedParseStart;
+
+    EXPECT_EQ(linearChecksum, findChecksum);
+    EXPECT_EQ(parsedDefinitions, parseIterations);
+    EXPECT_EQ(parsedEscapedDefinitions, parseIterations);
+    const auto linearMicroseconds =
+        std::chrono::duration<double, std::micro>(linearElapsed).count() /
+        scanIterations;
+    const auto findMicroseconds =
+        std::chrono::duration<double, std::micro>(findElapsed).count() /
+        scanIterations;
+    const auto parseMicroseconds =
+        std::chrono::duration<double, std::micro>(parseElapsed).count() /
+        parseIterations;
+    const auto escapedParseMicroseconds =
+        std::chrono::duration<double, std::micro>(escapedParseElapsed).count() /
+        parseIterations;
+    std::cout << "ArtifactScript 4 KiB unescaped string: linear scan "
+              << linearMicroseconds << " us, find_first_of " << findMicroseconds
+              << " us, full parse " << parseMicroseconds << " us/parse; escaped "
+              << escapedParseMicroseconds << " us/parse\n";
+}
+
 TEST(LayerScriptComponentContractTest, ScriptObjectHostMethodAvoidsSteadyStateAllocations) {
     auto& host = ArtifactScriptHost::global();
     host.registerMethod("LongNamedHostTarget", "hostPing",
