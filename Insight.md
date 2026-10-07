@@ -1,4 +1,11 @@
-**最終更新:** 2026-10-05
+**最終更新:** 2026-10-07
+
+## 2026-10-07 — Host method dispatch に残る文字列キー生成
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptHost::callMethodView` と evaluator の Host method dispatch。
+- **確認できた事実:** 5引数のwarm-up済みMSVC Debug hookでHost functionは2 allocation / 32 bytes、Host methodは6 allocation / 112 bytesを計測した。引数vector materializationを除いた後も確保が残っており、現在のmethod registry lookupは `className + "." + methodName` を作る。
+- **価値または懸念（未検証）:** `ObjectRef` method keyの合成文字列はlookupごとの確保候補であり、Host method pathの余分な確保へ寄与している可能性がある。残りすべてのallocationとの対応関係はまだ測定できていない。
+- **次に確認すべきこと:** registry key lookupとclass label生成を個別に計測し、透明lookupまたはcall-site cacheで削減できるかを調べる。公開Host API互換性と定義更新後のcache invalidationも確認する。
 
 ## 2026-10-05 — 効果の「②型（登録済みで無言の素通し）」機械検査を完了、144/145 が健全
 

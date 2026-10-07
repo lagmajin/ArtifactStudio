@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstdint>
 #include <iostream>
+#include <span>
 #include <string>
 #include <utility>
 #include <variant>
@@ -465,6 +466,48 @@ class BenchmarkNoOp : ArtifactBehaviour
     }
     ASSERT_NE(noOpMethod, nullptr);
 
+    const auto sumArguments = [](std::span<const ArtifactScriptValue> args) {
+        double total = 0.0;
+        for (const auto& argument : args) {
+            if (std::holds_alternative<double>(argument)) total += std::get<double>(argument);
+        }
+        return ArtifactScriptValue(total);
+    };
+    auto& scriptHost = ArtifactScriptHost::global();
+    scriptHost.registerFunction("allocationProbe", sumArguments);
+    scriptHost.registerMethod("ObjectRef", "allocationProbe",
+        [sumArguments](const ArtifactScriptValue&, std::span<const ArtifactScriptValue> args) {
+            return sumArguments(args);
+        });
+    auto hostFunctionDefinition = parser.parse(R"(
+class BenchmarkHostFunction : ArtifactBehaviour
+{
+    public float result = 0.0;
+    void OnUpdate() { result = allocationProbe(1.0, 2.0, 3.0, 4.0, 5.0); }
+}
+)");
+    ASSERT_TRUE(hostFunctionDefinition.diagnostics.empty());
+    ArtifactScriptInstance hostFunctionInstance(std::move(hostFunctionDefinition));
+    auto hostMethodDefinition = parser.parse(R"(
+class BenchmarkHostMethod : ArtifactBehaviour
+{
+    public ObjectRef target;
+    public float result = 0.0;
+    void OnUpdate() { result = target.allocationProbe(1.0, 2.0, 3.0, 4.0, 5.0); }
+}
+)");
+    ASSERT_TRUE(hostMethodDefinition.diagnostics.empty());
+    ArtifactScriptInstance hostMethodInstance(std::move(hostMethodDefinition));
+    hostMethodInstance.fields()["target"] = ArtifactScriptRef{"benchmark"};
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(hostFunctionInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << hostFunctionInstance.lastError();
+        ASSERT_TRUE(hostMethodInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << hostMethodInstance.lastError();
+    }
+    EXPECT_DOUBLE_EQ(std::get<double>(hostFunctionInstance.fields().at("result")), 15.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(hostMethodInstance.fields().at("result")), 15.0);
+
     auto largeForeachDefinition = parser.parse(R"(
 class BenchmarkLargeForeach : ArtifactBehaviour
 {
@@ -729,6 +772,8 @@ class Counter : ArtifactBehaviour
         return result;
     };
     const auto noOpAllocationRate = countAllocations(noOpInstance);
+    const auto hostFunctionAllocationRate = countAllocations(hostFunctionInstance);
+    const auto hostMethodAllocationRate = countAllocations(hostMethodInstance);
     const auto simpleAllocationRate = countAllocations(instance);
     const auto methodAllocationRate = countAllocations(callInstance);
     const auto foreachAllocationRate = countAllocations(foreachInstance);
@@ -763,6 +808,10 @@ class Counter : ArtifactBehaviour
         EXPECT_DOUBLE_EQ(rate.second, 0.0);
     };
     expectNoSteadyStateAllocations(noOpAllocationRate);
+    EXPECT_LT(hostFunctionAllocationRate.second,
+              static_cast<double>(sizeof(ArtifactScriptValue) * 5));
+    EXPECT_LT(hostMethodAllocationRate.second,
+              static_cast<double>(sizeof(ArtifactScriptValue) * 5));
     expectNoSteadyStateAllocations(simpleAllocationRate);
     expectNoSteadyStateAllocations(methodAllocationRate);
     expectNoSteadyStateAllocations(foreachAllocationRate);
@@ -776,6 +825,11 @@ class Counter : ArtifactBehaviour
     std::cout << "ArtifactScript allocations/hook (object method, 5 fields): "
               << wideObjectMethodAllocationRate.first << ", "
               << wideObjectMethodAllocationRate.second << " bytes\n";
+    std::cout << "ArtifactScript allocations/hook (5-arg host function/method): "
+              << hostFunctionAllocationRate.first << ", "
+              << hostFunctionAllocationRate.second << " bytes; "
+              << hostMethodAllocationRate.first << ", "
+              << hostMethodAllocationRate.second << " bytes\n";
     std::cout << "ArtifactScript allocations/hook (5-arg method): "
               << fiveArgumentAllocationRate.first << ", "
               << fiveArgumentAllocationRate.second << " bytes\n";
