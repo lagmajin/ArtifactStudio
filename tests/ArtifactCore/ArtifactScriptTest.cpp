@@ -1784,6 +1784,69 @@ TEST(ArtifactScriptTest, ArraySumRejectsNonNumbersAndIntegerOverflow) {
               std::string::npos);
 }
 
+TEST(ArtifactScriptTest, ArrayMinMaxPreserveSelectedNumericTypes) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ArrayExtrema : ArtifactBehaviour
+{
+    public int minimum = -1;
+    public int maximum = -1;
+    public float pairMinimum = -1.0;
+    public float pairMaximum = -1.0;
+    public float mixedMinimum = -1.0;
+    public int mixedMaximum = -1;
+    void OnUpdate()
+    {
+        minimum = min([3, 1, 2]);
+        maximum = max([3, 1, 2]);
+        pairMinimum = min(3, 1);
+        pairMaximum = max(3, 1);
+        mixedMinimum = min([9007199254740993, 9007199254740992.0]);
+        mixedMaximum = max([9007199254740993, 9007199254740992.0]);
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("minimum")), 1);
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("maximum")), 3);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("pairMinimum")), 1.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("pairMaximum")), 3.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("mixedMinimum")),
+                     9007199254740992.0);
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("mixedMaximum")),
+              9007199254740993LL);
+}
+
+TEST(ArtifactScriptTest, ArrayMinMaxRejectEmptyNullAndNonNumericInputs) {
+    ArtifactScriptParser parser;
+    const auto run = [&](std::string_view expression) {
+        auto definition = parser.parse(
+            "class InvalidArrayExtrema : ArtifactBehaviour\n{\n"
+            "    public Array nullValues;\n"
+            "    public int total = 0;\n"
+            "    void OnUpdate() { total = " + std::string(expression) + "; }\n"
+            "}\n");
+        EXPECT_TRUE(definition.diagnostics.empty());
+        ArtifactScriptInstance instance(std::move(definition));
+        instance.fields()["nullValues"] = ArtifactScriptArrayPtr{};
+        EXPECT_FALSE(instance.invokeHook(ArtifactScriptHook::OnUpdate));
+        return instance.lastError();
+    };
+
+    EXPECT_NE(run("min([])").find("non-empty array of numbers"),
+              std::string::npos);
+    EXPECT_NE(run("max(nullValues)").find("non-empty array of numbers"),
+              std::string::npos);
+    EXPECT_NE(run("min([1, \"x\"])").find("array of numbers"),
+              std::string::npos);
+    EXPECT_NE(run("max(1)").find("non-empty array of numbers"),
+              std::string::npos);
+}
+
 TEST(ArtifactScriptTest, HotReloadMigratesFields) {
     constexpr auto sourceV1 = R"(
 class Spin : ArtifactBehaviour
