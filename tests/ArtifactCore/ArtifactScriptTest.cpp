@@ -539,6 +539,45 @@ class Math : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(fields.at("value")), 7.0);
 }
 
+TEST(ArtifactScriptTest, StringCompoundAssignmentUpdatesLocalsFieldsAndArrayItems) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class StringCompoundAssignment : ArtifactBehaviour
+{
+    public string field = "field";
+    public Array values;
+    public string result = "";
+    void OnCreate()
+    {
+        field = "field";
+        push(values, "array");
+    }
+    void OnUpdate()
+    {
+        string local = "local";
+        local += "-done";
+        field += "-done";
+        values[0] += "-done";
+        result = local + "|" + field + "|" + values[0];
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate))
+        << instance.lastError();
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("field")), "field-done");
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("result")),
+              "local-done|field-done|array-done");
+    const auto values = std::get<ArtifactScriptArrayPtr>(instance.fields().at("values"));
+    ASSERT_TRUE(values);
+    ASSERT_EQ(values->values.size(), 1u);
+    EXPECT_EQ(std::get<std::string>(values->values.front()), "array-done");
+}
+
 TEST(ArtifactScriptTest, BreakAndContinue) {
     ArtifactScriptParser parser;
     const auto breakDefinition = parser.parse(R"(

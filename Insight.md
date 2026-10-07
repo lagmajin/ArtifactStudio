@@ -4621,3 +4621,21 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実:** MSVC Debugで128文字stringをuser methodとobject methodの両方から返す1000-hook fixtureは、旧実装20 allocations / 1344 bytes、新実装17 / 912 per hook。hookあたり3 allocations / 432 bytes減り、source・observed fieldの内容一致を確認した。ArtifactScript関連5 suitesはCTest **5/5 passed**。
 - **価値または懸念:** string等所有値を返すcallのtemporary copyを減らす。測定は両method経路を使うMSVC Debug fixtureで、Release時間および片方だけの寄与は未測定。
 - **次に確認すべきこと:** 実scriptの戻り値型・call頻度を調べ、Release構成が使える時にCPU時間も測る。
+
+## 2026-10-07 — Append string compound assignments in place
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptEvaluator::Impl::execStmt()` compound assignment pathsと、`tests/ArtifactCore/ArtifactScriptTest.cpp` / `tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。
+- **仮説:** `string += string` は現在、左値・右値の文字列化コピーと結合後の一時文字列を作ってからtargetへ代入する。target bindingを直接appendすれば一時copyと再割当を避けられる。
+- **実装:** 両辺がstringの`+=`だけをlocal binding、field overlay、array itemへ直接appendし、数値・型変換を含む他のcompound assignmentは既存の`evalBinary()`経路を維持する。
+- **確認できた事実:** MSVC Debugの128文字sourceとsuffixを連結するfixtureで、旧処理6.60、新処理4.82 µs/hook（約27%短縮）。allocationは13 / 1104 bytesから7 / 752 per hookへ減った。local・field・array itemでの結果一致テストを追加し、ArtifactScript関連5 suitesはCTest **5/5 passed**。
+- **価値または懸念:** string同士のcompound appendが既存target容量を再利用できる。数値等からのstring変換と別型のcompound演算は従来の意味・経路を保つ。測定はMSVC Debugのみ。
+- **次に確認すべきこと:** Release構成が使える時に通常CPU時間を測り、短いstringと混在型の`+=` workloadでも効果を確認する。
+
+## 2026-10-07 — Reserving wide ArtifactScript object field maps traded speed for bytes
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptExpr::Kind::New`で行う継承field登録、24-default-field object construction fixture。
+- **仮説:** field mapの複数回rehashを避けるため、継承フィールド数を先に数えて`reserve()`すればconstructorを速くできる。
+- **実験:** 24 default fieldsを持つscript objectを各hookで生成し、reserveなしとfield-count reserveをDebug A/Bした。
+- **確認できた事実:** MSVC Debugではreserveなし40.86 µs/hook・56 allocations / 4336 bytes、reserveあり41.90 / 41.88 µs/hook・56 / 3824 bytesだった。割当bytesは減るが割当回数は変わらず、steady-state時間は約2.5%遅いrunとなった。
+- **対応:** CPU executionの改善を立証できないため、reserve変更と専用fixtureは採用せず戻した。
+- **次に確認すべきこと:** object field map容量の実workload分布が重要なら、同じA/BをRelease profileでも測り直す。現行build treeにはRelease構成がない。
