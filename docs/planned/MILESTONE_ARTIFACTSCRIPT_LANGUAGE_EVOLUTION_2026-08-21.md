@@ -7,6 +7,7 @@
 
 ## 進捗 2026-10-07
 
+- method bodyを所有済みdefinition sourceの`std::string_view`で直接解析し、一時string copyを除去。長いliteralを含む本文の100-parse MSVC Debug fixtureは87 allocations / 5,246 bytesから84 / 4,686 bytes per parseへ減少。method brace scanはstringとcomment内のbraceを無視し、parser stall診断に正確なsource line/columnを付ける。parse CPU時間とRelease profileは未確認。
 - pureなbinary operandにscript object `FieldAccess`を加え、field mapの値を再帰的にconst参照で比較へ渡す。`target.value == expected` のlong-string fixtureはMSVC Debug CRTで変更前4 allocations / 160 bytes per hook、変更後0 / 0。top-level `this`、呼び出し、objectでない値、missing fieldは従来評価へfallback。ArtifactScript関連5 CTest suitesは5/5 passed。CPU時間・Release性能は未確認。
 - pure `variable/literal/index` operandsをbinary expressionから参照解決し、array itemやlong stringを中間`ArtifactScriptValue`へcopyせず`evalBinary()`へ渡す。call・`this`・field access・invalid indexは従来の評価/fallback pathを維持する。`values[0] == target` のMSVC Debug CRT allocation baselineは4 allocations / 160 bytes per hook、直接参照後は0 / 0。数値array index結果、長文string一致回数をassertし、ArtifactScript関連5 CTest suitesは5/5 passed。CPU時間は他プロセス負荷で揺れたため改善を主張せず、Release/optimized workloadでのtime comparisonは未確認。
 - `+`・比較などのsimple `variable/literal` binary nodeは、値参照を一度ずつ解決して`evalBinary()`へ直接渡す。string/string additionのみ既存のreserve済みfast pathを維持し、`&&` / `||`は短絡挙動を保つため除外。parse後にAST variable名を変える回帰fixtureも追加。MSVC Debugの変更前後各2回計測は、32-method lookupが平均60.30→52.40 µs/hook（約13%短縮）、object method lookup 75.80→68.59（約9.5%）、3-class polymorphic call 106.31→96.97（約8.8%）、4-class case 111.79→103.61（約7.3%）。ArtifactScript関連5 CTest suitesは5/5 passed。測定幅を含むためReleaseや実scriptへ一般化しない。

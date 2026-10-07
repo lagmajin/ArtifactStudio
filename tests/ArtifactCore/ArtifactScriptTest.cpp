@@ -56,12 +56,14 @@ class Broken : ArtifactBehaviour
     void OnUpdate()
     {
         float value = 1.0;
-        value ^ 2.0;
+        @;
     }
 }
 )");
 
     ASSERT_FALSE(definition.diagnostics.empty());
+    EXPECT_EQ(definition.diagnostics.front().line, 7u);
+    EXPECT_EQ(definition.diagnostics.front().column, 9u);
     EXPECT_NE(definition.diagnostics.front().message.find(
                   "unsupported or invalid syntax in method body"),
               std::string::npos);
@@ -82,6 +84,29 @@ class NestedBroken : ArtifactBehaviour
     EXPECT_NE(nestedDefinition.diagnostics.front().message.find(
                   "unsupported or invalid syntax in method body"),
               std::string::npos);
+}
+
+TEST(ArtifactScriptTest, MethodBodyBraceScanIgnoresStringsAndComments) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class BraceProbe : ArtifactBehaviour
+{
+    public string observed = "";
+    void OnCreate()
+    {
+        observed = "a } b { c";
+        // These braces do not end the method: } {
+        /* Nor do these: } { */
+    }
+}
+)");
+
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate))
+        << instance.lastError();
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("observed")),
+              "a } b { c");
 }
 
 TEST(ArtifactScriptTest, ComponentStoresPublicOverrides) {

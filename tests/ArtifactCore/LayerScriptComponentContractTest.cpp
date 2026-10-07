@@ -1328,6 +1328,35 @@ class ObjectFieldStringComparisonTarget : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("matches")), 1100.0);
 }
 
+TEST(LayerScriptComponentContractTest,
+     ParserMethodBodyParsingAvoidsTemporaryBodyCopyAllocations) {
+    ArtifactScriptParser parser;
+    const std::string longLiteral(512, 'x');
+    const std::string source =
+        "class ParserBodyProbe : ArtifactBehaviour {\n"
+        " public string value = \"\";\n"
+        " void OnUpdate() { value = \"" + longLiteral + "\"; }\n"
+        "}\n";
+
+    ScriptAllocationCounter counter;
+    constexpr std::size_t parseIterations = 100;
+    std::size_t parsedDefinitions = 0;
+    for (std::size_t i = 0; i < parseIterations; ++i) {
+        auto definition = parser.parse(source);
+        if (definition.diagnostics.empty() && definition.rootClass.methods.size() == 1) {
+            ++parsedDefinitions;
+        }
+    }
+    const auto allocations = counter.stop();
+    EXPECT_EQ(parsedDefinitions, parseIterations);
+    EXPECT_LT(allocations.first / parseIterations, 87u);
+    EXPECT_LT(allocations.second / parseIterations, 5000u);
+    std::cout << "ArtifactScript long method-body parse allocations: "
+              << allocations.first / parseIterations << " allocations/parse, "
+              << allocations.second / parseIterations << " bytes/parse ("
+              << parseIterations << " parses)\n";
+}
+
 TEST(LayerScriptComponentContractTest, ScriptObjectHostMethodAvoidsSteadyStateAllocations) {
     auto& host = ArtifactScriptHost::global();
     host.registerMethod("LongNamedHostTarget", "hostPing",

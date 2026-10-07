@@ -1,5 +1,14 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactScript method bodyをsource viewで解析し位置診断を正確化
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の method body scanner / `parseMethodBody()`、`tests/ArtifactCore/ArtifactScriptTest.cpp`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。
+- **確認できた事実:** parserは各method bodyをsourceから`std::string`へ複製してから構文木を作っていた。MSVC Debug CRTで、512文字literalを含む本文を100回parseするfixtureは87 allocations / 5,246 bytes per parseだった。
+- **対応:** parse元`ArtifactScriptDefinition::source`が生存している間、method bodyを`std::string_view`として直接解析する。script本体のbrace scannerも文字列・line comment・block commentを認識する。unsupported token / parser stallの位置をsource offsetからline/columnに変換する。
+- **確認結果:** 同じ100-parse fixtureは84 allocations / 4,686 bytes per parse（3 allocations / 560 bytes削減）。unsupported tokenの正確な行・列、string/comment内の波括弧を含むmethodの実行をテストした。
+- **価値または懸念:** script parse / hot reload時のbody source copy allocationを除き、本文中の波括弧に対する誤ったmethod終端判定も避ける。CPU parse時間やRelease profileの差は未計測。
+- **次に確認すべきこと:** 典型的な複数method scriptでRelease parse/hot-reload時間を計測し、parser diagnosticsが他のmalformed expressionも適切な位置で報告する範囲を広げる。
+
 ## 2026-10-07 — ArtifactScriptのscript object field比較でstring copyを避ける
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のBinary operand reference resolution、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。
