@@ -1,5 +1,13 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactScriptの定義差し替えで古い実行エラーを消す
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptLayerRuntime::replaceDefinition()`、`Artifact/src/Layer/ArtifactAbstractLayer.cppm` のreload成功経路、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。
+- **確認できた事実:** レイヤーreloadのArtifact側callerは差し替え直後に `setLastError({})` を呼んでいたが、共有Core runtimeの `replaceDefinition()` 自身は直前のhook失敗を示す `lastError_` を保持していた。runtimeを直接利用するcallerでは修正版へreloadした後にも古い診断が見える契約不整合だった。
+- **対応:** Coreの `replaceDefinition()` で成功した定義置換時にerrorをclearし、失敗hook→定義置換→同じframeの抑止→次frame成功の契約テストを追加した。Lifecycle状態とframe guard、移行済みfield値を同時にassertし、対象CTestは通過。
+- **価値または懸念:** Artifact側にしかなかったerror reset責務を、テスト可能な共有runtimeへ揃えた。差し替え後に保持する既存Lifecycle/frame状態は変更していない。Artifactアプリ全体の再ビルド・実機reloadは未確認。
+- **次に確認すべきこと:** Artifact側ビルドが可能になったら、実Layerのreload成功時に同じerror clear契約が表示・診断経路でも成立することを確認する。
+
 ## 2026-10-07 — ArtifactScript foreachのmutation解析結果をhook間で再利用
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`statementMayMutateArray()`とforeach execution、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。

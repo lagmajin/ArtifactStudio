@@ -387,6 +387,48 @@ class LayerRuntimeCounter : ArtifactBehaviour
                                           true));
 }
 
+TEST(LayerScriptComponentContractTest,
+     SharedLayerRuntimeClearsExecutionErrorAfterDefinitionReplacement) {
+    ArtifactScriptParser parser;
+    auto failingDefinition = parser.parse(R"(
+class RecoverableLayerScript : ArtifactBehaviour
+{
+    public float value = 0.0;
+    void OnUpdate() { value = 1.0 / 0.0; }
+}
+)");
+    ASSERT_TRUE(failingDefinition.diagnostics.empty());
+
+    ArtifactScriptLayerRuntime runtime;
+    runtime.bind(std::move(failingDefinition));
+    ASSERT_TRUE(runtime.advanceLifecycle(ArtifactScriptLayerRunState::Enabled,
+                                         true));
+    ASSERT_FALSE(runtime.evaluateFrame(10, 0.5, 0.016));
+    ASSERT_FALSE(runtime.lastError().empty());
+
+    auto recoveredDefinition = parser.parse(R"(
+class RecoverableLayerScript : ArtifactBehaviour
+{
+    public float value = 0.0;
+    void OnUpdate() { value += dt; }
+}
+)");
+    ASSERT_TRUE(recoveredDefinition.diagnostics.empty());
+    ArtifactScriptSerializedFields migrated;
+    migrated.emplace("value", ArtifactScriptValue(3.0));
+    runtime.replaceDefinition(std::move(recoveredDefinition), std::move(migrated));
+
+    EXPECT_TRUE(runtime.lastError().empty());
+    EXPECT_FALSE(runtime.advanceLifecycle(ArtifactScriptLayerRunState::Enabled,
+                                          true));
+    EXPECT_FALSE(runtime.evaluateFrame(10, 9.0, 9.0));
+    EXPECT_TRUE(runtime.lastError().empty());
+    ASSERT_TRUE(runtime.evaluateFrame(11, 0.75, 0.25)) << runtime.lastError();
+    ASSERT_NE(runtime.instance(), nullptr);
+    EXPECT_DOUBLE_EQ(std::get<double>(runtime.instance()->fields().at("value")),
+                     3.25);
+}
+
 TEST(LayerScriptComponentContractTest, HookExecutionMicrobenchmark) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
