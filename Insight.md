@@ -1,5 +1,14 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactScriptのscript object field比較でstring copyを避ける
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のBinary operand reference resolution、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。
+- **確認できた事実:** `target.value == expected` のようなpureなscript object field比較は、通常評価で両方のlong stringを値copyしていた。MSVC Debug CRT allocation hookの1000-hook fixtureでは4,000 allocations / 160,000 bytes（4 / 160 per hook）だった。
+- **対応:** Binary expressionがread-only reference expressionとして扱える場合、通常のvariable/indexに加えて、script object field mapを再帰的にconst参照で辿る。`this`、top-level host property、call、non-object、missing field、invalid indexは直接参照できないため従来評価へfallbackする。script objectの長いfield stringと一致数を確認するallocation regression testを追加した。
+- **確認結果:** 対象fixtureは直接参照後0 allocations / 0 bytes per hook。ArtifactScript関連5 CTest suitesは5/5 passed。
+- **価値または懸念:** object field readのcopyを除き、式やobjectの意味は変更しない。CPU wall time、Release build、nested object chainとmissing/null field fallbackの追加確認は未実施。
+- **次に確認すべきこと:** nested field chainとnull/missing fallbackの正しさをfixture化し、CPU負荷が安定した環境でallocation差とCPU時間を別々に計測する。
+
 ## 2026-10-07 — ArtifactScriptの配列index値を比較式へ直接渡す
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の Binary evaluation / pure operand reference resolution、`tests/ArtifactCore/ArtifactScriptTest.cpp`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。

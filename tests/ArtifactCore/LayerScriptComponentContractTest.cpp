@@ -1273,6 +1273,61 @@ class ArrayStringComparisonProbe : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("matches")), 1100.0);
 }
 
+TEST(LayerScriptComponentContractTest,
+     ObjectFieldStringComparisonAvoidsSteadyStateCopies) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ObjectFieldStringComparisonProbe : ArtifactBehaviour
+{
+    public ObjectRef target;
+    public string expected = "";
+    public float matches = 0.0;
+    void OnCreate()
+    {
+        target = new ObjectFieldStringComparisonTarget();
+        target.value = "this is a long string stored inside an object field";
+    }
+    void OnUpdate()
+    {
+        if (target.value == expected) matches += 1.0;
+    }
+}
+class ObjectFieldStringComparisonTarget : ArtifactBehaviour
+{
+    public string value = "";
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate))
+        << instance.lastError();
+    instance.fields()["expected"] =
+        std::string("this is a long string stored inside an object field");
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << instance.lastError();
+    }
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("matches")), 100.0);
+
+    ScriptAllocationCounter counter;
+    constexpr std::size_t allocationIterations = 1000;
+    bool succeeded = true;
+    for (std::size_t i = 0; i < allocationIterations; ++i) {
+        if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+            succeeded = false;
+            break;
+        }
+    }
+    const auto allocations = counter.stop();
+    EXPECT_TRUE(succeeded) << instance.lastError();
+    EXPECT_EQ(allocations.first, 0)
+        << "allocations/hook=" << allocations.first / allocationIterations;
+    EXPECT_EQ(allocations.second, 0)
+        << "bytes/hook=" << allocations.second / allocationIterations;
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("matches")), 1100.0);
+}
+
 TEST(LayerScriptComponentContractTest, ScriptObjectHostMethodAvoidsSteadyStateAllocations) {
     auto& host = ArtifactScriptHost::global();
     host.registerMethod("LongNamedHostTarget", "hostPing",
