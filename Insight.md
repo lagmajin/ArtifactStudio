@@ -4918,3 +4918,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認結果:** ASCII一致・case mismatch・空substring・日本語substringを検証し、layer hookでseparator検出を確認。ArtifactScript関連5 CTest suitesは **5/5 passed**。
 - **価値または懸念:** 配列・文字列の双方に馴染みのある `contains` APIを提供し、検索loopをscriptで書かずに済む。固有の速度・割当量は未計測。検索単位はUnicode code pointではなくUTF-8 byte sequence。
 - **次に確認すべきこと:** 長いsourceをfieldから検索する場合の引数コピーをprofileし、文字列評価と検索コストを分ける。必要なら呼び出し引数の参照評価経路を検討する。
+
+## 2026-10-07 — ArtifactScript contains can resolve simple string operands by reference
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptEvaluator::Impl::evalCall()` と、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。
+- **確認できた事実:** 通常のbuiltin call経路では、引数を `ArtifactScriptCallArguments` に評価してからbuiltin dispatchへ進む。simple local / field / `this.field` / literalのstring値であれば、call前に既存保存場所からconst参照で解決できる。現在はこの経路を追加し、他の式・型・lookup failureは従来評価へfallbackする。
+- **確認結果:** CMake再実行を避けるため既存build.ninjaの compile / link recipesとmodule mapを使い、変更対象の実装・テストtranslation unitを直接ビルドしてlayer contract executableを更新した。ArtifactBehaviour layer hookとscript object method内の `this.field` を含むcontract suiteは **42/42 passed**。MSVC Debug 134-byte field fixtureでdirect-reference / forced-copyは6 / 21 allocations/hook、96 / 720 bytes/hook、CPU中央値9.44 / 17.48 µs/hook（各3,000 hooks×3回）。
+- **価値または懸念:** この固定fixtureではcall argument用string copiesを避け、割当を71%、割当byteを87%、CPU中央値を46%減らした。MSVC Debug測定でありReleaseや実script全般への一般化は未検証。通常のArtifactBehaviourの `this.field` はhost property解決になるため、`this.field` fast pathの統合確認はscript object method内で行う必要がある。
+- **次に確認すべきこと:** Release構成または実script workloadでCPU・allocation差をprofileし、literal / local / fieldの各形を分離して比較する。

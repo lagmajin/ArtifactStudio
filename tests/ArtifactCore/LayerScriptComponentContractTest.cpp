@@ -258,6 +258,116 @@ class SplitLayerPath : ArtifactBehaviour
 }
 
 TEST(LayerScriptComponentContractTest,
+     StringContainsAvoidsCopyingFieldAndLocalOperands) {
+    ArtifactScriptParser parser;
+    const auto makeDefinition = [&](std::string_view className,
+                                    bool forceStringCopy) {
+        std::string source = "class ";
+        source.append(className);
+        source += R"( : ArtifactBehaviour
+{
+    public string source;
+    public string query;
+    public ObjectRef target;
+    public bool fieldMatch;
+    public bool localMatch;
+    void OnCreate()
+    {
+        source = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxneedle";
+        query = "needle";
+        target = new StringContainsTarget(source);
+    }
+)";
+        const std::string sourceExpression = forceStringCopy
+            ? "source + \"\""
+            : "source";
+        const std::string update =
+            "\n    void OnUpdate()\n    {\n"
+            "        string localQuery = \"needle\";\n"
+            "        fieldMatch = target.matches(query);\n"
+            "        localMatch = contains(" + sourceExpression + ", localQuery);\n"
+            "    }\n}\n";
+        source += update;
+        const std::string objectFieldExpression = forceStringCopy
+            ? "this.value + \"\""
+            : "this.value";
+        source += "\nclass StringContainsTarget : ArtifactBehaviour\n{\n"
+                  "    public string value;\n"
+                  "    void OnConstruct(string input) { this.value = input; }\n"
+                  "    bool matches(string query) { return contains(";
+        source += objectFieldExpression;
+        source += ", query); }\n}\n";
+        return parser.parse(source);
+    };
+
+    auto directDefinition = makeDefinition("StringContainsDirectProbe", false);
+    auto copyDefinition = makeDefinition("StringContainsCopyProbe", true);
+    ASSERT_TRUE(directDefinition.diagnostics.empty());
+    ASSERT_TRUE(copyDefinition.diagnostics.empty());
+    ArtifactScriptInstance direct(std::move(directDefinition));
+    ArtifactScriptInstance copied(std::move(copyDefinition));
+    for (auto* instance : {&direct, &copied}) {
+        ASSERT_TRUE(instance->invokeHook(ArtifactScriptHook::OnCreate))
+            << instance->lastError();
+        ASSERT_TRUE(instance->invokeHook(ArtifactScriptHook::OnUpdate))
+            << instance->lastError();
+        EXPECT_TRUE(std::get<bool>(instance->fields().at("fieldMatch")));
+        EXPECT_TRUE(std::get<bool>(instance->fields().at("localMatch")));
+    }
+
+#if defined(_MSC_VER) && defined(_DEBUG)
+    constexpr std::size_t allocationIterations = 1000;
+    const auto measure = [&](ArtifactScriptInstance& instance) {
+        ScriptAllocationCounter counter;
+        std::string failure;
+        for (std::size_t i = 0; i < allocationIterations; ++i) {
+            if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+                failure = instance.lastError();
+                break;
+            }
+        }
+        const auto allocations = counter.stop();
+        EXPECT_TRUE(failure.empty()) << failure;
+        return allocations;
+    };
+    const auto [directAllocations, directBytes] = measure(direct);
+    const auto [copyAllocations, copyBytes] = measure(copied);
+    constexpr std::size_t timingIterations = 3000;
+    constexpr std::size_t timingRepetitions = 3;
+    const auto measureMicros = [&](ArtifactScriptInstance& instance) {
+        std::array<double, timingRepetitions> samples{};
+        for (auto& sample : samples) {
+            const auto start = std::chrono::steady_clock::now();
+            for (std::size_t i = 0; i < timingIterations; ++i) {
+                if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+                    ADD_FAILURE() << instance.lastError();
+                    break;
+                }
+            }
+            sample = std::chrono::duration<double, std::micro>(
+                std::chrono::steady_clock::now() - start).count() /
+                timingIterations;
+        }
+        std::sort(samples.begin(), samples.end());
+        return samples[samples.size() / 2];
+    };
+    const double directMicros = measureMicros(direct);
+    const double copyMicros = measureMicros(copied);
+    std::cout << "ArtifactScript contains(field/local, 134-byte source): "
+              << directAllocations / allocationIterations << " / "
+              << copyAllocations / allocationIterations
+              << " allocations/hook, "
+              << directBytes / allocationIterations << " / "
+              << copyBytes / allocationIterations << " bytes/hook, "
+              << directMicros << " / " << copyMicros
+              << " us/hook (median of " << timingRepetitions << " x "
+              << timingIterations << ")\n";
+    EXPECT_LT(directAllocations, copyAllocations);
+    EXPECT_LT(directBytes, copyBytes);
+#endif
+}
+
+TEST(LayerScriptComponentContractTest,
      JoinBuiltinReducesAllocationsComparedWithScriptLoop) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
