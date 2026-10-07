@@ -4412,3 +4412,11 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **対応:** `lastErrorView()` を追加し、evaluatorのhost function / method成功経路で文字列コピーを避けた。1,000 hookの独立テストでhost method / host functionの双方が0 allocations / 0 bytesとなることを確認した。既存の時間ベンチマーク内で繰り返していたallocation counterはSEHの再現箇所だったため、計測を独立テストへ分離した。
 - **価値または懸念:** class名コピー削減と合わせ、host method fallbackは3 allocations / 64 bytesから0 / 0へ減少。公開 `lastError()` の互換性を保ちつつ、ホットパス内ではnon-owning viewを使う。viewは次回のhost callまたは`setLastError()`までのみ有効。
 - **次に確認すべきこと:** Release相当構成では未計測。Debug関連ArtifactScript 5 suitesは今回の変更後に5/5 passed。
+
+## 2026-10-07 — ArtifactScript overflow locals used linear lookup
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptLocals::find()` / `append()`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。
+- **確認できた事実:** 12個を超えたローカルは再利用workspaceへ保持されるが、検索はoverflow全体の線形走査だった。MSVC Debug `locals(20)` microbenchmark baselineは15.53 µs/hook。固定64-slot indexを実装し、20-local caseを複数回測ると14.62、14.70、14.78 µs/hookだった。12-local caseはbaseline 8.54、変更後8.70〜8.76 µs/hookで、目立つ効果はない。変数の正しさを確認する50-local / 10-loop fixtureは通過し、32 overflow entriesを超えるtransient fallbackの末尾も照合した。
+- **対応:** workspaceの最大保持数32件を固定open-addressed indexで引けるようにした。これを越えるtransient fallback分は既存の線形走査に残し、table拡張や新たなheap確保はしない。空scopeのlookupはhash計算前に返す。
+- **価値または懸念:** 観測された20-local Debug hook時間はbaselineより約4.8〜5.9%短い。ローカル変数検索の意味、名前のAST参照寿命、最大深度64、allocation-free steady stateは維持。indexは生存中のlocals scopeごとに64 bytes増え、最大64 call framesで約4 KiBの追加stack使用となる。Debug測定はrun間に時間揺れがあり、Release性能は未検証。
+- **次に確認すべきこと:** Release相当で再測定する。44 localsを越える大きなscopeが実用scriptにあるかを利用例で確認し、必要性が見つかる場合だけfallback側もbounded index化を検討する。
