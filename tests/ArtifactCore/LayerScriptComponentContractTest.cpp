@@ -153,6 +153,64 @@ class CommentedCounter : ArtifactBehaviour
     EXPECT_TRUE(instance.lastError().empty());
 }
 
+TEST(LayerScriptComponentContractTest,
+     ArrayLiteralBuildsTheExpectedValuesAcrossRepeatedHooks) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ArrayLiteralCounter : ArtifactBehaviour
+{
+    public Array values;
+    void OnUpdate() { values = [10.0, 20.0, 30.0, 40.0]; }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    for (int i = 0; i < 32; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << instance.lastError();
+    }
+
+#if defined(_MSC_VER) && defined(_DEBUG)
+    constexpr std::size_t allocationIterations = 1000;
+    {
+        ScriptAllocationCounter allocations;
+        for (std::size_t i = 0; i < allocationIterations; ++i) {
+            ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+                << instance.lastError();
+        }
+        const auto [allocationCount, allocatedBytes] = allocations.stop();
+        std::cout << "ArtifactScript four-element array literal: "
+                  << allocationCount / allocationIterations
+                  << " allocations/hook, "
+                  << allocatedBytes / allocationIterations
+                  << " bytes/hook\n";
+        EXPECT_EQ(allocationCount, allocationIterations * 3);
+        EXPECT_EQ(allocatedBytes, allocationIterations * 256);
+    }
+#endif
+
+    constexpr std::size_t timingIterations = 50000;
+    const auto start = std::chrono::steady_clock::now();
+    for (std::size_t i = 0; i < timingIterations; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << instance.lastError();
+    }
+    const auto elapsed = std::chrono::duration<double, std::micro>(
+        std::chrono::steady_clock::now() - start).count();
+    std::cout << "ArtifactScript four-element array literal: "
+              << elapsed / timingIterations << " us/hook ("
+              << timingIterations << " calls)\n";
+
+    const auto& array = std::get<ArtifactScriptArrayPtr>(
+        instance.fields().at("values"));
+    ASSERT_NE(array, nullptr);
+    ASSERT_EQ(array->values.size(), 4u);
+    EXPECT_DOUBLE_EQ(std::get<double>(array->values[0]), 10.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(array->values[1]), 20.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(array->values[2]), 30.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(array->values[3]), 40.0);
+}
+
 TEST(LayerScriptComponentContractTest, ReusedEvaluatorClearsPriorHookError) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(

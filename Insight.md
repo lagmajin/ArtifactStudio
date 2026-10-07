@@ -4806,6 +4806,13 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **推論（未検証）:** 実scriptでnullでない頻度が高く、fallbackが高コストなら実行時間短縮につながる可能性がある。追加分岐・target resolutionを含む全体差は計測していない。
 - **次に確認すべきこと:** fallbackが常にnull / 非nullとなる小さな対照fixtureと実script profileでCPU時間を測り、意味上の短絡と速度上の効果を別々に確認する。
 
+## 2026-10-07 — ArtifactScript array literalはAST要素数を使って一括確保できる
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のArrayLiteral評価と `LayerScriptComponentContractTest.ArrayLiteralBuildsTheExpectedValuesAcrossRepeatedHooks`。
+- **確認できた事実:** array literal ASTは実行時の要素数が固定なのに、評価器は空vectorへ順次`push_back()`していた。4要素の数値literalをhookごとに作るMSVC Debug fixtureでは、容量予約前は6 allocations / 544 bytes/hook、予約後は3 / 256だった。50,000 hooksの各3回測定中央値も4.74から3.57 µs/hookへ変化した。
+- **価値または懸念:** 成長再確保をなくし、計測fixtureでは割当回数を半分、割当bytesを約53%削減した。CPU時間は単一のDebug workloadのみで、string要素・空/大規模literal・Release構成では未確認。
+- **次に確認すべきこと:** 長さ別とstring要素を含むliteralでallocation/CPUを測り、予約の影響を確認する。array objectと最終buffer自体のhook内確保はまだ残る。
+
 ## 2026-10-07 — Reserving wide ArtifactScript object field maps traded speed for bytes
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptExpr::Kind::New`で行う継承field登録、24-default-field object construction fixture。
