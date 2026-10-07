@@ -389,6 +389,58 @@ class DoWhileLimitProbe : ArtifactBehaviour
     EXPECT_NE(instance.lastError().find("loop limit"), std::string::npos);
 }
 
+TEST(ArtifactScriptTest, ReturnExitsWhileForAndForeachImmediately) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class LoopReturnProbe : ArtifactBehaviour
+{
+    float fromWhile()
+    {
+        var index = 0;
+        while (index < 3)
+        {
+            index += 1;
+            return index;
+        }
+        return 99.0;
+    }
+    float fromFor()
+    {
+        for (int index = 0; index < 3; index++)
+        {
+            return index + 1;
+        }
+        return 99.0;
+    }
+    float fromForeach()
+    {
+        var values = [1.0, 2.0, 3.0];
+        foreach (item in values)
+        {
+            return item;
+        }
+        return 99.0;
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptEvaluator evaluator;
+    ArtifactScriptSerializedFields fields;
+    const auto execute = [&](std::string_view methodName) {
+        const auto value = evaluator.executeMethod(
+            definition, methodName, {}, fields);
+        EXPECT_FALSE(evaluator.hasError()) << evaluator.getLastError();
+        const auto* number = std::get_if<double>(&value);
+        EXPECT_NE(number, nullptr);
+        return number ? *number : 0.0;
+    };
+
+    EXPECT_DOUBLE_EQ(execute("fromWhile"), 1.0);
+    EXPECT_DOUBLE_EQ(execute("fromFor"), 1.0);
+    EXPECT_DOUBLE_EQ(execute("fromForeach"), 1.0);
+}
+
 TEST(ArtifactScriptTest, ComponentStoresPublicOverrides) {
     ArtifactScriptComponent component;
     component.setScriptClass("Spin");
