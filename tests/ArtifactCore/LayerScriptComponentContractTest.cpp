@@ -739,18 +739,21 @@ class BenchmarkPolymorphicObjectMethodLookup : ArtifactBehaviour
 {
     public float total = 0.0;
     public ObjectRef target;
+    void OnUpdate()
+    {
+        for (int index = 0; index < 16; index += 1) {
+            if (index % 3 == 0) { target = second; }
+            else if (index % 3 == 1) { target = first; }
+            else { target = third; }
+            total = total + target.who();
+        }
+    }
+    public ObjectRef third;
     void OnCreate()
     {
         first = new Base();
         second = new Child();
-    }
-    void OnUpdate()
-    {
-        for (int index = 0; index < 16; index += 1) {
-            if (index % 2 == 0) { target = second; }
-            else { target = first; }
-            total = total + target.who();
-        }
+        third = new Sibling();
     }
 }
 class Base : ArtifactBehaviour
@@ -760,6 +763,10 @@ class Base : ArtifactBehaviour
 class Child : Base
 {
     float who() { return 2.0; }
+}
+class Sibling : Base
+{
+    float who() { return 3.0; }
 }
 )");
     ASSERT_TRUE(polymorphicObjectMethodDefinition.diagnostics.empty());
@@ -785,13 +792,13 @@ class Child : Base
         totalMicroseconds += std::chrono::duration<double, std::micro>(
             std::chrono::steady_clock::now() - start).count();
     }
-    std::cout << "ArtifactScript polymorphic object method (2 classes, 16 calls) benchmark: "
+    std::cout << "ArtifactScript polymorphic object method (3 classes, 16 calls) benchmark: "
               << totalMicroseconds / (polymorphicRepetitions * polymorphicIterations)
               << " us/hook (" << polymorphicIterations * polymorphicRepetitions
               << " calls)\n";
     EXPECT_DOUBLE_EQ(std::get<double>(polymorphicObjectMethodInstance.fields().at("total")),
                      (polymorphicWarmupIterations +
-                      polymorphicRepetitions * polymorphicIterations) * 24.0);
+                      polymorphicRepetitions * polymorphicIterations) * 32.0);
 
     auto wideObjectMethodDefinition = parser.parse(R"(
 class BenchmarkWideObjectMethod : ArtifactBehaviour

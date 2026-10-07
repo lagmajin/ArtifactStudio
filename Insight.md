@@ -4374,3 +4374,10 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実:** `%` parser対応後、Child/Baseを1 call-siteから交互に呼ぶbenchmarkが正常終了した。3,000 hook（各16 calls）で92.57 µs/hook、同一runの32-method object lookupは71.29 µs/hook、5-field object methodは119.58 µs/hook。新case込みのbenchmark test全体は約19.1秒で完了し、CTestのArtifactScript関連suiteは5/5 passした。
 - **価値または懸念:** 2-way cacheのpolymorphic workloadを継続計測できるfixtureができた。各workloadは処理内容が異なるため、数値をそのまま相対速度の証拠には使わない。
 - **次に確認すべきこと:** 3種類以上のruntime class時のevictionとcache set衝突を測る。benchmarkにhit/miss countersを付けるなら、disabled時にhookのhot pathへコストを持ち込まない設計にする。
+
+## 2026-10-07 — ArtifactScript 3-class dispatch baseline
+
+- **関連:** `tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の `HookExecutionMicrobenchmark`、`ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の2-way object method cache。
+- **確認できた事実:** Base / Child / Siblingを1 call-siteから交互に呼ぶ16-call workloadを追加し、MSVC Debugで145.30 µs/hook（3,000 hook）を計測した。該当suiteは1/1 passed、約24.5秒で完了した。
+- **価値または懸念:** 2-class専用の計測から、3 runtime classが同一call-siteへ来る場合の基準値を追加できた。分岐形状が2-class版と異なるため、二つの数値を直接比較してcacheの速度差とはみなせない。
+- **次に確認すべきこと:** 同一の実行ループと同一scriptを保ったままcache associativityだけを変えるA/B計測を行い、3-class時のevictionとcall-site set衝突を分けて評価する。

@@ -12,6 +12,7 @@
 - object method call-site cacheをcall-site address基準の2-way set-associativeに変更。runtime class nameのhashをhit経路から外しつつ、同一call-siteでよくある2種類のruntime classを保持できる。テストを16回交互に呼ぶ形へ増やし、override結果の合計値を検証する。
 - expression parserの乗除算層へ`%`を接続し、式内moduloを実行可能にした。また、method body parserでstatementが入力位置を進めない場合に解析を打ち切り、diagnosticを返すようにした。未知operatorによるparse停滞・AST増殖を回帰テストで検出する。
 - MSVC Debugで同じ交互クラスcaseを一時的な1-way call-site cacheと2-way cacheでA/B比較した。1-wayは107.68 µs/hook、2-wayは92.57 µs/hook（各3,000 hook、各16 calls、約14%短縮）。単一クラスのobject method lookupは1-way 68.66、2-way 71.29 µs/hookで測定揺れを含む小差、5-field object methodは120.00対119.58 µs/hookだった。各variant 1 runのDebug結果なのでrelease性能の断定には使わない。交互case込みのbenchmark suite全体は約19秒で完了した。
+- 3種類のruntime class（Base / Child / Sibling）を同じcall-siteから交互に呼ぶケースも追加した。MSVC Debugで145.30 µs/hook（3,000 hook、各16 calls）、該当CTest suiteは1/1 passed、約24.5秒。分岐形状も異なるため2-class計測との速度比較には使わず、3-class workloadの基準値として扱う。
 - MSVC DebugでArtifactScript関連5 test targetsをビルドし、CTest **5/5 passed**（`ArtifactCoreArtifactScriptTest`、`ArtifactCoreLayerScriptComponentTest`、`ArtifactCoreArtifactScriptObjectTest`、`ArtifactCoreArtifactScriptHostMethodTest`、`ArtifactCoreArtifactScriptHostApiTest`）。call-site cache変更後も同一call-siteでのruntime class切替を含めて通過した。
 - このテストは ArtifactCore のスクリプトランタイムを対象とし、Artifact サブモジュールの `ArtifactAbstractLayer` にあるレイヤーコンポーネント連携や UI / プロジェクト読込を通した統合動作は対象外。統合受入確認は未完了。
 
