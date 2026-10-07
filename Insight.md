@@ -4631,6 +4631,15 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **価値または懸念:** string同士のcompound appendが既存target容量を再利用できる。数値等からのstring変換と別型のcompound演算は従来の意味・経路を保つ。測定はMSVC Debugのみ。
 - **次に確認すべきこと:** Release構成が使える時に通常CPU時間を測り、短いstringと混在型の`+=` workloadでも効果を確認する。
 
+## 2026-10-07 — Move evaluated ArtifactScript simple assignments into targets
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptEvaluator::Impl::execStmt()` `Assign` 経路と、`tests/ArtifactCore/ArtifactScriptTest.cpp` / `tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。
+- **確認できた事実:** 代入右辺は `evalExpr()` で値として評価済みだが、単純代入は `applyCompound()` がその `ArtifactScriptValue` をコピーして返し、さらに代入先へコピーしていた。既存のcompound演算とは所有権の扱いを分けられる。
+- **実装・計測:** `=` / 空operatorの場合だけ評価済み値をlocal、field overlay、array itemへ直接moveし、compound代入の算術・append経路はそのまま維持した。128文字stringのfield代入MSVC Debug fixtureは4 allocations / 320 bytesから2 / 160 per hookへ減少した。
+- **価値または懸念:** 文字列等の所有値の一時コピーを減らせる。測定はMSVC Debugのみで、CPU時間とRelease workloadは未測定。
+- **確認結果:** localの再代入・array item・fieldで値とsource保持を検証し、ArtifactScript関連5 CTest suitesは **5/5 passed**。最適化がlocal declaration、method return、string `+=` のfixtureにも影響し、既存期待値はlocal declaration 8→6 allocations / 512→352 bytes、method returns 17→13 / 912→592、string `+=` 7→5 / 752→592 per hookへ更新した。
+- **次に確認すべきこと:** Release計測を後日行い、文字列以外の大きな所有値でも同じく無駄なcopyを避けられるか確認する。
+
 ## 2026-10-07 — Reserving wide ArtifactScript object field maps traded speed for bytes
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptExpr::Kind::New`で行う継承field登録、24-default-field object construction fixture。

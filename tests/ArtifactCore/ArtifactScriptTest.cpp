@@ -352,6 +352,32 @@ class Points : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(result), 9.25);
 }
 
+TEST(ArtifactScriptTest, SimpleAssignmentMovesValuesAcrossLocalAndArrayTargets) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class AssignedValues : ArtifactBehaviour
+{
+    public string observed = "";
+    void assign()
+    {
+        Array values;
+        push(values, "old");
+        string local = "first";
+        local = "replacement";
+        values[0] = local;
+        observed = values[0];
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptSerializedFields fields;
+    ArtifactScriptEvaluator evaluator;
+    const auto result = evaluator.executeMethod(definition, "assign", {}, fields);
+    ASSERT_TRUE(std::holds_alternative<std::monostate>(result));
+    EXPECT_EQ(std::get<std::string>(fields.at("observed")), "replacement");
+}
+
 TEST(ArtifactScriptTest, ArrayLiteralCreatesValues) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(
