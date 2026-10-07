@@ -852,24 +852,24 @@ class FailedForeach : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 7.0);
 }
 
-TEST(ArtifactScriptTest, UserMethodArgumentsUseOverflowStorageAboveEight) {
+TEST(ArtifactScriptTest, UserMethodArgumentsUseOverflowStorageAboveFive) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
-class NineArguments : ArtifactBehaviour
+class SixArguments : ArtifactBehaviour
 {
     public float total = 0.0;
-    float sum(float a, float b, float c, float d, float e, float f, float g, float h, float i)
+    float sum(float a, float b, float c, float d, float e, float f)
     {
-        return a + b + c + d + e + f + g + h + i;
+        return a + b + c + d + e + f;
     }
-    void OnUpdate() { total = sum(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0); }
+    void OnUpdate() { total = sum(1.0, 2.0, 3.0, 4.0, 5.0, 6.0); }
 }
 )");
     ASSERT_TRUE(definition.diagnostics.empty());
 
     ArtifactScriptInstance instance(std::move(definition));
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
-    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 45.0);
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("total")), 21.0);
 }
 
 TEST(ArtifactScriptTest, MoreThanTwelveLocalsUseOverflowStorage) {
