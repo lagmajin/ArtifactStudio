@@ -1,5 +1,13 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — 読み取り専用 ArtifactScript foreach の配列snapshotを省略
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の foreach 実行、`tests/ArtifactCore/ArtifactScriptTest.cpp` と `tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。
+- **確認できた事実:** 読み取り専用ループでも、各 hook で配列の全要素を evaluator workspace にコピーしていた。Debug の257要素・合計60,000 hook計測は変更前115.78 µs/hookだった。
+- **対応・計測:** ループ本体ASTを保守的に調べ、call/newまたは添字書込みなど配列変更の可能性がある場合はsnapshot経路を維持し、それ以外は元配列を共有参照して走査する。読み取り専用fixtureは変更後95.71 µs/hook（同じDebug fixture、約17%短縮）。後続runは97.25 µs/hookで、測定揺れを含む。配列source field自体の差し替え後も元配列の全要素を走査する回帰テストを追加。既存のpushを含むforeach snapshotテストも ArtifactScript関連5 suites で通過した。
+- **価値・制約:** 257要素ループのDebug fixtureで配列値コピーを避け、時間が減った。ASTの保守的な検査はループ呼び出しごとに行うため、短いループでの利点は未計測。Release測定と実script workloadの効果も未確認。mutation可能性を検出できない新しい副作用構文を追加する場合は、判定関数も更新する必要がある。
+- **次に確認すべきこと:** より長い実用scriptでread-only foreachの配列サイズ別ベンチマークを複数runし、loop本体解析コストとコピー回避の損益分岐を確認する。副作用を持つ式・statementを追加したらsnapshot維持条件を更新する。
+
 ## 2026-10-07 — ArtifactScript の読み取りoverlayは親値を参照する
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptFields`、nested object method dispatch。

@@ -635,6 +635,19 @@ class BenchmarkLargeForeach : ArtifactBehaviour
         ASSERT_TRUE(largeForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate))
             << largeForeachInstance.lastError();
     }
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            ASSERT_TRUE(largeForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+                << largeForeachInstance.lastError();
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript foreach(257, read-only array) benchmark: "
+              << totalMicroseconds / (repetitions * iterations)
+              << " us/hook (" << iterations * repetitions << " calls)\n";
 
     auto stringForeachDefinition = parser.parse(R"(
 class BenchmarkStringForeach : ArtifactBehaviour
