@@ -1132,5 +1132,57 @@ class DeepRecursiveAllocationProbe : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 29.0);
 }
 
+TEST(LayerScriptComponentContractTest, DeepCallChainReusesLocalOverflowWorkspace) {
+    constexpr std::array<std::string_view, 13> parameterNames{
+        "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m"};
+    std::string source = R"(
+class DeepCallChainAllocationProbe : ArtifactBehaviour
+{
+    public float result = 0.0;
+)";
+    const auto appendArguments = [&](bool useParameterNames) {
+        for (std::size_t i = 0; i < parameterNames.size(); ++i) {
+            if (i != 0) source += ", ";
+            if (useParameterNames) source += parameterNames[i];
+            else source += std::to_string(i + 1) + ".0";
+        }
+    };
+    for (int methodIndex = 0; methodIndex < 9; ++methodIndex) {
+        source += "    float step" + std::to_string(methodIndex) + "(";
+        appendArguments(true);
+        source += ") { return ";
+        if (methodIndex < 8) {
+            source += "step" + std::to_string(methodIndex + 1) + "(";
+            appendArguments(true);
+            source += "); }\n";
+        } else {
+            for (std::size_t i = 0; i < parameterNames.size(); ++i) {
+                if (i != 0) source += " + ";
+                source += parameterNames[i];
+            }
+            source += "; }\n";
+        }
+    }
+    source += "    void OnUpdate() { result = step0(";
+    appendArguments(false);
+    source += "); }\n}\n";
+
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(source);
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    for (int i = 0; i < 10; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    }
+
+    ScriptAllocationCounter counter;
+    const bool succeeded = instance.invokeHook(ArtifactScriptHook::OnUpdate);
+    const auto allocations = counter.stop();
+    EXPECT_TRUE(succeeded) << instance.lastError();
+    EXPECT_EQ(allocations.first, 0) << "allocations/hook=" << allocations.first;
+    EXPECT_EQ(allocations.second, 0) << "bytes/hook=" << allocations.second;
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 91.0);
+}
 
 #endif
