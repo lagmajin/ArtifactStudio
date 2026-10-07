@@ -1,5 +1,15 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactScriptの呼び出し引数・index構文を位置診断
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のprimary expression parser、`tests/ArtifactCore/ArtifactScriptTest.cpp`。
+- **確認できた事実:** function/object-method/new/vector/arrayのdelimited expression listは、要素parseが失敗してもnullを捨てて続行し、`f(,x)`や`array[]`などを不完全なASTとして受理する可能性があった。closing delimiterの欠落も一部silentだった。
+- **対応:** 一つのboundedなdelimited-expression parserを共用し、空リストと要素列、カンマ、閉じ括弧の順序を検査する。required index expression、dot後のmember名、unary operandもparse errorとしてoffsetを記録する。既存`parseRequiredExpr`の位置付き診断へ統合。
+- **互換性確認:** 0引数function / constructor、空array、vector constructorの既存挙動を維持する。末尾カンマや引数抜けは不正扱いにする。
+- **確認結果:** function引数、constructor引数、indexの欠落位置をassertし、valid empty-argument、array literal、builtin callを通過。ArtifactScript関連5 CTest suitesは5/5 passed。
+- **価値または懸念:** 不正な引数を無言で除去して呼び出し引数列をずらす誤動作を、実行前に局所診断できる。method call receiver pathや未閉じdelimiter全種の網羅は未完了。
+- **次に確認すべきこと:** call/method-call/new/vectorごとに引数separatorとclosing delimiterの欠落を増やし、call-site/constructor evaluatorへ不完全ASTが到達しないことを確認する。
+
 ## 2026-10-07 — ArtifactScriptの必須式欠落を位置付き構文エラーにする
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の式parser / method body diagnostics、`tests/ArtifactCore/ArtifactScriptTest.cpp`。
@@ -7,7 +17,7 @@
 - **対応:** 必須の二項演算子右辺、`if` / `while`条件、declaration / assignment右辺をrequired-expressionとして検証し、失敗source offsetを既存line/column診断へ渡す。省略可能な`return;`や`for`条件はrequired扱いしない。
 - **確認結果:** `value = 1.0 + ;` に対して正確な6行23列の診断をassertし、既存のif/else/for・文字列式・parser stallテストとArtifactScript関連5 suitesが通過。
 - **価値または懸念:** 実行時にnull値へすり替わる構文ミスをparse時に検出できる。関数引数、index、ternary、未閉じ括弧など他の必須構文位置への適用範囲は未完了。
-- **次に確認すべきこと:** call/new/vector arguments、index、ternary colon、closing delimitersの欠落を一つずつfixture化し、正当な空引数や`return;`を維持する。
+- **次に確認すべきこと:** call/new/vector argumentsとindex欠落は後続の同日entryで対応済み。ternary colon、loop/function delimitersなど残る必須syntax positionsをfixture化し、正当な省略構文を維持する。
 
 ## 2026-10-07 — ArtifactScript method bodyをsource viewで解析し位置診断を正確化
 

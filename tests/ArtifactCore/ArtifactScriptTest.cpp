@@ -129,6 +129,48 @@ class BrokenExpression : ArtifactBehaviour
               std::string::npos);
 }
 
+TEST(ArtifactScriptTest, MissingCallAndIndexArgumentsReportSourceLocations) {
+    ArtifactScriptParser parser;
+    const auto parseBody = [&](std::string_view body) {
+        std::string source =
+            "class BrokenArguments : ArtifactBehaviour\n{\n"
+            "    void OnUpdate()\n    {\n";
+        source.append(body);
+        source.append("\n    }\n}\n");
+        return parser.parse(source);
+    };
+
+    const auto missingCallArgument = parseBody("        ping(1.0, );");
+    ASSERT_EQ(missingCallArgument.diagnostics.size(), 1u);
+    EXPECT_EQ(missingCallArgument.diagnostics.front().line, 5u);
+    EXPECT_EQ(missingCallArgument.diagnostics.front().column, 19u);
+
+    const auto missingCallClose = parseBody("        ping(1.0;");
+    ASSERT_EQ(missingCallClose.diagnostics.size(), 1u);
+    EXPECT_EQ(missingCallClose.diagnostics.front().line, 5u);
+    EXPECT_EQ(missingCallClose.diagnostics.front().column, 17u);
+
+    const auto missingIndex = parseBody("        value = values[];");
+    ASSERT_EQ(missingIndex.diagnostics.size(), 1u);
+    EXPECT_EQ(missingIndex.diagnostics.front().line, 5u);
+    EXPECT_EQ(missingIndex.diagnostics.front().column, 24u);
+
+    const auto missingIndexClose = parseBody("        value = values[0;");
+    ASSERT_EQ(missingIndexClose.diagnostics.size(), 1u);
+    EXPECT_EQ(missingIndexClose.diagnostics.front().line, 5u);
+    EXPECT_EQ(missingIndexClose.diagnostics.front().column, 25u);
+
+    const auto missingConstructorArgument = parseBody(
+        "        target = new Sink(,);");
+    ASSERT_EQ(missingConstructorArgument.diagnostics.size(), 1u);
+    EXPECT_EQ(missingConstructorArgument.diagnostics.front().line, 5u);
+    EXPECT_EQ(missingConstructorArgument.diagnostics.front().column, 27u);
+
+    const auto validEmptyArguments = parseBody(
+        "        ping();\n        target = new Sink();");
+    EXPECT_TRUE(validEmptyArguments.diagnostics.empty());
+}
+
 TEST(ArtifactScriptTest, ComponentStoresPublicOverrides) {
     ArtifactScriptComponent component;
     component.setScriptClass("Spin");
