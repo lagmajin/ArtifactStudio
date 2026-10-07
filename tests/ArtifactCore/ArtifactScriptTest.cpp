@@ -69,6 +69,87 @@ class ScientificNumbers : ArtifactBehaviour
     EXPECT_EQ(overflowingNumber.diagnostics.front().line, 4u);
 }
 
+TEST(ArtifactScriptTest, IntegerLiteralsAndArithmeticPreserveInt64Precision) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ExactIntegers : ArtifactBehaviour
+{
+    public int large = 0;
+    public int sum = 0;
+    public int quotient = 0;
+    public int negativeQuotient = 0;
+    public int remainder = 0;
+    public int minimum = 0;
+    void OnUpdate()
+    {
+        large = 9007199254740993;
+        sum = large + 1;
+        quotient = 7 / 2;
+        negativeQuotient = -7 / 2;
+        remainder = -7 % 2;
+        minimum = -9223372036854775808;
+    }
+}
+)");
+
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("large")),
+              INT64_C(9007199254740993));
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("sum")),
+              INT64_C(9007199254740994));
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("quotient")), 3);
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("negativeQuotient")), -3);
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("remainder")), -1);
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("minimum")),
+              std::numeric_limits<std::int64_t>::min());
+}
+
+TEST(ArtifactScriptTest, IntegerArithmeticReportsOverflow) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class IntegerOverflow : ArtifactBehaviour
+{
+    public int result = 0;
+    void OnUpdate() { result = 9223372036854775807 + 1; }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    EXPECT_FALSE(instance.invokeHook(ArtifactScriptHook::OnUpdate));
+    EXPECT_NE(instance.lastError().find("integer overflow"), std::string::npos);
+
+    auto divisionDefinition = parser.parse(R"(
+class IntegerDivisionOverflow : ArtifactBehaviour
+{
+    public int result = 0;
+    void OnUpdate() { result = -9223372036854775808 / -1; }
+}
+)");
+    ASSERT_TRUE(divisionDefinition.diagnostics.empty());
+    ArtifactScriptInstance divisionInstance(std::move(divisionDefinition));
+    EXPECT_FALSE(divisionInstance.invokeHook(ArtifactScriptHook::OnUpdate));
+    EXPECT_NE(divisionInstance.lastError().find("integer overflow"),
+              std::string::npos);
+
+    auto multiplicationDefinition = parser.parse(R"(
+class IntegerMultiplicationOverflow : ArtifactBehaviour
+{
+    public int result = 0;
+    void OnUpdate() { result = 9223372036854775807 * 2; }
+}
+)");
+    ASSERT_TRUE(multiplicationDefinition.diagnostics.empty());
+    ArtifactScriptInstance multiplicationInstance(
+        std::move(multiplicationDefinition));
+    EXPECT_FALSE(multiplicationInstance.invokeHook(
+        ArtifactScriptHook::OnUpdate));
+    EXPECT_NE(multiplicationInstance.lastError().find("integer overflow"),
+              std::string::npos);
+}
+
 TEST(ArtifactScriptTest, InvalidClassMemberReportsDiagnosticWithoutStalling) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(
@@ -431,9 +512,11 @@ class LoopReturnProbe : ArtifactBehaviour
         const auto value = evaluator.executeMethod(
             definition, methodName, {}, fields);
         EXPECT_FALSE(evaluator.hasError()) << evaluator.getLastError();
-        const auto* number = std::get_if<double>(&value);
-        EXPECT_NE(number, nullptr);
-        return number ? *number : 0.0;
+        if (const auto* number = std::get_if<double>(&value)) return *number;
+        if (const auto* integer = std::get_if<std::int64_t>(&value))
+            return static_cast<double>(*integer);
+        ADD_FAILURE() << "expected numeric return value";
+        return 0.0;
     };
 
     EXPECT_DOUBLE_EQ(execute("fromWhile"), 1.0);
@@ -508,16 +591,25 @@ class UnconditionalForProbe : ArtifactBehaviour
     ArtifactScriptInstance instance(std::move(definition));
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
         << instance.lastError();
-    ASSERT_TRUE(std::holds_alternative<double>(instance.fields().at("result")));
-    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 3.0);
+    const auto& result = instance.fields().at("result");
+    ASSERT_TRUE(std::holds_alternative<double>(result) ||
+                std::holds_alternative<std::int64_t>(result));
+    EXPECT_DOUBLE_EQ(std::holds_alternative<double>(result)
+                         ? std::get<double>(result)
+                         : static_cast<double>(std::get<std::int64_t>(result)),
+                     3.0);
 
     ArtifactScriptEvaluator evaluator;
     ArtifactScriptSerializedFields fields;
     const auto initializedResult = evaluator.executeMethod(
         instance.definition(), "initializedLoop", {}, fields);
-    ASSERT_TRUE(std::holds_alternative<double>(initializedResult))
+    ASSERT_TRUE(std::holds_alternative<double>(initializedResult) ||
+                std::holds_alternative<std::int64_t>(initializedResult))
         << evaluator.getLastError();
-    EXPECT_DOUBLE_EQ(std::get<double>(initializedResult), 3.0);
+    EXPECT_DOUBLE_EQ(std::holds_alternative<double>(initializedResult)
+                         ? std::get<double>(initializedResult)
+                         : static_cast<double>(std::get<std::int64_t>(initializedResult)),
+                     3.0);
 
     ArtifactScriptEvaluator limitedEvaluator;
     const auto limitedResult = limitedEvaluator.executeMethod(

@@ -1,5 +1,12 @@
 **最終更新:** 2026-10-07
 
+## 2026-10-07 — ArtifactTextLayer の独立した統合テスト境界
+
+- **関連:** `Artifact/src/Layer/ArtifactTextLayer.cppm`、`Artifact/CMakeLists.txt`、`tests/Artifact/`。
+- **確認できた事実:** アニメーター評価エンジンは `ArtifactCore` の単体テストターゲットから利用でき、Core側には `TextAnimatorContractTest` がある。一方、`ArtifactTextLayer.cppm` は `Artifact/cmake/ArtifactSources.cmake` の `ARTIFACT_APP_IMPL_SOURCES` に登録され、アプリ本体の実行ターゲット `Artifact` に属する。`tests/Artifact/CMakeLists.txt` にはそのレイヤー実装を利用するテスト用ライブラリ／ターゲットがない。
+- **価値または懸念（未検証）:** 現行テストからはレイヤー本体の `text.animators` 保存復元、プロパティパス更新、Animator stack snapshot の統合契約を直接検証できない。レイヤーをテスト可能なライブラリへ分離できる可能性はあるが、module依存とアプリ専用依存を調べておらず、分離規模・安全性は未検証。
+- **次に確認すべきこと:** `ArtifactTextLayer` の直接依存を調査し、アプリ層テストが必要なら最小のruntime境界を設計する。依存グラフが大きい場合は、クラス実装を動かさずにテスト可能な保存／復元・property routing helperを抽出できるか検討する。
+
 ## 2026-10-07 — ArtifactScriptの局所名ハッシュ事前計算は未採用
 
 - **関連:** `ArtifactCore::ArtifactScriptLocals::find()`、`ArtifactScriptExpr::variableName`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の `HookExecutionMicrobenchmark`。
@@ -4797,3 +4804,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実:** MSVC Debugではreserveなし40.86 µs/hook・56 allocations / 4336 bytes、reserveあり41.90 / 41.88 µs/hook・56 / 3824 bytesだった。割当bytesは減るが割当回数は変わらず、steady-state時間は約2.5%遅いrunとなった。
 - **対応:** CPU executionの改善を立証できないため、reserve変更と専用fixtureは採用せず戻した。
 - **次に確認すべきこと:** object field map容量の実workload分布が重要なら、同じA/BをRelease profileでも測り直す。現行build treeにはRelease構成がない。
+
+## 2026-10-07 — ArtifactScript integer expressions lost int64 precision
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のnumeric literal parser、`evalBinary()` / `evalUnary()`、`tests/ArtifactCore/ArtifactScriptTest.cpp`。
+- **確認できた事実:** `ArtifactScriptValue` と`int` field defaultsは`std::int64_t`を保持する一方、式の整数literalは常に`double`へ解析され、数値演算もdoubleへcoerceされていた。このため`9007199254740993`は正確に表せず、int同士の割り算も浮動小数点値を返していた。
+- **実装:** 整数literalと負の`INT64_MIN`を`int64`として解析し、int同士の加減乗除・剰余・比較を整数のまま行う。整数overflowと`INT64_MIN / -1`は未定義動作を避けてscript errorにする。混合int/floatは従来どおりdouble経路。
+- **確認結果:** `2^53+1`とその加算、負の最小値、正負の整数除算・剰余、加算・乗算・除算overflowをテスト。既存のdynamic numeric result testはint/double双方を許容するよう更新。変更後のArtifactScript関連5 CTest suitesは **5/5 passed**。
+- **価値または懸念:** int64を公開している言語データモデルと式評価の精度が一致する。整数literalのvariant型がdoubleからint64へ変わるため、外部host bindingや既存scriptが値のvariant型に依存していないかは受け入れ確認が必要。整数workloadの実行速度は計測しておらず、高速化効果は未確認。
+- **次に確認すべきこと:** 実レイヤースクリプトとhost callbackの数値型期待を確認し、int literal変更の互換性を調査する。性能改善は代表的なscriptで別途profileする。
