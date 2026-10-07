@@ -4889,9 +4889,9 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `evalCall()` builtin dispatch、`tests/ArtifactCore/ArtifactScriptTest.cpp`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。
 - **確認できた事実:** 既存の`print` / `log`は複数型を文字列化するが、要素ごとに一時`std::string`を作る。`split`と対になる再結合用途では文字列配列に限定すれば、各要素を直接appendでき、必要な出力サイズを事前に計算できる。
 - **実装:** `join(Array<string>, delimiter)` は総バイト数をoverflow-check付きで算出して一度reserveし、その後、要素参照とdelimiterを直接appendする。空配列は空文字列、空delimiterと空要素は許容し、null array・型不一致・混在要素はエラーにする。
-- **確認結果:** 空／単一／複数要素、空delimiter、mixed element・argument errorをテストし、layer hookでsplit→joinしたpathの完全往復を確認。join関連のfocused test 3件が通過。87-byte出力を同等のscript `+=` loopと比較するMSVC Debug allocation contractは5 allocations / 160 bytes対12 / 455 per hook。
-- **価値または懸念:** 文字列化の一時値を避け、必要量を一度だけ確保する設計になり、このfixtureではhook内割当を約58%、割当byte数を約65%減らした。Debugの固定fixtureの割当結果であり、CPU時間・Release・他サイズへの効果は未検証。
-- **次に確認すべきこと:** 短い／長い要素と配列サイズを振り、join-only workloadのCPU・allocation双方をprofileする。generic stringify joinが必要になった場合は、変換契約と一時割当を別途定める。
+- **確認結果:** 空／単一／複数要素、空delimiter、mixed element・argument errorをテストし、layer hookでsplit→joinしたpathの完全往復を確認。join関連のfocused test 3件が通過。87-byte出力を同等のscript `+=` loopと比較するMSVC Debug allocation contractは5 allocations / 160 bytes対12 / 455 per hook。3回×3,000 hooksのCPU中央値（join vs loop）は3×16 chars: 5.14 vs 17.11、8×64: 5.58 vs 37.73、32×256: 6.25 vs 123.96 µs/hook。
+- **価値または懸念:** 文字列化の一時値を避け、必要量を一度だけ確保する設計になり、87-byte fixtureではhook内割当を約58%、割当byte数を約65%減らした。CPU fixtureでは要素数増加に伴い差が拡大したが、MSVC Debugの特定script loop比較であり、Releaseや実script全般の短縮率ではない。
+- **次に確認すべきこと:** Release workloadと、実際にjoinが使われるlayer scriptでCPU・allocation双方をprofileする。generic stringify joinが必要になった場合は、変換契約と一時割当を別途定める。
 
 ## 2026-10-07 — ArtifactScript JIT should follow a stable execution IR
 

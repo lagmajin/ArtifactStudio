@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -328,6 +329,100 @@ class JoinLoopAllocationProbe : ArtifactBehaviour
               << loopBytes / allocationIterations << " bytes/hook\n";
     EXPECT_LT(joinAllocations, loopAllocations);
     EXPECT_LT(joinBytes, loopBytes);
+#endif
+}
+
+TEST(LayerScriptComponentContractTest, JoinBuiltinCpuScalingBenchmark) {
+#if defined(_MSC_VER) && defined(_DEBUG)
+    ArtifactScriptParser parser;
+    const auto makeDefinition = [&](std::string_view className,
+                                    std::size_t partCount,
+                                    std::size_t partLength,
+                                    bool useBuiltin) {
+        std::string arrayLiteral = "[";
+        for (std::size_t i = 0; i < partCount; ++i) {
+            if (i != 0) arrayLiteral += ", ";
+            arrayLiteral += '"';
+            arrayLiteral.append(partLength, 'x');
+            arrayLiteral += '"';
+        }
+        arrayLiteral += ']';
+
+        std::string source = "class ";
+        source.append(className);
+        source += " : ArtifactBehaviour\n{\n"
+                  "    public Array parts;\n"
+                  "    public string joined;\n"
+                  "    void OnCreate() { parts = ";
+        source += arrayLiteral;
+        source += "; }\n    void OnUpdate()\n    {\n";
+        if (useBuiltin) {
+            source += "        joined = join(parts, \"|\");\n";
+        } else {
+            source += "        joined = \"\";\n"
+                      "        int count = size(parts);\n"
+                      "        for (int i = 0; i < count; i++)\n"
+                      "        {\n"
+                      "            if (i > 0) joined += \"|\";\n"
+                      "            joined += parts[i];\n"
+                      "        }\n";
+        }
+        source += "    }\n}\n";
+        return parser.parse(source);
+    };
+
+    const std::array<std::pair<std::size_t, std::size_t>, 3> workloads{{
+        {3, 16}, {8, 64}, {32, 256}}};
+    constexpr std::size_t iterations = 3000;
+    constexpr std::size_t repetitions = 3;
+    for (std::size_t workloadIndex = 0;
+         workloadIndex < workloads.size(); ++workloadIndex) {
+        const auto [partCount, partLength] = workloads[workloadIndex];
+        auto joinDefinition = makeDefinition(
+            "JoinCpuBuiltin", partCount, partLength, true);
+        auto loopDefinition = makeDefinition(
+            "JoinCpuLoop", partCount, partLength, false);
+        ASSERT_TRUE(joinDefinition.diagnostics.empty());
+        ASSERT_TRUE(loopDefinition.diagnostics.empty());
+        ArtifactScriptInstance joinInstance(std::move(joinDefinition));
+        ArtifactScriptInstance loopInstance(std::move(loopDefinition));
+        ASSERT_TRUE(joinInstance.invokeHook(ArtifactScriptHook::OnCreate))
+            << joinInstance.lastError();
+        ASSERT_TRUE(loopInstance.invokeHook(ArtifactScriptHook::OnCreate))
+            << loopInstance.lastError();
+        ASSERT_TRUE(joinInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << joinInstance.lastError();
+        ASSERT_TRUE(loopInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << loopInstance.lastError();
+        EXPECT_EQ(std::get<std::string>(joinInstance.fields().at("joined")),
+                  std::get<std::string>(loopInstance.fields().at("joined")));
+
+        const auto measure = [&](ArtifactScriptInstance& instance) {
+            std::array<double, repetitions> samples{};
+            for (auto& sample : samples) {
+                const auto start = std::chrono::steady_clock::now();
+                for (std::size_t i = 0; i < iterations; ++i) {
+                    if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+                        ADD_FAILURE() << instance.lastError();
+                        break;
+                    }
+                }
+                sample = std::chrono::duration<double, std::micro>(
+                    std::chrono::steady_clock::now() - start).count() /
+                    iterations;
+            }
+            std::sort(samples.begin(), samples.end());
+            return samples[samples.size() / 2];
+        };
+        const double joinMicros = measure(joinInstance);
+        const double loopMicros = measure(loopInstance);
+        std::cout << "ArtifactScript join CPU (" << partCount << " x "
+                  << partLength << " chars, "
+                  << partCount * partLength + (partCount - 1)
+                  << " output bytes): " << joinMicros << " vs " << loopMicros
+                  << " us/hook (median of " << repetitions << " x "
+                  << iterations << ")\n";
+    }
 #endif
 }
 
