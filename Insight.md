@@ -4909,3 +4909,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認結果:** 全置換、no match、deletion、overlapping candidate、日本語literal、bad argument / empty searchをテストし、layer hook上の `split` / `join` と組み合わせたpath normalizationを確認。ArtifactScript関連5 CTest suitesは **5/5 passed**。50-byte出力のMSVC Debug allocation fixtureではreplaceが10 allocations / 256 bytes、`join(split(...))` が25 / 704 per hook。3回×3,000 hooksのCPU中央値（replace vs split+join）は3×16 chars: 7.07 vs 13.24、8×64: 6.49 vs 16.83、32×256: 10.49 vs 59.78 µs/hook。
 - **価値または懸念:** script側での置換処理に中間配列・部分文字列を作らない専用経路を作れた。このDebug fixtureではhook内割当を60%、割当byte数を約64%減らし、CPU時間も各サイズで短かった。固定Debug fixtureの結果であり、Releaseや実script全般への一般化は未検証。
 - **次に確認すべきこと:** Release workloadと実際にreplaceが使われるlayer scriptでCPU・allocationをprofileする。UTF-8 code point基準ではなくliteral byte sequence searchである点を言語仕様に明記するか検討する。
+
+## 2026-10-07 — ArtifactScript contains can overload literal string search
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `evalCall()` builtin `contains` / `indexOf` dispatch、ArtifactScriptとlayer contract tests。
+- **確認できた事実:** `contains(array, value)` は既にscript equality semanticsを使う配列検索として実装済みだったが、文字列の部分一致には別の標準関数経路がなかった。`std::string::find` は空needleを含むliteral substring判定を提供する。
+- **実装:** `contains(string, string)` を追加し、配列overloadを保つ。case-sensitiveなUTF-8 byte sequenceとして検索し、空substringはtrueを返す。
+- **確認結果:** ASCII一致・case mismatch・空substring・日本語substringを検証し、layer hookでseparator検出を確認。ArtifactScript関連5 CTest suitesは **5/5 passed**。
+- **価値または懸念:** 配列・文字列の双方に馴染みのある `contains` APIを提供し、検索loopをscriptで書かずに済む。固有の速度・割当量は未計測。検索単位はUnicode code pointではなくUTF-8 byte sequence。
+- **次に確認すべきこと:** 長いsourceをfieldから検索する場合の引数コピーをprofileし、文字列評価と検索コストを分ける。必要なら呼び出し引数の参照評価経路を検討する。

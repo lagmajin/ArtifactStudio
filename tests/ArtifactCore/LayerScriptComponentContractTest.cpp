@@ -221,12 +221,14 @@ class SplitLayerPath : ArtifactBehaviour
     public string path = "/assets//layer/";
     public string roundTrip;
     public string normalized;
+    public bool hasRepeatedSeparator;
     public Array segments;
     void OnUpdate()
     {
         segments = split(path, "/");
         roundTrip = join(segments, "/");
         normalized = replace(path, "//", "/");
+        hasRepeatedSeparator = contains(path, "//");
     }
 }
 )");
@@ -251,6 +253,7 @@ class SplitLayerPath : ArtifactBehaviour
               "/assets//layer/");
     EXPECT_EQ(std::get<std::string>(instance.fields().at("normalized")),
               "/assets/layer/");
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("hasRepeatedSeparator")));
     EXPECT_TRUE(instance.lastError().empty());
 }
 

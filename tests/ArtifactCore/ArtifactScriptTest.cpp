@@ -1416,6 +1416,35 @@ TEST(ArtifactScriptTest, StringReplaceRejectsInvalidArgumentsAndEmptySearch) {
               std::string::npos);
 }
 
+TEST(ArtifactScriptTest, StringContainsUsesLiteralUtf8Substrings) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class StringContains : ArtifactBehaviour
+{
+    public bool findsSuffix;
+    public bool rejectsDifferentCase;
+    public bool acceptsEmptySubstring;
+    public bool findsUnicode;
+    void OnUpdate()
+    {
+        findsSuffix = contains("ArtifactScript", "Script");
+        rejectsDifferentCase = contains("ArtifactScript", "script");
+        acceptsEmptySubstring = contains("value", "");
+        findsUnicode = contains("猫と犬", "犬");
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("findsSuffix")));
+    EXPECT_FALSE(std::get<bool>(instance.fields().at("rejectsDifferentCase")));
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("acceptsEmptySubstring")));
+    EXPECT_TRUE(std::get<bool>(instance.fields().at("findsUnicode")));
+}
+
 TEST(ArtifactScriptTest, EvaluatorBuiltinFunctions) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(
