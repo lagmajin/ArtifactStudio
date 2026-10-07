@@ -4658,6 +4658,22 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認結果:** field targetでstring・int・bool・doubleの組み合わせを確認し、ArtifactScript関連5 CTest suitesは **5/5 passed**。既存allocation assertionsに予期しない変化はなかった。
 - **次に確認すべきこと:** Release profilingでCPU時間とallocation削減の関係を確認する。
 
+## 2026-10-07 — Fuse pure multi-string ArtifactScript addition trees
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の Binary expression evaluator、`tests/ArtifactCore/ArtifactScriptTest.cpp` / `tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。
+- **確認できた事実:** 左結合の `first + second + third + fourth` は、既存の2 operand fast pathだけではnested resultを毎段作り直していた。literalとVariableだけのstring operandなら式評価の副作用がなく、実際のstring値を参照して一括連結できる。
+- **実装・計測:** nested `+` ASTを最大深さ64まで2回走査し、全leafがliteralまたはruntime string variableの場合だけ合計長をreserveして一度の結果stringへappendする。call/non-string/undefined leafや深さ超過は一切評価せずに元の evaluator へfallbackするため、callを重複実行しない。128文字string 4個のMSVC Debug fixtureは15 allocations / 2366 bytesから3 / 560 per hookへ減少。side-effecting methodが一度だけ呼ばれる回帰テストも追加した。
+- **価値または懸念:** 複数の長いstringを式内連結するときの中間stringとvariable result copiesを避ける。測定はMSVC DebugのみでCPU時間・Releaseは未測定。純粋な文字列式に限定するため、scalar conversionを含む鎖は従来pathになる。
+- **確認結果:** ArtifactScript関連5 CTest suitesは **5/5 passed**。side-effecting callは1回だけ実行され、数値だけのdeep recursive / call-chain fixtureは従来どおり0 allocationを維持した。文字列treeがstring-onlyと分かる前の一時buffer作成は避け、numeric fallbackに確保を持ち込まない。
+- **次に確認すべきこと:** Release profilingが可能になったら、flatten preflight overheadとallocation削減を併せて評価する。
+
+## 2026-10-07 — JITは計測に基づく別段階として検討
+
+- **関連:** `docs/planned/MILESTONE_ARTIFACTSCRIPT_LANGUAGE_EVOLUTION_2026-08-21.md` の対象外項目と、`ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のparser AST / `evalExpr()` tree-walk実行。
+- **確認できた事実:** 現行マイルストーンはbytecode VM / JITへの置換を対象外とし、「速度不足が実測されたら別途起票」としている。現在の実行器はASTを直接評価しており、JIT用依存やcodegen pathは調査範囲で見つからなかった。
+- **推論（未検証）:** JIT自体は設計上可能だが、ArtifactScriptの型変換・diagnostic・host binding・定義変更/cache invalidationを保つ専用IR、tier-up基準、fallbackとの意味一致が必要になる。日々の小さな最適化と計測は並行できるが、JITを同時に製品経路へ追加すると性能差の原因と互換性境界が混ざる。
+- **次に確認すべきこと:** Releaseまたは代表的scriptでCPU profileを取り、tree-walkが支配的かを確認した後に、hotness threshold付きの限定prototypeを別作業として比較する。LLVM等の外部codegen選定はその段階で現行依存・配布条件も確認する。
+
 ## 2026-10-07 — Reserving wide ArtifactScript object field maps traded speed for bytes
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptExpr::Kind::New`で行う継承field登録、24-default-field object construction fixture。

@@ -590,6 +590,31 @@ class StringScalarCompoundAssignment : ArtifactBehaviour
               "start-text12false0.5");
 }
 
+TEST(ArtifactScriptTest, StringAdditionFusionDoesNotRepeatCalls) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class StringAdditionSideEffects : ArtifactBehaviour
+{
+    public int calls = 0;
+    public string label = "";
+    string middle() { calls += 1; return "middle"; }
+    void build() { label = "before" + middle() + "after"; }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptSerializedFields fields;
+    fields["calls"] = 0.0;
+    fields["label"] = std::string{};
+    ArtifactScriptEvaluator evaluator;
+    const auto result = evaluator.executeMethod(definition, "build", {}, fields);
+    ASSERT_TRUE(std::holds_alternative<std::monostate>(result));
+    EXPECT_FALSE(evaluator.hasError()) << evaluator.getLastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(fields.at("calls")), 1.0);
+    EXPECT_EQ(std::get<std::string>(fields.at("label")),
+              "beforemiddleafter");
+}
+
 TEST(ArtifactScriptTest, CompoundAssignmentAndIncrement) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(
