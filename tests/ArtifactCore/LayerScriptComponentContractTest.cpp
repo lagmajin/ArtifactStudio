@@ -1310,6 +1310,60 @@ class ScriptHostFunctionProbe : ArtifactBehaviour
         << "bytes/hook=" << allocations.second / allocationIterations;
 }
 
+TEST(LayerScriptComponentContractTest,
+     ScriptPushMovesEvaluatedStringIntoRetainedArrayStorage) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ScriptPushStringAllocationProbe : ArtifactBehaviour
+{
+    public Array values;
+    public string source = "seed";
+    void OnUpdate()
+    {
+        clear(values);
+        push(values, source);
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    instance.fields()["source"] = std::string(128, 's');
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << instance.lastError();
+    }
+    const auto initialValues = std::get<ArtifactScriptArrayPtr>(
+        instance.fields().at("values"));
+    ASSERT_TRUE(initialValues);
+    ASSERT_EQ(initialValues->values.size(), 1u);
+    EXPECT_EQ(std::get<std::string>(initialValues->values.front()).size(), 128u);
+
+    ScriptAllocationCounter counter;
+    constexpr std::size_t allocationIterations = 1000;
+    bool succeeded = true;
+    for (std::size_t i = 0; i < allocationIterations; ++i) {
+        if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+            succeeded = false;
+            break;
+        }
+    }
+    const auto allocations = counter.stop();
+    EXPECT_TRUE(succeeded) << instance.lastError();
+    EXPECT_EQ(allocations.first, allocationIterations * 4)
+        << "allocations/hook=" << allocations.first / allocationIterations;
+    EXPECT_EQ(allocations.second, allocationIterations * 192)
+        << "bytes/hook=" << allocations.second / allocationIterations;
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("source")).size(), 128u);
+    const auto values = std::get<ArtifactScriptArrayPtr>(
+        instance.fields().at("values"));
+    ASSERT_TRUE(values);
+    ASSERT_EQ(values->values.size(), 1u);
+    EXPECT_EQ(std::get<std::string>(values->values.front()).size(), 128u);
+}
+
 TEST(LayerScriptComponentContractTest, ScriptMethodCallAvoidsSteadyStateAllocations) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(

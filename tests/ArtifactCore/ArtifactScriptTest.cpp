@@ -5,6 +5,7 @@
 #include <fstream>
 #include <span>
 #include <string>
+#include <string_view>
 #include <variant>
 
 import Script.ArtifactScript;
@@ -812,6 +813,30 @@ class MutatingStringForeach : ArtifactBehaviour
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
     EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("visited")), 6.0);
     EXPECT_EQ(values->values.size(), 8u);
+}
+
+TEST(ArtifactScriptTest, PopPreservesLongStringContents) {
+    constexpr std::string_view expected =
+        "a long string value that exceeds the small string buffer";
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class PopStringValue : ArtifactBehaviour
+{
+    public Array values;
+    public string result = "";
+    void OnCreate() { push(values, "a long string value that exceeds the small string buffer"); }
+    void OnUpdate() { result = pop(values); }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnCreate)) << instance.lastError();
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_EQ(std::get<std::string>(instance.fields().at("result")), expected);
+    const auto values = std::get<ArtifactScriptArrayPtr>(instance.fields().at("values"));
+    ASSERT_TRUE(values);
+    EXPECT_TRUE(values->values.empty());
 }
 
 TEST(ArtifactScriptTest, NestedForeachScopesCommitFieldWrites) {

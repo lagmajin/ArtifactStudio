@@ -4593,3 +4593,13 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実:** baselineは3.247 µs/hook、dirty variantは3.178 µs/hookだったが、simple hookも1.776から1.739へ同程度動いたためnormalized comparisonでは明確な改善がなかった。allocation profileは両variantとも4 allocations / 320 bytes per hook。dirty variantの変更と一時allocation testは戻し、long-string timing/correctness fixtureはbenchmark suiteに残した。元の実装でArtifactScript関連5 suitesは5/5 passed。
 - **価値または懸念:** 長いstringでも書き戻しコピーが割当数を増やしているわけではなく、dirty tracking用stateとcallsite変更の複雑さに見合う計測効果は出なかった。
 - **次に確認すべきこと:** field valueをoverlayに複製する時点そのものを避けるなら、scope snapshot・nested mutation・共有Array/Object参照の意味を保つlazy copy-on-write方式を設計し、numeric/string両方の比較fixtureを用意する。
+
+
+## 2026-10-07 — Move ArtifactScript array values in push/pop
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の組み込み `push()` / `pop()`、`tests/ArtifactCore/ArtifactScriptTest.cpp` と `tests/ArtifactCore/LayerScriptComponentContractTest.cpp`。
+- **仮説:** 引数評価後の `push()` は値を配列へコピーし、`pop()` は末尾値を戻り値へコピーしている。所有権を移動できる箇所なので、特に長いstringの一時コピーと割当を減らせる。
+- **実装:** `push()` は評価済み第2引数を引数領域から配列へmoveし、`pop()` は末尾値を戻り値へmoveする。長いstringのpop結果と、push後もsource fieldが維持されることをテストで確認する。
+- **確認できた事実:** MSVC Debugの128文字stringを配列へpushするwarm hook計測で、従来copyは5 allocations / 336 bytes per hook、move後は4 allocations / 192 bytes per hookとなり、hookあたり1 allocation / 144 bytesを削減した。ArtifactScript関連5 suitesは5/5 passed。
+- **価値または懸念:** 評価済み引数のコピーを避け、配列の意味・source fieldの値は維持する。allocation測定とテストはMSVC Debugのみで、Release計測はない。
+- **次に確認すべきこと:** 実scriptのpush/pop頻度と格納値の型を測り、長いstring以外でも実 workload に効果があるか、Release構成が利用可能になった際に再確認する。
