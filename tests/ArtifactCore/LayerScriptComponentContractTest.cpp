@@ -279,6 +279,8 @@ TEST(LayerScriptComponentContractTest,
     public int localIndex;
     public int localLastIndex;
     public int objectLastIndex;
+    public int localCount;
+    public int objectCount;
     void OnCreate()
     {
         source = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxneedle";
@@ -300,9 +302,11 @@ TEST(LayerScriptComponentContractTest,
             "        fieldIndex = target.find(query);\n"
             "        localIndex = indexOf(" + sourceExpression + ", localQuery);\n"
             "        localLastIndex = lastIndexOf(" + sourceExpression + ", localQuery);\n"
+            "        localCount = count(" + sourceExpression + ", \"x\");\n"
             "        objectPrefix = target.matchesPrefix(localPrefixQuery);\n"
             "        objectSuffix = target.matchesSuffix(query);\n"
             "        objectLastIndex = target.findLast(query);\n"
+            "        objectCount = target.countMatches(\"x\");\n"
             "    }\n}\n";
         source += update;
         const std::string objectFieldExpression = forceStringCopy
@@ -321,6 +325,9 @@ TEST(LayerScriptComponentContractTest,
         source += objectFieldExpression;
         source += ", query); }\n"
                   "    int findLast(string query) { return lastIndexOf(";
+        source += objectFieldExpression;
+        source += ", query); }\n"
+                  "    int countMatches(string query) { return count(";
         source += objectFieldExpression;
         source += ", query); }\n"
                   "    int find(string query) { return indexOf(";
@@ -354,6 +361,10 @@ TEST(LayerScriptComponentContractTest,
                       instance->fields().at("localLastIndex")), 128);
         EXPECT_EQ(std::get<std::int64_t>(
                       instance->fields().at("objectLastIndex")), 128);
+        EXPECT_EQ(std::get<std::int64_t>(
+                      instance->fields().at("localCount")), 128);
+        EXPECT_EQ(std::get<std::int64_t>(
+                      instance->fields().at("objectCount")), 128);
     }
 
 #if defined(_MSC_VER) && defined(_DEBUG)
@@ -405,6 +416,105 @@ TEST(LayerScriptComponentContractTest,
               << timingIterations << ")\n";
     EXPECT_LT(directAllocations, copyAllocations);
     EXPECT_LT(directBytes, copyBytes);
+#endif
+}
+
+TEST(LayerScriptComponentContractTest,
+     ArrayCountBuiltinMatchesForeachAndAvoidsInterpreterLoopWork) {
+    ArtifactScriptParser parser;
+    constexpr std::size_t itemCount = 64;
+    constexpr std::size_t expectedMatches = (itemCount + 2) / 3;
+    const auto makeInstance = [&](std::string_view className, int mode) {
+        std::string source = "class ";
+        source.append(className);
+        source += R"( : ArtifactBehaviour
+{
+    public Array values;
+    public int total = 0;
+    void OnCreate() { values = [)";
+        for (std::size_t i = 0; i < itemCount; ++i) {
+            if (i != 0) source += ", ";
+            source += i % 3 == 0 ? "\"hit\"" : "\"miss\"";
+        }
+        source += "];}\n";
+        if (mode == 1) {
+            source += "    void OnUpdate() { total = count(values, \"hit\"); }\n";
+        } else if (mode == 2) {
+            source += "    void OnUpdate() { total = 0; foreach (item in values) { if (item == \"hit\") total++; } }\n";
+        } else {
+            source += "    void OnUpdate() { total = 21; }\n";
+        }
+        source += "}\n";
+        auto definition = parser.parse(source);
+        EXPECT_TRUE(definition.diagnostics.empty());
+        return ArtifactScriptInstance(std::move(definition));
+    };
+
+    auto builtin = makeInstance("ArrayCountBuiltinProbe", 1);
+    auto scriptLoop = makeInstance("ArrayCountLoopProbe", 2);
+    auto assignmentBaseline = makeInstance("ArrayCountAssignmentBaseline", 0);
+    for (auto* instance : {&builtin, &scriptLoop}) {
+        ASSERT_TRUE(instance->invokeHook(ArtifactScriptHook::OnCreate))
+            << instance->lastError();
+        ASSERT_TRUE(instance->invokeHook(ArtifactScriptHook::OnUpdate))
+            << instance->lastError();
+        EXPECT_EQ(std::get<std::int64_t>(instance->fields().at("total")),
+                  static_cast<std::int64_t>(expectedMatches));
+    }
+    ASSERT_TRUE(assignmentBaseline.invokeHook(ArtifactScriptHook::OnCreate))
+        << assignmentBaseline.lastError();
+    ASSERT_TRUE(assignmentBaseline.invokeHook(ArtifactScriptHook::OnUpdate))
+        << assignmentBaseline.lastError();
+    EXPECT_EQ(std::get<std::int64_t>(
+                  assignmentBaseline.fields().at("total")), 21);
+
+#if defined(_MSC_VER) && defined(_DEBUG)
+    constexpr std::size_t allocationIterations = 1000;
+    const auto measureAllocations = [&](ArtifactScriptInstance& instance) {
+        ScriptAllocationCounter counter;
+        for (std::size_t i = 0; i < allocationIterations; ++i) {
+            if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+                ADD_FAILURE() << instance.lastError();
+                break;
+            }
+        }
+        return counter.stop();
+    };
+    const auto [builtinAllocations, builtinBytes] = measureAllocations(builtin);
+    const auto [loopAllocations, loopBytes] = measureAllocations(scriptLoop);
+    const auto [baselineAllocations, baselineBytes] = measureAllocations(assignmentBaseline);
+    constexpr std::size_t timingIterations = 1500;
+    constexpr std::size_t timingRepetitions = 3;
+    const auto measureMicros = [&](ArtifactScriptInstance& instance) {
+        std::array<double, timingRepetitions> samples{};
+        for (auto& sample : samples) {
+            const auto start = std::chrono::steady_clock::now();
+            for (std::size_t i = 0; i < timingIterations; ++i) {
+                if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+                    ADD_FAILURE() << instance.lastError();
+                    break;
+                }
+            }
+            sample = std::chrono::duration<double, std::micro>(
+                std::chrono::steady_clock::now() - start).count() /
+                timingIterations;
+        }
+        std::sort(samples.begin(), samples.end());
+        return samples[samples.size() / 2];
+    };
+    const double builtinMicros = measureMicros(builtin);
+    const double loopMicros = measureMicros(scriptLoop);
+    std::cout << "ArtifactScript count(Array[64], \"hit\") vs foreach: "
+              << builtinAllocations / allocationIterations << " / "
+              << loopAllocations / allocationIterations
+              << " / " << baselineAllocations / allocationIterations
+              << " allocations/hook, "
+              << builtinBytes / allocationIterations << " / "
+              << loopBytes / allocationIterations << " / "
+              << baselineBytes / allocationIterations << " bytes/hook, "
+              << builtinMicros << " / " << loopMicros
+              << " us/hook (median of " << timingRepetitions << " x "
+              << timingIterations << ")\n";
 #endif
 }
 

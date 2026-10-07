@@ -1513,6 +1513,63 @@ class StringLastIndexOf : ArtifactBehaviour
               9);
 }
 
+TEST(ArtifactScriptTest, StringCountUsesNonOverlappingUtf8ByteMatches) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class StringCount : ArtifactBehaviour
+{
+    public int repeated = -1;
+    public int overlapping = -1;
+    public int acceptsEmptySubstring = -1;
+    public int emptySource = -1;
+    public int missingSubstring = -1;
+    public int unicode = -1;
+    void OnUpdate()
+    {
+        repeated = count("banana", "na");
+        overlapping = count("aaaaa", "aa");
+        acceptsEmptySubstring = count("value", "");
+        emptySource = count("", "x");
+        missingSubstring = count("value", "missing");
+        unicode = count("猫と犬猫", "猫");
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("repeated")), 2);
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("overlapping")), 2);
+    EXPECT_EQ(std::get<std::int64_t>(
+                  instance.fields().at("acceptsEmptySubstring")), 6);
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("emptySource")), 0);
+    EXPECT_EQ(std::get<std::int64_t>(
+                  instance.fields().at("missingSubstring")), 0);
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("unicode")), 2);
+}
+
+TEST(ArtifactScriptTest, CountRejectsUnsupportedArgumentShapes) {
+    ArtifactScriptParser parser;
+    const auto run = [&](std::string_view expression) {
+        auto definition = parser.parse("class InvalidCount : ArtifactBehaviour\n{\n"
+                                       "    void OnUpdate()\n    {\n        " +
+                                       std::string(expression) +
+                                       ";\n    }\n}\n");
+        EXPECT_TRUE(definition.diagnostics.empty());
+        ArtifactScriptInstance instance(std::move(definition));
+        EXPECT_TRUE(instance.hasHook(ArtifactScriptHook::OnUpdate));
+        EXPECT_FALSE(instance.invokeHook(ArtifactScriptHook::OnUpdate));
+        return instance.lastError();
+    };
+
+    EXPECT_NE(run("count(1, \"x\")").find("count expects"),
+              std::string::npos);
+    EXPECT_NE(run("count(\"value\")").find("count expects"),
+              std::string::npos);
+}
+
 TEST(ArtifactScriptTest, StringPrefixSuffixMatchLiteralUtf8ByteSequences) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
@@ -1598,6 +1655,7 @@ TEST(ArtifactScriptTest, ArraySearchBuiltinsUseScriptEqualitySemantics) {
 class ArraySearch : ArtifactBehaviour
 {
     public Array values;
+    public Array nullValues;
     public bool mixedContains = false;
     public bool boolContains = false;
     public bool sameArrayContains = false;
@@ -1606,6 +1664,8 @@ class ArraySearch : ArtifactBehaviour
     public float mixedIndex = -1.0;
     public float stringIndex = -1.0;
     public float mixedLastIndex = -1.0;
+    public float mixedCount = -1.0;
+    public float nullArrayCount = -1.0;
     void OnUpdate()
     {
         mixedContains = contains(values, 7.0);
@@ -1616,6 +1676,8 @@ class ArraySearch : ArtifactBehaviour
         mixedIndex = indexOf(values, 7.0);
         stringIndex = indexOf(values, "tag");
         mixedLastIndex = lastIndexOf(values, 7.0);
+        mixedCount = count(values, 7.0);
+        nullArrayCount = count(nullValues, 7.0);
     }
 }
 )");
@@ -1638,6 +1700,9 @@ class ArraySearch : ArtifactBehaviour
     instance.fields()["mixedIndex"] = -1.0;
     instance.fields()["stringIndex"] = -1.0;
     instance.fields()["mixedLastIndex"] = -1.0;
+    instance.fields()["mixedCount"] = -1.0;
+    instance.fields()["nullValues"] = ArtifactScriptArrayPtr{};
+    instance.fields()["nullArrayCount"] = -1.0;
 
     ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
         << instance.lastError();
@@ -1650,6 +1715,9 @@ class ArraySearch : ArtifactBehaviour
     EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("stringIndex")), 2);
     EXPECT_EQ(std::get<std::int64_t>(
                   instance.fields().at("mixedLastIndex")), 5);
+    EXPECT_EQ(std::get<std::int64_t>(instance.fields().at("mixedCount")), 2);
+    EXPECT_EQ(std::get<std::int64_t>(
+                  instance.fields().at("nullArrayCount")), 0);
 }
 
 TEST(ArtifactScriptTest, HotReloadMigratesFields) {
