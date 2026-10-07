@@ -310,6 +310,83 @@ TEST(ArtifactScriptTest,
     ASSERT_EQ(missingForeachClose.diagnostics.size(), 1u);
     EXPECT_EQ(missingForeachClose.diagnostics.front().line, 5u);
     EXPECT_NE(missingForeachClose.diagnostics.front().column, 0u);
+
+    const auto missingDoWhileTerminator = parseBody(
+        "        do { value += 1.0; } while (false)");
+    ASSERT_EQ(missingDoWhileTerminator.diagnostics.size(), 1u);
+    EXPECT_EQ(missingDoWhileTerminator.diagnostics.front().line, 6u);
+    EXPECT_NE(missingDoWhileTerminator.diagnostics.front().column, 0u);
+}
+
+TEST(ArtifactScriptTest, DoWhileExecutesBodyBeforeConditionAndHonorsLoopControl) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class DoWhileProbe : ArtifactBehaviour
+{
+    public float result = 0.0;
+    void OnUpdate()
+    {
+        var index = 0;
+        do { index += 1; result += 1.0; } while (false);
+        do
+        {
+            index += 1;
+            if (index < 4) continue;
+            result += index;
+            break;
+        } while (true);
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    ASSERT_TRUE(std::holds_alternative<double>(instance.fields().at("result")));
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 5.0);
+}
+
+TEST(ArtifactScriptTest, DoWhileReturnsImmediatelyFromItsBody) {
+    ArtifactScriptParser parser;
+    const auto definition = parser.parse(R"(
+class DoWhileReturnProbe : ArtifactBehaviour
+{
+    float OnUpdate()
+    {
+        do { return 42.0; } while (true);
+        return 0.0;
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptEvaluator evaluator;
+    ArtifactScriptSerializedFields fields;
+    const auto result = evaluator.executeMethod(
+        definition, "OnUpdate", {}, fields);
+    ASSERT_TRUE(std::holds_alternative<double>(result))
+        << evaluator.getLastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(result), 42.0);
+    EXPECT_FALSE(evaluator.hasError()) << evaluator.getLastError();
+}
+
+TEST(ArtifactScriptTest, DoWhileRetainsTheEvaluatorLoopLimit) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class DoWhileLimitProbe : ArtifactBehaviour
+{
+    void OnUpdate()
+    {
+        do { } while (true);
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    EXPECT_FALSE(instance.invokeHook(ArtifactScriptHook::OnUpdate));
+    EXPECT_NE(instance.lastError().find("loop limit"), std::string::npos);
 }
 
 TEST(ArtifactScriptTest, ComponentStoresPublicOverrides) {
