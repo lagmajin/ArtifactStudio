@@ -295,6 +295,41 @@ class BenchmarkCounter : ArtifactBehaviour
               << totalMicroseconds / (repetitions * iterations)
               << " us/hook (" << iterations * repetitions << " calls)\n";
 
+    const std::string longFieldValue(128, 'x');
+    const std::string stringFieldSource =
+        "class BenchmarkStringFieldRead : ArtifactBehaviour\n{\n"
+        "public string source = \"seed\";\n"
+        "public string target = \"\";\n"
+        "void OnUpdate()\n{\ntarget = source;\n}\n}\n";
+    auto stringFieldDefinition = parser.parse(stringFieldSource);
+    ASSERT_TRUE(stringFieldDefinition.diagnostics.empty());
+    ArtifactScriptInstance stringFieldInstance(std::move(stringFieldDefinition));
+    ASSERT_TRUE(stringFieldInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << stringFieldInstance.lastError();
+    stringFieldInstance.fields()["source"] = longFieldValue;
+    stringFieldInstance.fields()["target"] = std::string{};
+    for (int i = 0; i < warmupIterations; ++i) {
+        ASSERT_TRUE(stringFieldInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+            << stringFieldInstance.lastError();
+    }
+    const auto& copiedString =
+        std::get<std::string>(stringFieldInstance.fields().at("target"));
+    ASSERT_EQ(copiedString.size(), longFieldValue.size());
+    ASSERT_EQ(copiedString, longFieldValue);
+    totalMicroseconds = 0.0;
+    for (int repetition = 0; repetition < repetitions; ++repetition) {
+        const auto start = std::chrono::steady_clock::now();
+        for (int i = 0; i < iterations; ++i) {
+            ASSERT_TRUE(stringFieldInstance.invokeHook(ArtifactScriptHook::OnUpdate))
+                << stringFieldInstance.lastError();
+        }
+        totalMicroseconds += std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - start).count();
+    }
+    std::cout << "ArtifactScript string field read/write(128 chars) benchmark: "
+              << totalMicroseconds / (repetitions * iterations)
+              << " us/hook (" << iterations * repetitions << " calls)\n";
+
     auto callDefinition = parser.parse(R"(
 class BenchmarkMethodCounter : ArtifactBehaviour
 {

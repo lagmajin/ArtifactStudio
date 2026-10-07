@@ -4528,3 +4528,12 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実:** baselineに対し、read pathをhelper化したvariantではmethod/local ratioが約3.49から3.64〜3.70、locals(12) ratioが約5.08から5.37〜5.78へ悪化した。read pathを戻したvariantもmethod/local ratioは約3.56、locals(12)/locals(20)は約5.14 / 9.06で、baseline約3.49 / 5.08 / 8.98より少し遅かった。MSVC Debug run間の揺れはあるが、安定した改善は観測できず、試行コードは戻した。
 - **価値または懸念:** 重複hashを除いても、追加helper境界とinsert検索のコストが相殺し得る。共通read pathへhelperを持ち込む案は特に遅かった。
 - **次に確認すべきこと:** local-name slot化のようなlookup回数自体を減らす案を検討する場合、mutable ASTとmethod scope/shadowingの意味を先に整理し、DebugだけでなくRelease計測も用意して評価する。
+
+## 2026-10-07 — Dirty tracking for ArtifactScript field overlays was not worthwhile
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の`ArtifactScriptFields` overlay read/writeとcommit、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の128-character string field assignment workload。
+- **仮説:** read-only field lookupが作るoverlay entryもscope終了時に親へcopy-backしているため、write intentをdirty bitで区別すれば不要な書き戻しを避けられる。
+- **実験:** `findForWrite()`でassignmentをmarkし、read-created overlayはcommitしないvariantを試した。baselineと同じ128-character string field assignmentを測るtiming fixtureと、allocation profileも計測した。
+- **確認できた事実:** baselineは3.247 µs/hook、dirty variantは3.178 µs/hookだったが、simple hookも1.776から1.739へ同程度動いたためnormalized comparisonでは明確な改善がなかった。allocation profileは両variantとも4 allocations / 320 bytes per hook。dirty variantの変更と一時allocation testは戻し、long-string timing/correctness fixtureはbenchmark suiteに残した。元の実装でArtifactScript関連5 suitesは5/5 passed。
+- **価値または懸念:** 長いstringでも書き戻しコピーが割当数を増やしているわけではなく、dirty tracking用stateとcallsite変更の複雑さに見合う計測効果は出なかった。
+- **次に確認すべきこと:** field valueをoverlayに複製する時点そのものを避けるなら、scope snapshot・nested mutation・共有Array/Object参照の意味を保つlazy copy-on-write方式を設計し、numeric/string両方の比較fixtureを用意する。
