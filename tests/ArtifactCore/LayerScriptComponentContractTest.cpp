@@ -1092,4 +1092,45 @@ class LongNamedScriptChildClass : LongNamedScriptBaseClass
         << "bytes/hook=" << allocations.second / allocationIterations;
     EXPECT_TRUE(std::get<bool>(instance.fields().at("matchesBase")));
 }
+
+TEST(LayerScriptComponentContractTest, DeepRecursiveCallsReuseOverflowWorkspaces) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class DeepRecursiveAllocationProbe : ArtifactBehaviour
+{
+    public float result = 0.0;
+    float recurse(float depth, float a, float b, float c, float d, float e, float f)
+    {
+        if (depth <= 0.0) { return a + b + c + d + e + f; }
+        return recurse(depth - 1.0, a, b, c, d, e, f) + 1.0;
+    }
+    void OnUpdate() { result = recurse(8.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0); }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+
+    ArtifactScriptInstance instance(std::move(definition));
+    for (int i = 0; i < 100; ++i) {
+        ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    }
+
+    ScriptAllocationCounter counter;
+    constexpr std::size_t allocationIterations = 1000;
+    bool succeeded = true;
+    for (std::size_t i = 0; i < allocationIterations; ++i) {
+        if (!instance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+            succeeded = false;
+            break;
+        }
+    }
+    const auto allocations = counter.stop();
+    EXPECT_TRUE(succeeded) << instance.lastError();
+    EXPECT_EQ(allocations.first, 0)
+        << "allocations/hook=" << allocations.first / allocationIterations;
+    EXPECT_EQ(allocations.second, 0)
+        << "bytes/hook=" << allocations.second / allocationIterations;
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 29.0);
+}
+
+
 #endif

@@ -4390,6 +4390,14 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **価値または懸念:** `is`演算子のsteady-state class-name heap allocationsを除去した。判定深度上限と継承検索順は維持する。Release計測は未実施。
 - **次に確認すべきこと:** ArtifactScript関連5 suitesを再実行し、Release相当のCPU時間とallocationを計測する。
 
+## 2026-10-07 — ArtifactScript deep calls allocated overflow arguments
+
+- **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` の `ArtifactScriptCallArguments::Workspace`、`ArtifactScriptEvaluator::Impl::callUserMethod()`、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の `DeepRecursiveCallsReuseOverflowWorkspaces`。
+- **確認できた事実:** evaluatorの最大call depthは64だが、引数overflow workspaceは8段までで、それを越えた7引数のrecursive callはfallback領域を毎frame作った。MSVC Debugの独立fixtureでは変更前2 allocations / 352 bytes per hook、変更後1,000 hookで0 / 0となった。
+- **対応:** argument workspaceを最大call depthまで拡張し、各slotを`std::vector`から既存の`ArtifactCore::Array`へ置き換えた。固定workspaceのサイズをboundedに保ち、Debug STLの各empty vector proxy allocationを大量に増やさない。
+- **価値または懸念:** 64段までのrecursive callsでoverflow argument buffersを再利用できる。argument workspaceは固定配列としてevaluatorあたり約1.3 KiB増える。高arityのlocal overflowも含むfixtureは実行が非常に遅く、今回は引数workspaceだけを計測対象にした。
+- **次に確認すべきこと:** call argument数32超のfallback境界と、local overflow workspaceの8段上限を別fixtureで計測する。Release相当のCPU時間は未確認。
+
 ## 2026-10-07 — ArtifactScript host allocation probe includes temporary names
 
 - **関連:** `tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の `HookExecutionMicrobenchmark`、`ArtifactScriptHost::callFunctionView()` / `callMethodView()`。
