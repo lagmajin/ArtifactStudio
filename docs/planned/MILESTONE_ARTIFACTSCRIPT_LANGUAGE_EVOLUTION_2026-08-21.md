@@ -7,6 +7,7 @@
 
 ## 進捗 2026-10-07
 
+- `foreach (item in expression)` を追加し、配列を返すメソッド呼び出しや配列リテラルなどを反復対象にできるようにした。式はループ開始時に一度だけ評価する。従来の `foreach (item in values)` は AST 式ノードを作らず、既存の名前直接参照経路を維持する。副作用付きメソッド呼び出しの1回評価と結果値をテストし、ArtifactScript関連5 CTest suitesは5/5 passed。実行速度のA/B測定は未実施。
 - `for` 条件省略時の意味を修正。`for (;;)` は以前 parse できても evaluator が null condition を false とみなし、loop 本体を一度も実行しなかった。省略 condition を true として評価し、`break` での終了、initializer/increment 付き、10,000 iteration limit を統合テストで確認。synthetic condition value の確保はなく、速度差は未計測。ArtifactScript関連5 CTest suitesは5/5 passed。
 - `break` / `continue` を loop 外で使った場合に parser error とし、loop depth が終了後に漏れないよう本文解析だけを scope guard で囲む。これにより runtime の break/continue state flag が後続 loop へ残る入力を実行前に拒否する。loop 内の既存構文と nested control flow は維持し、評価器の実行経路・AST allocation は増やさない。loop 外使用と loop-depth 復帰を診断テストで確認。ArtifactScript関連5 CTest suitesは5/5 passed。
 - `while` / `for` / `foreach` の本体で `return` した後もループが継続し、後続 iteration が戻り値を上書きする不具合を修正。`do ... while` と同じく、本文後に return 状態を確認して loop を抜ける。各 loop が最初の iteration の値で直ちに戻ることを統合テストで確認。追加分岐の速度影響は未計測。ArtifactScript関連5 CTest suitesは5/5 passed。

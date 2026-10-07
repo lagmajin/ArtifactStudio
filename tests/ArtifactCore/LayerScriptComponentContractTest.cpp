@@ -260,6 +260,44 @@ class PersistedCounter : ArtifactBehaviour
     EXPECT_EQ(roundTripped.values.find("transient"), roundTripped.values.end());
 }
 
+TEST(LayerScriptComponentContractTest, ForeachEvaluatesArrayExpressionOnce) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class ForeachExpression : ArtifactBehaviour
+{
+    public float total = 0.0;
+    public int calls = 0;
+
+    Array makeValues()
+    {
+        calls += 1;
+        return [2.0, 3.0, 5.0];
+    }
+
+    void OnUpdate()
+    {
+        foreach (item in makeValues())
+            total += item;
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty())
+        << (definition.diagnostics.empty() ? "" : definition.diagnostics.front().message);
+
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate))
+        << instance.lastError();
+    const auto numericValue = [](const ArtifactScriptValue& value) {
+        if (const auto* number = std::get_if<double>(&value)) return *number;
+        if (const auto* integer = std::get_if<std::int64_t>(&value))
+            return static_cast<double>(*integer);
+        ADD_FAILURE() << "expected a numeric script field";
+        return 0.0;
+    };
+    EXPECT_DOUBLE_EQ(numericValue(instance.fields().at("total")), 10.0);
+    EXPECT_DOUBLE_EQ(numericValue(instance.fields().at("calls")), 1.0);
+}
+
 TEST(LayerScriptComponentContractTest, HookExecutionMicrobenchmark) {
     ArtifactScriptParser parser;
     auto definition = parser.parse(R"(
