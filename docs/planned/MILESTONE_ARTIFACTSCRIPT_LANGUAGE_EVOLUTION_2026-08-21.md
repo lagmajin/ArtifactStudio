@@ -7,6 +7,7 @@
 
 ## 進捗 2026-10-07
 
+- `null`リテラルを追加し、`null == null`をtrue、`null == 0`と`null == false`をfalseとして評価する。`null` prefixの識別子（`null_value`）をキーワードと誤認しない境界判定も修正。null比較はgeneric numeric coercionを通らない早期分岐にした（性能差は未計測）。null値、異なる型との比較、underscore識別子をまとめた実行テストと、ArtifactScript関連5 CTest suitesは5/5 passed。
 - foreach bodyの配列mutation判定を同一immutable `ArtifactScriptInstance` definitionのhook間で64-entry固定cacheする。mutable definition accessorとdirect evaluator pathは従来の毎回scanへfallbackし、collisionも再scanする。空配列・256 statement bodyのMSVC Debug fixtureは2.52 / 2.49 / 2.81から1.75 / 1.73 / 1.73 µs/hook（平均約33%短縮）。ASTをhook後に差し替えるfallback testと、mutation foreach既存testsを含むArtifactScript関連5 suitesは5/5 passed。Release/workload性能とfixed memory costは今後確認する。
 - function/new/vector/arrayの引数リストをdelimiter-awareにparseし、空リストを維持しつつ抜け引数・不正separator・missing closing delimiterを診断する。index式、dot member名、unary operandも診断対象。呼び出し引数、constructor引数、空indexの各failure offsetと、valid zero-argument call / constructorをテスト。ArtifactScript関連5 CTest suitesは5/5 passed。
 - binary operand / assignment・declaration RHS / `if`・`while` conditionで必須式が欠落した場合、partial ASTのまま受理せずsource位置付きdiagnosticを出す。`value = 1.0 + ;` の失敗位置が6行23列であることを確認。`return;`と省略可能な`for` conditionは許容。引数・indexの診断は後続entryで拡張し、他のdelimiter positionsは引き続き確認する。

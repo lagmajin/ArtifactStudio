@@ -934,6 +934,30 @@ class Skip : ArtifactBehaviour
     EXPECT_DOUBLE_EQ(std::get<double>(fields.at("total")), 4.0);
 }
 
+TEST(ArtifactScriptTest, NullLiteralHasDistinctEqualityAndKeywordPrefixIdentifiers) {
+    ArtifactScriptParser parser;
+    auto definition = parser.parse(R"(
+class NullSemantics : ArtifactBehaviour
+{
+    public float result = 0.0;
+    void OnUpdate()
+    {
+        var absent = null;
+        var null_value = 2.0;
+        if (absent == null) { result += 1.0; }
+        if (absent != 0.0) { result += 2.0; }
+        if (absent != false) { result += 4.0; }
+        if (null == null) { result += 8.0; }
+        result += null_value;
+    }
+}
+)");
+    ASSERT_TRUE(definition.diagnostics.empty());
+    ArtifactScriptInstance instance(std::move(definition));
+    ASSERT_TRUE(instance.invokeHook(ArtifactScriptHook::OnUpdate)) << instance.lastError();
+    EXPECT_DOUBLE_EQ(std::get<double>(instance.fields().at("result")), 17.0);
+}
+
 TEST(ArtifactScriptTest, TernaryOperator) {
     ArtifactScriptParser parser;
     const auto definition = parser.parse(R"(
