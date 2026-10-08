@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
@@ -10,6 +11,9 @@
 #include <vector>
 
 import Artifact.Acoustic.System;
+import Artifact.Acoustic;
+import Artifact.Acoustic.WaveModel;
+import Artifact.Acoustic.AudioTaskSynthesizer;
 
 namespace {
 
@@ -75,8 +79,11 @@ bool writeWaveFile(const std::filesystem::path& path,
 
 void expectPlayableWav(Artifact::Acoustic::AcousticSystem& acoustic,
                        const char* filename,
-                       bool expectStereoSpread = false)
+                       bool expectStereoSpread = false,
+                       Artifact::Acoustic::RainImpactSurface rainSurface =
+                           Artifact::Acoustic::RainImpactSurface::Solid)
 {
+    acoustic.SetRainImpactSurface(rainSurface);
     const std::size_t totalFrames =
         static_cast<std::size_t>(kSampleRate * kDurationSeconds);
     std::vector<float> pcm(totalFrames * 2u, 0.0f);
@@ -126,6 +133,101 @@ TEST(AcousticGenerationTest, WavesProducePlayableWav)
     expectPlayableWav(acoustic, "acoustic_wave_preview.wav");
 }
 
+TEST(AcousticGenerationTest, BreakingWaveBubbleCloudProducesPlayableWav)
+{
+    using namespace Artifact::Acoustic;
+    WaveModel wave;
+    wave.SetWaveHeight(0.8f);
+    wave.SetPeriod(3.0f);
+    wave.SetBreaking(0.9f);
+    std::array<AcousticBubbleSample, 16> bubbleSamples{};
+    for (std::size_t i = 0; i < bubbleSamples.size(); ++i) {
+        bubbleSamples[i].position = {
+            static_cast<float>(i % 4u) * 0.025f,
+            static_cast<float>(i / 4u) * 0.025f,
+            0.0f
+        };
+        bubbleSamples[i].radiusMeters = 0.008f;
+    }
+    wave.SetBubbleSamples(bubbleSamples);
+    AudioTaskSynthesizer coupledSynthesizer;
+    AudioTaskSynthesizer uncoupledSynthesizer;
+
+    const std::size_t totalFrames = kSampleRate * kDurationSeconds;
+    std::vector<float> coupledPcm(totalFrames * 2u, 0.0f);
+    std::vector<float> uncoupledPcm(totalFrames * 2u, 0.0f);
+    std::vector<float> coupledBlock(kFramesPerBlock * 2u, 0.0f);
+    std::vector<float> uncoupledBlock(kFramesPerBlock * 2u, 0.0f);
+    for (std::size_t frame = 0; frame < totalFrames;) {
+        const std::size_t frameCount = std::min(kFramesPerBlock, totalFrames - frame);
+        wave.Update(static_cast<float>(frameCount) / kSampleRate);
+        const AudioTaskBatch generated = wave.GenerateTasks();
+        AudioTaskBlock bubbleTasks;
+        for (const AudioTask& task : generated) {
+            if (task.type == SynthesisType::BubbleCloud &&
+                bubbleTasks.count < AudioTaskBlock::Capacity) {
+                bubbleTasks.tasks[bubbleTasks.count++] = task;
+            }
+        }
+        AudioTaskBlock uncoupledTasks = bubbleTasks;
+        for (std::size_t i = 0; i < uncoupledTasks.count; ++i) {
+            uncoupledTasks.tasks[i].couplingStrength = 0.0f;
+        }
+
+        const std::span<float> coupledOutput(coupledBlock.data(), frameCount * 2u);
+        const std::span<float> uncoupledOutput(uncoupledBlock.data(), frameCount * 2u);
+        ASSERT_TRUE(coupledSynthesizer.RenderStereo(
+            bubbleTasks, coupledOutput, kSampleRate));
+        ASSERT_TRUE(uncoupledSynthesizer.RenderStereo(
+            uncoupledTasks, uncoupledOutput, kSampleRate));
+        std::copy_n(coupledBlock.begin(), frameCount * 2u,
+            coupledPcm.begin() + frame * 2u);
+        std::copy_n(uncoupledBlock.begin(), frameCount * 2u,
+            uncoupledPcm.begin() + frame * 2u);
+        frame += frameCount;
+    }
+
+    float coupledPeak = 0.0f;
+    float uncoupledPeak = 0.0f;
+    double coupledSquaredSum = 0.0;
+    double uncoupledSquaredSum = 0.0;
+    double coupledLowSquaredSum = 0.0;
+    double uncoupledLowSquaredSum = 0.0;
+    float coupledLowPass = 0.0f;
+    float uncoupledLowPass = 0.0f;
+    const float lowPassCoefficient =
+        1.0f - std::exp(-6.28318530718f * 500.0f / kSampleRate);
+    for (std::size_t i = 0; i < coupledPcm.size(); ++i) {
+        ASSERT_TRUE(std::isfinite(coupledPcm[i]));
+        ASSERT_TRUE(std::isfinite(uncoupledPcm[i]));
+        coupledPeak = std::max(coupledPeak, std::abs(coupledPcm[i]));
+        uncoupledPeak = std::max(uncoupledPeak, std::abs(uncoupledPcm[i]));
+        coupledSquaredSum += static_cast<double>(coupledPcm[i]) * coupledPcm[i];
+        uncoupledSquaredSum += static_cast<double>(uncoupledPcm[i]) * uncoupledPcm[i];
+        if ((i % 2u) == 0u) {
+            const float coupledMono = 0.5f * (coupledPcm[i] + coupledPcm[i + 1u]);
+            const float uncoupledMono = 0.5f * (uncoupledPcm[i] + uncoupledPcm[i + 1u]);
+            coupledLowPass += lowPassCoefficient * (coupledMono - coupledLowPass);
+            uncoupledLowPass += lowPassCoefficient * (uncoupledMono - uncoupledLowPass);
+            coupledLowSquaredSum += static_cast<double>(coupledLowPass) * coupledLowPass;
+            uncoupledLowSquaredSum += static_cast<double>(uncoupledLowPass) * uncoupledLowPass;
+        }
+    }
+    EXPECT_GT(coupledPeak, 0.001f);
+    EXPECT_GT(uncoupledPeak, 0.001f);
+    EXPECT_GT(std::sqrt(coupledSquaredSum / coupledPcm.size()), 0.0001);
+    EXPECT_GT(std::sqrt(uncoupledSquaredSum / uncoupledPcm.size()), 0.0001);
+    EXPECT_GT(coupledLowSquaredSum, uncoupledLowSquaredSum)
+        << "Coupled pair modes should shift spectral energy below 500 Hz";
+
+    const auto wavePath = std::filesystem::current_path() / "temp" /
+        "acoustic_wave_bubble_cloud_preview.wav";
+    const auto uncoupledPath = std::filesystem::current_path() / "temp" /
+        "acoustic_wave_bubble_cloud_uncoupled_preview.wav";
+    ASSERT_TRUE(writeWaveFile(wavePath, coupledPcm)) << wavePath.string();
+    ASSERT_TRUE(writeWaveFile(uncoupledPath, uncoupledPcm)) << uncoupledPath.string();
+}
+
 TEST(AcousticGenerationTest, WindProducesPlayableWav)
 {
     Artifact::Acoustic::AcousticSystem acoustic;
@@ -140,4 +242,13 @@ TEST(AcousticGenerationTest, RainProducesPlayableWav)
     acoustic.SetRainIntensity(350.0f);
 
     expectPlayableWav(acoustic, "acoustic_rain_preview.wav", true);
+}
+
+TEST(AcousticGenerationTest, WaterRainProducesPlayableWav)
+{
+    Artifact::Acoustic::AcousticSystem acoustic;
+    acoustic.SetRainIntensity(350.0f);
+
+    expectPlayableWav(acoustic, "acoustic_rain_water_preview.wav", true,
+        Artifact::Acoustic::RainImpactSurface::Water);
 }

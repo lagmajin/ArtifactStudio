@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-08 09:42
+> Generated: 2026-10-08 16:09
 > Total documents: 1440
 
 ---
@@ -194,7 +194,7 @@
 | 17 | `docs/analysis/DESIRED_IMPORT_FORMATS_2026-04-19.md` | モーショングラフィッカーが本当に欲しいファイルインポート一覧 | 2026-10-04 | --- | 2026-10-04 | 5.8 KB | DESIRED, IMPORT, FORMATS |
 | 18 | `docs/analysis/DILIGENT_PREVIEW_BOTTLENECK_MEMO_2026-08-27.md` | Diligent プレビュー ボトルネック メモ | 2026-08-27 | --- | 2026-08-28 | 4.9 KB | DILIGENT, PREVIEW, BOTTLENECK, MEMO |
 | 19 | `docs/analysis/EFFECT_MAP_2026-07-16.md` | ArtifactStudio Effect Map | 2026-09-22 | Living analysis | 2026-09-22 | 24.7 KB | EFFECT, MAP |
-| 20 | `docs/analysis/ENVIRONMENTAL_AUDIO_PHYSICS_RESEARCH_2026-10-08.md` | Environmental Audio Physics Research | 2026-10-08 | --- | --- | 3.5 KB | ENVIRONMENTAL, AUDIO, PHYSICS, RESEARCH |
+| 20 | `docs/analysis/ENVIRONMENTAL_AUDIO_PHYSICS_RESEARCH_2026-10-08.md` | Environmental Audio Physics Research | 2026-10-08 | --- | 2026-10-08 | 8.1 KB | ENVIRONMENTAL, AUDIO, PHYSICS, RESEARCH |
 | 21 | `docs/analysis/FEATURE_AUDIT_MOTION_DESIGN_2026-06-02.md` | Motion Design Feature Audit — 2026-06-02 | 2026-06-02 | --- | 2026-08-04 | 9.1 KB | FEATURE, AUDIT, MOTION, DESIGN |
 | 22 | `docs/analysis/FINAL_AUDIT_SUMMARY_2026-08-02.md` | ArtifactStudio 全モジュール監査 最終サマリー | 2026-08-02 | --- | 2026-08-04 | 8.5 KB | FINAL, AUDIT, SUMMARY |
 | 23 | `docs/analysis/GAP_AE_NUKE_2026-08-01.md` | AE / Nuke 機能ギャップ分析 | 2026-08-01 | --- | 2026-09-21 | 23.3 KB | GAP, NUKE |
@@ -881,7 +881,7 @@
 | 287 | `docs/planned/MILESTONE_EASING_LAB_PHASE3_2026-04-21.md` | EasingLab - Phase 3: Integration and Apply Path | 2026-08-04 | --- | 2026-08-06 | 2.6 KB | EASING, LAB, PHASE3 |
 | 288 | `docs/planned/MILESTONE_EASING_LAB_PHASE3_EXECUTION_2026-04-21.md` | EasingLab - Phase 3 Execution | 2026-08-04 | --- | 2026-08-06 | 1.9 KB | EASING, LAB, PHASE3, EXECUTION |
 | 289 | `docs/planned/MILESTONE_EDIT_MENU_2026-06-16.md` | M-EDIT-1 Edit Menu Foundation Milestone | 2026-06-16 | --- | 2026-08-16 | 16.1 KB | EDIT, MENU |
-| 290 | `docs/planned/MILESTONE_EDIT_SEQUENCE_CRASH_FUZZ_2026-10-07.md` | 編集シーケンス Crash / Fuzz Test マイルストーン | 2026-10-08 | In Progress | --- | 15.9 KB | EDIT, SEQUENCE, CRASH, FUZZ |
+| 290 | `docs/planned/MILESTONE_EDIT_SEQUENCE_CRASH_FUZZ_2026-10-07.md` | 編集シーケンス Crash / Fuzz Test マイルストーン | 2026-10-08 | In Progress | 2026-10-08 | 15.9 KB | EDIT, SEQUENCE, CRASH, FUZZ |
 | 291 | `docs/planned/MILESTONE_EFFECT_GPU_RESIDENCY_AND_ASYNC_PREVIEW_2026-09-11.md` | Milestone: GPU常駐エフェクト連鎖 + 非同期プレビュー再描画 | 2026-09-11 | Design / 未着手 | 2026-09-11 | 5.4 KB | EFFECT, GPU, RESIDENCY, AND, ASYNC |
 | 292 | `docs/planned/MILESTONE_EFFECT_LOD_2026-08-05.md` | エフェクトLOD導入マイルストーン | 2026-08-15 | --- | 2026-08-16 | 7.8 KB | EFFECT, LOD |
 | 293 | `docs/planned/MILESTONE_EFFECT_PALETTE_CURVE_EDITOR.md` | MILESTONE: Effect Browser + Curve Editor Completion | 2026-08-15 | --- | 2026-08-16 | 18.5 KB | EFFECT, PALETTE, CURVE, EDITOR |
@@ -1199,7 +1199,7 @@
 | 605 | `docs/planned/MILESTONE_SOURCE_RELOCATION_CONTRACT_2026-08-21.md` | マイルストーン: Source Relocation Contract（Image / Image Sequence） | 2026-10-02 | Not Started | 2026-10-02 | 11.6 KB | SOURCE, RELOCATION, CONTRACT |
 | 606 | `docs/planned/MILESTONE_SOURCE_TEXT_KEYFRAME_2026-06-16.md` | M-TXT-3 Source Text Keyframe Milestone | 2026-07-16 | --- | 2026-08-16 | 18.8 KB | SOURCE, TEXT, KEYFRAME |
 | 607 | `docs/planned/MILESTONE_SPATIAL_AUDIO_OBJECT_RENDERING_2026-09-04.md` | Spatial Audio Object Rendering Milestone | 2026-09-05 | 最小再生、speaker VBAP、解析的headphone、距離音色、明示LFE send、Property編集はコード接続済み・実行未検証。測定HRIR、room、routing／exportは未実装。 | 2026-09-05 | 25.5 KB | SPATIAL, AUDIO, OBJECT, RENDERING |
-| 608 | `docs/planned/MILESTONE_SPATIAL_ROOM_REFLECTION_REVERB_2026-10-08.md` | MILESTONE: Spatial Room / 初期反射 / 残響の物理化（M-AU-9.7 具体化） | 2026-10-08 | 設計確定・実装待ち | --- | 4.7 KB | SPATIAL, ROOM, REFLECTION, REVERB |
+| 608 | `docs/planned/MILESTONE_SPATIAL_ROOM_REFLECTION_REVERB_2026-10-08.md` | MILESTONE: Spatial Room / 初期反射 / 残響の物理化（M-AU-9.7 具体化） | 2026-10-08 | 設計確定・実装待ち | 2026-10-08 | 4.7 KB | SPATIAL, ROOM, REFLECTION, REVERB |
 | 609 | `docs/planned/MILESTONE_STARTUP_AND_COMPOSITION_OPEN_LATENCY_2026-04-28.md` | マイルストーン: Startup / Composition Open Latency Reduction | 2026-04-28 | In Progress | 2026-08-16 | 9.2 KB | STARTUP, AND, COMPOSITION, OPEN, LATENCY |
 | 610 | `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_2026-04-21.md` | M-DIAG-5 Startup Thread Churn / Worker Burst Trace | 2026-08-15 | --- | 2026-08-16 | 3.6 KB | STARTUP, THREAD, CHURN, TRACE |
 | 611 | `docs/planned/MILESTONE_STARTUP_THREAD_CHURN_TRACE_PHASE1_2026-04-21.md` | M-DIAG-5 Phase 1 | 2026-08-04 | --- | 2026-08-06 | 0.7 KB | STARTUP, THREAD, CHURN, TRACE, PHASE1 |
@@ -1392,7 +1392,7 @@
 | 24 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.3 KB | IMPL, DOF |
 | 25 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.8 KB | IMPL, SSAO |
 | 26 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.6 KB | IMPL, TONE, MAPPING |
-| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-08 | --- | 2026-10-07 | 351.8 KB | INDEX, GENERATED |
+| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-08 | --- | 2026-10-08 | 352.2 KB | INDEX, GENERATED |
 | 28 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 29 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 12.0 KB | CAMERA, PROJECTION |
 | 30 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
