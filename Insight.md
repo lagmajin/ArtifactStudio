@@ -1,11 +1,17 @@
-**最終更新:** 2026-10-07
+**最終更新:** 2026-10-08
+
+## 2026-10-08 — Spatial Room/初期反射/残響の物理化設計（M-AU-9.7具体化）
 
 ## 2026-10-07 — ArtifactTextLayer の独立した統合テスト境界
 
 - **関連:** `Artifact/src/Layer/ArtifactTextLayer.cppm`、`Artifact/CMakeLists.txt`、`tests/Artifact/`。
-- **確認できた事実:** アニメーター評価エンジンは `ArtifactCore` の単体テストターゲットから利用でき、Core側には `TextAnimatorContractTest` がある。一方、`ArtifactTextLayer.cppm` は `Artifact/cmake/ArtifactSources.cmake` の `ARTIFACT_APP_IMPL_SOURCES` に登録され、アプリ本体の実行ターゲット `Artifact` に属する。`tests/Artifact/CMakeLists.txt` にはそのレイヤー実装を利用するテスト用ライブラリ／ターゲットがない。
-- **価値または懸念（未検証）:** 現行テストからはレイヤー本体の `text.animators` 保存復元、プロパティパス更新、Animator stack snapshot の統合契約を直接検証できない。レイヤーをテスト可能なライブラリへ分離できる可能性はあるが、module依存とアプリ専用依存を調べておらず、分離規模・安全性は未検証。
-- **次に確認すべきこと:** `ArtifactTextLayer` の直接依存を調査し、アプリ層テストが必要なら最小のruntime境界を設計する。依存グラフが大きい場合は、クラス実装を動かさずにテスト可能な保存／復元・property routing helperを抽出できるか検討する。
+- **確認できた事実:** アニメーター評価エンジンは `ArtifactCore` の単体テストターゲットから利用でき、Core側には `TextAnimatorContractTest` がある。`tests/Artifact/` には `TextGlyphRenderContractTest` もあるが、これは `TextAnimatorEngine` の結果をGlyph Submitterへ渡して描画する経路で、`ArtifactTextLayer.cppm` 自体は利用していない。レイヤー実装は `Artifact/cmake/ArtifactSources.cmake` の `ARTIFACT_APP_IMPL_SOURCES` に登録され、アプリ本体の実行ターゲット `Artifact` に属する。
+- **追加確認:** root管理のGPU glyph testの `Text.Animator` import修正後、Artifact submoduleの `ArtifactTextGlyphSubmitter.cppm` にprimary interfaceがないことを確認した。Artifact submoduleは変更せず、root管理のテスト用module shimと `ArtifactGpuFoundation` providerを追加してsubmitter runtimeをbuildできるようにした。当初のD3D12専用test deviceはVulkan-only構成でlinkできなかったため、test内にDiligent Vulkan headless deviceを用意し、GPU画像testを `VULKAN_SUPPORTED` 構成で登録するように変更した。
+- **画像テスト確認:** オフスクリーンGPU readback画像で要求色・決定性・zero opacity・非有限transform拒否・アニメーション変換・shaped `AB` にAnimatorを適用した結果の画像差を検査する。最後のケースは先頭glyphだけを右へ18 pxずらし、他glyphのtransformが中立であることと画像のalpha重心が右へ動くことも確認する。RTX 4070 TiのVulkan構成で6 cases全てが実行され、成功した。CPU側には実シェーピング後の折り返し行へLine selectorを適用するケースと、production `GlyphAtlas` のcoverage pixelsを確認するケースがある。`-L animation --repeat until-fail:3` の6 suitesは全て3回成功した。
+- **CPUラスターテスト:** GPU実行できない構成でもproduction `GlyphAtlas` の実ラスタライズ画像を検証できるよう、Atlas alpha coverageと同一グリフ再取得時のcache/dirty契約を確認するCPU testを追加した。さらに `QtShapingBackend` の2 glyphへ `TextAnimatorEngine` を適用し、各glyphがAtlas coverage pixelへ到達するケースを加えた。`ArtifactCoreTextGlyphRasterTest` はbuild／実行に成功し、最新のtext3 suitesは `-L text -LE gpu --repeat until-fail:3` で3回すべて成功した。ビルド時のNinja assertionは、再構成で更新されたdyndep入力に対し563件の生成済みmodule map等のmtimeが古い状態だったために発生した。最新スキャン済み内容を保持したまま対象生成出力のmtimeだけを揃えると、リビルドとテストは通った。
+- **価値または懸念（未検証）:** Core評価・シェーピング・GlyphAtlas・Glyph Submitter GPU画像にはカバレッジがある一方、レイヤー本体の `text.animators` 保存復元、プロパティパス更新、Animator stack snapshot の統合契約は直接検証できない。テスト専用primary module shimはroot管理runtime targetだけの補助であり、Artifact production targetのmodule boundaryを直すものではない。
+- **追加のテスト境界:** `ArtifactTextRenderTargetContractTest` もroot管理のVulkan test-deviceへ切り替えた。共通device helperを `tests/Artifact/DiligentVulkanTestDevice.hpp` に置き、Vulkan構成ではglyph submitter runtimeへの不要なlinkを外した。RenderTargetとGlyphRenderのGPU contract両方がVulkan-only構成で成功する。
+- **次に確認すべきこと:** `ArtifactTextLayer` の直接依存を調査し、レイヤー統合テストが必要なら最小のruntime境界を設計する。依存グラフが大きい場合は、クラス実装を動かさずに保存／復元・property routing helperを抽出できるか検討する。
 
 ## 2026-10-07 — ArtifactScriptの局所名ハッシュ事前計算は未採用
 
@@ -4377,8 +4383,16 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **確認できた事実（静的）:** `drawLayerForCompositionView` が使う `staticLayerGpuCache()` はロック無しの `static QHash`。マルチ GPU ワーカーは `renderSingleFrameNoLock` をロック通過せずに直呼びするため、発動条件（`usesStaticGpuCache`）が満たされると並行アクセスになり得る。
 - **価値または懸念（未確認）:** データ競合の正確性リスク。GPU 経路の並列化（マルチ GPU / 後続の MFR 拡張）を広げる前の前提条件。
 - **次に確認すべきこと:** 発動条件の特定と、renderer-per-worker への局所化要否の判断。
+- **第2修正パス追記（2026-10-07）:** 事実を追加特定した。(1) `GPUTextureCacheHandle` は `{quint64 id, quint64 generation}` の整数対でマネージャ紐付けを持たない（`Artifact/include/Render/GPUTextureCacheManager.ixx:53-58`）ため、別マネージャの stale handle が同マネージャ内の同一 (id, generation) エントリと衝突し得る。(2) `clearStaticLayerGpuCache()` 両オーバーロードの呼び出し元がゼロ（Artifact 配下全域確認）で、静的キャッシュは stale handle を正規に flush されない。(3) `layerUsesStaticLayerGpuCacheForCompositionView` は連番レイヤーだけ除外する形（`:1295-1307`）で、オフライン GPU ジョブでも静的レイヤーで発動する。(4) オフライン実行中もライブビューは停止しない（QtConcurrent バックグラウンド描画）ため、競合はマルチ GPU 専用ではなく mainline で発生し得る。**同セッションで実装済み:** 静的エントリから `gpuTextureHandle` を撤去して「毎フレーム現行マネージャで acquireOrCreate し直す」方式に一本化（manager 内 LRU texture cache がコストを吸収）し、操作単位のグローバル `staticLayerGpuCacheMutex()` と hit 時の内容 copy-out（entry ポインタをロック外に保持しない）を導入。当初想定した per-manager handle map は handle を共有しない設計により不要になった。未確認: `acquireOrCreate` のヒット時 lastUsedFrame 更新と expiration との整合。`temp/offline_render_performance_2026-10-05.md` §8。
 
-# 2026-10-05 — `renderSingleFrameImpl` と `Impl::frameBuffer` がデッドコード疑い
+# 2026-10-07 — AsyncImageWriterManager は無界 post で imgOptions を捨てるため既定にはできない
+
+- **関連:** `ArtifactCore/src/IO/Image/AsyncImageWriterManager.cppm:176-186（無界 post）, 168（ImageExportOptions{} 固定）, 169-173（失敗は qWarning のみ）`、`Artifact/src/Render/ArtifactRenderQueueService.cppm:8028-8060（manager 経由と std::async 経由の分岐）, 8079-8134（bounded drain と最後の join で失敗伝播）`。
+- **確認できた事実:** manager 経由は (1) `boost::asio::post` の無界投入で bounded がない、(2) 内部書込が既定 `ImageExportOptions{}` でジョブの imgOpts を捨てる、(3) 書込失敗が `qWarning` のみで上位に伝播しない。対照的に std::async 既定経路は bounded drain（2×maxInFlight）＋ imgOpts 完全引継ぎ ＋ join 付き失敗伝播で設計どおり正しい。
+- **価値または懸念:** 連番書き出しの非同期化を既定 ON にする（第1修正パス 2026-10-05 で実施済み）にあたり、既定経路を std::async のままにする根拠。manager を既定にする未来には bounded queue、imgOpts 引通し、失敗の公開 API 化が先行条件。
+- **次に確認すべきこと:** manager 実装の bounded 化の必要性の確認（実測で disk が詰まる占有率が観測された場合）。
+
+# 2026-10-05 — `renderSingleFrameGPU` と FFmpeg 遺物メンバーがデッドコード（第1修正パスで frameBuffer は撤去済み）
 
 - **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm:4421, 2410-2427, 2483`。
 - **確認できた事実（静的）:** 呼び出し元がファイル内に見つからず、Impl の private 成員のため外部接続もない（`frameBuffer` は FFmpeg エンコーダ無効化に伴い実質未使用）。
@@ -4927,6 +4941,21 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **価値または懸念:** この固定fixtureではcall argument用string copiesを避け、割当を71%、割当byteを87%、CPU中央値を46%減らした。MSVC Debug測定でありReleaseや実script全般への一般化は未検証。通常のArtifactBehaviourの `this.field` はhost property解決になるため、`this.field` fast pathの統合確認はscript object method内で行う必要がある。
 - **次に確認すべきこと:** Release構成または実script workloadでCPU・allocation差をprofileし、literal / local / fieldの各形を分離して比較する。
 
+## 2026-10-07 — Text Animator diagnostics include normal range status messages
+
+- **関連:** `ArtifactCore/src/Text/TextAnimator.cppm` の `evaluateAnimatorWeights()`、`tests/ArtifactCore/TextAnimatorContractTest.cpp`。
+- **確認できた事実:** `evaluateSelector()` は正常な範囲評価でも `range evaluated in logical glyph order` などの情報文を返す。`evaluateAnimatorWeights()` は regex 成功時の `regex on ...` だけを除外し、正常な range 情報文は `outDiagnostics` に追加する。複数セットで確認したところ、エラー数より診断数が増える。
+- **価値または懸念:** `TextAnimator.ixx` のAPIコメントは「selector problem」を診断へ追加し、`applyAnimatorSets()` は問題を報告したセットごとの診断を説明しているため、利用側がエラーだけのリストと誤認する可能性がある。今回は子リポジトリの実装を変更せず、テストでは無効regex診断とセット順、有効セットの継続適用を別々に検証した。
+- **次に確認すべきこと:** 診断APIが情報文も含める設計か、問題だけを返す設計かを決め、必要なら実装またはコメントを揃える。現時点では子リポジトリの変更承認がないため未修正。
+
+## 2026-10-07 — Shaped grapheme metadata can be contract-tested through Text Animator
+
+- **関連:** `tests/ArtifactCore/TextShapingTest.cpp` の Qt shaping fixture と `TextAnimatorEngine::evaluateSelector()`。
+- **確認できた事実:** `QtShapingBackend::shape()` が返す `glyphs` を `SelectorEvaluationContext` と `applyAnimatorSets()` へ渡せる。mixed Latin/Hebrew のscript tag selectorが選んだglyphだけにpositionを適用できる。ZWJ family emoji fixtureはshaping contract上1 clusterとなり、AnimatorのCluster単位rangeで全glyphに変換を適用できる。combining mark と1 astral codepointへのregex matchも同じgrapheme cluster内全glyphを選択し、単独astral glyphでは対象glyphだけにposition／opacityが適用された。これらを既存Shaping testに追加し、繰り返し実行で通過した。
+- **未検証の観察:** Arabicサンプルでは `logicalToVisual` が `{0, 1, 2, 3, 4}`、`GlyphItem::index` が `{0, 1, 2, 3, 4}` だった。追加したAnimator順序テストは、shaped glyphのコピーをreverseしてlogical順が `GlyphItem::index` で復元されることを確認する。実際のテキストレイヤーがAnimatorへ渡す順序とglyph座標の関係、および `TextSelectorOrder::Visual` の製品仕様は未検証であり、実shaperがvisual並びを返すとは結論づけない。
+- **価値または懸念:** 手作りglyph fixtureに加えて実際のshaping metadataをAnimatorへ渡すテストがあると、cluster識別子・source indexの受け渡しずれを早期に検出できる。bidiの最終統合契約は、TextLayerからAnimatorまでglyph配列と座標がどう渡るか確認してから決める必要がある。
+- **次に確認すべきこと:** `ArtifactTextLayer` のglyph配列生成・Animator適用順を追い、RTL glyphsの `index`、`clusterIndex`、`basePosition`、`logicalToVisual` の関係を比較してからvisual-order contractを追加する。
+
 ## 2026-10-07 — ArtifactScript string indexOf can share reference lookup with contains
 
 - **関連:** `ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のbuiltin `indexOf` / `contains` dispatch、`ArtifactScriptTest.cpp`、`LayerScriptComponentContractTest.cpp`。
@@ -4941,3 +4970,39 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **関連:** `docs/planned/MILESTONE_ARTIFACTSCRIPT_LANGUAGE_EVOLUTION_2026-08-21.md` の対象外項目、`ArtifactCore/src/Script/ArtifactScript/ArtifactScript.cppm` のAST tree-walk evaluator、`tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の固定Debug microbenchmarks。
 - **確認できた事実:** 現行実行器はASTを再帰評価し、言語Evolution計画はbytecode VM / JIT置換を速度不足の実測後まで保留している。今回の文字列検索4種fixtureでは参照経路のほうがコピー経路より割当とCPU中央値が低かったが、JIT導入可否を示す比較ではない。
 - **価値または懸念（未検証）:** JITは実装コストだけでなく、module/ABI境界・ホットリロード・診断位置・デバッグ実行の維持が必要になる。まずReleaseまたは代表的なLayerScriptでCPU、割当、AST node別の実行頻度を計測し、時間の大半を占める経路を特定する。必要性が確認された場合も、既存AST evaluatorを残したbytecode実験経路からA/B比較する方が退行を見分けやすい可能性がある。
+- **次に確認すべきこと:** Release構成のベンチマーク実行方法を整え、複数の実スクリプト相当workloadでAST評価の時間内訳を採取してからbytecode/JITの試作範囲を判断する。
+
+## 2026-10-07 — Seeded edit-sequence stress tests can cover cross-feature lifecycle faults
+
+- **関連:** `tests/Artifact/`, `ArtifactProjectService`, Layer / Keyframe / Precompose / Undo / Asset reload workflows。
+- **確認できた事実:** ルート `tests/` は GoogleTest / CTest を使うが、`ArtifactProjectService.cppm` は `Artifact.exe` の実装ソースに属し、現在の test runtime target からリンクされない。service constructor は file watcher / external-control / event / selection 経路を初期化する。`Impl::handleFileChanged()` は AssetManager の source version を無効化して変更イベントを発行する。`AssetManager::invalidateSource()` 単体は外部ファイルを再読込しない。Undo API には stack depth と layer property keyframe command がある。既存 `ARTIFACT_RUN_BUILTIN_TESTS` は `QApplication` 後・MainWindow 作成前に動き、help 上は exit を約束する。
+- **実装:** Artifact built-in test suite に3 seeds × 2048 stepsの決定論的な edit-sequence fuzzer を追加。Layer add/remove、Keyframe command、Precompose、Undo、Redo、静止画 Asset の file watcher reload を通し、毎操作後に ID、nest source、keyframe、Asset identity を検証する。Asset reload は source version 更新だけでなく、Image Layer の非同期再デコード後にバッファ画素が変わることも確認する。失敗ログにはseed、step、直近16操作と対象IDを出す。seed / steps の環境変数指定と、異常終了時にも操作列が残る逐次 trace 保存を追加し、test runner は成功・失敗どちらも終了コードでプロセスを閉じる。
+- **2026-10-08追記:** `ARTIFACT_EDIT_SEQUENCE_FUZZ_SEED` / `_STEPS` による再実行範囲の指定を加えた。trace file 指定時は各操作の実行前に step と操作を追記して flush するため、プロセスクラッシュ後も最後に開始した操作を特定できる。複数seedのtraceは1ファイルへ連結する。Precompose検証は子Composition内のLayer IDと親Layerへの逆参照まで見る。Undo/Redoも履歴stackの増減を検証し、no-opを通過扱いしない。Layer add/remove/Precomposeも、成功戻り値だけでなく親Compositionの構造差分を確認する。Undo履歴消去が成立しない場合は外部履歴を操作せず、中断する。
+- **2026-10-08 ビルド確認:** `Artifact` build は `ArtifactCore/src/Analyze/ImageAnalyzer.cppm` の `Image.ImageSurfaceView` module reference 欠落（MSVC C2230）で停止した。fuzz source / runtime は未確認。ArtifactCore は変更せず、ログを `temp/edit_sequence_fuzz_build_2026-10-08.log` に保存。
+- **未確認:** fuzz module / Artifact.exe のソースコンパイルと実行による runtime確認。
+- **価値または懸念:** seed と操作 trace を固定した短いシーケンスに加え、数千〜数万回の soak 実行があると、個々のコマンドテストでは見えにくい所有権・Undo・ネスト・Asset 参照の組み合わせ不整合を再現可能にできる。大量操作の常時 CI 化は実行時間が増えるため、短い通常ケースと長い soak を分けるのがよい。
+- **次に確認すべきこと:** `ARTIFACT_RUN_BUILTIN_TESTS=1` で実行し、3 seedすべてで全操作数・Asset watcher更新・不変条件が通ることを確認する。失敗したらseedとtraceで再現し、traceを縮小する運用を整える。
+
+## 2026-10-08 — Fuzz 専用入口と編集 runtime の独立化は別段階
+
+- **関連:** `Artifact/src/AppMain.cppm`、`Artifact/src/Test.cppm`、`Artifact/src/Service/ArtifactProjectService.cppm`、Artifact CMake target 構成。
+- **確認できた事実:** ProjectService と UndoManager は Artifact 実行ファイル側の実装ソースにあり、ルートのテスト runtime target からリンクされない。既存 ArtifactCore / Artifact のライブラリ分割にも、この編集サービス群を含む独立 runtime target はない。
+- **価値または懸念（未検証）:** fuzz を独立 opt-in 起動入口にすれば通常 built-in tests の失敗や実行時間から切り離せる。一方、完全な独立ビルドには編集・Undo の実装所有権と依存グラフのライブラリ化が必要となり、単なるテスト移動では成立しない。
+- **次に確認すべきこと:** 専用起動入口で fuzz だけを実行して通常 suite を呼ばないことをソースと実行で確認する。将来独立 runtime target が必要なら、編集 API が所有する最小モジュール群と既存 Artifact target との共有方法を依存グラフから設計する。
+- **2026-10-08 実装結果:** root CMake の `ArtifactCoreAnalyze` source property で `ImageAnalyzer.cppm` が必要とする `Image.ImageSurfaceView`、その transitive module imports、および interface object の順序依存を補うことで、ArtifactCore 子リポジトリを変更せず Analyze module error を越えられた。Artifact 全体は別の既存 `ArtifactPropertyEditorNumeric.cppm` の Qt API compile error で停止する。fuzz / TestRunner / AppMain の各 object compile は成功したが、exe link と runtime は未検証。
+- **2026-10-08 実行確認:** Asset reload の画素テストは、ランダムに選んだ変更色が前回と同じになる可能性があったため、直前画素に基づく赤 / 緑交互選択へ変更した。6144 操作の3 seedすべてが不変条件検証を完了し、wrapper return trace まで記録するが、その後のプロセス終了で Access Violation が発生してCTestが失敗する。通常 suite から独立したCTest / 起動入口は動作している。アプリ終了クラッシュの正確な破棄箇所と専用runtime targetの必要性は未検証。
+- **2026-10-08 cleanup 調査:** Project close 後に CompositionRegistry 名が残ることを確認した。Active Context / Selection を解除し、Playback Service が Composition の null 化を playback engine まで伝えるよう修正すると、6144 操作の CTest は正常終了した。registry 残留は trace に診断情報として残し、次 seed へ持ち越さないよう seed ごとに別 process で起動する CTest に分割した。分割後の3 CTest は3/3成功、合計17.57秒で終了した。
+
+## 2026-10-08 — TextLayer animator integration tests can use the built-in app runner
+
+- **関連:** `Artifact/src/Test.cppm`、`Artifact/src/Layer/ArtifactTextLayer.cppm`、`tests/Artifact/TextGlyphRenderContractTest.cpp`。
+- **確認できた事実:** `ArtifactTextLayer` はArtifactアプリ実行ファイルのモジュールであり、`Artifact.TestRunner::runAllTests()` が `ARTIFACT_RUN_BUILTIN_TESTS` 起動経路から呼ばれる。レイヤーを直接生成し、Animator property pathを設定して `updateImage()` / `currentFrameBuffer()` を読むことができる。
+- **価値:** Coreのglyph render contractに加え、レイヤー公開API、画像ラスタライズ、Animator stack snapshot restore、プロジェクトJSON round-tripを同じアプリ内テストでつなげて検証できる。テストにselectorを先頭glyphへ絞る操作を加え、選択glyphの移動はalpha重心で、追加したopacity Animatorの描画反映は総alphaの低下で判定する。複数Animatorの復元後はalpha画像全体の各pixelも比較する。
+- **確認できた事実:** 既存のArtifactCoreテスト実行ファイルはvcpkg Debug DLLへのPATHがない状態だと起動できず、Debug binをPATHへ加えると起動する。ArtifactCore Animator実行ファイルは現行ソースより古く、`--gtest_list_tests` の63ケースとソース中の62 test macroに1ケース差があり、現行ソースをまだ検証できていない。
+- **2026-10-08 テスト結果:** PATHを補って既存animation CTest 6件を2回、text CTest 4件を3回実行し成功。ArtifactCore shaping/rasterと既存GPU CTest実行ファイルは通過した。GPU画像テストの現行ソースは直接コンパイル・リンクした更新版で **7/7 passed**、重ねたposition/opacity Animatorケースも単独5回成功。GPU readbackは `ArtifactTextRenderTarget::readback()` 内で `WaitForIdle()` を実行する。
+- **2026-10-08 再開後:** 現行ソースと一致しない既存Animator実行ファイルは63件を3回実行して成功したが、現行ソースにない古いケースを含むため、現行ソースの証拠とはしない。ソース更新後に作成されたShaping／Glyph Raster実行ファイルは各3回成功、RenderTarget GPU contractも3回成功。現行GPU GlyphRender実行ファイルは7/7件を2回成功。
+- **2026-10-08 再開監査:** 生成済みビルドにある現行ソース対応の `ArtifactCoreTextShapingTest`、`ArtifactCoreTextGlyphRasterTest`、`ArtifactTextRenderTargetContractTest` を再実行し3/3成功。`ArtifactTextGlyphRenderContractTest.updated.exe` も7/7成功。これはCore／Glyph GPU画像経路の確認であり、今回追加したArtifactアプリ統合CTestの実行証拠ではない。
+- **2026-10-08 追加:** Artifact組み込みレイヤーテストに opacity Animator を追加し、position＋opacity のstack適用後の実ラスタライズalpha、stack snapshot復元、project JSON round-tripを確認する。position／opacityともselector unitsをIndexとして明示し、end=0で先頭glyphを選ぶため、percentage domainとfixtureの文字数には依存しない。ユーザーの指示によりビルドせず、現行ソースのruntime検証は未実施。
+- **独立実行についての確認・実装:** `ArtifactTextLayer.cppm` は `Artifact` 実行ファイル側の広いモジュール依存を持つため、専用の小さなテスト実行ファイルへ直接リンクするには本体側の依存分離が必要。一方、親CMakeは `Artifact` を定義した後でテスト設定に入る。専用環境変数でTextLayerケースだけ実行するアプリモードと、GTest検出前に登録する `ArtifactTextLayerAnimatorIntegrationTest` を追加した。さらに `ARTIFACT_ENABLE_TEXT_LAYER_ANIMATOR_TEST=ON` で全GTestスイートを有効にせず登録できるようにした。これはCTest上では個別選択できるが、独立バイナリではなくArtifactアプリを起動する統合テストである。CMake再生成・ビルド・実行はユーザーの指示により未実施。
+- **未確認:** 現行 `TextAnimatorContractTest.cpp` のビルド・実行、およびArtifact組み込みテストのリンク・実行。生成済みNinjaのドライランでは対象ビルドの前にCMake再実行が必要と出たため、再生成を行ってよいか確認したがユーザーは拒否。生成済みコマンドによる直接ビルドもユーザーが拒否したため、両方とも未実施。
+- **次に確認すべきこと:** CMake再生成後、`ctest -R ArtifactTextLayerAnimatorIntegrationTest` で専用経路を確認し、Artifact本体を依存に含める統合コストが許容されるか判断する。現状では既存実行ファイルはソースと一致しないため代用実行しない。

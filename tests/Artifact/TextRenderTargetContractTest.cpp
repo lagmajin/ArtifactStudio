@@ -4,8 +4,22 @@
 #include <QImage>
 #include <QSize>
 
+#if defined(ARTIFACT_TEXT_TEST_USE_VULKAN)
+#include "DiligentVulkanTestDevice.hpp"
+#else
 import Artifact.Render.TextGpuDevice;
+#endif
 import Artifact.Render.TextRenderTarget;
+
+namespace {
+
+#if defined(ARTIFACT_TEXT_TEST_USE_VULKAN)
+using TextTargetTestDevice = ArtifactTest::VulkanGpuDevice;
+#else
+using TextTargetTestDevice = Artifact::ArtifactTextGpuDevice;
+#endif
+
+} // namespace
 
 TEST(TextRenderTargetContractTest, RejectsNullDeviceAndNonPositiveDimensions)
 {
@@ -32,7 +46,7 @@ TEST(TextRenderTargetContractTest, ReadbackRejectsMissingContextAndClearsOutput)
 
 TEST(TextRenderTargetContractTest, D3D12ClearAndReadbackPreserveEveryPixel)
 {
-    Artifact::ArtifactTextGpuDevice gpu;
+    TextTargetTestDevice gpu;
     if (!gpu.initialize()) {
         GTEST_SKIP() << "Diligent D3D12 headless device is unavailable on this host";
         return;
@@ -61,7 +75,7 @@ TEST(TextRenderTargetContractTest, D3D12ClearAndReadbackPreserveEveryPixel)
 
 TEST(TextRenderTargetContractTest, RecreateResizesTargetAndTransparentClearRemovesOldPixels)
 {
-    Artifact::ArtifactTextGpuDevice gpu;
+    TextTargetTestDevice gpu;
     if (!gpu.initialize()) {
         GTEST_SKIP() << "Diligent D3D12 headless device is unavailable on this host";
         return;

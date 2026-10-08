@@ -273,16 +273,30 @@ artifact_add_test(ArtifactCoreTextShapingTest
     SOURCES
         TextShapingTest.cpp
     LIBS
-        ArtifactCore
+        ArtifactCoreText
+)
+set_tests_properties(ArtifactCoreTextShapingTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "animation;text;cpu;contract"
 )
 artifact_add_test(ArtifactCoreTextAnimatorContractTest
     SOURCES
         TextAnimatorContractTest.cpp
     LIBS
-        ArtifactCore
+        ArtifactCoreText
 )
 set_tests_properties(ArtifactCoreTextAnimatorContractTest PROPERTIES
     LABELS "animation;text;cpu;contract"
+)
+artifact_add_test(ArtifactCoreTextGlyphRasterTest
+    SOURCES
+        TextGlyphRasterTest.cpp
+    LIBS
+        ArtifactCoreText
+)
+set_tests_properties(ArtifactCoreTextGlyphRasterTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "animation;text;raster;cpu;contract"
 )
 artifact_add_test(ArtifactCoreImageDistortionMapperTest
     SOURCES
@@ -308,4 +322,15 @@ artifact_add_test(ArtifactCoreRenderJobModelContractTest
 )
 set_tests_properties(ArtifactCoreRenderJobModelContractTest PROPERTIES
     LABELS "render-manager;model;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreAcousticGenerationTest
+    SOURCES
+        AcousticGenerationTest.cpp
+    LIBS
+        ArtifactCoreAcoustic
+)
+set_tests_properties(ArtifactCoreAcousticGenerationTest PROPERTIES
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+    LABELS "audio;acoustic;cpu;generation"
 )

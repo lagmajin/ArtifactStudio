@@ -99,6 +99,18 @@ class UiVisualCompareTest(unittest.TestCase):
         self.assertEqual(report["metrics"]["changed_pixels"], 0)
         self.assertEqual(report["metrics"]["maximum_channel_difference"], 1)
 
+    def test_alpha_only_difference_counts_as_a_changed_pixel(self) -> None:
+        actual = Image.new("RGBA", (4, 4), (0, 0, 0, 0))
+        actual.putpixel((2, 2), (0, 0, 0, 255))
+        actual.save(self.actual_path)
+
+        exit_code, report = self.compare()
+
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(report["metrics"]["changed_pixels"], 1)
+        self.assertEqual(report["metrics"]["maximum_channel_difference"], 255)
+        self.assertFalse(report["passed"])
+
     def test_dimension_mismatch_fails_and_reports_region_metrics(self) -> None:
         Image.new("RGBA", (5, 4), (0, 0, 0, 0)).save(self.actual_path)
 
@@ -150,6 +162,12 @@ class UiVisualCompareTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "unknown region"):
             ui_visual_compare.compare(arguments)
+
+    def test_region_outside_image_is_rejected(self) -> None:
+        Image.new("RGBA", (4, 4), (0, 0, 0, 0)).save(self.actual_path)
+
+        with self.assertRaisesRegex(ValueError, "outside the screenshot dimensions"):
+            self.compare(regions=[("outside", (3, 3, 2, 2))])
 
 
 if __name__ == "__main__":

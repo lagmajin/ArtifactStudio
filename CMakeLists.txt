@@ -715,6 +715,25 @@ set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 # opt-in consistently for local targets, including C++ module dependency scans.
 add_compile_definitions(GLM_ENABLE_EXPERIMENTAL)
 add_subdirectory(ArtifactCore)
+# Keep this parent-side until the child module-reference manifest can be
+# updated: ImageAnalyzer.cppm is compiled as an unscanned implementation unit,
+# so its Image.ImageSurfaceView import needs an explicit IFC reference.
+if(MSVC AND TARGET ArtifactCoreAnalyze)
+    set(_artifact_image_analyzer_source
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Analyze/ImageAnalyzer.cppm")
+    set_property(SOURCE "${_artifact_image_analyzer_source}"
+        TARGET_DIRECTORY ArtifactCoreAnalyze
+        APPEND PROPERTY COMPILE_OPTIONS
+            "/reference;Image.ImageSurfaceView=${CMAKE_CURRENT_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Image.ImageSurfaceView.ifc"
+            "/reference;Graphics.SurfaceColorContract=${CMAKE_CURRENT_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Graphics.SurfaceColorContract.ifc"
+            "/reference;Color.TransferFunction=${CMAKE_CURRENT_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Color.TransferFunction.ifc")
+    set_property(SOURCE "${_artifact_image_analyzer_source}"
+        TARGET_DIRECTORY ArtifactCoreAnalyze
+        APPEND PROPERTY OBJECT_DEPENDS
+            "${CMAKE_CURRENT_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/include/Image/ImageSurfaceView.ixx.obj"
+            "${CMAKE_CURRENT_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/include/Graphics/SurfaceColorContract.ixx.obj"
+            "${CMAKE_CURRENT_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/include/Color/ColorTransferFunction.ixx.obj")
+endif()
 # Artifact's standalone text GPU runtimes still link the historical
 # ArtifactCoreTextRuntime name. Keep that dependency mapped to the current
 # ArtifactCoreText module owner at the parent integration boundary.
@@ -815,12 +834,55 @@ add_custom_target(check_source_manifests
 # テスト設定
 # ---------------------------------------------------------------------------
 option(ARTIFACT_BUILD_TESTS "Build unit tests" OFF)
-if(ARTIFACT_BUILD_TESTS)
+option(ARTIFACT_ENABLE_TEXT_LAYER_ANIMATOR_TEST
+    "Register the Artifact TextLayer animator integration test with CTest"
+    OFF)
+if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_TEXT_LAYER_ANIMATOR_TEST)
     enable_testing()
+
+    # The app-owned TextLayer integration test has no GTest dependency. Keep
+    # it independently selectable without enabling the complete unit suite.
+    add_test(NAME ArtifactTextLayerAnimatorIntegrationTest
+        COMMAND $<TARGET_FILE:Artifact>
+    )
+    set_tests_properties(ArtifactTextLayerAnimatorIntegrationTest PROPERTIES
+        ENVIRONMENT "ARTIFACT_RUN_TEXT_LAYER_ANIMATOR_TESTS=1"
+        LABELS "animation;text;integration"
+        TIMEOUT 120
+    )
+endif()
+
+if(ARTIFACT_BUILD_TESTS)
     find_package(GTest CONFIG QUIET)
     if(GTest_FOUND)
         add_subdirectory(tests)
     else()
         message(WARNING "GTest was not found; skipping unit tests.")
     endif()
+endif()
+
+# Keep each long-running edit-sequence fuzz seed independently selectable and
+# usable without enabling or finding GoogleTest. Every seed gets its own
+# Artifact process so retained project state cannot leak between seeds.
+option(ARTIFACT_ENABLE_EDIT_SEQUENCE_FUZZ_TEST
+    "Register the standalone edit-sequence fuzz integration test with CTest"
+    OFF)
+if(ARTIFACT_ENABLE_EDIT_SEQUENCE_FUZZ_TEST)
+    if(NOT ARTIFACT_BUILD_TESTS)
+        enable_testing()
+    endif()
+    foreach(_artifact_edit_sequence_fuzz_seed IN ITEMS 4A17C0DE 51A7E123 BADC0FFEE)
+        set(_artifact_edit_sequence_fuzz_test
+            "ArtifactEditSequenceFuzzTest_${_artifact_edit_sequence_fuzz_seed}")
+        add_test(NAME "${_artifact_edit_sequence_fuzz_test}"
+            COMMAND ${CMAKE_COMMAND} -E env
+                "ARTIFACT_RUN_EDIT_SEQUENCE_FUZZ=1"
+                "ARTIFACT_EDIT_SEQUENCE_FUZZ_SEED=0x${_artifact_edit_sequence_fuzz_seed}"
+                $<TARGET_FILE:Artifact>
+        )
+        set_tests_properties("${_artifact_edit_sequence_fuzz_test}" PROPERTIES
+            LABELS "stress;integration;edit-sequence"
+            TIMEOUT 180
+        )
+    endforeach()
 endif()

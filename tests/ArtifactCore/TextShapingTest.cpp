@@ -1,9 +1,16 @@
 #include <gtest/gtest.h>
 
+#include <QDir>
+#include <QFileInfo>
+#include <QGuiApplication>
 #include <QString>
+
+#include <algorithm>
+#include <cmath>
 
 import Text.ShapingBackend;
 import Text.Style;
+import Text.Animator;
 import Font.FreeFont;
 
 using namespace ArtifactCore;
@@ -16,13 +23,13 @@ QString hebrew()   { return QString::fromUtf8("\xD7\xA9\xD7\x9C\xD7\x95\xD7\x9D"
 QString devanagari(){ return QString::fromUtf8("\xE0\xA4\xA8\xE0\xA4\xAE\xE0\xA4\xB8\xE0\xA5\x8D\xE0\xA4\xA4\xE0\xA5\x87"); }
 QString georgian() { return QString::fromUtf8("\xE1\x83\x90\xE1\x83\x9B\xE1\x83\x9C\xE1\x83\xA3\xE1\x83\x9A\xE1\x83\x98"); }
 QString ethiopic() { return QString::fromUtf8("\xE1\x88\x9A\xE1\x88\xAD\xE1\x88\xAD"); }
-QString cherokee() { return QString::fromUtf8("\xE1\x8A\xAE\xE1\x8B\x85\xE1\x8A\xA0"); }
+QString cherokee() { return QString::fromUcs4(U"\u13A0\u13A1\u13A2"); }
 QString japanese() { return QString::fromUtf8("\xE6\x97\xA5\xE6\x9C\xAC\xE8\xAA\x9E"); }
 QString hiragana() { return QString::fromUtf8("\xE3\x81\xB2\xE3\x82\x8A"); }
 QString katakana() { return QString::fromUtf8("\xE3\x82\xAB\xE3\x82\xBF"); }
 QString hangul()   { return QString::fromUtf8("\xED\x95\x9C\xEA\xB5\xAD"); }
 QString digits()   { return QStringLiteral("0123"); }
-QString marks()    { return QString::fromUtf8("\xE2\x84\x96"); }  // COMBINING DIAERESIS
+QString marks()    { return QString::fromUtf8("\xCC\x88"); }  // COMBINING DIAERESIS
 
 // A family that exists on the CI machine matters less than the shaping
 // contract, so fall back to whatever the platform reports as the default.
@@ -54,6 +61,25 @@ QStringList scriptTagsOf(const TextLayoutContract& contract)
   for (const auto& run : contract.scriptRuns) tags.append(run.scriptTag);
   return tags;
 }
+
+} // namespace
+
+namespace {
+
+class QtGuiTestEnvironment final : public testing::Environment
+{
+public:
+  void SetUp() override
+  {
+    static int argc = 1;
+    static char applicationName[] = "ArtifactCoreTextShapingTest";
+    static char* argv[] = {applicationName, nullptr};
+    static QGuiApplication application(argc, argv);
+  }
+};
+
+[[maybe_unused]] testing::Environment* const qtGuiEnvironment =
+    testing::AddGlobalTestEnvironment(new QtGuiTestEnvironment());
 
 } // namespace
 
@@ -138,6 +164,50 @@ TEST(TextShapingScriptTest, CombiningMarksAreNotFlaggedAsComplexScripts)
   }
 }
 
+TEST(TextShapingScriptTest, AnimatorTagSelectorUsesShapedScriptTags)
+{
+  QtShapingBackend backend;
+  const QString mixed = QStringLiteral("A") + hebrew() + QStringLiteral("Z");
+  const auto shaped = backend.shape(makeRequest(mixed));
+  ASSERT_FALSE(shaped.glyphs.empty());
+  const QString firstTag = shaped.glyphs.front().selectorTag;
+  ASSERT_FALSE(firstTag.isEmpty());
+  bool hasOtherTag = false;
+  for (const auto& glyph : shaped.glyphs) {
+    hasOtherTag = hasOtherTag || glyph.selectorTag != firstTag;
+  }
+  ASSERT_TRUE(hasOtherTag);
+
+  SelectorEvaluationContext context{
+      mixed, shaped.glyphs, TextSelectorOrder::Logical};
+  RangeSelector selector;
+  selector.units = SelectorUnits::Tag;
+  selector.start = 0.0f;
+  selector.end = 0.0f;
+  selector.shape = SelectorShape::Square;
+  const auto result = TextAnimatorEngine::evaluateSelector(context, selector);
+
+  ASSERT_EQ(result.weights.size(), shaped.glyphs.size());
+  for (size_t index = 0; index < shaped.glyphs.size(); ++index) {
+    EXPECT_FLOAT_EQ(result.weights[static_cast<qsizetype>(index)],
+                    shaped.glyphs[index].selectorTag == firstTag ? 1.0f : 0.0f);
+  }
+
+  AnimatorSelectorSet animator;
+  animator.range = selector;
+  animator.properties.position = QPointF(4.0, 2.0);
+  const std::vector<AnimatorSelectorSet> animators{animator};
+  auto animatedGlyphs = shaped.glyphs;
+  TextAnimatorEngine::applyAnimatorSets(
+      animatedGlyphs, animators, 0.0f, mixed);
+  ASSERT_EQ(animatedGlyphs.size(), shaped.glyphs.size());
+  for (size_t index = 0; index < animatedGlyphs.size(); ++index) {
+    const bool selected = animatedGlyphs[index].selectorTag == firstTag;
+    EXPECT_EQ(animatedGlyphs[index].offsetPosition,
+              selected ? QPointF(4.0, 2.0) : QPointF(0.0, 0.0));
+  }
+}
+
 // --- 2. bidi -------------------------------------------------------------
 
 TEST(TextShapingBidiTest, PureRtlResolvesToRightToLeft)
@@ -165,20 +235,64 @@ TEST(TextShapingBidiTest, MixedLineSplitsIntoMultipleRuns)
   EXPECT_TRUE(sawRtl);
 }
 
-TEST(TextShapingBidiTest, VisualMappingIsNotIdentityForRtl)
+TEST(TextShapingBidiTest, GlyphOrdinalMappingsAreInversePermutationsForRtl)
 {
   QtShapingBackend backend;
   const auto result = backend.shape(makeRequest(arabic()));
-  ASSERT_FALSE(result.logicalToVisual.isEmpty());
-  // The old implementation emitted a literal i -> i permutation.
-  bool sawNonIdentity = false;
-  for (int i = 0; i < result.logicalToVisual.size(); ++i) {
-    if (result.logicalToVisual.at(i) != i) {
-      sawNonIdentity = true;
-      break;
+  ASSERT_EQ(result.logicalToVisual.size(), result.glyphs.size());
+  ASSERT_EQ(result.visualToLogical.size(), result.glyphs.size());
+  for (int logical = 0; logical < result.logicalToVisual.size(); ++logical) {
+    const int visual = result.logicalToVisual.at(logical);
+    ASSERT_GE(visual, 0);
+    ASSERT_LT(visual, result.visualToLogical.size());
+    EXPECT_EQ(result.visualToLogical.at(visual), logical);
+  }
+}
+
+TEST(TextShapingBidiTest, AnimatorIndexSelectorOrdersShapedGlyphsLogically)
+{
+  QtShapingBackend backend;
+  const QString text = arabic();
+  const auto shaped = backend.shape(makeRequest(text));
+  ASSERT_GE(shaped.glyphs.size(), 2u);
+  ASSERT_EQ(shaped.logicalToVisual.size(), shaped.glyphs.size());
+  auto visualGlyphs = shaped.glyphs;
+  std::reverse(visualGlyphs.begin(), visualGlyphs.end());
+  ASSERT_NE(visualGlyphs.front().index, visualGlyphs.back().index);
+
+  RangeSelector selector;
+  selector.units = SelectorUnits::Index;
+  selector.start = 0.0f;
+  selector.end = 0.0f;
+  selector.shape = SelectorShape::Square;
+  const SelectorEvaluationContext logicalContext{
+      text, visualGlyphs, TextSelectorOrder::Logical};
+  const SelectorEvaluationContext visualContext{
+      text, visualGlyphs, TextSelectorOrder::Visual};
+  const auto logical = TextAnimatorEngine::evaluateSelector(
+      logicalContext, selector);
+  const auto visual = TextAnimatorEngine::evaluateSelector(
+      visualContext, selector);
+
+  ASSERT_EQ(logical.weights.size(), visualGlyphs.size());
+  ASSERT_EQ(visual.weights.size(), visualGlyphs.size());
+  const auto logicalFirst = std::find_if(
+      visualGlyphs.begin(), visualGlyphs.end(), [](const GlyphItem& glyph) {
+        return glyph.index == 0;
+      });
+  ASSERT_NE(logicalFirst, visualGlyphs.end());
+  const auto logicalFirstVisualIndex =
+      static_cast<qsizetype>(logicalFirst - visualGlyphs.begin());
+  EXPECT_FLOAT_EQ(logical.weights[logicalFirstVisualIndex], 1.0f);
+  EXPECT_FLOAT_EQ(visual.weights[0], 1.0f);
+  for (qsizetype index = 0; index < visualGlyphs.size(); ++index) {
+    if (index != logicalFirstVisualIndex) {
+      EXPECT_FLOAT_EQ(logical.weights[index], 0.0f);
+    }
+    if (index != 0) {
+      EXPECT_FLOAT_EQ(visual.weights[index], 0.0f);
     }
   }
-  EXPECT_TRUE(sawNonIdentity);
 }
 
 TEST(TextShapingBidiTest, PureLtrKeepsIdentityMapping)
@@ -188,6 +302,52 @@ TEST(TextShapingBidiTest, PureLtrKeepsIdentityMapping)
   ASSERT_EQ(result.logicalToVisual.size(), result.glyphs.size());
   for (int i = 0; i < result.logicalToVisual.size(); ++i) {
     EXPECT_EQ(result.logicalToVisual.at(i), i) << "i=" << i;
+  }
+}
+
+TEST(TextShapingLineTest, AnimatorLineSelectorTargetsShapedLine)
+{
+  QtShapingBackend backend;
+  const QString text = QStringLiteral("AB\nCD");
+  ParagraphStyle paragraph;
+  paragraph.boxWidth = 56.0f;
+  paragraph.wrapMode = TextWrapMode::WrapAnywhere;
+  const auto shaped = backend.shape(makeRequest(text, paragraph));
+  ASSERT_FALSE(shaped.glyphs.empty());
+  bool sawFirstLine = false;
+  bool sawSecondLine = false;
+  for (const GlyphItem& glyph : shaped.glyphs) {
+    sawFirstLine = sawFirstLine || glyph.lineIndex == 0;
+    sawSecondLine = sawSecondLine || glyph.lineIndex == 1;
+  }
+  ASSERT_TRUE(sawFirstLine);
+  ASSERT_TRUE(sawSecondLine);
+
+  RangeSelector selector;
+  selector.units = SelectorUnits::Line;
+  selector.start = 0.0f;
+  selector.end = 0.0f;
+  selector.shape = SelectorShape::Square;
+  const SelectorEvaluationContext context{
+      text, shaped.glyphs, TextSelectorOrder::Logical};
+  const auto weights = TextAnimatorEngine::evaluateSelector(context, selector);
+
+  ASSERT_EQ(weights.weights.size(), shaped.glyphs.size());
+  for (size_t index = 0; index < shaped.glyphs.size(); ++index) {
+    EXPECT_FLOAT_EQ(weights.weights[static_cast<qsizetype>(index)],
+                    shaped.glyphs[index].lineIndex == 0 ? 1.0f : 0.0f);
+  }
+
+  AnimatorSelectorSet animator;
+  animator.range = selector;
+  animator.properties.position = QPointF(9.0, 1.0);
+  const std::vector<AnimatorSelectorSet> animators{animator};
+  auto animatedGlyphs = shaped.glyphs;
+  TextAnimatorEngine::applyAnimatorSets(
+      animatedGlyphs, animators, 0.0f, text);
+  for (const GlyphItem& glyph : animatedGlyphs) {
+    EXPECT_EQ(glyph.offsetPosition,
+              glyph.lineIndex == 0 ? QPointF(9.0, 1.0) : QPointF(0.0, 0.0));
   }
 }
 
@@ -201,6 +361,33 @@ TEST(TextShapingClusterTest, CombiningMarkFormsOneCluster)
   ASSERT_EQ(result.contract.clusters.size(), 1)
       << "clusters=" << result.contract.clusters.size();
   EXPECT_FALSE(result.contract.clusters.at(0).isEmojiSequence);
+
+  ASSERT_FALSE(result.glyphs.empty());
+  const SelectorEvaluationContext context{
+      decomposed, result.glyphs, TextSelectorOrder::Logical};
+  RangeSelector selector;
+  selector.regexEnabled = true;
+  selector.selectorPattern = marks();
+  selector.units = SelectorUnits::Index;
+  selector.start = 0.0f;
+  selector.end = static_cast<float>(result.glyphs.size() - 1);
+  selector.shape = SelectorShape::Square;
+  const auto weights = TextAnimatorEngine::evaluateSelector(context, selector);
+  ASSERT_EQ(weights.weights.size(), result.glyphs.size());
+  for (const float weight : weights.weights) {
+    EXPECT_FLOAT_EQ(weight, 1.0f);
+  }
+
+  AnimatorSelectorSet animator;
+  animator.range = selector;
+  animator.properties.position = QPointF(3.0, 6.0);
+  const std::vector<AnimatorSelectorSet> animators{animator};
+  auto animatedGlyphs = result.glyphs;
+  TextAnimatorEngine::applyAnimatorSets(
+      animatedGlyphs, animators, 0.0f, decomposed);
+  for (const GlyphItem& glyph : animatedGlyphs) {
+    EXPECT_EQ(glyph.offsetPosition, QPointF(3.0, 6.0));
+  }
 }
 
 TEST(TextShapingClusterTest, EmojiZwjSequenceFormsOneCluster)
@@ -214,6 +401,47 @@ TEST(TextShapingClusterTest, EmojiZwjSequenceFormsOneCluster)
   ASSERT_EQ(result.contract.clusters.size(), 1)
       << "clusters=" << result.contract.clusters.size();
   EXPECT_TRUE(result.contract.clusters.at(0).isEmojiSequence);
+
+  ASSERT_FALSE(result.glyphs.empty());
+  SelectorEvaluationContext animatorContext{
+      family, result.glyphs, TextSelectorOrder::Logical};
+  RangeSelector selector;
+  selector.units = SelectorUnits::Cluster;
+  selector.start = 0.0f;
+  selector.end = 0.0f;
+  selector.shape = SelectorShape::Square;
+  const auto weights = TextAnimatorEngine::evaluateSelector(
+      animatorContext, selector);
+  ASSERT_EQ(weights.weights.size(), result.glyphs.size());
+  for (const float weight : weights.weights) {
+    EXPECT_FLOAT_EQ(weight, 1.0f);
+  }
+
+  RangeSelector regexSelector;
+  regexSelector.regexEnabled = true;
+  regexSelector.selectorPattern = QString::fromUtf8("\xF0\x9F\x91\xA8");
+  regexSelector.units = SelectorUnits::Index;
+  regexSelector.start = 0.0f;
+  regexSelector.end = static_cast<float>(result.glyphs.size() - 1);
+  regexSelector.shape = SelectorShape::Square;
+  const auto regexWeights = TextAnimatorEngine::evaluateSelector(
+      animatorContext, regexSelector);
+  ASSERT_EQ(regexWeights.weights.size(), result.glyphs.size());
+  for (const float weight : regexWeights.weights) {
+    EXPECT_FLOAT_EQ(weight, 1.0f);
+  }
+
+  AnimatorSelectorSet animator;
+  animator.range = regexSelector;
+  animator.properties.position = QPointF(5.0, -3.0);
+  const std::vector<AnimatorSelectorSet> animators{animator};
+  auto animatedGlyphs = result.glyphs;
+  TextAnimatorEngine::applyAnimatorSets(
+      animatedGlyphs, animators, 0.0f, family);
+  ASSERT_EQ(animatedGlyphs.size(), result.glyphs.size());
+  for (const GlyphItem& glyph : animatedGlyphs) {
+    EXPECT_EQ(glyph.offsetPosition, QPointF(5.0, -3.0));
+  }
 }
 
 TEST(TextShapingClusterTest, SkinToneModifierJoinsItsCluster)
@@ -225,6 +453,48 @@ TEST(TextShapingClusterTest, SkinToneModifierJoinsItsCluster)
   ASSERT_EQ(result.contract.clusters.size(), 1)
       << "clusters=" << result.contract.clusters.size();
   EXPECT_TRUE(result.contract.clusters.at(0).isEmojiSequence);
+}
+
+TEST(TextShapingClusterTest, AnimatorRegexSelectsAstralShapedGlyph)
+{
+  QtShapingBackend backend;
+  const QString emoji = QString::fromUtf8("\xF0\x9F\x98\x80");
+  const QString text = QStringLiteral("A") + emoji + QStringLiteral("B");
+  const auto shaped = backend.shape(makeRequest(text));
+  ASSERT_EQ(shaped.glyphs.size(), 3u);
+
+  SelectorEvaluationContext context{
+      text, shaped.glyphs, TextSelectorOrder::Logical};
+  RangeSelector selector;
+  selector.regexEnabled = true;
+  selector.selectorPattern = emoji;
+  selector.units = SelectorUnits::Index;
+  selector.start = 1.0f;
+  selector.end = 1.0f;
+  selector.shape = SelectorShape::Square;
+  const auto result = TextAnimatorEngine::evaluateSelector(context, selector);
+
+  ASSERT_EQ(result.weights.size(), 3);
+  EXPECT_FLOAT_EQ(result.weights[0], 0.0f);
+  EXPECT_FLOAT_EQ(result.weights[1], 1.0f);
+  EXPECT_FLOAT_EQ(result.weights[2], 0.0f);
+
+  AnimatorSelectorSet animator;
+  animator.range = selector;
+  animator.properties.position = QPointF(7.0, -2.0);
+  animator.properties.opacity = 0.4f;
+  const std::vector<AnimatorSelectorSet> animators{animator};
+  auto animatedGlyphs = shaped.glyphs;
+  TextAnimatorEngine::applyAnimatorSets(
+      animatedGlyphs, animators, 0.0f, text);
+
+  ASSERT_EQ(animatedGlyphs.size(), 3u);
+  EXPECT_EQ(animatedGlyphs[0].offsetPosition, QPointF(0.0, 0.0));
+  EXPECT_FLOAT_EQ(animatedGlyphs[0].offsetOpacity, 1.0f);
+  EXPECT_EQ(animatedGlyphs[1].offsetPosition, QPointF(7.0, -2.0));
+  EXPECT_FLOAT_EQ(animatedGlyphs[1].offsetOpacity, 0.4f);
+  EXPECT_EQ(animatedGlyphs[2].offsetPosition, QPointF(0.0, 0.0));
+  EXPECT_FLOAT_EQ(animatedGlyphs[2].offsetOpacity, 1.0f);
 }
 
 TEST(TextShapingClusterTest, RegionalIndicatorPairIsOneCluster)
@@ -241,19 +511,34 @@ TEST(TextShapingClusterTest, RegionalIndicatorPairIsOneCluster)
 
 TEST(TextShapingBackendTest, HarfBuzzHandlesUnwrappedSingleLine)
 {
+  // Use the repository's Apache-2.0 OpenUSD Roboto fixture so HarfBuzz can
+  // resolve font bytes without depending on fonts installed on the test host.
+  QDir repositoryRoot(QFileInfo(QString::fromUtf8(__FILE__)).absolutePath());
+  ASSERT_TRUE(repositoryRoot.cdUp());
+  ASSERT_TRUE(repositoryRoot.cdUp());
+  const QString fontPath = repositoryRoot.filePath(
+      QStringLiteral("libs/openusd/pxr/usdImaging/usdviewq/fonts/Roboto/Roboto-Regular.ttf"));
+  ASSERT_TRUE(QFileInfo::exists(fontPath)) << fontPath.toStdString();
+  ASSERT_TRUE(FontManager::loadFontFromFile(fontPath));
+  const auto fontBytes = FontManager::fontFileBytes(QStringLiteral("Roboto"));
+  ASSERT_TRUE(fontBytes.has_value());
+  ASSERT_FALSE(fontBytes->isEmpty());
+
   HarfBuzzShapingBackend hb;
   QtShapingBackend qt;
-  const auto request = makeRequest(QStringLiteral("Text Sample1"));
+  auto request = makeRequest(QStringLiteral("Text Sample1"));
+  request.style.fontFamily = UniString(QStringLiteral("Roboto"));
   const auto hbResult = hb.shape(request);
   const auto qtResult = qt.shape(request);
   ASSERT_FALSE(hbResult.glyphs.empty());
-  // If the font file could not be resolved the HarfBuzz path silently defers
-  // to Qt, which makes every comparison below vacuous.  Surface that.
-  const bool looksLikeFallback =
-      hbResult.glyphs.size() == qtResult.glyphs.size() &&
-      hbResult.logicalToVisual == qtResult.logicalToVisual;
-  EXPECT_FALSE(looksLikeFallback)
-      << "HarfBuzz appears to be deferring to Qt; check FontManager::fontFileBytes";
+  ASSERT_FALSE(qtResult.glyphs.empty());
+  EXPECT_EQ(hbResult.glyphs.size(), qtResult.glyphs.size());
+  EXPECT_EQ(hbResult.logicalToVisual.size(), hbResult.glyphs.size());
+  EXPECT_EQ(hbResult.visualToLogical.size(), hbResult.glyphs.size());
+  for (const auto& glyph : hbResult.glyphs) {
+    EXPECT_TRUE(std::isfinite(glyph.basePosition.x()));
+    EXPECT_TRUE(std::isfinite(glyph.basePosition.y()));
+  }
 }
 
 TEST(TextShapingBackendTest, WrappedTextFallsBackToQt)

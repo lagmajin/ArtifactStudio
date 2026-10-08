@@ -1,0 +1,143 @@
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <limits>
+#include <span>
+#include <vector>
+
+import Artifact.Acoustic.System;
+
+namespace {
+
+constexpr int kSampleRate = 48000;
+constexpr int kDurationSeconds = 5;
+constexpr std::size_t kFramesPerBlock = 256;
+
+void writeU16(std::ofstream& output, std::uint16_t value)
+{
+    const char bytes[] = {
+        static_cast<char>(value & 0xffu),
+        static_cast<char>((value >> 8) & 0xffu),
+    };
+    output.write(bytes, sizeof(bytes));
+}
+
+void writeU32(std::ofstream& output, std::uint32_t value)
+{
+    const char bytes[] = {
+        static_cast<char>(value & 0xffu),
+        static_cast<char>((value >> 8) & 0xffu),
+        static_cast<char>((value >> 16) & 0xffu),
+        static_cast<char>((value >> 24) & 0xffu),
+    };
+    output.write(bytes, sizeof(bytes));
+}
+
+bool writeWaveFile(const std::filesystem::path& path,
+                   const std::vector<float>& interleavedStereo)
+{
+    if ((interleavedStereo.size() % 2) != 0) return false;
+    const std::uint64_t dataSize64 = interleavedStereo.size() * sizeof(std::int16_t);
+    if (dataSize64 > std::numeric_limits<std::uint32_t>::max() - 36u) return false;
+
+    std::ofstream output(path, std::ios::binary | std::ios::trunc);
+    if (!output) return false;
+
+    const auto dataSize = static_cast<std::uint32_t>(dataSize64);
+    output.write("RIFF", 4);
+    writeU32(output, 36u + dataSize);
+    output.write("WAVEfmt ", 8);
+    writeU32(output, 16u);
+    writeU16(output, 1u);
+    writeU16(output, 2u);
+    writeU32(output, kSampleRate);
+    writeU32(output, kSampleRate * 2u * sizeof(std::int16_t));
+    writeU16(output, 2u * sizeof(std::int16_t));
+    writeU16(output, 16u);
+    output.write("data", 4);
+    writeU32(output, dataSize);
+
+    for (const float sample : interleavedStereo) {
+        const float finiteSample = std::isfinite(sample)
+            ? std::clamp(sample, -1.0f, 1.0f) : 0.0f;
+        const auto pcm = static_cast<std::int16_t>(
+            std::lrint(finiteSample * (finiteSample < 0.0f ? 32768.0f : 32767.0f)));
+        writeU16(output, static_cast<std::uint16_t>(pcm));
+    }
+    return output.good();
+}
+
+} // namespace
+
+void expectPlayableWav(Artifact::Acoustic::AcousticSystem& acoustic,
+                       const char* filename,
+                       bool expectStereoSpread = false)
+{
+    const std::size_t totalFrames =
+        static_cast<std::size_t>(kSampleRate * kDurationSeconds);
+    std::vector<float> pcm(totalFrames * 2u, 0.0f);
+    std::vector<float> block(kFramesPerBlock * 2u, 0.0f);
+
+    for (std::size_t frame = 0; frame < totalFrames;) {
+        const std::size_t frameCount = std::min(kFramesPerBlock, totalFrames - frame);
+        acoustic.Update(static_cast<float>(frameCount) / kSampleRate);
+        const std::span<float> outputBlock(block.data(), frameCount * 2u);
+        ASSERT_TRUE(acoustic.RenderAudioBlock(outputBlock, kSampleRate));
+        std::copy_n(block.begin(), frameCount * 2u, pcm.begin() + frame * 2u);
+        frame += frameCount;
+    }
+
+    double squaredSum = 0.0;
+    double stereoDifferenceSquaredSum = 0.0;
+    float peak = 0.0f;
+    for (std::size_t index = 0; index < pcm.size(); ++index) {
+        const float sample = pcm[index];
+        ASSERT_TRUE(std::isfinite(sample));
+        peak = std::max(peak, std::abs(sample));
+        squaredSum += static_cast<double>(sample) * sample;
+        if ((index % 2u) == 0u) {
+            const double difference = static_cast<double>(sample) - pcm[index + 1u];
+            stereoDifferenceSquaredSum += difference * difference;
+        }
+    }
+    const double rms = std::sqrt(squaredSum / pcm.size());
+    EXPECT_GT(peak, 0.01f);
+    EXPECT_GT(rms, 0.001);
+    if (expectStereoSpread) {
+        EXPECT_GT(std::sqrt(stereoDifferenceSquaredSum / (pcm.size() / 2u)), 0.001);
+    }
+
+    const auto wavePath = std::filesystem::current_path() / "temp" / filename;
+    ASSERT_TRUE(writeWaveFile(wavePath, pcm)) << wavePath.string();
+    EXPECT_EQ(std::filesystem::file_size(wavePath), 44u + pcm.size() * sizeof(std::int16_t));
+}
+
+TEST(AcousticGenerationTest, WavesProducePlayableWav)
+{
+    Artifact::Acoustic::AcousticSystem acoustic;
+    acoustic.SetWaveHeight(0.8f);
+    acoustic.SetWavePeriod(3.0f);
+    acoustic.SetWaveBreaking(0.9f);
+
+    expectPlayableWav(acoustic, "acoustic_wave_preview.wav");
+}
+
+TEST(AcousticGenerationTest, WindProducesPlayableWav)
+{
+    Artifact::Acoustic::AcousticSystem acoustic;
+    acoustic.SetWindVelocity(15.0f);
+
+    expectPlayableWav(acoustic, "acoustic_wind_preview.wav");
+}
+
+TEST(AcousticGenerationTest, RainProducesPlayableWav)
+{
+    Artifact::Acoustic::AcousticSystem acoustic;
+    acoustic.SetRainIntensity(350.0f);
+
+    expectPlayableWav(acoustic, "acoustic_rain_preview.wav", true);
+}

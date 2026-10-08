@@ -1863,6 +1863,25 @@ class BenchmarkStringForeach : ArtifactBehaviour
     std::cout << "ArtifactScript foreach(257 long strings, read-only) benchmark: "
               << totalMicroseconds / (repetitions * iterations)
               << " us/hook (" << iterations * repetitions << " calls)\n";
+#if defined(_MSC_VER) && defined(_DEBUG)
+    {
+        ScriptAllocationCounter allocationCounter;
+        constexpr std::size_t allocationIterations = 1000;
+        bool succeeded = true;
+        for (std::size_t i = 0; i < allocationIterations; ++i) {
+            if (!stringForeachInstance.invokeHook(ArtifactScriptHook::OnUpdate)) {
+                succeeded = false;
+                break;
+            }
+        }
+        const auto allocations = allocationCounter.stop();
+        EXPECT_TRUE(succeeded) << stringForeachInstance.lastError();
+        EXPECT_EQ(allocations.first, 0)
+            << "allocations/hook=" << allocations.first / allocationIterations;
+        EXPECT_EQ(allocations.second, 0)
+            << "bytes/hook=" << allocations.second / allocationIterations;
+    }
+#endif
     EXPECT_DOUBLE_EQ(std::get<double>(
                          stringForeachInstance.fields().at("matches")),
                      static_cast<double>(

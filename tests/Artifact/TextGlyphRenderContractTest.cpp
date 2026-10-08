@@ -12,17 +12,16 @@
 #include <limits>
 #include <vector>
 
-#include <RefCntAutoPtr.hpp>
-#include <RenderDevice.h>
+#include "DiligentVulkanTestDevice.hpp"
 
-import Artifact.Render.TextGpuDevice;
 import Artifact.Render.TextRenderTarget;
 import Artifact.Render.TextGlyphShaderSources;
 import Artifact.Render.TextGlyphSubmitter.Contract;
 import Color.Float;
 import Text.GlyphLayout;
+import Text.ShapingBackend;
 import Text.Style;
-import Text.TextAnimator;
+import Text.Animator;
 
 namespace {
 
@@ -55,7 +54,7 @@ protected:
     void SetUp() override
     {
         if (!gpu_.initialize()) {
-            GTEST_SKIP() << "Diligent D3D12 headless device is unavailable on this host";
+            GTEST_SKIP() << "Diligent Vulkan headless device is unavailable on this host";
         }
 
         ASSERT_TRUE(target_.create(gpu_.device(), 128, 96));
@@ -93,15 +92,10 @@ protected:
         return glyph;
     }
 
-    QImage render(const ArtifactCore::GlyphItem& glyph, float opacity = 1.0f)
+    QImage render(const std::vector<ArtifactCore::GlyphItem>& glyphs,
+                  const ArtifactCore::TextStyle& style,
+                  float opacity = 1.0f)
     {
-        const ArtifactCore::TextStyle style = [] {
-            ArtifactCore::TextStyle value;
-            value.fontSize = 32.0f;
-            value.pixelSize = 32.0f;
-            return value;
-        }();
-        const std::vector<ArtifactCore::GlyphItem> glyphs{glyph};
         target_.clear(gpu_.context(), 0.0f, 0.0f, 0.0f, 0.0f);
         EXPECT_TRUE(submitter_.submit(
             gpu_.context(), target_.renderTargetView(), glyphs, style,
@@ -111,6 +105,15 @@ protected:
         QImage image;
         EXPECT_TRUE(target_.readback(gpu_.context(), image));
         return image;
+    }
+
+    QImage render(const ArtifactCore::GlyphItem& glyph, float opacity = 1.0f)
+    {
+        ArtifactCore::TextStyle style;
+        style.fontSize = 32.0f;
+        style.pixelSize = 32.0f;
+        const std::vector<ArtifactCore::GlyphItem> glyphs{glyph};
+        return render(glyphs, style, opacity);
     }
 
     static int countVisiblePixels(const QImage& image)
@@ -137,7 +140,24 @@ protected:
         return sum;
     }
 
-    Artifact::ArtifactTextGpuDevice gpu_;
+    static double alphaWeightedCentroidX(const QImage& image)
+    {
+        double weightedX = 0.0;
+        std::uint64_t totalAlpha = 0;
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
+                const auto alpha = static_cast<std::uint64_t>(
+                    image.pixelColor(x, y).alpha());
+                weightedX += static_cast<double>(x) * alpha;
+                totalAlpha += alpha;
+            }
+        }
+        return totalAlpha > 0
+                   ? weightedX / static_cast<double>(totalAlpha)
+                   : 0.0;
+    }
+
+    ArtifactTest::VulkanGpuDevice gpu_;
     Artifact::ArtifactTextRenderTarget target_;
     Diligent::RefCntAutoPtr<Diligent::IShader> pixelShader_;
     Diligent::RefCntAutoPtr<Diligent::IShader> vertexShader_;
@@ -240,4 +260,82 @@ TEST_F(TextGlyphRenderContractTest, TextAnimatorTransformIsRasterizedByGpuSubmit
     ASSERT_GT(countVisiblePixels(animated), 0);
     EXPECT_LT(sumAlpha(animated), sumAlpha(baseline));
     EXPECT_NE(baseline, animated);
+}
+
+TEST_F(TextGlyphRenderContractTest, ShapedTextAnimatorChangesRenderedImage)
+{
+    ArtifactCore::TextStyle style;
+    style.fontSize = 32.0f;
+    style.pixelSize = 32.0f;
+    ArtifactCore::TextShapingRequest request;
+    request.text = QStringLiteral("AB");
+    request.style = style;
+    ArtifactCore::QtShapingBackend backend;
+    const auto shaped = backend.shape(request);
+    ASSERT_EQ(shaped.glyphs.size(), 2u);
+
+    const QImage baseline = render(shaped.glyphs, style);
+    auto animatedGlyphs = shaped.glyphs;
+    ArtifactCore::AnimatorSelectorSet animator;
+    animator.range.units = ArtifactCore::SelectorUnits::Index;
+    animator.range.start = 0.0f;
+    animator.range.end = 0.0f;
+    animator.range.shape = ArtifactCore::SelectorShape::Square;
+    animator.properties.position = QPointF(18.0, 0.0);
+    const std::vector<ArtifactCore::AnimatorSelectorSet> animators{animator};
+    ArtifactCore::TextAnimatorEngine::applyAnimatorSets(
+        animatedGlyphs, animators, 0.0f, request.text);
+    ASSERT_EQ(animatedGlyphs.size(), 2u);
+    EXPECT_EQ(animatedGlyphs[0].offsetPosition, QPointF(18.0, 0.0));
+    EXPECT_EQ(animatedGlyphs[1].offsetPosition, QPointF(0.0, 0.0));
+    const QImage animated = render(animatedGlyphs, style);
+
+    ASSERT_GT(countVisiblePixels(baseline), 0);
+    ASSERT_GT(countVisiblePixels(animated), 0);
+    EXPECT_NE(baseline, animated);
+    EXPECT_GT(alphaWeightedCentroidX(animated),
+             alphaWeightedCentroidX(baseline) + 2.0);
+}
+
+TEST_F(TextGlyphRenderContractTest, StackedAnimatorsAreAppliedBeforeGpuRasterization)
+{
+    ArtifactCore::TextStyle style;
+    style.fontSize = 32.0f;
+    style.pixelSize = 32.0f;
+    ArtifactCore::TextShapingRequest request;
+    request.text = QStringLiteral("AB");
+    request.style = style;
+    ArtifactCore::QtShapingBackend backend;
+    const auto shaped = backend.shape(request);
+    ASSERT_EQ(shaped.glyphs.size(), 2u);
+
+    const QImage baseline = render(shaped.glyphs, style);
+    auto animatedGlyphs = shaped.glyphs;
+    ArtifactCore::AnimatorSelectorSet positionAnimator;
+    positionAnimator.range.units = ArtifactCore::SelectorUnits::Index;
+    positionAnimator.range.start = 0.0f;
+    positionAnimator.range.end = 0.0f;
+    positionAnimator.range.shape = ArtifactCore::SelectorShape::Square;
+    positionAnimator.properties.position = QPointF(18.0, 0.0);
+
+    ArtifactCore::AnimatorSelectorSet opacityAnimator;
+    opacityAnimator.range = positionAnimator.range;
+    opacityAnimator.properties.opacity = 0.5f;
+
+    const std::vector<ArtifactCore::AnimatorSelectorSet> animators{
+        positionAnimator, opacityAnimator};
+    ArtifactCore::TextAnimatorEngine::applyAnimatorSets(
+        animatedGlyphs, animators, 0.0f, request.text);
+
+    ASSERT_EQ(animatedGlyphs.size(), 2u);
+    EXPECT_EQ(animatedGlyphs[0].offsetPosition, QPointF(18.0, 0.0));
+    EXPECT_FLOAT_EQ(animatedGlyphs[0].offsetOpacity, 0.5f);
+    EXPECT_EQ(animatedGlyphs[1].offsetPosition, QPointF(0.0, 0.0));
+    EXPECT_FLOAT_EQ(animatedGlyphs[1].offsetOpacity, 1.0f);
+
+    const QImage stacked = render(animatedGlyphs, style);
+    ASSERT_GT(countVisiblePixels(baseline), 0);
+    ASSERT_GT(countVisiblePixels(stacked), 0);
+    EXPECT_LT(sumAlpha(stacked), sumAlpha(baseline));
+    EXPECT_NE(baseline, stacked);
 }
