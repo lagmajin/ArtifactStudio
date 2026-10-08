@@ -1,5 +1,39 @@
 **最終更新:** 2026-10-08
 
+## 2026-10-08 — 粒子GPU第一経路化の完成確認（viewport全経路）
+
+- **関連:** ビューポート粒子分岐（`drawLayerForCompositionView`）、サムネイル（`renderLayerSurface`／`getThumbnail`）、書出キュー、デバッグハーネス。
+- **確認できた事実:** 本番viewportの粒子ラスタは全てGPU優先になった。通常→`draw()` 直接、マスク／エフェクト付き→GPU面＋既存CPUエフェクト、失敗・未初期化時のみCPU。サムネイル系（`renderLayerSurface`）は粒子分岐自体がなくプレースホルダ表示のためGPU化対象なし。書出キューはGPU readback経路。CPUに残るのはフォールバック・診断ハーネス（GPU正当性の参照用に残す）・ソフトウェアテスト用ウィジェットのみ。
+- **次に確認すべきこと:** ビルド許可後に実機で通常／エフェクト付き／trail／stretchの各表示とフォールバック到達性を確認する。現時点ではビルド・実機未実施。
+
+## 2026-10-08 — GPU統一へ向けた機能差埋め（trail／ストレッチ見た目）
+
+- **関連:** `ArtifactCore` の `ParticleVertex`（96バイト化）・`ParticleRenderer.cppm` のVS／PS、`Artifact/src/Layer/ArtifactParticleLayer.cppm`（`emitParticleTrails`／`draw`／`drawSurfaceGPU`）、各層の頂点生成箇所。
+- **確認できた事実:** ライブCPU／GPU間の実機能差は trail のみだった。テクスチャflipbookとdepth-softはライブCPU側にも実装がなく（死んだ `updateAndRenderSoftwareFrame` にだけある）、差分ではなかった。stretchは両方あるが形状が別物（GPU楕円 vs CPU角丸 rect）だった。
+- **今回の対応:** (1) Core頂点へ `prevPosition`（float4、シェーダはstride用のみ）を末尾追加し96バイト化。static_assert 更新、全生成箇所は prev=pos・積分／写像箇所は prev 追従。(2) GPU trail を line パケットで送出（`draw`／`drawSurfaceGPU` の accept 確認後のみ。棄却時に先送りするとゴースト化するため）。trail幅は写像スケール追従、trail色・fadeはCPUと同一式。(3) PSにストレッチ分岐を追加し、CPUと同ストップの垂直グラデ＋カプセルSDFで角丸rect化。円形経路は無変更。
+- **確認できた事実:** 実シェーダ3本をdxcでDXIL＋SPIRV両コンパイル成功。DXIL／SPIRVともオフセット (0,16,32,48,52,56,60,64,68,72,76,80)・96バイトでC++と一致。
+- **意図的な見た目差:** GPU trail はバッチの都合でスプライトより後に合成される（加算では等価、αではCPUと重なり順が違う）。線端は butt cap（CPUは round）。GPU面色はワーキング系のまま。
+- **未検証:** ビルド・実機未実施。3D分岐のtrailは未対応（従来通りなし）。テクスチャ粒子のGPU対応は両経路とも未実装のため対象外。
+- **次に確認すべきこと:** ビルド後、trail有効プリセットのGPU表示、ストレッチ有効時のGPU／CPU見比べ、Vulkanでの96バイト描画を確認する。
+
+## 2026-10-08 — ソフト粒子の律速3点とGPUサーフェス経路・スプライト化
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm`（`ParticleSystem::render`）、`Artifact/src/Layer/ArtifactParticleLayer.cppm`（`renderFrame`／`drawSurfaceGPU`）、`Artifact/src/Render/ArtifactOffscreenCompositionRenderer.cppm`（`renderParticleSurfaceToQImage`）、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`（粒子分岐）。
+- **確認できた事実:** CPUフォールバックの律速は (1) フレーム毎のフルHD QImage再確保（約8MB）、(2) 画面外粒子を含む全粒子への毎回グラデーション構築、(3) 透明・ゼロサイズ粒子の無駄な painter 処理だった。(1) は cachedFrame 再利用、(2) はデバイス座標の境界円カリング（trail有効時は線分が画面を横切るため停止）、(3) は先頭スキップで対応。いずれも出力不変。
+- **今回の対応:** 形状別（円形／ストレッチ）・整数サイズ・厳密8bit RGBAをキーにしたスプライトキャッシュを追加（上限 4Mpx／1024件のLRU、512px超は直接描画）。意図的な見た目差は整数丸め±0.5pxと非等倍時のリサンプルのみ。回転はストレッチ側だけ維持（円形は対称のため省略しても同一）。
+- **今回の対応:** マスク／ラスタライザエフェクト付きでもGPUを使う経路を追加。層ローカル面への写像だけを変えた `drawSurfaceGPU`（不透明度は合成側に委譲、3DはCPUへ返す）を、永続オフスクリーンヘルパー（層ID×デバイスで保持、16件超で破棄、mutex直列化）経由で描画し、readback後に既存CPUエフェクト処理へ流す。`readbackToImage()` がキュー submit を内包するため追加の submit 配線は不要。4096px超・失敗時はCPUへフォールバック。
+- **未検証:** ビルド・実機未実施（指示待ち）。残リスクは (a) 新規 `import Artifact.Layer.Particle` によるモジュール循環（静的目視では往路なし）、(b) GPU面とCPU面の色の出自差（GPU面はワーキング系、CPU面はsRGB。ビューポートGPU描画とは一致方向）、(c) 同一層への viewport／offline 並行描画は従来から競合しうる（ParticleSystem の resume 状態共有）。
+- **次に確認すべきこと:** ビルド後、エフェクト付き粒子層でGPU面が選ばれること・CPUフォールバックとの見た目差・スプライト有無でのfpsを測定する。
+
+## 2026-10-08 — 2D粒子GPUの色反転・明滅3件修正（stride／smoothstep／カリング）
+
+- **関連:** `ArtifactCore/include/Graphics/ParticleData.ixx`、`ArtifactCore/src/Graphics/ParticleRenderer.cppm`（VS／カリングCS／PS）、`Artifact/src/Layer/ArtifactParticleLayer.cppm`（static_assert）。
+- **確認できた事実:** 旧 `ParticleData`（float3 position＋float3 velocity）は DXIL では72バイト・タイトだが、Vulkan向けSPIRV（std430）では vec3 が16バイトアラインで80バイトになることを、VulkanSDKのdxc＋spirv-disで旧構造・新構造の両方を実測して確認した。C++側72バイトのままだとVulkanでは先頭粒子から color が (b,a,size,stretch) 位置ずれで読まれ、オレンジがシアン系に・size が rotation 値（0〜360乱数）を読んで巨大円 flicker になる。CPU送信が橙でPSが素通しという既存観察とも整合する。
+- **今回の修正:** C++ `ParticleVertex` に明示padding2個で80バイト化、HLSLのVS／カリングCSを `float4 position/velocity`＋`.xyz` 参照化、static_assert を80バイト系へ更新。実シェーダ3本をdxcでDXIL＋SPIRV両コンパイル成功、SPIRVオフセット (0,16,32,48,52,56,60,64,68,72,76) がC++と一致することを確認。`sizeof` 追従のためバッファ stride／snapshotバイト数は自動追従、全使用箇所はフィールド単位代入のためpaddingは0のまま。
+- **確認できた事実:** PS の `smoothstep(0.5, 0.4, dist)` は edge0>=edge1 でHLSL未定義動作のため `1.0 - smoothstep(0.4, 0.5, dist)` に修正。カリングマージン `*6.0` は描画半幅 `size*10` より小さく画面端でpopするため `*10.0` に合わせた。
+- **未検証:** プロジェクトのビルド・実機確認（ユーザー指示待ちのため未実施）。`ParticleCompute.cppm` 側の独自 `ParticleData`（float3連続・別バッファ）は今回対象外で、同種のVulkanずれリスクが残る。
+- **次に確認すべきこと:** ビルド許可後に static_assert 通過、D3D12とVulkanの両方で fire 系オレンジ描画・バースト系の明滅有無・画面端pan時のpop有無を目視確認する。
+
 ## 2026-10-08 — Soft Body を独立 Physics Testbench で先行検証
 
 - **関連:** `ArtifactCore/src/Physics/SoftBodySolver.cppm`、`ArtifactCore/src/Physics/PhysicsSystem.cppm`、`tests/ArtifactCore/PhysicsDeterminismTest.cpp`。
@@ -20,7 +54,9 @@
 - **CPUラスターテスト:** GPU実行できない構成でもproduction `GlyphAtlas` の実ラスタライズ画像を検証できるよう、Atlas alpha coverageと同一グリフ再取得時のcache/dirty契約を確認するCPU testを追加した。さらに `QtShapingBackend` の2 glyphへ `TextAnimatorEngine` を適用し、各glyphがAtlas coverage pixelへ到達するケースを加えた。`ArtifactCoreTextGlyphRasterTest` はbuild／実行に成功し、最新のtext3 suitesは `-L text -LE gpu --repeat until-fail:3` で3回すべて成功した。ビルド時のNinja assertionは、再構成で更新されたdyndep入力に対し563件の生成済みmodule map等のmtimeが古い状態だったために発生した。最新スキャン済み内容を保持したまま対象生成出力のmtimeだけを揃えると、リビルドとテストは通った。
 - **価値または懸念（未検証）:** Core評価・シェーピング・GlyphAtlas・Glyph Submitter GPU画像にはカバレッジがある一方、レイヤー本体の `text.animators` 保存復元、プロパティパス更新、Animator stack snapshot の統合契約は直接検証できない。テスト専用primary module shimはroot管理runtime targetだけの補助であり、Artifact production targetのmodule boundaryを直すものではない。
 - **追加のテスト境界:** `ArtifactTextRenderTargetContractTest` もroot管理のVulkan test-deviceへ切り替えた。共通device helperを `tests/Artifact/DiligentVulkanTestDevice.hpp` に置き、Vulkan構成ではglyph submitter runtimeへの不要なlinkを外した。RenderTargetとGlyphRenderのGPU contract両方がVulkan-only構成で成功する。
-- **次に確認すべきこと:** `ArtifactTextLayer` の直接依存を調査し、レイヤー統合テストが必要なら最小のruntime境界を設計する。依存グラフが大きい場合は、クラス実装を動かさずに保存／復元・property routing helperを抽出できるか検討する。
+- **追加確認（2026-10-08）:** レイヤーテスト用の実行入口を種類ごとの CTest 項目へ分けられる一方、`ArtifactGroupLayer` は Composition / Renderer / Texture / Property、`ArtifactShapeLayer` は Shape / Physics / Renderer / Composition に依存し、いずれも `Artifact/cmake/ArtifactSources.cmake` のアプリソースとして所有されている。少数のレイヤーだけを簡単に別ライブラリ化する境界は現状見つからず、独立プロセスの統合テストを維持している。
+- **価値または懸念（未検証）:** Artifact 実行体を起動せず本物のレイヤークラスを単体テストするには、単一クラスの試験用shimより、production が使うレイヤー runtime dependency slice を正式に分割する方が保守可能と考えられる。分割対象と ABI / module ownership の影響範囲は未調査。
+- **次に確認すべきこと:** `ArtifactTextLayer` の直接依存を調査し、レイヤー統合テストが必要なら最小のruntime境界を設計する。依存グラフが大きい場合は、クラス実装を動かさずに保存／復元・property routing helperを抽出できるか検討する。レイヤーテストを独立バイナリ化する判断時は、Group / Shape / Solid の共有依存を対象にruntime sliceの実際の依存閉包を測る。
 
 ## 2026-10-07 — ArtifactScriptの局所名ハッシュ事前計算は未採用
 
@@ -5021,5 +5057,35 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **2026-10-08 再開監査:** 生成済みビルドにある現行ソース対応の `ArtifactCoreTextShapingTest`、`ArtifactCoreTextGlyphRasterTest`、`ArtifactTextRenderTargetContractTest` を再実行し3/3成功。`ArtifactTextGlyphRenderContractTest.updated.exe` も7/7成功。これはCore／Glyph GPU画像経路の確認であり、今回追加したArtifactアプリ統合CTestの実行証拠ではない。
 - **2026-10-08 追加:** Artifact組み込みレイヤーテストに opacity Animator を追加し、position＋opacity のstack適用後の実ラスタライズalpha、stack snapshot復元、project JSON round-tripを確認する。position／opacityともselector unitsをIndexとして明示し、end=0で先頭glyphを選ぶため、percentage domainとfixtureの文字数には依存しない。ユーザーの指示によりビルドせず、現行ソースのruntime検証は未実施。
 - **独立実行についての確認・実装:** `ArtifactTextLayer.cppm` は `Artifact` 実行ファイル側の広いモジュール依存を持つため、専用の小さなテスト実行ファイルへ直接リンクするには本体側の依存分離が必要。一方、親CMakeは `Artifact` を定義した後でテスト設定に入る。専用環境変数でTextLayerケースだけ実行するアプリモードと、GTest検出前に登録する `ArtifactTextLayerAnimatorIntegrationTest` を追加した。さらに `ARTIFACT_ENABLE_TEXT_LAYER_ANIMATOR_TEST=ON` で全GTestスイートを有効にせず登録できるようにした。これはCTest上では個別選択できるが、独立バイナリではなくArtifactアプリを起動する統合テストである。CMake再生成・ビルド・実行はユーザーの指示により未実施。
+- **2026-10-08 レイヤー独立バイナリの依存調査:** `ArtifactTestAdjustmentLayer.cppm` / `ArtifactTestLayerGroup.cppm` / `ArtifactTestShapePath.cppm` / `ArtifactTestSolidLayer.cppm` と対象レイヤー実装は `Artifact/cmake/ArtifactSources.cmake` の `APP_IMPL` / `APP_MODULES` にあり、専用 `ArtifactLayerRuntime` ライブラリは存在しない。特にGroup/Solid/Adjustmentの現行契約は `ArtifactLayerFactory` を使うため、factory実装と複数レイヤーの登録依存も加わる。現状の選択的なCTest入口はテストごとにArtifactプロセスを分けるが、専用バイナリ化にはproduction module ownershipと依存閉包の分離が必要。APPソース全体を複製するテスト実行体は独立性の代わりに大規模な重複ビルドを招くため、次段階では採用しない。
 - **未確認:** 現行 `TextAnimatorContractTest.cpp` のビルド・実行、およびArtifact組み込みテストのリンク・実行。生成済みNinjaのドライランでは対象ビルドの前にCMake再実行が必要と出たため、再生成を行ってよいか確認したがユーザーは拒否。生成済みコマンドによる直接ビルドもユーザーが拒否したため、両方とも未実施。
 - **次に確認すべきこと:** CMake再生成後、`ctest -R ArtifactTextLayerAnimatorIntegrationTest` で専用経路を確認し、Artifact本体を依存に含める統合コストが許容されるか判断する。現状では既存実行ファイルはソースと一致しないため代用実行しない。
+
+## 2026-10-08 — 外部描画委譲と PSO キャッシュの整合
+
+- **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm` の `submitParticles` / `submitBillboard` / `submitBillboardImage`。
+- **確認できた事実:** 粒子の `prepare()` は submitter 外で PSO を変更する。今回、呼び出し前に `m_currentPSO_` を無効化し、成功・失敗どちらでも後続 packet が PSO を再設定できるよう修正した。Billboard の2経路も外部 renderer に描画を委譲するが、submitter の PSO キャッシュ無効化を行っていない。
+- **2026-10-08 追加対応:** 粒子画面で巨大なシアン円と青い楕円が交互に出る報告を受け、Billboard の2経路にも外部renderer呼出前のPSOキャッシュ無効化を追加した。委譲先の `PrimitiveRenderer3D` が `SetPipelineState` を呼ぶことを確認済み。症状との因果・修正効果は未検証。
+- **価値／次に確認すべきこと:** Billboard直後に同じ2D PSOを使う packet を置き、委譲先の状態変更と画面を確認する。粒子の全面シアン症状との因果および修正効果は実機未確認。
+
+## 2026-10-08 — ビューポート補助線の座標契約
+
+- **関連:** `Artifact/src/Widgets/Render/ViewportOverlay.cppm` の `drawSafeAreaAndOrigin` と `Artifact/src/Render/PrimitiveRenderer2D.cppm` の `drawThickLineLocal` / `drawQuadLocal`。
+- **確認できた事実:** ローカル線・polylineはpacketにpan/zoomを保持してキャンバス座標を描く。一方、`drawSafeAreaAndOrigin` は `canvasToViewport` で変換済みの点を同じローカル線・polylineへ渡している。今回の赤いグリッド原点軸には同じ二重変換があり、原点軸だけを修正した。
+- **懸念（未検証）:** セーフエリア矩形と原点マークにもFit／pan時の二重変換がある可能性が高い。添付画像の赤い軸とは別の表示項目なので、今回はこちらを未変更。
+- **価値／次に確認すべきこと:** Safe Area / Originを個別に有効化し、100%・Fit・pan後の矩形端点と原点をコンポジション座標と比較する。画面座標でsnapした点を戻して描くか、既存の画面座標描画経路へ統一する。
+
+## 2026-10-08 — 粒子シミュレーション再利用と外部編集境界
+
+- **関連:** `ArtifactParticleLayer::draw` / `goToFrame` / `clearFrameCache`、`ParticleSystem::goToFrame`。
+- **確認できた事実:** GPU描画ごとに先頭から再シミュレーションし、レイヤーのフレーム同期も別にupdateしていた。今回、フレーム同期の重複updateを撤去し、描画で同一フレームを再利用、120Hz境界からの前進を継続する経路を追加した。既存の2引数呼出は従来の再計算を維持する。
+- **懸念（未検証）:** `particleSystem()` / `emitter->params()` は外部に可変状態を公開している。レイヤーの `clearFrameCache()` を通さない同一フレームの外部編集では再利用の無効化が不足する可能性がある。
+- **価値／次に確認すべきこと:** 外部編集callerの無効化契約を確認する。実機で新規2D粒子、同一フレーム再描画、30fps前進、逆スクラブ、非120Hz整合fps、プリセット変更を確認し、GPU非表示原因とCPU時間を測定する。現時点ではビルド・実機未確認。
+
+## 2026-10-08 — 粒子のCPU送信診断とGPU実行証拠の境界
+
+- **関連:** `Artifact/src/Render/DiligentDeviceManager.cppm`、`ArtifactIRenderer.cppm`、`ArtifactCompositionRenderController.cppm`、`ArtifactCore/src/Graphics/ParticleRenderer.cppm`。
+- **確認できた事実:** 保存例の粒子数44／54ではCoreの64個以上というcompute culling条件を満たさず、直接描画を使う。CPU送信サンプルは橙、HLSLのPSは入力RGBをそのまま返す。`drawn` は描画命令を発行した状態を表し、実GPUの読み取り内容を検証していない。
+- **懸念（未検証）:** 正しいCPU送信値と異なる色・形状が出る場合は、GPU側のSRV内容、実際に結合したPSO／定数、描画先、および後続描画のどこで差が生まれたかを区別する必要がある。ソースの一致や検証エラーがないことだけで正常とは断定できない。
+- **今回の対応:** 停止後の保存診断にD3D12 InfoQueueの警告以上を最大32件追加する。デバイス所有境界内の参照だけで、GPU待機・読み戻し・キュー消去は行わない。共有デバイス全体の履歴であり、粒子への帰属は未検証。ビルド・実機未確認。
+- **価値／次に確認すべきこと:** 保存した検証メッセージと描画先フォーマットを照合する。どちらでも判別できなければ、実描画のGPUキャプチャで粒子SRV、VS出力、PS出力、後続drawを比較する。

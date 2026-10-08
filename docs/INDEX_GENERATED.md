@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-08 16:17
+> Generated: 2026-10-08 19:18
 > Total documents: 1441
 
 ---
@@ -1078,7 +1078,7 @@
 | 484 | `docs/planned/MILESTONE_PHYSICAL_MOTION_BLUR_2026-06-07.md` | Physical Motion Blur Milestone | 2026-08-15 | In progress (2026-07-28 implementation start: Phase 1 motion-sample contract complete and independent MotionBlurPass connected; Phase 2 compute path in progress; shutter profiles, adaptive sampling, preview/final quality policy, shader compile/runtime verification, and later performance/caching phases pending) | 2026-08-16 | 10.5 KB | PHYSICAL, MOTION, BLUR |
 | 485 | `docs/planned/MILESTONE_PHYSICS_LOD_2026-08-05.md` | 物理LOD導入マイルストーン | 2026-08-05 | --- | 2026-08-16 | 8.1 KB | PHYSICS, LOD |
 | 486 | `docs/planned/MILESTONE_PHYSICS_PRODUCTION_HARDENING.md` | MILESTONE: Physics/Simulation Production Hardening | 2026-08-04 | --- | 2026-08-16 | 13.1 KB | PHYSICS, PRODUCTION, HARDENING |
-| 487 | `docs/planned/MILESTONE_PHYSICS_TESTBENCH_SOFT_BODY_2026-10-08.md` | Physics Testbench: Soft Body First | 2026-10-08 | Not Started | --- | 5.4 KB | PHYSICS, TESTBENCH, SOFT, BODY |
+| 487 | `docs/planned/MILESTONE_PHYSICS_TESTBENCH_SOFT_BODY_2026-10-08.md` | Physics Testbench: Soft Body First | 2026-10-08 | Not Started | 2026-10-08 | 5.4 KB | PHYSICS, TESTBENCH, SOFT, BODY |
 | 488 | `docs/planned/MILESTONE_PICK_WHIP_UI_2026-06-02.md` | M-MOTION-4 Pick-Whip UI for Property Linking (2026-06-02) | 2026-06-02 | Not started (PropertyLinkManager/property binding/expression core exists, but Pick-Whip row icons, bezier wire drag, target hover, drop-mode selection, unlink/indicator UX, type-compatibility rejection UI, and runtime verification are unimplemented) | 2026-08-16 | 4.5 KB | PICK, WHIP |
 | 489 | `docs/planned/MILESTONE_PLANAR_TRACKER_2026-08-01.md` | プレーナートラッカー 実装マイルストーン | 2026-09-09 | --- | 2026-09-10 | 10.1 KB | PLANAR, TRACKER |
 | 490 | `docs/planned/MILESTONE_PLANE_LAYER_DIALOG_2026-04-04.md` | 平面レイヤー設定ダイアログ リデザイン マイルストーン | 2026-08-15 | Implemented statically (localized title/sections, name, units, dimensions, aspect lock, pixel aspect ratio, color/HEX sync, composition-size apply, and shared Create/Edit flow implemented; layout parity, persistence, lock/fit/HEX runtime behavior, and layer-creation workflow verification pending) | 2026-08-16 | 4.1 KB | PLANE, LAYER, DIALOG |
@@ -1314,7 +1314,7 @@
 | 720 | `docs/planned/MILESTONE_WORKSPACE_MANAGER_2026-03-29.md` | Milestone: Workspace Manager (2026-03-29) | 2026-03-29 | Implemented | 2026-08-16 | 3.8 KB | WORKSPACE, MANAGER |
 | 721 | `docs/planned/MILESTONE_WORKSPACE_PRESETS_2026-04-10.md` | ワークスペースプリセット管理の実装 | 2026-08-04 | --- | 2026-08-06 | 5.3 KB | WORKSPACE, PRESETS |
 | 722 | `docs/planned/MILESTONE_ZOOM_TO_FIT_2026-04-10.md` | ズームtoフィット機能の拡張 | 2026-08-15 | 実装完了（runtime検証待ち） | 2026-08-16 | 5.9 KB | ZOOM, FIT |
-| 723 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-10-08 | --- | 2026-10-02 | 287.1 KB | BACKLOG |
+| 723 | `docs/planned/MILESTONES_BACKLOG.md` | Milestones Backlog | 2026-10-08 | --- | 2026-10-08 | 287.1 KB | BACKLOG |
 | 724 | `docs/planned/NEXT_PHASE_ROADMAP.md` | プロジェクトビュー → タイムライン統合の次フェーズ提案 | 2026-06-07 | --- | 2026-07-05 | 9.1 KB | NEXT, PHASE, ROADMAP |
 | 725 | `docs/planned/P0_DESIGN_NOTES_2026-09-22.md` | P0 設計メモ — VIEWPORT_DCC_PARITY_C4D_HOUDINI_MAYA_2026-09-22 着手前調査 | 2026-09-22 | 着手前調査のみ。コード変更なし。 | 2026-09-22 | 21.9 KB | DESIGN, NOTES |
 | 726 | `docs/planned/PHYSICAL_LENS_FLARE_IMPLEMENTATION_2026-08-13.md` | 物理ベース・レンズフレア実装 手順書 | 2026-08-13 | --- | 2026-08-16 | 17.8 KB | PHYSICAL, LENS, FLARE, IMPLEMENTATION |

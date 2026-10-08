@@ -13,6 +13,7 @@
 import Artifact.Acoustic.System;
 import Artifact.Acoustic;
 import Artifact.Acoustic.WaveModel;
+import Artifact.Acoustic.WindModel;
 import Artifact.Acoustic.AudioTaskSynthesizer;
 
 namespace {
@@ -121,6 +122,31 @@ void expectPlayableWav(Artifact::Acoustic::AcousticSystem& acoustic,
     const auto wavePath = std::filesystem::current_path() / "temp" / filename;
     ASSERT_TRUE(writeWaveFile(wavePath, pcm)) << wavePath.string();
     EXPECT_EQ(std::filesystem::file_size(wavePath), 44u + pcm.size() * sizeof(std::int16_t));
+}
+
+std::vector<float> renderRainPreview(
+    Artifact::Acoustic::RainImpactSurface surface,
+    int durationSeconds = 2)
+{
+    Artifact::Acoustic::AcousticSystem acoustic;
+    acoustic.SetRainIntensity(350.0f);
+    acoustic.SetRainImpactSurface(surface);
+
+    const std::size_t totalFrames =
+        static_cast<std::size_t>(kSampleRate * durationSeconds);
+    std::vector<float> pcm(totalFrames * 2u, 0.0f);
+    std::vector<float> block(kFramesPerBlock * 2u, 0.0f);
+    for (std::size_t frame = 0; frame < totalFrames;) {
+        const std::size_t frameCount = std::min(kFramesPerBlock, totalFrames - frame);
+        acoustic.Update(static_cast<float>(frameCount) / kSampleRate);
+        const std::span<float> outputBlock(block.data(), frameCount * 2u);
+        if (!acoustic.RenderAudioBlock(outputBlock, kSampleRate)) {
+            return {};
+        }
+        std::copy_n(block.begin(), frameCount * 2u, pcm.begin() + frame * 2u);
+        frame += frameCount;
+    }
+    return pcm;
 }
 
 TEST(AcousticGenerationTest, WavesProducePlayableWav)
@@ -251,4 +277,104 @@ TEST(AcousticGenerationTest, WaterRainProducesPlayableWav)
 
     expectPlayableWav(acoustic, "acoustic_rain_water_preview.wav", true,
         Artifact::Acoustic::RainImpactSurface::Water);
+}
+
+TEST(AcousticGenerationTest, RainDoesNotRepeatAtOneSecondOffset)
+{
+    const std::vector<float> pcm = renderRainPreview(
+        Artifact::Acoustic::RainImpactSurface::Solid);
+    ASSERT_EQ(pcm.size(), static_cast<std::size_t>(2 * kSampleRate * 2));
+
+    constexpr std::size_t windowSamples = kSampleRate / 10u * 2u;
+    constexpr std::size_t secondWindowOffset = kSampleRate * 2u;
+    EXPECT_FALSE(std::equal(
+        pcm.begin(), pcm.begin() + windowSamples,
+        pcm.begin() + secondWindowOffset));
+}
+
+TEST(AcousticGenerationTest, WaterRainDiffersFromSolidImpact)
+{
+    const std::vector<float> solid = renderRainPreview(
+        Artifact::Acoustic::RainImpactSurface::Solid);
+    const std::vector<float> water = renderRainPreview(
+        Artifact::Acoustic::RainImpactSurface::Water);
+    ASSERT_FALSE(solid.empty());
+    ASSERT_EQ(solid.size(), water.size());
+
+    double differenceSquaredSum = 0.0;
+    for (std::size_t i = 0; i < solid.size(); ++i) {
+        ASSERT_TRUE(std::isfinite(solid[i]));
+        ASSERT_TRUE(std::isfinite(water[i]));
+        const double difference = static_cast<double>(solid[i]) - water[i];
+        differenceSquaredSum += difference * difference;
+    }
+    const double differenceRms =
+        std::sqrt(differenceSquaredSum / solid.size());
+    EXPECT_GT(differenceRms, 0.00001);
+}
+
+TEST(AcousticGenerationTest, WindGustsModulateFourOrderedNoiseBands)
+{
+    using namespace Artifact::Acoustic;
+    WindModel wind;
+    wind.SetVelocity(15.0f);
+
+    const AudioTaskBatch initial = wind.GenerateTasks();
+    ASSERT_EQ(initial.count, 4u);
+    float initialLowBandAmplitude = initial.tasks[0].amplitude;
+    EXPECT_GT(initialLowBandAmplitude, 0.0f);
+
+    bool observedGustChange = false;
+    for (int step = 0; step < 300; ++step) {
+        wind.Update(0.02f);
+        const AudioTaskBatch tasks = wind.GenerateTasks();
+        ASSERT_EQ(tasks.count, 4u);
+        for (std::size_t i = 0; i < tasks.count; ++i) {
+            EXPECT_EQ(tasks.tasks[i].type, SynthesisType::BandPassNoise);
+            EXPECT_TRUE(std::isfinite(tasks.tasks[i].frequency));
+            EXPECT_TRUE(std::isfinite(tasks.tasks[i].amplitude));
+            EXPECT_GE(tasks.tasks[i].amplitude, 0.0f);
+            if (i > 0) {
+                EXPECT_GT(tasks.tasks[i].frequency,
+                          tasks.tasks[i - 1].frequency);
+            }
+        }
+        observedGustChange |=
+            std::abs(tasks.tasks[0].amplitude - initialLowBandAmplitude) > 0.001f;
+    }
+    EXPECT_TRUE(observedGustChange);
+}
+
+TEST(AcousticGenerationTest, OfflineRenderAcceptsUnevenBlocksAndWritesFullDuration)
+{
+    using namespace Artifact::Acoustic;
+
+    AcousticSystem acoustic;
+    acoustic.SetWaveHeight(0.65f);
+    acoustic.SetWavePeriod(4.2f);
+    acoustic.SetWaveBreaking(0.55f);
+
+    constexpr std::size_t totalFrames = 2u * kSampleRate + 137u;
+    constexpr std::array<std::size_t, 4> blockSizes{127u, 511u, 64u, 256u};
+    std::vector<float> pcm(totalFrames * 2u, 0.0f);
+    std::vector<float> block(511u * 2u, 0.0f);
+
+    std::size_t frame = 0;
+    std::size_t blockIndex = 0;
+    while (frame < totalFrames) {
+        const std::size_t requested = blockSizes[blockIndex++ % blockSizes.size()];
+        const std::size_t frameCount = std::min(requested, totalFrames - frame);
+        acoustic.Update(static_cast<float>(frameCount) / kSampleRate);
+        const std::span<float> outputBlock(block.data(), frameCount * 2u);
+        ASSERT_TRUE(acoustic.RenderAudioBlock(outputBlock, kSampleRate));
+        ASSERT_TRUE(std::all_of(outputBlock.begin(), outputBlock.end(),
+                                [](float sample) { return std::isfinite(sample); }));
+        std::copy(outputBlock.begin(), outputBlock.end(), pcm.begin() + frame * 2u);
+        frame += frameCount;
+    }
+
+    const auto wavePath = std::filesystem::current_path() / "temp" /
+                          "offline_wave_2s_plus_137_frames.wav";
+    ASSERT_TRUE(writeWaveFile(wavePath, pcm)) << wavePath.string();
+    EXPECT_EQ(std::filesystem::file_size(wavePath), 44u + totalFrames * 2u * sizeof(std::int16_t));
 }

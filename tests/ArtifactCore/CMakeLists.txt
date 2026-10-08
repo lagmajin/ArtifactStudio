@@ -122,6 +122,16 @@ artifact_add_test(ArtifactCoreColorBridgeTest
         ArtifactCore
 )
 
+artifact_add_test(ArtifactCoreColorSpaceTest
+    SOURCES
+        ColorSpaceTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreColorSpaceTest PROPERTIES
+    LABELS "color;color-space;cpu;unit"
+)
+
 artifact_add_test(ArtifactCoreArtifactFoundationTest
     SOURCES
         ArtifactFoundationTest.cpp
