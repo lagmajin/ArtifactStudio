@@ -4506,6 +4506,14 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **価値または懸念:** suiteをArtifact.exe相当の依存へ広げず、テスト対象library所有境界とmodule importを一致できる。3 effectの直接テストcoverageは独立target seamができるまで欠ける。
 - **次に確認すべきこと:** Artifact submodule変更が許可された場合、これらが他 effect packと共通の小さなtargetへ安全に抽出できるか依存closureを確認する。代替として親側からsource moduleを専用test libraryへ登録する方法はCMake module/file-set境界のレビュー後に判断する。現時点ではArtifact submodule・CMakeを変更しない。
 
+## 2026-10-08 — 空間画像エフェクトの独立CPU契約テスト
+
+- **関連:** `tests/Artifact/SpatialImageEffectContractTest.cpp`、`ArtifactEffectsBlur`、`Artifact.Effect.Rasterizer.ApertureShapeBlur`。
+- **確認できた事実:** `ArtifactEffectsBlur` は独立した静的ライブラリで、Aperture Shape Blur のCPU implementationを所有する。画像をぼかすとRGBは近傍へ広がり、実装はalpha planeをそのまま出力へ戻す。
+- **対応:** 個別GTest targetでRGBの広がり、alpha保持、入力不変、出力寸法を固定する契約テストを追加した。独立画像エフェクトオプションから既存のCore creative effect suiteも単独登録するようにした。実行は未確認。
+- **価値または懸念（未検証）:** 点処理の露出・色補正、Coreのcreative effect群に加え、近傍サンプリングのCPU処理もArtifact本体のテスト起動入口に依存せず検査できる。既存 `BlurEffect` は専用 `ArtifactEffectsBlur` targetの所有範囲外のため、このsuiteでは対象にしない。
+- **次に確認すべきこと:** ビルド後にこのtargetを単独実行し、FFT畳み込みの端部挙動と複数入力alpha descriptorでalpha保持を確認する。
+
 ## 2026-10-06 — Lift/Gamma/Gain の CPU と resident GPU alpha 処理差（未検証）
 
 - **関連:** `Artifact/src/Effects/LiftGammaGainEffect.cppm`、`tests/Artifact/ColorCorrectionEffectContractTest.cpp`。

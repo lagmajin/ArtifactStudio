@@ -1,7 +1,26 @@
 # Artifact.exe 非依存テストスイートと UI ビジュアル回帰計画
 
-**最終更新:** 2026-10-07
+**最終更新:** 2026-10-08
 **ステータス:** In Progress
+
+## 進捗 2026-10-08
+
+- 独立テスト選択を追加した。`ARTIFACT_ENABLE_LAYER_TEST` は Adjustment / Group / Shape / Solid を個別CTest項目として登録する（各テストはArtifact実行体のテストモードを使う）。`AppMain` は各環境変数から対応する1種類のrunnerだけを呼び出して終了し、通常の `runAllTests()` へ進まない。`ARTIFACT_ENABLE_OFFLINE_RENDER_TEST` は単体レンダラーのclear/readback、矩形描画/readback契約とCompositionのオフスクリーン描画を登録する。`ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS` はCore creative effects、Exposure、Color Correction、Aperture Shape Blurを個別GTest targetとして選択できる。Blur契約はRGBの近傍拡散、alpha保持、入力不変、寸法を確認する。CMake configure・ビルド・テストは未実施。
+
+独立テストをまとめて登録するには、GTest対応のビルド環境で次を使う。
+
+```powershell
+cmake -S . -B build-independent-tests `
+  -DARTIFACT_ENABLE_LAYER_TEST=ON `
+  -DARTIFACT_ENABLE_OFFLINE_RENDER_TEST=ON `
+  -DARTIFACT_ENABLE_IMAGE_EFFECT_TESTS=ON
+cmake --build build-independent-tests --config Debug --target Artifact ArtifactCoreCreativeEffectTest ArtifactExposureEffectContractTest ArtifactColorCorrectionEffectContractTest ArtifactSpatialImageEffectContractTest ArtifactOfflineRendererContractTest
+ctest --test-dir build-independent-tests -C Debug --output-on-failure -L image-effect
+ctest --test-dir build-independent-tests -C Debug --output-on-failure -R "Artifact(AdjustmentLayer|LayerGroup|ShapeLayer|SolidLayer)Test"
+ctest --test-dir build-independent-tests -C Debug --output-on-failure -R "ArtifactOffline(Render|RendererContract)Test"
+```
+
+レイヤーテストとComposition描画統合テストは `Artifact.exe` のテストモードを起動する。`ArtifactOfflineRendererContractTest` と画像エフェクトは専用テスト実行ファイルで実行する。ここに記載したコマンドは案内用で、今回実行していない。
 
 ## 進捗 2026-10-07
 

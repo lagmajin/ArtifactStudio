@@ -32,9 +32,28 @@ function(artifact_add_test target_name)
 endfunction()
 
 # ArtifactCore tests
-add_subdirectory(ArtifactCore)
+if(ARTIFACT_BUILD_TESTS)
+    add_subdirectory(ArtifactCore)
+endif()
 
-add_subdirectory(Artifact)
+# Keep the broad CPU creative-effect contract suite independently selectable
+# without registering the rest of ArtifactCore's tests.
+if(ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS AND NOT ARTIFACT_BUILD_TESTS)
+    artifact_add_test(ArtifactCoreCreativeEffectTest
+        SOURCES
+            "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/ColorVibranceEffectTest.cpp"
+        LIBS
+            ArtifactCoreVideo
+    )
+    set_tests_properties(ArtifactCoreCreativeEffectTest PROPERTIES
+        LABELS "effect;image-effect;cpu;contract;core"
+    )
+endif()
+
+if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS
+   OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
+    add_subdirectory(Artifact)
+endif()
 
 # ArtifactWidgets tests (later)
 # add_subdirectory(ArtifactWidgets)

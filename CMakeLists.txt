@@ -837,27 +837,90 @@ option(ARTIFACT_BUILD_TESTS "Build unit tests" OFF)
 option(ARTIFACT_ENABLE_TEXT_LAYER_ANIMATOR_TEST
     "Register the Artifact TextLayer animator integration test with CTest"
     OFF)
-if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_TEXT_LAYER_ANIMATOR_TEST)
+option(ARTIFACT_ENABLE_LAYER_TEST
+    "Register isolated Artifact layer integration tests with CTest"
+    OFF)
+option(ARTIFACT_ENABLE_OFFLINE_RENDER_TEST
+    "Register standalone and composition-level headless render tests with CTest"
+    OFF)
+option(ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS
+    "Build only the standalone CPU image effect contract tests"
+    OFF)
+if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_TEXT_LAYER_ANIMATOR_TEST
+   OR ARTIFACT_ENABLE_LAYER_TEST OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST
+   OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
     enable_testing()
 
-    # The app-owned TextLayer integration test has no GTest dependency. Keep
-    # it independently selectable without enabling the complete unit suite.
-    add_test(NAME ArtifactTextLayerAnimatorIntegrationTest
-        COMMAND $<TARGET_FILE:Artifact>
-    )
-    set_tests_properties(ArtifactTextLayerAnimatorIntegrationTest PROPERTIES
-        ENVIRONMENT "ARTIFACT_RUN_TEXT_LAYER_ANIMATOR_TESTS=1"
-        LABELS "animation;text;integration"
-        TIMEOUT 120
-    )
+    if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_TEXT_LAYER_ANIMATOR_TEST)
+        # The app-owned TextLayer integration test has no GTest dependency.
+        add_test(NAME ArtifactTextLayerAnimatorIntegrationTest
+            COMMAND $<TARGET_FILE:Artifact>
+        )
+        set_tests_properties(ArtifactTextLayerAnimatorIntegrationTest PROPERTIES
+            ENVIRONMENT "ARTIFACT_RUN_TEXT_LAYER_ANIMATOR_TESTS=1"
+            LABELS "animation;text;layer;integration"
+            TIMEOUT 120
+        )
+    endif()
+
+    if(ARTIFACT_ENABLE_LAYER_TEST)
+        add_test(NAME ArtifactAdjustmentLayerTest
+            COMMAND $<TARGET_FILE:Artifact>
+        )
+        set_tests_properties(ArtifactAdjustmentLayerTest PROPERTIES
+            ENVIRONMENT "ARTIFACT_RUN_ADJUSTMENT_LAYER_TESTS=1"
+            LABELS "layer;integration"
+            TIMEOUT 120
+        )
+
+        add_test(NAME ArtifactLayerGroupTest
+            COMMAND $<TARGET_FILE:Artifact>
+        )
+        set_tests_properties(ArtifactLayerGroupTest PROPERTIES
+            ENVIRONMENT "ARTIFACT_RUN_LAYER_GROUP_TESTS=1"
+            LABELS "layer;integration"
+            TIMEOUT 120
+        )
+
+        add_test(NAME ArtifactShapeLayerTest
+            COMMAND $<TARGET_FILE:Artifact>
+        )
+        set_tests_properties(ArtifactShapeLayerTest PROPERTIES
+            ENVIRONMENT "ARTIFACT_RUN_SHAPE_LAYER_TESTS=1"
+            LABELS "layer;integration"
+            TIMEOUT 120
+        )
+
+        add_test(NAME ArtifactSolidLayerTest
+            COMMAND $<TARGET_FILE:Artifact>
+        )
+        set_tests_properties(ArtifactSolidLayerTest PROPERTIES
+            ENVIRONMENT "ARTIFACT_RUN_SOLID_LAYER_TESTS=1"
+            LABELS "layer;integration"
+            TIMEOUT 120
+        )
+    endif()
+
+    if(ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
+        add_test(NAME ArtifactOfflineRenderTest
+            COMMAND $<TARGET_FILE:Artifact>
+        )
+        set_tests_properties(ArtifactOfflineRenderTest PROPERTIES
+            ENVIRONMENT "ARTIFACT_RUN_OFFLINE_RENDER_TESTS=1"
+            LABELS "renderer;gpu;offline;integration"
+            TIMEOUT 180
+            RUN_SERIAL TRUE
+        )
+    endif()
 endif()
 
-if(ARTIFACT_BUILD_TESTS)
+if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS
+   OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
     find_package(GTest CONFIG QUIET)
     if(GTest_FOUND)
         add_subdirectory(tests)
     else()
-        message(WARNING "GTest was not found; skipping unit tests.")
+        message(WARNING "GTest was not found; skipping GTest-based tests.")
     endif()
 endif()
 

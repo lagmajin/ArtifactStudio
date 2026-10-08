@@ -62,6 +62,9 @@ artifact_add_test(ArtifactCoreCreativeEffectTest
     LIBS
         ArtifactCoreVideo
 )
+set_tests_properties(ArtifactCoreCreativeEffectTest PROPERTIES
+    LABELS "effect;image-effect;cpu;contract;core"
+)
 
 artifact_add_test(ArtifactCoreAudioMixerRoutingTest
     SOURCES

@@ -1,24 +1,50 @@
-artifact_add_test(ArtifactExposureEffectContractTest
-    SOURCES
-        ExposureEffectContractTest.cpp
-    LIBS
-        ArtifactEffectsColor
-)
-set_tests_properties(ArtifactExposureEffectContractTest PROPERTIES
-    LABELS "effect;cpu;contract"
-)
+if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
+    artifact_add_test(ArtifactExposureEffectContractTest
+        SOURCES
+            ExposureEffectContractTest.cpp
+        LIBS
+            ArtifactEffectsColor
+    )
+    set_tests_properties(ArtifactExposureEffectContractTest PROPERTIES
+        LABELS "effect;image-effect;cpu;contract"
+    )
 
-artifact_add_test(ArtifactColorCorrectionEffectContractTest
-    SOURCES
-        ColorCorrectionEffectContractTest.cpp
-    LIBS
-        ArtifactEffectsColor
-)
-set_tests_properties(ArtifactColorCorrectionEffectContractTest PROPERTIES
-    LABELS "effect;cpu;contract"
-)
+    artifact_add_test(ArtifactColorCorrectionEffectContractTest
+        SOURCES
+            ColorCorrectionEffectContractTest.cpp
+        LIBS
+            ArtifactEffectsColor
+    )
+    set_tests_properties(ArtifactColorCorrectionEffectContractTest PROPERTIES
+        LABELS "effect;image-effect;cpu;contract"
+    )
 
-if(VULKAN_SUPPORTED OR D3D12_SUPPORTED)
+    artifact_add_test(ArtifactSpatialImageEffectContractTest
+        SOURCES
+            SpatialImageEffectContractTest.cpp
+        LIBS
+            ArtifactEffectsBlur
+    )
+    set_tests_properties(ArtifactSpatialImageEffectContractTest PROPERTIES
+        LABELS "effect;image-effect;cpu;contract;spatial"
+    )
+endif()
+
+if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
+    artifact_add_test(ArtifactOfflineRendererContractTest
+        SOURCES
+            OfflineRendererContractTest.cpp
+        LIBS
+            ArtifactRender
+    )
+    set_tests_properties(ArtifactOfflineRendererContractTest PROPERTIES
+        LABELS "renderer;gpu;offline;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+endif()
+
+if(ARTIFACT_BUILD_TESTS AND (VULKAN_SUPPORTED OR D3D12_SUPPORTED))
     # The submitter implementation module has no primary interface in the
     # Artifact submodule. Both backend-specific test paths need the root-owned
     # test shim and Config provider when they link this runtime target.
@@ -60,7 +86,7 @@ endif()
 
 # The offscreen fixture creates its device through Diligent's Vulkan backend so
 # it can exercise glyph rendering on Vulkan-only hosts as well.
-if(VULKAN_SUPPORTED)
+if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
     artifact_add_test(ArtifactTextGlyphRenderContractTest
         SOURCES
             TextGlyphRenderContractTest.cpp

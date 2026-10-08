@@ -907,7 +907,7 @@
 | 313 | `docs/planned/MILESTONE_EXTERNAL_SEMANTIC_DEBUGGER_2026-09-02.md` | MILESTONE: 外部 Semantic Debugger（ArtifactDebugger.exe） | 2026-09-05 | Not Started | 2026-09-07 | 21.5 KB | EXTERNAL, SEMANTIC, DEBUGGER |
 | 314 | `docs/planned/MILESTONE_FACE_DETECTION_MOSAIC_2026-04-01.md` | Milestone: Face Detection & Auto-Mosaic (2026-04-01) | 2026-04-01 | FaceDetection／FaceTracker／AutoMosaic の基盤実装済み、モデル運用・UI・runtime parity は未完了 | 2026-08-16 | 7.3 KB | FACE, DETECTION, MOSAIC |
 | 315 | `docs/planned/MILESTONE_FARM_WORKER_REMOTE_RENDER_2026-08-01.md` | リモートレンダーファームワーカー 実装マイルストーン | 2026-08-01 | --- | 2026-08-16 | 10.8 KB | FARM, WORKER, REMOTE, RENDER |
-| 316 | `docs/planned/MILESTONE_FAST_TEST_SUITES_AND_UI_VISUAL_REGRESSION_2026-10-06.md` | Artifact.exe 非依存テストスイートと UI ビジュアル回帰計画 | 2026-10-07 | In Progress | 2026-10-07 | 50.5 KB | FAST, TEST, SUITES, AND |
+| 316 | `docs/planned/MILESTONE_FAST_TEST_SUITES_AND_UI_VISUAL_REGRESSION_2026-10-06.md` | Artifact.exe 非依存テストスイートと UI ビジュアル回帰計画 | 2026-10-08 | In Progress | 2026-10-07 | 52.5 KB | FAST, TEST, SUITES, AND |
 | 317 | `docs/planned/MILESTONE_FEATURE_EXPANSION_2026-03-25.md` | マイルストーン: 機能追加 / Feature Expansion | 2026-03-25 | --- | 2026-08-16 | 14.4 KB | FEATURE, EXPANSION |
 | 318 | `docs/planned/MILESTONE_FEATURE_EXPANSION_FOCUS_TRIO_2026-03-28.md` | マイルストーン: Feature Expansion Focus Trio | 2026-03-28 | --- | 2026-08-16 | 5.9 KB | FEATURE, EXPANSION, FOCUS, TRIO |
 | 319 | `docs/planned/MILESTONE_FFMPEG_81_PRORES_GPU_DECODE_LOW_LEVEL_AI_2026-05-23.md` | FFmpeg 8.1+ ProRes GPU Decode - Low Level AI Implementation Milestone | 2026-09-07 | --- | 2026-09-08 | 14.1 KB | FFMPEG, PRORES, GPU, DECODE |
@@ -1393,7 +1393,7 @@
 | 24 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.3 KB | IMPL, DOF |
 | 25 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.8 KB | IMPL, SSAO |
 | 26 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.6 KB | IMPL, TONE, MAPPING |
-| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-08 | --- | 2026-10-08 | 352.2 KB | INDEX, GENERATED |
+| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-08 | --- | 2026-10-08 | 352.4 KB | INDEX, GENERATED |
 | 28 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 29 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 12.0 KB | CAMERA, PROJECTION |
 | 30 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
