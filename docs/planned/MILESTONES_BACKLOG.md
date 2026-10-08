@@ -1,6 +1,12 @@
 # Milestones Backlog
 
-**最終更新:** 2026-10-02
+**最終更新:** 2026-10-08
+
+### Physics Testbench（Soft Body first）
+- **M-PHYS-TEST-1** 独立 Physics Testbench の設計・実装（Not Started）
+  - Composition / Layer の物理設定から独立した実験面を作り、既存 `Physics.SoftBody` の布・ゲルを固定 timestep で再生・step・reset・観察する
+  - 初期段階は布格子、物理値、pin、collider 可視化、再現可能な条件保存を対象とし、solver 改変や制作レイヤー機能追加は含めない
+  - 詳細: `docs/planned/MILESTONE_PHYSICS_TESTBENCH_SOFT_BODY_2026-10-08.md`
 
 ### CLI・Python 対話実行
 

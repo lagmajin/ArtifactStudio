@@ -1,5 +1,14 @@
 **最終更新:** 2026-10-08
 
+## 2026-10-08 — Soft Body を独立 Physics Testbench で先行検証
+
+- **関連:** `ArtifactCore/src/Physics/SoftBodySolver.cppm`、`ArtifactCore/src/Physics/PhysicsSystem.cppm`、`tests/ArtifactCore/PhysicsDeterminismTest.cpp`。
+- **確認できた事実:** SoftBodySolver は固定 timestep、snapshot/restore、collider 等を持ち、PhysicsSystem は layer ID をキーに solver を所有する。既存の ArtifactCore テストには決定性・重力・減衰の契約確認がある。制作向けの Soft Body / Cloth マイルストーンは GPU deformation や bake parity など別の未完了範囲を持つ。
+- **追加確認:** `enableSoftBodyPhysicsGrid()` は `localBounds()` から独立した格子を作るので、元の平面ポリゴンの頂点数はsolver格子の密度を制限しない。一方、現在 `drawSoftBodyGrid()` を使って変形格子を描くのは `ArtifactShapeLayer` だけであり、SolidImage/Image系へ同じ変形描画が通る根拠は見つからない。
+- **気づき:** 物理を独立して試したい要望に対して、PhysicsSystem/Compositionへ実験用状態を混ぜるより、solverを専有する独立テストベンチを設けると、制作レイヤーの複雑さから切り離して調整・再現できる可能性がある。
+- **価値または懸念（未検証）:** GUI上で条件を変えて動きを観察できれば、solverの体感調整と再現可能な検証条件を両立できる。一方、UI登録先、描画方法、条件ファイル形式は調査・設計が必要。
+- **次に確認すべきこと:** 独立ドック/ツールウィンドウの既存登録経路、Solver APIの初期化/reset契約をコードで確認し、P0設計を固める。
+
 ## 2026-10-08 — Spatial Room/初期反射/残響の物理化設計（M-AU-9.7具体化）
 
 ## 2026-10-07 — ArtifactTextLayer の独立した統合テスト境界
