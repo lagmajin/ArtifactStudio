@@ -287,9 +287,58 @@ private:
 
 } // namespace
 
+static int captureFirework(const QString& outputDirectory)
+{
+    QDir output(outputDirectory);
+    if (!output.mkpath(QStringLiteral("."))) {
+        qCritical("Could not create firework capture directory");
+        return 2;
+    }
+
+    constexpr std::array<float, 5> CaptureTimes{1.1f, 1.3f, 1.5f, 1.7f, 1.9f};
+    Artifact::ArtifactParticleLayer layer;
+    layer.loadPreset(QStringLiteral("explosion"));
+    layer.resetParticleSystem();
+    layer.play();
+    Artifact::ArtifactIRenderer softwareRenderer;
+    for (std::size_t index = 0; index < CaptureTimes.size(); ++index) {
+        const auto frameNumber = static_cast<std::int64_t>(CaptureTimes[index] * 30.0f);
+        layer.goToFrame(frameNumber);
+        layer.draw(&softwareRenderer);
+        QImage frame;
+        if (!layer.getCachedFrame(frameNumber, frame)) {
+            qCritical("Firework layer did not produce a cached frame");
+            return 3;
+        }
+        const auto* system = layer.particleSystem();
+        const std::size_t aliveCount = system && !system->emitters().empty()
+            && system->emitters().front()
+            ? system->emitters().front()->particles().size() : 0;
+        if (aliveCount == 0) {
+            qCritical("Firework simulation produced no particles");
+            return 4;
+        }
+        if (frame.isNull()) {
+            qCritical("Firework renderer returned an empty frame");
+            return 3;
+        }
+        const QString path = output.filePath(
+            QStringLiteral("firework_%1.png").arg(static_cast<int>(index), 2, 10, QLatin1Char('0')));
+        if (!frame.save(path, "PNG")) {
+            qCritical("Could not save firework capture");
+            return 4;
+        }
+    }
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
+    const QStringList arguments = app.arguments();
+    if (arguments.size() == 3 && arguments[1] == QStringLiteral("--capture-firework")) {
+        return captureFirework(arguments[2]);
+    }
     ParticleLayerWindow window;
     window.show();
     return app.exec();

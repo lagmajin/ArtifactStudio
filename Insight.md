@@ -26,6 +26,13 @@
 - **状態:** 実装済み、ビルド・runtime未検証。
 - **確認すること:** 層追加の固まり解消、初回CPU→GPU切替の継ぎ目、trail／stretch／エフェクト付き表示、2回目起動での待機診断消失とキャッシュファイル生成、Vulkanでの96バイト stride。
 
+### 2026-10-09 — 粒子キャプチャはレイヤーのフレーム同期経路を通す
+
+- **関連:** `tools/Particle2DPlayground/main.cpp`、`Artifact/src/Layer/ArtifactParticleLayer.cppm`、`Artifact/src/Generator/ArtifactParticleGenerator.cppm`。
+- **確認済み:** `renderFrame()` に大きな時間差を直接渡しただけでは burst が出ず、空PNGになった。`ArtifactParticleLayer::draw()` は `goToFrame()` で決定論的な粒子状態を同期してからソフト描画へ進む。Playground の自動キャプチャもこの既存経路を通すと粒子があるPNGを出力できた。
+- **価値／懸念:** 自動画像テストが空画像を成功扱いしないよう、粒子数・保存成否を検証する必要がある。現在の `--capture-firework` はソフト描画経路のみで、GPU readback と連続再生／seek間の画素一致は未検証。
+- **次に確認:** 同じ burst を GPU と software で保存し、連続再生・直接seek・巻き戻し後の同一フレーム画像を比較する。
+
 ### 静止画・連番画像 — GPU cache と実素材の再生／出力確認
 
 - **関連:** `Artifact/src/Layer/ArtifactImageLayer.cppm`、`Artifact/src/Render/GPUTextureCacheManager.cppm`。
