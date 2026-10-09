@@ -37,3 +37,11 @@ the app opens a folder or file picker. Numbered PNGs are sorted numerically;
 the samples contain 16 frames and play at 12 fps. The test calls the layer's
 existing `renderFrame()` image path for both sequence and atlas sprites; regular
 particles call `ArtifactParticleLayer::draw()` and render through Diligent.
+
+## Firework PNG capture
+
+Capture the production explosion preset at five points from 1.1 to 1.9 seconds. The command drives deterministic frame sync and the software image-render path, saves transparent PNGs, and checks direct seek and revisiting frame 45 against continuous playback. It writes `determinism_report.txt` and exits nonzero for empty output, out-of-tolerance frames, or save failures:
+
+```powershell
+<build-directory>\bin\Debug\ArtifactParticle2DPlayground.exe --capture-firework <output-directory>
+```

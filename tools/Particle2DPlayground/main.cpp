@@ -1,5 +1,6 @@
 #include <QApplication>
 #include <QDir>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QImage>
@@ -16,6 +17,7 @@
 #include <array>
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 
 import Artifact.Layer.Particle;
 import Artifact.Generator.Particle;
@@ -295,40 +297,123 @@ static int captureFirework(const QString& outputDirectory)
         return 2;
     }
 
-    constexpr std::array<float, 5> CaptureTimes{1.1f, 1.3f, 1.5f, 1.7f, 1.9f};
-    Artifact::ArtifactParticleLayer layer;
-    layer.loadPreset(QStringLiteral("explosion"));
-    layer.resetParticleSystem();
-    layer.play();
+    constexpr std::array<std::int64_t, 5> CaptureFrames{33, 39, 45, 51, 57};
     Artifact::ArtifactIRenderer softwareRenderer;
-    for (std::size_t index = 0; index < CaptureTimes.size(); ++index) {
-        const auto frameNumber = static_cast<std::int64_t>(CaptureTimes[index] * 30.0f);
+    const auto captureAtFrame = [&softwareRenderer](
+        Artifact::ArtifactParticleLayer& layer,
+        std::int64_t frameNumber,
+        QImage& frame) {
         layer.goToFrame(frameNumber);
         layer.draw(&softwareRenderer);
+        return layer.getCachedFrame(frameNumber, frame) && !frame.isNull();
+    };
+    constexpr std::uint64_t MaxDifferentPixels = 64;
+    constexpr std::uint64_t MaxChannelDelta = 8;
+    const auto imagesMatch = [](const std::array<std::uint64_t, 2>& difference) {
+        return difference[0] <= MaxDifferentPixels &&
+               difference[1] <= MaxChannelDelta;
+    };
+    const auto hasVisiblePixel = [](const QImage& frame) {
+        for (int y = 0; y < frame.height(); ++y) {
+            const auto* row = reinterpret_cast<const QRgb*>(frame.constScanLine(y));
+            for (int x = 0; x < frame.width(); ++x) {
+                if (qAlpha(row[x]) > 0) return true;
+            }
+        }
+        return false;
+    };
+    const auto imageDifference = [](const QImage& left, const QImage& right) {
+        std::array<std::uint64_t, 2> result{};
+        if (left.size() != right.size() || left.format() != right.format()) {
+            result[0] = std::numeric_limits<std::uint64_t>::max();
+            result[1] = std::numeric_limits<std::uint64_t>::max();
+            return result;
+        }
+        for (int y = 0; y < left.height(); ++y) {
+            const auto* leftRow = reinterpret_cast<const QRgb*>(left.constScanLine(y));
+            const auto* rightRow = reinterpret_cast<const QRgb*>(right.constScanLine(y));
+            for (int x = 0; x < left.width(); ++x) {
+                const int delta = std::max({
+                    std::abs(qRed(leftRow[x]) - qRed(rightRow[x])),
+                    std::abs(qGreen(leftRow[x]) - qGreen(rightRow[x])),
+                    std::abs(qBlue(leftRow[x]) - qBlue(rightRow[x])),
+                    std::abs(qAlpha(leftRow[x]) - qAlpha(rightRow[x]))});
+                if (delta > 0) ++result[0];
+                result[1] = std::max(result[1], static_cast<std::uint64_t>(delta));
+            }
+        }
+        return result;
+    };
+
+    Artifact::ArtifactParticleLayer playbackLayer;
+    playbackLayer.loadPreset(QStringLiteral("explosion"));
+    playbackLayer.resetParticleSystem();
+    playbackLayer.play();
+    QImage playbackReference;
+    for (std::int64_t frameNumber = 1; frameNumber <= CaptureFrames.back(); ++frameNumber) {
         QImage frame;
-        if (!layer.getCachedFrame(frameNumber, frame)) {
-            qCritical("Firework layer did not produce a cached frame");
+        if (!captureAtFrame(playbackLayer, frameNumber, frame)) {
+            qCritical("Firework layer did not produce a frame during playback");
             return 3;
         }
-        const auto* system = layer.particleSystem();
+        const auto capture = std::find(CaptureFrames.begin(), CaptureFrames.end(), frameNumber);
+        if (capture == CaptureFrames.end()) continue;
+
+        const auto* system = playbackLayer.particleSystem();
         const std::size_t aliveCount = system && !system->emitters().empty()
             && system->emitters().front()
             ? system->emitters().front()->particles().size() : 0;
-        if (aliveCount == 0) {
-            qCritical("Firework simulation produced no particles");
+        if (aliveCount == 0 || !hasVisiblePixel(frame)) {
+            qCritical("Firework playback produced an empty image");
             return 4;
         }
-        if (frame.isNull()) {
-            qCritical("Firework renderer returned an empty frame");
-            return 3;
-        }
+
+        const auto index = static_cast<std::size_t>(capture - CaptureFrames.begin());
         const QString path = output.filePath(
             QStringLiteral("firework_%1.png").arg(static_cast<int>(index), 2, 10, QLatin1Char('0')));
         if (!frame.save(path, "PNG")) {
             qCritical("Could not save firework capture");
-            return 4;
+            return 5;
         }
+        if (frameNumber == CaptureFrames[2]) playbackReference = frame;
     }
+
+    Artifact::ArtifactParticleLayer directLayer;
+    directLayer.loadPreset(QStringLiteral("explosion"));
+    directLayer.resetParticleSystem();
+    directLayer.play();
+    QImage directFrame;
+    if (!captureAtFrame(directLayer, CaptureFrames[2], directFrame)) {
+        qCritical("Firework direct seek did not produce a frame");
+        return 61;
+    }
+    const auto directDifference = imageDifference(playbackReference, directFrame);
+    if (!imagesMatch(directDifference)) {
+        return 62;
+    }
+
+    Artifact::ArtifactParticleLayer revisitLayer;
+    revisitLayer.loadPreset(QStringLiteral("explosion"));
+    revisitLayer.resetParticleSystem();
+    revisitLayer.play();
+    QImage scratchFrame;
+    QImage revisitFrame;
+    if (!captureAtFrame(revisitLayer, 60, scratchFrame) ||
+        !captureAtFrame(revisitLayer, 10, scratchFrame) ||
+        !captureAtFrame(revisitLayer, CaptureFrames[2], revisitFrame)) {
+        return 7;
+    }
+    const auto revisitDifference = imageDifference(playbackReference, revisitFrame);
+    if (!imagesMatch(revisitDifference)) return 8;
+
+    QFile report(output.filePath(QStringLiteral("determinism_report.txt")));
+    if (!report.open(QIODevice::WriteOnly | QIODevice::Text)) return 9;
+    report.write(QStringLiteral(
+        "frame=%1 direct_seek_differing_pixels=%2 direct_seek_max_channel_delta=%3 "
+        "revisit_differing_pixels=%4 revisit_max_channel_delta=%5 tolerance=%6px/%7\n")
+        .arg(CaptureFrames[2]).arg(directDifference[0]).arg(directDifference[1])
+        .arg(revisitDifference[0]).arg(revisitDifference[1])
+        .arg(MaxDifferentPixels).arg(MaxChannelDelta).toUtf8());
     return 0;
 }
 
