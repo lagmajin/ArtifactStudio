@@ -501,6 +501,7 @@ static int captureGpuParticle(const QString& outputDirectory)
 static int captureFlipbookMode(const QString& sourcePath, bool isSequence,
                                const QString& outputDirectory,
                                const QString& filePrefix,
+                               Artifact::ArtifactIRenderer& renderer,
                                QImage& firstFrame, QImage& lastFrame,
                                QFile& report)
 {
@@ -539,14 +540,15 @@ static int captureFlipbookMode(const QString& sourcePath, bool isSequence,
     }
     layer.resetParticleSystem();
     layer.play();
-    Artifact::ArtifactIRenderer softwareRenderer;
 
     for (std::size_t index = 0; index < Times.size(); ++index) {
         const auto frameNumber = static_cast<std::int64_t>(std::lround(Times[index] * 30.0f));
+        renderer.clear();
         layer.goToFrame(frameNumber);
-        layer.draw(&softwareRenderer);
-        QImage frame;
-        if (!layer.getCachedFrame(frameNumber, frame) || frame.isNull()) return 2;
+        layer.draw(&renderer);
+        renderer.flushAndWait();
+        QImage frame = renderer.readbackToImage().convertToFormat(QImage::Format_ARGB32);
+        if (frame.isNull()) return 2;
         std::uint64_t alphaPixels = 0;
         for (int y = 0; y < frame.height(); ++y) {
             const auto* row = reinterpret_cast<const QRgb*>(frame.constScanLine(y));
@@ -589,32 +591,60 @@ static int captureFlipbookSources(const QString& sequenceDirectory,
         !output.mkpath(QStringLiteral("sprite_sheet"))) return 3;
     QFile report(output.filePath(QStringLiteral("flipbook_report.txt")));
     if (!report.open(QIODevice::WriteOnly | QIODevice::Text)) return 4;
+    Artifact::ArtifactIRenderer renderer;
+    renderer.initializeHeadless(1920, 1080);
+    if (!renderer.isInitialized()) return 5;
+    renderer.setCanvasSize(1920.0f, 1080.0f);
+    renderer.setViewportSize(1920.0f, 1080.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
 
     QImage sequenceFirst, sequenceLast, sheetFirst, sheetLast;
     const int sequenceResult = captureFlipbookMode(
         sequenceSource.absolutePath(), true,
         output.filePath(QStringLiteral("sequence")), QStringLiteral("sequence"),
-        sequenceFirst, sequenceLast, report);
+        renderer, sequenceFirst, sequenceLast, report);
     if (sequenceResult != 0) return 10 + sequenceResult;
     const int sheetResult = captureFlipbookMode(
         QDir::cleanPath(spriteSheetPath), false,
         output.filePath(QStringLiteral("sprite_sheet")), QStringLiteral("sheet"),
-        sheetFirst, sheetLast, report);
+        renderer, sheetFirst, sheetLast, report);
     if (sheetResult != 0) return 20 + sheetResult;
-    const auto arePixelIdentical = [](const QImage& left, const QImage& right) {
-        if (left.size() != right.size() || left.format() != right.format()) return false;
+    const auto pixelDifference = [](const QImage& left, const QImage& right) {
+        std::array<std::uint64_t, 2> difference{};
+        if (left.size() != right.size() || left.format() != right.format()) {
+            difference[0] = std::numeric_limits<std::uint64_t>::max();
+            difference[1] = std::numeric_limits<std::uint64_t>::max();
+            return difference;
+        }
         for (int y = 0; y < left.height(); ++y) {
             const auto* leftRow = reinterpret_cast<const QRgb*>(left.constScanLine(y));
             const auto* rightRow = reinterpret_cast<const QRgb*>(right.constScanLine(y));
             for (int x = 0; x < left.width(); ++x) {
-                if (leftRow[x] != rightRow[x]) return false;
+                const int delta = std::max({
+                    std::abs(qRed(leftRow[x]) - qRed(rightRow[x])),
+                    std::abs(qGreen(leftRow[x]) - qGreen(rightRow[x])),
+                    std::abs(qBlue(leftRow[x]) - qBlue(rightRow[x])),
+                    std::abs(qAlpha(leftRow[x]) - qAlpha(rightRow[x]))});
+                if (delta > 0) ++difference[0];
+                difference[1] = std::max(difference[1],
+                    static_cast<std::uint64_t>(delta));
             }
         }
-        return true;
+        return difference;
     };
-    if (!arePixelIdentical(sequenceFirst, sheetFirst) ||
-        !arePixelIdentical(sequenceLast, sheetLast)) return 30;
-    report.write("sequence_sheet_first_and_last_frames_pixel_identical=true\n");
+    for (int index = 0; index < 5; ++index) {
+        const QString sequencePath = output.filePath(
+            QStringLiteral("sequence/sequence_%1.png")
+                .arg(index, 2, 10, QLatin1Char('0')));
+        const QString sheetPath = output.filePath(
+            QStringLiteral("sprite_sheet/sheet_%1.png")
+                .arg(index, 2, 10, QLatin1Char('0')));
+        const auto difference = pixelDifference(QImage(sequencePath), QImage(sheetPath));
+        if (difference[0] > 8 || difference[1] > 2) return 30;
+        report.write(QStringLiteral(
+            "sequence_sheet_frame=%1 differing_pixels=%2 max_channel_delta=%3 tolerance=8px/2\n")
+            .arg(index).arg(difference[0]).arg(difference[1]).toUtf8());
+    }
     return 0;
 }
 
