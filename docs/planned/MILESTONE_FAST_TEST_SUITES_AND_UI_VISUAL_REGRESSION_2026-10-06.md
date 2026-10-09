@@ -1,7 +1,13 @@
 # Artifact.exe 非依存テストスイートと UI ビジュアル回帰計画
 
-**最終更新:** 2026-10-08
+**最終更新:** 2026-10-09
 **ステータス:** In Progress
+
+## 進捗 2026-10-09
+
+- 既存アプリの UI を通常版とは別プロセスで開く `ArtifactUiTest.exe` target を追加した。画面実装と依存 runtime は `ArtifactAppRuntime` object library として一度だけコンパイルし、`Artifact.exe` と UI Test exe は別 entry point から同じ実画面を起動する。UI Test 起動では Qt の test-mode 標準書込先と crash report path を分け、ウィンドウタイトルも識別する。明示した organization/application を使う Windows `QSettings` は通常版と共有されるため、設定全体の隔離ではない。ビルド・起動確認は未実施。
+- `tools/capture_ui_test.py` は UI Test exe を起動し、`ARTIFACT_STARTUP_SCREENSHOT_PATH` で指定した PNG が保存されるまで待ってからプロセスを終了する。既存 `ArtifactStartupScreenshot` の `window->grab()` を再利用し、capture helper に外部 Python package は追加しない。`tools/ui_visual_loop.py --capture-command` から `{actual}` を出力先として渡せる。exe のビルド・起動確認は未実施。
+- この exe は実 UI の比較・調整用 host であり、unit / interaction test target の代替ではない。capture helper は起動時の main window を撮影するが、Timeline 等を特定状態にする fixture、mockup baseline、environment manifest は引き続き未整備。
 
 ## 進捗 2026-10-08
 
@@ -155,7 +161,7 @@ Layer/UI 統合受入は別 suite にし、Animator 追加 → 値編集 → key
 - Render Manager: queue の空／複数 job、選択と詳細、status/progress/filter、並べ替え、pause/cancel/failed 表示。
 - UI の表示だけでなく、操作後のモデル／service 状態が期待どおりかも検証する。アプリ本体の main window や project 全初期化を起動せず、対象 widget に必要な最小 fixture/service を注入する。
 - 現在のfixture blocker: `ArtifactTimelineWidget` constructor はtimeline配下の複数widgetをその場で生成し、Render Managerの `Impl` は `ArtifactRenderQueueService::instance()` とAppDataLocation上のhistory/preset storeを取得する。実UI suiteは存在せず、モデルsuiteだけではこの初期化/永続化/操作経路を証明しない。まず service注入と保存先隔離の seam を作り、固定job/layer状態を持つ専用fixtureからinteractionを検証する。
-- Visual gate blocker: `tools/ui_visual_loop.py` と比較器は存在するが、Timeline/Render Managerを起動・固定状態化するcapture program、承認baseline、環境manifestの実値は未整備。したがって「完全一致まで繰り返す」は仕組みの動作確認までで、両UIの完成を示すgateではない。fixture/capture/baselineを整えた後、UI修正ごとにpixel-exactで一致するまで再撮影し、明示レビュー済みのbaseline更新以外は許容差を広げない。
+- Visual gate blocker: `tools/ui_visual_loop.py`、比較器、`ArtifactUiTest.exe` 起動 capture helper はあるが、Timeline/Render Managerを固定状態化するfixture、承認baseline、環境manifestの実値は未整備。したがって「完全一致まで繰り返す」は仕組みの動作確認までで、両UIの完成を示すgateではない。fixture/capture/baselineを整えた後、UI修正ごとにpixel-exactで一致するまで再撮影し、明示レビュー済みのbaseline更新以外は許容差を広げない。
 
 #### Visual comparison loop
 

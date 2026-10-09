@@ -1,6 +1,6 @@
 # Widget Map
 
-**最終更新:** 2026-10-06
+**最終更新:** 2026-10-09
 
 このファイルは、Artifact の主要ウィジェットの表示名、コード上の名前、役割を AI と人間の両方がすぐ確認できるようにするための一覧です。
 
@@ -46,6 +46,8 @@
 
 ## Composition Viewer
 
+- `Filmstrip View` (`createFilmstripWidget`)
+  Timeline と同じ下部ドック群にある前後フレーム確認パネル。前後 1〜3 枚、間隔、playhead 追従、クリックでの一時停止／フレーム移動を提供する。Playback Service の RAM キャッシュを 160×90 の固定サムネイルへ縮小して表示し、キャッシュのないフレームは未取得表示とする。パネル内の preview は前後 1 step の onion skin（不透明度指定）、参照 offset 指定の並列／差分比較、表示ズームを持つ。表示の合成は固定 float buffer で行い、VP 自体は変更しない。未取得フレームの独立生成は未実装。既定では非表示。
 - `ArtifactContentsViewer`
   画像 / 動画 / 音声 / 3D model / source-final-compare を横断する閲覧 surface。比較・履歴・inspection はここで扱うが、composition 編集本体ではない。
 - `ArtifactCompositionEditor`

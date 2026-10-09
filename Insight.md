@@ -6,6 +6,20 @@
 
 ## 現在の優先検証
 
+### 2026-10-09 — ArtifactUiTest の QSettings 分離境界
+
+- **関連:** `Artifact/src/AppMain.cppm`、Artifact 内の `QSettings(organization, application)` 呼び出し。
+- **確認済み:** Qt の公式 API 仕様では `setDefaultFormat()` は既定コンストラクタにのみ効き、組織名・アプリ名を明示したコンストラクタは `NativeFormat` を使う。Windows では `NativeFormat` の `setPath()` も効かない。UI Test 起動の `QStandardPaths::setTestModeEnabled(true)` は AppData／AppConfig 等の標準書込先を test 領域へ変えるが、明示的な QSettings コンストラクタの Windows Registry 保存先は分離しない。
+- **価値／懸念:** 現状の UI Test exe は実画面を独立起動できる一方、これらの明示設定を読む／書く画面は通常版と同じ Registry 設定を共有する。完全な設定分離を行うなら、QSettings 呼出側の共通 factory 化などが必要で、起動処理だけの変更では実現できない。
+- **次に確認:** UI テストで通常版の既存設定を読む・変更することが許容されるかを決め、完全分離が要件なら明示コンストラクタ呼出箇所を一括で扱う小さな設定アダプタの設計を検討する。
+
+### 2026-10-09 — Filmstrip 未取得フレーム生成の実行経路
+
+- **関連:** `Artifact/src/Widgets/ArtifactFilmstripWidget.cppm`、`Artifact/src/Render/ArtifactOffscreenCompositionRenderer.cppm`、`Artifact/src/Service/ArtifactPlaybackService.cppm`。
+- **確認済み:** Filmstrip は RAM キャッシュの縮小表示とパネル内の onion skin／比較を提供する。既存の offscreen renderer の `renderFrame(position, composition)` は position をレイヤーの active 判定に使うが、各レイヤーを指定フレームへ評価していない。共有レイヤーを描画するため、そのままワーカーへ渡す根拠もない。Playback Service の build queue は単一で、Filmstrip が置き換えると他のプレビュー要求に干渉する。
+- **未検証の案:** 未取得分の独立生成には、既存 GPU submission の所有経路で固定上限の要求を処理し、composition revision と表示世代で古い結果を破棄する仕組みを検討する。
+- **次の確認:** 共有レイヤー評価状態と immediate context の所有者を確認し、表示中のフレームを変更せずに生成できる経路を選ぶ。
+
 ### 粒子 — GPU第一経路化・非同期PSO・ディスクPSOキャッシュの実機確認
 
 - **関連:** `ArtifactCore/src/Graphics/ParticleRenderer.cppm`（非同期ワーカー・PSOキャッシュ・ディスクregistry）、`Artifact/src/Layer/ArtifactParticleLayer.cppm`（trail送出・GPU面）、`Artifact/src/Render/ArtifactOffscreenCompositionRenderer.cppm`。
