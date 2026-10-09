@@ -20,7 +20,6 @@
 import Artifact.Layer.Particle;
 import Artifact.Generator.Particle;
 import Artifact.Render.IRenderer;
-import Size;
 
 namespace {
 
@@ -43,7 +42,6 @@ public:
         flipbookPreview_->setAttribute(Qt::WA_TransparentForMouseEvents);
         flipbookPreview_->hide();
 
-        layer_.setSourceSize(ArtifactCore::Size_2D(CanvasWidth, CanvasHeight));
         loadPreset(0);
         timerId_ = startTimer(33, Qt::PreciseTimer);
     }
