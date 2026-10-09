@@ -351,6 +351,24 @@ TEST(TextShapingLineTest, AnimatorLineSelectorTargetsShapedLine)
   }
 }
 
+TEST(TextShapingLineTest, CarriageReturnLineFeedKeepsFollowingGlyphOnNextLine)
+{
+  QtShapingBackend backend;
+  const QString text = QStringLiteral("A\r\nB");
+  const auto shaped = backend.shape(makeRequest(text));
+
+  const auto first = std::find_if(
+      shaped.glyphs.begin(), shaped.glyphs.end(),
+      [](const GlyphItem& glyph) { return glyph.charCode == 'A'; });
+  const auto second = std::find_if(
+      shaped.glyphs.begin(), shaped.glyphs.end(),
+      [](const GlyphItem& glyph) { return glyph.charCode == 'B'; });
+  ASSERT_NE(first, shaped.glyphs.end());
+  ASSERT_NE(second, shaped.glyphs.end());
+  EXPECT_EQ(first->lineIndex, 0);
+  EXPECT_EQ(second->lineIndex, 1);
+}
+
 // --- 3. grapheme clusters ------------------------------------------------
 
 TEST(TextShapingClusterTest, CombiningMarkFormsOneCluster)

@@ -1,7 +1,181 @@
 # Artifact.exe 非依存テストスイートと UI ビジュアル回帰計画
 
-**最終更新:** 2026-10-07
+**最終更新:** 2026-10-08
+
+- `AudioModulationRouterTest` にsource削除時のcleanup caseを追加した。sourceのassignmentが削除され、次回process後に未使用targetが消えてbase valueへ戻ることを確認する。テスト未実施。
+
+- `FrameOffsetTest` にゼロ除算境界を追加した。`/ 0`はzero offsetを返し、`/= 0`は既存値を保持する契約を確認する。テスト未実施。
+
+- `FrameTimeTest` に値演算と比較のcaseを追加した。`+`/`-`が元値を変更せず、`+=`/`-=`と等値・大小比較がframe値に従うことを確認する。テスト未実施。
+
+- `AutomationClipTest` にinstance JSONの境界caseを追加した。範囲外loop/time policy値を有効enum範囲へclampし、target pathの前後空白を除去することを確認する。テスト未実施。
+
+- `AutomationClipTest` に評価対象property pathのallowlist caseを追加した。6つの対応pathを受理し、近似pathや未対応propertyを誤って評価対象にしないことを確認する。テスト未実施。
+
+- `AutomationClipTest` にBezier補間の制御点反映caseを追加した。既定の対称x制御点で中点を評価し、y制御点を0にすると区間値が1/8になることを確認する。テスト未実施。
+
+- `AutomationClipTest` にloop mappingのduration/time boundaryを追加した。非正duration、NaN/Infinity timeは全loop modeで0へ戻り、Loop modeでdurationちょうどは周期先頭へwrapすることを確認する。テスト未実施。
+
+- `AutomationClipTest` にinstance weightの境界を追加した。負値と1超は[0,1]へclampし、非有限weightは現行fallbackどおり全weight扱いになることを確認する。テスト未実施。
+
+- `AutomationClipTest` にsanitizerの実際の上限・非有限補正caseを追加した。max+1点をmaxへ切り詰め、time/value/curvature/Bezier control pointのNaN・Infinityを規定値へ戻すことを確認する。テスト未実施。
+
+- `AutomationClipTest` にConstant interpolation boundaryを追加した。区間内は直前pointを保持し、次pointの時刻ちょうどでは次値へ移ることを確認する。テスト未実施。
+
+- `AutomationClipTest` にnon-finite local time fallback caseを追加した。NaNと±Infinityは0秒へ置換され、先頭keyの非zero値を返すことを確認する。テスト未実施。
+
+- `KeyframeSplineTest` のsingle-key track caseにevaluate assertionsを追加した。timeが唯一のkeyより前・同時刻・後のいずれでも単一valueを返すことを確認する。テスト未実施。
+
+- `PointwiseEffectFusionContractTest` にempty stack no-op caseを追加した。validationは有効、pointwise／domain segments・fused/fallback counts・messagesはいずれも空またはzeroになることを確認する。テスト未実施。
+
+- `RenderPipelineContractTest` にcache keyの残りの依存fieldを追加した。schema／composition／view ID、storage／channel order／transfer／range／known状態、およびcompute／HDR／temporal flagを各々単独変更し、keyが変わることを確認する。テスト未実施。
+
+- `TimeCodeTest` に末尾dot互換parse caseを追加した。`HH:MM:SS.`はframe field `00` の省略形として読み取られ、同値のcolon表示へ戻る契約を確認する。テスト未実施。
+
+- `CoreDiagnosticsContractTest` にrecorder disabled toggle caseを追加した。無効中のeventを保存せずsequenceも消費しないため、前後の有効eventが連番になることを確認する。テスト未実施。
+
+- `RenderPipelineContractTest` にsnapshot featureからrequired capability maskを導くcaseを追加した。compute／HDR／temporalとRGBA32 storageの集合、およびoptional feature off時のRGBA16 storage集合を直接検証する。テスト未実施。
+
+- `AssetManagerContractTest` にdecoded payloadのinvalid key matrixを追加した。null asset ID・version zero・空representation・null payloadはlookup／publishで受理されないことを確認する。テスト未実施。
+
+- `CoreDiagnosticsContractTest` に記録後のcapacity shrink caseを追加した。上限を4から2へ下げると古い2件を即時に落とし、新しい2件を保ち、先頭sequenceを使ったmiss判定が立つことを確認する。テスト未実施。
+
+- `ColorLUTManagerContractTest` にinvalid same-name replacement caseを追加した。不正LUT登録が既存の有効なentryを消去・上書きせず、現在値を保つことを確認する。テスト未実施。
+
+- `AssetDatabaseContractTest` にvalid JSONだがtop-levelがobjectのpayload拒否を追加した。array schema以外を拒否し、読み込み前の既存database内容を維持することを確認する。テスト未実施。
+
+- `AssetImporterContractTest` に対応suffixを持つdirectory拒否caseを追加した。`.png` directoryはimportされず、AssetDatabase登録やsidecar作成の副作用も発生しないことを確認する。テスト未実施。
+
+- `AssetMetaFileContractTest` のversion invalid matrixに文字列`"1"`と小数`1.5`を追加した。正数に見えるJSON値でも整数versionとして解析できない場合はmetadataを有効としない。テスト未実施。
+
+- `AssetSequenceDetectionContractTest` に18桁frame token上限のinclusive caseを追加した。上限内の隣接する大きな番号がpadding・first/last frame・順序を保ってsequenceになることを確認する。テスト未実施。
+
+- `MathVecTest` に`vec2` safeNormalize contractを追加した。zero vectorのdefault／explicit fallbackと通常ベクトルのunit length・成分比を確認し、vec3 overloadだけだったcoverageを補う。テスト未実施。
+
+- `RenderImageContractTest` にcrop invalid bounds matrixを追加した。負のorigin、画像右端／下端を越える領域、負widthは空画像を返し、OpenCV ROIへ渡されないことを確認する。テスト未実施。
+
+- `ColorLUTContractTest` に`.cube`余剰sample tripletの拒否caseを追加した。宣言された2³ gridの24 channel値を超えて1 triplet加えた場合、正確なsample数一致条件で無効化されることを確認する。テスト未実施。
+
+- `ImageAnalyzerContractTest` に解析失敗時の出力保持caseを追加した。Infinity pixelで解析が失敗した場合、呼び出し側の既存statistics（複数channelのfieldとhistogram）が部分更新されない契約を確認する。テスト未実施。
+
+- `ImageDistortionSamplingTest` に1×1画像のbilinear wrap caseを追加した。複数の正負fractional座標でも唯一のpixel値（alphaを含む）が一定になることを確認する。テスト未実施。
+
+- `ImageSurfaceViewTest` に単一pixel spanのdata address overflow caseを追加した。stride／寸法が小さくても、buffer先頭アドレスにpixel byte長を足すと`uintptr_t`範囲を超えるlayoutをview factoryが拒否することを確認する。テスト未実施。
+
+- `ColorBridgeTest` にsRGB transfer functionのpiecewise threshold caseを追加した。線形→encoded／encoded→線形の分岐点でlinear branch値と往復値が連続することを固定する。テスト未実施。
+
+- `EasingFunctionsTest` に±Infinity alpha boundaryを追加した。代表的なcircular／exponential／logarithmic curveで、無限入力が両端へclampされ、降順のstart/endも正しく終点へ到達することを確認する。テスト未実施。
+
+- `PropertyPathTest` に単一segmentのleaf boundaryを追加した。path自体は有効なdepth 1で、property名を返し、ownerとparentは空になる契約を確認する。テスト未実施。
+
+- `RenderJobModelContractTest` に未知のenum値の表示caseを追加した。内部status値が既知の列挙子に一致しない場合、DisplayRoleが防御的に`Unknown`を返すことを固定する。テスト未実施。
+
+- `FileTypeDetectorContractTest` にmissing fileのfallback caseを追加した。magic-number判定は`Unknown`を返し、総合判定は既知拡張子だけを採用し、未知拡張子は`Unknown`のままにする。テスト未実施。
+
+- `FrameRateTest` にJSON alias precedence caseを追加した。両方のlegacy keyがある場合は`frameRate`を優先し、有効なexact rational pairがあればlegacy値より優先する契約を固定する。テスト未実施。
+
+- `FrameRateTest` にclassic 47.952／59.94 DFの認識と整数60 fpsの非該当境界を追加した。rational／float両rate pathを確認する。テスト未実施。
+
+- `FramePositionTest` にexact rational rate／nominal rate双方のhalf-frame変換を追加した。正負のちょうど中間をzeroから離れる方向へ丸める契約を確認する。テスト未実施。
+
+- `RationalTimeTest` に異なるscaleでの等価性・大小比較とexact subtractionを追加した。正負のfraction、同値の非既約表現、比較演算子の反転、正負の減算結果を確認する。テスト未実施。
+
+- `TimeCodeTest` に59.94 drop-frameの10分境界round-tripを追加した。nominal 60 fpsでの36 dropped framesとframe 35964を固定する。テスト未実施。
+
+- `TimeCodeTest` に29.97 drop-frameの10分境界とparse round-trip caseを追加した。10分ごとにdropが止まる既知のラベルとframe indexを固定する。テスト未実施。
+
+- `TextShapingLineTest` にCRLF改行のline assignment caseを追加した。CRLF後の本文glyphが次line indexへ割り当たることを確認する。テスト未実施。
+
+- `AssetMetaFileContractTest` のimport時刻caseをUTC+09入力にし、sidecar JSONへUTC文字列（`Z`）で保存されることも確認する。テスト未実施。
+
+- `AssetImporterContractTest` に同一Data fileの再import caseを追加した。再importでasset ID／sidecar UUIDが維持され、`importedAt`を更新しないことを確認する。テスト未実施。
+
+- ArtifactRenderer CLI の diagnostic PNG sequence caseに、PNGを展開して背景色と青い描画領域のpixel数を確認するassertを追加した。ファイル名・IHDRだけでなく、diagnostic backendが画像データを実際に書くことを固定する。これはCLI診断画像のテストであり、composition snapshotの描画やRender Queueとのparityを証明しない。テスト未実行。
+
+- `FrameRateTest` に不正なrate文字列の状態保持caseを追加した。plain text、zero／negative rational、NaN／Infinity入力後も既存のexact rationalが維持されることを確認する。テスト未実施。
+
+- `FrameRangeTest` にint64 signed endpoints近傍の2-frame列挙caseを追加した。最小側と最大側の境界近傍でinclusive frame enumerationが正しいことを確認する。テスト未実施。
+
+- `FrameRateTest` に不正なrational更新（zero／negative numerator・denominator）が既存exact rateを壊さないcaseを追加した。無効更新がatomic no-opになることを固定する。テスト未実施。
+
+- `AssetMetaFileContractTest` のinvalid sidecar caseに、version 0／負値とmeta file自体がない状態を追加した。非正versionとmissing sidecarは有効metadataとして扱わないことを固定する。テスト未実施。
+
+- `PathContractTest` にseparator normalizationの冪等性caseを追加した。Windows absolute、UNC、mixed-separator relative pathを2回正規化して同一結果になることを確認する。テスト未実施。
+
+- RenderPipeline snapshot rejectionの既存caseに、zero heightと負のframe rate numerator／denominatorを追加した。zero値だけでなく非正rate全体を拒否する契約を固定する。テスト未実行。
+
+- `RenderPipelineContractTest` にtexture dimension上限のinclusive境界を追加した。上限と同じwidth／heightは許可し、各軸が1超過すると個別にResolutionExceededになることを確認する。テスト未実行。
+
+- ArtifactRenderer CLIにUnicodeと空白を含むjob／output pathの`--validate-only` caseを追加した。job fileのopenとargv path受け渡しが通り、validate-onlyでoutputを作らないことを確認する。テスト未実行。
+
+- ArtifactRenderer CLI bake契約にframe rate比較のepsilon境界を追加した。schema FPSとの差0.5e-6を許可し、2e-6を拒否する。テスト未実行。
+
+- ArtifactRenderer CLIのschema rejection matrixに、`version`／`width`／`height`／`frameEnd`のJSON型不一致と、小数heightを追加した。正の境界値に見える文字列・非整数値でもschema parseで受理しないことを検査する。テスト未実行。
+
+- `EffectSequenceContractTest` に共通effect mix setterの境界caseを追加した。負値／1超のclampとNaN／負のInfinity時の既定値fallbackを固定する。テスト実行は未実施。
+
+- `ImageAnalyzerContractTest` に黒・完全透明の1 pixelに対するauto exposure／white balance境界caseを追加した。EVと各white-balance multiplierが有限で、dark floor／neutral fallbackに一致する契約を固定する。テスト実行は未実施。
+
+- `AssetManagerContractTest` にcanonical path aliasの取得caseを追加した。同じ既存ファイルを通常pathと`./` aliasから取得すると同一source IDを返し、use countが共有される契約を確認する。テスト実行は未実施。
+
+- `AssetDatabaseContractTest` にJSON snapshot round-trip caseを追加した。正常なImage登録のID・type・canonical path・string metadataが`toJson()`→`clear()`→`fromJson()`後も保たれることを確認する。singleton stateはsnapshot guardで復元する。テスト実行は未実施。
+
+- `tests/ArtifactCore/ImageAssetMetadataContractTest.cpp` を追加し、画像アセットのメタデータ契約suiteに登録した。埋め込みの既知PNG fixtureを一時ファイルに書き、ImageAssetFileのload／unload state、寸法・RGBA channel数・基本メタデータの更新、missing／decode不能ファイルの拒否を2 casesで確認する。ArtifactCoreAssetへlinkし、画像変換UIは使わず、QImageはdecoder／sourceが返す値のnon-null・size確認に限定する。テスト実行は未実施。
+- 同suiteに `ImageImporter` の直接契約を3 cases追加した。未open状態・close後・成功後にmissing pathでopenし直した後のreadがinvalid imageになること、既知PNGのopen/read寸法と4 channel・pixel type byte幅に基づくbuffer長一致、missing pathのopen拒否、既存だがdecode不能なファイルはopen後readで失敗することを確認する。テスト実行は未実施。
+- `tests/ArtifactCore/RawImageContractTest.cpp` を追加し、`RawImage::isValid()` の必須形状／pixel type／data境界と、対応scalar pixel typeのbyte幅を2 casesで確認する。ArtifactCoreだけにlinkし、QImageやdecoderには依存しない。テスト実行は未実施。
+- 既存 `ColorTintEffectContractTest` にblack／white luma端点での色mapと透明／半透明alpha保持を追加した（1 case）。テスト実行は未実施。
+- 同suiteにdisabled effectがHDR／負RGBとtransparent／半透明pixelを変えないcaseを追加した。テスト実行は未実施。
+- 同suiteに `ImageSequenceSource` の明示frame path契約を追加した。欠落frameを論理slotとして保持するframe count／source index変換／SourceMetadataの開始・終了・missing／sequence状態とURI／kind、12 fps指定のclose／reopenを跨ぐ保持、frame size、欠落slotのdecode失敗、実行中のmissing file作成／削除に追従するmissing count、close後の状態を1 caseで確認する。sequence runtime acceptance全体ではなく、Core source単体の契約である。テスト実行は未実施。
+- 同suiteへ番号付き画像ファイルの欠番ケースを1件追加した。開始／終了元frame番号・欠番数、sequence index変換、負値／終端超過seekの無変更拒否、欠番frame番号へのseek拒否、元番号seekとtimeline time mappingの境界を確認する。テスト実行は未実施。
+- 同suiteにframe cache契約を2 cases追加した。無効indexでcache stateを変えないこと、冷／warm readのmiss-hit counter、明示cache clear後のentry・byte・counter reset、10枚decode後もentry／byteが公開上限を超えないこと、古いframeのevictionと新しいframeのcache hitを確認する。テスト実行は未実施。
+- 同suiteに同一パスの画像差し替え契約を1 case追加した。正常frameをcacheした後、同じパスを異なるサイズの不正データに置換したとき古い画像を返さず、negative cache hitで再読込しないこと、正常データへ戻した時には再decodeして復帰することを確認する。テスト実行は未実施。
+- 同suiteに同じサイズで内容と更新時刻だけが変わるPNG差し替えを1 case追加した。modification timeによるcache invalidation後、赤から青のpixelが再decodeされることを確認する。テスト実行は未実施。
+- 同suiteにtimeline FPSとsequence FPSが異なる場合のframe index変換を追加した。24 fps timelineから12 fps sourceへの0/1、2/3境界と末尾clampを1 caseで固定する。テスト実行は未実施。
+- 同suiteに `ImageSequenceSource` のopen失敗後状態を追加した。正常openした後に空frame path列を開こうとして失敗すると、既存sequenceも閉じてURIとframe countが空になり、frame readとtime mappingもinvalidになることを確認する。テスト実行は未実施。
+- 同suiteにdirectory URIからの `ImageSequenceSource::open()` を追加した。直下の対応画像のみを名前順に列挙し、非画像とnested directoryを除くことを、異なる寸法のPNGからframeSize／frame decode順を確認して固定する。テスト実行は未実施。
+- `tests/ArtifactCore/AssetSequenceDetectionContractTest.cpp` を追加し、ファイル名リストからの連番グルーピングを4 casesで検査する。欠番によるrun分割とsingle化、Preserve policyのmissing frame、prefix／suffix／padding別bucket、既定下限と3枚の可変minimum、桁溢れfilenameの単独化、representative／path pattern／display nameを含む。ArtifactCoreだけにlinkし、UIには依存しない。テスト実行は未実施。
+- 同suiteにディレクトリ走査のcaseを追加した。トップ階層の連番ファイルと単独ファイルを検出し、同名パターンのサブディレクトリ内ファイルを除外することを確認する。テスト実行は未実施。
 **ステータス:** In Progress
+
+## 進捗 2026-10-08
+
+- `tests/ArtifactCore/FileTypeDetectorContractTest.cpp` を追加し、`ArtifactCoreFile`へlinkするsuiteに登録した。未知拡張子のPNG magic、text headerを持つ既知MP4拡張子の優先、短いheader／ASCII text／binaryのmagic分類を3 casesで検査する。decoderは呼ばない。テスト実行は未実施。
+- `tests/ArtifactCore/AssetImporterContractTest.cpp` を追加し、`ArtifactCoreAsset`へlinkするsuiteに登録した。extensionのcase／dot正規化、missing／unsupported file拒否、JSONをDataとして登録してID・type・sourcePath・import時刻が一致する`.assetmeta`を生成し、non-imageではproxyを作らないこと、PNGをImageとしてdecode metadataをsidecarへ保存、text payloadの`.png`をDataとして分類することを5 casesで検査する。テスト実行は未実施。
+- `tests/ArtifactCore/AssetMetaFileContractTest.cpp` を追加し、`ArtifactCoreAsset`へlinkするsuiteに登録した。metadata setterのnested field維持とversion、proxy／tag／custom value、`.assetmeta` sidecarのsave/load、invalid JSON／非object／version欠落／壊れたsidecarを4 casesで検査する。テスト実行は未実施。
+- `tests/ArtifactCore/AssetDatabaseContractTest.cpp` を追加し、`ArtifactCoreAsset`へlinkするsuiteに登録した。canonical path aliasのpreferred ID共有、relinkのID維持と衝突時atomic rejection、JSON loadの重複ID／path・invalid type／non-object filtering、空名fallback、string metadataの保存と不正payload rejection、JSON snapshot round-trip後のidentity／metadata保持を4 casesで検査する。JSONケースは既存singleton状態をsnapshotで復元する。テスト実行は未実施。
+- `tests/ArtifactCore/AssetManagerContractTest.cpp` を新設し、`ArtifactCoreAsset`へlinkするsuiteに登録した。一時source fileで同一pathおよびcanonical aliasのsource ID共有、acquire／release後のuse count、過剰release、empty pathとUnknown type拒否、decoded payloadのversion／representation key、再登録のdeduplication、source invalidation後の旧cache拒否、weak cacheのstrong owner解放、localize時のuse count移譲／origin識別／decoded payload引継ぎを5 casesで検査する。登録したAssetDatabase entryはRAII cleanupする。テスト実行は未実施。
+- `tests/ArtifactCore/AssetImportSettingsTest.cpp` を新設し、`ArtifactCoreAsset`へlinkするsuiteとして登録した。import settingsの既定値、全5項目のJSON round-trip、proxy寸法の最小値とJPEG品質の1／100 clamp、部分JSONでの未指定値保持、型不一致時の既定値fallbackを5 casesで固定する。テスト実行は未実施。
+- `tests/ArtifactCore/PropertyPathTest.cpp` を新設し、`ArtifactCore`のみへlinkするsuiteとして登録した。区切りの正規化、hierarchyと無効segment index、prefixのsegment境界、relative path、append／empty pathの値操作を4 casesで検査する。テスト実行は未実施。
+- 既存 `EasingFunctionsTest` に、意図的な振動を持たない20種のease曲線について、100点の区間サンプルで有限値・端点間の範囲・単調性を上昇／下降の両方向で確認するcaseを追加した。テスト実行は未実施。
+- 既存 `ArtifactCoreTest` の `UtilsTest` に、UTF-8変換が長さ指定を維持し、`std::string`／`std::string_view`内の埋め込みNULを切り捨てず、QStringからstd::stringへ往復できる契約を追加した。テスト実行は未実施。
+- 既存 `ColorBridgeTest` に、`colorToHexArgb()`のalpha-red-green-blue固定8桁出力、RGB必須キー欠落時の`FloatColor`／`FloatRGBA` fallback、および`FloatRGBA` JSONでalpha省略時にopaqueとなる契約を追加した。parserのhex順序との仕様関係は未確定として`Insight.md`へ記録し、ArtifactCoreサブモジュールは変更していない。テスト実行は未実施。
+- `tests/ArtifactCore/ImageAnalyzerContractTest.cpp` を追加し、`ArtifactCore`単独linkのCPU suiteに登録した。padded float-BGRA viewとfloat16 half storageのlogical RGBA sample、byte-BGRAの0..1 normalization、invalid coordinate／precision／stride／channel-order／storage拒否、非finite float analysis拒否、legacy float-buffer analysisのclamp／histogram／percentile、自動露出とwhite balance、padded float／byte view双方のchannel histogram raw countと正規化値、float／byte spatial frequencyのchannel選択・normalized DC・invalid channel拒否・required capacity/count契約を12 casesで確認する。GPU／QImage／full-image copyは使わない。テスト実行は未実施。
+- 既存 `MeshGeometryTest` に、非有限positionを除外したbounding box／sphere計算と、不正polygon indexをskipした法線計算・未使用頂点fallbackを追加した（2 cases）。テスト実行は未実施。
+- 既存 `MathVecTest` にspace-tagged Composition point/vectorの加算・point差分・QPointF境界round-tripを1 case追加した。テスト実行は未実施。
+- 既存 `KeyframeSplineTest` に、constant interpolation区間とsingle-key trackの`speedAt()`が0になる契約を追加した（1 case）。テスト実行は未実施。
+- 既存 `tests/ArtifactCore/FrameTimeTest.cpp` に `FrameRate` のexact rational copy／assignment・float代入でのexactness解除・空白と`fps`／`DF`付きrational parse・旧JSON `fps`／文字列`value`読み込み、`FrameTime` のcopy/move・move後オブジェクト再利用・負フレーム変換・不正fps拒否、RationalTimeのnonpositive scale／fps fallback、FrameRangeの端点包含・touch／intersection・shift／expand／shrink／clamp・JSON／文字列往復・parse拒否・normalize・inclusive frame列挙／uniform samplingを12 casesで追加した。テスト実行は未実施。
+- `tests/Artifact/EffectSequenceContractTest.cpp` を追加し、`ArtifactEffectsColor` だけにリンクする独立 suite として登録した。小さな RGBA fixture で Brightness→Invert の順次 CPU 適用、順序変更時の画素差、effect mix=0のsource passthroughと中間mixのRGB／alpha、入力保持を検査し、`ArtifactAbstractEffect::sortedByStage()` の段階順と同一段階の安定順序、および実際にstage順で適用した最終画素も契約化した（6 cases）。Artifact.exe、global app bootstrap、GPU実計算は使わない。CMake configure／build／CTest は未実施。
+- `tests/ArtifactCore/ColorConversionTest.cpp` を追加し、`ArtifactCore` だけにリンクする独立 suite として登録した。RGB↔HSV/HSL の原色・二次色の hue、無彩色の順変換／逆変換、HSV hue の全周／負角 wrap、HSV/HSL の全60度セクター境界、代表的なdisplay RGBの両変換round-trip、RGB→HSLの飽和度計算両分岐（lightnessが0.5未満の式も独立確認）を契約化した（8 cases）。NaN／範囲外 RGBのsanitizeはAPI契約がないため期待値を追加していない。CMake configure／build／CTestは未実施。
+- `tests/ArtifactCore/SurfacePixelConversionTest.cpp` を追加し、`ArtifactCore` のみを link する CPU suite として登録した。sRGB float→linear straight と transparent RGB zeroing、premultiplied BGRA reorder／unpremultiplyとalpha=0 RGB zeroing、Unknown channel orderのlegacy BGRA fallback、byte input と opaque alpha、linear float→quantized sRGB8、RGBA16 half output／descriptor、non-finite channel zeroing／alpha clamp、invalid dimensions／pointer／primaries／unsupported RGB・Gray channel orderの9 casesを固定する。GPU・QImage 経路は使用せず、suiteは未実行。
+- `tests/ArtifactCore/ImageSurfaceViewTest.cpp` を追加し、`ArtifactCore` のみを link する CPU suite として登録した。padded row stride の RGBA read、BGRA→logical channel mapping、mutable RGBA/BGRA dispatch と owner pointer 条件、float view の短い／unaligned／zero stride・precision・storage・channel order・null／misaligned pointer・zero width／negative height・巨大寸法によるアドレス範囲overflow拒否、byte view の空／負の高さを含む基本有効条件を7 casesで確認する。GPU・image ownership は作らず、suiteは未実行。
+- 既存 `ArtifactCoreSourceResolutionContractTest` に、relative candidate と original の両方が存在する場合の project-relative 優先、保存元が空の時に既存候補と欠落候補で異なる outcomeになる境界、空のcandidateとoriginalの組み合わせが採用されない境界、空白・日本語を含むpath、およびproject外の共有フォルダーを指す `../` candidateの生成／再解決を追加した。Core path resolverの5 casesであり、ArtifactProjectServiceの保存／再読込やsequence配列の統合動作までは検証しない。テスト実行は未実施。
+- `tests/ArtifactCore/CoreDiagnosticsContractTest.cpp` を追加し、`ArtifactCore` だけにリンクする GTest suite として登録した。既存 `CoreDiagnostic.Test.cppm` から snapshot の severity count／latest failure の sequence優先／add・merge の上限・zero limit・order・bounds・truncation／JSON schemaとquote・backslash・control byteのescape、crash report の LF／CRLF・stack 行結合・unknown marker／code fallback・file API の空 path context、recorder のsequence／並行recordの保持とsequence一意性／success・failure Result/Status／空context／disable・capacity eviction／minimum capacity／component-object-severity query、`Result` context factory、`DiagnosticScope` の成功／明示failure／未完了破棄、bounded delta、UTF-8のUnicode境界 code point受入れ／truncated・surrogate・上限超過拒否／byte error offset、UTF-8/16/32 BOM detect・strip と部分prefix、string_view の空入力／境界 delimiter／ASCII trim、数値 parser の正常値／bool alias／overflow／空入力／入力位置／失敗操作 context からなる34契約を移植した。共有 recorder の状態は各テストで clear／enable／capacity を戻す fixture で隔離する。CMake configure／build／CTest は未実施。
+- `tests/ArtifactCore/RenderPipelineContractTest.cpp` を追加し、`ArtifactCore` のみで実行する CPU suite に登録した。GPU優先選択とcapability不足時のSoftware fallback、Auto時のGPU優先／fallbackと明示Software選択、不正frame／identity／frame rate／schema version／不完全color descriptor、missing capability（Float16／Float32含む）／幅・高さ両方のresolution failure reasonとinclusive dimension上限、両backend不適合時の未解決選択、stable cache keyとframe／frame rate／scene／index／settings／quality／color contract／解像度による無効化、RenderIndex snapshotのID順序、dirty-only抽出／generation、無効IDの無変更、upsert revision／dirty bit合成、mark／clear dirtyのgeneration境界、既存／不存在proxyのeraseを19 casesで固定する。GPU実行やrenderer resourceの生成は行わない。CMake configure／build／CTestは未実施。
+- `tests/ArtifactCore/PathContractTest.cpp` を追加し、`ArtifactCore` のみを link する suite として登録した。Windows separator 正規化と UNC prefix、NUL path 拒否時の error context、drive/rooted path の absolute 判定、parent traversal の segment 判定と先頭／末尾／混在区切り時のsafe-relative拒否を5 casesで検査する。filesystem を使用しない純粋な path contract suite であり、実行は未実施。
+- 同 suite に copy construction と copy assignment の画素独立性・color descriptor 維持を追加した。コピー後の各画像への書き込みが他の画像へ漏れないことを CPU の1画素 fixture で確認する。テスト実行は未実施。
+- `tests/ArtifactRendererCli/test_cli.py` を追加し、`ArtifactRenderer` 実行ファイルをサブプロセスとして呼ぶ GPU／Artifact.exe／GTest 非依存の CLI 契約 suite を CTest 登録した。`ARTIFACT_BUILD_TESTS=ON` では GTest がなく unit suite が省略されても、この Python suite は登録される。`--validate-only` の出力と非生成、`--dump-summary` の全 schema 項目とsnapshot layer数、欠落引数・job file・不正JSON・不正schemaの終了コード、version／job ID／output path／解像度／frame range の最小境界、layer component simulation bake の object 型・descriptor hash／frame rate／frame objectと整数範囲／重複番号／current frame／render開始直前のframe利用／最大120 frame、および小さな PNG sequence・summary・progress event、事前cancel、出力書き込み失敗時の未完了イベント、sequence filename の composition 名正規化・空名 fallback・5桁 frame 番号を検査する（18 tests、schemaとbakeの15 subcasesを含む）。CMake configure／build／CTest は未実施。
+- 既存 `ArtifactCoreRenderJobModelContractTest` に水平ヘッダー名とroot-only flat indexの境界に加え、全status setterの表示名、不正rowへのstatus／progress更新の無変更、追加時のframe range検証を追加した。新規5 casesで、header DisplayRole／非対応role、nested parentと負値・終端index、6種のstatus表示、無効rowの保持、逆転range／zero stepの追加拒否と単一frame rangeを固定する。実行は未実施。
+- 同suiteへ追加時のprogress clamp（負値／100%超）と、MFR設定のゼロ上限・disableを追加した（2 cases）。RenderJobModel契約は計15 cases。実行は未実施。
+- `tests/ArtifactCore/PointwiseEffectFusionContractTest.cpp` を追加し、descriptorによるpointwise／neighborhood／temporal分類、ColorMatrixのmulti-slot容量端、Temporalで切るfusion segmentとalpha mode継承、shader生成時のstraight／premultiplied alpha変換、domain segment grouping、fusion診断の件数、invalid segmentの安全なshader拒否、Blend／LUT resource要件、compile keyのnode順・static specialization・backend識別、mask mix shaderへのoriginal／mask resourceとopacity適用、shader cache hit／backend key／dispatch境界、Neighborhood blur／Temporal専用planのresource・shader式、zero dimension拒否を14 casesで固定した。HLSL文字列とplanのみを検査し、GPU deviceには依存しない。CMake configure／build／CTest は未実施。
+- `tests/Artifact/VibranceEffectContractTest.cpp` を追加した。低彩度／高彩度pixelに対するvibrance×saturation式、alphaとsourceの維持、neutral設定、setterの有限値clamp／non-finite fallback、GPU spatial descriptorのgeneric key／両parameter転送、およびproperty名・型・値と名前指定更新の整合を5 casesで検査し、`ArtifactEffectsColor` suiteとして登録した。GPU計算とのparityは対象外、実行未実施。
+- `tests/Artifact/BlackAndWhiteEffectContractTest.cpp` を追加した。RGB原色のhue重み、無彩色の明度保持、隣接hue weight補間、tint合成とalpha／入力保持、GPU spatial generic descriptorのkey・7 parameterを4 casesで検査し、`ArtifactEffectsColor` suiteに登録した。GPU実計算とのparityは対象外、実行未実施。
+- `tests/Artifact/ColorTintEffectContractTest.cpp` を追加した。middle grayのblack／white tint補間、originalとのamount blendとalpha保持、zero amount時のHDR RGB保持、amount clamp、GPU spatial descriptorのblack／white RGBとamount転送を4 casesで検査し、`ArtifactEffectsColor` suiteに登録した。GPU実計算とのparityは対象外、実行未実施。
+- `tests/Artifact/PosterizeEffectContractTest.cpp` を追加した。4-level quantizationのRGB独立性とalpha保持、2-level half-up境界、level数のclamp／non-finite fallback、GPU generic descriptorのlevel転送を4 casesで検査し、`ArtifactEffectsColor` suiteに登録した。GPU実計算とのparityは対象外、実行未実施。
+- `tests/Artifact/ThresholdEffectContractTest.cpp` を追加した。lumaによる黒白判定、閾値と等しい入力を白にするinclusive境界、alpha／source保持、setter clamp／non-finite fallback、GPU generic descriptorのthreshold転送を3 casesで検査し、`ArtifactEffectsColor` suiteに登録した。GPU実計算とのparityは対象外、実行未実施。
+- `tests/ArtifactCore/ColoramaProcessorContractTest.cpp` へ7 casesを追加し、palette先頭色、Fire ramp補間、contrast／saturation境界、QImage `apply` のalpha／入力保持とzero-strength passthrough、preset factory値／reset、negative phase wrap／spread、Hue modeでの無彩色sourceを確認する。既存3 casesと合わせてCPU suiteを10 casesにした。GPU pathは未使用。Core-only targetに登録。実行未実施。
+- 既存 `ArtifactCoreImageDistortionMapperTest` に19 casesを追加した。共通samplerのempty-image／periodic wrap、`applyDisplacement`のfilter／alpha、`morphImages`のRGBA cross-dissolve・amount／size境界・control-point逆warpとnegative-weight無効化、幾何mapper座標契約、noise mapper再現性を固定した。suiteに `image;distortion;cpu;contract` labelを付与。実行未実施。
+- `tests/ArtifactCore/ColorLUTContractTest.cpp` を追加し、ColorLUTの生成・補間・強度・CUBE／CSP／3DL／Hald画像入出力・不正値境界・combine／inverse・低レベルget/set・copy独立性・画像適用を21 cases、LUTManagerの登録／名称正規化／無効データ拒否／削除／clear／ディレクトリ読込を3 casesで固定した。fixtureはQTemporaryDirまたは小型QImageで作り、Core-only targetに登録。実行未実施。
+- 既存 `ArtifactColorCorrectionEffectContractTest` にColorama preset/setter境界とGPU spatial descriptorの8 parameter転送を2 cases追加した。これでCore `applyPixel`、Artifact effect wrapper、generic GPU descriptorの3境界を分けて確認する。実行未実施。
 
 ## 進捗 2026-10-07
 
@@ -17,8 +191,8 @@
 - `tests/ArtifactCore/TextAnimatorContractTest.cpp` に Core contract suite を追加し、percentage ramp endpoints、全6 shapeの境界・中間値、high/low ease、inverted/non-finite range/offset/ease、invalid regex、BMP/astral Unicode source regex（UTF-16 surrogate pair をまたぐ絵文字と複数 shaped glyph のcluster展開を含む）、Percentage/Cluster/Line/Tag/Index+offset domain、expression index/clamp/time/error（評価中エラーで全weightをゼロ化）、各order permutation、logical/visual順、seeded random order、Wigglyの時刻変化・zero-rate freeze・full correlation・異常値安全性、全combine modeとextra weight、combine後の境界clamp、単体および複数animatorのtransform/opacity合成、per-axis scale、tracking、color/stroke/blur/skew/z channel、empty glyph domainを対象にした（現30 cases）。extra weightの非有限値sanitizeは公開契約が未記載で、現実装は `std::clamp(weight * extraWeight, 0, 1)` へ直送するため、NaNが伝播し、+Infは1になる。実装を変更しない前提からテスト期待値には加えず、改善候補として扱う。ArtifactCoreサブモジュールは編集していない。
 - `tests/ArtifactCore/CMakeLists.txt` に `ArtifactCoreTextAnimatorContractTest` を登録した。`Artifact.exe` はリンクせず `ArtifactCore` のみを対象にする。
 - 既存 `ArtifactCoreCreativeEffectTest` は18種類すべてのCPU creative effectを25ケースで画素検証する。Color Vibranceのneutral RGBA、disabled passthrough、matte alphaとRGB保持、必須RGB channel欠落、有限な範囲外RGBのclampに加え、Posterizeの量子化境界／最小levels、Solarizeのstrict threshold／下限clamp／disabled passthrough／必須channel欠落・alpha非変更を固定する。Fisheyeは3×3 zoom時の参照pixel写像、Mirrorは縦軸で反射する片側、Pixelateは画像端の不完全ブロック平均、Halftoneはdot center／corner値、Kaleidoscopeはcount=1のwedge fold、Chromatic Aberrationはred/blueの逆方向shift、Embossは対角差分・height・clampと端行列の保持を検証し、各空間効果でalpha保持も確認する。Edge Echo／Light Pressure／Old TVの中立設定での完全no-opとalpha保持、Surface Memory／Temporal Fossilの初回frame履歴初期化とpixel保持、Depth Meltの一様gray保持、Glitchの固定時刻再現性／共通RGB grain、Pigment Separationの固定画素式も対象にする。これは `VideoFrame` ベースのCore APIのみであり、`Artifact/src/Effects` の `ImageF32x4_RGBA` layer effect、stack、GPU parityは未対応。
-- `ArtifactCoreRenderImageContractTest` はfloat RGBA blendの計算・端点、alpha blendの計算・透明/不透明端点、入力非変更、cropの座標/alpha保持・全域/最終pixel境界・ゼロ幅・範囲外、両blend APIの寸法不一致、weighted blend時の互換しない色記述子unknown化、crop時の完全な色記述子保持を検査する（現13 cases。今回、複数寸法・重み／opacityの固定入力行列でblend式を全pixel検証する2ケースを追加）。Image APIはweight/opacityをclamp/sanitizeしないが、範囲外値の契約は公開API文書から確認できないため、Clampを期待する2つのcaseは外し、設計判断待ちとして残した。crop実装は負width/heightを明示拒否せずOpenCV ROI生成に進むため、危険な入力をテストから直接投げるケースはsuiteに入れず、実装側の入力検証後に追加する。範囲外 crop はAPIコメントに反してdefault画像を返す。alphaBlendは異なるdescriptorを混ぜてもbase descriptorを維持するが、その結果のdescriptor契約は明記されていないため期待値を追加していない。確認したRender Queueの2 callerはcrop前に矩形を画像境界へ交差させており、crop欠陥を呼び出さない。これらの実装変更はArtifactCoreサブモジュールにあるため行っていない。
-- `ArtifactCoreRenderJobModelContractTest` を追加し、Render Managerが表示するCore行モデルの4列、status alias、progress clamp/non-finite、無効index/role、frame range/MFR設定の原子的拒否、row追加削除を検査する（8 cases）。永続化の副作用がある`ArtifactRenderQueueService`やWidget bootstrapは生成しないため、これはUI操作テストではない。Widgetのsearch/filter/selection/status更新と状態表示の結合試験は未実装。
+- `ArtifactCoreRenderImageContractTest` は現在26 cases。blend／crop／copy・move・DeepCopy／flip／fill・fillAlpha／resize／mask-like／RGBA8・CV_32FC4 input／toQImage／canonical Mat出力の契約を検査する。Image APIはweight/opacityをclamp/sanitizeしないが、範囲外値の契約は公開API文書から確認できないため、Clampを期待する2つのcaseは外し、設計判断待ちとして残した。crop実装は負width/heightを明示拒否せずOpenCV ROI生成に進むため、危険な入力をテストから直接投げるケースはsuiteに入れず、実装側の入力検証後に追加する。範囲外 crop はAPIコメントに反してdefault画像を返す。alphaBlendは異なるdescriptorを混ぜてもbase descriptorを維持するが、その結果のdescriptor契約は明記されていないため期待値を追加していない。確認したRender Queueの2 callerはcrop前に矩形を画像境界へ交差させており、crop欠陥を呼び出さない。これらの実装変更はArtifactCoreサブモジュールにあるため行っていない。
+- `ArtifactCoreRenderJobModelContractTest` は16 cases。Render Managerが表示するCore行モデルの4列、status alias、progress clamp/non-finite、無効index/role、frame range/MFR設定の原子的拒否、row追加削除に加え、基本job挿入時の全RenderJob default値を検査する。永続化の副作用がある`ArtifactRenderQueueService`やWidget bootstrapは生成しないため、これはUI操作テストではない。Widgetのsearch/filter/selection/status更新と状態表示の結合試験は未実装。
 - `tests/Artifact/ExposureEffectContractTest.cpp` を追加し、Artifact.exeを起動せず `ArtifactEffectsColor` の Exposure layer effectをCPU固定で画素検証する（10 cases）。EV、offset→gamma、alpha保持、mix/effect-region、pixel centerによる小数境界、mix=0かつregionあり、無効regionの解除、透明pixelでのdisabled完全保持、setterの有限値境界、GPU pointwise descriptorとparameter slotに加え、EV／offset／gamma／mixの3×3×3×3 parameter gridを6画素すべてで式比較する。`tests/Artifact/CMakeLists.txt` から登録する。リンク閉包は `ArtifactEffectsColor` とその依存 `ArtifactRender` 等を含むため、Core-only suite より重い。GPU実計算とのparityは別suiteであり未対応。Artifact側VibranceEffect等の全effect packはまだ対象外。
 - `tests/Artifact/ColorCorrectionEffectContractTest.cpp` は `ArtifactEffectsColor` が所有する Invert、Brightness、Grayscale、Channel Mixer、White Balance、Color Balance、Levels、Fill、Curves、Gradient Ramp、Color Wheels、Colorama、Hue/Saturation、Photo Filter、Selective Color、Tritone、Lift/Gamma/Gain、Shadow/HighlightをCPU固定で画素検証する（現42 cases）。無効effectのdeep-copyとdescriptor維持、各effectの代表parameter/alpha契約、Fillのalpha保持切替、Curvesのpremultiplied/透明画素、Gradient Rampの空間補間/alpha切替、Color Wheelsのstraight RGB gamma処理とpremultiplied alpha復元、ColoramaのHue→Rainbow palette endpoint/alpha保持、Hue/Saturationのhue rotation、Photo Filterのtint density、Selective Colorの色域group選択、Tritoneのmidtone band、Color Balanceのtone bands/preserve-luma/premultiplied alpha、Levelsのmaster/per-channel curve、Lift/Gamma/Gainの3 channel groupsとspatial parameter descriptor、Shadow/Highlightのneutral passthroughおよびshadow tonal weight、input/output bounds・gamma・alpha・GPU pointwise descriptor・非有限setter fallbackを対象にする。Levels setterの現状確認ではgamma以外のmaster bounds setterは有限値をそのまま保持し、UI propertyの0–255 hard rangeとserialized master parserの制約との差がある。per-channel property pathには同じ有限値/範囲validationがない。黒白入力点が等しく境界画素に一致するとCore処理が0/0を作る経路もあり、finite invariant caseで回帰を固定する。これらはArtifact submodule内の実装であり、この作業では変更しない。GPU descriptor確認は実GPU実行とのparityではない。effect stack interaction、GPU実計算とのparityは未対応。
 - `VibranceEffect` / `PosterizeEffect` / `ThresholdEffect` のCPU・descriptor testsは独立suiteから保留した。3 moduleの `.ixx` / `.cppm` は `Artifact/cmake/ArtifactSources.cmake` の app source manifest に含まれるが、`Artifact/CMakeLists.txt` の `ArtifactEffectsColor` module/implementation listsには含まれず、現 suite は `ArtifactEffectsColor` のみをlinkするためである。Artifact.exeを含む重い依存へsuiteを拡張せずに試験するには、親側から可能な独立library seamか、module所有先をArtifact submoduleで整理する作業が必要。
@@ -28,7 +202,7 @@
 - Artifact CMakeの2つの軽量GPU text runtimeは現ArtifactCoreが定義する`ArtifactCoreText`ではなく旧名`ArtifactCoreTextRuntime`をlinkしていた。子repoを変更せずに依存を成立させるため、親の`CMakeLists.txt`で実在する`ArtifactCoreText`を指すcompatibility ALIASをArtifact追加前に定義した。CMake configure/buildは行っておらず、target解決は未確認。
 - `tools/ui_visual_compare.py` はpixel-exactを既定とし、明示的なchannel tolerance / changed-pixel count / fraction gate、50% overlay、差分画像、SHA-256と環境manifestを含むJSON reportを生成する。名前付きregionごとに `--region-limit NAME,MAX_DIFF_PIXELS,MAX_DIFF_FRACTION` を指定でき、全体gateを通ってもregion gateに違反すれば失敗する。画像寸法が異なる場合も透明RGBA canvasへ左上揃えし、必ず不合格にしたうえでoverlay/diff/metricsとregion metricsを保存する。screenshot capture、UI interaction、承認基準画像自体はまだ用意していない。
 - `tools/ui_visual_loop.py` は実行ごとにランダムなrun prefixを付け、同じ `--output-prefix` で再実行しても前回のcapture/overlay/diff/reportを上書きしないようにした。外部captureコマンドを各iterationのPNG出力先付きで実行する。`--region-limit` を比較器へ渡し、差分時はoverlay/diffを保存する。既定では修正担当者のEnterを待つ。`--retry-delay-seconds` 指定時は自動で再撮影し、`--max-iterations` で上限を設定できる。`--compare-only` は1回で終了する。pixel exactが既定。Timeline／Render Manager専用capture・操作fixtureと基準画像はまだ未整備。
-- `tests/ui_visual/test_ui_visual_compare.py` に比較器の回帰用Python unittestを追加した。全体budget内でもregion limit違反なら失敗、exact matchのartifact生成、channel tolerance境界、寸法違い時のregion metricsと個別gate状態、同寸法／寸法違い双方での未定義region limit拒否の6項目を固定する。runner suiteと合わせた実行コマンドは `python -m unittest discover -s tests/ui_visual -v`。
+- `tests/ui_visual/test_ui_visual_compare.py` の比較器回帰用Python unittestでは、全体budget内でもregion limit違反なら失敗、region外の差ではregion gateだけは通過、exact matchのartifact生成、channel tolerance境界、alphaのみの差分、寸法違い時のregion metricsと個別gate状態、同寸法／寸法違い双方での未定義region limit拒否、region範囲外指定の拒否を9 casesで固定する。runner suiteと合わせた実行コマンドは `python -m unittest discover -s tests/ui_visual -v`。
 - Timeline constructor はグローバルなwidget/service群を集成し、RenderQueueManagerWidget は永続化する `ArtifactRenderQueueService::instance()` を生成時に取得する。静的所有を再確認すると、現行 `ArtifactRenderCenterWindow` が使う `Artifact.Widgets.Render.QueueManager`、`Artifact.Render.Queue.Service`、Timeline implementationはいずれも `Artifact/cmake/ArtifactSources.cmake` の app module/implementation群にあり、`Artifact.exe` 非依存でそのWidgetをlinkする現行test targetはない。`ArtifactWidgets` childには `setService(QObject*)` を持つ別のlegacy `RenderQueueManagerWidget` があるが、現行 `ArtifactRenderCenterWindow` はそれをimportしないため、現行UIの試験代用にしてはならない。RenderJobModel suite はWidget interactionの代わりにはならない。親側単独では固定UI状態を注入できないため、Artifact childにtestable library/service seamと隔離可能な保存先を用意し、capture runner・承認基準画像を加えるまでUI visual gateは未実装扱いとする。
 - UI比較器とloop runnerは一時的な5x4/3x2 RGBA fixtureで動作確認した。同一画像はpixel-exactで合格、1 channel値差の全20画素は不合格となり、region metrics/overlay/diff/JSONを生成。runnerはcompare-only成功と、意図的な差分で2回の自動再撮影後に上限で失敗終了することを確認した。これはツール自身のfixture確認であり、Timeline/Render ManagerのUIテスト結果ではない。
 - CMake configure/build/CTestとArtifact UI/GPU/renderの実行は未実施。Layer save/restore、時間依存 keyframe、render parity、全 effect pack coverage、通常Blur独立target seam、effect stack integration、CPU/GPU実計算parity、full composition render golden、UI interaction/visual suites は未実装。

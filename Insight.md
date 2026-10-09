@@ -1,5 +1,21 @@
 **最終更新:** 2026-10-08
 
+## 2026-10-08 — ArtifactRenderer CLI のPNG出力契約とComposition描画を区別する
+
+- **関連:** `ArtifactRenderer/src/ExternalFrameRenderer.cpp`、`tests/ArtifactRendererCli/test_cli.py`、`docs/planned/MILESTONE_FAST_TEST_SUITES_AND_UI_VISUAL_REGRESSION_2026-10-06.md`。
+- **確認できた事実:** PNG sequence出力で使う`buildDiagnosticFrame()`は、snapshotのlayer/effectデータを評価せず、固定の診断カードを描画する。CLI suiteはjob schema、出力範囲、ファイル形式、イベントを検査していたが、PNGのpixel内容は確認していなかった。
+- **対応:** PNGを標準ライブラリで展開し、診断背景色と青い描画領域の存在を確認する契約を追加した。これにより診断画像の出力経路は確認できるが、Compositionのオフラインレンダー受け入れではない。
+- **価値または懸念:** CLIのjob/sequence transport検証と、実composition描画・Render Queue parityの合格証拠を混同しない。PNGデコーダーはテスト内で8-bit RGBA・非interlaced形式を対象とする。
+- **次に確認すべきこと:** 実compositionのoffline renderを独立受け入れするには、Production rendererへ接続した固定fixtureと、出力pixel/frame範囲を検証する実行経路が必要。Render Queueとの同一入力比較は別suiteとして扱う。
+
+## 2026-10-08 — ColorBridgeのhex形式コメントとARGB出力
+
+- **関連:** `ArtifactCore/include/Color/ColorBridge.ixx`、`tests/ArtifactCore/ColorBridgeTest.cpp`。
+- **確認できた事実:** `colorToHexArgb()`は`QColor::HexArgb`を指定する。一方、`floatColorFromJson()`の近くのコメントはhex文字列を`#RRGGBB[AA]`と説明している。両関数の順序関係がコメントだけでは明瞭でなく、従来のround-trip testはencode/decodeで同じ色が戻ることしか固定していなかった。
+- **対応:** ColorBridgeTestに、`colorToHexArgb()`がalpha-red-green-blue順の固定8桁文字列を返す契約を追加した。ArtifactCoreサブモジュールのコメントやparse実装は変更していない。
+- **価値または懸念:** byte exact outputの回帰を検出できる。JSON string parserが受理するhex表記やその順序との意図的な関係は、Qtのparse仕様と既存保存データを照合するまで未確定。
+- **次に確認すべきこと:** 実際の保存データのalpha付きhex表記と`QColor(QString)`の受理順を確認し、コメントまたはstring parser testで契約を明示する。
+
 ## 2026-10-08 — Soft Body を独立 Physics Testbench で先行検証
 
 - **関連:** `ArtifactCore/src/Physics/SoftBodySolver.cppm`、`ArtifactCore/src/Physics/PhysicsSystem.cppm`、`tests/ArtifactCore/PhysicsDeterminismTest.cpp`。
@@ -5015,3 +5031,44 @@ unCreativeCompute＋labelキーキャッシュ、ArtifactCreativeEffects.cppm:37
 - **独立実行についての確認・実装:** `ArtifactTextLayer.cppm` は `Artifact` 実行ファイル側の広いモジュール依存を持つため、専用の小さなテスト実行ファイルへ直接リンクするには本体側の依存分離が必要。一方、親CMakeは `Artifact` を定義した後でテスト設定に入る。専用環境変数でTextLayerケースだけ実行するアプリモードと、GTest検出前に登録する `ArtifactTextLayerAnimatorIntegrationTest` を追加した。さらに `ARTIFACT_ENABLE_TEXT_LAYER_ANIMATOR_TEST=ON` で全GTestスイートを有効にせず登録できるようにした。これはCTest上では個別選択できるが、独立バイナリではなくArtifactアプリを起動する統合テストである。CMake再生成・ビルド・実行はユーザーの指示により未実施。
 - **未確認:** 現行 `TextAnimatorContractTest.cpp` のビルド・実行、およびArtifact組み込みテストのリンク・実行。生成済みNinjaのドライランでは対象ビルドの前にCMake再実行が必要と出たため、再生成を行ってよいか確認したがユーザーは拒否。生成済みコマンドによる直接ビルドもユーザーが拒否したため、両方とも未実施。
 - **次に確認すべきこと:** CMake再生成後、`ctest -R ArtifactTextLayerAnimatorIntegrationTest` で専用経路を確認し、Artifact本体を依存に含める統合コストが許容されるか判断する。現状では既存実行ファイルはソースと一致しないため代用実行しない。
+## 2026-10-08 — ImageF32x4_RGBA の moved-from 説明と実状態
+
+- **関連:** `ArtifactCore/include/Image/ImageF32x4_RGBA.ixx` の move API コメント、`ArtifactCore/src/Image/ImageF32x4_RGBA.cppm` の default `Impl` と move ctor／assignment、`tests/ArtifactCore/RenderImageContractTest.cpp`。
+- **確認できた事実（静的読み取り）:** move ctor／assignment は移譲元に `new Impl()` を置く。default `Impl` は `cv::Mat(1, 1, CV_32FC4, ...)` を作るため、ヘッダーコメントの「fresh empty Impl」とは寸法が一致せず、移動後オブジェクトは空画像ではなく1×1の初期画像を持つ。
+- **価値または懸念:** moved-from object の利用可否自体は保たれるが、「empty」を前提にする caller／テストと実状態が食い違う可能性がある。ArtifactCore はサブモジュールなので、この調査では変更していない。
+- **次に確認すべきこと:** ArtifactCore の変更が許可された作業で、既存 caller が moved-from の寸法／画素を観測していないか確認し、空画像を契約にするか初期画像を契約にするかを決めてからコメント・実装・テストを揃える。
+
+## 2026-10-08 — Pointwise fusion の予約parameter slot検証
+
+- **関連:** `ArtifactCore/include/Render/PointwiseEffectFusion.ixx` の `PointwiseEffectStack::kMaskMixParameterSlot`、`kMaxNodeParameterSlot`、`validate()`、`PointwiseEffectFusion::validateSegment()`。
+- **確認できた事実（静的読み取り）:** slot 63 は adjustment-layer mask mix 用に予約され、「effect nodes must not claim this slot」とコメントされている。`kMaxNodeParameterSlot` は62を示すが、stack／segmentの両validatorは64-slot全体に収まるかだけを判定するため、1-slot nodeを63に置くケースや multi-slot nodeが63を含むケースも有効として通る。
+- **価値または懸念（未検証）:** reserved slotをeffect nodeが上書きするとmask opacityとnode parameterが競合する可能性がある。今回の親側suiteはvalidatorが現在許可する64-slot境界だけを固定し、サブモジュール実装は変更していない。
+- **次に確認すべきこと:** ArtifactCore変更を許可された作業でvalidatorが`kMaxNodeParameterSlot`を使うべきか確認し、単一slot・multi-slot node双方のreserved-slot拒否を検討する。GPU mask mixとeffect parameterの実際のbuffer書き込み経路も追跡して競合有無を確認する。
+
+## 2026-10-08 — AutoExposureEffect の実装・build登録確認
+
+- **関連:** `Artifact/include/Effects/ColorCorrection/AutoExposureEffect.ixx`、`Artifact/CMakeLists.txt` の `ArtifactEffectsColor` module sources、Artifact color-effect tests。
+- **確認できた事実（静的検索）:** AutoExposureEffect のexport interfaceには5個のpropertyとGPU capability宣言があるが、`Artifact/src` に実装moduleは見つからず、`Artifact/CMakeLists.txt` のeffect target source群にもinterfaceが登録されていない。interface内のsetterは宣言値を変更するがCPU/GPU implementationを設定しない。
+- **価値または懸念（未検証）:** 画面や将来のimport経路から参照した場合、constructor後の `applyCPUOnly` が有効な自動露出処理を提供しない可能性がある。今回はテスト追加対象から外し、実装・登録変更もしていない。
+- **次に確認すべきこと:** Artifact側のeffect pack整備作業で、AutoExposureを実装予定APIとして残すか、CPU histogram／adaptation stateを含む実機能として設計・登録するか確認する。headerの利用箇所・CMake module source discoveryも併せて追跡する。
+
+## 2026-10-08 — CUBE LUT parser の不正token扱い
+
+- **関連:** `ArtifactCore/src/Color/ColorLUT.cppm` の `ColorLUT::loadFromCube`、`tests/ArtifactCore/ColorLUTContractTest.cpp`。
+- **確認できた事実（静的読み取り）:** CUBE parser は各行のtokenを個別に `toFloat(&ok)` し、変換できないtokenを黙って無視する。全体の数値数が期待数と一致すればload成功となるため、欠落tokenと余分な有効数値が同じfixture内にある場合、壊れた行構成を見逃す可能性がある。
+- **価値または懸念（未検証）:** malformed sampleを含むファイルが成功扱いになれば、後続の色変換結果が入力行の意図とずれる可能性がある。今回の作業ではArtifactCore submoduleのparserを変更していない。
+- **次に確認すべきこと:** ArtifactCoreの変更を許可された作業で、size宣言後は各sample行が厳密に3つの有限数値であることを要求するか、CUBE形式の許容構文を確認してからparserと拒否テストを揃える。
+
+## 2026-10-08 — Drop-frameの最初の分境界
+
+- **関連:** `ArtifactCore/src/Time/TimeCode.cppm` の `TimeCode::toHMSF()`、`tests/ArtifactCore/FrameTimeTest.cpp`。
+- **確認できた事実（静的読み取り）:** inverse変換はten-minute block内の `remainder >= dropCount` でdrop correctionを始める。29.97 DFではdropCount=2のため、最初のminute内でframe 1798／1799にも補正を加え、frame 1799のラベルを `00:01:00;01` 相当にする計算になる。一方、通常のminute-0ラベルはframe 1799まで `00:00:59;29` で、最初のminuteの最初の実frameはframe 1800の `00:01:00;02`。
+- **価値または懸念（未検証）:** drop-frame表記のminute境界で2 frame早く補正され、存在しないlabelを生成する可能性がある。今回のテスト追加では矛盾する1-minute期待値を入れず、既知の10-minute boundary round-tripだけを追加した。ArtifactCore submoduleは変更していない。
+- **次に確認すべきこと:** ArtifactCoreの変更が許可された作業で、frame 1798／1799／1800および10-minute境界の値をruntime testし、drop correction開始条件を期待ラベルに合わせて修正する。
+
+## 2026-10-08 — 空画像morphの出力サイズ
+
+- **関連:** `ArtifactCore/src/ImageProcessing/Distortion.cppm` の `morphImages` 空入力分岐、`ArtifactCore/src/Image/ImageF32x4_RGBA.cppm` のdefault constructor。
+- **確認できた事実（静的読み取り）:** `morphImages` は source または target の有効寸法がない場合に `output = ImageF32x4_RGBA()` を行う。一方、`ImageF32x4_RGBA` のdefault `Impl` は1×1 `cv::Mat` を初期化するため、この戻り方は0×0 empty imageにならない。今回のテストでは空samplerのtransparent blackだけを固定し、morphの結果寸法は未検証。
+- **価値または懸念（未検証）:** callerがempty outputを想定して `isEmpty()` や寸法で判定する場合、空入力時に1×1 opaque-default bufferを処理する可能性がある。
+- **次に確認すべきこと:** ArtifactCore変更を許可された作業で、ImageF32x4_RGBAにempty状態を表す正規のAPIがあるか確認し、morphの空入力契約を寸法と画素の両方で決めてから実装・テストを揃える。

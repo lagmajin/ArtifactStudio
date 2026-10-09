@@ -54,3 +54,21 @@ TEST(UtilsTest, StringLike) {
     EXPECT_EQ(toQString(std::string("test")), "test");
     EXPECT_EQ(toQString(std::string_view("test")), "test");
 }
+
+TEST(UtilsTest, StringConversionsPreserveEmbeddedNullBytes)
+{
+    const std::string bytes("a\0b", 3);
+    const QString fromString = toQString(bytes);
+    const QString fromView = toQString(std::string_view(bytes.data(), bytes.size()));
+
+    ASSERT_EQ(fromString.size(), 3);
+    ASSERT_EQ(fromView.size(), 3);
+    EXPECT_EQ(fromString.at(0).unicode(), u'a');
+    EXPECT_TRUE(fromString.at(1).isNull());
+    EXPECT_EQ(fromString.at(2).unicode(), u'b');
+    EXPECT_EQ(fromView, fromString);
+
+    const std::string roundTrip = toStdString(fromView);
+    ASSERT_EQ(roundTrip.size(), bytes.size());
+    EXPECT_EQ(roundTrip, bytes);
+}

@@ -18,6 +18,66 @@ set_tests_properties(ArtifactColorCorrectionEffectContractTest PROPERTIES
     LABELS "effect;cpu;contract"
 )
 
+artifact_add_test(ArtifactVibranceEffectContractTest
+    SOURCES
+        VibranceEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsColor
+)
+set_tests_properties(ArtifactVibranceEffectContractTest PROPERTIES
+    LABELS "effect;cpu;contract"
+)
+
+artifact_add_test(ArtifactBlackAndWhiteEffectContractTest
+    SOURCES
+        BlackAndWhiteEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsColor
+)
+set_tests_properties(ArtifactBlackAndWhiteEffectContractTest PROPERTIES
+    LABELS "effect;cpu;contract"
+)
+
+artifact_add_test(ArtifactColorTintEffectContractTest
+    SOURCES
+        ColorTintEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsColor
+)
+set_tests_properties(ArtifactColorTintEffectContractTest PROPERTIES
+    LABELS "effect;cpu;contract"
+)
+
+artifact_add_test(ArtifactPosterizeEffectContractTest
+    SOURCES
+        PosterizeEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsColor
+)
+set_tests_properties(ArtifactPosterizeEffectContractTest PROPERTIES
+    LABELS "effect;cpu;contract"
+)
+
+artifact_add_test(ArtifactThresholdEffectContractTest
+    SOURCES
+        ThresholdEffectContractTest.cpp
+    LIBS
+        ArtifactEffectsColor
+)
+set_tests_properties(ArtifactThresholdEffectContractTest PROPERTIES
+    LABELS "effect;cpu;contract"
+)
+
+artifact_add_test(ArtifactEffectSequenceContractTest
+    SOURCES
+        EffectSequenceContractTest.cpp
+    LIBS
+        ArtifactEffectsColor
+)
+set_tests_properties(ArtifactEffectSequenceContractTest PROPERTIES
+    LABELS "effect;cpu;integration;contract"
+)
+
 if(VULKAN_SUPPORTED OR D3D12_SUPPORTED)
     # The submitter implementation module has no primary interface in the
     # Artifact submodule. Both backend-specific test paths need the root-owned

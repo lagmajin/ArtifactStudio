@@ -853,12 +853,15 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_TEXT_LAYER_ANIMATOR_TEST)
 endif()
 
 if(ARTIFACT_BUILD_TESTS)
+    enable_testing()
     find_package(GTest CONFIG QUIET)
     if(GTest_FOUND)
         add_subdirectory(tests)
     else()
         message(WARNING "GTest was not found; skipping unit tests.")
     endif()
+    # This Python/CTest suite does not need GTest or the Artifact application.
+    add_subdirectory(tests/ArtifactRendererCli)
 endif()
 
 # Keep each long-running edit-sequence fuzz seed independently selectable and

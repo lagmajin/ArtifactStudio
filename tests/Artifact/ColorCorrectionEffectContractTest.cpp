@@ -290,6 +290,59 @@ TEST(ColorCorrectionEffectContractTest, ColoramaHuePaletteMapsExpectedColorAndPr
     expectPixelNear(output, 0, 0, FloatRGBA(1.0f, 0.2f, 0.2f, 0.37f));
 }
 
+TEST(ColorCorrectionEffectContractTest, ColoramaPresetAndSetterBoundariesStayCoherent)
+{
+    ColoramaEffect effect;
+    effect.setPreset(2);
+    EXPECT_EQ(effect.preset(), 2);
+    EXPECT_EQ(effect.settings().palette, ColoramaPalette::Ocean);
+    EXPECT_FLOAT_EQ(effect.settings().saturationBoost, 1.05f);
+    EXPECT_FLOAT_EQ(effect.settings().contrast, 0.95f);
+
+    effect.setPhase(2.0f);
+    effect.setSpread(-1.0f);
+    effect.setStrength(std::numeric_limits<float>::quiet_NaN());
+    effect.setSaturationBoost(3.0f);
+    effect.setContrast(-1.0f);
+    EXPECT_EQ(effect.preset(), 0);
+    EXPECT_FLOAT_EQ(effect.settings().phase, 1.0f);
+    EXPECT_FLOAT_EQ(effect.settings().spread, 0.0f);
+    EXPECT_FLOAT_EQ(effect.settings().strength, 1.0f);
+    EXPECT_FLOAT_EQ(effect.settings().saturationBoost, 2.5f);
+    EXPECT_FLOAT_EQ(effect.settings().contrast, 0.0f);
+}
+
+TEST(ColorCorrectionEffectContractTest, ColoramaGpuDescriptorCarriesEveryProcessorSetting)
+{
+    ColoramaEffect effect;
+    effect.setSourceMode(ColoramaSourceMode::Hue);
+    effect.setPalette(ColoramaPalette::Neon);
+    effect.setPhase(0.2f);
+    effect.setSpread(1.5f);
+    effect.setStrength(0.6f);
+    effect.setSaturationBoost(1.2f);
+    effect.setContrast(0.8f);
+    effect.setPreserveLuma(false);
+    GpuSpatialEffectStack stack;
+
+    ASSERT_TRUE(effect.appendGpuSpatialNodes(stack));
+    ASSERT_EQ(stack.count, 1u);
+    EXPECT_EQ(stack.nodes[0].kind, GpuSpatialEffectKind::Generic);
+    EXPECT_EQ(stack.nodes[0].genericKey, effect.gpuGenericKey());
+    EXPECT_EQ(stack.nodes[0].genericKey,
+              gpuGenericKeyFromString("colorama"));
+    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[0],
+                    static_cast<float>(ColoramaSourceMode::Hue));
+    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[1],
+                    static_cast<float>(ColoramaPalette::Neon));
+    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[2], 0.2f);
+    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[3], 1.5f);
+    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[4], 0.6f);
+    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[5], 1.2f);
+    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[6], 0.8f);
+    EXPECT_FLOAT_EQ(stack.nodes[0].parameters[7], 0.0f);
+}
+
 TEST(ColorCorrectionEffectContractTest, HueAndSaturationRotatesHueAndKeepsAlpha)
 {
     const float pixels[] = {1.0f, 0.0f, 0.0f, 0.42f};

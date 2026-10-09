@@ -50,6 +50,19 @@ TEST(MathVecTest, SafeNormalizeHandlesZeroVector)
     EXPECT_TRUE(isFinite(tinyResult));
 }
 
+TEST(MathVecTest, SafeNormalizeSupportsVec2AndExplicitFallbacks)
+{
+    const vec2 zero(0.0f);
+    const vec2 fallback(-1.0f, 0.0f);
+    EXPECT_TRUE(epsilonEqual(safeNormalize(zero), vec2(0.0f, 1.0f)));
+    EXPECT_TRUE(epsilonEqual(safeNormalize(zero, fallback), fallback));
+
+    const vec2 normal = safeNormalize(vec2(3.0f, 4.0f));
+    EXPECT_NEAR(glm::length(normal), 1.0f, kEps);
+    EXPECT_NEAR(normal.x, 0.6f, kEps);
+    EXPECT_NEAR(normal.y, 0.8f, kEps);
+}
+
 TEST(MathVecTest, DistanceSqAndComponentOps)
 {
     EXPECT_FLOAT_EQ(distanceSq(vec3(0.0f), vec3(3.0f, 4.0f, 0.0f)), 25.0f);
@@ -137,4 +150,22 @@ TEST(MathVecTest, PointConversionUsesQReal)
     const QPointF back = toQPointF(v);
     EXPECT_DOUBLE_EQ(back.x(), 12.5);
     EXPECT_DOUBLE_EQ(back.y(), -3.25);
+}
+
+TEST(MathVecTest, TaggedCompositionPointsAndVectorsRoundTripThroughQPointF)
+{
+    const CompositionPoint2 origin{12.5f, -3.25f};
+    const CompositionVector2 offset{2.0f, 4.5f};
+    const CompositionPoint2 translated = origin + offset;
+    const CompositionVector2 recovered = translated - origin;
+
+    EXPECT_FLOAT_EQ(translated.x, 14.5f);
+    EXPECT_FLOAT_EQ(translated.y, 1.25f);
+    EXPECT_FLOAT_EQ(recovered.x, offset.x);
+    EXPECT_FLOAT_EQ(recovered.y, offset.y);
+
+    const QPointF qtPoint = toQPointF(translated);
+    const CompositionPoint2 roundTrip = compositionPointFromQPointF(qtPoint);
+    EXPECT_FLOAT_EQ(roundTrip.x, translated.x);
+    EXPECT_FLOAT_EQ(roundTrip.y, translated.y);
 }
