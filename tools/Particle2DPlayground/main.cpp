@@ -1,13 +1,9 @@
 #include <QApplication>
 #include <QDir>
 #include <QFile>
-#include <QFileDialog>
-#include <QFileInfo>
 #include <QImage>
 #include <QKeyEvent>
-#include <QLabel>
 #include <QPaintEvent>
-#include <QPixmap>
 #include <QShowEvent>
 #include <QString>
 #include <QTimerEvent>
@@ -22,6 +18,7 @@
 import Artifact.Layer.Particle;
 import Artifact.Generator.Particle;
 import Artifact.Render.IRenderer;
+import Graphics.ParticleData;
 
 namespace {
 
@@ -37,12 +34,6 @@ public:
         setAttribute(Qt::WA_OpaquePaintEvent);
         setFixedSize(1280, 720);
         setFocusPolicy(Qt::StrongFocus);
-        flipbookPreview_ = new QLabel(this);
-        flipbookPreview_->setGeometry(rect());
-        flipbookPreview_->setScaledContents(true);
-        flipbookPreview_->setAlignment(Qt::AlignCenter);
-        flipbookPreview_->setAttribute(Qt::WA_TransparentForMouseEvents);
-        flipbookPreview_->hide();
 
         loadPreset(0);
         timerId_ = startTimer(33, Qt::PreciseTimer);
@@ -80,25 +71,6 @@ protected:
 
     void paintEvent(QPaintEvent*) override
     {
-        if (flipbookMode_) {
-            if (rendererReady_) {
-                renderer_.setViewportSize(
-                    static_cast<float>(width() * devicePixelRatioF()),
-                    static_cast<float>(height() * devicePixelRatioF()));
-                renderer_.setClearColor(
-                    ArtifactCore::FloatColor(0.018f, 0.024f, 0.04f, 1.0f));
-                renderer_.clear();
-                renderer_.flush();
-                renderer_.present();
-            }
-            const float seconds = static_cast<float>(frame_) / 30.0f;
-            const QImage frameImage = layer_.renderFrame(
-                CanvasWidth, CanvasHeight, seconds);
-            if (!frameImage.isNull()) {
-                flipbookPreview_->setPixmap(QPixmap::fromImage(frameImage));
-            }
-            return;
-        }
         if (!rendererReady_) return;
 
         renderer_.setViewportSize(
@@ -139,21 +111,11 @@ protected:
         case Qt::Key_5:
             loadPreset(4);
             break;
-        case Qt::Key_F1:
-        case Qt::Key_N:
-            loadPreset(0);
+        case Qt::Key_6:
+            loadFirework();
             break;
-        case Qt::Key_F2:
-            loadFlipbook(QStringLiteral("petal"),
-                         event->modifiers().testFlag(Qt::ShiftModifier));
-            break;
-        case Qt::Key_F3:
-            loadFlipbook(QStringLiteral("spark"),
-                         event->modifiers().testFlag(Qt::ShiftModifier));
-            break;
-        case Qt::Key_F4:
-            loadFlipbook(QStringLiteral("autumn_leaves"),
-                         event->modifiers().testFlag(Qt::ShiftModifier));
+        case Qt::Key_7:
+            loadWindLeaves();
             break;
         case Qt::Key_Up:
         case Qt::Key_Plus:
@@ -185,8 +147,6 @@ protected:
 private:
     void loadPreset(int index)
     {
-        flipbookMode_ = false;
-        flipbookPreview_->hide();
         static constexpr std::array<const char*, 5> Presets{
             "fountain", "fire", "smoke", "rain", "snow"};
         const int selectedIndex = std::clamp(
@@ -196,71 +156,40 @@ private:
         frame_ = 0;
         layer_.resetParticleSystem();
         setWindowTitle(QStringLiteral(
-            "Artifact 2D ParticleLayer GPU Test — %1 | F2 petal, F3 spark, F4 leaves")
+            "Artifact 2D ParticleLayer Test — %1 | 1-5 preset, Space pause, R reset, Up/Down rate")
                            .arg(layer_.presetName()));
     }
 
-    void loadFlipbook(const QString& assetName, bool useSheet)
+    void loadFirework()
     {
-        QString assetPath = findParticleAsset(assetName, useSheet);
-        if (assetPath.isEmpty()) {
-            assetPath = useSheet
-                ? QFileDialog::getOpenFileName(
-                    this, QStringLiteral("Select %1 sprite sheet").arg(assetName),
-                    QDir::currentPath(), QStringLiteral("PNG images (*.png)"))
-                : QFileDialog::getExistingDirectory(
-                    this, QStringLiteral("Select %1 PNG sequence folder").arg(assetName),
-                    QDir::currentPath());
-        }
-        if (assetPath.isEmpty()) return;
-
-        const QString displayName = assetName == QStringLiteral("autumn_leaves")
-            ? QStringLiteral("autumn leaves") : assetName;
-        layer_.loadPreset(QStringLiteral("leaves"));
-        layer_.setParticleBlendMode(Artifact::ParticleBlendMode::Normal);
-        layer_.setLayerPropertyValue(
-            QStringLiteral("particle.emitter.texturePath"), QVariant(assetPath));
-        layer_.setLayerPropertyValue(
-            QStringLiteral("particle.emitter.textureRows"), QVariant(useSheet ? 4 : 1));
-        layer_.setLayerPropertyValue(
-            QStringLiteral("particle.emitter.textureCols"), QVariant(useSheet ? 4 : 16));
-        layer_.setLayerPropertyValue(
-            QStringLiteral("particle.emitter.frameCount"), QVariant(16));
-        layer_.setLayerPropertyValue(
-            QStringLiteral("particle.emitter.frameRate"), QVariant(12.0));
-        layer_.setLayerPropertyValue(
-            QStringLiteral("particle.emitter.randomFrame"), QVariant(false));
+        layer_.loadPreset(QStringLiteral("explosion"));
         frame_ = 0;
         layer_.resetParticleSystem();
-        flipbookMode_ = true;
-        flipbookPreview_->show();
-        flipbookPreview_->raise();
         setWindowTitle(QStringLiteral(
-            "Artifact 2D ParticleLayer %1 — %2 | Shift+F2/F3/F4 sheet, F2/F3/F4 sequence, N GPU")
-                           .arg(useSheet ? QStringLiteral("Sprite Sheet")
-                                         : QStringLiteral("PNG Sequence"),
-                                displayName));
+            "Artifact 2D ParticleLayer Test — Firework | 6 burst, Space pause, R reset"));
     }
 
-    QString findParticleAsset(const QString& assetName, bool useSheet) const
+    void loadWindLeaves()
     {
-        const std::array<QString, 2> starts{
-            QDir::currentPath(), QApplication::applicationDirPath()};
-        for (const QString& start : starts) {
-            QDir directory(start);
-            for (int depth = 0; depth < 8; ++depth) {
-                const QString candidate = directory.filePath(
-                    QStringLiteral("temp/particle_flipbook_test/%1")
-                        .arg(useSheet ? assetName + QStringLiteral("_sheet.png")
-                                      : assetName));
-                const QFileInfo candidateInfo(candidate);
-                if (useSheet ? candidateInfo.isFile() : candidateInfo.isDir()) {
-                    return candidate;
-                }
-                if (!directory.cdUp()) break;
-            }
-        }
-        return {};
+        layer_.loadPreset(QStringLiteral("leaves"));
+        layer_.setLayerPropertyValue(QStringLiteral("particle.physics.windDirectionX"),
+                                     QVariant(1.0));
+        layer_.setLayerPropertyValue(QStringLiteral("particle.physics.windDirectionY"),
+                                     QVariant(0.0));
+        layer_.setLayerPropertyValue(QStringLiteral("particle.physics.windStrength"),
+                                     QVariant(80.0));
+        layer_.setLayerPropertyValue(QStringLiteral("particle.physics.turbulenceAmplitude"),
+                                     QVariant(35.0));
+        layer_.setLayerPropertyValue(QStringLiteral("particle.physics.turbulenceFrequency"),
+                                     QVariant(0.45));
+        layer_.setLayerPropertyValue(QStringLiteral("particle.physics.turbulenceEvolution"),
+                                     QVariant(0.6));
+        layer_.setLayerPropertyValue(QStringLiteral("particle.physics.drag"),
+                                     QVariant(0.1));
+        frame_ = 0;
+        layer_.resetParticleSystem();
+        setWindowTitle(QStringLiteral(
+            "Artifact 2D ParticleLayer Test — Wind Leaves | 7 leaves, Space pause, R reset"));
     }
 
     void adjustEmissionRate(double delta)
@@ -278,11 +207,9 @@ private:
 
     Artifact::ArtifactParticleLayer layer_;
     Artifact::ArtifactIRenderer renderer_;
-    QLabel* flipbookPreview_ = nullptr;
     int timerId_ = 0;
     std::int64_t frame_ = 0;
     bool paused_ = false;
-    bool flipbookMode_ = false;
     bool rendererAttempted_ = false;
     bool rendererReady_ = false;
 };
@@ -417,6 +344,159 @@ static int captureFirework(const QString& outputDirectory)
     return 0;
 }
 
+static int captureWindLeaves(const QString& outputDirectory)
+{
+    QDir output(outputDirectory);
+    if (!output.mkpath(QStringLiteral("."))) {
+        qCritical("Could not create wind-leaves capture directory");
+        return 2;
+    }
+
+    constexpr std::array<std::int64_t, 5> CaptureFrames{30, 60, 90, 120, 150};
+    Artifact::ArtifactParticleLayer layer;
+    layer.loadPreset(QStringLiteral("leaves"));
+    layer.setLayerPropertyValue(QStringLiteral("particle.physics.windDirectionX"),
+                                QVariant(1.0));
+    layer.setLayerPropertyValue(QStringLiteral("particle.physics.windDirectionY"),
+                                QVariant(0.0));
+    layer.setLayerPropertyValue(QStringLiteral("particle.physics.windStrength"),
+                                QVariant(80.0));
+    layer.setLayerPropertyValue(QStringLiteral("particle.physics.turbulenceAmplitude"),
+                                QVariant(35.0));
+    layer.setLayerPropertyValue(QStringLiteral("particle.physics.turbulenceFrequency"),
+                                QVariant(0.45));
+    layer.setLayerPropertyValue(QStringLiteral("particle.physics.turbulenceEvolution"),
+                                QVariant(0.6));
+    layer.setLayerPropertyValue(QStringLiteral("particle.physics.drag"),
+                                QVariant(0.1));
+    layer.resetParticleSystem();
+    layer.play();
+
+    Artifact::ArtifactIRenderer softwareRenderer;
+    QImage firstFrame;
+    QImage lastFrame;
+    QFile report(output.filePath(QStringLiteral("wind_leaves_report.txt")));
+    if (!report.open(QIODevice::WriteOnly | QIODevice::Text)) return 3;
+    for (std::size_t index = 0; index < CaptureFrames.size(); ++index) {
+        const auto frameNumber = CaptureFrames[index];
+        layer.goToFrame(frameNumber);
+        layer.draw(&softwareRenderer);
+        QImage frame;
+        if (!layer.getCachedFrame(frameNumber, frame) || frame.isNull()) {
+            qCritical("Wind leaves did not produce a frame");
+            return 4;
+        }
+        const auto* system = layer.particleSystem();
+        const std::size_t aliveCount = system && !system->emitters().empty()
+            && system->emitters().front()
+            ? system->emitters().front()->particles().size() : 0;
+        if (aliveCount == 0) {
+            qCritical("Wind leaves produced no live particles");
+            return 5;
+        }
+        if (index == 0) firstFrame = frame;
+        if (index + 1 == CaptureFrames.size()) lastFrame = frame;
+        const QString path = output.filePath(
+            QStringLiteral("wind_leaves_%1.png").arg(static_cast<int>(index), 2, 10,
+                                                       QLatin1Char('0')));
+        if (!frame.save(path, "PNG")) return 6;
+        report.write(QStringLiteral("frame=%1 alive=%2 image=%3\n")
+                         .arg(frameNumber).arg(aliveCount).arg(path).toUtf8());
+    }
+
+    std::uint64_t differingPixels = 0;
+    if (firstFrame.size() == lastFrame.size() &&
+        firstFrame.format() == lastFrame.format()) {
+        for (int y = 0; y < firstFrame.height(); ++y) {
+            const auto* firstRow = reinterpret_cast<const QRgb*>(firstFrame.constScanLine(y));
+            const auto* lastRow = reinterpret_cast<const QRgb*>(lastFrame.constScanLine(y));
+            for (int x = 0; x < firstFrame.width(); ++x) {
+                if (firstRow[x] != lastRow[x]) ++differingPixels;
+            }
+        }
+    }
+    if (differingPixels == 0) {
+        qCritical("Wind leaves frames did not change over time");
+        return 7;
+    }
+    report.write(QStringLiteral("first_to_last_differing_pixels=%1\n")
+                     .arg(differingPixels).toUtf8());
+    return 0;
+}
+
+static int captureGpuParticle(const QString& outputDirectory)
+{
+    QDir output(outputDirectory);
+    if (!output.mkpath(QStringLiteral("."))) return 2;
+
+    constexpr int Width = 1600;
+    constexpr int Height = 900;
+    Artifact::ArtifactIRenderer renderer;
+    renderer.initializeHeadless(Width, Height);
+    if (!renderer.isInitialized()) {
+        qCritical("Could not initialize the headless GPU renderer");
+        return 3;
+    }
+    renderer.setCanvasSize(static_cast<float>(Width), static_cast<float>(Height));
+    renderer.setViewportSize(static_cast<float>(Width), static_cast<float>(Height));
+    renderer.setClearColor(ArtifactCore::FloatColor(0.018f, 0.024f, 0.04f, 1.0f));
+    renderer.clear();
+    renderer.drawSolidRect(32.0f, 32.0f, 96.0f, 96.0f,
+                           ArtifactCore::FloatColor(0.0f, 1.0f, 0.1f, 1.0f));
+
+    ArtifactCore::ParticleRenderData data;
+    data.options.blend = ArtifactCore::ParticleBlendPolicy::Alpha;
+    data.options.billboard = ArtifactCore::ParticleBillboardPolicy::None;
+    ArtifactCore::ParticleVertex particle{};
+    particle.px = Width * 0.5f;
+    particle.py = Height * 0.5f;
+    particle.pz = 0.0f;
+    particle.r = 1.0f;
+    particle.g = 0.08f;
+    particle.b = 0.25f;
+    particle.a = 1.0f;
+    particle.size = 30.0f;
+    particle.lifetime = 10.0f;
+    data.particles.push_back(particle);
+    renderer.drawParticles(data);
+    renderer.flushAndWait();
+
+    const QString debug = renderer.particleDebugState();
+    const QImage image = renderer.readbackToImage().convertToFormat(QImage::Format_ARGB32);
+    std::uint64_t particlePixels = 0;
+    std::uint64_t greenRectPixels = 0;
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            const QRgb pixel = image.pixel(x, y);
+            if (x < 160 && y < 160 && qGreen(pixel) > 200 &&
+                qRed(pixel) < 30 && qBlue(pixel) < 120) ++greenRectPixels;
+            if (qRed(pixel) > 180 && qGreen(pixel) < 80 && qBlue(pixel) < 150)
+                ++particlePixels;
+        }
+    }
+
+    const QString imagePath = output.filePath(QStringLiteral("gpu_particle.png"));
+    if (image.isNull() || !image.save(imagePath, "PNG")) {
+        renderer.destroy();
+        qCritical("Could not read back and save the GPU particle image");
+        return 4;
+    }
+    QFile report(output.filePath(QStringLiteral("gpu_particle_report.txt")));
+    if (!report.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        renderer.destroy();
+        return 5;
+    }
+    report.write(QStringLiteral("particle_pixels=%1 green_rect_pixels=%2\n%3\n")
+                     .arg(particlePixels).arg(greenRectPixels).arg(debug).toUtf8());
+    renderer.destroy();
+    if (greenRectPixels == 0 || particlePixels == 0 ||
+        !debug.contains(QStringLiteral("state=drawn"))) {
+        qCritical("GPU particle capture did not contain the expected reference shapes");
+        return 6;
+    }
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
@@ -424,6 +504,13 @@ int main(int argc, char** argv)
     if (arguments.size() == 3 && arguments[1] == QStringLiteral("--capture-firework")) {
         return captureFirework(arguments[2]);
     }
+    if (arguments.size() == 3 && arguments[1] == QStringLiteral("--capture-wind-leaves")) {
+        return captureWindLeaves(arguments[2]);
+    }
+    if (arguments.size() == 3 && arguments[1] == QStringLiteral("--capture-gpu-particle")) {
+        return captureGpuParticle(arguments[2]);
+    }
+    if (arguments.size() > 1) return 10;
     ParticleLayerWindow window;
     window.show();
     return app.exec();

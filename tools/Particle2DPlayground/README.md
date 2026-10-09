@@ -5,8 +5,9 @@
 A small, independent executable for the production `ArtifactParticleLayer`.
 It does not open or modify an ArtifactStudio project. Its source is separate,
 while its CMake target links the same `ArtifactAppRuntime` used by the editor.
-The regular mode exercises the layer's Diligent GPU draw path; flipbook modes
-exercise the layer's image render path with a PNG sequence or sprite sheet.
+The interactive window exercises the layer's Diligent GPU draw path. The
+firework capture command exercises the deterministic frame-sync and software
+image-render path.
 
 ## Build and run
 
@@ -25,23 +26,42 @@ project after `ArtifactAppRuntime` is defined.
 
 - **Space**: pause or resume
 - **R**: reset the deterministic emitter
-- **N / F1**: return to regular GPU particles
 - **1–5**: regular presets (fountain, fire, smoke, rain, snow)
-- **F2 / F3 / F4**: petal, spark, or autumn-leaf PNG sequence
-- **Shift+F2 / Shift+F3 / Shift+F4**: the matching packed sprite sheet
+- **6**: explosion burst (firework)
+- **7**: leaves carried by steady wind and turbulence
 - **Up / Down**: raise or lower the selected emitter's rate
 
-The sample image folders and atlases are found in `temp/particle_flipbook_test`
-when launched from the repository or its build output. If they are elsewhere,
-the app opens a folder or file picker. Numbered PNGs are sorted numerically;
-the samples contain 16 frames and play at 12 fps. The test calls the layer's
-existing `renderFrame()` image path for both sequence and atlas sprites; regular
-particles call `ArtifactParticleLayer::draw()` and render through Diligent.
+## GPU particle capture
+
+Render a deterministic particle through the production Diligent GPU path and
+read the target back to a PNG. The report includes particle/reference pixel
+counts and the renderer submission state; the command exits nonzero if either
+shape is missing:
+
+```powershell
+<build-directory>\bin\Debug\ArtifactParticle2DPlayground.exe --capture-gpu-particle <output-directory>
+```
 
 ## Firework PNG capture
 
-Capture the production explosion preset at five points from 1.1 to 1.9 seconds. The command drives deterministic frame sync and the software image-render path, saves transparent PNGs, and checks direct seek and revisiting frame 45 against continuous playback. It writes `determinism_report.txt` and exits nonzero for empty output, out-of-tolerance frames, or save failures:
+Capture the production explosion preset at five points from 1.1 to 1.9 seconds.
+The command drives the layer through its frame synchronization and software
+fallback draw path, then saves the resulting transparent PNGs. It also checks
+that direct seek and revisiting frame 45 match continuous playback within a
+small pixel tolerance, and writes `determinism_report.txt`. It exits nonzero if
+the images are empty, the frame comparison exceeds tolerance, or saving fails:
 
 ```powershell
 <build-directory>\bin\Debug\ArtifactParticle2DPlayground.exe --capture-firework <output-directory>
+```
+
+## Wind-blown leaves PNG capture
+
+Save five frames from the production leaves preset with rightward wind,
+turbulence, and drag. The command reports live-particle counts and checks that
+the first and last captures differ, so it covers changing trajectories as well
+as PNG output:
+
+```powershell
+<build-directory>\bin\Debug\ArtifactParticle2DPlayground.exe --capture-wind-leaves <output-directory>
 ```
