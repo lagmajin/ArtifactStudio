@@ -74,6 +74,24 @@ class UiVisualCompareTest(unittest.TestCase):
         self.assertEqual(report["regions"]["ruler"]["changed_pixels"], 1)
         self.assertFalse(report["passed"])
 
+    def test_region_limit_passes_when_change_is_outside_region(self) -> None:
+        actual = Image.new("RGBA", (4, 4), (0, 0, 0, 0))
+        actual.putpixel((3, 3), (255, 0, 0, 255))
+        actual.save(self.actual_path)
+
+        exit_code, report = self.compare(
+            max_diff_pixels=1,
+            max_diff_fraction=0.1,
+            regions=[("ruler", (0, 0, 2, 2))],
+            region_limits=[("ruler", 0, 0.0)],
+        )
+
+        self.assertEqual(exit_code, 0)
+        self.assertTrue(report["passed"])
+        self.assertEqual(report["metrics"]["changed_pixels"], 1)
+        self.assertEqual(report["regions"]["ruler"]["changed_pixels"], 0)
+        self.assertTrue(report["region_limits"]["ruler"]["passed"])
+
     def test_exact_region_match_passes_and_emits_overlay_and_diff(self) -> None:
         Image.new("RGBA", (4, 4), (0, 0, 0, 0)).save(self.actual_path)
 

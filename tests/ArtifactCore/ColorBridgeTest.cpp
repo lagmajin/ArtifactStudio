@@ -58,6 +58,14 @@ TEST(ColorBridgeTest, JsonRoundTripForObjectAndHexStrings)
     EXPECT_NEAR(fromHex.a(), 0.4f, kColorEpsilon);
 }
 
+TEST(ColorBridgeTest, HexArgbUsesAlphaRedGreenBlueOrder)
+{
+    const FloatColor color(64.0f / 255.0f, 128.0f / 255.0f,
+                           191.0f / 255.0f, 32.0f / 255.0f);
+
+    EXPECT_EQ(colorToHexArgb(color), QStringLiteral("#204080bf"));
+}
+
 TEST(ColorBridgeTest, JsonFallbackOnInvalidInput)
 {
     const FloatColor fallback(0.9f, 0.8f, 0.7f, 0.6f);
@@ -76,6 +84,42 @@ TEST(ColorBridgeTest, JsonFallbackOnInvalidInput)
     EXPECT_FLOAT_EQ(opaque.a(), 1.0f);
 }
 
+TEST(ColorBridgeTest, JsonObjectMissingRgbChannelUsesFallback)
+{
+    const FloatColor fallback(0.9f, 0.8f, 0.7f, 0.6f);
+    QJsonObject incomplete;
+    incomplete.insert(QStringLiteral("r"), 0.1);
+    incomplete.insert(QStringLiteral("g"), 0.2);
+    incomplete.insert(QStringLiteral("a"), 0.3);
+
+    EXPECT_EQ(floatColorFromJson(QJsonValue(incomplete), fallback), fallback);
+}
+
+TEST(ColorBridgeTest, FloatRgbaUsesFallbackForIncompleteObject)
+{
+    const FloatRGBA fallback(0.15f, 0.25f, 0.35f, 0.45f);
+    QJsonObject incomplete;
+    incomplete.insert(QStringLiteral("r"), 0.9);
+    incomplete.insert(QStringLiteral("b"), 0.1);
+
+    EXPECT_EQ(floatRgbaFromJson(QJsonValue(incomplete), fallback), fallback);
+}
+
+TEST(ColorBridgeTest, FloatRgbaObjectWithoutAlphaDefaultsOpaque)
+{
+    QJsonObject noAlpha;
+    noAlpha.insert(QStringLiteral("r"), 0.25);
+    noAlpha.insert(QStringLiteral("g"), 0.5);
+    noAlpha.insert(QStringLiteral("b"), 0.75);
+
+    const FloatRGBA parsed = floatRgbaFromJson(QJsonValue(noAlpha));
+
+    EXPECT_FLOAT_EQ(parsed.r(), 0.25f);
+    EXPECT_FLOAT_EQ(parsed.g(), 0.5f);
+    EXPECT_FLOAT_EQ(parsed.b(), 0.75f);
+    EXPECT_FLOAT_EQ(parsed.a(), 1.0f);
+}
+
 TEST(TaggedColorTest, TransferConversionMatchesCoreMath)
 {
     const auto tagged = TaggedColor::srgbEncoded(0.5f, 0.25f, 0.75f, 1.0f);
@@ -91,6 +135,24 @@ TEST(TaggedColorTest, TransferConversionMatchesCoreMath)
     EXPECT_EQ(back.transfer, TransferFunction::sRGB);
     EXPECT_NEAR(back.rgba.r(), 0.5f, 1e-5f);
     EXPECT_NEAR(back.rgba.g(), 0.25f, 1e-5f);
+}
+
+TEST(ColorTransferFunctionTest, SRGBPiecewiseThresholdsRemainContinuous)
+{
+    constexpr float linearThreshold = 0.0031308f;
+    constexpr float encodedThreshold = 0.04045f;
+
+    const float encodedAtThreshold =
+        ColorTransferFunction::linearToSRGB(linearThreshold);
+    const float linearAtThreshold =
+        ColorTransferFunction::srgbToLinear(encodedThreshold);
+
+    EXPECT_NEAR(encodedAtThreshold, 12.92f * linearThreshold, 1e-7f);
+    EXPECT_NEAR(linearAtThreshold, encodedThreshold / 12.92f, 1e-7f);
+    EXPECT_NEAR(ColorTransferFunction::srgbToLinear(encodedAtThreshold),
+                linearThreshold, 2e-7f);
+    EXPECT_NEAR(ColorTransferFunction::linearToSRGB(linearAtThreshold),
+                encodedThreshold, 2e-7f);
 }
 
 TEST(TaggedColorTest, UnknownTransferPassesThroughUntouched)

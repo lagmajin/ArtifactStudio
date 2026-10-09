@@ -135,6 +135,26 @@ TEST(AudioModulationRouterTest, MappingRejectsMissingSource) {
     EXPECT_TRUE(router.assignments().empty());
 }
 
+TEST(AudioModulationRouterTest, RemovingSourceAlsoRemovesItsTargets) {
+    ModulationRouter router;
+    router.setSmoothingTime(0.0f);
+    const auto sourceId = router.addSource(std::make_unique<ConstantSource>(0.5f));
+    const auto assignment = ModulationAssignment::forPropertyPath(
+        sourceId, "transform.opacity", 1.0f);
+    ASSERT_TRUE(router.addAssignment(assignment));
+    router.process(1);
+    ASSERT_TRUE(router.hasTarget(assignment.targetId));
+
+    EXPECT_TRUE(router.removeSource(sourceId));
+    EXPECT_FALSE(router.removeSource(sourceId));
+    EXPECT_EQ(router.source(sourceId), nullptr);
+    EXPECT_TRUE(router.assignments().empty());
+
+    router.process(1);
+    EXPECT_FALSE(router.hasTarget(assignment.targetId));
+    EXPECT_FLOAT_EQ(router.targetValue(assignment.targetId, 3.0f), 3.0f);
+}
+
 TEST(AudioModulationRouterTest, MacroSourceMapsAndRestoresItsValue) {
     ModulationRouter router;
     router.setSmoothingTime(0.0f);

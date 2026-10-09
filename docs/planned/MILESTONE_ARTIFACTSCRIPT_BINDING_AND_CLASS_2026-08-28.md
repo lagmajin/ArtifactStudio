@@ -1,7 +1,7 @@
 # マイルストーン: ArtifactScript Binding API 強化 & クラス対応（Phase 2/3 実走）
 
-**最終更新:** 2026-08-30
-**ステータス:** Phase A / C 実装済み、Phase B / D〜H 未着手。ビルド・テスト実行待ち
+**最終更新:** 2026-10-09
+**ステータス:** Phase A / C + プロパティ／キーフレーム API 拡充（スライス1〜3）実装済み、Phase B / D〜H 未着手。ビルド・テスト実行待ち
 **優先度:** High
 **関連:**
 - `docs/planned/MILESTONE_ARTIFACTSCRIPT_LANGUAGE_EVOLUTION_2026-08-21.md`（全体計画。本書は Phase 2 残 / Phase 3 の具体的スライス）
@@ -13,6 +13,17 @@
 ## 目的
 
 既存 Phase 1（文法 C++/C# 寄せ）は 2026-08-22 時点で大半実装済み。残る **Phase 2（バインディング API 実用化）** と **Phase 3（ユーザークラス対応）** を、評価器を壊さずに段階的に実装する。**堅実路線**で、(1) 既存テストの回帰なし (2) 新規ユニットテスト追加 (3) スクリプト→C++ 単方向の最小実用 I/F の 3 つを各スライスで確認する。AGENTS.md 制約によりビルド・テスト実行はユーザー指示待ち。
+
+## Update 2026-10-06 — プロパティ／キーフレーム API 拡充（スライス1〜3）
+
+Phase A に続いて、プロパティ参照・キーフレーム書込み・キーフレーム列挙の 3 スライスを追加した。
+
+- **スライス1（参照・判定）**: `hasProperty` / `getPropertyNames` / `isAnimatable` / `hasKeyframes` / `getKeyframeCount` / `hasKeyframeAt(layer, path, frame)` / `getValueAtFrame(layer, path, frame)` を `ArtifactScriptCompositionApi` の任意コールバックとして追加。未設定なら登録されないため既存ホスト互換を維持。
+- **スライス2（キー書込み）**: `addKeyframe(layer, path, frame[, value[, interp]])` / `removeKeyframe(layer, path, frame)` / `clearKeyframes(layer, path)`。frame は生のコンポフレーム番号で、時刻は必ず `layer->keyframeTimeAtFrame()` 経由（Insight 2026-09-17 のレイヤー・キー時刻ドメイン規約に従う）。interp 名は `WorkspaceAutomation::setKeyframe` の別名表と同一（constant/step/smooth/easein/easeout/easeinout/bezier、未知は Linear）。値省略時は現在値。追加時は Timeline 同様 `setAnimatable(true)` で昇格し `layer->changed()` を通知する。`remove`／`clear` の対象キー欠落は成功扱い（false はレイヤー／パス未解決のみ）。
+- **スライス3（列挙）**: `getKeyframes(layer, path)` → クラス名 `Keyframe` の ObjectInstance 行配列（`frame`: int64、`value`、`interp`: 文字列）。frame は `keyframeTimeScale()` へ `toFrameCount()` で戻す。
+- **Artifact 側配線**: `Artifact/src/Composition/ArtifactAbstractComposition.cppm` の `installCompositionScriptApi()` に実注入。ターゲット解決は既存 `getProperty` と同一規約（`""`/`self`/`this`/レイヤー名/`Comp/Layer`）。
+- **テスト**: `tests/ArtifactCore/ArtifactScriptHostApiTest.cpp` に 4 ケース追加（登録・引数検証、不正引数の診断メッセージ、スクリプトエントリポイントからの `addKeyframe`/`hasKeyframes` 呼び出し）。
+- **未検証**: ビルド・ctest 未実行（AGENTS 制約）。キー書込みは Undo 履歴に登録しない（既存スクリプト `setProperty` と同じ直接経路）。`getKeyframes` 行の `rows[i].frame` のような Index→FieldAccess 連鎖アクセスはパーサ未検証。
 
 ## Update 2026-08-30 — Phase A / C reconciliation
 

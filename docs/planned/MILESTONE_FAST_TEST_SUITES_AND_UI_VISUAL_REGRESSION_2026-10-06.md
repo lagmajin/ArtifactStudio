@@ -8,6 +8,7 @@
 - 既存アプリの UI を通常版とは別プロセスで開く `ArtifactUiTest.exe` target を追加した。画面実装と依存 runtime は `ArtifactAppRuntime` object library として一度だけコンパイルし、`Artifact.exe` と UI Test exe は別 entry point から同じ実画面を起動する。UI Test 起動では Qt の test-mode 標準書込先と crash report path を分け、ウィンドウタイトルも識別する。明示した organization/application を使う Windows `QSettings` は通常版と共有されるため、設定全体の隔離ではない。ビルド・起動確認は未実施。
 - `tools/capture_ui_test.py` は UI Test exe を起動し、`ARTIFACT_STARTUP_SCREENSHOT_PATH` で指定した PNG が保存されるまで待ってからプロセスを終了する。既存 `ArtifactStartupScreenshot` の `window->grab()` を再利用し、capture helper に外部 Python package は追加しない。`tools/ui_visual_loop.py --capture-command` から `{actual}` を出力先として渡せる。exe のビルド・起動確認は未実施。
 - この exe は実 UI の比較・調整用 host であり、unit / interaction test target の代替ではない。capture helper は起動時の main window を撮影するが、Timeline 等を特定状態にする fixture、mockup baseline、environment manifest は引き続き未整備。
+- 10月8日ブランチの追加分として、Asset database/import/metadata/sequence、Image Analyzer、Color LUT、Core diagnostics、render pipeline / pointwise fusion、Artifact color effects の独立 contract suite を登録した。ArtifactScript composition host API のテストも拡張した。これらの追加テストは今回実行していない。
 
 ## 進捗 2026-10-08
 

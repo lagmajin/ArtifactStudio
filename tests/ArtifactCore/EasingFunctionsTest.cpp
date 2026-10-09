@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
 
 import Math.Interpolate;
 
@@ -12,6 +14,35 @@ template <typename Easer>
 void expectEndpoints(const Easer& easer) {
     EXPECT_NEAR(easer(0.0f, 100.0f, 0.0f), 0.0f, 1e-4f);
     EXPECT_NEAR(easer(0.0f, 100.0f, 1.0f), 100.0f, 1e-4f);
+}
+
+template <typename Easer>
+void expectMonotonicOnUnitInterval(const Easer& easer, float start, float end) {
+    constexpr float kTolerance = 1e-5f;
+    float previous = easer(start, end, 0.0f);
+    const float lower = std::min(start, end);
+    const float upper = std::max(start, end);
+
+    for (int step = 1; step <= 100; ++step) {
+        const float alpha = static_cast<float>(step) / 100.0f;
+        const float current = easer(start, end, alpha);
+        SCOPED_TRACE(step);
+        EXPECT_TRUE(std::isfinite(current));
+        EXPECT_GE(current, lower - kTolerance);
+        EXPECT_LE(current, upper + kTolerance);
+        if (start <= end) {
+            EXPECT_GE(current, previous - kTolerance);
+        } else {
+            EXPECT_LE(current, previous + kTolerance);
+        }
+        previous = current;
+    }
+}
+
+template <typename Easer>
+void expectMonotonicInBothDirections(const Easer& easer) {
+    expectMonotonicOnUnitInterval(easer, -3.0f, 7.0f);
+    expectMonotonicOnUnitInterval(easer, 7.0f, -3.0f);
 }
 
 } // namespace
@@ -89,4 +120,40 @@ TEST(EasingFunctionsTest, OutOfRangeAlphaStaysFinite) {
     EXPECT_TRUE(std::isfinite(CircularOut{}(0.0f, 1.0f, -1.0f)));
     EXPECT_TRUE(std::isfinite(LogarithmicEase{}(0.0f, 1.0f, 2.0f)));
     EXPECT_TRUE(std::isfinite(ExponentialInOut{}(0.0f, 1.0f, -1.0f)));
+}
+
+TEST(EasingFunctionsTest, InfiniteAlphaClampsToTheCorrespondingEndpoint) {
+    const float positiveInfinity = std::numeric_limits<float>::infinity();
+    const float negativeInfinity = -positiveInfinity;
+
+    EXPECT_NEAR(CircularIn{}(2.0f, 8.0f, negativeInfinity), 2.0f, 1e-6f);
+    EXPECT_NEAR(CircularIn{}(2.0f, 8.0f, positiveInfinity), 8.0f, 1e-6f);
+    EXPECT_NEAR(ExponentialInOut{}(-4.0f, 6.0f, negativeInfinity), -4.0f, 1e-6f);
+    EXPECT_NEAR(ExponentialInOut{}(-4.0f, 6.0f, positiveInfinity), 6.0f, 1e-6f);
+    EXPECT_NEAR(LogarithmicEase{}(3.0f, -5.0f, negativeInfinity), 3.0f, 1e-6f);
+    EXPECT_NEAR(LogarithmicEase{}(3.0f, -5.0f, positiveInfinity), -5.0f, 1e-6f);
+}
+
+TEST(EasingFunctionsTest, MonotonicEaseCurvesStayOrderedAcrossTheInterval)
+{
+    expectMonotonicInBothDirections(EaseOutIn{});
+    expectMonotonicInBothDirections(CosineEase{});
+    expectMonotonicInBothDirections(CubicIn{});
+    expectMonotonicInBothDirections(CubicOut{});
+    expectMonotonicInBothDirections(CubicInOut{});
+    expectMonotonicInBothDirections(QuarticIn{});
+    expectMonotonicInBothDirections(QuarticOut{});
+    expectMonotonicInBothDirections(QuarticInOut{});
+    expectMonotonicInBothDirections(QuinticIn{});
+    expectMonotonicInBothDirections(QuinticOut{});
+    expectMonotonicInBothDirections(QuinticInOut{});
+    expectMonotonicInBothDirections(SineIn{});
+    expectMonotonicInBothDirections(SineInOut{});
+    expectMonotonicInBothDirections(CircularIn{});
+    expectMonotonicInBothDirections(CircularOut{});
+    expectMonotonicInBothDirections(CircularInOut{});
+    expectMonotonicInBothDirections(ExponentialIn{});
+    expectMonotonicInBothDirections(ExponentialOut{});
+    expectMonotonicInBothDirections(ExponentialInOut{});
+    expectMonotonicInBothDirections(LogarithmicEase{});
 }

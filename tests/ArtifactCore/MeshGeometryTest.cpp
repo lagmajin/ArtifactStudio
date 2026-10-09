@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <limits>
 
 #include <QVector2D>
 #include <QVector3D>
@@ -82,4 +83,47 @@ TEST(MeshGeometryTest, BoundingSphereCoversBox) {
     EXPECT_FLOAT_EQ(center.y(), 2.0f);
     EXPECT_FLOAT_EQ(center.z(), 3.0f);
     EXPECT_NEAR(mesh->boundingSphereRadius(), std::sqrt(14.0), 1e-5);
+}
+
+TEST(MeshGeometryTest, BoundsIgnoreNonFinitePositions)
+{
+    auto mesh = makeShared<Mesh>();
+    mesh->setVertexCount(3);
+    auto posAttr = mesh->vertexAttributes().add<QVector3D>("position");
+    (*posAttr)[0] = QVector3D(-2.0f, 0.0f, 0.0f);
+    (*posAttr)[1] = QVector3D(std::numeric_limits<float>::quiet_NaN(), 50.0f, 0.0f);
+    (*posAttr)[2] = QVector3D(4.0f, 0.0f, 0.0f);
+
+    mesh->updateBounds();
+
+    EXPECT_FLOAT_EQ(mesh->boundingBoxMin().x(), -2.0f);
+    EXPECT_FLOAT_EQ(mesh->boundingBoxMax().x(), 4.0f);
+    EXPECT_FLOAT_EQ(mesh->boundingBoxMin().y(), 0.0f);
+    EXPECT_FLOAT_EQ(mesh->boundingBoxMax().y(), 0.0f);
+    EXPECT_FLOAT_EQ(mesh->boundingSphereCenter().x(), 1.0f);
+    EXPECT_FLOAT_EQ(mesh->boundingSphereRadius(), 3.0f);
+}
+
+TEST(MeshGeometryTest, NormalGenerationSkipsInvalidPolygonIndices)
+{
+    auto mesh = makeShared<Mesh>();
+    mesh->setVertexCount(4);
+    auto posAttr = mesh->vertexAttributes().add<QVector3D>("position");
+    (*posAttr)[0] = QVector3D(0.0f, 0.0f, 0.0f);
+    (*posAttr)[1] = QVector3D(1.0f, 0.0f, 0.0f);
+    (*posAttr)[2] = QVector3D(0.0f, 1.0f, 0.0f);
+    (*posAttr)[3] = QVector3D(2.0f, 2.0f, 0.0f);
+    mesh->addPolygon({0, 1, 9});
+    mesh->addPolygon({0, 2, 1});
+
+    mesh->computeVertexNormals();
+
+    const auto normals = mesh->vertexAttributes().get<QVector3D>("normal");
+    ASSERT_NE(normals, nullptr);
+    for (int index = 0; index < 3; ++index) {
+        EXPECT_FLOAT_EQ((*normals)[index].x(), 0.0f);
+        EXPECT_FLOAT_EQ((*normals)[index].y(), 0.0f);
+        EXPECT_FLOAT_EQ((*normals)[index].z(), -1.0f);
+    }
+    EXPECT_FLOAT_EQ((*normals)[3].z(), 1.0f);
 }
