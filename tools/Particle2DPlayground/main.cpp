@@ -487,11 +487,62 @@ static int captureGpuParticle(const QString& outputDirectory)
         renderer.destroy();
         return 5;
     }
-    report.write(QStringLiteral("particle_pixels=%1 green_rect_pixels=%2\n%3\n")
-                     .arg(particlePixels).arg(greenRectPixels).arg(debug).toUtf8());
+
+    renderer.clear();
+    renderer.drawSolidRect(32.0f, 32.0f, 96.0f, 96.0f,
+                           ArtifactCore::FloatColor(0.0f, 1.0f, 0.1f, 1.0f));
+    Artifact::ArtifactParticleLayer layer;
+    layer.loadPreset(QStringLiteral("fountain"));
+    if (!layer.setLayerPropertyValue(QStringLiteral("particle.emitter.positionX"),
+                                     QVariant(800.0)) ||
+    !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.positionY"),
+                                     QVariant(450.0)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.rate"),
+                                     QVariant(100.0)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.speedMin"),
+                                     QVariant(0.0)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.speedMax"),
+                                     QVariant(0.0)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.scaleMin"),
+                                     QVariant(30.0)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.scaleMax"),
+                                     QVariant(30.0))) {
+        renderer.destroy();
+        return 7;
+    }
+    layer.resetParticleSystem();
+    layer.play();
+    layer.goToFrame(1);
+    layer.draw(&renderer);
+    renderer.flushAndWait();
+    const QString layerDebug = renderer.particleDebugState();
+    const QImage layerImage = renderer.readbackToImage().convertToFormat(QImage::Format_ARGB32);
+    std::uint64_t layerParticlePixels = 0;
+    std::uint64_t layerGreenRectPixels = 0;
+    for (int y = 0; y < layerImage.height(); ++y) {
+        for (int x = 0; x < layerImage.width(); ++x) {
+            const QRgb pixel = layerImage.pixel(x, y);
+            if (x < 160 && y < 160 && qGreen(pixel) > 200 &&
+                qRed(pixel) < 30 && qBlue(pixel) < 120) ++layerGreenRectPixels;
+            if (qBlue(pixel) > qRed(pixel) + 20 &&
+                qBlue(pixel) > qGreen(pixel) + 10) ++layerParticlePixels;
+        }
+    }
+    if (layerImage.isNull() ||
+        !layerImage.save(output.filePath(QStringLiteral("gpu_particle_layer.png")), "PNG")) {
+        renderer.destroy();
+        return 8;
+    }
+    report.write(QStringLiteral(
+        "particle_pixels=%1 green_rect_pixels=%2\n%3\n"
+        "layer_particle_pixels=%4 layer_green_rect_pixels=%5\n%6\n")
+        .arg(particlePixels).arg(greenRectPixels).arg(debug)
+        .arg(layerParticlePixels).arg(layerGreenRectPixels).arg(layerDebug).toUtf8());
     renderer.destroy();
     if (greenRectPixels == 0 || particlePixels == 0 ||
-        !debug.contains(QStringLiteral("state=drawn"))) {
+        !debug.contains(QStringLiteral("state=drawn")) ||
+        layerGreenRectPixels == 0 || layerParticlePixels == 0 ||
+        !layerDebug.contains(QStringLiteral("state=drawn"))) {
         qCritical("GPU particle capture did not contain the expected reference shapes");
         return 6;
     }

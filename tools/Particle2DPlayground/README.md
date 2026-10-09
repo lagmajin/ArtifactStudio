@@ -33,10 +33,10 @@ project after `ArtifactAppRuntime` is defined.
 
 ## GPU particle capture
 
-Render a deterministic particle through the production Diligent GPU path and
-read the target back to a PNG. The report includes particle/reference pixel
-counts and the renderer submission state; the command exits nonzero if either
-shape is missing:
+Render both a deterministic core particle and a production `ArtifactParticleLayer`
+through the Diligent GPU path, then read each target back to PNG. The report
+includes particle/reference pixel counts and renderer submission state; the
+command exits nonzero if either render is missing:
 
 ```powershell
 <build-directory>\bin\Debug\ArtifactParticle2DPlayground.exe --capture-gpu-particle <output-directory>
