@@ -37,6 +37,26 @@ TEST(ImageSurfaceViewTest, RgbaViewReadsRowsWithPaddedStride)
     EXPECT_EQ(view->colorDescriptor(), surface.descriptor);
 }
 
+TEST(ImageSurfaceViewTest, ReadOnlyRgbaViewSkipsPaddingBetweenMultiPixelRows)
+{
+    const std::array<float, 20> pixels = {
+        0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f,
+        99.0f, 99.0f, 99.0f, 99.0f,
+        0.9f, 1.0f, 1.1f, 1.2f, 1.3f, 1.4f, 1.5f, 1.6f,
+    };
+    const ImageSurfaceView surface{
+        pixels.data(), 2, 2, 12u * sizeof(float), SurfacePrecision::Float32,
+        SurfaceColorDescriptor::canonicalLinearPremultiplied()};
+
+    const auto view = Rgba32FView::tryCreate(surface);
+
+    ASSERT_TRUE(view.has_value());
+    EXPECT_FLOAT_EQ(view->row(0)[0].r, 0.1f);
+    EXPECT_FLOAT_EQ(view->row(0)[1].a, 0.8f);
+    EXPECT_FLOAT_EQ(view->row(1)[0].r, 0.9f);
+    EXPECT_FLOAT_EQ(view->row(1)[1].a, 1.6f);
+}
+
 TEST(ImageSurfaceViewTest, BgraViewExposesLogicalRgbaChannels)
 {
     const std::array<float, 4> pixels = {0.3f, 0.2f, 0.1f, 0.4f};
@@ -52,6 +72,30 @@ TEST(ImageSurfaceViewTest, BgraViewExposesLogicalRgbaChannels)
     EXPECT_FLOAT_EQ(view->row(0)[0].g, 0.2f);
     EXPECT_FLOAT_EQ(view->row(0)[0].b, 0.3f);
     EXPECT_FLOAT_EQ(view->row(0)[0].a, 0.4f);
+}
+
+TEST(ImageSurfaceViewTest, BgraViewRejectsRgbaDescriptor)
+{
+    const std::array<float, 4> pixels = {0.1f, 0.2f, 0.3f, 0.4f};
+    const ImageSurfaceView surface{
+        pixels.data(), 1, 1, 4u * sizeof(float), SurfacePrecision::Float32,
+        SurfaceColorDescriptor::canonicalLinearPremultiplied()};
+
+    EXPECT_FALSE(Bgra32FView::tryCreate(surface).has_value());
+}
+
+TEST(ImageSurfaceViewTest, ReadOnlyViewObservesOwnerBufferWithoutCopying)
+{
+    std::array<float, 4> pixels = {0.1f, 0.2f, 0.3f, 0.4f};
+    const ImageSurfaceView surface{
+        pixels.data(), 1, 1, 4u * sizeof(float), SurfacePrecision::Float32,
+        SurfaceColorDescriptor::canonicalLinearPremultiplied()};
+    const auto view = Rgba32FView::tryCreate(surface);
+
+    ASSERT_TRUE(view.has_value());
+    EXPECT_FLOAT_EQ(view->row(0)[0].g, 0.2f);
+    pixels[1] = 0.85f;
+    EXPECT_FLOAT_EQ(view->row(0)[0].g, 0.85f);
 }
 
 TEST(ImageSurfaceViewTest, MutableViewRequiresAndWritesThroughOwnerPointer)
@@ -92,6 +136,29 @@ TEST(ImageSurfaceViewTest, MutableDispatchSelectsBgraChannelMapping)
     EXPECT_TRUE(dispatched);
     EXPECT_FLOAT_EQ(pixels[0], 0.7f);
     EXPECT_FLOAT_EQ(pixels[2], 0.9f);
+}
+
+TEST(ImageSurfaceViewTest, MutableRgbaViewHonorsPaddedRowsAndPreservesPadding)
+{
+    std::array<float, 18> pixels{};
+    pixels.fill(-9.0f);
+    const auto descriptor = SurfaceColorDescriptor::canonicalLinearPremultiplied();
+    const ImageSurfaceView surface{pixels.data(), 2, 2, 9u * sizeof(float),
+                                   SurfacePrecision::Float32, descriptor};
+
+    const bool dispatched = withMutableColorFloat4View(
+        surface, pixels.data(), [](auto& view) {
+            view.row(0)[1].r = 0.25f;
+            view.row(1)[0].g = 0.5f;
+            view.row(1)[1].b = 0.75f;
+        });
+
+    ASSERT_TRUE(dispatched);
+    EXPECT_FLOAT_EQ(pixels[4], 0.25f);
+    EXPECT_FLOAT_EQ(pixels[9 + 1], 0.5f);
+    EXPECT_FLOAT_EQ(pixels[9 + 4 + 2], 0.75f);
+    EXPECT_FLOAT_EQ(pixels[8], -9.0f);
+    EXPECT_FLOAT_EQ(pixels[17], -9.0f);
 }
 
 TEST(ImageSurfaceViewTest, RejectsInvalidFloatLayoutAndMisalignedData)
@@ -158,6 +225,41 @@ TEST(ImageSurfaceViewTest, RejectsPixelSpanThatWouldOverflowTheDataAddress)
         SurfaceColorDescriptor::canonicalLinearPremultiplied()};
 
     EXPECT_FALSE(Rgba32FView::tryCreate(surface).has_value());
+}
+
+TEST(ImageSurfaceViewTest, RejectsMultiRowSpanLargerThanPtrdiffRange)
+{
+    alignas(float) std::array<float, 4> pixels{};
+    constexpr std::size_t rowBytes = 4u * sizeof(float);
+    constexpr std::size_t maxPtrdiff = static_cast<std::size_t>(
+        (std::numeric_limits<std::ptrdiff_t>::max)());
+    constexpr std::size_t alignedStride = maxPtrdiff - (maxPtrdiff % sizeof(float));
+    const ImageSurfaceView surface{
+        pixels.data(), 1, 2, alignedStride, SurfacePrecision::Float32,
+        SurfaceColorDescriptor::canonicalLinearPremultiplied()};
+
+    static_assert(alignedStride + rowBytes > maxPtrdiff);
+    EXPECT_FALSE(Rgba32FView::tryCreate(surface).has_value());
+}
+
+TEST(ImageSurfaceViewTest, MutableDispatchRejectsUnsupportedStorageWithoutCallingBack)
+{
+    std::array<float, 4> pixels = {0.1f, 0.2f, 0.3f, 0.4f};
+    auto descriptor = SurfaceColorDescriptor::canonicalLinearPremultiplied();
+    descriptor.storage = SurfacePixelStorage::RGBA16Float;
+    const ImageSurfaceView surface{pixels.data(), 1, 1, 4u * sizeof(float),
+                                   SurfacePrecision::Float32, descriptor};
+    int callbackCount = 0;
+
+    const bool dispatched = withMutableColorFloat4View(
+        surface, pixels.data(), [&callbackCount](auto&) { ++callbackCount; });
+
+    EXPECT_FALSE(dispatched);
+    EXPECT_EQ(callbackCount, 0);
+    EXPECT_FLOAT_EQ(pixels[0], 0.1f);
+    EXPECT_FLOAT_EQ(pixels[1], 0.2f);
+    EXPECT_FLOAT_EQ(pixels[2], 0.3f);
+    EXPECT_FLOAT_EQ(pixels[3], 0.4f);
 }
 
 TEST(ImageSurfaceViewTest, ByteSurfaceViewRequiresBasicNonemptyLayout)

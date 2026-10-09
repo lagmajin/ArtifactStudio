@@ -1,8 +1,390 @@
 **最終更新:** 2026-10-09
 
+
 # Insight Register — 2026-W41
 
 期間: 2026-10-05 – 2026-10-11
+
+## 2026-10-09 — HLG折れ点の隣接float単調性
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、`ColorTransferFunction::encode/decode(HLG)`。
+- **確認済み:** OETFのfloat `1/12` とEOTFの`0.5`それぞれについて、`std::nextafter`で得た直前・一致・直後のfloatを評価し、float閾値に合わせて枝を選ぶ独立double参照値と一致すること、出力が非減少であることをstandaloneテストで確認した。
+- **価値／懸念:** 数学的折れ点のdouble近傍テストに加えて、実際のAPI入力型であるfloatの枝境界も回帰検出できる。隣接3点の確認であり、全域の単調性証明ではない。
+- **次に確認すべきこと:** 他のpiecewise transfer functionでもfloat表現の閾値と実装比較型が一致しているか、隣接floatテストで確認する。
+
+## 2026-10-09 — S-Log3折れ点の隣接float単調性
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、`ColorTransferFunction::encode/decode(SonySLog3)`。
+- **確認済み:** OETFの線形閾値`0.01125f`とEOTFの正規化コード閾値`171.2102946929f / 1023.0f`について、直前・一致・直後のfloatを評価し、float閾値に合わせた独立double式および非減少順序と一致した。standaloneターゲットで実行確認済み。
+- **価値／懸念:** S-Log3の既存double近傍確認を実API入力精度まで補い、ブランチ境界の丸め変更を検知できる。対象は隣接3点のみ。
+- **次に確認すべきこと:** Canon Log 2/3など他の複数toe transfer functionにも、枝ごとの連続性・順序・意図的な段差を個別に記録する。
+
+## 2026-10-09 — Canon Log 2 toeのfloat隣接値とゼロ丸め
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、`ColorTransferFunction::encode/decode(CanonLog2)`。
+- **確認済み:** 実装のfloat演算で得る負の線形toeと`0.035388128f`コードtoeの前後各1 ULPを評価し、各枝の独立double参照と一致した。線形toeを跨ぐOETFは既存観測どおり0.014超の段差があり、コードtoe近傍のdecodeは隣接入力がfloatのゼロへ丸められるplateauを含む。standalone suite 64 cases成功。
+- **価値／懸念:** 負値toeの境界実装をfloat精度で保護し、単純な厳密増加を期待すると失敗するゼロ丸めを記録する。OETFの段差は現行実装の特性であり、規格適合の判断をこのテストだけで行うものではない。
+- **次に確認すべきこと:** Canon Log 3の低toe／線形領域／高toe境界もfloat隣接値で評価し、意図した枝順序と既知段差を整理する。
+
+## 2026-10-09 — Canon Log 3の3枝境界をfloatで確認
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、`ColorTransferFunction::encode/decode(CanonLog3)`。
+- **確認済み:** 実装と同じfloat演算で導出する低線形toe・高線形toe、および低・高コード閾値の直前／一致／直後を、各枝を独立に評価するdouble式と照合した。低toe接続にはOETFで0.006超、EOTFで0.002超の段差がある一方、高側の線形／log接続差は両方向とも`1e-6`未満だった。standalone suite成功。
+- **価値／懸念:** 3領域を持つ曲線の枝境界を入力型floatで確認し、定数や比較演算の変更による隣接値の枝ずれを検出できる。ここでの段差は現行実装の特性であり、規格適合の判断をこのテストだけで行うものではない。GPU実装との一致も保証しない。
+- **次に確認すべきこと:** 段差があるCanon Log 2/3のlow toeについて、参照資料の期待値と実装意図を別途照合し、挙動変更の要否を判断する。
+
+## 2026-10-09 — DaVinci Intermediateのゼロ直近float挙動
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、`ColorTransferFunction::encode/decode(DaVinciIntermediate)`。
+- **確認済み:** OETFは負値と`-0`を0へ返す一方、最小正subnormalをlog式へ通し、ゼロ入力との間に10超の出力差がある。負のsubnormal・最小normalも負値側と同じゼロ出力。EOTFは負の最小subnormalから0、正の最小subnormal・最小normalまで独立指数参照に一致し非減少。standalone suite成功。
+- **価値／懸念:** 通常の10-bit格子や正値round-tripでは見えにくいゼロ境界の挙動を固定した。ゼロで定義を切り替えるOETFの不連続を記録するが、規格・製品仕様上望ましいかの判断は含まない。
+- **次に確認すべきこと:** `log2`実装が異なるビルド構成でもsubnormal入力を保持するか、別環境のstandalone実行で比較する。
+
+## 2026-10-09 — Rec.2020 EOTFのfloat閾値で局所的な低下
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、`ColorTransferFunction::decode(Rec2020_10)`。
+- **確認済み:** 既存のdouble隣接値テストはfloatへ変換した時点で同じ値になり得るため、`0.081242858298635f`と実際の前後floatを追加検査した。OETFはこの3点で非減少。EOTFは閾値直前から閾値入力へ移ると出力が1e-8超だけ低下し、その低下は独立参照式と一致した。suite成功。
+- **価値／懸念:** 実APIのfloat境界にある非単調性を検出可能にした。これは既存係数・枝条件の現在の挙動を記録する特性テストで、ここでは修正や規格適合判断をしていない。
+- **次に確認すべきこと:** BT.2020の規格定数と実装係数・閾値の整合を一次資料で照合し、許容差として維持するか修正するか判断する。
+
+## 2026-10-09 — PQ EOTF分母ガード直近のfloat精度差
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、`ColorTransferFunction::decode(Rec2084_PQ)`。
+- **確認済み:** floatの特異点近傍から隣接入力を下向きに走査すると、正のdecode出力が初めて現れるコードの直上は0を返す。その最初の正出力はfiniteで`1e20`超だが、独立double式の値はその100倍超となる。floatの`pow`・分母計算の量子化が特異点近傍の値を大きく変えることをstandaloneテストで確認した。
+- **価値／懸念:** 10-bit領域外のfloat特異点近傍に、ゼロから巨大値へ遷移する箇所と大きな高精度参照差がある。現テストは現在のfloat実装を特性化し、修正の妥当性やHDR用途での許容性を判断しない。
+- **次に確認すべきこと:** PQ EOTFの特異点近傍に要求される入力領域・数値精度を仕様と利用箇所で確認し、必要なら安定化した式または入力範囲制約を別途検討する。
+
+## 2026-10-09 — 単純ガンマ曲線のsubnormal入出力
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、Gamma 2.2 / 2.4 / 2.6 のencode/decode。
+- **確認済み:** 0、最小subnormal、`nextafter(0,1)`、最小normalをdouble `pow`参照と比較した。encodeはfloat指数係数とdouble参照の差を含め相対3 ppm以内。decodeはdouble参照をfloatへ丸めた結果と一致し、負の最小subnormalは0にclampされる。standalone suite成功。
+- **価値／懸念:** 標準10-bit格子や通常明度テストでは通らないアンダーフロー近傍を検査する。相対許容差はencodeのfloat指数近似を許容し、一般的な色差精度を主張するものではない。
+- **次に確認すべきこと:** 別のコンパイラ／数学ライブラリでsubnormal保持とpow精度が同じか比較する。
+
+## 2026-10-09 — 未知TransferFunction値のidentity fallback
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、`ColorTransferFunction::encode/decode` のswitch default。
+- **確認済み:** 明示列挙された未実装`ACESlog`と`static_cast<TransferFunction>(0x7fffffff)`は、有限範囲外値・±∞・NaN・負のゼロを含めencode/decodeが入力をidentityで返す。負のゼロの符号も保持される。standalone suite成功。
+- **価値／懸念:** 将来のenum追加漏れや未知値を黙って線形扱いする現在のAPI動作を固定する。未対応値をidentityへ流すのが望ましいという設計判断ではない。
+- **次に確認すべきこと:** TransferFunctionが永続化データや外部入力から復元される場合、未知値を拒否・警告・identityのどれにするべきか契約を確認する。
+
+## 2026-10-09 — clamp系curveの負のゼロ入力
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、sRGB・単純ガンマ・Rec.709/2020・PQ・HLG。
+- **確認済み:** 8つの非negative clamp系curveすべてで、`-1e-7`・負の最小subnormal・`-0.0f`をencode/decodeすると数値結果は0。standalone suite成功。
+- **価値／懸念:** 通常の負数テストでは覆わない符号付きゼロとsubnormalのclamp挙動を回帰保護する。テストはゼロの符号bit保持までは契約せず、数値ゼロを確認する。
+- **次に確認すべきこと:** Cineonおよびsigned-log曲線は負値を別の規則で扱うため、それぞれのゼロ境界を独立参照とともに確認する。
+
+## 2026-10-09 — signed-log curveの符号付きゼロとsubnormal
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、S-Log3・Canon Log 2/3・ACEScc/cct。
+- **確認済み:** 5曲線について、encodeとdecodeへ負の最小subnormal・`-0.0f`・`+0.0f`・正の最小subnormalを与え、各曲線の独立参照式と比較した。すべてstandalone suiteで成功。
+- **価値／懸念:** 異なる黒コード／toe規則を持つsigned-log曲線のゼロ近傍を一括して保護し、Clamp系曲線と同じゼロ扱いを誤って期待しない。許容誤差は通常値と大きなACEScc decodeに対する相対3 ppmを含む。
+- **次に確認すべきこと:** Cineonの負のゼロ・subnormal入力はblack-offset式に入るため、別途その境界を参照と照合する。
+
+## 2026-10-09 — Cineon黒オフセットと符号付きゼロ
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、`ColorTransferFunction::encode/decode(Cineon)`。
+- **確認済み:** OETF/EOTF双方で負の最小subnormal・`-0.0f`・`+0.0f`・正の最小subnormalを独立したCineon式と照合した。OETFは負のsubnormalと負のゼロを0入力と同じblack codeへ写す。decodeのゼロコードは0ではなくblack offset相当の負のlinear値を返す。standalone suite成功。
+- **価値／懸念:** Cineonの黒は線形ゼロと同値ではないという符号化契約を回帰保護する。ゼロ近傍の絶対差やフィルム規格としての妥当性は別途の判断事項。
+- **次に確認すべきこと:** Cineon black codeのfloat隣接plateauとゼロコードの負値応答を、対象ビット深度や実際の入出力経路と照合する。
+
+## 2026-10-09 — Cineonの線形値往復
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、Cineon OETF/EOTF。
+- **確認済み:** 線形0、`1e-8`〜100の10点をencode/decodeし、各出力が独立したdouble OETF/EOTF参照に一致し、入力線形値へ相対3 ppmまたは`2e-7`絶対幅以内で戻る。standalone suite成功。
+- **価値／懸念:** Cineonの両変換を個別に検証するだけでなく、線形値の合成往復も確認できる。実装の連続float経路を対象とし、10-bit整数量子化・コード丸めを伴う往復精度は保証しない。
+- **次に確認すべきこと:** 実際に10-bit codeへ量子化する経路があれば、量子化段を含む誤差も別suiteで測る。
+
+## 2026-10-09 — Cineon 10-bit code往復とblack floor
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、Cineon EOTF→OETF。
+- **確認済み:** 10-bitコード0〜1023をnormalized floatへ変換してdecode→encodeし、再量子化したコードを検査した。0〜94はblack code 95へ集約され、95〜1023は元の整数コードへ戻る。全1024コードでstandalone suite成功。
+- **価値／懸念:** 個別の参照比較に加え、Cineonの10-bit black floorと整数コード往復契約を通しで検査できる。量子化はテスト側の`lround(encoded * 1023)`でモデル化し、画像ファイルI/Oの丸め規則は対象外。
+- **次に確認すべきこと:** 実I/Oで使う丸め・clamp規則とこのnormalized codeモデルが一致するか確認する。
+
+## 2026-10-09 — ACEScc 10-bit codeのlinear-light往復
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、ACEScc EOTF→OETF。
+- **確認済み:** normalized 10-bit code 0〜1023をdecode→encodeして`lround(code * 1023)`で再量子化すると、全コードが元の整数値へ戻る。code 0は既存の独立参照が示す131072 linear sentinelを経由するが、再encode後も0へ戻る。standalone suite成功。
+- **価値／懸念:** black sentinelを含む全10-bit codeを線形光経由で連結検証し、個別関数の参照比較だけでは見えない往復関係を保証する。`lround`はテスト側の量子化モデルであり、画像I/Oの丸め仕様は対象外。
+- **次に確認すべきこと:** ACEScc code範囲やbit depthが異なる外部コンテナとの変換境界を確認する。
+
+## 2026-10-09 — ACEScct 10-bit codeのsigned-toe往復
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、ACEScct EOTF→OETF。
+- **確認済み:** normalized 10-bit code 0〜1023をdecode→encodeして再量子化すると、全コードが元の整数値へ戻る。低コード域では線形値が負になるtoeも含め、float実装と独立double参照の合成結果が一致した。standalone suite成功。
+- **価値／懸念:** ACESccとは異なるsigned linear toeを含め、全10-bitコードを変換経路として検証できる。再量子化はテストの`lround`モデルで、外部I/Oの量子化仕様は対象外。
+- **次に確認すべきこと:** float code以外の整数bit depthや実ファイル経路でも、negative linear toeを保持できるか確認する。
+
+## 2026-10-09 — S-Log3・Canon Log 2/3の10-bit合成往復
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、S-Log3 / Canon Log 2 / Canon Log 3 EOTF→OETF。
+- **確認済み:** 3曲線の全1024 normalized codesをlinear経由でencodeし、再量子化結果を評価した。S-Log3はコード0〜94が95 black codeへ集約され、95〜1023は原コードへ戻る。Canon Log 2は0〜28が原コードからずれ、29〜1023では一致する。ずれる値は独立OETF/EOTF参照の合成を丸めたコードに一致。Canon Log 3は低toe・線形・高toeを含む全コードで独立参照の合成結果に一致した。standalone suite成功。
+- **価値／懸念:** 3つのlog curveを各関数単独だけでなく全10-bit codeの往復として検査し、S-Log3のblack floorとCanon Log 2低コードの往復差を明示する。Canon Log 2の差は現挙動の特性で、規格適合の判断や補正方針を示すものではない。
+- **次に確認すべきこと:** Canon Log 2の低コード0〜28が外部仕様で許容されるか、一次資料と利用コード経路に照らして判断する。
+
+## 2026-10-09 — DaVinci Intermediate 10-bit code往復
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、DaVinci Intermediate EOTF→OETF。
+- **確認済み:** normalized code 0〜1023をdecode→encodeして再量子化し、全コードが元の整数値へ戻ること、また独立double EOTF/OETFの合成結果と一致することを確認した。code 0のdecodeは正のscene-linear値だが、再encodeでcode 0へ戻る。standalone suite成功。
+- **価値／懸念:** encode(0)=0という特別分岐だけでなく、10-bit最暗コードとの整合を線形光往復で検証する。テスト側の`lround(code * 1023)`モデルであり外部I/Oの量子化は対象外。
+- **次に確認すべきこと:** 負のcodeや1超のcodeでも独立参照と単調性を別途確認し、scene-linear外挿との接続を整理する。
+
+## 2026-10-09 — ACEScc / ACEScct / Canon Log 2の範囲外入力
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、3つのlog curve encode/decode。
+- **確認済み:** normalized codeの負値・0・1・1超と、scene-linearの負値・0・正HDR値について、ACEScc、ACEScct、Canon Log 2双方の入出力を独立double式と照合した。対象点はすべてfiniteで参照に一致し、standalone suite成功。
+- **価値／懸念:** 通常の10-bit 0〜1格子外にあるlog符号化の数学的外挿と範囲外値を明示的に回帰保護する。実データで許容される入力範囲やクリップ方針を決めるものではない。
+- **次に確認すべきこと:** CineonおよびS-Log3/Canon Log 3の負code・HDR codeについても同様の包括ケースを揃え、curveごとのclamp／外挿差を整理する。
+
+## 2026-10-09 — 6 log curveの広域negative/HDR外挿
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、S-Log3・Canon Log 2/3・Cineon・ACEScc/cct。
+- **確認済み:** 6 curveについてcode ±2、linear -1e6〜1e7を独立参照式と照合した。S-Log3 OETFは負のlinearを0へclampするため、負値入力の参照を0入力へ正規化する必要があり、テストでその動作を確認した。他のcurveは負値／HDR外挿式と一致。standalone suite成功。
+- **価値／懸念:** ±1付近の既存確認を大きく越える入力領域を検査し、S-Log3の負値clampとsigned-log曲線の外挿差を残す。対象範囲内がfiniteで式に合うことを確認するだけで、実運用上の入力許容域を決めるものではない。
+- **次に確認すべきこと:** 統一した入力上限／clamp方針が必要か、各曲線の呼び出し元と製品仕様を照合する。
+
+## 2026-10-09 — Cineon / ACEScc / ACEScctのNaNと無限大
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、Cineon・ACEScc・ACEScct encode/decode。
+- **確認済み:** 3曲線ともNaNをencode/decodeしてNaNを返す。Cineonは正の無限大を正の無限大へ通し、負の無限大encodeはblack codeへclamp、decodeは有限な負のblack offsetを返す。ACESccは正の無限大encodeが負の無限大、decodeは有限値となり、負の無限大encodeは黒sentinel、decodeは正の無限大。ACEScctは±∞が各式の符号で発散する。standalone suite成功。
+- **価値／懸念:** 非有限入力が一様なclampにならず、各式の演算順序・sentinel・offsetの違いを持つことを記録する。非有限値を通常画像経路で許可する契約かどうかを定めるものではない。
+- **次に確認すべきこと:** 非有限入力を生成する呼び出し元がある場合、曲線ごとの現挙動がアプリ側のエラー処理や画像境界と整合するか確認する。
+
+## 2026-10-09 — 対数HDR格子で連続curveの往復誤差を確認
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`、8つの連続scene-linear transfer curve。
+- **確認済み:** sRGB、Gamma 2.2/2.4/2.6、Rec.2020、PQ、HLG、DaVinci Intermediateを`1e-6`〜`1e3`の対数間隔257点で往復検査した。PQは高輝度で相対誤差約`2.1e-4`まで増え、suiteで`3e-4`上限を満たす。他7曲線は`3e-5`を満たす。最初にPQへ一律`1e-4`を要求した試行では複数点が失敗し、誤差域を測った後にPQ個別上限を設定した。
+- **価値／懸念:** 少数の代表値では見えにくい暗部からHDR上端までの数値往復特性を継続検査できる。許容差はfloat実装の現行精度を測った契約で、PQの性能・精度改善を意味しない。
+- **次に確認すべきこと:** PQ高輝度の誤差をST 2084の独立値と別精度実装でも評価し、必要なHDR上限と精度を決める。
+
+## 2026-10-09 — 独立C++ moduleテストの共通登録口
+
+- **関連:** `tests/ArtifactCore/StandaloneTestHelpers.cmake`、`tests/ArtifactCore/ColorSpaceStandalone/`。
+- **確認済み:** 対象の`.ixx` interfaceと`.cppm`実装の依存閉包だけを独立CMake projectへ登録し、Artifactアプリ／全ArtifactCore libraryをロードせずGoogleTest executableを構成できる。Visual Studio 2026 / MSVC 19.51で色空間、HSV/HSL、ColorBridgeの3 suiteを実行し3/3成功。`.cppm`はMSVC/CMakeで`/interface`が付くため、helperはconfigure時にビルド領域へ`.cpp`として複製する。interface targetへのlinkでBMI参照は一度だけ供給でき、固定IFC pathの手動追加は重複解決を起こした。ColorBridgeのQColor境界にはQt Guiが必要。
+- **テスト契約の修正:** PQの黒はOETF式上ゼロ入力でも約`7.31e-7`を出力する。範囲外入力のclamp確認は出力値0固定でなく、対応する端点入力との一致で検証する。
+- **テスト契約の修正:** QColor文字列化は8bit/channel量子化を伴うため、10進float入力との直接比較ではなく、channel endpointの26/255・102/255に一致することを確認する。
+- **次に確認すべきこと:** 別の小さなmodule依存閉包でもhelperが再利用できるか、次のstandalone test追加時に確認する。
+
+## 2026-10-09 — Surface pixel conversion suiteの依存境界
+
+- **関連:** `tests/ArtifactCore/SurfacePixelConversionTest.cpp`、`ArtifactCore/include/Image/SurfacePixelConversion.ixx`。
+- **確認済み:** pixel buffer変換は公開module内で完結し、依存は`Color.TransferFunction`と`Graphics.SurfaceColorContract`だけ。CMake/MSVCでArtifactCoreやQtなしのmodule targetとして登録・実行でき、既存suiteへ4つ目として追加して4/4成功。
+- **価値／懸念:** CPU画像境界変換をアプリやImageF32x4実装へリンクせず、軽量で反復可能に検査できる。GPU upload/readback parityや完全な画像pipeline挙動を示すsuiteではない。
+- **次に確認すべきこと:** `Color.LUT`を独立化する場合、`Core.Parallel`と`Container.NamedVector`およびそのmodule依存・実装所有者をどこまで追加せずに済むかを調べ、ArtifactCore全体への依存を避けられるtarget境界を特定する。
+
+## 2026-10-09 — Color LUT moduleも小さな閉包で独立実行可能
+
+- **関連:** `tests/ArtifactCore/ColorSpaceStandalone/CMakeLists.txt`、`ArtifactCore/src/Color/ColorLUT.cppm`。
+- **確認済み:** `Color.LUT` の単体targetは `Core.Parallel` と `Container.NamedVector`（さらにその `Core.ArtifactArray` / optional・debug interface）を含めれば構成でき、Artifact / 全ArtifactCore / OpenImageIOには依存しない。Visual Studio 2026 / MSVC 19.51で既存LUT契約25 casesを含むstandalone suiteを実行し、全5 CTest suiteが成功した。
+- **テスト境界:** 既存テストは非公開 `sample()` を呼んでいたため公開 `apply()` 経由に修正。`inverted()` はsmooth LUTに対するbounded fixed-point近似の実装である。定数写像の値に対し厳密な逆関数を期待する契約は不適切なので、テストをvalid・finite・unit rangeの出力確認に変更した。これは一般写像の逆変換品質を保証しない。
+- **価値／懸念:** ファイル読み込み、保存、LUT操作、画像適用を速く反復確認できる。Qt Guiを必要とし、`applyToImage()`はQImage pathの契約であるためGPUや浮動小数点画像経路のparityを示さない。
+- **次に確認すべきこと（未検証）:** smooth monotonicな非線形LUTで forward→inverse 誤差を定量化し、必要精度を仕様化する。改善実装は別途明示された作業範囲で行う。
+
+## 2026-10-09 — Blend modeの小規模module閉包
+
+- **関連:** `tests/ArtifactCore/ColorBlendModeStandaloneTest.cpp`、`ArtifactCore/src/Color/ColorBlendMode.cppm`。
+- **確認済み:** `Color.BlendMode` は `Color.Float`、`Color.Conversion`、`Color.Luminance` の直接依存だけをstandalone projectへ加えてビルドできた。6つのカラーCTest suiteをMSVCで実行し成功。
+- **契約:** `ColorBlendMode::blend` のopacityはforeground contributionをスケールする値であり、source `FloatColor::alpha` をopacityと掛けた値がforeground alpha。transparent base・source alpha 0.5・opacity 0.5の結果alphaは0.5と確認した。
+- **次に確認すべきこと:** non-opaque baseと各blend modeの既知式を広げ、GPU shader側に対応modeがある場合は別途 parity suiteを検討する。
+
+## 2026-10-09 — Blend modeの成分置換とbase alpha動作
+
+- **関連:** `tests/ArtifactCore/ColorBlendModeStandaloneTest.cpp`、`ArtifactCore/src/Color/ColorBlendMode.cppm`。
+- **確認済み:** opacityを0〜1の格子で変えたNormal合成は、透明baseを含めsource RGBとbase alphaをopacityで線形合成する。Hue/Saturation/Color/LuminosityはHSL成分のうち各mode名に対応する成分だけを置換する。Stencil/Silhouette系はbase alphaだけを変え、base RGBは維持する。
+- **価値:** 単一modeの代表値に偏らず、合成カテゴリ別の振る舞いを実装式に対して独立suiteで固定できる。
+- **次に確認すべきこと:** GPU側に同名modeの実装がある場合、alphaとopacityの意味を同じ入力表で別途照合する。
+
+## 2026-10-09 — BlendMode enum全体を格子走査
+
+- **関連:** `tests/ArtifactCore/ColorBlendModeStandaloneTest.cpp`、`ArtifactCore/include/Color/ColorBlendMode.ixx`。
+- **確認済み:** 34個の宣言済みmodeを5×5 RGB・opacity gridで実行し、各出力RGBAの有限性と[0,1]範囲を検査。4つのlegacy aliasは対応canonical modeと完全一致した。MSVCでBlendMode単独CTestと全9カラーsuiteが成功。
+- **価値:** 新たなenum値が追加されたとき、網羅配列への登録漏れをレビューで拾えるほか、端点付近の算術modeや分岐型modeで非有限出力を検出できる。
+- **次に確認すべきこと:** BlendMode enum追加時にこの列挙テスト配列も更新する。GPU parityとは別のCPU契約である。
+
+## 2026-10-09 — ImageSurfaceViewはColor module closureで単独実行できる
+
+- **関連:** `tests/ArtifactCore/ImageSurfaceViewTest.cpp`、`tests/ArtifactCore/ColorSpaceStandalone/CMakeLists.txt`。
+- **確認済み:** `ImageSurfaceViewTest`の依存moduleは`Graphics.SurfaceColorContract`と`Image.ImageSurfaceView`だけで、既存のsurface conversion interface targetへ加えてQtなしのstandalone targetとして実行できた。BGRA viewによるRGBA descriptor拒否、owner bufferを変更した際のread-only view観測ケースを追加し、個別CTestと全10 suiteが成功。
+- **価値:** C++ moduleとGoogleTestの軽量閉包を、カラー変換以外のCPU画像境界型にも再利用できると確認した。
+- **次に確認すべきこと:** 他の`Image.*View` / descriptor-only APIも依存閉包を個別に評価し、Qtや画像本体を不要とするものから同じ方式で登録する。
+
+## 2026-10-09 — SurfacePixelConversionのalpha閾値とHDR保持
+
+- **関連:** `tests/ArtifactCore/SurfacePixelConversionTest.cpp`、`ArtifactCore/include/Image/SurfacePixelConversion.ixx`。
+- **確認済み:** byte sRGB inputをlinear floatへdecodeし、alphaは8bit値をnormalized floatとして保持する。Premultiplied alphaが`1e-6`以下の場合RGBをゼロにし、直上ではRGBをunpremultiplyする。linear float outputは負値・HDR値をclampせず保持する。単独suiteと全10 standalone suiteがMSVCで成功。
+- **価値／境界:** byte/float間で意図したtransfer境界と極小alpha扱いを固定し、display encodingのclampとscene-linear float pathを混同しにくくする。別primaries変換やGPU parityはこのAPI・suiteの対象外。
+- **次に確認すべきこと:** conversion追加時はalpha modeとtarget encodingごとに同じ入力fixtureで往復・量子化誤差を計測する。
+
+## 2026-10-09 — FloatRGBA compound演算と添字境界
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、`ArtifactCore/include/Color/FloatRGBA.ixx`。
+- **確認済み:** add/subtract/multiply/divide compound演算とscalar演算、swapがRGBA4成分すべてへ作用する。添字0〜3は読み書きでき、-1/4はconst・mutable双方で`std::out_of_range`。default constructorのalphaは0、RGB constructorのalphaは1。Bridge suiteと全10 standalone suiteが成功。
+- **価値:** 画像境界で使われる小さな値型の成分順・初期値・失敗境界を維持できる。小数の演算結果はexact equalityではなくchannel toleranceで比較する。
+- **次に確認すべきこと:** 他のRGBA value typeでoperator[]やalpha defaultが同じ契約を持つかは、型ごとに明示仕様を確認してからテストする。
+
+## 2026-10-09 — ColorBridge JSON / QColorの型別fallback
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、`ArtifactCore/include/Color/ColorBridge.ixx`。
+- **確認済み:** FloatRGBA overloadのJSON object round-tripは4 channelを保持する。`#RRGGBB`は空白をtrimして解釈しalpha=1を使う。無効QColorはFloatColorでdefault value、FloatRGBAでは不透明黒になる。Bridge suiteと全10 standalone suiteが成功。
+- **価値／境界:** RGB hexとARGB hexのalpha順序、JSON objectの型、Qt境界での異なる既定値をケース分けした。数値範囲外JSONの正規化はAPIに明示契約がなく、今回固定していない。
+- **次に確認すべきこと:** JSON objectでchannel値が数値型以外だった場合の受理・fallback挙動を仕様確認し、必要なら別途契約化する。
+
+## 2026-10-09 — ImageSurfaceView mutable row stride境界
+
+- **関連:** `tests/ArtifactCore/ImageSurfaceViewTest.cpp`、`ArtifactCore/include/Image/ImageSurfaceView.ixx`。
+- **確認済み:** 2×2 RGBA imageをrowStride=9 floats（8 channel floats + 1 padding float）でview化し、2行目・2つ目pixelへのwrite-through channel mappingと両row paddingの不変を確認。個別suiteと全10 standalone suiteが成功。
+- **価値:** multi-row view利用時のbyte strideからfloat offsetへの変換、padding越境の誤書き込みを検出できる。
+- **次に確認すべきこと:** BGRA padded-row mutable viewも同じ複数pixel配置で対称性を必要とする利用箇所が出たら追加する。
+
+## 2026-10-09 — HSV/HSL固定seed property samples
+
+- **関連:** `tests/ArtifactCore/ColorConversionTest.cpp`、`ArtifactCore/src/Color/ColorConversion.cppm`。
+- **確認済み:** 固定seed LCGから4,096点のunit RGBを生成し、HSV/HSL各成分がfiniteかつ定義域内で、RGB往復が各channel 1e-5以内。ColorConversion targetと全10 standalone suiteがMSVCで成功。
+- **価値:** 1,331点のregular gridとは独立の小数sampleで、sector内のround-tripとtie近傍を再現可能な形で補完する。
+- **次に確認すべきこと:** toleranceまたは変換式変更時は、固定seedを維持して失敗sampleをtraceから再現できるようにする。
+
+## 2026-10-09 — ColorSpace gamut matrixはalphaを変換しない
+
+- **関連:** `tests/ArtifactCore/ColorSpaceTest.cpp`、`ArtifactCore/src/Color/ColorSpace.cppm`。
+- **確認済み:** 全7×7 color-space matrix pairでRGBAのalpha交差項は0、alpha行は`[0,0,0,1]`。任意の代表alphaに行列を適用しても値が維持されることをMSVCで確認し、全10 standalone suiteが成功。
+- **価値／境界:** gamut変換はRGB primariesの3×3変換を4×4へ埋め込むため、alphaは対象外であることをmatrix構造と適用値の両方で検査できる。
+- **次に確認すべきこと:** future matrix APIがpremultiplied RGBへ適用される場合、alpha不変だけでは色値の適切性を保証しないのでalpha/unpremultiply順はpipeline側で別途検査する。
+
+## 2026-10-09 — Luminance neutral axisとclamp冪等性
+
+- **関連:** `tests/ArtifactCore/ColorLuminanceContractTest.cpp`、`ArtifactCore/src/Color/ColorLuminance.cppm`。
+- **確認済み:** 5 luminance standardsそれぞれで5段階のneutral inputをgrayscale化して元値を保つ。HSP perceptual functionもneutral axisを保つ。broadcast clampは複数finite範囲値で有限・bounds内・idempotent、NaN/±Infはlower boundに写る。個別CTestと全10 suiteが成功。
+- **価値／境界:** primary単体係数からは分からない、係数の総和とchannel処理の一貫性をpropertyとして保つ。clamp testは`channelMin <= channelMax`の有効範囲に限定する。
+- **次に確認すべきこと:** custom legal-range入力でlower>upperを許すかは未定義であり、別仕様なしに契約化しない。
+
+## 2026-10-09 — TaggedColor transfer dispatchとprimaries往復
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、`ArtifactCore/include/Color/TaggedColor.ixx`。
+- **確認済み:** TaggedColorからdispatch済み16 transfer curvesへの変換後、sRGBへ戻すRGB誤差が5e-4以内。alpha、alphaMode、primaries、known flagを検査した。Gamma22 encoded colorのRec.709↔Rec.2020 primaries往復もtransfer metadataとalphaを保持しRGB誤差1e-4以内。Bridge単独と全10 suiteが成功。
+- **価値／境界:** scalar transfer functionsだけでなく、TaggedColorがmetadataを書き換えず変換を合成する経路を確認する。ACESlogはenumにあるがencode/decode dispatchがないため対象外。
+- **次に確認すべきこと:** ACESlogを使うTaggedColorの意味はdispatch欠落の別実装課題と切り分け、ここでは未保証のままにする。
+
+## 2026-10-09 — ColorLUT QImage tiled applyの全pixel境界
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ArtifactCore/src/Color/ColorLUT.cppm`。
+- **確認済み:** 37×35 QImageをproductionの32×32 `Parallel::ForTiles` apply pathに通し、全1,295 pixelsでred inversion、green/blue保持、alpha保持を確認。source imageは不変。LUT単独suiteと全10 standalone suiteが成功。
+- **価値／境界:** 以前の2×1 fixtureでは通らないtile分割、複数row、非tile倍数寸法、画像端の反復を同時に検査できる。QImage/8bit pathであり、float image/GPU parityは主張しない。
+- **次に確認すべきこと:** LUT image applyのparallel implementationを変更する場合、tileサイズ変更を含むodd-size image fixtureを維持する。
+
+## 2026-10-09 — ColorLUT default constructorはvalid identity
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ArtifactCore/src/Color/ColorLUT.cppm`。
+- **確認済み:** default `ColorLUT`に`isValid()==false`を期待する仮テストは失敗した。production construction pathは有効なidentity LUTを提供する。無効LUTのno-op検査には不完全なCUBE fileを読み込むfixtureが必要。非有限float入力は有効identity LUTでゼロへsanitizeされる。LUT単独と全10 suiteが成功。
+- **価値:** test fixtureの前提違いで実API契約を誤って捉えないよう、default-constructed valueとparse failureを区別する。
+- **次に確認すべきこと:** 無効状態はload/parse error経路でのみfixtureし、default valueの契約変更時は関連default testsと合わせて更新する。
+
+## 2026-10-09 — TaggedColor unpremultiply epsilonはstrict greater-than
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、`ArtifactCore/include/Color/TaggedColor.ixx`。
+- **確認済み:** premultiplied alpha 0および1e-6以下はstraight化時にRGBを黒へし、`nextafter(1e-6,+inf)`では除算して元RGBを復元する。stored alphaは保持する。Opaque alpha modeは`premultiplied()` / `straight()`の双方で完全no-op。Bridge単独と全10 suiteが成功。
+- **価値／境界:** 透明近傍でのゼロ除算回避閾値とalpha-mode idempotenceを代表値ではなく隣接浮動小数点値で固定する。
+- **次に確認すべきこと:** threshold変更は既存透明画像の色復元可否を変えるため、意図的な契約変更としてこの境界を更新する。
+
+## 2026-10-09 — ColorLUT applyWithIntensityはalphaを固定してRGBを混合
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ArtifactCore/src/Color/ColorLUT.cppm`。
+- **確認済み:** QColor pathでintensity 0〜1の5点を検査し、RGBはoriginalとLUT resultの線形補間、alphaはsource alpha維持。LUT単独suiteおよび全10 suiteが成功。
+- **価値／境界:** 中間値1点だけでなく両端と中間密度で混合式を固定した。intensity範囲外はAPI契約が明示されていないため対象外。
+- **次に確認すべきこと:** QColor内部の量子化差を踏まえ、色成分の比較は2e-4許容を使う。
+
+## 2026-10-09 — ColorHarmonizer hue rotation preserves HSV S/V
+
+- **関連:** `tests/ArtifactCore/ColorHarmonizerContractTest.cpp`、`ArtifactCore/src/Color/ColorHarmonizer.cppm`。
+- **確認済み:** Hue 350°、S=0.72、V=0.63、alpha=0.38から5 hue-rotation schemesを生成し、expected hue wrap、HSV saturation/value、alpha保持を確認。Monochromatic count=-3はempty。単独suiteと全10 suiteが成功。
+- **価値／境界:** RGB原色では露呈しにくい色相0° crossingと非最大S/Vで、Hue以外のHSV軸が不変であることを検査する。
+- **次に確認すべきこと:** angle引数の有効範囲や非常に大きい負角度のwrap契約は未定義のため、仕様確認なしには固定しない。
+
+## 2026-10-09 — ColorSpace transfer gridsとPQ float誤差
+
+- **関連:** `tests/ArtifactCore/ColorSpaceTest.cpp`、`ArtifactCore/src/Color/ColorSpace.cppm`。
+- **確認済み:** Linear / sRGB / Gamma22 / Gamma24 / Gamma26 / PQ / HLGで257 normalized samplesを走査し、出力finite・unit range・単調非減少・round-tripを確認。PQの最大round-trip差は約7.9e-5で、1e-4 tolerance内。個別ColorSpace suiteと全10 suiteが成功。
+- **価値／境界:** 6 representative pointsでは見えない全域の低次元形状と曲線境界の誤差を固定できる。GammaFunction enumのRec709 / Rec2020はこのconverter実装で現状passthrough defaultなので「implemented transfer curves」配列には含めない。
+- **次に確認すべきこと:** PQのfloat32誤差がcompiler/backendで大きく変わる場合は誤差分布と式の精度を調べ、無根拠にtoleranceを広げず参照実装と比較する。
+
+## 2026-10-09 — BlendMode全enum opacity saturation boundaries
+
+- **関連:** `tests/ArtifactCore/ColorBlendModeStandaloneTest.cpp`、`ArtifactCore/src/Color/ColorBlendMode.cppm`。
+- **確認済み:** 34 modes×RGB gridでopacity=-0.5/0/1/1.5を含む7点を適用。opacity<=0はbaseと完全一致し、opacity>=1はclamped full-opacity resultと一致。unit bounds・finiteも継続検査。単独suiteと全10 suite成功。
+- **価値:** 既存の中間opacity domain testに加え、enum全体のclamp端点を同時に固定する。
+- **次に確認すべきこと:** opacity NaNの動作はstd::clampの扱いに依存するため、製品契約が必要になるまではテスト対象にしない。
+
+## 2026-10-09 — Color Luminance単体suiteはmodule一つで成立
+
+- **関連:** `tests/ArtifactCore/ColorLuminanceContractTest.cpp`、`ArtifactCore/include/Color/ColorLuminance.ixx`。
+- **確認済み:** luminance / perceptual brightness / grayscale / broadcast safe inspectionとclampは単一module interfaceとimplementationでstandalone CTest targetにできる。QtやArtifactCore全体を不要とし、MSVCで実行した。
+- **契約上の境界:** `inspectBroadcastSafe` はコメント上も全Y'CbCr matrix gamut mapperではなく、選択された輝度係数と独立のper-channel legal範囲検査である。テストは両判定を分けている。
+- **次に確認すべきこと:** compositionやimage importでの色解釈、GPU monitor pathとの一致を主張するには別の統合境界テストが必要。
+
+## 2026-10-09 — Color Harmonizerの色相suiteはQt Coreだけで独立可能
+
+- **関連:** `tests/ArtifactCore/ColorHarmonizerContractTest.cpp`、`ArtifactCore/src/Color/ColorHarmonizer.cppm`。
+- **確認済み:** `Color.Harmonizer` は `QList`、`Color.Float`、`Color.Conversion`で構成でき、standalone targetは全ArtifactCoreをリンクせずMSVCで通過した。補色・類似色・三補色・四補色・分裂補色・単色配色の5テストを追加し、全8カラーsuite成功。
+- **境界:** 色相は色差がない黒・グレーでは不定となる。monochromatic色相維持テストはvalueのwrapが黒点を作らないcountで検査する。
+- **次に確認すべきこと:** 無彩色入力に対して調和色生成が維持すべき振る舞いを別途仕様化すると、Hue=0扱いの現状を契約化すべきか判断できる。
+
+## 2026-10-09 — ACESのヘッダ実装も既存color module closureを使って独立検査可能
+
+- **関連:** `tests/ArtifactCore/ColorACESContractTest.cpp`、`ArtifactCore/include/Color/ColorACES.ixx`。
+- **確認済み:** ACES managerのAPIは既存のColorSpace / gamut conversionとTransferFunction interfaceだけでcompileでき、standalone projectに登録後、CTest全9 suiteが成功。
+- **境界:** `applyOutputTransform`内のRRTはproduction sourceコメントにある簡易filmic近似であり、標準Academy ACES RRT+ODTとの一致を示さない。suiteは線形入力変換関係、黒、有限出力、soft clippingなどの現行API契約に限定した。
+- **次に確認すべきこと:** ACEScg/ACEScctのworking-space分岐が実装上同じAP1に写されている点を、利用側の期待仕様と照合する。今回のテスト追加では変更していない。
+
+## 2026-10-09 — FloatRGBA単体演算はalphaも通常成分として処理する
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、`ArtifactCore/include/Color/FloatRGBA.ixx`、`ArtifactCore/src/Color/FloatRGBA.cppm`。
+- **確認済み:** standalone ColorBridge libraryにFloatRGBA実装を加え、RGBA四成分の加算・乗算・scalar multiplication、alphaを含むlerp/clamp、FloatColor変換をテストした。CTest全9 suite成功しBridge suiteは18 cases。
+- **境界:** 浮動小数点演算結果は許容誤差で比較し、lerp端点のみ完全一致を確認する。
+- **次に確認すべきこと:** `setFromFloatColor`宣言に対応する実装が見当たらないため、呼び出し元の有無とAPI契約を別途調べる（未検証）。
+
+## 2026-10-09 — RGB cube gridでHSV/HSL往復を検査
+
+- **関連:** `tests/ArtifactCore/ColorConversionTest.cpp`。
+- **確認済み:** [0,1]³を各軸11点に分けた1,331 RGB sampleでHSV/HSL round-tripを検査し、両方の色相表現で全channel誤差は1e-5以内。HSL primary / secondary / full-turnの7境界も個別期待値と比較し、MSVC上のColorConversion suite・全カラーCTestが成功。
+- **価値:** 少数の代表色だけでは通りにくいsector分岐やmax/min channel tieを含め、unit cube全域の標本契約を継続監視できる。
+- **次に確認すべきこと:** float16境界・ランダムproperty testingを追加する場合は固定seedと失敗時の入力表示を維持し、再現性を確保する。
+
+## 2026-10-09 — ColorSpace全matrix pairはHDR/負値も往復できる
+
+- **関連:** `tests/ArtifactCore/ColorSpaceTest.cpp`、`ArtifactCore/src/Color/ColorSpace.cppm`。
+- **確認済み:** 7 ColorSpace値の全49 source/destination pairについて、7 RGB sampleをforward + reverse matrixで復元するテストを追加。黒・白・RGB primaries・mixed color・HDR/negative channelを含み、matrix要素finite、alpha diagonal=1、RGB誤差1e-3以内をMSVCで確認。全9カラーCTest suite成功。
+- **価値／懸念:** 色域外値をclipしないlinear primary conversionの契約と、同義primariesを持つspace aliasのmatrix安定性を広く押さえる。
+- **次に確認すべきこと:** 既知の別実装や標準行列へのreference checkはRec709→Rec2020以外にも追加できるが、white-point adaptationを含む期待値の出典を明確にしてから固定する。
+
+## 2026-10-09 — TransferFunction enum/dispatch gapとACEScc zero decode mismatch
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`、`tests/ArtifactCore/ColorBridgeTest.cpp`。
+- **確認済み:** dispatch済み15 transfer曲線を5つの正値でencode/decode往復し、Rec.709/2020 toe slopeとACEScc/ACEScctのlog blackをテストした。全9カラーsuite成功。`TransferFunction::ACESlog` enum値は汎用encode/decode switchに未接続。
+- **確認済みの不一致:** `linearToACEScc(0)` は`-0.3584474886`を返すが、現行`acesccToLinear`へ渡すと131072になる。該当テストは誤った往復を期待せず、値をInsightへ報告するだけに留めた。通常のpositive sampleはround-tripテストを通る。
+- **価値／懸念:** wide-gamut/HDR/log curve APIで宣言済み関数とdispatcherの完全性、特例境界の不一致を可視化した。ACEScc fixとACESlog実装は利用仕様・標準値照合が必要で、今回はsourceを変更していない。
+- **次に確認すべきこと:** ACESccの正式な負値/zero decoding ruleとACESlog transfer curveの仕様・命名を一次資料から確認して、対応とテストを個別に判断する。
+
+## 2026-10-09 — Luminance standard endpointとlegal-range境界
+
+- **関連:** `tests/ArtifactCore/ColorLuminanceContractTest.cpp`。
+- **確認済み:** 5 luminance standardそれぞれの黒=0/白≈1、red/green/blue単独寄与、各channel増加に対する単調性、broadcast legal black/white inclusive endpoints、NaN時にluma/gamut両違反となる契約を追加。MSVCで該当targetと全9 suiteが通過。
+- **境界:** monotonicityは[0,1] channel samplesのみ。negative/HDR input値でのluminance自体は線形重み式だが、broadcast legal-range suitabilityとは別契約。
+- **次に確認すべきこと:** `calculatePerceptual`のHSP近似は色管理lumaではないため、用途別呼び出し点に混同がないかは将来の別監査対象。
+
+## 2026-10-09 — LUT inverse approximationはmapped range内で誤差評価
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ArtifactCore/src/Color/ColorLUT.cppm`。
+- **確認済み:** 非可換linear LUT合成で`receiver`を先に、`argument`を次に適用する契約を追加。単調な縮小linear channel mapsに対してmapped range内の3サンプルforward→inverseを検査し、各channel誤差は0.01以下。MSVC全9 suite成功。
+- **境界:** `inverted()` はoutput cube全体へ逆写像を構築するfixed-point近似のため、元LUTが覆わないrangeの逆値は定義できない。テストサンプルはmapped range内に置く。
+- **次に確認すべきこと:** 非線形で相互channel mixingがあるLUTの収束・誤差を別途特徴付ける。
+
+## 2026-10-09 — LUT file dispatchとheaderless 3DL branch
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ArtifactCore/src/Color/ColorLUT.cppm`。
+- **確認済み:** `.CUBE` suffixの大小文字を無視したdispatch、未対応`.look`拡張子の明示エラー、ヘッダーなし3DLのデータ数から立方rootを推定する分岐をテストした。MSVC全9 suite成功。
+- **境界:** `LUTFormat` enumはMga / Lookも列挙するが、file dispatchはcube/csp/3dlとPNG/JPG/TIFF画像のみ。今回、unsupported extensionが失敗する現在の挙動を確認し、追加形式の実装は行っていない。
+- **次に確認すべきこと:** `tif` aliasやMga/Look file formatsをサポート対象にする必要があるか、利用要件と照合する。
 
 ## 2026-10-09 — 起動時先行投入で初回CPU期間ごと消去
 
@@ -1338,3 +1720,1253 @@
 - **確認できた事実（静的）:** 呼び出し元がファイル内に見つからず、Impl の private 成員のため外部接続もない（`frameBuffer` は FFmpeg エンコーダ無効化に伴い実質未使用）。
 - **価値または懸念:** 保守負担のみ。本レポートの改善候補とは独立。プリプロ条件込みで最終確認して削除または接続の判断材料にする。
 - **次に確認すべきこと:** 条件コンパイルの有無の最終確認。
+
+
+## 2026-10-09 — HLG分岐境界とPQ referenceの独立テスト
+
+- **関連:** `tests/ArtifactCore/ColorSpaceTest.cpp`、standalone target `ArtifactCoreColorSpaceTest`。
+- **確認できた事実:** HLG encode のscene-linear `1/12`とその隣接float、decode のencoded `0.5`と直上値の式を個別に検査し、PQ 18%入力の出力が約`0.81594`となる既知referenceも検査した。Visual Studio 2026 / MSVC 19.51で個別targetをビルドし、色standalone CTest全10 suiteが成功。
+- **価値:** 広い格子による単調性・往復検査に加えて、piecewise関数の実際の分岐条件と規格referenceを個別ケースで保護できる。
+- **次に確認すべきこと（未検証）:** 次の独立suite候補として、`ColorSpaceConverter::getWhitePointX/Y`と`getGammaExponent`の全ColorSpace対応値を表駆動で固定する。
+
+
+## 2026-10-09 — ColorSpace metadataの全enum対応値を固定
+
+- **関連:** `tests/ArtifactCore/ColorSpaceTest.cpp`、`ColorSpaceConverter::getWhitePointX/Y`・`getGammaExponent`。
+- **確認できた事実:** Linear / sRGB / Rec.709 / Rec.2020 / P3 / ACES AP0 / AP1の7値について白色点X/Yと既定gamma exponentを表駆動で検査した。Visual Studio 2026 / MSVC 19.51で個別targetをビルドし、色standalone CTest全10 suiteが成功。
+- **価値:** metadata switchのcase誤記や意図しない値変更を、広い変換往復テストとは独立に検出できる。
+- **次に確認すべきこと（未検証）:** ColorSpace enumに未定義値を渡したときの fallback値を契約として固定する必要があるか、API利用側の前提を調べる。
+
+
+## 2026-10-09 — 未定義ColorSpace metadata fallbackを検査
+
+- **関連:** `tests/ArtifactCore/ColorSpaceTest.cpp`、`ColorSpaceConverter::getWhitePointX/Y`・`getGammaExponent`。
+- **確認できた事実:** enum外の値`static_cast<ColorSpace>(-1)`に対し、現行実装は白色点`(0.3127, 0.3290)`とgamma exponent `2.2`を返す。個別ColorSpace targetとCTest全10 suiteがVisual Studio 2026 / MSVC 19.51で成功した。
+- **価値・懸念:** 現行の防御的fallbackを回帰から守る一方、これは明示ドキュメント化された公開契約ではなく実装挙動の固定である。将来enum検証を導入する場合はエラー返却などを含めて再設計が必要。
+- **次に確認すべきこと:** metadata APIのfallback契約を公開仕様にする必要性を別途判断する。
+
+
+## 2026-10-09 — signed sRGBと全transferの非有限値入力
+
+- **関連:** `tests/ArtifactCore/ColorSpaceTest.cpp`、`ColorSpaceConverter::applyGamma/removeGamma`。
+- **確認できた事実:** sRGBは負のscene-linear値をlinear toe slopeで符号付きencodeし、decodeで復元する。Linear / sRGB / Gamma22 / Gamma24 / Gamma26 / PQ / HLGすべてのencode/decodeへNaN・正無限大を入れたときの結果を検査した。PQ encodeだけはsanitize後の0を式へ通すため約`7.31e-7`を返す現行挙動を式から確認し、テストで固定した。ColorSpace targetと色standalone CTest全10 suiteが成功。
+- **価値・懸念:** Transferごとのsanitize差を可視化できた。PQの非有限入力に対する微小正値は「ゼロへsanitize」という一般的な説明とは異なるが、ここでは実装挙動を記録しただけで仕様承認を意味しない。
+- **次に確認すべきこと:** PQの非有限値出力を公開契約として許容するか、別の仕様変更として判断する。
+
+
+## 2026-10-09 — ACES display fitted curve referenceと露出制御
+
+- **関連:** `tests/ArtifactCore/ColorSpaceTest.cpp`、`ColorSpaceConverter::applyACESDisplayTransform`。
+- **確認できた事実:** scene-linear 0.18 / 1 / 4 のfitted curve出力を約0.10559125 / 0.61911543 / 0.90901377で固定。+1 stopが入力RGBの2倍と等価、非有限露出は0 stop扱い、露出100は+16上限と同値であることを検査した。ColorSpace targetと色standalone CTest全10 suiteがVisual Studio 2026 / MSVC 19.51で成功。
+- **価値・懸念:** 既存の有限性・単調性から一歩進み、近似式と露出引数の数値契約を回帰検出できる。基準点はArtifact内のfitted近似に対する値で、Academy reference transformとの同一性は主張しない。
+- **次に確認すべきこと（未検証）:** 各RGB channelへ異なる入力を与えたときの独立channel処理と、負値・非有限pixelのchannelごとの隔離動作を追加確認する。
+
+
+## 2026-10-09 — ACES fitted transformのchannel独立性
+
+- **関連:** `tests/ArtifactCore/ColorSpaceTest.cpp`、`ColorSpaceConverter::applyACESDisplayTransform`。
+- **確認できた事実:** 異なるRGB値の出力を個別reference値で検査し、R/G/Bの各位置にNaN・負値・+infinityを一つずつ与えた場合、当該channelのみ0になり残るchannelは正常入力時と同値であることを確認した。個別targetと色standalone CTest全10 suiteが成功。
+- **価値:** channel indexの取り違えや、1 channelの破損がpixel全体へ伝播する回帰を防ぐ。
+- **次に確認すべきこと（未検証）:** exposureの下限-16 clampと、十分大きな入力の上限clampを独立に試す。
+
+
+## 2026-10-09 — ACES露出下限と暗部toe clamp
+
+- **関連:** `tests/ArtifactCore/ColorSpaceTest.cpp`、`ColorSpaceConverter::applyACESDisplayTransform`。
+- **確認できた事実:** exposure `-100`と下限`-16`が同一出力となり、fitted curveの暗部にある負のmapped値（入力0 / 1e-5 / 1e-4）が表示用出力では0 clampされることを確認した。ColorSpace個別targetと全10 color standalone suitesが成功。
+- **価値:** 露出の両端clampと暗部の最終display clampを別々に保護する。
+- **次に確認すべきこと（未検証）:** 露出の下限を通る正の信号で、異なるRGB channelが下限後に再現性ある値へ写ること。
+
+
+## 2026-10-09 — ACES露出floorでの正信号保持
+
+- **関連:** `tests/ArtifactCore/ColorSpaceTest.cpp`、`ColorSpaceConverter::applyACESDisplayTransform`。
+- **確認できた事実:** exposure floor `-16`でRGB `{300, 500, 1000}`は約`{0.00017881, 0.00064277, 0.00211229}`へ写る。exposure `-100`は`-16`と同じ結果になり、明るさの順も保たれる。個別targetと全10色standalone suiteが成功。
+- **価値:** floor-clamp確認を、すべて0になる暗い入力だけでなく、正の信号を保持する入力でも検証できる。
+- **次に確認すべきこと（未検証）:** 高露出側でも異なるHDR入力の順序・非飽和値が保たれることを検査する。
+
+
+## 2026-10-09 — ACES high exposure HDR orderとhighlight saturation
+
+- **関連:** `tests/ArtifactCore/ColorSpaceTest.cpp`、`ColorSpaceConverter::applyACESDisplayTransform`。
+- **確認できた事実:** exposure +8でscene-linear `{0.01, 0.1, 1}`は約`{0.8489785, 0.9999556, 1}`へ写り、channel順と[0,1]範囲を保つ。+16では全channelが1へ飽和する。個別targetと全10色standalone suiteが成功。
+- **価値:** ハイライトが完全飽和するまでのHDR範囲と、露出上限での最終clampを明示的に保護する。
+- **次に確認すべきこと:** なし（この項目の期待値検査で完了）。
+
+
+## 2026-10-09 — 未定義GammaFunctionのsanitize済みidentity fallback
+
+- **関連:** `tests/ArtifactCore/ColorSpaceTest.cpp`、`ColorSpaceConverter::applyGamma/removeGamma`。
+- **確認できた事実:** enum外の`GammaFunction`値では有限の負値・0・通常値・1超過値をencode/decodeともそのまま返し、NaNおよび+infinityは事前sanitizeにより0を返す。個別ColorSpace suiteと色standalone全10 suiteが成功。
+- **価値・懸念:** switch defaultのidentity fallbackとsafe input処理の組み合わせを保護する。これも明示的なAPI仕様というより現在の防御的実装を記録するテスト。
+- **次に確認すべきこと:** なし。
+
+
+## 2026-10-09 — PQとHLG transferの絶対reference値
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、`ColorTransferFunction::linearToPQ/pqToLinear/linearToHLG/hlgToLinear`。
+- **確認できた事実:** PQ encodeのlinear 0.01 / 0.18 / 1.0、decode code 0.5、HLG encode linear 0.5 / 1.0、decode code 0.5 / 1.0のreference値を追加し、色standalone CTest全10 suiteで成功した。初回のPQ decode期待値は約2.01e-7ずれて失敗したため、float実装での値`0.00922437`に補正して再確認。
+- **価値:** 往復一致だけでは検出できない、encode/decode双方が同方向にずれた回帰をabsolute pointで検出できる。
+- **次に確認すべきこと:** なし。
+
+
+## 2026-10-09 — PQ / HLG black-white endpoints
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、`ColorTransferFunction` PQ / HLG encode・decode。
+- **確認できた事実:** PQ / HLG双方でlinear/codeの-1と0がencode/decode後に0となり、linear/code 1は双方向とも1になるendpoint契約を確認した。個別Bridge targetと色standalone全10 suiteが成功。
+- **価値:** 往復格子・中間referenceとは別にblack clampとwhite normalizationの退行を直接検出する。
+- **次に確認すべきこと:** なし。
+
+
+## 2026-10-09 — TransferFunction dispatchの未知値fallback
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、`ColorTransferFunction::encode/decode`。
+- **確認できた事実:** enum外の`TransferFunction`値をdispatchしたとき、有限の負値・0・通常値・1超過値はencode/decode双方でidentity passthroughされる。個別Bridge targetと色standalone全10 suiteが成功。
+- **価値・懸念:** 汎用switch defaultのfallbackを保護する。未知値のidentity動作は現行実装の挙動であり、公開仕様として固定済みとは限らない。
+- **次に確認すべきこと:** なし。
+
+
+## 2026-10-09 — DaVinci Intermediateのzero-toe順序についての仮説
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx` の`linearToDaVinciIntermediate`、`tests/ArtifactCore/ColorBridgeTest.cpp`。
+- **確認できた事実:** 実装はlinear `<=0`を0へ写し、正値では`(log2(linear)+12.473931188)/12.900429241`を使う。テスト探索で0の出力0に対してlinear `0.0001`の出力が約`-0.06308`となることを観測したため、この二点間は単調減少する。現在の一般的transfer suiteは0.001以上から代表値を試しており、このtoeの形状を検査していなかった。
+- **未検証の仮説:** DaVinci Intermediate仕様にあるlinear toeが省かれている可能性。基準仕様との照合は未実施で、今回のユーザー依頼はテスト追加のため、production codeは変更していない。
+- **価値または懸念:** 低輝度入力がblackより負のencoded valueへ写る可能性がある。
+- **次に確認すべきこと:** `ColorTransferFunction::linearToDaVinciIntermediate` が意図する入力domainと仕様上のtoe / minimum codeを確認し、修正はArtifactCore child repositoryへの変更が明示依頼された場合に別作業で行う。
+
+
+## 2026-10-09 — log / camera transfer HDR headroom round trip
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、ACEScct / DaVinci Intermediate / S-Log3 / Cineon / Canon Log 2/3 dispatch。
+- **確認できた事実:** 各曲線でscene-linear 1 / 2 / 4 / 16をencode/decodeし、finiteかつ元値との差2e-3以内を確認した。個別Bridge suiteと全10色standalone suiteが成功。
+- **価値:** normalized whiteを超えるHDR headroomの往復誤差を曲線ごとに保護できる。
+- **次に確認すべきこと:** なし。
+
+
+## 2026-10-09 — log / camera curve absolute encoded references
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、ACEScct / DaVinci Intermediate / S-Log3 / Cineon / Canon Log 2/3。
+- **確認できた事実:** 6曲線それぞれのlinear 0.18 / 1 / 4 encode値を独立reference表で検査し、Bridge suiteと色standalone全10 suiteが成功した。
+- **価値:** encode/decode往復が両側で同じ誤りを持つ場合もabsolute code pointの差として検出できる。
+- **次に確認すべきこと:** なし。
+
+
+## 2026-10-09 — near-achromatic HSV thresholdとHSL差
+
+- **関連:** `tests/ArtifactCore/ColorConversionTest.cpp`、`ColorConversion::RGBToHSV/RGBToHSL`。
+- **確認できた事実:** RGB delta `4e-6`の青寄り近無彩色はHSVでhue/saturationが0になるが、HSLではhue 240°と正のsaturationが保持される。delta約`2e-5`のHSVではhue/saturationが保持され、HSV逆変換で元RGBへ戻る。個別Conversion suiteと全10色standalone suitesが成功。
+- **価値または懸念:** HSVの1e-5 achromatic thresholdが微小色差を捨てる挙動と、HSL側との非対称性を明示的に回帰保護する。
+- **次に確認すべきこと（未検証）:** アプリの色選択・変換経路が1e-5未満差の保持を必要とするかを確認し、閾値を仕様化する場合は別途判断する。
+
+
+## 2026-10-09 — Canon Log 3 lower breakpointの出力段差
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx` `linearToCanonLog3` lowLinear分岐、`tests/ArtifactCore/ColorBridgeTest.cpp`。
+- **確認できた事実:** `lowLinear = -(10^((toe-low)/slope)-1)/scale` の直下ではlinearToCanonLog3が約`0.0407616`を返すが、境界点は`linear <= highLinear`のmiddle branchへ入り約`0.0470002`を返す。float隣接値で約`0.0062386`の段差を観測し、テストへ現行behaviorとして固定した。Bridge suiteと全10 color standalone suite成功。
+- **未検証の仮説:** low branchからmiddle branchの式の接続が意図どおりか、Canon Log 3定義資料との照合が必要。
+- **価値または懸念:** branch境界付近の色変化が不連続になる可能性。
+- **次に確認すべきこと:** 公式Canon Log 3 referenceによる境界の確認。production修正はArtifactCore child repoへ触るため別途明示依頼が必要。
+- **decode境界追記:** `canonLog3ToLinear` encoded low threshold `0.04076162`でも段差がある。直下の次表現可能floatで約`-0.0112958`、境界点と直上で約`-0.0140`となり、差は約`0.0027042`。ACEscct (`0.155251...`)とS-Log3 (`171.2102946929/1023`)のdecode境界、Canon Log 3 high境界は隣接floatで連続だった。
+- **次に確認すべきこと追記:** encodeとdecode両側のCanon Log 3 low branchの式・thresholdがreferenceに沿うか照合する。
+
+
+## 2026-10-09 — Canon Log 2 negative toeの往復誤差
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx` の`linearToCanonLog2/canonLog2ToLinear`、`tests/ArtifactCore/ColorBridgeTest.cpp`。
+- **確認できた事実:** 通常負値`-1e-4`、0、正値0.01ではdispatch round-tripが通るが、`linearToe = -(10^(toe/slope)-1)/scale`で算出した負toe thresholdではencode約`-0.01459125`、decode約`-0.00578928`となり、入力との差は約`0.00194065`。この点をcharacterizationとしてテストへ固定し、Bridgeと全10 standalone suiteは成功。
+- **未検証の仮説:** Canon Log 2のnegative toe threshold導出またはencode/decode branch thresholdが整合していない可能性。Canon仕様参照との照合は未実施。
+- **価値または懸念:** toe周辺の負scene-linear信号でround-tripが失われる可能性。
+- **次に確認すべきこと:** Canon公式curve定義と負値domainの照合。production修正はArtifactCore child repoへの明示依頼がある場合に扱う。
+## 2026-10-09 — 読み取り専用surface viewの複数pixel行padding
+
+- **関連:** `tests/ArtifactCore/ImageSurfaceViewTest.cpp`、`ArtifactCore/include/Image/ImageSurfaceView.ixx`。
+- **確認できた事実:** 独立テストで幅2 pixel・高さ2行・各行8 float分のpixelデータに4 float分のpaddingを加え、読み取り専用RGBA viewが行末pixelと次行先頭pixelを正しく参照することを確認した。ImageSurfaceView suiteおよび色standalone全10 suiteが成功。
+- **価値:** 1 pixel幅のread testや可変viewのpadding testとは別に、const viewで複数pixelを含むrow strideの境界を保護する。
+- **次に確認すべきこと:** なし。
+## 2026-10-09 — floatから8-bit sRGBへの出力clamp
+
+- **関連:** `tests/ArtifactCore/SurfacePixelConversionTest.cpp`、`ArtifactCore/include/Image/SurfacePixelConversion.ixx`。
+- **確認できた事実:** linear floatの負値・1超過RGB、および範囲外alphaを8-bit sRGB targetへ変換し、RGBが[0,255]へclampされ、alphaもclamp後に量子化される独立ケースを追加した。target buildと色standalone全10 suiteの実行で結果を確認。
+- **価値:** 中間値の量子化referenceやfloat targetのHDR保持とは別に、byte出力の範囲端での動作を保護する。
+- **次に確認すべきこと:** なし。
+## 2026-10-09 — binary16変換の丸め境界テスト
+
+- **関連:** `tests/ArtifactCore/SurfacePixelConversionTest.cpp`、`ArtifactCore/include/Image/SurfacePixelConversion.ixx` のfloatToHalf。
+- **確認できた事実:** half 1.0の隣接値中点直下・中点・直上、ゼロと最小subnormalの中点直下および中点、最小subnormal、最大有限値65504、overflow境界65520を期待binary16 bit patternで検査する独立ケースを追加した。
+- **価値または懸念:** 通常値のexact conversionだけでは見えないrounding, underflow, overflow境界の回帰を検出できる。丸め中点は現行実装で上側へ丸める挙動としてcharacterizeする。
+- **次に確認すべきこと:** target buildと全standalone suitesで実行結果を確認する。
+## 2026-10-09 — alpha byte量子化の半コード境界
+
+- **関連:** `tests/ArtifactCore/SurfacePixelConversionTest.cpp`、`ArtifactCore/include/Image/SurfacePixelConversion.ixx` のRGBA8出力。
+- **確認できた事実:** alpha `0.5f`の直前、ちょうど、直後の隣接float値をRGBA8へ変換し、alpha byteが127 / 128 / 128となる独立ケースを追加した。
+- **価値:** 0.5の単一点referenceだけでは覆えないbyte量子化境界前後を明示できる。
+- **次に確認すべきこと:** target buildと色standalone suitesで実行結果を確認する。
+## 2026-10-09 — gamut conversionの独立suite化
+
+- **関連:** `ArtifactCore/include/Color/ColorGamutConversion.ixx`、`tests/ArtifactCore/ColorGamutConversionTest.cpp`、standalone CMake target。
+- **確認できた事実:** 実装は11 gamut presetとACES AP0/AP1対D65 gamut間のD60/D65 adaptation分岐を持つ。既存color standalone suiteにこのmodule専用のテストsource/targetがなかったため、単一module依存targetを追加し、3x3行列積・matrix-vector積、gamut変換の加法性・スカラー倍性、sRGB/Rec.709 primaries互換、Rec.709/Rec.2020/Display P3 primariesとwhiteのXYZ基準値、Rec.2020 inverse matrixのXYZ軸referenceとD65 whiteからneutralへの変換、Display P3 D65 whiteからneutralへの変換、DCI-P3/Adobe RGB preset primariesとmatrix row-sum white XYZおよび各preset white→neutral、DWG forward/inverse matrix axesとrow-sum whiteのinverse結果、DWG→Rec.709のprimaryとsigned/HDR sample reference、ACES AP0/AP1→D65 XYZ adapted primary referencesとAP0↔AP1 D60 matrix reference、自己変換matrix、未知enum値のD65 XYZ fallback、Bradford matrixのwhitepoint往復、ACES AP0/AP1とRec.709間のneutral変換、sRGB/Rec.709/Rec.2020/DCI-P3/Display P3/Adobe RGB matrix間のsigned/HDR往復、全gamut pairのfinite出力を検査する。DCI-P3 presetのwhite row sumは(0.8945869, 1.0000001, 0.9544160)、Adobe RGB presetは(0.9642200, 0.9999999, 0.8252105)で、どちらもD65 white(0.9504559, 1, 1.0890578)とは一致しない。DWG row-sum whiteは(0.9505677, 1.0000001, 0.9602983)で、inverse matrixへの適用結果は(1.0436125, 0.9698435, 0.9996207)となりneutralへ戻らない。これらのテストは外部規格whitepointの正しさではなく、現行matrix値のcharacterizationである。全gamut pairに一律2e-3のround-trip許容差を仮置きした探索では複数pairで0.02〜0.9程度の残差が観測されたため、その期待値は仕様根拠がなく採用しなかった。
+- **価値:** ColorSpace transfer/matrix testsとは別APIであるgamut conversionと白色点変換の依存閉包をArtifactCore全体やQtなしで検査できる。
+- **次に確認すべきこと:** D60/D65 adaptationを含むgamut pairの正確性許容差を仕様または独立referenceで定める。production修正は別途明示依頼が必要。
+
+## 2026-10-09 — gamut conversionのD60往復と非有限入力
+
+- **関連:** `tests/ArtifactCore/ColorGamutConversionTest.cpp`、`ColorGamutConversion::convert`。
+- **確認できた事実:** AP0/AP1とRec.709またはXYZ_D65間の負値・通常値・HDR sampleを往復し、各channelが3e-4以内に戻ることを追加検査した。NaNまたは+infinityを入力すると3出力channelすべてへ非有限値が伝播する。個別suiteとstandalone CTest全11 suiteが成功。
+- **価値または懸念:** D60 adaptationを含む行列対の往復と、入力sanitizeを行わない現行APIの非有限値挙動を明示できる。後者は現行characterizationであり、NaN/Infinity sanitizeが公開契約かは未確認。
+- **次に確認すべきこと:** sanitizeをAPI要件にする必要性が出た場合に仕様を定める。production修正はArtifactCore child repositoryへの別途明示依頼が必要。
+
+
+## 2026-10-09 — BlendMode未知値とopacity早期return
+
+- **関連:** `tests/ArtifactCore/ColorBlendModeStandaloneTest.cpp`、`ColorBlendMode::blend`。
+- **確認できた事実:** 実装はopacityを[0,1]へclampし、0以下ならmode dispatch前にbaseを返す。未知の`BlendMode`値はswitch defaultでbaseを返す。これらの独立ケースを追加し、blend targetとstandalone全11 suiteが成功。
+- **価値または懸念:** enumの未知値fallbackとopacity境界の挙動を保護する。未知値fallbackは現行挙動のcharacterizationであり、公開仕様として固定されているかは未確認。
+- **次に確認すべきこと:** なし。
+
+
+## 2026-10-09 — Harmonizer無彩色と複数回転angle
+
+- **関連:** `tests/ArtifactCore/ColorHarmonizerContractTest.cpp`、`ColorHarmonizer::getAnalogous`ほか。
+- **確認できた事実:** black/whiteへcomplementary、analogous、triadic、split-complementary、tetradicを適用しても各出力は無彩色のままalphaを保持する。base hue 30°にanalogous angle -400°を指定すると出力hueは350°と70°。Harmonizer targetとstandalone全11 suiteが成功。
+- **価値:** undefined hueを持つ無彩色の中立性、alpha保持、360°を複数回越える負angleのwrapを保護する。
+- **次に確認すべきこと:** なし。
+
+
+## 2026-10-09 — Luminance未知standardとinfinity inspection
+
+- **関連:** `tests/ArtifactCore/ColorLuminanceContractTest.cpp`、`ColorLuminance::calculate/inspectBroadcastSafe`。
+- **確認できた事実:** 未知の`LuminanceStandard`値はcalculateとtoGrayscale双方でRec.709係数へfallbackする。broadcast inspectionは+∞または−∞channelをluminance violationとgamut violationの両方として報告する。個別targetとstandalone全11 suiteで確認。
+- **価値または懸念:** enum fallbackと両符号infinityの異常値検出を保護する。未知enumのfallbackは現行characterization。
+- **次に確認すべきこと:** なし。
+
+
+## 2026-10-09 — ColorLUT factoryとintensity異常値
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::createIdentity/withIntensity`。
+- **確認できた事実:** identity LUT factoryへ0、1、−4を渡すと有効な2×2×2 gridを返す。`withIntensity` はNaNと±∞をすべて1へ正規化し、full LUT側へ補間する。LUT targetとstandalone全11 suiteが成功。
+- **価値:** 低い無効サイズと異常なintensity値に対するfactory／copy operationの既存境界を保護する。
+- **次に確認すべきこと:** なし。
+
+
+## 2026-10-09 — ColorLUT load failure recovery
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::load`。
+- **確認できた事実:** valid identity LUTに未知拡張子loadを行うと失敗してinvalid stateになる。その後、同じobjectへvalid CUBEをloadするとvalidity、error message、format、size、nameが再設定される。
+- **価値:** 連続loadの失敗状態が次の正常loadに残らないことを保護する。
+- **次に確認すべきこと:** LUT targetとstandalone全suiteで実行する。
+
+
+## 2026-10-09 — invalid LUT QColor identity behavior
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::apply(QColor)` / `applyWithIntensity`。
+- **確認できた事実:** 不正なCUBEデータで生成された無効LUTに対し、QColor適用と強度0 / 0.35 / 1.0の適用がRGB・alphaを維持し、source QColorも変更しない。対象CTestとstandalone全11 suiteが合格。
+- **価値:** 読み込み失敗後の無効LUTが色を破壊しない適用境界を保護する。
+- **次に確認すべきこと:** 強度の非有限値は別契約として扱う必要性を判断してからテスト対象を決める。
+
+
+## 2026-10-09 — failed ColorLUT reload state transition
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::load/loadFromCube`。
+- **確認できた事実:** valid CUBEの後にsample不足CUBEを同一instanceへloadすると、sample bufferは空になりvalidityはfalse、filePath/nameは失敗入力に更新されerrorが設定される。formatと前回grid sizeは残り、applyは入力RGBを変えない。LUT targetとstandalone全11 suiteが合格。
+- **価値:** 成功したLUTを更新しようとして失敗した場合に、残存sampleが有効データとして誤適用されない現在の状態遷移を保護する。
+- **次に確認すべきこと:** format間の失敗再読込でも同じmetadata保持規則か、既存fixtureで差分確認する。
+
+
+## 2026-10-09 — invalid image import preserves existing LUT
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::loadFromImage`。
+- **確認できた事実:** 有効なLUTへnull QImageまたはlutSize 1 / 257を渡すとfalseを返し、既存sample、validity、name、grid dimensionsを維持する。errorMessageは失敗診断として設定される。対象ColorLUT CTestおよびstandalone全11 suiteが合格。
+- **価値:** 引数検証段階のimage import失敗が既存LUTデータを消さない契約を保護する。
+- **次に確認すべきこと:** 面積不足など検証後段の失敗と状態遷移が異なる点は既存ケースで引き続き監視する。
+
+
+## 2026-10-09 — insufficient Hald tile import invalidates LUT
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::loadFromImage`。
+- **確認できた事実:** 有効な2³ LUTへ5×4画像とlutSize 3を指定するとtile面積不足でfalseとなり、validityはfalse、samplesは消去、formatはPNG、gridは3³、nameは維持される。source imageは変更されない。対象ColorLUT CTestおよびstandalone全11 suiteが合格。
+- **価値:** 引数拒否と画像構造不足の異なる失敗経路が別々の状態遷移を持つことを回帰保護する。
+- **次に確認すべきこと:** image pixel抽出の境界は水平/垂直tile配置ケースで検証済み。より大きなlutSizeの整数除算端条件を必要に応じて追加する。
+
+
+## 2026-10-09 — Hald file decode failure preserves LUT
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::loadFromHaldCLUT`。
+- **確認できた事実:** 存在しないPNG pathのdecode失敗はfalseを返し、既存LUTのvalidity、grid samples、name、format、size、dataSizeを保持し、errorMessageを設定する。ColorLUT対象CTestおよびstandalone全11 suiteが合格。
+- **価値:** Hald file I/O失敗時に既存の有効データが保持される公開API契約を直接保護する。
+- **次に確認すべきこと:** 画像ファイルの正常ロード結果は、QImageからの既存Hald tile/channel ordering testsと同じfixtureをファイル保存経由でも検証できるか確認する。
+
+
+## 2026-10-09 — Hald PNG load matches in-memory import
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::loadFromHaldCLUT/loadFromImage`。
+- **確認できた事実:** 33³の非対称RGBA gridをPNG保存後loadFromHaldCLUTし、memory image importとvalidity、PNG format、33³ dimensions、data size、選択した8 corner/interior RGB samplesが一致する。file decode/importはdefault name `Identity`を保持し、errorを空にする。ColorLUT対象CTestとstandalone全11 suiteが合格。
+- **価値:** PNG decodeとfile APIの委譲経路を、Hald tile orderingとsample conversionを通して直接回帰保護する。
+- **次に確認すべきこと:** fixtureはアルファ値も変化させるが、LUTはRGBのみ保持する契約を別途明記する場合はalphaを無視するload検査を追加する。
+
+
+## 2026-10-09 — LUTManager directory scan imports Hald PNG
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::loadFromDirectory`。
+- **確認できた事実:** 33×33 tileの33³ Hald PNG、壊れたPNG、未対応BMPを同じdirectoryに置くとload countは1で、PNGはbasenameでregistryへ入り、PNG format・格子寸法・選択sampleを保持する。壊れた/未対応ファイルは登録されない。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値:** directory filterからColorLUT decode・validity判定・manager登録までを通した統合境界を保護する。
+- **次に確認すべきこと:** scan filterが列挙するjpeg/tif suffixとColorLUTのload dispatch対応suffixの整合を別ケースで確認する。
+
+
+## 2026-10-09 — directory image suffix and loader dispatch mismatch
+
+- **関連:** `ArtifactCore/src/Color/ColorLUT.cppm`、`tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::loadFromDirectory/ColorLUT::load`。
+- **確認できた事実:** directory scan filterには`.jpeg`と`.tif`が含まれるが、ColorLUT load dispatchの画像拡張子は`.png`、`.jpg`、`.tiff`のみ。`.jpeg`/`.tif`候補は`Unknown LUT format`で拒否され、同ディレクトリの有効PNGのみ登録されるテストがstandalone全11 suiteで成功。
+- **価値または懸念:** filter上サポートされるように見えるsuffixが実際には登録されず、ユーザーのファイル選択・directory scan結果が一致しない。
+- **次に確認すべきこと:** `.jpeg`と`.tif`を正式サポートするか、scan filterから除外するかを仕様判断してから実装・テスト契約を更新する。今回の変更ではproduction実装は変更していない。
+
+
+## 2026-10-09 — CUBE full-grid save and reload
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::saveToCube/loadFromCube`。
+- **確認できた事実:** 非対称3×3×3 LUTの全27 RGB tripletをCUBEへ保存・再読込し、各channel誤差1e-6以内、name、Cube format、3D dimensions、dataSize一致を確認。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値:** corner/interiorを含む全格子の書き出し順・読み込み順・serialization精度の回帰を検出する。
+- **次に確認すべきこと:** CUBE保存の出力行数・header roundtripを独立に確認する場合は、fixtureのgrid全sample検証と重複しないheader/comment契約を対象にする。
+
+
+## 2026-10-09 — ColorLUT setValue rejects non-finite channels
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::setValue`。
+- **確認できた事実:** NaNと正負InfをRGB各channelのいずれかへ置いた9 tripletを既存sampleへsetValueしてもsampleは変化せず、LUT validityも維持する。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値:** どのchannelの非有限値もtriplet全体の更新を拒否する境界を保護する。
+- **次に確認すべきこと:** rawData mutable accessorを通じた非有限値注入後のsample/apply sanitize挙動は別の公開低レベル契約として検査可能。
+
+
+## 2026-10-09 — ColorLUT format reloadとcopy assignment
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::load` / copy assignment。
+- **確認できた事実:** 同じobjectへCUBEを読み込んだ後、CSPを読み込むとformat、name、filePath、error state、sampleがCSP側へ切り替わる。copy assignment後はdestinationがsource格子サイズを持ち、destinationのsample編集はsourceへ影響しない。
+- **価値:** 再利用時のmetadata/data stale stateとassignmentの所有権独立を保護する。
+- **次に確認すべきこと:** LUT targetとstandalone全suiteで実行する。
+
+
+## 2026-10-09 — CUBE header size inference and limits
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::loadFromCube`。
+- **確認できた事実:** CUBEに`LUT_3D_SIZE`がなく8 RGB tripletある場合、loaderは2×2×2を推定する。dimension 1および257はinvalidとしてdiagnostic付きで拒否される。
+- **価値:** headerless cube inferenceと2..256 dimension acceptance boundsを保護する。
+- **次に確認すべきこと:** LUT targetとstandalone全suiteで実行する。
+
+
+## 2026-10-09 — 3DL normalization and non-finite rejection
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::loadFrom3dl`。
+- **確認できた事実:** 3DL maximum sample 8に対し他channelの2/4/8が0.25/0.5/1.0へ正規化される。sampleに`inf`が含まれるfileはinvalidとなりerror messageが設定される。
+- **価値:** global max normalizationと非有限sample拒否を、既存16段階の均等fixtureとは異なる値分布で保護する。
+- **次に確認すべきこと:** LUT targetとstandalone全suiteで実行する。
+
+
+## 2026-10-09 — CSP size and sample-count rejection
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::loadFromCsp`。
+- **確認できた事実:** CSP loaderはsize 1/257、数値でない宣言サイズ、2³ gridに不足または余分なsampleがあるfixtureをinvalidとして拒否する。
+- **価値:** parserのdimension bounds、header parse、sample triplet数一致を一括して回帰保護する。
+- **次に確認すべきこと:** LUT targetとstandalone全suiteで実行する。
+
+
+## 2026-10-09 — HaldCLUT vertical tile layout
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::loadFromImage`。
+- **確認できた事実:** 2×2 LUTを2×4 ARGB imageへzごとの縦積み配置にして読み込むと各格子点のRGB値とz slice順が保持され、alpha値はLUT RGBへ入らず、入力imageも変化しない。
+- **価値:** 既存の横方向タイルケースにないvertical tile indexingとread-only input behaviorを保護する。
+- **次に確認すべきこと:** LUT targetとstandalone全suiteで実行する。
+
+
+## 2026-10-09 — QColor LUT application with zero alpha
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::apply(const QColor&)`。
+- **確認できた事実:** alpha 0のQColorへred inversion LUTを適用するとRGBは変換され、alpha 0と入力QColorの各channelは保持される。
+- **価値:** 透明pixelでもstraight RGBの適用結果を返しつつalphaを維持するQColor API経路を保護する。
+- **次に確認すべきこと:** LUT targetとstandalone全suiteで実行する。
+
+
+## 2026-10-09 — 3DL dimension limits and CUBE save failure
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::loadFrom3dl/saveToCube`。
+- **確認できた事実:** 3DL header dimension 1と257はinvalidとして診断付きで拒否される。存在しないparent directoryへのCUBE保存はfalseを返し、source LUTのvalidity/name/sampleを変更しない。
+- **価値:** 3DL dimension boundsと保存open failureの非破壊性を保護する。
+- **次に確認すべきこと:** LUT targetとstandalone全suiteで実行する。
+
+
+## 2026-10-09 — headerless CSP size inference
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::loadFromCsp`。
+- **確認できた事実:** CSPの`LUT_3D_SIZE`を省略しBEGIN/END DATA内に8 tripletを置くと、loaderは有効な2×2×2 gridを推定し終端値を保持する。
+- **価値:** CUBE/3DLと同様に存在するCSPのcubic sample count inferenceを独立に保護する。
+- **次に確認すべきこと:** LUT targetとstandalone全suiteで実行する。
+
+
+## 2026-10-09 — CSP END DATA boundary
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::loadFromCsp`。
+- **確認できた事実:** explicit BEGIN DATA/END DATAが存在するCSPでEND DATA後のRGB tripletは格子sampleへ含まれず、block内の8点だけで有効な2×2×2 LUTが構築される。BEGIN DATAより前のtripletは取り込まれるため、テスト対象をEND後に限定した。
+- **価値:** parserがEND DATA以降の行を読み飛ばす状態境界を保護する。
+- **次に確認すべきこと:** LUT targetとstandalone全suiteで実行する。
+
+
+## 2026-10-09 — CSP sample row parsing
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::loadFromCsp`。
+- **確認できた事実:** data block内で要素数が2または4の行はsampleとして追加されず、3要素だが数値変換に失敗する行は`Invalid CSP LUT sample`でloadを失敗させる。
+- **価値:** row token countによるskipとsample parse failureの異なる扱いを保護する。
+- **次に確認すべきこと:** LUT targetとstandalone全suiteで実行する。
+
+
+## 2026-10-09 — ColorLUT move and self-assignment
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT` move/copy special members。
+- **確認できた事実:** move constructorとmove assignment後、destinationはsourceのname、格子サイズ、sampleを保持する。self-copyおよびself-move assignmentでは有効性とsampleが保たれる。moved-from objectにはアクセスせず、破棄だけを確認対象とする。
+- **価値:** PImpl所有権の移譲とself-assignment guardを回帰保護する。
+- **次に確認すべきこと:** LUT targetとstandalone全suiteで実行する。
+
+
+## 2026-10-09 — LUT Manager directory reload
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::loadFromDirectory/registerLUT`。
+- **確認できた事実:** 同じbasenameの有効CUBEを同じmanagerへ再loadすると返却数1のまま既存registry entryのgrid valuesが新ファイルの値へ置換される。空directoryは0を返し既存登録を保持する。
+- **価値:** directory scanを繰り返したときのregistry更新と空scanの非破壊性を保護する。
+- **次に確認すべきこと:** LUT targetとstandalone全suiteで実行する。
+
+
+## 2026-10-09 — LUT Manager case-sensitive names
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager`のQMap registry。
+- **確認できた事実:** `Alpha`と`alpha`は別キーとして存在し、removeもcase-sensitive。`lutNames()`はQMap key順で`Alpha`, `Beta`, `alpha`, `beta`を返す。
+- **価値:** registry name lookupのcase behaviorと一覧順を保護する。
+- **次に確認すべきこと:** LUT targetとstandalone全suiteで実行する。
+
+
+## 2026-10-09 — built-in LUT generator contracts
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`BuiltinLUTs::builtinLUTNames/registerBuiltins`。
+- **確認できた事実:** built-in一覧は重複のない9名で、manager登録後に全名が存在する。各LUTは有効な17×17×17格子で、float sample全件が有限かつ[0,1]内。
+- **価値:** built-inの列挙と登録表の同期、および生成データの妥当性を全格子走査で保護する。
+- **次に確認すべきこと:** LUT targetとstandalone全suiteで実行する。
+
+
+## 2026-10-09 — RGB888 LUT image application
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::applyToImage`。
+- **確認できた事実:** odd width 3のRGB888 imageをARGB32へ変換してLUT適用し、2行すべてでRGB変換・opaque alpha 255・source画像不変を確認した。odd widthは入力のrow paddingを持つ。
+- **価値:** RGBA source以外のformat変換とpadded RGB row traversalを保護する。
+- **次に確認すべきこと:** LUT targetとstandalone全suiteで実行する。
+
+
+## 2026-10-09 — ColorLUT apply sanitizes mutable raw samples
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::rawData/apply`。
+- **確認できた事実:** mutable rawDataでlut gridにNaN、±Inf、範囲外finite値を注入後、public applyは該当cornerを通るRGB結果を有限かつ[0,1]へ戻す。非有限結果は0、-0.5は0、1.5は1へなる。private sample APIには触れていない。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値:** writable low-level bufferを使う利用側が壊れたsampleを残した場合も、色適用結果が非有限化・範囲逸脱しない契約を保護する。
+- **次に確認すべきこと:** mutable rawData pointer経由でgridを更新した後にsaveToCubeがその変更を反映する契約も、必要なら公開APIで検証できる。
+
+
+## 2026-10-09 — ColorLUT move result outlives source
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、ColorLUT move constructor/assignment。
+- **確認できた事実:** move constructorのsourceをlambda終了で破棄した後も戻り値LUTがvalid・name・sampleを保持する。move assignmentもsource scope終了後にdestinationがvalid・name・2³ size・sampleを保持する。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値:** PImpl raw pointer所有権移譲後のmoved-from destructorが移譲先の状態を破壊しないことを検証する。
+- **次に確認すべきこと:** copy後のrawData直接変更に対する独立性は既存setValue copy testsと補完関係にあるため、必要になった場合に追加する。
+
+
+## 2026-10-09 — ColorLUT combine identity and invalid operand
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::combine`。
+- **確認できた事実:** 非線形3³ LUTへidentityを左または右から合成した結果が全27 grid samplesで元LUT値と一致する。どちらかのoperandがinvalidならreceiver相当を返し、valid receiverのsampleは変更されず、invalid receiverのvalidity/dataSize/filePathも維持される。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値:** composition identity lawとinvalid operand fallbackの状態保持を保護する。
+- **次に確認すべきこと:** 異なるgrid resolution同士のcombineはreceiver resolutionへ結果を作る現仕様があるため、異解像度resampling契約を別途固定する余地がある。
+
+
+## 2026-10-09 — ColorLUT combine across grid resolutions
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::combine`。
+- **確認できた事実:** 3³ receiver + 2³ argumentでは結果は3³、2³ receiver + 3³ argumentでは結果は2³。両方で全出力格子sampleがreceiver sampleへargument LUTを直接applyしたRGBと一致する。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値:** 解像度差を持つLUT compositionの出力解像度・resampling・適用順を固定する。
+- **次に確認すべきこと:** 非立方LUTは現行loader/factoryが公開経路で生成しないため、異軸寸法の動作を検査するには入力formatサポートが必要。
+
+
+## 2026-10-09 — ColorLUT withIntensity copy independence
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::withIntensity`。
+- **確認できた事実:** 非対称3³ sourceへ0.4 intensityを適用し、全27 grid samplesがidentityとの線形補間式に一致する。resultはvalidity/name/path/format/grid dimensions/data sizeを保持。sourceを編集してもresultは変わらず、result編集もsourceへ伝播しない。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値:** intensity variant生成時の格子補間とdeep-copy所有権の双方を保護する。
+- **次に確認すべきこと:** 既存endpoint testが0/1補間を扱い、このケースはinterior intensityとコピー分離を補う。
+
+
+## 2026-10-09 — inverse LUT full-range round-trip coverage
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::inverted`。
+- **確認できた事実:** 17³のfull-domain非線形monotonic curve（各channelが0→0、1→1）に対し、全軸端点を含む9³=729 samplesでsource→inverse RGB誤差0.01以内が成功した。一方、既存のshifted output range curveをcube端点まで試すと最大約0.086の誤差が出たため、そのfixtureは現在の3 interior sample契約に留めた。
+- **価値または懸念:** inverse LUTのround-trip品質はsource LUTのoutput gamutが[0,1]全域を使うかで大きく変わる。特に端点外挿を期待する契約は現行固定点＋有限格子実装では成立しない可能性がある。
+- **次に確認すべきこと:** shifted output rangeで要求する逆挙動（範囲内のみ、endpoint extrapolation、clamp）を仕様で決める前に、既存テストの許容差を広げない。
+
+
+## 2026-10-09 — headerless CUBE sample count validation
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::loadFromCube` headerless size inference。
+- **確認できた事実:** headerless CUBEの7、9、15 RGB points（2³/3³の近傍だが立方数ではない）はinvalidとなり、8 triplet + 1 scalar remainderもinvalidとなる。立方grid推定の前後でsample countが一致しないデータを受理しない。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値:** size inferenceの丸めが不完全・余剰sample dataを隠してvalid LUTにしない境界を保護する。
+- **次に確認すべきこと:** explicit LUT_3D_SIZEありのCUBEで余分 scalar/channelと非立方の宣言sizeは既存sample-count検査がカバーしているか照合を続ける。
+
+
+## 2026-10-09 — CUBE save text and sample traversal
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::saveToCube`。
+- **確認できた事実:** saveしたCUBEのTITLE/comment/size header、blank line、末尾newlineを直接比較し、全27 tripletをsource格子のz/y/x loop順（x fastest）で値照合した。reload側実装との対称性に依存しない。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値:** header形式・sample行数・シリアライズ走査順を外部ファイル契約として保護する。
+- **次に確認すべきこと:** quoted title中のquote escapingは現save implementationにescapingがないため、利用可能文字の仕様を決める場合に別検討する。
+
+## 2026-10-09 — LUTManager duplicate basename registry behavior
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::loadFromDirectory`。
+- **確認できた事実:** 同じbasenameの有効CUBEとCSPを別ファイルとしてdirectory loadすると、読み込み件数は2だがbasename keyのregistry entryは1件となり、格納値はどちらかのvalid fixtureに一致する。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** ファイル読み込み件数とbasename registry件数が異なる衝突ケースを明示的に保護する。
+- **次に確認すべきこと:** 同basename衝突時のwinner決定順をAPI契約にする必要があるか、他のmanager利用箇所と併せて確認する。
+
+## 2026-10-09 — LUTManager missing directory preserves registry
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::loadFromDirectory`。
+- **確認できた事実:** 既存登録とsampleを設定した後、存在しないdirectory pathを読み込むと0件を返し、registry namesと登録LUT sampleは維持される。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** directory path誤りや消失でmanagerの既存状態が不用意に消えない挙動を保護する。
+- **次に確認すべきこと:** 既存directory内の全ファイルがinvalidな場合も同じく既存registryを維持するかを別ケースで確認する。
+
+## 2026-10-09 — LUTManager all-invalid directory preserves registry
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::loadFromDirectory`。
+- **確認できた事実:** 壊れたCUBEと未対応JPEGだけを含む既存directoryを読み込むと0件となり、どちらのbasenameも登録されず、既存entryとsample値が維持される。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** scan候補に入るがdecodeできないファイルを含むdirectory loadの非破壊的な失敗挙動を保護する。
+- **次に確認すべきこと:** 有効ファイルとinvalidな同basenameが併存する場合のregistry結果はcollision testとは別の順序依存ケースとして必要か検討する。
+
+## 2026-10-09 — LUTManager invalid basename collision preserves valid file
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::loadFromDirectory`。
+- **確認できた事実:** `QDir::Name`順で有効`shared.cube`の後にinvalid `shared.csp`を走査してもload件数は1で、registryの`shared`は有効CUBE formatと全白corner sampleを保持する。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** invalid candidateはbasename衝突時にも登録済みvalid値を上書きしないことを保護する。
+- **次に確認すべきこと:** 逆にvalid候補が同basenameで複数ある場合は後のvalidがreplaceするため、winner順を仕様にする必要があれば別途明示テストする。
+
+## 2026-10-09 — LUTManager valid basename collision winner order
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::loadFromDirectory`。
+- **確認できた事実:** 有効な同basename `shared.csp` と `shared.cube` をdirectory scanすると両方を読み込み件数に数えるが、`QDir::Name`順で後から処理される`.cube`がbasename keyを置換し、registryはCUBEの全白cornerを返す。両fixtureの単独validityも確認し、対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** basename衝突時に後のvalid fileがwinnerとなる現在の順序依存動作を明示する。QtのName sortに依存するため、OS間の大小文字規則を含む一般的な順序保証とは区別する。
+- **次に確認すべきこと:** 複数extension間のwinnerを安定API契約とすべきか、またQt/OS差を避ける明示tie-breakが必要かを将来の仕様検討で判断する。
+
+## 2026-10-09 — LUTManager registration and retrieval copy isolation
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::registerLUT/getLUT`。
+- **確認できた事実:** source LUTをregistryへ登録した後sourceを編集してもregistry sampleは初期値を保持し、`getLUT`の戻り値を編集しても次の取得結果は変化しない。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** managerの値保持APIが外部のLUT編集から独立したcopyとして振る舞う契約を保護する。
+- **次に確認すべきこと:** `getLUT`で存在しないキーを得た場合のinvalid sentinelのmetadata/sample値を確認する。
+
+## 2026-10-09 — LUTManager missing key returns default identity
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::getLUT`。
+- **確認できた事実:** 未登録keyのgetLUTはinvalid sentinelではなく、有効な`Identity` / Cube / 33³ LUTを返し、端点sampleは黒/白。戻り値編集後もそのkeyはregistryに追加されず、次の取得はidentity端点を保持する。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** 存在確認`hasLUT`なしにgetLUTだけ使う呼び出し側が、identityを「未登録」状態と誤認する余地を明確にする。
+- **次に確認すべきこと:** 実利用箇所でhasLUT/getLUTの組み合わせを確認し、missing-key identityが意図されたAPI契約かは別途判断する。今回のテストでは既存挙動を記録し、production APIは変更しない。
+
+## 2026-10-09 — LUTManager retrieved value lifetime across registry changes
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::getLUT/removeLUT/registerLUT/clear`。
+- **確認できた事実:** getLUTで保持した値コピーはregistryからremoveした後もvalidでsampleを保持する。同名keyへ異なるLUTを再登録するとregistryはreplacement値を返す一方、先に取得したcopyは元値を維持し、clear後も同様に生存する。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** manager registryの変更と呼び出し側が保持したLUT値の寿命・状態が独立していることを保護する。
+- **次に確認すべきこと:** 必要ならcopyのname/path/format metadataも同じ lifecycleで比較する。既存のcopy testsと重複する場合は追加せず統合する。
+
+## 2026-10-09 — LUTManager trims surrounding control whitespace
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::registerLUT`。
+- **確認できた事実:** 登録名をtab/newline/spaceで囲んで登録すると、registryはtrim済み`grade` keyだけを列挙・検索でき、sample値を保持する。元の空白付き名では検索できない。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** UIやファイル由来の行末制御文字を含む登録名の正規化を保護する。
+- **次に確認すべきこと:** Unicode separatorや内部空白の正規化は現APIの要件がない限り追加で変換しない。
+
+## 2026-10-09 — LUTManager lookup and removal use exact keys
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::registerLUT/hasLUT/getLUT/removeLUT`。
+- **確認できた事実:** registerLUTのみ名前をtrimする。trim済みkeyを前後空白付きでhas/get/removeするとmiss、getは既定Identity、removeはno-opとなり、正確なtrim済みkeyでremoveすると削除される。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** API間の名前正規化非対称性を既存挙動として可視化する。呼び出し側が異なる空白を渡すと存在中の値を見落とす可能性がある。
+- **次に確認すべきこと:** manager API全体で呼び出し側nameも正規化すべきかは別の仕様判断であり、今回のテストでは挙動のみを固定した。
+
+## 2026-10-09 — LUTManager directory load preserves unrelated keys
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::loadFromDirectory/registerLUT`。
+- **確認できた事実:** directory対象basenameと無関係な既存keyを保持した状態でvalid CUBEをloadすると、件数1で対象key sampleがファイル値にreplaceされる一方、無関係keyとsampleはそのまま維持される。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** directory loadがregistry全体を置換せず、各有効ファイルbasenameだけをupsertする挙動を保護する。
+- **次に確認すべきこと:** 重複basenameで同keyを複数回更新する場合は別のcollision testsがすでに扱っている。削除ファイルをregistryから自動削除する契約は現実装にない。
+
+## 2026-10-09 — LUTManager repeated removal is idempotent
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::removeLUT`。
+- **確認できた事実:** 既存keyを削除後に同keyを再削除し、別のmissing keyも削除しても例外・状態変化はなく、他keyとsampleは維持される。先にgetLUTした値コピーもvalid/sampleを保持する。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** manager remove APIの繰り返し呼び出し耐性と他entry/copyへの非干渉を保護する。
+- **次に確認すべきこと:** removeの戻り値はAPIにないため、成功/未存在の区別を前提にした契約は追加しない。
+
+## 2026-10-09 — LUTManager directory scan is non-recursive
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::loadFromDirectory`。
+- **確認できた事実:** root直下に有効`root-grade.cube`、1階層下の`nested` directoryに有効`nested-grade.cube`を置くと、load件数は1でroot basenameのみ登録される。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** 読み込み対象が指定dir直下のfileであり、subdirectoryへ再帰しない現実装を保護する。
+- **次に確認すべきこと:** 再帰scanを将来要件にする場合は明示的なAPI仕様変更と既存flat directory挙動の保持が必要。
+
+## 2026-10-09 — CUBE finite extended-range samples and apply clamp
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::loadFromCube/apply`。
+- **確認できた事実:** 有限な範囲外sample (-0.5, 0.25, 1.5) のCUBEは有効として格子値をそのまま保持し、格子cornerへの適用結果は(0, 0.25, 1)へclampされる。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** loaderのHDR/negative値保持とpublic applyの表示出力clampを分けて保護し、raw LUT値をloader時点で破壊しない。
+- **次に確認すべきこと:** CSP/3DLも同じsample range contractか、各formatの個別規則に沿って確認する。
+
+## 2026-10-09 — CSP extended range and 3DL unit range behavior
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::loadFromCsp/loadFrom3dl/apply`。
+- **確認できた事実:** CSPは有限範囲外sample (-0.5, 0.25, 1.5) を格子値として保持し、public applyで(0, 0.25, 1)へclampする。3DLの最大sampleが1のfixtureでは0.5/0.25/0.75等の小数sampleが変更されず、既存のmax>1 fixtureは最大値正規化を検査している。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** format別sample range policy（CUBE/CSP raw finite、3DLはmax>1時scale）を押さえる。
+- **次に確認すべきこと:** 3DLでmaxが0以下のall-zero fixtureは正常なblack LUTとして有効か、既存guardと合わせて確認できる。
+
+## 2026-10-09 — 3DL all-zero black LUT remains valid
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::loadFrom3dl/apply`。
+- **確認できた事実:** dimension 2で全8 RGB tripletがゼロの3DLはvalid、format `_3dl`、8格子点を保持し、全格子sampleと任意入力のapply結果はblackになる。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** max=0のとき割り算を行わない経路が正常なblack LUTを受理することを保護する。
+- **次に確認すべきこと:** なし。`maxValue > 1`時だけscaleする現在の条件と整合している。
+
+## 2026-10-09 — identity LUT full-grid sample coverage
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::createIdentity/getValue`。
+- **確認できた事実:** 2³、3³、17³ identity LUTの全5,112 grid samplesを走査し、各点RGBがx/(N-1), y/(N-1), z/(N-1)とfloat完全一致する。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** 初期化loopのaxis順、stride、端点と中間分割値をサンプル点spot-checkより広く保護する。
+- **次に確認すべきこと:** さらに大きい256³全点走査はテスト時間・診断量が大きいため、境界factory sizeと別の代表gridを組み合わせる必要性を検討する。
+
+## 2026-10-09 — identity factory upper size boundary
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::createIdentity`。
+- **確認できた事実:** size 256はvalidな256³ LUTとして約192 MiBのsample bufferを確保し、dimensions/data byte size、black/white endpoints、3つの非対称座標でRGB各軸値を保持する。257は2³ fallbackとなる。強化後の対象ColorLUT CTestは約2.1秒、standalone全11 suiteも合格。
+- **価値または懸念:** factoryで許される最大sizeと上限超過fallback、非対称座標でのaxis/stride設定を実割当で保護する。一方、約192 MiBの一時メモリと約2秒の実行時間が生じる。
+- **次に確認すべきこと:** CI memory budgetが厳しい環境では、この境界テストをlow-resource profileへ分離すべきかをsuite実行時間と併せて判断する。
+
+## 2026-10-09 — trilinear multilinear-field grid coverage
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::trilinearInterpolation/apply`。
+- **確認できた事実:** 3³格子の非対称な各RGB出力へxy/xyz/xz/yz交差項を含むmultilinear polynomialを設定し、各軸9値（端点、格子境界、セル内部）の729入力について解析式と比較、全channel誤差2e-6以内を確認。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** 2³単一中心値spot checkを越え、複数cellの座標切替、軸重み、交差項を決定的に検証する。
+- **次に確認すべきこと:** 任意の非-multilinear dataの近似精度はLUT解像度依存なので、必要な場合は別の interpolation error budgetとして扱う。
+
+## 2026-10-09 — applyWithIntensity finite out-of-range extrapolation
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::applyWithIntensity`。
+- **確認できた事実:** red inversion LUTとsource red 0.2でintensity 1.5はred約1.1、intensity -0.5はred約-0.1を返し、green/blueとalphaはQColor channel quantization誤差内で保持される。Qt QColorはこのRGBを範囲外のままvalid colorとして保持する。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** `withIntensity`は強度を[0,1]へclampする一方、`applyWithIntensity`は有限範囲外値を外挿するAPI差を明示する。testは現挙動をcharacterizeし、範囲外強度を仕様として推奨する意図はない。
+- **次に確認すべきこと:** 呼び出し側がuser-provided intensityをどちらのAPIへ渡すか確認し、両APIのclamp policy統一が必要か仕様判断する。
+
+## 2026-10-09 — withIntensity finite out-of-range clamping
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::withIntensity`。
+- **確認できた事実:** 非対称3³ source LUTの全27格子sampleでintensity -0.25のresultがidentity格子と一致し、1.25のresultがsource LUTと一致する。source自身も未変更。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** `withIntensity`の有限範囲外値clampを全格子で保護し、前回characterizeした`applyWithIntensity`の外挿挙動とのAPI差を明瞭にする。
+- **次に確認すべきこと:** intensity API間のpolicy統一は別途仕様判断事項として既存Insightに記録済み。
+
+## 2026-10-09 — ColorLUT getValue axis bounds
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::getValue`。
+- **確認できた事実:** 3³ gridでx/y/z各軸へ-1、size、-32、32を個別に渡した12 invalid coordinateはいずれもzero vectorを返し、(0,0,0)/(2,2,2)のvalid cornersはblack/whiteを保持する。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** 軸ごとの下限・上限比較と広い範囲外整数値の安全fallbackを保護する。
+- **次に確認すべきこと:** 極端なint min/maxもbounds checkのshort-circuit後にindex演算へ進まないか、必要なら境界を追加する。
+
+## 2026-10-09 — ColorLUT getValue integer extremes
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::getValue`。
+- **確認できた事実:** 各軸へ`std::numeric_limits<int>::min()`と`max()`を個別に与えた6ケースもzero vectorを返し、通常座標の両cornerは正しいidentity sampleを保持する。既存の近接範囲外12ケースと併せ計18 case、対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** 異常に大きい座標をindex演算へ進めず拒否するsigned integer境界を明示する。
+- **次に確認すべきこと:** なし。実装はindex計算前に負値とdimension上限を判定している。
+
+## 2026-10-09 — ColorLUT setValue integer extremes
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::setValue`。
+- **確認できた事実:** 各軸へ`INT_MIN`/`INT_MAX`を個別に指定した6 writeはいずれもno-opで、事前設定したcenter sampleとidentity corner値が変わらず、LUT validityも保たれる。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** 不正signed coordinateが負数をsize_tへcastするindex演算へ入る前に拒否されることをmutation非発生で保護する。
+- **次に確認すべきこと:** なし。`setValue`はrange guardでreturnしてからindex計算する。
+
+## 2026-10-09 — LUTManager file path rejected as directory
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::loadFromDirectory`。
+- **確認できた事実:** 実在する通常file pathをdirectory pathとして渡すと0件を返し、既存registry keyとsampleを維持する。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** 存在確認だけではdirectory扱いできないpath入力に対しmanager stateが非破壊であることを確認する。ACL変更に頼るテストではない。
+- **次に確認すべきこと:** unreadable directoryのACL挙動はplatform依存で、現standalone cross-platform contract testには含めない。
+
+## 2026-10-09 — LUTManager repeated clear and reuse
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::clear/registerLUT/getLUT`。
+- **確認できた事実:** 複数key登録後のclearを2回呼んでもregistryは空を維持し、先に取得したLUT copyはvalid/sampleを保持する。その後、新keyを登録して再取得できる。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** clearのidempotencyだけでなく、空状態からのregistry再利用と外部copy寿命を一つのsequenceで保護する。
+- **次に確認すべきこと:** なし。公開managerにはclear後の追加初期化を要求する契約がない。
+
+## 2026-10-09 — LUTManager repeated directory reload snapshots
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::loadFromDirectory/getLUT`。
+- **確認できた事実:** 同名CUBE fileの内容をA→B→Aへ上書きし、各reloadが1件を返し、registry sampleが各版へ置換され、key数は1のままであることを確認した。A/B各版の`getLUT` copyは後続reload後も取得時のsampleを保持する。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** directory reloadのregistry置換と、既に公開されたby-value LUT snapshotの寿命を同一sequenceで検査する。
+- **次に確認すべきこと:** なし。公開APIは`getLUT`を値返却し、reloadは既存nameを登録値で置換する。
+
+## 2026-10-09 — Invalid same-name directory LUT preserves registry
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`LUTManager::loadFromDirectory`。
+- **確認できた事実:** 有効な`grade`と無関係な`unrelated`を事前登録し、壊れた`grade.cube`だけを含むdirectoryをloadすると0件で、両key/sampleが残る。事前に取得した`grade` copyも同じsampleを保持する。対象ColorLUT CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** invalid fileのbasenameが既存registry keyと衝突しても、部分的なparse失敗が既存値や無関係entryを破壊しないことを確認する。
+- **次に確認すべきこと:** なし。実装は`isValid()`の場合に限り`registerLUT`する。
+
+## 2026-10-09 — QColor LUT alpha range
+
+- **関連:** `tests/ArtifactCore/ColorLUTContractTest.cpp`、`ColorLUT::apply(const QColor&)`。
+- **確認できた事実:** 非対称2³ LUTをalpha 0、0.125、0.5、0.875、1.0の色へ適用し、RGBの変換、alpha維持、source QColor不変を検査した。初回の1e-6 toleranceはQColorのfloat channel丸め（観測最大約3.8e-6）で不合格となり、1e-5 toleranceで対象とstandalone全11 suiteが合格。
+- **価値または懸念:** 完全透明を含むopacity range全体で色変換がalphaを変更せずsourceにも書き戻さないことを保護する。toleranceはQt QColorのfloat表現差を考慮する。
+- **次に確認すべきこと:** なし。alpha値とRGB値の実測許容差内で一致する。
+
+## 2026-10-09 — Signed/HDR RGB through HSV and HSL
+
+- **関連:** `tests/ArtifactCore/ColorConversionTest.cpp`、`ColorConversion::RGBToHSV/HSVToRGB/RGBToHSL/HSLToRGB`。
+- **確認できた事実:** 負のchannelと1超えchannelを含む4色について、RGB→HSV→RGBおよびRGB→HSL→RGBが各channel誤差2e-6以内でsourceへ戻る。独立ColorConversion CTestおよびstandalone全11 suiteが合格。
+- **価値または懸念:** unit RGB gridの往復に加え、線形/HDR処理から来るsigned/out-of-range RGBがHSV/HSL変換で不用意にclampされない性質を保護する。
+- **次に確認すべきこと:** なし。この追加は指定有限sampleでの往復結果を固定する。
+
+## 2026-10-09 — Signed/HDR HSV/HSL intermediate values
+
+- **関連:** `tests/ArtifactCore/ColorConversionTest.cpp`、signed/HDR RGB roundtrip test。
+- **確認できた事実:** 4つのsigned/HDR RGB sampleでHSV/HSL中間成分がfiniteで、hue reference（90/210/330度）、HSV saturation/value、HSL saturation/lightnessが期待値と一致し、RGB往復誤差は2e-6以内。ColorConversion CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** 往復だけでは相互に補償する誤りを検出できないため、中間表現も独立referenceで検査する。
+- **次に確認すべきこと:** なし。各成分の参照値は指定sampleから直接計算できる。
+
+## 2026-10-09 — HSL hue wrap boundary
+
+- **関連:** `tests/ArtifactCore/ColorConversionTest.cpp`、`ColorConversion::HSLToRGB`。
+- **確認できた事実:** HSL hue 0°、360°、420°、-60°を検査し、360°は0°のred、420°はyellow、-60°はmagentaと一致する。専用ColorConversion CTestおよびstandalone全11 suiteが合格。±60°のRGB結果は計算上のfloat誤差があり、channelごと2e-6 toleranceで比較する。
+- **価値または懸念:** 既存のHSV wrap coverageに加え、HSL inverse pathの一回転境界と隣接するpositive/negative hueを独立に保護する。
+- **次に確認すべきこと:** なし。この追加は単一の隣接turn boundaryを対象とする。
+
+## 2026-10-09 — Signed/HDR luminance standards
+
+- **関連:** `tests/ArtifactCore/ColorLuminanceContractTest.cpp`、`ColorLuminance::calculate/toGrayscale`。
+- **確認できた事実:** Rec.601、Rec.709、Rec.2020、Display P3、ACES AP1の各標準について、signed/HDR RGB 3 sampleで重み付きreferenceとluminanceが一致し、`toGrayscale`の全channelがluminanceと一致する。専用ColorLuminance CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** unit range外の線形/HDR RGBでも、luma計算とgrayscale化が値をclampせず標準の係数を適用する性質を保護する。
+- **次に確認すべきこと:** なし。既存公開関数は入力channelのclampを行わずweighted sumを返す。
+
+## 2026-10-09 — Simultaneous broadcast luma and gamut violations
+
+- **関連:** `tests/ArtifactCore/ColorLuminanceContractTest.cpp`、`ColorLuminance::inspectBroadcastSafe`。
+- **確認できた事実:** Rec.709のlower/upper sampleで、legal luminance rangeとchannel rangeを同時に外すケースを検査した。返却luminanceはweighted referenceと一致し、`luminanceViolation`、`gamutViolation`、`hasViolation()`が全てtrue。ColorLuminance CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** 片方だけの違反ではなく、同時違反時にも独立flagと総合flagが両立することを下限・上限の両側で保護する。
+- **次に確認すべきこと:** なし。検査関数は両条件を別計算してORする。
+
+## 2026-10-09 — Unknown luminance standard in broadcast inspection
+
+- **関連:** `tests/ArtifactCore/ColorLuminanceContractTest.cpp`、`ColorLuminance::inspectBroadcastSafe`。
+- **確認できた事実:** 未知enum値を渡したbroadcast inspectionはRec.709 weighted luminanceを返す。sampleはluma legal range内だがblueがchannel maxを超えるため、luminance flag=false、gamut flag=true、aggregate flag=trueとなる。ColorLuminance CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** calculateのfallbackだけでなく、その値を使う上位inspection APIでもunknown enum時の判定が安定する。
+- **次に確認すべきこと:** なし。inspectionは`calculate`の結果を使い、channel比較はstandardに依存しない。
+
+## 2026-10-09 — Mixed legal RGB endpoints in broadcast inspection
+
+- **関連:** `tests/ArtifactCore/ColorLuminanceContractTest.cpp`、`ColorLuminance::inspectBroadcastSafe`。
+- **確認できた事実:** Rec.709の legal black/white と channel min/max の両端値から作る8通りのRGB corner全てで、luminanceとgamut violationがfalse、weighted luminanceがlegal range内になる。専用ColorLuminance CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** neutral black/white endpointだけでは見つけにくい、異なるchannelが異なる端点を取る合法な境界組合せを保護する。
+- **次に確認すべきこと:** なし。Rec.709 weightsは非負で合計1のため、各channelが同一range内なら加重和も同範囲に入る。
+
+## 2026-10-09 — Perceptual brightness signed/HDR properties
+
+- **関連:** `tests/ArtifactCore/ColorLuminanceContractTest.cpp`、`ColorLuminance::calculatePerceptual`。
+- **確認できた事実:** signed/HDR sampleの結果は平方重みreferenceと一致し、全channelの符号を反転しても不変、全channelを正の係数2.5でscaleすると出力も2.5倍になる。ColorLuminance CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** 単一fixtureの式比較に加え、HSP近似関数の符号対称性と一次同次性をpropertyとして保護する。
+- **次に確認すべきこと:** なし。関数は重み付き二乗和の平方根を返す。
+
+## 2026-10-09 — TaggedColor premultiplication alpha bounds
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、`TaggedColor::premultiplied`。
+- **確認できた事実:** signed/HDR RGBに負値・0・部分alpha・1・1超えalphaを組み合わせると、乗算係数のみが[0,1]へclampされ、元のalpha値とsource RGBAは保持され、出力alpha modeはPremultipliedになる。ColorBridge CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** alpha範囲外metadataとscene-linear signed/HDR色の間で、暗黙のRGB clippingやsource mutationが起きないことを保護する。
+- **次に確認すべきこと:** なし。`TaggedColor::premultiplied`はalpha factorだけをclampし、RGBへそのfactorを乗算する。
+
+## 2026-10-09 — TaggedColor signed/HDR alpha-mode round trip
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、`TaggedColor::premultiplied/straight`。
+- **確認できた事実:** signed/HDR scene-linear RGBでalphaを1.1e-6超、0.125、0.5、1.0としたとき、premultiplied→straightでRGBが2e-6以内に復元し、alpha、transfer、known flag、primaries、alpha modeも保持される。source RGBAは変わらない。ColorBridge CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** alpha epsilon境界を超える値で、単純なdisplay-range sampleだけでなくsigned/HDR色とcolor interpretation metadataも可逆であることを保護する。
+- **次に確認すべきこと:** なし。逆変換はclamp alphaで除算し、対象sampleはepsilonより大きい。
+
+## 2026-10-09 — Display/video transfer curves preserve HDR headroom
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、`ColorTransferFunction::encode/decode`。
+- **確認できた事実:** sRGB、Gamma 2.2/2.4/2.6、Rec.709、Rec.2020、HLGの7 curveについて、linear値1.0/1.25/2.0/4.0のencode/decode結果はfiniteで、元値からの誤差2e-4以内。ColorBridge CTestとstandalone全11 suiteが合格。PQは別の正規化peak基準のためfixture対象外。
+- **価値または懸念:** 従来のdispatch roundtripはlinear 1.0までだったため、display/video curveのscene-linear HDR headroom保持を追加で保護する。
+- **次に確認すべきこと:** なし。対象sampleはtransfer curveの現行公開式で往復可能なfinite範囲にある。
+
+## 2026-10-09 — Dense PQ/HLG normalized transfer grid
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、PQ/HLG transfer encode/decode。
+- **確認できた事実:** normalized linear [0,1]の1025 sampleでPQ/HLG encode/decodeがfiniteかつ単調である。roundtripのPQ最大誤差は約6.95e-5で、1e-4 toleranceの専用ColorBridge CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** 数点のreference fixtureでは見逃すcurve内部の非単調や局所的な往復不良をdense deterministic gridで検出する。PQの高コード域はf32誤差がHLGより大きいため許容差を分ける必要がある。
+- **次に確認すべきこと:** なし。このgridはPQ正規化範囲内をカバーする。
+
+## 2026-10-09 — Signed scene-linear transfer toe coverage
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、ACEScct/Canon Log 2/Canon Log 3 encode/decode。
+- **確認できた事実:** -1e-4、0、0.001のsampleは3 curve全てでfiniteかつ2e-6以内に往復する。探索時にCanon Log 2の-0.001はroundtrip差約9.54e-5を示したため、一般往復sampleから外し、既存negative-toe characterizationの対象と分けた。専用ColorBridge CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** signed scene-linear supportがあるtoe curveの負値往復を追加で保護する。同時にCanon Log 2のtoe付近では一様な往復精度を仮定できない。
+- **次に確認すべきこと:** Canon Log 2 toe boundary付近の差を許容する仕様か、reference curveとの比較が必要かは未検証。ArtifactCore childは変更せず、本タスクではテストで既知範囲を固定した。
+
+## 2026-10-09 — ACEScc monotonic direction
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、`ColorTransferFunction::linearToACEScc`。
+- **確認できた事実:** ACEScc formula encodes larger positive linear values to smaller code values (e.g. 0.001→4.0 in the existing grid is non-increasing); ACEScc decode roundtrips HDR 1/2/4/16 within existing tolerance. ColorBridge CTest and standalone all 11 suites pass.
+- **価値または懸念:** transfer curves do not all share an increasing encoding direction; a generic monotonic test must encode this per-curve behavior rather than assume increasing.
+- **次に確認すべきこと:** None. Tests now branch only for ACEScc, with other listed curves remaining non-decreasing.
+
+## 2026-10-09 — Dense ACEScc monotonic grid
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、ACEScc encode。
+- **確認できた事実:** positive linear範囲0.001〜16の2049点でACEScc encodeはfiniteかつnon-increasing。専用ColorBridge CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** 少数sampleの順序比較に加え、ACESccの逆向きlog codeの内部区間をdenseに確認する。
+- **次に確認すべきこと:** なし。0以下入力のblack pinはこの正値gridと別の既存black/toe testsで扱う。
+
+## 2026-10-09 — Dense ACEScc decode code grid
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、ACEScc decode/encode。
+- **確認できた事実:** code [0,1]の2049 sampleをdecodeすると全値finiteかつ非増加で、各decoded linearをencodeし直したcodeは2e-6以内に戻る。専用ColorBridge CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** encode側の正値HDR monotonicityだけでなく、normalized code domainからinverseを通る方向も検査し、互いに独立した密なpropertyを持つ。
+- **次に確認すべきこと:** なし。調査対象はACESccのnormalized code範囲内。
+
+## 2026-10-09 — Dense ACEScct decode code grid
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、ACEScct decode/encode。
+- **確認できた事実:** normalized code [0,1]の2049点でACEScct decodeはfiniteかつnon-decreasingで、再encodeしたcodeは2e-6以内に戻る。専用ColorBridge CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** piecewise toeを含むinverse code domain全体をdenseに通し、toeの両側と各区間の逆変換を検査する。
+- **次に確認すべきこと:** なし。gridはtoe codeをまたぎ、normalized code domain全域を含む。
+
+## 2026-10-09 — Dense DaVinci Intermediate decode code grid
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、DaVinci Intermediate decode/encode。
+- **確認できた事実:** normalized code [0,1]の2049 sampleでdecode結果がfiniteかつnon-decreasingで、再encodeしたcodeは2e-6以内で一致する。専用ColorBridge CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** log transferのnormalized decode domainをdenseに走査し、内部値と往復の破綻を検出する。
+- **次に確認すべきこと:** なし。この範囲で公開式のdecode/encodeが互いに逆になる。
+
+## 2026-10-09 — Dense Cineon decode code grid
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、Cineon decode/encode。
+- **確認できた事実:** normalized code [0,1]の2049 sampleでdecodeはfiniteかつnon-decreasing。Cineon black code未満はnegative linearへdecodeされ、再encodeでblack codeへclampされる。black以上ではcode roundtrip誤差2e-6以内。ColorBridge CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** print-density transferのblack offsetがあるため、全normalized code域で単純roundtripを要求せず、negative decode/clamp境界を明示して保護する。
+- **次に確認すべきこと:** なし。black codeは公開encode関数の0入力から算出する。
+
+## 2026-10-09 — Light Layer: Spot reach は Cone Length 単一、Point/Area は影キャスタ非対応
+
+- **関連:** `Artifact/src/Widgets/Dialog/CreateLightLayerDialog.cppm`、`Artifact/src/Layer/ArtifactLightLayer.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`。
+- **確認できた事実（実装後）:** Spot のリーチは `Cone Length` が唯一の authored value。`ArtifactLightLayer::getLayerPropertyGroups()` は Spot で `Light/Range` を生成せず、ギズモ（`ArtifactLightLayer.cppm` の Spot cone 描画）と shadow frustum far plane（`ArtifactCompositionRenderController.cppm` の `entry.source->coneLength().value`）がどちらも Cone Length を読む。作成ダイアログも Spot ページの Range 欄を Cone Length 欄へ置換し、`applyTo` は Spot に `setConeLength`、Point/Area に `setRange` を適用する形にした。影キャスタ選定は `castsShadows() && enabled() && (Directional | Spot)` のみで、Point と Area は照明のみ。
+- **価値／懸念:** Range と Cone Length が併存していた頃は「どの値が実際の届く距離か」が UI 上 2 箇所にあり、shadow frustum とギズモがずれる余地があった。今回で作成導線は単一ソースに揃った。
+- **次に確認すべきこと:** Area の `Cast Shadows` チェックは既定 ON のままだが、Area も影キャスタにならない。Inspector 側も含めて Point/Area ではこのスイッチを出さない／既定 OFF に揃えるべきかは未判断（ユーザー確認事項）。
+
+## 2026-10-09 — Dense S-Log3 decode code grid
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、Sony S-Log3 decode/encode。
+- **確認できた事実:** normalized code [0,1]の2049 sampleでdecodeはfiniteかつnon-decreasing。black code未満はnegative linearへdecodeされ、再encodeでblack codeへclampされる。black以上のcode roundtrip誤差は2e-6以内。ColorBridge CTestとstandalone全11 suiteが合格。
+- **価値または懸念:** S-Log3 toeのnormalized-code側を密に通し、negative toeとclamped encoderの関係を保護する。
+- **次に確認すべきこと:** なし。black codeは公開encode関数のzero入力から取得する。
+
+## 2026-10-09 — Canon Log 3 decode の低code境界ジャンプ
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、Canon Log 3 decode/encode。
+- **確認できた事実:** normalized code [0,1]の2049 sampleはfinite。low/middle/high各decode区間内ではnon-decreasingで、low/high log区間はencode/decode roundtrip誤差2e-6以内。low code `0.04076162` の直前から境界値へ移るとdecode linear値が下降する。既存の breakpoint test はencode側でlow境界に約`0.0062386`の上向きジャンプを確認している。standalone全11 suiteは合格。
+- **価値または懸念:** 全域を単調かつ相互逆と誤認せず、区間内の性質と境界の既存挙動をテストで分けて可視化できる。decode側の下降が意図された仕様か不具合かは未検証。
+- **次に確認すべきこと:** Canon Log 3 の採用規格／参照式と照らし、境界挙動を保持するか修正するかを判断する。
+
+## 2026-10-09 — gamut変換の合成経路とDaVinci Wide Gamut行列
+
+- **関連:** `tests/ArtifactCore/ColorGamutConversionTest.cpp`、`ArtifactCore/include/Color/ColorGamutConversion.ixx`。
+- **確認できた事実:** 全gamut組み合わせの試行で、DaVinci Wide Gamutから同gamutへ別gamutを経由する経路が直接変換と一致しない例を確認。ファイルにあるforward行列とinverse行列の積も恒等行列にならず、例えば中間XYZを使った戻りで値が大きくずれる。ArtifactCoreは子リポジトリなので今回変更せず、追加したtransitivity propertyはDaVinci Wide Gamutと明示XYZ_D60を除く9参照gamutで検証する。
+- **価値または懸念:** gamut間の代表値・往復試験だけでは、3段経路の不整合や基底行列の不一致を見逃す。DaVinci Wide Gamutの期待行列値と白色点／経由gamutの意味を一次資料と照合する必要がある。
+- **次に確認すべきこと:** ユーザーが子リポジトリ修正を依頼した場合、行列出典とXYZ_D60の適応契約を先に確認し、既存reference testと併せて最小修正する。
+
+## 2026-10-09 — Rec.709 OETF decode toe の小さな下降
+
+- **関連:** `tests/ArtifactCore/ColorBridgeTest.cpp`、`ColorTransferFunction::rec709ToLinear` / `rec2020ToLinear`。
+- **確認できた事実:** normalized code [0,1]の4097点を走査したところ、Rec.709 decodeはcode 0.081で線形枝からpower枝へ切り替わる時に小さく下降する。Rec.2020の対応閾値では隣接float値が連続範囲にある。各分岐内のdecodeはnon-decreasingで、encode/decode往復誤差は4e-4以内。独立suite全11件合格。
+- **価値または懸念:** 代表値の往復確認のみではtoeのごく小さい不連続を見逃す。Rec.709式とbreakpointの値が意図的な近似かは未検証。
+- **次に確認すべきこと:** 仕様値に照らしてRec.709 decode閾値とpower係数の整合を確認する。
+
+## 2026-10-09 — ACESlog enum の未実装dispatch
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`、`tests/ArtifactCore/ColorBridgeTest.cpp`。
+- **確認できた事実:** `TransferFunction::ACESlog` はenumに宣言されているが、`ColorTransferFunction::encode` / `decode` のswitchにcaseがないため、default identity fallbackになる。characterization testで負値、0、18% gray、1、1.5の現動作を固定した。
+- **価値または懸念:** 宣言済みの名前だけを見てACESlog curveが利用可能と誤認する可能性がある。規格式未確認のまま実装を推測するのは危険。
+- **次に確認すべきこと:** ACESlogが意図的な互換enumか、特定のACES2065-1 log encodingを追加すべきか一次仕様とAPI利用箇所を照合する。現段階では未検証。
+
+## 2026-10-09 — PQ transfer independent reference precision
+
+- **関連:** `tests/ArtifactCore/ColorPipelineStandaloneTest.cpp`, `ColorTransferFunction::linearToPQ` / `pqToLinear`。
+- **確認できた事実:** PQのm1/m2/c1/c2/c3定数による独立double参照で、負値・黒・低輝度・18% gray・基準白・1を超えるHDR値までencode/decodeを比較できる。float実装はlinear 100で往復誤差が約0.0065となり、relative tolerance 1e-4ならサンプル集合に通る。テスト構築中、参照式のm2係数を誤記すると非常に大きな不一致になり、定数は仕様の有理数表記に沿って明記した。
+- **価値または懸念:** PQの低値とHDR側を独立実装で確認できる。ここでは代表値だけを使っており、コード値全域の単調性や10,000-nit近傍は未検証。
+- **次に確認すべきこと:** 必要に応じてPQ code-domainの密な単調性と上端飽和近傍のcharacterizationを追加する。
+
+## 2026-10-09 — PQ transfer 10-bit domain monotonicity
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`, `ColorTransferFunction::encode` / `decode` for `Rec2084_PQ`。
+- **確認できた事実:** 10-bit normalized code domainの全1,024点を走査し、encode/decode出力がすべてfinite、各系列がnon-decreasing、両系列の終端が1.0である独立テストを追加・実行した。
+- **価値または懸念:** 既存の各コード値とST 2084参照式の比較に、有限性・単調性・端点という別の不変条件が加わった。連続する任意float全域やPQの1.0超のdecodeは対象外。
+- **次に確認すべきこと:** 必要なら10-bit domainを超えるencoded値の現行挙動をcharacterizeし、規格範囲との境界を記録する。
+
+## 2026-10-09 — PQ decode denominator singularity outside normalized code range
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, `pqToLinear`、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** ST 2084参照式の分母 `c2 - c3 * code^(1/m2)` が0になるコードは約1.00496で、正規化範囲[0,1]より外にある。decode(1)は約1.0を返す一方、float入力で特異点付近およびそれ以上は実装の `den <= 0` ガードにより0を返す。独立テストで特異点前後を固定した。
+- **価値または懸念:** 無制限のscene-linear/HDR値をPQ decodeへ渡した場合の現行結果を明示できる。1より上のPQコード値をどう扱うべきかはST 2084の運用契約とAPIの想定範囲を確認しておらず未検証。
+- **次に確認すべきこと:** PQ decode APIの許容入力範囲を呼び出し側と照合し、[0,1]外のclamp／保護方針が必要か判断する。
+## 2026-10-09 — HLG scene-linear round-trip over toe and HDR range
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`, HLG OETF/EOTF。
+- **確認できた事実:** HLG encode→decodeの独立往復テストを追加し、zero、低輝度、1/12 toeの前後、18% gray、基準値1、HDR値16までfiniteな結果と相対許容差内の復元を確認した。転送関数standalone suiteは合格。
+- **価値または懸念:** 既存の10-bit全コード参照試験と折れ点参照に、linear-light側での往復確認が加わった。ディスプレイsystem gammaやpeak luminanceによるHLG OOTFはこのtransfer関数の対象外。
+- **次に確認すべきこと:** 必要ならHLG OOTF/ display renderingが別の契約として実装されているかを調査し、transfer関数テストへ混ぜない。
+## 2026-10-09 — HLG out-of-range code behavior
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, `hlgToLinear` / `linearToHLG`、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** 独立テストでHLG decodeの負値は0へクランプされ、1を超えるcodeはEOTFの指数式を外挿して1を超えるlinear値を返すことを確認した。encodeの負linearも0へクランプする。`-1`、`-0.25`、`0`、`0.5`、`1`、`1.25`を参照式と照合し、suiteは合格。
+- **価値または懸念:** HLG transfer関数がnormalized [0,1]外で持つ現行契約を明示できる。HLGのsystem gamma/OOTFや実表示輝度への意味付けはここでは扱っていない。
+- **次に確認すべきこと:** 必要なら呼び出し側でHLG normalized-code範囲を保証しているか確認し、クランプをこの低レベル曲線に追加する必要性を判断する。
+## 2026-10-09 — S-Log3 encode/decode round-trip around toe and HDR
+
+- **関連:** `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`, S-Log3 OETF/EOTF。
+- **確認できた事実:** encode→decode往復をzero、低値、線形toeの隣接double値、18% gray、基準白、HDR 16まで追加し、finite出力と許容差内の復元を確認した。既存suiteには全10-bit code参照比較とencode toe境界比較があり、このケースで往復軸を補った。transfer suiteは合格。
+- **価値または懸念:** 固定normalized-code参照のほか、linear scene値を一連の処理に通した時の整合を保護する。ここでの負値はS-Log3 encodeでblack-code側へclampされるため、signed scene値の保持は保証しない。
+- **次に確認すべきこと:** 必要ならencode/decodeのclampとblack-code挙動を、負値を含む別のcharacterization testで明示する。
+## 2026-10-09 — Canon Log 2 round-trip in negative toe and HDR regions
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, Canon Log 2 OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** encode→decode往復を負側log toeの領域、非負の暗部からHDR 1000まで追加し、finite出力と相対許容差内の復元を確認した。独立transfer suiteは合格。既存テストがcharacterizeする負側toe境界の不連続点そのものは往復サンプルから除外した。
+- **価値または懸念:** 負のscene-linear域が全て同じように扱われるのではなく、toe境界の外側区間では往復可能なことを確認できた。境界ジャンプの妥当性は未検証。
+- **次に確認すべきこと:** Canon Log 2の公開仕様と境界式を照合し、現行characterizationを維持するか将来修正するか判断する。
+## 2026-10-09 — DaVinci Intermediate black sentinel and positive HDR round-trip
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, DaVinci Intermediate OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** 正のscene-linear 1e-6から1000までのencode→decode往復を追加し、finite出力と相対許容差内の復元を確認した。またencode(0)は実装上のblack sentinel 0だがdecode(0)は0へ戻らないことを明示した。独立suiteは合格。
+- **価値または懸念:** ゼロ入力の特例と、正の実用域の逆変換を混同せず検証できる。DaVinci Intermediate仕様でblack sentinelのdecode契約をどう定めるかは未検証。
+- **次に確認すべきこと:** 必要ならBlackmagic公開仕様のdomain/rangeと照らし、zero codeを特別扱いするAPI契約が必要か検討する。
+## 2026-10-09 — Canon Log 3 round-trip by continuous piecewise region
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, Canon Log 3 OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** Canon Log 3のlow log toe領域、middle affine領域、high log領域をまたぐlinear sampleでencode→decode往復を追加した。low toeの既知不連続点そのものは避け、middle/high境界の直前・一致・直後も含めてfinite出力と復元を確認した。suiteは合格。
+- **価値または懸念:** 既存のコード値参照試験とlow toe discontinuity characterizationに、各連続区間の逆変換整合が加わった。low toe境界ジャンプの規格上の意図は未検証。
+- **次に確認すべきこと:** Canon Log 3係数と負値toeの規格資料を照合し、既知ジャンプを保持すべきか判断する。
+## 2026-10-09 — Cineon negative-domain asymmetry and HDR reference
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, Cineon OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** 独立式と照合するnegative/positive linear encodeとnegative/over-range code decodeを追加した。encodeは負linearをclampし、black code `95/1023`を返す一方、decode(0)はnegative linearを返し、1.25 codeもfiniteな値へ外挿される。追加suiteは合格。
+- **価値または懸念:** OETF/EOTFの負値契約が対称ではないことを、代表的な10-bit域テストとは別に確認できる。Cineon normalized inputの運用範囲外で外挿を許容するかは未検証。
+- **次に確認すべきこと:** 呼び出し側がCineon codeを[0,1]へ制限しているか、negative linear decodeを保持する用途があるか確認する。
+## 2026-10-09 — sRGB negative clamp and positive HDR round-trip
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, sRGB OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** sRGB encode/decodeが負入力を0へclampすること、decode(1.25)が有限かつ1超になること、および0からlinear 100までの正値サンプルでencode→decodeが許容差内に戻ることを追加検証した。breakpoint直近は既存の別テストでcharacterizeしている。suiteは合格。
+- **価値または懸念:** normalized範囲外のclamp/extrapolationとscene-linear HDRの往復を、折れ点の微小段差試験と切り分けて固定できる。
+- **次に確認すべきこと:** 必要なら全transfer curveに共通する有限値入力／NaN/Inf挙動の一貫性を別の契約として確認する。
+## 2026-10-09 — Rec.2020 transfer negative clamp and HDR round-trip
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, Rec.2020 10-bit OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** Rec.2020 negative linear/code inputs clamp to zero; decode(1.25) extrapolates to a finite value above 1. Positive scene-linear values from zero through 100 round-trip within tolerance and encode agrees with an independent double OETF reference. Suite passed; published breakpoint behavior remains covered by a dedicated existing test.
+- **価値または懸念:** normalized domain, clamp behavior, and scene-linear HDR round-trip are covered independently from the breakpoint test. Exact BT.2020 branch discontinuity policy remains outside this characterization.
+- **次に確認すべきこと:** 必要に応じてfloat adjacent-value monotonicityをbreakpoint周辺で別途固定し、現行係数による微小な段差を記録する。
+## 2026-10-09 — simple gamma negative clamp and HDR power reference
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, Gamma 2.2/2.4/2.6、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** 3つのpower gammaすべてでnegative encode/decodeがzeroへclampされること、および0.01〜100の値でOETF/EOTFが独立doubleのpower式と一致することを確認した。既存の全10-bit参照とlinear-light round-trip gridに加える形でsuiteは合格。
+- **価値または懸念:** normalized範囲外の負値とHDR power extrapolationを個別比較できる。大きなHDR入力でのfloat精度は入力値に応じたrelative toleranceを用いる。
+- **次に確認すべきこと:** 必要なら極端なfinite値やNaN/Infの共通契約を、各transfer curve別に確認する。
+## 2026-10-09 — Rec.709 negative clamp and HDR/out-of-range reference
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, Rec.709 OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** Negative linear/code inputs clamp to zero. Positive linear values through 100 and encoded codes through 1.25 match independent BT.709 piecewise equations within float tolerance. Existing tests separately characterize the known OETF/EOTF breakpoint mismatch; this new sample set avoids those exact branch thresholds. Suite passed.
+- **価値または懸念:** Range clamp and HDR extrapolation are covered separately from the known breakpoint discontinuity. Whether over-range Rec.709 code extrapolation is expected by all callers remains unverified.
+- **次に確認すべきこと:** 呼び出し側がRec.709 codeを[0,1]へ制限しているか確認し、外挿が意図された共通curve API契約か判断する。
+## 2026-10-09 — ACEScct signed toe and HDR round-trip
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, ACEScct OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** ACEScct encode→decode往復をnegative scene values、zero、toe、positive dark values、18% gray、HDR 100まで追加し、finiteなcodeと許容差内のlinear復元を確認した。独立transfer suiteは合格。
+- **価値または懸念:** ACEScctのlinear toeが負値を含む範囲で逆変換可能であることを既存の10-bit code/reference・breakpoint試験に加えて固定した。
+- **次に確認すべきこと:** 必要ならACESccのzero sentinelのような特殊値が他のlog curveにもあるか、encode/decode対で横断点検する。
+## 2026-10-09 — ACEScc black sentinel and positive HDR round-trip
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, ACEScc OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** Negative scene values encode to the same black sentinel as zero. Decoding that sentinel returns approximately 131072, as already shown by the reference test. Positive scene values from 1e-6 to 1000 round-trip within relative tolerance. The standalone transfer suite passed.
+- **価値または懸念:** Black sentinel's non-invertibility is clearly separated from positive-domain round-trip, including HDR. Callers must not assume encode(0) is an ordinary inverse-mapped code.
+- **次に確認すべきこと:** ACES ST 2065-4のnegative/zero encoding contractと sentinel constant precisionを照合する。
+## 2026-10-09 — DaVinci Intermediate decode extrapolation below and above nominal codes
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, DaVinci Intermediate EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** Independent exponential reference checks finite decode output for codes -2 through 1.5. Negative code -2 yields a tiny positive value, not a negative result, because the inverse is an exponential; code 1.5 decodes above 1. The first test expectation incorrectly assumed a negative result and was corrected from observed output. Standalone suite then passed.
+- **価値または懸念:** 範囲外コードの符号・有限性を実測し、式の形から誤って負値を予測しないようにした。極端な負codeではunderflow zero、極端な正codeではoverflowの可能性があり、その限界は未検証。
+- **次に確認すべきこと:** 必要ならfloat有限範囲の端点付近でunderflow/overflowをcharacterizeする。
+## 2026-10-09 — Canon Log 2 intermediate negative-domain inverse check
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, Canon Log 2 OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** 既存round-trip testで疎だったnegative linear interval from just above the toe through zeroを追加した。OETFは独立piecewise referenceと一致し、encoded outputをEOTFに通した結果もreference compositionと許容差内で一致した。個別ケースとtransfer suiteの両方が合格。
+- **価値または懸念:** Toe外側に加え、負値境界からzeroまでの区間の現行数式を確認できた。既存のtoeちょうどのOETF jump characterizationは引き続き別に保持する。
+- **次に確認すべきこと:** 必要ならCanon Log 2 EOTFのnegative normalized-code domainを追加し、0未満codeの外挿をfinite範囲で確認する。
+## 2026-10-09 — S-Log3 normalized-code out-of-range behavior
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, S-Log3 OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** Decode for codes -1, -0.1, black code, midrange, 1, and 1.25 matches the independent inverse equation and remains finite. Negative normalized code extrapolates to negative scene-linear values; encode of negative linear input clamps to the 95/1023 black code. The standalone suite passed.
+- **価値または懸念:** S-Log3 code range behavior outside [0,1] is now explicitly separated from its 10-bit in-range comparison. Caller-side range guarantees and the intended use of negative code values remain unverified.
+- **次に確認すべきこと:** 必要ならAPI callerがS-Log3 normalized codeをclampする責務を担うかを確認する。
+## 2026-10-09 — Canon Log 3 out-of-range encode and decode references
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, Canon Log 3 OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** Negative and >1 code values, plus negative linear values and HDR 100, were compared with the independent piecewise equations; outputs remained finite and the transfer suite passed. Existing low-toe boundary discontinuity characterization remains separate.
+- **価値または懸念:** Canon Log 3's extrapolation and negative-value branch behavior are covered beyond its normalized 10-bit domain. Range guarantees from callers remain unverified.
+- **次に確認すべきこと:** 必要ならCanon Log 3入力値域の規格・API境界を確認し、外挿を許す責務がどこにあるか判断する。
+## 2026-10-09 — Rec.709 adjacent-float branch jumps
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, Rec.709 OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** Float values immediately below/at/above the implementation's float breakpoints were checked with references using the same branch threshold and double-precision branch equations. OETF rises by about 0.000248 at linear 0.018; EOTF drops by about 0.000055 at encoded 0.081, with local recovery on the next float. The test passes with the suite.
+- **価値または懸念:** Reference tests must preserve the implementation's float comparison boundary; using the mathematically rounded double threshold routes the exact float breakpoint into a different reference branch and gives a misleading mismatch.
+- **次に確認すべきこと:** 仕様で採用する正確なRec.709 breakpoint pairを一次資料と照合し、修正の依頼があれば枝条件をまとめて直す。
+## 2026-10-09 — simple gamma maximum-float encode/decode range
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, Gamma 2.2/2.4/2.6、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** For `float::max`, encode remains finite and matches the double power reference, while decode returns positive infinity for all three gamma exponents. The standalone suite passed.
+- **価値または懸念:** Finite input does not imply finite gamma decode output; downstream callers using extreme linear/code values need range discipline. This test records current float overflow rather than defining a saturation policy.
+- **次に確認すべきこと:** 必要ならピクセル処理呼び出し側でtransfer前後のfinite/range contractを確認する。
+## 2026-10-09 — HLG large-finite input overflow points
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, HLG OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** The initial assumption that HLG encode(max finite float) stays finite was disproven: the implementation computes `12.0f * linear` before `log`, so max finite input returns +Inf. At max/16 the encode result remains finite and matches a double reference. Decode(16) remains finite while decode(17) overflows to +Inf. The corrected characterization and full transfer suite pass.
+- **価値または懸念:** A finite input can produce a non-finite result from an intermediate multiply or exponential; this is distinct from intended HLG code-range extrapolation. No saturation policy is added.
+- **次に確認すべきこと:** 呼び出し側がHLG curveに渡すlinear値を有限float内部積範囲に抑えているか必要に応じて確認する。
+## 2026-10-09 — PQ extreme finite input behavior
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, PQ OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** Encoding `float::max` remains finite and approaches `(c2/c3)^m2`, greater than 1. Decoding `float::max` returns 0 because the computed denominator is non-positive and the implementation's guard fires. The targeted test and full standalone transfer suite pass.
+- **価値または懸念:** At extreme finite values the PQ encoder approaches its equation's asymptote, while decoder's denominator guard collapses out-of-domain values to black. This behavior is outside normalized PQ code range; no clamp or saturation change was introduced.
+- **次に確認すべきこと:** PQ decode callers should be checked for normalized [0,1] input assumptions if extreme code values can reach this API.
+## 2026-10-09 — Cineon extreme finite input limits
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, Cineon OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** Encoding max finite float remains finite and matches a double reference; negative max encodes to the same black code as zero. Decoding max finite code overflows to +Inf. Decoding negative max underflows the power term to zero and returns the finite negative black-offset constant. Targeted and full transfer suites pass.
+- **価値または懸念:** Extreme finite normalized inputs can overflow or underflow Cineon decoding, while encode has a distinct negative clamp. This records current behavior without imposing saturation or input validation.
+- **次に確認すべきこと:** 必要ならCineon decodeの呼び出し側でnormalized code rangeを保証するか確認する。
+## 2026-10-09 — Canon Log 2 signed overflow for extreme finite values
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, Canon Log 2 OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** `max_float/256` encode remains finite and agrees with the independent double equation. At positive/negative max float, encode produces signed infinity from float intermediate arithmetic; decode at positive/negative max code also produces signed infinity. Targeted test and full transfer suite pass.
+- **価値または懸念:** Extreme finite values do not guarantee finite log-curve outputs; both sign branches overflow in their scale/exponent arithmetic. No saturation or domain clamp was introduced.
+- **次に確認すべきこと:** 必要ならCanon Log 2 callersが想定scene/code rangeをfloat安全域に制限しているか確認する。
+## 2026-10-09 — Canon Log 3 signed overflow at extreme finite values
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, Canon Log 3 OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** `max_float/32` encode remains finite and matches the double reference. At ±max float, encode and decode both produce signed infinities because the log input product or exponent overflows float. Targeted test and full transfer suite pass.
+- **価値または懸念:** Negative scene-linear support in the normal toe region does not imply extreme finite safety; no saturation behavior is applied at float limits.
+- **次に確認すべきこと:** 必要ならCanon Log 3 callersの値域前提を確認し、transfer API前後でfinite validationが必要か判断する。
+## 2026-10-09 — non-finite input behavior across S-Log3 and Canon Log curves
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, S-Log3/Canon Log 2/Canon Log 3、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** NaN propagates through encode/decode for all three curves. Positive infinity maps to positive infinity; negative infinity decode maps to negative infinity. Negative infinity encode differs: S-Log3 clamps to its 95/1023 black code, while Canon Log 2 and Canon Log 3 return negative infinity. Targeted and full transfer suite pass.
+- **価値または懸念:** The log curves do not share one non-finite policy; callers cannot assume a uniform clamp. Tests record current formula behavior only.
+- **次に確認すべきこと:** 必要ならtransfer API callersがNaN/Infを事前に検査する責務を持つか確認する。
+## 2026-10-09 — DaVinci Intermediate non-finite input behavior
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, DaVinci Intermediate OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** NaN propagates through encode/decode. Positive infinity returns positive infinity in both directions. Negative infinity encode clamps to 0, and negative infinity decode underflows to 0. Targeted test and full transfer suite pass.
+- **価値または懸念:** Log encode and exponential decode have different non-finite handling; this is current behavior characterization, not a shared validation contract.
+- **次に確認すべきこと:** 必要なら呼び出し側がtransfer前にfiniteを検査するか確認する。
+## 2026-10-09 — non-finite behavior across clamped display transfer curves
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, sRGB/Gamma 2.2/2.4/2.6/Rec.709/Rec.2020、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** All six curves propagate NaN through encode/decode, propagate positive infinity to positive infinity, and clamp negative infinity to zero in both directions. Targeted characterization and full transfer suite pass.
+- **価値または懸念:** Despite sharing negative clamp logic, NaN remains unfiltered because `std::max(NaN, 0)` preserves the NaN operand under these operations. This is current low-level behavior, not a broad application safety guarantee.
+- **次に確認すべきこと:** 必要ならpixel conversion境界が非有限channelを拒否・sanitizeする責務を担うか確認する。
+## 2026-10-09 — ACEScc and ACEScct extreme finite range behavior
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, ACEScc/ACEScct OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** ACEScc encode(+max float) remains finite and negative max maps to the existing zero sentinel. Decode(+max) underflows its power term and returns a small finite negative offset; decode(-max) overflows positive. ACEScct encode(+max) remains finite, encode(-max) overflows negative, decode(+max) overflows positive, while decode(-max) stays finite negative because it uses the linear toe. Targeted tests and full transfer suite pass.
+- **価値または懸念:** ACEScc/ACEScct have materially different extreme-range behavior despite both being ACES log curves; finite extreme input may produce signed infinity or sentinel behavior depending on direction and branch.
+- **次に確認すべきこと:** 必要ならACEScc/ACEScct caller-side expected scene/code rangeを明確にし、float extremesが実運用で到達可能か確認する。
+## 2026-10-09 — S-Log3 extreme finite input branches
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, S-Log3 OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** `max_float/64` encode remains finite and matches the double logarithmic reference. Positive max encode overflows to +Inf; negative max encode clamps to the 95/1023 black code. Decode at positive/negative max returns signed infinity from normalized-code multiplication and the selected exponential/affine branch. Targeted and full transfer suites pass.
+- **価値または懸念:** S-Log3's negative clamp on encode differs from its signed decode extrapolation; extreme finite inputs can still overflow in either direction.
+- **次に確認すべきこと:** 必要ならS-Log3 caller-side scene/code range guaranteesを確認する。
+## 2026-10-09 — S-Log3 subnormal input quantization at black code
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, S-Log3 OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** Encode of zero, the smallest positive subnormal, smallest positive normal, and next representable value above zero all produce exactly the 95/1023 black code. Decode immediately below that code is negative, at the code is approximately zero, and immediately above is positive; all three match the independent EOTF reference. Targeted and full transfer suites pass.
+- **価値または懸念:** Very small positive scene values are indistinguishable from black in the float implementation's normalized S-Log3 code. The decode branch preserves signed values around black rather than clamping them.
+- **次に確認すべきこと:** 必要ならlinear pixelの低値domainでこのblack-code量子化が用途上想定されているか確認する。
+## 2026-10-09 — ACEScct adjacent-float decode toe drop
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, `acescctToLinear`、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** Adjacent float values around encoded breakpoint `0.155251141552511f` match the independent reference equations, but decode at the float breakpoint is about 0.93e-9 greater than decode at the next float. OETF samples around linear breakpoint remain non-decreasing. The EOTF implementation compares a float input against a double literal, so the float breakpoint rounds slightly above the threshold and selects the power branch. Test characterizes the drop; standalone suite passes.
+- **価値または懸念:** The decode curve has a tiny local downward step at the toe even though each branch matches its reference. This is caused by float/double threshold representation and remains unmodified.
+- **次に確認すべきこと:** ACEScct breakpoint precision and intended branch convention should be checked against the adopted ACEScct spec if a production fix is requested.
+## 2026-10-09 — ACEScc black-sentinel decode float plateau
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, `acesccToLinear`、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** The float immediately below, sentinel value, and float immediately above ACEScc black code `-0.3584474886f` all decode to exactly 131072. Each result matches the independent double equation within its tolerance. Targeted and full transfer suite pass.
+- **価値または懸念:** The decode's intermediate float exponent calculation collapses adjacent code values into a local plateau at the sentinel, while the sentinel itself is grossly non-invertible to black. No formula change was made.
+- **次に確認すべきこと:** ACEScc zero sentinel constant/precision and negative code handling should be checked against the adopted SMPTE ACEScc contract if a fix is requested.
+## 2026-10-09 — GPU粒子キャプチャの未初期化Z値
+
+- **関連:** `tools/Particle2DPlayground/main.cpp` の `captureGpuParticle` / `ParticleLayerWindow` GPU診断。
+- **確認できた事実:** `ArtifactCore::ParticleVertex` は `px/py/pz` や色などの一部フィールドにデフォルト初期値がない。GPUキャプチャで `ParticleVertex particle;` を使って `pz` を設定しない場合、実行ごとに値が不定になり、今回は射影後Zが負のクリップ範囲外となって粒子が見えなかった。`ParticleVertex{}` と明示 `pz=0` にすると、production shader／projectionのままGPU readbackで44,324粒子ピクセルを確認した。
+- **判断:** この再現ではParticleRenderer本体の射影修正は不要。キャプチャfixtureの未初期化値が原因だった。
+- **次に確認すべきこと:** 2D粒子の他のキャプチャfixtureでも全入力を値初期化する。3D粒子は必要なZ座標を明示し、乱数初期状態に依存しないGPU画像検査にする。
+
+## 2026-10-09 — Cineon adjacent-float black-code decode plateau
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, `cineonToLinear`、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** Float code immediately below, at, and above `95/1023` all decode to the same value, approximately `-9.4149e-10`, and each agrees with the independent equation. The float multiply by 1023 collapses adjacent codes at this point. Targeted and full transfer suites pass.
+- **価値または懸念:** Cineon nominal black has a tiny negative decode bias and a one-ULP input plateau. This is much smaller than existing color tolerances but gives an exact low-end characterization.
+- **次に確認すべきこと:** 必要ならCineon black-code offset and normalization constantsを採用仕様と照合する。
+
+## 2026-10-09 — Extended-code ordering sweeps for log curves
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, S-Log3/Canon Log 2/Canon Log 3/Cineon/ACEScc/ACEScct、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** 6曲線をcode値 -2〜2 の401点で走査し、各実装値が独立参照式と許容差内で一致すること、隣接点の増減方向が参照式と矛盾しないことを確認した。float丸めによる等値plateauは許容する。厳密な増加を要求する初回版はCineonの局所plateauで失敗した。修正版を含むstandalone suiteは成功。
+- **価値または懸念:** 拡張コード値でも各曲線の参照式との一致と局所的な順序関係を一括確認できる。これは401点の標本検査であり、連続領域全体の単調性を証明するものではない。参照式自体が持つ小さな逆行もそのまま比較対象となる。
+- **次に確認すべきこと:** 値域や刻み幅を増やす場合は、参照式の固有の折れ・plateauとfloat丸めを区別したまま追加する。
+
+## 2026-10-09 — Cross-transfer conversions across curve pairs
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** 13種類のtransfer curveからなる異なる169組について、正のlinear HDR値9点をsource encode→source decode→destination encodeし、float実装値を独立double式の合成結果と比較した。standalone transfer suiteは成功。
+- **価値または懸念:** 曲線単体のOETF/EOTF検査に加え、異なる符号化間を移す基本経路の組み合わせを確認できる。サンプルは正値1e-5〜4に限定し、負値clamp、ACEScc/DaVinci zero sentinel、全定義域の色管理意味論までは検証しない。
+- **次に確認すべきこと:** 必要ならnegative toe、zero sentinel、out-of-range入力を含むペア別の期待動作を独立に定義して追加する。
+
+## 2026-10-09 — Decode ordering across the full 10-bit code grid
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, 16 transfer curves、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** 16曲線それぞれについてnormalized code 0〜1023を全走査し、decode結果とdouble参照がfiniteであること、隣接codeごとの実装の増減方向が参照EOTFの方向と逆転しないことを確認した。Canon Log 3など参照式にある局所下降を許容し、float丸めのplateauも許容する。standalone suiteは成功。
+- **価値または懸念:** 既知の曲線固有の非単調区間を隠さず、全10-bit格子で追加の方向反転がないかを検出できる。HLG/Canon Log 3のdouble参照との数値差は別の曲線別精度テストの責務とし、この走査は値一致許容差の判定を重複させない。
+- **次に確認すべきこと:** 10-bit以外のbit depthを扱うAPIが加わった場合は、そのコード格子も個別に走査する。
+
+## 2026-10-09 — Implemented transfer dispatch coverage
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, `tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** LinearとACESlog/unknown identity fallbackを除く15個の実装済みtransferについて、代表4点（0.01、0.18、0.5、4.0）でencode/decode双方がfiniteとなり、Linear以外はidentity応答でないことを検査した。standalone transfer suiteは成功。
+- **価値または懸念:** switchのcase漏れや片方向のidentity fallback混入を基本サンプルで捉えられる。ただし網羅対象enumはテスト内の明示配列なので、enum追加時の自動追随ではない。
+- **次に確認すべきこと:** enum追加時に配列と参照式を更新する。Canon Log 2/3のlinear 0.01近傍は既知のtoe/low-code非可逆挙動に入り得るため、全曲線共通の往復assertは避ける。
+
+## 2026-10-09 — Dense positive scene grid for signed-log OETFs
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, S-Log3/Canon Log 2/Canon Log 3/Cineon/ACEScc/DaVinci Intermediate、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** 6曲線をlinear 1e-5〜1e4の1001点logarithmic gridで走査し、OETF結果と独立double参照式の差が許容範囲内であること、隣接点の方向が参照式と逆転しないこと、全出力がfiniteであることを確認した。standalone transfer suiteは成功。
+- **価値または懸念:** 代表値や等間隔gridより広いscene/HDR範囲を対数密度で確認できる。linear zero・negative toeと非有限入力は既存の専用ケースが担当し、このgridには含めない。
+- **次に確認すべきこと:** さらに広い値域でoverflow境界を変える場合は、既存の極値専用テストを更新し、finite性を要求する範囲を明示する。
+
+## 2026-10-09 — Full 16-bit grid for display transfer curves
+
+- **関連:** sRGB、Gamma 2.2/2.4/2.6、Rec.709、Rec.2020、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** 6曲線のencode/decodeをnormalized 16-bit code 0〜65535全域で独立参照式と比較し、finite性も確認した。float実装の隣接順序はOETFでは非減少、EOTFではdouble参照式と同方向であることを検査し、standalone suiteは成功。Rec.2020 EOTFはcode 5309近辺で参照式にもある局所下降を示した。Rec.2020の参照差は3e-7を超える点があったため、その曲線のみ5e-7を許容した。
+- **価値または懸念:** 10-bit格子の64倍の点数で、表示系曲線の精度・順序を確認できる。局所下降は修正対象とせず、参照式に対する挙動として記録した。
+- **次に確認すべきこと:** Rec.2020 EOTFしきい値の規範上のbranch定義を別途確認する場合は、意図したしきい値・係数・float精度を同時に比較する。
+
+## 2026-10-09 — Full 16-bit grids for PQ and HLG
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`, PQ/HLG OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** PQ/HLG decodeを16-bit normalized code全域で参照式と比較し、実装と参照の隣接方向が一致することを確認した。PQ encodeとHLG encodeも16-bit linear gridで走査。standalone suiteは成功。float実装のPQ OETFは最大参照差約1.36e-5、局所下降2793回（最大約1.67e-5）。PQ EOTF最大差は約5.47e-5（code 65425）、HLG EOTF最大差は約5.47e-5（code 65425）。HLG OETF格子は参照許容内で単調だった。
+- **価値または懸念:** HDR曲線の高code側ではfloat係数・中間演算により参照差が増え、PQ OETFには参照式にない局所下降も現れる。テストは現行挙動を数値上限で特徴づけ、式を変更していない。
+- **次に確認すべきこと:** PQ OETFの高域下降が要求精度上許容されるか評価する場合は、仕様精度・GPU/CPU実装間の目標・演算精度を決めたうえで別途修正対象を判断する。
+
+## 2026-10-09 — Full 16-bit encoded-code round trips for log curves
+
+- **関連:** Cineon、DaVinci Intermediate、ACEScct、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** 各曲線のnormalized 16-bit code 0〜65535をdecode→encodeし、Cineonはblack floor（16-bit換算code 6089）または元codeに丸めて戻ること、DaVinci IntermediateとACEScctは元codeへ戻ることを確認した。transfer standalone suiteは成功。
+- **価値または懸念:** 10-bitで確認済みだった量子化往復契約を、16-bit格子の各codeに拡張した。Cineonのblack floorより低い入力codeは同じfloorへ写るため、元codeへの完全な往復は期待しない。
+- **次に確認すべきこと:** S-Log3等ほかのlog曲線にも同様の高bit-depth roundtrip契約が必要なら、既知のblack floorやtoe aliasingを先に定義して追加する。
+
+## 2026-10-09 — Remaining log-curve 16-bit round trips
+
+- **関連:** S-Log3、Canon Log 2、Canon Log 3、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** 各曲線のnormalized 16-bit code 0〜65535全域をdecode→encodeした。S-Log3はblack floor（16-bit換算code 6089）または元codeへ戻る。Canon Log 2/3は各double参照式のEOTF→OETF合成結果を16-bit量子化したcodeと一致する。standalone transfer suiteは成功。
+- **価値または懸念:** Cineon/DaVinci Intermediate/ACEScctに続き、主要6 log curveの高bit-depth往復格子を検査できる。Canon Log toe付近では元codeと異なる丸め先を参照式に基づいて許容する。
+- **次に確認すべきこと:** もし16-bit roundtripを元code完全再現の契約に強める場合は、Canon Log toeの規範曲線を先に確認する必要がある。
+
+## 2026-10-09 — ACEScc full 16-bit round trip
+
+- **関連:** ACEScc OETF/EOTF、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** normalized code 0〜65535をdecode→encodeし、全codeが元の16-bit整数codeへ丸めて戻ること、途中のlinear/encoded値がfiniteであることを確認した。standalone transfer suiteは成功。ACEScc black sentinelを含む。
+- **価値または懸念:** 以前の10-bit格子で確認していたcode往復を、16-bit全格子に拡張した。sentinel codeのlinear値自体は非可逆でも、同じOETF/EOTF実装の再量子化結果は入力codeと一致することを記録する。
+- **次に確認すべきこと:** ACEScc値域外やnegative codeの再量子化は、このnormalized 16-bit格子とは別の契約として扱う。
+
+## 2026-10-09 — Quantized display-code centers over a scene grid
+
+- **関連:** sRGB、Gamma 2.2/2.4/2.6、Rec.709、Rec.2020、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** 各曲線でlinear 0〜1を4097点に分け、float OETF encode→16-bit整数codeへ量子化→code centerをdecodeした値をdouble参照のcode center復号と比較した。復元値は元linear入力とも設定誤差内で一致。standalone suiteは成功。sRGB/Rec.709/Rec.2020は既知breakpoint差により最大5e-5、simple gammaはpow精度差を含み最大4e-5の参照許容値を使った。
+- **価値または懸念:** code往復の整数一致に留まらず、scene-linear値としての16-bit quantization/reconstruction errorを確認できる。参照許容値は各曲線のfloat実装精度・piecewise境界差を含む。
+- **次に確認すべきこと:** HDR/log curveにも同じcode-center基準を追加する場合はPQ OETFの既知局所下降と、log curveのblack sentinel/toe範囲を個別に織り込む。
+
+## 2026-10-09 — Quantized HDR-code centers over a scene grid
+
+- **関連:** PQ、HLG、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** linear 0〜1を4097点で走査し、float OETF encode結果を16-bit整数codeへ丸めた。量子化codeは独立double OETF参照の丸めcodeから最大1 code以内で、実際に選択したcode centerをdecodeした結果は、そのcenterの独立double EOTF参照およびscene-linear入力に対する誤差範囲内だった。standalone suiteは成功。
+- **価値または懸念:** PQ/HLGのscene値を実際の量子化codeから復元した誤差を確認できる。参照codeと異なる隣接codeが選ばれた場合は、別codeのEOTF値を誤って期待値にしないよう、選択されたcode centerを基準に比較する。
+- **次に確認すべきこと:** PQのより高密度またはHDR 1超のscene gridを追加する場合は、既知のOETF局所下降や定義域を越えた外挿を分けて扱う。
+
+## 2026-10-09 — Quantized log-code centers over an extended scene grid
+
+- **関連:** S-Log3、Canon Log 2/3、Cineon、ACEScc、DaVinci Intermediate、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** 6曲線でlinear 1e-5〜1e4を4097点走査し、float OETFで量子化した16-bit codeが独立double参照の丸めcodeから最大1 code以内であることを確認した。選択したcode centerのdecode値も同じcenterに対するdouble EOTF参照と比較し、scene入力への復元誤差を確認した。standalone suiteは成功。
+- **価値または懸念:** 広いscene/HDR範囲で、量子化後のcodeから復元する値まで検査できる。高域外挿では6曲線すべてで相対差が現れたため、code-center参照比較には最大2e-6の相対許容を設けた。
+- **次に確認すべきこと:** 外挿域を含む許容値を変更する際は、curveごとの係数精度と定義域を確認し、通常の定義域の精度基準と分けて評価する。
+
+## 2026-10-09 — Full 16-bit neutral cross-gamut pipeline
+
+- **関連:** `tests/ArtifactCore/ColorPipelineStandaloneTest.cpp`、sRGB decode → sRGB-to-Rec.2020 gamut conversion → Rec.2020 encode。
+- **確認済み:** 16-bit code 0〜65535の全グレースケール値を独立doubleパイプライン参照と比較し、Rec.2020の各出力channelが参照差2e-5以内、各channelで単調非減少、相互の差2e-6以内であることをstandaloneテストで確認した。
+- **価値／懸念:** 個別transfer曲線・gamut行列テストでは見えにくい、decode→matrix→encode統合時の量子化全域の回帰を検出できる。入力はneutral rampに限定され、飽和色や負値／HDRの全域精度は別テストの範囲である。
+- **次に確認すべきこと:** 同じ16-bit全code基準を異なるsource/target gamutやHDR transferの組み合わせへ広げる際は、行列後の負channelとtransferの負値契約を明示する。
+
+## 2026-10-09 — Full 16-bit ACES output-preset pipeline
+
+- **関連:** `ArtifactCore/include/Color/ColorACES.ixx`、`tests/ArtifactCore/ColorACESContractTest.cpp`。
+- **確認済み:** 5つのACES output presetそれぞれで、linear neutral input 0〜65535/65535の全65,536段階について、`applyOutputTransform`の結果を独立に組み立てた「ACES AP1→output gamut→simple RRT→output OETF」参照と比較した。差3e-6以内、全channel finite、出力0〜1範囲をstandaloneテストで確認した。
+- **価値／懸念:** 代表点テストを超えて、output preset dispatch・transform順序・transferの統合回帰を全16-bit neutral gridで検出する。単調性や出力neutralityはassertせず、PQの既知float局所下降やgamut white pointの振る舞いを仕様判断なしに不具合扱いしない。
+- **未検証の気づき:** 初回にneutralityを仮定した試験では、`SDR_P3_D65` presetのコード上の出力gamut `DCI_P3` において、暗部のRGB差が2e-5を超えた。DCI-P3行列の白色点とpreset名のD65表記の意図・規範上の関係は未検証であり、このテストではneutralityを契約化していない。
+- **次に確認すべきこと:** P3 presetのwhite point/primary規範とACESCOLOR preset名を確認し、neutralityを要件化するか判断する。
+
+## 2026-10-09 — Full 16-bit round trips for display transfer codes
+
+- **関連:** sRGB、Gamma 2.2/2.4/2.6、Rec.709、Rec.2020、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認済み:** 6曲線のnormalized 16-bit code全65,536点についてfloat decode→encode後の丸めcodeをdouble参照EOTF→OETFの丸め結果と比較し、全曲線で最大1 code以内に一致した。元codeとの差はRec.709以外が最大1 code、Rec.709は最大16 code（code 5309近辺）だった。
+- **価値／懸念:** 参照式自体のpiecewise丸め特性と、float実装誤差による追加差を分離して監視する。Rec.709の最大差はOETF/EOTFのbreakpoint・係数が完全な逆写像でないことに由来する挙動として記録した。曲線式や閾値は変更していない。
+- **次に確認すべきこと:** Rec.709のcode 5309近傍の往復差を規範契約として変更する必要がある場合は、適用規格のbranch定義を確認してから判断する。
+
+## 2026-10-09 — Full 16-bit PQ and HLG code round trips
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`、PQ/HLG、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認済み:** normalized 16-bit code全65,536点をfloat EOTF→OETFし、再量子化codeを独立double EOTF→OETF参照と比較した。両曲線とも参照往復とのcode差は最大1以内。元codeとの差はPQが最大2、HLGが最大1以内でstandalone suiteが成功した。
+- **価値／懸念:** PQ/HLGのEOTF精度・OETF精度の個別走査に加えて、全codeをまたぐ量子化往復誤差を監視できる。PQは既知OETF局所下降のため、元code完全一致を契約にせず独立参照との一致を基準にする。
+- **次に確認すべきこと:** HDR出力bit depthや伝達関数の係数を変更した場合は、最大code誤差と位置を再評価する。
+
+## 2026-10-09 — Multi-row surface pixel conversion layout
+
+- **関連:** `ArtifactCore/include/Image/SurfacePixelConversion.ixx`、`tests/ArtifactCore/SurfacePixelConversionTest.cpp`。
+- **確認済み:** 3×2 BGRA 8-bit straight-sRGB入力をRGBA32 linear straightへ変換し、幅・高さ・rowStride・全6画素のchannel reordering、sRGB decode、alphaを独立double参照と比較した。alpha 0画素のRGB zeroingも含めstandaloneテストが成功した。
+- **価値／懸念:** 既存の一行pixel群では確認できなかった複数rowのflattened pixel順序と出力stride契約を検査できる。source APIは連続bufferを受け取り、入力row strideは指定できないため、入力paddingはこのテストの対象外。
+- **次に確認すべきこと:** もし入力rowStrideをAPIへ加える場合は、padding sentinelを置いた各rowの変換と不読領域を独立にテストする。
+
+## 2026-10-09 — Opaque source alpha across surface output formats
+
+- **関連:** `ArtifactCore/include/Image/SurfacePixelConversion.ixx`、`tests/ArtifactCore/SurfacePixelConversionTest.cpp`。
+- **確認済み:** Opaque metadataを持つlinear float入力のalphaにNaNを設定し、RGBA32 float/half/sRGB byteの3 targetすべてでRGB値を期待形式に変換し、出力alphaをopaque 1（byteでは255）に固定することを確認した。standaloneテスト成功。
+- **価値／懸念:** opaque descriptorが入力alpha値より優先される契約を全出力形式で検査する。入力pixel bufferそのものの不正RGB値の扱いは、このcaseでは対象外。
+- **次に確認すべきこと:** SurfaceColorDescriptorのOpaque扱いを変更する際は3 target共通の期待を維持する。
+
+## 2026-10-09 — Unknown transfer legacy surface boundary
+
+- **関連:** `ArtifactCore/include/Image/SurfacePixelConversion.ixx`、`tests/ArtifactCore/SurfacePixelConversionTest.cpp`。
+- **確認済み:** `transferKnown=false`のfloat sourceで、[0,1]内の値はlegacy sRGB EOTFでdecodeされ、範囲外のnegative/HDR値はlinear境界値として維持され、NaN/±infinityのRGBはzeroへsanitizationされることを独立参照と照合した。standaloneテスト成功。
+- **価値／懸念:** transfer metadata欠落時の互換境界を、既知transferのdecode経路と区別して固定する。unknown transfer時の色域変換などは対象にしていない。
+- **次に確認すべきこと:** legacy fallbackの移行・撤去時は、非有限値と正規化範囲外の値の扱いを含めて明示的に判断する。
+
+## 2026-10-09 — Gamut identity matrix contract
+
+- **関連:** `ArtifactCore/include/Color/ColorGamutConversion.ixx`、`tests/ArtifactCore/ColorGamutConversionTest.cpp`。
+- **確認済み:** 11個の全Gamut enumで、同一Gamut間の変換行列9要素が厳密なidentityであること、および3つのRGB基底ベクトルがその行列で厳密に保持されることを独立standaloneテストで確認した。
+- **価値／懸念:** sRGB/Rec.709の別名やXYZ/ACESを含むすべての自己変換分岐を、単一の代表例に頼らず検査できる。これは同一Gamutのshortcut契約だけを対象にし、異なるGamut間の数値精度を追加保証するものではない。
+- **次に確認すべきこと:** 新しいGamut enumを加えた際は`kGamuts`へ追加し、この全件契約を維持する。
