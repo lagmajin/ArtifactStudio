@@ -1,6 +1,12 @@
 #include <QApplication>
+#include <QDir>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QImage>
 #include <QKeyEvent>
+#include <QLabel>
 #include <QPaintEvent>
+#include <QPixmap>
 #include <QShowEvent>
 #include <QString>
 #include <QTimerEvent>
@@ -30,6 +36,12 @@ public:
         setAttribute(Qt::WA_OpaquePaintEvent);
         setFixedSize(1280, 720);
         setFocusPolicy(Qt::StrongFocus);
+        flipbookPreview_ = new QLabel(this);
+        flipbookPreview_->setGeometry(rect());
+        flipbookPreview_->setScaledContents(true);
+        flipbookPreview_->setAlignment(Qt::AlignCenter);
+        flipbookPreview_->setAttribute(Qt::WA_TransparentForMouseEvents);
+        flipbookPreview_->hide();
 
         layer_.setSourceSize(ArtifactCore::Size_2D(CanvasWidth, CanvasHeight));
         loadPreset(0);
@@ -68,6 +80,25 @@ protected:
 
     void paintEvent(QPaintEvent*) override
     {
+        if (flipbookMode_) {
+            if (rendererReady_) {
+                renderer_.setViewportSize(
+                    static_cast<float>(width() * devicePixelRatioF()),
+                    static_cast<float>(height() * devicePixelRatioF()));
+                renderer_.setClearColor(
+                    ArtifactCore::FloatColor(0.018f, 0.024f, 0.04f, 1.0f));
+                renderer_.clear();
+                renderer_.flush();
+                renderer_.present();
+            }
+            const float seconds = static_cast<float>(frame_) / 30.0f;
+            const QImage frameImage = layer_.renderFrame(
+                CanvasWidth, CanvasHeight, seconds);
+            if (!frameImage.isNull()) {
+                flipbookPreview_->setPixmap(QPixmap::fromImage(frameImage));
+            }
+            return;
+        }
         if (!rendererReady_) return;
 
         renderer_.setViewportSize(
@@ -108,6 +139,22 @@ protected:
         case Qt::Key_5:
             loadPreset(4);
             break;
+        case Qt::Key_F1:
+        case Qt::Key_N:
+            loadPreset(0);
+            break;
+        case Qt::Key_F2:
+            loadFlipbook(QStringLiteral("petal"),
+                         event->modifiers().testFlag(Qt::ShiftModifier));
+            break;
+        case Qt::Key_F3:
+            loadFlipbook(QStringLiteral("spark"),
+                         event->modifiers().testFlag(Qt::ShiftModifier));
+            break;
+        case Qt::Key_F4:
+            loadFlipbook(QStringLiteral("autumn_leaves"),
+                         event->modifiers().testFlag(Qt::ShiftModifier));
+            break;
         case Qt::Key_Up:
         case Qt::Key_Plus:
             adjustEmissionRate(25.0);
@@ -138,6 +185,8 @@ protected:
 private:
     void loadPreset(int index)
     {
+        flipbookMode_ = false;
+        flipbookPreview_->hide();
         static constexpr std::array<const char*, 5> Presets{
             "fountain", "fire", "smoke", "rain", "snow"};
         const int selectedIndex = std::clamp(
@@ -147,8 +196,71 @@ private:
         frame_ = 0;
         layer_.resetParticleSystem();
         setWindowTitle(QStringLiteral(
-            "Artifact 2D ParticleLayer Test — %1 | 1-5 preset, Space pause, R reset, Up/Down rate")
+            "Artifact 2D ParticleLayer GPU Test — %1 | F2 petal, F3 spark, F4 leaves")
                            .arg(layer_.presetName()));
+    }
+
+    void loadFlipbook(const QString& assetName, bool useSheet)
+    {
+        QString assetPath = findParticleAsset(assetName, useSheet);
+        if (assetPath.isEmpty()) {
+            assetPath = useSheet
+                ? QFileDialog::getOpenFileName(
+                    this, QStringLiteral("Select %1 sprite sheet").arg(assetName),
+                    QDir::currentPath(), QStringLiteral("PNG images (*.png)"))
+                : QFileDialog::getExistingDirectory(
+                    this, QStringLiteral("Select %1 PNG sequence folder").arg(assetName),
+                    QDir::currentPath());
+        }
+        if (assetPath.isEmpty()) return;
+
+        const QString displayName = assetName == QStringLiteral("autumn_leaves")
+            ? QStringLiteral("autumn leaves") : assetName;
+        layer_.loadPreset(QStringLiteral("leaves"));
+        layer_.setParticleBlendMode(Artifact::ParticleBlendMode::Normal);
+        layer_.setLayerPropertyValue(
+            QStringLiteral("particle.emitter.texturePath"), QVariant(assetPath));
+        layer_.setLayerPropertyValue(
+            QStringLiteral("particle.emitter.textureRows"), QVariant(useSheet ? 4 : 1));
+        layer_.setLayerPropertyValue(
+            QStringLiteral("particle.emitter.textureCols"), QVariant(useSheet ? 4 : 16));
+        layer_.setLayerPropertyValue(
+            QStringLiteral("particle.emitter.frameCount"), QVariant(16));
+        layer_.setLayerPropertyValue(
+            QStringLiteral("particle.emitter.frameRate"), QVariant(12.0));
+        layer_.setLayerPropertyValue(
+            QStringLiteral("particle.emitter.randomFrame"), QVariant(false));
+        frame_ = 0;
+        layer_.resetParticleSystem();
+        flipbookMode_ = true;
+        flipbookPreview_->show();
+        flipbookPreview_->raise();
+        setWindowTitle(QStringLiteral(
+            "Artifact 2D ParticleLayer %1 — %2 | Shift+F2/F3/F4 sheet, F2/F3/F4 sequence, N GPU")
+                           .arg(useSheet ? QStringLiteral("Sprite Sheet")
+                                         : QStringLiteral("PNG Sequence"),
+                                displayName));
+    }
+
+    QString findParticleAsset(const QString& assetName, bool useSheet) const
+    {
+        const std::array<QString, 2> starts{
+            QDir::currentPath(), QApplication::applicationDirPath()};
+        for (const QString& start : starts) {
+            QDir directory(start);
+            for (int depth = 0; depth < 8; ++depth) {
+                const QString candidate = directory.filePath(
+                    QStringLiteral("temp/particle_flipbook_test/%1")
+                        .arg(useSheet ? assetName + QStringLiteral("_sheet.png")
+                                      : assetName));
+                const QFileInfo candidateInfo(candidate);
+                if (useSheet ? candidateInfo.isFile() : candidateInfo.isDir()) {
+                    return candidate;
+                }
+                if (!directory.cdUp()) break;
+            }
+        }
+        return {};
     }
 
     void adjustEmissionRate(double delta)
@@ -166,9 +278,11 @@ private:
 
     Artifact::ArtifactParticleLayer layer_;
     Artifact::ArtifactIRenderer renderer_;
+    QLabel* flipbookPreview_ = nullptr;
     int timerId_ = 0;
     std::int64_t frame_ = 0;
     bool paused_ = false;
+    bool flipbookMode_ = false;
     bool rendererAttempted_ = false;
     bool rendererReady_ = false;
 };

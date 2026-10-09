@@ -2,11 +2,11 @@
 
 # Artifact 2D ParticleLayer Playground
 
-A small, independent executable that creates and renders the production
-`ArtifactParticleLayer` through `ArtifactIRenderer` and its Diligent GPU path.
+A small, independent executable for the production `ArtifactParticleLayer`.
 It does not open or modify an ArtifactStudio project. Its source is separate,
-while its CMake target links the same `ArtifactAppRuntime` used by the editor
-so the test exercises the real layer, simulation, and renderer.
+while its CMake target links the same `ArtifactAppRuntime` used by the editor.
+The regular mode exercises the layer's Diligent GPU draw path; flipbook modes
+exercise the layer's image render path with a PNG sequence or sprite sheet.
 
 ## Build and run
 
@@ -25,9 +25,15 @@ project after `ArtifactAppRuntime` is defined.
 
 - **Space**: pause or resume
 - **R**: reset the deterministic emitter
-- **1–5**: select fountain, fire, smoke, rain, or snow
+- **N / F1**: return to regular GPU particles
+- **1–5**: regular presets (fountain, fire, smoke, rain, snow)
+- **F2 / F3 / F4**: petal, spark, or autumn-leaf PNG sequence
+- **Shift+F2 / Shift+F3 / Shift+F4**: the matching packed sprite sheet
 - **Up / Down**: raise or lower the selected emitter's rate
 
-The window advances the layer's composition frame at 30 fps. Rendering goes
-through `ArtifactParticleLayer::draw()` and `ArtifactIRenderer`; it does not
-read back GPU frames to the CPU for display.
+The sample image folders and atlases are found in `temp/particle_flipbook_test`
+when launched from the repository or its build output. If they are elsewhere,
+the app opens a folder or file picker. Numbered PNGs are sorted numerically;
+the samples contain 16 frames and play at 12 fps. The test calls the layer's
+existing `renderFrame()` image path for both sequence and atlas sprites; regular
+particles call `ArtifactParticleLayer::draw()` and render through Diligent.
