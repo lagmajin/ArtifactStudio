@@ -12,6 +12,7 @@
 
 #include <array>
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <limits>
 
@@ -497,6 +498,126 @@ static int captureGpuParticle(const QString& outputDirectory)
     return 0;
 }
 
+static int captureFlipbookMode(const QString& sourcePath, bool isSequence,
+                               const QString& outputDirectory,
+                               const QString& filePrefix,
+                               QImage& firstFrame, QImage& lastFrame,
+                               QFile& report)
+{
+    constexpr std::array<float, 5> Times{0.35f, 0.50f, 0.65f, 0.80f, 0.95f};
+    Artifact::ArtifactParticleLayer layer;
+    layer.loadPreset(QStringLiteral("fountain"));
+    if (!layer.setLayerPropertyValue(QStringLiteral("particle.emitter.positionX"),
+                                     QVariant(960.0)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.positionY"),
+                                     QVariant(540.0)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.rate"),
+                                     QVariant(10.0)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.scaleMin"),
+                                     QVariant(40.0)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.scaleMax"),
+                                     QVariant(55.0)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.speedMin"),
+                                     QVariant(150.0)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.speedMax"),
+                                     QVariant(220.0)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.texturePath"),
+                                     QVariant(sourcePath)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.textureRows"),
+                                     QVariant(4)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.textureCols"),
+                                     QVariant(4)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.randomFrame"),
+                                     QVariant(false)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.startFrame"),
+                                     QVariant(0)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.frameCount"),
+                                     QVariant(16)) ||
+        !layer.setLayerPropertyValue(QStringLiteral("particle.emitter.frameRate"),
+                                     QVariant(12.0))) {
+        return 1;
+    }
+    layer.resetParticleSystem();
+    layer.play();
+    Artifact::ArtifactIRenderer softwareRenderer;
+
+    for (std::size_t index = 0; index < Times.size(); ++index) {
+        const auto frameNumber = static_cast<std::int64_t>(std::lround(Times[index] * 30.0f));
+        layer.goToFrame(frameNumber);
+        layer.draw(&softwareRenderer);
+        QImage frame;
+        if (!layer.getCachedFrame(frameNumber, frame) || frame.isNull()) return 2;
+        std::uint64_t alphaPixels = 0;
+        for (int y = 0; y < frame.height(); ++y) {
+            const auto* row = reinterpret_cast<const QRgb*>(frame.constScanLine(y));
+            for (int x = 0; x < frame.width(); ++x) {
+                if (qAlpha(row[x]) > 0) ++alphaPixels;
+            }
+        }
+        if (alphaPixels == 0) return 3;
+        if (index == 0) firstFrame = frame;
+        if (index + 1 == Times.size()) lastFrame = frame;
+        const QString path = QDir(outputDirectory).filePath(
+            filePrefix + QStringLiteral("_%1.png")
+                .arg(static_cast<int>(index), 2, 10, QLatin1Char('0')));
+        if (!frame.save(path, "PNG")) return 4;
+        report.write(QStringLiteral("mode=%1 time=%2 alpha_pixels=%3 image=%4\n")
+                         .arg(isSequence ? QStringLiteral("sequence")
+                                         : QStringLiteral("sprite-sheet"))
+                         .arg(Times[index]).arg(alphaPixels).arg(path).toUtf8());
+    }
+
+    std::uint64_t changedPixels = 0;
+    for (int y = 0; y < firstFrame.height(); ++y) {
+        const auto* first = reinterpret_cast<const QRgb*>(firstFrame.constScanLine(y));
+        const auto* last = reinterpret_cast<const QRgb*>(lastFrame.constScanLine(y));
+        for (int x = 0; x < firstFrame.width(); ++x) {
+            if (first[x] != last[x]) ++changedPixels;
+        }
+    }
+    return changedPixels > 0 ? 0 : 5;
+}
+
+static int captureFlipbookSources(const QString& sequenceDirectory,
+                                  const QString& spriteSheetPath,
+                                  const QString& outputDirectory)
+{
+    const QDir sequenceSource(sequenceDirectory);
+    if (!sequenceSource.exists() || !QFile::exists(spriteSheetPath)) return 2;
+    QDir output(outputDirectory);
+    if (!output.mkpath(QStringLiteral("sequence")) ||
+        !output.mkpath(QStringLiteral("sprite_sheet"))) return 3;
+    QFile report(output.filePath(QStringLiteral("flipbook_report.txt")));
+    if (!report.open(QIODevice::WriteOnly | QIODevice::Text)) return 4;
+
+    QImage sequenceFirst, sequenceLast, sheetFirst, sheetLast;
+    const int sequenceResult = captureFlipbookMode(
+        sequenceSource.absolutePath(), true,
+        output.filePath(QStringLiteral("sequence")), QStringLiteral("sequence"),
+        sequenceFirst, sequenceLast, report);
+    if (sequenceResult != 0) return 10 + sequenceResult;
+    const int sheetResult = captureFlipbookMode(
+        QDir::cleanPath(spriteSheetPath), false,
+        output.filePath(QStringLiteral("sprite_sheet")), QStringLiteral("sheet"),
+        sheetFirst, sheetLast, report);
+    if (sheetResult != 0) return 20 + sheetResult;
+    const auto arePixelIdentical = [](const QImage& left, const QImage& right) {
+        if (left.size() != right.size() || left.format() != right.format()) return false;
+        for (int y = 0; y < left.height(); ++y) {
+            const auto* leftRow = reinterpret_cast<const QRgb*>(left.constScanLine(y));
+            const auto* rightRow = reinterpret_cast<const QRgb*>(right.constScanLine(y));
+            for (int x = 0; x < left.width(); ++x) {
+                if (leftRow[x] != rightRow[x]) return false;
+            }
+        }
+        return true;
+    };
+    if (!arePixelIdentical(sequenceFirst, sheetFirst) ||
+        !arePixelIdentical(sequenceLast, sheetLast)) return 30;
+    report.write("sequence_sheet_first_and_last_frames_pixel_identical=true\n");
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
@@ -509,6 +630,9 @@ int main(int argc, char** argv)
     }
     if (arguments.size() == 3 && arguments[1] == QStringLiteral("--capture-gpu-particle")) {
         return captureGpuParticle(arguments[2]);
+    }
+    if (arguments.size() == 5 && arguments[1] == QStringLiteral("--capture-flipbook")) {
+        return captureFlipbookSources(arguments[2], arguments[3], arguments[4]);
     }
     if (arguments.size() > 1) return 10;
     ParticleLayerWindow window;

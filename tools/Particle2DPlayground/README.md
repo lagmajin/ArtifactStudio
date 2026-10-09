@@ -42,6 +42,17 @@ shape is missing:
 <build-directory>\bin\Debug\ArtifactParticle2DPlayground.exe --capture-gpu-particle <output-directory>
 ```
 
+## PNG sequence and sprite-sheet capture
+
+Render the same 16-frame petal animation from a numbered PNG directory and a
+4×4 sprite sheet. Five PNGs per source and alpha-coverage counts are written to
+separate subdirectories; the command also checks that both sources animate
+and that the first and last sequence/sheet renders match pixel-for-pixel:
+
+```powershell
+<build-directory>\bin\Debug\ArtifactParticle2DPlayground.exe --capture-flipbook <sequence-directory> <sprite-sheet.png> <output-directory>
+```
+
 ## Firework PNG capture
 
 Capture the production explosion preset at five points from 1.1 to 1.9 seconds.
