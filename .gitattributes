@@ -1,5 +1,6 @@
 # Keep text files and source files stable across Windows, macOS, and Linux.
 * text=auto
+.gitattributes text eol=lf
 
 # Canonical repository/worktree line ending for source and project files.
 *.c       text eol=lf
@@ -14,6 +15,7 @@
 *.cppm    text eol=lf
 *.cmake   text eol=lf
 CMakeLists.txt text eol=lf
+tools/Particle2DPlayground/*.md text eol=lf
 
 # Keep agent/developer instructions and repository metadata portable too.
 *.json    text eol=lf

@@ -742,6 +742,7 @@ if(TARGET ArtifactCoreText AND NOT TARGET ArtifactCoreTextRuntime)
 endif()
 add_subdirectory(ArtifactWidgets)
 add_subdirectory(Artifact)
+add_subdirectory(tools/Particle2DPlayground)
 add_subdirectory(ArtifactRenderer)
 add_subdirectory(artifacts-plugin-runner)
 # ArtifactPr is an opt-in target: it is a supported application, but building
