@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch ArtifactUiTest.exe and capture its main-window startup screenshot."""
+"""Launch ArtifactUiTest.exe and capture a startup, Timeline, or Render Manager fixture."""
 
 from __future__ import annotations
 
@@ -7,8 +7,10 @@ import argparse
 import ctypes
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 
 
@@ -17,10 +19,31 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--exe", required=True, type=Path, help="ArtifactUiTest.exe path")
     parser.add_argument("--output", required=True, type=Path, help="PNG output path")
     parser.add_argument(
+        "--language",
+        choices=("ja", "en", "zh", "zh-TW", "ko", "fr", "de", "es", "pt", "ru", "ar"),
+        default="en",
+        help="UI language passed to ArtifactUiTest.exe via --lang (default: en)",
+    )
+    parser.add_argument(
         "--timeout-seconds",
         type=float,
         default=60.0,
         help="maximum time to wait for the app screenshot (default: 60)",
+    )
+    parser.add_argument(
+        "--timeline",
+        action="store_true",
+        help="show the isolated Timeline fixture instead of the default startup view",
+    )
+    parser.add_argument(
+        "--curve-editor",
+        action="store_true",
+        help="show the isolated animated Curve Editor fixture",
+    )
+    parser.add_argument(
+        "--render-manager",
+        action="store_true",
+        help="show a fixed Render Manager queue fixture",
     )
     parser.add_argument(
         "--app-arg",
@@ -96,6 +119,9 @@ def request_close_window(process_id: int) -> bool:
 
 def main() -> int:
     args = parse_args()
+    if args.render_manager and (args.timeline or args.curve_editor):
+        print("capture_ui_test: --render-manager cannot be combined with Timeline fixtures", file=sys.stderr)
+        return 2
     if os.name != "nt":
         print("capture_ui_test: this helper requires Windows", file=sys.stderr)
         return 2
@@ -114,17 +140,50 @@ def main() -> int:
     output_path.unlink(missing_ok=True)
 
     environment = os.environ.copy()
+    for fixture_flag in (
+        "ARTIFACT_UI_TEST_TIMELINE",
+        "ARTIFACT_UI_TEST_CURVE_EDITOR",
+        "ARTIFACT_UI_TEST_RENDER_MANAGER",
+        "ARTIFACT_UI_TEST_PROJECT_ROOT",
+        "ARTIFACT_UI_TEST_FORCE_SHUTDOWN",
+        "ARTIFACT_STARTUP_SCREENSHOT_WIDGET",
+    ):
+        environment.pop(fixture_flag, None)
     environment["ARTIFACT_STARTUP_SCREENSHOT"] = "1"
+    environment["ARTIFACT_UI_TEST_FORCE_SHUTDOWN"] = "1"
     environment["ARTIFACT_STARTUP_SCREENSHOT_PATH"] = str(output_path)
+    fixture_root: Path | None = None
+    if args.timeline or args.curve_editor or args.render_manager:
+        fixture_root = Path(tempfile.mkdtemp(
+            prefix="artifact_ui_test_", dir=output_path.parent
+        )).resolve()
+        fixture_project_root = fixture_root / "project"
+        fixture_appdata_root = fixture_root / "appdata"
+        fixture_project_root.mkdir()
+        fixture_appdata_root.mkdir()
+        environment["ARTIFACT_UI_TEST_TIMELINE"] = "1"
+        environment["ARTIFACT_UI_TEST_PROJECT_ROOT"] = str(fixture_project_root)
+        environment["ARTIFACT_STARTUP_SCREENSHOT_WIDGET"] = "timelineUiFixtureWidget"
+        environment["APPDATA"] = str(fixture_appdata_root)
+        environment["LOCALAPPDATA"] = str(fixture_appdata_root)
+    if args.render_manager:
+        environment.pop("ARTIFACT_UI_TEST_TIMELINE", None)
+        environment["ARTIFACT_UI_TEST_RENDER_MANAGER"] = "1"
+        environment.pop("ARTIFACT_STARTUP_SCREENSHOT_WIDGET", None)
+        environment["ARTIFACT_STARTUP_SCREENSHOT_WIDGET"] = "renderManagerUiFixtureWidget"
+    if args.curve_editor:
+        environment["ARTIFACT_UI_TEST_CURVE_EDITOR"] = "1"
 
     try:
         process = subprocess.Popen(
-            [str(exe_path), *args.app_arg],
+            [str(exe_path), "--lang", args.language, *args.app_arg],
             cwd=exe_path.parent,
             env=environment,
         )
     except OSError as error:
         print(f"capture_ui_test: failed to launch {exe_path}: {error}", file=sys.stderr)
+        if fixture_root is not None:
+            shutil.rmtree(fixture_root, ignore_errors=True)
         return 2
 
     deadline = time.monotonic() + args.timeout_seconds
@@ -160,6 +219,8 @@ def main() -> int:
         return 1
     finally:
         stop_process(process)
+        if fixture_root is not None:
+            shutil.rmtree(fixture_root, ignore_errors=True)
 
 
 if __name__ == "__main__":

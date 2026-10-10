@@ -33,6 +33,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--capture-command", required=True,
         help="capture executable command; include {actual} where screenshot path goes",
     )
+    parser.add_argument(
+        "--language",
+        choices=("ja", "en", "zh", "zh-TW", "ko", "fr", "de", "es", "pt", "ru", "ar"),
+        help="replace {language} in the capture command with this locale code",
+    )
     parser.add_argument("--environment-json", type=Path)
     parser.add_argument("--region", action="append", default=[])
     parser.add_argument("--region-limit", action="append", default=[])
@@ -59,6 +64,10 @@ def main() -> int:
         capture_command = split_command(args.capture_command)
         if not capture_command or not any("{actual}" in part for part in capture_command):
             raise ValueError("--capture-command must contain the {actual} output placeholder")
+        if args.language is not None and not any(
+            "{language}" in part for part in capture_command
+        ):
+            raise ValueError("--language requires a {language} placeholder in --capture-command")
         if args.max_iterations is not None and args.max_iterations <= 0:
             raise ValueError("--max-iterations must be positive")
         if args.retry_delay_seconds is not None and args.retry_delay_seconds < 0:
@@ -86,7 +95,9 @@ def main() -> int:
                 f"{run_prefix.name}.iteration-{iteration:03d}"
             )
             invocation = [
-                part.replace("{actual}", str(actual)).replace("{iteration}", str(iteration))
+                part.replace("{actual}", str(actual))
+                    .replace("{iteration}", str(iteration))
+                    .replace("{language}", args.language or "")
                 for part in capture_command
             ]
             print(f"[capture {iteration}] {' '.join(invocation)}", flush=True)
