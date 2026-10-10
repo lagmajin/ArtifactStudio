@@ -1,6 +1,6 @@
 # 起動設定（ArtifactStartup.json）仕様
 
-**最終更新:** 2026-09-29
+**最終更新:** 2026-10-10
 
 ## 目的
 
@@ -65,10 +65,33 @@ IDE、Explorer、パッケージ済みの起動など、**環境変数を設定�
 | 1 | `ARTIFACT_SOLIDRECT_BATCH` / `_INDIRECT` / `_VERBOSE` | 実装済み。`Render/SolidRect*` として JSON 対応 |
 | 2 | GPU 系: `ARTIFACT_RENDER_BACKEND` / `_GPU_ADAPTER` / `_GPU_POLICY` / `_ENABLE_RAY_TRACING` | `Render/*` |
 | 3 | 診断系: `ARTIFACT_ENABLE_CONTINUOUS_RENDER_DIAGNOSTICS` / `_RENDER_TRACE_CRASH` / `_DISABLE_3D_RENDER_TRACE` / `_VIDEO_VERBOSE_LOG` / `_EFFECT_PROFILE` / `_ENABLE_GPU_FRAME_QUERY` | `Diagnostics/*` |
-| 4 | XPU 系: `ARTIFACT_XPU*`（11個） | `RenderQueue/Xpu*` |
+| 4 | XPU 系: `ARTIFACT_XPU*` | `RenderQueue/Xpu*`（Artifact render queue / encoder で部分対応） |
 | 5 | テスト起動: `ARTIFACT_RUN_BUILTIN_TESTS` / `_RUN_GPU_BLEND_TESTS` | `Startup/*`。起動分岐なので JSON より env が自然 |
 
 **移行しないもの**: ビルド情報（`ARTIFACT_BUILD_GIT_HASH` 等）、プラグイン ABI（`ARTIFACT_PLUGIN_API_VERSION`）、バージョン文字列。これらはコンパイル時値、または子プロセスへ引き渡す値である。
+
+### XPU 系の JSON key 対応
+
+2026-10-10 時点で Artifact の Render Queue と encoder が以下を `LayeredConfigStore` から起動時に一度解決する。各 JSON key が存在すれば対応する環境変数より優先する。JSON に未設定の場合は従来の環境変数を使用する。
+
+| JSON key | 環境変数 | 用途 |
+|---|---|---|
+| `RenderQueue/XpuSpec` | `ARTIFACT_XPU`（legacy: `ARTIFACT_HETERO`） | mixed、iGPU role、parity / bench 等の spec |
+| `RenderQueue/XpuMaxInFlight` | `ARTIFACT_XPU_MAX_IN_FLIGHT` | frame worker 上限 |
+| `RenderQueue/XpuIncludeIntegrated` | `ARTIFACT_XPU_INCLUDE_INTEGRATED`（legacy: `ARTIFACT_MULTI_GPU_INCLUDE_INTEGRATED`） | Integrated GPU の参加可否 |
+| `RenderQueue/XpuPreviewMinIntervalMs` | `ARTIFACT_XPU_PREVIEW_MIN_INTERVAL_MS` | preview publish 間隔 |
+| `RenderQueue/XpuAsyncSequence` | `ARTIFACT_XPU_ASYNC_SEQUENCE` | 連番 writer の bounded async / manager 指定。XPU mixed jobではCPU thread予算内でwriter枠を予約し、logical thread数が6未満なら同期書き込みへ戻す |
+| `RenderQueue/XpuParityHash` | `ARTIFACT_XPU_PARITY_HASH` | frame parity hash |
+| `RenderQueue/XpuPipeline` | `ARTIFACT_XPU_PIPELINE` | 動画 pipeline 要求（現状は未対応警告） |
+| `RenderQueue/XpuBench` | `ARTIFACT_XPU_BENCH` | bench JSON 出力 |
+| `RenderQueue/XpuCloneCheck` | `ARTIFACT_XPU_CLONE_CHECK` | clone parity 診断 |
+| `RenderQueue/XpuEncoderThreads` | `ARTIFACT_XPU_ENCODER_THREADS` | FFmpeg encoder thread count。非mixed時は0でFFmpeg default。XPU mixed動画では0／未設定を1 threadに制限し、正数指定もhost予算内へclampしてframe lane数から差し引く |
+| `RenderQueue/XpuPreset` | `ARTIFACT_XPU_PRESET` | encoder preset override |
+| `RenderQueue/XpuMaxHwEncoders` | `ARTIFACT_XPU_MAX_HW_ENCODERS` | プロセス内で同時に開ける hardware encoder session 数。既定値 2、入力値は 1〜16 に clamp。native hardware encoder / FFmpeg hardware pipe / Vulkan pipe で共有し、上限到達時は hardware open を失敗させ既存の backend 選択経路に software fallback させる |
+
+この上限は診断値ではなく実際の session admission 制御である。Render Queue は現在 job を直列実行するため、単一 queue の通常運用では上限に達しにくい。独立した複数 encoder 利用や将来の job 並列化で同時 session を抑制する用途を持つ。
+
+`Artifact/ArtifactStartup.template.json` には key の説明だけを置く。無指定時の自動値・現行動作を変えないため、XPU override 値自体はテンプレートに追加しない。
 
 ## 8. 実装上の注意
 

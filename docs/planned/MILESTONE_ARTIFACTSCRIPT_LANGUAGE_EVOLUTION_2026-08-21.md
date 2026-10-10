@@ -1,9 +1,9 @@
 # マイルストーン: ArtifactScript Language Evolution
 
-**最終更新:** 2026-10-07
+**最終更新:** 2026-10-09
 **ステータス:** In Progress
 **優先度:** High
-**関連:** `docs/planned/MILESTONE_ARTIFACTSCRIPT_ENGINE_2026-07-21.md`(完了済みコア), `docs/planned/MILESTONE_SCRIPT_CONSOLE_2026-06-16.md`, `docs/planned/MILESTONE_AUTOMATED_TESTING_FOUNDATION_2026-08-21.md`
+**関連:** `docs/planned/MILESTONE_ARTIFACTSCRIPT_ENGINE_2026-07-21.md`(完了済みコア), `docs/planned/MILESTONE_ARTIFACTSCRIPT_COROUTINES_2026-10-09.md`, `docs/planned/MILESTONE_SCRIPT_CONSOLE_2026-06-16.md`, `docs/planned/MILESTONE_AUTOMATED_TESTING_FOUNDATION_2026-08-21.md`
 
 ## 進捗 2026-10-07
 

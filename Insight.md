@@ -1,10 +1,329 @@
-**最終更新:** 2026-10-09
+**最終更新:** 2026-10-10
 
 # Insight Register
 
 未着手の設計判断、現在の優先方針に直結する実装候補、実機検証待ちだけを記録する。実装済みの詳細履歴と過去の調査は [Insight Archive (through 2026-09-01)](docs/analysis/INSIGHT_ARCHIVE_2026-09-01.md) を参照。
 
+### 2026-10-10 — XPU CPU lanes share oneTBB through Core.Parallel
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`ArtifactCore/src/Core/Parallel.cppm`、`ArtifactCore/include/Common/ThreadPool.ixx`。
+- **確認できた事実:** XPU mixed の CPU frame lanes はソフトウェア renderer を通り、複数の画像処理が `ArtifactCore::Parallel::For` を呼ぶ。同 API は `tbb::parallel_for` に委譲される。既存 `ThreadPool` は `tbb::global_control(max_allowed_parallelism, concurrency_)` を作り、TBB の global control は scheduler 内で同時実行する worker thread 数を制限する。TBB の implicit arena は parallel algorithm を呼ぶ user thread ごとに関連付く ([task arena](https://oneapi-spec.uxlfoundation.org/specifications/oneapi/latest/elements/onetbb/source/task_scheduler/task_arena/task_arena_cls)、[global control](https://oneapi-spec.uxlfoundation.org/specifications/oneapi/latest/elements/onetbb/source/task_scheduler/scheduling_controls/global_control_cls))。
+- **今回の対応:** `Core.Parallel` に共有 TBB arena API を置き、全 `Parallel::For` と XPU CPU frame lanes を同じ arena に通す。XPU は初回 arena 初期化へ process-available thread count を渡し、job host limit を実 concurrency 以下へ上限化する。MSVC module compile で `ThreadPool.ixx` の TBB inline実装を Artifact から使う形が失敗したため撤回し、TBBの実装詳細を既存 `Core.Parallel.cppm` 内へ閉じた。XPU summary と統合テスト source に scheduler と concurrency の確認を加えた。
+- **価値／懸念:** XPU CPU frame lanes と内側の TBB kernels が共有 concurrency cap を使う。Taskflow、QThreadPool、GPU submission、writer/encoderとの完全な process-wide budget は未統合。Debug構成でCore/Artifact/test targetがビルド成功し、RTX 4070 Ti Vulkan + CPUのmixed-text、2D/3D particle、10-frame all-adapters/backpressureテストがそれぞれ3回連続成功。共有TBB arena/concurrencyのdiagnosticsも確認済み。複数物理GPU/iGPUでの受入は未確認。
+- **次に確認:** ArtifactCoreとArtifactの対象ターゲットをビルドし、XPU mixed runtimeでCPU frame lanesとnested `Parallel::For` が同一arenaに参加すること、summaryの実 concurrency、TBB worker数とprocess CPU utilizationを検証する。
+
+### 2026-10-10 — D3D12 build support does not prove an enumerable worker
+
+- **関連:** root `CMakeLists.txt` Windows SDK `try_compile` paths、`Artifact/src/Render/DiligentDeviceManager.cppm`、`Artifact/tests/RenderQueueLayerImageIntegrationTest.cpp`。
+- **確認できた事実:** CMake `D3D12_SUPPORTED` と `VULKAN_SUPPORTED` は両方TRUEになり、test targetはDebugでビルドできる。Windows DXGIでRTX 4070 Tiを列挙し、D3D12CreateDeviceをfeature level 11_0〜12_2で直接呼ぶと成功する。ArtifactのD3D12 primary起動は `No suitable hardware adapter found` でVulkan fallbackとなる。XPUのVulkan primary planは同じ物理adapterをD3D12経由で重複dispatchしないため、Vulkan＋D3D12ケースはGoogleTest skip。物理GPUは1基。
+- **今回の対応:** SDK Include/Lib環境を `try_compile` に渡し、D3D12 adapter列挙とdevice選択に先立って `LoadD3D12()` を呼ぶ。
+- **価値／懸念:** OSのD3D12機能は利用可能だが、Artifact/Diligentのprimary backend経路が使えていない。build対応や直接API probeは実worker参加の代わりにならない。
+- **次に確認:** Diligent factoryの `EnumerateAdapters()` と `CreateDeviceAndContextsD3D12()` の間で候補が失われる箇所を特定し、ArtifactのD3D12 primaryで同じRTXがactiveになることを確認する。その後、別GPU/iGPU hostで実機検証する。
+
+### 2026-10-10 — Particle XPU parity uses different rasterizers
+
+- **関連:** `Artifact/src/Generator/ArtifactParticleGenerator.cppm`、`ArtifactCore/src/Graphics/ParticleRenderer.cppm`、`tests/Artifact/RenderQueueLayerImageIntegrationTest.cpp`。
+- **確認できた事実:** software particle rendering paints a QPainter radial-gradient circle sprite. GPU particle rendering draws an instanced quad and computes a soft circular alpha edge with a shader `smoothstep`; the rasterizers differ.
+- **今回の対応:** isolated XPU particle Render Queue test verifies deterministic CPU reference output, XPU frame outputs, plan diagnostics, and both 2D/3D layer setup. The GPU-only production particle test separately verifies visible pixels. CPU/GPU lane participation is asserted in the separate multi-frame text case.
+- **価値／懸念:** exact CPU/GPU particle parity remains unverified; the XPU case records mismatch count/bounds without guessing a tolerance. Both XPU particle and GPU-only visibility cases passed three consecutive runs.
+- **次に確認:** capture and compare XPU particle pixels across different GPU vendors/backends; do not call parity complete from manager output alone.
+
+### 2026-10-10 — XPU pull dispatch adapts frame share without static weights
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、XPU `nextFrameCounter` worker loop。
+- **確認できた事実:** mixed/multi-GPU lanes receive one distinct startup frame, then claim the next frame only after `renderOneFrame` completes. There is no fixed per-device frame quota after seeding.
+- **今回の対応:** documented the completion-driven pull behavior next to the shared counter and in P4. Per-device timing weights remain diagnostic rather than being fed back into assignment.
+- **価値／懸念:** fast lanes naturally claim more remaining frames, so a stale startup weight is unnecessary and could bias work after scene/device conditions change. This does not prove there is no starvation under long-tail frames or output-buffer backpressure.
+- **次に確認:** use runtime bench frame counts and lane render durations on dissimilar CPU/iGPU/dGPU hardware. Add a weighted policy only if the pull scheduler shows a repeatable imbalance that lowers throughput.
+
+### 2026-10-10 — Render Queue の HW encoder slot は現行の単一job実行では飽和しない
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`Artifact/src/Render/ArtifactRenderQueueEncoder.cppm`。
+- **確認できた事実:** `ArtifactRenderQueueService::startAllJobs()` は `isRendering_` で同一serviceの二重開始を拒否し、単一 `workerThread_` 内で `jobOrder` を順番に処理する。各動画jobのencoder backendはそのjob処理中に作成される。
+- **今回の対応:** `ARTIFACT_XPU_MAX_HW_ENCODERS` の共有slotをNative HW / ffmpeg HW pipe / Vulkan pipeへ適用し、session lifetime中の上限をコード化した。
+- **価値／懸念:** 将来job並列化または独立encoder利用が入った際のプロセス共通上限を先に確立できる。ただし現行Render Queue単体では複数jobが同時にencoderを開かないため、設定値の差によるthroughput/backoffのruntime効果はまだない。今回の変更だけでXPU並列性能が改善したとは扱わない。
+- **次に確認:** encoder backendを呼び出す他の同一process経路とservice構築可視性を確認し、競合可能なconsumerがなければ、job並列化導入時に同時encoder上限の受入試験を追加する。
+
+### 2026-10-10 — XPU consumer worker と RenderQueue writer 上限の統合
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`ArtifactCore/src/IO/Image/AsyncImageWriterManager.cppm`。
+- **確認できた事実:** XPU混在時はCPU/GPU frame worker上限とは別に画像書き込みfutureが生成されていた。`AsyncImageWriterManager` は既定hardware_concurrencyサイズのthread poolを作り、enqueue件数を呼び出し側へ通知・制限するAPIがない。
+- **今回の対応:** RenderQueue側のasync writer futureを1〜2件に固定し、XPU mixed jobではその同時writer数をhardware thread数から予約してframe lane上限を決める。6 logical threads未満ではasync writerを止めて同期書き込みへ戻す。job summaryへ共有枠を出し、mixed画像統合テストに枠の包含関係を追加。manager指定時はbounded future経路へfallbackし、理由を警告する。ArtifactCoreは変更していない。
+- **価値／懸念:** mixed job内のCPU render laneとsequence writer threadが別々に上限を消費しない。これはjob-localな保守的予算であり、UI・TBB・他poolを含むprocess-wide schedulerではない。CPU budgetの効果、writer失敗時の挙動は実行未確認。
+- **次に確認:** ユーザー許可後に混在レンダー＋async sequenceの低論理CPU数／通常CPU数条件で、summaryのthread枠、キャンセル、書込失敗伝播、長時間メモリ上限を確認し、render/consumer総CPU予算をbenchで確定する。
+
+### 2026-10-10 — XPU mixed video encoder もframe laneのhost budgetを使う
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`Artifact/src/Render/ArtifactRenderQueueEncoder.cppm`、`RenderQueue/XpuEncoderThreads`。
+- **確認できた事実:** native FFmpeg settingsは`threadCount=0`のままencoderへ渡しており、external FFmpeg pipeにも`-threads`指定がなかった。video consumerはframe workerと並行して動く。
+- **今回の対応:** mixed動画ではencoder thread数の既定を1にし、正数指定もusable host thread数へclampする。service側は同数をframe laneの予算から控除し、nativeおよびpipe backend双方へthread countを渡す。
+- **価値／懸念:** frame renderingとencodeが同じCPU資源を超過予約しにくくなる。混在jobのthread枠であり、アプリ全体のpoolを横断してはいない。FFmpegが実際にそのthread上限を守ること、画質・出力と速度への影響は未検証。
+- **次に確認:** software/hardware native backendとexternal pipeで、混在動画のsummary予約数・encoder起動ログ・実プロセスthread数を確認し、thread数別benchを行う。
+
+### 2026-10-10 — XPU mixed eligibility must include the selected render backend
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`xpuMixedEligibleForJob`。
+- **確認できた事実:** CPU backendを選んだjobでは`cpu-render-backend-selected`をmixed unavailable reasonとして記録していた一方、eligible predicate自体にはGPU backend条件がなく、CPU/GPU lane計画と予算予約へ進む余地があった。
+- **今回の対応:** `useGpuBackend`をeligibility条件に加え、実際にGPU rendererが使われるjobだけをXPU mixedとして扱う。Render Queue画像統合テストにCPU backend baselineのunavailable reason、未起動mixed lane、未予約budgetを検査するassertionを追加した。
+- **価値／懸念:** unavailable reasonとplan/CPU予算の分類が一致する。統合テストは未実行で、CPU backendを明示した mixed 要求のruntime summaryは未確認。
+- **次に確認:** GPU backend有効／CPU backend明示の両ケースで、active mixed plan、frame lane数、writer/encoder予約が期待通り切り替わることを確認する。
+
+### 2026-10-10 — XPU thread budget should use process-available CPUs
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`Artifact/src/Render/ArtifactRenderQueueEncoder.cppm`。
+- **確認できた事実:** XPU lane/encoder budgetは`std::thread::hardware_concurrency()`でmachine-wide logical thread数を参照していた。Qtの`QThread::idealThreadCount()`は、OSが対応する場合にprocessが利用可能なlogical processor数を返し、affinityやCPU hotplugで変化し得る。
+- **今回の対応:** serviceとencoderの予算計算を`QThread::idealThreadCount()`へ統一し、processに適用されたCPU制限を反映する。
+- **価値／懸念:** affinity/container/job objectなどの制約が公開される環境で、実際に使えないCPU数を予算へ数えない。OSごとの検出範囲とjob開始後の変化はruntime未確認。
+- **次に確認:** affinityを制限した環境でsummaryのhardwareThreadsが利用可能processor数に一致すること、同一jobのencoder/service両方が同じ数を使うことを確認する。
+
+### 2026-10-10 — 既存Schedulerはdevice-affineなXPU frame laneを表現しない
+
+- **関連:** `Artifact/src/Render/ArtifactRenderScheduler.cppm`、`ArtifactCore/include/Render/MFR/MFRDispatcher.ixx`、`Artifact/src/Render/ArtifactRenderQueueService.cppm`。
+- **確認できた事実:** `ArtifactRenderScheduler` は優先度・重複排除付きの汎用RenderTaskとTaskSystemを持ち、device/renderer affinityをタスクに渡すAPIが見当たらない。`MFRDispatcher` のFrameTaskもframe番号だけを受け取り、実行worker identityをcallbackへ返さない。現在のGPU laneは各immediate context・cache・composition snapshotを単独所有する。
+- **設計仮説（未検証）:** 汎用Schedulerへ現状のframe callbackをそのまま移すと、どのGPU laneが実行中かを外部状態で割り当てる必要が生じ、context所有権やin-flight上限が壊れる可能性がある。XPU dispatcher APIはnode/worker identity付きのclaim/completeを提供する必要がある。
+- **価値／懸念:** 既存Schedulerの名目上の再利用でGPU資源所有を弱めるリスクを避けられる。一方、現行のローカルatomic採番とraw thread管理はRenderQueueに残る。
+- **次に確認:** P2 runtime受入後、device-affine worker descriptorを持つAPIが現在の枠内で追加できるか、シグナル／スロットを増やさず段階的に統合できるかを設計レビューする。
+
+### 2026-10-10 — XPU assist と consumer pipeline は実際の重複実行が必要
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、XPU P3/P4。
+- **確認できた事実:** `igpu=assist` のpreview縮小と動画 `pipeline=on` は、CPU処理を `std::async` で開始して同じフレーム内ですぐ `get()` しており、iGPU処理でもencodeとの重複でもなかった。GPU assist plan node は現時点で `maxInFlight=0`。
+- **今回の対応:** 誤解を招く即時待機のasync処理を撤去し、動画pipeline要求は非対応警告を出して同期経路を使うようにした。マイルストーン文書も未実装に訂正した。さらに、専用D3D12 workerに偏っていたGPU frame数の観測へprimary rendererのadapter IDとframe数を加えた。
+- **価値／懸念:** 「async」指定だけでXPU利用を誤認せず、hot pathで余計なfuture/threadを生成しない。iGPU assistそのものと動画のbounded lookahead pipelineは未実装。
+- **次に確認:** GPU資源で実行可能な既存convert/scale/encode経路とrenderer/device ownershipを特定し、assistの一作業を実GPUへ割り当てる。動画pipelineはbounded lookaheadで次フレーム変換と現フレームencodeを実際に重ねる。primaryとdedicated GPU laneを同時に使うfallback caseのbench counter整合は未検証。
+
+### 2026-10-10 — XPU 開発スイッチを ArtifactStartup.json から解決する
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`Artifact/src/Render/ArtifactRenderQueueEncoder.cppm`、`docs/technical/STARTUP_FLAGS_CONTRACT_2026-09-29.md`。
+- **確認できた事実:** Startup Flags 契約は XPU 系環境変数を `RenderQueue/Xpu*` へ段階移行する計画だが、Render Queue と encoder は環境変数だけを直接読んでいた。また GUI 起動では `ArtifactAppSettings::instance()` が `QApplication` と Startup JSON 読込より先に呼ばれていた。
+- **今回の対応:** XPU spec、worker上限、iGPU参加、preview、sequence、parity、pipeline、bench、clone診断、encoder thread/preset/HW上限の値を `LayeredConfigStore` 起点へ移した。JSON があれば対応 env より優先し、各 setting accessor は解決値を起動後初回にキャッシュする。`AppMain` の GUI 起動順を変更し、Startup JSON を最初の `ArtifactAppSettings` 取得前に読み込む。テンプレートに任意keyの一覧を記載。
+- **価値／懸念:** IDEやExplorer起動でもXPUを設定でき、解決層の読み込みをrender frame hot pathへ持ち込まない。StartupFlags競合時のログと全keyの型・優先順位はruntime未検証。
+- **次に確認:** XPU各keyについて環境変数のみ／JSONのみ／JSONとenv競合／未設定の4条件で解決値を確認する。ビルド・テストはユーザー明示指示待ち。
+
+### 2026-10-10 — XPU GPU worker の初期化失敗を adapter 単位で隔離
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、`GpuFinalWorker` 初期化。
+- **確認できた事実:** worker 構築ループは composition snapshot または adapter renderer の初期化に失敗したとき、既に作成済みの全 GPU worker も `workersReady` gate で無効化していた。
+- **今回の対応:** 失敗した adapter の worker だけを skip し、他の GPU worker は保持する。CPU fallback snapshot が利用できなくても GPU renderer 自体は登録する。混在時の最低1 worker条件と legacy multi-GPU時の最低2 worker条件は維持する。
+- **価値／懸念:** 1台の不調 adapter が他の正常な GPU lane を無効にしない。fallback snapshot がない GPU lane は GPU render 失敗時にCPUへ切り替えられない。
+- **次に確認:** adapter 初期化失敗・snapshot clone失敗を個別に注入し、残存 worker のフレーム出力、fallback、summary計数を確認する。ビルド・テストはユーザー明示指示待ち。
+
+### 2026-10-10 — XPU CPU lane の snapshot clone 部分失敗を縮退扱いにする
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm`、XPU mixed CPU worker 初期化。
+- **確認できた事実:** CPU composition snapshot の作成ループは一つでも clone に失敗すると `mixedCpuReady=false` にし、すでに正常作成した snapshot がある場合も mixed dispatch を有効にしなかった。
+- **今回の対応:** 失敗を警告して clone ループを止め、作成済み snapshot が一つ以上あればその数だけ CPU lane を登録する。CPU lane が0ならGPU側の既存dispatchへ縮退する。
+- **価値／懸念:** 一時的なclone失敗で既に確保したCPU資源を全て失わず、実際に初期化できたlane数を超えて起動しない。
+- **次に確認:** clone failure を注入し、要求／実稼働 lane 数、順序復元、フレーム成功数が縮退後の構成と一致することをruntimeで確認する。ビルド・テストはユーザー明示指示待ち。
+
+### 2026-10-10 — Kuwahara の近傍統計を一走査で集計する
+
+- **関連:** `Artifact/src/Effects/Kuwahara/KuwaharaEffect.cppm`。
+- **確認できた事実:** CPU と HLSL の両方で、各 quadrant の平均用と分散用に同じ近傍画素を別々に走査・読込していた。GPU shader は1画素につき4 quadrantを処理する。
+- **今回の対応:** RGBの二乗和も平均と同時に集計し、`E[x²] - E[x]²` から分散を得る形へ変更。CPU と HLSL を揃えた。負の丸め誤差は0へクランプする。CPU 側のquadrant loopは0／負のoffsetで終端へ進まず走査が継続する向きだったため、GPU と同じ画素範囲を進むよう修正。
+- **価値／懸念:** 近傍テクスチャ読込・CPU画素読込を理論上およそ半減できる。二乗和方式は従来の差分二乗方式と浮動小数点丸めが異なり、HDR値やほぼ一様な領域では分散選択に差が出る可能性がある。速度と画像差は未検証。
+- **次に確認:** ビルド後、CPU/GPU pixel parity と半径別の実行時間を比較する。ビルド・テストは明示指示待ち。
+
 ## 現在の優先検証
+
+### 2026-10-10 — ArtifactHashMap::operator[] が既存値を黙って消していた
+
+- **関連:** `ArtifactCore/src/Core/ArtifactHashMap.cppm`、`ArtifactCore/src/Composition/CompositionRegistry.cppm`、`tests/ArtifactCore/CompositionTransformTimeContractTest.cpp`。
+- **確認できた事実:** `operator[]` が `tryEmplace(key)`（空パックの可変長 overload）に転送され、キー存在時に `curr->data.second = V()` でデフォルト上書きして返していた。`NameMap::operator[]` 経由の読み取りは全て破壊読みだった。実害：`CompositionRegistry::findComposition()` は `contains()` が真でも `entries[key]` で nullptr に潰して返していた（テストで再現・確定）。script host 用の名前解決が全滅していたことになる。
+- **今回の対応:** 存在確認→既存参照返却、不存在時のみ `tryEmplace(key, V())` で挿入に修正。単引数 `tryEmplace` の他利用者はなし。回帰用に NameMap 直接試験を残した。
+- **価値／懸念:** 全 NameMap/HashMap 利用者の読み取りが正しくなる。逆に今まで「読むと消える」挙動に依存していたコードがあれば顕在化する。既存ビルド済み 14 件は全パス。
+- **次に確認:** フルスイート（ArtifactApp 含む）のビルド・実行は未実施。`ArtifactProjectRoundTripTest`（tests/Artifact、ArtifactAppRuntime 要）は未ビルド。
+
+### 2026-10-10 — RenderGraph に executionLevels と executeParallel を追加した
+
+- **関連:** `ArtifactCore/include/Graphics/RenderGraph.ixx`、`tests/ArtifactCore/RenderGraphTest.cpp`。
+- **確認できた事実:** `compile()` の Kahn 順序はレベル非減少なので、伝播した level 配列でグルーピングすると並列実行可能なバッチになる。既存 `execute()` の逐次語義は不変。`allocationSlot` / `lifetimes` は算出のみで backend の消費者がいない（未検証ではなく grep で確認済み）。
+- **今回の対応:** `CompiledRenderGraph::executionLevels` を追加し、ダックタイピングの launcher（`async(F)->future<bool>`、`Core.TaskSystem` が適合、RenderGraph 側に新規依存なし）でレベル同期実行する `executeParallel` を実装。単一パスレベルはインライン実行で launcher に触らない。単体テスト 15 件（順序・cycle 到達不能ではなく除外・alias 共有/分離・失敗伝播・診断）を追加。cycle は宣言順 append の API では到達不能なためテスト対象外とした。
+- **価値／懸念:** 現行グラフは全て線形チェーンのため、フレームパスへの配線は効果ゼロ＋リスクのみ。配線は分岐グラフが出てから。真の並列レンダリングにはパケット構築自体のスレッド分割が別途必要。
+- **次に確認:** ユーザーの明示指示後、テストのビルド・実行で検証する。ビルド・テストは明示指示待ち。
+
+### 2026-10-10 — 診断グラフへ層 raster/mask/blend チェーンを載せた
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`（`frameDebugSnapshot` の diagnosticGraph）。
+- **確認できた事実:** 診断スナップショットのグラフは層ごとの raster が単一 `layerResource` への書き込み羅列＋単一 blend で、マスク段が存在しなかった。実行は変えず記述だけ変える余地がある（診断専用のため）。
+- **今回の対応:** 層ごとに raster→mask→blend のチェーンを登録。raster は共有 scratch への書き込み（WAW 辺で直列化され実実行と一致）、mask は enabled matte 参照がある層のみ、`blend` は層ごとに accum 共有トークンへ。`FunctionalRenderPass` 実体は作らず記述子のみで、per-frame の `std::function` 確保は増やさない。空 comp 時は accum 書込維持の Empty blend を残し、下流 effect パスの read-before-write 失敗を避けた。
+- **価値／懸念:** FramePipelineViewWidget で層・マスクの有無が可視化され、カリング漏れが目視できる。実行順序・性能は不変。
+- **次に確認:** ユーザーの明示指示後、診断スナップショットの表示確認とテストのビルド・実行。ビルド・テストは明示指示待ち。
+
+### 2026-10-10 — Layer2D は未定義メソッドのためテストから除外した
+
+- **関連:** `ArtifactCore/include/Transform/StaticTransform2D.ixx`、`ArtifactCore/src/Layer/Layer2D.cppm`、`tests/ArtifactCore/CompositionTransformTimeContractTest.cpp`。
+- **確認できた事実:** `StaticTransform2D::toQTransform()` と `setTransform2D()` は宣言のみで定義が codebase に存在しない（未検証ではなく grep で確認済み）。`Layer2D::transformedLayer()` は `toQTransform()` を呼ぶ。function-level linking（`/Gy`）は未設定のため、Layer2D の any symbol 参照は static lib の object 全体を引き込み LNK2019 になる。既存テストも Layer2D を参照していない。
+- **今回の対応:** 新規 Composition/Transform/Time テストでは Layer2D 本体を外し、StaticTransform2D の定義済みメソッド・Registry・RationalTime・TimeRemap・MatteMode 契約のみにした。除外理由はテスト内コメントに記載。
+- **価値／懸念:** Layer2D 所有権テストは定義追加後にしか書けない。本番側も Layer2D.cppm の symbol を参照した瞬間に同じリンク破損が出る。
+- **次に確認:** ユーザー承認後に `toQTransform()`（回転・拡縮・アンカー・平行移動の合成順序）と `setTransform2D()`（リセット語義）の定義を追加し、Layer2D 所有権テストを復活させる。ビルド・テストは明示指示待ち。
+
+### 2026-10-10 — Render Manager の visual fixture と queue restore 契約
+
+- **関連:** `Artifact/src/Render/ArtifactRenderQueueService.cppm::fromJson`、`Artifact/src/AppMain.cppm`、`tools/capture_ui_test.py`。
+- **確認できた事実:** `fromJson()` は保存済み queue の `Completed` / `Failed` 状態を読み込んだ後、復元した全 job を `Pending`・progress 0 に戻す。失敗の `errorMessage` は保持される。これは実行中状態を安全に復旧しないための既存動作である。
+- **今回の対応:** Render Manager の visual fixture は実プロジェクトと composition を作り、待機ジョブ2件と attention 表示用 error 付きジョブ1件を使用する。`fromJson()` の復元安全性を変えずに選択・詳細・status 表示を撮影できる。
+- **価値／懸念:** 画像比較が実際の composition/preflight 表示を通り、AppData queue の残存値にも依存しない。Completed / active progress の行表示はこのfixtureでカバーしない。
+- **次に確認:** interaction testで完了・進行中の表示状態が必要になった時、永続化の復旧契約を弱めず、テスト専用の状態注入境界で表現できるか検討する。
+
+### 2026-10-10 — Render Manager UI のロケール別翻訳カバレッジ
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactRenderQueueManagerWidget.cppm`、`Artifact/src/Widgets/Render/ArtifactRenderQueuePresentation.cppm`、`tools/capture_ui_test.py`。
+- **確認できた事実:** `ArtifactUiTest --lang ja/en/zh/zh-TW` で撮影した同一 fixture の PNG は4言語とも同一 SHA-256 だった。現時点では Render Manager の表示がロケール変更を反映していない。
+- **価値／懸念:** 言語別 UI テストを入れることで、ロケール起動の回帰と翻訳の未接続を区別して把握できる。モックは英語のみのため、他言語は英語モックとの差分で評価できない。
+- **次に確認:** ユーザーが翻訳対応を依頼した段階で、Render Manager の静的ラベル・状態・ボタン文字列の翻訳経路を調査し、翻訳済み UI に同一言語の基準画像を用意する。
+
+### 2026-10-10 — 3D粒子contractをoffline-render optionから単独登録する
+
+- **関連:** `tests/Artifact/CMakeLists.txt`、`ARTIFACT_ENABLE_OFFLINE_RENDER_TEST`、`ArtifactOfflineRendererContractTest`。
+- **確認できた事実:** Artifactのoffline renderer contract targetは `ARTIFACT_BUILD_TESTS` または `ARTIFACT_ENABLE_OFFLINE_RENDER_TEST` で登録される。初期の3D粒子contract登録は `ARTIFACT_BUILD_TESTS` だけに結び付いていた。
+- **今回の対応:** 3D particle contractとproduction-layer captureを、既存offline-render optionからも有効にし、READMEに必要なGTest/GPU条件を記載する。
+- **価値／懸念:** 全unit suiteを有効化せずに3D headless rendering gateを選択できる。CMake再構成は禁止中のため、登録条件はソース確認のみ。
+- **次に確認:** ユーザーの明示指示後、offline-render option単独のconfigureと対象CTest登録を確認する。
+
+### 2026-10-10 — headless particle drawはPSOを同期準備する
+
+- **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::drawParticles`、`ArtifactCore/src/Graphics/ParticleRenderer.cppm::ensureGraphicsPipeline/prepare`、`tests/Artifact/Particle3DRenderContractTest.cpp`。
+- **確認できた事実:** offline rendererは `m_offlineWidth > 0` の間、particle draw時に `ensureGraphicsPipeline(data.options)` を呼ぶ。未キャッシュPSOはこのheadless経路で同期作成される一方、interactive経路は非同期準備を利用できる。
+- **価値／懸念:** 独立headless testで最初のparticle frameが非同期PSO compile raceに負ける懸念を抑えられる。この前提はoffline draw分岐に依存する。
+- **次に確認:** offline rendererの初期化・draw経路を変更した場合、同期PSO準備が保たれるか再確認し、外れるならtest fixtureで明示prewarmまたは完了待ちを行う。
+
+### 2026-10-10 — 共有 renderer の粒子テストではカメラ状態を明示的に戻す
+
+- **関連:** `tests/Artifact/Particle3DRenderContractTest.cpp`、`ArtifactIRenderer::reset3DCameraMatrices()`。
+- **確認できた事実:** 粒子 contract tests は同じ headless renderer を共有する。3D camera/model test と depth test は `set3DCameraMatrices()` を呼ぶ一方、後続の2D粒子ケースはカメラを戻しておらず、3D状態を残したまま描画する可能性があった。
+- **今回の対応:** 2Dケースの描画前に3D camera matricesをresetし、描画後に `cameraMode=2d` と `depthTest=0` / `depthWrite=0` をassertし、3D depth casesでは送信完了後に期待するdepth flagsをassertする。3D camera/model移動、透視footprint、VelocityAligned、depth-order各caseでも `cameraMode=3d` を明示assertする。depthTest/depthWrite診断はpacket送信完了後に読む。readback画像の寸法が96×96でない場合はpixel走査へ進まず失敗させる。
+- **価値／懸念:** 2D粒子の no-depth regression check が、テスト実行順やrenderer状態の偶然に依存しにくくなる。今回のAGENTS.md制約により、この差分のビルド・実行は未確認。
+- **次に確認:** ユーザーがビルド・テスト実行を許可した後、3D contract suiteを複数回実行し、全ケースが実行され2D診断が成立することを確認する。
+
+### 2026-10-10 — 3D粒子のheadless runnerはQt platformもoffscreenに固定する
+
+- **関連:** `tests/Artifact/Particle3DRenderContractTest.cpp`、`tools/Particle3DPlayground/main.cpp`。
+- **確認できた事実:** 3D contract testとproduction-layer captureはいずれも `QGuiApplication` を生成する。既存のheadless renderer contract testでは同じGPU作業前に `offscreen` を設定している。
+- **今回の対応:** GTest global environmentとcapture executableの両方で、`QGuiApplication` 構築前にQt offscreen platformを指定する。
+- **価値／懸念:** GPU backendが利用できてもdisplay serverがない環境でQt初期化に失敗する可能性を下げる。Qt offscreen pluginがないホストでの実行は未確認。
+- **次に確認:** Linux/Vulkanのdisplayなし環境とWindows/Vulkanでcapture executableを実行し、Qt初期化とDiligent device初期化の失敗を区別して確認する。
+
+### 2026-10-10 — image-only particle runnerはQGuiApplicationに留める
+
+- **関連:** `tests/Artifact/Particle3DRenderContractTest.cpp`、`tools/Particle3DPlayground/main.cpp`。
+- **確認できた事実:** 3D contractとcapture runnerは画像・GPU描画のみを使い、QWidget APIを参照しない。既存の `ArtifactOfflineRendererContractTest` はheadless readbackに `QGuiApplication` を使っている。
+- **今回の対応:** 3D test environmentとcapture mainを `QGuiApplication` に変更し、Widgets applicationの初期化を持ち込まない。
+- **価値／懸念:** GUI-less GPU render testの初期化責務が実利用APIと揃う。Qt offscreen pluginがない環境については未確認。
+- **次に確認:** headless test executableをdisplay serverなしで起動し、Qt GUI platformとDiligent device初期化の両方を確認する。
+
+### 2026-10-10 — 3D particle seek回帰にもフレーム再訪を含める
+
+- **関連:** `tools/Particle3DPlayground/main.cpp`、2D particle firework capture。
+- **確認できた事実:** 2D firework captureは連続再生、直接seek、60→10→45再訪の画像を比較している。3D production captureは連続再生と直接seekだけを比較し、同一layerの非単調なframe移動は未検査だった。`ArtifactParticleLayer::draw()` は `simulationReusable` を保持し、`ParticleSystem::goToFrame()` は同一fps・未来フレーム・120Hz完全step境界でのみsimulationを再利用する。60→10はresetし、その後10→45は条件が合えば再利用経路を通る。
+- **今回の対応:** production `ArtifactParticle3DLayer` の別instanceで60→10→45を描画し、frame45 PNGとpixel/channel差をレポート・許容値判定へ加える。
+- **価値／懸念:** 履歴依存の状態更新が非単調seek後に再現性を壊す回帰を検出できる。GPU runtimeでの再現性は未確認。
+- **次に確認:** VulkanとD3D12で再訪画像が連続再生frame45と決定論的許容差内に収まるか実行する。
+- **追補:** 再訪のframe 60と10それぞれで、生存粒子数・`state=queued`・`cameraMode=3d`も確認するようにし、途中のGPU draw不成立を識別する。
+
+### 2026-10-10 — Particle depthWrite=falseを後続geometryで検査する
+
+- **関連:** `tests/Artifact/Particle3DRenderContractTest.cpp`、`ParticlePkt` 深度attachment、3D card PSO。
+- **確認できた事実:** 既存の前後関係テストは粒子のdepthTestを確認し、production captureはdepthWrite=falseの設定で手前カードによる遮蔽を見る。ただし、粒子がdepth bufferへ書き込まず、後続のgeometryが粒子より奥でも描画できることは独立に確認していなかった。
+- **今回の対応:** `depthTest=true, depthWrite=false` の前景particleを描画・readbackした後、depthWrite=trueの後景cardを描画する。最初の画像で粒子色、最終画像でcard色を別々にassertする。
+- **価値／懸念:** 粒子PSOのDepthWriteEnable契約と後続3D geometryとの相互作用を画像で検査する。実GPUでのpixel結果は未確認。
+- **次に確認:** Vulkan/D3D12で前景particleが先に出て、後景cardが最終pixelを覆うことを実行確認する。
+- **追補:** 深度helperは各readback画像の寸法を確認してから中心pixelを読む。GPU初期化後のreadback失敗はzero pixelのassertion failureとして扱い、invalid imageへ直接アクセスしない。
+
+### 2026-10-10 — VelocityAlignedの速度方向を画像bboxで検査する
+
+- **関連:** `tests/Artifact/Particle3DRenderContractTest.cpp`、`ParticleRenderer` vertex shader、3D particle milestone P4-4。
+- **確認できた事実:** shaderは速度をview spaceへ変換し、VelocityAligned policyのとき画面上速度方向から回転角を加える。円形particleでは回転差が見えないため、stretch付き粒子を使えば姿勢を画像bboxで区別できる。
+- **今回の対応:** 正面カメラでX速度/Y速度を、傾斜カメラでワールドX速度をそれぞれGPU readbackし、cameraMode=3dを診断確認したうえで、正面Xは縦長・正面Yは横長・傾斜Xは投影された画面速度に沿う横長bboxとなることをcontract化する。深度test/writeを明示的に無効化し、全caseのGPU position/velocity xyzも明示初期化する。
+- **価値／懸念:** マイルストーンに残るVelocityAlignedのruntime gateを自動画像テストへ取り込む。Vulkan/D3D12上の実bboxは未確認。
+- **次に確認:** 正面と傾斜カメラの全3画像で粒子pixelが存在し、縦横bboxが期待どおりになることを各backendで実行確認する。
+
+### 2026-10-10 — 3D粒子のモデルZ移動は透視投影サイズで検査する
+
+- **関連:** `tests/Artifact/Particle3DRenderContractTest.cpp`、`ParticleRenderer.cppm` のvertex shader。
+- **確認できた事実:** Particle vertex shaderはrow-majorのModelRowを使って粒子位置をmodel→viewへ変換し、screen-aligned billboard offsetをview-spaceへ加えてからprojectionする。テストのmodelMatrix[3]/[11]はX/Zの行translationに対応する。従って、同じ小粒子をカメラ方向へZ移動すると画面上のfootprintが増えることを、GPU readbackで契約化できる。
+- **今回の対応:** 独立3D contractに、model Z=0とZ=1の画素数比較を追加。既存のX移動テストを保ち、Z移動と粒径をhelper引数で指定できるようにする。
+- **価値／懸念:** 3Dテストが画面上の平行移動だけでなく奥行きと透視スケールも検査する。実GPU上での差分安定性は未確認。
+- **次に確認:** VulkanとD3D12でnear/far pixel countの両方が非ゼロで、nearがfarを上回ることを実行確認する。
+
+### 2026-10-10 — 3D particle contractもGPU位置xyzを明示初期化する
+
+- **関連:** `tests/Artifact/Particle3DRenderContractTest.cpp`、`ParticleVertex::px/py/pz`。
+- **確認できた事実:** `ParticleVertex` のposition成分はdefault member initializerを持たない。2D particle GPU画像テストの調査で、未設定の `pz` がGPU射影後の描画欠落を起こした実例がある。
+- **今回の対応:** 3D移動helperとdepth-order helperで `px/py/pz` をそれぞれゼロに明示設定し、Z変化はmodel matrixだけから与える。
+- **価値／懸念:** vector element constructionの値初期化規則や将来の生成方法変更に依存せず、テストの意図する座標が固定される。
+- **次に確認:** GPU実行時に3D移動・透視footprint・深度ケースが引き続き粒子を描画することを確認する。
+
+### 2026-10-09 — ParticleLayerのGPU画像出力とflipbook経路
+
+- **関連:** `tools/Particle2DPlayground/main.cpp`、`Artifact/src/Layer/ArtifactParticleLayer.cppm`、`ArtifactCore/src/Graphics/ParticleRenderer.cppm`。
+- **確認できた事実:** NVIDIA RTX 4070 Ti / Vulkan の headless readbackで矩形8836画素、明示初期化済みの粒子44324画素を確認した。先行テストの粒子は `ParticleVertex` の `pz` を設定しておらず、射影後Zが不定だった。テスト側で値初期化し `pz=0` にするとproduction shaderのまま表示されたため、ParticleRendererの射影修正は不要だった。Emitter `texturePath` は連番ディレクトリとsprite sheetの両方を既存software rendererが読めるが、通常GPU shaderには画像SRVがない。
+- **今回の対応:** ArtifactParticleLayerは画像ソース付き2D emitterを既存のcached-image経路へ送る。通常ビューはQImage spriteをGPU rendererへ渡し、GPU offscreen surfaceは既存呼出側のsoftware fallbackへ戻す。連番と4×4 sheetをGPU render target経由で自動キャプチャし、各5フレーム、双方の動き、および画素差8以下／channel差2以下を検査。確認結果は5時刻中4時刻が完全一致、残りは1画素・最大channel差1。
+- **価値／懸念:** 画像粒子は通常Viewportでも表示可能になった。texture sampling自体はGPU ParticleRendererに追加していないため、画像付き大量粒子ではsoftware rasterと動的sprite uploadのコストがかかる。GPU native texture samplingへの置換は未検証。
+- **次に確認:** 実際のViewport上で連番／sheetの見え方と多数粒子時のframe costを確認し、必要なら既存texture cacheを使うGPU sprite pathの設計を比較する。
+
+### 2026-10-09 — 風の動きは葉プリセットとEmitter物理値で独立確認できる
+
+- **関連:** `tools/Particle2DPlayground/main.cpp`、`ParticlePresets::leaves()`、`ArtifactParticleLayer::setLayerPropertyValue()`。
+- **確認できた事実:** 葉プリセットは連続発生・回転をすでに持ち、公開 property path から wind direction／strength、turbulence amplitude／frequency／evolution、drag を設定できる。Playground の自動キャプチャで30〜150フレームの5枚を保存し、先頭と末尾で7386画素が異なることを確認した。
+- **価値／懸念:** 花びらのスプライトアニメとは異なる、Emitter物理による軌道変化を小さなオフライン例で確認できる。PNGは現状、葉テクスチャではなく既存の円形particle描画である。GPU経路での同じ動きとスプライト表示は未検証。
+- **次に確認:** GPU粒子画素の欠落原因を特定した後、連番画像を載せた葉のWind/Turbulence表示をGPU／software両経路で比較する。
+
+### 2026-10-09 — ACEScc zero encode/decode の逆変換不一致
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`、`ColorTransferFunction::linearToACEScc` / `acesccToLinear`、`tests/ArtifactCore/ColorBridgeTest.cpp`。
+- **確認できた事実:** `encode(0, ACEScc)` は定数 `-0.3584474886f` を返すが、その値を `decode` へ渡すと約 `131072` になる。非ゼロの密なscene/HDR格子ではこの zero sentinel を除外すると往復を検査できる。ArtifactCore は子リポジトリなので本作業では実装を変更していない。
+- **価値／懸念:** ACEScc の黒コードが公開decode式と逆変換になっておらず、黒を含む encode→decode 処理は大きな正値を生成する可能性がある。定数の丸め誤差が指数で増幅されている可能性はあるが、原因と規格上の期待値は未検証。
+- **次に確認:** ACES ST 2065-4 の負値／black code 規約と定数精度を一次資料で照合し、ユーザーが ArtifactCore 修正を依頼した場合に専用の黒境界回帰テストと最小修正を行う。
+
+### 2026-10-09 — Rec.709 OETF/EOTF 折れ点の非整合
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`、`ColorTransferFunction::linearToRec709` / `rec709ToLinear`、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** 独立した倍精度参照と全1,024個の正規化コード値を照合すると曲線本体は約4e-7以内だった。一方、OETF の線形折れ点 `0.018` を高側式へ入れた値は約 `0.08124793` だが EOTF は `0.081` を境界としており、境界ちょうどで `0.017945` 付近へ戻る。両端の折れ点が一致していない。Rec.2020 の同じ全コード比較は約4e-7以内で通る。
+- **価値／懸念:** Rec.709 のブレークポイント近傍に明確な段差・往復誤差がある。原因は実装にあるしきい値 `0.081` と OETF の係数から生じる `0.0812479...` の差と見られるが、採用する規格定数と許容誤差は未検証。ArtifactCore は子リポジトリのため実装変更はしていない。
+- **次に確認:** 参照する BT.709 版と規格上の breakpoint 定義を一次資料で確認し、ユーザーが ArtifactCore 修正を明示した場合に OETF/EOTF 境界の最小修正と回帰テストを行う。
+
+### 2026-10-09 — sRGB OETF breakpoint直後の微小な下向き段差
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`、`ColorTransferFunction::linearToSRGB`、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** `0.0031308f` とその次の表現可能floatを別々の枝へ通すと、OETF出力が約 `0.040449936` から `0.040449910` へ約 `2.7e-8` 下がる。倍精度の区分式参照との比較でもこの値を再現し、隣接float専用テストに現在の段差をcharacterizationした。
+- **価値／懸念:** 数値としてはごく小さいが、OETFの厳密な単調性を破る。丸められたbreakpointと係数による既知の標準近似として許容するか、分岐点／係数を調整すべきかは未検証。ArtifactCore は子リポジトリなので本作業では実装を変更していない。
+- **次に確認:** IEC 61966-2-1 の採用定数と出力精度要求を一次資料で確認し、ユーザーがArtifactCore修正を明示した場合に最小の境界修正と回帰テストを行う。
+
+### 2026-10-09 — PQ float 実装の全10bitコード精度
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`、`ColorTransferFunction::linearToPQ` / `pqToLinear`、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** SMPTE ST 2084 の独立倍精度式に対し、正規化された全1,024コード値の OETF/EOTF を比較した。現在の float 実装は最大絶対差が OETF 約 `9.94e-6`（code 274）、EOTF 約 `3.85e-5`（code 1022）。テストではこの観測差を少し上回る `1.1e-5` / `4.0e-5` を回帰上限としている。
+- **価値／懸念:** PQ EOTF の高コード側で線形値の差が OETF より増幅される。これが許容可能な float 実装誤差か、要求精度に対して不足かは未検証。ArtifactCore は子リポジトリのため実装変更はしていない。
+- **次に確認:** 用途別のPQ精度要求と参照規格の試験点を確認し、ユーザーが ArtifactCore 修正を明示した場合に係数・演算精度の最小変更を検討する。
+
+### 2026-10-09 — Canon Log 3 low toe 境界の段差
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`、`linearToCanonLog3` / `canonLog3ToLinear`、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** low encoded threshold `0.04076162` から計算した線形 low toe 境界の直下では OETF が約 `0.04076`、境界ちょうどでは middle affine branch に入り約 `0.04700` を返す。EOTF も encoded threshold の直下で約 `-0.0113`、threshold ちょうどで middle branch の約 `-0.0140` に切り替わる。独立テストに全10bitコードの照合と、この low toe の枝切替を固定する characterization を追加した。
+- **価値／懸念:** Canon Log 3 low toe の encode/decode に目立つ不連続がある。式の係数・境界の取り違えか、負値域の設計仕様かは未検証。ArtifactCore は子リポジトリのため実装変更はしていない。
+- **次に確認:** Canon Log 3 の公開仕様にある low-end toe と負値範囲を一次資料で照合し、ユーザーが ArtifactCore 修正を明示した場合に最小修正と回帰テストを行う。
+
+### 2026-10-09 — Canon Log 2 負側 toe 境界の OETF 段差
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`、`linearToCanonLog2`、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** 負側 toe 境界 `-(10^(toe/slope)-1)/scale` の直下は負値用式で 0 付近を返し、境界ちょうどは通常式 `slope*log10(linear*scale+1)+toe` に切り替わって約 `-0.0146` になる。回帰テストでは両枝の値と段差を characterise した。Cineon の black code は式上 `95/1023` と確認した。
+- **価値／懸念:** Canon Log 2 の負値 toe に不連続がある。正値域の通常コードでは目立たない一方、負値・scene-linear入力を通すと境界に段差を生む。負値処理が規格要件かは未検証。ArtifactCore は子リポジトリのため実装変更はしていない。
+- **次に確認:** Canon Log 2 の公開仕様で負の scene-linear 値と toe 境界の規約を確認し、ユーザーが ArtifactCore 修正を明示した場合に最小修正する。
+
+### 2026-10-09 — ACESlog enum の汎用変換 dispatch 未接続
+
+- **関連:** `ArtifactCore/include/Color/ColorTransferFunction.ixx`、`TransferFunction::ACESlog`、`ColorTransferFunction::encode/decode`、`tests/ArtifactCore/ColorTransferFunctionStandaloneTest.cpp`。
+- **確認できた事実:** `TransferFunction` enum に `ACESlog` があるが、汎用 encode/decode の switch に専用 case はなく default の linear identity を返す。独立テストに現在の identity fallback を固定した。ACESlog の専用 OETF/EOTF を提供する実装はこのインターフェースで確認できなかった。
+- **価値／懸念:** UI や呼び出し側が enum を選んでも ACESlog 変換は行われず、入力値がそのまま返る。これは未実装か意図的 fallback か未検証であり、テストは現状の dispatch を characterization している。
+- **次に確認:** ACESlog の対象規格・必要な用途と UI 露出有無を確認し、ユーザーが ArtifactCore 機能追加を明示した場合に専用変換と独立参照テストを追加する。
+
+### 2026-10-09 — XYZ_D60 gamut enum が Bradford dispatch に未接続
+
+- **関連:** `ArtifactCore/include/Color/ColorGamutConversion.ixx`、`Gamut::XYZ_D60` / `getConversionMatrix()`、`tests/ArtifactCore/ColorGamutConversionTest.cpp`。
+- **確認できた事実:** `XYZ_D60` と `XYZ_D65` の両方向変換は `getConversionMatrix()` で identity となる。Bradford 判定が `ACES_AP0` / `ACES_AP1` のみを D60 source/target として扱い、`XYZ_D60` は含めていない。D60白 `(.9526461, 1, 1.0088252)` は D65へ変換しても不変で、D65白から逆方向も変化しない。独立テストに現行 fallback を characterization として追加した。
+- **価値／懸念:** 色域 enum の名前と実際の white-point routing が一致せず、D60↔D65 XYZ 変換ではBradford adaptationが省略される。ArtifactCore は子リポジトリのためこの作業では実装を変更していない。
+- **次に確認:** `XYZ_D60` を単なるXYZ座標系タグとして扱う設計か、D60 white-point adaptation 対象として扱うべきかを仕様確認し、ユーザーが ArtifactCore 修正を明示した場合に最小 dispatch 修正を行う。
 
 ### 2026-10-09 — ArtifactUiTest の QSettings 分離境界
 
