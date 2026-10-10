@@ -552,3 +552,37 @@ set_tests_properties(ArtifactCoreAcousticGenerationTest PROPERTIES
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
     LABELS "audio;acoustic;cpu;generation"
 )
+
+artifact_add_test(ArtifactCoreProjectRoundTripTest
+    SOURCES
+        ProjectRoundTripTest.cpp
+    LIBS
+        ArtifactCore
+        ArtifactCoreComposition
+        ArtifactCoreProject
+)
+set_tests_properties(ArtifactCoreProjectRoundTripTest PROPERTIES
+    LABELS "project;serialization;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreCompositionTransformTimeContractTest
+    SOURCES
+        CompositionTransformTimeContractTest.cpp
+    LIBS
+        ArtifactCore
+        ArtifactCoreAnalyze
+        ArtifactCoreComposition
+)
+set_tests_properties(ArtifactCoreCompositionTransformTimeContractTest PROPERTIES
+    LABELS "composition;transform;time;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreRenderGraphTest
+    SOURCES
+        RenderGraphTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreRenderGraphTest PROPERTIES
+    LABELS "graphics;render-graph;cpu;contract"
+)

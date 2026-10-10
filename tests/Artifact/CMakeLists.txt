@@ -106,6 +106,118 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
     )
 endif()
 
+if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
+   AND (VULKAN_SUPPORTED OR D3D12_SUPPORTED))
+    artifact_add_test(ArtifactParticle3DRenderContractTest
+        SOURCES
+            Particle3DRenderContractTest.cpp
+        LIBS
+            ArtifactRender
+    )
+    set_target_properties(ArtifactParticle3DRenderContractTest PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    set_tests_properties(ArtifactParticle3DRenderContractTest PROPERTIES
+        LABELS "particle;renderer;gpu;headless;3d;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+
+    # Exercise the production ArtifactParticle3DLayer through its standalone
+    # capture runner, including the paired depth-enabled/disabled image check.
+    add_dependencies(ArtifactParticle3DRenderContractTest
+        ArtifactParticle3DPlayground
+    )
+    add_test(NAME ArtifactParticle3DLayerImageCaptureTest
+        COMMAND $<TARGET_FILE:ArtifactParticle3DPlayground>
+            --capture
+            "${CMAKE_BINARY_DIR}/particle_3d_capture_test/$<CONFIG>"
+    )
+    set_tests_properties(ArtifactParticle3DLayerImageCaptureTest PROPERTIES
+        LABELS "particle;renderer;gpu;headless;3d;layer;image;integration;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+
+    # Exercise the same render queue service used by Render Manager with real
+    # production layers, then inspect the PNGs written by the queue worker.
+    add_executable(ArtifactRenderQueueLayerImageIntegrationTest
+        RenderQueueLayerImageIntegrationTest.cpp
+    )
+    target_link_libraries(ArtifactRenderQueueLayerImageIntegrationTest
+        PRIVATE GTest::gtest GTest::gtest_main Qt6::Core Qt6::Widgets
+                ArtifactAppRuntime
+    )
+    set_target_properties(ArtifactRenderQueueLayerImageIntegrationTest PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+    )
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactRenderQueueLayerImageIntegrationTest
+            PRIVATE /Zf /Zc:__cplusplus /utf-8 /MP
+        )
+    endif()
+    set_target_properties(ArtifactRenderQueueLayerImageIntegrationTest PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    add_dependencies(ArtifactRenderQueueLayerImageIntegrationTest Artifact)
+    add_test(NAME ArtifactRenderQueueLayerImageIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.Production2DAnd3DParticlesRenderThroughManagerQueue
+    )
+    set_tests_properties(ArtifactRenderQueueLayerImageIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;particle;image;integration"
+        TIMEOUT 300
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactRenderQueueTextLayerImageIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.ProductionTextLayerRendersThroughManagerQueue
+    )
+    set_tests_properties(ArtifactRenderQueueTextLayerImageIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;text;image;integration"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactRenderQueueXpuMixedImageIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.XpuMixedCpuAndGpuFramesRenderThroughManagerQueue
+    )
+    set_tests_properties(ArtifactRenderQueueXpuMixedImageIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;xpu;image;integration"
+        TIMEOUT 300
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactRenderQueueXpuParticleImageIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.XpuMixedTwoDAndThreeDParticlesThroughRenderQueue
+    )
+    set_tests_properties(ArtifactRenderQueueXpuParticleImageIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;xpu;particle;image;integration"
+        TIMEOUT 300
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactRenderQueueXpuAllAdaptersIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.XpuMixedRunsEveryAvailableFullGpuAdapterAlongsideCpu
+    )
+    set_tests_properties(ArtifactRenderQueueXpuAllAdaptersIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;xpu;multi-gpu;integration"
+        TIMEOUT 300
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactRenderQueueXpuVulkanD3D12MixIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.XpuMixedRunsEveryAvailableFullGpuAdapterAlongsideCpu
+    )
+    set_tests_properties(ArtifactRenderQueueXpuVulkanD3D12MixIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;xpu;vulkan;d3d12;integration"
+        TIMEOUT 300
+        RUN_SERIAL TRUE
+        ENVIRONMENT "ARTIFACT_RENDER_BACKEND=vulkan"
+    )
+endif()
+
 if(ARTIFACT_BUILD_TESTS AND (VULKAN_SUPPORTED OR D3D12_SUPPORTED))
     # The submitter implementation module has no primary interface in the
     # Artifact submodule. Both backend-specific test paths need the root-owned
@@ -169,5 +281,24 @@ if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
     )
     set_tests_properties(ArtifactTextGlyphRenderContractTest PROPERTIES
         LABELS "animation;renderer;gpu;text;headless;contract"
+    )
+endif()
+
+# App-level project save/load round-trip through the production
+# ArtifactProjectManager. Needs no GPU; kept out of the GPU-gated blocks.
+# The manager is a process singleton, so this test must not run in parallel
+# with other Artifact integration tests.
+if(ARTIFACT_BUILD_TESTS)
+    artifact_add_test(ArtifactProjectRoundTripTest
+        SOURCES
+            ArtifactProjectRoundTripTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactProjectRoundTripTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "project;serialization;cpu;contract;integration"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
     )
 endif()

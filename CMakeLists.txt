@@ -544,6 +544,11 @@ if(WIN32 AND MSVC)
         get_filename_component(_artifact_windows_sdk_version_name "${_artifact_windows_sdk_version_dir}" NAME)
         set(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION "${_artifact_windows_sdk_version_name}" CACHE STRING "Windows SDK version for DiligentEngine" FORCE)
         set(ENV{WindowsSDKVersion} "${_artifact_windows_sdk_version_name}\\")
+        # Source-file try_compile() probes do not inherit link_directories().
+        # Add the SDK libraries after the resolved Lib version is known instead
+        # of constructing /um and /ucrt paths from an unset/earlier variable.
+        set(ENV{LIB}
+            "${_MSVC_TOOLCHAIN_DIR}/lib/x64;${_ATL_LIB_DIR};${_artifact_windows_sdk_version_dir}/um/x64;${_artifact_windows_sdk_version_dir}/ucrt/x64;$ENV{LIB}")
         if(EXISTS "${_artifact_windows_sdk_version_dir}/um/x64")
             link_directories("${_artifact_windows_sdk_version_dir}/um/x64")
         endif()
@@ -570,6 +575,12 @@ if(WIN32 AND MSVC AND _artifact_windows_sdk_include_version_dir)
         "${_artifact_windows_sdk_include_version_dir}/um"
         "${_artifact_windows_sdk_include_version_dir}/winrt"
         CACHE STRING "Windows SDK include directories for all MSVC C targets" FORCE)
+    # Diligent probes D3D12/ATL with source-file try_compile() before targets
+    # inherit CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES. Ensure those probes see
+    # the actual SDK Include tree; the earlier ATL bootstrap runs before the
+    # SDK Lib version is discovered and cannot supply valid /um or /ucrt paths.
+    set(ENV{INCLUDE}
+        "${_MSVC_INCLUDE_DIR};${_ATL_INCLUDE_DIR};${_artifact_windows_sdk_include_version_dir}/ucrt;${_artifact_windows_sdk_include_version_dir}/shared;${_artifact_windows_sdk_include_version_dir}/um;${_artifact_windows_sdk_include_version_dir}/winrt;$ENV{INCLUDE}")
 endif()
 
 # ---------------------------------------------------------------------------
@@ -743,6 +754,7 @@ endif()
 add_subdirectory(ArtifactWidgets)
 add_subdirectory(Artifact)
 add_subdirectory(tools/Particle2DPlayground)
+add_subdirectory(tools/Particle3DPlayground)
 add_subdirectory(ArtifactRenderer)
 add_subdirectory(artifacts-plugin-runner)
 # ArtifactPr is an opt-in target: it is a supported application, but building
