@@ -63,7 +63,7 @@ IDE、Explorer、パッケージ済みの起動など、**環境変数を設定�
 | 段階 | 対象 | 備考 |
 |---|---|---|
 | 1 | `ARTIFACT_SOLIDRECT_BATCH` / `_INDIRECT` / `_VERBOSE` | 実装済み。`Render/SolidRect*` として JSON 対応 |
-| 2 | GPU 系: `ARTIFACT_RENDER_BACKEND` / `_GPU_ADAPTER` / `_GPU_POLICY` / `_ENABLE_RAY_TRACING` | `Render/*` |
+| 2 | GPU 系: `ARTIFACT_RENDER_BACKEND` / `_GPU_ADAPTER` / `_GPU_POLICY` / `_ENABLE_RAY_TRACING` / `_ENABLE_GPU_CLONER` | `Render/*`。`Render/ClonerGpuPlacement` は既定off、interactive Composition View のGrid/Matrix実験経路 |
 | 3 | 診断系: `ARTIFACT_ENABLE_CONTINUOUS_RENDER_DIAGNOSTICS` / `_RENDER_TRACE_CRASH` / `_DISABLE_3D_RENDER_TRACE` / `_VIDEO_VERBOSE_LOG` / `_EFFECT_PROFILE` / `_ENABLE_GPU_FRAME_QUERY` | `Diagnostics/*` |
 | 4 | XPU 系: `ARTIFACT_XPU*` | `RenderQueue/Xpu*`（Artifact render queue / encoder で部分対応） |
 | 5 | テスト起動: `ARTIFACT_RUN_BUILTIN_TESTS` / `_RUN_GPU_BLEND_TESTS` | `Startup/*`。起動分岐なので JSON より env が自然 |
@@ -115,5 +115,6 @@ IDE、Explorer、パッケージ済みの起動など、**環境変数を設定�
 - `ArtifactCore/src/Application/ArtifactAppSettings.cppm`（`Render/SolidRect*` スキーマ登録）
 - `Artifact/src/AppMain.cppm`（起動時 JSON 読込）
 - `Artifact/src/Render/DiligentImmediateSubmitter.cppm`（`solidRectBatchDebugFlag`、JSON > env > 既定の解決）
+- `Artifact/src/Render/ArtifactIRenderer.cppm`（`Render/ClonerGpuPlacement`、初期化時に一度だけ解決）
 - `Artifact/ArtifactStartup.template.json`
 - `docs/technical/HOT_PATH_RULES.md`

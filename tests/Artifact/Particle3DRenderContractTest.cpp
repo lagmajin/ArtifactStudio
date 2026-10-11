@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include <QByteArray>
-#include <QGuiApplication>
 #include <QMatrix4x4>
 #include <QRectF>
 #include <QString>
@@ -13,46 +12,22 @@
 #include <cmath>
 #include <cstdint>
 
-import Artifact.Render.IRenderer;
+#include "DiligentHeadlessRenderer.hpp"
 import Graphics.ParticleData;
 import Image.ImageF32x4_RGBA;
 
 namespace {
 
-class OffscreenGuiApplication final : public testing::Environment {
-public:
-    void SetUp() override
-    {
-        qputenv("QT_QPA_PLATFORM", QByteArrayLiteral("offscreen"));
-        static int argc = 1;
-        static char applicationName[] = "ArtifactParticle3DRenderContractTest";
-        static char* argv[] = {applicationName, nullptr};
-        application_ = new QGuiApplication(argc, argv);
-    }
-
-    void TearDown() override
-    {
-        delete application_;
-        application_ = nullptr;
-    }
-
-private:
-    QGuiApplication* application_ = nullptr;
-};
-
-testing::Environment* const guiApplication =
-    testing::AddGlobalTestEnvironment(new OffscreenGuiApplication());
-
 class HeadlessRendererEnvironment final : public testing::Environment {
 public:
-    void SetUp() override { renderer_.initializeHeadless(96, 96); }
+    void SetUp() override { renderer_.initialize(96, 96); }
     void TearDown() override { renderer_.destroy(); }
 
     bool available() const { return renderer_.isInitialized(); }
     Artifact::ArtifactIRenderer& renderer() { return renderer_; }
 
 private:
-    Artifact::ArtifactIRenderer renderer_;
+    ArtifactTest::HeadlessRenderer renderer_;
 };
 
 auto* const headlessRenderer = static_cast<HeadlessRendererEnvironment*>(

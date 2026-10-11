@@ -1,48 +1,17 @@
 #include <gtest/gtest.h>
 
-#include <QByteArray>
-#include <QGuiApplication>
-
 #include <algorithm>
 #include <cmath>
 
-import Artifact.Render.IRenderer;
+#include "DiligentHeadlessRenderer.hpp"
 import Color.Float;
 import Image.ImageF32x4_RGBA;
-
-namespace {
-
-class OffscreenGuiApplication final : public testing::Environment {
-public:
-    void SetUp() override
-    {
-        qputenv("QT_QPA_PLATFORM", QByteArrayLiteral("offscreen"));
-        static int argc = 1;
-        static char applicationName[] = "ArtifactOfflineRendererContractTest";
-        static char* argv[] = {applicationName, nullptr};
-        application_ = new QGuiApplication(argc, argv);
-    }
-
-    void TearDown() override
-    {
-        delete application_;
-        application_ = nullptr;
-    }
-
-private:
-    QGuiApplication* application_ = nullptr;
-};
-
-testing::Environment* const guiApplication =
-    testing::AddGlobalTestEnvironment(new OffscreenGuiApplication());
-
-} // namespace
 
 TEST(OfflineRendererContractTest, ClearProducesTransparentReadback)
 {
     constexpr int width = 16;
     constexpr int height = 12;
-    Artifact::ArtifactIRenderer renderer;
+    ArtifactTest::HeadlessRenderer renderer;
     renderer.initializeHeadless(width, height);
     if (!renderer.isInitialized()) {
         GTEST_SKIP() << "Diligent headless GPU is unavailable on this host";
@@ -72,7 +41,7 @@ TEST(OfflineRendererContractTest, HeadlessRenderProducesRequestedPixels)
 {
     constexpr int width = 32;
     constexpr int height = 24;
-    Artifact::ArtifactIRenderer renderer;
+    ArtifactTest::HeadlessRenderer renderer;
     renderer.initializeHeadless(width, height);
     if (!renderer.isInitialized()) {
         GTEST_SKIP() << "Diligent headless GPU is unavailable on this host";

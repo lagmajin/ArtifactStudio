@@ -108,6 +108,30 @@ endif()
 
 if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
    AND (VULKAN_SUPPORTED OR D3D12_SUPPORTED))
+    artifact_add_test(ArtifactClonerGpuRenderContractTest
+        SOURCES
+            ClonerGpuRenderContractTest.cpp
+        LIBS
+            ArtifactRender
+    )
+    set_tests_properties(ArtifactClonerGpuRenderContractTest PROPERTIES
+        LABELS "cloner;renderer;gpu;headless;image;integration;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    if(VULKAN_SUPPORTED)
+        set_tests_properties(ArtifactClonerGpuRenderContractTest PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;ARTIFACT_RENDER_BACKEND=vulkan"
+        )
+    elseif(D3D12_SUPPORTED)
+        set_tests_properties(ArtifactClonerGpuRenderContractTest PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;ARTIFACT_RENDER_BACKEND=d3d12"
+        )
+    endif()
+endif()
+
+if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
+   AND (VULKAN_SUPPORTED OR D3D12_SUPPORTED))
     artifact_add_test(ArtifactParticle3DRenderContractTest
         SOURCES
             Particle3DRenderContractTest.cpp
