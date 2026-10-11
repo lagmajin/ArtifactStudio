@@ -1,7 +1,7 @@
 # XPU ヘテロコンピューティング基盤（CPU複数＋dGPU複数＋iGPU）詳細計画 — 2026-09-14
 
 **最終更新:** 2026-10-10
-**ステータス:** Partial — Render QueueのCPU＋GPU mixed frame dispatch、D3D12 adapter worker、backend別plan／diagnostics、shared TBB arenaは実装済み。Windows SDK探索を修正しD3D12/Vulkan双方のビルドを有効化。OSのDXGI列挙と直接D3D12CreateDeviceはRTX 4070 Tiで成功する一方、Artifact経由のD3D12 primary起動は「No suitable hardware adapter found」で失敗し、Vulkanへfallbackする。Vulkan primary＋D3D12 workerのテストは同一物理GPUをbackend間で重複dispatchしないためskip。複数物理GPU/iGPU、cross-backend parity／性能受入は未完了。
+**ステータス:** Partial — Render QueueのCPU＋GPU mixed frame dispatch、D3D12 adapter worker、backend別plan／diagnostics、shared TBB arenaは実装済み。Agility SDK runtimeが設定された場合のみSDK version/pathをexportするよう修正し、新しいDebug build treeでCPU＋D3D12 primaryのmixed 10-frame image integration test（backend選択・GPU lane・CPU lane・出力画素を含む）と自動選択のCPU＋Vulkan mixed image testが成功。ホストはIntel Core i7-13700KF＋RTX 4070 Tiの物理GPU 1基で、iGPUはなく複数GPU同時実行は未検証。Agility SDK 619を明示設定した構成、複数物理GPU/iGPU、cross-backend parity／性能受入は未完了。
 **正式名称:** XPU（旧称 hetero。コード上の正規型は `XpuNodeDesc`、`HeteroNodeDesc` は別名として残す。正規環境変数は `ARTIFACT_XPU`、`ARTIFACT_HETERO` と `ARTIFACT_MULTI_GPU_INCLUDE_INTEGRATED` は後方互換の別名）
 **作成日:** 2026-09-14
 **対象:** ファイル書き出し（レンダーキュー）経路の CPU＋GPU 併用と、将来の複雑なヘテロ実行の土台

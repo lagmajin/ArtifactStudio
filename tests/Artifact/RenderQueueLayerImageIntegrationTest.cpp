@@ -19,9 +19,11 @@
 #include <QVector3D>
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <vector>
 
 import Artifact.Composition.InitParams;
 import Artifact.Composition.Result;
@@ -37,6 +39,7 @@ import Artifact.Render.IRenderer;
 import Artifact.Render.Queue.Job;
 import Artifact.Render.Queue.Service;
 import Color.Float;
+import Image.OpenEXR;
 import Utils.Id;
 import Utils.String.UniString;
 
@@ -199,7 +202,162 @@ bool addAndRender(Artifact::ArtifactRenderQueueService* queue,
     return true;
 }
 
+bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
+                     const ArtifactCore::CompositionID& compositionId,
+                     const QString& compositionName,
+                     const QString& outputBasePath,
+                     int expectedWidth,
+                     int expectedHeight,
+                     QString* failure,
+                     int frameStart = 1,
+                     int frameEnd = 1)
+{
+    const QFileInfo requestedOutput(outputBasePath);
+    if (!QDir().mkpath(requestedOutput.absolutePath())) {
+        *failure = QStringLiteral("Could not create isolated EXR output directory");
+        return false;
+    }
+
+    queue->addRenderQueueForComposition(compositionId, compositionName);
+    const int jobIndex = queue->jobCount() - 1;
+    if (jobIndex < 0) {
+        *failure = QStringLiteral("Render Manager service did not enqueue the EXR composition");
+        return false;
+    }
+
+    queue->setJobOutputPathAt(jobIndex, outputBasePath);
+    queue->setJobOutputSettingsAt(jobIndex, QStringLiteral("EXR Sequence"),
+                                  QStringLiteral("exr"), expectedWidth,
+                                  expectedHeight, 30.0, 8000);
+    queue->setJobBitDepthAt(jobIndex, 32);
+    queue->setJobExrCompressionAt(jobIndex, QStringLiteral("zip"));
+    queue->setJobRenderBackendAt(jobIndex, QStringLiteral("gpu"));
+    queue->setJobFrameRangeAt(jobIndex, frameStart, frameEnd);
+    auto selectiveSettings = queue->jobSelectiveSettingsAt(jobIndex);
+    selectiveSettings.insert(
+        QStringLiteral("frameRangeMode"),
+        static_cast<int>(Artifact::ArtifactRenderJob::FrameRangeMode::Custom));
+    if (!queue->setJobSelectiveSettingsAt(jobIndex, selectiveSettings)) {
+        *failure = QStringLiteral("Could not select the explicit EXR frame range");
+        return false;
+    }
+    queue->startRenderQueueAt(jobIndex);
+
+    QElapsedTimer timeout;
+    timeout.start();
+    QString status;
+    while (timeout.elapsed() < 60000) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+        status = queue->jobStatusAt(jobIndex);
+        if (status == QStringLiteral("Completed") ||
+            status == QStringLiteral("Failed") ||
+            status == QStringLiteral("Canceled")) {
+            break;
+        }
+        QThread::msleep(10);
+    }
+    if (status != QStringLiteral("Completed")) {
+        *failure = QStringLiteral("EXR Render Queue job ended as '%1': %2")
+                       .arg(status, queue->jobErrorMessageAt(jobIndex));
+        return false;
+    }
+
+    const QFileInfo outputInfo(outputBasePath);
+    const QString framePath = QDir(outputInfo.absolutePath()).filePath(
+        QStringLiteral("%1_%2.exr")
+            .arg(outputInfo.completeBaseName())
+            .arg(frameStart, 4, 10, QLatin1Char('0')));
+    ArtifactCore::OpenExr exr;
+    std::vector<float> rgba;
+    int width = 0;
+    int height = 0;
+    if (!exr.readRGBA32F(framePath, rgba, width, height)) {
+        *failure = QStringLiteral("Render Queue did not write a readable EXR: %1")
+                       .arg(framePath);
+        return false;
+    }
+    if (width != expectedWidth || height != expectedHeight) {
+        *failure = QStringLiteral("EXR dimensions were %1x%2, expected %3x%4")
+                       .arg(width).arg(height).arg(expectedWidth).arg(expectedHeight);
+        return false;
+    }
+    const std::size_t expectedComponents =
+        static_cast<std::size_t>(expectedWidth) *
+        static_cast<std::size_t>(expectedHeight) * 4u;
+    if (rgba.size() != expectedComponents ||
+        !std::all_of(rgba.begin(), rgba.end(), [](float value) {
+            return std::isfinite(value);
+        })) {
+        *failure = QStringLiteral("EXR pixel data was incomplete or non-finite: %1")
+                       .arg(framePath);
+        return false;
+    }
+    bool containsRenderedColor = false;
+    for (std::size_t component = 0; component < rgba.size(); component += 4u) {
+        if (rgba[component] > 0.05f || rgba[component + 1u] > 0.05f ||
+            rgba[component + 2u] > 0.05f) {
+            containsRenderedColor = true;
+            break;
+        }
+    }
+    if (!containsRenderedColor) {
+        *failure = QStringLiteral("EXR was readable but contained no visible pixel values: %1")
+                       .arg(framePath);
+        return false;
+    }
+    return true;
+}
+
 } // namespace
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     WritesReadableExrThroughManagerQueue)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 96;
+    constexpr int height = 54;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueExrImageTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams params;
+    params.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("ExrQueueOutput")));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(1);
+    params.setBackgroundColor(ArtifactCore::FloatColor(
+        0.15f, 0.25f, 0.4f, 1.0f));
+    const auto composition = projects.createComposition(params);
+    ASSERT_TRUE(composition.success);
+
+    QString failure;
+    ASSERT_TRUE(addAndRenderExr(
+        queue, composition.id, QStringLiteral("ExrQueueOutput"),
+        isolatedOutputPath(QStringLiteral("render_queue_exr.exr")),
+        width, height, &failure)) << failure.toStdString();
+}
 
 TEST(RenderQueueLayerImageIntegrationTest,
      Production2DAnd3DParticlesRenderThroughManagerQueue)
@@ -1143,6 +1301,16 @@ TEST(RenderQueueLayerImageIntegrationTest,
     EXPECT_GT(activeGpuAdapters, 0)
         << "No full GPU adapter obtained a render lane: "
         << planMessage->toStdString();
+    if (qEnvironmentVariable("ARTIFACT_RENDER_BACKEND") ==
+        QStringLiteral("d3d12")) {
+        EXPECT_GT(plannedD3D12Adapters, 0) << planMessage->toStdString();
+        EXPECT_EQ(primaryGpuBackend.captured(1), QLatin1String("d3d12"))
+            << "The requested D3D12 backend was not selected: "
+            << joined.toStdString();
+        EXPECT_GT(primaryGpuFrames.captured(1).toInt(), 0)
+            << "The D3D12 primary adapter did not process a frame: "
+            << joined.toStdString();
+    }
 
     auto gpuWorkerLogs = QRegularExpression(
         QStringLiteral("(?:gpuWorkerFrames=\\s*\"?|;)backend=([^\\s\";]+)\\s+adapter=(\\d+)\\s+frames=(\\d+)"))

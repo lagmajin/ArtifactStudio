@@ -80,6 +80,26 @@ TEST(SurfacePixelConversionTest,
     EXPECT_FLOAT_EQ(actual[11], 1.0f);
 }
 
+TEST(SurfacePixelConversionTest, UnknownTransferIgnoresStaleDeclaredCurve)
+{
+    constexpr std::array<float, 4> source = {0.5f, 0.25f, 0.75f, 1.0f};
+    auto descriptor = SurfaceColorDescriptor::linearStraightRgba32Float();
+    descriptor.transfer = TransferFunction::Gamma22;
+    descriptor.transferKnown = false;
+
+    const auto converted = convertSurfacePixels(
+        source.data(), nullptr, 1, 1, descriptor,
+        SurfacePixelTarget::Rgba32LinearStraight);
+
+    ASSERT_TRUE(converted.isValid());
+    std::array<float, 4> actual{};
+    std::memcpy(actual.data(), converted.bytes.data(), converted.bytes.size());
+    EXPECT_NEAR(actual[0], ColorTransferFunction::srgbToLinear(source[0]), 1e-6f);
+    EXPECT_NEAR(actual[1], ColorTransferFunction::srgbToLinear(source[1]), 1e-6f);
+    EXPECT_NEAR(actual[2], ColorTransferFunction::srgbToLinear(source[2]), 1e-6f);
+    EXPECT_NE(actual[0], ColorTransferFunction::gammaToLinear(source[0], 2.2f));
+}
+
 TEST(SurfacePixelConversionTest, ReordersAndUnpremultipliesBgraInput)
 {
     constexpr std::array<float, 4> source = {0.125f, 0.25f, 0.375f, 0.5f};
@@ -472,6 +492,88 @@ TEST(SurfacePixelConversionTest, RejectsInvalidDimensionsPointersAndPrimaries)
         SurfacePixelTarget::Rgba32LinearStraight).isValid());
 }
 
+TEST(SurfacePixelConversionTest, RejectsEveryUnsupportedPrimarySpace)
+{
+    constexpr std::array<float, 4> source = {0.1f, 0.2f, 0.3f, 1.0f};
+    const std::array unsupportedPrimaries = {
+        SurfaceColorPrimaries::DisplayP3_D65,
+        SurfaceColorPrimaries::Rec2020_D65,
+        SurfaceColorPrimaries::ACES_AP0,
+        SurfaceColorPrimaries::ACES_AP1};
+
+    for (const auto primaries : unsupportedPrimaries) {
+        auto descriptor = SurfaceColorDescriptor::canonicalLinearPremultiplied();
+        descriptor.primaries = primaries;
+        EXPECT_FALSE(convertSurfacePixels(
+            source.data(), nullptr, 1, 1, descriptor,
+            SurfacePixelTarget::Rgba32LinearStraight).isValid())
+            << static_cast<int>(primaries);
+    }
+}
+
+TEST(SurfacePixelConversionTest, UnknownPrimariesAreAcceptedAndOutputMetadataIsExplicit)
+{
+    constexpr std::array<float, 4> source = {-0.1f, 0.25f, 1.5f, 0.75f};
+    auto descriptor = SurfaceColorDescriptor::linearStraightRgba32Float();
+    descriptor.primaries = SurfaceColorPrimaries::Unknown;
+
+    const auto converted = convertSurfacePixels(
+        source.data(), nullptr, 1, 1, descriptor,
+        SurfacePixelTarget::Rgba32LinearStraight);
+
+    ASSERT_TRUE(converted.isValid());
+    EXPECT_EQ(converted.descriptor,
+              SurfaceColorDescriptor::linearStraightRgba32Float());
+    std::array<float, 4> actual{};
+    std::memcpy(actual.data(), converted.bytes.data(), converted.bytes.size());
+    EXPECT_FLOAT_EQ(actual[0], source[0]);
+    EXPECT_FLOAT_EQ(actual[1], source[1]);
+    EXPECT_FLOAT_EQ(actual[2], source[2]);
+    EXPECT_FLOAT_EQ(actual[3], source[3]);
+}
+
+TEST(SurfacePixelConversionTest, DeclaredTransferFunctionsRouteThroughMetadataDecode)
+{
+    constexpr std::array transferFunctions = {
+        TransferFunction::Linear, TransferFunction::sRGB,
+        TransferFunction::Gamma22, TransferFunction::Gamma24,
+        TransferFunction::Gamma26, TransferFunction::Rec709,
+        TransferFunction::Rec2020_10, TransferFunction::Rec2084_PQ,
+        TransferFunction::HLG, TransferFunction::ACEScc,
+        TransferFunction::ACEScct, TransferFunction::ACESlog,
+        TransferFunction::DaVinciIntermediate, TransferFunction::Cineon,
+        TransferFunction::SonySLog3, TransferFunction::CanonLog2,
+        TransferFunction::CanonLog3};
+    constexpr std::array linearValues = {0.1f, 0.25f, 0.75f};
+
+    for (const auto transfer : transferFunctions) {
+        std::array<float, 4> source{};
+        for (std::size_t channel = 0; channel < linearValues.size(); ++channel) {
+            source[channel] = ColorTransferFunction::encode(linearValues[channel], transfer);
+        }
+        source[3] = 0.625f;
+        auto descriptor = SurfaceColorDescriptor::linearStraightRgba32Float();
+        descriptor.transfer = transfer;
+        descriptor.transferKnown = true;
+
+        const auto converted = convertSurfacePixels(
+            source.data(), nullptr, 1, 1, descriptor,
+            SurfacePixelTarget::Rgba32LinearStraight);
+
+        ASSERT_TRUE(converted.isValid()) << static_cast<int>(transfer);
+        std::array<float, 4> actual{};
+        std::memcpy(actual.data(), converted.bytes.data(), converted.bytes.size());
+        for (std::size_t channel = 0; channel < linearValues.size(); ++channel) {
+            EXPECT_NEAR(actual[channel],
+                        ColorTransferFunction::decode(source[channel], transfer),
+                        1.0e-6f)
+                << "transfer=" << static_cast<int>(transfer)
+                << " channel=" << channel;
+        }
+        EXPECT_FLOAT_EQ(actual[3], 0.625f);
+    }
+}
+
 TEST(SurfacePixelConversionTest, DecodesSrgbByteInputToLinearFloat)
 {
     constexpr std::array<std::uint8_t, 4> source = {128, 64, 32, 128};
@@ -826,4 +928,77 @@ TEST(SurfacePixelConversionTest, FloatTargetPreservesHdrAndNegativeLinearRgb)
     EXPECT_FLOAT_EQ(pixel[1], 0.5f);
     EXPECT_FLOAT_EQ(pixel[2], 2.0f);
     EXPECT_FLOAT_EQ(pixel[3], 1.0f);
+}
+
+TEST(SurfacePixelConversionTest, AlphaModesChannelOrdersAndTargetsFormConsistentMatrix)
+{
+    constexpr std::array alphaModes = {
+        SurfaceAlphaMode::Straight,
+        SurfaceAlphaMode::Premultiplied,
+        SurfaceAlphaMode::Opaque};
+    constexpr std::array channelOrders = {
+        SurfaceChannelOrder::RGBA,
+        SurfaceChannelOrder::BGRA};
+    constexpr std::array targets = {
+        SurfacePixelTarget::Rgba32LinearStraight,
+        SurfacePixelTarget::Rgba16LinearStraight,
+        SurfacePixelTarget::Rgba8SrgbStraight};
+    constexpr std::array colors = {0.25f, 0.5f, 0.75f};
+
+    for (const auto alphaMode : alphaModes) {
+        for (const auto channelOrder : channelOrders) {
+            std::array<float, 4> source{};
+            const float alpha = alphaMode == SurfaceAlphaMode::Opaque ? 0.0f : 0.5f;
+            for (std::size_t channel = 0; channel < colors.size(); ++channel) {
+                const float value = alphaMode == SurfaceAlphaMode::Premultiplied
+                    ? colors[channel] * alpha : colors[channel];
+                const std::size_t physicalChannel =
+                    channelOrder == SurfaceChannelOrder::RGBA
+                        ? channel : (channel == 1u ? 1u : 2u - channel);
+                source[physicalChannel] = value;
+            }
+            source[3] = alphaMode == SurfaceAlphaMode::Opaque
+                ? std::numeric_limits<float>::quiet_NaN() : alpha;
+
+            auto descriptor = SurfaceColorDescriptor::canonicalLinearPremultiplied();
+            descriptor.channelOrder = channelOrder;
+            descriptor.alphaMode = alphaMode;
+
+            for (const auto target : targets) {
+                const auto converted = convertSurfacePixels(
+                    source.data(), nullptr, 1, 1, descriptor, target);
+                ASSERT_TRUE(converted.isValid())
+                    << "alpha=" << static_cast<int>(alphaMode)
+                    << " order=" << static_cast<int>(channelOrder)
+                    << " target=" << static_cast<int>(target);
+                const float expectedAlpha =
+                    alphaMode == SurfaceAlphaMode::Opaque ? 1.0f : alpha;
+
+                if (target == SurfacePixelTarget::Rgba32LinearStraight) {
+                    std::array<float, 4> actual{};
+                    std::memcpy(actual.data(), converted.bytes.data(), converted.bytes.size());
+                    for (std::size_t channel = 0; channel < colors.size(); ++channel) {
+                        EXPECT_NEAR(actual[channel], colors[channel], 1e-6f);
+                    }
+                    EXPECT_FLOAT_EQ(actual[3], expectedAlpha);
+                } else if (target == SurfacePixelTarget::Rgba16LinearStraight) {
+                    std::array<std::uint16_t, 4> actual{};
+                    std::memcpy(actual.data(), converted.bytes.data(), converted.bytes.size());
+                    EXPECT_EQ(actual[0], 0x3400u);
+                    EXPECT_EQ(actual[1], 0x3800u);
+                    EXPECT_EQ(actual[2], 0x3a00u);
+                    EXPECT_EQ(actual[3], expectedAlpha == 1.0f ? 0x3c00u : 0x3800u);
+                } else {
+                    for (std::size_t channel = 0; channel < colors.size(); ++channel) {
+                        const auto expected = static_cast<std::uint8_t>(
+                            ColorTransferFunction::linearToSRGB(colors[channel]) * 255.0f +
+                            0.5f);
+                        EXPECT_EQ(converted.bytes[channel], expected);
+                    }
+                    EXPECT_EQ(converted.bytes[3],
+                              expectedAlpha == 1.0f ? 255u : 128u);
+                }
+            }
+        }
+    }
 }

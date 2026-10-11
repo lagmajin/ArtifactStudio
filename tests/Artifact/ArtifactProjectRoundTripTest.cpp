@@ -72,7 +72,6 @@ Artifact::ArtifactCompositionInitParams makeCompParams(const QString& name,
         ArtifactCore::FloatColor(0.012f, 0.018f, 0.032f, 1.0f));
     return params;
 }
-
 void isolateProjectRoot(const QTemporaryDir& dir)
 {
     qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", dir.path().toUtf8());
@@ -245,6 +244,12 @@ TEST(ArtifactProjectRoundTripTest, ResaveAfterLoadIsStable)
     ASSERT_TRUE(projects.loadFromFile(firstPath));
     EXPECT_EQ(projects.compositionCount(), 1);
 
+    auto loadedComposition = projects.findComposition(comp.id).ptr.lock();
+    ASSERT_TRUE(loadedComposition);
+    loadedComposition->setCompositionNote(QStringLiteral("edited-after-load"));
+    loadedComposition->setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("EditedAfterLoad")));
+
     const QString secondPath = dir.filePath(QStringLiteral("second.artifact"));
     ASSERT_TRUE(projects.saveToFile(secondPath).success);
     ASSERT_TRUE(QFileInfo::exists(firstPath));
@@ -258,5 +263,8 @@ TEST(ArtifactProjectRoundTripTest, ResaveAfterLoadIsStable)
     auto reloaded = found.ptr.lock();
     ASSERT_TRUE(reloaded);
     EXPECT_EQ(reloaded->settings().compositionName().toQString(),
-              QStringLiteral("Only"));
+              QStringLiteral("EditedAfterLoad"));
+    EXPECT_EQ(reloaded->compositionNote(), QStringLiteral("edited-after-load"));
 }
+
+\n

@@ -1,6 +1,7 @@
 # MILESTONE: Cloner 長期統合計画
 
-**最終更新:** 2026-09-07
+**最終更新:** 2026-10-12
+**ステータス:** In Progress
 
 2026-08-23 のクローナー領域ウォーク（`CloneCore` → `CloneGenerator` → `ArtifactCloneLayer` → `ArtifactCloneEffectSupport`）で判明した課題を、移行フェーズ付きで整理する。
 

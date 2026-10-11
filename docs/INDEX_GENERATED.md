@@ -1,7 +1,7 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-10 14:17
-> Total documents: 1444
+> Generated: 2026-10-12 07:53
+> Total documents: 1445
 
 ---
 
@@ -589,7 +589,7 @@
 |---|------|-------|------|--------|----------|------|----------|
 | 1 | `docs/personas/MULTITHREADING_PROGRAMMER_PERSONA.md` | Multithreading Programmer Persona | 2026-08-14 | --- | 2026-08-14 | 4.5 KB | MULTITHREADING, PROGRAMMER, PERSONA |
 
-## planned (748 files)
+## planned (749 files)
 
 | # | File | Title | Date | Status | Modified | Size | Keywords |
 |---|------|-------|------|--------|----------|------|----------|
@@ -721,9 +721,9 @@
 | 126 | `docs/planned/MILESTONE_ARTIFACTPR_INDEPENDENT_PROJECT_2026-04-22.md` | MILESTONE: ArtifactPr Independent Project | 2026-09-27 | Phase 0〜4 implemented statically; build/runtime parity verification pending | 2026-09-27 | 8.5 KB | ARTIFACTPR, INDEPENDENT, PROJECT |
 | 127 | `docs/planned/MILESTONE_ARTIFACTPR_SEQUENCE_PREVIEW_2026-08-21.md` | MILESTONE: ArtifactPr シーケンス合成プレビュー | 2026-08-21 | --- | 2026-08-24 | 8.2 KB | ARTIFACTPR, SEQUENCE, PREVIEW |
 | 128 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_BINDING_AND_CLASS_2026-08-28.md` | マイルストーン: ArtifactScript Binding API 強化 & クラス対応（Phase 2/3 実走） | 2026-10-09 | Phase A / C + プロパティ／キーフレーム API 拡充（スライス1〜3）実装済み、Phase B / D〜H 未着手。ビルド・テスト実行待ち | 2026-10-09 | 13.8 KB | ARTIFACTSCRIPT, BINDING, AND, CLASS |
-| 129 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_COROUTINES_2026-10-09.md` | マイルストーン: ArtifactScript 協調型コルーチン | 2026-10-09 | Not Started | --- | 5.8 KB | ARTIFACTSCRIPT, COROUTINES |
+| 129 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_COROUTINES_2026-10-09.md` | マイルストーン: ArtifactScript 協調型コルーチン | 2026-10-09 | Not Started | 2026-10-10 | 5.8 KB | ARTIFACTSCRIPT, COROUTINES |
 | 130 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_ENGINE_2026-07-21.md` | MILESTONE_ARTIFACTSCRIPT_ENGINE_2026-07-21 | 2026-07-21 | ✅ Complete (3/3) | 2026-08-16 | 3.2 KB | ARTIFACTSCRIPT, ENGINE |
-| 131 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_LANGUAGE_EVOLUTION_2026-08-21.md` | マイルストーン: ArtifactScript Language Evolution | 2026-10-09 | In Progress | 2026-10-07 | 45.3 KB | ARTIFACTSCRIPT, LANGUAGE, EVOLUTION |
+| 131 | `docs/planned/MILESTONE_ARTIFACTSCRIPT_LANGUAGE_EVOLUTION_2026-08-21.md` | マイルストーン: ArtifactScript Language Evolution | 2026-10-09 | In Progress | 2026-10-10 | 45.3 KB | ARTIFACTSCRIPT, LANGUAGE, EVOLUTION |
 | 132 | `docs/planned/MILESTONE_ASIO_STUB_IMPLEMENTATION_PLAN_2026-03-28.md` | ASIO スタブ実装 計画案 | 2026-03-28 | ASIO stub 実装済み・実機検証待ち | 2026-08-16 | 13.0 KB | ASIO, STUB, IMPLEMENTATION, PLAN |
 | 133 | `docs/planned/MILESTONE_ASPECT_RATIO_RESOLUTION_REMAP_WIZARD_2026-06-07.md` | MILESTONE: Aspect Ratio / Resolution Remap Wizard - 2026-06-07 | 2026-06-07 | Partial (preview, resolution remap apply, undo/redo, mask/keyframe remap, policy offsets, and impact diagnostics are documented as implemented; preflight/policy selection UI, actual anchor remap, and build/runtime verification remain pending) | 2026-08-16 | 8.5 KB | ASPECT, RATIO, RESOLUTION, REMAP, WIZARD |
 | 134 | `docs/planned/MILESTONE_ASSET_BROWSER_ADVANCED_SORT_2026-06-28.md` | Milestone: Asset Browser Advanced Sort (M-AB-11) | 2026-06-28 | Partial implementation（単一キー／natural name／固定複合 preset／sort key・方向の設定保存を実装、個別方向の multi-key／custom order／runtime 検証 pending） | 2026-08-16 | 50.8 KB | ASSET, BROWSER, ADVANCED, SORT |
@@ -783,7 +783,7 @@
 | 188 | `docs/planned/MILESTONE_CHANNEL_BOX_2026-07-07.md` | M-CBOX-1 Channel Box + Maya-Style Property Editor Milestone | 2026-07-07 | In progress (basic Inspector Channel Box, Key All/Key Selected, channel Lock/Unlock with disabled styling, and per-layer QSettings restore implemented; explicit multi-channel selection, Graph Editor/DopeSheet filtering, project JSON persistence, Phase 3-4 integration, and runtime verification pending) | 2026-08-20 | 10.7 KB | CHANNEL, BOX |
 | 189 | `docs/planned/MILESTONE_CLAP_HOST_COMPLETION_2026-07-25.md` | MILESTONE_CLAP_HOST_COMPLETION_2026-07-25 | 2026-07-25 | CLAP DLL 読み込み、PluginInstance、params、process 変換、host callback、ClapEffect 接続基盤を実装済み。GUI、実プラグイン互換性、runtime 検証は未完了。 | 2026-08-16 | 5.7 KB | CLAP, HOST, COMPLETION |
 | 190 | `docs/planned/MILESTONE_CLI_PYTHON_AUTOMATION_2026-09-23.md` | M-CLI-1: CLI・Python 対話実行・自動化の統合 | 2026-09-23 | In Progress（単発 `--command --json`、versioned `--request` / persistent command JSONL、Command IR catalog / validate / execute と stdin JSONL CLI、Python `run` / `eval` / 人向け・JSONL REPL を実装。Windows console 入口保証と実行検証は未完了） | 2026-09-23 | 16.8 KB | CLI, PYTHON, AUTOMATION |
-| 191 | `docs/planned/MILESTONE_CLONER_UNIFICATION_2026-08-23.md` | MILESTONE: Cloner 長期統合計画 | 2026-10-12 | In Progress | 2026-09-08 | 42.2 KB | CLONER, UNIFICATION |
+| 191 | `docs/planned/MILESTONE_CLONER_UNIFICATION_2026-08-23.md` | MILESTONE: Cloner 長期統合計画 | 2026-10-12 | In Progress | 2026-10-12 | 42.2 KB | CLONER, UNIFICATION |
 | 192 | `docs/planned/MILESTONE_CLOUD_AI_PHASE_6_7_2026-05-20.md` | Cloud AI Phase 6 & 7: Export API & Timeline Operations | 2026-05-20 | Partial (exportComposition/exportCurrentComposition, render-queue registration/wait/timeout/cancel, playback/seek/work-area operations, and AI bridge invocation implemented; strict output-generation result, non-blocking long export, leak checks, seek/work-area runtime behavior, normalized failure responses, and acceptance verification pending) | 2026-08-16 | 2.9 KB | CLOUD, PHASE |
 | 193 | `docs/planned/MILESTONE_COLLAB_BACKEND_FOUNDATION_2026-07-21.md` | MILESTONE_COLLAB_BACKEND_FOUNDATION_2026-07-21 | 2026-07-21 | ✅ Complete (4/4) | 2026-08-16 | 4.3 KB | COLLAB, BACKEND, FOUNDATION |
 | 194 | `docs/planned/MILESTONE_COLLAB_PROTOCOL_EXPORT_SESSION_2026-07-25.md` | MILESTONE_COLLAB_PROTOCOL_EXPORT_SESSION_2026-07-25 | 2026-07-25 | protocol export、session ID、rule sync API は実装済み。server bridge、UI状態表示、競合解決、認証、runtime検証は未完了。 | 2026-08-16 | 6.0 KB | COLLAB, PROTOCOL, EXPORT, SESSION |
@@ -909,7 +909,7 @@
 | 314 | `docs/planned/MILESTONE_EXTERNAL_SEMANTIC_DEBUGGER_2026-09-02.md` | MILESTONE: 外部 Semantic Debugger（ArtifactDebugger.exe） | 2026-09-05 | Not Started | 2026-09-07 | 21.5 KB | EXTERNAL, SEMANTIC, DEBUGGER |
 | 315 | `docs/planned/MILESTONE_FACE_DETECTION_MOSAIC_2026-04-01.md` | Milestone: Face Detection & Auto-Mosaic (2026-04-01) | 2026-04-01 | FaceDetection／FaceTracker／AutoMosaic の基盤実装済み、モデル運用・UI・runtime parity は未完了 | 2026-08-16 | 7.3 KB | FACE, DETECTION, MOSAIC |
 | 316 | `docs/planned/MILESTONE_FARM_WORKER_REMOTE_RENDER_2026-08-01.md` | リモートレンダーファームワーカー 実装マイルストーン | 2026-08-01 | --- | 2026-08-16 | 10.8 KB | FARM, WORKER, REMOTE, RENDER |
-| 317 | `docs/planned/MILESTONE_FAST_TEST_SUITES_AND_UI_VISUAL_REGRESSION_2026-10-06.md` | Artifact.exe 非依存テストスイートと UI ビジュアル回帰計画 | 2026-10-10 | In Progress | 2026-10-09 | 107.5 KB | FAST, TEST, SUITES, AND |
+| 317 | `docs/planned/MILESTONE_FAST_TEST_SUITES_AND_UI_VISUAL_REGRESSION_2026-10-06.md` | Artifact.exe 非依存テストスイートと UI ビジュアル回帰計画 | 2026-10-11 | In Progress | 2026-10-10 | 264.2 KB | FAST, TEST, SUITES, AND |
 | 318 | `docs/planned/MILESTONE_FEATURE_EXPANSION_2026-03-25.md` | マイルストーン: 機能追加 / Feature Expansion | 2026-03-25 | --- | 2026-08-16 | 14.4 KB | FEATURE, EXPANSION |
 | 319 | `docs/planned/MILESTONE_FEATURE_EXPANSION_FOCUS_TRIO_2026-03-28.md` | マイルストーン: Feature Expansion Focus Trio | 2026-03-28 | --- | 2026-08-16 | 5.9 KB | FEATURE, EXPANSION, FOCUS, TRIO |
 | 320 | `docs/planned/MILESTONE_FFMPEG_81_PRORES_GPU_DECODE_LOW_LEVEL_AI_2026-05-23.md` | FFmpeg 8.1+ ProRes GPU Decode - Low Level AI Implementation Milestone | 2026-09-07 | --- | 2026-09-08 | 14.1 KB | FFMPEG, PRORES, GPU, DECODE |
@@ -937,7 +937,7 @@
 | 342 | `docs/planned/MILESTONE_GRAPH_EDITOR_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: カーブ / グラフエディタ 機能監査 (2026-07-04) | 2026-08-04 | --- | 2026-08-06 | 2.3 KB | GRAPH, EDITOR, DESIGN, AUDIT |
 | 343 | `docs/planned/MILESTONE_GUIDE_LINES_2026-08-20.md` | M-GUIDE-1 誘導ガイドライン拡張 | 2026-08-20 | --- | 2026-08-20 | 3.2 KB | GUIDE, LINES |
 | 344 | `docs/planned/MILESTONE_HARNESS_ENGINEERING_2026-05-12.md` | Harness Engineering / Goal-First Working Loop | 2026-08-04 | --- | 2026-08-16 | 6.0 KB | HARNESS, ENGINEERING |
-| 345 | `docs/planned/MILESTONE_HETERO_COMPUTE_FOUNDATION_2026-09-14.md` | XPU ヘテロコンピューティング基盤（CPU複数＋dGPU複数＋iGPU）詳細計画 — 2026-09-14 | 2026-09-14 | Partial — D3D12 multi-adapter/iGPU full-frame worker と、opt-in CPU/GPU 混在 dispatchを実装。Vulkan primary ではVulkan lane＋D3D12 worker＋CPU laneを併用可能。job-local shared-counter の completion-driven frame-pull scheduler と、mixed job内のrender/writer/encoder CPU thread予算予約は実装済み。汎用 affinity-aware scheduler、UI・TBB・他poolを含むprocess-wide CPU予算統合、複数Vulkan device、iGPU assist、実機parity／性能検証は未完了。 | 2026-09-23 | 46.0 KB | HETERO, COMPUTE, FOUNDATION |
+| 345 | `docs/planned/MILESTONE_HETERO_COMPUTE_FOUNDATION_2026-09-14.md` | XPU ヘテロコンピューティング基盤（CPU複数＋dGPU複数＋iGPU）詳細計画 — 2026-09-14 | 2026-09-14 | Partial — Render QueueのCPU＋GPU mixed frame dispatch、D3D12 adapter worker、backend別plan／diagnostics、shared TBB arenaは実装済み。Agility SDK runtimeが設定された場合のみSDK version/pathをexportするよう修正し、新しいDebug build treeでCPU＋D3D12 primaryのmixed 10-frame image integration test（backend選択・GPU lane・CPU lane・出力画素を含む）と自動選択のCPU＋Vulkan mixed image testが成功。ホストはIntel Core i7-13700KF＋RTX 4070 Tiの物理GPU 1基で、iGPUはなく複数GPU同時実行は未検証。Agility SDK 619を明示設定した構成、複数物理GPU/iGPU、cross-backend parity／性能受入は未完了。 | 2026-10-10 | 48.5 KB | HETERO, COMPUTE, FOUNDATION |
 | 346 | `docs/planned/MILESTONE_HIERARCHICAL_CACHE_SYSTEM_2026-07-21.md` | Milestone: Hierarchical Cache System | 2026-08-15 | In progress (Layer/GPU/RAM-preview/disk-preview foundations, manifest v1, state hash, generation-safe invalidation, and Phase 1-2 ownership/controller work implemented; Phase 3 upper composition state/manifest connection, RAM↔disk promotion policy, intermediate/render-queue integration, build/runtime playback guarantee, and Diligent measurement pending) | 2026-08-16 | 18.7 KB | HIERARCHICAL, CACHE, SYSTEM |
 | 347 | `docs/planned/MILESTONE_HIGH_PRIORITY_SUMMARY_2026-03-28.md` | 優先度高い実装マイルストーン 総括 | 2026-03-28 | 一部実装済み | 2026-08-16 | 12.5 KB | HIGH, PRIORITY, SUMMARY |
 | 348 | `docs/planned/MILESTONE_HOST_CONTEXT_ROI_PROPERTY_CORE_2026-04-20.md` | マイルストーン: Host / Context / ROI / Property Core | 2026-08-15 | --- | 2026-08-16 | 13.4 KB | HOST, CONTEXT, ROI, PROPERTY, CORE |
@@ -1396,7 +1396,7 @@
 | 24 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.3 KB | IMPL, DOF |
 | 25 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.8 KB | IMPL, SSAO |
 | 26 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.6 KB | IMPL, TONE, MAPPING |
-| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-10 | --- | 2026-10-09 | 353.3 KB | INDEX, GENERATED |
+| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-12 | --- | 2026-10-12 | 353.9 KB | INDEX, GENERATED |
 | 28 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 29 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 12.0 KB | CAMERA, PROJECTION |
 | 30 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
@@ -1539,7 +1539,7 @@
 | 52 | `docs/technical/SHAPEPATH_GEOMETRY_CONTRACT_2026-07-27.md` | ShapePath ジオメトリ契約 | 2026-07-27 | ** Phase 0 documented; implementation and design-review follow-up pending | 2026-07-30 | 4.5 KB | SHAPEPATH, GEOMETRY, CONTRACT |
 | 53 | `docs/technical/SHORTCUT_SYSTEM_PHASE1_3_IMPLEMENTATION_2026-03-28.md` | Blender 風ショートカットシステム 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 11.2 KB | SHORTCUT, SYSTEM, PHASE1, IMPLEMENTATION |
 | 54 | `docs/technical/SOFT_KEYFRAMES_2026-10-05.md` | ソフトキー | 2026-10-05 | --- | 2026-10-05 | 2.5 KB | SOFT, KEYFRAMES |
-| 55 | `docs/technical/STARTUP_FLAGS_CONTRACT_2026-09-29.md` | 起動設定（ArtifactStartup.json）仕様 | 2026-10-10 | --- | 2026-09-30 | 9.5 KB | STARTUP, FLAGS, CONTRACT |
+| 55 | `docs/technical/STARTUP_FLAGS_CONTRACT_2026-09-29.md` | 起動設定（ArtifactStartup.json）仕様 | 2026-10-11 | --- | 2026-10-12 | 9.7 KB | STARTUP, FLAGS, CONTRACT |
 | 56 | `docs/technical/STATUSBAR_COMPOSITION_INFO_IMPLEMENTATION_2026-03-28.md` | ステータスバー コンポジション情報表示 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 7.6 KB | STATUSBAR, COMPOSITION, INFO, IMPLEMENTATION |
 | 57 | `docs/technical/STD_REPLACEMENT_PRIORITY_GUIDE_2026-06-19.md` | Standard Library Replacement Priority Guide | 2026-06-19 | --- | 2026-06-19 | 3.8 KB | STD, REPLACEMENT, PRIORITY, GUIDE |
 | 58 | `docs/technical/TIMELINE_PERFORMANCE_HYPOTHESES_2026-03-27.md` | レイヤータイムラインウィンドウ 性能改善仮説レポート (2026-03-27) | 2026-03-27 | 調査完了・仮説立案 | 2026-03-27 | 14.8 KB | TIMELINE, PERFORMANCE, HYPOTHESES |
@@ -1621,7 +1621,7 @@
 | memo | 5 |
 | perf | 3 |
 | personas | 1 |
-| planned | 748 |
+| planned | 749 |
 | plans | 7 |
 | ref | 1 |
 | reports | 1 |
@@ -1633,4 +1633,4 @@
 | trash | 1 |
 | verification | 1 |
 | worklog | 28 |
-| **Total** | **1444** |
+| **Total** | **1445** |

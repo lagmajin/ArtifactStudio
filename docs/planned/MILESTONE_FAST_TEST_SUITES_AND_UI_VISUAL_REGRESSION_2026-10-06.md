@@ -1,7 +1,1629 @@
 # Artifact.exe 非依存テストスイートと UI ビジュアル回帰計画
 
-**最終更新:** 2026-10-10
+**最終更新:** 2026-10-11
+
+## 進捗 2026-10-11 — ArtifactExpected assignment state transitions
+
+- 独立`ArtifactExpected` suiteへ2ケースを追加。copy assignmentでvalue/errorを切替・self-assignし、move-only value/errorでmove assignmentを切り替えた後のdestination/source stateを確認する。実行未確認。
+
+## 進捗 2026-10-11 — ArtifactVariant storage and lifetime edges
+
+- 独立`ArtifactVariant` suiteへ2ケースを追加し24ケースへ拡張。64-byte alignment alternativeのoriginal/copy storage alignmentと、600回のalternative replacementでTrackedValue lifetime balanceを確認する。実行未確認。
+
+## 進捗 2026-10-11 — ArtifactTuple recursive and ownership coverage
+
+- 独立`ArtifactTuple` suiteへ3ケースを追加。8要素の再帰access、nested move-only値のmove construct／assign、値コピー＋`reference_wrapper`を持つ生成結果を確認する。実行未確認。
+
+## 進捗 2026-10-11 — ArtifactVariant model-based state transitions
+
+- 独立`ArtifactVariant` suiteへ1ケースを追加し22ケースへ拡張。4 instance間の2000回のint/string代入、copy、swap、unsetを`std::variant`モデルと各stepで比較する。実行未確認。
+
+## 進捗 2026-10-11 — ArtifactHashMap collision and model checks
+
+- 独立`ArtifactHashMap` suiteへ2ケースを追加し23ケースへ拡張。定数hashによる同一bucket内のiteration完全性と、固定seedの3000操作を`std::unordered_map`モデルと各stepで照合する。collision iteratorは実装読みで欠落疑いを見つけた回帰case。実行未確認。
+
+## 進捗 2026-10-11 — HashSet model-based verification
+
+- 独立`ArtifactSet` suiteへ1ケースを追加し23ケースへ拡張。固定seedの5000操作（追加・削除・検索）ごとに`std::unordered_set`とsizeおよびキー範囲全体のmembershipを照合する。テスト実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactAlgorithms differential coverage
+
+- 既存独立suiteへ6ケースを追加し28ケースへ拡張。長さ0〜6の全入力列を標準sortと比較し、長さ0〜5の全入力列についてlower_bound／binary_searchを標準アルゴリズムと照合する。逆順比較器、container overload、隣接削除とreverseのinvolutionも追加。実行未確認。
+
+## 進捗 2026-10-11 — SmallVector standalone suite
+
+- `tests/ArtifactCore/SmallVectorStandalone` に28ケースを追加。インライン容量境界、heap成長、inline／heap copy・move、挿入・削除、検索、文字列要素の寿命を確認する。debug snapshot／watch経路は未対象。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — NameMap standalone suite
+
+- `tests/ArtifactCore/NameMapStandalone` に23ケースを追加。CRUD、tryEmplace／tryTake、predicate削除、key/value抽出、sorted map変換、反復、メタデータを確認する。Artifact.exe には依存しない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — MultiIndexContainer standalone suite
+
+- `tests/ArtifactCore/MultiIndexContainerStandalone` に23ケースを追加。Qt6 CoreとGTestだけで独立し、順序／ID／型index、safe操作、移動、削除、clearを確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Container.Algorithms standalone suite
+
+- `tests/ArtifactCore/ContainerAlgorithmsStandalone` に18ケースを追加。NamedVector／SmallVectorのeach、隣接要素を含むremoveIf、全削除・一致なし・singleton、toStdVectorコピーを確認する。Artifact.exe には依存しない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — IdMap standalone suite
+
+- `tests/ArtifactCore/IdMapStandalone` に独立suiteを追加。24ケースでCRUD、tryEmplace／tryTake、predicate削除、key/value抽出、標準map変換、メタデータを確認する。unordered iterationの順序には依存しない。Artifact.exe には依存しない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — NamedList standalone suite
+
+- `tests/ArtifactCore/NamedListStandalone` に独立suiteを追加。22ケースで両端の追加・取得・削除、重複除去、predicate削除、反復、変更反復、空状態を確認する。Artifact.exe には依存しない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — NamedVector standalone suite
+
+- `tests/ArtifactCore/NamedVectorStandalone` に独立suiteを追加。27ケースで基本操作、境界index、検索、順序変更、削除、変換、iterationを確認する。debug snapshot / watch経路は対象外。Artifact.exe には依存しない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — CppLinq standard range coverage
+
+- 既存の独立 `CppLinqStandalone` に5ケースを追加し、30ケースへ拡張。`std::list` の重複保持、`std::span` の遅延projection、`std::string_view` の文字range、`vector<bool>` proxyからのowned value取得を確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ContainerDebug standalone suite
+
+- `tests/ArtifactCore/ContainerDebugStandalone` に GTest と標準ライブラリだけで独立する17ケースを追加。ContainerName／owner／source location、domain・severity・author名と未知値、watch rule、snapshot value helpersと時刻を検証する。Qt／Artifact.exe には依存しない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ContainerDebugRegistry standalone suite
+
+- `tests/ArtifactCore/ContainerDebugRegistryStandalone` に GTest と標準ライブラリだけで独立する26ケースを追加。登録／重複／解除、再検査ごとのsnapshot reader、readerからregistryへの再照会、note writerのvalidation・exception・長さ境界、scoped registrationのmove／lifetime、container adapterを検証する。Qt／Artifact.exe には依存しない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — DiagnosticSnapshot standalone suite
+
+- `tests/ArtifactCore/DiagnosticSnapshotStandalone` に GTest と標準ライブラリだけで独立する26ケースを追加。sequence／timestamp順、severity集計、failure選択、event上限、merge、ErrorContext変換、JSON field／全制御文字escapingを検証する。Qt／Artifact.exe には依存しない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — DebugIdentity standalone suite
+
+- `tests/ArtifactCore/DebugIdentityStandalone` に Qt Core / GTest で独立する10ケースを追加。IDと生成位置、label、owner設定、registry snapshotへの登録／破棄後除去、非copy／move契約を検証する。Artifact.exe には依存しない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — DiagnosticRecorder standalone suite
+
+- `tests/ArtifactCore/DiagnosticRecorderStandalone` に GTest と標準ライブラリだけで独立する37ケースを追加。record／enabled、event metadata・sequence、Result／Status／ErrorContext、component/object filter、since・snapshot・missed history、bounded retention、drain／JSON、DiagnosticScopeの終了経路を検証する。Qt／Artifact.exe には依存しない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — CrashReportParser standalone suite
+
+- `tests/ArtifactCore/CrashReportParserStandalone` に GTest と標準ライブラリだけで独立する21ケースを追加。report header／exception／stack／system情報の解析、CRLF・最終改行なし、file APIのエラー、snapshot変換のfield mappingとfallbackを検証する。Qt／Artifact.exe には依存しない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SessionLedger standalone suite
+
+- `tests/ArtifactCore/SessionLedgerStandalone` に Qt Core / GTest だけで独立する23ケースを追加。イベント記録と recoverable 抽出、recovery point、JSON／ファイル往復、schema・JSON・session ID 不正時の拒否、既定field、欠落配列での置換、entry順序、未知 event kind fallbackを検証する。Artifact.exe には依存しない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — DiagnosticEngine standalone suite
+
+- `tests/ArtifactCore/DiagnosticEngineStandalone` に独立 CMake executable と25ケースを追加。ルール登録・重複名・有効無効・解除、全量／差分検証・キャッシュ再利用、`DiagnosticResult` の集計／filter／merge、全診断factoryを検証する。Qt Core と診断／コンテナ基盤のみで、Artifact.exe には依存しない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FallbackPolicy standalone suite
+
+- `tests/ArtifactCore/FallbackPolicyStandalone` にQt Coreだけで独立する15ケースを追加。既定policy、resolver成功／失敗、Fallback/Bypass/Strict/disabled、tracker記録・category/time filter・warning flag・clearを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FontLicenseRegistry standalone suite
+
+- `tests/ArtifactCore/FontLicenseRegistryStandalone` にQt Coreだけで独立する22ケースを追加。FontDescriptorのvalidity、family/style正規化、fallback、attestation、remove/clear、JSON round trip・normalized key・不正familyのskip、copy分離、entries snapshotを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ConfigLayer standalone suite
+
+- `tests/ArtifactCore/ConfigLayerStandalone` に独立 CMake executable と8ケースを追加。列挙値、各層の永続化判定、優先順位、constexpr利用を検証する。Qt Core以外にArtifact.exeへの依存はない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ColorSwatch standalone suite
+
+- `tests/ArtifactCore/ColorSwatchStandalone` に独立 CMake executable と26ケースを追加。paletteの追加・削除・copy・検索・sortと、GPL import/exportのheader、malformed/empty row、RGB clamp、missing file、unsupported extensionを検証する。Artifact.exeやGPUには依存しない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — XYZColor standalone suite
+
+- `tests/ArtifactCore/XYZColorStandalone` に独立 CMake executable と15ケースを追加。XYZ成分・copy独立性・clamp・算術・deltaE・補間・FloatColor往復・文字列parse/formatを検証する。Qt Core以外にArtifact.exeへの依存はない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FileWatcher standalone suite
+
+- `tests/ArtifactCore/FileWatcherStandalone` に独立 CMake executable と10ケースを追加。存在しないpathの無視、watch/unwatch、全解除、初期通知なし、更新通知、callback差し替え、解除後の通知抑止、複数pathの通知分離、callback内の自己解除、削除済みpathのpollingを検証する。非同期通知ケースは上限付き待機を使う。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — DataSource registry standalone suite
+
+- `tests/ArtifactCore/DataSourceStandalone` に独立 CMake executable と8ケースを追加。kind名、未登録拡張子、拡張子大小文字、factory置換、path overload、登録拡張子一覧、元URI伝播を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — CsvDataSource standalone suite
+
+- `tests/ArtifactCore/CsvDataSourceStandalone` に独立 CMake executable を追加し、CsvDataSource の読み込み、再読込、失敗時の状態、metadata、registry 経由のopenを検証する10ケースを用意した。
+- ビルド・テスト・CMake configure は未実施。
+
+## 進捗 2026-10-11 — DataCache standalone suite
+
+- `tests/ArtifactCore/DataCacheStandalone` に独立 CMake executable と12ケースを追加。cache hit/miss、URI別保持、stale判定、invalidate/clear、同一key更新、上限 eviction、設定値、TTL期限切れとhitでTTLが延長されない挙動を検証する。ビルド・実行は未実施。
+
 **ステータス:** In Progress
+
+## 進捗 2026-10-11 — Quaternion standalone executable
+
+- `Math.Quaternion` に独立CMake実行プログラムと22ケースを追加。Hamilton積、正規化／inverse、point回転、Euler／axis-angle変換、nlerp/slerp/squad境界を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Matrix4x4 standalone executable
+
+- `Math.Matrix4x4` に独立CMake実行プログラムと12ケースを追加。row-major 配置、identity／translation／scale／rotation、乗算順序、`*=`、全要素 equality を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — RandomStream standalone executable
+
+- `Math.Random` の `RandomStream` に独立CMake実行プログラムと17ケースを追加。固定seed再現性、unit／inclusive bounds、chance端点、fork、Gaussian、jitter、pick、shuffleを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactMinMax standalone executable
+
+- `Math.ArtifactMinMax` に独立CMake実行プログラムと21ケースを追加。NaN／infinity、混合型、clamp、範囲正規化とepsilon境界、lerpの補間・外挿を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FrameSkipTracker standalone executable
+
+- `FrameSkipTracker` に Qt Core のみで独立リンクする実行プログラムと16ケースを追加。dispatch／skip記録、連続skip集計、tracking無効化、最新イベント、履歴200件上限、summaryを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — BezierPathSampler standalone executable
+
+- `BezierPathSampler`／`BezierCalculator` に Qt Core だけで独立リンクする実行プログラムと25ケースを追加。二次／三次曲線評価、open／closed path、standard／arc-length／adaptive sampling、境界入力、接線サンプリングを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SpatialGrid standalone executable
+
+- `Math.SpatialGrid` に `Particle` 値型だけで独立リンクする実行プログラムと10ケースを追加。セル境界、負座標のfloor、候補index、build再実行、clearを検証する。query はセル候補を返す現行実装の契約に沿い、距離フィルタを前提にしない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — InterpolatorFactory standalone executable
+
+- `InterpolatorFactory` の `LinearInterpolator`／`CubicInterpolator` に Qt Gui だけで独立リンクする実行プログラムと12ケースを追加。float／QVector3D、端点、外挿、smoothstep 対称性、仮想interfaceを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Math.Vec standalone executable
+
+- `Math.Vec` の tagged coordinates に Qt Core／Gui と GLM だけで独立リンクする実行プログラムと15ケースを追加。DPR変換、Qt境界変換、point/vector演算、cross product、space間の暗黙変換禁止を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — DepthMap standalone executable
+
+- 既存の `DepthMapContractTest.cpp` 27ケースを、Qt Core／Gui と GTest だけで独立実行できる CMake target に登録。resize／clamp、copy、bilinear sampling、画像load／失敗時clearを単独 suite で扱う。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ColumnType standalone executable
+
+- `Data.ColumnType` に独立CMake実行プログラムと11ケースを追加。列挙値名、正規名往復、型別alias、大文字小文字、未知値のフォールバックを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — TypeInference standalone executable
+
+- `Data.TypeInference` に独立CMake実行プログラムと22ケースを追加。空値、boolean／数値の昇格、数値形式、date／time／datetime形式、混在・不正値を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — TypedColumn standalone executable
+
+- `Data.TypedColumn` に独立CMake実行プログラムと20ケースを追加。各推論型の保持・数値変換、bool alias、空行、日時文字列、範囲外getter fallbackを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — CsvParser standalone executable
+
+- `Data.CsvParser` に独立CMake実行プログラムと29ケースを追加。区切り文字検出、header／header-only、quoted／multiline field、escape、CR改行、空cell／末尾delimiter、trim、列数不一致を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — DataTable standalone executable
+
+- `DataTable` に独立CMake実行プログラムと32ケースを追加。CSV構築、headerless schema、全variant変換、row access、fallback、行／列追加、duplicate header、範囲外アクセス、clearを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — NoiseGenerator standalone executable
+
+- `NoiseGenerator`／`NoiseField` に独立CMake実行プログラムと15ケースを追加。lattice境界、seed独立性・再現性、period、fBm、legacy overload、Worley、GLSL source生成を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ResolutionRemap standalone executable
+
+- `ResolutionRemap` に独立CMake実行プログラムと16ケースを追加。5 policyのposition／QTransform一致、bounds、scale、impact flags、空サイズ境界を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — CameraGuide standalone executable
+
+- `makeNukeStyleCameraGuidePrimitive` に独立CMake実行プログラムと9ケースを追加。頂点／line／triangle topology、対称性、既定・custom寸法、body-depth最小値を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — LayerBoundsCalculator standalone executable
+
+- `LayerBoundsCalculator2D` に独立CMake実行プログラムと13ケースを追加。anchor/rotation/scale後のcorners、AABB、回転矩形と境界点のcontainsを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — LayerAlignment standalone executable
+
+- `LayerAlignment` と LayerBounds 実装を含む独立CMake実行プログラムに14ケースを追加。selection/composition/key-object整列、分布間隔、優先度付きcollision回避、安全領域、scale fallbackを確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Float3 standalone executable
+
+- 未テストだった `float3<T>` に独立CMake実行プログラムと9ケースを追加。構築、加算、scale、dot/length、正規化、double precision、stream出力を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — DiskSize standalone executable
+
+- `DiskSize` に独立CMake実行プログラムと6ケースを追加。OSの空き容量に依存しない既定値とB/KB/MB/GB/TB境界、端数、uint64上限の表示を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — RotationTurns standalone executable
+
+- 未テストだった `RotationTurns` に PImpl 実装を含めた独立CMake実行プログラムと13ケースを追加。正負のturn正規化、constructor/setter、total角、move constructor/assignment/self-moveを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioEffect base standalone executable
+
+- `AudioEffect` 基底クラスに独立CMake実行プログラムと8ケースを追加。schedule metadata、bypass、既定parameter API、JSON、仮想dispatch／destructionを確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Audio Spatial Renderer standalone executable
+
+- `Audio.Spatial.Renderer` と必要な Panner/SpeakerLayout 実装を含む独立CMake実行プログラムに16ケースを追加。出力layout・frame境界、speaker/headphone経路、明示LFE send、非有限入力、reset再現性を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Audio Modulation Router standalone executable
+
+- `Audio.Modulation.Router` と Modulator moduleだけで個別に構築できる独立CMake実行プログラムと17ケースを追加。source/assignment管理、Add/Multiply、smoothing、frame seek再現性、snapshot restoreを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Audio Modulators standalone executable
+
+- `Audio.Modulation.Modulator` に独立CMake実行プログラムと22ケースを追加。LFO波形・位相、ADSR遷移、Macro/Constant境界、seed再現性、Noise/Stepsの範囲と設定正規化をRouterを介さず検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Audio Speaker Layout standalone executable
+
+- `speakerLayout` と `calculateSpeakerGains` に、実装 `.cppm` を含めた独立CMake実行プログラムと12ケースを追加。Mono/Stereo/5.1/7.1/7.1.4配置、LFE除外、正規化、上下半球とfallbackを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Audio Spatial Params standalone executable
+
+- `sanitizedSpatialParams` に独立CMake実行プログラムと13ケースを追加。NaN／無限値、距離・角度・送信量の境界、enum fallbackを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Audio Spatial Math standalone executable
+
+- 未テストだった `Audio.Spatial.Math` に独立CMake実行プログラムと14ケースを追加。距離減衰モデル、円錐ゲイン補間、逆平方根の不正値、ベクトル／クォータニオン演算、球面座標を対象とする。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Size_2D standalone executable
+
+- `Size_2D`／`HasWidthHeightLike`に独立CMake実行プログラムと13ケースを新設。QSizeと6種のgeneric shape変換、concept acceptance、empty/equality/area/aspect ratioを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FormantExtractor standalone executable
+
+- `FormantExtractor`に独立CMake実行プログラムと12ケースを新設。phoneme分類、vowel threshold、mouth-shape mapping、empty/silent frame、track segmentationと入力境界を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioAnalyzer standalone executable
+
+- `AudioAnalyzer`に独立CMake実行プログラムと12ケースを新設。FFT size正規化、RMS/peak、mono/stereo mix、spectrum bin数・有限性、non-finite値、sample-rate境界、zero padding、FFT truncationを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioWriter standalone executable
+
+- `AudioWriter`に独立CMake実行プログラムと12ケースを新設。16/24-bit RIFF header・PCM payload、clamp、複数segment、sample-rate不一致、channel pad/trim、close/destructor finalize、空segmentを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SimpleWav standalone executable
+
+- `SimpleWav`に独立CMake実行プログラムと11ケースを新設。8/16/24-bit PCMと32-bit float読み込み、非有限/範囲外float、maxFrames、float WAV保存往復、破損/未対応入力、空saveを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioBackend API standalone executable
+
+- `AudioBackend`の公開value/API契約に独立CMake実行プログラムと8ケースを新設。device/format validity、sample format enum、mutable callback buffer、interface抽象性を検証する。実装のないconverter呼出しは対象外。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioCache standalone executable
+
+- `AudioCache`に独立CMake実行プログラムと11ケースを新設。frame入出力、無効値拒否、replacement、memory usage、capacity cleanup、clear、sequential prefetch、invalid range、provider例外継続を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Audio DSP AllPassFilter standalone executable
+
+- `Audio::DSP::AllPassFilter`に独立CMake実行プログラムと9ケースを新設。impulse tap、feedback clamp、非有限値、秒/sample設定同値、modulation、clear、無効delayを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Audio DSP LFO standalone executable
+
+- `Audio::DSP::LFO`に独立CMake実行プログラムと9ケースを新設。sinusoid cycle、phase reset、frequency change、reverse/zero/non-finite frequency、sample-rate fallback、高周波および長時間の有限性を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FractionalDelayLine standalone executable
+
+- `FractionalDelayLine`に独立CMake実行プログラムと10ケースを新設。遅延読出し、fractional interpolation、秒単位変換、ring wrap、clear/reinitialize、非有限・負遅延、初期化fallbackを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioVolume standalone executable
+
+- 基本オーディオ値型`AudioVolume`に独立CMake実行プログラムと15ケースを新設。linear/dB変換、clamp、補間、preset、valid/mute/normalized、算術・比較、copy/move所有権移譲を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioDecibels standalone executable
+
+- 基本オーディオ値型`AudioDecibels`に独立CMake実行プログラムと13ケースを新設。dB/linear変換、clamp、補間、fade、preset、predicates、operator arithmetic/comparison、copy independenceを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioRasterizer standalone executable
+
+- `AudioRasterizer`に独立CMake実行プログラムと10ケースを新設。min/max bin、端数分割、非有限値、stereo interleaved、無効引数、末尾partial frameの扱いを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioWaveform standalone executable
+
+- 未テストのCPU `AudioWaveform`に独立CMake実行プログラムと9ケースを新設。resolution境界、mono/stereo RMS bin、非有限値、空block、frame数より高い解像度、bypass、空channelを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioSpectrum standalone executable
+
+- `AudioSpectrum`に独立CMake実行プログラムと13ケースを新設。bin境界、mono/stereo loudness・peak、impulse、非有限値、空block/reset、discontinuity、normalization、bypassを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioParametricEQ standalone executable
+
+- 未テストのCPU `AudioParametricEQ`に独立CMake実行プログラムと12ケースを新設。default bands、sanitize/clamp、band count/index、parameter metadata/control、neutral/disabled signal、bypass、非有限値、sample-rate境界、JSON roundtripを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioBassTreble standalone executable
+
+- 未テストのCPU `AudioBassTreble`に独立CMake実行プログラムと9ケースを新設。defaults/clamps、neutral constant signal、bass boost／treble cut、bypass、非有限値、sample-rate境界、空blockを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioChorus standalone executable
+
+- 未テストのCPU `AudioChorus`に独立CMake実行プログラムと8ケースを新設。defaults/clamps、最小遅延前のdry blend、bypass、非有限値、sample-rate境界、空block、JSON roundtripを対象にする。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioReverb standalone executable
+
+- 未テストのCPU `AudioReverb`に独立CMake実行プログラムと9ケースを新設。defaults/clamps、dry/wet、impulse tail、decay、bypass、non-finite、sample-rate境界、JSON roundtripを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioStereoMixer standalone executable
+
+- 未テストのCPU `AudioStereoMixer`に独立CMake実行プログラムと9ケースを新設。center／端点／中間LR balance、extra channel保持、mono/bypass、非有限sample、setter境界を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioHighLowPass standalone executable
+
+- 未テストのCPU `AudioHighLowPass`に独立CMake実行プログラムと9ケースを新設。disabled/bypass、low-pass impulseとblock状態継続、high-pass DC rejection、非有限入力、invalid sample rate、cutoff境界を検証する。high-passのDC rejectionは現sourceと異なる可能性あり。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioDelay standalone executable
+
+- 未テストのCPU `AudioDelay`に独立CMake実行プログラムと7ケースを新設。default／clamp、1-frame impulse delay、dry mix、bypass、invalid sample rate、JSON roundtripを対象にする。ソース読解で遅延読出しindexに不整合の疑いあり。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioCompressor standalone executable
+
+- 未テストのCPU `AudioCompressor`に独立CMake実行プログラムと10ケースを新設。parameter defaults/clamps、ratio 1、threshold動作、stereo link、sidechainとfallback、bypass、non-finite samples、JSON roundtripを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioTone standalone executable
+
+- 未テストのCPU `AudioTone`に独立CMake実行プログラムと9ケースを新設。既定値／parameters、sine・square・sawtooth・noise、bypass位相、non-finite setter、wave type clamp、JSON roundtrip、invalid sample rateを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioPanner standalone executable
+
+- 未テストのCPU `AudioPanner`に独立CMake実行プログラムと8ケースを新設。StereoBalance角度境界、定電力円のエネルギー、clamp、mode名、非有限値とoverflowを含むchannel別適用を検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioDownMixer standalone executable
+
+- 未テストのCPU `AudioDownMixer`に独立CMake実行プログラムと8ケースを新設。同layout sanitation、mono→stereo、5.1→stereo係数、stereo→mono平均、explicit channel map、7.1→5.1 fold-down、empty inputを検証する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioSegment standalone executable
+
+- `AudioSegment`の直接契約を検証する独立CMake実行プログラムと7ケースを新設。既定値、最短channelのframe count、resize／負数clamp、sample zero、metadataを保つclear、const sample pointer範囲を対象にする。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioRingBuffer standalone executable
+
+- 未テストの`AudioRingBuffer`に独立CMake実行プログラムを新設。9ケースで容量最小値、部分read、wrap-around、容量超過時の既存データ保持、clear世代境界、capacity変更、空write／zero read、mono→stereo複製、ch数増加／縮小抑止を確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AudioBufferQueue standalone executable
+
+- 既存テストのない`AudioBufferQueue`に独立CMake実行プログラムと6ケースを新設。空状態／pop失敗、payload・metadata保持、invalid input、FIFO、100-segment上限とpop後の再投入、clearを対象にする。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — StringView null versus empty conversion
+
+- 独立 `ArtifactCoreStringViewContractTest` に、QStringからStringViewを経てQStringへ変換した後もnullとemptyの区別が保たれるcaseを追加し、15から16 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SimulationManager reset registration order
+
+- 独立 `ArtifactCoreSimulationSystemContractTest` に、`resetAll()`が登録順に各systemをresetするcaseを追加し、7から8 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetSequence maximum-padding convenience fields
+
+- 独立 `ArtifactCoreAssetSequenceStandaloneTest` に、18桁フレームでpath patternとdisplay nameがpadding幅を保つcaseを追加し、31から32 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SimulationManager non-finite delta forwarding
+
+- 独立 `ArtifactCoreSimulationSystemContractTest` に、正負の無限大とNaNのdeltaが値を変えず各simulationへ転送されるcaseを追加し、6から7 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FloatRGBA component division zero semantics
+
+- 独立 `ArtifactCoreFloatRGBAContractTest` に、色同士のチャンネル別除算と0／負の0除算に対するIEEE NaN・符号付き無限大を確認するcaseを追加し、17から18 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — JsonLike explicit conversion rejection
+
+- 独立 `ArtifactCoreJsonLikeContractTest` に、`QJsonValue` へのexplicit変換しか持たないproxyを`JsonReadable`／`JsonLike`が拒否するケースを追加し、10から11 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — HashValue all algorithms at file chunk boundaries
+
+- 独立 `ArtifactCoreHashValueContractTest` に、空／8191／8192／8193／16384／16385 byteのファイルをSHA-256・SHA-1・MD5で読み、Qt digestおよび`fromData`と照合するcaseを追加し、18から19 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetFingerprint sample-window edge coverage
+
+- 独立 `ArtifactCoreAssetFingerprintContractTest` に、large FastHash のhead／middle／tail各サンプル窓の両端6点を変更するとハッシュが変わるcaseを追加し、16から17 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactString exhaustive ascii split/join bytes
+
+- 独立 `ArtifactCoreArtifactStringContractTest` に、custom Array/String実装の `asciiSplit`／`asciiJoin` で長さ0〜6の全byte列をcomma／NUL separatorで往復するcaseを追加し、27から28 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Path exhaustive normalization idempotence
+
+- 独立 `ArtifactCorePathStandaloneTest` に、長さ0〜6の短い文字列全て（通常文字・dot・slash・backslash）のseparator正規化が冪等であることを確認するcaseを追加し、17から18 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactString explicit-length NUL search
+
+- 独立 `ArtifactCoreArtifactStringContractTest` に、embedded NULを含む明示長文字列でNUL横断検索・開始offset・count／lastIndexOfを確認するcaseを追加し、26から27 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactString growing aliased replacement
+
+- 独立 `ArtifactCoreArtifactStringContractTest` に、内部viewを置換元にして元文字列を拡張する場合の内容・長さ・終端NULを確認するcaseを追加し、25から26 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactString multibyte UTF-8 byte offsets
+
+- 独立 `ArtifactCoreArtifactStringContractTest` に、2つの3-byte UTF-8文字の長さ・検索位置・部分抽出をbyte offset契約として確認するcaseを追加し、24から25 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — TextString exhaustive split/join byte patterns
+
+- 独立 `ArtifactCoreTextStringContractTest` に、長さ0〜6の短いbyte列全てを2種separator（comma／NUL）でsplit/joinし、入力byte列へ戻ることを確認するcaseを追加し、16から17 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — TextString trim view aliasing
+
+- 独立 `ArtifactCoreTextStringContractTest` に、`trimView` がtrim後範囲を元文字列内のviewとして返し、開始pointer・長さを保持するcaseを追加し、15から16 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactSpan exhaustive valid subranges
+
+- 独立 `ArtifactCoreArtifactSpanContractTest` に、小さな固定範囲の全てのvalid offset/count組み合わせでdata pointer・size・要素列がsourceと一致するcaseを追加し、19から20 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactOptional move-only rvalue fallback
+
+- 独立 `ArtifactCoreArtifactOptionalContractTest` に、empty optionalのrvalue `value_or` がmove-only fallbackの所有権を移すcaseを追加し、24から25 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactOptional move-only swap transitions
+
+- 独立 `ArtifactCoreArtifactOptionalContractTest` に、move-only owning valueを保持状態／empty状態間で両方向swapするcaseを追加し、23から24 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactExpected fallback conversion laziness
+
+- 独立 `ArtifactCoreArtifactExpectedContractTest` に、`valueOr`／`errorOr` のfallback変換が必要なalternativeの場合だけ実行される2ケースを追加し、22から24 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactExpected transform branch laziness
+
+- 独立 `ArtifactCoreArtifactExpectedContractTest` に、`transform`／`transformError` callbackが非対応のactive alternativeでは呼ばれず、元alternativeを保持するcaseを追加し、21から22 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactFunctionRef clear and rebind lifecycle
+
+- 独立 `ArtifactCoreArtifactFunctionRefContractTest` に、参照を複数回clearした後に別callableへrebindし、再度clearできるcaseを追加し、16から17 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FrameRate float JSON update clears rational metadata
+
+- 独立 `ArtifactCoreFrameRateContractTest` に、既存exact rateへfloat JSONを適用すると通常float値へ切り替わり、rational metadataが解除されるcaseを追加し、33から34 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FrameRate invalid JSON mutation preserves exact value
+
+- 独立 `ArtifactCoreFrameRateContractTest` に、既存exact rateへ不正な完全rational JSONをsetした際、rational metadataと値が保持されるcaseを追加し、32から33 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SimulationManager negative delta forwarding
+
+- 独立 `ArtifactCoreSimulationSystemContractTest` に、unpaused systemへ負のdeltaTimeも値を変えず一度転送するcaseを追加し、5から6 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — NameGenerator literal pattern global uniqueness
+
+- 独立 `ArtifactCoreNameGeneratorContractTest` に、name placeholderを含まない固定patternでも別baseからの生成結果が一意になるcaseを追加し、15から16 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetSequence empty directory scan
+
+- 独立 `AssetSequenceStandaloneTest` に、存在する空ディレクトリを走査した場合にsequence／singleのどちらも返さないcaseを追加し、30から31 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Defaults bitrate positivity
+
+- 独立 `ArtifactCoreDefaultsContractTest` に、project／render bitrate既定値が正値であることを確認するcaseを追加し、6から7 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FrameRate speed adjustment clears exact metadata
+
+- 独立 `ArtifactCoreFrameRateContractTest` に、exact rational rateへのspeed adjustment後にfloat rateへ移行し、rational metadataが標準値へ戻るcaseを追加し、31から32 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — MultipleTag set-operation idempotence
+
+- 独立 `ArtifactCoreMultipleTagContractTest` に、同一集合を両オペランドにしたunion／intersectionの冪等性とself-subtractionの空集合性を追加し、21から22 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Id copy semantics for moved-from value
+
+- 独立 `ArtifactCoreIdContractTest` に、ムーブ元の `Id` をcopy構築／copy代入した結果が利用可能なNil UUIDとなり、移動済み値を保持するcaseを追加し、21から22 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — MultipleTag move assignment into moved-from destination
+
+- 独立 `ArtifactCoreMultipleTagContractTest` に、ムーブ元になった空の `MultipleTag` をムーブ代入先として再利用でき、元の移動先オブジェクトも保持されることを確認するcaseを追加し、20から21 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Tag move assignment from moved-from source
+
+- 独立 `ArtifactCoreTagContractTest` に、ムーブ元になった空の `Tag` を別の `Tag` へムーブ代入した場合の空状態と、先に移動済みの値が保たれることを確認するcaseを追加し、17から18 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactFunction move-only heap callable
+
+- 独立 `ArtifactCoreArtifactFunctionContractTest` に、大きなmove-only captureをheap storageへ置き、呼び出して結果を得られるcaseを追加し、20から21 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactFunction move-only inline callable
+
+- 独立 `ArtifactCoreArtifactFunctionContractTest` に、move-only `unique_ptr` captureをinline storageへ格納して呼び出せるcaseを追加し、19から20 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — TextNumber padded integer extremes
+
+- 独立 `ArtifactCoreTextNumberContractTest` に、長い先頭ゼロ付きのsigned／unsigned最大値・最小値が同じ極値へ解析されるcaseを追加し、19から20 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Result ifValue observation semantics
+
+- 独立 `ArtifactCoreResultContractTest` に、`ifValue` callbackが成功時だけ実行され、同じResultへのconst参照を返す契約を追加し、33から34 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactThread restart without join
+
+- 独立 `ArtifactCoreArtifactThreadContractTest` に、worker終了後に明示joinせず次のstartを行い、前workerの回収と再実行を確認するcaseを追加し、16から17 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — CppLinq forward-only range coverage
+
+- 独立 `ArtifactCoreCppLinqContractTest` に、`std::forward_list` でのAny／FirstOrDefaultと遅延Where+Select pipelineを確認するcaseを追加し、24から25 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactFunction reference and exception behavior
+
+- 独立 `ArtifactCoreArtifactFunctionContractTest` に、reference returnのalias保持とcallable例外の伝播を確認する2ケースを追加し、17から19 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — DepthMap infinite sample clamping
+
+- 独立 `ArtifactCoreDepthMapContractTest` に、resize初期値とsetValueへ正負の無限大を与えたとき深度値が0／1にクランプされるcaseを追加し、26から27 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FileTypeDetector extension precedence
+
+- 独立 `ArtifactCoreFileTypeDetectorContractTest` に、PNGの強いmagic signatureでもModel3D／Audio／Archive／Videoの意味を持つ拡張子が優先されるcaseを追加し、18から19 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetMetaFile invalid imported timestamp
+
+- 独立 `ArtifactCoreAssetMetaFileContractTest` に、無効な `QDateTime` を保存・再読込しても無効状態を保つcaseを追加し、18から19 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetMetaFile nested custom values
+
+- 独立 `ArtifactCoreAssetMetaFileContractTest` に、nested `QVariantMap`／`QStringList`をcustom valueとしてsidecarへ保存し、再読込後の型と値を確認するcaseを追加し、17から18 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SimulationManager update ordering
+
+- 独立 `ArtifactCoreSimulationSystemContractTest` に、複数systemが登録順にupdateされることを確認するcaseを追加し、4から5 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetMetaFile blocked destination save
+
+- 独立 `ArtifactCoreAssetMetaFileContractTest` に、sidecar保存先がディレクトリで塞がれている場合にsaveが失敗し、既存ディレクトリが残ることを確認するcaseを追加し、16から17 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Keyframe nonuniform Hermite curve
+
+- 独立 `ArtifactCoreKeyframeContractTest` に、時間間隔と値差が非線形な3キーHermite曲線で区間長に応じた有限差分接線の期待値を確認するcaseを追加し、15から16 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetFingerprint large streamed SHA-256
+
+- 独立 `ArtifactCoreAssetFingerprintContractTest` に、5 MiB超のファイルSHA-256をQtの固定入力digestと比較するcaseを追加し、15から16 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactCallback copy assignment
+
+- 独立 `ArtifactCoreArtifactCallbackContractTest` に、copy代入による旧capture解放／新capture所有と、empty callback代入によるtarget clearを追加し、18から20 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — JsonLike combined constraint round trip
+
+- 独立 `ArtifactCoreJsonLikeContractTest` に、`JsonLike` 制約で値を書き込み同じ制約内で読み戻すcaseを追加し、9から10 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactSpan const-view and copy semantics
+
+- 独立 `ArtifactCoreArtifactSpanContractTest` に、constなspan objectでも可変要素を編集できる性質と、copy／assignment後も同一の借用範囲を参照する性質を追加し、17から19 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactFunction swap storage coverage
+
+- 独立 `ArtifactCoreArtifactFunctionContractTest` に、inline格納／heap格納 callable 間のswapと空functionとのswapを追加し、15から17 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactHashMap value destruction
+
+- 独立 `ArtifactCoreArtifactHashMapContractTest` に、eraseとclearがmapped valueを一度だけ破棄し、繰り返し操作でも二重破棄しないことを確認するcaseを追加し、20から21 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactHashMap move operations
+
+- 独立 `ArtifactCoreArtifactHashMapContractTest` に、ムーブ構築後の要素移管と、ムーブ代入での移動先置換・移動元要素移管を確認する2ケースを追加し、18から20 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetFingerprint sampled size contract
+
+- 独立 `ArtifactCoreAssetFingerprintContractTest` に、サンプル領域が同じゼロ埋めファイル同士でもファイルサイズを含めて高速ハッシュが異なることを確認するケースを追加し、14から15 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FastSettingsStore sync retry after path repair
+
+- 独立 `ArtifactCoreFastSettingsStoreContractTest` に、sync失敗後に親パスをdirectoryへ修復すると保持中のdirty値をsync・再読込できるcaseを追加し、23から24 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FastSettingsStore repeated key updates
+
+- 独立 `ArtifactCoreFastSettingsStoreContractTest` に、同じkeyへの2回のsetを2 operationsとして数え、sync／再読込後に最後の値を保持するcaseを追加し、22から23 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FileTypeDetector empty-file extension fallback
+
+- 独立 `ArtifactCoreFileTypeDetectorContractTest` に、既存の空`.png`はmagic unknownでもextension fallbackでImageとなるcaseを追加し、17から18 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FastSettingsStore nested QVariant round trip
+
+- 独立 `ArtifactCoreFastSettingsStoreContractTest` に、nested `QVariantMap`内のboolとUnicode `QStringList`をCBORへsyncして再読込するcaseを追加し、21から22 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FastSettingsStore empty file open
+
+- 独立 `ArtifactCoreFastSettingsStoreContractTest` に、0-byte CBOR fileをclean empty storeとして開けるcaseを追加し、20から21 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — RationalTime common-scale overflow subtraction
+
+- 独立 `ArtifactCoreRationalTimeContractTest` に、LCMがint64範囲を超えるscale同士の減算でseconds fallback相当の結果を返すcaseを追加し、26から27 casesへ拡張。現実装のLCM乗算はoverflow検査されていない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — RationalTime common-scale overflow fallback
+
+- 独立 `ArtifactCoreRationalTimeContractTest` に、互いに異なる大きなscaleのLCMがint64範囲を超える加算でseconds fallback相当の結果を返すcaseを追加し、25から26 casesへ拡張。現実装はLCM乗算をoverflow検査せず、誤結果／未定義動作の可能性がある。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactExpected copy and move state
+
+- 独立 `ArtifactCoreArtifactExpectedContractTest` に、value/error両alternativeのcopy後moveでactive stateとpayloadを保持するcaseを追加し、20から21 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetSequence very large frame gaps
+
+- 独立 `AssetSequenceStandaloneTest.cpp` に、18桁frame番号同士の巨大gapを連番化せずsinglesへ分割するcaseを追加し、29から30 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetSequence Unicode prefix
+
+- 独立 `AssetSequenceStandaloneTest.cpp` に、Unicode prefixを含むファイル名から連番を検出し、prefixとsort済みfilenameを保持するcaseを追加し、28から29 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetSequence standalone uppercase extension
+
+- 独立 `AssetSequenceStandaloneTest.cpp` に、ASCII大文字拡張子`.EXR`をsequenceとして認識し、original suffixをpath patternに保持するcaseを追加し、27から28 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — HashValue unknown algorithm data and file factories
+
+- 独立 `ArtifactCoreHashValueContractTest` に、`fromFile`でも`Unknown`をMD5 fallbackせず空のinvalid結果にするcaseを追加し、17から18 casesへ拡張。現実装はMD5 digest bytesを格納するため失敗見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — HashValue unknown algorithm input
+
+- 独立 `ArtifactCoreHashValueContractTest` に、`fromData`へ`Unknown`を渡した場合は無効で空のdigestを返すcaseを追加し、16から17 casesへ拡張。現実装はfallbackのMD5 bytesを格納するため失敗見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Tag empty-name clearing
+
+- 独立 `ArtifactCoreTagContractTest` に、空の`UniString`を設定して既存Tag名をclearできるcaseを追加し、16から17 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — DepthMap infinite sampling coordinates
+
+- 独立 `ArtifactCoreDepthMapContractTest` に、正負の無限大座標を画像端へclampして正しいedge sampleを返すcaseを追加し、25から26 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FloatRGBA copy and move construction
+
+- 独立 `ArtifactCoreFloatRGBAContractTest` に、copy／move construction後も4 channelが保持されるcaseを追加し、16から17 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactAlgorithms empty predicate ranges
+
+- 独立 `ArtifactCoreArtifactAlgorithmsContractTest` に、空rangeで`findIf`／`anyOf`／`allOf`／`noneOf`がpredicateを呼ばず、それぞれend／false／true／trueを返すcaseを追加し、21から22 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactAlgorithms empty count boundaries
+
+- 独立 `ArtifactCoreArtifactAlgorithmsContractTest` に、empty rangeで`artifactCount`と`artifactCountIf`が0を返し、predicateを呼ばないcaseを追加し、20から21 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactMath negative-zero absolute value
+
+- 独立 `ArtifactCoreArtifactMathContractTest` に、`artifactAbs(-0.0)`がzeroのまま符号bitを消す契約caseを追加し、17から18 casesへ拡張。現実装は比較による符号反転のためnegative zeroを返し、失敗見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — RawImage type and buffer validity boundaries
+
+- 独立 `ArtifactCoreRawImageContractTest` に未知pixel type拒否と、記述された画像サイズに対する不足buffer拒否を追加し、7から9 casesへ拡張。現実装はいずれの整合性も確認しないため失敗見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — RawImage unsupported pixel type validity
+
+- 独立 `ArtifactCoreRawImageContractTest` に、形状とpixel dataが揃っていても未対応pixel typeなら無効とするcaseを追加し、7から8 casesへ拡張。現実装はpixel type名が非emptyであれば受理するため失敗見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FrameRate invalid rational string updates
+
+- 独立 `ArtifactCoreFrameRateContractTest` に、ゼロ分母・負の分子／分母を含む文字列で更新した場合、既存のexact rational rateを保持するcaseを追加し、30から31 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — CppLinq Where source mutation visibility
+
+- 独立 `ArtifactCoreCppLinqContractTest` に、`Where` view生成後・走査前に元rangeを変更すると新しい要素列を参照するlazy non-owning契約を追加し、23から24 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — PathUtils QStringView Unicode filesystem conversion
+
+- 独立 `ArtifactCorePathUtilsContractTest` に補助平面文字を含む`QStringView`からfilesystem pathへの往復変換caseを追加し、21から22 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Path rooted and relative-segment boundaries
+
+- 独立 `PathContractTest` にseparator-only root pathsと`.`／空セグメントを含むrelative pathの契約を2ケース追加し、15から17 casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Id embedded NUL parse boundary
+
+- 独立 `IdStandalone` にvalid UUIDの後ろへembedded NULとsuffixを加えた入力を拒否するcaseを追加し、20から21 runtime casesへ拡張。現実装はUTF-8 C stringのNULで後続を無視するため失敗見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetSequence empty and minimum length bounds
+
+- 独立 `AssetSequenceStandalone` にempty入力の空結果と、0／負の`minFrames`でも最低2 frame必要な境界を2ケース追加し、8から10 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetSequence multiple split runs
+
+- 独立 `AssetSequenceStandalone` に1 group内の複数連続runと、最小長未満の中間runがsingleへ戻るcaseを追加し、7から8 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — TextEncoding empty checked conversions
+
+- 独立 `TextEncodingStandalone` にempty UTF-8のString／UTF-32変換とBOMのみ入力のBOM-aware変換が成功し空値を返すcaseを追加し、20から21 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — MultipleTag parsing and filter boundaries
+
+- 独立 `MultipleTagStandalone` にpatternのcase-sensitive substring検索、multi-character separatorのparse/serialize、empty-string parseによる既存tag消去を3ケース追加し、17から20 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ShapeVertex normalize threshold neighborhood
+
+- 独立 `ShapeVertexStandalone` にnormalize閾値`1e-6`の直下では不変、直上ではunit lengthへ正規化するcaseを追加し、14から15 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactOptional reference specialization
+
+- 独立 `ArtifactOptionalStandalone` にempty reference optionalの`value()`例外と、`value_or`がfallbackへの参照aliasを返す契約を2ケース追加し、21から23 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Result status/value consistency
+
+- 独立 `ResultStandalone` に`Status::ok()`から値なしの`Result<int>`を構築しても成功状態にならない契約caseを追加し、32から33 runtime casesへ拡張。現実装はsuccess=true/value absentとなるため失敗見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactString null pointer mutation boundaries
+
+- 独立 `ArtifactStringStandalone` にnull pointer appendのno-op／終端維持と、null replacementによる指定範囲削除を2ケース追加し、22から24 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactFunctionRef assignment semantics
+
+- 独立 `ArtifactFunctionRefStandalone` に別borrowed callableへのcopy assignment再bindと、`nullptr` assignment後のinvalid化を2ケース追加し、14から16 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactCallback capture lifetime
+
+- 独立 `ArtifactCallbackStandalone` にclear時のowned capture解放とreset時の旧target解放／新target保持を2ケース追加し、16から18 runtime casesへ拡張。weak pointerで所有権の終了を検査する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactHashMap duplicate try-emplace laziness
+
+- 独立 `ArtifactHashMapStandalone` に重複keyでvariadic `tryEmplace`がmapped値を構築せず既存値を維持するcaseを追加し、17から18 runtime casesへ拡張。現実装は重複確認前に構築し値を代入するため失敗見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactArray extraction and selective destruction
+
+- 独立 `ArtifactArrayStandalone` にnon-trivial middle要素の`takeAt()`移送・shift lifetime balanceと、value指定`removeAll()`で一致値だけが一度ずつ破棄される2ケースを追加し、20から22 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactSet lifetime and values snapshot
+
+- 独立 `ArtifactSetStandalone` にremove時の単一破棄、clear後の破棄と再利用、`values()`返却snapshotの独立性を3ケース追加し、19から22 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Buffer after-last missing delimiter
+
+- 独立 `BufferStandalone` にdelimiter不在時のafterLast系helperが入力全体を保持するcaseを追加し、26から27 runtime casesへ拡張。現実装は先頭byteを落とすため失敗見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactRegex recompile metadata and length bound
+
+- 独立 `ArtifactRegexStandalone` にcapture付きregexからinvalid patternへの再compile後にcapture数が0になること、および16,385-byte patternの`PatternTooLong`拒否を2ケース追加し、23から25 runtime casesへ拡張。前者は現実装が旧group countを保持するため失敗見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactOptional value and self-assignment
+
+- 独立 `ArtifactOptionalStandalone` にempty時の`value()`例外、engaged値のself copy assignment／self move assignment保持を3ケース追加し、18から21 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactTimer unit consistency
+
+- 独立 `ArtifactTimerStandalone` にmsを先に取得し、後続ns値がそのms値以上になる単位整合caseを追加し、14から15 runtime casesへ拡張。固定sleepは使わない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Easing bounce landmarks and reversal
+
+- 独立 `EasingStandalone` にBounce Outの3つの区間谷値と終端、およびBounce InがBounce Outの時間反転となるdense sample caseを追加し、15から17 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactChrono duration unit conversion endpoints
+
+- 独立 `ArtifactChronoStandalone` に`INT64_MAX/MIN`からmicroseconds・milliseconds・secondsへの変換が符号を保ち、想定レンジに収まる2ケースを追加し、26から28 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AspectRatio small positive decimal
+
+- 独立 `AspectRatioStandalone` に`0.004`が分母上限100内で最良の正の近似`1:100`となるcaseを追加し、22から23 runtime casesへ拡張。現実装では分子候補が0のとき全候補を飛ばし、初期値`1:1`を返すため失敗見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactThread condition predicate notification
+
+- 独立 `ArtifactThreadStandalone` にpredicateが最初falseで通知後trueへ変わるcaseを追加し、15から16 runtime casesへ拡張。promiseでpredicate初回評価と通知側を同期し、固定sleepなし。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Audio profiler upper clamp and reset metadata
+
+- 独立 `PerformanceProfilerStandalone` にbuffer level 100%上限clampと、`resetStats()`後のlast requested/provided frame count消去を個別caseで追加し、22から24 runtime casesへ拡張。現実装では後者は値を残すため失敗見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Owned self-move lifetime
+
+- 独立 `ArtifactPtrStandalone` に`Owned`のself move assignment後もpointerとvalueが保持され、destructorが一度だけ動くcaseを追加し、31から32 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactExpected default and move-only error
+
+- 独立 `ArtifactExpectedStandalone` にdefault構築時のUnknown errorと、move-only `unique_ptr` errorの保持・取り出しを個別caseで追加し、18から20 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — MultipleTag self-assignment
+
+- 独立 `MultipleTagStandalone` にself copy/move assignment後のtag集合保持を確認するcaseを追加し、16から17 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SharedPtr self-copy ownership
+
+- 独立 `SharedPtrStandalone` に唯一ownerの自己copy代入後もpointer・値・use countが維持されるcaseを追加し、20から21 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactRandom finite double extremes
+
+- 独立 `ArtifactRandomStandalone` に有限double全域のbetween結果が有限かつ指定範囲内となるcaseを追加し、15から16 runtime casesへ拡張。現実装の`max - min`はdouble overflowするため失敗見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — HashValue fixed digest vectors
+
+- 独立 `HashValueStandalone` に`abc`のSHA-256 / SHA-1 / MD5固定digestを確認するcaseを追加し、15から16 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FileTypeDetector four-byte header boundary
+
+- 独立 `FileTypeDetectorStandalone` に3-byte unknownとちょうど4-byte ASCII textのmagic判定境界を追加し、17から18 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — JsonLike convertible read proxy
+
+- 独立 `JsonLikeStandalone` に `QJsonValue`へ暗黙変換できるproxy戻り値が `JsonReadable` conceptを満たすcompile-time/runtime caseを追加し、8から9 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Path safe-relative embedded NUL
+
+- 独立 `PathStandalone` にNULを含むパスがsafe-relative判定で拒否されるcaseを追加し、14から15 runtime casesへ拡張。現実装はNULを検査せずtrueを返すため失敗見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — TextEncoding exhaustive two-byte consistency
+
+- 独立 `TextEncodingStandalone` に全65,536通りの2-byte列で `isValidUtf8` と `firstInvalidUtf8Offset` の判定が一致するproperty caseを追加。suite件数を19から20へ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — TextNumber unsigned negative zero and bool slices
+
+- 独立 `TextNumberStandalone` にunsigned `-0` / `-000`の拒否とbool parserの非null終端`string_view` sliceを個別caseで追加し、17から19 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AspectRatio maximum equal dimensions
+
+- 独立 `AspectRatioStandalone` に `INT_MAX:INT_MAX` が安全に `1:1` へ簡約されるcaseを追加し、21から22 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetMetaFile duplicate legacy tags
+
+- 独立 `AssetMetaFileStandalone` にJSON由来の重複tagを`removeTag`で全件除去し、他tagを保つcaseを追加し、15から16 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Position2DF signed zero and subnormal
+
+- 独立 `Position2DStandalone` に負のゼロの符号と最小正subnormal値の保持を確認するcaseを追加し、17から18 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Id moved-from nil value semantics
+
+- 独立 `IdStandalone` にムーブ元がnilとの比較・順序・hashでnilと同等であるcaseを追加し、19から20 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetFingerprint same-size content change
+
+- 独立 `AssetFingerprintStandalone` にサイズが等しく内容が異なる小容量ファイル間でFastHashが変わるcaseを追加し、13から14 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Handle null comparisons across tags
+
+- 独立 `HandleStandalone` に `ProjectHandle` / `LayerHandle` のnil・valid値についてnullptrとの両方向`==` / `!=`を確認するcaseを追加し、13から14 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — StringView owned UTF-8 embedded NUL
+
+- 独立 `StringViewStandalone` に `QStringView` から所有 `std::string` へのUTF-8変換で埋め込みNULと長さを保つcaseを追加し、14から15 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — NameGenerator placeholder-like base text
+
+- 独立 `NameGeneratorStandalone` にベース名内の`***`がnumber placeholderとして誤解釈されず維持される契約caseを追加し、14から15 runtime casesへ拡張。現実装では入力内の`***`を先に置換するため失敗見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Numeric min/max NaN argument order
+
+- 独立 `NumericStandalone` にquiet NaNが第1・第2引数にある場合の `min_same` / `max_same` 戻り値を確認するcaseを追加し、14から15 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ColorHarmonizer intermediate gray
+
+- 独立 `ColorHarmonizer` suite に中間輝度の無彩色入力が hue scheme 後も RGB と alpha を保つcaseを追加し、10から11 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SteadyClock extreme reversed ticks
+
+- 独立 `ArtifactChronoStandalone` に`INT64_MAX`から`INT64_MIN`への逆順tick差分が0へclampされるcaseを追加し、25から26 runtime casesへ拡張。Windows経路はclamp前に減算するためoverflow見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — PathUtils Unicode filesystem round trip
+
+- 独立 `PathUtilsStandalone` に日本語と補助平面文字を含む相対pathのQString/filesystem往復caseを追加し、20から21 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — NameGenerator wide zero-padding
+
+- 独立 `NameGeneratorStandalone` にpadding幅40が要求幅を満たすcaseを追加し、13から14 runtime casesへ拡張。現実装は32 byteのformat bufferを使用するため失敗見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactFunctionRef null function pointer
+
+- 独立 `ArtifactFunctionRefStandalone` にnull関数ポインタを渡したwrapperがinvalidとなる契約caseを追加し、13から14 runtime casesへ拡張。現constructorはinvoke thunkを常に設定するため失敗見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Result move-only transformations
+
+- 独立 `ResultStandalone` に`transform`と`andThen`が`unique_ptr`成功値を返すcaseを追加し、31から32 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Optional move-only transforms
+
+- 独立 `OptionalStandalone` に`Transform`と`AndThen`が`unique_ptr`のようなmove-only resultを扱うcaseを追加し、20から21 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactTuple reference elements
+
+- 独立 `ArtifactTupleStandalone` にmutable `Tuple<T&>`のaliasingと`Tuple<const T&>`のconst参照保持を確認する2 casesを追加し、17から19 runtime casesへ拡張。`artifactMakeTuple`のdecay behaviorとは別に、明示reference要素の契約を固定する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SharedPtr standard smart-pointer bridges
+
+- 独立 `SharedPtrStandalone` に`std::shared_ptr`のlvalue factory共有、rvalue ownership transfer、`WeakPtr`へのstd owner assignment/null reset、`std::weak_ptr` wrap/lock/expireを確認する4 casesを追加し、16から20 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — UniformScale PImpl ownership traits
+
+- 独立 `UniformScaleStandalone` にraw `Impl*`所有型が暗黙copy/move可能になっていないことを確認するcaseを追加し、1から2 runtime casesへ拡張。現interfaceはcopy operationsを宣言しておらず、期待に反する可能性がある。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SimulationManager singleton identity
+
+- 独立 `SimulationSystemStandalone` に`SimulationManager::instance()`が同一manager参照を返すcaseを追加し、3から4 runtime casesへ拡張。singleton状態は変更せず検査する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — RationalTime minimum numerator rescaling
+
+- 独立 `RationalTimeStandalone` に`INT64_MIN`をscale変換する恒等／1/2境界caseを追加し、24から25 runtime casesへ拡張。現実装の負数経路は`-numerator`を直接計算するためoverflowの可能性がある。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — RationalTime rounding-bias overflow
+
+- 独立 `RationalTimeStandalone` に、`numerator`は表現可能でも端数丸めbias加算がoverflowする正負の`int64_t`境界caseを追加し、23から24 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FrameRateStorageScale upper saturation
+
+- 独立 `FrameRateScaleStandalone` に`double(INT64_MAX)`と`DBL_MAX`のscale saturationを追加し、10から11 runtime casesへ拡張。caller fallbackの有無を両方確認する。既存実装で通るか未検証。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FileTypeDetector invalid UTF-8 scalar forms
+
+- 独立 `FileTypeDetectorStandalone` にoverlong、surrogate、Unicode範囲外、途中で切れたcontinuation列をBinary分類するtable caseを追加し、15から16 runtime casesへ拡張。既存実装で期待が満たされるか未検証。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetMetaFile timestamp persistence
+
+- 独立 `AssetMetaFileStandalone` にoffset付きimport日時のsidecar save/load後のUTC保持を確認するcaseを追加し、14から15 runtime casesへ拡張。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ACES manager configuration and labels
+
+- 独立 `ColorACESStandalone` にworking-space setter/getter round tripと全output preset name/unknown fallbackの2 casesを追加し、10から12 runtime casesへ拡張。suiteは既にgamut、EOTF/OETF、16-bit ramp、HDR値を網羅しているため、残りの小さな公開APIも固定する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetMetaFile absent asset attributes
+
+- 独立 `AssetMetaFileStandalone` にversionが有効でasset属性が欠落した文書のgetter境界caseを追加し、13から14 runtime casesへ拡張。path/UUID/dateの空値とUnknown typeを確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetMetaFile extension-field round trip
+
+- 独立 `AssetMetaFileStandalone` に標準field更新後も未知のroot/asset JSON fieldを保存・再読込で保持するcaseを追加し、12から13 runtime casesへ拡張。将来version metadataの互換性を確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — RawImage independent contract suite
+
+- `Image.Raw`と`Memory.SharedPtr`、Qt Core、OpenCVだけを使う独立 `RawImageStandalone` projectを追加。copy時のmetadata保持とpixel buffer detach、copy assignmentの全フィールド置換、move construction/assignment、`RawImagePtr`共有所有権を5 runtime casesで確認する。既存2 casesと合わせて7件。CMake構成と件数を静的に確認し、configure/build/実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactThread detach lifecycle
+
+- 独立 `ArtifactThreadStandalone` にdetach後もcallbackが完了することを確認する同期caseを追加し、14から15 runtime casesへ拡張。固定sleepではなくpromiseでworkerの開始・解放・完了を同期する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactThread Lock exception-safety
+
+- 独立 `ArtifactThreadStandalone` に`Lock`の例外巻き戻し時のunlock確認を追加し、13から14 runtime casesへ拡張。mutexが例外後も取得可能なことを時間待ちなしで検査する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactTimer inclusive timeout equality
+
+- 独立 `ArtifactTimerStandalone` に「観測したelapsed値と同じtimeoutはexpired」の境界caseを追加し、13から14 runtime casesへ拡張。sleepなしで`>=`の等値境界を固定する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SteadyClock extreme tick delta
+
+- 独立 `ArtifactChronoStandalone` に`Tick`全域差分の飽和境界caseを追加し、24から25 runtime casesへ拡張。現実装は比較後に`to - from`を直接計算するため、`INT64_MIN`から`INT64_MAX`の差でsigned overflowが起きる見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FrameRate storage-scale overflow boundary
+
+- 独立 `FrameRate` suiteに極大有限FPSが`int64_t`上限へ飽和する回帰caseを追加し、29から30 runtime casesへ拡張。現実装は`llround`の結果を直接整数化しており範囲外動作のため失敗または処理系依存結果となる見込み。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FastSettingsStore standalone suite
+
+- `Core.FastSettingsStore`向けに独立module interface/implementation projectと20 runtime casesを追加。missing/malformed-file open、失敗reload時の既存cache保持、sync失敗時のdirty値保持、open先切替、typed/default reads、empty key、removeと削除永続化、nested batch、deferred sync、autosync threshold/clamp、別storeによる更新reload、dirty reload guard/discard、不正数値fallback、batch内外のclear、destructor flush、4並行writerを確認する。失敗reloadの期待は現実実装と異なる見込み。CMake登録内容と件数は静的に確認し、configure/build/実行は未実施。
+
+## 進捗 2026-10-11 — UniformScale standalone program
+
+- 未カバーだった `Core.UniformScale` にmodule interface / implementationだけを使う独立projectと1 runtime caseを追加。default scale=1と公開戻り型`float`を確認する。CMake登録は静的に確認、configure/build/実行は未実施。
+
+## 進捗 2026-10-11 — FileTypeDetector supplementary UTF-8
+
+- 独立 `FileTypeDetectorStandalone` に4-byte supplementary characterを含む有効UTF-8 headerがText判定されるcaseを追加し、15 casesにした。不正UTF-8拒否ケースと対になる正常系。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — RationalTime negative target scale
+
+- 独立 `RationalTimeStandalone` に負のtarget scaleで0を返すcaseを追加し、23 casesにした。現在の`rescaledTo()`は負scaleを計算に使うため失敗見込み。非正fpsを0にする`toFrameCount()`との一貫性に基づく期待値であり、`Insight.md`に記録。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetDatabase canonical same-path relink
+
+- 独立 `AssetDatabaseStandalone` に正規化後に現在pathと同一になる別表記へのrelinkを拒否し、identity・path index・nameを保持するcaseを追加し、15 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — StringView null versus empty UTF-8 view
+
+- 独立 `StringViewStandalone` にnull `std::string_view`と非null empty viewのQString変換後のnull/empty状態を区別するcaseを追加し、14 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactChrono running reset and accumulated cycles
+
+- 独立 `ArtifactChronoStandalone` にrunning中の`reset()`が停止・ゼロ化するcase、複数start/stop区間の累積elapsedが後退しないcase、`Duration::fromNanos()`のint64端点保持、負の1nsからの単位変換、未start stopwatchへのstop no-opを追加し、24 casesにした。待ち時間を固定せず、ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactHashMap duplicate insertion
+
+- 独立 `ArtifactHashMapStandalone` に既存keyへの`tryEmplace`重複挿入の保持契約、move-only mapped valueの転送、自己move assignment後のentry保持を確認する3 casesを追加し、17 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetMetaFile missing sidecar
+
+- 独立 `AssetMetaFileStandalone` にsidecar未作成のsource pathを`load()`した際、空かつinvalidなmetadataを返すcaseを追加し、12 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Keyframe constant-hold speed
+
+- CMake登録された `KeyframeContractTest.cpp` に、Constant補間区間内の`speedAt()`が0になるcaseを追加し、15 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactThread satisfied predicate fast path
+
+- 独立 `ArtifactThreadStandalone` に `Cond::wait(lock, predicate)` が最初からtrueのpredicateを1回評価して待機しないcaseを追加し、13 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ShapeVertex mirror handle length mode
+
+- `ShapeVertexStandalone` に `mirrorHandles(false)` が反対側ハンドルの既存長を保つ契約caseを追加し、14 casesにした。引数の意図はAPI名からの推定であり、現在の実装はtrue/falseで同じ結果となるため失敗見込み。`Insight.md` に記録。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactTimer negative timeout before start
+
+- 独立 `ArtifactTimerStandalone` に未start timerの負timeout／正timeoutのexpired判定を確認する2 casesを追加し、13 casesにした。負timeoutは無効timerのelapsed `-1` と直接比較するため失敗見込み。`Insight.md` に記録。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SimulationSystem zero-delta dispatch
+
+- CMake登録された `SimulationSystemContractTest.cpp` に、unpaused systemへの0 delta配送と、paused systemのreset後もpause状態を維持する契約を確認する2 casesを追加し、3 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetDatabase invalid JSON atomicity
+
+- CMake登録された `AssetDatabaseContractTest.cpp` に、不正JSONおよび配列以外のJSONを拒否した際に既存asset登録とpath indexが保持されるcaseを追加し、14 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — StringView empty needles and Unicode spaces
+
+- `StringViewStandalone` に空prefix/suffix/needleのQStringView互換動作と、NBSP・EM SPACE・IDEOGRAPHIC SPACEを含むblank判定を確認する2 casesを追加し、13 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — PathUtils dotfile naming
+
+- CMake登録された `PathUtilsContractTest.cpp` に、拡張子のない `.gitignore`、末尾ドットの `README.` の名前・stem・suffix契約と、base自身へのrelative pathが`.`になる契約を確認する3 casesを追加し、20 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FileTypeDetector malformed UTF-8
+
+- 独立 `FileTypeDetectorStandalone` に不正UTF-8 lead byte / continuation byteを含むheaderがBinary判定される回帰caseを追加し、14 casesにした。実装上は現在Text判定される見込みのため `Insight.md` に記録。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Easing Bezier symmetry and invalid enum
+
+- 独立 `EasingStandalone` にdefault Bezier previewの補対称性と、未知enum値のclamped-linear fallbackを確認する2 casesを追加し、15 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetFingerprint sampling thresholds
+
+- 独立 `AssetFingerprintStandalone` に1 MiB超でsamplingへ切り替わる境界と、3 MiB超でmiddle sampleが加わる境界を検証する2 casesを追加し、13 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetDatabase whitespace-only input
+
+- 独立 `AssetDatabaseStandalone` に空白・tab・改行だけのpathをregisterできず、indexも変化しないcaseを追加し、13 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetMetaFile normalized tag removal
+
+- 独立 `AssetMetaFileStandalone` に空白付きで追加したtagを同じ入力で削除できる契約caseを追加し、11 casesにした。実装は追加時だけtrimするため失敗見込み。`Insight.md` に記録し、ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactThread condition notification latch
+
+- 独立 `ArtifactThreadStandalone` に待機前の`wakeOne` / `wakeAll`通知をそれぞれ1度のwaitで消費できるcaseを追加し、12 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Handle tag boundary and value semantics
+
+- 独立 `HandleStandalone` に全tagでのuint64上限保持とcopy/move identity保持の2 cases、全tagのtrivially-copyable compile-time assertionを追加し、13 runtime casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — NameGenerator released-name reclamation
+
+- 独立 `NameGeneratorStandalone` にrelease済み名を別baseが再取得したあと、その名が他baseに対して再び予約されるcaseを追加し、13 casesにした。ビルド・実行は未実施。
+
+## 記録訂正 2026-10-11 — AssetSequence frame-zero boundary
+
+- 先行記録のcaseは独立 `AssetSequenceStandalone` が使う `AssetSequenceStandaloneTest.cpp` ではなく、通常の `AssetSequenceDetectionContractTest.cpp` に追加されていたため、独立suiteのcase数として数えない。今回、独立suite本体にcaseを追加。
+
+## 進捗 2026-10-11 — AssetSequenceStandalone frame-zero boundary
+
+- CMake登録された `AssetSequenceStandaloneTest.cpp` に0 frame開始の連番範囲・代表名・path patternを確認するcaseを追加し、27 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactArray squeeze contract
+
+- 独立 `ArtifactArrayStandalone` に余剰capacityの`squeeze()`後の容量と要素保持を確認するcaseを追加し、20 casesにした。現実装は`reserve(size_)`が縮小を無視するため失敗見込みで、`Insight.md` に記録。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactRegex byte offsets and capture states
+
+- 独立 `ArtifactRegexStandalone` にUTF-8入力中のbyte offsetと、unmatched capture対matched-empty captureを区別する2 casesを追加し、23 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — CppLinq composed lazy pipelines
+
+- 独立 `CppLinqStandalone` に `Where`→`Select` の遅延・順序保持pipelineと、`Select` projectionの再走査時再評価を確認する2 casesを追加し、23 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — TextEncoding invalid byte offsets
+
+- 独立 `TextEncodingStandalone` に2/3/4-byte sequenceの不正continuation byte位置と、overlong/surrogate/out-of-range scalarのlead位置を確認する2 casesを追加し、19 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — HashValue binary payload and equality
+
+- 独立 `HashValueStandalone` にembedded NUL/0xffを含むbinary payloadのdigest照合と、invalid empty HashValueのalgorithm+bytesによる構造比較を確認する2 casesを追加し、15 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactOptional move and presence swap
+
+- 独立 `ArtifactOptionalStandalone` にmove construction後のsource再利用と、present/empty間のswap両方向を確認する2 casesを追加し、18 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactRandom maximum integer endpoint
+
+- 独立 `ArtifactRandomStandalone` に `INT_MAX` singleton rangeのinclusive結果を確認するcaseを追加し、15 casesにした。実装は `max + 1` を計算するためoverflow懸念を `Insight.md` に記録。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactVariant unset lifecycle
+
+- 独立 `ArtifactVariantStandalone` にdefault unset state、unsetのcopy/move、active valueからunsetへのcopy/move assignmentを確認する3 casesを追加し、21 casesにした。empty-state destructorの懸念を `Insight.md` に記録。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactSpan const container view
+
+- 独立 `ArtifactSpanStandalone` にmutable containerをread-only element viewとして受け、元containerの変更を読み取れるcaseを追加し、17 runtime casesにした。変換可否もcompile-time assertionで固定。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactExpected move-only transforms
+
+- 独立 `ArtifactExpectedStandalone` に `transform` がmove-only valueを生成し、`transformError` がmove-only errorを生成する2 caseを追加し、18 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Tag StringLike setter contracts
+
+- 独立 `TagStandalone` に `std::string` / `QString` を渡す `StringLike` setterの名前更新を確認する2 caseを追加し、16 casesにした。interface template bodyが空のため失敗する見込みだが、子repoを変更せずビルド・実行も未実施。問題は `Insight.md` に記録。
+
+## 進捗 2026-10-11 — TextNumber lexical rejection and error messages
+
+- 独立 `TextNumberStandalone` にunsigned parserのplus/whitespace拒否と、不正入力のparser別diagnosticを確認する2 caseを追加し、17 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — RationalTime large frame conversion fallback
+
+- 独立 `RationalTimeStandalone` に大きな正負値でframe-rate乗算がint64範囲を超えた場合の丸め結果を確認するcaseを追加し、22 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Result ownership and diagnostic fallbacks
+
+- 独立 `ResultStandalone` に `FromOptional` の値独立性と、fallback accessor後もfailure diagnosticが保持されることを確認する2 caseを追加し、31 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Position2D numeric boundaries
+
+- 独立 `Position2DStandalone` にint座標のmin/maxとfloatの+infinity/NaN保持を確認する2 caseを追加し、17 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — PerformanceProfiler scope/event edge cases
+
+- 独立 `PerformanceProfilerStandalone` にactive scopeなしのend処理と、負/zero subscriber count時のevent count・peakを確認する2 caseを追加し、22 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — PerformanceProfiler empty query behavior
+
+- 独立 `PerformanceProfilerStandalone` に未知timerの空履歴／zero stats、および0件frame履歴でframe/scope statsが空になる2 caseを追加し、20 casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Keyframe exact outer endpoints
+
+- 独立 `KeyframeStandalone` にtrackの最初と最後の正確なkey時刻で保存値をそのまま返すcaseを追加し、14ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactHashMap erase after rehash
+
+- 独立 `ArtifactHashMapStandalone` にautomatic rehash後のeraseでsizeと近傍keyの到達性が維持されるcaseを追加し、14ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FloatRGBA HDR lerp channels
+
+- 独立 `FloatRGBAStandalone` にHDR／負値を含むchannelをlerpしても色成分自体はclampされず、4成分を補間するcaseを追加し、16ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Numeric signed-zero tie behavior
+
+- 独立 `NumericStandalone` にequalな正負zeroのtie時、min/maxが先頭operandの符号表現を保持するcaseを追加し、14ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactCallback return and exception forwarding
+
+- 独立 `ArtifactCallbackStandalone` にmove-only return valueの転送とcallable例外の伝播を確認する2ケースを追加し、16ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactFunctionRef const callable borrowing
+
+- 独立 `ArtifactFunctionRefStandalone` にconst-qualifiedなlvalue callableをcopyせず借用して呼び出せるcaseを追加し、13 runtime casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SharedPtr const conversion
+
+- 独立 `SharedPtrStandalone` にmutable SharedPtrから`SharedPtr<const T>`へのcopy変換でobject／control blockを共有し、const経由で最新値を読めるcaseを追加し、16ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SharedPtr converting copy assignment
+
+- 独立 `SharedPtrStandalone` に派生型pointerから基底型SharedPtrへのcopy assignment後もpointer identity・値・control block countが保たれるcaseを追加し、15ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SharedPtr interoperability and weak reset
+
+- 独立 `SharedPtrStandalone` に`std::shared_ptr`との相互変換でcontrol blockを共有するcaseと、weak resetがstrong ownerを解放しないcaseを追加し、14ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Path nonalphabetic drive prefixes
+
+- 独立 `PathStandalone` に数字・記号で始まる`x:/`風prefixはabsolute drive path扱いされないことを追加し、14ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FileTypeDetector UTF-8 text header
+
+- 独立 `FileTypeDetectorStandalone` にUTF-8 BOMと日本語multibyte bytesで始まるtextをmagic／総合判定の両方でText分類するcaseを追加し、13ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Easing overshoot and bounce bounds
+
+- 独立 `EasingStandalone` にBack／Elastic系の負側・正側overshootとBounce系の正規化範囲をdense input gridで確認する2ケースを追加し、13ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — JsonLike array and combined concept constraints
+
+- 独立 `JsonLikeStandalone` にkeyed-object形状を持たない`QJsonArray`はread/write対象外であることと、片方向だけ対応するproxyは`JsonLike`を満たさないことをcompile-timeで固定し、8 runtime cases／15 compile-time assertionsにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactTimer unstarted timeout state
+
+- 独立 `ArtifactTimerStandalone` に未startのtimerでは0ms timeoutがexpiredにならないcaseを追加し、11ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetDatabase missing-source registration
+
+- 独立 `AssetDatabaseStandalone` に未作成のsource fileでもasset identityを登録でき、absolute path／basename検索が成立するcaseを追加し、12ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetMetaFile asset type whitespace
+
+- 独立 `AssetMetaFileStandalone` にasset type名の前後空白・改行をtrimして既知typeとして解釈するcaseを追加し、10ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Handle default state across tags
+
+- 独立 `HandleStandalone` にAsset／Project／Layerの各tagでdefault構築時のraw値0・invalid状態が揃うcaseを追加し、11ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AspectRatio malformed pair components
+
+- 独立 `AspectRatioStandalone` にwidth／heightの片方を整数にparseできないpair文字列を与えても、現在値を保持するケースを追加し、21ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — StringView supplementary character slice
+
+- 独立 `StringViewStandalone` にUTF-16で2 code unitを占めるサロゲートペアだけをsliceし、QString／UTF-8変換後も文字を保つcaseを追加し、11ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — StringView substring conversion bounds
+
+- 独立 `StringViewStandalone` に終端文字列全体ではない`QStringView` sliceのQString／UTF-8変換でslice範囲を守るcaseを追加し、10ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Id UUID-value construction
+
+- `IdStandalone` に `getUuid()` が返すUUIDから再構築したIdが元と等価で、canonical文字列も保つケースを追加し、19ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Buffer empty prefix and suffix slices
+
+- `BufferStandalone` に空prefix／suffixが値全体と一致する場合のslice契約を追加し、26ケースにした。空suffix後のsliceは空になることも確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Buffer delimiter edge slices
+
+- `BufferStandalone` に先頭／末尾delimiterから空field sliceが得られ、反対側のsliceが正しく残るケースを追加し、25ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — DepthMap zero-height resize
+
+- `DepthMapStandalone` に高さ0でresizeした際も既存mapが空へ戻るケースを追加し、25ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — DepthMap negative resize dimensions
+
+- `DepthMapStandalone` に負の幅・高さでresizeした場合に既存mapが空へ戻る独立ケースを追加し、24ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — DepthMap copy independence
+
+- `DepthMapStandalone` にコピーしたmapの片方だけを変更しても、元mapの寸法・sample値が独立して保たれるcaseを追加し、21ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — DepthMap copy assignment isolation
+
+- `DepthMapStandalone` にcopy assignment後のshape／値の複製と、代入先をresizeしても元mapが変化しない契約を追加し、22ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactVariant self-swap and lifetime balance
+
+- 独立 `ArtifactVariantStandalone` にself-swapと、非trivial alternativeを使ったcopy/move/assignment/swap後のlifetime balanceを確認する2ケースを追加し、18ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactVariant same-alternative operations
+
+- 独立 `ArtifactVariantStandalone` に同一alternative内のcopy/move assignmentとswapを確認する2ケースを追加し、18ケースにした。self-swapと非trivial alternativeのlifetime balanceも検査する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — StringView thread-local storage isolation
+
+- 独立 `StringViewStandalone` に別threadでの`toStdStringView`呼び出し後も呼び出し元threadのviewが保持されるcaseを追加し、9ケースにした。promise/futureでworker完了を同期する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — MultipleTag identity properties
+
+- 独立 `MultipleTagStandalone` に大小文字を区別するtag identity、empty setの演算identity、empty prefix filter、invalid regex filterを4ケース追加し、16ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — StringView embedded NUL reverse conversion
+
+- 独立 `StringViewStandalone` に、埋め込みNULを含む`std::string_view`からQStringへの変換でUTF-16長とNUL位置を保つcaseを追加し、8ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Tag standalone lifecycle suite
+
+- `Utils.Tag`、`UniString`とその最小module依存だけを組む独立project/executableを追加し、default、UTF-8/16/32 Unicode名、embedded NUL、default Tagへのsetter、deep copy、self-copy/move、moved-from destinationへのcopy/move復旧、move後sourceのempty状態と再代入を14 runtime casesと2 compile-time assertionsで検査する。汎用StringLike setterは現行実装のno-opを確認したため対象外とし、Insightに記録。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FloatRGBA interpolation non-finite parameters
+
+- 独立 `FloatRGBAStandalone` にlerpの±infinity endpoint clampとNaNの4channel伝播を確認する2ケースを追加し、15ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactThread ownership traits
+
+- 独立 `ArtifactThreadStandalone` にThread/Mutex/Lock/Condのcopy・move禁止を確認する8 compile-time assertionsを追加。11 runtime casesは変更なし。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactFunctionRef reference argument
+
+- 独立 `ArtifactFunctionRefStandalone` に`int&`引数が借用callableへ転送され、呼び出し元の値を変更できるcaseを追加し、12ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — JsonLike constrained writer values
+
+- 独立 `JsonLikeStandalone` に、concept制約付きwriterでJSON nullとarrayを保存・読戻すcaseを追加し、8 runtime casesと12 compile-time assertionsにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactVariant move-state boundaries
+
+- 独立 `ArtifactVariantStandalone` に、move後sourceのactive alternative有効性とself-move代入の値保持を2ケース追加し、18ケースにした。同一alternative内のassignment/swap、self-swap、non-trivial alternativeのlifetime balanceも検査する。未設定Variantの破棄は既知の未構築storage懸念があるため引き続きテストしない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Defaults type and validity invariants
+
+- 独立 `DefaultsStandalone` に正のdimension/timing/audio容量のruntime invariantを追加し、default定数3種の型をcompile-timeで固定した。suiteは6 runtime casesと13 compile-time assertions。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactRandom singleton integer ranges
+
+- 独立 `ArtifactRandomStandalone` に0と正数の整数singleton rangeを32回ずつ確認するcaseを追加し、14ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactRandom wide integer range
+
+- 独立 `ArtifactRandomStandalone` に`int`のほぼ全域（`INT_MIN`〜`INT_MAX-1`）で範囲内に収まることを確認する256 sample caseを追加し、13ケースにした。最大値で`max + 1`を評価する経路は避けている。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Path input boundary matrix
+
+- 独立 `PathStandalone` にembedded NULの位置別拒否（先頭／末尾／separator直後）と、ASCII大文字・小文字52種すべてのdrive-letter絶対判定を2ケース追加し、13ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ACES gamut predicate channels
+
+- 独立 `ColorACESStandalone` に、負値をR/G/B各channelへ個別に与えたとき拒否し、blackを受け入れるcaseを追加し、10ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetFingerprint standard vectors
+
+- 独立 `AssetFingerprintStandalone` の`abc`とempty fileについて、Qtから期待値を再計算せず固定MD5/SHA-256標準digestを照合するようにした。`abc`のFastHash=MD5も同caseで確認し、suiteは11ケース。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Handle raw-value and nullptr boundaries
+
+- 独立 `HandleStandalone` に最大`uint64_t`値のvalid/ordering境界と、`nullptr`比較の左右両順を確認する2 runtime casesおよび最大値のcompile-time assertionsを追加し、10ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — MultipleTag clear and custom separator
+
+- 独立 `MultipleTagStandalone` にcustom separatorによる正規化parse/serialize往復と、`clear()`の冪等性・再利用を確認する2ケースを追加し、16ケースにした。大小文字区別、空集合identity、filter境界も検査する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Easing NaN propagation
+
+- 独立 `EasingStandalone` にNaN入力が22種すべてのcurve評価結果へ伝播するcaseを追加し、11ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactTimer timeout boundary
+
+- 独立 `ArtifactTimerStandalone` に負のtimeoutは開始後ただちにexpiredとなるcaseを追加し、10ケースにした。時間待ちを使わない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactFunctionRef forwarding coverage
+
+- 独立 `ArtifactFunctionRefStandalone` に参照戻り値のalias保持、参照引数による呼び出し元変更、move-only値引数の転送を確認する3ケースを追加し、12ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — StringView standalone Unicode coverage
+
+- Qt Coreと`Utils.String.View` moduleだけで動く独立suiteに、補助平面文字を含む文字列のUTF-8往復変換caseを追加し、7 runtime casesにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetSequence standalone input ordering
+
+- 独立 `AssetSequenceStandalone` に、複数prefixのフレーム名を意図的に混在させた入力でもgroup順と各group内のframe順が安定するcaseを追加し、26ケースにした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetDatabase standalone and coverage
+
+- `AssetType` / `Asset.Database` interface/implementationとQt Coreだけの独立projectを追加し、既存suiteを4から11 runtime casesへ拡張。preferred UUID衝突、canonical aliasとtype維持、未知UUID no-op、unregister再利用、type filter、clear後再登録、empty JSON arrayによる置換を確認する。singleton状態をsnapshot guardで復元する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetMetaFile standalone and coverage
+
+- `Asset` / `AssetType` interfaceと`AssetMetaFile.cppm`、Qt Coreだけで動く独立projectを追加し、既存suiteを4から9 runtime casesへ拡張。proxy上書き、tag削除、全AssetType名のcase-insensitive parse、custom value欠損／上書き保持、source path必須のsaveを追加する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — JsonLike coverage expansion
+
+- 既存独立suiteを4から7 runtime casesへ拡張。missingとexplicit nullの区別、nested objectのreadback、代入可能proxyを追加し、非const read-only shapeと型不一致writerのconcept境界を含む12 compile-time assertionsで判定する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FileTypeDetector standalone and coverage
+
+- `File.TypeDetector` interface/implementation、Qt Coreだけで動く独立projectを追加し、既存suiteを4から12 runtime casesへ拡張。代表19 magic signature、extension family/case folding、4-byte判定境界、text control byte、extension/magic precedenceとbinary fallbackを確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactCallback coverage expansion
+
+- 既存独立suiteを10から14 runtime casesへ拡張。empty std::functionのconstruct/reset、clear冪等性、void callbackでのreferenceとmove-only value転送を追加する。API commentに存在しない`ifValid()`の記述がある点をInsightに記録。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactFunction standalone
+
+- `Core.ArtifactFunction` moduleだけの独立project/executableを追加し、callable格納／呼出し、SBOとheap経路、void/reference引数、move・clear・swapを15 runtime casesと4 compile-time assertionsで固定する。既知のheap callable moveとempty invocationの危険経路はInsightに記録し、テストで実行しない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactSpan coverage expansion
+
+- 既存独立suiteを10から16 runtime casesへ拡張。const container view、empty container、first/lastのzero lengthとaliasing、全体／nested subspan、constexpr accessを追加し、compile-time assertionsを8件にした。default empty spanの`end()`でnull+0が行われる懸念はInsightに記録し、空spanのbegin/endを使うruntimeテストは未追加。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AspectRatio standalone
+
+- `Core.AspectRatio` と `UniString` の必要module/実装、Qt Coreだけを組み合わせた独立project/executableを追加。constructor簡約、colon/slash/pixel/decimal parse、trim・不正入力保持、zero denominator、copy/moveを20 runtime casesと4 compile-time assertionsで確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Core Defaults standalone
+
+- `Core.Defaults` moduleだけで動く独立project/executableを追加。Composition、audio、renderの全10定数をcompile-time assertionで固定し、全定数の型を13 compile-time assertionsで固定。用途別6 runtime casesで既定値、AudioRingBufferの8秒容量関係、正のdimension/timing/audio容量を確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Position2D standalone
+
+- `Core.Position2D` interface/implementation、Qt Core、GoogleTestだけで動く独立project/executableを追加。整数・浮動小数点座標の既定値、Set/Get、copy/moveと独立性を15 runtime casesおよび8 compile-time assertionsで固定する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactPtr standalone
+
+- `Core.ArtifactPtr` moduleだけを公開依存とする独立project/executableへ拡張し、`Ptr` / `Ref` / `WeakPtr` / `Owned` の寿命・状態遷移21ケースと、move-only `UniquePtr` の所有権操作10ケース、6つのcompile-time assertionを確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SharedPtr standalone
+
+- `Memory.SharedPtr` moduleだけを含む独立project/executableを追加し、空/null、makeShared、共有所有権、move/reset、派生型変換、static/dynamic cast、WeakPtrの期限切れ、custom deleter、swapを12ケースで確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SimulationSystem manager standalone
+
+- `SimulationManager`を他テストの状態から隔離する独立executableと1ケースを追加。active/paused systemのupdate選別、deltaTime転送、paused中も含めたresetAll、resume後の更新再開を確認する。managerにclear/remove APIがないため単一テスト内でsingletonを使い切る。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactThread standalone
+
+- `Core.ArtifactThread`とOptionalだけの独立projectに11ケースを用意。初期停止状態、start/join、join冪等性、join後再start、実行中startのno-op、move-only callable capture、MutexのtryLock、別thread所有中のtryLock拒否、Lock guard解放、再帰lockのunlock balanceをpromise同期と状態検査で確認する。sleepによる時間依存は避ける。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Result coverage expansion
+
+- 既存独立suiteを22から29 runtime casesへ拡張し、value accessorの参照カテゴリを3 compile-time assertionsで固定。default failure、mutable value、reference-returning transformのdecay、transform/andThen時のdiagnostic context保持、move-only payload、fallback overload、Status code normalizationを追加する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactString coverage expansion
+
+- 既存独立suiteを16から22 runtime casesへ拡張。explicit-length StringViewのNUL、small/heap assignmentとself assignment、同一String内replacement参照、aliasing view appendのinline growth、zero-length view、ASCII helperのhigh-bit byte保持を追加する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactAlgorithms coverage expansion
+
+- 既存独立suiteを12から20 runtime casesへ拡張。container contains、predicate short-circuit回数、min/max同値時index、removeIf empty/none/all、sort 0/1/already-sorted、fill empty/full、reverse 2/odd、lowerBound中間挿入位置を追加する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactRegex standalone
+
+- `ArtifactRegex`、String、Array、Utility、Optionalだけを含む独立projectと21ケースを追加。ASCII class/shorthand、anchors/boundaries、capture/noncapture、greedy/lazy、lookahead/backreference、findAll offset/zero-width進行、replacement capture escaping、compile errorと再compileを対象にする。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — CppLinq coverage expansion
+
+- 既存standalone suiteを15から21 runtime casesへ拡張。empty Any predicate未実行、All全件評価、Where反復ごとのlazy predicate、全件通過filter、Selectの要素型変更と順序、FirstOrDefaultのowned resultを追加する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactOptional core standalone
+
+- `Core.ArtifactOptional`そのものをimportする依存なし独立projectと16ケースを追加。値／参照specializationのアクセス、copy/move presence遷移、fallback、resetと破棄回数、present同士のswap、factory forwardingを対象にする。empty/present swapと空initializer-list構築は実装上の未構築union member操作を避けて対象外。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactHashMap coverage expansion
+
+- 独立suiteを9から13 runtime casesへ拡張。mapped constructor argument forwarding、custom hash/equalityでの同値key、rehash後のmapped value pointer安定性、find iteratorのpost-incrementを追加する。衝突bucket内iterationとmoved-from破棄の既知不具合は別途記録済みで、この変更では未修正。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactArray coverage expansion
+
+- 既存独立suiteを14から19 runtime casesへ拡張。replaceの有効／無効index、insert境界、reserve時の要素保持と縮小要求のno-op、mutable find参照、const data/iterationを追加する。既知の`squeeze()`不具合はこの追加suiteの期待値に含めない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactSet coverage expansion
+
+- 既存独立suiteを16から19 runtime casesへ拡張。collision chain内の複数equality class、self-move assignment、chain全削除後の再利用を追加し、iterator dereferenceのconst性を2つのcompile-time assertionsで固定する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactTuple coverage expansion
+
+- 独立suiteを13から17 runtime casesへ拡張し、tuple size・constexpr access/equalityに加えてcopy/move traits、string literal decayのstatic assertionsを9件にした。default initialization、direct lvalue copy、string literal decay、self-copy assignmentを追加する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactExpected coverage expansion
+
+- 既存独立suiteを9から16 runtime casesへ拡張し、value accessorの参照カテゴリを3 compile-time assertionsで固定。mutable access、custom error型でのandThen/orElse/errorOr、成功時transformError、move-only値の収納とmove取得を追加する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactSaturation boundary matrix expansion
+
+- 既存独立suiteを11から18 runtime casesへ増やし、11 compile-time assertionsへ拡張。int8/uint8のadd・sub・mul境界、-1/zero乗算、int64/uint64相互castの全幅端点と隣接値を追加する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactMath coverage expansion
+
+- 既存の`ArtifactMath`独立suiteを12ケースから17ケースへ拡張。mixed-type overloadのpromotion、4象限のatan2、float extrema、move-only値のswapとself-swap、float lerpの型と端点を追加し、既存ケースにもrounding／符号の境界値を追加する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactSpan standalone
+
+- `Core.ArtifactSpan` だけを依存する独立projectと10ケースを追加。空状態、pointer/count・container構築、参照性、const要素、iteration、subspan/first/last、0長subspanを扱う。範囲外アクセスは前提が未定義なので対象外。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactFunctionRef standalone
+
+- `Core.ArtifactFunctionRef` だけを依存する独立projectと11ケースを追加。null/default、関数ポインタ、借用 callable の状態変化、void/参照戻り値、move-only引数、clear、copy、非copy可能lvalue、および一時callableを拒否するcompile-time contractを確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactCallback standalone
+
+- `Core.ArtifactCallback` だけを依存する独立projectと10ケースを追加。validity、引数・move-only引数転送、mutable callable、参照戻り値、clear/reset、copy状態の独立性、Action aliasを確認する。無効callbackのinvokeはabortするため呼び出さず、無効状態は validity API で検査する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ShapeVertex standalone
+
+- `ShapeVertex` moduleだけを依存する独立projectと13ケースを追加。Vec2の加減算・スカラー積・長さ・正規化、ゼロ／閾値ベクトル、頂点とhandleの状態、world位置、handle反転、corner flagを確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactVariant standalone
+
+- `Core.ArtifactVariant` だけを依存する独立projectと14ケースを追加。複数alternativeの構築・識別・取得、const/mutableアクセス、copy/moveとmove後source状態、異種代入、自己copy/move代入、異種swapを確認する。未設定状態の破棄は実装の未構築storage寿命に関わる懸念を避けるため未実行。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactTimer standalone
+
+- Qt Coreと`Core.ArtifactTimer`だけを依存する独立projectと10ケースを追加。無効／開始／restart状態、elapsedの非負・単調性、負／0／最大timeout判定を待ち時間依存なしで確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactChrono standalone
+
+- OS monotonic clock APIだけを使う`Core.ArtifactChrono`独立projectと19ケースを追加。Durationのunit conversion／rounding／算術／比較、SteadyClockのtick換算と逆順クランプ、Stopwatchの状態遷移・停止中の安定性を確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — ArtifactRandom standalone
+
+- Qt Coreと`Core.ArtifactRandom`だけに依存する独立suiteを10から12 runtime casesへ拡張。整数rangeのINT_MIN下限・INT_MAX直前、およびint/double overloadの戻り型を確認する。乱数列の固定順序や両端の出現確率は要求しない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Qt Path utility standalone
+
+- Qt Coreのみで動く `Utils.Path` 独立projectと17ケースを追加。filesystem/string conversion、icon resource fallback、file name/base/suffix、parent/absolute/relative、path normalization、互換alias群を確認する。実行fileやcurrent directoryに依存する値は一時directoryまたは相互整合で確認。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Performance profiler standalone
+
+- `PerformanceProfiler` の独立projectと15ケースを追加。StartupProfilerのsum/override/report、timer registryのlatest・100件上限、scoped timer、frame/scope/eventのmetadata・peak・統計・reportを確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Buffer standalone contracts
+
+- Qt Coreのみで動く `Utils.Buffer` 独立projectと24ケースを追加。byte／QStringView変換、NUL保持、prefix/suffix/contains、trim、split群、alias、repeat、appendを確認する。QString→view lifetimeとdelimiter未検出のafterLast動作は、既知の要調査点として扱い本suiteでは不安定・未確定な期待値を置かない。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — CppLinq standalone
+
+- ranges-only `CppLinq` を独立project化し、Any／All短絡、空range、FirstOrDefault、Where／Selectの順序とlazy evaluationを確認する12ケースを追加。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — PatternNameGenerator standalone
+
+- `PatternNameGenerator` をcontainer moduleだけに依存する独立projectで確認する10ケースを追加。placeholder置換、zero padding、base別counter、name衝突回避、release、幅超過を対象にする。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — UUID Id standalone
+
+- `Utils.Id` をQt Core／Boost.UUID依存だけの独立projectにし、random／Nil／parse、copy・move、self assignment、ordering、typed wrappers、qHashを確認する独立suite。後続進捗を含めて19ケース。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetFingerprint standalone
+
+- Qt Coreのみで動く `Utils.Fingerprint` の独立projectと10ケースを追加。既知digest、empty／missing file、小サイズ時のMD5同一性、1 MiB閾値、大容量fast hashの決定性・sample変更感度・sample外変更の扱いを確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — HashValue standalone
+
+- Qt Coreのみで動く `Utils.HashValue` の独立projectと11ケースを追加。SHA-256／SHA-1／MD5照合、空data／file、hex・等価性、大容量fileのchunked read、全algorithmのfile/data一致、open失敗を対象にする。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Text string helpers standalone
+
+- `Utils.Text.String` の独立projectと15ケースを追加。ASCII whitespace、NUL／非ASCII保持、prefix/suffix境界、split空要素、join、round trip、view backing storageを対象にした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Path contract standalone
+
+- `Utils.Text.Path` の既存6ケースを独立projectに載せ、empty／mixed separator／dot segment／rooted form／非ASCII byte保持を確認する5ケースを追加。計11ケースを単独実行できる構成にした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Text encoding standalone
+
+- `Utils.Text.Encoding` の独立projectと17ケースを追加。全256 single-byte分類、UTF-8境界／拒否シーケンス、invalid offset、BOM検出・除去、UTF-32 decode、codepoint count、エラーcontextを分離実行できる構成にした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Text number parsing standalone
+
+- `Utils.Text.Number` をResult系moduleのみの独立projectで確認する12ケースを追加。int64／uint64の端点、overflow、部分文字列・空白・符号、bool表記、contextとsource locationを含む。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Optional standalone contracts
+
+- `Utils.Optional` の独立suiteを追加し、値／空値、fallbackの遅延、transform参照decay、andThen、filter、Result変換、pointer helper、存在alias群を16ケースで確認する構成にした。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Handle value-type standalone
+
+- `Utils.Handle` をQt Coreだけに依存する独立suite化し、nil／valid、64-bit保持、型分離、比較順序、nullptr互換、helper、Qt hashの10ケースを追加。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Utility concepts standalone
+
+- `Numeric.Like`、`Utils.Point.Like`、`Vector.Like`、`Utils.String.Like` を独立suite化し、numeric arithmetic constraint、size-like method／width category、vector coordinate member、QString／標準文字列変換の成立・拒否条件を確認する21ケースを追加。Qt Coreのみを追加依存とする。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Numeric utility standalone
+
+- 依存なしの `Utils.Numeric` を独立 CMake project 化し、min/maxの順序・等値・負数・異種数値型・constexprと型推論を確認する9ケースを追加。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — Result standalone contracts
+
+- `Utils.Result` を独立 CMake project から確認する18ケースを追加。成功／失敗、fallback遅延、transform／andThen伝播、orElse回復、error context、source location、VoidResult、factory／optional helperを含む。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — FloatRGBA standalone contract
+
+- `FloatRGBAStandalone` を追加し、既存の大きな ColorBridge suite に含まれていた値型契約を独立 CMake project から実行できるようにした。構成子、channel setter/indexing、境界例外、RGB/alpha演算、lerpの有限／非有限parameter clampとNaN伝播、FloatColor双方向変換、copy/move assignment、swap/equalityなど15ケース。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — SurfacePixelConversion unknown-metadata paths
+
+- 独立 `SurfacePixelConversion` suiteにtransferKnown=false時のstale curve無視と、Unknown primaries入力のlinear sample保持／明示出力descriptorを2ケース追加し、31ケースにした。
+
+## 進捗 2026-10-11 — Keyframe curve parameter coverage
+
+- 独立 `KeyframeStandalone` にunequal-time Hermite linear-motion propertyと、outgoing keyのcustom Bezier handles反映を2ケース追加し、13ケースにした。
+
+## 進捗 2026-10-11 — FrameRate adjustment and JSON fallback
+
+- 独立 `FrameRateStandalone` に正負fractional speed deltaと、不完全rational JSONからlegacy fpsへfallbackする2ケースを追加し、26ケースにした。
+
+## 進捗 2026-10-11 — DepthMap invalid input paths
+
+- 独立 `DepthMapStandalone` にempty mapへのsetValue no-opと、既存mapを壊れた画像fileのloadでclearするcaseを追加し、20ケースにした。
+
+## 進捗 2026-10-11 — Keyframe speed boundary contract
+
+- 独立 `KeyframeStandalone` にtrack外／最初／最後のkeyでのfinite-difference speedを確認するcaseを追加し、11ケースにした。
+
+## 進捗 2026-10-11 — Easing monotonicity properties
+
+- 独立 `EasingStandalone` にovershoot／bounceを意図しない12 curveの[0,1] boundednessと単調性を確認する1001点gridを追加し、11ケースにした。NaN入力が22 curveすべてに伝播することも確認する。ビルド・実行は未実施。
+
+## 進捗 2026-10-11 — AssetSequence directory ordering
+
+- 独立 `AssetSequenceStandalone` に作成順とfilesystem列挙順に依存せず、directory wrapperがgroupとsinglesを決定順で返すcaseを追加し、25ケースにした。
+
+## 進捗 2026-10-11 — SurfacePixelConversion alpha-mode matrix
+
+- 独立 `SurfacePixelConversion` suiteにStraight／Premultiplied／Opaque × RGBA／BGRA × float／half／sRGB-byte全18組合せを固定するcaseを追加し、29ケースにした。Opaqueの非finite alpha、論理RGBA順、half bit、byte quantizationも確認する。
+
+## 進捗 2026-10-11 — SurfacePixelConversion metadata matrix
+
+- 独立 `SurfacePixelConversion` suiteに非対応primaries全種の拒否と、17種の宣言済みTransferFunctionがdescriptorからdecodeへdispatchされることを照合する2ケースを追加した。suiteは26から28ケース。
+
+## 進捗 2026-10-11 — AssetSequence token-length boundaries
+
+- 独立 `AssetSequenceStandalone` に18桁paddingでframe 0から続くgroup、int64には収まる19桁tokenの拒否、拡張子内数字をframe tokenから除外する3ケースを追加し、24ケースにした。
+
+## 進捗 2026-10-11 — ImageSurfaceView semantic-layout coverage
+
+- 独立 `ImageSurfaceViewTest` にunknown color metadata保持、BGRA straight-sRGB raw sample保持、float／byte surface validity境界の3ケースを追加した。layout viewが色変換やalpha変換を行わない契約も確認対象にした。
+
+## 進捗 2026-10-11 — DepthMap interpolation and load coverage
+
+- 独立 `DepthMapStandalone` にresize後の全sample再初期化、5×4 affine planeの21×21 bilinear sample grid、RGB PNG loadとQt grayscale conversion referenceの3ケースを追加し、18ケースにした。
+
+## 進捗 2026-10-11 — AssetSequence group metadata contracts
+
+- 独立 `AssetSequenceStandalone` にSequenceGroupのrepresentative、printf path pattern、表示名、Split／Preserve時のmissing frame metadataを確認する2ケースを追加し、20ケースにした。
+
+## 進捗 2026-10-11 — TimeCode boundary contracts
+
+- 既存の `FrameTimeTest` にTimeCodeのinvalid FPS fallback、drop-frame設定可能範囲、24/25/29.97/59.94 nominal-rate HMSF変換、実FPS秒変換、RationalTime往復とhalf-frame丸め、copy/moveを7ケース追加した。TimeCode専用ケースは4から11へ増加。フルArtifactCore依存の既存suiteに追加し、独立ターゲット／Artifact.exe非依存suiteとは数えない。
+
+## 進捗 2026-10-11 — standalone FrameRate display and JSON coverage
+
+- `FrameRateStandalone` にdisplay string、stored-float equality、JSON legacy field優先順位／無効rational、FrameRateOffsetの比較・変更、drop-frame全rational rateとfloat近似境界を7ケース追加し、24ケースにした。Easing独立suiteには全22曲線×1001点のfinite sweepを追加した（9ケース）。
+
+## 進捗 2026-10-10 — RationalTime signed-boundary expansion
+
+- 独立 `RationalTimeStandalone` に負scale正規化、複数scale比のhalf-away-from-zero境界、異scale cancellation、正負frame-count tie、加算／減算の逆操作grid、signed seconds conversion gridを6ケース追加し、合計21ケースにした。
+
+## 進捗 2026-10-10 — standalone keyframe interpolation suite
+
+- `tests/ArtifactCore/KeyframeStandalone` を追加し、`Math.Interpolate` moduleだけで動く独立CTest実行ファイルを用意した。空／単一track、挿入順、端点clamp、不均一時間のlinear速度、constantから次segmentへのexact-key境界、Hermite smoothstepとextrapolation、Catmull-Romのlinear/control-point特性、default Bezier track、clearを10ケースで検査する。ArtifactCore全体・Artifact.exeにはリンクしない。configure/build/CTestは未実施。
+
+## 進捗 2026-10-10 — standalone easing contract suite
+
+- `tests/ArtifactCore/EasingStandalone` を追加し、`Animation.EasingCurveUtil` と `Math.Interpolate` のみを使う独立CTest実行ファイルを用意した。22種すべての端点、入力クランプ、代表curveのin/out対称性、dense finite sweep、代表値、表示名の一意性、候補一覧網羅、保存用interpolation ordinalを9ケースで検査する。ArtifactCore全体・Artifact.exeにはリンクしない。configure/build/CTestは未実施。
+
+## 進捗 2026-10-10 — standalone FrameRate implementation suite
+
+- `tests/ArtifactCore/FrameRateStandalone` を追加し、FrameRate実装、UniString実装、JSON adapter/registry/schema migrationの必要moduleだけを束ねた独立CTest実行ファイルを用意した。FrameRateのrational/drop-frame契約、文字列とJSON入出力、copy/move/swap、invalid値、speed操作、登録状態、FrameRateOffsetを24ケースで検査する。ArtifactCore全体・Artifact.exeにはリンクしない。AGENTS.mdの制約に従いconfigure/build/CTestは未実施。
 
 ## 進捗 2026-10-09 — standalone gamut conversion suite
 
@@ -336,7 +1958,7 @@
 
 ## 進捗 2026-10-09 — ACES transform standalone suite
 
-- `ColorACESContractTest.cpp` を9つ目の独立CTest target `ArtifactCoreColorACESTest` として追加した。既存のColorSpace / gamut closureに`Color.TransferFunction`と`Color.ACES` interfaceを加えて再利用し、ArtifactCore全体はリンクしない。
+- `ColorACESContractTest.cpp` を独立CTest target `ArtifactCoreColorACESTest` として追加した。既存のColorSpace / gamut closureに`Color.TransferFunction`と`Color.ACES` interfaceを加えて再利用し、ArtifactCore全体はリンクしない。gamut predicateの各channel負値拒否を含む10ケース。
 - encoded sRGBとlinear sRGB入力の一致、入力黒、黒と中間値の出力有限性、soft clip、ACES scene-linear gamut predicateを5ケースで確認する。
 - Visual Studio 2026 / MSVC 19.51でtargetをビルドし、全9 suite成功。出力transformはコード内の簡易RRT/filmic近似を検査し、Academy ACES reference transformとのparityは主張しない。
 
@@ -476,6 +2098,61 @@ python tools/capture_ui_test.py `
   --exe out/build/x64-Debug-Agent/bin/Debug/ArtifactUiTest.exe `
   --output artifacts/ui/render-manager.png
 ```
+
+## 進捗 2026-10-10 — 再読込後の編集保存契約
+
+- `ArtifactProjectRoundTripTest.ResaveAfterLoadIsStable` を拡張し、保存→読込後にComposition名とnoteを変更し、別ファイルへ再保存→再読込して両方が保持されることを確認する。既存のbackup分岐・同一path再保存の確認も維持する。テストは未実行。
+
+## 進捗 2026-10-10 — 静止画レイヤー往復契約
+
+- 連番設定テストを追加。フレームpathのtrim／重複除去、空入力時に既存設定を変えないこと、frame rateの下限・上限clampとNaN／Infの無効化、JSON復元時の空白・重複・非文字列要素除去とframe rate上限clampを独立ケースで確認する。ビルド・実行は未実施。
+- SourceCrop snapshotの正常復元と、不正snapshot拒否時に現在状態を保持する2ケースを追加。ビルド・実行は未実施。
+- SourceCrop revisionの実変更時だけの更新と、source texture共有可否がcrop／連番状態で切り替わる契約を追加。GPU実体は使わずCPU側のpredicateのみ確認する。ビルド・実行は未実施。
+- maskをlayerへ追加するとsource texture共有が無効になり、削除すると再び有効になるpredicate条件を確認。GPU実体は使わない。ビルド・実行は未実施。
+- `setFromImageBuffer`の有効buffer置換時にfile asset identity／連番状態が解除されることと、空bufferでframe stateがclearされることを検査する2ケースを追加。ビルド・実行は未実施。
+- SourceCrop layoutの回転行列で指定anchor pivotが固定され、0度でidentity matrixへ戻る契約をCPUテストに追加。ビルド・実行は未実施。
+- property setterの未知path／読み取り専用path／負値・NaNのframe rate拒否と、拒否時の状態不変を確認するケースを追加。ビルド・実行は未実施。
+- SourceCrop panの有限範囲clamp／NaN・Inf無視と、crop rectangleのsource右端・下端clampを2ケースで確認する。ビルド・実行は未実施。
+- SourceCrop anchor両軸がNaN／Inf更新を保持状態のまま無視し、有限値は0〜1へclampされることを追加確認。ビルド・実行は未実施。
+- active SourceCropをlayer JSONから復元し、復元後も元画像の指定画素選択とcrop外の透明化が一致することを追加確認する。ビルド・実行は未実施。
+- SourceCrop layoutでpreserve aspect有効時のletterbox出力矩形と、無効時のlayer frame全体への配置を確認する。ビルド・実行は未実施。
+- SourceCropのzoom縮小とpan移動を組み合わせ、anchor基準で算出されるeffective source rectangleの位置・寸法をCPU契約テストで確認。ビルド・実行は未実施。
+- Active SourceCropのpan／zoom後、CPU画像のcrop矩形内だけが元画素となり、それ以外が透明となる統合ケースを追加。ビルド・実行は未実施。
+- crop／pan／zoomを変更してもImageLayerのlocalBoundsが不変で、レイヤーフレームが維持される契約を確認。ビルド・実行は未実施。
+- 一度生成したCPU crop出力の後にcrop位置を変更すると選択画素が更新され、crop無効化で元画像へ戻るcache revision契約を追加。ビルド・実行は未実施。
+- Temporary source overrideが有効なときlayer source resolverがoverride bufferを返し、空overrideでは本来のsource bufferへ戻ることを確認。ビルド・実行は未実施。
+- OpenCV `cv::Mat`入力のBGR→RGB pixel変換と空Matによる既存画像解除を独立2ケースで確認する。ビルド・実行は未実施。
+- `ArtifactImageLayer::setFromCvMat` が現状の `CvUtils::cvMatToQImage` 対応外である `CV_16UC1` / `CV_16UC3` を受けた場合、bufferを作らずplaceholderを返すことを2ケースで確認。OpenCV BGRの非連続ROIがrow strideを保って各画素を変換するケースも追加。ビルド・実行は未実施。
+- `ImageF32x4_RGBA::setFromCVMat`のCore直通経路では`CV_16UC1` / `CV_16UC3`を正規化し、RGBA floatへ展開／reorderすることを別の2ケースで確認。ArtifactImageLayerのQImage bridgeとは別契約として扱う。ビルド・実行は未実施。
+- 32-bit float BGRAの非連続OpenCV ROIでもrow strideに従い、RGB順とalphaを維持するケースを追加。ビルド・実行は未実施。
+- `Format_ARGB32_Premultiplied` の半透明QImageを直接取り込み、CPU出力でstraight RGBとalphaを復元するケースを追加。ビルド・実行は未実施。
+- `setFromImageBuffer`後に呼び出し側バッファを再設定しても、レイヤーが元のRGBA32F画素を保持するDeepCopy契約を追加確認。ビルド・実行は未実施。
+- ImageBuffer入力のJSON metadataが4-channel RGBA、alpha index 3、32-bit/channelとして記録されることを確認。ビルド・実行は未実施。
+- `setFromQImage`後に呼び出し側QImageをfillで変更しても、レイヤー内の元画素が独立して保持されることを確認。ビルド・実行は未実施。
+- alphaなし `Format_RGB888` を直接設定したとき、CPU出力をopaqueに保ち、source metadataではalpha channelを持たないことを確認。ビルド・実行は未実施。
+- DepthMap bilinear samplingの幅1・高さ1・単一画素の退化寸法で、補間値と端点clampが安定することを2ケースで確認。ビルド・実行は未実施。
+- 2×2 DepthMapの非対称off-center座標で、bilinearのX／Y重みを適用した期待値を手計算と比較。ビルド・実行は未実施。
+- DepthMap bilinear samplingへ正負Infinityの座標を渡した場合に、各端の画素値へclampすることを追加確認。ビルド・実行は未実施。
+- 空segmentation maskの適用拒否時に、元画像の全画素・alphaが不変であることを独立確認。ビルド・実行は未実施。
+- Core segmentation maskのthreshold／softnessからalpha 0・1を生成し、ReplaceAlphaがRGBを変えない契約を追加確認。ビルド・実行は未実施。
+- Core segmentation maskのinvert後にopacity 0.5で既存alphaへMultiplyAlpha適用し、RGBを保持する計算を別ケースで確認。ビルド・実行は未実施。
+- Segmentation helperのcoverage／confidence／padded bounds／acceptance、4種mask combine代数、異解像度resample、非破壊invert previewを4ケース追加。ビルド・実行は未実施。
+- Segmentationのhole fill／small component除去、異解像度temporal stabilization、frame差分統計のnormalized resamplingを4ケース追加。ビルド・実行は未実施。
+- DepthMapのresizeで幅または高さが負の場合に、以前のデータを残さずemptyへ戻る契約を追加確認。ビルド・実行は未実施。
+- `setDepthMap`後にcaller側mapを変更しても、mesh options再適用時の頂点Z値がlayer保持map由来であることを確認。ビルド・実行は未実施。
+- CPU DepthMesh生成の頂点座標でwidth／heightの範囲、depthScale、invertDepthの符号を直接検証。ビルド・実行は未実施。
+- DepthMesh generatorへ負／ゼロのgrid resolutionを渡した際、最低2×2の頂点とquadを生成する契約を確認。ビルド・実行は未実施。
+- 画像シーケンスをfps=0でレイヤーフレーム移動し、要求frameの画像表示と範囲外の先頭／末尾clampを実画像で確認。ビルド・実行は未実施。
+- 静止画sourceのasset versionをinvalidateした後、同じpath上の置換済みPNGを再decodeして新しい画素へ切り替える契約を確認。ビルド・実行は未実施。
+- 欠落画像を含むシーケンスでそのframeへ移動した際、前frameのstale画素を残さずmissing placeholderへ切り替える契約を確認。ビルド・実行は未実施。
+- 一度decodeしたシーケンスframeを同じpath上で破損payloadに置き換えた後、同じindexへ戻ると古いdecode cacheを使わずplaceholderへ切り替えることを追加確認。成功frameはcache indexをpollして非同期decode完了後に比較する。ビルド・実行は未実施。
+- float `cv::Mat`のNaN→0置換、0〜1 clamp、BGR→RGB変換を追加確認する。ビルド・実行は未実施。
+- float grayscale `cv::Mat`のRGB展開・opaque alphaとfloat BGRAのchannel順・alpha保持もテストする。ビルド・実行は未実施。
+- 8-bit grayscaleのRGB展開・opaque alphaと8-bit BGRAのchannel順・alpha保持も検査し、CvUtilsの全対応型分岐をカバーする。ビルド・実行は未実施。
+- 幅上限を超えたin-memory QImage／float buffer入力を拒否し、既存画素を保持する2ケースを追加する。ビルド・実行は未実施。
+
+- `ArtifactStillImageLayerRoundTripTest` を専用実行ファイル／CTest targetとして追加。一時PNGから静止画レイヤーを作り、保存・再読込後のsource path、RGBA画素、layer名、表示状態、opacity、fit mode、2D position/rotation/scale、inactive source-crop設定の保持を確認する。thumbnailのtarget内aspect維持・最小寸法clamp・missing placeholder縮小、temporary source overrideの選択・空override／解除時の元buffer復帰も検査する。別ケースでactive crop領域外を透明化するCPU画像出力と色別source pixelの選択一致、空・有効depth mapのmesh生成とclear後の2D状態復帰、失敗depth map relink時の既存path／mesh保持、DepthMapのgrayscale PNG読込・正規化値・失敗読込時clear、範囲外write無視・値／座標clamp・bilinear補間・無効resize解除、PSD subimage indexとdepth mesh optionsのJSON復元・境界clamp、segmentation maskの空入力拒否とopacity適用時のRGB維持・alpha補間・opacity境界clamp・異寸法maskのbilinear再サンプル、欠落sourceからのplaceholder移行、空sourceによる画像状態解除、破損payload時のpath保持、missing source pathのプロジェクト保存・再読込、source identityのlocalize/relink往復と無効操作拒否、crop propertyのNaN/Inf・寸法境界のsanitize、16-bit grayscale PNGの隣接階調保持・RGB展開・opaque alpha、2-channel gray+alpha PNGのRGB展開・alpha保持、3-channel RGB PNGのRGB画素保持・opaque alpha補完、画像寸法上限とdecoded pixel budget超過をsource path付きFallbackTracker診断で拒否すること、pixel aspectによる表示幅とfit mode時の正方ピクセル表示、入力色解釈文字列のtrim・長さ上限・JSON復元、missing source時の保存metadataに対するorientation・channel/alpha・pixel aspect・bit depth・ICC byte count・文字列・channel name配列のsanitizeを検査する。読み込みはバックグラウンド先読み完了をQt event processingで最大5秒待つ。GPU描画と `Artifact.exe` の起動には依存しないが、Artifact production moduleのため `ArtifactAppRuntime` をリンクする。ビルド・実行は未実施。
+
 - 10月8日ブランチの追加分として、Asset database/import/metadata/sequence、Image Analyzer、Color LUT、Core diagnostics、render pipeline / pointwise fusion、Artifact color effects の独立 contract suite を登録した。ArtifactScript composition host API のテストも拡張した。これらの追加テストは今回実行していない。
 
 ## 進捗 2026-10-09 — Timeline 単体表示
@@ -694,6 +2371,122 @@ Render Manager では同じ loop を使い、regionを `toolbar`、`queue`、`de
 
 ## CMake / 実行設計
 
+Core `RenderImageContractTest`にCV_32FC3 BGR変換を追加し、R/B swap、HDR RGB値の保持、opaque alpha補完、unknown RGBA descriptorを固定した。
+
+ImageSequenceのvalid same-path replacementを追加し、解像度を保った差し替えでfile size/content keyが変わり、再選択後に新しい画素を返すことを検査する。
+
+GPU source texture共有条件のeffect分岐を補い、BrightnessEffect追加時に共有不可、clear後に共有可能へ戻ることを独立ケースで確認する。
+
+ImageSequenceの追加ケースとして、単一pathが通常still-image扱いとなる境界と、FPS property setterのupper clamp・負値/NaN拒否時の既存値保持・zero許容を確認する。
+
+SourceCropのsource-to-output transformを直接テストし、disabled/invalid size時のidentity、aspect保持時の中央配置とletterbox、aspect無効時のframe全域stretchを座標対応で確認する。
+
+SourceCrop JSON値型に、空objectで全項目が既定値へ復帰する動作と、負寸法cropの正規化・型不正point/anchorや負zoomのfallbackを確認する独立ケースを追加した。
+
+SourceCrop値型の直接境界として、reset後の全default値とrevision冪等性、無効source寸法でcrop geometry/revisionを保持しつつeffective rectを空にする動作を追加した。
+
+既存の独立Core `RenderImageContractTest` にresize補間ケースを追加し、2x2→1x1の4 channel平均と2x1→3x1の中間pixel補間値・端点保持を確認する。
+
+2026-10-10: `RenderImageContractTest` にempty `cv::Mat` 入力時のno-op契約を追加した。既存pixel値とcolor descriptorが維持されることを固定する。
+
+同suiteにdescriptor付き `setFromCVMat` overloadのempty入力ケースも追加し、要求descriptorが渡されても既存pixel値・descriptorを変更しないことを確認対象にした。
+
+`RenderImageContractTest` のcrop寸法境界に、画像下端でのzero-height cropがempty画像になるケースを追加した。既存のzero-width境界と対にして幅・高さ両軸を個別検査する。
+
+2026-10-10: `StillImageLayerRoundTripTest` に、有効なsource寸法に対する `SourceCrop::clampToSource` の部分はみ出し補正値と再適用時のrevision不変を検査するケースを追加した。
+
+`tests/ArtifactCore/DepthMapStandalone` を新設し、`Image.DepthMap` module単体を使う独立CTest実行ファイルを追加した。resize/default値・上下clamp、resize後の全sample再初期化、無効resize、setValue境界とempty map no-op、clearの冪等性、非対称4隅・非正方形3x2 gridと5x4 affine plane 21x21 gridのbilinear補間、端点・単一行・単一列・単一画素sample、grayscaleおよびRGB画像load、既存mapからの寸法/値置換、missingおよびcorrupt image load時clearの20ケースを含む。ArtifactCore全体・Artifact.exeにはリンクせず、configure/build/CTestは未実施。
+
+`tests/ArtifactCore/AssetSequenceStandalone` にも依存moduleだけを組み立てる独立CTest実行ファイルを追加し、決定的group順、prefix中の数字と最終frame tokenの区別、suffix/paddingによるgroup分離、空prefixと拡張子必須境界、18桁上限token・frame 0開始・int64内19桁token拒否、拡張子内数字の扱い、連続runのgap分割、複数missing frame列挙、minFrames下限とgap分割後の閾値適用、Preserve時のminimum適用、大文字拡張子、未解析名のsingles化、SequenceGroupのrepresentative/path pattern/display name、Preserve missing-frame metadata、Qtなし一時fixtureによるdirectory scan、wrapperのgroup/singles決定順とminFrames引数転送、欠落directoryの空結果に加え、Split/Preserve両policyで全256通りの8-frame presence patternを照合し、minFrames要求値1〜9を網羅するケースを含む25ケース。Qt・ArtifactCore全体・Artifact.exeには依存しない。configure/build/CTestは未実施。
+
+`tests/ArtifactCore/RationalTimeStandalone` に`Time.Rational` interface/implementationだけを使う独立CTest実行ファイルを追加した。scale補正、符号付きhalf-away丸めとseconds半tick、無効fpsとfactory fallback、異scale算術および小整数reference grid、加算の結合則grid、比較の交差積grid、rescaleのround reference grid、大きな分数比較とINT64_MIN境界、seconds変換、copy、負scale正規化、異scale cancellation、frame-count tie、signed入力の加算／減算逆操作、seconds conversion gridを21ケースで検査する。ArtifactCore全体・Artifact.exeには依存せず、configure/build/CTestは未実施。
+
+`tests/ArtifactCore/FrameRateScaleStandalone` に`FrameRate::storageScaleForFps`専用の独立CTest実行ファイルを追加した。FPSの四捨五入、half境界の隣接値とnominal rate 1〜120でのsweep、正の小数の最小scale、NaN/±Inf/非正fpsの指定・既定fallbackとfallback補正（int64両端を含む）、大きな表現可能値とint64上限直下、固定刻みfinite rate gridを10ケースで検査する。ArtifactCore全体やFrameRate実装libraryには依存せず、Qt CoreとFrameRate/UniStringの限定module依存closureを使う。configure/build/CTestは未実施。
+
+既存standalone `ImageSurfaceViewTest` にBGRAのmutable dispatchとpadded row strideを組み合わせたcaseを追加し、論理RGBA順の書き込み先、行間padding保持、未変更channelを確認対象にした。
+
+ImageF32x4_RGBA file I/Oの独立ケースとして、純赤PNG保存、純緑PNG読込、失敗loadで既存buffer保持、empty EXR保存拒否を追加した。
+
+typed surface viewのmemory safety境界として、float pointerの未整列、float単位で割り切れないrow stride、address span overflowの拒否を追加した。
+
+`withMutableColorFloat4View`のdispatchをRGBA/BGRA別に検査し、1回だけcallbackを実行することとunknown descriptorではpixelを触らず拒否することを追加した。
+
+ImageSurfaceViewのtyped channel accessについて、RGBA/BGRA別のlogical channel参照、mutable viewからのbuffer書き込み、channel order・stride・precision不一致と別buffer pointerの拒否を追加した。
+
+ImageF32x4_RGBA合成APIに、opaque base上のopacity付きalphaBlendと、alphaBlend/blend双方の寸法不一致時の既定動作を独立ケースで追加した。
+
+ImageF32x4_RGBAの入力・pixel access境界として、RGBA8の正規化とcaller memory非共有、不正RGBA32F入力時のpixel/descriptor clear、範囲外pixel操作、empty canonical conversion、CV MatのBGRA descriptor付きcanonical化を独立テストにした。
+
+ImageF32x4_RGBAのsurface境界として、BGRA backingからcanonical RGBA/BGRAへのchannel順、float surface viewの寸法・stride・descriptor、およびempty viewのinvalid判定を追加した。
+
+ImageF32x4_RGBAの所有権とalpha helperについて、DeepCopy後の画素独立、fillAlpha時のRGB保持、createMaskLikeの寸法／fill値、move construct/assign後の移動元再利用を独立ケースで追加した。
+
+ImageF32x4_RGBAの未検査基本操作を補い、行・列反転、範囲cropの画素とdeep-copy性、範囲外cropのempty結果、4 channel weighted blendを個別ケースにした。
+
+DepthMeshGeneratorについて、低解像度depth mapをより細かな格子へ展開する頂点深度・quad数と、empty mapから空meshを返す契約を独立テストに追加した。
+
+background合成の残るalpha契約として、前景・背景双方が半透明なstraight-alpha重み、invert maskによる背景選択、透明画像背景上での前景alpha保持を別々の小画像fixtureで固定した。
+
+追加で、empty sourceを受けたluminance segmenterの既存mask clear、batch内のthreshold refinement反映、DepthMapの負初期値clamp・clear冪等性・empty bilinear sampleを独立ケースにした。
+
+segmentation後処理の境界として、最大hole面積超過時の保持、背景thresholdと等しい値の扱い、small-component除去の0面積上限での非変更拒否、empty maskのrefinement拒否を追加した。
+
+segmentation refinementの独立ケースを追加し、soft/hard threshold、1pxのforeground expand/contract、横縦両方向のfeather平均を固定値で確認する。
+
+segmentation batchの独立ケースを追加し、null/empty sourceを含む部分失敗のcompleted/failed/error集計と、segmenter未準備時に推論を呼ばず全件失敗として返す契約を固定した。
+
+segmentationの追加契約として、luminance segmenterのgamma・dark foreground・alpha無視設定、低解像度maskをsource座標へ対応させるtight crop、および空mask拒否時の出力保持を独立テストにした。
+
+`ArtifactStillImageLayerRoundTripTest` の segmentation合成契約として、単色背景へのmask端点・soft blend、異解像度背景画像のnormalized bilinear sampling、入力が空の場合にdestinationを保持する拒否動作を追加した。
+
+`ArtifactStillImageLayerRoundTripTest` にCore segmentation helperの独立ケースを追加し、luminance maskのblack/white pointとsource alpha、soft green edgeだけを対象にするdespillとalpha保持、foreground extraction時のsource非変更を検査する。
+
+`tests/ArtifactCore/StringViewStandalone` に Qt Core と `Utils.String.View` moduleだけを使う独立suiteを追加した。QString/UTF-8往復、非ASCII文字と埋め込みNUL、prefix/suffix/contains、nullとemptyの区別、Unicode whitespace判定を6ケースで固定する。CMake configure/build/CTestは未実施。
+
+`tests/ArtifactCore/JsonLikeStandalone` に Qt Core と `Utils.Json.Like` moduleだけを使う独立suiteを追加した。QJsonObjectの読み書きと、読み取り専用・書き込み専用・不適合型に対するconcept境界を4ケースおよびcompile-time assertionで固定する。CMake configure/build/CTestは未実施。
+
+`tests/ArtifactCore/MultipleTagStandalone` に Qt Core、`Utils.MultipleTag` interface/implementationだけで構成する独立suiteを追加した。大小文字区別、重複・空白正規化、any/all検索、決定的ソート、空prefix／invalid regexを含むprefix/regex filter、空集合を含む集合演算、文字列parse/serialize、custom separator、clear後の再利用、copy/moveの16ケースを用意する。CMake configure/build/CTestは未実施。
+
+`tests/ArtifactCore/HandleStandalone` に Qt Core と `Utils.Handle` moduleだけを使う独立suiteを追加した。nil/valid判定、factoryとraw値、比較順、最大`uint64_t`値、tag型による非変換性、左右両順の`nullptr`比較、free validity helper、hash seed伝播を10 runtime casesとcompile-time assertionsで固定する。CMake configure/build/CTestは未実施。
+
+既存の独立 `Numeric` suiteへ境界ケースを4件追加した。整数limits、±infinity、最小positive subnormal、異なる算術型で同値となる比較についてmin/max結果とcommon typeを固定する。テストは未実行。
+
+`tests/ArtifactCore/ArtifactExpectedStandalone` に必要なOptional/Array/String moduleだけを構成する独立suiteを追加した。値・エラー状態、fallback、Optional変換、andThen/orElseの分岐、value/error変換、独自error型、rvalue value取得を9ケースで確認する。CMake configure/build/CTestは未実施。
+
+既存の独立 `Optional` suiteへ4件追加した。`ToResult` の既定エラー、`TransformOrElse` の mapped type 変換と遅延実行、present時のvalue pointer identity／変更反映、所有型の`ValueOr`を確認する。テストは未実行。
+
+既存の独立 `Id` suiteへ5件追加した。clearの冪等性と再代入、move元のclearによる再初期化、異なるtyped wrapper間のUUID同一性、nil hashのseed一致、空・短い桁数・非hexのparse拒否を確認する。テストは未実行。
+
+既存の独立 `Result` suiteへ4件追加した。unwrapOrの成否分岐、ErrorContextの診断情報全保持、status/getStatusの同一参照、rvalueからの値取得を確認する。テストは未実行。
+
+既存の独立 `HashValue` suiteへ2件追加した。file hashの8192-byte read chunk直前・一致・直後・2倍境界、およびnonempty bytesでもUnknown algorithmならinvalidとなる契約を確認する。テストは未実行。
+
+既存の独立 `NameGenerator` suiteへ2件追加した。空のbase nameでも番号slotが進むこと、および日本語base nameがUTF-8変換を通して保持されることを確認する。番号slotのない固定patternを重複生成すると実装の重複回避ループが終了しない点はInsightへ記録し、hangするテストは追加していない。
+
+既存の独立 `PerformanceProfiler` suiteに未検査だった`AudioEngineProfiler`ケースを3件追加した。callback/fill集計とunderflow、reset後の累積統計、negative buffer level clampを確認する。実装上`resetStats()`がlast callback/requested framesを維持する点はInsightに記録し、reset契約の確認待ちとした。
+
+既存の独立 `CppLinq` suiteへ3件追加した。`FirstOrDefault` の最初の一致後短絡、`Where` のempty/no-match view、`Select` のempty viewでtransform未実行を確認する。テストは未実行。
+
+既存の独立 `TextNumber` suiteへ3件追加した。null終端に依存しない`string_view` sliceのparse、先頭ゼロと負のゼロ、整数・bool入力内のembedded NUL拒否を確認する。テストは未実行。
+
+`tests/ArtifactCore/ArtifactArrayStandalone` に `ArtifactArray` とOptional moduleだけで動く独立executableを追加した。append/insert、copy/move、optional参照access、remove/take/search、slice/reverse、resize/fill、capacity/swap、比較、StaticArray、非自明要素のlifetime balanceの14ケースを用意する。CMake configure/build/CTestは未実施。
+
+`tests/ArtifactCore/ArtifactStringStandalone` に Optional/Array/String moduleだけで動く独立executableを追加した。SSO境界、copy/move、自己alias appendとheap growth、embedded NUL、substring/search/replace、数値変換・format、ASCII case/trim/split/joinの16ケースを用意する。CMake configure/build/CTestは未実施。
+
+既存の独立 `FrameRate` suiteへ3件追加した。`storageScaleForFps()` の整数／NTSC変換、`llround` half boundary、invalid FPS時のpositive fallback正規化を確認する。テストは未実行。
+
+`tests/ArtifactCore/ArtifactHashMapStandalone` に Optional と `ArtifactHashMap` moduleだけの独立suiteを追加した。基本lookup、mutable/const access、bracket insertion、collision chain lookup/erase、rehash後の200要素保持、non-collision iteration、clear/reuseを9ケースで確認する。2026-10-11にcollision iteration回帰caseと`std::unordered_map` model testを追加し、合計23ケース。collision iteration欠落とmove後破棄の疑いはInsightに記録。suiteは未実行。
+
+`tests/ArtifactCore/ArtifactAlgorithmsStandalone` に Optional/Array/Utility/Algorithms moduleだけの独立suiteを追加した。find/predicate、min/max、accumulate、iota/count、fill/reverse、lowerBound/binarySearch、sort、removeIf fixture、container findを12ケースで検査する。`artifactRemoveIf` と `Array::removeAt` のAPI不一致はInsightに記録。CMake configure/build/CTestは未実施。
+
+`tests/ArtifactCore/ArtifactSetStandalone` に Optional/Array/Utility/Set moduleだけの独立suiteを追加した。重複、参照lookup、iterationとvaluesの順序、collision chain、rehash、copy/move後のsource再利用、clear、swapを10ケースで検査する。CMake configure/build/CTestは未実施。
+
+`tests/ArtifactCore/ArtifactTupleStandalone` にUtility/Tuple moduleだけの独立suiteを追加した。empty tuple、const/mutable element access、lvalue decay、move-only forwarding、各要素の等値性、copy独立性、nested tupleを7ケースで検査する。CMake configure/build/CTestは未実施。
+
+`tests/ArtifactCore/ArtifactMathStandalone` にMath moduleだけの独立suiteを追加した。NumericTraits、extrema tie、clamp、finite/NaN、型promotion、trigonometry、rounding、fmod/hypot、swap、lerpの12ケースを用意する。CMake configure/build/CTestは未実施。
+
+`tests/ArtifactCore/ArtifactSaturationStandalone` にSaturation moduleだけの独立suiteを追加した。signed/unsigned add/sub/mul境界、overflow符号組合せ、same/widen/narrowのsaturateCastを11 runtimeケースと7 compile-time assertionで確認する。CMake configure/build/CTestは未実施。
+
 2026-10-09時点で、`tests/ArtifactCore/ColorSpaceStandalone` に色変換・画像surface関連の独立CTest suiteを11件登録し、Debug構成で全11件が合格した。ColorBridgeにはACEScc/ACEScct、DaVinci Intermediate、Cineon、S-Log3、Canon Log 3のdense normalized-code gridを追加済み。Canon Log 3はlow code境界でdecodeの下降を確認したため、全域単調性を前提にせず区間ごとの単調性と境界挙動を検査する。これは色変換の追加検証結果であり、下記の未実行UI/renderer段階の完了を意味しない。
 
 - per-test の CMakeLists は作らない。現行の `artifact_add_test()` を使い、既存 suite の粒度に合わせて追加する。
@@ -723,3 +2516,5 @@ Render Manager では同じ loop を使い、regionを `toolbar`、`queue`、`de
 6. 失敗時に、失敗 suite・fixture・backend・画像差分を見て原因を特定できる。
 
 この計画はテスト基盤・テストケースの実装完了を意味しない。CMake 登録、fixture/golden 作成、UI runner 実装、実行結果は各 Phase で別途記録する。
+
+\n

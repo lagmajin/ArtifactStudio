@@ -302,6 +302,21 @@ TEST(RenderImageContractTest, ZeroWidthCropProducesEmptyImage)
     EXPECT_EQ(crop.height(), 0);
 }
 
+TEST(RenderImageContractTest, ZeroHeightCropAtBottomEdgeProducesEmptyImage)
+{
+    const ImageF32x4_RGBA source = makeImage(
+        2, 2, {0.0f, 0.0f, 0.0f, 1.0f,
+               1.0f, 0.0f, 0.0f, 1.0f,
+               0.0f, 1.0f, 0.0f, 1.0f,
+               1.0f, 1.0f, 0.0f, 1.0f});
+
+    const ImageF32x4_RGBA crop = source.crop(0, 2, 2, 0);
+
+    EXPECT_TRUE(crop.isEmpty());
+    EXPECT_EQ(crop.width(), 0);
+    EXPECT_EQ(crop.height(), 0);
+}
+
 TEST(RenderImageContractTest, CropRejectsNegativeOriginsAndRangesPastImageEdges)
 {
     const ImageF32x4_RGBA source = makeImage(
@@ -480,6 +495,56 @@ TEST(RenderImageContractTest, CvMatInputClonesFloatPixelsAndKeepsDescriptor)
     expectPixelNear(image, 1, 0, FloatRGBA(0.5f, 0.6f, 0.7f, 0.8f));
 }
 
+TEST(RenderImageContractTest, FloatBgrMatExpandsToRgbaWithoutClippingHdrRgb)
+{
+    cv::Mat input(1, 1, CV_32FC3);
+    input.at<cv::Vec3f>(0, 0) = cv::Vec3f(0.125f, 0.5f, 1.25f);
+    ImageF32x4_RGBA image;
+
+    image.setFromCVMat(input);
+
+    ASSERT_EQ(image.width(), 1);
+    ASSERT_EQ(image.height(), 1);
+    expectPixelNear(image, 0, 0, FloatRGBA(1.25f, 0.5f, 0.125f, 1.0f));
+    EXPECT_EQ(image.colorDescriptor(),
+              SurfaceColorDescriptor::unknownRgba32Float());
+}
+
+TEST(RenderImageContractTest, EmptyCvMatInputLeavesExistingImageAndDescriptor)
+{
+    ImageF32x4_RGBA image = makeImage(
+        1, 1, {0.2f, 0.4f, 0.6f, 0.8f});
+    const auto descriptor = SurfaceColorDescriptor::linearStraightRgba32Float();
+    image.setColorDescriptor(descriptor);
+    const cv::Mat empty;
+
+    image.setFromCVMat(empty);
+
+    EXPECT_EQ(image.width(), 1);
+    EXPECT_EQ(image.height(), 1);
+    expectPixelNear(image, 0, 0, FloatRGBA(0.2f, 0.4f, 0.6f, 0.8f));
+    EXPECT_EQ(image.colorDescriptor(), descriptor);
+}
+
+TEST(RenderImageContractTest, EmptyCvMatWithDescriptorOverloadIsStillNoOp)
+{
+    ImageF32x4_RGBA image = makeImage(
+        1, 1, {0.3f, 0.5f, 0.7f, 0.9f});
+    const auto existingDescriptor =
+        SurfaceColorDescriptor::linearStraightRgba32Float();
+    image.setColorDescriptor(existingDescriptor);
+    const auto requestedDescriptor =
+        SurfaceColorDescriptor::canonicalLinearPremultiplied();
+    const cv::Mat empty;
+
+    image.setFromCVMat(empty, requestedDescriptor);
+
+    EXPECT_EQ(image.width(), 1);
+    EXPECT_EQ(image.height(), 1);
+    expectPixelNear(image, 0, 0, FloatRGBA(0.3f, 0.5f, 0.7f, 0.9f));
+    EXPECT_EQ(image.colorDescriptor(), existingDescriptor);
+}
+
 TEST(RenderImageContractTest, ToQImageEncodesSrgbAndZerosTransparentRgb)
 {
     ImageF32x4_RGBA source = makeImage(
@@ -579,6 +644,41 @@ TEST(RenderImageContractTest, ResizeKeepsConstantPixelsAndDescriptor)
             expectPixelNear(image, x, y, FloatRGBA(0.2f, 0.4f, 0.6f, 0.8f));
         }
     }
+}
+
+TEST(RenderImageContractTest, ResizeDownsamplesAllRgbaChannelsAtPixelCenter)
+{
+    ImageF32x4_RGBA image = makeImage(2, 2, {
+        1.0f, 0.0f, 0.0f, 0.1f,
+        0.0f, 1.0f, 0.0f, 0.3f,
+        0.0f, 0.0f, 1.0f, 0.5f,
+        1.0f, 1.0f, 1.0f, 0.7f,
+    });
+    const auto descriptor = SurfaceColorDescriptor::linearStraightRgba32Float();
+    image.setColorDescriptor(descriptor);
+
+    image.resize(1, 1);
+
+    ASSERT_EQ(image.width(), 1);
+    ASSERT_EQ(image.height(), 1);
+    expectPixelNear(image, 0, 0, FloatRGBA(0.5f, 0.5f, 0.5f, 0.4f));
+    EXPECT_EQ(image.colorDescriptor(), descriptor);
+}
+
+TEST(RenderImageContractTest, ResizeUpscalesWithBilinearMidpoint)
+{
+    ImageF32x4_RGBA image = makeImage(2, 1, {
+        0.0f, 0.2f, 0.4f, 0.0f,
+        1.0f, 0.8f, 0.6f, 1.0f,
+    });
+
+    image.resize(3, 1);
+
+    ASSERT_EQ(image.width(), 3);
+    ASSERT_EQ(image.height(), 1);
+    expectPixelNear(image, 0, 0, FloatRGBA(0.0f, 0.2f, 0.4f, 0.0f));
+    expectPixelNear(image, 1, 0, FloatRGBA(0.5f, 0.5f, 0.5f, 0.5f));
+    expectPixelNear(image, 2, 0, FloatRGBA(1.0f, 0.8f, 0.6f, 1.0f));
 }
 
 TEST(RenderImageContractTest, MismatchedBlendDimensionsReturnUnchangedBase)

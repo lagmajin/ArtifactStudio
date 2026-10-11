@@ -1,5 +1,35 @@
 # ArtifactCore Tests
 
+
+if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_KEYING_VIDEO_TEST)
+    artifact_add_test(ArtifactCoreKeyingVideoInputTest
+        SOURCES
+            KeyingVideoInputTest.cpp
+        LIBS
+            ArtifactCore
+    )
+    set_tests_properties(ArtifactCoreKeyingVideoInputTest PROPERTIES
+        LABELS "keying;video;cpu;core"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
+endif()
+
+if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_TRACKING_VIDEO_TEST)
+    artifact_add_test(ArtifactCoreMotionTrackerVideoInputTest
+        SOURCES
+            MotionTrackerVideoInputTest.cpp
+        LIBS
+            ArtifactCoreTracking
+    )
+    set_tests_properties(ArtifactCoreMotionTrackerVideoInputTest PROPERTIES
+        LABELS "tracking;video;cpu;core"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+        ENVIRONMENT "ARTIFACT_TRACKING_COMPOSITE_OUTPUT=${CMAKE_BINARY_DIR}/tracking-composite-preview.avi"
+    )
+endif()
+
 artifact_add_test(ArtifactCoreTest
     SOURCES
         UtilsTest.cpp

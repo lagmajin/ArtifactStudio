@@ -324,6 +324,111 @@ TEST(TimeCodeTest, SixtyNominalDropFrameUsesFourFrameTenMinuteCorrection)
     EXPECT_EQ(parsed.frame(), 35964);
 }
 
+TEST(TimeCodeTest, NonpositiveFrameRatesUseThirtyFpsFallback)
+{
+    for (const double fps : {0.0, -24.0, std::numeric_limits<double>::quiet_NaN()}) {
+        const TimeCode fromFrame(30, fps);
+        const TimeCode fromFields(0, 0, 1, 0, fps);
+        EXPECT_DOUBLE_EQ(fromFrame.fps(), 30.0);
+        EXPECT_EQ(fromFrame.toString(), QStringLiteral("00:00:01:00"));
+        EXPECT_DOUBLE_EQ(fromFields.fps(), 30.0);
+        EXPECT_EQ(fromFields.frame(), 30);
+    }
+}
+
+TEST(TimeCodeTest, DropFrameCanOnlyBeEnabledAtSupportedNominalRates)
+{
+    for (const double fps : {24.0, 25.0, 50.0}) {
+        TimeCode code(0, fps);
+        code.setDropFrame(true);
+        EXPECT_FALSE(code.isDropFrame());
+    }
+
+    for (const double fps : {29.97, 59.94}) {
+        TimeCode code(0, fps);
+        code.setDropFrame(true);
+        EXPECT_TRUE(code.isDropFrame());
+        code.setDropFrame(false);
+        EXPECT_FALSE(code.isDropFrame());
+    }
+}
+
+TEST(TimeCodeTest, HmsfConstructorAndFrameConversionUseRoundedNominalRate)
+{
+    for (const auto [fps, frame] : {
+             std::pair<double, int>{24.0, 89375}, {25.0, 93099},
+             {29.97, 111719}, {59.94, 223439}}) {
+        const TimeCode fromFrame(frame, fps);
+        int hours = 0, minutes = 0, seconds = 0, frames = 0;
+        fromFrame.toHMSF(hours, minutes, seconds, frames);
+        EXPECT_EQ(hours, 1);
+        EXPECT_EQ(minutes, 2);
+        EXPECT_EQ(seconds, 3);
+        EXPECT_EQ(frames, static_cast<int>(std::lround(fps)) - 1);
+
+        const TimeCode fromFields(1, 2, 3, frames, fps);
+        EXPECT_EQ(fromFields.frame(), frame);
+    }
+}
+
+TEST(TimeCodeTest, FrameAndSecondsConversionsPreserveActualFrameRate)
+{
+    for (const double fps : {24.0, 25.0, 29.97, 30.0, 59.94, 60.0}) {
+        const TimeCode code(12345, fps);
+        EXPECT_NEAR(code.toSeconds(), 12345.0 / fps, 1e-10);
+        EXPECT_DOUBLE_EQ(code.fps(), fps);
+        EXPECT_EQ(code.frame(), 12345);
+    }
+}
+
+TEST(TimeCodeTest, RationalTimeConversionUsesRoundedFpsScale)
+{
+    for (const double fps : {24.0, 25.0, 29.97, 30.0, 59.94, 60.0}) {
+        const TimeCode source(12345, fps);
+        const RationalTime rational = source.toRationalTime();
+        EXPECT_EQ(rational.value(), 12345);
+        EXPECT_EQ(rational.scale(), static_cast<std::int64_t>(std::lround(fps)));
+
+        const TimeCode restored = TimeCode::fromRationalTime(rational, fps);
+        EXPECT_EQ(restored.frame(), source.frame());
+        EXPECT_DOUBLE_EQ(restored.fps(), fps);
+    }
+}
+
+TEST(TimeCodeTest, RationalTimeHalfFrameConversionsRoundAwayFromZero)
+{
+    const auto positive = TimeCode::fromRationalTime(RationalTime(1, 60), 30.0);
+    const auto negative = TimeCode::fromRationalTime(RationalTime(-1, 60), 30.0);
+    TimeCode destination(0, 30.0);
+    destination.setFromRationalTime(RationalTime(1, 60));
+
+    EXPECT_EQ(positive.frame(), 1);
+    EXPECT_EQ(negative.frame(), -1);
+    EXPECT_EQ(destination.frame(), 1);
+}
+
+TEST(TimeCodeTest, CopyAndMovePreserveFrameRateAndDropFrameState)
+{
+    TimeCode original(107892, 29.97);
+    original.setDropFrame(true);
+    TimeCode copied(original);
+    TimeCode assigned(0, 24.0);
+    assigned = original;
+
+    for (const TimeCode* value : {&copied, &assigned}) {
+        EXPECT_EQ(value->frame(), 107892);
+        EXPECT_DOUBLE_EQ(value->fps(), 29.97);
+        EXPECT_TRUE(value->isDropFrame());
+        EXPECT_EQ(value->toString(), QStringLiteral("01:00:00;00"));
+    }
+
+    TimeCode moved(std::move(copied));
+    TimeCode moveAssigned(0, 25.0);
+    moveAssigned = std::move(moved);
+    EXPECT_EQ(moveAssigned.frame(), 107892);
+    EXPECT_TRUE(moveAssigned.isDropFrame());
+}
+
 TEST(FrameRangeTest, ToTimecodeDelegatesToTimeCodeSemantics)
 {
     const FrameRange range(600, 1200);

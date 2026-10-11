@@ -219,6 +219,33 @@ TEST(ColorHarmonizerContractTest, HueSchemesKeepBlackAndWhiteAchromatic)
     }
 }
 
+TEST(ColorHarmonizerContractTest, HueSchemesKeepIntermediateGrayAchromatic)
+{
+    constexpr float grayValue = 0.37f;
+    constexpr float alpha = 0.29f;
+    const FloatColor gray(grayValue, grayValue, grayValue, alpha);
+    const auto analogous = ColorHarmonizer::getAnalogous(gray, 73.0f);
+    const auto triadic = ColorHarmonizer::getTriadic(gray);
+    const auto split = ColorHarmonizer::getSplitComplementary(gray, 41.0f);
+    const auto tetradic = ColorHarmonizer::getTetradic(gray);
+
+    const auto expectGray = [=](const FloatColor& color) {
+        EXPECT_FLOAT_EQ(color.r(), grayValue);
+        EXPECT_FLOAT_EQ(color.g(), grayValue);
+        EXPECT_FLOAT_EQ(color.b(), grayValue);
+        EXPECT_FLOAT_EQ(color.a(), alpha);
+    };
+
+    for (const FloatColor& color : analogous) {
+        expectGray(color);
+    }
+    for (const auto* colors : {&triadic, &split, &tetradic}) {
+        for (const FloatColor& color : *colors) {
+            expectGray(color);
+        }
+    }
+}
+
 TEST(ColorHarmonizerContractTest, AnalogousAngleWrapsAcrossMultipleTurns)
 {
     const auto rgb = ColorConversion::HSVToRGB({30.0f, 0.8f, 0.7f});

@@ -31,8 +31,9 @@ function(artifact_add_test target_name)
     add_test(NAME ${target_name} COMMAND ${target_name})
 endfunction()
 
-# ArtifactCore tests
-if(ARTIFACT_BUILD_TESTS)
+# ArtifactCore tests, including the isolated MotionTracker video test.
+if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_TRACKING_VIDEO_TEST
+   OR ARTIFACT_ENABLE_KEYING_VIDEO_TEST)
     add_subdirectory(ArtifactCore)
 endif()
 

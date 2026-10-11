@@ -74,6 +74,39 @@ TEST(ImageSurfaceViewTest, BgraViewExposesLogicalRgbaChannels)
     EXPECT_FLOAT_EQ(view->row(0)[0].a, 0.4f);
 }
 
+TEST(ImageSurfaceViewTest, LayoutViewPreservesUnknownColorSemantics)
+{
+    const std::array<float, 4> pixels = {-0.2f, 0.4f, 1.5f, 0.75f};
+    const auto descriptor = SurfaceColorDescriptor::unknownRgba32Float();
+    const ImageSurfaceView surface{pixels.data(), 1, 1, sizeof(pixels),
+                                   SurfacePrecision::Float32, descriptor};
+
+    const auto view = Rgba32FView::tryCreate(surface);
+
+    ASSERT_TRUE(view.has_value());
+    EXPECT_EQ(view->colorDescriptor(), descriptor);
+    EXPECT_FLOAT_EQ(view->row(0)[0].r, -0.2f);
+    EXPECT_FLOAT_EQ(view->row(0)[0].b, 1.5f);
+    EXPECT_FLOAT_EQ(view->row(0)[0].a, 0.75f);
+}
+
+TEST(ImageSurfaceViewTest, BgraLayoutViewDoesNotConvertStraightSrgbSamples)
+{
+    const std::array<float, 4> pixels = {0.8f, 0.4f, 0.2f, 0.5f};
+    const auto descriptor = SurfaceColorDescriptor::legacyOpenCvBgra32Float();
+    const ImageSurfaceView surface{pixels.data(), 1, 1, sizeof(pixels),
+                                   SurfacePrecision::Float32, descriptor};
+
+    const auto view = Bgra32FView::tryCreate(surface);
+
+    ASSERT_TRUE(view.has_value());
+    EXPECT_EQ(view->colorDescriptor(), descriptor);
+    EXPECT_FLOAT_EQ(view->row(0)[0].r, 0.2f);
+    EXPECT_FLOAT_EQ(view->row(0)[0].g, 0.4f);
+    EXPECT_FLOAT_EQ(view->row(0)[0].b, 0.8f);
+    EXPECT_FLOAT_EQ(view->row(0)[0].a, 0.5f);
+}
+
 TEST(ImageSurfaceViewTest, BgraViewRejectsRgbaDescriptor)
 {
     const std::array<float, 4> pixels = {0.1f, 0.2f, 0.3f, 0.4f};
@@ -157,6 +190,32 @@ TEST(ImageSurfaceViewTest, MutableRgbaViewHonorsPaddedRowsAndPreservesPadding)
     EXPECT_FLOAT_EQ(pixels[4], 0.25f);
     EXPECT_FLOAT_EQ(pixels[9 + 1], 0.5f);
     EXPECT_FLOAT_EQ(pixels[9 + 4 + 2], 0.75f);
+    EXPECT_FLOAT_EQ(pixels[8], -9.0f);
+    EXPECT_FLOAT_EQ(pixels[17], -9.0f);
+}
+
+TEST(ImageSurfaceViewTest, MutableBgraDispatchHonorsPaddedRowsAndPreservesPadding)
+{
+    std::array<float, 18> pixels{};
+    pixels.fill(-9.0f);
+    auto descriptor = SurfaceColorDescriptor::canonicalLinearPremultiplied();
+    descriptor.channelOrder = SurfaceChannelOrder::BGRA;
+    const ImageSurfaceView surface{pixels.data(), 2, 2, 9u * sizeof(float),
+                                   SurfacePrecision::Float32, descriptor};
+
+    const bool dispatched = withMutableColorFloat4View(
+        surface, pixels.data(), [](auto& view) {
+            view.row(0)[1].r = 0.25f;
+            view.row(1)[0].g = 0.5f;
+            view.row(1)[1].b = 0.75f;
+        });
+
+    ASSERT_TRUE(dispatched);
+    EXPECT_FLOAT_EQ(pixels[4], -9.0f);
+    EXPECT_FLOAT_EQ(pixels[6], 0.25f);
+    EXPECT_FLOAT_EQ(pixels[9 + 1], 0.5f);
+    EXPECT_FLOAT_EQ(pixels[9 + 4], 0.75f);
+    EXPECT_FLOAT_EQ(pixels[9 + 6], -9.0f);
     EXPECT_FLOAT_EQ(pixels[8], -9.0f);
     EXPECT_FLOAT_EQ(pixels[17], -9.0f);
 }
@@ -282,4 +341,29 @@ TEST(ImageSurfaceViewTest, ByteSurfaceViewRequiresBasicNonemptyLayout)
     view.rowStride = pixels.size();
     view.data = nullptr;
     EXPECT_FALSE(view.isValid());
+}
+
+TEST(ImageSurfaceViewTest, FloatAndByteSurfaceValidityRequiresPointerDimensionsAndStride)
+{
+    const std::array<float, 4> floats{};
+    const std::array<std::uint8_t, 4> bytes{};
+    ImageSurfaceView floatView;
+    ImageByteSurfaceView byteView;
+    EXPECT_FALSE(floatView.isValid());
+    EXPECT_FALSE(byteView.isValid());
+
+    floatView.data = floats.data();
+    byteView.data = bytes.data();
+    EXPECT_FALSE(floatView.isValid());
+    EXPECT_FALSE(byteView.isValid());
+    floatView.width = byteView.width = 1;
+    floatView.height = byteView.height = 1;
+    EXPECT_FALSE(floatView.isValid());
+    EXPECT_FALSE(byteView.isValid());
+    floatView.rowStride = byteView.rowStride = 1;
+    EXPECT_TRUE(floatView.isValid());
+    EXPECT_TRUE(byteView.isValid());
+    floatView.width = byteView.width = -1;
+    EXPECT_FALSE(floatView.isValid());
+    EXPECT_FALSE(byteView.isValid());
 }

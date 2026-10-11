@@ -303,3 +303,43 @@ TEST(ColorACESContractTest, GamutPredicateAllowsSceneLinearHighlightsButRejectsN
     EXPECT_TRUE(ACESColorManager::isInGamut(1.5f, 0.2f, 8.0f));
     EXPECT_FALSE(ACESColorManager::isInGamut(0.1f, -0.001f, 0.2f));
 }
+
+TEST(ColorACESContractTest, GamutPredicateRejectsNegativeValueInEveryChannel)
+{
+    EXPECT_FALSE(ACESColorManager::isInGamut(-0.001f, 0.0f, 0.0f));
+    EXPECT_FALSE(ACESColorManager::isInGamut(0.0f, -0.001f, 0.0f));
+    EXPECT_FALSE(ACESColorManager::isInGamut(0.0f, 0.0f, -0.001f));
+    EXPECT_TRUE(ACESColorManager::isInGamut(0.0f, 0.0f, 0.0f));
+}
+
+TEST(ColorACESContractTest, WorkingSpaceSetterRoundTripsConfiguredValue)
+{
+    ACESColorManager manager;
+    EXPECT_EQ(manager.workingSpace(), ACESWorkingSpace::ACEScg);
+
+    manager.setWorkingSpace(ACESWorkingSpace::ACEScct);
+    EXPECT_EQ(manager.workingSpace(), ACESWorkingSpace::ACEScct);
+
+    manager.setWorkingSpace(ACESWorkingSpace::ACEScg);
+    EXPECT_EQ(manager.workingSpace(), ACESWorkingSpace::ACEScg);
+}
+
+TEST(ColorACESContractTest, OutputPresetNamesCoverAllValuesAndUnknownFallback)
+{
+    const struct {
+        ACESOutputTransform transform;
+        const char* expected;
+    } cases[] = {
+        {ACESOutputTransform::SDR_sRGB, "SDR sRGB (Rec.709)"},
+        {ACESOutputTransform::SDR_Rec709, "SDR Rec.709"},
+        {ACESOutputTransform::SDR_P3_D65, "SDR P3 D65"},
+        {ACESOutputTransform::HDR_Rec2020_PQ, "HDR Rec.2020 PQ"},
+        {ACESOutputTransform::HDR_P3_D65_HLG, "HDR P3 D65 HLG"},
+        {static_cast<ACESOutputTransform>(255), "Unknown"},
+    };
+
+    for (const auto& testCase : cases) {
+        EXPECT_STREQ(ACESColorManager::transformName(testCase.transform),
+                     testCase.expected);
+    }
+}

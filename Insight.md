@@ -12,13 +12,13 @@
 - **価値／懸念:** XPU CPU frame lanes と内側の TBB kernels が共有 concurrency cap を使う。Taskflow、QThreadPool、GPU submission、writer/encoderとの完全な process-wide budget は未統合。Debug構成でCore/Artifact/test targetがビルド成功し、RTX 4070 Ti Vulkan + CPUのmixed-text、2D/3D particle、10-frame all-adapters/backpressureテストがそれぞれ3回連続成功。共有TBB arena/concurrencyのdiagnosticsも確認済み。複数物理GPU/iGPUでの受入は未確認。
 - **次に確認:** ArtifactCoreとArtifactの対象ターゲットをビルドし、XPU mixed runtimeでCPU frame lanesとnested `Parallel::For` が同一arenaに参加すること、summaryの実 concurrency、TBB worker数とprocess CPU utilizationを検証する。
 
-### 2026-10-10 — D3D12 build support does not prove an enumerable worker
+### 2026-10-10 — XPU D3D12 requires matching Agility runtime exports
 
 - **関連:** root `CMakeLists.txt` Windows SDK `try_compile` paths、`Artifact/src/Render/DiligentDeviceManager.cppm`、`Artifact/tests/RenderQueueLayerImageIntegrationTest.cpp`。
-- **確認できた事実:** CMake `D3D12_SUPPORTED` と `VULKAN_SUPPORTED` は両方TRUEになり、test targetはDebugでビルドできる。Windows DXGIでRTX 4070 Tiを列挙し、D3D12CreateDeviceをfeature level 11_0〜12_2で直接呼ぶと成功する。ArtifactのD3D12 primary起動は `No suitable hardware adapter found` でVulkan fallbackとなる。XPUのVulkan primary planは同じ物理adapterをD3D12経由で重複dispatchしないため、Vulkan＋D3D12ケースはGoogleTest skip。物理GPUは1基。
-- **今回の対応:** SDK Include/Lib環境を `try_compile` に渡し、D3D12 adapter列挙とdevice選択に先立って `LoadD3D12()` を呼ぶ。
-- **価値／懸念:** OSのD3D12機能は利用可能だが、Artifact/Diligentのprimary backend経路が使えていない。build対応や直接API probeは実worker参加の代わりにならない。
-- **次に確認:** Diligent factoryの `EnumerateAdapters()` と `CreateDeviceAndContextsD3D12()` の間で候補が失われる箇所を特定し、ArtifactのD3D12 primaryで同じRTXがactiveになることを確認する。その後、別GPU/iGPU hostで実機検証する。
+- **確認できた事実:** CMake `D3D12_SUPPORTED` と `VULKAN_SUPPORTED` は両方TRUE。ArtifactはAgility SDK 619 のversion/pathを無条件exportしていたが、SDK `D3D12Core.dll` が配置されない構成では `D3D12_ERROR_INVALID_REDIST` (`0x887E0003`) でdevice creationが拒否される。テスト機は Intel Core i7-13700KF と NVIDIA GeForce RTX 4070 Ti の1 GPU構成で、iGPUは列挙されない。
+- **今回の対応:** Agility SDK runtimeがCMakeで設定された場合だけversion/pathをexportする。SDKなし構成ではOS D3D12 runtimeへ戻す。新しいDebug treeでRender Queue統合テストを実行し、CPU＋D3D12 primaryの混在10-frame dispatch、D3D12 backend選択、画像内容を確認。自動backend選択のCPU＋Vulkan混在画像テストも成功。
+- **価値／懸念:** D3D12 primaryを利用できる構成が復旧した。Agility SDKを設定した構成は未検証。現ホストではiGPUおよび複数物理GPUを使った同時レンダリングを受け入れられない。
+- **次に確認:** Agility SDK 619を明示設定したruntimeと、iGPU＋dGPUまたは複数dGPUの実機で、各GPU laneの参加・フレーム数・画像出力を検証する。
 
 ### 2026-10-10 — Particle XPU parity uses different rasterizers
 

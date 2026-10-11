@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <initializer_list>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -52,6 +53,40 @@ TEST(AssetSequenceDetectionContractTest, SplitsRunsAtMissingFrameNumbers)
     EXPECT_EQ(toStdString(sequence.displayName()),
               "shot_[0001-0002].png  (2 frames)");
     EXPECT_EQ(result.singles.size(), 3u);
+}
+
+TEST(AssetSequenceDetectionContractTest, EmptyInputProducesNoSequencesOrSingles)
+{
+    const auto result = detectSequences({});
+
+    EXPECT_TRUE(result.sequences.empty());
+    EXPECT_TRUE(result.singles.empty());
+}
+
+TEST(AssetSequenceDetectionContractTest, NonpositiveMinimumRunLengthStillRequiresTwoFrames)
+{
+    for (const int minimum : {0, -1, std::numeric_limits<int>::min()}) {
+        const auto result = detectSequences(names({"single_0001.png"}), minimum);
+        SCOPED_TRACE(minimum);
+        EXPECT_TRUE(result.sequences.empty());
+        ASSERT_EQ(result.singles.size(), 1u);
+        EXPECT_EQ(toStdString(result.singles.front()), "single_0001.png");
+    }
+}
+
+TEST(AssetSequenceDetectionContractTest, ReportsMultipleRunsAndDemotesShortGapRun)
+{
+    const auto result = detectSequences(names({
+        "shot_0007.png", "shot_0002.png", "shot_0001.png", "shot_0006.png",
+        "shot_0004.png", "shot_0008.png"}));
+
+    ASSERT_EQ(result.sequences.size(), 2u);
+    EXPECT_EQ(result.sequences[0].firstFrame, 1);
+    EXPECT_EQ(result.sequences[0].lastFrame, 2);
+    EXPECT_EQ(result.sequences[1].firstFrame, 6);
+    EXPECT_EQ(result.sequences[1].lastFrame, 8);
+    ASSERT_EQ(result.singles.size(), 1u);
+    EXPECT_EQ(toStdString(result.singles[0]), "shot_0004.png");
 }
 
 TEST(AssetSequenceDetectionContractTest, PreservePolicyReportsAbsentFrameNumbers)
@@ -128,6 +163,19 @@ TEST(AssetSequenceDetectionContractTest, AcceptsAdjacentEighteenDigitFrameNumber
     EXPECT_EQ(toStdString(sequence.filenames.front()),
               "shot_999999999999999998.exr");
     EXPECT_TRUE(result.singles.empty());
+}
+
+TEST(AssetSequenceDetectionContractTest, DetectsSequenceStartingAtFrameZero)
+{
+    const auto result = detectSequences(names({"preview_0000.png", "preview_0001.png"}));
+
+    ASSERT_EQ(result.sequences.size(), 1u);
+    const auto& sequence = result.sequences.front();
+    EXPECT_EQ(sequence.firstFrame, 0);
+    EXPECT_EQ(sequence.lastFrame, 1);
+    EXPECT_EQ(toStdString(sequence.representative()), "preview_0000.png");
+    EXPECT_EQ(toStdString(sequence.pathPattern()), "preview_%04lld.png");
+    EXPECT_TRUE(sequence.missingFrames.empty());
 }
 
 TEST(AssetSequenceDetectionContractTest, DirectoryScanIgnoresSubdirectories)

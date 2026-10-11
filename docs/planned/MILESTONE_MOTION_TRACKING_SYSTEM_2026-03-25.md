@@ -2,7 +2,7 @@
 
 > 2026-03-25 作成
 
-**最終更新:** 2026-08-15
+**最終更新:** 2026-10-11
 
 **ステータス:** In Progress
 
@@ -434,3 +434,22 @@ Phase 1 実行文書と現行ソースを突き合わせた。`MotionTracker` �
 - Artifact 側では `ArtifactPointTrackerTool`、`ArtifactPointTrackerGizmo`、Composition Render Controller の tracker apply、Corner Pin、Video Layer の tracker ID、Diagnostics 表示まで接続されている。2D tracker の主要導線は別実行文書と整合する。
 - ただし、独立 TrackingService／worker orchestration、project asset としての session lifecycle、mask／camera／stabilization の統一 bridge、manual keyframe との優先順位、長時間処理の cancel 後部分結果は未確認または未完了である。
 - 判定は **Core／2D UI／position・anchor 適用は実装済み相当、アプリ横断統合と runtime 受入れは未完了** を維持する。ビルド・テスト・runtime 確認は未実施。
+
+## Update 2026-10-11 — Tracker panel integration
+
+- `ArtifactCompositionEditor::trackerPanelWidget()` は `AppMain.cppm` から右側の独立 Tracker ドックとして登録されている。Point／Planar の切替、Viewport 上での追跡形状編集、前後の範囲追跡と1フレーム送り（成功時は Playback Service 経由で再生ヘッドを1フレーム進める／戻す）、全範囲の解析、停止・進捗、問題フレーム確認、平滑化・外れ値除去・信頼度フィルターをドックから操作できる。Point モードではドックから追加配置を有効にし、Viewport クリックで追跡点を追加、最後の点を削除できる。解析後は登録した全ポイントの軌跡と信頼度マーカーを表示し、各ポイントの軌跡点を個別にドラッグ補正できる。点の追加・削除と解析方式／信頼度しきい値（5%刻み）の変更は Tracker の Undo 履歴へ記録し、Redo で再適用される。Viewport 上の軌跡点の手動補正も、ドラッグ単位で Undo／Redo に記録する。進捗は入力フレームのキャプチャとバックグラウンド解析を各50%で合算して表示する。Point／Planar 切替、解析、適用、Tracker 削除は専用ドックへ集約し、Viewport の右クリックメニューから重複する操作を除いた。Viewport は追跡形状と軌跡点の直接編集を担当する。
+- 適用操作は Point の Position／Anchor／複数 Null と Planar の Corner Pin／Mask を提供する。UI は解析元と適用対象を別に表示する。追跡元は静止画／連番画像レイヤーをドックから巡回選択でき、結果の適用先は Composition の選択レイヤーとする。追跡元レイヤー ID はプロジェクト `extension_data` にコンポジション単位で保存し、sessionごとの上書きも保存する。Tracker session の一覧・切替・削除は Composition 単位の manifest で管理し、sessionごとの TrackerBoxState を保存・復元する。解析中は入力元を固定し、解析結果がある間は入力元の切替を止める。未解析・解析中・モード違い・マスクパス不在では適用操作を無効化する。解析操作は静止画／連番画像レイヤー選択時に限定される。ドックの状態行は、ソース選択・セッション作成・追跡形状設定・解析・完了・失敗・キャンセルの各段階で次の操作または結果を示す。解析中はドックが非表示でも進捗状態を更新する。
+- Tracker ドックの文言・ツールチップは `TranslationManager` 経由にし、設定で選択できる `en`／`ja`／`zh`／`zh-TW` の翻訳キーを追加した。言語別の実画面レイアウトとキャプチャ確認は未実施。
+- **判定を更新:** Tracker Editor の基本操作面と Overlay／Bake の UI 接続はコード上で実装済み相当。ビルド、言語別レイアウト、実機でのポインター編集、解析／キャンセル、Undo と適用結果の runtime 受入れは未確認。
+- session 作成・削除は TrackerSessionUndoCommand で tracker JSON、同じ tracker ID、source override、TrackerBoxState を Undo/Redo できる。UndoManagerChangedEvent 後に Controller が active manifest と現在の binding を照合して再bindする。追跡元レイヤーの削除では RemoveLayerCommand が該当するComposition既定sourceとsession別source参照を整理し、Undoで元レイヤーが戻った場合だけ、まだ別sourceへ変更されていない空き参照を復元する。Controller の source 解決は存在しない layer ID を拒否して現在の選択へ fallback する。未完了は、旧プロジェクトで Manager 内に残る未登録trackerの復元保証、長時間処理の共通 service 化とキャンセル後の部分結果方針、manual keyframe との優先順位、カメラ／安定化を含む横断適用である。旧データの孤立 tracker は所有先を安全に推定できない。ビルド・テスト・runtime 受入れは未実施。
+- Tracker ドックの「追加」は既存セッションがある場合も有効にし、Composition 内に別セッションを作成・選択できるようにした。新規セッション作成前に現在のセッションの TrackerBoxState を保存する。作成をUndoすると作成前のactive session IDへ戻り、Redoで新規セッションを再選択する。Undo登録失敗時も直前のController bindingを復元する。UI上の多セッション作成・切替はruntime未確認。
+- 「全ポイントをNull化」は各ポイントのレイヤー追加と位置キーフレームを単一の `Apply All Tracking Points` Undo macro にまとめ、一回のUndoで一括適用を戻せるようにした。Undo履歴の容量や実際の一括適用結果はruntime未確認。
+- Pointの「Position適用」は位置キーフレームだけを書き、Anchor操作とは分離した。個別の「Anchor適用」はAnchorプロパティのみを書き換える。
+- 問題フレームのレビュー移動は `ArtifactPlaybackService` に委譲する。Playback Service が対象Compositionを所有していない場合はCompositionへ直接seekせず、レビュー操作を無効化し、ドックのツールチップでPlaybackの対象にする必要を表示する。
+- 1フレーム追跡もPlayback Serviceが対象Compositionを所有し、再生中でない場合のみ実行可能とし、開始フレームは同Serviceのcurrent frameから解決する。別Compositionが再生対象の場合や再生中は両方向のstep操作を無効化してツールチップに理由を表示する。
+- 既存の `PlaybackStateChangedEvent` 購読から Tracker ドックを更新し、再生／一時停止／停止の遷移に合わせてフレーム送りの有効状態とツールチップを同期する。
+- 問題フレームのレビューは前後両方向へ移動可能にし、Playback Service が対象Compositionを所有する条件を両操作で共有する。双方向巡回のruntime確認は未実施。
+- 停止中／スクラブ中の再生ヘッド位置について、最寄りの結果フレーム番号・信頼度を品質欄に表示し、明示的な失敗フレームと信頼度しきい値未満を区別する。再生中は表示をLive playbackに切り替え、FrameChangedイベント毎の文字列生成を避ける。FrameChangedとTracker resultの対応runtime確認は未実施。
+- problem frameが1件以上あるときは、全5種類のBake操作前に件数を示し、失敗フレームにはキーがなくなる可能性と低信頼度値が使われる可能性を説明して明示確認する。既定はCancel。問題フレームがない場合は確認を挟まない。ダイアログ操作・Undo結果はruntime未確認。
+- 品質欄に結果フレームの信頼度推移を固定48サンプルの owner-draw グラフで表示し、設定中の信頼度しきい値を破線で重ねる。横軸は結果時刻に揃え、サンプル間の欠落区間は線を切る。データはcaller-owned fixed arraysへbounded samplingし、再生中と解析中はグラフ値を更新しない。視覚品質と低幅ドックでのレイアウトはruntime未確認。
+- Planar のマスク適用対象を選択レイヤー内のマスク／パス間で巡回できるようにし、選択中の番号をドックに表示する。Apply は選択パスだけへ書き込む。UI文言は `en`／`ja`／`zh`／`zh-TW` に追加した。実機操作とキーフレーム適用結果は未確認。

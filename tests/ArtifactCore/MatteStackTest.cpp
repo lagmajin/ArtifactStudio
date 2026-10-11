@@ -77,6 +77,23 @@ TEST(MatteStackTest, StackOrderAdd) {
     EXPECT_FLOAT_EQ(result.alphaMask[0], 0.8f);
 }
 
+TEST(MatteStackTest, SupportsMoreThanThreeMatteSources) {
+    MatteStack stack;
+    stack.setStackMode(MatteStackMode::Add);
+    stack.addNode(makeNode(MatteMode::Alpha));
+    stack.addNode(makeNode(MatteMode::Alpha));
+    stack.addNode(makeNode(MatteMode::Alpha));
+    stack.addNode(makeNode(MatteMode::Alpha));
+    const std::vector<std::vector<float>> sources = {
+        {0.1f}, {0.15f}, {0.2f}, {0.25f}};
+
+    const auto result = evaluateMatteStack(sources, stack, 1, 1);
+
+    ASSERT_TRUE(result.isValid());
+    ASSERT_EQ(result.alphaMask.size(), 1u);
+    EXPECT_NEAR(result.alphaMask[0], 0.7f, 1e-6f);
+}
+
 TEST(MatteStackTest, StackSubtractAndDifference) {
     MatteStack sub;
     sub.setStackMode(MatteStackMode::Subtract);

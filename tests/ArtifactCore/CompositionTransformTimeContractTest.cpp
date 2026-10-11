@@ -5,11 +5,15 @@
 
 #include <QSize>
 #include <QString>
+#include <QMatrix4x4>
+#include <QTransform>
+#include <QVector3D>
 
 import Composition.Registry;
 import Composition.ParametricComposition;
 import Container.NameMap;
 import Transform;
+import Transform.Hlper;
 import Layer.Blend;
 import Layer.Matte;
 import Time.Rational;
@@ -170,6 +174,46 @@ TEST(StaticTransform2DTest, CopyIsDeepAndMoveIsNullSafe)
     EXPECT_FLOAT_EQ(copy.scaleX(), 1.0f);
     copy.setX(1.0f);
     EXPECT_FLOAT_EQ(copy.x(), 0.0f);
+}
+
+TEST(LayerTransformTest, TwoDimensionalAnchorPositionRotationAndScale)
+{
+    const QTransform transform = makeLayerTransform2D(
+        10.0, 20.0, 90.0, 2.0, 3.0, 1.0, 2.0);
+
+    // The anchor remains at the layer position after rotation and scaling.
+    const QPointF anchor = transform.map(QPointF(1.0, 2.0));
+    EXPECT_NEAR(anchor.x(), 10.0, 1e-6);
+    EXPECT_NEAR(anchor.y(), 20.0, 1e-6);
+
+    // A unit X offset is scaled to two units, then rotated 90 degrees.
+    const QPointF offset = transform.map(QPointF(2.0, 2.0));
+    EXPECT_NEAR(offset.x(), 10.0, 1e-6);
+    EXPECT_NEAR(offset.y(), 22.0, 1e-6);
+}
+
+TEST(LayerTransformTest, TwoDimensionalParentCompositionUsesDocumentedOrder)
+{
+    QTransform local;
+    local.translate(3.0, 4.0);
+    QTransform parent;
+    parent.scale(2.0, 5.0);
+
+    EXPECT_EQ(combineLayerTransform2D(local, parent), local * parent);
+}
+
+TEST(LayerTransformTest, ThreeDimensionalAnchorAndParentComposition)
+{
+    const QMatrix4x4 local = makeLayerTransform3D(
+        10.0, 20.0, 30.0, 0.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0);
+    const QVector3D mappedAnchor = local.map(QVector3D(1.0f, 2.0f, 3.0f));
+    EXPECT_NEAR(mappedAnchor.x(), 10.0f, 1e-5f);
+    EXPECT_NEAR(mappedAnchor.y(), 20.0f, 1e-5f);
+    EXPECT_NEAR(mappedAnchor.z(), 30.0f, 1e-5f);
+
+    QMatrix4x4 parent;
+    parent.translate(-5.0f, 7.0f, 2.0f);
+    EXPECT_EQ(combineLayerTransform3D(local, parent), parent * local);
 }
 
 TEST(RationalTimeTest, ConstructionAndConversion)

@@ -184,7 +184,83 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
     set_target_properties(ArtifactRenderQueueLayerImageIntegrationTest PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
     )
-    add_dependencies(ArtifactRenderQueueLayerImageIntegrationTest Artifact)
+    if(WIN32)
+        add_custom_command(TARGET ArtifactRenderQueueLayerImageIntegrationTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ArtifactRenderQueueLayerImageIntegrationTest>
+                "$<TARGET_FILE_DIR:ArtifactRenderQueueLayerImageIntegrationTest>/"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+
+        find_program(ARTIFACT_TEST_WINDEPLOYQT_EXECUTABLE NAMES windeployqt)
+        set(_artifact_test_vcpkg_installed "${VCPKG_INSTALLED}")
+        if(NOT EXISTS "${_artifact_test_vcpkg_installed}/debug/bin"
+           AND DEFINED VCPKG_INSTALLED_DIR
+           AND EXISTS "${VCPKG_INSTALLED_DIR}/x64-windows")
+            set(_artifact_test_vcpkg_installed "${VCPKG_INSTALLED_DIR}/x64-windows")
+        endif()
+        if(EXISTS "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows")
+            set(_artifact_test_vcpkg_installed "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows")
+        endif()
+
+        if(ARTIFACT_TEST_WINDEPLOYQT_EXECUTABLE)
+            add_custom_command(TARGET ArtifactRenderQueueLayerImageIntegrationTest POST_BUILD
+                COMMAND "${CMAKE_COMMAND}"
+                    "-DWINDEPLOYQT_EXECUTABLE=${ARTIFACT_TEST_WINDEPLOYQT_EXECUTABLE}"
+                    "-DTARGET_FILE=$<TARGET_FILE:ArtifactRenderQueueLayerImageIntegrationTest>"
+                    "-DVCPKG_INSTALLED=${_artifact_test_vcpkg_installed}"
+                    "-DCONFIG=$<CONFIG>"
+                    -P "${CMAKE_CURRENT_SOURCE_DIR}/../../Artifact/cmake/RunWindeployqt.cmake"
+                VERBATIM
+            )
+        endif()
+
+        add_custom_command(TARGET ArtifactRenderQueueLayerImageIntegrationTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}"
+                "-DTARGET_FILE_DIR=$<TARGET_FILE_DIR:ArtifactRenderQueueLayerImageIntegrationTest>"
+                "-DVCPKG_INSTALLED=${_artifact_test_vcpkg_installed}"
+                "-DCONFIG=$<CONFIG>"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/../../Artifact/cmake/CopyQtPlatformPlugin.cmake"
+            VERBATIM
+        )
+        add_custom_command(TARGET ArtifactRenderQueueLayerImageIntegrationTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}"
+                "-DTARGET_FILE_DIR=$<TARGET_FILE_DIR:ArtifactRenderQueueLayerImageIntegrationTest>"
+                "-DVCPKG_INSTALLED=${_artifact_test_vcpkg_installed}"
+                "-DCONFIG=$<CONFIG>"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/../../Artifact/cmake/CopyVcpkgRuntimeDeps.cmake"
+            VERBATIM
+        )
+
+        if(ARTIFACT_AGILITY_SDK_DIR)
+            set(_artifact_test_d3d12core
+                "${ARTIFACT_AGILITY_SDK_DIR}/build/native/bin/x64/D3D12Core.dll")
+            if(EXISTS "${_artifact_test_d3d12core}")
+                add_custom_command(TARGET ArtifactRenderQueueLayerImageIntegrationTest POST_BUILD
+                    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                        "${_artifact_test_d3d12core}"
+                        "$<TARGET_FILE_DIR:ArtifactRenderQueueLayerImageIntegrationTest>/"
+                    VERBATIM
+                )
+            endif()
+        endif()
+
+        if(_artifact_windows_sdk_root AND _artifact_windows_sdk_version_name)
+            set(_artifact_test_dxc_dir
+                "${_artifact_windows_sdk_root}/bin/${_artifact_windows_sdk_version_name}/x64")
+            if(EXISTS "${_artifact_test_dxc_dir}/dxcompiler.dll"
+               AND EXISTS "${_artifact_test_dxc_dir}/dxil.dll")
+                add_custom_command(TARGET ArtifactRenderQueueLayerImageIntegrationTest POST_BUILD
+                    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                        "${_artifact_test_dxc_dir}/dxcompiler.dll"
+                        "${_artifact_test_dxc_dir}/dxil.dll"
+                        "$<TARGET_FILE_DIR:ArtifactRenderQueueLayerImageIntegrationTest>/"
+                    VERBATIM
+                )
+            endif()
+        endif()
+    endif()
     add_test(NAME ArtifactRenderQueueLayerImageIntegrationTest
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
             --gtest_filter=RenderQueueLayerImageIntegrationTest.Production2DAnd3DParticlesRenderThroughManagerQueue
@@ -192,6 +268,15 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
     set_tests_properties(ArtifactRenderQueueLayerImageIntegrationTest PROPERTIES
         LABELS "render-queue;renderer;gpu;headless;particle;image;integration"
         TIMEOUT 300
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactRenderQueueExrImageIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.WritesReadableExrThroughManagerQueue
+    )
+    set_tests_properties(ArtifactRenderQueueExrImageIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;image;openexr;integration"
+        TIMEOUT 180
         RUN_SERIAL TRUE
     )
     add_test(NAME ArtifactRenderQueueTextLayerImageIntegrationTest
@@ -322,6 +407,19 @@ if(ARTIFACT_BUILD_TESTS)
     set_tests_properties(ArtifactProjectRoundTripTest PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
         LABELS "project;serialization;cpu;contract;integration"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+
+    artifact_add_test(ArtifactStillImageLayerRoundTripTest
+        SOURCES
+            StillImageLayerRoundTripTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactStillImageLayerRoundTripTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "standalone;project;layer;image;serialization;cpu;contract;integration"
         TIMEOUT 180
         RUN_SERIAL TRUE
     )
