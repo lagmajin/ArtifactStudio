@@ -1289,3 +1289,11 @@
 - **変更:** Composition-owned `ArtifactArray<CollisionLayerScratch>`へsource/target判定、collision properties、global transform、world bounds、target inverseを一度評価して保持。collider生成をsource outer / target innerへ変更し、各targetへ入るsource順は旧処理と同じに保つ。polygon outlineは最初の有効targetでlazy生成し、そのsourceの他targetで再利用する。頂点のtarget-local変換はtargetごとに残す。
 - **価値／懸念:** 重複property accessor・bounds transform・inverse transformとmulti-target時のoutline生成を削減する。scratch要素はLayer SharedPtrを保持するため、従来通りremove/remove-all時の全scratch clearを維持した。source-target順の物理結果とruntime効果は未確認。
 - **次に確認:** 1 source/複数target、複数source/複数target、同一source-target除外、inactive/非invertible target、empty polygon outline fallbackを比較し、transform評価回数・outline生成回数・solver collider順が一致することを確認する。
+
+## 2026-10-13 — RAM replay の GPU residency と cache budget
+
+- 確認済み事実: PrimitiveRenderer2D の video upload は owner と寸法ごとの単一 texture を上書きする。既存 sprite/mask texture LRU は 50 entry / 合計512 MiB。controller の RAM replay は CPU cache があってもこの upload を使っていた。
+- 関連: Artifact/src/Render/PrimitiveRenderer2D.cppm、Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm。
+- 今回の範囲: cold RAM publication 後の32 owner warmupと、内容一致のみを返す resident lookup。cache eviction 時は既存経路。総 budget は増やさない。
+- 未検証の仮説: 大きい preview と90 frame以上のループは budget不足により residency改善が限定的になる。GPU-only capture と memory policy は別途寿命・編集無効化を確認する必要がある。
+- 次に確認: 実際の resident hit / upload 回避、例外、同条件の late/drop、RGBA parity。短いloopの成功を長尺生成の成功と扱わない。
