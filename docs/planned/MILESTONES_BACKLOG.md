@@ -1,6 +1,12 @@
 # Milestones Backlog
 
-**最終更新:** 2026-10-08
+**最終更新:** 2026-10-11
+
+### MPM 2D Granular Sand
+- **M-MPM-SAND-1** MPM顆粒砂シミュレーション（In Progress）
+  - 既存MPM/PhysicsSystemのfixed-step・snapshot・collider経路を使い、既存弾性材質とセルオートマトンSandSim2Dを保ったまま圧力依存摩擦塑性を持つ独立した砂Layerを作る
+  - 安息角、堆積、圧密、せん断、save/load、seek/render一致をCPU基準で受け入れてからGPU対応範囲を決める
+  - 詳細: `docs/planned/MILESTONE_MPM_GRANULAR_SAND_2026-10-11.md`
 
 ### Physics Testbench（Soft Body first）
 - **M-PHYS-TEST-1** 独立 Physics Testbench の設計・実装（Not Started）
