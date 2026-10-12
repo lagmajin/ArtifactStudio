@@ -390,6 +390,21 @@ int capture3DParticles(const QString& outputDirectory)
         playbackFrame.image, directSeekFrame.image);
     const auto revisitDifference = compareImages(
         playbackFrame.image, revisitFrame.image);
+
+    Artifact::ArtifactParticle3DLayer rainLayer;
+    rainLayer.loadPreset(QStringLiteral("rain"));
+    rainLayer.resetParticleSystem();
+    rainLayer.play();
+    CaptureResult rainFrame;
+    for (int frame = 1; frame <= PlaybackFrame; ++frame) {
+        rainFrame = renderFrame(rainLayer, renderer, frame, 0.0f,
+                                frame == PlaybackFrame);
+    }
+    const QString rainPath = output.filePath(QStringLiteral("rain_frame_45.png"));
+    if (!saveCapture(rainFrame, rainPath, report)) {
+        renderer.destroy();
+        return 22;
+    }
     report.write(QStringLiteral(
         "orbit_differing_pixels=%1 transform_differing_pixels=%2 "
         "temporal_differing_pixels=%3 direct_seek_differing_pixels=%4 "

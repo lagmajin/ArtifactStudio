@@ -1,4 +1,4 @@
-**最終更新:** 2026-10-10
+**最終更新:** 2026-10-12
 
 # Artifact 3D Particle Capture Test
 
@@ -44,7 +44,7 @@ The capture directory receives `front_view_frame_45.png`,
 `depth_occluded_frame_45.png`,
 `depth_disabled_control_frame_45.png`,
 `orbit_view_frame_45.png`, `layer_transform_frame_45.png`, `later_frame_60.png`,
-`direct_seek_frame_45.png`, `revisited_frame_45.png`, and
+`direct_seek_frame_45.png`, `revisited_frame_45.png`, `rain_frame_45.png`, and
 `particle_3d_report.txt`. The command exits
 nonzero if the GPU path is unavailable, the production 3D layer does not queue
 a draw with a 3D camera, a capture contains no visible particles, the orbit or

@@ -1,6 +1,11 @@
 # ArtifactCore Tests
 
 
+if(ARTIFACT_BUILD_TESTS)
+    add_subdirectory(AnimationDynamicsStandalone)
+endif()
+
+
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_KEYING_VIDEO_TEST)
     artifact_add_test(ArtifactCoreKeyingVideoInputTest
         SOURCES
@@ -406,6 +411,21 @@ artifact_add_test(ArtifactCorePhysicsDeterminismTest
         PhysicsDeterminismTest.cpp
     LIBS
         ArtifactCore
+)
+set_tests_properties(ArtifactCorePhysicsDeterminismTest PROPERTIES
+    LABELS "physics;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreFracturePlaneImageTest
+    SOURCES
+        FracturePlaneImageTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreFracturePlaneImageTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "fracture;physics;cpu;contract;image"
+    TIMEOUT 60
 )
 
 artifact_add_test(ArtifactCoreMathVecTest
