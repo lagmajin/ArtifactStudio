@@ -56,5 +56,19 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS
     add_subdirectory(Artifact)
 endif()
 
+if(ARTIFACT_BUILD_TESTS)
+    artifact_add_test(ArtifactMaskVisualTest
+        SOURCES
+            "${CMAKE_CURRENT_SOURCE_DIR}/mask_visual/MaskVisualTest.cpp"
+        LIBS
+            Artifact
+            ${OpenCV_LIBS}
+    )
+    target_include_directories(ArtifactMaskVisualTest PRIVATE ${OpenCV_INCLUDE_DIRS})
+    set_tests_properties(ArtifactMaskVisualTest PROPERTIES
+        LABELS "mask;image;cpu;visual;contract"
+    )
+endif()
+
 # ArtifactWidgets tests (later)
 # add_subdirectory(ArtifactWidgets)
