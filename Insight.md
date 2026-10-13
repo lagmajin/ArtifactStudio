@@ -3164,3 +3164,11 @@
 - **変更:** 2番目のufbx UV setを`uv1` vertex attributeへ読み、RenderDataの`uvs1`にtriangle flattenする。mesh内の一部だけUV1がない場合はUV0を複製する。meshlet remapにもUV1を含めた。Base Color／Metallic-Roughness／Normal／Coat Normal／Occlusion／Emission／OpacityごとにUV Set（0／1）をMaterial／Layer JSON／Propertyへ追加し、Raster／RT samplingへ伝搬した。Masked shadow alpha clipとRT Any HitにもBase Color／Opacityの選択UVを通す。RTは各選択UVの微分でray-cone mip密度を計算し、Normal／Coat Normalは別々の接線基底を使う。
 - **価値／懸念:** すべての現在のPBR texture mapでUV1をRaster／RT共通に選択できる。shader compilation／画像 parityは未確認。
 - **次に確認:** 複数UVを含むFBX／glTF fixtureをRaster／RTで描画し、各map選択、masked shadow境界、normal detail、mip応答、material serialization、parityを確認する。
+
+### 2026-10-14: OBJ/MTL material slotをPrincipled tableへ接続
+
+- **関連:** `ArtifactCore::MeshImporter::detectTexturesFromTinyObj()`／`loadWithTinyObj()`、`Artifact3DLayer::loadFromFile()`、既存Raster／RT material slot範囲描画。
+- **確認済み事実:** OBJ importerはMTL texture pathだけを拾い、geometryにmaterial slot rangeを作っていなかった。tinyobjloaderのMTL parserはmaterial IDごとのdiffuse／specular／emission、PBR metallic／roughness／clearcoat／sheen／anisotropy、dissolve／IOR、texture optionsを保持し、`Mesh::MaterialSlot`とUFBX向けPrincipled tableの適用経路は既存である。
+- **変更:** MTL tableをslot用Principled materialへ変換し、面material IDから隣接triangle rangeを作る。Phong shininessからroughnessへ近似変換し、MTL anisotropy rotationのturn値を度に変換する。
+- **価値／懸念:** 複数材質を持つOBJが単一の全体materialではなく、MTLで定義された面単位の外観とRaster／RT slot割当を保持できる。tinyobjloaderが`Kd`未指定と明示的な黒を区別しないため、全0 diffuseはwhite fallbackにする。roughnessとmetallicの別々のMTL textureは既存packed map契約に合わせて片方だけを選ぶ制限があり、rotation単位・色空間・画像応答をruntimeで未検証。
+- **次に確認:** build禁止解除後に2材質以上のOBJ/MTL fixtureでmaterial ID範囲、色／roughness／metallic／透明、texture transform、保存再読込、Raster／RT一致を検証する。単一材質OBJの適用経路と独立roughness／metallic textureも後続課題。
