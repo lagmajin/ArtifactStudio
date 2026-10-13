@@ -2,7 +2,14 @@
 
 **Status:** Phase 1 のデータ契約・Shader 基盤を拡張中。共有IBLサンプリング関数とcubemap GPU所有権を追加。HDRI 読み込み、実 Skybox、PBR接続、UI／runtime 検証は未完了。
 
-**最終更新:** 2026-08-18
+**最終更新:** 2026-10-14
+
+## 2026-10-14 Composition Skybox 描画順
+
+- EnvironmentMapLayer の `visibleAsBackground` が有効な場合、Composition renderer はHDR Skyboxをフレーム開始時のbackbuffer clearより前に描いていたため、その描画が直後に消去されていた。
+- Skybox呼び出しをclear後・最終Composition spriteの描画前へ移した。透明なComposition領域では環境背景を残し、描画済みレイヤーは後続の合成で上に表示する。
+- `ArtifactAppRuntime` の対象Composition controller moduleを既存build treeでコンパイルし、製品 `Artifact.exe` のリンクも成功した。アプリプロセスが応答し、`Artifact 0.9.0 | dev | local` のメインウィンドウを作成することを確認。`ArtifactCoreRayTracingAcceptanceTest` も再実行して成功した。
+- **未確認:** Composition上でHDR背景・rotation・レイヤー合成を画素で確認するruntime受入。画面操作APIが利用できず、起動後の描画を目視できていない。Raster viewportの色変換とRay Tracing miss背景の表示一致も未確認。
 
 ### 現行コード監査（2026-08-15）
 

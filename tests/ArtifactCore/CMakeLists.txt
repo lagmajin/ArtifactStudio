@@ -16,11 +16,15 @@ if(ARTIFACT_ENABLE_RAY_TRACING_TEST)
             ArtifactCore
             ${_artifact_rt_test_backend}
     )
+    if(PLATFORM_WIN32)
+        copy_shader_compiler_dlls(ArtifactCoreRayTracingAcceptanceTest
+            DXCOMPILER_FOR_SPIRV YES)
+    endif()
     set_tests_properties(ArtifactCoreRayTracingAcceptanceTest PROPERTIES
         LABELS "renderer;gpu;ray-tracing;headless;acceptance;core"
         TIMEOUT 180
         RUN_SERIAL TRUE
-        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;ARTIFACT_RENDER_BACKEND=vulkan"
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;ARTIFACT_RENDER_BACKEND=vulkan;ARTIFACT_RT_FRAME_OUTPUT_DIR=${CMAKE_BINARY_DIR}/artifacts/ray-tracing-frames"
     )
 endif()
 

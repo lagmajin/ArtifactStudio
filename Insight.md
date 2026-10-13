@@ -1,6 +1,14 @@
-**最終更新:** 2026-10-13
+**最終更新:** 2026-10-14
 
 # Insight Register
+
+## 2026-10-14: RT shading geometryへvertex colorを統合
+
+- **関連:** `ArtifactCore::RayTracingManager`、`ArtifactIRenderer`、Raster／RTのPrincipled shading。
+- **確認済み事実:** Raster `MeshRenderer` は頂点カラーRGBをsRGB→linear変換してbase colorへ乗算し、頂点alphaもmaterial alphaへ乗算する。RT shading geometryは位置・法線・UV・primitive material indexを保持していたが、vertex color入力はなく、RT closest-hitとMasked any-hitで未使用だった。
+- **変更:** 頂点カラーをRT geometry bufferへ追加し、closest-hit base colorとany-hit alpha clipへ渡す。vertex colorがないgeometryは白として扱う。
+- **価値／懸念:** 頂点カラー付きmeshのRaster／RT差を減らし、頂点alphaを使ったMasked材質をRTでも表現する。各importerが出す頂点RGBのtransfer encoding契約は一元化されておらず、Raster既存処理へ合わせたためglTF等のlinear vertex colorの扱いは未解決。compile／画像parity未確認。
+- **次に確認:** source importerごとの色空間契約を整理し、頂点色fixtureでRaster／RTとalpha clipを比較する。
 
 ### 2026-10-13 — Render Queueのテキスト統合テストはshaping parityまで段階化する
 
@@ -2988,3 +2996,91 @@
 - 今回の範囲: cold RAM publication 後の32 owner warmupと、内容一致のみを返す resident lookup。cache eviction 時は既存経路。総 budget は増やさない。
 - 未検証の仮説: 大きい preview と90 frame以上のループは budget不足により residency改善が限定的になる。GPU-only capture と memory policy は別途寿命・編集無効化を確認する必要がある。
 - 次に確認: 実際の resident hit / upload 回避、例外、同条件の late/drop、RGBA parity。短いloopの成功を長尺生成の成功と扱わない。
+
+### 2026-10-14: Principled material controls and maps (continuation record)
+
+- **関連:** `ArtifactCore::Material`、`Artifact3DModelLayer`、Raster `MeshRenderer`、RT `RayTracingManager`。
+- **確認済み事実:** 既存作業でAO／base color／metallic-roughness／normal／emission map、ray-cone mip選択、Raster multi-material slot map、Masked shadow alpha、異方性、Burley diffuse、coat／sheen層を順次接続している。
+- **変更:** ここまでの作業記録が失われたため、セッション要約から確認できる直近機能を集約して復旧した。独立Coat Normal、Diffuse Roughness、float Base Color transfer encoding、alpha-aware odd-size mip filterを含む。
+- **価値／懸念:** 実装経緯の要点を残す。詳細な過去の検証条件は元記録から完全復元できず、GPU compile／runtime parityも未確認。
+- **次に確認:** 主要map・material controlsをRaster／RTでcompileし、texture LOD・alpha mode・normal variance・energy consistencyを代表fixtureで評価する。
+
+### 2026-10-14: PBR base-color mipの透明縁と奇数寸法を保持
+
+- **関連:** Raster `buildRgba8MipChain` とRT `loadRgbaPbrTexture` のtexture mip構築。
+- **確認済み事実:** 固定2x2または整数binの縮小では奇数幅／高さの端texelが落ちるか重みが偏る。透明base-color texelのRGBをalphaに関係なく平均すると、縮小時に色bleedし得る。
+- **変更:** source／destination texel矩形の重なり面積で平均し、base-colorはalpha重み付きlinear RGB、alphaは面積平均にする。normal vectorの平均長alphaも維持する。
+- **価値／懸念:** 透明縁と不均等縮小の問題を抑える。alphaをopacityに使わない素材では色平均へ影響する可能性があり、実画素未確認。
+- **次に確認:** 奇数寸法と透明色edgeのmip readbackをRaster／RTで比較する。
+
+### 2026-10-14: Principled sheen IBLへAOを適用
+
+- **関連:** Raster `MeshRenderer.cppm` とRT `RayTracingManager.cppm` のsheen environment。
+- **確認済み事実:** AO mapはdiffuse IBLとbase specularの遮蔽に使う一方、sheen environmentには使われていなかった。
+- **変更:** sheen roughnessとview cosineに既存roughness-aware specular-occlusion近似を適用する。AO=1なら従来応答を保つ。
+- **価値／懸念:** 凹部でsheenだけが残る不整合を抑える。Charlie sheenにGGX由来scalar近似を使うため、物理積分ではなく画素検証も未実施。
+- **次に確認:** AO／roughness sweepとRaster／RT parityを確認する。
+
+### 2026-10-14: Normal Mapへ独立した追加UV回転を追加
+
+- **関連:** `ArtifactCore::Material`、`Artifact3DModelLayer`、Raster `MeshRenderer`、RT `RayTracingManager`。
+- **確認済み事実:** Materialの既存offset／scale／rotationは全texture共通だった。normalとcoat-normalは別texture pathを持つが、どちらも同じ共通UV座標でsampleされ、Rasterのderivative tangent basisとRT triangle tangent basisもそのUVに一致していた。
+- **変更:** 共通UV transform後にNormal Map専用の追加rotationをMaterial／JSON／Property／material signature／single・multi-material Raster／RTへ追加した。normal sample座標を回し、RTはtangent／bitangent basisにも同角度を適用する。Coat Normalは同じ追加回転を使う。
+- **価値／懸念:** albedo／roughness textureの位置・方向を変えずnormal detailだけを向け直せる。full per-texture scale／offset／UV set選択ではなく、coat-normalにも同rotationを共有する。shader compileと画像parityは未確認。
+- **次に確認:** 0度で旧応答を保つこと、90度で+U normal detailが+Vへ回ること、mirrored UV／non-uniform scale、normal／coat-normal併用をRaster／RTで比較する。
+
+### 2026-10-14: Normal Map専用UV scaleとray-cone mip連動
+
+- **関連:** `ArtifactCore::Material`、`Artifact3DModelLayer`、Raster `MeshRenderer`、RT `RayTracingManager`。
+- **確認済み事実:** Normal Mapには共通UV変換後の独立rotationを追加済みだが、texture密度はbase color等の共通scaleを共有していた。Raster LODはnormal UVのimplicit derivative、RT LODはtriangle UV edgeとray coneから計算する。
+- **変更:** 0.01〜10のuniform Normal UV ScaleをMaterial／Property／JSON／signature／single・multi Raster／RTへ接続した。normalとcoat-normalのUVを中心基準で拡縮し、RT ray-cone LOD計算にもscaleを反映する。
+- **価値／懸念:** base colorやmetallic-roughnessのtile密度を保ちながらnormal detailの大きさを調整できる。coat-normalはnormal mapと同じscale／rotationを共有し、UV setの独立選択は未対応。shader compileとmip image parityは未確認。
+- **次に確認:** scale 0.5／1／2で模様密度が対応して変化し、RT LODもtexture footprintに応じて上がること、rotationとの合成とRaster／RT方向一致を確認する。
+
+### 2026-10-14: Coat Normal専用UV rotation／scale
+
+- **関連:** `ArtifactCore::Material`、`Artifact3DModelLayer`、Raster `MeshRenderer`、RT `RayTracingManager`。
+- **確認済み事実:** 独立Coat Normal textureは別pathでbindされていたが、sampling UV、tangent basis、mip scaleはbase Normal Mapと同じmappingを共有していた。
+- **変更:** Coat Normal専用のrotationとuniform scaleをMaterial／JSON／Property／material signature／single・multi Raster／RTへ追加。Rasterは専用UV derivativeからnormalを再構成し、RTはcoat tangent frameを回転しray-cone LODへscaleを適用する。default 0度／1倍では従来と同じmapping。
+- **価値／懸念:** 塗膜のnormal detailを基材のnormal textureと独立に向き・密度調整できる。独立offsetとUV set選択は未対応。shader compilationとRaster／RT画像parityは未確認。
+- **次に確認:** base／coat normalの角度・密度を別々に変更し、coat highlightとray-cone mip応答がRaster／RTで一致することを確認する。
+
+### 2026-10-14: Coat Normal専用UV rotation／scale
+
+- **関連:** `ArtifactCore::Material`、`Artifact3DModelLayer`、Raster `MeshRenderer`、RT `RayTracingManager`。
+- **確認済み事実:** Coat Normalは別texture pathでbindされていたが、sample UV、tangent basis、ray-cone LODはNormal Mapの共通mappingを共有していた。
+- **変更:** Coat Normal専用rotationとuniform scaleをMaterial／JSON／Property／signature／single・multi Raster／RTへ接続。Rasterはcoat UV derivativeからbasisを再構成し、RTはcoat tangent basisとray-cone LODへ専用変換を適用する。
+- **価値／懸念:** 塗膜のnormal detailを基材と独立して向き・密度調整できる。offsetとUV setの個別選択は未対応。shader compileとRaster／RT parityは未確認。
+- **次に確認:** base／coat mapへ異なる方向・密度のfixtureを使い、coat highlightの変化とRaster／RT一致を比較する。
+
+### 2026-10-14: Raster異方性接線へNormal Map UV rotationを反映
+
+- **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cppm` のRaster mesh PBR shader、RT `RayTracingManager.cppm` のtangent frame。
+- **確認済み事実:** RTはNormal Map専用rotationをnormal tangent／bitangentへ反映するが、Raster異方性軸の微分は通常 `meshUv` から求めていた。Raster normal map自体は専用 `normalMapUv` を使っていた。
+- **変更:** Raster異方性接線のUV微分を `normalMapUv` から求め、Normal Map専用rotation／scaleを接線方向にも反映した。
+- **価値／懸念:** normal map rotationと異方性の組合せでRaster／RTのハイライト方向が食い違う可能性を減らす。画像によるparityは未確認。
+- **次に確認:** mirrored UVを含むメッシュでNormal Map rotationとAnisotropy Rotationを個別・複合変更し、Raster／RT方向を比較する。
+
+### 2026-10-14: Raster normal mappingの接線基底をRTと直交化
+
+- **関連:** Raster `computeNormalMapped()` とRT `RTWarmup_ClosestHit` の微分／triangle接線基底。
+- **確認済み事実:** Rasterは画面微分からTとBを独立に正規化し、補間法線への投影や直交化を行っていなかった。RTはTを補間法線へ投影し、UV handednessを保ってBをcross積から再構成していた。
+- **変更:** RasterのNormal／Coat Normal用基底をRTと同じ投影・符号付き再構成にそろえ、退化Tでは元の法線へfallbackする。
+- **価値／懸念:** 滑らかな法線でnormal detailが法線方向へ混ざる誤差と、Raster／RT間の異なる基底を抑える。画像parityは未確認。
+- **次に確認:** 球面のsmooth normal、mirrored UV、normal strength 0／1、coat normal併用で各経路の法線／ハイライトを比較する。
+
+### 2026-10-14: Clearcoatをsheen・基材反射・透過の上層として適用
+
+- **関連:** Raster `MeshRenderer.cppm` とRT `RayTracingManager.cppm` のdirect／IBL material layering。
+- **確認済み事実:** マイルストーン本文はcoatがsheenの上層と記録している一方、direct／IBL sheenと透過環境光はcoat energyで減衰していなかった。base diffuse／specularとEmissionは既にcoatによる減衰を受けていた。またRaster／RTのback-light transmissionは、`NdotL <= 0`でループを抜ける前にしか評価されず到達不能だった。
+- **変更:** direct／IBL sheen、IBL transmissionへclearcoat energyを適用し、Raster／RTのback-light transmissionを裏面光分岐へ移してview-side coat energyを適用した。RTはPrincipled IOR／thin-film Fresnel、view-ray TIR、および裏面向きshadow-ray originを使う。status記述も本文と一致させた。
+- **価値／懸念:** clearcoat有効時にsheenや環境透過が最上層coatを突き抜ける見え方を抑える。Raster／RTの背面直接光transmissionが意図した条件で寄与する。RTのsoft／area shadowとsurface parityは未確認で、視覚検証とshader compilationも未実施。
+- **次に確認:** coat weight／IOR／tintを変え、sheen・透過の減衰とRaster／RT一致を確認する。
+
+### 2026-10-14: ufbx UV1をMesh RenderDataまで保持
+
+- **関連:** `MeshImporter.cppm`、`Mesh::RenderData`、`Mesh::generateRenderData()`、`generateMeshletLODData()`。
+- **確認済み事実:** ufbx meshは`uv_sets`配列で複数の`vertex_uv`属性を持つが、importerは`vertex_uv`（UV0）だけを読み、RenderDataとmeshlet remapにもUV1の格納先がなかった。
+- **変更:** 2番目のufbx UV setを`uv1` vertex attributeへ読み、RenderDataの`uvs1`にtriangle flattenする。mesh内の一部だけUV1がない場合はUV0を複製する。meshlet remapにもUV1を含めた。Normal UV Set（0／1）をMaterial／Layer JSON／Propertyへ追加し、RasterのNormal／Coat Normal texture経路へUV1を伝搬した。
+- **価値／懸念:** UV1をRaster上でnormal detail用に選べる。RT shaderはまだUV0固定のため、同一材質でRaster／RT表示が一致しない。build／shader compile／画像確認は未実施。
+- **次に確認:** RT shading poolとclosest-hitへUV1を通し、UV set 0／1を切り替えたNormal MapでRaster／RT parityを確認する。
