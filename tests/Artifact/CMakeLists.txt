@@ -132,6 +132,34 @@ endif()
 
 if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
    AND (VULKAN_SUPPORTED OR D3D12_SUPPORTED))
+    # Production Image/Solid layers with fracture.* enabled, rendered through
+    # the headless offscreen viewport path (OffscreenCompositionRenderer +
+    # production layer->draw() incl. drawFractureOverlay). Compares
+    # pre/post-trigger frames.
+    artifact_add_test(ArtifactFractureLayerRenderTest
+        SOURCES
+            ArtifactFractureLayerRenderTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactFractureLayerRenderTest PROPERTIES
+        LABELS "fracture;layer;renderer;gpu;headless;image;integration;contract"
+        TIMEOUT 300
+        RUN_SERIAL TRUE
+    )
+    if(VULKAN_SUPPORTED)
+        set_tests_properties(ArtifactFractureLayerRenderTest PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;ARTIFACT_RENDER_BACKEND=vulkan"
+        )
+    elseif(D3D12_SUPPORTED)
+        set_tests_properties(ArtifactFractureLayerRenderTest PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;ARTIFACT_RENDER_BACKEND=d3d12"
+        )
+    endif()
+endif()
+
+if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
+   AND (VULKAN_SUPPORTED OR D3D12_SUPPORTED))
     artifact_add_test(ArtifactParticle3DRenderContractTest
         SOURCES
             Particle3DRenderContractTest.cpp
@@ -442,6 +470,20 @@ if(ARTIFACT_BUILD_TESTS)
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
         LABELS "standalone;project;layer;image;serialization;cpu;contract;integration"
         TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+
+    # Fracture settings save/load + undo. CPU only, no GPU.
+    artifact_add_test(ArtifactFracturePropertyTest
+        SOURCES
+            ArtifactFracturePropertyTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactFracturePropertyTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "fracture;layer;serialization;undo;cpu;contract"
+        TIMEOUT 120
         RUN_SERIAL TRUE
     )
 endif()

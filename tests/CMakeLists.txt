@@ -57,14 +57,27 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS
 endif()
 
 if(ARTIFACT_BUILD_TESTS)
-    artifact_add_test(ArtifactMaskVisualTest
-        SOURCES
-            "${CMAKE_CURRENT_SOURCE_DIR}/mask_visual/MaskVisualTest.cpp"
-        LIBS
-            Artifact
+    # Standalone visual contract (own main(), no GTest): link the runtime
+    # OBJECT library, never the Artifact executable.
+    add_executable(ArtifactMaskVisualTest
+        "${CMAKE_CURRENT_SOURCE_DIR}/mask_visual/MaskVisualTest.cpp"
+    )
+    target_link_libraries(ArtifactMaskVisualTest
+        PRIVATE
+            ArtifactAppRuntime
             ${OpenCV_LIBS}
     )
     target_include_directories(ArtifactMaskVisualTest PRIVATE ${OpenCV_INCLUDE_DIRS})
+    set_target_properties(ArtifactMaskVisualTest PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+    )
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactMaskVisualTest PRIVATE /Zf /Zc:__cplusplus /utf-8 /MP)
+    endif()
+    add_test(NAME ArtifactMaskVisualTest
+        COMMAND ArtifactMaskVisualTest "${CMAKE_BINARY_DIR}/mask-visual-output/$<CONFIG>"
+    )
     set_tests_properties(ArtifactMaskVisualTest PROPERTIES
         LABELS "mask;image;cpu;visual;contract"
     )
