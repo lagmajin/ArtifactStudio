@@ -3029,6 +3029,14 @@
 - **価値／懸念:** material tableの並びが変化しても一意名のslotなら設定を追跡できる。duplicate names、slot独立UV、UI編集は未対応。round-trip未実行。
 - **次に確認:** 一意名と重複名を含むmulti-part fixtureでtoJson/fromJson後の全scalar・path一致を確認し、重複名の安定識別子を追加する。
 
+### 2026-10-14: UFBX material slotのtexture／UVを編集可能にする
+
+- **関連:** `Artifact3DLayer::getLayerPropertyGroups()`、slot property dispatch、`material.slots` restore。
+- **確認済み事実:** 各slotは7種のPBR texture pathとmap別scale／rotation／offset／UV0-UV1をすでに保持し、JSONへ保存していたが、slot Inspectorから編集できなかった。また復元時に空pathを無視するため、textureを外した状態を保存しても再読込時に消去されない。
+- **変更:** Base Color／Metallic-Roughness／Normal／Coat Normal／Emission／Occlusion／Opacity mapごとにpathとmap別UV設定をPropertyへ公開。該当Material setterへ反映し、JSON keyが存在する場合は空pathも明示的に復元する。
+- **価値／懸念:** imported multi-materialのmap割当とUV調整をslot単位で行い、textureを外す操作も保存可能にする。UI操作・texture再bind・再読込・Raster／RT描画は実行確認していない。
+- **次に確認:** map pathの差替え／クリア、mapごとのUV0/1・transform編集後に保存し、再読込後のProperty値とRaster／RT sampleを確認する。
+
 ### 2026-10-14: UFBX material slotのPrincipled項目を拡張
 
 - **関連:** `Artifact3DLayer::meshMaterials_` のProperty、JSON保存／復元、Raster／RT multi-material経路。
