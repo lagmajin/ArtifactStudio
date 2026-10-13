@@ -11,8 +11,8 @@
 
 ## 2026-10-14 Multi-material layer persistence
 
-- `Artifact3DLayer` serializes each loaded multi-material slot's Principled scalars, tints, alpha state, emission and texture paths into `material.slots`; loading restores these values after source reimport, bounded by the current imported slot count. Older project JSON without this array continues to use freshly imported source materials.
-- **未確認／制限:** build and save/reload round-trip were not run. Per-slot UV transforms and independent interactive editing are not represented by this imported-slot record yet; the main layer material remains the current property editing surface.
+- `Artifact3DLayer` serializes each loaded multi-material slot's source name, Principled scalars, tints, alpha state, emission and texture paths into `material.slots`; loading matches unused slots by name first, then falls back to the saved position for legacy or duplicate-name cases. Older project JSON without this array continues to use freshly imported source materials.
+- **未確認／制限:** build and save/reload round-trip were not run. Per-slot UV transforms and independent interactive editing are not represented by this imported-slot record yet; duplicate source material names remain position-dependent, and the main layer material remains the current property editing surface.
 
 ## 2026-10-14 Principled anisotropy + Burley diffuse
 
