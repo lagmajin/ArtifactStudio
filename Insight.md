@@ -3202,3 +3202,11 @@
 - **確認済み事実:** Raster material cbufferとRT structured bufferはいずれもCPU側の構造体配列順・float4数をHLSL側と一致させる必要がある。新mapはMaterial・Importer・slot/render経路へstateを追加する。
 - **価値／懸念:** shader ABIを静的assertと並び確認で保ちつつ、clearcoat roughness mapをRaster／RT両方で利用できる。実際のshader compilation／runtime ABIは未検証。
 - **次に確認:** ビルド許可後にcompileし、単一材質／複数slotのtexture切替とRT material packetを検証する。
+
+### 2026-10-14: Sheen色mapは材質別のsRGB pathとUV変換を持つ必要がある
+
+- **関連:** `ArtifactCore::Material`、`MeshImporter`、Raster `MeshRenderer`、RT `RayTracingManager`、`Artifact3DLayer`。
+- **確認済み事実:** 既存Sheen Tintは定数RGBのみで、UFBXの`pbr.sheen_color.texture`を保持するMaterial値もRaster／RT texture入力もなかった。clearcoat、emissionなど各mapの実装に、single／material slot共通のpath・UV・cache・shader経路がある。
+- **変更:** Sheen Color mapのMaterial API、UFBX path／UV取得、single／slot JSONとInspector、Raster／RT GPUデータおよびshader sampleを追加した。RT texture mipは変換後UVからray-coneで選択する。
+- **価値／懸念:** 色の異なる繊維・布のSheenをテクスチャで制御できる。HLSL ABI、sRGB mip、slot別resource切替、UFBX texture transformは実ビルド・runtimeでは未確認。
+- **次に確認:** build許可後にshader compileを行い、UFBX sheen color fixtureでsingle／slot、UV0／UV1、save/reload、Raster／RT pixel responseを確認する。
