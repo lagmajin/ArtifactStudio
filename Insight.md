@@ -3013,6 +3013,14 @@
 - **価値／懸念:** extension scalarを手作業で再設定せず、既存Principled shadingへ取り込める。multi-material meshへのper-slot配布、sheen color、extension texture mapは未対応で、glTF fixture/runtimeは未確認。
 - **次に確認:** `KHR_materials_clearcoat`／`transmission`／`ior`／`sheen` fixtureで値の取得、Layer Materialへの適用、再保存後の値を確認する。必要ならper-slot UFBX material mappingを別段階で設計する。
 
+### 2026-10-14: UFBX / glTF multi-material partsをmesh slotへ接続
+
+- **関連:** `ArtifactCore/src/Geometry/MeshImporter.cppm`、`Artifact/src/Layer/Artifact3DModelLayer.cppm`、既存Raster／RT multi-material paths。
+- **確認済み事実:** ufbxは`material_part_usage_order`と各partの`face_indices`、`num_triangles`を提供し、face単位のmaterial割当てを構築している。`Mesh::generateRenderData()`はpolygonを挿入順にfan triangulationする。
+- **変更:** 全UFBX materialのPrincipled factors、tints、texture pathsを取得し、material別face順とindex rangesを生成。Layer slot Materialsを既存Raster range／RT triangle slotへ渡す。texture-only base color mapでは無指定color factorを誤適用しない。
+- **価値／懸念:** glTF/FBXで複数素材の色と質感が一つのflatten mesh内でも保持される。実build／fixtureでufbx material table index整合、UV、alpha blending、Raster/RT描画は未確認。node instance overrideやalpha mask semanticsも未対応。
+- **次に確認:** multi-part glTFとFBX fixtureでslot range、base color／extension factor／texture、RT primitive mappingを照合し、build後にRaster／RT画像を確認する。
+
 ### 2026-10-14: PBR base-color mipの透明縁と奇数寸法を保持
 
 - **関連:** Raster `buildRgba8MipChain` とRT `loadRgbaPbrTexture` のtexture mip構築。
