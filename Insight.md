@@ -3037,6 +3037,14 @@
 - **価値／懸念:** glTF `KHR_texture_transform`相当の回転／offset／uniform scaleとUV1指定をslot別textureに保ちやすい。nonuniform／negative scale、3番目以降のUV set、複数meshでUV set名が異なる素材、座標変換向きの実画像検証は未対応／未確認。
 - **次に確認:** UV0／UV1とrotation／offset／uniform scaleが異なる複数material fixtureをRaster／RTで描画し、UFBXのtransform方向がglTF表示と一致するか比較する。
 
+### 2026-10-14: UFBX material slotにPrincipled編集面を追加
+
+- **関連:** `Artifact3DLayer::getLayerPropertyGroups()`、`setLayerPropertyValue()`、Raster／RT multi-material draw。
+- **確認済み事実:** importerとdrawはslotごとの`ArtifactCore::Material`を保持・描画し、layer JSONにもslot値を保存しているが、通常のProperty面は単一`material_`だけを編集していた。
+- **変更:** multi-material UFBX/glTF layerごとにBase Color、Metallic、Roughness、Specular/Tint、IOR、Transmission、Clearcoat/Roughness、Sheen/Roughness/Tintのslot property groupを生成。編集時はslot Materialを更新し既存layer changed通知を使う。
+- **価値／懸念:** DCCのmaterial-slot単位で主要Principled値を調整でき、描画・保存経路に直結する。runtime widget behavior未確認。map/UV/alpha/emissionと高度パラメータはslot UI未対応。
+- **次に確認:** Material Slot property editingが正しいindexのRaster／RT drawだけを更新し、プロジェクト再読込後も同じ値を保持することを実画面で確認する。
+
 ### 2026-10-14: PBR base-color mipの透明縁と奇数寸法を保持
 
 - **関連:** Raster `buildRgba8MipChain` とRT `loadRgbaPbrTexture` のtexture mip構築。

@@ -19,6 +19,11 @@
 - Capture UFBX texture UV set by matching its name against mesh UV sets, plus UV offset, rotation, and scale for base color, metallic-roughness, normal, clearcoat normal, emission, occlusion, and opacity maps. Apply the values through each existing Material map's UV settings and persist them in `material.slots`.
 - **未確認／制限:** only one UV set index (0/1) is supported by Material; lookup uses the first matching mesh UV-set name in the scene. Existing map APIs support uniform positive scale, so nonuniform or negative UFBX scale is not applied. Transform convention and rendered parity are unverified without a build/runtime check.
 
+## 2026-10-14 Imported material slot editing
+
+- Add per-slot inspector groups for UFBX/glTF material slots with Base Color, Metallic, Roughness, Specular and tint, IOR, Transmission, Clearcoat and roughness, and Sheen and tint controls. The existing multi-material draw path consumes the edited `meshMaterials_`, and `material.slots` serializes them.
+- **未確認／制限:** interactive editing and save/reload are not runtime-verified. The current slot UI exposes the most used Principled controls; per-slot maps/UV and advanced layer controls remain outside this editor increment.
+
 ## 2026-10-14 Principled anisotropy + Burley diffuse
 
 - ufbx single-material import now carries authored `coat_factor`, `coat_roughness`, `transmission_factor`, `specular_ior`, `sheen_factor`, and `sheen_roughness` values into the 3D layer. Existing layer values are preserved unless they are still at their defaults. This is scalar import only; extension texture maps, sheen color, and per-material propagation across a multi-material glTF mesh remain pending.
