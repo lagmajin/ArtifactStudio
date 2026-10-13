@@ -288,6 +288,27 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         TIMEOUT 180
         RUN_SERIAL TRUE
     )
+    foreach(_artifact_render_queue_text_case IN ITEMS
+            AnimatedSourceTextRendersBothFramesThroughManagerQueue
+            ComplexArabicIndicTextRendersThroughManagerQueue
+            EmojiSequencesRenderThroughManagerQueue)
+        string(REGEX REPLACE "([a-z])([A-Z])" "\\1_\\2"
+            _artifact_render_queue_text_test_suffix
+            "${_artifact_render_queue_text_case}")
+        string(TOLOWER "${_artifact_render_queue_text_test_suffix}"
+            _artifact_render_queue_text_test_suffix)
+        set(_artifact_render_queue_text_test_name
+            "ArtifactRenderQueue_${_artifact_render_queue_text_test_suffix}")
+        add_test(NAME "${_artifact_render_queue_text_test_name}"
+            COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+                "--gtest_filter=RenderQueueLayerImageIntegrationTest.${_artifact_render_queue_text_case}"
+        )
+        set_tests_properties("${_artifact_render_queue_text_test_name}" PROPERTIES
+            LABELS "render-queue;renderer;gpu;headless;text;image;integration"
+            TIMEOUT 180
+            RUN_SERIAL TRUE
+        )
+    endforeach()
     add_test(NAME ArtifactRenderQueueXpuMixedImageIntegrationTest
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
             --gtest_filter=RenderQueueLayerImageIntegrationTest.XpuMixedCpuAndGpuFramesRenderThroughManagerQueue

@@ -112,8 +112,11 @@ int countPixelsMatching(const QImage& source,
 
 QString isolatedOutputPath(const QString& fileName)
 {
-    const QString root = qEnvironmentVariable(
-        "ARTIFACT_UI_TEST_PROJECT_ROOT");
+    const QString captureRoot = qEnvironmentVariable(
+        "ARTIFACT_UI_TEST_CAPTURE_ROOT");
+    const QString root = captureRoot.isEmpty()
+        ? qEnvironmentVariable("ARTIFACT_UI_TEST_PROJECT_ROOT")
+        : captureRoot;
     return QDir(root).filePath(QStringLiteral("captures/") + fileName);
 }
 
@@ -146,6 +149,7 @@ bool addAndRender(Artifact::ArtifactRenderQueueService* queue,
     queue->setJobOutputSettingsAt(jobIndex, QStringLiteral("PNG"),
                                   QStringLiteral("png"), expectedWidth,
                                   expectedHeight, 30.0, 8000);
+    queue->setJobFramePaddingAt(jobIndex, 4);
     queue->setJobRenderBackendAt(jobIndex, renderBackend);
     queue->setJobFrameRangeAt(jobIndex, frameStart, frameEnd);
     auto selectiveSettings = queue->jobSelectiveSettingsAt(jobIndex);
@@ -197,6 +201,66 @@ bool addAndRender(Artifact::ArtifactRenderQueueService* queue,
     if (!imageCheck(image)) {
         *failure = QStringLiteral("PNG was written, but expected layer pixels were not visible: %1")
                        .arg(framePath);
+        return false;
+    }
+    return true;
+}
+
+bool hasBrightTextPixels(const QImage& image)
+{
+    return countPixelsMatching(image, [](QRgb pixel) {
+        return qAlpha(pixel) > 32 && qRed(pixel) > 210 &&
+               qGreen(pixel) > 210 && qBlue(pixel) > 210;
+    }) > 20;
+}
+
+bool addAndRenderTwoTextFrames(
+    Artifact::ArtifactRenderQueueService* queue,
+    const ArtifactCore::CompositionID& compositionId,
+    const QString& compositionName,
+    const QString& outputBasePath,
+    int expectedWidth,
+    int expectedHeight,
+    QString* failure)
+{
+    if (!addAndRender(queue, compositionId, compositionName, outputBasePath,
+                      expectedWidth, expectedHeight,
+                      hasBrightTextPixels, failure, 3,
+                      QStringLiteral("gpu"), 1)) {
+        return false;
+    }
+
+    const QFileInfo outputInfo(outputBasePath);
+    const QString secondFramePath = QDir(outputInfo.absolutePath()).filePath(
+        QStringLiteral("%1_%2.png")
+            .arg(outputInfo.completeBaseName())
+            .arg(2, 4, 10, QLatin1Char('0')));
+    const QImage secondFrame(secondFramePath);
+    if (secondFrame.isNull()) {
+        int jobStartFrame = -1;
+        int jobEndFrame = -1;
+        queue->jobFrameRangeAt(queue->jobCount() - 1,
+                               &jobStartFrame, &jobEndFrame);
+        const QStringList outputFiles = QDir(outputInfo.absolutePath())
+            .entryList(QDir::Files, QDir::Name);
+        *failure = QStringLiteral("Render Queue did not write a readable second text frame: %1")
+                       .arg(secondFramePath) +
+                   QStringLiteral(" (job range %1..%2, progress %3%%)")
+                       .arg(jobStartFrame).arg(jobEndFrame)
+                       .arg(queue->jobProgressAt(queue->jobCount() - 1)) +
+                   QStringLiteral("; files: %1").arg(outputFiles.join(
+                       QStringLiteral(", ")));
+        return false;
+    }
+    if (secondFrame.size() != QSize(expectedWidth, expectedHeight)) {
+        *failure = QStringLiteral("Second PNG dimensions were %1x%2, expected %3x%4")
+                       .arg(secondFrame.width()).arg(secondFrame.height())
+                       .arg(expectedWidth).arg(expectedHeight);
+        return false;
+    }
+    if (!hasBrightTextPixels(secondFrame)) {
+        *failure = QStringLiteral("Second text frame contains no expected bright glyph pixels: %1")
+                       .arg(secondFramePath);
         return false;
     }
     return true;
@@ -558,6 +622,188 @@ TEST(RenderQueueLayerImageIntegrationTest,
                        qGreen(pixel) > 210 && qBlue(pixel) > 210;
             }) > 20;
         }, &failure)) << failure.toStdString();
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     AnimatedSourceTextRendersBothFramesThroughManagerQueue)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 320;
+    constexpr int height = 180;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueAnimatedTextTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("AnimatedText")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(3);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactTextLayerInitParams textParams(QStringLiteral("Text"));
+    const auto textResult = projects.addLayerToComposition(
+        composition.id, textParams);
+    ASSERT_TRUE(textResult.success);
+    auto* text = dynamic_cast<Artifact::ArtifactTextLayer*>(
+        textResult.layer.get());
+    ASSERT_NE(text, nullptr);
+    (void)text->getLayerPropertyGroups();
+    text->setText(ArtifactCore::UniString(QStringLiteral("Frame One")));
+    text->setSourceTextAtFrame(1, QStringLiteral("Frame One"));
+    text->setSourceTextAtFrame(2, QStringLiteral("Frame Two"));
+    ASSERT_TRUE(text->hasSourceTextKeyframes());
+    ASSERT_EQ(text->sourceTextAtFrame(1), QStringLiteral("Frame One"));
+    ASSERT_EQ(text->sourceTextAtFrame(2), QStringLiteral("Frame Two"));
+    text->setFontSize(30.0f);
+    text->setTextColor(ArtifactCore::FloatColor(1.0f, 1.0f, 1.0f, 1.0f));
+
+    QString failure;
+    ASSERT_TRUE(addAndRenderTwoTextFrames(
+        queue, composition.id, QStringLiteral("AnimatedText"),
+        isolatedOutputPath(QStringLiteral("render_queue_animated_text.png")),
+        width, height, &failure)) << failure.toStdString();
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     ComplexArabicIndicTextRendersThroughManagerQueue)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 480;
+    constexpr int height = 180;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueArabicTextTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("ArabicText")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(2);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactTextLayerInitParams textParams(QStringLiteral("Text"));
+    const auto textResult = projects.addLayerToComposition(
+        composition.id, textParams);
+    ASSERT_TRUE(textResult.success);
+    auto* text = dynamic_cast<Artifact::ArtifactTextLayer*>(
+        textResult.layer.get());
+    ASSERT_NE(text, nullptr);
+    text->setText(ArtifactCore::UniString(QStringLiteral(
+        "السَّلَامُ عَلَيْكُمْ १२३४ العربية हिन्दी")));
+    text->setFontSize(26.0f);
+    text->setTextColor(ArtifactCore::FloatColor(1.0f, 1.0f, 1.0f, 1.0f));
+
+    QString failure;
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("ArabicText"),
+        isolatedOutputPath(QStringLiteral("render_queue_arabic_text.png")),
+        width, height, hasBrightTextPixels, &failure)) << failure.toStdString();
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     EmojiSequencesRenderThroughManagerQueue)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 480;
+    constexpr int height = 180;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueEmojiTextTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("EmojiText")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(2);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactTextLayerInitParams textParams(QStringLiteral("Text"));
+    const auto textResult = projects.addLayerToComposition(
+        composition.id, textParams);
+    ASSERT_TRUE(textResult.success);
+    auto* text = dynamic_cast<Artifact::ArtifactTextLayer*>(
+        textResult.layer.get());
+    ASSERT_NE(text, nullptr);
+    text->setText(ArtifactCore::UniString(QStringLiteral(
+        "Family 👨‍👩‍👧‍👦  Skin 👩🏽‍💻  Flag 🇯🇵  Keycap 1️⃣")));
+    text->setFontSize(26.0f);
+    text->setTextColor(ArtifactCore::FloatColor(1.0f, 1.0f, 1.0f, 1.0f));
+
+    QString failure;
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("EmojiText"),
+        isolatedOutputPath(QStringLiteral("render_queue_emoji_text.png")),
+        width, height, hasBrightTextPixels, &failure)) << failure.toStdString();
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,

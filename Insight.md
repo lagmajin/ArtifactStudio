@@ -1,6 +1,15 @@
-**最終更新:** 2026-10-12
+**最終更新:** 2026-10-13
 
 # Insight Register
+
+### 2026-10-13 — Render Queueのテキスト統合テストはshaping parityまで段階化する
+
+- **関連:** `tests/Artifact/RenderQueueLayerImageIntegrationTest.cpp`、`tests/Artifact/CMakeLists.txt`、`tests/ArtifactCore/TextShapingTest.cpp`、`tests/Artifact/TextGlyphRenderContractTest.cpp`。
+- **確認できた事実:** Render Manager本番queue経由の通常Text Layer画像テストは既存だった。Source Textは`setSourceTextAtFrame()`でproperty keyframe化される。Core shaping suiteにはアラビア語、デーヴァナーガリー、ZWJ family emoji、肌色modifier等の低レベルcaseがある一方、Render Queueからそれらを含む文を描画するcaseはなかった。
+- **変更:** queue integrationへ2-frame Source Text、アラビア語+結合記号/デーヴァナーガリー数字の混在文、ZWJ family/肌色modifier/国旗/keycap emojiの描画caseを追加し、個別CTest entryを登録。各出力の明るいglyph pixel存在を検査する。
+- **価値／懸念:** low-level shapingやGPU glyph submitterの検証と、本番queue/合成/出力の結合を区別して回帰検知できる。現在のpixel-count assertionは文字が何らかの形で描画されたことを確認するだけで、glyph順序・cluster単位・色付きemojiの完全な見た目を保証しない。フォントfallbackは環境依存。
+- **実行結果 (2026-10-13):** Windows Debug / D3D12 headlessで3件の個別CTestがすべて成功した。Source Textケースでは `text.value` property生成のため `getLayerPropertyGroups()` を先に呼ぶ必要があり、Composition duration 3・Custom range `[1,3)` で2枚を出力する。最初はdurationを誤って2に上書きしていたため2枚目が範囲外だった。
+- **次に確認:** 現在の画素数assertionはglyph順序・cluster単位・色付きemojiの完全な見た目を保証しない。必要なら固定font fixtureと承認baselineでshaping/emoji visual parityを追加する。
 
 ### 2026-10-12 — Partial module rebuilds can retain stale allocation templates
 
