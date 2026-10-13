@@ -25,6 +25,7 @@
 - Serialize and restore these slot values in `material.slots`, alongside the existing texture paths and per-map UV transforms. Numeric values are clamped to the Material controls' supported ranges.
 - Expose all seven supported texture paths and their per-map scale, rotation, offset, and UV0/UV1 selection in each material-slot property group. A present but empty saved path now clears the imported path on restore.
 - Extend UFBX multi-material import to transfer authored diffuse roughness, coat IOR, specular anisotropy, and subsurface factor/color/radius/anisotropy into the existing slot Material properties.
+- Also transfer authored opacity, coat color, emission color, and emission factor; opacity below 1 selects the existing Blended material mode. Alpha mask cutoff/mode detection remains unavailable in this UFBX material-table path.
 - Route material-slot texture path properties through the existing Path editor and image file picker.
 - **未確認／制限:** interactive editing, save/reload, texture rebinding, and rendered output are not runtime-verified. Renderer-side texture resolution follows the existing Material path behavior.
 

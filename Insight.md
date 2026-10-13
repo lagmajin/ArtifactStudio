@@ -3029,6 +3029,14 @@
 - **価値／懸念:** material tableの並びが変化しても一意名のslotなら設定を追跡できる。duplicate names、slot独立UV、UI編集は未対応。round-trip未実行。
 - **次に確認:** 一意名と重複名を含むmulti-part fixtureでtoJson/fromJson後の全scalar・path一致を確認し、重複名の安定識別子を追加する。
 
+### 2026-10-14: UFBX material slotのopacity・coat tint・emissionをimport
+
+- **関連:** `ufbx_material_pbr_maps`、`MeshImporter::ImportedPbrMaterial`、`Artifact3DLayer` multi-material slot creation。
+- **確認済み事実:** ufbx PBR mapにはopacity factor、coat color、emission color／factorがある。slot pathにはopacity textureを取り込んでいたがopacity factorを適用せず、coat tintとemission値もslot Materialへ転送していなかった。
+- **変更:** 明示されたopacity factorをslot Materialへ設定し、1未満ならBlended alpha modeを指定する。coat colorとemission colorはlinear-to-sRGB変換して転送し、emission factorはEmission Strengthへ渡す。
+- **価値／懸念:** 対応可能な透明度・coat色・発光値をmulti-material pathで保つ。ufbx経路からalpha mask cutoff／mask-vs-blendの別は復元しない。実データと描画はruntime未確認。
+- **次に確認:** 不透明・半透明・opacity texture、着色coat、emission factorを含むfixtureをimportしてslot値とRaster／RT描画を比較する。
+
 ### 2026-10-14: UFBX multi-materialのPrincipled係数を追加import
 
 - **関連:** `ufbx_material_pbr_maps`、`MeshImporter::ImportedPbrMaterial`、`Artifact3DLayer` slot construction。
