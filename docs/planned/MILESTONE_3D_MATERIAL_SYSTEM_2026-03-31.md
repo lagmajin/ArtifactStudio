@@ -7,7 +7,8 @@
 
 - tinyobjloaderのMTL material tableを既存Principled slot tableへ変換し、OBJ面の`material_ids`に対応する連続triangle index rangeを`Mesh::MaterialSlot`へ割り当てる。Diffuse/opacity、metallic、roughness、Phong shininess由来roughness、clearcoat、sheen、anisotropy／rotation、specular tint、IOR、emissionと、対応するtexture path／MTLのscale・offsetをslotへ渡す。MTL parserが未指定`Kd`と明示的な黒を区別できないため、全0 diffuseはwhite fallbackにする。
 - Phong shininessからroughnessへの変換は `sqrt(2 / (shininess + 2))` の近似で、MTLのPBR roughness値が正ならそちらを優先する。MTLのroughness／metallic別mapは単一の既存metallic-roughness slotへ選択して渡すため、packed glTF textureと同等の完全な個別map表現ではない。
-- **未確認／制限:** ビルド、OBJ/MTL fixture、複数slotのRaster／RT描画は未確認。single-material OBJの全scalar値適用、任意texture mapごとのUV rotation／独立map表現は未対応。
+- **変更:** material tableが1件だけでmaterial rangeがあるOBJも、slot tableを作らずlayer本体のMaterialへ同じ変換を適用する。複数material tableは従来どおりslotごとのMaterialへ適用する。
+- **未確認／制限:** ビルド、OBJ/MTL fixture、single／multi slotのRaster／RT描画は未確認。任意texture mapごとのUV rotation／独立map表現は未対応。
 
 ## 2026-10-14 UFBX / glTF multi-material import
 

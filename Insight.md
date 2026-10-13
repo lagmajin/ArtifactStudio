@@ -3169,6 +3169,6 @@
 
 - **関連:** `ArtifactCore::MeshImporter::detectTexturesFromTinyObj()`／`loadWithTinyObj()`、`Artifact3DLayer::loadFromFile()`、既存Raster／RT material slot範囲描画。
 - **確認済み事実:** OBJ importerはMTL texture pathだけを拾い、geometryにmaterial slot rangeを作っていなかった。tinyobjloaderのMTL parserはmaterial IDごとのdiffuse／specular／emission、PBR metallic／roughness／clearcoat／sheen／anisotropy、dissolve／IOR、texture optionsを保持し、`Mesh::MaterialSlot`とUFBX向けPrincipled tableの適用経路は既存である。
-- **変更:** MTL tableをslot用Principled materialへ変換し、面material IDから隣接triangle rangeを作る。Phong shininessからroughnessへ近似変換し、MTL anisotropy rotationのturn値を度に変換する。
+- **変更:** MTL tableをslot用Principled materialへ変換し、面material IDから隣接triangle rangeを作る。Phong shininessからroughnessへ近似変換し、MTL anisotropy rotationのturn値を度に変換する。後続変更で単一material tableもlayer本体Materialへ適用し、single／multiで変換処理を共有した。
 - **価値／懸念:** 複数材質を持つOBJが単一の全体materialではなく、MTLで定義された面単位の外観とRaster／RT slot割当を保持できる。tinyobjloaderが`Kd`未指定と明示的な黒を区別しないため、全0 diffuseはwhite fallbackにする。roughnessとmetallicの別々のMTL textureは既存packed map契約に合わせて片方だけを選ぶ制限があり、rotation単位・色空間・画像応答をruntimeで未検証。
-- **次に確認:** build禁止解除後に2材質以上のOBJ/MTL fixtureでmaterial ID範囲、色／roughness／metallic／透明、texture transform、保存再読込、Raster／RT一致を検証する。単一材質OBJの適用経路と独立roughness／metallic textureも後続課題。
+- **次に確認:** build禁止解除後に単一／複数材質OBJ/MTL fixtureでmaterial ID範囲、色／roughness／metallic／透明、texture transform、保存再読込、Raster／RT一致を検証する。独立roughness／metallic textureは後続課題。
