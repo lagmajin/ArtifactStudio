@@ -3210,3 +3210,11 @@
 - **変更:** Sheen Color mapのMaterial API、UFBX path／UV取得、single／slot JSONとInspector、Raster／RT GPUデータおよびshader sampleを追加した。RT texture mipは変換後UVからray-coneで選択する。
 - **価値／懸念:** 色の異なる繊維・布のSheenをテクスチャで制御できる。HLSL ABI、sRGB mip、slot別resource切替、UFBX texture transformは実ビルド・runtimeでは未確認。
 - **次に確認:** build許可後にshader compileを行い、UFBX sheen color fixtureでsingle／slot、UV0／UV1、save/reload、Raster／RT pixel responseを確認する。
+
+### 2026-10-14: Sheen Roughness mapもsingle／slotとRaster／RTで同じUV契約を使う
+
+- **関連:** `ArtifactCore::Material`、UFBX material import、Raster `MeshRenderer::MaterialState`、RT `RTMaterial`、3D layer JSON／Inspector。
+- **確認済み事実:** Sheen Roughnessはscalarだけで、map入力がなく、Sheen Color mapの後でもroughness scalarだけがCharlie lobeとIBLへ渡っていた。
+- **変更:** map pathとUV transformをsingle／slotへ追加し、linear R channelをscalar roughnessに乗算するRaster／RT経路を追加した。RTは変換後UVのray-cone mipを使用する。
+- **価値／懸念:** 布などのSheen lobe幅を面内で制御できる。Raster cbufferとRT structured materialのfloat4 ABIを拡張したが、shader compile／GPU runtimeは未検証。
+- **次に確認:** ビルド許可後に両backend shader compile、UFBX texture fixture、single／slot rebinding、UV0／UV1、save/reload、Raster／RT pixel parityを確認する。

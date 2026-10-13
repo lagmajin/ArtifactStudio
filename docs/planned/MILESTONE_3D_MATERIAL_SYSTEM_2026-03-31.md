@@ -1,12 +1,17 @@
 # MILESTONE: 3D Material System
 
 **最終更新:** 2026-10-14
-**ステータス:** Material core、3D layer assignment、PBR texture input、shader/render 接続、Inspector／JSON、Matte／Metal／Plastic／Glass の preset 適用、RT triangleごとのscalar material slot選択、RT UV伝搬、AO／base color／metallic-roughness／normal／independent coat-normal／clearcoat factor／clearcoat roughness／sheen color／emission map samplingとray-coneによるtexture mip選択、linear float Base Color TextureのsRGB storage encoding、Raster複数slotのscalar Principled定数とslot別texture SRV切替、Masked材質のshadow alpha clip、material range別alpha pass、Principled specular tint、dielectric thin-film interference（RGB 3波長近似、反射と透過のエネルギー配分）、異方性direct／IBL反射、Disney/Burley diffuse、Cycles風 diffuse roughnessのdirect single／multi-scatter energy補償近似、subsurface weight／IOR／color/radius／anisotropyによるFresnel・散乱方向制御（厚みを追跡しない高速近似）、coat normal varianceによるroughness filtering、coatがsheenと基材反射・透過より上にあるdirect／IBL energy ordering、Emissionのcoat／sheen層下配置に対応する視線方向energy attenuation、Base Color／Metallic-Roughness／Normal／Coat Normal／Clearcoat factor／Clearcoat roughness／Sheen color／Occlusion／Emission／OpacityのUV0／UV1選択、ufbx/glTFおよびOBJ/MTLのmaterial table単位Principled scalar／tint／texture importと、material partごとのRaster／RT slot mappingはコード実装済み。独立 Material Browser／asset 管理、高度 mapping、実制作mesh/HDRでのRaster／RT parityは pending。Raster／RT shader変更後build/runtime verificationも pending。
+**ステータス:** Material core、3D layer assignment、PBR texture input、shader/render 接続、Inspector／JSON、Matte／Metal／Plastic／Glass の preset 適用、RT triangleごとのscalar material slot選択、RT UV伝搬、AO／base color／metallic-roughness／normal／independent coat-normal／clearcoat factor／clearcoat roughness／sheen color／sheen roughness／emission map samplingとray-coneによるtexture mip選択、linear float Base Color TextureのsRGB storage encoding、Raster複数slotのscalar Principled定数とslot別texture SRV切替、Masked材質のshadow alpha clip、material range別alpha pass、Principled specular tint、dielectric thin-film interference（RGB 3波長近似、反射と透過のエネルギー配分）、異方性direct／IBL反射、Disney/Burley diffuse、Cycles風 diffuse roughnessのdirect single／multi-scatter energy補償近似、subsurface weight／IOR／color/radius／anisotropyによるFresnel・散乱方向制御（厚みを追跡しない高速近似）、coat normal varianceによるroughness filtering、coatがsheenと基材反射・透過より上にあるdirect／IBL energy ordering、Emissionのcoat／sheen層下配置に対応する視線方向energy attenuation、Base Color／Metallic-Roughness／Normal／Coat Normal／Clearcoat factor／Clearcoat roughness／Sheen color／Sheen roughness／Occlusion／Emission／OpacityのUV0／UV1選択、ufbx/glTFおよびOBJ/MTLのmaterial table単位Principled scalar／tint／texture importと、material partごとのRaster／RT slot mappingはコード実装済み。独立 Material Browser／asset 管理、高度 mapping、実制作mesh/HDRでのRaster／RT parityは pending。Raster／RT shader変更後build/runtime verificationも pending。
+
+## 2026-10-14 Principled Sheen Roughness Texture
+
+- Material、UFBX material table import、single／slot JSON、Inspector、render signature、Raster texture binding／shader、RT material packet／texture cache／closest-hit shaderへSheen Roughness mapを接続する。UV0／UV1、独立 scale U/V、rotation、offsetを保持し、linear textureのR channelをSheen Roughnessへ乗算する。RTは変換後UV edgeからray-cone mipを選ぶ。
+- **未確認／制限:** build、shader compile、UFBX fixture、Inspector、save/reload、single／slot texture rebinding、Raster／RT pixel parityは未確認。
 
 ## 2026-10-14 Principled Sheen Color Texture
 
 - Material、UFBX material table import、single／slot JSON、Inspector、render signature、Raster texture binding／shader、RT material packet／texture cache／closest-hit shaderへSheen Color mapを接続する。各materialのUV0／UV1、独立 scale U/V、rotation、offsetを保持し、Raster／RTでsRGB colorとしてSheen Tintへ乗算する。RTは変換後UV edgeからray-cone mipを選ぶ。
-- **未確認／制限:** build、shader compile、UFBX fixture、Inspector、save/reload、single／slot texture rebinding、Raster／RT pixel parityは未確認。sheen roughness textureは未対応。
+- **未確認／制限:** build、shader compile、UFBX fixture、Inspector、save/reload、single／slot texture rebinding、Raster／RT pixel parityは未確認。
 
 ## 2026-10-14 OBJ/MTL multi-material import
 
