@@ -24,6 +24,7 @@
 - Add per-slot inspector groups for UFBX/glTF material slots, covering base color, metallic/roughness, specular and tint, IOR/transmission, clearcoat, sheen, thin film, subsurface, anisotropy, emission, alpha, normal/occlusion, environment, and shared UV controls. Edits update the slot Material consumed by the existing multi-material Raster/RT paths.
 - Serialize and restore these slot values in `material.slots`, alongside the existing texture paths and per-map UV transforms. Numeric values are clamped to the Material controls' supported ranges.
 - Expose all seven supported texture paths and their per-map scale, rotation, offset, and UV0/UV1 selection in each material-slot property group. A present but empty saved path now clears the imported path on restore.
+- Route material-slot texture path properties through the existing Path editor and image file picker.
 - **未確認／制限:** interactive editing, save/reload, texture rebinding, and rendered output are not runtime-verified. Renderer-side texture resolution follows the existing Material path behavior.
 
 ## 2026-10-14 Principled anisotropy + Burley diffuse

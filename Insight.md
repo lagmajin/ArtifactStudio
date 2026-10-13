@@ -3029,6 +3029,14 @@
 - **価値／懸念:** material tableの並びが変化しても一意名のslotなら設定を追跡できる。duplicate names、slot独立UV、UI編集は未対応。round-trip未実行。
 - **次に確認:** 一意名と重複名を含むmulti-part fixtureでtoJson/fromJson後の全scalar・path一致を確認し、重複名の安定識別子を追加する。
 
+### 2026-10-14: Material slot textureをファイルダイアログから選択
+
+- **関連:** `ArtifactPropertyEditorShared.cppm` のPath property判定とfile dialog filter、3D material slot texture properties。
+- **確認済み事実:** material slot texture path propertiesはString editorになり、既存のPath editor（browse button）へ振り分けられていなかった。
+- **変更:** `material.slots.*.*Texture`をPath propertyとして認識し、既存Path editorを使う。file dialogは画像形式のfilterを表示し、All Filesも選択可能にする。
+- **価値／懸念:** material slotへtextureを割り当てるために絶対パスを手入力する必要をなくす。ダイアログ操作と選択後のtexture reloadはruntime未確認。
+- **次に確認:** 7 mapそれぞれで既存texture差替え／新規割当／取消を行い、Property表示とRaster／RT反映を確かめる。
+
 ### 2026-10-14: UFBX material slotのtexture／UVを編集可能にする
 
 - **関連:** `Artifact3DLayer::getLayerPropertyGroups()`、slot property dispatch、`material.slots` restore。
