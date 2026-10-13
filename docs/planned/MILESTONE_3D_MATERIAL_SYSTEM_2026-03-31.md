@@ -12,7 +12,12 @@
 ## 2026-10-14 Multi-material layer persistence
 
 - `Artifact3DLayer` serializes each loaded multi-material slot's source name, Principled scalars, tints, alpha state, emission and texture paths into `material.slots`; loading matches unused slots by name first, then falls back to the saved position for legacy or duplicate-name cases. Older project JSON without this array continues to use freshly imported source materials.
-- **未確認／制限:** build and save/reload round-trip were not run. Per-slot UV transforms and independent interactive editing are not represented by this imported-slot record yet; duplicate source material names remain position-dependent, and the main layer material remains the current property editing surface.
+- **未確認／制限:** build and save/reload round-trip were not run. At this point duplicate source material names remain position-dependent, and the main layer material remains the current property editing surface. Per-slot UV import is tracked below.
+
+## 2026-10-14 UFBX per-texture UV transforms
+
+- Capture UFBX texture UV set by matching its name against mesh UV sets, plus UV offset, rotation, and scale for base color, metallic-roughness, normal, clearcoat normal, emission, occlusion, and opacity maps. Apply the values through each existing Material map's UV settings and persist them in `material.slots`.
+- **未確認／制限:** only one UV set index (0/1) is supported by Material; lookup uses the first matching mesh UV-set name in the scene. Existing map APIs support uniform positive scale, so nonuniform or negative UFBX scale is not applied. Transform convention and rendered parity are unverified without a build/runtime check.
 
 ## 2026-10-14 Principled anisotropy + Burley diffuse
 

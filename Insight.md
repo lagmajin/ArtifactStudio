@@ -3029,6 +3029,14 @@
 - **価値／懸念:** material tableの並びが変化しても一意名のslotなら設定を追跡できる。duplicate names、slot独立UV、UI編集は未対応。round-trip未実行。
 - **次に確認:** 一意名と重複名を含むmulti-part fixtureでtoJson/fromJson後の全scalar・path一致を確認し、重複名の安定識別子を追加する。
 
+### 2026-10-14: UFBX textureごとのUV transformをPBR slotへ渡す
+
+- **関連:** `ArtifactCore::MeshImporter::ImportedPbrMaterial` と `Artifact3DLayer::meshMaterials_`。
+- **確認済み事実:** UFBX `ufbx_texture` はUV set nameとUV transform（translation、quaternion rotation、scale）を提供する。Materialにはmap別のrotation／offset／UV setとpositive uniform scale APIがあり、Raster／RT samplingで使用する。
+- **変更:** 7つのPBR mapについてUV metadataをImporterからLayerへ渡し、名前一致でUV0／UV1を選び、既存map別Material APIへ適用。`material.slots` JSONにもmap別の解決済み設定を保存・復元する。
+- **価値／懸念:** glTF `KHR_texture_transform`相当の回転／offset／uniform scaleとUV1指定をslot別textureに保ちやすい。nonuniform／negative scale、3番目以降のUV set、複数meshでUV set名が異なる素材、座標変換向きの実画像検証は未対応／未確認。
+- **次に確認:** UV0／UV1とrotation／offset／uniform scaleが異なる複数material fixtureをRaster／RTで描画し、UFBXのtransform方向がglTF表示と一致するか比較する。
+
 ### 2026-10-14: PBR base-color mipの透明縁と奇数寸法を保持
 
 - **関連:** Raster `buildRgba8MipChain` とRT `loadRgbaPbrTexture` のtexture mip構築。
