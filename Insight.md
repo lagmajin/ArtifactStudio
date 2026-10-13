@@ -3026,7 +3026,7 @@
 - **関連:** `ArtifactCore::Material`、`Artifact3DModelLayer`、Raster `MeshRenderer`、RT `RayTracingManager`。
 - **確認済み事実:** Materialの既存offset／scale／rotationは全texture共通だった。normalとcoat-normalは別texture pathを持つが、どちらも同じ共通UV座標でsampleされ、Rasterのderivative tangent basisとRT triangle tangent basisもそのUVに一致していた。
 - **変更:** 共通UV transform後にNormal Map専用の追加rotationをMaterial／JSON／Property／material signature／single・multi-material Raster／RTへ追加した。normal sample座標を回し、RTはtangent／bitangent basisにも同角度を適用する。Coat Normalは同じ追加回転を使う。
-- **価値／懸念:** albedo／roughness textureの位置・方向を変えずnormal detailだけを向け直せる。full per-texture scale／offset／UV set選択ではなく、coat-normalにも同rotationを共有する。shader compileと画像parityは未確認。
+- **価値／懸念:** albedo／roughness textureの位置・方向を変えずnormal detailだけを向け直せる。後続変更でcoat-normal専用rotation／scaleとmap別UV set選択も追加した。shader compileと画像parityは未確認。
 - **次に確認:** 0度で旧応答を保つこと、90度で+U normal detailが+Vへ回ること、mirrored UV／non-uniform scale、normal／coat-normal併用をRaster／RTで比較する。
 
 ### 2026-10-14: Normal Map専用UV scaleとray-cone mip連動
@@ -3034,7 +3034,7 @@
 - **関連:** `ArtifactCore::Material`、`Artifact3DModelLayer`、Raster `MeshRenderer`、RT `RayTracingManager`。
 - **確認済み事実:** Normal Mapには共通UV変換後の独立rotationを追加済みだが、texture密度はbase color等の共通scaleを共有していた。Raster LODはnormal UVのimplicit derivative、RT LODはtriangle UV edgeとray coneから計算する。
 - **変更:** 0.01〜10のuniform Normal UV ScaleをMaterial／Property／JSON／signature／single・multi Raster／RTへ接続した。normalとcoat-normalのUVを中心基準で拡縮し、RT ray-cone LOD計算にもscaleを反映する。
-- **価値／懸念:** base colorやmetallic-roughnessのtile密度を保ちながらnormal detailの大きさを調整できる。coat-normalはnormal mapと同じscale／rotationを共有し、UV setの独立選択は未対応。shader compileとmip image parityは未確認。
+- **価値／懸念:** base colorやmetallic-roughnessのtile密度を保ちながらnormal detailの大きさを調整できる。後続変更でcoat-normal専用scale／rotationとUV set選択を追加した。shader compileとmip image parityは未確認。
 - **次に確認:** scale 0.5／1／2で模様密度が対応して変化し、RT LODもtexture footprintに応じて上がること、rotationとの合成とRaster／RT方向一致を確認する。
 
 ### 2026-10-14: Coat Normal専用UV rotation／scale
@@ -3042,7 +3042,7 @@
 - **関連:** `ArtifactCore::Material`、`Artifact3DModelLayer`、Raster `MeshRenderer`、RT `RayTracingManager`。
 - **確認済み事実:** 独立Coat Normal textureは別pathでbindされていたが、sampling UV、tangent basis、mip scaleはbase Normal Mapと同じmappingを共有していた。
 - **変更:** Coat Normal専用のrotationとuniform scaleをMaterial／JSON／Property／material signature／single・multi Raster／RTへ追加。Rasterは専用UV derivativeからnormalを再構成し、RTはcoat tangent frameを回転しray-cone LODへscaleを適用する。default 0度／1倍では従来と同じmapping。
-- **価値／懸念:** 塗膜のnormal detailを基材のnormal textureと独立に向き・密度調整できる。独立offsetとUV set選択は未対応。shader compilationとRaster／RT画像parityは未確認。
+- **価値／懸念:** 塗膜のnormal detailを基材のnormal textureと独立に向き・密度・UV set調整できる。shader compilationとRaster／RT画像parityは未確認。
 - **次に確認:** base／coat normalの角度・密度を別々に変更し、coat highlightとray-cone mip応答がRaster／RTで一致することを確認する。
 
 ### 2026-10-14: Coat Normal専用UV rotation／scale
@@ -3081,6 +3081,6 @@
 
 - **関連:** `MeshImporter.cppm`、`Mesh::RenderData`、`Mesh::generateRenderData()`、`generateMeshletLODData()`。
 - **確認済み事実:** ufbx meshは`uv_sets`配列で複数の`vertex_uv`属性を持つが、importerは`vertex_uv`（UV0）だけを読み、RenderDataとmeshlet remapにもUV1の格納先がなかった。
-- **変更:** 2番目のufbx UV setを`uv1` vertex attributeへ読み、RenderDataの`uvs1`にtriangle flattenする。mesh内の一部だけUV1がない場合はUV0を複製する。meshlet remapにもUV1を含めた。Base Color UV SetとNormal UV Set（0／1）をMaterial／Layer JSON／Propertyへ追加し、Raster／RTのBase Color samplingとmasked alpha、Normal／Coat Normal samplingへ伝搬した。RTは選択Normal UVから接線基底とray-cone mip密度も計算する。
-- **価値／懸念:** Base ColorとNormal／Coat NormalでUV1をRaster／RT共通に選べる。他mapごとのUV set選択は未実装。build／shader compile／画像確認は未実施。
-- **次に確認:** 複数UVを含むFBX／glTF fixtureをRaster／RTで描画し、UV set切替、masked shadow境界、normal detail、mip応答、parityを確認する。
+- **変更:** 2番目のufbx UV setを`uv1` vertex attributeへ読み、RenderDataの`uvs1`にtriangle flattenする。mesh内の一部だけUV1がない場合はUV0を複製する。meshlet remapにもUV1を含めた。Base Color／Metallic-Roughness／Normal／Coat Normal／Occlusion／Emission／OpacityごとにUV Set（0／1）をMaterial／Layer JSON／Propertyへ追加し、Raster／RT samplingへ伝搬した。Masked shadow alpha clipとRT Any HitにもBase Color／Opacityの選択UVを通す。RTは各選択UVの微分でray-cone mip密度を計算し、Normal／Coat Normalは別々の接線基底を使う。
+- **価値／懸念:** すべての現在のPBR texture mapでUV1をRaster／RT共通に選択できる。shader compilation／画像 parityは未確認。
+- **次に確認:** 複数UVを含むFBX／glTF fixtureをRaster／RTで描画し、各map選択、masked shadow境界、normal detail、mip応答、material serialization、parityを確認する。
