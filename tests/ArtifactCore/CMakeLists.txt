@@ -1,5 +1,29 @@
 # ArtifactCore Tests
 
+if(ARTIFACT_ENABLE_RAY_TRACING_TEST)
+    if(TARGET Diligent-GraphicsEngineVk-static)
+        set(_artifact_rt_test_backend Diligent-GraphicsEngineVk-static)
+    elseif(TARGET Diligent-GraphicsEngineVk-shared)
+        set(_artifact_rt_test_backend Diligent-GraphicsEngineVk-shared)
+    else()
+        message(FATAL_ERROR "ARTIFACT_ENABLE_RAY_TRACING_TEST requires the Diligent Vulkan backend")
+    endif()
+
+    artifact_add_test(ArtifactCoreRayTracingAcceptanceTest
+        SOURCES
+            RayTracingAcceptanceTest.cpp
+        LIBS
+            ArtifactCore
+            ${_artifact_rt_test_backend}
+    )
+    set_tests_properties(ArtifactCoreRayTracingAcceptanceTest PROPERTIES
+        LABELS "renderer;gpu;ray-tracing;headless;acceptance;core"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;ARTIFACT_RENDER_BACKEND=vulkan"
+    )
+endif()
+
 
 if(ARTIFACT_BUILD_TESTS)
     add_subdirectory(AnimationDynamicsStandalone)

@@ -33,7 +33,7 @@ endfunction()
 
 # ArtifactCore tests, including the isolated MotionTracker video test.
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_TRACKING_VIDEO_TEST
-   OR ARTIFACT_ENABLE_KEYING_VIDEO_TEST)
+   OR ARTIFACT_ENABLE_KEYING_VIDEO_TEST OR ARTIFACT_ENABLE_RAY_TRACING_TEST)
     add_subdirectory(ArtifactCore)
 endif()
 

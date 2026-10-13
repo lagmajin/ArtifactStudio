@@ -1,6 +1,6 @@
 # 先進レンダリングシステム 導入ギャップ調査
 
-**最終更新:** 2026-08-13
+**最終更新:** 2026-10-13
 
 「先進的なレンダリングシステム」を導入する上で、ArtifactStudio に何が不足しているかをソースコード（`.ixx` / `.cppm` / `.hlsl`）を一次情報として検証した。
 
@@ -12,28 +12,21 @@
 
 ---
 
-## 1. レイトレーシング — 機能検出スモークのみ、実ジオメトリ非対応
+## 1. レイトレーシング — BLAS/TLAS と独立受け入れテスト
 
-**判定: 骨組みのみ（ウォームアップ + 機能検出）。実レイトレ未配線。**
+**判定: 実ジオメトリの加速構造とヒット／ミス出力を独立 GPU テストで検証可能。製品コンポジットへの RT 効果統合は別段階。**
 
 ### 実装済み
-- `ArtifactCore/include/Graphics/RayTracingManager.ixx` + `src/Graphics/RayTracingManager.cppm`（316 行）。
-- `ArtifactIRenderer.cppm:1504-1518` で起動時に `createRayTracingManager()` → `initialize()` → `buildTLAS()` → `ensurePipelineAndSBT()` → `traceUnitQuad(1,1)` を実行し、`rayTracingSupported` を判定。
-- DXR 相当の機能検出: `props.Features.RayTracing`、`RAY_TRACING_CAP_FLAG_STANDALONE_SHADERS`、MaxRecursionDepth / MaxRayGenThreads / MaxInstancesPerTLAS / MaxPrimitivesPerBLAS 等を `RayTracingCapabilities` に取得。
+- `ArtifactCore/include/Graphics/RayTracingManager.ixx` / `src/Graphics/RayTracingManager.cppm` が頂点・インデックスバッファから BLAS を作り、アクティブなインスタンスを TLAS に構築する。
+- 同一トポロジの頂点更新は BLAS update、インデックスやバッファ構造の変更は BLAS rebuild に分岐する。`RTGeometryData` の geometry/topology revision でインプレース更新を明示する。
+- 不透明な単一インスタンスのメッシュ描画経路からジオメトリと変換を登録し、位置変更時に BLAS 更新、変換・表示状態変更時に TLAS を更新する。インスタンス描画と透過メッシュは現時点で RT 登録対象外。
+- 診断状態に BLAS/TLAS の build/update/rebuild 回数を公開する。
+- `ARTIFACT_ENABLE_RAY_TRACING_TEST` で `ArtifactCoreRayTracingAcceptanceTest` だけを選択できる。平面、閉じたボックス、非インデックス三角形、変換、表示切替、頂点更新、トポロジ変更、無効ジオメトリを扱い、出力ピクセルと AS 更新経路を確認する。RT 対応 Vulkan デバイスが無い環境では skip する。
 
-### 未実装（実用に必要な部分が全部欠落）
-- **BLAS に実ジオメトリを詰めない**: `createOrUpdateBLAS()` は `blasBuildCount++` だけの no-op（`RayTracingManager.cppm:106-111`）。
-- **TLAS インスタンスを収集しない**: `buildTLAS()` は `tlasBuildCount++` + フラグ立てだけ（`:113-120`）。コメント「Future: collect all layer transforms and update TLAS instances」。
-- **BLAS 作成自体が Unit Quad のみ**: `createUnitQuadBLAS()`（`:265-282`）は頂点 4 点・2 三角形の固定 Quad。実レイヤー/メッシュの BLAS 構築経路なし。
-- **出力が固定色**: `RTWarmup_RayGen` が `float4(0.2, 0.45, 0.9, 1.0)` を書くだけ（`:31-36`）。closest-hit / any-hit シェーダが無い（miss は空）。
-- **実レイヤーからの呼び出しなし**: `traceUnitQuad` は初期化時の 1×1 スモークのみ。合成フレーム内で反射/シャドウ/AO に使う経路がない。
-- `NVPRO_RAYTRACING_PROGRESS_2026-07-20.md` に `rayTracingMinimalPayload / Miss / ClosestHit` のシェーダ契約があるが、これは別系統の shader 契約のみで、上記 Manager とも未接続。
-
-### 必要
-- BLAS: レイヤー/メッシュの頂点・インデックスバッファを `RTGeometryData` → `createOrUpdateBLAS` で実体化。
-- TLAS: 各レイヤーの transform を instance として収集し `buildTLAS` で実構築。
-- PSO/SBT: closest-hit / any-hit / miss を実シェーダ（`raytraceCS_rtapi` / `rtreflectionLIB` 等）で構成。
-- 合成ループへの接続: 反射・ソフトシャドウ・RT-AO のいずれかに `traceUnitQuad` 相当を接続。
+### 未実装
+- warmup 用 closest-hit シェーダを使用しており、レイヤー合成に対する反射・影・AO の製品効果にはまだ接続していない。
+- インスタンス描画、透過・アルファテクスチャ、可変マテリアル、メッシュ複数サブセット、DX12/Vulkan 両方の実機受け入れは別途必要。
+- この受け入れテストをコンパイル・実機実行していない場合、GPU ドライバ上の合格は未確認として扱う。
 
 ---
 
@@ -145,7 +138,7 @@
 ## 不足の優先順位
 
 1. **RenderGraph の実行バックボーン化**（§2）— これが無いとマルチパス拡張が手書きシーケンスに埋もれ続ける。全先進機能の前提。
-2. **レイトレ BLAS/TLAS/実シェーダ接続**（§1）— 現在は機能検出のみ。反射・ソフトシャドウ・RT-AO の土台。
+2. **レイトレの製品効果統合**（§1）— BLAS/TLAS と headless 受け入れ基盤は実装済み。反射・ソフトシャドウ・RT-AO と合成経路の統合が残る。
 3. **DDGI または VXGI の実配線**（§3）— シェーダは揃っており、SSGI からの拡張として最も費用対効果が高い。
 4. **空間アップスケールの接続**（§5）— 動的解像度が既にあるので、FSR1 相当の配線は低リスクで即効。
 5. **仮想テクスチャ**（§4）— 現行方針では優先度低。3D 地形/UDIM 本格化時に。
@@ -158,7 +151,7 @@
 
 | ファイル | 役割 |
 |---|---|
-| `ArtifactCore/src/Graphics/RayTracingManager.cppm` | RT 機能検出 + ウォームアップ（実ジオメトリ非対応） |
+| `ArtifactCore/src/Graphics/RayTracingManager.cppm` | BLAS/TLAS 構築・更新とウォームアップ用レイトレ |
 | `ArtifactCore/include/Graphics/RenderGraph.ixx` | RenderGraph データ構造（休眠） |
 | `ArtifactCore/include/Graphics/RenderPipelineFoundation.ixx` | GI/Pointwise アダプタ（未接続） |
 | `Artifact/src/Render/ArtifactRenderLayerPipeline.cppm` | SSGI / FXAA / pointwise（live） |
