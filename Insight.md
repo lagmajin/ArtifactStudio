@@ -3032,10 +3032,10 @@
 ### 2026-10-14: UFBX material slotのopacity・coat tint・emissionをimport
 
 - **関連:** `ufbx_material_pbr_maps`、`MeshImporter::ImportedPbrMaterial`、`Artifact3DLayer` multi-material slot creation。
-- **確認済み事実:** ufbx PBR mapにはopacity factor、coat color、emission color／factorがある。slot pathにはopacity textureを取り込んでいたがopacity factorを適用せず、coat tintとemission値もslot Materialへ転送していなかった。
-- **変更:** 明示されたopacity factorをslot Materialへ設定し、1未満ならBlended alpha modeを指定する。coat colorとemission colorはlinear-to-sRGB変換して転送し、emission factorはEmission Strengthへ渡す。
-- **価値／懸念:** 対応可能な透明度・coat色・発光値をmulti-material pathで保つ。ufbx経路からalpha mask cutoff／mask-vs-blendの別は復元しない。実データと描画はruntime未確認。
-- **次に確認:** 不透明・半透明・opacity texture、着色coat、emission factorを含むfixtureをimportしてslot値とRaster／RT描画を比較する。
+- **確認済み事実:** ufbx PBR mapにはopacity factor、coat color、emission color／factor、thin-film thickness／IORがある。slot pathはopacity textureを取り込んでいたが、これらのscalar／color値をMaterialへ転送していなかった。
+- **変更:** 明示されたopacity factorをslot Materialへ設定し、1未満ならBlended alpha modeを指定する。coat colorとemission colorはlinear-to-sRGB変換し、emission factorとthin-film thickness／IORも各Material設定へ渡す。
+- **価値／懸念:** 対応可能な透明度・coat色・発光・iridescence設定をmulti-material pathで保つ。ufbx経路からalpha mask cutoff／mask-vs-blendの別は復元しない。実データと描画はruntime未確認。
+- **次に確認:** 不透明・半透明・opacity texture、着色coat、emission、thin-filmを含むfixtureをimportしてslot値とRaster／RT描画を比較する。
 
 ### 2026-10-14: UFBX multi-materialのPrincipled係数を追加import
 
