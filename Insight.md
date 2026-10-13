@@ -3029,6 +3029,14 @@
 - **価値／懸念:** material tableの並びが変化しても一意名のslotなら設定を追跡できる。duplicate names、slot独立UV、UI編集は未対応。round-trip未実行。
 - **次に確認:** 一意名と重複名を含むmulti-part fixtureでtoJson/fromJson後の全scalar・path一致を確認し、重複名の安定識別子を追加する。
 
+### 2026-10-14: UFBX multi-materialのPrincipled係数を追加import
+
+- **関連:** `ufbx_material_pbr_maps`、`MeshImporter::ImportedPbrMaterial`、`Artifact3DLayer` slot construction。
+- **確認済み事実:** ufbx PBR material mapにdiffuse roughness、coat IOR、specular anisotropy、subsurface factor/color/radius/anisotropyがあり、現在のMaterial APIおよびslot Inspectorには対応setter／propertyがあるが、Importer tableから転送されていなかった。
+- **変更:** 値が明示されている場合だけ上記係数をImportedPbrMaterialへ取り込み、multi-material slot Materialへ適用する。subsurface RGB colorは既存のlinear-to-sRGB変換を使い、radiusとscalarはMaterialの許容範囲へ収める。
+- **価値／懸念:** 対応するUFBX／glTF材質情報がslot作成時に失われず、すでに実装済みのPrincipled編集・描画経路へ届く。fixture import、JSON保存／復元、描画はruntime未確認。
+- **次に確認:** 各係数が明示されたmulti-material FBX／glTF fixtureを読み込み、slot値と再読込後の値、Raster／RT応答を比較する。
+
 ### 2026-10-14: Material slot textureをファイルダイアログから選択
 
 - **関連:** `ArtifactPropertyEditorShared.cppm` のPath property判定とfile dialog filter、3D material slot texture properties。
