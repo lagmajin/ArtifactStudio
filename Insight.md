@@ -3177,6 +3177,6 @@
 
 - **関連:** `tinyobj::material_t::roughness_texname`／`metallic_texname`、`ArtifactCore::Material`、Raster `MeshRenderer`、RT `RayTracingManager`。
 - **確認済み事実:** 現行shaderのMetallic-Roughness入力は1枚のpacked textureを前提にし、G channelをroughness、B channelをmetallicとして読む。tinyobjloaderはMTLの`map_Pr`と`map_Pm`を別々のpathで保持する。片方をpacked入力に代入すると他方のchannelも同時に誤って乗算される。
-- **変更:** `Material`と`ImportedPbrMaterial`にroughness／metallic専用texture pathを追加し、OBJ importerで個別に保持する段階まで進めた。Raster／RT sampling、Layer保存／UI、per-map UV transformは未接続で、まだ描画には反映されない。
-- **価値／懸念:** MTLの意味をpacked glTF mapと混同しない入力契約ができる。RendererとRTの双方へ別mapのsampleとmaterial serializationをつなぐまで、可視機能として完了扱いにしない。
-- **次に確認:** packed mapの既存挙動を維持しつつ、別roughness／metallic mapのfactor適用、独立UV scale／offset、single／multi slot、RT material indexをRaster／RT双方で接続する。
+- **変更:** Core Material／OBJ importerでpathとUV transformを分離し、Raster shaderのsingle material／material slot双方へmetallic・roughness別SRVと独立UV scale／offset／rotation／UV setを接続した。mapのR channelを対応factorへ乗算し、該当するpacked channelより独立mapを優先する。3D layerのsingle／slot JSON、Inspector、render signatureにも接続した。
+- **価値／懸念:** OBJ/MTLの独立mapと各map固有UVがRaster側の金属度・粗さへ反映される。RT shaderはpacked mapのままで独立map／transformを読まない。build／shader compile／runtime描画は未確認。
+- **次に確認:** RT material tableとray-cone mip選択へ独立texture index／UV transformを加え、Raster／RTの表示を合わせる。

@@ -6,9 +6,16 @@
 ## 2026-10-14 OBJ/MTL multi-material import
 
 - tinyobjloaderのMTL material tableを既存Principled slot tableへ変換し、OBJ面の`material_ids`に対応する連続triangle index rangeを`Mesh::MaterialSlot`へ割り当てる。Diffuse/opacity、metallic、roughness、Phong shininess由来roughness、clearcoat、sheen、anisotropy／rotation、specular tint、IOR、emissionと、対応するtexture path／MTLのscale・offsetをslotへ渡す。MTL parserが未指定`Kd`と明示的な黒を区別できないため、全0 diffuseはwhite fallbackにする。
-- Phong shininessからroughnessへの変換は `sqrt(2 / (shininess + 2))` の近似で、MTLのPBR roughness値が正ならそちらを優先する。MTLのroughness／metallic別mapは単一の既存metallic-roughness slotへ選択して渡すため、packed glTF textureと同等の完全な個別map表現ではない。
+- Phong shininessからroughnessへの変換は `sqrt(2 / (shininess + 2))` の近似で、MTLのPBR roughness値が正ならそちらを優先する。
 - **変更:** material tableが1件だけでmaterial rangeがあるOBJも、slot tableを作らずlayer本体のMaterialへ同じ変換を適用する。複数material tableは従来どおりslotごとのMaterialへ適用する。
 - **未確認／制限:** ビルド、OBJ/MTL fixture、single／multi slotのRaster／RT描画は未確認。任意texture mapごとのUV rotation／独立map表現は未対応。
+
+## 2026-10-14 Independent OBJ/MTL metallic and roughness maps on Raster
+
+- `map_Pm`／`map_Pr` pathを別Material値として保持し、Raster single materialとmaterial slotへ別linear SRVをbindする。各mapのR channelをmetallic／roughness factorへ乗算し、独立mapがある側ではpacked Metallic-Roughness textureの同じchannelを使わない。
+- 3D layerのsingle／slot JSON保存・復元、Inspector texture path、render material signatureへ接続する。
+- MTL mapごとのscale／offset／UV setをMaterialに保持し、Raster single／slotの各map sampleへ独立して適用する。Materialのrotationにも対応し、layerのsingle／slot JSONとInspectorへ保存・表示する。
+- **未確認／制限:** shader buildとpixel/runtime表示は未確認。RT shaderは従来packed textureだけを読むため、RTでの独立map／transform表示は未対応。
 
 ## 2026-10-14 UFBX / glTF multi-material import
 
