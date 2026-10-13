@@ -3081,6 +3081,6 @@
 
 - **関連:** `MeshImporter.cppm`、`Mesh::RenderData`、`Mesh::generateRenderData()`、`generateMeshletLODData()`。
 - **確認済み事実:** ufbx meshは`uv_sets`配列で複数の`vertex_uv`属性を持つが、importerは`vertex_uv`（UV0）だけを読み、RenderDataとmeshlet remapにもUV1の格納先がなかった。
-- **変更:** 2番目のufbx UV setを`uv1` vertex attributeへ読み、RenderDataの`uvs1`にtriangle flattenする。mesh内の一部だけUV1がない場合はUV0を複製する。meshlet remapにもUV1を含めた。Normal UV Set（0／1）をMaterial／Layer JSON／Propertyへ追加し、RasterのNormal／Coat Normal texture経路へUV1を伝搬した。
-- **価値／懸念:** UV1をRaster上でnormal detail用に選べる。RT shaderはまだUV0固定のため、同一材質でRaster／RT表示が一致しない。build／shader compile／画像確認は未実施。
-- **次に確認:** RT shading poolとclosest-hitへUV1を通し、UV set 0／1を切り替えたNormal MapでRaster／RT parityを確認する。
+- **変更:** 2番目のufbx UV setを`uv1` vertex attributeへ読み、RenderDataの`uvs1`にtriangle flattenする。mesh内の一部だけUV1がない場合はUV0を複製する。meshlet remapにもUV1を含めた。Base Color UV SetとNormal UV Set（0／1）をMaterial／Layer JSON／Propertyへ追加し、Raster／RTのBase Color samplingとmasked alpha、Normal／Coat Normal samplingへ伝搬した。RTは選択Normal UVから接線基底とray-cone mip密度も計算する。
+- **価値／懸念:** Base ColorとNormal／Coat NormalでUV1をRaster／RT共通に選べる。他mapごとのUV set選択は未実装。build／shader compile／画像確認は未実施。
+- **次に確認:** 複数UVを含むFBX／glTF fixtureをRaster／RTで描画し、UV set切替、masked shadow境界、normal detail、mip応答、parityを確認する。
