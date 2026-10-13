@@ -3005,6 +3005,14 @@
 - **価値／懸念:** 実装経緯の要点を残す。詳細な過去の検証条件は元記録から完全復元できず、GPU compile／runtime parityも未確認。
 - **次に確認:** 主要map・material controlsをRaster／RTでcompileし、texture LOD・alpha mode・normal variance・energy consistencyを代表fixtureで評価する。
 
+### 2026-10-14: ufbxのPrincipled拡張scalar import
+
+- **関連:** `ArtifactCore::MeshImporter::detectTexturesFromUfbx()` と `Artifact3DModelLayer::setModelSource()`。
+- **確認済み事実:** ufbxの `ufbx_material_pbr_maps` は coat factor／roughness、transmission factor、specular IOR、sheen factor／roughnessを保持する。既存importはmetallic／roughness scalarと基本texture mapのみLayerへ渡していた。
+- **変更:** ufbxの最初に明示されたscalar値をImporter getterへ保持し、single-material 3D layer importで対応値が既定値のままならMaterialへ反映する。
+- **価値／懸念:** extension scalarを手作業で再設定せず、既存Principled shadingへ取り込める。multi-material meshへのper-slot配布、sheen color、extension texture mapは未対応で、glTF fixture/runtimeは未確認。
+- **次に確認:** `KHR_materials_clearcoat`／`transmission`／`ior`／`sheen` fixtureで値の取得、Layer Materialへの適用、再保存後の値を確認する。必要ならper-slot UFBX material mappingを別段階で設計する。
+
 ### 2026-10-14: PBR base-color mipの透明縁と奇数寸法を保持
 
 - **関連:** Raster `buildRgba8MipChain` とRT `loadRgbaPbrTexture` のtexture mip構築。
