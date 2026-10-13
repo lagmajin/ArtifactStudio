@@ -21,8 +21,9 @@
 
 ## 2026-10-14 Imported material slot editing
 
-- Add per-slot inspector groups for UFBX/glTF material slots with Base Color, Metallic, Roughness, Specular and tint, IOR, Transmission, Clearcoat and roughness, and Sheen and tint controls. The existing multi-material draw path consumes the edited `meshMaterials_`, and `material.slots` serializes them.
-- **未確認／制限:** interactive editing and save/reload are not runtime-verified. The current slot UI exposes the most used Principled controls; per-slot maps/UV and advanced layer controls remain outside this editor increment.
+- Add per-slot inspector groups for UFBX/glTF material slots, covering base color, metallic/roughness, specular and tint, IOR/transmission, clearcoat, sheen, thin film, subsurface, anisotropy, emission, alpha, normal/occlusion, environment, and shared UV controls. Edits update the slot Material consumed by the existing multi-material Raster/RT paths.
+- Serialize and restore these slot values in `material.slots`, alongside the existing texture paths and per-map UV transforms. Numeric values are clamped to the Material controls' supported ranges.
+- **未確認／制限:** interactive editing, save/reload, and rendered output are not runtime-verified. Per-slot texture path and per-map UV editing are not exposed by this editor increment; imported values remain preserved.
 
 ## 2026-10-14 Principled anisotropy + Burley diffuse
 

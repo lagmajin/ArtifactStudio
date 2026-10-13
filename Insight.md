@@ -3029,6 +3029,14 @@
 - **価値／懸念:** material tableの並びが変化しても一意名のslotなら設定を追跡できる。duplicate names、slot独立UV、UI編集は未対応。round-trip未実行。
 - **次に確認:** 一意名と重複名を含むmulti-part fixtureでtoJson/fromJson後の全scalar・path一致を確認し、重複名の安定識別子を追加する。
 
+### 2026-10-14: UFBX material slotのPrincipled項目を拡張
+
+- **関連:** `Artifact3DLayer::meshMaterials_` のProperty、JSON保存／復元、Raster／RT multi-material経路。
+- **確認済み事実:** material slot編集面は基本Principled値だけを表示し、Materialとsingle-layer propertyにあるthin film、clearcoat tint／IOR、subsurface、anisotropy、emission、alpha、normal／AO、environment、shared UV設定がslot単位で調整できなかった。slot JSONも同じ高度項目を保存していなかった。
+- **変更:** slotごとに上記のscalar／color controlsを公開し、編集値を各slot Materialへ反映する。`material.slots`へ高度項目とshared UV transformを追加し、範囲検証付きで復元する。
+- **価値／懸念:** imported multi-material assetsのPrincipled設定を編集・保存できる範囲が単一Material property面に近づく。UI操作、save/reload、Raster／RT描画は実行確認していない。
+- **次に確認:** user-facing editorでalpha modeや色を含むslot値を変更し、保存／再読込後に各mesh partの描画が保たれることを確認する。
+
 ### 2026-10-14: UFBX textureごとのUV transformをPBR slotへ渡す
 
 - **関連:** `ArtifactCore::MeshImporter::ImportedPbrMaterial` と `Artifact3DLayer::meshMaterials_`。
