@@ -9,6 +9,11 @@
 - Base color／tintのRGBはufbx linear値から既存MaterialのsRGB QColor表現へ変換する。texture-only color mapは係数未指定として既定色で上書きしない。明示alphaが1未満ならslotをBlendedにする。
 - **未確認／制限:** ビルド・fixture・runtime描画は未実行。per-node material override、任意node transform、alpha MASK cutoff、layerへのmaterial table保存／再読込は対象外。Importerの単一material getterは従来互換で、複数material用getterが新たに追加された。
 
+## 2026-10-14 Multi-material layer persistence
+
+- `Artifact3DLayer` serializes each loaded multi-material slot's Principled scalars, tints, alpha state, emission and texture paths into `material.slots`; loading restores these values after source reimport, bounded by the current imported slot count. Older project JSON without this array continues to use freshly imported source materials.
+- **未確認／制限:** build and save/reload round-trip were not run. Per-slot UV transforms and independent interactive editing are not represented by this imported-slot record yet; the main layer material remains the current property editing surface.
+
 ## 2026-10-14 Principled anisotropy + Burley diffuse
 
 - ufbx single-material import now carries authored `coat_factor`, `coat_roughness`, `transmission_factor`, `specular_ior`, `sheen_factor`, and `sheen_roughness` values into the 3D layer. Existing layer values are preserved unless they are still at their defaults. This is scalar import only; extension texture maps, sheen color, and per-material propagation across a multi-material glTF mesh remain pending.

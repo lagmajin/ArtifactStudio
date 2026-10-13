@@ -3021,6 +3021,14 @@
 - **価値／懸念:** glTF/FBXで複数素材の色と質感が一つのflatten mesh内でも保持される。実build／fixtureでufbx material table index整合、UV、alpha blending、Raster/RT描画は未確認。node instance overrideやalpha mask semanticsも未対応。
 - **次に確認:** multi-part glTFとFBX fixtureでslot range、base color／extension factor／texture、RT primitive mappingを照合し、build後にRaster／RT画像を確認する。
 
+### 2026-10-14: Multi-material Layerの再読込でimport設定を保持
+
+- **関連:** `Artifact/src/Layer/Artifact3DModelLayer.cppm` のJSON serializationとmulti-material draw。
+- **確認済み事実:** 複数source materialはLayer内の`meshMaterials_`に保持され、draw時にRaster／RTへ渡る一方、既存JSONは単一の`material_`だけを保存していた。
+- **変更:** `material.slots`配列へ各slotの主要Principled係数、tint、alpha state、emission、texture pathを保存し、source再import後にslot数の範囲で復元する。旧JSONは配列がない場合、import元の値をそのまま使う。
+- **価値／懸念:** プロジェクトを保存・再読込してもUFBX/glTF複数素材が失われにくくなる。slot再順序変更時の安定ID対応、slot独立UV、UI編集は未対応。round-trip未実行。
+- **次に確認:** sourceのmaterial順を固定したmulti-part fixtureでtoJson/fromJson後の全scalar・path一致を確認し、source変更時はmaterial identityで安全に対応付ける。
+
 ### 2026-10-14: PBR base-color mipの透明縁と奇数寸法を保持
 
 - **関連:** Raster `buildRgba8MipChain` とRT `loadRgbaPbrTexture` のtexture mip構築。
