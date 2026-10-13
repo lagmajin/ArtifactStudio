@@ -3177,6 +3177,28 @@
 
 - **関連:** `tinyobj::material_t::roughness_texname`／`metallic_texname`、`ArtifactCore::Material`、Raster `MeshRenderer`、RT `RayTracingManager`。
 - **確認済み事実:** 現行shaderのMetallic-Roughness入力は1枚のpacked textureを前提にし、G channelをroughness、B channelをmetallicとして読む。tinyobjloaderはMTLの`map_Pr`と`map_Pm`を別々のpathで保持する。片方をpacked入力に代入すると他方のchannelも同時に誤って乗算される。
-- **変更:** Core Material／OBJ importerでpathとUV transformを分離し、Raster shaderのsingle material／material slot双方へmetallic・roughness別SRVと独立UV scale／offset／rotation／UV setを接続した。mapのR channelを対応factorへ乗算し、該当するpacked channelより独立mapを優先する。3D layerのsingle／slot JSON、Inspector、render signatureにも接続した。
-- **価値／懸念:** OBJ/MTLの独立mapと各map固有UVがRaster側の金属度・粗さへ反映される。RT shaderはpacked mapのままで独立map／transformを読まない。build／shader compile／runtime描画は未確認。
-- **次に確認:** RT material tableとray-cone mip選択へ独立texture index／UV transformを加え、Raster／RTの表示を合わせる。
+- **変更:** Core Material／OBJ importerでpathとUV transformを分離し、Raster single／slotとRT material tableへmetallic・roughness別map／独立UV transformを接続した。両経路で各mapのR channelを対応factorへ乗算し、独立mapがある場合はpacked map samplingを止める。RTでは変換後UV edgeからray-cone mipを選ぶ。3D layerのsingle／slot JSON、Inspector、render signatureにも接続した。
+- **価値／懸念:** OBJ/MTLの独立mapとmap固有 scale／offset／rotation／UV setがRaster／RTの描画データ経路に届く。shader compile、build、実機描画およびRaster／RT visual parityは未確認。
+- **次に確認:** ビルド・実機確認が許可された段階でRT shader ABI／samplingとRaster／RT表示を検証し、次のPrincipled差分を進める。
+
+### 2026-10-14: 異方性IBLに対称な長軸方向tapを追加
+
+- **関連:** Raster `MeshRenderer.cppm` とRT `RayTracingManager.cppm` のPrincipled base-specular IBL。
+- **確認済み事実:** 両経路は異方性で反射方向を曲げていたが、等方GGX prefilterを単一方向から読むため、伸長したGGX反射ローブを直接表現していなかった。
+- **変更:** 異方性の符号から長軸接線を選び、環境回転後の反射方向に沿って投影した軸の正負へ2 tapを追加する。roughness mipとBRDF LUT roughnessを長軸／短軸ごとに分け、中央と対称tapを混合する。異方性0は単一sampleの既存経路を保つ。
+- **価値／懸念:** 専用異方性prefilter textureや新しいGPU resourceを増やさず、Raster／RTで方向性のある環境ハイライトを近似できる。等方prefilter由来の近似であり、画像品質・energy bias・GPU costは未検証。
+- **次に確認:** 方向性HDR、異方性 -1／0／+1、rotation 0／90度、roughness 0.1／0.5／0.9でハイライト幅とRaster／RT pixel responseを比較し、tap weightingを調整する。
+
+### 2026-10-14: Clearcoat factor textureをPrincipled経路へ接続
+
+- **関連:** `ArtifactCore::MeshImporter`／`Material`／Raster `MeshRenderer`／RT `RayTracingManager`、`Artifact3DModelLayer`。
+- **確認済み事実:** UFBX material APIに`pbr.coat_factor.texture`があり、Material・Importer・single／slot JSON／Inspector・Raster・RTへpathとUV transformを接続した。RasterとRTのclearcoat weightはtexture R channelをscalarへ乗算する。
+- **価値／懸念:** coat maskで塗膜量を面内制御できる。textureはlinear扱い、UV setは0／1のみ。shader compile／GPU runtime／Raster・RT parityは未確認。
+- **次に確認:** shaderをビルドし、UV0／UV1とslot再bindを含むclearcoat mask fixtureでRaster／RTの画素結果を比較する。
+
+### 2026-10-14: Clearcoat roughness mapのRaster／RT ABIを拡張
+
+- **関連:** `MeshRenderer::MaterialState`、`RTMaterial`、clearcoat roughness import／slot binding。
+- **確認済み事実:** Raster material cbufferとRT structured bufferはいずれもCPU側の構造体配列順・float4数をHLSL側と一致させる必要がある。新mapはMaterial・Importer・slot/render経路へstateを追加する。
+- **価値／懸念:** shader ABIを静的assertと並び確認で保ちつつ、clearcoat roughness mapをRaster／RT両方で利用できる。実際のshader compilation／runtime ABIは未検証。
+- **次に確認:** ビルド許可後にcompileし、単一材質／複数slotのtexture切替とRT material packetを検証する。

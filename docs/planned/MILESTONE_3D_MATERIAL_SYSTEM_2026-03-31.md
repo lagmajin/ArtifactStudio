@@ -1,7 +1,7 @@
 # MILESTONE: 3D Material System
 
 **最終更新:** 2026-10-14
-**ステータス:** Material core、3D layer assignment、PBR texture input、shader/render 接続、Inspector／JSON、Matte／Metal／Plastic／Glass の preset 適用、RT triangleごとのscalar material slot選択、RT UV伝搬、AO／base color／metallic-roughness／normal／independent coat-normal／emission map samplingとray-coneによるtexture mip選択、linear float Base Color TextureのsRGB storage encoding、Raster複数slotのscalar Principled定数とslot別texture SRV切替、Masked材質のshadow alpha clip、material range別alpha pass、Principled specular tint、dielectric thin-film interference（RGB 3波長近似、反射と透過のエネルギー配分）、異方性direct／IBL反射、Disney/Burley diffuse、Cycles風 diffuse roughnessのdirect single／multi-scatter energy補償近似、subsurface weight／IOR／color/radius／anisotropyによるFresnel・散乱方向制御（厚みを追跡しない高速近似）、coat normal varianceによるroughness filtering、coatがsheenと基材反射・透過より上にあるdirect／IBL energy ordering、Emissionのcoat／sheen層下配置に対応する視線方向energy attenuation、Base Color／Metallic-Roughness／Normal／Coat Normal／Occlusion／Emission／OpacityのUV0／UV1選択、ufbx/glTFおよびOBJ/MTLのmaterial table単位Principled scalar／tint／texture importと、material partごとのRaster／RT slot mappingはコード実装済み。独立 Material Browser／asset 管理、高度 mapping、実制作mesh/HDRでのRaster／RT parityは pending。Raster／RT shader変更後build/runtime verificationも pending。
+**ステータス:** Material core、3D layer assignment、PBR texture input、shader/render 接続、Inspector／JSON、Matte／Metal／Plastic／Glass の preset 適用、RT triangleごとのscalar material slot選択、RT UV伝搬、AO／base color／metallic-roughness／normal／independent coat-normal／clearcoat factor／emission map samplingとray-coneによるtexture mip選択、linear float Base Color TextureのsRGB storage encoding、Raster複数slotのscalar Principled定数とslot別texture SRV切替、Masked材質のshadow alpha clip、material range別alpha pass、Principled specular tint、dielectric thin-film interference（RGB 3波長近似、反射と透過のエネルギー配分）、異方性direct／IBL反射、Disney/Burley diffuse、Cycles風 diffuse roughnessのdirect single／multi-scatter energy補償近似、subsurface weight／IOR／color/radius／anisotropyによるFresnel・散乱方向制御（厚みを追跡しない高速近似）、coat normal varianceによるroughness filtering、coatがsheenと基材反射・透過より上にあるdirect／IBL energy ordering、Emissionのcoat／sheen層下配置に対応する視線方向energy attenuation、Base Color／Metallic-Roughness／Normal／Coat Normal／Clearcoat factor／Occlusion／Emission／OpacityのUV0／UV1選択、ufbx/glTFおよびOBJ/MTLのmaterial table単位Principled scalar／tint／texture importと、material partごとのRaster／RT slot mappingはコード実装済み。独立 Material Browser／asset 管理、高度 mapping、実制作mesh/HDRでのRaster／RT parityは pending。Raster／RT shader変更後build/runtime verificationも pending。
 
 ## 2026-10-14 OBJ/MTL multi-material import
 
@@ -15,7 +15,14 @@
 - `map_Pm`／`map_Pr` pathを別Material値として保持し、Raster single materialとmaterial slotへ別linear SRVをbindする。各mapのR channelをmetallic／roughness factorへ乗算し、独立mapがある側ではpacked Metallic-Roughness textureの同じchannelを使わない。
 - 3D layerのsingle／slot JSON保存・復元、Inspector texture path、render material signatureへ接続する。
 - MTL mapごとのscale／offset／UV setをMaterialに保持し、Raster single／slotの各map sampleへ独立して適用する。Materialのrotationにも対応し、layerのsingle／slot JSONとInspectorへ保存・表示する。
-- **未確認／制限:** shader buildとpixel/runtime表示は未確認。RT shaderは従来packed textureだけを読むため、RTでの独立map／transform表示は未対応。
+- RT PBR material packet、texture cache、material buffer、closest-hit shaderへmetallic／roughness別texture indexとscale／offset／rotation／UV setを渡す。変換後のUV edgeで各mapのray-cone mipを選び、各R channelを対応factorへ適用する。独立mapが存在するときはpacked map samplingを無効にし、MTL個別mapのpacked channel誤読を避ける。
+- **未確認／制限:** shader compile、build、pixel/runtime表示とRaster／RT visual parityは未確認。
+
+## 2026-10-14 Principled Thin Wall Transmission
+
+- Add a `Thin Wall` boolean to Material, the 3D layer Inspector, single-material JSON and material-slot JSON. It is false by default, preserving the existing refractive transmission mode.
+- Raster and RT transmission use a straight-through environment direction for thin walls. The interface Fresnel term is converted to the zero-thickness two-interface reflectance `2F/(1+F)`, and the remaining energy is used for transmission; the same effective Fresnel is used for dielectric reflection and thin-film reflectance.
+- **未確認／制限:** This is a zero-thickness sheet approximation; it does not model absorption through a finite volume or internal geometry. Shader compile, build, runtime appearance and Raster／RT parity are unverified.
 
 ## 2026-10-14 UFBX / glTF multi-material import
 
@@ -49,7 +56,7 @@
 - ufbx single-material import now carries authored `coat_factor`, `coat_roughness`, `transmission_factor`, `specular_ior`, `sheen_factor`, and `sheen_roughness` values into the 3D layer. Existing layer values are preserved unless they are still at their defaults. This is scalar import only; extension texture maps, sheen color, and per-material propagation across a multi-material glTF mesh remain pending.
 - **未確認:** glTF fixtures using `KHR_materials_clearcoat`, `KHR_materials_transmission`, `KHR_materials_ior`, and `KHR_materials_sheen` have not been imported and rendered after this change. The implementation captures the first specified scalar value for each field from the ufbx material list, consistent with the existing single-material texture/factor path.
 
-- Mesh `RenderData`へUV1配列を追加し、ufbxの2番目のUV setを読み込み、triangle flattenとmeshletの頂点remap後も保持する。対象meshにUV1がなければUV0をRaster／RT入力へ複製する。Base Color／Metallic-Roughness／Normal／Coat Normal／Occlusion／Emission／OpacityのUV Set（0／1）をMaterial／3D Layer JSON／Propertyへ追加し、Raster／RTサンプリングへ適用する。Masked shadow alpha clip／RT Any HitにもBase Color／Opacityの選択UVを通す。Normal／Coat Normalは各mapの接線基底を作り、RT ray-cone mip密度は各mapのUV微分から計算する。
+- Mesh `RenderData`へUV1配列を追加し、ufbxの2番目のUV setを読み込み、triangle flattenとmeshletの頂点remap後も保持する。対象meshにUV1がなければUV0をRaster／RT入力へ複製する。Base Color／Metallic-Roughness／Normal／Coat Normal／Clearcoat factor／Occlusion／Emission／OpacityのUV Set（0／1）をMaterial／3D Layer JSON／Propertyへ追加し、Raster／RTサンプリングへ適用する。Masked shadow alpha clip／RT Any HitにもBase Color／Opacityの選択UVを通す。Normal／Coat Normalは各mapの接線基底を作り、RT ray-cone mip密度は各mapのUV微分から計算する。
 - **未確認:** importer fixture、meshlet remap後の値、UV1 shader compilationと画素応答、masked shadow境界、Raster／RT parityは未検証（ビルド／テスト未実行）。
 - Clearcoatをsheenより上の層として扱うよう、Raster／RTのdirect sheenと両経路のIBL sheenをclearcoatのview/light transmission energyで減衰。環境透過もcoat energyを通す。Raster／RTとも裏面光の早期continueより先にdirect transmissionを評価するよう変更し、RT shadow ray originも裏面側へ移して自己交差を避ける。RTはPrincipled specular IOR由来Fresnelと薄膜Fresnelをdirect transmissionに適用し、view-ray TIRではdirect／IBL透過を遮断する。
 - **未確認:** shader compilation、clearcoat／sheen／transmissionの画素responseおよびRaster／RT parityは未検証（ビルド／テスト未実行）。RTのshadowed／area-light transmission responseは受け入れ確認が必要。
@@ -72,7 +79,8 @@
 - `Coat Normal Strength`（0〜1、default 1）でnormal detailの強さを調整する。独立 `Coat Normal Texture` があればそれを使い、未設定なら通常材質のNormal Mapをcoat法線へ混ぜる。Raster／RTのdirect coat GGXとcoat IBLへ適用し、選択されたnormal texture mip alphaからcoat roughnessをfilterする。
 - `Diffuse Roughness`（0〜1、default 0）をMaterial／JSON／Property／single・multi-material Raster／RTへ追加。direct diffuseへOren–Nayar single-scatter係数とalbedo依存multi-scatter energy補償をBurley diffuseに重ね、IBLは既存のBurley LUTを維持する。Cyclesと同一のdiffuse closureではなく、画素検証も未実施。
 - Base Color Textureにlinear float画像を指定した場合、Raster／RTともsRGB GPU formatへ格納する前にsRGB encodingを行う。transfer/colorSpaceが明示sRGBなら二重encodeしない。ACES／Rec.2020／P3／XYZ／Adobe RGB／ProPhoto文字列を含むwide-gamut変換は未対応。
-- Raster／RTのIBL base-specular方向にbent reflection vector近似を使う。環境prefilterとBRDF LUTは等方性のため異方性IBLは近似であり、clearcoat／sheen／transmissionは従来の等方性方向を保つ。
+- Raster／RTのIBL base-specularは、bent reflection vectorに加えて異方性の長軸方向へ対称な2 tapを使う。等方prefilterを使った近似で、各tapのroughness mipに対応するBRDF LUT係数を個別に適用し、異方性0では従来の単一sampleを維持する。clearcoat／sheen／transmissionは等方方向のまま。
+- **未確認:** 追加tapとroughness別LUT参照のshader compilation、HDR上の異方性ハイライト形状、回転／符号／roughness別のRaster／RT pixel parityとGPU costは未検証。
 - Direct diffuseは両経路でDisney/Burleyのlight/view scatter係数を使う。共有BRDF LUTは64x64から128x64へ拡張し、左半分はsplit-sum specularとCharlie sheenを保持、右半分は各view／roughnessのcosine-weighted Burley diffuse directional albedoを格納する。Raster／RTは係数をdiffuse irradianceへ適用し、RTのGGX multiple-scattering IBLには未変調のcosine irradianceを使う。
 - **未確認:** shader compilation、Burley LUT readback、GPU runtime／frame cost、Raster／RT parity、異方性 ±1 の方向と normal map併用は未検証。IBL diffuseはdirectional scalarをcosine irradianceへ乗算する近似で、方向性HDRに対する完全なBurley convolutionではない。
 
@@ -88,6 +96,17 @@
 - Rasterのsingle／multi-material shaderとRT material packetで共通UV transformの後にoffsetを加える。RTのmip密度はoffsetで変化しないため、既存のcoat rotation／scale由来のray-cone LODを維持する。
 - **未確認:** shader compilation、GPU runtime、Raster／RT pixel parityは未検証。
 
+## 2026-10-14 Clearcoat factor and roughness textures
+
+- UFBX/glTF `coat_factor.texture`をMaterialへ取り込み、R channelでclearcoat scalarを乗算する。Material API、単一／slot JSON、Inspector、material signature、Raster single／slot texture binding、RT material packet／texture cache／closest-hit samplingへ接続する。
+- Texture UV0／UV1、uniform scale、rotation、offsetを保持・反映する。RasterとRTはlinear textureとして扱い、RTでは変換済みUVとray-cone mipを使う。
+- **未確認:** shader compile、ビルド、GPU runtime、per-slot再bind、およびRaster／RT parityは未検証。対応するUV setは0／1に限る。
+
+## 2026-10-14 Clearcoat roughness texture
+
+- `ufbx pbr.coat_roughness.texture`をMaterial importへ接続し、個別UV scale／rotation／offset／UV setと一緒にsingle／multi-material JSON、Inspector、render signatureへ保持する。
+- Rasterはlinear textureのG channelをClearcoat Roughnessへ乗算し、RTも同じG channelをmap別UVとray-cone mipで読む。CPU／HLSLのRaster constant bufferとRT structured bufferに専用texture stateを追加した。
+- **未確認／制限:** Shader compile、build/runtime描画、slot切替、Raster／RT parityは未確認。
 ## 2026-10-14 Metallic-Roughness Texture UV offset
 
 - Metallic-Roughness Textureに独立U／V offset（-10〜10）を追加し、Material、Inspector、JSON保存／読込、material signatureへ接続。
