@@ -16,9 +16,9 @@
 
 ## 2026-10-14 Anisotropy map direction and strength channels
 
-- Raster／RTともAnisotropy mapのlinear RGをtangent-space direction、Bをstrengthとして使う。RGは[-1,1]へ展開・正規化し、Materialのrotationを加算してNormal Map由来接線基底を回す。公式glTF定義ではRGが方向、Bが強度。
+- Raster／RTともAnisotropy mapのlinear RGをtangent-space direction、Bをstrengthとして使う。RGは[-1,1]へ展開・正規化し、Materialのrotationを加算して接線基底を回す。map有効時はそのmap自身のUV微分（Raster）／triangle UV edges（RT）からT/Bを再構築する。公式glTF定義ではRGが方向、Bが強度。
 - `.gltf`／`.glb`のJSONから`KHR_materials_anisotropy` strength／rotationをmaterial name／table順で照合し、外部URIのanisotropy imageと`KHR_texture_transform`のT*R*S offset／scale／rotation／texCoordをImportedPbrMaterialへ渡す。UV中心回転の既存Material transformへoffsetを換算する。テクスチャ画像はLinear texture pathからRaster／RTへ流す。
-- **未確認／制限:** data URI、bufferView埋め込み画像、`KHR_texture_basisu`などtexture source拡張は未対応。negative／zero scaleはMaterialの正スケール契約へ収まらない。material table照合、URI image、texture transform、normal mapと異なるUV時のdirection frame、shader compileおよび画像応答は未確認。
+- **未確認／制限:** data URI、bufferView埋め込み画像、`KHR_texture_basisu`などtexture source拡張は未対応。negative／zero scaleはMaterialの正スケール契約へ収まらない。現状のMesh render inputにglTF authored TANGENTを保持しないため、再構築basisはauthored tangentと一致しない場合がある。material table照合、URI image、texture transform、shader compileおよび画像応答は未確認。
 
 ## 2026-10-14 Principled Sheen Roughness Texture
 

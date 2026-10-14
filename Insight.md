@@ -3223,9 +3223,17 @@
 
 - **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cppm`、`ArtifactCore/src/Graphics/RayTracingManager.cppm`、`Artifact/src/Layer/Artifact3DModelLayer.cppm`。
 - **確認済み事実:** Khronos `KHR_materials_anisotropy` はlinear RGに接線方向、Bに強度を格納し、Scalar strengthへBを乗算する。ufbx現行material mappingに同拡張の項目がないため、`.gltf` JSONから補完する必要がある。
-- **変更:** Raster／RTともmapのB値をscalar量へ乗算し、RGを[-1,1]へ展開・正規化して接線基底へ適用。Material回転角をmap方向へ加算する。`.gltf`／`.glb`のJSONからstrength／rotation、外部URI image、`KHR_texture_transform`をImportedPbrMaterialへ抽出する。
-- **価値／懸念:** glTF標準異方性mapをRaster／RT directとIBLで利用できる入口ができる。data URI／bufferView埋め込み画像／KTX2とmaterial orderは未確認。方向mapはnormal map由来の接線基底に適用するため、異なるUV setではdirection frameが一致しない場合がある。shader compileと画像結果は未検証。
-- **次に確認:** KHR glTF AnisotropyRotationTest fixtureでmaterial照合、外部URI、texture transform、single／slot、Raster／RTの方向と強度を確認し、embedded imageにも拡張する。
+- **変更:** Raster／RTともmapのB値をscalar量へ乗算し、RGを[-1,1]へ展開・正規化して接線基底へ適用。Material回転角をmap方向へ加算する。`.gltf`／`.glb`のJSONからstrength／rotation、外部URI image、`KHR_texture_transform`をImportedPbrMaterialへ抽出する。map有効時は異方性map自身のUVから接線基底を再構築する。
+- **価値／懸念:** glTF標準異方性mapをRaster／RT directとIBLで利用できる入口ができる。data URI／bufferView埋め込み画像／KTX2とmaterial orderは未確認。Mesh経路にauthored vertex TANGENTがなく、UVからの再構築は素材作成時のtangent basisと差が残る。shader compileと画像結果は未検証。
+- **次に確認:** KHR glTF AnisotropyRotationTest fixtureでmaterial照合、外部URI、texture transform、single／slot、Raster／RTの方向と強度を確認する。将来、mesh tangent attributeをsource／RenderData／GPUへ一貫して保持するか評価する。
+
+### 2026-10-14: GLB埋め込み画像はstable asset identityが先
+
+- **関連:** `.glb` embedded imageのImporter path、Material保存、`AssetManager` source registry。
+- **確認済み事実:** `ImportedPbrMaterial`とMaterial texture参照はpath文字列で表現され、現在のimport pathにはembedded bytesの論理asset ID／origin identity／save-restore blob契約がない。Asset relocation契約はpathだけでsource identityを決めない方針である。
+- **変更:** embedded bytesを一時ファイルや仮想URIへ変換する実装は追加しない。
+- **価値／懸念:** project再読込・移動後に壊れる一時参照を避ける。GLB内蔵画像は現状未対応。
+- **次に確認:** embedded sourceのstable ID、origin GLBとの関係、project portability、relink後のidentity、content versionを先に定義し、その後texture decoderへ渡す。
 
 ### 2026-10-14: RT Anisotropy mapをdirectとIBLで共有
 
