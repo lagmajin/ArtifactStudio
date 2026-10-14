@@ -7,7 +7,7 @@
 
 - Material、UFBX material table import、single／slot JSON、Inspector、render signature、Raster texture binding／shader、RT material packet／texture cache／closest-hit shaderへAnisotropy mapを接続する。UV0／UV1、独立 scale U/V、rotation、offsetを保持し、linear textureのB channelでsigned anisotropy量を変調する。RTは変換後UV edgeからray-cone mipを選ぶ。
 - Mapのlinear RGを[-1,1] tangent-space directionへ展開・正規化し、Materialのanisotropy rotationを加算して接線基底へ適用。B channelは異方性strengthへ乗算する。異方性mapのUV transformはマップ参照位置のみを変え、directionを適用するshading tangent frameは変えない。
-- **未確認／制限:** mesh入力にauthored TANGENT属性がなく、基底はnormal map UVから画素／triangle単位で再構築する。glTF仕様はanisotropyを使うprimitiveでNORMALとTANGENTの提供を推奨し、導出アルゴリズムは規定していない。glTF `AnisotropyRotationTest` の authored tangent／texture compensation ケースとは完全一致しない可能性がある。build、shader compile、KHR fixture、Inspector、save/reload、slot texture rebinding、Raster／RT pixel parityは未確認。
+- **未確認／制限:** mesh入力にauthored TANGENT属性がなく、基底はnormal map UVから画素／triangle単位で再構築する。glTF仕様はanisotropyを使うprimitiveでNORMALとTANGENTの提供を推奨し、導出アルゴリズムは規定していない。ufbxはUV setごとのtangent/bitangentを提供するが、Mesh RenderData／meshlet／Raster／RTにはまだ伝搬しない。glTF `AnisotropyRotationTest` のauthored tangent／texture compensationケースとは完全一致しない可能性がある。build、shader compile、KHR fixture、Inspector、save/reload、slot texture rebinding、Raster／RT pixel parityは未確認。
 
 ## 2026-10-14 RT Anisotropy Map IBL
 

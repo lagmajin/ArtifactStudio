@@ -3235,6 +3235,14 @@
 - **価値／懸念:** project再読込・移動後に壊れる一時参照を避ける。GLB内蔵画像は現状未対応。
 - **次に確認:** embedded sourceのstable ID、origin GLBとの関係、project portability、relink後のidentity、content versionを先に定義し、その後texture decoderへ渡す。
 
+### 2026-10-14: Authored tangent導入はUVセット単位で定義する
+
+- **関連:** `third_party/ufbx/ufbx.h` の `ufbx_mesh::vertex_tangent`／`vertex_bitangent`、`ufbx_uv_set`、`ArtifactCore/src/Geometry/MeshImporter.cppm`、`ArtifactCore/src/Mesh/Mesh.cppm`、Raster／RT shading geometry。
+- **確認済み事実:** ufbxはmesh primary tangent/bitangentに加えて各UV setの tangent/bitangent を保持できる。glTF `TANGENT` はhandedness付きvec4である一方、現行Mesh RenderData、meshletのPackedVertex、MeshRenderer input、RT shading poolsはtangentを保持しない。Mesh subdivisionは既知属性だけを再生成する。
+- **未検証の設計仮説:** 異方性textureがUV1を参照する場合はUV1 basisが必要だが、glTF authored `TANGENT` はprimitiveの標準tangent属性であり、anisotropy `texCoord` overrideだけからそのbasisを選ぶのは正しくない可能性がある。normal map UV、authored tangent、anisotropy direction mapの関係をfixtureで確かめてからMaterial APIを決める。
+- **価値／懸念:** vertex tangentを単純に追加するだけでは既存UV1異方性と非一様transform、normal map、deformation／subdivision、Raster/RT parityの契約が曖昧になる。handednessを含む一貫したasset-to-shader経路が必要。
+- **次に確認:** Khronos AnisotropyRotationTestとUV1 fixtureを基準に、ufbxで各UV setのbasisが取れる条件、glTF tangentとbitangent再構成、Mesh modifier後の再計算方針を定め、RenderData／GPU／RTを同時に更新する。
+
 ### 2026-10-14: RT Anisotropy mapをdirectとIBLで共有
 
 - **関連:** `ArtifactCore/src/Graphics/RayTracingManager.cppm` のclosest-hit shader。
