@@ -132,6 +132,36 @@ endif()
 
 if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
    AND (VULKAN_SUPPORTED OR D3D12_SUPPORTED))
+    artifact_add_test(ArtifactAudioLayerRenderIntegrationTest
+        SOURCES
+            AudioLayerRenderQueueIntegrationTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_target_properties(ArtifactAudioLayerRenderIntegrationTest PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    if(WIN32)
+        add_custom_command(TARGET ArtifactAudioLayerRenderIntegrationTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ArtifactAudioLayerRenderIntegrationTest>
+                "$<TARGET_FILE_DIR:ArtifactAudioLayerRenderIntegrationTest>/"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+    endif()
+    if(WIN32)
+        set(_artifact_audio_test_qpa_platform "windows")
+    else()
+        set(_artifact_audio_test_qpa_platform "offscreen")
+    endif()
+    set_tests_properties(ArtifactAudioLayerRenderIntegrationTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=${_artifact_audio_test_qpa_platform}"
+        LABELS "audio;renderer;waveform;integration;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+
     # Production Image/Solid layers with fracture.* enabled, rendered through
     # the headless offscreen viewport path (OffscreenCompositionRenderer +
     # production layer->draw() incl. drawFractureOverlay). Compares

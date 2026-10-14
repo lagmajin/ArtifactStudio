@@ -3270,3 +3270,11 @@
 - **確認済み事実:** OpenGameArtはQuaternius `Animated Human Low Poly`をCC0として掲載し、配布ZIP内の`License.txt`もCC0 1.0を記載する。FBXは4,734 vertices、41 bones、9 clipsとして読み込まれ、`Human Armature|Walk` (#7、1.03秒)の複数時刻で左右脚の姿勢変化が見えた。clip #6はRun (0.63秒)。`Y_Bot` #0は歩行ではなく腕を広げた直立姿勢だった。
 - **価値／懸念:** 対称なシンプル人型により、装備差のある`Standard_Walk`より足の動きを比べやすくなった。3/4視点で奥行きも確認できる。距離3.2では歩行中に下腿がビューポート端で切れる場合があったため4.0へ戻して最終確認する。歩行品質そのものの正誤判定はground-contact基準なしには断定できない。
 - **次に確認:** 距離4.0で歩行中の全身と両足が常時フレーム内に入ることを再取得画像で確かめる。CC0 assetはビルド出力下に保ち、製品へ同梱しない。
+
+### 2026-10-14: Audio Layerの音声レンダリングをComposition経由でも検証する
+
+- **関連:** `ArtifactAudioLayer::buildWaveformData()`、`ArtifactAudioLayer::getAudio()`、`ArtifactAbstractComposition::getAudio()`、`tests/Artifact/AudioLayerRenderQueueIntegrationTest.cpp`。
+- **確認済み事実:** Audio Layerの`draw()`は画像を描かない。Render QueueのWAV分岐はComposition::getAudioを呼ぶ。今回のテスト実行環境では`QT_QPA_PLATFORM=offscreen`に対応するQt pluginがなく、`windows` pluginを指定するとComposition／Mixer評価は短時間で完了した。
+- **変更:** トーンWAVのwaveform peak/RMS、layer PCM、Composition出力のvolume半減、Composition上で片方をmuteした場合との重ね合わせを確認する統合テストを追加した。さらにRender ManagerのWAVキューから異なる周波数の2音を含む音声を出力し、SimpleWavで読み戻すケースを追加した。両レイヤーを半音量にした2つ目の出力と比較し、対象をビルドしてCTestの3ケースが成功。
+- **価値／懸念:** Audio Layerのsource読込・波形・音量・重ね合わせをCompositionの実際の音声mixとRender ManagerのWAV出力まで含めて検証できる。video付きジョブに統合する音声経路は別の経路であり、このテスト範囲外。
+- **次に確認:** 動画レンダージョブに音声を統合する経路を変更する際は、video+audio出力の同期と最終containerを別途検証する。
