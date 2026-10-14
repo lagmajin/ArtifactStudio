@@ -3219,13 +3219,13 @@
 - **価値／懸念:** 布などのSheen lobe幅を面内で制御できる。Raster cbufferとRT structured materialのfloat4 ABIを拡張したが、shader compile／GPU runtimeは未検証。
 - **次に確認:** ビルド許可後に両backend shader compile、UFBX texture fixture、single／slot rebinding、UV0／UV1、save/reload、Raster／RT pixel parityを確認する。
 
-### 2026-10-14: Anisotropy mapはsigned scalarをR channelで変調する
+### 2026-10-14: Anisotropy mapの強度maskはlinear B channelを使う
 
 - **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cppm`、`ArtifactCore/src/Graphics/RayTracingManager.cppm`、`Artifact/src/Layer/Artifact3DModelLayer.cppm`。
-- **確認済み事実:** 既存異方性はsigned scalarと角度を持ち、directとIBLでそのscalarから伸長軸を決めていた。UFBX `specular_anisotropy` はtexture入力を持つ。
-- **変更:** Anisotropy mapのlinear R値をscalar量へ乗算し、scalarの符号を維持する経路をsingle／slot Raster／RTへ追加。UV0／UV1と独立UV transformを持つ。
-- **価値／懸念:** 白が既存強度を保ち、黒が異方性を弱めるため、既存scalarとの併用が予測しやすい。vector directionを符号付きRG等へ格納する別規約とは互換ではなく、現在のUFBX texture component semanticsと画像結果は未検証。
-- **次に確認:** UFBX仕様のcomponent mappingを調べ、scalar maskとしての仕様を確認する。許可されたbuild後にwhite／gray／black mask、正負scalar、UV0／UV1、single／slot、Raster／RTを比較する。
+- **確認済み事実:** 既存異方性はsigned scalarと角度を持ち、directとIBLでそのscalarから伸長軸を決める。Khronos `KHR_materials_anisotropy` はlinear RGに接線方向、Bに強度を格納し、Scalar strengthへBを乗算すると定義する。現在のImportは異方性scalarとtexture pathを取得するが、方向ベクトルはMaterialへ保持しない。
+- **変更:** Raster／RTともmapのB値をscalar量へ乗算し、scalarの符号を維持する。UV0／UV1と独立UV transformを保持する。
+- **価値／懸念:** glTF標準異方性mapの強度成分を正しいlinear channelから読む。RG方向は未対応のため、テクスチャ方向による回転は依然反映されない。UFBX/glTF fixtureと画像結果は未検証。
+- **次に確認:** RG方向mapをMaterial／JSON／Inspector／Raster／RTへ一貫して保持する仕様を設計し、許可されたbuild後にKHR glTF AnisotropyRotationTest fixtureとsingle／slot、UV、Raster／RTを比較する。
 
 ### 2026-10-14: RT Anisotropy mapをdirectとIBLで共有
 
@@ -3234,3 +3234,10 @@
 - **変更:** barycentric UVとray-cone mipで異方性量をヒットごとに一度だけサンプルし、direct・bent normal・IBL reflectionで共有する。
 - **価値／懸念:** Rasterと同様にmapがdirect／IBL双方を制御し、ライト数に比例する重複sampleをなくす。shader compile／実機のIBL画像は未確認。
 - **次に確認:** ビルド許可後にshaderをcompileし、異方性mapの黒／白部分でRT IBLとRasterの方向／強度を比較する。
+
+### 2026-10-14: Normal Textureの分散roughnessはcoat無効時も適用
+
+- **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cppm` のNormal mip alpha由来roughness filtering。
+- **確認済み事実:** normal varianceは通常の材質roughnessへ適用されているが、clearcoat weightが0でも処理していた。Normal Mapの微細法線分散によるspecular aliasing対策は基材にも必要で、coatの有無に依存しない。
+- **変更:** この項目はコードを変更せず、誤った調査仮説として撤回。処理がcoat条件から独立していることを確認した。
+- **次に確認:** Normal mip alphaがvariance情報を保持するtexture mip生成経路とRaster／RT LOD差を別途確認する。

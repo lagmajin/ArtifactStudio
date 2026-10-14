@@ -5,13 +5,18 @@
 
 ## 2026-10-14 Principled Anisotropy Texture
 
-- Material、UFBX material table import、single／slot JSON、Inspector、render signature、Raster texture binding／shader、RT material packet／texture cache／closest-hit shaderへAnisotropy mapを接続する。UV0／UV1、独立 scale U/V、rotation、offsetを保持し、linear textureのR channelでsigned anisotropy量を変調する。RTは変換後UV edgeからray-cone mipを選ぶ。
-- **未確認／制限:** 既存の異方性scalarへmap値を乗算する実装であり、vector/tangent-space anisotropy map packingは扱わない。RT側のIBL反映は実装済みだが、build、shader compile、UFBX fixture、Inspector、save/reload、single／slot texture rebinding、Raster／RT pixel parityは未確認。
+- Material、UFBX material table import、single／slot JSON、Inspector、render signature、Raster texture binding／shader、RT material packet／texture cache／closest-hit shaderへAnisotropy mapを接続する。UV0／UV1、独立 scale U/V、rotation、offsetを保持し、linear textureのB channelでsigned anisotropy量を変調する。RTは変換後UV edgeからray-cone mipを選ぶ。
+- **未確認／制限:** 既存の異方性scalarへmap値を乗算する実装であり、KHR_materials_anisotropyのRG tangent-space direction packingは扱わない。RT側のdirect／IBL反映は実装済みだが、build、shader compile、UFBX fixture、Inspector、save/reload、single／slot texture rebinding、Raster／RT pixel parityは未確認。
 
 ## 2026-10-14 RT Anisotropy Map IBL
 
 - RT closest-hitでAnisotropy mapをヒットごとに一度だけサンプルし、同じsigned scalarをdirect BRDF、bent reflection、anisotropic environment lookupへ共有する。
 - **未確認:** shader compile、texture sampling descriptorの実行時挙動、およびanisotropy map有無によるRaster／RT visual parityは未確認。
+
+## 2026-10-14 Anisotropy map strength channel
+
+- Raster／RTともAnisotropy mapのlinear B channelを既存scalar strengthへ乗算する。glTF `KHR_materials_anisotropy` はRGへtangent-space direction、Bへstrengthを定義する。
+- **未確認／制限:** RG directionを保持・使用する経路は未実装。shader compile、glTF fixture、Raster／RT画素差は未確認。
 
 ## 2026-10-14 Principled Sheen Roughness Texture
 
