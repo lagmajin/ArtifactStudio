@@ -3218,3 +3218,11 @@
 - **変更:** map pathとUV transformをsingle／slotへ追加し、linear R channelをscalar roughnessに乗算するRaster／RT経路を追加した。RTは変換後UVのray-cone mipを使用する。
 - **価値／懸念:** 布などのSheen lobe幅を面内で制御できる。Raster cbufferとRT structured materialのfloat4 ABIを拡張したが、shader compile／GPU runtimeは未検証。
 - **次に確認:** ビルド許可後に両backend shader compile、UFBX texture fixture、single／slot rebinding、UV0／UV1、save/reload、Raster／RT pixel parityを確認する。
+
+### 2026-10-14: Anisotropy mapはsigned scalarをR channelで変調する
+
+- **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cppm`、`ArtifactCore/src/Graphics/RayTracingManager.cppm`、`Artifact/src/Layer/Artifact3DModelLayer.cppm`。
+- **確認済み事実:** 既存異方性はsigned scalarと角度を持ち、directとIBLでそのscalarから伸長軸を決めていた。UFBX `specular_anisotropy` はtexture入力を持つ。
+- **変更:** Anisotropy mapのlinear R値をscalar量へ乗算し、scalarの符号を維持する経路をsingle／slot Raster／RTへ追加。UV0／UV1と独立UV transformを持つ。
+- **価値／懸念:** 白が既存強度を保ち、黒が異方性を弱めるため、既存scalarとの併用が予測しやすい。vector directionを符号付きRG等へ格納する別規約とは互換ではなく、現在のUFBX texture component semanticsと画像結果は未検証。
+- **次に確認:** UFBX仕様のcomponent mappingを調べ、scalar maskとしての仕様を確認する。許可されたbuild後にwhite／gray／black mask、正負scalar、UV0／UV1、single／slot、Raster／RTを比較する。
