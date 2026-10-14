@@ -3226,3 +3226,11 @@
 - **変更:** Anisotropy mapのlinear R値をscalar量へ乗算し、scalarの符号を維持する経路をsingle／slot Raster／RTへ追加。UV0／UV1と独立UV transformを持つ。
 - **価値／懸念:** 白が既存強度を保ち、黒が異方性を弱めるため、既存scalarとの併用が予測しやすい。vector directionを符号付きRG等へ格納する別規約とは互換ではなく、現在のUFBX texture component semanticsと画像結果は未検証。
 - **次に確認:** UFBX仕様のcomponent mappingを調べ、scalar maskとしての仕様を確認する。許可されたbuild後にwhite／gray／black mask、正負scalar、UV0／UV1、single／slot、Raster／RTを比較する。
+
+### 2026-10-14: RT Anisotropy mapをdirectとIBLで共有
+
+- **関連:** `ArtifactCore/src/Graphics/RayTracingManager.cppm` のclosest-hit shader。
+- **確認済み事実:** RTはAnisotropy mapをdirect light loop内でサンプルしていたが、bent reflectionとanisotropic environment lookupはmaterial scalarだけを参照していた。
+- **変更:** barycentric UVとray-cone mipで異方性量をヒットごとに一度だけサンプルし、direct・bent normal・IBL reflectionで共有する。
+- **価値／懸念:** Rasterと同様にmapがdirect／IBL双方を制御し、ライト数に比例する重複sampleをなくす。shader compile／実機のIBL画像は未確認。
+- **次に確認:** ビルド許可後にshaderをcompileし、異方性mapの黒／白部分でRT IBLとRasterの方向／強度を比較する。
