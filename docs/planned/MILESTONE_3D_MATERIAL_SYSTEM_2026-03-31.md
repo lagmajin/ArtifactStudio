@@ -6,8 +6,8 @@
 ## 2026-10-14 Principled Anisotropy Texture
 
 - Material、UFBX material table import、single／slot JSON、Inspector、render signature、Raster texture binding／shader、RT material packet／texture cache／closest-hit shaderへAnisotropy mapを接続する。UV0／UV1、独立 scale U/V、rotation、offsetを保持し、linear textureのB channelでsigned anisotropy量を変調する。RTは変換後UV edgeからray-cone mipを選ぶ。
-- Mapのlinear RGを[-1,1] tangent-space directionへ展開・正規化し、Materialのanisotropy rotationを加算して接線基底へ適用。B channelは異方性strengthへ乗算する。Raster／RTのsingleとmaterial-slot経路で同じshaderを使用する。
-- **未確認／制限:** glTFはnormal／anisotropy mapで同じtexcoordを推奨する。現行Materialは独立UV選択を許すため、別UV setではdirectionのtangent-space解釈が一致しない可能性がある。build、shader compile、KHR fixtureのUFBX channel preservation、Inspector、save/reload、slot texture rebinding、Raster／RT pixel parityは未確認。
+- Mapのlinear RGを[-1,1] tangent-space directionへ展開・正規化し、Materialのanisotropy rotationを加算して接線基底へ適用。B channelは異方性strengthへ乗算する。異方性mapのUV transformはマップ参照位置のみを変え、directionを適用するshading tangent frameは変えない。
+- **未確認／制限:** mesh入力にauthored TANGENT属性がなく、基底はnormal map UVから画素／triangle単位で再構築する。glTFの参照実装と完全一致する保証はなく、normal mapがない場合もUV基底が方向基準となる。build、shader compile、KHR fixture、Inspector、save/reload、slot texture rebinding、Raster／RT pixel parityは未確認。
 
 ## 2026-10-14 RT Anisotropy Map IBL
 
@@ -16,7 +16,7 @@
 
 ## 2026-10-14 Anisotropy map direction and strength channels
 
-- Raster／RTともAnisotropy mapのlinear RGをtangent-space direction、Bをstrengthとして使う。RGは[-1,1]へ展開・正規化し、Materialのrotationを加算して接線基底を回す。map有効時はそのmap自身のUV微分（Raster）／triangle UV edges（RT）からT/Bを再構築する。公式glTF定義ではRGが方向、Bが強度。
+- Raster／RTともAnisotropy mapのlinear RGをtangent-space direction、Bをstrengthとして使う。RGは[-1,1]へ展開・正規化し、Materialのrotationを加算してnormal map UVから作る接線基底へ適用する。方向基底と異方性textureのUV／transformは分離する。公式glTF定義ではRGが方向、Bが強度。
 - `.gltf`／`.glb`のJSONから`KHR_materials_anisotropy` strength／rotationをmaterial name／table順で照合し、外部URIのanisotropy imageと`KHR_texture_transform`のT*R*S offset／scale／rotation／texCoordをImportedPbrMaterialへ渡す。UV中心回転の既存Material transformへoffsetを換算する。テクスチャ画像はLinear texture pathからRaster／RTへ流す。
 - **未確認／制限:** data URI、bufferView埋め込み画像、`KHR_texture_basisu`などtexture source拡張は未対応。negative／zero scaleはMaterialの正スケール契約へ収まらない。現状のMesh render inputにglTF authored TANGENTを保持しないため、再構築basisはauthored tangentと一致しない場合がある。material table照合、URI image、texture transform、shader compileおよび画像応答は未確認。
 
