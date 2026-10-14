@@ -6,17 +6,18 @@
 ## 2026-10-14 Principled Anisotropy Texture
 
 - Material、UFBX material table import、single／slot JSON、Inspector、render signature、Raster texture binding／shader、RT material packet／texture cache／closest-hit shaderへAnisotropy mapを接続する。UV0／UV1、独立 scale U/V、rotation、offsetを保持し、linear textureのB channelでsigned anisotropy量を変調する。RTは変換後UV edgeからray-cone mipを選ぶ。
-- **未確認／制限:** 既存の異方性scalarへmap値を乗算する実装であり、KHR_materials_anisotropyのRG tangent-space direction packingは扱わない。RT側のdirect／IBL反映は実装済みだが、build、shader compile、UFBX fixture、Inspector、save/reload、single／slot texture rebinding、Raster／RT pixel parityは未確認。
+- Mapのlinear RGを[-1,1] tangent-space directionへ展開・正規化し、Materialのanisotropy rotationを加算して接線基底へ適用。B channelは異方性strengthへ乗算する。Raster／RTのsingleとmaterial-slot経路で同じshaderを使用する。
+- **未確認／制限:** glTFはnormal／anisotropy mapで同じtexcoordを推奨する。現行Materialは独立UV選択を許すため、別UV setではdirectionのtangent-space解釈が一致しない可能性がある。build、shader compile、KHR fixtureのUFBX channel preservation、Inspector、save/reload、slot texture rebinding、Raster／RT pixel parityは未確認。
 
 ## 2026-10-14 RT Anisotropy Map IBL
 
 - RT closest-hitでAnisotropy mapをヒットごとに一度だけサンプルし、同じsigned scalarをdirect BRDF、bent reflection、anisotropic environment lookupへ共有する。
 - **未確認:** shader compile、texture sampling descriptorの実行時挙動、およびanisotropy map有無によるRaster／RT visual parityは未確認。
 
-## 2026-10-14 Anisotropy map strength channel
+## 2026-10-14 Anisotropy map direction and strength channels
 
-- Raster／RTともAnisotropy mapのlinear B channelを既存scalar strengthへ乗算する。glTF `KHR_materials_anisotropy` はRGへtangent-space direction、Bへstrengthを定義する。
-- **未確認／制限:** RG directionを保持・使用する経路は未実装。shader compile、glTF fixture、Raster／RT画素差は未確認。
+- Raster／RTともAnisotropy mapのlinear RGをtangent-space direction、Bをstrengthとして使う。RGは[-1,1]へ展開・正規化し、Materialのrotationを加算してNormal Map由来接線基底を回す。公式glTF定義ではRGが方向、Bが強度。
+- **未確認／制限:** UFBXがglTF anisotropy imageのRG成分とUV指定を現状texture path経由で保持すること、normal mapと異なるUV時のdirection frame、shader compileおよび画像応答は未確認。
 
 ## 2026-10-14 Principled Sheen Roughness Texture
 
