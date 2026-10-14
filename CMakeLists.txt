@@ -869,6 +869,32 @@ option(ARTIFACT_ENABLE_TRACKING_VIDEO_TEST
 option(ARTIFACT_ENABLE_KEYING_VIDEO_TEST
     "Build the standalone ChromaKey video-input test"
     OFF)
+option(ARTIFACT_BUILD_FBX_ANIMATION_VIEWER
+    "Build the independent FBX animation preview executable"
+    OFF)
+
+if(ARTIFACT_BUILD_FBX_ANIMATION_VIEWER)
+    add_executable(ArtifactFbxAnimationViewer
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/Artifact/FbxAnimationViewerMain.cpp"
+    )
+    target_link_libraries(ArtifactFbxAnimationViewer PRIVATE ArtifactAppRuntime)
+    target_include_directories(ArtifactFbxAnimationViewer PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/verdigris/src"
+    )
+    set_target_properties(ArtifactFbxAnimationViewer PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactFbxAnimationViewer PRIVATE
+            /Zf /Zc:__cplusplus /utf-8 /EHsc
+        )
+    endif()
+endif()
+
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_TEXT_LAYER_ANIMATOR_TEST
    OR ARTIFACT_ENABLE_LAYER_TEST OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST
    OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS OR ARTIFACT_ENABLE_TRACKING_VIDEO_TEST

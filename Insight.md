@@ -3250,3 +3250,23 @@
 - **変更:** barycentric UVとray-cone mipで異方性量をヒットごとに一度だけサンプルし、direct・bent normal・IBL reflectionで共有する。
 - **価値／懸念:** Rasterと同様にmapがdirect／IBL双方を制御し、ライト数に比例する重複sampleをなくす。shader compile／実機のIBL画像は未確認。
 - **次に確認:** ビルド許可後にshaderをcompileし、異方性mapの黒／白部分でRT IBLとRasterの方向／強度を比較する。
+
+### 2026-10-14: FBXアニメーションの受け入れ確認を独立GUIに切り出す
+
+- **関連:** `tests/Artifact/FbxAnimationViewerMain.cpp`、`Artifact3DModelViewer`、`MeshImporter`。
+- **確認済み事実:** ImporterはFBX animation clipを取り込み、既存viewerはclip時刻を再評価し、Diligent render windowへmeshを渡すAPIを持つ。プロダクトの大きな起動経路なしにこれらを手で操作するGUIターゲットがなかった。
+- **変更:** ArtifactAppRuntimeへリンクする任意ビルドの独立viewerを追加し、FBXを開く方法、再生／停止、clip切り替え、view reset、clip指定、複数フレームcaptureを提供する。再生tickごとのFBX全mesh再importを避け、Viewer内でMeshImporterを保持して`updateSkinPose()`を使う。pose配列を再利用し、CPU fallbackで変形を二重実行せず、UI queueへ再生tickが蓄積しないようcoalesceする。clip時間をstatusに表示する。
+- **確認済み事実:** 起動引数で`Standard_Walk.fbx`のclip #1を再生し、1.63秒のclipで再生時刻と歩行姿勢の違う複数のD3D12画面フレームを確認した。修正前は全mesh再import／UI queue蓄積によってViewerが応答なしになったが、修正後は30秒の連続表示中もUIが応答し、再生時刻が進行した。以前使ったY Bot FBXのclip #1は0.03秒だったため検証素材として不適切だった。
+- **追加確認:** `Standard_Walk.fbx`にはbase colorとnormalのembedded PNGがあるが、FBX内の文字列pathは配布元の一時Linuxディレクトリを指し、実行環境には存在しない。ufbxのtexture content blobから一時ファイルへ展開すれば既存ImageImporter／Diligent texture upload経路を再利用できる。今回の実行でtemporary cache pathとモデル表示を確認した。
+- **追加変更:** ViewerがFBXの先頭PBR材質のbase color、metallic／roughness等と主要texture pathを描画へ渡し、Importerが見つからない外部pathよりembedded imageを優先するようにした。
+- **価値／懸念:** プロダクトのプロジェクト設定なしでImporterからviewportまで実FBXアニメーションを確認できる。検証した`Standard_Walk.fbx`は8+ influencesのCPU LBSであり、フレーム時間／負荷とblend shapeを含むFBXのfallback評価は未確認。Qt `QScreen::grabWindow()`がD3D12画面を含められない点は継続し、画面取得ツールでフレームを保存した。
+- **次に確認:** 別のFBX構成（GPU 4 influences、blend shape、複数clip）で表示・切替を確認し、CPU fallbackのフレーム時間をprofileする。
+
+### 2026-10-14: FBX歩行姿勢確認は3/4視点を既定にする
+
+- **関連:** `Artifact3DModelViewer::resetView()`、独立FBX animation viewer。
+- **確認済み事実:** Reset Viewはyaw／pitchを0°に設定しており、キャラクターを真正面から見る。ユーザーは足の向きが不自然に見えると感じた一方、正面視点とサンプルモデルの分かりにくさも原因候補として挙げた。
+- **変更:** Reset Viewの初期角度をyaw 28°／pitch 10°、距離4.0にし、3/4視点を既定にした。
+- **確認済み事実:** OpenGameArtはQuaternius `Animated Human Low Poly`をCC0として掲載し、配布ZIP内の`License.txt`もCC0 1.0を記載する。FBXは4,734 vertices、41 bones、9 clipsとして読み込まれ、`Human Armature|Walk` (#7、1.03秒)の複数時刻で左右脚の姿勢変化が見えた。clip #6はRun (0.63秒)。`Y_Bot` #0は歩行ではなく腕を広げた直立姿勢だった。
+- **価値／懸念:** 対称なシンプル人型により、装備差のある`Standard_Walk`より足の動きを比べやすくなった。3/4視点で奥行きも確認できる。距離3.2では歩行中に下腿がビューポート端で切れる場合があったため4.0へ戻して最終確認する。歩行品質そのものの正誤判定はground-contact基準なしには断定できない。
+- **次に確認:** 距離4.0で歩行中の全身と両足が常時フレーム内に入ることを再取得画像で確かめる。CC0 assetはビルド出力下に保ち、製品へ同梱しない。
