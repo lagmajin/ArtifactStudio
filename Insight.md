@@ -3225,7 +3225,7 @@
 - **確認済み事実:** Khronos `KHR_materials_anisotropy` はlinear RGに接線方向、Bに強度を格納し、Scalar strengthへBを乗算する。ufbx現行material mappingに同拡張の項目がないため、`.gltf` JSONから補完する必要がある。
 - **変更:** Raster／RTともmapのB値をscalar量へ乗算し、RGを[-1,1]へ展開・正規化して接線基底へ適用。Material回転角をmap方向へ加算する。`.gltf`／`.glb`のJSONからstrength／rotation、外部URI image、`KHR_texture_transform`をImportedPbrMaterialへ抽出する。方向map UVとshading tangent frameを分離した。
 - **価値／懸念:** glTF標準異方性mapをRaster／RT directとIBLで利用できる入口ができる。data URI／bufferView埋め込み画像／KTX2とmaterial orderは未確認。Mesh経路にauthored vertex TANGENTがなく、normal UVからの再構築はglTF tangent basisと差が残る。shader compileと画像結果は未検証。
-- **次に確認:** KHR glTF AnisotropyRotationTest fixtureでmaterial照合、外部URI、texture transform、single／slot、Raster／RTの方向と強度を確認する。将来、mesh tangent attributeをsource／RenderData／GPUへ一貫して保持するか評価する。
+- **次に確認:** KHR glTF AnisotropyRotationTest fixtureでmaterial照合、外部URI、texture transform、single／slot、Raster／RTの方向と強度を確認する。公式fixtureはauthored TANGENT方向と、textureに格納した逆rotationの相殺ケースを含む。将来、mesh tangent attributeをsource／RenderData／GPU／RTへ一貫して保持し、subdivision／deformation後のtangent再構築を定義する。
 
 ### 2026-10-14: GLB埋め込み画像はstable asset identityが先
 

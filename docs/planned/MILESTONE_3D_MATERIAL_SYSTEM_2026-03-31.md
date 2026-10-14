@@ -7,7 +7,7 @@
 
 - Material、UFBX material table import、single／slot JSON、Inspector、render signature、Raster texture binding／shader、RT material packet／texture cache／closest-hit shaderへAnisotropy mapを接続する。UV0／UV1、独立 scale U/V、rotation、offsetを保持し、linear textureのB channelでsigned anisotropy量を変調する。RTは変換後UV edgeからray-cone mipを選ぶ。
 - Mapのlinear RGを[-1,1] tangent-space directionへ展開・正規化し、Materialのanisotropy rotationを加算して接線基底へ適用。B channelは異方性strengthへ乗算する。異方性mapのUV transformはマップ参照位置のみを変え、directionを適用するshading tangent frameは変えない。
-- **未確認／制限:** mesh入力にauthored TANGENT属性がなく、基底はnormal map UVから画素／triangle単位で再構築する。glTFの参照実装と完全一致する保証はなく、normal mapがない場合もUV基底が方向基準となる。build、shader compile、KHR fixture、Inspector、save/reload、slot texture rebinding、Raster／RT pixel parityは未確認。
+- **未確認／制限:** mesh入力にauthored TANGENT属性がなく、基底はnormal map UVから画素／triangle単位で再構築する。glTF仕様はanisotropyを使うprimitiveでNORMALとTANGENTの提供を推奨し、導出アルゴリズムは規定していない。glTF `AnisotropyRotationTest` の authored tangent／texture compensation ケースとは完全一致しない可能性がある。build、shader compile、KHR fixture、Inspector、save/reload、slot texture rebinding、Raster／RT pixel parityは未確認。
 
 ## 2026-10-14 RT Anisotropy Map IBL
 
@@ -18,7 +18,7 @@
 
 - Raster／RTともAnisotropy mapのlinear RGをtangent-space direction、Bをstrengthとして使う。RGは[-1,1]へ展開・正規化し、Materialのrotationを加算してnormal map UVから作る接線基底へ適用する。方向基底と異方性textureのUV／transformは分離する。公式glTF定義ではRGが方向、Bが強度。
 - `.gltf`／`.glb`のJSONから`KHR_materials_anisotropy` strength／rotationをmaterial name／table順で照合し、外部URIのanisotropy imageと`KHR_texture_transform`のT*R*S offset／scale／rotation／texCoordをImportedPbrMaterialへ渡す。UV中心回転の既存Material transformへoffsetを換算する。テクスチャ画像はLinear texture pathからRaster／RTへ流す。
-- **未確認／制限:** data URI、bufferView埋め込み画像、`KHR_texture_basisu`などtexture source拡張は未対応。negative／zero scaleはMaterialの正スケール契約へ収まらない。現状のMesh render inputにglTF authored TANGENTを保持しないため、再構築basisはauthored tangentと一致しない場合がある。material table照合、URI image、texture transform、shader compileおよび画像応答は未確認。
+- **未確認／制限:** data URI、bufferView埋め込み画像、`KHR_texture_basisu`などtexture source拡張は未対応。negative／zero scaleはMaterialの正スケール契約へ収まらない。glTF authored TANGENTはMesh attributeからGPU vertex input／RT shading dataへ伝搬しない。Mesh generic copyは属性を保持するが、subdivisionはposition／normal等を個別補間し、RendererとRTも固定attribute layoutであるため、対応には全経路の一貫更新が必要。material table照合、URI image、texture transform、shader compileおよび画像応答は未確認。
 
 ## 2026-10-14 Principled Sheen Roughness Texture
 
