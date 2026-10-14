@@ -3222,10 +3222,10 @@
 ### 2026-10-14: Anisotropy mapはglTFのlinear RGB packingを使う
 
 - **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cppm`、`ArtifactCore/src/Graphics/RayTracingManager.cppm`、`Artifact/src/Layer/Artifact3DModelLayer.cppm`。
-- **確認済み事実:** 既存異方性はsigned scalarと角度を持ち、directとIBLでそのscalarから伸長軸を決める。Khronos `KHR_materials_anisotropy` はlinear RGに接線方向、Bに強度を格納し、Scalar strengthへBを乗算すると定義する。現在のImportは異方性scalarとtexture pathを取得するが、方向ベクトルはMaterialへ保持しない。
-- **変更:** Raster／RTともmapのB値をscalar量へ乗算し、RGを[-1,1]へ展開・正規化して接線基底へ適用。Materialの回転角をmap方向へ加算する。
-- **価値／懸念:** glTF標準異方性mapのRGB全成分をRaster／RTのdirectとIBLで使う。方向mapはnormal map由来の接線基底に適用するため、異なるUV set／tangent frameを用いる資産ではglTF推奨の同一texcoord条件から外れる可能性がある。Importer fixture、UFBX変換、shader compile、画素結果は未検証。
-- **次に確認:** KHR glTF AnisotropyRotationTest fixtureを使い、UFBXのRGBA channel preservation、rotation、single／slot、Raster／RT方向と強度を確認する。
+- **確認済み事実:** Khronos `KHR_materials_anisotropy` はlinear RGに接線方向、Bに強度を格納し、Scalar strengthへBを乗算する。ufbx現行material mappingに同拡張の項目がないため、`.gltf` JSONから補完する必要がある。
+- **変更:** Raster／RTともmapのB値をscalar量へ乗算し、RGを[-1,1]へ展開・正規化して接線基底へ適用。Material回転角をmap方向へ加算する。`.gltf`／`.glb`のJSONからstrength／rotation、外部URI image、`KHR_texture_transform`をImportedPbrMaterialへ抽出する。
+- **価値／懸念:** glTF標準異方性mapをRaster／RT directとIBLで利用できる入口ができる。data URI／bufferView埋め込み画像／KTX2とmaterial orderは未確認。方向mapはnormal map由来の接線基底に適用するため、異なるUV setではdirection frameが一致しない場合がある。shader compileと画像結果は未検証。
+- **次に確認:** KHR glTF AnisotropyRotationTest fixtureでmaterial照合、外部URI、texture transform、single／slot、Raster／RTの方向と強度を確認し、embedded imageにも拡張する。
 
 ### 2026-10-14: RT Anisotropy mapをdirectとIBLで共有
 
