@@ -889,6 +889,15 @@ if(ARTIFACT_BUILD_FBX_ANIMATION_VIEWER)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
         VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
     )
+    if(WIN32)
+        add_custom_command(TARGET ArtifactFbxAnimationViewer POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ArtifactFbxAnimationViewer>
+                "$<TARGET_FILE_DIR:ArtifactFbxAnimationViewer>/"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+    endif()
     if(ARTIFACT_FRONTEND_MSVC)
         target_compile_options(ArtifactFbxAnimationViewer PRIVATE
             /Zf /Zc:__cplusplus /utf-8 /EHsc

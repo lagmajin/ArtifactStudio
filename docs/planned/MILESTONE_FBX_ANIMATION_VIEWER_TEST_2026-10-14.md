@@ -24,6 +24,20 @@
 - FBXの先頭PBR材質のベースカラー、metallic／roughness等の値と、base color／metallic-roughness／normal texture pathをViewerへ渡すよう接続した。Mixamoの`Standard_Walk.fbx`は有効な画像を持つ一方、記録済みpathは配布元の一時Linuxパスだった。ImporterでFBX内のembedded image bytesを一時ディレクトリへ展開し、既存の画像読込経路から使えるようにした。実行ログに`Guard_02__diffuse.png`相当のbase colorとnormal textureの一時cache pathが出ること、および画面上で材質が描画されることを確認した。現在のテストViewerは複数material slotごとの描き分けには未対応で、先頭材質のみを全meshへ適用する。
 - Reset Viewの初期カメラをyaw 28°／pitch 10°、距離4.0の3/4視点に変更した。再ビルド後、両足が画面端で切れないことを人型サンプルの複数walk cycle時刻で確認する。
 - 既存候補では`Y_Bot.fbx` clip #0が歩行ポーズでなく、`Standard_Walk.fbx`は片足の装備差で判断しにくかった。代わりにOpenGameArtでCC0表記のあるQuaternius `Animated Human`を作業用ビルド出力へ取得し、FBXと同梱`License.txt`を確認した。4,734 vertices、41 bones、9 clipsで読み込めた。clip #7 `Human Armature|Walk`（1.03秒）を選び、D3D12画面の複数時刻で左右脚の歩行姿勢が変わることを確認した。clip #6 `Run`（0.63秒）、#2 `Death`（3.53秒）、#3 `Idle`（10.00秒）、#4 `HeroJump`（1.00秒）、#5 `Punch`（1.03秒）、#8 `Working`（6.43秒）も状態表示で識別した。アセットZIPと展開先は`out/build/x64-Debug/fbx-animation-test/quaternius_cc0/`以下で、リポジトリへは追加していない。
+- 2026-10-14の再開時、既存 `out/build/x64-Debug-Agent` を使って `ARTIFACT_BUILD_FBX_ANIMATION_VIEWER=ON` で構成した。CMakeは`tests/Artifact/ArtifactFractureLayerRenderTest.cpp`欠落で失敗したため、ビューア作業では無関係な`ARTIFACT_ENABLE_OFFLINE_RENDER_TEST`だけOFFにして再構成した。MSVC/Ninjaでは`Shape.Types`と`Memory.SharedPtr`のIFC生成前に利用側が走る順序問題が再現し、`ArtifactCoreShape`と`ArtifactCore`を先行ビルドしてから専用ターゲットを再開した。最終的に `ArtifactFbxAnimationViewer.exe` のビルドは成功した。
+- 同梱`License.txt`がCC0 1.0であるQuaternius `Animated Human`を`out/build/x64-Debug-Agent/fbx-test-assets/quaternius-animated-human/`へ取得した。ビューアの通常起動は実行時DLL不足（終了コード`-1073741515`）になったが、vcpkgの通常／debug `bin`を`PATH`に加えると20秒間プロセスが稼働した。`--clip-index 7`付きで起動したものの、起動ステータスを読める画面操作APIが利用できず、FBX読込・Walk再生状態は今回の再ビルドでは再確認できていない。
+- 現在のcomputer-use端末では`sky` trusted RPCが未設定で、Windowsウィンドウを操作・撮影できなかった。組み込み`--capture-frames`も終了コード3で画像を出さず、既知のD3D12 swapchain capture制限もあるため、今回のビルドから視覚証拠は得られていない。以前の画面確認記録は履歴として残すが、今回の再ビルド後の受け入れ確認とは分ける。
+
+## テストループ確認マトリクス
+
+| 分野 | 現在の経路／確認観点 | 状態 |
+|---|---|---|
+| アニメーション | clip一覧・指定clip・時刻進行・ループ端・Space停止／再開・Cでのclip切替 | 過去の実画面ではWalk等の姿勢変化を確認。今回の再ビルド後は画面操作不可のため未再確認 |
+| シェーディング | FBX先頭PBR材質のbase color、metallic、roughness等をviewerへ渡し、同じモデル／ライト条件で反射・陰影を確認 | 経路のコード接続あり。今回の見た目・scalar応答は未確認 |
+| テクスチャ | base color、metallic-roughness、normal map pathとembedded image解決を確認。UV表示、欠落path、embedded画像のケースを分ける | 過去にembedded base color／normal pathと材質描画を記録。今回の見た目は未確認 |
+| 複数材質 | material slotごとに異なる色／textureを使うFBXでpart別表示を確認 | 現在のviewerは先頭材質を全meshへ適用するため非対応。専用テストviewerの制限 |
+| 入力・異常系 | 起動引数／Oダイアログ／drop、読み込み失敗、clipなし、Space／C／R | 起動引数の処理は実装済み。手動入力・異常系表示は未確認 |
+| 安定性 | Walkを30秒以上再生し、UI応答、時刻進行、CPU LBS fallbackの負荷を確認 | 以前30秒連続表示の応答を確認。再ビルド後はプロセス稼働のみ20秒確認、負荷計測なし |
 
 ## 受け入れ確認
 
@@ -38,3 +52,4 @@
 - ufbxのscene評価を含む再生時フレーム時間とメモリ／CPU負荷は未計測。
 - Space / C の手動入力、クリップ間の差、CPU負荷・フレーム時間は未確認。
 - CPU LBS (8+ influences) fallbackのフレーム時間・負荷、blend shapeを含むFBXのtimed evaluationは未確認。
+- **次に必要:** Windows Computer Useのnative window RPCが使える環境で再起動し、実画面でモデル・texture・shadingを確認する。Space／C／RとOpen/drop、読み込み失敗／clipなしを手動確認してから、このマトリクスの各結果を更新する。

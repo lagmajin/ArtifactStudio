@@ -3271,6 +3271,14 @@
 - **価値／懸念:** 対称なシンプル人型により、装備差のある`Standard_Walk`より足の動きを比べやすくなった。3/4視点で奥行きも確認できる。距離3.2では歩行中に下腿がビューポート端で切れる場合があったため4.0へ戻して最終確認する。歩行品質そのものの正誤判定はground-contact基準なしには断定できない。
 - **次に確認:** 距離4.0で歩行中の全身と両足が常時フレーム内に入ることを再取得画像で確かめる。CC0 assetはビルド出力下に保ち、製品へ同梱しない。
 
+### 2026-10-14: 独立FBX viewerの再現手順にruntime DLLとmodule IFC準備が必要
+
+- **関連:** `CMakeLists.txt` の `ArtifactFbxAnimationViewer`、`ArtifactAppRuntime`、`ArtifactCore` module targets。
+- **確認済み事実:** 新しいビルドディレクトリでviewer targetはリンクできたが、実行ファイル単体ではvcpkg runtime DLL不足の終了コード`-1073741515`になった。vcpkgの通常／debug `bin`を子プロセスの`PATH`へ足すとプロセスは20秒間稼働した。Ninjaでは利用側の`ArtifactCoreText`／`ArtifactAppRuntime`が`Shape.Types`／`Memory.SharedPtr` IFCより先に走る失敗を観測し、producer targetを先行ビルドして回避した。
+- **価値／懸念:** 別の開発環境でFBXテストループを再現する際、起動時DLL配置とC++ module target順が隠れた前提になる。現状のGUI実行ではモデル読込状態を観測できず、ロード成功を確認した事実ではない。
+- **未検証の改善仮説:** viewer target向けのruntime DLL配置と、module producerへの明示的target dependencyがあれば、テスト担当者の手作業を減らせる可能性がある。CMakeの既存deploy方針と他exe targetへの副作用は未調査。
+- **次に確認:** computer-use native RPCの復旧後に同じviewerを実画面で検証する。その後、CMakeのmodule dependency graphとruntime deployment規約を調べ、最小の再現性改善を別途判断する。
+
 ### 2026-10-14: Audio Layerの音声レンダリングをComposition経由でも検証する
 
 - **関連:** `ArtifactAudioLayer::buildWaveformData()`、`ArtifactAudioLayer::getAudio()`、`ArtifactAbstractComposition::getAudio()`、`tests/Artifact/AudioLayerRenderQueueIntegrationTest.cpp`。
