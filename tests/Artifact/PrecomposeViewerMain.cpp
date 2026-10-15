@@ -940,24 +940,33 @@ public:
                 roundTrip["error"] = QStringLiteral("No parent composition");
                 return roundTrip;
             }
+            service->addLayerToCurrentComposition(
+                ArtifactNullLayerInitParams(QStringLiteral("Untouched Two")), false);
             const auto parentId = parent->id();
             const auto sourceIds = namedLayerIds(parent, {QStringLiteral("A")});
             const auto selectedB = namedLayerIds(parent, {QStringLiteral("B")});
             const auto externalParentIds = namedLayerIds(parent, {QStringLiteral("Untouched")});
-            if (sourceIds.size() != 1 || selectedB.size() != 1 || externalParentIds.size() != 1) {
+            const auto secondExternalParentIds = namedLayerIds(parent, {QStringLiteral("Untouched Two")});
+            if (sourceIds.size() != 1 || selectedB.size() != 1 || externalParentIds.size() != 1 ||
+                secondExternalParentIds.size() != 1) {
                 roundTrip["error"] = QStringLiteral("External-parent save fixture layers are missing");
                 return roundTrip;
             }
             const auto sourceId = sourceIds.front();
             const auto externalParentId = externalParentIds.front();
+            const auto sourceBId = selectedB.front();
+            const auto secondExternalParentId = secondExternalParentIds.front();
             const auto source = parent->layerById(sourceId);
-            if (!source) {
+            const auto sourceB = parent->layerById(sourceBId);
+            if (!source || !sourceB) {
                 roundTrip["error"] = QStringLiteral("External-parent save fixture source is missing");
                 return roundTrip;
             }
             source->setParentById(externalParentId);
-            if (source->parentLayerId() != externalParentId || !service->precomposeLayersWithUndo(
-                    {sourceId, selectedB.front()}, UniString(QStringLiteral("External Parent Round Trip")),
+            sourceB->setParentById(secondExternalParentId);
+            if (source->parentLayerId() != externalParentId ||
+                sourceB->parentLayerId() != secondExternalParentId || !service->precomposeLayersWithUndo(
+                    {sourceId, sourceBId}, UniString(QStringLiteral("External Parent Round Trip")),
                     false, false, PrecomposeMode::MoveSelected)) {
                 roundTrip["error"] = QStringLiteral("Could not precompose the external-parent save fixture");
                 return roundTrip;
@@ -967,9 +976,12 @@ public:
                 parent->layerById(outcome.precompLayerId));
             const auto child = service->findComposition(outcome.childCompId).ptr.lock();
             const auto movedSource = child ? child->layerById(sourceId) : ArtifactAbstractLayerPtr{};
+            const auto movedSourceB = child ? child->layerById(sourceBId) : ArtifactAbstractLayerPtr{};
             if (!wrapper || !child || !movedSource ||
                 wrapper->restoreExternalParent(sourceId) != externalParentId ||
-                !movedSource->parentLayerId().isNil()) {
+                wrapper->restoreExternalParent(sourceBId) != secondExternalParentId ||
+                !movedSource->parentLayerId().isNil() || !movedSourceB ||
+                !movedSourceB->parentLayerId().isNil()) {
                 roundTrip["error"] = QStringLiteral("External-parent metadata was not authored in the fixture");
                 return roundTrip;
             }
@@ -1005,10 +1017,13 @@ public:
                 : SharedPtr<ArtifactCompositionLayer>{};
             const auto reloadedSource = reloadedChild
                 ? reloadedChild->layerById(sourceId) : ArtifactAbstractLayerPtr{};
+            const auto reloadedSourceB = reloadedChild
+                ? reloadedChild->layerById(sourceBId) : ArtifactAbstractLayerPtr{};
             const bool metadataPersisted = reloadedWrapper &&
-                reloadedWrapper->restoreExternalParent(sourceId) == externalParentId;
-            const bool sourceParentRemainsCleared = reloadedSource &&
-                reloadedSource->parentLayerId().isNil();
+                reloadedWrapper->restoreExternalParent(sourceId) == externalParentId &&
+                reloadedWrapper->restoreExternalParent(sourceBId) == secondExternalParentId;
+            const bool sourceParentRemainsCleared = reloadedSource && reloadedSourceB &&
+                reloadedSource->parentLayerId().isNil() && reloadedSourceB->parentLayerId().isNil();
             bool runtimeMappingRestored = false;
             for (const auto& ref : precompManager.getPrecompLayersForChild(outcome.childCompId)) {
                 runtimeMappingRestored = runtimeMappingRestored ||
@@ -1018,9 +1033,13 @@ public:
                 service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
             const auto restoredSource = reloadedParent ? reloadedParent->layerById(sourceId)
                                                        : ArtifactAbstractLayerPtr{};
+            const auto restoredSourceB = reloadedParent ? reloadedParent->layerById(sourceBId)
+                                                        : ArtifactAbstractLayerPtr{};
             const bool externalParentRestored = unpacked && restoredSource &&
                 restoredSource->parentLayerId() == externalParentId &&
-                reloadedParent->layerById(externalParentId);
+                reloadedParent->layerById(externalParentId) && restoredSourceB &&
+                restoredSourceB->parentLayerId() == secondExternalParentId &&
+                reloadedParent->layerById(secondExternalParentId);
             service->changeCurrentComposition(parentId);
             childId_ = outcome.childCompId;
             hasChild_ = true;
