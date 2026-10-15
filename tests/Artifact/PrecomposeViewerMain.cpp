@@ -852,6 +852,85 @@ public:
             refresh();
             parentResult["state"] = state();
             return parentResult;
+        } else if (name == "test.childEditsSurviveUnwrap") {
+            QJsonObject editResult;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                editResult["error"] = QStringLiteral("No root composition");
+                return editResult;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Child Edit Fixture")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                editResult["error"] = QStringLiteral("Could not create child-edit fixture");
+                return editResult;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            auto layerA = child ? child->layerById(sourceIds[0]) : ArtifactAbstractLayerPtr{};
+            auto layerB = child ? child->layerById(sourceIds[1]) : ArtifactAbstractLayerPtr{};
+            if (!child || !layerA || !layerB) {
+                editResult["error"] = QStringLiteral("Could not resolve child layers for editing");
+                return editResult;
+            }
+            constexpr float expectedOpacityA = 0.28f;
+            constexpr float expectedOpacityB = 0.73f;
+            layerA->setPosition3D({135.0f, -42.0f, 7.5f});
+            layerA->setOpacity(expectedOpacityA);
+            layerB->setPosition3D({-18.0f, 64.0f, 2.0f});
+            layerB->setOpacity(expectedOpacityB);
+            const auto matchesEditedValues = [&](const ArtifactAbstractLayerPtr& a,
+                                                 const ArtifactAbstractLayerPtr& b) {
+                if (!a || !b) return false;
+                const auto positionA = a->position3D();
+                const auto positionB = b->position3D();
+                return std::abs(positionA.x - 135.0f) < 1.0e-5f &&
+                    std::abs(positionA.y - (-42.0f)) < 1.0e-5f &&
+                    std::abs(positionA.z - 7.5f) < 1.0e-5f &&
+                    std::abs(positionB.x - (-18.0f)) < 1.0e-5f &&
+                    std::abs(positionB.y - 64.0f) < 1.0e-5f &&
+                    std::abs(positionB.z - 2.0f) < 1.0e-5f &&
+                    std::abs(a->opacity() - expectedOpacityA) < 1.0e-5f &&
+                    std::abs(b->opacity() - expectedOpacityB) < 1.0e-5f;
+            };
+            const bool editsAuthored = matchesEditedValues(layerA, layerB);
+            const bool unpacked = service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const auto unpackedA = root->layerById(sourceIds[0]);
+            const auto unpackedB = root->layerById(sourceIds[1]);
+            const bool unpackedValuesPreserved = unpacked && unpackedA == layerA && unpackedB == layerB &&
+                matchesEditedValues(unpackedA, unpackedB);
+            const bool undoAvailable = undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto undoChild = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto undoA = undoChild ? undoChild->layerById(sourceIds[0]) : ArtifactAbstractLayerPtr{};
+            const auto undoB = undoChild ? undoChild->layerById(sourceIds[1]) : ArtifactAbstractLayerPtr{};
+            const bool undoValuesPreserved = undoAvailable && undoChild && undoA == layerA && undoB == layerB &&
+                root->layerById(outcome.precompLayerId) &&
+                PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId) &&
+                matchesEditedValues(undoA, undoB);
+            const bool redoAvailable = undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const auto redoA = root->layerById(sourceIds[0]);
+            const auto redoB = root->layerById(sourceIds[1]);
+            const bool redoValuesPreserved = redoAvailable && redoA == layerA && redoB == layerB &&
+                !PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId) &&
+                matchesEditedValues(redoA, redoB);
+            service->changeCurrentComposition(rootId);
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            editResult["editsAuthored"] = editsAuthored;
+            editResult["unpackedValuesPreserved"] = unpackedValuesPreserved;
+            editResult["undoValuesPreserved"] = undoValuesPreserved;
+            editResult["redoValuesPreserved"] = redoValuesPreserved;
+            editResult["passed"] = editsAuthored && unpackedValuesPreserved &&
+                undoValuesPreserved && redoValuesPreserved;
+            if (!editResult["passed"].toBool())
+                editResult["error"] = QStringLiteral("Child-edited transform or opacity changed across unprecompose/undo/redo");
+            refresh();
+            editResult["state"] = state();
+            return editResult;
         } else if (name == "test.externalParentSaveReload") {
             QJsonObject roundTrip;
             auto& projects = ArtifactProjectManager::getInstance();
@@ -1863,7 +1942,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.externalParentSaveReload", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

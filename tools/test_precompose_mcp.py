@@ -163,6 +163,13 @@ def main():
                     and external_parent["redoRestoredExternalParent"],
                     "External layer parent was not preserved across precompose/undo/redo")
             call("test.reset")
+            child_edits = call("test.childEditsSurviveUnwrap")
+            require(child_edits["passed"] and child_edits["editsAuthored"]
+                    and child_edits["unpackedValuesPreserved"]
+                    and child_edits["undoValuesPreserved"]
+                    and child_edits["redoValuesPreserved"],
+                    "Transform or opacity edits inside a child composition changed across unprecompose/undo/redo")
+            call("test.reset")
             external_parent_round_trip = call("test.externalParentSaveReload")
             require(external_parent_round_trip["passed"]
                     and external_parent_round_trip["mappingClearedBeforeReload"]
