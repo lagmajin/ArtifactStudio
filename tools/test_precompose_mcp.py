@@ -156,6 +156,17 @@ def main():
                     and exposed_override["redoPreservedMaterializedValue"],
                     "Master Property override was lost while unprecomposing or traversing undo/redo")
             call("test.reset")
+            nested_override = call("test.nestedExposedOverrideMaterialized")
+            require(nested_override["passed"] and nested_override["bindingAdded"]
+                    and nested_override["overrideDeferred"]
+                    and nested_override["nestedOverridePreserved"]
+                    and nested_override["outerUnpacked"]
+                    and nested_override["innerOverridePreserved"]
+                    and nested_override["overrideMaterialized"]
+                    and nested_override["undoPreservedOverride"]
+                    and nested_override["redoPreservedOverride"],
+                    "Nested Master Property override changed across precompose/unpack/undo/redo")
+            call("test.reset")
             missing_child = call("test.missingChildReferenceAtomic")
             require(missing_child["passed"] and missing_child["unwrapRejected"]
                     and missing_child["parentStatePreserved"]

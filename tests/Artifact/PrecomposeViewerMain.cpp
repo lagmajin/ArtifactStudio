@@ -654,6 +654,107 @@ public:
             refresh();
             cycleResult["state"] = state();
             return cycleResult;
+        } else if (name == "test.nestedExposedOverrideMaterialized") {
+            QJsonObject overrideResult;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                overrideResult["error"] = QStringLiteral("No root composition");
+                return overrideResult;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Inner Exposed Override")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                overrideResult["error"] = QStringLiteral("Could not create nested exposed-override fixture");
+                return overrideResult;
+            }
+            const auto inner = service->lastPrecomposeOutcome();
+            const auto innerChild = service->findComposition(inner.childCompId).ptr.lock();
+            const auto innerWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(inner.precompLayerId));
+            const auto sourceLayer = innerChild
+                ? innerChild->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
+            if (!innerChild || !innerWrapper || !sourceLayer) {
+                overrideResult["error"] = QStringLiteral("Inner exposed-override fixture is incomplete");
+                return overrideResult;
+            }
+            ArtifactCore::ExposedPropertyRegistry registry;
+            ArtifactCore::ExposedPropertyBinding binding;
+            binding.id = QStringLiteral("test.nested.opacity");
+            binding.label = QStringLiteral("Nested Test Opacity");
+            binding.targetLayerId = sourceIds.front().toString();
+            binding.internalPath = QStringLiteral("layer.opacity");
+            binding.defaultValue = sourceLayer->opacity();
+            const float overrideValue = 0.73f;
+            const bool bindingAdded = registry.add(binding);
+            innerWrapper->setExposedProperties(registry);
+            const bool overrideAccepted = bindingAdded && innerWrapper->setExposedPropertyOverride(
+                binding.id, QVariant::fromValue(static_cast<double>(overrideValue)));
+            const auto retainsOverride = [&](const SharedPtr<ArtifactCompositionLayer>& layer) {
+                return layer && layer->exposedProperties().contains(binding.id) &&
+                    layer->hasExposedPropertyOverride(binding.id) &&
+                    std::abs(layer->effectiveExposedPropertyValue(binding.id).toFloat() - overrideValue) < 1.0e-5f;
+            };
+            const bool overrideDeferred = overrideAccepted && retainsOverride(innerWrapper) &&
+                std::abs(sourceLayer->opacity() - binding.defaultValue.toFloat()) < 1.0e-5f;
+            const bool outerCreated = overrideDeferred && service->precomposeLayersWithUndo(
+                {inner.precompLayerId}, UniString(QStringLiteral("Outer Exposed Override")), false, false,
+                PrecomposeMode::MoveSelected);
+            const auto outer = service->lastPrecomposeOutcome();
+            const auto outerChild = service->findComposition(outer.childCompId).ptr.lock();
+            const auto nestedWrapper = outerChild
+                ? dynamicPointerCast<ArtifactCompositionLayer>(outerChild->layerById(inner.precompLayerId))
+                : SharedPtr<ArtifactCompositionLayer>{};
+            const bool nestedOverridePreserved = outerCreated && nestedWrapper == innerWrapper &&
+                retainsOverride(nestedWrapper) &&
+                std::abs(sourceLayer->opacity() - binding.defaultValue.toFloat()) < 1.0e-5f;
+            const bool outerUnpacked = nestedOverridePreserved &&
+                service->unprecomposeLayerWithUndo(outer.precompLayerId, true);
+            const auto restoredInner = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(inner.precompLayerId));
+            const bool innerOverridePreserved = outerUnpacked && restoredInner == innerWrapper &&
+                retainsOverride(restoredInner) &&
+                std::abs(sourceLayer->opacity() - binding.defaultValue.toFloat()) < 1.0e-5f;
+            const bool innerUnpacked = innerOverridePreserved &&
+                service->unprecomposeLayerWithUndo(inner.precompLayerId, true);
+            const auto restoredSource = root->layerById(sourceIds.front());
+            const bool overrideMaterialized = innerUnpacked && restoredSource == sourceLayer &&
+                std::abs(restoredSource->opacity() - overrideValue) < 1.0e-5f;
+            const bool undoAvailable = innerUnpacked && undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto undoChild = service->findComposition(inner.childCompId).ptr.lock();
+            const auto undoSource = undoChild ? undoChild->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
+            const auto undoWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(inner.precompLayerId));
+            const bool undoPreservedOverride = undoAvailable && undoSource == sourceLayer &&
+                undoWrapper == innerWrapper && retainsOverride(undoWrapper) &&
+                std::abs(undoSource->opacity() - overrideValue) < 1.0e-5f;
+            const bool redoAvailable = undoAvailable && undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const auto redoSource = root->layerById(sourceIds.front());
+            const bool redoPreservedOverride = redoAvailable && redoSource == sourceLayer &&
+                std::abs(redoSource->opacity() - overrideValue) < 1.0e-5f &&
+                !PreComposeManager::instance().isPrecomposeLayer(inner.precompLayerId);
+            overrideResult["bindingAdded"] = bindingAdded;
+            overrideResult["overrideDeferred"] = overrideDeferred;
+            overrideResult["nestedOverridePreserved"] = nestedOverridePreserved;
+            overrideResult["outerUnpacked"] = outerUnpacked;
+            overrideResult["innerOverridePreserved"] = innerOverridePreserved;
+            overrideResult["overrideMaterialized"] = overrideMaterialized;
+            overrideResult["undoPreservedOverride"] = undoPreservedOverride;
+            overrideResult["redoPreservedOverride"] = redoPreservedOverride;
+            overrideResult["passed"] = bindingAdded && overrideDeferred && nestedOverridePreserved &&
+                outerUnpacked && innerOverridePreserved && overrideMaterialized &&
+                undoPreservedOverride && redoPreservedOverride;
+            if (!overrideResult["passed"].toBool())
+                overrideResult["error"] = QStringLiteral("Nested Master Property override changed before or after final unpack/undo/redo");
+            service->changeCurrentComposition(rootId);
+            childId_ = outer.childCompId;
+            hasChild_ = true;
+            refresh();
+            overrideResult["state"] = state();
+            return overrideResult;
         } else if (name == "test.exposedOverrideMaterialized") {
             QJsonObject overrideResult;
             const auto root = service->currentComposition().lock();
@@ -2480,7 +2581,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
