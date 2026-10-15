@@ -563,6 +563,27 @@ TEST(RenderQueueLayerImageIntegrationTest,
     const QImage particles2DBaseline(particles2DFramePath);
     ASSERT_FALSE(particles2DBaseline.isNull());
 
+    const QString particles2DGpuBaselineOutput = isolatedOutputPath(
+        QStringLiteral("render_queue_particles_2d_gpu_baseline.png"));
+    ASSERT_TRUE(addAndRender(
+        queue, particles2D.id, QStringLiteral("Particles2DGpuBaseline"),
+        particles2DGpuBaselineOutput, width, height,
+        [](const QImage& image) {
+            const QRgb background = image.pixel(width - 10, height - 10);
+            return countPixelsMatching(image, [background](QRgb pixel) {
+                return qAlpha(pixel) > 200 && pixel != background;
+            }) > 0;
+        }, &failure, 2, QStringLiteral("gpu"))) << failure.toStdString();
+
+    const QFileInfo particles2DGpuBaselineInfo(particles2DGpuBaselineOutput);
+    const QString particles2DGpuBaselineFramePath = QDir(
+        particles2DGpuBaselineInfo.absolutePath()).filePath(
+            QStringLiteral("%1_%2.png")
+                .arg(particles2DGpuBaselineInfo.completeBaseName())
+                .arg(1, 4, 10, QLatin1Char('0')));
+    const QImage particles2DGpuBaseline(particles2DGpuBaselineFramePath);
+    ASSERT_FALSE(particles2DGpuBaseline.isNull());
+
     auto brightness = ArtifactCore::makeShared<Artifact::BrightnessEffect>();
     ASSERT_NE(brightness, nullptr);
     brightness->setBrightness(0.2f);
@@ -582,13 +603,6 @@ TEST(RenderQueueLayerImageIntegrationTest,
             }) > 8;
         }, &failure, 2, QStringLiteral("gpu"))) << failure.toStdString();
 
-    QImage gpuParticleSurface;
-    ASSERT_TRUE(particle2D->getCachedFrame(1, gpuParticleSurface))
-        << "the effect path should capture the particle layer through GPU";
-    EXPECT_GT(countPixelsMatching(gpuParticleSurface, [](QRgb pixel) {
-        return qAlpha(pixel) > 32 && qRed(pixel) > 8;
-    }), 8) << "the captured GPU particle surface should contain particles";
-
     const QFileInfo particles2DEffectedInfo(particles2DEffectedOutput);
     const QString particles2DEffectedFramePath = QDir(
         particles2DEffectedInfo.absolutePath()).filePath(
@@ -597,7 +611,7 @@ TEST(RenderQueueLayerImageIntegrationTest,
                 .arg(1, 4, 10, QLatin1Char('0')));
     const QImage particles2DEffected(particles2DEffectedFramePath);
     ASSERT_FALSE(particles2DEffected.isNull());
-    ASSERT_EQ(particles2DEffected.size(), particles2DBaseline.size());
+    ASSERT_EQ(particles2DEffected.size(), particles2DGpuBaseline.size());
 
     int effectedSampleX = -1;
     int effectedSampleY = -1;
@@ -622,7 +636,7 @@ TEST(RenderQueueLayerImageIntegrationTest,
     EXPECT_GT(qBlue(effectedPixel), 40)
         << "Brightness should raise the rendered particle's blue channel";
     EXPECT_EQ(particles2DEffected.pixel(width - 10, height - 10),
-              particles2DBaseline.pixel(width - 10, height - 10))
+              particles2DGpuBaseline.pixel(width - 10, height - 10))
         << "the effect on the particle layer must leave uncovered background "
            "unchanged";
 

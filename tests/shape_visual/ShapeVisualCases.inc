@@ -75,7 +75,7 @@ protected:
 
     Artifact::ArtifactShapeLayer* addLayer()
     {
-        const Artifact::ArtifactLayerInitParams params(
+        Artifact::ArtifactLayerInitParams params(
             QStringLiteral("Shape"), Artifact::LayerType::Shape);
         const auto result = projects.addLayerToComposition(compositionId, params);
         if (!result.success) return nullptr;
@@ -92,7 +92,7 @@ protected:
     }
 
     bool addContent(Artifact::ArtifactShapeLayer& layer,
-                    const Artifact::ShapeContent& content)
+                    Artifact::ShapeContent content)
     {
         const bool wasEmpty = layer.shapeContentCount() == 0;
         if (layer.addShapeContent(content) < 0) return false;
