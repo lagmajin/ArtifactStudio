@@ -144,6 +144,50 @@ public:
             refresh();
             cycleResult["state"] = state();
             return cycleResult;
+        } else if (name == "test.invalidRequestsAtomic") {
+            QJsonObject invalidResult;
+            if (!comp) {
+                invalidResult["error"] = QStringLiteral("No current composition");
+                return invalidResult;
+            }
+            const auto beforeLayers = layers(comp, 0);
+            const auto beforeLayerCount = comp->allLayer().size();
+            const auto beforeCompositionCount = ArtifactProjectManager::getInstance().compositionCount();
+            const auto beforeUndoCount = undo->undoCount();
+            const auto sourceIds = namedLayerIds(comp, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2) {
+                invalidResult["error"] = QStringLiteral("Invalid-request fixture is missing A/B layers");
+                return invalidResult;
+            }
+            const bool blankNameRejected = !service->precomposeLayersWithUndo(
+                sourceIds, UniString(QStringLiteral("   ")), false, false,
+                PrecomposeMode::MoveSelected);
+            const auto blankNameOutcome = service->lastPrecomposeOutcome();
+            const bool blankNameAtomic = comp->allLayer().size() == beforeLayerCount &&
+                layers(comp, 0) == beforeLayers &&
+                ArtifactProjectManager::getInstance().compositionCount() == beforeCompositionCount &&
+                undo->undoCount() == beforeUndoCount && blankNameOutcome.precompLayerId.isNil() &&
+                blankNameOutcome.childCompId.isNil();
+            const bool invalidSelectionRejected = !service->precomposeLayersWithUndo(
+                {LayerID()}, UniString(QStringLiteral("Invalid Selection")), false, false,
+                PrecomposeMode::MoveSelected);
+            const auto invalidSelectionOutcome = service->lastPrecomposeOutcome();
+            const bool invalidSelectionAtomic = comp->allLayer().size() == beforeLayerCount &&
+                layers(comp, 0) == beforeLayers &&
+                ArtifactProjectManager::getInstance().compositionCount() == beforeCompositionCount &&
+                undo->undoCount() == beforeUndoCount && invalidSelectionOutcome.precompLayerId.isNil() &&
+                invalidSelectionOutcome.childCompId.isNil();
+            invalidResult["blankNameRejected"] = blankNameRejected;
+            invalidResult["blankNameAtomic"] = blankNameAtomic;
+            invalidResult["invalidSelectionRejected"] = invalidSelectionRejected;
+            invalidResult["invalidSelectionAtomic"] = invalidSelectionAtomic;
+            invalidResult["passed"] = blankNameRejected && blankNameAtomic &&
+                invalidSelectionRejected && invalidSelectionAtomic;
+            if (!invalidResult["passed"].toBool())
+                invalidResult["error"] = QStringLiteral("Rejected precompose input mutated project state or history");
+            refresh();
+            invalidResult["state"] = state();
+            return invalidResult;
         } else if (name == "test.transitiveCycleRejected") {
             QJsonObject cycleResult;
             const auto root = service->currentComposition().lock();
@@ -923,7 +967,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.reparentExistingPrecompose", "test.unprecomposeNested",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.reparentExistingPrecompose", "test.unprecomposeNested",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
