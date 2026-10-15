@@ -288,9 +288,12 @@ public:
                 return animationResult;
             }
             const auto source = parent->layerById(idsA.front());
+            const auto sourceB = parent->layerById(idsB.front());
             auto property = source ? source->getProperty(QStringLiteral("transform.position.x"))
                                    : SharedPtr<AbstractProperty>{};
-            if (!property) {
+            auto propertyB = sourceB ? sourceB->getProperty(QStringLiteral("transform.position.x"))
+                                     : SharedPtr<AbstractProperty>{};
+            if (!property || !propertyB) {
                 animationResult["error"] = QStringLiteral("Position X animation property is unavailable");
                 return animationResult;
             }
@@ -306,6 +309,15 @@ public:
             property->setKeyFrameSoftAt(firstTime, true);
             property->addKeyFrame(secondTime, -2.25, InterpolationType::Constant);
             const auto originalKeys = keyframes(property);
+            propertyB->clearKeyFrames();
+            propertyB->setAnimatable(true);
+            const auto keyScaleB = sourceB->keyframeTimeScale();
+            const RationalTime firstTimeB(70, keyScaleB);
+            const RationalTime secondTimeB(130, keyScaleB);
+            propertyB->addKeyFrame(firstTimeB, 3.75, InterpolationType::Smooth);
+            propertyB->setKeyFrameAnchorAt(firstTimeB, KeyFrame::Anchor::LockToIn);
+            propertyB->addKeyFrame(secondTimeB, 9.25, InterpolationType::Linear);
+            const auto originalKeysB = keyframes(propertyB);
             const QVector<LayerID> selected{idsA.front(), idsB.front()};
             const bool precomposed = service->precomposeLayersWithUndo(
                 selected, UniString(QStringLiteral("Animated Precompose")), false, false,
@@ -321,6 +333,11 @@ public:
                 ? movedSource->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
             const auto movedKeys = childProperty ? keyframes(childProperty) : QJsonArray{};
+            const auto movedSourceB = child ? child->layerById(idsB.front()) : ArtifactAbstractLayerPtr{};
+            const auto childPropertyB = movedSourceB
+                ? movedSourceB->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const auto movedKeysB = childPropertyB ? keyframes(childPropertyB) : QJsonArray{};
             const bool childKeysRetimed = childProperty && movedKeys.size() == 2 &&
                 movedKeys[0].toObject()["timeValue"].toInt() == 0 &&
                 movedKeys[0].toObject()["timeScale"].toDouble() == static_cast<double>(keyScale) &&
@@ -338,14 +355,29 @@ public:
                 movedKeys[0].toObject()["colorLabel"].toInt() == static_cast<int>(KeyFrame::ColorLabel::Blue) &&
                 movedKeys[0].toObject()["soft"].toBool() &&
                 movedKeys[1].toObject()["interpolation"].toInt() == static_cast<int>(InterpolationType::Constant);
+            const bool offsetChildKeysRetimed = childPropertyB && movedKeysB.size() == 2 &&
+                movedKeysB[0].toObject()["timeValue"].toInt() == 30 &&
+                movedKeysB[0].toObject()["timeScale"].toDouble() == static_cast<double>(keyScaleB) &&
+                movedKeysB[1].toObject()["timeValue"].toInt() == 130 &&
+                movedKeysB[1].toObject()["timeScale"].toDouble() == static_cast<double>(keyScaleB) &&
+                movedKeysB[0].toObject()["value"].toDouble() == 3.75 &&
+                movedKeysB[1].toObject()["value"].toDouble() == 9.25 &&
+                movedKeysB[0].toObject()["anchor"].toInt() == static_cast<int>(KeyFrame::Anchor::LockToIn) &&
+                movedKeysB[0].toObject()["interpolation"].toInt() == static_cast<int>(InterpolationType::Smooth) &&
+                movedKeysB[1].toObject()["interpolation"].toInt() == static_cast<int>(InterpolationType::Linear);
             const bool unpacked = service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
             const auto restored = service->currentComposition().lock();
             const auto restoredSource = restored ? restored->layerById(idsA.front()) : ArtifactAbstractLayerPtr{};
             const auto restoredProperty = restoredSource
                 ? restoredSource->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
+            const auto restoredSourceB = restored ? restored->layerById(idsB.front()) : ArtifactAbstractLayerPtr{};
+            const auto restoredPropertyB = restoredSourceB
+                ? restoredSourceB->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
             const bool unpackKeysRestored = unpacked && restoredProperty &&
-                keyframes(restoredProperty) == originalKeys;
+                keyframes(restoredProperty) == originalKeys && restoredPropertyB &&
+                keyframes(restoredPropertyB) == originalKeysB;
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
             const bool redoAvailable = undo->canRedo();
@@ -355,14 +387,22 @@ public:
             const auto redoProperty = redoSource
                 ? redoSource->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
+            const auto redoSourceB = afterRedo ? afterRedo->layerById(idsB.front()) : ArtifactAbstractLayerPtr{};
+            const auto redoPropertyB = redoSourceB
+                ? redoSourceB->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
             const bool redoKeysRestored = redoAvailable && redoProperty &&
-                keyframes(redoProperty) == originalKeys;
+                keyframes(redoProperty) == originalKeys && redoPropertyB &&
+                keyframes(redoPropertyB) == originalKeysB;
             animationResult["originalKeys"] = originalKeys;
+            animationResult["originalOffsetKeys"] = originalKeysB;
             animationResult["precomposedKeys"] = movedKeys;
+            animationResult["precomposedOffsetKeys"] = movedKeysB;
             animationResult["childKeysRetimed"] = childKeysRetimed;
+            animationResult["offsetChildKeysRetimed"] = offsetChildKeysRetimed;
             animationResult["unpackRestoredKeys"] = unpackKeysRestored;
             animationResult["redoRestoredKeys"] = redoKeysRestored;
-            animationResult["passed"] = childKeysRetimed && unpackKeysRestored &&
+            animationResult["passed"] = childKeysRetimed && offsetChildKeysRetimed && unpackKeysRestored &&
                 undoAvailable && redoKeysRestored;
             if (!animationResult["passed"].toBool())
                 animationResult["error"] = QStringLiteral("Animated keyframes changed across precompose/unpack/redo");
