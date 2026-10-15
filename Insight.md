@@ -2,6 +2,14 @@
 
 # Insight Register
 
+## 2026-10-15: 既存プリコンポーズレイヤー移動時の親階層登録
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm`、`ArtifactCore/src/Composition/PreCompose.cppm`、`tests/Artifact/PrecomposeViewerMain.cpp`。
+- **確認できた事実:** `precomposeLayersInCurrentComposition()` は新規ラッパーレイヤーを `PreComposeManager::registerPrecompLayer()` に登録する。一方、選択レイヤーとして移動する既存プリコンポーズレイヤーについて、移動先親への登録更新は確認できなかった。
+- **未検証の仮説:** 既存プリコンポーズをさらに別のプリコンポーズへ移動すると、Managerの親参照とComposition階層が以前の親のまま残る可能性がある。独立MCPケース `test.reparentExistingPrecompose` を追加したが、実行は未確認。
+- **価値／懸念:** ネスト済みcompositionの親逆引きや時間変換が、再編成後に古い親構造へ依存する回帰を検出できる。
+- **次に確認:** 許可されたビルド／テスト実行で新ケースを動かし、失敗した場合はテストだけの依頼範囲を越えずに結果を報告する。
+
 ## 2026-10-15: プリコンポーズのプロジェクト再読込後に実行時ネスト登録を確認する
 
 - **関連:** `PreComposeManager`、`ArtifactProjectManager::loadFromFile()`、`tests/Artifact/PrecomposeViewerMain.cpp`。

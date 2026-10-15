@@ -162,12 +162,20 @@ def main():
             grandchild = hierarchy["state"]["layers"][0]["children"][0]
             require({layer["name"] for layer in grandchild["children"]} == {"A", "B"},
                     "Grandchild composition content changed")
+            call("test.reset")
+            reparented = call("test.reparentExistingPrecompose")
+            require(reparented["passed"] and reparented["parentReferenceUpdated"]
+                    and reparented["hierarchyUpdated"],
+                    "Moving an existing precompose did not update its runtime parent hierarchy")
+            require(reparented["hierarchy"] == [reparented["state"]["compositionId"],
+                    reparented["wrapperChildId"], reparented["existingChildId"]],
+                    "Reparented precompose hierarchy IDs do not match the expected wrapper chain")
             image = request("tools/call", {"name": "test.capture", "arguments": {}})
             require(not image.get("isError") and image["content"][0]["type"] == "image", "Capture failed")
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
-            print("PASS: direct/transitive cycle guards, external parent restore, animated key timing/metadata in selected/all modes, nested hierarchy/time, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: direct/transitive cycle guards, external parent restore, animated key timing/metadata in selected/all modes, nested hierarchy/time, existing-precompose reparenting, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
             try:

@@ -518,6 +518,54 @@ public:
             refresh();
             nestedResult["state"] = state();
             return nestedResult;
+        } else if (name == "test.reparentExistingPrecompose") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Existing Precompose")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                result["error"] = QStringLiteral("Could not create initial precompose");
+                return result;
+            }
+            const auto existing = service->lastPrecomposeOutcome();
+            if (!service->precomposeLayersWithUndo(
+                    {existing.precompLayerId}, UniString(QStringLiteral("Precompose Wrapper")),
+                    false, false, PrecomposeMode::MoveSelected)) {
+                result["error"] = QStringLiteral("Could not wrap existing precompose layer");
+                return result;
+            }
+            const auto wrapper = service->lastPrecomposeOutcome();
+            const auto& manager = PreComposeManager::instance();
+            bool parentReferenceUpdated = false;
+            for (const auto& reference : manager.getPrecompLayersForChild(existing.childCompId)) {
+                parentReferenceUpdated = parentReferenceUpdated ||
+                    (reference.parentCompId == wrapper.childCompId &&
+                     reference.precompLayerId == existing.precompLayerId);
+            }
+            const auto hierarchy = manager.getCompositionHierarchy(existing.childCompId);
+            const bool hierarchyUpdated = hierarchy.size() == 3 && hierarchy[0] == rootId &&
+                hierarchy[1] == wrapper.childCompId && hierarchy[2] == existing.childCompId;
+            result["existingChildId"] = existing.childCompId.toString();
+            result["wrapperChildId"] = wrapper.childCompId.toString();
+            result["parentReferenceUpdated"] = parentReferenceUpdated;
+            result["hierarchyUpdated"] = hierarchyUpdated;
+            result["hierarchy"] = QJsonArray{rootId.toString(),
+                hierarchy.size() > 1 ? hierarchy[1].toString() : QString(),
+                hierarchy.size() > 2 ? hierarchy[2].toString() : QString()};
+            result["passed"] = parentReferenceUpdated && hierarchyUpdated;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Moving an existing precompose did not update its runtime parent hierarchy");
+            childId_ = existing.childCompId;
+            hasChild_ = true;
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.saveReload") {
             QJsonObject roundTrip;
             auto& projects = ArtifactProjectManager::getInstance();
@@ -762,7 +810,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.reparentExistingPrecompose",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
