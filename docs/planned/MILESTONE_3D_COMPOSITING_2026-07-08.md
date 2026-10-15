@@ -1,7 +1,9 @@
 # Milestone: 3D Compositing（コンポジション内ライブ 3D シーン） (2026-07-08)
 
-**最終更新:** 2026-08-15
-**ステータス:** Phase 1A〜1K の静的実装を確認済み。Phase 2/3 の本格統合と実機検証待ち。
+**最終更新:** 2026-10-14
+**ステータス:** In Progress
+
+Phase 1A〜1K の静的実装に加え、独立したDiligent GPU統合テストで5種類のLight Layerとlight linking等の一部runtime契約を確認済み。基本的なopaque二重モデルの遮蔽色判定もVulkan／D3D12で成功。test captureが左上で切れていた原因はfallback cameraのcomposition中央注視に対するfixture原点配置と、near modelの過大scaleだった。fixture位置・scale、色判定領域、画面端margin assertionを修正したが、更新版の再build／両backend captureは未確認。far model可視性control、depth順反転、透明境界、depth／mask／DOF後処理、エディタ上の実操作も引き続き未検証。
 
 ### 実装状況（2026-08-15 確認）
 
@@ -140,6 +142,15 @@ child に 3D、adjustment、mask、rasterizer effect、非Normal blend、nested 
 現行コードを追加確認した。CompositionRenderController は active camera／scene lights／light-link filtering、共有 preview depth、3D cards、Model3D、Precomp GPU output registry を同一の3D合成経路で扱う。単色／Shape／Image／SVG／Text／Video のカード、Material のPBR入力、透明境界、Light Layer、depth attachmentの接続も確認できる。
 
 一方、カメラ／レイヤー運用の全面的なscene管理、depth／mask／DOF後処理、複雑なprecomp条件、遮蔽・透明境界の実機parityは未完了または未検証。Phase 1A〜1Kの静的実装は確認済み、Phase 2〜3とruntime受入は pending とする。
+
+## Runtime verification update 2026-10-14
+
+- Production `CompositionRenderController` を通る独立GPU integration testを追加・実行した。低ポリicosphere OBJを読み込み、Point／Spot／Parallel／Ambient／Areaの5種類のライト、IncludeOnly linking、2灯加算、ライトvisibility、model `affectedByLights` の切替を検査する。
+- VulkanとD3D12を別processで実行した16ケースが成功し、実composition最終GPU surfaceからreadbackした画像で照明色とモデル画素を確認した。テスト中のDiligent ERROR／FATALはなかった。D3D12のMesh Shader PSO生成失敗時はindexed drawへfallbackする任意経路も確認範囲に含む。
+- 追加したopaque二重モデルケースでは、同一位置のnear red modelを後から描画されるfar green modelが上書きしないことを、最終GPU画像の色／画素量判定でVulkan／D3D12両方にて確認した。far modelを単体で見せるcontrolや深度順を反転する試験は未実施。
+- 独立offscreen image testでは5 light typeのモデル描画契約を確認し、Diligent ERROR callbackの合成診断を検出する自己テストを追加した。ビルドとCTestが成功した。
+- これらは照明・light linking・基本的なopaque二重モデルdepth occlusionの一部を実証する。複雑な重なり、透明モデル／カードの境界、shadow map寄与、保存・再読込後の表示、実アプリUIでの編集操作、DOF／depth／mask連携を証明しない。取得した遮蔽画像はgeometryが左上で切れて見えるため、viewport framingの視覚受入証拠には使えない。
+- `Insight.md` にfixture、readback制約、測定結果、未解決の遮蔽検証を記録した。
 
 ## Update 2026-08-15
 

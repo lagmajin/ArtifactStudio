@@ -526,3 +526,323 @@ if(ARTIFACT_BUILD_TESTS)
         RUN_SERIAL TRUE
     )
 endif()
+
+# Independent app-runtime process for the production 3D model and light
+# layers. CPU-only: it exercises creation, source import, properties, and JSON
+# restoration without launching the Artifact UI or creating a GPU device.
+if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_LAYER_TEST)
+    if(WIN32)
+        set(_artifact_model3d_light_qpa_platform "windows")
+    else()
+        set(_artifact_model3d_light_qpa_platform "offscreen")
+    endif()
+
+    artifact_add_test(ArtifactModel3DAndLightLayerTest
+        SOURCES
+            Model3DAndLightLayerTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    target_compile_definitions(ArtifactModel3DAndLightLayerTest PRIVATE
+        ARTIFACT_TEST_MODEL_OBJ_PATH="${CMAKE_SOURCE_DIR}/tests/models/test.obj"
+    )
+    set_target_properties(ArtifactModel3DAndLightLayerTest PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/LayerTests/$<CONFIG>"
+    )
+    if(WIN32)
+        set(_artifact_model3d_light_vcpkg_installed "${VCPKG_INSTALLED}")
+        if(NOT EXISTS "${_artifact_model3d_light_vcpkg_installed}/debug/bin"
+           AND DEFINED VCPKG_INSTALLED_DIR
+           AND EXISTS "${VCPKG_INSTALLED_DIR}/x64-windows")
+            set(_artifact_model3d_light_vcpkg_installed "${VCPKG_INSTALLED_DIR}/x64-windows")
+        endif()
+        if(EXISTS "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows")
+            set(_artifact_model3d_light_vcpkg_installed "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows")
+        endif()
+        add_custom_command(TARGET ArtifactModel3DAndLightLayerTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ArtifactModel3DAndLightLayerTest>
+                "$<TARGET_FILE_DIR:ArtifactModel3DAndLightLayerTest>/"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+        add_custom_command(TARGET ArtifactModel3DAndLightLayerTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}"
+                "-DTARGET_FILE_DIR=$<TARGET_FILE_DIR:ArtifactModel3DAndLightLayerTest>"
+                "-DSOURCE_RUNTIME_DIR=${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+                "-DVCPKG_INSTALLED=${_artifact_model3d_light_vcpkg_installed}"
+                "-DCONFIG=$<CONFIG>"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/CopyLayerTestRuntime.cmake"
+            VERBATIM
+        )
+    endif()
+    set_tests_properties(ArtifactModel3DAndLightLayerTest PROPERTIES
+        ENVIRONMENT
+            "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DAndLightLayerTest>/platforms"
+        LABELS "layer;model3d;light;serialization;cpu;standalone;contract"
+        TIMEOUT 120
+        RUN_SERIAL TRUE
+    )
+endif()
+
+# GPU image contract in its own process. Captures are written under the build
+# tree so a reviewer can inspect the production layer output without launching
+# the editor or reusing its renderer/device state.
+if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_LAYER_TEST)
+   AND (VULKAN_SUPPORTED OR D3D12_SUPPORTED))
+    artifact_add_test(ArtifactModel3DAndLightLayerImageTest
+        SOURCES
+            Model3DAndLightLayerImageTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_target_properties(ArtifactModel3DAndLightLayerImageTest PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/LayerTests/$<CONFIG>"
+    )
+    if(WIN32)
+        add_custom_command(TARGET ArtifactModel3DAndLightLayerImageTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ArtifactModel3DAndLightLayerImageTest>
+                "$<TARGET_FILE_DIR:ArtifactModel3DAndLightLayerImageTest>/"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+        add_custom_command(TARGET ArtifactModel3DAndLightLayerImageTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}"
+                "-DTARGET_FILE_DIR=$<TARGET_FILE_DIR:ArtifactModel3DAndLightLayerImageTest>"
+                "-DSOURCE_RUNTIME_DIR=${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+                "-DVCPKG_INSTALLED=${_artifact_model3d_light_vcpkg_installed}"
+                "-DCONFIG=$<CONFIG>"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/CopyLayerTestRuntime.cmake"
+            VERBATIM
+        )
+    endif()
+    if(VULKAN_SUPPORTED)
+        set(_artifact_model3d_light_backend "vulkan")
+    else()
+        set(_artifact_model3d_light_backend "d3d12")
+    endif()
+    set_tests_properties(ArtifactModel3DAndLightLayerImageTest PROPERTIES
+        ENVIRONMENT
+            "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DAndLightLayerImageTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
+        LABELS "layer;model3d;light;renderer;gpu;headless;image;integration;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+
+    # Exercise the production CompositionRenderController viewport, including
+    # its own scene-light collection and layer-to-GPU-light conversion.
+    add_executable(ArtifactModel3DLightCompositionIntegrationTest
+        Model3DLightCompositionIntegrationTest.cpp
+    )
+    target_link_libraries(ArtifactModel3DLightCompositionIntegrationTest
+        PRIVATE
+            GTest::gtest
+            Qt6::Core
+            Qt6::Widgets
+            ArtifactAppRuntime
+    )
+    artifact_add_cppwinrt_include(ArtifactModel3DLightCompositionIntegrationTest)
+    set_target_properties(ArtifactModel3DLightCompositionIntegrationTest PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+    )
+    target_compile_definitions(ArtifactModel3DLightCompositionIntegrationTest PRIVATE
+        ARTIFACT_TEST_MODEL_OBJ_PATH="${CMAKE_SOURCE_DIR}/tests/models/light_composition_icosphere.obj"
+    )
+    if(EXISTS "${CMAKE_SOURCE_DIR}/tests/fixtures/fbx-materials/separate-pbr.fbx")
+        target_compile_definitions(ArtifactModel3DLightCompositionIntegrationTest PRIVATE
+            ARTIFACT_TEST_FBX_PATH="${CMAKE_SOURCE_DIR}/tests/fixtures/fbx-materials/separate-pbr.fbx"
+        )
+    endif()
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactModel3DLightCompositionIntegrationTest PRIVATE
+            /Zf /Zc:__cplusplus /utf-8 /MP
+        )
+    endif()
+    set_target_properties(ArtifactModel3DLightCompositionIntegrationTest PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/LayerTests/$<CONFIG>"
+    )
+    if(WIN32)
+        add_custom_command(TARGET ArtifactModel3DLightCompositionIntegrationTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ArtifactModel3DLightCompositionIntegrationTest>
+                "$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+        add_custom_command(TARGET ArtifactModel3DLightCompositionIntegrationTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}"
+                "-DTARGET_FILE_DIR=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>"
+                "-DSOURCE_RUNTIME_DIR=${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+                "-DVCPKG_INSTALLED=${_artifact_model3d_light_vcpkg_installed}"
+                "-DCONFIG=$<CONFIG>"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/CopyLayerTestRuntime.cmake"
+            VERBATIM
+        )
+    endif()
+    set(_artifact_model3d_light_integration_cases
+        Point Spot Parallel Ambient Area
+    )
+    foreach(_light_case IN LISTS _artifact_model3d_light_integration_cases)
+        string(TOLOWER "${_light_case}" _light_case_lower)
+        set(_light_test_name
+            "ArtifactModel3DLightComposition${_light_case}IntegrationTest")
+        add_test(NAME "${_light_test_name}"
+            COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+                "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerApplies${_light_case}LightLayer"
+        )
+        set_tests_properties("${_light_test_name}" PROPERTIES
+            ENVIRONMENT
+                "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
+            LABELS "layer;model3d;light;renderer;gpu;composition;integration;contract;${_light_case_lower}"
+            TIMEOUT 180
+            RUN_SERIAL TRUE
+        )
+    endforeach()
+    add_test(NAME ArtifactModel3DLightCompositionPointLinkingIntegrationTest
+        COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+            "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerRespectsPointLightLinking"
+    )
+    set_tests_properties(ArtifactModel3DLightCompositionPointLinkingIntegrationTest PROPERTIES
+        ENVIRONMENT
+            "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
+        LABELS "layer;model3d;light;light-linking;renderer;gpu;composition;integration;contract;point"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactModel3DLightCompositionMultiplePointLightsIntegrationTest
+        COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+            "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerCombinesMultiplePointLights"
+    )
+    set_tests_properties(ArtifactModel3DLightCompositionMultiplePointLightsIntegrationTest PROPERTIES
+        ENVIRONMENT
+            "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
+        LABELS "layer;model3d;light;multiple-lights;renderer;gpu;composition;integration;contract;point"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactModel3DLightCompositionVisibilityIntegrationTest
+        COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+            "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerRespectsLightVisibilityAndModelOptOut"
+    )
+    set_tests_properties(ArtifactModel3DLightCompositionVisibilityIntegrationTest PROPERTIES
+        ENVIRONMENT
+            "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
+        LABELS "layer;model3d;light;visibility;renderer;gpu;composition;integration;contract;point"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactModel3DLightCompositionOcclusionIntegrationTest
+        COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+            "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerDepthOccludesLaterFarModel"
+    )
+    set_tests_properties(ArtifactModel3DLightCompositionOcclusionIntegrationTest PROPERTIES
+        ENVIRONMENT
+            "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
+        LABELS "layer;model3d;light;occlusion;depth;renderer;gpu;composition;integration;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    if(EXISTS "${CMAKE_SOURCE_DIR}/tests/fixtures/fbx-materials/separate-pbr.fbx")
+        add_test(NAME ArtifactFbxLightRayTracingIntegrationTest
+            COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+                "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerDisplaysLitFbxAndRegistersRayTracingGeometry"
+        )
+        set_tests_properties(ArtifactFbxLightRayTracingIntegrationTest PROPERTIES
+            ENVIRONMENT
+                "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
+            LABELS "fbx;model3d;light;ray-tracing;renderer;gpu;composition;integration;contract"
+            TIMEOUT 180
+            RUN_SERIAL TRUE
+        )
+        if(VULKAN_SUPPORTED AND D3D12_SUPPORTED)
+            add_test(NAME ArtifactFbxLightRayTracingD3D12IntegrationTest
+                COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+                    "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerDisplaysLitFbxAndRegistersRayTracingGeometry"
+            )
+            set_tests_properties(ArtifactFbxLightRayTracingD3D12IntegrationTest PROPERTIES
+                ENVIRONMENT
+                    "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=d3d12;ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/d3d12/$<CONFIG>"
+                LABELS "fbx;model3d;light;ray-tracing;renderer;gpu;composition;integration;contract;d3d12"
+                TIMEOUT 180
+                RUN_SERIAL TRUE
+            )
+        endif()
+    endif()
+    if(VULKAN_SUPPORTED AND D3D12_SUPPORTED)
+        foreach(_light_case IN LISTS _artifact_model3d_light_integration_cases)
+            string(TOLOWER "${_light_case}" _light_case_lower)
+            set(_light_test_name
+                "ArtifactModel3DLightCompositionD3D12${_light_case}IntegrationTest")
+            add_test(NAME "${_light_test_name}"
+                COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+                    "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerApplies${_light_case}LightLayer"
+            )
+            set_tests_properties("${_light_test_name}" PROPERTIES
+                ENVIRONMENT
+                    "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=d3d12;ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/d3d12/$<CONFIG>"
+                LABELS "layer;model3d;light;renderer;gpu;composition;integration;contract;d3d12;${_light_case_lower}"
+                TIMEOUT 180
+                RUN_SERIAL TRUE
+            )
+        endforeach()
+        add_test(NAME ArtifactModel3DLightCompositionD3D12PointLinkingIntegrationTest
+            COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+                "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerRespectsPointLightLinking"
+        )
+        set_tests_properties(ArtifactModel3DLightCompositionD3D12PointLinkingIntegrationTest PROPERTIES
+            ENVIRONMENT
+                "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=d3d12;ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/d3d12/$<CONFIG>"
+            LABELS "layer;model3d;light;light-linking;renderer;gpu;composition;integration;contract;d3d12;point"
+            TIMEOUT 180
+            RUN_SERIAL TRUE
+        )
+        add_test(NAME ArtifactModel3DLightCompositionD3D12MultiplePointLightsIntegrationTest
+            COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+                "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerCombinesMultiplePointLights"
+        )
+        set_tests_properties(ArtifactModel3DLightCompositionD3D12MultiplePointLightsIntegrationTest PROPERTIES
+            ENVIRONMENT
+                "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=d3d12;ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/d3d12/$<CONFIG>"
+            LABELS "layer;model3d;light;multiple-lights;renderer;gpu;composition;integration;contract;d3d12;point"
+            TIMEOUT 180
+            RUN_SERIAL TRUE
+        )
+        add_test(NAME ArtifactModel3DLightCompositionD3D12VisibilityIntegrationTest
+            COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+                "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerRespectsLightVisibilityAndModelOptOut"
+        )
+        set_tests_properties(ArtifactModel3DLightCompositionD3D12VisibilityIntegrationTest PROPERTIES
+            ENVIRONMENT
+                "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=d3d12;ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/d3d12/$<CONFIG>"
+            LABELS "layer;model3d;light;visibility;renderer;gpu;composition;integration;contract;d3d12;point"
+            TIMEOUT 180
+            RUN_SERIAL TRUE
+        )
+        add_test(NAME ArtifactModel3DLightCompositionD3D12OcclusionIntegrationTest
+            COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+                "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerDepthOccludesLaterFarModel"
+        )
+        set_tests_properties(ArtifactModel3DLightCompositionD3D12OcclusionIntegrationTest PROPERTIES
+            ENVIRONMENT
+                "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=d3d12;ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/d3d12/$<CONFIG>"
+            LABELS "layer;model3d;light;occlusion;depth;renderer;gpu;composition;integration;contract;d3d12"
+            TIMEOUT 180
+            RUN_SERIAL TRUE
+        )
+    endif()
+    if(WIN32)
+        add_test(NAME ArtifactModel3DLightWindowsSehDetectionTest
+            COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+                "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerAppliesPointLightLayer"
+        )
+        set_tests_properties(ArtifactModel3DLightWindowsSehDetectionTest PROPERTIES
+            ENVIRONMENT "ARTIFACT_TEST_TRIGGER_UNHANDLED_EXCEPTION=1"
+            PASS_REGULAR_EXPRESSION "SEH exception with code 0xc0000005 thrown in the test body"
+            LABELS "layer;model3d;light;exception;seh;diagnostic;standalone"
+            TIMEOUT 30
+            RUN_SERIAL TRUE
+        )
+    endif()
+endif()

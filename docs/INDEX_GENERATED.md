@@ -1,7 +1,7 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-14 11:15
-> Total documents: 1448
+> Generated: 2026-10-15 09:01
+> Total documents: 1449
 
 ---
 
@@ -620,7 +620,7 @@
 | 25 | `docs/planned/MILESTONE_2D_DEFORMER_2026-09-23.md` | 2D デフォーマ統合計画 | 2026-10-02 | In Progress | 2026-10-02 | 15.1 KB | DEFORMER |
 | 26 | `docs/planned/MILESTONE_2D_POINT_TRACKER_2026-06-02.md` | M-MOTION-1 2D Point Tracker (2026-06-02) | 2026-08-04 | Initial design; implementation status moved to 2026-06-16 execution milestone | 2026-08-06 | 6.4 KB | POINT, TRACKER |
 | 27 | `docs/planned/MILESTONE_2D_POINT_TRACKER_2026-06-16.md` | M-2DTRACK-1 2D Point Tracker Milestone | 2026-06-16 | Phase 1〜3 基盤実装済み; planar/undo/diagnostics/performance/runtime verification pending | 2026-08-16 | 18.9 KB | POINT, TRACKER |
-| 28 | `docs/planned/MILESTONE_3D_COMPOSITING_2026-07-08.md` | Milestone: 3D Compositing（コンポジション内ライブ 3D シーン） (2026-07-08) | 2026-07-08 | Phase 1A〜1K の静的実装を確認済み。Phase 2/3 の本格統合と実機検証待ち。 | 2026-08-16 | 10.6 KB | COMPOSITING |
+| 28 | `docs/planned/MILESTONE_3D_COMPOSITING_2026-07-08.md` | Milestone: 3D Compositing（コンポジション内ライブ 3D シーン） (2026-07-08) | 2026-07-08 | Phase 1A〜1K の静的実装を確認済み。Phase 2/3 の本格統合と実機検証待ち。 | 2026-08-16 | 13.0 KB | COMPOSITING |
 | 29 | `docs/planned/MILESTONE_3D_MATERIAL_SYSTEM_2026-03-31.md` | MILESTONE: 3D Material System | 2026-10-14 | Material core、3D layer assignment、PBR texture input、shader/render 接続、Inspector／JSON、Matte／Metal／Plastic／Glass の preset 適用、RT triangleごとのscalar material slot選択、RT UV伝搬、AO／base color／metallic-roughness／normal／independent coat-normal／clearcoat factor／clearcoat roughness／sheen color／sheen roughness／anisotropy／emission map samplingとray-coneによるtexture mip選択、linear float Base Color TextureのsRGB storage encoding、Raster複数slotのscalar Principled定数とslot別texture SRV切替、Masked材質のshadow alpha clip、material range別alpha pass、Principled specular tint、dielectric thin-film interference（RGB 3波長近似、反射と透過のエネルギー配分）、異方性direct／IBL反射、Disney/Burley diffuse、Cycles風 diffuse roughnessのdirect single／multi-scatter energy補償近似、subsurface weight／IOR／color/radius／anisotropyによるFresnel・散乱方向制御（厚みを追跡しない高速近似）、coat normal varianceによるroughness filtering、coatがsheenと基材反射・透過より上にあるdirect／IBL energy ordering、Emissionのcoat／sheen層下配置に対応する視線方向energy attenuation、Base Color／Metallic-Roughness／Normal／Coat Normal／Clearcoat factor／Clearcoat roughness／Sheen color／Sheen roughness／Anisotropy／Occlusion／Emission／OpacityのUV0／UV1選択、ufbx/glTFおよびOBJ/MTLのmaterial table単位Principled scalar／tint／texture importと、material partごとのRaster／RT slot mappingはコード実装済み。独立 Material Browser／asset 管理、高度 mapping、実制作mesh/HDRでのRaster／RT parityは pending。Raster／RT shader変更後build/runtime verificationも pending。 | 2026-10-14 | 60.4 KB | MATERIAL, SYSTEM |
 | 30 | `docs/planned/MILESTONE_3D_MODEL_IMPORT_AND_CONTENTS_VIEWER_2026-03-29.md` | マイルストーン: 3D Model Import and Contents Viewer Integration | 2026-03-29 | ** Phase 1〜4 は実装済み、Phase 5 は拡張余地と runtime 検証が残る。 | 2026-08-21 | 10.0 KB | MODEL, IMPORT, AND, CONTENTS |
 | 31 | `docs/planned/MILESTONE_3D_MODEL_REVIEW_IN_CONTENTS_VIEWER_2026-03-28.md` | マイルストーン: 3D Model Review in Contents Viewer | 2026-08-04 | Phase 1〜4 implemented, Phase 5 compare hooks and runtime verification pending | 2026-08-06 | 8.1 KB | MODEL, REVIEW, CONTENTS |
@@ -910,7 +910,7 @@
 | 315 | `docs/planned/MILESTONE_FACE_DETECTION_MOSAIC_2026-04-01.md` | Milestone: Face Detection & Auto-Mosaic (2026-04-01) | 2026-04-01 | FaceDetection／FaceTracker／AutoMosaic の基盤実装済み、モデル運用・UI・runtime parity は未完了 | 2026-08-16 | 7.3 KB | FACE, DETECTION, MOSAIC |
 | 316 | `docs/planned/MILESTONE_FARM_WORKER_REMOTE_RENDER_2026-08-01.md` | リモートレンダーファームワーカー 実装マイルストーン | 2026-08-01 | --- | 2026-08-16 | 10.8 KB | FARM, WORKER, REMOTE, RENDER |
 | 317 | `docs/planned/MILESTONE_FAST_TEST_SUITES_AND_UI_VISUAL_REGRESSION_2026-10-06.md` | Artifact.exe 非依存テストスイートと UI ビジュアル回帰計画 | 2026-10-11 | In Progress | 2026-10-12 | 264.2 KB | FAST, TEST, SUITES, AND |
-| 318 | `docs/planned/MILESTONE_FBX_ANIMATION_VIEWER_TEST_2026-10-14.md` | FBX アニメーション独立ビューアテスト | 2026-10-14 | Runtime 読み込み確認済み、viewport画質確認待ち | --- | 4.5 KB | FBX, ANIMATION, VIEWER, TEST |
+| 318 | `docs/planned/MILESTONE_FBX_ANIMATION_VIEWER_TEST_2026-10-14.md` | FBX アニメーション独立ビューアテスト | 2026-10-15 | D3D12／VulkanでFBX表示・MCP・独立metallic／roughness画像を確認済み。Core importer 6ケースpass。 | 2026-10-14 | 42.8 KB | FBX, ANIMATION, VIEWER, TEST |
 | 319 | `docs/planned/MILESTONE_FEATURE_EXPANSION_2026-03-25.md` | マイルストーン: 機能追加 / Feature Expansion | 2026-03-25 | --- | 2026-08-16 | 14.4 KB | FEATURE, EXPANSION |
 | 320 | `docs/planned/MILESTONE_FEATURE_EXPANSION_FOCUS_TRIO_2026-03-28.md` | マイルストーン: Feature Expansion Focus Trio | 2026-03-28 | --- | 2026-08-16 | 5.9 KB | FEATURE, EXPANSION, FOCUS, TRIO |
 | 321 | `docs/planned/MILESTONE_FFMPEG_81_PRORES_GPU_DECODE_LOW_LEVEL_AI_2026-05-23.md` | FFmpeg 8.1+ ProRes GPU Decode - Low Level AI Implementation Milestone | 2026-09-07 | --- | 2026-09-08 | 14.1 KB | FFMPEG, PRORES, GPU, DECODE |
@@ -1400,7 +1400,7 @@
 | 24 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.3 KB | IMPL, DOF |
 | 25 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.8 KB | IMPL, SSAO |
 | 26 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.6 KB | IMPL, TONE, MAPPING |
-| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-14 | --- | 2026-10-14 | 356.2 KB | INDEX, GENERATED |
+| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-15 | --- | 2026-10-14 | 356.4 KB | INDEX, GENERATED |
 | 28 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 29 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 12.0 KB | CAMERA, PROJECTION |
 | 30 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
@@ -1485,7 +1485,7 @@
 | 14 | `docs/spec/SPEC_VIEWPORT_NAVIGATION_TOOLS_2026-07-31.md` | Hand / Zoom / Rotation / AnchorPoint ツール 要求動作一覧 | 2026-07-31 | --- | 2026-08-03 | 6.5 KB | SPEC, VIEWPORT, NAVIGATION, TOOLS |
 | 15 | `docs/spec/SPEC_VIEWPORT_RULER_SCALE_OVERLAY_2026-07-31.md` | Maya-style Viewport Scale / Ruler Overlay 設計 | 2026-07-31 | --- | 2026-08-03 | 12.4 KB | SPEC, VIEWPORT, RULER, SCALE, OVERLAY |
 
-## technical (62 files)
+## technical (63 files)
 
 | # | File | Title | Date | Status | Modified | Size | Keywords |
 |---|------|-------|------|--------|----------|------|----------|
@@ -1520,37 +1520,38 @@
 | 29 | `docs/technical/LAYER_PROPERTY_ENVELOPE_ARCHITECTURE_2026-07-24.md` | Layer Property Envelope Architecture | 2026-07-24 | Proposed | 2026-07-25 | 4.0 KB | LAYER, PROPERTY, ENVELOPE, ARCHITECTURE |
 | 30 | `docs/technical/LAYER_PROPERTY_PRIORITY_RULES.md` | レイヤー別プロパティ優先度ルール | 2026-08-31 | --- | 2026-08-31 | 5.6 KB | LAYER, PROPERTY, PRIORITY, RULES |
 | 31 | `docs/technical/LAYER_VIEW_DILIGENT_OPERATION_FIX_2026-03-27.md` | レイヤービュー（Diligent 版）操作不能問題 修正レポート (2026-03-27) | 2026-03-27 | 修正完了（5 件） | 2026-03-27 | 7.9 KB | LAYER, VIEW, DILIGENT, OPERATION, FIX |
-| 32 | `docs/technical/LOCAL_AI_PREPROCESSOR_IMPLEMENTATION_2026-03-27.md` | ローカル AI プリプロセッサー実装レポート (2026-03-27) | 2026-03-27 | 実装完了 | 2026-03-27 | 14.1 KB | LOCAL, PREPROCESSOR, IMPLEMENTATION |
-| 33 | `docs/technical/LOD_SYSTEM_FEASIBILITY_ANALYSIS_2026-03-28.md` | LOD システム実現可能性分析レポート | 2026-03-28 | 調査完了 | 2026-03-30 | 11.7 KB | LOD, SYSTEM, FEASIBILITY, ANALYSIS |
-| 34 | `docs/technical/LOD_SYSTEM_PHASE1_IMPLEMENTATION_2026-03-28.md` | LOD システム第 1 段階 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 8.6 KB | LOD, SYSTEM, PHASE1, IMPLEMENTATION |
-| 35 | `docs/technical/LOW_HANGING_FRUITS_IMPLEMENTATION_STATUS_2026-03-28.md` | ローハングフルーツ実装状況調査レポート | 2026-03-28 | 調査完了 | 2026-03-30 | 8.0 KB | LOW, HANGING, FRUITS, IMPLEMENTATION, STATUS |
-| 36 | `docs/technical/MATTE_BLEND_COMPOSITING_ORDER_2026-07-03.md` | Matte / Blend Compositing Evaluation Order | 2026-07-03 | --- | 2026-07-05 | 5.4 KB | MATTE, BLEND, COMPOSITING, ORDER |
-| 37 | `docs/technical/MILESTONE_EXPANSION_ANALYSIS_2026-03-28.md` | マイルストーン拡充可能性分析レポート | 2026-03-28 | 調査完了 | 2026-03-30 | 10.9 KB | EXPANSION, ANALYSIS |
-| 38 | `docs/technical/MILESTONE_IMPLEMENTATION_STATUS_SUMMARY_2026-03-28.md` | マイルストーン実装状況サマリー | 2026-03-28 | --- | 2026-04-08 | 9.5 KB | IMPLEMENTATION, STATUS, SUMMARY |
-| 39 | `docs/technical/MILESTONE_VIEWPORT_NAVIGATION_CONTRACT_STATUS_2026-09-04.md` | Viewport Navigation Contract Status (2026-09-04) | 2026-09-04 | --- | 2026-09-04 | 6.2 KB | VIEWPORT, NAVIGATION, CONTRACT, STATUS |
-| 40 | `docs/technical/MOTION_TRACKING_CORE_PRO_ARCHITECTURE_2026-07-11.md` | Motion Tracking Core — Professional Architecture | 2026-07-11 | In Progress | 2026-07-12 | 3.2 KB | MOTION, TRACKING, CORE, PRO, ARCHITECTURE |
-| 41 | `docs/technical/MULTICHANNEL_RENDERER_FEASIBILITY_REPORT.md` | マルチチャンネルレンダラー 実装可能性レポート | 2026-04-18 | --- | 2026-04-19 | 4.7 KB | MULTICHANNEL, RENDERER, FEASIBILITY, REPORT |
-| 42 | `docs/technical/RENDER_FORMAT_CONTRACT_2026-05-16.md` | Render Format Contract | 2026-05-16 | Proposed canonical contract for internal composition rendering | 2026-05-16 | 5.4 KB | RENDER, FORMAT, CONTRACT |
-| 43 | `docs/technical/RENDER_QUEUE_PROGRESS_SLIDER_BUG_REPORT.md` | レンダーキューマネージャー 進捗率スライダーバグ調査レポート | 2026-03-27 | 調査完了 | 2026-03-27 | 22.4 KB | RENDER, QUEUE, PROGRESS, SLIDER, BUG |
-| 44 | `docs/technical/RENDER_QUEUE_PROGRESS_SLIDER_FIX_REPORT_2026-03-27.md` | レンダーキューマネージャー 進捗率スライダーバグ修正レポート | 2026-03-27 | 修正完了（4 バグ） | 2026-03-27 | 14.6 KB | RENDER, QUEUE, PROGRESS, SLIDER, FIX |
-| 45 | `docs/technical/RENDER_RECOVERY_LAYER_IDENTITY_IMPLEMENTATION_2026-03-27.md` | Render Recovery & Layer Identity 実装レポート (2026-03-27) | 2026-03-27 | 実装完了 | 2026-03-27 | 10.3 KB | RENDER, RECOVERY, LAYER, IDENTITY, IMPLEMENTATION |
-| 46 | `docs/technical/RENDER_ROI_CONTEXT_IMPLEMENTATION_2026-03-28.md` | RenderROI & RenderContext 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 12.6 KB | RENDER, ROI, CONTEXT, IMPLEMENTATION |
-| 47 | `docs/technical/REVEAL_COVERAGE_SPEC.md` | 共通 Reveal / Coverage 仕様書 | 2026-10-01 | ** 実装反映中（ソース実装あり、ビルド・実機検証未実施） | 2026-10-01 | 14.5 KB | REVEAL, COVERAGE, SPEC |
-| 48 | `docs/technical/ROI_IMPLEMENTATION_GUIDE_2026-03-28.md` | ROI 実装ガイド - 成功率を上げるための完全手順 | 2026-03-28 | 実装手順確定 | 2026-03-30 | 15.1 KB | ROI, IMPLEMENTATION, GUIDE |
-| 49 | `docs/technical/ROI_IMPLEMENTATION_SPECIFICATION_2026-03-28.md` | ROI (Region of Interest) 実装仕様書 | 2026-03-28 | 実装仕様確定 | 2026-03-30 | 14.7 KB | ROI, IMPLEMENTATION, SPECIFICATION |
-| 50 | `docs/technical/ROI_PHASE1_2_3_IMPLEMENTATION_COMPLETE_2026-03-28.md` | ROI 実装 段階 1-3 完了レポート | 2026-03-28 | 段階 1-3 完了 | 2026-03-30 | 8.0 KB | ROI, PHASE1, IMPLEMENTATION |
-| 51 | `docs/technical/ROI_SPECIFICATION_2026-03-28.md` | ROI (Region of Interest) 仕様書 | 2026-03-28 | 仕様確定 | 2026-03-30 | 11.9 KB | ROI, SPECIFICATION |
-| 52 | `docs/technical/SHAPEPATH_GEOMETRY_CONTRACT_2026-07-27.md` | ShapePath ジオメトリ契約 | 2026-07-27 | ** Phase 0 documented; implementation and design-review follow-up pending | 2026-07-30 | 4.5 KB | SHAPEPATH, GEOMETRY, CONTRACT |
-| 53 | `docs/technical/SHORTCUT_SYSTEM_PHASE1_3_IMPLEMENTATION_2026-03-28.md` | Blender 風ショートカットシステム 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 11.2 KB | SHORTCUT, SYSTEM, PHASE1, IMPLEMENTATION |
-| 54 | `docs/technical/SOFT_KEYFRAMES_2026-10-05.md` | ソフトキー | 2026-10-05 | --- | 2026-10-05 | 2.5 KB | SOFT, KEYFRAMES |
-| 55 | `docs/technical/STARTUP_FLAGS_CONTRACT_2026-09-29.md` | 起動設定（ArtifactStartup.json）仕様 | 2026-10-11 | --- | 2026-10-12 | 9.7 KB | STARTUP, FLAGS, CONTRACT |
-| 56 | `docs/technical/STATUSBAR_COMPOSITION_INFO_IMPLEMENTATION_2026-03-28.md` | ステータスバー コンポジション情報表示 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 7.6 KB | STATUSBAR, COMPOSITION, INFO, IMPLEMENTATION |
-| 57 | `docs/technical/STD_REPLACEMENT_PRIORITY_GUIDE_2026-06-19.md` | Standard Library Replacement Priority Guide | 2026-06-19 | --- | 2026-06-19 | 3.8 KB | STD, REPLACEMENT, PRIORITY, GUIDE |
-| 58 | `docs/technical/TIMELINE_PERFORMANCE_HYPOTHESES_2026-03-27.md` | レイヤータイムラインウィンドウ 性能改善仮説レポート (2026-03-27) | 2026-03-27 | 調査完了・仮説立案 | 2026-03-27 | 14.8 KB | TIMELINE, PERFORMANCE, HYPOTHESES |
-| 59 | `docs/technical/TRACKING_APP_BRIDGE_DESIGN_2026-07-11.md` | Tracking App Bridge Design | 2026-07-11 | --- | 2026-07-12 | 2.5 KB | TRACKING, APP, BRIDGE, DESIGN |
-| 60 | `docs/technical/UNDO_REDO_INTEGRATION_PHASE1_2026-03-28.md` | Undo/Redo 統合 実装レポート 段階 1 | 2026-03-28 | 段階 1 完了 | 2026-03-30 | 8.5 KB | UNDO, REDO, INTEGRATION, PHASE1 |
-| 61 | `docs/technical/UNDO_REDO_INTEGRATION_PHASE2_2026-04-13.md` | Undo/Redo 統合 実装レポート 段階 2 | 2026-04-13 | 段階 2 完了 | 2026-04-13 | 1.3 KB | UNDO, REDO, INTEGRATION, PHASE2 |
-| 62 | `docs/technical/VIDEOLAYER_PROXY_PROJECT_MANAGEMENT_IMPLEMENTATION_2026-03-28.md` | VideoLayer Proxy & プロジェクト管理 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 7.9 KB | VIDEOLAYER, PROXY, PROJECT, MANAGEMENT, IMPLEMENTATION |
+| 32 | `docs/technical/LIGHT_COMPOSITION_TEST_MCP.md` | 独立3D／ライトテストのMCP操作 | 2026-10-15 | --- | --- | 14.2 KB | LIGHT, COMPOSITION, TEST, MCP |
+| 33 | `docs/technical/LOCAL_AI_PREPROCESSOR_IMPLEMENTATION_2026-03-27.md` | ローカル AI プリプロセッサー実装レポート (2026-03-27) | 2026-03-27 | 実装完了 | 2026-03-27 | 14.1 KB | LOCAL, PREPROCESSOR, IMPLEMENTATION |
+| 34 | `docs/technical/LOD_SYSTEM_FEASIBILITY_ANALYSIS_2026-03-28.md` | LOD システム実現可能性分析レポート | 2026-03-28 | 調査完了 | 2026-03-30 | 11.7 KB | LOD, SYSTEM, FEASIBILITY, ANALYSIS |
+| 35 | `docs/technical/LOD_SYSTEM_PHASE1_IMPLEMENTATION_2026-03-28.md` | LOD システム第 1 段階 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 8.6 KB | LOD, SYSTEM, PHASE1, IMPLEMENTATION |
+| 36 | `docs/technical/LOW_HANGING_FRUITS_IMPLEMENTATION_STATUS_2026-03-28.md` | ローハングフルーツ実装状況調査レポート | 2026-03-28 | 調査完了 | 2026-03-30 | 8.0 KB | LOW, HANGING, FRUITS, IMPLEMENTATION, STATUS |
+| 37 | `docs/technical/MATTE_BLEND_COMPOSITING_ORDER_2026-07-03.md` | Matte / Blend Compositing Evaluation Order | 2026-07-03 | --- | 2026-07-05 | 5.4 KB | MATTE, BLEND, COMPOSITING, ORDER |
+| 38 | `docs/technical/MILESTONE_EXPANSION_ANALYSIS_2026-03-28.md` | マイルストーン拡充可能性分析レポート | 2026-03-28 | 調査完了 | 2026-03-30 | 10.9 KB | EXPANSION, ANALYSIS |
+| 39 | `docs/technical/MILESTONE_IMPLEMENTATION_STATUS_SUMMARY_2026-03-28.md` | マイルストーン実装状況サマリー | 2026-03-28 | --- | 2026-04-08 | 9.5 KB | IMPLEMENTATION, STATUS, SUMMARY |
+| 40 | `docs/technical/MILESTONE_VIEWPORT_NAVIGATION_CONTRACT_STATUS_2026-09-04.md` | Viewport Navigation Contract Status (2026-09-04) | 2026-09-04 | --- | 2026-09-04 | 6.2 KB | VIEWPORT, NAVIGATION, CONTRACT, STATUS |
+| 41 | `docs/technical/MOTION_TRACKING_CORE_PRO_ARCHITECTURE_2026-07-11.md` | Motion Tracking Core — Professional Architecture | 2026-07-11 | In Progress | 2026-07-12 | 3.2 KB | MOTION, TRACKING, CORE, PRO, ARCHITECTURE |
+| 42 | `docs/technical/MULTICHANNEL_RENDERER_FEASIBILITY_REPORT.md` | マルチチャンネルレンダラー 実装可能性レポート | 2026-04-18 | --- | 2026-04-19 | 4.7 KB | MULTICHANNEL, RENDERER, FEASIBILITY, REPORT |
+| 43 | `docs/technical/RENDER_FORMAT_CONTRACT_2026-05-16.md` | Render Format Contract | 2026-05-16 | Proposed canonical contract for internal composition rendering | 2026-05-16 | 5.4 KB | RENDER, FORMAT, CONTRACT |
+| 44 | `docs/technical/RENDER_QUEUE_PROGRESS_SLIDER_BUG_REPORT.md` | レンダーキューマネージャー 進捗率スライダーバグ調査レポート | 2026-03-27 | 調査完了 | 2026-03-27 | 22.4 KB | RENDER, QUEUE, PROGRESS, SLIDER, BUG |
+| 45 | `docs/technical/RENDER_QUEUE_PROGRESS_SLIDER_FIX_REPORT_2026-03-27.md` | レンダーキューマネージャー 進捗率スライダーバグ修正レポート | 2026-03-27 | 修正完了（4 バグ） | 2026-03-27 | 14.6 KB | RENDER, QUEUE, PROGRESS, SLIDER, FIX |
+| 46 | `docs/technical/RENDER_RECOVERY_LAYER_IDENTITY_IMPLEMENTATION_2026-03-27.md` | Render Recovery & Layer Identity 実装レポート (2026-03-27) | 2026-03-27 | 実装完了 | 2026-03-27 | 10.3 KB | RENDER, RECOVERY, LAYER, IDENTITY, IMPLEMENTATION |
+| 47 | `docs/technical/RENDER_ROI_CONTEXT_IMPLEMENTATION_2026-03-28.md` | RenderROI & RenderContext 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 12.6 KB | RENDER, ROI, CONTEXT, IMPLEMENTATION |
+| 48 | `docs/technical/REVEAL_COVERAGE_SPEC.md` | 共通 Reveal / Coverage 仕様書 | 2026-10-01 | ** 実装反映中（ソース実装あり、ビルド・実機検証未実施） | 2026-10-01 | 14.5 KB | REVEAL, COVERAGE, SPEC |
+| 49 | `docs/technical/ROI_IMPLEMENTATION_GUIDE_2026-03-28.md` | ROI 実装ガイド - 成功率を上げるための完全手順 | 2026-03-28 | 実装手順確定 | 2026-03-30 | 15.1 KB | ROI, IMPLEMENTATION, GUIDE |
+| 50 | `docs/technical/ROI_IMPLEMENTATION_SPECIFICATION_2026-03-28.md` | ROI (Region of Interest) 実装仕様書 | 2026-03-28 | 実装仕様確定 | 2026-03-30 | 14.7 KB | ROI, IMPLEMENTATION, SPECIFICATION |
+| 51 | `docs/technical/ROI_PHASE1_2_3_IMPLEMENTATION_COMPLETE_2026-03-28.md` | ROI 実装 段階 1-3 完了レポート | 2026-03-28 | 段階 1-3 完了 | 2026-03-30 | 8.0 KB | ROI, PHASE1, IMPLEMENTATION |
+| 52 | `docs/technical/ROI_SPECIFICATION_2026-03-28.md` | ROI (Region of Interest) 仕様書 | 2026-03-28 | 仕様確定 | 2026-03-30 | 11.9 KB | ROI, SPECIFICATION |
+| 53 | `docs/technical/SHAPEPATH_GEOMETRY_CONTRACT_2026-07-27.md` | ShapePath ジオメトリ契約 | 2026-07-27 | ** Phase 0 documented; implementation and design-review follow-up pending | 2026-07-30 | 4.5 KB | SHAPEPATH, GEOMETRY, CONTRACT |
+| 54 | `docs/technical/SHORTCUT_SYSTEM_PHASE1_3_IMPLEMENTATION_2026-03-28.md` | Blender 風ショートカットシステム 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 11.2 KB | SHORTCUT, SYSTEM, PHASE1, IMPLEMENTATION |
+| 55 | `docs/technical/SOFT_KEYFRAMES_2026-10-05.md` | ソフトキー | 2026-10-05 | --- | 2026-10-05 | 2.5 KB | SOFT, KEYFRAMES |
+| 56 | `docs/technical/STARTUP_FLAGS_CONTRACT_2026-09-29.md` | 起動設定（ArtifactStartup.json）仕様 | 2026-10-11 | --- | 2026-10-12 | 9.7 KB | STARTUP, FLAGS, CONTRACT |
+| 57 | `docs/technical/STATUSBAR_COMPOSITION_INFO_IMPLEMENTATION_2026-03-28.md` | ステータスバー コンポジション情報表示 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 7.6 KB | STATUSBAR, COMPOSITION, INFO, IMPLEMENTATION |
+| 58 | `docs/technical/STD_REPLACEMENT_PRIORITY_GUIDE_2026-06-19.md` | Standard Library Replacement Priority Guide | 2026-06-19 | --- | 2026-06-19 | 3.8 KB | STD, REPLACEMENT, PRIORITY, GUIDE |
+| 59 | `docs/technical/TIMELINE_PERFORMANCE_HYPOTHESES_2026-03-27.md` | レイヤータイムラインウィンドウ 性能改善仮説レポート (2026-03-27) | 2026-03-27 | 調査完了・仮説立案 | 2026-03-27 | 14.8 KB | TIMELINE, PERFORMANCE, HYPOTHESES |
+| 60 | `docs/technical/TRACKING_APP_BRIDGE_DESIGN_2026-07-11.md` | Tracking App Bridge Design | 2026-07-11 | --- | 2026-07-12 | 2.5 KB | TRACKING, APP, BRIDGE, DESIGN |
+| 61 | `docs/technical/UNDO_REDO_INTEGRATION_PHASE1_2026-03-28.md` | Undo/Redo 統合 実装レポート 段階 1 | 2026-03-28 | 段階 1 完了 | 2026-03-30 | 8.5 KB | UNDO, REDO, INTEGRATION, PHASE1 |
+| 62 | `docs/technical/UNDO_REDO_INTEGRATION_PHASE2_2026-04-13.md` | Undo/Redo 統合 実装レポート 段階 2 | 2026-04-13 | 段階 2 完了 | 2026-04-13 | 1.3 KB | UNDO, REDO, INTEGRATION, PHASE2 |
+| 63 | `docs/technical/VIDEOLAYER_PROXY_PROJECT_MANAGEMENT_IMPLEMENTATION_2026-03-28.md` | VideoLayer Proxy & プロジェクト管理 実装レポート | 2026-03-28 | 実装完了 | 2026-03-30 | 7.9 KB | VIDEOLAYER, PROXY, PROJECT, MANAGEMENT, IMPLEMENTATION |
 
 ## theme-presets (1 files)
 
@@ -1632,9 +1633,9 @@
 | root | 61 |
 | shared | 24 |
 | spec | 15 |
-| technical | 62 |
+| technical | 63 |
 | theme-presets | 1 |
 | trash | 1 |
 | verification | 1 |
 | worklog | 28 |
-| **Total** | **1448** |
+| **Total** | **1449** |

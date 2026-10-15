@@ -3282,11 +3282,38 @@
 
 ### 2026-10-14: 独立FBX viewerの再現手順にruntime DLLとmodule IFC準備が必要
 
-- **関連:** `CMakeLists.txt` の `ArtifactFbxAnimationViewer`、`ArtifactAppRuntime`、`ArtifactCore` module targets。
+- **関連:** `CMakeLists.txt` の `ArtifactFbxAnimationViewer`、`ArtifactAppRuntime`、`ArtifactCore` module targets、`ArtifactCoreMeshImporterFbxTest`。
 - **確認済み事実:** 新しいビルドディレクトリでviewer targetはリンクできたが、実行ファイル単体ではvcpkg runtime DLL不足の終了コード`-1073741515`になった。vcpkgの通常／debug `bin`を子プロセスの`PATH`へ足すとプロセスは20秒間稼働した。Ninjaでは利用側の`ArtifactCoreText`／`ArtifactAppRuntime`が`Shape.Types`／`Memory.SharedPtr` IFCより先に走る失敗を観測し、producer targetを先行ビルドして回避した。
 - **価値／懸念:** 別の開発環境でFBXテストループを再現する際、起動時DLL配置とC++ module target順が隠れた前提になる。現状のGUI実行ではモデル読込状態を観測できず、ロード成功を確認した事実ではない。
-- **未検証の改善仮説:** viewer target向けのruntime DLL配置と、module producerへの明示的target dependencyがあれば、テスト担当者の手作業を減らせる可能性がある。CMakeの既存deploy方針と他exe targetへの副作用は未調査。
+- **追加対応:** `ArtifactCoreMeshImporterFbxTest` のWindows targetにもPOST_BUILD runtime DLL copyを設定した。module producerの順序依存と他exe targetへの影響は未調査。
 - **次に確認:** computer-use native RPCの復旧後に同じviewerを実画面で検証する。その後、CMakeのmodule dependency graphとruntime deployment規約を調べ、最小の再現性改善を別途判断する。
+
+### 2026-10-14: FBX importer回帰テストはfixture供給契約が必要
+
+- **関連:** `tests/ArtifactCore/MeshImporterFbxTest.cpp`、`ARTIFACT_ENABLE_FBX_IMPORT_TEST`。
+- **確認済み事実:** FBXのanimation stackとembedded texture bytesは実fixtureなしではImporter API経由の回帰検査ができない。追加したGTestはパスを環境変数で受け取り、CTest登録時はCMake cacheで設定したfixture pathを渡す。テスト有効時はfixture未指定や不存在をconfigure errorにする。
+- **未検証の改善仮説:** 小さいCC0のFBXをテスト専用fixtureとして同梱できれば、CIと開発者が追加準備なしで常時テストできる可能性がある。asset size、ライセンス表記、CMake配布先は未調査。
+- **価値／懸念:** 外部アセットへの暗黙依存や製品同梱を避けつつ、指定済みFBXのclip評価とembedded PNG展開を自動検査できる。CIではfixture供給とCMake cache設定が必要。
+- **次に確認:** ライセンスと容量を確認した最小のanimation＋base-color＋normal FBX fixtureを用意できるか判断し、可能ならfixture checksumと取得・保存方法をテスト契約に固定する。
+
+### 2026-10-14: FBX視覚QA素材は輪郭と色柄を両立させる
+
+- **関連:** `ArtifactFbxAnimationViewer`、FBX animation/texture validation fixture。
+- **確認済み事実:** Quaternius Animated Humanは歩行姿勢を読み取りやすい一方で色テクスチャがなく、Mixamo `Standard_Walk.fbx`は色付きtextureを持つが防具と片足装備がシルエット比較を難しくする。OpenGameArtのCC0 `Basic char textured animated`は説明上 diffuse/normal mapとRun/Idle等を含むものの、配布ZIPの内容は`.blend`とPNGのみでFBXを含まない。環境内にBlender実行ファイルも見つからなかった。
+- **価値／懸念:** 形状変形とtexture破損を画像認識で同じフレームから判定するには、明瞭な人型輪郭、分かれた色領域、実際のanimationを持つFBXが有効。別形式をQA素材として流用すると、形式変換工程の影響とImporter挙動を混同する。
+- **追加変更:** `tools/fbx/analyze_viewer_frames.py`でviewport背景を除いたモデルbbox・edge contact・silhouette IoU・彩度ピクセル率・遠隔foreground component面積を集計し、bbox/maskを重ねた画像とJSONを保存できるようにした。同一pose/timeのknown-good `--reference-image`または入力filenameごとの基準`--reference-dir`と比較するsilhouette IoU・前景BGR MAE・HSV histogram similarityに加え、16x32局所gridのshape mismatchとcolor MAEを追加した。さらに立位人型の下端20%を足先付近として別報告し、annotated preview上に境界線を描画する。`--min-reference-bottom-silhouette-iou`は明示指定時のみ有効にし、解剖学的な向き判定とは区別する。
+- **検証:** reference画像を自身と比較すると合格。Standard_Walkのモデル領域をグレースケール化した合成画像は彩度0.0／HSV similarity 0.09797で不合格、モデルの左半分を消した合成欠損画像はreference silhouette IoU 0.60095で不合格となった。別途Standard_Walkの同一Solid viewport capture 3枚で画面端接触0/3、silhouette変化2区間を検出し、画像認識で外形・四肢接続を確認した（textureの証拠には使っていない）。
+- **追加検証:** 16x32 gridではモデル上の8 px単色patchはBGR MAE 23.58で通過し、12 px以上は52.73〜121.05で不合格となった。60 px patchでも全体BGR MAE 3.89／HSV similarity 0.86にとどまり、局所指標の必要性を確認した。
+- **足領域の対照検証:** 同時刻Standard_Walk基準3枚はbottom-20% silhouette IoU 1.0で3/3合格。JPEG quality 92再圧縮は0.99714／差分13pxで0.80閾値を通過し、足先帯を左右反転した合成差分は0.36048／差分4,272pxで不合格になった。これはROI指標の制御試験で、実モデルの解剖学的な正しさやRangerの描画確認を示すものではない。
+- **誤検出確認:** Standard_Walkの同一clip内でも単一referenceを別poseへ適用すると、正常なframe 1枚がIoU 0.77913で不合格になった。同名対応の3枚基準folderに切り替えると3/3枚が合格し、時刻別参照がpose変化による誤検出を抑えることを確認した。
+- **確認上の訂正:** 以前のQuaternius walk検証で「足が切れていない」とした仮判断は、保存フレームの画像解析と目視で誤りと分かった。使用したフレームではモデルがviewport下端で切れていた。解析はこの再評価に使った既存画像に限られ、現行実装の再ビルド後確認ではない。
+- **価値／懸念:** 固定camera/viewportでのframe crop、無描画、急なsilhouette/area変化を人が全画像を探す前に抽出できる。reference比較はclip時刻・camera・viewportが一致する場合に限り有効。色histogramはtexture配置が変わっても分布が同じなら見逃し得る。彩度はUVの意味的正しさを保証せず、輪郭変化だけではskin崩れと正しい歩行動作を完全に区別しない。
+- **確認済み事実:** Quaternius RPG Character Packの`Ranger.fbx`をignoredな`out/build/x64-Debug/fbx-animation-test/quaternius-rpg-character-pack/`へ取得した。配布元`License.txt`はCC0 1.0。FBX binaryに`Foot.L`／`Foot.R`、`CharacterArmature|Walk`／`CharacterArmature|Run`を確認し、SHA-256は`CECC642A3CEDCD319FE0CB07F71985E07C788FE6759EF1CDA2240A52EC1D14A9`。同ファイルからPNG/JPEG signatureや画像拡張子参照は見つからないため、足・歩行のfixture候補に限定し、embedded texture確認には既存`Standard_Walk.fbx`を使う。
+- **追加確認:** 既存の`ArtifactFbxAnimationViewer.exe`でRangerを起動すると`Model loaded successfully. Vertices: 7704`を出し、画面statusは14 clips、#13 `CharacterArmature|Walk`、1.25秒、32 bones、ufbx backendを報告した。capture中にstatus時刻は0.26秒から0.86秒へ進んだ。一方、保存された`QScreen::grabWindow()` imageは白いD3D12 viewportで、モデル描画を画像認識できなかった。既存exeの読込・時刻進行確認であり、足向きの視覚QAではない。
+- **追加確認:** 2026-10-14にWindowsデスクトップをFFmpeg `gdigrab`で撮影すると、Ranger ViewerのD3D12モデル表示が取得できた。3時刻の画面にwalk姿勢の変化があり、単色silhouetteでも脚と靴状の足形状が見えるフレームがあった。CaptureはCodexウィンドウに覆われ、画面領域の遮蔽と不均一cropがあるため、連続定量比較・接地姿勢の正しさは未確認。
+- **CC0テクスチャ付き候補:** Quaternius公式 `Animated Man Pack` ページはCC0、FBX、animated、texturedと説明し、atlas textured maleとmany animationsを明記する。公式Driveフォルダ内のFBXファイルIDを特定したが、Driveのファイルdownload endpointはHTTP 500。Animated Men Packも公式CC0／FBX／Texturedだがfolder endpointがHTTP 400。候補特定はできたがassetの取得・内容・Viewer表示は未確認。
+- **別取得候補:** Quaternius公式itch.io `LowPoly Animated Knight`はCC0とWalk／Runを含むanimated FBX ZIP（8 MB）を公開する。itch.ioの無料purchase endpointは通常のdownload CTAを返すが、取得POSTは支払方法エラーとなりZIPを得られなかった。この公式説明はtexture付きとは明記していない。第三者GFX-HUBは700.8 MBの複数packコレクションにMan Animated ZIPを掲載するが、公式配布ではなく、必要な単体assetより大きく出所の検証が弱いため取得に使わない。
+- **訂正／次に確認:** ユーザーが意図したCC0モデルは足向き用Rangerだけでなく、当初からテクスチャ付きAnimated Man Packを使うことだった。RangerはCC0だがFBX内にtexture画像が見つからずtexture fixtureにはならない。Animated Man Pack FBXを取得できる公式またはミラー配布経路を確保し、Viewer上でWalkの複数時刻、両足、base color textureを一連で確認する。Importer GTestでは`ARTIFACT_FBX_ANIMATION_TEST_FILE`／`ARTIFACT_FBX_TEXTURE_TEST_FILE`もこの候補で実行可能か確認する。GTestはビルド／実行未確認。
 
 ### 2026-10-14: Audio Layerの音声レンダリングをComposition経由でも検証する
 
@@ -3295,3 +3322,102 @@
 - **変更:** トーンWAVのwaveform peak/RMS、layer PCM、Composition出力のvolume半減、Composition上で片方をmuteした場合との重ね合わせを確認する統合テストを追加した。さらにRender ManagerのWAVキューから異なる周波数の2音を含む音声を出力し、SimpleWavで読み戻すケースを追加した。両レイヤーを半音量にした2つ目の出力と比較し、対象をビルドしてCTestの3ケースが成功。
 - **価値／懸念:** Audio Layerのsource読込・波形・音量・重ね合わせをCompositionの実際の音声mixとRender ManagerのWAV出力まで含めて検証できる。video付きジョブに統合する音声経路は別の経路であり、このテスト範囲外。
 - **次に確認:** 動画レンダージョブに音声を統合する経路を変更する際は、video+audio出力の同期と最終containerを別途検証する。
+
+### 2026-10-14: Quaternius Knightは歩行表示には使えるが足向きQAには限定的
+
+- **関連:** `ArtifactFbxAnimationViewer`、`KnightCharacter.fbx`、Quaternius CC0 FBX素材選定。
+- **確認済み事実:** Quaternius公式itch.io `LowPoly Animated Knight`配布からZIPを取得した。`KnightCharacter.fbx`は2,092,236 bytesのFBX 7400、SHA-256 `41f2616fb4a42f9d35e242bbed1450ededc7537def4bf38cbb11b4e54ff2bf21`。公式配布はCC0とWalk／Runを含むアニメーションモデルとして説明される。同梱にPNG/JPEG画像もlicenseファイルもなく、FBX binaryにも画像pathなし。ZIPの109-frame Preview.gifは色付き騎士歩行を示す。
+- **追加確認:** 既存Viewerで2,058 vertices、31 bones、12 clips、ufbx backendとして読み込めた。`HumanArmature|Idle` #1で全身が表示され、gdigrabで取得した0.7秒差の同一viewport画像から脚・足の画素差が出て、再生時刻も進行した。#0 `HumanArmature|Death`は倒れる動きであり、歩行fixtureとして誤って使わないこと。Viewer描画は単色、足先は小さく装備も重なり、足の向きや接地を正しく評価できる画面証拠ではない。
+- **調査上の訂正:** 同梱素材として残っていたQuaternius `Animated Human.fbx`はFBX binaryとして正常だが、この既存Viewerでは`unsupported format`となり、過去記録の同Viewer成功を再現できなかった。`Character_HumanoidRig.fbx`もunsupported format、`Character.fbx`はウサギ。どちらも今turnの人体足向きQAには採用しない。
+- **価値／懸念:** Knightは既存Viewerで読み込めるQuaternius人型かつ歩行clipを持つため、読込・再生確認の候補を提供する。一方、テクスチャがなく騎士装備が脚を隠すため、足の向きとtextureを同時に判定する素材として不十分。
+- **次に確認:** ViewerがAnimated Humanをunsupported formatとする具体的なimporter errorと旧Viewer build差を調べる。ユーザーが色テクスチャ付き人体assetを希望する場合は、Quaternius公式Animated Man Packの取得失敗を踏まえ別の公式CC0 FBX候補が必要。Importer GTestやビルドはユーザー指示まで実行しない。
+
+### 2026-10-14: Modular Character Outfitsは衣装FBXでアニメ確認に使えない
+
+- **関連:** `ArtifactFbxAnimationViewer`、Quaternius `Modular Character Outfits - Fantasy[Standard]`、`Male_Ranger.fbx`。
+- **確認済み事実:** ユーザー取得ZIPはCC0 1.0。Standard版のMale Ranger FBXは既存Viewerで読み込めるがanimation clipが0件。FBXのtexture参照はQuaternius配布元の絶対Dropbox作業pathを指し、ZIP内のtexture画像は参照解決されずviewerがbase color読込失敗を記録した。左側サブディスプレイでSolid／Wireframeを確認し、静止A-poseのブーツ輪郭に明白な分離・欠損は見えなかった。
+- **価値／懸念:** CC0の色柄画像と人型衣装meshを保持するが、animation acceptance fixtureにはならず、絶対path参照のため現在のViewerでtexture描画も成立しない。足先の違和感がshading単独か、低ポリ形状・歩行pose・装備の見え方かは未検証。
+- **次に確認:** Quaterniusのアニメ付き人型FBXと相対pathまたはembedded textureを持つ配布物で同一時刻のSolid／Wireframe比較を行う。texture pathの移植可否やFBX編集は別途明示的な実装範囲として扱う。
+
+### 2026-10-14: Composition ControllerのGPU統合テストは光源ごとに別プロセスで実行する
+
+- **関連:** `tests/Artifact/Model3DLightCompositionIntegrationTest.cpp`、`tests/Artifact/CMakeLists.txt`、`CompositionRenderController`、`ArtifactCore/src/Graphics/MeshRenderer.cppm`、Diligent Vulkan／D3D12。
+- **確認済み事実:** 実 `CompositionRenderController` のtickerを起動し、OBJ fixtureを読み込んだ3Dモデルとライトレイヤーを連続2フレーム描画すると、ポイント／スポット／平行／環境／面のすべてで照射モデルの画素が赤優位になった。同じプロセス内で複数controller/deviceを順次初期化する試験は、2回目にDiligent Vulkanのglobal function pointer制約とGPU初期化失敗を起こしたため、CTestは光源ごとに別プロセスで実行する。unit cube fixtureはComposition cameraに対して小さすぎるため、テストだけXY scale 100で画面占有率をdefault modelに合わせる。
+- **不具合と修正:** 2フレーム目でDiligentのdebug assertionが `Mesh Position Buffer` のdynamic allocationをframe境界後に再利用していると検出した。頂点バッファを`USAGE_DEFAULT`へ変更し、`updateMeshGeometry()`で内容更新時だけGPU更新する設計にした。静的メッシュは初回、アニメーションメッシュは形状更新時のみ転送し、通常描画／shadow passごとの再uploadとCPU snapshotを除去した。位置バッファをメッシュシェーダー／レイトレーシングと共用し、頂点色なしは初期化時確保の白色fallbackを使う。また `Present()` 内でbackend自身が`FinishFrame()`を呼ぶため、renderer側の重複した`FinishFrame()`を除いた。
+- **テストの検出:** Composition統合exeはDiligent debug message callbackでERROR/FATALをatomic flagへ記録し、該当テストを失敗させる。Windows error dialogを無効化し、unhandled process exceptionには固定長の`WriteFile`診断を設けた。故意のSEH fault injectionをCTestで実行し、GoogleTestがtest-body例外`0xc0000005`を記録して失敗扱いにすることを確認した（test-bodyではGoogleTestがSEHを捕捉するため、unhandled filterではなくGoogleTestの診断が出る）。今回、offscreen画像テストexeにも起動時から同じERROR/FATAL callbackを登録し、DiligentのデバッグブレークとWindowsのクラッシュダイアログを抑止、renderer/device破棄後にエラーが記録されていれば環境teardownを失敗させるようにした。また、Diligent `LOG_ERROR_MESSAGE`で合成診断を通知する自己テストを追加し、callbackがERRORを捕捉しつつテスト実行を続けられることを確認した。対象exeのビルドとCTest 1件が成功し、通常のモデル／ライト画像ケースでDiligent ERROR/FATALがないことを確認した。
+- **readbackの訂正:** `captureCurrentFrameImage()`はfinal GPU readback surfaceがない場合、画面全体のscreen grabへfallbackする。取得PNGに別desktop windowが写るケースを確認し、そのfallbackによる従来の色判定を実シーンの証拠として扱わない。`CompositionRenderController::readbackPresentedFrameImage()`を追加し、completed composition textureだけをreadbackしてscreen captureにfallbackしないようにした。初回controller frameの直後はfinal surface未準備の場合があり、dirty renderを完了してからbaselineを採る。
+- **確認結果:** 低ポリicosphere OBJをComposition integration専用fixtureとし、モデルの実geometryと多数のnormalを実render pipelineに通す。Vulkan／D3D12を別processで実行する16ケース（5 light types、IncludeOnly linking、two lights、visibility/model opt-out）がすべてpassし、Diligent ERROR/FATALなし、red-lightの画素条件を満たす。2灯目追加によるred平均輝度増加は実readbackで約12.5%だったため、測定結果より厳しかった15%閾値を8%に修正し、両backendでpass。保存画像は各400x300で、backend間の平均絶対channel差は全caseで0.012以下。D3D12のMesh Shader PSO失敗は任意経路としてindexed pathへfallbackする。
+- **追加runtime確認:** 同じ低ポリモデルを同一位置・異なるZ深度・異なるbase colorで2個置き、near redの後にfar greenを描くケースを追加した。controller最終GPU surface readbackに対する「near redが優位」「geometryの画素量が範囲内」のassertionがVulkanとD3D12のCTest両方でpassした。これは単一の色判定であり、far model単体の表示コントロールやdepth順を反転した比較は未実施。captureではfallback camera時のgeometryが画像左上で切れて見えるため、viewport framingの視覚受入証拠としては不十分。
+- **ビルド環境の観察:** 追加のdepth反転controlをコンパイルしようとした別ビルドで、CMake再構成後のNinja module dyndepが`ArtifactEffectsColor.dir/CXX.dd`欠落、続けて`ArtifactAsset.dir/CXX.dd`のobject未記載を報告した。control実装は検証前に取り除き、既にビルド済みのtwo-model testへ戻してVulkan／D3D12 CTestを再実行し成功。失敗原因がこのbuild treeだけかCMake module scan一般かは未特定。
+- **価値／懸念:** 本suiteはproduction `CompositionRenderController`のlight collection、layer conversion、real GPU render、completed final composition readbackを検査する。single-light passはbackend全体やeditor UIの完全一致までは保証しない。簡単なopaque二重モデルケースは通ったが、far modelの可視性control、depth反転control、透明境界、shadow寄与は未検証。
+- **2026-10-14 の修正:** テストfixtureのモデルは原点配置だったが、実レンダラーのfallback cameraはコンポジション中央を注視するため、captureではgeometryが左上で切れていた。XY中央配置後もnear modelの大きさで上端が切れていたため、two-model testだけscaleを60から24へ下げた。画像の色判定を左上の固定領域から検出済みgeometry boundsへ移し、silhouetteが四辺の画像端へ接していないこともassertする。これはsource変更の記録であり、更新版のbuild／実行結果は未確認。
+- **次に確認:** build treeのCMake/Ninja module dyndep再生成手順を調べ、再ビルドが安定してからfar model単体の可視性とZ順反転を同じcontrollerで確認する。中央配置したモデル画像で深度assertionを両backend実行する。実アプリで3D／light layerを編集し、同じlighting結果とMesh Shader fallback表示を確認する。大規模・頻繁変形meshでは`UpdateBuffer`帯域とframe costを計測する。shadow、透明モデル、mask／DOF接続を別契約で受入れる。同じprocess内の複数Diligent device初期化可否は引き続き事前確認する。
+
+### 2026-10-15: 3D／ライトのデバッグをFBXテストMCPへ揃える
+
+- **dump解析:** `tools/inspect_light_minidump.py` でAMD64 exception contextとcaptured memoryをJSONへ抽出。実dumpのGetData stack上のsize `0x73e0e` と出力blobのbegin/end差が一致（474,638 bytes）。memcpy中のr8約2.7GBは出力blob容量と一致しない。native内部のサイズ／sourceの破損仮説は未検証で、原因断定はしない。関連artifact: `out/light-mcp/occlusion-dump-context.json`。symbol解決や完全なheap検査はこの小さなツールの範囲外。
+
+- **first-fault dump追加:** 独立test exeにアクセス違反時の一度だけのminidump保存とCPU register／access addressを追加。通常GTestのnative exception catchを無効にし、二次Qt終了例外の混入を防ぐ。合成SEH gateだけcatchを維持。実D3D12遮蔽faultで1,374,114-byte dumpを保存、合成SEH gate pass、D3D12 MCP15 capture pass。コピー中のr8=0xa3371b31は約2.7GBだが、元のSerialize引数や破損原因を示す証拠はまだない。dumpはWindows TempのArtifactLightTest-2408.dmp、runnerは固有dump pathと保存成否をreportへ記録する。
+- **D3D12 validation結果:** InfoQueueで MeshRendererのopaque／transparent／shadow cache name重複によるLoad desc mismatchとStore duplicate nameを観測。さらにPSOがtexture resource format UNORMで作成され、bound RTVがUNORM_SRGBのdraw mismatchを確認。Artifact側をviewのformat使用へ修正し、ArtifactCoreのopaque／transparent／meshlet／shadow PSOにprocess-wide atomic serial付き一意名を追加した。変更後のvalidation付きocclusion runもpassし、descriptor mismatch／duplicate Store／format mismatchは消えた。未登録名への初回Load warningは残る。Serialize access violationは間欠的に残り、PSO命名がその修正だとは証明していない。関連ログ: `out/light-mcp/occlusion-core-pso-cache-validation-current.log`。
+
+- **遮蔽例外のstack特定:** DbgHelpでstartup後のmodule listをrefreshし、exception CONTEXTからstackを取得した。最初のfaultはocclusion-destroy段階でShaderManager::savePSOCache→Diligent PipelineStateCacheD3D12Impl::GetData→D3D12Core::Serialize→memcpy。PSO生存中へsave順序を動かす仮説は同じfaultで否定され、順序変更を撤去した。Diligent constructorはCreatePipelineLibrary(nullptr,0)なので入力cache blobのローカル寿命説も今回のコードには一致しない。次に2モデル間のPSO cache load/store再利用とnative Serializeデータ寿命を確認する。logはout/light-mcp/occlusion-pso-serialize-failure.log。
+- **追加切り分け:** cache modeをSTOREだけにしても同じSerialize access violationが起き、load blob原因説を否定。destroy直前にrendererの`flushAndWait()`をテストから呼ぶ対照も実施したが、3反復中1回pass後に2回目が同じ`D3D12Core.dll` Serialize faultとなり、待機追加を撤去した。出力`out/light-mcp/occlusion-store-only-failure.log`。クラッシュは間欠的であり、原因や製品修正は未確定。次は複数MeshRenderer間のPSO cache name/store再利用と native library serializationを特定する。
+- **MCP診断情報の拡張:** `light.state` と各capture metadataに既存rendererのGPU validation文字列を追加。D3D12のdevice removed reasonと取得可能なInfoQueue、Vulkanのvalidation状態をJSONへ含める。更新exeを両backendで再実行し各15 capture成功、D3D12 deviceRemovedReason=0、InfoQueueはunavailable、Vulkanはunsupportedと記録した。D3D12遮蔽CTestの最終repeatは1回目で同じserialize fault（`out/light-mcp/occlusion-final-3-repeat.log`）。この診断追加はクラッシュ原因を修正していない。
+
+- **guide分離の検証:** lightの `draw()` は照明ではなくeditor controlsを描くため、production controllerのbeauty描画から既存overlayへ移した。光源収集は維持し、overlayではvisibility／active frame／selected-only／category／gizmo設定を守ってcamera指定中にflushする。testのthin-guide除外を撤去しraw GPU boundsへ戻した。両backend15画像、gizmo off/onのbeauty同一、HWND側のpoint guide表示変化が確認できた。追加overlay walkは既存layer list参照で新規collection allocationなし、大規模light時の性能は未計測。
+- **遮蔽の訂正:** CTest全18件では17成功だがD3D12 two-model例外が再発した。単発passは安定性を保証しなかった。fixed-buffer moduleログとvectored first-chance observerを追加し、最初はucrtbase.dll、終了時はQt6Cored.dllと確認。Qt自体のroot bugを断定する情報ではない。原因未特定のままテスト失敗を維持する。
+
+- **readback根因と修正の確認:** Diligent `FenceD3D12Impl.cpp`はmanual-reset eventを作成し、`Wait()`はresetを行わない。reuse slotではWaitが完了値到達前に戻れるコードだった。アプリ側 `ArtifactIRenderer.cppm` にWait後のGetCompletedValue確認とthread yieldを追加し、slot再利用前／CPU map前の両readback経路へ適用。同期readbackのcold境界で追加allocationなし。D3D12通常runnerが2回連続13画像成功し、device infoからactual backendを照合する改訂runnerでもD3D12／Vulkan各13画像が成功した。two-model occlusion CTestはXYZ同一scale／thin guide除外boundsで両backendpass。依存Diligent自体は編集していない。広いGPU同期契約全体の証明ではなく、今回のreadbackとlighting更新の再現ケースの検証。
+
+- **HWND比較の確認:** 同じ更新exeでD3D12の通常13画像runnerはframe 13のmodel opt-outにgreen残留を検出して失敗した。`--window-proof`を指定した対照は13画像で成功し、window／GPUとも無彩色opt-outを表示した。window captureがreadback前へ入ることで症状が変わるタイミング依存を確認したが、production修正の証拠とはしない。runnerの通常検査はwindow proofなしのまま維持する。
+
+- **D3D12切り分け追加:** model opt-outの失敗PNGには緑／白の横帯が混在していた。mesh light constantsはdraw前にdynamic map-discardで更新し、readbackはcopy fenceをwaitするコードを確認したが、原因の断定はできない。`light.capture(includeWindow=true)`へFBX共通HWND captureを追加し、GPU readback前の表示画像と同じframeのGPU画像を別々に保存する。表示自体かreadback境界かを比較するための診断で、window画像による合否の代用はしない。
+
+- **visibility対照の追加:** `light.controls` でvisible／affectedByLightsをboolean検査後に反映し、hidden／model opt-out／restoreの3画像を追加した。Vulkanは13画像で成功。D3D12はrestore色差不足、再実行はmodel opt-out中のgreen残留で失敗した。native exceptionはなくstateは変更を報告しDiligent errorもfalseだった。画像の状態不一致を検出できたが原因は未特定。readbackは既にcopy fenceをCPU waitするため、単に待ち時間を足す修正は行わない。次にresidual draw queueとframe間のlight/material GPU定数の更新寿命を確認する。
+
+- **runtime確認:** 変更版exeをbuildし、Vulkan／D3D12指定のMCP runnerが両方成功した。XYZ同一scaleのmodelに対し各processで5 light typeそれぞれのred／greenを切替し、10 fresh GPU画像、frame進行、foreground、geometry margin、channel優位と色変更の対照差、Diligent errorなし、不正RGB拒否後の状態維持を確認した。MCP待機中はtickerを停止しcapture境界だけ起動する。出力は`out/light-mcp/{vulkan,d3d12}/report.json`とPNG。`backendRequested`は起動指定値であり実device typeの独立readbackではない。
+- **既存遮蔽テストの再確認:** 新exeでtwo-model CTestを実行したが、Vulkanは原点guide混入によるmargin assertion失敗、D3D12はSEH `0xc0000005`で失敗した。MCP single-model light成功をtwo-model depth安定性の証拠へ拡張しない。
+- **確認した制約:** point等のlight guideがgizmo非表示でもfinal GPU画像へ混ざる。現状のbounds診断は実測3pxまでの細線を近傍判定で除外するが、元PNGは保持する。productionのguide／final composition出力の責務は別途確認が必要。native crash dump収集は未実装。
+
+- **実装更新:** 既存composition integration exeへ `--mcp-stdio` モードを追加した。共通serverに `light.state`／`light.set`／`light.capture` を登録し、production controllerのframe進行とfinal GPU surfaceを画像・状態で観測する。外側の `tools/test_light_mcp.py` は要求timeout、stderr、exit code、red／green切替画像と不正入力の原子性を記録する。crash dump、model／cameraの任意編集、遮蔽control操作は未実装。
+
+- **関連:** `tests/ArtifactTestMcpServer.h`、`tests/Artifact/FbxAnimationViewerMain.cpp`、`tests/Artifact/Model3DLightCompositionIntegrationTest.cpp`、`tools/test_light_mcp.py`。
+- **確認済み事実:** FBX Viewerと同じstdio MCP serverを独立composition test exeから使い、production controllerを操作する。state／light property／visibility／model opt-out／GPU capture、backend・frame serial・geometry bounds・viewport/DPR、stderr・exit code・minidumpを一連のrunnerで記録できる。
+- **今回の改善:** MCP serverを開く条件をframe serial単独から、2 frame以上・`Layer RT`／`Accum RT` ready・final GPU readback成功へ強化した。起動時点で中間pipelineが未準備なら最大15秒待ち、timeout時に最後のframe snapshotをstderrへ出す。`light.state`とcapture metadataも中間RT準備状態を返す。
+- **価値／懸念:** 起動直後の未準備画像を、正常なcapture失敗や照明不具合と混同しにくくなる。readbackは起動時にのみ準備確認として行い、state pollingごとには同期GPU readbackを発生させない。runnerの15 captureはD3D12／Vulkan双方で成功し、全画像でactual backend、中間RT、Diligent errorを確認した。D3D12 PSO Serialize終了時アクセス違反は別途未解決。
+- **次に確認:** D3D12遮蔽CTestを反復し、PSO cache命名の再利用が終了時Serialize faultの発生率に影響するか切り分ける。現段階ではクラッシュ修正を主張しない。
+
+# 2026-10-14: テストGUIを非アクティブのまま検査する共通経路
+
+- 関連: `tests/ArtifactTestMcpServer.h`, `tests/ArtifactTestWindowCapture.h`, `tests/Artifact/FbxAnimationViewerMain.cpp`
+- 確認できたこと: `ArtifactCoreMeshImporterFbxTest`は3件すべてpass。Quaternius Rangerのskin pose変化、Tempに展開した配布不可Nathanのembedded base-color JPEG（8192×8192）の完全decodeとUV、配布可能な`Standard_Walk.fbx`のembedded base-color／normal texture・UV・material assignmentをそれぞれ検査した。Nathan ZIPと展開モデルはTemp外へ移動せず、プロジェクトに含めていない。
+- 不具合と修正: Windowsでは`QDir::separator()`と`QDir::cleanPath()`の区切り表現が異なる場合があり、texture testのembedded-cache判定がfalse negativeになった。判定前に両pathを`/`へ正規化した。Diligentの反復errorはPSO static shader variablesの未割り当てを示しており、PSO作成後に`TransformCB`、`SkinningCB`、`ColorCB`、`BaseColorSampler`を設定するよう変更した。修正後のD3D12ログで該当errorは0件。HLSL `pow(f,e)`のnegative input warningは残るが、今回の未bind errorとは別件。
+- 注意: NathanのFBXにはbase-color画像はあるがnormal textureは見つからず、normal map試験には向かない。テストではNathanをbase-color用、`Standard_Walk.fbx`をbase-color/normal用fixtureとして分ける。
+- 仮説（未検証）: shader resource未bindが以前の金属的・まだらな陰影の一因である可能性がある。修正後のcaptureを旧画像と目視比較できていないため、質感が解消したとは断定しない。
+- 次に確認すること: MCPの`viewer.capture`で修正後のNathan表示を再取得し、sRGB base-color処理、metallic/roughness係数、UV mappingを画像とImporter値の両方で確認する。
+
+### 2026-10-15: FBX Viewerの画面証拠から見つかったUV・外面・色空間の不整合
+
+- **関連:** `ArtifactCore/src/Geometry/MeshImporter.cppm`、`ArtifactCore/src/Graphics/MeshRenderer.cppm`、`Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm`、`Artifact/src/Render/DiligentDeviceManager.cppm`、`tests/Artifact/FbxAnimationViewerMain.cpp`、`tools/test_mcp_client.py`。
+- **確認済み事実:** 前日の「error 0」は初回render完了を待てていない証拠だった。8K atlasのCPU準備でGUIが約41秒止まり、その間はMCP discoveryだけ応答していた。待ち続けた同一processからcaptureを得るとtextureの上下逆転、二重gamma、逆cullingによる眼球／歯の露出が分かった。モデル同梱の見本JPEGと実画像を比較して区別した。
+- **変更:** FBXのUV0／UV1をtop-leftへ正規化し、UV transformを同じ原点に変換。ViewerはsRGB RTVへlinear値を渡し、CCW外面を描く。8-bit decode lookupと型判定hoistをViewer／Coreへ反映。Diligent VB／IB replacement pointer、swapchain resize、Vulkan WireframeFill requestを修正。GUI版Qtのログがdebuggerへ送られてstderrに残らないため、独立Viewerのmessage handlerをstderrへ明示した。
+- **確認結果:** Core importer 4ケースとCTestがpass。D3D12／Vulkanの15-step MCP scenarioが双方passし、5 PNG／backendで顔・衣服・靴・歩行pose・wireframe・別モデルへの切替を確認。両方でError/Fatal 0、foreground／cursor不変、左端display作業領域内。正面Solidの同時刻viewport画素はbackend間一致、背面／別モデルSolidのRGB平均差は0.000002/255未満。初回待ち41.43→9.62秒はDebug Viewerの単一比較であり、Core全体やsteady-state性能の保証ではない。配布不可素材とPNGはすべてユーザーTempに保持。
+- **再利用できる知見:** MCP tool実行の成功、初期化ログ、実render済みcapture、終了処理の診断は別々に確認する。APIの既存object上書きやwireframe feature未要求は、空scene起動後にモデルを差し替えるscenarioで発見できる。共通Python clientは他のstdio test serverでも同じJSON step形式を使える。
+- **追加検証と修正:** 自作Phong fixtureで`pbr.base_factor.texture`のMR誤分類、自作3ds Max PBR fixtureで独立metalness／roughness画像の欠落を2つのfailing testとして再現し、CoreとViewerを修正した。R=51／204の画像版と定数0.2／0.8版は、D3D12／Vulkanのviewport画素が一致した（材質差し替え後も一致）。画像のG／Bは異なる値として誤ったpacked解釈を検出する。Core全6ケースpass、両backendの32-operation連続scenarioでError/Fatal 0、既存Nathan表示は基準と一致。今回の検証中のcursor座標変化はユーザー操作と区別できないため、不変の証拠には使わない。
+- **今回追加した境界:** Viewerに独立scalar画像のset/upload/bindを追加し、linear Rとして読む。初期化／map path変更時にのみtextureを作り、既存mip生成を使う。追加descriptor作業領域は32要素のstack配列で固定。独立mapはCore既存の材質slotと対応し、packed MRとは別に保持する。自作fixture generatorは標準PythonのみでFBX／PNGを再生成でき、第三者モデルのbytesを含まない。
+- **残る別契約:** Viewerのmap固有UV transform／UV1対応、DiffuseFactor画像をbase-color weightとして適用する機能、製品Composition／RTの最終画像とHDR表示は未確認／未対応。今回のR-channel読込の確認を、これらまでの保証として扱わない。
+
+### 2026-10-15: Render Queueの動画・音声mux結合テストを追加
+
+- **関連:** `tests/Artifact/RenderQueueLayerImageIntegrationTest.cpp`、`tests/Artifact/AudioLayerRenderQueueIntegrationTest.cpp`。
+- **確認済み事実:** 音声レイヤーには既存のWAV Render Queue出力テストがあったが、動画＋音声レイヤーを同一compositionからmuxed fileへ出す結合テストはなかった。新テストはFFmpeg内蔵MJPEG encoderで赤い動画fixtureを作り、既存Render Queueのintegrated render、AAC mux、出力後のdecodeを検査する。source中心画素は赤だが初版出力は黒だった。Render Queue snapshotの動画open完了を待つbarrierを `Artifact/src/Render/ArtifactRenderQueueService.cppm` に追加後、出力中心画素の赤成分・チャンネル比較、AAC stream、音声抽出PCMのRMSとdurationを含む対象テストが成功した。
+- **価値／懸念:** 厳密な映像内容比較と抽出PCMのRMSにより、mux成功statusやstream metadataだけでなく映像・音声の内容を検査できる。barrierはrender worker threadのqueued open completionを処理し、最大15秒で打ち切る。異なるGPU／FFmpeg構成での再現性と、ロード失敗時の待ち時間は未確認。
+- **次に確認:** Debugの追加ケース1件は成功。suite全体、CIなど異なるFFmpeg codec構成・GPU adapterでの再現性は未確認。
+
+### 2026-10-15: 動画muxのAAC音声が途中で切れる問題を検出・修正
+
+- **関連:** `ArtifactCore/src/Image/FFmpegAudioEncoder.cppm` の `muxAudioWithVideo()` / `probeAudioFile()`、`tests/Artifact/AudioLayerRenderQueueIntegrationTest.cpp`。
+- **確認済み事実:** 3秒のmuxed MP4を外部FFmpegで調べると、container durationは3秒だがAAC streamは約0.768秒・37 packetだった。AACをPCM WAVへdecodeすると0.45–0.70秒のマーカーは聞こえる一方、1.20–1.80秒と2.25–2.50秒は無音／EOFになった。原因箇所はresampler出力をAAC encoderの固定frame単位で保持せず、そのままencoderへ渡していたmux経路だった。mux側に`AVAudioFifo`を導入し、resampler出力を蓄積してencoder frame単位で投入、最後の部分frameとdecoder/resampler/encoderのflushを処理するよう修正した。`probeAudioFile()`はformat全体ではなくaudio streamのdurationを優先する。修正後は同じ単体テストをビルド・実行し、MP4内AACからPCMへ抽出したdurationが動画尺と一致し、0.45–0.70秒と2.25–2.50秒が有音、1.20–1.80秒が無音であることを検証して成功した。
+- **追加確認・修正:** 回帰テストから`FFmpegAudioDecoder::openFile()`を直接呼ぶと、`avformat_open_input()`成功後の`avformat_find_stream_info()`内でSEH access violationを再現した。原因となったstream-info呼び出しの`threads` / `thread_type` AVDictionary渡しを削除し、codec open側の単一スレッド設定は維持した。テストはmuxed AACをopenし、最初のdecoded segmentを取得する確認を追加。修正後、同じDebugテスト1件が成功した。
+- **価値／懸念:** テストはencoded MP4の映像色切替、AAC codec／sample rate／channel数、muxed AACの抽出後durationと時刻窓ごとのRMS、`FFmpegAudioDecoder`によるopen/decodeを一つの同期契約として確認する。`ArtifactVideoLayer::getAudio()`のfalse応答は別経路の観測として残り、今回の修正対象外。
+- **次に確認:** 対象Debugテスト1件は成功。全suite、他のFFmpeg codec構成やGPU adapterでの再現性は未確認。
