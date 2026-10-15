@@ -571,6 +571,7 @@ TEST(RenderQueueLayerImageIntegrationTest,
 
     const QString particles2DEffectedOutput = isolatedOutputPath(
         QStringLiteral("render_queue_particles_2d_brightness.png"));
+    particle2D->clearFrameCache();
     ASSERT_TRUE(addAndRender(
         queue, particles2D.id, QStringLiteral("Particles2DBrightness"),
         particles2DEffectedOutput, width, height,
@@ -579,7 +580,14 @@ TEST(RenderQueueLayerImageIntegrationTest,
                 return qAlpha(pixel) > 200 && qRed(pixel) > 200 &&
                        qGreen(pixel) > 50 && qBlue(pixel) > 40;
             }) > 8;
-        }, &failure, 2, QStringLiteral("cpu"))) << failure.toStdString();
+        }, &failure, 2, QStringLiteral("gpu"))) << failure.toStdString();
+
+    QImage gpuParticleSurface;
+    ASSERT_TRUE(particle2D->getCachedFrame(1, gpuParticleSurface))
+        << "the effect path should capture the particle layer through GPU";
+    EXPECT_GT(countPixelsMatching(gpuParticleSurface, [](QRgb pixel) {
+        return qAlpha(pixel) > 32 && qRed(pixel) > 8;
+    }), 8) << "the captured GPU particle surface should contain particles";
 
     const QFileInfo particles2DEffectedInfo(particles2DEffectedOutput);
     const QString particles2DEffectedFramePath = QDir(
