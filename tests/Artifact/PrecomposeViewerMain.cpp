@@ -528,6 +528,65 @@ public:
             refresh();
             cycleResult["state"] = state();
             return cycleResult;
+        } else if (name == "test.missingChildReferenceAtomic") {
+            QJsonObject missingResult;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                missingResult["error"] = QStringLiteral("No root composition");
+                return missingResult;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Missing Child Reference Fixture")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                missingResult["error"] = QStringLiteral("Could not create missing-child-reference fixture");
+                return missingResult;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(outcome.precompLayerId));
+            if (!child || !wrapper || wrapper->sourceCompositionId() != outcome.childCompId) {
+                missingResult["error"] = QStringLiteral("Missing-child-reference fixture is incomplete");
+                return missingResult;
+            }
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            wrapper->setCompositionId(CompositionID());
+            const auto brokenReferenceLayers = state()["layers"].toArray();
+            const auto compositionCountBeforeUnwrap = ArtifactProjectManager::getInstance().compositionCount();
+            const auto undoCountBeforeUnwrap = undo->undoCount();
+            const bool rejected = !service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const bool parentStatePreserved = state()["layers"].toArray() == brokenReferenceLayers;
+            const bool compositionPreserved = service->findComposition(outcome.childCompId).ptr.lock() == child &&
+                !child->allLayer().isEmpty() &&
+                ArtifactProjectManager::getInstance().compositionCount() == compositionCountBeforeUnwrap;
+            const bool wrapperPreserved = root->layerById(outcome.precompLayerId).get() == wrapper.get() &&
+                wrapper->sourceCompositionId().isNil() &&
+                PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId);
+            const bool undoHistoryPreserved = undo->undoCount() == undoCountBeforeUnwrap;
+            const bool outcomeCleared = service->lastUnprecomposePrecompLayerId().isNil() &&
+                service->lastUnprecomposeChildCompId().isNil() &&
+                service->lastUnprecomposeMovedLayerIds().isEmpty();
+            wrapper->setCompositionId(outcome.childCompId);
+            const bool fixtureRestored = wrapper->sourceCompositionId() == outcome.childCompId &&
+                service->findComposition(outcome.childCompId).ptr.lock() == child;
+            service->changeCurrentComposition(rootId);
+            missingResult["unwrapRejected"] = rejected;
+            missingResult["parentStatePreserved"] = parentStatePreserved;
+            missingResult["compositionPreserved"] = compositionPreserved;
+            missingResult["wrapperPreserved"] = wrapperPreserved;
+            missingResult["undoHistoryPreserved"] = undoHistoryPreserved;
+            missingResult["outcomeCleared"] = outcomeCleared;
+            missingResult["fixtureRestored"] = fixtureRestored;
+            missingResult["passed"] = rejected && parentStatePreserved && compositionPreserved &&
+                wrapperPreserved && undoHistoryPreserved && outcomeCleared && fixtureRestored;
+            if (!missingResult["passed"].toBool())
+                missingResult["error"] = QStringLiteral("Unprecompose mutated a broken child reference or failed to restore the fixture");
+            refresh();
+            missingResult["state"] = state();
+            return missingResult;
         } else if (name == "test.emptyChildUnwrapRejected") {
             QJsonObject emptyResult;
             const auto root = service->currentComposition().lock();
@@ -1571,7 +1630,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

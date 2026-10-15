@@ -123,6 +123,16 @@ def main():
                     and transitive_cycle["stateUnchanged"] and transitive_cycle["fixtureCleaned"],
                     "Transitive cycle precompose was not rejected atomically")
             call("test.reset")
+            missing_child = call("test.missingChildReferenceAtomic")
+            require(missing_child["passed"] and missing_child["unwrapRejected"]
+                    and missing_child["parentStatePreserved"]
+                    and missing_child["compositionPreserved"]
+                    and missing_child["wrapperPreserved"]
+                    and missing_child["undoHistoryPreserved"]
+                    and missing_child["outcomeCleared"]
+                    and missing_child["fixtureRestored"],
+                    "Unprecompose mutated a wrapper with a missing child reference")
+            call("test.reset")
             empty_child = call("test.emptyChildUnwrapRejected")
             require(empty_child["passed"] and empty_child["childEmptied"]
                     and empty_child["unwrapRejected"] and empty_child["wrapperPreserved"]
