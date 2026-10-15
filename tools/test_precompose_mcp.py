@@ -191,6 +191,11 @@ def main():
                     and not delete_redo["state"]["lastChildExists"],
                     "Delete-unpack Undo/Redo did not restore then remove the same child composition")
             call("test.reset")
+            single_layer = call("test.singleLayerRoundTrip")
+            require(single_layer["passed"] and single_layer["wrappedCorrectly"]
+                    and single_layer["undoRestored"] and single_layer["redoRestored"],
+                    "Single-layer precompose changed layer identity, order, or registration")
+            call("test.reset")
             shared_child = call("test.sharedChildReferences")
             require(shared_child["passed"] and shared_child["twoReferencesCreated"]
                     and shared_child["remainingReferencePreserved"]
