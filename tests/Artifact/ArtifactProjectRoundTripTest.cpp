@@ -3,23 +3,36 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-#include <QGuiApplication>
+#include <QApplication>
+#include <QCoreApplication>
+#include <QDialog>
+#include <QEvent>
+#include <QInputMethodEvent>
 #include <QIODevice>
+#include <QKeyEvent>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QStandardPaths>
 #include <QString>
+#include <QTextEdit>
 #include <QTemporaryDir>
+#include <QVariant>
+#include <QWidget>
 
 import Artifact.Composition.InitParams;
 import Artifact.Composition.Result;
 import Artifact.Layer.Abstract;
 import Artifact.Layer.InitParams;
 import Artifact.Layer.Result;
+import Artifact.Layer.Text;
 import Artifact.Project.Exporter;
 import Artifact.Project.Health;
 import Artifact.Project.Importer;
 import Artifact.Project.Manager;
+import Artifact.Widgets.CompositionTextEditor;
 import Color.Float;
+import Time.Rational;
+import Undo.UndoManager;
 import Utils.String.UniString;
 
 namespace {
@@ -31,7 +44,7 @@ public:
         static int argc = 1;
         static char applicationName[] = "ArtifactProjectRoundTripTest";
         static char* argv[] = {applicationName, nullptr};
-        application_ = new QGuiApplication(argc, argv);
+        application_ = new QApplication(argc, argv);
     }
 
     void TearDown() override
@@ -41,7 +54,7 @@ public:
     }
 
 private:
-    QGuiApplication* application_ = nullptr;
+    QApplication* application_ = nullptr;
 };
 
 ProjectRoundTripEnvironment* const projectRoundTripEnvironment =
@@ -267,4 +280,185 @@ TEST(ArtifactProjectRoundTripTest, ResaveAfterLoadIsStable)
     EXPECT_EQ(reloaded->compositionNote(), QStringLiteral("edited-after-load"));
 }
 
-\n
+TEST(ArtifactProjectRoundTripTest,
+     TextLayerUnicodeStyleSourceTextAndAnimatorsSurviveReload)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    ProjectCleanup cleanup{projects};
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("TextLayerRoundTrip"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    const auto composition = projects.createComposition(
+        makeCompParams(QStringLiteral("TextComposition"), 640, 360));
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactTextLayerInitParams params(QStringLiteral("LocalizedText"));
+    const auto layerResult =
+        projects.addLayerToComposition(composition.id, params);
+    ASSERT_TRUE(layerResult.success);
+    auto* textLayer =
+        dynamic_cast<Artifact::ArtifactTextLayer*>(layerResult.layer.get());
+    ASSERT_NE(textLayer, nullptr);
+
+    const QString unicodeText = QStringLiteral("日本語 e\u0301 👩‍👩‍👧‍👦");
+    textLayer->setText(ArtifactCore::UniString(unicodeText));
+    textLayer->setFontFamily(
+        ArtifactCore::UniString(QStringLiteral("Noto Sans CJK JP")));
+    textLayer->setFontSize(37.5f);
+    textLayer->setTracking(1.25f);
+    textLayer->setBold(true);
+    textLayer->setSourceTextAtFrame(0, unicodeText);
+    textLayer->setSourceTextAtFrame(12, QStringLiteral("再読込後のテキスト"));
+    ASSERT_TRUE(textLayer->addAnimatorProperty(QStringLiteral("position")));
+    ASSERT_GT(textLayer->animatorCount(), 0);
+    (void)textLayer->getLayerPropertyGroups();
+    const auto positionX =
+        textLayer->getProperty(QStringLiteral("text.animators.0.positionX"));
+    ASSERT_TRUE(positionX);
+    positionX->addKeyFrame(ArtifactCore::RationalTime(0, 30), QVariant(0.0));
+    positionX->addKeyFrame(ArtifactCore::RationalTime(12, 30), QVariant(24.0));
+    const auto originalLayerId = textLayer->id();
+    const int animatorCount = textLayer->animatorCount();
+    const QJsonArray animatorSnapshot = textLayer->textAnimatorStackSnapshot();
+
+    const auto duplicateResult =
+        projects.duplicateLayerInComposition(composition.id, originalLayerId);
+    ASSERT_TRUE(duplicateResult.success);
+    ASSERT_NE(duplicateResult.layer.get(), nullptr);
+    const auto duplicateLayerId = duplicateResult.layer->id();
+    auto* duplicatedText = dynamic_cast<Artifact::ArtifactTextLayer*>(
+        duplicateResult.layer.get());
+    ASSERT_NE(duplicatedText, nullptr);
+    EXPECT_EQ(duplicatedText->text().toQString(), unicodeText);
+    EXPECT_EQ(duplicatedText->fontFamily().toQString(),
+              QStringLiteral("Noto Sans CJK JP"));
+    EXPECT_FLOAT_EQ(duplicatedText->fontSize(), 37.5f);
+    EXPECT_FLOAT_EQ(duplicatedText->tracking(), 1.25f);
+    EXPECT_TRUE(duplicatedText->isBold());
+
+    const QString savePath = dir.filePath(QStringLiteral("text-layer.artifact"));
+    ASSERT_TRUE(projects.saveToFile(savePath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(savePath));
+
+    const auto loadedComposition = projects.findComposition(composition.id);
+    ASSERT_TRUE(loadedComposition.success);
+    auto loadedCompositionPtr = loadedComposition.ptr.lock();
+    ASSERT_TRUE(loadedCompositionPtr);
+    ASSERT_EQ(loadedCompositionPtr->layerCount(), 2);
+
+    auto loadedLayer = loadedCompositionPtr->layerById(originalLayerId);
+    ASSERT_NE(loadedLayer.get(), nullptr);
+    auto* reloadedText =
+        dynamic_cast<Artifact::ArtifactTextLayer*>(loadedLayer.get());
+    ASSERT_NE(reloadedText, nullptr);
+
+    EXPECT_EQ(reloadedText->text().toQString(), unicodeText);
+    EXPECT_EQ(reloadedText->fontFamily().toQString(),
+              QStringLiteral("Noto Sans CJK JP"));
+    EXPECT_FLOAT_EQ(reloadedText->fontSize(), 37.5f);
+    EXPECT_FLOAT_EQ(reloadedText->tracking(), 1.25f);
+    EXPECT_TRUE(reloadedText->isBold());
+    EXPECT_TRUE(reloadedText->hasSourceTextKeyframes());
+    EXPECT_EQ(reloadedText->sourceTextAtFrame(0), unicodeText);
+    EXPECT_EQ(reloadedText->sourceTextAtFrame(6), unicodeText);
+    EXPECT_EQ(reloadedText->sourceTextAtFrame(12),
+              QStringLiteral("再読込後のテキスト"));
+    EXPECT_EQ(reloadedText->animatorCount(), animatorCount);
+    EXPECT_EQ(reloadedText->textAnimatorStackSnapshot(), animatorSnapshot);
+    const auto reloadedPositionX =
+        reloadedText->getProperty(QStringLiteral("text.animators.0.positionX"));
+    ASSERT_TRUE(reloadedPositionX);
+    ASSERT_EQ(reloadedPositionX->getKeyFrames().size(), 2u);
+    EXPECT_DOUBLE_EQ(
+        reloadedPositionX
+            ->interpolateValue(ArtifactCore::RationalTime(12, 30))
+            .toDouble(),
+        24.0);
+
+    auto reloadedDuplicateLayer =
+        loadedCompositionPtr->layerById(duplicateLayerId);
+    ASSERT_NE(reloadedDuplicateLayer.get(), nullptr);
+    auto* reloadedDuplicate = dynamic_cast<Artifact::ArtifactTextLayer*>(
+        reloadedDuplicateLayer.get());
+    ASSERT_NE(reloadedDuplicate, nullptr);
+    EXPECT_EQ(reloadedDuplicate->text().toQString(), unicodeText);
+    EXPECT_EQ(reloadedDuplicate->fontFamily().toQString(),
+              QStringLiteral("Noto Sans CJK JP"));
+    EXPECT_FLOAT_EQ(reloadedDuplicate->fontSize(), 37.5f);
+    EXPECT_FLOAT_EQ(reloadedDuplicate->tracking(), 1.25f);
+    EXPECT_TRUE(reloadedDuplicate->isBold());
+}
+
+TEST(ArtifactProjectRoundTripTest,
+     InlineTextImeCommitUsesOneUndoRedoTransaction)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    ProjectCleanup cleanup{projects};
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("InlineTextEdit"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    const auto composition = projects.createComposition(
+        makeCompParams(QStringLiteral("InlineTextComposition"), 640, 360));
+    ASSERT_TRUE(composition.success);
+    Artifact::ArtifactTextLayerInitParams params(QStringLiteral("Text"));
+    const auto layerResult =
+        projects.addLayerToComposition(composition.id, params);
+    ASSERT_TRUE(layerResult.success);
+    auto* textLayer =
+        dynamic_cast<Artifact::ArtifactTextLayer*>(layerResult.layer.get());
+    ASSERT_NE(textLayer, nullptr);
+    const QString beforeText = QStringLiteral("Original text");
+    const QString committedText = QStringLiteral("日本語入力🙂");
+    textLayer->setText(ArtifactCore::UniString(beforeText));
+
+    auto* undo = Artifact::UndoManager::instance();
+    ASSERT_NE(undo, nullptr);
+    undo->clearHistory();
+
+    QWidget host;
+    host.show();
+    ASSERT_TRUE(Artifact::editTextLayerInline(
+        &host, layerResult.layer, nullptr));
+    QCoreApplication::processEvents();
+
+    auto* dialog = host.findChild<QDialog*>();
+    ASSERT_NE(dialog, nullptr);
+    auto* editor = dialog->findChild<QTextEdit*>();
+    ASSERT_NE(editor, nullptr);
+    editor->setFocus();
+    editor->selectAll();
+
+    QInputMethodEvent preedit(QStringLiteral("にほん"), {});
+    QCoreApplication::sendEvent(editor, &preedit);
+    EXPECT_EQ(editor->toPlainText(), beforeText);
+    QInputMethodEvent commitEvent;
+    commitEvent.setCommitString(committedText);
+    QCoreApplication::sendEvent(editor, &commitEvent);
+    EXPECT_EQ(editor->toPlainText(), committedText);
+
+    QKeyEvent applyEvent(QEvent::KeyPress, Qt::Key_Return,
+                         Qt::ControlModifier, QStringLiteral("\r"));
+    QCoreApplication::sendEvent(editor, &applyEvent);
+    QCoreApplication::processEvents();
+
+    EXPECT_EQ(textLayer->text().toQString(), committedText);
+    ASSERT_EQ(undo->undoCount(), 1u);
+    EXPECT_EQ(undo->undoDescription(), QStringLiteral("Edit Text"));
+    undo->undo();
+    EXPECT_EQ(textLayer->text().toQString(), beforeText);
+    undo->redo();
+    EXPECT_EQ(textLayer->text().toQString(), committedText);
+}

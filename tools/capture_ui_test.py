@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch ArtifactUiTest.exe and capture a startup, Timeline, or Render Manager fixture."""
+"""Launch ArtifactUiTest.exe and capture a supported UI fixture."""
 
 from __future__ import annotations
 
@@ -45,6 +45,16 @@ def parse_args() -> argparse.Namespace:
         "--render-manager",
         action="store_true",
         help="show a fixed Render Manager queue fixture",
+    )
+    parser.add_argument(
+        "--create-composition-dialog",
+        action="store_true",
+        help="show the composition creation dialog",
+    )
+    parser.add_argument(
+        "--create-layer-dialog",
+        action="store_true",
+        help="show the solid layer creation dialog",
     )
     parser.add_argument(
         "--tracker",
@@ -206,6 +216,14 @@ def request_close_window(process_id: int) -> bool:
 
 def main() -> int:
     args = parse_args()
+    dialog_fixtures = args.create_composition_dialog or args.create_layer_dialog
+    if dialog_fixtures and (
+        args.timeline or args.curve_editor or args.render_manager or args.cloner
+        or args.tracker
+        or (args.create_composition_dialog and args.create_layer_dialog)
+    ):
+        print("capture_ui_test: creation dialog fixtures must be used alone", file=sys.stderr)
+        return 2
     if args.render_manager and (args.timeline or args.curve_editor or args.cloner or args.tracker):
         print("capture_ui_test: --render-manager cannot be combined with other fixtures", file=sys.stderr)
         return 2
@@ -353,6 +371,8 @@ def main() -> int:
         "ARTIFACT_UI_TEST_TIMELINE",
         "ARTIFACT_UI_TEST_CURVE_EDITOR",
         "ARTIFACT_UI_TEST_RENDER_MANAGER",
+        "ARTIFACT_UI_TEST_CREATE_COMPOSITION_DIALOG",
+        "ARTIFACT_UI_TEST_CREATE_LAYER_DIALOG",
         "ARTIFACT_UI_TEST_CLONER",
         "ARTIFACT_UI_TEST_TRACKER",
         "ARTIFACT_UI_TEST_PROJECT_ROOT",
@@ -374,7 +394,8 @@ def main() -> int:
     environment["ARTIFACT_UI_TEST_FORCE_SHUTDOWN"] = "1"
     environment["ARTIFACT_STARTUP_SCREENSHOT_PATH"] = str(output_path)
     fixture_root: Path | None = None
-    if args.timeline or args.curve_editor or args.render_manager or args.cloner or args.tracker:
+    if (args.timeline or args.curve_editor or args.render_manager or args.cloner
+            or args.tracker or dialog_fixtures):
         fixture_root = Path(tempfile.mkdtemp(
             prefix="artifact_ui_test_", dir=output_path.parent
         )).resolve()
@@ -393,6 +414,12 @@ def main() -> int:
         environment["ARTIFACT_UI_TEST_RENDER_MANAGER"] = "1"
         environment.pop("ARTIFACT_STARTUP_SCREENSHOT_WIDGET", None)
         environment["ARTIFACT_STARTUP_SCREENSHOT_WIDGET"] = "renderManagerUiFixtureWidget"
+    if args.create_composition_dialog:
+        environment["ARTIFACT_UI_TEST_CREATE_COMPOSITION_DIALOG"] = "1"
+        environment["ARTIFACT_STARTUP_SCREENSHOT_WIDGET"] = "createCompositionDialogFixture"
+    if args.create_layer_dialog:
+        environment["ARTIFACT_UI_TEST_CREATE_LAYER_DIALOG"] = "1"
+        environment["ARTIFACT_STARTUP_SCREENSHOT_WIDGET"] = "createLayerDialogFixture"
     if args.curve_editor:
         environment["ARTIFACT_UI_TEST_CURVE_EDITOR"] = "1"
     if args.cloner:

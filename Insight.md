@@ -19,6 +19,22 @@
 - **実行結果 (2026-10-13):** Windows Debug / D3D12 headlessで3件の個別CTestがすべて成功した。Source Textケースでは `text.value` property生成のため `getLayerPropertyGroups()` を先に呼ぶ必要があり、Composition duration 3・Custom range `[1,3)` で2枚を出力する。最初はdurationを誤って2に上書きしていたため2枚目が範囲外だった。
 - **次に確認:** 現在の画素数assertionはglyph順序・cluster単位・色付きemojiの完全な見た目を保証しない。必要なら固定font fixtureと承認baselineでshaping/emoji visual parityを追加する。
 
+### 2026-10-13 — Text Layer複製時のアニメーション状態コピーを確認する
+
+- **関連:** `Artifact/src/Project/ArtifactProject.cppm` (`copyLayerProperties()`、`duplicateLayerInComposition()`)、`Artifact/src/Layer/ArtifactTextLayer.cppm` (`text.sourceTextKeyframes`、`text.animators`)、`tests/Artifact/ArtifactProjectRoundTripTest.cpp`。
+- **確認できた事実:** 現在の `copyLayerProperties()` はコピー先に同名 property が見つからない場合、`serializeProperty()` を使わず `setLayerPropertyValue(propertyName, value)` に現在値だけを渡す。Text Layer の `toJson()` は Source Text keyframe 配列と Animator stack を通常 property とは別の `text.sourceTextKeyframes` / `text.animators` として保存する。
+- **未検証の推論:** Text Layer複製時にコピー先の動的 property cache が未生成なら、Source Text／Animatorの構造やkeyframeがコピーされない可能性がある。今回の親側integration testは静的text/styleの複製と、元layerの save/load を確認するが、この複製アニメーション契約までは断定しない。
+- **価値／懸念:** 複製後に見た目だけ一致してアニメーションが失われる不具合を、専用の save/load／duplicate regression case で切り分けられる。実行確認とコピー先のproperty materialization状況は未確認。
+- **次に確認:** 元Text Layerへ Source Text と Animator property keyframe を設定し、複製直後および project再読込後に keyframe値・Animator stack が一致するか検証する。修正が必要なら `Artifact` submodule の変更許可を得たうえで最小範囲に限定する。
+
+### 2026-10-13 — Render QueueのText画像契約でemoji cluster幅と縦書き配置を検査する
+
+- **関連:** `tests/Artifact/RenderQueueLayerImageIntegrationTest.cpp`、`tests/Artifact/CMakeLists.txt`。
+- **確認できた事実:** 既存のRender Queue Text画像テストは明るい画素数を確認するだけで、ZWJ／modifier絵文字の横方向の展開や縦書きの配置方向を検出しない。`ArtifactTextLayer` は `TextWritingMode::Vertical` を公開し、Coreの縦書きレイアウトはQt pathを使う。
+- **変更:** Render Manager queueから出力したPNGの表示画素境界を計測するcaseを追加し、単独描画したfamily／skin-tone ZWJ emojiの幅と隣接時の合算幅を比べ、連結画像内で2つ目の色glyph画素パターンが最初のセルから離れて残ることも照合する。判定は白色に限定せず色付きglyphを拾い、連結時の縦方向boundsも単独glyphと比較する。日本語縦書きでは括弧・縦中横数字・読点を含む文が横幅の2倍を超え、数文字分を超える高さの列になることを確認する。CTestへ独立登録した。
+- **価値／懸念:** 画素存在だけの検査から実際の配置形状の回帰検知へ進む。一方、固定baseline比較ではないため、個々の字形・回転・句読点位置の完全一致や重なりのピクセル単位検出までは保証しない。閾値は環境のfont fallbackに依存するため、Windows Debug/D3D12で実行確認が必要。
+- **次に確認:** 対象2件を実行し、通常のWindows font fallbackで閾値が安定するか確認する。次の優先候補は、縦書きの括弧／読点と縦中横数字を含む固定画像比較、Text Animator適用時の隣接emoji cluster分離、Source Text切替で差分領域と静止領域を分ける検査。固定font fixtureと承認済みbaselineが用意できたらcluster間隔・字形回転も画素比較する。
+
 ### 2026-10-12 — Partial module rebuilds can retain stale allocation templates
 
 - **関連:** `Artifact/include/Render/GPUTextureCacheManager.ixx`、`Artifact/src/Render/ArtifactRenderQueueService.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`tools/VideoPreviewBench/README.md`。

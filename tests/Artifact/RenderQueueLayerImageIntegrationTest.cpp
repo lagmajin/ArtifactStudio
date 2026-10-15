@@ -1,25 +1,33 @@
 #include <gtest/gtest.h>
 
 #include <QByteArray>
+#include <QColor>
 #include <QCoreApplication>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QEventLoop>
+#include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QImage>
+#include <QJsonArray>
 #include <QLoggingCategory>
+#include <QList>
 #include <QRegularExpression>
+#include <QRect>
 #include <QSize>
 #include <QStandardPaths>
 #include <QStringList>
 #include <QTemporaryDir>
 #include <QThread>
+#include <QVariant>
 #include <QVariantMap>
+#include <QVector>
 #include <QVector3D>
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -27,19 +35,30 @@
 
 import Artifact.Composition.InitParams;
 import Artifact.Composition.Result;
+import Artifact.Effect.Abstract;
 import Artifact.Layer.Abstract;
 import Artifact.Layer.Camera;
 import Artifact.Layer.InitParams;
+import Artifact.Layer.Image;
 import Artifact.Layer.Particle;
 import Artifact.Layer.Result;
 import Artifact.Layer.Text;
 import Artifact.Generator.Particle;
 import Artifact.Project.Manager;
+import Artifact.Project;
+import Artifact.Project.Items;
+import Artifact.Render.Batch;
 import Artifact.Render.IRenderer;
 import Artifact.Render.Queue.Job;
 import Artifact.Render.Queue.Service;
+import Artifact.Service.Project;
+import Frame.Position;
+import Frame.Range;
 import Color.Float;
 import Image.OpenEXR;
+import BrightnessEffect;
+import Memory.SharedPtr;
+import Time.Rational;
 import Utils.Id;
 import Utils.String.UniString;
 
@@ -130,7 +149,8 @@ bool addAndRender(Artifact::ArtifactRenderQueueService* queue,
                   QString* failure,
                   int frameEnd = 2,
                   const QString& renderBackend = QStringLiteral("gpu"),
-                  int frameStart = 1)
+                  int frameStart = 1,
+                  const QVariantMap& selectiveOverrides = {})
 {
     const QFileInfo requestedOutput(outputBasePath);
     if (!QDir().mkpath(requestedOutput.absolutePath())) {
@@ -156,6 +176,10 @@ bool addAndRender(Artifact::ArtifactRenderQueueService* queue,
     selectiveSettings.insert(
         QStringLiteral("frameRangeMode"),
         static_cast<int>(Artifact::ArtifactRenderJob::FrameRangeMode::Custom));
+    for (auto it = selectiveOverrides.cbegin();
+         it != selectiveOverrides.cend(); ++it) {
+        selectiveSettings.insert(it.key(), it.value());
+    }
     if (!queue->setJobSelectiveSettingsAt(jobIndex, selectiveSettings)) {
         *failure = QStringLiteral("Could not select the explicit frame range");
         return false;
@@ -214,6 +238,117 @@ bool hasBrightTextPixels(const QImage& image)
     }) > 20;
 }
 
+bool hasVisibleTextPixels(const QImage& image)
+{
+    return countPixelsMatching(image, [](QRgb pixel) {
+        return qAlpha(pixel) > 32 &&
+               std::max({qRed(pixel), qGreen(pixel), qBlue(pixel)}) > 32;
+    }) > 20;
+}
+
+Artifact::FootageItem* findFootageItem(
+    const QVector<Artifact::ProjectItem*>& items,
+    const QString& path)
+{
+    for (Artifact::ProjectItem* item : items) {
+        if (!item) {
+            continue;
+        }
+        if (item->type() == Artifact::eProjectItemType::Footage) {
+            auto* footage = static_cast<Artifact::FootageItem*>(item);
+            if (QFileInfo(footage->filePath).absoluteFilePath() ==
+                QFileInfo(path).absoluteFilePath()) {
+                return footage;
+            }
+        }
+        if (auto* nested = findFootageItem(item->children, path)) {
+            return nested;
+        }
+    }
+    return nullptr;
+}
+
+QRect visibleTextBounds(const QImage& source)
+{
+    const QImage image = source.convertToFormat(QImage::Format_ARGB32);
+    QRect bounds;
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            const QRgb pixel = image.pixel(x, y);
+            if (qAlpha(pixel) > 32 &&
+                std::max({qRed(pixel), qGreen(pixel), qBlue(pixel)}) > 32) {
+                bounds |= QRect(x, y, 1, 1);
+            }
+        }
+    }
+    return bounds;
+}
+
+double bestVisiblePixelMatchFraction(const QImage& source,
+                                     const QImage& target,
+                                     const int minOffsetX,
+                                     const int maxOffsetX,
+                                     const int maxOffsetY)
+{
+    const QImage sourcePixels = source.convertToFormat(QImage::Format_ARGB32);
+    const QImage targetPixels = target.convertToFormat(QImage::Format_ARGB32);
+    int visibleSourcePixels = 0;
+    for (int y = 0; y < sourcePixels.height(); ++y) {
+        for (int x = 0; x < sourcePixels.width(); ++x) {
+            const QRgb pixel = sourcePixels.pixel(x, y);
+            if (qAlpha(pixel) > 32 &&
+                std::max({qRed(pixel), qGreen(pixel), qBlue(pixel)}) > 32) {
+                ++visibleSourcePixels;
+            }
+        }
+    }
+    if (visibleSourcePixels == 0) {
+        return 0.0;
+    }
+
+    double bestFraction = 0.0;
+    for (int offsetY = -maxOffsetY; offsetY <= maxOffsetY; ++offsetY) {
+        for (int offsetX = minOffsetX; offsetX <= maxOffsetX; ++offsetX) {
+            int matchedPixels = 0;
+            for (int y = 0; y < sourcePixels.height(); ++y) {
+                const int targetY = y + offsetY;
+                if (targetY < 0 || targetY >= targetPixels.height()) {
+                    continue;
+                }
+                for (int x = 0; x < sourcePixels.width(); ++x) {
+                    const QRgb sourcePixel = sourcePixels.pixel(x, y);
+                    if (qAlpha(sourcePixel) <= 32 ||
+                        std::max({qRed(sourcePixel), qGreen(sourcePixel),
+                                  qBlue(sourcePixel)}) <= 32) {
+                        continue;
+                    }
+                    const int targetX = x + offsetX;
+                    if (targetX < 0 || targetX >= targetPixels.width()) {
+                        continue;
+                    }
+                    const QRgb targetPixel = targetPixels.pixel(targetX, targetY);
+                    if (qAlpha(targetPixel) <= 32 ||
+                        std::max({qRed(targetPixel), qGreen(targetPixel),
+                                  qBlue(targetPixel)}) <= 32) {
+                        continue;
+                    }
+                    const int colorDistance =
+                        std::abs(qRed(sourcePixel) - qRed(targetPixel)) +
+                        std::abs(qGreen(sourcePixel) - qGreen(targetPixel)) +
+                        std::abs(qBlue(sourcePixel) - qBlue(targetPixel));
+                    if (colorDistance <= 96) {
+                        ++matchedPixels;
+                    }
+                }
+            }
+            bestFraction = std::max(
+                bestFraction,
+                static_cast<double>(matchedPixels) / visibleSourcePixels);
+        }
+    }
+    return bestFraction;
+}
+
 bool addAndRenderTwoTextFrames(
     Artifact::ArtifactRenderQueueService* queue,
     const ArtifactCore::CompositionID& compositionId,
@@ -261,6 +396,21 @@ bool addAndRenderTwoTextFrames(
     if (!hasBrightTextPixels(secondFrame)) {
         *failure = QStringLiteral("Second text frame contains no expected bright glyph pixels: %1")
                        .arg(secondFramePath);
+        return false;
+    }
+    const QString firstFramePath = QDir(outputInfo.absolutePath()).filePath(
+        QStringLiteral("%1_%2.png")
+            .arg(outputInfo.completeBaseName())
+            .arg(1, 4, 10, QLatin1Char('0')));
+    const QImage firstFrame(firstFramePath);
+    if (firstFrame.isNull()) {
+        *failure = QStringLiteral("Render Queue did not write a readable first text frame: %1")
+                       .arg(firstFramePath);
+        return false;
+    }
+    if (firstFrame == secondFrame) {
+        *failure = QStringLiteral("Animated text frames rendered identical pixels: %1, %2")
+                       .arg(firstFramePath, secondFramePath);
         return false;
     }
     return true;
@@ -424,6 +574,1621 @@ TEST(RenderQueueLayerImageIntegrationTest,
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
+     WorkAreaRangeWritesOnlyFramesInsideTheCompositionWorkArea)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 32;
+    constexpr int height = 24;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueWorkAreaRangeTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams params;
+    params.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("WorkAreaRange")));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(8);
+    params.setBackgroundColor(ArtifactCore::FloatColor(
+        0.12f, 0.24f, 0.36f, 1.0f));
+    const auto compositionResult = projects.createComposition(params);
+    ASSERT_TRUE(compositionResult.success);
+
+    const auto composition = projects.findComposition(compositionResult.id);
+    ASSERT_TRUE(composition.success);
+    auto compositionPtr = composition.ptr.lock();
+    ASSERT_TRUE(compositionPtr);
+    compositionPtr->setWorkAreaRange(ArtifactCore::FrameRange(
+        ArtifactCore::FramePosition(2), ArtifactCore::FramePosition(5)));
+
+    const QString outputBase = isolatedOutputPath(
+        QStringLiteral("render_queue_work_area.png"));
+    ASSERT_TRUE(QDir().mkpath(QFileInfo(outputBase).absolutePath()));
+    queue->addRenderQueueForComposition(compositionResult.id,
+                                       QStringLiteral("WorkAreaRange"));
+    const int jobIndex = queue->jobCount() - 1;
+    ASSERT_GE(jobIndex, 0);
+    queue->setJobOutputPathAt(jobIndex, outputBase);
+    queue->setJobOutputSettingsAt(jobIndex, QStringLiteral("PNG"),
+                                  QStringLiteral("png"), width, height,
+                                  30.0, 8000);
+    queue->setJobFramePaddingAt(jobIndex, 4);
+    auto settings = queue->jobSelectiveSettingsAt(jobIndex);
+    settings.insert(QStringLiteral("frameRangeMode"),
+                    static_cast<int>(Artifact::ArtifactRenderJob::FrameRangeMode::WorkArea));
+    ASSERT_TRUE(queue->setJobSelectiveSettingsAt(jobIndex, settings));
+    queue->startRenderQueueAt(jobIndex);
+
+    QElapsedTimer timeout;
+    timeout.start();
+    QString status;
+    while (timeout.elapsed() < 60000) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+        status = queue->jobStatusAt(jobIndex);
+        if (status == QStringLiteral("Completed") ||
+            status == QStringLiteral("Failed") ||
+            status == QStringLiteral("Canceled")) {
+            break;
+        }
+        QThread::msleep(10);
+    }
+    ASSERT_EQ(status, QStringLiteral("Completed"))
+        << queue->jobErrorMessageAt(jobIndex).toStdString();
+
+    const QFileInfo outputInfo(outputBase);
+    const QDir outputDir(outputInfo.absolutePath());
+    const QString outputStem = outputInfo.completeBaseName();
+    for (int frame = 0; frame < 8; ++frame) {
+        const QString framePath = outputDir.filePath(
+            QStringLiteral("%1_%2.png").arg(outputStem).arg(frame, 4, 10,
+                                                            QLatin1Char('0')));
+        const bool shouldExist = frame >= 2 && frame < 5;
+        EXPECT_EQ(QFileInfo::exists(framePath), shouldExist)
+            << "Unexpected Work Area output membership for frame " << frame
+            << ": " << framePath.toStdString();
+        if (shouldExist) {
+            const QImage image(framePath);
+            ASSERT_FALSE(image.isNull()) << framePath.toStdString();
+            EXPECT_EQ(image.size(), QSize(width, height));
+        }
+    }
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     SelectedFrameRangesSurviveQueueJsonRoundTripAndRenderDisjointIntervals)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 32;
+    constexpr int height = 24;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueSelectedRangesTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams params;
+    params.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("SelectedRanges")));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(8);
+    params.setBackgroundColor(ArtifactCore::FloatColor(
+        0.12f, 0.24f, 0.36f, 1.0f));
+    const auto composition = projects.createComposition(params);
+    ASSERT_TRUE(composition.success);
+
+    const QString outputBase = isolatedOutputPath(
+        QStringLiteral("render_queue_selected_ranges.png"));
+    ASSERT_TRUE(QDir().mkpath(QFileInfo(outputBase).absolutePath()));
+    queue->addRenderQueueForComposition(composition.id,
+                                       QStringLiteral("SelectedRanges"));
+    ASSERT_EQ(queue->jobCount(), 1);
+    queue->setJobOutputPathAt(0, outputBase);
+    queue->setJobOutputSettingsAt(0, QStringLiteral("PNG"),
+                                  QStringLiteral("png"), width, height,
+                                  30.0, 8000);
+    queue->setJobFramePaddingAt(0, 4);
+    auto settings = queue->jobSelectiveSettingsAt(0);
+    settings.insert(QStringLiteral("frameRangeMode"),
+                    static_cast<int>(Artifact::ArtifactRenderJob::FrameRangeMode::SelectedFrames));
+    QVariantList selectedRanges;
+    selectedRanges.append(QVariantMap{
+        {QStringLiteral("start"), 1}, {QStringLiteral("end"), 3}});
+    selectedRanges.append(QVariantMap{
+        {QStringLiteral("start"), 5}, {QStringLiteral("end"), 7}});
+    settings.insert(QStringLiteral("selectedFrameRanges"), selectedRanges);
+    ASSERT_TRUE(queue->setJobSelectiveSettingsAt(0, settings));
+
+    const QString queueJsonPath = QDir(projectRoot.path()).filePath(
+        QStringLiteral("selected-ranges-queue.json"));
+    ASSERT_TRUE(queue->exportQueueJson(queueJsonPath));
+    queue->removeAllRenderQueues();
+    ASSERT_TRUE(queue->importQueueJson(queueJsonPath));
+    ASSERT_EQ(queue->jobCount(), 1);
+    const auto restoredSettings = queue->jobSelectiveSettingsAt(0);
+    EXPECT_EQ(restoredSettings.value(QStringLiteral("frameRangeMode")).toInt(),
+              static_cast<int>(Artifact::ArtifactRenderJob::FrameRangeMode::SelectedFrames));
+    const auto restoredRanges = restoredSettings.value(
+        QStringLiteral("selectedFrameRanges")).toList();
+    ASSERT_EQ(restoredRanges.size(), 2);
+    EXPECT_EQ(restoredRanges[0].toMap().value(QStringLiteral("start")).toInt(), 1);
+    EXPECT_EQ(restoredRanges[0].toMap().value(QStringLiteral("end")).toInt(), 3);
+    EXPECT_EQ(restoredRanges[1].toMap().value(QStringLiteral("start")).toInt(), 5);
+    EXPECT_EQ(restoredRanges[1].toMap().value(QStringLiteral("end")).toInt(), 7);
+
+    // Starting the full queue exercises the production expansion path that
+    // turns each selected interval into its own output job.
+    queue->startAllJobs();
+    QElapsedTimer timeout;
+    timeout.start();
+    while (timeout.elapsed() < 60000) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+        bool allTerminal = queue->jobCount() == 2;
+        bool allCompleted = allTerminal;
+        for (int index = 0; index < queue->jobCount(); ++index) {
+            const QString status = queue->jobStatusAt(index);
+            const bool terminal = status == QStringLiteral("Completed") ||
+                                  status == QStringLiteral("Failed") ||
+                                  status == QStringLiteral("Canceled");
+            allTerminal = allTerminal && terminal;
+            allCompleted = allCompleted &&
+                           status == QStringLiteral("Completed");
+        }
+        if (allTerminal) {
+            ASSERT_TRUE(allCompleted);
+            break;
+        }
+        QThread::msleep(10);
+    }
+    ASSERT_EQ(queue->jobCount(), 2)
+        << "The two disjoint selected ranges should expand into two queue jobs";
+    for (int index = 0; index < queue->jobCount(); ++index) {
+        ASSERT_EQ(queue->jobStatusAt(index), QStringLiteral("Completed"))
+            << queue->jobErrorMessageAt(index).toStdString();
+    }
+
+    const QFileInfo outputInfo(outputBase);
+    const QDir outputDir(outputInfo.absolutePath());
+    const QString stem = outputInfo.completeBaseName();
+    const auto framePath = [&](const QString& interval, int frame) {
+        return outputDir.filePath(QStringLiteral("%1_f%2_%3.png")
+            .arg(stem, interval)
+            .arg(frame, 4, 10, QLatin1Char('0')));
+    };
+    const QList<QPair<QString, int>> expectedFrames{
+        {QStringLiteral("1-3"), 1}, {QStringLiteral("1-3"), 2},
+        {QStringLiteral("5-7"), 5}, {QStringLiteral("5-7"), 6}};
+    for (const auto& [interval, frame] : expectedFrames) {
+        const QString path = framePath(interval, frame);
+        ASSERT_TRUE(QFileInfo::exists(path)) << path.toStdString();
+        const QImage image(path);
+        ASSERT_FALSE(image.isNull()) << path.toStdString();
+        EXPECT_EQ(image.size(), QSize(width, height));
+    }
+    for (int frame = 0; frame < 8; ++frame) {
+        const bool selected = frame == 1 || frame == 2 || frame == 5 || frame == 6;
+        const QString interval = frame < 4 ? QStringLiteral("1-3")
+                                           : QStringLiteral("5-7");
+        EXPECT_EQ(QFileInfo::exists(framePath(interval, frame)), selected)
+            << "Unexpected output membership for frame " << frame;
+    }
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     SelectedFrameRangesWithoutAValidIntervalFailPreflight)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 32;
+    constexpr int height = 24;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueInvalidSelectedRangesTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams params;
+    params.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("InvalidSelectedRanges")));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(8);
+    const auto composition = projects.createComposition(params);
+    ASSERT_TRUE(composition.success);
+
+    const QString outputBase = isolatedOutputPath(
+        QStringLiteral("render_queue_invalid_selected_ranges.png"));
+    ASSERT_TRUE(QDir().mkpath(QFileInfo(outputBase).absolutePath()));
+    const QList<QVariantList> invalidRangeCases{
+        {},
+        {QVariantMap{{QStringLiteral("start"), 3},
+                     {QStringLiteral("end"), 3}},
+         QVariantMap{{QStringLiteral("start"), 6},
+                     {QStringLiteral("end"), 2}}}
+    };
+    for (int caseIndex = 0; caseIndex < invalidRangeCases.size(); ++caseIndex) {
+        queue->addRenderQueueForComposition(
+            composition.id, QStringLiteral("InvalidSelectedRanges_%1")
+                               .arg(caseIndex));
+        const int jobIndex = queue->jobCount() - 1;
+        ASSERT_GE(jobIndex, 0);
+        const QString caseOutput = QFileInfo(outputBase).dir().filePath(
+            QStringLiteral("case_%1.png").arg(caseIndex));
+        queue->setJobOutputPathAt(jobIndex, caseOutput);
+        queue->setJobOutputSettingsAt(jobIndex, QStringLiteral("PNG"),
+                                      QStringLiteral("png"), width, height,
+                                      30.0, 8000);
+        auto settings = queue->jobSelectiveSettingsAt(jobIndex);
+        settings.insert(QStringLiteral("frameRangeMode"),
+                        static_cast<int>(Artifact::ArtifactRenderJob::FrameRangeMode::SelectedFrames));
+        settings.insert(QStringLiteral("selectedFrameRanges"),
+                        invalidRangeCases[caseIndex]);
+        ASSERT_TRUE(queue->setJobSelectiveSettingsAt(jobIndex, settings));
+
+        const auto preflight = queue->preflightRenderQueueAt(jobIndex);
+        ASSERT_TRUE(preflight.hasErrors());
+        const QString details =
+            Artifact::ArtifactRenderQueueService::formatPreflightDetails(preflight)
+                .join(QLatin1Char('\n'));
+        EXPECT_TRUE(details.contains(
+            QStringLiteral("Selected frame ranges are empty"))) << details.toStdString();
+        EXPECT_EQ(queue->jobStatusAt(jobIndex), QStringLiteral("Pending"));
+        EXPECT_FALSE(QFileInfo::exists(caseOutput));
+    }
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     UnorderedOverlappingSelectedRangesRenderTheirFullUnionOnce)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 32;
+    constexpr int height = 24;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueOverlappingRangesTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams params;
+    params.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("OverlappingSelectedRanges")));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(8);
+    params.setBackgroundColor(ArtifactCore::FloatColor(
+        0.12f, 0.24f, 0.36f, 1.0f));
+    const auto composition = projects.createComposition(params);
+    ASSERT_TRUE(composition.success);
+
+    const QString outputBase = isolatedOutputPath(
+        QStringLiteral("render_queue_overlapping_ranges.png"));
+    ASSERT_TRUE(QDir().mkpath(QFileInfo(outputBase).absolutePath()));
+    queue->addRenderQueueForComposition(composition.id,
+                                       QStringLiteral("OverlappingRanges"));
+    ASSERT_EQ(queue->jobCount(), 1);
+    queue->setJobOutputPathAt(0, outputBase);
+    queue->setJobOutputSettingsAt(0, QStringLiteral("PNG"),
+                                  QStringLiteral("png"), width, height,
+                                  30.0, 8000);
+    queue->setJobFramePaddingAt(0, 4);
+    auto settings = queue->jobSelectiveSettingsAt(0);
+    settings.insert(QStringLiteral("frameRangeMode"),
+                    static_cast<int>(Artifact::ArtifactRenderJob::FrameRangeMode::SelectedFrames));
+    QVariantList selectedRanges;
+    // Deliberately out of order and overlapping: their union is [1, 7).
+    selectedRanges.append(QVariantMap{
+        {QStringLiteral("start"), 5}, {QStringLiteral("end"), 7}});
+    selectedRanges.append(QVariantMap{
+        {QStringLiteral("start"), 1}, {QStringLiteral("end"), 4}});
+    selectedRanges.append(QVariantMap{
+        {QStringLiteral("start"), 3}, {QStringLiteral("end"), 6}});
+    settings.insert(QStringLiteral("selectedFrameRanges"), selectedRanges);
+    ASSERT_TRUE(queue->setJobSelectiveSettingsAt(0, settings));
+
+    queue->startAllJobs();
+    QElapsedTimer timeout;
+    timeout.start();
+    while (timeout.elapsed() < 60000) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+        const QString status = queue->jobStatusAt(0);
+        if (status == QStringLiteral("Completed") ||
+            status == QStringLiteral("Failed") ||
+            status == QStringLiteral("Canceled")) {
+            break;
+        }
+        QThread::msleep(10);
+    }
+    ASSERT_EQ(queue->jobCount(), 1)
+        << "Overlapping intervals should normalize into one continuous job";
+    ASSERT_EQ(queue->jobStatusAt(0), QStringLiteral("Completed"))
+        << queue->jobErrorMessageAt(0).toStdString();
+
+    const QFileInfo outputInfo(outputBase);
+    const QDir outputDir(outputInfo.absolutePath());
+    const QString stem = outputInfo.completeBaseName();
+    for (int frame = 0; frame < 8; ++frame) {
+        const QString path = outputDir.filePath(
+            QStringLiteral("%1_f1-7_%2.png").arg(stem).arg(
+                frame, 4, 10, QLatin1Char('0')));
+        const bool expected = frame >= 1 && frame < 7;
+        EXPECT_EQ(QFileInfo::exists(path), expected)
+            << "Unexpected overlap-union output membership for frame " << frame
+            << ": " << path.toStdString();
+        if (expected && QFileInfo::exists(path)) {
+            const QImage image(path);
+            ASSERT_FALSE(image.isNull()) << path.toStdString();
+            EXPECT_EQ(image.size(), QSize(width, height));
+        }
+    }
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     BatchRendererAddsJobsForValidCompositionsAndReportsMissingIds)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    auto* batch = Artifact::ArtifactBatchRenderer::instance();
+    ASSERT_NE(queue, nullptr);
+    ASSERT_NE(batch, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("BatchRendererQueueIntegrationTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    const auto createComposition = [&](const QString& name) {
+        Artifact::ArtifactCompositionInitParams params;
+        params.setCompositionName(ArtifactCore::UniString(name));
+        params.setResolution(32, 24);
+        params.setFrameRate(30.0);
+        params.setDurationFrames(2);
+        return projects.createComposition(params);
+    };
+    const auto first = createComposition(QStringLiteral("Batch One"));
+    const auto second = createComposition(QStringLiteral("Batch:Two"));
+    ASSERT_TRUE(first.success);
+    ASSERT_TRUE(second.success);
+
+    const QString outputDirectory = QDir(projectRoot.path()).filePath(
+        QStringLiteral("batch-output"));
+    const ArtifactCore::CompositionID missingId(
+        QStringLiteral("00000000-0000-0000-0000-000000000001"));
+    const QVector<ArtifactCore::CompositionID> ids{
+        first.id, missingId, second.id};
+    EXPECT_EQ(batch->addCompositions(ids, outputDirectory,
+                                     QStringLiteral("%compName%")), 2);
+    EXPECT_EQ(queue->jobCount(), 2);
+
+    EXPECT_EQ(queue->jobCompositionIdAt(0), first.id);
+    EXPECT_EQ(queue->jobCompositionIdAt(1), second.id);
+    EXPECT_EQ(queue->jobCompositionNameAt(0), QStringLiteral("Batch One"));
+    EXPECT_EQ(queue->jobCompositionNameAt(1), QStringLiteral("Batch:Two"));
+    EXPECT_FALSE(batch->lastBatchErrors().isEmpty());
+    EXPECT_TRUE(batch->lastBatchErrors().join(QLatin1Char('\n')).contains(
+        QStringLiteral("Composition was not found")));
+
+    for (int index = 0; index < queue->jobCount(); ++index) {
+        const QString expectedStem =
+            Artifact::ArtifactBatchRenderer::resolveFileNamePattern(
+                QStringLiteral("%compName%"), queue->jobCompositionNameAt(index));
+        const QFileInfo output(queue->jobOutputPathAt(index));
+        EXPECT_EQ(output.absolutePath(), QFileInfo(outputDirectory).absoluteFilePath());
+        EXPECT_EQ(output.completeBaseName(), expectedStem);
+        EXPECT_FALSE(output.suffix().isEmpty());
+        EXPECT_EQ(queue->jobStatusAt(index), QStringLiteral("Pending"));
+    }
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     BatchTemplateAppliesOverridesAndRejectsMissingPresetWithoutPartialJobs)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    auto* batch = Artifact::ArtifactBatchRenderer::instance();
+    ASSERT_NE(queue, nullptr);
+    ASSERT_NE(batch, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("BatchTemplateQueueIntegrationTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    const auto createComposition = [&](const QString& name) {
+        Artifact::ArtifactCompositionInitParams params;
+        params.setCompositionName(ArtifactCore::UniString(name));
+        params.setResolution(320, 180);
+        params.setFrameRate(30.0);
+        params.setDurationFrames(8);
+        return projects.createComposition(params);
+    };
+    const auto first = createComposition(QStringLiteral("Template One"));
+    const auto second = createComposition(QStringLiteral("Template Two"));
+    ASSERT_TRUE(first.success);
+    ASSERT_TRUE(second.success);
+
+    Artifact::BatchTemplate tmpl;
+    tmpl.name = QStringLiteral("Integration Template");
+    tmpl.outputDirectory = QDir(projectRoot.path()).filePath(
+        QStringLiteral("template-output"));
+    tmpl.fileNamePattern = QStringLiteral("%compName%");
+    tmpl.presetId = QStringLiteral("png_sequence");
+    tmpl.overrideWidth = 64;
+    tmpl.overrideHeight = 48;
+    tmpl.overrideFps = 24.0;
+    tmpl.startFrame = 2;
+    tmpl.endFrame = 5;
+    tmpl.format = QStringLiteral("PNG");
+    tmpl.codec = QStringLiteral("PNG");
+    tmpl.framePadding = 6;
+    const QVector<ArtifactCore::CompositionID> ids{first.id, second.id};
+    ASSERT_TRUE(Artifact::ArtifactBatchRenderer::validateTemplate(tmpl));
+    ASSERT_EQ(batch->addCompositionsWithTemplate(ids, tmpl), 2);
+    ASSERT_EQ(queue->jobCount(), 2);
+
+    for (int index = 0; index < queue->jobCount(); ++index) {
+        EXPECT_EQ(queue->jobCompositionIdAt(index), ids[index]);
+        EXPECT_EQ(queue->jobFramePaddingAt(index), 6);
+        int startFrame = -1;
+        int endFrame = -1;
+        ASSERT_TRUE(queue->jobFrameRangeAt(index, &startFrame, &endFrame));
+        EXPECT_EQ(startFrame, 2);
+        EXPECT_EQ(endFrame, 5);
+        const auto settings = queue->jobSelectiveSettingsAt(index);
+        EXPECT_EQ(settings.value(QStringLiteral("frameRangeMode")).toInt(),
+                  static_cast<int>(Artifact::ArtifactRenderJob::FrameRangeMode::Custom));
+
+        QString format;
+        QString codec;
+        QString profile;
+        int width = 0;
+        int height = 0;
+        double fps = 0.0;
+        int bitrate = 0;
+        ASSERT_TRUE(queue->jobOutputSettingsAt(index, &format, &codec, &profile,
+                                               &width, &height, &fps, &bitrate));
+        EXPECT_EQ(format, QStringLiteral("PNG"));
+        EXPECT_EQ(codec, QStringLiteral("PNG"));
+        EXPECT_EQ(width, 64);
+        EXPECT_EQ(height, 48);
+        EXPECT_DOUBLE_EQ(fps, 24.0);
+        EXPECT_EQ(QFileInfo(queue->jobOutputPathAt(index)).suffix(),
+                  QStringLiteral("png"));
+    }
+
+    queue->removeAllRenderQueues();
+    batch->clearBatchErrors();
+    tmpl.presetId = QStringLiteral("missing-preset-for-integration-test");
+    EXPECT_EQ(batch->addCompositionsWithTemplate(ids, tmpl), 0);
+    EXPECT_EQ(queue->jobCount(), 0);
+    EXPECT_TRUE(batch->lastBatchErrors().join(QLatin1Char('\n')).contains(
+        QStringLiteral("Render preset is unavailable")));
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     GrayscaleImageSurvivesProjectReloadAndRendersAsOpaqueNeutralRgb)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 64;
+    constexpr int height = 64;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("GrayscaleImageRenderTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    const QString sourcePath = QDir(projectRoot.path()).filePath(
+        QStringLiteral("neutral-gray.png"));
+    QImage source(width, height, QImage::Format_Grayscale8);
+    source.fill(96);
+    ASSERT_TRUE(source.save(sourcePath));
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("GrayscaleImage")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(2);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactImageInitParams imageParams(QStringLiteral("GraySource"));
+    imageParams.setImagePath(sourcePath);
+    const auto layerResult = projects.addLayerToComposition(
+        composition.id, imageParams);
+    ASSERT_TRUE(layerResult.success);
+    ASSERT_NE(dynamic_cast<Artifact::ArtifactImageLayer*>(
+                  layerResult.layer.get()), nullptr);
+
+    const QString projectPath = QDir(projectRoot.path()).filePath(
+        QStringLiteral("grayscale-image.artifact"));
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+    const auto loadedComposition = projects.findComposition(composition.id);
+    ASSERT_TRUE(loadedComposition.success);
+    const auto loadedCompositionPtr = loadedComposition.ptr.lock();
+    ASSERT_TRUE(loadedCompositionPtr);
+    const auto loadedLayers = loadedCompositionPtr->allLayer();
+    ASSERT_EQ(loadedLayers.size(), 1);
+    auto* loadedImage = dynamic_cast<Artifact::ArtifactImageLayer*>(
+        loadedLayers.front().get());
+    ASSERT_NE(loadedImage, nullptr);
+    EXPECT_EQ(loadedImage->sourcePath(), sourcePath);
+
+    const QString outputBase = isolatedOutputPath(
+        QStringLiteral("render_queue_grayscale.png"));
+    QString failure;
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("GrayscaleImage"),
+        outputBase, width, height,
+        [](const QImage& image) { return !image.isNull(); },
+        &failure)) << failure.toStdString();
+
+    const QFileInfo outputInfo(outputBase);
+    const QString framePath = QDir(outputInfo.absolutePath()).filePath(
+        QStringLiteral("%1_0001.png").arg(outputInfo.completeBaseName()));
+    const QImage rendered(framePath);
+    ASSERT_FALSE(rendered.isNull()) << framePath.toStdString();
+    const QColor center = rendered.pixelColor(width / 2, height / 2);
+    EXPECT_LE(std::abs(center.red() - center.green()), 2);
+    EXPECT_LE(std::abs(center.green() - center.blue()), 2);
+    EXPECT_GE(center.alpha(), 250);
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     RgbaImageAlphaSurvivesProjectReloadAndScaledCompositeHasNoHiddenRgbFringe)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 64;
+    constexpr int height = 48;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RgbaImageAlphaRenderTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    const QString sourcePath = QDir(projectRoot.path()).filePath(
+        QStringLiteral("rgba-alpha.png"));
+    QImage source(width, height, QImage::Format_RGBA8888);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            source.setPixelColor(x, y, x < width / 2
+                ? QColor(255, 0, 0, 0)
+                : QColor(20, 40, 235, 255));
+        }
+    }
+    ASSERT_TRUE(source.save(sourcePath, "PNG"));
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("RgbaAlpha")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(2);
+    compositionParams.setBackgroundColor(ArtifactCore::FloatColor(
+        0.0f, 0.5f, 0.0f, 1.0f));
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+    Artifact::ArtifactImageInitParams imageParams(QStringLiteral("RgbaSource"));
+    imageParams.setImagePath(sourcePath);
+    const auto layerResult = projects.addLayerToComposition(
+        composition.id, imageParams);
+    ASSERT_TRUE(layerResult.success);
+    auto* imageLayer = dynamic_cast<Artifact::ArtifactImageLayer*>(
+        layerResult.layer.get());
+    ASSERT_NE(imageLayer, nullptr);
+    imageLayer->transform2D().setScale(1.5f, 1.5f);
+
+    const QString projectPath = QDir(projectRoot.path()).filePath(
+        QStringLiteral("rgba-alpha.artifact"));
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+    const auto loadedComposition = projects.findComposition(composition.id);
+    ASSERT_TRUE(loadedComposition.success);
+    const auto loadedCompositionPtr = loadedComposition.ptr.lock();
+    ASSERT_TRUE(loadedCompositionPtr);
+    const auto loadedLayers = loadedCompositionPtr->allLayer();
+    ASSERT_EQ(loadedLayers.size(), 1);
+    auto* loadedImage = dynamic_cast<Artifact::ArtifactImageLayer*>(
+        loadedLayers.front().get());
+    ASSERT_NE(loadedImage, nullptr);
+    EXPECT_EQ(loadedImage->sourcePath(), sourcePath);
+    float scaleX = 0.0f;
+    float scaleY = 0.0f;
+    loadedImage->transform2D().scale(scaleX, scaleY);
+    EXPECT_FLOAT_EQ(scaleX, 1.5f);
+    EXPECT_FLOAT_EQ(scaleY, 1.5f);
+
+    const QString outputBase = isolatedOutputPath(
+        QStringLiteral("render_queue_rgba_alpha.png"));
+    QString failure;
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("RgbaAlpha"),
+        outputBase, width, height,
+        [](const QImage& image) { return !image.isNull(); },
+        &failure)) << failure.toStdString();
+    const QString framePath = QDir(QFileInfo(outputBase).absolutePath()).filePath(
+        QStringLiteral("%1_0001.png").arg(QFileInfo(outputBase).completeBaseName()));
+    const QImage rendered(framePath);
+    ASSERT_FALSE(rendered.isNull()) << framePath.toStdString();
+    const auto backgroundPixels = countPixelsMatching(rendered, [](QRgb pixel) {
+        return qRed(pixel) < 40 && qGreen(pixel) > 100 && qBlue(pixel) < 40;
+    });
+    const auto opaqueBluePixels = countPixelsMatching(rendered, [](QRgb pixel) {
+        return qRed(pixel) < 60 && qGreen(pixel) < 80 && qBlue(pixel) > 150 &&
+               qAlpha(pixel) > 250;
+    });
+    const auto redFringePixels = countPixelsMatching(rendered, [](QRgb pixel) {
+        return qRed(pixel) > qBlue(pixel) + 20 &&
+               qRed(pixel) > qGreen(pixel) + 20;
+    });
+    EXPECT_GT(backgroundPixels, 100)
+        << "Transparent source pixels should reveal the green composition background";
+    EXPECT_GT(opaqueBluePixels, 100)
+        << "The opaque half of the RGBA source should remain visible after scaling";
+    EXPECT_EQ(redFringePixels, 0)
+        << "RGB values hidden under zero alpha must not create red fringes";
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     HdrExrImageRetainsValuesAboveOneThroughProjectReloadAndRenderQueue)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 16;
+    constexpr int height = 16;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("HdrExrImageRenderTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    std::vector<float> sourcePixels(
+        static_cast<std::size_t>(width) * height * 4u);
+    for (std::size_t offset = 0; offset < sourcePixels.size(); offset += 4u) {
+        sourcePixels[offset] = 2.0f;
+        sourcePixels[offset + 1u] = 0.5f;
+        sourcePixels[offset + 2u] = 0.25f;
+        sourcePixels[offset + 3u] = 1.0f;
+    }
+    const QString sourcePath = QDir(projectRoot.path()).filePath(
+        QStringLiteral("hdr-source.exr"));
+    ArtifactCore::OpenExr exr;
+    ASSERT_TRUE(exr.writeRGBA32F(sourcePath, sourcePixels.data(), width, height));
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("HdrSource")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(2);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+    Artifact::ArtifactImageInitParams imageParams(QStringLiteral("HdrImage"));
+    imageParams.setImagePath(sourcePath);
+    const auto layerResult = projects.addLayerToComposition(
+        composition.id, imageParams);
+    ASSERT_TRUE(layerResult.success);
+
+    const QString projectPath = QDir(projectRoot.path()).filePath(
+        QStringLiteral("hdr-source.artifact"));
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+    const auto loadedComposition = projects.findComposition(composition.id);
+    ASSERT_TRUE(loadedComposition.success);
+    const auto loadedCompositionPtr = loadedComposition.ptr.lock();
+    ASSERT_TRUE(loadedCompositionPtr);
+    const auto loadedLayers = loadedCompositionPtr->allLayer();
+    ASSERT_EQ(loadedLayers.size(), 1);
+    auto* loadedImage = dynamic_cast<Artifact::ArtifactImageLayer*>(
+        loadedLayers.front().get());
+    ASSERT_NE(loadedImage, nullptr);
+    EXPECT_EQ(loadedImage->sourcePath(), sourcePath);
+
+    QString failure;
+    const QString outputBase = isolatedOutputPath(
+        QStringLiteral("render_queue_hdr_input.exr"));
+    ASSERT_TRUE(addAndRenderExr(
+        queue, composition.id, QStringLiteral("HdrSource"), outputBase,
+        width, height, &failure)) << failure.toStdString();
+
+    const QFileInfo outputInfo(outputBase);
+    const QString outputFrame = QDir(outputInfo.absolutePath()).filePath(
+        QStringLiteral("%1_0001.exr").arg(outputInfo.completeBaseName()));
+    std::vector<float> renderedPixels;
+    int renderedWidth = 0;
+    int renderedHeight = 0;
+    ASSERT_TRUE(exr.readRGBA32F(outputFrame, renderedPixels,
+                                renderedWidth, renderedHeight));
+    ASSERT_EQ(renderedWidth, width);
+    ASSERT_EQ(renderedHeight, height);
+    ASSERT_EQ(renderedPixels.size(),
+              static_cast<std::size_t>(width) * height * 4u);
+    ASSERT_EQ(renderedPixels.size(), sourcePixels.size());
+    const std::size_t centerOffset =
+        (static_cast<std::size_t>(height / 2) * width + width / 2) * 4u;
+    EXPECT_GT(renderedPixels[centerOffset], 1.0f)
+        << "HDR red values above one were clipped before EXR output";
+    EXPECT_GT(renderedPixels[centerOffset + 1u], 0.25f);
+    EXPECT_GT(renderedPixels[centerOffset + 3u], 0.9f);
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     SixteenBitGrayscaleKeepsSubEightBitDifferencesInQueueExr)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 32;
+    constexpr int height = 16;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("Gray16QueueIntegrationTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    const QString sourcePath = QDir(projectRoot.path()).filePath(
+        QStringLiteral("gray16.png"));
+    QImage source(width, height, QImage::Format_Grayscale16);
+    for (int y = 0; y < height; ++y) {
+        auto* samples = reinterpret_cast<std::uint16_t*>(source.scanLine(y));
+        for (int x = 0; x < width; ++x) {
+            // Both values round to the same 8-bit grayscale code, but differ
+            // enough to survive the renderer's float working buffer.
+            samples[x] = x < width / 2 ? 0x2000u : 0x207Fu;
+        }
+    }
+    ASSERT_TRUE(source.save(sourcePath, "PNG"));
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("Gray16Source")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(2);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+    Artifact::ArtifactImageInitParams imageParams(QStringLiteral("Gray16Image"));
+    imageParams.setImagePath(sourcePath);
+    ASSERT_TRUE(projects.addLayerToComposition(
+        composition.id, imageParams).success);
+
+    const QString projectPath = QDir(projectRoot.path()).filePath(
+        QStringLiteral("gray16.artifact"));
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+    const auto loadedComposition = projects.findComposition(composition.id);
+    ASSERT_TRUE(loadedComposition.success);
+    const auto loadedCompositionPtr = loadedComposition.ptr.lock();
+    ASSERT_TRUE(loadedCompositionPtr);
+    const auto loadedLayers = loadedCompositionPtr->allLayer();
+    ASSERT_EQ(loadedLayers.size(), 1);
+    auto* loadedImage = dynamic_cast<Artifact::ArtifactImageLayer*>(
+        loadedLayers.front().get());
+    ASSERT_NE(loadedImage, nullptr);
+    EXPECT_EQ(loadedImage->sourcePath(), sourcePath);
+
+    QString failure;
+    const QString outputBase = isolatedOutputPath(
+        QStringLiteral("render_queue_gray16.exr"));
+    ASSERT_TRUE(addAndRenderExr(
+        queue, composition.id, QStringLiteral("Gray16Source"), outputBase,
+        width, height, &failure)) << failure.toStdString();
+    const QFileInfo outputInfo(outputBase);
+    const QString outputFrame = QDir(outputInfo.absolutePath()).filePath(
+        QStringLiteral("%1_0001.exr").arg(outputInfo.completeBaseName()));
+    ArtifactCore::OpenExr exr;
+    std::vector<float> renderedPixels;
+    int renderedWidth = 0;
+    int renderedHeight = 0;
+    ASSERT_TRUE(exr.readRGBA32F(outputFrame, renderedPixels,
+                                renderedWidth, renderedHeight));
+    ASSERT_EQ(renderedWidth, width);
+    ASSERT_EQ(renderedHeight, height);
+    ASSERT_EQ(renderedPixels.size(),
+              static_cast<std::size_t>(width) * height * 4u);
+    const std::size_t leftOffset =
+        (static_cast<std::size_t>(height / 2) * width + width / 4) * 4u;
+    const std::size_t rightOffset =
+        (static_cast<std::size_t>(height / 2) * width + width * 3 / 4) * 4u;
+    EXPECT_GT(renderedPixels[rightOffset], renderedPixels[leftOffset] + 1e-5f)
+        << "16-bit input values that share an 8-bit code must remain distinct";
+    EXPECT_NEAR(renderedPixels[leftOffset], renderedPixels[leftOffset + 1u], 1e-5f);
+    EXPECT_NEAR(renderedPixels[rightOffset], renderedPixels[rightOffset + 1u], 1e-5f);
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     GrayAlphaPngSurvivesProjectReloadAndCompositesByChannelAlpha)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 2;
+    constexpr int height = 1;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("GrayAlphaQueueIntegrationTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    // PNG color type 4: gray+alpha samples (80,64) and (200,192).
+    const QByteArray pngBytes = QByteArray::fromBase64(QByteArrayLiteral(
+        "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAQAAABeK7cBAAAADUlEQVR4nGMIcDhxAAAEVQIZTuh/jwAAAABJRU5ErkJggg=="));
+    ASSERT_EQ(pngBytes.size(), 70);
+    const QString sourcePath = QDir(projectRoot.path()).filePath(
+        QStringLiteral("gray-alpha.png"));
+    QFile sourceFile(sourcePath);
+    ASSERT_TRUE(sourceFile.open(QIODevice::WriteOnly));
+    ASSERT_EQ(sourceFile.write(pngBytes), pngBytes.size());
+    sourceFile.close();
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("GrayAlpha")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(2);
+    compositionParams.setBackgroundColor(ArtifactCore::FloatColor(
+        0.0f, 0.0f, 1.0f, 1.0f));
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+    Artifact::ArtifactImageInitParams imageParams(QStringLiteral("GrayAlphaSource"));
+    imageParams.setImagePath(sourcePath);
+    ASSERT_TRUE(projects.addLayerToComposition(
+        composition.id, imageParams).success);
+
+    const QString projectPath = QDir(projectRoot.path()).filePath(
+        QStringLiteral("gray-alpha.artifact"));
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+
+    const QString outputBase = isolatedOutputPath(
+        QStringLiteral("render_queue_gray_alpha.png"));
+    QString failure;
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("GrayAlpha"), outputBase,
+        width, height, [](const QImage& image) { return !image.isNull(); },
+        &failure)) << failure.toStdString();
+    const QString outputFrame = QDir(QFileInfo(outputBase).absolutePath()).filePath(
+        QStringLiteral("%1_0001.png").arg(QFileInfo(outputBase).completeBaseName()));
+    const QImage rendered(outputFrame);
+    ASSERT_FALSE(rendered.isNull()) << outputFrame.toStdString();
+    ASSERT_EQ(rendered.size(), QSize(width, height));
+    const QColor lowAlpha = rendered.pixelColor(0, 0);
+    const QColor highAlpha = rendered.pixelColor(1, 0);
+    EXPECT_GT(lowAlpha.blue(), lowAlpha.red() + 50)
+        << "Low-alpha gray should reveal the blue composition background";
+    EXPECT_NEAR(lowAlpha.red(), lowAlpha.green(), 4);
+    EXPECT_GT(highAlpha.red(), highAlpha.blue() + 20)
+        << "High-alpha gray should dominate over the blue background";
+    EXPECT_NEAR(highAlpha.red(), highAlpha.green(), 4);
+    EXPECT_GE(lowAlpha.alpha(), 250);
+    EXPECT_GE(highAlpha.alpha(), 250);
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     CompletedQueueJobPersistsInHistoryAndCanBeRequeued)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 32;
+    constexpr int height = 24;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            queue->clearCompletedJobHistory();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("CompletedQueueHistoryTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    Artifact::ArtifactCompositionInitParams params;
+    params.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("HistoryComposition")));
+    params.setResolution(width, height);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(2);
+    params.setBackgroundColor(ArtifactCore::FloatColor(
+        0.2f, 0.1f, 0.05f, 1.0f));
+    const auto composition = projects.createComposition(params);
+    ASSERT_TRUE(composition.success);
+
+    const QString outputBase = isolatedOutputPath(
+        QStringLiteral("render_queue_history.png"));
+    QString failure;
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("HistoryComposition"),
+        outputBase, width, height,
+        [](const QImage& image) { return !image.isNull(); },
+        &failure)) << failure.toStdString();
+    ASSERT_EQ(queue->completedJobHistory().size(), 1)
+        << "A successfully completed queue job must be added to history";
+    EXPECT_EQ(queue->completedJobHistory().at(0).toObject()
+                  .value(QStringLiteral("outputPath")).toString(),
+              outputBase);
+
+    const QString queueJsonPath = QDir(projectRoot.path()).filePath(
+        QStringLiteral("completed-queue.json"));
+    ASSERT_TRUE(queue->exportQueueJson(queueJsonPath));
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+    ASSERT_TRUE(queue->importQueueJson(queueJsonPath));
+    ASSERT_EQ(queue->completedJobHistory().size(), 1);
+    ASSERT_TRUE(queue->requeueCompletedHistoryAt(0));
+    ASSERT_EQ(queue->jobCount(), 2);
+    EXPECT_EQ(queue->jobStatusAt(1), QStringLiteral("Pending"));
+
+    const QFileInfo outputInfo(outputBase);
+    const QString outputFrame = QDir(outputInfo.absolutePath()).filePath(
+        QStringLiteral("%1_0001.png").arg(outputInfo.completeBaseName()));
+    ASSERT_TRUE(QFileInfo::exists(outputFrame));
+    ASSERT_TRUE(QFile::remove(outputFrame));
+    queue->startAllJobs();
+    QElapsedTimer timeout;
+    timeout.start();
+    QString status;
+    while (timeout.elapsed() < 60000) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+        status = queue->jobStatusAt(1);
+        if (status == QStringLiteral("Completed") ||
+            status == QStringLiteral("Failed") ||
+            status == QStringLiteral("Canceled")) {
+            break;
+        }
+        QThread::msleep(10);
+    }
+    ASSERT_EQ(status, QStringLiteral("Completed"))
+        << queue->jobErrorMessageAt(1).toStdString();
+    EXPECT_TRUE(QFileInfo::exists(outputFrame))
+        << "Requeued history job did not recreate its render output";
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     BrightnessEffectSurvivesProjectReloadAndChangesQueuePixels)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 48;
+    constexpr int height = 32;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("ImageEffectQueueIntegrationTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    const QString sourcePath = QDir(projectRoot.path()).filePath(
+        QStringLiteral("effect-source.png"));
+    QImage source(width, height, QImage::Format_RGBA8888);
+    source.fill(QColor(64, 64, 64, 255));
+    ASSERT_TRUE(source.save(sourcePath, "PNG"));
+
+    const auto createComposition = [&](const QString& name) {
+        Artifact::ArtifactCompositionInitParams params;
+        params.setCompositionName(ArtifactCore::UniString(name));
+        params.setResolution(width, height);
+        params.setFrameRate(30.0);
+        params.setDurationFrames(2);
+        return projects.createComposition(params);
+    };
+    const auto baseline = createComposition(QStringLiteral("EffectBaseline"));
+    const auto processed = createComposition(QStringLiteral("EffectProcessed"));
+    ASSERT_TRUE(baseline.success);
+    ASSERT_TRUE(processed.success);
+
+    const auto addImage = [&](const ArtifactCore::CompositionID& compositionId,
+                              const QString& name) {
+        Artifact::ArtifactImageInitParams params(name);
+        params.setImagePath(sourcePath);
+        return projects.addLayerToComposition(compositionId, params);
+    };
+    const auto baselineLayer = addImage(baseline.id,
+                                        QStringLiteral("BaselineImage"));
+    const auto processedLayer = addImage(processed.id,
+                                         QStringLiteral("ProcessedImage"));
+    ASSERT_TRUE(baselineLayer.success);
+    ASSERT_TRUE(processedLayer.success);
+    auto* processedImage = dynamic_cast<Artifact::ArtifactImageLayer*>(
+        processedLayer.layer.get());
+    ASSERT_NE(processedImage, nullptr);
+    auto brightness = ArtifactCore::makeShared<Artifact::BrightnessEffect>();
+    brightness->setBrightness(0.2f);
+    processedImage->addEffect(brightness);
+    ASSERT_EQ(processedImage->effectCount(), 1);
+
+    const QString projectPath = QDir(projectRoot.path()).filePath(
+        QStringLiteral("image-effect.artifact"));
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+    const auto loadedProcessed = projects.findComposition(processed.id);
+    ASSERT_TRUE(loadedProcessed.success);
+    const auto loadedProcessedPtr = loadedProcessed.ptr.lock();
+    ASSERT_TRUE(loadedProcessedPtr);
+    const auto loadedLayers = loadedProcessedPtr->allLayer();
+    ASSERT_EQ(loadedLayers.size(), 1);
+    auto* loadedImage = dynamic_cast<Artifact::ArtifactImageLayer*>(
+        loadedLayers.front().get());
+    ASSERT_NE(loadedImage, nullptr);
+    ASSERT_EQ(loadedImage->effectCount(), 1);
+
+    const QString baselineOutput = isolatedOutputPath(
+        QStringLiteral("render_queue_effect_baseline.png"));
+    const QString processedOutput = isolatedOutputPath(
+        QStringLiteral("render_queue_effect_processed.png"));
+    QString failure;
+    ASSERT_TRUE(addAndRender(
+        queue, baseline.id, QStringLiteral("EffectBaseline"),
+        baselineOutput, width, height,
+        [](const QImage& image) { return !image.isNull(); },
+        &failure)) << failure.toStdString();
+    ASSERT_TRUE(addAndRender(
+        queue, processed.id, QStringLiteral("EffectProcessed"),
+        processedOutput, width, height,
+        [](const QImage& image) { return !image.isNull(); },
+        &failure)) << failure.toStdString();
+
+    const auto readCenter = [&](const QString& outputBase) {
+        const QFileInfo info(outputBase);
+        const QString frame = QDir(info.absolutePath()).filePath(
+            QStringLiteral("%1_0001.png").arg(info.completeBaseName()));
+        const QImage rendered(frame);
+        EXPECT_FALSE(rendered.isNull()) << frame.toStdString();
+        return rendered.pixelColor(width / 2, height / 2);
+    };
+    const QColor baselinePixel = readCenter(baselineOutput);
+    const QColor processedPixel = readCenter(processedOutput);
+    EXPECT_GT(processedPixel.red(), baselinePixel.red() + 20);
+    EXPECT_GT(processedPixel.green(), baselinePixel.green() + 20);
+    EXPECT_GT(processedPixel.blue(), baselinePixel.blue() + 20);
+    EXPECT_NEAR(processedPixel.alpha(), baselinePixel.alpha(), 1);
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     CustomOutputResolutionResizesCompositionBackground)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int compositionWidth = 48;
+    constexpr int compositionHeight = 32;
+    constexpr int outputWidth = 24;
+    constexpr int outputHeight = 16;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("CustomOutputResolutionTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    Artifact::ArtifactCompositionInitParams params;
+    params.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("ResolutionComposition")));
+    params.setResolution(compositionWidth, compositionHeight);
+    params.setFrameRate(30.0);
+    params.setDurationFrames(2);
+    params.setBackgroundColor(ArtifactCore::FloatColor(
+        0.18f, 0.42f, 0.68f, 1.0f));
+    const auto composition = projects.createComposition(params);
+    ASSERT_TRUE(composition.success);
+
+    const QString outputBase = isolatedOutputPath(
+        QStringLiteral("render_queue_custom_resolution.png"));
+    QString failure;
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("ResolutionComposition"),
+        outputBase, outputWidth, outputHeight,
+        [](const QImage& image) {
+            const QColor pixel = image.pixelColor(image.width() / 2,
+                                                   image.height() / 2);
+            return pixel.red() > 35 && pixel.green() > 90 && pixel.blue() > 150;
+        },
+        &failure)) << failure.toStdString();
+
+    const QFileInfo outputInfo(outputBase);
+    const QString framePath = QDir(outputInfo.absolutePath()).filePath(
+        QStringLiteral("%1_0001.png").arg(outputInfo.completeBaseName()));
+    const QImage output(framePath);
+    ASSERT_FALSE(output.isNull());
+    EXPECT_EQ(output.size(), QSize(outputWidth, outputHeight));
+    EXPECT_EQ(output.pixelColor(0, 0), output.pixelColor(outputWidth - 1,
+                                                        outputHeight - 1));
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     CustomCropRendersOnlyTheRequestedImageRegion)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 48;
+    constexpr int height = 32;
+    constexpr int cropX = 24;
+    constexpr int cropWidth = 24;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueCustomCropTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    const QString sourcePath = QDir(projectRoot.path()).filePath(
+        QStringLiteral("two-region-source.png"));
+    QImage source(width, height, QImage::Format_RGBA8888);
+    source.fill(QColor(28, 220, 64, 255));
+    for (int y = 0; y < height; ++y) {
+        for (int x = cropX; x < width; ++x) {
+            source.setPixelColor(x, y, QColor(220, 32, 176, 255));
+        }
+    }
+    ASSERT_TRUE(source.save(sourcePath, "PNG"));
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("CroppedComposition")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(2);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+    Artifact::ArtifactImageInitParams imageParams(QStringLiteral("TwoRegionImage"));
+    imageParams.setImagePath(sourcePath);
+    const auto layer = projects.addLayerToComposition(composition.id, imageParams);
+    ASSERT_TRUE(layer.success);
+
+    const QString outputBase = isolatedOutputPath(
+        QStringLiteral("render_queue_custom_crop.png"));
+    const QVariantMap cropSettings{
+        {QStringLiteral("regionMode"),
+         static_cast<int>(Artifact::ArtifactRenderJob::RegionMode::CustomCrop)},
+        {QStringLiteral("cropX"), cropX},
+        {QStringLiteral("cropY"), 0},
+        {QStringLiteral("cropW"), cropWidth},
+        {QStringLiteral("cropH"), height}};
+    QString failure;
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("CroppedComposition"),
+        outputBase, cropWidth, height,
+        [](const QImage& image) {
+            const QColor center = image.pixelColor(image.width() / 2,
+                                                    image.height() / 2);
+            return center.red() > 180 && center.green() < 70 &&
+                   center.blue() > 130;
+        },
+        &failure, 2, QStringLiteral("gpu"), 1, cropSettings))
+        << failure.toStdString();
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     MissingStillImageRelinkSurvivesProjectReloadAndRendersMovedSource)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 64;
+    constexpr int height = 48;
+    const QString originalDirectory = QDir(projectRoot.path()).filePath(
+        QStringLiteral("still-source"));
+    const QString relocatedDirectory = QDir(projectRoot.path()).filePath(
+        QStringLiteral("still-relocated"));
+    ASSERT_TRUE(QDir().mkpath(originalDirectory));
+    const QString originalPath = QDir(originalDirectory).filePath(
+        QStringLiteral("plate.png"));
+    QImage source(width, height, QImage::Format_RGBA8888);
+    source.fill(QColor(225, 30, 18, 255));
+    ASSERT_TRUE(source.save(originalPath, "PNG"));
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    auto* projectService = Artifact::ArtifactProjectService::instance();
+    ASSERT_NE(queue, nullptr);
+    ASSERT_NE(projectService, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("MissingStillImageRelink"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    auto project = projects.getCurrentProjectSharedPtr();
+    ASSERT_TRUE(project);
+    project->addAssetFromPath(originalPath);
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("MissingStillImage")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(2);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+    Artifact::ArtifactImageInitParams imageParams(QStringLiteral("StillSource"));
+    imageParams.setImagePath(originalPath);
+    const auto layerResult = projects.addLayerToComposition(
+        composition.id, imageParams);
+    ASSERT_TRUE(layerResult.success);
+
+    const QString projectPath = QDir(projectRoot.path()).filePath(
+        QStringLiteral("missing-still-image.artifact"));
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    QDir root(projectRoot.path());
+    ASSERT_TRUE(root.rename(QStringLiteral("still-source"),
+                            QStringLiteral("still-relocated")));
+    const QString relocatedPath = QDir(relocatedDirectory).filePath(
+        QStringLiteral("plate.png"));
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+
+    const auto loadedComposition = projects.findComposition(composition.id);
+    ASSERT_TRUE(loadedComposition.success);
+    const auto loadedCompositionPtr = loadedComposition.ptr.lock();
+    ASSERT_TRUE(loadedCompositionPtr);
+    const auto loadedLayers = loadedCompositionPtr->allLayer();
+    ASSERT_EQ(loadedLayers.size(), 1);
+    auto* loadedImage = dynamic_cast<Artifact::ArtifactImageLayer*>(
+        loadedLayers.front().get());
+    ASSERT_NE(loadedImage, nullptr);
+    EXPECT_EQ(loadedImage->sourcePath(), originalPath);
+    EXPECT_FALSE(QFileInfo::exists(originalPath));
+
+    const QString outputBase = isolatedOutputPath(
+        QStringLiteral("render_queue_relinked_still.png"));
+    ASSERT_TRUE(QDir().mkpath(QFileInfo(outputBase).absolutePath()));
+    queue->addRenderQueueForComposition(composition.id,
+                                       QStringLiteral("MissingStillImage"));
+    ASSERT_EQ(queue->jobCount(), 1);
+    queue->setJobOutputPathAt(0, outputBase);
+    queue->setJobOutputSettingsAt(0, QStringLiteral("PNG"),
+                                  QStringLiteral("png"), width, height,
+                                  30.0, 8000);
+    const auto missingPreflight = queue->preflightRenderQueueAt(0);
+    ASSERT_TRUE(missingPreflight.hasErrors());
+    const QString missingDetails =
+        Artifact::ArtifactRenderQueueService::formatPreflightDetails(
+            missingPreflight).join(QLatin1Char('\n'));
+    EXPECT_TRUE(missingDetails.contains(originalPath))
+        << missingDetails.toStdString();
+    EXPECT_EQ(queue->jobStatusAt(0), QStringLiteral("Pending"));
+    EXPECT_FALSE(QFileInfo::exists(outputBase));
+
+    ASSERT_TRUE(projectService->relinkFootageByPath(originalPath, relocatedPath));
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+    auto* relinkedFootage = findFootageItem(projects.projectItems(),
+                                            relocatedPath);
+    ASSERT_NE(relinkedFootage, nullptr);
+    EXPECT_EQ(relinkedFootage->filePath, relocatedPath);
+    const auto reloadedComposition = projects.findComposition(composition.id);
+    ASSERT_TRUE(reloadedComposition.success);
+    const auto reloadedCompositionPtr = reloadedComposition.ptr.lock();
+    ASSERT_TRUE(reloadedCompositionPtr);
+    const auto reloadedLayers = reloadedCompositionPtr->allLayer();
+    ASSERT_EQ(reloadedLayers.size(), 1);
+    auto* reloadedImage = dynamic_cast<Artifact::ArtifactImageLayer*>(
+        reloadedLayers.front().get());
+    ASSERT_NE(reloadedImage, nullptr);
+    EXPECT_EQ(reloadedImage->sourcePath(), relocatedPath);
+    const auto recoveredPreflight = queue->preflightRenderQueueAt(0);
+    EXPECT_FALSE(recoveredPreflight.hasErrors())
+        << Artifact::ArtifactRenderQueueService::formatPreflightDetails(
+               recoveredPreflight).join(QLatin1Char('\n')).toStdString();
+
+    queue->setJobFramePaddingAt(0, 4);
+    queue->setJobFrameRangeAt(0, 1, 2);
+    auto selectiveSettings = queue->jobSelectiveSettingsAt(0);
+    selectiveSettings.insert(QStringLiteral("frameRangeMode"),
+        static_cast<int>(Artifact::ArtifactRenderJob::FrameRangeMode::Custom));
+    ASSERT_TRUE(queue->setJobSelectiveSettingsAt(0, selectiveSettings));
+    queue->startRenderQueueAt(0);
+
+    QElapsedTimer timeout;
+    timeout.start();
+    QString status;
+    while (timeout.elapsed() < 60000) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+        status = queue->jobStatusAt(0);
+        if (status == QStringLiteral("Completed") ||
+            status == QStringLiteral("Failed") ||
+            status == QStringLiteral("Canceled")) {
+            break;
+        }
+        QThread::msleep(10);
+    }
+    ASSERT_EQ(status, QStringLiteral("Completed"))
+        << queue->jobErrorMessageAt(0).toStdString();
+
+    const QString framePath = QDir(QFileInfo(outputBase).absolutePath()).filePath(
+        QStringLiteral("%1_0001.png").arg(QFileInfo(outputBase).completeBaseName()));
+    const QImage rendered(framePath);
+    ASSERT_FALSE(rendered.isNull()) << framePath.toStdString();
+    ASSERT_EQ(rendered.size(), QSize(width, height));
+    const QColor center = rendered.pixelColor(width / 2, height / 2);
+    EXPECT_GT(center.red(), center.green() + 80);
+    EXPECT_GT(center.red(), center.blue() + 80);
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
      Production2DAnd3DParticlesRenderThroughManagerQueue)
 {
     QTemporaryDir projectRoot;
@@ -561,6 +2326,172 @@ TEST(RenderQueueLayerImageIntegrationTest,
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
+     RelinkedImageSequenceSurvivesProjectReloadAndRendersEveryFrame)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(
+        QStringLiteral("ArtifactImageSequenceRelinkIntegrationTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 64;
+    constexpr int height = 48;
+    const QString originalDirectory =
+        projectRoot.filePath(QStringLiteral("source_sequence"));
+    const QString relocatedDirectory =
+        projectRoot.filePath(QStringLiteral("relocated_sequence"));
+    ASSERT_TRUE(QDir().mkpath(originalDirectory));
+
+    const QList<QColor> sourceColors = {
+        QColor(230, 20, 15), QColor(20, 220, 35), QColor(25, 40, 235)};
+    QStringList originalPaths;
+    for (int index = 0; index < sourceColors.size(); ++index) {
+        QImage frame(width, height, QImage::Format_RGBA8888);
+        frame.fill(sourceColors.at(index));
+        const QString framePath = QDir(originalDirectory).filePath(
+            QStringLiteral("plate_%1.png")
+                .arg(index + 1, 4, 10, QLatin1Char('0')));
+        ASSERT_TRUE(frame.save(framePath, "PNG"));
+        originalPaths.append(framePath);
+    }
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    auto* projectService = Artifact::ArtifactProjectService::instance();
+    ASSERT_NE(queue, nullptr);
+    ASSERT_NE(projectService, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("ImageSequenceRelink"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(ArtifactCore::UniString(
+        QStringLiteral("RelinkedSequence")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(sourceColors.size());
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    auto project = projects.getCurrentProjectSharedPtr();
+    ASSERT_TRUE(project);
+    project->addAssetFromPath(originalPaths.first(), originalPaths, 30.0);
+    auto* originalFootage = findFootageItem(projects.projectItems(),
+                                            originalPaths.first());
+    ASSERT_NE(originalFootage, nullptr);
+    ASSERT_TRUE(originalFootage->isSequence);
+    ASSERT_EQ(originalFootage->sequencePaths, originalPaths);
+
+    Artifact::ArtifactImageInitParams imageParams(
+        QStringLiteral("RelinkableSequence"));
+    imageParams.setImagePath(originalPaths.first());
+    imageParams.setSequencePaths(originalPaths);
+    imageParams.setSequenceFrameRate(30.0);
+    const auto layerResult =
+        projects.addLayerToComposition(composition.id, imageParams);
+    ASSERT_TRUE(layerResult.success);
+    auto* imageLayer = dynamic_cast<Artifact::ArtifactImageLayer*>(
+        layerResult.layer.get());
+    ASSERT_NE(imageLayer, nullptr);
+    ASSERT_TRUE(imageLayer->isImageSequence());
+
+    QDir root(projectRoot.path());
+    ASSERT_TRUE(root.rename(QStringLiteral("source_sequence"),
+                            QStringLiteral("relocated_sequence")));
+    QStringList relocatedPaths;
+    for (const QString& originalPath : originalPaths) {
+        relocatedPaths.append(QDir(relocatedDirectory).filePath(
+            QFileInfo(originalPath).fileName()));
+    }
+    ASSERT_TRUE(projectService->relinkFootageByPath(
+        originalPaths.first(), relocatedPaths.first()));
+
+    auto* relinkedFootage = findFootageItem(projects.projectItems(),
+                                            relocatedPaths.first());
+    ASSERT_NE(relinkedFootage, nullptr);
+    EXPECT_EQ(relinkedFootage->sequencePaths, relocatedPaths);
+    EXPECT_EQ(imageLayer->sequenceFramePaths(), relocatedPaths);
+
+    const QString projectPath =
+        projectRoot.filePath(QStringLiteral("relinked-sequence.artifact"));
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    const auto compositionId = composition.id;
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+
+    auto loadedProject = projects.getCurrentProjectSharedPtr();
+    ASSERT_TRUE(loadedProject);
+    auto* loadedFootage = findFootageItem(projects.projectItems(),
+                                          relocatedPaths.first());
+    ASSERT_NE(loadedFootage, nullptr);
+    EXPECT_EQ(loadedFootage->sequencePaths, relocatedPaths);
+    const auto loadedComposition = projects.findComposition(compositionId);
+    ASSERT_TRUE(loadedComposition.success);
+    auto loadedCompositionPtr = loadedComposition.ptr.lock();
+    ASSERT_TRUE(loadedCompositionPtr);
+    auto loadedLayer = loadedCompositionPtr->frontMostLayer();
+    ASSERT_NE(loadedLayer.get(), nullptr);
+    auto* loadedImageLayer =
+        dynamic_cast<Artifact::ArtifactImageLayer*>(loadedLayer.get());
+    ASSERT_NE(loadedImageLayer, nullptr);
+    EXPECT_EQ(loadedImageLayer->sequenceFramePaths(), relocatedPaths);
+
+    QString failure;
+    const QString outputBasePath =
+        QDir(projectRoot.path()).filePath(QStringLiteral("captures/sequence.png"));
+    ASSERT_TRUE(addAndRender(
+        queue, compositionId, QStringLiteral("RelinkedSequence"),
+        outputBasePath, width, height,
+        [](const QImage& image) {
+            return countPixelsMatching(image, [](QRgb pixel) {
+                return qAlpha(pixel) > 32 &&
+                       std::max({qRed(pixel), qGreen(pixel), qBlue(pixel)}) > 32;
+            }) > 8;
+        }, &failure, 2,
+        QStringLiteral("gpu"), 0)) << failure.toStdString();
+
+    const QFileInfo outputInfo(outputBasePath);
+    for (int index = 0; index < sourceColors.size(); ++index) {
+        const QString framePath = QDir(outputInfo.absolutePath()).filePath(
+            QStringLiteral("sequence_%1.png")
+                .arg(index, 4, 10, QLatin1Char('0')));
+        const QImage rendered(framePath);
+        ASSERT_FALSE(rendered.isNull()) << framePath.toStdString();
+        ASSERT_EQ(rendered.size(), QSize(width, height));
+        const QColor pixel = rendered.pixelColor(width / 2, height / 2);
+        const QColor expected = sourceColors.at(index);
+        const int dominant = index == 0 ? pixel.red()
+                             : index == 1 ? pixel.green()
+                                          : pixel.blue();
+        const int otherA = index == 0 ? pixel.green()
+                          : index == 1 ? pixel.red()
+                                       : pixel.red();
+        const int otherB = index == 2 ? pixel.green() : pixel.blue();
+        EXPECT_GT(dominant, otherA + 40) << framePath.toStdString();
+        EXPECT_GT(dominant, otherB + 40) << framePath.toStdString();
+        EXPECT_GT(dominant, 100) << "Unexpected source frame color in "
+                                 << framePath.toStdString()
+                                 << " (expected dominant channel "
+                                 << expected.name().toStdString() << ')';
+    }
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
      ProductionTextLayerRendersThroughManagerQueue)
 {
     QTemporaryDir projectRoot;
@@ -681,10 +2612,122 @@ TEST(RenderQueueLayerImageIntegrationTest,
     text->setFontSize(30.0f);
     text->setTextColor(ArtifactCore::FloatColor(1.0f, 1.0f, 1.0f, 1.0f));
 
+    const QString projectPath =
+        projectRoot.filePath(QStringLiteral("animated-text.artifact"));
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+
+    const auto loadedComposition = projects.findComposition(composition.id);
+    ASSERT_TRUE(loadedComposition.success);
+    auto loadedCompositionPtr = loadedComposition.ptr.lock();
+    ASSERT_TRUE(loadedCompositionPtr);
+    auto loadedLayer = loadedCompositionPtr->frontMostLayer();
+    ASSERT_NE(loadedLayer.get(), nullptr);
+    auto* reloadedText =
+        dynamic_cast<Artifact::ArtifactTextLayer*>(loadedLayer.get());
+    ASSERT_NE(reloadedText, nullptr);
+    ASSERT_TRUE(reloadedText->hasSourceTextKeyframes());
+    EXPECT_EQ(reloadedText->sourceTextAtFrame(1), QStringLiteral("Frame One"));
+    EXPECT_EQ(reloadedText->sourceTextAtFrame(2), QStringLiteral("Frame Two"));
+
     QString failure;
     ASSERT_TRUE(addAndRenderTwoTextFrames(
         queue, composition.id, QStringLiteral("AnimatedText"),
         isolatedOutputPath(QStringLiteral("render_queue_animated_text.png")),
+        width, height, &failure)) << failure.toStdString();
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     AnimatedTextAnimatorRendersBothFramesThroughManagerQueue)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 320;
+    constexpr int height = 180;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueTextAnimatorTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("AnimatedTextAnimator")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(3);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactTextLayerInitParams textParams(QStringLiteral("Text"));
+    const auto textResult = projects.addLayerToComposition(
+        composition.id, textParams);
+    ASSERT_TRUE(textResult.success);
+    auto* text = dynamic_cast<Artifact::ArtifactTextLayer*>(
+        textResult.layer.get());
+    ASSERT_NE(text, nullptr);
+    text->setText(ArtifactCore::UniString(
+        QStringLiteral("Animated Glyph Position")));
+    text->setFontSize(30.0f);
+    text->setTextColor(ArtifactCore::FloatColor(1.0f, 1.0f, 1.0f, 1.0f));
+    ASSERT_TRUE(text->addAnimatorProperty(QStringLiteral("position")));
+    (void)text->getLayerPropertyGroups();
+    const auto positionX =
+        text->getProperty(QStringLiteral("text.animators.0.positionX"));
+    ASSERT_TRUE(positionX);
+    positionX->addKeyFrame(ArtifactCore::RationalTime(1, 30), QVariant(0.0));
+    positionX->addKeyFrame(ArtifactCore::RationalTime(2, 30), QVariant(48.0));
+    const QJsonArray animatorSnapshot = text->textAnimatorStackSnapshot();
+
+    const QString projectPath =
+        projectRoot.filePath(QStringLiteral("animated-glyph-position.artifact"));
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+
+    const auto loadedComposition = projects.findComposition(composition.id);
+    ASSERT_TRUE(loadedComposition.success);
+    auto loadedCompositionPtr = loadedComposition.ptr.lock();
+    ASSERT_TRUE(loadedCompositionPtr);
+    auto loadedLayer = loadedCompositionPtr->frontMostLayer();
+    ASSERT_NE(loadedLayer.get(), nullptr);
+    auto* reloadedText =
+        dynamic_cast<Artifact::ArtifactTextLayer*>(loadedLayer.get());
+    ASSERT_NE(reloadedText, nullptr);
+    EXPECT_EQ(reloadedText->textAnimatorStackSnapshot(), animatorSnapshot);
+    const auto reloadedPositionX =
+        reloadedText->getProperty(QStringLiteral("text.animators.0.positionX"));
+    ASSERT_TRUE(reloadedPositionX);
+    ASSERT_EQ(reloadedPositionX->getKeyFrames().size(), 2u);
+    EXPECT_DOUBLE_EQ(
+        reloadedPositionX
+            ->interpolateValue(ArtifactCore::RationalTime(2, 30))
+            .toDouble(),
+        48.0);
+
+    QString failure;
+    ASSERT_TRUE(addAndRenderTwoTextFrames(
+        queue, composition.id, QStringLiteral("AnimatedTextAnimator"),
+        isolatedOutputPath(QStringLiteral("render_queue_text_animator.png")),
         width, height, &failure)) << failure.toStdString();
 }
 
@@ -804,6 +2847,205 @@ TEST(RenderQueueLayerImageIntegrationTest,
         queue, composition.id, QStringLiteral("EmojiText"),
         isolatedOutputPath(QStringLiteral("render_queue_emoji_text.png")),
         width, height, hasBrightTextPixels, &failure)) << failure.toStdString();
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     AdjacentEmojiGraphemesKeepDistinctVisualSpacing)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 320;
+    constexpr int height = 120;
+    constexpr int fontSize = 32;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueEmojiGraphemeTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("EmojiGrapheme")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(4);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactTextLayerInitParams textParams(QStringLiteral("Text"));
+    const auto textResult = projects.addLayerToComposition(
+        composition.id, textParams);
+    ASSERT_TRUE(textResult.success);
+    auto* text = dynamic_cast<Artifact::ArtifactTextLayer*>(
+        textResult.layer.get());
+    ASSERT_NE(text, nullptr);
+    const QString firstEmoji = QStringLiteral("👩🏽‍💻");
+    const QString secondEmoji = QStringLiteral("👨‍👩‍👧‍👦");
+    text->setText(ArtifactCore::UniString(firstEmoji));
+    (void)text->getLayerPropertyGroups();
+    text->setSourceTextAtFrame(1, firstEmoji);
+    text->setSourceTextAtFrame(2, secondEmoji);
+    text->setSourceTextAtFrame(3, firstEmoji + secondEmoji);
+    ASSERT_TRUE(text->hasSourceTextKeyframes());
+    text->setFontSize(static_cast<float>(fontSize));
+    text->setTextColor(ArtifactCore::FloatColor(1.0f, 1.0f, 1.0f, 1.0f));
+
+    QString failure;
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("EmojiGrapheme"),
+        isolatedOutputPath(QStringLiteral("render_queue_emoji_grapheme.png")),
+        width, height, hasVisibleTextPixels, &failure, 4)) << failure.toStdString();
+
+    const QString outputPath = isolatedOutputPath(
+        QStringLiteral("render_queue_emoji_grapheme.png"));
+    const QString outputDirectory = QFileInfo(outputPath).absolutePath();
+    const QString outputBaseName = QFileInfo(outputPath).completeBaseName();
+    const auto readFrame = [&](const int frame) {
+        return QImage(QDir(outputDirectory).filePath(
+            QStringLiteral("%1_%2.png")
+                .arg(outputBaseName)
+                .arg(frame, 4, 10, QLatin1Char('0'))));
+    };
+    const QImage firstImage = readFrame(1);
+    const QImage secondImage = readFrame(2);
+    const QImage adjacentImage = readFrame(3);
+    ASSERT_FALSE(firstImage.isNull());
+    ASSERT_FALSE(secondImage.isNull());
+    ASSERT_FALSE(adjacentImage.isNull());
+
+    const int firstWidth = visibleTextBounds(firstImage).width();
+    const int secondWidth = visibleTextBounds(secondImage).width();
+    const QRect firstBounds = visibleTextBounds(firstImage);
+    const QRect secondBounds = visibleTextBounds(secondImage);
+    const QRect adjacentBounds = visibleTextBounds(adjacentImage);
+    const int adjacentWidth = adjacentBounds.width();
+    ASSERT_GT(firstWidth, 0);
+    ASSERT_GT(secondWidth, 0);
+    ASSERT_GT(adjacentWidth, 0);
+    ASSERT_GT(firstBounds.height(), 0);
+    ASSERT_GT(secondBounds.height(), 0);
+    ASSERT_GT(adjacentBounds.height(), 0);
+    EXPECT_GE(adjacentWidth,
+              static_cast<int>((firstWidth + secondWidth) * 0.85))
+        << "Adjacent emoji graphemes lost horizontal advance and overlap; "
+        << "individual widths=" << firstWidth << "+" << secondWidth
+        << ", combined width=" << adjacentWidth;
+    EXPECT_LE(adjacentWidth, fontSize * 4)
+        << "ZWJ/modifier sequences expanded across too many glyph cells; "
+        << "measured width=" << adjacentWidth;
+    EXPECT_GE(adjacentBounds.height(),
+              static_cast<int>(std::max(firstBounds.height(), secondBounds.height()) * 0.8))
+        << "Adjacent emoji graphemes lost their vertical ink extent";
+    EXPECT_LE(adjacentBounds.height(),
+              static_cast<int>(std::max(firstBounds.height(), secondBounds.height()) * 1.25))
+        << "Adjacent emoji graphemes unexpectedly expanded into extra rows; "
+        << "individual heights=" << firstBounds.height() << ", "
+        << secondBounds.height() << ", combined height="
+        << adjacentBounds.height();
+    const double firstEmojiMatch = bestVisiblePixelMatchFraction(
+        firstImage, adjacentImage, -2, 2, 2);
+    EXPECT_GT(firstEmojiMatch, 0.6)
+        << "The first color emoji no longer appears at its single-glyph position; "
+        << "visible pixel match=" << firstEmojiMatch;
+    const double secondEmojiMatch = bestVisiblePixelMatchFraction(
+        secondImage, adjacentImage, std::max(firstWidth * 3 / 4, 1),
+        fontSize * 3, 2);
+    EXPECT_GT(secondEmojiMatch, 0.6)
+        << "The second color emoji is missing, collapsed into the first cell, "
+        << "or visually overlapped; separated visible pixel match="
+        << secondEmojiMatch;
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     JapaneseVerticalWritingProducesTallColumnThroughManagerQueue)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 240;
+    constexpr int height = 360;
+    constexpr int fontSize = 28;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("RenderQueueVerticalTextTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("VerticalJapanese")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(2);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactTextLayerInitParams textParams(QStringLiteral("Text"));
+    const auto textResult = projects.addLayerToComposition(
+        composition.id, textParams);
+    ASSERT_TRUE(textResult.success);
+    auto* text = dynamic_cast<Artifact::ArtifactTextLayer*>(
+        textResult.layer.get());
+    ASSERT_NE(text, nullptr);
+    text->setText(ArtifactCore::UniString(
+        QStringLiteral("「日本語」12、縦書き。")));
+    text->setFontSize(static_cast<float>(fontSize));
+    text->setTextColor(ArtifactCore::FloatColor(1.0f, 1.0f, 1.0f, 1.0f));
+    text->setWritingMode(ArtifactCore::TextWritingMode::Vertical);
+
+    QString failure;
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("VerticalJapanese"),
+        isolatedOutputPath(QStringLiteral("render_queue_vertical_japanese.png")),
+        width, height, hasBrightTextPixels, &failure)) << failure.toStdString();
+    const QImage image(QDir(QFileInfo(isolatedOutputPath(
+        QStringLiteral("render_queue_vertical_japanese.png"))).absolutePath())
+        .filePath(QStringLiteral("render_queue_vertical_japanese_0001.png")));
+    ASSERT_FALSE(image.isNull());
+    const QRect bounds = visibleTextBounds(image);
+    ASSERT_GT(bounds.width(), 0);
+    ASSERT_GT(bounds.height(), 0);
+    EXPECT_GT(bounds.height(), bounds.width() * 2)
+        << "Vertical Japanese text should form a tall column; measured bounds="
+        << bounds.width() << "x" << bounds.height();
+    EXPECT_GT(bounds.height(), fontSize * 4)
+        << "Vertical Japanese text did not extend beyond a few glyph cells; "
+        << "measured bounds=" << bounds.width() << "x" << bounds.height();
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,

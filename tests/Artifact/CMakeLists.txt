@@ -323,6 +323,159 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
             --gtest_filter=RenderQueueLayerImageIntegrationTest.Production2DAnd3DParticlesRenderThroughManagerQueue
     )
+    add_test(NAME ArtifactRenderQueueImageSequenceRelinkIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.RelinkedImageSequenceSurvivesProjectReloadAndRendersEveryFrame
+    )
+    add_test(NAME ArtifactRenderQueueWorkAreaRangeIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.WorkAreaRangeWritesOnlyFramesInsideTheCompositionWorkArea
+    )
+    add_test(NAME ArtifactRenderQueueSelectedFrameRangesRoundTripIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.SelectedFrameRangesSurviveQueueJsonRoundTripAndRenderDisjointIntervals
+    )
+    add_test(NAME ArtifactRenderQueueInvalidSelectedRangesPreflightIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.SelectedFrameRangesWithoutAValidIntervalFailPreflight
+    )
+    add_test(NAME ArtifactRenderQueueOverlappingSelectedRangesIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.UnorderedOverlappingSelectedRangesRenderTheirFullUnionOnce
+    )
+    add_test(NAME ArtifactBatchRendererQueueIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.BatchRendererAddsJobsForValidCompositionsAndReportsMissingIds
+    )
+    add_test(NAME ArtifactBatchTemplateOverridesIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.BatchTemplateAppliesOverridesAndRejectsMissingPresetWithoutPartialJobs
+    )
+    add_test(NAME ArtifactRenderQueueGrayscaleImageIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.GrayscaleImageSurvivesProjectReloadAndRendersAsOpaqueNeutralRgb
+    )
+    add_test(NAME ArtifactRenderQueueRgbaAlphaIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.RgbaImageAlphaSurvivesProjectReloadAndScaledCompositeHasNoHiddenRgbFringe
+    )
+    set_tests_properties(ArtifactRenderQueueRgbaAlphaIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;image;alpha;serialization;integration"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactRenderQueueHdrExrInputIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.HdrExrImageRetainsValuesAboveOneThroughProjectReloadAndRenderQueue
+    )
+    add_test(NAME ArtifactRenderQueueGrayscale16PrecisionIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.SixteenBitGrayscaleKeepsSubEightBitDifferencesInQueueExr
+    )
+    add_test(NAME ArtifactRenderQueueGrayAlphaIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.GrayAlphaPngSurvivesProjectReloadAndCompositesByChannelAlpha
+    )
+    add_test(NAME ArtifactRenderQueueCompletedHistoryIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.CompletedQueueJobPersistsInHistoryAndCanBeRequeued
+    )
+    set_tests_properties(ArtifactRenderQueueCompletedHistoryIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;history;recovery;integration"
+        TIMEOUT 240
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactRenderQueueImageEffectRoundTripIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.BrightnessEffectSurvivesProjectReloadAndChangesQueuePixels
+    )
+    set_tests_properties(ArtifactRenderQueueImageEffectRoundTripIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;image;effect;serialization;integration"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactRenderQueueCustomResolutionIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.CustomOutputResolutionResizesCompositionBackground
+    )
+    set_tests_properties(ArtifactRenderQueueCustomResolutionIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;resolution;image;integration"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactRenderQueueCustomCropIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.CustomCropRendersOnlyTheRequestedImageRegion
+    )
+    set_tests_properties(ArtifactRenderQueueCustomCropIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;crop;image;integration"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    set_tests_properties(ArtifactRenderQueueGrayAlphaIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;image;alpha;grayscale;serialization;integration"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    set_tests_properties(ArtifactRenderQueueGrayscale16PrecisionIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;image;grayscale;precision;exr;integration"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactRenderQueueStillImageRelinkRoundTripIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.MissingStillImageRelinkSurvivesProjectReloadAndRendersMovedSource
+    )
+    set_tests_properties(ArtifactRenderQueueStillImageRelinkRoundTripIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;image;relink;preflight;integration"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    set_tests_properties(ArtifactRenderQueueHdrExrInputIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;image;exr;hdr;serialization;integration"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    set_tests_properties(ArtifactRenderQueueGrayscaleImageIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;image;grayscale;serialization;integration"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    set_tests_properties(ArtifactBatchTemplateOverridesIntegrationTest PROPERTIES
+        LABELS "render-queue;batch-renderer;headless;integration"
+        TIMEOUT 120
+        RUN_SERIAL TRUE
+    )
+    set_tests_properties(ArtifactBatchRendererQueueIntegrationTest PROPERTIES
+        LABELS "render-queue;batch-renderer;headless;integration"
+        TIMEOUT 120
+        RUN_SERIAL TRUE
+    )
+    set_tests_properties(ArtifactRenderQueueOverlappingSelectedRangesIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;selected-frames;frame-range;integration"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    set_tests_properties(ArtifactRenderQueueInvalidSelectedRangesPreflightIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;headless;preflight;selected-frames;integration"
+        TIMEOUT 120
+        RUN_SERIAL TRUE
+    )
+    set_tests_properties(ArtifactRenderQueueSelectedFrameRangesRoundTripIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;selected-frames;frame-range;integration"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    set_tests_properties(ArtifactRenderQueueWorkAreaRangeIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;work-area;frame-range;integration"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    set_tests_properties(ArtifactRenderQueueImageSequenceRelinkIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;image;sequence;relink;serialization;integration"
+        TIMEOUT 240
+        RUN_SERIAL TRUE
+    )
     set_tests_properties(ArtifactRenderQueueLayerImageIntegrationTest PROPERTIES
         LABELS "render-queue;renderer;gpu;headless;particle;image;integration"
         TIMEOUT 300
@@ -348,8 +501,11 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
     )
     foreach(_artifact_render_queue_text_case IN ITEMS
             AnimatedSourceTextRendersBothFramesThroughManagerQueue
+            AnimatedTextAnimatorRendersBothFramesThroughManagerQueue
+            AdjacentEmojiGraphemesKeepDistinctVisualSpacing
             ComplexArabicIndicTextRendersThroughManagerQueue
-            EmojiSequencesRenderThroughManagerQueue)
+            EmojiSequencesRenderThroughManagerQueue
+            JapaneseVerticalWritingProducesTallColumnThroughManagerQueue)
         string(REGEX REPLACE "([a-z])([A-Z])" "\\1_\\2"
             _artifact_render_queue_text_test_suffix
             "${_artifact_render_queue_text_case}")
@@ -485,7 +641,7 @@ if(ARTIFACT_BUILD_TESTS)
     )
     set_tests_properties(ArtifactProjectRoundTripTest PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
-        LABELS "project;serialization;cpu;contract;integration"
+        LABELS "project;serialization;cpu;text;widgets;undo;ime;contract;integration"
         TIMEOUT 180
         RUN_SERIAL TRUE
     )
