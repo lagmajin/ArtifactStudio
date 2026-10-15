@@ -28,6 +28,7 @@ import Artifact.Service.Project;
 import Artifact.Composition.Abstract;
 import Artifact.Layer.Abstract;
 import Artifact.Layer.InitParams;
+import Frame.Position;
 import Composition.PreCompose;
 import Undo.UndoManager;
 import Utils.String.UniString;
@@ -182,6 +183,8 @@ private:
             const auto position = layer->position3D();
             QJsonObject entry{{"id", layer->id().toString()}, {"name", layer->layerName()},
                 {"startFrame", double(layer->startTime().framePosition())},
+                {"inFrame", double(layer->inPoint().framePosition())},
+                {"outFrame", double(layer->outPoint().framePosition())},
                 {"opacity", layer->opacity()},
                 {"position", QJsonArray{position.x, position.y, position.z}}};
             if (manager.isPrecomposeLayer(layer->id())) {
@@ -205,9 +208,22 @@ private:
             service->addLayerToCurrentComposition(ArtifactNullLayerInitParams(QString::fromLatin1(name)), false);
         auto comp = service->currentComposition().lock();
         if (comp) for (const auto& layer : comp->allLayer()) {
-            if (layer && layer->layerName() == QStringLiteral("A")) {
+            if (!layer) continue;
+            const auto name = layer->layerName();
+            if (name == QStringLiteral("A")) {
                 layer->setPosition3D({12.0f, -8.0f, 3.0f});
                 layer->setOpacity(0.42f);
+                layer->setInPoint(FramePosition(40));
+                layer->setOutPoint(FramePosition(200));
+                layer->setStartTime(FramePosition(7));
+            } else if (name == QStringLiteral("B")) {
+                layer->setInPoint(FramePosition(70));
+                layer->setOutPoint(FramePosition(160));
+                layer->setStartTime(FramePosition(9));
+            } else if (name == QStringLiteral("Untouched")) {
+                layer->setInPoint(FramePosition(25));
+                layer->setOutPoint(FramePosition(220));
+                layer->setStartTime(FramePosition(3));
             }
         }
         UndoManager::instance()->clearHistory();
