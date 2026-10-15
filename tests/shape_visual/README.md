@@ -30,6 +30,8 @@ PNG は既存 `ARTIFACT_UI_TEST_CAPTURE_ROOT` があればその下の `shape_vi
 
 これらも未実行。固定入力と解析的な alpha／領域判定を設けた段階であり、描画品質や性能の実証結果ではない。
 
+レイヤーの位置・アンカー・スケールは通常の `transform.*` プロパティ経路で設定する。`getLocalTransform()` は `transform3D()` を評価するため、描画テストで `transform2D()` だけを変更しない。
+
 ユーザーからビルドとテスト実行の明示指示を受けた後の単独実行例:
 
 ```powershell

@@ -80,7 +80,14 @@ protected:
         const auto result = projects.addLayerToComposition(compositionId, params);
         if (!result.success) return nullptr;
         auto* layer = dynamic_cast<Artifact::ArtifactShapeLayer*>(result.layer.get());
-        if (layer) layer->transform2D().setPosition(0, 0);
+        // The render transform is evaluated from the unified transform.*
+        // properties (backed by transform3D), including for 2D shape layers.
+        if (layer &&
+            (!layer->setLayerPropertyValue(QStringLiteral("transform.position.x"), 0.0) ||
+             !layer->setLayerPropertyValue(QStringLiteral("transform.position.y"), 0.0) ||
+             !layer->setLayerPropertyValue(QStringLiteral("transform.anchor.x"), 0.0) ||
+             !layer->setLayerPropertyValue(QStringLiteral("transform.anchor.y"), 0.0)))
+            return nullptr;
         return layer;
     }
 
@@ -300,8 +307,10 @@ TEST_F(ShapeVisualTest, TransformedCurve)
         return !testing::Test::HasFailure();
     });
     ASSERT_FALSE(HasFailure());
-    layer->transform2D().setScale(0.8f, 1.1f);
-    layer->transform2D().setPosition(64, 32);
+    ASSERT_TRUE(layer->setLayerPropertyValue(QStringLiteral("transform.scale.x"), 0.8));
+    ASSERT_TRUE(layer->setLayerPropertyValue(QStringLiteral("transform.scale.y"), 1.1));
+    ASSERT_TRUE(layer->setLayerPropertyValue(QStringLiteral("transform.position.x"), 64.0));
+    ASSERT_TRUE(layer->setLayerPropertyValue(QStringLiteral("transform.position.y"), 32.0));
     capture("transformed_layer_and_content", [](const auto& image) {
         EXPECT_GT(qAlpha(image.pixel(269, 314)), 240);
         EXPECT_LT(qAlpha(image.pixel(16, 16)), 10);

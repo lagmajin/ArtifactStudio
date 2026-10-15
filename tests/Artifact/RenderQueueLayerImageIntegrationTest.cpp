@@ -45,7 +45,6 @@ import Artifact.Render.IRenderer;
 import Artifact.Render.Queue.Job;
 import Artifact.Render.Queue.Service;
 import BrightnessEffect;
-import Animation.Transform2D;
 import Shape.Types;
 import Shape.Operator;
 import Color.Float;
