@@ -14,8 +14,10 @@ def png(rgb):
             chunk(b"IDAT", zlib.compress(bytes([0, *rgb]))) + chunk(b"IEND", b""))
 
 
-def cube(material, textures, connections):
+def cube(material, textures, connections, objects="", links=""):
     uv = ",".join(["0,0,1,0,1,1,0,1"] * 6)
+    extra_objects = f"\n    {objects}" if objects else ""
+    extra_links = f"\n    {links}" if links else ""
     return f'''; FBX 7.4.0 project-authored material test cube
 FBXHeaderExtension: {{
     FBXHeaderVersion: 1003
@@ -53,13 +55,13 @@ Objects: {{
         Version: 102
         {material}
     }}
-    {textures}
+    {textures}{extra_objects}
 }}
 Connections: {{
     C: "OO",1000,1001
     C: "OO",1001,0
     C: "OO",1002,1001
-    {connections}
+    {connections}{extra_links}
 }}
 '''.replace("    \n", "\n")
 
@@ -103,14 +105,57 @@ def generate(output):
         }'''
     # IDs come from ufbx's published 3ds Max PBR Metal/Rough shader mapping.
     pbr = pbr.replace("CLASS_A", str(0xd00f1e00)).replace("CLASS_B", str(0xbe77e500))
+    # Property names match the ones ufbx reads in `ufbxi_update_camera` and
+    # `ufbxi_update_light` (CameraProjectionType / FieldOfView / NearPlane /
+    # FarPlane / LightType / Color / Intensity / OuterAngle / CastShadows).
+    camera_and_light_objects = '''NodeAttribute: 3000, "NodeAttribute::CameraAttribute", "Camera" {
+        Version: 100
+        Properties70: {
+            P: "CameraProjectionType", "enum", "", "",0
+            P: "FieldOfView", "Number", "", "A",45
+            P: "NearPlane", "Number", "", "A",1
+            P: "FarPlane", "Number", "", "A",1000
+        }
+    }
+    Model: 3001, "Model::TestCamera", "Camera" {
+        Version: 232
+        Properties70: {
+            P: "Lcl Translation", "Lcl Translation", "", "A",10,20,30
+        }
+    }
+    NodeAttribute: 3100, "NodeAttribute::LightAttribute", "Light" {
+        Version: 100
+        Properties70: {
+            P: "LightType", "enum", "", "",2
+            P: "Color", "Color", "", "A",1,0.8,0.6
+            P: "Intensity", "Number", "", "A",150
+            P: "OuterAngle", "Number", "", "A",40
+            P: "CastShadows", "bool", "", "",1
+        }
+    }
+    Model: 3101, "Model::TestLight", "Light" {
+        Version: 232
+        Properties70: {
+            P: "Lcl Translation", "Lcl Translation", "", "A",-5,8,12
+        }
+    }'''
+    camera_and_light_links = '''C: "OO",3001,0
+    C: "OO",3000,3001
+    C: "OO",3101,0
+    C: "OO",3100,3101'''
     files = {
         "diffuse-factor.fbx": cube(phong, texture(2000, "factor.png"),
             'C: "OP",2000,1002,"DiffuseFactor"'),
+        "diffuse-factor-weight.fbx": cube(
+            phong.replace('"DiffuseFactor", "Number", "", "A",1',
+                          '"DiffuseFactor", "Number", "", "A",0.5'), "", ""),
         "separate-pbr.fbx": cube(pbr.replace("METAL", "1").replace("ROUGH", "1"),
             texture(2001, "metallic.png") + "\n" + texture(2002, "roughness.png"),
             'C: "OP",2001,1002,"3dsMax|main|metalness"\n'
             '    C: "OP",2002,1002,"3dsMax|main|roughness"'),
         "scalar-reference.fbx": cube(pbr.replace("METAL", "0.2").replace("ROUGH", "0.8"), "", ""),
+        "camera-light.fbx": cube(phong, "", "", camera_and_light_objects,
+                                 camera_and_light_links),
     }
     for name, data in files.items():
         (output / name).write_text(data, encoding="utf-8", newline="\n")

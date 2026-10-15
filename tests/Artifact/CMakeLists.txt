@@ -1,3 +1,74 @@
+if(ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST)
+    artifact_add_test(ArtifactScriptLayerIntegrationTest
+        SOURCES
+            ArtifactScriptLayerIntegrationTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_target_properties(ArtifactScriptLayerIntegrationTest PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    if(WIN32)
+        add_custom_command(TARGET ArtifactScriptLayerIntegrationTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ArtifactScriptLayerIntegrationTest>
+                "$<TARGET_FILE_DIR:ArtifactScriptLayerIntegrationTest>/"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+
+        set(_artifact_script_test_vcpkg_installed "${VCPKG_INSTALLED}")
+        if(NOT EXISTS "${_artifact_script_test_vcpkg_installed}/debug/bin"
+           AND DEFINED VCPKG_INSTALLED_DIR
+           AND EXISTS "${VCPKG_INSTALLED_DIR}/x64-windows")
+            set(_artifact_script_test_vcpkg_installed
+                "${VCPKG_INSTALLED_DIR}/x64-windows")
+        endif()
+        if(EXISTS "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows")
+            set(_artifact_script_test_vcpkg_installed
+                "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows")
+        endif()
+
+        find_program(ARTIFACT_SCRIPT_LAYER_TEST_WINDEPLOYQT_EXECUTABLE
+            NAMES windeployqt)
+        if(ARTIFACT_SCRIPT_LAYER_TEST_WINDEPLOYQT_EXECUTABLE)
+            add_custom_command(TARGET ArtifactScriptLayerIntegrationTest POST_BUILD
+                COMMAND "${CMAKE_COMMAND}"
+                    "-DWINDEPLOYQT_EXECUTABLE=${ARTIFACT_SCRIPT_LAYER_TEST_WINDEPLOYQT_EXECUTABLE}"
+                    "-DTARGET_FILE=$<TARGET_FILE:ArtifactScriptLayerIntegrationTest>"
+                    "-DVCPKG_INSTALLED=${_artifact_script_test_vcpkg_installed}"
+                    "-DCONFIG=$<CONFIG>"
+                    -P "${CMAKE_CURRENT_SOURCE_DIR}/../../Artifact/cmake/RunWindeployqt.cmake"
+                VERBATIM
+            )
+        endif()
+
+        add_custom_command(TARGET ArtifactScriptLayerIntegrationTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}"
+                "-DTARGET_FILE_DIR=$<TARGET_FILE_DIR:ArtifactScriptLayerIntegrationTest>"
+                "-DVCPKG_INSTALLED=${_artifact_script_test_vcpkg_installed}"
+                "-DCONFIG=$<CONFIG>"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/../../Artifact/cmake/CopyQtPlatformPlugin.cmake"
+            VERBATIM
+        )
+        add_custom_command(TARGET ArtifactScriptLayerIntegrationTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}"
+                "-DTARGET_FILE_DIR=$<TARGET_FILE_DIR:ArtifactScriptLayerIntegrationTest>"
+                "-DVCPKG_INSTALLED=${_artifact_script_test_vcpkg_installed}"
+                "-DCONFIG=$<CONFIG>"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/../../Artifact/cmake/CopyVcpkgRuntimeDeps.cmake"
+            VERBATIM
+        )
+    endif()
+    set_tests_properties(ArtifactScriptLayerIntegrationTest PROPERTIES
+        ENVIRONMENT
+            "QT_QPA_PLATFORM=offscreen;ARTIFACT_SCRIPT_LAYER_TEST_FILE=${_artifact_script_layer_fixture}"
+        LABELS "script;layer;composition;integration;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
+endif()
+
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
 artifact_add_test(ArtifactExposureEffectContractTest
     SOURCES

@@ -1,6 +1,7 @@
-**最終更新:** 2026-10-15
+**最終更新:** 2026-10-16
 
 # Insight Register
+
 
 ## 2026-10-15: 共有子Composition解除時のsource layer所有権
 
@@ -10,12 +11,14 @@
 - **価値／懸念:** 登録mapだけでなく、複数wrapper間で共有するCompositionデータの所有権・解除契約を回帰検知できる。期待動作が「解除拒否」「残存参照向けの内容複製」「共有を許さない」などのどれかは仕様確認が必要。
 - **次に確認:** ユーザーが許可したビルド・実行で `test.sharedChildReferences` の実結果を確かめ、期待する共有Compositionの解除仕様を決める。テスト依頼の範囲を越えるService変更は別途指示を待つ。
 
+
 ## 2026-10-15: シェイプ描画テストで自動保存される初期形状を除去する
 
 - **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm` の `addShapeContent()`、`tests/shape_visual/ShapeVisualCases.inc`。
 - **確認できた事実:** 空の content 配列へ最初の content を追加すると、指定 content より先に `makeContentFromLegacy()` の結果が格納される。content の Intersect は先行 content の描画を消さず、後続 content の形状だけを先行形状で切り抜く。
 - **価値／懸念:** 初期矩形が穴や透明領域を覆い、意図した入力と異なる画像を検証する恐れがある。専用テストでは初期 snapshot を除去し、content Intersect の入力は塗りを無効にして演算結果を分離した。
 - **次に確認:** ユーザーが許可したビルド・実行で実際の座標と alpha を確認する。製品側の仕様変更を提案するものではない。
+
 
 ## 2026-10-15: 既存プリコンポーズレイヤー移動時の親階層登録
 
@@ -25,6 +28,7 @@
 - **価値／懸念:** ネスト済みcompositionの親逆引きや時間変換が、再編成後に古い親構造へ依存する回帰を検出できる。
 - **次に確認:** 許可されたビルド／テスト実行で新ケースを動かし、失敗した場合はテストだけの依頼範囲を越えずに結果を報告する。
 
+
 ## 2026-10-15: ネストしたプリコンポーズ解除時のManager登録と時間復元
 
 - **関連:** `Artifact/src/Service/ArtifactProjectService.cppm` の `unprecomposeLayerInCurrentComposition()`、`ArtifactCore::PreComposeManager`、`tests/Artifact/PrecomposeViewerMain.cpp`。
@@ -32,6 +36,7 @@
 - **未検証の仮説:** ルート→子→孫の孫階層を解除・Undo・Redoした際、レイヤー時間とManagerの親参照が全段で一貫して復元されるか、既存ケースでは直接確認していない。
 - **価値／懸念:** 見た目のツリーだけでなく、孫レイヤーID・In/Out/Startと実行時のネスト登録が保たれることを回帰検知する。
 - **次に確認:** `test.unprecomposeNested` の実行は未確認。許可された環境でテスト実行し、結果を確認する。
+
 
 ## 2026-10-15: プリコンポーズのプロジェクト再読込後に実行時ネスト登録を確認する
 
@@ -41,6 +46,7 @@
 - **価値／懸念:** プロジェクトの親子参照が永続化されても、プロセス内のネスト補助状態が復元されない場合、編集・時間変換機能が再起動後に不整合になる恐れがある。
 - **次に確認:** 独立GUIテストは保存後に対象登録を明示解除し、再読込後の `isPrecomposeLayer()`、`getCompositionNesting()`、子からの親逆引きを確認するよう拡張中。実行時に欠落が確認された場合の製品側復元変更は、テスト追加とは別の依頼または設計判断を待つ。
 
+
 ## 2026-10-15: 独立GUIテストの共通MCPヘルパー参照と実ファイルの整合
 
 - **関連:** `tests/Artifact/FbxAnimationViewerMain.cpp`、`docs/planned/MILESTONE_FBX_ANIMATION_VIEWER_TEST_2026-10-14.md`。
@@ -48,12 +54,14 @@
 - **価値／懸念:** 文書だけから共通テスト基盤を再利用すると、欠落依存でビルドできない可能性がある。他checkoutでの存在・履歴は未検証。
 - **次に確認:** FBXテストを次回変更する際、共通ヘルパーの元コミットと追跡状態を確認し、実ファイルが揃ってから各GUIテストの通信処理を統合できるか検討する。
 
+
 ## 2026-10-15: Preserve straight alpha across PNG import and export
 
 - **関連:** `ArtifactCore/src/IO/Image/ImageExporter.cppm`, `ArtifactCore/src/IO/Image/ImageImporter.cppm`, `tests/ArtifactCore/ImageIoContractTest.cpp`。
 - **確認できた事実:** A half-alpha PNG round-trip changed RGB because OpenImageIO's PNG output/input plugins assume associated alpha by default, while `QImage::Format_RGBA8888` and `RawImage` use straight/raw channel values. Setting the OIIO `oiio:UnassociatedAlpha` attribute disables the implicit alpha division/multiplication in the PNG plugins.
 - **変更・検証:** The image exporter marks 4-channel input as unassociated; the importer supplies that option at read time. Added tests cover half-alpha QImage and ImageBuf PNG round-trips, both of which pass.
 - **次に確認:** If more image formats gain OIIO support, verify each plugin's alpha convention and metadata behavior separately; this result covers the PNG path.
+
 
 ## 2026-10-15: 2D particle render-queue test must distinguish particles from background
 
@@ -3475,6 +3483,7 @@
 - **価値／懸念:** テストはencoded MP4の映像色切替、AAC codec／sample rate／channel数、muxed AACの抽出後durationと時刻窓ごとのRMS、`FFmpegAudioDecoder`によるopen/decodeを一つの同期契約として確認する。`ArtifactVideoLayer::getAudio()`のfalse応答は別経路の観測として残り、今回の修正対象外。
 - **次に確認:** 対象Debugテスト1件は成功。全suite、他のFFmpeg codec構成やGPU adapterでの再現性は未確認。
 
+
 ## 2026-10-15: DPX writerはCineon transferとビット深度を個別メタデータで保持する
 
 - **関連:** `ArtifactCore/src/IO/Image/ImageExporter.cppm`、`ArtifactCore/src/IO/Image/ImageImporter.cppm`、`ImageExportOptions::bitsPerSample`。
@@ -3483,6 +3492,7 @@
 - **価値／懸念:** DPXの規格フィールドとOIIO固有のtransfer名を混同せず、素材metadataをコア転送関数へつなげられる。packing詳細はOIIO writer依存であり、別のOIIO build/pluginでは再確認が必要。
 - **次に確認:** 別のOIIO build/pluginでも標準DPX headerとpackingを読み戻せるか確認する。
 
+
 ## 2026-10-15: 非連続プリコンポーズ解除でのレイヤー順復元
 
 - **関連:** `Artifact/src/Service/ArtifactProjectService.cppm` の `unprecomposeLayerInCurrentComposition()`、`tests/Artifact/PrecomposeViewerMain.cpp`。
@@ -3490,3 +3500,94 @@
 - **未検証の仮説:** AとUntouchedを選びBを残す非連続選択では、逐次挿入位置がシフトし、解除後の順序が元のA/B/Untouchedと異なる可能性がある。`test.nonContiguousSelectionOrder` を追加したが、実行は未確認。
 - **価値／懸念:** レイヤー順は描画重なりや編集結果に影響するため、連続選択だけでなく隙間を含む選択解除の回帰検知が必要。
 - **次に確認:** 許可されたGUIテスト実行で解除・Undo・Redo後のレイヤー順が一致するか確認する。
+
+
+## 2026-10-15: Native Dockの一時ターゲット表示と局所分割
+
+- **関連:** `Artifact/include/Widgets/Dock/NativeDockSurface.ixx`、`Artifact/include/Widgets/Dock/DockManager.ixx`、QADS互換のドック配置。
+- **確認できた事実:** Native Dockは当初`Left / Right / Top / Bottom / Center`の固定5領域と各領域の`QTabWidget`で配置を表現していた。QADS風の中央＋四方向オーバーレイだけを追加しても、方向候補を既存の固定領域へ割り当てるだけでは、ホバー中のドック領域の横へsplitを作る配置意味を表現できない。
+- **追加で確認できた事実:** QADS 4.5.0はmain windowとfloating containerの両方に4辺のAuto-Hide sidebar、展開／折りたたみ、サイドバー内の挿入順、通常ドックへの復帰を持つ。Native Dockにはsidebar／auto-hide stateがなく、現在の`pinned_`はタブを閉じる操作の制御に使われるため、これをAuto-Hide状態へ流用できない。
+- **追加で確認できた事実:** 浮動タブ面は`createFloatingTabSurface()`で`acceptDrops`を有効にしておらず、挿入プレビューもNativeDockSurface直下へ座標変換して描く経路だった。浮動ウィンドウ上のdrop targetと予告表示が別々のwidget／座標系に分かれていた。
+- **今回の対応:** 浮動ダイアログに専用のdrop preview childを置き、ダイアログ自身でもdropを受けて浮動タブ面へルーティングする。挿入線は対象タブバー自身で描く。ドック面の一時オーバーレイは対象領域上に表示し、中央はタブ統合、四方向は対象タブ面を分割する。QADS 4.5.0のドロップ競合処理を確認し、オーバーレイ選択したsplitが失敗した場合に別の固定領域へフォールバックしないようにする。QADSの`dropIntoCenterOfSection()`はinvalid tab indexを0へ丸めるため、中央オーバーレイの合流位置も先頭へ合わせる。`DockLayoutEntry`に任意のsplit pathと比率を追加し、埋め込み面・浮動面の分割木を保存・復元する。旧JSONではこれらのキーがなくても従来の領域タブとして扱う。
+- **価値／懸念:** オーバーレイの予告とdrop結果が局所splitとして一致し、split配置をレイアウトJSONと既存Undo用スナップショットに保持できる。空になったsplit葉を移動・フロート化後に畳む経路も追加した。実装後のビルド・実機動作は未確認。
+- **次に確認:** ビルド・実機確認が許可されたら、分割方向、入れ子分割、splitterリサイズ後の保存・復元、Undo/Redo、空split葉のcollapseを確認する。浮動グループへのタブ挿入位置と、キャンセル時の予告解除も確認する。QADSとの次の大きな機能差であるAuto-Hideは、`pinned_`と分離した状態・保存形式・4辺sidebar・popup lifecycleを設計してから実装する。
+
+
+## 2026-10-15: FBX importerはDiffuseFactorをbase-color weightとして適用する
+
+- **関連:** `ArtifactCore/src/Geometry/MeshImporter.cppm` の `detectTexturesFromUfbx()`、`ArtifactCore/include/Geometry/MeshImporter.ixx` の `ImportedPbrMaterial`、`tests/fixtures/fbx-materials/diffuse-factor-weight.fbx`、`tools/fbx/create_material_fixtures.py`、`tests/ArtifactCore/MeshImporterFbxTest.cpp`。
+- **確認済み事実:** vendored ufbx は `pbr.base_color` を FBX `Diffuse`/`DiffuseColor` に、`pbr.base_factor` を `DiffuseFactor` に対応させている（`third_party/ufbx/ufbx.c:19398-19414`）。3ds Max physical の `base_weight`、OSL の `base`、OpenPBR の `base_weight` も同じ map に入る。glTF マッピングには BASE_FACTOR が無く、`baseColorFactor` は `main|baseColor` に畳まれている（`ufbx.c:19590-19610`）。したがって `pbr.base_factor` は全対応シェーダで scalar weight として扱える。Importer は base_color だけを読み、factor を捨てていた。
+- **変更:** `pbr.base_factor` を linear 空間で base_color に乗算し、その後 sRGB エンコードする。`ImportedPbrMaterial` に `hasBaseColorFactor` / `baseColorFactor` を追加。DiffuseFactor 0.5 の fixture を追加し、factor 1 が恒等であることと factor 0.5 がエンコード後の base color を半分にすることを検査する回帰テストを2件追加した。
+- **残る穴:** `pbr.base_factor.texture`（DiffuseFactor に画像を繋いだ FBX。既存の `diffuse-factor.fbx` がこの形）は base-color weight map として描画へ届かない。新テクスチャ slot が `ArtifactCore::Material` → `MeshRenderer` → シェーダ → JSON 保存 → Inspector まで通る必要があり、Importer 内では閉じない。
+- **別便:** カメラ／ライトノードの取り込みは未配線。`scene->cameras` / `scene->lights` から取り出す公開 API と、受け皿である `ArtifactCameraLayer` / `ArtifactLightLayer` の生成・配置・保存配線が必要。
+- **実装不可と判断した項目:** alpha mask cutoff / mask-vs-blend は FBX 経路から復元できない。FBX に cutoff の概念が無く、ufbx も `ufbx_material_feature_info`（`enabled` と `is_explicit` のみ、`ufbx.h:2317-2326`）以上を露出しない。glTF の alphaMode も ufbx の material map に出ない（`ufbx.c:19590-19610`）。復元するなら glTF JSON を直接読む別経路になる。
+- **未検証:** ビルドとテスト実行は未実施。回帰テストの期待値 0.39886 / 0.24228 は手計算であり、実測で確認していない。
+
+
+## 2026-10-15: FBX importerの単位正規化は現状維持（有効化すると全FBXが1/100になる）
+
+- **関連:** `ArtifactCore/src/Geometry/MeshImporter.cppm` の `loadWithUfbx()` が組む `ufbx_load_opts`、`third_party/ufbx/ufbx.c` の `ufbxi_update_scene_settings()` / `ufbxi_scale_units()`。
+- **確認済み事実:** ufbx は `UnitScaleFactor` 未宣言の FBX を cm 既定として扱う（`unit_scale_factor = 1.0` → `unit_meters = 1.0 * 0.01`、`ufbx.c:23796-23802`。`ufbx.h:3903` にも "FBX files usually default to centimeters" とある）。`target_unit_meters` は既定 0 で無変換（`ufbx.h:4832-4834`）。Importer は unit 変換を一切設定しておらず、`Artifact3DModelLayer` 側にも補正は無い。
+- **価値／懸念:** `opts.target_unit_meters = 1.0` を設定すると scene が `0.01 / 1.0 = 0.01` 倍され、既存の全 FBX が 100 分の 1 の大きさになる。ファイル間のスケールは揃うが、基準画像・既存プロジェクトの見た目が変わるため1行の修正として扱えない。
+- **決定:** 2026-10-15 のユーザー判断により現状維持。単位正規化は必要になった時点で、既存モデルと基準画像の更新を含む別の作業として扱う。
+
+
+## 2026-10-16: ArtifactScriptとLayerの統合fixtureを独立ファイルで差し替える
+
+- **関連:** `tests/Artifact/ArtifactScriptLayerIntegrationTest.cpp`、`tests/fixtures/artifact-script-layer/write-target.layer-script`、CMake option `ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST`。
+- **確認済み事実:** Compositionの構築時にComposition向けスクリプトAPIが登録され、Layerのscript bindingからfixtureファイルを読み込んでLifecycle hookを実行できる。FBXテストと同じくCMake cache pathと環境変数でfixtureを差し替える構造を作れる。
+- **変更:** 実Layerを持つCompositionで `getLayer` / `getProperty` / `setProperty` を通し、別Layerのopacity変更を検証する選択可能な統合suiteを追加した。初回実行は `QGuiApplication` のGTest環境setupでSEH access violationとなったが、GUIを使わないsuiteのapplicationを `QCoreApplication` に替え、MSVC Debugでbuild後CTest 1/1 passed。
+- **価値／懸念:** fixtureスクリプトをテストコードから分離すると、ユーザーが実際に編集するscriptファイル単位でケースを再現しやすい。ビルド後の `windeployqt` はvcpkgの翻訳カタログ／release-bin探索警告を出したが、runtime DLL・Qt platform pluginコピーは成功しテスト実行に影響しなかった。一方、Compositionが登録するグローバルAPI callbackの寿命は各テストプロセス内で扱う必要があるため、このsuiteを同一プロセスで複数Compositionの生存・破棄テストへ広げる場合はcallback所有権を別途確認する。
+- **次に確認:** 負のケース（存在しないLayer／property）とキーフレーム書込みをfixture suiteへ追加するか検討する。CMake再configure後の独立build/runは成功済み。
+
+
+## 2026-10-15: FBX取り込み時にカメラ／ライト層を生成する
+
+- **関連:** `Artifact/src/Widgets/Menu/ArtifactLayerMenu.cppm` の `handleCreateModel3D()` / `createImportedSceneLayers()` / `applyImportedSceneTransform()`、`ArtifactCore` の `MeshImporter::importedCameras()` / `importedLights()`、`third_party/ufbx/ufbx.h` の `target_camera_axes`、`Artifact/src/Layer/ArtifactCameraLayer.cppm`、`ArtifactCore/src/Animation/AnimatableTransform3D.cppm`。
+- **確認済み事実:** FBXカメラはローカル +X が前方（`ufbx.h:4836-4838`「By default FBX cameras point towards the positive X axis」）、Artifactのカメラはローカル -Z が前方（`ArtifactCameraLayer.cppm:484`「Camera convention looks down local -Z」）、レイヤーの回転は `Rz * Ry * Rx` で合成される（`AnimatableTransform3D.cppm:179`）。3つを合わせると、取り込んだカメラのワールド行列 `M` に対する層の姿勢は `G = M * Ry(-90°)` になる。
+- **変更:** 3Dモデル層を追加した直後に、そのFBXが宣言しているカメラ／ライトを1つずつ層として追加する。名前はFBXのノード名（空ならシーン名 + `Camera`/`Light`）。カメラは projection / fov / near / far（orthographic は ortho width / height）、ライトは type / color / intensity / cone angle / feather / castsShadows を転送し、位置と回転は `G = M * Ry(-90°)` を分解して設定する。ライトの `Intensity` は ufbx が100分の1で返すため100倍して `Units::Percent` に入れる（層の既定が `Percent{100}` のため）。余分な層を作っている間は選択が移動するので、最後にモデル層へ選択を戻す。
+- **検証:** 変換式はスクラッチパッドの `verify_scene_transform.py` で7ケース（identity／平行移動／pitch／yaw／合成回転／真上・真下の gimbal）を実計算し、層の前後・上下・左右がFBXの +X / +Y / +Z 軸と一致することを確認した。ビルドと実行は未実施。
+- **未確認／懸念:** (1) ライト色を `FloatColor` へ入れるときの色空間変換をしていない（`toLinear()` / `fromLinear()` の向きを確認していない）。(2) FBX座標をcomp単位へ変換していない（単位正規化を現状維持にしたためで、3Dモデル層もFBX座標をそのまま層ローカルに使うことに合わせた）。(3) 取り込んだカメラが active camera になるかは未確認。なれば合成の描画が変わる。(4) Undo が既存の層追加経路と同一になるか未確認。(5) `LightType` に volume が無いため volume ライトは point に落としている。
+- **別便にできる改善:** `MeshImporter` は3Dモデル層が保持しているのに、メニュー側でファイルを読み直している（2回パース）。層からカメラ／ライトを公開すれば1回で済む。`Artifact3DModelLayer.ixx` に `import MeshImporter;` を足すことになるため、公開APIを広げる判断が要る。
+
+## 2026-10-15: Contents Viewerの描画経路に初期化・開始時競合の穴
+
+- **関連:** Artifact/src/Widgets/Viewer/ArtifactContentsViewer.cppm、Artifact/src/Widgets/Render/ArtifactDiligentEngineRenderWindow.cppm、ArtifactCore/src/Media/MediaReader.cppm、ArtifactCore/src/Media/MediaPlaybackController.cppm。
+- **確認できた事実:** OS desktop captureでもSVG画像面は空、WAV波形は No audio data、未再生MP4は黒だった。画像rendererの初期化結果はContents Viewer側で確認されず、hidden CPU QLabelは表示fallbackに使われない。3D viewer software fallbackはrender/presentで即returnするため実描画を持たない。Audio play() は非同期readerを開始後に同期でPCMをpollし、viewer側の最初の空pollが直ちにcontroller stopとsink suspendを起こす構造である。
+- **追加実行事実:** PNG/SVG fixtureの起動標準出力ではDiligentがNVIDIA GeForce RTX 4070 Tiを選び、Vulkan swap chainのsurface transformとpresent modeを初期化し、Diligent ERRORは出ていない。プロセス内のGPU初期化は確認できたが、Contents Viewer固有のsprite submit／present成功は未確認。計測hookの再ビルドは既存の未コミット NativeDockSurface.ixx のコンパイルエラーで止まった。
+- **未検証の仮説:** WAVの空表示は最初のpacketが未到着のpollによって再生が停止した可能性が高い。GPU画像previewではNVIDIA Vulkan deviceとswapchain初期化ログが得られたが、sprite submit／present成功は未計測。3Dでもdeviceとviewport相当サイズのswapchain resizeログがあるためdevice/swapchain failure fallbackではなさそうだが、draw／present成功は不明。Qt widget captureの白viewportはネイティブQWindowの実画面表示を確定しない（desktop capture時にテスト窓が前面でなかった）。paused動画は再生開始前のため黒画面のままで、先頭frameを表示する経路がない可能性がある。
+- **価値／懸念:** メタデータ読込の成功だけではsurfaceの初期化・frame delivery・audio queue readinessを検査できない。独立ウィジェットテストに経路別runtime assertionが必要になる。
+- **次に確認:** Renderer isInitialized / swapchain / present結果、video frameChanged受信、audio sink deviceと初回packetまでの状態をテスト結果へ出し、各失敗を形式別に再実行する。製品修正は独立した明示依頼を待つ。
+
+
+## 2026-10-16: Contents ViewerのSVGはimageformats plugin配置を要確認
+
+- **関連:** `Artifact/src/Widgets/Viewer/ArtifactContentsViewer.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`、`tools/capture_ui_test.py`、`Artifact.exe` / `ArtifactUiTest.exe` のQt runtime plugin配置。
+- **確認できた事実:** fixtureの通常環境ではSVGのQPixmap decode結果が0×0だった。`Qt6Svgd.dll` とSVG icon engineは出力先に存在するが、Qt imageformats用 `qsvgd.dll` はArtifactとfixture双方の実行フォルダーに無かった。vcpkgのQt plugin directoryを `QT_PLUGIN_PATH` に指定するとSVGが640×360へdecodeされ、画像GPU load後にpresent成功2回／失敗0となった。PNGもプラグイン指定なしで128×128へdecodeされpresent成功した。既存 `ArtifactIRenderer` は初期化、swap chain、present結果のカウンターを公開しており、環境変数gate付き一時ログで個別コンパイル・fixture実行に使えた。
+- **追加確認:** `ArtifactUiTest` build出力はSVG imageformats pluginに加えて `plugins/multimedia/ffmpegmediaplugin[d].dll` も欠き、capture helperはこのexeを直接起動する。一方Artifact本体のPOST_BUILDではwindeployqtが走り、別配布先にSVG pluginと通常名のFFmpeg multimedia pluginが配置されていた。よってfixtureは通常Artifactと異なるQt plugin runtimeで起動している。音声fixtureはmono/24kHzだが、`MediaAudioDecoder::initialize()` がcodec初期化時にdefault resamplerを設定し、出力PCMはstereo/44.1kHz/S16となるためviewer sink/waveform形式と合う。前に疑ったformat mismatchは誤り。
+- **Profiler境界の追加確認:** `audio-after-play-os.png` のAudio Playback Profilerは3 scopeを表示。prefix-filtered latest sample数はscope名の種類数で、音声経路のscope一覧と照合すると記録済みなのは `pumpAudioPlayback` / `fillPendingBuffer` / `getNextAudioFrame`。`audioSinkWrite` と `waveformAppend` は未記録。よってこの実行ではreader/controller pollの後、PCMが空としてsink write前に早期returnし、波形処理にも入っていない。sinkがStopped/Suspendedならpump先頭returnとなりfill/getNextのscopeが残らないので観測結果と合わない。WAVは有効なPCM S16でffmpeg decodeも成功しており、非同期readerの初回packet到着前pollが最有力原因。queue長とdecoder出力bytesを直接取得していないため、queue emptyとdecoder no-outputの完全な区別は未了。
+- **修正・検証状態:** MediaReaderは`isStreamFinished(stream)`でproducer終了かつqueue空を判定し、MediaPlaybackControllerへ公開。Contents Viewerは一時empty時に停止せず次の16ms pumpへ持ち越し、本当の終了後のみstop/timer停止する。出力PCMを44.1kHz stereo/Int16へ明示固定し、waveform/FFTのsampleRateも44.1kHzへ合わせた。ArtifactUiTestのWindows POST_BUILDへwindeployqtとvcpkg/Qt runtime deploymentを追加。Windows SDK `x64` binをPATHに加えると、CMake再構成後のArtifactUiTestビルドは終了コード0。WAV captureはja/en/zh/zh-TWすべてで波形と解析値を表示し、Profiler Scopes 5まで進んだ。短い音源のためcapture時は再生終了後で、再生中位置の更新は別途確認が必要。
+- **価値／懸念:** SVG空表示はfixtureにQt decoder pluginがなかったことで説明できる。動画独立テストもplugin不在という差分があり、通常アプリ側配布での結論へ一般化できない。動画fixtureはmultimedia plugin pathなしでPlay後も黒く、vcpkg Debug Qt plugin pathを指定すると同じPlay操作でH.264 frameが実画面表示された。これはテストruntime配置が動画の黒画面原因であることを示す。
+- **今回の追加確認:** qsvgdとffmpegmediaplugindをArtifactUiTestのpluginsへコピーした後も静止画Previewは空。PNG/SVG fixtureは後続の実験ビルドで`0x80000003`終了を起こし、原因確定に至らなかった。ネイティブサーフェス属性の一時変更は撤回し、現ソースに残していない。画像surfaceはrenderer/device初期化ログだけでは正常表示を証明できない。capture入口はMP4をPlayしないので、Plugin配置後の動画frame表示は今回未検証。過去のA/B実行ではQt multimedia plugin pathを明示しPlayした場合にH.264 frameを確認している。
+- **次に確認:** Contents ViewerのGPU previewとComposition Viewのsurface作成・owner階層を比較し、可視captureでPNGのdraw/presentを再現する。Play後のMP4 frameもcapture helperまたはGUI操作で確認する。Audioは再生中に短間隔でplayhead更新を確認する。
+
+
+## 2026-10-16: Contents Viewer previewのswapchain resizeでDebug Assertion
+
+- **関連:** `Artifact/src/Widgets/Viewer/ArtifactContentsViewer.cppm`、`Artifact/src/Render/ArtifactIRenderer.cppm`、Contents Viewer独立fixture。
+- **確認できた事実:** PNG decode後、preview paintはclear/draw/flush/presentまで進むが、160×160から163×163へのresizeでMSVC Debug Runtimeの `vector subscript out of range` assertionが出た。`present()`後にcommand bufferがbackbuffer RTVを次フレーム用に保持し、immediate contextも同targetをbindしたままswapchain resizeしていた。
+- **修正・確認:** resize前にcontextのrender target bindingを解除し、command bufferが保持するtarget RTVもnullにしてからswapchainをresizeする。ArtifactUiTestを再ビルド。共有renderer経路でPNGのcheckerとSVG画像をOS画面上で確認し、captureまでassertionなし。別観測の45秒間に複数回resize/recreate/presentが完了した。
+- **残る確認:** 共有rendererで長時間の連続異サイズresize stress、MP4 fixture上のPlay/seek、WAV再生中positionの独立操作確認。Widget captureはネイティブGPU surfaceを欠くため画面画像の証拠にはOS desktop captureを使用。
+- **関連する未検証の設計案:** GPU viewport widgetのswapchain lifecycleを、present後のRTV保持とresize前のunbindを含めて共通契約として明文化できる可能性がある。現時点ではこの一箇所で得た事実であり、他widgetへ一般化できるかは未検証。
+- **次に確認:** Contents ViewerでMP4とWAVの操作確認を行い、異なるwidgetのresize前にも同じRTV所有条件があるかコードから調べる。
+
+
+## 2026-10-16: Contents Viewer transport表示がnull state labelで早期return
+
+- **関連:** `Artifact/src/Widgets/Viewer/ArtifactContentsViewer.cppm` の `ArtifactContentsViewer::Impl::updatePlaybackState()`。
+- **確認できた事実:** `stateLabel` はメンバー初期値nullで、代入箇所が存在しない。一方、`transportTimeLabel`等は生成済み。関数先頭で`stateLabel`がnullならreturnするため、時刻・フレーム表示と再生ボタン有効状態の更新へ到達しない。MP4 fixtureでは再生中フレームが変化し、WAVではwaveform/analysis appendとaudio profiler scopesが観測されたのに、共通transport時刻は0表示に留まった。
+- **変更:** 任意`stateLabel`のnullを全transport更新の終了条件にしない。下流は各widgetごとにnull guard済み。
+- **価値:** transport time/frame/range表示とplay/pause/stopの有効状態をmedia再生状態に追従させられる。
+- **追加修正:** シークスライダーの入力接続を`sliderMoved`から`valueChanged`へ変更した。`QSignalBlocker`で保護したposition同期更新はユーザーseekとして再処理されない。
+- **追加確認:** 修正後のArtifactUiTestで20秒WAVのpositionが `00:05 / 00:20` から `00:11 / 00:20` へ進むこと、4秒H.264 MP4で `00:00 / 00:04` と `Frame 0 / 120` が表示され、Play後に映像とframe番号が進むことを確認した。seek sliderにフォーカスしてRightを押すとpositionが1秒、frame 30/120へ移った。マウスドラッグシーク、長時間resize stressは未確認。
+- **次に確認:** WAVのpause/seek後の保持とMP4のマウスドラッグseekを確認する。長時間の連続異サイズresize stressも実行する。

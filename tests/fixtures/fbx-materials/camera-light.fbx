@@ -1,0 +1,85 @@
+; FBX 7.4.0 project-authored material test cube
+FBXHeaderExtension: {
+    FBXHeaderVersion: 1003
+    FBXVersion: 7400
+}
+Objects: {
+    Geometry: 1000, "Geometry::Cube", "Mesh" {
+        Vertices: *24 { a: -1,-1,-1,1,-1,-1,1,1,-1,-1,1,-1,-1,-1,1,1,-1,1,1,1,1,-1,1,1 }
+        PolygonVertexIndex: *24 { a: 4,5,6,-8,0,3,2,-2,0,4,7,-4,1,2,6,-6,0,1,5,-5,3,7,6,-3 }
+        LayerElementUV: 0 {
+            Version: 101
+            Name: "UV0"
+            MappingInformationType: "ByPolygonVertex"
+            ReferenceInformationType: "Direct"
+            UV: *48 { a: 0,0,1,0,1,1,0,1,0,0,1,0,1,1,0,1,0,0,1,0,1,1,0,1,0,0,1,0,1,1,0,1,0,0,1,0,1,1,0,1,0,0,1,0,1,1,0,1 }
+        }
+        LayerElementMaterial: 0 {
+            Version: 101
+            MappingInformationType: "AllSame"
+            ReferenceInformationType: "IndexToDirect"
+            Materials: *1 { a: 0 }
+        }
+        Layer: 0 {
+            Version: 100
+            LayerElement: { Type: "LayerElementUV"
+                TypedIndex: 0 }
+            LayerElement: { Type: "LayerElementMaterial"
+                TypedIndex: 0 }
+        }
+    }
+    Model: 1001, "Model::Cube", "Mesh" {
+        Version: 232
+    }
+    Material: 1002, "Material::Test", "" {
+        Version: 102
+        ShadingModel: "phong"
+        Properties70: {
+            P: "DiffuseColor", "Color", "", "A",0.6,0.2,0.05
+            P: "DiffuseFactor", "Number", "", "A",1
+            P: "ShininessExponent", "Number", "", "A",16
+        }
+    }
+
+    NodeAttribute: 3000, "NodeAttribute::CameraAttribute", "Camera" {
+        Version: 100
+        Properties70: {
+            P: "CameraProjectionType", "enum", "", "",0
+            P: "FieldOfView", "Number", "", "A",45
+            P: "NearPlane", "Number", "", "A",1
+            P: "FarPlane", "Number", "", "A",1000
+        }
+    }
+    Model: 3001, "Model::TestCamera", "Camera" {
+        Version: 232
+        Properties70: {
+            P: "Lcl Translation", "Lcl Translation", "", "A",10,20,30
+        }
+    }
+    NodeAttribute: 3100, "NodeAttribute::LightAttribute", "Light" {
+        Version: 100
+        Properties70: {
+            P: "LightType", "enum", "", "",2
+            P: "Color", "Color", "", "A",1,0.8,0.6
+            P: "Intensity", "Number", "", "A",150
+            P: "OuterAngle", "Number", "", "A",40
+            P: "CastShadows", "bool", "", "",1
+        }
+    }
+    Model: 3101, "Model::TestLight", "Light" {
+        Version: 232
+        Properties70: {
+            P: "Lcl Translation", "Lcl Translation", "", "A",-5,8,12
+        }
+    }
+}
+Connections: {
+    C: "OO",1000,1001
+    C: "OO",1001,0
+    C: "OO",1002,1001
+
+    C: "OO",3001,0
+    C: "OO",3000,3001
+    C: "OO",3101,0
+    C: "OO",3100,3101
+}

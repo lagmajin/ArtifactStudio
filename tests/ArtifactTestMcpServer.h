@@ -372,7 +372,10 @@ private:
             [this, request, result] { result->set_value(handleRequest(request)); },
             Qt::QueuedConnection);
         if (!queued) return false;
-        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(120);
+        // Tool handlers may run a bounded endurance wait (up to 24 hours).
+        // Keep the dispatch deadline aligned with that supported duration;
+        // the old 120-second ceiling closed the stdio server during long runs.
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::hours(24);
         while (future.wait_for(std::chrono::milliseconds(50)) != std::future_status::ready) {
             if (stopping_.load() || std::chrono::steady_clock::now() >= deadline)
                 return false;

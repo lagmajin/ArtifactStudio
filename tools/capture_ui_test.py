@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Launch ArtifactUiTest.exe and capture a startup, Timeline, or Render Manager fixture."""
+"""Launch ArtifactUiTest.exe and capture an isolated application UI fixture."""
 
 from __future__ import annotations
 
@@ -45,6 +45,12 @@ def parse_args() -> argparse.Namespace:
         "--render-manager",
         action="store_true",
         help="show a fixed Render Manager queue fixture",
+    )
+    parser.add_argument(
+        "--contents-viewer",
+        type=Path,
+        metavar="MEDIA",
+        help="show only Contents Viewer with the given image, SVG, video, audio, or 3D model",
     )
     parser.add_argument(
         "--tracker",
@@ -206,6 +212,24 @@ def request_close_window(process_id: int) -> bool:
 
 def main() -> int:
     args = parse_args()
+    isolated_fixtures = sum((
+        bool(args.timeline or args.curve_editor), args.render_manager,
+        args.cloner, args.tracker, args.contents_viewer is not None,
+    ))
+    if isolated_fixtures > 1:
+        print("capture_ui_test: choose only one isolated fixture", file=sys.stderr)
+        return 2
+    if args.contents_viewer is not None:
+        args.contents_viewer = args.contents_viewer.expanduser().resolve()
+        if not args.contents_viewer.is_file():
+            print(f"capture_ui_test: media file not found: {args.contents_viewer}", file=sys.stderr)
+            return 2
+        if args.contents_viewer.suffix.lower() not in {
+            ".png", ".jpg", ".jpeg", ".svg", ".mp4", ".avi", ".mov",
+            ".mkv", ".wav", ".mp3", ".flac", ".obj", ".fbx", ".gltf", ".glb",
+        }:
+            print(f"capture_ui_test: unsupported Contents Viewer fixture: {args.contents_viewer.suffix}", file=sys.stderr)
+            return 2
     if args.render_manager and (args.timeline or args.curve_editor or args.cloner or args.tracker):
         print("capture_ui_test: --render-manager cannot be combined with other fixtures", file=sys.stderr)
         return 2
@@ -353,6 +377,8 @@ def main() -> int:
         "ARTIFACT_UI_TEST_TIMELINE",
         "ARTIFACT_UI_TEST_CURVE_EDITOR",
         "ARTIFACT_UI_TEST_RENDER_MANAGER",
+        "ARTIFACT_UI_TEST_CONTENTS_VIEWER",
+        "ARTIFACT_UI_TEST_CONTENTS_VIEWER_PATH",
         "ARTIFACT_UI_TEST_CLONER",
         "ARTIFACT_UI_TEST_TRACKER",
         "ARTIFACT_UI_TEST_PROJECT_ROOT",
@@ -374,7 +400,15 @@ def main() -> int:
     environment["ARTIFACT_UI_TEST_FORCE_SHUTDOWN"] = "1"
     environment["ARTIFACT_STARTUP_SCREENSHOT_PATH"] = str(output_path)
     fixture_root: Path | None = None
-    if args.timeline or args.curve_editor or args.render_manager or args.cloner or args.tracker:
+    console_log_file = None
+    console_log_path = (
+        Path(f"{output_path}.console.log")
+        if args.contents_viewer is not None else None
+    )
+    if console_log_path is not None:
+        console_log_path.parent.mkdir(parents=True, exist_ok=True)
+        console_log_file = console_log_path.open("wb")
+    if args.timeline or args.curve_editor or args.render_manager or args.cloner or args.tracker or args.contents_viewer:
         fixture_root = Path(tempfile.mkdtemp(
             prefix="artifact_ui_test_", dir=output_path.parent
         )).resolve()
@@ -393,6 +427,11 @@ def main() -> int:
         environment["ARTIFACT_UI_TEST_RENDER_MANAGER"] = "1"
         environment.pop("ARTIFACT_STARTUP_SCREENSHOT_WIDGET", None)
         environment["ARTIFACT_STARTUP_SCREENSHOT_WIDGET"] = "renderManagerUiFixtureWidget"
+    if args.contents_viewer:
+        environment["ARTIFACT_UI_TEST_CONTENTS_VIEWER"] = "1"
+        environment["ARTIFACT_UI_TEST_CONTENTS_VIEWER_PATH"] = str(args.contents_viewer)
+        environment["ARTIFACT_STARTUP_SCREENSHOT_WIDGET"] = "contentsViewerUiFixtureWidget"
+        environment["ARTIFACT_STARTUP_SCREENSHOT_NATIVE_WINDOW"] = "1"
     if args.curve_editor:
         environment["ARTIFACT_UI_TEST_CURVE_EDITOR"] = "1"
     if args.cloner:
@@ -462,9 +501,13 @@ def main() -> int:
             [str(exe_path), "--lang", args.language, *args.app_arg],
             cwd=exe_path.parent,
             env=environment,
+            stdout=console_log_file,
+            stderr=subprocess.STDOUT if console_log_file is not None else None,
         )
     except OSError as error:
         print(f"capture_ui_test: failed to launch {exe_path}: {error}", file=sys.stderr)
+        if console_log_file is not None:
+            console_log_file.close()
         if fixture_root is not None:
             shutil.rmtree(fixture_root, ignore_errors=True)
         return 2
@@ -754,7 +797,26 @@ def main() -> int:
         return 1
     finally:
         stop_process(process)
+        if console_log_file is not None:
+            console_log_file.flush()
+            console_log_file.close()
         if fixture_root is not None:
+            if args.contents_viewer is not None:
+                diagnostics_path = Path(f"{output_path}.diagnostics.txt")
+                appdata_root = fixture_root / "appdata"
+                log_paths = sorted(appdata_root.rglob("*.log"))
+                with diagnostics_path.open("w", encoding="utf-8", newline="\n") as report:
+                    if not log_paths:
+                        report.write("No application log files were written under fixture APPDATA.\n")
+                    for log_path in log_paths:
+                        report.write(f"--- {log_path.relative_to(appdata_root)} ---\n")
+                        report.write(log_path.read_text(encoding="utf-8", errors="replace"))
+                        report.write("\n")
+                    if console_log_path is not None and console_log_path.is_file():
+                        report.write("--- process stdout/stderr ---\n")
+                        report.write(console_log_path.read_text(
+                            encoding="utf-8", errors="replace"
+                        ))
             shutil.rmtree(fixture_root, ignore_errors=True)
 
 

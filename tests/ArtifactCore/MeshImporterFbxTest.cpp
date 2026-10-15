@@ -202,6 +202,78 @@ TEST(MeshImporterFbxTest, DoesNotClassifyDiffuseFactorAsPackedMetallicRoughness)
     EXPECT_TRUE(material.metallicTexture.toQString().isEmpty());
     EXPECT_TRUE(material.roughnessTexture.toQString().isEmpty());
     EXPECT_TRUE(importer.lastMetallicRoughnessTexture().isEmpty());
+    // A DiffuseFactor of 1 leaves the encoded diffuse color untouched.
+    EXPECT_NEAR(material.baseColor[0], 0.79771f, 1.0e-4f);
+}
+
+TEST(MeshImporterFbxTest, AppliesDiffuseFactorAsBaseColorWeight)
+{
+    const QString path = QFileInfo(QString::fromUtf8(__FILE__)).dir().filePath(
+        QStringLiteral("../fixtures/fbx-materials/diffuse-factor-weight.fbx"));
+    ASSERT_TRUE(QFileInfo(path).isFile());
+    ufbx_error error{};
+    ufbx_scene* source = ufbx_load_file(path.toUtf8().constData(), nullptr, &error);
+    ASSERT_NE(source, nullptr) << error.description.data;
+    ASSERT_EQ(source->materials.count, 1u);
+    const ufbx_material* sourceMaterial = source->materials[0];
+    const bool hasWeight = sourceMaterial->pbr.base_factor.has_value;
+    const double weight = sourceMaterial->pbr.base_factor.value_real;
+    ufbx_free_scene(source);
+    ASSERT_TRUE(hasWeight) << "The fixture must declare DiffuseFactor.";
+
+    MeshImporter importer;
+    auto mesh = importer.importMeshFromFile(UniString(path));
+    ASSERT_NE(mesh, nullptr) << importer.lastError().toStdString();
+    ASSERT_EQ(importer.importedPbrMaterials().size(), 1u);
+    const auto& material = importer.importedPbrMaterials().front();
+    EXPECT_TRUE(material.hasBaseColorFactor);
+    EXPECT_FLOAT_EQ(material.baseColorFactor, static_cast<float>(weight));
+    // DiffuseColor 0.6/0.2 encoded to sRGB after being halved in linear space.
+    EXPECT_NEAR(material.baseColor[0], 0.39886f, 1.0e-4f);
+    EXPECT_NEAR(material.baseColor[1], 0.24228f, 1.0e-4f);
+}
+
+TEST(MeshImporterFbxTest, ExtractsCamerasAndLightsFromNodes)
+{
+    const QString path = QFileInfo(QString::fromUtf8(__FILE__)).dir().filePath(
+        QStringLiteral("../fixtures/fbx-materials/camera-light.fbx"));
+    ASSERT_TRUE(QFileInfo(path).isFile());
+
+    MeshImporter importer;
+    auto mesh = importer.importMeshFromFile(UniString(path));
+    ASSERT_NE(mesh, nullptr) << importer.lastError().toStdString();
+
+    ASSERT_EQ(importer.importedCameras().size(), 1u);
+    const MeshImporter::ImportedCamera& camera =
+        importer.importedCameras().front();
+    // The name comes from the node, not from its NodeAttribute.
+    EXPECT_EQ(camera.name.toQString(), QStringLiteral("TestCamera"));
+    EXPECT_EQ(camera.projection,
+              MeshImporter::ImportedCameraProjection::Perspective);
+    EXPECT_NEAR(camera.horizontalFovDegrees, 45.0f, 1.0e-3f);
+    EXPECT_NEAR(camera.nearPlane, 1.0f, 1.0e-4f);
+    EXPECT_NEAR(camera.farPlane, 1000.0f, 1.0e-3f);
+    // Only the translation set is pinned. The fixture declares no axis
+    // settings, so which axis each component lands on is not asserted.
+    float translation[3] = {camera.transform[3], camera.transform[7],
+                            camera.transform[11]};
+    std::sort(translation, translation + 3);
+    EXPECT_NEAR(translation[0], 10.0f, 1.0e-3f);
+    EXPECT_NEAR(translation[1], 20.0f, 1.0e-3f);
+    EXPECT_NEAR(translation[2], 30.0f, 1.0e-3f);
+
+    ASSERT_EQ(importer.importedLights().size(), 1u);
+    const MeshImporter::ImportedLight& light =
+        importer.importedLights().front();
+    EXPECT_EQ(light.name.toQString(), QStringLiteral("TestLight"));
+    EXPECT_EQ(light.type, MeshImporter::ImportedLightType::Spot);
+    EXPECT_NEAR(light.color[0], 1.0f, 1.0e-4f);
+    EXPECT_NEAR(light.color[1], 0.8f, 1.0e-4f);
+    EXPECT_NEAR(light.color[2], 0.6f, 1.0e-4f);
+    // ufbx reports the FBX Intensity property divided by 100.
+    EXPECT_NEAR(light.intensity, 1.5f, 1.0e-4f);
+    EXPECT_NEAR(light.outerConeDegrees, 40.0f, 1.0e-3f);
+    EXPECT_TRUE(light.castsShadows);
 }
 
 TEST(MeshImporterFbxTest, PreservesSeparateMetallicAndRoughnessMaps)

@@ -1,0 +1,14 @@
+class LayerWriter : ArtifactBehaviour
+{
+    public bool wroteTarget = false;
+
+    void OnStart()
+    {
+        if (getLayerCount() == 2 &&
+            getProperty(getLayer("Target"), "layer.opacity") == 1.0)
+        {
+            wroteTarget = setProperty(
+                getLayer("Target"), "layer.opacity", 0.375);
+        }
+    }
+}

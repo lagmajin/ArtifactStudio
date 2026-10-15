@@ -1,8 +1,8 @@
 # Dock Enhancement Pack — 1/2/4/5/7/9
 
-**最終更新:** 2026-09-13
+**最終更新:** 2026-10-15
 
-**ステータス:** Not Started
+**ステータス:** In Progress
 
 ## 目的
 
@@ -15,7 +15,7 @@
 - portable JSON＝versioned envelope、旧配列互換、入力検証あり。`DockLayoutDocument`／registryにarea／tab group／visible／pinned／floating geometry記録（`MILESTONE_INDEPENDENT_DOCK_MANAGER_2026-08-13.md`）。
 - `+`追加導線＝登録済みDockのみ列挙、既存dockの`show()／raise()／setAsCurrentTab()`で再表示、IDベースRecent／Favorite（`MILESTONE_DOCK_PANEL_ADD_MENU_2026-08-15.md`）。
 - Command Palette＝`ArtifactCommandPaletteWidget`（`Artifact/src/Widgets/CommandPalette/ArtifactCommandPaletteWidget.cppm`）にMRU・fuzzy検索あり。Dock再表示コマンドは未登録。
-- pin＝closable抑止として実装済み。Lock（移動・float禁止）はなし。
+- pin＝閉じる操作の抑止として実装済み。パネル単位の `closable` / `movable` / `floatable` / Auto-Hide可否と、移動・フロートを抑止する Lock も Native に追加済みで、portable layout JSON へ保存する。
 
 ## 共通制約
 
@@ -119,7 +119,7 @@ pin（閉じられない）だけで、誤ドラッグ・誤floatを防げない
 
 ### 方針
 
-- 現行pin（closable抑止）は維持し、`Lock（移動・float禁止）`を追加する。`DockLayoutRegistry`に`locked` flagを追加し、portable JSONへversion互換で保存・復元する。
+- 現行pin（close 保護）は維持し、`Lock（移動・float禁止）`を追加する。パネルの closable 可否は独立した機能として扱う。`DockLayoutRegistry`に`locked` flagを追加し、portable JSONへversion互換で保存・復元する。
 - 操作は既存facade経由のfeature mappingに閉じる。
 
 ### 受入
@@ -127,6 +127,8 @@ pin（閉じられない）だけで、誤ドラッグ・誤floatを防げない
 - [ ] pinとlockを独立にon/offできる
 - [ ] 旧JSON（lockedなし）を後方互換で読む
 - [ ] lock中は移動・float・tab引抜きを抑止し、解除で復帰する
+
+**進捗（2026-10-15）:** Native dock tab menu に Pin から独立した `Lock panel position` を追加した。lock はタブ並べ替え、dock area／tab group 移動、split、Auto-Hide、float／re-dock を抑止し、pin は close 操作を保護する。closable／movable／floatable／Auto-Hide可否はパネル単位で独立して切り替えられる。各状態は optional JSON 項目として保存し、旧レイアウトでは locked=false、その他=true として扱う。復元は機能制限を適用する前に配置移動を完了する。コード差分の静的確認のみで、UI 操作、旧 JSON、保存復元、Undo／Redo、全フラグ組み合わせの実機確認は未実施。
 
 ---
 

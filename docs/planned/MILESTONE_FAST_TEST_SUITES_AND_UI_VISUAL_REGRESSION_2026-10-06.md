@@ -1,6 +1,16 @@
 # Artifact.exe 非依存テストスイートと UI ビジュアル回帰計画
 
-**最終更新:** 2026-10-11
+**最終更新:** 2026-10-16
+
+## 進捗 2026-10-15 — ArtifactScript / Layer integration fixture
+
+- `ArtifactScriptLayerIntegrationTest` を追加し、CMake option `ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST` で単独選択できるようにした。FBX test と同様に fixture file path を `ARTIFACT_SCRIPT_LAYER_TEST_FILE` で差し替えられ、既定 fixture は `tests/fixtures/artifact-script-layer/write-target.layer-script`。ArtifactAppRuntime依存のWindowsテスト用に、runtime DLL・Qt platform plugin・vcpkg runtimeの配置も登録した。
+- 小さな Composition に Driver / Target の実 Solid layer を作り、Driver の `OnStart` スクリプトから `getLayer` → `getProperty` → `setProperty` を通して Target の `layer.opacity` を変更する。C++ 側で最終値を確認する。
+
+## 進捗 2026-10-16 — ArtifactScript / Layer integration fixture runtime acceptance
+
+- 既存 `out/build/x64-Debug` を再configureしてfixture単独suiteを登録し、`ArtifactScriptLayerIntegrationTest` をbuild。初回実行は `QGuiApplication` のGTest環境setup中にSEH access violationで終了した。画面・GUI platformを使わないsuiteなので `QCoreApplication` に変更し、再build後はCTest 1/1 passed。
+- build後の `windeployqt` はvcpkg翻訳カタログ／release-bin DLL探索の警告を出したが、続くruntime DLL・Qt platform plugin・vcpkg DLL配置は完了し、suite実行に影響しなかった。
 
 ## 進捗 2026-10-11 — ArtifactExpected assignment state transitions
 

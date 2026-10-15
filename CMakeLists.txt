@@ -873,11 +873,20 @@ option(ARTIFACT_ENABLE_KEYING_VIDEO_TEST
 option(ARTIFACT_BUILD_FBX_ANIMATION_VIEWER
     "Build the independent FBX animation preview executable"
     OFF)
+option(ARTIFACT_BUILD_AUDIO_BUS_VIEWER
+    "Build the independent audio bus routing and mixer test executable"
+    OFF)
 option(ARTIFACT_BUILD_PRECOMPOSE_VIEWER
     "Build the independent precompose GUI and MCP regression executable"
     OFF)
+option(ARTIFACT_BUILD_COMPOSITION_PLAYBACK_STRESS_TEST
+    "Build the independent composition playback stress test executable"
+    OFF)
 option(ARTIFACT_ENABLE_FBX_IMPORT_TEST
     "Build the FBX animation and embedded-texture importer test"
+    OFF)
+option(ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST
+    "Build the ArtifactScript-to-layer integration test"
     OFF)
 option(ARTIFACT_ENABLE_IMAGE_IO_TEST
     "Build the standalone image import/export contract test"
@@ -890,6 +899,8 @@ set(ARTIFACT_FBX_BASE_COLOR_TEST_FILE "" CACHE FILEPATH
     "FBX embedded base-color fixture (defaults to ARTIFACT_FBX_TEXTURE_TEST_FILE)")
 set(ARTIFACT_FBX_TEXTURE_TEST_FILE "" CACHE FILEPATH
     "FBX embedded-texture fixture (overrides ARTIFACT_FBX_TEST_FILE for texture checks)")
+set(ARTIFACT_SCRIPT_LAYER_TEST_FILE "" CACHE FILEPATH
+    "ArtifactScript layer integration fixture (defaults to the repository fixture)")
 
 function(artifact_add_cppwinrt_include target_name)
     if(NOT WIN32)
@@ -932,6 +943,113 @@ if(ARTIFACT_BUILD_PRECOMPOSE_VIEWER)
             $<TARGET_RUNTIME_DLLS:ArtifactPrecomposeViewer>
             "$<TARGET_FILE_DIR:ArtifactPrecomposeViewer>/"
         COMMAND_EXPAND_LISTS VERBATIM)
+endif()
+
+if(ARTIFACT_BUILD_COMPOSITION_PLAYBACK_STRESS_TEST)
+    if(NOT WIN32)
+        message(FATAL_ERROR
+            "ArtifactCompositionPlaybackStressTest currently requires Windows window capture")
+    endif()
+    add_executable(ArtifactCompositionPlaybackStressTest
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/Artifact/CompositionPlaybackStressMain.cpp"
+    )
+    target_link_libraries(ArtifactCompositionPlaybackStressTest PRIVATE ArtifactAppRuntime)
+    target_include_directories(ArtifactCompositionPlaybackStressTest PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/verdigris/src"
+    )
+    artifact_add_cppwinrt_include(ArtifactCompositionPlaybackStressTest)
+    set_target_properties(ArtifactCompositionPlaybackStressTest PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    add_custom_command(TARGET ArtifactCompositionPlaybackStressTest POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:ArtifactCompositionPlaybackStressTest>
+            "$<TARGET_FILE_DIR:ArtifactCompositionPlaybackStressTest>/"
+        COMMAND_EXPAND_LISTS
+        VERBATIM
+    )
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactCompositionPlaybackStressTest PRIVATE
+            /Zf /Zc:__cplusplus /utf-8 /EHsc
+        )
+    endif()
+endif()
+
+if(ARTIFACT_BUILD_AUDIO_BUS_VIEWER)
+    add_executable(ArtifactAudioBusViewer
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/Artifact/AudioBusViewerMain.cpp"
+    )
+    target_link_libraries(ArtifactAudioBusViewer PRIVATE ArtifactAppRuntime)
+    target_include_directories(ArtifactAudioBusViewer PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/verdigris/src"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests"
+    )
+    set_target_properties(ArtifactAudioBusViewer PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    if(WIN32)
+        add_custom_command(TARGET ArtifactAudioBusViewer POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ArtifactAudioBusViewer>
+                "$<TARGET_FILE_DIR:ArtifactAudioBusViewer>/"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+
+        set(_artifact_audio_bus_vcpkg_installed "${VCPKG_INSTALLED}")
+        if(NOT EXISTS "${_artifact_audio_bus_vcpkg_installed}/debug/bin"
+           AND DEFINED VCPKG_INSTALLED_DIR
+           AND EXISTS "${VCPKG_INSTALLED_DIR}/x64-windows")
+            set(_artifact_audio_bus_vcpkg_installed "${VCPKG_INSTALLED_DIR}/x64-windows")
+        endif()
+        if(EXISTS "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows")
+            set(_artifact_audio_bus_vcpkg_installed
+                "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows")
+        endif()
+
+        find_program(ARTIFACT_AUDIO_BUS_WINDEPLOYQT_EXECUTABLE NAMES windeployqt)
+        if(ARTIFACT_AUDIO_BUS_WINDEPLOYQT_EXECUTABLE)
+            add_custom_command(TARGET ArtifactAudioBusViewer POST_BUILD
+                COMMAND "${CMAKE_COMMAND}"
+                    "-DWINDEPLOYQT_EXECUTABLE=${ARTIFACT_AUDIO_BUS_WINDEPLOYQT_EXECUTABLE}"
+                    "-DTARGET_FILE=$<TARGET_FILE:ArtifactAudioBusViewer>"
+                    "-DVCPKG_INSTALLED=${_artifact_audio_bus_vcpkg_installed}"
+                    "-DCONFIG=$<CONFIG>"
+                    -P "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/cmake/RunWindeployqt.cmake"
+                VERBATIM
+            )
+        endif()
+
+        add_custom_command(TARGET ArtifactAudioBusViewer POST_BUILD
+            COMMAND "${CMAKE_COMMAND}"
+                "-DTARGET_FILE_DIR=$<TARGET_FILE_DIR:ArtifactAudioBusViewer>"
+                "-DVCPKG_INSTALLED=${_artifact_audio_bus_vcpkg_installed}"
+                "-DCONFIG=$<CONFIG>"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/cmake/CopyQtPlatformPlugin.cmake"
+            VERBATIM
+        )
+        add_custom_command(TARGET ArtifactAudioBusViewer POST_BUILD
+            COMMAND "${CMAKE_COMMAND}"
+                "-DTARGET_FILE_DIR=$<TARGET_FILE_DIR:ArtifactAudioBusViewer>"
+                "-DVCPKG_INSTALLED=${_artifact_audio_bus_vcpkg_installed}"
+                "-DCONFIG=$<CONFIG>"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/cmake/CopyVcpkgRuntimeDeps.cmake"
+            VERBATIM
+        )
+    endif()
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactAudioBusViewer PRIVATE
+            /Zf /Zc:__cplusplus /utf-8 /EHsc
+        )
+    endif()
 endif()
 
 if(ARTIFACT_BUILD_FBX_ANIMATION_VIEWER)
@@ -1040,13 +1158,15 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS
    OR ARTIFACT_ENABLE_TRACKING_VIDEO_TEST OR ARTIFACT_ENABLE_KEYING_VIDEO_TEST
    OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST OR ARTIFACT_ENABLE_RAY_TRACING_TEST
    OR ARTIFACT_ENABLE_FBX_IMPORT_TEST OR ARTIFACT_ENABLE_LAYER_TEST
+   OR ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST
    OR ARTIFACT_ENABLE_IMAGE_IO_TEST)
     find_package(GTest CONFIG QUIET)
     if(GTest_FOUND)
         add_subdirectory(tests)
-    elseif(ARTIFACT_ENABLE_FBX_IMPORT_TEST OR ARTIFACT_ENABLE_IMAGE_IO_TEST)
+    elseif(ARTIFACT_ENABLE_FBX_IMPORT_TEST OR ARTIFACT_ENABLE_IMAGE_IO_TEST
+           OR ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST)
         message(FATAL_ERROR
-            "The explicitly enabled standalone image/FBX test requires GTest, but GTest was not found.")
+            "An explicitly enabled standalone image/FBX/script-layer test requires GTest, but GTest was not found.")
     else()
         message(WARNING "GTest was not found; skipping GTest-based tests.")
     endif()

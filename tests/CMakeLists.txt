@@ -106,6 +106,23 @@ if(ARTIFACT_ENABLE_FBX_IMPORT_TEST)
     )
 endif()
 
+if(ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST)
+    set(_artifact_script_layer_fixture "${ARTIFACT_SCRIPT_LAYER_TEST_FILE}")
+    if(NOT _artifact_script_layer_fixture)
+        set(_artifact_script_layer_fixture
+            "${CMAKE_CURRENT_LIST_DIR}/fixtures/artifact-script-layer/write-target.layer-script")
+    endif()
+    get_filename_component(_artifact_script_layer_fixture
+        "${_artifact_script_layer_fixture}" ABSOLUTE
+        BASE_DIR "${PROJECT_SOURCE_DIR}")
+    if(NOT EXISTS "${_artifact_script_layer_fixture}" OR
+       IS_DIRECTORY "${_artifact_script_layer_fixture}")
+        message(FATAL_ERROR
+            "ArtifactScript layer test fixture does not exist or is not a file: "
+            "${_artifact_script_layer_fixture}")
+    endif()
+endif()
+
 if(ARTIFACT_ENABLE_IMAGE_IO_TEST)
     artifact_add_test(ArtifactCoreImageIoContractTest
         SOURCES
@@ -155,7 +172,8 @@ if(ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS AND NOT ARTIFACT_BUILD_TESTS)
 endif()
 
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS
-   OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST OR ARTIFACT_ENABLE_LAYER_TEST)
+   OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST OR ARTIFACT_ENABLE_LAYER_TEST
+   OR ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST)
     add_subdirectory(Artifact)
 endif()
 
