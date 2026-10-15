@@ -160,6 +160,7 @@ def main():
             require(nested_override["passed"] and nested_override["bindingAdded"]
                     and nested_override["overrideDeferred"]
                     and nested_override["nestedOverridePreserved"]
+                    and nested_override["saveReloadPreserved"]
                     and nested_override["outerUnpacked"]
                     and nested_override["innerOverridePreserved"]
                     and nested_override["overrideMaterialized"]
@@ -366,7 +367,7 @@ def main():
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
-            print("PASS: direct/transitive cycle guards, invalid-request atomicity, redo-branch replacement, open-child navigation/focus, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: direct/transitive cycle guards, invalid-request atomicity, redo-branch replacement, open-child navigation/focus, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, nested Master Property save/reload/materialization, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
             try:

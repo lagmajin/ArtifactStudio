@@ -577,7 +577,7 @@ public:
             return result;
         } else if (name == "test.transitiveCycleRejected") {
             QJsonObject cycleResult;
-            const auto root = service->currentComposition().lock();
+            auto root = service->currentComposition().lock();
             if (!root) {
                 cycleResult["error"] = QStringLiteral("No root composition");
                 return cycleResult;
@@ -656,7 +656,7 @@ public:
             return cycleResult;
         } else if (name == "test.nestedExposedOverrideMaterialized") {
             QJsonObject overrideResult;
-            const auto root = service->currentComposition().lock();
+            auto root = service->currentComposition().lock();
             if (!root) {
                 overrideResult["error"] = QStringLiteral("No root composition");
                 return overrideResult;
@@ -670,10 +670,10 @@ public:
                 return overrideResult;
             }
             const auto inner = service->lastPrecomposeOutcome();
-            const auto innerChild = service->findComposition(inner.childCompId).ptr.lock();
-            const auto innerWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+            auto innerChild = service->findComposition(inner.childCompId).ptr.lock();
+            auto innerWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
                 root->layerById(inner.precompLayerId));
-            const auto sourceLayer = innerChild
+            auto sourceLayer = innerChild
                 ? innerChild->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
             if (!innerChild || !innerWrapper || !sourceLayer) {
                 overrideResult["error"] = QStringLiteral("Inner exposed-override fixture is incomplete");
@@ -702,50 +702,103 @@ public:
                 {inner.precompLayerId}, UniString(QStringLiteral("Outer Exposed Override")), false, false,
                 PrecomposeMode::MoveSelected);
             const auto outer = service->lastPrecomposeOutcome();
-            const auto outerChild = service->findComposition(outer.childCompId).ptr.lock();
-            const auto nestedWrapper = outerChild
+            auto outerChild = service->findComposition(outer.childCompId).ptr.lock();
+            auto nestedWrapper = outerChild
                 ? dynamicPointerCast<ArtifactCompositionLayer>(outerChild->layerById(inner.precompLayerId))
                 : SharedPtr<ArtifactCompositionLayer>{};
-            const bool nestedOverridePreserved = outerCreated && nestedWrapper == innerWrapper &&
+            const bool nestedOverrideInMemory = outerCreated && nestedWrapper == innerWrapper &&
                 retainsOverride(nestedWrapper) &&
                 std::abs(sourceLayer->opacity() - binding.defaultValue.toFloat()) < 1.0e-5f;
-            const bool outerUnpacked = nestedOverridePreserved &&
-                service->unprecomposeLayerWithUndo(outer.precompLayerId, true);
-            const auto restoredInner = dynamicPointerCast<ArtifactCompositionLayer>(
-                root->layerById(inner.precompLayerId));
+            bool saveReloadPreserved = false;
+            bool outerUnpacked = false;
+            QTemporaryDir tempDir;
+            if (nestedOverrideInMemory && tempDir.isValid()) {
+                auto& projects = ArtifactProjectManager::getInstance();
+                auto& manager = PreComposeManager::instance();
+                const auto filePath = tempDir.filePath(QStringLiteral("nested-exposed-override.artifact"));
+                const auto save = projects.saveToFile(filePath);
+                const bool innerMappingCleared = save.success && manager.unregisterPrecompLayer(
+                    outer.childCompId, inner.precompLayerId, inner.childCompId);
+                const bool outerMappingCleared = save.success && manager.unregisterPrecompLayer(
+                    rootId, outer.precompLayerId, outer.childCompId);
+                const bool mappingsCleared = innerMappingCleared && outerMappingCleared &&
+                    !manager.isPrecomposeLayer(inner.precompLayerId) &&
+                    !manager.isPrecomposeLayer(outer.precompLayerId) &&
+                    manager.getPrecompLayersForChild(outer.childCompId).isEmpty() &&
+                    manager.getPrecompLayersForChild(inner.childCompId).isEmpty();
+                const bool loaded = mappingsCleared && projects.loadFromFile(filePath);
+                if (loaded) {
+                    service->changeCurrentComposition(rootId);
+                    root = service->findComposition(rootId).ptr.lock();
+                    outerChild = service->findComposition(outer.childCompId).ptr.lock();
+                    innerChild = service->findComposition(inner.childCompId).ptr.lock();
+                    nestedWrapper = outerChild
+                        ? dynamicPointerCast<ArtifactCompositionLayer>(
+                              outerChild->layerById(inner.precompLayerId))
+                        : SharedPtr<ArtifactCompositionLayer>{};
+                    innerWrapper = nestedWrapper;
+                    sourceLayer = innerChild
+                        ? innerChild->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
+                }
+                bool outerMappingRestored = false;
+                for (const auto& reference : manager.getPrecompLayersForChild(outer.childCompId)) {
+                    outerMappingRestored = outerMappingRestored ||
+                        (reference.parentCompId == rootId &&
+                         reference.precompLayerId == outer.precompLayerId);
+                }
+                bool innerMappingRestored = false;
+                for (const auto& reference : manager.getPrecompLayersForChild(inner.childCompId)) {
+                    innerMappingRestored = innerMappingRestored ||
+                        (reference.parentCompId == outer.childCompId &&
+                         reference.precompLayerId == inner.precompLayerId);
+                }
+                saveReloadPreserved = save.success && mappingsCleared && loaded && root &&
+                    outerChild && innerChild && nestedWrapper && sourceLayer &&
+                    retainsOverride(nestedWrapper) && outerMappingRestored && innerMappingRestored &&
+                    std::abs(sourceLayer->opacity() - binding.defaultValue.toFloat()) < 1.0e-5f;
+                outerUnpacked = saveReloadPreserved &&
+                    service->unprecomposeLayerWithUndo(outer.precompLayerId, true);
+            }
+            const auto restoredInner = outerUnpacked
+                ? dynamicPointerCast<ArtifactCompositionLayer>(root->layerById(inner.precompLayerId))
+                : SharedPtr<ArtifactCompositionLayer>{};
             const bool innerOverridePreserved = outerUnpacked && restoredInner == innerWrapper &&
                 retainsOverride(restoredInner) &&
                 std::abs(sourceLayer->opacity() - binding.defaultValue.toFloat()) < 1.0e-5f;
             const bool innerUnpacked = innerOverridePreserved &&
                 service->unprecomposeLayerWithUndo(inner.precompLayerId, true);
-            const auto restoredSource = root->layerById(sourceIds.front());
+            const auto restoredSource = root
+                ? root->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
             const bool overrideMaterialized = innerUnpacked && restoredSource == sourceLayer &&
                 std::abs(restoredSource->opacity() - overrideValue) < 1.0e-5f;
             const bool undoAvailable = innerUnpacked && undo->canUndo();
             if (undoAvailable) undo->undo();
             const auto undoChild = service->findComposition(inner.childCompId).ptr.lock();
             const auto undoSource = undoChild ? undoChild->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
-            const auto undoWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
-                root->layerById(inner.precompLayerId));
+            const auto undoWrapper = root
+                ? dynamicPointerCast<ArtifactCompositionLayer>(root->layerById(inner.precompLayerId))
+                : SharedPtr<ArtifactCompositionLayer>{};
             const bool undoPreservedOverride = undoAvailable && undoSource == sourceLayer &&
                 undoWrapper == innerWrapper && retainsOverride(undoWrapper) &&
                 std::abs(undoSource->opacity() - overrideValue) < 1.0e-5f;
             const bool redoAvailable = undoAvailable && undo->canRedo();
             if (redoAvailable) undo->redo();
-            const auto redoSource = root->layerById(sourceIds.front());
+            const auto redoSource = root
+                ? root->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
             const bool redoPreservedOverride = redoAvailable && redoSource == sourceLayer &&
                 std::abs(redoSource->opacity() - overrideValue) < 1.0e-5f &&
                 !PreComposeManager::instance().isPrecomposeLayer(inner.precompLayerId);
             overrideResult["bindingAdded"] = bindingAdded;
             overrideResult["overrideDeferred"] = overrideDeferred;
-            overrideResult["nestedOverridePreserved"] = nestedOverridePreserved;
+            overrideResult["nestedOverridePreserved"] = nestedOverrideInMemory;
+            overrideResult["saveReloadPreserved"] = saveReloadPreserved;
             overrideResult["outerUnpacked"] = outerUnpacked;
             overrideResult["innerOverridePreserved"] = innerOverridePreserved;
             overrideResult["overrideMaterialized"] = overrideMaterialized;
             overrideResult["undoPreservedOverride"] = undoPreservedOverride;
             overrideResult["redoPreservedOverride"] = redoPreservedOverride;
-            overrideResult["passed"] = bindingAdded && overrideDeferred && nestedOverridePreserved &&
-                outerUnpacked && innerOverridePreserved && overrideMaterialized &&
+            overrideResult["passed"] = bindingAdded && overrideDeferred && nestedOverrideInMemory &&
+                saveReloadPreserved && outerUnpacked && innerOverridePreserved && overrideMaterialized &&
                 undoPreservedOverride && redoPreservedOverride;
             if (!overrideResult["passed"].toBool())
                 overrideResult["error"] = QStringLiteral("Nested Master Property override changed before or after final unpack/undo/redo");
