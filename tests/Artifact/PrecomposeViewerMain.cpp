@@ -1019,6 +1019,119 @@ public:
             refresh();
             result["state"] = state();
             return result;
+        } else if (name == "test.nestedSaveReload") {
+            QJsonObject roundTrip;
+            auto& projects = ArtifactProjectManager::getInstance();
+            auto& manager = PreComposeManager::instance();
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                roundTrip["error"] = QStringLiteral("No root composition");
+                return roundTrip;
+            }
+            const auto rootId = root->id();
+            const auto outerIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (outerIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    outerIds, UniString(QStringLiteral("Round Trip Outer")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                roundTrip["error"] = QStringLiteral("Could not create outer round-trip composition");
+                return roundTrip;
+            }
+            const auto outer = service->lastPrecomposeOutcome();
+            service->changeCurrentComposition(outer.childCompId);
+            const auto middle = service->currentComposition().lock();
+            const auto innerIds = namedLayerIds(middle, {QStringLiteral("A"), QStringLiteral("B")});
+            if (!middle || innerIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    innerIds, UniString(QStringLiteral("Round Trip Inner")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                service->changeCurrentComposition(rootId);
+                roundTrip["error"] = QStringLiteral("Could not create inner round-trip composition");
+                return roundTrip;
+            }
+            const auto inner = service->lastPrecomposeOutcome();
+            service->changeCurrentComposition(rootId);
+            const auto expectedTree = layers(root, 0);
+            QTemporaryDir tempDir;
+            if (!tempDir.isValid()) {
+                roundTrip["error"] = QStringLiteral("Could not create temporary round-trip directory");
+                return roundTrip;
+            }
+            const auto filePath = tempDir.filePath(QStringLiteral("nested-precompose-roundtrip.artifact"));
+            const auto save = projects.saveToFile(filePath);
+            if (!save.success) {
+                roundTrip["error"] = save.errorMessage;
+                return roundTrip;
+            }
+            const bool innerMappingCleared = manager.unregisterPrecompLayer(
+                middle->id(), inner.precompLayerId, inner.childCompId);
+            const bool outerMappingCleared = manager.unregisterPrecompLayer(
+                rootId, outer.precompLayerId, outer.childCompId);
+            const bool allMappingsCleared = innerMappingCleared && outerMappingCleared &&
+                !manager.isPrecomposeLayer(inner.precompLayerId) &&
+                !manager.isPrecomposeLayer(outer.precompLayerId) &&
+                manager.getPrecompLayersForChild(outer.childCompId).isEmpty() &&
+                manager.getPrecompLayersForChild(inner.childCompId).isEmpty();
+            roundTrip["allMappingsClearedBeforeReload"] = allMappingsCleared;
+            if (!allMappingsCleared) {
+                roundTrip["error"] = QStringLiteral("Could not isolate both runtime nesting registrations");
+                return roundTrip;
+            }
+            const bool loaded = projects.loadFromFile(filePath);
+            roundTrip["loaded"] = loaded;
+            if (!loaded) {
+                roundTrip["error"] = QStringLiteral("Could not reload nested composition project");
+                return roundTrip;
+            }
+            service->changeCurrentComposition(rootId);
+            const auto reloadedRoot = service->findComposition(rootId).ptr.lock();
+            const auto reloadedMiddle = service->findComposition(outer.childCompId).ptr.lock();
+            const auto reloadedGrandchild = service->findComposition(inner.childCompId).ptr.lock();
+            bool outerReverseReference = false;
+            for (const auto& reference : manager.getPrecompLayersForChild(outer.childCompId)) {
+                outerReverseReference = outerReverseReference ||
+                    (reference.parentCompId == rootId &&
+                     reference.precompLayerId == outer.precompLayerId);
+            }
+            bool innerReverseReference = false;
+            for (const auto& reference : manager.getPrecompLayersForChild(inner.childCompId)) {
+                innerReverseReference = innerReverseReference ||
+                    (reference.parentCompId == outer.childCompId &&
+                     reference.precompLayerId == inner.precompLayerId);
+            }
+            const auto middleNesting = manager.getCompositionNesting(outer.childCompId);
+            const auto grandchildNesting = manager.getCompositionNesting(inner.childCompId);
+            const auto hierarchy = manager.getCompositionHierarchy(inner.childCompId);
+            const bool runtimeHierarchyRestored = reloadedMiddle && reloadedGrandchild &&
+                manager.isPrecomposeLayer(outer.precompLayerId) &&
+                manager.getSourceCompositionId(outer.precompLayerId) == outer.childCompId &&
+                manager.isPrecomposeLayer(inner.precompLayerId) &&
+                manager.getSourceCompositionId(inner.precompLayerId) == inner.childCompId &&
+                outerReverseReference && innerReverseReference &&
+                middleNesting.parentCompositionId == rootId &&
+                middleNesting.parentLayerId == outer.precompLayerId &&
+                grandchildNesting.parentCompositionId == outer.childCompId &&
+                grandchildNesting.parentLayerId == inner.precompLayerId &&
+                hierarchy.size() == 3 && hierarchy[0] == rootId &&
+                hierarchy[1] == outer.childCompId && hierarchy[2] == inner.childCompId;
+            const auto reloadedTree = reloadedRoot ? layers(reloadedRoot, 0) : QJsonArray{};
+            const bool hierarchyDataPreserved = reloadedRoot && reloadedMiddle &&
+                reloadedGrandchild && reloadedTree == expectedTree;
+            const double timeInRoot = NestedTimeUtils::convertTime(5.0, inner.childCompId, rootId);
+            const double timeRoundTrip = NestedTimeUtils::convertTime(
+                timeInRoot, rootId, inner.childCompId);
+            const bool timeConversionRestored = timeInRoot == 45.0 && timeRoundTrip == 5.0;
+            roundTrip["hierarchyDataPreserved"] = hierarchyDataPreserved;
+            roundTrip["runtimeHierarchyRestored"] = runtimeHierarchyRestored;
+            roundTrip["timeConversionRestored"] = timeConversionRestored;
+            roundTrip["timeInRoot"] = timeInRoot;
+            roundTrip["passed"] = hierarchyDataPreserved && runtimeHierarchyRestored &&
+                timeConversionRestored;
+            if (!roundTrip["passed"].toBool())
+                roundTrip["error"] = QStringLiteral("Nested save/reload lost composition data or runtime hierarchy");
+            childId_ = inner.childCompId;
+            hasChild_ = true;
+            refresh();
+            roundTrip["state"] = state();
+            return roundTrip;
         } else if (name == "test.saveReload") {
             QJsonObject roundTrip;
             auto& projects = ArtifactProjectManager::getInstance();
@@ -1291,7 +1404,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

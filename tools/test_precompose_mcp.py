@@ -215,6 +215,14 @@ def main():
             require({layer["name"] for layer in grandchild["children"]} == {"A", "B"},
                     "Grandchild composition content changed")
             call("test.reset")
+            nested_round_trip = call("test.nestedSaveReload")
+            require(nested_round_trip["passed"] and nested_round_trip["allMappingsClearedBeforeReload"]
+                    and nested_round_trip["hierarchyDataPreserved"]
+                    and nested_round_trip["runtimeHierarchyRestored"]
+                    and nested_round_trip["timeConversionRestored"]
+                    and nested_round_trip["timeInRoot"] == 45.0,
+                    "Nested project save/reload did not restore both runtime nesting levels")
+            call("test.reset")
             reparented = call("test.reparentExistingPrecompose")
             require(reparented["passed"] and reparented["parentReferenceUpdated"]
                     and reparented["hierarchyUpdated"] and reparented["undoRestoredParent"]
@@ -242,7 +250,7 @@ def main():
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
-            print("PASS: direct/transitive cycle guards, invalid-request atomicity, open-child navigation/focus, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, animated key timing/metadata in selected/all modes, nested hierarchy/time, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: direct/transitive cycle guards, invalid-request atomicity, open-child navigation/focus, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
             try:
