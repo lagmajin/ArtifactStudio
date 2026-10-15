@@ -106,6 +106,33 @@ if(ARTIFACT_ENABLE_FBX_IMPORT_TEST)
     )
 endif()
 
+if(ARTIFACT_ENABLE_IMAGE_IO_TEST)
+    artifact_add_test(ArtifactCoreImageIoContractTest
+        SOURCES
+            ArtifactCore/ImageIoContractTest.cpp
+        LIBS
+            ArtifactCore
+    )
+    if(WIN32)
+        file(GENERATE
+            OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ArtifactCoreImageIoContractTest-runtime-$<CONFIG>.txt"
+            CONTENT "$<JOIN:$<TARGET_RUNTIME_DLLS:ArtifactCoreImageIoContractTest>,\n>\n"
+        )
+        add_custom_command(TARGET ArtifactCoreImageIoContractTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}"
+                "-Ddll_list_file=${CMAKE_CURRENT_BINARY_DIR}/ArtifactCoreImageIoContractTest-runtime-$<CONFIG>.txt"
+                "-Ddestination=$<TARGET_FILE_DIR:ArtifactCoreImageIoContractTest>"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/CopyRuntimeDlls.cmake"
+            VERBATIM
+        )
+    endif()
+    set_tests_properties(ArtifactCoreImageIoContractTest PROPERTIES
+        LABELS "image;import;export;color;cpu;contract;core;standalone"
+        TIMEOUT 60
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
+endif()
+
 # ArtifactCore tests, including the isolated MotionTracker video test.
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_FBX_IMPORT_TEST
    OR ARTIFACT_ENABLE_TRACKING_VIDEO_TEST

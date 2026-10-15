@@ -2,6 +2,13 @@
 
 # Insight Register
 
+## 2026-10-15: Preserve straight alpha across PNG import and export
+
+- **関連:** `ArtifactCore/src/IO/Image/ImageExporter.cppm`, `ArtifactCore/src/IO/Image/ImageImporter.cppm`, `tests/ArtifactCore/ImageIoContractTest.cpp`。
+- **確認できた事実:** A half-alpha PNG round-trip changed RGB because OpenImageIO's PNG output/input plugins assume associated alpha by default, while `QImage::Format_RGBA8888` and `RawImage` use straight/raw channel values. Setting the OIIO `oiio:UnassociatedAlpha` attribute disables the implicit alpha division/multiplication in the PNG plugins.
+- **変更・検証:** The image exporter marks 4-channel input as unassociated; the importer supplies that option at read time. Added tests cover half-alpha QImage and ImageBuf PNG round-trips, both of which pass.
+- **次に確認:** If more image formats gain OIIO support, verify each plugin's alpha convention and metadata behavior separately; this result covers the PNG path.
+
 ## 2026-10-15: 2D particle render-queue test must distinguish particles from background
 
 - **関連:** `tests/Artifact/RenderQueueLayerImageIntegrationTest.cpp`、`Artifact/src/Render/ArtifactOffscreenCompositionRenderer.cppm`、`ArtifactCore/src/Graphics/ParticleRenderer.cppm`。
@@ -3295,3 +3302,10 @@
 - **変更:** トーンWAVのwaveform peak/RMS、layer PCM、Composition出力のvolume半減、Composition上で片方をmuteした場合との重ね合わせを確認する統合テストを追加した。さらにRender ManagerのWAVキューから異なる周波数の2音を含む音声を出力し、SimpleWavで読み戻すケースを追加した。両レイヤーを半音量にした2つ目の出力と比較し、対象をビルドしてCTestの3ケースが成功。
 - **価値／懸念:** Audio Layerのsource読込・波形・音量・重ね合わせをCompositionの実際の音声mixとRender ManagerのWAV出力まで含めて検証できる。video付きジョブに統合する音声経路は別の経路であり、このテスト範囲外。
 - **次に確認:** 動画レンダージョブに音声を統合する経路を変更する際は、video+audio出力の同期と最終containerを別途検証する。
+## 2026-10-15: DPX writerはCineon transferとビット深度を個別メタデータで保持する
+
+- **関連:** `ArtifactCore/src/IO/Image/ImageExporter.cppm`、`ArtifactCore/src/IO/Image/ImageImporter.cppm`、`ImageExportOptions::bitsPerSample`。
+- **確認済み事実:** OIIO DPX writerは汎用 `TransferFunction` 文字列を標準transferとして保存せず、`oiio:ColorSpace=sRGB` があると `dpx:Transfer` より優先して709として読む場合があった。Cineon出力に `oiio:ColorSpace=KodakLog` と `dpx:Transfer=Logarithmic` を設定し、UINT16コンテナに `oiio:BitsPerSample` を指定すると、10 / 12 / 16 bitの実DPXファイルで指定深度とtransfer headerを読み戻せる。
+- **変更:** Cineon DPX書き出しへ標準transfer metadataを付け、ImporterはDPXのKodakLog/Logarithmic組み合わせをCineonと判断する。`oiio:BitsPerSample`をRawImageへ反映する。独立基準値によるCineon code valueとRGB/alphaの往復をテストする。
+- **価値／懸念:** DPXの規格フィールドとOIIO固有のtransfer名を混同せず、素材metadataをコア転送関数へつなげられる。packing詳細はOIIO writer依存であり、別のOIIO build/pluginでは再確認が必要。
+- **次に確認:** 別のOIIO build/pluginでも標準DPX headerとpackingを読み戻せるか確認する。
