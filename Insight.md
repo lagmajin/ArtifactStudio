@@ -10,6 +10,14 @@
 - **価値／懸念:** ネスト済みcompositionの親逆引きや時間変換が、再編成後に古い親構造へ依存する回帰を検出できる。
 - **次に確認:** 許可されたビルド／テスト実行で新ケースを動かし、失敗した場合はテストだけの依頼範囲を越えずに結果を報告する。
 
+## 2026-10-15: ネストしたプリコンポーズ解除時のManager登録と時間復元
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm` の `unprecomposeLayerInCurrentComposition()`、`ArtifactCore::PreComposeManager`、`tests/Artifact/PrecomposeViewerMain.cpp`。
+- **確認できた事実:** 解除経路は子レイヤーを親compositionへ戻し、非ゼロのnest start offsetを `slideTimingBy()` で戻した後、Managerの `unprecompose()` を呼ぶ。Undo/Redoでは別コマンド経由でネスト登録を復元する。
+- **未検証の仮説:** ルート→子→孫の孫階層を解除・Undo・Redoした際、レイヤー時間とManagerの親参照が全段で一貫して復元されるか、既存ケースでは直接確認していない。
+- **価値／懸念:** 見た目のツリーだけでなく、孫レイヤーID・In/Out/Startと実行時のネスト登録が保たれることを回帰検知する。
+- **次に確認:** `test.unprecomposeNested` の実行は未確認。許可された環境でテスト実行し、結果を確認する。
+
 ## 2026-10-15: プリコンポーズのプロジェクト再読込後に実行時ネスト登録を確認する
 
 - **関連:** `PreComposeManager`、`ArtifactProjectManager::loadFromFile()`、`tests/Artifact/PrecomposeViewerMain.cpp`。

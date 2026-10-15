@@ -171,12 +171,19 @@ def main():
             require(reparented["hierarchy"] == [reparented["state"]["compositionId"],
                     reparented["wrapperChildId"], reparented["existingChildId"]],
                     "Reparented precompose hierarchy IDs do not match the expected wrapper chain")
+            call("test.reset")
+            unpacked_nested = call("test.unprecomposeNested")
+            require(unpacked_nested["passed"] and unpacked_nested["nestingRemoved"]
+                    and unpacked_nested["restoredTiming"]
+                    and unpacked_nested["undoRestoredNesting"]
+                    and unpacked_nested["redoRemovedNesting"],
+                    "Nested unpack changed timing or runtime nesting across undo/redo")
             image = request("tools/call", {"name": "test.capture", "arguments": {}})
             require(not image.get("isError") and image["content"][0]["type"] == "image", "Capture failed")
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
-            print("PASS: direct/transitive cycle guards, external parent restore, animated key timing/metadata in selected/all modes, nested hierarchy/time, existing-precompose reparenting, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: direct/transitive cycle guards, external parent restore, animated key timing/metadata in selected/all modes, nested hierarchy/time, existing-precompose reparenting, nested unpack registration/timing, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
             try:

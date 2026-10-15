@@ -489,6 +489,13 @@ public:
             service->changeCurrentComposition(outer.childCompId);
             const auto middle = service->currentComposition().lock();
             const auto innerIds = namedLayerIds(middle, {QStringLiteral("A"), QStringLiteral("B")});
+            LayerID originalAId;
+            LayerID originalBId;
+            if (middle) for (const auto& layer : middle->allLayer()) {
+                if (!layer) continue;
+                if (layer->layerName() == QStringLiteral("A")) originalAId = layer->id();
+                if (layer->layerName() == QStringLiteral("B")) originalBId = layer->id();
+            }
             if (!middle || innerIds.size() != 2 || !service->precomposeLayersWithUndo(
                     innerIds, UniString(QStringLiteral("Inner Precompose")), false, false,
                     PrecomposeMode::MoveSelected)) {
@@ -583,6 +590,89 @@ public:
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Existing-precompose reparenting or its undo/redo did not restore the runtime hierarchy");
             childId_ = existing.childCompId;
+            hasChild_ = true;
+            refresh();
+            result["state"] = state();
+            return result;
+        } else if (name == "test.unprecomposeNested") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto outerIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (outerIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    outerIds, UniString(QStringLiteral("Nested Unpack Outer")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                result["error"] = QStringLiteral("Could not create outer composition fixture");
+                return result;
+            }
+            const auto outer = service->lastPrecomposeOutcome();
+            service->changeCurrentComposition(outer.childCompId);
+            const auto middle = service->currentComposition().lock();
+            const auto innerIds = namedLayerIds(middle, {QStringLiteral("A"), QStringLiteral("B")});
+            if (!middle || innerIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    innerIds, UniString(QStringLiteral("Nested Unpack Inner")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                result["error"] = QStringLiteral("Could not create inner composition fixture");
+                service->changeCurrentComposition(rootId);
+                return result;
+            }
+            const auto inner = service->lastPrecomposeOutcome();
+            const auto matchesRestoredLayers = [&]() {
+                const auto parent = service->currentComposition().lock();
+                if (!parent || parent->id() != outer.childCompId) return false;
+                ArtifactAbstractLayerPtr a;
+                ArtifactAbstractLayerPtr b;
+                for (const auto& layer : parent->allLayer()) {
+                    if (!layer) continue;
+                    if (layer->layerName() == QStringLiteral("A")) a = layer;
+                    if (layer->layerName() == QStringLiteral("B")) b = layer;
+                }
+                return a && b && a->id() == originalAId && b->id() == originalBId &&
+                    a->inPoint().framePosition() == 0 && a->outPoint().framePosition() == 160 &&
+                    a->startTime().framePosition() == 7 &&
+                    b->inPoint().framePosition() == 30 && b->outPoint().framePosition() == 120 &&
+                    b->startTime().framePosition() == 9;
+            };
+            const auto& manager = PreComposeManager::instance();
+            const bool dissolved = service->unprecomposeLayerWithUndo(inner.precompLayerId, true);
+            const auto refsAfterUnpack = manager.getPrecompLayersForChild(inner.childCompId);
+            const bool nestingRemoved = refsAfterUnpack.isEmpty() &&
+                !manager.isPrecomposeLayer(inner.precompLayerId);
+            const bool restoredTiming = dissolved && matchesRestoredLayers();
+            const bool undoAvailable = undo->canUndo();
+            if (undoAvailable) undo->undo();
+            bool innerReferenceRestored = false;
+            for (const auto& reference : manager.getPrecompLayersForChild(inner.childCompId)) {
+                innerReferenceRestored = innerReferenceRestored ||
+                    (reference.parentCompId == outer.childCompId &&
+                     reference.precompLayerId == inner.precompLayerId);
+            }
+            const auto undoHierarchy = manager.getCompositionHierarchy(inner.childCompId);
+            const bool undoRestoredNesting = undoAvailable && innerReferenceRestored &&
+                undoHierarchy.size() == 3 && undoHierarchy[0] == rootId &&
+                undoHierarchy[1] == outer.childCompId && undoHierarchy[2] == inner.childCompId;
+            const bool redoAvailable = undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const bool redoRemovedNesting = redoAvailable &&
+                manager.getPrecompLayersForChild(inner.childCompId).isEmpty() &&
+                !manager.isPrecomposeLayer(inner.precompLayerId) && matchesRestoredLayers();
+            result["outerChildId"] = outer.childCompId.toString();
+            result["innerChildId"] = inner.childCompId.toString();
+            result["dissolved"] = dissolved;
+            result["nestingRemoved"] = nestingRemoved;
+            result["restoredTiming"] = restoredTiming;
+            result["undoRestoredNesting"] = undoRestoredNesting;
+            result["redoRemovedNesting"] = redoRemovedNesting;
+            result["passed"] = dissolved && nestingRemoved && restoredTiming &&
+                undoRestoredNesting && redoRemovedNesting;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Nested unpack changed layer timing or runtime nesting across undo/redo");
+            service->changeCurrentComposition(rootId);
+            childId_ = outer.childCompId;
             hasChild_ = true;
             refresh();
             result["state"] = state();
@@ -831,7 +921,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.reparentExistingPrecompose",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.reparentExistingPrecompose", "test.unprecomposeNested",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
