@@ -314,6 +314,17 @@ def main():
                     and nested_round_trip["timeInRoot"] == 45.0,
                     "Nested project save/reload did not restore both runtime nesting levels")
             call("test.reset")
+            nested_external_parent = call("test.nestedExternalParentRestored")
+            require(nested_external_parent["passed"]
+                    and nested_external_parent["innerMetadataAuthored"]
+                    and nested_external_parent["nestedMetadataPreserved"]
+                    and nested_external_parent["outerUnpacked"]
+                    and nested_external_parent["innerMappingRestored"]
+                    and nested_external_parent["externalParentRestored"]
+                    and nested_external_parent["undoRestoredMetadata"]
+                    and nested_external_parent["redoRestoredParent"],
+                    "External-parent restore metadata changed across nested precompose/unpack/undo/redo")
+            call("test.reset")
             reparented = call("test.reparentExistingPrecompose")
             require(reparented["passed"] and reparented["parentReferenceUpdated"]
                     and reparented["hierarchyUpdated"] and reparented["undoRestoredParent"]

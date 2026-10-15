@@ -1731,6 +1731,98 @@ public:
             refresh();
             nestedResult["state"] = state();
             return nestedResult;
+        } else if (name == "test.nestedExternalParentRestored") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto idsA = namedLayerIds(root, {QStringLiteral("A")});
+            const auto idsB = namedLayerIds(root, {QStringLiteral("B")});
+            const auto externalIds = namedLayerIds(root, {QStringLiteral("Untouched")});
+            if (idsA.size() != 1 || idsB.size() != 1 || externalIds.size() != 1) {
+                result["error"] = QStringLiteral("Nested external-parent fixture layers are missing");
+                return result;
+            }
+            const auto sourceId = idsA.front();
+            const auto externalParentId = externalIds.front();
+            const auto source = root->layerById(sourceId);
+            if (!source) {
+                result["error"] = QStringLiteral("Nested external-parent source is unavailable");
+                return result;
+            }
+            source->setParentById(externalParentId);
+            const QVector<LayerID> selected{sourceId, idsB.front()};
+            const bool innerCreated = source->parentLayerId() == externalParentId &&
+                service->precomposeLayersWithUndo(
+                    selected, UniString(QStringLiteral("Inner External Parent")), false, false,
+                    PrecomposeMode::MoveSelected);
+            const auto inner = service->lastPrecomposeOutcome();
+            const auto innerWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(inner.precompLayerId));
+            const bool innerMetadataAuthored = innerCreated && innerWrapper &&
+                innerWrapper->restoreExternalParent(sourceId) == externalParentId;
+            const bool outerCreated = innerMetadataAuthored && service->precomposeLayersWithUndo(
+                {inner.precompLayerId}, UniString(QStringLiteral("Outer External Parent")),
+                false, false, PrecomposeMode::MoveSelected);
+            const auto outer = service->lastPrecomposeOutcome();
+            const auto outerChild = service->findComposition(outer.childCompId).ptr.lock();
+            const auto nestedWrapper = outerChild
+                ? dynamicPointerCast<ArtifactCompositionLayer>(outerChild->layerById(inner.precompLayerId))
+                : SharedPtr<ArtifactCompositionLayer>{};
+            const auto hierarchy = PreComposeManager::instance().getCompositionHierarchy(inner.childCompId);
+            const bool nestedMetadataPreserved = outerCreated && nestedWrapper &&
+                nestedWrapper->restoreExternalParent(sourceId) == externalParentId &&
+                hierarchy.size() == 3 && hierarchy[0] == rootId &&
+                hierarchy[1] == outer.childCompId && hierarchy[2] == inner.childCompId;
+            const bool outerUnpacked = nestedMetadataPreserved &&
+                service->unprecomposeLayerWithUndo(outer.precompLayerId, true);
+            const auto restoredInnerWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(inner.precompLayerId));
+            const bool innerMappingRestored = outerUnpacked && restoredInnerWrapper &&
+                restoredInnerWrapper->restoreExternalParent(sourceId) == externalParentId &&
+                PreComposeManager::instance().isPrecomposeLayer(inner.precompLayerId) &&
+                PreComposeManager::instance().getParentComposition(inner.childCompId) == rootId;
+            const bool innerUnpacked = innerMappingRestored &&
+                service->unprecomposeLayerWithUndo(inner.precompLayerId, true);
+            const auto restoredSource = root->layerById(sourceId);
+            const bool externalParentRestored = innerUnpacked && restoredSource &&
+                restoredSource->parentLayerId() == externalParentId && root->layerById(externalParentId);
+            const bool undoAvailable = innerUnpacked && undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto undoWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(inner.precompLayerId));
+            const bool undoRestoredMetadata = undoAvailable && undoWrapper &&
+                undoWrapper->restoreExternalParent(sourceId) == externalParentId &&
+                PreComposeManager::instance().isPrecomposeLayer(inner.precompLayerId);
+            const bool redoAvailable = undoAvailable && undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const auto redoSource = root->layerById(sourceId);
+            const bool redoRestoredParent = redoAvailable && redoSource &&
+                redoSource->parentLayerId() == externalParentId &&
+                !PreComposeManager::instance().isPrecomposeLayer(inner.precompLayerId);
+            result["innerMetadataAuthored"] = innerMetadataAuthored;
+            result["nestedMetadataPreserved"] = nestedMetadataPreserved;
+            result["outerUnpacked"] = outerUnpacked;
+            result["innerMappingRestored"] = innerMappingRestored;
+            result["externalParentRestored"] = externalParentRestored;
+            result["undoRestoredMetadata"] = undoRestoredMetadata;
+            result["redoRestoredParent"] = redoRestoredParent;
+            result["hierarchy"] = QJsonArray{rootId.toString(), outer.childCompId.toString(),
+                inner.childCompId.toString()};
+            result["passed"] = innerMetadataAuthored && nestedMetadataPreserved && outerUnpacked &&
+                innerMappingRestored && externalParentRestored && undoRestoredMetadata &&
+                redoRestoredParent;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Nested precompose did not preserve external-parent metadata through unpack and undo/redo");
+            service->changeCurrentComposition(rootId);
+            childId_ = outer.childCompId;
+            hasChild_ = true;
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.reparentExistingPrecompose") {
             QJsonObject result;
             const auto root = service->currentComposition().lock();
@@ -2364,7 +2456,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
