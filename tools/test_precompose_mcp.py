@@ -95,7 +95,9 @@ def main():
                     and invalid_requests["emptyPrecompIdAtomic"]
                     and invalid_requests["ordinaryLayerRejected"]
                     and invalid_requests["ordinaryLayerAtomic"]
-                    and invalid_requests["selectionPreserved"],
+                    and invalid_requests["selectionPreserved"]
+                    and invalid_requests["redoHistoryPreserved"]
+                    and invalid_requests["preservedRedoExecuted"],
                     "Invalid precompose/unprecompose requests changed project or selection state")
             call("test.reset")
             opened_child = call("test.openChildComposition")
