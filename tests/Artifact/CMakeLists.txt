@@ -157,7 +157,7 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
     endif()
     set_tests_properties(ArtifactAudioLayerRenderIntegrationTest PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=${_artifact_audio_test_qpa_platform}"
-        LABELS "audio;renderer;waveform;integration;contract"
+        LABELS "audio;video;mux;sync;render-queue;renderer;waveform;integration;contract"
         TIMEOUT 180
         RUN_SERIAL TRUE
     )
@@ -325,6 +325,15 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
     )
     set_tests_properties(ArtifactRenderQueueLayerImageIntegrationTest PROPERTIES
         LABELS "render-queue;renderer;gpu;headless;particle;image;integration"
+        TIMEOUT 300
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactRenderQueue2DParticleBrightnessEffectIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.Production2DAnd3DParticlesRenderThroughManagerQueue
+    )
+    set_tests_properties(ArtifactRenderQueue2DParticleBrightnessEffectIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;particle;effect;image;integration;contract"
         TIMEOUT 300
         RUN_SERIAL TRUE
     )

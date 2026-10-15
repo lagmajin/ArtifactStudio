@@ -1,6 +1,15 @@
-**最終更新:** 2026-10-14
+**最終更新:** 2026-10-15
 
 # Insight Register
+
+## 2026-10-15: 2D particle render-queue test must distinguish particles from background
+
+- **関連:** `tests/Artifact/RenderQueueLayerImageIntegrationTest.cpp`、`Artifact/src/Render/ArtifactOffscreenCompositionRenderer.cppm`、`ArtifactCore/src/Graphics/ParticleRenderer.cppm`。
+- **確認できた事実:** 既存の2D粒子integration testは「RGBのいずれかが40より大きい画素」を数えていた。背景 `(29, 36, 50, 255)` も全画面で条件に該当し、粒子がなくても成功していた。色条件を粒子色に絞ると既定GPU backendで失敗し、Brightness出力にも粒子がなかった。`ArtifactParticleLayer::goToFrame()` はシミュレーションを進めず、描画または `ParticleSystem::goToFrame()` が状態を更新する契約だった。
+- **変更:** 2D粒子のCPU Render Queue面を追加し、frame cacheを再利用、cache miss時はcomposition fpsで `renderFrame()` を呼ぶ。テストは復元後のシミュレーションを `ParticleSystem::goToFrame()` で明示し、CPU backendでベース画像とBrightness適用画像の粒子画素・背景不変を検査する。`ArtifactCore::ParticleRenderer`では深度を使わないPSOのDSV形式を`UNKNOWN`に変更した。一時診断ログは撤去済み。
+- **検証:** Debug targetをビルドし、`Production2DAnd3DParticlesRenderThroughManagerQueue` は成功。2D粒子のCPU描画＋Brightnessと3D粒子GPU描画を含む。追加で既定GPU backendの2D粒子を確認したところ、粒子出力が依然なく失敗した。PSOのDSV修正でDSV mismatch警告は消えたが、GPU描画復旧には至っていない。低レベル2D契約テストはglobal test environment setup後に停止し未確認。
+- **価値／懸念:** 背景色によるfalse positiveをなくし、CPU Render Queue経路で2D粒子とラスタライザーエフェクトの結合を回帰検知できる。PSO修正後もGPU 2D粒子経路は未解決で、現在の新しい2D assertionはCPU backendを対象とする。
+- **次に確認:** GPU 2D粒子surfaceのreadback、後段 `drawSprite`、最終RTVへのsubmitを切り分け、CPU／GPU両backendで同じ粒子画像とBrightness結果を検証する。
 
 ## 2026-10-14: RT shading geometryへvertex colorを統合
 

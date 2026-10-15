@@ -38,8 +38,10 @@ import Artifact.Project.Manager;
 import Artifact.Render.IRenderer;
 import Artifact.Render.Queue.Job;
 import Artifact.Render.Queue.Service;
+import BrightnessEffect;
 import Color.Float;
 import Image.OpenEXR;
+import Memory.SharedPtr;
 import Utils.Id;
 import Utils.String.UniString;
 
@@ -483,11 +485,21 @@ TEST(RenderQueueLayerImageIntegrationTest,
     auto* particle2D = dynamic_cast<Artifact::ArtifactParticleLayer*>(
         particle2DLayer.layer.get());
     ASSERT_NE(particle2D, nullptr);
-    ASSERT_TRUE(particle2D->setEmitterPosition(
-        QVector3D(width * 0.25f, height / 2.0f, 0.0f)));
+    const auto projectComposition =
+        projects.findComposition(particles2D.id).ptr.lock();
+    ASSERT_NE(projectComposition, nullptr);
+    const auto storedParticleLayer = dynamic_cast<Artifact::ArtifactParticleLayer*>(
+        projectComposition->layerById(particle2DLayer.layer->id()).get());
+    ASSERT_NE(storedParticleLayer, nullptr);
+    EXPECT_EQ(storedParticleLayer, particle2D)
+        << "the configured particle layer must belong to the queued composition";
+    EXPECT_TRUE(storedParticleLayer->isVisible());
+    EXPECT_TRUE(storedParticleLayer->isActiveAt(ArtifactCore::FramePosition(1)));
     ASSERT_FALSE(particle2D->particleSystem()->emitters().empty());
-    auto& particle2DParams =
+    auto particle2DParams =
         particle2D->particleSystem()->emitters().front()->params();
+    particle2DParams.position =
+        QVector3D(width * 0.25f, height / 2.0f, 0.0f);
     particle2DParams.rate = 1000.0f;
     particle2DParams.lifeMin = 10.0f;
     particle2DParams.lifeMax = 10.0f;
@@ -497,19 +509,104 @@ TEST(RenderQueueLayerImageIntegrationTest,
     particle2DParams.colorStart = QColor(255, 32, 16, 255);
     particle2DParams.colorMid = QColor(255, 32, 16, 255);
     particle2DParams.colorEnd = QColor(255, 32, 16, 255);
+    particle2DParams.texturePath.clear();
     particle2DParams.scaleMin = 12.0f;
     particle2DParams.scaleMax = 12.0f;
+    particle2D->clearEmitters();
+    ASSERT_NE(particle2D->addEmitter(particle2DParams), nullptr);
+    particle2D->particleSystem()->goToFrame(1, 30.0, false);
+    ASSERT_GT(particle2D->particleSystem()->totalParticleCount(), 8)
+        << "the configured emitter should produce particles before rendering";
+    const QImage directParticleFrame = particle2D->renderFrame(
+        width, height, 1.0f / 30.0f);
+    ASSERT_GT(countPixelsMatching(directParticleFrame, [](QRgb pixel) {
+        return qAlpha(pixel) > 200 && qRed(pixel) > 200 &&
+               qGreen(pixel) < 80 && qBlue(pixel) < 50;
+    }), 0) << "the configured emitter should rasterize outside the render queue";
+    const auto serializedParticleLayer = Artifact::ArtifactParticleLayer::fromJson(
+        particle2D->toJson());
+    auto* restoredParticleLayer = dynamic_cast<Artifact::ArtifactParticleLayer*>(
+        serializedParticleLayer.get());
+    ASSERT_NE(restoredParticleLayer, nullptr);
+    restoredParticleLayer->particleSystem()->goToFrame(1, 30.0, false);
+    EXPECT_GT(restoredParticleLayer->particleSystem()->totalParticleCount(), 8)
+        << "the serialized emitter should still emit after layer restoration";
+    const QString particles2DOutput = isolatedOutputPath(
+        QStringLiteral("render_queue_particles_2d.png"));
     ASSERT_TRUE(addAndRender(
         queue, particles2D.id, QStringLiteral("Particles2D"),
-        isolatedOutputPath(QStringLiteral("render_queue_particles_2d.png")),
+        particles2DOutput,
         width, height,
         [](const QImage& image) {
             return countPixelsMatching(image, [](QRgb pixel) {
-                return qAlpha(pixel) > 32 &&
-                       (qRed(pixel) > 40 || qGreen(pixel) > 40 ||
-                        qBlue(pixel) > 40);
+                return qAlpha(pixel) > 200 && qRed(pixel) > 200 &&
+                       qGreen(pixel) < 80 && qBlue(pixel) < 50;
+            }) > 0;
+        }, &failure, 2, QStringLiteral("cpu"))) << failure.toStdString();
+
+    const QFileInfo particles2DInfo(particles2DOutput);
+    const QString particles2DFramePath = QDir(
+        particles2DInfo.absolutePath()).filePath(
+            QStringLiteral("%1_%2.png")
+                .arg(particles2DInfo.completeBaseName())
+                .arg(1, 4, 10, QLatin1Char('0')));
+    const QImage particles2DBaseline(particles2DFramePath);
+    ASSERT_FALSE(particles2DBaseline.isNull());
+
+    auto brightness = ArtifactCore::makeShared<Artifact::BrightnessEffect>();
+    ASSERT_NE(brightness, nullptr);
+    brightness->setBrightness(0.2f);
+    brightness->setEnabled(true);
+    particle2D->addEffect(brightness);
+
+    const QString particles2DEffectedOutput = isolatedOutputPath(
+        QStringLiteral("render_queue_particles_2d_brightness.png"));
+    ASSERT_TRUE(addAndRender(
+        queue, particles2D.id, QStringLiteral("Particles2DBrightness"),
+        particles2DEffectedOutput, width, height,
+        [](const QImage& image) {
+            return countPixelsMatching(image, [](QRgb pixel) {
+                return qAlpha(pixel) > 200 && qRed(pixel) > 200 &&
+                       qGreen(pixel) > 50 && qBlue(pixel) > 40;
             }) > 8;
-        }, &failure)) << failure.toStdString();
+        }, &failure, 2, QStringLiteral("cpu"))) << failure.toStdString();
+
+    const QFileInfo particles2DEffectedInfo(particles2DEffectedOutput);
+    const QString particles2DEffectedFramePath = QDir(
+        particles2DEffectedInfo.absolutePath()).filePath(
+            QStringLiteral("%1_%2.png")
+                .arg(particles2DEffectedInfo.completeBaseName())
+                .arg(1, 4, 10, QLatin1Char('0')));
+    const QImage particles2DEffected(particles2DEffectedFramePath);
+    ASSERT_FALSE(particles2DEffected.isNull());
+    ASSERT_EQ(particles2DEffected.size(), particles2DBaseline.size());
+
+    int effectedSampleX = -1;
+    int effectedSampleY = -1;
+    int strongestEffectedRed = 0;
+    for (int y = 0; y < particles2DEffected.height(); ++y) {
+        for (int x = 0; x < particles2DEffected.width(); ++x) {
+            const QRgb pixel = particles2DEffected.pixel(x, y);
+            if (qAlpha(pixel) > 200 && qRed(pixel) > strongestEffectedRed &&
+                qRed(pixel) > 200 && qGreen(pixel) > 50 && qBlue(pixel) > 40) {
+                strongestEffectedRed = qRed(pixel);
+                effectedSampleX = x;
+                effectedSampleY = y;
+            }
+        }
+    }
+    ASSERT_GE(effectedSampleX, 0)
+        << "brightness output did not contain a rendered particle";
+    const QRgb effectedPixel =
+        particles2DEffected.pixel(effectedSampleX, effectedSampleY);
+    EXPECT_GT(qGreen(effectedPixel), 50)
+        << "Brightness should raise the rendered particle's green channel";
+    EXPECT_GT(qBlue(effectedPixel), 40)
+        << "Brightness should raise the rendered particle's blue channel";
+    EXPECT_EQ(particles2DEffected.pixel(width - 10, height - 10),
+              particles2DBaseline.pixel(width - 10, height - 10))
+        << "the effect on the particle layer must leave uncovered background "
+           "unchanged";
 
     const auto particles3D = makeComposition(QStringLiteral("Particles3D"));
     ASSERT_TRUE(particles3D.success);
