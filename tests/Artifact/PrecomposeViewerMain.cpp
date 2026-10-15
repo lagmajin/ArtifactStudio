@@ -1057,6 +1057,78 @@ public:
             refresh();
             redoResult["state"] = state();
             return redoResult;
+        } else if (name == "test.sharedChildReferences") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Shared Child Fixture")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                result["error"] = QStringLiteral("Could not create shared-child fixture");
+                return result;
+            }
+            const auto first = service->lastPrecomposeOutcome();
+            const bool addedSecond = service->addCompositionLayerToCurrentCompositionWithUndo(
+                first.childCompId);
+            LayerID secondWrapperId;
+            if (addedSecond) {
+                for (const auto& layer : root->allLayer()) {
+                    const auto compositionLayer = dynamicPointerCast<ArtifactCompositionLayer>(layer);
+                    if (compositionLayer && compositionLayer->sourceCompositionId() == first.childCompId &&
+                        compositionLayer->id() != first.precompLayerId) {
+                        secondWrapperId = compositionLayer->id();
+                        break;
+                    }
+                }
+            }
+            auto& manager = PreComposeManager::instance();
+            const auto hasReference = [&](LayerID id) {
+                for (const auto& reference : manager.getPrecompLayersForChild(first.childCompId)) {
+                    if (reference.parentCompId == rootId && reference.precompLayerId == id) return true;
+                }
+                return false;
+            };
+            const bool twoReferencesCreated = addedSecond && !secondWrapperId.isNil() &&
+                manager.getPrecompLayersForChild(first.childCompId).size() == 2 &&
+                hasReference(first.precompLayerId) && hasReference(secondWrapperId);
+            const bool dissolved = twoReferencesCreated &&
+                service->unprecomposeLayerWithUndo(first.precompLayerId, true);
+            const bool remainingReferencePreserved = dissolved &&
+                manager.getPrecompLayersForChild(first.childCompId).size() == 1 &&
+                !manager.isPrecomposeLayer(first.precompLayerId) &&
+                manager.isPrecomposeLayer(secondWrapperId) && hasReference(secondWrapperId) &&
+                root->layerById(secondWrapperId);
+            const bool undoAvailable = undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const bool undoRestoredBoth = undoAvailable &&
+                manager.getPrecompLayersForChild(first.childCompId).size() == 2 &&
+                hasReference(first.precompLayerId) && hasReference(secondWrapperId) &&
+                root->layerById(first.precompLayerId) && root->layerById(secondWrapperId);
+            const bool redoAvailable = undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const bool redoPreservedRemaining = redoAvailable &&
+                manager.getPrecompLayersForChild(first.childCompId).size() == 1 &&
+                !manager.isPrecomposeLayer(first.precompLayerId) &&
+                manager.isPrecomposeLayer(secondWrapperId) && hasReference(secondWrapperId) &&
+                root->layerById(secondWrapperId);
+            result["twoReferencesCreated"] = twoReferencesCreated;
+            result["remainingReferencePreserved"] = remainingReferencePreserved;
+            result["undoRestoredBoth"] = undoRestoredBoth;
+            result["redoPreservedRemaining"] = redoPreservedRemaining;
+            result["passed"] = twoReferencesCreated && remainingReferencePreserved &&
+                undoRestoredBoth && redoPreservedRemaining;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Unprecomposing one instance changed another reference to the shared child");
+            childId_ = first.childCompId;
+            hasChild_ = true;
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.externalParentRestored") {
             QJsonObject parentResult;
             const auto parent = service->currentComposition().lock();
