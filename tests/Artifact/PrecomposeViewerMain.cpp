@@ -276,6 +276,61 @@ public:
             refresh();
             invalidResult["state"] = state();
             return invalidResult;
+        } else if (name == "test.redoBranchDiscarded") {
+            QJsonObject branchResult;
+            if (!comp) {
+                branchResult["error"] = QStringLiteral("No current composition");
+                return branchResult;
+            }
+            const auto rootId = comp->id();
+            const auto originalLayers = layers(comp, 0);
+            const auto originalCompositionCount = ArtifactProjectManager::getInstance().compositionCount();
+            const auto selectedIds = namedLayerIds(comp, {QStringLiteral("A"), QStringLiteral("B")});
+            const auto branchIds = namedLayerIds(comp, {QStringLiteral("Untouched")});
+            if (selectedIds.size() != 2 || branchIds.size() != 1) {
+                branchResult["error"] = QStringLiteral("Redo-branch fixture is missing expected layers");
+                return branchResult;
+            }
+            const bool firstPrecompose = service->precomposeLayersWithUndo(
+                selectedIds, UniString(QStringLiteral("Abandoned Redo Branch")), false, false,
+                PrecomposeMode::MoveSelected);
+            const auto abandonedOutcome = service->lastPrecomposeOutcome();
+            const bool firstUndoAvailable = undo->canUndo();
+            if (firstPrecompose && firstUndoAvailable) undo->undo();
+            const bool redoBranchCreated = firstPrecompose && firstUndoAvailable && undo->canRedo() &&
+                undo->redoCount() > 0 && layers(comp, 0) == originalLayers &&
+                ArtifactProjectManager::getInstance().compositionCount() == originalCompositionCount;
+            const bool newPrecompose = redoBranchCreated && service->precomposeLayersWithUndo(
+                branchIds, UniString(QStringLiteral("Replacement Redo Branch")), false, false,
+                PrecomposeMode::MoveSelected);
+            const auto replacementOutcome = service->lastPrecomposeOutcome();
+            const bool abandonedRedoDiscarded = newPrecompose && !undo->canRedo() && undo->redoCount() == 0 &&
+                !abandonedOutcome.precompLayerId.isNil() && !replacementOutcome.precompLayerId.isNil() &&
+                !comp->layerById(abandonedOutcome.precompLayerId) &&
+                !PreComposeManager::instance().isPrecomposeLayer(abandonedOutcome.precompLayerId) &&
+                comp->layerById(replacementOutcome.precompLayerId) &&
+                PreComposeManager::instance().isPrecomposeLayer(replacementOutcome.precompLayerId);
+            const bool replacementUndoAvailable = undo->canUndo();
+            if (replacementUndoAvailable) undo->undo();
+            const bool replacementUndoRestored = replacementUndoAvailable && undo->canRedo() &&
+                undo->redoCount() == 1 && layers(comp, 0) == originalLayers &&
+                !comp->layerById(replacementOutcome.precompLayerId);
+            if (undo->canRedo()) undo->redo();
+            const bool replacementRedoRestored = comp->id() == rootId &&
+                comp->layerById(replacementOutcome.precompLayerId) &&
+                PreComposeManager::instance().isPrecomposeLayer(replacementOutcome.precompLayerId) &&
+                !comp->layerById(abandonedOutcome.precompLayerId);
+            branchResult["redoBranchCreated"] = redoBranchCreated;
+            branchResult["abandonedRedoDiscarded"] = abandonedRedoDiscarded;
+            branchResult["replacementUndoRestored"] = replacementUndoRestored;
+            branchResult["replacementRedoRestored"] = replacementRedoRestored;
+            branchResult["passed"] = redoBranchCreated && abandonedRedoDiscarded &&
+                replacementUndoRestored && replacementRedoRestored;
+            if (!branchResult["passed"].toBool())
+                branchResult["error"] = QStringLiteral("New precompose did not replace the existing redo branch consistently");
+            refresh();
+            branchResult["state"] = state();
+            return branchResult;
         } else if (name == "test.openChildComposition") {
             QJsonObject result;
             if (!comp) {
@@ -2063,7 +2118,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

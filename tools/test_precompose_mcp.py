@@ -100,6 +100,13 @@ def main():
                     and invalid_requests["preservedRedoExecuted"],
                     "Invalid precompose/unprecompose requests changed project or selection state")
             call("test.reset")
+            redo_branch = call("test.redoBranchDiscarded")
+            require(redo_branch["passed"] and redo_branch["redoBranchCreated"]
+                    and redo_branch["abandonedRedoDiscarded"]
+                    and redo_branch["replacementUndoRestored"]
+                    and redo_branch["replacementRedoRestored"],
+                    "A new precompose did not discard and replace the old redo branch")
+            call("test.reset")
             opened_child = call("test.openChildComposition")
             require(opened_child["passed"] and opened_child["childOpened"]
                     and opened_child["rootWrapperCreated"] and opened_child["undoReturnedToRoot"]
