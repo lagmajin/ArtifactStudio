@@ -22,7 +22,7 @@ out/build/x64-Debug-Agent/bin/Debug/ArtifactPrecomposeViewer.exe
 
 `--check` は既存プリコンポーズ回帰テストだけを実行し、失敗があれば終了コード1を返す。`--mcp-stdio` は改行区切りJSON-RPCの旧MCP `2024-11-05` initialize、tools/list、tools/call、pingに対応する。stdin EOFで終了する。製品ログはstderrへ分離する。新MCP server/discover形式は未対応。GUIを前面化せず、左端ディスプレイへ配置する。
 
-ツールは引数なしの `test.state`、`test.reset`、`test.precompose`、`test.precomposeAll`、`test.unpackKeep`、`test.unpackDelete`、`test.undo`、`test.redo`、`test.runRegression`、`test.capture`。captureはQtのwidget grabからPNGを返す。これはCPU描画の検査画面専用のQt API境界であり、GPU viewport captureの代用ではない。新規signal/slot接続や製品Transport経路は追加しない。
+ツールは引数なしの `test.state`、`test.reset`、`test.cycleRejected`、`test.precompose`、`test.precomposeAll`、`test.unpackKeep`、`test.unpackDelete`、`test.undo`、`test.redo`、`test.runRegression`、`test.capture`。`test.cycleRejected`は親を参照するComposition Layerを作り、選択したプリコンポーズが循環を拒否し、階層とUndo履歴を変えないことを検査する。captureはQtのwidget grabからPNGを返す。これはCPU描画の検査画面専用のQt API境界であり、GPU viewport captureの代用ではない。新規signal/slot接続や製品Transport経路は追加しない。
 
 ```powershell
 python tools/test_precompose_mcp.py `

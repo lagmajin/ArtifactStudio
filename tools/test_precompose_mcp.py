@@ -69,6 +69,12 @@ def main():
                 layer = layer_map(initial)[name]
                 require((layer["inFrame"], layer["outFrame"], layer["startFrame"]) ==
                         (in_frame, out_frame, start_frame), f"Unexpected fixture timing for {name}")
+            cycle = call("test.cycleRejected")
+            require(cycle["passed"] and cycle["cycleRejected"] and cycle["stateUnchanged"]
+                    and cycle["fixtureCleaned"],
+                    "Cycle precompose was not rejected atomically")
+            initial = call("test.state")
+            original = initial["layers"]
             nested = call("test.precompose")
             require(len(nested["layers"]) == 2, "Selected precompose must leave Untouched outside")
             child = next(layer for layer in nested["layers"] if "children" in layer)

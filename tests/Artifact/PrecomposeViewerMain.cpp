@@ -28,11 +28,13 @@ import Artifact.Service.Project;
 import Artifact.Composition.Abstract;
 import Artifact.Layer.Abstract;
 import Artifact.Layer.InitParams;
+import Artifact.Layer.Composition;
 import Frame.Position;
 import Composition.PreCompose;
 import Undo.UndoManager;
 import Utils.String.UniString;
 import Utils.Id;
+import Memory.SharedPtr;
 
 namespace {
 using namespace Artifact;
@@ -93,6 +95,51 @@ public:
         bool ok = true;
         if (name == "test.state") return state();
         if (name == "test.reset") reset();
+        else if (name == "test.cycleRejected") {
+            QJsonObject cycleResult;
+            if (!comp) {
+                cycleResult["error"] = QStringLiteral("No current composition");
+                return cycleResult;
+            }
+            ArtifactCompositionLayerInitParams params;
+            params.setName(UniString(QStringLiteral("Cycle Candidate")));
+            service->addLayerToCurrentComposition(params, false);
+            comp = service->currentComposition().lock();
+            SharedPtr<ArtifactCompositionLayer> candidate;
+            if (comp) for (const auto& layer : comp->allLayer()) {
+                if (layer && layer->layerName() == QStringLiteral("Cycle Candidate")) {
+                    candidate = dynamicPointerCast<ArtifactCompositionLayer>(layer);
+                    break;
+                }
+            }
+            if (!candidate) {
+                cycleResult["error"] = QStringLiteral("Could not create composition-layer fixture");
+                return cycleResult;
+            }
+            candidate->setCompositionId(comp->id());
+            undo->clearHistory();
+            const auto countBefore = comp->allLayer().size();
+            const auto undoBefore = undo->undoCount();
+            const bool rejected = !service->precomposeLayersWithUndo(
+                {candidate->id()}, UniString(QStringLiteral("Rejected Cycle")),
+                false, false, PrecomposeMode::MoveSelected);
+            const auto outcome = service->lastPrecomposeOutcome();
+            const bool unchanged = comp->allLayer().size() == countBefore &&
+                comp->layerById(candidate->id()) &&
+                !PreComposeManager::instance().isPrecomposeLayer(candidate->id()) &&
+                outcome.precompLayerId.isNil() && outcome.childCompId.isNil() &&
+                undo->undoCount() == undoBefore;
+            const bool removed =
+                service->removeLayerFromComposition(comp->id(), candidate->id());
+            cycleResult["cycleRejected"] = rejected;
+            cycleResult["stateUnchanged"] = unchanged;
+            cycleResult["fixtureCleaned"] = removed;
+            cycleResult["passed"] = rejected && unchanged && removed;
+            if (!cycleResult["passed"].toBool()) reset();
+            refresh();
+            cycleResult["state"] = state();
+            return cycleResult;
+        }
         else if (name == "test.runRegression") {
             failures_ = runPreComposeTests();
             reset();
@@ -243,7 +290,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.precompose", "test.precomposeAll",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.precompose", "test.precomposeAll",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
