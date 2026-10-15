@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-15 14:02
+> Generated: 2026-10-15 14:03
 > Total documents: 1451
 
 ---
@@ -1099,7 +1099,7 @@
 | 504 | `docs/planned/MILESTONE_PMD_VMD_LOTTIE_IMPORT_2026-04-19.md` | マイルストーン: PMD / PMX / VMD / Lottie インポート対応 | 2026-08-15 | Partial (PMD/PMX detection and minimal PMD geometry foundation implemented; VMD parser/animation, Lottie parser/conversion, full PMD/PMX materials/textures/bones/morphs, D&D/timeline integration, real-file compatibility, and runtime verification pending) | 2026-08-16 | 6.5 KB | PMD, VMD, LOTTIE, IMPORT |
 | 505 | `docs/planned/MILESTONE_PR_STYLE_REMEDIATION_2026-06-16.md` | Milestone M-PR-STYLE-1: ArtifactPr Style 違反修正 | 2026-06-16 | Partial (ArtifactPr AppTheme/QProxyStyle direction adopted and no remaining active setStyleSheet calls confirmed statically; KDDockWidgets theme path, palette/drawControl coverage, visual parity, runtime theme switching, build verification, and submodule completion pending) | 2026-07-25 | 17.1 KB | STYLE, REMEDIATION |
 | 506 | `docs/planned/MILESTONE_PRECOMPOSE_BREADCRUMB_DUPLICATE_2026-09-10.md` | Precompose 改善 B+F: パンくず移動と複製管理 | 2026-09-10 | Not Started | 2026-09-10 | 13.6 KB | PRECOMPOSE, BREADCRUMB, DUPLICATE |
-| 507 | `docs/planned/MILESTONE_PRECOMPOSE_VIEWER_TEST_2026-10-15.md` | プリコンポーズ独立GUI・MCPテスト | 2026-10-15 | 実装済み、ビルド・実行確認中。 | 2026-10-15 | 5.6 KB | PRECOMPOSE, VIEWER, TEST |
+| 507 | `docs/planned/MILESTONE_PRECOMPOSE_VIEWER_TEST_2026-10-15.md` | プリコンポーズ独立GUI・MCPテスト | 2026-10-15 | 実装済み、ビルド・実行確認中。 | 2026-10-15 | 5.7 KB | PRECOMPOSE, VIEWER, TEST |
 | 508 | `docs/planned/MILESTONE_PREVIEW_PLAYBACK_PERFORMANCE_LOW_LEVEL_AI_2026-05-23.md` | Preview Playback Performance - Low Level AI Implementation Milestone | 2026-05-23 | Partial (PlaybackService readiness states, RAM/disk preview cache, manifest/hydration, separated engine clock/render-controller image capture, and Timeline/diagnostic summaries implemented; shared readiness vocabulary, empty-tick handling, build queue/guaranteed playback, real-image cache fallback, and runtime verification pending) | 2026-07-25 | 8.4 KB | PREVIEW, PLAYBACK, PERFORMANCE, LOW, LEVEL |
 | 509 | `docs/planned/MILESTONE_PRO_MONITORING_SCOPES_2026-08-08.md` | Professional Monitoring Scopes Expansion (2026-08-08) | 2026-08-08 | ** 一部実装（Phase 1a Histogram 統合済み、残作業あり） | 2026-08-16 | 11.9 KB | PRO, MONITORING, SCOPES |
 | 510 | `docs/planned/MILESTONE_PROCEDURAL_3D_GENERATORS_MIR_TAO_2026-06-26.md` | Procedural 3D Generators Milestone | 2026-06-26 | Implementation present through the authoring/render/input/preset slices; | 2026-08-16 | 15.0 KB | PROCEDURAL, GENERATORS, MIR, TAO |

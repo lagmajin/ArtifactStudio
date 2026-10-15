@@ -165,8 +165,9 @@ def main():
             call("test.reset")
             reparented = call("test.reparentExistingPrecompose")
             require(reparented["passed"] and reparented["parentReferenceUpdated"]
-                    and reparented["hierarchyUpdated"],
-                    "Moving an existing precompose did not update its runtime parent hierarchy")
+                    and reparented["hierarchyUpdated"] and reparented["undoRestoredParent"]
+                    and reparented["redoRestoredParent"],
+                    "Existing-precompose reparenting or undo/redo did not update its runtime hierarchy")
             require(reparented["hierarchy"] == [reparented["state"]["compositionId"],
                     reparented["wrapperChildId"], reparented["existingChildId"]],
                     "Reparented precompose hierarchy IDs do not match the expected wrapper chain")

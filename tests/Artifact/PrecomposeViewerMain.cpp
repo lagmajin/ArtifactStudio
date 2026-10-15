@@ -542,25 +542,46 @@ public:
             }
             const auto wrapper = service->lastPrecomposeOutcome();
             const auto& manager = PreComposeManager::instance();
-            bool parentReferenceUpdated = false;
-            for (const auto& reference : manager.getPrecompLayersForChild(existing.childCompId)) {
-                parentReferenceUpdated = parentReferenceUpdated ||
-                    (reference.parentCompId == wrapper.childCompId &&
-                     reference.precompLayerId == existing.precompLayerId);
-            }
-            const auto hierarchy = manager.getCompositionHierarchy(existing.childCompId);
-            const bool hierarchyUpdated = hierarchy.size() == 3 && hierarchy[0] == rootId &&
-                hierarchy[1] == wrapper.childCompId && hierarchy[2] == existing.childCompId;
+            const auto hasParentReference = [&](CompositionID expectedParent) {
+                for (const auto& reference : manager.getPrecompLayersForChild(existing.childCompId)) {
+                    if (reference.parentCompId == expectedParent &&
+                        reference.precompLayerId == existing.precompLayerId) return true;
+                }
+                return false;
+            };
+            const auto hierarchyAfterMove = manager.getCompositionHierarchy(existing.childCompId);
+            const bool parentReferenceUpdated = hasParentReference(wrapper.childCompId);
+            const bool hierarchyUpdated = hierarchyAfterMove.size() == 3 &&
+                hierarchyAfterMove[0] == rootId && hierarchyAfterMove[1] == wrapper.childCompId &&
+                hierarchyAfterMove[2] == existing.childCompId;
+            const bool undoAvailable = undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto hierarchyAfterUndo = manager.getCompositionHierarchy(existing.childCompId);
+            const bool undoRestoredParent = undoAvailable && hasParentReference(rootId) &&
+                hierarchyAfterUndo.size() == 2 && hierarchyAfterUndo[0] == rootId &&
+                hierarchyAfterUndo[1] == existing.childCompId;
+            const bool redoAvailable = undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const auto hierarchyAfterRedo = manager.getCompositionHierarchy(existing.childCompId);
+            const bool redoRestoredParent = redoAvailable && hasParentReference(wrapper.childCompId) &&
+                hierarchyAfterRedo.size() == 3 && hierarchyAfterRedo[0] == rootId &&
+                hierarchyAfterRedo[1] == wrapper.childCompId &&
+                hierarchyAfterRedo[2] == existing.childCompId;
             result["existingChildId"] = existing.childCompId.toString();
             result["wrapperChildId"] = wrapper.childCompId.toString();
             result["parentReferenceUpdated"] = parentReferenceUpdated;
             result["hierarchyUpdated"] = hierarchyUpdated;
+            result["undoRestoredParent"] = undoRestoredParent;
+            result["redoRestoredParent"] = redoRestoredParent;
+            result["undoAvailable"] = undoAvailable;
+            result["redoAvailable"] = redoAvailable;
             result["hierarchy"] = QJsonArray{rootId.toString(),
-                hierarchy.size() > 1 ? hierarchy[1].toString() : QString(),
-                hierarchy.size() > 2 ? hierarchy[2].toString() : QString()};
-            result["passed"] = parentReferenceUpdated && hierarchyUpdated;
+                hierarchyAfterRedo.size() > 1 ? hierarchyAfterRedo[1].toString() : QString(),
+                hierarchyAfterRedo.size() > 2 ? hierarchyAfterRedo[2].toString() : QString()};
+            result["passed"] = parentReferenceUpdated && hierarchyUpdated && undoRestoredParent &&
+                redoRestoredParent;
             if (!result["passed"].toBool())
-                result["error"] = QStringLiteral("Moving an existing precompose did not update its runtime parent hierarchy");
+                result["error"] = QStringLiteral("Existing-precompose reparenting or its undo/redo did not restore the runtime hierarchy");
             childId_ = existing.childCompId;
             hasChild_ = true;
             refresh();
