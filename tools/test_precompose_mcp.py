@@ -81,6 +81,12 @@ def main():
                     and invalid_requests["invalidSelectionAtomic"],
                     "Invalid precompose requests were not rejected without side effects")
             call("test.reset")
+            opened_child = call("test.openChildComposition")
+            require(opened_child["passed"] and opened_child["childOpened"]
+                    and opened_child["rootWrapperCreated"] and opened_child["undoReturnedToRoot"]
+                    and opened_child["redoKeptRootFocused"] and opened_child["redoRestoredChild"],
+                    "Open-child precompose navigation or undo/redo focus changed")
+            call("test.reset")
             transitive_cycle = call("test.transitiveCycleRejected")
             require(transitive_cycle["passed"] and transitive_cycle["transitiveCycleRejected"]
                     and transitive_cycle["stateUnchanged"] and transitive_cycle["fixtureCleaned"],
@@ -191,7 +197,7 @@ def main():
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
-            print("PASS: direct/transitive cycle guards, invalid-request atomicity, external parent restore, animated key timing/metadata in selected/all modes, nested hierarchy/time, existing-precompose reparenting, nested unpack registration/timing, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: direct/transitive cycle guards, invalid-request atomicity, open-child navigation/focus, external parent restore, animated key timing/metadata in selected/all modes, nested hierarchy/time, existing-precompose reparenting, nested unpack registration/timing, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
             try:

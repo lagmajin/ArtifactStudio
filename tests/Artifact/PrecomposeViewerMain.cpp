@@ -188,6 +188,65 @@ public:
             refresh();
             invalidResult["state"] = state();
             return invalidResult;
+        } else if (name == "test.openChildComposition") {
+            QJsonObject result;
+            if (!comp) {
+                result["error"] = QStringLiteral("No current composition");
+                return result;
+            }
+            const auto rootId = comp->id();
+            const auto sourceIds = namedLayerIds(comp, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Open Child Composition")), true, false,
+                    PrecomposeMode::MoveSelected)) {
+                result["error"] = QStringLiteral("Could not precompose and open the child composition");
+                return result;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto openedChild = service->currentComposition().lock();
+            const bool childOpened = openedChild && openedChild->id() == outcome.childCompId &&
+                namedLayerIds(openedChild, {QStringLiteral("A"), QStringLiteral("B")}).size() == 2;
+            const bool rootWrapperCreated = comp->layerById(outcome.precompLayerId) &&
+                ArtifactCore::dynamicPointerCast<ArtifactCompositionLayer>(
+                    comp->layerById(outcome.precompLayerId));
+            const bool undoAvailable = undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto afterUndo = service->currentComposition().lock();
+            const bool undoReturnedToRoot = undoAvailable && afterUndo && afterUndo->id() == rootId &&
+                namedLayerIds(afterUndo, {QStringLiteral("A"), QStringLiteral("B")}).size() == 2 &&
+                !service->findComposition(outcome.childCompId).ptr.lock();
+            const bool redoAvailable = undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const auto afterRedo = service->currentComposition().lock();
+            const auto redoneChild = service->findComposition(outcome.childCompId).ptr.lock();
+            bool parentReferenceRestored = false;
+            for (const auto& reference : PreComposeManager::instance().getPrecompLayersForChild(
+                     outcome.childCompId)) {
+                parentReferenceRestored = parentReferenceRestored ||
+                    (reference.parentCompId == rootId &&
+                     reference.precompLayerId == outcome.precompLayerId);
+            }
+            const bool redoKeptRootFocused = redoAvailable && afterRedo && afterRedo->id() == rootId;
+            const bool redoRestoredChild = redoneChild && afterRedo &&
+                namedLayerIds(redoneChild, {QStringLiteral("A"), QStringLiteral("B")}).size() == 2 &&
+                parentReferenceRestored && afterRedo->layerById(outcome.precompLayerId);
+            result["rootCompositionId"] = rootId.toString();
+            result["childCompositionId"] = outcome.childCompId.toString();
+            result["childOpened"] = childOpened;
+            result["rootWrapperCreated"] = bool(rootWrapperCreated);
+            result["undoReturnedToRoot"] = undoReturnedToRoot;
+            result["redoKeptRootFocused"] = redoKeptRootFocused;
+            result["redoRestoredChild"] = redoRestoredChild;
+            result["passed"] = childOpened && rootWrapperCreated && undoReturnedToRoot &&
+                redoKeptRootFocused && redoRestoredChild;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Open-child navigation or undo/redo focus contract changed");
+            service->changeCurrentComposition(rootId);
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.transitiveCycleRejected") {
             QJsonObject cycleResult;
             const auto root = service->currentComposition().lock();
@@ -967,7 +1026,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.reparentExistingPrecompose", "test.unprecomposeNested",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.reparentExistingPrecompose", "test.unprecomposeNested",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
