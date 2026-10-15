@@ -101,6 +101,7 @@ def main():
             call("test.reset")
             workspace_duration = call("test.matchWorkspaceDuration")
             require(workspace_duration["passed"]
+                    and workspace_duration["childOpened"]
                     and workspace_duration["childDurationMatched"]
                     and workspace_duration["childWorkAreaNormalized"]
                     and workspace_duration["wrapperTimingPreserved"],

@@ -278,7 +278,7 @@ public:
             comp->setWorkAreaRange(workspaceRange);
             const auto sourceIds = namedLayerIds(comp, {QStringLiteral("A"), QStringLiteral("B")});
             if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
-                    sourceIds, UniString(QStringLiteral("Workspace Duration")), false, true,
+                    sourceIds, UniString(QStringLiteral("Workspace Duration")), true, true,
                     PrecomposeMode::MoveSelected)) {
                 result["error"] = QStringLiteral("Could not precompose using workspace duration");
                 return result;
@@ -291,6 +291,8 @@ public:
                 child->frameRange().duration() == workspaceRange.duration();
             const bool childWorkAreaNormalized = child && child->workAreaRange().start() == 0 &&
                 child->workAreaRange().duration() == workspaceRange.duration();
+            const auto activeChild = service->currentComposition().lock();
+            const bool childOpened = child && activeChild && activeChild->id() == child->id();
             const bool wrapperTimingPreserved = wrapper &&
                 wrapper->inPoint().framePosition() == 40 &&
                 wrapper->outPoint().framePosition() == 200 &&
@@ -300,8 +302,9 @@ public:
             result["childWorkAreaDuration"] = child ? child->workAreaRange().duration() : -1;
             result["childDurationMatched"] = childDurationMatched;
             result["childWorkAreaNormalized"] = childWorkAreaNormalized;
+            result["childOpened"] = childOpened;
             result["wrapperTimingPreserved"] = wrapperTimingPreserved;
-            result["passed"] = childDurationMatched && childWorkAreaNormalized &&
+            result["passed"] = childDurationMatched && childWorkAreaNormalized && childOpened &&
                 wrapperTimingPreserved;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Precompose child did not match workspace duration or wrapper timing");
