@@ -121,6 +121,7 @@ def main():
             call("test.reset")
             rational_rate = call("test.rationalFrameRatePreserved")
             require(rational_rate["passed"] and rational_rate["selectedRatePreserved"]
+                    and rational_rate["roundTripRatePreserved"]
                     and rational_rate["parentRateAfterSelected"] and rational_rate["allRatePreserved"]
                     and rational_rate["allUnpacked"] and rational_rate["undoRatePreserved"]
                     and rational_rate["redoRestored"],

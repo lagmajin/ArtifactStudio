@@ -1233,7 +1233,7 @@ public:
             return roundTrip;
         } else if (name == "test.rationalFrameRatePreserved") {
             QJsonObject rateResult;
-            const auto parent = service->currentComposition().lock();
+            auto parent = service->currentComposition().lock();
             if (!parent) {
                 rateResult["error"] = QStringLiteral("No current composition");
                 return rateResult;
@@ -1254,13 +1254,48 @@ public:
             const auto selectedChild = service->findComposition(selectedOutcome.childCompId).ptr.lock();
             const auto selectedRatePreserved = selectedPrecomposed && selectedChild &&
                 hasExactRate(selectedChild->frameRate());
-            const bool selectedUnpacked = selectedPrecomposed &&
-                service->unprecomposeLayerWithUndo(selectedOutcome.precompLayerId, true);
-            const bool parentRateAfterSelected = hasExactRate(parent->frameRate());
+            bool roundTripRatePreserved = false;
+            bool selectedUnpacked = false;
+            QTemporaryDir tempDir;
+            if (selectedRatePreserved && tempDir.isValid()) {
+                auto& projects = ArtifactProjectManager::getInstance();
+                const auto filePath = tempDir.filePath(QStringLiteral("rational-frame-rate.artifact"));
+                const auto save = projects.saveToFile(filePath);
+                const bool mappingCleared = save.success &&
+                    PreComposeManager::instance().unregisterPrecompLayer(
+                        rootId, selectedOutcome.precompLayerId, selectedOutcome.childCompId) &&
+                    !PreComposeManager::instance().isPrecomposeLayer(selectedOutcome.precompLayerId) &&
+                    PreComposeManager::instance().getParentComposition(selectedOutcome.childCompId).isNil();
+                const bool loaded = mappingCleared && projects.loadFromFile(filePath);
+                if (loaded) {
+                    service->changeCurrentComposition(rootId);
+                    parent = service->findComposition(rootId).ptr.lock();
+                }
+                const auto reloadedChild = loaded
+                    ? service->findComposition(selectedOutcome.childCompId).ptr.lock()
+                    : ArtifactCompositionPtr{};
+                bool mappingRestored = false;
+                for (const auto& reference : PreComposeManager::instance().getPrecompLayersForChild(
+                         selectedOutcome.childCompId)) {
+                    mappingRestored = mappingRestored ||
+                        (reference.parentCompId == rootId &&
+                         reference.precompLayerId == selectedOutcome.precompLayerId);
+                }
+                const auto reloadedWrapper = parent
+                    ? dynamicPointerCast<ArtifactCompositionLayer>(
+                          parent->layerById(selectedOutcome.precompLayerId))
+                    : SharedPtr<ArtifactCompositionLayer>{};
+                roundTripRatePreserved = save.success && mappingCleared && loaded && parent &&
+                    hasExactRate(parent->frameRate()) && reloadedChild &&
+                    hasExactRate(reloadedChild->frameRate()) && mappingRestored && reloadedWrapper;
+                selectedUnpacked = roundTripRatePreserved &&
+                    service->unprecomposeLayerWithUndo(selectedOutcome.precompLayerId, true);
+            }
+            const bool parentRateAfterSelected = parent && hasExactRate(parent->frameRate());
             QVector<LayerID> allIds;
-            for (const auto& layer : parent->allLayer())
+            if (parent) for (const auto& layer : parent->allLayer())
                 if (layer) allIds.append(layer->id());
-            const bool allPrecomposed = selectedUnpacked && !allIds.isEmpty() &&
+            const bool allPrecomposed = parentRateAfterSelected && selectedUnpacked && !allIds.isEmpty() &&
                 service->precomposeLayersWithUndo(
                     allIds, UniString(QStringLiteral("Rational All Rate")), false, false,
                     PrecomposeMode::MoveAllAttributes);
@@ -1270,23 +1305,24 @@ public:
                 hasExactRate(allChild->frameRate());
             const bool allUnpacked = allPrecomposed &&
                 service->unprecomposeLayerWithUndo(allOutcome.precompLayerId, true);
-            const bool undoAvailable = undo->canUndo();
+            const bool undoAvailable = allUnpacked && undo->canUndo();
             if (undoAvailable) undo->undo();
             const auto undoChild = service->findComposition(allOutcome.childCompId).ptr.lock();
-            const bool undoRatePreserved = undoAvailable && undoChild &&
+            const bool undoRatePreserved = undoAvailable && parent && undoChild &&
                 hasExactRate(parent->frameRate()) && hasExactRate(undoChild->frameRate()) &&
                 PreComposeManager::instance().isPrecomposeLayer(allOutcome.precompLayerId);
-            const bool redoAvailable = undo->canRedo();
+            const bool redoAvailable = undoAvailable && undo->canRedo();
             if (redoAvailable) undo->redo();
-            const bool redoRestored = redoAvailable && hasExactRate(parent->frameRate()) &&
+            const bool redoRestored = redoAvailable && parent && hasExactRate(parent->frameRate()) &&
                 !PreComposeManager::instance().isPrecomposeLayer(allOutcome.precompLayerId);
             rateResult["selectedRatePreserved"] = selectedRatePreserved;
+            rateResult["roundTripRatePreserved"] = roundTripRatePreserved;
             rateResult["parentRateAfterSelected"] = parentRateAfterSelected;
             rateResult["allRatePreserved"] = allRatePreserved;
             rateResult["allUnpacked"] = allUnpacked;
             rateResult["undoRatePreserved"] = undoRatePreserved;
             rateResult["redoRestored"] = redoRestored;
-            rateResult["passed"] = selectedRatePreserved && selectedUnpacked &&
+            rateResult["passed"] = selectedRatePreserved && roundTripRatePreserved && selectedUnpacked &&
                 parentRateAfterSelected && allRatePreserved && allUnpacked &&
                 undoRatePreserved && redoRestored;
             if (!rateResult["passed"].toBool())
