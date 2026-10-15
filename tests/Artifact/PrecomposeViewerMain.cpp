@@ -552,7 +552,8 @@ public:
             const auto parent = service->currentComposition().lock();
             const auto idsA = namedLayerIds(parent, {QStringLiteral("A")});
             const auto idsB = namedLayerIds(parent, {QStringLiteral("B")});
-            if (!parent || idsA.size() != 1 || idsB.size() != 1) {
+            const auto idsUntouched = namedLayerIds(parent, {QStringLiteral("Untouched")});
+            if (!parent || idsA.size() != 1 || idsB.size() != 1 || idsUntouched.size() != 1) {
                 animationResult["error"] = QStringLiteral("Animated precompose fixture layers are missing");
                 return animationResult;
             }
@@ -666,6 +667,12 @@ public:
             QVector<LayerID> allLayerIds;
             if (afterRedo) for (const auto& layer : afterRedo->allLayer())
                 if (layer) allLayerIds.append(layer->id());
+            const auto hasTiming = [](const ArtifactAbstractLayerPtr& layer,
+                                      int64_t inFrame, int64_t outFrame, int64_t startFrame) {
+                return layer && layer->inPoint().framePosition() == inFrame &&
+                    layer->outPoint().framePosition() == outFrame &&
+                    layer->startTime().framePosition() == startFrame;
+            };
             const bool allPrecomposed = redoKeysRestored && !allLayerIds.isEmpty() &&
                 service->precomposeLayersWithUndo(
                     allLayerIds, UniString(QStringLiteral("Animated Move All")), false, false,
@@ -678,6 +685,11 @@ public:
             const auto allChild = service->findComposition(allOutcome.childCompId).ptr.lock();
             const auto allSourceA = allChild ? allChild->layerById(idsA.front()) : ArtifactAbstractLayerPtr{};
             const auto allSourceB = allChild ? allChild->layerById(idsB.front()) : ArtifactAbstractLayerPtr{};
+            const auto allSourceUntouched = allChild
+                ? allChild->layerById(idsUntouched.front()) : ArtifactAbstractLayerPtr{};
+            const bool allModeChildTimingPreserved =
+                hasTiming(allSourceA, 40, 200, 7) && hasTiming(allSourceB, 70, 160, 9) &&
+                hasTiming(allSourceUntouched, 25, 220, 3);
             const auto allPropertyA = allSourceA
                 ? allSourceA->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
@@ -690,6 +702,8 @@ public:
             const auto allRestored = service->currentComposition().lock();
             const auto allRestoredA = allRestored ? allRestored->layerById(idsA.front()) : ArtifactAbstractLayerPtr{};
             const auto allRestoredB = allRestored ? allRestored->layerById(idsB.front()) : ArtifactAbstractLayerPtr{};
+            const auto allRestoredUntouched = allRestored
+                ? allRestored->layerById(idsUntouched.front()) : ArtifactAbstractLayerPtr{};
             const auto allRestoredPropertyA = allRestoredA
                 ? allRestoredA->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
@@ -699,6 +713,9 @@ public:
             const bool allModeUnpackKeysPreserved = allUnpacked && allRestoredPropertyA &&
                 allRestoredPropertyB && keyframes(allRestoredPropertyA) == originalKeys &&
                 keyframes(allRestoredPropertyB) == originalKeysB;
+            const bool allModeUnpackTimingPreserved = allUnpacked &&
+                hasTiming(allRestoredA, 40, 200, 7) && hasTiming(allRestoredB, 70, 160, 9) &&
+                hasTiming(allRestoredUntouched, 25, 220, 3);
             const bool allUndoAvailable = undo->canUndo();
             if (allUndoAvailable) undo->undo();
             const bool allRedoAvailable = undo->canRedo();
@@ -706,6 +723,8 @@ public:
             const auto allAfterRedo = service->currentComposition().lock();
             const auto allRedoA = allAfterRedo ? allAfterRedo->layerById(idsA.front()) : ArtifactAbstractLayerPtr{};
             const auto allRedoB = allAfterRedo ? allAfterRedo->layerById(idsB.front()) : ArtifactAbstractLayerPtr{};
+            const auto allRedoUntouched = allAfterRedo
+                ? allAfterRedo->layerById(idsUntouched.front()) : ArtifactAbstractLayerPtr{};
             const auto allRedoPropertyA = allRedoA
                 ? allRedoA->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
@@ -715,6 +734,9 @@ public:
             const bool allModeRedoKeysPreserved = allRedoAvailable && allRedoPropertyA &&
                 allRedoPropertyB && keyframes(allRedoPropertyA) == originalKeys &&
                 keyframes(allRedoPropertyB) == originalKeysB;
+            const bool allModeRedoTimingPreserved = allRedoAvailable &&
+                hasTiming(allRedoA, 40, 200, 7) && hasTiming(allRedoB, 70, 160, 9) &&
+                hasTiming(allRedoUntouched, 25, 220, 3);
             animationResult["originalKeys"] = originalKeys;
             animationResult["originalOffsetKeys"] = originalKeysB;
             animationResult["precomposedKeys"] = movedKeys;
@@ -724,11 +746,16 @@ public:
             animationResult["unpackRestoredKeys"] = unpackKeysRestored;
             animationResult["redoRestoredKeys"] = redoKeysRestored;
             animationResult["allModeChildKeysPreserved"] = allModeChildKeysPreserved;
+            animationResult["allModeChildTimingPreserved"] = allModeChildTimingPreserved;
             animationResult["allModeUnpackKeysPreserved"] = allModeUnpackKeysPreserved;
+            animationResult["allModeUnpackTimingPreserved"] = allModeUnpackTimingPreserved;
             animationResult["allModeRedoKeysPreserved"] = allModeRedoKeysPreserved;
+            animationResult["allModeRedoTimingPreserved"] = allModeRedoTimingPreserved;
             animationResult["passed"] = childKeysRetimed && offsetChildKeysRetimed && unpackKeysRestored &&
                 undoAvailable && redoKeysRestored && allModeChildKeysPreserved &&
-                allModeUnpackKeysPreserved && allUndoAvailable && allModeRedoKeysPreserved;
+                allModeChildTimingPreserved && allModeUnpackKeysPreserved &&
+                allModeUnpackTimingPreserved && allUndoAvailable && allModeRedoKeysPreserved &&
+                allModeRedoTimingPreserved;
             if (!animationResult["passed"].toBool())
                 animationResult["error"] = QStringLiteral("Animated keyframes changed across precompose/unpack/redo");
             refresh();

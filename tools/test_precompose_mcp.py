@@ -134,8 +134,11 @@ def main():
                     and animated["offsetChildKeysRetimed"]
                     and animated["unpackRestoredKeys"] and animated["redoRestoredKeys"]
                     and animated["allModeChildKeysPreserved"]
+                    and animated["allModeChildTimingPreserved"]
                     and animated["allModeUnpackKeysPreserved"]
-                    and animated["allModeRedoKeysPreserved"],
+                    and animated["allModeUnpackTimingPreserved"]
+                    and animated["allModeRedoKeysPreserved"]
+                    and animated["allModeRedoTimingPreserved"],
                     "Animated keyframes or metadata changed across selected/all precompose, unpack, or redo")
             call("test.reset")
             initial = call("test.state")
