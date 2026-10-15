@@ -1230,6 +1230,130 @@ public:
             refresh();
             roundTrip["state"] = state();
             return roundTrip;
+        } else if (name == "test.negativeTimingRoundTrip") {
+            QJsonObject timingResult;
+            const auto parent = service->currentComposition().lock();
+            const auto idsA = namedLayerIds(parent, {QStringLiteral("A")});
+            const auto idsB = namedLayerIds(parent, {QStringLiteral("B")});
+            if (!parent || idsA.size() != 1 || idsB.size() != 1) {
+                timingResult["error"] = QStringLiteral("Negative-timing fixture layers are missing");
+                return timingResult;
+            }
+            const auto rootId = parent->id();
+            const auto sourceA = parent->layerById(idsA.front());
+            const auto sourceB = parent->layerById(idsB.front());
+            if (!sourceA || !sourceB) {
+                timingResult["error"] = QStringLiteral("Negative-timing fixture source layers are unavailable");
+                return timingResult;
+            }
+            sourceA->setInPoint(FramePosition(-24));
+            sourceA->setOutPoint(FramePosition(136));
+            sourceA->setStartTime(FramePosition(-17));
+            sourceB->setInPoint(FramePosition(12));
+            sourceB->setOutPoint(FramePosition(96));
+            sourceB->setStartTime(FramePosition(5));
+            auto propertyA = sourceA->getProperty(QStringLiteral("transform.position.x"));
+            auto propertyB = sourceB->getProperty(QStringLiteral("transform.position.x"));
+            if (!propertyA || !propertyB) {
+                timingResult["error"] = QStringLiteral("Negative-timing animation properties are unavailable");
+                return timingResult;
+            }
+            propertyA->clearKeyFrames();
+            propertyA->setAnimatable(true);
+            const auto scaleA = sourceA->keyframeTimeScale();
+            const RationalTime negativeKey(-12, scaleA);
+            const RationalTime positiveKey(24, scaleA);
+            propertyA->addKeyFrame(negativeKey, 2.5, InterpolationType::Linear);
+            propertyA->addKeyFrame(positiveKey, -1.25, InterpolationType::Constant);
+            const auto originalKeysA = keyframes(propertyA);
+            propertyB->clearKeyFrames();
+            propertyB->setAnimatable(true);
+            const auto scaleB = sourceB->keyframeTimeScale();
+            const RationalTime keyB0(20, scaleB);
+            const RationalTime keyB1(60, scaleB);
+            propertyB->addKeyFrame(keyB0, 4.0, InterpolationType::Smooth);
+            propertyB->addKeyFrame(keyB1, 8.0, InterpolationType::Linear);
+            const auto originalKeysB = keyframes(propertyB);
+            const auto hasTiming = [](const ArtifactAbstractLayerPtr& layer,
+                                      int64_t inFrame, int64_t outFrame, int64_t startFrame) {
+                return layer && layer->inPoint().framePosition() == inFrame &&
+                    layer->outPoint().framePosition() == outFrame &&
+                    layer->startTime().framePosition() == startFrame;
+            };
+            const QVector<LayerID> selected{idsA.front(), idsB.front()};
+            const bool precomposed = service->precomposeLayersWithUndo(
+                selected, UniString(QStringLiteral("Negative Timing")), false, false,
+                PrecomposeMode::MoveSelected);
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                parent->layerById(outcome.precompLayerId));
+            const auto childA = child ? child->layerById(idsA.front()) : ArtifactAbstractLayerPtr{};
+            const auto childB = child ? child->layerById(idsB.front()) : ArtifactAbstractLayerPtr{};
+            const auto childPropertyA = childA ? childA->getProperty(QStringLiteral("transform.position.x"))
+                                               : SharedPtr<AbstractProperty>{};
+            const auto childPropertyB = childB ? childB->getProperty(QStringLiteral("transform.position.x"))
+                                               : SharedPtr<AbstractProperty>{};
+            const auto movedKeysA = childPropertyA ? keyframes(childPropertyA) : QJsonArray{};
+            const auto movedKeysB = childPropertyB ? keyframes(childPropertyB) : QJsonArray{};
+            const bool childTimingNormalized = precomposed && child &&
+                hasTiming(childA, 0, 160, 7) && hasTiming(childB, 36, 120, 29) &&
+                wrapper && hasTiming(wrapper, -24, 136, -24);
+            const bool childKeysShifted = movedKeysA.size() == 2 && movedKeysB.size() == 2 &&
+                movedKeysA[0].toObject()["timeValue"].toInt() == 12 &&
+                movedKeysA[1].toObject()["timeValue"].toInt() == 48 &&
+                movedKeysB[0].toObject()["timeValue"].toInt() == 44 &&
+                movedKeysB[1].toObject()["timeValue"].toInt() == 84 &&
+                movedKeysA[0].toObject()["value"].toDouble() == 2.5 &&
+                movedKeysA[1].toObject()["value"].toDouble() == -1.25 &&
+                movedKeysB[0].toObject()["value"].toDouble() == 4.0 &&
+                movedKeysB[1].toObject()["value"].toDouble() == 8.0;
+            const bool unpacked = precomposed && service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const auto restored = service->currentComposition().lock();
+            const auto restoredA = restored ? restored->layerById(idsA.front()) : ArtifactAbstractLayerPtr{};
+            const auto restoredB = restored ? restored->layerById(idsB.front()) : ArtifactAbstractLayerPtr{};
+            const auto restoredPropertyA = restoredA ? restoredA->getProperty(QStringLiteral("transform.position.x"))
+                                                      : SharedPtr<AbstractProperty>{};
+            const auto restoredPropertyB = restoredB ? restoredB->getProperty(QStringLiteral("transform.position.x"))
+                                                      : SharedPtr<AbstractProperty>{};
+            const bool unpackRestored = unpacked && hasTiming(restoredA, -24, 136, -17) &&
+                hasTiming(restoredB, 12, 96, 5) && restoredPropertyA && restoredPropertyB &&
+                keyframes(restoredPropertyA) == originalKeysA && keyframes(restoredPropertyB) == originalKeysB;
+            const bool undoAvailable = undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto undoChild = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto undoA = undoChild ? undoChild->layerById(idsA.front()) : ArtifactAbstractLayerPtr{};
+            const auto undoB = undoChild ? undoChild->layerById(idsB.front()) : ArtifactAbstractLayerPtr{};
+            const bool undoRestored = undoAvailable && undoChild &&
+                PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId) &&
+                hasTiming(undoA, 0, 160, 7) && hasTiming(undoB, 36, 120, 29);
+            const bool redoAvailable = undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const auto redoParent = service->currentComposition().lock();
+            const auto redoA = redoParent ? redoParent->layerById(idsA.front()) : ArtifactAbstractLayerPtr{};
+            const auto redoB = redoParent ? redoParent->layerById(idsB.front()) : ArtifactAbstractLayerPtr{};
+            const auto redoPropertyA = redoA ? redoA->getProperty(QStringLiteral("transform.position.x"))
+                                              : SharedPtr<AbstractProperty>{};
+            const auto redoPropertyB = redoB ? redoB->getProperty(QStringLiteral("transform.position.x"))
+                                              : SharedPtr<AbstractProperty>{};
+            const bool redoRestored = redoAvailable && redoParent && redoParent->id() == rootId &&
+                hasTiming(redoA, -24, 136, -17) && hasTiming(redoB, 12, 96, 5) &&
+                redoPropertyA && redoPropertyB && keyframes(redoPropertyA) == originalKeysA &&
+                keyframes(redoPropertyB) == originalKeysB;
+            timingResult["childTimingNormalized"] = childTimingNormalized;
+            timingResult["childKeysShifted"] = childKeysShifted;
+            timingResult["unpackRestored"] = unpackRestored;
+            timingResult["undoRestored"] = undoRestored;
+            timingResult["redoRestored"] = redoRestored;
+            timingResult["passed"] = childTimingNormalized && childKeysShifted && unpackRestored &&
+                undoRestored && redoRestored;
+            if (!timingResult["passed"].toBool())
+                timingResult["error"] = QStringLiteral("Negative timing or key offsets changed across precompose/unprecompose/undo/redo");
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            refresh();
+            timingResult["state"] = state();
+            return timingResult;
         } else if (name == "test.animatedTiming") {
             QJsonObject animationResult;
             const auto parent = service->currentComposition().lock();
@@ -2137,7 +2261,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

@@ -113,6 +113,12 @@ def main():
                     and opened_child["redoKeptRootFocused"] and opened_child["redoRestoredChild"],
                     "Open-child precompose navigation or undo/redo focus changed")
             call("test.reset")
+            negative_timing = call("test.negativeTimingRoundTrip")
+            require(negative_timing["passed"] and negative_timing["childTimingNormalized"]
+                    and negative_timing["childKeysShifted"] and negative_timing["unpackRestored"]
+                    and negative_timing["undoRestored"] and negative_timing["redoRestored"],
+                    "Negative frame timing or key offsets changed across precompose/unprecompose/undo/redo")
+            call("test.reset")
             workspace_duration = call("test.matchWorkspaceDuration")
             require(workspace_duration["passed"]
                     and workspace_duration["childOpened"]
@@ -327,7 +333,7 @@ def main():
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
-            print("PASS: direct/transitive cycle guards, invalid-request atomicity, open-child navigation/focus, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: direct/transitive cycle guards, invalid-request atomicity, redo-branch replacement, open-child navigation/focus, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
             try:
