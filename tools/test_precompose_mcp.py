@@ -60,6 +60,8 @@ def main():
             require(result["childSettingsCopied"]
                     and result["childResolution"] == [1280, 720]
                     and abs(result["childFrameRate"] - 24.0) < 1e-6
+                    and result["childFrameRangeDuration"] == 300
+                    and result["parentFrameRangeDuration"] == 300
                     and all(abs(actual - expected) < 1e-6 for actual, expected in
                             zip(result["childBackgroundColor"], (0.125, 0.25, 0.5, 1.0))),
                     f"{label} precompose did not copy custom composition settings")

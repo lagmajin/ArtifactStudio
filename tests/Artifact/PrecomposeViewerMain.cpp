@@ -1132,6 +1132,8 @@ public:
             result["childSettingsCopied"] = settingsCopied;
             result["childResolution"] = QJsonArray{childSize.width(), childSize.height()};
             result["childFrameRate"] = child ? child->frameRate().framerate() : -1.0;
+            result["childFrameRangeDuration"] = child ? child->frameRange().duration() : -1;
+            result["parentFrameRangeDuration"] = comp ? comp->frameRange().duration() : -1;
             result["childBackgroundColor"] = QJsonArray{childColor.r(), childColor.g(),
                                                          childColor.b(), childColor.a()};
         }
