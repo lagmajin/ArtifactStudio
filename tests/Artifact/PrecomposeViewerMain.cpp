@@ -525,8 +525,16 @@ public:
             const auto original = parent ? layers(parent, 0) : QJsonArray{};
             const auto originalParentId = parent ? parent->id() : CompositionID{};
             const auto originalChildId = childId_;
+            SharedPtr<ArtifactCompositionLayer> originalPrecompLayer;
+            if (parent) for (const auto& layer : parent->allLayer()) {
+                auto candidate = dynamicPointerCast<ArtifactCompositionLayer>(layer);
+                if (candidate && candidate->sourceCompositionId() == originalChildId) {
+                    originalPrecompLayer = candidate;
+                    break;
+                }
+            }
             QTemporaryDir tempDir;
-            if (!parent || originalChildId.isNil() || !tempDir.isValid()) {
+            if (!parent || originalChildId.isNil() || !originalPrecompLayer || !tempDir.isValid()) {
                 roundTrip["error"] = QStringLiteral("Precompose fixture or temporary directory unavailable");
                 return roundTrip;
             }
@@ -537,6 +545,16 @@ public:
                 roundTrip["error"] = save.errorMessage;
                 return roundTrip;
             }
+            auto& precompManager = PreComposeManager::instance();
+            const bool mappingCleared = precompManager.unregisterPrecompLayer(
+                originalParentId, originalPrecompLayer->id(), originalChildId) &&
+                !precompManager.isPrecomposeLayer(originalPrecompLayer->id()) &&
+                precompManager.getParentComposition(originalChildId).isNil();
+            roundTrip["mappingClearedBeforeReload"] = mappingCleared;
+            if (!mappingCleared) {
+                roundTrip["error"] = QStringLiteral("Could not isolate runtime precompose registration before reload");
+                return roundTrip;
+            }
             const bool loaded = projects.loadFromFile(filePath);
             roundTrip["loaded"] = loaded;
             if (loaded) service->changeCurrentComposition(originalParentId);
@@ -544,11 +562,25 @@ public:
             const auto reloadedChild = service->findComposition(originalChildId).ptr.lock();
             const auto reloaded = reloadedParent ? layers(reloadedParent, 0) : QJsonArray{};
             const bool parentChildLink = reloaded == original && bool(reloadedChild);
+            const auto nesting = precompManager.getCompositionNesting(originalChildId);
+            bool reverseParentLink = false;
+            for (const auto& ref : precompManager.getPrecompLayersForChild(originalChildId))
+                reverseParentLink = reverseParentLink ||
+                    (ref.parentCompId == originalParentId &&
+                     ref.precompLayerId == originalPrecompLayer->id());
+            const bool runtimeNestingRestored =
+                precompManager.isPrecomposeLayer(originalPrecompLayer->id()) &&
+                precompManager.getSourceCompositionId(originalPrecompLayer->id()) == originalChildId &&
+                nesting.parentCompositionId == originalParentId &&
+                nesting.parentLayerId == originalPrecompLayer->id() &&
+                precompManager.getCompositionHierarchy(originalChildId).size() == 2 &&
+                reverseParentLink;
             roundTrip["parentChildLinkPreserved"] = parentChildLink;
             roundTrip["layerStatePreserved"] = reloaded == original;
-            roundTrip["passed"] = save.success && loaded && parentChildLink;
+            roundTrip["runtimeNestingRestored"] = runtimeNestingRestored;
+            roundTrip["passed"] = save.success && loaded && parentChildLink && runtimeNestingRestored;
             if (!roundTrip["passed"].toBool())
-                roundTrip["error"] = QStringLiteral("Precompose project round-trip changed parent/child layer state");
+                roundTrip["error"] = QStringLiteral("Precompose project round-trip lost parent/child data or runtime nesting registration");
             childId_ = originalChildId;
             hasChild_ = true;
             refresh();

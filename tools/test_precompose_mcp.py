@@ -147,8 +147,9 @@ def main():
                         f"Move all changed {name} timing")
             round_trip = call("test.saveReload")
             require(round_trip["passed"] and round_trip["parentChildLinkPreserved"]
-                    and round_trip["layerStatePreserved"],
-                    "Precompose save/reload changed parent-child link or layer state")
+                    and round_trip["layerStatePreserved"] and round_trip["mappingClearedBeforeReload"]
+                    and round_trip["runtimeNestingRestored"],
+                    "Precompose save/reload changed parent-child data or runtime nesting registration")
             call("test.reset")
             hierarchy = call("test.nestedHierarchy")
             require(hierarchy["passed"] and hierarchy["hierarchyPreserved"]
