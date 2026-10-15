@@ -16,6 +16,7 @@
 #include <QPixmap>
 #include <QScreen>
 #include <QStringList>
+#include <QTemporaryDir>
 #include <QTextEdit>
 #include <QTimerEvent>
 #include <QVBoxLayout>
@@ -25,6 +26,7 @@
 
 import Artifact.Test.PreCompose;
 import Artifact.Service.Project;
+import Artifact.Project.Manager;
 import Artifact.Composition.Abstract;
 import Artifact.Layer.Abstract;
 import Artifact.Layer.InitParams;
@@ -144,6 +146,42 @@ public:
             failures_ = runPreComposeTests();
             reset();
             ok = failures_ == 0;
+        } else if (name == "test.saveReload") {
+            QJsonObject roundTrip;
+            auto& projects = ArtifactProjectManager::getInstance();
+            const auto parent = service->currentComposition().lock();
+            const auto original = parent ? layers(parent, 0) : QJsonArray{};
+            const auto originalParentId = parent ? parent->id() : CompositionID{};
+            const auto originalChildId = childId_;
+            QTemporaryDir tempDir;
+            if (!parent || originalChildId.isNil() || !tempDir.isValid()) {
+                roundTrip["error"] = QStringLiteral("Precompose fixture or temporary directory unavailable");
+                return roundTrip;
+            }
+            const auto filePath = tempDir.filePath(QStringLiteral("precompose-roundtrip.artifact"));
+            const auto save = projects.saveToFile(filePath);
+            roundTrip["saved"] = save.success;
+            if (!save.success) {
+                roundTrip["error"] = save.errorMessage;
+                return roundTrip;
+            }
+            const bool loaded = projects.loadFromFile(filePath);
+            roundTrip["loaded"] = loaded;
+            if (loaded) service->changeCurrentComposition(originalParentId);
+            const auto reloadedParent = service->findComposition(originalParentId).ptr.lock();
+            const auto reloadedChild = service->findComposition(originalChildId).ptr.lock();
+            const auto reloaded = reloadedParent ? layers(reloadedParent, 0) : QJsonArray{};
+            const bool parentChildLink = reloaded == original && bool(reloadedChild);
+            roundTrip["parentChildLinkPreserved"] = parentChildLink;
+            roundTrip["layerStatePreserved"] = reloaded == original;
+            roundTrip["passed"] = save.success && loaded && parentChildLink;
+            if (!roundTrip["passed"].toBool())
+                roundTrip["error"] = QStringLiteral("Precompose project round-trip changed parent/child layer state");
+            childId_ = originalChildId;
+            hasChild_ = true;
+            refresh();
+            roundTrip["state"] = state();
+            return roundTrip;
         } else if (name == "test.undo") {
             ok = undo->canUndo();
             if (ok) undo->undo();
@@ -224,7 +262,6 @@ private:
     {
         QJsonArray result;
         if (depth > 8) return result;
-        auto& manager = PreComposeManager::instance();
         for (const auto& layer : comp->allLayer()) {
             if (!layer) continue;
             const auto position = layer->position3D();
@@ -234,8 +271,10 @@ private:
                 {"outFrame", double(layer->outPoint().framePosition())},
                 {"opacity", layer->opacity()},
                 {"position", QJsonArray{position.x, position.y, position.z}}};
-            if (manager.isPrecomposeLayer(layer->id())) {
-                const auto childId = manager.getSourceCompositionId(layer->id());
+            auto compositionLayer = dynamicPointerCast<ArtifactCompositionLayer>(layer);
+            const auto childId = compositionLayer ? compositionLayer->sourceCompositionId()
+                                                  : CompositionID{};
+            if (!childId.isNil()) {
                 entry["childId"] = childId.toString();
                 auto child = ArtifactProjectService::instance()->findComposition(childId).ptr.lock();
                 entry["childExists"] = bool(child);
@@ -290,7 +329,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.precompose", "test.precomposeAll",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.precompose", "test.precomposeAll", "test.saveReload",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

@@ -2,6 +2,14 @@
 
 # Insight Register
 
+## 2026-10-15: プリコンポーズのプロジェクト再読込後に実行時ネスト登録を確認する
+
+- **関連:** `PreComposeManager`、`ArtifactProjectManager::loadFromFile()`、`tests/Artifact/PrecomposeViewerMain.cpp`。
+- **確認できた事実:** 今回確認した `loadFromFile()` はプロジェクトをインポートして差し替えるが、テストハーネスで使う `PreComposeManager` の登録API呼び出しは見当たらなかった。プリコンポーズレイヤー自身には `sourceCompositionId()` があり、保存後の参照値を独立して照合できる。
+- **未検証の仮説:** 再読込後のネスト時間変換や親Composition逆引きが、別の初期化経路または遅延復元で正しく再構築される可能性がある。現状はコード検索の範囲で、実行挙動は未検証。
+- **価値／懸念:** プロジェクトの親子参照が永続化されても、プロセス内のネスト補助状態が復元されない場合、編集・時間変換機能が再起動後に不整合になる恐れがある。
+- **次に確認:** プリコンポーズプロジェクトの保存・再読込後に `getCompositionNesting()`、親参照、`NestedTimeUtils` を実行し、再登録を必要とするか確認する。製品コード変更は別途依頼または設計判断を待つ。
+
 ## 2026-10-15: 独立GUIテストの共通MCPヘルパー参照と実ファイルの整合
 
 - **関連:** `tests/Artifact/FbxAnimationViewerMain.cpp`、`docs/planned/MILESTONE_FBX_ANIMATION_VIEWER_TEST_2026-10-14.md`。
