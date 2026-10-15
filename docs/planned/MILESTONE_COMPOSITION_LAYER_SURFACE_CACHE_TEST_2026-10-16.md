@@ -1,7 +1,7 @@
 # Composition Layer Surface Cache 独立テスト
 
 **最終更新:** 2026-10-16
-**ステータス:** In Progress
+**ステータス:** Blocked（ArtifactCore split-module IFC 解決）
 
 ## 実装状況（2026-10-16）
 
@@ -9,6 +9,7 @@
 - `CompositionRenderController` に opt-in cache hit／miss／invalidation／entry build counters と cold-path JSON snapshot API を追加。診断無効時はこれらのカウンターを更新しない。
 - `cache.runRegression` は同一 view の cache reuse と effect edit 後の対象 entry invalidation/rebuild、および別 layer 編集の非干渉を検証する。
 - CMake configure は成功。Debug target build は対象コードの compile 前に既存 ArtifactCore `EnvironmentVariable` IFC 重複（MSVC C7684）で停止し、新規 target の compile/runtime は未確認。
+- configure 生成物では `EnvironmentVariable.cppm` の AdditionalModuleDependencies が split target の IFC を指す一方、MSVC は `ArtifactCoreEnvironment.dir/Debug/include/...` と同じ絶対 IFC の二表記を候補として報告する。既存 split-module/CMake 配線の解決が必要。
 
 ## 目的
 
