@@ -20,8 +20,10 @@
 #include <QTemporaryDir>
 #include <QTextEdit>
 #include <QTimerEvent>
+#include <QVariant>
 #include <QVBoxLayout>
 #include <QVector>
+#include <cmath>
 #include <cstdio>
 #include <exception>
 
@@ -35,6 +37,7 @@ import Artifact.Layer.InitParams;
 import Artifact.Layer.Composition;
 import Color.Float;
 import Property.Abstract;
+import Property.ExposedPropertyRegistry;
 import Math.Interpolate;
 import Frame.Position;
 import Frame.Range;
@@ -528,6 +531,82 @@ public:
             refresh();
             cycleResult["state"] = state();
             return cycleResult;
+        } else if (name == "test.exposedOverrideMaterialized") {
+            QJsonObject overrideResult;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                overrideResult["error"] = QStringLiteral("No root composition");
+                return overrideResult;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Exposed Override Fixture")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                overrideResult["error"] = QStringLiteral("Could not create exposed-override fixture");
+                return overrideResult;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(outcome.precompLayerId));
+            const auto childLayer = child
+                ? child->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
+            if (!child || !wrapper || !childLayer) {
+                overrideResult["error"] = QStringLiteral("Exposed-override fixture is missing its child layer or wrapper");
+                return overrideResult;
+            }
+            ArtifactCore::ExposedPropertyRegistry registry;
+            ArtifactCore::ExposedPropertyBinding binding;
+            binding.id = QStringLiteral("test.opacity");
+            binding.label = QStringLiteral("Test Opacity");
+            binding.targetLayerId = sourceIds.front().toString();
+            binding.internalPath = QStringLiteral("layer.opacity");
+            binding.defaultValue = childLayer->opacity();
+            const bool bindingAdded = registry.add(binding);
+            wrapper->setExposedProperties(registry);
+            const float overrideValue = 0.81f;
+            const bool overrideAccepted = bindingAdded && wrapper->setExposedPropertyOverride(
+                binding.id, QVariant::fromValue(static_cast<double>(overrideValue)));
+            const float originalChildOpacity = childLayer->opacity();
+            const bool overrideWasDeferred = overrideAccepted &&
+                std::abs(originalChildOpacity - 0.42f) < 1.0e-5f &&
+                wrapper->hasExposedPropertyOverride(binding.id) &&
+                std::abs(wrapper->effectiveExposedPropertyValue(binding.id).toFloat() - overrideValue) < 1.0e-5f;
+            const bool unpacked = service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const auto restoredLayer = root->layerById(sourceIds.front());
+            const bool unpackMaterialized = unpacked && restoredLayer == childLayer &&
+                std::abs(restoredLayer->opacity() - overrideValue) < 1.0e-5f;
+            const bool undoAvailable = undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto undoChild = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto undoLayer = undoChild ? undoChild->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
+            const bool undoPreservedMaterializedValue = undoAvailable && undoChild && undoLayer == childLayer &&
+                root->layerById(outcome.precompLayerId) &&
+                PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId) &&
+                std::abs(undoLayer->opacity() - overrideValue) < 1.0e-5f;
+            const bool redoAvailable = undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const auto redoLayer = root->layerById(sourceIds.front());
+            const bool redoPreservedMaterializedValue = redoAvailable && redoLayer == childLayer &&
+                !PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId) &&
+                std::abs(redoLayer->opacity() - overrideValue) < 1.0e-5f;
+            service->changeCurrentComposition(rootId);
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            overrideResult["bindingAdded"] = bindingAdded;
+            overrideResult["overrideAccepted"] = overrideAccepted;
+            overrideResult["overrideWasDeferred"] = overrideWasDeferred;
+            overrideResult["unpackMaterialized"] = unpackMaterialized;
+            overrideResult["undoPreservedMaterializedValue"] = undoPreservedMaterializedValue;
+            overrideResult["redoPreservedMaterializedValue"] = redoPreservedMaterializedValue;
+            overrideResult["passed"] = bindingAdded && overrideAccepted && overrideWasDeferred &&
+                unpackMaterialized && undoPreservedMaterializedValue && redoPreservedMaterializedValue;
+            if (!overrideResult["passed"].toBool())
+                overrideResult["error"] = QStringLiteral("Master Property override was not materialized consistently across unprecompose/undo/redo");
+            refresh();
+            overrideResult["state"] = state();
+            return overrideResult;
         } else if (name == "test.missingChildReferenceAtomic") {
             QJsonObject missingResult;
             const auto root = service->currentComposition().lock();
@@ -1630,7 +1709,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

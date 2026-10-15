@@ -123,6 +123,15 @@ def main():
                     and transitive_cycle["stateUnchanged"] and transitive_cycle["fixtureCleaned"],
                     "Transitive cycle precompose was not rejected atomically")
             call("test.reset")
+            exposed_override = call("test.exposedOverrideMaterialized")
+            require(exposed_override["passed"] and exposed_override["bindingAdded"]
+                    and exposed_override["overrideAccepted"]
+                    and exposed_override["overrideWasDeferred"]
+                    and exposed_override["unpackMaterialized"]
+                    and exposed_override["undoPreservedMaterializedValue"]
+                    and exposed_override["redoPreservedMaterializedValue"],
+                    "Master Property override was lost while unprecomposing or traversing undo/redo")
+            call("test.reset")
             missing_child = call("test.missingChildReferenceAtomic")
             require(missing_child["passed"] and missing_child["unwrapRejected"]
                     and missing_child["parentStatePreserved"]
