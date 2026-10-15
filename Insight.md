@@ -2,6 +2,14 @@
 
 # Insight Register
 
+## 2026-10-15: 共有子Composition解除時のsource layer所有権
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm` の `unprecomposeLayerInCurrentComposition()`、`ArtifactCore/src/Composition/PreCompose.cppm` の `unregisterPrecompLayer()`、`tests/Artifact/PrecomposeViewerMain.cpp` の `test.sharedChildReferences`。
+- **確認できた事実:** `PreComposeManager` は同じchildを複数のwrapperから参照でき、1件の解除では他のwrapper登録を残す。一方、Serviceの解除処理は残存参照を確認せずchildのlayer objectを親へ移動する。
+- **未検証の仮説:** 残存wrapperのsource childが空になり、その後の描画・保存・編集で共有composition参照が破損した状態になる可能性がある。追加した独立MCPケースは解除後とRedo後のsource layer ID保持を要求するが、実行していない。
+- **価値／懸念:** 登録mapだけでなく、複数wrapper間で共有するCompositionデータの所有権・解除契約を回帰検知できる。期待動作が「解除拒否」「残存参照向けの内容複製」「共有を許さない」などのどれかは仕様確認が必要。
+- **次に確認:** ユーザーが許可したビルド・実行で `test.sharedChildReferences` の実結果を確かめ、期待する共有Compositionの解除仕様を決める。テスト依頼の範囲を越えるService変更は別途指示を待つ。
+
 ## 2026-10-15: シェイプ描画テストで自動保存される初期形状を除去する
 
 - **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm` の `addShapeContent()`、`tests/shape_visual/ShapeVisualCases.inc`。

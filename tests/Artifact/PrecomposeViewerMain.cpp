@@ -1173,11 +1173,15 @@ public:
                 hasReference(first.precompLayerId) && hasReference(secondWrapperId);
             const bool dissolved = twoReferencesCreated &&
                 service->unprecomposeLayerWithUndo(first.precompLayerId, true);
+            const auto childAfterUnpack = service->findComposition(first.childCompId).ptr.lock();
+            const bool childDataPreserved = childAfterUnpack &&
+                childAfterUnpack->layerById(sourceIds.front()) &&
+                childAfterUnpack->layerById(sourceIds.back());
             const bool remainingReferencePreserved = dissolved &&
                 manager.getPrecompLayersForChild(first.childCompId).size() == 1 &&
                 !manager.isPrecomposeLayer(first.precompLayerId) &&
                 manager.isPrecomposeLayer(secondWrapperId) && hasReference(secondWrapperId) &&
-                root->layerById(secondWrapperId);
+                root->layerById(secondWrapperId) && childDataPreserved;
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
             const bool undoRestoredBoth = undoAvailable &&
@@ -1186,19 +1190,25 @@ public:
                 root->layerById(first.precompLayerId) && root->layerById(secondWrapperId);
             const bool redoAvailable = undo->canRedo();
             if (redoAvailable) undo->redo();
+            const auto childAfterRedo = service->findComposition(first.childCompId).ptr.lock();
+            const bool redoChildDataPreserved = childAfterRedo &&
+                childAfterRedo->layerById(sourceIds.front()) &&
+                childAfterRedo->layerById(sourceIds.back());
             const bool redoPreservedRemaining = redoAvailable &&
                 manager.getPrecompLayersForChild(first.childCompId).size() == 1 &&
                 !manager.isPrecomposeLayer(first.precompLayerId) &&
                 manager.isPrecomposeLayer(secondWrapperId) && hasReference(secondWrapperId) &&
-                root->layerById(secondWrapperId);
+                root->layerById(secondWrapperId) && redoChildDataPreserved;
             result["twoReferencesCreated"] = twoReferencesCreated;
+            result["childDataPreserved"] = childDataPreserved;
             result["remainingReferencePreserved"] = remainingReferencePreserved;
             result["undoRestoredBoth"] = undoRestoredBoth;
+            result["redoChildDataPreserved"] = redoChildDataPreserved;
             result["redoPreservedRemaining"] = redoPreservedRemaining;
             result["passed"] = twoReferencesCreated && remainingReferencePreserved &&
                 undoRestoredBoth && redoPreservedRemaining;
             if (!result["passed"].toBool())
-                result["error"] = QStringLiteral("Unprecomposing one instance changed another reference to the shared child");
+                result["error"] = QStringLiteral("Unprecomposing one instance changed shared child data or another reference");
             childId_ = first.childCompId;
             hasChild_ = true;
             refresh();

@@ -198,10 +198,12 @@ def main():
             call("test.reset")
             shared_child = call("test.sharedChildReferences")
             require(shared_child["passed"] and shared_child["twoReferencesCreated"]
+                    and shared_child["childDataPreserved"]
                     and shared_child["remainingReferencePreserved"]
                     and shared_child["undoRestoredBoth"]
+                    and shared_child["redoChildDataPreserved"]
                     and shared_child["redoPreservedRemaining"],
-                    "Unprecomposing one instance changed another reference to the shared child")
+                    "Unprecomposing one instance changed shared child data or another reference")
             call("test.reset")
             external_parent = call("test.externalParentRestored")
             require(external_parent["passed"] and external_parent["externalParentStoredOnWrapper"]
