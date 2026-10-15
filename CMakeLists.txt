@@ -882,6 +882,9 @@ option(ARTIFACT_BUILD_PRECOMPOSE_VIEWER
 option(ARTIFACT_BUILD_COMPOSITION_PLAYBACK_STRESS_TEST
     "Build the independent composition playback stress test executable"
     OFF)
+option(ARTIFACT_BUILD_COMPOSITION_LAYER_SURFACE_CACHE_TEST
+    "Build the independent Composition layer surface cache test executable"
+    OFF)
 option(ARTIFACT_ENABLE_FBX_IMPORT_TEST
     "Build the FBX animation and embedded-texture importer test"
     OFF)
@@ -974,6 +977,41 @@ if(ARTIFACT_BUILD_COMPOSITION_PLAYBACK_STRESS_TEST)
     )
     if(ARTIFACT_FRONTEND_MSVC)
         target_compile_options(ArtifactCompositionPlaybackStressTest PRIVATE
+            /Zf /Zc:__cplusplus /utf-8 /EHsc
+        )
+    endif()
+endif()
+
+if(ARTIFACT_BUILD_COMPOSITION_LAYER_SURFACE_CACHE_TEST)
+    if(NOT WIN32)
+        message(FATAL_ERROR
+            "ArtifactCompositionLayerSurfaceCacheTest currently requires Windows window capture")
+    endif()
+    add_executable(ArtifactCompositionLayerSurfaceCacheTest
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/Artifact/CompositionLayerSurfaceCacheMain.cpp"
+    )
+    target_link_libraries(ArtifactCompositionLayerSurfaceCacheTest PRIVATE ArtifactAppRuntime)
+    target_include_directories(ArtifactCompositionLayerSurfaceCacheTest PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/verdigris/src"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests"
+    )
+    artifact_add_cppwinrt_include(ArtifactCompositionLayerSurfaceCacheTest)
+    set_target_properties(ArtifactCompositionLayerSurfaceCacheTest PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    add_custom_command(TARGET ArtifactCompositionLayerSurfaceCacheTest POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:ArtifactCompositionLayerSurfaceCacheTest>
+            "$<TARGET_FILE_DIR:ArtifactCompositionLayerSurfaceCacheTest>/"
+        COMMAND_EXPAND_LISTS
+        VERBATIM
+    )
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactCompositionLayerSurfaceCacheTest PRIVATE
             /Zf /Zc:__cplusplus /utf-8 /EHsc
         )
     endif()

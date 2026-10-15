@@ -1,7 +1,14 @@
 # Composition Layer Surface Cache 独立テスト
 
 **最終更新:** 2026-10-16
-**ステータス:** 計画
+**ステータス:** In Progress
+
+## 実装状況（2026-10-16）
+
+- 独立 target `ArtifactCompositionLayerSurfaceCacheTest` と、Composition Editor の実描画経路を使う MCP GUI fixture を追加。
+- `CompositionRenderController` に opt-in cache hit／miss／invalidation／entry build counters と cold-path JSON snapshot API を追加。診断無効時はこれらのカウンターを更新しない。
+- `cache.runRegression` は同一 view の cache reuse と effect edit 後の対象 entry invalidation/rebuild、および別 layer 編集の非干渉を検証する。
+- CMake configure は成功。Debug target build は対象コードの compile 前に既存 ArtifactCore `EnvironmentVariable` IFC 重複（MSVC C7684）で停止し、新規 target の compile/runtime は未確認。
 
 ## 目的
 

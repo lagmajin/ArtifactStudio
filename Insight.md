@@ -3591,3 +3591,12 @@
 - **追加修正:** シークスライダーの入力接続を`sliderMoved`から`valueChanged`へ変更した。`QSignalBlocker`で保護したposition同期更新はユーザーseekとして再処理されない。
 - **追加確認:** 修正後のArtifactUiTestで20秒WAVのpositionが `00:05 / 00:20` から `00:11 / 00:20` へ進むこと、4秒H.264 MP4で `00:00 / 00:04` と `Frame 0 / 120` が表示され、Play後に映像とframe番号が進むことを確認した。seek sliderにフォーカスしてRightを押すとpositionが1秒、frame 30/120へ移った。マウスドラッグシーク、長時間resize stressは未確認。
 - **次に確認:** WAVのpause/seek後の保持とMP4のマウスドラッグseekを確認する。長時間の連続異サイズresize stressも実行する。
+
+## 2026-10-16: Composition Surface Cache の検証では render-key suppression と区別する
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`、`tests/Artifact/CompositionLayerSurfaceCacheMain.cpp`。
+- **確認できた事実:** Layer Surface Cache はレイヤー描画内の `drawLayerForCompositionView()` 経路で lookup される一方、同一状態 render key の再描画は上位で full composite を省略できる。従って、単に `markRenderDirty()` を呼んで再描画要求しただけでは surface cache hit の実証にならない。
+- **対応:** 独立 fixture は1px panを往復して view composite を再実行し、panを戻した状態で同じレイヤー surface cache を再利用する受入経路を用意した。
+- **価値または懸念:** 同一画面で描画完了だけを測るテストは cache を通らない偽陽性になり得る。view差分と layer-content invalidation を別の操作として記録する必要がある。
+- **未検証:** render-key 経路を通過して surface lookup/hit が実際に観測されるかは、新 target のビルドおよび実機実行が必要。既存 build target は ArtifactCore の module IFC 重複エラーで新コードの compile 前に停止した。
+- **次に確認:** IFC 重複の出所を確認してから target をビルドし、`cache.runRegression` の hit / invalidation / unrelated-edit assertion と capture を GPU runtime で実行する。
