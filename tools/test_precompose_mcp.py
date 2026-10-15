@@ -118,6 +118,12 @@ def main():
                     and transitive_cycle["stateUnchanged"] and transitive_cycle["fixtureCleaned"],
                     "Transitive cycle precompose was not rejected atomically")
             call("test.reset")
+            delete_redo = call("test.unpackDeleteRedo")
+            require(delete_redo["passed"] and delete_redo["deletedAfterUnpack"]
+                    and delete_redo["restoredByUndo"] and delete_redo["deletedByRedo"]
+                    and not delete_redo["state"]["lastChildExists"],
+                    "Delete-unpack Undo/Redo did not restore then remove the same child composition")
+            call("test.reset")
             external_parent = call("test.externalParentRestored")
             require(external_parent["passed"] and external_parent["externalParentStoredOnWrapper"]
                     and external_parent["externalParentClearedInChild"]

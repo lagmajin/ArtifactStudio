@@ -504,6 +504,56 @@ public:
             refresh();
             cycleResult["state"] = state();
             return cycleResult;
+        } else if (name == "test.unpackDeleteRedo") {
+            QJsonObject redoResult;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                redoResult["error"] = QStringLiteral("No root composition");
+                return redoResult;
+            }
+            const auto rootId = root->id();
+            const auto originalLayers = state()["layers"].toArray();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Delete Redo Fixture")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                redoResult["error"] = QStringLiteral("Could not create delete-redo precompose fixture");
+                return redoResult;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            const auto compositionCountBeforeDelete = ArtifactProjectManager::getInstance().compositionCount();
+            const bool unpacked = service->unprecomposeLayerWithUndo(outcome.precompLayerId, false);
+            const bool deletedAfterUnpack = unpacked &&
+                !service->findComposition(outcome.childCompId).ptr.lock() &&
+                ArtifactProjectManager::getInstance().compositionCount() + 1 == compositionCountBeforeDelete &&
+                state()["layers"].toArray() == originalLayers;
+            const bool undoAvailable = undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const bool restoredByUndo = undoAvailable &&
+                service->findComposition(outcome.childCompId).ptr.lock() &&
+                ArtifactProjectManager::getInstance().compositionCount() == compositionCountBeforeDelete &&
+                root->layerById(outcome.precompLayerId) &&
+                PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId);
+            const bool redoAvailable = undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const bool deletedByRedo = redoAvailable &&
+                !service->findComposition(outcome.childCompId).ptr.lock() &&
+                ArtifactProjectManager::getInstance().compositionCount() + 1 == compositionCountBeforeDelete &&
+                !root->layerById(outcome.precompLayerId) &&
+                !PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId) &&
+                state()["layers"].toArray() == originalLayers;
+            service->changeCurrentComposition(rootId);
+            redoResult["deletedAfterUnpack"] = deletedAfterUnpack;
+            redoResult["restoredByUndo"] = restoredByUndo;
+            redoResult["deletedByRedo"] = deletedByRedo;
+            redoResult["passed"] = deletedAfterUnpack && restoredByUndo && deletedByRedo;
+            if (!redoResult["passed"].toBool())
+                redoResult["error"] = QStringLiteral("Delete-unpack Undo/Redo did not restore the child and source layers consistently");
+            refresh();
+            redoResult["state"] = state();
+            return redoResult;
         } else if (name == "test.externalParentRestored") {
             QJsonObject parentResult;
             const auto parent = service->currentComposition().lock();
@@ -1433,7 +1483,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
