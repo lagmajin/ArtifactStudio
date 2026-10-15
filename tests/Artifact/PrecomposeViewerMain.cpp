@@ -351,6 +351,68 @@ public:
             refresh();
             result["state"] = state();
             return result;
+        } else if (name == "test.internalParentRestored") {
+            QJsonObject result;
+            if (!comp) {
+                result["error"] = QStringLiteral("No current composition");
+                return result;
+            }
+            const auto sourceIds = namedLayerIds(comp, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2) {
+                result["error"] = QStringLiteral("Internal-parent fixture is missing A/B layers");
+                return result;
+            }
+            const auto aId = sourceIds[0];
+            const auto bId = sourceIds[1];
+            const auto a = comp->layerById(aId);
+            const auto b = comp->layerById(bId);
+            if (!a || !b) {
+                result["error"] = QStringLiteral("Internal-parent fixture layers could not be resolved");
+                return result;
+            }
+            b->setParentById(aId);
+            const bool parentAuthored = b->parentLayerId() == aId;
+            const bool precomposed = parentAuthored && service->precomposeLayersWithUndo(
+                sourceIds, UniString(QStringLiteral("Internal Parent")), false, false,
+                PrecomposeMode::MoveSelected);
+            if (!precomposed) {
+                result["error"] = QStringLiteral("Could not precompose the internal-parent fixture");
+                return result;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto movedB = child ? child->layerById(bId) : ArtifactAbstractLayerPtr{};
+            const bool childParentPreserved = child && child->layerById(aId) && movedB &&
+                movedB->parentLayerId() == aId;
+            const bool unpacked = service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const auto unpackedB = comp->layerById(bId);
+            const bool unpackParentPreserved = unpacked && unpackedB &&
+                comp->layerById(aId) && unpackedB->parentLayerId() == aId;
+            const bool undoAvailable = undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto undoChild = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto undoB = undoChild ? undoChild->layerById(bId) : ArtifactAbstractLayerPtr{};
+            const bool undoParentPreserved = undoAvailable && undoB &&
+                undoChild->layerById(aId) && undoB->parentLayerId() == aId;
+            const bool redoAvailable = undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const auto redoB = comp->layerById(bId);
+            const bool redoParentPreserved = redoAvailable && redoB &&
+                comp->layerById(aId) && redoB->parentLayerId() == aId;
+            result["parentAuthored"] = parentAuthored;
+            result["childParentPreserved"] = childParentPreserved;
+            result["unpackParentPreserved"] = unpackParentPreserved;
+            result["undoParentPreserved"] = undoParentPreserved;
+            result["redoParentPreserved"] = redoParentPreserved;
+            result["passed"] = childParentPreserved && unpackParentPreserved &&
+                undoParentPreserved && redoParentPreserved;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Internal layer parenting changed across precompose/unpack/undo/redo");
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.transitiveCycleRejected") {
             QJsonObject cycleResult;
             const auto root = service->currentComposition().lock();
@@ -1200,7 +1262,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
