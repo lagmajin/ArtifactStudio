@@ -88,7 +88,9 @@ def main():
             require(invalid_requests["passed"] and invalid_requests["blankNameRejected"]
                     and invalid_requests["blankNameAtomic"]
                     and invalid_requests["invalidSelectionRejected"]
-                    and invalid_requests["invalidSelectionAtomic"],
+                    and invalid_requests["invalidSelectionAtomic"]
+                    and invalid_requests["emptySelectionRejected"]
+                    and invalid_requests["emptySelectionAtomic"],
                     "Invalid precompose requests were not rejected without side effects")
             call("test.reset")
             opened_child = call("test.openChildComposition")

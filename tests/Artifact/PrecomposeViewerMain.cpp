@@ -181,12 +181,24 @@ public:
                 ArtifactProjectManager::getInstance().compositionCount() == beforeCompositionCount &&
                 undo->undoCount() == beforeUndoCount && invalidSelectionOutcome.precompLayerId.isNil() &&
                 invalidSelectionOutcome.childCompId.isNil();
+            const bool emptySelectionRejected = !service->precomposeLayersWithUndo(
+                QVector<LayerID>{}, UniString(QStringLiteral("Empty Selection")), false, false,
+                PrecomposeMode::MoveSelected);
+            const auto emptySelectionOutcome = service->lastPrecomposeOutcome();
+            const bool emptySelectionAtomic = comp->allLayer().size() == beforeLayerCount &&
+                layers(comp, 0) == beforeLayers &&
+                ArtifactProjectManager::getInstance().compositionCount() == beforeCompositionCount &&
+                undo->undoCount() == beforeUndoCount && emptySelectionOutcome.precompLayerId.isNil() &&
+                emptySelectionOutcome.childCompId.isNil();
             invalidResult["blankNameRejected"] = blankNameRejected;
             invalidResult["blankNameAtomic"] = blankNameAtomic;
             invalidResult["invalidSelectionRejected"] = invalidSelectionRejected;
             invalidResult["invalidSelectionAtomic"] = invalidSelectionAtomic;
+            invalidResult["emptySelectionRejected"] = emptySelectionRejected;
+            invalidResult["emptySelectionAtomic"] = emptySelectionAtomic;
             invalidResult["passed"] = blankNameRejected && blankNameAtomic &&
-                invalidSelectionRejected && invalidSelectionAtomic;
+                invalidSelectionRejected && invalidSelectionAtomic && emptySelectionRejected &&
+                emptySelectionAtomic;
             if (!invalidResult["passed"].toBool())
                 invalidResult["error"] = QStringLiteral("Rejected precompose input mutated project state or history");
             refresh();
