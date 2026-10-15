@@ -126,12 +126,24 @@ def main():
             require(round_trip["passed"] and round_trip["parentChildLinkPreserved"]
                     and round_trip["layerStatePreserved"],
                     "Precompose save/reload changed parent-child link or layer state")
+            call("test.reset")
+            hierarchy = call("test.nestedHierarchy")
+            require(hierarchy["passed"] and hierarchy["hierarchyPreserved"]
+                    and hierarchy["timeRoundTripPreserved"],
+                    "Nested hierarchy or coordinate conversion did not round-trip")
+            require(hierarchy["hierarchy"] == [hierarchy["state"]["compositionId"],
+                    hierarchy["state"]["layers"][0]["childId"],
+                    hierarchy["state"]["layers"][0]["children"][0]["childId"]],
+                    "Nested hierarchy IDs do not match the visible parent-child tree")
+            grandchild = hierarchy["state"]["layers"][0]["children"][0]
+            require({layer["name"] for layer in grandchild["children"]} == {"A", "B"},
+                    "Grandchild composition content changed")
             image = request("tools/call", {"name": "test.capture", "arguments": {}})
             require(not image.get("isError") and image["content"][0]["type"] == "image", "Capture failed")
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
-            print("PASS: selected/all, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: selected/all, nested hierarchy/time, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
             try:

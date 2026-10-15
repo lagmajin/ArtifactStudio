@@ -146,6 +146,54 @@ public:
             failures_ = runPreComposeTests();
             reset();
             ok = failures_ == 0;
+        } else if (name == "test.nestedHierarchy") {
+            QJsonObject nestedResult;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                nestedResult["error"] = QStringLiteral("No root composition");
+                return nestedResult;
+            }
+            const auto rootId = root->id();
+            const auto outerIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (outerIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    outerIds, UniString(QStringLiteral("Outer Precompose")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                nestedResult["error"] = QStringLiteral("Could not create outer precompose");
+                return nestedResult;
+            }
+            const auto outer = service->lastPrecomposeOutcome();
+            service->changeCurrentComposition(outer.childCompId);
+            const auto middle = service->currentComposition().lock();
+            const auto innerIds = namedLayerIds(middle, {QStringLiteral("A"), QStringLiteral("B")});
+            if (!middle || innerIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    innerIds, UniString(QStringLiteral("Inner Precompose")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                nestedResult["error"] = QStringLiteral("Could not create inner precompose");
+                service->changeCurrentComposition(rootId);
+                return nestedResult;
+            }
+            const auto inner = service->lastPrecomposeOutcome();
+            const auto hierarchy = PreComposeManager::instance().getCompositionHierarchy(inner.childCompId);
+            const bool hierarchyOk = hierarchy.size() == 3 && hierarchy[0] == rootId &&
+                hierarchy[1] == outer.childCompId && hierarchy[2] == inner.childCompId;
+            const double rootTime = NestedTimeUtils::convertTime(5.0, inner.childCompId, rootId);
+            const double nestedTime = NestedTimeUtils::convertTime(rootTime, rootId, inner.childCompId);
+            const bool timeOk = rootTime == 45.0 && nestedTime == 5.0;
+            service->changeCurrentComposition(rootId);
+            childId_ = inner.childCompId;
+            hasChild_ = true;
+            nestedResult["hierarchy"] = QJsonArray{rootId.toString(), outer.childCompId.toString(),
+                                                   inner.childCompId.toString()};
+            nestedResult["hierarchyPreserved"] = hierarchyOk;
+            nestedResult["grandchildTimeInRoot"] = rootTime;
+            nestedResult["rootTimeInGrandchild"] = nestedTime;
+            nestedResult["timeRoundTripPreserved"] = timeOk;
+            nestedResult["passed"] = hierarchyOk && timeOk;
+            if (!nestedResult["passed"].toBool())
+                nestedResult["error"] = QStringLiteral("Nested hierarchy or time conversion changed unexpectedly");
+            refresh();
+            nestedResult["state"] = state();
+            return nestedResult;
         } else if (name == "test.saveReload") {
             QJsonObject roundTrip;
             auto& projects = ArtifactProjectManager::getInstance();
@@ -258,6 +306,16 @@ protected:
     }
 
 private:
+    static QVector<LayerID> namedLayerIds(const ArtifactCompositionPtr& comp,
+                                           const QStringList& names)
+    {
+        QVector<LayerID> result;
+        if (!comp) return result;
+        for (const auto& layer : comp->allLayer())
+            if (layer && names.contains(layer->layerName())) result.append(layer->id());
+        return result;
+    }
+
     static QJsonArray layers(const ArtifactCompositionPtr& comp, int depth)
     {
         QJsonArray result;
@@ -329,7 +387,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.precompose", "test.precomposeAll", "test.saveReload",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
