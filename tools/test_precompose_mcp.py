@@ -73,6 +73,12 @@ def main():
             require(cycle["passed"] and cycle["cycleRejected"] and cycle["stateUnchanged"]
                     and cycle["fixtureCleaned"],
                     "Cycle precompose was not rejected atomically")
+            call("test.reset")
+            transitive_cycle = call("test.transitiveCycleRejected")
+            require(transitive_cycle["passed"] and transitive_cycle["transitiveCycleRejected"]
+                    and transitive_cycle["stateUnchanged"] and transitive_cycle["fixtureCleaned"],
+                    "Transitive cycle precompose was not rejected atomically")
+            call("test.reset")
             initial = call("test.state")
             original = initial["layers"]
             nested = call("test.precompose")
@@ -143,7 +149,7 @@ def main():
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
-            print("PASS: selected/all, nested hierarchy/time, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: direct/transitive cycle guards, selected/all, nested hierarchy/time, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
             try:

@@ -141,6 +141,68 @@ public:
             refresh();
             cycleResult["state"] = state();
             return cycleResult;
+        } else if (name == "test.transitiveCycleRejected") {
+            QJsonObject cycleResult;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                cycleResult["error"] = QStringLiteral("No root composition");
+                return cycleResult;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Cycle Parent")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                cycleResult["error"] = QStringLiteral("Could not create cycle parent fixture");
+                return cycleResult;
+            }
+            const auto outer = service->lastPrecomposeOutcome();
+            service->changeCurrentComposition(outer.childCompId);
+            const auto child = service->currentComposition().lock();
+            if (!child) {
+                service->changeCurrentComposition(rootId);
+                cycleResult["error"] = QStringLiteral("Could not activate cycle child fixture");
+                return cycleResult;
+            }
+            ArtifactCompositionLayerInitParams params;
+            params.setName(UniString(QStringLiteral("Transitive Cycle Candidate")));
+            service->addLayerToCurrentComposition(params, false);
+            const auto candidateIds = namedLayerIds(child, {QStringLiteral("Transitive Cycle Candidate")});
+            const auto candidate = candidateIds.isEmpty()
+                ? SharedPtr<ArtifactCompositionLayer>{}
+                : dynamicPointerCast<ArtifactCompositionLayer>(child->layerById(candidateIds.front()));
+            if (!candidate) {
+                service->changeCurrentComposition(rootId);
+                cycleResult["error"] = QStringLiteral("Could not create composition-layer fixture");
+                return cycleResult;
+            }
+            candidate->setCompositionId(rootId);
+            const auto layerCountBefore = child->allLayer().size();
+            const auto compositionCountBefore = ArtifactProjectManager::getInstance().compositionCount();
+            const auto undoCountBefore = undo->undoCount();
+            const bool rejected = !service->precomposeLayersWithUndo(
+                {candidate->id()}, UniString(QStringLiteral("Rejected Transitive Cycle")),
+                false, false, PrecomposeMode::MoveSelected);
+            const auto outcome = service->lastPrecomposeOutcome();
+            const bool unchanged = child->allLayer().size() == layerCountBefore &&
+                child->layerById(candidate->id()) &&
+                !PreComposeManager::instance().isPrecomposeLayer(candidate->id()) &&
+                outcome.precompLayerId.isNil() && outcome.childCompId.isNil() &&
+                ArtifactProjectManager::getInstance().compositionCount() == compositionCountBefore &&
+                undo->undoCount() == undoCountBefore;
+            const bool removed = service->removeLayerFromComposition(child->id(), candidate->id());
+            service->changeCurrentComposition(rootId);
+            childId_ = outer.childCompId;
+            hasChild_ = true;
+            cycleResult["transitiveCycleRejected"] = rejected;
+            cycleResult["stateUnchanged"] = unchanged;
+            cycleResult["fixtureCleaned"] = removed;
+            cycleResult["passed"] = rejected && unchanged && removed;
+            if (!cycleResult["passed"].toBool())
+                cycleResult["error"] = QStringLiteral("Transitive cycle was accepted or mutated the project");
+            refresh();
+            cycleResult["state"] = state();
+            return cycleResult;
         }
         else if (name == "test.runRegression") {
             failures_ = runPreComposeTests();
@@ -387,7 +449,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.transitiveCycleRejected", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
