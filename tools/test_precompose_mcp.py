@@ -87,6 +87,13 @@ def main():
                     and opened_child["redoKeptRootFocused"] and opened_child["redoRestoredChild"],
                     "Open-child precompose navigation or undo/redo focus changed")
             call("test.reset")
+            workspace_duration = call("test.matchWorkspaceDuration")
+            require(workspace_duration["passed"]
+                    and workspace_duration["childDurationMatched"]
+                    and workspace_duration["childWorkAreaNormalized"]
+                    and workspace_duration["wrapperTimingPreserved"],
+                    "Precompose did not match workspace duration while preserving wrapper timing")
+            call("test.reset")
             transitive_cycle = call("test.transitiveCycleRejected")
             require(transitive_cycle["passed"] and transitive_cycle["transitiveCycleRejected"]
                     and transitive_cycle["stateUnchanged"] and transitive_cycle["fixtureCleaned"],
@@ -197,7 +204,7 @@ def main():
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
-            print("PASS: direct/transitive cycle guards, invalid-request atomicity, open-child navigation/focus, external parent restore, animated key timing/metadata in selected/all modes, nested hierarchy/time, existing-precompose reparenting, nested unpack registration/timing, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: direct/transitive cycle guards, invalid-request atomicity, open-child navigation/focus, workspace-matched duration, external parent restore, animated key timing/metadata in selected/all modes, nested hierarchy/time, existing-precompose reparenting, nested unpack registration/timing, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
             try:

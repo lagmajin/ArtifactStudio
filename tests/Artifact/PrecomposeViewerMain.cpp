@@ -34,6 +34,7 @@ import Artifact.Layer.Composition;
 import Property.Abstract;
 import Math.Interpolate;
 import Frame.Position;
+import Frame.Range;
 import Time.Rational;
 import Composition.PreCompose;
 import Undo.UndoManager;
@@ -246,6 +247,54 @@ public:
             hasChild_ = true;
             refresh();
             result["state"] = state();
+            return result;
+        } else if (name == "test.matchWorkspaceDuration") {
+            QJsonObject result;
+            if (!comp) {
+                result["error"] = QStringLiteral("No current composition");
+                return result;
+            }
+            const auto rootId = comp->id();
+            const FrameRange workspaceRange(30, 270);
+            if (workspaceRange.end() > comp->frameRange().end()) {
+                result["error"] = QStringLiteral("Fixture composition is shorter than the target workspace range");
+                return result;
+            }
+            comp->setWorkAreaRange(workspaceRange);
+            const auto sourceIds = namedLayerIds(comp, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Workspace Duration")), false, true,
+                    PrecomposeMode::MoveSelected)) {
+                result["error"] = QStringLiteral("Could not precompose using workspace duration");
+                return result;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto wrapper = ArtifactCore::dynamicPointerCast<ArtifactCompositionLayer>(
+                comp->layerById(outcome.precompLayerId));
+            const bool childDurationMatched = child && child->frameRange().start() == 0 &&
+                child->frameRange().duration() == workspaceRange.duration();
+            const bool childWorkAreaNormalized = child && child->workAreaRange().start() == 0 &&
+                child->workAreaRange().duration() == workspaceRange.duration();
+            const bool wrapperTimingPreserved = wrapper &&
+                wrapper->inPoint().framePosition() == 40 &&
+                wrapper->outPoint().framePosition() == 200 &&
+                wrapper->startTime().framePosition() == 40;
+            result["workspaceDuration"] = workspaceRange.duration();
+            result["childDuration"] = child ? child->frameRange().duration() : -1;
+            result["childWorkAreaDuration"] = child ? child->workAreaRange().duration() : -1;
+            result["childDurationMatched"] = childDurationMatched;
+            result["childWorkAreaNormalized"] = childWorkAreaNormalized;
+            result["wrapperTimingPreserved"] = wrapperTimingPreserved;
+            result["passed"] = childDurationMatched && childWorkAreaNormalized &&
+                wrapperTimingPreserved;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Precompose child did not match workspace duration or wrapper timing");
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            refresh();
+            result["state"] = state();
+            service->changeCurrentComposition(rootId);
             return result;
         } else if (name == "test.transitiveCycleRejected") {
             QJsonObject cycleResult;
@@ -1026,7 +1075,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.reparentExistingPrecompose", "test.unprecomposeNested",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.reparentExistingPrecompose", "test.unprecomposeNested",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
