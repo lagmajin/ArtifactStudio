@@ -2,6 +2,13 @@
 
 # Insight Register
 
+## 2026-10-15: 独立GUIテストの共通MCPヘルパー参照と実ファイルの整合
+
+- **関連:** `tests/Artifact/FbxAnimationViewerMain.cpp`、`docs/planned/MILESTONE_FBX_ANIMATION_VIEWER_TEST_2026-10-14.md`。
+- **確認できた事実:** このチェックアウトではFBXテストがincludeする `tests/ArtifactTestMcpServer.h` と `tests/ArtifactTestWindowCapture.h`、文書で参照する `tools/test_mcp_client.py` が存在しない。プリコンポーズ独立テストは製品変更を避けるため専用のWindows stdio経路を持つ。
+- **価値／懸念:** 文書だけから共通テスト基盤を再利用すると、欠落依存でビルドできない可能性がある。他checkoutでの存在・履歴は未検証。
+- **次に確認:** FBXテストを次回変更する際、共通ヘルパーの元コミットと追跡状態を確認し、実ファイルが揃ってから各GUIテストの通信処理を統合できるか検討する。
+
 ## 2026-10-15: Preserve straight alpha across PNG import and export
 
 - **関連:** `ArtifactCore/src/IO/Image/ImageExporter.cppm`, `ArtifactCore/src/IO/Image/ImageImporter.cppm`, `tests/ArtifactCore/ImageIoContractTest.cpp`。

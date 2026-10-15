@@ -873,6 +873,9 @@ option(ARTIFACT_ENABLE_KEYING_VIDEO_TEST
 option(ARTIFACT_BUILD_FBX_ANIMATION_VIEWER
     "Build the independent FBX animation preview executable"
     OFF)
+option(ARTIFACT_BUILD_PRECOMPOSE_VIEWER
+    "Build the independent precompose GUI and MCP regression executable"
+    OFF)
 option(ARTIFACT_ENABLE_FBX_IMPORT_TEST
     "Build the FBX animation and embedded-texture importer test"
     OFF)
@@ -910,6 +913,26 @@ function(artifact_add_cppwinrt_include target_name)
     message(FATAL_ERROR
         "Could not locate the Windows SDK C++/WinRT include directory for ${target_name}")
 endfunction()
+
+if(ARTIFACT_BUILD_PRECOMPOSE_VIEWER)
+    if(NOT WIN32)
+        message(FATAL_ERROR "ArtifactPrecomposeViewer stdio transport currently requires Windows")
+    endif()
+    add_executable(ArtifactPrecomposeViewer tests/Artifact/PrecomposeViewerMain.cpp)
+    target_link_libraries(ArtifactPrecomposeViewer PRIVATE ArtifactAppRuntime)
+    target_include_directories(ArtifactPrecomposeViewer PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/verdigris/src")
+    set_target_properties(ArtifactPrecomposeViewer PROPERTIES
+        CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>")
+    target_compile_options(ArtifactPrecomposeViewer PRIVATE /utf-8 /EHsc)
+    add_custom_command(TARGET ArtifactPrecomposeViewer POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:ArtifactPrecomposeViewer>
+            "$<TARGET_FILE_DIR:ArtifactPrecomposeViewer>/"
+        COMMAND_EXPAND_LISTS VERBATIM)
+endif()
 
 if(ARTIFACT_BUILD_FBX_ANIMATION_VIEWER)
     add_executable(ArtifactFbxAnimationViewer
