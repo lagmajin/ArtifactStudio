@@ -81,8 +81,8 @@ def main():
                         (in_frame, out_frame, start_frame), f"Unexpected fixture timing for {name}")
             cycle = call("test.cycleRejected")
             require(cycle["passed"] and cycle["cycleRejected"] and cycle["stateUnchanged"]
-                    and cycle["fixtureCleaned"],
-                    "Cycle precompose was not rejected atomically")
+                    and cycle["selectionPreserved"] and cycle["fixtureCleaned"],
+                    "Cycle precompose was not rejected without changing project or selection state")
             call("test.reset")
             invalid_requests = call("test.invalidRequestsAtomic")
             require(invalid_requests["passed"] and invalid_requests["blankNameRejected"]

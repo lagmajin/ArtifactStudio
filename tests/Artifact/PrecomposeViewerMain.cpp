@@ -131,8 +131,24 @@ public:
             }
             candidate->setCompositionId(comp->id());
             undo->clearHistory();
+            auto* selection = ArtifactLayerSelectionManager::instance();
+            if (!selection) {
+                cycleResult["error"] = QStringLiteral("Layer-selection service is unavailable");
+                return cycleResult;
+            }
+            const auto expectedCompositionId = comp->id();
+            service->selectLayer(candidate->id());
+            const auto selectionUnchanged = [&]() {
+                const auto active = selection->activeComposition();
+                const auto current = selection->currentLayer();
+                const auto selected = selection->selectedLayersInOrder();
+                return active && active->id() == expectedCompositionId && current &&
+                    current->id() == candidate->id() && selected.size() == 1 &&
+                    selected.front() && selected.front()->id() == candidate->id();
+            };
             const auto countBefore = comp->allLayer().size();
             const auto undoBefore = undo->undoCount();
+            const auto redoBefore = undo->redoCount();
             const bool rejected = !service->precomposeLayersWithUndo(
                 {candidate->id()}, UniString(QStringLiteral("Rejected Cycle")),
                 false, false, PrecomposeMode::MoveSelected);
@@ -141,13 +157,16 @@ public:
                 comp->layerById(candidate->id()) &&
                 !PreComposeManager::instance().isPrecomposeLayer(candidate->id()) &&
                 outcome.precompLayerId.isNil() && outcome.childCompId.isNil() &&
-                undo->undoCount() == undoBefore;
+                undo->undoCount() == undoBefore && undo->redoCount() == redoBefore &&
+                selectionUnchanged();
+            const bool selectionPreserved = selectionUnchanged();
             const bool removed =
                 service->removeLayerFromComposition(comp->id(), candidate->id());
             cycleResult["cycleRejected"] = rejected;
             cycleResult["stateUnchanged"] = unchanged;
+            cycleResult["selectionPreserved"] = selectionPreserved;
             cycleResult["fixtureCleaned"] = removed;
-            cycleResult["passed"] = rejected && unchanged && removed;
+            cycleResult["passed"] = rejected && unchanged && selectionPreserved && removed;
             if (!cycleResult["passed"].toBool()) reset();
             refresh();
             cycleResult["state"] = state();
