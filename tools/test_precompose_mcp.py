@@ -201,12 +201,19 @@ def main():
                     and unpacked_nested["undoRestoredNesting"]
                     and unpacked_nested["redoRemovedNesting"],
                     "Nested unpack changed timing or runtime nesting across undo/redo")
+            call("test.reset")
+            noncontiguous = call("test.nonContiguousSelectionOrder")
+            require(noncontiguous["passed"] and noncontiguous["childOrderPreserved"]
+                    and noncontiguous["originalOrderRestored"]
+                    and noncontiguous["undoRestoredPrecompose"]
+                    and noncontiguous["redoRestoredOriginalOrder"],
+                    "Noncontiguous precompose/unpack did not restore source layer ordering")
             image = request("tools/call", {"name": "test.capture", "arguments": {}})
             require(not image.get("isError") and image["content"][0]["type"] == "image", "Capture failed")
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
-            print("PASS: direct/transitive cycle guards, invalid-request atomicity, open-child navigation/focus, workspace-matched duration, external parent restore, animated key timing/metadata in selected/all modes, nested hierarchy/time, existing-precompose reparenting, nested unpack registration/timing, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: direct/transitive cycle guards, invalid-request atomicity, open-child navigation/focus, workspace-matched duration, external parent restore, animated key timing/metadata in selected/all modes, nested hierarchy/time, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
             try:

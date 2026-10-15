@@ -829,6 +829,52 @@ public:
             refresh();
             result["state"] = state();
             return result;
+        } else if (name == "test.nonContiguousSelectionOrder") {
+            QJsonObject result;
+            if (!comp) {
+                result["error"] = QStringLiteral("No current composition");
+                return result;
+            }
+            const auto originalState = layers(comp, 0);
+            LayerID aId;
+            LayerID untouchedId;
+            for (const auto& layer : comp->allLayer()) {
+                if (!layer) continue;
+                if (layer->layerName() == QStringLiteral("A")) aId = layer->id();
+                if (layer->layerName() == QStringLiteral("Untouched")) untouchedId = layer->id();
+            }
+            if (aId.isNil() || untouchedId.isNil() || !service->precomposeLayersWithUndo(
+                    {untouchedId, aId}, UniString(QStringLiteral("Noncontiguous Selection")),
+                    false, false, PrecomposeMode::MoveSelected)) {
+                result["error"] = QStringLiteral("Could not precompose the noncontiguous fixture selection");
+                return result;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const bool childOrderPreserved = child && child->allLayer().size() == 2 &&
+                child->allLayer()[0]->id() == aId && child->allLayer()[1]->id() == untouchedId;
+            const auto precomposedState = layers(comp, 0);
+            const bool unpacked = service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const bool originalOrderRestored = unpacked && layers(comp, 0) == originalState;
+            const bool undoAvailable = undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const bool undoRestoredPrecompose = undoAvailable && layers(comp, 0) == precomposedState;
+            const bool redoAvailable = undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const bool redoRestoredOriginalOrder = redoAvailable && layers(comp, 0) == originalState;
+            result["childOrderPreserved"] = childOrderPreserved;
+            result["originalOrderRestored"] = originalOrderRestored;
+            result["undoRestoredPrecompose"] = undoRestoredPrecompose;
+            result["redoRestoredOriginalOrder"] = redoRestoredOriginalOrder;
+            result["passed"] = childOrderPreserved && originalOrderRestored &&
+                undoRestoredPrecompose && redoRestoredOriginalOrder;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Noncontiguous precompose/unpack changed source layer ordering");
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.saveReload") {
             QJsonObject roundTrip;
             auto& projects = ArtifactProjectManager::getInstance();
@@ -1076,7 +1122,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.reparentExistingPrecompose", "test.unprecomposeNested",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

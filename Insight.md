@@ -3340,3 +3340,11 @@
 - **変更:** Cineon DPX書き出しへ標準transfer metadataを付け、ImporterはDPXのKodakLog/Logarithmic組み合わせをCineonと判断する。`oiio:BitsPerSample`をRawImageへ反映する。独立基準値によるCineon code valueとRGB/alphaの往復をテストする。
 - **価値／懸念:** DPXの規格フィールドとOIIO固有のtransfer名を混同せず、素材metadataをコア転送関数へつなげられる。packing詳細はOIIO writer依存であり、別のOIIO build/pluginでは再確認が必要。
 - **次に確認:** 別のOIIO build/pluginでも標準DPX headerとpackingを読み戻せるか確認する。
+
+## 2026-10-15: 非連続プリコンポーズ解除でのレイヤー順復元
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm` の `unprecomposeLayerInCurrentComposition()`、`tests/Artifact/PrecomposeViewerMain.cpp`。
+- **確認できた事実:** 解除処理はプリコンポレイヤーの挿入位置を記録し、復元する各レイヤーを `insertIndex + i` へ順番に配置する。移動対象が元Composition内で非連続だった場合の順序契約は、既存MCPテストで検査されていなかった。
+- **未検証の仮説:** AとUntouchedを選びBを残す非連続選択では、逐次挿入位置がシフトし、解除後の順序が元のA/B/Untouchedと異なる可能性がある。`test.nonContiguousSelectionOrder` を追加したが、実行は未確認。
+- **価値／懸念:** レイヤー順は描画重なりや編集結果に影響するため、連続選択だけでなく隙間を含む選択解除の回帰検知が必要。
+- **次に確認:** 許可されたGUIテスト実行で解除・Undo・Redo後のレイヤー順が一致するか確認する。
