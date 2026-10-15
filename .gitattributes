@@ -12,10 +12,12 @@
 *.hpp     text eol=lf
 *.hxx     text eol=lf
 *.ixx     text eol=lf
+*.inc     text eol=lf
 *.cppm    text eol=lf
 *.cmake   text eol=lf
 CMakeLists.txt text eol=lf
 tools/Particle2DPlayground/*.md text eol=lf
+tests/shape_visual/*.md text eol=lf
 
 # Keep agent/developer instructions and repository metadata portable too.
 *.json    text eol=lf

@@ -2,6 +2,59 @@
 
 # Insight Register
 
+## 2026-10-15: 共有子Composition解除時のsource layer所有権
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm` の `unprecomposeLayerInCurrentComposition()`、`ArtifactCore/src/Composition/PreCompose.cppm` の `unregisterPrecompLayer()`、`tests/Artifact/PrecomposeViewerMain.cpp` の `test.sharedChildReferences`。
+- **確認できた事実:** `PreComposeManager` は同じchildを複数のwrapperから参照でき、1件の解除では他のwrapper登録を残す。一方、Serviceの解除処理は残存参照を確認せずchildのlayer objectを親へ移動する。
+- **未検証の仮説:** 残存wrapperのsource childが空になり、その後の描画・保存・編集で共有composition参照が破損した状態になる可能性がある。追加した独立MCPケースは解除後とRedo後のsource layer ID保持を要求するが、実行していない。
+- **価値／懸念:** 登録mapだけでなく、複数wrapper間で共有するCompositionデータの所有権・解除契約を回帰検知できる。期待動作が「解除拒否」「残存参照向けの内容複製」「共有を許さない」などのどれかは仕様確認が必要。
+- **次に確認:** ユーザーが許可したビルド・実行で `test.sharedChildReferences` の実結果を確かめ、期待する共有Compositionの解除仕様を決める。テスト依頼の範囲を越えるService変更は別途指示を待つ。
+
+## 2026-10-15: シェイプ描画テストで自動保存される初期形状を除去する
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm` の `addShapeContent()`、`tests/shape_visual/ShapeVisualCases.inc`。
+- **確認できた事実:** 空の content 配列へ最初の content を追加すると、指定 content より先に `makeContentFromLegacy()` の結果が格納される。content の Intersect は先行 content の描画を消さず、後続 content の形状だけを先行形状で切り抜く。
+- **価値／懸念:** 初期矩形が穴や透明領域を覆い、意図した入力と異なる画像を検証する恐れがある。専用テストでは初期 snapshot を除去し、content Intersect の入力は塗りを無効にして演算結果を分離した。
+- **次に確認:** ユーザーが許可したビルド・実行で実際の座標と alpha を確認する。製品側の仕様変更を提案するものではない。
+
+## 2026-10-15: 既存プリコンポーズレイヤー移動時の親階層登録
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm`、`ArtifactCore/src/Composition/PreCompose.cppm`、`tests/Artifact/PrecomposeViewerMain.cpp`。
+- **確認できた事実:** `precomposeLayersInCurrentComposition()` は新規ラッパーレイヤーを `PreComposeManager::registerPrecompLayer()` に登録する。一方、選択レイヤーとして移動する既存プリコンポーズレイヤーについて、移動先親への登録更新は確認できなかった。
+- **未検証の仮説:** 既存プリコンポーズをさらに別のプリコンポーズへ移動すると、Managerの親参照とComposition階層が以前の親のまま残る可能性がある。独立MCPケース `test.reparentExistingPrecompose` は移動時に加え、Undoで元親、Redoでラッパー親へ登録が戻るかも検査する。実行は未確認。
+- **価値／懸念:** ネスト済みcompositionの親逆引きや時間変換が、再編成後に古い親構造へ依存する回帰を検出できる。
+- **次に確認:** 許可されたビルド／テスト実行で新ケースを動かし、失敗した場合はテストだけの依頼範囲を越えずに結果を報告する。
+
+## 2026-10-15: ネストしたプリコンポーズ解除時のManager登録と時間復元
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm` の `unprecomposeLayerInCurrentComposition()`、`ArtifactCore::PreComposeManager`、`tests/Artifact/PrecomposeViewerMain.cpp`。
+- **確認できた事実:** 解除経路は子レイヤーを親compositionへ戻し、非ゼロのnest start offsetを `slideTimingBy()` で戻した後、Managerの `unprecompose()` を呼ぶ。Undo/Redoでは別コマンド経由でネスト登録を復元する。
+- **未検証の仮説:** ルート→子→孫の孫階層を解除・Undo・Redoした際、レイヤー時間とManagerの親参照が全段で一貫して復元されるか、既存ケースでは直接確認していない。
+- **価値／懸念:** 見た目のツリーだけでなく、孫レイヤーID・In/Out/Startと実行時のネスト登録が保たれることを回帰検知する。
+- **次に確認:** `test.unprecomposeNested` の実行は未確認。許可された環境でテスト実行し、結果を確認する。
+
+## 2026-10-15: プリコンポーズのプロジェクト再読込後に実行時ネスト登録を確認する
+
+- **関連:** `PreComposeManager`、`ArtifactProjectManager::loadFromFile()`、`tests/Artifact/PrecomposeViewerMain.cpp`。
+- **確認できた事実:** `ArtifactProjectManager::loadFromFile()` はインポートしたProjectを差し替えて `ProjectCreatedEvent` をpublishする。確認したImporterとProjectCreated handlerには `PreComposeManager` の復元呼び出しがなく、プロジェクトコードを含む検索でも再読込経路の登録箇所は見つからなかった。プリコンポーズレイヤー自身には `sourceCompositionId()` があり、永続レイヤーデータ上の参照とメモリー上のネスト登録は別経路である。
+- **未検証の仮説:** `PreComposeManager` 登録が再読込後に復元されず、親逆引き・階層時間変換が使えなくなる可能性が高い。ただし実行確認はまだ行っておらず、静的検索だけでは最終判定できない。
+- **価値／懸念:** プロジェクトの親子参照が永続化されても、プロセス内のネスト補助状態が復元されない場合、編集・時間変換機能が再起動後に不整合になる恐れがある。
+- **次に確認:** 独立GUIテストは保存後に対象登録を明示解除し、再読込後の `isPrecomposeLayer()`、`getCompositionNesting()`、子からの親逆引きを確認するよう拡張中。実行時に欠落が確認された場合の製品側復元変更は、テスト追加とは別の依頼または設計判断を待つ。
+
+## 2026-10-15: 独立GUIテストの共通MCPヘルパー参照と実ファイルの整合
+
+- **関連:** `tests/Artifact/FbxAnimationViewerMain.cpp`、`docs/planned/MILESTONE_FBX_ANIMATION_VIEWER_TEST_2026-10-14.md`。
+- **確認できた事実:** このチェックアウトではFBXテストがincludeする `tests/ArtifactTestMcpServer.h` と `tests/ArtifactTestWindowCapture.h`、文書で参照する `tools/test_mcp_client.py` が存在しない。プリコンポーズ独立テストは製品変更を避けるため専用のWindows stdio経路を持つ。
+- **価値／懸念:** 文書だけから共通テスト基盤を再利用すると、欠落依存でビルドできない可能性がある。他checkoutでの存在・履歴は未検証。
+- **次に確認:** FBXテストを次回変更する際、共通ヘルパーの元コミットと追跡状態を確認し、実ファイルが揃ってから各GUIテストの通信処理を統合できるか検討する。
+
+## 2026-10-15: Preserve straight alpha across PNG import and export
+
+- **関連:** `ArtifactCore/src/IO/Image/ImageExporter.cppm`, `ArtifactCore/src/IO/Image/ImageImporter.cppm`, `tests/ArtifactCore/ImageIoContractTest.cpp`。
+- **確認できた事実:** A half-alpha PNG round-trip changed RGB because OpenImageIO's PNG output/input plugins assume associated alpha by default, while `QImage::Format_RGBA8888` and `RawImage` use straight/raw channel values. Setting the OIIO `oiio:UnassociatedAlpha` attribute disables the implicit alpha division/multiplication in the PNG plugins.
+- **変更・検証:** The image exporter marks 4-channel input as unassociated; the importer supplies that option at read time. Added tests cover half-alpha QImage and ImageBuf PNG round-trips, both of which pass.
+- **次に確認:** If more image formats gain OIIO support, verify each plugin's alpha convention and metadata behavior separately; this result covers the PNG path.
+
 ## 2026-10-15: 2D particle render-queue test must distinguish particles from background
 
 - **関連:** `tests/Artifact/RenderQueueLayerImageIntegrationTest.cpp`、`Artifact/src/Render/ArtifactOffscreenCompositionRenderer.cppm`、`ArtifactCore/src/Graphics/ParticleRenderer.cppm`。
@@ -3421,3 +3474,19 @@
 - **追加確認・修正:** 回帰テストから`FFmpegAudioDecoder::openFile()`を直接呼ぶと、`avformat_open_input()`成功後の`avformat_find_stream_info()`内でSEH access violationを再現した。原因となったstream-info呼び出しの`threads` / `thread_type` AVDictionary渡しを削除し、codec open側の単一スレッド設定は維持した。テストはmuxed AACをopenし、最初のdecoded segmentを取得する確認を追加。修正後、同じDebugテスト1件が成功した。
 - **価値／懸念:** テストはencoded MP4の映像色切替、AAC codec／sample rate／channel数、muxed AACの抽出後durationと時刻窓ごとのRMS、`FFmpegAudioDecoder`によるopen/decodeを一つの同期契約として確認する。`ArtifactVideoLayer::getAudio()`のfalse応答は別経路の観測として残り、今回の修正対象外。
 - **次に確認:** 対象Debugテスト1件は成功。全suite、他のFFmpeg codec構成やGPU adapterでの再現性は未確認。
+
+## 2026-10-15: DPX writerはCineon transferとビット深度を個別メタデータで保持する
+
+- **関連:** `ArtifactCore/src/IO/Image/ImageExporter.cppm`、`ArtifactCore/src/IO/Image/ImageImporter.cppm`、`ImageExportOptions::bitsPerSample`。
+- **確認済み事実:** OIIO DPX writerは汎用 `TransferFunction` 文字列を標準transferとして保存せず、`oiio:ColorSpace=sRGB` があると `dpx:Transfer` より優先して709として読む場合があった。Cineon出力に `oiio:ColorSpace=KodakLog` と `dpx:Transfer=Logarithmic` を設定し、UINT16コンテナに `oiio:BitsPerSample` を指定すると、10 / 12 / 16 bitの実DPXファイルで指定深度とtransfer headerを読み戻せる。
+- **変更:** Cineon DPX書き出しへ標準transfer metadataを付け、ImporterはDPXのKodakLog/Logarithmic組み合わせをCineonと判断する。`oiio:BitsPerSample`をRawImageへ反映する。独立基準値によるCineon code valueとRGB/alphaの往復をテストする。
+- **価値／懸念:** DPXの規格フィールドとOIIO固有のtransfer名を混同せず、素材metadataをコア転送関数へつなげられる。packing詳細はOIIO writer依存であり、別のOIIO build/pluginでは再確認が必要。
+- **次に確認:** 別のOIIO build/pluginでも標準DPX headerとpackingを読み戻せるか確認する。
+
+## 2026-10-15: 非連続プリコンポーズ解除でのレイヤー順復元
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm` の `unprecomposeLayerInCurrentComposition()`、`tests/Artifact/PrecomposeViewerMain.cpp`。
+- **確認できた事実:** 解除処理はプリコンポレイヤーの挿入位置を記録し、復元する各レイヤーを `insertIndex + i` へ順番に配置する。移動対象が元Composition内で非連続だった場合の順序契約は、既存MCPテストで検査されていなかった。
+- **未検証の仮説:** AとUntouchedを選びBを残す非連続選択では、逐次挿入位置がシフトし、解除後の順序が元のA/B/Untouchedと異なる可能性がある。`test.nonContiguousSelectionOrder` を追加したが、実行は未確認。
+- **価値／懸念:** レイヤー順は描画重なりや編集結果に影響するため、連続選択だけでなく隙間を含む選択解除の回帰検知が必要。
+- **次に確認:** 許可されたGUIテスト実行で解除・Undo・Redo後のレイヤー順が一致するか確認する。
