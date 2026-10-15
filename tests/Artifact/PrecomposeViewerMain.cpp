@@ -41,6 +41,7 @@ import Property.Abstract;
 import Property.ExposedPropertyRegistry;
 import Math.Interpolate;
 import Frame.Position;
+import Frame.Rate;
 import Frame.Range;
 import Time.Rational;
 import Composition.PreCompose;
@@ -1230,6 +1231,72 @@ public:
             refresh();
             roundTrip["state"] = state();
             return roundTrip;
+        } else if (name == "test.rationalFrameRatePreserved") {
+            QJsonObject rateResult;
+            const auto parent = service->currentComposition().lock();
+            if (!parent) {
+                rateResult["error"] = QStringLiteral("No current composition");
+                return rateResult;
+            }
+            const auto rootId = parent->id();
+            const auto exactRate = FrameRate::fromRational(30000, 1001);
+            parent->setFrameRate(exactRate);
+            const auto hasExactRate = [](const ArtifactCore::FrameRate& rate) {
+                return rate.hasExactRational() && rate.numerator() == 30000 &&
+                    rate.denominator() == 1001;
+            };
+            const auto sourceIds = namedLayerIds(parent, {QStringLiteral("A"), QStringLiteral("B")});
+            const bool selectedPrecomposed = sourceIds.size() == 2 && hasExactRate(parent->frameRate()) &&
+                service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Rational Selected Rate")), false, false,
+                    PrecomposeMode::MoveSelected);
+            const auto selectedOutcome = service->lastPrecomposeOutcome();
+            const auto selectedChild = service->findComposition(selectedOutcome.childCompId).ptr.lock();
+            const auto selectedRatePreserved = selectedPrecomposed && selectedChild &&
+                hasExactRate(selectedChild->frameRate());
+            const bool selectedUnpacked = selectedPrecomposed &&
+                service->unprecomposeLayerWithUndo(selectedOutcome.precompLayerId, true);
+            const bool parentRateAfterSelected = hasExactRate(parent->frameRate());
+            QVector<LayerID> allIds;
+            for (const auto& layer : parent->allLayer())
+                if (layer) allIds.append(layer->id());
+            const bool allPrecomposed = selectedUnpacked && !allIds.isEmpty() &&
+                service->precomposeLayersWithUndo(
+                    allIds, UniString(QStringLiteral("Rational All Rate")), false, false,
+                    PrecomposeMode::MoveAllAttributes);
+            const auto allOutcome = service->lastPrecomposeOutcome();
+            const auto allChild = service->findComposition(allOutcome.childCompId).ptr.lock();
+            const bool allRatePreserved = allPrecomposed && allChild &&
+                hasExactRate(allChild->frameRate());
+            const bool allUnpacked = allPrecomposed &&
+                service->unprecomposeLayerWithUndo(allOutcome.precompLayerId, true);
+            const bool undoAvailable = undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto undoChild = service->findComposition(allOutcome.childCompId).ptr.lock();
+            const bool undoRatePreserved = undoAvailable && undoChild &&
+                hasExactRate(parent->frameRate()) && hasExactRate(undoChild->frameRate()) &&
+                PreComposeManager::instance().isPrecomposeLayer(allOutcome.precompLayerId);
+            const bool redoAvailable = undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const bool redoRestored = redoAvailable && hasExactRate(parent->frameRate()) &&
+                !PreComposeManager::instance().isPrecomposeLayer(allOutcome.precompLayerId);
+            rateResult["selectedRatePreserved"] = selectedRatePreserved;
+            rateResult["parentRateAfterSelected"] = parentRateAfterSelected;
+            rateResult["allRatePreserved"] = allRatePreserved;
+            rateResult["allUnpacked"] = allUnpacked;
+            rateResult["undoRatePreserved"] = undoRatePreserved;
+            rateResult["redoRestored"] = redoRestored;
+            rateResult["passed"] = selectedRatePreserved && selectedUnpacked &&
+                parentRateAfterSelected && allRatePreserved && allUnpacked &&
+                undoRatePreserved && redoRestored;
+            if (!rateResult["passed"].toBool())
+                rateResult["error"] = QStringLiteral("Exact rational frame rate changed across selected/all precompose or undo/redo");
+            service->changeCurrentComposition(rootId);
+            childId_ = allOutcome.childCompId;
+            hasChild_ = true;
+            refresh();
+            rateResult["state"] = state();
+            return rateResult;
         } else if (name == "test.negativeTimingRoundTrip") {
             QJsonObject timingResult;
             const auto parent = service->currentComposition().lock();
@@ -2261,7 +2328,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

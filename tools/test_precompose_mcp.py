@@ -119,6 +119,13 @@ def main():
                     and negative_timing["undoRestored"] and negative_timing["redoRestored"],
                     "Negative frame timing or key offsets changed across precompose/unprecompose/undo/redo")
             call("test.reset")
+            rational_rate = call("test.rationalFrameRatePreserved")
+            require(rational_rate["passed"] and rational_rate["selectedRatePreserved"]
+                    and rational_rate["parentRateAfterSelected"] and rational_rate["allRatePreserved"]
+                    and rational_rate["allUnpacked"] and rational_rate["undoRatePreserved"]
+                    and rational_rate["redoRestored"],
+                    "Exact rational frame rate changed across selected/all precompose or undo/redo")
+            call("test.reset")
             workspace_duration = call("test.matchWorkspaceDuration")
             require(workspace_duration["passed"]
                     and workspace_duration["childOpened"]
