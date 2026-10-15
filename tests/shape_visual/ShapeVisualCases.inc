@@ -550,4 +550,75 @@ TEST_F(ShapeVisualTest, ConcaveRosetteWith256VerticesAndReflection)
     capture("concave_rosette_reflected", check);
 }
 
+TEST_F(ShapeVisualTest, SixtyFourHolePerforatedSheet)
+{
+    auto* layer = addLayer();
+    ASSERT_NE(layer, nullptr);
+    ASSERT_TRUE(addContent(*layer, shapeVisualRectangle(32, 32, 448, 448)));
+    for (int row = 0; row < 8; ++row) {
+        for (int column = 0; column < 8; ++column) {
+            auto hole = shapeVisualRectangle(44 + column * 56, 44 + row * 56, 32, 32);
+            hole.merge = Artifact::ShapeContentMerge::Subtract;
+            ASSERT_TRUE(addContent(*layer, hole));
+        }
+    }
+    ASSERT_EQ(layer->shapeContentCount(), 65);
+    capture("perforated_sheet_64_holes", [](const auto& image) {
+        for (int row = 0; row < 8; ++row) {
+            for (int column = 0; column < 8; ++column) {
+                EXPECT_LT(qAlpha(image.pixel(60 + column * 56, 60 + row * 56)), 10)
+                    << "hole=" << column << "," << row;
+                EXPECT_GT(qAlpha(image.pixel(84 + column * 56, 60 + row * 56)), 240)
+                    << "bridge=" << column << "," << row;
+            }
+        }
+        EXPECT_LT(qAlpha(image.pixel(16, 16)), 10);
+        return !testing::Test::HasFailure();
+    });
+}
+
+TEST_F(ShapeVisualTest, SixtyFourRotatedTranslucentSpokes)
+{
+    auto* layer = addLayer();
+    ASSERT_NE(layer, nullptr);
+    for (int index = 0; index < 64; ++index) {
+        auto spoke = shapeVisualRectangle(48, 250, 416, 12);
+        spoke.transform.anchor = QPointF(256, 256);
+        spoke.transform.rotation = index * (180.0 / 64.0);
+        spoke.fill.color = ArtifactCore::FloatColor(1, 0, 0, 0.05f);
+        ASSERT_TRUE(addContent(*layer, spoke));
+    }
+    capture("rotated_translucent_spokes_64", [](const auto& image) {
+        const double expected = 255.0 * (1.0 - std::pow(0.95, 64));
+        EXPECT_NEAR(qAlpha(image.pixel(256, 256)), expected, 8);
+        EXPECT_LT(qAlpha(image.pixel(16, 16)), 10);
+        EXPECT_LT(qAlpha(image.pixel(490, 256)), 10);
+        EXPECT_GT(qAlpha(image.pixel(100, 256)), 5);
+        return !testing::Test::HasFailure();
+    });
+}
+
+TEST_F(ShapeVisualTest, ClippedBezierAtAllCanvasEdges)
+{
+    auto* layer = addLayer();
+    ASSERT_NE(layer, nullptr);
+    auto content = shapeVisualCurve();
+    content.transform.anchor = QPointF(256, 256);
+    content.transform.scale = QPointF(1.5, 1.5);
+    ASSERT_TRUE(addContent(*layer, content));
+    auto hole = shapeVisualRectangle(192, 192, 128, 128);
+    hole.merge = Artifact::ShapeContentMerge::Subtract;
+    ASSERT_TRUE(addContent(*layer, hole));
+    capture("clipped_bezier_four_edges", [](const auto& image) {
+        EXPECT_GT(qAlpha(image.pixel(4, 256)), 240);
+        EXPECT_GT(qAlpha(image.pixel(507, 256)), 240);
+        EXPECT_GT(qAlpha(image.pixel(256, 4)), 240);
+        EXPECT_GT(qAlpha(image.pixel(256, 507)), 240);
+        EXPECT_LT(qAlpha(image.pixel(256, 256)), 10);
+        EXPECT_LT(qAlpha(image.pixel(4, 4)), 10);
+        EXPECT_LT(qAlpha(image.pixel(507, 507)), 10);
+        return !testing::Test::HasFailure();
+    });
+}
+
 } // namespace
