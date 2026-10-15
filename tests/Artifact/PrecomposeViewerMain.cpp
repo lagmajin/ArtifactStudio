@@ -448,42 +448,59 @@ public:
                 cycleResult["error"] = QStringLiteral("Could not activate cycle child fixture");
                 return cycleResult;
             }
+            const auto nestedSourceIds = namedLayerIds(child, {QStringLiteral("A"), QStringLiteral("B")});
+            if (nestedSourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    nestedSourceIds, UniString(QStringLiteral("Cycle Grandchild")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                service->changeCurrentComposition(rootId);
+                cycleResult["error"] = QStringLiteral("Could not create cycle grandchild fixture");
+                return cycleResult;
+            }
+            const auto inner = service->lastPrecomposeOutcome();
+            service->changeCurrentComposition(inner.childCompId);
+            const auto grandchild = service->currentComposition().lock();
+            if (!grandchild) {
+                service->changeCurrentComposition(rootId);
+                cycleResult["error"] = QStringLiteral("Could not activate cycle grandchild fixture");
+                return cycleResult;
+            }
             ArtifactCompositionLayerInitParams params;
-            params.setName(UniString(QStringLiteral("Transitive Cycle Candidate")));
+            params.setName(UniString(QStringLiteral("Deep Transitive Cycle Candidate")));
             service->addLayerToCurrentComposition(params, false);
-            const auto candidateIds = namedLayerIds(child, {QStringLiteral("Transitive Cycle Candidate")});
+            const auto candidateIds = namedLayerIds(grandchild, {QStringLiteral("Deep Transitive Cycle Candidate")});
             const auto candidate = candidateIds.isEmpty()
                 ? SharedPtr<ArtifactCompositionLayer>{}
-                : dynamicPointerCast<ArtifactCompositionLayer>(child->layerById(candidateIds.front()));
+                : dynamicPointerCast<ArtifactCompositionLayer>(grandchild->layerById(candidateIds.front()));
             if (!candidate) {
                 service->changeCurrentComposition(rootId);
-                cycleResult["error"] = QStringLiteral("Could not create composition-layer fixture");
+                cycleResult["error"] = QStringLiteral("Could not create deep composition-layer fixture");
                 return cycleResult;
             }
             candidate->setCompositionId(rootId);
-            const auto layerCountBefore = child->allLayer().size();
+            const auto layerCountBefore = grandchild->allLayer().size();
             const auto compositionCountBefore = ArtifactProjectManager::getInstance().compositionCount();
             const auto undoCountBefore = undo->undoCount();
             const bool rejected = !service->precomposeLayersWithUndo(
                 {candidate->id()}, UniString(QStringLiteral("Rejected Transitive Cycle")),
                 false, false, PrecomposeMode::MoveSelected);
             const auto outcome = service->lastPrecomposeOutcome();
-            const bool unchanged = child->allLayer().size() == layerCountBefore &&
-                child->layerById(candidate->id()) &&
+            const bool unchanged = grandchild->allLayer().size() == layerCountBefore &&
+                grandchild->layerById(candidate->id()) &&
                 !PreComposeManager::instance().isPrecomposeLayer(candidate->id()) &&
                 outcome.precompLayerId.isNil() && outcome.childCompId.isNil() &&
                 ArtifactProjectManager::getInstance().compositionCount() == compositionCountBefore &&
                 undo->undoCount() == undoCountBefore;
-            const bool removed = service->removeLayerFromComposition(child->id(), candidate->id());
+            const bool removed = service->removeLayerFromComposition(grandchild->id(), candidate->id());
             service->changeCurrentComposition(rootId);
-            childId_ = outer.childCompId;
+            childId_ = inner.childCompId;
             hasChild_ = true;
             cycleResult["transitiveCycleRejected"] = rejected;
+            cycleResult["threeLevelCycleRejected"] = rejected;
             cycleResult["stateUnchanged"] = unchanged;
             cycleResult["fixtureCleaned"] = removed;
             cycleResult["passed"] = rejected && unchanged && removed;
             if (!cycleResult["passed"].toBool())
-                cycleResult["error"] = QStringLiteral("Transitive cycle was accepted or mutated the project");
+                cycleResult["error"] = QStringLiteral("Three-level transitive cycle was accepted or mutated the project");
             refresh();
             cycleResult["state"] = state();
             return cycleResult;

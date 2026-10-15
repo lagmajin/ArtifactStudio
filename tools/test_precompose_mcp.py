@@ -114,6 +114,7 @@ def main():
             call("test.reset")
             transitive_cycle = call("test.transitiveCycleRejected")
             require(transitive_cycle["passed"] and transitive_cycle["transitiveCycleRejected"]
+                    and transitive_cycle["threeLevelCycleRejected"]
                     and transitive_cycle["stateUnchanged"] and transitive_cycle["fixtureCleaned"],
                     "Transitive cycle precompose was not rejected atomically")
             call("test.reset")
