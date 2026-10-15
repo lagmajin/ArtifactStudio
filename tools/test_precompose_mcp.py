@@ -17,6 +17,7 @@ def main():
     args.output_dir.mkdir(parents=True, exist_ok=True)
     replies = queue.Queue()
     evidence = []
+    exposed_tool_names = set()
     with (args.output_dir / "stderr.log").open("w", encoding="utf-8") as log:
         process = subprocess.Popen([str(args.server.resolve()), "--mcp-stdio", "--lang", args.language],
                                    stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -44,6 +45,8 @@ def main():
             return reply["result"]
 
         def call(name):
+            if name not in exposed_tool_names:
+                raise AssertionError(f"MCP tools/list did not advertise {name}")
             reply = request("tools/call", {"name": name, "arguments": {}})
             if reply.get("isError"):
                 raise RuntimeError(f"{name}: {reply}")
@@ -69,7 +72,13 @@ def main():
         try:
             request("initialize", {"protocolVersion": "2024-11-05", "capabilities": {},
                                    "clientInfo": {"name": "precompose-regression", "version": "1"}})
-            request("tools/list", {})
+            catalog = request("tools/list", {})
+            listed_tools = catalog.get("tools")
+            require(isinstance(listed_tools, list), "MCP tools/list did not return a tools array")
+            names = [tool.get("name") for tool in listed_tools if isinstance(tool, dict)]
+            require(len(names) == len(listed_tools) and len(names) == len(set(names)),
+                    "MCP tools/list returned invalid or duplicate tool names")
+            exposed_tool_names.update(names)
             initial = call("test.state")
             original = initial["layers"]
             require(set(layer_map(initial)) == {"A", "B", "Untouched"}, "Fixture missing layers")
@@ -382,6 +391,8 @@ def main():
                     and noncontiguous["undoRestoredPrecompose"]
                     and noncontiguous["redoRestoredOriginalOrder"],
                     "Noncontiguous precompose/unpack did not restore source layer ordering")
+            require("test.capture" in exposed_tool_names,
+                    "MCP tools/list did not advertise test.capture")
             image = request("tools/call", {"name": "test.capture", "arguments": {}})
             require(not image.get("isError") and image["content"][0]["type"] == "image", "Capture failed")
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
