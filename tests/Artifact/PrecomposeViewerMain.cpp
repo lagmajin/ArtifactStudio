@@ -167,6 +167,23 @@ public:
                 invalidResult["error"] = QStringLiteral("Invalid-request fixture is missing A/B layers");
                 return invalidResult;
             }
+            const auto untouchedIds = namedLayerIds(comp, {QStringLiteral("Untouched")});
+            auto* selection = ArtifactLayerSelectionManager::instance();
+            if (untouchedIds.size() != 1 || !selection) {
+                invalidResult["error"] = QStringLiteral("Invalid-request selection fixture is unavailable");
+                return invalidResult;
+            }
+            const auto expectedSelectionId = untouchedIds.front();
+            const auto expectedCompositionId = comp->id();
+            service->selectLayer(expectedSelectionId);
+            const auto selectionUnchanged = [&]() {
+                const auto active = selection->activeComposition();
+                const auto current = selection->currentLayer();
+                const auto selected = selection->selectedLayersInOrder();
+                return active && active->id() == expectedCompositionId && current &&
+                    current->id() == expectedSelectionId && selected.size() == 1 &&
+                    selected.front() && selected.front()->id() == expectedSelectionId;
+            };
             const bool blankNameRejected = !service->precomposeLayersWithUndo(
                 sourceIds, UniString(QStringLiteral("   ")), false, false,
                 PrecomposeMode::MoveSelected);
@@ -175,7 +192,7 @@ public:
                 layers(comp, 0) == beforeLayers &&
                 ArtifactProjectManager::getInstance().compositionCount() == beforeCompositionCount &&
                 undo->undoCount() == beforeUndoCount && blankNameOutcome.precompLayerId.isNil() &&
-                blankNameOutcome.childCompId.isNil();
+                blankNameOutcome.childCompId.isNil() && selectionUnchanged();
             const bool invalidSelectionRejected = !service->precomposeLayersWithUndo(
                 {LayerID()}, UniString(QStringLiteral("Invalid Selection")), false, false,
                 PrecomposeMode::MoveSelected);
@@ -184,7 +201,7 @@ public:
                 layers(comp, 0) == beforeLayers &&
                 ArtifactProjectManager::getInstance().compositionCount() == beforeCompositionCount &&
                 undo->undoCount() == beforeUndoCount && invalidSelectionOutcome.precompLayerId.isNil() &&
-                invalidSelectionOutcome.childCompId.isNil();
+                invalidSelectionOutcome.childCompId.isNil() && selectionUnchanged();
             const bool emptySelectionRejected = !service->precomposeLayersWithUndo(
                 QVector<LayerID>{}, UniString(QStringLiteral("Empty Selection")), false, false,
                 PrecomposeMode::MoveSelected);
@@ -193,7 +210,7 @@ public:
                 layers(comp, 0) == beforeLayers &&
                 ArtifactProjectManager::getInstance().compositionCount() == beforeCompositionCount &&
                 undo->undoCount() == beforeUndoCount && emptySelectionOutcome.precompLayerId.isNil() &&
-                emptySelectionOutcome.childCompId.isNil();
+                emptySelectionOutcome.childCompId.isNil() && selectionUnchanged();
             const bool emptyPrecompIdRejected = !service->unprecomposeLayerWithUndo(LayerID(), true);
             const bool emptyPrecompIdAtomic = comp->allLayer().size() == beforeLayerCount &&
                 layers(comp, 0) == beforeLayers &&
@@ -201,7 +218,7 @@ public:
                 undo->undoCount() == beforeUndoCount &&
                 service->lastUnprecomposePrecompLayerId().isNil() &&
                 service->lastUnprecomposeChildCompId().isNil() &&
-                service->lastUnprecomposeMovedLayerIds().isEmpty();
+                service->lastUnprecomposeMovedLayerIds().isEmpty() && selectionUnchanged();
             const bool ordinaryLayerRejected = !service->unprecomposeLayerWithUndo(sourceIds.front(), true);
             const bool ordinaryLayerAtomic = comp->allLayer().size() == beforeLayerCount &&
                 layers(comp, 0) == beforeLayers &&
@@ -209,7 +226,7 @@ public:
                 undo->undoCount() == beforeUndoCount &&
                 service->lastUnprecomposePrecompLayerId().isNil() &&
                 service->lastUnprecomposeChildCompId().isNil() &&
-                service->lastUnprecomposeMovedLayerIds().isEmpty();
+                service->lastUnprecomposeMovedLayerIds().isEmpty() && selectionUnchanged();
             invalidResult["blankNameRejected"] = blankNameRejected;
             invalidResult["blankNameAtomic"] = blankNameAtomic;
             invalidResult["invalidSelectionRejected"] = invalidSelectionRejected;
@@ -220,6 +237,7 @@ public:
             invalidResult["emptyPrecompIdAtomic"] = emptyPrecompIdAtomic;
             invalidResult["ordinaryLayerRejected"] = ordinaryLayerRejected;
             invalidResult["ordinaryLayerAtomic"] = ordinaryLayerAtomic;
+            invalidResult["selectionPreserved"] = selectionUnchanged();
             invalidResult["passed"] = blankNameRejected && blankNameAtomic &&
                 invalidSelectionRejected && invalidSelectionAtomic && emptySelectionRejected &&
                 emptySelectionAtomic && emptyPrecompIdRejected && emptyPrecompIdAtomic &&
