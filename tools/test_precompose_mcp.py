@@ -320,6 +320,9 @@ def main():
                     and nested_external_parent["nestedMetadataPreserved"]
                     and nested_external_parent["outerUnpacked"]
                     and nested_external_parent["innerMappingRestored"]
+                    and nested_external_parent["distinctExternalParents"]
+                    and nested_external_parent["externalParentARestored"]
+                    and nested_external_parent["externalParentBRestored"]
                     and nested_external_parent["externalParentRestored"]
                     and nested_external_parent["undoRestoredMetadata"]
                     and nested_external_parent["redoRestoredParent"],

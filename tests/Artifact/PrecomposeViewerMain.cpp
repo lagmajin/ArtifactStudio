@@ -1739,23 +1739,32 @@ public:
                 return result;
             }
             const auto rootId = root->id();
+            service->addLayerToCurrentComposition(
+                ArtifactNullLayerInitParams(QStringLiteral("Untouched Two")), false);
             const auto idsA = namedLayerIds(root, {QStringLiteral("A")});
             const auto idsB = namedLayerIds(root, {QStringLiteral("B")});
             const auto externalIds = namedLayerIds(root, {QStringLiteral("Untouched")});
-            if (idsA.size() != 1 || idsB.size() != 1 || externalIds.size() != 1) {
+            const auto secondExternalIds = namedLayerIds(root, {QStringLiteral("Untouched Two")});
+            if (idsA.size() != 1 || idsB.size() != 1 || externalIds.size() != 1 ||
+                secondExternalIds.size() != 1) {
                 result["error"] = QStringLiteral("Nested external-parent fixture layers are missing");
                 return result;
             }
             const auto sourceId = idsA.front();
+            const auto sourceBId = idsB.front();
             const auto externalParentId = externalIds.front();
+            const auto secondExternalParentId = secondExternalIds.front();
             const auto source = root->layerById(sourceId);
-            if (!source) {
+            const auto sourceB = root->layerById(sourceBId);
+            if (!source || !sourceB) {
                 result["error"] = QStringLiteral("Nested external-parent source is unavailable");
                 return result;
             }
             source->setParentById(externalParentId);
-            const QVector<LayerID> selected{sourceId, idsB.front()};
+            sourceB->setParentById(secondExternalParentId);
+            const QVector<LayerID> selected{sourceId, sourceBId};
             const bool innerCreated = source->parentLayerId() == externalParentId &&
+                sourceB->parentLayerId() == secondExternalParentId &&
                 service->precomposeLayersWithUndo(
                     selected, UniString(QStringLiteral("Inner External Parent")), false, false,
                     PrecomposeMode::MoveSelected);
@@ -1763,7 +1772,8 @@ public:
             const auto innerWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
                 root->layerById(inner.precompLayerId));
             const bool innerMetadataAuthored = innerCreated && innerWrapper &&
-                innerWrapper->restoreExternalParent(sourceId) == externalParentId;
+                innerWrapper->restoreExternalParent(sourceId) == externalParentId &&
+                innerWrapper->restoreExternalParent(sourceBId) == secondExternalParentId;
             const bool outerCreated = innerMetadataAuthored && service->precomposeLayersWithUndo(
                 {inner.precompLayerId}, UniString(QStringLiteral("Outer External Parent")),
                 false, false, PrecomposeMode::MoveSelected);
@@ -1775,6 +1785,7 @@ public:
             const auto hierarchy = PreComposeManager::instance().getCompositionHierarchy(inner.childCompId);
             const bool nestedMetadataPreserved = outerCreated && nestedWrapper &&
                 nestedWrapper->restoreExternalParent(sourceId) == externalParentId &&
+                nestedWrapper->restoreExternalParent(sourceBId) == secondExternalParentId &&
                 hierarchy.size() == 3 && hierarchy[0] == rootId &&
                 hierarchy[1] == outer.childCompId && hierarchy[2] == inner.childCompId;
             const bool outerUnpacked = nestedMetadataPreserved &&
@@ -1783,36 +1794,49 @@ public:
                 root->layerById(inner.precompLayerId));
             const bool innerMappingRestored = outerUnpacked && restoredInnerWrapper &&
                 restoredInnerWrapper->restoreExternalParent(sourceId) == externalParentId &&
+                restoredInnerWrapper->restoreExternalParent(sourceBId) == secondExternalParentId &&
                 PreComposeManager::instance().isPrecomposeLayer(inner.precompLayerId) &&
                 PreComposeManager::instance().getParentComposition(inner.childCompId) == rootId;
             const bool innerUnpacked = innerMappingRestored &&
                 service->unprecomposeLayerWithUndo(inner.precompLayerId, true);
             const auto restoredSource = root->layerById(sourceId);
-            const bool externalParentRestored = innerUnpacked && restoredSource &&
+            const auto restoredSourceB = root->layerById(sourceBId);
+            const bool externalParentARestored = innerUnpacked && restoredSource &&
                 restoredSource->parentLayerId() == externalParentId && root->layerById(externalParentId);
+            const bool externalParentBRestored = innerUnpacked && restoredSourceB &&
+                restoredSourceB->parentLayerId() == secondExternalParentId &&
+                root->layerById(secondExternalParentId);
+            const bool externalParentRestored = externalParentARestored && externalParentBRestored;
             const bool undoAvailable = innerUnpacked && undo->canUndo();
             if (undoAvailable) undo->undo();
             const auto undoWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
                 root->layerById(inner.precompLayerId));
             const bool undoRestoredMetadata = undoAvailable && undoWrapper &&
                 undoWrapper->restoreExternalParent(sourceId) == externalParentId &&
+                undoWrapper->restoreExternalParent(sourceBId) == secondExternalParentId &&
                 PreComposeManager::instance().isPrecomposeLayer(inner.precompLayerId);
             const bool redoAvailable = undoAvailable && undo->canRedo();
             if (redoAvailable) undo->redo();
             const auto redoSource = root->layerById(sourceId);
+            const auto redoSourceB = root->layerById(sourceBId);
             const bool redoRestoredParent = redoAvailable && redoSource &&
                 redoSource->parentLayerId() == externalParentId &&
+                redoSourceB && redoSourceB->parentLayerId() == secondExternalParentId &&
                 !PreComposeManager::instance().isPrecomposeLayer(inner.precompLayerId);
             result["innerMetadataAuthored"] = innerMetadataAuthored;
             result["nestedMetadataPreserved"] = nestedMetadataPreserved;
             result["outerUnpacked"] = outerUnpacked;
             result["innerMappingRestored"] = innerMappingRestored;
+            result["distinctExternalParents"] = externalParentId != secondExternalParentId;
+            result["externalParentARestored"] = externalParentARestored;
+            result["externalParentBRestored"] = externalParentBRestored;
             result["externalParentRestored"] = externalParentRestored;
             result["undoRestoredMetadata"] = undoRestoredMetadata;
             result["redoRestoredParent"] = redoRestoredParent;
             result["hierarchy"] = QJsonArray{rootId.toString(), outer.childCompId.toString(),
                 inner.childCompId.toString()};
-            result["passed"] = innerMetadataAuthored && nestedMetadataPreserved && outerUnpacked &&
+            result["passed"] = externalParentId != secondExternalParentId &&
+                innerMetadataAuthored && nestedMetadataPreserved && outerUnpacked &&
                 innerMappingRestored && externalParentRestored && undoRestoredMetadata &&
                 redoRestoredParent;
             if (!result["passed"].toBool())
