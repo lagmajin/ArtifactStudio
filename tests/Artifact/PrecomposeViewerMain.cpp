@@ -1441,7 +1441,6 @@ public:
             QJsonObject roundTrip;
             auto& projects = ArtifactProjectManager::getInstance();
             const auto parent = service->currentComposition().lock();
-            const auto original = parent ? layers(parent, 0) : QJsonArray{};
             const auto originalParentId = parent ? parent->id() : CompositionID{};
             const auto originalChildId = childId_;
             SharedPtr<ArtifactCompositionLayer> originalPrecompLayer;
@@ -1455,6 +1454,33 @@ public:
             QTemporaryDir tempDir;
             if (!parent || originalChildId.isNil() || !originalPrecompLayer || !tempDir.isValid()) {
                 roundTrip["error"] = QStringLiteral("Precompose fixture or temporary directory unavailable");
+                return roundTrip;
+            }
+            const auto originalChild = service->findComposition(originalChildId).ptr.lock();
+            const auto sourceIds = namedLayerIds(originalChild, {QStringLiteral("A")});
+            const auto sourceLayer = sourceIds.isEmpty()
+                ? ArtifactAbstractLayerPtr{} : originalChild->layerById(sourceIds.front());
+            if (!sourceLayer) {
+                roundTrip["error"] = QStringLiteral("Precompose source layer unavailable for exposed-property persistence");
+                return roundTrip;
+            }
+            ArtifactCore::ExposedPropertyRegistry exposedProperties;
+            ArtifactCore::ExposedPropertyBinding opacityBinding;
+            opacityBinding.id = QStringLiteral("roundtrip.opacity");
+            opacityBinding.label = QStringLiteral("Round-trip Opacity");
+            opacityBinding.targetLayerId = sourceLayer->id().toString();
+            opacityBinding.internalPath = QStringLiteral("layer.opacity");
+            opacityBinding.defaultValue = sourceLayer->opacity();
+            const bool definitionAdded = exposedProperties.add(opacityBinding);
+            originalPrecompLayer->setExposedProperties(exposedProperties);
+            const float sourceOpacityBeforeSave = sourceLayer->opacity();
+            const float overrideValue = 0.67f;
+            const bool overrideSet = definitionAdded && originalPrecompLayer->setExposedPropertyOverride(
+                opacityBinding.id,
+                QVariant::fromValue(static_cast<double>(overrideValue)));
+            const auto original = layers(parent, 0);
+            if (!overrideSet || !originalPrecompLayer->hasExposedPropertyOverride(opacityBinding.id)) {
+                roundTrip["error"] = QStringLiteral("Could not prepare exposed-property persistence fixture");
                 return roundTrip;
             }
             const auto filePath = tempDir.filePath(QStringLiteral("precompose-roundtrip.artifact"));
@@ -1480,6 +1506,26 @@ public:
             const auto reloadedParent = service->findComposition(originalParentId).ptr.lock();
             const auto reloadedChild = service->findComposition(originalChildId).ptr.lock();
             const auto reloaded = reloadedParent ? layers(reloadedParent, 0) : QJsonArray{};
+            const auto reloadedPrecompLayer = reloadedParent
+                ? dynamicPointerCast<ArtifactCompositionLayer>(
+                      reloadedParent->layerById(originalPrecompLayer->id()))
+                : SharedPtr<ArtifactCompositionLayer>{};
+            const auto reloadedSourceLayer = reloadedChild
+                ? reloadedChild->layerById(sourceLayer->id()) : ArtifactAbstractLayerPtr{};
+            const auto reloadedBinding = reloadedPrecompLayer
+                ? reloadedPrecompLayer->exposedProperties().binding(opacityBinding.id)
+                : ArtifactCore::ExposedPropertyBinding{};
+            const bool masterPropertyDefinitionPreserved = reloadedPrecompLayer &&
+                reloadedPrecompLayer->exposedProperties().contains(opacityBinding.id) &&
+                reloadedBinding.targetLayerId == sourceLayer->id().toString() &&
+                reloadedBinding.internalPath == QStringLiteral("layer.opacity") &&
+                std::abs(reloadedBinding.defaultValue.toFloat() - sourceOpacityBeforeSave) < 1.0e-5f;
+            const bool masterPropertyOverridePreserved = reloadedPrecompLayer &&
+                reloadedPrecompLayer->hasExposedPropertyOverride(opacityBinding.id) &&
+                std::abs(reloadedPrecompLayer->effectiveExposedPropertyValue(
+                             opacityBinding.id).toFloat() - overrideValue) < 1.0e-5f;
+            const bool overrideStillDeferred = reloadedSourceLayer &&
+                std::abs(reloadedSourceLayer->opacity() - sourceOpacityBeforeSave) < 1.0e-5f;
             const bool parentChildLink = reloaded == original && bool(reloadedChild);
             const auto nesting = precompManager.getCompositionNesting(originalChildId);
             bool reverseParentLink = false;
@@ -1497,7 +1543,11 @@ public:
             roundTrip["parentChildLinkPreserved"] = parentChildLink;
             roundTrip["layerStatePreserved"] = reloaded == original;
             roundTrip["runtimeNestingRestored"] = runtimeNestingRestored;
-            roundTrip["passed"] = save.success && loaded && parentChildLink && runtimeNestingRestored;
+            roundTrip["masterPropertyDefinitionPreserved"] = masterPropertyDefinitionPreserved;
+            roundTrip["masterPropertyOverridePreserved"] = masterPropertyOverridePreserved;
+            roundTrip["overrideStillDeferred"] = overrideStillDeferred;
+            roundTrip["passed"] = save.success && loaded && parentChildLink && runtimeNestingRestored &&
+                masterPropertyDefinitionPreserved && masterPropertyOverridePreserved && overrideStillDeferred;
             if (!roundTrip["passed"].toBool())
                 roundTrip["error"] = QStringLiteral("Precompose project round-trip lost parent/child data or runtime nesting registration");
             childId_ = originalChildId;
