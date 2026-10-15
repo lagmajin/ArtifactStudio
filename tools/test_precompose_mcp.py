@@ -56,6 +56,14 @@ def main():
         def layer_map(state):
             return {layer["name"]: layer for layer in state["layers"]}
 
+        def require_child_settings(result, label):
+            require(result["childSettingsCopied"]
+                    and result["childResolution"] == [1280, 720]
+                    and abs(result["childFrameRate"] - 24.0) < 1e-6
+                    and all(abs(actual - expected) < 1e-6 for actual, expected in
+                            zip(result["childBackgroundColor"], (0.125, 0.25, 0.5, 1.0))),
+                    f"{label} precompose did not copy custom composition settings")
+
         try:
             request("initialize", {"protocolVersion": "2024-11-05", "capabilities": {},
                                    "clientInfo": {"name": "precompose-regression", "version": "1"}})
@@ -125,6 +133,7 @@ def main():
             initial = call("test.state")
             original = initial["layers"]
             nested = call("test.precompose")
+            require_child_settings(nested, "Selected")
             require(len(nested["layers"]) == 2, "Selected precompose must leave Untouched outside")
             child = next(layer for layer in nested["layers"] if "children" in layer)
             require({layer["name"] for layer in child["children"]} == {"A", "B"}, "Wrong child content")
@@ -163,6 +172,7 @@ def main():
             require(restored["lastChildExists"] and restored["layers"] == nested["layers"], "Deleted child undo failed")
             call("test.reset")
             all_nested = call("test.precomposeAll")
+            require_child_settings(all_nested, "Move all")
             require(all_nested["emptySelectionSubmitted"] and len(all_nested["layers"]) == 1
                     and len(all_nested["layers"][0]["children"]) == 3,
                     "Move all with an empty selection must include every layer")

@@ -15,6 +15,7 @@
 #include <QLocale>
 #include <QPixmap>
 #include <QScreen>
+#include <QSize>
 #include <QStringList>
 #include <QTemporaryDir>
 #include <QTextEdit>
@@ -28,9 +29,11 @@ import Artifact.Test.PreCompose;
 import Artifact.Service.Project;
 import Artifact.Project.Manager;
 import Artifact.Composition.Abstract;
+import Artifact.Composition.InitParams;
 import Artifact.Layer.Abstract;
 import Artifact.Layer.InitParams;
 import Artifact.Layer.Composition;
+import Color.Float;
 import Property.Abstract;
 import Math.Interpolate;
 import Frame.Position;
@@ -1026,6 +1029,23 @@ public:
         refresh();
         auto result = state();
         if (name == "test.precomposeAll") result["emptySelectionSubmitted"] = true;
+        if (ok && (name == "test.precompose" || name == "test.precomposeAll")) {
+            const auto child = service->findComposition(childId_).ptr.lock();
+            const auto parentSize = comp ? comp->settings().compositionSize() : QSize();
+            const auto childSize = child ? child->settings().compositionSize() : QSize();
+            const auto parentColor = comp ? comp->backgroundColor() : FloatColor();
+            const auto childColor = child ? child->backgroundColor() : FloatColor();
+            const bool settingsCopied = comp && child &&
+                parentSize == childSize &&
+                comp->frameRate().framerate() == child->frameRate().framerate() &&
+                parentColor.r() == childColor.r() && parentColor.g() == childColor.g() &&
+                parentColor.b() == childColor.b() && parentColor.a() == childColor.a();
+            result["childSettingsCopied"] = settingsCopied;
+            result["childResolution"] = QJsonArray{childSize.width(), childSize.height()};
+            result["childFrameRate"] = child ? child->frameRate().framerate() : -1.0;
+            result["childBackgroundColor"] = QJsonArray{childColor.r(), childColor.g(),
+                                                         childColor.b(), childColor.a()};
+        }
         if (!ok) result["error"] = QStringLiteral("Operation failed or unavailable: ") + name;
         return result;
     }
@@ -1134,7 +1154,13 @@ private:
         auto* service = ArtifactProjectService::instance();
         hasChild_ = false;
         UndoManager::instance()->clearHistory();
-        service->createComposition(UniString(QStringLiteral("Precompose Fixture")));
+        ArtifactCompositionInitParams compositionParams;
+        compositionParams.setCompositionName(UniString(QStringLiteral("Precompose Fixture")));
+        compositionParams.setResolution(1280, 720);
+        compositionParams.setFrameRate(24.0);
+        compositionParams.setDurationFrames(300);
+        compositionParams.setBackgroundColor(FloatColor(0.125f, 0.25f, 0.5f, 1.0f));
+        service->createComposition(compositionParams);
         for (const auto* name : {"A", "B", "Untouched"})
             service->addLayerToCurrentComposition(ArtifactNullLayerInitParams(QString::fromLatin1(name)), false);
         auto comp = service->currentComposition().lock();
