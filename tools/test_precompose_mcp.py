@@ -125,6 +125,8 @@ def main():
             require((child["inFrame"], child["outFrame"], child["startFrame"]) == (40, 200, 40),
                     "Selected precompose layer does not retain the selected time span")
             nested_children = {layer["name"]: layer for layer in child["children"]}
+            require([layer["name"] for layer in child["children"]] == ["A", "B"],
+                    "Precompose child order must follow the source composition, not selection order or duplicates")
             require((nested_children["A"]["inFrame"], nested_children["A"]["outFrame"],
                      nested_children["A"]["startFrame"]) == (0, 160, 7),
                     "First child layer was not normalized to the selected range")

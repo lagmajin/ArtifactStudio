@@ -910,7 +910,8 @@ public:
                               layer->layerName() == QStringLiteral("B"))) ids.append(layer->id());
             }
             const bool moveAll = name == "test.precomposeAll";
-            const QVector<LayerID> requestedIds = moveAll ? QVector<LayerID>() : ids;
+            const QVector<LayerID> requestedIds = moveAll ? QVector<LayerID>()
+                : (ids.size() == 2 ? QVector<LayerID>{ids[1], ids[0], ids[1]} : ids);
             ok = (moveAll || !ids.isEmpty()) && service->precomposeLayersWithUndo(requestedIds,
                 UniString(QStringLiteral("Nested A+B")), false, false,
                 moveAll ? PrecomposeMode::MoveAllAttributes : PrecomposeMode::MoveSelected);
