@@ -163,6 +163,15 @@ def main():
                     and external_parent["redoRestoredExternalParent"],
                     "External layer parent was not preserved across precompose/undo/redo")
             call("test.reset")
+            external_parent_round_trip = call("test.externalParentSaveReload")
+            require(external_parent_round_trip["passed"]
+                    and external_parent_round_trip["mappingClearedBeforeReload"]
+                    and external_parent_round_trip["metadataPersisted"]
+                    and external_parent_round_trip["sourceParentRemainsCleared"]
+                    and external_parent_round_trip["runtimeMappingRestored"]
+                    and external_parent_round_trip["externalParentRestoredAfterUnpack"],
+                    "External-parent metadata did not survive project save/reload and unprecompose")
+            call("test.reset")
             internal_parent = call("test.internalParentRestored")
             require(internal_parent["passed"] and internal_parent["parentAuthored"]
                     and internal_parent["childParentPreserved"]

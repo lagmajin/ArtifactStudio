@@ -852,6 +852,110 @@ public:
             refresh();
             parentResult["state"] = state();
             return parentResult;
+        } else if (name == "test.externalParentSaveReload") {
+            QJsonObject roundTrip;
+            auto& projects = ArtifactProjectManager::getInstance();
+            auto& precompManager = PreComposeManager::instance();
+            const auto parent = service->currentComposition().lock();
+            if (!parent) {
+                roundTrip["error"] = QStringLiteral("No parent composition");
+                return roundTrip;
+            }
+            const auto parentId = parent->id();
+            const auto sourceIds = namedLayerIds(parent, {QStringLiteral("A")});
+            const auto selectedB = namedLayerIds(parent, {QStringLiteral("B")});
+            const auto externalParentIds = namedLayerIds(parent, {QStringLiteral("Untouched")});
+            if (sourceIds.size() != 1 || selectedB.size() != 1 || externalParentIds.size() != 1) {
+                roundTrip["error"] = QStringLiteral("External-parent save fixture layers are missing");
+                return roundTrip;
+            }
+            const auto sourceId = sourceIds.front();
+            const auto externalParentId = externalParentIds.front();
+            const auto source = parent->layerById(sourceId);
+            if (!source) {
+                roundTrip["error"] = QStringLiteral("External-parent save fixture source is missing");
+                return roundTrip;
+            }
+            source->setParentById(externalParentId);
+            if (source->parentLayerId() != externalParentId || !service->precomposeLayersWithUndo(
+                    {sourceId, selectedB.front()}, UniString(QStringLiteral("External Parent Round Trip")),
+                    false, false, PrecomposeMode::MoveSelected)) {
+                roundTrip["error"] = QStringLiteral("Could not precompose the external-parent save fixture");
+                return roundTrip;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                parent->layerById(outcome.precompLayerId));
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto movedSource = child ? child->layerById(sourceId) : ArtifactAbstractLayerPtr{};
+            if (!wrapper || !child || !movedSource ||
+                wrapper->restoreExternalParent(sourceId) != externalParentId ||
+                !movedSource->parentLayerId().isNil()) {
+                roundTrip["error"] = QStringLiteral("External-parent metadata was not authored in the fixture");
+                return roundTrip;
+            }
+            QTemporaryDir tempDir;
+            if (!tempDir.isValid()) {
+                roundTrip["error"] = QStringLiteral("Temporary directory unavailable");
+                return roundTrip;
+            }
+            const auto filePath = tempDir.filePath(QStringLiteral("external-parent-roundtrip.artifact"));
+            const auto save = projects.saveToFile(filePath);
+            roundTrip["saved"] = save.success;
+            if (!save.success) {
+                roundTrip["error"] = save.errorMessage;
+                return roundTrip;
+            }
+            const bool mappingCleared = precompManager.unregisterPrecompLayer(
+                parentId, outcome.precompLayerId, outcome.childCompId) &&
+                !precompManager.isPrecomposeLayer(outcome.precompLayerId) &&
+                precompManager.getParentComposition(outcome.childCompId).isNil();
+            roundTrip["mappingClearedBeforeReload"] = mappingCleared;
+            if (!mappingCleared) {
+                roundTrip["error"] = QStringLiteral("Could not isolate the external-parent mapping before reload");
+                return roundTrip;
+            }
+            const bool loaded = projects.loadFromFile(filePath);
+            roundTrip["loaded"] = loaded;
+            if (loaded) service->changeCurrentComposition(parentId);
+            const auto reloadedParent = service->findComposition(parentId).ptr.lock();
+            const auto reloadedChild = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto reloadedWrapper = reloadedParent
+                ? dynamicPointerCast<ArtifactCompositionLayer>(
+                      reloadedParent->layerById(outcome.precompLayerId))
+                : SharedPtr<ArtifactCompositionLayer>{};
+            const auto reloadedSource = reloadedChild
+                ? reloadedChild->layerById(sourceId) : ArtifactAbstractLayerPtr{};
+            const bool metadataPersisted = reloadedWrapper &&
+                reloadedWrapper->restoreExternalParent(sourceId) == externalParentId;
+            const bool sourceParentRemainsCleared = reloadedSource &&
+                reloadedSource->parentLayerId().isNil();
+            bool runtimeMappingRestored = false;
+            for (const auto& ref : precompManager.getPrecompLayersForChild(outcome.childCompId)) {
+                runtimeMappingRestored = runtimeMappingRestored ||
+                    (ref.parentCompId == parentId && ref.precompLayerId == outcome.precompLayerId);
+            }
+            const bool unpacked = loaded && reloadedWrapper &&
+                service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const auto restoredSource = reloadedParent ? reloadedParent->layerById(sourceId)
+                                                       : ArtifactAbstractLayerPtr{};
+            const bool externalParentRestored = unpacked && restoredSource &&
+                restoredSource->parentLayerId() == externalParentId &&
+                reloadedParent->layerById(externalParentId);
+            service->changeCurrentComposition(parentId);
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            roundTrip["metadataPersisted"] = metadataPersisted;
+            roundTrip["sourceParentRemainsCleared"] = sourceParentRemainsCleared;
+            roundTrip["runtimeMappingRestored"] = runtimeMappingRestored;
+            roundTrip["externalParentRestoredAfterUnpack"] = externalParentRestored;
+            roundTrip["passed"] = save.success && loaded && mappingCleared && metadataPersisted &&
+                sourceParentRemainsCleared && runtimeMappingRestored && externalParentRestored;
+            if (!roundTrip["passed"].toBool())
+                roundTrip["error"] = QStringLiteral("External-parent metadata did not survive save/reload and unprecompose");
+            refresh();
+            roundTrip["state"] = state();
+            return roundTrip;
         } else if (name == "test.animatedTiming") {
             QJsonObject animationResult;
             const auto parent = service->currentComposition().lock();
@@ -1759,7 +1863,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.externalParentSaveReload", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
