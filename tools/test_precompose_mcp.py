@@ -135,8 +135,9 @@ def main():
             require(restored["lastChildExists"] and restored["layers"] == nested["layers"], "Deleted child undo failed")
             call("test.reset")
             all_nested = call("test.precomposeAll")
-            require(len(all_nested["layers"]) == 1 and len(all_nested["layers"][0]["children"]) == 3,
-                    "Move all must include unselected layer")
+            require(all_nested["emptySelectionSubmitted"] and len(all_nested["layers"]) == 1
+                    and len(all_nested["layers"][0]["children"]) == 3,
+                    "Move all with an empty selection must include every layer")
             all_layer = all_nested["layers"][0]
             require((all_layer["inFrame"], all_layer["startFrame"]) == (0, 0),
                     "Move all precompose layer must start at composition time zero")

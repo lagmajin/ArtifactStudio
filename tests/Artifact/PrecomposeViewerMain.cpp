@@ -757,10 +757,11 @@ public:
                 if (layer && (layer->layerName() == QStringLiteral("A") ||
                               layer->layerName() == QStringLiteral("B"))) ids.append(layer->id());
             }
-            ok = !ids.isEmpty() && service->precomposeLayersWithUndo(ids,
+            const bool moveAll = name == "test.precomposeAll";
+            const QVector<LayerID> requestedIds = moveAll ? QVector<LayerID>() : ids;
+            ok = (moveAll || !ids.isEmpty()) && service->precomposeLayersWithUndo(requestedIds,
                 UniString(QStringLiteral("Nested A+B")), false, false,
-                name == "test.precomposeAll" ? PrecomposeMode::MoveAllAttributes
-                                              : PrecomposeMode::MoveSelected);
+                moveAll ? PrecomposeMode::MoveAllAttributes : PrecomposeMode::MoveSelected);
             if (ok) { childId_ = service->lastPrecomposeOutcome().childCompId; hasChild_ = true; }
         } else if (name == "test.unpackKeep" || name == "test.unpackDelete") {
             ok = false;
@@ -773,6 +774,7 @@ public:
         } else return QJsonObject{{"error", "Unknown tool"}};
         refresh();
         auto result = state();
+        if (name == "test.precomposeAll") result["emptySelectionSubmitted"] = true;
         if (!ok) result["error"] = QStringLiteral("Operation failed or unavailable: ") + name;
         return result;
     }
