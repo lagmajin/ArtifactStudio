@@ -94,6 +94,12 @@ def main():
                     and workspace_duration["wrapperTimingPreserved"],
                     "Precompose did not match workspace duration while preserving wrapper timing")
             call("test.reset")
+            duration_propagation = call("test.childDurationPropagates")
+            require(duration_propagation["passed"] and duration_propagation["shrinkFollowed"]
+                    and duration_propagation["expansionFollowed"]
+                    and duration_propagation["parentReferencePreserved"],
+                    "Child duration shrink/expansion did not propagate to the parent precompose window")
+            call("test.reset")
             transitive_cycle = call("test.transitiveCycleRejected")
             require(transitive_cycle["passed"] and transitive_cycle["transitiveCycleRejected"]
                     and transitive_cycle["stateUnchanged"] and transitive_cycle["fixtureCleaned"],
@@ -213,7 +219,7 @@ def main():
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
-            print("PASS: direct/transitive cycle guards, invalid-request atomicity, open-child navigation/focus, workspace-matched duration, external parent restore, animated key timing/metadata in selected/all modes, nested hierarchy/time, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: direct/transitive cycle guards, invalid-request atomicity, open-child navigation/focus, workspace-matched duration, child-duration propagation, external parent restore, animated key timing/metadata in selected/all modes, nested hierarchy/time, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
             try:

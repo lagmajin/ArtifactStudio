@@ -296,6 +296,58 @@ public:
             result["state"] = state();
             service->changeCurrentComposition(rootId);
             return result;
+        } else if (name == "test.childDurationPropagates") {
+            QJsonObject result;
+            if (!comp) {
+                result["error"] = QStringLiteral("No current composition");
+                return result;
+            }
+            const auto rootId = comp->id();
+            const auto sourceIds = namedLayerIds(comp, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Duration Propagation")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                result["error"] = QStringLiteral("Could not create duration propagation fixture");
+                return result;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            auto wrapper = ArtifactCore::dynamicPointerCast<ArtifactCompositionLayer>(
+                comp->layerById(outcome.precompLayerId));
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            if (!wrapper || !child) {
+                result["error"] = QStringLiteral("Duration propagation fixture is missing its wrapper or child");
+                return result;
+            }
+            child->setFrameRange(FrameRange(0, 90));
+            const int64_t shortenedOut = wrapper->outPoint().framePosition();
+            const bool shrinkFollowed = shortenedOut == 130 &&
+                wrapper->inPoint().framePosition() == 40 &&
+                wrapper->startTime().framePosition() == 40;
+            child->setFrameRange(FrameRange(0, 240));
+            const int64_t expandedOut = wrapper->outPoint().framePosition();
+            const bool expansionFollowed = expandedOut == 280 &&
+                wrapper->inPoint().framePosition() == 40 &&
+                wrapper->startTime().framePosition() == 40;
+            bool parentReferencePreserved = false;
+            for (const auto& reference : PreComposeManager::instance().getPrecompLayersForChild(
+                     outcome.childCompId)) {
+                parentReferencePreserved = parentReferencePreserved ||
+                    (reference.parentCompId == rootId &&
+                     reference.precompLayerId == outcome.precompLayerId);
+            }
+            result["shortenedChildOut"] = shortenedOut;
+            result["expandedChildOut"] = expandedOut;
+            result["shrinkFollowed"] = shrinkFollowed;
+            result["expansionFollowed"] = expansionFollowed;
+            result["parentReferencePreserved"] = parentReferencePreserved;
+            result["passed"] = shrinkFollowed && expansionFollowed && parentReferencePreserved;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Child duration change did not update the parent window from its fixed in point");
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.transitiveCycleRejected") {
             QJsonObject cycleResult;
             const auto root = service->currentComposition().lock();
@@ -1122,7 +1174,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
