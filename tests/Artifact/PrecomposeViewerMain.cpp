@@ -203,6 +203,78 @@ public:
             refresh();
             cycleResult["state"] = state();
             return cycleResult;
+        } else if (name == "test.externalParentRestored") {
+            QJsonObject parentResult;
+            const auto parent = service->currentComposition().lock();
+            if (!parent) {
+                parentResult["error"] = QStringLiteral("No current composition");
+                return parentResult;
+            }
+            const auto idsA = namedLayerIds(parent, {QStringLiteral("A")});
+            const auto idsB = namedLayerIds(parent, {QStringLiteral("B")});
+            const auto idsParent = namedLayerIds(parent, {QStringLiteral("Untouched")});
+            if (idsA.size() != 1 || idsB.size() != 1 || idsParent.size() != 1) {
+                parentResult["error"] = QStringLiteral("External-parent fixture layers are missing");
+                return parentResult;
+            }
+            const auto sourceId = idsA.front();
+            const auto externalParentId = idsParent.front();
+            const auto sourceLayer = parent->layerById(sourceId);
+            if (!sourceLayer) {
+                parentResult["error"] = QStringLiteral("External-parent source layer is missing");
+                return parentResult;
+            }
+            sourceLayer->setParentById(externalParentId);
+            const bool authoredParent = sourceLayer->parentLayerId() == externalParentId;
+            const QVector<LayerID> selected{sourceId, idsB.front()};
+            const bool precomposed = authoredParent && service->precomposeLayersWithUndo(
+                selected, UniString(QStringLiteral("External Parent Precompose")), false, false,
+                PrecomposeMode::MoveSelected);
+            if (!precomposed) {
+                parentResult["error"] = QStringLiteral("Could not precompose external-parent fixture");
+                return parentResult;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                parent->layerById(outcome.precompLayerId));
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto movedSource = child ? child->layerById(sourceId) : ArtifactAbstractLayerPtr{};
+            const bool externalParentStored = wrapper &&
+                wrapper->restoreExternalParent(sourceId) == externalParentId;
+            const bool childParentCleared = movedSource && movedSource->parentLayerId().isNil();
+            const bool unpacked = service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const auto restoredSource = service->currentComposition().lock()
+                ? service->currentComposition().lock()->layerById(sourceId)
+                : ArtifactAbstractLayerPtr{};
+            const bool unpackRestoredParent = unpacked && restoredSource &&
+                restoredSource->parentLayerId() == externalParentId;
+            const bool undoAvailable = undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto undoWrapper = service->currentComposition().lock()
+                ? dynamicPointerCast<ArtifactCompositionLayer>(
+                    service->currentComposition().lock()->layerById(outcome.precompLayerId))
+                : SharedPtr<ArtifactCompositionLayer>{};
+            const bool undoRestoredMetadata = undoAvailable && undoWrapper &&
+                undoWrapper->restoreExternalParent(sourceId) == externalParentId;
+            const bool redoAvailable = undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const auto redoSource = service->currentComposition().lock()
+                ? service->currentComposition().lock()->layerById(sourceId)
+                : ArtifactAbstractLayerPtr{};
+            const bool redoRestoredParent = redoAvailable && redoSource &&
+                redoSource->parentLayerId() == externalParentId;
+            parentResult["externalParentStoredOnWrapper"] = externalParentStored;
+            parentResult["externalParentClearedInChild"] = childParentCleared;
+            parentResult["unpackRestoredExternalParent"] = unpackRestoredParent;
+            parentResult["undoRestoredMetadata"] = undoRestoredMetadata;
+            parentResult["redoRestoredExternalParent"] = redoRestoredParent;
+            parentResult["passed"] = externalParentStored && childParentCleared &&
+                unpackRestoredParent && undoRestoredMetadata && redoRestoredParent;
+            if (!parentResult["passed"].toBool())
+                parentResult["error"] = QStringLiteral("External parent relationship changed across precompose/undo/redo");
+            refresh();
+            parentResult["state"] = state();
+            return parentResult;
         }
         else if (name == "test.runRegression") {
             failures_ = runPreComposeTests();
@@ -449,7 +521,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.transitiveCycleRejected", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.transitiveCycleRejected", "test.externalParentRestored", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

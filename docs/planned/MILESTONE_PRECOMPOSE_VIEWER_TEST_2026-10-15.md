@@ -22,7 +22,7 @@ out/build/x64-Debug-Agent/bin/Debug/ArtifactPrecomposeViewer.exe
 
 `--check` は既存プリコンポーズ回帰テストだけを実行し、失敗があれば終了コード1を返す。`--mcp-stdio` は改行区切りJSON-RPCの旧MCP `2024-11-05` initialize、tools/list、tools/call、pingに対応する。stdin EOFで終了する。製品ログはstderrへ分離する。新MCP server/discover形式は未対応。GUIを前面化せず、左端ディスプレイへ配置する。
 
-ツールは引数なしの `test.state`、`test.reset`、`test.cycleRejected`、`test.transitiveCycleRejected`、`test.precompose`、`test.precomposeAll`、`test.saveReload`、`test.nestedHierarchy`、`test.unpackKeep`、`test.unpackDelete`、`test.undo`、`test.redo`、`test.runRegression`、`test.capture`。`test.cycleRejected`は自身を参照するComposition Layerを作り、選択したプリコンポーズが直接循環を拒否し、階層とUndo履歴を変えないことを検査する。`test.transitiveCycleRejected`は親→子の既存階層で子から親を参照する候補をプリコンポーズし、間接循環を拒否してComposition数・レイヤー数・Undo履歴を変えないことを検査する。`test.saveReload`は一時 `.artifact` ファイルへ保存・再読込し、親のレイヤー配列と子Composition ID、子レイヤーのID・属性・時間範囲が一致することを検査する。子参照はレイヤー自身の保存プロパティから解決し、プロセス内のPreComposeManager登録状態には依存しない。`test.nestedHierarchy`は2段のプリコンポーズを作り、ルート→子→孫の階層IDと、ルート／孫間の時間変換往復を検査する。captureはQtのwidget grabからPNGを返す。これはCPU描画の検査画面専用のQt API境界であり、GPU viewport captureの代用ではない。新規signal/slot接続や製品Transport経路は追加しない。
+ツールは引数なしの `test.state`、`test.reset`、`test.cycleRejected`、`test.transitiveCycleRejected`、`test.externalParentRestored`、`test.precompose`、`test.precomposeAll`、`test.saveReload`、`test.nestedHierarchy`、`test.unpackKeep`、`test.unpackDelete`、`test.undo`、`test.redo`、`test.runRegression`、`test.capture`。`test.cycleRejected`は自身を参照するComposition Layerを作り、選択したプリコンポーズが直接循環を拒否し、階層とUndo履歴を変えないことを検査する。`test.transitiveCycleRejected`は親→子の既存階層で子から親を参照する候補をプリコンポーズし、間接循環を拒否してComposition数・レイヤー数・Undo履歴を変えないことを検査する。`test.externalParentRestored`は選択外レイヤーを親に持つレイヤーをプリコンポーズし、子内で親が外れ、解除とUndo/Redoで親リンクと復元メタデータが戻ることを検査する。`test.saveReload`は一時 `.artifact` ファイルへ保存・再読込し、親のレイヤー配列と子Composition ID、子レイヤーのID・属性・時間範囲が一致することを検査する。子参照はレイヤー自身の保存プロパティから解決し、プロセス内のPreComposeManager登録状態には依存しない。`test.nestedHierarchy`は2段のプリコンポーズを作り、ルート→子→孫の階層IDと、ルート／孫間の時間変換往復を検査する。captureはQtのwidget grabからPNGを返す。これはCPU描画の検査画面専用のQt API境界であり、GPU viewport captureの代用ではない。新規signal/slot接続や製品Transport経路は追加しない。
 
 ```powershell
 python tools/test_precompose_mcp.py `
@@ -33,4 +33,4 @@ python tools/test_precompose_mcp.py `
 
 同じコマンドをja/en/zh/zh-TWで実行する。`--lang`でQLocaleを指定できるが、テスト専用ラベル・キー名は全ロケールで英語の診断表記とする。製品の翻訳済みプリコンポーズダイアログの翻訳・レイアウト検査は対象外。
 
-検査はレイヤー順序、ID・transform・opacity保持、非選択レイヤー不変、選択/全移動、2段のネスト階層と時間変換、子保持/削除、Undo/Redo時の子ID・時間範囲・レイヤー復元、保存・再読込、および既存の回帰テストを対象とする。選択移動では最小Inを0へ正規化し、親側nest layerは元の時間範囲とoffsetを保つこと、解除では元のIn/Outへ戻ることを照合する。全移動では子レイヤーの時間が維持され、nest layerはframe 0から始まることを照合する。結果JSON、stderr、検査画面PNGは指定した出力先へ保存する。出力先はrepo外を推奨する。GPU描画、実アプリの選択UI操作はこのテストの合格範囲に含めない。
+検査は直接・間接循環の拒否、外部親リンクの保持、レイヤー順序、ID・transform・opacity保持、非選択レイヤー不変、選択/全移動、2段のネスト階層と時間変換、子保持/削除、Undo/Redo時の子ID・時間範囲・レイヤー復元、保存・再読込、および既存の回帰テストを対象とする。選択移動では最小Inを0へ正規化し、親側nest layerは元の時間範囲とoffsetを保つこと、解除では元のIn/Outへ戻ることを照合する。全移動では子レイヤーの時間が維持され、nest layerはframe 0から始まることを照合する。結果JSON、stderr、検査画面PNGは指定した出力先へ保存する。出力先はrepo外を推奨する。GPU描画、実アプリの選択UI操作はこのテストの合格範囲に含めない。
