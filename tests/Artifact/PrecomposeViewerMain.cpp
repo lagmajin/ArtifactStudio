@@ -190,17 +190,38 @@ public:
                 ArtifactProjectManager::getInstance().compositionCount() == beforeCompositionCount &&
                 undo->undoCount() == beforeUndoCount && emptySelectionOutcome.precompLayerId.isNil() &&
                 emptySelectionOutcome.childCompId.isNil();
+            const bool emptyPrecompIdRejected = !service->unprecomposeLayerWithUndo(LayerID(), true);
+            const bool emptyPrecompIdAtomic = comp->allLayer().size() == beforeLayerCount &&
+                layers(comp, 0) == beforeLayers &&
+                ArtifactProjectManager::getInstance().compositionCount() == beforeCompositionCount &&
+                undo->undoCount() == beforeUndoCount &&
+                service->lastUnprecomposePrecompLayerId().isNil() &&
+                service->lastUnprecomposeChildCompId().isNil() &&
+                service->lastUnprecomposeMovedLayerIds().isEmpty();
+            const bool ordinaryLayerRejected = !service->unprecomposeLayerWithUndo(sourceIds.front(), true);
+            const bool ordinaryLayerAtomic = comp->allLayer().size() == beforeLayerCount &&
+                layers(comp, 0) == beforeLayers &&
+                ArtifactProjectManager::getInstance().compositionCount() == beforeCompositionCount &&
+                undo->undoCount() == beforeUndoCount &&
+                service->lastUnprecomposePrecompLayerId().isNil() &&
+                service->lastUnprecomposeChildCompId().isNil() &&
+                service->lastUnprecomposeMovedLayerIds().isEmpty();
             invalidResult["blankNameRejected"] = blankNameRejected;
             invalidResult["blankNameAtomic"] = blankNameAtomic;
             invalidResult["invalidSelectionRejected"] = invalidSelectionRejected;
             invalidResult["invalidSelectionAtomic"] = invalidSelectionAtomic;
             invalidResult["emptySelectionRejected"] = emptySelectionRejected;
             invalidResult["emptySelectionAtomic"] = emptySelectionAtomic;
+            invalidResult["emptyPrecompIdRejected"] = emptyPrecompIdRejected;
+            invalidResult["emptyPrecompIdAtomic"] = emptyPrecompIdAtomic;
+            invalidResult["ordinaryLayerRejected"] = ordinaryLayerRejected;
+            invalidResult["ordinaryLayerAtomic"] = ordinaryLayerAtomic;
             invalidResult["passed"] = blankNameRejected && blankNameAtomic &&
                 invalidSelectionRejected && invalidSelectionAtomic && emptySelectionRejected &&
-                emptySelectionAtomic;
+                emptySelectionAtomic && emptyPrecompIdRejected && emptyPrecompIdAtomic &&
+                ordinaryLayerRejected && ordinaryLayerAtomic;
             if (!invalidResult["passed"].toBool())
-                invalidResult["error"] = QStringLiteral("Rejected precompose input mutated project state or history");
+                invalidResult["error"] = QStringLiteral("Rejected precompose/unprecompose input mutated project state or history");
             refresh();
             invalidResult["state"] = state();
             return invalidResult;

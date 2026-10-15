@@ -90,8 +90,12 @@ def main():
                     and invalid_requests["invalidSelectionRejected"]
                     and invalid_requests["invalidSelectionAtomic"]
                     and invalid_requests["emptySelectionRejected"]
-                    and invalid_requests["emptySelectionAtomic"],
-                    "Invalid precompose requests were not rejected without side effects")
+                    and invalid_requests["emptySelectionAtomic"]
+                    and invalid_requests["emptyPrecompIdRejected"]
+                    and invalid_requests["emptyPrecompIdAtomic"]
+                    and invalid_requests["ordinaryLayerRejected"]
+                    and invalid_requests["ordinaryLayerAtomic"],
+                    "Invalid precompose/unprecompose requests were not rejected without side effects")
             call("test.reset")
             opened_child = call("test.openChildComposition")
             require(opened_child["passed"] and opened_child["childOpened"]
