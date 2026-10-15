@@ -170,6 +170,14 @@ def main():
                     and child_edits["redoValuesPreserved"],
                     "Transform or opacity edits inside a child composition changed across unprecompose/undo/redo")
             call("test.reset")
+            selection_transitions = call("test.selectionTransitions")
+            require(selection_transitions["passed"]
+                    and selection_transitions["precomposeSelectedWrapper"]
+                    and selection_transitions["unpackSelectedFirstSource"]
+                    and selection_transitions["undoSelectedWrapper"]
+                    and selection_transitions["redoSelectedFirstSource"],
+                    "Layer selection or active composition changed unexpectedly across precompose/unprecompose/undo/redo")
+            call("test.reset")
             external_parent_round_trip = call("test.externalParentSaveReload")
             require(external_parent_round_trip["passed"]
                     and external_parent_round_trip["mappingClearedBeforeReload"]

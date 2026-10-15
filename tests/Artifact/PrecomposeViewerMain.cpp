@@ -35,6 +35,7 @@ import Artifact.Composition.InitParams;
 import Artifact.Layer.Abstract;
 import Artifact.Layer.InitParams;
 import Artifact.Layer.Composition;
+import Artifact.Layers.Selection.Manager;
 import Color.Float;
 import Property.Abstract;
 import Property.ExposedPropertyRegistry;
@@ -852,6 +853,60 @@ public:
             refresh();
             parentResult["state"] = state();
             return parentResult;
+        } else if (name == "test.selectionTransitions") {
+            QJsonObject selectionResult;
+            const auto root = service->currentComposition().lock();
+            auto* selection = ArtifactLayerSelectionManager::instance();
+            if (!root || !selection) {
+                selectionResult["error"] = QStringLiteral("Composition or layer-selection service is unavailable");
+                return selectionResult;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Selection Transition Fixture")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                selectionResult["error"] = QStringLiteral("Could not create selection-transition fixture");
+                return selectionResult;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto matchesSelection = [&](const LayerID& expectedLayerId) {
+                const auto active = selection->activeComposition();
+                const auto current = selection->currentLayer();
+                const auto selected = selection->selectedLayersInOrder();
+                return active && active->id() == rootId && current &&
+                    current->id() == expectedLayerId && selected.size() == 1 &&
+                    selected.front() && selected.front()->id() == expectedLayerId;
+            };
+            const bool precomposeSelectedWrapper = matchesSelection(outcome.precompLayerId) &&
+                root->layerById(outcome.precompLayerId);
+            const bool unpacked = service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const bool unpackSelectedFirstSource = unpacked && matchesSelection(sourceIds.front()) &&
+                root->layerById(sourceIds.front());
+            const bool undoAvailable = undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const bool undoSelectedWrapper = undoAvailable && matchesSelection(outcome.precompLayerId) &&
+                root->layerById(outcome.precompLayerId) &&
+                PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId);
+            const bool redoAvailable = undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const bool redoSelectedFirstSource = redoAvailable && matchesSelection(sourceIds.front()) &&
+                root->layerById(sourceIds.front()) &&
+                !PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId);
+            service->changeCurrentComposition(rootId);
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            selectionResult["precomposeSelectedWrapper"] = precomposeSelectedWrapper;
+            selectionResult["unpackSelectedFirstSource"] = unpackSelectedFirstSource;
+            selectionResult["undoSelectedWrapper"] = undoSelectedWrapper;
+            selectionResult["redoSelectedFirstSource"] = redoSelectedFirstSource;
+            selectionResult["passed"] = precomposeSelectedWrapper && unpackSelectedFirstSource &&
+                undoSelectedWrapper && redoSelectedFirstSource;
+            if (!selectionResult["passed"].toBool())
+                selectionResult["error"] = QStringLiteral("Layer selection or active composition changed unexpectedly across precompose/unprecompose/undo/redo");
+            refresh();
+            selectionResult["state"] = state();
+            return selectionResult;
         } else if (name == "test.childEditsSurviveUnwrap") {
             QJsonObject editResult;
             const auto root = service->currentComposition().lock();
@@ -1961,7 +2016,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
