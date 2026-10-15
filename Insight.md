@@ -2,6 +2,13 @@
 
 # Insight Register
 
+## 2026-10-15: シェイプ描画テストで自動保存される初期形状を除去する
+
+- **関連:** `Artifact/src/Layer/ArtifactShapeLayer.cppm` の `addShapeContent()`、`tests/shape_visual/ShapeVisualCases.inc`。
+- **確認できた事実:** 空の content 配列へ最初の content を追加すると、指定 content より先に `makeContentFromLegacy()` の結果が格納される。content の Intersect は先行 content の描画を消さず、後続 content の形状だけを先行形状で切り抜く。
+- **価値／懸念:** 初期矩形が穴や透明領域を覆い、意図した入力と異なる画像を検証する恐れがある。専用テストでは初期 snapshot を除去し、content Intersect の入力は塗りを無効にして演算結果を分離した。
+- **次に確認:** ユーザーが許可したビルド・実行で実際の座標と alpha を確認する。製品側の仕様変更を提案するものではない。
+
 ## 2026-10-15: 既存プリコンポーズレイヤー移動時の親階層登録
 
 - **関連:** `Artifact/src/Service/ArtifactProjectService.cppm`、`ArtifactCore/src/Composition/PreCompose.cppm`、`tests/Artifact/PrecomposeViewerMain.cpp`。

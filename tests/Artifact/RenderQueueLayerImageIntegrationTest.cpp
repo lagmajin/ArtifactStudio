@@ -5,10 +5,14 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QEventLoop>
+#include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QImage>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QLoggingCategory>
+#include <QPointF>
 #include <QRegularExpression>
 #include <QSize>
 #include <QStandardPaths>
@@ -17,6 +21,7 @@
 #include <QThread>
 #include <QVariantMap>
 #include <QVector3D>
+#include <QtGlobal>
 
 #include <algorithm>
 #include <cmath>
@@ -32,6 +37,7 @@ import Artifact.Layer.Camera;
 import Artifact.Layer.InitParams;
 import Artifact.Layer.Particle;
 import Artifact.Layer.Result;
+import Artifact.Layer.Shape;
 import Artifact.Layer.Text;
 import Artifact.Generator.Particle;
 import Artifact.Project.Manager;
@@ -39,6 +45,9 @@ import Artifact.Render.IRenderer;
 import Artifact.Render.Queue.Job;
 import Artifact.Render.Queue.Service;
 import BrightnessEffect;
+import Animation.Transform2D;
+import Shape.Types;
+import Shape.Operator;
 import Color.Float;
 import Image.OpenEXR;
 import Memory.SharedPtr;
@@ -375,6 +384,8 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
 }
 
 } // namespace
+
+#include "../shape_visual/ShapeVisualCases.inc"
 
 TEST(RenderQueueLayerImageIntegrationTest,
      WritesReadableExrThroughManagerQueue)

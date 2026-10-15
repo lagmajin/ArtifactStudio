@@ -323,6 +323,16 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
             --gtest_filter=RenderQueueLayerImageIntegrationTest.Production2DAnd3DParticlesRenderThroughManagerQueue
     )
+    add_test(NAME ArtifactShapeVisualTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=ShapeVisualTest.*
+            --gtest_output=xml:shape-visual-results.xml
+    )
+    set_tests_properties(ArtifactShapeVisualTest PROPERTIES
+        LABELS "shape;renderer;gpu;headless;image;integration"
+        TIMEOUT 2100
+        RUN_SERIAL TRUE
+    )
     set_tests_properties(ArtifactRenderQueueLayerImageIntegrationTest PROPERTIES
         LABELS "render-queue;renderer;gpu;headless;particle;image;integration"
         TIMEOUT 300
