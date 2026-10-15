@@ -528,6 +528,70 @@ public:
             refresh();
             cycleResult["state"] = state();
             return cycleResult;
+        } else if (name == "test.emptyChildUnwrapRejected") {
+            QJsonObject emptyResult;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                emptyResult["error"] = QStringLiteral("No root composition");
+                return emptyResult;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Empty Child Fixture")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                emptyResult["error"] = QStringLiteral("Could not create empty-child precompose fixture");
+                return emptyResult;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            if (!child || child->allLayer().isEmpty()) {
+                emptyResult["error"] = QStringLiteral("Precompose fixture child is missing its source layers");
+                return emptyResult;
+            }
+            QVector<LayerID> childLayerIds;
+            childLayerIds.reserve(child->allLayer().size());
+            for (const auto& layer : child->allLayer()) {
+                if (layer) childLayerIds.push_back(layer->id());
+            }
+            bool childEmptied = !childLayerIds.isEmpty();
+            for (const auto& id : childLayerIds) {
+                childEmptied = service->removeLayerFromComposition(child->id(), id) && childEmptied;
+            }
+            const auto parentLayersBeforeUnwrap = state()["layers"].toArray();
+            const auto compositionCountBeforeUnwrap = ArtifactProjectManager::getInstance().compositionCount();
+            const auto undoCountBeforeUnwrap = undo->undoCount();
+            const bool rejected = !service->unprecomposeLayerWithUndo(outcome.precompLayerId, false);
+            const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(outcome.precompLayerId));
+            const bool wrapperPreserved = wrapper &&
+                wrapper->sourceCompositionId() == outcome.childCompId &&
+                PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId);
+            const bool childPreserved = service->findComposition(outcome.childCompId).ptr.lock() == child &&
+                child->allLayer().isEmpty() &&
+                ArtifactProjectManager::getInstance().compositionCount() == compositionCountBeforeUnwrap;
+            const bool parentStatePreserved = state()["layers"].toArray() == parentLayersBeforeUnwrap;
+            const bool undoHistoryPreserved = undo->undoCount() == undoCountBeforeUnwrap;
+            const bool outcomeCleared = service->lastUnprecomposePrecompLayerId().isNil() &&
+                service->lastUnprecomposeChildCompId().isNil() &&
+                service->lastUnprecomposeMovedLayerIds().isEmpty();
+            service->changeCurrentComposition(rootId);
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            emptyResult["childEmptied"] = childEmptied && child->allLayer().isEmpty();
+            emptyResult["unwrapRejected"] = rejected;
+            emptyResult["wrapperPreserved"] = wrapperPreserved;
+            emptyResult["childPreserved"] = childPreserved;
+            emptyResult["parentStatePreserved"] = parentStatePreserved;
+            emptyResult["undoHistoryPreserved"] = undoHistoryPreserved;
+            emptyResult["outcomeCleared"] = outcomeCleared;
+            emptyResult["passed"] = childEmptied && rejected && wrapperPreserved && childPreserved &&
+                parentStatePreserved && undoHistoryPreserved && outcomeCleared;
+            if (!emptyResult["passed"].toBool())
+                emptyResult["error"] = QStringLiteral("Unprecompose consumed or mutated an empty child fixture");
+            refresh();
+            emptyResult["state"] = state();
+            return emptyResult;
         } else if (name == "test.unpackDeleteRedo") {
             QJsonObject redoResult;
             const auto root = service->currentComposition().lock();
@@ -1507,7 +1571,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

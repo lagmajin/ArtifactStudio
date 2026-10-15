@@ -123,6 +123,13 @@ def main():
                     and transitive_cycle["stateUnchanged"] and transitive_cycle["fixtureCleaned"],
                     "Transitive cycle precompose was not rejected atomically")
             call("test.reset")
+            empty_child = call("test.emptyChildUnwrapRejected")
+            require(empty_child["passed"] and empty_child["childEmptied"]
+                    and empty_child["unwrapRejected"] and empty_child["wrapperPreserved"]
+                    and empty_child["childPreserved"] and empty_child["parentStatePreserved"]
+                    and empty_child["undoHistoryPreserved"] and empty_child["outcomeCleared"],
+                    "Unprecompose did not preserve an empty child and wrapper atomically")
+            call("test.reset")
             delete_redo = call("test.unpackDeleteRedo")
             require(delete_redo["passed"] and delete_redo["deletedAfterUnpack"]
                     and delete_redo["restoredByUndo"] and delete_redo["deletedByRedo"]
