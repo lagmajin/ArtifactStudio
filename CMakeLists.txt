@@ -873,6 +873,40 @@ option(ARTIFACT_ENABLE_KEYING_VIDEO_TEST
 option(ARTIFACT_BUILD_FBX_ANIMATION_VIEWER
     "Build the independent FBX animation preview executable"
     OFF)
+option(ARTIFACT_ENABLE_FBX_IMPORT_TEST
+    "Build the FBX animation and embedded-texture importer test"
+    OFF)
+set(ARTIFACT_FBX_TEST_FILE "" CACHE FILEPATH
+    "FBX fixture containing animation and embedded base-color/normal image textures")
+set(ARTIFACT_FBX_ANIMATION_TEST_FILE "" CACHE FILEPATH
+    "FBX animation fixture (overrides ARTIFACT_FBX_TEST_FILE for animation checks)")
+set(ARTIFACT_FBX_BASE_COLOR_TEST_FILE "" CACHE FILEPATH
+    "FBX embedded base-color fixture (defaults to ARTIFACT_FBX_TEXTURE_TEST_FILE)")
+set(ARTIFACT_FBX_TEXTURE_TEST_FILE "" CACHE FILEPATH
+    "FBX embedded-texture fixture (overrides ARTIFACT_FBX_TEST_FILE for texture checks)")
+
+function(artifact_add_cppwinrt_include target_name)
+    if(NOT WIN32)
+        return()
+    endif()
+
+    foreach(_artifact_sdk_include IN LISTS CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES)
+        if(_artifact_sdk_include MATCHES "[/\\\\]winrt$")
+            get_filename_component(_artifact_sdk_version_root
+                "${_artifact_sdk_include}" DIRECTORY)
+            set(_artifact_cppwinrt_include
+                "${_artifact_sdk_version_root}/cppwinrt")
+            if(EXISTS "${_artifact_cppwinrt_include}/winrt/base.h")
+                target_include_directories(${target_name} PRIVATE
+                    "${_artifact_cppwinrt_include}")
+                return()
+            endif()
+        endif()
+    endforeach()
+
+    message(FATAL_ERROR
+        "Could not locate the Windows SDK C++/WinRT include directory for ${target_name}")
+endfunction()
 
 if(ARTIFACT_BUILD_FBX_ANIMATION_VIEWER)
     add_executable(ArtifactFbxAnimationViewer
@@ -883,6 +917,7 @@ if(ARTIFACT_BUILD_FBX_ANIMATION_VIEWER)
         "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/include"
         "${CMAKE_CURRENT_SOURCE_DIR}/third_party/verdigris/src"
     )
+    artifact_add_cppwinrt_include(ArtifactFbxAnimationViewer)
     set_target_properties(ArtifactFbxAnimationViewer PROPERTIES
         CXX_STANDARD 23
         CXX_STANDARD_REQUIRED ON
@@ -976,10 +1011,14 @@ endif()
 
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS
    OR ARTIFACT_ENABLE_TRACKING_VIDEO_TEST OR ARTIFACT_ENABLE_KEYING_VIDEO_TEST
-   OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST OR ARTIFACT_ENABLE_RAY_TRACING_TEST)
+   OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST OR ARTIFACT_ENABLE_RAY_TRACING_TEST
+   OR ARTIFACT_ENABLE_FBX_IMPORT_TEST)
     find_package(GTest CONFIG QUIET)
     if(GTest_FOUND)
         add_subdirectory(tests)
+    elseif(ARTIFACT_ENABLE_FBX_IMPORT_TEST)
+        message(FATAL_ERROR
+            "ARTIFACT_ENABLE_FBX_IMPORT_TEST requires GTest, but GTest was not found.")
     else()
         message(WARNING "GTest was not found; skipping GTest-based tests.")
     endif()

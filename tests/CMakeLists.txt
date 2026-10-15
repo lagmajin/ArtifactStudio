@@ -31,8 +31,84 @@ function(artifact_add_test target_name)
     add_test(NAME ${target_name} COMMAND ${target_name})
 endfunction()
 
+if(ARTIFACT_ENABLE_FBX_IMPORT_TEST)
+    set(_artifact_fbx_animation_fixture "${ARTIFACT_FBX_ANIMATION_TEST_FILE}")
+    if(NOT _artifact_fbx_animation_fixture)
+        set(_artifact_fbx_animation_fixture "${ARTIFACT_FBX_TEST_FILE}")
+    endif()
+    set(_artifact_fbx_texture_fixture "${ARTIFACT_FBX_TEXTURE_TEST_FILE}")
+    if(NOT _artifact_fbx_texture_fixture)
+        set(_artifact_fbx_texture_fixture "${ARTIFACT_FBX_TEST_FILE}")
+    endif()
+    set(_artifact_fbx_base_color_fixture "${ARTIFACT_FBX_BASE_COLOR_TEST_FILE}")
+    if(NOT _artifact_fbx_base_color_fixture)
+        set(_artifact_fbx_base_color_fixture "${_artifact_fbx_texture_fixture}")
+    endif()
+    if(NOT _artifact_fbx_animation_fixture OR
+       NOT _artifact_fbx_base_color_fixture OR
+       NOT _artifact_fbx_texture_fixture)
+        message(FATAL_ERROR
+            "ARTIFACT_ENABLE_FBX_IMPORT_TEST requires animation, embedded "
+            "base-color, and embedded base-color/normal FBX fixtures. Set "
+            "ARTIFACT_FBX_TEST_FILE, or set ARTIFACT_FBX_ANIMATION_TEST_FILE, "
+            "ARTIFACT_FBX_BASE_COLOR_TEST_FILE, and "
+            "ARTIFACT_FBX_TEXTURE_TEST_FILE as needed.")
+    endif()
+    get_filename_component(_artifact_fbx_animation_fixture
+        "${_artifact_fbx_animation_fixture}" ABSOLUTE
+        BASE_DIR "${PROJECT_SOURCE_DIR}")
+    get_filename_component(_artifact_fbx_texture_fixture
+        "${_artifact_fbx_texture_fixture}" ABSOLUTE
+        BASE_DIR "${PROJECT_SOURCE_DIR}")
+    get_filename_component(_artifact_fbx_base_color_fixture
+        "${_artifact_fbx_base_color_fixture}" ABSOLUTE
+        BASE_DIR "${PROJECT_SOURCE_DIR}")
+    set(_artifact_fbx_external_texture_fixture
+        "${CMAKE_CURRENT_LIST_DIR}/fixtures/fbx-materials/external/FBX/stale-source-path.fbx")
+
+    foreach(_artifact_fbx_fixture IN ITEMS
+            _artifact_fbx_animation_fixture _artifact_fbx_base_color_fixture
+            _artifact_fbx_texture_fixture)
+        if(NOT EXISTS "${${_artifact_fbx_fixture}}" OR
+           IS_DIRECTORY "${${_artifact_fbx_fixture}}")
+            message(FATAL_ERROR
+                "FBX test fixture does not exist or is not a file: "
+                "${${_artifact_fbx_fixture}}")
+        endif()
+    endforeach()
+    if(NOT EXISTS "${_artifact_fbx_external_texture_fixture}" OR
+       IS_DIRECTORY "${_artifact_fbx_external_texture_fixture}")
+        message(FATAL_ERROR
+            "External FBX texture-path regression fixture does not exist: "
+            "${_artifact_fbx_external_texture_fixture}")
+    endif()
+
+    artifact_add_test(ArtifactCoreMeshImporterFbxTest
+        SOURCES
+            ArtifactCore/MeshImporterFbxTest.cpp
+        LIBS
+            ArtifactCore
+    )
+    if(WIN32)
+        add_custom_command(TARGET ArtifactCoreMeshImporterFbxTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ArtifactCoreMeshImporterFbxTest>
+                "$<TARGET_FILE_DIR:ArtifactCoreMeshImporterFbxTest>/"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+    endif()
+    set_tests_properties(ArtifactCoreMeshImporterFbxTest PROPERTIES
+        LABELS "fbx;animation;textures;import;core"
+        TIMEOUT 120
+        ENVIRONMENT
+            "ARTIFACT_FBX_ANIMATION_TEST_FILE=${_artifact_fbx_animation_fixture};ARTIFACT_FBX_BASE_COLOR_TEST_FILE=${_artifact_fbx_base_color_fixture};ARTIFACT_FBX_TEXTURE_TEST_FILE=${_artifact_fbx_texture_fixture};ARTIFACT_FBX_EXTERNAL_TEXTURE_TEST_FILE=${_artifact_fbx_external_texture_fixture}"
+    )
+endif()
+
 # ArtifactCore tests, including the isolated MotionTracker video test.
-if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_TRACKING_VIDEO_TEST
+if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_FBX_IMPORT_TEST
+   OR ARTIFACT_ENABLE_TRACKING_VIDEO_TEST
    OR ARTIFACT_ENABLE_KEYING_VIDEO_TEST OR ARTIFACT_ENABLE_RAY_TRACING_TEST)
     add_subdirectory(ArtifactCore)
 endif()
