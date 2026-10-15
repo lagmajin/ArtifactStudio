@@ -185,6 +185,12 @@ def main():
                     and empty_child["undoHistoryPreserved"] and empty_child["outcomeCleared"],
                     "Unprecompose did not preserve an empty child and wrapper atomically")
             call("test.reset")
+            empty_move_all = call("test.emptyMoveAllRejectedAtomic")
+            require(empty_move_all["passed"] and empty_move_all["emptyFixtureReady"]
+                    and empty_move_all["rejected"] and empty_move_all["rejectionAtomic"]
+                    and empty_move_all["fixtureRestored"],
+                    "MoveAllAttributes accepted an empty composition or changed state on rejection")
+            call("test.reset")
             delete_redo = call("test.unpackDeleteRedo")
             require(delete_redo["passed"] and delete_redo["deletedAfterUnpack"]
                     and delete_redo["restoredByUndo"] and delete_redo["deletedByRedo"]

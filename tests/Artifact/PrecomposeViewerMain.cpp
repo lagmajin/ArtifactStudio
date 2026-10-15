@@ -1007,6 +1007,67 @@ public:
             refresh();
             emptyResult["state"] = state();
             return emptyResult;
+        } else if (name == "test.emptyMoveAllRejectedAtomic") {
+            QJsonObject emptyResult;
+            const auto root = service->currentComposition().lock();
+            const auto project = service->getCurrentProjectSharedPtr();
+            if (!root || !project) {
+                emptyResult["error"] = QStringLiteral("Empty MoveAll fixture is unavailable");
+                return emptyResult;
+            }
+            const auto rootId = root->id();
+            const auto originalLayers = root->allLayer();
+            if (originalLayers.isEmpty()) {
+                emptyResult["error"] = QStringLiteral("Root fixture has no layers to remove");
+                return emptyResult;
+            }
+            const auto compositionCountBefore = ArtifactProjectManager::getInstance().compositionCount();
+            const auto undoCountBefore = undo->undoCount();
+            const auto redoCountBefore = undo->redoCount();
+            bool emptied = true;
+            for (const auto& layer : originalLayers) {
+                emptied = layer && project->removeLayerFromComposition(rootId, layer->id()) && emptied;
+            }
+            const bool emptyFixtureReady = emptied && root->allLayer().isEmpty();
+            const bool rejected = emptyFixtureReady && !service->precomposeLayersWithUndo(
+                {}, UniString(QStringLiteral("Empty Move All")), false, false,
+                PrecomposeMode::MoveAllAttributes);
+            const auto outcome = service->lastPrecomposeOutcome();
+            const bool rejectionAtomic = rejected && root->allLayer().isEmpty() &&
+                ArtifactProjectManager::getInstance().compositionCount() == compositionCountBefore &&
+                undo->undoCount() == undoCountBefore && undo->redoCount() == redoCountBefore &&
+                outcome.precompLayerId.isNil() && outcome.childCompId.isNil();
+            bool fixtureRestored = true;
+            for (const auto& layer : originalLayers) {
+                if (!layer) {
+                    fixtureRestored = false;
+                    continue;
+                }
+                if (!root->containsLayerById(layer->id()) &&
+                    !project->addLayerToComposition(rootId, layer).success) {
+                    fixtureRestored = false;
+                    continue;
+                }
+                layer->setComposition(root.get());
+            }
+            service->selectLayer(LayerID());
+            const auto restoredLayers = root->allLayer();
+            bool originalOrderRestored = restoredLayers.size() == originalLayers.size();
+            for (int i = 0; originalOrderRestored && i < originalLayers.size(); ++i) {
+                originalOrderRestored = restoredLayers[i] &&
+                    restoredLayers[i]->id() == originalLayers[i]->id();
+            }
+            emptyResult["emptyFixtureReady"] = emptyFixtureReady;
+            emptyResult["rejected"] = rejected;
+            emptyResult["rejectionAtomic"] = rejectionAtomic;
+            emptyResult["fixtureRestored"] = fixtureRestored && originalOrderRestored;
+            emptyResult["passed"] = emptyFixtureReady && rejected && rejectionAtomic &&
+                fixtureRestored && originalOrderRestored;
+            if (!emptyResult["passed"].toBool())
+                emptyResult["error"] = QStringLiteral("Empty MoveAll precompose mutated state or failed to restore its test fixture");
+            refresh();
+            emptyResult["state"] = state();
+            return emptyResult;
         } else if (name == "test.unpackDeleteRedo") {
             QJsonObject redoResult;
             const auto root = service->currentComposition().lock();
@@ -2791,7 +2852,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.unpackDeleteRedo", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
