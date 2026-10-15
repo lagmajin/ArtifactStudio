@@ -87,6 +87,11 @@ def main():
                     and external_parent["redoRestoredExternalParent"],
                     "External layer parent was not preserved across precompose/undo/redo")
             call("test.reset")
+            animated = call("test.animatedTiming")
+            require(animated["passed"] and animated["childKeysRetimed"]
+                    and animated["unpackRestoredKeys"] and animated["redoRestoredKeys"],
+                    "Animated keyframes or metadata changed across precompose/unpack/redo")
+            call("test.reset")
             initial = call("test.state")
             original = initial["layers"]
             nested = call("test.precompose")
@@ -157,7 +162,7 @@ def main():
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
-            print("PASS: direct/transitive cycle guards, external parent restore, selected/all, nested hierarchy/time, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: direct/transitive cycle guards, external parent restore, animated key timing/metadata, selected/all, nested hierarchy/time, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
             try:

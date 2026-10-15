@@ -31,7 +31,10 @@ import Artifact.Composition.Abstract;
 import Artifact.Layer.Abstract;
 import Artifact.Layer.InitParams;
 import Artifact.Layer.Composition;
+import Property.Abstract;
+import Math.Interpolate;
 import Frame.Position;
+import Time.Rational;
 import Composition.PreCompose;
 import Undo.UndoManager;
 import Utils.String.UniString;
@@ -275,6 +278,97 @@ public:
             refresh();
             parentResult["state"] = state();
             return parentResult;
+        } else if (name == "test.animatedTiming") {
+            QJsonObject animationResult;
+            const auto parent = service->currentComposition().lock();
+            const auto idsA = namedLayerIds(parent, {QStringLiteral("A")});
+            const auto idsB = namedLayerIds(parent, {QStringLiteral("B")});
+            if (!parent || idsA.size() != 1 || idsB.size() != 1) {
+                animationResult["error"] = QStringLiteral("Animated precompose fixture layers are missing");
+                return animationResult;
+            }
+            const auto source = parent->layerById(idsA.front());
+            auto property = source ? source->getProperty(QStringLiteral("transform.position.x"))
+                                   : SharedPtr<AbstractProperty>{};
+            if (!property) {
+                animationResult["error"] = QStringLiteral("Position X animation property is unavailable");
+                return animationResult;
+            }
+            property->clearKeyFrames();
+            property->setAnimatable(true);
+            const auto keyScale = source->keyframeTimeScale();
+            const RationalTime firstTime(40, keyScale);
+            const RationalTime secondTime(100, keyScale);
+            property->addKeyFrame(firstTime, 1.5, InterpolationType::Bezier,
+                                  0.2f, 0.3f, 0.7f, 0.8f, true);
+            property->setKeyFrameAnchorAt(firstTime, KeyFrame::Anchor::LockToIn);
+            property->setKeyFrameColorLabelAt(firstTime, KeyFrame::ColorLabel::Blue);
+            property->setKeyFrameSoftAt(firstTime, true);
+            property->addKeyFrame(secondTime, -2.25, InterpolationType::Constant);
+            const auto originalKeys = keyframes(property);
+            const QVector<LayerID> selected{idsA.front(), idsB.front()};
+            const bool precomposed = service->precomposeLayersWithUndo(
+                selected, UniString(QStringLiteral("Animated Precompose")), false, false,
+                PrecomposeMode::MoveSelected);
+            if (!precomposed) {
+                animationResult["error"] = QStringLiteral("Could not precompose animated layers");
+                return animationResult;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto movedSource = child ? child->layerById(idsA.front()) : ArtifactAbstractLayerPtr{};
+            const auto childProperty = movedSource
+                ? movedSource->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const auto movedKeys = childProperty ? keyframes(childProperty) : QJsonArray{};
+            const bool childKeysRetimed = childProperty && movedKeys.size() == 2 &&
+                movedKeys[0].toObject()["timeValue"].toInt() == 0 &&
+                movedKeys[0].toObject()["timeScale"].toDouble() == static_cast<double>(keyScale) &&
+                movedKeys[1].toObject()["timeValue"].toInt() == 100 &&
+                movedKeys[1].toObject()["timeScale"].toDouble() == static_cast<double>(keyScale) &&
+                movedKeys[0].toObject()["value"].toDouble() == 1.5 &&
+                movedKeys[1].toObject()["value"].toDouble() == -2.25 &&
+                movedKeys[0].toObject()["anchor"].toInt() == static_cast<int>(KeyFrame::Anchor::LockToIn) &&
+                movedKeys[0].toObject()["interpolation"].toInt() == static_cast<int>(InterpolationType::Bezier) &&
+                movedKeys[0].toObject()["cp1x"].toDouble() == 0.2 &&
+                movedKeys[0].toObject()["cp1y"].toDouble() == 0.3 &&
+                movedKeys[0].toObject()["cp2x"].toDouble() == 0.7 &&
+                movedKeys[0].toObject()["cp2y"].toDouble() == 0.8 &&
+                movedKeys[0].toObject()["roving"].toBool() &&
+                movedKeys[0].toObject()["colorLabel"].toInt() == static_cast<int>(KeyFrame::ColorLabel::Blue) &&
+                movedKeys[0].toObject()["soft"].toBool() &&
+                movedKeys[1].toObject()["interpolation"].toInt() == static_cast<int>(InterpolationType::Constant);
+            const bool unpacked = service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const auto restored = service->currentComposition().lock();
+            const auto restoredSource = restored ? restored->layerById(idsA.front()) : ArtifactAbstractLayerPtr{};
+            const auto restoredProperty = restoredSource
+                ? restoredSource->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const bool unpackKeysRestored = unpacked && restoredProperty &&
+                keyframes(restoredProperty) == originalKeys;
+            const bool undoAvailable = undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const bool redoAvailable = undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const auto afterRedo = service->currentComposition().lock();
+            const auto redoSource = afterRedo ? afterRedo->layerById(idsA.front()) : ArtifactAbstractLayerPtr{};
+            const auto redoProperty = redoSource
+                ? redoSource->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const bool redoKeysRestored = redoAvailable && redoProperty &&
+                keyframes(redoProperty) == originalKeys;
+            animationResult["originalKeys"] = originalKeys;
+            animationResult["precomposedKeys"] = movedKeys;
+            animationResult["childKeysRetimed"] = childKeysRetimed;
+            animationResult["unpackRestoredKeys"] = unpackKeysRestored;
+            animationResult["redoRestoredKeys"] = redoKeysRestored;
+            animationResult["passed"] = childKeysRetimed && unpackKeysRestored &&
+                undoAvailable && redoKeysRestored;
+            if (!animationResult["passed"].toBool())
+                animationResult["error"] = QStringLiteral("Animated keyframes changed across precompose/unpack/redo");
+            refresh();
+            animationResult["state"] = state();
+            return animationResult;
         }
         else if (name == "test.runRegression") {
             failures_ = runPreComposeTests();
@@ -440,6 +534,25 @@ protected:
     }
 
 private:
+    static QJsonArray keyframes(const SharedPtr<AbstractProperty>& property)
+    {
+        QJsonArray result;
+        if (!property) return result;
+        for (const auto& key : property->getKeyFrames()) {
+            result.append(QJsonObject{{"timeValue", static_cast<double>(key.time.value())},
+                {"timeScale", static_cast<double>(key.time.scale())},
+                {"value", key.value.toDouble()},
+                {"interpolation", static_cast<int>(key.interpolation)},
+                {"cp1x", static_cast<double>(key.cp1_x)},
+                {"cp1y", static_cast<double>(key.cp1_y)},
+                {"cp2x", static_cast<double>(key.cp2_x)},
+                {"cp2y", static_cast<double>(key.cp2_y)},
+                {"roving", key.roving}, {"anchor", static_cast<int>(key.anchor)},
+                {"colorLabel", static_cast<int>(key.colorLabel)}, {"soft", key.soft}});
+        }
+        return result;
+    }
+
     static QVector<LayerID> namedLayerIds(const ArtifactCompositionPtr& comp,
                                            const QStringList& names)
     {
@@ -521,7 +634,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.transitiveCycleRejected", "test.externalParentRestored", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.transitiveCycleRejected", "test.externalParentRestored", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
