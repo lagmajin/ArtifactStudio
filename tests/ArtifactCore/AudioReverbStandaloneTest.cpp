@@ -105,6 +105,25 @@ TEST(AudioReverbStandaloneTest, SizeParameterChangesWetImpulseResponse)
     EXPECT_NE(compactSegment.channelData[0], largeSegment.channelData[0]);
 }
 
+TEST(AudioReverbStandaloneTest, DelayHistoryIsIsolatedBetweenInstances)
+{
+    AudioReverb excited;
+    excited.setDecay(0.9f);
+    excited.setMix(1.0f);
+    QVector<float> impulse(1300, 0.0f);
+    impulse[0] = 1.0f;
+    auto excitedSegment = makeMono(48000, std::move(impulse));
+    excited.process(excitedSegment);
+
+    AudioReverb independent;
+    independent.setDecay(0.9f);
+    independent.setMix(1.0f);
+    auto silence = makeMono(48000, QVector<float>(1024, 0.0f));
+    independent.process(silence);
+
+    EXPECT_EQ(silence.channelData[0], QVector<float>(1024, 0.0f));
+}
+
 TEST(AudioReverbStandaloneTest, ZeroDecayDoesNotStoreAnImpulseForLaterOutput)
 {
     AudioReverb reverb;
