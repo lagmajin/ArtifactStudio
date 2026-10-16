@@ -304,6 +304,14 @@ def main():
                     and layer_id_collision["historyPreserved"],
                     "Unprecompose partially mutated state after a restored child layer ID collided")
             call("test.reset")
+            duplicate_child_ids = call("test.unpackDuplicateChildLayerIdsAtomic")
+            require(duplicate_child_ids["passed"] and duplicate_child_ids["duplicateIdsRejected"]
+                    and duplicate_child_ids["parentStatePreserved"]
+                    and duplicate_child_ids["childStatePreserved"]
+                    and duplicate_child_ids["wrapperPreserved"]
+                    and duplicate_child_ids["historyPreserved"],
+                    "Unprecompose partially mutated state after child layer IDs duplicated")
+            call("test.reset")
             missing_child = call("test.missingChildReferenceAtomic")
             require(missing_child["passed"] and missing_child["unwrapRejected"]
                     and missing_child["parentStatePreserved"]

@@ -2247,6 +2247,73 @@ public:
             refresh();
             collisionResult["state"] = state();
             return collisionResult;
+        } else if (name == "test.unpackDuplicateChildLayerIdsAtomic") {
+            QJsonObject duplicateResult;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                duplicateResult["error"] = QStringLiteral("No root composition");
+                return duplicateResult;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Duplicate Child Layer ID Fixture")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                duplicateResult["error"] = QStringLiteral("Could not create duplicate-child-ID fixture");
+                return duplicateResult;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(outcome.precompLayerId));
+            const auto firstLayer = child ? child->layerById(sourceIds[0]) : ArtifactAbstractLayerPtr{};
+            const auto secondLayer = child ? child->layerById(sourceIds[1]) : ArtifactAbstractLayerPtr{};
+            if (!child || !wrapper || !firstLayer || !secondLayer) {
+                duplicateResult["error"] = QStringLiteral("Duplicate-child-ID fixture is incomplete");
+                return duplicateResult;
+            }
+
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            const auto parentLayersBeforeUnpack = state()["layers"].toArray();
+            const auto compositionCountBeforeUnpack = ArtifactProjectManager::getInstance().compositionCount();
+            const auto undoCountBeforeUnpack = undo->undoCount();
+            const auto redoCountBeforeUnpack = undo->redoCount();
+            secondLayer->setId(firstLayer->id());
+            const bool rejected = !service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const auto childLayersAfterUnpack = child->allLayer();
+            bool bothDuplicateLayersRemain = childLayersAfterUnpack.size() == 2;
+            bool foundFirst = false;
+            bool foundSecond = false;
+            for (const auto& layer : childLayersAfterUnpack) {
+                foundFirst = foundFirst || layer == firstLayer;
+                foundSecond = foundSecond || layer == secondLayer;
+                bothDuplicateLayersRemain = bothDuplicateLayersRemain &&
+                    layer && layer->id() == firstLayer->id();
+            }
+            const bool parentStatePreserved = state()["layers"].toArray() == parentLayersBeforeUnpack;
+            const bool childStatePreserved =
+                service->findComposition(outcome.childCompId).ptr.lock() == child &&
+                bothDuplicateLayersRemain && foundFirst && foundSecond &&
+                ArtifactProjectManager::getInstance().compositionCount() == compositionCountBeforeUnpack;
+            const bool wrapperPreserved = root->layerById(outcome.precompLayerId) == wrapper &&
+                wrapper->sourceCompositionId() == outcome.childCompId &&
+                PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId);
+            const bool historyPreserved = undo->undoCount() == undoCountBeforeUnpack &&
+                undo->redoCount() == redoCountBeforeUnpack;
+            duplicateResult["duplicateIdsRejected"] = rejected;
+            duplicateResult["parentStatePreserved"] = parentStatePreserved;
+            duplicateResult["childStatePreserved"] = childStatePreserved;
+            duplicateResult["wrapperPreserved"] = wrapperPreserved;
+            duplicateResult["historyPreserved"] = historyPreserved;
+            duplicateResult["passed"] = rejected && parentStatePreserved && childStatePreserved &&
+                wrapperPreserved && historyPreserved;
+            if (!duplicateResult["passed"].toBool())
+                duplicateResult["error"] = QStringLiteral("Unprecompose partially mutated state after duplicate child layer IDs");
+            service->changeCurrentComposition(rootId);
+            refresh();
+            duplicateResult["state"] = state();
+            return duplicateResult;
         } else if (name == "test.missingChildReferenceAtomic") {
             QJsonObject missingResult;
             const auto root = service->currentComposition().lock();
@@ -5783,7 +5850,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.childCompositionEffectStaysWithChild", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.unpackLayerIdCollisionAtomic", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.childCompositionEffectStaysWithChild", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.unpackLayerIdCollisionAtomic", "test.unpackDuplicateChildLayerIdsAtomic", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
