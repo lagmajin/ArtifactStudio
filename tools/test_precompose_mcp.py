@@ -168,9 +168,12 @@ def main():
                     and keyboard_round_trip["deleteRedoByKey"]
                     and keyboard_round_trip["deleteMappingRemovedByRedoKey"]
                     and keyboard_round_trip["allMovedByKey"]
+                    and keyboard_round_trip["allMappingRegisteredByKey"]
                     and keyboard_round_trip["allSettingsCopiedByKey"]
                     and keyboard_round_trip["allUndoByKey"]
+                    and keyboard_round_trip["allMappingRemovedByUndoKey"]
                     and keyboard_round_trip["allRedoByKey"]
+                    and keyboard_round_trip["allMappingRestoredByRedoKey"]
                     and keyboard_round_trip["resetByKey"]
                     and keyboard_round_trip["resetSelectionByKey"],
                     "GUI A/P/K/D/R/Z/Y keyboard routing did not round-trip precompose, unprecompose, and reset")

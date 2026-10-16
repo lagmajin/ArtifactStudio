@@ -308,21 +308,30 @@ public:
                 managerMappingCleared(deleteWrapperId, deleteChildId);
             sendKey(Qt::Key_A);
             const auto afterMoveAll = state();
+            const auto allWrapperId = ArtifactProjectService::instance()
+                ->lastPrecomposeOutcome().precompLayerId;
+            const auto allChildId = childId_;
             const bool allMovedByKey = afterMoveAll["canUndo"].toBool() &&
                 afterMoveAll["lastChildExists"].toBool() && allLayersMoved(afterMoveAll) &&
                 selectedLayerName(afterMoveAll, rootCompositionId) == QStringLiteral("Nested A+B");
+            const bool allMappingRegisteredByKey = allMovedByKey &&
+                managerMappingMatches(allWrapperId, allChildId);
             const bool allSettingsCopiedByKey = allMovedByKey && childSettingsCopied(afterMoveAll);
             sendKey(Qt::Key_Z);
             const auto afterMoveAllUndo = state();
             const bool allUndoByKey = afterMoveAllUndo["canRedo"].toBool() &&
                 !afterMoveAllUndo["lastChildExists"].toBool() &&
                 afterMoveAllUndo["layers"].toArray() == originalLayers;
+            const bool allMappingRemovedByUndoKey = allUndoByKey &&
+                managerMappingCleared(allWrapperId, allChildId);
             sendKey(Qt::Key_Y);
             const auto afterMoveAllRedo = state();
             const bool allRedoByKey = afterMoveAllRedo["canUndo"].toBool() &&
                 !afterMoveAllRedo["canRedo"].toBool() &&
                 afterMoveAllRedo["lastChildExists"].toBool() && allLayersMoved(afterMoveAllRedo) &&
                 selectedLayerName(afterMoveAllRedo, rootCompositionId) == QStringLiteral("Nested A+B");
+            const bool allMappingRestoredByRedoKey = allRedoByKey &&
+                managerMappingMatches(allWrapperId, allChildId);
             sendKey(Qt::Key_R);
             const auto afterReset = state();
             const auto resetLayers = afterReset["layers"].toArray();
@@ -361,9 +370,12 @@ public:
                                {"deleteRedoByKey", deleteRedoByKey},
                                {"deleteMappingRemovedByRedoKey", deleteMappingRemovedByRedoKey},
                                {"allMovedByKey", allMovedByKey},
+                               {"allMappingRegisteredByKey", allMappingRegisteredByKey},
                                {"allSettingsCopiedByKey", allSettingsCopiedByKey},
                                {"allUndoByKey", allUndoByKey},
+                               {"allMappingRemovedByUndoKey", allMappingRemovedByUndoKey},
                                {"allRedoByKey", allRedoByKey},
+                               {"allMappingRestoredByRedoKey", allMappingRestoredByRedoKey},
                                {"resetByKey", resetByKey},
                                {"resetSelectionByKey", resetSelectionByKey},
                                {"passed", precomposedByKey && selectedSettingsCopiedByKey &&
@@ -378,7 +390,9 @@ public:
                                    deleteMappingRestoredByUndoKey && deleteRedoByKey &&
                                    deleteMappingRemovedByRedoKey && allMovedByKey &&
                                    allSettingsCopiedByKey &&
-                                   allUndoByKey && allRedoByKey && resetByKey && resetSelectionByKey},
+                                   allUndoByKey && allMappingRemovedByUndoKey && allRedoByKey &&
+                                   allMappingRestoredByRedoKey && allMappingRegisteredByKey &&
+                                   resetByKey && resetSelectionByKey},
                                {"state", afterReset}};
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("GUI P/K/D/Z/Y keyboard routing failed to round-trip precompose and unprecompose");
