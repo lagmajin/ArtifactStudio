@@ -33,7 +33,7 @@
 | 18 | 編集・保存・再読込 | Project round-trip | 既存suiteで複数Composition/Layer/notes/extension dataの保存再読込と、再読込後の編集・別名保存・再読込を確認。追加なし。未実行 |
 | 19 | 複製・親子変更・削除 | Layer/project integration | Node Store独立suiteに有効なreparentとroot detach後のchildrenOf反映を追加。既存の親削除時direct child detach、Project suiteの複製・削除と無効操作拒否も静的確認。未ビルド・未実行 |
 | 20 | プリコンポーズ・子編集・解除 | Project service integration | PrecomposeViewer独立回帰ケースで子編集値の解除・Undo/Redo保持、nested unwrap、保存再読込後の構成とManager階層復元、拒否時原子性を確認。Windows専用viewerの`--check`経路（CTest登録ではない）を静的確認。suite改変なし、未ビルド・未実行 |
-| 21 | Playback範囲・マーカー | Playback model/service | 独立CPU `ArtifactInOutPointsContractTest` に未設定・両端設定・片側クリア・逆順・Composition外点、マーカー/章の厳密な前後移動と順序、同一位置更新、型/タグ/テキスト検索、範囲端点を含む列挙、所有権安全な削除と章索引更新、正常JSON往復、invalid JSON拒否時の状態保持を追加。別processの`ArtifactPlaybackRangeServiceContractTest`でAll/WorkAreaのEngine range適用とIn/Out clippingを追加。サービスはQThread/AudioRendererを構築するが再生は開始せず、Core event loopの専用targetに隔離。未ビルド・未実行 |
+| 21 | Playback範囲・マーカー | Playback model/service | 独立CPU `ArtifactInOutPointsContractTest` に未設定・両端設定・片側クリア・逆順・Composition外点、マーカー/章の厳密な前後移動と順序、同一位置更新、型/タグ/テキスト検索、範囲端点を含む列挙、所有権安全な削除と章索引更新、正常JSON往復、invalid JSON拒否時の状態保持、marker配列内の不正項目スキップと未知typeの既定値を追加。別processの`ArtifactPlaybackRangeServiceContractTest`でAll/WorkAreaのEngine range適用とIn/Out clippingを追加。サービスはQThread/AudioRendererを構築するが再生は開始せず、Core event loopの専用targetに隔離。未ビルド・未実行 |
 | 22 | Transport状態機械 | Playback Service | 既存の独立Playback Service processにPlay→Pause→Play(Resume)→Stopの状態遷移ケースを追加。RAM/disk preview無効化、Composition解除とstop/wait cleanupを行う。Service生成・実再生はQThread/AudioRendererを伴うため通常CPU unitより負荷はあるが、Artifactアプリ本体とは別processに隔離。未ビルド・未実行 |
 | 23 | Render Cache key | Render controller/model | 独立Core `RenderPipelineContractTest` がframe/backend/scene/settings/dimensions/color/feature flagを検査。現ArtifactCoreソースの`RenderInputSnapshot::cacheKey()`は`requiresCompute`/`requiresHDR`/`usesTemporalHistory`を`RenderCacheKey`へ代入し、stable hashにも含めることを再確認。`CacheKeyTracksRemainingIdentityColorAndFeatureFields`の期待と静的には整合。runtime未確認 |
 | 24 | Cache invalidation範囲 | Layer Surface Cache | 独立Windows GUI harnessでcache hit・対象Effect更新後のinvalidaton/rebuild・無関係Layer非干渉を検査し、未変更rerender前後のpresented Composition frameをpixel完全一致比較するよう拡張。ArtifactCore IFC問題でビルド/runtime未確認 |
@@ -59,6 +59,7 @@
 - `ArtifactInOutPoints` のマーカー位置検索・章ナビゲーションがstrict boundaryを使い、昇順で列挙すること、および型不正JSONを拒否した際に既存範囲とマーカーを保持する契約を追加。
 - マーカーの同一位置再追加は既存objectを更新する契約、comment/link/tag横断のcase-insensitive検索と、全メタデータ・In/Out点のJSON往復を追加。
 - マーカー範囲抽出は両端を含むこと、別ownerの同位置marker pointerを削除要求に渡しても既存markerを保持すること、chapter削除後にchapter indexが更新されることを追加。
+- JSON内の非object/position欠落markerをスキップし、未知typeをCommentとして復元し、その既定色と文字列tagの正規化を確認するケースを追加。
 - #2既存suiteを再監査。FrameTimeのFramePosition/TimeCode変換と正負境界、RationalTimeのoverflow/rounding/reference grid、FrameRate storage scaleの境界・飽和ケースが既にあり、追加候補の重複を避けた。
 - #1に負の線形傾きとトラック両端外で速度が0へクランプされる契約を追加。既存の正の傾き・定数区間ケースと重複しない。
 - #23 の前回記録「feature flagをcache keyへ代入していない」は現状態と不一致だったため撤回。現在の`ArtifactCore/include/Graphics/RenderPipelineFoundation.ixx`では3 flagのkeyへの代入、`RenderCacheKey::stableHash()`での混入、既存契約テストの差分assertを静的に確認した。実行未確認。

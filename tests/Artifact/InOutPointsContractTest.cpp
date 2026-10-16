@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <QColor>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QString>
 #include <QStringList>
@@ -248,4 +249,39 @@ TEST(InOutPointsContractTest, MarkerRangeIsInclusiveAndRemovalRefreshesChapterIn
     points.removeMarker(nullptr);
     EXPECT_TRUE(points.chapterMarkers().empty());
     EXPECT_EQ(points.markerCount(), 2u);
+}
+
+TEST(InOutPointsContractTest, JsonImportSkipsMalformedMarkersAndDefaultsUnknownTypes)
+{
+    QJsonArray markers;
+    markers.append(QStringLiteral("not a marker object"));
+    markers.append(QJsonObject{{QStringLiteral("comment"), QStringLiteral("No position")}});
+    markers.append(QJsonObject{
+        {QStringLiteral("position"), 7},
+        {QStringLiteral("comment"), QStringLiteral("Legacy marker")},
+        {QStringLiteral("type"), 999},
+        {QStringLiteral("tags"), QJsonArray{
+            QStringLiteral(" legacy "), 42, QStringLiteral("")}}
+    });
+    markers.append(QJsonObject{
+        {QStringLiteral("position"), 8},
+        {QStringLiteral("comment"), QStringLiteral("Valid marker")},
+        {QStringLiteral("type"), static_cast<int>(Artifact::MarkerType::Flash)}
+    });
+
+    Artifact::ArtifactInOutPoints points;
+    ASSERT_TRUE(points.fromJson(QJsonObject{{QStringLiteral("markers"), markers}}));
+    ASSERT_EQ(points.markerCount(), 2u);
+
+    const auto* legacy = points.getMarkerAt(ArtifactCore::FramePosition(7));
+    ASSERT_NE(legacy, nullptr);
+    EXPECT_EQ(legacy->comment(), QStringLiteral("Legacy marker"));
+    EXPECT_EQ(legacy->type(), Artifact::MarkerType::Comment);
+    EXPECT_EQ(legacy->color(), QColor(QStringLiteral("#FFFF00")));
+    EXPECT_EQ(legacy->tags(), (QStringList{QStringLiteral("legacy")}));
+
+    const auto* valid = points.getMarkerAt(ArtifactCore::FramePosition(8));
+    ASSERT_NE(valid, nullptr);
+    EXPECT_EQ(valid->comment(), QStringLiteral("Valid marker"));
+    EXPECT_EQ(valid->type(), Artifact::MarkerType::Flash);
 }
