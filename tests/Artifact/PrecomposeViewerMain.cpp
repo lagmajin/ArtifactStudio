@@ -38,6 +38,8 @@ import Artifact.Layer.Abstract;
 import Artifact.Layer.InitParams;
 import Artifact.Layer.Composition;
 import Artifact.Layers.Selection.Manager;
+import Artifact.Effect.Abstract;
+import BrightnessEffect;
 import Color.Float;
 import Property.Abstract;
 import Property.ExposedPropertyRegistry;
@@ -702,6 +704,69 @@ public:
                 redoStayedFocused;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Precompose with openNewComposition=false changed focus or selection");
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            service->changeCurrentComposition(rootId);
+            refresh();
+            result["state"] = state();
+            return result;
+        } else if (name == "test.effectSurvivesUnprecompose") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            const auto source = sourceIds.size() == 2 ? root->layerById(sourceIds.front())
+                                                      : ArtifactAbstractLayerPtr{};
+            const auto effect = makeShared<BrightnessEffect>();
+            effect->setBrightness(0.375f);
+            if (!source) {
+                result["error"] = QStringLiteral("Effect-retention fixture is missing source layer A");
+                return result;
+            }
+            source->addEffect(effect);
+            const auto hasEffect = [&](const ArtifactAbstractLayerPtr& layer) {
+                if (!layer || layer != source || layer->effectCount() != 1) return false;
+                const auto effects = layer->getEffects();
+                return effects.size() == 1 && effects.front() == effect &&
+                    std::abs(effect->brightness() - 0.375f) <= 1.0e-6f;
+            };
+            const bool authored = hasEffect(source);
+            const bool precomposed = authored && service->precomposeLayersWithUndo(
+                sourceIds, UniString(QStringLiteral("Effect Retention")), false, false,
+                PrecomposeMode::MoveSelected);
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto childSource = child ? child->layerById(sourceIds.front())
+                                           : ArtifactAbstractLayerPtr{};
+            const bool childEffectPreserved = precomposed && childSource == source &&
+                hasEffect(childSource);
+            const bool unpacked = childEffectPreserved &&
+                service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const bool unpackEffectPreserved = unpacked && root->layerById(sourceIds.front()) == source &&
+                hasEffect(source) && child && child->layerById(sourceIds.front()) == source;
+            const bool undoAvailable = unpacked && undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const bool undoEffectPreserved = undoAvailable &&
+                root->layerById(outcome.precompLayerId) && child &&
+                child->layerById(sourceIds.front()) == source && hasEffect(source);
+            const bool redoAvailable = undoEffectPreserved && undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const bool redoEffectPreserved = redoAvailable && root->layerById(sourceIds.front()) == source &&
+                !root->layerById(outcome.precompLayerId) && hasEffect(source);
+            result["authored"] = authored;
+            result["childEffectPreserved"] = childEffectPreserved;
+            result["unpackEffectPreserved"] = unpackEffectPreserved;
+            result["undoEffectPreserved"] = undoEffectPreserved;
+            result["redoEffectPreserved"] = redoEffectPreserved;
+            result["brightness"] = effect->brightness();
+            result["passed"] = authored && childEffectPreserved && unpackEffectPreserved &&
+                undoEffectPreserved && redoEffectPreserved;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Layer effect identity or parameters changed across precompose/unprecompose/undo/redo");
             childId_ = outcome.childCompId;
             hasChild_ = true;
             service->changeCurrentComposition(rootId);
@@ -4259,7 +4324,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.effectSurvivesUnprecompose", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
