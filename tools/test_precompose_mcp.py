@@ -83,6 +83,7 @@ def main():
             require(keyboard_round_trip["passed"] and keyboard_round_trip["precomposedByKey"]
                     and keyboard_round_trip["undoneByKey"] and keyboard_round_trip["redoneByKey"]
                     and keyboard_round_trip["selectedSettingsCopiedByKey"]
+                    and keyboard_round_trip["precomposeSelectionByKey"]
                     and keyboard_round_trip["unpackedKeepByKey"]
                     and keyboard_round_trip["keepUndoByKey"] and keyboard_round_trip["keepRedoByKey"]
                     and keyboard_round_trip["precomposedForDeleteByKey"]

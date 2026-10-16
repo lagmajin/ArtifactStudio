@@ -94,6 +94,18 @@ public:
             result["frameRangeDuration"] = comp->frameRange().duration();
             result["backgroundColor"] = QJsonArray{color.r(), color.g(), color.b(), color.a()};
         }
+        if (auto* selection = ArtifactLayerSelectionManager::instance()) {
+            QJsonObject selectionState;
+            const auto active = selection->activeComposition();
+            const auto current = selection->currentLayer();
+            if (active) selectionState["activeCompositionId"] = active->id().toString();
+            if (current) selectionState["currentLayerId"] = current->id().toString();
+            QJsonArray selectedIds;
+            for (const auto& layer : selection->selectedLayersInOrder())
+                if (layer) selectedIds.append(layer->id().toString());
+            selectionState["selectedLayerIds"] = selectedIds;
+            result["selection"] = selectionState;
+        }
         if (hasChild_) {
             result["lastChildId"] = childId_.toString();
             result["lastChildExists"] = bool(ArtifactProjectService::instance()->findComposition(childId_).ptr.lock());
@@ -109,6 +121,24 @@ public:
             const auto sendKey = [this](int key) {
                 QKeyEvent event(QEvent::KeyPress, key, Qt::NoModifier);
                 QApplication::sendEvent(this, &event);
+            };
+            const auto originalState = state();
+            const auto rootCompositionId = originalState["compositionId"].toString();
+            const auto selectedLayerName = [](const QJsonObject& snapshot,
+                                              const QString& rootId) {
+                const auto selection = snapshot["selection"].toObject();
+                if (snapshot["compositionId"].toString() != rootId ||
+                    selection["activeCompositionId"].toString() != rootId)
+                    return QString{};
+                const auto selectedIds = selection["selectedLayerIds"].toArray();
+                if (selectedIds.size() != 1) return QString{};
+                for (const auto& value : snapshot["layers"].toArray()) {
+                    const auto layer = value.toObject();
+                    if (layer["id"].toString() == selectedIds[0].toString() &&
+                        selection["currentLayerId"].toString() == selectedIds[0].toString())
+                        return layer["name"].toString();
+                }
+                return QString{};
             };
             const auto allLayersMoved = [](const QJsonObject& snapshot) {
                 const auto rootLayers = snapshot["layers"].toArray();
@@ -175,6 +205,8 @@ public:
                 afterPrecompose["layers"].toArray().size() == 2;
             const bool selectedSettingsCopiedByKey = precomposedByKey &&
                 childSettingsCopied(afterPrecompose);
+            const bool precomposeSelectionByKey =
+                selectedLayerName(afterPrecompose, rootCompositionId) == QStringLiteral("Nested A+B");
             sendKey(Qt::Key_Z);
             const auto afterUndo = state();
             const bool undoneByKey = afterUndo["canRedo"].toBool() &&
@@ -190,16 +222,19 @@ public:
             const auto afterKeepUnpack = state();
             const bool unpackedKeepByKey = afterKeepUnpack["canUndo"].toBool() &&
                 afterKeepUnpack["lastChildExists"].toBool() &&
-                afterKeepUnpack["layers"].toArray() == originalLayers;
+                afterKeepUnpack["layers"].toArray() == originalLayers &&
+                selectedLayerName(afterKeepUnpack, rootCompositionId) == QStringLiteral("A");
             sendKey(Qt::Key_Z);
             const auto afterKeepUndo = state();
             const bool keepUndoByKey = afterKeepUndo["canRedo"].toBool() &&
                 afterKeepUndo["lastChildExists"].toBool() &&
-                afterKeepUndo["layers"].toArray().size() == 2;
+                afterKeepUndo["layers"].toArray().size() == 2 &&
+                selectedLayerName(afterKeepUndo, rootCompositionId) == QStringLiteral("Nested A+B");
             sendKey(Qt::Key_Y);
             const auto afterKeepRedo = state();
             const bool keepRedoByKey = afterKeepRedo["lastChildExists"].toBool() &&
-                afterKeepRedo["layers"].toArray() == originalLayers;
+                afterKeepRedo["layers"].toArray() == originalLayers &&
+                selectedLayerName(afterKeepRedo, rootCompositionId) == QStringLiteral("A");
             sendKey(Qt::Key_P);
             const auto beforeDeleteUnpack = state();
             const bool precomposedForDeleteByKey = beforeDeleteUnpack["lastChildExists"].toBool() &&
@@ -209,22 +244,26 @@ public:
             const bool unpackedDeleteByKey = precomposedForDeleteByKey &&
                 afterDeleteUnpack["canUndo"].toBool() &&
                 !afterDeleteUnpack["lastChildExists"].toBool() &&
-                afterDeleteUnpack["layers"].toArray() == originalLayers;
+                afterDeleteUnpack["layers"].toArray() == originalLayers &&
+                selectedLayerName(afterDeleteUnpack, rootCompositionId) == QStringLiteral("A");
             sendKey(Qt::Key_Z);
             const auto afterDeleteUndo = state();
             const bool deleteUndoByKey = afterDeleteUndo["canRedo"].toBool() &&
                 afterDeleteUndo["lastChildExists"].toBool() &&
-                afterDeleteUndo["layers"].toArray().size() == 2;
+                afterDeleteUndo["layers"].toArray().size() == 2 &&
+                selectedLayerName(afterDeleteUndo, rootCompositionId) == QStringLiteral("Nested A+B");
             sendKey(Qt::Key_Y);
             const auto afterDeleteRedo = state();
             const bool deleteRedoByKey = afterDeleteRedo["canUndo"].toBool() &&
                 !afterDeleteRedo["canRedo"].toBool() &&
                 !afterDeleteRedo["lastChildExists"].toBool() &&
-                afterDeleteRedo["layers"].toArray() == originalLayers;
+                afterDeleteRedo["layers"].toArray() == originalLayers &&
+                selectedLayerName(afterDeleteRedo, rootCompositionId) == QStringLiteral("A");
             sendKey(Qt::Key_A);
             const auto afterMoveAll = state();
             const bool allMovedByKey = afterMoveAll["canUndo"].toBool() &&
-                afterMoveAll["lastChildExists"].toBool() && allLayersMoved(afterMoveAll);
+                afterMoveAll["lastChildExists"].toBool() && allLayersMoved(afterMoveAll) &&
+                selectedLayerName(afterMoveAll, rootCompositionId) == QStringLiteral("Nested A+B");
             const bool allSettingsCopiedByKey = allMovedByKey && childSettingsCopied(afterMoveAll);
             sendKey(Qt::Key_Z);
             const auto afterMoveAllUndo = state();
@@ -235,7 +274,8 @@ public:
             const auto afterMoveAllRedo = state();
             const bool allRedoByKey = afterMoveAllRedo["canUndo"].toBool() &&
                 !afterMoveAllRedo["canRedo"].toBool() &&
-                afterMoveAllRedo["lastChildExists"].toBool() && allLayersMoved(afterMoveAllRedo);
+                afterMoveAllRedo["lastChildExists"].toBool() && allLayersMoved(afterMoveAllRedo) &&
+                selectedLayerName(afterMoveAllRedo, rootCompositionId) == QStringLiteral("Nested A+B");
             sendKey(Qt::Key_R);
             const auto afterReset = state();
             const auto resetLayers = afterReset["layers"].toArray();
@@ -251,6 +291,7 @@ public:
                                {"undoneByKey", undoneByKey},
                                {"redoneByKey", redoneByKey},
                                {"selectedSettingsCopiedByKey", selectedSettingsCopiedByKey},
+                               {"precomposeSelectionByKey", precomposeSelectionByKey},
                                {"unpackedKeepByKey", unpackedKeepByKey},
                                {"keepUndoByKey", keepUndoByKey},
                                {"keepRedoByKey", keepRedoByKey},
@@ -264,6 +305,7 @@ public:
                                {"allRedoByKey", allRedoByKey},
                                {"resetByKey", resetByKey},
                                {"passed", precomposedByKey && selectedSettingsCopiedByKey &&
+                                   precomposeSelectionByKey &&
                                    undoneByKey && redoneByKey &&
                                    unpackedKeepByKey && keepUndoByKey && keepRedoByKey &&
                                    precomposedForDeleteByKey && unpackedDeleteByKey &&
