@@ -4778,6 +4778,8 @@ public:
                 QStringLiteral("layer.opacity")};
             QVector<QJsonArray> sourceTransformKeys;
             QVector<QJsonArray> peerTransformKeys;
+            QVector<double> sourceAnimationSamples;
+            QVector<double> peerAnimationSamples;
             for (qsizetype index = 0; index < animatedPropertyPaths.size(); ++index) {
                 const auto sourceChannel = sourceLayer->getProperty(animatedPropertyPaths[index]);
                 const auto peerChannel = peerLayer->getProperty(animatedPropertyPaths[index]);
@@ -4804,6 +4806,10 @@ public:
                     35.0 + static_cast<double>(index), InterpolationType::Linear);
                 sourceTransformKeys.append(keyframes(sourceChannel));
                 peerTransformKeys.append(keyframes(peerChannel));
+                sourceAnimationSamples.append(sourceChannel->evaluateValue(
+                    RationalTime(24, sourceLayer->keyframeTimeScale())).toDouble());
+                peerAnimationSamples.append(peerChannel->evaluateValue(
+                    RationalTime(30, peerLayer->keyframeTimeScale())).toDouble());
             }
             ArtifactCore::ExposedPropertyRegistry exposedProperties;
             ArtifactCore::ExposedPropertyBinding opacityBinding;
@@ -4870,6 +4876,21 @@ public:
             const bool transformKeyframesPreserved =
                 layerChannelsMatch(reloadedSourceLayer, sourceTransformKeys) &&
                 layerChannelsMatch(reloadedPeerLayer, peerTransformKeys);
+            const auto animationSamplesMatch = [&](const ArtifactAbstractLayerPtr& layer,
+                                                   const QVector<double>& expected,
+                                                   int sampleFrame) {
+                if (!layer || expected.size() != animatedPropertyPaths.size()) return false;
+                const RationalTime sampleTime(sampleFrame, layer->keyframeTimeScale());
+                for (qsizetype index = 0; index < animatedPropertyPaths.size(); ++index) {
+                    const auto property = layer->getProperty(animatedPropertyPaths[index]);
+                    if (!property || std::abs(property->evaluateValue(sampleTime).toDouble() -
+                                              expected[index]) > 1.0e-6) return false;
+                }
+                return true;
+            };
+            const bool animationSamplesPreserved =
+                animationSamplesMatch(reloadedSourceLayer, sourceAnimationSamples, 24) &&
+                animationSamplesMatch(reloadedPeerLayer, peerAnimationSamples, 30);
             const auto reloadedEffects = reloadedSourceLayer
                 ? reloadedSourceLayer->getEffects()
                 : std::vector<SharedPtr<ArtifactAbstractEffect>>{};
@@ -5046,6 +5067,7 @@ public:
             roundTrip["overrideStillDeferred"] = overrideStillDeferred;
             roundTrip["layerMetadataPreserved"] = layerMetadataPreserved;
             roundTrip["transformKeyframesPreserved"] = transformKeyframesPreserved;
+            roundTrip["animationSamplesPreserved"] = animationSamplesPreserved;
             roundTrip["layerEffectPersisted"] = layerEffectPersisted;
             roundTrip["layerMaskPersisted"] = layerMaskPersisted;
             roundTrip["layerMattePersisted"] = layerMattePersisted;
@@ -5058,7 +5080,8 @@ public:
             roundTrip["unpackRedoRestoredParent"] = unpackRedoRestored;
             roundTrip["passed"] = save.success && loaded && parentChildLink && runtimeNestingRestored &&
                 masterPropertyDefinitionPreserved && masterPropertyOverridePreserved && overrideStillDeferred &&
-                layerMetadataPreserved && transformKeyframesPreserved && layerEffectPersisted &&
+                layerMetadataPreserved && transformKeyframesPreserved && animationSamplesPreserved &&
+                layerEffectPersisted &&
                 layerMaskPersisted && layerMattePersisted && componentDescriptorsPersisted &&
                 compositionEffectPersistedOnParent && auxiliaryStateUnpacked &&
                 compositionEffectScopeAfterUnpack && unpackUndoRestored && unpackRedoRestored;

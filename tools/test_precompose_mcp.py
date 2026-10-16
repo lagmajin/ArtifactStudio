@@ -507,6 +507,7 @@ def main():
                     and round_trip["overrideStillDeferred"]
                     and round_trip["layerMetadataPreserved"]
                     and round_trip["transformKeyframesPreserved"]
+                    and round_trip["animationSamplesPreserved"]
                     and round_trip["layerEffectPersisted"]
                     and round_trip["layerMaskPersisted"]
                     and round_trip["layerMattePersisted"]
