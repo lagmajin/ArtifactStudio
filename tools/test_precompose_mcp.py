@@ -230,6 +230,7 @@ def main():
                     and animated_keyboard_round_trip["undoKeysPreserved"]
                     and animated_keyboard_round_trip["undoSamplePreserved"]
                     and animated_keyboard_round_trip["animationRestoredByRedo"]
+                    and animated_keyboard_round_trip["childCompositionIdentityPreservedByRedo"]
                     and animated_keyboard_round_trip["redoLayerIdentityPreserved"]
                     and animated_keyboard_round_trip["wrapperNegativeTimingRestoredByRedo"]
                     and animated_keyboard_round_trip["wrapperIdentityRestoredByRedo"]

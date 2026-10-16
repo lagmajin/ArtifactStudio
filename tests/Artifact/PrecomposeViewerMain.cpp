@@ -756,6 +756,8 @@ public:
             sendKey(Qt::Key_Y);
             const auto afterPrecomposeRedoKey = state();
             const auto redoChild = service->findComposition(childId_).ptr.lock();
+            const bool childCompositionIdentityPreservedByRedo = child && redoChild &&
+                redoChild.get() == child.get();
             const auto redoIds = namedLayerIds(redoChild, {QStringLiteral("A")});
             const auto redoA = redoIds.size() == 1
                 ? redoChild->layerById(redoIds.front()) : ArtifactAbstractLayerPtr{};
@@ -956,6 +958,7 @@ public:
                 animationEnabledAfterUndo && animationSamplePreservedByKey &&
                 undoKeysPreserved && undoSamplePreserved &&
                 animationRestoredByRedo && redoLayerIdentityPreserved &&
+                childCompositionIdentityPreservedByRedo &&
                 wrapperNegativeTimingRestoredByRedo && wrapperIdentityRestoredByRedo &&
                 managerRegisteredByRedo && wrapperSelectedByRedoKey &&
                 negativeTimingRestoredByRedo &&
@@ -1001,6 +1004,8 @@ public:
                                {"undoKeysPreserved", undoKeysPreserved},
                                {"undoSamplePreserved", undoSamplePreserved},
                                {"animationRestoredByRedo", animationRestoredByRedo},
+                               {"childCompositionIdentityPreservedByRedo",
+                                childCompositionIdentityPreservedByRedo},
                                {"redoLayerIdentityPreserved", redoLayerIdentityPreserved},
                                {"wrapperNegativeTimingRestoredByRedo",
                                 wrapperNegativeTimingRestoredByRedo},
