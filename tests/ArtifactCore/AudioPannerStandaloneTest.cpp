@@ -4,6 +4,7 @@
 #include <QVector>
 
 #include <cmath>
+#include <initializer_list>
 #include <limits>
 #include <utility>
 #include <vector>
@@ -36,6 +37,17 @@ TEST(AudioPannerStandaloneTest, DefaultsToStereoBalanceAndNamesEveryMode)
     EXPECT_EQ(AudioPanner::modeName(PanningMode::Ambisonics), QStringLiteral("Ambisonics"));
     EXPECT_EQ(AudioPanner::modeName(PanningMode::Binaural), QStringLiteral("Binaural"));
     EXPECT_EQ(AudioPanner::modeName(static_cast<PanningMode>(999)), QStringLiteral("Unknown"));
+}
+
+TEST(AudioPannerStandaloneTest, ModeSelectionPreservesEachSupportedMode)
+{
+    AudioPanner panner;
+    for (const auto mode : {PanningMode::StereoBalance, PanningMode::EqualPower,
+                            PanningMode::VBAP, PanningMode::Ambisonics,
+                            PanningMode::Binaural}) {
+        panner.setMode(mode);
+        EXPECT_EQ(panner.getMode(), mode);
+    }
 }
 
 TEST(AudioPannerStandaloneTest, StereoBalanceMapsAzimuthEndpointsAndCenter)
