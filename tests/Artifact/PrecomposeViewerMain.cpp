@@ -819,6 +819,59 @@ public:
             refresh();
             result["state"] = state();
             return result;
+        } else if (name == "test.parentDurationPropagatesToChild") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Parent Duration Propagation")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                result["error"] = QStringLiteral("Could not create parent-duration propagation fixture");
+                return result;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(outcome.precompLayerId));
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            if (!wrapper || !child) {
+                result["error"] = QStringLiteral("Parent-duration fixture is missing its wrapper or child");
+                return result;
+            }
+            root->setFrameRange(FrameRange(0, 180));
+            const bool firstShrinkFollowed = root->frameRange().duration() == 180 &&
+                child->frameRange().duration() == 180 &&
+                wrapper->inPoint().framePosition() == 40 &&
+                wrapper->startTime().framePosition() == 40 &&
+                wrapper->outPoint().framePosition() == 220;
+            root->setFrameRange(FrameRange(0, 75));
+            const bool secondShrinkFollowed = root->frameRange().duration() == 75 &&
+                child->frameRange().duration() == 75 &&
+                wrapper->inPoint().framePosition() == 40 &&
+                wrapper->startTime().framePosition() == 40 &&
+                wrapper->outPoint().framePosition() == 115;
+            root->setFrameRange(FrameRange(0, 360));
+            const bool expansionFollowed = root->frameRange().duration() == 360 &&
+                child->frameRange().duration() == 360 &&
+                wrapper->inPoint().framePosition() == 40 &&
+                wrapper->startTime().framePosition() == 40 &&
+                wrapper->outPoint().framePosition() == 400;
+            result["firstShrinkFollowed"] = firstShrinkFollowed;
+            result["secondShrinkFollowed"] = secondShrinkFollowed;
+            result["expansionFollowed"] = expansionFollowed;
+            result["passed"] = firstShrinkFollowed && secondShrinkFollowed && expansionFollowed;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Parent duration changes did not propagate to the child and its wrapper");
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            service->changeCurrentComposition(rootId);
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.sharedChildDurationPropagates") {
             QJsonObject result;
             const auto root = service->currentComposition().lock();
@@ -4050,7 +4103,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

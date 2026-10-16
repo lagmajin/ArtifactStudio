@@ -175,6 +175,11 @@ def main():
                     and duration_propagation["parentReferencePreserved"],
                     "Child duration shrink/expansion did not propagate to the parent precompose window")
             call("test.reset")
+            parent_duration = call("test.parentDurationPropagatesToChild")
+            require(parent_duration["passed"] and parent_duration["firstShrinkFollowed"]
+                    and parent_duration["secondShrinkFollowed"] and parent_duration["expansionFollowed"],
+                    "Parent duration shrink/expansion did not propagate to its child composition")
+            call("test.reset")
             shared_duration = call("test.sharedChildDurationPropagates")
             require(shared_duration["passed"] and shared_duration["bothParentsRegistered"]
                     and shared_duration["shrinkFollowed"] and shared_duration["expansionFollowed"]
