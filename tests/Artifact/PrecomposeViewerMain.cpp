@@ -14,6 +14,7 @@
 #include <QMainWindow>
 #include <QLocale>
 #include <QPixmap>
+#include <QPointF>
 #include <QScreen>
 #include <QSize>
 #include <QStringList>
@@ -40,6 +41,8 @@ import Artifact.Layer.Composition;
 import Artifact.Layers.Selection.Manager;
 import Artifact.Effect.Abstract;
 import BrightnessEffect;
+import Artifact.Mask.LayerMask;
+import Artifact.Mask.Path;
 import Color.Float;
 import Property.Abstract;
 import Property.ExposedPropertyRegistry;
@@ -704,6 +707,92 @@ public:
                 redoStayedFocused;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Precompose with openNewComposition=false changed focus or selection");
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            service->changeCurrentComposition(rootId);
+            refresh();
+            result["state"] = state();
+            return result;
+        } else if (name == "test.maskSurvivesUnprecompose") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            const auto source = sourceIds.size() == 2 ? root->layerById(sourceIds.front())
+                                                      : ArtifactAbstractLayerPtr{};
+            if (!source) {
+                result["error"] = QStringLiteral("Mask-retention fixture is missing source layer A");
+                return result;
+            }
+            LayerMask mask;
+            mask.setEnabled(false);
+            mask.setLocked(true);
+            mask.setColor(FloatColor(0.2f, 0.4f, 0.7f, 0.9f));
+            MaskPath path;
+            path.setName(UniString(QStringLiteral("Cutout")));
+            path.setClosed(false);
+            path.setOpacity(0.65f);
+            path.setInverted(true);
+            path.setMode(MaskMode::Subtract);
+            path.addVertex({QPointF(12.0, 18.0), QPointF(-2.0, 1.0), QPointF(3.0, -1.0)});
+            path.addVertex({QPointF(48.0, 21.0), QPointF(-4.0, 2.0), QPointF(1.0, 3.0)});
+            mask.addMaskPath(path);
+            source->addMask(mask);
+            const auto matchesMask = [&](const ArtifactAbstractLayerPtr& layer) {
+                if (!layer || layer != source || layer->maskCount() != 1) return false;
+                const auto stored = layer->mask(0);
+                if (stored.isEnabled() || !stored.isLocked() || stored.maskPathCount() != 1 ||
+                    !stored.color().approximatelyEqual(FloatColor(0.2f, 0.4f, 0.7f, 0.9f)))
+                    return false;
+                const auto storedPath = stored.maskPath(0);
+                return storedPath.name().toQString() == QStringLiteral("Cutout") &&
+                    !storedPath.isClosed() && storedPath.isInverted() &&
+                    storedPath.mode() == MaskMode::Subtract &&
+                    std::abs(storedPath.opacity() - 0.65f) <= 1.0e-6f &&
+                    storedPath.vertexCount() == 2 &&
+                    storedPath.vertex(0).position == QPointF(12.0, 18.0) &&
+                    storedPath.vertex(0).inTangent == QPointF(-2.0, 1.0) &&
+                    storedPath.vertex(0).outTangent == QPointF(3.0, -1.0) &&
+                    storedPath.vertex(1).position == QPointF(48.0, 21.0) &&
+                    storedPath.vertex(1).inTangent == QPointF(-4.0, 2.0) &&
+                    storedPath.vertex(1).outTangent == QPointF(1.0, 3.0);
+            };
+            const bool authored = matchesMask(source);
+            const bool precomposed = authored && service->precomposeLayersWithUndo(
+                sourceIds, UniString(QStringLiteral("Mask Retention")), false, false,
+                PrecomposeMode::MoveSelected);
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto childSource = child ? child->layerById(sourceIds.front())
+                                           : ArtifactAbstractLayerPtr{};
+            const bool childMaskPreserved = precomposed && childSource == source &&
+                matchesMask(childSource);
+            const bool unpacked = childMaskPreserved &&
+                service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const bool unpackMaskPreserved = unpacked && root->layerById(sourceIds.front()) == source &&
+                matchesMask(source) && child && !child->layerById(sourceIds.front());
+            const bool undoAvailable = unpacked && undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const bool undoMaskPreserved = undoAvailable && root->layerById(outcome.precompLayerId) &&
+                child && child->layerById(sourceIds.front()) == source && matchesMask(source);
+            const bool redoAvailable = undoMaskPreserved && undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const bool redoMaskPreserved = redoAvailable && root->layerById(sourceIds.front()) == source &&
+                !root->layerById(outcome.precompLayerId) && matchesMask(source) && child &&
+                !child->layerById(sourceIds.front());
+            result["authored"] = authored;
+            result["childMaskPreserved"] = childMaskPreserved;
+            result["unpackMaskPreserved"] = unpackMaskPreserved;
+            result["undoMaskPreserved"] = undoMaskPreserved;
+            result["redoMaskPreserved"] = redoMaskPreserved;
+            result["passed"] = authored && childMaskPreserved && unpackMaskPreserved &&
+                undoMaskPreserved && redoMaskPreserved;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Layer mask settings or path geometry changed across precompose/unprecompose/undo/redo");
             childId_ = outcome.childCompId;
             hasChild_ = true;
             service->changeCurrentComposition(rootId);
@@ -4379,7 +4468,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
