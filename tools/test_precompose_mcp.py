@@ -32,6 +32,9 @@ def validate_png(png, require_visual_content=False):
         actual_crc = zlib.crc32(chunk_data, zlib.crc32(chunk_type)) & 0xffffffff
         if actual_crc != expected_crc:
             raise AssertionError(f"Capture PNG has an invalid {chunk_type!r} CRC")
+        if chunk_type[:1].isupper() and chunk_type not in {
+                b"IHDR", b"PLTE", b"IDAT", b"IEND"}:
+            raise AssertionError(f"Capture PNG contains an unsupported critical {chunk_type!r} chunk")
         if not chunk_types and (chunk_type != b"IHDR" or length != 13):
             raise AssertionError("Capture PNG does not start with a valid IHDR chunk")
         chunk_types.append(chunk_type)
@@ -250,6 +253,11 @@ def validate_png_contract():
             + make_png_chunk(b"IEND", b"")),
         "missing IDAT": (
             signature + make_png_chunk(b"IHDR", header) + make_png_chunk(b"IEND", b"")),
+        "unsupported critical chunk": (
+            signature + make_png_chunk(b"IHDR", header)
+            + make_png_chunk(b"ABCD", b"unsupported")
+            + make_png_chunk(b"IDAT", zlib.compress(b"\x00\x7f"))
+            + make_png_chunk(b"IEND", b"")),
         "invalid zlib stream": (
             signature + make_png_chunk(b"IHDR", header)
             + make_png_chunk(b"IDAT", b"invalid zlib data")
