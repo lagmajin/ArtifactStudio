@@ -7765,9 +7765,10 @@ private:
     void refresh() { text_->setPlainText(QString::fromUtf8(QJsonDocument(state()).toJson())); }
     void respond(const QByteArray& line)
     {
-        const auto sendRequestError = [](int code, const char* message) {
+        const auto sendRequestError = [](int code, const char* message,
+                                         const QJsonValue& id) {
             const auto bytes = QJsonDocument(QJsonObject{
-                {"jsonrpc", "2.0"}, {"id", QJsonValue::Null},
+                {"jsonrpc", "2.0"}, {"id", id},
                 {"error", QJsonObject{{"code", code}, {"message", message}}}})
                 .toJson(QJsonDocument::Compact) + '\n';
             std::fwrite(bytes.constData(), 1, bytes.size(), protocolOutput);
@@ -7776,14 +7777,26 @@ private:
         QJsonParseError parseError;
         const auto document = QJsonDocument::fromJson(line, &parseError);
         if (parseError.error != QJsonParseError::NoError) {
-            sendRequestError(-32700, "Parse error");
+            sendRequestError(-32700, "Parse error", QJsonValue::Null);
             return;
         }
         if (!document.isObject()) {
-            sendRequestError(-32600, "Invalid Request");
+            sendRequestError(-32600, "Invalid Request", QJsonValue::Null);
             return;
         }
         const auto request = document.object();
+        const auto requestId = request.value(QStringLiteral("id"));
+        const bool validRequestId = requestId.isString() || requestId.isDouble() ||
+            requestId.isNull();
+        const bool hasValidMethod = request.value(QStringLiteral("method")).isString() &&
+            !request.value(QStringLiteral("method")).toString().isEmpty();
+        if (request.value(QStringLiteral("jsonrpc")).toString() != QStringLiteral("2.0") ||
+            !hasValidMethod || (request.contains(QStringLiteral("id")) && !validRequestId)) {
+            sendRequestError(-32600, "Invalid Request",
+                validRequestId && request.contains(QStringLiteral("id"))
+                    ? requestId : QJsonValue::Null);
+            return;
+        }
         if (!request.contains("id")) return;
         const auto method = request["method"].toString();
         QJsonObject response{{"jsonrpc", "2.0"}, {"id", request["id"]}};

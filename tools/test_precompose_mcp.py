@@ -432,6 +432,23 @@ def main():
                     and non_object_reply.get("id") is None
                     and non_object_reply.get("error", {}).get("code") == -32600,
                     f"Non-object JSON-RPC input did not return invalid-request: {non_object_reply}")
+            invalid_envelopes = (
+                ('{"jsonrpc":"1.0","id":998,"method":"ping"}', 998),
+                ('{"jsonrpc":"2.0","id":"invalid-method"}', "invalid-method"),
+            )
+            for raw_request, expected_id in invalid_envelopes:
+                invalid_record = {"rawRequest": raw_request}
+                evidence.append(invalid_record)
+                process.stdin.write(raw_request + "\n")
+                process.stdin.flush()
+                invalid_reply = replies.get(timeout=120)
+                invalid_record["reply"] = invalid_reply
+                require(isinstance(invalid_reply, dict)
+                        and invalid_reply.get("jsonrpc") == "2.0"
+                        and invalid_reply.get("id") == expected_id
+                        and invalid_reply.get("error", {}).get("code") == -32600,
+                        f"Invalid JSON-RPC envelope lost its request identity or error code: "
+                        f"{invalid_reply}")
             protocol_state_after_invalid_calls = call("test.state")
             require(protocol_state_after_invalid_calls == protocol_state_before_invalid_calls,
                     "Invalid MCP requests mutated the precompose fixture")
