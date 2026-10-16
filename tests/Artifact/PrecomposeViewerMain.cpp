@@ -1709,12 +1709,15 @@ public:
             const bool wrongContextUnpackRejected = childOpened &&
                 !service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
             const auto stillOpenedChild = service->currentComposition().lock();
+            const bool wrongContextSelectionPreserved = wrongContextUnpackRejected &&
+                matchesSelection(outcome.childCompId, sourceIds.front());
             const bool wrongContextStatePreserved = wrongContextUnpackRejected && stillOpenedChild == openedChild &&
                 stillOpenedChild->allLayer().size() == childLayerCountBeforeWrongContextUnpack &&
                 comp->layerById(outcome.precompLayerId) == rootWrapper &&
                 service->findComposition(outcome.childCompId).ptr.lock() == openedChild &&
                 undo->undoCount() == undoCountBeforeWrongContextUnpack &&
-                undo->redoCount() == redoCountBeforeWrongContextUnpack;
+                undo->redoCount() == redoCountBeforeWrongContextUnpack &&
+                wrongContextSelectionPreserved;
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
             const auto afterUndo = service->currentComposition().lock();
@@ -1745,6 +1748,7 @@ public:
             result["childSelectionCorrect"] = childSelectionCorrect;
             result["rootWrapperCreated"] = bool(rootWrapperCreated);
             result["wrongContextUnpackRejected"] = wrongContextUnpackRejected;
+            result["wrongContextSelectionPreserved"] = wrongContextSelectionPreserved;
             result["wrongContextStatePreserved"] = wrongContextStatePreserved;
             result["undoReturnedToRoot"] = undoReturnedToRoot;
             result["redoKeptRootFocused"] = redoKeptRootFocused;

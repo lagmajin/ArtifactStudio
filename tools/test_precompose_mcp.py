@@ -339,6 +339,7 @@ def main():
                     and opened_child["childSelectionCorrect"]
                     and opened_child["rootWrapperCreated"]
                     and opened_child["wrongContextUnpackRejected"]
+                    and opened_child["wrongContextSelectionPreserved"]
                     and opened_child["wrongContextStatePreserved"]
                     and opened_child["undoReturnedToRoot"]
                     and opened_child["redoKeptRootFocused"] and opened_child["redoRestoredChild"],
@@ -351,6 +352,7 @@ def main():
                     and gui_opened_child["childOpened"]
                     and gui_opened_child["childSelectionCorrect"]
                     and gui_opened_child["wrongContextUnpackRejected"]
+                    and gui_opened_child["wrongContextSelectionPreserved"]
                     and gui_opened_child["wrongContextStatePreserved"]
                     and gui_opened_child["undoReturnedToRoot"]
                     and gui_opened_child["redoKeptRootFocused"]
