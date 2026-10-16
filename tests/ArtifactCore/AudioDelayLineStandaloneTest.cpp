@@ -55,6 +55,16 @@ TEST(AudioDelayLineStandaloneTest, RingBufferWrapPreservesRecentHistory)
     EXPECT_FLOAT_EQ(line.read(2.0f), 6.0f);
 }
 
+TEST(AudioDelayLineStandaloneTest, FractionalReadInterpolatesAcrossRingWrap)
+{
+    FractionalDelayLine line;
+    line.initialize(0.25f, 4.0f); // Five slots including guard space.
+    for (float sample = 1.0f; sample <= 7.0f; sample += 1.0f)
+        line.write(sample);
+
+    EXPECT_FLOAT_EQ(line.read(1.5f), 6.5f);
+}
+
 TEST(AudioDelayLineStandaloneTest, ClearErasesHistoryAndResetsWritePosition)
 {
     FractionalDelayLine line;
