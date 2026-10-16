@@ -63,6 +63,33 @@ TEST(AssetManagerContractTest, RepeatedAcquireSharesIdentityAndBalancesUseCount)
     EXPECT_FALSE(manager.releaseSource(first));
 }
 
+TEST(AssetManagerContractTest, AcquireExistingSourceRestoresReleasedReference)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("retained.png"));
+    ASSERT_TRUE(createSourceFile(path));
+
+    AssetManager manager;
+    const QUuid assetId = manager.acquireSource(path, AssetType::Image);
+    ASSERT_FALSE(assetId.isNull());
+    RegisteredAssetGuard cleanup(assetId);
+    ASSERT_TRUE(manager.releaseSource(assetId));
+    ASSERT_EQ(manager.useCount(assetId), 0);
+
+    EXPECT_TRUE(manager.acquireExistingSource(assetId));
+    EXPECT_EQ(manager.useCount(assetId), 1);
+    EXPECT_TRUE(manager.releaseSource(assetId));
+    EXPECT_EQ(manager.useCount(assetId), 0);
+}
+
+TEST(AssetManagerContractTest, AcquireExistingSourceRejectsUnknownId)
+{
+    AssetManager manager;
+
+    EXPECT_FALSE(manager.acquireExistingSource(QUuid::createUuid()));
+}
+
 TEST(AssetManagerContractTest, CanonicalPathAliasSharesSourceIdentity)
 {
     QTemporaryDir directory;
