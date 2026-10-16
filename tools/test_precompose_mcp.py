@@ -210,11 +210,17 @@ def main():
 
         def request(method, params, allow_protocol_error=False):
             request_id = len(evidence) + 1
-            process.stdin.write(json.dumps({"jsonrpc": "2.0", "id": request_id,
-                                           "method": method, "params": params}) + "\n")
-            process.stdin.flush()
-            reply = replies.get(timeout=120)
-            evidence.append({"method": method, "params": params, "reply": reply})
+            record = {"method": method, "params": params, "requestId": request_id}
+            evidence.append(record)
+            try:
+                process.stdin.write(json.dumps({"jsonrpc": "2.0", "id": request_id,
+                                               "method": method, "params": params}) + "\n")
+                process.stdin.flush()
+                reply = replies.get(timeout=120)
+            except Exception as error:
+                record["transportError"] = f"{type(error).__name__}: {error}"
+                raise
+            record["reply"] = reply
             if (not isinstance(reply, dict) or reply.get("jsonrpc") != "2.0"
                     or reply.get("id") != request_id
                     or ("result" in reply) == ("error" in reply)
@@ -225,10 +231,15 @@ def main():
             return reply["result"]
 
         def notify(method, params):
-            process.stdin.write(json.dumps({"jsonrpc": "2.0", "method": method,
-                                           "params": params}) + "\n")
-            process.stdin.flush()
-            evidence.append({"method": method, "params": params, "notification": True})
+            record = {"method": method, "params": params, "notification": True}
+            evidence.append(record)
+            try:
+                process.stdin.write(json.dumps({"jsonrpc": "2.0", "method": method,
+                                               "params": params}) + "\n")
+                process.stdin.flush()
+            except Exception as error:
+                record["transportError"] = f"{type(error).__name__}: {error}"
+                raise
 
         def call(name):
             if name not in exposed_tool_names:
