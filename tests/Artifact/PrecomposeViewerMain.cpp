@@ -2101,6 +2101,8 @@ public:
                 return result;
             }
             const auto rootId = comp->id();
+            const auto compositionCountBeforePrecompose =
+                ArtifactProjectManager::getInstance().compositionCount();
             const auto sourceIds = namedLayerIds(comp, {QStringLiteral("A"), QStringLiteral("B")});
             const auto sourceA = sourceIds.size() == 2 ? comp->layerById(sourceIds[0])
                                                        : ArtifactAbstractLayerPtr{};
@@ -2226,6 +2228,14 @@ public:
                 afterUndo->layerById(sourceIds[1]).get() == sourceB.get();
             const bool undoLayerOrderRestoredToRoot = undoReturnedToRoot &&
                 namedLayerIds(afterUndo, {QStringLiteral("A"), QStringLiteral("B")}) == sourceIds;
+            const auto undoChildReferences = PreComposeManager::instance()
+                .getPrecompLayersForChild(outcome.childCompId);
+            const bool undoManagerMappingsCleared = undoReturnedToRoot &&
+                !PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId) &&
+                undoChildReferences.isEmpty();
+            const bool undoCompositionCountRestored = undoReturnedToRoot &&
+                ArtifactProjectManager::getInstance().compositionCount() ==
+                    compositionCountBeforePrecompose;
             const bool redoAvailable = undo->canRedo();
             if (redoAvailable) undo->redo();
             const auto afterRedo = service->currentComposition().lock();
@@ -2247,6 +2257,13 @@ public:
             const bool redoReverseMappingRestored = redoChildReferences.size() == 1 &&
                 redoChildReferences.front().parentCompId == rootId &&
                 redoChildReferences.front().precompLayerId == outcome.precompLayerId;
+            const bool redoForwardMappingRestored = redoneChild &&
+                PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId) &&
+                PreComposeManager::instance().getSourceCompositionId(outcome.precompLayerId) ==
+                    outcome.childCompId;
+            const bool redoCompositionCountRestored = redoneChild &&
+                ArtifactProjectManager::getInstance().compositionCount() ==
+                    compositionCountBeforePrecompose + 1;
             const bool redoKeptRootFocused = redoAvailable && afterRedo && afterRedo->id() == rootId &&
                 matchesSelection(rootId, outcome.precompLayerId);
             const bool redoRestoredChild = redoneChild && afterRedo &&
@@ -2276,6 +2293,8 @@ public:
             result["undoReturnedToRoot"] = undoReturnedToRoot;
             result["undoLayerObjectsReturnedToRoot"] = undoLayerObjectsReturnedToRoot;
             result["undoLayerOrderRestoredToRoot"] = undoLayerOrderRestoredToRoot;
+            result["undoManagerMappingsCleared"] = undoManagerMappingsCleared;
+            result["undoCompositionCountRestored"] = undoCompositionCountRestored;
             result["redoKeptRootFocused"] = redoKeptRootFocused;
             result["redoRestoredChild"] = redoRestoredChild;
             result["redoChildCompositionIdentityPreserved"] = redoChildCompositionIdentityPreserved;
@@ -2283,16 +2302,20 @@ public:
             result["redoChildLayerOrderPreserved"] = redoChildLayerOrderPreserved;
             result["redoChildSettingsPreserved"] = redoChildSettingsPreserved;
             result["redoReverseMappingRestored"] = redoReverseMappingRestored;
+            result["redoForwardMappingRestored"] = redoForwardMappingRestored;
+            result["redoCompositionCountRestored"] = redoCompositionCountRestored;
             result["redoWrapperIdentityPreserved"] = redoWrapperIdentityPreserved;
             result["passed"] = childOpened && childSelectionCorrect &&
                 childLayerObjectsPreservedOnOpen && childLayerOrderPreservedOnOpen &&
                 childSettingsCopiedOnOpen && rootWrapperCreated &&
                 wrongContextUnpackRejected &&
                 wrongContextStatePreserved && undoReturnedToRoot && undoLayerObjectsReturnedToRoot &&
-                undoLayerOrderRestoredToRoot &&
+                undoLayerOrderRestoredToRoot && undoManagerMappingsCleared &&
+                undoCompositionCountRestored &&
                 redoKeptRootFocused && redoRestoredChild && redoChildCompositionIdentityPreserved &&
                 redoChildLayerObjectsPreserved && redoChildLayerOrderPreserved &&
-                redoChildSettingsPreserved &&
+                redoChildSettingsPreserved && redoReverseMappingRestored &&
+                redoForwardMappingRestored && redoCompositionCountRestored &&
                 redoWrapperIdentityPreserved;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Open-child navigation or undo/redo focus contract changed");

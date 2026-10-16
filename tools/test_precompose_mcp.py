@@ -426,6 +426,8 @@ def main():
                     and gui_opened_child["undoReturnedToRoot"]
                     and gui_opened_child["undoLayerObjectsReturnedToRoot"]
                     and gui_opened_child["undoLayerOrderRestoredToRoot"]
+                    and gui_opened_child["undoManagerMappingsCleared"]
+                    and gui_opened_child["undoCompositionCountRestored"]
                     and gui_opened_child["redoKeptRootFocused"]
                     and gui_opened_child["redoRestoredChild"]
                     and gui_opened_child["redoChildCompositionIdentityPreserved"]
@@ -433,6 +435,8 @@ def main():
                     and gui_opened_child["redoChildLayerOrderPreserved"]
                     and gui_opened_child["redoChildSettingsPreserved"]
                     and gui_opened_child["redoReverseMappingRestored"]
+                    and gui_opened_child["redoForwardMappingRestored"]
+                    and gui_opened_child["redoCompositionCountRestored"]
                     and gui_opened_child["redoWrapperIdentityPreserved"],
                     "GUI O key did not preserve open-child selection and undo/redo focus behavior")
             call("test.reset")
