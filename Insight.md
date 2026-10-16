@@ -2,6 +2,14 @@
 
 # Insight Register
 
+## 2026-10-16: AudioReverbのSize公開設定が信号処理へ未接続
+
+- **関連:** `ArtifactCore/include/Audio/AudioReverb.ixx`、`ArtifactCore/src/Audio/AudioReverb.cppm`、`tests/ArtifactCore/AudioReverbStandaloneTest.cpp`。
+- **確認できた事実:** `AudioReverb`は`size_`を公開parameter、setter/getter、JSON保存・読込へ含める。一方、現行`AudioReverb::process()`は`size_`を参照せず、`allpassBuffer_`も使っていない。
+- **テスト期待:** 同じwet impulseへSize 0と1を設定したとき出力が異なることを独立テストへ追加した。現行sourceとは不一致で、runtime結果は未確認（ビルド・実行なし）。
+- **価値／懸念:** 公開UI/APIから変更可能なSizeが実際のreverb応答に影響しない可能性がある。
+- **次に確認:** ユーザーの明示的なArtifactCore変更許可後にsizeの意味と期待する信号差を決め、実装・テストを合わせて確認する。現作業では子リポジトリを変更しない。
+
 ## 2026-10-16: in-memory ImageLayer差し替えとsurface cache identity
 
 - **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` の `buildLayerSurfaceCacheKey()`、`Artifact/src/Layer/ArtifactImageLayer.cppm` の `setFromQImage()`、`tests/Artifact/LayerSurfaceCacheParityContractTest.cpp`。

@@ -83,6 +83,28 @@ TEST(AudioReverbStandaloneTest, FullWetImpulseProducesAReverbTail)
     EXPECT_TRUE(hasTail);
 }
 
+TEST(AudioReverbStandaloneTest, SizeParameterChangesWetImpulseResponse)
+{
+    QVector<float> impulse(4096, 0.0f);
+    impulse[0] = 1.0f;
+
+    AudioReverb compact;
+    compact.setDecay(0.9f);
+    compact.setMix(1.0f);
+    compact.setSize(0.0f);
+    auto compactSegment = makeMono(48000, impulse);
+    compact.process(compactSegment);
+
+    AudioReverb large;
+    large.setDecay(0.9f);
+    large.setMix(1.0f);
+    large.setSize(1.0f);
+    auto largeSegment = makeMono(48000, impulse);
+    large.process(largeSegment);
+
+    EXPECT_NE(compactSegment.channelData[0], largeSegment.channelData[0]);
+}
+
 TEST(AudioReverbStandaloneTest, ZeroDecayDoesNotStoreAnImpulseForLaterOutput)
 {
     AudioReverb reverb;
