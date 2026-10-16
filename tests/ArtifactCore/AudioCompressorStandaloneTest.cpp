@@ -109,6 +109,33 @@ TEST(AudioCompressorStandaloneTest, ReducesAboveThresholdAndLeavesBelowThreshold
     EXPECT_FLOAT_EQ(belowThreshold.getGainReduction(), 1.0f);
 }
 
+TEST(AudioCompressorStandaloneTest, ProcessingInBlocksMatchesContinuousEnvelope)
+{
+    const QVector<float> input{1.0f, 1.0f, 0.2f, 0.2f, 0.0f, 0.0f,
+                               0.8f, 0.8f, 0.0f, 0.0f, 0.5f, 0.5f};
+
+    AudioCompressor continuous;
+    configureFastCompressor(continuous);
+    auto continuousSegment = makeMono(1000, input);
+    continuous.process(continuousSegment);
+
+    AudioCompressor blocked;
+    configureFastCompressor(blocked);
+    constexpr int boundaries[] = {0, 1, 4, 7, 12};
+    QVector<float> blockedOutput;
+    blockedOutput.reserve(input.size());
+    for (int block = 1; block < 5; ++block) {
+        const int start = boundaries[block - 1];
+        const int length = boundaries[block] - start;
+        auto segment = makeMono(1000, input.mid(start, length));
+        blocked.process(segment);
+        for (const float sample : segment.channelData[0])
+            blockedOutput.push_back(sample);
+    }
+
+    EXPECT_EQ(blockedOutput, continuousSegment.channelData[0]);
+}
+
 TEST(AudioCompressorStandaloneTest, LoudestStereoChannelControlsGainForBothChannels)
 {
     AudioCompressor compressor;
