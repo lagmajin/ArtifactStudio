@@ -525,6 +525,76 @@ public:
             refresh();
             invalidResult["state"] = state();
             return invalidResult;
+        } else if (name == "test.undoBudgetRejectsStructureChanges") {
+            QJsonObject budgetResult;
+            if (!comp) {
+                budgetResult["error"] = QStringLiteral("No current composition");
+                return budgetResult;
+            }
+            auto& projects = ArtifactProjectManager::getInstance();
+            auto& manager = PreComposeManager::instance();
+            undo->clearHistory();
+            const auto originalBudget = undo->budget();
+            auto rejectingBudget = originalBudget;
+            rejectingBudget.maxSingleEntryBytes = 0;
+            const auto rootId = comp->id();
+            const auto sourceIds = namedLayerIds(comp, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2) {
+                budgetResult["error"] = QStringLiteral("Undo-budget fixture is missing A/B layers");
+                return budgetResult;
+            }
+            const auto initialLayers = layers(comp, 0);
+            const auto initialCompositionCount = projects.compositionCount();
+            undo->setBudget(rejectingBudget);
+            const bool precomposeRejected = !service->precomposeLayersWithUndo(
+                sourceIds, UniString(QStringLiteral("Budget Rejected Precompose")), false, false,
+                PrecomposeMode::MoveSelected);
+            const auto rejectedPrecompose = service->lastPrecomposeOutcome();
+            const bool precomposeBudgetAtomic = precomposeRejected &&
+                layers(comp, 0) == initialLayers && projects.compositionCount() == initialCompositionCount &&
+                undo->undoCount() == 0 && undo->redoCount() == 0 &&
+                rejectedPrecompose.precompLayerId.isNil() && rejectedPrecompose.childCompId.isNil();
+            undo->setBudget(originalBudget);
+            const bool precomposeCreated = service->precomposeLayersWithUndo(
+                sourceIds, UniString(QStringLiteral("Budget Rejected Unprecompose")), false, false,
+                PrecomposeMode::MoveSelected);
+            const auto created = service->lastPrecomposeOutcome();
+            const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                comp->layerById(created.precompLayerId));
+            const auto child = service->findComposition(created.childCompId).ptr.lock();
+            if (!precomposeBudgetAtomic || !precomposeCreated || !wrapper || !child) {
+                undo->setBudget(originalBudget);
+                budgetResult["error"] = QStringLiteral("Could not establish budget-rejection fixtures");
+                return budgetResult;
+            }
+            const auto preUnprecomposeLayers = layers(comp, 0);
+            const auto preUnprecomposeCompositionCount = projects.compositionCount();
+            const auto preUnprecomposeUndoCount = undo->undoCount();
+            undo->setBudget(rejectingBudget);
+            const bool unprecomposeRejected = !service->unprecomposeLayerWithUndo(
+                created.precompLayerId, true);
+            const bool unprecomposeBudgetAtomic = unprecomposeRejected &&
+                layers(comp, 0) == preUnprecomposeLayers &&
+                projects.compositionCount() == preUnprecomposeCompositionCount &&
+                service->findComposition(created.childCompId).ptr.lock() &&
+                comp->layerById(created.precompLayerId) &&
+                manager.isPrecomposeLayer(created.precompLayerId) &&
+                manager.getSourceCompositionId(created.precompLayerId) == created.childCompId &&
+                undo->undoCount() == 0 && undo->redoCount() == 0;
+            undo->setBudget(originalBudget);
+            budgetResult["precomposeRejected"] = precomposeRejected;
+            budgetResult["precomposeBudgetAtomic"] = precomposeBudgetAtomic;
+            budgetResult["unprecomposeRejected"] = unprecomposeRejected;
+            budgetResult["unprecomposeBudgetAtomic"] = unprecomposeBudgetAtomic;
+            budgetResult["passed"] = precomposeBudgetAtomic && unprecomposeBudgetAtomic;
+            if (!budgetResult["passed"].toBool())
+                budgetResult["error"] = QStringLiteral("Undo-budget rejection changed composition structure or precompose mapping");
+            childId_ = created.childCompId;
+            hasChild_ = true;
+            service->changeCurrentComposition(rootId);
+            refresh();
+            budgetResult["state"] = state();
+            return budgetResult;
         } else if (name == "test.redoBranchDiscarded") {
             QJsonObject branchResult;
             if (!comp) {
@@ -3685,7 +3755,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

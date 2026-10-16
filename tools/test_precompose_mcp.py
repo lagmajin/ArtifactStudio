@@ -128,6 +128,12 @@ def main():
                     and invalid_requests["preservedRedoExecuted"],
                     "Invalid precompose/unprecompose requests changed project or selection state")
             call("test.reset")
+            undo_budget = call("test.undoBudgetRejectsStructureChanges")
+            require(undo_budget["passed"] and undo_budget["precomposeRejected"]
+                    and undo_budget["precomposeBudgetAtomic"] and undo_budget["unprecomposeRejected"]
+                    and undo_budget["unprecomposeBudgetAtomic"],
+                    "Undo-budget rejection changed precompose/unprecompose structure or mappings")
+            call("test.reset")
             redo_branch = call("test.redoBranchDiscarded")
             require(redo_branch["passed"] and redo_branch["redoBranchCreated"]
                     and redo_branch["abandonedRedoDiscarded"]
