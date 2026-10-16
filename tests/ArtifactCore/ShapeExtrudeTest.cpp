@@ -103,6 +103,22 @@ TEST(ShapeExtrudeTest, RejectsInvalidInputWithoutReplacingOutputMesh)
     EXPECT_EQ(mesh.polygonCount(), polygonCount);
 }
 
+TEST(ShapeExtrudeTest, RejectsDegenerateContourWithoutReplacingOutputMesh)
+{
+    Mesh mesh;
+    ShapeExtrudeParams params;
+    params.depth = 10.0f;
+    ASSERT_TRUE(extrudeContourMesh({rectangleContour()}, params, mesh));
+    const int vertexCount = mesh.vertexCount();
+    const int polygonCount = mesh.polygonCount();
+
+    const std::vector<QPointF> collinearContour = {
+        {0.0, 0.0}, {10.0, 0.0}, {20.0, 0.0}};
+    EXPECT_FALSE(extrudeContourMesh({collinearContour}, params, mesh));
+    EXPECT_EQ(mesh.vertexCount(), vertexCount);
+    EXPECT_EQ(mesh.polygonCount(), polygonCount);
+}
+
 TEST(ShapeExtrudeTest, KeepsCapOpenAcrossTheEntireInnerContour)
 {
     const std::vector<QPointF> innerContour = {
