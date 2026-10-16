@@ -41,6 +41,15 @@ TEST(SpatialGridStandaloneTest, QueryRadiusAcrossCellBoundaryIncludesBothCells)
               (std::vector<size_t>{0, 1}));
 }
 
+TEST(SpatialGridStandaloneTest, QueryRadiusAcrossCornerIncludesAllThreeAxisCells)
+{
+    SpatialGrid grid(1.0f);
+    grid.build({float3(0.95f, 0.95f, 0.95f), float3(1.05f, 1.05f, 1.05f)});
+
+    EXPECT_EQ(queryIndices(grid, float3(0.95f, 0.95f, 0.95f), 0.1f),
+              (std::vector<size_t>{0, 1}));
+}
+
 TEST(SpatialGridStandaloneTest, CellCoordinatesUseFloorForNegativePositions)
 {
     SpatialGrid grid(1.0f);
