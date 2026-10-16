@@ -882,6 +882,19 @@ def main():
                 require((child_layer["inFrame"], child_layer["outFrame"], child_layer["startFrame"]) ==
                         (in_frame, out_frame, start_frame),
                         f"Move all changed {name} timing")
+            all_undo = call("test.undo")
+            require(all_undo["layers"] == original and not all_undo["lastChildExists"]
+                    and all_undo["canUndo"] and all_undo["canRedo"],
+                    "Move all undo did not restore the original layers and remove the child")
+            all_redo = call("test.redo")
+            all_result_fields = {"emptySelectionSubmitted", "childSettingsCopied", "childResolution",
+                                 "childFrameRate", "childFrameRangeDuration", "parentFrameRangeDuration",
+                                 "childBackgroundColor"}
+            expected_redo = {key: value for key, value in all_nested.items()
+                             if key not in all_result_fields}
+            require(without_history(all_redo) == without_history(expected_redo)
+                    and all_redo["canUndo"] and not all_redo["canRedo"],
+                    "Move all redo did not restore the complete precomposed state")
             round_trip = call("test.saveReload")
             require(round_trip["passed"] and round_trip["parentChildLinkPreserved"]
                     and round_trip["layerStatePreserved"] and round_trip["mappingClearedBeforeReload"]

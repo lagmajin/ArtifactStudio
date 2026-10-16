@@ -3,6 +3,8 @@
 **最終更新:** 2026-10-16
 **ステータス:** 実装済み、ビルド・実行未確認（依頼により省略）。
 
+`test.precomposeAll`の独立MCPテストは、空のlayer ID配列による全レイヤー移動でA/B/Untouchedの順序と時間を確認した後、Undoで元の3レイヤーと子Compositionの削除を確認し、Redoで全移動後の公開状態を再現することも照合する。
+
 `test.unpackLayerIdCollisionAtomic`は2キーのopacityカーブを持つ子レイヤーのIDを親に残るレイヤーIDと衝突させ、解除が拒否され、親・子Composition、wrapper、Undo/Redo履歴、opacityキーと中間評価値が変更されないことを確認する。さらに公開opacity overrideが失敗前は遅延状態のままで、拒否時に子レイヤーへ先行materializeされないことも確認する。
 
 `test.unpackDuplicateChildLayerIdsAtomic`は子Composition内の2レイヤーを同じIDにし、解除が拒否され、重複した子レイヤーと親Composition、wrapper、Undo/Redo履歴が保持されることを確認する。
