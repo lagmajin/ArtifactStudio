@@ -154,8 +154,9 @@ def main():
     args = parser.parse_args()
     if args.language == "all":
         args.output_dir.mkdir(parents=True, exist_ok=True)
+        languages = ("ja", "en", "zh", "zh-TW")
         language_results = []
-        for language in ("ja", "en", "zh", "zh-TW"):
+        for language in languages:
             completed = subprocess.run([
                 sys.executable, str(Path(__file__).resolve()),
                 "--server", str(args.server.resolve()),
@@ -163,8 +164,10 @@ def main():
                 "--language", language,
             ], check=False)
             language_results.append({"language": language, "exitCode": completed.returncode})
+        all_passed = all(result["exitCode"] == 0 for result in language_results)
         (args.output_dir / "language-results.json").write_text(
-            json.dumps({"languageRuns": language_results}, ensure_ascii=False, indent=2),
+            json.dumps({"expectedLanguages": list(languages), "languageRuns": language_results,
+                        "passed": all_passed}, ensure_ascii=False, indent=2),
             encoding="utf-8")
         failed_languages = [result["language"] for result in language_results
                             if result["exitCode"] != 0]
