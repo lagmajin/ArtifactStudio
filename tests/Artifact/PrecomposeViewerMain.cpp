@@ -1099,16 +1099,25 @@ public:
         }
         if (name == "test.captureRejectsStalePanel") {
             const auto stateBefore = state();
+            text_->setPlainText(QStringLiteral("{"));
+            const auto invalidJsonCapture = action(QStringLiteral("test.capture"));
+            const bool invalidJsonRejected =
+                invalidJsonCapture.value(QStringLiteral("error")).toString() ==
+                    QStringLiteral("Visible MCP state panel is stale") &&
+                !invalidJsonCapture.contains(QStringLiteral("capturePng"));
             text_->setPlainText(QStringLiteral("{}"));
-            const auto capture = action(QStringLiteral("test.capture"));
-            const bool rejected = capture.value(QStringLiteral("error")).toString() ==
-                QStringLiteral("Visible MCP state panel is stale") &&
-                !capture.contains(QStringLiteral("capturePng"));
+            const auto mismatchedJsonCapture = action(QStringLiteral("test.capture"));
+            const bool mismatchedJsonRejected =
+                mismatchedJsonCapture.value(QStringLiteral("error")).toString() ==
+                    QStringLiteral("Visible MCP state panel is stale") &&
+                !mismatchedJsonCapture.contains(QStringLiteral("capturePng"));
             const bool stateUnchanged = state() == stateBefore;
             refresh();
-            QJsonObject result{{"staleCaptureRejected", rejected},
+            QJsonObject result{{"invalidJsonRejected", invalidJsonRejected},
+                               {"mismatchedJsonRejected", mismatchedJsonRejected},
                                {"stateUnchanged", stateUnchanged},
-                               {"passed", rejected && stateUnchanged}};
+                               {"passed", invalidJsonRejected && mismatchedJsonRejected &&
+                                    stateUnchanged}};
             if (!result.value(QStringLiteral("passed")).toBool())
                 result[QStringLiteral("error")] = QStringLiteral(
                     "Stale MCP state panel was not rejected without changing project state");

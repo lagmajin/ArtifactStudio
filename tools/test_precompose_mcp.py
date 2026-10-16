@@ -306,7 +306,8 @@ def main():
                     and abs(layer_map(reset_state)["A"]["opacity"] - 0.42) < 1e-6,
                     "MCP reset did not create a clean locale-preserving fixture")
             stale_capture = call("test.captureRejectsStalePanel")
-            require(stale_capture["passed"] and stale_capture["staleCaptureRejected"]
+            require(stale_capture["passed"] and stale_capture["invalidJsonRejected"]
+                    and stale_capture["mismatchedJsonRejected"]
                     and stale_capture["stateUnchanged"]
                     and stale_capture["state"] == reset_state
                     and call("test.state") == reset_state,
