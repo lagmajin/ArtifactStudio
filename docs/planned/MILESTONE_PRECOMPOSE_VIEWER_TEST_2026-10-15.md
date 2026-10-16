@@ -5,7 +5,7 @@
 
 `test.precomposeAll`の独立MCPテストは、空のlayer ID配列による全レイヤー移動で元のレイヤー順・公開属性／時間と親上のwrapper選択を確認した後、Undoでそのfixtureと選択状態を復元し、Redoで全移動後の公開状態を再現することも照合する。
 
-`test.capture`はPNG各chunkの境界・CRC・IHDR／IDAT／IEND・正の寸法を検査し、取得前後の公開状態が一致することでComposition・選択・Undo/Redo履歴を変更しないことも確認する。
+`test.capture`はPNG各chunkの境界・CRC・連続IDAT・IHDR／IDAT／IEND・正の寸法を検査し、IDATのzlib stream・展開後scanline長・filter byteも検証する。取得前後の公開状態が一致することでComposition・選択・Undo/Redo履歴を変更しないことも確認する。
 
 独立MCPハーネスは`notifications/initialized`をIDなしで送り、通知への応答が次の`test.state`応答へ混入せず、fixture状態も変わらないことを確認する。
 
@@ -83,7 +83,7 @@ out/build/x64-Debug-Agent/bin/Debug/ArtifactPrecomposeViewer.exe
 
 `test.guiAnimatedKeyRoundTrip`もMCP tools/listに公開し、GUI KeyPress P/Z/Y/K経路を通じてアニメーションキーの移動・Undo/Redo・解除後復元を検査し、tools/test_precompose_mcp.pyも全結果フラグ、子時間とwrapperの負時間範囲・Undo/Redo時のwrapper存在・同一性とManager登録、評価値、animatable状態、レイヤーオブジェクト同一性、解除Undo/Redoを照合する。
 
-`--check` は既存プリコンポーズ回帰テストだけを実行し、失敗があれば終了コード1を返す。`--mcp-stdio` は改行区切りJSON-RPCの旧MCP `2024-11-05` initialize、tools/list、tools/call、pingに対応する。MCPハーネスはtools/listの重複・形式と、呼び出す全ツール名が公開されていることを検査する。`test.capture`はMIMEとBase64に加え、PNG全chunkの境界／CRC、IHDR／IDAT／IEND、非ゼロ寸法を検証し、取得前後の公開状態が不変であることを確認して画像証拠を保存する。stdin EOFで終了する。製品ログはstderrへ分離する。新MCP server/discover形式は未対応。GUIを前面化せず、左端ディスプレイへ配置する。`--language all`は`ja` / `en` / `zh` / `zh-TW`を明示して各言語別の出力ディレクトリへ順に実行する。`test.state`はQtのBCP-47 localeを返し、ハーネスは要求言語と完全一致することを検証する。
+`--check` は既存プリコンポーズ回帰テストだけを実行し、失敗があれば終了コード1を返す。`--mcp-stdio` は改行区切りJSON-RPCの旧MCP `2024-11-05` initialize、tools/list、tools/call、pingに対応する。MCPハーネスはtools/listの重複・形式と、呼び出す全ツール名が公開されていることを検査する。`test.capture`はMIMEとBase64に加え、PNG全chunkの境界／CRC、連続IDAT、IHDR／IDAT／IEND、非ゼロ寸法、IDAT復号後のscanline長とfilter byteを検証し、取得前後の公開状態が不変であることを確認して画像証拠を保存する。stdin EOFで終了する。製品ログはstderrへ分離する。新MCP server/discover形式は未対応。GUIを前面化せず、左端ディスプレイへ配置する。`--language all`は`ja` / `en` / `zh` / `zh-TW`を明示して各言語別の出力ディレクトリへ順に実行する。`test.state`はQtのBCP-47 localeを返し、ハーネスは要求言語と完全一致することを検証する。
 
 MCPハーネスはassertion／通信例外とserver終了codeを`result.json`へ保存し、JSON-RPC応答のversion・id・result/error排他性、initializeのprotocol version・tools capability・serverInfo、ping応答、引数省略のtools/call成功、tools/listの各descriptionと空object schemaを照合し、`notifications/initialized`を無応答で処理することを確認して、公開された全toolを最低1回呼び出す。直接MCPのK/D解除はUndo/Redoを各1往復し、各時点の公開state全体が同じchild／親レイヤー状態へ戻ることも照合する。未知のtool name、name欠落、空object以外またはobject以外のarguments、未知methodを拒否することと、引数省略呼び出し・不正要求の前後で公開state全体（Composition／layer、selection、active Composition、設定、locale、Undo/Redo可否、child存在）が一致し、拒否後も呼び出しへ応答できることを確認する。
 

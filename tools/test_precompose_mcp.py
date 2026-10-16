@@ -17,6 +17,10 @@ def validate_png(png):
         raise AssertionError("Capture returned an invalid PNG signature")
     offset = len(signature)
     chunk_types = []
+    image_header = None
+    image_data = []
+    seen_image_data = False
+    image_data_ended = False
     while offset + 12 <= len(png):
         length = struct.unpack_from(">I", png, offset)[0]
         chunk_end = offset + 12 + length
@@ -31,6 +35,15 @@ def validate_png(png):
         if not chunk_types and (chunk_type != b"IHDR" or length != 13):
             raise AssertionError("Capture PNG does not start with a valid IHDR chunk")
         chunk_types.append(chunk_type)
+        if chunk_type == b"IHDR":
+            image_header = chunk_data
+        elif chunk_type == b"IDAT":
+            if image_data_ended:
+                raise AssertionError("Capture PNG contains nonconsecutive IDAT chunks")
+            seen_image_data = True
+            image_data.append(chunk_data)
+        elif seen_image_data and chunk_type != b"IEND":
+            image_data_ended = True
         if chunk_type == b"IEND":
             if length != 0 or chunk_end != len(png):
                 raise AssertionError("Capture PNG has an invalid IEND chunk or trailing data")
@@ -41,9 +54,31 @@ def validate_png(png):
         raise AssertionError("Capture PNG is missing required IHDR, IDAT, or IEND chunks")
     if len(png) < len(signature) + 8 + 13:
         raise AssertionError("Capture PNG has a truncated IHDR chunk")
-    width, height = struct.unpack_from(">II", png, len(signature) + 8)
+    width, height = struct.unpack_from(">II", image_header)
     if width <= 0 or height <= 0:
         raise AssertionError("Capture PNG has empty dimensions")
+    bit_depth, color_type, compression_method, filter_method, interlace_method = image_header[8:13]
+    channels_by_color_type = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
+    valid_bit_depths = {0: (1, 2, 4, 8, 16), 2: (8, 16), 3: (1, 2, 4, 8),
+                        4: (8, 16), 6: (8, 16)}
+    if (color_type not in channels_by_color_type or bit_depth not in valid_bit_depths[color_type]
+            or compression_method != 0 or filter_method != 0 or interlace_method != 0):
+        raise AssertionError("Capture PNG uses an unsupported IHDR encoding")
+    row_bytes = (width * channels_by_color_type[color_type] * bit_depth + 7) // 8
+    scanline_bytes = row_bytes + 1
+    expected_data_length = height * scanline_bytes
+    if expected_data_length > 256 * 1024 * 1024:
+        raise AssertionError("Capture PNG scanline data is unexpectedly large")
+    decoder = zlib.decompressobj()
+    try:
+        decoded = decoder.decompress(b"".join(image_data), expected_data_length + 1)
+    except zlib.error as error:
+        raise AssertionError("Capture PNG IDAT stream cannot be decompressed") from error
+    if (len(decoded) != expected_data_length or not decoder.eof or decoder.unused_data
+            or decoder.unconsumed_tail):
+        raise AssertionError("Capture PNG IDAT stream does not match its dimensions")
+    if any(decoded[row_start] > 4 for row_start in range(0, len(decoded), scanline_bytes)):
+        raise AssertionError("Capture PNG contains an invalid scanline filter")
     return width, height
 
 
