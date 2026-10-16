@@ -142,6 +142,18 @@ def main():
                     and keyboard_round_trip["resetByKey"]
                     and keyboard_round_trip["resetSelectionByKey"],
                     "GUI A/P/K/D/R/Z/Y keyboard routing did not round-trip precompose, unprecompose, and reset")
+            animated_keyboard_round_trip = call("test.guiAnimatedKeyRoundTrip")
+            require(animated_keyboard_round_trip["passed"]
+                    and animated_keyboard_round_trip["animationMovedByKey"]
+                    and animated_keyboard_round_trip["animationSamplePreservedByKey"]
+                    and animated_keyboard_round_trip["animationRestoredByUndo"]
+                    and animated_keyboard_round_trip["undoKeysPreserved"]
+                    and animated_keyboard_round_trip["undoSamplePreserved"]
+                    and animated_keyboard_round_trip["animationRestoredByRedo"]
+                    and animated_keyboard_round_trip["redoSamplePreserved"]
+                    and animated_keyboard_round_trip["animationRestoredByKeyboardUnpack"]
+                    and animated_keyboard_round_trip["unpackSamplePreserved"],
+                    "GUI P/Z/Y/K keyboard routing did not preserve animated key attributes and samples")
             call("test.reset")
             initial = call("test.state")
             original = initial["layers"]

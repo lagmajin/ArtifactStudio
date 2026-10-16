@@ -67,7 +67,7 @@ cmake --build out/build/x64-Debug-Agent --target ArtifactPrecomposeViewer -j 4
 out/build/x64-Debug-Agent/bin/Debug/ArtifactPrecomposeViewer.exe
 ```
 
-`test.guiAnimatedKeyRoundTrip`もMCP tools/listに公開し、GUI KeyPress P/Z/Y/K経路を通じてアニメーションキーの移動・Undo/Redo・解除後復元を検査する。
+`test.guiAnimatedKeyRoundTrip`もMCP tools/listに公開し、GUI KeyPress P/Z/Y/K経路を通じてアニメーションキーの移動・Undo/Redo・解除後復元を検査し、tools/test_precompose_mcp.pyも全結果フラグと評価値を照合する。
 
 `--check` は既存プリコンポーズ回帰テストだけを実行し、失敗があれば終了コード1を返す。`--mcp-stdio` は改行区切りJSON-RPCの旧MCP `2024-11-05` initialize、tools/list、tools/call、pingに対応する。MCPハーネスはtools/listの重複・形式と、呼び出す全ツール名が公開されていることを検査する。`test.capture` はMIME、Base64、PNG signature/IHDR、非ゼロ寸法を検証してから画像証拠を保存する。stdin EOFで終了する。製品ログはstderrへ分離する。新MCP server/discover形式は未対応。GUIを前面化せず、左端ディスプレイへ配置する。
 
