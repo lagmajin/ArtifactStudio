@@ -1251,6 +1251,8 @@ def main():
             evidence.append({"harnessError": f"{type(error).__name__}: {error}"})
             raise
         finally:
+            forced_termination = False
+            forced_kill = False
             try:
                 process.stdin.close()
             except OSError:
@@ -1258,9 +1260,17 @@ def main():
             try:
                 process.wait(timeout=10)
             except subprocess.TimeoutExpired:
+                forced_termination = True
                 process.terminate()
-                process.wait(timeout=10)
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    forced_kill = True
+                    process.kill()
+                    process.wait()
             evidence.append({"serverExitCode": process.returncode})
+            evidence.append({"serverForcedTermination": forced_termination,
+                             "serverForcedKill": forced_kill})
             capture_files = [name for name in ("reset.png", "nested.png")
                              if (args.output_dir / name).is_file()]
             evidence.append({"captureFiles": capture_files})
