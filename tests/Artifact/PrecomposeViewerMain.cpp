@@ -2998,7 +2998,7 @@ public:
             return parentResult;
         } else if (name == "test.missingExternalParentUnwrapAtomic") {
             QJsonObject result;
-            const auto root = service->currentComposition().lock();
+            auto root = service->currentComposition().lock();
             if (!root) {
                 result["error"] = QStringLiteral("No root composition");
                 return result;
@@ -3012,7 +3012,7 @@ public:
             }
             const auto sourceId = sourceIds.front();
             const auto externalParentId = parentIds.front();
-            const auto source = root->layerById(sourceId);
+            auto source = root->layerById(sourceId);
             if (!source) {
                 result["error"] = QStringLiteral("Missing-external-parent source layer is unavailable");
                 return result;
@@ -3027,43 +3027,78 @@ public:
                 return result;
             }
             const auto outcome = service->lastPrecomposeOutcome();
-            const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+            auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
                 root->layerById(outcome.precompLayerId));
-            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
-            const auto childSource = child ? child->layerById(sourceId) : ArtifactAbstractLayerPtr{};
+            auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            auto childSource = child ? child->layerById(sourceId) : ArtifactAbstractLayerPtr{};
             const bool metadataStored = wrapper &&
                 wrapper->restoreExternalParent(sourceId) == externalParentId && childSource &&
                 childSource->parentLayerId().isNil();
             const bool parentDeleted = metadataStored &&
                 service->removeLayerFromComposition(rootId, externalParentId) &&
                 !root->layerById(externalParentId);
-            const bool unpacked = parentDeleted &&
+            QTemporaryDir tempDir;
+            const auto filePath = tempDir.filePath(QStringLiteral("missing-external-parent.artifact"));
+            const auto save = tempDir.isValid()
+                ? ArtifactProjectManager::getInstance().saveToFile(filePath)
+                : ArtifactProjectExporterResult{};
+            auto& precompManager = PreComposeManager::instance();
+            const bool mappingCleared = save.success && precompManager.unregisterPrecompLayer(
+                rootId, outcome.precompLayerId, outcome.childCompId) &&
+                !precompManager.isPrecomposeLayer(outcome.precompLayerId);
+            const bool loaded = mappingCleared && ArtifactProjectManager::getInstance().loadFromFile(filePath);
+            if (loaded) {
+                service->changeCurrentComposition(rootId);
+                root = service->findComposition(rootId).ptr.lock();
+                child = service->findComposition(outcome.childCompId).ptr.lock();
+                if (!root || !child) {
+                    result["saveSucceeded"] = save.success;
+                    result["mappingClearedBeforeReload"] = mappingCleared;
+                    result["loaded"] = loaded;
+                    result["error"] = QStringLiteral("Missing-parent composition fixture was not restored by reload");
+                    return result;
+                }
+                wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                    root->layerById(outcome.precompLayerId));
+                source = child->layerById(sourceId);
+                childSource = source;
+            }
+            const bool metadataRestoredAfterReload = loaded && wrapper && source &&
+                wrapper->restoreExternalParent(sourceId) == externalParentId &&
+                source->parentLayerId().isNil() && !root->layerById(externalParentId) &&
+                precompManager.isPrecomposeLayer(outcome.precompLayerId);
+            const bool unpacked = metadataRestoredAfterReload &&
                 service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
             const auto unpackedSource = root->layerById(sourceId);
             const bool unpackKeptParentCleared = unpacked && unpackedSource == source &&
                 unpackedSource->parentLayerId().isNil() && !root->layerById(externalParentId) &&
-                !PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId);
+                !precompManager.isPrecomposeLayer(outcome.precompLayerId);
             const bool undoAvailable = unpacked && undo->canUndo();
             if (undoAvailable) undo->undo();
             const auto undoWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
                 root->layerById(outcome.precompLayerId));
             const bool undoRestoredMetadata = undoAvailable && undoWrapper &&
                 undoWrapper->restoreExternalParent(sourceId) == externalParentId &&
-                PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId) &&
+                precompManager.isPrecomposeLayer(outcome.precompLayerId) &&
                 !root->layerById(externalParentId);
             const bool redoAvailable = undoRestoredMetadata && undo->canRedo();
             if (redoAvailable) undo->redo();
             const auto redoSource = root->layerById(sourceId);
             const bool redoKeptParentCleared = redoAvailable && redoSource == source &&
                 redoSource->parentLayerId().isNil() && !root->layerById(externalParentId) &&
-                !PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId);
+                !precompManager.isPrecomposeLayer(outcome.precompLayerId);
             result["parentAuthored"] = parentAuthored;
             result["metadataStored"] = metadataStored;
             result["parentDeleted"] = parentDeleted;
+            result["saveSucceeded"] = save.success;
+            result["mappingClearedBeforeReload"] = mappingCleared;
+            result["loaded"] = loaded;
+            result["metadataRestoredAfterReload"] = metadataRestoredAfterReload;
             result["unpackKeptParentCleared"] = unpackKeptParentCleared;
             result["undoRestoredMetadata"] = undoRestoredMetadata;
             result["redoKeptParentCleared"] = redoKeptParentCleared;
-            result["passed"] = parentAuthored && metadataStored && parentDeleted &&
+            result["passed"] = parentAuthored && metadataStored && parentDeleted && save.success &&
+                mappingCleared && loaded && metadataRestoredAfterReload &&
                 unpackKeptParentCleared && undoRestoredMetadata && redoKeptParentCleared;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Unprecompose restored a deleted external parent or lost its undo metadata");

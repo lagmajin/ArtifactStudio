@@ -377,6 +377,10 @@ def main():
             missing_external_parent = call("test.missingExternalParentUnwrapAtomic")
             require(missing_external_parent["passed"] and missing_external_parent["parentAuthored"]
                     and missing_external_parent["metadataStored"] and missing_external_parent["parentDeleted"]
+                    and missing_external_parent["saveSucceeded"]
+                    and missing_external_parent["mappingClearedBeforeReload"]
+                    and missing_external_parent["loaded"]
+                    and missing_external_parent["metadataRestoredAfterReload"]
                     and missing_external_parent["unpackKeptParentCleared"]
                     and missing_external_parent["undoRestoredMetadata"]
                     and missing_external_parent["redoKeptParentCleared"],

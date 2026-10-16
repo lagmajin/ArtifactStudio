@@ -16,6 +16,8 @@
 
 `test.reparentExistingPrecompose`は既存wrapperを別階層へ移した3階層状態を保存・再読込し、親子mappingとwrapperの3D transform・animation keyを確認した後、解除・Undo/Redoまで継続する。
 
+`test.missingExternalParentUnwrapAtomic`は外部親レイヤー削除後に保存・再読込し、残存wrapperの親metadataを保ちつつ、解除時に存在しない親を復元しないことをUndo/Redoまで検査する。
+
 ## 対象
 
 FBX独立Viewerのように製品本体と起動を分け、既存のProject ServiceとUndoManagerを直接検証する。製品・子リポジトリのコードは変更しない。GUIは実際のレイヤー構造と属性をJSON表示する検査画面であり、Composition Viewportの描画テストではない。
