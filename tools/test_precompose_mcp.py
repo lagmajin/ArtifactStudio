@@ -241,7 +241,11 @@ def main():
             shared_duration = call("test.sharedChildDurationPropagates")
             require(shared_duration["passed"] and shared_duration["bothParentsRegistered"]
                     and shared_duration["shrinkFollowed"] and shared_duration["expansionFollowed"]
-                    and shared_duration["saveReloadRestored"],
+                    and shared_duration["saveReloadRestored"]
+                    and shared_duration["firstParentUnpacked"]
+                    and shared_duration["otherParentReferencePreserved"]
+                    and shared_duration["firstUnpackUndoRestored"]
+                    and shared_duration["firstUnpackRedoRestored"],
                     "Shared child duration propagation or its two-parent save/reload restoration failed")
             call("test.reset")
             same_parent_duration = call("test.sharedParentDurationPropagates")

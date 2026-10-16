@@ -1617,6 +1617,36 @@ public:
                 reloadedSecondWrapper->inPoint().framePosition() == 0 &&
                 reloadedSecondWrapper->startTime().framePosition() == 0 &&
                 reloadedSecondWrapper->outPoint().framePosition() == 240;
+            service->changeCurrentComposition(rootId);
+            const bool firstParentUnpacked = saveReloadRestored &&
+                service->unprecomposeLayerWithUndo(firstWrapperId, true);
+            const auto referencesAfterFirstUnpack = manager.getPrecompLayersForChild(childId);
+            const bool otherParentReferencePreserved = firstParentUnpacked &&
+                referencesAfterFirstUnpack.size() == 1 &&
+                referencesAfterFirstUnpack.front().parentCompId == secondParentId &&
+                referencesAfterFirstUnpack.front().precompLayerId == secondWrapperId &&
+                !manager.isPrecomposeLayer(firstWrapperId) && manager.isPrecomposeLayer(secondWrapperId) &&
+                reloadedRoot->layerById(sourceIds.front()) && reloadedRoot->layerById(sourceIds.back()) &&
+                reloadedSecondParent->layerById(secondWrapperId) &&
+                reloadedChild->layerById(sourceIds.front()) && reloadedChild->layerById(sourceIds.back());
+            const bool firstUnpackUndoAvailable = otherParentReferencePreserved && undo->canUndo();
+            if (firstUnpackUndoAvailable) undo->undo();
+            const auto referencesAfterUndo = manager.getPrecompLayersForChild(childId);
+            const bool firstUnpackUndoRestored = firstUnpackUndoAvailable &&
+                referencesAfterUndo.size() == 2 && hasRestoredReference(rootId, firstWrapperId) &&
+                hasRestoredReference(secondParentId, secondWrapperId) &&
+                manager.isPrecomposeLayer(firstWrapperId) && manager.isPrecomposeLayer(secondWrapperId) &&
+                reloadedRoot->layerById(firstWrapperId) && !reloadedRoot->layerById(sourceIds.front()) &&
+                reloadedChild->layerById(sourceIds.front());
+            const bool firstUnpackRedoAvailable = firstUnpackUndoRestored && undo->canRedo();
+            if (firstUnpackRedoAvailable) undo->redo();
+            const auto referencesAfterRedo = manager.getPrecompLayersForChild(childId);
+            const bool firstUnpackRedoRestored = firstUnpackRedoAvailable &&
+                referencesAfterRedo.size() == 1 &&
+                referencesAfterRedo.front().parentCompId == secondParentId &&
+                referencesAfterRedo.front().precompLayerId == secondWrapperId &&
+                reloadedRoot->layerById(sourceIds.front()) && reloadedRoot->layerById(sourceIds.back()) &&
+                reloadedChild->layerById(sourceIds.front()) && reloadedChild->layerById(sourceIds.back());
             result["bothParentsRegistered"] = bothParentsRegistered;
             result["shrinkFollowed"] = shrinkFollowed;
             result["expansionFollowed"] = expansionFollowed;
@@ -1624,7 +1654,13 @@ public:
             result["mappingsClearedBeforeReload"] = mappingsCleared;
             result["loaded"] = loaded;
             result["saveReloadRestored"] = saveReloadRestored;
-            result["passed"] = bothParentsRegistered && shrinkFollowed && expansionFollowed && saveReloadRestored;
+            result["firstParentUnpacked"] = firstParentUnpacked;
+            result["otherParentReferencePreserved"] = otherParentReferencePreserved;
+            result["firstUnpackUndoRestored"] = firstUnpackUndoRestored;
+            result["firstUnpackRedoRestored"] = firstUnpackRedoRestored;
+            result["passed"] = bothParentsRegistered && shrinkFollowed && expansionFollowed &&
+                saveReloadRestored && otherParentReferencePreserved && firstUnpackUndoRestored &&
+                firstUnpackRedoRestored;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Shared child duration propagation or save/reload restoration failed");
             childId_ = outcome.childCompId;

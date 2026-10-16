@@ -10,6 +10,8 @@
 `test.sharedChildReferences`は同一親Compositionの2つのwrapperが共有するchildを保存・再読込し、runtime mappingを復元した後に片方だけ解除しても他方のwrapperとchildが残ること、Undo/Redoで2参照と1参照へ正しく往復することを検査する。
 
 
+`test.sharedChildDurationPropagates`は別々の親Compositionから共有するchildを再読込した後、一方の親だけで解除してももう一方のruntime mappingとchild内容が残り、Undo/Redoで2親共有と片親共有へ復元することを検査する。
+
 ## 対象
 
 FBX独立Viewerのように製品本体と起動を分け、既存のProject ServiceとUndoManagerを直接検証する。製品・子リポジトリのコードは変更しない。GUIは実際のレイヤー構造と属性をJSON表示する検査画面であり、Composition Viewportの描画テストではない。
