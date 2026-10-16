@@ -3626,6 +3626,8 @@ public:
                 animationResult["error"] = QStringLiteral("Animated precompose fixture layers are missing");
                 return animationResult;
             }
+            const auto exactAnimationRate = FrameRate::fromRational(30000, 1001);
+            parent->setFrameRate(exactAnimationRate);
             const auto source = parent->layerById(idsA.front());
             const auto sourceB = parent->layerById(idsB.front());
             auto property = source ? source->getProperty(QStringLiteral("transform.position.x"))
@@ -3636,6 +3638,10 @@ public:
                 animationResult["error"] = QStringLiteral("Position X animation property is unavailable");
                 return animationResult;
             }
+            const bool rationalTimebaseAuthored = parent->frameRate().hasExactRational() &&
+                parent->frameRate().numerator() == 30000 &&
+                parent->frameRate().denominator() == 1001 &&
+                source->keyframeTimeScale() == 30 && sourceB->keyframeTimeScale() == 30;
             property->clearKeyFrames();
             property->setAnimatable(true);
             const auto keyScale = source->keyframeTimeScale();
@@ -3741,6 +3747,12 @@ public:
             const auto movedSourceChannelsB = movedSourceB && channelKeysShifted(
                 movedSourceB, transformChannelPaths, originalTransformKeysB, -40);
             const bool transformChannelsRetimed = movedSourceChannelsA && movedSourceChannelsB;
+            const bool rationalChildTimebasePreserved = child &&
+                child->frameRate().hasExactRational() &&
+                child->frameRate().numerator() == 30000 &&
+                child->frameRate().denominator() == 1001 &&
+                movedSource && movedSource->keyframeTimeScale() == 30 &&
+                movedSourceB && movedSourceB->keyframeTimeScale() == 30;
             const bool childKeysRetimed = childProperty && movedKeys.size() == 2 &&
                 movedKeys[0].toObject()["timeValue"].toInt() == 0 &&
                 movedKeys[0].toObject()["timeScale"].toDouble() == static_cast<double>(keyScale) &&
@@ -3829,6 +3841,12 @@ public:
             const bool allModeChildTimingPreserved =
                 hasTiming(allSourceA, 40, 200, 7) && hasTiming(allSourceB, 70, 160, 9) &&
                 hasTiming(allSourceUntouched, 25, 220, 3);
+            const bool allModeRationalTimebasePreserved = allChild &&
+                allChild->frameRate().hasExactRational() &&
+                allChild->frameRate().numerator() == 30000 &&
+                allChild->frameRate().denominator() == 1001 &&
+                allSourceA && allSourceA->keyframeTimeScale() == 30 &&
+                allSourceB && allSourceB->keyframeTimeScale() == 30;
             const auto allPropertyA = allSourceA
                 ? allSourceA->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
@@ -3892,6 +3910,8 @@ public:
             animationResult["childKeysRetimed"] = childKeysRetimed;
             animationResult["offsetChildKeysRetimed"] = offsetChildKeysRetimed;
             animationResult["transformChannelsRetimed"] = transformChannelsRetimed;
+            animationResult["rationalTimebaseAuthored"] = rationalTimebaseAuthored;
+            animationResult["rationalChildTimebasePreserved"] = rationalChildTimebasePreserved;
             animationResult["transformChannelsUnpacked"] = transformChannelsUnpacked;
             animationResult["transformChannelsRedoPreserved"] = transformChannelsRedoPreserved;
             animationResult["unpackRestoredKeys"] = unpackKeysRestored;
@@ -3899,18 +3919,21 @@ public:
             animationResult["allModeChildKeysPreserved"] = allModeChildKeysPreserved;
             animationResult["allModeTransformChildKeysPreserved"] = allModeTransformChildKeysPreserved;
             animationResult["allModeChildTimingPreserved"] = allModeChildTimingPreserved;
+            animationResult["allModeRationalTimebasePreserved"] = allModeRationalTimebasePreserved;
             animationResult["allModeUnpackKeysPreserved"] = allModeUnpackKeysPreserved;
             animationResult["allModeUnpackTransformKeysPreserved"] = allModeUnpackTransformKeysPreserved;
             animationResult["allModeUnpackTimingPreserved"] = allModeUnpackTimingPreserved;
             animationResult["allModeRedoKeysPreserved"] = allModeRedoKeysPreserved;
             animationResult["allModeRedoTransformKeysPreserved"] = allModeRedoTransformKeysPreserved;
             animationResult["allModeRedoTimingPreserved"] = allModeRedoTimingPreserved;
-            animationResult["passed"] = childKeysRetimed && offsetChildKeysRetimed &&
+            animationResult["passed"] = rationalTimebaseAuthored && rationalChildTimebasePreserved &&
+                childKeysRetimed && offsetChildKeysRetimed &&
                 transformChannelsRetimed && transformChannelsUnpacked && transformChannelsRedoPreserved &&
                 unpackKeysRestored &&
                 undoAvailable && redoKeysRestored && allModeChildKeysPreserved &&
                 allModeTransformChildKeysPreserved &&
-                allModeChildTimingPreserved && allModeUnpackKeysPreserved &&
+                allModeChildTimingPreserved && allModeRationalTimebasePreserved &&
+                allModeUnpackKeysPreserved &&
                 allModeUnpackTransformKeysPreserved && allModeUnpackTimingPreserved &&
                 allUndoAvailable && allModeRedoKeysPreserved && allModeRedoTransformKeysPreserved &&
                 allModeRedoTimingPreserved;

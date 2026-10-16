@@ -428,6 +428,8 @@ def main():
             call("test.reset")
             animated = call("test.animatedTiming")
             require(animated["passed"] and animated["childKeysRetimed"]
+                    and animated["rationalTimebaseAuthored"]
+                    and animated["rationalChildTimebasePreserved"]
                     and animated["offsetChildKeysRetimed"]
                     and animated["transformChannelsRetimed"]
                     and animated["transformChannelsUnpacked"]
@@ -436,6 +438,7 @@ def main():
                     and animated["allModeChildKeysPreserved"]
                     and animated["allModeTransformChildKeysPreserved"]
                     and animated["allModeChildTimingPreserved"]
+                    and animated["allModeRationalTimebasePreserved"]
                     and animated["allModeUnpackKeysPreserved"]
                     and animated["allModeUnpackTransformKeysPreserved"]
                     and animated["allModeUnpackTimingPreserved"]
