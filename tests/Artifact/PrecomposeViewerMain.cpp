@@ -2138,6 +2138,7 @@ public:
                 const auto childColor = child->backgroundColor();
                 return parentSize == childSize &&
                     comp->frameRate().framerate() == child->frameRate().framerate() &&
+                    comp->frameRange().duration() == child->frameRange().duration() &&
                     parentColor.r() == childColor.r() && parentColor.g() == childColor.g() &&
                     parentColor.b() == childColor.b() && parentColor.a() == childColor.a();
             };
@@ -2148,7 +2149,10 @@ public:
                 return QJsonObject{
                     {"resolution", QJsonArray{size.width(), size.height()}},
                     {"frameRate", composition->frameRate().framerate()},
+                    {"frameRangeStart", composition->frameRange().start()},
                     {"frameRangeDuration", composition->frameRange().duration()},
+                    {"workAreaStart", composition->workAreaRange().start()},
+                    {"workAreaDuration", composition->workAreaRange().duration()},
                     {"backgroundColor", QJsonArray{color.r(), color.g(), color.b(), color.a()}}};
             };
             const bool childSettingsCopiedOnOpen = childOpened &&
