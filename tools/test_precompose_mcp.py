@@ -420,6 +420,7 @@ def main():
                     and gui_opened_child["wrongContextReverseMappingPreserved"]
                     and gui_opened_child["wrongContextLayerSnapshotsPreserved"]
                     and gui_opened_child["wrongContextSettingsPreserved"]
+                    and gui_opened_child["wrongContextCompositionCountPreserved"]
                     and gui_opened_child["wrongContextPublishedStatePreserved"]
                     and gui_opened_child["wrongContextStatePreserved"]
                     and gui_opened_child["undoReturnedToRoot"]

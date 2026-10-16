@@ -2167,6 +2167,8 @@ public:
                 ? openedChild->allLayer().size() : 0;
             const auto rootSettingsBeforeWrongContextUnpack = settingsSnapshot(comp);
             const auto childSettingsBeforeWrongContextUnpack = settingsSnapshot(openedChild);
+            const auto compositionCountBeforeWrongContextUnpack =
+                ArtifactProjectManager::getInstance().compositionCount();
             const auto rootLayersBeforeWrongContextUnpack = layers(comp, 0);
             const auto childLayersBeforeWrongContextUnpack = layers(openedChild, 0);
             const auto undoCountBeforeWrongContextUnpack = undo->undoCount();
@@ -2199,6 +2201,9 @@ public:
             const bool wrongContextSettingsPreserved = wrongContextUnpackRejected &&
                 settingsSnapshot(comp) == rootSettingsBeforeWrongContextUnpack &&
                 settingsSnapshot(stillOpenedChild) == childSettingsBeforeWrongContextUnpack;
+            const bool wrongContextCompositionCountPreserved = wrongContextUnpackRejected &&
+                ArtifactProjectManager::getInstance().compositionCount() ==
+                    compositionCountBeforeWrongContextUnpack;
             const bool wrongContextStatePreserved = wrongContextUnpackRejected && stillOpenedChild == openedChild &&
                 stillOpenedChild->allLayer().size() == childLayerCountBeforeWrongContextUnpack &&
                 comp->layerById(outcome.precompLayerId) == rootWrapper &&
@@ -2207,7 +2212,8 @@ public:
                 undo->redoCount() == redoCountBeforeWrongContextUnpack &&
                 wrongContextSelectionPreserved && wrongContextManagerMappingPreserved &&
                 wrongContextReverseMappingPreserved && wrongContextLayerSnapshotsPreserved &&
-                wrongContextSettingsPreserved && wrongContextPublishedStatePreserved;
+                wrongContextSettingsPreserved && wrongContextCompositionCountPreserved &&
+                wrongContextPublishedStatePreserved;
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
             const auto afterUndo = service->currentComposition().lock();
@@ -2263,6 +2269,8 @@ public:
             result["wrongContextReverseMappingPreserved"] = wrongContextReverseMappingPreserved;
             result["wrongContextLayerSnapshotsPreserved"] = wrongContextLayerSnapshotsPreserved;
             result["wrongContextSettingsPreserved"] = wrongContextSettingsPreserved;
+            result["wrongContextCompositionCountPreserved"] =
+                wrongContextCompositionCountPreserved;
             result["wrongContextPublishedStatePreserved"] = wrongContextPublishedStatePreserved;
             result["wrongContextStatePreserved"] = wrongContextStatePreserved;
             result["undoReturnedToRoot"] = undoReturnedToRoot;

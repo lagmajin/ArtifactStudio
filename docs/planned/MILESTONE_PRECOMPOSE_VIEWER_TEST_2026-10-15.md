@@ -93,4 +93,4 @@ python tools/test_precompose_mcp.py `
 
 GUI P/D経路では、PのUndo/Redoで子Composition objectの同一性を確認する。D解除後はアニメーションレイヤーの元キー列・評価値と同一layer objectが親に戻り、Undoで同じ子Composition objectと正規化済みキー列・評価値が子へ戻り、Redoで再び子が削除されることを確認する。
 
-GUI O経路では、子を開くときのA/B layer順・objectと親からの基本Composition設定継承、誤コンテキスト解除拒否時の親子解像度・fps・duration・背景色の不変、Undoで親へ戻る同じobjectと順序、Redoで復元する子Composition・A/B layer・親wrapperの同一性、順序、子設定、親逆引きが重複なく1件であることを確認する。
+GUI O経路では、子を開くときのA/B layer順・objectと親からの基本Composition設定継承、誤コンテキスト解除拒否時のComposition数と親子解像度・fps・duration・背景色の不変、Undoで親へ戻る同じobjectと順序、Redoで復元する子Composition・A/B layer・親wrapperの同一性、順序、子設定、親逆引きが重複なく1件であることを確認する。
