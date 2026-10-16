@@ -1217,6 +1217,9 @@ def main():
                 process.terminate()
                 process.wait(timeout=10)
             evidence.append({"serverExitCode": process.returncode})
+            capture_files = [name for name in ("reset.png", "nested.png")
+                             if (args.output_dir / name).is_file()]
+            evidence.append({"captureFiles": capture_files})
             (args.output_dir / "result.json").write_text(json.dumps(evidence, ensure_ascii=False, indent=2),
                                                          encoding="utf-8")
         if process.returncode:
