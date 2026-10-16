@@ -2676,19 +2676,36 @@ public:
             const auto outcome = service->lastPrecomposeOutcome();
             childId_ = outcome.childCompId;
             hasChild_ = true;
+            const auto originalChild = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto childLayerIds = originalChild
+                ? namedLayerIds(originalChild, {QStringLiteral("A"), QStringLiteral("B"}))
+                : QVector<LayerID>{};
+            QVector<ArtifactAbstractLayerPtr> originalChildLayers;
+            if (originalChild)
+                for (const auto& id : childLayerIds)
+                    originalChildLayers.push_back(originalChild->layerById(id));
+            const bool childDataCaptured = originalChild && childLayerIds.size() == 2 &&
+                originalChildLayers.size() == 2 && originalChildLayers[0] && originalChildLayers[1];
             const auto compositionCountBeforeDelete = ArtifactProjectManager::getInstance().compositionCount();
             const bool unpacked = service->unprecomposeLayerWithUndo(outcome.precompLayerId, false);
             const bool deletedAfterUnpack = unpacked &&
                 !service->findComposition(outcome.childCompId).ptr.lock() &&
                 ArtifactProjectManager::getInstance().compositionCount() + 1 == compositionCountBeforeDelete &&
+                !PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId) &&
                 state()["layers"].toArray() == originalLayers;
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
-            const bool restoredByUndo = undoAvailable &&
-                service->findComposition(outcome.childCompId).ptr.lock() &&
+            const auto undoChild = service->findComposition(outcome.childCompId).ptr.lock();
+            const bool sameChildObjectsRestored = undoChild == originalChild && childDataCaptured &&
+                namedLayerIds(originalChild, {QStringLiteral("A"), QStringLiteral("B")}) == childLayerIds &&
+                originalChild->layerById(childLayerIds[0]) == originalChildLayers[0] &&
+                originalChild->layerById(childLayerIds[1]) == originalChildLayers[1];
+            const bool restoredByUndo = undoAvailable && undoChild == originalChild &&
                 ArtifactProjectManager::getInstance().compositionCount() == compositionCountBeforeDelete &&
                 root->layerById(outcome.precompLayerId) &&
-                PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId);
+                PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId) &&
+                sameChildObjectsRestored &&
+                PreComposeManager::instance().getSourceCompositionId(outcome.precompLayerId) == outcome.childCompId;
             const bool redoAvailable = undo->canRedo();
             if (redoAvailable) undo->redo();
             const bool deletedByRedo = redoAvailable &&
@@ -2696,10 +2713,13 @@ public:
                 ArtifactProjectManager::getInstance().compositionCount() + 1 == compositionCountBeforeDelete &&
                 !root->layerById(outcome.precompLayerId) &&
                 !PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId) &&
+                PreComposeManager::instance().getPrecompLayersForChild(outcome.childCompId).isEmpty() &&
                 state()["layers"].toArray() == originalLayers;
             service->changeCurrentComposition(rootId);
             redoResult["deletedAfterUnpack"] = deletedAfterUnpack;
+            redoResult["childDataCaptured"] = childDataCaptured;
             redoResult["restoredByUndo"] = restoredByUndo;
+            redoResult["sameChildObjectsRestored"] = sameChildObjectsRestored;
             redoResult["deletedByRedo"] = deletedByRedo;
             redoResult["passed"] = deletedAfterUnpack && restoredByUndo && deletedByRedo;
             if (!redoResult["passed"].toBool())
