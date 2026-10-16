@@ -124,6 +124,8 @@ def main():
                     and invalid_requests["blankNameAtomic"]
                     and invalid_requests["invalidSelectionRejected"]
                     and invalid_requests["invalidSelectionAtomic"]
+                    and invalid_requests["staleSelectionRejected"]
+                    and invalid_requests["staleSelectionAtomic"]
                     and invalid_requests["emptySelectionRejected"]
                     and invalid_requests["emptySelectionAtomic"]
                     and invalid_requests["emptyPrecompIdRejected"]

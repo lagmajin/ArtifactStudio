@@ -477,6 +477,17 @@ public:
                 undo->undoCount() == beforeUndoCount && undo->redoCount() == beforeRedoCount &&
                 invalidSelectionOutcome.precompLayerId.isNil() &&
                 invalidSelectionOutcome.childCompId.isNil() && selectionUnchanged();
+            const LayerID staleSelectionId(QStringLiteral("ffffffff-ffff-4fff-8fff-ffffffffffff"));
+            const bool staleSelectionRejected = !service->precomposeLayersWithUndo(
+                {staleSelectionId}, UniString(QStringLiteral("Stale Selection Only")), false, false,
+                PrecomposeMode::MoveSelected);
+            const auto staleSelectionOutcome = service->lastPrecomposeOutcome();
+            const bool staleSelectionAtomic = !staleSelectionId.isNil() &&
+                comp->allLayer().size() == beforeLayerCount && layers(comp, 0) == beforeLayers &&
+                ArtifactProjectManager::getInstance().compositionCount() == beforeCompositionCount &&
+                undo->undoCount() == beforeUndoCount && undo->redoCount() == beforeRedoCount &&
+                staleSelectionOutcome.precompLayerId.isNil() && staleSelectionOutcome.childCompId.isNil() &&
+                selectionUnchanged();
             const bool emptySelectionRejected = !service->precomposeLayersWithUndo(
                 QVector<LayerID>{}, UniString(QStringLiteral("Empty Selection")), false, false,
                 PrecomposeMode::MoveSelected);
@@ -507,6 +518,8 @@ public:
             invalidResult["blankNameAtomic"] = blankNameAtomic;
             invalidResult["invalidSelectionRejected"] = invalidSelectionRejected;
             invalidResult["invalidSelectionAtomic"] = invalidSelectionAtomic;
+            invalidResult["staleSelectionRejected"] = staleSelectionRejected;
+            invalidResult["staleSelectionAtomic"] = staleSelectionAtomic;
             invalidResult["emptySelectionRejected"] = emptySelectionRejected;
             invalidResult["emptySelectionAtomic"] = emptySelectionAtomic;
             invalidResult["emptyPrecompIdRejected"] = emptyPrecompIdRejected;
@@ -524,7 +537,8 @@ public:
             invalidResult["preservedRedoExecuted"] = preservedRedoExecuted;
             invalidResult["passed"] = blankNameRejected && blankNameAtomic &&
                 invalidSelectionRejected && invalidSelectionAtomic && emptySelectionRejected &&
-                emptySelectionAtomic && emptyPrecompIdRejected && emptyPrecompIdAtomic &&
+                staleSelectionRejected && staleSelectionAtomic && emptySelectionAtomic &&
+                emptyPrecompIdRejected && emptyPrecompIdAtomic &&
                 ordinaryLayerRejected && ordinaryLayerAtomic && selectionPreserved &&
                 redoHistoryPreserved && preservedRedoExecuted;
             if (!invalidResult["passed"].toBool())
