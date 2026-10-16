@@ -2382,6 +2382,22 @@ public:
                 collisionResult["error"] = QStringLiteral("Layer-ID-collision fixture is incomplete");
                 return collisionResult;
             }
+            const auto opacityProperty = overriddenChildLayer->getProperty(QStringLiteral("layer.opacity"));
+            if (!opacityProperty) {
+                collisionResult["error"] = QStringLiteral("Collision fixture has no opacity property");
+                return collisionResult;
+            }
+            opacityProperty->clearKeyFrames();
+            opacityProperty->setAnimatable(true);
+            const auto opacityTimeScale = overriddenChildLayer->keyframeTimeScale();
+            opacityProperty->addKeyFrame(RationalTime(12, opacityTimeScale), 0.25,
+                                         InterpolationType::Linear);
+            opacityProperty->addKeyFrame(RationalTime(36, opacityTimeScale), 0.65,
+                                         InterpolationType::Constant);
+            const auto opacityKeysBeforeFailure = keyframes(opacityProperty);
+            const auto opacitySampleBeforeFailure = opacityProperty->evaluateValue(
+                RationalTime(24, opacityTimeScale)).toDouble();
+            const auto opacityBeforeFailure = overriddenChildLayer->opacity();
 
             ArtifactCore::ExposedPropertyRegistry registry;
             ArtifactCore::ExposedPropertyBinding binding;
@@ -2425,7 +2441,15 @@ public:
             const bool overrideRemainsDeferred =
                 std::abs(overriddenChildLayer->opacity() - binding.defaultValue.toFloat()) < 1.0e-5f &&
                 wrapper->hasExposedPropertyOverride(binding.id) &&
-                std::abs(wrapper->effectiveExposedPropertyValue(binding.id).toFloat() - overrideValue) < 1.0e-5f;
+                std::abs(wrapper->effectiveExposedPropertyValue(binding.id).toFloat() - overrideValue) < 1.0e-5f &&
+                keyframes(opacityProperty) == opacityKeysBeforeFailure &&
+                std::abs(opacityProperty->evaluateValue(
+                    RationalTime(24, opacityTimeScale)).toDouble() - opacitySampleBeforeFailure) < 1.0e-6 &&
+                std::abs(overriddenChildLayer->opacity() - opacityBeforeFailure) < 1.0e-6f;
+            collisionResult["opacityAnimationPreserved"] =
+                keyframes(opacityProperty) == opacityKeysBeforeFailure &&
+                std::abs(opacityProperty->evaluateValue(
+                    RationalTime(24, opacityTimeScale)).toDouble() - opacitySampleBeforeFailure) < 1.0e-6;
             const bool historyPreserved = undo->undoCount() == undoCountBeforeUnpack &&
                 undo->redoCount() == redoCountBeforeUnpack;
             collisionResult["collisionRejected"] = rejected;
@@ -2438,6 +2462,7 @@ public:
             collisionResult["historyPreserved"] = historyPreserved;
             collisionResult["passed"] = rejected && bindingAdded && overrideAccepted &&
                 overrideDeferredBeforeFailure && overrideRemainsDeferred && parentStatePreserved &&
+                collisionResult["opacityAnimationPreserved"].toBool() &&
                 compositionStatePreserved && wrapperPreserved && historyPreserved;
             if (!collisionResult["passed"].toBool())
                 collisionResult["error"] = QStringLiteral("Unprecompose mutated state or materialized an override before rejecting a layer-ID collision");
