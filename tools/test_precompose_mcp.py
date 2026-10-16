@@ -1289,12 +1289,35 @@ def main():
             (args.output_dir / "nested.png").write_bytes(png)
             capture_files_written.append("nested.png")
             evidence[-1]["reply"] = {"image": "nested.png", "dimensions": (width, height)}
-            require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
+            regression = call("test.runRegression")
+            regression_state = regression.get("state", {})
+            require(regression["regressionFailures"] == 0
+                    and regression_state.get("regressionFailures") == 0
+                    and regression_state.get("locale") == args.language
+                    and [layer["name"] for layer in regression_state.get("layers", [])] ==
+                    ["A", "B", "Untouched"]
+                    and regression_state.get("compositionId")
+                    and "lastChildExists" not in regression_state
+                    and not regression_state.get("canUndo")
+                    and not regression_state.get("canRedo")
+                    and regression_state.get("resolution") == [1280, 720]
+                    and abs(regression_state.get("frameRate", 0.0) - 24.0) < 1e-6
+                    and regression_state.get("frameRangeDuration") == 300
+                    and regression_state.get("backgroundColor") == [0.125, 0.25, 0.5, 1.0]
+                    and regression_state.get("selection", {}).get("activeCompositionId") ==
+                    regression_state.get("compositionId")
+                    and regression_state.get("selection", {}).get("selectedLayerIds") == []
+                    and "currentLayerId" not in regression_state.get("selection", {})
+                    and {name: (layer["inFrame"], layer["outFrame"], layer["startFrame"])
+                         for name, layer in layer_map(regression_state).items()} ==
+                    {"A": (40, 200, 7), "B": (70, 160, 9), "Untouched": (25, 220, 3)}
+                    and call("test.state") == regression_state,
+                    "Existing precompose regression suite failed or did not restore the default fixture")
             require(invoked_tool_names == exposed_tool_names,
                     f"MCP tool catalog has unexercised or unavailable tools: "
                     f"unexercised={sorted(exposed_tool_names - invoked_tool_names)}, "
                     f"unadvertised={sorted(invoked_tool_names - exposed_tool_names)}")
-            print("PASS: MCP tool catalog and malformed-call rejection, direct/transitive cycle guards, invalid-request and empty MoveAll atomicity, redo-branch replacement, closed/open-child focus behavior, component descriptor graph, matte reference order/settings, layer mask geometry/state, layer/composition effect scope and parameter round-trip, single-layer round-trip, shared-child references/data, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, nested Master Property save/reload/materialization, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: MCP tool catalog and malformed-call rejection, direct/transitive cycle guards, invalid-request and empty MoveAll atomicity, redo-branch replacement, closed/open-child focus behavior, component descriptor graph, matte reference order/settings, layer mask geometry/state, layer/composition effect scope and parameter round-trip, single-layer round-trip, shared-child references/data, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, nested Master Property save/reload/materialization, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite and fixture reset")
         except Exception as error:
             evidence.append({"harnessError": f"{type(error).__name__}: {error}"})
             raise
