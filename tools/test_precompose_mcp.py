@@ -1004,6 +1004,7 @@ def main():
                     "Noncontiguous precompose/unpack changed animation timing or layer ordering")
             require("test.capture" in exposed_tool_names,
                     "MCP tools/list did not advertise test.capture")
+            capture_state_before = call("test.state")
             invoked_tool_names.add("test.capture")
             image = request("tools/call", {"name": "test.capture", "arguments": {}})
             require(not image.get("isError") and image["content"][0]["type"] == "image"
@@ -1016,6 +1017,8 @@ def main():
             width, height = struct.unpack(">II", png[16:24])
             require(width > 0 and height > 0,
                     "Capture PNG has empty dimensions")
+            require(call("test.state") == capture_state_before,
+                    "Capture changed the composition, selection, or undo history")
             (args.output_dir / "nested.png").write_bytes(png)
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
