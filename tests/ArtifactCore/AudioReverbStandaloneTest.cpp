@@ -3,6 +3,7 @@
 #include <QJsonObject>
 #include <QVector>
 
+#include <cstddef>
 #include <cmath>
 #include <limits>
 #include <utility>
@@ -45,6 +46,32 @@ TEST(AudioReverbStandaloneTest, ExposesExpectedDefaultIdentityAndParameters)
     EXPECT_FLOAT_EQ(reverb.getParameterValue(String("decay")), 0.5f);
     EXPECT_FLOAT_EQ(reverb.getParameterValue(String("mix")), 0.3f);
     EXPECT_FLOAT_EQ(reverb.getParameterValue(String("size")), 0.7f);
+}
+
+TEST(AudioReverbStandaloneTest, ParameterDescriptorsMatchIdGettersAndSetters)
+{
+    AudioReverb reverb;
+    const auto parameters = reverb.getParameters();
+    ASSERT_EQ(parameters.size(), 3u);
+
+    for (std::size_t index = 0; index < parameters.size(); ++index) {
+        const auto& parameter = parameters[index];
+        EXPECT_FALSE(parameter.id.isEmpty());
+        EXPECT_LE(parameter.minValue, parameter.maxValue);
+        EXPECT_GE(parameter.defaultValue, parameter.minValue);
+        EXPECT_LE(parameter.defaultValue, parameter.maxValue);
+        EXPECT_FLOAT_EQ(parameter.value, reverb.getParameterValue(parameter.id));
+        for (std::size_t previous = 0; previous < index; ++previous)
+            EXPECT_NE(parameters[previous].id, parameter.id);
+
+        reverb.setParameterValue(parameter.id, parameter.maxValue);
+        EXPECT_FLOAT_EQ(reverb.getParameterValue(parameter.id), parameter.maxValue);
+    }
+
+    const QJsonObject beforeUnknownId = reverb.toJson();
+    reverb.setParameterValue(String("unknown_parameter"), 0.5f);
+    EXPECT_EQ(reverb.toJson(), beforeUnknownId);
+    EXPECT_FLOAT_EQ(reverb.getParameterValue(String("unknown_parameter")), 0.0f);
 }
 
 TEST(AudioReverbStandaloneTest, SettersClampParametersAndRestoreDefaultsForNonFiniteValues)
