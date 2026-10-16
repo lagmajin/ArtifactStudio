@@ -1711,13 +1711,17 @@ public:
             const auto stillOpenedChild = service->currentComposition().lock();
             const bool wrongContextSelectionPreserved = wrongContextUnpackRejected &&
                 matchesSelection(outcome.childCompId, sourceIds.front());
+            const auto& precomposeManager = PreComposeManager::instance();
+            const bool wrongContextManagerMappingPreserved = wrongContextUnpackRejected &&
+                precomposeManager.isPrecomposeLayer(outcome.precompLayerId) &&
+                precomposeManager.getSourceCompositionId(outcome.precompLayerId) == outcome.childCompId;
             const bool wrongContextStatePreserved = wrongContextUnpackRejected && stillOpenedChild == openedChild &&
                 stillOpenedChild->allLayer().size() == childLayerCountBeforeWrongContextUnpack &&
                 comp->layerById(outcome.precompLayerId) == rootWrapper &&
                 service->findComposition(outcome.childCompId).ptr.lock() == openedChild &&
                 undo->undoCount() == undoCountBeforeWrongContextUnpack &&
                 undo->redoCount() == redoCountBeforeWrongContextUnpack &&
-                wrongContextSelectionPreserved;
+                wrongContextSelectionPreserved && wrongContextManagerMappingPreserved;
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
             const auto afterUndo = service->currentComposition().lock();
@@ -1749,6 +1753,7 @@ public:
             result["rootWrapperCreated"] = bool(rootWrapperCreated);
             result["wrongContextUnpackRejected"] = wrongContextUnpackRejected;
             result["wrongContextSelectionPreserved"] = wrongContextSelectionPreserved;
+            result["wrongContextManagerMappingPreserved"] = wrongContextManagerMappingPreserved;
             result["wrongContextStatePreserved"] = wrongContextStatePreserved;
             result["undoReturnedToRoot"] = undoReturnedToRoot;
             result["redoKeptRootFocused"] = redoKeptRootFocused;
