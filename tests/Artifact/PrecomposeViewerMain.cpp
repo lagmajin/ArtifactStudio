@@ -453,10 +453,12 @@ public:
                 std::abs(resetColor[1].toDouble() - 0.25) < 1.0e-6 &&
                 std::abs(resetColor[2].toDouble() - 0.5) < 1.0e-6 &&
                 std::abs(resetColor[3].toDouble() - 1.0) < 1.0e-6;
+            const bool resetLocalePreservedByKey =
+                afterReset["locale"].toString() == originalState["locale"].toString();
             const bool fixtureRecreatedByKey =
                 afterReset["compositionId"].toString() != rootCompositionId;
             const bool resetByKey = resetFixtureMatchesByKey && fixtureRecreatedByKey &&
-                !afterReset["canUndo"].toBool() &&
+                resetLocalePreservedByKey && !afterReset["canUndo"].toBool() &&
                 !afterReset["canRedo"].toBool() && !afterReset.contains("lastChildExists");
             const auto resetSelection = afterReset["selection"].toObject();
             const bool resetSelectionByKey =
@@ -514,6 +516,7 @@ public:
                                {"allRedoLayerObjectsPreservedByKey", allRedoLayerObjectsPreservedByKey},
                                {"resetByKey", resetByKey},
                                {"resetFixtureMatchesByKey", resetFixtureMatchesByKey},
+                               {"resetLocalePreservedByKey", resetLocalePreservedByKey},
                                {"fixtureRecreatedByKey", fixtureRecreatedByKey},
                                {"resetSelectionByKey", resetSelectionByKey},
                                {"passed", precomposedByKey && selectedSettingsCopiedByKey &&
