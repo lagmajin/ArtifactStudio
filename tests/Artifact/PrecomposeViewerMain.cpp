@@ -731,6 +731,56 @@ public:
             }
             (void)source->layerComponents();
             auto authoredSnapshot = source->componentDescriptorSnapshot();
+            authoredSnapshot.insert(QStringLiteral("generators"), QJsonArray{
+                QJsonObject{
+                    {QStringLiteral("generatorId"), QStringLiteral("test.precompose.generator")},
+                    {QStringLiteral("typeId"), QStringLiteral("artifact.test.generator.scope")},
+                    {QStringLiteral("version"), 4},
+                    {QStringLiteral("enabled"), false},
+                    {QStringLiteral("order"), 19},
+                    {QStringLiteral("settings"), QJsonObject{
+                         {QStringLiteral("seed"), 2718},
+                         {QStringLiteral("distribution"), QStringLiteral("radial")}}}}
+            });
+            authoredSnapshot.insert(QStringLiteral("fields"), QJsonArray{
+                QJsonObject{
+                    {QStringLiteral("fieldId"), QStringLiteral("test.precompose.field")},
+                    {QStringLiteral("typeId"), QStringLiteral("artifact.test.field.scope")},
+                    {QStringLiteral("version"), 2},
+                    {QStringLiteral("enabled"), true},
+                    {QStringLiteral("order"), 11},
+                    {QStringLiteral("blendMode"), QStringLiteral("screen")},
+                    {QStringLiteral("strength"), 0.5},
+                    {QStringLiteral("invert"), true},
+                    {QStringLiteral("settings"), QJsonObject{
+                         {QStringLiteral("axis"), QStringLiteral("z")},
+                         {QStringLiteral("threshold"), 0.25}}}}
+            });
+            authoredSnapshot.insert(QStringLiteral("cloneModifiers"), QJsonArray{
+                QJsonObject{
+                    {QStringLiteral("modifierId"), QStringLiteral("test.precompose.modifier")},
+                    {QStringLiteral("typeId"), QStringLiteral("artifact.test.modifier.scope")},
+                    {QStringLiteral("version"), 5},
+                    {QStringLiteral("enabled"), false},
+                    {QStringLiteral("order"), 31},
+                    {QStringLiteral("settings"), QJsonObject{
+                         {QStringLiteral("seed"), 42},
+                         {QStringLiteral("amount"), 0.75}}}}
+            });
+            authoredSnapshot.insert(QStringLiteral("clonerTransforms"), QJsonArray{
+                QJsonObject{
+                    {QStringLiteral("name"), QStringLiteral("Precompose Transform")},
+                    {QStringLiteral("enabled"), false},
+                    {QStringLiteral("positionX"), 12.0},
+                    {QStringLiteral("positionY"), -3.0},
+                    {QStringLiteral("positionZ"), 2.5},
+                    {QStringLiteral("rotationX"), 45.0},
+                    {QStringLiteral("rotationY"), -90.0},
+                    {QStringLiteral("rotationZ"), 180.0},
+                    {QStringLiteral("scaleX"), 1.5},
+                    {QStringLiteral("scaleY"), 0.5},
+                    {QStringLiteral("scaleZ"), 2.0}}
+            });
             QJsonArray componentGraph = authoredSnapshot.value(QStringLiteral("componentGraph")).toArray();
             const QJsonObject authoredDescriptor{
                 {QStringLiteral("componentId"), QStringLiteral("test.precompose.component")},
