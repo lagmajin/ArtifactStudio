@@ -211,6 +211,17 @@ def main():
                     and single_layer["undoRestored"] and single_layer["redoRestored"],
                     "Single-layer precompose changed layer identity, order, or registration")
             call("test.reset")
+            layer_notes = call("test.layerNotesRoundTrip")
+            require(layer_notes["passed"] and layer_notes["notesMoved"]
+                    and layer_notes["notesUnpacked"] and layer_notes["undoRestored"]
+                    and layer_notes["redoRestored"],
+                    "Layer notes changed across precompose/unprecompose/undo/redo")
+            final_notes = layer_map(layer_notes["state"])
+            require(final_notes["A"]["layerNote"] == "A memo / 子"
+                    and final_notes["B"]["layerNote"] == "B memo\nline 2"
+                    and final_notes["Untouched"]["layerNote"] == "Keep this note",
+                    "MCP state did not expose the final per-layer note values")
+            call("test.reset")
             shared_child = call("test.sharedChildReferences")
             require(shared_child["passed"] and shared_child["twoReferencesCreated"]
                     and shared_child["childDataPreserved"]

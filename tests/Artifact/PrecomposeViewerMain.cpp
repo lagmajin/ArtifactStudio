@@ -1193,6 +1193,76 @@ public:
             refresh();
             result["state"] = state();
             return result;
+        } else if (name == "test.layerNotesRoundTrip") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto ids = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B"),
+                                                   QStringLiteral("Untouched")});
+            if (ids.size() != 3) {
+                result["error"] = QStringLiteral("Layer-note fixture is missing A, B, or Untouched");
+                return result;
+            }
+            const QString noteA = QStringLiteral("A memo / 子");
+            const QString noteB = QStringLiteral("B memo\nline 2");
+            const QString noteUntouched = QStringLiteral("Keep this note");
+            const auto layerA = root->layerById(ids[0]);
+            const auto layerB = root->layerById(ids[1]);
+            const auto untouched = root->layerById(ids[2]);
+            if (!layerA || !layerB || !untouched) {
+                result["error"] = QStringLiteral("Layer-note fixture layers could not be resolved");
+                return result;
+            }
+            layerA->setLayerNote(noteA);
+            layerB->setLayerNote(noteB);
+            untouched->setLayerNote(noteUntouched);
+            const bool precomposed = service->precomposeLayersWithUndo(
+                {ids[0], ids[1]}, UniString(QStringLiteral("Layer Notes Fixture")), false, false,
+                PrecomposeMode::MoveSelected);
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = precomposed
+                ? service->findComposition(outcome.childCompId).ptr.lock() : ArtifactCompositionPtr{};
+            const auto childA = child ? child->layerById(ids[0]) : ArtifactAbstractLayerPtr{};
+            const auto childB = child ? child->layerById(ids[1]) : ArtifactAbstractLayerPtr{};
+            const bool notesMoved = childA && childB && childA->layerNote() == noteA &&
+                childB->layerNote() == noteB && untouched->layerNote() == noteUntouched;
+            const bool unpacked = precomposed &&
+                service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const bool notesUnpacked = unpacked && root->layerById(ids[0]) && root->layerById(ids[1]) &&
+                root->layerById(ids[0])->layerNote() == noteA &&
+                root->layerById(ids[1])->layerNote() == noteB &&
+                untouched->layerNote() == noteUntouched;
+            const bool undoAvailable = undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto undoChild = service->findComposition(outcome.childCompId).ptr.lock();
+            const bool undoRestored = undoAvailable && undoChild &&
+                undoChild->layerById(ids[0]) && undoChild->layerById(ids[1]) &&
+                undoChild->layerById(ids[0])->layerNote() == noteA &&
+                undoChild->layerById(ids[1])->layerNote() == noteB &&
+                root->layerById(outcome.precompLayerId) && untouched->layerNote() == noteUntouched;
+            const bool redoAvailable = undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const bool redoRestored = redoAvailable && root->layerById(ids[0]) && root->layerById(ids[1]) &&
+                root->layerById(ids[0])->layerNote() == noteA &&
+                root->layerById(ids[1])->layerNote() == noteB &&
+                untouched->layerNote() == noteUntouched;
+            result["notesMoved"] = notesMoved;
+            result["notesUnpacked"] = notesUnpacked;
+            result["undoRestored"] = undoRestored;
+            result["redoRestored"] = redoRestored;
+            result["passed"] = notesMoved && notesUnpacked && undoRestored && redoRestored;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Layer notes changed across precompose/unprecompose/undo/redo");
+            childId_ = outcome.childCompId;
+            hasChild_ = !childId_.isNil();
+            service->changeCurrentComposition(rootId);
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.sharedChildReferences") {
             QJsonObject result;
             const auto root = service->currentComposition().lock();
@@ -2787,6 +2857,7 @@ private:
                 {"inFrame", double(layer->inPoint().framePosition())},
                 {"outFrame", double(layer->outPoint().framePosition())},
                 {"opacity", layer->opacity()},
+                {"layerNote", layer->layerNote()},
                 {"position", QJsonArray{position.x, position.y, position.z}}};
             auto compositionLayer = dynamicPointerCast<ArtifactCompositionLayer>(layer);
             const auto childId = compositionLayer ? compositionLayer->sourceCompositionId()
@@ -2852,7 +2923,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
