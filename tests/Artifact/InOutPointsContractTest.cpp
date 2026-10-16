@@ -323,3 +323,22 @@ TEST(InOutPointsContractTest, XmlRoundTripPreservesRangeAndSupportedMarkerFields
     EXPECT_EQ(restoredChapter->tags(), (QStringList{QStringLiteral("opening"),
                                                    QStringLiteral("review")}));
 }
+
+TEST(InOutPointsContractTest, MalformedXmlImportPreservesExistingState)
+{
+    Artifact::ArtifactInOutPoints points;
+    points.setInPoint(ArtifactCore::FramePosition(-12));
+    points.setOutPoint(ArtifactCore::FramePosition(144));
+    auto* marker = points.addMarker(ArtifactCore::FramePosition(32),
+                                    QStringLiteral("Keep this marker"),
+                                    Artifact::MarkerType::Chapter);
+    ASSERT_NE(marker, nullptr);
+    const QJsonObject before = points.toJson();
+    const QString malformedXml = QStringLiteral(
+        "<InOutPoints><InPoint frame=\"100\"/>"
+        "<Marker frame=\"6\" comment=\"Partial import\" type=\"Chapter\"/>"
+        "<OutPoint frame=\"200\"></InOutPoints>");
+
+    EXPECT_FALSE(points.importFromXML(malformedXml));
+    EXPECT_EQ(points.toJson(), before);
+}

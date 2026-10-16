@@ -10,6 +10,15 @@
 - **価値／懸念:** 画像編集ツールが`setFromQImage()`を使うときのsource更新とComposition surface cache無効化の整合性を検証できる。
 - **次に確認:** Artifact child repoの変更許可が得られた後、差し替え時のrevision伝播とcache key更新を追い、cached/bypass出力を比較する。現行作業ではサブモジュールを変更しない。
 
+## 2026-10-16: InOutPoints XML不正入力時の状態保持
+
+- **関連:** `Artifact/src/Composition/ArtifactInOutPoints.cppm` の `ArtifactInOutPoints::importFromXML()`、`tests/Artifact/InOutPointsContractTest.cpp`。
+- **確認できた事実:** `importFromXML()`はXMLの構文検証が終わる前に既存markersとIn/Out pointsを消去し、解析後に`reader.hasError()`を返す。途中まで有効なXMLを読んだ後に構文エラーとなる入力では、その部分状態が残る実装になっている。
+- **未検証の懸念:** malformed XMLの拒否時に既存値を保つ契約が必要かは未確認。現行のJSON importは形式検証後に状態を入れ替えるため、XMLとの失敗挙動に差がある。
+- **価値／懸念:** XML importerを利用する旧データ移行やユーザー操作で、壊れたファイルにより既存marker/rangeが失われる可能性がある。
+- **対応:** #21のルート独立契約テストへ、既存rangeとmarkerを設定して途中まで有効なmalformed XMLを読み込ませ、失敗時の状態保持を期待するケースを追加。現行Artifact importerとは不一致がソース上明らかだが、ユーザー指示によりビルド・実行しておらずruntime結果は未確認。
+- **次に確認:** この原子性契約がruntimeで失敗することを確認し、Artifact child repoの変更許可後に一時状態へparseして成功時だけcommitする実装修正を行う。
+
 ## 2026-10-16: In/Out PointsのImpl解放経路
 
 - **関連:** `Artifact/include/Composition/ArtifactInOutPoints.ixx`、`Artifact/src/Composition/ArtifactInOutPoints.cppm`、`tests/Artifact/InOutPointsContractTest.cpp`。
