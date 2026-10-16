@@ -365,8 +365,9 @@ def main():
                     and round_trip["runtimeNestingRestored"]
                     and round_trip["masterPropertyDefinitionPreserved"]
                     and round_trip["masterPropertyOverridePreserved"]
-                    and round_trip["overrideStillDeferred"],
-                    "Precompose save/reload changed parent-child data, exposed properties, or runtime nesting")
+                    and round_trip["overrideStillDeferred"]
+                    and round_trip["layerMetadataPreserved"],
+                    "Precompose save/reload changed parent-child data, layer metadata, exposed properties, or runtime nesting")
             call("test.reset")
             hierarchy = call("test.nestedHierarchy")
             require(hierarchy["passed"] and hierarchy["hierarchyPreserved"]

@@ -2734,10 +2734,38 @@ public:
             const auto sourceIds = namedLayerIds(originalChild, {QStringLiteral("A")});
             const auto sourceLayer = sourceIds.isEmpty()
                 ? ArtifactAbstractLayerPtr{} : originalChild->layerById(sourceIds.front());
-            if (!sourceLayer) {
-                roundTrip["error"] = QStringLiteral("Precompose source layer unavailable for exposed-property persistence");
+            const auto peerIds = namedLayerIds(originalChild, {QStringLiteral("B")});
+            const auto peerLayer = peerIds.isEmpty()
+                ? ArtifactAbstractLayerPtr{} : originalChild->layerById(peerIds.front());
+            const auto untouchedChildIds = namedLayerIds(originalChild, {QStringLiteral("Untouched")});
+            const bool untouchedIsChild = !untouchedChildIds.isEmpty();
+            const auto untouchedParentIds = untouchedIsChild
+                ? QVector<LayerID>{} : namedLayerIds(parent, {QStringLiteral("Untouched")});
+            const auto untouchedLayer = untouchedIsChild
+                ? originalChild->layerById(untouchedChildIds.front())
+                : (untouchedParentIds.isEmpty() ? ArtifactAbstractLayerPtr{}
+                                                : parent->layerById(untouchedParentIds.front()));
+            if (!sourceLayer || !peerLayer || !untouchedLayer) {
+                roundTrip["error"] = QStringLiteral("Precompose layers unavailable for metadata persistence");
                 return roundTrip;
             }
+            sourceLayer->setLayerNote(QStringLiteral("Persisted A / 注記"));
+            sourceLayer->setVisible(false);
+            sourceLayer->setLocked(true);
+            sourceLayer->setSolo(true);
+            sourceLayer->setBlendMode(LAYER_BLEND_TYPE::BLEND_SCREEN);
+            sourceLayer->setRotation3D(QVector3D(13.0f, -27.0f, 41.0f));
+            sourceLayer->transform3D().setCurrentScale(1.25f, 0.8f);
+            sourceLayer->transform3D().setCurrentAnchor(7.0f, -5.0f, 3.0f);
+            peerLayer->setLayerNote(QStringLiteral("Persisted B\nsecond line"));
+            peerLayer->setVisible(true);
+            peerLayer->setLocked(false);
+            peerLayer->setSolo(false);
+            peerLayer->setBlendMode(LAYER_BLEND_TYPE::BLEND_MULTIPLY);
+            peerLayer->setRotation3D(QVector3D(-9.0f, 22.0f, -35.0f));
+            peerLayer->transform3D().setCurrentScale(0.7f, 1.6f);
+            peerLayer->transform3D().setCurrentAnchor(-2.0f, 8.0f, -4.0f);
+            untouchedLayer->setLayerNote(QStringLiteral("Parent note survives reload"));
             ArtifactCore::ExposedPropertyRegistry exposedProperties;
             ArtifactCore::ExposedPropertyBinding opacityBinding;
             opacityBinding.id = QStringLiteral("roundtrip.opacity");
@@ -2786,6 +2814,11 @@ public:
                 : SharedPtr<ArtifactCompositionLayer>{};
             const auto reloadedSourceLayer = reloadedChild
                 ? reloadedChild->layerById(sourceLayer->id()) : ArtifactAbstractLayerPtr{};
+            const auto reloadedPeerLayer = reloadedChild
+                ? reloadedChild->layerById(peerLayer->id()) : ArtifactAbstractLayerPtr{};
+            const auto reloadedUntouchedHost = untouchedIsChild ? reloadedChild : reloadedParent;
+            const auto reloadedUntouchedLayer = reloadedUntouchedHost
+                ? reloadedUntouchedHost->layerById(untouchedLayer->id()) : ArtifactAbstractLayerPtr{};
             const auto reloadedBinding = reloadedPrecompLayer
                 ? reloadedPrecompLayer->exposedProperties().binding(opacityBinding.id)
                 : ArtifactCore::ExposedPropertyBinding{};
@@ -2800,6 +2833,35 @@ public:
                              opacityBinding.id).toFloat() - overrideValue) < 1.0e-5f;
             const bool overrideStillDeferred = reloadedSourceLayer &&
                 std::abs(reloadedSourceLayer->opacity() - sourceOpacityBeforeSave) < 1.0e-5f;
+            const auto sourceRotation = reloadedSourceLayer ? reloadedSourceLayer->rotation3D() : QVector3D{};
+            const auto peerRotation = reloadedPeerLayer ? reloadedPeerLayer->rotation3D() : QVector3D{};
+            const bool layerMetadataPreserved = reloadedSourceLayer && reloadedPeerLayer &&
+                reloadedUntouchedLayer &&
+                reloadedSourceLayer->layerNote() == QStringLiteral("Persisted A / 注記") &&
+                !reloadedSourceLayer->isVisible() && reloadedSourceLayer->isLocked() &&
+                reloadedSourceLayer->isSolo() &&
+                reloadedSourceLayer->layerBlendType() == LAYER_BLEND_TYPE::BLEND_SCREEN &&
+                std::abs(sourceRotation.x() - 13.0f) < 1.0e-5f &&
+                std::abs(sourceRotation.y() - (-27.0f)) < 1.0e-5f &&
+                std::abs(sourceRotation.z() - 41.0f) < 1.0e-5f &&
+                std::abs(reloadedSourceLayer->transform3D().scaleX() - 1.25f) < 1.0e-5f &&
+                std::abs(reloadedSourceLayer->transform3D().scaleY() - 0.8f) < 1.0e-5f &&
+                std::abs(reloadedSourceLayer->transform3D().anchorX() - 7.0f) < 1.0e-5f &&
+                std::abs(reloadedSourceLayer->transform3D().anchorY() - (-5.0f)) < 1.0e-5f &&
+                std::abs(reloadedSourceLayer->transform3D().anchorZ() - 3.0f) < 1.0e-5f &&
+                reloadedPeerLayer->layerNote() == QStringLiteral("Persisted B\nsecond line") &&
+                reloadedPeerLayer->isVisible() && !reloadedPeerLayer->isLocked() &&
+                !reloadedPeerLayer->isSolo() &&
+                reloadedPeerLayer->layerBlendType() == LAYER_BLEND_TYPE::BLEND_MULTIPLY &&
+                std::abs(peerRotation.x() - (-9.0f)) < 1.0e-5f &&
+                std::abs(peerRotation.y() - 22.0f) < 1.0e-5f &&
+                std::abs(peerRotation.z() - (-35.0f)) < 1.0e-5f &&
+                std::abs(reloadedPeerLayer->transform3D().scaleX() - 0.7f) < 1.0e-5f &&
+                std::abs(reloadedPeerLayer->transform3D().scaleY() - 1.6f) < 1.0e-5f &&
+                std::abs(reloadedPeerLayer->transform3D().anchorX() - (-2.0f)) < 1.0e-5f &&
+                std::abs(reloadedPeerLayer->transform3D().anchorY() - 8.0f) < 1.0e-5f &&
+                std::abs(reloadedPeerLayer->transform3D().anchorZ() - (-4.0f)) < 1.0e-5f &&
+                reloadedUntouchedLayer->layerNote() == QStringLiteral("Parent note survives reload");
             const bool parentChildLink = reloaded == original && bool(reloadedChild);
             const auto nesting = precompManager.getCompositionNesting(originalChildId);
             bool reverseParentLink = false;
@@ -2820,8 +2882,10 @@ public:
             roundTrip["masterPropertyDefinitionPreserved"] = masterPropertyDefinitionPreserved;
             roundTrip["masterPropertyOverridePreserved"] = masterPropertyOverridePreserved;
             roundTrip["overrideStillDeferred"] = overrideStillDeferred;
+            roundTrip["layerMetadataPreserved"] = layerMetadataPreserved;
             roundTrip["passed"] = save.success && loaded && parentChildLink && runtimeNestingRestored &&
-                masterPropertyDefinitionPreserved && masterPropertyOverridePreserved && overrideStillDeferred;
+                masterPropertyDefinitionPreserved && masterPropertyOverridePreserved && overrideStillDeferred &&
+                layerMetadataPreserved;
             if (!roundTrip["passed"].toBool())
                 roundTrip["error"] = QStringLiteral("Precompose project round-trip lost parent/child data or runtime nesting registration");
             childId_ = originalChildId;
