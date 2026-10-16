@@ -2256,6 +2256,83 @@ public:
             refresh();
             parentResult["state"] = state();
             return parentResult;
+        } else if (name == "test.missingExternalParentUnwrapAtomic") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            const auto parentIds = namedLayerIds(root, {QStringLiteral("Untouched")});
+            if (sourceIds.size() != 2 || parentIds.size() != 1) {
+                result["error"] = QStringLiteral("Missing-external-parent fixture layers are unavailable");
+                return result;
+            }
+            const auto sourceId = sourceIds.front();
+            const auto externalParentId = parentIds.front();
+            const auto source = root->layerById(sourceId);
+            if (!source) {
+                result["error"] = QStringLiteral("Missing-external-parent source layer is unavailable");
+                return result;
+            }
+            source->setParentById(externalParentId);
+            const bool parentAuthored = source->parentLayerId() == externalParentId;
+            const bool precomposed = parentAuthored && service->precomposeLayersWithUndo(
+                sourceIds, UniString(QStringLiteral("Missing External Parent")), false, false,
+                PrecomposeMode::MoveSelected);
+            if (!precomposed) {
+                result["error"] = QStringLiteral("Could not create missing-external-parent fixture");
+                return result;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(outcome.precompLayerId));
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto childSource = child ? child->layerById(sourceId) : ArtifactAbstractLayerPtr{};
+            const bool metadataStored = wrapper &&
+                wrapper->restoreExternalParent(sourceId) == externalParentId && childSource &&
+                childSource->parentLayerId().isNil();
+            const bool parentDeleted = metadataStored &&
+                service->removeLayerFromComposition(rootId, externalParentId) &&
+                !root->layerById(externalParentId);
+            const bool unpacked = parentDeleted &&
+                service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const auto unpackedSource = root->layerById(sourceId);
+            const bool unpackKeptParentCleared = unpacked && unpackedSource == source &&
+                unpackedSource->parentLayerId().isNil() && !root->layerById(externalParentId) &&
+                !PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId);
+            const bool undoAvailable = unpacked && undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto undoWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(outcome.precompLayerId));
+            const bool undoRestoredMetadata = undoAvailable && undoWrapper &&
+                undoWrapper->restoreExternalParent(sourceId) == externalParentId &&
+                PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId) &&
+                !root->layerById(externalParentId);
+            const bool redoAvailable = undoRestoredMetadata && undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const auto redoSource = root->layerById(sourceId);
+            const bool redoKeptParentCleared = redoAvailable && redoSource == source &&
+                redoSource->parentLayerId().isNil() && !root->layerById(externalParentId) &&
+                !PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId);
+            result["parentAuthored"] = parentAuthored;
+            result["metadataStored"] = metadataStored;
+            result["parentDeleted"] = parentDeleted;
+            result["unpackKeptParentCleared"] = unpackKeptParentCleared;
+            result["undoRestoredMetadata"] = undoRestoredMetadata;
+            result["redoKeptParentCleared"] = redoKeptParentCleared;
+            result["passed"] = parentAuthored && metadataStored && parentDeleted &&
+                unpackKeptParentCleared && undoRestoredMetadata && redoKeptParentCleared;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Unprecompose restored a deleted external parent or lost its undo metadata");
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            service->changeCurrentComposition(rootId);
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.selectionTransitions") {
             QJsonObject selectionResult;
             const auto root = service->currentComposition().lock();
@@ -4112,7 +4189,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

@@ -304,6 +304,14 @@ def main():
                     and external_parent["redoRestoredExternalParent"],
                     "External layer parent was not preserved across precompose/undo/redo")
             call("test.reset")
+            missing_external_parent = call("test.missingExternalParentUnwrapAtomic")
+            require(missing_external_parent["passed"] and missing_external_parent["parentAuthored"]
+                    and missing_external_parent["metadataStored"] and missing_external_parent["parentDeleted"]
+                    and missing_external_parent["unpackKeptParentCleared"]
+                    and missing_external_parent["undoRestoredMetadata"]
+                    and missing_external_parent["redoKeptParentCleared"],
+                    "Unprecompose restored a deleted external parent or lost undo metadata")
+            call("test.reset")
             child_edits = call("test.childEditsSurviveUnwrap")
             require(child_edits["passed"] and child_edits["editsAuthored"]
                     and child_edits["unpackedValuesPreserved"]
