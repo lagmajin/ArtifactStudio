@@ -346,7 +346,9 @@ def main():
             call("test.reset")
             gui_opened_child = call("test.guiOpenChildCompositionRoundTrip")
             require(gui_opened_child["passed"] and gui_opened_child["guiKeyRouted"]
-                    and gui_opened_child["returnedToRoot"] and gui_opened_child["childOpened"]
+                    and gui_opened_child["returnedToRoot"]
+                    and gui_opened_child["rootWrapperSelectedAfterReturn"]
+                    and gui_opened_child["childOpened"]
                     and gui_opened_child["childSelectionCorrect"]
                     and gui_opened_child["wrongContextUnpackRejected"]
                     and gui_opened_child["wrongContextStatePreserved"]

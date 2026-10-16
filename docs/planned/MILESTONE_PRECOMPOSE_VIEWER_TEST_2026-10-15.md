@@ -58,7 +58,7 @@ FBX独立Viewerのように製品本体と起動を分け、既存のProject Ser
 
 同テストはさらにP/Z/Y/Kの各KeyPress後にactive Compositionが親のままであること、現在レイヤーと単一選択がプリコンポーズ後／Redo後／解除Undo後はwrapper、Undo後／解除後／解除Redo後は元のAを指すことを確認する。
 
-`test.guiOpenChildCompositionRoundTrip`はGUIへOキーを送り、`test.openChildComposition`のプリコンポーズ・子Composition表示・選択・誤った親wrapper解除の拒否・Undo/Redoフォーカス検査を実行する。MCP結果ではキー経由で検査が起動したことと、最後に親へ戻ったことを追加確認する。
+`test.guiOpenChildCompositionRoundTrip`はGUIへOキーを送り、`test.openChildComposition`のプリコンポーズ・子Composition表示・選択・誤った親wrapper解除の拒否・Undo/Redoフォーカス検査を実行する。MCP結果ではキー経由で検査が起動したこと、最後に親へ戻りwrapperが単一選択／current layerとして残ることを追加確認する。
 
 ## ビルド・実行
 

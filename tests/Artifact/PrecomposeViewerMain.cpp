@@ -653,9 +653,18 @@ public:
             const bool actionCompleted = result.value(QStringLiteral("passed")).toBool();
             const bool returnedToRoot = stateAfterKey.value(QStringLiteral("compositionId")).toString() ==
                 result.value(QStringLiteral("rootCompositionId")).toString();
+            const auto finalSelection = stateAfterKey.value(QStringLiteral("selection")).toObject();
+            const auto finalSelectedIds = finalSelection.value(QStringLiteral("selectedLayerIds")).toArray();
+            const auto expectedWrapperId = result.value(QStringLiteral("rootWrapperId")).toString();
+            const bool rootWrapperSelected = !expectedWrapperId.isEmpty() &&
+                finalSelection.value(QStringLiteral("activeCompositionId")).toString() ==
+                    result.value(QStringLiteral("rootCompositionId")).toString() &&
+                finalSelection.value(QStringLiteral("currentLayerId")).toString() == expectedWrapperId &&
+                finalSelectedIds.size() == 1 && finalSelectedIds.front().toString() == expectedWrapperId;
             result[QStringLiteral("guiKeyRouted")] = actionCompleted;
             result[QStringLiteral("returnedToRoot")] = returnedToRoot;
-            result[QStringLiteral("passed")] = actionCompleted && returnedToRoot;
+            result[QStringLiteral("rootWrapperSelectedAfterReturn")] = rootWrapperSelected;
+            result[QStringLiteral("passed")] = actionCompleted && returnedToRoot && rootWrapperSelected;
             result[QStringLiteral("state")] = stateAfterKey;
             if (!result.value(QStringLiteral("passed")).toBool())
                 result[QStringLiteral("error")] = QStringLiteral(
@@ -1730,6 +1739,7 @@ public:
                 namedLayerIds(redoneChild, {QStringLiteral("A"), QStringLiteral("B")}).size() == 2 &&
                 parentReferenceRestored && afterRedo->layerById(outcome.precompLayerId);
             result["rootCompositionId"] = rootId.toString();
+            result["rootWrapperId"] = outcome.precompLayerId.toString();
             result["childCompositionId"] = outcome.childCompId.toString();
             result["childOpened"] = childOpened;
             result["childSelectionCorrect"] = childSelectionCorrect;
