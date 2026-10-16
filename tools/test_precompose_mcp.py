@@ -102,6 +102,21 @@ def validate_png_contract():
         raise AssertionError("PNG validator rejected a valid one-pixel fixture")
 
     invalid_images = {
+        "invalid signature": b"\x00" + valid_png[1:],
+        "missing IHDR": (
+            signature + make_png_chunk(b"IDAT", zlib.compress(b"\x00\x7f"))
+            + make_png_chunk(b"IEND", b"")),
+        "missing IDAT": (
+            signature + make_png_chunk(b"IHDR", header) + make_png_chunk(b"IEND", b"")),
+        "invalid zlib stream": (
+            signature + make_png_chunk(b"IHDR", header)
+            + make_png_chunk(b"IDAT", b"invalid zlib data")
+            + make_png_chunk(b"IEND", b"")),
+        "unsupported interlace mode": (
+            signature + make_png_chunk(
+                b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 0, 0, 0, 1))
+            + make_png_chunk(b"IDAT", zlib.compress(b"\x00\x7f"))
+            + make_png_chunk(b"IEND", b"")),
         "CRC corruption": valid_png[:29] + bytes([valid_png[29] ^ 1]) + valid_png[30:],
         "invalid filter": image(b"\x05\x7f"),
         "scanline size mismatch": image(b"\x00"),
