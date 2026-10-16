@@ -2,6 +2,14 @@
 
 # Insight Register
 
+## 2026-10-16: in-memory ImageLayer差し替えとsurface cache identity
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` の `buildLayerSurfaceCacheKey()`、`Artifact/src/Layer/ArtifactImageLayer.cppm` の `setFromQImage()`、`tests/Artifact/LayerSurfaceCacheParityContractTest.cpp`。
+- **確認できた事実:** cache keyはImageLayerのsource path/version、crop revision、surface dimensions等を使う。`setFromQImage()`はsource asset ID/pathを消し、source versionを0にする。同サイズのin-memory画像を差し替える場合、見たコード上はsource content revision/hashがkeyへ加わる経路を確認できなかった。
+- **未検証の仮説:** 同じLayer objectのcache entryが残った状態で同寸法の画像を差し替えると、古いrasterized surfaceが再利用される可能性がある。test-only比較を試みたが、実行できず現状では挙動未確定のため、#31の完了ケースからは外した。
+- **価値／懸念:** 画像編集ツールが`setFromQImage()`を使うときのsource更新とComposition surface cache無効化の整合性を検証できる。
+- **次に確認:** Artifact child repoの変更許可が得られた後、差し替え時のrevision伝播とcache key更新を追い、cached/bypass出力を比較する。現行作業ではサブモジュールを変更しない。
+
 ## 2026-10-16: In/Out PointsのImpl解放経路
 
 - **関連:** `Artifact/include/Composition/ArtifactInOutPoints.ixx`、`Artifact/src/Composition/ArtifactInOutPoints.cppm`、`tests/Artifact/InOutPointsContractTest.cpp`。

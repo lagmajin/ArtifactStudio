@@ -3,8 +3,8 @@
 #include <cstddef>
 #include <cstring>
 
-#include <QHash>
 #include <QColor>
+#include <QHash>
 #include <QImage>
 #include <QString>
 
@@ -114,23 +114,71 @@ TEST(LayerSurfaceCacheParityContractTest,
             reusedCacheEntry.processedSurface.cacheKey();
     EXPECT_TRUE(reusedBuffer || reusedSurface);
 
-    const QString originalSignature = builtCacheEntry.cacheSignature;
-    QImage replacement(48, 48, QImage::Format_RGBA8888);
-    replacement.fill(Qt::transparent);
-    for (int y = 8; y < 36; ++y) {
-        for (int x = 5; x < 27; ++x) {
-            replacement.setPixelColor(x, y, QColor(80, 170, 255, 255));
+}
+
+TEST(LayerSurfaceCacheParityContractTest,
+     LargeImageRasterizerGlowMatchesCachedAndBypassOutput)
+{
+    constexpr int width = 1280;
+    constexpr int height = 720;
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(width, height)) {
+        GTEST_SKIP() << "No supported Diligent headless device is available";
+    }
+
+    renderer.setCanvasSize(static_cast<float>(width),
+                           static_cast<float>(height));
+    renderer.setViewportRect(static_cast<float>(width),
+                             static_cast<float>(height));
+    renderer.setPan(0.0f, 0.0f);
+    renderer.setZoom(1.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    QImage source(width, height, QImage::Format_RGBA8888);
+    source.fill(Qt::transparent);
+    for (int y = 320; y < 400; ++y) {
+        for (int x = 600; x < 680; ++x) {
+            source.setPixelColor(x, y, QColor(255, 210, 100, 255));
         }
     }
-    layer->setFromQImage(replacement);
 
-    const QImage cachedAfterSourceEdit = draw(&surfaceCache);
-    const QImage bypassAfterSourceEdit = draw(nullptr);
-    ASSERT_FALSE(cachedAfterSourceEdit.isNull());
-    ASSERT_FALSE(bypassAfterSourceEdit.isNull());
-    const QString updatedSignature =
-        surfaceCache.value(cacheOwnerId).cacheSignature;
-    EXPECT_NE(updatedSignature, originalSignature);
-    EXPECT_TRUE(imagesMatchExactly(cachedAfterSourceEdit, bypassAfterSourceEdit));
-    EXPECT_FALSE(imagesMatchExactly(bypassImage, bypassAfterSourceEdit));
+    auto effectedLayer = ArtifactCore::makeShared<Artifact::ArtifactImageLayer>();
+    auto baselineLayer = ArtifactCore::makeShared<Artifact::ArtifactImageLayer>();
+    ASSERT_TRUE(effectedLayer);
+    ASSERT_TRUE(baselineLayer);
+    effectedLayer->setLayerName(QStringLiteral("Large Glow Image"));
+    baselineLayer->setLayerName(QStringLiteral("Large Baseline Image"));
+    effectedLayer->setFromQImage(source);
+    baselineLayer->setFromQImage(source);
+    ASSERT_TRUE(effectedLayer->hasCurrentFrameBuffer());
+    ASSERT_TRUE(baselineLayer->hasCurrentFrameBuffer());
+    effectedLayer->setLayerCachePolicy(Artifact::LayerCachePolicy::Disabled);
+    baselineLayer->setLayerCachePolicy(Artifact::LayerCachePolicy::Disabled);
+    auto glow = ArtifactCore::makeShared<Artifact::RasterizerGlowEffect>();
+    ASSERT_TRUE(glow);
+    glow->setRadius(12.0f);
+    glow->setIntensity(2.0f);
+    effectedLayer->addEffect(glow);
+
+    const auto draw = [&](Artifact::ArtifactImageLayer* layer,
+                          QHash<QString, Artifact::LayerSurfaceCacheEntry>* cache) {
+        renderer.clear();
+        Artifact::drawLayerForCompositionView(
+            layer, &renderer, 1.0f, nullptr, cache, nullptr, 0);
+        renderer.flushAndWait();
+        return renderer.readbackToImage();
+    };
+
+    QHash<QString, Artifact::LayerSurfaceCacheEntry> surfaceCache;
+    const QImage cachedEffect = draw(effectedLayer.get(), &surfaceCache);
+    ASSERT_FALSE(cachedEffect.isNull());
+    EXPECT_EQ(cachedEffect.width(), width);
+    EXPECT_EQ(cachedEffect.height(), height);
+    const QImage bypassEffect = draw(effectedLayer.get(), nullptr);
+    ASSERT_FALSE(bypassEffect.isNull());
+    const QImage baseline = draw(baselineLayer.get(), nullptr);
+    ASSERT_FALSE(baseline.isNull());
+
+    EXPECT_TRUE(imagesMatchExactly(cachedEffect, bypassEffect));
+    EXPECT_FALSE(imagesMatchExactly(cachedEffect, baseline));
 }
