@@ -43,7 +43,7 @@
 | 28 | Hot path容量上限 | 診断・負荷suite | 独立CPU `ArtifactFrameCacheContractTest` にフレーム数上限・メモリ上限・LRU eviction・予算超過entry拒否・Composition/frame/layer/effect指定invalidatonを追加。Image sequence cacheのentry/byte上限とPlayback stress harnessのsample上限も既存テストでカバー。Playback Service suiteへ公開API経由で129枚を投入し、128件上限・最古entry退避・既存frame再store後のLRU退避順を確認するケースを追加。未ビルド・未実行 |
 | 29 | 再生中Composition切替 | Playback integration | 既存Playback stress harnessの単発切替でactive index変更・Service current Composition一致・切替前再生中なら再開・Transport widget一致を明示判定。2つ以上のCompositionで実行が必要。stress未実行 |
 | 30 | Playback ServiceとUI同期 | Playback/UI integration | 独立Playback stress harnessに実際の`ArtifactPlaybackControlWidget`を配置し、ServiceとUIのPlaying/Paused/Stopped query一致をstate出力、Composition切替、resize、連続巡回、run完了時に検査。GUI runtime未実行 |
-| 31 | Cache有効/無効画像比較 | Renderer integration | Composition Layer Surface Cache harnessはcache hit/miss/build/invalidation診断のみで、cache mapを無効化する公開/test-only経路はない。cache bypassにはArtifact child repoのcontroller API・描画呼出し変更が必要。AGENTS.mdの「子repoは明示依頼なしに編集禁止」により今回は範囲外。画像の同一条件比較は未追加 |
+| 31 | Cache有効/無効画像比較 | Renderer integration | 独立headless GPU contract targetで、公開`drawLayerForCompositionView`へ明示cache map／`nullptr`を渡し、Rasterizer effectつきImageLayerのcache build・reuse・bypass画像をRGBA byte完全一致比較。別系統static GPU cacheはLayerCachePolicyで無効化。controller全Composition pipelineとの比較ではない。未ビルド・未実行 |
 | 32 | アニメーションTransform GPU描画 | Headless GPU integration | RenderQueue GPU integrationで一般Solid layerのPosition X keyframeをGPU指定で2 frame出力し、赤画素の重心がframe間で80px超移動することを比較する独立CTestケースを追加。GPU依存。未ビルド・未実行 |
 | 33 | 大画像＋Effect | Render stress/integration | 既存CPU Effect contract suiteへ1280×720 surfaceのBrightness処理・端/中央画素・入力保持を追加。GPU/render queue負荷比較は未カバー。未実行 |
 | 34 | 非表示レイヤー負荷 | Render stress | Playback stress harnessに`stress.compareVisibilityProfiles`を追加。同じComposition・再生run内で全表示と奇数index半数非表示を同じ時間計測し、可視/非表示数、100ms samplingのframe進行率、stall sample、提示frame delta、drop deltaを比較可能。元の可視状態は計測後に復元する。runtime比較は未実施 |
@@ -71,7 +71,7 @@
 - Playback stress harnessに同一Composition・同一再生run中の可視/交互非表示profile比較を追加し、各条件の実測時間、フレーム進行sample率、stall、提示/drop frame差、可視レイヤー数を出力。比較後は開始時の各layer visibilityへ戻す。GUI/GPUでの実測は未実施。
 - Composition Layer Surface Cacheの既存Windows GUI harnessに、controllerの`readbackPresentedFrameImage()`を使った未変更rerender前後のComposition frame pixel完全一致判定を追加。window chromeやdesktop captureに依存せず、cache hit診断だけでなく出力不変性も見る。ArtifactCore IFC blockerによりビルド/runtime未実施。
 - RAM preview容量テストでは`storeRamPreviewFrameImage()`に1×1 CPU画像を渡し、disk persistenceを無効にして128件上限とLRU evictionを独立process内で検査する。Serviceのprivate上限値はテストに露出させず、公開統計・bitmap・frame stateから振る舞いを確認する。
-- #31の既存Composition Layer Surface Cache harnessは`setLayerSurfaceCacheDiagnosticsEnabled()`とhit/miss/build/invalidation countersを使用する。cache有効/無効切替や同一条件での画像出力比較は行っていない。controllerはArtifact child repoにあり、test bypass追加には子repo編集が必要なため現依頼の許可範囲から除外する。
+- #31はArtifact child repoの公開`drawLayerForCompositionView`がsurface-cache mapを引数に取るため、root test targetからmap有無を切り替えるheadless比較を追加した。Rasterizer effect経路を使い、独立static GPU layer cacheはlayer policyで無効化する。controller統合経路全体のcache bypass検証は対象外であり、実行未確認。
 - #37のrenderer recoveryはPresent失敗文言のdevice-lost判定に接続される。追加した独立GPU testはmanagerのlost teardown後にheadless再初期化できることだけを確認し、Present由来の自動recoveryやbackendの実device removalは検査しない。
 - 失敗Projectのload時、未ロード状態の維持だけでなく既存の有効Project・Composition・Layerを保持することをProject round-trip suiteで確認するケースを追加。Project importerが成功後にだけcurrent projectを差し替える既存実装と対応付けた。
 - 新規テストは既存コードの読み取りに基づき追加した。ビルド・テスト・CMakeは実行していない。

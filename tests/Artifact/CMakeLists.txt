@@ -192,6 +192,19 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     )
 
+    artifact_add_test(ArtifactLayerSurfaceCacheParityContractTest
+        SOURCES
+            LayerSurfaceCacheParityContractTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactLayerSurfaceCacheParityContractTest PROPERTIES
+        LABELS "renderer;gpu;headless;surface-cache;image;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
+
     artifact_add_test(ArtifactClonerGpuRenderContractTest
         SOURCES
             ClonerGpuRenderContractTest.cpp
