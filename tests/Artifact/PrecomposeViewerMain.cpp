@@ -4559,12 +4559,30 @@ public:
                 wrapper->restoreExternalParent(sourceId) == externalParentId &&
                 source->parentLayerId().isNil() && !root->layerById(externalParentId) &&
                 precompManager.isPrecomposeLayer(outcome.precompLayerId);
+            auto* selection = ArtifactLayerSelectionManager::instance();
+            const auto matchesRootSelection = [&](const LayerID& layerId,
+                                                   const ArtifactAbstractLayerPtr& layer) {
+                const auto active = selection ? selection->activeComposition() : ArtifactCompositionPtr{};
+                const auto current = selection ? selection->currentLayer() : ArtifactAbstractLayerPtr{};
+                const auto selected = selection ? selection->selectedLayersInOrder()
+                                                : QVector<ArtifactAbstractLayerPtr>{};
+                return active && active->id() == rootId && layer && current &&
+                    current.get() == layer.get() && current->id() == layerId &&
+                    root->layerById(layerId).get() == layer.get() && selected.size() == 1 &&
+                    selected.front().get() == layer.get();
+            };
+            const auto undoCountBeforeUnpack = undo->undoCount();
+            const auto redoCountBeforeUnpack = undo->redoCount();
             const bool unpacked = metadataRestoredAfterReload &&
                 service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
             const auto unpackedSource = root->layerById(sourceId);
             const bool unpackKeptParentCleared = unpacked && unpackedSource == source &&
                 unpackedSource->parentLayerId().isNil() && !root->layerById(externalParentId) &&
                 !precompManager.isPrecomposeLayer(outcome.precompLayerId);
+            const bool unpackSelectionCorrect = unpacked &&
+                matchesRootSelection(sourceId, source);
+            const bool unpackHistoryUpdated = unpacked &&
+                undo->undoCount() == undoCountBeforeUnpack + 1 && undo->redoCount() == 0;
             const bool undoAvailable = unpacked && undo->canUndo();
             if (undoAvailable) undo->undo();
             const auto undoWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
@@ -4573,12 +4591,22 @@ public:
                 undoWrapper->restoreExternalParent(sourceId) == externalParentId &&
                 precompManager.isPrecomposeLayer(outcome.precompLayerId) &&
                 !root->layerById(externalParentId);
+            const bool undoSelectionCorrect = undoRestoredMetadata && wrapper &&
+                matchesRootSelection(outcome.precompLayerId, wrapper);
+            const bool undoHistoryUpdated = undoRestoredMetadata &&
+                undo->undoCount() == undoCountBeforeUnpack &&
+                undo->redoCount() == redoCountBeforeUnpack + 1;
             const bool redoAvailable = undoRestoredMetadata && undo->canRedo();
             if (redoAvailable) undo->redo();
             const auto redoSource = root->layerById(sourceId);
             const bool redoKeptParentCleared = redoAvailable && redoSource == source &&
                 redoSource->parentLayerId().isNil() && !root->layerById(externalParentId) &&
                 !precompManager.isPrecomposeLayer(outcome.precompLayerId);
+            const bool redoSelectionCorrect = redoKeptParentCleared &&
+                matchesRootSelection(sourceId, source);
+            const bool redoHistoryUpdated = redoKeptParentCleared &&
+                undo->undoCount() == undoCountBeforeUnpack + 1 &&
+                undo->redoCount() == redoCountBeforeUnpack;
             result["parentAuthored"] = parentAuthored;
             result["metadataStored"] = metadataStored;
             result["parentDeleted"] = parentDeleted;
@@ -4587,11 +4615,19 @@ public:
             result["loaded"] = loaded;
             result["metadataRestoredAfterReload"] = metadataRestoredAfterReload;
             result["unpackKeptParentCleared"] = unpackKeptParentCleared;
+            result["unpackSelectionCorrect"] = unpackSelectionCorrect;
+            result["unpackHistoryUpdated"] = unpackHistoryUpdated;
             result["undoRestoredMetadata"] = undoRestoredMetadata;
+            result["undoSelectionCorrect"] = undoSelectionCorrect;
+            result["undoHistoryUpdated"] = undoHistoryUpdated;
             result["redoKeptParentCleared"] = redoKeptParentCleared;
+            result["redoSelectionCorrect"] = redoSelectionCorrect;
+            result["redoHistoryUpdated"] = redoHistoryUpdated;
             result["passed"] = parentAuthored && metadataStored && parentDeleted && save.success &&
                 mappingCleared && loaded && metadataRestoredAfterReload &&
-                unpackKeptParentCleared && undoRestoredMetadata && redoKeptParentCleared;
+                unpackKeptParentCleared && unpackSelectionCorrect && unpackHistoryUpdated &&
+                undoRestoredMetadata && undoSelectionCorrect && undoHistoryUpdated &&
+                redoKeptParentCleared && redoSelectionCorrect && redoHistoryUpdated;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Unprecompose restored a deleted external parent or lost its undo metadata");
             childId_ = outcome.childCompId;

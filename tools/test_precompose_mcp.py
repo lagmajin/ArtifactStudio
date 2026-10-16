@@ -681,8 +681,14 @@ def main():
                     and missing_external_parent["loaded"]
                     and missing_external_parent["metadataRestoredAfterReload"]
                     and missing_external_parent["unpackKeptParentCleared"]
+                    and missing_external_parent["unpackSelectionCorrect"]
+                    and missing_external_parent["unpackHistoryUpdated"]
                     and missing_external_parent["undoRestoredMetadata"]
-                    and missing_external_parent["redoKeptParentCleared"],
+                    and missing_external_parent["undoSelectionCorrect"]
+                    and missing_external_parent["undoHistoryUpdated"]
+                    and missing_external_parent["redoKeptParentCleared"]
+                    and missing_external_parent["redoSelectionCorrect"]
+                    and missing_external_parent["redoHistoryUpdated"],
                     "Unprecompose restored a deleted external parent or lost undo metadata")
             call("test.reset")
             child_edits = call("test.childEditsSurviveUnwrap")
