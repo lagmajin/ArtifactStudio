@@ -4590,35 +4590,41 @@ public:
             }
             const auto rootId = root->id();
             const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
-            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+            const auto sourceLayer = sourceIds.size() == 2
+                ? root->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
+            if (!sourceLayer || sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
                     sourceIds, UniString(QStringLiteral("Selection Transition Fixture")), false, false,
                     PrecomposeMode::MoveSelected)) {
                 selectionResult["error"] = QStringLiteral("Could not create selection-transition fixture");
                 return selectionResult;
             }
             const auto outcome = service->lastPrecomposeOutcome();
-            const auto matchesSelection = [&](const LayerID& expectedLayerId) {
+            const auto wrapper = root->layerById(outcome.precompLayerId);
+            const auto matchesSelection = [&](const LayerID& expectedLayerId,
+                                              const ArtifactAbstractLayerPtr& expectedLayer) {
                 const auto active = selection->activeComposition();
                 const auto current = selection->currentLayer();
                 const auto selected = selection->selectedLayersInOrder();
-                return active && active->id() == rootId && current &&
+                return expectedLayer && root->layerById(expectedLayerId).get() == expectedLayer.get() &&
+                    active && active->id() == rootId && current &&
+                    current.get() == expectedLayer.get() &&
                     current->id() == expectedLayerId && selected.size() == 1 &&
-                    selected.front() && selected.front()->id() == expectedLayerId;
+                    selected.front() && selected.front().get() == expectedLayer.get() &&
+                    selected.front()->id() == expectedLayerId;
             };
-            const bool precomposeSelectedWrapper = matchesSelection(outcome.precompLayerId) &&
-                root->layerById(outcome.precompLayerId);
+            const bool precomposeSelectedWrapper = matchesSelection(outcome.precompLayerId, wrapper);
             const bool unpacked = service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
-            const bool unpackSelectedFirstSource = unpacked && matchesSelection(sourceIds.front()) &&
-                root->layerById(sourceIds.front());
+            const bool unpackSelectedFirstSource = unpacked &&
+                matchesSelection(sourceIds.front(), sourceLayer);
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
-            const bool undoSelectedWrapper = undoAvailable && matchesSelection(outcome.precompLayerId) &&
-                root->layerById(outcome.precompLayerId) &&
+            const bool undoSelectedWrapper = undoAvailable &&
+                matchesSelection(outcome.precompLayerId, wrapper) &&
                 PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId);
             const bool redoAvailable = undo->canRedo();
             if (redoAvailable) undo->redo();
-            const bool redoSelectedFirstSource = redoAvailable && matchesSelection(sourceIds.front()) &&
-                root->layerById(sourceIds.front()) &&
+            const bool redoSelectedFirstSource = redoAvailable &&
+                matchesSelection(sourceIds.front(), sourceLayer) &&
                 !PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId);
             service->changeCurrentComposition(rootId);
             childId_ = outcome.childCompId;
@@ -4627,8 +4633,12 @@ public:
             selectionResult["unpackSelectedFirstSource"] = unpackSelectedFirstSource;
             selectionResult["undoSelectedWrapper"] = undoSelectedWrapper;
             selectionResult["redoSelectedFirstSource"] = redoSelectedFirstSource;
-            selectionResult["passed"] = precomposeSelectedWrapper && unpackSelectedFirstSource &&
+            selectionResult["selectionObjectPreservedAcrossTransitions"] =
+                precomposeSelectedWrapper && unpackSelectedFirstSource &&
                 undoSelectedWrapper && redoSelectedFirstSource;
+            selectionResult["passed"] = precomposeSelectedWrapper && unpackSelectedFirstSource &&
+                undoSelectedWrapper && redoSelectedFirstSource &&
+                selectionResult["selectionObjectPreservedAcrossTransitions"].toBool();
             if (!selectionResult["passed"].toBool())
                 selectionResult["error"] = QStringLiteral("Layer selection or active composition changed unexpectedly across precompose/unprecompose/undo/redo");
             refresh();

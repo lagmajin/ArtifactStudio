@@ -702,7 +702,8 @@ def main():
                     and selection_transitions["precomposeSelectedWrapper"]
                     and selection_transitions["unpackSelectedFirstSource"]
                     and selection_transitions["undoSelectedWrapper"]
-                    and selection_transitions["redoSelectedFirstSource"],
+                    and selection_transitions["redoSelectedFirstSource"]
+                    and selection_transitions["selectionObjectPreservedAcrossTransitions"],
                     "Layer selection or active composition changed unexpectedly across precompose/unprecompose/undo/redo")
             call("test.reset")
             external_parent_round_trip = call("test.externalParentSaveReload")
