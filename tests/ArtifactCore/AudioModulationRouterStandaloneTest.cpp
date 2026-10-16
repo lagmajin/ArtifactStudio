@@ -88,6 +88,24 @@ TEST(AudioModulationRouterStandaloneTest, MultiplyModeScalesTheAdditiveBaseResul
     EXPECT_FLOAT_EQ(router.targetValue(target, 8.0f), 10.0f);
 }
 
+TEST(AudioModulationRouterStandaloneTest, AddAndMultiplyAssignmentsCoexistForOneTarget)
+{
+    ModulationRouter router;
+    router.setSmoothingTime(0.0f);
+    const auto source = router.addSource(std::make_unique<ConstantSource>(0.5f));
+    const auto target = modulationTargetId("effect.amount");
+    ASSERT_TRUE(router.addAssignment({source, target, "effect.amount", 2.0f, true,
+                                      ModulationMixMode::Add}));
+    ASSERT_TRUE(router.addAssignment({source, target, "effect.amount", 1.0f, true,
+                                      ModulationMixMode::Multiply}));
+
+    router.process(1);
+
+    ASSERT_EQ(router.assignments().size(), 2u);
+    EXPECT_FLOAT_EQ(router.targetModulation(target), 1.0f);
+    EXPECT_FLOAT_EQ(router.targetValue(target, 2.0f), 4.5f);
+}
+
 TEST(AudioModulationRouterStandaloneTest, DisabledAssignmentsDoNotContribute)
 {
     ModulationRouter router;
