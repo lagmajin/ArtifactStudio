@@ -190,6 +190,7 @@ public:
                 if (rootLayers.size() != 2) return false;
                 bool foundWrapper = false;
                 bool untouchedPreserved = false;
+                bool childTimingPreserved = false;
                 for (const auto& value : rootLayers) {
                     const auto layer = value.toObject();
                     if (layer.value(QStringLiteral("name")).toString() == QStringLiteral("Untouched")) {
@@ -199,14 +200,27 @@ public:
                         continue;
                     }
                     const auto children = layer.value(QStringLiteral("children")).toArray();
+                    if (children.size() == 2) {
+                        const auto childA = children[0].toObject();
+                        const auto childB = children[1].toObject();
+                        childTimingPreserved = childA.value(QStringLiteral("inFrame")).toInt() == 0 &&
+                            childA.value(QStringLiteral("outFrame")).toInt() == 160 &&
+                            childA.value(QStringLiteral("startFrame")).toInt() == -33 &&
+                            childB.value(QStringLiteral("inFrame")).toInt() == 30 &&
+                            childB.value(QStringLiteral("outFrame")).toInt() == 120 &&
+                            childB.value(QStringLiteral("startFrame")).toInt() == -31;
+                    }
                     foundWrapper = layer.value(QStringLiteral("name")).toString() ==
                             QStringLiteral("Nested A+B") && children.size() == 2 &&
+                        layer.value(QStringLiteral("inFrame")).toInt() == 40 &&
+                        layer.value(QStringLiteral("outFrame")).toInt() == 200 &&
+                        layer.value(QStringLiteral("startFrame")).toInt() == 40 &&
                         children[0].toObject().value(QStringLiteral("name")).toString() ==
                             QStringLiteral("A") &&
                         children[1].toObject().value(QStringLiteral("name")).toString() ==
                             QStringLiteral("B");
                 }
-                return foundWrapper && untouchedPreserved;
+                return foundWrapper && childTimingPreserved && untouchedPreserved;
             };
             const auto allLayersMoved = [](const QJsonObject& snapshot) {
                 const auto rootLayers = snapshot["layers"].toArray();
