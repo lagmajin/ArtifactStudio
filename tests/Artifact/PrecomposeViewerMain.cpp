@@ -301,6 +301,7 @@ public:
             const auto keepWrapperId = ArtifactProjectService::instance()
                 ->lastPrecomposeOutcome().precompLayerId;
             const auto keepChildId = childId_;
+            const auto keepChildObject = projectService->findComposition(keepChildId).ptr.lock();
             const bool precomposedByKey = afterPrecompose["canUndo"].toBool() &&
                 afterPrecompose["lastChildExists"].toBool() &&
                 afterPrecompose["layers"].toArray().size() == 2;
@@ -346,6 +347,8 @@ public:
                 selectedLayerName(afterKeepUnpack, rootCompositionId) == QStringLiteral("A");
             const bool keepMappingRemovedByKey = unpackedKeepByKey &&
                 managerMappingCleared(keepWrapperId, keepChildId);
+            const bool keepChildObjectPreservedByUnpackKey = unpackedKeepByKey && keepChildObject &&
+                projectService->findComposition(keepChildId).ptr.lock() == keepChildObject;
             const bool keepUnpackLayerObjectsPreservedByKey = unpackedKeepByKey &&
                 sourceObjectsMatch(projectService->currentComposition().lock());
             sendKey(Qt::Key_Z);
@@ -358,6 +361,8 @@ public:
                 managerMappingMatches(keepWrapperId, keepChildId);
             const bool keepUndoLayerObjectsPreservedByKey = keepUndoByKey &&
                 childObjectsMatch(keepChildId);
+            const bool keepChildObjectPreservedByUndoKey = keepUndoByKey && keepChildObject &&
+                projectService->findComposition(keepChildId).ptr.lock() == keepChildObject;
             sendKey(Qt::Key_Y);
             const auto afterKeepRedo = state();
             const bool keepRedoByKey = afterKeepRedo["lastChildExists"].toBool() &&
@@ -367,6 +372,8 @@ public:
                 managerMappingCleared(keepWrapperId, keepChildId);
             const bool keepRedoLayerObjectsPreservedByKey = keepRedoByKey &&
                 sourceObjectsMatch(projectService->currentComposition().lock());
+            const bool keepChildObjectPreservedByRedoKey = keepRedoByKey && keepChildObject &&
+                projectService->findComposition(keepChildId).ptr.lock() == keepChildObject;
             sendKey(Qt::Key_P);
             const auto beforeDeleteUnpack = state();
             const auto deleteWrapperId = ArtifactProjectService::instance()
@@ -505,16 +512,22 @@ public:
                                {"precomposeSelectionByKey", precomposeSelectionByKey},
                                {"unpackedKeepByKey", unpackedKeepByKey},
                                {"keepMappingRemovedByKey", keepMappingRemovedByKey},
+                               {"keepChildObjectPreservedByUnpackKey",
+                                keepChildObjectPreservedByUnpackKey},
                                {"keepUnpackLayerObjectsPreservedByKey",
                                 keepUnpackLayerObjectsPreservedByKey},
                                {"keepUndoByKey", keepUndoByKey},
                                {"keepMappingRestoredByUndoKey", keepMappingRestoredByUndoKey},
                                {"keepUndoLayerObjectsPreservedByKey",
                                 keepUndoLayerObjectsPreservedByKey},
+                               {"keepChildObjectPreservedByUndoKey",
+                                keepChildObjectPreservedByUndoKey},
                                {"keepRedoByKey", keepRedoByKey},
                                {"keepMappingRemovedByRedoKey", keepMappingRemovedByRedoKey},
                                {"keepRedoLayerObjectsPreservedByKey",
                                 keepRedoLayerObjectsPreservedByKey},
+                               {"keepChildObjectPreservedByRedoKey",
+                                keepChildObjectPreservedByRedoKey},
                                {"precomposedForDeleteByKey", precomposedForDeleteByKey},
                                {"deleteMappingRegisteredByKey", deleteMappingRegisteredByKey},
                                {"deletePrecomposeLayerObjectsPreservedByKey",
@@ -554,9 +567,11 @@ public:
                                    precomposeUndoLayerObjectsPreservedByKey &&
                                    precomposeRedoLayerObjectsPreservedByKey &&
                                    unpackedKeepByKey && keepMappingRemovedByKey && keepUndoByKey &&
+                                   keepChildObjectPreservedByUnpackKey &&
                                    keepMappingRestoredByUndoKey && keepRedoByKey &&
                                    keepMappingRemovedByRedoKey && keepUnpackLayerObjectsPreservedByKey &&
                                    keepUndoLayerObjectsPreservedByKey && keepRedoLayerObjectsPreservedByKey &&
+                                   keepChildObjectPreservedByUndoKey && keepChildObjectPreservedByRedoKey &&
                                    precomposedForDeleteByKey && deleteMappingRegisteredByKey &&
                                    deletePrecomposeLayerObjectsPreservedByKey &&
                                    unpackedDeleteByKey && deleteMappingRemovedByKey && deleteUndoByKey &&
