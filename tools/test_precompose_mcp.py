@@ -82,7 +82,40 @@ def validate_png(png):
     return width, height
 
 
+def make_png_chunk(chunk_type, data):
+    crc = zlib.crc32(data, zlib.crc32(chunk_type)) & 0xffffffff
+    return struct.pack(">I", len(data)) + chunk_type + data + struct.pack(">I", crc)
+
+
+def validate_png_contract():
+    signature = b"\x89PNG\r\n\x1a\n"
+    header = struct.pack(">IIBBBBB", 1, 1, 8, 0, 0, 0, 0)
+
+    def image(scanline):
+        return (signature + make_png_chunk(b"IHDR", header)
+                + make_png_chunk(b"IDAT", zlib.compress(scanline))
+                + make_png_chunk(b"IEND", b""))
+
+    valid_png = image(b"\x00\x7f")
+    decoded_dimensions = validate_png(valid_png)
+    if decoded_dimensions != (1, 1):
+        raise AssertionError("PNG validator rejected a valid one-pixel fixture")
+
+    invalid_images = {
+        "CRC corruption": valid_png[:29] + bytes([valid_png[29] ^ 1]) + valid_png[30:],
+        "invalid filter": image(b"\x05\x7f"),
+        "scanline size mismatch": image(b"\x00"),
+    }
+    for label, invalid_png in invalid_images.items():
+        try:
+            validate_png(invalid_png)
+        except AssertionError:
+            continue
+        raise AssertionError(f"PNG validator accepted {label}")
+
+
 def main():
+    validate_png_contract()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--server", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
