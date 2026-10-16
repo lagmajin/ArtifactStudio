@@ -1097,32 +1097,19 @@ public:
                     "GUI O key did not complete the open-child composition round trip");
             return result;
         }
-        if (name == "test.captureRejectsStalePanel") {
-            const auto stateBefore = state();
+        if (name == "test.prepareInvalidCapturePanel") {
             text_->setPlainText(QStringLiteral("{"));
-            const auto invalidJsonCapture = action(QStringLiteral("test.capture"));
-            const bool invalidJsonRejected =
-                invalidJsonCapture.value(QStringLiteral("error")).toString() ==
-                    QStringLiteral("Visible MCP state panel is stale") &&
-                !invalidJsonCapture.contains(QStringLiteral("capturePng"));
+            return {{"panelPrepared", true}, {"panelContent", text_->toPlainText()},
+                    {"state", state()}};
+        }
+        if (name == "test.prepareMismatchedCapturePanel") {
             text_->setPlainText(QStringLiteral("{}"));
-            const auto mismatchedJsonCapture = action(QStringLiteral("test.capture"));
-            const bool mismatchedJsonRejected =
-                mismatchedJsonCapture.value(QStringLiteral("error")).toString() ==
-                    QStringLiteral("Visible MCP state panel is stale") &&
-                !mismatchedJsonCapture.contains(QStringLiteral("capturePng"));
-            const bool stateUnchanged = state() == stateBefore;
+            return {{"panelPrepared", true}, {"panelContent", text_->toPlainText()},
+                    {"state", state()}};
+        }
+        if (name == "test.refreshStatePanel") {
             refresh();
-            QJsonObject result{{"invalidJsonRejected", invalidJsonRejected},
-                               {"mismatchedJsonRejected", mismatchedJsonRejected},
-                               {"stateUnchanged", stateUnchanged},
-                               {"passed", invalidJsonRejected && mismatchedJsonRejected &&
-                                    stateUnchanged}};
-            if (!result.value(QStringLiteral("passed")).toBool())
-                result[QStringLiteral("error")] = QStringLiteral(
-                    "Stale MCP state panel was not rejected without changing project state");
-            result[QStringLiteral("state")] = state();
-            return result;
+            return {{"panelRefreshed", true}, {"state", state()}};
         }
         if (name == "test.capture") {
             const auto currentState = state();
@@ -7772,7 +7759,8 @@ private:
             QJsonArray tools;
             for (const auto* name : {"test.state", "test.reset", "test.resetFromChild", "test.guiKeyboardRoundTrip", "test.guiAnimatedKeyRoundTrip", "test.guiOpenChildCompositionRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.childCompositionEffectStaysWithChild", "test.openChildComposition", "test.matchWorkspaceDuration", "test.emptyWorkspaceDurationFallsBack", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.precomposeIgnoresStaleSelectionId", "test.unpackLayerIdCollisionAtomic", "test.unpackDuplicateChildLayerIdsAtomic", "test.unpackNilChildLayerIdAtomic", "test.missingChildReferenceAtomic", "test.unprecomposeWithMissingManagerMapping", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression",
-                    "test.captureRejectsStalePanel", "test.capture"})
+                    "test.prepareInvalidCapturePanel", "test.prepareMismatchedCapturePanel",
+                    "test.refreshStatePanel", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
             response["result"] = QJsonObject{{"tools", tools}};

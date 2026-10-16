@@ -305,13 +305,29 @@ def main():
                     and layer_map(reset_state)["A"]["position"] == [12.0, -8.0, 3.0]
                     and abs(layer_map(reset_state)["A"]["opacity"] - 0.42) < 1e-6,
                     "MCP reset did not create a clean locale-preserving fixture")
-            stale_capture = call("test.captureRejectsStalePanel")
-            require(stale_capture["passed"] and stale_capture["invalidJsonRejected"]
-                    and stale_capture["mismatchedJsonRejected"]
-                    and stale_capture["stateUnchanged"]
-                    and stale_capture["state"] == reset_state
-                    and call("test.state") == reset_state,
-                    "Stale-panel capture was not rejected with the reset fixture and display restored")
+            for prepare_tool, expected_panel in (
+                    ("test.prepareInvalidCapturePanel", "{"),
+                    ("test.prepareMismatchedCapturePanel", "{}")):
+                prepared_panel = call(prepare_tool)
+                require(prepared_panel["panelPrepared"]
+                        and prepared_panel["panelContent"] == expected_panel
+                        and prepared_panel["state"] == reset_state
+                        and call("test.state") == reset_state,
+                        f"{prepare_tool} changed the fixture or failed to prepare the visible panel")
+                stale_capture = request("tools/call", {
+                    "name": "test.capture", "arguments": {}})
+                require(stale_capture.get("isError") and len(stale_capture.get("content", [])) == 1
+                        and stale_capture["content"][0].get("type") == "text",
+                        f"Capture did not report {prepare_tool} as an MCP tool error")
+                capture_error = json.loads(stale_capture["content"][0]["text"])
+                require(capture_error.get("error") == "Visible MCP state panel is stale"
+                        and call("test.state") == reset_state,
+                        f"Capture did not reject {prepare_tool} without changing fixture state")
+                refreshed_panel = call("test.refreshStatePanel")
+                require(refreshed_panel["panelRefreshed"]
+                        and refreshed_panel["state"] == reset_state
+                        and call("test.state") == reset_state,
+                        f"State panel did not recover after {prepare_tool}")
             reset_capture_state = call("test.state")
             invoked_tool_names.add("test.capture")
             reset_capture = request("tools/call", {"name": "test.capture", "arguments": {}})
