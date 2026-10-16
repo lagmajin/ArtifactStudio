@@ -56,6 +56,8 @@ FBX独立Viewerのように製品本体と起動を分け、既存のProject Ser
 
 `test.guiAnimatedKeyRoundTrip`はAのposition XにBezierとConstantの2キーを設定し、実際のGUI KeyPress経路Pで選択プリコンポーズする。In/Startを-24/-17 frame、キーを-12/24 frameにしたfixtureをGUI経路Pで正規化し、子側でIn=0/Start=7へ正規化し、親wrapperはIn/Out/Start=-24/136/-24を保つこと、+24 frameのキー時刻補正後も全キー属性とpropertyのanimatable状態が一致し、中間時刻の評価値も維持されること、Z/YでUndo/Redoしてもキー列と評価値が戻ること、Kで解除後に親側の元キー列と評価値へ復元され、解除自体のZ/Yで負時間範囲とキー時刻、同一wrapperオブジェクトとPreComposeManager登録が復元されること、同一レイヤーオブジェクトの保持も検査する。
 
+同テストはさらにP/Z/Y/Kの各KeyPress後にactive Compositionが親のままであること、現在レイヤーと単一選択がプリコンポーズ後／Redo後／解除Undo後はwrapper、Undo後／解除後／解除Redo後は元のAを指すことを確認する。
+
 ## ビルド・実行
 
 Windows専用。既存のArtifactAppRuntimeにリンクする独立したconsole executableで、追加の製品モジュール登録は不要。
