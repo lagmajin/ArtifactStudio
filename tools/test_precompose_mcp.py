@@ -98,6 +98,15 @@ def parse_tool_result(name, reply):
     return result
 
 
+def parse_tool_error(name, reply):
+    if not isinstance(reply, dict) or reply.get("isError") is not True:
+        raise RuntimeError(f"{name} did not return an MCP tool error: {reply}")
+    result = parse_tool_result(name, reply)
+    if not isinstance(result.get("error"), str) or not result["error"].strip():
+        raise RuntimeError(f"{name} returned an MCP error without a non-empty error message: {result}")
+    return result
+
+
 def validate_tool_result_contract():
     valid_reply = {"content": [{"type": "text", "text": "{\"passed\":true}"}]}
     if parse_tool_result("fixture", valid_reply) != {"passed": True}:
@@ -117,6 +126,24 @@ def validate_tool_result_contract():
         except RuntimeError:
             continue
         raise AssertionError(f"MCP tool result parser accepted {label}")
+
+    valid_error = {"isError": True,
+                   "content": [{"type": "text", "text": "{\"error\":\"rejected\"}"}]}
+    if parse_tool_error("fixture", valid_error) != {"error": "rejected"}:
+        raise AssertionError("MCP tool error parser rejected a valid error result")
+    invalid_errors = {
+        "missing isError flag": {"content": valid_error["content"]},
+        "empty error message": {"isError": True,
+                                "content": [{"type": "text", "text": "{\"error\":\" \"}"}]},
+        "missing error message": {"isError": True,
+                                  "content": [{"type": "text", "text": "{}"}]},
+    }
+    for label, reply in invalid_errors.items():
+        try:
+            parse_tool_error("fixture", reply)
+        except RuntimeError:
+            continue
+        raise AssertionError(f"MCP tool error parser accepted {label}")
 
 
 def make_png_chunk(chunk_type, data):
@@ -289,7 +316,7 @@ def main():
             invoked_tool_names.add(name)
             reply = request("tools/call", {"name": name, "arguments": {}})
             if reply.get("isError"):
-                raise RuntimeError(f"{name}: {reply}")
+                raise RuntimeError(f"{name}: {parse_tool_error(name, reply)}")
             return parse_tool_result(name, reply)
 
         def require(condition, message):
@@ -363,22 +390,21 @@ def main():
             require(call("test.state") == protocol_state_before_invalid_calls,
                     "MCP initialized notification changed state or produced an unexpected response")
             unknown_tool = request("tools/call", {"name": "test.notARealTool", "arguments": {}})
-            require(unknown_tool.get("isError") and "Unknown tool" in
-                    json.loads(unknown_tool["content"][0]["text"]).get("error", ""),
+            require("Unknown tool" in parse_tool_error("unknown tool", unknown_tool)["error"],
                     "Unknown MCP tool did not return a tool error")
             unexpected_argument = request("tools/call", {
                 "name": "test.state", "arguments": {"unexpected": True}})
-            require(unexpected_argument.get("isError") and "empty object arguments" in
-                    json.loads(unexpected_argument["content"][0]["text"]).get("error", ""),
+            require("empty object arguments" in parse_tool_error(
+                    "unexpected argument", unexpected_argument)["error"],
                     "MCP tool accepted unsupported arguments")
             missing_tool_name = request("tools/call", {"arguments": {}})
-            require(missing_tool_name.get("isError") and "tool name" in
-                    json.loads(missing_tool_name["content"][0]["text"]).get("error", ""),
+            require("tool name" in parse_tool_error(
+                    "missing tool name", missing_tool_name)["error"],
                     "MCP tools/call accepted a request with no tool name")
             non_object_arguments = request("tools/call", {
                 "name": "test.state", "arguments": []})
-            require(non_object_arguments.get("isError") and "empty object arguments" in
-                    json.loads(non_object_arguments["content"][0]["text"]).get("error", ""),
+            require("empty object arguments" in parse_tool_error(
+                    "non-object arguments", non_object_arguments)["error"],
                     "MCP tools/call accepted non-object arguments")
             unknown_method = request("method/not-found", {}, allow_protocol_error=True)
             require(unknown_method.get("error", {}).get("code") == -32601,
@@ -430,10 +456,7 @@ def main():
                         f"{prepare_tool} changed the fixture or failed to prepare the visible panel")
                 stale_capture = request("tools/call", {
                     "name": "test.capture", "arguments": {}})
-                require(stale_capture.get("isError") and len(stale_capture.get("content", [])) == 1
-                        and stale_capture["content"][0].get("type") == "text",
-                        f"Capture did not report {prepare_tool} as an MCP tool error")
-                capture_error = json.loads(stale_capture["content"][0]["text"])
+                capture_error = parse_tool_error("test.capture", stale_capture)
                 require(capture_error.get("error") == "Visible MCP state panel is stale"
                         and call("test.state") == reset_state,
                         f"Capture did not reject {prepare_tool} without changing fixture state")
@@ -465,9 +488,7 @@ def main():
                     "Hiding the capture window changed the restored fixture")
             hidden_capture = request("tools/call", {
                 "name": "test.capture", "arguments": {}})
-            require(hidden_capture.get("isError") and len(hidden_capture.get("content", [])) == 1
-                    and hidden_capture["content"][0].get("type") == "text"
-                    and json.loads(hidden_capture["content"][0]["text"]).get("error") ==
+            require(parse_tool_error("test.capture", hidden_capture).get("error") ==
                     "Capture window is not visible"
                     and call("test.state") == reset_state,
                     "Capture succeeded or changed fixture while the test window was hidden")
@@ -496,10 +517,7 @@ def main():
                     "Minimizing the capture window changed fixture state or was not applied")
             minimized_capture = request("tools/call", {
                 "name": "test.capture", "arguments": {}})
-            require(minimized_capture.get("isError")
-                    and len(minimized_capture.get("content", [])) == 1
-                    and minimized_capture["content"][0].get("type") == "text"
-                    and json.loads(minimized_capture["content"][0]["text"]).get("error") ==
+            require(parse_tool_error("test.capture", minimized_capture).get("error") ==
                     "Capture window is not visible"
                     and call("test.state") == reset_state,
                     "Capture succeeded or changed fixture while the test window was minimized")
