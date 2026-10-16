@@ -381,6 +381,12 @@ public:
             const auto precomposeOutcome = service->lastPrecomposeOutcome();
             const auto wrapperId = precomposeOutcome.precompLayerId;
             const auto wrapperObject = parent->layerById(wrapperId);
+            const auto managerRegistrationMatches = [&]() {
+                const auto& manager = PreComposeManager::instance();
+                return !wrapperId.isNil() && manager.isPrecomposeLayer(wrapperId) &&
+                    manager.getSourceCompositionId(wrapperId) == childId_;
+            };
+            const bool managerRegisteredByKey = managerRegistrationMatches();
             const bool wrapperNegativeTimingPreservedByKey = !wrapperId.isNil() &&
                 hasTiming(wrapperObject, -24, 136, -24);
             const auto child = service->findComposition(childId_).ptr.lock();
@@ -413,6 +419,8 @@ public:
             const bool undoLayerIdentityPreserved = undoSource &&
                 undoSource.get() == source.get();
             const bool wrapperRemovedByUndo = wrapperId.isNil() || !parent->layerById(wrapperId);
+            const bool managerUnregisteredByUndo = wrapperId.isNil() ||
+                !PreComposeManager::instance().isPrecomposeLayer(wrapperId);
             const bool negativeTimingRestoredByUndo = hasTiming(undoSource, -24, 136, -17);
             const bool animationEnabledAfterUndo = undoPosition && undoPosition->isAnimatable();
             const bool animationRestoredByUndo = !hasChild_ ||
@@ -436,6 +444,7 @@ public:
                 hasTiming(parent->layerById(wrapperId), -24, 136, -24);
             const bool wrapperIdentityRestoredByRedo = wrapperObject &&
                 parent->layerById(wrapperId).get() == wrapperObject.get();
+            const bool managerRegisteredByRedo = managerRegistrationMatches();
             const bool negativeTimingRestoredByRedo = hasTiming(redoA, 0, 160, 7);
             const bool animationEnabledAfterRedo = redoPosition && redoPosition->isAnimatable();
             const bool animationRestoredByRedo = redoPosition &&
@@ -452,6 +461,8 @@ public:
             const bool unpackLayerIdentityPreserved = unpackedA &&
                 unpackedA.get() == source.get();
             const bool wrapperRemovedByUnpack = wrapperId.isNil() || !parent->layerById(wrapperId);
+            const bool managerUnregisteredByUnpack = wrapperId.isNil() ||
+                !PreComposeManager::instance().isPrecomposeLayer(wrapperId);
             const bool negativeTimingRestoredByUnpack =
                 hasTiming(unpackedA, -24, 136, -17);
             const bool animationEnabledAfterUnpack = unpackedPosition &&
@@ -474,6 +485,7 @@ public:
                 hasTiming(parent->layerById(wrapperId), -24, 136, -24);
             const bool wrapperIdentityRestoredByUnpackUndo = wrapperObject &&
                 parent->layerById(wrapperId).get() == wrapperObject.get();
+            const bool managerRegisteredByUnpackUndo = managerRegistrationMatches();
             const bool negativeTimingRestoredByUnpackUndo =
                 hasTiming(unpackUndoA, 0, 160, 7);
             const bool animationEnabledAfterUnpackUndo = unpackUndoPosition &&
@@ -500,44 +512,52 @@ public:
             const bool unpackRedoIdentityPreserved = unpackRedoA &&
                 unpackRedoA.get() == source.get();
             const bool wrapperRemovedByUnpackRedo = wrapperId.isNil() || !parent->layerById(wrapperId);
+            const bool managerUnregisteredByUnpackRedo = wrapperId.isNil() ||
+                !PreComposeManager::instance().isPrecomposeLayer(wrapperId);
             const bool unpackRedoSamplePreserved = animationRestoredByUnpackRedo &&
                 std::abs(unpackRedoPosition->evaluateValue(RationalTime(
                     0, unpackRedoA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
 
             const bool passed = movedLayerIdentityPreserved && animationEnabledByKey &&
-                wrapperNegativeTimingPreservedByKey && negativeTimingNormalizedByKey &&
+                wrapperNegativeTimingPreservedByKey && managerRegisteredByKey &&
+                negativeTimingNormalizedByKey &&
                 animationMovedByKey &&
                 animationRestoredByUndo && undoLayerIdentityPreserved &&
-                wrapperRemovedByUndo &&
+                wrapperRemovedByUndo && managerUnregisteredByUndo &&
                 negativeTimingRestoredByUndo &&
                 animationEnabledAfterUndo && animationSamplePreservedByKey &&
                 undoKeysPreserved && undoSamplePreserved &&
                 animationRestoredByRedo && redoLayerIdentityPreserved &&
                 wrapperNegativeTimingRestoredByRedo && wrapperIdentityRestoredByRedo &&
+                managerRegisteredByRedo &&
                 negativeTimingRestoredByRedo &&
                 animationEnabledAfterRedo && redoSamplePreserved &&
                 animationRestoredByKeyboardUnpack && unpackLayerIdentityPreserved &&
-                wrapperRemovedByUnpack && negativeTimingRestoredByUnpack &&
+                wrapperRemovedByUnpack && managerUnregisteredByUnpack &&
+                negativeTimingRestoredByUnpack &&
                 animationEnabledAfterUnpack && unpackSamplePreserved &&
                 animationRestoredByUnpackUndo && wrapperNegativeTimingRestoredByUnpackUndo &&
-                wrapperIdentityRestoredByUnpackUndo &&
+                wrapperIdentityRestoredByUnpackUndo && managerRegisteredByUnpackUndo &&
                 animationEnabledAfterUnpackUndo &&
                 negativeTimingRestoredByUnpackUndo && unpackUndoIdentityPreserved &&
                 unpackUndoSamplePreserved &&
                 animationRestoredByUnpackRedo && animationEnabledAfterUnpackRedo &&
-                wrapperRemovedByUnpackRedo && negativeTimingRestoredByUnpackRedo &&
+                wrapperRemovedByUnpackRedo && managerUnregisteredByUnpackRedo &&
+                negativeTimingRestoredByUnpackRedo &&
                 unpackRedoIdentityPreserved &&
                 unpackRedoSamplePreserved;
             QJsonObject result{{"animationMovedByKey", animationMovedByKey},
                                {"movedLayerIdentityPreserved", movedLayerIdentityPreserved},
                                {"wrapperNegativeTimingPreservedByKey",
                                 wrapperNegativeTimingPreservedByKey},
+                               {"managerRegisteredByKey", managerRegisteredByKey},
                                {"negativeTimingNormalizedByKey", negativeTimingNormalizedByKey},
                                {"animationEnabledByKey", animationEnabledByKey},
                                {"animationSamplePreservedByKey", animationSamplePreservedByKey},
                                {"animationRestoredByUndo", animationRestoredByUndo},
                                {"undoLayerIdentityPreserved", undoLayerIdentityPreserved},
                                {"wrapperRemovedByUndo", wrapperRemovedByUndo},
+                               {"managerUnregisteredByUndo", managerUnregisteredByUndo},
                                {"negativeTimingRestoredByUndo", negativeTimingRestoredByUndo},
                                {"animationEnabledAfterUndo", animationEnabledAfterUndo},
                                {"undoKeysPreserved", undoKeysPreserved},
@@ -547,6 +567,7 @@ public:
                                {"wrapperNegativeTimingRestoredByRedo",
                                 wrapperNegativeTimingRestoredByRedo},
                                {"wrapperIdentityRestoredByRedo", wrapperIdentityRestoredByRedo},
+                               {"managerRegisteredByRedo", managerRegisteredByRedo},
                                {"negativeTimingRestoredByRedo", negativeTimingRestoredByRedo},
                                {"animationEnabledAfterRedo", animationEnabledAfterRedo},
                                {"redoSamplePreserved", redoSamplePreserved},
@@ -554,6 +575,7 @@ public:
                                 animationRestoredByKeyboardUnpack},
                                {"unpackLayerIdentityPreserved", unpackLayerIdentityPreserved},
                                {"wrapperRemovedByUnpack", wrapperRemovedByUnpack},
+                               {"managerUnregisteredByUnpack", managerUnregisteredByUnpack},
                                {"negativeTimingRestoredByUnpack", negativeTimingRestoredByUnpack},
                                {"animationEnabledAfterUnpack", animationEnabledAfterUnpack},
                                {"unpackSamplePreserved", unpackSamplePreserved},
@@ -563,6 +585,7 @@ public:
                                 wrapperNegativeTimingRestoredByUnpackUndo},
                                {"wrapperIdentityRestoredByUnpackUndo",
                                 wrapperIdentityRestoredByUnpackUndo},
+                               {"managerRegisteredByUnpackUndo", managerRegisteredByUnpackUndo},
                                {"negativeTimingRestoredByUnpackUndo",
                                 negativeTimingRestoredByUnpackUndo},
                                {"animationEnabledAfterUnpackUndo", animationEnabledAfterUnpackUndo},
@@ -570,6 +593,7 @@ public:
                                {"animationRestoredByUnpackRedo", animationRestoredByUnpackRedo},
                                {"unpackRedoIdentityPreserved", unpackRedoIdentityPreserved},
                                {"wrapperRemovedByUnpackRedo", wrapperRemovedByUnpackRedo},
+                               {"managerUnregisteredByUnpackRedo", managerUnregisteredByUnpackRedo},
                                {"negativeTimingRestoredByUnpackRedo",
                                 negativeTimingRestoredByUnpackRedo},
                                {"animationEnabledAfterUnpackRedo", animationEnabledAfterUnpackRedo},
