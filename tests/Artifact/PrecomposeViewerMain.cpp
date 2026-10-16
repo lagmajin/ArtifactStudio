@@ -225,7 +225,9 @@ public:
             const auto allLayersMoved = [](const QJsonObject& snapshot) {
                 const auto rootLayers = snapshot["layers"].toArray();
                 if (rootLayers.size() != 1) return false;
-                const auto childLayers = rootLayers[0].toObject()["children"].toArray();
+                const auto wrapper = rootLayers[0].toObject();
+                if (wrapper["startFrame"].toInt() != 0) return false;
+                const auto childLayers = wrapper["children"].toArray();
                 bool foundA = false;
                 bool foundB = false;
                 bool foundUntouched = false;
