@@ -264,7 +264,10 @@ def main():
             require(not reset_capture.get("isError") and reset_capture["content"][0]["type"] == "image"
                     and reset_capture["content"][0].get("mimeType") == "image/png",
                     "Capture immediately after reset did not return a PNG image")
-            validate_png(base64.b64decode(reset_capture["content"][0]["data"], validate=True))
+            reset_png = base64.b64decode(reset_capture["content"][0]["data"], validate=True)
+            validate_png(reset_png)
+            (args.output_dir / "reset.png").write_bytes(reset_png)
+            evidence[-1]["reply"] = {"image": "reset.png"}
             require(call("test.state") == reset_capture_state,
                     "Capture immediately after reset changed the restored fixture")
             keyboard_round_trip = call("test.guiKeyboardRoundTrip")
