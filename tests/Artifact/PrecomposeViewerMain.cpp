@@ -4328,6 +4328,10 @@ public:
                 roundTrip["error"] = QStringLiteral("Precompose layers unavailable for metadata persistence");
                 return roundTrip;
             }
+            const auto parentEffectCountBefore = parent->getEffects().size();
+            const auto persistedParentEffect = makeShared<BrightnessEffect>();
+            persistedParentEffect->setBrightness(-0.21875f);
+            parent->addEffect(persistedParentEffect);
             sourceLayer->setLayerNote(QStringLiteral("Persisted A / 注記"));
             sourceLayer->setVisible(false);
             sourceLayer->setLocked(true);
@@ -4554,6 +4558,17 @@ public:
                 reloadedMattes.front().invert;
             const bool componentDescriptorsPersisted = reloadedSourceLayer &&
                 reloadedSourceLayer->componentDescriptorSnapshot() == expectedComponentSnapshot;
+            const auto reloadedParentEffects = reloadedParent ? reloadedParent->getEffects()
+                                                               : std::vector<SharedPtr<ArtifactAbstractEffect>>{};
+            const auto reloadedParentBrightness = std::find_if(
+                reloadedParentEffects.begin(), reloadedParentEffects.end(), [](const auto& effect) {
+                    const auto brightness = dynamicPointerCast<BrightnessEffect>(effect);
+                    return brightness && std::abs(brightness->brightness() + 0.21875f) <= 1.0e-6f;
+                });
+            const bool compositionEffectPersistedOnParent =
+                reloadedParentEffects.size() == parentEffectCountBefore + 1 &&
+                reloadedParentBrightness != reloadedParentEffects.end() && reloadedChild &&
+                reloadedChild->effectCount() == 0;
             const auto hasPersistedAuxiliaryState = [&](const ArtifactAbstractLayerPtr& layer) {
                 if (!layer || layer->componentDescriptorSnapshot() != expectedComponentSnapshot ||
                     layer->maskCount() != 1 || layer->matteReferences().size() != 1) return false;
@@ -4633,18 +4648,35 @@ public:
             const bool auxiliaryStateUnpacked = loaded && reloadedPrecompLayer &&
                 service->unprecomposeLayerWithUndo(originalPrecompLayer->id(), true) &&
                 hasPersistedAuxiliaryState(reloadedParent->layerById(sourceLayer->id()));
-            const bool unpackUndoAvailable = auxiliaryStateUnpacked && undo->canUndo();
+            const auto compositionEffectScopeMatches = [&]() {
+                const auto parentEffects = reloadedParent->getEffects();
+                const auto child = service->findComposition(originalChildId).ptr.lock();
+                if (!child) return false;
+                const auto childEffects = child->getEffects();
+                const auto authoredEffect = std::find_if(parentEffects.begin(), parentEffects.end(),
+                    [](const auto& effect) {
+                        const auto brightness = dynamicPointerCast<BrightnessEffect>(effect);
+                        return brightness && std::abs(brightness->brightness() + 0.21875f) <= 1.0e-6f;
+                    });
+                return parentEffects.size() == parentEffectCountBefore + 1 &&
+                    authoredEffect != parentEffects.end() && childEffects.empty();
+            };
+            const bool compositionEffectScopeAfterUnpack = auxiliaryStateUnpacked &&
+                compositionEffectScopeMatches();
+            const bool unpackUndoAvailable = compositionEffectScopeAfterUnpack && undo->canUndo();
             if (unpackUndoAvailable) undo->undo();
             const auto undoChild = service->findComposition(originalChildId).ptr.lock();
             const bool unpackUndoRestored = unpackUndoAvailable &&
                 hasPersistedAuxiliaryState(undoChild ? undoChild->layerById(sourceLayer->id())
                                                      : ArtifactAbstractLayerPtr{}) &&
+                compositionEffectScopeMatches() &&
                 precompManager.isPrecomposeLayer(originalPrecompLayer->id()) &&
                 reloadedParent->layerById(originalPrecompLayer->id());
             const bool unpackRedoAvailable = unpackUndoRestored && undo->canRedo();
             if (unpackRedoAvailable) undo->redo();
             const bool unpackRedoRestored = unpackRedoAvailable &&
                 hasPersistedAuxiliaryState(reloadedParent->layerById(sourceLayer->id())) &&
+                compositionEffectScopeMatches() &&
                 !precompManager.isPrecomposeLayer(originalPrecompLayer->id());
             roundTrip["parentChildLinkPreserved"] = parentChildLink;
             roundTrip["layerStatePreserved"] = reloaded == original;
@@ -4658,6 +4690,9 @@ public:
             roundTrip["layerMaskPersisted"] = layerMaskPersisted;
             roundTrip["layerMattePersisted"] = layerMattePersisted;
             roundTrip["componentDescriptorsPersisted"] = componentDescriptorsPersisted;
+            roundTrip["compositionEffectPersistedOnParent"] = compositionEffectPersistedOnParent;
+            roundTrip["compositionEffectScopeAfterUnpack"] = compositionEffectScopeAfterUnpack;
+            roundTrip["compositionEffectScopeAfterUndoRedo"] = unpackUndoRestored && unpackRedoRestored;
             roundTrip["auxiliaryStateUnpackedAfterReload"] = auxiliaryStateUnpacked;
             roundTrip["unpackUndoRestoredChild"] = unpackUndoRestored;
             roundTrip["unpackRedoRestoredParent"] = unpackRedoRestored;
@@ -4665,7 +4700,8 @@ public:
                 masterPropertyDefinitionPreserved && masterPropertyOverridePreserved && overrideStillDeferred &&
                 layerMetadataPreserved && transformKeyframesPreserved && layerEffectPersisted &&
                 layerMaskPersisted && layerMattePersisted && componentDescriptorsPersisted &&
-                auxiliaryStateUnpacked && unpackUndoRestored && unpackRedoRestored;
+                compositionEffectPersistedOnParent && auxiliaryStateUnpacked &&
+                compositionEffectScopeAfterUnpack && unpackUndoRestored && unpackRedoRestored;
             if (!roundTrip["passed"].toBool())
                 roundTrip["error"] = QStringLiteral("Precompose project round-trip lost parent/child data or runtime nesting registration");
             childId_ = originalChildId;

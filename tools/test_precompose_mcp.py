@@ -487,6 +487,9 @@ def main():
                     and round_trip["layerMaskPersisted"]
                     and round_trip["layerMattePersisted"]
                     and round_trip["componentDescriptorsPersisted"]
+                    and round_trip["compositionEffectPersistedOnParent"]
+                    and round_trip["compositionEffectScopeAfterUnpack"]
+                    and round_trip["compositionEffectScopeAfterUndoRedo"]
                     and round_trip["auxiliaryStateUnpackedAfterReload"]
                     and round_trip["unpackUndoRestoredChild"]
                     and round_trip["unpackRedoRestoredParent"],
