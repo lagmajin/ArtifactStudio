@@ -594,10 +594,16 @@ def main():
             call("test.reset")
             noncontiguous = call("test.nonContiguousSelectionOrder")
             require(noncontiguous["passed"] and noncontiguous["childOrderPreserved"]
+                    and noncontiguous["childKeysRetimed"]
+                    and noncontiguous["childSamplesPreserved"]
                     and noncontiguous["originalOrderRestored"]
+                    and noncontiguous["unpackedKeysRestored"]
+                    and noncontiguous["unpackedSamplesPreserved"]
                     and noncontiguous["undoRestoredPrecompose"]
-                    and noncontiguous["redoRestoredOriginalOrder"],
-                    "Noncontiguous precompose/unpack did not restore source layer ordering")
+                    and noncontiguous["undoAnimationPreserved"]
+                    and noncontiguous["redoRestoredOriginalOrder"]
+                    and noncontiguous["redoAnimationRestored"],
+                    "Noncontiguous precompose/unpack changed animation timing or layer ordering")
             require("test.capture" in exposed_tool_names,
                     "MCP tools/list did not advertise test.capture")
             image = request("tools/call", {"name": "test.capture", "arguments": {}})

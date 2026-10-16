@@ -4536,33 +4536,147 @@ public:
                 if (layer->layerName() == QStringLiteral("A")) aId = layer->id();
                 if (layer->layerName() == QStringLiteral("Untouched")) untouchedId = layer->id();
             }
-            if (aId.isNil() || untouchedId.isNil() || !service->precomposeLayersWithUndo(
+            if (aId.isNil() || untouchedId.isNil()) {
+                result["error"] = QStringLiteral("Noncontiguous fixture layers are missing");
+                return result;
+            }
+            const auto sourceA = comp->layerById(aId);
+            const auto sourceUntouched = comp->layerById(untouchedId);
+            const auto positionA = sourceA
+                ? sourceA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const auto opacityUntouched = sourceUntouched
+                ? sourceUntouched->getProperty(QStringLiteral("layer.opacity"))
+                : SharedPtr<AbstractProperty>{};
+            if (!sourceA || !sourceUntouched || !positionA || !opacityUntouched) {
+                result["error"] = QStringLiteral("Noncontiguous animation fixture properties are unavailable");
+                return result;
+            }
+            positionA->clearKeyFrames();
+            positionA->setAnimatable(true);
+            positionA->addKeyFrame(RationalTime(40, sourceA->keyframeTimeScale()), 4.0,
+                                   InterpolationType::Bezier);
+            positionA->addKeyFrame(RationalTime(100, sourceA->keyframeTimeScale()), 16.0,
+                                   InterpolationType::Constant);
+            opacityUntouched->clearKeyFrames();
+            opacityUntouched->setAnimatable(true);
+            opacityUntouched->addKeyFrame(RationalTime(30, sourceUntouched->keyframeTimeScale()),
+                                          0.25, InterpolationType::Smooth);
+            opacityUntouched->addKeyFrame(RationalTime(90, sourceUntouched->keyframeTimeScale()),
+                                          0.85, InterpolationType::Linear);
+            const auto originalPositionKeys = keyframes(positionA);
+            const auto originalOpacityKeys = keyframes(opacityUntouched);
+            const double originalPositionSample = positionA->evaluateValue(
+                RationalTime(70, sourceA->keyframeTimeScale())).toDouble();
+            const double originalOpacitySample = opacityUntouched->evaluateValue(
+                RationalTime(60, sourceUntouched->keyframeTimeScale())).toDouble();
+            const auto keysShifted = [](const QJsonArray& actual, const QJsonArray& expected,
+                                        int64_t offset) {
+                if (actual.size() != expected.size()) return false;
+                for (qsizetype index = 0; index < actual.size(); ++index) {
+                    auto expectedKey = expected[index].toObject();
+                    expectedKey["timeValue"] = expectedKey["timeValue"].toInt() +
+                        static_cast<int>(offset);
+                    if (actual[index].toObject() != expectedKey) return false;
+                }
+                return true;
+            };
+            const bool precomposed = service->precomposeLayersWithUndo(
                     {untouchedId, aId}, UniString(QStringLiteral("Noncontiguous Selection")),
-                    false, false, PrecomposeMode::MoveSelected)) {
+                    false, false, PrecomposeMode::MoveSelected);
+            if (!precomposed) {
                 result["error"] = QStringLiteral("Could not precompose the noncontiguous fixture selection");
                 return result;
             }
             const auto outcome = service->lastPrecomposeOutcome();
             const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto childA = child ? child->layerById(aId) : ArtifactAbstractLayerPtr{};
+            const auto childUntouched = child ? child->layerById(untouchedId) : ArtifactAbstractLayerPtr{};
+            const auto childPositionA = childA
+                ? childA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const auto childOpacityUntouched = childUntouched
+                ? childUntouched->getProperty(QStringLiteral("layer.opacity"))
+                : SharedPtr<AbstractProperty>{};
             const bool childOrderPreserved = child && child->allLayer().size() == 2 &&
                 child->allLayer()[0]->id() == aId && child->allLayer()[1]->id() == untouchedId;
+            const bool childKeysRetimed = childPositionA && childOpacityUntouched &&
+                keysShifted(keyframes(childPositionA), originalPositionKeys, -25) &&
+                keysShifted(keyframes(childOpacityUntouched), originalOpacityKeys, -25);
+            const bool childSamplesPreserved = childPositionA && childOpacityUntouched &&
+                std::abs(childPositionA->evaluateValue(RationalTime(
+                    45, childA->keyframeTimeScale())).toDouble() - originalPositionSample) < 1.0e-6 &&
+                std::abs(childOpacityUntouched->evaluateValue(RationalTime(
+                    35, childUntouched->keyframeTimeScale())).toDouble() - originalOpacitySample) < 1.0e-6;
             const auto precomposedState = layers(comp, 0);
             const bool unpacked = service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
             const bool originalOrderRestored = unpacked && layers(comp, 0) == originalState;
+            const auto unpackedA = comp->layerById(aId);
+            const auto unpackedUntouched = comp->layerById(untouchedId);
+            const auto unpackedPositionA = unpackedA
+                ? unpackedA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const auto unpackedOpacityUntouched = unpackedUntouched
+                ? unpackedUntouched->getProperty(QStringLiteral("layer.opacity"))
+                : SharedPtr<AbstractProperty>{};
+            const bool unpackedKeysRestored = unpackedPositionA && unpackedOpacityUntouched &&
+                keyframes(unpackedPositionA) == originalPositionKeys &&
+                keyframes(unpackedOpacityUntouched) == originalOpacityKeys;
+            const bool unpackedSamplesPreserved = unpackedPositionA && unpackedOpacityUntouched &&
+                std::abs(unpackedPositionA->evaluateValue(RationalTime(
+                    70, unpackedA->keyframeTimeScale())).toDouble() - originalPositionSample) < 1.0e-6 &&
+                std::abs(unpackedOpacityUntouched->evaluateValue(RationalTime(
+                    60, unpackedUntouched->keyframeTimeScale())).toDouble() - originalOpacitySample) < 1.0e-6;
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
             const bool undoRestoredPrecompose = undoAvailable && layers(comp, 0) == precomposedState;
+            const auto undoChildPosition = childA
+                ? childA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const auto undoChildOpacity = childUntouched
+                ? childUntouched->getProperty(QStringLiteral("layer.opacity"))
+                : SharedPtr<AbstractProperty>{};
+            const bool undoAnimationPreserved = undoAvailable && undoChildPosition && undoChildOpacity &&
+                keysShifted(keyframes(undoChildPosition), originalPositionKeys, -25) &&
+                keysShifted(keyframes(undoChildOpacity), originalOpacityKeys, -25) &&
+                std::abs(undoChildPosition->evaluateValue(RationalTime(
+                    45, childA->keyframeTimeScale())).toDouble() - originalPositionSample) < 1.0e-6 &&
+                std::abs(undoChildOpacity->evaluateValue(RationalTime(
+                    35, childUntouched->keyframeTimeScale())).toDouble() - originalOpacitySample) < 1.0e-6;
             const bool redoAvailable = undo->canRedo();
             if (redoAvailable) undo->redo();
             const bool redoRestoredOriginalOrder = redoAvailable && layers(comp, 0) == originalState;
+            const auto redoA = comp->layerById(aId);
+            const auto redoUntouched = comp->layerById(untouchedId);
+            const auto redoPositionA = redoA
+                ? redoA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const auto redoOpacityUntouched = redoUntouched
+                ? redoUntouched->getProperty(QStringLiteral("layer.opacity"))
+                : SharedPtr<AbstractProperty>{};
+            const bool redoAnimationRestored = redoRestoredOriginalOrder && redoPositionA &&
+                redoOpacityUntouched && keyframes(redoPositionA) == originalPositionKeys &&
+                keyframes(redoOpacityUntouched) == originalOpacityKeys &&
+                std::abs(redoPositionA->evaluateValue(RationalTime(
+                    70, redoA->keyframeTimeScale())).toDouble() - originalPositionSample) < 1.0e-6 &&
+                std::abs(redoOpacityUntouched->evaluateValue(RationalTime(
+                    60, redoUntouched->keyframeTimeScale())).toDouble() - originalOpacitySample) < 1.0e-6;
             result["childOrderPreserved"] = childOrderPreserved;
+            result["childKeysRetimed"] = childKeysRetimed;
+            result["childSamplesPreserved"] = childSamplesPreserved;
             result["originalOrderRestored"] = originalOrderRestored;
+            result["unpackedKeysRestored"] = unpackedKeysRestored;
+            result["unpackedSamplesPreserved"] = unpackedSamplesPreserved;
             result["undoRestoredPrecompose"] = undoRestoredPrecompose;
+            result["undoAnimationPreserved"] = undoAnimationPreserved;
             result["redoRestoredOriginalOrder"] = redoRestoredOriginalOrder;
-            result["passed"] = childOrderPreserved && originalOrderRestored &&
-                undoRestoredPrecompose && redoRestoredOriginalOrder;
+            result["redoAnimationRestored"] = redoAnimationRestored;
+            result["passed"] = childOrderPreserved && childKeysRetimed && childSamplesPreserved &&
+                originalOrderRestored && unpackedKeysRestored && unpackedSamplesPreserved &&
+                undoRestoredPrecompose && undoAnimationPreserved && redoRestoredOriginalOrder &&
+                redoAnimationRestored;
             if (!result["passed"].toBool())
-                result["error"] = QStringLiteral("Noncontiguous precompose/unpack changed source layer ordering");
+                result["error"] = QStringLiteral("Noncontiguous precompose/unpack changed animation or layer ordering");
             childId_ = outcome.childCompId;
             hasChild_ = true;
             refresh();
