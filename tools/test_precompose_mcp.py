@@ -389,6 +389,9 @@ def main():
             notify("notifications/initialized", {})
             require(call("test.state") == protocol_state_before_invalid_calls,
                     "MCP initialized notification changed state or produced an unexpected response")
+            notify("tools/call", {"name": "test.reset", "arguments": {}})
+            require(call("test.state") == protocol_state_before_invalid_calls,
+                    "JSON-RPC notification invoked a mutating MCP tool or produced a response")
             unknown_tool = request("tools/call", {"name": "test.notARealTool", "arguments": {}})
             require("Unknown tool" in parse_tool_error("unknown tool", unknown_tool)["error"],
                     "Unknown MCP tool did not return a tool error")
