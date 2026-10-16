@@ -82,6 +82,7 @@ def main():
             keyboard_round_trip = call("test.guiKeyboardRoundTrip")
             require(keyboard_round_trip["passed"] and keyboard_round_trip["precomposedByKey"]
                     and keyboard_round_trip["undoneByKey"] and keyboard_round_trip["redoneByKey"]
+                    and keyboard_round_trip["selectedSettingsCopiedByKey"]
                     and keyboard_round_trip["unpackedKeepByKey"]
                     and keyboard_round_trip["keepUndoByKey"] and keyboard_round_trip["keepRedoByKey"]
                     and keyboard_round_trip["precomposedForDeleteByKey"]
@@ -89,6 +90,7 @@ def main():
                     and keyboard_round_trip["deleteUndoByKey"]
                     and keyboard_round_trip["deleteRedoByKey"]
                     and keyboard_round_trip["allMovedByKey"]
+                    and keyboard_round_trip["allSettingsCopiedByKey"]
                     and keyboard_round_trip["allUndoByKey"]
                     and keyboard_round_trip["allRedoByKey"]
                     and keyboard_round_trip["resetByKey"],

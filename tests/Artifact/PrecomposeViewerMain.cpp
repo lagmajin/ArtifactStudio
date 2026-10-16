@@ -87,6 +87,12 @@ public:
         if (comp) {
             result["compositionId"] = comp->id().toString();
             result["layers"] = layers(comp, 0);
+            const auto size = comp->settings().compositionSize();
+            const auto color = comp->backgroundColor();
+            result["resolution"] = QJsonArray{size.width(), size.height()};
+            result["frameRate"] = comp->frameRate().framerate();
+            result["frameRangeDuration"] = comp->frameRange().duration();
+            result["backgroundColor"] = QJsonArray{color.r(), color.g(), color.b(), color.a()};
         }
         if (hasChild_) {
             result["lastChildId"] = childId_.toString();
@@ -134,11 +140,41 @@ public:
                     childNames == QStringList{QStringLiteral("A"), QStringLiteral("B"),
                                               QStringLiteral("Untouched")} && timingPreserved;
             };
+            const auto childSettingsCopied = [](const QJsonObject& snapshot) {
+                const auto parentResolution = snapshot["resolution"].toArray();
+                const auto parentColor = snapshot["backgroundColor"].toArray();
+                if (parentResolution != QJsonArray{1280, 720} ||
+                    std::abs(snapshot["frameRate"].toDouble() - 24.0) > 1.0e-6 ||
+                    snapshot["frameRangeDuration"].toInt() != 300 || parentColor.size() != 4 ||
+                    std::abs(parentColor[0].toDouble() - 0.125) > 1.0e-6 ||
+                    std::abs(parentColor[1].toDouble() - 0.25) > 1.0e-6 ||
+                    std::abs(parentColor[2].toDouble() - 0.5) > 1.0e-6 ||
+                    std::abs(parentColor[3].toDouble() - 1.0) > 1.0e-6)
+                    return false;
+                for (const auto& value : snapshot["layers"].toArray()) {
+                    const auto child = value.toObject()["childComposition"].toObject();
+                    if (child.isEmpty()) continue;
+                    const auto childResolution = child["resolution"].toArray();
+                    const auto childColor = child["backgroundColor"].toArray();
+                    if (childResolution == parentResolution &&
+                        std::abs(child["frameRate"].toDouble() - snapshot["frameRate"].toDouble()) <= 1.0e-6 &&
+                        child["frameRangeDuration"].toInt() == snapshot["frameRangeDuration"].toInt() &&
+                        childColor.size() == 4 &&
+                        std::abs(childColor[0].toDouble() - parentColor[0].toDouble()) <= 1.0e-6 &&
+                        std::abs(childColor[1].toDouble() - parentColor[1].toDouble()) <= 1.0e-6 &&
+                        std::abs(childColor[2].toDouble() - parentColor[2].toDouble()) <= 1.0e-6 &&
+                        std::abs(childColor[3].toDouble() - parentColor[3].toDouble()) <= 1.0e-6)
+                        return true;
+                }
+                return false;
+            };
             sendKey(Qt::Key_P);
             const auto afterPrecompose = state();
             const bool precomposedByKey = afterPrecompose["canUndo"].toBool() &&
                 afterPrecompose["lastChildExists"].toBool() &&
                 afterPrecompose["layers"].toArray().size() == 2;
+            const bool selectedSettingsCopiedByKey = precomposedByKey &&
+                childSettingsCopied(afterPrecompose);
             sendKey(Qt::Key_Z);
             const auto afterUndo = state();
             const bool undoneByKey = afterUndo["canRedo"].toBool() &&
@@ -189,6 +225,7 @@ public:
             const auto afterMoveAll = state();
             const bool allMovedByKey = afterMoveAll["canUndo"].toBool() &&
                 afterMoveAll["lastChildExists"].toBool() && allLayersMoved(afterMoveAll);
+            const bool allSettingsCopiedByKey = allMovedByKey && childSettingsCopied(afterMoveAll);
             sendKey(Qt::Key_Z);
             const auto afterMoveAllUndo = state();
             const bool allUndoByKey = afterMoveAllUndo["canRedo"].toBool() &&
@@ -213,6 +250,7 @@ public:
             QJsonObject result{{"precomposedByKey", precomposedByKey},
                                {"undoneByKey", undoneByKey},
                                {"redoneByKey", redoneByKey},
+                               {"selectedSettingsCopiedByKey", selectedSettingsCopiedByKey},
                                {"unpackedKeepByKey", unpackedKeepByKey},
                                {"keepUndoByKey", keepUndoByKey},
                                {"keepRedoByKey", keepRedoByKey},
@@ -221,13 +259,16 @@ public:
                                {"deleteUndoByKey", deleteUndoByKey},
                                {"deleteRedoByKey", deleteRedoByKey},
                                {"allMovedByKey", allMovedByKey},
+                               {"allSettingsCopiedByKey", allSettingsCopiedByKey},
                                {"allUndoByKey", allUndoByKey},
                                {"allRedoByKey", allRedoByKey},
                                {"resetByKey", resetByKey},
-                               {"passed", precomposedByKey && undoneByKey && redoneByKey &&
+                               {"passed", precomposedByKey && selectedSettingsCopiedByKey &&
+                                   undoneByKey && redoneByKey &&
                                    unpackedKeepByKey && keepUndoByKey && keepRedoByKey &&
                                    precomposedForDeleteByKey && unpackedDeleteByKey &&
                                    deleteUndoByKey && deleteRedoByKey && allMovedByKey &&
+                                   allSettingsCopiedByKey &&
                                    allUndoByKey && allRedoByKey && resetByKey},
                                {"state", afterReset}};
             if (!result["passed"].toBool())
@@ -3276,7 +3317,17 @@ private:
                 entry["childId"] = childId.toString();
                 auto child = ArtifactProjectService::instance()->findComposition(childId).ptr.lock();
                 entry["childExists"] = bool(child);
-                if (child) entry["children"] = layers(child, depth + 1);
+                if (child) {
+                    entry["children"] = layers(child, depth + 1);
+                    const auto childSize = child->settings().compositionSize();
+                    const auto childColor = child->backgroundColor();
+                    entry["childComposition"] = QJsonObject{
+                        {"resolution", QJsonArray{childSize.width(), childSize.height()}},
+                        {"frameRate", child->frameRate().framerate()},
+                        {"frameRangeDuration", child->frameRange().duration()},
+                        {"backgroundColor", QJsonArray{childColor.r(), childColor.g(),
+                                                        childColor.b(), childColor.a()}}};
+                }
             }
             result.append(entry);
         }
