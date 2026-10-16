@@ -146,9 +146,19 @@ def main():
     exposed_tool_names = set()
     invoked_tool_names = set()
     with (args.output_dir / "stderr.log").open("w", encoding="utf-8") as log:
-        process = subprocess.Popen([str(args.server.resolve()), "--mcp-stdio", "--lang", args.language],
-                                   stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                   stderr=log, text=True, encoding="utf-8")
+        try:
+            process = subprocess.Popen(
+                [str(args.server.resolve()), "--mcp-stdio", "--lang", args.language],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=log, text=True, encoding="utf-8")
+        except OSError as error:
+            evidence.append({"harnessError": f"{type(error).__name__}: {error}"})
+            evidence.append({"serverExitCode": None})
+            evidence.append({"serverForcedTermination": False, "serverForcedKill": False})
+            evidence.append({"captureFiles": []})
+            (args.output_dir / "result.json").write_text(
+                json.dumps(evidence, ensure_ascii=False, indent=2), encoding="utf-8")
+            raise
 
         def read_replies():
             for line in process.stdout:
