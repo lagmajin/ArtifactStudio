@@ -3827,6 +3827,41 @@ public:
             wrapper->setCompositionId(outcome.childCompId);
             const bool danglingFixtureRestored = wrapper->sourceCompositionId() == outcome.childCompId &&
                 service->findComposition(outcome.childCompId).ptr.lock() == child;
+            wrapper->setCompositionId(rootId);
+            const auto selfReferenceState = state();
+            const auto compositionCountBeforeSelfReferenceUnwrap =
+                ArtifactProjectManager::getInstance().compositionCount();
+            const auto undoCountBeforeSelfReferenceUnwrap = undo->undoCount();
+            const auto redoCountBeforeSelfReferenceUnwrap = undo->redoCount();
+            const bool selfReferenceRejected =
+                !service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const auto selfReferenceLinks = PreComposeManager::instance()
+                .getPrecompLayersForChild(outcome.childCompId);
+            const bool selfReferenceManagerMappingPreserved =
+                PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId) &&
+                PreComposeManager::instance().getSourceCompositionId(outcome.precompLayerId) ==
+                    outcome.childCompId && selfReferenceLinks.size() == 1 &&
+                selfReferenceLinks.front().parentCompId == rootId &&
+                selfReferenceLinks.front().precompLayerId == outcome.precompLayerId;
+            const bool selfReferenceOutcomeCleared =
+                service->lastUnprecomposePrecompLayerId().isNil() &&
+                service->lastUnprecomposeChildCompId().isNil() &&
+                service->lastUnprecomposeMovedLayerIds().isEmpty();
+            const bool selfReferenceStatePreserved = selfReferenceRejected &&
+                state() == selfReferenceState &&
+                ArtifactProjectManager::getInstance().compositionCount() ==
+                    compositionCountBeforeSelfReferenceUnwrap &&
+                undo->undoCount() == undoCountBeforeSelfReferenceUnwrap &&
+                undo->redoCount() == redoCountBeforeSelfReferenceUnwrap &&
+                service->findComposition(rootId).ptr.lock() == root &&
+                service->findComposition(outcome.childCompId).ptr.lock() == child &&
+                root->layerById(outcome.precompLayerId).get() == wrapper.get() &&
+                wrapper->sourceCompositionId() == rootId &&
+                selfReferenceManagerMappingPreserved && selfReferenceOutcomeCleared;
+            wrapper->setCompositionId(outcome.childCompId);
+            const bool selfReferenceFixtureRestored =
+                wrapper->sourceCompositionId() == outcome.childCompId &&
+                service->findComposition(outcome.childCompId).ptr.lock() == child;
             service->changeCurrentComposition(rootId);
             missingResult["unwrapRejected"] = rejected;
             missingResult["parentStatePreserved"] = parentStatePreserved;
@@ -3840,11 +3875,18 @@ public:
             missingResult["danglingOutcomeCleared"] = danglingOutcomeCleared;
             missingResult["danglingReferenceStatePreserved"] = danglingReferenceStatePreserved;
             missingResult["danglingFixtureRestored"] = danglingFixtureRestored;
+            missingResult["selfReferenceRejected"] = selfReferenceRejected;
+            missingResult["selfReferenceManagerMappingPreserved"] = selfReferenceManagerMappingPreserved;
+            missingResult["selfReferenceOutcomeCleared"] = selfReferenceOutcomeCleared;
+            missingResult["selfReferenceStatePreserved"] = selfReferenceStatePreserved;
+            missingResult["selfReferenceFixtureRestored"] = selfReferenceFixtureRestored;
             missingResult["passed"] = rejected && parentStatePreserved && compositionPreserved &&
                 wrapperPreserved && undoHistoryPreserved && outcomeCleared && fixtureRestored &&
                 danglingReferenceRejected && danglingManagerMappingPreserved &&
                 danglingOutcomeCleared && danglingReferenceStatePreserved &&
-                danglingFixtureRestored;
+                danglingFixtureRestored && selfReferenceRejected &&
+                selfReferenceManagerMappingPreserved && selfReferenceOutcomeCleared &&
+                selfReferenceStatePreserved && selfReferenceFixtureRestored;
             if (!missingResult["passed"].toBool())
                 missingResult["error"] = QStringLiteral("Unprecompose mutated a broken child reference or failed to restore the fixture");
             refresh();

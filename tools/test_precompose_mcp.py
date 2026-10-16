@@ -613,7 +613,12 @@ def main():
                     and missing_child["danglingManagerMappingPreserved"]
                     and missing_child["danglingOutcomeCleared"]
                     and missing_child["danglingReferenceStatePreserved"]
-                    and missing_child["danglingFixtureRestored"],
+                    and missing_child["danglingFixtureRestored"]
+                    and missing_child["selfReferenceRejected"]
+                    and missing_child["selfReferenceManagerMappingPreserved"]
+                    and missing_child["selfReferenceOutcomeCleared"]
+                    and missing_child["selfReferenceStatePreserved"]
+                    and missing_child["selfReferenceFixtureRestored"],
                     "Unprecompose mutated a wrapper with a missing child reference")
             call("test.reset")
             empty_child = call("test.emptyChildUnwrapRejected")
