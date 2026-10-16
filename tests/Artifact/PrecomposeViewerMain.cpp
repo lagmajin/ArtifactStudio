@@ -1111,7 +1111,17 @@ public:
             refresh();
             return {{"panelRefreshed", true}, {"state", state()}};
         }
+        if (name == "test.hideCaptureWindow") {
+            hide();
+            return {{"windowHidden", !isVisible()}, {"state", state()}};
+        }
+        if (name == "test.showCaptureWindow") {
+            show();
+            return {{"windowVisible", isVisible() && !isMinimized()}, {"state", state()}};
+        }
         if (name == "test.capture") {
+            if (!isVisible() || isMinimized() || !text_->isVisible())
+                return {{"error", "Capture window is not visible"}};
             const auto currentState = state();
             const auto displayedState = QJsonDocument::fromJson(text_->toPlainText().toUtf8());
             if (!displayedState.isObject() || displayedState.object() != currentState)
@@ -7760,7 +7770,8 @@ private:
             for (const auto* name : {"test.state", "test.reset", "test.resetFromChild", "test.guiKeyboardRoundTrip", "test.guiAnimatedKeyRoundTrip", "test.guiOpenChildCompositionRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.childCompositionEffectStaysWithChild", "test.openChildComposition", "test.matchWorkspaceDuration", "test.emptyWorkspaceDurationFallsBack", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.precomposeIgnoresStaleSelectionId", "test.unpackLayerIdCollisionAtomic", "test.unpackDuplicateChildLayerIdsAtomic", "test.unpackNilChildLayerIdAtomic", "test.missingChildReferenceAtomic", "test.unprecomposeWithMissingManagerMapping", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression",
                     "test.prepareInvalidCapturePanel", "test.prepareMismatchedCapturePanel",
-                    "test.refreshStatePanel", "test.capture"})
+                    "test.refreshStatePanel", "test.hideCaptureWindow", "test.showCaptureWindow",
+                    "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
             response["result"] = QJsonObject{{"tools", tools}};
