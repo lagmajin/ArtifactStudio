@@ -651,8 +651,23 @@ public:
                 branchIds, UniString(QStringLiteral("Replacement Redo Branch")), false, false,
                 PrecomposeMode::MoveSelected);
             const auto replacementOutcome = service->lastPrecomposeOutcome();
+            const auto replacementChild = service->findComposition(replacementOutcome.childCompId).ptr.lock();
+            const bool abandonedChildRemoved =
+                !service->findComposition(abandonedOutcome.childCompId).ptr.lock() &&
+                PreComposeManager::instance().getPrecompLayersForChild(
+                    abandonedOutcome.childCompId).isEmpty();
+            bool replacementMappingRestored = false;
+            for (const auto& reference : PreComposeManager::instance().getPrecompLayersForChild(
+                     replacementOutcome.childCompId)) {
+                replacementMappingRestored = replacementMappingRestored ||
+                    (reference.parentCompId == rootId &&
+                     reference.precompLayerId == replacementOutcome.precompLayerId);
+            }
+            const bool replacementChildCountCorrect = newPrecompose && replacementChild &&
+                ArtifactProjectManager::getInstance().compositionCount() == originalCompositionCount + 1;
             const bool abandonedRedoDiscarded = newPrecompose && !undo->canRedo() && undo->redoCount() == 0 &&
                 !abandonedOutcome.precompLayerId.isNil() && !replacementOutcome.precompLayerId.isNil() &&
+                abandonedChildRemoved && replacementChildCountCorrect && replacementMappingRestored &&
                 !comp->layerById(abandonedOutcome.precompLayerId) &&
                 !PreComposeManager::instance().isPrecomposeLayer(abandonedOutcome.precompLayerId) &&
                 comp->layerById(replacementOutcome.precompLayerId) &&
@@ -661,15 +676,35 @@ public:
             if (replacementUndoAvailable) undo->undo();
             const bool replacementUndoRestored = replacementUndoAvailable && undo->canRedo() &&
                 undo->redoCount() == 1 && layers(comp, 0) == originalLayers &&
-                !comp->layerById(replacementOutcome.precompLayerId);
+                !comp->layerById(replacementOutcome.precompLayerId) &&
+                !service->findComposition(replacementOutcome.childCompId).ptr.lock() &&
+                PreComposeManager::instance().getPrecompLayersForChild(
+                    replacementOutcome.childCompId).isEmpty() &&
+                ArtifactProjectManager::getInstance().compositionCount() == originalCompositionCount;
             if (undo->canRedo()) undo->redo();
+            const auto redoneReplacementChild =
+                service->findComposition(replacementOutcome.childCompId).ptr.lock();
+            bool replacementMappingAfterRedo = false;
+            for (const auto& reference : PreComposeManager::instance().getPrecompLayersForChild(
+                     replacementOutcome.childCompId)) {
+                replacementMappingAfterRedo = replacementMappingAfterRedo ||
+                    (reference.parentCompId == rootId &&
+                     reference.precompLayerId == replacementOutcome.precompLayerId);
+            }
             const bool replacementRedoRestored = comp->id() == rootId &&
+                redoneReplacementChild == replacementChild &&
+                ArtifactProjectManager::getInstance().compositionCount() == originalCompositionCount + 1 &&
+                replacementMappingAfterRedo &&
                 comp->layerById(replacementOutcome.precompLayerId) &&
                 PreComposeManager::instance().isPrecomposeLayer(replacementOutcome.precompLayerId) &&
                 !comp->layerById(abandonedOutcome.precompLayerId);
             branchResult["redoBranchCreated"] = redoBranchCreated;
+            branchResult["abandonedChildRemoved"] = abandonedChildRemoved;
             branchResult["abandonedRedoDiscarded"] = abandonedRedoDiscarded;
+            branchResult["replacementChildCountCorrect"] = replacementChildCountCorrect;
+            branchResult["replacementMappingRestored"] = replacementMappingRestored;
             branchResult["replacementUndoRestored"] = replacementUndoRestored;
+            branchResult["replacementMappingAfterRedo"] = replacementMappingAfterRedo;
             branchResult["replacementRedoRestored"] = replacementRedoRestored;
             branchResult["passed"] = redoBranchCreated && abandonedRedoDiscarded &&
                 replacementUndoRestored && replacementRedoRestored;

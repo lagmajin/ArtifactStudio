@@ -189,8 +189,12 @@ def main():
             call("test.reset")
             redo_branch = call("test.redoBranchDiscarded")
             require(redo_branch["passed"] and redo_branch["redoBranchCreated"]
+                    and redo_branch["abandonedChildRemoved"]
                     and redo_branch["abandonedRedoDiscarded"]
+                    and redo_branch["replacementChildCountCorrect"]
+                    and redo_branch["replacementMappingRestored"]
                     and redo_branch["replacementUndoRestored"]
+                    and redo_branch["replacementMappingAfterRedo"]
                     and redo_branch["replacementRedoRestored"],
                     "A new precompose did not discard and replace the old redo branch")
             call("test.reset")

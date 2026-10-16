@@ -17,6 +17,8 @@
 
 `test.unpackDeleteRedo`は子Composition削除後のUndoで同一Composition objectとA/Bレイヤーobject、親wrapperのManager登録が復元し、Redoで子と逆引き登録が再び削除されることを確認する。
 
+`test.redoBranchDiscarded`は新しい操作で古いRedo分岐を破棄したとき、旧子CompositionとManager逆引きが残らず、新しい子だけがcomposition count・親wrapper登録と一緒にUndo/Redoで往復することを確認する。
+
 `test.emptyWorkspaceDurationFallsBack`はdurationが0のWorkspace範囲を指定してプリコンポーズし、子Compositionのframe rangeとwork areaが親全体のdurationへフォールバックすることを解除Undo/Redo後も確認する。
 
 `test.saveReload`は保存後に再読込した子レイヤーをそのまま解除し、エフェクト・アニメーション付きマスク・マット参照・コンポーネントdescriptorが親へ移ること、親Compositionのエフェクトが子レイヤーへ混入せず親に残ること、Undoで子とwrapperへ戻り、Redoで同じ状態を再適用することも検査する。
