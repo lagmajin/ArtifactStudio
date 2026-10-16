@@ -3,6 +3,7 @@
 #include <QJsonObject>
 #include <QVector>
 
+#include <cstddef>
 #include <limits>
 #include <utility>
 
@@ -35,6 +36,45 @@ TEST(AudioDelayStandaloneTest, ExposesExpectedDefaultsAndParameters)
     EXPECT_FLOAT_EQ(delay.getParameterValue(String("delay_ms")), 300.0f);
     EXPECT_FLOAT_EQ(delay.getParameterValue(String("feedback")), 0.3f);
     EXPECT_FLOAT_EQ(delay.getParameterValue(String("mix")), 0.4f);
+}
+
+TEST(AudioDelayStandaloneTest, ParameterMetadataAndIdRoutingStayConsistent)
+{
+    AudioDelay delay;
+    const auto parameters = delay.getParameters();
+    ASSERT_EQ(parameters.size(), 3u);
+
+    for (std::size_t index = 0; index < parameters.size(); ++index) {
+        const auto& parameter = parameters[index];
+        EXPECT_FALSE(parameter.id.isEmpty());
+        EXPECT_LE(parameter.minValue, parameter.maxValue);
+        EXPECT_GE(parameter.defaultValue, parameter.minValue);
+        EXPECT_LE(parameter.defaultValue, parameter.maxValue);
+        EXPECT_FLOAT_EQ(parameter.value, delay.getParameterValue(parameter.id));
+        for (std::size_t previous = 0; previous < index; ++previous)
+            EXPECT_NE(parameters[previous].id, parameter.id);
+
+        const auto before = delay.getParameters();
+        float probe = (parameter.minValue + parameter.maxValue) * 0.5f;
+        if (probe == parameter.value)
+            probe = parameter.value == parameter.minValue
+                ? parameter.maxValue : parameter.minValue;
+        delay.setParameterValue(parameter.id, probe);
+
+        EXPECT_FLOAT_EQ(delay.getParameterValue(parameter.id), probe);
+        const auto after = delay.getParameters();
+        for (std::size_t other = 0; other < before.size(); ++other) {
+            if (other == index) continue;
+            EXPECT_FLOAT_EQ(after[other].value, before[other].value)
+                << "Setting parameter " << toStdString(parameter.id)
+                << " changed " << toStdString(before[other].id);
+        }
+    }
+
+    const QJsonObject beforeUnknownId = delay.toJson();
+    delay.setParameterValue(String("unknown_parameter"), 0.5f);
+    EXPECT_EQ(delay.toJson(), beforeUnknownId);
+    EXPECT_FLOAT_EQ(delay.getParameterValue(String("unknown_parameter")), 0.0f);
 }
 
 TEST(AudioDelayStandaloneTest, SettersClampFiniteValuesAndRestoreDefaultsForNonFiniteValues)
