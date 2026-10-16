@@ -6116,6 +6116,19 @@ public:
             const auto inner = service->lastPrecomposeOutcome();
             const auto innerWrapper = middle->layerById(inner.precompLayerId);
             const auto innerChild = service->findComposition(inner.childCompId).ptr.lock();
+            auto* selection = ArtifactLayerSelectionManager::instance();
+            const auto matchesMiddleSelection = [&](const LayerID& layerId,
+                                                     const ArtifactAbstractLayerPtr& layer) {
+                const auto active = selection ? selection->activeComposition() : ArtifactCompositionPtr{};
+                const auto current = selection ? selection->currentLayer() : ArtifactAbstractLayerPtr{};
+                const auto selected = selection ? selection->selectedLayersInOrder()
+                                                : QVector<ArtifactAbstractLayerPtr>{};
+                return active && active->id() == outer.childCompId && layer && current &&
+                    current.get() == layer.get() && current->id() == layerId &&
+                    selected.size() == 1 && selected.front().get() == layer.get();
+            };
+            const bool nestedSelectionCorrect = innerWrapper &&
+                matchesMiddleSelection(inner.precompLayerId, innerWrapper);
             const bool nestedObjectsPreserved = innerWrapper && innerChild &&
                 innerChild->layerById(originalAId).get() == originalA.get() &&
                 innerChild->layerById(originalBId).get() == originalB.get() &&
@@ -6144,6 +6157,8 @@ public:
             const bool nestingRemoved = refsAfterUnpack.isEmpty() &&
                 !manager.isPrecomposeLayer(inner.precompLayerId);
             const bool restoredTiming = dissolved && matchesRestoredLayers();
+            const bool unpackSelectionCorrect = dissolved &&
+                matchesMiddleSelection(originalAId, originalA);
             const bool unpackPreservedObjects = restoredTiming && nestedObjectsPreserved &&
                 middle.get() == service->currentComposition().lock().get() &&
                 !middle->layerById(inner.precompLayerId) &&
@@ -6172,6 +6187,8 @@ public:
                 undoB.get() == originalB.get() &&
                 middle->layerById(inner.precompLayerId).get() == innerWrapper.get() &&
                 root->layerById(outer.precompLayerId).get() == outerWrapper.get();
+            const bool undoSelectionCorrect = undoRestoredNesting &&
+                matchesMiddleSelection(inner.precompLayerId, innerWrapper);
             const bool redoAvailable = undo->canRedo();
             if (redoAvailable) undo->redo();
             const bool redoRemovedNesting = redoAvailable &&
@@ -6181,21 +6198,28 @@ public:
                 service->findComposition(inner.childCompId).ptr.lock() == innerChild &&
                 !middle->layerById(inner.precompLayerId) &&
                 root->layerById(outer.precompLayerId).get() == outerWrapper.get();
+            const bool redoSelectionCorrect = redoRemovedNesting &&
+                matchesMiddleSelection(originalAId, originalA);
             result["outerChildId"] = outer.childCompId.toString();
             result["innerChildId"] = inner.childCompId.toString();
+            result["nestedSelectionCorrect"] = nestedSelectionCorrect;
             result["nestedObjectsPreserved"] = nestedObjectsPreserved;
             result["dissolved"] = dissolved;
             result["nestingRemoved"] = nestingRemoved;
             result["restoredTiming"] = restoredTiming;
+            result["unpackSelectionCorrect"] = unpackSelectionCorrect;
             result["unpackPreservedObjects"] = unpackPreservedObjects;
             result["undoRestoredNesting"] = undoRestoredNesting;
             result["undoPreservedObjects"] = undoPreservedObjects;
+            result["undoSelectionCorrect"] = undoSelectionCorrect;
             result["redoRemovedNesting"] = redoRemovedNesting;
             result["redoPreservedObjects"] = redoPreservedObjects;
+            result["redoSelectionCorrect"] = redoSelectionCorrect;
             result["passed"] = dissolved && nestingRemoved && restoredTiming &&
-                nestedObjectsPreserved && unpackPreservedObjects &&
-                undoRestoredNesting && undoPreservedObjects &&
-                redoRemovedNesting && redoPreservedObjects;
+                nestedSelectionCorrect && nestedObjectsPreserved && unpackPreservedObjects &&
+                unpackSelectionCorrect && undoRestoredNesting && undoPreservedObjects &&
+                undoSelectionCorrect && redoRemovedNesting && redoPreservedObjects &&
+                redoSelectionCorrect;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Nested unpack changed layer timing, object identity, or runtime nesting across undo/redo");
             service->changeCurrentComposition(rootId);
