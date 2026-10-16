@@ -2221,18 +2221,16 @@ public:
                 namedLayerIds(redoneChild, {QStringLiteral("A"), QStringLiteral("B")}) == sourceIds;
             const bool redoChildSettingsPreserved = redoneChild &&
                 childSettingsMatchParent(redoneChild);
-            bool parentReferenceRestored = false;
-            for (const auto& reference : PreComposeManager::instance().getPrecompLayersForChild(
-                     outcome.childCompId)) {
-                parentReferenceRestored = parentReferenceRestored ||
-                    (reference.parentCompId == rootId &&
-                     reference.precompLayerId == outcome.precompLayerId);
-            }
+            const auto redoChildReferences = PreComposeManager::instance()
+                .getPrecompLayersForChild(outcome.childCompId);
+            const bool redoReverseMappingRestored = redoChildReferences.size() == 1 &&
+                redoChildReferences.front().parentCompId == rootId &&
+                redoChildReferences.front().precompLayerId == outcome.precompLayerId;
             const bool redoKeptRootFocused = redoAvailable && afterRedo && afterRedo->id() == rootId &&
                 matchesSelection(rootId, outcome.precompLayerId);
             const bool redoRestoredChild = redoneChild && afterRedo &&
                 namedLayerIds(redoneChild, {QStringLiteral("A"), QStringLiteral("B")}).size() == 2 &&
-                parentReferenceRestored && afterRedo->layerById(outcome.precompLayerId);
+                redoReverseMappingRestored && afterRedo->layerById(outcome.precompLayerId);
             const bool redoWrapperIdentityPreserved = rootWrapper && afterRedo &&
                 afterRedo->layerById(outcome.precompLayerId).get() == rootWrapper.get();
             result["rootCompositionId"] = rootId.toString();
@@ -2260,6 +2258,7 @@ public:
             result["redoChildLayerObjectsPreserved"] = redoChildLayerObjectsPreserved;
             result["redoChildLayerOrderPreserved"] = redoChildLayerOrderPreserved;
             result["redoChildSettingsPreserved"] = redoChildSettingsPreserved;
+            result["redoReverseMappingRestored"] = redoReverseMappingRestored;
             result["redoWrapperIdentityPreserved"] = redoWrapperIdentityPreserved;
             result["passed"] = childOpened && childSelectionCorrect &&
                 childLayerObjectsPreservedOnOpen && childLayerOrderPreservedOnOpen &&

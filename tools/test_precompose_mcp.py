@@ -430,6 +430,7 @@ def main():
                     and gui_opened_child["redoChildLayerObjectsPreserved"]
                     and gui_opened_child["redoChildLayerOrderPreserved"]
                     and gui_opened_child["redoChildSettingsPreserved"]
+                    and gui_opened_child["redoReverseMappingRestored"]
                     and gui_opened_child["redoWrapperIdentityPreserved"],
                     "GUI O key did not preserve open-child selection and undo/redo focus behavior")
             call("test.reset")
