@@ -443,6 +443,39 @@ def main():
                     "Visible capture after window recovery changed size or fixture state")
             evidence[-1]["reply"] = {
                 "captureValidated": True, "dimensions": visible_dimensions}
+            minimized_window = call("test.minimizeCaptureWindow")
+            require(minimized_window["windowMinimized"]
+                    and minimized_window["state"] == reset_state
+                    and call("test.state") == reset_state,
+                    "Minimizing the capture window changed fixture state or was not applied")
+            minimized_capture = request("tools/call", {
+                "name": "test.capture", "arguments": {}})
+            require(minimized_capture.get("isError")
+                    and len(minimized_capture.get("content", [])) == 1
+                    and minimized_capture["content"][0].get("type") == "text"
+                    and json.loads(minimized_capture["content"][0]["text"]).get("error") ==
+                    "Capture window is not visible"
+                    and call("test.state") == reset_state,
+                    "Capture succeeded or changed fixture while the test window was minimized")
+            restored_window = call("test.restoreCaptureWindow")
+            require(restored_window["windowVisible"] and restored_window["state"] == reset_state
+                    and call("test.state") == reset_state,
+                    "Minimized capture window did not restore without changing fixture state")
+            restored_capture = request("tools/call", {
+                "name": "test.capture", "arguments": {}})
+            require(not restored_capture.get("isError")
+                    and len(restored_capture.get("content", [])) == 1
+                    and restored_capture["content"][0].get("type") == "image"
+                    and restored_capture["content"][0].get("mimeType") == "image/png",
+                    "Capture did not recover after restoring the minimized window")
+            restored_png = base64.b64decode(
+                restored_capture["content"][0]["data"], validate=True)
+            restored_dimensions = validate_png(restored_png)
+            require(restored_dimensions == recovered_capture_dimensions
+                    and call("test.state") == reset_state,
+                    "Restored capture changed size or fixture state")
+            evidence[-1]["reply"] = {
+                "captureValidated": True, "dimensions": restored_dimensions}
             reset_capture_state = call("test.state")
             reset_capture = request("tools/call", {"name": "test.capture", "arguments": {}})
             require(not reset_capture.get("isError") and reset_capture["content"][0]["type"] == "image"

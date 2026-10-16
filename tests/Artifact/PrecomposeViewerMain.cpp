@@ -1119,6 +1119,14 @@ public:
             show();
             return {{"windowVisible", isVisible() && !isMinimized()}, {"state", state()}};
         }
+        if (name == "test.minimizeCaptureWindow") {
+            showMinimized();
+            return {{"windowMinimized", isMinimized()}, {"state", state()}};
+        }
+        if (name == "test.restoreCaptureWindow") {
+            showNormal();
+            return {{"windowVisible", isVisible() && !isMinimized()}, {"state", state()}};
+        }
         if (name == "test.capture") {
             if (!isVisible() || isMinimized() || !text_->isVisible())
                 return {{"error", "Capture window is not visible"}};
@@ -7771,6 +7779,7 @@ private:
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression",
                     "test.prepareInvalidCapturePanel", "test.prepareMismatchedCapturePanel",
                     "test.refreshStatePanel", "test.hideCaptureWindow", "test.showCaptureWindow",
+                    "test.minimizeCaptureWindow", "test.restoreCaptureWindow",
                     "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
