@@ -105,6 +105,16 @@ def validate_png_contract():
         "CRC corruption": valid_png[:29] + bytes([valid_png[29] ^ 1]) + valid_png[30:],
         "invalid filter": image(b"\x05\x7f"),
         "scanline size mismatch": image(b"\x00"),
+        "compressed stream trailing data": (
+            signature + make_png_chunk(b"IHDR", header)
+            + make_png_chunk(b"IDAT", zlib.compress(b"\x00\x7f") + b"\xff")
+            + make_png_chunk(b"IEND", b"")),
+        "nonconsecutive IDAT chunks": (
+            signature + make_png_chunk(b"IHDR", header)
+            + make_png_chunk(b"IDAT", zlib.compress(b"\x00\x7f"))
+            + make_png_chunk(b"tEXt", b"test\x00value")
+            + make_png_chunk(b"IDAT", b"") + make_png_chunk(b"IEND", b"")),
+        "trailing data after IEND": valid_png + b"\x00",
     }
     for label, invalid_png in invalid_images.items():
         try:
