@@ -13,7 +13,7 @@
 
 | # | テスト領域 | 主な独立境界 | 状況 |
 |---:|---|---|---|
-| 1 | キーフレーム補間 | Core `KeyframeSplineTest` | 負時刻とConstant終端ケースを追加。未実行 |
+| 1 | キーフレーム補間 | Core `KeyframeSplineTest` | 負時刻・Constant終端・負の線形速度とトラック外速度0のケースを追加。未実行 |
 | 2 | フレームレート変換 | Core `FrameRateContractTest` / `FrameTimeTest` / `RationalTimeContractTest` | 既存suiteでexact/nominal rateのFramePosition↔RationalTime変換、正負half-frame丸め、TimeCodeのdrop-frame 10分境界、invalid rate fallback、storageScaleのhalf boundary sweep・飽和・reference gridまで確認。重複追加なし。runtime未実行 |
 | 3 | PropertyPath | Core `PropertyPathTest` | 空・区切り文字のみ、owner/property片側空ケースを追加。未実行 |
 | 4 | ID・参照整合性 | Core ID契約、Composition Node Store | Node Store用の独立CPU contract targetに6ケース（duplicate/unknown parent/self・ancestor cycle atomicity/removal detach/order+JSON roundtrip/order update/invalid JSON import）を追加。未ビルド・未実行 |
@@ -35,7 +35,7 @@
 | 20 | プリコンポーズ・子編集・解除 | Project service integration | PrecomposeViewer独立回帰ケースで子編集値の解除・Undo/Redo保持、nested unwrap、保存再読込後の構成とManager階層復元、拒否時原子性を確認。Windows専用viewerの`--check`経路（CTest登録ではない）を静的確認。suite改変なし、未ビルド・未実行 |
 | 21 | Playback範囲 | Playback model/service | 独立CPU `ArtifactInOutPointsContractTest` に未設定・両端設定・片側クリア・逆順・Composition外点を追加。別processの`ArtifactPlaybackRangeServiceContractTest`でAll/WorkAreaのEngine range適用とIn/Out clippingを追加。サービスはQThread/AudioRendererを構築するが再生は開始せず、Core event loopの専用targetに隔離。未ビルド・未実行 |
 | 22 | Transport状態機械 | Playback Service | 既存の独立Playback Service processにPlay→Pause→Play(Resume)→Stopの状態遷移ケースを追加。RAM/disk preview無効化、Composition解除とstop/wait cleanupを行う。Service生成・実再生はQThread/AudioRendererを伴うため通常CPU unitより負荷はあるが、Artifactアプリ本体とは別processに隔離。未ビルド・未実行 |
-| 23 | Render Cache key | Render controller/model | 独立Core `RenderPipelineContractTest` がframe/backend/scene/settings/dimensions/color contract等を検査。静的監査で、`RenderInputSnapshot::cacheKey()`が`requiresCompute`/`requiresHDR`/`usesTemporalHistory`を`RenderCacheKey`へコピーしていない不一致を発見。既存`CacheKeyTracksRemainingIdentityColorAndFeatureFields`のfeature flag差分期待は現実装では成立せず、実行時は失敗する見込み。修正対象はArtifactCore child repoで、今回は未変更。実行未確認 |
+| 23 | Render Cache key | Render controller/model | 独立Core `RenderPipelineContractTest` がframe/backend/scene/settings/dimensions/color/feature flagを検査。現ArtifactCoreソースの`RenderInputSnapshot::cacheKey()`は`requiresCompute`/`requiresHDR`/`usesTemporalHistory`を`RenderCacheKey`へ代入し、stable hashにも含めることを再確認。`CacheKeyTracksRemainingIdentityColorAndFeatureFields`の期待と静的には整合。runtime未確認 |
 | 24 | Cache invalidation範囲 | Layer Surface Cache | 独立Windows GUI harnessでcache hit・対象Effect更新後のinvalidaton/rebuild・無関係Layer非干渉を検査し、未変更rerender前後のpresented Composition frameをpixel完全一致比較するよう拡張。ArtifactCore IFC問題でビルド/runtime未確認 |
 | 25 | Dirty範囲計算 | Bounds/renderer contract | 独立Standalone suiteで変換四隅/AABB/回転/scale/負scale/包含・端点/退化矩形/角度等価性まで確認。追加なし、未実行 |
 | 26 | 画像境界・形式変換 | Core image contract | 独立suite群でinvalid pointer/dimension/stride、padded row stride、premultiplied alpha、byte/float変換、file decode境界を分担して検査。今回追加なし、未実行 |
@@ -57,7 +57,8 @@
 - `CompositionNodeStore::fromJson()` は配列内の各要素を順次 `addNode()` に通す。重複IDは最初の項目が残り、存在しない親・空ID・オブジェクト以外は捨てられる。独立CPU契約テストでこの復元挙動を確認するケースを追加。
 - `ArtifactInOutPoints::effectiveRange()` はIn/Outが逆順なら端点を並べ替えるが、Composition境界外の明示点は clamp しない。この契約の追加ケースを登録。
 - #2既存suiteを再監査。FrameTimeのFramePosition/TimeCode変換と正負境界、RationalTimeのoverflow/rounding/reference grid、FrameRate storage scaleの境界・飽和ケースが既にあり、追加候補の重複を避けた。
-- #23 `RenderCacheKey`静的監査で、key structとstableHashはcompute/HDR/temporal-history flagを保持する一方、`RenderInputSnapshot::cacheKey()`のbuilderはそれらを代入していないことを確認。既存契約テストには各flagを反転してkey差を要求するassertがあるため、source上の不一致がある。ArtifactCore child repoの製品実装変更は行っていない。
+- #1に負の線形傾きとトラック両端外で速度が0へクランプされる契約を追加。既存の正の傾き・定数区間ケースと重複しない。
+- #23 の前回記録「feature flagをcache keyへ代入していない」は現状態と不一致だったため撤回。現在の`ArtifactCore/include/Graphics/RenderPipelineFoundation.ixx`では3 flagのkeyへの代入、`RenderCacheKey::stableHash()`での混入、既存契約テストの差分assertを静的に確認した。実行未確認。
 - Playback stress harness にComposition連続巡回操作を追加。各遷移でPlayback Serviceの対象・再生状態とフレーム進行をまとめて返す。GPU/GUI環境での実行は未実施。
 - Renderライブラリ内のCPU `FrameCache` を単独processのcontract targetで検査するケースを追加。フレーム数・バイト数上限、LRU選択、oversized entry rejectionを対象とし、Graphics Deviceは生成しない。
 - `FrameCache` の世代bump/古いentry cleanup、およびComposition・frame range・layer ID・effect IDによる対象invalidatonの組み合わせを追加。

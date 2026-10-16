@@ -188,6 +188,31 @@ TEST(KeyframeSplineTest, LinearSpeedUsesFrameTimeUnits)
     EXPECT_NEAR(interp.speedAt(1.25), 10.0f, 0.02f);
 }
 
+TEST(KeyframeSplineTest, LinearSpeedTracksNegativeSlopeAndClampsOutsideTrack)
+{
+    KeyframeInterpolator<float> interp;
+    typename KeyframeInterpolator<float>::KeyframeEntry first;
+    first.time = -2.0;
+    first.value = 10.0f;
+    first.type = InterpolationType::Linear;
+    typename KeyframeInterpolator<float>::KeyframeEntry second;
+    second.time = 0.0;
+    second.value = 0.0f;
+    second.type = InterpolationType::Linear;
+    typename KeyframeInterpolator<float>::KeyframeEntry third;
+    third.time = 4.0;
+    third.value = -20.0f;
+    third.type = InterpolationType::Linear;
+    interp.addKeyframe(first);
+    interp.addKeyframe(second);
+    interp.addKeyframe(third);
+
+    EXPECT_NEAR(interp.speedAt(-1.0), -5.0f, 0.02f);
+    EXPECT_NEAR(interp.speedAt(2.0), -5.0f, 0.02f);
+    EXPECT_FLOAT_EQ(interp.speedAt(-3.0), 0.0f);
+    EXPECT_FLOAT_EQ(interp.speedAt(5.0), 0.0f);
+}
+
 TEST(KeyframeSplineTest, ConstantAndSingleKeyTracksHaveZeroSpeed)
 {
     KeyframeInterpolator<float> constant;
