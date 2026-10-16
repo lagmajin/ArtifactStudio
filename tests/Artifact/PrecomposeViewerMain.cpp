@@ -2112,6 +2112,13 @@ public:
                                                        : ArtifactAbstractLayerPtr{};
             const auto sourceB = sourceIds.size() == 2 ? comp->layerById(sourceIds[1])
                                                        : ArtifactAbstractLayerPtr{};
+            const auto hasLayerTiming = [](const ArtifactAbstractLayerPtr& layer,
+                                           int64_t inFrame, int64_t outFrame,
+                                           int64_t startFrame) {
+                return layer && layer->inPoint().framePosition() == inFrame &&
+                    layer->outPoint().framePosition() == outFrame &&
+                    layer->startTime().framePosition() == startFrame;
+            };
             if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
                     sourceIds, UniString(QStringLiteral("Open Child Composition")), true, false,
                     PrecomposeMode::MoveSelected)) {
@@ -2130,6 +2137,9 @@ public:
                                               : ArtifactAbstractLayerPtr{};
             const bool childLayerObjectsPreservedOnOpen = childOpened && sourceA && sourceB &&
                 openedA.get() == sourceA.get() && openedB.get() == sourceB.get();
+            const bool childTimingNormalizedOnOpen = childOpened &&
+                hasLayerTiming(openedA, 0, 160, -33) &&
+                hasLayerTiming(openedB, 30, 120, -31);
             const auto childSettingsMatchParent = [&comp](const ArtifactCompositionPtr& child) {
                 if (!comp || !child) return false;
                 const auto parentSize = comp->settings().compositionSize();
@@ -2173,6 +2183,8 @@ public:
                     comp->layerById(outcome.precompLayerId));
             const auto rootWrapper = ArtifactCore::dynamicPointerCast<ArtifactCompositionLayer>(
                 comp->layerById(outcome.precompLayerId));
+            const bool wrapperTimingPreservedOnOpen = rootWrapper &&
+                hasLayerTiming(rootWrapper, 40, 200, 40);
             const auto childLayerCountBeforeWrongContextUnpack = openedChild
                 ? openedChild->allLayer().size() : 0;
             const auto rootSettingsBeforeWrongContextUnpack = settingsSnapshot(comp);
@@ -2234,6 +2246,9 @@ public:
             const bool undoLayerObjectsReturnedToRoot = undoReturnedToRoot && sourceA && sourceB &&
                 afterUndo->layerById(sourceIds[0]).get() == sourceA.get() &&
                 afterUndo->layerById(sourceIds[1]).get() == sourceB.get();
+            const bool undoSourceTimingRestored = undoReturnedToRoot &&
+                hasLayerTiming(afterUndo->layerById(sourceIds[0]), 40, 200, 7) &&
+                hasLayerTiming(afterUndo->layerById(sourceIds[1]), 70, 160, 9);
             const bool undoLayerOrderRestoredToRoot = undoReturnedToRoot &&
                 namedLayerIds(afterUndo, {QStringLiteral("A"), QStringLiteral("B")}) == sourceIds;
             const bool undoRootLayerSnapshotRestored = undoReturnedToRoot &&
@@ -2262,6 +2277,9 @@ public:
                 redoneA.get() == sourceA.get() && redoneB.get() == sourceB.get();
             const bool redoChildLayerOrderPreserved = redoneChild &&
                 namedLayerIds(redoneChild, {QStringLiteral("A"), QStringLiteral("B")}) == sourceIds;
+            const bool redoChildTimingNormalized = redoneChild &&
+                hasLayerTiming(redoneA, 0, 160, -33) &&
+                hasLayerTiming(redoneB, 30, 120, -31);
             const bool redoChildSettingsPreserved = redoneChild &&
                 childSettingsMatchParent(redoneChild);
             const auto redoChildReferences = PreComposeManager::instance()
@@ -2283,6 +2301,8 @@ public:
                 redoReverseMappingRestored && afterRedo->layerById(outcome.precompLayerId);
             const bool redoWrapperIdentityPreserved = rootWrapper && afterRedo &&
                 afterRedo->layerById(outcome.precompLayerId).get() == rootWrapper.get();
+            const bool redoWrapperTimingPreserved = rootWrapper &&
+                hasLayerTiming(rootWrapper, 40, 200, 40);
             const auto redoRootUntouchedIds = namedLayerIds(
                 afterRedo, {QStringLiteral("Untouched")});
             const bool redoRootContainsOnlyWrapperAndUntouched = afterRedo && untouchedLayer &&
@@ -2297,6 +2317,8 @@ public:
             result["childOpened"] = childOpened;
             result["childLayerOrderPreservedOnOpen"] = childLayerOrderPreservedOnOpen;
             result["childLayerObjectsPreservedOnOpen"] = childLayerObjectsPreservedOnOpen;
+            result["childTimingNormalizedOnOpen"] = childTimingNormalizedOnOpen;
+            result["wrapperTimingPreservedOnOpen"] = wrapperTimingPreservedOnOpen;
             result["childSettingsCopiedOnOpen"] = childSettingsCopiedOnOpen;
             result["childSelectionCorrect"] = childSelectionCorrect;
             result["rootWrapperCreated"] = bool(rootWrapperCreated);
@@ -2312,6 +2334,7 @@ public:
             result["wrongContextStatePreserved"] = wrongContextStatePreserved;
             result["undoReturnedToRoot"] = undoReturnedToRoot;
             result["undoLayerObjectsReturnedToRoot"] = undoLayerObjectsReturnedToRoot;
+            result["undoSourceTimingRestored"] = undoSourceTimingRestored;
             result["undoLayerOrderRestoredToRoot"] = undoLayerOrderRestoredToRoot;
             result["undoRootLayerSnapshotRestored"] = undoRootLayerSnapshotRestored;
             result["undoManagerMappingsCleared"] = undoManagerMappingsCleared;
@@ -2321,25 +2344,31 @@ public:
             result["redoChildCompositionIdentityPreserved"] = redoChildCompositionIdentityPreserved;
             result["redoChildLayerObjectsPreserved"] = redoChildLayerObjectsPreserved;
             result["redoChildLayerOrderPreserved"] = redoChildLayerOrderPreserved;
+            result["redoChildTimingNormalized"] = redoChildTimingNormalized;
             result["redoChildSettingsPreserved"] = redoChildSettingsPreserved;
             result["redoReverseMappingRestored"] = redoReverseMappingRestored;
             result["redoForwardMappingRestored"] = redoForwardMappingRestored;
             result["redoCompositionCountRestored"] = redoCompositionCountRestored;
             result["redoWrapperIdentityPreserved"] = redoWrapperIdentityPreserved;
+            result["redoWrapperTimingPreserved"] = redoWrapperTimingPreserved;
             result["redoRootContainsOnlyWrapperAndUntouched"] =
                 redoRootContainsOnlyWrapperAndUntouched;
             result["passed"] = childOpened && childSelectionCorrect &&
-                childLayerObjectsPreservedOnOpen && childLayerOrderPreservedOnOpen &&
+                childLayerObjectsPreservedOnOpen && childTimingNormalizedOnOpen &&
+                wrapperTimingPreservedOnOpen && childLayerOrderPreservedOnOpen &&
                 childSettingsCopiedOnOpen && rootWrapperCreated &&
                 wrongContextUnpackRejected &&
                 wrongContextStatePreserved && undoReturnedToRoot && undoLayerObjectsReturnedToRoot &&
-                undoLayerOrderRestoredToRoot && undoManagerMappingsCleared &&
+                undoSourceTimingRestored && undoLayerOrderRestoredToRoot &&
+                undoManagerMappingsCleared &&
                 undoRootLayerSnapshotRestored && undoCompositionCountRestored &&
                 redoKeptRootFocused && redoRestoredChild && redoChildCompositionIdentityPreserved &&
                 redoChildLayerObjectsPreserved && redoChildLayerOrderPreserved &&
+                redoChildTimingNormalized &&
                 redoChildSettingsPreserved && redoReverseMappingRestored &&
                 redoForwardMappingRestored && redoCompositionCountRestored &&
-                redoWrapperIdentityPreserved && redoRootContainsOnlyWrapperAndUntouched;
+                redoWrapperIdentityPreserved && redoWrapperTimingPreserved &&
+                redoRootContainsOnlyWrapperAndUntouched;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Open-child navigation or undo/redo focus contract changed");
             service->changeCurrentComposition(rootId);

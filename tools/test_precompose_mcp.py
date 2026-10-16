@@ -412,6 +412,8 @@ def main():
                     and gui_opened_child["childOpened"]
                     and gui_opened_child["childLayerOrderPreservedOnOpen"]
                     and gui_opened_child["childLayerObjectsPreservedOnOpen"]
+                    and gui_opened_child["childTimingNormalizedOnOpen"]
+                    and gui_opened_child["wrapperTimingPreservedOnOpen"]
                     and gui_opened_child["childSettingsCopiedOnOpen"]
                     and gui_opened_child["childSelectionCorrect"]
                     and gui_opened_child["wrongContextUnpackRejected"]
@@ -425,6 +427,7 @@ def main():
                     and gui_opened_child["wrongContextStatePreserved"]
                     and gui_opened_child["undoReturnedToRoot"]
                     and gui_opened_child["undoLayerObjectsReturnedToRoot"]
+                    and gui_opened_child["undoSourceTimingRestored"]
                     and gui_opened_child["undoLayerOrderRestoredToRoot"]
                     and gui_opened_child["undoRootLayerSnapshotRestored"]
                     and gui_opened_child["undoManagerMappingsCleared"]
@@ -434,11 +437,13 @@ def main():
                     and gui_opened_child["redoChildCompositionIdentityPreserved"]
                     and gui_opened_child["redoChildLayerObjectsPreserved"]
                     and gui_opened_child["redoChildLayerOrderPreserved"]
+                    and gui_opened_child["redoChildTimingNormalized"]
                     and gui_opened_child["redoChildSettingsPreserved"]
                     and gui_opened_child["redoReverseMappingRestored"]
                     and gui_opened_child["redoForwardMappingRestored"]
                     and gui_opened_child["redoCompositionCountRestored"]
                     and gui_opened_child["redoWrapperIdentityPreserved"]
+                    and gui_opened_child["redoWrapperTimingPreserved"]
                     and gui_opened_child["redoRootContainsOnlyWrapperAndUntouched"],
                     "GUI O key did not preserve open-child selection and undo/redo focus behavior")
             call("test.reset")
