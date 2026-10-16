@@ -81,8 +81,14 @@ def main():
             exposed_tool_names.update(names)
             keyboard_round_trip = call("test.guiKeyboardRoundTrip")
             require(keyboard_round_trip["passed"] and keyboard_round_trip["precomposedByKey"]
-                    and keyboard_round_trip["undoneByKey"] and keyboard_round_trip["redoneByKey"],
-                    "GUI P/Z/Y keyboard routing did not round-trip precompose")
+                    and keyboard_round_trip["undoneByKey"] and keyboard_round_trip["redoneByKey"]
+                    and keyboard_round_trip["unpackedKeepByKey"]
+                    and keyboard_round_trip["keepUndoByKey"] and keyboard_round_trip["keepRedoByKey"]
+                    and keyboard_round_trip["precomposedForDeleteByKey"]
+                    and keyboard_round_trip["unpackedDeleteByKey"]
+                    and keyboard_round_trip["deleteUndoByKey"]
+                    and keyboard_round_trip["deleteRedoByKey"],
+                    "GUI P/K/D/Z/Y keyboard routing did not round-trip precompose and unprecompose")
             call("test.reset")
             initial = call("test.state")
             original = initial["layers"]

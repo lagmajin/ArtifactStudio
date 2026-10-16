@@ -120,13 +120,58 @@ public:
                 !afterRedo["canRedo"].toBool() &&
                 afterRedo["lastChildExists"].toBool() &&
                 afterRedo["layers"].toArray().size() == 2;
+            sendKey(Qt::Key_K);
+            const auto afterKeepUnpack = state();
+            const bool unpackedKeepByKey = afterKeepUnpack["canUndo"].toBool() &&
+                afterKeepUnpack["lastChildExists"].toBool() &&
+                afterKeepUnpack["layers"].toArray() == originalLayers;
+            sendKey(Qt::Key_Z);
+            const auto afterKeepUndo = state();
+            const bool keepUndoByKey = afterKeepUndo["canRedo"].toBool() &&
+                afterKeepUndo["lastChildExists"].toBool() &&
+                afterKeepUndo["layers"].toArray().size() == 2;
+            sendKey(Qt::Key_Y);
+            const auto afterKeepRedo = state();
+            const bool keepRedoByKey = afterKeepRedo["lastChildExists"].toBool() &&
+                afterKeepRedo["layers"].toArray() == originalLayers;
+            sendKey(Qt::Key_P);
+            const auto beforeDeleteUnpack = state();
+            const bool precomposedForDeleteByKey = beforeDeleteUnpack["lastChildExists"].toBool() &&
+                beforeDeleteUnpack["layers"].toArray().size() == 2;
+            sendKey(Qt::Key_D);
+            const auto afterDeleteUnpack = state();
+            const bool unpackedDeleteByKey = precomposedForDeleteByKey &&
+                afterDeleteUnpack["canUndo"].toBool() &&
+                !afterDeleteUnpack["lastChildExists"].toBool() &&
+                afterDeleteUnpack["layers"].toArray() == originalLayers;
+            sendKey(Qt::Key_Z);
+            const auto afterDeleteUndo = state();
+            const bool deleteUndoByKey = afterDeleteUndo["canRedo"].toBool() &&
+                afterDeleteUndo["lastChildExists"].toBool() &&
+                afterDeleteUndo["layers"].toArray().size() == 2;
+            sendKey(Qt::Key_Y);
+            const auto afterDeleteRedo = state();
+            const bool deleteRedoByKey = afterDeleteRedo["canUndo"].toBool() &&
+                !afterDeleteRedo["canRedo"].toBool() &&
+                !afterDeleteRedo["lastChildExists"].toBool() &&
+                afterDeleteRedo["layers"].toArray() == originalLayers;
             QJsonObject result{{"precomposedByKey", precomposedByKey},
                                {"undoneByKey", undoneByKey},
                                {"redoneByKey", redoneByKey},
-                               {"passed", precomposedByKey && undoneByKey && redoneByKey},
-                               {"state", afterRedo}};
+                               {"unpackedKeepByKey", unpackedKeepByKey},
+                               {"keepUndoByKey", keepUndoByKey},
+                               {"keepRedoByKey", keepRedoByKey},
+                               {"precomposedForDeleteByKey", precomposedForDeleteByKey},
+                               {"unpackedDeleteByKey", unpackedDeleteByKey},
+                               {"deleteUndoByKey", deleteUndoByKey},
+                               {"deleteRedoByKey", deleteRedoByKey},
+                               {"passed", precomposedByKey && undoneByKey && redoneByKey &&
+                                   unpackedKeepByKey && keepUndoByKey && keepRedoByKey &&
+                                   precomposedForDeleteByKey && unpackedDeleteByKey &&
+                                   deleteUndoByKey && deleteRedoByKey},
+                               {"state", afterDeleteRedo}};
             if (!result["passed"].toBool())
-                result["error"] = QStringLiteral("GUI P/Z/Y keyboard routing failed to round-trip precompose");
+                result["error"] = QStringLiteral("GUI P/K/D/Z/Y keyboard routing failed to round-trip precompose and unprecompose");
             return result;
         }
         if (name == "test.capture") {
