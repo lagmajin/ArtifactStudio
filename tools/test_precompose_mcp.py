@@ -305,6 +305,12 @@ def main():
                     and layer_map(reset_state)["A"]["position"] == [12.0, -8.0, 3.0]
                     and abs(layer_map(reset_state)["A"]["opacity"] - 0.42) < 1e-6,
                     "MCP reset did not create a clean locale-preserving fixture")
+            stale_capture = call("test.captureRejectsStalePanel")
+            require(stale_capture["passed"] and stale_capture["staleCaptureRejected"]
+                    and stale_capture["stateUnchanged"]
+                    and stale_capture["state"] == reset_state
+                    and call("test.state") == reset_state,
+                    "Stale-panel capture was not rejected with the reset fixture and display restored")
             reset_capture_state = call("test.state")
             invoked_tool_names.add("test.capture")
             reset_capture = request("tools/call", {"name": "test.capture", "arguments": {}})
