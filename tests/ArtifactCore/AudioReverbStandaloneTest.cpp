@@ -23,6 +23,17 @@ AudioSegment makeMono(int sampleRate, QVector<float> samples)
     segment.channelData.push_back(std::move(samples));
     return segment;
 }
+
+AudioSegment makeStereo(int sampleRate, QVector<float> left, QVector<float> right)
+{
+    AudioSegment segment;
+    segment.sampleRate = sampleRate;
+    segment.layout = AudioChannelLayout::Stereo;
+    segment.startFrame = 100;
+    segment.channelData.push_back(std::move(left));
+    segment.channelData.push_back(std::move(right));
+    return segment;
+}
 }
 
 TEST(AudioReverbStandaloneTest, ExposesExpectedDefaultIdentityAndParameters)
@@ -81,6 +92,25 @@ TEST(AudioReverbStandaloneTest, FullWetImpulseProducesAReverbTail)
     for (qsizetype frame = 1; frame < segment.channelData[0].size(); ++frame)
         hasTail = hasTail || segment.channelData[0][frame] != 0.0f;
     EXPECT_TRUE(hasTail);
+}
+
+TEST(AudioReverbStandaloneTest, StereoChannelsDoNotLeakReverbIntoEachOther)
+{
+    QVector<float> left(1300, 0.0f);
+    left[0] = 1.0f;
+    auto segment = makeStereo(48000, std::move(left), QVector<float>(1300, 0.0f));
+    AudioReverb reverb;
+    reverb.setDecay(0.9f);
+    reverb.setMix(1.0f);
+
+    reverb.process(segment);
+
+    bool leftHasTail = false;
+    for (const float sample : segment.channelData[0])
+        leftHasTail = leftHasTail || sample != 0.0f;
+    EXPECT_TRUE(leftHasTail);
+    for (const float sample : segment.channelData[1])
+        EXPECT_FLOAT_EQ(sample, 0.0f);
 }
 
 TEST(AudioReverbStandaloneTest, SizeParameterChangesWetImpulseResponse)
