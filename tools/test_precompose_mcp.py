@@ -80,10 +80,34 @@ def validate_png(png, require_visual_content=False):
     if any(decoded[row_start] > 4 for row_start in range(0, len(decoded), scanline_bytes)):
         raise AssertionError("Capture PNG contains an invalid scanline filter")
     if require_visual_content:
-        sample_values = set()
+        bytes_per_pixel = max(1, (channels_by_color_type[color_type] * bit_depth + 7) // 8)
+        previous_row = bytearray(row_bytes)
+        pixel_values = set()
         for row_start in range(0, len(decoded), scanline_bytes):
-            sample_values.update(decoded[row_start + 1:row_start + scanline_bytes])
-        if len(sample_values) < 8:
+            filter_type = decoded[row_start]
+            encoded_row = decoded[row_start + 1:row_start + scanline_bytes]
+            row = bytearray(row_bytes)
+            for index, value in enumerate(encoded_row):
+                left = row[index - bytes_per_pixel] if index >= bytes_per_pixel else 0
+                above = previous_row[index]
+                upper_left = (previous_row[index - bytes_per_pixel]
+                              if index >= bytes_per_pixel else 0)
+                if filter_type == 0:
+                    predictor = 0
+                elif filter_type == 1:
+                    predictor = left
+                elif filter_type == 2:
+                    predictor = above
+                elif filter_type == 3:
+                    predictor = (left + above) // 2
+                else:
+                    base = left + above - upper_left
+                    distances = (abs(base - left), abs(base - above), abs(base - upper_left))
+                    predictor = (left, above, upper_left)[distances.index(min(distances))]
+                row[index] = (value + predictor) & 0xff
+            pixel_values.update(row)
+            previous_row = row
+        if len(pixel_values) < 8:
             raise AssertionError("Capture PNG has too little pixel variation to show the test UI")
     return width, height
 
@@ -176,12 +200,25 @@ def validate_png_contract():
                   + make_png_chunk(b"IEND", b""))
     if validate_png(varied_png, require_visual_content=True) != (16, 1):
         raise AssertionError("PNG visual-content check rejected varied pixels")
-    try:
-        validate_png(valid_png, require_visual_content=True)
-    except AssertionError:
-        pass
-    else:
-        raise AssertionError("PNG visual-content check accepted a uniform image")
+    uniform_filtered_rows = (
+        b"\x00" + bytes([64] * 4),
+        b"\x01" + bytes([64, 0, 0, 0]),
+        b"\x02" + bytes([0, 0, 0, 0]),
+        b"\x03" + bytes([32, 0, 0, 0]),
+        b"\x04" + bytes([0, 0, 0, 0]),
+    )
+    uniform_filtered_png = (
+        signature
+        + make_png_chunk(b"IHDR", struct.pack(">IIBBBBB", 4, 5, 8, 0, 0, 0, 0))
+        + make_png_chunk(b"IDAT", zlib.compress(b"".join(uniform_filtered_rows)))
+        + make_png_chunk(b"IEND", b""))
+    for label, uniform_png in (("single pixel", valid_png),
+                               ("filtered rows", uniform_filtered_png)):
+        try:
+            validate_png(uniform_png, require_visual_content=True)
+        except AssertionError:
+            continue
+        raise AssertionError(f"PNG visual-content check accepted uniform {label} image")
 
     invalid_images = {
         "invalid signature": b"\x00" + valid_png[1:],
