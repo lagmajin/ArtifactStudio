@@ -88,6 +88,12 @@ def main():
                 layer = layer_map(initial)[name]
                 require((layer["inFrame"], layer["outFrame"], layer["startFrame"]) ==
                         (in_frame, out_frame, start_frame), f"Unexpected fixture timing for {name}")
+            keyboard_round_trip = call("test.guiKeyboardRoundTrip")
+            require(keyboard_round_trip["passed"] and keyboard_round_trip["keyPrecomposed"]
+                    and keyboard_round_trip["keyUndoRestored"]
+                    and keyboard_round_trip["keyRedoRestored"],
+                    "Viewer P/Z/Y keyboard route did not match precompose/undo/redo state")
+            call("test.reset")
             cycle = call("test.cycleRejected")
             require(cycle["passed"] and cycle["cycleRejected"] and cycle["stateUnchanged"]
                     and cycle["selectionPreserved"] and cycle["fixtureCleaned"],
@@ -418,7 +424,7 @@ def main():
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
-            print("PASS: MCP tool catalog, direct/transitive cycle guards, invalid-request and empty MoveAll atomicity, redo-branch replacement, open-child navigation/focus, single-layer round-trip, shared Composition Layer add undo/redo, visibility/lock/solo and blend-mode round-trip, shared-child references/data, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, nested Master Property save/reload/materialization, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: MCP tool catalog, GUI P/Z/Y keyboard round-trip, direct/transitive cycle guards, invalid-request and empty MoveAll atomicity, redo-branch replacement, open-child navigation/focus, single-layer round-trip, shared Composition Layer add undo/redo, visibility/lock/solo and blend-mode round-trip, shared-child references/data, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, nested Master Property save/reload/materialization, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
             try:

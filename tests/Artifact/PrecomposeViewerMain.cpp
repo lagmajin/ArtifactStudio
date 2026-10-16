@@ -110,6 +110,54 @@ public:
         bool ok = true;
         if (name == "test.state") return state();
         if (name == "test.reset") reset();
+        else if (name == "test.guiKeyboardRoundTrip") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (!root || sourceIds.size() != 2) {
+                result["error"] = QStringLiteral("Keyboard fixture is missing root source layers");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto untouchedIds = namedLayerIds(root, {QStringLiteral("Untouched")});
+            const auto sendKey = [&](int key) {
+                QKeyEvent event(QEvent::KeyPress, key, Qt::NoModifier);
+                QApplication::sendEvent(this, &event);
+            };
+            sendKey(Qt::Key_P);
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto childAfterPrecompose = service->findComposition(outcome.childCompId).ptr.lock();
+            const bool keyPrecomposed = !outcome.precompLayerId.isNil() && childAfterPrecompose &&
+                root->layerById(outcome.precompLayerId) &&
+                namedLayerIds(childAfterPrecompose, {QStringLiteral("A"), QStringLiteral("B")}).size() == 2 &&
+                !root->layerById(sourceIds.front()) && !root->layerById(sourceIds.back());
+            sendKey(Qt::Key_Z);
+            const bool keyUndoRestored = keyPrecomposed &&
+                !service->findComposition(outcome.childCompId).ptr.lock() &&
+                !root->layerById(outcome.precompLayerId) && root->layerById(sourceIds.front()) &&
+                root->layerById(sourceIds.back()) && untouchedIds.size() == 1 &&
+                root->layerById(untouchedIds.front());
+            sendKey(Qt::Key_Y);
+            const auto childAfterRedo = service->findComposition(outcome.childCompId).ptr.lock();
+            const bool keyRedoRestored = keyUndoRestored && childAfterRedo &&
+                root->layerById(outcome.precompLayerId) &&
+                PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId) &&
+                PreComposeManager::instance().getSourceCompositionId(outcome.precompLayerId) ==
+                    outcome.childCompId &&
+                namedLayerIds(childAfterRedo, {QStringLiteral("A"), QStringLiteral("B")}).size() == 2;
+            result["keyPrecomposed"] = keyPrecomposed;
+            result["keyUndoRestored"] = keyUndoRestored;
+            result["keyRedoRestored"] = keyRedoRestored;
+            result["passed"] = keyPrecomposed && keyUndoRestored && keyRedoRestored;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Viewer P/Z/Y keyboard route did not match precompose/undo/redo state");
+            childId_ = outcome.childCompId;
+            hasChild_ = !childId_.isNil();
+            service->changeCurrentComposition(rootId);
+            refresh();
+            result["state"] = state();
+            return result;
+        }
         else if (name == "test.cycleRejected") {
             QJsonObject cycleResult;
             if (!comp) {
@@ -3059,7 +3107,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.sharedCompositionLayerUndoRedo", "test.sharedChildReferences", "test.layerFlagsRoundTrip", "test.blendModesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.sharedCompositionLayerUndoRedo", "test.sharedChildReferences", "test.layerFlagsRoundTrip", "test.blendModesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
