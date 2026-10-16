@@ -3,6 +3,7 @@
 #include <QJsonObject>
 #include <QVector>
 
+#include <cstddef>
 #include <cmath>
 #include <limits>
 #include <utility>
@@ -54,6 +55,37 @@ TEST(AudioCompressorStandaloneTest, ExposesExpectedDefaultsAndParameterValues)
     EXPECT_FLOAT_EQ(compressor.getParameterValue(String("release_ms")), 100.0f);
     EXPECT_FLOAT_EQ(compressor.getParameterValue(String("sidechain")), 0.0f);
     EXPECT_FLOAT_EQ(compressor.getGainReduction(), 1.0f);
+}
+
+TEST(AudioCompressorStandaloneTest, ParameterDescriptorsMatchIdGettersAndSetters)
+{
+    AudioCompressor compressor;
+    const auto parameters = compressor.getParameters();
+    ASSERT_EQ(parameters.size(), 5u);
+
+    for (std::size_t index = 0; index < parameters.size(); ++index) {
+        const auto& parameter = parameters[index];
+        EXPECT_FALSE(parameter.id.isEmpty());
+        EXPECT_LE(parameter.minValue, parameter.maxValue);
+        EXPECT_GE(parameter.defaultValue, parameter.minValue);
+        EXPECT_LE(parameter.defaultValue, parameter.maxValue);
+        EXPECT_FLOAT_EQ(parameter.value, compressor.getParameterValue(parameter.id));
+        for (std::size_t previous = 0; previous < index; ++previous)
+            EXPECT_NE(parameters[previous].id, parameter.id);
+
+        float probe = (parameter.minValue + parameter.maxValue) * 0.5f;
+        if (probe == parameter.value)
+            probe = parameter.value == parameter.minValue
+                ? parameter.maxValue : parameter.minValue;
+        if (parameter.id == "sidechain") probe = 1.0f;
+        compressor.setParameterValue(parameter.id, probe);
+        EXPECT_FLOAT_EQ(compressor.getParameterValue(parameter.id), probe);
+    }
+
+    const QJsonObject beforeUnknownId = compressor.toJson();
+    compressor.setParameterValue(String("unknown_parameter"), 0.5f);
+    EXPECT_EQ(compressor.toJson(), beforeUnknownId);
+    EXPECT_FLOAT_EQ(compressor.getParameterValue(String("unknown_parameter")), 0.0f);
 }
 
 TEST(AudioCompressorStandaloneTest, SettersClampFiniteValuesAndReplaceNonFiniteValues)
