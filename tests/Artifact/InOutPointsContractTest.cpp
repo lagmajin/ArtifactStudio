@@ -202,3 +202,50 @@ TEST(InOutPointsContractTest, ValidJsonRoundTripPreservesMarkerMetadata)
     EXPECT_EQ(restored.inPoint()->framePosition(), -12);
     EXPECT_EQ(restored.outPoint()->framePosition(), 144);
 }
+
+TEST(InOutPointsContractTest, MarkerRangeIsInclusiveAndRemovalRefreshesChapterIndex)
+{
+    Artifact::ArtifactInOutPoints points;
+    auto* before = points.addMarker(ArtifactCore::FramePosition(9),
+                                    QStringLiteral("Before"),
+                                    Artifact::MarkerType::Comment);
+    auto* firstChapter = points.addMarker(ArtifactCore::FramePosition(10),
+                                          QStringLiteral("First"),
+                                          Artifact::MarkerType::Chapter);
+    auto* lastChapter = points.addMarker(ArtifactCore::FramePosition(20),
+                                         QStringLiteral("Last"),
+                                         Artifact::MarkerType::Chapter);
+    auto* after = points.addMarker(ArtifactCore::FramePosition(21),
+                                   QStringLiteral("After"),
+                                   Artifact::MarkerType::Comment);
+    ASSERT_NE(before, nullptr);
+    ASSERT_NE(firstChapter, nullptr);
+    ASSERT_NE(lastChapter, nullptr);
+    ASSERT_NE(after, nullptr);
+
+    const auto inRange = points.markersInRange(
+        ArtifactCore::FrameRange(10, 20));
+    ASSERT_EQ(inRange.size(), 2u);
+    EXPECT_EQ(inRange[0], firstChapter);
+    EXPECT_EQ(inRange[1], lastChapter);
+
+    Artifact::ArtifactMarker foreign(ArtifactCore::FramePosition(10),
+                                     QStringLiteral("Foreign"),
+                                     Artifact::MarkerType::Chapter);
+    points.removeMarker(&foreign);
+    EXPECT_EQ(points.markerCount(), 4u);
+    EXPECT_EQ(points.getMarkerAt(ArtifactCore::FramePosition(10)), firstChapter);
+    EXPECT_EQ(foreign.comment(), QStringLiteral("Foreign"));
+
+    ASSERT_EQ(points.chapterMarkers().size(), 2u);
+    EXPECT_TRUE(points.removeMarker(ArtifactCore::FramePosition(10)));
+    EXPECT_FALSE(points.removeMarker(ArtifactCore::FramePosition(10)));
+    const auto chaptersAfterPositionRemoval = points.chapterMarkers();
+    ASSERT_EQ(chaptersAfterPositionRemoval.size(), 1u);
+    EXPECT_EQ(chaptersAfterPositionRemoval.front(), lastChapter);
+
+    points.removeMarker(lastChapter);
+    points.removeMarker(nullptr);
+    EXPECT_TRUE(points.chapterMarkers().empty());
+    EXPECT_EQ(points.markerCount(), 2u);
+}
