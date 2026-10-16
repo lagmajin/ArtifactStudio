@@ -305,6 +305,8 @@ public:
             const bool undoneByKey = afterUndo["canRedo"].toBool() &&
                 !afterUndo["lastChildExists"].toBool() &&
                 afterUndo["layers"].toArray() == originalLayers;
+            const bool precomposeUndoSelectionByKey = undoneByKey &&
+                selectedLayerName(afterUndo, rootCompositionId) == QStringLiteral("A");
             const bool precomposeMappingRemovedByUndoKey = undoneByKey &&
                 managerMappingCleared(keepWrapperId, keepChildId);
             const bool precomposeUndoLayerObjectsPreservedByKey = undoneByKey &&
@@ -314,7 +316,8 @@ public:
             const bool redoneByKey = afterRedo["canUndo"].toBool() &&
                 !afterRedo["canRedo"].toBool() &&
                 afterRedo["lastChildExists"].toBool() &&
-                afterRedo["layers"].toArray().size() == 2;
+                afterRedo["layers"].toArray().size() == 2 &&
+                selectedLayerName(afterRedo, rootCompositionId) == QStringLiteral("Nested A+B");
             const bool precomposeMappingRestoredByRedoKey = redoneByKey &&
                 managerMappingMatches(keepWrapperId, keepChildId);
             const bool precomposeRedoLayerObjectsPreservedByKey = redoneByKey &&
@@ -405,6 +408,8 @@ public:
             const bool allUndoByKey = afterMoveAllUndo["canRedo"].toBool() &&
                 !afterMoveAllUndo["lastChildExists"].toBool() &&
                 afterMoveAllUndo["layers"].toArray() == originalLayers;
+            const bool allUndoSelectionByKey = allUndoByKey &&
+                selectedLayerName(afterMoveAllUndo, rootCompositionId) == QStringLiteral("A");
             const bool allUndoLayerObjectsPreservedByKey = allUndoByKey &&
                 sourceObjectsMatch(projectService->currentComposition().lock());
             const bool allMappingRemovedByUndoKey = allUndoByKey &&
@@ -470,6 +475,7 @@ public:
                                {"keepMappingRegisteredByKey", keepMappingRegisteredByKey},
                                {"selectedLayerObjectsPreservedByKey", selectedLayerObjectsPreservedByKey},
                                {"undoneByKey", undoneByKey},
+                               {"precomposeUndoSelectionByKey", precomposeUndoSelectionByKey},
                                {"precomposeMappingRemovedByUndoKey", precomposeMappingRemovedByUndoKey},
                                {"precomposeUndoLayerObjectsPreservedByKey",
                                 precomposeUndoLayerObjectsPreservedByKey},
@@ -509,6 +515,7 @@ public:
                                {"allLayerObjectsPreservedByKey", allLayerObjectsPreservedByKey},
                                {"allSettingsCopiedByKey", allSettingsCopiedByKey},
                                {"allUndoByKey", allUndoByKey},
+                               {"allUndoSelectionByKey", allUndoSelectionByKey},
                                {"allMappingRemovedByUndoKey", allMappingRemovedByUndoKey},
                                {"allUndoLayerObjectsPreservedByKey", allUndoLayerObjectsPreservedByKey},
                                {"allRedoByKey", allRedoByKey},
@@ -523,7 +530,8 @@ public:
                                    selectedLayersMovedByKey &&
                                    keepMappingRegisteredByKey && selectedLayerObjectsPreservedByKey &&
                                    precomposeSelectionByKey &&
-                                   undoneByKey && precomposeMappingRemovedByUndoKey && redoneByKey &&
+                                   undoneByKey && precomposeUndoSelectionByKey &&
+                                   precomposeMappingRemovedByUndoKey && redoneByKey &&
                                    precomposeMappingRestoredByRedoKey &&
                                    precomposeUndoLayerObjectsPreservedByKey &&
                                    precomposeRedoLayerObjectsPreservedByKey &&
@@ -538,7 +546,8 @@ public:
                                    deleteUndoLayerObjectsPreservedByKey &&
                                    deleteMappingRemovedByRedoKey && allMovedByKey &&
                                    allSettingsCopiedByKey &&
-                                   allUndoByKey && allMappingRemovedByUndoKey && allRedoByKey &&
+                                   allUndoByKey && allUndoSelectionByKey &&
+                                   allMappingRemovedByUndoKey && allRedoByKey &&
                                    allMappingRestoredByRedoKey && allMappingRegisteredByKey &&
                                    allLayerObjectsPreservedByKey && allUndoLayerObjectsPreservedByKey &&
                                    allRedoLayerObjectsPreservedByKey &&
