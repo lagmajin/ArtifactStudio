@@ -2116,6 +2116,8 @@ public:
             const auto openedChild = service->currentComposition().lock();
             const bool childOpened = openedChild && openedChild->id() == outcome.childCompId &&
                 namedLayerIds(openedChild, {QStringLiteral("A"), QStringLiteral("B")}).size() == 2;
+            const bool childLayerOrderPreservedOnOpen = childOpened &&
+                namedLayerIds(openedChild, {QStringLiteral("A"), QStringLiteral("B")}) == sourceIds;
             const auto openedA = openedChild ? openedChild->layerById(sourceIds[0])
                                               : ArtifactAbstractLayerPtr{};
             const auto openedB = openedChild ? openedChild->layerById(sourceIds[1])
@@ -2201,6 +2203,8 @@ public:
             const bool undoLayerObjectsReturnedToRoot = undoReturnedToRoot && sourceA && sourceB &&
                 afterUndo->layerById(sourceIds[0]).get() == sourceA.get() &&
                 afterUndo->layerById(sourceIds[1]).get() == sourceB.get();
+            const bool undoLayerOrderRestoredToRoot = undoReturnedToRoot &&
+                namedLayerIds(afterUndo, {QStringLiteral("A"), QStringLiteral("B")}) == sourceIds;
             const bool redoAvailable = undo->canRedo();
             if (redoAvailable) undo->redo();
             const auto afterRedo = service->currentComposition().lock();
@@ -2213,6 +2217,8 @@ public:
                 redoneChild.get() == openedChild.get();
             const bool redoChildLayerObjectsPreserved = redoneA && redoneB && sourceA && sourceB &&
                 redoneA.get() == sourceA.get() && redoneB.get() == sourceB.get();
+            const bool redoChildLayerOrderPreserved = redoneChild &&
+                namedLayerIds(redoneChild, {QStringLiteral("A"), QStringLiteral("B")}) == sourceIds;
             const bool redoChildSettingsPreserved = redoneChild &&
                 childSettingsMatchParent(redoneChild);
             bool parentReferenceRestored = false;
@@ -2233,6 +2239,7 @@ public:
             result["rootWrapperId"] = outcome.precompLayerId.toString();
             result["childCompositionId"] = outcome.childCompId.toString();
             result["childOpened"] = childOpened;
+            result["childLayerOrderPreservedOnOpen"] = childLayerOrderPreservedOnOpen;
             result["childLayerObjectsPreservedOnOpen"] = childLayerObjectsPreservedOnOpen;
             result["childSettingsCopiedOnOpen"] = childSettingsCopiedOnOpen;
             result["childSelectionCorrect"] = childSelectionCorrect;
@@ -2246,18 +2253,23 @@ public:
             result["wrongContextStatePreserved"] = wrongContextStatePreserved;
             result["undoReturnedToRoot"] = undoReturnedToRoot;
             result["undoLayerObjectsReturnedToRoot"] = undoLayerObjectsReturnedToRoot;
+            result["undoLayerOrderRestoredToRoot"] = undoLayerOrderRestoredToRoot;
             result["redoKeptRootFocused"] = redoKeptRootFocused;
             result["redoRestoredChild"] = redoRestoredChild;
             result["redoChildCompositionIdentityPreserved"] = redoChildCompositionIdentityPreserved;
             result["redoChildLayerObjectsPreserved"] = redoChildLayerObjectsPreserved;
+            result["redoChildLayerOrderPreserved"] = redoChildLayerOrderPreserved;
             result["redoChildSettingsPreserved"] = redoChildSettingsPreserved;
             result["redoWrapperIdentityPreserved"] = redoWrapperIdentityPreserved;
             result["passed"] = childOpened && childSelectionCorrect &&
-                childLayerObjectsPreservedOnOpen && childSettingsCopiedOnOpen && rootWrapperCreated &&
+                childLayerObjectsPreservedOnOpen && childLayerOrderPreservedOnOpen &&
+                childSettingsCopiedOnOpen && rootWrapperCreated &&
                 wrongContextUnpackRejected &&
                 wrongContextStatePreserved && undoReturnedToRoot && undoLayerObjectsReturnedToRoot &&
+                undoLayerOrderRestoredToRoot &&
                 redoKeptRootFocused && redoRestoredChild && redoChildCompositionIdentityPreserved &&
-                redoChildLayerObjectsPreserved && redoChildSettingsPreserved &&
+                redoChildLayerObjectsPreserved && redoChildLayerOrderPreserved &&
+                redoChildSettingsPreserved &&
                 redoWrapperIdentityPreserved;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Open-child navigation or undo/redo focus contract changed");
