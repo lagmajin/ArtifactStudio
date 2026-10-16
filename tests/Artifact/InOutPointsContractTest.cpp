@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 
+#include <QColor>
 #include <QJsonObject>
 #include <QString>
+#include <QStringList>
 
 import Artifact.Composition.InOutPoints;
 import Frame.Position;
@@ -129,4 +131,74 @@ TEST(InOutPointsContractTest, InvalidJsonImportPreservesExistingRangeAndMarkers)
     invalidInPoint.insert(QStringLiteral("inPoint"), QStringLiteral("not a frame"));
     EXPECT_FALSE(points.fromJson(invalidInPoint));
     EXPECT_EQ(points.toJson(), original);
+}
+
+TEST(InOutPointsContractTest, MarkerUpdateKeepsIdentityAndSearchesCommentLinkAndTags)
+{
+    Artifact::ArtifactInOutPoints points;
+    auto* later = points.addMarker(ArtifactCore::FramePosition(40),
+                                   QStringLiteral("Review notes"),
+                                   Artifact::MarkerType::Comment);
+    auto* earlier = points.addMarker(ArtifactCore::FramePosition(10),
+                                     QStringLiteral("Unrelated"),
+                                     Artifact::MarkerType::WebLink);
+    auto* samePosition = points.addMarker(ArtifactCore::FramePosition(40),
+                                          QStringLiteral("Updated review"),
+                                          Artifact::MarkerType::Chapter);
+    ASSERT_NE(later, nullptr);
+    ASSERT_NE(earlier, nullptr);
+    EXPECT_EQ(samePosition, later);
+    EXPECT_EQ(points.markerCount(), 2u);
+    EXPECT_EQ(later->comment(), QStringLiteral("Updated review"));
+    EXPECT_EQ(later->type(), Artifact::MarkerType::Chapter);
+
+    later->setWebLink(QStringLiteral("https://example.test/review"));
+    later->addTag(QStringLiteral(" Editorial "));
+    later->addTag(QStringLiteral("editorial"));
+    earlier->addTag(QStringLiteral("Review"));
+
+    const auto byType = points.markersByType(Artifact::MarkerType::Chapter);
+    ASSERT_EQ(byType.size(), 1u);
+    EXPECT_EQ(byType.front(), later);
+    const auto byTag = points.markersByTag(QStringLiteral(" EDITORIAL "));
+    ASSERT_EQ(byTag.size(), 1u);
+    EXPECT_EQ(byTag.front(), later);
+
+    const auto matches = points.searchMarkers(QStringLiteral(" review "));
+    ASSERT_EQ(matches.size(), 2u);
+    EXPECT_EQ(matches[0], earlier);
+    EXPECT_EQ(matches[1], later);
+    EXPECT_EQ(later->tags().size(), 1);
+}
+
+TEST(InOutPointsContractTest, ValidJsonRoundTripPreservesMarkerMetadata)
+{
+    Artifact::ArtifactInOutPoints source;
+    source.setInPoint(ArtifactCore::FramePosition(-12));
+    source.setOutPoint(ArtifactCore::FramePosition(144));
+    auto* marker = source.addMarker(ArtifactCore::FramePosition(36),
+                                    QStringLiteral("Scene transition"),
+                                    Artifact::MarkerType::WebLink);
+    ASSERT_NE(marker, nullptr);
+    marker->setColor(QColor(12, 34, 56, 78));
+    marker->setWebLink(QStringLiteral("https://example.test/scene"));
+    marker->setTags(QStringList{QStringLiteral(" edit "), QStringLiteral("review")});
+    const auto serialized = source.toJson();
+
+    Artifact::ArtifactInOutPoints restored;
+    ASSERT_TRUE(restored.fromJson(serialized));
+    EXPECT_EQ(restored.toJson(), serialized);
+    ASSERT_EQ(restored.markerCount(), 1u);
+    const auto* restoredMarker = restored.getMarkerAt(ArtifactCore::FramePosition(36));
+    ASSERT_NE(restoredMarker, nullptr);
+    EXPECT_EQ(restoredMarker->comment(), QStringLiteral("Scene transition"));
+    EXPECT_EQ(restoredMarker->type(), Artifact::MarkerType::WebLink);
+    EXPECT_EQ(restoredMarker->color(), QColor(12, 34, 56, 78));
+    EXPECT_EQ(restoredMarker->webLink(), QStringLiteral("https://example.test/scene"));
+    EXPECT_EQ(restoredMarker->tags(), (QStringList{QStringLiteral("edit"),
+                                                  QStringLiteral("review")}));
+    ASSERT_TRUE(restored.inPoint().has_value());
+    ASSERT_TRUE(restored.outPoint().has_value());
+    EXPECT_EQ(restored.inPoint()->framePosition(), -12);
+    EXPECT_EQ(restored.outPoint()->framePosition(), 144);
 }
