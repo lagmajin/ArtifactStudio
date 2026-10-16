@@ -224,6 +224,29 @@ TEST(AudioCompressorStandaloneTest, MissingSidechainFallsBackToProgramDetector)
     EXPECT_LT(compressor.getGainReduction(), 1.0f);
 }
 
+TEST(AudioCompressorStandaloneTest, ShortSidechainTreatsMissingFramesAsSilence)
+{
+    const QVector<float> programSamples{0.8f, 0.7f, 0.6f, 0.5f, 0.4f, 0.3f};
+    auto shortProgram = makeMono(1000, programSamples);
+    auto paddedProgram = makeMono(1000, programSamples);
+    auto shortSidechain = makeMono(1000, QVector<float>{1.0f, 0.0f});
+    auto paddedSidechain = makeMono(1000, QVector<float>{1.0f, 0.0f, 0.0f,
+                                                         0.0f, 0.0f, 0.0f});
+
+    AudioCompressor shortInput;
+    configureFastCompressor(shortInput);
+    shortInput.setSideChain(true);
+    shortInput.process(shortProgram, &shortSidechain);
+
+    AudioCompressor explicitSilence;
+    configureFastCompressor(explicitSilence);
+    explicitSilence.setSideChain(true);
+    explicitSilence.process(paddedProgram, &paddedSidechain);
+
+    EXPECT_EQ(shortProgram.channelData[0], paddedProgram.channelData[0]);
+    EXPECT_FLOAT_EQ(shortInput.getGainReduction(), explicitSilence.getGainReduction());
+}
+
 TEST(AudioCompressorStandaloneTest, BypassPreservesSamplesAndResetsReportedGainReduction)
 {
     AudioCompressor compressor;
