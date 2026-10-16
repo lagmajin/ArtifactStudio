@@ -72,14 +72,26 @@ def main():
                     f"{label} precompose did not copy custom composition settings")
 
         try:
-            request("initialize", {"protocolVersion": "2024-11-05", "capabilities": {},
-                                   "clientInfo": {"name": "precompose-regression", "version": "1"}})
+            initialized = request("initialize", {
+                "protocolVersion": "2024-11-05", "capabilities": {},
+                "clientInfo": {"name": "precompose-regression", "version": "1"}})
+            require(initialized.get("protocolVersion") == "2024-11-05"
+                    and initialized.get("capabilities") == {"tools": {}}
+                    and initialized.get("serverInfo") == {
+                        "name": "artifact-precompose-test", "version": "1.0.0"},
+                    "MCP initialize response changed its protocol or server capabilities")
+            require(request("ping", {}) == {}, "MCP ping did not return an empty result")
             catalog = request("tools/list", {})
             listed_tools = catalog.get("tools")
             require(isinstance(listed_tools, list), "MCP tools/list did not return a tools array")
             names = [tool.get("name") for tool in listed_tools if isinstance(tool, dict)]
             require(len(names) == len(listed_tools) and len(names) == len(set(names)),
                     "MCP tools/list returned invalid or duplicate tool names")
+            require(all(isinstance(tool.get("description"), str) and
+                        tool.get("inputSchema") == {
+                            "type": "object", "additionalProperties": False}
+                        for tool in listed_tools),
+                    "MCP tools/list returned an invalid description or input schema")
             exposed_tool_names.update(names)
             protocol_state_before_invalid_calls = call("test.state")
             unknown_tool = request("tools/call", {"name": "test.notARealTool", "arguments": {}})
