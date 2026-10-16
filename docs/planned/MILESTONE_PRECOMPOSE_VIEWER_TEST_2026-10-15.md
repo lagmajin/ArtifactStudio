@@ -14,6 +14,8 @@
 
 `test.nestedSaveReload`は再読込後に最深階層のComposition Layerを解除し、最深階層のdurationが親からの短縮・延長に追従し、両段wrapperのin/start固定とout追従、解除後のレイヤー順・タイミング、3階層のruntime mappingがUndo/Redoで復元されることも検査する。
 
+`test.reparentExistingPrecompose`は既存wrapperを別階層へ移した3階層状態を保存・再読込し、親子mappingとwrapperの3D transform・animation keyを確認した後、解除・Undo/Redoまで継続する。
+
 ## 対象
 
 FBX独立Viewerのように製品本体と起動を分け、既存のProject ServiceとUndoManagerを直接検証する。製品・子リポジトリのコードは変更しない。GUIは実際のレイヤー構造と属性をJSON表示する検査画面であり、Composition Viewportの描画テストではない。

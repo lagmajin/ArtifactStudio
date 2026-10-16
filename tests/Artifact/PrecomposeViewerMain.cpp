@@ -4062,7 +4062,7 @@ public:
             return result;
         } else if (name == "test.reparentExistingPrecompose") {
             QJsonObject result;
-            const auto root = service->currentComposition().lock();
+            auto root = service->currentComposition().lock();
             if (!root) {
                 result["error"] = QStringLiteral("No root composition");
                 return result;
@@ -4076,7 +4076,7 @@ public:
                 return result;
             }
             const auto existing = service->lastPrecomposeOutcome();
-            const auto existingWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+            auto existingWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
                 root->layerById(existing.precompLayerId));
             const auto existingChild = service->findComposition(existing.childCompId).ptr.lock();
             if (!existingWrapper || !existingChild) {
@@ -4140,8 +4140,8 @@ public:
                 return result;
             }
             const auto wrapper = service->lastPrecomposeOutcome();
-            const auto wrapperChild = service->findComposition(wrapper.childCompId).ptr.lock();
-            const auto nestedExistingWrapper = wrapperChild
+            auto wrapperChild = service->findComposition(wrapper.childCompId).ptr.lock();
+            auto nestedExistingWrapper = wrapperChild
                 ? dynamicPointerCast<ArtifactCompositionLayer>(wrapperChild->layerById(existing.precompLayerId))
                 : SharedPtr<ArtifactCompositionLayer>{};
             const bool wrapperTransformPreservedInNestedChild = nestedExistingWrapper == existingWrapper &&
@@ -4182,7 +4182,56 @@ public:
                 hierarchyAfterRedo[2] == existing.childCompId &&
                 redoNestedExistingWrapper == existingWrapper &&
                 wrapperTransformMatches(redoNestedExistingWrapper);
-            const bool outerUnpacked = redoRestoredParent &&
+            QTemporaryDir tempDir;
+            const auto filePath = tempDir.filePath(QStringLiteral("reparented-precompose.artifact"));
+            const auto save = tempDir.isValid()
+                ? ArtifactProjectManager::getInstance().saveToFile(filePath)
+                : ArtifactProjectExporterResult{};
+            const bool mappingsCleared = save.success &&
+                manager.unregisterPrecompLayer(rootId, wrapper.precompLayerId, wrapper.childCompId) &&
+                manager.unregisterPrecompLayer(wrapper.childCompId, existing.precompLayerId,
+                                               existing.childCompId) &&
+                manager.getPrecompLayersForChild(wrapper.childCompId).isEmpty() &&
+                manager.getPrecompLayersForChild(existing.childCompId).isEmpty();
+            const bool loaded = mappingsCleared && ArtifactProjectManager::getInstance().loadFromFile(filePath);
+            if (loaded) {
+                service->changeCurrentComposition(rootId);
+                root = service->findComposition(rootId).ptr.lock();
+                wrapperChild = service->findComposition(wrapper.childCompId).ptr.lock();
+                if (!root || !wrapperChild) {
+                    result["saveSucceeded"] = save.success;
+                    result["mappingsClearedBeforeReload"] = mappingsCleared;
+                    result["loaded"] = loaded;
+                    result["error"] = QStringLiteral("Reparented compositions were not restored by project reload");
+                    return result;
+                }
+            }
+            const auto reloadedExistingChild = loaded
+                ? service->findComposition(existing.childCompId).ptr.lock() : ArtifactCompositionPtr{};
+            const auto reloadedOuterWrapper = root
+                ? dynamicPointerCast<ArtifactCompositionLayer>(root->layerById(wrapper.precompLayerId))
+                : SharedPtr<ArtifactCompositionLayer>{};
+            if (loaded) {
+                nestedExistingWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                    wrapperChild->layerById(existing.precompLayerId));
+                existingWrapper = nestedExistingWrapper;
+            }
+            bool outerReferenceRestored = false;
+            for (const auto& reference : manager.getPrecompLayersForChild(wrapper.childCompId))
+                outerReferenceRestored = outerReferenceRestored ||
+                    (reference.parentCompId == rootId &&
+                     reference.precompLayerId == wrapper.precompLayerId);
+            const auto hierarchyAfterReload = manager.getCompositionHierarchy(existing.childCompId);
+            const bool reparentSaveReloadRestored = save.success && mappingsCleared && loaded &&
+                root && wrapperChild && reloadedExistingChild && reloadedOuterWrapper &&
+                reloadedOuterWrapper->sourceCompositionId() == wrapper.childCompId &&
+                nestedExistingWrapper && nestedExistingWrapper->sourceCompositionId() == existing.childCompId &&
+                outerReferenceRestored && hasParentReference(wrapper.childCompId) &&
+                hierarchyAfterReload.size() == 3 && hierarchyAfterReload[0] == rootId &&
+                hierarchyAfterReload[1] == wrapper.childCompId &&
+                hierarchyAfterReload[2] == existing.childCompId &&
+                wrapperTransformMatches(nestedExistingWrapper);
+            const bool outerUnpacked = redoRestoredParent && reparentSaveReloadRestored &&
                 service->unprecomposeLayerWithUndo(wrapper.precompLayerId, true);
             const auto unpackedExistingWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
                 root->layerById(existing.precompLayerId));
@@ -4217,6 +4266,10 @@ public:
             result["hierarchyUpdated"] = hierarchyUpdated;
             result["undoRestoredParent"] = undoRestoredParent;
             result["redoRestoredParent"] = redoRestoredParent;
+            result["saveSucceeded"] = save.success;
+            result["mappingsClearedBeforeReload"] = mappingsCleared;
+            result["loaded"] = loaded;
+            result["reparentSaveReloadRestored"] = reparentSaveReloadRestored;
             result["unpackRestoredOriginalWrapper"] = unpackRestoredOriginalWrapper;
             result["unpackUndoRestoredNested"] = unpackUndoRestoredNested;
             result["unpackRedoRestoredOriginal"] = unpackRedoRestoredOriginal;
@@ -4227,6 +4280,7 @@ public:
                 hierarchyAfterRedo.size() > 2 ? hierarchyAfterRedo[2].toString() : QString()};
             result["passed"] = wrapperTransformAuthored && wrapperTransformPreservedInNestedChild &&
                 parentReferenceUpdated && hierarchyUpdated && undoRestoredParent && redoRestoredParent &&
+                reparentSaveReloadRestored &&
                 unpackRestoredOriginalWrapper && unpackUndoRestoredNested && unpackRedoRestoredOriginal;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Existing-precompose reparenting or its undo/redo did not restore the runtime hierarchy");

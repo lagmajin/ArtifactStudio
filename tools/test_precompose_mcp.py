@@ -557,7 +557,10 @@ def main():
             reparented = call("test.reparentExistingPrecompose")
             require(reparented["passed"] and reparented["parentReferenceUpdated"]
                     and reparented["hierarchyUpdated"] and reparented["undoRestoredParent"]
-                    and reparented["redoRestoredParent"] and reparented["wrapperTransformAuthored"]
+                    and reparented["redoRestoredParent"] and reparented["saveSucceeded"]
+                    and reparented["mappingsClearedBeforeReload"] and reparented["loaded"]
+                    and reparented["reparentSaveReloadRestored"]
+                    and reparented["wrapperTransformAuthored"]
                     and reparented["wrapperTransformPreservedInNestedChild"]
                     and reparented["unpackRestoredOriginalWrapper"]
                     and reparented["unpackUndoRestoredNested"]
