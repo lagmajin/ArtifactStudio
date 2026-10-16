@@ -6097,10 +6097,16 @@ public:
                 return result;
             }
             const auto outer = service->lastPrecomposeOutcome();
+            const auto outerWrapper = root->layerById(outer.precompLayerId);
             service->changeCurrentComposition(outer.childCompId);
             const auto middle = service->currentComposition().lock();
             const auto innerIds = namedLayerIds(middle, {QStringLiteral("A"), QStringLiteral("B")});
-            if (!middle || innerIds.size() != 2 || !service->precomposeLayersWithUndo(
+            const auto originalAId = innerIds.size() == 2 ? innerIds[0] : LayerID{};
+            const auto originalBId = innerIds.size() == 2 ? innerIds[1] : LayerID{};
+            const auto originalA = middle ? middle->layerById(originalAId) : ArtifactAbstractLayerPtr{};
+            const auto originalB = middle ? middle->layerById(originalBId) : ArtifactAbstractLayerPtr{};
+            if (!middle || innerIds.size() != 2 || !originalA || !originalB ||
+                !outerWrapper || !service->precomposeLayersWithUndo(
                     innerIds, UniString(QStringLiteral("Nested Unpack Inner")), false, false,
                     PrecomposeMode::MoveSelected)) {
                 result["error"] = QStringLiteral("Could not create inner composition fixture");
@@ -6108,6 +6114,13 @@ public:
                 return result;
             }
             const auto inner = service->lastPrecomposeOutcome();
+            const auto innerWrapper = middle->layerById(inner.precompLayerId);
+            const auto innerChild = service->findComposition(inner.childCompId).ptr.lock();
+            const bool nestedObjectsPreserved = innerWrapper && innerChild &&
+                innerChild->layerById(originalAId).get() == originalA.get() &&
+                innerChild->layerById(originalBId).get() == originalB.get() &&
+                middle->layerById(inner.precompLayerId).get() == innerWrapper.get() &&
+                root->layerById(outer.precompLayerId).get() == outerWrapper.get();
             const auto matchesRestoredLayers = [&]() {
                 const auto parent = service->currentComposition().lock();
                 if (!parent || parent->id() != outer.childCompId) return false;
@@ -6118,7 +6131,8 @@ public:
                     if (layer->layerName() == QStringLiteral("A")) a = layer;
                     if (layer->layerName() == QStringLiteral("B")) b = layer;
                 }
-                return a && b && a->id() == originalAId && b->id() == originalBId &&
+                return a && b && a.get() == originalA.get() && b.get() == originalB.get() &&
+                    a->id() == originalAId && b->id() == originalBId &&
                     a->inPoint().framePosition() == 0 && a->outPoint().framePosition() == 160 &&
                     a->startTime().framePosition() == 7 &&
                     b->inPoint().framePosition() == 30 && b->outPoint().framePosition() == 120 &&
@@ -6130,8 +6144,19 @@ public:
             const bool nestingRemoved = refsAfterUnpack.isEmpty() &&
                 !manager.isPrecomposeLayer(inner.precompLayerId);
             const bool restoredTiming = dissolved && matchesRestoredLayers();
+            const bool unpackPreservedObjects = restoredTiming && nestedObjectsPreserved &&
+                middle.get() == service->currentComposition().lock().get() &&
+                !middle->layerById(inner.precompLayerId) &&
+                root->layerById(outer.precompLayerId).get() == outerWrapper.get() &&
+                service->findComposition(inner.childCompId).ptr.lock() == innerChild &&
+                innerChild->allLayer().isEmpty();
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
+            const auto undoChild = service->findComposition(inner.childCompId).ptr.lock();
+            const auto undoA = undoChild ? undoChild->layerById(originalAId)
+                                         : ArtifactAbstractLayerPtr{};
+            const auto undoB = undoChild ? undoChild->layerById(originalBId)
+                                         : ArtifactAbstractLayerPtr{};
             bool innerReferenceRestored = false;
             for (const auto& reference : manager.getPrecompLayersForChild(inner.childCompId)) {
                 innerReferenceRestored = innerReferenceRestored ||
@@ -6142,22 +6167,37 @@ public:
             const bool undoRestoredNesting = undoAvailable && innerReferenceRestored &&
                 undoHierarchy.size() == 3 && undoHierarchy[0] == rootId &&
                 undoHierarchy[1] == outer.childCompId && undoHierarchy[2] == inner.childCompId;
+            const bool undoPreservedObjects = undoRestoredNesting && innerChild && innerWrapper &&
+                undoChild.get() == innerChild.get() && undoA.get() == originalA.get() &&
+                undoB.get() == originalB.get() &&
+                middle->layerById(inner.precompLayerId).get() == innerWrapper.get() &&
+                root->layerById(outer.precompLayerId).get() == outerWrapper.get();
             const bool redoAvailable = undo->canRedo();
             if (redoAvailable) undo->redo();
             const bool redoRemovedNesting = redoAvailable &&
                 manager.getPrecompLayersForChild(inner.childCompId).isEmpty() &&
                 !manager.isPrecomposeLayer(inner.precompLayerId) && matchesRestoredLayers();
+            const bool redoPreservedObjects = redoRemovedNesting && innerChild && innerWrapper &&
+                service->findComposition(inner.childCompId).ptr.lock() == innerChild &&
+                !middle->layerById(inner.precompLayerId) &&
+                root->layerById(outer.precompLayerId).get() == outerWrapper.get();
             result["outerChildId"] = outer.childCompId.toString();
             result["innerChildId"] = inner.childCompId.toString();
+            result["nestedObjectsPreserved"] = nestedObjectsPreserved;
             result["dissolved"] = dissolved;
             result["nestingRemoved"] = nestingRemoved;
             result["restoredTiming"] = restoredTiming;
+            result["unpackPreservedObjects"] = unpackPreservedObjects;
             result["undoRestoredNesting"] = undoRestoredNesting;
+            result["undoPreservedObjects"] = undoPreservedObjects;
             result["redoRemovedNesting"] = redoRemovedNesting;
+            result["redoPreservedObjects"] = redoPreservedObjects;
             result["passed"] = dissolved && nestingRemoved && restoredTiming &&
-                undoRestoredNesting && redoRemovedNesting;
+                nestedObjectsPreserved && unpackPreservedObjects &&
+                undoRestoredNesting && undoPreservedObjects &&
+                redoRemovedNesting && redoPreservedObjects;
             if (!result["passed"].toBool())
-                result["error"] = QStringLiteral("Nested unpack changed layer timing or runtime nesting across undo/redo");
+                result["error"] = QStringLiteral("Nested unpack changed layer timing, object identity, or runtime nesting across undo/redo");
             service->changeCurrentComposition(rootId);
             childId_ = outer.childCompId;
             hasChild_ = true;

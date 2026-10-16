@@ -889,8 +889,12 @@ def main():
             unpacked_nested = call("test.unprecomposeNested")
             require(unpacked_nested["passed"] and unpacked_nested["nestingRemoved"]
                     and unpacked_nested["restoredTiming"]
+                    and unpacked_nested["nestedObjectsPreserved"]
+                    and unpacked_nested["unpackPreservedObjects"]
                     and unpacked_nested["undoRestoredNesting"]
-                    and unpacked_nested["redoRemovedNesting"],
+                    and unpacked_nested["undoPreservedObjects"]
+                    and unpacked_nested["redoRemovedNesting"]
+                    and unpacked_nested["redoPreservedObjects"],
                     "Nested unpack changed timing or runtime nesting across undo/redo")
             call("test.reset")
             noncontiguous = call("test.nonContiguousSelectionOrder")
