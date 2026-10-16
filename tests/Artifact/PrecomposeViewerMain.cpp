@@ -1704,6 +1704,8 @@ public:
                 comp->layerById(outcome.precompLayerId));
             const auto childLayerCountBeforeWrongContextUnpack = openedChild
                 ? openedChild->allLayer().size() : 0;
+            const auto rootLayersBeforeWrongContextUnpack = layers(comp, 0);
+            const auto childLayersBeforeWrongContextUnpack = layers(openedChild, 0);
             const auto undoCountBeforeWrongContextUnpack = undo->undoCount();
             const auto redoCountBeforeWrongContextUnpack = undo->redoCount();
             const bool wrongContextUnpackRejected = childOpened &&
@@ -1724,6 +1726,9 @@ public:
                     reference.parentCompId == rootId &&
                     reference.precompLayerId == outcome.precompLayerId;
             }
+            const bool wrongContextLayerSnapshotsPreserved = wrongContextUnpackRejected &&
+                layers(comp, 0) == rootLayersBeforeWrongContextUnpack &&
+                layers(stillOpenedChild, 0) == childLayersBeforeWrongContextUnpack;
             const bool wrongContextStatePreserved = wrongContextUnpackRejected && stillOpenedChild == openedChild &&
                 stillOpenedChild->allLayer().size() == childLayerCountBeforeWrongContextUnpack &&
                 comp->layerById(outcome.precompLayerId) == rootWrapper &&
@@ -1731,7 +1736,7 @@ public:
                 undo->undoCount() == undoCountBeforeWrongContextUnpack &&
                 undo->redoCount() == redoCountBeforeWrongContextUnpack &&
                 wrongContextSelectionPreserved && wrongContextManagerMappingPreserved &&
-                wrongContextReverseMappingPreserved;
+                wrongContextReverseMappingPreserved && wrongContextLayerSnapshotsPreserved;
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
             const auto afterUndo = service->currentComposition().lock();
@@ -1765,6 +1770,7 @@ public:
             result["wrongContextSelectionPreserved"] = wrongContextSelectionPreserved;
             result["wrongContextManagerMappingPreserved"] = wrongContextManagerMappingPreserved;
             result["wrongContextReverseMappingPreserved"] = wrongContextReverseMappingPreserved;
+            result["wrongContextLayerSnapshotsPreserved"] = wrongContextLayerSnapshotsPreserved;
             result["wrongContextStatePreserved"] = wrongContextStatePreserved;
             result["undoReturnedToRoot"] = undoReturnedToRoot;
             result["redoKeptRootFocused"] = redoKeptRootFocused;
