@@ -65,6 +65,16 @@ TEST(AudioDelayLineStandaloneTest, FractionalReadInterpolatesAcrossRingWrap)
     EXPECT_FLOAT_EQ(line.read(1.5f), 6.5f);
 }
 
+TEST(AudioDelayLineStandaloneTest, ExcessiveDelayClampsToAvailableHistory)
+{
+    FractionalDelayLine line;
+    line.initialize(0.25f, 4.0f); // Five slots, with three readable delay samples.
+    for (float sample = 1.0f; sample <= 5.0f; sample += 1.0f)
+        line.write(sample);
+
+    EXPECT_FLOAT_EQ(line.read(std::numeric_limits<float>::max()), 3.0f);
+}
+
 TEST(AudioDelayLineStandaloneTest, ClearErasesHistoryAndResetsWritePosition)
 {
     FractionalDelayLine line;
