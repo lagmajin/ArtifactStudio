@@ -2574,7 +2574,7 @@ public:
             return result;
         } else if (name == "test.sharedChildReferences") {
             QJsonObject result;
-            const auto root = service->currentComposition().lock();
+            auto root = service->currentComposition().lock();
             if (!root) {
                 result["error"] = QStringLiteral("No root composition");
                 return result;
@@ -2611,7 +2611,30 @@ public:
             const bool twoReferencesCreated = addedSecond && !secondWrapperId.isNil() &&
                 manager.getPrecompLayersForChild(first.childCompId).size() == 2 &&
                 hasReference(first.precompLayerId) && hasReference(secondWrapperId);
-            const bool dissolved = twoReferencesCreated &&
+            QTemporaryDir tempDir;
+            const bool tempReady = twoReferencesCreated && tempDir.isValid();
+            const auto filePath = tempReady
+                ? tempDir.filePath(QStringLiteral("shared-child-references.artifact")) : QString{};
+            const auto save = tempReady ? ArtifactProjectManager::getInstance().saveToFile(filePath)
+                                        : ArtifactProjectExporterResult{};
+            const bool firstMappingCleared = save.success && manager.unregisterPrecompLayer(
+                rootId, first.precompLayerId, first.childCompId);
+            const bool secondMappingCleared = firstMappingCleared && manager.unregisterPrecompLayer(
+                rootId, secondWrapperId, first.childCompId);
+            const bool mappingsCleared = secondMappingCleared &&
+                manager.getPrecompLayersForChild(first.childCompId).isEmpty();
+            const bool loaded = mappingsCleared && ArtifactProjectManager::getInstance().loadFromFile(filePath);
+            if (loaded) service->changeCurrentComposition(rootId);
+            root = loaded ? service->findComposition(rootId).ptr.lock() : ArtifactCompositionPtr{};
+            const auto childAfterReload = loaded
+                ? service->findComposition(first.childCompId).ptr.lock() : ArtifactCompositionPtr{};
+            const auto restoredReferences = manager.getPrecompLayersForChild(first.childCompId);
+            const bool sharedChildSaveReload = save.success && mappingsCleared && loaded && root &&
+                childAfterReload && restoredReferences.size() == 2 && hasReference(first.precompLayerId) &&
+                hasReference(secondWrapperId) && root->layerById(first.precompLayerId) &&
+                root->layerById(secondWrapperId) && childAfterReload->layerById(sourceIds.front()) &&
+                childAfterReload->layerById(sourceIds.back());
+            const bool dissolved = sharedChildSaveReload &&
                 service->unprecomposeLayerWithUndo(first.precompLayerId, true);
             const auto childAfterUnpack = service->findComposition(first.childCompId).ptr.lock();
             const bool childDataPreserved = childAfterUnpack &&
@@ -2668,6 +2691,10 @@ public:
                 ArtifactProjectManager::getInstance().compositionCount() + 1 ==
                     compositionCountBeforeFinalDelete;
             result["twoReferencesCreated"] = twoReferencesCreated;
+            result["saveSucceeded"] = save.success;
+            result["mappingsClearedBeforeReload"] = mappingsCleared;
+            result["loaded"] = loaded;
+            result["sharedChildSaveReload"] = sharedChildSaveReload;
             result["childDataPreserved"] = childDataPreserved;
             result["remainingReferencePreserved"] = remainingReferencePreserved;
             result["undoRestoredBoth"] = undoRestoredBoth;
@@ -2676,7 +2703,7 @@ public:
             result["finalChildRemoved"] = finalChildRemoved;
             result["finalDeleteUndoRestored"] = finalDeleteUndoRestored;
             result["finalDeleteRedoRemoved"] = finalDeleteRedoRemoved;
-            result["passed"] = twoReferencesCreated && remainingReferencePreserved &&
+            result["passed"] = twoReferencesCreated && sharedChildSaveReload && remainingReferencePreserved &&
                 undoRestoredBoth && redoPreservedRemaining && finalChildRemoved &&
                 finalDeleteUndoRestored && finalDeleteRedoRemoved;
             if (!result["passed"].toBool())

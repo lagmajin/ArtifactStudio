@@ -338,6 +338,8 @@ def main():
             call("test.reset")
             shared_child = call("test.sharedChildReferences")
             require(shared_child["passed"] and shared_child["twoReferencesCreated"]
+                    and shared_child["saveSucceeded"] and shared_child["mappingsClearedBeforeReload"]
+                    and shared_child["loaded"] and shared_child["sharedChildSaveReload"]
                     and shared_child["childDataPreserved"]
                     and shared_child["remainingReferencePreserved"]
                     and shared_child["undoRestoredBoth"]

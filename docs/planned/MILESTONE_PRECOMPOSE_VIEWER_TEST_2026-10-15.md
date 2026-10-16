@@ -7,6 +7,9 @@
 
 `test.childCompositionEffectStaysWithChild`は子Compositionへ設定したBrightness effectがプロジェクト再読込後も子に保持され、子レイヤー解除時に親へ移らず、Undo/Redoでも子Compositionの属性として残ることを検査する。
 
+`test.sharedChildReferences`は同一親Compositionの2つのwrapperが共有するchildを保存・再読込し、runtime mappingを復元した後に片方だけ解除しても他方のwrapperとchildが残ること、Undo/Redoで2参照と1参照へ正しく往復することを検査する。
+
+
 ## 対象
 
 FBX独立Viewerのように製品本体と起動を分け、既存のProject ServiceとUndoManagerを直接検証する。製品・子リポジトリのコードは変更しない。GUIは実際のレイヤー構造と属性をJSON表示する検査画面であり、Composition Viewportの描画テストではない。
