@@ -1421,6 +1421,65 @@ public:
             result["state"] = state();
             service->changeCurrentComposition(rootId);
             return result;
+        } else if (name == "test.emptyWorkspaceDurationFallsBack") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            const auto parentDuration = root->frameRange().duration();
+            const FrameRange emptyWorkspace(90, 90);
+            root->setWorkAreaRange(emptyWorkspace);
+            if (sourceIds.size() != 2 || emptyWorkspace.duration() != 0 ||
+                !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Empty Workspace Fallback")), false, true,
+                    PrecomposeMode::MoveSelected)) {
+                result["error"] = QStringLiteral("Could not create empty-workspace fallback fixture");
+                return result;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(outcome.precompLayerId));
+            const bool fallbackApplied = child && parentDuration > 0 &&
+                child->frameRange().start() == 0 && child->frameRange().duration() == parentDuration &&
+                child->workAreaRange().start() == 0 &&
+                child->workAreaRange().duration() == parentDuration;
+            const bool wrapperTimingPreserved = wrapper &&
+                wrapper->inPoint().framePosition() == 40 &&
+                wrapper->outPoint().framePosition() == 200 &&
+                wrapper->startTime().framePosition() == 40;
+            const bool undoAvailable = undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const bool undoRestoredParent = undoAvailable &&
+                service->currentComposition().lock() == root &&
+                root->frameRange().duration() == parentDuration &&
+                namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")}).size() == 2 &&
+                !service->findComposition(outcome.childCompId).ptr.lock();
+            const bool redoAvailable = undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const auto redoneChild = service->findComposition(outcome.childCompId).ptr.lock();
+            const bool redoRestoredFallbackChild = redoAvailable && redoneChild &&
+                redoneChild->frameRange().duration() == parentDuration &&
+                redoneChild->workAreaRange().duration() == parentDuration &&
+                root->layerById(outcome.precompLayerId);
+            result["fallbackApplied"] = fallbackApplied;
+            result["wrapperTimingPreserved"] = wrapperTimingPreserved;
+            result["undoRestoredParent"] = undoRestoredParent;
+            result["redoRestoredFallbackChild"] = redoRestoredFallbackChild;
+            result["passed"] = fallbackApplied && wrapperTimingPreserved &&
+                undoRestoredParent && redoRestoredFallbackChild;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Empty workspace range did not fall back to parent duration across undo/redo");
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            service->changeCurrentComposition(rootId);
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.childDurationPropagates") {
             QJsonObject result;
             if (!comp) {
@@ -6029,7 +6088,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.childCompositionEffectStaysWithChild", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.precomposeIgnoresStaleSelectionId", "test.unpackLayerIdCollisionAtomic", "test.unpackDuplicateChildLayerIdsAtomic", "test.unpackNilChildLayerIdAtomic", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.childCompositionEffectStaysWithChild", "test.openChildComposition", "test.matchWorkspaceDuration", "test.emptyWorkspaceDurationFallsBack", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.precomposeIgnoresStaleSelectionId", "test.unpackLayerIdCollisionAtomic", "test.unpackDuplicateChildLayerIdsAtomic", "test.unpackNilChildLayerIdAtomic", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

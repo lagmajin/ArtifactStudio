@@ -249,6 +249,13 @@ def main():
                     and workspace_duration["wrapperTimingPreserved"],
                     "Precompose did not match workspace duration while preserving wrapper timing")
             call("test.reset")
+            empty_workspace = call("test.emptyWorkspaceDurationFallsBack")
+            require(empty_workspace["passed"] and empty_workspace["fallbackApplied"]
+                    and empty_workspace["wrapperTimingPreserved"]
+                    and empty_workspace["undoRestoredParent"]
+                    and empty_workspace["redoRestoredFallbackChild"],
+                    "Empty workspace range did not fall back to the parent duration consistently")
+            call("test.reset")
             duration_propagation = call("test.childDurationPropagates")
             require(duration_propagation["passed"] and duration_propagation["shrinkFollowed"]
                     and duration_propagation["expansionFollowed"]
