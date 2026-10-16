@@ -111,13 +111,28 @@ public:
                 bool foundA = false;
                 bool foundB = false;
                 bool foundUntouched = false;
+                bool timingPreserved = true;
+                QStringList childNames;
                 for (const auto& value : childLayers) {
-                    const auto name = value.toObject()["name"].toString();
+                    const auto layer = value.toObject();
+                    const auto name = layer["name"].toString();
+                    childNames.append(name);
                     foundA = foundA || name == QStringLiteral("A");
                     foundB = foundB || name == QStringLiteral("B");
                     foundUntouched = foundUntouched || name == QStringLiteral("Untouched");
+                    if (name == QStringLiteral("A"))
+                        timingPreserved = timingPreserved && layer["inFrame"].toInt() == 40 &&
+                            layer["outFrame"].toInt() == 200 && layer["startFrame"].toInt() == 7;
+                    else if (name == QStringLiteral("B"))
+                        timingPreserved = timingPreserved && layer["inFrame"].toInt() == 70 &&
+                            layer["outFrame"].toInt() == 160 && layer["startFrame"].toInt() == 9;
+                    else if (name == QStringLiteral("Untouched"))
+                        timingPreserved = timingPreserved && layer["inFrame"].toInt() == 25 &&
+                            layer["outFrame"].toInt() == 220 && layer["startFrame"].toInt() == 3;
                 }
-                return childLayers.size() == 3 && foundA && foundB && foundUntouched;
+                return childLayers.size() == 3 && foundA && foundB && foundUntouched &&
+                    childNames == QStringList{QStringLiteral("A"), QStringLiteral("B"),
+                                              QStringLiteral("Untouched")} && timingPreserved;
             };
             sendKey(Qt::Key_P);
             const auto afterPrecompose = state();
