@@ -225,6 +225,27 @@ TEST(AudioPlateReverbStandaloneTest, StereoImpulseProducesDifferentTailsPerChann
     EXPECT_TRUE(differs);
 }
 
+TEST(AudioPlateReverbStandaloneTest, LeavesChannelsBeyondStereoUntouched)
+{
+    AudioSegment segment;
+    segment.sampleRate = 48000;
+    segment.layout = AudioChannelLayout::Surround51;
+    QVector<QVector<float>> untouchedChannels;
+    for (int channel = 0; channel < 6; ++channel) {
+        QVector<float> samples(2048, 0.05f * static_cast<float>(channel + 1));
+        if (channel >= 2) untouchedChannels.push_back(samples);
+        segment.channelData.push_back(std::move(samples));
+    }
+
+    AudioPlateReverb plate;
+    plate.setMix(1.0f);
+    plate.process(segment);
+
+    ASSERT_EQ(segment.channelData.size(), 6);
+    for (qsizetype channel = 2; channel < segment.channelData.size(); ++channel)
+        EXPECT_EQ(segment.channelData[channel], untouchedChannels[channel - 2]);
+}
+
 TEST(AudioPlateReverbStandaloneTest, TailGrowsWithDecay)
 {
     AudioPlateReverb plate;
