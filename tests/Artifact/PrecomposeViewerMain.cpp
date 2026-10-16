@@ -4464,16 +4464,53 @@ public:
             const double timeRoundTrip = NestedTimeUtils::convertTime(
                 timeInRoot, rootId, inner.childCompId);
             const bool timeConversionRestored = timeInRoot == 45.0 && timeRoundTrip == 5.0;
+            const auto middleContainsUnpackedLayers = [&]() {
+                if (!reloadedMiddle) return false;
+                const auto a = reloadedMiddle->layerById(innerIds.front());
+                const auto b = reloadedMiddle->layerById(innerIds.back());
+                return a && b && a->layerName() == QStringLiteral("A") &&
+                    b->layerName() == QStringLiteral("B") &&
+                    a->inPoint().framePosition() == 0 && a->outPoint().framePosition() == 160 &&
+                    a->startTime().framePosition() == 7 &&
+                    b->inPoint().framePosition() == 30 && b->outPoint().framePosition() == 120 &&
+                    b->startTime().framePosition() == 9;
+            };
+            service->changeCurrentComposition(outer.childCompId);
+            const bool nestedUnpackedAfterReload = runtimeHierarchyRestored &&
+                service->unprecomposeLayerWithUndo(inner.precompLayerId, true) &&
+                middleContainsUnpackedLayers() && !reloadedMiddle->layerById(inner.precompLayerId) &&
+                reloadedGrandchild->allLayer().empty() &&
+                manager.getPrecompLayersForChild(inner.childCompId).isEmpty() &&
+                manager.getPrecompLayersForChild(outer.childCompId).size() == 1;
+            const bool nestedUnpackUndoAvailable = nestedUnpackedAfterReload && undo->canUndo();
+            if (nestedUnpackUndoAvailable) undo->undo();
+            const bool nestedUnpackUndoRestored = nestedUnpackUndoAvailable &&
+                manager.isPrecomposeLayer(inner.precompLayerId) &&
+                reloadedMiddle->layerById(inner.precompLayerId) &&
+                reloadedGrandchild->layerById(innerIds.front()) &&
+                manager.getCompositionHierarchy(inner.childCompId).size() == 3;
+            const bool nestedUnpackRedoAvailable = nestedUnpackUndoRestored && undo->canRedo();
+            if (nestedUnpackRedoAvailable) undo->redo();
+            const bool nestedUnpackRedoRestored = nestedUnpackRedoAvailable &&
+                !manager.isPrecomposeLayer(inner.precompLayerId) &&
+                middleContainsUnpackedLayers() && !reloadedMiddle->layerById(inner.precompLayerId) &&
+                reloadedGrandchild->allLayer().empty() &&
+                manager.getPrecompLayersForChild(inner.childCompId).isEmpty();
             roundTrip["hierarchyDataPreserved"] = hierarchyDataPreserved;
             roundTrip["runtimeHierarchyRestored"] = runtimeHierarchyRestored;
             roundTrip["timeConversionRestored"] = timeConversionRestored;
+            roundTrip["nestedUnpackedAfterReload"] = nestedUnpackedAfterReload;
+            roundTrip["nestedUnpackUndoRestored"] = nestedUnpackUndoRestored;
+            roundTrip["nestedUnpackRedoRestored"] = nestedUnpackRedoRestored;
             roundTrip["timeInRoot"] = timeInRoot;
             roundTrip["passed"] = hierarchyDataPreserved && runtimeHierarchyRestored &&
-                timeConversionRestored;
+                timeConversionRestored && nestedUnpackedAfterReload && nestedUnpackUndoRestored &&
+                nestedUnpackRedoRestored;
             if (!roundTrip["passed"].toBool())
                 roundTrip["error"] = QStringLiteral("Nested save/reload lost composition data or runtime hierarchy");
             childId_ = inner.childCompId;
             hasChild_ = true;
+            service->changeCurrentComposition(rootId);
             refresh();
             roundTrip["state"] = state();
             return roundTrip;

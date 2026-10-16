@@ -531,6 +531,9 @@ def main():
             require(nested_round_trip["passed"] and nested_round_trip["allMappingsClearedBeforeReload"]
                     and nested_round_trip["hierarchyDataPreserved"]
                     and nested_round_trip["runtimeHierarchyRestored"]
+                    and nested_round_trip["nestedUnpackedAfterReload"]
+                    and nested_round_trip["nestedUnpackUndoRestored"]
+                    and nested_round_trip["nestedUnpackRedoRestored"]
                     and nested_round_trip["timeConversionRestored"]
                     and nested_round_trip["timeInRoot"] == 45.0,
                     "Nested project save/reload did not restore both runtime nesting levels")
