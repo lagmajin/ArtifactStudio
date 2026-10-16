@@ -298,9 +298,9 @@ def main():
                     and reset_capture["content"][0].get("mimeType") == "image/png",
                     "Capture immediately after reset did not return a PNG image")
             reset_png = base64.b64decode(reset_capture["content"][0]["data"], validate=True)
-            validate_png(reset_png)
+            reset_dimensions = validate_png(reset_png)
             (args.output_dir / "reset.png").write_bytes(reset_png)
-            evidence[-1]["reply"] = {"image": "reset.png"}
+            evidence[-1]["reply"] = {"image": "reset.png", "dimensions": reset_dimensions}
             require(call("test.state") == reset_capture_state,
                     "Capture immediately after reset changed the restored fixture")
             keyboard_round_trip = call("test.guiKeyboardRoundTrip")
@@ -1181,10 +1181,12 @@ def main():
                     "Capture did not return a PNG image")
             png = base64.b64decode(image["content"][0]["data"], validate=True)
             width, height = validate_png(png)
+            require((width, height) == reset_dimensions,
+                    "GUI capture dimensions changed during the precompose test run")
             require(call("test.state") == capture_state_before,
                     "Capture changed the composition, selection, or undo history")
             (args.output_dir / "nested.png").write_bytes(png)
-            evidence[-1]["reply"] = {"image": "nested.png"}
+            evidence[-1]["reply"] = {"image": "nested.png", "dimensions": (width, height)}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
             require(invoked_tool_names == exposed_tool_names,
                     f"MCP tool catalog has unexercised or unavailable tools: "
