@@ -1098,6 +1098,10 @@ public:
             return result;
         }
         if (name == "test.capture") {
+            const auto currentState = state();
+            const auto displayedState = QJsonDocument::fromJson(text_->toPlainText().toUtf8());
+            if (!displayedState.isObject() || displayedState.object() != currentState)
+                return {{"error", "Visible MCP state panel is stale"}};
             QByteArray png;
             QBuffer buffer(&png);
             buffer.open(QIODevice::WriteOnly);
