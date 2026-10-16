@@ -2135,6 +2135,16 @@ public:
                     parentColor.r() == childColor.r() && parentColor.g() == childColor.g() &&
                     parentColor.b() == childColor.b() && parentColor.a() == childColor.a();
             };
+            const auto settingsSnapshot = [](const ArtifactCompositionPtr& composition) {
+                if (!composition) return QJsonObject{};
+                const auto size = composition->settings().compositionSize();
+                const auto color = composition->backgroundColor();
+                return QJsonObject{
+                    {"resolution", QJsonArray{size.width(), size.height()}},
+                    {"frameRate", composition->frameRate().framerate()},
+                    {"frameRangeDuration", composition->frameRange().duration()},
+                    {"backgroundColor", QJsonArray{color.r(), color.g(), color.b(), color.a()}}};
+            };
             const bool childSettingsCopiedOnOpen = childOpened &&
                 childSettingsMatchParent(openedChild);
             const auto matchesSelection = [&](const CompositionID& compositionId,
@@ -2155,6 +2165,8 @@ public:
                 comp->layerById(outcome.precompLayerId));
             const auto childLayerCountBeforeWrongContextUnpack = openedChild
                 ? openedChild->allLayer().size() : 0;
+            const auto rootSettingsBeforeWrongContextUnpack = settingsSnapshot(comp);
+            const auto childSettingsBeforeWrongContextUnpack = settingsSnapshot(openedChild);
             const auto rootLayersBeforeWrongContextUnpack = layers(comp, 0);
             const auto childLayersBeforeWrongContextUnpack = layers(openedChild, 0);
             const auto undoCountBeforeWrongContextUnpack = undo->undoCount();
@@ -2184,6 +2196,9 @@ public:
             const bool wrongContextLayerSnapshotsPreserved = wrongContextUnpackRejected &&
                 layers(comp, 0) == rootLayersBeforeWrongContextUnpack &&
                 layers(stillOpenedChild, 0) == childLayersBeforeWrongContextUnpack;
+            const bool wrongContextSettingsPreserved = wrongContextUnpackRejected &&
+                settingsSnapshot(comp) == rootSettingsBeforeWrongContextUnpack &&
+                settingsSnapshot(stillOpenedChild) == childSettingsBeforeWrongContextUnpack;
             const bool wrongContextStatePreserved = wrongContextUnpackRejected && stillOpenedChild == openedChild &&
                 stillOpenedChild->allLayer().size() == childLayerCountBeforeWrongContextUnpack &&
                 comp->layerById(outcome.precompLayerId) == rootWrapper &&
@@ -2192,7 +2207,7 @@ public:
                 undo->redoCount() == redoCountBeforeWrongContextUnpack &&
                 wrongContextSelectionPreserved && wrongContextManagerMappingPreserved &&
                 wrongContextReverseMappingPreserved && wrongContextLayerSnapshotsPreserved &&
-                wrongContextPublishedStatePreserved;
+                wrongContextSettingsPreserved && wrongContextPublishedStatePreserved;
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
             const auto afterUndo = service->currentComposition().lock();
@@ -2247,6 +2262,7 @@ public:
             result["wrongContextManagerMappingPreserved"] = wrongContextManagerMappingPreserved;
             result["wrongContextReverseMappingPreserved"] = wrongContextReverseMappingPreserved;
             result["wrongContextLayerSnapshotsPreserved"] = wrongContextLayerSnapshotsPreserved;
+            result["wrongContextSettingsPreserved"] = wrongContextSettingsPreserved;
             result["wrongContextPublishedStatePreserved"] = wrongContextPublishedStatePreserved;
             result["wrongContextStatePreserved"] = wrongContextStatePreserved;
             result["undoReturnedToRoot"] = undoReturnedToRoot;
