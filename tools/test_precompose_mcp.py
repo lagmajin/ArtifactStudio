@@ -8,6 +8,43 @@ import struct
 import subprocess
 import sys
 import threading
+import zlib
+
+
+def validate_png(png):
+    signature = b"\x89PNG\r\n\x1a\n"
+    if not png.startswith(signature):
+        raise AssertionError("Capture returned an invalid PNG signature")
+    offset = len(signature)
+    chunk_types = []
+    while offset + 12 <= len(png):
+        length = struct.unpack_from(">I", png, offset)[0]
+        chunk_end = offset + 12 + length
+        if chunk_end > len(png):
+            raise AssertionError("Capture PNG contains a truncated chunk")
+        chunk_type = png[offset + 4:offset + 8]
+        chunk_data = png[offset + 8:offset + 8 + length]
+        expected_crc = struct.unpack_from(">I", png, offset + 8 + length)[0]
+        actual_crc = zlib.crc32(chunk_data, zlib.crc32(chunk_type)) & 0xffffffff
+        if actual_crc != expected_crc:
+            raise AssertionError(f"Capture PNG has an invalid {chunk_type!r} CRC")
+        if not chunk_types and (chunk_type != b"IHDR" or length != 13):
+            raise AssertionError("Capture PNG does not start with a valid IHDR chunk")
+        chunk_types.append(chunk_type)
+        if chunk_type == b"IEND":
+            if length != 0 or chunk_end != len(png):
+                raise AssertionError("Capture PNG has an invalid IEND chunk or trailing data")
+            break
+        offset = chunk_end
+    if (not chunk_types or chunk_types[0] != b"IHDR" or chunk_types.count(b"IHDR") != 1
+            or b"IDAT" not in chunk_types or chunk_types[-1] != b"IEND"):
+        raise AssertionError("Capture PNG is missing required IHDR, IDAT, or IEND chunks")
+    if len(png) < len(signature) + 8 + 13:
+        raise AssertionError("Capture PNG has a truncated IHDR chunk")
+    width, height = struct.unpack_from(">II", png, len(signature) + 8)
+    if width <= 0 or height <= 0:
+        raise AssertionError("Capture PNG has empty dimensions")
+    return width, height
 
 
 def main():
@@ -1011,12 +1048,7 @@ def main():
                     and image["content"][0].get("mimeType") == "image/png",
                     "Capture did not return a PNG image")
             png = base64.b64decode(image["content"][0]["data"], validate=True)
-            require(len(png) >= 24 and png[:8] == b"\x89PNG\r\n\x1a\n"
-                    and png[12:16] == b"IHDR",
-                    "Capture returned invalid or truncated PNG data")
-            width, height = struct.unpack(">II", png[16:24])
-            require(width > 0 and height > 0,
-                    "Capture PNG has empty dimensions")
+            width, height = validate_png(png)
             require(call("test.state") == capture_state_before,
                     "Capture changed the composition, selection, or undo history")
             (args.output_dir / "nested.png").write_bytes(png)
