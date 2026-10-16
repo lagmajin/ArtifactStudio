@@ -350,11 +350,14 @@ public:
                 return {{"passed", false},
                         {"error", QStringLiteral("Animated keyboard fixture has no position X property")}};
             }
+            source->setInPoint(FramePosition(-24));
+            source->setOutPoint(FramePosition(136));
+            source->setStartTime(FramePosition(-17));
             sourcePosition->clearKeyFrames();
             sourcePosition->setAnimatable(true);
             const auto timeScale = source->keyframeTimeScale();
-            const RationalTime firstTime(40, timeScale);
-            const RationalTime secondTime(100, timeScale);
+            const RationalTime firstTime(-12, timeScale);
+            const RationalTime secondTime(24, timeScale);
             sourcePosition->addKeyFrame(firstTime, 1.25,
                                        InterpolationType::Bezier,
                                        0.2f, 0.1f, 0.8f, 0.9f, true);
@@ -362,7 +365,13 @@ public:
                                        InterpolationType::Constant);
             const QJsonArray originalKeys = keyframes(sourcePosition);
             const double originalSample = sourcePosition->evaluateValue(
-                RationalTime(70, timeScale)).toDouble();
+                RationalTime(0, timeScale)).toDouble();
+            const auto hasTiming = [](const ArtifactAbstractLayerPtr& layer,
+                                      int64_t inFrame, int64_t outFrame, int64_t startFrame) {
+                return layer && layer->inPoint().framePosition() == inFrame &&
+                    layer->outPoint().framePosition() == outFrame &&
+                    layer->startTime().framePosition() == startFrame;
+            };
 
             const auto sendKey = [this](int key) {
                 QKeyEvent event(QEvent::KeyPress, key, Qt::NoModifier);
@@ -377,18 +386,19 @@ public:
                 ? childA->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
             const QJsonArray movedKeys = keyframes(childPosition);
+            const bool negativeTimingNormalizedByKey = hasTiming(childA, 0, 160, 7);
             const bool movedLayerIdentityPreserved = childA && childA.get() == source.get();
             const bool animationEnabledByKey = childPosition && childPosition->isAnimatable();
             bool animationMovedByKey = hasChild_ && child && childPosition &&
                 movedKeys.size() == originalKeys.size() && movedKeys.size() == 2;
             for (qsizetype index = 0; animationMovedByKey && index < movedKeys.size(); ++index) {
                 auto expected = originalKeys[index].toObject();
-                expected["timeValue"] = expected["timeValue"].toDouble() - 40.0;
+                expected["timeValue"] = expected["timeValue"].toDouble() + 24.0;
                 animationMovedByKey = movedKeys[index].toObject() == expected;
             }
             const bool animationSamplePreservedByKey = animationMovedByKey &&
                 std::abs(childPosition->evaluateValue(RationalTime(
-                    30, childA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
+                    24, childA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
 
             sendKey(Qt::Key_Z);
             const auto undoSource = parent->layerById(ids.front());
@@ -397,6 +407,7 @@ public:
                 : SharedPtr<AbstractProperty>{};
             const bool undoLayerIdentityPreserved = undoSource &&
                 undoSource.get() == source.get();
+            const bool negativeTimingRestoredByUndo = hasTiming(undoSource, -24, 136, -17);
             const bool animationEnabledAfterUndo = undoPosition && undoPosition->isAnimatable();
             const bool animationRestoredByUndo = !hasChild_ ||
                 ArtifactProjectService::instance()->findComposition(childId_).ptr.expired();
@@ -404,7 +415,7 @@ public:
                 keyframes(undoPosition) == originalKeys;
             const bool undoSamplePreserved = undoKeysPreserved &&
                 std::abs(undoPosition->evaluateValue(RationalTime(
-                    70, undoSource->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
+                    0, undoSource->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
 
             sendKey(Qt::Key_Y);
             const auto redoChild = service->findComposition(childId_).ptr.lock();
@@ -415,12 +426,13 @@ public:
                 ? redoA->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
             const bool redoLayerIdentityPreserved = redoA && redoA.get() == source.get();
+            const bool negativeTimingRestoredByRedo = hasTiming(redoA, 0, 160, 7);
             const bool animationEnabledAfterRedo = redoPosition && redoPosition->isAnimatable();
             const bool animationRestoredByRedo = redoPosition &&
                 keyframes(redoPosition) == movedKeys;
             const bool redoSamplePreserved = animationRestoredByRedo &&
                 std::abs(redoPosition->evaluateValue(RationalTime(
-                    30, redoA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
+                    24, redoA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
 
             sendKey(Qt::Key_K);
             const auto unpackedA = parent->layerById(ids.front());
@@ -429,13 +441,15 @@ public:
                 : SharedPtr<AbstractProperty>{};
             const bool unpackLayerIdentityPreserved = unpackedA &&
                 unpackedA.get() == source.get();
+            const bool negativeTimingRestoredByUnpack =
+                hasTiming(unpackedA, -24, 136, -17);
             const bool animationEnabledAfterUnpack = unpackedPosition &&
                 unpackedPosition->isAnimatable();
             const bool animationRestoredByKeyboardUnpack = unpackedPosition &&
                 keyframes(unpackedPosition) == originalKeys;
             const bool unpackSamplePreserved = animationRestoredByKeyboardUnpack &&
                 std::abs(unpackedPosition->evaluateValue(RationalTime(
-                    70, unpackedA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
+                    0, unpackedA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
 
             sendKey(Qt::Key_Z);
             const auto unpackUndoChild = service->findComposition(childId_).ptr.lock();
@@ -445,6 +459,8 @@ public:
             const auto unpackUndoPosition = unpackUndoA
                 ? unpackUndoA->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
+            const bool negativeTimingRestoredByUnpackUndo =
+                hasTiming(unpackUndoA, 0, 160, 7);
             const bool animationEnabledAfterUnpackUndo = unpackUndoPosition &&
                 unpackUndoPosition->isAnimatable();
             const bool animationRestoredByUnpackUndo = unpackUndoPosition &&
@@ -453,13 +469,15 @@ public:
                 unpackUndoA.get() == source.get();
             const bool unpackUndoSamplePreserved = animationRestoredByUnpackUndo &&
                 std::abs(unpackUndoPosition->evaluateValue(RationalTime(
-                    30, unpackUndoA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
+                    24, unpackUndoA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
 
             sendKey(Qt::Key_Y);
             const auto unpackRedoA = parent->layerById(ids.front());
             const auto unpackRedoPosition = unpackRedoA
                 ? unpackRedoA->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
+            const bool negativeTimingRestoredByUnpackRedo =
+                hasTiming(unpackRedoA, -24, 136, -17);
             const bool animationEnabledAfterUnpackRedo = unpackRedoPosition &&
                 unpackRedoPosition->isAnimatable();
             const bool animationRestoredByUnpackRedo = unpackRedoPosition &&
@@ -468,46 +486,56 @@ public:
                 unpackRedoA.get() == source.get();
             const bool unpackRedoSamplePreserved = animationRestoredByUnpackRedo &&
                 std::abs(unpackRedoPosition->evaluateValue(RationalTime(
-                    70, unpackRedoA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
+                    0, unpackRedoA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
 
             const bool passed = movedLayerIdentityPreserved && animationEnabledByKey &&
-                animationMovedByKey &&
+                negativeTimingNormalizedByKey && animationMovedByKey &&
                 animationRestoredByUndo && undoLayerIdentityPreserved &&
+                negativeTimingRestoredByUndo &&
                 animationEnabledAfterUndo && animationSamplePreservedByKey &&
                 undoKeysPreserved && undoSamplePreserved &&
                 animationRestoredByRedo && redoLayerIdentityPreserved &&
-                animationEnabledAfterRedo && redoSamplePreserved &&
+                negativeTimingRestoredByRedo && animationEnabledAfterRedo && redoSamplePreserved &&
                 animationRestoredByKeyboardUnpack && unpackLayerIdentityPreserved &&
-                animationEnabledAfterUnpack && unpackSamplePreserved &&
+                negativeTimingRestoredByUnpack && animationEnabledAfterUnpack && unpackSamplePreserved &&
                 animationRestoredByUnpackUndo && animationEnabledAfterUnpackUndo &&
-                unpackUndoIdentityPreserved && unpackUndoSamplePreserved &&
+                negativeTimingRestoredByUnpackUndo && unpackUndoIdentityPreserved &&
+                unpackUndoSamplePreserved &&
                 animationRestoredByUnpackRedo && animationEnabledAfterUnpackRedo &&
-                unpackRedoIdentityPreserved &&
+                negativeTimingRestoredByUnpackRedo && unpackRedoIdentityPreserved &&
                 unpackRedoSamplePreserved;
             QJsonObject result{{"animationMovedByKey", animationMovedByKey},
                                {"movedLayerIdentityPreserved", movedLayerIdentityPreserved},
+                               {"negativeTimingNormalizedByKey", negativeTimingNormalizedByKey},
                                {"animationEnabledByKey", animationEnabledByKey},
                                {"animationSamplePreservedByKey", animationSamplePreservedByKey},
                                {"animationRestoredByUndo", animationRestoredByUndo},
                                {"undoLayerIdentityPreserved", undoLayerIdentityPreserved},
+                               {"negativeTimingRestoredByUndo", negativeTimingRestoredByUndo},
                                {"animationEnabledAfterUndo", animationEnabledAfterUndo},
                                {"undoKeysPreserved", undoKeysPreserved},
                                {"undoSamplePreserved", undoSamplePreserved},
                                {"animationRestoredByRedo", animationRestoredByRedo},
                                {"redoLayerIdentityPreserved", redoLayerIdentityPreserved},
+                               {"negativeTimingRestoredByRedo", negativeTimingRestoredByRedo},
                                {"animationEnabledAfterRedo", animationEnabledAfterRedo},
                                {"redoSamplePreserved", redoSamplePreserved},
                                {"animationRestoredByKeyboardUnpack",
                                 animationRestoredByKeyboardUnpack},
                                {"unpackLayerIdentityPreserved", unpackLayerIdentityPreserved},
+                               {"negativeTimingRestoredByUnpack", negativeTimingRestoredByUnpack},
                                {"animationEnabledAfterUnpack", animationEnabledAfterUnpack},
                                {"unpackSamplePreserved", unpackSamplePreserved},
                                {"animationRestoredByUnpackUndo", animationRestoredByUnpackUndo},
                                {"unpackUndoIdentityPreserved", unpackUndoIdentityPreserved},
+                               {"negativeTimingRestoredByUnpackUndo",
+                                negativeTimingRestoredByUnpackUndo},
                                {"animationEnabledAfterUnpackUndo", animationEnabledAfterUnpackUndo},
                                {"unpackUndoSamplePreserved", unpackUndoSamplePreserved},
                                {"animationRestoredByUnpackRedo", animationRestoredByUnpackRedo},
                                {"unpackRedoIdentityPreserved", unpackRedoIdentityPreserved},
+                               {"negativeTimingRestoredByUnpackRedo",
+                                negativeTimingRestoredByUnpackRedo},
                                {"animationEnabledAfterUnpackRedo", animationEnabledAfterUnpackRedo},
                                {"unpackRedoSamplePreserved", unpackRedoSamplePreserved},
                                {"passed", passed}};
