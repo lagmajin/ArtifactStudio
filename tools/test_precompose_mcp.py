@@ -486,7 +486,10 @@ def main():
                     and round_trip["layerEffectPersisted"]
                     and round_trip["layerMaskPersisted"]
                     and round_trip["layerMattePersisted"]
-                    and round_trip["componentDescriptorsPersisted"],
+                    and round_trip["componentDescriptorsPersisted"]
+                    and round_trip["auxiliaryStateUnpackedAfterReload"]
+                    and round_trip["unpackUndoRestoredChild"]
+                    and round_trip["unpackRedoRestoredParent"],
                     "Precompose save/reload changed layer metadata, effects, masks, mattes, component descriptors, exposed properties, or runtime nesting")
             call("test.reset")
             hierarchy = call("test.nestedHierarchy")

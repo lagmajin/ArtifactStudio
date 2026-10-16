@@ -4554,6 +4554,25 @@ public:
                 reloadedMattes.front().invert;
             const bool componentDescriptorsPersisted = reloadedSourceLayer &&
                 reloadedSourceLayer->componentDescriptorSnapshot() == expectedComponentSnapshot;
+            const auto hasPersistedAuxiliaryState = [&](const ArtifactAbstractLayerPtr& layer) {
+                if (!layer || layer->componentDescriptorSnapshot() != expectedComponentSnapshot ||
+                    layer->maskCount() != 1 || layer->matteReferences().size() != 1) return false;
+                const auto effects = layer->getEffects();
+                const auto brightness = effects.size() == 1
+                    ? dynamicPointerCast<BrightnessEffect>(effects.front())
+                    : SharedPtr<BrightnessEffect>{};
+                const auto mask = layer->mask(0);
+                const auto path = mask.maskPathCount() == 1 ? mask.maskPath(0) : MaskPath{};
+                const auto keys = path.animationKeyframes();
+                const auto mattes = layer->matteReferences();
+                return brightness && std::abs(brightness->brightness() - 0.3125f) <= 1.0e-6f &&
+                    !mask.isEnabled() && mask.isLocked() && path.name().toQString() ==
+                        QStringLiteral("Saved Cutout") && keys.size() == 1 && keys.front().frame == 24 &&
+                    mattes.front().sourceLayerId.toString() == peerLayer->id().toString() &&
+                    mattes.front().type == MatteType::Luma &&
+                    mattes.front().blendMode == MatteBlendMode::Intersect &&
+                    std::abs(mattes.front().opacity - 0.75f) <= 1.0e-6f && mattes.front().invert;
+            };
             const auto reloadedBinding = reloadedPrecompLayer
                 ? reloadedPrecompLayer->exposedProperties().binding(opacityBinding.id)
                 : ArtifactCore::ExposedPropertyBinding{};
@@ -4611,6 +4630,22 @@ public:
                 nesting.parentLayerId == originalPrecompLayer->id() &&
                 precompManager.getCompositionHierarchy(originalChildId).size() == 2 &&
                 reverseParentLink;
+            const bool auxiliaryStateUnpacked = loaded && reloadedPrecompLayer &&
+                service->unprecomposeLayerWithUndo(originalPrecompLayer->id(), true) &&
+                hasPersistedAuxiliaryState(reloadedParent->layerById(sourceLayer->id()));
+            const bool unpackUndoAvailable = auxiliaryStateUnpacked && undo->canUndo();
+            if (unpackUndoAvailable) undo->undo();
+            const auto undoChild = service->findComposition(originalChildId).ptr.lock();
+            const bool unpackUndoRestored = unpackUndoAvailable &&
+                hasPersistedAuxiliaryState(undoChild ? undoChild->layerById(sourceLayer->id())
+                                                     : ArtifactAbstractLayerPtr{}) &&
+                precompManager.isPrecomposeLayer(originalPrecompLayer->id()) &&
+                reloadedParent->layerById(originalPrecompLayer->id());
+            const bool unpackRedoAvailable = unpackUndoRestored && undo->canRedo();
+            if (unpackRedoAvailable) undo->redo();
+            const bool unpackRedoRestored = unpackRedoAvailable &&
+                hasPersistedAuxiliaryState(reloadedParent->layerById(sourceLayer->id())) &&
+                !precompManager.isPrecomposeLayer(originalPrecompLayer->id());
             roundTrip["parentChildLinkPreserved"] = parentChildLink;
             roundTrip["layerStatePreserved"] = reloaded == original;
             roundTrip["runtimeNestingRestored"] = runtimeNestingRestored;
@@ -4623,10 +4658,14 @@ public:
             roundTrip["layerMaskPersisted"] = layerMaskPersisted;
             roundTrip["layerMattePersisted"] = layerMattePersisted;
             roundTrip["componentDescriptorsPersisted"] = componentDescriptorsPersisted;
+            roundTrip["auxiliaryStateUnpackedAfterReload"] = auxiliaryStateUnpacked;
+            roundTrip["unpackUndoRestoredChild"] = unpackUndoRestored;
+            roundTrip["unpackRedoRestoredParent"] = unpackRedoRestored;
             roundTrip["passed"] = save.success && loaded && parentChildLink && runtimeNestingRestored &&
                 masterPropertyDefinitionPreserved && masterPropertyOverridePreserved && overrideStillDeferred &&
                 layerMetadataPreserved && transformKeyframesPreserved && layerEffectPersisted &&
-                layerMaskPersisted && layerMattePersisted && componentDescriptorsPersisted;
+                layerMaskPersisted && layerMattePersisted && componentDescriptorsPersisted &&
+                auxiliaryStateUnpacked && unpackUndoRestored && unpackRedoRestored;
             if (!roundTrip["passed"].toBool())
                 roundTrip["error"] = QStringLiteral("Precompose project round-trip lost parent/child data or runtime nesting registration");
             childId_ = originalChildId;
