@@ -301,6 +301,14 @@ def main():
                     "MCP tools/list returned a missing or invalid tool name")
             require(len(names) == len(set(names)),
                     "MCP tools/list returned duplicate tool names")
+            required_tools = {
+                "test.state", "test.reset", "test.resetFromChild", "test.runRegression",
+                "test.prepareInvalidCapturePanel", "test.prepareMismatchedCapturePanel",
+                "test.refreshStatePanel", "test.hideCaptureWindow", "test.showCaptureWindow",
+                "test.minimizeCaptureWindow", "test.restoreCaptureWindow", "test.capture",
+            }
+            require(required_tools.issubset(set(names)),
+                    f"MCP tools/list omitted required tools: {sorted(required_tools - set(names))}")
             require(all(isinstance(tool.get("description"), str)
                         and tool["description"].strip()
                         and tool.get("inputSchema") == {
