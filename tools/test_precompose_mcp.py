@@ -19,6 +19,7 @@ def validate_png(png, require_visual_content=False):
     chunk_types = []
     image_header = None
     image_data = []
+    palette_data = None
     seen_image_data = False
     image_data_ended = False
     while offset + 12 <= len(png):
@@ -44,6 +45,17 @@ def validate_png(png, require_visual_content=False):
         chunk_types.append(chunk_type)
         if chunk_type == b"IHDR":
             image_header = chunk_data
+        elif chunk_type == b"PLTE":
+            if seen_image_data or palette_data is not None:
+                raise AssertionError("Capture PNG has a late or duplicate PLTE chunk")
+            palette_color_type = image_header[9]
+            palette_bit_depth = image_header[8]
+            if palette_color_type in (0, 4) or length < 3 or length > 768 or length % 3:
+                raise AssertionError("Capture PNG has an invalid PLTE chunk")
+            if (palette_color_type == 3
+                    and length // 3 > (1 << palette_bit_depth)):
+                raise AssertionError("Capture PNG palette exceeds its indexed bit depth")
+            palette_data = chunk_data
         elif chunk_type == b"IDAT":
             if image_data_ended:
                 raise AssertionError("Capture PNG contains nonconsecutive IDAT chunks")
@@ -71,6 +83,8 @@ def validate_png(png, require_visual_content=False):
     if (color_type not in channels_by_color_type or bit_depth not in valid_bit_depths[color_type]
             or compression_method != 0 or filter_method != 0 or interlace_method != 0):
         raise AssertionError("Capture PNG uses an unsupported IHDR encoding")
+    if color_type == 3 and palette_data is None:
+        raise AssertionError("Indexed capture PNG is missing its required PLTE chunk")
     row_bytes = (width * channels_by_color_type[color_type] * bit_depth + 7) // 8
     scanline_bytes = row_bytes + 1
     expected_data_length = height * scanline_bytes
@@ -216,6 +230,14 @@ def validate_png_contract():
                      + make_png_chunk(b"IEND", b""))
     if validate_png(ancillary_png) != (1, 1):
         raise AssertionError("PNG validator rejected a valid ancillary chunk")
+    indexed_header = struct.pack(">IIBBBBB", 1, 1, 8, 3, 0, 0, 0)
+    indexed_data = zlib.compress(b"\x00\x00")
+    indexed_png = (signature + make_png_chunk(b"IHDR", indexed_header)
+                   + make_png_chunk(b"PLTE", b"\x00\x00\x00")
+                   + make_png_chunk(b"IDAT", indexed_data)
+                   + make_png_chunk(b"IEND", b""))
+    if validate_png(indexed_png) != (1, 1):
+        raise AssertionError("PNG validator rejected a valid indexed-color fixture")
     varied_png = (signature
                   + make_png_chunk(b"IHDR", struct.pack(">IIBBBBB", 16, 1, 8, 0, 0, 0, 0))
                   + make_png_chunk(b"IDAT", zlib.compress(b"\x00" + bytes(range(16))))
@@ -263,6 +285,18 @@ def validate_png_contract():
             + make_png_chunk(b"IEND", b"")),
         "missing IDAT": (
             signature + make_png_chunk(b"IHDR", header) + make_png_chunk(b"IEND", b"")),
+        "indexed color without PLTE": (
+            signature + make_png_chunk(b"IHDR", indexed_header)
+            + make_png_chunk(b"IDAT", indexed_data) + make_png_chunk(b"IEND", b"")),
+        "PLTE after IDAT": (
+            signature + make_png_chunk(b"IHDR", indexed_header)
+            + make_png_chunk(b"IDAT", indexed_data)
+            + make_png_chunk(b"PLTE", b"\x00\x00\x00")
+            + make_png_chunk(b"IEND", b"")),
+        "PLTE with invalid length": (
+            signature + make_png_chunk(b"IHDR", indexed_header)
+            + make_png_chunk(b"PLTE", b"\x00\x00")
+            + make_png_chunk(b"IDAT", indexed_data) + make_png_chunk(b"IEND", b"")),
         "unsupported critical chunk": (
             signature + make_png_chunk(b"IHDR", header)
             + make_png_chunk(b"ABCD", b"unsupported")
