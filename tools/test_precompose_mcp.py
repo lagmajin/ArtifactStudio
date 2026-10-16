@@ -143,6 +143,7 @@ def main():
     args.output_dir.mkdir(parents=True, exist_ok=True)
     replies = queue.Queue()
     evidence = []
+    capture_files_written = []
     exposed_tool_names = set()
     invoked_tool_names = set()
     with (args.output_dir / "stderr.log").open("w", encoding="utf-8") as log:
@@ -402,6 +403,7 @@ def main():
             reset_png = base64.b64decode(reset_capture["content"][0]["data"], validate=True)
             reset_dimensions = validate_png(reset_png)
             (args.output_dir / "reset.png").write_bytes(reset_png)
+            capture_files_written.append("reset.png")
             evidence[-1]["reply"] = {"image": "reset.png", "dimensions": reset_dimensions}
             require(call("test.state") == reset_capture_state,
                     "Capture immediately after reset changed the restored fixture")
@@ -1285,6 +1287,7 @@ def main():
             require(call("test.state") == capture_state_before,
                     "Capture changed the composition, selection, or undo history")
             (args.output_dir / "nested.png").write_bytes(png)
+            capture_files_written.append("nested.png")
             evidence[-1]["reply"] = {"image": "nested.png", "dimensions": (width, height)}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
             require(invoked_tool_names == exposed_tool_names,
@@ -1327,9 +1330,7 @@ def main():
                              "serverForcedKill": forced_kill})
             evidence.append({"stdoutReaderStopped": not reader_thread.is_alive(),
                              "trailingStdout": trailing_stdout})
-            capture_files = [name for name in ("reset.png", "nested.png")
-                             if (args.output_dir / name).is_file()]
-            evidence.append({"captureFiles": capture_files})
+            evidence.append({"captureFiles": capture_files_written})
             (args.output_dir / "result.json").write_text(json.dumps(evidence, ensure_ascii=False, indent=2),
                                                          encoding="utf-8")
         if reader_thread.is_alive():
