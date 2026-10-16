@@ -180,8 +180,14 @@ def main():
                     and animated_keyboard_round_trip["redoSamplePreserved"]
                     and animated_keyboard_round_trip["animationRestoredByKeyboardUnpack"]
                     and animated_keyboard_round_trip["unpackLayerIdentityPreserved"]
-                    and animated_keyboard_round_trip["unpackSamplePreserved"],
-                    "GUI P/Z/Y/K keyboard routing did not preserve the animated layer object and its samples")
+                    and animated_keyboard_round_trip["unpackSamplePreserved"]
+                    and animated_keyboard_round_trip["animationRestoredByUnpackUndo"]
+                    and animated_keyboard_round_trip["unpackUndoIdentityPreserved"]
+                    and animated_keyboard_round_trip["unpackUndoSamplePreserved"]
+                    and animated_keyboard_round_trip["animationRestoredByUnpackRedo"]
+                    and animated_keyboard_round_trip["unpackRedoIdentityPreserved"]
+                    and animated_keyboard_round_trip["unpackRedoSamplePreserved"],
+                    "GUI P/Z/Y/K keyboard routing did not preserve animated data and layer identity across unpack undo/redo")
             call("test.reset")
             initial = call("test.state")
             original = initial["layers"]

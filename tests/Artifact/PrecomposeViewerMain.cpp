@@ -432,12 +432,44 @@ public:
                 std::abs(unpackedPosition->evaluateValue(RationalTime(
                     70, unpackedA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
 
+            sendKey(Qt::Key_Z);
+            const auto unpackUndoChild = service->findComposition(childId_).ptr.lock();
+            const auto unpackUndoIds = namedLayerIds(unpackUndoChild, {QStringLiteral("A")});
+            const auto unpackUndoA = unpackUndoIds.size() == 1
+                ? unpackUndoChild->layerById(unpackUndoIds.front()) : ArtifactAbstractLayerPtr{};
+            const auto unpackUndoPosition = unpackUndoA
+                ? unpackUndoA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const bool animationRestoredByUnpackUndo = unpackUndoPosition &&
+                keyframes(unpackUndoPosition) == movedKeys;
+            const bool unpackUndoIdentityPreserved = unpackUndoA &&
+                unpackUndoA.get() == source.get();
+            const bool unpackUndoSamplePreserved = animationRestoredByUnpackUndo &&
+                std::abs(unpackUndoPosition->evaluateValue(RationalTime(
+                    30, unpackUndoA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
+
+            sendKey(Qt::Key_Y);
+            const auto unpackRedoA = parent->layerById(ids.front());
+            const auto unpackRedoPosition = unpackRedoA
+                ? unpackRedoA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const bool animationRestoredByUnpackRedo = unpackRedoPosition &&
+                keyframes(unpackRedoPosition) == originalKeys;
+            const bool unpackRedoIdentityPreserved = unpackRedoA &&
+                unpackRedoA.get() == source.get();
+            const bool unpackRedoSamplePreserved = animationRestoredByUnpackRedo &&
+                std::abs(unpackRedoPosition->evaluateValue(RationalTime(
+                    70, unpackRedoA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
+
             const bool passed = movedLayerIdentityPreserved && animationMovedByKey &&
                 animationRestoredByUndo && undoLayerIdentityPreserved &&
                 animationSamplePreservedByKey && undoKeysPreserved && undoSamplePreserved &&
                 animationRestoredByRedo && redoLayerIdentityPreserved && redoSamplePreserved &&
                 animationRestoredByKeyboardUnpack && unpackLayerIdentityPreserved &&
-                unpackSamplePreserved;
+                unpackSamplePreserved && animationRestoredByUnpackUndo &&
+                unpackUndoIdentityPreserved && unpackUndoSamplePreserved &&
+                animationRestoredByUnpackRedo && unpackRedoIdentityPreserved &&
+                unpackRedoSamplePreserved;
             QJsonObject result{{"animationMovedByKey", animationMovedByKey},
                                {"movedLayerIdentityPreserved", movedLayerIdentityPreserved},
                                {"animationSamplePreservedByKey", animationSamplePreservedByKey},
@@ -452,6 +484,12 @@ public:
                                 animationRestoredByKeyboardUnpack},
                                {"unpackLayerIdentityPreserved", unpackLayerIdentityPreserved},
                                {"unpackSamplePreserved", unpackSamplePreserved},
+                               {"animationRestoredByUnpackUndo", animationRestoredByUnpackUndo},
+                               {"unpackUndoIdentityPreserved", unpackUndoIdentityPreserved},
+                               {"unpackUndoSamplePreserved", unpackUndoSamplePreserved},
+                               {"animationRestoredByUnpackRedo", animationRestoredByUnpackRedo},
+                               {"unpackRedoIdentityPreserved", unpackRedoIdentityPreserved},
+                               {"unpackRedoSamplePreserved", unpackRedoSamplePreserved},
                                {"passed", passed}};
             if (!passed) result["error"] = QStringLiteral(
                 "GUI P/Z/Y/K keyboard routing did not preserve animated position keys");
