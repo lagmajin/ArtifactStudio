@@ -149,6 +149,22 @@ public:
                 }
                 return QString{};
             };
+            const auto managerMappingMatches = [&rootCompositionId](
+                const LayerID& wrapperId, const CompositionID& childId) {
+                const auto& manager = PreComposeManager::instance();
+                if (!manager.isPrecomposeLayer(wrapperId) ||
+                    manager.getSourceCompositionId(wrapperId) != childId) return false;
+                const auto references = manager.getPrecompLayersForChild(childId);
+                return references.size() == 1 &&
+                    references.front().precompLayerId == wrapperId &&
+                    references.front().parentCompId.toString() == rootCompositionId;
+            };
+            const auto managerMappingCleared = [](const LayerID& wrapperId,
+                                                   const CompositionID& childId) {
+                const auto& manager = PreComposeManager::instance();
+                return !manager.isPrecomposeLayer(wrapperId) &&
+                    manager.getPrecompLayersForChild(childId).isEmpty();
+            };
             const auto allLayersMoved = [](const QJsonObject& snapshot) {
                 const auto rootLayers = snapshot["layers"].toArray();
                 if (rootLayers.size() != 1) return false;
@@ -246,8 +262,13 @@ public:
                 selectedLayerName(afterKeepRedo, rootCompositionId) == QStringLiteral("A");
             sendKey(Qt::Key_P);
             const auto beforeDeleteUnpack = state();
+            const auto deleteWrapperId = ArtifactProjectService::instance()
+                ->lastPrecomposeOutcome().precompLayerId;
+            const auto deleteChildId = childId_;
             const bool precomposedForDeleteByKey = beforeDeleteUnpack["lastChildExists"].toBool() &&
                 beforeDeleteUnpack["layers"].toArray().size() == 2;
+            const bool deleteMappingRegisteredByKey = precomposedForDeleteByKey &&
+                managerMappingMatches(deleteWrapperId, deleteChildId);
             sendKey(Qt::Key_D);
             const auto afterDeleteUnpack = state();
             const bool unpackedDeleteByKey = precomposedForDeleteByKey &&
@@ -255,12 +276,16 @@ public:
                 !afterDeleteUnpack["lastChildExists"].toBool() &&
                 afterDeleteUnpack["layers"].toArray() == originalLayers &&
                 selectedLayerName(afterDeleteUnpack, rootCompositionId) == QStringLiteral("A");
+            const bool deleteMappingRemovedByKey = unpackedDeleteByKey &&
+                managerMappingCleared(deleteWrapperId, deleteChildId);
             sendKey(Qt::Key_Z);
             const auto afterDeleteUndo = state();
             const bool deleteUndoByKey = afterDeleteUndo["canRedo"].toBool() &&
                 afterDeleteUndo["lastChildExists"].toBool() &&
                 afterDeleteUndo["layers"].toArray().size() == 2 &&
                 selectedLayerName(afterDeleteUndo, rootCompositionId) == QStringLiteral("Nested A+B");
+            const bool deleteMappingRestoredByUndoKey = deleteUndoByKey &&
+                managerMappingMatches(deleteWrapperId, deleteChildId);
             sendKey(Qt::Key_Y);
             const auto afterDeleteRedo = state();
             const bool deleteRedoByKey = afterDeleteRedo["canUndo"].toBool() &&
@@ -268,6 +293,8 @@ public:
                 !afterDeleteRedo["lastChildExists"].toBool() &&
                 afterDeleteRedo["layers"].toArray() == originalLayers &&
                 selectedLayerName(afterDeleteRedo, rootCompositionId) == QStringLiteral("A");
+            const bool deleteMappingRemovedByRedoKey = deleteRedoByKey &&
+                managerMappingCleared(deleteWrapperId, deleteChildId);
             sendKey(Qt::Key_A);
             const auto afterMoveAll = state();
             const bool allMovedByKey = afterMoveAll["canUndo"].toBool() &&
@@ -311,9 +338,13 @@ public:
                                {"keepUndoByKey", keepUndoByKey},
                                {"keepRedoByKey", keepRedoByKey},
                                {"precomposedForDeleteByKey", precomposedForDeleteByKey},
+                               {"deleteMappingRegisteredByKey", deleteMappingRegisteredByKey},
                                {"unpackedDeleteByKey", unpackedDeleteByKey},
+                               {"deleteMappingRemovedByKey", deleteMappingRemovedByKey},
                                {"deleteUndoByKey", deleteUndoByKey},
+                               {"deleteMappingRestoredByUndoKey", deleteMappingRestoredByUndoKey},
                                {"deleteRedoByKey", deleteRedoByKey},
+                               {"deleteMappingRemovedByRedoKey", deleteMappingRemovedByRedoKey},
                                {"allMovedByKey", allMovedByKey},
                                {"allSettingsCopiedByKey", allSettingsCopiedByKey},
                                {"allUndoByKey", allUndoByKey},
@@ -324,8 +355,11 @@ public:
                                    precomposeSelectionByKey &&
                                    undoneByKey && redoneByKey &&
                                    unpackedKeepByKey && keepUndoByKey && keepRedoByKey &&
-                                   precomposedForDeleteByKey && unpackedDeleteByKey &&
-                                   deleteUndoByKey && deleteRedoByKey && allMovedByKey &&
+                                   precomposedForDeleteByKey && deleteMappingRegisteredByKey &&
+                                   unpackedDeleteByKey && deleteMappingRemovedByKey &&
+                                   deleteUndoByKey &&
+                                   deleteMappingRestoredByUndoKey && deleteRedoByKey &&
+                                   deleteMappingRemovedByRedoKey && allMovedByKey &&
                                    allSettingsCopiedByKey &&
                                    allUndoByKey && allRedoByKey && resetByKey && resetSelectionByKey},
                                {"state", afterReset}};
