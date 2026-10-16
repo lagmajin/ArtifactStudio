@@ -378,6 +378,7 @@ public:
                 : SharedPtr<AbstractProperty>{};
             const QJsonArray movedKeys = keyframes(childPosition);
             const bool movedLayerIdentityPreserved = childA && childA.get() == source.get();
+            const bool animationEnabledByKey = childPosition && childPosition->isAnimatable();
             bool animationMovedByKey = hasChild_ && child && childPosition &&
                 movedKeys.size() == originalKeys.size() && movedKeys.size() == 2;
             for (qsizetype index = 0; animationMovedByKey && index < movedKeys.size(); ++index) {
@@ -396,6 +397,7 @@ public:
                 : SharedPtr<AbstractProperty>{};
             const bool undoLayerIdentityPreserved = undoSource &&
                 undoSource.get() == source.get();
+            const bool animationEnabledAfterUndo = undoPosition && undoPosition->isAnimatable();
             const bool animationRestoredByUndo = !hasChild_ ||
                 ArtifactProjectService::instance()->findComposition(childId_).ptr.expired();
             const bool undoKeysPreserved = undoPosition &&
@@ -413,6 +415,7 @@ public:
                 ? redoA->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
             const bool redoLayerIdentityPreserved = redoA && redoA.get() == source.get();
+            const bool animationEnabledAfterRedo = redoPosition && redoPosition->isAnimatable();
             const bool animationRestoredByRedo = redoPosition &&
                 keyframes(redoPosition) == movedKeys;
             const bool redoSamplePreserved = animationRestoredByRedo &&
@@ -426,6 +429,8 @@ public:
                 : SharedPtr<AbstractProperty>{};
             const bool unpackLayerIdentityPreserved = unpackedA &&
                 unpackedA.get() == source.get();
+            const bool animationEnabledAfterUnpack = unpackedPosition &&
+                unpackedPosition->isAnimatable();
             const bool animationRestoredByKeyboardUnpack = unpackedPosition &&
                 keyframes(unpackedPosition) == originalKeys;
             const bool unpackSamplePreserved = animationRestoredByKeyboardUnpack &&
@@ -440,6 +445,8 @@ public:
             const auto unpackUndoPosition = unpackUndoA
                 ? unpackUndoA->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
+            const bool animationEnabledAfterUnpackUndo = unpackUndoPosition &&
+                unpackUndoPosition->isAnimatable();
             const bool animationRestoredByUnpackUndo = unpackUndoPosition &&
                 keyframes(unpackUndoPosition) == movedKeys;
             const bool unpackUndoIdentityPreserved = unpackUndoA &&
@@ -453,6 +460,8 @@ public:
             const auto unpackRedoPosition = unpackRedoA
                 ? unpackRedoA->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
+            const bool animationEnabledAfterUnpackRedo = unpackRedoPosition &&
+                unpackRedoPosition->isAnimatable();
             const bool animationRestoredByUnpackRedo = unpackRedoPosition &&
                 keyframes(unpackRedoPosition) == originalKeys;
             const bool unpackRedoIdentityPreserved = unpackRedoA &&
@@ -461,34 +470,45 @@ public:
                 std::abs(unpackRedoPosition->evaluateValue(RationalTime(
                     70, unpackRedoA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
 
-            const bool passed = movedLayerIdentityPreserved && animationMovedByKey &&
+            const bool passed = movedLayerIdentityPreserved && animationEnabledByKey &&
+                animationMovedByKey &&
                 animationRestoredByUndo && undoLayerIdentityPreserved &&
-                animationSamplePreservedByKey && undoKeysPreserved && undoSamplePreserved &&
-                animationRestoredByRedo && redoLayerIdentityPreserved && redoSamplePreserved &&
+                animationEnabledAfterUndo && animationSamplePreservedByKey &&
+                undoKeysPreserved && undoSamplePreserved &&
+                animationRestoredByRedo && redoLayerIdentityPreserved &&
+                animationEnabledAfterRedo && redoSamplePreserved &&
                 animationRestoredByKeyboardUnpack && unpackLayerIdentityPreserved &&
-                unpackSamplePreserved && animationRestoredByUnpackUndo &&
+                animationEnabledAfterUnpack && unpackSamplePreserved &&
+                animationRestoredByUnpackUndo && animationEnabledAfterUnpackUndo &&
                 unpackUndoIdentityPreserved && unpackUndoSamplePreserved &&
-                animationRestoredByUnpackRedo && unpackRedoIdentityPreserved &&
+                animationRestoredByUnpackRedo && animationEnabledAfterUnpackRedo &&
+                unpackRedoIdentityPreserved &&
                 unpackRedoSamplePreserved;
             QJsonObject result{{"animationMovedByKey", animationMovedByKey},
                                {"movedLayerIdentityPreserved", movedLayerIdentityPreserved},
+                               {"animationEnabledByKey", animationEnabledByKey},
                                {"animationSamplePreservedByKey", animationSamplePreservedByKey},
                                {"animationRestoredByUndo", animationRestoredByUndo},
                                {"undoLayerIdentityPreserved", undoLayerIdentityPreserved},
+                               {"animationEnabledAfterUndo", animationEnabledAfterUndo},
                                {"undoKeysPreserved", undoKeysPreserved},
                                {"undoSamplePreserved", undoSamplePreserved},
                                {"animationRestoredByRedo", animationRestoredByRedo},
                                {"redoLayerIdentityPreserved", redoLayerIdentityPreserved},
+                               {"animationEnabledAfterRedo", animationEnabledAfterRedo},
                                {"redoSamplePreserved", redoSamplePreserved},
                                {"animationRestoredByKeyboardUnpack",
                                 animationRestoredByKeyboardUnpack},
                                {"unpackLayerIdentityPreserved", unpackLayerIdentityPreserved},
+                               {"animationEnabledAfterUnpack", animationEnabledAfterUnpack},
                                {"unpackSamplePreserved", unpackSamplePreserved},
                                {"animationRestoredByUnpackUndo", animationRestoredByUnpackUndo},
                                {"unpackUndoIdentityPreserved", unpackUndoIdentityPreserved},
+                               {"animationEnabledAfterUnpackUndo", animationEnabledAfterUnpackUndo},
                                {"unpackUndoSamplePreserved", unpackUndoSamplePreserved},
                                {"animationRestoredByUnpackRedo", animationRestoredByUnpackRedo},
                                {"unpackRedoIdentityPreserved", unpackRedoIdentityPreserved},
+                               {"animationEnabledAfterUnpackRedo", animationEnabledAfterUnpackRedo},
                                {"unpackRedoSamplePreserved", unpackRedoSamplePreserved},
                                {"passed", passed}};
             if (!passed) result["error"] = QStringLiteral(
