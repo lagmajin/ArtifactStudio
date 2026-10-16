@@ -225,9 +225,14 @@ public:
             };
             sendKey(Qt::Key_P);
             const auto afterPrecompose = state();
+            const auto keepWrapperId = ArtifactProjectService::instance()
+                ->lastPrecomposeOutcome().precompLayerId;
+            const auto keepChildId = childId_;
             const bool precomposedByKey = afterPrecompose["canUndo"].toBool() &&
                 afterPrecompose["lastChildExists"].toBool() &&
                 afterPrecompose["layers"].toArray().size() == 2;
+            const bool keepMappingRegisteredByKey = precomposedByKey &&
+                managerMappingMatches(keepWrapperId, keepChildId);
             const bool selectedSettingsCopiedByKey = precomposedByKey &&
                 childSettingsCopied(afterPrecompose);
             const bool precomposeSelectionByKey =
@@ -249,17 +254,23 @@ public:
                 afterKeepUnpack["lastChildExists"].toBool() &&
                 afterKeepUnpack["layers"].toArray() == originalLayers &&
                 selectedLayerName(afterKeepUnpack, rootCompositionId) == QStringLiteral("A");
+            const bool keepMappingRemovedByKey = unpackedKeepByKey &&
+                managerMappingCleared(keepWrapperId, keepChildId);
             sendKey(Qt::Key_Z);
             const auto afterKeepUndo = state();
             const bool keepUndoByKey = afterKeepUndo["canRedo"].toBool() &&
                 afterKeepUndo["lastChildExists"].toBool() &&
                 afterKeepUndo["layers"].toArray().size() == 2 &&
                 selectedLayerName(afterKeepUndo, rootCompositionId) == QStringLiteral("Nested A+B");
+            const bool keepMappingRestoredByUndoKey = keepUndoByKey &&
+                managerMappingMatches(keepWrapperId, keepChildId);
             sendKey(Qt::Key_Y);
             const auto afterKeepRedo = state();
             const bool keepRedoByKey = afterKeepRedo["lastChildExists"].toBool() &&
                 afterKeepRedo["layers"].toArray() == originalLayers &&
                 selectedLayerName(afterKeepRedo, rootCompositionId) == QStringLiteral("A");
+            const bool keepMappingRemovedByRedoKey = keepRedoByKey &&
+                managerMappingCleared(keepWrapperId, keepChildId);
             sendKey(Qt::Key_P);
             const auto beforeDeleteUnpack = state();
             const auto deleteWrapperId = ArtifactProjectService::instance()
@@ -330,13 +341,17 @@ public:
                 resetSelection["selectedLayerIds"].toArray().isEmpty() &&
                 !resetSelection.contains("currentLayerId");
             QJsonObject result{{"precomposedByKey", precomposedByKey},
+                               {"keepMappingRegisteredByKey", keepMappingRegisteredByKey},
                                {"undoneByKey", undoneByKey},
                                {"redoneByKey", redoneByKey},
                                {"selectedSettingsCopiedByKey", selectedSettingsCopiedByKey},
                                {"precomposeSelectionByKey", precomposeSelectionByKey},
                                {"unpackedKeepByKey", unpackedKeepByKey},
+                               {"keepMappingRemovedByKey", keepMappingRemovedByKey},
                                {"keepUndoByKey", keepUndoByKey},
+                               {"keepMappingRestoredByUndoKey", keepMappingRestoredByUndoKey},
                                {"keepRedoByKey", keepRedoByKey},
+                               {"keepMappingRemovedByRedoKey", keepMappingRemovedByRedoKey},
                                {"precomposedForDeleteByKey", precomposedForDeleteByKey},
                                {"deleteMappingRegisteredByKey", deleteMappingRegisteredByKey},
                                {"unpackedDeleteByKey", unpackedDeleteByKey},
@@ -354,7 +369,9 @@ public:
                                {"passed", precomposedByKey && selectedSettingsCopiedByKey &&
                                    precomposeSelectionByKey &&
                                    undoneByKey && redoneByKey &&
-                                   unpackedKeepByKey && keepUndoByKey && keepRedoByKey &&
+                                   unpackedKeepByKey && keepMappingRemovedByKey && keepUndoByKey &&
+                                   keepMappingRestoredByUndoKey && keepRedoByKey &&
+                                   keepMappingRemovedByRedoKey &&
                                    precomposedForDeleteByKey && deleteMappingRegisteredByKey &&
                                    unpackedDeleteByKey && deleteMappingRemovedByKey &&
                                    deleteUndoByKey &&

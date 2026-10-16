@@ -150,11 +150,15 @@ def main():
                     "Invalid MCP requests mutated the precompose fixture")
             keyboard_round_trip = call("test.guiKeyboardRoundTrip")
             require(keyboard_round_trip["passed"] and keyboard_round_trip["precomposedByKey"]
+                    and keyboard_round_trip["keepMappingRegisteredByKey"]
                     and keyboard_round_trip["undoneByKey"] and keyboard_round_trip["redoneByKey"]
                     and keyboard_round_trip["selectedSettingsCopiedByKey"]
                     and keyboard_round_trip["precomposeSelectionByKey"]
                     and keyboard_round_trip["unpackedKeepByKey"]
+                    and keyboard_round_trip["keepMappingRemovedByKey"]
                     and keyboard_round_trip["keepUndoByKey"] and keyboard_round_trip["keepRedoByKey"]
+                    and keyboard_round_trip["keepMappingRestoredByUndoKey"]
+                    and keyboard_round_trip["keepMappingRemovedByRedoKey"]
                     and keyboard_round_trip["precomposedForDeleteByKey"]
                     and keyboard_round_trip["deleteMappingRegisteredByKey"]
                     and keyboard_round_trip["unpackedDeleteByKey"]
