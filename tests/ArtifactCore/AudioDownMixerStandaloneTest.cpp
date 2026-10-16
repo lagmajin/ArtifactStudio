@@ -172,6 +172,28 @@ TEST(AudioDownMixerStandaloneTest, Surround714ToStereoFoldsHeightChannelsBySide)
     EXPECT_NEAR(output.channelData[1][0], (3.0f + 5.0f) * 0.35355339f, 1.0e-6f);
 }
 
+TEST(AudioDownMixerStandaloneTest, StereoPromotionToSurround714PreservesFrontAndSilencesRest)
+{
+    AudioDownMixer mixer;
+    mixer.setTargetLayout(AudioChannelLayout::Surround714);
+    const auto source = makeSegment(AudioChannelLayout::Stereo,
+                                    {{0.25f, -0.5f}, {0.75f, 1.0f}},
+                                    96000, 246);
+
+    const auto output = mixer.process(source);
+
+    EXPECT_EQ(output.sampleRate, 96000);
+    EXPECT_EQ(output.startFrame, 246);
+    EXPECT_EQ(output.layout, AudioChannelLayout::Surround714);
+    ASSERT_EQ(output.channelData.size(), 12);
+    EXPECT_EQ(output.channelData[0], (QVector<float>{0.25f, -0.5f}));
+    EXPECT_EQ(output.channelData[1], (QVector<float>{0.75f, 1.0f}));
+    for (int channel = 2; channel < output.channelData.size(); ++channel) {
+        EXPECT_EQ(output.channelData[channel], (QVector<float>{0.0f, 0.0f}))
+            << channel;
+    }
+}
+
 TEST(AudioDownMixerStandaloneTest, EmptyInputProducesRequestedLayoutAndKeepsMetadata)
 {
     AudioDownMixer mixer;
