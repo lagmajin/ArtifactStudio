@@ -4,6 +4,7 @@
 #include <QVector>
 #include <QtGlobal>
 
+#include <cstddef>
 #include <cmath>
 #include <limits>
 #include <utility>
@@ -63,6 +64,45 @@ TEST(AudioPlateReverbStandaloneTest, ExposesExpectedDefaultIdentityAndParameters
     EXPECT_FLOAT_EQ(plate.getParameterValue(String("mix")), 0.3f);
     EXPECT_EQ(plate.latencySamples(), 0);
     EXPECT_GT(plate.tailSamples(), 0);
+}
+
+TEST(AudioPlateReverbStandaloneTest, ParameterMetadataAndIdRoutingStayConsistent)
+{
+    AudioPlateReverb plate;
+    const auto parameters = plate.getParameters();
+    ASSERT_EQ(parameters.size(), 9u);
+
+    for (std::size_t index = 0; index < parameters.size(); ++index) {
+        const auto& parameter = parameters[index];
+        EXPECT_FALSE(parameter.id.isEmpty());
+        EXPECT_LE(parameter.minValue, parameter.maxValue);
+        EXPECT_GE(parameter.defaultValue, parameter.minValue);
+        EXPECT_LE(parameter.defaultValue, parameter.maxValue);
+        EXPECT_FLOAT_EQ(parameter.value, plate.getParameterValue(parameter.id));
+        for (std::size_t previous = 0; previous < index; ++previous)
+            EXPECT_NE(parameters[previous].id, parameter.id);
+
+        const auto before = plate.getParameters();
+        float probe = (parameter.minValue + parameter.maxValue) * 0.5f;
+        if (probe == parameter.value)
+            probe = parameter.value == parameter.minValue
+                ? parameter.maxValue : parameter.minValue;
+        plate.setParameterValue(parameter.id, probe);
+
+        EXPECT_FLOAT_EQ(plate.getParameterValue(parameter.id), probe);
+        const auto after = plate.getParameters();
+        for (std::size_t other = 0; other < before.size(); ++other) {
+            if (other == index) continue;
+            EXPECT_FLOAT_EQ(after[other].value, before[other].value)
+                << "Setting parameter " << toStdString(parameter.id)
+                << " changed " << toStdString(before[other].id);
+        }
+    }
+
+    const QJsonObject beforeUnknownId = plate.toJson();
+    plate.setParameterValue(String("unknown_parameter"), 0.5f);
+    EXPECT_EQ(plate.toJson(), beforeUnknownId);
+    EXPECT_FLOAT_EQ(plate.getParameterValue(String("unknown_parameter")), 0.0f);
 }
 
 TEST(AudioPlateReverbStandaloneTest, SettersClampParametersAndRestoreDefaultsForNonFiniteValues)
