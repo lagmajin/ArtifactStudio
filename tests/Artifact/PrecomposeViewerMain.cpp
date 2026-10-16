@@ -131,17 +131,31 @@ public:
             const auto originalComposition = projectService->currentComposition().lock();
             const auto originalLayerIds = namedLayerIds(
                 originalComposition, {QStringLiteral("A"), QStringLiteral("B")});
+            const auto originalUntouchedIds = namedLayerIds(
+                originalComposition, {QStringLiteral("Untouched")});
             const auto originalA = originalLayerIds.size() == 2
                 ? originalComposition->layerById(originalLayerIds[0]) : ArtifactAbstractLayerPtr{};
             const auto originalB = originalLayerIds.size() == 2
                 ? originalComposition->layerById(originalLayerIds[1]) : ArtifactAbstractLayerPtr{};
-            const auto sourceObjectsMatch = [&originalA, &originalB](
+            const auto originalUntouched = originalUntouchedIds.size() == 1
+                ? originalComposition->layerById(originalUntouchedIds.front())
+                : ArtifactAbstractLayerPtr{};
+            const auto sourceObjectsMatch = [&originalA, &originalB, &originalUntouched](
                 const ArtifactCompositionPtr& composition) {
-                if (!composition || !originalA || !originalB) return false;
+                if (!composition || !originalA || !originalB || !originalUntouched) return false;
                 const auto ids = namedLayerIds(composition,
-                    {QStringLiteral("A"), QStringLiteral("B")});
-                return ids.size() == 2 && composition->layerById(ids[0]).get() == originalA.get() &&
-                    composition->layerById(ids[1]).get() == originalB.get();
+                    {QStringLiteral("A"), QStringLiteral("B"), QStringLiteral("Untouched")});
+                return ids.size() == 3 && composition->layerById(ids[0]).get() == originalA.get() &&
+                    composition->layerById(ids[1]).get() == originalB.get() &&
+                    composition->layerById(ids[2]).get() == originalUntouched.get();
+            };
+            const auto untouchedObjectRemainsInRoot = [&projectService, &originalUntouched]() {
+                if (!originalUntouched) return false;
+                const auto composition = projectService->currentComposition().lock();
+                if (!composition) return false;
+                const auto ids = namedLayerIds(composition, {QStringLiteral("Untouched")});
+                return ids.size() == 1 && composition->layerById(ids.front()).get() ==
+                    originalUntouched.get();
             };
             const auto childObjectsMatch = [&projectService, &sourceObjectsMatch](
                 const CompositionID& childId) {
@@ -294,6 +308,8 @@ public:
                 managerMappingMatches(keepWrapperId, keepChildId);
             const bool selectedLayerObjectsPreservedByKey = precomposedByKey &&
                 childObjectsMatch(keepChildId);
+            const bool untouchedObjectPreservedByKey = precomposedByKey &&
+                untouchedObjectRemainsInRoot();
             const bool selectedSettingsCopiedByKey = precomposedByKey &&
                 childSettingsCopied(afterPrecompose);
             const bool selectedLayersMovedByKey = precomposedByKey &&
@@ -401,7 +417,7 @@ public:
             const bool allMappingRegisteredByKey = allMovedByKey &&
                 managerMappingMatches(allWrapperId, allChildId);
             const bool allLayerObjectsPreservedByKey = allMovedByKey &&
-                childObjectsMatch(allChildId);
+                sourceObjectsMatch(projectService->findComposition(allChildId).ptr.lock());
             const bool allSettingsCopiedByKey = allMovedByKey && childSettingsCopied(afterMoveAll);
             sendKey(Qt::Key_Z);
             const auto afterMoveAllUndo = state();
@@ -423,7 +439,7 @@ public:
             const bool allMappingRestoredByRedoKey = allRedoByKey &&
                 managerMappingMatches(allWrapperId, allChildId);
             const bool allRedoLayerObjectsPreservedByKey = allRedoByKey &&
-                childObjectsMatch(allChildId);
+                sourceObjectsMatch(projectService->findComposition(allChildId).ptr.lock());
             sendKey(Qt::Key_R);
             const auto afterReset = state();
             const auto resetLayers = afterReset["layers"].toArray();
@@ -474,6 +490,7 @@ public:
             QJsonObject result{{"precomposedByKey", precomposedByKey},
                                {"keepMappingRegisteredByKey", keepMappingRegisteredByKey},
                                {"selectedLayerObjectsPreservedByKey", selectedLayerObjectsPreservedByKey},
+                               {"untouchedObjectPreservedByKey", untouchedObjectPreservedByKey},
                                {"undoneByKey", undoneByKey},
                                {"precomposeUndoSelectionByKey", precomposeUndoSelectionByKey},
                                {"precomposeMappingRemovedByUndoKey", precomposeMappingRemovedByUndoKey},
@@ -529,6 +546,7 @@ public:
                                {"passed", precomposedByKey && selectedSettingsCopiedByKey &&
                                    selectedLayersMovedByKey &&
                                    keepMappingRegisteredByKey && selectedLayerObjectsPreservedByKey &&
+                                   untouchedObjectPreservedByKey &&
                                    precomposeSelectionByKey &&
                                    undoneByKey && precomposeUndoSelectionByKey &&
                                    precomposeMappingRemovedByUndoKey && redoneByKey &&

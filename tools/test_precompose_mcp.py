@@ -152,6 +152,7 @@ def main():
             require(keyboard_round_trip["passed"] and keyboard_round_trip["precomposedByKey"]
                     and keyboard_round_trip["keepMappingRegisteredByKey"]
                     and keyboard_round_trip["selectedLayerObjectsPreservedByKey"]
+                    and keyboard_round_trip["untouchedObjectPreservedByKey"]
                     and keyboard_round_trip["undoneByKey"]
                     and keyboard_round_trip["precomposeUndoSelectionByKey"]
                     and keyboard_round_trip["precomposeMappingRemovedByUndoKey"]
