@@ -3896,6 +3896,93 @@ public:
             refresh();
             missingResult["state"] = state();
             return missingResult;
+        } else if (name == "test.unprecomposeWithMissingManagerMapping") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Missing Manager Mapping")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                result["error"] = QStringLiteral("Could not create missing-manager-mapping fixture");
+                return result;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(outcome.precompLayerId));
+            const auto sourceA = child ? child->layerById(sourceIds.front())
+                                       : ArtifactAbstractLayerPtr{};
+            const auto sourceB = child ? child->layerById(sourceIds.back())
+                                       : ArtifactAbstractLayerPtr{};
+            auto& manager = PreComposeManager::instance();
+            const bool fixtureReady = child && wrapper && sourceA && sourceB &&
+                wrapper->sourceCompositionId() == outcome.childCompId &&
+                manager.isPrecomposeLayer(outcome.precompLayerId);
+            const bool mappingCleared = fixtureReady && manager.unregisterPrecompLayer(
+                rootId, outcome.precompLayerId, outcome.childCompId) &&
+                !manager.isPrecomposeLayer(outcome.precompLayerId) &&
+                manager.getPrecompLayersForChild(outcome.childCompId).isEmpty();
+            const auto undoCountBeforeUnpack = undo->undoCount();
+            const auto redoCountBeforeUnpack = undo->redoCount();
+            const bool unpacked = mappingCleared &&
+                service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const bool unpackedFromLayerReference = unpacked &&
+                namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")}) == sourceIds &&
+                root->layerById(sourceIds.front()).get() == sourceA.get() &&
+                root->layerById(sourceIds.back()).get() == sourceB.get() &&
+                !root->layerById(outcome.precompLayerId) && child->allLayer().isEmpty() &&
+                manager.getPrecompLayersForChild(outcome.childCompId).isEmpty() &&
+                !manager.isPrecomposeLayer(outcome.precompLayerId) &&
+                undo->undoCount() == undoCountBeforeUnpack + 1 &&
+                undo->redoCount() == redoCountBeforeUnpack;
+            const bool undoAvailable = unpackedFromLayerReference && undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto undoWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(outcome.precompLayerId));
+            const auto restoredReferences = manager.getPrecompLayersForChild(outcome.childCompId);
+            const bool undoRestoredManagerMapping = undoAvailable && undoWrapper &&
+                undoWrapper.get() == wrapper.get() &&
+                undoWrapper->sourceCompositionId() == outcome.childCompId &&
+                child->layerById(sourceIds.front()).get() == sourceA.get() &&
+                child->layerById(sourceIds.back()).get() == sourceB.get() &&
+                manager.isPrecomposeLayer(outcome.precompLayerId) &&
+                manager.getSourceCompositionId(outcome.precompLayerId) == outcome.childCompId &&
+                restoredReferences.size() == 1 &&
+                restoredReferences.front().parentCompId == rootId &&
+                restoredReferences.front().precompLayerId == outcome.precompLayerId &&
+                undo->undoCount() == undoCountBeforeUnpack &&
+                undo->redoCount() == redoCountBeforeUnpack + 1;
+            const bool redoAvailable = undoRestoredManagerMapping && undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const bool redoRemovedMappingAgain = redoAvailable &&
+                namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")}) == sourceIds &&
+                root->layerById(sourceIds.front()).get() == sourceA.get() &&
+                root->layerById(sourceIds.back()).get() == sourceB.get() &&
+                !root->layerById(outcome.precompLayerId) && child->allLayer().isEmpty() &&
+                !manager.isPrecomposeLayer(outcome.precompLayerId) &&
+                manager.getPrecompLayersForChild(outcome.childCompId).isEmpty() &&
+                undo->undoCount() == undoCountBeforeUnpack + 1 &&
+                undo->redoCount() == redoCountBeforeUnpack;
+            result["fixtureReady"] = fixtureReady;
+            result["mappingCleared"] = mappingCleared;
+            result["unpackedFromLayerReference"] = unpackedFromLayerReference;
+            result["undoRestoredManagerMapping"] = undoRestoredManagerMapping;
+            result["redoRemovedMappingAgain"] = redoRemovedMappingAgain;
+            result["passed"] = fixtureReady && mappingCleared && unpackedFromLayerReference &&
+                undoRestoredManagerMapping && redoRemovedMappingAgain;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Unprecompose did not recover consistently when its runtime Manager mapping was missing");
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            service->changeCurrentComposition(rootId);
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.emptyChildUnwrapRejected") {
             QJsonObject emptyResult;
             const auto root = service->currentComposition().lock();
@@ -7549,7 +7636,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.guiAnimatedKeyRoundTrip", "test.guiOpenChildCompositionRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.childCompositionEffectStaysWithChild", "test.openChildComposition", "test.matchWorkspaceDuration", "test.emptyWorkspaceDurationFallsBack", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.precomposeIgnoresStaleSelectionId", "test.unpackLayerIdCollisionAtomic", "test.unpackDuplicateChildLayerIdsAtomic", "test.unpackNilChildLayerIdAtomic", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.guiAnimatedKeyRoundTrip", "test.guiOpenChildCompositionRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.childCompositionEffectStaysWithChild", "test.openChildComposition", "test.matchWorkspaceDuration", "test.emptyWorkspaceDurationFallsBack", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.precomposeIgnoresStaleSelectionId", "test.unpackLayerIdCollisionAtomic", "test.unpackDuplicateChildLayerIdsAtomic", "test.unpackNilChildLayerIdAtomic", "test.missingChildReferenceAtomic", "test.unprecomposeWithMissingManagerMapping", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

@@ -621,6 +621,14 @@ def main():
                     and missing_child["selfReferenceFixtureRestored"],
                     "Unprecompose mutated a wrapper with a missing child reference")
             call("test.reset")
+            missing_manager = call("test.unprecomposeWithMissingManagerMapping")
+            require(missing_manager["passed"] and missing_manager["fixtureReady"]
+                    and missing_manager["mappingCleared"]
+                    and missing_manager["unpackedFromLayerReference"]
+                    and missing_manager["undoRestoredManagerMapping"]
+                    and missing_manager["redoRemovedMappingAgain"],
+                    "Unprecompose did not restore layers and Manager mapping across missing-map undo/redo")
+            call("test.reset")
             empty_child = call("test.emptyChildUnwrapRejected")
             require(empty_child["passed"] and empty_child["childEmptied"]
                     and empty_child["unwrapRejected"] and empty_child["wrapperPreserved"]
