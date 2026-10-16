@@ -2401,6 +2401,9 @@ public:
             }
             const auto rootId = comp->id();
             const auto parentFrameRange = comp->frameRange();
+            const auto parentSize = comp->settings().compositionSize();
+            const auto parentFrameRate = comp->frameRate().framerate();
+            const auto parentBackground = comp->backgroundColor();
             const FrameRange workspaceRange(30, 270);
             if (workspaceRange.end() > comp->frameRange().end()) {
                 result["error"] = QStringLiteral("Fixture composition is shorter than the target workspace range");
@@ -2422,6 +2425,17 @@ public:
                 child->frameRange().duration() == workspaceRange.duration();
             const bool childWorkAreaNormalized = child && child->workAreaRange().start() == 0 &&
                 child->workAreaRange().duration() == workspaceRange.duration();
+            bool childSettingsCopied = false;
+            if (child) {
+                const auto childSize = child->settings().compositionSize();
+                const auto childBackground = child->backgroundColor();
+                childSettingsCopied = childSize == parentSize &&
+                    child->frameRate().framerate() == parentFrameRate &&
+                    childBackground.r() == parentBackground.r() &&
+                    childBackground.g() == parentBackground.g() &&
+                    childBackground.b() == parentBackground.b() &&
+                    childBackground.a() == parentBackground.a();
+            }
             const bool parentWorkAreaPreserved = comp->workAreaRange().start() == workspaceRange.start() &&
                 comp->workAreaRange().duration() == workspaceRange.duration();
             const bool parentFrameRangePreserved = comp->frameRange().start() == parentFrameRange.start() &&
@@ -2454,6 +2468,12 @@ public:
                 redoneChild->frameRange().duration() == workspaceRange.duration() &&
                 redoneChild->workAreaRange().start() == 0 &&
                 redoneChild->workAreaRange().duration() == workspaceRange.duration() &&
+                redoneChild->settings().compositionSize() == parentSize &&
+                redoneChild->frameRate().framerate() == parentFrameRate &&
+                redoneChild->backgroundColor().r() == parentBackground.r() &&
+                redoneChild->backgroundColor().g() == parentBackground.g() &&
+                redoneChild->backgroundColor().b() == parentBackground.b() &&
+                redoneChild->backgroundColor().a() == parentBackground.a() &&
                 afterRedo->layerById(outcome.precompLayerId) &&
                 redoReferences.size() == 1 &&
                 redoReferences.front().parentCompId == rootId &&
@@ -2463,6 +2483,7 @@ public:
             result["childWorkAreaDuration"] = child ? child->workAreaRange().duration() : -1;
             result["childDurationMatched"] = childDurationMatched;
             result["childWorkAreaNormalized"] = childWorkAreaNormalized;
+            result["childSettingsCopied"] = childSettingsCopied;
             result["parentWorkAreaPreserved"] = parentWorkAreaPreserved;
             result["parentFrameRangePreserved"] = parentFrameRangePreserved;
             result["childOpened"] = childOpened;
@@ -2470,7 +2491,8 @@ public:
             result["undoRestoredParent"] = undoRestoredParent;
             result["redoRestoredWorkspaceChild"] = redoRestoredWorkspaceChild;
             result["passed"] = childDurationMatched && childWorkAreaNormalized &&
-                parentWorkAreaPreserved && parentFrameRangePreserved && childOpened &&
+                childSettingsCopied && parentWorkAreaPreserved &&
+                parentFrameRangePreserved && childOpened &&
                 wrapperTimingPreserved && undoRestoredParent && redoRestoredWorkspaceChild;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Precompose child did not match workspace duration or wrapper timing");

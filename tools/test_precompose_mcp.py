@@ -479,6 +479,7 @@ def main():
                     and workspace_duration["childOpened"]
                     and workspace_duration["childDurationMatched"]
                     and workspace_duration["childWorkAreaNormalized"]
+                    and workspace_duration["childSettingsCopied"]
                     and workspace_duration["parentWorkAreaPreserved"]
                     and workspace_duration["parentFrameRangePreserved"]
                     and workspace_duration["wrapperTimingPreserved"]
