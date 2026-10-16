@@ -169,6 +169,11 @@ def main():
                     and duration_propagation["parentReferencePreserved"],
                     "Child duration shrink/expansion did not propagate to the parent precompose window")
             call("test.reset")
+            shared_duration = call("test.sharedChildDurationPropagates")
+            require(shared_duration["passed"] and shared_duration["bothParentsRegistered"]
+                    and shared_duration["shrinkFollowed"] and shared_duration["expansionFollowed"],
+                    "Shared child duration shrink/expansion did not update wrappers in both parent compositions")
+            call("test.reset")
             transitive_cycle = call("test.transitiveCycleRejected")
             require(transitive_cycle["passed"] and transitive_cycle["transitiveCycleRejected"]
                     and transitive_cycle["threeLevelCycleRejected"]

@@ -24,6 +24,7 @@
 #include <QVector3D>
 #include <QVBoxLayout>
 #include <QVector>
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <exception>
@@ -738,6 +739,84 @@ public:
                 result["error"] = QStringLiteral("Child duration change did not update the parent window from its fixed in point");
             childId_ = outcome.childCompId;
             hasChild_ = true;
+            refresh();
+            result["state"] = state();
+            return result;
+        } else if (name == "test.sharedChildDurationPropagates") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Shared Duration Child")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                result["error"] = QStringLiteral("Could not create shared-child duration fixture");
+                return result;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto firstWrapper = ArtifactCore::dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(outcome.precompLayerId));
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            if (!firstWrapper || !child) {
+                result["error"] = QStringLiteral("Shared-child duration fixture is missing its first wrapper or child");
+                return result;
+            }
+            ArtifactCompositionInitParams secondParentParams;
+            secondParentParams.setCompositionName(UniString(QStringLiteral("Second Duration Parent")));
+            secondParentParams.setResolution(640, 360);
+            secondParentParams.setFrameRate(24.0);
+            secondParentParams.setDurationFrames(300);
+            service->createComposition(secondParentParams);
+            const auto secondParent = service->currentComposition().lock();
+            if (!secondParent || !service->addCompositionLayerToCurrentCompositionWithUndo(
+                    outcome.childCompId)) {
+                result["error"] = QStringLiteral("Could not add the shared child to the second parent");
+                service->changeCurrentComposition(rootId);
+                return result;
+            }
+            auto* selection = ArtifactLayerSelectionManager::instance();
+            const auto secondWrapper = selection
+                ? ArtifactCore::dynamicPointerCast<ArtifactCompositionLayer>(selection->currentLayer())
+                : SharedPtr<ArtifactCompositionLayer>{};
+            auto& manager = PreComposeManager::instance();
+            const auto references = manager.getPrecompLayersForChild(outcome.childCompId);
+            const bool bothParentsRegistered = secondWrapper && secondWrapper->id() != outcome.precompLayerId &&
+                references.size() == 2 &&
+                std::any_of(references.begin(), references.end(), [&](const auto& reference) {
+                    return reference.parentCompId == rootId &&
+                        reference.precompLayerId == outcome.precompLayerId;
+                }) &&
+                std::any_of(references.begin(), references.end(), [&](const auto& reference) {
+                    return reference.parentCompId == secondParent->id() &&
+                        reference.precompLayerId == secondWrapper->id();
+                });
+            child->setFrameRange(FrameRange(0, 90));
+            const bool shrinkFollowed = firstWrapper->outPoint().framePosition() == 130 &&
+                secondWrapper->outPoint().framePosition() == 90 &&
+                firstWrapper->inPoint().framePosition() == 40 &&
+                secondWrapper->inPoint().framePosition() == 0 &&
+                firstWrapper->startTime().framePosition() == 40 &&
+                secondWrapper->startTime().framePosition() == 0;
+            child->setFrameRange(FrameRange(0, 240));
+            const bool expansionFollowed = firstWrapper->outPoint().framePosition() == 280 &&
+                secondWrapper->outPoint().framePosition() == 240 &&
+                firstWrapper->inPoint().framePosition() == 40 &&
+                secondWrapper->inPoint().framePosition() == 0 &&
+                firstWrapper->startTime().framePosition() == 40 &&
+                secondWrapper->startTime().framePosition() == 0;
+            result["bothParentsRegistered"] = bothParentsRegistered;
+            result["shrinkFollowed"] = shrinkFollowed;
+            result["expansionFollowed"] = expansionFollowed;
+            result["passed"] = bothParentsRegistered && shrinkFollowed && expansionFollowed;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Shared child duration changes did not update every parent wrapper");
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            service->changeCurrentComposition(rootId);
             refresh();
             result["state"] = state();
             return result;
@@ -3479,7 +3558,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.sharedChildDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
