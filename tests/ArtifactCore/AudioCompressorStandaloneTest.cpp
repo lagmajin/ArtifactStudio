@@ -168,6 +168,26 @@ TEST(AudioCompressorStandaloneTest, ProcessingInBlocksMatchesContinuousEnvelope)
     EXPECT_EQ(blockedOutput, continuousSegment.channelData[0]);
 }
 
+TEST(AudioCompressorStandaloneTest, SampleRateChangeResetsPreviousEnvelopeHistory)
+{
+    AudioCompressor withHistory;
+    configureFastCompressor(withHistory);
+    auto loudHistory = makeMono(1000, QVector<float>{1.0f, 1.0f, 1.0f});
+    withHistory.process(loudHistory);
+    ASSERT_LT(withHistory.getGainReduction(), 1.0f);
+
+    auto afterRateChange = makeMono(2000, QVector<float>{0.25f, 0.2f, 0.15f});
+    withHistory.process(afterRateChange);
+
+    AudioCompressor freshAtNewRate;
+    configureFastCompressor(freshAtNewRate);
+    auto freshOutput = makeMono(2000, QVector<float>{0.25f, 0.2f, 0.15f});
+    freshAtNewRate.process(freshOutput);
+
+    EXPECT_EQ(afterRateChange.channelData[0], freshOutput.channelData[0]);
+    EXPECT_FLOAT_EQ(withHistory.getGainReduction(), freshAtNewRate.getGainReduction());
+}
+
 TEST(AudioCompressorStandaloneTest, LoudestStereoChannelControlsGainForBothChannels)
 {
     AudioCompressor compressor;
