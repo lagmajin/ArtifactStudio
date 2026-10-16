@@ -7,6 +7,8 @@
 
 `test.capture`はPNG各chunkの境界・CRC・IHDR／IDAT／IEND・正の寸法を検査し、取得前後の公開状態が一致することでComposition・選択・Undo/Redo履歴を変更しないことも確認する。
 
+独立MCPハーネスは`notifications/initialized`をIDなしで送り、通知への応答が次の`test.state`応答へ混入せず、fixture状態も変わらないことを確認する。
+
 `test.unpackLayerIdCollisionAtomic`は2キーのopacityカーブを持つ子レイヤーのIDを親に残るレイヤーIDと衝突させ、解除が拒否され、親・子Composition、wrapper、Undo/Redo履歴、opacityキーと中間評価値が変更されないことを確認する。さらに公開opacity overrideが失敗前は遅延状態のままで、拒否時に子レイヤーへ先行materializeされないことも確認する。
 
 `test.unpackDuplicateChildLayerIdsAtomic`は子Composition内の2レイヤーを同じIDにし、解除が拒否され、重複した子レイヤーと親Composition、wrapper、Undo/Redo履歴が保持されることを確認する。

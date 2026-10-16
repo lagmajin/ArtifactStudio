@@ -98,6 +98,12 @@ def main():
                 return reply
             return reply["result"]
 
+        def notify(method, params):
+            process.stdin.write(json.dumps({"jsonrpc": "2.0", "method": method,
+                                           "params": params}) + "\n")
+            process.stdin.flush()
+            evidence.append({"method": method, "params": params, "notification": True})
+
         def call(name):
             if name not in exposed_tool_names:
                 raise AssertionError(f"MCP tools/list did not advertise {name}")
@@ -161,6 +167,9 @@ def main():
                     f"Requested locale {args.language} was not applied to the test window")
             require(state_without_arguments_result == protocol_state_before_invalid_calls,
                     "MCP tool call without arguments changed the precompose fixture")
+            notify("notifications/initialized", {})
+            require(call("test.state") == protocol_state_before_invalid_calls,
+                    "MCP initialized notification changed state or produced an unexpected response")
             unknown_tool = request("tools/call", {"name": "test.notARealTool", "arguments": {}})
             require(unknown_tool.get("isError") and "Unknown tool" in
                     json.loads(unknown_tool["content"][0]["text"]).get("error", ""),
