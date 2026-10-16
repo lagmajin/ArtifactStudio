@@ -116,6 +116,15 @@ def main():
             require(unexpected_argument.get("isError") and "empty object arguments" in
                     json.loads(unexpected_argument["content"][0]["text"]).get("error", ""),
                     "MCP tool accepted unsupported arguments")
+            missing_tool_name = request("tools/call", {"arguments": {}})
+            require(missing_tool_name.get("isError") and "tool name" in
+                    json.loads(missing_tool_name["content"][0]["text"]).get("error", ""),
+                    "MCP tools/call accepted a request with no tool name")
+            non_object_arguments = request("tools/call", {
+                "name": "test.state", "arguments": []})
+            require(non_object_arguments.get("isError") and "empty object arguments" in
+                    json.loads(non_object_arguments["content"][0]["text"]).get("error", ""),
+                    "MCP tools/call accepted non-object arguments")
             unknown_method = request("method/not-found", {}, allow_protocol_error=True)
             require(unknown_method.get("error", {}).get("code") == -32601,
                     "Unknown MCP method did not return JSON-RPC method-not-found")
@@ -747,7 +756,7 @@ def main():
                     f"MCP tool catalog has unexercised or unavailable tools: "
                     f"unexercised={sorted(exposed_tool_names - invoked_tool_names)}, "
                     f"unadvertised={sorted(invoked_tool_names - exposed_tool_names)}")
-            print("PASS: MCP tool catalog, direct/transitive cycle guards, invalid-request and empty MoveAll atomicity, redo-branch replacement, closed/open-child focus behavior, component descriptor graph, matte reference order/settings, layer mask geometry/state, layer/composition effect scope and parameter round-trip, single-layer round-trip, shared-child references/data, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, nested Master Property save/reload/materialization, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: MCP tool catalog and malformed-call rejection, direct/transitive cycle guards, invalid-request and empty MoveAll atomicity, redo-branch replacement, closed/open-child focus behavior, component descriptor graph, matte reference order/settings, layer mask geometry/state, layer/composition effect scope and parameter round-trip, single-layer round-trip, shared-child references/data, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, nested Master Property save/reload/materialization, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
             try:
