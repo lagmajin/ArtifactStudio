@@ -104,6 +104,21 @@ public:
                 QKeyEvent event(QEvent::KeyPress, key, Qt::NoModifier);
                 QApplication::sendEvent(this, &event);
             };
+            const auto allLayersMoved = [](const QJsonObject& snapshot) {
+                const auto rootLayers = snapshot["layers"].toArray();
+                if (rootLayers.size() != 1) return false;
+                const auto childLayers = rootLayers[0].toObject()["children"].toArray();
+                bool foundA = false;
+                bool foundB = false;
+                bool foundUntouched = false;
+                for (const auto& value : childLayers) {
+                    const auto name = value.toObject()["name"].toString();
+                    foundA = foundA || name == QStringLiteral("A");
+                    foundB = foundB || name == QStringLiteral("B");
+                    foundUntouched = foundUntouched || name == QStringLiteral("Untouched");
+                }
+                return childLayers.size() == 3 && foundA && foundB && foundUntouched;
+            };
             sendKey(Qt::Key_P);
             const auto afterPrecompose = state();
             const bool precomposedByKey = afterPrecompose["canUndo"].toBool() &&
@@ -155,6 +170,31 @@ public:
                 !afterDeleteRedo["canRedo"].toBool() &&
                 !afterDeleteRedo["lastChildExists"].toBool() &&
                 afterDeleteRedo["layers"].toArray() == originalLayers;
+            sendKey(Qt::Key_A);
+            const auto afterMoveAll = state();
+            const bool allMovedByKey = afterMoveAll["canUndo"].toBool() &&
+                afterMoveAll["lastChildExists"].toBool() && allLayersMoved(afterMoveAll);
+            sendKey(Qt::Key_Z);
+            const auto afterMoveAllUndo = state();
+            const bool allUndoByKey = afterMoveAllUndo["canRedo"].toBool() &&
+                !afterMoveAllUndo["lastChildExists"].toBool() &&
+                afterMoveAllUndo["layers"].toArray() == originalLayers;
+            sendKey(Qt::Key_Y);
+            const auto afterMoveAllRedo = state();
+            const bool allRedoByKey = afterMoveAllRedo["canUndo"].toBool() &&
+                !afterMoveAllRedo["canRedo"].toBool() &&
+                afterMoveAllRedo["lastChildExists"].toBool() && allLayersMoved(afterMoveAllRedo);
+            sendKey(Qt::Key_R);
+            const auto afterReset = state();
+            const auto resetLayers = afterReset["layers"].toArray();
+            bool resetHasExpectedNames = resetLayers.size() == 3;
+            QStringList resetNames;
+            for (const auto& value : resetLayers) resetNames.append(value.toObject()["name"].toString());
+            resetNames.sort();
+            resetHasExpectedNames = resetHasExpectedNames && resetNames ==
+                QStringList{QStringLiteral("A"), QStringLiteral("B"), QStringLiteral("Untouched")};
+            const bool resetByKey = resetHasExpectedNames && !afterReset["canUndo"].toBool() &&
+                !afterReset["canRedo"].toBool() && !afterReset.contains("lastChildExists");
             QJsonObject result{{"precomposedByKey", precomposedByKey},
                                {"undoneByKey", undoneByKey},
                                {"redoneByKey", redoneByKey},
@@ -165,11 +205,16 @@ public:
                                {"unpackedDeleteByKey", unpackedDeleteByKey},
                                {"deleteUndoByKey", deleteUndoByKey},
                                {"deleteRedoByKey", deleteRedoByKey},
+                               {"allMovedByKey", allMovedByKey},
+                               {"allUndoByKey", allUndoByKey},
+                               {"allRedoByKey", allRedoByKey},
+                               {"resetByKey", resetByKey},
                                {"passed", precomposedByKey && undoneByKey && redoneByKey &&
                                    unpackedKeepByKey && keepUndoByKey && keepRedoByKey &&
                                    precomposedForDeleteByKey && unpackedDeleteByKey &&
-                                   deleteUndoByKey && deleteRedoByKey},
-                               {"state", afterDeleteRedo}};
+                                   deleteUndoByKey && deleteRedoByKey && allMovedByKey &&
+                                   allUndoByKey && allRedoByKey && resetByKey},
+                               {"state", afterReset}};
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("GUI P/K/D/Z/Y keyboard routing failed to round-trip precompose and unprecompose");
             return result;

@@ -87,8 +87,12 @@ def main():
                     and keyboard_round_trip["precomposedForDeleteByKey"]
                     and keyboard_round_trip["unpackedDeleteByKey"]
                     and keyboard_round_trip["deleteUndoByKey"]
-                    and keyboard_round_trip["deleteRedoByKey"],
-                    "GUI P/K/D/Z/Y keyboard routing did not round-trip precompose and unprecompose")
+                    and keyboard_round_trip["deleteRedoByKey"]
+                    and keyboard_round_trip["allMovedByKey"]
+                    and keyboard_round_trip["allUndoByKey"]
+                    and keyboard_round_trip["allRedoByKey"]
+                    and keyboard_round_trip["resetByKey"],
+                    "GUI A/P/K/D/R/Z/Y keyboard routing did not round-trip precompose, unprecompose, and reset")
             call("test.reset")
             initial = call("test.state")
             original = initial["layers"]
