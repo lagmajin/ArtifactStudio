@@ -2199,15 +2199,19 @@ public:
                 return parentResult;
             }
             const auto sourceId = idsA.front();
+            const auto sourceBId = idsB.front();
             const auto externalParentId = idsParent.front();
             const auto sourceLayer = parent->layerById(sourceId);
-            if (!sourceLayer) {
+            const auto sourceLayerB = parent->layerById(sourceBId);
+            if (!sourceLayer || !sourceLayerB) {
                 parentResult["error"] = QStringLiteral("External-parent source layer is missing");
                 return parentResult;
             }
             sourceLayer->setParentById(externalParentId);
-            const bool authoredParent = sourceLayer->parentLayerId() == externalParentId;
-            const QVector<LayerID> selected{sourceId, idsB.front()};
+            sourceLayerB->setParentById(externalParentId);
+            const bool authoredParent = sourceLayer->parentLayerId() == externalParentId &&
+                sourceLayerB->parentLayerId() == externalParentId;
+            const QVector<LayerID> selected{sourceId, sourceBId};
             const bool precomposed = authoredParent && service->precomposeLayersWithUndo(
                 selected, UniString(QStringLiteral("External Parent Precompose")), false, false,
                 PrecomposeMode::MoveSelected);
@@ -2220,15 +2224,22 @@ public:
                 parent->layerById(outcome.precompLayerId));
             const auto child = service->findComposition(outcome.childCompId).ptr.lock();
             const auto movedSource = child ? child->layerById(sourceId) : ArtifactAbstractLayerPtr{};
+            const auto movedSourceB = child ? child->layerById(sourceBId) : ArtifactAbstractLayerPtr{};
             const bool externalParentStored = wrapper &&
-                wrapper->restoreExternalParent(sourceId) == externalParentId;
-            const bool childParentCleared = movedSource && movedSource->parentLayerId().isNil();
+                wrapper->restoreExternalParent(sourceId) == externalParentId &&
+                wrapper->restoreExternalParent(sourceBId) == externalParentId;
+            const bool childParentCleared = movedSource && movedSourceB &&
+                movedSource->parentLayerId().isNil() && movedSourceB->parentLayerId().isNil();
             const bool unpacked = service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
             const auto restoredSource = service->currentComposition().lock()
                 ? service->currentComposition().lock()->layerById(sourceId)
                 : ArtifactAbstractLayerPtr{};
+            const auto restoredSourceB = service->currentComposition().lock()
+                ? service->currentComposition().lock()->layerById(sourceBId)
+                : ArtifactAbstractLayerPtr{};
             const bool unpackRestoredParent = unpacked && restoredSource &&
-                restoredSource->parentLayerId() == externalParentId;
+                restoredSourceB && restoredSource->parentLayerId() == externalParentId &&
+                restoredSourceB->parentLayerId() == externalParentId;
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
             const auto undoWrapper = service->currentComposition().lock()
@@ -2236,18 +2247,26 @@ public:
                     service->currentComposition().lock()->layerById(outcome.precompLayerId))
                 : SharedPtr<ArtifactCompositionLayer>{};
             const bool undoRestoredMetadata = undoAvailable && undoWrapper &&
-                undoWrapper->restoreExternalParent(sourceId) == externalParentId;
+                undoWrapper->restoreExternalParent(sourceId) == externalParentId &&
+                undoWrapper->restoreExternalParent(sourceBId) == externalParentId;
             const bool redoAvailable = undo->canRedo();
             if (redoAvailable) undo->redo();
             const auto redoSource = service->currentComposition().lock()
                 ? service->currentComposition().lock()->layerById(sourceId)
                 : ArtifactAbstractLayerPtr{};
+            const auto redoSourceB = service->currentComposition().lock()
+                ? service->currentComposition().lock()->layerById(sourceBId)
+                : ArtifactAbstractLayerPtr{};
             const bool redoRestoredParent = redoAvailable && redoSource &&
-                redoSource->parentLayerId() == externalParentId;
+                redoSourceB && redoSource->parentLayerId() == externalParentId &&
+                redoSourceB->parentLayerId() == externalParentId;
             parentResult["externalParentStoredOnWrapper"] = externalParentStored;
             parentResult["externalParentClearedInChild"] = childParentCleared;
+            parentResult["bothExternalParentLinksRestored"] = unpackRestoredParent;
             parentResult["unpackRestoredExternalParent"] = unpackRestoredParent;
             parentResult["undoRestoredMetadata"] = undoRestoredMetadata;
+            parentResult["undoRestoredBothMetadata"] = undoRestoredMetadata;
+            parentResult["redoRestoredBothExternalParents"] = redoRestoredParent;
             parentResult["redoRestoredExternalParent"] = redoRestoredParent;
             parentResult["passed"] = externalParentStored && childParentCleared &&
                 unpackRestoredParent && undoRestoredMetadata && redoRestoredParent;

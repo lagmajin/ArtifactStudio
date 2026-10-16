@@ -299,10 +299,13 @@ def main():
             external_parent = call("test.externalParentRestored")
             require(external_parent["passed"] and external_parent["externalParentStoredOnWrapper"]
                     and external_parent["externalParentClearedInChild"]
+                    and external_parent["bothExternalParentLinksRestored"]
                     and external_parent["unpackRestoredExternalParent"]
                     and external_parent["undoRestoredMetadata"]
+                    and external_parent["undoRestoredBothMetadata"]
+                    and external_parent["redoRestoredBothExternalParents"]
                     and external_parent["redoRestoredExternalParent"],
-                    "External layer parent was not preserved across precompose/undo/redo")
+                    "Multiple external parent links were not preserved across precompose/unpack/undo/redo")
             call("test.reset")
             missing_external_parent = call("test.missingExternalParentUnwrapAtomic")
             require(missing_external_parent["passed"] and missing_external_parent["parentAuthored"]
