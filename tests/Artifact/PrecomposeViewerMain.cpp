@@ -4464,6 +4464,41 @@ public:
             const double timeRoundTrip = NestedTimeUtils::convertTime(
                 timeInRoot, rootId, inner.childCompId);
             const bool timeConversionRestored = timeInRoot == 45.0 && timeRoundTrip == 5.0;
+            const auto reloadedOuterWrapper = reloadedRoot
+                ? dynamicPointerCast<ArtifactCompositionLayer>(reloadedRoot->layerById(outer.precompLayerId))
+                : SharedPtr<ArtifactCompositionLayer>{};
+            const auto reloadedInnerWrapper = reloadedMiddle
+                ? dynamicPointerCast<ArtifactCompositionLayer>(reloadedMiddle->layerById(inner.precompLayerId))
+                : SharedPtr<ArtifactCompositionLayer>{};
+            bool nestedDurationShrinkPropagated = false;
+            bool nestedDurationExpansionPropagated = false;
+            if (reloadedRoot && reloadedMiddle && reloadedGrandchild &&
+                reloadedOuterWrapper && reloadedInnerWrapper) {
+                const auto outerIn = reloadedOuterWrapper->inPoint().framePosition();
+                const auto outerStart = reloadedOuterWrapper->startTime().framePosition();
+                const auto innerIn = reloadedInnerWrapper->inPoint().framePosition();
+                const auto innerStart = reloadedInnerWrapper->startTime().framePosition();
+                reloadedRoot->setFrameRange(FrameRange(0, 180));
+                nestedDurationShrinkPropagated = reloadedRoot->frameRange().duration() == 180 &&
+                    reloadedMiddle->frameRange().duration() == 180 &&
+                    reloadedGrandchild->frameRange().duration() == 180 &&
+                    reloadedOuterWrapper->inPoint().framePosition() == outerIn &&
+                    reloadedOuterWrapper->startTime().framePosition() == outerStart &&
+                    reloadedOuterWrapper->outPoint().framePosition() == outerIn + 180 &&
+                    reloadedInnerWrapper->inPoint().framePosition() == innerIn &&
+                    reloadedInnerWrapper->startTime().framePosition() == innerStart &&
+                    reloadedInnerWrapper->outPoint().framePosition() == innerIn + 180;
+                reloadedRoot->setFrameRange(FrameRange(0, 300));
+                nestedDurationExpansionPropagated = reloadedRoot->frameRange().duration() == 300 &&
+                    reloadedMiddle->frameRange().duration() == 300 &&
+                    reloadedGrandchild->frameRange().duration() == 300 &&
+                    reloadedOuterWrapper->inPoint().framePosition() == outerIn &&
+                    reloadedOuterWrapper->startTime().framePosition() == outerStart &&
+                    reloadedOuterWrapper->outPoint().framePosition() == outerIn + 300 &&
+                    reloadedInnerWrapper->inPoint().framePosition() == innerIn &&
+                    reloadedInnerWrapper->startTime().framePosition() == innerStart &&
+                    reloadedInnerWrapper->outPoint().framePosition() == innerIn + 300;
+            }
             const auto middleContainsUnpackedLayers = [&]() {
                 if (!reloadedMiddle) return false;
                 const auto a = reloadedMiddle->layerById(innerIds.front());
@@ -4499,13 +4534,16 @@ public:
             roundTrip["hierarchyDataPreserved"] = hierarchyDataPreserved;
             roundTrip["runtimeHierarchyRestored"] = runtimeHierarchyRestored;
             roundTrip["timeConversionRestored"] = timeConversionRestored;
+            roundTrip["nestedDurationShrinkPropagated"] = nestedDurationShrinkPropagated;
+            roundTrip["nestedDurationExpansionPropagated"] = nestedDurationExpansionPropagated;
             roundTrip["nestedUnpackedAfterReload"] = nestedUnpackedAfterReload;
             roundTrip["nestedUnpackUndoRestored"] = nestedUnpackUndoRestored;
             roundTrip["nestedUnpackRedoRestored"] = nestedUnpackRedoRestored;
             roundTrip["timeInRoot"] = timeInRoot;
             roundTrip["passed"] = hierarchyDataPreserved && runtimeHierarchyRestored &&
                 timeConversionRestored && nestedUnpackedAfterReload && nestedUnpackUndoRestored &&
-                nestedUnpackRedoRestored;
+                nestedUnpackRedoRestored && nestedDurationShrinkPropagated &&
+                nestedDurationExpansionPropagated;
             if (!roundTrip["passed"].toBool())
                 roundTrip["error"] = QStringLiteral("Nested save/reload lost composition data or runtime hierarchy");
             childId_ = inner.childCompId;

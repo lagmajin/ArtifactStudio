@@ -12,7 +12,7 @@
 
 `test.sharedChildDurationPropagates`は別々の親Compositionから共有するchildを再読込した後、一方の親だけでwrapperを削除してももう一方のruntime mappingとchild内容が残ること、Undo/Redoで参照を復元すること、さらに子を保持した解除でも片親共有を維持することを検査する。
 
-`test.nestedSaveReload`は再読込後に最深階層のComposition Layerを解除し、親階層のレイヤー順・タイミングと3階層のruntime mappingがUndo/Redoで復元されることも検査する。
+`test.nestedSaveReload`は再読込後に最深階層のComposition Layerを解除し、最深階層のdurationが親からの短縮・延長に追従し、両段wrapperのin/start固定とout追従、解除後のレイヤー順・タイミング、3階層のruntime mappingがUndo/Redoで復元されることも検査する。
 
 ## 対象
 

@@ -534,6 +534,8 @@ def main():
                     and nested_round_trip["nestedUnpackedAfterReload"]
                     and nested_round_trip["nestedUnpackUndoRestored"]
                     and nested_round_trip["nestedUnpackRedoRestored"]
+                    and nested_round_trip["nestedDurationShrinkPropagated"]
+                    and nested_round_trip["nestedDurationExpansionPropagated"]
                     and nested_round_trip["timeConversionRestored"]
                     and nested_round_trip["timeInRoot"] == 45.0,
                     "Nested project save/reload did not restore both runtime nesting levels")
