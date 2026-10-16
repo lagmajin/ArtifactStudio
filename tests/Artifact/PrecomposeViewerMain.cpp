@@ -43,6 +43,7 @@ import Artifact.Effect.Abstract;
 import BrightnessEffect;
 import Artifact.Mask.LayerMask;
 import Artifact.Mask.Path;
+import Artifact.Layer.Matte;
 import Color.Float;
 import Property.Abstract;
 import Property.ExposedPropertyRegistry;
@@ -707,6 +708,100 @@ public:
                 redoStayedFocused;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Precompose with openNewComposition=false changed focus or selection");
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            service->changeCurrentComposition(rootId);
+            refresh();
+            result["state"] = state();
+            return result;
+        } else if (name == "test.matteReferencesSurviveUnprecompose") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            const auto source = sourceIds.size() == 2 ? root->layerById(sourceIds.front())
+                                                      : ArtifactAbstractLayerPtr{};
+            if (!source) {
+                result["error"] = QStringLiteral("Matte-reference fixture is missing source layer A/B");
+                return result;
+            }
+            LayerMatteReference first;
+            first.sourceLayerId = Id(sourceIds[1].toString());
+            first.sourceAssetPath = QStringLiteral("asset://matte-first");
+            first.enabled = false;
+            first.type = MatteType::Luma;
+            first.blendMode = MatteBlendMode::Subtract;
+            first.fitMode = MatteFitMode::Fill;
+            first.opacity = 0.35f;
+            first.invert = true;
+            LayerMatteReference second;
+            second.sourceLayerId = Id(sourceIds[1].toString());
+            second.sourceAssetPath = QStringLiteral("asset://matte-second");
+            second.enabled = true;
+            second.type = MatteType::InverseAlpha;
+            second.blendMode = MatteBlendMode::Difference;
+            second.fitMode = MatteFitMode::Original;
+            second.opacity = 0.8f;
+            second.invert = false;
+            source->setMatteReferences({first, second});
+            const auto matchesMattes = [&](const ArtifactAbstractLayerPtr& layer) {
+                if (!layer || layer != source || layer->matteReferenceCount() != 2) return false;
+                const auto references = layer->matteReferences();
+                return references.size() == 2 &&
+                    references[0].id.toString() == first.id.toString() &&
+                    references[0].sourceLayerId.toString() == sourceIds[1].toString() &&
+                    references[0].sourceAssetPath == first.sourceAssetPath &&
+                    !references[0].enabled && references[0].type == MatteType::Luma &&
+                    references[0].blendMode == MatteBlendMode::Subtract &&
+                    references[0].fitMode == MatteFitMode::Fill &&
+                    std::abs(references[0].opacity - 0.35f) <= 1.0e-6f &&
+                    references[0].invert &&
+                    references[1].id.toString() == second.id.toString() &&
+                    references[1].sourceLayerId.toString() == sourceIds[1].toString() &&
+                    references[1].sourceAssetPath == second.sourceAssetPath &&
+                    references[1].enabled && references[1].type == MatteType::InverseAlpha &&
+                    references[1].blendMode == MatteBlendMode::Difference &&
+                    references[1].fitMode == MatteFitMode::Original &&
+                    std::abs(references[1].opacity - 0.8f) <= 1.0e-6f &&
+                    !references[1].invert;
+            };
+            const bool authored = matchesMattes(source);
+            const bool precomposed = authored && service->precomposeLayersWithUndo(
+                sourceIds, UniString(QStringLiteral("Matte Reference Retention")), false, false,
+                PrecomposeMode::MoveSelected);
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto childSource = child ? child->layerById(sourceIds.front())
+                                           : ArtifactAbstractLayerPtr{};
+            const bool childMattesPreserved = precomposed && childSource == source &&
+                matchesMattes(childSource);
+            const bool unpacked = childMattesPreserved &&
+                service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const bool unpackMattesPreserved = unpacked && root->layerById(sourceIds.front()) == source &&
+                matchesMattes(source) && child && !child->layerById(sourceIds.front());
+            const bool undoAvailable = unpacked && undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const bool undoMattesPreserved = undoAvailable && root->layerById(outcome.precompLayerId) &&
+                child && child->layerById(sourceIds.front()) == source && matchesMattes(source);
+            const bool redoAvailable = undoMattesPreserved && undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const bool redoMattesPreserved = redoAvailable &&
+                root->layerById(sourceIds.front()) == source &&
+                !root->layerById(outcome.precompLayerId) && matchesMattes(source) && child &&
+                !child->layerById(sourceIds.front());
+            result["authored"] = authored;
+            result["childMattesPreserved"] = childMattesPreserved;
+            result["unpackMattesPreserved"] = unpackMattesPreserved;
+            result["undoMattesPreserved"] = undoMattesPreserved;
+            result["redoMattesPreserved"] = redoMattesPreserved;
+            result["passed"] = authored && childMattesPreserved && unpackMattesPreserved &&
+                undoMattesPreserved && redoMattesPreserved;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Layer matte reference identity, order, or settings changed across precompose/unprecompose/undo/redo");
             childId_ = outcome.childCompId;
             hasChild_ = true;
             service->changeCurrentComposition(rootId);
@@ -4468,7 +4563,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
