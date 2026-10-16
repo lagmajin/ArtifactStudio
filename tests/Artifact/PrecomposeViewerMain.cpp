@@ -349,6 +349,8 @@ public:
                 managerMappingCleared(keepWrapperId, keepChildId);
             const bool keepChildObjectPreservedByUnpackKey = unpackedKeepByKey && keepChildObject &&
                 projectService->findComposition(keepChildId).ptr.lock() == keepChildObject;
+            const bool keepChildEmptyByUnpackKey = keepChildObjectPreservedByUnpackKey &&
+                keepChildObject->allLayer().isEmpty();
             const bool keepUnpackLayerObjectsPreservedByKey = unpackedKeepByKey &&
                 sourceObjectsMatch(projectService->currentComposition().lock());
             sendKey(Qt::Key_Z);
@@ -363,6 +365,8 @@ public:
                 childObjectsMatch(keepChildId);
             const bool keepChildObjectPreservedByUndoKey = keepUndoByKey && keepChildObject &&
                 projectService->findComposition(keepChildId).ptr.lock() == keepChildObject;
+            const bool keepChildLayersRestoredByUndoKey = keepChildObjectPreservedByUndoKey &&
+                keepChildObject->allLayer().size() == 2;
             sendKey(Qt::Key_Y);
             const auto afterKeepRedo = state();
             const bool keepRedoByKey = afterKeepRedo["lastChildExists"].toBool() &&
@@ -374,6 +378,8 @@ public:
                 sourceObjectsMatch(projectService->currentComposition().lock());
             const bool keepChildObjectPreservedByRedoKey = keepRedoByKey && keepChildObject &&
                 projectService->findComposition(keepChildId).ptr.lock() == keepChildObject;
+            const bool keepChildEmptyByRedoKey = keepChildObjectPreservedByRedoKey &&
+                keepChildObject->allLayer().isEmpty();
             sendKey(Qt::Key_P);
             const auto beforeDeleteUnpack = state();
             const auto deleteWrapperId = ArtifactProjectService::instance()
@@ -514,6 +520,7 @@ public:
                                {"keepMappingRemovedByKey", keepMappingRemovedByKey},
                                {"keepChildObjectPreservedByUnpackKey",
                                 keepChildObjectPreservedByUnpackKey},
+                               {"keepChildEmptyByUnpackKey", keepChildEmptyByUnpackKey},
                                {"keepUnpackLayerObjectsPreservedByKey",
                                 keepUnpackLayerObjectsPreservedByKey},
                                {"keepUndoByKey", keepUndoByKey},
@@ -522,12 +529,15 @@ public:
                                 keepUndoLayerObjectsPreservedByKey},
                                {"keepChildObjectPreservedByUndoKey",
                                 keepChildObjectPreservedByUndoKey},
+                               {"keepChildLayersRestoredByUndoKey",
+                                keepChildLayersRestoredByUndoKey},
                                {"keepRedoByKey", keepRedoByKey},
                                {"keepMappingRemovedByRedoKey", keepMappingRemovedByRedoKey},
                                {"keepRedoLayerObjectsPreservedByKey",
                                 keepRedoLayerObjectsPreservedByKey},
                                {"keepChildObjectPreservedByRedoKey",
                                 keepChildObjectPreservedByRedoKey},
+                               {"keepChildEmptyByRedoKey", keepChildEmptyByRedoKey},
                                {"precomposedForDeleteByKey", precomposedForDeleteByKey},
                                {"deleteMappingRegisteredByKey", deleteMappingRegisteredByKey},
                                {"deletePrecomposeLayerObjectsPreservedByKey",
@@ -568,10 +578,12 @@ public:
                                    precomposeRedoLayerObjectsPreservedByKey &&
                                    unpackedKeepByKey && keepMappingRemovedByKey && keepUndoByKey &&
                                    keepChildObjectPreservedByUnpackKey &&
+                                   keepChildEmptyByUnpackKey &&
                                    keepMappingRestoredByUndoKey && keepRedoByKey &&
                                    keepMappingRemovedByRedoKey && keepUnpackLayerObjectsPreservedByKey &&
                                    keepUndoLayerObjectsPreservedByKey && keepRedoLayerObjectsPreservedByKey &&
-                                   keepChildObjectPreservedByUndoKey && keepChildObjectPreservedByRedoKey &&
+                                   keepChildObjectPreservedByUndoKey && keepChildLayersRestoredByUndoKey &&
+                                   keepChildObjectPreservedByRedoKey && keepChildEmptyByRedoKey &&
                                    precomposedForDeleteByKey && deleteMappingRegisteredByKey &&
                                    deletePrecomposeLayerObjectsPreservedByKey &&
                                    unpackedDeleteByKey && deleteMappingRemovedByKey && deleteUndoByKey &&
@@ -734,6 +746,8 @@ public:
             const auto afterUnpackKey = state();
             const bool childObjectPreservedByUnpackKey = childObjectBeforeUnpack &&
                 service->findComposition(childId_).ptr.lock() == childObjectBeforeUnpack;
+            const bool childEmptyByUnpackKey = childObjectPreservedByUnpackKey &&
+                childObjectBeforeUnpack->allLayer().isEmpty();
             const auto unpackedA = parent->layerById(ids.front());
             const auto unpackedPosition = unpackedA
                 ? unpackedA->getProperty(QStringLiteral("transform.position.x"))
@@ -781,6 +795,8 @@ public:
                 unpackUndoA.get() == source.get();
             const bool childObjectPreservedByUnpackUndoKey = childObjectBeforeUnpack &&
                 service->findComposition(childId_).ptr.lock() == childObjectBeforeUnpack;
+            const bool childLayerRestoredByUnpackUndoKey = childObjectPreservedByUnpackUndoKey &&
+                childObjectBeforeUnpack->allLayer().size() == 1;
             const bool unpackUndoSamplePreserved = animationRestoredByUnpackUndo &&
                 std::abs(unpackUndoPosition->evaluateValue(RationalTime(
                     24, unpackUndoA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
@@ -809,6 +825,8 @@ public:
                     0, unpackRedoA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
             const bool childObjectPreservedByUnpackRedoKey = childObjectBeforeUnpack &&
                 service->findComposition(childId_).ptr.lock() == childObjectBeforeUnpack;
+            const bool childEmptyByUnpackRedoKey = childObjectPreservedByUnpackRedoKey &&
+                childObjectBeforeUnpack->allLayer().isEmpty();
 
             const bool passed = movedLayerIdentityPreserved && animationEnabledByKey &&
                 wrapperNegativeTimingPreservedByKey && managerRegisteredByKey &&
@@ -826,7 +844,7 @@ public:
                 negativeTimingRestoredByRedo &&
                 animationEnabledAfterRedo && redoSamplePreserved &&
                 animationRestoredByKeyboardUnpack && unpackLayerIdentityPreserved &&
-                childObjectPreservedByUnpackKey &&
+                childObjectPreservedByUnpackKey && childEmptyByUnpackKey &&
                 wrapperRemovedByUnpack && managerUnregisteredByUnpack &&
                 sourceSelectedByUnpackKey &&
                 negativeTimingRestoredByUnpack &&
@@ -835,13 +853,13 @@ public:
                 wrapperIdentityRestoredByUnpackUndo && managerRegisteredByUnpackUndo &&
                 wrapperSelectedByUnpackUndoKey &&
                 animationEnabledAfterUnpackUndo &&
-                childObjectPreservedByUnpackUndoKey &&
+                childObjectPreservedByUnpackUndoKey && childLayerRestoredByUnpackUndoKey &&
                 negativeTimingRestoredByUnpackUndo && unpackUndoIdentityPreserved &&
                 unpackUndoSamplePreserved &&
                 animationRestoredByUnpackRedo && animationEnabledAfterUnpackRedo &&
                 wrapperRemovedByUnpackRedo && managerUnregisteredByUnpackRedo &&
                 sourceSelectedByUnpackRedoKey &&
-                childObjectPreservedByUnpackRedoKey &&
+                childObjectPreservedByUnpackRedoKey && childEmptyByUnpackRedoKey &&
                 negativeTimingRestoredByUnpackRedo &&
                 unpackRedoIdentityPreserved &&
                 unpackRedoSamplePreserved;
@@ -878,6 +896,7 @@ public:
                                {"unpackLayerIdentityPreserved", unpackLayerIdentityPreserved},
                                {"childObjectPreservedByUnpackKey",
                                 childObjectPreservedByUnpackKey},
+                               {"childEmptyByUnpackKey", childEmptyByUnpackKey},
                                {"wrapperRemovedByUnpack", wrapperRemovedByUnpack},
                                {"managerUnregisteredByUnpack", managerUnregisteredByUnpack},
                                {"sourceSelectedByUnpackKey", sourceSelectedByUnpackKey},
@@ -888,6 +907,8 @@ public:
                                {"unpackUndoIdentityPreserved", unpackUndoIdentityPreserved},
                                {"childObjectPreservedByUnpackUndoKey",
                                 childObjectPreservedByUnpackUndoKey},
+                               {"childLayerRestoredByUnpackUndoKey",
+                                childLayerRestoredByUnpackUndoKey},
                                {"wrapperNegativeTimingRestoredByUnpackUndo",
                                 wrapperNegativeTimingRestoredByUnpackUndo},
                                {"wrapperIdentityRestoredByUnpackUndo",
@@ -902,6 +923,7 @@ public:
                                {"unpackRedoIdentityPreserved", unpackRedoIdentityPreserved},
                                {"childObjectPreservedByUnpackRedoKey",
                                 childObjectPreservedByUnpackRedoKey},
+                               {"childEmptyByUnpackRedoKey", childEmptyByUnpackRedoKey},
                                {"wrapperRemovedByUnpackRedo", wrapperRemovedByUnpackRedo},
                                {"managerUnregisteredByUnpackRedo", managerUnregisteredByUnpackRedo},
                                {"sourceSelectedByUnpackRedoKey", sourceSelectedByUnpackRedoKey},
