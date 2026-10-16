@@ -351,6 +351,19 @@ def main():
                         "name": "artifact-precompose-test", "version": "1.0.0"},
                     "MCP initialize response changed its protocol or server capabilities")
             require(request("ping", {}) == {}, "MCP ping did not return an empty result")
+            string_id_request = (
+                '{"jsonrpc":"2.0","id":"ping-string-id","method":"ping","params":{}}')
+            string_id_record = {"rawRequest": string_id_request}
+            evidence.append(string_id_record)
+            process.stdin.write(string_id_request + "\n")
+            process.stdin.flush()
+            string_id_reply = replies.get(timeout=120)
+            string_id_record["reply"] = string_id_reply
+            require(isinstance(string_id_reply, dict)
+                    and string_id_reply.get("jsonrpc") == "2.0"
+                    and string_id_reply.get("id") == "ping-string-id"
+                    and string_id_reply.get("result") == {},
+                    f"Valid string request ID was not echoed by its response: {string_id_reply}")
             invoked_tool_names.add("test.state")
             state_without_arguments = request("tools/call", {"name": "test.state"})
             state_without_arguments_result = json.loads(state_without_arguments["content"][0]["text"])
@@ -438,6 +451,7 @@ def main():
             invalid_envelopes = (
                 ('{"jsonrpc":"1.0","id":998,"method":"ping"}', 998),
                 ('{"jsonrpc":"2.0","id":"invalid-method"}', "invalid-method"),
+                ('{"jsonrpc":"2.0","id":true,"method":"ping"}', None),
             )
             for raw_request, expected_id in invalid_envelopes:
                 invalid_record = {"rawRequest": raw_request}
