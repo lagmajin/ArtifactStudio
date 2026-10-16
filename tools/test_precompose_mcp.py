@@ -290,8 +290,11 @@ def main():
             require(stale_selection["passed"] and stale_selection["staleIdWasNonNil"]
                     and stale_selection["movedOnlyExistingSelection"]
                     and stale_selection["duplicateSelectionIdsIgnored"]
+                    and stale_selection["managerRegistrationAfterPrecompose"]
                     and stale_selection["undoRestoredOriginal"]
-                    and stale_selection["redoRestoredOnlyExistingSelection"],
+                    and stale_selection["undoClearedManagerRegistration"]
+                    and stale_selection["redoRestoredOnlyExistingSelection"]
+                    and stale_selection["redoManagerRegistrationRestored"],
                     "Precompose did not ignore a stale non-nil selection ID consistently")
             call("test.reset")
             cycle = call("test.cycleRejected")

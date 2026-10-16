@@ -3467,12 +3467,22 @@ public:
             const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
                 root->layerById(outcome.precompLayerId));
             const auto afterPrecomposeLayers = root->allLayer();
+            auto& precomposeManager = PreComposeManager::instance();
+            const auto referencesAfterPrecompose = precomposeManager.getPrecompLayersForChild(
+                outcome.childCompId);
+            const bool managerRegistrationAfterPrecompose = wrapper &&
+                precomposeManager.isPrecomposeLayer(outcome.precompLayerId) &&
+                precomposeManager.getSourceCompositionId(outcome.precompLayerId) ==
+                    outcome.childCompId && referencesAfterPrecompose.size() == 1 &&
+                referencesAfterPrecompose.front().parentCompId == rootId &&
+                referencesAfterPrecompose.front().precompLayerId == outcome.precompLayerId;
             const bool movedOnlyExistingSelection = precomposed && child && wrapper &&
                 child->allLayer().size() == 2 && child->layerById(sourceIds.front()) == sourceLayer &&
                 child->layerById(sourceIds.back()) == remainingLayer &&
                 !root->layerById(sourceIds.front()) && !root->layerById(sourceIds.back()) &&
                 root->layerById(untouchedIds.front()) == untouchedLayer &&
                 afterPrecomposeLayers.size() == 2 &&
+                managerRegistrationAfterPrecompose &&
                 ArtifactProjectManager::getInstance().compositionCount() == originalCompositionCount + 1;
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
@@ -3480,10 +3490,22 @@ public:
                 root->layerById(sourceIds.front()) == sourceLayer &&
                 root->layerById(sourceIds.back()) == remainingLayer &&
                 root->layerById(untouchedIds.front()) == untouchedLayer &&
+                !precomposeManager.isPrecomposeLayer(outcome.precompLayerId) &&
+                precomposeManager.getPrecompLayersForChild(outcome.childCompId).isEmpty() &&
                 ArtifactProjectManager::getInstance().compositionCount() == originalCompositionCount;
+            const bool undoClearedManagerRegistration = undoAvailable &&
+                !precomposeManager.isPrecomposeLayer(outcome.precompLayerId) &&
+                precomposeManager.getPrecompLayersForChild(outcome.childCompId).isEmpty();
             const bool redoAvailable = undo->canRedo();
             if (redoAvailable) undo->redo();
             const auto redoneChild = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto redoReferences = precomposeManager.getPrecompLayersForChild(outcome.childCompId);
+            const bool redoManagerRegistrationRestored =
+                precomposeManager.isPrecomposeLayer(outcome.precompLayerId) &&
+                precomposeManager.getSourceCompositionId(outcome.precompLayerId) ==
+                    outcome.childCompId && redoReferences.size() == 1 &&
+                redoReferences.front().parentCompId == rootId &&
+                redoReferences.front().precompLayerId == outcome.precompLayerId;
             const bool redoRestoredOnlyExistingSelection = redoAvailable && redoneChild &&
                 redoneChild->allLayer().size() == 2 &&
                 redoneChild->layerById(sourceIds.front()) == sourceLayer &&
@@ -3492,15 +3514,21 @@ public:
                 root->layerById(untouchedIds.front()) == untouchedLayer &&
                 root->allLayer().size() == 2 &&
                 root->layerById(outcome.precompLayerId) &&
+                redoManagerRegistrationRestored &&
                 ArtifactProjectManager::getInstance().compositionCount() == originalCompositionCount + 1;
             staleResult["staleIdWasNonNil"] = !staleId.isNil();
             staleResult["duplicateSelectionIdsIgnored"] = movedOnlyExistingSelection &&
                 redoRestoredOnlyExistingSelection;
             staleResult["movedOnlyExistingSelection"] = movedOnlyExistingSelection;
+            staleResult["managerRegistrationAfterPrecompose"] = managerRegistrationAfterPrecompose;
+            staleResult["undoClearedManagerRegistration"] = undoClearedManagerRegistration;
             staleResult["undoRestoredOriginal"] = undoRestoredOriginal;
             staleResult["redoRestoredOnlyExistingSelection"] = redoRestoredOnlyExistingSelection;
+            staleResult["redoManagerRegistrationRestored"] = redoManagerRegistrationRestored;
             staleResult["passed"] = !staleId.isNil() && movedOnlyExistingSelection &&
-                undoRestoredOriginal && redoRestoredOnlyExistingSelection;
+                managerRegistrationAfterPrecompose && undoRestoredOriginal &&
+                undoClearedManagerRegistration &&
+                redoRestoredOnlyExistingSelection && redoManagerRegistrationRestored;
             if (!staleResult["passed"].toBool())
                 staleResult["error"] = QStringLiteral("Stale selection IDs changed precompose membership or undo/redo state");
             childId_ = outcome.childCompId;
