@@ -9,7 +9,7 @@
 
 `test.unpackNilChildLayerIdAtomic`は子レイヤーのIDをnilにして解除を試し、拒否後も親・子Composition、wrapper、Undo/Redo履歴が保たれることを確認する。
 
-`test.openChildComposition`は子Compositionにフォーカスしたまま親wrapper IDで解除を要求し、拒否後もactive composition、親wrapper、子レイヤー、Undo/Redo履歴が変化しないことを確認する。
+`test.openChildComposition`は子Compositionを開いた直後にAが選択され、Undo後は親のA、Redo後は親wrapperが選択されることを確認する。子Compositionにフォーカスしたまま親wrapper IDで解除を要求した場合も、拒否後のactive composition、親wrapper、子レイヤー、Undo/Redo履歴が変化しない。
 
 `test.precomposeIgnoresStaleSelectionId`は有効な選択IDと現在Compositionに存在しない非nil IDを同時に要求し、実在するレイヤーだけが移動して、Undo/Redoでも同じ所属が復元されることを確認する。
 

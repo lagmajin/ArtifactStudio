@@ -1295,8 +1295,9 @@ public:
             return result;
         } else if (name == "test.openChildComposition") {
             QJsonObject result;
-            if (!comp) {
-                result["error"] = QStringLiteral("No current composition");
+            auto* selection = ArtifactLayerSelectionManager::instance();
+            if (!comp || !selection) {
+                result["error"] = QStringLiteral("Composition or layer-selection service is unavailable");
                 return result;
             }
             const auto rootId = comp->id();
@@ -1311,6 +1312,17 @@ public:
             const auto openedChild = service->currentComposition().lock();
             const bool childOpened = openedChild && openedChild->id() == outcome.childCompId &&
                 namedLayerIds(openedChild, {QStringLiteral("A"), QStringLiteral("B")}).size() == 2;
+            const auto matchesSelection = [&](const CompositionID& compositionId,
+                                              const LayerID& layerId) {
+                const auto active = selection->activeComposition();
+                const auto current = selection->currentLayer();
+                const auto selected = selection->selectedLayersInOrder();
+                return active && active->id() == compositionId && current &&
+                    current->id() == layerId && selected.size() == 1 && selected.front() &&
+                    selected.front()->id() == layerId;
+            };
+            const bool childSelectionCorrect = childOpened &&
+                matchesSelection(outcome.childCompId, sourceIds.front());
             const bool rootWrapperCreated = comp->layerById(outcome.precompLayerId) &&
                 ArtifactCore::dynamicPointerCast<ArtifactCompositionLayer>(
                     comp->layerById(outcome.precompLayerId));
@@ -1334,7 +1346,8 @@ public:
             const auto afterUndo = service->currentComposition().lock();
             const bool undoReturnedToRoot = undoAvailable && afterUndo && afterUndo->id() == rootId &&
                 namedLayerIds(afterUndo, {QStringLiteral("A"), QStringLiteral("B")}).size() == 2 &&
-                !service->findComposition(outcome.childCompId).ptr.lock();
+                !service->findComposition(outcome.childCompId).ptr.lock() &&
+                matchesSelection(rootId, sourceIds.front());
             const bool redoAvailable = undo->canRedo();
             if (redoAvailable) undo->redo();
             const auto afterRedo = service->currentComposition().lock();
@@ -1346,20 +1359,22 @@ public:
                     (reference.parentCompId == rootId &&
                      reference.precompLayerId == outcome.precompLayerId);
             }
-            const bool redoKeptRootFocused = redoAvailable && afterRedo && afterRedo->id() == rootId;
+            const bool redoKeptRootFocused = redoAvailable && afterRedo && afterRedo->id() == rootId &&
+                matchesSelection(rootId, outcome.precompLayerId);
             const bool redoRestoredChild = redoneChild && afterRedo &&
                 namedLayerIds(redoneChild, {QStringLiteral("A"), QStringLiteral("B")}).size() == 2 &&
                 parentReferenceRestored && afterRedo->layerById(outcome.precompLayerId);
             result["rootCompositionId"] = rootId.toString();
             result["childCompositionId"] = outcome.childCompId.toString();
             result["childOpened"] = childOpened;
+            result["childSelectionCorrect"] = childSelectionCorrect;
             result["rootWrapperCreated"] = bool(rootWrapperCreated);
             result["wrongContextUnpackRejected"] = wrongContextUnpackRejected;
             result["wrongContextStatePreserved"] = wrongContextStatePreserved;
             result["undoReturnedToRoot"] = undoReturnedToRoot;
             result["redoKeptRootFocused"] = redoKeptRootFocused;
             result["redoRestoredChild"] = redoRestoredChild;
-            result["passed"] = childOpened && rootWrapperCreated && wrongContextUnpackRejected &&
+            result["passed"] = childOpened && childSelectionCorrect && rootWrapperCreated && wrongContextUnpackRejected &&
                 wrongContextStatePreserved && undoReturnedToRoot &&
                 redoKeptRootFocused && redoRestoredChild;
             if (!result["passed"].toBool())

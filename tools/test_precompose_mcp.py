@@ -250,6 +250,7 @@ def main():
             call("test.reset")
             opened_child = call("test.openChildComposition")
             require(opened_child["passed"] and opened_child["childOpened"]
+                    and opened_child["childSelectionCorrect"]
                     and opened_child["rootWrapperCreated"]
                     and opened_child["wrongContextUnpackRejected"]
                     and opened_child["wrongContextStatePreserved"]
