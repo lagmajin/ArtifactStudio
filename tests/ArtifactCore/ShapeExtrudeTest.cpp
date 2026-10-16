@@ -146,3 +146,45 @@ TEST(ShapeExtrudeTest, KeepsCapOpenAcrossTheEntireInnerContour)
     }
     EXPECT_FALSE(coveredByFrontCap);
 }
+
+TEST(ShapeExtrudeTest, TriangulatesConcaveFrontCapToContourArea)
+{
+    const std::vector<QPointF> concaveContour = {
+        {0.0, 0.0}, {30.0, 0.0}, {30.0, 10.0},
+        {10.0, 10.0}, {10.0, 30.0}, {0.0, 30.0}};
+    Mesh mesh;
+    ShapeExtrudeParams params;
+    params.depth = 20.0f;
+    params.bevelWidth = 0.0f;
+    ASSERT_TRUE(extrudeContourMesh({concaveContour}, params, mesh));
+
+    const auto positions = mesh.vertexAttributes().get<QVector3D>("position");
+    ASSERT_TRUE(positions);
+
+    double frontCapArea = 0.0;
+    for (int polygonIndex = 0; polygonIndex < mesh.polygonCount(); ++polygonIndex) {
+        const QVector<int> vertices = mesh.getPolygonVertices(polygonIndex);
+        if (vertices.size() < 3) continue;
+
+        bool onFrontCap = true;
+        for (const int vertexIndex : vertices) {
+            if (vertexIndex < 0 || vertexIndex >= positions->size() ||
+                std::abs(positions->data()[vertexIndex].z() - 10.0f) > 1.0e-5f) {
+                onFrontCap = false;
+                break;
+            }
+        }
+        if (!onFrontCap) continue;
+
+        double twiceArea = 0.0;
+        for (int i = 0; i < vertices.size(); ++i) {
+            const QVector3D& current = positions->data()[vertices[i]];
+            const QVector3D& next = positions->data()[vertices[(i + 1) % vertices.size()]];
+            twiceArea += static_cast<double>(current.x()) * next.y() -
+                         static_cast<double>(next.x()) * current.y();
+        }
+        frontCapArea += std::abs(twiceArea) * 0.5;
+    }
+
+    EXPECT_NEAR(frontCapArea, 500.0, 1.0e-4);
+}
