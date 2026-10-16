@@ -285,3 +285,41 @@ TEST(InOutPointsContractTest, JsonImportSkipsMalformedMarkersAndDefaultsUnknownT
     EXPECT_EQ(valid->comment(), QStringLiteral("Valid marker"));
     EXPECT_EQ(valid->type(), Artifact::MarkerType::Flash);
 }
+
+TEST(InOutPointsContractTest, XmlRoundTripPreservesRangeAndSupportedMarkerFields)
+{
+    Artifact::ArtifactInOutPoints source;
+    source.setInPoint(ArtifactCore::FramePosition(-18));
+    source.setOutPoint(ArtifactCore::FramePosition(240));
+    auto* chapter = source.addMarker(ArtifactCore::FramePosition(24),
+                                     QStringLiteral("Intro & <title>"),
+                                     Artifact::MarkerType::Chapter);
+    auto* flash = source.addMarker(ArtifactCore::FramePosition(96),
+                                   QStringLiteral("Flash frame"),
+                                   Artifact::MarkerType::Flash);
+    ASSERT_NE(chapter, nullptr);
+    ASSERT_NE(flash, nullptr);
+    chapter->setTags(QStringList{QStringLiteral("opening"),
+                                 QStringLiteral("review")});
+
+    const QString xml = source.exportToXML();
+    ASSERT_FALSE(xml.isEmpty());
+    EXPECT_NE(xml.indexOf(QStringLiteral("&amp;")), -1);
+    EXPECT_NE(xml.indexOf(QStringLiteral("&lt;title&gt;")), -1);
+
+    Artifact::ArtifactInOutPoints restored;
+    ASSERT_TRUE(restored.importFromXML(xml));
+    EXPECT_EQ(restored.toJson(), source.toJson());
+    ASSERT_EQ(restored.markerCount(), 2u);
+    ASSERT_TRUE(restored.inPoint().has_value());
+    ASSERT_TRUE(restored.outPoint().has_value());
+    EXPECT_EQ(restored.inPoint()->framePosition(), -18);
+    EXPECT_EQ(restored.outPoint()->framePosition(), 240);
+    const auto* restoredChapter =
+        restored.getMarkerAt(ArtifactCore::FramePosition(24));
+    ASSERT_NE(restoredChapter, nullptr);
+    EXPECT_EQ(restoredChapter->comment(), QStringLiteral("Intro & <title>"));
+    EXPECT_EQ(restoredChapter->type(), Artifact::MarkerType::Chapter);
+    EXPECT_EQ(restoredChapter->tags(), (QStringList{QStringLiteral("opening"),
+                                                   QStringLiteral("review")}));
+}
