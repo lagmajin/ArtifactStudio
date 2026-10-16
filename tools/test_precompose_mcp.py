@@ -116,6 +116,8 @@ def main():
                     "MCP tools/list returned an invalid description or input schema")
             exposed_tool_names.update(names)
             protocol_state_before_invalid_calls = call("test.state")
+            require(protocol_state_before_invalid_calls["locale"] == args.language,
+                    f"Requested locale {args.language} was not applied to the test window")
             require(state_without_arguments_result["compositionId"] ==
                     protocol_state_before_invalid_calls["compositionId"] and
                     state_without_arguments_result["layers"] == protocol_state_before_invalid_calls["layers"],

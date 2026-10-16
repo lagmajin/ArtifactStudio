@@ -90,6 +90,7 @@ public:
     {
         auto comp = ArtifactProjectService::instance()->currentComposition().lock();
         QJsonObject result{{"regressionFailures", failures_},
+                           {"locale", QLocale().bcp47Name()},
                            {"canUndo", UndoManager::instance()->canUndo()},
                            {"canRedo", UndoManager::instance()->canRedo()}};
         if (comp) {
