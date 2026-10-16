@@ -154,6 +154,37 @@ TEST(AudioPlateReverbStandaloneTest, FullWetImpulseProducesAReverbTail)
     EXPECT_TRUE(hasTail(segment.channelData[0], 1));
 }
 
+TEST(AudioPlateReverbStandaloneTest, ProcessingInBlocksMatchesOneContinuousBlock)
+{
+    QVector<float> input(8192, 0.0f);
+    input[0] = 1.0f;
+    input[1023] = 0.35f;
+    input[4095] = -0.25f;
+
+    AudioPlateReverb continuous;
+    continuous.setDecay(0.92f);
+    continuous.setMix(1.0f);
+    auto continuousSegment = makeMono(48000, input);
+    continuous.process(continuousSegment);
+
+    AudioPlateReverb blocked;
+    blocked.setDecay(0.92f);
+    blocked.setMix(1.0f);
+    constexpr int boundaries[] = {0, 1, 137, 1024, 4097, 8192};
+    QVector<float> blockedOutput;
+    blockedOutput.reserve(input.size());
+    for (std::size_t block = 1; block < 6; ++block) {
+        const int start = boundaries[block - 1];
+        const int length = boundaries[block] - start;
+        auto segment = makeMono(48000, input.mid(start, length));
+        blocked.process(segment);
+        for (const float sample : segment.channelData[0])
+            blockedOutput.push_back(sample);
+    }
+
+    EXPECT_EQ(blockedOutput, continuousSegment.channelData[0]);
+}
+
 TEST(AudioPlateReverbStandaloneTest, ZeroDecayProducesSilenceForFullWetImpulse)
 {
     AudioPlateReverb plate;
