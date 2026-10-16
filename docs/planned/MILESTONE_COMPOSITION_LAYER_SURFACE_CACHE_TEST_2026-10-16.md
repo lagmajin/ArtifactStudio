@@ -1,7 +1,7 @@
 # Composition Layer Surface Cache 独立テスト
 
 **最終更新:** 2026-10-16
-**ステータス:** Blocked（ArtifactCore `AnimatableTransform2D` IFC 依存）
+**ステータス:** Blocked（ArtifactCore 実装 unit の重複 IFC 参照）
 
 ## 実装状況（2026-10-16）
 
@@ -9,8 +9,8 @@
 - `CompositionRenderController` に opt-in cache hit／miss／invalidation／entry build counters と cold-path JSON snapshot API を追加。診断無効時はこれらのカウンターを更新しない。
 - `cache.runRegression` は同一 view の cache reuse と effect edit 後の対象 entry invalidation/rebuild、および別 layer 編集の非干渉を検証する。
 - CMake configure は成功。`EnvironmentVariable.cppm` の旧手書き IFC 参照を除き、同じ split target が生成する primary-interface 参照に一本化したことで、その C7684 は解消し `ArtifactCoreEnvironment` target はビルド成功。
-- standalone Debug target build では `GPUAppendConsume.cppm` など4つの GPU implementation unit の IFC 依存も欠けていたため manifest に追加し、これらのコンパイルエラーは解消。
-- 続いて `AnimatableTransform2D.cppm` が未解決型エラーで停止する。ArtifactCore の残る module IFC 依存調査が必要で、独立 test executable の compile/runtime は未確認。
+- standalone Debug target build では GPU 4 unit の IFC 依存を manifest に追加して解消。また Animation Transform 2D／3D、AnimationDynamics、Channel で MSVC による duplicate IFC が出たため、古い明示参照を除き生成済み module dependency metadata を使うよう整理し、これらのエラーを解消。
+- 続いて `EncoderSetting.cppm` で同型の duplicate IFC が残る。ArtifactCore の既存手書き IFC mapping 全体に関わるため、独立 test executable の compile/runtime は未確認。
 
 ## 目的
 
