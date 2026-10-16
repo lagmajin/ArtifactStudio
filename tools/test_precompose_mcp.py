@@ -161,14 +161,19 @@ def main():
             raise
 
         def read_replies():
-            for line in process.stdout:
-                try:
-                    replies.put(json.loads(line))
-                except ValueError:
-                    replies.put({"invalid_stdout": line})
-            replies.put({"eof": True})
+            try:
+                for line in process.stdout:
+                    try:
+                        replies.put(json.loads(line))
+                    except ValueError:
+                        replies.put({"invalid_stdout": line})
+            except (OSError, UnicodeError) as error:
+                replies.put({"stdoutReadError": f"{type(error).__name__}: {error}"})
+            finally:
+                replies.put({"eof": True})
 
-        threading.Thread(target=read_replies, daemon=True).start()
+        reader_thread = threading.Thread(target=read_replies, daemon=True)
+        reader_thread.start()
 
         def request(method, params, allow_protocol_error=False):
             request_id = len(evidence) + 1
@@ -1308,14 +1313,29 @@ def main():
                     forced_kill = True
                     process.kill()
                     process.wait()
+            reader_thread.join(timeout=2)
+            trailing_stdout = []
+            while True:
+                try:
+                    message = replies.get_nowait()
+                except queue.Empty:
+                    break
+                if message != {"eof": True}:
+                    trailing_stdout.append(message)
             evidence.append({"serverExitCode": process.returncode})
             evidence.append({"serverForcedTermination": forced_termination,
                              "serverForcedKill": forced_kill})
+            evidence.append({"stdoutReaderStopped": not reader_thread.is_alive(),
+                             "trailingStdout": trailing_stdout})
             capture_files = [name for name in ("reset.png", "nested.png")
                              if (args.output_dir / name).is_file()]
             evidence.append({"captureFiles": capture_files})
             (args.output_dir / "result.json").write_text(json.dumps(evidence, ensure_ascii=False, indent=2),
                                                          encoding="utf-8")
+        if reader_thread.is_alive():
+            raise RuntimeError("MCP stdout reader did not stop after server exit")
+        if trailing_stdout:
+            raise RuntimeError(f"MCP server wrote unsolicited stdout after its final reply: {trailing_stdout}")
         if process.returncode:
             raise RuntimeError(f"Server exit code: {process.returncode}")
 
