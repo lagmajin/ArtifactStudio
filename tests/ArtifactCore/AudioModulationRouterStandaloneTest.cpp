@@ -253,6 +253,31 @@ TEST(AudioModulationRouterStandaloneTest, SnapshotRestoresSourcesAssignmentsAndS
     EXPECT_FLOAT_EQ(restored.targetModulation(target), 0.25f);
 }
 
+TEST(AudioModulationRouterStandaloneTest, SnapshotPreservesAssignmentModesAndEnabledState)
+{
+    ModulationRouter original;
+    original.setSmoothingTime(0.0f);
+    const auto source = original.addSource(std::make_unique<ConstantSource>(0.5f));
+    const auto target = modulationTargetId("effect.amount");
+    ASSERT_TRUE(original.addAssignment({source, target, "effect.amount", 2.0f, false,
+                                        ModulationMixMode::Add}));
+    ASSERT_TRUE(original.addAssignment({source, target, "effect.amount", 0.5f, true,
+                                        ModulationMixMode::Multiply}));
+
+    ModulationRouter restored;
+    restored.restoreSnapshot(original.snapshot());
+
+    const auto assignments = restored.assignments();
+    ASSERT_EQ(assignments.size(), 2u);
+    EXPECT_EQ(assignments[0].mode, ModulationMixMode::Add);
+    EXPECT_FALSE(assignments[0].enabled);
+    EXPECT_EQ(assignments[1].mode, ModulationMixMode::Multiply);
+    EXPECT_TRUE(assignments[1].enabled);
+    restored.process(1);
+    EXPECT_FLOAT_EQ(restored.targetModulation(target), 0.0f);
+    EXPECT_FLOAT_EQ(restored.targetValue(target, 4.0f), 5.0f);
+}
+
 TEST(AudioModulationRouterStandaloneTest, TargetValueReturnsBaseForUnknownTargets)
 {
     ModulationRouter router;
