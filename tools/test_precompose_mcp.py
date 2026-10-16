@@ -194,6 +194,22 @@ def main():
             protocol_state_after_invalid_calls = call("test.state")
             require(protocol_state_after_invalid_calls == protocol_state_before_invalid_calls,
                     "Invalid MCP requests mutated the precompose fixture")
+            reset_seed = call("test.precompose")
+            require(reset_seed["lastChildExists"] and reset_seed["canUndo"],
+                    "Could not prepare a dirty fixture for the MCP reset check")
+            reset_state = call("test.reset")
+            require(reset_state["compositionId"] != reset_seed["compositionId"]
+                    and [layer["name"] for layer in reset_state["layers"]] ==
+                    ["A", "B", "Untouched"]
+                    and not reset_state.get("lastChildExists", False)
+                    and not reset_state["canUndo"] and not reset_state["canRedo"]
+                    and reset_state["locale"] == args.language
+                    and reset_state["selection"]["activeCompositionId"] ==
+                    reset_state["compositionId"]
+                    and reset_state["resolution"] == [1280, 720]
+                    and abs(reset_state["frameRate"] - 24.0) < 1e-6
+                    and reset_state["frameRangeDuration"] == 300,
+                    "MCP reset did not create a clean locale-preserving fixture")
             keyboard_round_trip = call("test.guiKeyboardRoundTrip")
             require(keyboard_round_trip["passed"] and keyboard_round_trip["precomposedByKey"]
                     and keyboard_round_trip["keepMappingRegisteredByKey"]
