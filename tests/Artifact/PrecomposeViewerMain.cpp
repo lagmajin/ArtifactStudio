@@ -2421,6 +2421,8 @@ public:
                 child->frameRange().duration() == workspaceRange.duration();
             const bool childWorkAreaNormalized = child && child->workAreaRange().start() == 0 &&
                 child->workAreaRange().duration() == workspaceRange.duration();
+            const bool parentWorkAreaPreserved = comp->workAreaRange().start() == workspaceRange.start() &&
+                comp->workAreaRange().duration() == workspaceRange.duration();
             const auto activeChild = service->currentComposition().lock();
             const bool childOpened = child && activeChild && activeChild->id() == child->id();
             const bool wrapperTimingPreserved = wrapper &&
@@ -2432,10 +2434,11 @@ public:
             result["childWorkAreaDuration"] = child ? child->workAreaRange().duration() : -1;
             result["childDurationMatched"] = childDurationMatched;
             result["childWorkAreaNormalized"] = childWorkAreaNormalized;
+            result["parentWorkAreaPreserved"] = parentWorkAreaPreserved;
             result["childOpened"] = childOpened;
             result["wrapperTimingPreserved"] = wrapperTimingPreserved;
-            result["passed"] = childDurationMatched && childWorkAreaNormalized && childOpened &&
-                wrapperTimingPreserved;
+            result["passed"] = childDurationMatched && childWorkAreaNormalized &&
+                parentWorkAreaPreserved && childOpened && wrapperTimingPreserved;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Precompose child did not match workspace duration or wrapper timing");
             childId_ = outcome.childCompId;
