@@ -2459,6 +2459,10 @@ public:
             const auto parentDuration = root->frameRange().duration();
             const FrameRange emptyWorkspace(90, 90);
             root->setWorkAreaRange(emptyWorkspace);
+            const auto effectiveParentWorkArea = root->workAreaRange();
+            const bool emptyWorkspaceNormalized = emptyWorkspace.duration() == 0 &&
+                effectiveParentWorkArea.start() == root->frameRange().start() &&
+                effectiveParentWorkArea.duration() == parentDuration;
             if (sourceIds.size() != 2 || emptyWorkspace.duration() != 0 ||
                 !service->precomposeLayersWithUndo(
                     sourceIds, UniString(QStringLiteral("Empty Workspace Fallback")), false, true,
@@ -2470,10 +2474,13 @@ public:
             const auto child = service->findComposition(outcome.childCompId).ptr.lock();
             const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
                 root->layerById(outcome.precompLayerId));
+            const bool parentWorkAreaPreserved = root->workAreaRange().start() ==
+                    effectiveParentWorkArea.start() &&
+                root->workAreaRange().duration() == effectiveParentWorkArea.duration();
             const bool fallbackApplied = child && parentDuration > 0 &&
                 child->frameRange().start() == 0 && child->frameRange().duration() == parentDuration &&
                 child->workAreaRange().start() == 0 &&
-                child->workAreaRange().duration() == parentDuration;
+                child->workAreaRange().duration() == parentDuration && parentWorkAreaPreserved;
             const bool wrapperTimingPreserved = wrapper &&
                 wrapper->inPoint().framePosition() == 40 &&
                 wrapper->outPoint().framePosition() == 200 &&
@@ -2483,6 +2490,8 @@ public:
             const bool undoRestoredParent = undoAvailable &&
                 service->currentComposition().lock() == root &&
                 root->frameRange().duration() == parentDuration &&
+                root->workAreaRange().start() == effectiveParentWorkArea.start() &&
+                root->workAreaRange().duration() == effectiveParentWorkArea.duration() &&
                 namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")}).size() == 2 &&
                 !service->findComposition(outcome.childCompId).ptr.lock();
             const bool redoAvailable = undo->canRedo();
@@ -2491,12 +2500,20 @@ public:
             const bool redoRestoredFallbackChild = redoAvailable && redoneChild &&
                 redoneChild->frameRange().duration() == parentDuration &&
                 redoneChild->workAreaRange().duration() == parentDuration &&
+                root->workAreaRange().start() == effectiveParentWorkArea.start() &&
+                root->workAreaRange().duration() == effectiveParentWorkArea.duration() &&
                 root->layerById(outcome.precompLayerId);
+            result["emptyWorkspaceInputDuration"] = emptyWorkspace.duration();
+            result["effectiveParentWorkAreaStart"] = effectiveParentWorkArea.start();
+            result["effectiveParentWorkAreaDuration"] = effectiveParentWorkArea.duration();
+            result["emptyWorkspaceNormalized"] = emptyWorkspaceNormalized;
             result["fallbackApplied"] = fallbackApplied;
+            result["parentWorkAreaPreserved"] = parentWorkAreaPreserved;
             result["wrapperTimingPreserved"] = wrapperTimingPreserved;
             result["undoRestoredParent"] = undoRestoredParent;
             result["redoRestoredFallbackChild"] = redoRestoredFallbackChild;
-            result["passed"] = fallbackApplied && wrapperTimingPreserved &&
+            result["passed"] = emptyWorkspaceNormalized && fallbackApplied &&
+                parentWorkAreaPreserved && wrapperTimingPreserved &&
                 undoRestoredParent && redoRestoredFallbackChild;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Empty workspace range did not fall back to parent duration across undo/redo");

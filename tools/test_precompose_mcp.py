@@ -484,7 +484,11 @@ def main():
                     "Precompose did not match workspace duration while preserving parent work area and wrapper timing")
             call("test.reset")
             empty_workspace = call("test.emptyWorkspaceDurationFallsBack")
-            require(empty_workspace["passed"] and empty_workspace["fallbackApplied"]
+            require(empty_workspace["passed"] and empty_workspace["emptyWorkspaceInputDuration"] == 0
+                    and empty_workspace["emptyWorkspaceNormalized"]
+                    and empty_workspace["effectiveParentWorkAreaStart"] == 0
+                    and empty_workspace["parentWorkAreaPreserved"]
+                    and empty_workspace["fallbackApplied"]
                     and empty_workspace["wrapperTimingPreserved"]
                     and empty_workspace["undoRestoredParent"]
                     and empty_workspace["redoRestoredFallbackChild"],
