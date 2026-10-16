@@ -321,6 +321,23 @@ TEST(AudioPlateReverbStandaloneTest, InvalidSampleRateLeavesInputUnchanged)
     EXPECT_EQ(segment.channelData[0], (QVector<float>{0.25f, -0.5f}));
 }
 
+TEST(AudioPlateReverbStandaloneTest, UnequalChannelLengthsProcessOnlyCommonFramePrefix)
+{
+    auto segment = makeStereo(4000,
+        QVector<float>{0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f},
+        QVector<float>{-0.1f, -0.2f, -0.3f, -0.4f});
+    const QVector<float> untouchedSuffix = segment.channelData[0].mid(4);
+    ASSERT_EQ(segment.frameCount(), 4);
+
+    AudioPlateReverb plate;
+    plate.process(segment);
+
+    ASSERT_EQ(segment.channelData.size(), 2);
+    EXPECT_EQ(segment.channelData[0].size(), 6);
+    EXPECT_EQ(segment.channelData[1].size(), 4);
+    EXPECT_EQ(segment.channelData[0].mid(4), untouchedSuffix);
+}
+
 TEST(AudioPlateReverbStandaloneTest, JsonRoundTripPreservesSettingsAndBypass)
 {
     AudioPlateReverb source;
