@@ -191,6 +191,7 @@ def main():
             evidence.append({"harnessError": f"{type(error).__name__}: {error}"})
             evidence.append({"serverExitCode": None})
             evidence.append({"serverForcedTermination": False, "serverForcedKill": False})
+            evidence.append({"harnessPassed": False})
             evidence.append({"captureFiles": []})
             (args.output_dir / "result.json").write_text(
                 json.dumps(evidence, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -274,6 +275,7 @@ def main():
                             zip(result["childBackgroundColor"], (0.125, 0.25, 0.5, 1.0))),
                     f"{label} precompose did not copy custom composition settings")
 
+        tests_passed = False
         try:
             initialized = request("initialize", {
                 "protocolVersion": "2024-11-05", "capabilities": {},
@@ -1364,6 +1366,7 @@ def main():
                     f"unexercised={sorted(exposed_tool_names - invoked_tool_names)}, "
                     f"unadvertised={sorted(invoked_tool_names - exposed_tool_names)}")
             print("PASS: MCP tool catalog and malformed-call rejection, direct/transitive cycle guards, invalid-request and empty MoveAll atomicity, redo-branch replacement, closed/open-child focus behavior, component descriptor graph, matte reference order/settings, layer mask geometry/state, layer/composition effect scope and parameter round-trip, single-layer round-trip, shared-child references/data, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, nested Master Property save/reload/materialization, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite and fixture reset")
+            tests_passed = True
         except Exception as error:
             evidence.append({"harnessError": f"{type(error).__name__}: {error}"})
             raise
@@ -1394,11 +1397,15 @@ def main():
                     break
                 if message != {"eof": True}:
                     trailing_stdout.append(message)
+            reader_stopped = not reader_thread.is_alive()
+            harness_passed = (tests_passed and process.returncode == 0
+                              and reader_stopped and not trailing_stdout)
             evidence.append({"serverExitCode": process.returncode})
             evidence.append({"serverForcedTermination": forced_termination,
                              "serverForcedKill": forced_kill})
-            evidence.append({"stdoutReaderStopped": not reader_thread.is_alive(),
+            evidence.append({"stdoutReaderStopped": reader_stopped,
                              "trailingStdout": trailing_stdout})
+            evidence.append({"harnessPassed": harness_passed})
             evidence.append({"captureFiles": capture_files_written})
             (args.output_dir / "result.json").write_text(json.dumps(evidence, ensure_ascii=False, indent=2),
                                                          encoding="utf-8")
