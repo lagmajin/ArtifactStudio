@@ -1263,6 +1263,90 @@ public:
             refresh();
             result["state"] = state();
             return result;
+        } else if (name == "test.layerFlagsAndBlendRoundTrip") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto ids = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B"),
+                                                   QStringLiteral("Untouched")});
+            if (ids.size() != 3) {
+                result["error"] = QStringLiteral("Layer flag fixture is missing A, B, or Untouched");
+                return result;
+            }
+            const auto layerA = root->layerById(ids[0]);
+            const auto layerB = root->layerById(ids[1]);
+            const auto untouched = root->layerById(ids[2]);
+            if (!layerA || !layerB || !untouched) {
+                result["error"] = QStringLiteral("Layer flag fixture layers could not be resolved");
+                return result;
+            }
+            layerA->setVisible(false);
+            layerA->setLocked(true);
+            layerA->setSolo(true);
+            layerA->setBlendMode(LAYER_BLEND_TYPE::BLEND_SCREEN);
+            layerB->setVisible(true);
+            layerB->setLocked(false);
+            layerB->setSolo(false);
+            layerB->setBlendMode(LAYER_BLEND_TYPE::BLEND_MULTIPLY);
+            untouched->setVisible(true);
+            untouched->setLocked(false);
+            untouched->setSolo(false);
+            untouched->setBlendMode(LAYER_BLEND_TYPE::BLEND_NORMAL);
+            const auto matches = [](const ArtifactCompositionPtr& composition, LayerID id,
+                                    bool visible, bool locked, bool solo,
+                                    LAYER_BLEND_TYPE blendMode) {
+                const auto layer = composition ? composition->layerById(id)
+                                               : ArtifactAbstractLayerPtr{};
+                return layer && layer->isVisible() == visible && layer->isLocked() == locked &&
+                    layer->isSolo() == solo && layer->layerBlendType() == blendMode;
+            };
+            const bool precomposed = service->precomposeLayersWithUndo(
+                {ids[0], ids[1]}, UniString(QStringLiteral("Layer Flags Fixture")), false, false,
+                PrecomposeMode::MoveSelected);
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = precomposed
+                ? service->findComposition(outcome.childCompId).ptr.lock() : ArtifactCompositionPtr{};
+            const bool flagsMoved = matches(child, ids[0], false, true, true,
+                                             LAYER_BLEND_TYPE::BLEND_SCREEN) &&
+                matches(child, ids[1], true, false, false, LAYER_BLEND_TYPE::BLEND_MULTIPLY) &&
+                matches(root, ids[2], true, false, false, LAYER_BLEND_TYPE::BLEND_NORMAL);
+            const bool unpacked = precomposed &&
+                service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const bool flagsUnpacked = unpacked &&
+                matches(root, ids[0], false, true, true, LAYER_BLEND_TYPE::BLEND_SCREEN) &&
+                matches(root, ids[1], true, false, false, LAYER_BLEND_TYPE::BLEND_MULTIPLY) &&
+                matches(root, ids[2], true, false, false, LAYER_BLEND_TYPE::BLEND_NORMAL);
+            const bool undoAvailable = undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto undoChild = service->findComposition(outcome.childCompId).ptr.lock();
+            const bool undoRestored = undoAvailable &&
+                matches(undoChild, ids[0], false, true, true, LAYER_BLEND_TYPE::BLEND_SCREEN) &&
+                matches(undoChild, ids[1], true, false, false, LAYER_BLEND_TYPE::BLEND_MULTIPLY) &&
+                matches(root, ids[2], true, false, false, LAYER_BLEND_TYPE::BLEND_NORMAL) &&
+                root->layerById(outcome.precompLayerId);
+            const bool redoAvailable = undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const bool redoRestored = redoAvailable &&
+                matches(root, ids[0], false, true, true, LAYER_BLEND_TYPE::BLEND_SCREEN) &&
+                matches(root, ids[1], true, false, false, LAYER_BLEND_TYPE::BLEND_MULTIPLY) &&
+                matches(root, ids[2], true, false, false, LAYER_BLEND_TYPE::BLEND_NORMAL);
+            result["flagsMoved"] = flagsMoved;
+            result["flagsUnpacked"] = flagsUnpacked;
+            result["undoRestored"] = undoRestored;
+            result["redoRestored"] = redoRestored;
+            result["passed"] = flagsMoved && flagsUnpacked && undoRestored && redoRestored;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Layer flags or blend modes changed across precompose/unprecompose/undo/redo");
+            childId_ = outcome.childCompId;
+            hasChild_ = !childId_.isNil();
+            service->changeCurrentComposition(rootId);
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.sharedChildReferences") {
             QJsonObject result;
             const auto root = service->currentComposition().lock();
@@ -2858,6 +2942,10 @@ private:
                 {"outFrame", double(layer->outPoint().framePosition())},
                 {"opacity", layer->opacity()},
                 {"layerNote", layer->layerNote()},
+                {"visible", layer->isVisible()},
+                {"locked", layer->isLocked()},
+                {"solo", layer->isSolo()},
+                {"blendMode", static_cast<int>(layer->layerBlendType())},
                 {"position", QJsonArray{position.x, position.y, position.z}}};
             auto compositionLayer = dynamicPointerCast<ArtifactCompositionLayer>(layer);
             const auto childId = compositionLayer ? compositionLayer->sourceCompositionId()
@@ -2923,7 +3011,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

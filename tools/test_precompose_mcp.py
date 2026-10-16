@@ -222,6 +222,20 @@ def main():
                     and final_notes["Untouched"]["layerNote"] == "Keep this note",
                     "MCP state did not expose the final per-layer note values")
             call("test.reset")
+            layer_flags = call("test.layerFlagsAndBlendRoundTrip")
+            require(layer_flags["passed"] and layer_flags["flagsMoved"]
+                    and layer_flags["flagsUnpacked"] and layer_flags["undoRestored"]
+                    and layer_flags["redoRestored"],
+                    "Layer flags or blend modes changed across precompose/unprecompose/undo/redo")
+            final_flags = layer_map(layer_flags["state"])
+            require(not final_flags["A"]["visible"] and final_flags["A"]["locked"]
+                    and final_flags["A"]["solo"] and final_flags["A"]["blendMode"] == 4
+                    and final_flags["B"]["visible"] and not final_flags["B"]["locked"]
+                    and not final_flags["B"]["solo"] and final_flags["B"]["blendMode"] == 3
+                    and final_flags["Untouched"]["visible"]
+                    and final_flags["Untouched"]["blendMode"] == 0,
+                    "MCP state did not expose the final layer flags and blend modes")
+            call("test.reset")
             shared_child = call("test.sharedChildReferences")
             require(shared_child["passed"] and shared_child["twoReferencesCreated"]
                     and shared_child["childDataPreserved"]
