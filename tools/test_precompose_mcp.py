@@ -305,6 +305,10 @@ def main():
                     and layer_map(reset_state)["A"]["position"] == [12.0, -8.0, 3.0]
                     and abs(layer_map(reset_state)["A"]["opacity"] - 0.42) < 1e-6,
                     "MCP reset did not create a clean locale-preserving fixture")
+            require("test.capture" in exposed_tool_names,
+                    "MCP tools/list did not advertise test.capture")
+            invoked_tool_names.add("test.capture")
+            recovered_capture_dimensions = None
             for prepare_tool, expected_panel in (
                     ("test.prepareInvalidCapturePanel", "{"),
                     ("test.prepareMismatchedCapturePanel", "{}")):
@@ -328,8 +332,24 @@ def main():
                         and refreshed_panel["state"] == reset_state
                         and call("test.state") == reset_state,
                         f"State panel did not recover after {prepare_tool}")
+                recovered_capture = request("tools/call", {
+                    "name": "test.capture", "arguments": {}})
+                require(not recovered_capture.get("isError")
+                        and len(recovered_capture.get("content", [])) == 1
+                        and recovered_capture["content"][0].get("type") == "image"
+                        and recovered_capture["content"][0].get("mimeType") == "image/png",
+                        f"Capture did not recover after {prepare_tool}")
+                recovered_png = base64.b64decode(
+                    recovered_capture["content"][0]["data"], validate=True)
+                current_dimensions = validate_png(recovered_png)
+                if recovered_capture_dimensions is None:
+                    recovered_capture_dimensions = current_dimensions
+                require(current_dimensions == recovered_capture_dimensions
+                        and call("test.state") == reset_state,
+                        f"Recovered capture after {prepare_tool} changed size or project state")
+                evidence[-1]["reply"] = {
+                    "captureValidated": True, "dimensions": current_dimensions}
             reset_capture_state = call("test.state")
-            invoked_tool_names.add("test.capture")
             reset_capture = request("tools/call", {"name": "test.capture", "arguments": {}})
             require(not reset_capture.get("isError") and reset_capture["content"][0]["type"] == "image"
                     and reset_capture["content"][0].get("mimeType") == "image/png",
@@ -1208,17 +1228,14 @@ def main():
                     and noncontiguous["redoRestoredOriginalOrder"]
                     and noncontiguous["redoAnimationRestored"],
                     "Noncontiguous precompose/unpack changed animation timing or layer ordering")
-            require("test.capture" in exposed_tool_names,
-                    "MCP tools/list did not advertise test.capture")
             capture_state_before = call("test.state")
-            invoked_tool_names.add("test.capture")
             image = request("tools/call", {"name": "test.capture", "arguments": {}})
             require(not image.get("isError") and image["content"][0]["type"] == "image"
                     and image["content"][0].get("mimeType") == "image/png",
                     "Capture did not return a PNG image")
             png = base64.b64decode(image["content"][0]["data"], validate=True)
             width, height = validate_png(png)
-            require((width, height) == reset_dimensions,
+            require((width, height) == reset_dimensions == recovered_capture_dimensions,
                     "GUI capture dimensions changed during the precompose test run")
             require(call("test.state") == capture_state_before,
                     "Capture changed the composition, selection, or undo history")
