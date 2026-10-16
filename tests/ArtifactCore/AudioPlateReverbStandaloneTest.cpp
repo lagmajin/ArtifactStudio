@@ -261,6 +261,35 @@ TEST(AudioPlateReverbStandaloneTest, NonFiniteInputSamplesAreReplacedWithSilence
         EXPECT_TRUE(std::isfinite(sample));
 }
 
+TEST(AudioPlateReverbStandaloneTest, ExtremeFiniteStereoInputCannotPoisonOutputOrTail)
+{
+    const float nearLimit = std::numeric_limits<float>::max() * 0.95f;
+    QVector<float> left(4096, nearLimit);
+    QVector<float> right(4096, nearLimit);
+    for (qsizetype frame = 1; frame < left.size(); frame += 2) {
+        left[frame] = -nearLimit;
+        right[frame] = nearLimit;
+    }
+
+    AudioPlateReverb plate;
+    plate.setDecay(0.99f);
+    auto segment = makeStereo(48000, std::move(left), std::move(right));
+    plate.process(segment);
+    for (int channel = 0; channel < 2; ++channel) {
+        for (qsizetype frame = 0; frame < segment.channelData[channel].size(); ++frame)
+            EXPECT_TRUE(std::isfinite(segment.channelData[channel][frame]))
+                << "Non-finite output at channel " << channel << ", frame " << frame;
+    }
+
+    auto silence = makeStereo(48000, QVector<float>(2048, 0.0f),
+                              QVector<float>(2048, 0.0f));
+    plate.process(silence);
+    for (int channel = 0; channel < 2; ++channel) {
+        for (const float sample : silence.channelData[channel])
+            EXPECT_TRUE(std::isfinite(sample));
+    }
+}
+
 TEST(AudioPlateReverbStandaloneTest, InvalidSampleRateLeavesInputUnchanged)
 {
     AudioPlateReverb plate;
