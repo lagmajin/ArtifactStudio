@@ -325,7 +325,7 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                      int expectedHeight,
                      QString* failure,
                      int frameStart = 1,
-                     int frameEnd = 1,
+                     int frameEnd = 2,
                      RenderQueueEventLoopProbe* eventLoopProbe = nullptr)
 {
     const QFileInfo requestedOutput(outputBasePath);
@@ -384,47 +384,50 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
     }
 
     const QFileInfo outputInfo(outputBasePath);
-    const QString framePath = QDir(outputInfo.absolutePath()).filePath(
-        QStringLiteral("%1_%2.exr")
-            .arg(outputInfo.completeBaseName())
-            .arg(frameStart, 4, 10, QLatin1Char('0')));
+    const QString framePattern = QStringLiteral("%1_%2.exr")
+                                     .arg(outputInfo.completeBaseName());
     ArtifactCore::OpenExr exr;
-    std::vector<float> rgba;
-    int width = 0;
-    int height = 0;
-    if (!exr.readRGBA32F(framePath, rgba, width, height)) {
-        *failure = QStringLiteral("Render Queue did not write a readable EXR: %1")
-                       .arg(framePath);
-        return false;
-    }
-    if (width != expectedWidth || height != expectedHeight) {
-        *failure = QStringLiteral("EXR dimensions were %1x%2, expected %3x%4")
-                       .arg(width).arg(height).arg(expectedWidth).arg(expectedHeight);
-        return false;
-    }
     const std::size_t expectedComponents =
         static_cast<std::size_t>(expectedWidth) *
         static_cast<std::size_t>(expectedHeight) * 4u;
-    if (rgba.size() != expectedComponents ||
-        !std::all_of(rgba.begin(), rgba.end(), [](float value) {
-            return std::isfinite(value);
-        })) {
-        *failure = QStringLiteral("EXR pixel data was incomplete or non-finite: %1")
-                       .arg(framePath);
-        return false;
-    }
-    bool containsRenderedColor = false;
-    for (std::size_t component = 0; component < rgba.size(); component += 4u) {
-        if (rgba[component] > 0.05f || rgba[component + 1u] > 0.05f ||
-            rgba[component + 2u] > 0.05f) {
-            containsRenderedColor = true;
-            break;
+    for (int frame = frameStart; frame < frameEnd; ++frame) {
+        const QString framePath = QDir(outputInfo.absolutePath()).filePath(
+            framePattern.arg(frame, 4, 10, QLatin1Char('0')));
+        std::vector<float> rgba;
+        int width = 0;
+        int height = 0;
+        if (!exr.readRGBA32F(framePath, rgba, width, height)) {
+            *failure = QStringLiteral("Render Queue did not write a readable EXR: %1")
+                           .arg(framePath);
+            return false;
         }
-    }
-    if (!containsRenderedColor) {
-        *failure = QStringLiteral("EXR was readable but contained no visible pixel values: %1")
-                       .arg(framePath);
-        return false;
+        if (width != expectedWidth || height != expectedHeight) {
+            *failure = QStringLiteral("EXR dimensions were %1x%2, expected %3x%4: %5")
+                           .arg(width).arg(height).arg(expectedWidth).arg(expectedHeight)
+                           .arg(framePath);
+            return false;
+        }
+        if (rgba.size() != expectedComponents ||
+            !std::all_of(rgba.begin(), rgba.end(), [](float value) {
+                return std::isfinite(value);
+            })) {
+            *failure = QStringLiteral("EXR pixel data was incomplete or non-finite: %1")
+                           .arg(framePath);
+            return false;
+        }
+        bool containsRenderedColor = false;
+        for (std::size_t component = 0; component < rgba.size(); component += 4u) {
+            if (rgba[component] > 0.05f || rgba[component + 1u] > 0.05f ||
+                rgba[component + 2u] > 0.05f) {
+                containsRenderedColor = true;
+                break;
+            }
+        }
+        if (!containsRenderedColor) {
+            *failure = QStringLiteral("EXR was readable but contained no visible pixel values: %1")
+                           .arg(framePath);
+            return false;
+        }
     }
     return true;
 }
@@ -480,7 +483,7 @@ TEST(RenderQueueLayerImageIntegrationTest,
     ASSERT_TRUE(addAndRenderExr(
         queue, composition.id, QStringLiteral("ExrQueueOutput"),
         isolatedOutputPath(QStringLiteral("render_queue_exr.exr")),
-        width, height, &failure, 1, 48, &eventLoopProbe))
+        width, height, &failure, 0, 48, &eventLoopProbe))
         << failure.toStdString();
     EXPECT_TRUE(eventLoopProbe.servicedWhileRendering());
 }
