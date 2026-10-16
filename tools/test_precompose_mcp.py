@@ -42,7 +42,10 @@ def main():
             process.stdin.flush()
             reply = replies.get(timeout=120)
             evidence.append({"method": method, "params": params, "reply": reply})
-            if reply.get("id") != request_id or ("error" in reply and not allow_protocol_error):
+            if (not isinstance(reply, dict) or reply.get("jsonrpc") != "2.0"
+                    or reply.get("id") != request_id
+                    or ("result" in reply) == ("error" in reply)
+                    or ("error" in reply and not allow_protocol_error)):
                 raise RuntimeError(f"Invalid MCP reply: {reply}")
             if allow_protocol_error:
                 return reply
