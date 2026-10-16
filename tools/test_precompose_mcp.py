@@ -141,6 +141,12 @@ def main():
                     and redo_branch["replacementRedoRestored"],
                     "A new precompose did not discard and replace the old redo branch")
             call("test.reset")
+            parent_focused = call("test.keepParentFocused")
+            require(parent_focused["passed"] and parent_focused["parentStayedFocused"]
+                    and parent_focused["childWasCreated"] and parent_focused["undoStayedFocused"]
+                    and parent_focused["redoStayedFocused"],
+                    "Precompose with openNewComposition=false changed focus or selection")
+            call("test.reset")
             opened_child = call("test.openChildComposition")
             require(opened_child["passed"] and opened_child["childOpened"]
                     and opened_child["rootWrapperCreated"] and opened_child["undoReturnedToRoot"]
@@ -505,7 +511,7 @@ def main():
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
-            print("PASS: MCP tool catalog, direct/transitive cycle guards, invalid-request and empty MoveAll atomicity, redo-branch replacement, open-child navigation/focus, single-layer round-trip, shared-child references/data, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, nested Master Property save/reload/materialization, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: MCP tool catalog, direct/transitive cycle guards, invalid-request and empty MoveAll atomicity, redo-branch replacement, closed/open-child focus behavior, single-layer round-trip, shared-child references/data, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, nested Master Property save/reload/materialization, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
             try:

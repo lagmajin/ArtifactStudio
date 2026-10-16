@@ -657,6 +657,57 @@ public:
             refresh();
             branchResult["state"] = state();
             return branchResult;
+        } else if (name == "test.keepParentFocused") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            auto* selection = ArtifactLayerSelectionManager::instance();
+            if (!root || !selection) {
+                result["error"] = QStringLiteral("Composition or layer-selection service is unavailable");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            const bool created = sourceIds.size() == 2 && service->precomposeLayersWithUndo(
+                sourceIds, UniString(QStringLiteral("Keep Parent Focused")), false, false,
+                PrecomposeMode::MoveSelected);
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto focusedWrapper = [&]() {
+                const auto active = selection->activeComposition();
+                const auto current = selection->currentLayer();
+                const auto selected = selection->selectedLayersInOrder();
+                return active && active->id() == rootId && current &&
+                    current->id() == outcome.precompLayerId && selected.size() == 1 &&
+                    selected.front() && selected.front()->id() == outcome.precompLayerId;
+            };
+            const bool parentStayedFocused = created && focusedWrapper() &&
+                service->currentComposition().lock() == root;
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const bool childWasCreated = child && child->id() == outcome.childCompId &&
+                namedLayerIds(child, {QStringLiteral("A"), QStringLiteral("B")}).size() == 2;
+            const bool undoAvailable = created && undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto afterUndo = service->currentComposition().lock();
+            const bool undoStayedFocused = undoAvailable && afterUndo && afterUndo->id() == rootId &&
+                !service->findComposition(outcome.childCompId).ptr.lock();
+            const bool redoAvailable = undoStayedFocused && undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const auto afterRedo = service->currentComposition().lock();
+            const bool redoStayedFocused = redoAvailable && afterRedo && afterRedo->id() == rootId &&
+                focusedWrapper() && service->findComposition(outcome.childCompId).ptr.lock();
+            result["parentStayedFocused"] = parentStayedFocused;
+            result["childWasCreated"] = childWasCreated;
+            result["undoStayedFocused"] = undoStayedFocused;
+            result["redoStayedFocused"] = redoStayedFocused;
+            result["passed"] = parentStayedFocused && childWasCreated && undoStayedFocused &&
+                redoStayedFocused;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Precompose with openNewComposition=false changed focus or selection");
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            service->changeCurrentComposition(rootId);
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.openChildComposition") {
             QJsonObject result;
             if (!comp) {
@@ -4208,7 +4259,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
