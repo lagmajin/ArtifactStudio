@@ -3197,6 +3197,63 @@ public:
                 return result;
             }
             const auto existing = service->lastPrecomposeOutcome();
+            const auto existingWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(existing.precompLayerId));
+            const auto existingChild = service->findComposition(existing.childCompId).ptr.lock();
+            if (!existingWrapper || !existingChild) {
+                result["error"] = QStringLiteral("Initial precompose wrapper or child is unavailable");
+                return result;
+            }
+            existingWrapper->setInPoint(FramePosition(0));
+            existingWrapper->setOutPoint(FramePosition(120));
+            existingWrapper->setStartTime(FramePosition(0));
+            existingWrapper->setPosition3D({23.0f, -14.0f, 6.0f});
+            existingWrapper->setRotation3D(QVector3D(19.0f, -33.0f, 47.0f));
+            existingWrapper->transform3D().setCurrentScale(1.35f, 0.65f);
+            existingWrapper->transform3D().setCurrentAnchor(8.0f, -11.0f, 2.5f);
+            existingWrapper->setOpacity(0.58f);
+            const auto rotationChannel = existingWrapper->getProperty(QStringLiteral("transform.rotation.x"));
+            if (!rotationChannel) {
+                result["error"] = QStringLiteral("Existing precompose wrapper rotation channel is unavailable");
+                return result;
+            }
+            rotationChannel->clearKeyFrames();
+            rotationChannel->setAnimatable(true);
+            rotationChannel->addKeyFrame(
+                RationalTime(12, existingWrapper->keyframeTimeScale()), 17.0,
+                InterpolationType::Bezier, 0.1f, 0.2f, 0.8f, 0.9f, true);
+            rotationChannel->addKeyFrame(
+                RationalTime(36, existingWrapper->keyframeTimeScale()), 49.0,
+                InterpolationType::Constant);
+            const auto expectedWrapperKeys = keyframes(rotationChannel);
+            const auto wrapperTransformMatches = [&](const SharedPtr<ArtifactCompositionLayer>& layer) {
+                if (!layer) return false;
+                const auto position = layer->position3D();
+                const auto rotation = layer->rotation3D();
+                const auto& transform = layer->transform3D();
+                const auto channel = layer->getProperty(QStringLiteral("transform.rotation.x"));
+                return std::abs(position.x - 23.0f) < 1.0e-5f &&
+                    std::abs(position.y - (-14.0f)) < 1.0e-5f &&
+                    std::abs(position.z - 6.0f) < 1.0e-5f &&
+                    std::abs(rotation.x() - 19.0f) < 1.0e-5f &&
+                    std::abs(rotation.y() - (-33.0f)) < 1.0e-5f &&
+                    std::abs(rotation.z() - 47.0f) < 1.0e-5f &&
+                    std::abs(transform.scaleX() - 1.35f) < 1.0e-5f &&
+                    std::abs(transform.scaleY() - 0.65f) < 1.0e-5f &&
+                    std::abs(transform.anchorX() - 8.0f) < 1.0e-5f &&
+                    std::abs(transform.anchorY() - (-11.0f)) < 1.0e-5f &&
+                    std::abs(transform.anchorZ() - 2.5f) < 1.0e-5f &&
+                    std::abs(layer->opacity() - 0.58f) < 1.0e-5f &&
+                    layer->inPoint().framePosition() == 0 &&
+                    layer->outPoint().framePosition() == 120 &&
+                    layer->startTime().framePosition() == 0 &&
+                    channel && keyframes(channel) == expectedWrapperKeys;
+            };
+            const bool wrapperTransformAuthored = wrapperTransformMatches(existingWrapper);
+            if (!wrapperTransformAuthored) {
+                result["error"] = QStringLiteral("Could not prepare existing-wrapper transform fixture");
+                return result;
+            }
             if (!service->precomposeLayersWithUndo(
                     {existing.precompLayerId}, UniString(QStringLiteral("Precompose Wrapper")),
                     false, false, PrecomposeMode::MoveSelected)) {
@@ -3204,6 +3261,12 @@ public:
                 return result;
             }
             const auto wrapper = service->lastPrecomposeOutcome();
+            const auto wrapperChild = service->findComposition(wrapper.childCompId).ptr.lock();
+            const auto nestedExistingWrapper = wrapperChild
+                ? dynamicPointerCast<ArtifactCompositionLayer>(wrapperChild->layerById(existing.precompLayerId))
+                : SharedPtr<ArtifactCompositionLayer>{};
+            const bool wrapperTransformPreservedInNestedChild = nestedExistingWrapper == existingWrapper &&
+                wrapperTransformMatches(nestedExistingWrapper);
             const auto& manager = PreComposeManager::instance();
             const auto hasParentReference = [&](CompositionID expectedParent) {
                 for (const auto& reference : manager.getPrecompLayersForChild(existing.childCompId)) {
@@ -3220,29 +3283,72 @@ public:
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
             const auto hierarchyAfterUndo = manager.getCompositionHierarchy(existing.childCompId);
+            const auto undoWrapperTransform = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(existing.precompLayerId));
             const bool undoRestoredParent = undoAvailable && hasParentReference(rootId) &&
                 hierarchyAfterUndo.size() == 2 && hierarchyAfterUndo[0] == rootId &&
-                hierarchyAfterUndo[1] == existing.childCompId;
+                hierarchyAfterUndo[1] == existing.childCompId && undoWrapperTransform == existingWrapper &&
+                wrapperTransformMatches(undoWrapperTransform);
             const bool redoAvailable = undo->canRedo();
             if (redoAvailable) undo->redo();
             const auto hierarchyAfterRedo = manager.getCompositionHierarchy(existing.childCompId);
+            const auto redoWrapperChild = service->findComposition(wrapper.childCompId).ptr.lock();
+            const auto redoNestedExistingWrapper = redoWrapperChild
+                ? dynamicPointerCast<ArtifactCompositionLayer>(
+                      redoWrapperChild->layerById(existing.precompLayerId))
+                : SharedPtr<ArtifactCompositionLayer>{};
             const bool redoRestoredParent = redoAvailable && hasParentReference(wrapper.childCompId) &&
                 hierarchyAfterRedo.size() == 3 && hierarchyAfterRedo[0] == rootId &&
                 hierarchyAfterRedo[1] == wrapper.childCompId &&
-                hierarchyAfterRedo[2] == existing.childCompId;
+                hierarchyAfterRedo[2] == existing.childCompId &&
+                redoNestedExistingWrapper == existingWrapper &&
+                wrapperTransformMatches(redoNestedExistingWrapper);
+            const bool outerUnpacked = redoRestoredParent &&
+                service->unprecomposeLayerWithUndo(wrapper.precompLayerId, true);
+            const auto unpackedExistingWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(existing.precompLayerId));
+            const auto hierarchyAfterUnpack = manager.getCompositionHierarchy(existing.childCompId);
+            const bool unpackRestoredOriginalWrapper = outerUnpacked &&
+                unpackedExistingWrapper == existingWrapper && wrapperTransformMatches(unpackedExistingWrapper) &&
+                hasParentReference(rootId) && hierarchyAfterUnpack.size() == 2 &&
+                hierarchyAfterUnpack[0] == rootId && hierarchyAfterUnpack[1] == existing.childCompId;
+            const bool unpackUndoAvailable = outerUnpacked && undo->canUndo();
+            if (unpackUndoAvailable) undo->undo();
+            const auto hierarchyAfterUnpackUndo = manager.getCompositionHierarchy(existing.childCompId);
+            const bool unpackUndoRestoredNested = unpackUndoAvailable &&
+                hierarchyAfterUnpackUndo.size() == 3 && hierarchyAfterUnpackUndo[0] == rootId &&
+                hierarchyAfterUnpackUndo[1] == wrapper.childCompId &&
+                hierarchyAfterUnpackUndo[2] == existing.childCompId &&
+                hasParentReference(wrapper.childCompId) && wrapperTransformMatches(nestedExistingWrapper);
+            const bool unpackRedoAvailable = unpackUndoRestoredNested && undo->canRedo();
+            if (unpackRedoAvailable) undo->redo();
+            const auto finalExistingWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(existing.precompLayerId));
+            const auto hierarchyAfterUnpackRedo = manager.getCompositionHierarchy(existing.childCompId);
+            const bool unpackRedoRestoredOriginal = unpackRedoAvailable &&
+                finalExistingWrapper == existingWrapper && wrapperTransformMatches(finalExistingWrapper) &&
+                hasParentReference(rootId) && hierarchyAfterUnpackRedo.size() == 2 &&
+                hierarchyAfterUnpackRedo[0] == rootId &&
+                hierarchyAfterUnpackRedo[1] == existing.childCompId;
             result["existingChildId"] = existing.childCompId.toString();
             result["wrapperChildId"] = wrapper.childCompId.toString();
+            result["wrapperTransformAuthored"] = wrapperTransformAuthored;
+            result["wrapperTransformPreservedInNestedChild"] = wrapperTransformPreservedInNestedChild;
             result["parentReferenceUpdated"] = parentReferenceUpdated;
             result["hierarchyUpdated"] = hierarchyUpdated;
             result["undoRestoredParent"] = undoRestoredParent;
             result["redoRestoredParent"] = redoRestoredParent;
+            result["unpackRestoredOriginalWrapper"] = unpackRestoredOriginalWrapper;
+            result["unpackUndoRestoredNested"] = unpackUndoRestoredNested;
+            result["unpackRedoRestoredOriginal"] = unpackRedoRestoredOriginal;
             result["undoAvailable"] = undoAvailable;
             result["redoAvailable"] = redoAvailable;
             result["hierarchy"] = QJsonArray{rootId.toString(),
                 hierarchyAfterRedo.size() > 1 ? hierarchyAfterRedo[1].toString() : QString(),
                 hierarchyAfterRedo.size() > 2 ? hierarchyAfterRedo[2].toString() : QString()};
-            result["passed"] = parentReferenceUpdated && hierarchyUpdated && undoRestoredParent &&
-                redoRestoredParent;
+            result["passed"] = wrapperTransformAuthored && wrapperTransformPreservedInNestedChild &&
+                parentReferenceUpdated && hierarchyUpdated && undoRestoredParent && redoRestoredParent &&
+                unpackRestoredOriginalWrapper && unpackUndoRestoredNested && unpackRedoRestoredOriginal;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Existing-precompose reparenting or its undo/redo did not restore the runtime hierarchy");
             childId_ = existing.childCompId;
