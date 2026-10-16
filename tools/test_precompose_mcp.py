@@ -175,6 +175,11 @@ def main():
                     and shared_duration["saveReloadRestored"],
                     "Shared child duration propagation or its two-parent save/reload restoration failed")
             call("test.reset")
+            same_parent_duration = call("test.sharedParentDurationPropagates")
+            require(same_parent_duration["passed"] and same_parent_duration["sameParentRegistered"]
+                    and same_parent_duration["shrinkFollowed"] and same_parent_duration["expansionFollowed"],
+                    "Shared child duration shrink/expansion did not update both wrappers in one parent")
+            call("test.reset")
             transitive_cycle = call("test.transitiveCycleRejected")
             require(transitive_cycle["passed"] and transitive_cycle["transitiveCycleRejected"]
                     and transitive_cycle["threeLevelCycleRejected"]

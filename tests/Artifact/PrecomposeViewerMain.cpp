@@ -872,6 +872,81 @@ public:
             refresh();
             result["state"] = state();
             return result;
+        } else if (name == "test.sharedParentDurationPropagates") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Shared Parent Duration Child")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                result["error"] = QStringLiteral("Could not create same-parent shared-child fixture");
+                return result;
+            }
+            const auto first = service->lastPrecomposeOutcome();
+            service->changeCurrentComposition(rootId);
+            const bool secondAdded = service->addCompositionLayerToCurrentCompositionWithUndo(
+                first.childCompId);
+            LayerID secondWrapperId;
+            if (secondAdded) for (const auto& layer : root->allLayer()) {
+                const auto wrapper = ArtifactCore::dynamicPointerCast<ArtifactCompositionLayer>(layer);
+                if (wrapper && wrapper->sourceCompositionId() == first.childCompId &&
+                    wrapper->id() != first.precompLayerId) {
+                    secondWrapperId = wrapper->id();
+                    break;
+                }
+            }
+            auto& manager = PreComposeManager::instance();
+            const auto references = manager.getPrecompLayersForChild(first.childCompId);
+            const bool sameParentRegistered = secondAdded && !secondWrapperId.isNil() &&
+                references.size() == 2 &&
+                std::any_of(references.begin(), references.end(), [&](const auto& reference) {
+                    return reference.parentCompId == rootId &&
+                        reference.precompLayerId == first.precompLayerId;
+                }) &&
+                std::any_of(references.begin(), references.end(), [&](const auto& reference) {
+                    return reference.parentCompId == rootId &&
+                        reference.precompLayerId == secondWrapperId;
+                });
+            const auto firstWrapper = ArtifactCore::dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(first.precompLayerId));
+            const auto secondWrapper = ArtifactCore::dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(secondWrapperId));
+            const auto child = service->findComposition(first.childCompId).ptr.lock();
+            if (!sameParentRegistered || !firstWrapper || !secondWrapper || !child) {
+                result["error"] = QStringLiteral("Same-parent shared-child fixture is incomplete");
+                return result;
+            }
+            child->setFrameRange(FrameRange(0, 90));
+            const bool shrinkFollowed = firstWrapper->inPoint().framePosition() == 40 &&
+                firstWrapper->startTime().framePosition() == 40 &&
+                firstWrapper->outPoint().framePosition() == 130 &&
+                secondWrapper->inPoint().framePosition() == 0 &&
+                secondWrapper->startTime().framePosition() == 0 &&
+                secondWrapper->outPoint().framePosition() == 90;
+            child->setFrameRange(FrameRange(0, 240));
+            const bool expansionFollowed = firstWrapper->inPoint().framePosition() == 40 &&
+                firstWrapper->startTime().framePosition() == 40 &&
+                firstWrapper->outPoint().framePosition() == 280 &&
+                secondWrapper->inPoint().framePosition() == 0 &&
+                secondWrapper->startTime().framePosition() == 0 &&
+                secondWrapper->outPoint().framePosition() == 240;
+            result["sameParentRegistered"] = sameParentRegistered;
+            result["shrinkFollowed"] = shrinkFollowed;
+            result["expansionFollowed"] = expansionFollowed;
+            result["passed"] = sameParentRegistered && shrinkFollowed && expansionFollowed;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Shared child duration changes did not update every wrapper in one parent");
+            childId_ = first.childCompId;
+            hasChild_ = true;
+            service->changeCurrentComposition(rootId);
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.internalParentRestored") {
             QJsonObject result;
             if (!comp) {
@@ -3610,7 +3685,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.sharedChildDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
