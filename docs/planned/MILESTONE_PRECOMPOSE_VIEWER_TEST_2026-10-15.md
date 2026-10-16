@@ -9,7 +9,7 @@
 
 独立MCPハーネスは`notifications/initialized`をIDなしで送り、通知への応答が次の`test.state`応答へ混入せず、fixture状態も変わらないことを確認する。
 
-`test.reset`はプリコンポーズ済みでUndo可能なfixtureから、新composition ID・既定レイヤー順／時間・解像度／fps／duration／背景・親activeかつ空選択・空Undo/Redo履歴・要求localeを復元することをMCP経由で確認する。
+`test.reset`はプリコンポーズ済みでUndo可能なfixtureから、新composition ID・既定レイヤー順／時間・Aのposition／opacity・解像度／fps／duration／背景・親activeかつ空選択・空Undo/Redo履歴・要求localeを復元することをMCP経由で確認する。
 
 MCPハーネスの`result.json`はassertion／通信例外の型とメッセージ、およびserver終了コードも保存し、失敗時に完了済みrequest／response evidenceと合わせて原因を追える。
 

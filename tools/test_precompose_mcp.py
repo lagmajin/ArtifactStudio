@@ -214,7 +214,9 @@ def main():
                     and reset_state["backgroundColor"] == [0.125, 0.25, 0.5, 1.0]
                     and {name: (layer["inFrame"], layer["outFrame"], layer["startFrame"])
                          for name, layer in layer_map(reset_state).items()} ==
-                    {"A": (40, 200, 7), "B": (70, 160, 9), "Untouched": (25, 220, 3)},
+                    {"A": (40, 200, 7), "B": (70, 160, 9), "Untouched": (25, 220, 3)}
+                    and layer_map(reset_state)["A"]["position"] == [12.0, -8.0, 3.0]
+                    and abs(layer_map(reset_state)["A"]["opacity"] - 0.42) < 1e-6,
                     "MCP reset did not create a clean locale-preserving fixture")
             keyboard_round_trip = call("test.guiKeyboardRoundTrip")
             require(keyboard_round_trip["passed"] and keyboard_round_trip["precomposedByKey"]
