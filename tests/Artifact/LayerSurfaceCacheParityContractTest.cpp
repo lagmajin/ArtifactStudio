@@ -92,12 +92,45 @@ TEST(LayerSurfaceCacheParityContractTest,
     const QImage cacheBuildImage = draw(&surfaceCache);
     ASSERT_FALSE(cacheBuildImage.isNull());
     ASSERT_FALSE(surfaceCache.isEmpty());
+    const QString cacheOwnerId = layer->id().toString();
+    ASSERT_TRUE(surfaceCache.contains(cacheOwnerId));
+    const auto builtCacheEntry = surfaceCache.value(cacheOwnerId);
+    ASSERT_FALSE(builtCacheEntry.cacheSignature.isEmpty());
 
     const QImage cacheReuseImage = draw(&surfaceCache);
     ASSERT_FALSE(cacheReuseImage.isNull());
+    const auto reusedCacheEntry = surfaceCache.value(cacheOwnerId);
     const QImage bypassImage = draw(nullptr);
     ASSERT_FALSE(bypassImage.isNull());
 
     EXPECT_TRUE(imagesMatchExactly(cacheBuildImage, bypassImage));
     EXPECT_TRUE(imagesMatchExactly(cacheReuseImage, bypassImage));
+    const bool reusedBuffer = builtCacheEntry.processedBuffer &&
+        reusedCacheEntry.processedBuffer &&
+        builtCacheEntry.processedBuffer.get() ==
+            reusedCacheEntry.processedBuffer.get();
+    const bool reusedSurface = !builtCacheEntry.processedSurface.isNull() &&
+        builtCacheEntry.processedSurface.cacheKey() ==
+            reusedCacheEntry.processedSurface.cacheKey();
+    EXPECT_TRUE(reusedBuffer || reusedSurface);
+
+    const QString originalSignature = builtCacheEntry.cacheSignature;
+    QImage replacement(48, 48, QImage::Format_RGBA8888);
+    replacement.fill(Qt::transparent);
+    for (int y = 8; y < 36; ++y) {
+        for (int x = 5; x < 27; ++x) {
+            replacement.setPixelColor(x, y, QColor(80, 170, 255, 255));
+        }
+    }
+    layer->setFromQImage(replacement);
+
+    const QImage cachedAfterSourceEdit = draw(&surfaceCache);
+    const QImage bypassAfterSourceEdit = draw(nullptr);
+    ASSERT_FALSE(cachedAfterSourceEdit.isNull());
+    ASSERT_FALSE(bypassAfterSourceEdit.isNull());
+    const QString updatedSignature =
+        surfaceCache.value(cacheOwnerId).cacheSignature;
+    EXPECT_NE(updatedSignature, originalSignature);
+    EXPECT_TRUE(imagesMatchExactly(cachedAfterSourceEdit, bypassAfterSourceEdit));
+    EXPECT_FALSE(imagesMatchExactly(bypassImage, bypassAfterSourceEdit));
 }

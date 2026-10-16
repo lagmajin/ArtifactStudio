@@ -43,14 +43,14 @@
 | 28 | Hot path容量上限 | 診断・負荷suite | 独立CPU `ArtifactFrameCacheContractTest` にフレーム数上限・メモリ上限・LRU eviction・予算超過entry拒否・Composition/frame/layer/effect指定invalidatonを追加。Image sequence cacheのentry/byte上限とPlayback stress harnessのsample上限も既存テストでカバー。Playback Service suiteへ公開API経由で129枚を投入し、128件上限・最古entry退避・既存frame再store後のLRU退避順を確認するケースを追加。未ビルド・未実行 |
 | 29 | 再生中Composition切替 | Playback integration | 既存Playback stress harnessの単発切替でactive index変更・Service current Composition一致・切替前再生中なら再開・Transport widget一致を明示判定。2つ以上のCompositionで実行が必要。stress未実行 |
 | 30 | Playback ServiceとUI同期 | Playback/UI integration | 独立Playback stress harnessに実際の`ArtifactPlaybackControlWidget`を配置し、ServiceとUIのPlaying/Paused/Stopped query一致をstate出力、Composition切替、resize、連続巡回、run完了時に検査。GUI runtime未実行 |
-| 31 | Cache有効/無効画像比較 | Renderer integration | 独立headless GPU contract targetで、公開`drawLayerForCompositionView`へ明示cache map／`nullptr`を渡し、Rasterizer effectつきImageLayerのcache build・reuse・bypass画像をRGBA byte完全一致比較。別系統static GPU cacheはLayerCachePolicyで無効化。controller全Composition pipelineとの比較ではない。未ビルド・未実行 |
+| 31 | Cache有効/無効画像比較 | Renderer integration | 独立headless GPU contract targetで、公開`drawLayerForCompositionView`へ明示cache map／`nullptr`を渡し、Rasterizer effectつきImageLayerのcache build・entry identity維持によるreuse・bypass画像をRGBA byte完全一致比較。同サイズin-memory画像を差し替えた後のsignature更新・cached/bypass一致も検査。別系統static GPU cacheはLayerCachePolicyで無効化。controller全Composition pipelineとの比較ではない。未ビルド・未実行 |
 | 32 | アニメーションTransform GPU描画 | Headless GPU integration | RenderQueue GPU integrationで一般Solid layerのPosition X keyframeをGPU指定で2 frame出力し、赤画素の重心がframe間で80px超移動することを比較する独立CTestケースを追加。GPU依存。未ビルド・未実行 |
 | 33 | 大画像＋Effect | Render stress/integration | 既存CPU Effect contract suiteへ1280×720 surfaceのBrightness処理・端/中央画素・入力保持を追加。GPU/render queue負荷比較は未カバー。未実行 |
 | 34 | 非表示レイヤー負荷 | Render stress | Playback stress harnessに`stress.compareVisibilityProfiles`を追加。同じComposition・再生run内で全表示と奇数index半数非表示を同じ時間計測し、可視/非表示数、100ms samplingのframe進行率、stall sample、提示frame delta、drop deltaを比較可能。元の可視状態は計測後に復元する。runtime比較は未実施 |
 | 35 | リサイズ中の描画安定性 | Viewer/GPU GUI | 独立Playback stress harnessへ再生中リサイズ操作を追加。Qt event processing後のframe進行・再生継続・Viewport正寸法・Transport状態一致を判定。GPU/GUI未実行 |
 | 36 | 複数Composition連続再生 | Playback stress | 独立Playback stress harnessに`stress.cycleCompositions`を追加。再生中に全Compositionを順番に切り替え、各切替後のComposition一致・再生継続・フレーム進行を判定し、最後に開始Compositionへ戻る。終了時stop/wait/参照解放処理も既存実装で確認。GPU/GUI実行は未確認 |
 | 37 | GPU device喪失後の復旧 | GPU integration | 独立GPU processに`DiligentDeviceManagerRecoveryContractTest`を追加。headless device作成後に公開`markDeviceLost()`→destroy→再初期化し、新device/contextを確認する。backend device removalやPresent失敗を注入しないため、ArtifactIRendererの自動recovery経路・実GPU喪失は別途未カバー。GPU依存・未ビルド/未実行 |
-| 38 | Export中のUI応答 | Export/UI integration | 既存EXR RenderQueue統合ケースを48-frame出力に拡張し、読み取り可能なEXRと描画中のGUI timer event処理を同時に検査。GPU依存。未ビルド・未実行 |
+| 38 | Export中のUI応答 | Export/UI integration | 既存EXR RenderQueue統合ケースを48-frame出力に拡張。描画中のGUI timer event処理に加え、全48ファイルをOpenEXRで読み込み、寸法・RGBA要素数・有限値・可視画素を検査する。GPU依存。未ビルド・未実行 |
 
 ### 2026-10-16 追加確認
 
@@ -72,6 +72,7 @@
 - Composition Layer Surface Cacheの既存Windows GUI harnessに、controllerの`readbackPresentedFrameImage()`を使った未変更rerender前後のComposition frame pixel完全一致判定を追加。window chromeやdesktop captureに依存せず、cache hit診断だけでなく出力不変性も見る。ArtifactCore IFC blockerによりビルド/runtime未実施。
 - RAM preview容量テストでは`storeRamPreviewFrameImage()`に1×1 CPU画像を渡し、disk persistenceを無効にして128件上限とLRU evictionを独立process内で検査する。Serviceのprivate上限値はテストに露出させず、公開統計・bitmap・frame stateから振る舞いを確認する。
 - #31はArtifact child repoの公開`drawLayerForCompositionView`がsurface-cache mapを引数に取るため、root test targetからmap有無を切り替えるheadless比較を追加した。Rasterizer effect経路を使い、独立static GPU layer cacheはlayer policyで無効化する。controller統合経路全体のcache bypass検証は対象外であり、実行未確認。
+- `buildLayerSurfaceCacheKey()`はimage path/source version/crop revision等を含む一方、`ArtifactImageLayer::setFromQImage()`はasset ID/pathを消しsource versionを0にする。geometry revisionがkeyに見当たらず、同サイズのin-memory画素置換でsignatureが更新されない可能性を静的に確認。新しいparityテストに差し替え後のsignatureと画素比較を追加したが、実行未確認。
 - #37のrenderer recoveryはPresent失敗文言のdevice-lost判定に接続される。追加した独立GPU testはmanagerのlost teardown後にheadless再初期化できることだけを確認し、Present由来の自動recoveryやbackendの実device removalは検査しない。
 - 失敗Projectのload時、未ロード状態の維持だけでなく既存の有効Project・Composition・Layerを保持することをProject round-trip suiteで確認するケースを追加。Project importerが成功後にだけcurrent projectを差し替える既存実装と対応付けた。
 - 新規テストは既存コードの読み取りに基づき追加した。ビルド・テスト・CMakeは実行していない。
