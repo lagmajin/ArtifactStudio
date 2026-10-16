@@ -1193,6 +1193,74 @@ public:
             refresh();
             result["state"] = state();
             return result;
+        } else if (name == "test.sharedCompositionLayerUndoRedo") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Shared Layer Undo Fixture")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                result["error"] = QStringLiteral("Could not create shared-layer undo fixture");
+                return result;
+            }
+            const auto first = service->lastPrecomposeOutcome();
+            auto& manager = PreComposeManager::instance();
+            const auto findSecondReference = [&]() {
+                LayerID secondId;
+                for (const auto& reference : manager.getPrecompLayersForChild(first.childCompId)) {
+                    if (reference.parentCompId == rootId &&
+                        reference.precompLayerId != first.precompLayerId &&
+                        root->layerById(reference.precompLayerId)) {
+                        const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                            root->layerById(reference.precompLayerId));
+                        if (wrapper && wrapper->sourceCompositionId() == first.childCompId) {
+                            secondId = reference.precompLayerId;
+                            break;
+                        }
+                    }
+                }
+                return secondId;
+            };
+            const auto compositionCount = ArtifactProjectManager::getInstance().compositionCount();
+            const bool added = service->addCompositionLayerToCurrentCompositionWithUndo(
+                first.childCompId);
+            const LayerID addedWrapperId = added ? findSecondReference() : LayerID();
+            const bool addRegistered = added && !addedWrapperId.isNil() &&
+                manager.getPrecompLayersForChild(first.childCompId).size() == 2 &&
+                manager.isPrecomposeLayer(first.precompLayerId) &&
+                manager.isPrecomposeLayer(addedWrapperId);
+            const bool undoAvailable = addRegistered && undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto refsAfterUndo = manager.getPrecompLayersForChild(first.childCompId);
+            const bool undoRemovedOnlyAddedReference = undoAvailable &&
+                refsAfterUndo.size() == 1 && manager.isPrecomposeLayer(first.precompLayerId) &&
+                !root->layerById(addedWrapperId) && root->layerById(first.precompLayerId) &&
+                ArtifactProjectManager::getInstance().compositionCount() == compositionCount;
+            const bool redoAvailable = undoRemovedOnlyAddedReference && undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const LayerID redoneWrapperId = findSecondReference();
+            const bool redoRestoredSecondReference = redoAvailable &&
+                !redoneWrapperId.isNil() && manager.getPrecompLayersForChild(first.childCompId).size() == 2 &&
+                manager.isPrecomposeLayer(first.precompLayerId) &&
+                manager.isPrecomposeLayer(redoneWrapperId) && root->layerById(redoneWrapperId) &&
+                ArtifactProjectManager::getInstance().compositionCount() == compositionCount;
+            result["addRegistered"] = addRegistered;
+            result["undoRemovedOnlyAddedReference"] = undoRemovedOnlyAddedReference;
+            result["redoRestoredSecondReference"] = redoRestoredSecondReference;
+            result["passed"] = addRegistered && undoRemovedOnlyAddedReference &&
+                redoRestoredSecondReference;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Adding a shared Composition Layer changed another instance or failed to restore its registration");
+            childId_ = first.childCompId;
+            hasChild_ = true;
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.sharedChildReferences") {
             QJsonObject result;
             const auto root = service->currentComposition().lock();
@@ -2852,7 +2920,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.sharedCompositionLayerUndoRedo", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
