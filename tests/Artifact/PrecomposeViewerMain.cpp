@@ -378,6 +378,10 @@ public:
                 QApplication::sendEvent(this, &event);
             };
             sendKey(Qt::Key_P);
+            const auto precomposeOutcome = service->lastPrecomposeOutcome();
+            const auto wrapperId = precomposeOutcome.precompLayerId;
+            const bool wrapperNegativeTimingPreservedByKey = !wrapperId.isNil() &&
+                hasTiming(parent->layerById(wrapperId), -24, 136, -24);
             const auto child = service->findComposition(childId_).ptr.lock();
             const auto childIds = namedLayerIds(child, {QStringLiteral("A")});
             const auto childA = childIds.size() == 1
@@ -407,6 +411,7 @@ public:
                 : SharedPtr<AbstractProperty>{};
             const bool undoLayerIdentityPreserved = undoSource &&
                 undoSource.get() == source.get();
+            const bool wrapperRemovedByUndo = wrapperId.isNil() || !parent->layerById(wrapperId);
             const bool negativeTimingRestoredByUndo = hasTiming(undoSource, -24, 136, -17);
             const bool animationEnabledAfterUndo = undoPosition && undoPosition->isAnimatable();
             const bool animationRestoredByUndo = !hasChild_ ||
@@ -426,6 +431,8 @@ public:
                 ? redoA->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
             const bool redoLayerIdentityPreserved = redoA && redoA.get() == source.get();
+            const bool wrapperNegativeTimingRestoredByRedo = !wrapperId.isNil() &&
+                hasTiming(parent->layerById(wrapperId), -24, 136, -24);
             const bool negativeTimingRestoredByRedo = hasTiming(redoA, 0, 160, 7);
             const bool animationEnabledAfterRedo = redoPosition && redoPosition->isAnimatable();
             const bool animationRestoredByRedo = redoPosition &&
@@ -441,6 +448,7 @@ public:
                 : SharedPtr<AbstractProperty>{};
             const bool unpackLayerIdentityPreserved = unpackedA &&
                 unpackedA.get() == source.get();
+            const bool wrapperRemovedByUnpack = wrapperId.isNil() || !parent->layerById(wrapperId);
             const bool negativeTimingRestoredByUnpack =
                 hasTiming(unpackedA, -24, 136, -17);
             const bool animationEnabledAfterUnpack = unpackedPosition &&
@@ -459,6 +467,8 @@ public:
             const auto unpackUndoPosition = unpackUndoA
                 ? unpackUndoA->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
+            const bool wrapperNegativeTimingRestoredByUnpackUndo = !wrapperId.isNil() &&
+                hasTiming(parent->layerById(wrapperId), -24, 136, -24);
             const bool negativeTimingRestoredByUnpackUndo =
                 hasTiming(unpackUndoA, 0, 160, 7);
             const bool animationEnabledAfterUnpackUndo = unpackUndoPosition &&
@@ -484,56 +494,72 @@ public:
                 keyframes(unpackRedoPosition) == originalKeys;
             const bool unpackRedoIdentityPreserved = unpackRedoA &&
                 unpackRedoA.get() == source.get();
+            const bool wrapperRemovedByUnpackRedo = wrapperId.isNil() || !parent->layerById(wrapperId);
             const bool unpackRedoSamplePreserved = animationRestoredByUnpackRedo &&
                 std::abs(unpackRedoPosition->evaluateValue(RationalTime(
                     0, unpackRedoA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
 
             const bool passed = movedLayerIdentityPreserved && animationEnabledByKey &&
-                negativeTimingNormalizedByKey && animationMovedByKey &&
+                wrapperNegativeTimingPreservedByKey && negativeTimingNormalizedByKey &&
+                animationMovedByKey &&
                 animationRestoredByUndo && undoLayerIdentityPreserved &&
+                wrapperRemovedByUndo &&
                 negativeTimingRestoredByUndo &&
                 animationEnabledAfterUndo && animationSamplePreservedByKey &&
                 undoKeysPreserved && undoSamplePreserved &&
                 animationRestoredByRedo && redoLayerIdentityPreserved &&
-                negativeTimingRestoredByRedo && animationEnabledAfterRedo && redoSamplePreserved &&
+                wrapperNegativeTimingRestoredByRedo && negativeTimingRestoredByRedo &&
+                animationEnabledAfterRedo && redoSamplePreserved &&
                 animationRestoredByKeyboardUnpack && unpackLayerIdentityPreserved &&
-                negativeTimingRestoredByUnpack && animationEnabledAfterUnpack && unpackSamplePreserved &&
-                animationRestoredByUnpackUndo && animationEnabledAfterUnpackUndo &&
+                wrapperRemovedByUnpack && negativeTimingRestoredByUnpack &&
+                animationEnabledAfterUnpack && unpackSamplePreserved &&
+                animationRestoredByUnpackUndo && wrapperNegativeTimingRestoredByUnpackUndo &&
+                animationEnabledAfterUnpackUndo &&
                 negativeTimingRestoredByUnpackUndo && unpackUndoIdentityPreserved &&
                 unpackUndoSamplePreserved &&
                 animationRestoredByUnpackRedo && animationEnabledAfterUnpackRedo &&
-                negativeTimingRestoredByUnpackRedo && unpackRedoIdentityPreserved &&
+                wrapperRemovedByUnpackRedo && negativeTimingRestoredByUnpackRedo &&
+                unpackRedoIdentityPreserved &&
                 unpackRedoSamplePreserved;
             QJsonObject result{{"animationMovedByKey", animationMovedByKey},
                                {"movedLayerIdentityPreserved", movedLayerIdentityPreserved},
+                               {"wrapperNegativeTimingPreservedByKey",
+                                wrapperNegativeTimingPreservedByKey},
                                {"negativeTimingNormalizedByKey", negativeTimingNormalizedByKey},
                                {"animationEnabledByKey", animationEnabledByKey},
                                {"animationSamplePreservedByKey", animationSamplePreservedByKey},
                                {"animationRestoredByUndo", animationRestoredByUndo},
                                {"undoLayerIdentityPreserved", undoLayerIdentityPreserved},
+                               {"wrapperRemovedByUndo", wrapperRemovedByUndo},
                                {"negativeTimingRestoredByUndo", negativeTimingRestoredByUndo},
                                {"animationEnabledAfterUndo", animationEnabledAfterUndo},
                                {"undoKeysPreserved", undoKeysPreserved},
                                {"undoSamplePreserved", undoSamplePreserved},
                                {"animationRestoredByRedo", animationRestoredByRedo},
                                {"redoLayerIdentityPreserved", redoLayerIdentityPreserved},
+                               {"wrapperNegativeTimingRestoredByRedo",
+                                wrapperNegativeTimingRestoredByRedo},
                                {"negativeTimingRestoredByRedo", negativeTimingRestoredByRedo},
                                {"animationEnabledAfterRedo", animationEnabledAfterRedo},
                                {"redoSamplePreserved", redoSamplePreserved},
                                {"animationRestoredByKeyboardUnpack",
                                 animationRestoredByKeyboardUnpack},
                                {"unpackLayerIdentityPreserved", unpackLayerIdentityPreserved},
+                               {"wrapperRemovedByUnpack", wrapperRemovedByUnpack},
                                {"negativeTimingRestoredByUnpack", negativeTimingRestoredByUnpack},
                                {"animationEnabledAfterUnpack", animationEnabledAfterUnpack},
                                {"unpackSamplePreserved", unpackSamplePreserved},
                                {"animationRestoredByUnpackUndo", animationRestoredByUnpackUndo},
                                {"unpackUndoIdentityPreserved", unpackUndoIdentityPreserved},
+                               {"wrapperNegativeTimingRestoredByUnpackUndo",
+                                wrapperNegativeTimingRestoredByUnpackUndo},
                                {"negativeTimingRestoredByUnpackUndo",
                                 negativeTimingRestoredByUnpackUndo},
                                {"animationEnabledAfterUnpackUndo", animationEnabledAfterUnpackUndo},
                                {"unpackUndoSamplePreserved", unpackUndoSamplePreserved},
                                {"animationRestoredByUnpackRedo", animationRestoredByUnpackRedo},
                                {"unpackRedoIdentityPreserved", unpackRedoIdentityPreserved},
+                               {"wrapperRemovedByUnpackRedo", wrapperRemovedByUnpackRedo},
                                {"negativeTimingRestoredByUnpackRedo",
                                 negativeTimingRestoredByUnpackRedo},
                                {"animationEnabledAfterUnpackRedo", animationEnabledAfterUnpackRedo},
