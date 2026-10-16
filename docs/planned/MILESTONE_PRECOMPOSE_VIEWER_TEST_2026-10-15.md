@@ -69,7 +69,7 @@ out/build/x64-Debug-Agent/bin/Debug/ArtifactPrecomposeViewer.exe
 
 `test.guiAnimatedKeyRoundTrip`もMCP tools/listに公開し、GUI KeyPress P/Z/Y/K経路を通じてアニメーションキーの移動・Undo/Redo・解除後復元を検査し、tools/test_precompose_mcp.pyも全結果フラグと評価値を照合する。
 
-`--check` は既存プリコンポーズ回帰テストだけを実行し、失敗があれば終了コード1を返す。`--mcp-stdio` は改行区切りJSON-RPCの旧MCP `2024-11-05` initialize、tools/list、tools/call、pingに対応する。MCPハーネスはtools/listの重複・形式と、呼び出す全ツール名が公開されていることを検査する。`test.capture` はMIME、Base64、PNG signature/IHDR、非ゼロ寸法を検証してから画像証拠を保存する。stdin EOFで終了する。製品ログはstderrへ分離する。新MCP server/discover形式は未対応。GUIを前面化せず、左端ディスプレイへ配置する。
+`--check` は既存プリコンポーズ回帰テストだけを実行し、失敗があれば終了コード1を返す。`--mcp-stdio` は改行区切りJSON-RPCの旧MCP `2024-11-05` initialize、tools/list、tools/call、pingに対応する。MCPハーネスはtools/listの重複・形式と、呼び出す全ツール名が公開されていることを検査する。`test.capture` はMIME、Base64、PNG signature/IHDR、非ゼロ寸法を検証してから画像証拠を保存する。stdin EOFで終了する。製品ログはstderrへ分離する。新MCP server/discover形式は未対応。GUIを前面化せず、左端ディスプレイへ配置する。`--language all`は`ja` / `en` / `zh` / `zh-TW`を明示して各言語別の出力ディレクトリへ順に実行する。
 
 MCPハーネスはJSON-RPC応答のversion・id・result/error排他性、initializeのprotocol version・tools capability・serverInfo、ping応答、引数省略のtools/call成功、tools/listの各descriptionと空object schemaを照合し、公開された全toolを最低1回呼び出す。未知のtool name、name欠落、空object以外またはobject以外のarguments、未知methodを拒否することと、拒否後にfixtureのComposition IDとレイヤー状態が変化せず、引き続き呼び出しへ応答できることも確認する。
 
@@ -78,10 +78,10 @@ MCPハーネスはJSON-RPC応答のversion・id・result/error排他性、initia
 ```powershell
 python tools/test_precompose_mcp.py `
   --server out/build/x64-Debug-Agent/bin/Debug/ArtifactPrecomposeViewer.exe `
-  --language ja `
-  --output-dir "$env:LOCALAPPDATA/Temp/ArtifactStudio/precompose-test/ja"
+  --language all `
+  --output-dir "$env:LOCALAPPDATA/Temp/ArtifactStudio/precompose-test"
 ```
 
-同じコマンドをja/en/zh/zh-TWで実行する。`--lang`でQLocaleを指定できるが、テスト専用ラベル・キー名は全ロケールで英語の診断表記とする。製品の翻訳済みプリコンポーズダイアログの翻訳・レイアウト検査は対象外。
+`--language all`を指定すると、同じMCP GUI検査をja/en/zh/zh-TWで順に実行し、各言語のresult.json・stderr.log・nested.pngをサブディレクトリへ保存する。`--lang`でQLocaleを指定できるが、テスト専用ラベル・キー名は全ロケールで英語の診断表記とする。製品の翻訳済みプリコンポーズダイアログの翻訳・レイアウト検査は対象外。
 
 検査は直接循環と3階層の間接循環、プリコンポーズ／解除の不正要求の副作用なし拒否、子Compositionを開く遷移とUndo/Redo時のフォーカス、Workspace durationへの一致と同時に子を開く遷移、プリコンポーズ／解除後の選択とactive composition、子duration変更の単一／複数親Out伝播、内部／外部親リンク、子内編集後のposition／rotation／scale／anchor／opacityと各transform channelのアニメーションキー保持、外部親メタデータの保存・再読込、逆順・重複selectionを含むレイヤー順序、ID・transform・opacityおよび親Composition設定の保持、非選択レイヤー不変、選択/全移動（全移動は空選択引数も含み、全レイヤーの時間範囲を解除・Undo/Redoまで検証）、2段のネスト階層と時間変換・保存再読込、既存プリコンポーズの再親子付け、ネスト解除時の時間と登録、非連続選択解除の順序復元、Master Property overrideの解除時反映と壊れたchild参照・空child解除の副作用なし拒否、GUIキーボードA/P/K/D/R/Z/Y経路、子保持/削除、削除解除のUndo/Redoでの子Composition ID・Manager登録・レイヤー列の往復、レイヤーvisibility／lock／solo／blend modeの往復、Undo/Redo時の子ID・時間範囲・レイヤー復元、保存・再読込時のlayer metadataおよびMaster Property定義とoverride値の保持、および既存の回帰テストを対象とする。選択移動では最小Inを0へ正規化し、親側nest layerは元の時間範囲とoffsetを保つこと、解除では元のIn/Outへ戻ることを照合する。全移動では子レイヤーの時間とアニメーションキーが維持され、nest layerはframe 0から始まることを照合する。結果JSON、stderr、検査画面PNGは指定した出力先へ保存する。出力先はrepo外を推奨する。GPU描画、実アプリの選択UI操作はこのテストの合格範囲に含めない。

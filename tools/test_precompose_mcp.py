@@ -6,6 +6,7 @@ from pathlib import Path
 import queue
 import struct
 import subprocess
+import sys
 import threading
 
 
@@ -13,8 +14,17 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--server", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
-    parser.add_argument("--language", choices=("ja", "en", "zh", "zh-TW"), default="en")
+    parser.add_argument("--language", choices=("ja", "en", "zh", "zh-TW", "all"), default="en")
     args = parser.parse_args()
+    if args.language == "all":
+        for language in ("ja", "en", "zh", "zh-TW"):
+            subprocess.run([
+                sys.executable, str(Path(__file__).resolve()),
+                "--server", str(args.server.resolve()),
+                "--output-dir", str((args.output_dir / language).resolve()),
+                "--language", language,
+            ], check=True)
+        return
     args.output_dir.mkdir(parents=True, exist_ok=True)
     replies = queue.Queue()
     evidence = []
