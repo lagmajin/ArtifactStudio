@@ -196,7 +196,9 @@ def main():
                     "Invalid MCP requests mutated the precompose fixture")
             reset_from_child = call("test.resetFromChild")
             require(reset_from_child["passed"] and reset_from_child["childWasActiveBeforeReset"]
-                    and reset_from_child["createdFreshRoot"] and reset_from_child["rootIsActive"]
+                    and reset_from_child["createdFreshRoot"]
+                    and reset_from_child["fixtureUsesFreshLayerIds"]
+                    and reset_from_child["rootIsActive"]
                     and reset_from_child["fixtureRestored"] and reset_from_child["selectionCleared"]
                     and reset_from_child["historyCleared"] and reset_from_child["localePreserved"],
                     "MCP reset failed to leave an active child and restore the root fixture")

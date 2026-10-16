@@ -1117,6 +1117,7 @@ public:
                 return result;
             }
             const auto rootId = comp->id();
+            const auto originalRootLayers = layers(comp, 0);
             const auto sourceIds = namedLayerIds(comp, {QStringLiteral("A"), QStringLiteral("B")});
             const bool opened = sourceIds.size() == 2 && service->precomposeLayersWithUndo(
                 sourceIds, UniString(QStringLiteral("Reset From Child")), true, false,
@@ -1136,6 +1137,19 @@ public:
             const auto resetCompositionId = resetState.value(QStringLiteral("compositionId")).toString();
             const bool createdFreshRoot = resetCompositionId != rootId.toString() &&
                 resetCompositionId != outcome.childCompId.toString();
+            bool fixtureUsesFreshLayerIds = true;
+            for (qsizetype index = 0; index < resetLayers.size(); ++index) {
+                const auto layerId = resetLayers[index].toObject().value(QStringLiteral("id")).toString();
+                for (const auto& originalLayerValue : originalRootLayers) {
+                    if (layerId == originalLayerValue.toObject().value(QStringLiteral("id")).toString())
+                        fixtureUsesFreshLayerIds = false;
+                }
+                for (qsizetype priorIndex = 0; priorIndex < index; ++priorIndex) {
+                    if (layerId == resetLayers[priorIndex].toObject()
+                                      .value(QStringLiteral("id")).toString())
+                        fixtureUsesFreshLayerIds = false;
+                }
+            }
             const bool rootIsActive = selection.value(QStringLiteral("activeCompositionId")).toString() ==
                 resetCompositionId;
             const bool fixtureRestored = resetLayers.size() == 3 &&
@@ -1149,13 +1163,15 @@ public:
                 !resetState.value(QStringLiteral("canRedo")).toBool();
             result["childWasActiveBeforeReset"] = childWasActive;
             result["createdFreshRoot"] = createdFreshRoot;
+            result["fixtureUsesFreshLayerIds"] = fixtureUsesFreshLayerIds;
             result["rootIsActive"] = rootIsActive;
             result["fixtureRestored"] = fixtureRestored;
             result["selectionCleared"] = selectionCleared;
             result["historyCleared"] = historyCleared;
             result["localePreserved"] = resetState.value(QStringLiteral("locale")).toString() ==
                 QLocale().bcp47Name();
-            result["passed"] = childWasActive && createdFreshRoot && rootIsActive &&
+            result["passed"] = childWasActive && createdFreshRoot && fixtureUsesFreshLayerIds &&
+                rootIsActive &&
                 fixtureRestored && selectionCleared && historyCleared &&
                 result.value(QStringLiteral("localePreserved")).toBool();
             result["state"] = resetState;
