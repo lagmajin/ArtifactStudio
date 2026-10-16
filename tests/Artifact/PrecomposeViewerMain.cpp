@@ -2868,6 +2868,21 @@ public:
                 result["error"] = QStringLiteral("Same-parent shared-child fixture is incomplete");
                 return result;
             }
+            const auto sharedReferencesStable = [&] {
+                const auto currentReferences = manager.getPrecompLayersForChild(first.childCompId);
+                return currentReferences.size() == 2 &&
+                    std::any_of(currentReferences.begin(), currentReferences.end(), [&](const auto& reference) {
+                        return reference.parentCompId == rootId &&
+                            reference.precompLayerId == first.precompLayerId;
+                    }) &&
+                    std::any_of(currentReferences.begin(), currentReferences.end(), [&](const auto& reference) {
+                        return reference.parentCompId == rootId &&
+                            reference.precompLayerId == secondWrapperId;
+                    }) &&
+                    service->findComposition(first.childCompId).ptr.lock() == child &&
+                    root->layerById(first.precompLayerId).get() == firstWrapper.get() &&
+                    root->layerById(secondWrapperId).get() == secondWrapper.get();
+            };
             child->setFrameRange(FrameRange(0, 90));
             const bool shrinkFollowed = firstWrapper->inPoint().framePosition() == 40 &&
                 firstWrapper->startTime().framePosition() == 40 &&
@@ -2875,6 +2890,7 @@ public:
                 secondWrapper->inPoint().framePosition() == 0 &&
                 secondWrapper->startTime().framePosition() == 0 &&
                 secondWrapper->outPoint().framePosition() == 90;
+            const bool shrinkPreservedReferences = shrinkFollowed && sharedReferencesStable();
             child->setFrameRange(FrameRange(0, 240));
             const bool expansionFollowed = firstWrapper->inPoint().framePosition() == 40 &&
                 firstWrapper->startTime().framePosition() == 40 &&
@@ -2882,10 +2898,14 @@ public:
                 secondWrapper->inPoint().framePosition() == 0 &&
                 secondWrapper->startTime().framePosition() == 0 &&
                 secondWrapper->outPoint().framePosition() == 240;
+            const bool expansionPreservedReferences = expansionFollowed && sharedReferencesStable();
             result["sameParentRegistered"] = sameParentRegistered;
             result["shrinkFollowed"] = shrinkFollowed;
+            result["shrinkPreservedReferences"] = shrinkPreservedReferences;
             result["expansionFollowed"] = expansionFollowed;
-            result["passed"] = sameParentRegistered && shrinkFollowed && expansionFollowed;
+            result["expansionPreservedReferences"] = expansionPreservedReferences;
+            result["passed"] = sameParentRegistered && shrinkPreservedReferences &&
+                expansionPreservedReferences;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Shared child duration changes did not update every wrapper in one parent");
             childId_ = first.childCompId;

@@ -517,7 +517,10 @@ def main():
             call("test.reset")
             same_parent_duration = call("test.sharedParentDurationPropagates")
             require(same_parent_duration["passed"] and same_parent_duration["sameParentRegistered"]
-                    and same_parent_duration["shrinkFollowed"] and same_parent_duration["expansionFollowed"],
+                    and same_parent_duration["shrinkFollowed"]
+                    and same_parent_duration["shrinkPreservedReferences"]
+                    and same_parent_duration["expansionFollowed"]
+                    and same_parent_duration["expansionPreservedReferences"],
                     "Shared child duration shrink/expansion did not update both wrappers in one parent")
             call("test.reset")
             transitive_cycle = call("test.transitiveCycleRejected")
