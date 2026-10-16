@@ -789,16 +789,22 @@ public:
                 result["error"] = QStringLiteral("Duration propagation fixture is missing its wrapper or child");
                 return result;
             }
+            service->changeCurrentComposition(outcome.childCompId);
             child->setFrameRange(FrameRange(0, 90));
             const int64_t shortenedOut = wrapper->outPoint().framePosition();
+            const auto activeAfterShrink = service->currentComposition().lock();
             const bool shrinkFollowed = shortenedOut == 130 &&
                 wrapper->inPoint().framePosition() == 40 &&
-                wrapper->startTime().framePosition() == 40;
+                wrapper->startTime().framePosition() == 40 &&
+                activeAfterShrink && activeAfterShrink->id() == outcome.childCompId;
             child->setFrameRange(FrameRange(0, 240));
             const int64_t expandedOut = wrapper->outPoint().framePosition();
+            const auto activeAfterExpansion = service->currentComposition().lock();
             const bool expansionFollowed = expandedOut == 280 &&
                 wrapper->inPoint().framePosition() == 40 &&
-                wrapper->startTime().framePosition() == 40;
+                wrapper->startTime().framePosition() == 40 &&
+                activeAfterExpansion && activeAfterExpansion->id() == outcome.childCompId;
+            const bool activeChildStayed = shrinkFollowed && expansionFollowed;
             bool parentReferencePreserved = false;
             for (const auto& reference : PreComposeManager::instance().getPrecompLayersForChild(
                      outcome.childCompId)) {
@@ -810,12 +816,15 @@ public:
             result["expandedChildOut"] = expandedOut;
             result["shrinkFollowed"] = shrinkFollowed;
             result["expansionFollowed"] = expansionFollowed;
+            result["activeChildStayed"] = activeChildStayed;
             result["parentReferencePreserved"] = parentReferencePreserved;
-            result["passed"] = shrinkFollowed && expansionFollowed && parentReferencePreserved;
+            result["passed"] = shrinkFollowed && expansionFollowed && activeChildStayed &&
+                parentReferencePreserved;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Child duration change did not update the parent window from its fixed in point");
             childId_ = outcome.childCompId;
             hasChild_ = true;
+            service->changeCurrentComposition(rootId);
             refresh();
             result["state"] = state();
             return result;

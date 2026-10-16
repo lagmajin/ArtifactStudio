@@ -172,8 +172,9 @@ def main():
             duration_propagation = call("test.childDurationPropagates")
             require(duration_propagation["passed"] and duration_propagation["shrinkFollowed"]
                     and duration_propagation["expansionFollowed"]
+                    and duration_propagation["activeChildStayed"]
                     and duration_propagation["parentReferencePreserved"],
-                    "Child duration shrink/expansion did not propagate to the parent precompose window")
+                    "Active child duration shrink/expansion did not propagate while keeping child focus")
             call("test.reset")
             parent_duration = call("test.parentDurationPropagatesToChild")
             require(parent_duration["passed"] and parent_duration["firstShrinkFollowed"]
