@@ -252,7 +252,19 @@ def main():
             reply = request("tools/call", {"name": name, "arguments": {}})
             if reply.get("isError"):
                 raise RuntimeError(f"{name}: {reply}")
-            return json.loads(reply["content"][0]["text"])
+            content = reply.get("content")
+            if (not isinstance(content, list) or len(content) != 1
+                    or not isinstance(content[0], dict)
+                    or content[0].get("type") != "text"
+                    or not isinstance(content[0].get("text"), str)):
+                raise RuntimeError(f"{name} returned an invalid MCP text content envelope: {reply}")
+            try:
+                result = json.loads(content[0]["text"])
+            except json.JSONDecodeError as error:
+                raise RuntimeError(f"{name} returned invalid JSON text: {content[0]['text']!r}") from error
+            if not isinstance(result, dict):
+                raise RuntimeError(f"{name} returned a non-object JSON result: {result!r}")
+            return result
 
         def require(condition, message):
             if not condition:
