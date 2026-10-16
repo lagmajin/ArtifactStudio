@@ -886,7 +886,10 @@ public:
                 PreComposeManager::instance().isPrecomposeLayer(animatedDeleteWrapperId) &&
                 PreComposeManager::instance().getSourceCompositionId(animatedDeleteWrapperId) ==
                     animatedDeleteChildId && animatedDeleteChildA.get() == source.get() &&
-                animatedDeleteChildPosition && keyframes(animatedDeleteChildPosition) == movedKeys;
+                animatedDeleteChildPosition && keyframes(animatedDeleteChildPosition) == movedKeys &&
+                std::abs(animatedDeleteChildPosition->evaluateValue(RationalTime(
+                    24, animatedDeleteChildA->keyframeTimeScale())).toDouble() -
+                    originalSample) < 1.0e-6;
             sendKey(Qt::Key_D);
             const auto afterAnimatedDelete = state();
             const auto deletedAnimatedA = parent->layerById(ids.front());
@@ -897,7 +900,10 @@ public:
                 afterAnimatedDelete["canUndo"].toBool() &&
                 !afterAnimatedDelete["lastChildExists"].toBool() &&
                 deletedAnimatedA.get() == source.get() && deletedAnimatedPosition &&
-                keyframes(deletedAnimatedPosition) == originalKeys;
+                keyframes(deletedAnimatedPosition) == originalKeys &&
+                std::abs(deletedAnimatedPosition->evaluateValue(RationalTime(
+                    0, deletedAnimatedA->keyframeTimeScale())).toDouble() -
+                    originalSample) < 1.0e-6;
             const bool animatedDeleteChildRemovedByKey = animatedDeleteUnpackByKey &&
                 !service->findComposition(animatedDeleteChildId).ptr.lock();
             sendKey(Qt::Key_Z);
@@ -917,6 +923,9 @@ public:
                 animatedDeleteUndoChild.get() == animatedDeleteChildObject.get() &&
                 animatedDeleteUndoA.get() == source.get() && animatedDeleteUndoPosition &&
                 keyframes(animatedDeleteUndoPosition) == movedKeys &&
+                std::abs(animatedDeleteUndoPosition->evaluateValue(RationalTime(
+                    24, animatedDeleteUndoA->keyframeTimeScale())).toDouble() -
+                    originalSample) < 1.0e-6 &&
                 PreComposeManager::instance().isPrecomposeLayer(animatedDeleteWrapperId);
             sendKey(Qt::Key_Y);
             const auto afterAnimatedDeleteRedo = state();
@@ -930,6 +939,9 @@ public:
                 !afterAnimatedDeleteRedo["lastChildExists"].toBool() && redoneAnimatedA &&
                 redoneAnimatedA.get() == source.get() && redoneAnimatedPosition &&
                 keyframes(redoneAnimatedPosition) == originalKeys &&
+                std::abs(redoneAnimatedPosition->evaluateValue(RationalTime(
+                    0, redoneAnimatedA->keyframeTimeScale())).toDouble() -
+                    originalSample) < 1.0e-6 &&
                 !service->findComposition(animatedDeleteChildId).ptr.lock() &&
                 !PreComposeManager::instance().isPrecomposeLayer(animatedDeleteWrapperId);
 
