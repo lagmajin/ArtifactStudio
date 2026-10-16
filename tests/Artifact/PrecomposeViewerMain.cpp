@@ -3458,7 +3458,8 @@ public:
             const auto untouchedLayer = root->layerById(untouchedIds.front());
             const LayerID staleId(QStringLiteral("ffffffff-ffff-4fff-8fff-ffffffffffff"));
             const bool precomposed = service->precomposeLayersWithUndo(
-                QVector<LayerID>{sourceIds.front(), staleId},
+                QVector<LayerID>{sourceIds.front(), sourceIds.front(), staleId,
+                                 sourceIds.back(), sourceIds.back(), staleId},
                 UniString(QStringLiteral("Stale Selection Fixture")), false, false,
                 PrecomposeMode::MoveSelected);
             const auto outcome = service->lastPrecomposeOutcome();
@@ -3467,10 +3468,11 @@ public:
                 root->layerById(outcome.precompLayerId));
             const auto afterPrecomposeLayers = root->allLayer();
             const bool movedOnlyExistingSelection = precomposed && child && wrapper &&
-                child->allLayer().size() == 1 && child->layerById(sourceIds.front()) == sourceLayer &&
-                root->layerById(sourceIds.back()) == remainingLayer &&
+                child->allLayer().size() == 2 && child->layerById(sourceIds.front()) == sourceLayer &&
+                child->layerById(sourceIds.back()) == remainingLayer &&
+                !root->layerById(sourceIds.front()) && !root->layerById(sourceIds.back()) &&
                 root->layerById(untouchedIds.front()) == untouchedLayer &&
-                afterPrecomposeLayers.size() == 3 &&
+                afterPrecomposeLayers.size() == 2 &&
                 ArtifactProjectManager::getInstance().compositionCount() == originalCompositionCount + 1;
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
@@ -3483,12 +3485,17 @@ public:
             if (redoAvailable) undo->redo();
             const auto redoneChild = service->findComposition(outcome.childCompId).ptr.lock();
             const bool redoRestoredOnlyExistingSelection = redoAvailable && redoneChild &&
-                redoneChild->allLayer().size() == 1 && redoneChild->layerById(sourceIds.front()) == sourceLayer &&
-                root->layerById(sourceIds.back()) == remainingLayer &&
+                redoneChild->allLayer().size() == 2 &&
+                redoneChild->layerById(sourceIds.front()) == sourceLayer &&
+                redoneChild->layerById(sourceIds.back()) == remainingLayer &&
+                !root->layerById(sourceIds.front()) && !root->layerById(sourceIds.back()) &&
                 root->layerById(untouchedIds.front()) == untouchedLayer &&
+                root->allLayer().size() == 2 &&
                 root->layerById(outcome.precompLayerId) &&
                 ArtifactProjectManager::getInstance().compositionCount() == originalCompositionCount + 1;
             staleResult["staleIdWasNonNil"] = !staleId.isNil();
+            staleResult["duplicateSelectionIdsIgnored"] = movedOnlyExistingSelection &&
+                redoRestoredOnlyExistingSelection;
             staleResult["movedOnlyExistingSelection"] = movedOnlyExistingSelection;
             staleResult["undoRestoredOriginal"] = undoRestoredOriginal;
             staleResult["redoRestoredOnlyExistingSelection"] = redoRestoredOnlyExistingSelection;

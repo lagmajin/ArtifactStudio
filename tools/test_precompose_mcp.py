@@ -289,6 +289,7 @@ def main():
             stale_selection = call("test.precomposeIgnoresStaleSelectionId")
             require(stale_selection["passed"] and stale_selection["staleIdWasNonNil"]
                     and stale_selection["movedOnlyExistingSelection"]
+                    and stale_selection["duplicateSelectionIdsIgnored"]
                     and stale_selection["undoRestoredOriginal"]
                     and stale_selection["redoRestoredOnlyExistingSelection"],
                     "Precompose did not ignore a stale non-nil selection ID consistently")

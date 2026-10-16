@@ -11,7 +11,7 @@
 
 `test.openChildComposition`は子Compositionを開いた直後にAが選択され、Undo後は親のA、Redo後は親wrapperが選択されることを確認する。子Compositionにフォーカスしたまま親wrapper IDで解除を要求した場合も、拒否前後で公開状態JSON全体が一致し、active composition・子側の選択／current layer、親子レイヤーの属性・順序スナップショット、PreComposeManagerのwrapper→child登録とchild→parent/wrapper逆引き、Undo/Redo履歴が変化しない。
 
-`test.precomposeIgnoresStaleSelectionId`は有効な選択IDと現在Compositionに存在しない非nil IDを同時に要求し、実在するレイヤーだけが移動して、Undo/Redoでも同じ所属が復元されることを確認する。
+`test.precomposeIgnoresStaleSelectionId`はA/Bの有効IDをそれぞれ重複指定し、現在Compositionに存在しない非nil IDも混ぜて要求する。A/Bが重複なくchildへ移り、Untouchedが親に残り、Undo/Redoで同一layer objectと所属が復元されることを確認する。
 
 `test.invalidRequestsAtomic`は非nilだが現在Compositionに存在しないIDだけの選択を拒否し、レイヤー列、Composition数、Undo/Redo分岐、選択状態と操作結果IDが変わらないことも確認する。
 
