@@ -919,6 +919,32 @@ public:
             path.setMode(MaskMode::Subtract);
             path.addVertex({QPointF(12.0, 18.0), QPointF(-2.0, 1.0), QPointF(3.0, -1.0)});
             path.addVertex({QPointF(48.0, 21.0), QPointF(-4.0, 2.0), QPointF(1.0, 3.0)});
+            MaskPathKeyframeSnapshot firstKey;
+            firstKey.frame = 12;
+            firstKey.vertices = {
+                {QPointF(14.0, 20.0), QPointF(-1.0, 2.0), QPointF(4.0, -2.0)},
+                {QPointF(52.0, 24.0), QPointF(-3.0, 1.0), QPointF(2.0, 4.0)}};
+            firstKey.closed = true;
+            firstKey.opacity = 0.4f;
+            firstKey.feather = 3.5f;
+            firstKey.falloff = MaskFeatherFalloff::Linear;
+            firstKey.inverted = false;
+            firstKey.mode = MaskMode::Add;
+            firstKey.name = UniString(QStringLiteral("Cutout Start"));
+            path.setAnimationKeyframe(firstKey.frame, firstKey);
+            MaskPathKeyframeSnapshot secondKey;
+            secondKey.frame = 28;
+            secondKey.vertices = {
+                {QPointF(19.0, 26.0), QPointF(-5.0, 2.0), QPointF(2.0, -3.0)},
+                {QPointF(58.0, 30.0), QPointF(-2.0, 3.0), QPointF(4.0, 1.0)}};
+            secondKey.closed = true;
+            secondKey.opacity = 0.9f;
+            secondKey.feather = 6.25f;
+            secondKey.falloff = MaskFeatherFalloff::Sharp;
+            secondKey.inverted = true;
+            secondKey.mode = MaskMode::Intersect;
+            secondKey.name = UniString(QStringLiteral("Cutout End"));
+            path.setAnimationKeyframe(secondKey.frame, secondKey);
             mask.addMaskPath(path);
             source->addMask(mask);
             const auto matchesMask = [&](const ArtifactAbstractLayerPtr& layer) {
@@ -928,6 +954,7 @@ public:
                     !stored.color().approximatelyEqual(FloatColor(0.2f, 0.4f, 0.7f, 0.9f)))
                     return false;
                 const auto storedPath = stored.maskPath(0);
+                const auto keys = storedPath.animationKeyframes();
                 return storedPath.name().toQString() == QStringLiteral("Cutout") &&
                     !storedPath.isClosed() && storedPath.isInverted() &&
                     storedPath.mode() == MaskMode::Subtract &&
@@ -938,7 +965,24 @@ public:
                     storedPath.vertex(0).outTangent == QPointF(3.0, -1.0) &&
                     storedPath.vertex(1).position == QPointF(48.0, 21.0) &&
                     storedPath.vertex(1).inTangent == QPointF(-4.0, 2.0) &&
-                    storedPath.vertex(1).outTangent == QPointF(1.0, 3.0);
+                    storedPath.vertex(1).outTangent == QPointF(1.0, 3.0) &&
+                    storedPath.hasAnimationKeyframes() && keys.size() == 2 &&
+                    keys[0].frame == 12 && keys[0].name.toQString() == QStringLiteral("Cutout Start") &&
+                    keys[0].closed && std::abs(keys[0].opacity - 0.4f) <= 1.0e-6f &&
+                    std::abs(keys[0].feather - 3.5f) <= 1.0e-6f &&
+                    keys[0].falloff == MaskFeatherFalloff::Linear && !keys[0].inverted &&
+                    keys[0].mode == MaskMode::Add && keys[0].vertices.size() == 2 &&
+                    keys[0].vertices[0].position == QPointF(14.0, 20.0) &&
+                    keys[0].vertices[0].inTangent == QPointF(-1.0, 2.0) &&
+                    keys[0].vertices[0].outTangent == QPointF(4.0, -2.0) &&
+                    keys[1].frame == 28 && keys[1].name.toQString() == QStringLiteral("Cutout End") &&
+                    keys[1].closed && std::abs(keys[1].opacity - 0.9f) <= 1.0e-6f &&
+                    std::abs(keys[1].feather - 6.25f) <= 1.0e-6f &&
+                    keys[1].falloff == MaskFeatherFalloff::Sharp && keys[1].inverted &&
+                    keys[1].mode == MaskMode::Intersect && keys[1].vertices.size() == 2 &&
+                    keys[1].vertices[1].position == QPointF(58.0, 30.0) &&
+                    keys[1].vertices[1].inTangent == QPointF(-2.0, 3.0) &&
+                    keys[1].vertices[1].outTangent == QPointF(4.0, 1.0);
             };
             const bool authored = matchesMask(source);
             const bool precomposed = authored && service->precomposeLayersWithUndo(
