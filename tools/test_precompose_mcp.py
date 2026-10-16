@@ -159,6 +159,7 @@ def main():
                     and keyboard_round_trip["precomposeMappingRestoredByRedoKey"]
                     and keyboard_round_trip["precomposeRedoLayerObjectsPreservedByKey"]
                     and keyboard_round_trip["selectedSettingsCopiedByKey"]
+                    and keyboard_round_trip["selectedLayersMovedByKey"]
                     and keyboard_round_trip["precomposeSelectionByKey"]
                     and keyboard_round_trip["unpackedKeepByKey"]
                     and keyboard_round_trip["keepMappingRemovedByKey"]

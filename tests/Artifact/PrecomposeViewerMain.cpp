@@ -185,6 +185,29 @@ public:
                 return !manager.isPrecomposeLayer(wrapperId) &&
                     manager.getPrecompLayersForChild(childId).isEmpty();
             };
+            const auto selectedLayersMoved = [](const QJsonObject& snapshot) {
+                const auto rootLayers = snapshot.value(QStringLiteral("layers")).toArray();
+                if (rootLayers.size() != 2) return false;
+                bool foundWrapper = false;
+                bool untouchedPreserved = false;
+                for (const auto& value : rootLayers) {
+                    const auto layer = value.toObject();
+                    if (layer.value(QStringLiteral("name")).toString() == QStringLiteral("Untouched")) {
+                        untouchedPreserved = layer.value(QStringLiteral("inFrame")).toInt() == 25 &&
+                            layer.value(QStringLiteral("outFrame")).toInt() == 220 &&
+                            layer.value(QStringLiteral("startFrame")).toInt() == 3;
+                        continue;
+                    }
+                    const auto children = layer.value(QStringLiteral("children")).toArray();
+                    foundWrapper = layer.value(QStringLiteral("name")).toString() ==
+                            QStringLiteral("Nested A+B") && children.size() == 2 &&
+                        children[0].toObject().value(QStringLiteral("name")).toString() ==
+                            QStringLiteral("A") &&
+                        children[1].toObject().value(QStringLiteral("name")).toString() ==
+                            QStringLiteral("B");
+                }
+                return foundWrapper && untouchedPreserved;
+            };
             const auto allLayersMoved = [](const QJsonObject& snapshot) {
                 const auto rootLayers = snapshot["layers"].toArray();
                 if (rootLayers.size() != 1) return false;
@@ -257,6 +280,8 @@ public:
                 childObjectsMatch(keepChildId);
             const bool selectedSettingsCopiedByKey = precomposedByKey &&
                 childSettingsCopied(afterPrecompose);
+            const bool selectedLayersMovedByKey = precomposedByKey &&
+                selectedLayersMoved(afterPrecompose);
             const bool precomposeSelectionByKey =
                 selectedLayerName(afterPrecompose, rootCompositionId) == QStringLiteral("Nested A+B");
             sendKey(Qt::Key_Z);
@@ -407,6 +432,7 @@ public:
                                {"precomposeRedoLayerObjectsPreservedByKey",
                                 precomposeRedoLayerObjectsPreservedByKey},
                                {"selectedSettingsCopiedByKey", selectedSettingsCopiedByKey},
+                               {"selectedLayersMovedByKey", selectedLayersMovedByKey},
                                {"precomposeSelectionByKey", precomposeSelectionByKey},
                                {"unpackedKeepByKey", unpackedKeepByKey},
                                {"keepMappingRemovedByKey", keepMappingRemovedByKey},
@@ -445,6 +471,7 @@ public:
                                {"resetByKey", resetByKey},
                                {"resetSelectionByKey", resetSelectionByKey},
                                {"passed", precomposedByKey && selectedSettingsCopiedByKey &&
+                                   selectedLayersMovedByKey &&
                                    keepMappingRegisteredByKey && selectedLayerObjectsPreservedByKey &&
                                    precomposeSelectionByKey &&
                                    undoneByKey && precomposeMappingRemovedByUndoKey && redoneByKey &&
