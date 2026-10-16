@@ -5,6 +5,8 @@
 
 `test.saveReload`は保存後に再読込した子レイヤーをそのまま解除し、エフェクト・アニメーション付きマスク・マット参照・コンポーネントdescriptorが親へ移ること、親Compositionのエフェクトが子レイヤーへ混入せず親に残ること、Undoで子とwrapperへ戻り、Redoで同じ状態を再適用することも検査する。
 
+同テストのアニメーション保存・再読込検査はposition／rotationの各軸、scale X/Y、anchorの各軸、opacityのキーフレーム配列を比較する。
+
 `test.childCompositionEffectStaysWithChild`は子Compositionへ設定したBrightness effectがプロジェクト再読込後も子に保持され、子レイヤー解除時に親へ移らず、Undo/Redoでも子Compositionの属性として残ることを検査する。
 
 `test.sharedChildReferences`は同一親Compositionの2つのwrapperが共有するchildを保存・再読込し、runtime mappingを復元した後に片方だけ解除しても他方のwrapperとchildが残ること、Undo/Redoで2参照と1参照へ正しく往復することを検査する。

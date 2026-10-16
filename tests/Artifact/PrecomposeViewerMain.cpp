@@ -4763,17 +4763,26 @@ public:
             peerLayer->transform3D().setCurrentScale(0.7f, 1.6f);
             peerLayer->transform3D().setCurrentAnchor(-2.0f, 8.0f, -4.0f);
             untouchedLayer->setLayerNote(QStringLiteral("Parent note survives reload"));
-            const QStringList transformKeyPaths{
+            const QStringList animatedPropertyPaths{
+                QStringLiteral("transform.position.x"),
+                QStringLiteral("transform.position.y"),
+                QStringLiteral("transform.position.z"),
                 QStringLiteral("transform.rotation.x"),
+                QStringLiteral("transform.rotation.y"),
+                QStringLiteral("transform.rotation.z"),
                 QStringLiteral("transform.scale.x"),
-                QStringLiteral("transform.anchor.x")};
+                QStringLiteral("transform.scale.y"),
+                QStringLiteral("transform.anchor.x"),
+                QStringLiteral("transform.anchor.y"),
+                QStringLiteral("transform.anchor.z"),
+                QStringLiteral("layer.opacity")};
             QVector<QJsonArray> sourceTransformKeys;
             QVector<QJsonArray> peerTransformKeys;
-            for (qsizetype index = 0; index < transformKeyPaths.size(); ++index) {
-                const auto sourceChannel = sourceLayer->getProperty(transformKeyPaths[index]);
-                const auto peerChannel = peerLayer->getProperty(transformKeyPaths[index]);
+            for (qsizetype index = 0; index < animatedPropertyPaths.size(); ++index) {
+                const auto sourceChannel = sourceLayer->getProperty(animatedPropertyPaths[index]);
+                const auto peerChannel = peerLayer->getProperty(animatedPropertyPaths[index]);
                 if (!sourceChannel || !peerChannel) {
-                    roundTrip["error"] = QStringLiteral("Transform animation channel unavailable for save/reload");
+                    roundTrip["error"] = QStringLiteral("Animation channel unavailable for save/reload");
                     return roundTrip;
                 }
                 sourceChannel->clearKeyFrames();
@@ -4851,9 +4860,9 @@ public:
                 ? reloadedUntouchedHost->layerById(untouchedLayer->id()) : ArtifactAbstractLayerPtr{};
             const auto layerChannelsMatch = [&](const ArtifactAbstractLayerPtr& layer,
                                                 const QVector<QJsonArray>& expected) {
-                if (!layer || expected.size() != transformKeyPaths.size()) return false;
-                for (qsizetype index = 0; index < transformKeyPaths.size(); ++index) {
-                    const auto property = layer->getProperty(transformKeyPaths[index]);
+                if (!layer || expected.size() != animatedPropertyPaths.size()) return false;
+                for (qsizetype index = 0; index < animatedPropertyPaths.size(); ++index) {
+                    const auto property = layer->getProperty(animatedPropertyPaths[index]);
                     if (!property || keyframes(property) != expected[index]) return false;
                 }
                 return true;
