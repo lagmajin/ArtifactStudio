@@ -259,3 +259,23 @@ TEST(AudioCompressorStandaloneTest, JsonRoundTripPreservesSettingsAndBypass)
     EXPECT_FLOAT_EQ(restored.getParameterValue(String("sidechain")), 1.0f);
     EXPECT_TRUE(restored.isBypassed());
 }
+
+TEST(AudioCompressorStandaloneTest, MissingJsonParametersRestoreDefaults)
+{
+    AudioCompressor compressor;
+    compressor.setThreshold(-12.0f);
+    compressor.setRatio(7.0f);
+    compressor.setAttack(25.0f);
+    compressor.setRelease(250.0f);
+    compressor.setSideChain(true);
+    compressor.setBypass(true);
+
+    compressor.fromJson(QJsonObject{});
+
+    EXPECT_FLOAT_EQ(compressor.getParameterValue(String("threshold")), -20.0f);
+    EXPECT_FLOAT_EQ(compressor.getParameterValue(String("ratio")), 4.0f);
+    EXPECT_FLOAT_EQ(compressor.getParameterValue(String("attack_ms")), 10.0f);
+    EXPECT_FLOAT_EQ(compressor.getParameterValue(String("release_ms")), 100.0f);
+    EXPECT_FLOAT_EQ(compressor.getParameterValue(String("sidechain")), 0.0f);
+    EXPECT_FALSE(compressor.isBypassed());
+}
