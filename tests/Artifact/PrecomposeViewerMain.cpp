@@ -2400,6 +2400,7 @@ public:
                 return result;
             }
             const auto rootId = comp->id();
+            const auto parentFrameRange = comp->frameRange();
             const FrameRange workspaceRange(30, 270);
             if (workspaceRange.end() > comp->frameRange().end()) {
                 result["error"] = QStringLiteral("Fixture composition is shorter than the target workspace range");
@@ -2423,22 +2424,54 @@ public:
                 child->workAreaRange().duration() == workspaceRange.duration();
             const bool parentWorkAreaPreserved = comp->workAreaRange().start() == workspaceRange.start() &&
                 comp->workAreaRange().duration() == workspaceRange.duration();
+            const bool parentFrameRangePreserved = comp->frameRange().start() == parentFrameRange.start() &&
+                comp->frameRange().duration() == parentFrameRange.duration();
             const auto activeChild = service->currentComposition().lock();
             const bool childOpened = child && activeChild && activeChild->id() == child->id();
             const bool wrapperTimingPreserved = wrapper &&
                 wrapper->inPoint().framePosition() == 40 &&
                 wrapper->outPoint().framePosition() == 200 &&
                 wrapper->startTime().framePosition() == 40;
+            const bool undoAvailable = childOpened && undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto afterUndo = service->currentComposition().lock();
+            const bool undoRestoredParent = undoAvailable && afterUndo && afterUndo->id() == rootId &&
+                afterUndo->frameRange().start() == parentFrameRange.start() &&
+                afterUndo->frameRange().duration() == parentFrameRange.duration() &&
+                afterUndo->workAreaRange().start() == workspaceRange.start() &&
+                afterUndo->workAreaRange().duration() == workspaceRange.duration() &&
+                namedLayerIds(afterUndo, {QStringLiteral("A"), QStringLiteral("B")}) == sourceIds &&
+                !service->findComposition(outcome.childCompId).ptr.lock();
+            const bool redoAvailable = undoRestoredParent && undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const auto afterRedo = service->currentComposition().lock();
+            const auto redoneChild = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto redoReferences = PreComposeManager::instance().getPrecompLayersForChild(
+                outcome.childCompId);
+            const bool redoRestoredWorkspaceChild = redoAvailable && afterRedo &&
+                afterRedo->id() == rootId && redoneChild &&
+                redoneChild->frameRange().start() == 0 &&
+                redoneChild->frameRange().duration() == workspaceRange.duration() &&
+                redoneChild->workAreaRange().start() == 0 &&
+                redoneChild->workAreaRange().duration() == workspaceRange.duration() &&
+                afterRedo->layerById(outcome.precompLayerId) &&
+                redoReferences.size() == 1 &&
+                redoReferences.front().parentCompId == rootId &&
+                redoReferences.front().precompLayerId == outcome.precompLayerId;
             result["workspaceDuration"] = workspaceRange.duration();
             result["childDuration"] = child ? child->frameRange().duration() : -1;
             result["childWorkAreaDuration"] = child ? child->workAreaRange().duration() : -1;
             result["childDurationMatched"] = childDurationMatched;
             result["childWorkAreaNormalized"] = childWorkAreaNormalized;
             result["parentWorkAreaPreserved"] = parentWorkAreaPreserved;
+            result["parentFrameRangePreserved"] = parentFrameRangePreserved;
             result["childOpened"] = childOpened;
             result["wrapperTimingPreserved"] = wrapperTimingPreserved;
+            result["undoRestoredParent"] = undoRestoredParent;
+            result["redoRestoredWorkspaceChild"] = redoRestoredWorkspaceChild;
             result["passed"] = childDurationMatched && childWorkAreaNormalized &&
-                parentWorkAreaPreserved && childOpened && wrapperTimingPreserved;
+                parentWorkAreaPreserved && parentFrameRangePreserved && childOpened &&
+                wrapperTimingPreserved && undoRestoredParent && redoRestoredWorkspaceChild;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Precompose child did not match workspace duration or wrapper timing");
             childId_ = outcome.childCompId;

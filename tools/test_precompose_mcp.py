@@ -480,7 +480,10 @@ def main():
                     and workspace_duration["childDurationMatched"]
                     and workspace_duration["childWorkAreaNormalized"]
                     and workspace_duration["parentWorkAreaPreserved"]
-                    and workspace_duration["wrapperTimingPreserved"],
+                    and workspace_duration["parentFrameRangePreserved"]
+                    and workspace_duration["wrapperTimingPreserved"]
+                    and workspace_duration["undoRestoredParent"]
+                    and workspace_duration["redoRestoredWorkspaceChild"],
                     "Precompose did not match workspace duration while preserving parent work area and wrapper timing")
             call("test.reset")
             empty_workspace = call("test.emptyWorkspaceDurationFallsBack")
