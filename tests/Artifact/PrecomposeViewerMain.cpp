@@ -8,6 +8,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonParseError>
 #include <QJsonValue>
 #include <QKeyEvent>
 #include <QLabel>
@@ -7764,16 +7765,22 @@ private:
     void refresh() { text_->setPlainText(QString::fromUtf8(QJsonDocument(state()).toJson())); }
     void respond(const QByteArray& line)
     {
-        QJsonParseError parseError;
-        const auto document = QJsonDocument::fromJson(line, &parseError);
-        if (parseError.error != QJsonParseError::NoError) {
+        const auto sendRequestError = [](int code, const char* message) {
             const auto bytes = QJsonDocument(QJsonObject{
                 {"jsonrpc", "2.0"}, {"id", QJsonValue::Null},
-                {"error", QJsonObject{{"code", -32700},
-                    {"message", "Parse error"}}}})
+                {"error", QJsonObject{{"code", code}, {"message", message}}}})
                 .toJson(QJsonDocument::Compact) + '\n';
             std::fwrite(bytes.constData(), 1, bytes.size(), protocolOutput);
             std::fflush(protocolOutput);
+        };
+        QJsonParseError parseError;
+        const auto document = QJsonDocument::fromJson(line, &parseError);
+        if (parseError.error != QJsonParseError::NoError) {
+            sendRequestError(-32700, "Parse error");
+            return;
+        }
+        if (!document.isObject()) {
+            sendRequestError(-32600, "Invalid Request");
             return;
         }
         const auto request = document.object();

@@ -421,6 +421,17 @@ def main():
                     and malformed_reply.get("id") is None
                     and malformed_reply.get("error", {}).get("code") == -32700,
                     f"Malformed JSON-RPC input did not return parse-error: {malformed_reply}")
+            non_object_record = {"rawRequest": "[]"}
+            evidence.append(non_object_record)
+            process.stdin.write("[]\n")
+            process.stdin.flush()
+            non_object_reply = replies.get(timeout=120)
+            non_object_record["reply"] = non_object_reply
+            require(isinstance(non_object_reply, dict)
+                    and non_object_reply.get("jsonrpc") == "2.0"
+                    and non_object_reply.get("id") is None
+                    and non_object_reply.get("error", {}).get("code") == -32600,
+                    f"Non-object JSON-RPC input did not return invalid-request: {non_object_reply}")
             protocol_state_after_invalid_calls = call("test.state")
             require(protocol_state_after_invalid_calls == protocol_state_before_invalid_calls,
                     "Invalid MCP requests mutated the precompose fixture")
