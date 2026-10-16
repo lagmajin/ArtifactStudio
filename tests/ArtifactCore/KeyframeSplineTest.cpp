@@ -116,6 +116,28 @@ TEST(KeyframeSplineTest, InsertionOrderIsNormalizedAndOutOfRangeTimeClampsToEnds
     EXPECT_FLOAT_EQ(interp.evaluate(100.0), 80.0f);
 }
 
+TEST(KeyframeSplineTest, NegativeTimesInterpolateAndClampAtBothEnds)
+{
+    KeyframeInterpolator<float> interp;
+    typename KeyframeInterpolator<float>::KeyframeEntry first;
+    first.time = -4.0;
+    first.value = -8.0f;
+    first.type = InterpolationType::Linear;
+    typename KeyframeInterpolator<float>::KeyframeEntry second;
+    second.time = -2.0;
+    second.value = 4.0f;
+    second.type = InterpolationType::Linear;
+
+    interp.addKeyframe(second);
+    interp.addKeyframe(first);
+
+    EXPECT_FLOAT_EQ(interp.evaluate(-5.0), -8.0f);
+    EXPECT_FLOAT_EQ(interp.evaluate(-4.0), -8.0f);
+    EXPECT_FLOAT_EQ(interp.evaluate(-3.0), -2.0f);
+    EXPECT_FLOAT_EQ(interp.evaluate(-2.0), 4.0f);
+    EXPECT_FLOAT_EQ(interp.evaluate(-1.0), 4.0f);
+}
+
 TEST(KeyframeSplineTest, ConstantSegmentHoldsUntilTheNextExactKey)
 {
     KeyframeInterpolator<float> interp;
@@ -133,6 +155,30 @@ TEST(KeyframeSplineTest, ConstantSegmentHoldsUntilTheNextExactKey)
     EXPECT_FLOAT_EQ(interp.evaluate(1.0), 3.0f);
     EXPECT_FLOAT_EQ(interp.evaluate(2.5), 3.0f);
     EXPECT_FLOAT_EQ(interp.evaluate(4.0), 9.0f);
+}
+
+TEST(KeyframeSplineTest, ExactKeyAfterConstantSegmentUsesNewKeyValue)
+{
+    KeyframeInterpolator<float> interp;
+    typename KeyframeInterpolator<float>::KeyframeEntry first;
+    first.time = 0.0;
+    first.value = 2.0f;
+    first.type = InterpolationType::Constant;
+    typename KeyframeInterpolator<float>::KeyframeEntry second;
+    second.time = 3.0;
+    second.value = 9.0f;
+    second.type = InterpolationType::Linear;
+    typename KeyframeInterpolator<float>::KeyframeEntry third;
+    third.time = 5.0;
+    third.value = 13.0f;
+    third.type = InterpolationType::Linear;
+    interp.addKeyframe(first);
+    interp.addKeyframe(second);
+    interp.addKeyframe(third);
+
+    EXPECT_FLOAT_EQ(interp.evaluate(2.999), 2.0f);
+    EXPECT_FLOAT_EQ(interp.evaluate(3.0), 9.0f);
+    EXPECT_FLOAT_EQ(interp.evaluate(4.0), 11.0f);
 }
 
 TEST(KeyframeSplineTest, LinearSpeedUsesFrameTimeUnits)

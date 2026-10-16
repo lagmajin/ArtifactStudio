@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <memory>
+
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -14,12 +16,18 @@ import Artifact.Composition.InitParams;
 import Artifact.Composition.Result;
 import Artifact.Layer.Abstract;
 import Artifact.Layer.InitParams;
+import Artifact.Layer.Matte;
 import Artifact.Layer.Result;
 import Artifact.Project.Exporter;
 import Artifact.Project.Health;
 import Artifact.Project.Importer;
 import Artifact.Project.Manager;
+import BrightnessEffect;
 import Color.Float;
+import InvertEffect;
+import Memory.SharedPtr;
+import Undo.UndoManager;
+import Utils.Id;
 import Utils.String.UniString;
 
 namespace {
@@ -215,6 +223,286 @@ TEST(ArtifactProjectRoundTripTest, SaveLoadGuardsRejectBadInput)
 
     // Null projects are reported unhealthy instead of crashing the checker.
     EXPECT_FALSE(Artifact::ArtifactProjectHealthChecker::check(nullptr).isHealthy);
+
+    // A failed replacement load must preserve an already active project.
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("PreservedAfterFailedLoad"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    const auto baselineProject = projects.getCurrentProjectSharedPtr();
+    ASSERT_TRUE(baselineProject);
+    const auto baselineComposition = projects.createComposition(
+        makeCompParams(QStringLiteral("SurvivorComposition"), 320, 180));
+    ASSERT_TRUE(baselineComposition.success);
+    Artifact::ArtifactLayerInitParams survivorParams(
+        QStringLiteral("SurvivorLayer"), Artifact::LayerType::Solid);
+    const auto survivor = projects.addLayerToComposition(
+        baselineComposition.id, survivorParams);
+    ASSERT_TRUE(survivor.success);
+    ASSERT_NE(survivor.layer.get(), nullptr);
+
+    EXPECT_FALSE(projects.loadFromFile(garbagePath));
+    const auto afterFailedLoad = projects.getCurrentProjectSharedPtr();
+    ASSERT_TRUE(afterFailedLoad);
+    EXPECT_EQ(afterFailedLoad.get(), baselineProject.get());
+    EXPECT_EQ(afterFailedLoad->settings().projectName(),
+              QStringLiteral("PreservedAfterFailedLoad"));
+    EXPECT_TRUE(projects.findComposition(baselineComposition.id).success);
+    const auto preservedComposition =
+        projects.findComposition(baselineComposition.id).ptr.lock();
+    ASSERT_TRUE(preservedComposition);
+    EXPECT_EQ(preservedComposition->layerCount(), 1);
+    EXPECT_TRUE(preservedComposition->containsLayerById(survivor.layer->id()));
+}
+
+TEST(ArtifactProjectRoundTripTest, DuplicateLayerCreatesIndependentIdAndCopiesProperties)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    ProjectCleanup cleanup{projects};
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("DuplicateLayerProbe"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    const auto composition = projects.createComposition(
+        makeCompParams(QStringLiteral("Composition"), 320, 180));
+    ASSERT_TRUE(composition.success);
+    Artifact::ArtifactLayerInitParams params(QStringLiteral("Source"),
+                                             Artifact::LayerType::Solid);
+    const auto added = projects.addLayerToComposition(composition.id, params);
+    ASSERT_TRUE(added.success);
+    ASSERT_NE(added.layer.get(), nullptr);
+    added.layer->setOpacity(0.37f);
+
+    const auto duplicated =
+        projects.duplicateLayerInComposition(composition.id, added.layer->id());
+    ASSERT_TRUE(duplicated.success);
+    ASSERT_NE(duplicated.layer.get(), nullptr);
+    EXPECT_NE(duplicated.layer->id(), added.layer->id());
+    EXPECT_EQ(duplicated.layer->layerName(), QStringLiteral("Source Copy"));
+    EXPECT_FLOAT_EQ(added.layer->opacity(), 0.37f);
+    EXPECT_FLOAT_EQ(duplicated.layer->opacity(), 0.37f);
+
+    const auto comp = projects.findComposition(composition.id).ptr.lock();
+    ASSERT_TRUE(comp);
+    EXPECT_EQ(comp->layerCount(), 2);
+    EXPECT_TRUE(comp->containsLayerById(added.layer->id()));
+    EXPECT_TRUE(comp->containsLayerById(duplicated.layer->id()));
+
+    const auto missingId = ArtifactCore::LayerID::Nil();
+    const auto rejected = projects.duplicateLayerInComposition(composition.id, missingId);
+    EXPECT_FALSE(rejected.success);
+    EXPECT_EQ(comp->layerCount(), 2);
+}
+
+TEST(ArtifactProjectRoundTripTest, RejectedLayerOperationsLeaveProjectTreeUnchanged)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    ProjectCleanup cleanup{projects};
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("RejectedLayerOperationsProbe"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    const auto composition = projects.createComposition(
+        makeCompParams(QStringLiteral("Composition"), 320, 180));
+    ASSERT_TRUE(composition.success);
+    Artifact::ArtifactLayerInitParams params(QStringLiteral("Survivor"),
+                                             Artifact::LayerType::Solid);
+    const auto added = projects.addLayerToComposition(composition.id, params);
+    ASSERT_TRUE(added.success);
+    ASSERT_NE(added.layer.get(), nullptr);
+    auto comp = projects.findComposition(composition.id).ptr.lock();
+    ASSERT_TRUE(comp);
+
+    const auto beforeItems = projects.projectItems().size();
+    const auto beforeLayerCount = comp->layerCount();
+    const auto missingLayer = ArtifactCore::LayerID::Nil();
+    const auto missingComposition = ArtifactCore::CompositionID::Nil();
+
+    const auto invalidAdd = projects.addLayerToComposition(missingComposition, params);
+    EXPECT_FALSE(invalidAdd.success);
+    EXPECT_FALSE(projects.removeLayerFromComposition(composition.id, missingLayer));
+    EXPECT_FALSE(projects.removeLayerFromComposition(missingComposition, missingLayer));
+    EXPECT_FALSE(projects.duplicateLayerInComposition(composition.id, missingLayer).success);
+
+    EXPECT_EQ(comp->layerCount(), beforeLayerCount);
+    EXPECT_TRUE(comp->containsLayerById(added.layer->id()));
+    EXPECT_EQ(projects.projectItems().size(), beforeItems);
+    EXPECT_TRUE(projects.findComposition(composition.id).success);
+}
+
+TEST(ArtifactProjectRoundTripTest, RemovingMatteSourceClearsOnlyDanglingReference)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    ProjectCleanup cleanup{projects};
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("MatteReferenceProbe"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+
+    const auto composition = projects.createComposition(
+        makeCompParams(QStringLiteral("Composition"), 320, 180));
+    ASSERT_TRUE(composition.success);
+    Artifact::ArtifactLayerInitParams sourceParams(QStringLiteral("MatteSource"),
+                                                   Artifact::LayerType::Solid);
+    Artifact::ArtifactLayerInitParams targetParams(QStringLiteral("Target"),
+                                                   Artifact::LayerType::Solid);
+    const auto source = projects.addLayerToComposition(composition.id, sourceParams);
+    const auto target = projects.addLayerToComposition(composition.id, targetParams);
+    ASSERT_TRUE(source.success);
+    ASSERT_TRUE(target.success);
+    ASSERT_NE(source.layer.get(), nullptr);
+    ASSERT_NE(target.layer.get(), nullptr);
+
+    Artifact::LayerMatteReference matte;
+    matte.sourceLayerId = source.layer->id();
+    target.layer->addMatteReference(matte);
+    ASSERT_EQ(target.layer->matteReferenceCount(), 1);
+    ASSERT_TRUE(target.layer->hasEnabledExternalMatteReference());
+
+    ASSERT_TRUE(projects.removeLayerFromComposition(composition.id,
+                                                    source.layer->id()));
+    const auto comp = projects.findComposition(composition.id).ptr.lock();
+    ASSERT_TRUE(comp);
+    EXPECT_EQ(comp->layerCount(), 1);
+    EXPECT_TRUE(comp->containsLayerById(target.layer->id()));
+    EXPECT_EQ(target.layer->matteReferenceCount(), 0);
+    EXPECT_FALSE(target.layer->hasEnabledExternalMatteReference());
+    EXPECT_FALSE(projects.removeLayerFromComposition(composition.id,
+                                                     source.layer->id()));
+    EXPECT_EQ(comp->layerCount(), 1);
+}
+
+TEST(ArtifactProjectRoundTripTest, ProjectSavePersistsUndoAndRedoResults)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    ProjectCleanup cleanup{projects};
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("UndoSaveProbe"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    const auto composition = projects.createComposition(
+        makeCompParams(QStringLiteral("Composition"), 320, 180));
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactLayerInitParams params(QStringLiteral("Layer"),
+                                             Artifact::LayerType::Solid);
+    const auto added = projects.addLayerToComposition(composition.id, params);
+    ASSERT_TRUE(added.success);
+    ASSERT_NE(added.layer.get(), nullptr);
+    EXPECT_FLOAT_EQ(added.layer->opacity(), 1.0f);
+
+    Artifact::UndoManager manager;
+    ASSERT_TRUE(manager.push(std::make_unique<Artifact::ChangeLayerOpacityCommand>(
+        added.layer, 1.0f, 0.35f)));
+    EXPECT_FLOAT_EQ(added.layer->opacity(), 0.35f);
+    manager.undo();
+    EXPECT_FLOAT_EQ(added.layer->opacity(), 1.0f);
+
+    const QString afterUndoPath = dir.filePath(QStringLiteral("after-undo.artifact"));
+    ASSERT_TRUE(projects.saveToFile(afterUndoPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(afterUndoPath));
+    auto loadedComposition = projects.findComposition(composition.id).ptr.lock();
+    ASSERT_TRUE(loadedComposition);
+    auto loadedLayer = loadedComposition->frontMostLayer();
+    ASSERT_NE(loadedLayer.get(), nullptr);
+    EXPECT_FLOAT_EQ(loadedLayer->opacity(), 1.0f);
+
+    Artifact::UndoManager redoManager;
+    ASSERT_TRUE(redoManager.push(
+        std::make_unique<Artifact::ChangeLayerOpacityCommand>(
+            loadedLayer, 1.0f, 0.35f)));
+    redoManager.undo();
+    EXPECT_FLOAT_EQ(loadedLayer->opacity(), 1.0f);
+    redoManager.redo();
+    EXPECT_FLOAT_EQ(loadedLayer->opacity(), 0.35f);
+
+    const QString afterRedoPath = dir.filePath(QStringLiteral("after-redo.artifact"));
+    ASSERT_TRUE(projects.saveToFile(afterRedoPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(afterRedoPath));
+    loadedComposition = projects.findComposition(composition.id).ptr.lock();
+    ASSERT_TRUE(loadedComposition);
+    loadedLayer = loadedComposition->frontMostLayer();
+    ASSERT_NE(loadedLayer.get(), nullptr);
+    EXPECT_FLOAT_EQ(loadedLayer->opacity(), 0.35f);
+}
+
+TEST(ArtifactProjectRoundTripTest, EditedEffectStackOrderAndSettingsSurviveReload)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    isolateProjectRoot(dir);
+
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    ProjectCleanup cleanup{projects};
+    projects.closeCurrentProject();
+    projects.suppressDefaultCreate(true);
+    projects.createProject(QStringLiteral("EffectStackRoundTrip"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    const auto composition = projects.createComposition(
+        makeCompParams(QStringLiteral("Composition"), 320, 180));
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactLayerInitParams params(QStringLiteral("Layer"),
+                                             Artifact::LayerType::Solid);
+    const auto added = projects.addLayerToComposition(composition.id, params);
+    ASSERT_TRUE(added.success);
+    ASSERT_NE(added.layer.get(), nullptr);
+
+    auto removedEffect = ArtifactCore::makeShared<Artifact::BrightnessEffect>();
+    auto retainedEffect = ArtifactCore::makeShared<Artifact::InvertEffect>();
+    auto insertedEffect = ArtifactCore::makeShared<Artifact::BrightnessEffect>();
+    removedEffect->setBrightness(0.1f);
+    retainedEffect->setStrength(0.4f);
+    insertedEffect->setBrightness(0.35f);
+    added.layer->addEffect(removedEffect);
+    added.layer->addEffect(retainedEffect);
+    ASSERT_EQ(added.layer->effectCount(), 2);
+
+    added.layer->removeEffect(removedEffect->effectID());
+    added.layer->addEffect(insertedEffect);
+    ASSERT_EQ(added.layer->effectCount(), 2);
+    auto editedEffects = added.layer->getEffects();
+    ASSERT_EQ(editedEffects.size(), 2u);
+    EXPECT_EQ(editedEffects[0].get(), retainedEffect.get());
+    EXPECT_EQ(editedEffects[1].get(), insertedEffect.get());
+
+    const QString projectPath = dir.filePath(QStringLiteral("effect-stack.artifact"));
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+
+    auto loadedComposition = projects.findComposition(composition.id).ptr.lock();
+    ASSERT_TRUE(loadedComposition);
+    auto loadedLayer = loadedComposition->frontMostLayer();
+    ASSERT_NE(loadedLayer.get(), nullptr);
+    const auto loadedEffects = loadedLayer->getEffects();
+    ASSERT_EQ(loadedEffects.size(), 2u);
+    auto* loadedInvert = dynamic_cast<Artifact::InvertEffect*>(loadedEffects[0].get());
+    auto* loadedBrightness =
+        dynamic_cast<Artifact::BrightnessEffect*>(loadedEffects[1].get());
+    ASSERT_NE(loadedInvert, nullptr);
+    ASSERT_NE(loadedBrightness, nullptr);
+    EXPECT_FLOAT_EQ(loadedInvert->strength(), 0.4f);
+    EXPECT_FLOAT_EQ(loadedBrightness->brightness(), 0.35f);
 }
 
 TEST(ArtifactProjectRoundTripTest, ResaveAfterLoadIsStable)

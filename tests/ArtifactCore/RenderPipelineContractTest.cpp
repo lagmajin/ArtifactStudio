@@ -2,6 +2,7 @@
 
 import Graphics.RenderIndex;
 import Graphics.RenderPipelineFoundation;
+import Graphics.GIResources;
 import Graphics.SurfaceColorContract;
 
 using namespace ArtifactCore;
@@ -462,4 +463,44 @@ TEST(RenderPipelineContractTest, EraseChangesGenerationOnlyForExistingProxy)
     EXPECT_EQ(index.generation(), generationAfterInsert + 1u);
     EXPECT_FALSE(index.erase(1));
     EXPECT_EQ(index.generation(), generationAfterInsert + 1u);
+}
+
+TEST(RenderPipelineContractTest, GIFrameResourceResizeAdvancesResourceGeneration)
+{
+    GIFrameResources resources;
+    EXPECT_FALSE(resources.valid());
+    EXPECT_EQ(resources.generation(), 0u);
+
+    resources.resize(1920, 1080);
+    ASSERT_TRUE(resources.valid());
+    EXPECT_EQ(resources.generation(), 1u);
+    EXPECT_EQ(resources.descriptor(GIResourceKind::History).width, 1920u);
+    EXPECT_EQ(resources.descriptor(GIResourceKind::History).height, 1080u);
+
+    resources.resize(1280, 720);
+    EXPECT_EQ(resources.generation(), 2u);
+    EXPECT_EQ(resources.width(), 1280u);
+    EXPECT_EQ(resources.height(), 720u);
+}
+
+TEST(RenderPipelineContractTest, GITemporalHistoryResetsOnDiscontinuityAndCameraCut)
+{
+    GIAccumulationState state;
+    state.beginFrame(10);
+    EXPECT_FALSE(state.historyValid());
+    state.commitHistory();
+    ASSERT_TRUE(state.historyValid());
+    const auto initialGeneration = state.generation();
+
+    state.beginFrame(11);
+    EXPECT_TRUE(state.historyValid());
+    EXPECT_EQ(state.generation(), initialGeneration);
+
+    state.beginFrame(14);
+    EXPECT_FALSE(state.historyValid());
+    EXPECT_EQ(state.generation(), initialGeneration + 1u);
+    state.commitHistory();
+    state.beginFrame(15, true);
+    EXPECT_FALSE(state.historyValid());
+    EXPECT_EQ(state.generation(), initialGeneration + 2u);
 }

@@ -19,6 +19,7 @@
 #include <QStringList>
 #include <QTemporaryDir>
 #include <QThread>
+#include <QTimerEvent>
 #include <QVariantMap>
 #include <QVector3D>
 #include <QtGlobal>
@@ -38,6 +39,7 @@ import Artifact.Layer.InitParams;
 import Artifact.Layer.Particle;
 import Artifact.Layer.Result;
 import Artifact.Layer.Shape;
+import Artifact.Layers.SolidImage;
 import Artifact.Layer.Text;
 import Artifact.Generator.Particle;
 import Artifact.Project.Manager;
@@ -48,6 +50,9 @@ import BrightnessEffect;
 import Shape.Types;
 import Shape.Operator;
 import Color.Float;
+import Math.Interpolate;
+import Property.Abstract;
+import Time.Rational;
 import Image.OpenEXR;
 import Memory.SharedPtr;
 import Utils.Id;
@@ -129,6 +134,42 @@ QString isolatedOutputPath(const QString& fileName)
         : captureRoot;
     return QDir(root).filePath(QStringLiteral("captures/") + fileName);
 }
+
+class RenderQueueEventLoopProbe final : public QObject {
+public:
+    bool watch(Artifact::ArtifactRenderQueueService* queue, int jobIndex)
+    {
+        queue_ = queue;
+        jobIndex_ = jobIndex;
+        timerId_ = startTimer(1, Qt::PreciseTimer);
+        return timerId_ != 0;
+    }
+
+    void stop()
+    {
+        if (timerId_ != 0) {
+            killTimer(timerId_);
+            timerId_ = 0;
+        }
+    }
+
+    bool servicedWhileRendering() const { return servicedWhileRendering_; }
+
+protected:
+    void timerEvent(QTimerEvent* event) override
+    {
+        if (event->timerId() == timerId_ && queue_ &&
+            queue_->jobStatusAt(jobIndex_) == QStringLiteral("Rendering")) {
+            servicedWhileRendering_ = true;
+        }
+    }
+
+private:
+    Artifact::ArtifactRenderQueueService* queue_ = nullptr;
+    int jobIndex_ = -1;
+    int timerId_ = 0;
+    bool servicedWhileRendering_ = false;
+};
 
 bool addAndRender(Artifact::ArtifactRenderQueueService* queue,
                   const ArtifactCore::CompositionID& compositionId,
@@ -284,7 +325,8 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
                      int expectedHeight,
                      QString* failure,
                      int frameStart = 1,
-                     int frameEnd = 1)
+                     int frameEnd = 1,
+                     RenderQueueEventLoopProbe* eventLoopProbe = nullptr)
 {
     const QFileInfo requestedOutput(outputBasePath);
     if (!QDir().mkpath(requestedOutput.absolutePath())) {
@@ -315,6 +357,10 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
         *failure = QStringLiteral("Could not select the explicit EXR frame range");
         return false;
     }
+    if (eventLoopProbe && !eventLoopProbe->watch(queue, jobIndex)) {
+        *failure = QStringLiteral("Could not start the GUI event-loop probe");
+        return false;
+    }
     queue->startRenderQueueAt(jobIndex);
 
     QElapsedTimer timeout;
@@ -330,6 +376,7 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
         }
         QThread::msleep(10);
     }
+    if (eventLoopProbe) eventLoopProbe->stop();
     if (status != QStringLiteral("Completed")) {
         *failure = QStringLiteral("EXR Render Queue job ended as '%1': %2")
                        .arg(status, queue->jobErrorMessageAt(jobIndex));
@@ -387,7 +434,7 @@ bool addAndRenderExr(Artifact::ArtifactRenderQueueService* queue,
 #include "../shape_visual/ShapeVisualCases.inc"
 
 TEST(RenderQueueLayerImageIntegrationTest,
-     WritesReadableExrThroughManagerQueue)
+     ExportKeepsGuiEventLoopResponsiveAndWritesReadableExr)
 {
     QTemporaryDir projectRoot;
     ASSERT_TRUE(projectRoot.isValid());
@@ -395,8 +442,8 @@ TEST(RenderQueueLayerImageIntegrationTest,
     QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
     QStandardPaths::setTestModeEnabled(true);
 
-    constexpr int width = 96;
-    constexpr int height = 54;
+    constexpr int width = 640;
+    constexpr int height = 360;
     auto& projects = Artifact::ArtifactProjectManager::getInstance();
     auto* queue = Artifact::ArtifactRenderQueueService::instance();
     ASSERT_NE(queue, nullptr);
@@ -422,17 +469,20 @@ TEST(RenderQueueLayerImageIntegrationTest,
         QStringLiteral("ExrQueueOutput")));
     params.setResolution(width, height);
     params.setFrameRate(30.0);
-    params.setDurationFrames(1);
+    params.setDurationFrames(48);
     params.setBackgroundColor(ArtifactCore::FloatColor(
         0.15f, 0.25f, 0.4f, 1.0f));
     const auto composition = projects.createComposition(params);
     ASSERT_TRUE(composition.success);
 
     QString failure;
+    RenderQueueEventLoopProbe eventLoopProbe;
     ASSERT_TRUE(addAndRenderExr(
         queue, composition.id, QStringLiteral("ExrQueueOutput"),
         isolatedOutputPath(QStringLiteral("render_queue_exr.exr")),
-        width, height, &failure)) << failure.toStdString();
+        width, height, &failure, 1, 48, &eventLoopProbe))
+        << failure.toStdString();
+    EXPECT_TRUE(eventLoopProbe.servicedWhileRendering());
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,
@@ -815,6 +865,112 @@ TEST(RenderQueueLayerImageIntegrationTest,
         queue, composition.id, QStringLiteral("AnimatedText"),
         isolatedOutputPath(QStringLiteral("render_queue_animated_text.png")),
         width, height, &failure)) << failure.toStdString();
+}
+
+TEST(RenderQueueLayerImageIntegrationTest,
+     AnimatedLayerTransformMovesPixelsAcrossGpuRenderedFrames)
+{
+    QTemporaryDir projectRoot;
+    ASSERT_TRUE(projectRoot.isValid());
+    qputenv("ARTIFACT_UI_TEST_PROJECT_ROOT", projectRoot.path().toUtf8());
+    QCoreApplication::setApplicationName(QStringLiteral("ArtifactStudioUiTest"));
+    QStandardPaths::setTestModeEnabled(true);
+
+    constexpr int width = 320;
+    constexpr int height = 180;
+    auto& projects = Artifact::ArtifactProjectManager::getInstance();
+    auto* queue = Artifact::ArtifactRenderQueueService::instance();
+    ASSERT_NE(queue, nullptr);
+    queue->removeAllRenderQueues();
+    queue->clearCompletedJobHistory();
+
+    struct Cleanup final {
+        Artifact::ArtifactProjectManager& projects;
+        Artifact::ArtifactRenderQueueService* queue;
+        ~Cleanup()
+        {
+            queue->removeAllRenderQueues();
+            projects.closeCurrentProject();
+        }
+    } cleanup{projects, queue};
+
+    projects.closeCurrentProject();
+    projects.createProject(QStringLiteral("AnimatedTransformGpuTest"), true);
+    ASSERT_TRUE(projects.isProjectCreated());
+    Artifact::ArtifactCompositionInitParams compositionParams;
+    compositionParams.setCompositionName(
+        ArtifactCore::UniString(QStringLiteral("AnimatedTransform")));
+    compositionParams.setResolution(width, height);
+    compositionParams.setFrameRate(30.0);
+    compositionParams.setDurationFrames(3);
+    const auto composition = projects.createComposition(compositionParams);
+    ASSERT_TRUE(composition.success);
+
+    Artifact::ArtifactSolidLayerInitParams layerParams(QStringLiteral("MovingRed"));
+    layerParams.setWidth(48);
+    layerParams.setHeight(48);
+    layerParams.setColor(ArtifactCore::FloatColor(1.0f, 0.0f, 0.0f, 1.0f));
+    const auto layerResult = projects.addLayerToComposition(
+        composition.id, layerParams);
+    ASSERT_TRUE(layerResult.success);
+    ASSERT_NE(layerResult.layer.get(), nullptr);
+
+    auto positionX = layerResult.layer->getProperty(
+        QStringLiteral("transform.position.x"));
+    ASSERT_NE(positionX.get(), nullptr);
+    positionX->clearKeyFrames();
+    positionX->setAnimatable(true);
+    const auto keyScale = layerResult.layer->keyframeTimeScale();
+    positionX->addKeyFrame(ArtifactCore::RationalTime(1, keyScale), 72.0,
+                           ArtifactCore::InterpolationType::Linear);
+    positionX->addKeyFrame(ArtifactCore::RationalTime(2, keyScale), 220.0,
+                           ArtifactCore::InterpolationType::Linear);
+
+    QString failure;
+    const QString outputBasePath = isolatedOutputPath(
+        QStringLiteral("animated_transform_gpu.png"));
+    ASSERT_TRUE(addAndRender(
+        queue, composition.id, QStringLiteral("AnimatedTransform"),
+        outputBasePath, width, height,
+        [](const QImage& image) {
+            return countPixelsMatching(image, [](QRgb pixel) {
+                return qAlpha(pixel) > 220 && qRed(pixel) > 220 &&
+                       qGreen(pixel) < 40 && qBlue(pixel) < 40;
+            }) > 100;
+        }, &failure, 2, QStringLiteral("gpu"), 1))
+        << failure.toStdString();
+
+    const QFileInfo outputInfo(outputBasePath);
+    const auto framePath = [&](int frame) {
+        return QDir(outputInfo.absolutePath()).filePath(
+            QStringLiteral("%1_%2.png")
+                .arg(outputInfo.completeBaseName())
+                .arg(frame, 4, 10, QLatin1Char('0')));
+    };
+    const QImage firstFrame(framePath(1));
+    const QImage secondFrame(framePath(2));
+    ASSERT_FALSE(firstFrame.isNull());
+    ASSERT_FALSE(secondFrame.isNull());
+
+    const auto redPixelCenterX = [](const QImage& image) {
+        qint64 sumX = 0;
+        qint64 count = 0;
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
+                const QRgb pixel = image.pixel(x, y);
+                if (qAlpha(pixel) > 220 && qRed(pixel) > 220 &&
+                    qGreen(pixel) < 40 && qBlue(pixel) < 40) {
+                    sumX += x;
+                    ++count;
+                }
+            }
+        }
+        return count > 0 ? static_cast<double>(sumX) / count : -1.0;
+    };
+    const double firstCenter = redPixelCenterX(firstFrame);
+    const double secondCenter = redPixelCenterX(secondFrame);
+    EXPECT_GT(firstCenter, 0.0);
+    EXPECT_GT(secondCenter, firstCenter + 80.0);
 }
 
 TEST(RenderQueueLayerImageIntegrationTest,

@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <limits>
+#include <utility>
 #include <vector>
 
 import Artifact.Effect.Abstract;
@@ -164,4 +165,33 @@ TEST(EffectSequenceContractTest, SortedStagesProduceTheExpectedCpuImage)
 
     expectPixelNear(output, 0, 0, FloatRGBA(0.90f, 0.70f, 0.30f, 0.35f));
     expectPixelNear(source, 0, 0, FloatRGBA(0.20f, 0.40f, 0.80f, 0.35f));
+}
+
+TEST(EffectSequenceContractTest, BrightnessProcessesLargeCpuSurfaceWithoutChangingInput)
+{
+    constexpr int width = 1280;
+    constexpr int height = 720;
+    constexpr std::size_t componentCount =
+        static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4u;
+    std::vector<float> sourcePixels(componentCount, 0.0f);
+    for (std::size_t index = 0; index < componentCount; index += 4u) {
+        sourcePixels[index] = 0.2f;
+        sourcePixels[index + 1u] = 0.4f;
+        sourcePixels[index + 2u] = 0.6f;
+        sourcePixels[index + 3u] = 0.5f;
+    }
+
+    const auto source = makeSurface(width, height, sourcePixels.data());
+    ImageF32x4RGBAWithCache output;
+    BrightnessEffect brightness;
+    brightness.setBrightness(0.1f);
+    brightness.applyCPUOnly(source, output);
+
+    ASSERT_EQ(output.image().width(), width);
+    ASSERT_EQ(output.image().height(), height);
+    for (const auto [x, y] : {std::pair{0, 0}, std::pair{width / 2, height / 2},
+                              std::pair{width - 1, height - 1}}) {
+        expectPixelNear(output, x, y, FloatRGBA(0.3f, 0.5f, 0.7f, 0.5f));
+        expectPixelNear(source, x, y, FloatRGBA(0.2f, 0.4f, 0.6f, 0.5f));
+    }
 }

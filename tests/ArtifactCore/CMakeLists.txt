@@ -285,6 +285,16 @@ set_tests_properties(ArtifactCorePropertyPathTest PROPERTIES
     LABELS "property;path;cpu;contract"
 )
 
+artifact_add_test(ArtifactCoreSchemaMigrationContractTest
+    SOURCES
+        SchemaMigrationContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreSchemaMigrationContractTest PROPERTIES
+    LABELS "serialization;schema-migration;cpu;contract"
+)
+
 artifact_add_test(ArtifactCoreAssetImportSettingsTest
     SOURCES
         AssetImportSettingsTest.cpp

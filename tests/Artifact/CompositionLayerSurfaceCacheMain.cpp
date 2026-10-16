@@ -24,6 +24,8 @@
 #include <QWidget>
 
 #include <cmath>
+#include <cstddef>
+#include <cstring>
 #include <limits>
 
 #include <cstdio>
@@ -101,8 +103,16 @@ public:
         setDiagnostics(true);
         pumpEvents(500);
         const QJsonObject initial = controller()->layerSurfaceCacheDiagnostics();
+        const QImage beforeReuse = controller()->readbackPresentedFrameImage();
+        if (beforeReuse.isNull())
+            return fail(QStringLiteral("initial presented-frame readback failed"));
         if (!rerender().value(QStringLiteral("error")).isUndefined())
             return fail(QStringLiteral("unchanged rerender failed"));
+        const QImage afterReuseCapture = controller()->readbackPresentedFrameImage();
+        if (afterReuseCapture.isNull())
+            return fail(QStringLiteral("unchanged rerender presented-frame readback failed"));
+        if (!imagesMatchExactly(beforeReuse, afterReuseCapture))
+            return fail(QStringLiteral("unchanged surface cache reuse changed captured pixels"));
         const QJsonObject afterReuse = controller()->layerSurfaceCacheDiagnostics();
         const QJsonObject targetBefore = entryFor(afterReuse, effectLayerId_);
         if (targetBefore.value(QStringLiteral("hits")).toInt() <= 0)
@@ -127,6 +137,9 @@ public:
             return fail(QStringLiteral("unrelated layer edit invalidated the target cache"));
 
         QJsonObject result{{QStringLiteral("passed"), true},
+                           {QStringLiteral("unchangedPresentedFramePixelMatch"), true},
+                           {QStringLiteral("frameWidth"), beforeReuse.width()},
+                           {QStringLiteral("frameHeight"), beforeReuse.height()},
                            {QStringLiteral("initial"), initial},
                            {QStringLiteral("afterReuse"), afterReuse},
                            {QStringLiteral("afterEffectEdit"), afterEffectEdit},
@@ -203,6 +216,22 @@ private:
     static QJsonObject fail(const QString& message)
     {
         return {{QStringLiteral("error"), message}};
+    }
+
+    static bool imagesMatchExactly(const QImage& left, const QImage& right)
+    {
+        if (left.isNull() || right.isNull() || left.size() != right.size())
+            return false;
+        const QImage leftRgba = left.convertToFormat(QImage::Format_RGBA8888);
+        const QImage rightRgba = right.convertToFormat(QImage::Format_RGBA8888);
+        const std::size_t rowBytes =
+            static_cast<std::size_t>(leftRgba.width()) * 4u;
+        for (int row = 0; row < leftRgba.height(); ++row) {
+            if (std::memcmp(leftRgba.constScanLine(row),
+                            rightRgba.constScanLine(row), rowBytes) != 0)
+                return false;
+        }
+        return true;
     }
 
     void prepare()

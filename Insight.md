@@ -2,6 +2,30 @@
 
 # Insight Register
 
+## 2026-10-16: In/Out PointsのImpl解放経路
+
+- **関連:** `Artifact/include/Composition/ArtifactInOutPoints.ixx`、`Artifact/src/Composition/ArtifactInOutPoints.cppm`、`tests/Artifact/InOutPointsContractTest.cpp`。
+- **確認できた事実:** `ArtifactInOutPoints` のコンストラクタは `impl_(new Impl())` でraw pointerを確保し、現在の実装ファイルではデストラクタが `= default` 定義になっている。
+- **未検証の仮説:** `Impl` が別の所有経路で解放されていなければ、各インスタンス破棄時に漏れる可能性がある。今回追加するテストは小数のインスタンスしか生成しないため、影響を検出・評価しない。
+- **価値／懸念:** In/Out Pointsを繰り返し生成・破棄する再生やComposition切替経路で、累積メモリ使用量へ影響する可能性がある。
+- **次に確認:** 全デストラクタ定義と所有モデルを確認し、明示deleteが不要な意図があるか調べる。漏れが確定した場合は、テスト追加範囲から切り離して最小修正を検討する。
+
+## 2026-10-16: Rasterizer mask/effect順序とalpha境界
+
+- **関連:** `Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` の `buildRasterizedSurfaceBuffer()`、`Artifact/src/Mask/LayerMask.cppm` の `applyToImage()`、`Artifact/src/Effects/Blur/BlurEffect.cppm`、`tests/Artifact/RasterizerMaskEffectIntegrationTest.cpp`。
+- **確認できた事実:** Composition ViewのCPU surface処理はLayerMaskをCV surfaceへ適用した後、Rasterizer Effectを順に実行する。`LayerMask::applyToImage()` は4 channelをmaskで乗算し、BlurEffectは既定でpremultiplied alpha処理を有効にする。
+- **未検証の仮説:** mask外周へblurのalphaが広がることが意図された合成契約か、maskをeffect後に適用する選択肢が必要かはruntime画像で未確認。追加したケースは現行順序でのalpha分布を検査するが、未実行。
+- **価値／懸念:** boundary alphaを固定fixtureで監視すると、Effect/Mask順序の変更による輪郭差を小画像で検知できる。結果が意図と違う場合は、テスト期待値を変える前に合成仕様を確認する。
+- **次に確認:** 許可されたCPU integration test実行で32×16 fixtureの内部・境界・外側alphaを確認し、必要ならmask/effect orderの製品仕様を決める。
+
+## 2026-10-16: 重複時刻キーフレームの選択規則
+
+- **関連:** `ArtifactCore/include/Geometry/Interpolate.ixx` の `KeyframeInterpolator::addKeyframe()` / `evaluate()`、`tests/ArtifactCore/KeyframeSplineTest.cpp`。
+- **確認できた事実:** `addKeyframe()` は時刻で `std::sort` するが、同時刻エントリーの順序を定義していない。`evaluate()` は同じ時刻のキーを `lower_bound` で探し、完全一致時にはその位置の値を返す。
+- **未検証の懸念:** 同時刻キーが複数ある場合、どの値が採用されるかは安定した契約として保証されていない可能性がある。現時点では仕様を推測してテストに固定していない。
+- **価値／懸念:** キー編集・読み込みで同時刻キーが生じた場合の結果を明確にできれば、保存再読込やUndo後の再現性を高められる。
+- **次に確認:** 重複時刻を拒否するか、先勝ち／後勝ちに正規化するかを仕様として決め、その契約に沿った単体テストを追加する。
+
 
 ## 2026-10-15: 共有子Composition解除時のsource layer所有権
 
@@ -3600,3 +3624,10 @@
 - **価値または懸念:** 同一画面で描画完了だけを測るテストは cache を通らない偽陽性になり得る。view差分と layer-content invalidation を別の操作として記録する必要がある。
 - **未検証:** render-key 経路を通過して surface lookup/hit が実際に観測されるかは、新 target のビルドおよび実機実行が必要。既存 build target は ArtifactCore の module IFC 重複エラーで新コードの compile 前に停止した。
 - **次に確認:** IFC 重複の出所を確認してから target をビルドし、`cache.runRegression` の hit / invalidation / unrelated-edit assertion と capture を GPU runtime で実行する。
+
+## 2026-10-16: プリコンポーズ解除のkeepCompositionは空の子を残す
+
+- **関連:** `Artifact/src/Service/ArtifactProjectService.cppm` の `unprecomposeLayerInCurrentComposition()`、`tests/Artifact/PrecomposeViewerMain.cpp`。
+- **確認できた事実:** `keepComposition=true` は子Composition自体の削除を止めるが、子レイヤーは親へ移動する。結果として子Compositionは空になり、Undoでレイヤーが子へ戻る。
+- **価値／懸念:** 「子を保持」という表現を元の内容も残す意味と誤読すると、テストが誤った内容保持を期待し得る。レイヤーeffect保持テストの解除後条件を空childに合わせて修正した。
+- **次に確認:** UI文言・API引数名とこの意味が一致しているかは未確認。必要なら別途ユーザー向け文言を確認する。

@@ -179,6 +179,19 @@ endif()
 
 if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
    AND (VULKAN_SUPPORTED OR D3D12_SUPPORTED))
+    artifact_add_test(ArtifactDiligentDeviceManagerRecoveryContractTest
+        SOURCES
+            DiligentDeviceManagerRecoveryContractTest.cpp
+        LIBS
+            ArtifactRender
+    )
+    set_tests_properties(ArtifactDiligentDeviceManagerRecoveryContractTest PROPERTIES
+        LABELS "renderer;gpu;headless;device-lifecycle;contract"
+        TIMEOUT 120
+        RUN_SERIAL TRUE
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    )
+
     artifact_add_test(ArtifactClonerGpuRenderContractTest
         SOURCES
             ClonerGpuRenderContractTest.cpp
@@ -420,10 +433,19 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
     )
     add_test(NAME ArtifactRenderQueueExrImageIntegrationTest
         COMMAND ArtifactRenderQueueLayerImageIntegrationTest
-            --gtest_filter=RenderQueueLayerImageIntegrationTest.WritesReadableExrThroughManagerQueue
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.ExportKeepsGuiEventLoopResponsiveAndWritesReadableExr
     )
     set_tests_properties(ArtifactRenderQueueExrImageIntegrationTest PROPERTIES
-        LABELS "render-queue;renderer;gpu;headless;image;openexr;integration"
+        LABELS "render-queue;renderer;gpu;gui;responsiveness;image;openexr;integration"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactRenderQueueAnimatedTransformGpuIntegrationTest
+        COMMAND ArtifactRenderQueueLayerImageIntegrationTest
+            --gtest_filter=RenderQueueLayerImageIntegrationTest.AnimatedLayerTransformMovesPixelsAcrossGpuRenderedFrames
+    )
+    set_tests_properties(ArtifactRenderQueueAnimatedTransformGpuIntegrationTest PROPERTIES
+        LABELS "render-queue;renderer;gpu;headless;transform;animation;integration"
         TIMEOUT 180
         RUN_SERIAL TRUE
     )
@@ -562,11 +584,89 @@ if(ARTIFACT_BUILD_TESTS AND VULKAN_SUPPORTED)
     )
 endif()
 
-# App-level project save/load round-trip through the production
-# ArtifactProjectManager. Needs no GPU; kept out of the GPU-gated blocks.
-# The manager is a process singleton, so this test must not run in parallel
-# with other Artifact integration tests.
 if(ARTIFACT_BUILD_TESTS)
+    # Playback range service contract runs in its own process with a Core
+    # event loop; it does not start playback or initialize a graphics device.
+    artifact_add_test(ArtifactPlaybackRangeServiceContractTest
+        SOURCES
+            PlaybackRangeServiceContractTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactPlaybackRangeServiceContractTest PROPERTIES
+        LABELS "playback;range;service;cpu;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
+
+    # Frame cache contract tests use the renderer library's CPU cache model,
+    # without creating a graphics device or starting the application.
+    artifact_add_test(ArtifactFrameCacheContractTest
+        SOURCES
+            FrameCacheContractTest.cpp
+        LIBS
+            ArtifactRender
+    )
+    set_tests_properties(ArtifactFrameCacheContractTest PROPERTIES
+        LABELS "render-cache;cpu;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
+
+    # Standalone contract and CPU integration tests. They use separate
+    # executables so none starts Artifact.exe or shares in-process test state.
+    artifact_add_test(ArtifactInOutPointsContractTest
+        SOURCES
+            InOutPointsContractTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactInOutPointsContractTest PROPERTIES
+        LABELS "playback;range;cpu;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
+
+    artifact_add_test(ArtifactRasterizerMaskEffectIntegrationTest
+        SOURCES
+            RasterizerMaskEffectIntegrationTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactRasterizerMaskEffectIntegrationTest PROPERTIES
+        LABELS "mask;effect;rasterizer;cpu;integration"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
+
+    artifact_add_test(ArtifactUndoManagerContractTest
+        SOURCES
+            UndoManagerContractTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactUndoManagerContractTest PROPERTIES
+        LABELS "undo;cpu;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
+
+    artifact_add_test(ArtifactCompositionNodeStoreContractTest
+        SOURCES
+            CompositionNodeStoreContractTest.cpp
+        LIBS
+            ArtifactAppRuntime
+    )
+    set_tests_properties(ArtifactCompositionNodeStoreContractTest PROPERTIES
+        LABELS "composition;container;cpu;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
+
+    # App-level project save/load round-trip through the production
+    # ArtifactProjectManager. Needs no GPU; kept out of the GPU-gated blocks.
+    # The manager is a process singleton, so this test must not run in parallel
+    # with other Artifact integration tests.
     artifact_add_test(ArtifactProjectRoundTripTest
         SOURCES
             ArtifactProjectRoundTripTest.cpp

@@ -23,6 +23,7 @@
 #include <QLabel>
 #include <QMainWindow>
 #include <QScreen>
+#include <QSize>
 #include <QString>
 #include <QStringList>
 #include <QTimerEvent>
@@ -33,6 +34,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <limits>
 #include <utility>
@@ -46,6 +48,7 @@ import Artifact.Composition.InitParams;
 import Artifact.Layer.InitParams;
 import Artifact.Layers.SolidImage;
 import Artifact.Widgets.CompositionRenderWidget;
+import Artifact.Widgets.PlaybackControlWidget;
 import Artifact.Service.Project;
 import Artifact.Service.Playback;
 import Color.Float;
@@ -60,6 +63,7 @@ struct StressConfig {
     int height = 1080;
     double fps = 30.0;
     QString transformProfile = QStringLiteral("animated");
+    QString visibilityProfile = QStringLiteral("all-visible");
     QString rendererBackend = QStringLiteral("auto");
     int durationSeconds = 600;
     int sampleIntervalMs = 1000;
@@ -76,6 +80,8 @@ public:
         resize(900, 520);
         auto* central = new QWidget(this);
         auto* layout = new QVBoxLayout(central);
+        transportWidget_ = new Artifact::ArtifactPlaybackControlWidget(central);
+        layout->addWidget(transportWidget_);
         status_ = new QLabel(central);
         status_->setTextInteractionFlags(Qt::TextSelectableByMouse);
         layout->addWidget(status_);
@@ -110,10 +116,19 @@ public:
             {QStringLiteral("height"), config_.height},
             {QStringLiteral("fps"), config_.fps},
             {QStringLiteral("transformProfile"), config_.transformProfile},
+            {QStringLiteral("visibilityProfile"), config_.visibilityProfile},
             {QStringLiteral("rendererBackendRequested"), config_.rendererBackend},
             {QStringLiteral("durationSeconds"), config_.durationSeconds},
             {QStringLiteral("playing"), playback_ && playback_->isPlaying()},
             {QStringLiteral("playbackState"), playback_ ? static_cast<int>(playback_->state()) : -1},
+            {QStringLiteral("transportWidgetMatchesService"),
+                transportWidgetMatchesService()},
+            {QStringLiteral("transportWidgetPlaying"),
+                transportWidget_ && transportWidget_->isPlaying()},
+            {QStringLiteral("transportWidgetPaused"),
+                transportWidget_ && transportWidget_->isPaused()},
+            {QStringLiteral("transportWidgetStopped"),
+                transportWidget_ && transportWidget_->isStopped()},
             {QStringLiteral("frame"), playback_ ? playback_->currentFrame().framePosition() : -1},
             {QStringLiteral("droppedFrames"), playback_ ? playback_->droppedFrameCount() : 0},
             {QStringLiteral("observedPresentedFrames"), playback_ ? playback_->observedPresentedFrameCount() : 0},
@@ -132,6 +147,12 @@ public:
                 compositions_.at(activeCompositionIndex_)->id().toString();
             result[QStringLiteral("activeLayerCount")] =
                 compositions_.at(activeCompositionIndex_)->allLayer().size();
+            int hiddenLayerCount = 0;
+            for (const auto& layer :
+                 compositions_.at(activeCompositionIndex_)->allLayer()) {
+                if (layer && !layer->isVisible()) ++hiddenLayerCount;
+            }
+            result[QStringLiteral("activeHiddenLayerCount")] = hiddenLayerCount;
         }
         if (!lastCapturePath_.isEmpty())
             result[QStringLiteral("lastCapturePath")] = lastCapturePath_;
@@ -205,6 +226,7 @@ public:
         if (index < 0 || index >= compositions_.size())
             return error(QStringLiteral("composition index is out of range"));
         const bool resume = playback_ && playback_->isPlaying();
+        const bool selectionChanged = activeCompositionIndex_ != index;
         playback_->stop();
         playback_->waitForStop();
         activeCompositionIndex_ = index;
@@ -212,7 +234,248 @@ public:
         viewport_->setComposition(compositions_.at(index));
         if (resume) playback_->play();
         refresh();
-        return state();
+        QJsonObject result = state();
+        const bool compositionChanged = playback_ &&
+            playback_->currentComposition().get() == compositions_.at(index).get();
+        const bool playbackResumed = !resume || (playback_ && playback_->isPlaying());
+        result[QStringLiteral("wasPlayingBeforeSwitch")] = resume;
+        result[QStringLiteral("selectionChanged")] = selectionChanged;
+        result[QStringLiteral("compositionChanged")] = compositionChanged;
+        result[QStringLiteral("playbackResumedAfterSwitch")] = playbackResumed;
+        result[QStringLiteral("passed")] = selectionChanged && compositionChanged &&
+            playbackResumed && transportWidgetMatchesService();
+        if (!result.value(QStringLiteral("passed")).toBool())
+            result[QStringLiteral("error")] =
+                QStringLiteral("composition switch did not preserve the expected playback state");
+        return result;
+    }
+
+    QJsonObject cycleCompositions(int cycles, int settleMs)
+    {
+        if (!ready() || !playback_ || !playback_->isPlaying())
+            return error(QStringLiteral("start playback before cycling compositions"));
+        if (compositions_.size() < 2)
+            return error(QStringLiteral("at least two compositions are required"));
+        if (cycles < 1 || cycles > 100 || settleMs < 100 || settleMs > 10000)
+            return error(QStringLiteral("cycles or settleMs is out of range"));
+        const qint64 requestedSettleMs = static_cast<qint64>(cycles) *
+            compositions_.size() * settleMs;
+        if (requestedSettleMs > 60000)
+            return error(QStringLiteral("requested composition cycle exceeds 60 seconds"));
+
+        const int startIndex = activeCompositionIndex_;
+        QJsonArray transitions;
+        bool passed = true;
+        for (int cycle = 0; cycle < cycles; ++cycle) {
+            for (int offset = 1; offset <= compositions_.size(); ++offset) {
+                const int index = (startIndex + offset) % compositions_.size();
+                const auto switched = switchComposition(index);
+                const bool switchPassed = switched.value(QStringLiteral("passed")).toBool();
+                const std::int64_t frameBefore =
+                    playback_->currentFrame().framePosition();
+                QElapsedTimer timer;
+                timer.start();
+                while (timer.elapsed() < settleMs) {
+                    QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
+                    QThread::msleep(5);
+                }
+                const bool frameAdvanced =
+                    playback_->currentFrame().framePosition() != frameBefore;
+                const bool stillPlaying = playback_->isPlaying();
+                const bool currentCompositionMatches =
+                    playback_->currentComposition().get() == compositions_.at(index).get();
+                const bool transitionPassed = switchPassed && stillPlaying &&
+                    frameAdvanced && currentCompositionMatches &&
+                    transportWidgetMatchesService();
+                transitions.append(QJsonObject{
+                    {QStringLiteral("cycle"), cycle + 1},
+                    {QStringLiteral("compositionIndex"), index},
+                    {QStringLiteral("switchPassed"), switchPassed},
+                    {QStringLiteral("frameAdvanced"), frameAdvanced},
+                    {QStringLiteral("playbackContinued"), stillPlaying},
+                    {QStringLiteral("compositionMatches"), currentCompositionMatches},
+                    {QStringLiteral("transportWidgetMatchesService"),
+                        transportWidgetMatchesService()},
+                    {QStringLiteral("passed"), transitionPassed}});
+                passed = passed && transitionPassed;
+            }
+        }
+
+        QJsonObject result = state();
+        result[QStringLiteral("cyclesRequested")] = cycles;
+        result[QStringLiteral("settleMsPerComposition")] = settleMs;
+        result[QStringLiteral("transitions")] = transitions;
+        result[QStringLiteral("passed")] = passed && transitions.size() > 0;
+        if (!result.value(QStringLiteral("passed")).toBool())
+            result[QStringLiteral("error")] =
+                QStringLiteral("one or more composition playback transitions failed");
+        return result;
+    }
+
+    QJsonObject resizeWhilePlaying(int width, int height, int settleMs)
+    {
+        if (!ready() || !playback_ || !playback_->isPlaying())
+            return error(QStringLiteral("start playback before resizing the viewport"));
+        if (width < 320 || width > 4096 || height < 240 || height > 2160 ||
+            settleMs < 100 || settleMs > 10000)
+            return error(QStringLiteral("resize dimensions or settleMs are out of range"));
+
+        const std::int64_t frameBefore =
+            playback_->currentFrame().framePosition();
+        resize(width, height);
+        QElapsedTimer timer;
+        timer.start();
+        while (timer.elapsed() < settleMs) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
+            QThread::msleep(5);
+        }
+
+        const std::int64_t frameAfter =
+            playback_->currentFrame().framePosition();
+        const bool stillPlaying = playback_->isPlaying();
+        const QSize viewportSize = viewport_ ? viewport_->size() : QSize();
+        QJsonObject result = state();
+        result[QStringLiteral("resizeWidth")] = width;
+        result[QStringLiteral("resizeHeight")] = height;
+        result[QStringLiteral("settleMs")] = settleMs;
+        result[QStringLiteral("viewportWidth")] = viewportSize.width();
+        result[QStringLiteral("viewportHeight")] = viewportSize.height();
+        result[QStringLiteral("frameBeforeResize")] = frameBefore;
+        result[QStringLiteral("frameAfterResize")] = frameAfter;
+        result[QStringLiteral("frameAdvancedDuringResize")] = frameAfter != frameBefore;
+        result[QStringLiteral("playbackContinuedAfterResize")] = stillPlaying;
+        result[QStringLiteral("passed")] = stillPlaying && frameAfter != frameBefore &&
+            viewportSize.width() > 0 && viewportSize.height() > 0 &&
+            transportWidgetMatchesService();
+        if (!result.value(QStringLiteral("passed")).toBool())
+            result[QStringLiteral("error")] =
+                QStringLiteral("playback stalled or viewport became invalid during resize");
+        return result;
+    }
+
+    QJsonObject compareVisibilityProfiles(int durationMs)
+    {
+        if (!ready() || !runActive_ || !playback_ || !playback_->isPlaying())
+            return error(QStringLiteral("start a stress run before comparing visibility profiles"));
+        if (durationMs < 1000 || durationMs > 30000)
+            return error(QStringLiteral("durationMs must be in [1000,30000]"));
+
+        const auto composition = compositions_.at(activeCompositionIndex_);
+        const auto layers = composition->allLayer();
+        int activeLayerCount = 0;
+        for (const auto& layer : layers)
+            if (layer) ++activeLayerCount;
+        if (activeLayerCount < 2)
+            return error(QStringLiteral("at least two active layers are required"));
+
+        QVector<bool> originalVisibility;
+        originalVisibility.reserve(layers.size());
+        for (const auto& layer : layers)
+            originalVisibility.append(layer && layer->isVisible());
+
+        const auto applyProfile = [&layers](bool alternateHidden) {
+            for (int index = 0; index < layers.size(); ++index) {
+                if (layers[index])
+                    layers[index]->setVisible(!alternateHidden || index % 2 == 0);
+            }
+        };
+        const auto pumpFor = [](int milliseconds) {
+            QElapsedTimer timer;
+            timer.start();
+            while (timer.elapsed() < milliseconds) {
+                QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
+                QThread::msleep(5);
+            }
+        };
+        const auto measurePhase = [this, durationMs, &layers](const QString& profile) {
+            // Let visibility invalidation settle before counting frame presentation.
+            QElapsedTimer settle;
+            settle.start();
+            while (settle.elapsed() < 250) {
+                QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
+                QThread::msleep(5);
+            }
+
+            const auto presentedBefore = playback_->observedPresentedFrameCount();
+            const auto droppedBefore = playback_->droppedFrameCount();
+            int totalLayers = 0;
+            int visibleLayers = 0;
+            for (const auto& layer : layers) {
+                if (!layer) continue;
+                ++totalLayers;
+                if (layer->isVisible()) ++visibleLayers;
+            }
+            const int hiddenLayers = totalLayers - visibleLayers;
+            std::int64_t previousFrame = playback_->currentFrame().framePosition();
+            int frameAdvances = 0;
+            int stalledSamples = 0;
+            int samples = 0;
+            QElapsedTimer timer;
+            timer.start();
+            qint64 nextSampleMs = 100;
+            while (timer.elapsed() < durationMs && playback_->isPlaying()) {
+                QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
+                QThread::msleep(5);
+                if (timer.elapsed() < nextSampleMs) continue;
+                const std::int64_t frame = playback_->currentFrame().framePosition();
+                if (frame == previousFrame) ++stalledSamples;
+                else ++frameAdvances;
+                previousFrame = frame;
+                ++samples;
+                nextSampleMs += 100;
+            }
+            const qint64 elapsedMs = timer.elapsed();
+            const bool stillPlaying = playback_->isPlaying();
+            const auto presentedAfter = playback_->observedPresentedFrameCount();
+            const auto droppedAfter = playback_->droppedFrameCount();
+            return QJsonObject{
+                {QStringLiteral("profile"), profile},
+                {QStringLiteral("visibleLayerCount"), visibleLayers},
+                {QStringLiteral("hiddenLayerCount"), hiddenLayers},
+                {QStringLiteral("elapsedMs"), elapsedMs},
+                {QStringLiteral("frameAdvanceSamples"), frameAdvances},
+                {QStringLiteral("frameAdvanceSamplesPerSecond"), elapsedMs > 0
+                    ? static_cast<double>(frameAdvances) * 1000.0 / elapsedMs : 0.0},
+                {QStringLiteral("stalledSamples"), stalledSamples},
+                {QStringLiteral("sampleCount"), samples},
+                {QStringLiteral("presentedFrameDelta"), presentedAfter - presentedBefore},
+                {QStringLiteral("droppedFrameDelta"), droppedAfter - droppedBefore},
+                {QStringLiteral("playbackContinued"), stillPlaying},
+                {QStringLiteral("transportWidgetMatchesService"),
+                    transportWidgetMatchesService()},
+                {QStringLiteral("passed"), stillPlaying && frameAdvances > 0 &&
+                    transportWidgetMatchesService()}};
+        };
+
+        applyProfile(false);
+        const QJsonObject allVisible = measurePhase(QStringLiteral("all-visible"));
+        applyProfile(true);
+        const QJsonObject alternateHidden =
+            measurePhase(QStringLiteral("alternate-hidden"));
+        for (int index = 0; index < layers.size(); ++index) {
+            if (layers[index]) layers[index]->setVisible(originalVisibility.at(index));
+        }
+        pumpFor(250);
+
+        bool visibilityRestored = true;
+        for (int index = 0; index < layers.size(); ++index) {
+            if (layers[index] && layers[index]->isVisible() != originalVisibility.at(index))
+                visibilityRestored = false;
+        }
+        QJsonObject result = state();
+        result[QStringLiteral("durationMsPerProfile")] = durationMs;
+        result[QStringLiteral("allVisible")] = allVisible;
+        result[QStringLiteral("alternateHidden")] = alternateHidden;
+        result[QStringLiteral("visibilityRestored")] = visibilityRestored;
+        result[QStringLiteral("passed")] = allVisible.value(QStringLiteral("passed")).toBool() &&
+            alternateHidden.value(QStringLiteral("passed")).toBool() &&
+            allVisible.value(QStringLiteral("hiddenLayerCount")).toInt() == 0 &&
+            alternateHidden.value(QStringLiteral("hiddenLayerCount")).toInt() > 0 &&
+            visibilityRestored && transportWidgetMatchesService();
+        if (!result.value(QStringLiteral("passed")).toBool())
+            result[QStringLiteral("error")] =
+                QStringLiteral("visibility comparison did not complete both profiles and restore layer state");
+        return result;
     }
 
     QJsonObject capture(int timeoutMs)
@@ -259,6 +522,14 @@ private:
     static QJsonObject error(const QString& message)
     { return {{QStringLiteral("error"), message}}; }
 
+    bool transportWidgetMatchesService() const
+    {
+        if (!playback_ || !transportWidget_) return false;
+        return transportWidget_->isPlaying() == playback_->isPlaying() &&
+            transportWidget_->isPaused() == playback_->isPaused() &&
+            transportWidget_->isStopped() == playback_->isStopped();
+    }
+
     bool prepare()
     {
         if (!playback_ || !project_) { setupError_ = QStringLiteral("required services are unavailable"); return false; }
@@ -266,7 +537,9 @@ private:
             static_cast<qint64>(config_.compositionCount) * config_.layersPerComposition > 5000 ||
             config_.width < 64 || config_.height < 64 || !std::isfinite(config_.fps) ||
             config_.fps <= 0.0 || config_.durationSeconds < 1 ||
-            config_.sampleIntervalMs < 100) {
+            config_.sampleIntervalMs < 100 ||
+            (config_.visibilityProfile != QStringLiteral("all-visible") &&
+             config_.visibilityProfile != QStringLiteral("alternate-hidden"))) {
             setupError_ = QStringLiteral("invalid stress configuration"); return false;
         }
         for (int compositionIndex = 0; compositionIndex < config_.compositionCount; ++compositionIndex) {
@@ -301,6 +574,10 @@ private:
                 if (layers.isEmpty() || !layers.back()) {
                     setupError_ = QStringLiteral("layer creation failed at index %1").arg(layerIndex);
                     return false;
+                }
+                if (config_.visibilityProfile == QStringLiteral("alternate-hidden") &&
+                    layerIndex % 2 == 1) {
+                    layers.back()->setVisible(false);
                 }
                 const float x = (static_cast<float>(layerIndex % columns) + 0.5f) * cellWidth - 16.0f;
                 const float y = (static_cast<float>(layerIndex / columns) + 0.5f) * cellHeight - 16.0f;
@@ -385,10 +662,14 @@ private:
         for (const auto& composition : compositions_)
             if (composition) compositionIds.append(composition->id().toString());
         QJsonObject result{{QStringLiteral("finishReason"), reason},
-            {QStringLiteral("passed"), reason == QStringLiteral("duration-complete") && frameAdvances_ > 0},
+            {QStringLiteral("passed"), reason == QStringLiteral("duration-complete") &&
+                frameAdvances_ > 0 && transportWidgetMatchesService()},
+            {QStringLiteral("transportWidgetMatchesService"),
+                transportWidgetMatchesService()},
             {QStringLiteral("elapsedMs"), elapsed},
             {QStringLiteral("compositionCount"), config_.compositionCount},
             {QStringLiteral("layersPerComposition"), config_.layersPerComposition},
+            {QStringLiteral("visibilityProfile"), config_.visibilityProfile},
             {QStringLiteral("totalLayerCount"), config_.compositionCount * config_.layersPerComposition},
             {QStringLiteral("width"), config_.width},
             {QStringLiteral("height"), config_.height},
@@ -438,6 +719,7 @@ private:
     Artifact::ArtifactProjectService* project_ = nullptr;
     QVector<Artifact::ArtifactCompositionPtr> compositions_;
     QLabel* status_ = nullptr;
+    Artifact::ArtifactPlaybackControlWidget* transportWidget_ = nullptr;
     Artifact::ArtifactCompositionRenderWidget* viewport_ = nullptr;
     QElapsedTimer runTimer_;
     QJsonArray samples_;
@@ -529,6 +811,16 @@ int main(int argc, char** argv)
             }
             config.transformProfile = profile;
         }
+        else if (option == QStringLiteral("--visibility-profile")) {
+            const QString profile = value.trimmed().toLower();
+            if (profile != QStringLiteral("all-visible") &&
+                profile != QStringLiteral("alternate-hidden")) {
+                std::fprintf(stderr, "Unsupported visibility profile: %s\n",
+                             value.toUtf8().constData());
+                return 2;
+            }
+            config.visibilityProfile = profile;
+        }
         else if (option == QStringLiteral("--fps")) { bool ok = false; const double fps = value.toDouble(&ok); if (ok && std::isfinite(fps) && fps > 0.0 && fps <= 240.0) config.fps = fps; }
         else if (option == QStringLiteral("--output-dir")) config.outputDirectory = value;
         else --index;
@@ -585,6 +877,63 @@ int main(int argc, char** argv)
                     value.toDouble() < 0 || value.toDouble() > std::numeric_limits<int>::max())
                     return QJsonObject{{QStringLiteral("error"), QStringLiteral("index must be a non-negative integer")}};
                 return window.switchComposition(value.toInt());
+            });
+        ok &= mcp.registerTool(QStringLiteral("stress.cycleCompositions"), QStringLiteral("Play through every generated composition and verify each transition"),
+            QJsonObject{{QStringLiteral("type"), QStringLiteral("object")},
+                {QStringLiteral("properties"), QJsonObject{
+                    {QStringLiteral("cycles"), QJsonObject{{QStringLiteral("type"), QStringLiteral("integer")},
+                        {QStringLiteral("minimum"), 1}, {QStringLiteral("maximum"), 100}}},
+                    {QStringLiteral("settleMs"), QJsonObject{{QStringLiteral("type"), QStringLiteral("integer")},
+                        {QStringLiteral("minimum"), 100}, {QStringLiteral("maximum"), 10000}}}}}},
+            [&window](const QJsonObject& args) {
+                int cycles = 1;
+                int settleMs = 500;
+                if (args.contains(QStringLiteral("cycles")) &&
+                    !parsePositive(args.value(QStringLiteral("cycles")).toVariant().toString(),
+                                   cycles, 100))
+                    return QJsonObject{{QStringLiteral("error"), QStringLiteral("cycles must be in [1,100]")}};
+                if (args.contains(QStringLiteral("settleMs")) &&
+                    !parsePositive(args.value(QStringLiteral("settleMs")).toVariant().toString(),
+                                   settleMs, 10000))
+                    return QJsonObject{{QStringLiteral("error"), QStringLiteral("settleMs must be in [100,10000]")}};
+                if (settleMs < 100)
+                    return QJsonObject{{QStringLiteral("error"), QStringLiteral("settleMs must be in [100,10000]")}};
+                return window.cycleCompositions(cycles, settleMs);
+            });
+        ok &= mcp.registerTool(QStringLiteral("stress.resizeWhilePlaying"), QStringLiteral("Resize the stress window while playback continues"),
+            QJsonObject{{QStringLiteral("type"), QStringLiteral("object")},
+                {QStringLiteral("properties"), QJsonObject{
+                    {QStringLiteral("width"), QJsonObject{{QStringLiteral("type"), QStringLiteral("integer")}}},
+                    {QStringLiteral("height"), QJsonObject{{QStringLiteral("type"), QStringLiteral("integer")}}},
+                    {QStringLiteral("settleMs"), QJsonObject{{QStringLiteral("type"), QStringLiteral("integer")}}}}},
+                {QStringLiteral("required"), QJsonArray{QStringLiteral("width"), QStringLiteral("height")}}},
+            [&window](const QJsonObject& args) {
+                int width = 0;
+                int height = 0;
+                int settleMs = 500;
+                if (!parsePositive(args.value(QStringLiteral("width")).toVariant().toString(),
+                                   width, 4096) ||
+                    !parsePositive(args.value(QStringLiteral("height")).toVariant().toString(),
+                                   height, 2160))
+                    return QJsonObject{{QStringLiteral("error"), QStringLiteral("width or height is invalid")}};
+                if (args.contains(QStringLiteral("settleMs")) &&
+                    !parsePositive(args.value(QStringLiteral("settleMs")).toVariant().toString(),
+                                   settleMs, 10000))
+                    return QJsonObject{{QStringLiteral("error"), QStringLiteral("settleMs must be in [1,10000]")}};
+                return window.resizeWhilePlaying(width, height, settleMs);
+            });
+        ok &= mcp.registerTool(QStringLiteral("stress.compareVisibilityProfiles"), QStringLiteral("Compare playback with all layers visible and alternating layers hidden"),
+            QJsonObject{{QStringLiteral("type"), QStringLiteral("object")},
+                {QStringLiteral("properties"), QJsonObject{
+                    {QStringLiteral("durationMs"), QJsonObject{{QStringLiteral("type"), QStringLiteral("integer")},
+                        {QStringLiteral("minimum"), 1000}, {QStringLiteral("maximum"), 30000}}}}},
+                {QStringLiteral("required"), QJsonArray{QStringLiteral("durationMs")}}},
+            [&window](const QJsonObject& args) {
+                int durationMs = 0;
+                if (!parsePositive(args.value(QStringLiteral("durationMs")).toVariant().toString(),
+                                   durationMs, 30000) || durationMs < 1000)
+                    return QJsonObject{{QStringLiteral("error"), QStringLiteral("durationMs must be in [1000,30000]")}};
+                return window.compareVisibilityProfiles(durationMs);
             });
         ok &= mcp.registerTool(QStringLiteral("stress.capture"), QStringLiteral("Capture the test window without activating it"),
             QJsonObject{{QStringLiteral("type"), QStringLiteral("object")},

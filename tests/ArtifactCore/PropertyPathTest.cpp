@@ -67,3 +67,26 @@ TEST(PropertyPathTest, SingleSegmentIsAValidLeafWithoutOwnerOrParent)
     EXPECT_TRUE(path.parent().isEmpty());
     EXPECT_EQ(path.parent().depth(), 0);
 }
+
+TEST(PropertyPathTest, EmptyAndSeparatorOnlyPathsAreInvalid)
+{
+    const PropertyPath empty;
+    const PropertyPath separators(QStringLiteral("...."));
+    const PropertyPath emptyParts(QString(), QString());
+
+    EXPECT_FALSE(empty.isValid());
+    EXPECT_TRUE(empty.isEmpty());
+    EXPECT_FALSE(separators.isValid());
+    EXPECT_TRUE(separators.isEmpty());
+    EXPECT_TRUE(separators.toString().isEmpty());
+    EXPECT_FALSE(emptyParts.isValid());
+}
+
+TEST(PropertyPathTest, TwoPartConstructorAcceptsEitherPartIndependently)
+{
+    const PropertyPath propertyOnly(QString(), QStringLiteral("opacity"));
+    const PropertyPath ownerOnly(QStringLiteral("layer.transform"), QString());
+
+    EXPECT_EQ(propertyOnly.toString(), QStringLiteral("opacity"));
+    EXPECT_EQ(ownerOnly.toString(), QStringLiteral("layer.transform"));
+}
