@@ -217,6 +217,13 @@ def main():
                     and shared_layer_undo["redoRestoredSecondReference"],
                     "Shared Composition Layer add undo/redo changed another instance or registration")
             call("test.reset")
+            layer_flags = call("test.layerFlagsRoundTrip")
+            require(layer_flags["passed"] and layer_flags["childFlagsPreserved"]
+                    and layer_flags["unpackFlagsPreserved"]
+                    and layer_flags["undoFlagsPreserved"]
+                    and layer_flags["redoFlagsPreserved"],
+                    "Visibility, lock, or solo state changed across precompose/unprecompose/undo/redo")
+            call("test.reset")
             shared_child = call("test.sharedChildReferences")
             require(shared_child["passed"] and shared_child["twoReferencesCreated"]
                     and shared_child["childDataPreserved"]
@@ -404,7 +411,7 @@ def main():
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
-            print("PASS: MCP tool catalog, direct/transitive cycle guards, invalid-request and empty MoveAll atomicity, redo-branch replacement, open-child navigation/focus, single-layer round-trip, shared Composition Layer add undo/redo, shared-child references/data, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, nested Master Property save/reload/materialization, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: MCP tool catalog, direct/transitive cycle guards, invalid-request and empty MoveAll atomicity, redo-branch replacement, open-child navigation/focus, single-layer round-trip, shared Composition Layer add undo/redo, visibility/lock/solo round-trip, shared-child references/data, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, nested Master Property save/reload/materialization, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
             try:

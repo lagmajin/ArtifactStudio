@@ -1118,6 +1118,73 @@ public:
             refresh();
             redoResult["state"] = state();
             return redoResult;
+        } else if (name == "test.layerFlagsRoundTrip") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            const auto untouchedIds = namedLayerIds(root, {QStringLiteral("Untouched")});
+            if (sourceIds.size() != 2 || untouchedIds.size() != 1) {
+                result["error"] = QStringLiteral("Layer-flag fixture is missing layers");
+                return result;
+            }
+            const auto layerA = root->layerById(sourceIds.front());
+            const auto layerB = root->layerById(sourceIds.back());
+            const auto untouched = root->layerById(untouchedIds.front());
+            if (!layerA || !layerB || !untouched) {
+                result["error"] = QStringLiteral("Layer-flag fixture contains missing layer objects");
+                return result;
+            }
+            layerA->setVisible(false);
+            layerB->setLocked(true);
+            layerB->setSolo(true);
+            const auto flagsMatch = [&](const ArtifactCompositionPtr& composition) {
+                if (!composition) return false;
+                const auto a = composition->layerById(sourceIds.front());
+                const auto b = composition->layerById(sourceIds.back());
+                return a && b && !a->isVisible() && b->isLocked() && b->isSolo();
+            };
+            const bool untouchedFlagsBefore = untouched->isVisible() &&
+                !untouched->isLocked() && !untouched->isSolo();
+            const bool precomposed = service->precomposeLayersWithUndo(
+                sourceIds, UniString(QStringLiteral("Layer Flags Fixture")), false, false,
+                PrecomposeMode::MoveSelected);
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = precomposed
+                ? service->findComposition(outcome.childCompId).ptr.lock()
+                : ArtifactCompositionPtr{};
+            const bool childFlagsPreserved = precomposed && flagsMatch(child);
+            const bool unpacked = precomposed &&
+                service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const bool unpackFlagsPreserved = unpacked && flagsMatch(root) && untouchedFlagsBefore &&
+                untouched->isVisible() && !untouched->isLocked() && !untouched->isSolo();
+            const bool undoAvailable = unpacked && undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const auto undoChild = service->findComposition(outcome.childCompId).ptr.lock();
+            const bool undoFlagsPreserved = undoAvailable && flagsMatch(undoChild) &&
+                root->layerById(outcome.precompLayerId);
+            const bool redoAvailable = undoFlagsPreserved && undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const bool redoFlagsPreserved = redoAvailable && flagsMatch(root) &&
+                untouched->isVisible() && !untouched->isLocked() && !untouched->isSolo();
+            result["childFlagsPreserved"] = childFlagsPreserved;
+            result["unpackFlagsPreserved"] = unpackFlagsPreserved;
+            result["undoFlagsPreserved"] = undoFlagsPreserved;
+            result["redoFlagsPreserved"] = redoFlagsPreserved;
+            result["passed"] = childFlagsPreserved && unpackFlagsPreserved &&
+                undoFlagsPreserved && redoFlagsPreserved;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Layer visibility, lock, or solo state changed across precompose/unprecompose/undo/redo");
+            childId_ = outcome.childCompId;
+            hasChild_ = !childId_.isNil();
+            service->changeCurrentComposition(rootId);
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.singleLayerRoundTrip") {
             QJsonObject result;
             const auto root = service->currentComposition().lock();
@@ -2855,6 +2922,9 @@ private:
                 {"inFrame", double(layer->inPoint().framePosition())},
                 {"outFrame", double(layer->outPoint().framePosition())},
                 {"opacity", layer->opacity()},
+                {"visible", layer->isVisible()},
+                {"locked", layer->isLocked()},
+                {"solo", layer->isSolo()},
                 {"position", QJsonArray{position.x, position.y, position.z}}};
             auto compositionLayer = dynamicPointerCast<ArtifactCompositionLayer>(layer);
             const auto childId = compositionLayer ? compositionLayer->sourceCompositionId()
@@ -2920,7 +2990,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.sharedCompositionLayerUndoRedo", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.sharedCompositionLayerUndoRedo", "test.sharedChildReferences", "test.layerFlagsRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
