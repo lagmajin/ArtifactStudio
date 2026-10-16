@@ -3772,6 +3772,7 @@ public:
                 missingResult["error"] = QStringLiteral("Missing-child-reference fixture is incomplete");
                 return missingResult;
             }
+            const auto childLayersBeforeBrokenReferenceUnwrap = layers(child, 0);
             childId_ = outcome.childCompId;
             hasChild_ = true;
             wrapper->setCompositionId(CompositionID());
@@ -3782,6 +3783,7 @@ public:
             const bool parentStatePreserved = state()["layers"].toArray() == brokenReferenceLayers;
             const bool compositionPreserved = service->findComposition(outcome.childCompId).ptr.lock() == child &&
                 !child->allLayer().isEmpty() &&
+                layers(child, 0) == childLayersBeforeBrokenReferenceUnwrap &&
                 ArtifactProjectManager::getInstance().compositionCount() == compositionCountBeforeUnwrap;
             const bool wrapperPreserved = root->layerById(outcome.precompLayerId).get() == wrapper.get() &&
                 wrapper->sourceCompositionId().isNil() &&
@@ -3820,6 +3822,7 @@ public:
                 undo->undoCount() == undoCountBeforeDanglingUnwrap &&
                 undo->redoCount() == redoCountBeforeDanglingUnwrap &&
                 service->findComposition(outcome.childCompId).ptr.lock() == child &&
+                layers(child, 0) == childLayersBeforeBrokenReferenceUnwrap &&
                 !service->findComposition(missingChildId).ptr.lock() &&
                 root->layerById(outcome.precompLayerId).get() == wrapper.get() &&
                 wrapper->sourceCompositionId() == missingChildId &&
@@ -3855,6 +3858,7 @@ public:
                 undo->redoCount() == redoCountBeforeSelfReferenceUnwrap &&
                 service->findComposition(rootId).ptr.lock() == root &&
                 service->findComposition(outcome.childCompId).ptr.lock() == child &&
+                layers(child, 0) == childLayersBeforeBrokenReferenceUnwrap &&
                 root->layerById(outcome.precompLayerId).get() == wrapper.get() &&
                 wrapper->sourceCompositionId() == rootId &&
                 selfReferenceManagerMappingPreserved && selfReferenceOutcomeCleared;
