@@ -1708,9 +1708,13 @@ public:
             const auto childLayersBeforeWrongContextUnpack = layers(openedChild, 0);
             const auto undoCountBeforeWrongContextUnpack = undo->undoCount();
             const auto redoCountBeforeWrongContextUnpack = undo->redoCount();
+            const auto stateBeforeWrongContextUnpack = state();
             const bool wrongContextUnpackRejected = childOpened &&
                 !service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const auto stateAfterWrongContextUnpack = state();
             const auto stillOpenedChild = service->currentComposition().lock();
+            const bool wrongContextPublishedStatePreserved = wrongContextUnpackRejected &&
+                stateAfterWrongContextUnpack == stateBeforeWrongContextUnpack;
             const bool wrongContextSelectionPreserved = wrongContextUnpackRejected &&
                 matchesSelection(outcome.childCompId, sourceIds.front());
             const auto& precomposeManager = PreComposeManager::instance();
@@ -1736,7 +1740,8 @@ public:
                 undo->undoCount() == undoCountBeforeWrongContextUnpack &&
                 undo->redoCount() == redoCountBeforeWrongContextUnpack &&
                 wrongContextSelectionPreserved && wrongContextManagerMappingPreserved &&
-                wrongContextReverseMappingPreserved && wrongContextLayerSnapshotsPreserved;
+                wrongContextReverseMappingPreserved && wrongContextLayerSnapshotsPreserved &&
+                wrongContextPublishedStatePreserved;
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
             const auto afterUndo = service->currentComposition().lock();
@@ -1771,6 +1776,7 @@ public:
             result["wrongContextManagerMappingPreserved"] = wrongContextManagerMappingPreserved;
             result["wrongContextReverseMappingPreserved"] = wrongContextReverseMappingPreserved;
             result["wrongContextLayerSnapshotsPreserved"] = wrongContextLayerSnapshotsPreserved;
+            result["wrongContextPublishedStatePreserved"] = wrongContextPublishedStatePreserved;
             result["wrongContextStatePreserved"] = wrongContextStatePreserved;
             result["undoReturnedToRoot"] = undoReturnedToRoot;
             result["redoKeptRootFocused"] = redoKeptRootFocused;

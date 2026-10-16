@@ -343,6 +343,7 @@ def main():
                     and opened_child["wrongContextManagerMappingPreserved"]
                     and opened_child["wrongContextReverseMappingPreserved"]
                     and opened_child["wrongContextLayerSnapshotsPreserved"]
+                    and opened_child["wrongContextPublishedStatePreserved"]
                     and opened_child["wrongContextStatePreserved"]
                     and opened_child["undoReturnedToRoot"]
                     and opened_child["redoKeptRootFocused"] and opened_child["redoRestoredChild"],
@@ -359,6 +360,7 @@ def main():
                     and gui_opened_child["wrongContextManagerMappingPreserved"]
                     and gui_opened_child["wrongContextReverseMappingPreserved"]
                     and gui_opened_child["wrongContextLayerSnapshotsPreserved"]
+                    and gui_opened_child["wrongContextPublishedStatePreserved"]
                     and gui_opened_child["wrongContextStatePreserved"]
                     and gui_opened_child["undoReturnedToRoot"]
                     and gui_opened_child["redoKeptRootFocused"]
