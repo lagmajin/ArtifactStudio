@@ -259,6 +259,14 @@ def main():
                     and child_edits["undoValuesPreserved"]
                     and child_edits["redoValuesPreserved"],
                     "Transform or opacity edits inside a child composition changed across unprecompose/undo/redo")
+            edited_layers = layer_map(child_edits["state"])
+            require(edited_layers["A"]["rotation"] == [17, -23, 38]
+                    and edited_layers["A"]["scale"][:2] == [1.5, 0.75]
+                    and edited_layers["A"]["anchor"] == [11, -6, 2]
+                    and edited_layers["B"]["rotation"] == [-31, 12, 91]
+                    and edited_layers["B"]["scale"][:2] == [0.625, 1.875]
+                    and edited_layers["B"]["anchor"] == [-4, 9, -3],
+                    "MCP state did not expose child-edited rotation, scale, and anchor values")
             call("test.reset")
             selection_transitions = call("test.selectionTransitions")
             require(selection_transitions["passed"]

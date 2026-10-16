@@ -21,6 +21,7 @@
 #include <QTextEdit>
 #include <QTimerEvent>
 #include <QVariant>
+#include <QVector3D>
 #include <QVBoxLayout>
 #include <QVector>
 #include <cmath>
@@ -1581,20 +1582,46 @@ public:
             constexpr float expectedOpacityA = 0.28f;
             constexpr float expectedOpacityB = 0.73f;
             layerA->setPosition3D({135.0f, -42.0f, 7.5f});
+            layerA->setRotation3D(QVector3D(17.0f, -23.0f, 38.0f));
+            layerA->transform3D().setCurrentScale(1.5f, 0.75f);
+            layerA->transform3D().setCurrentAnchor(11.0f, -6.0f, 2.0f);
             layerA->setOpacity(expectedOpacityA);
             layerB->setPosition3D({-18.0f, 64.0f, 2.0f});
+            layerB->setRotation3D(QVector3D(-31.0f, 12.0f, 91.0f));
+            layerB->transform3D().setCurrentScale(0.625f, 1.875f);
+            layerB->transform3D().setCurrentAnchor(-4.0f, 9.0f, -3.0f);
             layerB->setOpacity(expectedOpacityB);
             const auto matchesEditedValues = [&](const ArtifactAbstractLayerPtr& a,
                                                  const ArtifactAbstractLayerPtr& b) {
                 if (!a || !b) return false;
                 const auto positionA = a->position3D();
                 const auto positionB = b->position3D();
+                const auto rotationA = a->rotation3D();
+                const auto rotationB = b->rotation3D();
+                const auto& transformA = a->transform3D();
+                const auto& transformB = b->transform3D();
                 return std::abs(positionA.x - 135.0f) < 1.0e-5f &&
                     std::abs(positionA.y - (-42.0f)) < 1.0e-5f &&
                     std::abs(positionA.z - 7.5f) < 1.0e-5f &&
                     std::abs(positionB.x - (-18.0f)) < 1.0e-5f &&
                     std::abs(positionB.y - 64.0f) < 1.0e-5f &&
                     std::abs(positionB.z - 2.0f) < 1.0e-5f &&
+                    std::abs(rotationA.x() - 17.0f) < 1.0e-5f &&
+                    std::abs(rotationA.y() - (-23.0f)) < 1.0e-5f &&
+                    std::abs(rotationA.z() - 38.0f) < 1.0e-5f &&
+                    std::abs(rotationB.x() - (-31.0f)) < 1.0e-5f &&
+                    std::abs(rotationB.y() - 12.0f) < 1.0e-5f &&
+                    std::abs(rotationB.z() - 91.0f) < 1.0e-5f &&
+                    std::abs(transformA.scaleX() - 1.5f) < 1.0e-5f &&
+                    std::abs(transformA.scaleY() - 0.75f) < 1.0e-5f &&
+                    std::abs(transformA.anchorX() - 11.0f) < 1.0e-5f &&
+                    std::abs(transformA.anchorY() - (-6.0f)) < 1.0e-5f &&
+                    std::abs(transformA.anchorZ() - 2.0f) < 1.0e-5f &&
+                    std::abs(transformB.scaleX() - 0.625f) < 1.0e-5f &&
+                    std::abs(transformB.scaleY() - 1.875f) < 1.0e-5f &&
+                    std::abs(transformB.anchorX() - (-4.0f)) < 1.0e-5f &&
+                    std::abs(transformB.anchorY() - 9.0f) < 1.0e-5f &&
+                    std::abs(transformB.anchorZ() - (-3.0f)) < 1.0e-5f &&
                     std::abs(a->opacity() - expectedOpacityA) < 1.0e-5f &&
                     std::abs(b->opacity() - expectedOpacityB) < 1.0e-5f;
             };
@@ -2936,6 +2963,8 @@ private:
         for (const auto& layer : comp->allLayer()) {
             if (!layer) continue;
             const auto position = layer->position3D();
+            const auto rotation = layer->rotation3D();
+            const auto& transform = layer->transform3D();
             QJsonObject entry{{"id", layer->id().toString()}, {"name", layer->layerName()},
                 {"startFrame", double(layer->startTime().framePosition())},
                 {"inFrame", double(layer->inPoint().framePosition())},
@@ -2946,6 +2975,9 @@ private:
                 {"locked", layer->isLocked()},
                 {"solo", layer->isSolo()},
                 {"blendMode", static_cast<int>(layer->layerBlendType())},
+                {"rotation", QJsonArray{rotation.x(), rotation.y(), rotation.z()}},
+                {"scale", QJsonArray{transform.scaleX(), transform.scaleY(), transform.scaleZ()}},
+                {"anchor", QJsonArray{transform.anchorX(), transform.anchorY(), transform.anchorZ()}},
                 {"position", QJsonArray{position.x, position.y, position.z}}};
             auto compositionLayer = dynamicPointerCast<ArtifactCompositionLayer>(layer);
             const auto childId = compositionLayer ? compositionLayer->sourceCompositionId()
