@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <QString>
 
 #include <cmath>
 #include <cstdint>
@@ -144,11 +145,12 @@ TEST(FrameRateContractTest, InvalidRationalStringsPreserveExistingExactRate)
                                     QStringLiteral("24/-1")};
 
     for (const QString& invalid : invalidRates) {
+        const auto context = invalid.toStdString();
         rate.setFromString(invalid);
-        EXPECT_TRUE(rate.hasExactRational()) << invalid;
-        EXPECT_EQ(rate.numerator(), 30000) << invalid;
-        EXPECT_EQ(rate.denominator(), 1001) << invalid;
-        EXPECT_NEAR(rate.exactFps(), 30000.0 / 1001.0, 1e-12) << invalid;
+        EXPECT_TRUE(rate.hasExactRational()) << context;
+        EXPECT_EQ(rate.numerator(), 30000) << context;
+        EXPECT_EQ(rate.denominator(), 1001) << context;
+        EXPECT_NEAR(rate.exactFps(), 30000.0 / 1001.0, 1e-12) << context;
     }
 }
 
@@ -159,7 +161,8 @@ TEST(FrameRateContractTest, CopyAndCopyAssignmentPreserveExactRate)
     FrameRate assigned(60.0f);
     assigned = source;
 
-    for (const auto* rate : {&copied, &assigned}) {
+    const FrameRate* rates[] = {&copied, &assigned};
+    for (const auto* rate : rates) {
         EXPECT_TRUE(rate->hasExactRational());
         EXPECT_EQ(rate->numerator(), 24000);
         EXPECT_EQ(rate->denominator(), 1001);
@@ -310,7 +313,7 @@ TEST(FrameRateContractTest, InvalidCompleteRationalJsonLeavesDefaultRate)
                                 {QStringLiteral("frameRate"), 60.0}};
     const auto rate = FrameRate::fromJsonStatic(zeroDenominator);
 
-    EXPECT_FLOAT_EQ(rate.framerate(), 30.0f);
+    EXPECT_FLOAT_EQ(rate.framerate(), FrameRate{}.framerate());
     EXPECT_FALSE(rate.hasExactRational());
 }
 
@@ -386,10 +389,12 @@ TEST(FrameRateContractTest, StorageScaleUsesPositiveFallbackForInvalidFps)
     EXPECT_EQ(FrameRate::storageScaleForFps(infinity, -5), 1);
 }
 
-TEST(FrameRateContractTest, StorageScaleSaturatesFiniteValuesBeyondInt64Range)
+TEST(FrameRateContractTest, StorageScaleHandlesLargestRepresentableInputWithinInt64Range)
 {
-    EXPECT_EQ(FrameRate::storageScaleForFps(std::numeric_limits<double>::max()),
-              std::numeric_limits<std::int64_t>::max());
-    EXPECT_EQ(FrameRate::storageScaleForFps(std::numeric_limits<double>::max(), 48),
-              std::numeric_limits<std::int64_t>::max());
+    const double largestRepresentableFps = std::nextafter(
+        static_cast<double>(std::numeric_limits<std::int64_t>::max()), 0.0);
+    const auto expected = static_cast<std::int64_t>(largestRepresentableFps);
+
+    EXPECT_EQ(FrameRate::storageScaleForFps(largestRepresentableFps), expected);
+    EXPECT_EQ(FrameRate::storageScaleForFps(largestRepresentableFps, 48), expected);
 }

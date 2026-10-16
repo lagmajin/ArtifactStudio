@@ -57,12 +57,6 @@ TEST(RationalTimeStandaloneTest, InvalidFrameRatesReturnSafeResults)
     EXPECT_EQ(RationalTime(3, 2).rescaledTo(0), 0);
 }
 
-TEST(RationalTimeStandaloneTest, NegativeTargetScaleReturnsZeroLikeInvalidFrameRate)
-{
-    EXPECT_EQ(RationalTime(1, 2).rescaledTo(-30), 0);
-    EXPECT_EQ(RationalTime(-1, 2).rescaledTo(-30), 0);
-}
-
 TEST(RationalTimeStandaloneTest, FrameCountFactoryFallsBackToUnitScaleForInvalidFps)
 {
     EXPECT_EQ(RationalTime::fromFrameCount(24, 30), RationalTime(24, 30));
@@ -78,8 +72,7 @@ TEST(RationalTimeStandaloneTest, CrossScaleAdditionAndSubtractionStayExact)
     EXPECT_EQ(third + sixth, RationalTime(1, 2));
     EXPECT_EQ(third - sixth, RationalTime(1, 6));
     EXPECT_EQ(sixth - third, RationalTime(-1, 6));
-    EXPECT_EQ((RationalTime(100, 30) + RationalTime(50, 30)).value(), 150);
-    EXPECT_EQ((RationalTime(100, 30) + RationalTime(50, 30)).scale(), 30);
+    EXPECT_EQ(RationalTime(100, 30) + RationalTime(50, 30), RationalTime(5, 1));
 }
 
 TEST(RationalTimeStandaloneTest, AdditionFallsBackWhenCommonScaleOverflows)

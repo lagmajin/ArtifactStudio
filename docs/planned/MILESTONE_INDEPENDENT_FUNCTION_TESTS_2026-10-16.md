@@ -14,12 +14,12 @@
 | # | テスト領域 | 主な独立境界 | 状況 |
 |---:|---|---|---|
 | 1 | キーフレーム補間 | Core `KeyframeSplineTest` | 負時刻・Constant終端・負の線形速度とトラック外速度0のケースを追加。未実行 |
-| 2 | フレームレート変換 | Core `FrameRateContractTest` / `FrameTimeTest` / `RationalTimeContractTest` | 既存suiteでexact/nominal rateのFramePosition↔RationalTime変換、正負half-frame丸め、TimeCodeのdrop-frame 10分境界、invalid rate fallback、storageScaleのhalf boundary sweep・飽和・reference gridまで確認。重複追加なし。runtime未実行 |
-| 3 | PropertyPath | Core `PropertyPathTest` | 空・区切り文字のみ、owner/property片側空ケースを追加。未実行 |
-| 4 | ID・参照整合性 | Core ID契約、Composition Node Store | Node Store用の独立CPU contract targetに6ケース（duplicate/unknown parent/self・ancestor cycle atomicity/removal detach/order+JSON roundtrip/order update/invalid JSON import）を追加。未ビルド・未実行 |
-| 5 | 選択状態遷移 | Selection model/service | 独立PrecomposeViewerに選択遷移ケースあり。重複追加せず実行状態を追跡 |
-| 6 | レイヤー順序操作 | 順序モデル/service | Composition Node StoreにsetOrder・親子順序反映・不正値拒否を追加。未ビルド・未実行 |
-| 7 | レイヤー複製契約 | Layer model/service | Project round-trip独立suiteへID独立・opacity複製・無効ID拒否を追加。未ビルド・未実行 |
+| 2 | フレームレート変換 | Core `FrameRateContractTest` / `FrameTimeTest` / `RationalTimeContractTest` | exact/nominal rate・正負half-frame丸め等の既存coverageを確認。FrameRate独立suite 34/34 pass、RationalTime独立suite 26件中24 pass・2 fail（int64境界のrescaleで符号反転）。`FrameTimeTest`はArtifactCore全体依存のため未実行。 |
+| 3 | PropertyPath | Core `PropertyPathTest` | 空・区切り文字のみ、owner/property片側空ケースを含む7テストを独立targetで実行しpass。 |
+| 4 | ID・参照整合性 | Core ID契約、Composition Node Store | CompositionNodeStore独立suiteの7ケース（duplicate/unknown parent/self・ancestor cycle atomicity/removal detach/reparent/order+JSON roundtrip/order update/invalid JSON import）を実行しpass。 |
+| 5 | 選択状態遷移 | Selection model/service | PrecomposeViewerの別process `--check` harnessにselection保持・切替・Undo/Redoケースあり。ArtifactAppRuntime依存でmodule scanが広域化し、2回目は777/6806段階で中断。GUI runtime未確認。 |
+| 6 | レイヤー順序操作 | 順序モデル/service | #4と同じ独立CompositionNodeStore suiteでsetOrder・親子順序・不正値拒否ケースを実行しpass。 |
+| 7 | レイヤー複製契約 | Layer model/service | Project RoundTrip別process suiteでID独立・opacity複製・Composition登録・無効ID拒否を確認するケースあり。QTemporaryDir、ProjectCleanup、RUN_SERIALで隔離。AppRuntime target依存のため未ビルド・未実行 |
 | 8 | Undo/Redoトランザクション | Undo command/model | 独立Manager contract targetにpush・undo/redo・Redo分岐・push時失敗補償・Undo/Redo中の部分失敗補償・budget拒否・macroの通常動作とmacro内子コマンド失敗時の部分巻戻し（redo/undo双方）を追加。未ビルド・未実行 |
 | 9 | 保存データ移行 | Serialization/schema migration | ArtifactCore独立suiteに複数段移行・未知field保持・不正登録・経路不在時の不変性・複数経路時の最短前方経路選択を追加。静的監査でmigration関数例外時は入力JSONへ段階反映され部分更新となる可能性を発見（ArtifactCore child repo、本作業では未変更）。未ビルド・未実行 |
 | 10 | 部分失敗時の原子性 | Service/API contract | PrecomposeViewerの独立`--check`回帰経路にinvalid request・empty child・cycle拒否などがあり、失敗時の構造・選択・undo/redo履歴を比較。Project RoundTrip suiteにもnil layer/Composition拒否、不正Project置換load失敗時に既存Project/Composition/Layer保持を確認する独立ケースあり。suite結線は静的確認済み。未ビルド・未実行 |
@@ -61,7 +61,12 @@
 - マーカー範囲抽出は両端を含むこと、別ownerの同位置marker pointerを削除要求に渡しても既存markerを保持すること、chapter削除後にchapter indexが更新されることを追加。
 - JSON内の非object/position欠落markerをスキップし、未知typeをCommentとして復元し、その既定色と文字列tagの正規化を確認するケースを追加。
 - In/Out pointsのXML export/importで、frame range、chapter/flash type、XML escapingされたcomment、tagsが往復する契約を追加。XML形式で保存しないmarker色/WebLinkは比較対象外。
-- #2既存suiteを再監査。FrameTimeのFramePosition/TimeCode変換と正負境界、RationalTimeのoverflow/rounding/reference grid、FrameRate storage scaleの境界・飽和ケースが既にあり、追加候補の重複を避けた。
+- #2既存suiteを再監査。FrameTimeのFramePosition/TimeCode変換と正負境界、RationalTimeのoverflow/rounding/reference grid、FrameRate storage scaleの境界ケースが既にあり、追加候補の重複を避けた。runtimeでFrameRate standalone 34/34 pass。RationalTime standaloneは26件中24件passで、`RoundingBiasDoesNotOverflowAtInt64NumeratorLimit` と `RescalingMinimumNumeratorDoesNotNegateOverflow` が失敗し、int64境界での符号反転を再現。out-of-rangeの`double`最大値は公開契約が確認できず飽和期待を削除し、int64範囲内最大の丸め可能入力へ変更。`FrameTimeTest`はArtifactCore全体をlinkするため、EnvironmentVariable module IFCのビルド失敗により未実行。
+- #2のMSVC standalone targetは、別targetへ置いたscanner-disabled module implementationの明示`/reference`とQt runtime DLL PATHが不足していたため、test-only CMakeに補完。FrameRate test sourceにも直接QString includeとMSVCで不正なinitializer-list型推論を修正。製品ターゲット・子repoは変更していない。
+- #3 `PropertyPathTest` は単独module interface targetで7ケースすべてpass。`QString(), QString()`のdirect-initializationがmost-vexing-parseとなり `.isValid()` を呼べないため、test fixtureをbrace initializationへ変更。
+- #4/#6 CompositionNodeStore suiteはArtifact child module interfaceと実装だけを使うstandalone CPU processで7ケースすべてpass。通常のArtifact CMake suiteはArtifactAppRuntimeへリンクしているが、この契約範囲では製品アプリやAppRuntimeを起動・リンクせず検査できることを確認。
+- #5の`ArtifactPrecomposeViewer` target buildは`ArtifactAppRuntime`を経由してArtifactCore全moduleのdependency scanを開始し、実コンパイル前に最初の試行は526/7326、二度目は777/6806 scanで中断。再確認時点でも`ArtifactCore/CMakeLists.txt`の`EnvironmentVariable.cppm`はinterface objectへの`OBJECT_DEPENDS`だけで、MSVCに必要なIFC `/reference`を持たない構成だった。過去に同じtarget graphで当該module-not-foundを確認済み。製品app processは起動しておらず、GUIケースはruntime未実行。
+- #7 DuplicateLayerケースはProjectManager serviceを通し、別ID・コピーしたopacity/name・composition内の双方存在・nil ID拒否を検査する。`QTemporaryDir`と`ProjectCleanup`でproject状態を隔離し、CTestは`RUN_SERIAL`。
 - #1に負の線形傾きとトラック両端外で速度が0へクランプされる契約を追加。既存の正の傾き・定数区間ケースと重複しない。
 - #23 の前回記録「feature flagをcache keyへ代入していない」は現状態と不一致だったため撤回。現在の`ArtifactCore/include/Graphics/RenderPipelineFoundation.ixx`では3 flagのkeyへの代入、`RenderCacheKey::stableHash()`での混入、既存契約テストの差分assertを静的に確認した。実行未確認。
 - Playback stress harness にComposition連続巡回操作を追加。各遷移でPlayback Serviceの対象・再生状態とフレーム進行をまとめて返す。GPU/GUI環境での実行は未実施。

@@ -2,6 +2,34 @@
 
 # Insight Register
 
+## 2026-10-16: RationalTimeのint64境界rescaleが符号を反転する
+
+- **関連:** `ArtifactCore/src/Time/RationalTime.cppm` の `RationalTime::rescaledTo()`、`tests/ArtifactCore/RationalTimeContractTest.cpp`、`tests/ArtifactCore/RationalTimeStandalone/CMakeLists.txt`。
+- **確認できた事実:** MSVC standalone suiteで26件中24件が通り、`INT64_MAX / 2` と `INT64_MIN / 2` をscale 1へrescaleする2ケースが失敗した。runtime結果はそれぞれ数学的な符号と逆向きの値を返した。実装は正数側で`numerator + denominator / 2`、負数側で`-numerator`を計算しており、int64境界の加算・符号反転を安全化していない。
+- **価値／懸念:** フレーム時間変換の極端値で時間方向が反転する可能性を独立CPUテストで再現できた。修正はArtifactCore child repoの変更となるため、今回のテスト作業では行っていない。
+- **次に確認:** ArtifactCore変更を含む明示依頼の後、境界演算をchecked arithmeticまたは符号付きsafe roundingへ置き換え、該当2ケースとRationalTime全suiteを再実行する。
+
+## 2026-10-16: MSVC standalone module testはIFCとQt runtime pathを明示する
+
+- **関連:** `tests/ArtifactCore/StandaloneTestHelpers.cmake`、`FrameRateStandalone/CMakeLists.txt`、`RationalTimeStandalone/CMakeLists.txt`、`PropertyPathStandalone/CMakeLists.txt`。
+- **確認できた事実:** scanner-disabledのmodule implementationをinterface targetと分けるstandalone buildでは、MSVCがprimary interface / import IFCを自動参照しないケースがあり、明示`/reference`指定とinterface targetのbuild dependencyが必要だった。Qtを動的リンクするCTestもQt CoreのDLL directoryを`PATH`へ追加しないと`0xc0000135`で起動しなかった。
+- **価値／懸念:** 小さなCPU contract suiteをArtifactCore全targetから隔離でき、unrelated module failuresによる実行阻害を避けられる。IFC pathはstandalone targetごとのmodule依存に合わせて指定する必要がある。
+- **次に確認:** 新しいstandalone targetを作る際、interface IFC build order、implementation imports、CTestのQt runtime pathを構成時に確認する。
+
+## 2026-10-16: CompositionNodeStore契約はArtifactAppRuntimeなしで検証できる
+
+- **関連:** `Artifact/include/Composition/ArtifactCompositionNodes.ixx`、`Artifact/src/Composition/ArtifactCompositionNodes.cppm`、`tests/Artifact/CompositionNodeStoreContractTest.cpp`、`tests/Artifact/CompositionNodesStandalone/CMakeLists.txt`。
+- **確認できた事実:** CompositionNodeStore単体suiteは上記Artifact module interfaceと実装だけをコンパイル・リンクし、MSVC standalone processで7ケースすべて通った。既存のArtifact test targetは同じCPU契約suiteにArtifactAppRuntimeをリンクしている。
+- **価値／懸念:** このモデル契約をアプリruntimeや他のArtifactCore module群から分離して検証でき、広い依存targetのビルド失敗と切り分けやすい。
+- **次に確認:** test targetを統合する場合も、必要moduleだけのリンク境界を維持し、AppRuntimeの追加を避けられるか検討する。
+
+## 2026-10-16: PrecomposeViewer選択テストのbuildは全module再走査を伴う
+
+- **関連:** `CMakeLists.txt` の `ArtifactPrecomposeViewer` target、`tests/Artifact/PrecomposeViewerMain.cpp`。
+- **確認できた事実:** targetは`ArtifactAppRuntime`へリンクし、ArtifactCoreを含む全module dependency scanを開始した。最初の試行は526/7326、二度目は777/6806 scan時点で中断し、ArtifactCoreのCMakeには`EnvironmentVariable.cppm`のmodule IFC `/reference`がない一方でinterface objectの`OBJECT_DEPENDS`だけが残る。過去の同じbuild graphは当該module-not-foundで失敗した。製品アプリやGUI processは起動していない。
+- **価値／懸念:** 独立実行ファイルでもAppRuntime全体を参照すると全module再走査が必要になり、さらに既知のIFC blockerがある。GUIケース自体は別processだが、ローカルで繰り返し実行するbuild負荷は高い。
+- **次に確認:** ArtifactCore child repoの変更許可が得られた後にIFC参照を修正し、既存build成果物が活用される状態でPrecomposeViewerの`--check`を実行する。現作業ではサブモジュールを変更しない。
+
 ## 2026-10-16: AudioReverbのSize公開設定が信号処理へ未接続
 
 - **関連:** `ArtifactCore/include/Audio/AudioReverb.ixx`、`ArtifactCore/src/Audio/AudioReverb.cppm`、`tests/ArtifactCore/AudioReverbStandaloneTest.cpp`。

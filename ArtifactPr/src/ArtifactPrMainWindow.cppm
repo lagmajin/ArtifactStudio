@@ -73,8 +73,8 @@ import ArtifactPr.SequenceCompositor;
 import ArtifactPr.TransportBarWidget;
 import ArtifactPr.VideoPlayerWidget;
 import ArtifactPr.AppTheme;
-import Artifact.DockManager;
-import Artifact.NativeDockSurface;
+import Dock.Manager;
+import Dock.NativeDockSurface;
 import Widgets.Utils.CSS;
 
 import Image.ImageF32x4_RGBA;
@@ -3459,12 +3459,12 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     });
 
     // QtAdvancedDocking を撤去し、共有の dock surface を使う。
-    auto* dockSurface = new Artifact::NativeDockSurface();
+    auto* dockSurface = new Dock::NativeDockSurface(qApp->palette());
     setCentralWidget(dockSurface);
 
     auto* projectPanel = new ProjectPanel();
     dockSurface->addDockWidget(QStringLiteral("project"), QStringLiteral("Project"),
-                               projectPanel, Artifact::DockArea::Left);
+                               projectPanel, Dock::DockArea::Left);
 
     mediaPanel_ = new MediaPanel();
     auto* mediaPanel = mediaPanel_;
@@ -3474,7 +3474,7 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     auto* sourceMonitorPanel = new SourceMonitorPanel();
     dockSurface->addDockWidget(QStringLiteral("sourceMonitor"),
                                QStringLiteral("Source Monitor"),
-                               sourceMonitorPanel, Artifact::DockArea::Right);
+                               sourceMonitorPanel, Dock::DockArea::Right);
 
     connect(mediaPanel, &MediaPanel::mediaSelected, sourceMonitorPanel, &SourceMonitorPanel::loadMedia);
 
@@ -3487,12 +3487,12 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     // 先行生成して後続の配線へ渡す。
     auto* timelinePanel = new TimelinePanel();
     dockSurface->addDockWidget(QStringLiteral("timeline"), QStringLiteral("Timeline"),
-                               timelinePanel, Artifact::DockArea::Bottom);
+                               timelinePanel, Dock::DockArea::Bottom);
 
     auto* audioMeterPanel = new AudioMeterPanel();
     dockSurface->addDockWidget(QStringLiteral("audioMeters"),
                                QStringLiteral("Audio Meters"),
-                               audioMeterPanel, Artifact::DockArea::Right);
+                               audioMeterPanel, Dock::DockArea::Right);
 
     programMonitorPanel->setMeterPanel(audioMeterPanel);
     timelinePanel->setWaveformProvider(programMonitorPanel->waveformProvider());
@@ -3500,21 +3500,21 @@ ArtifactPrMainWindow::ArtifactPrMainWindow(QWidget* parent)
     auto* transitionPanel = new TransitionPanel();
     dockSurface->addDockWidget(QStringLiteral("transitions"),
                                trUi("Transitions", "トランジション"),
-                               transitionPanel, Artifact::DockArea::Right);
+                               transitionPanel, Dock::DockArea::Right);
 
     auto* effectsPanel = new EffectsPanel();
     dockSurface->addDockWidget(QStringLiteral("effects"),
                                trUi("Effects", "エフェクト"),
-                               effectsPanel, Artifact::DockArea::Right);
+                               effectsPanel, Dock::DockArea::Right);
 
     auto* proxyPanel = new ProxyPanel();
     dockSurface->addDockWidget(QStringLiteral("proxy"), QStringLiteral("Proxy"),
-                               proxyPanel, Artifact::DockArea::Right);
+                               proxyPanel, Dock::DockArea::Right);
 
     auto* clipPropsPanel = new ClipPropertiesPanel();
     dockSurface->addDockWidget(QStringLiteral("clipProperties"),
                                QStringLiteral("Clip Properties"),
-                               clipPropsPanel, Artifact::DockArea::Right);
+                               clipPropsPanel, Dock::DockArea::Right);
 
     dockSurface_ = dockSurface;
 

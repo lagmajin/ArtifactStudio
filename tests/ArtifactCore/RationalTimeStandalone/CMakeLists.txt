@@ -23,6 +23,12 @@ artifact_add_standalone_module_implementation(RationalTimeUnderTest
 )
 
 if(MSVC)
+    set_property(SOURCE "${CMAKE_CURRENT_BINARY_DIR}/standalone_implementations/RationalTimeUnderTest_RationalTime.cpp"
+        APPEND PROPERTY COMPILE_OPTIONS
+            "/reference;Time.Rational=${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/RationalTimeModuleInterfaces.dir/Time.Rational.ifc")
+endif()
+
+if(MSVC)
     add_dependencies(RationalTimeUnderTest RationalTimeModuleInterfaces)
 endif()
 
@@ -30,6 +36,9 @@ artifact_add_standalone_gtest(ArtifactCoreRationalTimeContractTest
     SOURCES "${CMAKE_CURRENT_LIST_DIR}/../RationalTimeContractTest.cpp"
     LINK_LIBS RationalTimeUnderTest RationalTimeModuleInterfaces Qt6::Core
     LABELS "time;rational;cpu;contract;standalone"
+)
+set_property(TEST ArtifactCoreRationalTimeContractTest APPEND PROPERTY
+    ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
 )
 
 enable_testing()

@@ -72,7 +72,7 @@ TEST(PropertyPathTest, EmptyAndSeparatorOnlyPathsAreInvalid)
 {
     const PropertyPath empty;
     const PropertyPath separators(QStringLiteral("...."));
-    const PropertyPath emptyParts(QString(), QString());
+    const PropertyPath emptyParts{QString(), QString()};
 
     EXPECT_FALSE(empty.isValid());
     EXPECT_TRUE(empty.isEmpty());

@@ -1,7 +1,7 @@
 # 独自ドッキングウィジェットマネージャ移行マイルストーン
 
-**最終更新:** 2026-09-27
-**ステータス:** Phase 1–3 partial / Phase 6 (2系統統合) 実装完了、runtime verification pending。floating lifecycle と backend switch pending
+**最終更新:** 2026-10-16
+**ステータス:** Phase 1–3 partial / Phase 6 (2系統統合) 実装完了、外部再利用境界を整備中。runtime verification pending。floating lifecycle と backend switch pending
 
 ## 現行コード監査 (2026-08-15)
 
@@ -160,6 +160,16 @@ MVP の目的は機能数を増やすことではなく、独自 backend が実�
 ## 次の実装単位
 
 次は Composition Viewer と Inspector に限定して native backend を実運用経路へ接続し、QADS backend との混在・切替・portable layout 復元を確認する。その後に floating lifecycle と native window policy を facade の責務へ移す。全パネルを独自 backend へ移すことは MVP の完了条件ではない。
+
+## 外部アプリ再利用の境界 (2026-10-16)
+
+別アプリからの再利用要望に対応し、共有dockコードをArtifact固有テーマ／名前空間から切り離す。
+
+- `Dock.Manager` と `Dock.NativeDockSurface` を公開module名とし、`Dock` namespaceを正規APIとする。既存利用者向けに `Artifact.DockManager` / `Artifact.NativeDockSurface` の再export moduleと `Artifact` namespace aliasを残す。
+- `NativeDockSurface` は `QPalette` を受け取り、ArtifactCoreのDCCテーマを内部参照しない。各アプリが自身のテーマからpaletteを作り、`setDockPalette()` で実行時変更を全tab surfaceへ同期できる。
+- `ArtifactDockFoundation` のリンク依存をQt Core/Gui/Widgetsだけにする。`Artifact/DockFoundation/CMakeLists.txt` をstandalone CMake subprojectとし、`Dock::Foundation` target aliasを公開する。外部Qtアプリはこのディレクトリを `add_subdirectory` で追加してtargetをリンクできる。
+- `find_package(DockFoundation CONFIG)` 用のinstall/export packageと `Artifact/DockFoundation/README.md` の導入手順を追加した。Sourceはまだ `Artifact` リポジトリ内にあり、独立versioningと別アプリでの実統合は未確認。
+- `ArtifactNative...` のobjectName/property識別子、翻訳・設定保存、floating window policyなどArtifact固有要素は残るため、完全な汎用化と外部アプリでの実動作確認は未完了。
 
 ## 検証メモ
 

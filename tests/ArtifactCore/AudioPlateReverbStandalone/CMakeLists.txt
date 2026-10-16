@@ -25,7 +25,10 @@ artifact_add_standalone_module_interface(AudioPlateReverbModuleInterfaces
 artifact_add_standalone_module_implementation(AudioPlateReverbUnderTest
     SOURCES "${ARTIFACT_CORE_ROOT}/src/Audio/AudioPlateReverb.cppm"
     LINK_LIBS AudioPlateReverbModuleInterfaces Qt6::Core
-    INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
+    # MSVC は .cppm をバイナリ dir へコピーして .cpp として compile するため、
+    # 実装内の "../Define/..." が原文位置で解決しない。include/Audio を
+    # 追加すると include/Audio/../Define として解決する(既存表記は不変)。
+    INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include" "${ARTIFACT_CORE_ROOT}/include/Audio"
 )
 
 if(MSVC)

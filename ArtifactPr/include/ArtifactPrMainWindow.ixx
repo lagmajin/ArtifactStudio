@@ -15,9 +15,9 @@ import ArtifactPr.TimecodeOverlayWidget;
 export class TransportBarWidget;
 export class MediaPanel;
 
-namespace Artifact {
+namespace Dock {
 class NativeDockSurface;
-} // namespace Artifact
+} // namespace Dock
 
 export class ArtifactPrMainWindow : public QMainWindow
 {
@@ -50,6 +50,6 @@ private:
     QTimer* autoSaveTimer_ = nullptr;
     ArtifactPr::TimecodeOverlayWidget* timecodeOverlay_ = nullptr;
     MediaPanel* mediaPanel_ = nullptr;
-    Artifact::NativeDockSurface* dockSurface_ = nullptr;
+    Dock::NativeDockSurface* dockSurface_ = nullptr;
     bool projectDirty_ = false;
 };
