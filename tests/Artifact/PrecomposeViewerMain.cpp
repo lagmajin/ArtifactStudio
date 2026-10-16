@@ -287,6 +287,12 @@ public:
                 QStringList{QStringLiteral("A"), QStringLiteral("B"), QStringLiteral("Untouched")};
             const bool resetByKey = resetHasExpectedNames && !afterReset["canUndo"].toBool() &&
                 !afterReset["canRedo"].toBool() && !afterReset.contains("lastChildExists");
+            const auto resetSelection = afterReset["selection"].toObject();
+            const bool resetSelectionByKey =
+                resetSelection["activeCompositionId"].toString() ==
+                    afterReset["compositionId"].toString() &&
+                resetSelection["selectedLayerIds"].toArray().isEmpty() &&
+                !resetSelection.contains("currentLayerId");
             QJsonObject result{{"precomposedByKey", precomposedByKey},
                                {"undoneByKey", undoneByKey},
                                {"redoneByKey", redoneByKey},
@@ -304,6 +310,7 @@ public:
                                {"allUndoByKey", allUndoByKey},
                                {"allRedoByKey", allRedoByKey},
                                {"resetByKey", resetByKey},
+                               {"resetSelectionByKey", resetSelectionByKey},
                                {"passed", precomposedByKey && selectedSettingsCopiedByKey &&
                                    precomposeSelectionByKey &&
                                    undoneByKey && redoneByKey &&
@@ -311,7 +318,7 @@ public:
                                    precomposedForDeleteByKey && unpackedDeleteByKey &&
                                    deleteUndoByKey && deleteRedoByKey && allMovedByKey &&
                                    allSettingsCopiedByKey &&
-                                   allUndoByKey && allRedoByKey && resetByKey},
+                                   allUndoByKey && allRedoByKey && resetByKey && resetSelectionByKey},
                                {"state", afterReset}};
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("GUI P/K/D/Z/Y keyboard routing failed to round-trip precompose and unprecompose");
