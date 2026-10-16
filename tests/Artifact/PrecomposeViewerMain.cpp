@@ -714,6 +714,90 @@ public:
             refresh();
             result["state"] = state();
             return result;
+        } else if (name == "test.componentDescriptorsSurviveUnprecompose") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            const auto source = sourceIds.size() == 2 ? root->layerById(sourceIds.front())
+                                                      : ArtifactAbstractLayerPtr{};
+            if (!source) {
+                result["error"] = QStringLiteral("Component-descriptor fixture is missing source layer A/B");
+                return result;
+            }
+            (void)source->layerComponents();
+            auto authoredSnapshot = source->componentDescriptorSnapshot();
+            QJsonArray componentGraph = authoredSnapshot.value(QStringLiteral("componentGraph")).toArray();
+            const QJsonObject authoredDescriptor{
+                {QStringLiteral("componentId"), QStringLiteral("test.precompose.component")},
+                {QStringLiteral("typeId"), QStringLiteral("artifact.test.precompose.scope")},
+                {QStringLiteral("version"), 3},
+                {QStringLiteral("enabled"), false},
+                {QStringLiteral("phase"), QStringLiteral("dynamics")},
+                {QStringLiteral("scope"), QStringLiteral("layer")},
+                {QStringLiteral("order"), 23},
+                {QStringLiteral("requires"), QJsonArray{QStringLiteral("artifact.layer.source")} },
+                {QStringLiteral("settings"), QJsonObject{
+                     {QStringLiteral("label"), QStringLiteral("Precompose fixture")},
+                     {QStringLiteral("gain"), 1.75},
+                     {QStringLiteral("nested"), QJsonObject{
+                          {QStringLiteral("enabled"), true},
+                          {QStringLiteral("samples"), QJsonArray{2, 5, 8}}}}}}
+            };
+            componentGraph.append(authoredDescriptor);
+            authoredSnapshot.insert(QStringLiteral("componentGraph"), componentGraph);
+            const bool authored = source->restoreComponentDescriptorSnapshot(authoredSnapshot);
+            const auto expectedSnapshot = source->componentDescriptorSnapshot();
+            const bool descriptorAuthored = authored && expectedSnapshot == authoredSnapshot;
+            const auto matchesDescriptorGraph = [&](const ArtifactAbstractLayerPtr& layer) {
+                return layer && layer == source &&
+                    layer->componentDescriptorSnapshot() == expectedSnapshot;
+            };
+            const bool precomposed = descriptorAuthored &&
+                service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Component Descriptor Retention")),
+                    false, false, PrecomposeMode::MoveSelected);
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto childSource = child ? child->layerById(sourceIds.front())
+                                           : ArtifactAbstractLayerPtr{};
+            const bool childDescriptorPreserved = precomposed && childSource == source &&
+                matchesDescriptorGraph(childSource);
+            const bool unpacked = childDescriptorPreserved &&
+                service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const bool unpackDescriptorPreserved = unpacked &&
+                root->layerById(sourceIds.front()) == source && matchesDescriptorGraph(source) &&
+                child && !child->layerById(sourceIds.front());
+            const bool undoAvailable = unpacked && undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const bool undoDescriptorPreserved = undoAvailable &&
+                root->layerById(outcome.precompLayerId) && child &&
+                child->layerById(sourceIds.front()) == source && matchesDescriptorGraph(source);
+            const bool redoAvailable = undoDescriptorPreserved && undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const bool redoDescriptorPreserved = redoAvailable &&
+                root->layerById(sourceIds.front()) == source &&
+                !root->layerById(outcome.precompLayerId) && matchesDescriptorGraph(source) &&
+                child && !child->layerById(sourceIds.front());
+            result["authored"] = descriptorAuthored;
+            result["childDescriptorPreserved"] = childDescriptorPreserved;
+            result["unpackDescriptorPreserved"] = unpackDescriptorPreserved;
+            result["undoDescriptorPreserved"] = undoDescriptorPreserved;
+            result["redoDescriptorPreserved"] = redoDescriptorPreserved;
+            result["passed"] = descriptorAuthored && childDescriptorPreserved &&
+                unpackDescriptorPreserved && undoDescriptorPreserved && redoDescriptorPreserved;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Layer component descriptor graph changed across precompose/unprecompose/undo/redo");
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            service->changeCurrentComposition(rootId);
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.matteReferencesSurviveUnprecompose") {
             QJsonObject result;
             const auto root = service->currentComposition().lock();
@@ -4563,7 +4647,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

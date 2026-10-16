@@ -147,6 +147,14 @@ def main():
                     and parent_focused["redoStayedFocused"],
                     "Precompose with openNewComposition=false changed focus or selection")
             call("test.reset")
+            component_round_trip = call("test.componentDescriptorsSurviveUnprecompose")
+            require(component_round_trip["passed"] and component_round_trip["authored"]
+                    and component_round_trip["childDescriptorPreserved"]
+                    and component_round_trip["unpackDescriptorPreserved"]
+                    and component_round_trip["undoDescriptorPreserved"]
+                    and component_round_trip["redoDescriptorPreserved"],
+                    "Layer component descriptor graph changed across precompose/unprecompose/undo/redo")
+            call("test.reset")
             matte_round_trip = call("test.matteReferencesSurviveUnprecompose")
             require(matte_round_trip["passed"] and matte_round_trip["authored"]
                     and matte_round_trip["childMattesPreserved"]
@@ -544,7 +552,7 @@ def main():
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
-            print("PASS: MCP tool catalog, direct/transitive cycle guards, invalid-request and empty MoveAll atomicity, redo-branch replacement, closed/open-child focus behavior, matte reference order/settings, layer mask geometry/state, layer/composition effect scope and parameter round-trip, single-layer round-trip, shared-child references/data, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, nested Master Property save/reload/materialization, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+            print("PASS: MCP tool catalog, direct/transitive cycle guards, invalid-request and empty MoveAll atomicity, redo-branch replacement, closed/open-child focus behavior, component descriptor graph, matte reference order/settings, layer mask geometry/state, layer/composition effect scope and parameter round-trip, single-layer round-trip, shared-child references/data, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, nested Master Property save/reload/materialization, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
             try:
