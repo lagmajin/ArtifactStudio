@@ -156,6 +156,22 @@ TEST(AudioDownMixerStandaloneTest, Surround71ToSurround51FoldsBackChannelsIntoSu
     EXPECT_FLOAT_EQ(output.channelData[5][0], 10.0f);
 }
 
+TEST(AudioDownMixerStandaloneTest, Surround714ToStereoFoldsHeightChannelsBySide)
+{
+    AudioDownMixer mixer;
+    const auto source = makeSegment(
+        AudioChannelLayout::Surround714,
+        {{0.0f}, {0.0f}, {0.0f}, {0.0f}, {0.0f}, {0.0f},
+         {0.0f}, {0.0f}, {2.0f}, {3.0f}, {4.0f}, {5.0f}});
+
+    const auto output = mixer.process(source);
+
+    ASSERT_EQ(output.layout, AudioChannelLayout::Stereo);
+    ASSERT_EQ(output.channelData.size(), 2);
+    EXPECT_NEAR(output.channelData[0][0], (2.0f + 4.0f) * 0.35355339f, 1.0e-6f);
+    EXPECT_NEAR(output.channelData[1][0], (3.0f + 5.0f) * 0.35355339f, 1.0e-6f);
+}
+
 TEST(AudioDownMixerStandaloneTest, EmptyInputProducesRequestedLayoutAndKeepsMetadata)
 {
     AudioDownMixer mixer;
