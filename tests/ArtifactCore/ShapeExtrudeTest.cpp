@@ -119,6 +119,23 @@ TEST(ShapeExtrudeTest, RejectsDegenerateContourWithoutReplacingOutputMesh)
     EXPECT_EQ(mesh.polygonCount(), polygonCount);
 }
 
+TEST(ShapeExtrudeTest, RejectsInvalidContourSetWithoutReplacingOutputMesh)
+{
+    Mesh mesh;
+    ShapeExtrudeParams params;
+    params.depth = 10.0f;
+    ASSERT_TRUE(extrudeContourMesh({rectangleContour()}, params, mesh));
+    const int vertexCount = mesh.vertexCount();
+    const int polygonCount = mesh.polygonCount();
+
+    const std::vector<QPointF> duplicatePointContour = {
+        {5.0, 5.0}, {15.0, 5.0}, {15.0, 5.0}, {5.0, 15.0}};
+    EXPECT_FALSE(extrudeContourMesh(
+        {rectangleContour(), duplicatePointContour}, params, mesh));
+    EXPECT_EQ(mesh.vertexCount(), vertexCount);
+    EXPECT_EQ(mesh.polygonCount(), polygonCount);
+}
+
 TEST(ShapeExtrudeTest, KeepsCapOpenAcrossTheEntireInnerContour)
 {
     const std::vector<QPointF> innerContour = {
