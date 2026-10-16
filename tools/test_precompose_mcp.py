@@ -102,11 +102,20 @@ def validate_png(png, require_visual_content=False):
                     predictor = (left + above) // 2
                 else:
                     base = left + above - upper_left
-                    distances = (abs(base - left), abs(base - above), abs(base - upper_left))
-                    predictor = (left, above, upper_left)[distances.index(min(distances))]
+                    left_distance = abs(base - left)
+                    above_distance = abs(base - above)
+                    upper_left_distance = abs(base - upper_left)
+                    if left_distance <= above_distance and left_distance <= upper_left_distance:
+                        predictor = left
+                    elif above_distance <= upper_left_distance:
+                        predictor = above
+                    else:
+                        predictor = upper_left
                 row[index] = (value + predictor) & 0xff
             pixel_values.update(row)
             previous_row = row
+            if len(pixel_values) >= 8:
+                break
         if len(pixel_values) < 8:
             raise AssertionError("Capture PNG has too little pixel variation to show the test UI")
     return width, height
