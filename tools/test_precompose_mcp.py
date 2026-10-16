@@ -231,6 +231,7 @@ def validate_png_contract():
     if validate_png(ancillary_png) != (1, 1):
         raise AssertionError("PNG validator rejected a valid ancillary chunk")
     indexed_header = struct.pack(">IIBBBBB", 1, 1, 8, 3, 0, 0, 0)
+    indexed_low_bit_header = struct.pack(">IIBBBBB", 1, 1, 1, 3, 0, 0, 0)
     indexed_data = zlib.compress(b"\x00\x00")
     indexed_png = (signature + make_png_chunk(b"IHDR", indexed_header)
                    + make_png_chunk(b"PLTE", b"\x00\x00\x00")
@@ -296,6 +297,20 @@ def validate_png_contract():
         "PLTE with invalid length": (
             signature + make_png_chunk(b"IHDR", indexed_header)
             + make_png_chunk(b"PLTE", b"\x00\x00")
+            + make_png_chunk(b"IDAT", indexed_data) + make_png_chunk(b"IEND", b"")),
+        "duplicate PLTE": (
+            signature + make_png_chunk(b"IHDR", indexed_header)
+            + make_png_chunk(b"PLTE", b"\x00\x00\x00")
+            + make_png_chunk(b"PLTE", b"\xff\xff\xff")
+            + make_png_chunk(b"IDAT", indexed_data) + make_png_chunk(b"IEND", b"")),
+        "PLTE forbidden for grayscale": (
+            signature + make_png_chunk(b"IHDR", header)
+            + make_png_chunk(b"PLTE", b"\x00\x00\x00")
+            + make_png_chunk(b"IDAT", zlib.compress(b"\x00\x7f"))
+            + make_png_chunk(b"IEND", b"")),
+        "palette exceeds indexed bit depth": (
+            signature + make_png_chunk(b"IHDR", indexed_low_bit_header)
+            + make_png_chunk(b"PLTE", b"\x00\x00\x00\x40\x40\x40\x80\x80\x80")
             + make_png_chunk(b"IDAT", indexed_data) + make_png_chunk(b"IEND", b"")),
         "unsupported critical chunk": (
             signature + make_png_chunk(b"IHDR", header)
