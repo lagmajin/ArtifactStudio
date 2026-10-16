@@ -1,15 +1,15 @@
 # Composition Layer Surface Cache 独立テスト
 
 **最終更新:** 2026-10-16
-**ステータス:** Blocked（ArtifactCore split-module IFC 解決）
+**ステータス:** Blocked（ArtifactCore module IFC 依存の未解決）
 
 ## 実装状況（2026-10-16）
 
 - 独立 target `ArtifactCompositionLayerSurfaceCacheTest` と、Composition Editor の実描画経路を使う MCP GUI fixture を追加。
 - `CompositionRenderController` に opt-in cache hit／miss／invalidation／entry build counters と cold-path JSON snapshot API を追加。診断無効時はこれらのカウンターを更新しない。
 - `cache.runRegression` は同一 view の cache reuse と effect edit 後の対象 entry invalidation/rebuild、および別 layer 編集の非干渉を検証する。
-- CMake configure は成功。Debug target build は対象コードの compile 前に既存 ArtifactCore `EnvironmentVariable` IFC 重複（MSVC C7684）で停止し、新規 target の compile/runtime は未確認。
-- configure 生成物では `EnvironmentVariable.cppm` の AdditionalModuleDependencies が split target の IFC を指す一方、MSVC は `ArtifactCoreEnvironment.dir/Debug/include/...` と同じ絶対 IFC の二表記を候補として報告する。既存 split-module/CMake 配線の解決が必要。
+- CMake configure は成功。`EnvironmentVariable.cppm` の旧手書き IFC 参照を除き、同じ split target が生成する primary-interface 参照に一本化したことで、その C7684 は解消し `ArtifactCoreEnvironment` target はビルド成功。
+- standalone Debug target build は続いて ArtifactCore の `GPUAppendConsume.cppm` など別の module implementation IFC 解決でコンパイルエラーとなる。独立 test executable の compile/runtime は未確認。
 
 ## 目的
 
