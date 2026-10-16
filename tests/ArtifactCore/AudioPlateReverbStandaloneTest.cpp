@@ -366,3 +366,31 @@ TEST(AudioPlateReverbStandaloneTest, JsonRoundTripPreservesSettingsAndBypass)
     EXPECT_FLOAT_EQ(restored.getMix(), 0.65f);
     EXPECT_TRUE(restored.isBypassed());
 }
+
+TEST(AudioPlateReverbStandaloneTest, MissingJsonParametersRestoreDefaults)
+{
+    AudioPlateReverb plate;
+    plate.setPreDelayMs(25.0f);
+    plate.setDecay(0.9f);
+    plate.setDamping(0.6f);
+    plate.setDiffusion(0.5f);
+    plate.setSize(1.5f);
+    plate.setModDepth(0.7f);
+    plate.setModRate(1.2f);
+    plate.setWidth(0.4f);
+    plate.setMix(0.65f);
+    plate.setBypass(true);
+
+    plate.fromJson(QJsonObject{});
+
+    EXPECT_FLOAT_EQ(plate.getPreDelayMs(), 10.0f);
+    EXPECT_FLOAT_EQ(plate.getDecay(), 0.75f);
+    EXPECT_FLOAT_EQ(plate.getDamping(), 0.4f);
+    EXPECT_FLOAT_EQ(plate.getDiffusion(), 0.7f);
+    EXPECT_FLOAT_EQ(plate.getSize(), 1.0f);
+    EXPECT_FLOAT_EQ(plate.getModDepth(), 0.3f);
+    EXPECT_FLOAT_EQ(plate.getModRate(), 0.8f);
+    EXPECT_FLOAT_EQ(plate.getWidth(), 0.8f);
+    EXPECT_FLOAT_EQ(plate.getMix(), 0.3f);
+    EXPECT_FALSE(plate.isBypassed());
+}
