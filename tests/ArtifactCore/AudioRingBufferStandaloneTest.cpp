@@ -193,3 +193,25 @@ TEST(AudioRingBufferStandaloneTest, ChannelCountGrowsOnlyWhenEmptyAndDoesNotShri
     for (int channel = 2; channel < 6; ++channel)
         EXPECT_FLOAT_EQ(output.channelData[channel][0], 0.0f);
 }
+
+TEST(AudioRingBufferStandaloneTest, PreservesTwelveChannelSurround714Segments)
+{
+    AudioRingBuffer buffer(4);
+    AudioSegment surround714;
+    surround714.layout = AudioChannelLayout::Surround714;
+    for (int channel = 0; channel < 12; ++channel) {
+        surround714.channelData.push_back(
+            QVector<float>{static_cast<float>(channel + 1)});
+    }
+
+    ASSERT_TRUE(buffer.write(surround714));
+    AudioSegment output;
+    ASSERT_TRUE(buffer.read(output, 1));
+    EXPECT_EQ(output.layout, AudioChannelLayout::Surround714);
+    ASSERT_EQ(output.channelData.size(), 12);
+    for (int channel = 0; channel < 12; ++channel) {
+        ASSERT_EQ(output.channelData[channel].size(), 1);
+        EXPECT_FLOAT_EQ(output.channelData[channel][0],
+                        static_cast<float>(channel + 1));
+    }
+}
