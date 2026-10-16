@@ -89,3 +89,6 @@ python tools/test_precompose_mcp.py `
 `--language all`を指定すると、同じMCP GUI検査をja/en/zh/zh-TWで順に実行し、各言語のresult.json・stderr.log・nested.pngをサブディレクトリへ保存する。`--lang`でQLocaleを指定できるが、テスト専用ラベル・キー名は全ロケールで英語の診断表記とする。製品の翻訳済みプリコンポーズダイアログの翻訳・レイアウト検査は対象外。
 
 検査は直接循環と3階層の間接循環、プリコンポーズ／解除の不正要求の副作用なし拒否、子Compositionを開く遷移とUndo/Redo時のフォーカス、Workspace durationへの一致と同時に子を開く遷移、プリコンポーズ／解除後の選択とactive composition、子duration変更の単一／複数親Out伝播、内部／外部親リンク、子内編集後のposition／rotation／scale／anchor／opacityと各transform channelのアニメーションキー保持、外部親メタデータの保存・再読込、逆順・重複selectionを含むレイヤー順序、ID・transform・opacityおよび親Composition設定の保持、非選択レイヤー不変、選択/全移動（全移動は空選択引数も含み、全レイヤーの時間範囲を解除・Undo/Redoまで検証）、2段のネスト階層と時間変換・保存再読込、既存プリコンポーズの再親子付け、ネスト解除時の時間と登録、非連続選択解除の順序復元、Master Property overrideの解除時反映と壊れたchild参照・空child解除の副作用なし拒否、GUIキーボードA/P/K/D/R/Z/Y経路、子保持/削除、削除解除のUndo/Redoでの子Composition ID・Manager登録・レイヤー列の往復、レイヤーvisibility／lock／solo／blend modeの往復、Undo/Redo時の子ID・時間範囲・レイヤー復元、保存・再読込時のlayer metadataおよびMaster Property定義とoverride値の保持、および既存の回帰テストを対象とする。選択移動では最小Inを0へ正規化し、親側nest layerは元の時間範囲とoffsetを保つこと、解除では元のIn/Outへ戻ることを照合する。全移動では子レイヤーの時間とアニメーションキーが維持され、nest layerはframe 0から始まることを照合する。結果JSON、stderr、検査画面PNGは指定した出力先へ保存する。出力先はrepo外を推奨する。GPU描画、実アプリの選択UI操作はこのテストの合格範囲に含めない。
+
+
+GUI P/D経路では、アニメーションレイヤーのD解除後に元キー列と同一layer objectが親に戻り、Undoで同じ子Composition objectと正規化済みキー列が子へ戻り、Redoで再び子が削除されることを確認する。

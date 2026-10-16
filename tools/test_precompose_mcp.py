@@ -263,13 +263,18 @@ def main():
                     and animated_keyboard_round_trip["unpackRedoIdentityPreserved"]
                     and animated_keyboard_round_trip["childObjectPreservedByUnpackRedoKey"]
                     and animated_keyboard_round_trip["childEmptyByUnpackRedoKey"]
+                    and animated_keyboard_round_trip["animatedDeletePrecomposeByKey"]
+                    and animated_keyboard_round_trip["animatedDeleteUnpackByKey"]
+                    and animated_keyboard_round_trip["animatedDeleteChildRemovedByKey"]
+                    and animated_keyboard_round_trip["animatedDeleteUndoRestoredByKey"]
+                    and animated_keyboard_round_trip["animatedDeleteRedoRestoredByKey"]
                     and animated_keyboard_round_trip["wrapperRemovedByUnpackRedo"]
                     and animated_keyboard_round_trip["managerUnregisteredByUnpackRedo"]
                     and animated_keyboard_round_trip["sourceSelectedByUnpackRedoKey"]
                     and animated_keyboard_round_trip["negativeTimingRestoredByUnpackRedo"]
                     and animated_keyboard_round_trip["animationEnabledAfterUnpackRedo"]
                     and animated_keyboard_round_trip["unpackRedoSamplePreserved"],
-                    "GUI P/Z/Y/K keyboard routing did not preserve animated data and layer identity across unpack undo/redo")
+                    "GUI P/Z/Y/K/D keyboard routing did not preserve animated data, child identity, and layer identity across unpack undo/redo")
             call("test.reset")
             initial = call("test.state")
             original = initial["layers"]

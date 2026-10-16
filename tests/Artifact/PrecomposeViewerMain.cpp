@@ -865,6 +865,74 @@ public:
             const bool childEmptyByUnpackRedoKey = childObjectPreservedByUnpackRedoKey &&
                 childObjectBeforeUnpack->allLayer().isEmpty();
 
+            sendKey(Qt::Key_P);
+            const auto beforeAnimatedDelete = state();
+            const auto animatedDeleteOutcome = service->lastPrecomposeOutcome();
+            const auto animatedDeleteWrapperId = animatedDeleteOutcome.precompLayerId;
+            const auto animatedDeleteChildId = animatedDeleteOutcome.childCompId;
+            const auto animatedDeleteChildObject = service
+                ->findComposition(animatedDeleteChildId).ptr.lock();
+            const auto animatedDeleteChildIds = namedLayerIds(
+                animatedDeleteChildObject, {QStringLiteral("A")});
+            const auto animatedDeleteChildA = animatedDeleteChildIds.size() == 1
+                ? animatedDeleteChildObject->layerById(animatedDeleteChildIds.front())
+                : ArtifactAbstractLayerPtr{};
+            const auto animatedDeleteChildPosition = animatedDeleteChildA
+                ? animatedDeleteChildA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const bool animatedDeletePrecomposeByKey = beforeAnimatedDelete["canUndo"].toBool() &&
+                beforeAnimatedDelete["lastChildExists"].toBool() && animatedDeleteChildObject &&
+                !animatedDeleteWrapperId.isNil() && !animatedDeleteChildId.isNil() &&
+                PreComposeManager::instance().isPrecomposeLayer(animatedDeleteWrapperId) &&
+                PreComposeManager::instance().getSourceCompositionId(animatedDeleteWrapperId) ==
+                    animatedDeleteChildId && animatedDeleteChildA.get() == source.get() &&
+                animatedDeleteChildPosition && keyframes(animatedDeleteChildPosition) == movedKeys;
+            sendKey(Qt::Key_D);
+            const auto afterAnimatedDelete = state();
+            const auto deletedAnimatedA = parent->layerById(ids.front());
+            const auto deletedAnimatedPosition = deletedAnimatedA
+                ? deletedAnimatedA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const bool animatedDeleteUnpackByKey = animatedDeletePrecomposeByKey &&
+                afterAnimatedDelete["canUndo"].toBool() &&
+                !afterAnimatedDelete["lastChildExists"].toBool() &&
+                deletedAnimatedA.get() == source.get() && deletedAnimatedPosition &&
+                keyframes(deletedAnimatedPosition) == originalKeys;
+            const bool animatedDeleteChildRemovedByKey = animatedDeleteUnpackByKey &&
+                !service->findComposition(animatedDeleteChildId).ptr.lock();
+            sendKey(Qt::Key_Z);
+            const auto afterAnimatedDeleteUndo = state();
+            const auto animatedDeleteUndoChild = service
+                ->findComposition(animatedDeleteChildId).ptr.lock();
+            const auto animatedDeleteUndoIds = namedLayerIds(
+                animatedDeleteUndoChild, {QStringLiteral("A")});
+            const auto animatedDeleteUndoA = animatedDeleteUndoIds.size() == 1
+                ? animatedDeleteUndoChild->layerById(animatedDeleteUndoIds.front())
+                : ArtifactAbstractLayerPtr{};
+            const auto animatedDeleteUndoPosition = animatedDeleteUndoA
+                ? animatedDeleteUndoA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const bool animatedDeleteUndoRestoredByKey =
+                afterAnimatedDeleteUndo["canRedo"].toBool() && animatedDeleteChildObject &&
+                animatedDeleteUndoChild.get() == animatedDeleteChildObject.get() &&
+                animatedDeleteUndoA.get() == source.get() && animatedDeleteUndoPosition &&
+                keyframes(animatedDeleteUndoPosition) == movedKeys &&
+                PreComposeManager::instance().isPrecomposeLayer(animatedDeleteWrapperId);
+            sendKey(Qt::Key_Y);
+            const auto afterAnimatedDeleteRedo = state();
+            const auto redoneAnimatedA = parent->layerById(ids.front());
+            const auto redoneAnimatedPosition = redoneAnimatedA
+                ? redoneAnimatedA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const bool animatedDeleteRedoRestoredByKey =
+                afterAnimatedDeleteRedo["canUndo"].toBool() &&
+                !afterAnimatedDeleteRedo["canRedo"].toBool() &&
+                !afterAnimatedDeleteRedo["lastChildExists"].toBool() && redoneAnimatedA &&
+                redoneAnimatedA.get() == source.get() && redoneAnimatedPosition &&
+                keyframes(redoneAnimatedPosition) == originalKeys &&
+                !service->findComposition(animatedDeleteChildId).ptr.lock() &&
+                !PreComposeManager::instance().isPrecomposeLayer(animatedDeleteWrapperId);
+
             const bool passed = movedLayerIdentityPreserved && animationEnabledByKey &&
                 wrapperNegativeTimingPreservedByKey && managerRegisteredByKey &&
                 wrapperSelectedByKey &&
@@ -898,7 +966,9 @@ public:
                 sourceSelectedByUnpackRedoKey &&
                 childObjectPreservedByUnpackRedoKey && childEmptyByUnpackRedoKey &&
                 negativeTimingRestoredByUnpackRedo &&
-                unpackRedoIdentityPreserved &&
+                unpackRedoIdentityPreserved && animatedDeletePrecomposeByKey &&
+                animatedDeleteUnpackByKey && animatedDeleteChildRemovedByKey &&
+                animatedDeleteUndoRestoredByKey && animatedDeleteRedoRestoredByKey &&
                 unpackRedoSamplePreserved;
             QJsonObject result{{"animationMovedByKey", animationMovedByKey},
                                {"movedLayerIdentityPreserved", movedLayerIdentityPreserved},
@@ -961,6 +1031,13 @@ public:
                                {"childObjectPreservedByUnpackRedoKey",
                                 childObjectPreservedByUnpackRedoKey},
                                {"childEmptyByUnpackRedoKey", childEmptyByUnpackRedoKey},
+                               {"animatedDeletePrecomposeByKey", animatedDeletePrecomposeByKey},
+                               {"animatedDeleteUnpackByKey", animatedDeleteUnpackByKey},
+                               {"animatedDeleteChildRemovedByKey", animatedDeleteChildRemovedByKey},
+                               {"animatedDeleteUndoRestoredByKey",
+                                animatedDeleteUndoRestoredByKey},
+                               {"animatedDeleteRedoRestoredByKey",
+                                animatedDeleteRedoRestoredByKey},
                                {"wrapperRemovedByUnpackRedo", wrapperRemovedByUnpackRedo},
                                {"managerUnregisteredByUnpackRedo", managerUnregisteredByUnpackRedo},
                                {"sourceSelectedByUnpackRedoKey", sourceSelectedByUnpackRedoKey},
