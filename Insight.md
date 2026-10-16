@@ -3696,3 +3696,11 @@
 - **価値／懸念:** 音量設定を保存して再読込すると非既定値が失われる。回帰テストでは0.42の値が往復後に保持されることを要求する。
 - **未検証:** テストは実行していない。現実装では失敗することを静的なコード読解から予想している。
 - **次に確認:** ビルドが許可された際に失敗を確認し、JSONの不正入力・旧形式に対する既定値方針を別途定める。
+
+## 2026-10-16: AudioDecibels deserialize も保存値を読み戻さない
+
+- **関連:** `ArtifactCore/src/Audio/AudioDecibels.cppm` の`serialize()` / `deserialize()`、`tests/ArtifactCore/AudioDecibelsStandaloneTest.cpp`。
+- **確認できた事実:** `serialize()`はdB値をJSON文字列に書くが、`deserialize()`は引数を使わず常に`AudioDecibels(0.0f)`を返す。AudioVolumeと同じ形式の欠落。
+- **価値／懸念:** dB音量値も保存・復元で失われる。回帰テストでは-12.75 dBの往復保持を要求する。
+- **未検証:** テスト未実行。現実装では失敗するとコード読解から予想している。
+- **次に確認:** ビルドが許可された際に両音量型のserialize/deserialize挙動と不正JSON時の既定値を確認する。

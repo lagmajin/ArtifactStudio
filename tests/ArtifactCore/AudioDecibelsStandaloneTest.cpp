@@ -93,6 +93,15 @@ TEST(AudioDecibelsStandaloneTest, PresetsMatchDocumentedLevels)
     EXPECT_FLOAT_EQ(AudioDecibels::createPreset(AudioDecibels::Preset::Maximum).decibels(), 20.0f);
 }
 
+TEST(AudioDecibelsStandaloneTest, SerializeDeserializePreservesNonDefaultLevel)
+{
+    const AudioDecibels source(-12.75f);
+
+    const AudioDecibels restored = AudioDecibels::deserialize(source.serialize());
+
+    EXPECT_FLOAT_EQ(restored.decibels(), -12.75f);
+}
+
 TEST(AudioDecibelsStandaloneTest, MuteSilentAndNormalizedPredicatesUseTheirThresholds)
 {
     EXPECT_TRUE(AudioDecibels(-60.0f).isMute());
