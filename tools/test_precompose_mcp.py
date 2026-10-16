@@ -947,6 +947,8 @@ def main():
             require([layer["name"] for layer in all_layer["children"]] ==
                     [layer["name"] for layer in all_initial["layers"]],
                     "Move all did not preserve the original source-layer order")
+            require(all_layer["children"] == all_initial["layers"],
+                    "Move all changed observable source-layer attributes or timing")
             wrapper_id = all_layer["id"]
             all_selection = all_nested["selection"]
             require(all_selection["activeCompositionId"] == all_nested["compositionId"]
