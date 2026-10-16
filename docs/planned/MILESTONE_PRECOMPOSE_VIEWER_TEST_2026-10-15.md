@@ -5,7 +5,7 @@
 
 `test.saveReload`は保存後に再読込した子レイヤーをそのまま解除し、エフェクト・アニメーション付きマスク・マット参照・コンポーネントdescriptorが親へ移ること、親Compositionのエフェクトが子レイヤーへ混入せず親に残ること、Undoで子とwrapperへ戻り、Redoで同じ状態を再適用することも検査する。
 
-`test.animatedTiming`は30000/1001 fpsのCompositionで30 ticks/secのキー時刻を使い、選択移動・全移動それぞれで子Compositionの正確なfpsとキーフレームtime scaleが保たれることも確認する。選択移動では40フレームのローカル時刻補正後、Bezier／Smoothを含む位置・回転・scale・anchorのproperty評価値とTransform3D snapshotが元Compositionの対応時刻と一致することを、解除・Undo/Redoまで確認する。全移動は時刻を変えず、解除・Undo/Redo後の評価値も照合する。
+`test.animatedTiming`は30000/1001 fpsのCompositionで30 ticks/secのキー時刻を使い、選択移動・全移動それぞれで子Compositionの正確なfpsとキーフレームtime scaleが保たれることも確認する。選択移動では40フレームのローカル時刻補正後、Bezier／Smoothを含む位置・回転・scale・anchor・opacityのキーと、opacityを除くTransform3D snapshotが元Compositionの対応時刻と一致することを、解除・Undo/Redoまで確認する。全移動は時刻を変えず、解除・Undo/Redo後のキーと評価値も照合する。
 
 同テストのアニメーション保存・再読込検査はposition／rotationの各軸、scale X/Y、anchorの各軸、opacityのキーフレーム配列に加え、Bezier／ConstantとSmooth／Linearの混在カーブを中間フレームで評価した値も比較する。
 
