@@ -276,6 +276,38 @@ TEST(AudioCompressorStandaloneTest, NonFiniteSamplesBecomeSilence)
     EXPECT_FLOAT_EQ(compressor.getGainReduction(), 1.0f);
 }
 
+TEST(AudioCompressorStandaloneTest, ExtremeFiniteStereoInputKeepsOutputAndEnvelopeFinite)
+{
+    const float nearLimit = std::numeric_limits<float>::max() * 0.95f;
+    QVector<float> left(256, nearLimit);
+    QVector<float> right(256, -nearLimit);
+    for (qsizetype frame = 1; frame < left.size(); frame += 2) {
+        left[frame] = -nearLimit;
+        right[frame] = nearLimit;
+    }
+
+    AudioCompressor compressor;
+    configureFastCompressor(compressor);
+    auto segment = makeStereo(48000, std::move(left), std::move(right));
+    compressor.process(segment);
+    for (int channel = 0; channel < 2; ++channel) {
+        for (const float sample : segment.channelData[channel])
+            EXPECT_TRUE(std::isfinite(sample));
+    }
+    EXPECT_TRUE(std::isfinite(compressor.getGainReduction()));
+    EXPECT_GE(compressor.getGainReduction(), 0.0f);
+    EXPECT_LE(compressor.getGainReduction(), 1.0f);
+
+    auto silence = makeStereo(48000, QVector<float>(128, 0.0f),
+                              QVector<float>(128, 0.0f));
+    compressor.process(silence);
+    for (int channel = 0; channel < 2; ++channel) {
+        for (const float sample : silence.channelData[channel])
+            EXPECT_TRUE(std::isfinite(sample));
+    }
+    EXPECT_TRUE(std::isfinite(compressor.getGainReduction()));
+}
+
 TEST(AudioCompressorStandaloneTest, JsonRoundTripPreservesSettingsAndBypass)
 {
     AudioCompressor source;
