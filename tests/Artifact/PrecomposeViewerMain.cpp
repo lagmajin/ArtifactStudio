@@ -2149,6 +2149,9 @@ public:
                 return parentSize == childSize &&
                     comp->frameRate().framerate() == child->frameRate().framerate() &&
                     comp->frameRange().duration() == child->frameRange().duration() &&
+                    child->frameRange().start() == 0 &&
+                    child->workAreaRange().start() == 0 &&
+                    child->workAreaRange().duration() == child->frameRange().duration() &&
                     parentColor.r() == childColor.r() && parentColor.g() == childColor.g() &&
                     parentColor.b() == childColor.b() && parentColor.a() == childColor.a();
             };
@@ -2167,6 +2170,11 @@ public:
             };
             const bool childSettingsCopiedOnOpen = childOpened &&
                 childSettingsMatchParent(openedChild);
+            const bool childRangesNormalizedOnOpen = childOpened &&
+                openedChild->frameRange().start() == 0 &&
+                openedChild->frameRange().duration() == comp->frameRange().duration() &&
+                openedChild->workAreaRange().start() == 0 &&
+                openedChild->workAreaRange().duration() == openedChild->frameRange().duration();
             const auto matchesSelection = [&](const CompositionID& compositionId,
                                               const LayerID& layerId) {
                 const auto active = selection->activeComposition();
@@ -2282,6 +2290,11 @@ public:
                 hasLayerTiming(redoneB, 30, 120, -31);
             const bool redoChildSettingsPreserved = redoneChild &&
                 childSettingsMatchParent(redoneChild);
+            const bool redoChildRangesNormalized = redoneChild &&
+                redoneChild->frameRange().start() == 0 &&
+                redoneChild->frameRange().duration() == comp->frameRange().duration() &&
+                redoneChild->workAreaRange().start() == 0 &&
+                redoneChild->workAreaRange().duration() == redoneChild->frameRange().duration();
             const auto redoChildReferences = PreComposeManager::instance()
                 .getPrecompLayersForChild(outcome.childCompId);
             const bool redoReverseMappingRestored = redoChildReferences.size() == 1 &&
@@ -2320,6 +2333,7 @@ public:
             result["childTimingNormalizedOnOpen"] = childTimingNormalizedOnOpen;
             result["wrapperTimingPreservedOnOpen"] = wrapperTimingPreservedOnOpen;
             result["childSettingsCopiedOnOpen"] = childSettingsCopiedOnOpen;
+            result["childRangesNormalizedOnOpen"] = childRangesNormalizedOnOpen;
             result["childSelectionCorrect"] = childSelectionCorrect;
             result["rootWrapperCreated"] = bool(rootWrapperCreated);
             result["wrongContextUnpackRejected"] = wrongContextUnpackRejected;
@@ -2346,6 +2360,7 @@ public:
             result["redoChildLayerOrderPreserved"] = redoChildLayerOrderPreserved;
             result["redoChildTimingNormalized"] = redoChildTimingNormalized;
             result["redoChildSettingsPreserved"] = redoChildSettingsPreserved;
+            result["redoChildRangesNormalized"] = redoChildRangesNormalized;
             result["redoReverseMappingRestored"] = redoReverseMappingRestored;
             result["redoForwardMappingRestored"] = redoForwardMappingRestored;
             result["redoCompositionCountRestored"] = redoCompositionCountRestored;
@@ -2356,7 +2371,7 @@ public:
             result["passed"] = childOpened && childSelectionCorrect &&
                 childLayerObjectsPreservedOnOpen && childTimingNormalizedOnOpen &&
                 wrapperTimingPreservedOnOpen && childLayerOrderPreservedOnOpen &&
-                childSettingsCopiedOnOpen && rootWrapperCreated &&
+                childSettingsCopiedOnOpen && childRangesNormalizedOnOpen && rootWrapperCreated &&
                 wrongContextUnpackRejected &&
                 wrongContextStatePreserved && undoReturnedToRoot && undoLayerObjectsReturnedToRoot &&
                 undoSourceTimingRestored && undoLayerOrderRestoredToRoot &&
@@ -2365,7 +2380,8 @@ public:
                 redoKeptRootFocused && redoRestoredChild && redoChildCompositionIdentityPreserved &&
                 redoChildLayerObjectsPreserved && redoChildLayerOrderPreserved &&
                 redoChildTimingNormalized &&
-                redoChildSettingsPreserved && redoReverseMappingRestored &&
+                redoChildSettingsPreserved && redoChildRangesNormalized &&
+                redoReverseMappingRestored &&
                 redoForwardMappingRestored && redoCompositionCountRestored &&
                 redoWrapperIdentityPreserved && redoWrapperTimingPreserved &&
                 redoRootContainsOnlyWrapperAndUntouched;
