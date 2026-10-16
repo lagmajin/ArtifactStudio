@@ -190,6 +190,7 @@ def main():
                     and keyboard_round_trip["allMappingRestoredByRedoKey"]
                     and keyboard_round_trip["allRedoLayerObjectsPreservedByKey"]
                     and keyboard_round_trip["resetByKey"]
+                    and keyboard_round_trip["resetFixtureMatchesByKey"]
                     and keyboard_round_trip["fixtureRecreatedByKey"]
                     and keyboard_round_trip["resetSelectionByKey"],
                     "GUI A/P/K/D/R/Z/Y keyboard routing did not round-trip precompose, unprecompose, and reset")

@@ -428,9 +428,34 @@ public:
             resetNames.sort();
             resetHasExpectedNames = resetHasExpectedNames && resetNames ==
                 QStringList{QStringLiteral("A"), QStringLiteral("B"), QStringLiteral("Untouched")};
+            const auto resetResolution = afterReset["resolution"].toArray();
+            const auto resetColor = afterReset["backgroundColor"].toArray();
+            bool resetTimingMatches = resetLayers.size() == 3;
+            for (const auto& value : resetLayers) {
+                const auto layer = value.toObject();
+                const auto name = layer["name"].toString();
+                if (name == QStringLiteral("A"))
+                    resetTimingMatches = resetTimingMatches && layer["inFrame"].toInt() == 40 &&
+                        layer["outFrame"].toInt() == 200 && layer["startFrame"].toInt() == 7;
+                else if (name == QStringLiteral("B"))
+                    resetTimingMatches = resetTimingMatches && layer["inFrame"].toInt() == 70 &&
+                        layer["outFrame"].toInt() == 160 && layer["startFrame"].toInt() == 9;
+                else if (name == QStringLiteral("Untouched"))
+                    resetTimingMatches = resetTimingMatches && layer["inFrame"].toInt() == 25 &&
+                        layer["outFrame"].toInt() == 220 && layer["startFrame"].toInt() == 3;
+                else resetTimingMatches = false;
+            }
+            const bool resetFixtureMatchesByKey = resetHasExpectedNames && resetTimingMatches &&
+                resetResolution == QJsonArray{1280, 720} &&
+                std::abs(afterReset["frameRate"].toDouble() - 24.0) < 1.0e-6 &&
+                afterReset["frameRangeDuration"].toInt() == 300 && resetColor.size() == 4 &&
+                std::abs(resetColor[0].toDouble() - 0.125) < 1.0e-6 &&
+                std::abs(resetColor[1].toDouble() - 0.25) < 1.0e-6 &&
+                std::abs(resetColor[2].toDouble() - 0.5) < 1.0e-6 &&
+                std::abs(resetColor[3].toDouble() - 1.0) < 1.0e-6;
             const bool fixtureRecreatedByKey =
                 afterReset["compositionId"].toString() != rootCompositionId;
-            const bool resetByKey = resetHasExpectedNames && fixtureRecreatedByKey &&
+            const bool resetByKey = resetFixtureMatchesByKey && fixtureRecreatedByKey &&
                 !afterReset["canUndo"].toBool() &&
                 !afterReset["canRedo"].toBool() && !afterReset.contains("lastChildExists");
             const auto resetSelection = afterReset["selection"].toObject();
@@ -488,6 +513,7 @@ public:
                                {"allMappingRestoredByRedoKey", allMappingRestoredByRedoKey},
                                {"allRedoLayerObjectsPreservedByKey", allRedoLayerObjectsPreservedByKey},
                                {"resetByKey", resetByKey},
+                               {"resetFixtureMatchesByKey", resetFixtureMatchesByKey},
                                {"fixtureRecreatedByKey", fixtureRecreatedByKey},
                                {"resetSelectionByKey", resetSelectionByKey},
                                {"passed", precomposedByKey && selectedSettingsCopiedByKey &&
