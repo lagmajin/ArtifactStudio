@@ -915,12 +915,22 @@ def main():
                     and delete_second_undo["canUndo"] and delete_second_undo["canRedo"],
                     "Unpack delete second undo did not restore the same child state")
             call("test.reset")
+            all_initial = call("test.state")
             all_nested = call("test.precomposeAll")
             require_child_settings(all_nested, "Move all")
             require(all_nested["emptySelectionSubmitted"] and len(all_nested["layers"]) == 1
                     and len(all_nested["layers"][0]["children"]) == 3,
                     "Move all with an empty selection must include every layer")
             all_layer = all_nested["layers"][0]
+            require([layer["name"] for layer in all_layer["children"]] ==
+                    [layer["name"] for layer in all_initial["layers"]],
+                    "Move all did not preserve the original source-layer order")
+            wrapper_id = all_layer["id"]
+            all_selection = all_nested["selection"]
+            require(all_selection["activeCompositionId"] == all_nested["compositionId"]
+                    and all_selection["currentLayerId"] == wrapper_id
+                    and all_selection["selectedLayerIds"] == [wrapper_id],
+                    "Move all did not keep the parent active with its wrapper selected")
             require((all_layer["inFrame"], all_layer["startFrame"]) == (0, 0),
                     "Move all precompose layer must start at composition time zero")
             for name, (in_frame, out_frame, start_frame) in expected_ranges.items():
@@ -929,8 +939,10 @@ def main():
                         (in_frame, out_frame, start_frame),
                         f"Move all changed {name} timing")
             all_undo = call("test.undo")
-            require(all_undo["layers"] == original and not all_undo["lastChildExists"]
-                    and all_undo["canUndo"] and all_undo["canRedo"],
+            require(all_undo["layers"] == all_initial["layers"]
+                    and all_undo["selection"] == all_initial["selection"]
+                    and not all_undo["lastChildExists"]
+                    and not all_undo["canUndo"] and all_undo["canRedo"],
                     "Move all undo did not restore the original layers and remove the child")
             all_redo = call("test.redo")
             all_result_fields = {"emptySelectionSubmitted", "childSettingsCopied", "childResolution",

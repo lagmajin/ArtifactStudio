@@ -3,7 +3,7 @@
 **最終更新:** 2026-10-16
 **ステータス:** 実装済み、ビルド・実行未確認（依頼により省略）。
 
-`test.precomposeAll`の独立MCPテストは、空のlayer ID配列による全レイヤー移動でA/B/Untouchedの順序と時間を確認した後、Undoで元の3レイヤーと子Compositionの削除を確認し、Redoで全移動後の公開状態を再現することも照合する。
+`test.precomposeAll`の独立MCPテストは、空のlayer ID配列による全レイヤー移動で元のレイヤー順・時間と親上のwrapper選択を確認した後、Undoでそのfixtureと選択状態を復元し、Redoで全移動後の公開状態を再現することも照合する。
 
 `test.capture`はPNG各chunkの境界・CRC・IHDR／IDAT／IEND・正の寸法を検査し、取得前後の公開状態が一致することでComposition・選択・Undo/Redo履歴を変更しないことも確認する。
 
