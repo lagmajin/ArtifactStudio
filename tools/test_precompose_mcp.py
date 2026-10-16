@@ -232,10 +232,14 @@ def main():
             listed_tools = catalog.get("tools")
             require(isinstance(listed_tools, list), "MCP tools/list did not return a tools array")
             names = [tool.get("name") for tool in listed_tools if isinstance(tool, dict)]
-            require(len(names) == len(listed_tools) and len(names) == len(set(names)),
-                    "MCP tools/list returned invalid or duplicate tool names")
-            require(all(isinstance(tool.get("description"), str) and
-                        tool.get("inputSchema") == {
+            require(len(names) == len(listed_tools)
+                    and all(isinstance(name, str) and name.strip() for name in names),
+                    "MCP tools/list returned a missing or invalid tool name")
+            require(len(names) == len(set(names)),
+                    "MCP tools/list returned duplicate tool names")
+            require(all(isinstance(tool.get("description"), str)
+                        and tool["description"].strip()
+                        and tool.get("inputSchema") == {
                             "type": "object", "additionalProperties": False}
                         for tool in listed_tools),
                     "MCP tools/list returned an invalid description or input schema")
