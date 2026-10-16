@@ -54,6 +54,8 @@ FBX独立Viewerのように製品本体と起動を分け、既存のProject Ser
 
 `ArtifactPrecomposeViewer` は解像度1280×720、24fps、背景色 `(0.125,0.25,0.5,1)`、duration 300 frameのcompositionに A、B、Untouched のNullレイヤーを作成する。Aにはposition `(12,-8,3)`、opacity `0.42` を設定し、3レイヤーには異なる In/Out と start frame を設定する。選択移動・全移動後に子Compositionの解像度、fps、背景RGBA、Workspace一致を指定しない場合のframe range durationが親と一致することも確認する。GUIのキーボード操作とMCPは同じ処理を呼ぶ。Pは選択相当のA+Bを移動、Aは全属性モード、K/Dは子を保持/削除して解除、Z/YはUndo/Redo、Rは新しいfixture、Tは既存の `runPreComposeTests()` を実行する。fixtureの再作成は同じ一時プロジェクトに新しいcompositionを追加するため、長時間の連続負荷試験には使わない。
 
+`test.guiAnimatedKeyRoundTrip`はAのposition XにBezierとConstantの2キーを設定し、実際のGUI KeyPress経路Pで選択プリコンポーズする。子側で最小In点40 frame分のキー時刻補正後も時刻scale・値・補間・Bezier制御点・rovingが一致すること、Z/YでUndo/Redoしてもキー列が戻ること、Kで解除後に親側の元キー列へ復元されることを検査する。
+
 ## ビルド・実行
 
 Windows専用。既存のArtifactAppRuntimeにリンクする独立したconsole executableで、追加の製品モジュール登録は不要。
@@ -64,6 +66,8 @@ cmake --preset x64-Debug-Agent -DARTIFACT_BUILD_PRECOMPOSE_VIEWER=ON
 cmake --build out/build/x64-Debug-Agent --target ArtifactPrecomposeViewer -j 4
 out/build/x64-Debug-Agent/bin/Debug/ArtifactPrecomposeViewer.exe
 ```
+
+`test.guiAnimatedKeyRoundTrip`もMCP tools/listに公開し、GUI KeyPress P/Z/Y/K経路を通じてアニメーションキーの移動・Undo/Redo・解除後復元を検査する。
 
 `--check` は既存プリコンポーズ回帰テストだけを実行し、失敗があれば終了コード1を返す。`--mcp-stdio` は改行区切りJSON-RPCの旧MCP `2024-11-05` initialize、tools/list、tools/call、pingに対応する。MCPハーネスはtools/listの重複・形式と、呼び出す全ツール名が公開されていることを検査する。`test.capture` はMIME、Base64、PNG signature/IHDR、非ゼロ寸法を検証してから画像証拠を保存する。stdin EOFで終了する。製品ログはstderrへ分離する。新MCP server/discover形式は未対応。GUIを前面化せず、左端ディスプレイへ配置する。
 

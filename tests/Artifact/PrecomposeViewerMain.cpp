@@ -332,6 +332,111 @@ public:
                 result["error"] = QStringLiteral("GUI P/K/D/Z/Y keyboard routing failed to round-trip precompose and unprecompose");
             return result;
         }
+        if (name == "test.guiAnimatedKeyRoundTrip") {
+            reset();
+            auto* service = ArtifactProjectService::instance();
+            const auto parent = service->currentComposition().lock();
+            const auto ids = namedLayerIds(parent, {QStringLiteral("A")});
+            if (!parent || ids.size() != 1) {
+                return {{"passed", false},
+                        {"error", QStringLiteral("Animated keyboard fixture is missing layer A")}};
+            }
+            const auto source = parent->layerById(ids.front());
+            const auto sourcePosition = source
+                ? source->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            if (!source || !sourcePosition) {
+                return {{"passed", false},
+                        {"error", QStringLiteral("Animated keyboard fixture has no position X property")}};
+            }
+            sourcePosition->clearKeyFrames();
+            sourcePosition->setAnimatable(true);
+            const auto timeScale = source->keyframeTimeScale();
+            const RationalTime firstTime(40, timeScale);
+            const RationalTime secondTime(100, timeScale);
+            sourcePosition->addKeyFrame(firstTime, 1.25,
+                                       InterpolationType::Bezier,
+                                       0.2f, 0.1f, 0.8f, 0.9f, true);
+            sourcePosition->addKeyFrame(secondTime, -3.5,
+                                       InterpolationType::Constant);
+            const QJsonArray originalKeys = keyframes(sourcePosition);
+
+            const auto sendKey = [this](int key) {
+                QKeyEvent event(QEvent::KeyPress, key, Qt::NoModifier);
+                QApplication::sendEvent(this, &event);
+            };
+            sendKey(Qt::Key_P);
+            const auto child = service->findComposition(childId_).ptr.lock();
+            const auto childIds = namedLayerIds(child, {QStringLiteral("A")});
+            const auto childA = childIds.size() == 1
+                ? child->layerById(childIds.front()) : ArtifactAbstractLayerPtr{};
+            const auto childPosition = childA
+                ? childA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const QJsonArray movedKeys = keyframes(childPosition);
+            bool animationMovedByKey = hasChild_ && child && childPosition &&
+                movedKeys.size() == originalKeys.size() && movedKeys.size() == 2;
+            for (qsizetype index = 0; animationMovedByKey && index < movedKeys.size(); ++index) {
+                const auto moved = movedKeys[index].toObject();
+                const auto original = originalKeys[index].toObject();
+                animationMovedByKey =
+                    moved["timeScale"].toDouble() == original["timeScale"].toDouble() &&
+                    moved["timeValue"].toDouble() ==
+                        original["timeValue"].toDouble() - 40.0 &&
+                    moved["value"] == original["value"] &&
+                    moved["interpolation"] == original["interpolation"] &&
+                    moved["cp1x"] == original["cp1x"] &&
+                    moved["cp1y"] == original["cp1y"] &&
+                    moved["cp2x"] == original["cp2x"] &&
+                    moved["cp2y"] == original["cp2y"] &&
+                    moved["roving"] == original["roving"];
+            }
+
+            sendKey(Qt::Key_Z);
+            const auto undoSource = parent->layerById(ids.front());
+            const auto undoPosition = undoSource
+                ? undoSource->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const bool animationRestoredByUndo = !hasChild_ ||
+                ArtifactProjectService::instance()->findComposition(childId_).ptr.expired();
+            const bool undoKeysPreserved = undoPosition &&
+                keyframes(undoPosition) == originalKeys;
+
+            sendKey(Qt::Key_Y);
+            const auto redoChild = service->findComposition(childId_).ptr.lock();
+            const auto redoIds = namedLayerIds(redoChild, {QStringLiteral("A")});
+            const auto redoA = redoIds.size() == 1
+                ? redoChild->layerById(redoIds.front()) : ArtifactAbstractLayerPtr{};
+            const auto redoPosition = redoA
+                ? redoA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const bool animationRestoredByRedo = redoPosition &&
+                keyframes(redoPosition) == movedKeys;
+
+            sendKey(Qt::Key_K);
+            const auto unpackedA = parent->layerById(ids.front());
+            const auto unpackedPosition = unpackedA
+                ? unpackedA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const bool animationRestoredByKeyboardUnpack = unpackedPosition &&
+                keyframes(unpackedPosition) == originalKeys;
+
+            const bool passed = animationMovedByKey && animationRestoredByUndo &&
+                undoKeysPreserved && animationRestoredByRedo &&
+                animationRestoredByKeyboardUnpack;
+            QJsonObject result{{"animationMovedByKey", animationMovedByKey},
+                               {"animationRestoredByUndo", animationRestoredByUndo},
+                               {"undoKeysPreserved", undoKeysPreserved},
+                               {"animationRestoredByRedo", animationRestoredByRedo},
+                               {"animationRestoredByKeyboardUnpack",
+                                animationRestoredByKeyboardUnpack},
+                               {"passed", passed}};
+            if (!passed) result["error"] = QStringLiteral(
+                "GUI P/Z/Y/K keyboard routing did not preserve animated position keys");
+            refresh();
+            result["state"] = state();
+            return result;
+        }
         if (name == "test.capture") {
             QByteArray png;
             QBuffer buffer(&png);
@@ -6190,7 +6295,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.childCompositionEffectStaysWithChild", "test.openChildComposition", "test.matchWorkspaceDuration", "test.emptyWorkspaceDurationFallsBack", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.precomposeIgnoresStaleSelectionId", "test.unpackLayerIdCollisionAtomic", "test.unpackDuplicateChildLayerIdsAtomic", "test.unpackNilChildLayerIdAtomic", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.guiAnimatedKeyRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.childCompositionEffectStaysWithChild", "test.openChildComposition", "test.matchWorkspaceDuration", "test.emptyWorkspaceDurationFallsBack", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.precomposeIgnoresStaleSelectionId", "test.unpackLayerIdCollisionAtomic", "test.unpackDuplicateChildLayerIdsAtomic", "test.unpackNilChildLayerIdAtomic", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
