@@ -215,3 +215,25 @@ TEST(AudioRingBufferStandaloneTest, PreservesTwelveChannelSurround714Segments)
                         static_cast<float>(channel + 1));
     }
 }
+
+TEST(AudioRingBufferStandaloneTest, PreservesEightChannelSurround71Segments)
+{
+    AudioRingBuffer buffer(4);
+    AudioSegment surround71;
+    surround71.layout = AudioChannelLayout::Surround71;
+    for (int channel = 0; channel < 8; ++channel) {
+        surround71.channelData.push_back(
+            QVector<float>{static_cast<float>(channel - 3)});
+    }
+
+    ASSERT_TRUE(buffer.write(surround71));
+    AudioSegment output;
+    ASSERT_TRUE(buffer.read(output, 1));
+    EXPECT_EQ(output.layout, AudioChannelLayout::Surround71);
+    ASSERT_EQ(output.channelData.size(), 8);
+    for (int channel = 0; channel < 8; ++channel) {
+        ASSERT_EQ(output.channelData[channel].size(), 1);
+        EXPECT_FLOAT_EQ(output.channelData[channel][0],
+                        static_cast<float>(channel - 3));
+    }
+}
