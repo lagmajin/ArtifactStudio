@@ -6578,7 +6578,9 @@ public:
                 ? dynamicPointerCast<ArtifactCompositionLayer>(reloadedMiddle->layerById(inner.precompLayerId))
                 : SharedPtr<ArtifactCompositionLayer>{};
             bool nestedDurationShrinkPropagated = false;
+            bool nestedWorkAreaClippedOnShrink = false;
             bool nestedDurationExpansionPropagated = false;
+            bool nestedWorkAreaRetainedOnExpansion = false;
             if (reloadedRoot && reloadedMiddle && reloadedGrandchild &&
                 reloadedOuterWrapper && reloadedInnerWrapper) {
                 const auto outerIn = reloadedOuterWrapper->inPoint().framePosition();
@@ -6586,6 +6588,13 @@ public:
                 const auto innerIn = reloadedInnerWrapper->inPoint().framePosition();
                 const auto innerStart = reloadedInnerWrapper->startTime().framePosition();
                 reloadedRoot->setFrameRange(FrameRange(0, 180));
+                nestedWorkAreaClippedOnShrink =
+                    reloadedRoot->workAreaRange().start() == 0 &&
+                    reloadedRoot->workAreaRange().duration() == 180 &&
+                    reloadedMiddle->workAreaRange().start() == 0 &&
+                    reloadedMiddle->workAreaRange().duration() == 180 &&
+                    reloadedGrandchild->workAreaRange().start() == 0 &&
+                    reloadedGrandchild->workAreaRange().duration() == 180;
                 nestedDurationShrinkPropagated = reloadedRoot->frameRange().duration() == 180 &&
                     reloadedMiddle->frameRange().duration() == 180 &&
                     reloadedGrandchild->frameRange().duration() == 180 &&
@@ -6596,6 +6605,13 @@ public:
                     reloadedInnerWrapper->startTime().framePosition() == innerStart &&
                     reloadedInnerWrapper->outPoint().framePosition() == innerIn + 180;
                 reloadedRoot->setFrameRange(FrameRange(0, 300));
+                nestedWorkAreaRetainedOnExpansion =
+                    reloadedRoot->workAreaRange().start() == 0 &&
+                    reloadedRoot->workAreaRange().duration() == 180 &&
+                    reloadedMiddle->workAreaRange().start() == 0 &&
+                    reloadedMiddle->workAreaRange().duration() == 180 &&
+                    reloadedGrandchild->workAreaRange().start() == 0 &&
+                    reloadedGrandchild->workAreaRange().duration() == 180;
                 nestedDurationExpansionPropagated = reloadedRoot->frameRange().duration() == 300 &&
                     reloadedMiddle->frameRange().duration() == 300 &&
                     reloadedGrandchild->frameRange().duration() == 300 &&
@@ -6642,7 +6658,9 @@ public:
             roundTrip["runtimeHierarchyRestored"] = runtimeHierarchyRestored;
             roundTrip["timeConversionRestored"] = timeConversionRestored;
             roundTrip["nestedDurationShrinkPropagated"] = nestedDurationShrinkPropagated;
+            roundTrip["nestedWorkAreaClippedOnShrink"] = nestedWorkAreaClippedOnShrink;
             roundTrip["nestedDurationExpansionPropagated"] = nestedDurationExpansionPropagated;
+            roundTrip["nestedWorkAreaRetainedOnExpansion"] = nestedWorkAreaRetainedOnExpansion;
             roundTrip["nestedUnpackedAfterReload"] = nestedUnpackedAfterReload;
             roundTrip["nestedUnpackUndoRestored"] = nestedUnpackUndoRestored;
             roundTrip["nestedUnpackRedoRestored"] = nestedUnpackRedoRestored;
@@ -6650,7 +6668,8 @@ public:
             roundTrip["passed"] = hierarchyDataPreserved && runtimeHierarchyRestored &&
                 timeConversionRestored && nestedUnpackedAfterReload && nestedUnpackUndoRestored &&
                 nestedUnpackRedoRestored && nestedDurationShrinkPropagated &&
-                nestedDurationExpansionPropagated;
+                nestedWorkAreaClippedOnShrink && nestedDurationExpansionPropagated &&
+                nestedWorkAreaRetainedOnExpansion;
             if (!roundTrip["passed"].toBool())
                 roundTrip["error"] = QStringLiteral("Nested save/reload lost composition data or runtime hierarchy");
             childId_ = inner.childCompId;
