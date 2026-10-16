@@ -359,6 +359,9 @@ def main():
             call("test.reset")
             layer_id_collision = call("test.unpackLayerIdCollisionAtomic")
             require(layer_id_collision["passed"] and layer_id_collision["collisionRejected"]
+                    and layer_id_collision["bindingAdded"]
+                    and layer_id_collision["overrideDeferredBeforeFailure"]
+                    and layer_id_collision["overrideRemainsDeferred"]
                     and layer_id_collision["parentStatePreserved"]
                     and layer_id_collision["compositionStatePreserved"]
                     and layer_id_collision["wrapperPreserved"]

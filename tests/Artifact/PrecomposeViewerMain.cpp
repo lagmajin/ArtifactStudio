@@ -2373,13 +2373,32 @@ public:
             const auto child = service->findComposition(outcome.childCompId).ptr.lock();
             const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
                 root->layerById(outcome.precompLayerId));
+            const auto overriddenChildLayer = child ? child->layerById(sourceIds.front())
+                                                     : ArtifactAbstractLayerPtr{};
             const auto collidingChildLayer = child ? child->layerById(sourceIds.back())
                                                    : ArtifactAbstractLayerPtr{};
             const auto untouchedLayer = root->layerById(untouchedIds.front());
-            if (!child || !wrapper || !collidingChildLayer || !untouchedLayer) {
+            if (!child || !wrapper || !overriddenChildLayer || !collidingChildLayer || !untouchedLayer) {
                 collisionResult["error"] = QStringLiteral("Layer-ID-collision fixture is incomplete");
                 return collisionResult;
             }
+
+            ArtifactCore::ExposedPropertyRegistry registry;
+            ArtifactCore::ExposedPropertyBinding binding;
+            binding.id = QStringLiteral("test.collision.opacity");
+            binding.label = QStringLiteral("Collision Opacity");
+            binding.targetLayerId = sourceIds.front().toString();
+            binding.internalPath = QStringLiteral("layer.opacity");
+            binding.defaultValue = overriddenChildLayer->opacity();
+            const bool bindingAdded = registry.add(binding);
+            wrapper->setExposedProperties(registry);
+            constexpr float overrideValue = 0.81f;
+            const bool overrideAccepted = bindingAdded && wrapper->setExposedPropertyOverride(
+                binding.id, QVariant::fromValue(static_cast<double>(overrideValue)));
+            const bool overrideDeferredBeforeFailure = overrideAccepted &&
+                std::abs(overriddenChildLayer->opacity() - binding.defaultValue.toFloat()) < 1.0e-5f &&
+                wrapper->hasExposedPropertyOverride(binding.id) &&
+                std::abs(wrapper->effectiveExposedPropertyValue(binding.id).toFloat() - overrideValue) < 1.0e-5f;
 
             childId_ = outcome.childCompId;
             hasChild_ = true;
@@ -2403,17 +2422,25 @@ public:
             const bool wrapperPreserved = root->layerById(outcome.precompLayerId) == wrapper &&
                 wrapper->sourceCompositionId() == outcome.childCompId &&
                 PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId);
+            const bool overrideRemainsDeferred =
+                std::abs(overriddenChildLayer->opacity() - binding.defaultValue.toFloat()) < 1.0e-5f &&
+                wrapper->hasExposedPropertyOverride(binding.id) &&
+                std::abs(wrapper->effectiveExposedPropertyValue(binding.id).toFloat() - overrideValue) < 1.0e-5f;
             const bool historyPreserved = undo->undoCount() == undoCountBeforeUnpack &&
                 undo->redoCount() == redoCountBeforeUnpack;
             collisionResult["collisionRejected"] = rejected;
+            collisionResult["bindingAdded"] = bindingAdded;
+            collisionResult["overrideDeferredBeforeFailure"] = overrideDeferredBeforeFailure;
+            collisionResult["overrideRemainsDeferred"] = overrideRemainsDeferred;
             collisionResult["parentStatePreserved"] = parentStatePreserved;
             collisionResult["compositionStatePreserved"] = compositionStatePreserved;
             collisionResult["wrapperPreserved"] = wrapperPreserved;
             collisionResult["historyPreserved"] = historyPreserved;
-            collisionResult["passed"] = rejected && parentStatePreserved && compositionStatePreserved &&
-                wrapperPreserved && historyPreserved;
+            collisionResult["passed"] = rejected && bindingAdded && overrideAccepted &&
+                overrideDeferredBeforeFailure && overrideRemainsDeferred && parentStatePreserved &&
+                compositionStatePreserved && wrapperPreserved && historyPreserved;
             if (!collisionResult["passed"].toBool())
-                collisionResult["error"] = QStringLiteral("Unprecompose partially mutated state after a layer-ID collision");
+                collisionResult["error"] = QStringLiteral("Unprecompose mutated state or materialized an override before rejecting a layer-ID collision");
             service->changeCurrentComposition(rootId);
             refresh();
             collisionResult["state"] = state();
