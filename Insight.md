@@ -3688,3 +3688,11 @@
 - **価値／懸念:** 誤った・古いIDのinvalidate呼び出しがsource registryへ参照数0の幽霊状態を残す可能性がある。回帰テストでは未知IDを無効化してもversion 0のまま、既存sourceとして取得不能であることを確認する。
 - **未検証:** 現在の結果と実行時影響はテスト未実行。下流コードは変更していない。
 - **次に確認:** ビルドが許可された際に失敗を確認し、無効化呼び出し側が必ず登録済みIDを渡すか追跡する。
+
+## 2026-10-16: AudioVolume deserialize は保存値を読み戻さない
+
+- **関連:** `ArtifactCore/src/Audio/AudioVolume.cppm` の`serialize()` / `deserialize()`、`tests/ArtifactCore/AudioVolumeStandaloneTest.cpp`。
+- **確認できた事実:** `serialize()`はvolumeとmutedを含むJSON文字列を生成するが、`deserialize()`の実装は引数を使わず常に`AudioVolume(1.0f)`を返す。
+- **価値／懸念:** 音量設定を保存して再読込すると非既定値が失われる。回帰テストでは0.42の値が往復後に保持されることを要求する。
+- **未検証:** テストは実行していない。現実装では失敗することを静的なコード読解から予想している。
+- **次に確認:** ビルドが許可された際に失敗を確認し、JSONの不正入力・旧形式に対する既定値方針を別途定める。

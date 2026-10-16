@@ -104,6 +104,15 @@ TEST(AudioVolumeStandaloneTest, PresetsMatchTheirLinearLevels)
     EXPECT_FLOAT_EQ(AudioVolume::createPreset(AudioVolume::Preset::Maximum).volume(), 2.0f);
 }
 
+TEST(AudioVolumeStandaloneTest, SerializeDeserializePreservesNonDefaultVolume)
+{
+    const AudioVolume source(0.42f);
+
+    const AudioVolume restored = AudioVolume::deserialize(source.serialize());
+
+    EXPECT_FLOAT_EQ(restored.volume(), 0.42f);
+}
+
 TEST(AudioVolumeStandaloneTest, ComparisonsUseEpsilonEquality)
 {
     const AudioVolume a(1.0f);
