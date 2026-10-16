@@ -9,6 +9,8 @@
 
 `test.unpackNilChildLayerIdAtomic`は子レイヤーのIDをnilにして解除を試し、拒否後も親・子Composition、wrapper、Undo/Redo履歴が保たれることを確認する。
 
+`test.openChildComposition`は子Compositionにフォーカスしたまま親wrapper IDで解除を要求し、拒否後もactive composition、親wrapper、子レイヤー、Undo/Redo履歴が変化しないことを確認する。
+
 `test.saveReload`は保存後に再読込した子レイヤーをそのまま解除し、エフェクト・アニメーション付きマスク・マット参照・コンポーネントdescriptorが親へ移ること、親Compositionのエフェクトが子レイヤーへ混入せず親に残ること、Undoで子とwrapperへ戻り、Redoで同じ状態を再適用することも検査する。
 
 `test.rationalFrameRatePreserved`は30000/1001 fps（transform keyframe scale 30）のpositionカーブを選択移動・保存再読込・解除とMoveAllAttributes・Undo/Redoへ通し、キー配列と中間フレームの評価値を照合する。

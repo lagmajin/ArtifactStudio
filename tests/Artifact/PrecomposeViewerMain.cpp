@@ -1300,6 +1300,21 @@ public:
             const bool rootWrapperCreated = comp->layerById(outcome.precompLayerId) &&
                 ArtifactCore::dynamicPointerCast<ArtifactCompositionLayer>(
                     comp->layerById(outcome.precompLayerId));
+            const auto rootWrapper = ArtifactCore::dynamicPointerCast<ArtifactCompositionLayer>(
+                comp->layerById(outcome.precompLayerId));
+            const auto childLayerCountBeforeWrongContextUnpack = openedChild
+                ? openedChild->allLayer().size() : 0;
+            const auto undoCountBeforeWrongContextUnpack = undo->undoCount();
+            const auto redoCountBeforeWrongContextUnpack = undo->redoCount();
+            const bool wrongContextUnpackRejected = childOpened &&
+                !service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const auto stillOpenedChild = service->currentComposition().lock();
+            const bool wrongContextStatePreserved = wrongContextUnpackRejected && stillOpenedChild == openedChild &&
+                stillOpenedChild->allLayer().size() == childLayerCountBeforeWrongContextUnpack &&
+                comp->layerById(outcome.precompLayerId) == rootWrapper &&
+                service->findComposition(outcome.childCompId).ptr.lock() == openedChild &&
+                undo->undoCount() == undoCountBeforeWrongContextUnpack &&
+                undo->redoCount() == redoCountBeforeWrongContextUnpack;
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
             const auto afterUndo = service->currentComposition().lock();
@@ -1325,10 +1340,13 @@ public:
             result["childCompositionId"] = outcome.childCompId.toString();
             result["childOpened"] = childOpened;
             result["rootWrapperCreated"] = bool(rootWrapperCreated);
+            result["wrongContextUnpackRejected"] = wrongContextUnpackRejected;
+            result["wrongContextStatePreserved"] = wrongContextStatePreserved;
             result["undoReturnedToRoot"] = undoReturnedToRoot;
             result["redoKeptRootFocused"] = redoKeptRootFocused;
             result["redoRestoredChild"] = redoRestoredChild;
-            result["passed"] = childOpened && rootWrapperCreated && undoReturnedToRoot &&
+            result["passed"] = childOpened && rootWrapperCreated && wrongContextUnpackRejected &&
+                wrongContextStatePreserved && undoReturnedToRoot &&
                 redoKeptRootFocused && redoRestoredChild;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Open-child navigation or undo/redo focus contract changed");

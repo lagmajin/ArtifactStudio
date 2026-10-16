@@ -200,7 +200,10 @@ def main():
             call("test.reset")
             opened_child = call("test.openChildComposition")
             require(opened_child["passed"] and opened_child["childOpened"]
-                    and opened_child["rootWrapperCreated"] and opened_child["undoReturnedToRoot"]
+                    and opened_child["rootWrapperCreated"]
+                    and opened_child["wrongContextUnpackRejected"]
+                    and opened_child["wrongContextStatePreserved"]
+                    and opened_child["undoReturnedToRoot"]
                     and opened_child["redoKeptRootFocused"] and opened_child["redoRestoredChild"],
                     "Open-child precompose navigation or undo/redo focus changed")
             call("test.reset")
