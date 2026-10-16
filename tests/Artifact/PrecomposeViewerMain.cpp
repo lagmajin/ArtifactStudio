@@ -2102,6 +2102,10 @@ public:
             }
             const auto rootId = comp->id();
             const auto sourceIds = namedLayerIds(comp, {QStringLiteral("A"), QStringLiteral("B")});
+            const auto sourceA = sourceIds.size() == 2 ? comp->layerById(sourceIds[0])
+                                                       : ArtifactAbstractLayerPtr{};
+            const auto sourceB = sourceIds.size() == 2 ? comp->layerById(sourceIds[1])
+                                                       : ArtifactAbstractLayerPtr{};
             if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
                     sourceIds, UniString(QStringLiteral("Open Child Composition")), true, false,
                     PrecomposeMode::MoveSelected)) {
@@ -2112,6 +2116,12 @@ public:
             const auto openedChild = service->currentComposition().lock();
             const bool childOpened = openedChild && openedChild->id() == outcome.childCompId &&
                 namedLayerIds(openedChild, {QStringLiteral("A"), QStringLiteral("B")}).size() == 2;
+            const auto openedA = openedChild ? openedChild->layerById(sourceIds[0])
+                                              : ArtifactAbstractLayerPtr{};
+            const auto openedB = openedChild ? openedChild->layerById(sourceIds[1])
+                                              : ArtifactAbstractLayerPtr{};
+            const bool childLayerObjectsPreservedOnOpen = childOpened && sourceA && sourceB &&
+                openedA.get() == sourceA.get() && openedB.get() == sourceB.get();
             const auto matchesSelection = [&](const CompositionID& compositionId,
                                               const LayerID& layerId) {
                 const auto active = selection->activeComposition();
@@ -2175,10 +2185,21 @@ public:
                 namedLayerIds(afterUndo, {QStringLiteral("A"), QStringLiteral("B")}).size() == 2 &&
                 !service->findComposition(outcome.childCompId).ptr.lock() &&
                 matchesSelection(rootId, sourceIds.front());
+            const bool undoLayerObjectsReturnedToRoot = undoReturnedToRoot && sourceA && sourceB &&
+                afterUndo->layerById(sourceIds[0]).get() == sourceA.get() &&
+                afterUndo->layerById(sourceIds[1]).get() == sourceB.get();
             const bool redoAvailable = undo->canRedo();
             if (redoAvailable) undo->redo();
             const auto afterRedo = service->currentComposition().lock();
             const auto redoneChild = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto redoneA = redoneChild ? redoneChild->layerById(sourceIds[0])
+                                             : ArtifactAbstractLayerPtr{};
+            const auto redoneB = redoneChild ? redoneChild->layerById(sourceIds[1])
+                                             : ArtifactAbstractLayerPtr{};
+            const bool redoChildCompositionIdentityPreserved = openedChild && redoneChild &&
+                redoneChild.get() == openedChild.get();
+            const bool redoChildLayerObjectsPreserved = redoneA && redoneB && sourceA && sourceB &&
+                redoneA.get() == sourceA.get() && redoneB.get() == sourceB.get();
             bool parentReferenceRestored = false;
             for (const auto& reference : PreComposeManager::instance().getPrecompLayersForChild(
                      outcome.childCompId)) {
@@ -2191,10 +2212,13 @@ public:
             const bool redoRestoredChild = redoneChild && afterRedo &&
                 namedLayerIds(redoneChild, {QStringLiteral("A"), QStringLiteral("B")}).size() == 2 &&
                 parentReferenceRestored && afterRedo->layerById(outcome.precompLayerId);
+            const bool redoWrapperIdentityPreserved = rootWrapper && afterRedo &&
+                afterRedo->layerById(outcome.precompLayerId).get() == rootWrapper.get();
             result["rootCompositionId"] = rootId.toString();
             result["rootWrapperId"] = outcome.precompLayerId.toString();
             result["childCompositionId"] = outcome.childCompId.toString();
             result["childOpened"] = childOpened;
+            result["childLayerObjectsPreservedOnOpen"] = childLayerObjectsPreservedOnOpen;
             result["childSelectionCorrect"] = childSelectionCorrect;
             result["rootWrapperCreated"] = bool(rootWrapperCreated);
             result["wrongContextUnpackRejected"] = wrongContextUnpackRejected;
@@ -2205,11 +2229,17 @@ public:
             result["wrongContextPublishedStatePreserved"] = wrongContextPublishedStatePreserved;
             result["wrongContextStatePreserved"] = wrongContextStatePreserved;
             result["undoReturnedToRoot"] = undoReturnedToRoot;
+            result["undoLayerObjectsReturnedToRoot"] = undoLayerObjectsReturnedToRoot;
             result["redoKeptRootFocused"] = redoKeptRootFocused;
             result["redoRestoredChild"] = redoRestoredChild;
-            result["passed"] = childOpened && childSelectionCorrect && rootWrapperCreated && wrongContextUnpackRejected &&
-                wrongContextStatePreserved && undoReturnedToRoot &&
-                redoKeptRootFocused && redoRestoredChild;
+            result["redoChildCompositionIdentityPreserved"] = redoChildCompositionIdentityPreserved;
+            result["redoChildLayerObjectsPreserved"] = redoChildLayerObjectsPreserved;
+            result["redoWrapperIdentityPreserved"] = redoWrapperIdentityPreserved;
+            result["passed"] = childOpened && childSelectionCorrect &&
+                childLayerObjectsPreservedOnOpen && rootWrapperCreated && wrongContextUnpackRejected &&
+                wrongContextStatePreserved && undoReturnedToRoot && undoLayerObjectsReturnedToRoot &&
+                redoKeptRootFocused && redoRestoredChild && redoChildCompositionIdentityPreserved &&
+                redoChildLayerObjectsPreserved && redoWrapperIdentityPreserved;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Open-child navigation or undo/redo focus contract changed");
             service->changeCurrentComposition(rootId);
