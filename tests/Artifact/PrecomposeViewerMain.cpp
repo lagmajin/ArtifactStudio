@@ -127,6 +127,26 @@ public:
         if (name == "test.guiKeyboardRoundTrip") {
             reset();
             const auto originalLayers = state()["layers"].toArray();
+            auto* projectService = ArtifactProjectService::instance();
+            const auto originalComposition = projectService->currentComposition().lock();
+            const auto originalLayerIds = namedLayerIds(
+                originalComposition, {QStringLiteral("A"), QStringLiteral("B")});
+            const auto originalA = originalLayerIds.size() == 2
+                ? originalComposition->layerById(originalLayerIds[0]) : ArtifactAbstractLayerPtr{};
+            const auto originalB = originalLayerIds.size() == 2
+                ? originalComposition->layerById(originalLayerIds[1]) : ArtifactAbstractLayerPtr{};
+            const auto sourceObjectsMatch = [&originalA, &originalB](
+                const ArtifactCompositionPtr& composition) {
+                if (!composition || !originalA || !originalB) return false;
+                const auto ids = namedLayerIds(composition,
+                    {QStringLiteral("A"), QStringLiteral("B")});
+                return ids.size() == 2 && composition->layerById(ids[0]).get() == originalA.get() &&
+                    composition->layerById(ids[1]).get() == originalB.get();
+            };
+            const auto childObjectsMatch = [&projectService, &sourceObjectsMatch](
+                const CompositionID& childId) {
+                return sourceObjectsMatch(projectService->findComposition(childId).ptr.lock());
+            };
             const auto sendKey = [this](int key) {
                 QKeyEvent event(QEvent::KeyPress, key, Qt::NoModifier);
                 QApplication::sendEvent(this, &event);
@@ -233,6 +253,8 @@ public:
                 afterPrecompose["layers"].toArray().size() == 2;
             const bool keepMappingRegisteredByKey = precomposedByKey &&
                 managerMappingMatches(keepWrapperId, keepChildId);
+            const bool selectedLayerObjectsPreservedByKey = precomposedByKey &&
+                childObjectsMatch(keepChildId);
             const bool selectedSettingsCopiedByKey = precomposedByKey &&
                 childSettingsCopied(afterPrecompose);
             const bool precomposeSelectionByKey =
@@ -244,6 +266,8 @@ public:
                 afterUndo["layers"].toArray() == originalLayers;
             const bool precomposeMappingRemovedByUndoKey = undoneByKey &&
                 managerMappingCleared(keepWrapperId, keepChildId);
+            const bool precomposeUndoLayerObjectsPreservedByKey = undoneByKey &&
+                sourceObjectsMatch(projectService->currentComposition().lock());
             sendKey(Qt::Key_Y);
             const auto afterRedo = state();
             const bool redoneByKey = afterRedo["canUndo"].toBool() &&
@@ -252,6 +276,8 @@ public:
                 afterRedo["layers"].toArray().size() == 2;
             const bool precomposeMappingRestoredByRedoKey = redoneByKey &&
                 managerMappingMatches(keepWrapperId, keepChildId);
+            const bool precomposeRedoLayerObjectsPreservedByKey = redoneByKey &&
+                childObjectsMatch(keepChildId);
             sendKey(Qt::Key_K);
             const auto afterKeepUnpack = state();
             const bool unpackedKeepByKey = afterKeepUnpack["canUndo"].toBool() &&
@@ -260,6 +286,8 @@ public:
                 selectedLayerName(afterKeepUnpack, rootCompositionId) == QStringLiteral("A");
             const bool keepMappingRemovedByKey = unpackedKeepByKey &&
                 managerMappingCleared(keepWrapperId, keepChildId);
+            const bool keepUnpackLayerObjectsPreservedByKey = unpackedKeepByKey &&
+                sourceObjectsMatch(projectService->currentComposition().lock());
             sendKey(Qt::Key_Z);
             const auto afterKeepUndo = state();
             const bool keepUndoByKey = afterKeepUndo["canRedo"].toBool() &&
@@ -268,6 +296,8 @@ public:
                 selectedLayerName(afterKeepUndo, rootCompositionId) == QStringLiteral("Nested A+B");
             const bool keepMappingRestoredByUndoKey = keepUndoByKey &&
                 managerMappingMatches(keepWrapperId, keepChildId);
+            const bool keepUndoLayerObjectsPreservedByKey = keepUndoByKey &&
+                childObjectsMatch(keepChildId);
             sendKey(Qt::Key_Y);
             const auto afterKeepRedo = state();
             const bool keepRedoByKey = afterKeepRedo["lastChildExists"].toBool() &&
@@ -275,6 +305,8 @@ public:
                 selectedLayerName(afterKeepRedo, rootCompositionId) == QStringLiteral("A");
             const bool keepMappingRemovedByRedoKey = keepRedoByKey &&
                 managerMappingCleared(keepWrapperId, keepChildId);
+            const bool keepRedoLayerObjectsPreservedByKey = keepRedoByKey &&
+                sourceObjectsMatch(projectService->currentComposition().lock());
             sendKey(Qt::Key_P);
             const auto beforeDeleteUnpack = state();
             const auto deleteWrapperId = ArtifactProjectService::instance()
@@ -284,6 +316,8 @@ public:
                 beforeDeleteUnpack["layers"].toArray().size() == 2;
             const bool deleteMappingRegisteredByKey = precomposedForDeleteByKey &&
                 managerMappingMatches(deleteWrapperId, deleteChildId);
+            const bool deletePrecomposeLayerObjectsPreservedByKey = precomposedForDeleteByKey &&
+                childObjectsMatch(deleteChildId);
             sendKey(Qt::Key_D);
             const auto afterDeleteUnpack = state();
             const bool unpackedDeleteByKey = precomposedForDeleteByKey &&
@@ -301,6 +335,8 @@ public:
                 selectedLayerName(afterDeleteUndo, rootCompositionId) == QStringLiteral("Nested A+B");
             const bool deleteMappingRestoredByUndoKey = deleteUndoByKey &&
                 managerMappingMatches(deleteWrapperId, deleteChildId);
+            const bool deleteUndoLayerObjectsPreservedByKey = deleteUndoByKey &&
+                childObjectsMatch(deleteChildId);
             sendKey(Qt::Key_Y);
             const auto afterDeleteRedo = state();
             const bool deleteRedoByKey = afterDeleteRedo["canUndo"].toBool() &&
@@ -320,12 +356,16 @@ public:
                 selectedLayerName(afterMoveAll, rootCompositionId) == QStringLiteral("Nested A+B");
             const bool allMappingRegisteredByKey = allMovedByKey &&
                 managerMappingMatches(allWrapperId, allChildId);
+            const bool allLayerObjectsPreservedByKey = allMovedByKey &&
+                childObjectsMatch(allChildId);
             const bool allSettingsCopiedByKey = allMovedByKey && childSettingsCopied(afterMoveAll);
             sendKey(Qt::Key_Z);
             const auto afterMoveAllUndo = state();
             const bool allUndoByKey = afterMoveAllUndo["canRedo"].toBool() &&
                 !afterMoveAllUndo["lastChildExists"].toBool() &&
                 afterMoveAllUndo["layers"].toArray() == originalLayers;
+            const bool allUndoLayerObjectsPreservedByKey = allUndoByKey &&
+                sourceObjectsMatch(projectService->currentComposition().lock());
             const bool allMappingRemovedByUndoKey = allUndoByKey &&
                 managerMappingCleared(allWrapperId, allChildId);
             sendKey(Qt::Key_Y);
@@ -336,6 +376,8 @@ public:
                 selectedLayerName(afterMoveAllRedo, rootCompositionId) == QStringLiteral("Nested A+B");
             const bool allMappingRestoredByRedoKey = allRedoByKey &&
                 managerMappingMatches(allWrapperId, allChildId);
+            const bool allRedoLayerObjectsPreservedByKey = allRedoByKey &&
+                childObjectsMatch(allChildId);
             sendKey(Qt::Key_R);
             const auto afterReset = state();
             const auto resetLayers = afterReset["layers"].toArray();
@@ -355,50 +397,75 @@ public:
                 !resetSelection.contains("currentLayerId");
             QJsonObject result{{"precomposedByKey", precomposedByKey},
                                {"keepMappingRegisteredByKey", keepMappingRegisteredByKey},
+                               {"selectedLayerObjectsPreservedByKey", selectedLayerObjectsPreservedByKey},
                                {"undoneByKey", undoneByKey},
                                {"precomposeMappingRemovedByUndoKey", precomposeMappingRemovedByUndoKey},
+                               {"precomposeUndoLayerObjectsPreservedByKey",
+                                precomposeUndoLayerObjectsPreservedByKey},
                                {"redoneByKey", redoneByKey},
                                {"precomposeMappingRestoredByRedoKey", precomposeMappingRestoredByRedoKey},
+                               {"precomposeRedoLayerObjectsPreservedByKey",
+                                precomposeRedoLayerObjectsPreservedByKey},
                                {"selectedSettingsCopiedByKey", selectedSettingsCopiedByKey},
                                {"precomposeSelectionByKey", precomposeSelectionByKey},
                                {"unpackedKeepByKey", unpackedKeepByKey},
                                {"keepMappingRemovedByKey", keepMappingRemovedByKey},
+                               {"keepUnpackLayerObjectsPreservedByKey",
+                                keepUnpackLayerObjectsPreservedByKey},
                                {"keepUndoByKey", keepUndoByKey},
                                {"keepMappingRestoredByUndoKey", keepMappingRestoredByUndoKey},
+                               {"keepUndoLayerObjectsPreservedByKey",
+                                keepUndoLayerObjectsPreservedByKey},
                                {"keepRedoByKey", keepRedoByKey},
                                {"keepMappingRemovedByRedoKey", keepMappingRemovedByRedoKey},
+                               {"keepRedoLayerObjectsPreservedByKey",
+                                keepRedoLayerObjectsPreservedByKey},
                                {"precomposedForDeleteByKey", precomposedForDeleteByKey},
                                {"deleteMappingRegisteredByKey", deleteMappingRegisteredByKey},
+                               {"deletePrecomposeLayerObjectsPreservedByKey",
+                                deletePrecomposeLayerObjectsPreservedByKey},
                                {"unpackedDeleteByKey", unpackedDeleteByKey},
                                {"deleteMappingRemovedByKey", deleteMappingRemovedByKey},
                                {"deleteUndoByKey", deleteUndoByKey},
                                {"deleteMappingRestoredByUndoKey", deleteMappingRestoredByUndoKey},
+                               {"deleteUndoLayerObjectsPreservedByKey",
+                                deleteUndoLayerObjectsPreservedByKey},
                                {"deleteRedoByKey", deleteRedoByKey},
                                {"deleteMappingRemovedByRedoKey", deleteMappingRemovedByRedoKey},
                                {"allMovedByKey", allMovedByKey},
                                {"allMappingRegisteredByKey", allMappingRegisteredByKey},
+                               {"allLayerObjectsPreservedByKey", allLayerObjectsPreservedByKey},
                                {"allSettingsCopiedByKey", allSettingsCopiedByKey},
                                {"allUndoByKey", allUndoByKey},
                                {"allMappingRemovedByUndoKey", allMappingRemovedByUndoKey},
+                               {"allUndoLayerObjectsPreservedByKey", allUndoLayerObjectsPreservedByKey},
                                {"allRedoByKey", allRedoByKey},
                                {"allMappingRestoredByRedoKey", allMappingRestoredByRedoKey},
+                               {"allRedoLayerObjectsPreservedByKey", allRedoLayerObjectsPreservedByKey},
                                {"resetByKey", resetByKey},
                                {"resetSelectionByKey", resetSelectionByKey},
                                {"passed", precomposedByKey && selectedSettingsCopiedByKey &&
+                                   keepMappingRegisteredByKey && selectedLayerObjectsPreservedByKey &&
                                    precomposeSelectionByKey &&
                                    undoneByKey && precomposeMappingRemovedByUndoKey && redoneByKey &&
                                    precomposeMappingRestoredByRedoKey &&
+                                   precomposeUndoLayerObjectsPreservedByKey &&
+                                   precomposeRedoLayerObjectsPreservedByKey &&
                                    unpackedKeepByKey && keepMappingRemovedByKey && keepUndoByKey &&
                                    keepMappingRestoredByUndoKey && keepRedoByKey &&
-                                   keepMappingRemovedByRedoKey &&
+                                   keepMappingRemovedByRedoKey && keepUnpackLayerObjectsPreservedByKey &&
+                                   keepUndoLayerObjectsPreservedByKey && keepRedoLayerObjectsPreservedByKey &&
                                    precomposedForDeleteByKey && deleteMappingRegisteredByKey &&
-                                   unpackedDeleteByKey && deleteMappingRemovedByKey &&
-                                   deleteUndoByKey &&
+                                   deletePrecomposeLayerObjectsPreservedByKey &&
+                                   unpackedDeleteByKey && deleteMappingRemovedByKey && deleteUndoByKey &&
                                    deleteMappingRestoredByUndoKey && deleteRedoByKey &&
+                                   deleteUndoLayerObjectsPreservedByKey &&
                                    deleteMappingRemovedByRedoKey && allMovedByKey &&
                                    allSettingsCopiedByKey &&
                                    allUndoByKey && allMappingRemovedByUndoKey && allRedoByKey &&
                                    allMappingRestoredByRedoKey && allMappingRegisteredByKey &&
+                                   allLayerObjectsPreservedByKey && allUndoLayerObjectsPreservedByKey &&
+                                   allRedoLayerObjectsPreservedByKey &&
                                    resetByKey && resetSelectionByKey},
                                {"state", afterReset}};
             if (!result["passed"].toBool())
