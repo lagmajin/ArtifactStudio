@@ -33,15 +33,17 @@ def main():
 
         threading.Thread(target=read_replies, daemon=True).start()
 
-        def request(method, params):
+        def request(method, params, allow_protocol_error=False):
             request_id = len(evidence) + 1
             process.stdin.write(json.dumps({"jsonrpc": "2.0", "id": request_id,
                                            "method": method, "params": params}) + "\n")
             process.stdin.flush()
             reply = replies.get(timeout=120)
             evidence.append({"method": method, "params": params, "reply": reply})
-            if reply.get("id") != request_id or "error" in reply:
+            if reply.get("id") != request_id or ("error" in reply and not allow_protocol_error):
                 raise RuntimeError(f"Invalid MCP reply: {reply}")
+            if allow_protocol_error:
+                return reply
             return reply["result"]
 
         def call(name):
@@ -79,6 +81,24 @@ def main():
             require(len(names) == len(listed_tools) and len(names) == len(set(names)),
                     "MCP tools/list returned invalid or duplicate tool names")
             exposed_tool_names.update(names)
+            protocol_state_before_invalid_calls = call("test.state")
+            unknown_tool = request("tools/call", {"name": "test.notARealTool", "arguments": {}})
+            require(unknown_tool.get("isError") and "Unknown tool" in
+                    json.loads(unknown_tool["content"][0]["text"]).get("error", ""),
+                    "Unknown MCP tool did not return a tool error")
+            unexpected_argument = request("tools/call", {
+                "name": "test.state", "arguments": {"unexpected": True}})
+            require(unexpected_argument.get("isError") and "empty object arguments" in
+                    json.loads(unexpected_argument["content"][0]["text"]).get("error", ""),
+                    "MCP tool accepted unsupported arguments")
+            unknown_method = request("method/not-found", {}, allow_protocol_error=True)
+            require(unknown_method.get("error", {}).get("code") == -32601,
+                    "Unknown MCP method did not return JSON-RPC method-not-found")
+            protocol_state_after_invalid_calls = call("test.state")
+            require(protocol_state_after_invalid_calls["compositionId"] ==
+                    protocol_state_before_invalid_calls["compositionId"] and
+                    protocol_state_after_invalid_calls["layers"] == protocol_state_before_invalid_calls["layers"],
+                    "Invalid MCP requests mutated the precompose fixture")
             keyboard_round_trip = call("test.guiKeyboardRoundTrip")
             require(keyboard_round_trip["passed"] and keyboard_round_trip["precomposedByKey"]
                     and keyboard_round_trip["undoneByKey"] and keyboard_round_trip["redoneByKey"]
