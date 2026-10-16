@@ -482,8 +482,12 @@ def main():
                     and round_trip["masterPropertyOverridePreserved"]
                     and round_trip["overrideStillDeferred"]
                     and round_trip["layerMetadataPreserved"]
-                    and round_trip["transformKeyframesPreserved"],
-                    "Precompose save/reload changed parent-child data, layer metadata, exposed properties, or runtime nesting")
+                    and round_trip["transformKeyframesPreserved"]
+                    and round_trip["layerEffectPersisted"]
+                    and round_trip["layerMaskPersisted"]
+                    and round_trip["layerMattePersisted"]
+                    and round_trip["componentDescriptorsPersisted"],
+                    "Precompose save/reload changed layer metadata, effects, masks, mattes, component descriptors, exposed properties, or runtime nesting")
             call("test.reset")
             hierarchy = call("test.nestedHierarchy")
             require(hierarchy["passed"] and hierarchy["hierarchyPreserved"]

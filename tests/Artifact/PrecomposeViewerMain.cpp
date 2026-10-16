@@ -29,6 +29,7 @@
 #include <cmath>
 #include <cstdio>
 #include <exception>
+#include <vector>
 
 import Artifact.Test.PreCompose;
 import Artifact.Service.Project;
@@ -4335,6 +4336,69 @@ public:
             sourceLayer->setRotation3D(QVector3D(13.0f, -27.0f, 41.0f));
             sourceLayer->transform3D().setCurrentScale(1.25f, 0.8f);
             sourceLayer->transform3D().setCurrentAnchor(7.0f, -5.0f, 3.0f);
+            const auto persistedEffect = makeShared<BrightnessEffect>();
+            persistedEffect->setBrightness(0.3125f);
+            sourceLayer->addEffect(persistedEffect);
+            LayerMask persistedMask;
+            persistedMask.setEnabled(false);
+            persistedMask.setLocked(true);
+            persistedMask.setColor(FloatColor(0.25f, 0.5f, 0.75f, 1.0f));
+            MaskPath persistedMaskPath;
+            persistedMaskPath.setName(UniString(QStringLiteral("Saved Cutout")));
+            persistedMaskPath.setClosed(true);
+            persistedMaskPath.setOpacity(0.625f);
+            persistedMaskPath.setMode(MaskMode::Difference);
+            persistedMaskPath.addVertex(
+                {QPointF(5.0, 9.0), QPointF(-1.0, 0.5), QPointF(2.0, -0.5)});
+            persistedMaskPath.addVertex(
+                {QPointF(25.0, 29.0), QPointF(-2.0, 1.0), QPointF(1.0, 2.0)});
+            MaskPathKeyframeSnapshot persistedMaskKey;
+            persistedMaskKey.vertices = {
+                {QPointF(7.0, 11.0), QPointF(-1.5, 0.5), QPointF(2.5, -0.5)},
+                {QPointF(28.0, 31.0), QPointF(-2.5, 1.0), QPointF(1.5, 2.0)}};
+            persistedMaskKey.closed = false;
+            persistedMaskKey.opacity = 0.375f;
+            persistedMaskKey.feather = 2.5f;
+            persistedMaskKey.falloff = MaskFeatherFalloff::Smooth;
+            persistedMaskKey.mode = MaskMode::Subtract;
+            persistedMaskKey.name = UniString(QStringLiteral("Saved Cutout Key"));
+            persistedMaskPath.setAnimationKeyframe(24, persistedMaskKey);
+            persistedMask.addMaskPath(persistedMaskPath);
+            sourceLayer->addMask(persistedMask);
+            LayerMatteReference persistedMatte;
+            persistedMatte.sourceLayerId = Id(peerLayer->id().toString());
+            persistedMatte.sourceAssetPath = QStringLiteral("asset://saved-matte");
+            persistedMatte.enabled = true;
+            persistedMatte.type = MatteType::Luma;
+            persistedMatte.blendMode = MatteBlendMode::Intersect;
+            persistedMatte.fitMode = MatteFitMode::Fit;
+            persistedMatte.opacity = 0.75f;
+            persistedMatte.invert = true;
+            sourceLayer->setMatteReferences({persistedMatte});
+            (void)sourceLayer->layerComponents();
+            auto expectedComponentSnapshot = sourceLayer->componentDescriptorSnapshot();
+            QJsonArray persistedComponentGraph =
+                expectedComponentSnapshot.value(QStringLiteral("componentGraph")).toArray();
+            persistedComponentGraph.append(QJsonObject{
+                {QStringLiteral("componentId"), QStringLiteral("test.precompose.persisted")},
+                {QStringLiteral("typeId"), QStringLiteral("artifact.test.persisted.scope")},
+                {QStringLiteral("version"), 2},
+                {QStringLiteral("enabled"), true},
+                {QStringLiteral("phase"), QStringLiteral("render")},
+                {QStringLiteral("scope"), QStringLiteral("layer")},
+                {QStringLiteral("order"), 7},
+                {QStringLiteral("requires"), QJsonArray{}},
+                {QStringLiteral("settings"), QJsonObject{
+                     {QStringLiteral("mode"), QStringLiteral("persistent")},
+                     {QStringLiteral("weight"), 0.5}}}});
+            expectedComponentSnapshot.insert(QStringLiteral("componentGraph"), persistedComponentGraph);
+            const bool componentSnapshotAuthored =
+                sourceLayer->restoreComponentDescriptorSnapshot(expectedComponentSnapshot) &&
+                sourceLayer->componentDescriptorSnapshot() == expectedComponentSnapshot;
+            if (!componentSnapshotAuthored) {
+                roundTrip["error"] = QStringLiteral("Could not prepare component descriptor save/reload fixture");
+                return roundTrip;
+            }
             peerLayer->setLayerNote(QStringLiteral("Persisted B\nsecond line"));
             peerLayer->setVisible(true);
             peerLayer->setLocked(false);
@@ -4442,6 +4506,54 @@ public:
             const bool transformKeyframesPreserved =
                 layerChannelsMatch(reloadedSourceLayer, sourceTransformKeys) &&
                 layerChannelsMatch(reloadedPeerLayer, peerTransformKeys);
+            const auto reloadedEffects = reloadedSourceLayer
+                ? reloadedSourceLayer->getEffects()
+                : std::vector<SharedPtr<ArtifactAbstractEffect>>{};
+            const auto reloadedBrightness = reloadedEffects.size() == 1
+                ? dynamicPointerCast<BrightnessEffect>(reloadedEffects.front())
+                : SharedPtr<BrightnessEffect>{};
+            const bool layerEffectPersisted = reloadedBrightness &&
+                std::abs(reloadedBrightness->brightness() - 0.3125f) <= 1.0e-6f;
+            bool layerMaskPersisted = false;
+            if (reloadedSourceLayer && reloadedSourceLayer->maskCount() == 1) {
+                const auto mask = reloadedSourceLayer->mask(0);
+                if (mask.maskPathCount() == 1) {
+                    const auto path = mask.maskPath(0);
+                    const auto keys = path.animationKeyframes();
+                    layerMaskPersisted = !mask.isEnabled() && mask.isLocked() &&
+                        mask.color().approximatelyEqual(FloatColor(0.25f, 0.5f, 0.75f, 1.0f)) &&
+                        path.name().toQString() == QStringLiteral("Saved Cutout") &&
+                        path.isClosed() && path.mode() == MaskMode::Difference &&
+                        std::abs(path.opacity() - 0.625f) <= 1.0e-6f &&
+                        path.vertexCount() == 2 &&
+                        path.vertex(0).position == QPointF(5.0, 9.0) &&
+                        path.vertex(0).outTangent == QPointF(2.0, -0.5) &&
+                        path.hasAnimationKeyframes() && keys.size() == 1 &&
+                        keys[0].frame == 24 && keys[0].name.toQString() ==
+                            QStringLiteral("Saved Cutout Key") && !keys[0].closed &&
+                        std::abs(keys[0].opacity - 0.375f) <= 1.0e-6f &&
+                        std::abs(keys[0].feather - 2.5f) <= 1.0e-6f &&
+                        keys[0].falloff == MaskFeatherFalloff::Smooth &&
+                        keys[0].mode == MaskMode::Subtract && keys[0].vertices.size() == 2 &&
+                        keys[0].vertices[1].position == QPointF(28.0, 31.0) &&
+                        keys[0].vertices[1].inTangent == QPointF(-2.5, 1.0);
+                }
+            }
+            const auto reloadedMattes = reloadedSourceLayer
+                ? reloadedSourceLayer->matteReferences()
+                : std::vector<LayerMatteReference>{};
+            const bool layerMattePersisted = reloadedMattes.size() == 1 &&
+                reloadedMattes.front().id.toString() == persistedMatte.id.toString() &&
+                reloadedMattes.front().sourceLayerId.toString() == peerLayer->id().toString() &&
+                reloadedMattes.front().sourceAssetPath == persistedMatte.sourceAssetPath &&
+                reloadedMattes.front().enabled &&
+                reloadedMattes.front().type == MatteType::Luma &&
+                reloadedMattes.front().blendMode == MatteBlendMode::Intersect &&
+                reloadedMattes.front().fitMode == MatteFitMode::Fit &&
+                std::abs(reloadedMattes.front().opacity - 0.75f) <= 1.0e-6f &&
+                reloadedMattes.front().invert;
+            const bool componentDescriptorsPersisted = reloadedSourceLayer &&
+                reloadedSourceLayer->componentDescriptorSnapshot() == expectedComponentSnapshot;
             const auto reloadedBinding = reloadedPrecompLayer
                 ? reloadedPrecompLayer->exposedProperties().binding(opacityBinding.id)
                 : ArtifactCore::ExposedPropertyBinding{};
@@ -4507,9 +4619,14 @@ public:
             roundTrip["overrideStillDeferred"] = overrideStillDeferred;
             roundTrip["layerMetadataPreserved"] = layerMetadataPreserved;
             roundTrip["transformKeyframesPreserved"] = transformKeyframesPreserved;
+            roundTrip["layerEffectPersisted"] = layerEffectPersisted;
+            roundTrip["layerMaskPersisted"] = layerMaskPersisted;
+            roundTrip["layerMattePersisted"] = layerMattePersisted;
+            roundTrip["componentDescriptorsPersisted"] = componentDescriptorsPersisted;
             roundTrip["passed"] = save.success && loaded && parentChildLink && runtimeNestingRestored &&
                 masterPropertyDefinitionPreserved && masterPropertyOverridePreserved && overrideStillDeferred &&
-                layerMetadataPreserved && transformKeyframesPreserved;
+                layerMetadataPreserved && transformKeyframesPreserved && layerEffectPersisted &&
+                layerMaskPersisted && layerMattePersisted && componentDescriptorsPersisted;
             if (!roundTrip["passed"].toBool())
                 roundTrip["error"] = QStringLiteral("Precompose project round-trip lost parent/child data or runtime nesting registration");
             childId_ = originalChildId;
