@@ -73,7 +73,7 @@ public:
         auto* central = new QWidget(this);
         auto* layout = new QVBoxLayout(central);
         layout->addWidget(new QLabel(QStringLiteral(
-            "P: precompose A+B   A: move all   K: unpack/keep child   D: unpack/delete child\n"
+            "P: precompose A+B   O: open child   A: move all   K: unpack/keep child   D: unpack/delete child\n"
             "Z: undo   Y: redo   R: new fixture   T: run regression suite"), central));
         text_ = new QTextEdit(central);
         text_->setReadOnly(true);
@@ -641,6 +641,25 @@ public:
                 "GUI P/Z/Y/K keyboard routing did not preserve animated position keys");
             refresh();
             result["state"] = state();
+            return result;
+        }
+        if (name == "test.guiOpenChildCompositionRoundTrip") {
+            reset();
+            keyboardActionResult_ = {};
+            QKeyEvent event(QEvent::KeyPress, Qt::Key_O, Qt::NoModifier);
+            QApplication::sendEvent(this, &event);
+            const auto stateAfterKey = state();
+            QJsonObject result = keyboardActionResult_;
+            const bool actionCompleted = result.value(QStringLiteral("passed")).toBool();
+            const bool returnedToRoot = stateAfterKey.value(QStringLiteral("compositionId")).toString() ==
+                result.value(QStringLiteral("rootCompositionId")).toString();
+            result[QStringLiteral("guiKeyRouted")] = actionCompleted;
+            result[QStringLiteral("returnedToRoot")] = returnedToRoot;
+            result[QStringLiteral("passed")] = actionCompleted && returnedToRoot;
+            result[QStringLiteral("state")] = stateAfterKey;
+            if (!result.value(QStringLiteral("passed")).toBool())
+                result[QStringLiteral("error")] = QStringLiteral(
+                    "GUI O key did not complete the open-child composition round trip");
             return result;
         }
         if (name == "test.capture") {
@@ -6339,6 +6358,7 @@ protected:
         QString tool;
         switch (key->key()) {
         case Qt::Key_P: tool = "test.precompose"; break;
+        case Qt::Key_O: tool = "test.openChildComposition"; break;
         case Qt::Key_A: tool = "test.precomposeAll"; break;
         case Qt::Key_K: tool = "test.unpackKeep"; break;
         case Qt::Key_D: tool = "test.unpackDelete"; break;
@@ -6348,7 +6368,7 @@ protected:
         case Qt::Key_T: tool = "test.runRegression"; break;
         default: return false;
         }
-        action(tool);
+        keyboardActionResult_ = action(tool);
         return true;
     }
 
@@ -6501,7 +6521,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.guiAnimatedKeyRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.childCompositionEffectStaysWithChild", "test.openChildComposition", "test.matchWorkspaceDuration", "test.emptyWorkspaceDurationFallsBack", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.precomposeIgnoresStaleSelectionId", "test.unpackLayerIdCollisionAtomic", "test.unpackDuplicateChildLayerIdsAtomic", "test.unpackNilChildLayerIdAtomic", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.guiAnimatedKeyRoundTrip", "test.guiOpenChildCompositionRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.childCompositionEffectStaysWithChild", "test.openChildComposition", "test.matchWorkspaceDuration", "test.emptyWorkspaceDurationFallsBack", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.precomposeIgnoresStaleSelectionId", "test.unpackLayerIdCollisionAtomic", "test.unpackDuplicateChildLayerIdsAtomic", "test.unpackNilChildLayerIdAtomic", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
@@ -6534,6 +6554,7 @@ private:
     QByteArray pending_;
     CompositionID childId_;
     bool hasChild_ = false;
+    QJsonObject keyboardActionResult_;
 };
 }
 

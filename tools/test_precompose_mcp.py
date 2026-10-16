@@ -344,6 +344,17 @@ def main():
                     and opened_child["redoKeptRootFocused"] and opened_child["redoRestoredChild"],
                     "Open-child precompose navigation or undo/redo focus changed")
             call("test.reset")
+            gui_opened_child = call("test.guiOpenChildCompositionRoundTrip")
+            require(gui_opened_child["passed"] and gui_opened_child["guiKeyRouted"]
+                    and gui_opened_child["returnedToRoot"] and gui_opened_child["childOpened"]
+                    and gui_opened_child["childSelectionCorrect"]
+                    and gui_opened_child["wrongContextUnpackRejected"]
+                    and gui_opened_child["wrongContextStatePreserved"]
+                    and gui_opened_child["undoReturnedToRoot"]
+                    and gui_opened_child["redoKeptRootFocused"]
+                    and gui_opened_child["redoRestoredChild"],
+                    "GUI O key did not preserve open-child selection and undo/redo focus behavior")
+            call("test.reset")
             negative_timing = call("test.negativeTimingRoundTrip")
             require(negative_timing["passed"] and negative_timing["childTimingNormalized"]
                     and negative_timing["childKeysShifted"]
