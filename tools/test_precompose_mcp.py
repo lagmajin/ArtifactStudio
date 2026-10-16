@@ -312,6 +312,14 @@ def main():
                     and duplicate_child_ids["historyPreserved"],
                     "Unprecompose partially mutated state after child layer IDs duplicated")
             call("test.reset")
+            nil_child_id = call("test.unpackNilChildLayerIdAtomic")
+            require(nil_child_id["passed"] and nil_child_id["nilIdRejected"]
+                    and nil_child_id["parentStatePreserved"]
+                    and nil_child_id["childStatePreserved"]
+                    and nil_child_id["wrapperPreserved"]
+                    and nil_child_id["historyPreserved"],
+                    "Unprecompose partially mutated state after a child layer ID became nil")
+            call("test.reset")
             missing_child = call("test.missingChildReferenceAtomic")
             require(missing_child["passed"] and missing_child["unwrapRejected"]
                     and missing_child["parentStatePreserved"]

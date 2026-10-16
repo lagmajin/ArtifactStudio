@@ -2314,6 +2314,68 @@ public:
             refresh();
             duplicateResult["state"] = state();
             return duplicateResult;
+        } else if (name == "test.unpackNilChildLayerIdAtomic") {
+            QJsonObject nilIdResult;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                nilIdResult["error"] = QStringLiteral("No root composition");
+                return nilIdResult;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Nil Child Layer ID Fixture")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                nilIdResult["error"] = QStringLiteral("Could not create nil-child-ID fixture");
+                return nilIdResult;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(outcome.precompLayerId));
+            const auto invalidChildLayer = child ? child->layerById(sourceIds.back())
+                                                 : ArtifactAbstractLayerPtr{};
+            if (!child || !wrapper || !invalidChildLayer) {
+                nilIdResult["error"] = QStringLiteral("Nil-child-ID fixture is incomplete");
+                return nilIdResult;
+            }
+
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            const auto parentLayersBeforeUnpack = state()["layers"].toArray();
+            const auto compositionCountBeforeUnpack = ArtifactProjectManager::getInstance().compositionCount();
+            const auto undoCountBeforeUnpack = undo->undoCount();
+            const auto redoCountBeforeUnpack = undo->redoCount();
+            invalidChildLayer->setId(LayerID());
+            const bool rejected = !service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const auto childLayersAfterUnpack = child->allLayer();
+            bool invalidLayerRemains = false;
+            for (const auto& layer : childLayersAfterUnpack)
+                invalidLayerRemains = invalidLayerRemains ||
+                    (layer == invalidChildLayer && layer->id().isNil());
+            const bool parentStatePreserved = state()["layers"].toArray() == parentLayersBeforeUnpack;
+            const bool childStatePreserved =
+                service->findComposition(outcome.childCompId).ptr.lock() == child &&
+                childLayersAfterUnpack.size() == 2 && invalidLayerRemains &&
+                ArtifactProjectManager::getInstance().compositionCount() == compositionCountBeforeUnpack;
+            const bool wrapperPreserved = root->layerById(outcome.precompLayerId) == wrapper &&
+                wrapper->sourceCompositionId() == outcome.childCompId &&
+                PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId);
+            const bool historyPreserved = undo->undoCount() == undoCountBeforeUnpack &&
+                undo->redoCount() == redoCountBeforeUnpack;
+            nilIdResult["nilIdRejected"] = rejected;
+            nilIdResult["parentStatePreserved"] = parentStatePreserved;
+            nilIdResult["childStatePreserved"] = childStatePreserved;
+            nilIdResult["wrapperPreserved"] = wrapperPreserved;
+            nilIdResult["historyPreserved"] = historyPreserved;
+            nilIdResult["passed"] = rejected && parentStatePreserved && childStatePreserved &&
+                wrapperPreserved && historyPreserved;
+            if (!nilIdResult["passed"].toBool())
+                nilIdResult["error"] = QStringLiteral("Unprecompose partially mutated state after a nil child layer ID");
+            service->changeCurrentComposition(rootId);
+            refresh();
+            nilIdResult["state"] = state();
+            return nilIdResult;
         } else if (name == "test.missingChildReferenceAtomic") {
             QJsonObject missingResult;
             const auto root = service->currentComposition().lock();
@@ -5850,7 +5912,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.childCompositionEffectStaysWithChild", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.unpackLayerIdCollisionAtomic", "test.unpackDuplicateChildLayerIdsAtomic", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.childCompositionEffectStaysWithChild", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.unpackLayerIdCollisionAtomic", "test.unpackDuplicateChildLayerIdsAtomic", "test.unpackNilChildLayerIdAtomic", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
