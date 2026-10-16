@@ -428,7 +428,10 @@ public:
             resetNames.sort();
             resetHasExpectedNames = resetHasExpectedNames && resetNames ==
                 QStringList{QStringLiteral("A"), QStringLiteral("B"), QStringLiteral("Untouched")};
-            const bool resetByKey = resetHasExpectedNames && !afterReset["canUndo"].toBool() &&
+            const bool fixtureRecreatedByKey =
+                afterReset["compositionId"].toString() != rootCompositionId;
+            const bool resetByKey = resetHasExpectedNames && fixtureRecreatedByKey &&
+                !afterReset["canUndo"].toBool() &&
                 !afterReset["canRedo"].toBool() && !afterReset.contains("lastChildExists");
             const auto resetSelection = afterReset["selection"].toObject();
             const bool resetSelectionByKey =
@@ -485,6 +488,7 @@ public:
                                {"allMappingRestoredByRedoKey", allMappingRestoredByRedoKey},
                                {"allRedoLayerObjectsPreservedByKey", allRedoLayerObjectsPreservedByKey},
                                {"resetByKey", resetByKey},
+                               {"fixtureRecreatedByKey", fixtureRecreatedByKey},
                                {"resetSelectionByKey", resetSelectionByKey},
                                {"passed", precomposedByKey && selectedSettingsCopiedByKey &&
                                    selectedLayersMovedByKey &&
