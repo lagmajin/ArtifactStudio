@@ -11,7 +11,7 @@ import threading
 import zlib
 
 
-def validate_png(png):
+def validate_png(png, require_visual_content=False):
     signature = b"\x89PNG\r\n\x1a\n"
     if not png.startswith(signature):
         raise AssertionError("Capture returned an invalid PNG signature")
@@ -79,6 +79,12 @@ def validate_png(png):
         raise AssertionError("Capture PNG IDAT stream does not match its dimensions")
     if any(decoded[row_start] > 4 for row_start in range(0, len(decoded), scanline_bytes)):
         raise AssertionError("Capture PNG contains an invalid scanline filter")
+    if require_visual_content:
+        sample_values = set()
+        for row_start in range(0, len(decoded), scanline_bytes):
+            sample_values.update(decoded[row_start + 1:row_start + scanline_bytes])
+        if len(sample_values) < 8:
+            raise AssertionError("Capture PNG has too little pixel variation to show the test UI")
     return width, height
 
 
@@ -164,6 +170,18 @@ def validate_png_contract():
     decoded_dimensions = validate_png(valid_png)
     if decoded_dimensions != (1, 1):
         raise AssertionError("PNG validator rejected a valid one-pixel fixture")
+    varied_png = (signature
+                  + make_png_chunk(b"IHDR", struct.pack(">IIBBBBB", 16, 1, 8, 0, 0, 0, 0))
+                  + make_png_chunk(b"IDAT", zlib.compress(b"\x00" + bytes(range(16))))
+                  + make_png_chunk(b"IEND", b""))
+    if validate_png(varied_png, require_visual_content=True) != (16, 1):
+        raise AssertionError("PNG visual-content check rejected varied pixels")
+    try:
+        validate_png(valid_png, require_visual_content=True)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("PNG visual-content check accepted a uniform image")
 
     invalid_images = {
         "invalid signature": b"\x00" + valid_png[1:],
@@ -531,7 +549,7 @@ def main():
                         f"Capture did not recover after {prepare_tool}")
                 recovered_png = base64.b64decode(
                     recovered_capture["content"][0]["data"], validate=True)
-                current_dimensions = validate_png(recovered_png)
+                current_dimensions = validate_png(recovered_png, require_visual_content=True)
                 if recovered_capture_dimensions is None:
                     recovered_capture_dimensions = current_dimensions
                 require(current_dimensions == recovered_capture_dimensions
@@ -561,7 +579,7 @@ def main():
                     and visible_capture["content"][0].get("mimeType") == "image/png",
                     "Capture did not recover after the test window was shown")
             visible_png = base64.b64decode(visible_capture["content"][0]["data"], validate=True)
-            visible_dimensions = validate_png(visible_png)
+            visible_dimensions = validate_png(visible_png, require_visual_content=True)
             require(visible_dimensions == recovered_capture_dimensions
                     and call("test.state") == reset_state,
                     "Visible capture after window recovery changed size or fixture state")
@@ -591,7 +609,7 @@ def main():
                     "Capture did not recover after restoring the minimized window")
             restored_png = base64.b64decode(
                 restored_capture["content"][0]["data"], validate=True)
-            restored_dimensions = validate_png(restored_png)
+            restored_dimensions = validate_png(restored_png, require_visual_content=True)
             require(restored_dimensions == recovered_capture_dimensions
                     and call("test.state") == reset_state,
                     "Restored capture changed size or fixture state")
@@ -603,7 +621,7 @@ def main():
                     and reset_capture["content"][0].get("mimeType") == "image/png",
                     "Capture immediately after reset did not return a PNG image")
             reset_png = base64.b64decode(reset_capture["content"][0]["data"], validate=True)
-            reset_dimensions = validate_png(reset_png)
+            reset_dimensions = validate_png(reset_png, require_visual_content=True)
             (args.output_dir / "reset.png").write_bytes(reset_png)
             capture_files_written.append("reset.png")
             evidence[-1]["reply"] = {"image": "reset.png", "dimensions": reset_dimensions}
@@ -1483,7 +1501,7 @@ def main():
                     and image["content"][0].get("mimeType") == "image/png",
                     "Capture did not return a PNG image")
             png = base64.b64decode(image["content"][0]["data"], validate=True)
-            width, height = validate_png(png)
+            width, height = validate_png(png, require_visual_content=True)
             require((width, height) == reset_dimensions == recovered_capture_dimensions,
                     "GUI capture dimensions changed during the precompose test run")
             require(call("test.state") == capture_state_before,
