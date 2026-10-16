@@ -201,14 +201,20 @@ def main():
             require(reset_state["compositionId"] != reset_seed["compositionId"]
                     and [layer["name"] for layer in reset_state["layers"]] ==
                     ["A", "B", "Untouched"]
-                    and not reset_state.get("lastChildExists", False)
+                    and "lastChildExists" not in reset_state
                     and not reset_state["canUndo"] and not reset_state["canRedo"]
                     and reset_state["locale"] == args.language
                     and reset_state["selection"]["activeCompositionId"] ==
                     reset_state["compositionId"]
+                    and reset_state["selection"]["selectedLayerIds"] == []
+                    and "currentLayerId" not in reset_state["selection"]
                     and reset_state["resolution"] == [1280, 720]
                     and abs(reset_state["frameRate"] - 24.0) < 1e-6
-                    and reset_state["frameRangeDuration"] == 300,
+                    and reset_state["frameRangeDuration"] == 300
+                    and reset_state["backgroundColor"] == [0.125, 0.25, 0.5, 1.0]
+                    and {name: (layer["inFrame"], layer["outFrame"], layer["startFrame"])
+                         for name, layer in layer_map(reset_state).items()} ==
+                    {"A": (40, 200, 7), "B": (70, 160, 9), "Untouched": (25, 220, 3)},
                     "MCP reset did not create a clean locale-preserving fixture")
             keyboard_round_trip = call("test.guiKeyboardRoundTrip")
             require(keyboard_round_trip["passed"] and keyboard_round_trip["precomposedByKey"]
