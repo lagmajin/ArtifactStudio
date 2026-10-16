@@ -3703,11 +3703,25 @@ public:
                     if (!channel) return QVector<double>{};
                     samples.append(channel->evaluateValue(sampleTime).toDouble());
                 }
+                const auto transform = layer->transform3D().snapshotAt(sampleTime);
+                samples.append(transform.positionX);
+                samples.append(transform.positionY);
+                samples.append(transform.positionZ);
+                samples.append(transform.rotation);
+                samples.append(transform.rotationX);
+                samples.append(transform.rotationY);
+                samples.append(transform.rotationZ);
+                samples.append(transform.scaleX);
+                samples.append(transform.scaleY);
+                samples.append(transform.scaleZ);
+                samples.append(transform.anchorX);
+                samples.append(transform.anchorY);
+                samples.append(transform.anchorZ);
                 return samples;
             };
             const auto sampledChannelsMatch = [&](const ArtifactAbstractLayerPtr& layer, int frame,
                                                   const QVector<double>& expected) {
-                if (!layer || expected.size() != sampledAnimationPaths.size()) return false;
+                if (!layer || expected.size() != sampledAnimationPaths.size() + 13) return false;
                 const auto actual = sampleChannels(layer, frame);
                 if (actual.size() != expected.size()) return false;
                 for (qsizetype index = 0; index < expected.size(); ++index)
