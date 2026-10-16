@@ -149,6 +149,14 @@ public:
                     composition->layerById(ids[1]).get() == originalB.get() &&
                     composition->layerById(ids[2]).get() == originalUntouched.get();
             };
+            const auto sourcePairObjectsMatch = [&originalA, &originalB](
+                const ArtifactCompositionPtr& composition) {
+                if (!composition || !originalA || !originalB) return false;
+                const auto ids = namedLayerIds(composition,
+                    {QStringLiteral("A"), QStringLiteral("B")});
+                return ids.size() == 2 && composition->layerById(ids[0]).get() == originalA.get() &&
+                    composition->layerById(ids[1]).get() == originalB.get();
+            };
             const auto untouchedObjectRemainsInRoot = [&projectService, &originalUntouched]() {
                 if (!originalUntouched) return false;
                 const auto composition = projectService->currentComposition().lock();
@@ -401,6 +409,8 @@ public:
                 selectedLayerName(afterDeleteUnpack, rootCompositionId) == QStringLiteral("A");
             const bool deleteMappingRemovedByKey = unpackedDeleteByKey &&
                 managerMappingCleared(deleteWrapperId, deleteChildId);
+            const bool deleteUnpackLayerObjectsPreservedByKey = unpackedDeleteByKey &&
+                sourcePairObjectsMatch(projectService->currentComposition().lock());
             const bool deleteChildRemovedByKey = unpackedDeleteByKey && deleteChildObject &&
                 !projectService->findComposition(deleteChildId).ptr.lock();
             sendKey(Qt::Key_Z);
@@ -415,6 +425,8 @@ public:
                 childObjectsMatch(deleteChildId);
             const bool deleteChildObjectRestoredByUndoKey = deleteUndoByKey && deleteChildObject &&
                 projectService->findComposition(deleteChildId).ptr.lock() == deleteChildObject;
+            const bool deleteUndoSourceLayerObjectsPreservedByKey = deleteUndoByKey &&
+                sourcePairObjectsMatch(deleteChildObject);
             sendKey(Qt::Key_Y);
             const auto afterDeleteRedo = state();
             const bool deleteRedoByKey = afterDeleteRedo["canUndo"].toBool() &&
@@ -426,6 +438,8 @@ public:
                 managerMappingCleared(deleteWrapperId, deleteChildId);
             const bool deleteChildRemovedByRedoKey = deleteRedoByKey && deleteChildObject &&
                 !projectService->findComposition(deleteChildId).ptr.lock();
+            const bool deleteRedoLayerObjectsPreservedByKey = deleteRedoByKey &&
+                sourcePairObjectsMatch(projectService->currentComposition().lock());
             sendKey(Qt::Key_A);
             const auto afterMoveAll = state();
             const auto allWrapperId = ArtifactProjectService::instance()
@@ -551,6 +565,8 @@ public:
                                 deletePrecomposeLayerObjectsPreservedByKey},
                                {"unpackedDeleteByKey", unpackedDeleteByKey},
                                {"deleteMappingRemovedByKey", deleteMappingRemovedByKey},
+                               {"deleteUnpackLayerObjectsPreservedByKey",
+                                deleteUnpackLayerObjectsPreservedByKey},
                                {"deleteChildRemovedByKey", deleteChildRemovedByKey},
                                {"deleteUndoByKey", deleteUndoByKey},
                                {"deleteMappingRestoredByUndoKey", deleteMappingRestoredByUndoKey},
@@ -558,9 +574,13 @@ public:
                                 deleteUndoLayerObjectsPreservedByKey},
                                {"deleteChildObjectRestoredByUndoKey",
                                 deleteChildObjectRestoredByUndoKey},
+                               {"deleteUndoSourceLayerObjectsPreservedByKey",
+                                deleteUndoSourceLayerObjectsPreservedByKey},
                                {"deleteRedoByKey", deleteRedoByKey},
                                {"deleteMappingRemovedByRedoKey", deleteMappingRemovedByRedoKey},
                                {"deleteChildRemovedByRedoKey", deleteChildRemovedByRedoKey},
+                               {"deleteRedoLayerObjectsPreservedByKey",
+                                deleteRedoLayerObjectsPreservedByKey},
                                {"allMovedByKey", allMovedByKey},
                                {"allMappingRegisteredByKey", allMappingRegisteredByKey},
                                {"allLayerObjectsPreservedByKey", allLayerObjectsPreservedByKey},
@@ -599,10 +619,13 @@ public:
                                    deletePrecomposeLayerObjectsPreservedByKey &&
                                    unpackedDeleteByKey && deleteMappingRemovedByKey &&
                                    deleteChildRemovedByKey && deleteUndoByKey &&
+                                   deleteUnpackLayerObjectsPreservedByKey &&
                                    deleteMappingRestoredByUndoKey && deleteRedoByKey &&
                                    deleteUndoLayerObjectsPreservedByKey &&
                                    deleteChildObjectRestoredByUndoKey &&
+                                   deleteUndoSourceLayerObjectsPreservedByKey &&
                                    deleteMappingRemovedByRedoKey && deleteChildRemovedByRedoKey &&
+                                   deleteRedoLayerObjectsPreservedByKey &&
                                    allMovedByKey &&
                                    allSettingsCopiedByKey &&
                                    allUndoByKey && allUndoSelectionByKey &&
