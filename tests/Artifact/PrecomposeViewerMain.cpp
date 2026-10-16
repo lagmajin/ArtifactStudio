@@ -2122,6 +2122,19 @@ public:
                                               : ArtifactAbstractLayerPtr{};
             const bool childLayerObjectsPreservedOnOpen = childOpened && sourceA && sourceB &&
                 openedA.get() == sourceA.get() && openedB.get() == sourceB.get();
+            const auto childSettingsMatchParent = [&comp](const ArtifactCompositionPtr& child) {
+                if (!comp || !child) return false;
+                const auto parentSize = comp->settings().compositionSize();
+                const auto childSize = child->settings().compositionSize();
+                const auto parentColor = comp->backgroundColor();
+                const auto childColor = child->backgroundColor();
+                return parentSize == childSize &&
+                    comp->frameRate().framerate() == child->frameRate().framerate() &&
+                    parentColor.r() == childColor.r() && parentColor.g() == childColor.g() &&
+                    parentColor.b() == childColor.b() && parentColor.a() == childColor.a();
+            };
+            const bool childSettingsCopiedOnOpen = childOpened &&
+                childSettingsMatchParent(openedChild);
             const auto matchesSelection = [&](const CompositionID& compositionId,
                                               const LayerID& layerId) {
                 const auto active = selection->activeComposition();
@@ -2200,6 +2213,8 @@ public:
                 redoneChild.get() == openedChild.get();
             const bool redoChildLayerObjectsPreserved = redoneA && redoneB && sourceA && sourceB &&
                 redoneA.get() == sourceA.get() && redoneB.get() == sourceB.get();
+            const bool redoChildSettingsPreserved = redoneChild &&
+                childSettingsMatchParent(redoneChild);
             bool parentReferenceRestored = false;
             for (const auto& reference : PreComposeManager::instance().getPrecompLayersForChild(
                      outcome.childCompId)) {
@@ -2219,6 +2234,7 @@ public:
             result["childCompositionId"] = outcome.childCompId.toString();
             result["childOpened"] = childOpened;
             result["childLayerObjectsPreservedOnOpen"] = childLayerObjectsPreservedOnOpen;
+            result["childSettingsCopiedOnOpen"] = childSettingsCopiedOnOpen;
             result["childSelectionCorrect"] = childSelectionCorrect;
             result["rootWrapperCreated"] = bool(rootWrapperCreated);
             result["wrongContextUnpackRejected"] = wrongContextUnpackRejected;
@@ -2234,12 +2250,15 @@ public:
             result["redoRestoredChild"] = redoRestoredChild;
             result["redoChildCompositionIdentityPreserved"] = redoChildCompositionIdentityPreserved;
             result["redoChildLayerObjectsPreserved"] = redoChildLayerObjectsPreserved;
+            result["redoChildSettingsPreserved"] = redoChildSettingsPreserved;
             result["redoWrapperIdentityPreserved"] = redoWrapperIdentityPreserved;
             result["passed"] = childOpened && childSelectionCorrect &&
-                childLayerObjectsPreservedOnOpen && rootWrapperCreated && wrongContextUnpackRejected &&
+                childLayerObjectsPreservedOnOpen && childSettingsCopiedOnOpen && rootWrapperCreated &&
+                wrongContextUnpackRejected &&
                 wrongContextStatePreserved && undoReturnedToRoot && undoLayerObjectsReturnedToRoot &&
                 redoKeptRootFocused && redoRestoredChild && redoChildCompositionIdentityPreserved &&
-                redoChildLayerObjectsPreserved && redoWrapperIdentityPreserved;
+                redoChildLayerObjectsPreserved && redoChildSettingsPreserved &&
+                redoWrapperIdentityPreserved;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Open-child navigation or undo/redo focus contract changed");
             service->changeCurrentComposition(rootId);
