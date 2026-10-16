@@ -3680,3 +3680,11 @@
 - **価値／懸念:** Surround714のセグメントをリングバッファ経由で再生できない可能性がある。テストで12chの書き込み・読出し・サンプル保持を要求する。
 - **未検証:** 入力拒否の挙動とテスト結果は実行未確認。下流コードは変更していない。
 - **次に確認:** ビルドが許可された際に失敗を確認し、リングバッファ容量・チャンネル固定ストレージ・音声出力経路全体で12ch対応の意図を別途判断する。
+
+## 2026-10-16: AssetManager の未知ID無効化はregistry entryを生成する
+
+- **関連:** `ArtifactCore/src/Asset/AssetManager.cppm` の`invalidateSource()`、`tests/ArtifactCore/AssetManagerContractTest.cpp`。
+- **確認できた事実:** nullでないIDについて`impl_->sources[assetId]`で状態を取得するため、未知IDにもversion 1のSourceStateが作成される。`sourceVersion()`は本来registryにないIDへ0を返し、`acquireExistingSource()`は未知IDを拒否する。
+- **価値／懸念:** 誤った・古いIDのinvalidate呼び出しがsource registryへ参照数0の幽霊状態を残す可能性がある。回帰テストでは未知IDを無効化してもversion 0のまま、既存sourceとして取得不能であることを確認する。
+- **未検証:** 現在の結果と実行時影響はテスト未実行。下流コードは変更していない。
+- **次に確認:** ビルドが許可された際に失敗を確認し、無効化呼び出し側が必ず登録済みIDを渡すか追跡する。

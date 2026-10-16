@@ -90,6 +90,16 @@ TEST(AssetManagerContractTest, AcquireExistingSourceRejectsUnknownId)
     EXPECT_FALSE(manager.acquireExistingSource(QUuid::createUuid()));
 }
 
+TEST(AssetManagerContractTest, InvalidatingUnknownSourceDoesNotCreateRegistryEntry)
+{
+    AssetManager manager;
+    const QUuid unknownId = QUuid::createUuid();
+
+    EXPECT_EQ(manager.invalidateSource(unknownId), 0u);
+    EXPECT_EQ(manager.sourceVersion(unknownId), 0u);
+    EXPECT_FALSE(manager.acquireExistingSource(unknownId));
+}
+
 TEST(AssetManagerContractTest, CanonicalPathAliasSharesSourceIdentity)
 {
     QTemporaryDir directory;
