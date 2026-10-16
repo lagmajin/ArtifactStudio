@@ -296,6 +296,14 @@ def main():
                     and nested_override["redoPreservedOverride"],
                     "Nested Master Property override changed across precompose/unpack/undo/redo")
             call("test.reset")
+            layer_id_collision = call("test.unpackLayerIdCollisionAtomic")
+            require(layer_id_collision["passed"] and layer_id_collision["collisionRejected"]
+                    and layer_id_collision["parentStatePreserved"]
+                    and layer_id_collision["compositionStatePreserved"]
+                    and layer_id_collision["wrapperPreserved"]
+                    and layer_id_collision["historyPreserved"],
+                    "Unprecompose partially mutated state after a restored child layer ID collided")
+            call("test.reset")
             missing_child = call("test.missingChildReferenceAtomic")
             require(missing_child["passed"] and missing_child["unwrapRejected"]
                     and missing_child["parentStatePreserved"]

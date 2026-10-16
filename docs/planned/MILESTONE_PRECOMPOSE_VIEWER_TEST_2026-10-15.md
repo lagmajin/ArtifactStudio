@@ -3,6 +3,8 @@
 **最終更新:** 2026-10-16
 **ステータス:** 実装済み、ビルド・実行未確認（依頼により省略）。
 
+`test.unpackLayerIdCollisionAtomic`は解除対象の子レイヤーIDを親に残るレイヤーIDと衝突させ、解除が拒否され、親・子Composition、wrapper、Undo/Redo履歴が変更されないことを確認する。
+
 `test.saveReload`は保存後に再読込した子レイヤーをそのまま解除し、エフェクト・アニメーション付きマスク・マット参照・コンポーネントdescriptorが親へ移ること、親Compositionのエフェクトが子レイヤーへ混入せず親に残ること、Undoで子とwrapperへ戻り、Redoで同じ状態を再適用することも検査する。
 
 `test.rationalFrameRatePreserved`は30000/1001 fps（transform keyframe scale 30）のpositionカーブを選択移動・保存再読込・解除とMoveAllAttributes・Undo/Redoへ通し、キー配列と中間フレームの評価値を照合する。
