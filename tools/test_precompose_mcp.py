@@ -82,6 +82,43 @@ def validate_png(png):
     return width, height
 
 
+def parse_tool_result(name, reply):
+    content = reply.get("content")
+    if (not isinstance(content, list) or len(content) != 1
+            or not isinstance(content[0], dict)
+            or content[0].get("type") != "text"
+            or not isinstance(content[0].get("text"), str)):
+        raise RuntimeError(f"{name} returned an invalid MCP text content envelope: {reply}")
+    try:
+        result = json.loads(content[0]["text"])
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f"{name} returned invalid JSON text: {content[0]['text']!r}") from error
+    if not isinstance(result, dict):
+        raise RuntimeError(f"{name} returned a non-object JSON result: {result!r}")
+    return result
+
+
+def validate_tool_result_contract():
+    valid_reply = {"content": [{"type": "text", "text": "{\"passed\":true}"}]}
+    if parse_tool_result("fixture", valid_reply) != {"passed": True}:
+        raise AssertionError("MCP tool result parser rejected a valid JSON object")
+    invalid_replies = {
+        "missing content": {},
+        "empty content": {"content": []},
+        "multiple content items": {"content": [
+            {"type": "text", "text": "{}"}, {"type": "text", "text": "{}"}]},
+        "image content": {"content": [{"type": "image", "data": "AA=="}]},
+        "invalid JSON": {"content": [{"type": "text", "text": "{"}]},
+        "non-object JSON": {"content": [{"type": "text", "text": "[]"}]},
+    }
+    for label, reply in invalid_replies.items():
+        try:
+            parse_tool_result("fixture", reply)
+        except RuntimeError:
+            continue
+        raise AssertionError(f"MCP tool result parser accepted {label}")
+
+
 def make_png_chunk(chunk_type, data):
     crc = zlib.crc32(data, zlib.crc32(chunk_type)) & 0xffffffff
     return struct.pack(">I", len(data)) + chunk_type + data + struct.pack(">I", crc)
@@ -147,6 +184,7 @@ def validate_png_contract():
 
 def main():
     validate_png_contract()
+    validate_tool_result_contract()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--server", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
@@ -252,19 +290,7 @@ def main():
             reply = request("tools/call", {"name": name, "arguments": {}})
             if reply.get("isError"):
                 raise RuntimeError(f"{name}: {reply}")
-            content = reply.get("content")
-            if (not isinstance(content, list) or len(content) != 1
-                    or not isinstance(content[0], dict)
-                    or content[0].get("type") != "text"
-                    or not isinstance(content[0].get("text"), str)):
-                raise RuntimeError(f"{name} returned an invalid MCP text content envelope: {reply}")
-            try:
-                result = json.loads(content[0]["text"])
-            except json.JSONDecodeError as error:
-                raise RuntimeError(f"{name} returned invalid JSON text: {content[0]['text']!r}") from error
-            if not isinstance(result, dict):
-                raise RuntimeError(f"{name} returned a non-object JSON result: {result!r}")
-            return result
+            return parse_tool_result(name, reply)
 
         def require(condition, message):
             if not condition:
