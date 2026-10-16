@@ -28,6 +28,10 @@ def validate_png(png, require_visual_content=False):
             raise AssertionError("Capture PNG contains a truncated chunk")
         chunk_type = png[offset + 4:offset + 8]
         chunk_data = png[offset + 8:offset + 8 + length]
+        if len(chunk_type) != 4 or not chunk_type.isalpha():
+            raise AssertionError(f"Capture PNG has an invalid {chunk_type!r} chunk type")
+        if chunk_type[2:3].islower():
+            raise AssertionError(f"Capture PNG uses the reserved lowercase bit in {chunk_type!r}")
         expected_crc = struct.unpack_from(">I", png, offset + 8 + length)[0]
         actual_crc = zlib.crc32(chunk_data, zlib.crc32(chunk_type)) & 0xffffffff
         if actual_crc != expected_crc:
@@ -206,6 +210,12 @@ def validate_png_contract():
     decoded_dimensions = validate_png(valid_png)
     if decoded_dimensions != (1, 1):
         raise AssertionError("PNG validator rejected a valid one-pixel fixture")
+    ancillary_png = (signature + make_png_chunk(b"IHDR", header)
+                     + make_png_chunk(b"tEXt", b"note\x00capture")
+                     + make_png_chunk(b"IDAT", zlib.compress(b"\x00\x7f"))
+                     + make_png_chunk(b"IEND", b""))
+    if validate_png(ancillary_png) != (1, 1):
+        raise AssertionError("PNG validator rejected a valid ancillary chunk")
     varied_png = (signature
                   + make_png_chunk(b"IHDR", struct.pack(">IIBBBBB", 16, 1, 8, 0, 0, 0, 0))
                   + make_png_chunk(b"IDAT", zlib.compress(b"\x00" + bytes(range(16))))
@@ -256,6 +266,16 @@ def validate_png_contract():
         "unsupported critical chunk": (
             signature + make_png_chunk(b"IHDR", header)
             + make_png_chunk(b"ABCD", b"unsupported")
+            + make_png_chunk(b"IDAT", zlib.compress(b"\x00\x7f"))
+            + make_png_chunk(b"IEND", b"")),
+        "non-letter chunk type": (
+            signature + make_png_chunk(b"IHDR", header)
+            + make_png_chunk(b"AB1D", b"invalid")
+            + make_png_chunk(b"IDAT", zlib.compress(b"\x00\x7f"))
+            + make_png_chunk(b"IEND", b"")),
+        "lowercase reserved chunk bit": (
+            signature + make_png_chunk(b"IHDR", header)
+            + make_png_chunk(b"abca", b"invalid")
             + make_png_chunk(b"IDAT", zlib.compress(b"\x00\x7f"))
             + make_png_chunk(b"IEND", b"")),
         "invalid zlib stream": (
