@@ -11,6 +11,8 @@
 
 `test.reset`はプリコンポーズ済みでUndo可能なfixtureから、新composition ID・既定レイヤー順／時間・解像度／fps／duration／背景・親activeかつ空選択・空Undo/Redo履歴・要求localeを復元することをMCP経由で確認する。
 
+MCPハーネスの`result.json`はassertion／通信例外の型とメッセージ、およびserver終了コードも保存し、失敗時に完了済みrequest／response evidenceと合わせて原因を追える。
+
 `test.unpackLayerIdCollisionAtomic`は2キーのopacityカーブを持つ子レイヤーのIDを親に残るレイヤーIDと衝突させ、解除が拒否され、親・子Composition、wrapper、Undo/Redo履歴、opacityキーと中間評価値が変更されないことを確認する。さらに公開opacity overrideが失敗前は遅延状態のままで、拒否時に子レイヤーへ先行materializeされないことも確認する。
 
 `test.unpackDuplicateChildLayerIdsAtomic`は子Composition内の2レイヤーを同じIDにし、解除が拒否され、重複した子レイヤーと親Composition、wrapper、Undo/Redo履歴が保持されることを確認する。

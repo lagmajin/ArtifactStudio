@@ -1102,13 +1102,20 @@ def main():
                     f"unexercised={sorted(exposed_tool_names - invoked_tool_names)}, "
                     f"unadvertised={sorted(invoked_tool_names - exposed_tool_names)}")
             print("PASS: MCP tool catalog and malformed-call rejection, direct/transitive cycle guards, invalid-request and empty MoveAll atomicity, redo-branch replacement, closed/open-child focus behavior, component descriptor graph, matte reference order/settings, layer mask geometry/state, layer/composition effect scope and parameter round-trip, single-layer round-trip, shared-child references/data, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, nested Master Property save/reload/materialization, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
+        except Exception as error:
+            evidence.append({"harnessError": f"{type(error).__name__}: {error}"})
+            raise
         finally:
-            process.stdin.close()
+            try:
+                process.stdin.close()
+            except OSError:
+                pass
             try:
                 process.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 process.terminate()
                 process.wait(timeout=10)
+            evidence.append({"serverExitCode": process.returncode})
             (args.output_dir / "result.json").write_text(json.dumps(evidence, ensure_ascii=False, indent=2),
                                                          encoding="utf-8")
         if process.returncode:
