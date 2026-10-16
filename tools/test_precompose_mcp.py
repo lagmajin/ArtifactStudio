@@ -118,9 +118,7 @@ def main():
             protocol_state_before_invalid_calls = call("test.state")
             require(protocol_state_before_invalid_calls["locale"] == args.language,
                     f"Requested locale {args.language} was not applied to the test window")
-            require(state_without_arguments_result["compositionId"] ==
-                    protocol_state_before_invalid_calls["compositionId"] and
-                    state_without_arguments_result["layers"] == protocol_state_before_invalid_calls["layers"],
+            require(state_without_arguments_result == protocol_state_before_invalid_calls,
                     "MCP tool call without arguments changed the precompose fixture")
             unknown_tool = request("tools/call", {"name": "test.notARealTool", "arguments": {}})
             require(unknown_tool.get("isError") and "Unknown tool" in
@@ -144,9 +142,7 @@ def main():
             require(unknown_method.get("error", {}).get("code") == -32601,
                     "Unknown MCP method did not return JSON-RPC method-not-found")
             protocol_state_after_invalid_calls = call("test.state")
-            require(protocol_state_after_invalid_calls["compositionId"] ==
-                    protocol_state_before_invalid_calls["compositionId"] and
-                    protocol_state_after_invalid_calls["layers"] == protocol_state_before_invalid_calls["layers"],
+            require(protocol_state_after_invalid_calls == protocol_state_before_invalid_calls,
                     "Invalid MCP requests mutated the precompose fixture")
             keyboard_round_trip = call("test.guiKeyboardRoundTrip")
             require(keyboard_round_trip["passed"] and keyboard_round_trip["precomposedByKey"]
