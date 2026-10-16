@@ -81,6 +81,11 @@ def main():
                         "name": "artifact-precompose-test", "version": "1.0.0"},
                     "MCP initialize response changed its protocol or server capabilities")
             require(request("ping", {}) == {}, "MCP ping did not return an empty result")
+            state_without_arguments = request("tools/call", {"name": "test.state"})
+            state_without_arguments_result = json.loads(state_without_arguments["content"][0]["text"])
+            require(not state_without_arguments.get("isError") and
+                    isinstance(state_without_arguments_result, dict),
+                    "MCP tool call without optional arguments was rejected")
             catalog = request("tools/list", {})
             listed_tools = catalog.get("tools")
             require(isinstance(listed_tools, list), "MCP tools/list did not return a tools array")
@@ -94,6 +99,10 @@ def main():
                     "MCP tools/list returned an invalid description or input schema")
             exposed_tool_names.update(names)
             protocol_state_before_invalid_calls = call("test.state")
+            require(state_without_arguments_result["compositionId"] ==
+                    protocol_state_before_invalid_calls["compositionId"] and
+                    state_without_arguments_result["layers"] == protocol_state_before_invalid_calls["layers"],
+                    "MCP tool call without arguments changed the precompose fixture")
             unknown_tool = request("tools/call", {"name": "test.notARealTool", "arguments": {}})
             require(unknown_tool.get("isError") and "Unknown tool" in
                     json.loads(unknown_tool["content"][0]["text"]).get("error", ""),
