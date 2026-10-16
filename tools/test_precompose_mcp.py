@@ -278,8 +278,9 @@ def main():
                     and shared_child["remainingReferencePreserved"]
                     and shared_child["undoRestoredBoth"]
                     and shared_child["redoChildDataPreserved"]
-                    and shared_child["redoPreservedRemaining"],
-                    "Unprecomposing one instance changed shared child data or another reference")
+                    and shared_child["redoPreservedRemaining"] and shared_child["finalChildRemoved"]
+                    and shared_child["finalDeleteUndoRestored"] and shared_child["finalDeleteRedoRemoved"],
+                    "Shared child reference removal or final child deletion undo/redo changed state")
             call("test.reset")
             external_parent = call("test.externalParentRestored")
             require(external_parent["passed"] and external_parent["externalParentStoredOnWrapper"]

@@ -555,6 +555,13 @@ public:
                 undo->undoCount() == 0 && undo->redoCount() == 0 &&
                 rejectedPrecompose.precompLayerId.isNil() && rejectedPrecompose.childCompId.isNil();
             undo->setBudget(originalBudget);
+            if (!precomposeBudgetAtomic) {
+                budgetResult["precomposeRejected"] = precomposeRejected;
+                budgetResult["precomposeBudgetAtomic"] = false;
+                budgetResult["passed"] = false;
+                budgetResult["error"] = QStringLiteral("Undo-budget rejection changed precompose state");
+                return budgetResult;
+            }
             const bool precomposeCreated = service->precomposeLayersWithUndo(
                 sourceIds, UniString(QStringLiteral("Budget Rejected Unprecompose")), false, false,
                 PrecomposeMode::MoveSelected);
@@ -562,7 +569,7 @@ public:
             const auto wrapper = dynamicPointerCast<ArtifactCompositionLayer>(
                 comp->layerById(created.precompLayerId));
             const auto child = service->findComposition(created.childCompId).ptr.lock();
-            if (!precomposeBudgetAtomic || !precomposeCreated || !wrapper || !child) {
+            if (!precomposeCreated || !wrapper || !child) {
                 undo->setBudget(originalBudget);
                 budgetResult["error"] = QStringLiteral("Could not establish budget-rejection fixtures");
                 return budgetResult;
@@ -1918,14 +1925,46 @@ public:
                 !manager.isPrecomposeLayer(first.precompLayerId) &&
                 manager.isPrecomposeLayer(secondWrapperId) && hasReference(secondWrapperId) &&
                 root->layerById(secondWrapperId) && redoChildDataPreserved;
+            service->changeCurrentComposition(rootId);
+            const auto compositionCountBeforeFinalDelete =
+                ArtifactProjectManager::getInstance().compositionCount();
+            const bool finalReferenceDeleted = redoPreservedRemaining &&
+                service->unprecomposeLayerWithUndo(secondWrapperId, false);
+            const bool finalChildRemoved = finalReferenceDeleted &&
+                !service->findComposition(first.childCompId).ptr.lock() &&
+                ArtifactProjectManager::getInstance().compositionCount() + 1 ==
+                    compositionCountBeforeFinalDelete &&
+                !root->layerById(secondWrapperId) &&
+                manager.getPrecompLayersForChild(first.childCompId).isEmpty();
+            const bool finalDeleteUndoAvailable = finalReferenceDeleted && undo->canUndo();
+            if (finalDeleteUndoAvailable) undo->undo();
+            const auto restoredFinalChild = service->findComposition(first.childCompId).ptr.lock();
+            const bool finalDeleteUndoRestored = finalDeleteUndoAvailable && restoredFinalChild &&
+                root->layerById(secondWrapperId) && manager.isPrecomposeLayer(secondWrapperId) &&
+                manager.getPrecompLayersForChild(first.childCompId).size() == 1 &&
+                hasReference(secondWrapperId) &&
+                restoredFinalChild->layerById(sourceIds.front()) &&
+                restoredFinalChild->layerById(sourceIds.back());
+            const bool finalDeleteRedoAvailable = finalDeleteUndoRestored && undo->canRedo();
+            if (finalDeleteRedoAvailable) undo->redo();
+            const bool finalDeleteRedoRemoved = finalDeleteRedoAvailable &&
+                !service->findComposition(first.childCompId).ptr.lock() &&
+                !root->layerById(secondWrapperId) &&
+                manager.getPrecompLayersForChild(first.childCompId).isEmpty() &&
+                ArtifactProjectManager::getInstance().compositionCount() + 1 ==
+                    compositionCountBeforeFinalDelete;
             result["twoReferencesCreated"] = twoReferencesCreated;
             result["childDataPreserved"] = childDataPreserved;
             result["remainingReferencePreserved"] = remainingReferencePreserved;
             result["undoRestoredBoth"] = undoRestoredBoth;
             result["redoChildDataPreserved"] = redoChildDataPreserved;
             result["redoPreservedRemaining"] = redoPreservedRemaining;
+            result["finalChildRemoved"] = finalChildRemoved;
+            result["finalDeleteUndoRestored"] = finalDeleteUndoRestored;
+            result["finalDeleteRedoRemoved"] = finalDeleteRedoRemoved;
             result["passed"] = twoReferencesCreated && remainingReferencePreserved &&
-                undoRestoredBoth && redoPreservedRemaining;
+                undoRestoredBoth && redoPreservedRemaining && finalChildRemoved &&
+                finalDeleteUndoRestored && finalDeleteRedoRemoved;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Unprecomposing one instance changed shared child data or another reference");
             childId_ = first.childCompId;
