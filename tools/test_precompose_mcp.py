@@ -153,13 +153,24 @@ def main():
     parser.add_argument("--language", choices=("ja", "en", "zh", "zh-TW", "all"), default="en")
     args = parser.parse_args()
     if args.language == "all":
+        args.output_dir.mkdir(parents=True, exist_ok=True)
+        language_results = []
         for language in ("ja", "en", "zh", "zh-TW"):
-            subprocess.run([
+            completed = subprocess.run([
                 sys.executable, str(Path(__file__).resolve()),
                 "--server", str(args.server.resolve()),
                 "--output-dir", str((args.output_dir / language).resolve()),
                 "--language", language,
-            ], check=True)
+            ], check=False)
+            language_results.append({"language": language, "exitCode": completed.returncode})
+        (args.output_dir / "language-results.json").write_text(
+            json.dumps({"languageRuns": language_results}, ensure_ascii=False, indent=2),
+            encoding="utf-8")
+        failed_languages = [result["language"] for result in language_results
+                            if result["exitCode"] != 0]
+        if failed_languages:
+            raise SystemExit(
+                "Precompose MCP test failed for languages: " + ", ".join(failed_languages))
         return
     args.output_dir.mkdir(parents=True, exist_ok=True)
     replies = queue.Queue()
