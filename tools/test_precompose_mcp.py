@@ -77,6 +77,10 @@ def main():
         def layer_map(state):
             return {layer["name"]: layer for layer in state["layers"]}
 
+        def without_history(state):
+            return {key: value for key, value in state.items()
+                    if key not in ("canUndo", "canRedo")}
+
         def require_child_settings(result, label):
             require(result["childSettingsCopied"]
                     and result["childResolution"] == [1280, 720]
@@ -784,18 +788,42 @@ def main():
             redone = call("test.redo")
             require(redone["layers"] == nested["layers"], "Redo changed precompose/child identity")
             kept = call("test.unpackKeep")
-            require(kept["layers"] == original and kept["lastChildExists"], "Unpack keep contract failed")
+            require(kept["layers"] == original and kept["lastChildExists"]
+                    and kept["canUndo"] and not kept["canRedo"],
+                    "Unpack keep contract failed")
             require({name: (layer["inFrame"], layer["outFrame"], layer["startFrame"])
                      for name, layer in layer_map(kept).items()} == expected_ranges,
                     "Unpack keep did not restore original timing")
-            require(call("test.undo")["layers"] == nested["layers"], "Unpack undo failed")
+            keep_undo = call("test.undo")
+            require(without_history(keep_undo) == without_history(redone)
+                    and keep_undo["canUndo"] and keep_undo["canRedo"],
+                    "Unpack keep undo changed hierarchy or expected history availability")
+            keep_redo = call("test.redo")
+            require(without_history(keep_redo) == without_history(kept)
+                    and keep_redo["canUndo"] and not keep_redo["canRedo"],
+                    "Unpack keep redo did not restore the kept-child state")
+            keep_second_undo = call("test.undo")
+            require(without_history(keep_second_undo) == without_history(redone)
+                    and keep_second_undo["canUndo"] and keep_second_undo["canRedo"],
+                    "Unpack keep second undo did not restore the precomposed state")
             removed = call("test.unpackDelete")
-            require(removed["layers"] == original and not removed["lastChildExists"], "Unpack delete failed")
+            require(removed["layers"] == original and not removed["lastChildExists"]
+                    and removed["canUndo"] and not removed["canRedo"],
+                    "Unpack delete failed")
             require({name: (layer["inFrame"], layer["outFrame"], layer["startFrame"])
                      for name, layer in layer_map(removed).items()} == expected_ranges,
                     "Unpack delete did not restore original timing")
             restored = call("test.undo")
-            require(restored["lastChildExists"] and restored["layers"] == nested["layers"], "Deleted child undo failed")
+            require(restored["lastChildExists"] and restored["layers"] == nested["layers"]
+                    and restored["canUndo"] and restored["canRedo"], "Deleted child undo failed")
+            delete_redo = call("test.redo")
+            require(without_history(delete_redo) == without_history(removed)
+                    and delete_redo["canUndo"] and not delete_redo["canRedo"],
+                    "Unpack delete redo did not restore the removed-child state")
+            delete_second_undo = call("test.undo")
+            require(without_history(delete_second_undo) == without_history(restored)
+                    and delete_second_undo["canUndo"] and delete_second_undo["canRedo"],
+                    "Unpack delete second undo did not restore the same child state")
             call("test.reset")
             all_nested = call("test.precomposeAll")
             require_child_settings(all_nested, "Move all")
