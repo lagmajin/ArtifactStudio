@@ -808,12 +808,64 @@ public:
                 secondWrapper->inPoint().framePosition() == 0 &&
                 firstWrapper->startTime().framePosition() == 40 &&
                 secondWrapper->startTime().framePosition() == 0;
+            QTemporaryDir tempDir;
+            if (!tempDir.isValid() || !secondWrapper) {
+                result["error"] = QStringLiteral("Could not prepare shared-child save/reload fixture");
+                return result;
+            }
+            const auto filePath = tempDir.filePath(QStringLiteral("shared-child-duration.artifact"));
+            const auto save = ArtifactProjectManager::getInstance().saveToFile(filePath);
+            const auto childId = outcome.childCompId;
+            const auto firstWrapperId = outcome.precompLayerId;
+            const auto secondWrapperId = secondWrapper->id();
+            const auto secondParentId = secondParent->id();
+            const bool mappingsCleared = save.success &&
+                manager.unregisterPrecompLayer(rootId, firstWrapperId, childId) &&
+                manager.unregisterPrecompLayer(secondParentId, secondWrapperId, childId) &&
+                manager.getPrecompLayersForChild(childId).isEmpty();
+            const bool loaded = mappingsCleared &&
+                ArtifactProjectManager::getInstance().loadFromFile(filePath);
+            if (loaded) service->changeCurrentComposition(rootId);
+            const auto reloadedRoot = loaded ? service->findComposition(rootId).ptr.lock()
+                                             : decltype(root){};
+            const auto reloadedSecondParent = loaded ? service->findComposition(secondParentId).ptr.lock()
+                                                     : decltype(root){};
+            const auto reloadedChild = loaded ? service->findComposition(childId).ptr.lock()
+                                              : decltype(root){};
+            const auto reloadedFirstWrapper = reloadedRoot
+                ? ArtifactCore::dynamicPointerCast<ArtifactCompositionLayer>(reloadedRoot->layerById(firstWrapperId))
+                : SharedPtr<ArtifactCompositionLayer>{};
+            const auto reloadedSecondWrapper = reloadedSecondParent
+                ? ArtifactCore::dynamicPointerCast<ArtifactCompositionLayer>(reloadedSecondParent->layerById(secondWrapperId))
+                : SharedPtr<ArtifactCompositionLayer>{};
+            const auto restoredReferences = manager.getPrecompLayersForChild(childId);
+            const auto hasRestoredReference = [&](const CompositionID& parentId, const LayerID& wrapperId) {
+                return std::any_of(restoredReferences.begin(), restoredReferences.end(), [&](const auto& reference) {
+                    return reference.parentCompId == parentId && reference.precompLayerId == wrapperId;
+                });
+            };
+            const bool saveReloadRestored = save.success && mappingsCleared && loaded &&
+                reloadedRoot && reloadedSecondParent && reloadedChild &&
+                reloadedChild->frameRange().duration() == 240 && restoredReferences.size() == 2 &&
+                hasRestoredReference(rootId, firstWrapperId) &&
+                hasRestoredReference(secondParentId, secondWrapperId) &&
+                reloadedFirstWrapper && reloadedSecondWrapper &&
+                reloadedFirstWrapper->inPoint().framePosition() == 40 &&
+                reloadedFirstWrapper->startTime().framePosition() == 40 &&
+                reloadedFirstWrapper->outPoint().framePosition() == 280 &&
+                reloadedSecondWrapper->inPoint().framePosition() == 0 &&
+                reloadedSecondWrapper->startTime().framePosition() == 0 &&
+                reloadedSecondWrapper->outPoint().framePosition() == 240;
             result["bothParentsRegistered"] = bothParentsRegistered;
             result["shrinkFollowed"] = shrinkFollowed;
             result["expansionFollowed"] = expansionFollowed;
-            result["passed"] = bothParentsRegistered && shrinkFollowed && expansionFollowed;
+            result["saveSucceeded"] = save.success;
+            result["mappingsClearedBeforeReload"] = mappingsCleared;
+            result["loaded"] = loaded;
+            result["saveReloadRestored"] = saveReloadRestored;
+            result["passed"] = bothParentsRegistered && shrinkFollowed && expansionFollowed && saveReloadRestored;
             if (!result["passed"].toBool())
-                result["error"] = QStringLiteral("Shared child duration changes did not update every parent wrapper");
+                result["error"] = QStringLiteral("Shared child duration propagation or save/reload restoration failed");
             childId_ = outcome.childCompId;
             hasChild_ = true;
             service->changeCurrentComposition(rootId);
