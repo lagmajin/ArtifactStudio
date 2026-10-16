@@ -204,6 +204,7 @@ def main():
             nested_override = call("test.nestedExposedOverrideMaterialized")
             require(nested_override["passed"] and nested_override["bindingAdded"]
                     and nested_override["overrideDeferred"]
+                    and nested_override["outerOverrideDeferred"]
                     and nested_override["nestedOverridePreserved"]
                     and nested_override["saveReloadPreserved"]
                     and nested_override["outerUnpacked"]

@@ -1213,13 +1213,34 @@ public:
                 {inner.precompLayerId}, UniString(QStringLiteral("Outer Exposed Override")), false, false,
                 PrecomposeMode::MoveSelected);
             const auto outer = service->lastPrecomposeOutcome();
+            auto outerWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(outer.precompLayerId));
             auto outerChild = service->findComposition(outer.childCompId).ptr.lock();
             auto nestedWrapper = outerChild
                 ? dynamicPointerCast<ArtifactCompositionLayer>(outerChild->layerById(inner.precompLayerId))
                 : SharedPtr<ArtifactCompositionLayer>{};
+            ArtifactCore::ExposedPropertyRegistry outerRegistry;
+            ArtifactCore::ExposedPropertyBinding outerBinding;
+            outerBinding.id = QStringLiteral("test.outer.wrapper.opacity");
+            outerBinding.label = QStringLiteral("Outer Wrapper Opacity");
+            outerBinding.targetLayerId = inner.precompLayerId.toString();
+            outerBinding.internalPath = QStringLiteral("layer.opacity");
+            outerBinding.defaultValue = nestedWrapper ? nestedWrapper->opacity() : 1.0f;
+            const float outerOverrideValue = 0.36f;
+            const bool outerBindingAdded = outerCreated && outerWrapper && nestedWrapper &&
+                outerRegistry.add(outerBinding);
+            if (outerWrapper) outerWrapper->setExposedProperties(outerRegistry);
+            const bool outerOverrideAccepted = outerBindingAdded && outerWrapper->setExposedPropertyOverride(
+                outerBinding.id, QVariant::fromValue(static_cast<double>(outerOverrideValue)));
+            const bool outerOverrideDeferred = outerOverrideAccepted &&
+                outerWrapper->hasExposedPropertyOverride(outerBinding.id) &&
+                std::abs(outerWrapper->effectiveExposedPropertyValue(outerBinding.id).toFloat() -
+                         outerOverrideValue) < 1.0e-5f &&
+                std::abs(nestedWrapper->opacity() - outerBinding.defaultValue.toFloat()) < 1.0e-5f;
             const bool nestedOverrideInMemory = outerCreated && nestedWrapper == innerWrapper &&
                 retainsOverride(nestedWrapper) &&
-                std::abs(sourceLayer->opacity() - binding.defaultValue.toFloat()) < 1.0e-5f;
+                std::abs(sourceLayer->opacity() - binding.defaultValue.toFloat()) < 1.0e-5f &&
+                outerOverrideDeferred;
             bool saveReloadPreserved = false;
             bool outerUnpacked = false;
             QTemporaryDir tempDir;
@@ -1247,6 +1268,9 @@ public:
                         ? dynamicPointerCast<ArtifactCompositionLayer>(
                               outerChild->layerById(inner.precompLayerId))
                         : SharedPtr<ArtifactCompositionLayer>{};
+                    outerWrapper = root
+                        ? dynamicPointerCast<ArtifactCompositionLayer>(root->layerById(outer.precompLayerId))
+                        : SharedPtr<ArtifactCompositionLayer>{};
                     innerWrapper = nestedWrapper;
                     sourceLayer = innerChild
                         ? innerChild->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
@@ -1264,8 +1288,12 @@ public:
                          reference.precompLayerId == inner.precompLayerId);
                 }
                 saveReloadPreserved = save.success && mappingsCleared && loaded && root &&
-                    outerChild && innerChild && nestedWrapper && sourceLayer &&
+                    outerChild && innerChild && outerWrapper && nestedWrapper && sourceLayer &&
                     retainsOverride(nestedWrapper) && outerMappingRestored && innerMappingRestored &&
+                    outerWrapper->hasExposedPropertyOverride(outerBinding.id) &&
+                    std::abs(outerWrapper->effectiveExposedPropertyValue(outerBinding.id).toFloat() -
+                             outerOverrideValue) < 1.0e-5f &&
+                    std::abs(nestedWrapper->opacity() - outerBinding.defaultValue.toFloat()) < 1.0e-5f &&
                     std::abs(sourceLayer->opacity() - binding.defaultValue.toFloat()) < 1.0e-5f;
                 outerUnpacked = saveReloadPreserved &&
                     service->unprecomposeLayerWithUndo(outer.precompLayerId, true);
@@ -1275,6 +1303,7 @@ public:
                 : SharedPtr<ArtifactCompositionLayer>{};
             const bool innerOverridePreserved = outerUnpacked && restoredInner == innerWrapper &&
                 retainsOverride(restoredInner) &&
+                std::abs(restoredInner->opacity() - outerOverrideValue) < 1.0e-5f &&
                 std::abs(sourceLayer->opacity() - binding.defaultValue.toFloat()) < 1.0e-5f;
             const bool innerUnpacked = innerOverridePreserved &&
                 service->unprecomposeLayerWithUndo(inner.precompLayerId, true);
@@ -1301,6 +1330,7 @@ public:
                 !PreComposeManager::instance().isPrecomposeLayer(inner.precompLayerId);
             overrideResult["bindingAdded"] = bindingAdded;
             overrideResult["overrideDeferred"] = overrideDeferred;
+            overrideResult["outerOverrideDeferred"] = outerOverrideDeferred;
             overrideResult["nestedOverridePreserved"] = nestedOverrideInMemory;
             overrideResult["saveReloadPreserved"] = saveReloadPreserved;
             overrideResult["outerUnpacked"] = outerUnpacked;
@@ -1308,7 +1338,7 @@ public:
             overrideResult["overrideMaterialized"] = overrideMaterialized;
             overrideResult["undoPreservedOverride"] = undoPreservedOverride;
             overrideResult["redoPreservedOverride"] = redoPreservedOverride;
-            overrideResult["passed"] = bindingAdded && overrideDeferred && nestedOverrideInMemory &&
+            overrideResult["passed"] = bindingAdded && overrideDeferred && outerOverrideDeferred && nestedOverrideInMemory &&
                 saveReloadPreserved && outerUnpacked && innerOverridePreserved && overrideMaterialized &&
                 undoPreservedOverride && redoPreservedOverride;
             if (!overrideResult["passed"].toBool())
