@@ -258,6 +258,15 @@ def main():
                     and layer_map(reset_state)["A"]["position"] == [12.0, -8.0, 3.0]
                     and abs(layer_map(reset_state)["A"]["opacity"] - 0.42) < 1e-6,
                     "MCP reset did not create a clean locale-preserving fixture")
+            reset_capture_state = call("test.state")
+            invoked_tool_names.add("test.capture")
+            reset_capture = request("tools/call", {"name": "test.capture", "arguments": {}})
+            require(not reset_capture.get("isError") and reset_capture["content"][0]["type"] == "image"
+                    and reset_capture["content"][0].get("mimeType") == "image/png",
+                    "Capture immediately after reset did not return a PNG image")
+            validate_png(base64.b64decode(reset_capture["content"][0]["data"], validate=True))
+            require(call("test.state") == reset_capture_state,
+                    "Capture immediately after reset changed the restored fixture")
             keyboard_round_trip = call("test.guiKeyboardRoundTrip")
             require(keyboard_round_trip["passed"] and keyboard_round_trip["precomposedByKey"]
                     and keyboard_round_trip["keepMappingRegisteredByKey"]
