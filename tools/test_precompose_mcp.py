@@ -194,16 +194,19 @@ def main():
             protocol_state_after_invalid_calls = call("test.state")
             require(protocol_state_after_invalid_calls == protocol_state_before_invalid_calls,
                     "Invalid MCP requests mutated the precompose fixture")
-            reset_seed = call("test.precompose")
-            require(reset_seed["lastChildExists"] and reset_seed["canUndo"],
-                    "Could not prepare a dirty fixture for the MCP reset check")
-            reset_state = call("test.reset")
-            require(reset_state["compositionId"] != reset_seed["compositionId"]
+            reset_from_child = call("test.resetFromChild")
+            require(reset_from_child["passed"] and reset_from_child["childWasActiveBeforeReset"]
+                    and reset_from_child["createdFreshRoot"] and reset_from_child["rootIsActive"]
+                    and reset_from_child["fixtureRestored"] and reset_from_child["selectionCleared"]
+                    and reset_from_child["historyCleared"] and reset_from_child["localePreserved"],
+                    "MCP reset failed to leave an active child and restore the root fixture")
+            reset_state = reset_from_child["state"]
+            require(reset_state["compositionId"]
+                    and reset_state["locale"] == args.language
                     and [layer["name"] for layer in reset_state["layers"]] ==
                     ["A", "B", "Untouched"]
                     and "lastChildExists" not in reset_state
                     and not reset_state["canUndo"] and not reset_state["canRedo"]
-                    and reset_state["locale"] == args.language
                     and reset_state["selection"]["activeCompositionId"] ==
                     reset_state["compositionId"]
                     and reset_state["selection"]["selectedLayerIds"] == []

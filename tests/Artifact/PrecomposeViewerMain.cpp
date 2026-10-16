@@ -1110,7 +1110,59 @@ public:
         bool ok = true;
         if (name == "test.state") return state();
         if (name == "test.reset") reset();
-        else if (name == "test.cycleRejected") {
+        else if (name == "test.resetFromChild") {
+            QJsonObject result;
+            if (!comp) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = comp->id();
+            const auto sourceIds = namedLayerIds(comp, {QStringLiteral("A"), QStringLiteral("B")});
+            const bool opened = sourceIds.size() == 2 && service->precomposeLayersWithUndo(
+                sourceIds, UniString(QStringLiteral("Reset From Child")), true, false,
+                PrecomposeMode::MoveSelected);
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto childActive = service->currentComposition().lock();
+            const bool childWasActive = opened && childActive &&
+                childActive->id() == outcome.childCompId && outcome.childCompId != rootId;
+            if (!childWasActive) {
+                result["error"] = QStringLiteral("Could not open a child composition before reset");
+                return result;
+            }
+            reset();
+            const auto resetState = state();
+            const auto selection = resetState.value(QStringLiteral("selection")).toObject();
+            const auto resetLayers = resetState.value(QStringLiteral("layers")).toArray();
+            const auto resetCompositionId = resetState.value(QStringLiteral("compositionId")).toString();
+            const bool createdFreshRoot = resetCompositionId != rootId.toString() &&
+                resetCompositionId != outcome.childCompId.toString();
+            const bool rootIsActive = selection.value(QStringLiteral("activeCompositionId")).toString() ==
+                resetCompositionId;
+            const bool fixtureRestored = resetLayers.size() == 3 &&
+                resetLayers[0].toObject().value(QStringLiteral("name")).toString() == QStringLiteral("A") &&
+                resetLayers[1].toObject().value(QStringLiteral("name")).toString() == QStringLiteral("B") &&
+                resetLayers[2].toObject().value(QStringLiteral("name")).toString() == QStringLiteral("Untouched");
+            const bool selectionCleared =
+                selection.value(QStringLiteral("selectedLayerIds")).toArray().isEmpty() &&
+                !selection.contains(QStringLiteral("currentLayerId"));
+            const bool historyCleared = !resetState.value(QStringLiteral("canUndo")).toBool() &&
+                !resetState.value(QStringLiteral("canRedo")).toBool();
+            result["childWasActiveBeforeReset"] = childWasActive;
+            result["createdFreshRoot"] = createdFreshRoot;
+            result["rootIsActive"] = rootIsActive;
+            result["fixtureRestored"] = fixtureRestored;
+            result["selectionCleared"] = selectionCleared;
+            result["historyCleared"] = historyCleared;
+            result["localePreserved"] = resetState.value(QStringLiteral("locale")).toString() ==
+                QLocale().bcp47Name();
+            result["passed"] = childWasActive && createdFreshRoot && rootIsActive &&
+                fixtureRestored && selectionCleared && historyCleared &&
+                result.value(QStringLiteral("localePreserved")).toBool();
+            result["state"] = resetState;
+            if (!result.value(QStringLiteral("passed")).toBool())
+                result["error"] = QStringLiteral("Reset retained child focus or failed to restore its fixture");
+            return result;
+        } else if (name == "test.cycleRejected") {
             QJsonObject cycleResult;
             if (!comp) {
                 cycleResult["error"] = QStringLiteral("No current composition");
@@ -7671,7 +7723,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.guiAnimatedKeyRoundTrip", "test.guiOpenChildCompositionRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.childCompositionEffectStaysWithChild", "test.openChildComposition", "test.matchWorkspaceDuration", "test.emptyWorkspaceDurationFallsBack", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.precomposeIgnoresStaleSelectionId", "test.unpackLayerIdCollisionAtomic", "test.unpackDuplicateChildLayerIdsAtomic", "test.unpackNilChildLayerIdAtomic", "test.missingChildReferenceAtomic", "test.unprecomposeWithMissingManagerMapping", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.resetFromChild", "test.guiKeyboardRoundTrip", "test.guiAnimatedKeyRoundTrip", "test.guiOpenChildCompositionRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.childCompositionEffectStaysWithChild", "test.openChildComposition", "test.matchWorkspaceDuration", "test.emptyWorkspaceDurationFallsBack", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.precomposeIgnoresStaleSelectionId", "test.unpackLayerIdCollisionAtomic", "test.unpackDuplicateChildLayerIdsAtomic", "test.unpackNilChildLayerIdAtomic", "test.missingChildReferenceAtomic", "test.unprecomposeWithMissingManagerMapping", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
