@@ -105,6 +105,12 @@ def validate_png_contract():
         "CRC corruption": valid_png[:29] + bytes([valid_png[29] ^ 1]) + valid_png[30:],
         "invalid filter": image(b"\x05\x7f"),
         "scanline size mismatch": image(b"\x00"),
+        "scanline data exceeds dimensions": image(b"\x00\x7f\x80"),
+        "decompressed image exceeds size limit": (
+            signature + make_png_chunk(
+                b"IHDR", struct.pack(">IIBBBBB", 0xffffffff, 0xffffffff, 8, 0, 0, 0, 0))
+            + make_png_chunk(b"IDAT", zlib.compress(b""))
+            + make_png_chunk(b"IEND", b"")),
         "compressed stream trailing data": (
             signature + make_png_chunk(b"IHDR", header)
             + make_png_chunk(b"IDAT", zlib.compress(b"\x00\x7f") + b"\xff")
