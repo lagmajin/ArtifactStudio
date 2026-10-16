@@ -658,11 +658,15 @@ def main():
             external_parent = call("test.externalParentRestored")
             require(external_parent["passed"] and external_parent["externalParentStoredOnWrapper"]
                     and external_parent["externalParentClearedInChild"]
+                    and external_parent["movedObjectsPreserved"]
                     and external_parent["bothExternalParentLinksRestored"]
+                    and external_parent["unpackPreservedObjects"]
                     and external_parent["unpackRestoredExternalParent"]
                     and external_parent["undoRestoredMetadata"]
                     and external_parent["undoRestoredBothMetadata"]
+                    and external_parent["undoPreservedObjects"]
                     and external_parent["redoRestoredBothExternalParents"]
+                    and external_parent["redoPreservedObjects"]
                     and external_parent["redoRestoredExternalParent"],
                     "Multiple external parent links were not preserved across precompose/unpack/undo/redo")
             call("test.reset")

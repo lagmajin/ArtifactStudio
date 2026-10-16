@@ -4368,9 +4368,10 @@ public:
             const auto sourceId = idsA.front();
             const auto sourceBId = idsB.front();
             const auto externalParentId = idsParent.front();
+            const auto externalParentLayer = parent->layerById(externalParentId);
             const auto sourceLayer = parent->layerById(sourceId);
             const auto sourceLayerB = parent->layerById(sourceBId);
-            if (!sourceLayer || !sourceLayerB) {
+            if (!externalParentLayer || !sourceLayer || !sourceLayerB) {
                 parentResult["error"] = QStringLiteral("External-parent source layer is missing");
                 return parentResult;
             }
@@ -4397,6 +4398,9 @@ public:
                 wrapper->restoreExternalParent(sourceBId) == externalParentId;
             const bool childParentCleared = movedSource && movedSourceB &&
                 movedSource->parentLayerId().isNil() && movedSourceB->parentLayerId().isNil();
+            const bool movedObjectsPreserved = movedSource && movedSourceB &&
+                movedSource.get() == sourceLayer.get() && movedSourceB.get() == sourceLayerB.get() &&
+                parent->layerById(externalParentId).get() == externalParentLayer.get();
             const bool unpacked = service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
             const auto restoredSource = service->currentComposition().lock()
                 ? service->currentComposition().lock()->layerById(sourceId)
@@ -4407,15 +4411,28 @@ public:
             const bool unpackRestoredParent = unpacked && restoredSource &&
                 restoredSourceB && restoredSource->parentLayerId() == externalParentId &&
                 restoredSourceB->parentLayerId() == externalParentId;
+            const bool unpackPreservedObjects = unpackRestoredParent &&
+                restoredSource.get() == sourceLayer.get() &&
+                restoredSourceB.get() == sourceLayerB.get() &&
+                service->currentComposition().lock()->layerById(externalParentId).get() ==
+                    externalParentLayer.get();
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
             const auto undoWrapper = service->currentComposition().lock()
                 ? dynamicPointerCast<ArtifactCompositionLayer>(
                     service->currentComposition().lock()->layerById(outcome.precompLayerId))
                 : SharedPtr<ArtifactCompositionLayer>{};
+            const auto undoChild = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto undoSource = undoChild ? undoChild->layerById(sourceId)
+                                              : ArtifactAbstractLayerPtr{};
+            const auto undoSourceB = undoChild ? undoChild->layerById(sourceBId)
+                                               : ArtifactAbstractLayerPtr{};
             const bool undoRestoredMetadata = undoAvailable && undoWrapper &&
                 undoWrapper->restoreExternalParent(sourceId) == externalParentId &&
                 undoWrapper->restoreExternalParent(sourceBId) == externalParentId;
+            const bool undoPreservedObjects = undoRestoredMetadata && undoSource && undoSourceB &&
+                undoSource.get() == sourceLayer.get() && undoSourceB.get() == sourceLayerB.get() &&
+                parent->layerById(externalParentId).get() == externalParentLayer.get();
             const bool redoAvailable = undo->canRedo();
             if (redoAvailable) undo->redo();
             const auto redoSource = service->currentComposition().lock()
@@ -4427,16 +4444,25 @@ public:
             const bool redoRestoredParent = redoAvailable && redoSource &&
                 redoSourceB && redoSource->parentLayerId() == externalParentId &&
                 redoSourceB->parentLayerId() == externalParentId;
+            const bool redoPreservedObjects = redoRestoredParent &&
+                redoSource.get() == sourceLayer.get() && redoSourceB.get() == sourceLayerB.get() &&
+                parent->layerById(externalParentId).get() == externalParentLayer.get();
             parentResult["externalParentStoredOnWrapper"] = externalParentStored;
             parentResult["externalParentClearedInChild"] = childParentCleared;
+            parentResult["movedObjectsPreserved"] = movedObjectsPreserved;
             parentResult["bothExternalParentLinksRestored"] = unpackRestoredParent;
             parentResult["unpackRestoredExternalParent"] = unpackRestoredParent;
+            parentResult["unpackPreservedObjects"] = unpackPreservedObjects;
             parentResult["undoRestoredMetadata"] = undoRestoredMetadata;
             parentResult["undoRestoredBothMetadata"] = undoRestoredMetadata;
+            parentResult["undoPreservedObjects"] = undoPreservedObjects;
             parentResult["redoRestoredBothExternalParents"] = redoRestoredParent;
             parentResult["redoRestoredExternalParent"] = redoRestoredParent;
+            parentResult["redoPreservedObjects"] = redoPreservedObjects;
             parentResult["passed"] = externalParentStored && childParentCleared &&
-                unpackRestoredParent && undoRestoredMetadata && redoRestoredParent;
+                movedObjectsPreserved && unpackRestoredParent && unpackPreservedObjects &&
+                undoRestoredMetadata && undoPreservedObjects && redoRestoredParent &&
+                redoPreservedObjects;
             if (!parentResult["passed"].toBool())
                 parentResult["error"] = QStringLiteral("External parent relationship changed across precompose/undo/redo");
             refresh();
