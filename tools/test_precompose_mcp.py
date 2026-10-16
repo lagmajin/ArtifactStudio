@@ -430,21 +430,28 @@ def main():
             require(animated["passed"] and animated["childKeysRetimed"]
                     and animated["rationalTimebaseAuthored"]
                     and animated["rationalChildTimebasePreserved"]
+                    and animated["selectedChildSamplesPreserved"]
                     and animated["offsetChildKeysRetimed"]
                     and animated["transformChannelsRetimed"]
                     and animated["transformChannelsUnpacked"]
+                    and animated["selectedUnpackSamplesPreserved"]
+                    and animated["selectedUndoSamplesPreserved"]
                     and animated["transformChannelsRedoPreserved"]
+                    and animated["selectedRedoSamplesPreserved"]
                     and animated["unpackRestoredKeys"] and animated["redoRestoredKeys"]
                     and animated["allModeChildKeysPreserved"]
                     and animated["allModeTransformChildKeysPreserved"]
                     and animated["allModeChildTimingPreserved"]
                     and animated["allModeRationalTimebasePreserved"]
+                    and animated["allModeChildSamplesPreserved"]
                     and animated["allModeUnpackKeysPreserved"]
                     and animated["allModeUnpackTransformKeysPreserved"]
                     and animated["allModeUnpackTimingPreserved"]
+                    and animated["allModeUnpackSamplesPreserved"]
                     and animated["allModeRedoKeysPreserved"]
                     and animated["allModeRedoTransformKeysPreserved"]
-                    and animated["allModeRedoTimingPreserved"],
+                    and animated["allModeRedoTimingPreserved"]
+                    and animated["allModeRedoSamplesPreserved"],
                     "Animated keyframes or metadata changed across selected/all precompose, unpack, or redo")
             call("test.reset")
             initial = call("test.state")

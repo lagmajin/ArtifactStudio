@@ -3691,6 +3691,32 @@ public:
                 originalTransformKeysA.append(keyframes(channelA));
                 originalTransformKeysB.append(keyframes(channelB));
             }
+            const QStringList sampledAnimationPaths{
+                QStringLiteral("transform.position.x"),
+                transformChannelPaths[0], transformChannelPaths[1], transformChannelPaths[2]};
+            const auto sampleChannels = [&](const ArtifactAbstractLayerPtr& layer, int frame) {
+                QVector<double> samples;
+                if (!layer) return samples;
+                const RationalTime sampleTime(frame, layer->keyframeTimeScale());
+                for (const auto& path : sampledAnimationPaths) {
+                    const auto channel = layer->getProperty(path);
+                    if (!channel) return QVector<double>{};
+                    samples.append(channel->evaluateValue(sampleTime).toDouble());
+                }
+                return samples;
+            };
+            const auto sampledChannelsMatch = [&](const ArtifactAbstractLayerPtr& layer, int frame,
+                                                  const QVector<double>& expected) {
+                if (!layer || expected.size() != sampledAnimationPaths.size()) return false;
+                const auto actual = sampleChannels(layer, frame);
+                if (actual.size() != expected.size()) return false;
+                for (qsizetype index = 0; index < expected.size(); ++index)
+                    if (!std::isfinite(actual[index]) ||
+                        std::abs(actual[index] - expected[index]) > 1.0e-6) return false;
+                return true;
+            };
+            const auto originalSamplesA = sampleChannels(source, 70);
+            const auto originalSamplesB = sampleChannels(sourceB, 100);
             const auto channelKeysMatch = [](const ArtifactCompositionPtr& composition,
                                              LayerID layerId, const QStringList& paths,
                                              const QVector<QJsonArray>& expected) {
@@ -3747,6 +3773,9 @@ public:
             const auto movedSourceChannelsB = movedSourceB && channelKeysShifted(
                 movedSourceB, transformChannelPaths, originalTransformKeysB, -40);
             const bool transformChannelsRetimed = movedSourceChannelsA && movedSourceChannelsB;
+            const bool selectedChildSamplesPreserved =
+                sampledChannelsMatch(movedSource, 30, originalSamplesA) &&
+                sampledChannelsMatch(movedSourceB, 60, originalSamplesB);
             const bool rationalChildTimebasePreserved = child &&
                 child->frameRate().hasExactRational() &&
                 child->frameRate().numerator() == 30000 &&
@@ -3796,8 +3825,19 @@ public:
             const bool transformChannelsUnpacked = unpacked &&
                 channelKeysMatch(restored, idsA.front(), transformChannelPaths, originalTransformKeysA) &&
                 channelKeysMatch(restored, idsB.front(), transformChannelPaths, originalTransformKeysB);
+            const bool selectedUnpackSamplesPreserved = unpacked &&
+                sampledChannelsMatch(restoredSource, 70, originalSamplesA) &&
+                sampledChannelsMatch(restoredSourceB, 100, originalSamplesB);
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
+            const auto afterUnpackUndoChild = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto afterUnpackUndoA = afterUnpackUndoChild
+                ? afterUnpackUndoChild->layerById(idsA.front()) : ArtifactAbstractLayerPtr{};
+            const auto afterUnpackUndoB = afterUnpackUndoChild
+                ? afterUnpackUndoChild->layerById(idsB.front()) : ArtifactAbstractLayerPtr{};
+            const bool selectedUndoSamplesPreserved = undoAvailable &&
+                sampledChannelsMatch(afterUnpackUndoA, 30, originalSamplesA) &&
+                sampledChannelsMatch(afterUnpackUndoB, 60, originalSamplesB);
             const bool redoAvailable = undo->canRedo();
             if (redoAvailable) undo->redo();
             const auto afterRedo = service->currentComposition().lock();
@@ -3815,6 +3855,9 @@ public:
             const bool transformChannelsRedoPreserved = redoAvailable &&
                 channelKeysMatch(afterRedo, idsA.front(), transformChannelPaths, originalTransformKeysA) &&
                 channelKeysMatch(afterRedo, idsB.front(), transformChannelPaths, originalTransformKeysB);
+            const bool selectedRedoSamplesPreserved = redoAvailable &&
+                sampledChannelsMatch(redoSource, 70, originalSamplesA) &&
+                sampledChannelsMatch(redoSourceB, 100, originalSamplesB);
             QVector<LayerID> allLayerIds;
             if (afterRedo) for (const auto& layer : afterRedo->allLayer())
                 if (layer) allLayerIds.append(layer->id());
@@ -3855,6 +3898,9 @@ public:
                 : SharedPtr<AbstractProperty>{};
             const bool allModeChildKeysPreserved = allPropertyA && allPropertyB &&
                 keyframes(allPropertyA) == originalKeys && keyframes(allPropertyB) == originalKeysB;
+            const bool allModeChildSamplesPreserved =
+                sampledChannelsMatch(allSourceA, 70, originalSamplesA) &&
+                sampledChannelsMatch(allSourceB, 100, originalSamplesB);
             const bool allModeTransformChildKeysPreserved =
                 channelKeysMatch(allChild, idsA.front(), transformChannelPaths, originalTransformKeysA) &&
                 channelKeysMatch(allChild, idsB.front(), transformChannelPaths, originalTransformKeysB);
@@ -3879,6 +3925,9 @@ public:
             const bool allModeUnpackTimingPreserved = allUnpacked &&
                 hasTiming(allRestoredA, 40, 200, 7) && hasTiming(allRestoredB, 70, 160, 9) &&
                 hasTiming(allRestoredUntouched, 25, 220, 3);
+            const bool allModeUnpackSamplesPreserved = allUnpacked &&
+                sampledChannelsMatch(allRestoredA, 70, originalSamplesA) &&
+                sampledChannelsMatch(allRestoredB, 100, originalSamplesB);
             const bool allUndoAvailable = undo->canUndo();
             if (allUndoAvailable) undo->undo();
             const bool allRedoAvailable = undo->canRedo();
@@ -3903,6 +3952,9 @@ public:
             const bool allModeRedoTimingPreserved = allRedoAvailable &&
                 hasTiming(allRedoA, 40, 200, 7) && hasTiming(allRedoB, 70, 160, 9) &&
                 hasTiming(allRedoUntouched, 25, 220, 3);
+            const bool allModeRedoSamplesPreserved = allRedoAvailable &&
+                sampledChannelsMatch(allRedoA, 70, originalSamplesA) &&
+                sampledChannelsMatch(allRedoB, 100, originalSamplesB);
             animationResult["originalKeys"] = originalKeys;
             animationResult["originalOffsetKeys"] = originalKeysB;
             animationResult["precomposedKeys"] = movedKeys;
@@ -3912,31 +3964,43 @@ public:
             animationResult["transformChannelsRetimed"] = transformChannelsRetimed;
             animationResult["rationalTimebaseAuthored"] = rationalTimebaseAuthored;
             animationResult["rationalChildTimebasePreserved"] = rationalChildTimebasePreserved;
+            animationResult["selectedChildSamplesPreserved"] = selectedChildSamplesPreserved;
             animationResult["transformChannelsUnpacked"] = transformChannelsUnpacked;
+            animationResult["selectedUnpackSamplesPreserved"] = selectedUnpackSamplesPreserved;
+            animationResult["selectedUndoSamplesPreserved"] = selectedUndoSamplesPreserved;
             animationResult["transformChannelsRedoPreserved"] = transformChannelsRedoPreserved;
+            animationResult["selectedRedoSamplesPreserved"] = selectedRedoSamplesPreserved;
             animationResult["unpackRestoredKeys"] = unpackKeysRestored;
             animationResult["redoRestoredKeys"] = redoKeysRestored;
             animationResult["allModeChildKeysPreserved"] = allModeChildKeysPreserved;
             animationResult["allModeTransformChildKeysPreserved"] = allModeTransformChildKeysPreserved;
             animationResult["allModeChildTimingPreserved"] = allModeChildTimingPreserved;
             animationResult["allModeRationalTimebasePreserved"] = allModeRationalTimebasePreserved;
+            animationResult["allModeChildSamplesPreserved"] = allModeChildSamplesPreserved;
             animationResult["allModeUnpackKeysPreserved"] = allModeUnpackKeysPreserved;
             animationResult["allModeUnpackTransformKeysPreserved"] = allModeUnpackTransformKeysPreserved;
             animationResult["allModeUnpackTimingPreserved"] = allModeUnpackTimingPreserved;
+            animationResult["allModeUnpackSamplesPreserved"] = allModeUnpackSamplesPreserved;
             animationResult["allModeRedoKeysPreserved"] = allModeRedoKeysPreserved;
             animationResult["allModeRedoTransformKeysPreserved"] = allModeRedoTransformKeysPreserved;
             animationResult["allModeRedoTimingPreserved"] = allModeRedoTimingPreserved;
+            animationResult["allModeRedoSamplesPreserved"] = allModeRedoSamplesPreserved;
             animationResult["passed"] = rationalTimebaseAuthored && rationalChildTimebasePreserved &&
                 childKeysRetimed && offsetChildKeysRetimed &&
-                transformChannelsRetimed && transformChannelsUnpacked && transformChannelsRedoPreserved &&
+                transformChannelsRetimed && selectedChildSamplesPreserved &&
+                transformChannelsUnpacked && selectedUnpackSamplesPreserved &&
+                selectedUndoSamplesPreserved && transformChannelsRedoPreserved &&
+                selectedRedoSamplesPreserved &&
                 unpackKeysRestored &&
                 undoAvailable && redoKeysRestored && allModeChildKeysPreserved &&
                 allModeTransformChildKeysPreserved &&
                 allModeChildTimingPreserved && allModeRationalTimebasePreserved &&
+                allModeChildSamplesPreserved &&
                 allModeUnpackKeysPreserved &&
                 allModeUnpackTransformKeysPreserved && allModeUnpackTimingPreserved &&
+                allModeUnpackSamplesPreserved &&
                 allUndoAvailable && allModeRedoKeysPreserved && allModeRedoTransformKeysPreserved &&
-                allModeRedoTimingPreserved;
+                allModeRedoTimingPreserved && allModeRedoSamplesPreserved;
             if (!animationResult["passed"].toBool())
                 animationResult["error"] = QStringLiteral("Animated keyframes changed across precompose/unpack/redo");
             refresh();
