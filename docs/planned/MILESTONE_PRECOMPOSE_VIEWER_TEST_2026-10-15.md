@@ -65,7 +65,7 @@ cmake --build out/build/x64-Debug-Agent --target ArtifactPrecomposeViewer -j 4
 out/build/x64-Debug-Agent/bin/Debug/ArtifactPrecomposeViewer.exe
 ```
 
-`--check` は既存プリコンポーズ回帰テストだけを実行し、失敗があれば終了コード1を返す。`--mcp-stdio` は改行区切りJSON-RPCの旧MCP `2024-11-05` initialize、tools/list、tools/call、pingに対応する。MCPハーネスはtools/listの重複・形式と、呼び出す全ツール名が公開されていることを検査する。stdin EOFで終了する。製品ログはstderrへ分離する。新MCP server/discover形式は未対応。GUIを前面化せず、左端ディスプレイへ配置する。
+`--check` は既存プリコンポーズ回帰テストだけを実行し、失敗があれば終了コード1を返す。`--mcp-stdio` は改行区切りJSON-RPCの旧MCP `2024-11-05` initialize、tools/list、tools/call、pingに対応する。MCPハーネスはtools/listの重複・形式と、呼び出す全ツール名が公開されていることを検査する。`test.capture` はMIME、Base64、PNG signature/IHDR、非ゼロ寸法を検証してから画像証拠を保存する。stdin EOFで終了する。製品ログはstderrへ分離する。新MCP server/discover形式は未対応。GUIを前面化せず、左端ディスプレイへ配置する。
 
 MCPハーネスはinitialize応答のprotocol version・tools capability・serverInfo、ping応答、引数省略のtools/call成功、tools/listの各descriptionと空object schemaを照合し、公開された全toolを最低1回呼び出す。未知のtool name、空object以外のarguments、未知methodを拒否することと、拒否後にfixtureのComposition IDとレイヤー状態が変化せず、引き続き呼び出しへ応答できることも確認する。
 
