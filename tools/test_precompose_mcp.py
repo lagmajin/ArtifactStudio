@@ -409,6 +409,18 @@ def main():
             unknown_method = request("method/not-found", {}, allow_protocol_error=True)
             require(unknown_method.get("error", {}).get("code") == -32601,
                     "Unknown MCP method did not return JSON-RPC method-not-found")
+            malformed_json = '{"jsonrpc":"2.0","id":999,"method":"ping"'
+            malformed_record = {"rawRequest": malformed_json}
+            evidence.append(malformed_record)
+            process.stdin.write(malformed_json + "\n")
+            process.stdin.flush()
+            malformed_reply = replies.get(timeout=120)
+            malformed_record["reply"] = malformed_reply
+            require(isinstance(malformed_reply, dict)
+                    and malformed_reply.get("jsonrpc") == "2.0"
+                    and malformed_reply.get("id") is None
+                    and malformed_reply.get("error", {}).get("code") == -32700,
+                    f"Malformed JSON-RPC input did not return parse-error: {malformed_reply}")
             protocol_state_after_invalid_calls = call("test.state")
             require(protocol_state_after_invalid_calls == protocol_state_before_invalid_calls,
                     "Invalid MCP requests mutated the precompose fixture")

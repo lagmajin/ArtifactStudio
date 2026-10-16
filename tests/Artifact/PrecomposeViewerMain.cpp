@@ -7764,7 +7764,19 @@ private:
     void refresh() { text_->setPlainText(QString::fromUtf8(QJsonDocument(state()).toJson())); }
     void respond(const QByteArray& line)
     {
-        const auto request = QJsonDocument::fromJson(line).object();
+        QJsonParseError parseError;
+        const auto document = QJsonDocument::fromJson(line, &parseError);
+        if (parseError.error != QJsonParseError::NoError) {
+            const auto bytes = QJsonDocument(QJsonObject{
+                {"jsonrpc", "2.0"}, {"id", QJsonValue::Null},
+                {"error", QJsonObject{{"code", -32700},
+                    {"message", "Parse error"}}}})
+                .toJson(QJsonDocument::Compact) + '\n';
+            std::fwrite(bytes.constData(), 1, bytes.size(), protocolOutput);
+            std::fflush(protocolOutput);
+            return;
+        }
+        const auto request = document.object();
         if (!request.contains("id")) return;
         const auto method = request["method"].toString();
         QJsonObject response{{"jsonrpc", "2.0"}, {"id", request["id"]}};
