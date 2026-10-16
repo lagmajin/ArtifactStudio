@@ -537,6 +537,7 @@ def main():
                     and round_trip["compositionEffectScopeAfterUnpack"]
                     and round_trip["compositionEffectScopeAfterUndoRedo"]
                     and round_trip["auxiliaryStateUnpackedAfterReload"]
+                    and round_trip["opacityOverrideMaterializedAsKeyframe"]
                     and round_trip["unpackUndoRestoredChild"]
                     and round_trip["unpackRedoRestoredParent"],
                     "Precompose save/reload changed layer metadata, effects, masks, mattes, component descriptors, exposed properties, or runtime nesting")

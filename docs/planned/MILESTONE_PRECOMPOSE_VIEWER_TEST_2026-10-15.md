@@ -15,6 +15,8 @@
 
 同テストのアニメーション保存・再読込検査はposition／rotationの各軸、scale X/Y、anchorの各軸、opacityのキーフレーム配列に加え、Bezier／ConstantとSmooth／Linearの混在カーブを中間フレームで評価した値も比較する。
 
+opacity override解除時には、既存の有効範囲内opacityカーブを残したまま現在フレームへoverride値がキーフレームとしてmaterializeされ、Undo/Redo後もキー配列と評価値が維持されることを確認する。
+
 `test.childCompositionEffectStaysWithChild`は子Compositionへ設定したBrightness effectがプロジェクト再読込後も子に保持され、子レイヤー解除時に親へ移らず、Undo/Redoでも子Compositionの属性として残ることを検査する。
 
 `test.sharedChildReferences`は同一親Compositionの2つのwrapperが共有するchildを保存・再読込し、runtime mappingを復元した後に片方だけ解除しても他方のwrapperとchildが残ること、Undo/Redoで2参照と1参照へ正しく往復することを検査する。

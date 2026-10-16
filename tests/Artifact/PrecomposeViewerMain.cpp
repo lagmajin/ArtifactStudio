@@ -5156,23 +5156,28 @@ public:
                     roundTrip["error"] = QStringLiteral("Animation channel unavailable for save/reload");
                     return roundTrip;
                 }
+                const bool opacityChannel =
+                    animatedPropertyPaths[index] == QStringLiteral("layer.opacity");
                 sourceChannel->clearKeyFrames();
                 sourceChannel->setAnimatable(true);
                 sourceChannel->addKeyFrame(
                     RationalTime(12, sourceLayer->keyframeTimeScale()),
-                    5.0 + static_cast<double>(index), InterpolationType::Bezier,
+                    opacityChannel ? 0.2 : 5.0 + static_cast<double>(index), InterpolationType::Bezier,
                     0.1f, 0.2f, 0.8f, 0.9f, true);
                 sourceChannel->addKeyFrame(
                     RationalTime(36, sourceLayer->keyframeTimeScale()),
-                    15.0 + static_cast<double>(index), InterpolationType::Constant);
+                    opacityChannel ? 0.8 : 15.0 + static_cast<double>(index),
+                    InterpolationType::Constant);
                 peerChannel->clearKeyFrames();
                 peerChannel->setAnimatable(true);
                 peerChannel->addKeyFrame(
                     RationalTime(18, peerLayer->keyframeTimeScale()),
-                    25.0 + static_cast<double>(index), InterpolationType::Smooth);
+                    opacityChannel ? 0.35 : 25.0 + static_cast<double>(index),
+                    InterpolationType::Smooth);
                 peerChannel->addKeyFrame(
                     RationalTime(42, peerLayer->keyframeTimeScale()),
-                    35.0 + static_cast<double>(index), InterpolationType::Linear);
+                    opacityChannel ? 0.9 : 35.0 + static_cast<double>(index),
+                    InterpolationType::Linear);
                 sourceTransformKeys.append(keyframes(sourceChannel));
                 peerTransformKeys.append(keyframes(peerChannel));
                 sourceAnimationSamples.append(sourceChannel->evaluateValue(
@@ -5398,6 +5403,27 @@ public:
             const bool auxiliaryStateUnpacked = loaded && reloadedPrecompLayer &&
                 service->unprecomposeLayerWithUndo(originalPrecompLayer->id(), true) &&
                 hasPersistedAuxiliaryState(reloadedParent->layerById(sourceLayer->id()));
+            const auto opacityAnimationOverrideMaterialized = [&](const ArtifactAbstractLayerPtr& layer) {
+                if (!layer) return false;
+                const auto opacity = layer->getProperty(QStringLiteral("layer.opacity"));
+                if (!opacity) return false;
+                const auto actual = keyframes(opacity);
+                const auto expected = sourceTransformKeys.isEmpty()
+                    ? QJsonArray{} : sourceTransformKeys.back();
+                if (actual.size() != expected.size() + 1 ||
+                    actual.front().toObject()["timeValue"].toInt() != 0 ||
+                    std::abs(actual.front().toObject()["value"].toDouble() - overrideValue) > 1.0e-6 ||
+                    std::abs(opacity->evaluateValue(RationalTime(
+                        0, layer->keyframeTimeScale())).toDouble() - overrideValue) > 1.0e-6) {
+                    return false;
+                }
+                for (qsizetype index = 0; index < expected.size(); ++index)
+                    if (actual[index + 1].toObject() != expected[index].toObject()) return false;
+                return true;
+            };
+            const bool opacityOverrideMaterializedAsKeyframe = auxiliaryStateUnpacked &&
+                opacityAnimationOverrideMaterialized(
+                    reloadedParent->layerById(sourceLayer->id()));
             const auto compositionEffectScopeMatches = [&]() {
                 const auto parentEffects = reloadedParent->getEffects();
                 const auto child = service->findComposition(originalChildId).ptr.lock();
@@ -5419,6 +5445,8 @@ public:
             const bool unpackUndoRestored = unpackUndoAvailable &&
                 hasPersistedAuxiliaryState(undoChild ? undoChild->layerById(sourceLayer->id())
                                                      : ArtifactAbstractLayerPtr{}) &&
+                opacityAnimationOverrideMaterialized(undoChild
+                    ? undoChild->layerById(sourceLayer->id()) : ArtifactAbstractLayerPtr{}) &&
                 compositionEffectScopeMatches() &&
                 precompManager.isPrecomposeLayer(originalPrecompLayer->id()) &&
                 reloadedParent->layerById(originalPrecompLayer->id());
@@ -5426,6 +5454,8 @@ public:
             if (unpackRedoAvailable) undo->redo();
             const bool unpackRedoRestored = unpackRedoAvailable &&
                 hasPersistedAuxiliaryState(reloadedParent->layerById(sourceLayer->id())) &&
+                opacityAnimationOverrideMaterialized(
+                    reloadedParent->layerById(sourceLayer->id())) &&
                 compositionEffectScopeMatches() &&
                 !precompManager.isPrecomposeLayer(originalPrecompLayer->id());
             roundTrip["parentChildLinkPreserved"] = parentChildLink;
@@ -5445,6 +5475,7 @@ public:
             roundTrip["compositionEffectScopeAfterUnpack"] = compositionEffectScopeAfterUnpack;
             roundTrip["compositionEffectScopeAfterUndoRedo"] = unpackUndoRestored && unpackRedoRestored;
             roundTrip["auxiliaryStateUnpackedAfterReload"] = auxiliaryStateUnpacked;
+            roundTrip["opacityOverrideMaterializedAsKeyframe"] = opacityOverrideMaterializedAsKeyframe;
             roundTrip["unpackUndoRestoredChild"] = unpackUndoRestored;
             roundTrip["unpackRedoRestoredParent"] = unpackRedoRestored;
             roundTrip["passed"] = save.success && loaded && parentChildLink && runtimeNestingRestored &&
@@ -5453,7 +5484,8 @@ public:
                 layerEffectPersisted &&
                 layerMaskPersisted && layerMattePersisted && componentDescriptorsPersisted &&
                 compositionEffectPersistedOnParent && auxiliaryStateUnpacked &&
-                compositionEffectScopeAfterUnpack && unpackUndoRestored && unpackRedoRestored;
+                opacityOverrideMaterializedAsKeyframe && compositionEffectScopeAfterUnpack &&
+                unpackUndoRestored && unpackRedoRestored;
             if (!roundTrip["passed"].toBool())
                 roundTrip["error"] = QStringLiteral("Precompose project round-trip lost parent/child data or runtime nesting registration");
             childId_ = originalChildId;
