@@ -79,6 +79,11 @@ def main():
             require(len(names) == len(listed_tools) and len(names) == len(set(names)),
                     "MCP tools/list returned invalid or duplicate tool names")
             exposed_tool_names.update(names)
+            keyboard_round_trip = call("test.guiKeyboardRoundTrip")
+            require(keyboard_round_trip["passed"] and keyboard_round_trip["precomposedByKey"]
+                    and keyboard_round_trip["undoneByKey"] and keyboard_round_trip["redoneByKey"],
+                    "GUI P/Z/Y keyboard routing did not round-trip precompose")
+            call("test.reset")
             initial = call("test.state")
             original = initial["layers"]
             require(set(layer_map(initial)) == {"A", "B", "Untouched"}, "Fixture missing layers")

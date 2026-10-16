@@ -97,6 +97,38 @@ public:
 
     QJsonObject action(const QString& name)
     {
+        if (name == "test.guiKeyboardRoundTrip") {
+            reset();
+            const auto originalLayers = state()["layers"].toArray();
+            const auto sendKey = [this](int key) {
+                QKeyEvent event(QEvent::KeyPress, key, Qt::NoModifier);
+                QApplication::sendEvent(this, &event);
+            };
+            sendKey(Qt::Key_P);
+            const auto afterPrecompose = state();
+            const bool precomposedByKey = afterPrecompose["canUndo"].toBool() &&
+                afterPrecompose["lastChildExists"].toBool() &&
+                afterPrecompose["layers"].toArray().size() == 2;
+            sendKey(Qt::Key_Z);
+            const auto afterUndo = state();
+            const bool undoneByKey = afterUndo["canRedo"].toBool() &&
+                !afterUndo["lastChildExists"].toBool() &&
+                afterUndo["layers"].toArray() == originalLayers;
+            sendKey(Qt::Key_Y);
+            const auto afterRedo = state();
+            const bool redoneByKey = afterRedo["canUndo"].toBool() &&
+                !afterRedo["canRedo"].toBool() &&
+                afterRedo["lastChildExists"].toBool() &&
+                afterRedo["layers"].toArray().size() == 2;
+            QJsonObject result{{"precomposedByKey", precomposedByKey},
+                               {"undoneByKey", undoneByKey},
+                               {"redoneByKey", redoneByKey},
+                               {"passed", precomposedByKey && undoneByKey && redoneByKey},
+                               {"state", afterRedo}};
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("GUI P/Z/Y keyboard routing failed to round-trip precompose");
+            return result;
+        }
         if (name == "test.capture") {
             QByteArray png;
             QBuffer buffer(&png);
@@ -3107,7 +3139,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
