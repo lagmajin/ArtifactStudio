@@ -1012,12 +1012,15 @@ TEST(StillImageLayerRoundTripTest,
     firstFrame.fill(firstColor);
     const QString firstPath = dir.filePath(QStringLiteral("gap-0001.png"));
     const QString missingPath = dir.filePath(QStringLiteral("gap-0002.png"));
+    const QString consecutiveMissingPath =
+        dir.filePath(QStringLiteral("gap-0003.png"));
     ASSERT_TRUE(firstFrame.save(firstPath, "PNG"));
     ASSERT_FALSE(QFileInfo::exists(missingPath));
+    ASSERT_FALSE(QFileInfo::exists(consecutiveMissingPath));
 
     Artifact::ArtifactImageLayer layer;
     ASSERT_TRUE(layer.setImageSequence(
-        QStringList{firstPath, missingPath}, 0.0));
+        QStringList{firstPath, missingPath, consecutiveMissingPath}, 0.0));
     EXPECT_EQ(waitForSequenceFrame(layer, 0).pixelColor(0, 0), firstColor);
 
     layer.goToFrame(1);
@@ -1042,10 +1045,25 @@ TEST(StillImageLayerRoundTripTest,
     restoredFrame.fill(restoredColor);
     ASSERT_TRUE(restoredFrame.save(missingPath, "PNG"));
     ASSERT_TRUE(layer.setImageSequence(
-        QStringList{firstPath, missingPath}, 0.0));
+        QStringList{firstPath, missingPath, consecutiveMissingPath}, 0.0));
     layer.goToFrame(1);
     EXPECT_EQ(waitForSequenceFrame(layer, 1).pixelColor(0, 0), restoredColor);
     EXPECT_EQ(layer.sequenceCachedFrameIndex(), 1);
+
+    layer.goToFrame(2);
+    QImage consecutiveUnavailableFrame;
+    timer.restart();
+    while (timer.elapsed() < 1000) {
+        QCoreApplication::processEvents();
+        consecutiveUnavailableFrame = layer.toQImage();
+        if (consecutiveUnavailableFrame.size() == QSize(256, 256)) {
+            break;
+        }
+        QThread::msleep(2);
+    }
+    EXPECT_EQ(layer.sequenceCachedFrameIndex(), -1);
+    EXPECT_EQ(consecutiveUnavailableFrame.size(), QSize(256, 256));
+    EXPECT_NE(consecutiveUnavailableFrame.pixelColor(0, 0), restoredColor);
 }
 
 TEST(StillImageLayerRoundTripTest,
@@ -1328,10 +1346,14 @@ TEST(StillImageLayerRoundTripTest,
     firstImage.fill(QColor(35, 75, 115, 255));
     QImage secondImage(3, 2, QImage::Format_RGBA8888);
     secondImage.fill(QColor(175, 125, 65, 255));
+    QImage sameSizeReplacement(3, 2, QImage::Format_RGBA8888);
+    sameSizeReplacement.fill(QColor(45, 185, 95, 255));
     const QString firstPath = dir.filePath(QStringLiteral("still-first.png"));
     const QString secondPath = dir.filePath(QStringLiteral("still-second.png"));
+    const QString sameSizePath = dir.filePath(QStringLiteral("still-second-replacement.png"));
     ASSERT_TRUE(firstImage.save(firstPath, "PNG"));
     ASSERT_TRUE(secondImage.save(secondPath, "PNG"));
+    ASSERT_TRUE(sameSizeReplacement.save(sameSizePath, "PNG"));
 
     Artifact::ArtifactImageLayer layer;
     ASSERT_TRUE(layer.loadFromPath(firstPath));
@@ -1348,6 +1370,17 @@ TEST(StillImageLayerRoundTripTest,
     EXPECT_NEAR(layer.opacity(), 0.6f, 1e-6f);
     float x = 0.0f;
     float y = 0.0f;
+    layer.transform2D().position(x, y);
+    EXPECT_NEAR(x, 9.0f, 1e-6f);
+    EXPECT_NEAR(y, -4.0f, 1e-6f);
+
+    ASSERT_TRUE(layer.loadFromPath(sameSizePath));
+    ASSERT_TRUE(waitForImageBuffer(layer, QSize(3, 2)));
+    EXPECT_EQ(layer.sourcePath(), sameSizePath);
+    const QImage sameSizeReplacedImage = waitForImage(layer, QSize(3, 2));
+    EXPECT_EQ(sameSizeReplacedImage.pixelColor(1, 1),
+              QColor(45, 185, 95, 255));
+    EXPECT_NEAR(layer.opacity(), 0.6f, 1e-6f);
     layer.transform2D().position(x, y);
     EXPECT_NEAR(x, 9.0f, 1e-6f);
     EXPECT_NEAR(y, -4.0f, 1e-6f);
@@ -1648,6 +1681,10 @@ TEST(StillImageLayerRoundTripTest, MissingSourceCanBeRelinkedAfterProjectReload)
     auto* imageLayer = dynamic_cast<Artifact::ArtifactImageLayer*>(added.layer.get());
     ASSERT_NE(imageLayer, nullptr);
 
+    imageLayer->transform2D().setPosition(18.0f, -6.0f);
+    ASSERT_TRUE(imageLayer->setLayerPropertyValue(
+        QStringLiteral("opacity"), QVariant(0.35)));
+
     const QString missingPath = dir.filePath(QStringLiteral("moved-away.png"));
     ASSERT_FALSE(imageLayer->loadFromPath(missingPath));
     const QString projectPath = dir.filePath(QStringLiteral("missing-source.artifact"));
@@ -1664,6 +1701,12 @@ TEST(StillImageLayerRoundTripTest, MissingSourceCanBeRelinkedAfterProjectReload)
     EXPECT_EQ(loadedImageLayer->sourcePath(), missingPath);
     EXPECT_TRUE(loadedImageLayer->hasCurrentFrameBuffer());
     EXPECT_EQ(loadedImageLayer->toQImage().size(), QSize(256, 256));
+    EXPECT_NEAR(loadedImageLayer->opacity(), 0.35f, 1e-6f);
+    float x = 0.0f;
+    float y = 0.0f;
+    loadedImageLayer->transform2D().position(x, y);
+    EXPECT_FLOAT_EQ(x, 18.0f);
+    EXPECT_FLOAT_EQ(y, -6.0f);
 
     QImage restoredSource(2, 1, QImage::Format_RGBA8888);
     const QColor restoredColor(45, 135, 205, 255);
@@ -1672,6 +1715,10 @@ TEST(StillImageLayerRoundTripTest, MissingSourceCanBeRelinkedAfterProjectReload)
     ASSERT_TRUE(loadedImageLayer->loadFromPath(missingPath));
     ASSERT_TRUE(waitForImageBuffer(*loadedImageLayer, QSize(2, 1)));
     EXPECT_EQ(loadedImageLayer->sourcePath(), missingPath);
+    EXPECT_NEAR(loadedImageLayer->opacity(), 0.35f, 1e-6f);
+    loadedImageLayer->transform2D().position(x, y);
+    EXPECT_FLOAT_EQ(x, 18.0f);
+    EXPECT_FLOAT_EQ(y, -6.0f);
     EXPECT_EQ(waitForImage(*loadedImageLayer, QSize(2, 1)).pixelColor(1, 0),
               restoredColor);
 }

@@ -23,6 +23,83 @@
 - **価値／懸念:** このモデル契約をアプリruntimeや他のArtifactCore module群から分離して検証でき、広い依存targetのビルド失敗と切り分けやすい。
 - **次に確認:** test targetを統合する場合も、必要moduleだけのリンク境界を維持し、AppRuntimeの追加を避けられるか検討する。
 
+## 2026-10-16: SchemaMigrationはheader-only module単体で契約検査できる
+
+- **関連:** `ArtifactCore/include/Serialization/SchemaMigration.ixx`、`tests/ArtifactCore/SchemaMigrationContractTest.cpp`、`tests/ArtifactCore/SchemaMigrationStandalone/CMakeLists.txt`。
+- **確認できた事実:** `SchemaMigration`は実装moduleを持たず、Qt Core以外のmodule importもない。独立GTest targetから4ケースを実行し、全件passした。
+- **価値／懸念:** ArtifactCore全体をビルドせずにmigration graphの純粋な契約を確認できる。migration callbackがthrowした時に入力JSONを段階反映する実装は確認できるが、atomicityは公開契約が未確定で今回のsuiteではassertしない。
+- **次に確認:** migration callback例外時に入力値を保持すべきか仕様決定後、必要なら失敗時状態の契約テストを追加する。
+
+## 2026-10-16: Effect sequence contractは製品runtimeなしでもsuite依存が広い
+
+- **関連:** `tests/Artifact/EffectSequenceContractTest.cpp`、`tests/Artifact/CMakeLists.txt`、`Artifact/CMakeLists.txt`の`ArtifactEffectsColor` target。
+- **確認できた事実:** CPU契約テストはeffect stage順・同stage安定順・画素出力・mix setterを検査し、Project RoundTripはeffectの削除再挿入後の保存再読込を扱う。テスト実行ファイルは現在の生成buildに存在せず、`ArtifactEffectsColor`はArtifactCore/Audio/ColorCollection/Render/EffectContractへ推移依存する。
+- **価値／懸念:** アプリ起動を避ける既存契約はあるが、1つのsuite実行が広いmodule buildへ波及しうる。独立性を上げるにはeffect abstract/baseと2つのeffect実装、および画像buffer関連だけのmodule境界を確認する必要がある。
+- **次に確認:** 次の独立化候補では、必要moduleのimport closureと既存IFCを先に列挙し、target依存が狭まることを確認してから実行する。
+
+## 2026-10-16: Rasterizer mask integrationは専用processだがAppRuntime依存
+
+- **関連:** `tests/Artifact/RasterizerMaskEffectIntegrationTest.cpp`、`tests/Artifact/CMakeLists.txt`。
+- **確認できた事実:** 固定32×16 surfaceでmask内部・境界・外部のalpha勾配を検査するtestがある。専用CTest executableでRUN_SERIALだが、`ArtifactAppRuntime`へリンクされ、実行ファイルは現在の生成buildにない。
+- **価値／懸念:** 小画像のCPU integration coverageは既に存在する一方、test単体のbuild依存は大きい。実行だけのために親targetをbuildすると多くのmodule scanへ波及し得る。
+- **次に確認:** 独立化するなら、layer factoryとcomposition drawing helperの必要module closureを特定し、テストfixtureだけを構築する最小経路を評価する。
+
+## 2026-10-16: Project/StillImage contractはfixture隔離済みだがbuild境界が広い
+
+- **関連:** `tests/Artifact/ArtifactProjectRoundTripTest.cpp`、`tests/Artifact/StillImageLayerRoundTripTest.cpp`、`tests/Artifact/CMakeLists.txt`。
+- **確認できた事実:** Matte source deletionはtemporary project rootとcleanupを使いtarget/matte参照を確認する。Still image replacementはtemporary PNGを使いsource path/寸法/画素とopacity/positionを確認する。両suiteとも専用CTest process・RUN_SERIALだが`ArtifactAppRuntime`にリンクする。
+- **価値／懸念:** filesystem/process状態の隔離はあるが、target build時のmodule dependencyは狭くない。既存テストを重ねて実行する前にruntime依存を把握する必要がある。
+- **次に確認:** 追加ケースを検討する前に同suiteの該当coverageを再利用し、分離が必要なら対象layer/serviceのmodule closureを個別に計測する。
+
+## 2026-10-16: Image sequence stale-frame回帰は3条件を既存suiteで網羅
+
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp`。
+- **確認できた事実:** 欠番時のplaceholderとファイル復旧後の再接続、同一pathの破損内容でstale pixelを表示しないこと、有効な内容差替え後の再読込を別々の3ケースで検査する。各ケースが`QTemporaryDir`を使う。
+- **価値／懸念:** 既存coverageが具体的で、新規テストの重複は不要。これらは1つの大きなStillImage suiteにあり、AppRuntime依存を持つ。
+- **次に確認:** suiteを実行する際は対象caseだけをfilterできるか確認し、必要ならStillImageLayerの実装module closureで小さなstandalone targetを評価する。
+
+## 2026-10-16: Undo budget rejection test must avoid the clamped entry-count field
+
+- **関連:** `tests/Artifact/UndoManagerContractTest.cpp`、`Artifact/src/Undo/UndoManager.cppm`の`setBudget()`。
+- **確認できた事実:** `setBudget()`は`maxEntryCount`を最低1へ正規化する一方、単一entry bytesと総bytesの0は拒否条件として維持する。従来のtestは`maxEntryCount=0`を設定していたため、期待するpush拒否を誘発しない。
+- **価値／懸念:** rejection testを`maxSingleEntryBytes=0`へ変更し、entry count上限1の最古Undo entry evictionと残存entryのUndo/Redoを別caseで検査する。
+- **次に確認:** AppRuntime targetが広いため、実行時は既存IFCを再利用する限定buildで可能か評価する。Artifact child repoは変更しない。
+
+## 2026-10-16: Composition node removal preserves descendants below direct children
+
+- **関連:** `Artifact/src/Composition/ArtifactCompositionNodes.cppm`、`tests/Artifact/CompositionNodeStoreContractTest.cpp`。
+- **確認できた事実:** `removeNode()`は対象nodeを削除し、直接のparentが削除IDと一致するnodeだけ`parentId`を空にする。より深いdescendant linkは維持され、追加した4階層回帰テストを含むstandalone suiteは8/8 passした。
+- **価値／懸念:** 直接子のroot detachと再帰削除を区別し、階層のrootが変化しても子孫を保持する契約を保護する。root同orderの並び順には依存しない。
+- **次に確認:** 既存CMake構成ではMSVC `/showIncludes`の日本語一覧がNinja出力へ漏れた。接頭辞を英語に揃えるには許可済みの次回configure時に`VSLANG=1033`をconfigure/compile双方へ設定して確認する。
+
+## 2026-10-16: Playback state assertions should include transport frame-clock behavior
+
+- **関連:** `tests/Artifact/PlaybackRangeServiceContractTest.cpp`。
+- **確認できた事実:** 既存Play/Pause/Resume/Stop integration case checked only the service state enum. PlaybackService exposes `currentFrame()`, allowing the same isolated process to observe clock progress without adding UI or graphics.
+- **価値／懸念:** The test now checks initial progress, a short stable frame while paused, and renewed progress after resume. Timing uses bounded polling and does not start Artifact.exe; runtime behavior remains unverified.
+- **次に確認:** Run only the PlaybackRangeService contract target after a build path that avoids the full ArtifactAppRuntime module rescan is available.
+
+## 2026-10-16: Render cache identity tests should cover both equality and hashing
+
+- **関連:** `tests/ArtifactCore/RenderPipelineContractTest.cpp`、`ArtifactCore/include/Graphics/RenderPipelineFoundation.ixx`。
+- **確認できた事実:** Cache identity mutations already tested `RenderCacheKey` equality, while the production `RenderCacheKeyHash` delegates to `stableHash()`.
+- **価値／懸念:** The shared mutation helper now asserts both key inequality and a changed stable hash for every identity field, guarding against fields omitted from the hash path.
+- **次に確認:** Execute the focused target when the existing ArtifactCore build graph can be reused without a full module rescan.
+
+## 2026-10-16: Surface cache counter changes need rendered-pixel evidence
+
+- **関連:** `tests/Artifact/CompositionLayerSurfaceCacheMain.cpp`、Composition Editor presented-frame readback.
+- **確認できた事実:** The GUI harness compared pixels only for unchanged rerender. Effect invalidation/rebuild and unrelated-layer non-interference were inferred from diagnostic counters.
+- **価値／懸念:** The regression now also requires changed effect output and changed unrelated-layer output in presented-frame readbacks, while the target layer's cache build/invalidation counters remain stable for the unrelated edit.
+- **次に確認:** Run the Windows GUI harness only after its ArtifactAppRuntime build is available; its current target requires the broad app module graph and GPU/window runtime.
+
+## 2026-10-16: Convex-edge hit testing needs explicit degenerate geometry cases
+
+- **関連:** `ArtifactCore/src/Geometry/LayerBoundsCalculator.cppm`、`tests/ArtifactCore/LayerBoundsCalculatorStandaloneTest.cpp`。
+- **確認できた事実:** `contains()` checks four edge cross-product signs. For a zero-area point all cross products are zero for every query point; for a zero-width line, collinear points beyond segment endpoints also produce all zero values.
+- **価値／懸念:** Added standalone assertions for rejecting a nearby off-point and line-segment endpoint extensions/off-axis points. Source analysis predicts failures, but the standalone test was not executed; no ArtifactCore product code was changed.
+- **次に確認:** After an authorized independent build setup is available, run the focused standalone test and report the exposed contract failure for a separately authorized child-repo fix.
+
 ## 2026-10-16: PrecomposeViewer選択テストのbuildは全module再走査を伴う
 
 - **関連:** `CMakeLists.txt` の `ArtifactPrecomposeViewer` target、`tests/Artifact/PrecomposeViewerMain.cpp`。
@@ -3732,3 +3809,179 @@
 - **価値／懸念:** dB音量値も保存・復元で失われる。回帰テストでは-12.75 dBの往復保持を要求する。
 - **未検証:** テスト未実行。現実装では失敗するとコード読解から予想している。
 - **次に確認:** ビルドが許可された際に両音量型のserialize/deserialize挙動と不正JSON時の既定値を確認する。
+
+## 2026-10-16: RawImage の validity は記述サイズとpixel buffer長を照合しない
+
+- **関連:** `ArtifactCore/src/Image/RawImage.cppm` の`RawImage::isValid()`、`tests/ArtifactCore/RawImageContractTest.cpp`。
+- **確認できた事実:** 既存の`RejectsPixelBufferShorterThanDescribedImage`は1×1 RGBA float画像に15 byteを設定し無効を期待する。一方、現実装は正の寸法・channels・非空data・pixelTypeだけを確認し、画素サイズとdata長を照合していない。
+- **価値／懸念:** descriptorに対して切り詰められたpixel bufferがvalid扱いになる可能性がある。既存テストが回帰要求を既に表現しているため、追加の重複ケースは不要。
+- **未検証:** テスト結果は未実行。コード読解では現テストの期待と実装が不一致。ArtifactCore childは変更していない。
+- **次に確認:** 対象suiteをビルド・実行できる環境で失敗を確認し、必要byte数の計算で整数overflowを安全に扱う契約も確認する。
+
+## 2026-10-16: GI frame resource descriptor はresource種別ごとにchannel layoutが異なる
+
+- **関連:** `ArtifactCore/include/Graphics/GIResources.ixx` の`GIFrameResources::descriptor()`、`tests/ArtifactCore/RenderPipelineContractTest.cpp`。
+- **確認できた事実:** `GIResourceKind`はDepth/Normal/Motion/DirectLighting/IndirectLighting/Historyの6種で、descriptorはDepthを1 channel、残りを4 channelとして返す。既存テストはHistory descriptorだけを検査していた。
+- **価値／懸念:** 他の種別での誤ったchannel数や寸法伝播を捕捉するため、全種別を一括で検査するtable-driven testを追加した。
+- **未検証:** テストは未実行。期待値は現行headerの分岐から確認した。
+- **次に確認:** 次回対象buildが利用可能なときに`RenderPipelineContractTest`を実行する。
+
+## 2026-10-16: FrameCache の容量上限は設定時と明示trimの契約を分けて確認する
+
+- **関連:** `Artifact/src/Render/ArtifactFrameCache.cppm` の`setMaxFrameCount()` / `trimToSize()` / `put()`、`tests/Artifact/FrameCacheContractTest.cpp`。
+- **確認できた事実:** 既存契約テストは通常の上限超過時evictionとoversized entry拒否を確認していたが、zero frame capacity時の拒否と明示trim時のbyte目標到達は確認していなかった。
+- **価値／懸念:** hot cacheは通常store pathだけでなく、設定変更・memory pressure対応で呼ばれるtrimの境界も回帰防止できる。zero-capacity拒否時の状態不変とFIFO trim後の残存entryを追加した。
+- **未検証:** テストは未実行。期待値は現行FrameCache実装とentryの16-byte画素領域から導いた。
+- **次に確認:** `ArtifactFrameCacheContractTest`を実行し、trim target以下への到達とcount/bytesの整合を確認する。
+
+## 2026-10-16: RenderPipeline contract単体targetもCore module dependency再構築で広域compileを要求する
+
+- **関連:** `out/build/x64-Debug-Agent` の`ArtifactCoreRenderPipelineContractTest` target、`ArtifactCore/src/Codec/MFEncoder.cppm`、`ArtifactCore/src/Animation/AnimatableTransform3D.cppm`。
+- **確認できた事実:** 対象target buildはCMake再構成なしでNinjaから開始できたが、Core依存moduleの再構築が発生し、対象test compile前の185/603段階で上記2 translation unitのmodule compile errorsにより停止した。
+- **価値／懸念:** 個別契約targetを選んでも既存生成物の古さにより広いCore rebuildが必要になり、今回追加したテストのコンパイル結果を得られなかった。
+- **未検証:** compile diagnosticsは出力上で確認したが、根本原因の切り分け・修正は行っていない。関連submodule/製品コードは変更していない。
+- **次に確認:** 依存module側の既存修正または有効なbuild stateが利用可能になった後、同じtargetを再実行する。
+
+## 2026-10-16: Undo history byte budget eviction と entry-count eviction は別契約
+
+- **関連:** `Artifact/src/Undo/UndoManager.cppm` の`enforceBudget()`、`tests/Artifact/UndoManagerContractTest.cpp`。
+- **確認できた事実:** UndoManagerはentry数超過と総estimated byte数超過の両方で古い履歴を先頭から退避するが、既存追加テストはentry count制約だけを対象としていた。
+- **価値／懸念:** byte budget側だけでredo stackとの合算や古いUndoの退避順が壊れる回帰を見逃し得る。単一command相当のbyte上限で2回pushし、最新commandのUndo/Redoとpressure上限を検査するケースを追加した。
+- **未検証:** AppRuntime依存targetのため未ビルド・未実行。期待値は現実装の`estimatedMemoryBytes()`と`enforceBudget()`から確認した。
+- **次に確認:** 依存module build blockerが解消した後、UndoManager contract suiteを実行する。
+
+## 2026-10-16: Schema migration callback exception can expose a partially migrated object
+
+- **関連:** `ArtifactCore/include/Serialization/SchemaMigration.ixx` の`SchemaMigrationRegistry::findPath()`、`tests/ArtifactCore/SchemaMigrationContractTest.cpp`。
+- **確認できた事実:** migration path実行はcallbackごとに返却JSONを参照引数`data`へ代入する。後続callbackがthrowすると、先行stepの更新がすでに呼び出し元objectへ反映されている。
+- **価値／懸念:** load/import側が失敗後のobjectを再利用すると、中間versionデータを誤って有効データとして扱う可能性がある。後段callback例外で入力が開始時状態のままという原子性testを追加した。
+- **未検証:** テスト未実行。現実装と期待の不一致は静的に確認した。ArtifactCore childは変更していない。
+- **次に確認:** 独立SchemaMigration suiteを実行して再現し、必要なら移行全体を一時objectで行う方針を設計判断する。
+
+## 2026-10-16: Existing standalone Ninja build may lack the MSVC include environment
+
+- **関連:** `out/build/standalone-schema-migration-vs`、`ArtifactCoreSchemaMigrationContractTest`。
+- **確認できた事実:** 既存Ninja targetはconfigure不要で起動したが、compile commandのcl.exeが`gtest/gtest.h`を開いた後、MSVC標準header `cstddef`を見つけられずC1083で停止した。`Launch-VsDevShell.ps1`もDeveloper Shell assemblyの解決に失敗した。
+- **価値／懸念:** standalone targetのテストコード変更を検証するには、対象hostで有効なMSVC compiler include environmentが必要。実行ファイルは再生成されず、新規caseは未検証のまま。
+- **未検証:** Visual Studio installationの修復・環境変数の手動構成は行っていない。
+- **次に確認:** 動作するDeveloper PowerShell/VS environmentから同じbuildを実行する。
+
+## 2026-10-16: Failed project replacement should preserve both Undo and Redo branches
+
+- **関連:** `tests/Artifact/ArtifactProjectRoundTripTest.cpp` の`SaveLoadGuardsRejectBadInput`、`Artifact::ArtifactProjectManager::loadFromFile()`。
+- **確認できた事実:** 既存の不正replacement-load検査はactive project pointer、Composition、Layerを維持することを確認するが、global UndoManagerの既存history stackは比較していなかった。
+- **価値／懸念:** failed importが現Projectを維持しつつUndo historyだけ消すと、ユーザーが直前操作を戻せなくなる。2件push後に1件undoし両stackを非空にしてから不正loadし、stack countsと残るcommand順序を確認するcaseを追加した。
+- **未検証:** AppRuntime依存のProject RoundTrip suiteは未ビルド・未実行。実際のimporterがUndo historyに触るかはruntime未確認。
+- **次に確認:** ArtifactAppRuntime buildが通る環境で`ArtifactProjectRoundTripTest.SaveLoadGuardsRejectBadInput`を実行する。
+
+## 2026-10-16: Effect stage stability should be checked through actual CPU pixel output
+
+- **関連:** `Artifact/src/Effect/AbstractEffect.cppm`、`tests/Artifact/EffectSequenceContractTest.cpp`。
+- **確認できた事実:** 既存suiteはstable stage sortの同stage pointer順と、別ケースでEffectの手動適用順によるpixel差を確認していたが、sort結果をそのまま適用する経路での同stage pixel契約は結合していなかった。
+- **価値／懸念:** stable sortが正しくても後続stack実行が別順序を使う回帰を取り逃す可能性がある。同stageの非可換Brightness/Invertをsort経由でrenderし、順序ごとのRGBとalphaを検査するケースを追加した。
+- **未検証:** CPU contract target未実行。Effect stage APIと既存pixel期待値から静的に構成した。
+- **次に確認:** ArtifactEffectsColor依存targetがbuild可能な環境でsuiteを実行する。
+
+## 2026-10-16: Mask/effect order is clearer with a same-pixel mask-only baseline
+
+- **関連:** `tests/Artifact/RasterizerMaskEffectIntegrationTest.cpp`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm` の`buildRasterizedSurfaceBuffer()`。
+- **確認できた事実:** 実装はmaskをsurfaceへ適用した後にRasterizer effectを順次適用する。既存testはBlur後の内部/境界/遠方外部alpha勾配を確認するが、blur無しのmask edge baselineとは比較していなかった。
+- **価値／懸念:** edge antialiasだけでboundary assertionを満たす可能性があり、mask後にblurが広げる寄与を分離できていなかった。同じfixtureをmask-onlyでも描画し、mask外の同一pixel alphaが0からblur時に増加する比較を追加した。
+- **未検証:** `ArtifactAppRuntime`依存integration suiteは未実行。現実装のmask→effect順序とradius=4 fixtureから期待を構成した。
+- **次に確認:** integration targetを起動可能なGPU/Qt test環境で実行する。
+
+## 2026-10-16: Track Matte deletion should preserve unrelated source references
+
+- **関連:** `tests/Artifact/ArtifactProjectRoundTripTest.cpp` のTrack Matte source deletion case。
+- **確認できた事実:** 既存fixtureはtargetに1つのexternal source referenceだけを作り、そのsource削除後にreference count 0を確認していた。無関係なmatte referenceを保持することや、surviving referenceの保存往復は対象外だった。
+- **価値／懸念:** source削除時にtargetの全matte referencesを消す回帰、または残ったreferenceのmetadataを失う回帰を検出できない。第2sourceを追加し、削除後に参照ID・opacity・invertを確認し、save/reload後も保持するケースへ拡張した。
+- **未検証:** ArtifactAppRuntime依存のProject RoundTrip suiteは未実行。Artifact childは変更していない。
+- **次に確認:** `ArtifactProjectRoundTripTest.RemovingMatteSourceClearsOnlyDanglingReferenceAndPreservesSurvivorRoundTrip`を実行する。
+
+## 2026-10-16: Still-image path replacement should also be checked when dimensions stay constant
+
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp` の`LoadingAnotherStillImageReplacesPixelsAndKeepsLayerEdits`。
+- **確認できた事実:** 既存replacement testは2×1画像から3×2画像への切替でpixelと寸法更新、opacity/position保持を確認していた。別caseでは同じpathの内容変更をsource versionで再読込する。
+- **価値／懸念:** pathを変えて同じ寸法の画像へ切り替えたときに古いpixel bufferを再利用する回帰は、寸法差で更新できる既存caseでは捕捉できない。3×2の別path・異色画像へ再差し替え、編集値保持も確認するcaseを追加した。
+- **未検証:** ArtifactAppRuntime依存のStillImageLayer suite未実行。
+- **次に確認:** `StillImageLayerRoundTripTest.LoadingAnotherStillImageReplacesPixelsAndKeepsLayerEdits`を実行する。
+
+## 2026-10-16: Consecutive missing sequence frames must not retain a just-reconnected frame
+
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp` の`MissingImageSequenceFrameDoesNotKeepStalePixels`。
+- **確認できた事実:** 既存testは欠番1 frameをplaceholder化し、そのpathを復旧して再読込するが、復旧直後の次frameが連続欠番の場合は検査していなかった。
+- **価値／懸念:** sequence frame stateが前frame bufferを再利用すると、直前に復旧したpixelが次のmissing frameへ漏れる可能性がある。第2の欠番を追加し、repair pixelをcacheした後に移動するとplaceholderへ戻ることを検査する。
+- **未検証:** ArtifactAppRuntime依存suite未実行。
+- **次に確認:** `StillImageLayerRoundTripTest.MissingImageSequenceFrameDoesNotKeepStalePixels`を実行する。
+
+## 2026-10-16: Relinking a missing still-image source should preserve layer edits
+
+- **関連:** `tests/Artifact/StillImageLayerRoundTripTest.cpp` の`MissingSourceCanBeRelinkedAfterProjectReload`。
+- **確認できた事実:** 既存caseはmissing source pathとplaceholderのProject往復、同pathへのsource復旧後の画素読込を確認していたが、opacityとpositionの保持を比較していなかった。
+- **価値／懸念:** source切断/再接続やProject reload処理がlayer編集値を初期化する回帰を取り逃す可能性がある。missing化前にopacity/positionを設定し、reload後とrelink後の両方で保持を確認するassertを追加した。
+- **未検証:** AppRuntime依存のStillImageLayer suiteは未実行。Artifact childは変更していない。
+- **次に確認:** `StillImageLayerRoundTripTest.MissingSourceCanBeRelinkedAfterProjectReload`を実行する。
+
+## 2026-10-16: Duplicated layer properties should be independent after copying
+
+- **関連:** `tests/Artifact/ArtifactProjectRoundTripTest.cpp` の`DuplicateLayerCreatesIndependentIdAndCopiesProperties`。
+- **確認できた事実:** 既存Project integration caseは新しいIDと初期opacityの複写を確認していたが、複製側opacityを編集しても元レイヤーが変わらないことは確認していなかった。
+- **価値／懸念:** 複製後にproperty storageを共有する回帰を取り逃す可能性がある。複製opacityを変更し、複製値と元値が独立しているassertを追加した。
+- **未検証:** ArtifactAppRuntime依存のProject RoundTrip suiteは未実行。Artifact childは変更していない。
+- **次に確認:** `ArtifactProjectRoundTripTest.DuplicateLayerCreatesIndependentIdAndCopiesProperties`を実行する。
+
+## 2026-10-16: Stop should freeze the playback frame clock
+
+- **関連:** `tests/Artifact/PlaybackRangeServiceContractTest.cpp` の`TransportTransitionsPlayPauseResumeAndStop`。
+- **確認できた事実:** 既存caseはStopと`waitForStop()`後のStopped stateを確認するが、Stop後にframe位置が安定するかは検査していなかった。
+- **価値／懸念:** stateだけStoppedになりframe timerが進み続ける回帰を取り逃す可能性がある。Stop完了後に100msのevent processing窓を設けてframe位置が不変であることを確認する。
+- **未検証:** Playback Service targetはAppRuntime依存で未実行。テストは実時間待機を既に使うsuiteへboundedな100ms観測を追加した。
+- **次に確認:** `PlaybackRangeServiceContractTest.TransportTransitionsPlayPauseResumeAndStop`を実行する。
+
+## 2026-10-16: Resized viewport should remain within the requested window bounds
+
+- **関連:** `tests/Artifact/CompositionPlaybackStressMain.cpp` の`resizeWhilePlaying`。
+- **確認できた事実:** 既存resize harnessは再生継続・frame進行・Viewport寸法が正であることを確認していたが、Viewportが要求window寸法より大きくなっていないことは確認していなかった。
+- **価値／懸念:** resize後のlayout overflowを正寸法だけでは検出できない可能性がある。実viewportはcentral areaでwindow chromeより小さい前提のため、幅・高さがそれぞれ要求値以下であるassertを追加した。
+- **未検証:** Windows GPU/GUI stress harness未実行。実行時にplatform frame geometryがviewportのsizeへ影響しないか確認が必要。
+- **次に確認:** `stress.resizeWhilePlaying`を起動可能なGUI環境で要求寸法を変えて実行する。
+
+## 2026-10-16: Composition cycling should explicitly assert its return point
+
+- **関連:** `tests/Artifact/CompositionPlaybackStressMain.cpp` の`cycleCompositions`。
+- **確認できた事実:** 既存巡回ループは算術上開始Compositionへ戻るが、応答の`passed`と出力には最終positionの明示確認がなかった。
+- **価値／懸念:** loop順序変更時に全transitionが通っても開始点へ戻らない回帰を見逃す可能性がある。最後のactive indexとPlayback Service current Compositionを開始点と比較し、出力・合否へ加えた。
+- **未検証:** Windows GPU/GUI stress harness未実行。既存test exe起動も`0xC0000135`でloaderが必要DLL不足を報告し、suiteは未起動。
+- **次に確認:** `stress.cycleCompositions`を2つ以上のCompositionで実行し、`returnedToStartComposition`を確認する。
+
+## 2026-10-16: Standalone tests can run with the repository's bundled DLL paths
+
+- **関連:** standalone `CompositionNodeStore`, `FrameRate`, `PropertyPath`, `RationalTime` test targets。
+- **確認できた事実:** standalone executables initially exited with Windows loader status `0xC0000135`. The runtime DLLs were available under `out/build/raytracing-acceptance/vcpkg_installed/x64-windows/{debug/bin,bin}` and the VS 18 CRT directory. Adding those locations to the process-local PATH allowed suites to start; no repo configuration or files needed changing.
+- **価値／懸念:** this path can make further independent CPU suites testable without reconfiguring CMake. FrameRate passed 34/34, PropertyPath 7/7, CompositionNodeStore 8/8; RationalTime reproduced two signed overflow failures (24/26).
+- **未検証:** other executables may depend on additional DLLs or Qt platform plugins. These outcomes apply to the existing build outputs; only CompositionNodeStore was confirmed up to date by Ninja reporting no work.
+- **次に確認:** reuse the process-local DLL search path for other already-built, low-dependency standalone targets, and rebuild narrow targets when source updates require it.
+
+## 2026-10-16: Schema migration callback exceptions currently leave partial input mutations
+
+- **関連:** `tests/ArtifactCore/SchemaMigrationContractTest.cpp` の`FailedCallbackLeavesInputUnchanged`と`SchemaMigration::migrate()`。
+- **確認できた事実:** isolated targetをrebuildし、新test込みで実行した結果4/5 pass。後段callback例外時に、migration前JSONへ戻らず1段目のfield変更が残ることをfailure outputで確認した。
+- **価値／懸念:** callerが例外を捕捉しても部分更新済みデータを誤って継続利用する可能性がある。入力atomicityをtestとして固定したが、実装修正はArtifactCore child repo変更禁止のため未実施。
+- **未検証:** 子repoの修正後に再実行してpassすること。最終linkは一時`LIB`設定で成功した。
+- **次に確認:** 明示的にArtifactCore変更が依頼された段階でcopy-and-commit方式などmigration原子性を設計し、単体testを再実行する。
+
+## 2026-10-16: The RawImage test target in the app build still pulls the full Core module graph
+
+- **関連:** `tests/ArtifactCore/RawImageContractTest.cpp` と`out/build/x64-Debug-Agent`の`ArtifactCoreRawImageContractTest` target。
+- **確認できた事実:** targetは既存buildに登録されているが、build時にArtifactCore 425-step dependencyを引き、対象testより前に`AnimationDynamics.cppm`と`AnimatableTransform3D.cppm`のmodule compile failuresで停止した。
+- **価値／懸念:** standalone形式のtest名でも実際のtargetが小さい依存境界を意味するとは限らない。広域build失敗の証拠を得たため、同じbuild treeからさらにAppRuntime/Core依存targetを積み増して試さない。
+- **未検証:** `RawImage::isValid()`短buffer拒否の追加期待はruntime未実行。現実装はdata非空だけを確認する。
+- **次に確認:** ArtifactCoreが健全なbuild stateになった後にのみ、既存targetでRawImage contractを実行する。
+
+## 2026-10-16: New keyframe cases were missing from the minimal standalone test project
+
+- **関連:** `tests/ArtifactCore/KeyframeSplineTest.cpp`、`tests/ArtifactCore/KeyframeStandalone/CMakeLists.txt`。
+- **確認できた事実:** `KeyframeStandalone`は`Math.Interpolate` moduleだけを登録するが、gtest sourcesには既存`KeyframeContractTest.cpp`のみが含まれ、追加済み`KeyframeSplineTest.cpp`はtop-level full-Core targetからしか実行できなかった。
+- **価値／懸念:** 高優先の追加補間ケースをアプリ/Core全体のbuild blockerから分離できない。既存standalone targetに`KeyframeSplineTest.cpp`を加えた。
+- **未検証:** standalone projectのconfigure/build/testはユーザーの明示的CMake許可待ち。
+- **次に確認:** target再構成後にkeyframe contract suite全体を実行する。

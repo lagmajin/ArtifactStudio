@@ -302,10 +302,14 @@ public:
         }
 
         QJsonObject result = state();
+        const bool returnedToStart = activeCompositionIndex_ == startIndex &&
+            playback_->currentComposition().get() == compositions_.at(startIndex).get();
         result[QStringLiteral("cyclesRequested")] = cycles;
         result[QStringLiteral("settleMsPerComposition")] = settleMs;
         result[QStringLiteral("transitions")] = transitions;
-        result[QStringLiteral("passed")] = passed && transitions.size() > 0;
+        result[QStringLiteral("returnedToStartComposition")] = returnedToStart;
+        result[QStringLiteral("passed")] = passed && transitions.size() > 0 &&
+            returnedToStart;
         if (!result.value(QStringLiteral("passed")).toBool())
             result[QStringLiteral("error")] =
                 QStringLiteral("one or more composition playback transitions failed");
@@ -346,6 +350,7 @@ public:
         result[QStringLiteral("playbackContinuedAfterResize")] = stillPlaying;
         result[QStringLiteral("passed")] = stillPlaying && frameAfter != frameBefore &&
             viewportSize.width() > 0 && viewportSize.height() > 0 &&
+            viewportSize.width() <= width && viewportSize.height() <= height &&
             transportWidgetMatchesService();
         if (!result.value(QStringLiteral("passed")).toBool())
             result[QStringLiteral("error")] =

@@ -279,53 +279,54 @@ TEST(RenderPipelineContractTest, CacheKeyIsStableAndChangesWithFrame)
     EXPECT_EQ(first, same);
     EXPECT_EQ(first.stableHash(), same.stableHash());
     EXPECT_NE(first, software);
+    EXPECT_NE(first.stableHash(), software.stableHash());
 
     ++snapshot.frameIndex;
-    EXPECT_NE(first, snapshot.cacheKey(RenderBackendKind::DiligentGPU));
+    const auto nextFrame = snapshot.cacheKey(RenderBackendKind::DiligentGPU);
+    EXPECT_NE(first, nextFrame);
+    EXPECT_NE(first.stableHash(), nextFrame.stableHash());
 }
 
 TEST(RenderPipelineContractTest, CacheKeyTracksSceneIndexSettingsAndDimensions)
 {
     const auto snapshot = makeSnapshot();
     const auto key = snapshot.cacheKey(RenderBackendKind::DiligentGPU);
+    const auto expectChanged = [&snapshot, &key](auto mutate) {
+        auto changed = snapshot;
+        mutate(changed);
+        const auto changedKey = changed.cacheKey(RenderBackendKind::DiligentGPU);
+        EXPECT_NE(key, changedKey);
+        EXPECT_NE(key.stableHash(), changedKey.stableHash());
+    };
 
-    auto changed = snapshot;
-    ++changed.sceneRevision;
-    EXPECT_NE(key, changed.cacheKey(RenderBackendKind::DiligentGPU));
-    changed = snapshot;
-    ++changed.renderIndexGeneration;
-    EXPECT_NE(key, changed.cacheKey(RenderBackendKind::DiligentGPU));
-    changed = snapshot;
-    ++changed.settingsRevision;
-    EXPECT_NE(key, changed.cacheKey(RenderBackendKind::DiligentGPU));
-    changed = snapshot;
-    ++changed.width;
-    EXPECT_NE(key, changed.cacheKey(RenderBackendKind::DiligentGPU));
-    changed = snapshot;
-    ++changed.height;
-    EXPECT_NE(key, changed.cacheKey(RenderBackendKind::DiligentGPU));
+    expectChanged([](auto& value) { ++value.sceneRevision; });
+    expectChanged([](auto& value) { ++value.renderIndexGeneration; });
+    expectChanged([](auto& value) { ++value.settingsRevision; });
+    expectChanged([](auto& value) { ++value.width; });
+    expectChanged([](auto& value) { ++value.height; });
 }
 
 TEST(RenderPipelineContractTest, CacheKeyTracksFrameRateQualityAndColorContract)
 {
     const auto snapshot = makeSnapshot();
     const auto key = snapshot.cacheKey(RenderBackendKind::DiligentGPU);
+    const auto expectChanged = [&snapshot, &key](auto mutate) {
+        auto changed = snapshot;
+        mutate(changed);
+        const auto changedKey = changed.cacheKey(RenderBackendKind::DiligentGPU);
+        EXPECT_NE(key, changedKey);
+        EXPECT_NE(key.stableHash(), changedKey.stableHash());
+    };
 
-    auto changed = snapshot;
-    ++changed.frameRateNumerator;
-    EXPECT_NE(key, changed.cacheKey(RenderBackendKind::DiligentGPU));
-    changed = snapshot;
-    ++changed.frameRateDenominator;
-    EXPECT_NE(key, changed.cacheKey(RenderBackendKind::DiligentGPU));
-    changed = snapshot;
-    changed.quality = RenderQuality::Final;
-    EXPECT_NE(key, changed.cacheKey(RenderBackendKind::DiligentGPU));
-    changed = snapshot;
-    changed.color.primaries = SurfaceColorPrimaries::DisplayP3_D65;
-    EXPECT_NE(key, changed.cacheKey(RenderBackendKind::DiligentGPU));
-    changed = snapshot;
-    changed.color.alphaMode = SurfaceAlphaMode::Straight;
-    EXPECT_NE(key, changed.cacheKey(RenderBackendKind::DiligentGPU));
+    expectChanged([](auto& value) { ++value.frameRateNumerator; });
+    expectChanged([](auto& value) { ++value.frameRateDenominator; });
+    expectChanged([](auto& value) { value.quality = RenderQuality::Final; });
+    expectChanged([](auto& value) {
+        value.color.primaries = SurfaceColorPrimaries::DisplayP3_D65;
+    });
+    expectChanged([](auto& value) {
+        value.color.alphaMode = SurfaceAlphaMode::Straight;
+    });
 }
 
 TEST(RenderPipelineContractTest, CacheKeyTracksRemainingIdentityColorAndFeatureFields)
@@ -335,7 +336,9 @@ TEST(RenderPipelineContractTest, CacheKeyTracksRemainingIdentityColorAndFeatureF
     const auto expectChanged = [&snapshot, &key](auto mutate) {
         auto changed = snapshot;
         mutate(changed);
-        EXPECT_NE(key, changed.cacheKey(RenderBackendKind::DiligentGPU));
+        const auto changedKey = changed.cacheKey(RenderBackendKind::DiligentGPU);
+        EXPECT_NE(key, changedKey);
+        EXPECT_NE(key.stableHash(), changedKey.stableHash());
     };
 
     expectChanged([](auto& value) { ++value.schemaVersion; });
@@ -481,6 +484,33 @@ TEST(RenderPipelineContractTest, GIFrameResourceResizeAdvancesResourceGeneration
     EXPECT_EQ(resources.generation(), 2u);
     EXPECT_EQ(resources.width(), 1280u);
     EXPECT_EQ(resources.height(), 720u);
+}
+
+TEST(RenderPipelineContractTest, GIFrameResourceDescriptorsMatchEveryResourceLayout)
+{
+    GIFrameResources resources;
+    resources.resize(640, 360);
+
+    struct DescriptorCase {
+        GIResourceKind kind;
+        std::uint32_t expectedChannels;
+    };
+    const DescriptorCase cases[] = {
+        {GIResourceKind::Depth, 1u},
+        {GIResourceKind::Normal, 4u},
+        {GIResourceKind::Motion, 4u},
+        {GIResourceKind::DirectLighting, 4u},
+        {GIResourceKind::IndirectLighting, 4u},
+        {GIResourceKind::History, 4u},
+    };
+
+    for (const auto& testCase : cases) {
+        const auto descriptor = resources.descriptor(testCase.kind);
+        EXPECT_EQ(descriptor.kind, testCase.kind);
+        EXPECT_EQ(descriptor.width, 640u);
+        EXPECT_EQ(descriptor.height, 360u);
+        EXPECT_EQ(descriptor.channels, testCase.expectedChannels);
+    }
 }
 
 TEST(RenderPipelineContractTest, GITemporalHistoryResetsOnDiscontinuityAndCameraCut)

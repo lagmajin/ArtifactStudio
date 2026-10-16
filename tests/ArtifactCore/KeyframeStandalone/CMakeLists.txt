@@ -15,7 +15,9 @@ artifact_add_standalone_module_interface(KeyframeModuleInterfaces
 )
 
 artifact_add_standalone_gtest(ArtifactCoreKeyframeContractTest
-    SOURCES "${CMAKE_CURRENT_LIST_DIR}/../KeyframeContractTest.cpp"
+    SOURCES
+        "${CMAKE_CURRENT_LIST_DIR}/../KeyframeContractTest.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/../KeyframeSplineTest.cpp"
     LINK_LIBS KeyframeModuleInterfaces
     LABELS "animation;keyframe;cpu;contract;standalone"
 )

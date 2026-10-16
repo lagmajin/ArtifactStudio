@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-16 13:25
+> Generated: 2026-10-16 14:23
 > Total documents: 1459
 
 ---
@@ -967,8 +967,8 @@
 | 370 | `docs/planned/MILESTONE_IMMEDIATE_CONTEXT_BOUNDARY_SAFE_SEQUENCE_2026-04-21.md` | M-IR-8 Safe Sequence | 2026-08-04 | --- | 2026-08-06 | 2.4 KB | IMMEDIATE, CONTEXT, BOUNDARY, SAFE, SEQUENCE |
 | 371 | `docs/planned/MILESTONE_IMPLEMENTATION_PRIORITY_DEEP_AUDIT_2026-04-08.md` | 実装優先順位 ディープオーディットレポート | 2026-04-08 | 優先順位の基準を整理済み（実装完了を示すマイルストーンではない） | 2026-08-16 | 7.0 KB | IMPLEMENTATION, PRIORITY, DEEP, AUDIT |
 | 372 | `docs/planned/MILESTONE_IN_APP_LLM_INTEGRATION_2026-04-08.md` | MILESTONE: アプリ内 LLM 統合フェーズ1 | 2026-08-04 | 提案中 | 2026-08-06 | 3.6 KB | APP, LLM, INTEGRATION |
-| 373 | `docs/planned/MILESTONE_INDEPENDENT_DOCK_MANAGER_2026-08-13.md` | 独自ドッキングウィジェットマネージャ移行マイルストーン | 2026-10-16 | Phase 1–3 partial / Phase 6 (2系統統合) 実装完了、外部再利用境界を整備中。runtime verification pending。floating lifecycle と backend switch pending | 2026-09-27 | 13.7 KB | INDEPENDENT, DOCK, MANAGER |
-| 374 | `docs/planned/MILESTONE_INDEPENDENT_FUNCTION_TESTS_2026-10-16.md` | 独立機能テスト拡充マイルストーン | 2026-10-16 | In Progress | 2026-10-16 | 22.4 KB | INDEPENDENT, FUNCTION, TESTS |
+| 373 | `docs/planned/MILESTONE_INDEPENDENT_DOCK_MANAGER_2026-08-13.md` | 独自ドッキングウィジェットマネージャ移行マイルストーン | 2026-10-16 | Phase 1–3 partial / Phase 6 (2系統統合) 実装完了、外部再利用境界を整備中。runtime verification pending。floating lifecycle と backend switch pending | 2026-10-16 | 13.7 KB | INDEPENDENT, DOCK, MANAGER |
+| 374 | `docs/planned/MILESTONE_INDEPENDENT_FUNCTION_TESTS_2026-10-16.md` | 独立機能テスト拡充マイルストーン | 2026-10-16 | In Progress | 2026-10-16 | 34.3 KB | INDEPENDENT, FUNCTION, TESTS |
 | 375 | `docs/planned/MILESTONE_INLINE_INTERACTION_SURFACES_2026-03-31.md` | Inline Interaction Surfaces Milestone (2026-03-31) | 2026-03-31 | --- | 2026-08-16 | 6.6 KB | INLINE, INTERACTION, SURFACES |
 | 376 | `docs/planned/MILESTONE_INSPECTOR_PROPERTY_EDITOR_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: Inspector / PropertyEditor 機能監査 (2026-07-04) | 2026-07-04 | --- | 2026-08-16 | 8.2 KB | INSPECTOR, PROPERTY, EDITOR, DESIGN, AUDIT |
 | 377 | `docs/planned/MILESTONE_INTEGRATED_RENDERING_ENGINE_2026-03-28.md` | マイルストーン: Integrated Rendering Engine | 2026-08-04 | --- | 2026-08-06 | 3.9 KB | INTEGRATED, RENDERING, ENGINE |
@@ -1106,7 +1106,7 @@
 | 509 | `docs/planned/MILESTONE_PMD_VMD_LOTTIE_IMPORT_2026-04-19.md` | マイルストーン: PMD / PMX / VMD / Lottie インポート対応 | 2026-08-15 | Partial (PMD/PMX detection and minimal PMD geometry foundation implemented; VMD parser/animation, Lottie parser/conversion, full PMD/PMX materials/textures/bones/morphs, D&D/timeline integration, real-file compatibility, and runtime verification pending) | 2026-08-16 | 6.5 KB | PMD, VMD, LOTTIE, IMPORT |
 | 510 | `docs/planned/MILESTONE_PR_STYLE_REMEDIATION_2026-06-16.md` | Milestone M-PR-STYLE-1: ArtifactPr Style 違反修正 | 2026-06-16 | Partial (ArtifactPr AppTheme/QProxyStyle direction adopted and no remaining active setStyleSheet calls confirmed statically; KDDockWidgets theme path, palette/drawControl coverage, visual parity, runtime theme switching, build verification, and submodule completion pending) | 2026-07-25 | 17.1 KB | STYLE, REMEDIATION |
 | 511 | `docs/planned/MILESTONE_PRECOMPOSE_BREADCRUMB_DUPLICATE_2026-09-10.md` | Precompose 改善 B+F: パンくず移動と複製管理 | 2026-09-10 | Not Started | 2026-09-10 | 13.6 KB | PRECOMPOSE, BREADCRUMB, DUPLICATE |
-| 512 | `docs/planned/MILESTONE_PRECOMPOSE_VIEWER_TEST_2026-10-15.md` | プリコンポーズ独立GUI・MCPテスト | 2026-10-16 | 実装済み、ビルド・実行未確認（依頼により省略）。 | 2026-10-16 | 31.8 KB | PRECOMPOSE, VIEWER, TEST |
+| 512 | `docs/planned/MILESTONE_PRECOMPOSE_VIEWER_TEST_2026-10-15.md` | プリコンポーズ独立GUI・MCPテスト | 2026-10-16 | 実装済み、ビルド・実行未確認（依頼により省略）。 | 2026-10-16 | 36.4 KB | PRECOMPOSE, VIEWER, TEST |
 | 513 | `docs/planned/MILESTONE_PREVIEW_PLAYBACK_PERFORMANCE_LOW_LEVEL_AI_2026-05-23.md` | Preview Playback Performance - Low Level AI Implementation Milestone | 2026-05-23 | Partial (PlaybackService readiness states, RAM/disk preview cache, manifest/hydration, separated engine clock/render-controller image capture, and Timeline/diagnostic summaries implemented; shared readiness vocabulary, empty-tick handling, build queue/guaranteed playback, real-image cache fallback, and runtime verification pending) | 2026-07-25 | 8.4 KB | PREVIEW, PLAYBACK, PERFORMANCE, LOW, LEVEL |
 | 514 | `docs/planned/MILESTONE_PRO_MONITORING_SCOPES_2026-08-08.md` | Professional Monitoring Scopes Expansion (2026-08-08) | 2026-08-08 | ** 一部実装（Phase 1a Histogram 統合済み、残作業あり） | 2026-08-16 | 11.9 KB | PRO, MONITORING, SCOPES |
 | 515 | `docs/planned/MILESTONE_PROCEDURAL_3D_GENERATORS_MIR_TAO_2026-06-26.md` | Procedural 3D Generators Milestone | 2026-06-26 | Implementation present through the authoring/render/input/preset slices; | 2026-08-16 | 15.0 KB | PROCEDURAL, GENERATORS, MIR, TAO |

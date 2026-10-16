@@ -122,6 +122,11 @@ public:
         const auto buildsBefore = targetBefore.value(QStringLiteral("builds")).toInt();
         changeGlow(15.0);
         pumpEvents(500);
+        const QImage afterEffectEditCapture = controller()->readbackPresentedFrameImage();
+        if (afterEffectEditCapture.isNull())
+            return fail(QStringLiteral("effect edit presented-frame readback failed"));
+        if (imagesMatchExactly(afterReuseCapture, afterEffectEditCapture))
+            return fail(QStringLiteral("effect edit rebuilt the cache without changing presented pixels"));
         const QJsonObject afterEffectEdit = controller()->layerSurfaceCacheDiagnostics();
         const QJsonObject targetAfterEdit = entryFor(afterEffectEdit, effectLayerId_);
         if (targetAfterEdit.value(QStringLiteral("invalidations")).toInt() <= invalidationsBefore ||
@@ -130,14 +135,23 @@ public:
 
         changeOtherLayer();
         pumpEvents(500);
+        const QImage afterOtherEditCapture = controller()->readbackPresentedFrameImage();
+        if (afterOtherEditCapture.isNull())
+            return fail(QStringLiteral("unrelated layer edit presented-frame readback failed"));
+        if (imagesMatchExactly(afterEffectEditCapture, afterOtherEditCapture))
+            return fail(QStringLiteral("unrelated layer edit did not change presented pixels"));
         const QJsonObject afterOtherEdit = controller()->layerSurfaceCacheDiagnostics();
         const QJsonObject targetAfterOther = entryFor(afterOtherEdit, effectLayerId_);
         if (targetAfterOther.value(QStringLiteral("invalidations")).toInt() !=
-            targetAfterEdit.value(QStringLiteral("invalidations")).toInt())
+                targetAfterEdit.value(QStringLiteral("invalidations")).toInt() ||
+            targetAfterOther.value(QStringLiteral("builds")).toInt() !=
+                targetAfterEdit.value(QStringLiteral("builds")).toInt())
             return fail(QStringLiteral("unrelated layer edit invalidated the target cache"));
 
         QJsonObject result{{QStringLiteral("passed"), true},
                            {QStringLiteral("unchangedPresentedFramePixelMatch"), true},
+                           {QStringLiteral("effectEditChangedPresentedPixels"), true},
+                           {QStringLiteral("unrelatedEditChangedPresentedPixels"), true},
                            {QStringLiteral("frameWidth"), beforeReuse.width()},
                            {QStringLiteral("frameHeight"), beforeReuse.height()},
                            {QStringLiteral("initial"), initial},

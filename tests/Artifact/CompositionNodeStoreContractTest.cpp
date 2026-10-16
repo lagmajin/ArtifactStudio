@@ -71,6 +71,31 @@ TEST(CompositionNodeStoreContractTest, RemovingParentDetachesDirectChildren)
     EXPECT_FALSE(store.removeNode(QStringLiteral("child")));
 }
 
+TEST(CompositionNodeStoreContractTest, RemovingMiddleNodePreservesItsDescendantSubtree)
+{
+    Artifact::CompositionNodeStore store;
+    ASSERT_TRUE(store.addNode(makeNode(QStringLiteral("root"))));
+    ASSERT_TRUE(store.addNode(makeNode(QStringLiteral("middle"),
+                                      QStringLiteral("root"))));
+    ASSERT_TRUE(store.addNode(makeNode(QStringLiteral("child"),
+                                      QStringLiteral("middle"))));
+    ASSERT_TRUE(store.addNode(makeNode(QStringLiteral("grandchild"),
+                                      QStringLiteral("child"))));
+
+    ASSERT_TRUE(store.removeNode(QStringLiteral("middle")));
+
+    EXPECT_FALSE(store.contains(QStringLiteral("middle")));
+    ASSERT_NE(store.node(QStringLiteral("child")), nullptr);
+    ASSERT_NE(store.node(QStringLiteral("grandchild")), nullptr);
+    EXPECT_TRUE(store.node(QStringLiteral("child"))->parentId.isEmpty());
+    EXPECT_EQ(store.node(QStringLiteral("grandchild"))->parentId,
+              QStringLiteral("child"));
+    EXPECT_TRUE(store.childrenOf(QStringLiteral("root")).empty());
+    EXPECT_EQ(store.childrenOf(QStringLiteral("")).size(), 2u);
+    EXPECT_EQ(store.childrenOf(QStringLiteral("child")),
+              (std::vector<QString>{QStringLiteral("grandchild")}));
+}
+
 TEST(CompositionNodeStoreContractTest, ReparentingMovesNodeBetweenParentChildLists)
 {
     Artifact::CompositionNodeStore store;

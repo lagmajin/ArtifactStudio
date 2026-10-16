@@ -121,6 +121,21 @@ TEST(LayerBoundsCalculatorStandaloneTest, ZeroSizeRectangleContainsItsCollapsedP
     const auto corners = LayerBoundsCalculator2D::calculate(
         {3.0, 4.0}, {}, 0.0f, 0.0f, 0.0f);
     EXPECT_TRUE(LayerBoundsCalculator2D::contains(corners, {3.0, 4.0}));
+    EXPECT_FALSE(LayerBoundsCalculator2D::contains(corners, {3.0, 4.01}));
+}
+
+TEST(LayerBoundsCalculatorStandaloneTest,
+     ZeroWidthRectangleRejectsCollinearPointsOutsideItsSegment)
+{
+    const auto corners = LayerBoundsCalculator2D::calculate(
+        {3.0, 4.0}, {}, 0.0f, 10.0f, 0.0f);
+
+    EXPECT_TRUE(LayerBoundsCalculator2D::contains(corners, {3.0, 4.0}));
+    EXPECT_TRUE(LayerBoundsCalculator2D::contains(corners, {3.0, 9.0}));
+    EXPECT_TRUE(LayerBoundsCalculator2D::contains(corners, {3.0, 14.0}));
+    EXPECT_FALSE(LayerBoundsCalculator2D::contains(corners, {3.0, 3.99}));
+    EXPECT_FALSE(LayerBoundsCalculator2D::contains(corners, {3.0, 14.01}));
+    EXPECT_FALSE(LayerBoundsCalculator2D::contains(corners, {3.01, 9.0}));
 }
 
 TEST(LayerBoundsCalculatorStandaloneTest, NegativeRotationProducesExpectedEquivalentOrientation)

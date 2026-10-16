@@ -147,7 +147,7 @@ TEST(UndoManagerContractTest, BudgetRejectsCommandBeforeExecutingIt)
 {
     Artifact::UndoManager manager;
     Artifact::UndoManager::UndoBudget budget;
-    budget.maxEntryCount = 0;
+    budget.maxSingleEntryBytes = 0;
     manager.setBudget(budget);
     int value = 4;
 
@@ -155,6 +155,62 @@ TEST(UndoManagerContractTest, BudgetRejectsCommandBeforeExecutingIt)
     EXPECT_EQ(value, 4);
     EXPECT_FALSE(manager.canUndo());
     EXPECT_EQ(manager.undoCount(), 0u);
+}
+
+TEST(UndoManagerContractTest, EntryCountBudgetEvictsOldestUndoAndKeepsNewestUndoable)
+{
+    Artifact::UndoManager manager;
+    Artifact::UndoManager::UndoBudget budget;
+    budget.maxEntryCount = 1;
+    manager.setBudget(budget);
+    int value = 0;
+
+    ASSERT_TRUE(manager.push(std::make_unique<IntegerCommand>(value, 0, 1)));
+    ASSERT_TRUE(manager.push(std::make_unique<IntegerCommand>(value, 1, 2)));
+    ASSERT_EQ(value, 2);
+    ASSERT_EQ(manager.undoCount(), 1u);
+
+    manager.undo();
+
+    EXPECT_EQ(value, 1);
+    EXPECT_FALSE(manager.canUndo());
+    EXPECT_TRUE(manager.canRedo());
+    EXPECT_EQ(manager.undoCount(), 0u);
+    EXPECT_EQ(manager.redoCount(), 1u);
+
+    manager.redo();
+
+    EXPECT_EQ(value, 2);
+    EXPECT_TRUE(manager.canUndo());
+    EXPECT_FALSE(manager.canRedo());
+}
+
+TEST(UndoManagerContractTest, MemoryBudgetEvictsOldestUndoAndKeepsNewestUndoable)
+{
+    Artifact::UndoManager manager;
+    Artifact::UndoManager::UndoBudget budget;
+    budget.maxMemoryBytes = sizeof(IntegerCommand);
+    budget.maxSingleEntryBytes = sizeof(IntegerCommand);
+    manager.setBudget(budget);
+    int value = 0;
+
+    ASSERT_TRUE(manager.push(std::make_unique<IntegerCommand>(value, 0, 1)));
+    ASSERT_TRUE(manager.push(std::make_unique<IntegerCommand>(value, 1, 2)));
+    ASSERT_EQ(value, 2);
+    ASSERT_EQ(manager.undoCount(), 1u);
+    EXPECT_LE(manager.memoryPressure(), 1.0f);
+
+    manager.undo();
+
+    EXPECT_EQ(value, 1);
+    EXPECT_FALSE(manager.canUndo());
+    EXPECT_TRUE(manager.canRedo());
+
+    manager.redo();
+
+    EXPECT_EQ(value, 2);
+    EXPECT_TRUE(manager.canUndo());
+    EXPECT_FALSE(manager.canRedo());
 }
 
 TEST(UndoManagerContractTest, MacroKeepsMultipleEditsAsOneUndoTransaction)

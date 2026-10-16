@@ -32,6 +32,21 @@ import Utils.String.UniString;
 
 namespace {
 
+class ProjectLoadHistoryProbeCommand final : public Artifact::UndoCommand {
+public:
+    ProjectLoadHistoryProbeCommand(int& value, int before, int after)
+        : value_(value), before_(before), after_(after) {}
+
+    void undo() override { value_ = before_; }
+    void redo() override { value_ = after_; }
+    size_t estimatedMemoryBytes() const override { return sizeof(*this); }
+
+private:
+    int& value_;
+    int before_;
+    int after_;
+};
+
 class ProjectRoundTripEnvironment final : public testing::Environment {
 public:
     void SetUp() override
@@ -240,6 +255,24 @@ TEST(ArtifactProjectRoundTripTest, SaveLoadGuardsRejectBadInput)
     ASSERT_TRUE(survivor.success);
     ASSERT_NE(survivor.layer.get(), nullptr);
 
+    auto* undo = Artifact::UndoManager::instance();
+    ASSERT_NE(undo, nullptr);
+    undo->clearHistory();
+    int historyProbe = 0;
+    struct UndoHistoryCleanup final {
+        Artifact::UndoManager* manager;
+        ~UndoHistoryCleanup() { manager->clearHistory(); }
+    };
+    [[maybe_unused]] UndoHistoryCleanup undoHistoryCleanup{undo};
+    ASSERT_TRUE(undo->push(std::make_unique<ProjectLoadHistoryProbeCommand>(
+        historyProbe, 0, 1)));
+    ASSERT_TRUE(undo->push(std::make_unique<ProjectLoadHistoryProbeCommand>(
+        historyProbe, 1, 2)));
+    undo->undo();
+    ASSERT_EQ(historyProbe, 1);
+    ASSERT_EQ(undo->undoCount(), 1u);
+    ASSERT_EQ(undo->redoCount(), 1u);
+
     EXPECT_FALSE(projects.loadFromFile(garbagePath));
     const auto afterFailedLoad = projects.getCurrentProjectSharedPtr();
     ASSERT_TRUE(afterFailedLoad);
@@ -252,6 +285,16 @@ TEST(ArtifactProjectRoundTripTest, SaveLoadGuardsRejectBadInput)
     ASSERT_TRUE(preservedComposition);
     EXPECT_EQ(preservedComposition->layerCount(), 1);
     EXPECT_TRUE(preservedComposition->containsLayerById(survivor.layer->id()));
+
+    EXPECT_EQ(historyProbe, 1);
+    EXPECT_EQ(undo->undoCount(), 1u);
+    EXPECT_EQ(undo->redoCount(), 1u);
+    undo->undo();
+    EXPECT_EQ(historyProbe, 0);
+    undo->redo();
+    EXPECT_EQ(historyProbe, 1);
+    undo->redo();
+    EXPECT_EQ(historyProbe, 2);
 }
 
 TEST(ArtifactProjectRoundTripTest, DuplicateLayerCreatesIndependentIdAndCopiesProperties)
@@ -285,6 +328,9 @@ TEST(ArtifactProjectRoundTripTest, DuplicateLayerCreatesIndependentIdAndCopiesPr
     EXPECT_EQ(duplicated.layer->layerName(), QStringLiteral("Source Copy"));
     EXPECT_FLOAT_EQ(added.layer->opacity(), 0.37f);
     EXPECT_FLOAT_EQ(duplicated.layer->opacity(), 0.37f);
+    duplicated.layer->setOpacity(0.82f);
+    EXPECT_FLOAT_EQ(duplicated.layer->opacity(), 0.82f);
+    EXPECT_FLOAT_EQ(added.layer->opacity(), 0.37f);
 
     const auto comp = projects.findComposition(composition.id).ptr.lock();
     ASSERT_TRUE(comp);
@@ -339,7 +385,8 @@ TEST(ArtifactProjectRoundTripTest, RejectedLayerOperationsLeaveProjectTreeUnchan
     EXPECT_TRUE(projects.findComposition(composition.id).success);
 }
 
-TEST(ArtifactProjectRoundTripTest, RemovingMatteSourceClearsOnlyDanglingReference)
+TEST(ArtifactProjectRoundTripTest,
+     RemovingMatteSourceClearsOnlyDanglingReferenceAndPreservesSurvivorRoundTrip)
 {
     QTemporaryDir dir;
     ASSERT_TRUE(dir.isValid());
@@ -357,32 +404,77 @@ TEST(ArtifactProjectRoundTripTest, RemovingMatteSourceClearsOnlyDanglingReferenc
     ASSERT_TRUE(composition.success);
     Artifact::ArtifactLayerInitParams sourceParams(QStringLiteral("MatteSource"),
                                                    Artifact::LayerType::Solid);
+    Artifact::ArtifactLayerInitParams survivingSourceParams(
+        QStringLiteral("SurvivingMatteSource"), Artifact::LayerType::Solid);
     Artifact::ArtifactLayerInitParams targetParams(QStringLiteral("Target"),
                                                    Artifact::LayerType::Solid);
     const auto source = projects.addLayerToComposition(composition.id, sourceParams);
+    const auto survivingSource = projects.addLayerToComposition(
+        composition.id, survivingSourceParams);
     const auto target = projects.addLayerToComposition(composition.id, targetParams);
     ASSERT_TRUE(source.success);
+    ASSERT_TRUE(survivingSource.success);
     ASSERT_TRUE(target.success);
     ASSERT_NE(source.layer.get(), nullptr);
+    ASSERT_NE(survivingSource.layer.get(), nullptr);
     ASSERT_NE(target.layer.get(), nullptr);
 
     Artifact::LayerMatteReference matte;
     matte.sourceLayerId = source.layer->id();
     target.layer->addMatteReference(matte);
-    ASSERT_EQ(target.layer->matteReferenceCount(), 1);
+    Artifact::LayerMatteReference survivingMatte;
+    survivingMatte.sourceLayerId = survivingSource.layer->id();
+    survivingMatte.opacity = 0.35f;
+    survivingMatte.invert = true;
+    target.layer->addMatteReference(survivingMatte);
+    ASSERT_EQ(target.layer->matteReferenceCount(), 2);
     ASSERT_TRUE(target.layer->hasEnabledExternalMatteReference());
 
     ASSERT_TRUE(projects.removeLayerFromComposition(composition.id,
                                                     source.layer->id()));
     const auto comp = projects.findComposition(composition.id).ptr.lock();
     ASSERT_TRUE(comp);
-    EXPECT_EQ(comp->layerCount(), 1);
+    EXPECT_EQ(comp->layerCount(), 2);
     EXPECT_TRUE(comp->containsLayerById(target.layer->id()));
-    EXPECT_EQ(target.layer->matteReferenceCount(), 0);
-    EXPECT_FALSE(target.layer->hasEnabledExternalMatteReference());
+    EXPECT_TRUE(comp->containsLayerById(survivingSource.layer->id()));
+    ASSERT_EQ(target.layer->matteReferenceCount(), 1);
+    const auto referencesAfterRemoval = target.layer->matteReferences();
+    ASSERT_EQ(referencesAfterRemoval.size(), 1u);
+    EXPECT_EQ(referencesAfterRemoval.front().sourceLayerId,
+              survivingSource.layer->id());
+    EXPECT_EQ(referencesAfterRemoval.front().id, survivingMatte.id);
+    EXPECT_FLOAT_EQ(referencesAfterRemoval.front().opacity, 0.35f);
+    EXPECT_TRUE(referencesAfterRemoval.front().invert);
+    EXPECT_TRUE(target.layer->hasEnabledExternalMatteReference());
     EXPECT_FALSE(projects.removeLayerFromComposition(composition.id,
                                                      source.layer->id()));
-    EXPECT_EQ(comp->layerCount(), 1);
+    EXPECT_EQ(comp->layerCount(), 2);
+
+    const QString projectPath = dir.filePath(QStringLiteral("surviving-matte.artifact"));
+    ASSERT_TRUE(projects.saveToFile(projectPath).success);
+    projects.closeCurrentProject();
+    ASSERT_TRUE(projects.loadFromFile(projectPath));
+
+    const auto reloadedComposition =
+        projects.findComposition(composition.id).ptr.lock();
+    ASSERT_TRUE(reloadedComposition);
+    ASSERT_EQ(reloadedComposition->layerCount(), 2);
+    Artifact::ArtifactAbstractLayerPtr reloadedTarget;
+    for (const auto& layer : reloadedComposition->allLayer()) {
+        if (layer && layer->id() == target.layer->id()) {
+            reloadedTarget = layer;
+            break;
+        }
+    }
+    ASSERT_NE(reloadedTarget.get(), nullptr);
+    ASSERT_EQ(reloadedTarget->matteReferenceCount(), 1);
+    const auto reloadedReferences = reloadedTarget->matteReferences();
+    ASSERT_EQ(reloadedReferences.size(), 1u);
+    EXPECT_EQ(reloadedReferences.front().sourceLayerId,
+              survivingSource.layer->id());
+    EXPECT_EQ(reloadedReferences.front().id, survivingMatte.id);
+    EXPECT_FLOAT_EQ(reloadedReferences.front().opacity, 0.35f);
+    EXPECT_TRUE(reloadedReferences.front().invert);
 }
 
 TEST(ArtifactProjectRoundTripTest, ProjectSavePersistsUndoAndRedoResults)

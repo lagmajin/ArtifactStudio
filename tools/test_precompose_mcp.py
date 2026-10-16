@@ -100,7 +100,7 @@ def validate_png(png, require_visual_content=False):
         raise AssertionError("Capture PNG IDAT stream does not match its dimensions")
     if any(decoded[row_start] > 4 for row_start in range(0, len(decoded), scanline_bytes)):
         raise AssertionError("Capture PNG contains an invalid scanline filter")
-    if require_visual_content:
+    if require_visual_content or color_type == 3:
         bytes_per_pixel = max(1, (channels_by_color_type[color_type] * bit_depth + 7) // 8)
         previous_row = bytearray(row_bytes)
         pixel_values = set()
@@ -133,11 +133,21 @@ def validate_png(png, require_visual_content=False):
                     else:
                         predictor = upper_left
                 row[index] = (value + predictor) & 0xff
-            pixel_values.update(row)
+            if color_type == 3:
+                palette_count = len(palette_data) // 3
+                for pixel_index in range(width):
+                    bit_offset = pixel_index * bit_depth
+                    byte_index = bit_offset // 8
+                    shift = 8 - bit_depth - (bit_offset % 8)
+                    palette_index = (row[byte_index] >> shift) & ((1 << bit_depth) - 1)
+                    if palette_index >= palette_count:
+                        raise AssertionError("Indexed capture PNG references a missing palette entry")
+            if require_visual_content:
+                pixel_values.update(row)
             previous_row = row
-            if len(pixel_values) >= 8:
+            if require_visual_content and len(pixel_values) >= 8 and color_type != 3:
                 break
-        if len(pixel_values) < 8:
+        if require_visual_content and len(pixel_values) < 8:
             raise AssertionError("Capture PNG has too little pixel variation to show the test UI")
     return width, height
 
@@ -239,6 +249,13 @@ def validate_png_contract():
                    + make_png_chunk(b"IEND", b""))
     if validate_png(indexed_png) != (1, 1):
         raise AssertionError("PNG validator rejected a valid indexed-color fixture")
+    indexed_1bit_png = (
+        signature + make_png_chunk(b"IHDR", indexed_low_bit_header)
+        + make_png_chunk(b"PLTE", b"\x00\x00\x00\xff\xff\xff")
+        + make_png_chunk(b"IDAT", zlib.compress(b"\x00\x80"))
+        + make_png_chunk(b"IEND", b""))
+    if validate_png(indexed_1bit_png) != (1, 1):
+        raise AssertionError("PNG validator rejected a valid packed 1-bit palette index")
     varied_png = (signature
                   + make_png_chunk(b"IHDR", struct.pack(">IIBBBBB", 16, 1, 8, 0, 0, 0, 0))
                   + make_png_chunk(b"IDAT", zlib.compress(b"\x00" + bytes(range(16))))
@@ -312,6 +329,16 @@ def validate_png_contract():
             signature + make_png_chunk(b"IHDR", indexed_low_bit_header)
             + make_png_chunk(b"PLTE", b"\x00\x00\x00\x40\x40\x40\x80\x80\x80")
             + make_png_chunk(b"IDAT", indexed_data) + make_png_chunk(b"IEND", b"")),
+        "indexed pixel references missing palette entry": (
+            signature + make_png_chunk(b"IHDR", indexed_header)
+            + make_png_chunk(b"PLTE", b"\x00\x00\x00")
+            + make_png_chunk(b"IDAT", zlib.compress(b"\x00\x01"))
+            + make_png_chunk(b"IEND", b"")),
+        "packed indexed pixel references missing palette entry": (
+            signature + make_png_chunk(b"IHDR", indexed_low_bit_header)
+            + make_png_chunk(b"PLTE", b"\x00\x00\x00")
+            + make_png_chunk(b"IDAT", zlib.compress(b"\x00\x80"))
+            + make_png_chunk(b"IEND", b"")),
         "unsupported critical chunk": (
             signature + make_png_chunk(b"IHDR", header)
             + make_png_chunk(b"ABCD", b"unsupported")

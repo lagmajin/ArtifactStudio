@@ -167,6 +167,37 @@ TEST(EffectSequenceContractTest, SortedStagesProduceTheExpectedCpuImage)
     expectPixelNear(source, 0, 0, FloatRGBA(0.20f, 0.40f, 0.80f, 0.35f));
 }
 
+TEST(EffectSequenceContractTest, StableSameStageOrderDeterminesCpuPixelOutput)
+{
+    const float pixels[] = {0.20f, 0.40f, 0.80f, 0.35f};
+    const auto source = makeSurface(1, 1, pixels);
+    auto brightness = makeShared<BrightnessEffect>();
+    auto invert = makeShared<InvertEffect>();
+    brightness->setBrightness(0.10f);
+    invert->setStrength(1.0f);
+    brightness->setPipelineStage(EffectPipelineStage::Rasterizer);
+    invert->setPipelineStage(EffectPipelineStage::Rasterizer);
+
+    const auto renderSequence = [&source](
+        const std::vector<ArtifactAbstractEffectPtr>& sequence) {
+        const auto ordered = ArtifactAbstractEffect::sortedByStage(sequence);
+        ImageF32x4RGBAWithCache first;
+        ImageF32x4RGBAWithCache result;
+        ordered[0]->applyCPUOnly(source, first);
+        ordered[1]->applyCPUOnly(first, result);
+        return result;
+    };
+
+    const auto brightnessThenInvert = renderSequence({brightness, invert});
+    const auto invertThenBrightness = renderSequence({invert, brightness});
+
+    expectPixelNear(brightnessThenInvert, 0, 0,
+                    FloatRGBA(0.70f, 0.50f, 0.10f, 0.35f));
+    expectPixelNear(invertThenBrightness, 0, 0,
+                    FloatRGBA(0.90f, 0.70f, 0.30f, 0.35f));
+    expectPixelNear(source, 0, 0, FloatRGBA(0.20f, 0.40f, 0.80f, 0.35f));
+}
+
 TEST(EffectSequenceContractTest, BrightnessProcessesLargeCpuSurfaceWithoutChangingInput)
 {
     constexpr int width = 1280;

@@ -75,6 +75,35 @@ TEST(FrameCacheContractTest, RejectsEntryLargerThanConfiguredMemoryBudget)
     EXPECT_EQ(cache.currentMemoryUsage(), 0u);
 }
 
+TEST(FrameCacheContractTest, ZeroFrameCapacityRejectsStoreWithoutMutation)
+{
+    Artifact::FrameCache cache;
+    cache.setMaxFrameCount(0);
+
+    EXPECT_THROW(cache.put(makeEntry(1)), std::invalid_argument);
+    EXPECT_EQ(cache.currentFrameCount(), 0);
+    EXPECT_EQ(cache.currentMemoryUsage(), 0u);
+    EXPECT_EQ(cache.maxFrameCount(), 0);
+}
+
+TEST(FrameCacheContractTest, TrimToSizeEvictsOldestEntriesUntilWithinByteTarget)
+{
+    Artifact::FrameCache cache;
+    cache.setPolicy(Artifact::CachePolicy::FIFO);
+    cache.put(makeEntry(1));
+    cache.put(makeEntry(2));
+    cache.put(makeEntry(3));
+    ASSERT_EQ(cache.currentMemoryUsage(), 48u);
+
+    cache.trimToSize(16u);
+
+    EXPECT_EQ(cache.currentMemoryUsage(), 16u);
+    EXPECT_EQ(cache.currentFrameCount(), 1);
+    EXPECT_FALSE(cache.contains(ArtifactCore::FramePosition(1)));
+    EXPECT_FALSE(cache.contains(ArtifactCore::FramePosition(2)));
+    EXPECT_TRUE(cache.contains(ArtifactCore::FramePosition(3)));
+}
+
 TEST(FrameCacheContractTest, TargetedInvalidationHonorsCompositionRangeLayerAndEffect)
 {
     Artifact::FrameCache cache;

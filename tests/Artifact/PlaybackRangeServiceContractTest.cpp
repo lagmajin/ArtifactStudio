@@ -129,27 +129,60 @@ TEST(PlaybackRangeServiceContractTest,
         }
         return playback.state() == expected;
     };
+    const auto waitForFrameChange = [&playback](std::int64_t previousFrame) {
+        QElapsedTimer timer;
+        timer.start();
+        while (timer.elapsed() < 2000) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
+            if (playback.currentFrame().framePosition() != previousFrame) return true;
+            QThread::msleep(5);
+        }
+        return playback.currentFrame().framePosition() != previousFrame;
+    };
     ASSERT_EQ(playback.state(), ArtifactCore::PlaybackState::Stopped);
+    const auto initialFrame = playback.currentFrame().framePosition();
     playback.play();
     if (!waitForState(ArtifactCore::PlaybackState::Playing)) {
         FAIL() << "Playback Service did not enter Playing";
     }
+    ASSERT_TRUE(waitForFrameChange(initialFrame))
+        << "Playback Service entered Playing without advancing its frame clock";
 
     playback.pause();
     if (!waitForState(ArtifactCore::PlaybackState::Paused)) {
         FAIL() << "Playback Service did not enter Paused";
     }
+    const auto pausedFrame = playback.currentFrame().framePosition();
+    QElapsedTimer pauseObservation;
+    pauseObservation.start();
+    while (pauseObservation.elapsed() < 100) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
+        QThread::msleep(5);
+    }
+    EXPECT_EQ(playback.currentFrame().framePosition(), pausedFrame)
+        << "Playback Service advanced its frame clock while paused";
 
     playback.play();
     if (!waitForState(ArtifactCore::PlaybackState::Playing)) {
         FAIL() << "Playback Service did not resume Playing";
     }
+    ASSERT_TRUE(waitForFrameChange(pausedFrame))
+        << "Resumed Playback Service did not advance from its paused frame";
 
     playback.stop();
     playback.waitForStop();
     EXPECT_EQ(playback.state(), ArtifactCore::PlaybackState::Stopped);
     EXPECT_TRUE(playback.isStopped());
     EXPECT_FALSE(playback.isPlaying());
+    const auto stoppedFrame = playback.currentFrame().framePosition();
+    QElapsedTimer stopObservation;
+    stopObservation.start();
+    while (stopObservation.elapsed() < 100) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 25);
+        QThread::msleep(5);
+    }
+    EXPECT_EQ(playback.currentFrame().framePosition(), stoppedFrame)
+        << "Playback Service advanced its frame clock after Stop completed";
 }
 
 TEST(PlaybackRangeServiceContractTest,

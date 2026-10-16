@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <stdexcept>
+
 #include <QJsonObject>
 #include <QString>
 
@@ -106,4 +108,24 @@ TEST(SchemaMigrationContractTest, ChoosesTheShortestAvailableForwardPath)
     EXPECT_EQ(data.value(QStringLiteral("path")).toString(),
               QStringLiteral("short"));
     EXPECT_EQ(data.value(QStringLiteral("steps")).toInt(), 2);
+}
+
+TEST(SchemaMigrationContractTest, FailedCallbackLeavesInputUnchanged)
+{
+    auto& registry = SchemaMigrationRegistry::instance();
+    const QString typeName = QStringLiteral("SchemaMigrationContractTest.ExceptionAtomicity");
+    registry.registerMigration(typeName, 0, 1, [](const QJsonObject& input) {
+        QJsonObject output = input;
+        output.insert(QStringLiteral("stage"), 1);
+        return output;
+    });
+    registry.registerMigration(typeName, 1, 2, [](const QJsonObject&) -> QJsonObject {
+        throw std::runtime_error("migration callback failed");
+    });
+
+    const QJsonObject original{{QStringLiteral("payload"), QStringLiteral("stable")}};
+    QJsonObject data = original;
+
+    EXPECT_THROW(registry.migrate(typeName, 0, 2, data), std::runtime_error);
+    EXPECT_EQ(data, original);
 }

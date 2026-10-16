@@ -91,7 +91,19 @@ TEST(RasterizerMaskEffectIntegrationTest, RasterizerBlurRunsAfterLayerMask)
     const auto interior = surface.getPixel(8, 8);
     const auto boundary = surface.getPixel(17, 8);
     const auto outside = surface.getPixel(25, 8);
+    const auto beyondMaskWithBlur = surface.getPixel(20, 8);
     EXPECT_GT(interior.a(), boundary.a());
     EXPECT_GT(boundary.a(), outside.a());
     EXPECT_GT(boundary.a(), 0.0f);
+
+    created.layer->removeEffect(blur->effectID());
+    ASSERT_EQ(created.layer->effectCount(), 0);
+    ArtifactCore::ImageF32x4_RGBA maskOnlySurface;
+    maskOnlySurface.setFromRGBA32F(pixels.data(), width, height);
+    Artifact::applyRasterizerEffectsAndMasksToSurface(
+        created.layer.get(), maskOnlySurface, Artifact::DetailLevel::High);
+
+    const auto beyondMaskWithoutBlur = maskOnlySurface.getPixel(20, 8);
+    EXPECT_FLOAT_EQ(beyondMaskWithoutBlur.a(), 0.0f);
+    EXPECT_GT(beyondMaskWithBlur.a(), beyondMaskWithoutBlur.a());
 }
