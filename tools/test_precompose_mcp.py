@@ -18,6 +18,7 @@ def main():
     replies = queue.Queue()
     evidence = []
     exposed_tool_names = set()
+    invoked_tool_names = set()
     with (args.output_dir / "stderr.log").open("w", encoding="utf-8") as log:
         process = subprocess.Popen([str(args.server.resolve()), "--mcp-stdio", "--lang", args.language],
                                    stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -49,6 +50,7 @@ def main():
         def call(name):
             if name not in exposed_tool_names:
                 raise AssertionError(f"MCP tools/list did not advertise {name}")
+            invoked_tool_names.add(name)
             reply = request("tools/call", {"name": name, "arguments": {}})
             if reply.get("isError"):
                 raise RuntimeError(f"{name}: {reply}")
@@ -81,6 +83,7 @@ def main():
                         "name": "artifact-precompose-test", "version": "1.0.0"},
                     "MCP initialize response changed its protocol or server capabilities")
             require(request("ping", {}) == {}, "MCP ping did not return an empty result")
+            invoked_tool_names.add("test.state")
             state_without_arguments = request("tools/call", {"name": "test.state"})
             state_without_arguments_result = json.loads(state_without_arguments["content"][0]["text"])
             require(not state_without_arguments.get("isError") and
@@ -708,11 +711,16 @@ def main():
                     "Noncontiguous precompose/unpack changed animation timing or layer ordering")
             require("test.capture" in exposed_tool_names,
                     "MCP tools/list did not advertise test.capture")
+            invoked_tool_names.add("test.capture")
             image = request("tools/call", {"name": "test.capture", "arguments": {}})
             require(not image.get("isError") and image["content"][0]["type"] == "image", "Capture failed")
             (args.output_dir / "nested.png").write_bytes(base64.b64decode(image["content"][0]["data"]))
             evidence[-1]["reply"] = {"image": "nested.png"}
             require(call("test.runRegression")["regressionFailures"] == 0, "Existing regression suite failed")
+            require(invoked_tool_names == exposed_tool_names,
+                    f"MCP tool catalog has unexercised or unavailable tools: "
+                    f"unexercised={sorted(exposed_tool_names - invoked_tool_names)}, "
+                    f"unadvertised={sorted(invoked_tool_names - exposed_tool_names)}")
             print("PASS: MCP tool catalog, direct/transitive cycle guards, invalid-request and empty MoveAll atomicity, redo-branch replacement, closed/open-child focus behavior, component descriptor graph, matte reference order/settings, layer mask geometry/state, layer/composition effect scope and parameter round-trip, single-layer round-trip, shared-child references/data, negative frame/key timing, workspace-matched duration, child-duration propagation, internal/external layer-parent restoration, nested Master Property save/reload/materialization, animated key timing/metadata in selected/all modes, nested hierarchy/time/save-reload, existing-precompose reparenting, nested unpack registration/timing, noncontiguous unpack ordering, unpack keep/delete, identity, attributes, order, save/reload, undo/redo, regression suite")
         finally:
             process.stdin.close()
