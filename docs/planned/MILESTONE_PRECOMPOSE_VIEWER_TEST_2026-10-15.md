@@ -54,7 +54,7 @@ FBX独立Viewerのように製品本体と起動を分け、既存のProject Ser
 
 `ArtifactPrecomposeViewer` は解像度1280×720、24fps、背景色 `(0.125,0.25,0.5,1)`、duration 300 frameのcompositionに A、B、Untouched のNullレイヤーを作成する。Aにはposition `(12,-8,3)`、opacity `0.42` を設定し、3レイヤーには異なる In/Out と start frame を設定する。選択移動・全移動後に子Compositionの解像度、fps、背景RGBA、Workspace一致を指定しない場合のframe range durationが親と一致することも確認する。GUIのキーボード操作とMCPは同じ処理を呼ぶ。Pは選択相当のA+Bを移動、Aは全属性モード、K/Dは子を保持/削除して解除、Z/YはUndo/Redo、Rは新しいfixture、Tは既存の `runPreComposeTests()` を実行する。fixtureの再作成は同じ一時プロジェクトに新しいcompositionを追加するため、長時間の連続負荷試験には使わない。
 
-`test.guiAnimatedKeyRoundTrip`はAのposition XにBezierとConstantの2キーを設定し、実際のGUI KeyPress経路Pで選択プリコンポーズする。In/Startを-24/-17 frame、キーを-12/24 frameにしたfixtureをGUI経路Pで正規化し、子側でIn=0/Start=7へ正規化し、親wrapperはIn/Out/Start=-24/136/-24を保つこと、+24 frameのキー時刻補正後も全キー属性とpropertyのanimatable状態が一致し、中間時刻の評価値も維持されること、Z/YでUndo/Redoしてもキー列と評価値が戻ること、Kで解除後に親側の元キー列と評価値へ復元され、解除自体のZ/Yで負時間範囲とキー時刻、同一wrapperオブジェクトとPreComposeManager登録が復元されること、同一レイヤーオブジェクトの保持も検査する。
+`test.guiAnimatedKeyRoundTrip`はAのposition XにBezierとConstantの2キーを設定し、実際のGUI KeyPress経路Pで選択プリコンポーズする。In/Startを-24/-17 frame、キーを-12/24 frameにしたfixtureをGUI経路Pで正規化し、子側でIn=0/Start=7へ正規化し、親wrapperはIn/Out/Start=-24/136/-24を保つこと、+24 frameのキー時刻補正後も全キー属性とpropertyのanimatable状態が一致し、中間時刻の評価値も維持されること、Z/YでUndo/Redoしてもキー列と評価値が戻ること、Kで解除後に親側の元キー列と評価値へ復元され、解除自体のZ/Yで負時間範囲とキー時刻、同一wrapperオブジェクトとPreComposeManager登録が復元されること、同一レイヤーオブジェクトと子Composition objectの保持も検査する。
 
 同テストはさらにP/Z/Y/Kの各KeyPress後にactive Compositionが親のままであること、現在レイヤーと単一選択がプリコンポーズ後／Redo後／解除Undo後はwrapper、Undo後／解除後／解除Redo後は元のAを指すことを確認する。
 

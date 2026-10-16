@@ -729,8 +729,11 @@ public:
                 std::abs(redoPosition->evaluateValue(RationalTime(
                     24, redoA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
 
+            const auto childObjectBeforeUnpack = service->findComposition(childId_).ptr.lock();
             sendKey(Qt::Key_K);
             const auto afterUnpackKey = state();
+            const bool childObjectPreservedByUnpackKey = childObjectBeforeUnpack &&
+                service->findComposition(childId_).ptr.lock() == childObjectBeforeUnpack;
             const auto unpackedA = parent->layerById(ids.front());
             const auto unpackedPosition = unpackedA
                 ? unpackedA->getProperty(QStringLiteral("transform.position.x"))
@@ -776,6 +779,8 @@ public:
                 keyframes(unpackUndoPosition) == movedKeys;
             const bool unpackUndoIdentityPreserved = unpackUndoA &&
                 unpackUndoA.get() == source.get();
+            const bool childObjectPreservedByUnpackUndoKey = childObjectBeforeUnpack &&
+                service->findComposition(childId_).ptr.lock() == childObjectBeforeUnpack;
             const bool unpackUndoSamplePreserved = animationRestoredByUnpackUndo &&
                 std::abs(unpackUndoPosition->evaluateValue(RationalTime(
                     24, unpackUndoA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
@@ -802,6 +807,8 @@ public:
             const bool unpackRedoSamplePreserved = animationRestoredByUnpackRedo &&
                 std::abs(unpackRedoPosition->evaluateValue(RationalTime(
                     0, unpackRedoA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
+            const bool childObjectPreservedByUnpackRedoKey = childObjectBeforeUnpack &&
+                service->findComposition(childId_).ptr.lock() == childObjectBeforeUnpack;
 
             const bool passed = movedLayerIdentityPreserved && animationEnabledByKey &&
                 wrapperNegativeTimingPreservedByKey && managerRegisteredByKey &&
@@ -819,6 +826,7 @@ public:
                 negativeTimingRestoredByRedo &&
                 animationEnabledAfterRedo && redoSamplePreserved &&
                 animationRestoredByKeyboardUnpack && unpackLayerIdentityPreserved &&
+                childObjectPreservedByUnpackKey &&
                 wrapperRemovedByUnpack && managerUnregisteredByUnpack &&
                 sourceSelectedByUnpackKey &&
                 negativeTimingRestoredByUnpack &&
@@ -827,11 +835,13 @@ public:
                 wrapperIdentityRestoredByUnpackUndo && managerRegisteredByUnpackUndo &&
                 wrapperSelectedByUnpackUndoKey &&
                 animationEnabledAfterUnpackUndo &&
+                childObjectPreservedByUnpackUndoKey &&
                 negativeTimingRestoredByUnpackUndo && unpackUndoIdentityPreserved &&
                 unpackUndoSamplePreserved &&
                 animationRestoredByUnpackRedo && animationEnabledAfterUnpackRedo &&
                 wrapperRemovedByUnpackRedo && managerUnregisteredByUnpackRedo &&
                 sourceSelectedByUnpackRedoKey &&
+                childObjectPreservedByUnpackRedoKey &&
                 negativeTimingRestoredByUnpackRedo &&
                 unpackRedoIdentityPreserved &&
                 unpackRedoSamplePreserved;
@@ -866,6 +876,8 @@ public:
                                {"animationRestoredByKeyboardUnpack",
                                 animationRestoredByKeyboardUnpack},
                                {"unpackLayerIdentityPreserved", unpackLayerIdentityPreserved},
+                               {"childObjectPreservedByUnpackKey",
+                                childObjectPreservedByUnpackKey},
                                {"wrapperRemovedByUnpack", wrapperRemovedByUnpack},
                                {"managerUnregisteredByUnpack", managerUnregisteredByUnpack},
                                {"sourceSelectedByUnpackKey", sourceSelectedByUnpackKey},
@@ -874,6 +886,8 @@ public:
                                {"unpackSamplePreserved", unpackSamplePreserved},
                                {"animationRestoredByUnpackUndo", animationRestoredByUnpackUndo},
                                {"unpackUndoIdentityPreserved", unpackUndoIdentityPreserved},
+                               {"childObjectPreservedByUnpackUndoKey",
+                                childObjectPreservedByUnpackUndoKey},
                                {"wrapperNegativeTimingRestoredByUnpackUndo",
                                 wrapperNegativeTimingRestoredByUnpackUndo},
                                {"wrapperIdentityRestoredByUnpackUndo",
@@ -886,6 +900,8 @@ public:
                                {"unpackUndoSamplePreserved", unpackUndoSamplePreserved},
                                {"animationRestoredByUnpackRedo", animationRestoredByUnpackRedo},
                                {"unpackRedoIdentityPreserved", unpackRedoIdentityPreserved},
+                               {"childObjectPreservedByUnpackRedoKey",
+                                childObjectPreservedByUnpackRedoKey},
                                {"wrapperRemovedByUnpackRedo", wrapperRemovedByUnpackRedo},
                                {"managerUnregisteredByUnpackRedo", managerUnregisteredByUnpackRedo},
                                {"sourceSelectedByUnpackRedoKey", sourceSelectedByUnpackRedoKey},
