@@ -5,6 +5,7 @@
 #include <QVector3D>
 
 #include <algorithm>
+#include <cmath>
 #include <vector>
 
 import Geometry.ShapeExtrude;
@@ -100,4 +101,48 @@ TEST(ShapeExtrudeTest, RejectsInvalidInputWithoutReplacingOutputMesh)
     EXPECT_FALSE(extrudeContourMesh({rectangleContour()}, invalidParams, mesh));
     EXPECT_EQ(mesh.vertexCount(), vertexCount);
     EXPECT_EQ(mesh.polygonCount(), polygonCount);
+}
+
+TEST(ShapeExtrudeTest, KeepsCapOpenAcrossTheEntireInnerContour)
+{
+    const std::vector<QPointF> innerContour = {
+        {8.0, 8.0}, {12.0, 8.0}, {12.0, 12.0}, {8.0, 12.0}};
+    Mesh mesh;
+    ShapeExtrudeParams params;
+    params.depth = 20.0f;
+    params.bevelWidth = 0.0f;
+    ASSERT_TRUE(extrudeContourMesh({rectangleContour(), innerContour}, params, mesh));
+
+    const Mesh::RenderData renderData = mesh.generateRenderData();
+    ASSERT_EQ(renderData.positions.size(), renderData.indices.size());
+
+    // The center of the hole must not be covered by any triangle on the front cap.
+    constexpr double testX = 10.0;
+    constexpr double testY = 10.0;
+    constexpr float frontZ = 10.0f;
+    bool coveredByFrontCap = false;
+    for (qsizetype i = 0; i + 2 < renderData.indices.size(); i += 3) {
+        const QVector3D& a = renderData.positions[static_cast<qsizetype>(renderData.indices[i])];
+        const QVector3D& b = renderData.positions[static_cast<qsizetype>(renderData.indices[i + 1])];
+        const QVector3D& c = renderData.positions[static_cast<qsizetype>(renderData.indices[i + 2])];
+        if (std::abs(a.z() - frontZ) > 1.0e-5f ||
+            std::abs(b.z() - frontZ) > 1.0e-5f ||
+            std::abs(c.z() - frontZ) > 1.0e-5f) {
+            continue;
+        }
+
+        const double denominator = (b.y() - c.y()) * (a.x() - c.x()) +
+                                   (c.x() - b.x()) * (a.y() - c.y());
+        if (std::abs(denominator) < 1.0e-9) continue;
+        const double u = ((b.y() - c.y()) * (testX - c.x()) +
+                          (c.x() - b.x()) * (testY - c.y())) / denominator;
+        const double v = ((c.y() - a.y()) * (testX - c.x()) +
+                          (a.x() - c.x()) * (testY - c.y())) / denominator;
+        const double w = 1.0 - u - v;
+        if (u >= 0.0 && v >= 0.0 && w >= 0.0) {
+            coveredByFrontCap = true;
+            break;
+        }
+    }
+    EXPECT_FALSE(coveredByFrontCap);
 }
