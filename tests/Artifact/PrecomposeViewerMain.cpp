@@ -3793,6 +3793,40 @@ public:
             wrapper->setCompositionId(outcome.childCompId);
             const bool fixtureRestored = wrapper->sourceCompositionId() == outcome.childCompId &&
                 service->findComposition(outcome.childCompId).ptr.lock() == child;
+            const CompositionID missingChildId(QStringLiteral("00000000-0000-0000-0000-000000000001"));
+            wrapper->setCompositionId(missingChildId);
+            const auto danglingReferenceState = state();
+            const auto compositionCountBeforeDanglingUnwrap =
+                ArtifactProjectManager::getInstance().compositionCount();
+            const auto undoCountBeforeDanglingUnwrap = undo->undoCount();
+            const auto redoCountBeforeDanglingUnwrap = undo->redoCount();
+            const bool danglingReferenceRejected =
+                !service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const auto danglingReferences = PreComposeManager::instance()
+                .getPrecompLayersForChild(outcome.childCompId);
+            const bool danglingManagerMappingPreserved =
+                PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId) &&
+                PreComposeManager::instance().getSourceCompositionId(outcome.precompLayerId) ==
+                    outcome.childCompId && danglingReferences.size() == 1 &&
+                danglingReferences.front().parentCompId == rootId &&
+                danglingReferences.front().precompLayerId == outcome.precompLayerId;
+            const bool danglingOutcomeCleared = service->lastUnprecomposePrecompLayerId().isNil() &&
+                service->lastUnprecomposeChildCompId().isNil() &&
+                service->lastUnprecomposeMovedLayerIds().isEmpty();
+            const bool danglingReferenceStatePreserved = danglingReferenceRejected &&
+                state() == danglingReferenceState &&
+                ArtifactProjectManager::getInstance().compositionCount() ==
+                    compositionCountBeforeDanglingUnwrap &&
+                undo->undoCount() == undoCountBeforeDanglingUnwrap &&
+                undo->redoCount() == redoCountBeforeDanglingUnwrap &&
+                service->findComposition(outcome.childCompId).ptr.lock() == child &&
+                !service->findComposition(missingChildId).ptr.lock() &&
+                root->layerById(outcome.precompLayerId).get() == wrapper.get() &&
+                wrapper->sourceCompositionId() == missingChildId &&
+                danglingManagerMappingPreserved && danglingOutcomeCleared;
+            wrapper->setCompositionId(outcome.childCompId);
+            const bool danglingFixtureRestored = wrapper->sourceCompositionId() == outcome.childCompId &&
+                service->findComposition(outcome.childCompId).ptr.lock() == child;
             service->changeCurrentComposition(rootId);
             missingResult["unwrapRejected"] = rejected;
             missingResult["parentStatePreserved"] = parentStatePreserved;
@@ -3801,8 +3835,16 @@ public:
             missingResult["undoHistoryPreserved"] = undoHistoryPreserved;
             missingResult["outcomeCleared"] = outcomeCleared;
             missingResult["fixtureRestored"] = fixtureRestored;
+            missingResult["danglingReferenceRejected"] = danglingReferenceRejected;
+            missingResult["danglingManagerMappingPreserved"] = danglingManagerMappingPreserved;
+            missingResult["danglingOutcomeCleared"] = danglingOutcomeCleared;
+            missingResult["danglingReferenceStatePreserved"] = danglingReferenceStatePreserved;
+            missingResult["danglingFixtureRestored"] = danglingFixtureRestored;
             missingResult["passed"] = rejected && parentStatePreserved && compositionPreserved &&
-                wrapperPreserved && undoHistoryPreserved && outcomeCleared && fixtureRestored;
+                wrapperPreserved && undoHistoryPreserved && outcomeCleared && fixtureRestored &&
+                danglingReferenceRejected && danglingManagerMappingPreserved &&
+                danglingOutcomeCleared && danglingReferenceStatePreserved &&
+                danglingFixtureRestored;
             if (!missingResult["passed"].toBool())
                 missingResult["error"] = QStringLiteral("Unprecompose mutated a broken child reference or failed to restore the fixture");
             refresh();
