@@ -3536,6 +3536,10 @@ public:
             propertyB->addKeyFrame(keyB0, 4.0, InterpolationType::Smooth);
             propertyB->addKeyFrame(keyB1, 8.0, InterpolationType::Linear);
             const auto originalKeysB = keyframes(propertyB);
+            const double originalSampleA = propertyA->evaluateValue(
+                RationalTime(0, scaleA)).toDouble();
+            const double originalSampleB = propertyB->evaluateValue(
+                RationalTime(40, scaleB)).toDouble();
             const auto hasTiming = [](const ArtifactAbstractLayerPtr& layer,
                                       int64_t inFrame, int64_t outFrame, int64_t startFrame) {
                 return layer && layer->inPoint().framePosition() == inFrame &&
@@ -3570,6 +3574,11 @@ public:
                 movedKeysA[1].toObject()["value"].toDouble() == -1.25 &&
                 movedKeysB[0].toObject()["value"].toDouble() == 4.0 &&
                 movedKeysB[1].toObject()["value"].toDouble() == 8.0;
+            const bool childSamplesPreserved = childPropertyA && childPropertyB &&
+                std::abs(childPropertyA->evaluateValue(RationalTime(
+                    24, childA->keyframeTimeScale())).toDouble() - originalSampleA) < 1.0e-6 &&
+                std::abs(childPropertyB->evaluateValue(RationalTime(
+                    64, childB->keyframeTimeScale())).toDouble() - originalSampleB) < 1.0e-6;
             const bool unpacked = precomposed && service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
             const auto restored = service->currentComposition().lock();
             const auto restoredA = restored ? restored->layerById(idsA.front()) : ArtifactAbstractLayerPtr{};
@@ -3581,14 +3590,30 @@ public:
             const bool unpackRestored = unpacked && hasTiming(restoredA, -24, 136, -17) &&
                 hasTiming(restoredB, 12, 96, 5) && restoredPropertyA && restoredPropertyB &&
                 keyframes(restoredPropertyA) == originalKeysA && keyframes(restoredPropertyB) == originalKeysB;
+            const bool unpackSamplesPreserved = unpacked && restoredPropertyA && restoredPropertyB &&
+                std::abs(restoredPropertyA->evaluateValue(RationalTime(
+                    0, restoredA->keyframeTimeScale())).toDouble() - originalSampleA) < 1.0e-6 &&
+                std::abs(restoredPropertyB->evaluateValue(RationalTime(
+                    40, restoredB->keyframeTimeScale())).toDouble() - originalSampleB) < 1.0e-6;
             const bool undoAvailable = undo->canUndo();
             if (undoAvailable) undo->undo();
             const auto undoChild = service->findComposition(outcome.childCompId).ptr.lock();
             const auto undoA = undoChild ? undoChild->layerById(idsA.front()) : ArtifactAbstractLayerPtr{};
             const auto undoB = undoChild ? undoChild->layerById(idsB.front()) : ArtifactAbstractLayerPtr{};
+            const auto undoPropertyA = undoA
+                ? undoA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const auto undoPropertyB = undoB
+                ? undoB->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
             const bool undoRestored = undoAvailable && undoChild &&
                 PreComposeManager::instance().isPrecomposeLayer(outcome.precompLayerId) &&
                 hasTiming(undoA, 0, 160, 7) && hasTiming(undoB, 36, 120, 29);
+            const bool undoSamplesPreserved = undoRestored && undoPropertyA && undoPropertyB &&
+                std::abs(undoPropertyA->evaluateValue(RationalTime(
+                    24, undoA->keyframeTimeScale())).toDouble() - originalSampleA) < 1.0e-6 &&
+                std::abs(undoPropertyB->evaluateValue(RationalTime(
+                    64, undoB->keyframeTimeScale())).toDouble() - originalSampleB) < 1.0e-6;
             const bool redoAvailable = undo->canRedo();
             if (redoAvailable) undo->redo();
             const auto redoParent = service->currentComposition().lock();
@@ -3602,13 +3627,23 @@ public:
                 hasTiming(redoA, -24, 136, -17) && hasTiming(redoB, 12, 96, 5) &&
                 redoPropertyA && redoPropertyB && keyframes(redoPropertyA) == originalKeysA &&
                 keyframes(redoPropertyB) == originalKeysB;
+            const bool redoSamplesPreserved = redoRestored &&
+                std::abs(redoPropertyA->evaluateValue(RationalTime(
+                    0, redoA->keyframeTimeScale())).toDouble() - originalSampleA) < 1.0e-6 &&
+                std::abs(redoPropertyB->evaluateValue(RationalTime(
+                    40, redoB->keyframeTimeScale())).toDouble() - originalSampleB) < 1.0e-6;
             timingResult["childTimingNormalized"] = childTimingNormalized;
             timingResult["childKeysShifted"] = childKeysShifted;
+            timingResult["childSamplesPreserved"] = childSamplesPreserved;
             timingResult["unpackRestored"] = unpackRestored;
+            timingResult["unpackSamplesPreserved"] = unpackSamplesPreserved;
             timingResult["undoRestored"] = undoRestored;
+            timingResult["undoSamplesPreserved"] = undoSamplesPreserved;
             timingResult["redoRestored"] = redoRestored;
-            timingResult["passed"] = childTimingNormalized && childKeysShifted && unpackRestored &&
-                undoRestored && redoRestored;
+            timingResult["redoSamplesPreserved"] = redoSamplesPreserved;
+            timingResult["passed"] = childTimingNormalized && childKeysShifted &&
+                childSamplesPreserved && unpackRestored && unpackSamplesPreserved &&
+                undoRestored && undoSamplesPreserved && redoRestored && redoSamplesPreserved;
             if (!timingResult["passed"].toBool())
                 timingResult["error"] = QStringLiteral("Negative timing or key offsets changed across precompose/unprecompose/undo/redo");
             childId_ = outcome.childCompId;

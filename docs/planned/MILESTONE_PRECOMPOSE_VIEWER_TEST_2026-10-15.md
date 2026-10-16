@@ -5,6 +5,8 @@
 
 `test.saveReload`は保存後に再読込した子レイヤーをそのまま解除し、エフェクト・アニメーション付きマスク・マット参照・コンポーネントdescriptorが親へ移ること、親Compositionのエフェクトが子レイヤーへ混入せず親に残ること、Undoで子とwrapperへ戻り、Redoで同じ状態を再適用することも検査する。
 
+`test.negativeTimingRoundTrip`は負のIn点と負時刻キーを含むpositionカーブを−24 frame正規化し、負／正キー間の中間評価値が親時刻と子時刻で一致して、解除・Undo/Redoでも保たれることを確認する。
+
 `test.nonContiguousSelectionOrder`はAとUntouchedを選ぶ非連続移動で、異なるフレームにあるposition／opacityキーを選択範囲の最小In点に合わせて補正し、子側の中間評価値と解除・Undo/Redo後のキー／評価値が一致することも確認する。
 
 `test.animatedTiming`は30000/1001 fpsのCompositionで30 ticks/secのキー時刻を使い、選択移動・全移動それぞれで子Compositionの正確なfpsとキーフレームtime scaleが保たれることも確認する。選択移動では40フレームのローカル時刻補正後、Bezier／Smoothを含む位置・回転・scale・anchor・opacityのキーと、opacityを除くTransform3D snapshotが元Compositionの対応時刻と一致することを、解除・Undo/Redoまで確認する。全移動は時刻を変えず、解除・Undo/Redo後のキーと評価値も照合する。

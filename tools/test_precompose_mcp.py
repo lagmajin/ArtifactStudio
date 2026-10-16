@@ -206,9 +206,15 @@ def main():
             call("test.reset")
             negative_timing = call("test.negativeTimingRoundTrip")
             require(negative_timing["passed"] and negative_timing["childTimingNormalized"]
-                    and negative_timing["childKeysShifted"] and negative_timing["unpackRestored"]
-                    and negative_timing["undoRestored"] and negative_timing["redoRestored"],
-                    "Negative frame timing or key offsets changed across precompose/unprecompose/undo/redo")
+                    and negative_timing["childKeysShifted"]
+                    and negative_timing["childSamplesPreserved"]
+                    and negative_timing["unpackRestored"]
+                    and negative_timing["unpackSamplesPreserved"]
+                    and negative_timing["undoRestored"]
+                    and negative_timing["undoSamplesPreserved"]
+                    and negative_timing["redoRestored"]
+                    and negative_timing["redoSamplesPreserved"],
+                    "Negative frame timing or evaluated animation changed across precompose/unprecompose/undo/redo")
             call("test.reset")
             rational_rate = call("test.rationalFrameRatePreserved")
             require(rational_rate["passed"] and rational_rate["selectedRatePreserved"]
