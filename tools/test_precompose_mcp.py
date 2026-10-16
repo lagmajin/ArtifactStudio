@@ -209,6 +209,20 @@ def validate_png_contract():
                   + make_png_chunk(b"IEND", b""))
     if validate_png(varied_png, require_visual_content=True) != (16, 1):
         raise AssertionError("PNG visual-content check rejected varied pixels")
+    mixed_filter_rows = (
+        b"\x00" + bytes([10, 20, 30, 40]),
+        b"\x01" + bytes([11, 1, 1, 1]),
+        b"\x02" + bytes([1, 10, 19, 28]),
+        b"\x03" + bytes([7, 6, 6, 6]),
+        b"\x04" + bytes([1, 1, 1, 1]),
+    )
+    mixed_filter_png = (
+        signature
+        + make_png_chunk(b"IHDR", struct.pack(">IIBBBBB", 4, 5, 8, 0, 0, 0, 0))
+        + make_png_chunk(b"IDAT", zlib.compress(b"".join(mixed_filter_rows)))
+        + make_png_chunk(b"IEND", b""))
+    if validate_png(mixed_filter_png, require_visual_content=True) != (4, 5):
+        raise AssertionError("PNG visual-content check rejected pixels using all row filters")
     uniform_filtered_rows = (
         b"\x00" + bytes([64] * 4),
         b"\x01" + bytes([64, 0, 0, 0]),
