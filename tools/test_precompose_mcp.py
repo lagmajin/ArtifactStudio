@@ -492,19 +492,28 @@ def main():
             duration_propagation = call("test.childDurationPropagates")
             require(duration_propagation["passed"] and duration_propagation["shrinkFollowed"]
                     and duration_propagation["expansionFollowed"]
+                    and duration_propagation["workAreaClippedOnShrink"]
+                    and duration_propagation["workAreaRetainedOnExpansion"]
                     and duration_propagation["activeChildStayed"]
                     and duration_propagation["parentReferencePreserved"],
                     "Active child duration shrink/expansion did not propagate while keeping child focus")
             call("test.reset")
             parent_duration = call("test.parentDurationPropagatesToChild")
             require(parent_duration["passed"] and parent_duration["firstShrinkFollowed"]
-                    and parent_duration["secondShrinkFollowed"] and parent_duration["expansionFollowed"],
+                    and parent_duration["firstWorkAreaFollowed"]
+                    and parent_duration["secondShrinkFollowed"]
+                    and parent_duration["secondWorkAreaFollowed"]
+                    and parent_duration["expansionFollowed"]
+                    and parent_duration["expansionWorkAreaRetained"],
                     "Parent duration shrink/expansion did not propagate to its child composition")
             call("test.reset")
             shared_duration = call("test.sharedChildDurationPropagates")
             require(shared_duration["passed"] and shared_duration["bothParentsRegistered"]
                     and shared_duration["shrinkFollowed"] and shared_duration["expansionFollowed"]
+                    and shared_duration["workAreaClippedOnShrink"]
+                    and shared_duration["workAreaRetainedOnExpansion"]
                     and shared_duration["saveReloadRestored"]
+                    and shared_duration["saveReloadWorkAreaRestored"]
                     and shared_duration["firstParentDeleted"]
                     and shared_duration["sharedChildSurvivedDelete"]
                     and shared_duration["deleteUndoRestored"]
@@ -518,8 +527,12 @@ def main():
             same_parent_duration = call("test.sharedParentDurationPropagates")
             require(same_parent_duration["passed"] and same_parent_duration["sameParentRegistered"]
                     and same_parent_duration["shrinkFollowed"]
+                    and same_parent_duration["workAreaClippedOnShrink"]
+                    and same_parent_duration["shrinkWorkAreaPreserved"]
                     and same_parent_duration["shrinkPreservedReferences"]
                     and same_parent_duration["expansionFollowed"]
+                    and same_parent_duration["workAreaRetainedOnExpansion"]
+                    and same_parent_duration["expansionWorkAreaPreserved"]
                     and same_parent_duration["expansionPreservedReferences"],
                     "Shared child duration shrink/expansion did not update both wrappers in one parent")
             call("test.reset")

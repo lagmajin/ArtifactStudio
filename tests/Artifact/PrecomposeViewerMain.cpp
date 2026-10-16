@@ -2529,6 +2529,8 @@ public:
             child->setFrameRange(FrameRange(0, 90));
             const int64_t shortenedOut = wrapper->outPoint().framePosition();
             const auto activeAfterShrink = service->currentComposition().lock();
+            const bool workAreaClippedOnShrink = child->workAreaRange().start() == 0 &&
+                child->workAreaRange().duration() == 90;
             const bool shrinkFollowed = shortenedOut == 130 &&
                 wrapper->inPoint().framePosition() == 40 &&
                 wrapper->startTime().framePosition() == 40 &&
@@ -2536,6 +2538,8 @@ public:
             child->setFrameRange(FrameRange(0, 240));
             const int64_t expandedOut = wrapper->outPoint().framePosition();
             const auto activeAfterExpansion = service->currentComposition().lock();
+            const bool workAreaRetainedOnExpansion = child->workAreaRange().start() == 0 &&
+                child->workAreaRange().duration() == 90;
             const bool expansionFollowed = expandedOut == 280 &&
                 wrapper->inPoint().framePosition() == 40 &&
                 wrapper->startTime().framePosition() == 40 &&
@@ -2551,10 +2555,13 @@ public:
             result["shortenedChildOut"] = shortenedOut;
             result["expandedChildOut"] = expandedOut;
             result["shrinkFollowed"] = shrinkFollowed;
+            result["workAreaClippedOnShrink"] = workAreaClippedOnShrink;
             result["expansionFollowed"] = expansionFollowed;
+            result["workAreaRetainedOnExpansion"] = workAreaRetainedOnExpansion;
             result["activeChildStayed"] = activeChildStayed;
             result["parentReferencePreserved"] = parentReferencePreserved;
-            result["passed"] = shrinkFollowed && expansionFollowed && activeChildStayed &&
+            result["passed"] = shrinkFollowed && workAreaClippedOnShrink &&
+                expansionFollowed && workAreaRetainedOnExpansion && activeChildStayed &&
                 parentReferencePreserved;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Child duration change did not update the parent window from its fixed in point");
@@ -2588,26 +2595,41 @@ public:
                 return result;
             }
             root->setFrameRange(FrameRange(0, 180));
+            const bool firstWorkAreaFollowed = root->workAreaRange().start() == 0 &&
+                root->workAreaRange().duration() == 180 &&
+                child->workAreaRange().start() == 0 && child->workAreaRange().duration() == 180;
             const bool firstShrinkFollowed = root->frameRange().duration() == 180 &&
                 child->frameRange().duration() == 180 &&
+                firstWorkAreaFollowed &&
                 wrapper->inPoint().framePosition() == 40 &&
                 wrapper->startTime().framePosition() == 40 &&
                 wrapper->outPoint().framePosition() == 220;
             root->setFrameRange(FrameRange(0, 75));
+            const bool secondWorkAreaFollowed = root->workAreaRange().start() == 0 &&
+                root->workAreaRange().duration() == 75 &&
+                child->workAreaRange().start() == 0 && child->workAreaRange().duration() == 75;
             const bool secondShrinkFollowed = root->frameRange().duration() == 75 &&
                 child->frameRange().duration() == 75 &&
+                secondWorkAreaFollowed &&
                 wrapper->inPoint().framePosition() == 40 &&
                 wrapper->startTime().framePosition() == 40 &&
                 wrapper->outPoint().framePosition() == 115;
             root->setFrameRange(FrameRange(0, 360));
+            const bool expansionWorkAreaRetained = root->workAreaRange().start() == 0 &&
+                root->workAreaRange().duration() == 75 &&
+                child->workAreaRange().start() == 0 && child->workAreaRange().duration() == 75;
             const bool expansionFollowed = root->frameRange().duration() == 360 &&
                 child->frameRange().duration() == 360 &&
+                expansionWorkAreaRetained &&
                 wrapper->inPoint().framePosition() == 40 &&
                 wrapper->startTime().framePosition() == 40 &&
                 wrapper->outPoint().framePosition() == 400;
             result["firstShrinkFollowed"] = firstShrinkFollowed;
+            result["firstWorkAreaFollowed"] = firstWorkAreaFollowed;
             result["secondShrinkFollowed"] = secondShrinkFollowed;
+            result["secondWorkAreaFollowed"] = secondWorkAreaFollowed;
             result["expansionFollowed"] = expansionFollowed;
+            result["expansionWorkAreaRetained"] = expansionWorkAreaRetained;
             result["passed"] = firstShrinkFollowed && secondShrinkFollowed && expansionFollowed;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Parent duration changes did not propagate to the child and its wrapper");
@@ -2670,6 +2692,8 @@ public:
                         reference.precompLayerId == secondWrapper->id();
                 });
             child->setFrameRange(FrameRange(0, 90));
+            const bool workAreaClippedOnShrink = child->workAreaRange().start() == 0 &&
+                child->workAreaRange().duration() == 90;
             const bool shrinkFollowed = firstWrapper->outPoint().framePosition() == 130 &&
                 secondWrapper->outPoint().framePosition() == 90 &&
                 firstWrapper->inPoint().framePosition() == 40 &&
@@ -2677,6 +2701,8 @@ public:
                 firstWrapper->startTime().framePosition() == 40 &&
                 secondWrapper->startTime().framePosition() == 0;
             child->setFrameRange(FrameRange(0, 240));
+            const bool workAreaRetainedOnExpansion = child->workAreaRange().start() == 0 &&
+                child->workAreaRange().duration() == 90;
             const bool expansionFollowed = firstWrapper->outPoint().framePosition() == 280 &&
                 secondWrapper->outPoint().framePosition() == 240 &&
                 firstWrapper->inPoint().framePosition() == 40 &&
@@ -2719,9 +2745,14 @@ public:
                     return reference.parentCompId == parentId && reference.precompLayerId == wrapperId;
                 });
             };
+            const bool saveReloadWorkAreaRestored = reloadedChild &&
+                reloadedChild->workAreaRange().start() == 0 &&
+                reloadedChild->workAreaRange().duration() == 90;
             const bool saveReloadRestored = save.success && mappingsCleared && loaded &&
                 reloadedRoot && reloadedSecondParent && reloadedChild &&
-                reloadedChild->frameRange().duration() == 240 && restoredReferences.size() == 2 &&
+                reloadedChild->frameRange().duration() == 240 &&
+                saveReloadWorkAreaRestored &&
+                restoredReferences.size() == 2 &&
                 hasRestoredReference(rootId, firstWrapperId) &&
                 hasRestoredReference(secondParentId, secondWrapperId) &&
                 reloadedFirstWrapper && reloadedSecondWrapper &&
@@ -2794,11 +2825,14 @@ public:
                 reloadedChild->layerById(sourceIds.front()) && reloadedChild->layerById(sourceIds.back());
             result["bothParentsRegistered"] = bothParentsRegistered;
             result["shrinkFollowed"] = shrinkFollowed;
+            result["workAreaClippedOnShrink"] = workAreaClippedOnShrink;
             result["expansionFollowed"] = expansionFollowed;
+            result["workAreaRetainedOnExpansion"] = workAreaRetainedOnExpansion;
             result["saveSucceeded"] = save.success;
             result["mappingsClearedBeforeReload"] = mappingsCleared;
             result["loaded"] = loaded;
             result["saveReloadRestored"] = saveReloadRestored;
+            result["saveReloadWorkAreaRestored"] = saveReloadWorkAreaRestored;
             result["firstParentDeleted"] = firstParentDeleted;
             result["sharedChildSurvivedDelete"] = sharedChildSurvivedDelete;
             result["deleteUndoRestored"] = deleteUndoRestored;
@@ -2807,7 +2841,8 @@ public:
             result["otherParentReferencePreserved"] = otherParentReferencePreserved;
             result["firstUnpackUndoRestored"] = firstUnpackUndoRestored;
             result["firstUnpackRedoRestored"] = firstUnpackRedoRestored;
-            result["passed"] = bothParentsRegistered && shrinkFollowed && expansionFollowed &&
+            result["passed"] = bothParentsRegistered && shrinkFollowed &&
+                workAreaClippedOnShrink && expansionFollowed && workAreaRetainedOnExpansion &&
                 saveReloadRestored && otherParentReferencePreserved && firstUnpackUndoRestored &&
                 firstUnpackRedoRestored && sharedChildSurvivedDelete && deleteUndoRestored &&
                 deleteRedoRestored;
@@ -2884,6 +2919,8 @@ public:
                     root->layerById(secondWrapperId).get() == secondWrapper.get();
             };
             child->setFrameRange(FrameRange(0, 90));
+            const bool workAreaClippedOnShrink = child->workAreaRange().start() == 0 &&
+                child->workAreaRange().duration() == 90;
             const bool shrinkFollowed = firstWrapper->inPoint().framePosition() == 40 &&
                 firstWrapper->startTime().framePosition() == 40 &&
                 firstWrapper->outPoint().framePosition() == 130 &&
@@ -2891,7 +2928,10 @@ public:
                 secondWrapper->startTime().framePosition() == 0 &&
                 secondWrapper->outPoint().framePosition() == 90;
             const bool shrinkPreservedReferences = shrinkFollowed && sharedReferencesStable();
+            const bool shrinkWorkAreaPreserved = shrinkFollowed && workAreaClippedOnShrink;
             child->setFrameRange(FrameRange(0, 240));
+            const bool workAreaRetainedOnExpansion = child->workAreaRange().start() == 0 &&
+                child->workAreaRange().duration() == 90;
             const bool expansionFollowed = firstWrapper->inPoint().framePosition() == 40 &&
                 firstWrapper->startTime().framePosition() == 40 &&
                 firstWrapper->outPoint().framePosition() == 280 &&
@@ -2899,13 +2939,20 @@ public:
                 secondWrapper->startTime().framePosition() == 0 &&
                 secondWrapper->outPoint().framePosition() == 240;
             const bool expansionPreservedReferences = expansionFollowed && sharedReferencesStable();
+            const bool expansionWorkAreaPreserved = expansionFollowed &&
+                workAreaRetainedOnExpansion;
             result["sameParentRegistered"] = sameParentRegistered;
             result["shrinkFollowed"] = shrinkFollowed;
+            result["workAreaClippedOnShrink"] = workAreaClippedOnShrink;
+            result["shrinkWorkAreaPreserved"] = shrinkWorkAreaPreserved;
             result["shrinkPreservedReferences"] = shrinkPreservedReferences;
             result["expansionFollowed"] = expansionFollowed;
+            result["workAreaRetainedOnExpansion"] = workAreaRetainedOnExpansion;
+            result["expansionWorkAreaPreserved"] = expansionWorkAreaPreserved;
             result["expansionPreservedReferences"] = expansionPreservedReferences;
             result["passed"] = sameParentRegistered && shrinkPreservedReferences &&
-                expansionPreservedReferences;
+                expansionPreservedReferences && shrinkWorkAreaPreserved &&
+                expansionWorkAreaPreserved;
             if (!result["passed"].toBool())
                 result["error"] = QStringLiteral("Shared child duration changes did not update every wrapper in one parent");
             childId_ = first.childCompId;
