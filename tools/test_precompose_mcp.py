@@ -107,6 +107,13 @@ def main():
                 layer = layer_map(initial)[name]
                 require((layer["inFrame"], layer["outFrame"], layer["startFrame"]) ==
                         (in_frame, out_frame, start_frame), f"Unexpected fixture timing for {name}")
+            stale_selection = call("test.precomposeIgnoresStaleSelectionId")
+            require(stale_selection["passed"] and stale_selection["staleIdWasNonNil"]
+                    and stale_selection["movedOnlyExistingSelection"]
+                    and stale_selection["undoRestoredOriginal"]
+                    and stale_selection["redoRestoredOnlyExistingSelection"],
+                    "Precompose did not ignore a stale non-nil selection ID consistently")
+            call("test.reset")
             cycle = call("test.cycleRejected")
             require(cycle["passed"] and cycle["cycleRejected"] and cycle["stateUnchanged"]
                     and cycle["selectionPreserved"] and cycle["fixtureCleaned"],
