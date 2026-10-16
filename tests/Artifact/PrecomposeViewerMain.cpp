@@ -3405,16 +3405,64 @@ public:
                     rate.denominator() == 1001;
             };
             const auto sourceIds = namedLayerIds(parent, {QStringLiteral("A"), QStringLiteral("B")});
+            const auto sourceA = sourceIds.size() == 2
+                ? parent->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
+            const auto sourcePosition = sourceA
+                ? sourceA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            if (!sourcePosition || sourceA->keyframeTimeScale() != 30) {
+                rateResult["error"] = QStringLiteral("Rational-rate animation property or storage scale is unavailable");
+                return rateResult;
+            }
+            sourcePosition->clearKeyFrames();
+            sourcePosition->setAnimatable(true);
+            sourcePosition->addKeyFrame(RationalTime(40, sourceA->keyframeTimeScale()), 3.5,
+                                        InterpolationType::Bezier);
+            sourcePosition->addKeyFrame(RationalTime(100, sourceA->keyframeTimeScale()), 12.5,
+                                        InterpolationType::Constant);
+            const auto originalAnimationKeys = keyframes(sourcePosition);
+            const double originalAnimationSample = sourcePosition->evaluateValue(
+                RationalTime(70, sourceA->keyframeTimeScale())).toDouble();
+            const auto animationKeysMatch = [](const SharedPtr<AbstractProperty>& property,
+                                               const QJsonArray& expected,
+                                               int64_t frameOffset) {
+                if (!property) return false;
+                const auto actual = keyframes(property);
+                if (actual.size() != expected.size()) return false;
+                for (qsizetype index = 0; index < actual.size(); ++index) {
+                    auto expectedKey = expected[index].toObject();
+                    expectedKey["timeValue"] = expectedKey["timeValue"].toInt() +
+                        static_cast<int>(frameOffset);
+                    if (actual[index].toObject() != expectedKey) return false;
+                }
+                return true;
+            };
+            const auto animationSampleMatches = [&](const SharedPtr<AbstractProperty>& property,
+                                                    int frame, int64_t scale) {
+                return property && std::abs(property->evaluateValue(
+                    RationalTime(frame, scale)).toDouble() - originalAnimationSample) < 1.0e-6;
+            };
             const bool selectedPrecomposed = sourceIds.size() == 2 && hasExactRate(parent->frameRate()) &&
                 service->precomposeLayersWithUndo(
                     sourceIds, UniString(QStringLiteral("Rational Selected Rate")), false, false,
                     PrecomposeMode::MoveSelected);
             const auto selectedOutcome = service->lastPrecomposeOutcome();
             const auto selectedChild = service->findComposition(selectedOutcome.childCompId).ptr.lock();
+            const auto selectedChildA = selectedChild
+                ? selectedChild->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
+            const auto selectedChildPosition = selectedChildA
+                ? selectedChildA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
             const auto selectedRatePreserved = selectedPrecomposed && selectedChild &&
                 hasExactRate(selectedChild->frameRate());
+            const bool selectedAnimationPreserved = selectedRatePreserved && selectedChildA &&
+                selectedChildA->keyframeTimeScale() == 30 &&
+                animationKeysMatch(selectedChildPosition, originalAnimationKeys, -40) &&
+                animationSampleMatches(selectedChildPosition, 30, selectedChildA->keyframeTimeScale());
             bool roundTripRatePreserved = false;
+            bool roundTripAnimationPreserved = false;
             bool selectedUnpacked = false;
+            bool selectedUnpackedAnimationPreserved = false;
             QTemporaryDir tempDir;
             if (selectedRatePreserved && tempDir.isValid()) {
                 auto& projects = ArtifactProjectManager::getInstance();
@@ -3433,6 +3481,11 @@ public:
                 const auto reloadedChild = loaded
                     ? service->findComposition(selectedOutcome.childCompId).ptr.lock()
                     : ArtifactCompositionPtr{};
+                const auto reloadedChildA = reloadedChild
+                    ? reloadedChild->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
+                const auto reloadedChildPosition = reloadedChildA
+                    ? reloadedChildA->getProperty(QStringLiteral("transform.position.x"))
+                    : SharedPtr<AbstractProperty>{};
                 bool mappingRestored = false;
                 for (const auto& reference : PreComposeManager::instance().getPrecompLayersForChild(
                          selectedOutcome.childCompId)) {
@@ -3447,8 +3500,20 @@ public:
                 roundTripRatePreserved = save.success && mappingCleared && loaded && parent &&
                     hasExactRate(parent->frameRate()) && reloadedChild &&
                     hasExactRate(reloadedChild->frameRate()) && mappingRestored && reloadedWrapper;
+                roundTripAnimationPreserved = roundTripRatePreserved && reloadedChildA &&
+                    reloadedChildA->keyframeTimeScale() == 30 &&
+                    animationKeysMatch(reloadedChildPosition, originalAnimationKeys, -40) &&
+                    animationSampleMatches(reloadedChildPosition, 30,
+                                           reloadedChildA->keyframeTimeScale());
                 selectedUnpacked = roundTripRatePreserved &&
                     service->unprecomposeLayerWithUndo(selectedOutcome.precompLayerId, true);
+                const auto unpackedA = parent ? parent->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
+                const auto unpackedPosition = unpackedA
+                    ? unpackedA->getProperty(QStringLiteral("transform.position.x"))
+                    : SharedPtr<AbstractProperty>{};
+                selectedUnpackedAnimationPreserved = selectedUnpacked && unpackedA &&
+                    animationKeysMatch(unpackedPosition, originalAnimationKeys, 0) &&
+                    animationSampleMatches(unpackedPosition, 70, unpackedA->keyframeTimeScale());
             }
             const bool parentRateAfterSelected = parent && hasExactRate(parent->frameRate());
             QVector<LayerID> allIds;
@@ -3460,30 +3525,70 @@ public:
                     PrecomposeMode::MoveAllAttributes);
             const auto allOutcome = service->lastPrecomposeOutcome();
             const auto allChild = service->findComposition(allOutcome.childCompId).ptr.lock();
+            const auto allChildA = allChild
+                ? allChild->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
+            const auto allChildPosition = allChildA
+                ? allChildA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
             const bool allRatePreserved = allPrecomposed && allChild &&
                 hasExactRate(allChild->frameRate());
+            const bool allAnimationPreserved = allRatePreserved && allChildA &&
+                allChildA->keyframeTimeScale() == 30 &&
+                animationKeysMatch(allChildPosition, originalAnimationKeys, 0) &&
+                animationSampleMatches(allChildPosition, 70, allChildA->keyframeTimeScale());
             const bool allUnpacked = allPrecomposed &&
                 service->unprecomposeLayerWithUndo(allOutcome.precompLayerId, true);
+            const auto allUnpackedA = parent ? parent->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
+            const auto allUnpackedPosition = allUnpackedA
+                ? allUnpackedA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
+            const bool allUnpackedAnimationPreserved = allUnpacked && allUnpackedA &&
+                animationKeysMatch(allUnpackedPosition, originalAnimationKeys, 0) &&
+                animationSampleMatches(allUnpackedPosition, 70, allUnpackedA->keyframeTimeScale());
             const bool undoAvailable = allUnpacked && undo->canUndo();
             if (undoAvailable) undo->undo();
             const auto undoChild = service->findComposition(allOutcome.childCompId).ptr.lock();
+            const auto undoChildA = undoChild
+                ? undoChild->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
+            const auto undoChildPosition = undoChildA
+                ? undoChildA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
             const bool undoRatePreserved = undoAvailable && parent && undoChild &&
                 hasExactRate(parent->frameRate()) && hasExactRate(undoChild->frameRate()) &&
                 PreComposeManager::instance().isPrecomposeLayer(allOutcome.precompLayerId);
+            const bool undoAnimationPreserved = undoRatePreserved && undoChildA &&
+                animationKeysMatch(undoChildPosition, originalAnimationKeys, 0) &&
+                animationSampleMatches(undoChildPosition, 70, undoChildA->keyframeTimeScale());
             const bool redoAvailable = undoAvailable && undo->canRedo();
             if (redoAvailable) undo->redo();
+            const auto redoA = parent ? parent->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
+            const auto redoPosition = redoA
+                ? redoA->getProperty(QStringLiteral("transform.position.x"))
+                : SharedPtr<AbstractProperty>{};
             const bool redoRestored = redoAvailable && parent && hasExactRate(parent->frameRate()) &&
                 !PreComposeManager::instance().isPrecomposeLayer(allOutcome.precompLayerId);
+            const bool redoAnimationPreserved = redoRestored && redoA &&
+                animationKeysMatch(redoPosition, originalAnimationKeys, 0) &&
+                animationSampleMatches(redoPosition, 70, redoA->keyframeTimeScale());
             rateResult["selectedRatePreserved"] = selectedRatePreserved;
+            rateResult["selectedAnimationPreserved"] = selectedAnimationPreserved;
             rateResult["roundTripRatePreserved"] = roundTripRatePreserved;
+            rateResult["roundTripAnimationPreserved"] = roundTripAnimationPreserved;
+            rateResult["selectedUnpackedAnimationPreserved"] = selectedUnpackedAnimationPreserved;
             rateResult["parentRateAfterSelected"] = parentRateAfterSelected;
             rateResult["allRatePreserved"] = allRatePreserved;
+            rateResult["allAnimationPreserved"] = allAnimationPreserved;
             rateResult["allUnpacked"] = allUnpacked;
+            rateResult["allUnpackedAnimationPreserved"] = allUnpackedAnimationPreserved;
             rateResult["undoRatePreserved"] = undoRatePreserved;
+            rateResult["undoAnimationPreserved"] = undoAnimationPreserved;
             rateResult["redoRestored"] = redoRestored;
+            rateResult["redoAnimationPreserved"] = redoAnimationPreserved;
             rateResult["passed"] = selectedRatePreserved && roundTripRatePreserved && selectedUnpacked &&
-                parentRateAfterSelected && allRatePreserved && allUnpacked &&
-                undoRatePreserved && redoRestored;
+                selectedAnimationPreserved && roundTripAnimationPreserved &&
+                selectedUnpackedAnimationPreserved && parentRateAfterSelected && allRatePreserved &&
+                allAnimationPreserved && allUnpacked && allUnpackedAnimationPreserved &&
+                undoRatePreserved && undoAnimationPreserved && redoRestored && redoAnimationPreserved;
             if (!rateResult["passed"].toBool())
                 rateResult["error"] = QStringLiteral("Exact rational frame rate changed across selected/all precompose or undo/redo");
             service->changeCurrentComposition(rootId);

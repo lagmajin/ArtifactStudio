@@ -5,6 +5,8 @@
 
 `test.saveReload`は保存後に再読込した子レイヤーをそのまま解除し、エフェクト・アニメーション付きマスク・マット参照・コンポーネントdescriptorが親へ移ること、親Compositionのエフェクトが子レイヤーへ混入せず親に残ること、Undoで子とwrapperへ戻り、Redoで同じ状態を再適用することも検査する。
 
+`test.rationalFrameRatePreserved`は30000/1001 fps（transform keyframe scale 30）のpositionカーブを選択移動・保存再読込・解除とMoveAllAttributes・Undo/Redoへ通し、キー配列と中間フレームの評価値を照合する。
+
 `test.negativeTimingRoundTrip`は負のIn点と負時刻キーを含むpositionカーブを−24 frame正規化し、負／正キー間の中間評価値が親時刻と子時刻で一致して、解除・Undo/Redoでも保たれることを確認する。
 
 `test.nonContiguousSelectionOrder`はAとUntouchedを選ぶ非連続移動で、異なるフレームにあるposition／opacityキーを選択範囲の最小In点に合わせて補正し、子側の中間評価値と解除・Undo/Redo後のキー／評価値が一致することも確認する。

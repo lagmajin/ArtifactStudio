@@ -218,10 +218,15 @@ def main():
             call("test.reset")
             rational_rate = call("test.rationalFrameRatePreserved")
             require(rational_rate["passed"] and rational_rate["selectedRatePreserved"]
+                    and rational_rate["selectedAnimationPreserved"]
                     and rational_rate["roundTripRatePreserved"]
+                    and rational_rate["roundTripAnimationPreserved"]
+                    and rational_rate["selectedUnpackedAnimationPreserved"]
                     and rational_rate["parentRateAfterSelected"] and rational_rate["allRatePreserved"]
-                    and rational_rate["allUnpacked"] and rational_rate["undoRatePreserved"]
-                    and rational_rate["redoRestored"],
+                    and rational_rate["allAnimationPreserved"]
+                    and rational_rate["allUnpacked"] and rational_rate["allUnpackedAnimationPreserved"]
+                    and rational_rate["undoRatePreserved"] and rational_rate["undoAnimationPreserved"]
+                    and rational_rate["redoRestored"] and rational_rate["redoAnimationPreserved"],
                     "Exact rational frame rate changed across selected/all precompose or undo/redo")
             call("test.reset")
             workspace_duration = call("test.matchWorkspaceDuration")
