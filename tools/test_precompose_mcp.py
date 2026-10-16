@@ -188,6 +188,16 @@ def main():
                     and composition_effect["redoPreservedScope"],
                     "Composition-scoped effect moved to the child or changed across precompose/unprecompose/undo/redo")
             call("test.reset")
+            child_composition_effect = call("test.childCompositionEffectStaysWithChild")
+            require(child_composition_effect["passed"] and child_composition_effect["saveSucceeded"]
+                    and child_composition_effect["mappingClearedBeforeReload"]
+                    and child_composition_effect["loaded"]
+                    and child_composition_effect["effectRestoredOnChild"]
+                    and child_composition_effect["unpackKeptChildEffect"]
+                    and child_composition_effect["undoKeptChildEffect"]
+                    and child_composition_effect["redoKeptChildEffect"],
+                    "Child composition effect changed scope across save/reload or unprecompose history")
+            call("test.reset")
             opened_child = call("test.openChildComposition")
             require(opened_child["passed"] and opened_child["childOpened"]
                     and opened_child["rootWrapperCreated"] and opened_child["undoReturnedToRoot"]

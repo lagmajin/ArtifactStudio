@@ -1191,6 +1191,94 @@ public:
             refresh();
             result["state"] = state();
             return result;
+        } else if (name == "test.childCompositionEffectStaysWithChild") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Child Effect Persistence")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                result["error"] = QStringLiteral("Could not create child-effect persistence fixture");
+                return result;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto matchesChildEffect = [](const ArtifactCompositionPtr& composition) {
+                if (!composition || composition->effectCount() != 1) return false;
+                const auto effects = composition->getEffects();
+                const auto brightness = effects.size() == 1
+                    ? dynamicPointerCast<BrightnessEffect>(effects.front())
+                    : SharedPtr<BrightnessEffect>{};
+                return brightness && std::abs(brightness->brightness() - 0.4375f) <= 1.0e-6f;
+            };
+            const auto childEffect = makeShared<BrightnessEffect>();
+            childEffect->setBrightness(0.4375f);
+            if (child) child->addEffect(childEffect);
+            QTemporaryDir tempDir;
+            if (!child || !tempDir.isValid()) {
+                result["error"] = QStringLiteral("Could not prepare child-effect save/reload fixture");
+                return result;
+            }
+            const auto filePath = tempDir.filePath(QStringLiteral("child-composition-effect.artifact"));
+            auto& projects = ArtifactProjectManager::getInstance();
+            auto& precompManager = PreComposeManager::instance();
+            const auto save = projects.saveToFile(filePath);
+            const bool mappingCleared = save.success && precompManager.unregisterPrecompLayer(
+                rootId, outcome.precompLayerId, outcome.childCompId) &&
+                !precompManager.isPrecomposeLayer(outcome.precompLayerId);
+            const bool loaded = mappingCleared && projects.loadFromFile(filePath);
+            if (loaded) service->changeCurrentComposition(rootId);
+            const auto reloadedRoot = loaded ? service->findComposition(rootId).ptr.lock()
+                                             : ArtifactCompositionPtr{};
+            const auto reloadedChild = loaded ? service->findComposition(outcome.childCompId).ptr.lock()
+                                              : ArtifactCompositionPtr{};
+            const auto reloadedWrapper = reloadedRoot
+                ? dynamicPointerCast<ArtifactCompositionLayer>(
+                      reloadedRoot->layerById(outcome.precompLayerId))
+                : SharedPtr<ArtifactCompositionLayer>{};
+            const bool effectRestoredOnChild = reloadedWrapper && reloadedChild &&
+                reloadedWrapper->sourceCompositionId() == outcome.childCompId &&
+                precompManager.isPrecomposeLayer(outcome.precompLayerId) &&
+                matchesChildEffect(reloadedChild) && reloadedRoot->getEffects().empty();
+            const bool unpacked = effectRestoredOnChild &&
+                service->unprecomposeLayerWithUndo(outcome.precompLayerId, true);
+            const bool unpackKeptChildEffect = unpacked && matchesChildEffect(reloadedChild) &&
+                reloadedRoot->layerById(sourceIds.front()) && reloadedRoot->layerById(sourceIds.back()) &&
+                !reloadedChild->layerById(sourceIds.front()) && !reloadedChild->layerById(sourceIds.back()) &&
+                !precompManager.isPrecomposeLayer(outcome.precompLayerId);
+            const bool undoAvailable = unpackKeptChildEffect && undo->canUndo();
+            if (undoAvailable) undo->undo();
+            const bool undoKeptChildEffect = undoAvailable && matchesChildEffect(reloadedChild) &&
+                reloadedChild->layerById(sourceIds.front()) && reloadedChild->layerById(sourceIds.back()) &&
+                reloadedRoot->layerById(outcome.precompLayerId) &&
+                precompManager.isPrecomposeLayer(outcome.precompLayerId);
+            const bool redoAvailable = undoKeptChildEffect && undo->canRedo();
+            if (redoAvailable) undo->redo();
+            const bool redoKeptChildEffect = redoAvailable && matchesChildEffect(reloadedChild) &&
+                reloadedRoot->layerById(sourceIds.front()) && reloadedRoot->layerById(sourceIds.back()) &&
+                !reloadedChild->layerById(sourceIds.front()) && !precompManager.isPrecomposeLayer(outcome.precompLayerId);
+            result["saveSucceeded"] = save.success;
+            result["mappingClearedBeforeReload"] = mappingCleared;
+            result["loaded"] = loaded;
+            result["effectRestoredOnChild"] = effectRestoredOnChild;
+            result["unpackKeptChildEffect"] = unpackKeptChildEffect;
+            result["undoKeptChildEffect"] = undoKeptChildEffect;
+            result["redoKeptChildEffect"] = redoKeptChildEffect;
+            result["passed"] = save.success && mappingCleared && loaded && effectRestoredOnChild &&
+                unpackKeptChildEffect && undoKeptChildEffect && redoKeptChildEffect;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Child composition effect changed scope across save/reload or unprecompose history");
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            service->changeCurrentComposition(rootId);
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.openChildComposition") {
             QJsonObject result;
             if (!comp) {
@@ -4933,7 +5021,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.keepParentFocused", "test.componentDescriptorsSurviveUnprecompose", "test.matteReferencesSurviveUnprecompose", "test.maskSurvivesUnprecompose", "test.effectSurvivesUnprecompose", "test.compositionEffectStaysOnParent", "test.childCompositionEffectStaysWithChild", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.parentDurationPropagatesToChild", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.missingExternalParentUnwrapAtomic", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});
