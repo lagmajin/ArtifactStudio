@@ -10,7 +10,7 @@
 `test.sharedChildReferences`は同一親Compositionの2つのwrapperが共有するchildを保存・再読込し、runtime mappingを復元した後に片方だけ解除しても他方のwrapperとchildが残ること、Undo/Redoで2参照と1参照へ正しく往復することを検査する。
 
 
-`test.sharedChildDurationPropagates`は別々の親Compositionから共有するchildを再読込した後、一方の親だけで解除してももう一方のruntime mappingとchild内容が残り、Undo/Redoで2親共有と片親共有へ復元することを検査する。
+`test.sharedChildDurationPropagates`は別々の親Compositionから共有するchildを再読込した後、一方の親だけでwrapperを削除してももう一方のruntime mappingとchild内容が残ること、Undo/Redoで参照を復元すること、さらに子を保持した解除でも片親共有を維持することを検査する。
 
 ## 対象
 
