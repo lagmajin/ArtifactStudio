@@ -242,12 +242,16 @@ public:
             const bool undoneByKey = afterUndo["canRedo"].toBool() &&
                 !afterUndo["lastChildExists"].toBool() &&
                 afterUndo["layers"].toArray() == originalLayers;
+            const bool precomposeMappingRemovedByUndoKey = undoneByKey &&
+                managerMappingCleared(keepWrapperId, keepChildId);
             sendKey(Qt::Key_Y);
             const auto afterRedo = state();
             const bool redoneByKey = afterRedo["canUndo"].toBool() &&
                 !afterRedo["canRedo"].toBool() &&
                 afterRedo["lastChildExists"].toBool() &&
                 afterRedo["layers"].toArray().size() == 2;
+            const bool precomposeMappingRestoredByRedoKey = redoneByKey &&
+                managerMappingMatches(keepWrapperId, keepChildId);
             sendKey(Qt::Key_K);
             const auto afterKeepUnpack = state();
             const bool unpackedKeepByKey = afterKeepUnpack["canUndo"].toBool() &&
@@ -352,7 +356,9 @@ public:
             QJsonObject result{{"precomposedByKey", precomposedByKey},
                                {"keepMappingRegisteredByKey", keepMappingRegisteredByKey},
                                {"undoneByKey", undoneByKey},
+                               {"precomposeMappingRemovedByUndoKey", precomposeMappingRemovedByUndoKey},
                                {"redoneByKey", redoneByKey},
+                               {"precomposeMappingRestoredByRedoKey", precomposeMappingRestoredByRedoKey},
                                {"selectedSettingsCopiedByKey", selectedSettingsCopiedByKey},
                                {"precomposeSelectionByKey", precomposeSelectionByKey},
                                {"unpackedKeepByKey", unpackedKeepByKey},
@@ -380,7 +386,8 @@ public:
                                {"resetSelectionByKey", resetSelectionByKey},
                                {"passed", precomposedByKey && selectedSettingsCopiedByKey &&
                                    precomposeSelectionByKey &&
-                                   undoneByKey && redoneByKey &&
+                                   undoneByKey && precomposeMappingRemovedByUndoKey && redoneByKey &&
+                                   precomposeMappingRestoredByRedoKey &&
                                    unpackedKeepByKey && keepMappingRemovedByKey && keepUndoByKey &&
                                    keepMappingRestoredByUndoKey && keepRedoByKey &&
                                    keepMappingRemovedByRedoKey &&

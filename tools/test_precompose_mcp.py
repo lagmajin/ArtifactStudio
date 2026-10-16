@@ -151,7 +151,10 @@ def main():
             keyboard_round_trip = call("test.guiKeyboardRoundTrip")
             require(keyboard_round_trip["passed"] and keyboard_round_trip["precomposedByKey"]
                     and keyboard_round_trip["keepMappingRegisteredByKey"]
-                    and keyboard_round_trip["undoneByKey"] and keyboard_round_trip["redoneByKey"]
+                    and keyboard_round_trip["undoneByKey"]
+                    and keyboard_round_trip["precomposeMappingRemovedByUndoKey"]
+                    and keyboard_round_trip["redoneByKey"]
+                    and keyboard_round_trip["precomposeMappingRestoredByRedoKey"]
                     and keyboard_round_trip["selectedSettingsCopiedByKey"]
                     and keyboard_round_trip["precomposeSelectionByKey"]
                     and keyboard_round_trip["unpackedKeepByKey"]
