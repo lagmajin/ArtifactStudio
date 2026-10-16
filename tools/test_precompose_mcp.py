@@ -169,15 +169,19 @@ def main():
             animated_keyboard_round_trip = call("test.guiAnimatedKeyRoundTrip")
             require(animated_keyboard_round_trip["passed"]
                     and animated_keyboard_round_trip["animationMovedByKey"]
+                    and animated_keyboard_round_trip["movedLayerIdentityPreserved"]
                     and animated_keyboard_round_trip["animationSamplePreservedByKey"]
                     and animated_keyboard_round_trip["animationRestoredByUndo"]
+                    and animated_keyboard_round_trip["undoLayerIdentityPreserved"]
                     and animated_keyboard_round_trip["undoKeysPreserved"]
                     and animated_keyboard_round_trip["undoSamplePreserved"]
                     and animated_keyboard_round_trip["animationRestoredByRedo"]
+                    and animated_keyboard_round_trip["redoLayerIdentityPreserved"]
                     and animated_keyboard_round_trip["redoSamplePreserved"]
                     and animated_keyboard_round_trip["animationRestoredByKeyboardUnpack"]
+                    and animated_keyboard_round_trip["unpackLayerIdentityPreserved"]
                     and animated_keyboard_round_trip["unpackSamplePreserved"],
-                    "GUI P/Z/Y/K keyboard routing did not preserve animated key attributes and samples")
+                    "GUI P/Z/Y/K keyboard routing did not preserve the animated layer object and its samples")
             call("test.reset")
             initial = call("test.state")
             original = initial["layers"]

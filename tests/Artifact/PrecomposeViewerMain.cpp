@@ -377,6 +377,7 @@ public:
                 ? childA->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
             const QJsonArray movedKeys = keyframes(childPosition);
+            const bool movedLayerIdentityPreserved = childA && childA.get() == source.get();
             bool animationMovedByKey = hasChild_ && child && childPosition &&
                 movedKeys.size() == originalKeys.size() && movedKeys.size() == 2;
             for (qsizetype index = 0; animationMovedByKey && index < movedKeys.size(); ++index) {
@@ -393,6 +394,8 @@ public:
             const auto undoPosition = undoSource
                 ? undoSource->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
+            const bool undoLayerIdentityPreserved = undoSource &&
+                undoSource.get() == source.get();
             const bool animationRestoredByUndo = !hasChild_ ||
                 ArtifactProjectService::instance()->findComposition(childId_).ptr.expired();
             const bool undoKeysPreserved = undoPosition &&
@@ -409,6 +412,7 @@ public:
             const auto redoPosition = redoA
                 ? redoA->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
+            const bool redoLayerIdentityPreserved = redoA && redoA.get() == source.get();
             const bool animationRestoredByRedo = redoPosition &&
                 keyframes(redoPosition) == movedKeys;
             const bool redoSamplePreserved = animationRestoredByRedo &&
@@ -420,25 +424,33 @@ public:
             const auto unpackedPosition = unpackedA
                 ? unpackedA->getProperty(QStringLiteral("transform.position.x"))
                 : SharedPtr<AbstractProperty>{};
+            const bool unpackLayerIdentityPreserved = unpackedA &&
+                unpackedA.get() == source.get();
             const bool animationRestoredByKeyboardUnpack = unpackedPosition &&
                 keyframes(unpackedPosition) == originalKeys;
             const bool unpackSamplePreserved = animationRestoredByKeyboardUnpack &&
                 std::abs(unpackedPosition->evaluateValue(RationalTime(
                     70, unpackedA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
 
-            const bool passed = animationMovedByKey && animationRestoredByUndo &&
+            const bool passed = movedLayerIdentityPreserved && animationMovedByKey &&
+                animationRestoredByUndo && undoLayerIdentityPreserved &&
                 animationSamplePreservedByKey && undoKeysPreserved && undoSamplePreserved &&
-                animationRestoredByRedo && redoSamplePreserved &&
-                animationRestoredByKeyboardUnpack && unpackSamplePreserved;
+                animationRestoredByRedo && redoLayerIdentityPreserved && redoSamplePreserved &&
+                animationRestoredByKeyboardUnpack && unpackLayerIdentityPreserved &&
+                unpackSamplePreserved;
             QJsonObject result{{"animationMovedByKey", animationMovedByKey},
+                               {"movedLayerIdentityPreserved", movedLayerIdentityPreserved},
                                {"animationSamplePreservedByKey", animationSamplePreservedByKey},
                                {"animationRestoredByUndo", animationRestoredByUndo},
+                               {"undoLayerIdentityPreserved", undoLayerIdentityPreserved},
                                {"undoKeysPreserved", undoKeysPreserved},
                                {"undoSamplePreserved", undoSamplePreserved},
                                {"animationRestoredByRedo", animationRestoredByRedo},
+                               {"redoLayerIdentityPreserved", redoLayerIdentityPreserved},
                                {"redoSamplePreserved", redoSamplePreserved},
                                {"animationRestoredByKeyboardUnpack",
                                 animationRestoredByKeyboardUnpack},
+                               {"unpackLayerIdentityPreserved", unpackLayerIdentityPreserved},
                                {"unpackSamplePreserved", unpackSamplePreserved},
                                {"passed", passed}};
             if (!passed) result["error"] = QStringLiteral(
