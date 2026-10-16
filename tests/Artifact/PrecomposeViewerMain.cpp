@@ -1972,6 +1972,126 @@ public:
             refresh();
             result["state"] = state();
             return result;
+        } else if (name == "test.sharedInstanceOverridesRoundTrip") {
+            QJsonObject result;
+            const auto root = service->currentComposition().lock();
+            if (!root) {
+                result["error"] = QStringLiteral("No root composition");
+                return result;
+            }
+            const auto rootId = root->id();
+            const auto sourceIds = namedLayerIds(root, {QStringLiteral("A"), QStringLiteral("B")});
+            if (sourceIds.size() != 2 || !service->precomposeLayersWithUndo(
+                    sourceIds, UniString(QStringLiteral("Shared Override Child")), false, false,
+                    PrecomposeMode::MoveSelected)) {
+                result["error"] = QStringLiteral("Could not create shared-override fixture");
+                return result;
+            }
+            const auto outcome = service->lastPrecomposeOutcome();
+            service->changeCurrentComposition(rootId);
+            const bool secondAdded = service->addCompositionLayerToCurrentCompositionWithUndo(
+                outcome.childCompId);
+            LayerID secondWrapperId;
+            if (secondAdded) for (const auto& layer : root->allLayer()) {
+                const auto candidate = dynamicPointerCast<ArtifactCompositionLayer>(layer);
+                if (candidate && candidate->sourceCompositionId() == outcome.childCompId &&
+                    candidate->id() != outcome.precompLayerId) {
+                    secondWrapperId = candidate->id();
+                    break;
+                }
+            }
+            const auto firstWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(outcome.precompLayerId));
+            const auto secondWrapper = dynamicPointerCast<ArtifactCompositionLayer>(
+                root->layerById(secondWrapperId));
+            const auto child = service->findComposition(outcome.childCompId).ptr.lock();
+            const auto childLayer = child ? child->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
+            if (!secondAdded || !firstWrapper || !secondWrapper || !childLayer) {
+                result["error"] = QStringLiteral("Shared-override wrapper or child layer is unavailable");
+                return result;
+            }
+            ArtifactCore::ExposedPropertyRegistry registry;
+            ArtifactCore::ExposedPropertyBinding binding;
+            binding.id = QStringLiteral("test.shared.opacity");
+            binding.label = QStringLiteral("Shared Instance Opacity");
+            binding.targetLayerId = sourceIds.front().toString();
+            binding.internalPath = QStringLiteral("layer.opacity");
+            binding.defaultValue = childLayer->opacity();
+            const bool bindingAdded = registry.add(binding);
+            firstWrapper->setExposedProperties(registry);
+            secondWrapper->setExposedProperties(registry);
+            const float firstValue = 0.81f;
+            const float secondValue = 0.23f;
+            const bool firstOverrideSet = bindingAdded && firstWrapper->setExposedPropertyOverride(
+                binding.id, QVariant::fromValue(static_cast<double>(firstValue)));
+            const bool secondOverrideSet = bindingAdded && secondWrapper->setExposedPropertyOverride(
+                binding.id, QVariant::fromValue(static_cast<double>(secondValue)));
+            const float childBaseOpacity = childLayer->opacity();
+            const bool overridesIsolated = firstOverrideSet && secondOverrideSet &&
+                firstWrapper->hasExposedPropertyOverride(binding.id) &&
+                secondWrapper->hasExposedPropertyOverride(binding.id) &&
+                std::abs(firstWrapper->effectiveExposedPropertyValue(binding.id).toFloat() - firstValue) < 1.0e-5f &&
+                std::abs(secondWrapper->effectiveExposedPropertyValue(binding.id).toFloat() - secondValue) < 1.0e-5f &&
+                std::abs(childBaseOpacity - 0.42f) < 1.0e-5f;
+            QTemporaryDir tempDir;
+            if (!tempDir.isValid()) {
+                result["error"] = QStringLiteral("Temporary directory unavailable for shared-override round trip");
+                return result;
+            }
+            const auto filePath = tempDir.filePath(QStringLiteral("shared-instance-overrides.artifact"));
+            const auto save = ArtifactProjectManager::getInstance().saveToFile(filePath);
+            auto& manager = PreComposeManager::instance();
+            const bool firstMappingCleared = save.success && manager.unregisterPrecompLayer(
+                rootId, outcome.precompLayerId, outcome.childCompId);
+            const bool secondMappingCleared = firstMappingCleared && manager.unregisterPrecompLayer(
+                rootId, secondWrapperId, outcome.childCompId);
+            const bool mappingsCleared = secondMappingCleared &&
+                manager.getPrecompLayersForChild(outcome.childCompId).isEmpty();
+            const bool loaded = mappingsCleared &&
+                ArtifactProjectManager::getInstance().loadFromFile(filePath);
+            if (loaded) service->changeCurrentComposition(rootId);
+            const auto reloadedRoot = loaded ? service->findComposition(rootId).ptr.lock()
+                                             : decltype(root){};
+            const auto reloadedChild = loaded ? service->findComposition(outcome.childCompId).ptr.lock()
+                                              : decltype(root){};
+            const auto reloadedFirstWrapper = reloadedRoot
+                ? dynamicPointerCast<ArtifactCompositionLayer>(reloadedRoot->layerById(outcome.precompLayerId))
+                : SharedPtr<ArtifactCompositionLayer>{};
+            const auto reloadedSecondWrapper = reloadedRoot
+                ? dynamicPointerCast<ArtifactCompositionLayer>(reloadedRoot->layerById(secondWrapperId))
+                : SharedPtr<ArtifactCompositionLayer>{};
+            const auto reloadedChildLayer = reloadedChild
+                ? reloadedChild->layerById(sourceIds.front()) : ArtifactAbstractLayerPtr{};
+            const auto restoredReferences = manager.getPrecompLayersForChild(outcome.childCompId);
+            const auto hasRestoredReference = [&](const LayerID& wrapperId) {
+                return std::any_of(restoredReferences.begin(), restoredReferences.end(), [&](const auto& reference) {
+                    return reference.parentCompId == rootId && reference.precompLayerId == wrapperId;
+                });
+            };
+            const bool saveReloadPreserved = save.success && mappingsCleared && loaded &&
+                reloadedRoot && reloadedChild && reloadedChildLayer && restoredReferences.size() == 2 &&
+                hasRestoredReference(outcome.precompLayerId) && hasRestoredReference(secondWrapperId) &&
+                reloadedFirstWrapper && reloadedSecondWrapper &&
+                reloadedFirstWrapper->hasExposedPropertyOverride(binding.id) &&
+                reloadedSecondWrapper->hasExposedPropertyOverride(binding.id) &&
+                std::abs(reloadedFirstWrapper->effectiveExposedPropertyValue(binding.id).toFloat() - firstValue) < 1.0e-5f &&
+                std::abs(reloadedSecondWrapper->effectiveExposedPropertyValue(binding.id).toFloat() - secondValue) < 1.0e-5f &&
+                std::abs(reloadedChildLayer->opacity() - childBaseOpacity) < 1.0e-5f;
+            result["bindingAdded"] = bindingAdded;
+            result["overridesIsolated"] = overridesIsolated;
+            result["saveSucceeded"] = save.success;
+            result["mappingsClearedBeforeReload"] = mappingsCleared;
+            result["loaded"] = loaded;
+            result["saveReloadPreserved"] = saveReloadPreserved;
+            result["passed"] = overridesIsolated && saveReloadPreserved;
+            if (!result["passed"].toBool())
+                result["error"] = QStringLiteral("Shared wrapper overrides or their independent values changed across save/reload");
+            childId_ = outcome.childCompId;
+            hasChild_ = true;
+            service->changeCurrentComposition(rootId);
+            refresh();
+            result["state"] = state();
+            return result;
         } else if (name == "test.externalParentRestored") {
             QJsonObject parentResult;
             const auto parent = service->currentComposition().lock();
@@ -3794,7 +3914,7 @@ private:
         } else if (method == "ping") response["result"] = QJsonObject{};
         else if (method == "tools/list") {
             QJsonArray tools;
-            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
+            for (const auto* name : {"test.state", "test.reset", "test.guiKeyboardRoundTrip", "test.cycleRejected", "test.invalidRequestsAtomic", "test.undoBudgetRejectsStructureChanges", "test.redoBranchDiscarded", "test.openChildComposition", "test.matchWorkspaceDuration", "test.childDurationPropagates", "test.sharedChildDurationPropagates", "test.sharedParentDurationPropagates", "test.internalParentRestored", "test.transitiveCycleRejected", "test.exposedOverrideMaterialized", "test.nestedExposedOverrideMaterialized", "test.missingChildReferenceAtomic", "test.emptyChildUnwrapRejected", "test.emptyMoveAllRejectedAtomic", "test.unpackDeleteRedo", "test.layerNotesRoundTrip", "test.layerFlagsAndBlendRoundTrip", "test.sharedChildReferences", "test.sharedInstanceOverridesRoundTrip", "test.singleLayerRoundTrip", "test.externalParentRestored", "test.selectionTransitions", "test.childEditsSurviveUnwrap", "test.externalParentSaveReload", "test.rationalFrameRatePreserved", "test.negativeTimingRoundTrip", "test.animatedTiming", "test.precompose", "test.precomposeAll", "test.saveReload", "test.nestedHierarchy", "test.nestedSaveReload", "test.nestedExternalParentRestored", "test.reparentExistingPrecompose", "test.unprecomposeNested", "test.nonContiguousSelectionOrder",
                     "test.unpackKeep", "test.unpackDelete", "test.undo", "test.redo", "test.runRegression", "test.capture"})
                 tools.append(QJsonObject{{"name", name}, {"description", name},
                     {"inputSchema", QJsonObject{{"type", "object"}, {"additionalProperties", false}}}});

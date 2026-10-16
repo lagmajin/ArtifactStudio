@@ -282,6 +282,13 @@ def main():
                     and shared_child["finalDeleteUndoRestored"] and shared_child["finalDeleteRedoRemoved"],
                     "Shared child reference removal or final child deletion undo/redo changed state")
             call("test.reset")
+            shared_overrides = call("test.sharedInstanceOverridesRoundTrip")
+            require(shared_overrides["passed"] and shared_overrides["bindingAdded"]
+                    and shared_overrides["overridesIsolated"] and shared_overrides["saveSucceeded"]
+                    and shared_overrides["mappingsClearedBeforeReload"] and shared_overrides["loaded"]
+                    and shared_overrides["saveReloadPreserved"],
+                    "Shared wrapper Master Property overrides were not preserved independently")
+            call("test.reset")
             external_parent = call("test.externalParentRestored")
             require(external_parent["passed"] and external_parent["externalParentStoredOnWrapper"]
                     and external_parent["externalParentClearedInChild"]
