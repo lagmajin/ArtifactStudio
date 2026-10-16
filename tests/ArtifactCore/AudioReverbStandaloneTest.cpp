@@ -167,6 +167,12 @@ TEST(AudioReverbStandaloneTest, ZeroDecayDoesNotStoreAnImpulseForLaterOutput)
 
     for (const float sample : segment.channelData[0])
         EXPECT_FLOAT_EQ(sample, 0.0f);
+
+    reverb.setDecay(1.0f);
+    auto followupSilence = makeMono(48000, QVector<float>(1300, 0.0f));
+    reverb.process(followupSilence);
+    for (const float sample : followupSilence.channelData[0])
+        EXPECT_FLOAT_EQ(sample, 0.0f);
 }
 
 TEST(AudioReverbStandaloneTest, BypassPreservesWetAndDryInputSamples)
