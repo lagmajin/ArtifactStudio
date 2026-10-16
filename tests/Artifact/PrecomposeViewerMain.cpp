@@ -360,6 +360,8 @@ public:
             sourcePosition->addKeyFrame(secondTime, -3.5,
                                        InterpolationType::Constant);
             const QJsonArray originalKeys = keyframes(sourcePosition);
+            const double originalSample = sourcePosition->evaluateValue(
+                RationalTime(70, timeScale)).toDouble();
 
             const auto sendKey = [this](int key) {
                 QKeyEvent event(QEvent::KeyPress, key, Qt::NoModifier);
@@ -377,20 +379,13 @@ public:
             bool animationMovedByKey = hasChild_ && child && childPosition &&
                 movedKeys.size() == originalKeys.size() && movedKeys.size() == 2;
             for (qsizetype index = 0; animationMovedByKey && index < movedKeys.size(); ++index) {
-                const auto moved = movedKeys[index].toObject();
-                const auto original = originalKeys[index].toObject();
-                animationMovedByKey =
-                    moved["timeScale"].toDouble() == original["timeScale"].toDouble() &&
-                    moved["timeValue"].toDouble() ==
-                        original["timeValue"].toDouble() - 40.0 &&
-                    moved["value"] == original["value"] &&
-                    moved["interpolation"] == original["interpolation"] &&
-                    moved["cp1x"] == original["cp1x"] &&
-                    moved["cp1y"] == original["cp1y"] &&
-                    moved["cp2x"] == original["cp2x"] &&
-                    moved["cp2y"] == original["cp2y"] &&
-                    moved["roving"] == original["roving"];
+                auto expected = originalKeys[index].toObject();
+                expected["timeValue"] = expected["timeValue"].toDouble() - 40.0;
+                animationMovedByKey = movedKeys[index].toObject() == expected;
             }
+            const bool animationSamplePreservedByKey = animationMovedByKey &&
+                std::abs(childPosition->evaluateValue(RationalTime(
+                    30, childA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
 
             sendKey(Qt::Key_Z);
             const auto undoSource = parent->layerById(ids.front());
@@ -401,6 +396,9 @@ public:
                 ArtifactProjectService::instance()->findComposition(childId_).ptr.expired();
             const bool undoKeysPreserved = undoPosition &&
                 keyframes(undoPosition) == originalKeys;
+            const bool undoSamplePreserved = undoKeysPreserved &&
+                std::abs(undoPosition->evaluateValue(RationalTime(
+                    70, undoSource->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
 
             sendKey(Qt::Key_Y);
             const auto redoChild = service->findComposition(childId_).ptr.lock();
@@ -412,6 +410,9 @@ public:
                 : SharedPtr<AbstractProperty>{};
             const bool animationRestoredByRedo = redoPosition &&
                 keyframes(redoPosition) == movedKeys;
+            const bool redoSamplePreserved = animationRestoredByRedo &&
+                std::abs(redoPosition->evaluateValue(RationalTime(
+                    30, redoA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
 
             sendKey(Qt::Key_K);
             const auto unpackedA = parent->layerById(ids.front());
@@ -420,16 +421,24 @@ public:
                 : SharedPtr<AbstractProperty>{};
             const bool animationRestoredByKeyboardUnpack = unpackedPosition &&
                 keyframes(unpackedPosition) == originalKeys;
+            const bool unpackSamplePreserved = animationRestoredByKeyboardUnpack &&
+                std::abs(unpackedPosition->evaluateValue(RationalTime(
+                    70, unpackedA->keyframeTimeScale())).toDouble() - originalSample) < 1.0e-6;
 
             const bool passed = animationMovedByKey && animationRestoredByUndo &&
-                undoKeysPreserved && animationRestoredByRedo &&
-                animationRestoredByKeyboardUnpack;
+                animationSamplePreservedByKey && undoKeysPreserved && undoSamplePreserved &&
+                animationRestoredByRedo && redoSamplePreserved &&
+                animationRestoredByKeyboardUnpack && unpackSamplePreserved;
             QJsonObject result{{"animationMovedByKey", animationMovedByKey},
+                               {"animationSamplePreservedByKey", animationSamplePreservedByKey},
                                {"animationRestoredByUndo", animationRestoredByUndo},
                                {"undoKeysPreserved", undoKeysPreserved},
+                               {"undoSamplePreserved", undoSamplePreserved},
                                {"animationRestoredByRedo", animationRestoredByRedo},
+                               {"redoSamplePreserved", redoSamplePreserved},
                                {"animationRestoredByKeyboardUnpack",
                                 animationRestoredByKeyboardUnpack},
+                               {"unpackSamplePreserved", unpackSamplePreserved},
                                {"passed", passed}};
             if (!passed) result["error"] = QStringLiteral(
                 "GUI P/Z/Y/K keyboard routing did not preserve animated position keys");
