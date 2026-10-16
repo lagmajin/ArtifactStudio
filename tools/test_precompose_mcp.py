@@ -390,7 +390,8 @@ def main():
                     and round_trip["masterPropertyDefinitionPreserved"]
                     and round_trip["masterPropertyOverridePreserved"]
                     and round_trip["overrideStillDeferred"]
-                    and round_trip["layerMetadataPreserved"],
+                    and round_trip["layerMetadataPreserved"]
+                    and round_trip["transformKeyframesPreserved"],
                     "Precompose save/reload changed parent-child data, layer metadata, exposed properties, or runtime nesting")
             call("test.reset")
             hierarchy = call("test.nestedHierarchy")

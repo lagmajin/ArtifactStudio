@@ -3075,6 +3075,39 @@ public:
             peerLayer->transform3D().setCurrentScale(0.7f, 1.6f);
             peerLayer->transform3D().setCurrentAnchor(-2.0f, 8.0f, -4.0f);
             untouchedLayer->setLayerNote(QStringLiteral("Parent note survives reload"));
+            const QStringList transformKeyPaths{
+                QStringLiteral("transform.rotation.x"),
+                QStringLiteral("transform.scale.x"),
+                QStringLiteral("transform.anchor.x")};
+            QVector<QJsonArray> sourceTransformKeys;
+            QVector<QJsonArray> peerTransformKeys;
+            for (qsizetype index = 0; index < transformKeyPaths.size(); ++index) {
+                const auto sourceChannel = sourceLayer->getProperty(transformKeyPaths[index]);
+                const auto peerChannel = peerLayer->getProperty(transformKeyPaths[index]);
+                if (!sourceChannel || !peerChannel) {
+                    roundTrip["error"] = QStringLiteral("Transform animation channel unavailable for save/reload");
+                    return roundTrip;
+                }
+                sourceChannel->clearKeyFrames();
+                sourceChannel->setAnimatable(true);
+                sourceChannel->addKeyFrame(
+                    RationalTime(12, sourceLayer->keyframeTimeScale()),
+                    5.0 + static_cast<double>(index), InterpolationType::Bezier,
+                    0.1f, 0.2f, 0.8f, 0.9f, true);
+                sourceChannel->addKeyFrame(
+                    RationalTime(36, sourceLayer->keyframeTimeScale()),
+                    15.0 + static_cast<double>(index), InterpolationType::Constant);
+                peerChannel->clearKeyFrames();
+                peerChannel->setAnimatable(true);
+                peerChannel->addKeyFrame(
+                    RationalTime(18, peerLayer->keyframeTimeScale()),
+                    25.0 + static_cast<double>(index), InterpolationType::Smooth);
+                peerChannel->addKeyFrame(
+                    RationalTime(42, peerLayer->keyframeTimeScale()),
+                    35.0 + static_cast<double>(index), InterpolationType::Linear);
+                sourceTransformKeys.append(keyframes(sourceChannel));
+                peerTransformKeys.append(keyframes(peerChannel));
+            }
             ArtifactCore::ExposedPropertyRegistry exposedProperties;
             ArtifactCore::ExposedPropertyBinding opacityBinding;
             opacityBinding.id = QStringLiteral("roundtrip.opacity");
@@ -3128,6 +3161,18 @@ public:
             const auto reloadedUntouchedHost = untouchedIsChild ? reloadedChild : reloadedParent;
             const auto reloadedUntouchedLayer = reloadedUntouchedHost
                 ? reloadedUntouchedHost->layerById(untouchedLayer->id()) : ArtifactAbstractLayerPtr{};
+            const auto layerChannelsMatch = [&](const ArtifactAbstractLayerPtr& layer,
+                                                const QVector<QJsonArray>& expected) {
+                if (!layer || expected.size() != transformKeyPaths.size()) return false;
+                for (qsizetype index = 0; index < transformKeyPaths.size(); ++index) {
+                    const auto property = layer->getProperty(transformKeyPaths[index]);
+                    if (!property || keyframes(property) != expected[index]) return false;
+                }
+                return true;
+            };
+            const bool transformKeyframesPreserved =
+                layerChannelsMatch(reloadedSourceLayer, sourceTransformKeys) &&
+                layerChannelsMatch(reloadedPeerLayer, peerTransformKeys);
             const auto reloadedBinding = reloadedPrecompLayer
                 ? reloadedPrecompLayer->exposedProperties().binding(opacityBinding.id)
                 : ArtifactCore::ExposedPropertyBinding{};
@@ -3192,9 +3237,10 @@ public:
             roundTrip["masterPropertyOverridePreserved"] = masterPropertyOverridePreserved;
             roundTrip["overrideStillDeferred"] = overrideStillDeferred;
             roundTrip["layerMetadataPreserved"] = layerMetadataPreserved;
+            roundTrip["transformKeyframesPreserved"] = transformKeyframesPreserved;
             roundTrip["passed"] = save.success && loaded && parentChildLink && runtimeNestingRestored &&
                 masterPropertyDefinitionPreserved && masterPropertyOverridePreserved && overrideStillDeferred &&
-                layerMetadataPreserved;
+                layerMetadataPreserved && transformKeyframesPreserved;
             if (!roundTrip["passed"].toBool())
                 roundTrip["error"] = QStringLiteral("Precompose project round-trip lost parent/child data or runtime nesting registration");
             childId_ = originalChildId;
