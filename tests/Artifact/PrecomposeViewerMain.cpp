@@ -380,8 +380,9 @@ public:
             sendKey(Qt::Key_P);
             const auto precomposeOutcome = service->lastPrecomposeOutcome();
             const auto wrapperId = precomposeOutcome.precompLayerId;
+            const auto wrapperObject = parent->layerById(wrapperId);
             const bool wrapperNegativeTimingPreservedByKey = !wrapperId.isNil() &&
-                hasTiming(parent->layerById(wrapperId), -24, 136, -24);
+                hasTiming(wrapperObject, -24, 136, -24);
             const auto child = service->findComposition(childId_).ptr.lock();
             const auto childIds = namedLayerIds(child, {QStringLiteral("A")});
             const auto childA = childIds.size() == 1
@@ -433,6 +434,8 @@ public:
             const bool redoLayerIdentityPreserved = redoA && redoA.get() == source.get();
             const bool wrapperNegativeTimingRestoredByRedo = !wrapperId.isNil() &&
                 hasTiming(parent->layerById(wrapperId), -24, 136, -24);
+            const bool wrapperIdentityRestoredByRedo = wrapperObject &&
+                parent->layerById(wrapperId).get() == wrapperObject.get();
             const bool negativeTimingRestoredByRedo = hasTiming(redoA, 0, 160, 7);
             const bool animationEnabledAfterRedo = redoPosition && redoPosition->isAnimatable();
             const bool animationRestoredByRedo = redoPosition &&
@@ -469,6 +472,8 @@ public:
                 : SharedPtr<AbstractProperty>{};
             const bool wrapperNegativeTimingRestoredByUnpackUndo = !wrapperId.isNil() &&
                 hasTiming(parent->layerById(wrapperId), -24, 136, -24);
+            const bool wrapperIdentityRestoredByUnpackUndo = wrapperObject &&
+                parent->layerById(wrapperId).get() == wrapperObject.get();
             const bool negativeTimingRestoredByUnpackUndo =
                 hasTiming(unpackUndoA, 0, 160, 7);
             const bool animationEnabledAfterUnpackUndo = unpackUndoPosition &&
@@ -508,12 +513,14 @@ public:
                 animationEnabledAfterUndo && animationSamplePreservedByKey &&
                 undoKeysPreserved && undoSamplePreserved &&
                 animationRestoredByRedo && redoLayerIdentityPreserved &&
-                wrapperNegativeTimingRestoredByRedo && negativeTimingRestoredByRedo &&
+                wrapperNegativeTimingRestoredByRedo && wrapperIdentityRestoredByRedo &&
+                negativeTimingRestoredByRedo &&
                 animationEnabledAfterRedo && redoSamplePreserved &&
                 animationRestoredByKeyboardUnpack && unpackLayerIdentityPreserved &&
                 wrapperRemovedByUnpack && negativeTimingRestoredByUnpack &&
                 animationEnabledAfterUnpack && unpackSamplePreserved &&
                 animationRestoredByUnpackUndo && wrapperNegativeTimingRestoredByUnpackUndo &&
+                wrapperIdentityRestoredByUnpackUndo &&
                 animationEnabledAfterUnpackUndo &&
                 negativeTimingRestoredByUnpackUndo && unpackUndoIdentityPreserved &&
                 unpackUndoSamplePreserved &&
@@ -539,6 +546,7 @@ public:
                                {"redoLayerIdentityPreserved", redoLayerIdentityPreserved},
                                {"wrapperNegativeTimingRestoredByRedo",
                                 wrapperNegativeTimingRestoredByRedo},
+                               {"wrapperIdentityRestoredByRedo", wrapperIdentityRestoredByRedo},
                                {"negativeTimingRestoredByRedo", negativeTimingRestoredByRedo},
                                {"animationEnabledAfterRedo", animationEnabledAfterRedo},
                                {"redoSamplePreserved", redoSamplePreserved},
@@ -553,6 +561,8 @@ public:
                                {"unpackUndoIdentityPreserved", unpackUndoIdentityPreserved},
                                {"wrapperNegativeTimingRestoredByUnpackUndo",
                                 wrapperNegativeTimingRestoredByUnpackUndo},
+                               {"wrapperIdentityRestoredByUnpackUndo",
+                                wrapperIdentityRestoredByUnpackUndo},
                                {"negativeTimingRestoredByUnpackUndo",
                                 negativeTimingRestoredByUnpackUndo},
                                {"animationEnabledAfterUnpackUndo", animationEnabledAfterUnpackUndo},
