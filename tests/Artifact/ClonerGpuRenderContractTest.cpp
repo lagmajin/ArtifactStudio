@@ -321,8 +321,18 @@ TEST(ClonerGpuRenderContractTest,
         return image;
     };
 
+    const quint64 workerSubmitCountBeforeImmediate =
+        renderer.deferredWorkerSubmitCount();
     const auto immediate = renderTwoViewports(false);
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(),
+              workerSubmitCountBeforeImmediate)
+        << "small batches should remain on the immediate submit path";
+    const quint64 workerSubmitCountBeforeDeferred =
+        renderer.deferredWorkerSubmitCount();
     const auto deferred = renderTwoViewports(true);
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(),
+              workerSubmitCountBeforeDeferred + 2)
+        << "the two threshold-sized production renderer batches should be recorded on its worker";
     ASSERT_EQ(immediate.width(), 128);
     ASSERT_EQ(immediate.height(), 128);
     ASSERT_EQ(deferred.width(), 128);
@@ -367,10 +377,6 @@ TEST(ClonerGpuRenderContractTest,
     ASSERT_TRUE(shaders.isInitialized());
     shaders.createShaders();
     shaders.createPSOs();
-    Artifact::ShaderManager workerShaders(device, Artifact::RenderConfig::MainRTVFormat);
-    ASSERT_TRUE(workerShaders.isInitialized());
-    workerShaders.createShaders();
-    workerShaders.createPSOs();
     Artifact::DiligentImmediateSubmitter submitter;
     submitter.createBuffers(device, Artifact::RenderConfig::MainRTVFormat);
     submitter.setPSOs(shaders);
@@ -378,10 +384,33 @@ TEST(ClonerGpuRenderContractTest,
     // This recorder has its own buffers and SRBs; prepare them before its
     // thread starts and never share them with the immediate submitter.
     workerSubmitter.createBuffers(device, Artifact::RenderConfig::MainRTVFormat);
-    workerSubmitter.setPSOs(workerShaders);
+    workerSubmitter.setPSOs(shaders);
+    constexpr std::array<std::uint8_t, 4> spriteTexel{255, 255, 255, 255};
+    Diligent::TextureDesc spriteTextureDesc;
+    spriteTextureDesc.Name = "Deferred worker sprite contract";
+    spriteTextureDesc.Type = Diligent::RESOURCE_DIM_TEX_2D;
+    spriteTextureDesc.Width = 1;
+    spriteTextureDesc.Height = 1;
+    spriteTextureDesc.MipLevels = 1;
+    spriteTextureDesc.Format = Diligent::TEX_FORMAT_RGBA8_UNORM;
+    spriteTextureDesc.Usage = Diligent::USAGE_IMMUTABLE;
+    spriteTextureDesc.BindFlags = Diligent::BIND_SHADER_RESOURCE;
+    Diligent::TextureSubResData spriteSubresource;
+    spriteSubresource.pData = spriteTexel.data();
+    spriteSubresource.Stride = spriteTexel.size();
+    Diligent::TextureData spriteInitialData;
+    spriteInitialData.pSubResources = &spriteSubresource;
+    spriteInitialData.NumSubresources = 1;
+    Diligent::RefCntAutoPtr<Diligent::ITexture> spriteTexture;
+    device->CreateTexture(spriteTextureDesc, &spriteInitialData,
+                          &spriteTexture);
+    ASSERT_NE(spriteTexture, nullptr);
+    auto* spriteSRV = spriteTexture->GetDefaultView(
+        Diligent::TEXTURE_VIEW_SHADER_RESOURCE);
+    ASSERT_NE(spriteSRV, nullptr);
     const auto makeBuffer = [&] {
         Artifact::RenderCommandBuffer buffer;
-        buffer.reserve(16);
+        buffer.reserve(18);
         buffer.setTargetRTV(renderer.layerRenderTargetView());
         for (int index = 0; index < 16; ++index) {
             if (index < 12) {
@@ -434,6 +463,20 @@ TEST(ClonerGpuRenderContractTest,
             packet.color = {0.0f, 1.0f, 0.0f, 1.0f};
             buffer.append(packet);
         }
+        Artifact::SpritePkt sprite{};
+        sprite.xform.offset = {8.0f, 80.0f};
+        sprite.xform.scale = {24.0f, 24.0f};
+        sprite.xform.screenSize = {128.0f, 128.0f};
+        sprite.pSRV = spriteSRV;
+        buffer.append(sprite);
+
+        Artifact::SpriteXformPkt transformedSprite{};
+        transformedSprite.mat.row0 = {0.375f, 0.0f, 0.0f, 0.125f};
+        transformedSprite.mat.row1 = {0.0f, -0.375f, 0.0f, -0.125f};
+        transformedSprite.mat.row2 = {0.0f, 0.0f, 1.0f, 0.0f};
+        transformedSprite.mat.row3 = {0.0f, 0.0f, 0.0f, 1.0f};
+        transformedSprite.pSRV = spriteSRV;
+        buffer.append(transformedSprite);
         return buffer;
     };
 
@@ -491,7 +534,7 @@ TEST(ClonerGpuRenderContractTest,
     worker.join();
     EXPECT_TRUE(recorded);
     EXPECT_NE(commandList, nullptr);
-    EXPECT_EQ(buffer.packets().size(), 16u);
+    EXPECT_EQ(buffer.packets().size(), 18u);
     renderer.flushAndWait();
     const auto workerImage = renderer.readbackToImageF32();
     ASSERT_EQ(immediateImage.width(), workerImage.width());
@@ -527,6 +570,12 @@ TEST(ClonerGpuRenderContractTest,
     EXPECT_LT(center.r(), 0.2f);
     EXPECT_GT(center.g(), 0.8f);
     EXPECT_LT(center.b(), 0.2f);
+    const auto plainSpriteCenter = workerImage.getPixel(20, 90);
+    EXPECT_GT(plainSpriteCenter.a(), 0.8f);
+    EXPECT_GT(plainSpriteCenter.r(), 0.8f);
+    const auto transformedSpriteCenter = workerImage.getPixel(88, 80);
+    EXPECT_GT(transformedSpriteCenter.a(), 0.8f);
+    EXPECT_GT(transformedSpriteCenter.r(), 0.8f);
     const auto workerCapturePath = QDir(captureDirectory).filePath(
         QStringLiteral("deferred_worker_recorded_%1.png").arg(backend));
     ASSERT_TRUE(renderer.readbackToImage().save(workerCapturePath, "PNG"))
@@ -560,6 +609,60 @@ TEST(ClonerGpuRenderContractTest,
     commandList = nullptr;
     buffer.reset();
     submitter.destroy();
+}
+
+TEST(ClonerGpuRenderContractTest,
+     DeferredWorkerFallbackPreservesPendingGizmoOverlay)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 128)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    renderer.clear();
+    for (int index = 0; index < 15; ++index) {
+        renderer.drawSolidRect(-40.0f - static_cast<float>(index) * 3.0f,
+                               -40.0f, 2.0f, 2.0f,
+                               ArtifactCore::FloatColor(1.0f, 1.0f, 1.0f, 1.0f));
+    }
+    renderer.drawSolidRect(0.0f, 0.0f, 48.0f, 48.0f,
+                           ArtifactCore::FloatColor(0.9f, 0.05f, 0.05f, 1.0f));
+    renderer.drawGizmoLine({-0.75f, 0.0f, 0.0f}, {0.75f, 0.0f, 0.0f},
+                           ArtifactCore::FloatColor(0.05f, 0.95f, 0.1f, 1.0f));
+
+    const quint64 workerSubmitCountBefore = renderer.deferredWorkerSubmitCount();
+    renderer.flushAndWait();
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore)
+        << "the worker's 2D-only recorder must not consume a batch with pending 3D gizmo vertices";
+
+    const auto image = renderer.readbackToImageF32();
+    ASSERT_EQ(image.width(), 128);
+    ASSERT_EQ(image.height(), 128);
+    const auto center = image.getPixel(40, 40);
+    EXPECT_GT(center.r(), 0.7f);
+    EXPECT_GT(center.a(), 0.9f);
+    bool foundGizmoGreen = false;
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            const auto pixel = image.getPixel(x, y);
+            foundGizmoGreen = foundGizmoGreen ||
+                (pixel.g() > 0.6f && pixel.r() < 0.4f && pixel.a() > 0.5f);
+        }
+    }
+    EXPECT_TRUE(foundGizmoGreen)
+        << "the pending gizmo line should remain visible after the fallback submission";
+
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_pending_gizmo_%1.png").arg(backend));
+    ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
+        << capturePath.toStdString();
 }
 
 TEST(ClonerGpuRenderContractTest,

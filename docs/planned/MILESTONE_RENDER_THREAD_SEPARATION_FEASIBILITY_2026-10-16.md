@@ -1,5 +1,5 @@
 **最終更新:** 2026-10-17
-**ステータス:** In Progress — active packet-order paths, Particle deferred parity, and the narrow worker-recording image contract pass on Debug / D3D12 and Debug / Vulkan. The 16-packet image contract covers both the worker recording seam and production `submit()` deferred-selection path; Composition rendering remains synchronous.
+**ステータス:** In Progress — active packet-order paths, Particle deferred parity, the narrow worker-recording image contract, production `ArtifactIRenderer::submit()` worker selection, and the Composition point-light frame image contract pass on Debug / D3D12 and Debug / Vulkan. The Composition controller emitted matching rendered PNGs on both backends after the current worker changes. The earlier apparent stall came from launching this Windows swap-chain test with an incompatible offscreen Qt platform/plugin path; CMake registers it with the Windows platform plugin. The 16-packet image contracts emit and compare rendered PNGs; Composition rendering remains synchronous.
 
 # Render Thread Separation — Phase 4 Feasibility & Design
 
@@ -367,9 +367,91 @@ Composition frame の worker 化、resource snapshot、frame queue、present の
 immediate / deferred の SHA-256 が一致することを確認した。これは Artifact アプリが使用する renderer の同期 deferred
 経路を検証するが、worker-owned recorder や Composition frame の非同期化を証明するものではない。
 
+**追加修正・検証（2026-10-17、worker submitter の teardown 所有権）:** production の
+`DeferredPacketRecordWorker` を組み込んだ後、worker test は描画 assertion を通過した後の
+`ArtifactIRenderer::destroy()` で SEH access violation になった。VS debugger の triage で
+`DiligentImmediateSubmitter::destroy()` → `PSOAndSRB::operator=(PSOAndSRB&&)` を特定した。
+glyph pipeline clone helper が借用 raw pointer を所有型 `PSOAndSRB` の一時値へ格納し、
+その destructor が `ShaderManager` 所有の参照を余分に `Release()` していた。raw pointer を借用する
+clone overload に置き換え、worker shutdown 後に保持 device reference も解放するよう修正した。
+`DeferredSubmitDrainsPacketsBeforeViewportSwitch` と
+`DeferredCommandListCanBeRecordedAndFinishedOnWorker` は Debug / D3D12 と Debug / Vulkan で pass。
+production renderer の immediate / worker-deferred PNG と worker contract の immediate / worker / production-submit
+PNG をそれぞれ出力し、目視で描画内容を確認した。production renderer の 128×128 immediate / deferred PNG は
+`artifact_renderer_{immediate,deferred}_{d3d12,vulkan}.png` として保存され、4 枚すべての SHA-256 は
+`2A1BAB4EAC02427FDAEB1557BB920D55DA26B14B12D2D6549994043C132C1431` で一致した。worker contract の
+`deferred_worker_immediate_*` / `deferred_worker_recorded_*` / `deferred_submit_recorded_*` も 6 枚すべての
+SHA-256 が `AF60E824696AFA7C599F551A644CE6C0D285C108BCD947497C00F1A18416470A` で一致した。これは限定 packet set の recording + execute + teardown を検証するもので、
+Composition frame の worker 化、scene snapshot、GUI 非ブロッキングはまだ未検証である。
+
+**追加実装（2026-10-17、Composition host preflight の GUI 境界化）:**
+`CompositionRenderController::Impl::HostFrameSnapshot` を追加し、host の可視性・論理サイズ・DPR と診断用 HWND を
+GUI 側で値として取得するようにした。可視性判定、widget サイズと swapchain の同期、resize / swapchain 再生成は
+`prepareHostFrame()` にまとめ、`renderOneFrameImpl()` は snapshot を `const&` で受け取る。これにより frame 本体内の
+`QWidget` 直接参照を取り除いた。Artifact Debug アプリは現行 source で再コンパイル・リンクした。CMake は MSVC
+14.51 を検出した一方で v143 を期待する警告を継続して出し、windeployqt は Qt 翻訳カタログと
+`Qt6Widgetsd.dll` の解決に失敗したが、CMake の build target は成功した。これは worker 移行ではない。
+`renderOneFrameImpl()` は依然 GUI thread 上で、composition / layer / playback を直接読み、owner の UI API を呼ぶ。
+
+**追加修正・検証（2026-10-17、resize 同期フレーム）:** host preflight で widget サイズの変化を検出した際、
+viewport と swapchain を同期的に更新した後、常に frame をスキップしていた。D3D12 では最初の ticker frame 後に
+host サイズが確定し、直後の同期 `renderOneFrame()` がこの経路へ入るため baseline serial が進まず、Composition
+integration test が失敗した。再生成後に swapchain が有効なら同じ呼び出しで frame 本体へ進むよう修正した。
+ArtifactModel3DLightCompositionIntegrationTest target の再ビルドが成功し、PointLight Composition integration test は
+Debug / D3D12 と Debug / Vulkan の両方で pass。両 backend が実際の `composition_controller_point_light.png` を出力し、
+SHA-256 は `ABCBCE0B0225AA7BF5BFE985BF3157165416BBB342B9AAFC4F1A8B8FE383C3DB` で一致した。
+確認画像は `out/build/x64-Debug-Agent/model3d_light_capture/d3d12/Debug/` と
+`out/build/x64-Debug-Agent/model3d_light_capture/Debug/` にある。これはサイズ変更を含む Composition の同期描画経路の
+検証であり、Composition frame の worker 化はまだ証明しない。
+
+**追加検証（2026-10-17、Composition frame image の readback 待機）:**
+`Model3DLightCompositionIntegrationTest` は frame serial の進行直後に
+`readbackPresentedFrameImage()` を一度だけ呼んでいた。frame completion と GPU pipeline の readback source 準備は同時とは限らず、
+GPU pipeline 初期化中の D3D12 point-light case で source がまだ null のためテスト画像を得られないことがあった。
+テスト側で Qt screen capture を使わず、renderer の GPU readback が非 null になるまで最大 5 秒イベントを処理して待つようにした。
+Debug / D3D12 と Debug / Vulkan の point-light Composition integration test が pass し、両方で実際の
+`composition_controller_point_light.png` を出力した。画像は SHA-256
+`ABCBCE0B0225AA7BF5BFE985BF3157165416BBB342B9AAFC4F1A8B8FE383C3DB` で一致し、描画結果を目視確認した。
+これは Composition controller の GPU image 出力確認であり、deferred worker recording / GUI 非ブロッキングを証明しない。
+
+**再検証（2026-10-17、worker 変更後の Composition point-light image）:** 前回の追加 worker 実装後の実行は CMake 登録値と異なる
+`QT_QPA_PLATFORM=offscreen` を使っていたため swapchain が作成されず、ticker の frame serial が進まない結果になっていた。
+さらに実行ファイル隣の `platforms` に offscreen plugin がない状態で起動した試行は、Qt debug runtime の platform plugin 初期化ダイアログで停止した。
+Windows Composition test の登録契約に合わせ `QT_QPA_PLATFORM=windows` と実行 target 隣の `qwindowsd.dll` を使い、最新 test object をリンクした実行ファイルで
+Debug / Vulkan と Debug / D3D12 を個別に再実行したところ、point-light integration test は双方 pass した。
+両 backend は実際の 400×300 `composition_controller_point_light.png` を出力し、SHA-256 は
+`ABCBCE0B0225AA7BF5BFE985BF3157165416BBB342B9AAFC4F1A8B8FE383C3DB` で一致した。
+これにより今回のComposition画像 parity は確認できたが、frame body は引き続きGUI thread上で同期実行される。
+
+**既存 snapshot 経路の再利用調査（2026-10-17）:** `ArtifactRenderQueueService::cloneCompositionSnapshot()` は
+`ArtifactAbstractComposition::toJson()` / `fromJson()` で composition を複製し、component simulation bake を複写する。
+`ArtifactAbstractComposition::changed()` には worker で作る復元 snapshot から GUI 向け global event を同期発行しない契約もある。
+これは worker 側 composition clone の既存例だが、interactive frame ごとの全 JSON serialize / deserialize や非同期 video open を
+そのまま採用できる証拠ではない。候補は GUI 側で revision 単位に snapshot payload を作り、worker 側で所有 clone を更新する構成だが、
+再利用可否と費用は別途計測が必要である。
+
+**追加検証（2026-10-17、pending gizmo overlay の worker fallback）:** production `ArtifactIRenderer` は 2D packet 専用の worker recorder を持つため、
+16 packet 以上の条件を満たしても 3D gizmo geometry が同時に pending している batch は main submitter に残す eligibility gate を追加した。
+回帰テストは不可視 15 rect + 可視 1 rect + 緑の gizmo line を積み、worker submit count が増えないこと、rect と gizmo が最終画像に含まれることを検証する。
+Debug / D3D12 と Debug / Vulkan の両方で pass し、実際の 128×128 PNG を `artifact_renderer_pending_gizmo_{d3d12,vulkan}.png` として出力した。
+両画像の SHA-256 は `16D865E960A5C5FDD3E096D9FA71AB5F16D141E7A3EB26D2A18E1A2FFB12D3B5` で一致し、緑線の画素範囲は両 backend とも x=16..111 / y=63 だった。
+これは worker recorder が pending gizmo を消費しない同期 fallback の確認であり、Composition frame の非同期化や GUI 非ブロッキングを証明しない。
+
+**再実行（2026-10-17、deferred contract matrix）:** `ArtifactClonerGpuRenderContractTest` の `*Deferred*` 5 ケースを
+Debug / D3D12 と Debug / Vulkan で再実行し、両方 5/5 pass。interleaved quad/triangle 順序、partial viewport/scissor、viewport 切替時の drain、
+worker record/execute/finish、pending gizmo overlay fallback を含む。これは headless renderer の deferred packet path が両 backend で動作する証拠で、
+Composition frame の呼び出し元を非同期化する証拠ではない。
+
+**通常Sprite packetのworker記録（2026-10-17）:** `SpritePkt` と `SpriteXformPkt` を worker recorder の eligibility に加え、1×1 immutable texture を保持する両 packet を
+worker image contract に追加した。packet append 時に SRV を retain し、submitter ごとの sprite pipeline/SRB と事前確保済み vertex buffer を使って record する。
+通常Spriteと変換Spriteの可視領域、即時描画との全画素一致を検証し、Debug / D3D12 と Debug / Vulkan で `*Deferred*` 5/5 pass。
+immediate / worker recorded の4枚 (`deferred_worker_{immediate,recorded}_{d3d12,vulkan}.png`) はすべて SHA-256
+`6317442E614A2DCB895C64ECDECA08B1DA75F6813C264408A50E12AFB300495A` で一致した。対象は独立 headless renderer の bounded packet mix であり、
+Composition が通常Spriteを非同期に処理することや GUI 非ブロッキングを示すものではない。
+
 **再分割余地（確認値と評価）:** ArtifactCore には既に 51 個の domain static library がある一方、aggregate
-ArtifactCore target には今回の単独 build log 上で 396 action が残り、Artifact app build は依存込みで 3,162
-action を計画した。ArtifactCompositionRenderController.cppm は 40,248 行で、抽出候補として大きい。ただし
+ArtifactCore target には今回の単独 build log 上で 396 action が残り、Artifact app build は依存込みで数千の
+module scan / compile action を持つ。ArtifactCompositionRenderController.cppm は約54,000行で、抽出候補として大きい。ただし
 同ファイルの Impl 状態と frame-local resource が結合しているため、機械的な source/target 分割は安全な単位を
 示さない。推論としては、Core では独立した provider ownership を持つ低結合 domain から split target 候補を測り、
 Composition では CPU snapshot / packet preparation / GPU pass の境界を先に作るのがよい。新しい target は
