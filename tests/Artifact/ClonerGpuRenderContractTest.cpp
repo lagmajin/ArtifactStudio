@@ -12,6 +12,7 @@
 #include <QMatrix4x4>
 #include <QRawFont>
 #include <QSize>
+#include <QUuid>
 #include <QVector3D>
 
 #include <algorithm>
@@ -1268,6 +1269,110 @@ TEST(ClonerGpuRenderContractTest,
         QStringLiteral("artifact_renderer_deferred_async_readback_teardown_%1.png")
             .arg(backend));
     ASSERT_TRUE(frame.save(capturePath, "PNG")) << capturePath.toStdString();
+}
+
+TEST(ClonerGpuRenderContractTest,
+     ArtifactRendererDoesNotOverwriteVideoTextureBeforeDeferredExecution)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 128)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    renderer.setCanvasSize(128.0f, 128.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    const QUuid videoLayerId = QUuid::createUuid();
+
+    ArtifactCore::ImageF32x4_RGBA redFrame;
+    redFrame.resize(4, 4);
+    redFrame.fill(ArtifactCore::FloatRGBA(0.95f, 0.05f, 0.05f, 1.0f));
+    ArtifactCore::ImageF32x4_RGBA blueFrame;
+    blueFrame.resize(4, 4);
+    blueFrame.fill(ArtifactCore::FloatRGBA(0.05f, 0.05f, 0.95f, 1.0f));
+
+    const auto drawFrame = [&](Diligent::ITextureView* texture) {
+        const ArtifactCore::FloatColor invisible(1.0f, 1.0f, 1.0f, 1.0f);
+        for (int index = 0; index < 15; ++index) {
+            renderer.drawSolidRect(
+                -40.0f - static_cast<float>(index) * 3.0f,
+                -40.0f, 2.0f, 2.0f, invisible);
+        }
+        QMatrix4x4 identity;
+        identity.setToIdentity();
+        renderer.drawSpriteTransformed(16.0f, 16.0f, 96.0f, 96.0f,
+                                       identity, texture, 1.0f);
+    };
+
+    renderer.clear();
+    auto* redTexture = renderer.textureForVideoFrame(
+        redFrame, videoLayerId, 1);
+    ASSERT_NE(redTexture, nullptr);
+    drawFrame(redTexture);
+    renderer.flushAndWait();
+    const auto synchronousRedFrame = renderer.readbackToImageF32();
+    const auto synchronousRedCenter = synchronousRedFrame.getPixel(64, 64);
+
+    renderer.clear();
+    redTexture = renderer.textureForVideoFrame(redFrame, videoLayerId, 1);
+    ASSERT_NE(redTexture, nullptr);
+    drawFrame(redTexture);
+    ASSERT_TRUE(renderer.flushDeferredPacketsAsync());
+
+    // Resolve the next video frame into the same reusable cache slot before
+    // the earlier deferred command list has been executed by the owner.
+    auto* blueTexture = renderer.textureForVideoFrame(
+        blueFrame, videoLayerId, 2);
+    ASSERT_NE(blueTexture, nullptr);
+    EXPECT_EQ(blueTexture, redTexture);
+
+    renderer.flushAndWait();
+    const auto firstFrame = renderer.readbackToImageF32();
+    const auto firstCenter = firstFrame.getPixel(64, 64);
+    float maxDeferredVsOwnerError = 0.0f;
+    for (int y = 0; y < firstFrame.height(); ++y) {
+        for (int x = 0; x < firstFrame.width(); ++x) {
+            const auto expected = synchronousRedFrame.getPixel(x, y);
+            const auto actual = firstFrame.getPixel(x, y);
+            maxDeferredVsOwnerError = std::max({
+                maxDeferredVsOwnerError,
+                std::abs(actual.r() - expected.r()),
+                std::abs(actual.g() - expected.g()),
+                std::abs(actual.b() - expected.b()),
+                std::abs(actual.a() - expected.a())});
+        }
+    }
+    EXPECT_LE(maxDeferredVsOwnerError, 1.0e-4f)
+        << "the deferred packet must sample the cached video frame it retained";
+
+    drawFrame(blueTexture);
+    renderer.flushAndWait();
+    const auto secondFrame = renderer.readbackToImageF32();
+    const auto secondCenter = secondFrame.getPixel(64, 64);
+    const float secondFrameDifference =
+        std::abs(secondCenter.r() - synchronousRedCenter.r()) +
+        std::abs(secondCenter.g() - synchronousRedCenter.g()) +
+        std::abs(secondCenter.b() - synchronousRedCenter.b());
+    EXPECT_GT(secondFrameDifference, 0.5f)
+        << "the next packet should sample the updated video frame";
+
+    renderer.clear();
+    blueTexture = renderer.textureForVideoFrame(blueFrame, videoLayerId, 2);
+    ASSERT_NE(blueTexture, nullptr);
+    drawFrame(blueTexture);
+    renderer.flushAndWait();
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+    EXPECT_TRUE(firstFrame.toQImage().save(
+        QDir(captureDirectory).filePath(
+            QStringLiteral("artifact_renderer_deferred_video_reuse_first_%1.png")
+                .arg(backend)), "PNG"));
+    EXPECT_TRUE(secondFrame.toQImage().save(
+        QDir(captureDirectory).filePath(
+            QStringLiteral("artifact_renderer_deferred_video_reuse_second_%1.png")
+                .arg(backend)), "PNG"));
 }
 
 TEST(ClonerGpuRenderContractTest,

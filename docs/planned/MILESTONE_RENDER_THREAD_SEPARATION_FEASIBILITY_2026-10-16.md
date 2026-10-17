@@ -122,7 +122,7 @@ queue 容量上限時の runtime 表示確認は未実施。
 textured triangle / local sprite / masked sprite の各 packet 追加時に、現在解決済みの video slot と一致すれば queue epoch を記録し、
 同じ slot の上書き前にだけ owner queue を submit する。packet 全件の走査や追加 resource 確保は行わない。
 Composition 側は texture を Cloner enumeration / dispatch より前に一度だけ解決し、overwrite barrier が現在の dispatch と sprite packet を
-分離しないようにした。source call order と epoch 更新点を確認したが、複数 sample の runtime 画像比較と D3D12 / Vulkan 確認は未実施。
+分離しないようにした。後続の runtime test で async Deferred handoff 時に epoch を進めると in-flight command list の参照先を上書きする競合を再現したため、epoch 更新を command list 実行完了時へ移し、overwrite callback が worker-only pending batch も drain するよう修正した。red video frame を同一 slot に blue frame で上書きする test は Debug / D3D12 と Debug / Vulkan で pass し、Deferred frame は同期 red baseline と全画素一致、次の frame は blue update を表示した。`artifact_renderer_deferred_video_reuse_first_{d3d12,vulkan}.png` は SHA-256 `2C79384A22C014CC16AA2BE55C417108D63A879FE23DD4940FC370CB88B5ABE8`、`artifact_renderer_deferred_video_reuse_second_{d3d12,vulkan}.png` は `0C5D42EEBCA087A4D52A6318E551534CF4648170F1C07935A819B4C253FE1F94` で各 backend 間一致し、画像を目視確認した。
 
 **追加修正（2026-10-17、GlyphAtlas full upload 順序）:** `GlyphAtlas` が容量上限に達すると atlas を clear して glyph を再配置し、
 `PrimitiveRenderer2D::uploadGlyphAtlasIfNeeded()` が同じ GPU texture 全体を即時更新する。旧 UV を持つ Atlas Sprite packet が queue に

@@ -4668,6 +4668,13 @@
 - **価値／懸念:** This establishes the normal-completion lifetime and packet-before-copy ordering at the renderer teardown boundary. It does not establish recovery from device loss or a GPU fence that never signals.
 - **次に確認:** Exercise texture-size reinitialization while one readback slot is busy, then separately characterize the shutdown behavior when the device is lost or stalled.
 
+## 2026-10-18: Async Deferred handoff must not retire video texture readers early
+
+- **関連:** `flushDeferredPacketsAsync()`、`completeDeferredPacketRecording()`、`PrimitiveRenderer2D::textureForVideoFrame()`。
+- **確認できた事実:** The owner advanced the video texture queue epoch when it handed packets to the recording worker, before the resulting command list executed. A red frame queued on a reusable video texture and followed by a blue upload before owner execution rendered blue into the earlier frame on D3D12. Moving epoch advancement to deferred completion and allowing the overwrite callback to drain an in-flight worker batch made the first Deferred frame pixel-identical to its synchronous red baseline; the next frame rendered the blue update. D3D12 and Vulkan passed with matching first-frame hash `2C79384A22C014CC16AA2BE55C417108D63A879FE23DD4940FC370CB88B5ABE8` and second-frame hash `0C5D42EEBCA087A4D52A6318E551534CF4648170F1C07935A819B4C253FE1F94`.
+- **価値／懸念:** Queue handoff and GPU execution are different resource lifetime boundaries. This repair keeps the reusable texture immutable until all earlier deferred readers have been executed, without scanning all queued packets or allocating per frame.
+- **次に確認:** Verify the same overwrite boundary for cached video frames referenced by Cloner and masked sprites during real Composition frame sequencing, including queue saturation fallback.
+
 ## 2026-10-18: Deferred 3D card recording needs an explicit target and projector snapshot
 
 - **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::draw3DCard()` / `draw3DTexturedCard()`、`Artifact/src/Render/PrimitiveRenderer3D.cppm::drawCardPass()`、`DeferredPacketRecordWorker`。
