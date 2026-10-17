@@ -4650,9 +4650,9 @@
 ## 2026-10-18: Deferred Cloner ranges expire at the submit boundary
 
 - **関連:** `ClonerGridPlacementRange::batchGeneration`、`ArtifactIRenderer::flushAndWait()`、Composition の GPU placement draw fallback、`tests/Artifact/ClonerGpuRenderContractTest.cpp`。
-- **確認できた事実:** submit は Cloner batch generation を進めるため、以前に dispatch した range を後続 batch の GPU sprite draw に使えない。Production caller はその draw が失敗した場合、通常の transformed sprite draw へ移る。split-submit test でこの fallback を D3D12 / Vulkan の両 backend で実行し、3つの可視 clone を含む PNG を保存した。両画像の SHA-256 は `5CFCE0311CB2DB4A2DC9B42080F7676BE635AB9A328611817D80853544E0CCB5`。
-- **価値／懸念:** deferred queue drain 後に stale GPU range を誤用せず、画面上の clone 描画を継続できる境界を実画像で固定した。Composition の現行 observer-to-draw path に同じ drain が実際に挿入される場面は確認していない。
-- **次に確認:** device loss / placement resource 再初期化中の generation invalidation と、Composition の複数 pass が dispatch / draw 間に barrier を挿入しないことを runtime evidence で確かめる。
+- **確認できた事実:** submit は Cloner batch generation を進めるため、以前に dispatch した range を後続 batch の GPU sprite draw に使えない。Production caller はその draw が失敗した場合、通常の transformed sprite draw へ移る。通常の split-submit test に加え、15 filler + dispatch を async handoff した後に immediate clear を呼び、clear が worker batch を drain してから後続 range を stale として拒否する経路も D3D12 / Vulkan で実行した。CPU fallback の3 cloneを含む PNG は両 backend で byte-identical、SHA-256 `5CFCE0311CB2DB4A2DC9B42080F7676BE635AB9A328611817D80853544E0CCB5`。
+- **価値／懸念:** deferred queue drain 後に stale GPU range を誤用せず、画面上の clone 描画を継続できる境界を、明示的な immediate clear barrier を含む実画像で固定した。Composition の通常 observer-to-draw path に同じ drain が入る呼び出しは確認されていない。
+- **次に確認:** device loss / placement resource 再初期化中の generation invalidation と、Composition 実 frame で observer-to-draw 間の barrier 有無を測定する。
 
 ## 2026-10-18: Measure the owner wait at the deferred recording barrier
 

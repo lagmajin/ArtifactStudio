@@ -3013,3 +3013,110 @@ TEST(ClonerGpuRenderContractTest,
     ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
         << capturePath.toStdString();
 }
+
+TEST(ClonerGpuRenderContractTest,
+     DeferredClonerRangeFallsBackAcrossImmediateClearBarrier)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 128, true)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    if (!renderer.clonerGridPlacementGpuReady()) {
+        GTEST_SKIP() << "Diligent backend could not create the Cloner GPU pipelines";
+    }
+
+    const auto requestedBackend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("d3d12")).toLower();
+    const auto expectedDeviceType = requestedBackend == QStringLiteral("vulkan")
+        ? Diligent::RENDER_DEVICE_TYPE_VULKAN
+        : Diligent::RENDER_DEVICE_TYPE_D3D12;
+    auto device = renderer.device();
+    ASSERT_NE(device, nullptr);
+    ASSERT_EQ(device->GetDeviceInfo().Type, expectedDeviceType)
+        << "headless initialization must not silently test a fallback backend";
+
+    constexpr std::array<std::uint8_t, 4> texel{255, 255, 255, 255};
+    Diligent::TextureDesc textureDesc;
+    textureDesc.Name = "Cloner immediate clear barrier fallback source";
+    textureDesc.Type = Diligent::RESOURCE_DIM_TEX_2D;
+    textureDesc.Width = 1;
+    textureDesc.Height = 1;
+    textureDesc.MipLevels = 1;
+    textureDesc.Format = Diligent::TEX_FORMAT_RGBA8_UNORM;
+    textureDesc.Usage = Diligent::USAGE_IMMUTABLE;
+    textureDesc.BindFlags = Diligent::BIND_SHADER_RESOURCE;
+    Diligent::TextureSubResData subresource;
+    subresource.pData = texel.data();
+    subresource.Stride = texel.size();
+    Diligent::TextureData initialData;
+    initialData.pSubResources = &subresource;
+    initialData.NumSubresources = 1;
+    Diligent::RefCntAutoPtr<Diligent::ITexture> sourceTexture;
+    device->CreateTexture(textureDesc, &initialData, &sourceTexture);
+    ASSERT_NE(sourceTexture, nullptr);
+    auto* sourceView = sourceTexture->GetDefaultView(
+        Diligent::TEXTURE_VIEW_SHADER_RESOURCE);
+    ASSERT_NE(sourceView, nullptr);
+
+    const ArtifactCore::FloatColor transparent(0.0f, 0.0f, 0.0f, 0.0f);
+    renderer.clearRenderTarget(transparent);
+    const ArtifactCore::FloatColor invisible(1.0f, 1.0f, 1.0f, 1.0f);
+    for (int index = 0; index < 15; ++index) {
+        renderer.drawSolidRect(-48.0f - static_cast<float>(index) * 3.0f,
+                               -48.0f, 2.0f, 2.0f, invisible);
+    }
+
+    Artifact::ClonerGridPlacementRange placementRange;
+    ASSERT_TRUE(renderer.dispatchClonerGridPlacement(
+        2, 1, 1, 40.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 0.0f, 1.5f, 0.75f,
+        placementRange));
+    ASSERT_EQ(placementRange.count, 3u);
+    const auto workerSubmitsBeforeHandoff =
+        renderer.deferredWorkerSubmitCount();
+    ASSERT_TRUE(renderer.flushDeferredPacketsAsync())
+        << "the 15 filler packets plus Cloner dispatch should use deferred recording";
+
+    // This immediate clear is ordered after the worker command list. The
+    // dispatch range belongs to the submitted batch, so the later sprites
+    // must reject it and use their CPU transforms instead.
+    renderer.clearRenderTarget(transparent);
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(),
+              workerSubmitsBeforeHandoff + 1);
+
+    QMatrix4x4 identity;
+    identity.setToIdentity();
+    for (std::uint32_t index = 0; index < placementRange.count; ++index) {
+        EXPECT_FALSE(renderer.drawSpriteTransformedClonerGrid(
+            64.0f, 64.0f, 12.0f, 8.0f, identity, identity, sourceView,
+            1.0f, placementRange,
+            placementRange.firstIndex + index)) << "placement=" << index;
+    }
+    renderer.drawSpriteTransformed(47.0f, 63.0f, 12.0f, 8.0f, identity,
+                                   sourceView, 1.0f);
+    renderer.drawSpriteTransformed(64.0f, 63.0f, 12.0f, 8.0f, identity,
+                                   sourceView, 1.0f);
+    renderer.drawSpriteTransformed(87.0f, 63.0f, 12.0f, 8.0f, identity,
+                                   sourceView, 1.0f);
+    renderer.flushAndWait();
+
+    const auto image = renderer.readbackToImageF32();
+    const auto components = findVisibleComponents(image);
+    ASSERT_EQ(components.size(), 3u);
+    constexpr std::array<float, 3> expectedCenterX{53.0f, 70.0f, 93.0f};
+    for (std::size_t index = 0; index < components.size(); ++index) {
+        const auto& component = components[index];
+        EXPECT_NEAR((component.left + component.right) * 0.5f,
+                    expectedCenterX[index], 1.5f);
+        EXPECT_NEAR((component.top + component.bottom) * 0.5f, 67.0f, 1.5f);
+    }
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_cloner_clear_barrier_fallback_%1.png")
+            .arg(requestedBackend));
+    ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
+        << capturePath.toStdString();
+}

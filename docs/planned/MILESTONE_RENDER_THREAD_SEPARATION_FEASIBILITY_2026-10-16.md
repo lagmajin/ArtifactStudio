@@ -1,5 +1,5 @@
 **最終更新:** 2026-10-18
-**ステータス:** In Progress — active packet-order paths, Particle / retained Billboard / transferred Gizmo / solid and textured 3D Card / bounded 3D shape triangle / warm-atlas ordinary and transformed GlyphText deferred parity with distinct-glyph and post-seed atlas-update image assertions, projector fallback, offscreen target continuity, the bounded asynchronous base-to-overlay recording window, and Composition point-light frame image contracts pass on Debug / D3D12 and Debug / Vulkan. `ArtifactIRenderer` can retain one base batch while the owner records later packets into a second pre-reserved buffer; immediate-render barriers and present drain the earlier batch first. Opt-in profiling separates worker record / FinishCommandList, owner ExecuteCommandLists submission, worker FinishFrame, and Composition render-to-present timing. Composition's full frame body, immediate-context ownership, and `present` remain on the caller thread, so GUI rendering is not yet generally non-blocking. MSBuild also reached `Artifact.exe`; its post-build Qt deployment emitted missing translation-catalog / debug-DLL warnings. The repaired Ninja/MSVC `ArtifactCoreAnalyze` target compiles and links after its explicit module reference map was completed; the full Artifact Ninja app target has not completed.
+**ステータス:** In Progress — active packet-order paths, Particle / retained Billboard / transferred Gizmo / solid and textured 3D Card / bounded 3D shape triangle / warm-atlas ordinary and transformed GlyphText deferred parity with distinct-glyph and post-seed atlas-update image assertions, projector fallback, offscreen target continuity, the bounded asynchronous base-to-overlay recording window, Composition point-light frame images, and the Cloner async-dispatch → immediate-clear → CPU-fallback image contract pass on Debug / D3D12 and Debug / Vulkan. `ArtifactIRenderer` can retain one base batch while the owner records later packets into a second pre-reserved buffer; immediate-render barriers and present drain the earlier batch first. Opt-in profiling separates worker record / FinishCommandList, owner ExecuteCommandLists submission, worker FinishFrame, and Composition render-to-present timing. Composition's full frame body, immediate-context ownership, and `present` remain on the caller thread, so GUI rendering is not yet generally non-blocking. MSBuild also reached `Artifact.exe`; its post-build Qt deployment emitted missing translation-catalog / debug-DLL warnings. The repaired Ninja/MSVC `ArtifactCoreAnalyze` target compiles and links after its explicit module reference map was completed; the full Artifact Ninja app target has not completed.
 
 # Render Thread Separation — Phase 4 Feasibility & Design
 
@@ -540,8 +540,11 @@ frame body の worker 化や GUI 非ブロッキングは証明しない。`LNK1
    QImage texture の生成は呼び出し thread 上に残り、worker へは移していない。Cloner は同じ deferred recorder の中で
    compute → draw と buffer transition を記録できる形になったが、
    16-packet Cloner placement + sprite case は Debug / Vulkan と Debug / D3D12 の両方で build/runtime pass。
-   この test では clear を dispatch より前に行っているため、dispatch submit と dependent sprite submit の間に
-   queue drain が入る呼び出しは未検証である。range cursor reservation と command buffer append は producer 側の直列操作のままで、
+   追加した `DeferredClonerRangeFallsBackAcrossImmediateClearBarrier` は、15 filler + dispatch を async worker に渡した後、
+   即時 clear barrier で worker submit を完了し、stale placement range を拒否して CPU transform fallback へ移ることを確認する。
+   3つの可視 clone の frame image を両 backend で保存し、SHA-256 `5CFCE0311CB2DB4A2DC9B42080F7676BE635AB9A328611817D80853544E0CCB5` で一致した。
+   これは明示的に clear を挟む renderer contract の実機証拠であり、Composition の通常 observer-to-draw path に barrier が挿入される頻度は示さない。
+   range cursor reservation と command buffer append は producer 側の直列操作のままで、
    まだ worker から renderer を呼べない。worker 移行では submitter の mutable batch/PSO 状態、ParticleRenderer の GPU resource state と
    PrimitiveRenderer3D の SRB / constant buffer 状態も recorder ごとに所有させる必要がある。Bindless submitter は
    fallback 有効時に単一 batch 条件を事前検査し、
