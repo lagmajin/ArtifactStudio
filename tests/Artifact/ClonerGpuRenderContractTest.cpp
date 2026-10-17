@@ -410,7 +410,7 @@ TEST(ClonerGpuRenderContractTest,
     ASSERT_NE(spriteSRV, nullptr);
     const auto makeBuffer = [&] {
         Artifact::RenderCommandBuffer buffer;
-        buffer.reserve(18);
+        buffer.reserve(20);
         buffer.setTargetRTV(renderer.layerRenderTargetView());
         for (int index = 0; index < 16; ++index) {
             if (index < 12) {
@@ -477,6 +477,25 @@ TEST(ClonerGpuRenderContractTest,
         transformedSprite.mat.row3 = {0.0f, 0.0f, 0.0f, 1.0f};
         transformedSprite.pSRV = spriteSRV;
         buffer.append(transformedSprite);
+
+        Artifact::AtlasSpritePkt atlasSprite{};
+        atlasSprite.xform.offset = {40.0f, 80.0f};
+        atlasSprite.xform.scale = {24.0f, 24.0f};
+        atlasSprite.xform.screenSize = {128.0f, 128.0f};
+        atlasSprite.pSRV = spriteSRV;
+        atlasSprite.uvRect = {0.0f, 0.0f, 1.0f, 1.0f};
+        atlasSprite.color = {1.0f, 1.0f, 1.0f, 1.0f};
+        buffer.append(atlasSprite);
+
+        Artifact::AtlasSpriteXformPkt transformedAtlasSprite{};
+        transformedAtlasSprite.mat.row0 = {0.375f, 0.0f, 0.0f, 0.5625f};
+        transformedAtlasSprite.mat.row1 = {0.0f, -0.375f, 0.0f, -0.25f};
+        transformedAtlasSprite.mat.row2 = {0.0f, 0.0f, 1.0f, 0.0f};
+        transformedAtlasSprite.mat.row3 = {0.0f, 0.0f, 0.0f, 1.0f};
+        transformedAtlasSprite.pSRV = spriteSRV;
+        transformedAtlasSprite.uvRect = {0.0f, 0.0f, 1.0f, 1.0f};
+        transformedAtlasSprite.color = {1.0f, 1.0f, 1.0f, 1.0f};
+        buffer.append(transformedAtlasSprite);
         return buffer;
     };
 
@@ -534,7 +553,7 @@ TEST(ClonerGpuRenderContractTest,
     worker.join();
     EXPECT_TRUE(recorded);
     EXPECT_NE(commandList, nullptr);
-    EXPECT_EQ(buffer.packets().size(), 18u);
+    EXPECT_EQ(buffer.packets().size(), 20u);
     renderer.flushAndWait();
     const auto workerImage = renderer.readbackToImageF32();
     ASSERT_EQ(immediateImage.width(), workerImage.width());
@@ -576,6 +595,12 @@ TEST(ClonerGpuRenderContractTest,
     const auto transformedSpriteCenter = workerImage.getPixel(88, 80);
     EXPECT_GT(transformedSpriteCenter.a(), 0.8f);
     EXPECT_GT(transformedSpriteCenter.r(), 0.8f);
+    const auto atlasSpriteCenter = workerImage.getPixel(52, 90);
+    EXPECT_GT(atlasSpriteCenter.a(), 0.8f);
+    EXPECT_GT(atlasSpriteCenter.r(), 0.8f);
+    const auto transformedAtlasSpriteCenter = workerImage.getPixel(112, 90);
+    EXPECT_GT(transformedAtlasSpriteCenter.a(), 0.8f);
+    EXPECT_GT(transformedAtlasSpriteCenter.r(), 0.8f);
     const auto workerCapturePath = QDir(captureDirectory).filePath(
         QStringLiteral("deferred_worker_recorded_%1.png").arg(backend));
     ASSERT_TRUE(renderer.readbackToImage().save(workerCapturePath, "PNG"))
@@ -661,6 +686,76 @@ TEST(ClonerGpuRenderContractTest,
 
     const auto capturePath = QDir(captureDirectory).filePath(
         QStringLiteral("artifact_renderer_pending_gizmo_%1.png").arg(backend));
+    ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
+        << capturePath.toStdString();
+}
+
+TEST(ClonerGpuRenderContractTest,
+     ArtifactRendererWorkerDeferredRecordsSpritePackets)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 128)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+
+    auto device = renderer.device();
+    ASSERT_NE(device, nullptr);
+    constexpr std::array<std::uint8_t, 4> texel{255, 255, 255, 255};
+    Diligent::TextureDesc textureDesc;
+    textureDesc.Name = "ArtifactIRenderer deferred sprite contract";
+    textureDesc.Type = Diligent::RESOURCE_DIM_TEX_2D;
+    textureDesc.Width = 1;
+    textureDesc.Height = 1;
+    textureDesc.MipLevels = 1;
+    textureDesc.Format = Diligent::TEX_FORMAT_RGBA8_UNORM;
+    textureDesc.Usage = Diligent::USAGE_IMMUTABLE;
+    textureDesc.BindFlags = Diligent::BIND_SHADER_RESOURCE;
+    Diligent::TextureSubResData subresource;
+    subresource.pData = texel.data();
+    subresource.Stride = texel.size();
+    Diligent::TextureData initialData;
+    initialData.pSubResources = &subresource;
+    initialData.NumSubresources = 1;
+    Diligent::RefCntAutoPtr<Diligent::ITexture> texture;
+    device->CreateTexture(textureDesc, &initialData, &texture);
+    ASSERT_NE(texture, nullptr);
+    auto* spriteSRV = texture->GetDefaultView(
+        Diligent::TEXTURE_VIEW_SHADER_RESOURCE);
+    ASSERT_NE(spriteSRV, nullptr);
+
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    renderer.clear();
+    for (int index = 0; index < 14; ++index) {
+        renderer.drawSolidRect(-40.0f - static_cast<float>(index) * 3.0f,
+                               -40.0f, 2.0f, 2.0f,
+                               ArtifactCore::FloatColor(1.0f, 1.0f, 1.0f, 1.0f));
+    }
+    renderer.drawSprite(8.0f, 80.0f, 24.0f, 24.0f, spriteSRV);
+    QMatrix4x4 transform;
+    transform.setToIdentity();
+    renderer.drawSpriteTransformed(72.0f, 72.0f, 24.0f, 24.0f,
+                                   transform, spriteSRV);
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), 0u);
+    texture = nullptr;
+
+    renderer.flushAndWait();
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), 1u)
+        << "the production ArtifactIRenderer path should record the 16-packet sprite batch on its worker";
+    const auto image = renderer.readbackToImageF32();
+    ASSERT_EQ(image.width(), 128);
+    ASSERT_EQ(image.height(), 128);
+    EXPECT_GT(image.getPixel(20, 90).a(), 0.8f);
+    EXPECT_GT(image.getPixel(20, 90).r(), 0.8f);
+    EXPECT_GT(image.getPixel(84, 84).a(), 0.8f);
+    EXPECT_GT(image.getPixel(84, 84).r(), 0.8f);
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_deferred_sprites_%1.png").arg(backend));
     ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
         << capturePath.toStdString();
 }

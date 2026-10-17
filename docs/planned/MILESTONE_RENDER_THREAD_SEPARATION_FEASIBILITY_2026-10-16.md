@@ -437,17 +437,23 @@ Debug / D3D12 と Debug / Vulkan の両方で pass し、実際の 128×128 PNG 
 両画像の SHA-256 は `16D865E960A5C5FDD3E096D9FA71AB5F16D141E7A3EB26D2A18E1A2FFB12D3B5` で一致し、緑線の画素範囲は両 backend とも x=16..111 / y=63 だった。
 これは worker recorder が pending gizmo を消費しない同期 fallback の確認であり、Composition frame の非同期化や GUI 非ブロッキングを証明しない。
 
-**再実行（2026-10-17、deferred contract matrix）:** `ArtifactClonerGpuRenderContractTest` の `*Deferred*` 5 ケースを
-Debug / D3D12 と Debug / Vulkan で再実行し、両方 5/5 pass。interleaved quad/triangle 順序、partial viewport/scissor、viewport 切替時の drain、
-worker record/execute/finish、pending gizmo overlay fallback を含む。これは headless renderer の deferred packet path が両 backend で動作する証拠で、
+**再実行（2026-10-17、deferred contract matrix）:** `ArtifactClonerGpuRenderContractTest` の `*Deferred*` 6 ケースを
+Debug / D3D12 と Debug / Vulkan で再実行し、両方 6/6 pass。interleaved quad/triangle 順序、partial viewport/scissor、viewport 切替時の drain、
+worker record/execute/finish、pending gizmo overlay fallback、production `ArtifactIRenderer` のSprite worker selectionを含む。これは headless renderer の deferred packet path が両 backend で動作する証拠で、
 Composition frame の呼び出し元を非同期化する証拠ではない。
 
-**通常Sprite packetのworker記録（2026-10-17）:** `SpritePkt` と `SpriteXformPkt` を worker recorder の eligibility に加え、1×1 immutable texture を保持する両 packet を
-worker image contract に追加した。packet append 時に SRV を retain し、submitter ごとの sprite pipeline/SRB と事前確保済み vertex buffer を使って record する。
-通常Spriteと変換Spriteの可視領域、即時描画との全画素一致を検証し、Debug / D3D12 と Debug / Vulkan で `*Deferred*` 5/5 pass。
-immediate / worker recorded の4枚 (`deferred_worker_{immediate,recorded}_{d3d12,vulkan}.png`) はすべて SHA-256
-`6317442E614A2DCB895C64ECDECA08B1DA75F6813C264408A50E12AFB300495A` で一致した。対象は独立 headless renderer の bounded packet mix であり、
-Composition が通常Spriteを非同期に処理することや GUI 非ブロッキングを示すものではない。
+**Sprite / Atlas packetのworker記録（2026-10-17）:** `SpritePkt` / `SpriteXformPkt` に加えて
+`AtlasSpritePkt` / `AtlasSpriteXformPkt` を worker recorder の eligibility に加え、1×1 immutable texture を保持する4 packetを worker image contract に含めた。
+packet append 時に SRV を retain し、submitterごとのpipeline/SRBと事前確保済みsprite vertex bufferを使ってrecordする。通常・変換・atlas・変換atlas spriteの可視領域と
+即時描画との全画素一致を検証し、Debug / D3D12 と Debug / Vulkan で `*Deferred*` 6/6 pass。immediate / worker recorded の4枚
+(`deferred_worker_{immediate,recorded}_{d3d12,vulkan}.png`) は SHA-256 `0C6D37072EC6034B8AF36F1A748117F74934775A166CBEE4590571B641CA8C28` で一致した。
+対象は独立 headless renderer の bounded packet mix であり、Composition がsprite packetを非同期に処理することや GUI 非ブロッキングを示すものではない。
+
+**production renderer経路（2026-10-17）:** `ArtifactRendererWorkerRecordsSpritePackets` は実際の `ArtifactIRenderer` に不可視14 packetと通常Sprite / 変換Spriteを各1 packet渡し、
+`flushAndWait()` 後に `deferredWorkerSubmitCount()` が1増えること、textureの元参照を解放した後も両Spriteが最終画像に残ることを確認する。
+Debug / D3D12 と Debug / Vulkan で pass し、`artifact_renderer_deferred_sprites_{d3d12,vulkan}.png` は SHA-256
+`9A87D4C9DB52C0D046CCB314AD464E641ED4CA4488E2744B54D0964037ABFE2F` で一致した。これはproduction `ArtifactIRenderer` がSprite packet bufferをworkerへ選ぶ証拠だが、
+`flushAndWait()` は同期呼び出しであり、Composition GUI thread の非ブロッキングや present 所有権の移行を示すものではない。
 
 **再分割余地（確認値と評価）:** ArtifactCore には既に 51 個の domain static library がある一方、aggregate
 ArtifactCore target には今回の単独 build log 上で 396 action が残り、Artifact app build は依存込みで数千の
