@@ -2343,6 +2343,110 @@ TEST(ClonerGpuRenderContractTest,
 }
 
 TEST(ClonerGpuRenderContractTest,
+     ArtifactRendererPreservesOverlayOrderAfterDeferredGlyphBatch)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(192, 96)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    const auto requestedBackend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("d3d12")).toLower();
+    const auto expectedDeviceType = requestedBackend == QStringLiteral("vulkan")
+        ? Diligent::RENDER_DEVICE_TYPE_VULKAN
+        : Diligent::RENDER_DEVICE_TYPE_D3D12;
+    ASSERT_NE(renderer.device(), nullptr);
+    ASSERT_EQ(renderer.device()->GetDeviceInfo().Type, expectedDeviceType)
+        << "headless initialization must not silently test a fallback backend";
+    renderer.setCanvasSize(192.0f, 96.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    const QDir testSourceDirectory(
+        QFileInfo(QString::fromLocal8Bit(__FILE__)).absolutePath());
+    const QString bundledFontPath = testSourceDirectory.filePath(
+        QStringLiteral("../../libs/openusd/pxr/usdImaging/usdviewq/fonts/Roboto/Roboto-Regular.ttf"));
+    const int bundledFontId = QFontDatabase::addApplicationFont(bundledFontPath);
+    ASSERT_NE(bundledFontId, -1) << bundledFontPath.toStdString();
+    const auto bundledFamilies =
+        QFontDatabase::applicationFontFamilies(bundledFontId);
+    ASSERT_FALSE(bundledFamilies.isEmpty());
+    const QFont font(bundledFamilies.front(), 24);
+    const ArtifactCore::FloatColor textColor(0.1f, 1.0f, 0.2f, 1.0f);
+    const ArtifactCore::FloatColor overlayColor(0.1f, 0.2f, 0.95f, 1.0f);
+
+    // Create a clean GPU atlas with a glyph that the worker text does not use.
+    renderer.drawText(QRectF(8.0, 8.0, 48.0, 40.0), QStringLiteral("X"),
+                      font, textColor);
+    renderer.flushAndWait();
+    renderer.clear();
+
+    const auto drawEligibleTextBatch = [&] {
+        for (int index = 0; index < 15; ++index) {
+            renderer.drawSolidRect(-40.0f - static_cast<float>(index) * 3.0f,
+                                   -40.0f, 2.0f, 2.0f,
+                                   ArtifactCore::FloatColor(1, 1, 1, 1));
+        }
+        renderer.drawText(QRectF(16.0, 20.0, 156.0, 42.0),
+                          QStringLiteral("Deferred"), font, textColor);
+    };
+    const auto drawOverlay = [&] {
+        renderer.drawSolidRect(20.0f, 23.0f, 24.0f, 28.0f, overlayColor);
+    };
+
+    const quint64 workerSubmitCountBefore = renderer.deferredWorkerSubmitCount();
+    drawEligibleTextBatch();
+    ASSERT_TRUE(renderer.flushDeferredPacketsAsync())
+        << "the warm-atlas glyph batch should record on the worker";
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore);
+    drawOverlay();
+    renderer.flushAndWait();
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore + 1);
+    const auto deferredImage = renderer.readbackToImageF32();
+
+    renderer.clear();
+    drawEligibleTextBatch();
+    drawOverlay();
+    renderer.flushAndWait();
+    const auto ownerImage = renderer.readbackToImageF32();
+    ASSERT_EQ(deferredImage.width(), ownerImage.width());
+    ASSERT_EQ(deferredImage.height(), ownerImage.height());
+    float maxChannelError = 0.0f;
+    std::size_t visibleGreenTextPixels = 0;
+    for (int y = 0; y < deferredImage.height(); ++y) {
+        for (int x = 0; x < deferredImage.width(); ++x) {
+            const auto actual = deferredImage.getPixel(x, y);
+            const auto expected = ownerImage.getPixel(x, y);
+            maxChannelError = std::max({
+                maxChannelError,
+                std::abs(actual.r() - expected.r()),
+                std::abs(actual.g() - expected.g()),
+                std::abs(actual.b() - expected.b()),
+                std::abs(actual.a() - expected.a())});
+            if (actual.a() > 0.5f && actual.g() > 0.5f &&
+                actual.g() > actual.r() && (x < 20 || x >= 44 || y < 23 || y >= 51)) {
+                ++visibleGreenTextPixels;
+            }
+        }
+    }
+    EXPECT_LE(maxChannelError, 1.0e-4f);
+    EXPECT_GT(visibleGreenTextPixels, 100u)
+        << "glyph pixels outside the later overlay must remain visible";
+    const auto overlayPixel = deferredImage.getPixel(30, 36);
+    EXPECT_GT(overlayPixel.b(), 0.8f);
+    EXPECT_LT(overlayPixel.r(), 0.4f);
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_deferred_glyph_overlay_%1.png")
+            .arg(backend));
+    ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
+        << capturePath.toStdString();
+}
+
+TEST(ClonerGpuRenderContractTest,
      SubmittedPlacementRangeFallsBackAfterQueueDrain)
 {
     ArtifactTest::HeadlessRenderer renderer;

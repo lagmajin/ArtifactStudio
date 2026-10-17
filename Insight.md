@@ -4640,6 +4640,13 @@
 - **価値／懸念:** fixed sidecar capacity が超過した batch を worker に部分移譲せず、描画を owner に戻す境界を画像付きで記録できた。owner fallback では 4,097 glyph の shaping / draw work が依然として caller 側に残るため、大きな text payload の latency は未計測。
 - **次に確認:** 通常 Composition の glyph 数分布と 4,096 slot 超過頻度を測り、sidecar の固定容量を変える前に bounded owner preparation cost と worker recording cost を分けて評価する。
 
+## 2026-10-18: Deferred glyph recording preserves later owner overlays
+
+- **関連:** `ArtifactIRenderer::flushDeferredPacketsAsync()` / `flushAndWait()`、`GlyphTextPkt`、deferred double-buffer、`tests/Artifact/ClonerGpuRenderContractTest.cpp`。
+- **確認できた事実:** warm atlas で未登録 glyph を含む `Deferred` text batch を worker に渡し、record 中に owner 側の2つ目の command buffer へ blue overlay を追加するケースは、同期 owner frame と全画素一致した。overlay は text の一部を覆い、残りの glyph は表示された。Debug / D3D12 と Debug / Vulkan の実 device で pass し、PNG hash は両 backend で `CC001DBF4E2B7684FCD0E8FD166D283A1FF9997A59642C8B4BCA2384B0B0B6FB` で一致した。
+- **価値／懸念:** glyph-specific atlas upload と、worker base batch 後の owner overlay ordering を同じ image contract で確認できた。これは一つの bounded packet mix の順序であり、Composition 全体の非ブロッキングや queue backpressure の改善量は示さない。
+- **次に確認:** Composition 側の複数 pass / immediate barriers で base worker batch と owner-produced packet の境界が実 workload でも保たれるか、controller frame sequence の source/runtime evidence を集める。
+
 ## 2026-10-18: Deferred 3D card recording needs an explicit target and projector snapshot
 
 - **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::draw3DCard()` / `draw3DTexturedCard()`、`Artifact/src/Render/PrimitiveRenderer3D.cppm::drawCardPass()`、`DeferredPacketRecordWorker`。
