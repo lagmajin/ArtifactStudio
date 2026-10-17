@@ -1,6 +1,79 @@
-**最終更新:** 2026-10-16
+**最終更新:** 2026-10-17
 
 # Insight Register
+
+## 2026-10-17: Deferred command recording needs a strict first worker lane
+
+- **関連:** `Artifact/include/Render/DiligentImmediateSubmitter.ixx`、`Artifact/src/Render/DiligentImmediateSubmitter.cppm`、`tests/Artifact/ClonerGpuRenderContractTest.cpp`。
+- **確認できた事実:** Existing `submit()` recorded a Diligent deferred command list and executed it synchronously before returning, so the GUI caller still paid both recording and execution costs. The submitter mutates PSO and batching state and cannot be shared concurrently.
+- **変更:** Added a narrow record/execute/finish split for buffers containing at least 16 submitter-owned `SolidRectPkt`, `SolidRectXformPkt`, `LinePkt`, `QuadPkt`, and `SolidTriPkt` packets. Recording returns the command list without touching the Immediate Context or resetting the packet buffer; a worker-thread contract test records 12 invisible rectangles, a line, a quad, a red triangle, and an overlapping green rectangle, then returns `FinishFrame()` to the recording thread.
+- **価値／懸念:** The deferred record/execute/finish seam and the production `submit()` threshold-selected deferred path both pass the mixed-packet image contract on Debug / Vulkan and Debug / D3D12. The test compares 128×128 readbacks with identical alpha coverage, maximum channel difference at or below `1.0e-4`, and expected color samples; it saves immediate, worker-recorded, and production-submit frames as backend-specific PNGs beside the test binary. The generated Vulkan and D3D12 frames were visually inspected and match. CTest initially failed during global environment setup because the Cloner test lacked the Qt offscreen plugin staging used by the neighboring Particle test; its target now copies the plugin beside the binary and sets `QT_QPA_PLATFORM_PLUGIN_PATH`. This validates only these submitter-owned 2D packet types. The production submit path still records and executes synchronously on its caller. Composition snapshots, broader resource ownership, queueing, present, and GUI non-blocking remain unverified.
+- **次に確認:** Extend the worker lane only after defining immutable frame inputs and worker-owned mutable renderer resources; retain this parity test as the narrow baseline. The current API does not establish end-to-end asynchronous Composition rendering.
+
+## 2026-10-17: Particle deferred image tests also validate readback channel order
+
+- **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::readbackToImageF32()`、`tests/Artifact/Particle3DRenderContractTest.cpp`、`tests/Artifact/CMakeLists.txt`。
+- **確認できた事実:** `readbackTextureViewToFloatBuffer()` copies RGBA8/16F/32F staging rows into a raw RGBA float array. Treating that array as BGRA made the existing Particle GPU image assertions see zero red pixels. The Windows test executable also lacked a colocated Qt offscreen platform plugin, so QGuiApplication initialization could not complete from the test runner.
+- **今回の対応:** Normalize the raw RGBA readback through `setFromRGBA32F()`, copy Qt's offscreen integration plugin beside the Particle test binary, and add a 16-packet deferred-vs-immediate Particle image contract.
+- **価値／懸念:** The Deferred Particle test now checks actual GPU output on D3D12 and Vulkan; the full Particle contract suite passes. Binding the DSV only when Particle depth testing or writing is enabled removed the depth-format mismatch warning. All seven Particle contract tests pass on both D3D12 and Vulkan.
+- **次に確認:** Extend the same offscreen plugin deployment to other Windows headless targets only when their CTest setup demonstrates the same missing-plugin failure; continue validating depth-enabled Particle PSOs against the active DSV format on both backends.
+
+## 2026-10-17: Deferred viewport state needs an image-level boundary test
+
+- **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::applyRenderViewportState()`、`Artifact/src/Render/DiligentImmediateSubmitter.cppm::applyViewportState()`、`tests/Artifact/ClonerGpuRenderContractTest.cpp`。
+- **確認できた事実:** Deferred context target bind resets viewport state on D3D12, so the submitter stores `RenderViewportState` and reapplies viewport/scissor after binding the target. A new headless test renders a partial viewport through immediate and 16-packet deferred paths, compares full-frame alpha coverage, and checks pixels outside the scissor.
+- **今回の対応:** The partial viewport/scissor case and a two-viewport queue-drain case pass on Debug D3D12 and Vulkan in separate processes.
+- **価値／懸念:** This proves viewport preservation and queue draining for solid-rect packet batches; it does not prove gizmo runs or billboard/3D render-target handoff.
+- **次に確認:** Add image contracts for ordered gizmo overlays and Billboard/3D target handoff before claiming broad deferred viewport parity.
+
+## 2026-10-17: Resident GPU shaders need paired BGRA load and store swizzles
+
+- **関連:** `Artifact/src/Effects/InnerShadow/InnerShadowEffect.cppm` resident shader、`docs/analysis/COLOR_CHANNEL_ORDER_CONSISTENCY_AUDIT_2026-10-16.md`。
+- **確認できた事実:** Inner Shadow resident shaderはアルファの参照だけならraw texture読み出しで問題ない一方、合成対象のRGBをraw `float4`から読み、logical RGBとして計算後にraw出力していた。CPU実装はBGRA backing各成分を順序不問で合成するため、このGPU経路は赤と青の異なる入力・影色で結果が入れ替わる。
+- **変更:** shaderのforeground loadに`.bgra`、output storeにも`.bgra`を追加し、resident BGRA textureとの入出力規約を対称にした。
+- **価値／懸念:** Inner ShadowのGPU出力とCPU fallbackを同じlogical colorに揃える。shader compileとruntime画素比較は実施していない。
+- **次に確認:** 赤青が非対称な素材と影色を用い、resident GPU / CPU fallback / 後続effect chainの画素値を比較する。
+
+## 2026-10-16（更新 2026-10-17）: Render thread separation is gated by a widely shared immediate context
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`（`:19486`,`:19723`,`:42329-49391`）、`ArtifactCore/src/Thread/PreciseTicker.cppm`、`Artifact/include/Render/DiligentDeviceManager.ixx`（`:48-49`,`:154`）、`ArtifactCore/src/Render/RenderWorker.cppm`、`Artifact/src/Render/DiligentImmediateSubmitter.cppm`、`Artifact/src/Render/DiligentBindlessSubmitter.cppm`、設計は `docs/planned/MILESTONE_RENDER_THREAD_SEPARATION_FEASIBILITY_2026-10-16.md`。
+- **確認できた事実:** tick は `PreciseTicker` の worker thread から `QMetaObject::invokeMethod(Qt::QueuedConnection)` で GUI へ marshal され、フレーム本体 `renderOneFrameImpl`（約7,000行）は GUI スレッドで全実行される（`present()` もその中）。`DiligentDeviceManager` は single-thread immediate 契約と deferred context を持つ。さらに `DiligentImmediateSubmitter` は 16 packet 以上の一部 command buffer を deferred context で記録し、同じ呼び出し内で immediate に実行する既存経路を持つため、「deferred は未実装」という評価は誤り。shared context を取得する Effect と Engine Render Window がある一方、Timeline Render Window は独立 device/context を使う。`ArtifactCore::RenderWorker` は空スタブ。
+- **変更:** `BillboardPkt` は `PrimitiveRenderer3D::drawBillboardQuadWithContext()` に submitter の `recordCtx` と packet RTV を渡し、deferred command list 内で周囲の packet と同じ順序に記録する。submitter から PrimitiveRenderer3D の RTV override を一時変更して `nullptr` に戻す操作も除き、active offscreen target を後続の即時 3D draw が失わないようにした。QImage overload は packet 作成時に texture を解決して retained SRV 付き `BillboardPkt` を作り、QImage 変換・resource 作成を deferred recorder へ持ち込まない。さらに `LinePkt` / `QuadPkt` / `SolidTriPkt` / `AtlasSpritePkt` は種類の切替時に前の保留バッチを flush し、固定末尾 flush による interleaving の順序逆転を防ぐ。Bindless submitter は fallback 時の partial draw を避けるため単一 batch 条件を先に検査し、最終 flush の失敗を検出する。ParticleRenderer の `updateBuffer()` は recording context を引数で受け、Particle upload / prepare / draw を同じ context に記録する。Diligent D3D12 / Vulkan backend は `UpdateBuffer()` の CPU 入力を呼び出し中に upload allocation へコピーしてから同じ context の command stream に buffer copy を記録する。Cloner placement は `ClonerGridDispatchPkt` として params / retained GPU resources を packet 化し、producer が output range を予約した順に dispatch packet を Cloner sprite packet の前へ置く。submitter は `recordCtx` で params を map して compute dispatch を記録し、Map が失敗すると対応する sprite packet は既存 CPU fallback を使う。Cloner も既存 deferred context で記録し、同じ submit 呼び出し内に immediate context で実行する。`PrimitiveRenderer3D` の gizmo line / triangle は順序付き vertex stream と topology run にまとめ、順番を保ったまま一度 upload して描画する。submitter は 2D packet の後に gizmo runs も同じ `recordCtx` へ記録し、packet 数と gizmo 頂点数が合計 16 以上なら deferred recording の対象にする。bindless Sprite 専用経路は pending gizmo がある時に通常 submitter へ委譲し、Sprite と gizmo の順序を保つ。初期段階では `BillboardImagePkt` が buffer-wide immediate fallback を残していたが、後続の context 対応修正で解消した。
+- **確認できた事実:** `RenderCommandBuffer::tryAppend()` は容量を超えて成長せず、Cloner dispatch packet と draw packet が producer 順で追加される。dispatch packet は PSO / SRB / params buffer / output buffer を保持し、range は対応する dispatch packet index を持つ。submitter は compute と sprite draw の両方に同じ `recordCtx` を使い、resource transition を要求する。Diligent の D3D12 / Vulkan backend は dynamic buffer の `MAP_FLAG_DISCARD` で context ごとの dynamic allocation を取得し、Vulkan compute dispatch は active render scope を終えてから実行される。これらはソース確認であり、実機実行結果ではない。
+- **追加確認と変更:** deferred context は immediate context の viewport / scissor state を継承せず、D3D12 の target bind は viewport を target 全体へ設定する。`RenderViewportState` を保持し、submitter の初期 target bind、Particle の target bind、PrimitiveRenderer3D の Billboard / gizmo / card / shape bind 後に viewport と scissor を適用する。renderer の viewport が変わる場合は、queued packet と gizmo を旧 state のまま先に submit してから新 state を反映する。
+- **実行経路の確認:** `ArtifactIRenderer::Impl` は `DiligentImmediateSubmitter` を保持して使う。Artifact の描画経路で `DiligentBindlessSubmitter` の生成・呼び出し箇所は見つからず、その safety 修正は現行 renderer に適用されない。
+- **追加未検証:** 部分 viewport / scissor 上の D3D12 / Vulkan parity は solid-rect ケースで確認済み。target サイズ変更をまたぐ state 復元、gizmo / Billboard parity は未確認。
+- **追加修正:** legacy `BillboardImagePkt` handler は PrimitiveRenderer3D の保持 immediate context を使っていたため、deferred batch 全体が immediate に切り替わっていた。`drawBillboardImageWithContext()` で渡された recording context に記録し、submit 時に作った texture を packet 内で保持して command-list 実行後まで寿命を維持するようにした。これで既存 packet variant の中に buffer-wide immediate fallback を要求するものは残らない。texture の生成は引き続き呼び出し thread 上で行い、worker へは移していない。
+- **fallback の理由:** 旧 Cloner producer dispatch は shared constant buffer / ComputeExecutor を更新し、renderer-wide output cursor の range を予約して immediate context へ dispatch していた。今回 range reservation は producer で直列のまま残し、GPU upload / dispatch を順序付き packet と recordCtx に移した。legacy `BillboardImagePkt` の QImage texture 生成は submitter の呼び出し thread 上に残し、描画 command のみ `recordCtx` へ記録する。別 worker から producer / submitter を同時に呼ぶ設計にはまだ進めていない。
+- **確認できた事実:** `RenderCommandBuffer::append()` が SRV を retain し、submit は `ExecuteCommandLists()` 後に buffer を reset する。順序については、種類切替時に異なる保留バッチを先に flush するコード経路を確認した。並列生成の `RenderCommandBufferPool::tryMergeInto()` は worker slot 順に結合し、polyline / polygon の caller は連続した入力範囲を worker index 順で分割する。完了順のばらつきは packet 順を変えない。
+- **追加修正:** `mapWriteDiscard()` の戻り値を無視して draw していた経路では、Map 失敗時に直前 packet の dynamic-buffer 内容を現在の packet 位置で描く可能性があった。`DiligentImmediateSubmitter.cppm` 内の全 callsite で必要な Map 成功を draw 前に確認し、batch は保留 CPU data を破棄、個別 packet は該当 draw をスキップする。Diligent は backend 確保前に map 状態を登録するため、null pointer 時も `UnmapBuffer()` して状態を戻す。Cloner dispatch と PrimitiveRenderer3D の context-aware / immediate Map failure 経路も同じ cleanup を行う。複数 glyph packet は途中失敗時に既に記録した glyph が残り、後続 glyph を中断する。failure injection と runtime 確認は未実施。
+- **追加確認と変更:** renderer の immediate clear、skybox draw、blend、texture copy / resolve、viewport exposure、compute 用 target unbind に加え、`clearTextureRegion()` / `convertLayerToFloat()` / `applyTrackMatte()` も queued packet を先に submit する境界がなかった。呼び出し側が先行 packet を残したままこれらを呼ぶと、同じ texture の更新と compute / clear / draw / copy の順序が逆になる可能性があるため、各即時操作の前に queue drain を追加した。swapchain resize も旧 backbuffer を参照する packet を drain してから解除する。これは API 境界の順序保証としての修正で、現行 UI 呼び出しで全ケースを runtime 再現したわけではない。
+- **追加修正:** 非同期 readback の staging `CopyTexture()` 前にも queued packet の submit がなく、active render target を source にした場合に copy が同 frame の draw を追い越せた。同期 readback と同じく copy 直前に `submitQueuedDraws(ctx)` を入れ、GPU copy の前に source を materialize する。fence 後の worker wait / map は変更していない。runtime readback parity は未確認。
+- **追加確認と変更:** async readback worker は fence 後に captured immediate context を map/unmap していた。`DiligentDeviceManager.ixx` の single-thread immediate contract に合わせ、readback 専用 `QThreadPool` を最大1 thread・無期限維持とし、その worker 上で deferred graphics context を作成・再利用する。Diligent API は graphics context での staging map を許可し、D3D12 / Vulkan backend の staging map/unmap は command recording を使わない。device identity が変わった際は同じ worker 上で context を再作成する。pool を Impl の最終 data member に置き、他の renderer state の破棄前に join する。これらはソース確認で、backend runtime safety と device recovery は未検証。
+- **追加修正:** Composition controller は pending layer packet がある状態で `renderShadowMapFrame()` を呼び、その後に `flush()` していた。shadow pass は immediate context を shadow target に切り替えて clear / draw するため、packet submit より先に実行される。shadow target bind 前に packet と gizmo を submit し、controller の呼び出し順を保つ。source 上で packet-pending の位置関係を確認したが、画像 parity への影響は未検証。
+- **追加懸念:** Qt `QThreadPool` の destructor は runnable 完了まで block し、Diligent `IFence::Wait()` に timeout はない。よって renderer teardown は readback 完了まで待つ場合があり、device loss / hung GPU 時の終了待ちは未確認。**次に確認:** 実機でreadback完了時間を記録し、in-flight readback中の renderer teardown と device loss を検証する。
+- **追加監査:** Composition 最終化の raw accumulator conversion / channel display は、先行する accumulator 更新が同じ immediate context 上で完了し、queued viewport background packet とは別 texture を使う。cache 色変換も build 時は packet drain 後、cache-hit 時は前フレームから保持された source を読む。ここでは同一 resource に対する順序競合を確認できず、追加 drain は入れていない。**価値／懸念:** raw context 呼び出し全件を一律 flush せず、packet と即時処理の read/write resource 依存を根拠に境界を限定できる。**次に確認:** deferred recorder を worker 所有へ移す段階では、これらの raw GPU pass を明示 API に包み、resource access と context ownership を呼び出し境界で表す。runtime resource transition は未確認。
+- **追加監査:** MPM surface の queue-full retry は先行 packet を submit してから行う。並列 geometry は worker buffer の失敗分を reset してから owner queue に直列 fallback し、Cloner GPU placement も失敗した placement 単位で通常 sprite へ戻る。確認した失敗経路では部分 worker packet の後挿入や即時 draw による順序逆転は見つからなかった。queue 上限での runtime 表示は未検証。
+- **追加実行確認・修正（2026-10-17）:** ArtifactClonerGpuRenderContractTest の Deferred packet 順序、同一 batch 内の GPU placement + sprite、dispatch と sprite を分けた CPU fallback の各ケースが Debug / Vulkan および Debug / D3D12 で pass。各ケースを個別プロセスで実行し、Vulkan 物理 device / D3D12 adapter のログを確認した。同一プロセスの連続 headless Vulkan initialization は Diligent global function pointer 制約エラーを出すため、個別プロセスを検証条件とする。placement range に renderer batch generation を含め、queued packet の submit または renderer / placement GPU resource の再初期化後は古い range を GPU draw API が拒否する。これにより出力 buffer の cursor 再利用後に stale range を誤読せず、caller は既存 CPU transform fallback を使える。test split path は GPU dispatch を submit した後に各 placement draw が拒否されることと、fallback image の3 component位置を確認する。runtime dispatch callsite は共通 placement observer 1 箇所で、texture 解決後に dispatch し、そのまま callback へ進む。確認した callback 内にも queue drain はない。**次に確認:** renderer device loss 中の再初期化と generation counter wraparound。
+- **追加修正（2026-10-17、mutable texture packet order）:** 関連: `PrimitiveRenderer2D.cppm`、`ArtifactIRenderer.cppm`、`ArtifactCompositionRenderController.cppm`、`ArtifactDiligentTimelineRenderWindow.cppm`。確認できた事実: `textureForVideoFrame()` は layer ごとの再利用 slot を即時 `UpdateTexture()` で上書きする一方、前 frame の packet が未 submit のまま同じ SRV を参照し得る。Sprite / Cloner Sprite / Atlas Sprite / textured triangle / local sprite / masked sprite の packet 追加時、SRV が直近に解決した video slot と一致すれば queue epoch を記録し、該当 slot の上書き時だけ owner queue を drain する。Composition 側は texture 解決を Cloner dispatch の前へ移し、drain が新 dispatch と sprite の index 関係を切らないようにした。さらに GlyphAtlas の容量到達時は CPU 側で atlas 全体を clear/repack した後、GPU texture を全量更新するため、旧 atlas SRV を参照する queue が残っていれば Artifact renderer / 独立 Timeline renderer の owner submitter で先に drain する。通常の shelf 追加では部分 upload のままとする。全 queue scan と追加 heap allocation は導入していない。価値／懸念: 再利用 GPU texture と glyph atlas の内容更新が、それらを読む保留 packet を追い越す経路を境界ごとに防ぐ。複数 sample playback と atlas 飽和の runtime parity は未検証。次に確認: D3D12 / Vulkan で複数 sample 再生、RAM preview、Cloner dispatch → sprite 順序、GlyphAtlas 飽和後の Timeline text を実行確認する。
+- **未検証:** build/runtime での描画順・画像 parity は未確認。Bindless fallback の実機 failure injection も未実施。Particle の deferred UpdateBuffer / MapBuffer と複数 Particle packet の GPU 結果、Cloner compute → draw、gizmo Map/Unmap と D3D12 / Vulkan 表示結果も未確認。offscreen target 上の Billboard 後に続く即時 3D draw の target 維持も未確認。
+- **価値／懸念:** deferred context は command recording を段階的に移せるが、現在は同期呼び出しで GUI を外れない。submitter は PSO cache と batch 配列、PrimitiveRenderer3D は SRB / constant buffer / 定数値 / RTV override を可変共有するため、別 worker へ context pointer だけ渡す設計では競合する。順序付き gizmo run metadata は初期化時に小さく reserve するが、256 run を超える場合の steady-state allocation は計測していない。GUI block の解消には GUI snapshot、worker-owned deferred recorder と mutable resource state、immediate execution / present owner の分離が別々に必要。deferred command list 実行まで resource の寿命を保ち、順序を維持しなければならない。
+- **次に確認:** 明示的なビルド／実行後に Cloner の dispatch → sprite 順序、CPU fallback、画像 parity と、gizmo の面／輪郭線順序、target、D3D12 / Vulkan parity、offscreen Billboard 後の即時 3D draw target を確認する。続けて recorder ごとの GPU resource ownership を設計し、GUI prep / command record / immediate execute / present を個別計測する。併せて shared immediate を使う Effect の frame 外利用と queue/cache 経由の context も追跡する。`MultithreadedResourceCreation` は別機能として扱う。
+
+## 2026-10-16: Effect parameter edits bypass undo and force full surface invalidation
+
+- **関連:** `Artifact/src/Widgets/ArtifactPropertyWidget.cppm`（effect 行 `:3555-3726`、preview `:565-597`）、`Artifact/src/Widgets/ArtifactPropertyWidgetShared.cppm:1003-1020`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm:18408`/`:18497`、`Artifact/src/Service/ArtifactEffectService.cppm:1612`/`:1691`、`Artifact/src/Undo/UndoManager.cppm:996`。計画は `docs/planned/MILESTONE_EFFECT_PARAM_UI_PERFORMANCE_2026-10-16.md`。
+- **確認できた事実:** Inspector のエフェクトパラメータ UI は `ArtifactInspectorWidget` 内の `ArtifactPropertyWidget`（`effectPropertyWidget`）が担い、編集は `effect->setPropertyValue` を同期直接呼び出しする（`beginValueEdit`/`cancelValueEdit` は渡されない）。そのためこの経路は `SetPropertyCommand` を積まず undo 履歴に入らない。`LayerDirtyFlag::Effect` は lightweight 合成から除外され、1ステップごとに full/draft surface cache 破棄＋full-frame effect で全画面再合成を誘発し、描画は GUI スレッドで走る。undo 付きの正規 API（`ArtifactEffectService::setEffectProperty`）は別に存在するが、パラメータ値編集では使われていない。
+- **価値／懸念:** 同じ「エフェクト param 編集」で undo 有無と dirty 処理が二重系統に分かれている。rect 編集で full 破棄を避け、undo を service 経路へ寄せれば、重さと undo ギャップを同時に縮められる可能性がある。ただし直接経路が undo 無しである理由は未確認。
+- **次に確認:** 直接経路が意図的（undo 対象外）か、別ハンドラが補完しているかを確定してから Phase 1.2 を実装する。Phase 0 計測（`ArtifactEffectParamPerf.enable` 案）で setPropertyValue / invalidation / full redraw / GUI ブロック時間を実測して採否を判断する。
+
+## 2026-10-16: GPU image upload should preserve canonical BGRA directly
+
+- **関連:** `ArtifactCore/include/Image/GpuImageUpload.ixx`、`ArtifactCore/src/Image/GpuImageUpload.cppm`、各Effect GPU upload境界。
+- **確認できた事実:** `makeGpuImageUploadBuffer()`のBGRA targetはBGRA viewをzero-copy参照するが、RGBA viewとのorder mismatch時には画像全体サイズのscratchへswizzleする分岐があった。アプリのEffect call siteはBGRA targetを指定する。
+- **変更:** GPU upload APIはBGRA descriptor/targetだけを受け付け、order mismatchの全画素swizzleとscratch allocationを削除した。値順をGPUへそのまま渡す。
+- **価値／懸念:** 正規BGRA CPU imageからGPU textureへのuploadがzero-copyになり、色順変換とフレーム単位scratch allocationをなくす。もしRGBA descriptorのsurfaceが残ればupload失敗し、caller fallbackとなるため、全surface producerの正規化は引き続き必要。
+- **次に確認:** surfaceView生成箇所と全upload call siteでBGRA descriptorが確立していることを静的に確認し、descriptor不整合を実行時に検出する。pixel parityとallocation profileは未実施。
 
 ## 2026-10-16: RationalTimeのint64境界rescaleが符号を反転する
 
@@ -3985,3 +4058,238 @@
 - **価値／懸念:** 高優先の追加補間ケースをアプリ/Core全体のbuild blockerから分離できない。既存standalone targetに`KeyframeSplineTest.cpp`を加えた。
 - **未検証:** standalone projectのconfigure/build/testはユーザーの明示的CMake許可待ち。
 - **次に確認:** target再構成後にkeyframe contract suite全体を実行する。
+
+## 2026-10-16: レイヤーマスクの独立テストは演算・状態・描画を分ける
+
+- **関連:** `tests/mask_visual/MaskVisualTest.cpp`、`Artifact/src/Mask/LayerMask.cppm`、`Artifact/src/Layer/ArtifactLayerSerialization.cppm`、Composition mask render path。
+- **確認できた事実:** 既存 `ArtifactMaskVisualTest` は `LayerMask::compositeAlphaMask()` のCPU演算を画像出力と数値assertで検査する。FBXの独立GUI Viewerが扱うimport／animation表示とは異なり、CPU mask契約だけではlayerへの保持、保存復元、Composition描画での適用を確認できない。
+- **価値／懸念:** 一つのGUIテストへ全責務を集めず、演算回帰・layer state/persistence・実Composition captureを独立実行可能にすれば、失敗箇所を切り分けやすい。既存CPUケースとの重複やComposition Surface Cacheテストとの責務重複を避ける必要がある。
+- **次に確認:** `docs/planned/MILESTONE_LAYER_MASK_STANDALONE_TEST_2026-10-16.md` を基に、現行APIとfixture経路を実装前に照合する。テストは計画段階であり、ビルド／実行未確認。
+
+## 2026-10-16: Unscanned module attachments need explicit IFC references
+
+- **関連:** `ArtifactCore/CMakeLists.txt` の `ARTIFACTCORE_IMPLEMENTATION_MODULE_REFERENCES` 処理。
+- **確認できた事実:** implementation `.cppm` は `CXX_SCAN_FOR_MODULES OFF` にされている。コンパイルコマンドに `/reference` がなければ、IFCファイルがディスク上にあっても `module Name;` や `import Name;` は解決できない。`src/Color/` と `src/Core/` 全体を対象とする早期分岐が各ファイル専用の参照設定を遮っていた。
+- **価値／懸念:** ディレクトリ単位の省略分岐は、個別IFC参照とBMI producer順序の設定まで無効化し、コンパイル時に多数の連鎖エラーを生む。
+- **確認結果:** Visual Studio同梱CMake 4.3.1で再生成し、`AnimatableTransform2D.cppm`、`AnimationDynamics.cppm`、`FloatRGBA.cppm` の3オブジェクトをMSVCでコンパイルできた。`AnimatableTransform2D` ではprimary interfaceと推移importのIFC参照、およびproducer objectの順序を確認した。
+- **次に確認:** ArtifactCoreテストターゲットを再ビルドし、同様の未参照IFCが別のディレクトリ／分割ターゲットに残っていないか確認する。
+
+## 2026-10-16: Dialog confirm throttling belongs at the application event boundary
+
+- **関連:** `Artifact/src/AppMain.cppm` の `DialogLatencyEventFilter` とアプリ共通ダイアログ。
+- **確認できた事実:** アプリには `QApplication` に登録されたイベントフィルターがあり、`QDialogButtonBox` の確定 role と既定ボタンを共通に検出できる。各ダイアログの OK 処理へ個別ガードを追加すると実装漏れが起きやすい。
+- **価値／懸念:** ダイアログ単位で確定入力を短時間抑止すれば、同じボタンだけでなく別の確定ボタン経由の連続実行も防げる。入力イベントをフックする方式は `QAbstractButton::click()` の直接呼び出しには適用されない。
+- **次に確認:** UI 上でマウス・キーボードの連続確定と入力エラー後の再試行が正常に動くことを確認する。
+
+## 2026-10-16: Layer creation emitted the same Created event twice
+
+- **関連:** `Artifact/src/Composition/ArtifactAbstractComposition.cppm::appendLayerTop()`、`Artifact/src/Project/ArtifactProject.cppm::createLayerAndAddToComposition()`、平面レイヤー Undo 登録。
+- **確認できた事実:** `appendLayerTop()` が `LayerChangedEvent::Created` を publish し、成功した `ArtifactProject::createLayerAndAddToComposition()` も同じ composition ID / layer ID で同イベントを再 publish していた。平面レイヤーの作成後に使う Project Item Undo 情報の組み立てでは、同一 layer の `toJson()` を2回呼んでいた。
+- **変更:** Project の wrapper から重複 publish を除き、平面レイヤーの Undo 情報を一度の `toJson()` 結果から作るようにした。
+- **価値／懸念:** 作成イベントの同期購読者による重複更新を避ける。`appendLayerTop()` が通常どおり通知する既存契約に依存するため、別の通知抑止経路を使う呼び出しではイベントが必要か確認する。
+- **次に確認:** UI で平面レイヤー追加後の Timeline / Inspector / Project View 更新が一度で完了し、Undo / Redo と選択が維持されること、作成時間の実測が改善することを確認する。
+
+## 2026-10-16: Successful creation diagnostics synchronously flushed every phase
+
+- **関連:** `Artifact/include/Diagnostics/WidgetCreationDiagnostics.hpp::record()`、composition/project creation phase reporting。
+- **確認できた事実:** `recordPhase()` は outcome を `measured` として渡し、従来の flush 条件 `outcome != created || totalMs >= 50` は正常な全 phase record の書き込み直後に `QFile::flush()` を実行していた。
+- **未検証の仮説:** composition 作成中の複数回の同期 flush が UI の体感待ちへ寄与していた可能性がある。ディスクキャッシュや保存先による実時間差は未計測。
+- **変更:** `created` と `measured` はバッファリングし、失敗など例外 outcome のみ即時 flush する。
+- **価値／懸念:** 正常な診断記録を残したまま同期ディスク待ちを減らす。異常終了時は、最後の buffered record がプロセス終了前に未flushなら失われる可能性がある。
+- **次に確認:** 実機で composition 作成時間を複数回測定し、プロセス終了後に正常・失敗記録の両方がファイルに残ることを確認する。
+
+## 2026-10-16: BGRA backing requires auditing every raw channel-index boundary
+
+- **関連:** `ArtifactCore/src/Image/ImageF32x4_RGBA.cppm`、`Artifact/src/Effects`、`Artifact/src/Render/ArtifactRenderLayerPipeline.cppm`。
+- **確認できた事実:** BGRA backingへ揃えたGPU upload/readbackだけでは色の一貫性は保証されない。CPU fallbackの輝度係数、OpenCV conversion code、画素indexでの赤青指定、GPU resident shaderの入力/出力値順、QImage export write orderが同時にその契約を使う必要がある。今回の追加静的監査ではDeflicker、Radial Shadow、Rim Light、Kaleidoscope、NCC tracker、Liquid Glow、Luminescence Caustics、Offscreen exportに漏れが見つかった。
+- **価値／懸念:** 次回の全画像形式変更では型/APIの統一だけで完了とせず、CPU、OpenCV、GPU shader、描画境界ごとに非対称なRGB値で静的分類と画素比較を行う必要がある。現在はbuild/runtime/pixel parity未確認。
+- **次に確認:** 全rendererの`drawSprite(ITextureView*)`に渡すtextureのchannel orderをproducerまで追跡し、BGRA image textureとRGBA external textureの境界が明示されているか調べる。
+
+## 2026-10-16: External color APIs need named channel-order adapters
+
+- **関連:** `ArtifactCore/src/Image/FFmpegEncoder.cppm`、`ArtifactCore/src/Image/ImageYUV420.cppm`、`Artifact/src/Effects/Ofx/ArtifactOfxEffectImpl.cppm`、`Artifact/src/Color/ArtifactOCIOManager.cppm`。
+- **確認できた事実:** BGRA内部契約を整えても、RGBAを明示するOFX ABI、OCIO packed image、FFmpeg RGBA staging frame、OIIOのR/G/B/A channel namesへ生ポインタを渡すと外部境界で色が崩れる。FFmpeg staging frameには行strideがあり、幅だけで平坦走査するとpaddingも無視される。
+- **価値／懸念:** raw pointer boundaryにdescriptorから独立した名前付きadapterを用意すると、新しい外部APIを追加したときの見落としを減らせる。現状この変更では各境界個別に実装しており、共通adapter化は未実施・未検証。
+- **次に確認:** 同一の非対称色fixtureで各外部APIへの出力を確認し、繰り返し使うRGBA/BGRA境界処理を共通APIへ寄せる価値を測る。
+
+## 2026-10-16: Shared distortion sampling must return logical colors
+
+- **関連:** `ArtifactCore/src/ImageProcessing/Distortion.cppm` のbilinear/nearest sampling、morph、displacement。
+- **確認できた事実:** 共通sample helperはraw channel 0/1/2をそのままFloatRGBAのr/g/bとして返しており、BGRA backingでは赤青が入れ替わる。morph/displacement出力も論理RGBA順を書いていた。
+- **価値／懸念:** sample helperの一箇所の順序誤りが、複数distortion effectに共有される。descriptor-aware read/writeでRGBAとBGRA双方を扱い、出力descriptorをsourceから引き継ぐ。
+- **次に確認:** 非対称画素fixtureでnearest/bilinear、morph、各displacementをCPU実行し、RGBA/BGRAの論理色一致を比較する。未実施。
+
+## 2026-10-16: OIIO channel names should drive image ingress and export mapping
+
+- **関連:** `ArtifactCore/src/Image/ImageF32x4_RGBA.cppm::load()`、`ArtifactCore/src/IO/Image/ImageExporter.cppm::encodeImageBufToPath()`。
+- **確認できた事実:** OIIO読み込みは先頭4 channelを無条件にR/G/B/Aとしていた。汎用書き出しも出力にR/G/B/Aの名前を付けながら入力順をそのまま書き、内部BGRA値とラベルがずれる可能性があった。EXR等ではchannel namesが別順序やlayer prefix付きの場合がある。`OpenEXR.cppm`にはchannel nameを探す別実装が存在する。
+- **変更:** ingress/egress双方で名前から論理R/G/B/A channelを選び、名前が欠ける場合は位置fallbackを使う。書き出し時は出力channel数へ整形したImageBufを経由する。
+- **価値／懸念:** file reader/writerのchannel nameを境界契約に使うことで、source/internal channel layoutと保存形式のラベルを一致させる。名前がないファイルでは位置fallbackとなる。OIIO版とのAPI整合および画素結果は未検証。
+- **次に確認:** R/G/B/AとB/G/R/Aの異なるchannel layoutを持つOIIO fixtureでload/export結果を比較し、実際の対象formatでchannelnamesがどう報告されるか確認する。未実施。
+
+## 2026-10-16: float4 component names do not define image channel order
+
+- **関連:** `ArtifactCore/src/ImageProcessing` の`float4*` processors、`ArtifactCore/include/ImageProcessing/Halation.ixx`、Glow / SurfaceFXなどのCPU effect色処理。
+- **確認できた事実:** `float4.x/y/z`は画像配列のcomponent 0/1/2を指す。BGRA画素ではそれぞれB/G/Rだが、Anamorphic Flare、Broadcast Colors、Edge Echo、Leave Color、Threshold、Luma Key、Emboss、Halftone、Duotone、Strobe Light、Physical Halationが一部でRGB係数や色設定をx=R/z=Bとして扱っていた。追加でRadio Waves、Pixel Sort、Inner Shadow、Surface FX、Simple Rain、Glow CPU出力setterにも同じ種類のCPU RGB/BGRA対応漏れがあった。
+- **価値／懸念:** raw `float4*` processorの引数型から論理色順を推定するとCPU effect間の不整合が再発する。BGRA順を公開コメントへ明記し、設定色は論理RGBAとして個別にmapする。
+- **次に確認:** 同系列の全`float4*` processorとCPU effectについて、RGB依存計算とユーザー色設定の両方を継続監査する。今回の列挙以外は未確認。
+
+## 2026-10-16: Shared matte, viewport exposure, and render-farm transport also consume BGRA
+
+- **関連:** `ArtifactCore/src/Layer/LayerMatte.cppm`、`Artifact/include/Render/ViewerHelperShaders.ixx`、`ArtifactCore/src/IPC/RenderFarmSharedBuffer.cppm`。
+- **確認できた事実:** matte fast pathは`rgba32fData()`のcomponent順をそのまま論理`FloatRGBA`へ渡し、luminance matteの赤青寄与が逆になっていた。viewport exposure shaderはBGRA accumulator値を`.rgb`として扱っていた。Render Farm packetはBGRA backingをそのまま送信した後、受信側でRGBA入力setterへ渡していた。
+- **変更:** matte raw valuesを論理RGBAへ展開し、viewport shaderはBGRA read→論理RGB処理→BGRA writeを明示し、packet受信側はBGRA setterを使用する。
+- **価値／懸念:** 画像effect以外の表示・matte・共有transport境界にも同一の値順を適用する。変更はコード読解から確認したがbuild、実行、非対称色比較は未実施。
+- **次に確認:** 残るCPU raw-index processors、GPU shader texture read/store、preview/export境界を継続監査し、最終的にD3D12/Vulkan双方で赤・青が異なる入力を用いて確認する。
+
+## 2026-10-16: Single-pass shader generator needs an explicit pixel-function color contract
+
+- **関連:** `ArtifactCore/src/ImageProcessing/DirectCompute/SinglePassShader.cppm`、`docs/technical/IMAGE_CHANNEL_ORDER_CONTRACT_2026-10-16.md`。
+- **確認できた事実:** 共通生成器はGPU textureのraw `float4`をpixel functionの`src`へ渡し、その戻り値を変換せずoutput textureへ保存する。一方、標準stageは`.rgb`を論理色として演算する。Artifact image-pipeline texture値はBGRAなので、標準stageを含むpixel functionの色契約が一致していなかった。repository内に現時点のcallerは見つからない。
+- **変更:** 生成器の読み出しでBGRA→論理RGBAを行い、pixel functionの戻り値をBGRAへ戻して保存する。
+- **価値／懸念:** 個々のsingle-pass effectへswizzle漏れを分散させず、共通生成境界で契約を固定する。関数戻りswizzleのHLSLコンパイルおよびruntimeは未確認。
+- **次に確認:** caller追加時に、非対称RGB値を用いて生成HLSLのCPU期待値との一致を確認する。shader compilerがfunction return swizzleを受け付けるかビルド時に確認する。
+
+## 2026-10-16: Core GPU scopes and analysis shaders need logical RGB from BGRA textures
+
+- **関連:** `ArtifactCore/include/Graphics/Shader/Compute/HLSL/Histogram.ixx`、`ScopeParade.ixx`、`ScopeVectorscope.ixx`、`ScopeWaveform.ixx`、`LUT3D.ixx`、`EdgeEcho.ixx`、`MatteTrack.ixx`。
+- **確認できた事実:** GPU analysis shader群がArtifact image-pipeline textureをraw float4として読み、RGB channel identityやluminanceを使っていた。BGRA texture上ではraw `.rgb`がB,G,Rを指す。Scope Parade pane order、vectorscope chroma、histogram RGB bins、3D LUT index、edge/matte luminanceに影響する。
+- **変更:** 色解析箇所で`.bgra.rgb`によりlogical RGBへ展開し、LUT/Edge Echoの色付き出力をBGRAへ保存する。matte alphaとscalar mask operationは順序不変なので維持した。
+- **価値／懸念:** image effectsだけでなくGPU scopes、analysis、keying/matteとdisplay LUTも同じresident texture契約へ揃える。これらのGPU実行結果は未検証。
+- **次に確認:** scopes、3D LUT、Edge Echo、Track Matteを非対称RGB入力で実行し、GPU readbackおよびD3D12/Vulkanでlogical resultを比較する。
+
+## 2026-10-16: Serialized and shared-memory image payloads need order-specific versions
+
+- **関連:** `ArtifactCore/src/Composition/ParametricComposition.cppm`、`ArtifactCore/src/IPC/RenderFarmSharedBuffer.cppm`。
+- **確認できた事実:** Parametric Compositionはraw image backingを`rgba32f` keyへ保存し、読込はRGBA入力setterを使っていた。Render Farm packetはchannel orderを識別せず、fixed magicでpayloadを受け渡していた。
+- **変更:** 新しい保存データは`bgra32f` keyを使い、legacy `rgba32f`はRGBAとして読む。共有packet magicをBGRA payload v2へ更新し、旧peerからのpacketを拒否する。
+- **価値／懸念:** 新旧形式を無言で取り違えることを防ぐ。旧JSONは維持できるが、旧Render Farm peerとの通信は成立しない。protocol混在時の拒否動作は未実行。
+- **次に確認:** 保存／再読込の非対称色比較と、新旧Render Farm peerの互換挙動を確認する。
+
+## 2026-10-16: Internal image byte snapshots need channel metadata or versioning
+
+- **関連:** `Artifact/src/Project/ArtifactPresetManager.cppm`、`Artifact/src/Layer/ArtifactPaintLayer.cppm`、`Artifact/src/Layer/ArtifactImageLayer.cppm`。
+- **確認できた事実:** Effect Preset / Paint frame JSONは`rgba32fData()`のraw BGRA bytesをorder metadataなしで保存し、RGBA setterで復元していた。still image derived cacheもraw bytesを保存しながらRGBA setterで読む。全てが以前のRGBA backing時代から残った互換名とは限らず、新規保存payloadでは赤青がずれる。
+- **変更:** 新JSONには`channel_order: BGRA`を付けてBGRA setterで復元し、metadataのない旧JSONはRGBAとして読む。derived cacheはversionを上げて旧キャッシュを再生成し、BGRA setterでロードする。
+- **価値／懸念:** 新旧データの意味を分け、画像cache／preset／paint frameの往復で順序を固定する。既存JSON互換の非対称色読み戻しは未実行。
+- **次に確認:** legacy RGBA JSONと新BGRA JSONの両方を非対称色画像で読み込み、derived cache再生成後の見た目とdescriptorを確認する。
+
+## 2026-10-16: Remaining raw CPU effects still assumed component zero was red
+
+- **関連:** `Artifact/src/Effect/ArtifactCreativeEffects.cppm`、`ArtifactCore/src/ImageProcessing/ColorTransform/TriChromaticShift.cppm`。
+- **確認できた事実:** Deband/DeblockはBGRA raw channel 0/2へRec.709 R/B係数を逆に掛けていた。Beauty StudioはBGRAから抽出したOpenCV channel 0/2をR/Bとみなし、skin hue判定とwarmth tintを入れ替えていた。TriChromaticShiftのfloat4 processorもx/zをR/Bとして扱っていた。
+- **変更:** luma係数をBGRA indexへ合わせ、Beauty Studioでは論理RGB順の作業画像を作ってBGRA出力へ戻し、TriChromaticShiftはraw input/outputをBGRAと明記してR/B componentをmapする。
+- **価値／懸念:** これらのCPU-only / fallback effectでも赤青依存の見た目と選択をCPU/GPU間で揃える。pixel comparisonは未実行。
+- **次に確認:** remaining raw CPU effect passでluminance、hue/saturation、skin-color、user tintの全てをchannel-order viewで継続走査する。
+
+## 2026-10-16: Wire removal and dust repair compute paths consume BGRA image textures
+
+- **関連:** `Artifact/src/Effect/ArtifactCreativeEffects.cppm` のWire Removal / Dust Repair HLSL。
+- **確認できた事実:** GPU shaderがBGRA `float4` textureをraw `.rgb`で読み、foreground RGB、clean plate RGB、temporal luma、Dust Repair median channel selectionを論理RGBと誤認していた。両shaderのinput textureはArtifact image-pipeline textureから直接作られる。
+- **変更:** shader inputをlogical RGBAへswizzleして色演算し、出力をBGRA値順へ戻す。bilinear foreground sampling、clean plate、前後frameも同じ扱いにした。
+- **価値／懸念:** CPU/GPUで同じeffectの赤青寄与を一致させる。共有shader compilation/runtimeは未確認。
+- **次に確認:** GPU Wire Removal/Dust Repairを非対称RGB素材でCPU fallbackと比較し、D3D12/Vulkan双方で出力を確認する。
+
+## 2026-10-16: Creative Effects RGB identities need to survive BGRA CPU processing
+
+- **関連:** `Artifact/src/Effect/ArtifactCreativeEffects.cppm`、`ArtifactCore/src/ImageProcessing/FilmRepair.cppm`。
+- **確認できた事実:** BGRA backingへ移行した後も、いくつかのCreative EffectsがOpenCV分割channel 0を赤とみなす輝度計算、logical RGB配列とphysical BGRA出力の混在、色付き加算のchannel直書きを残していた。Spherizeの赤青分散符号も物理indexに結び付いていた。FilmRepairはchannel 0へ赤係数、channel 2へ青係数を掛けていた。
+- **変更:** 論理RGBで処理してBGRA indexへ戻す。色付き加算、luma、深度/法線抽出、暖色補正、赤青分散をBGRA backingに合わせた。
+- **価値／懸念:** エフェクト固有の色設定・チャンネル選択で赤青が入れ替わる残存要因を減らす。GPU/CPU runtimeや非対称色画素での結果は未確認。Energy Zapの正のwarmthを赤寄りと解釈した点は、UIラベルからの意味解釈で実行時見本は未検証。
+- **次に確認:** 各CPU/GPU fallbackで非対称な赤青入力を比較し、Creative Effectsの色設定と暖色方向の期待値を確認する。
+
+## 2026-10-16: GPU output swizzles and readback descriptors must agree
+
+- **関連:** `Artifact/src/Effects/AddNoise/AddNoiseEffect.cppm`、`Artifact/src/Effects/Blur/BlurEffect.cppm`、`Artifact/src/Effects/Blur/GauusianBlur.cppm`。
+- **確認できた事実:** これらのcompute shaderはBGRA textureを論理RGBAへ読み、`.bgra`でoutputへ保存していた。一部readback descriptorはRGBAのままなので、BGRA payloadをRGBAとして再解釈して追加swapする。Gaussian Blur CPU fallbackもchannelwise gaussian前後で不要なR/B swapを行っていた。
+- **変更:** GPU readback descriptorをBGRAへ合わせ、Gaussian Blur CPU fallbackは元のBGRA planesを直接処理する。
+- **価値／懸念:** GPU shader内のBGRA-native規約とCPU readback契約を揃え、二重変換とfallbackだけの色差を減らす。変更後の実行結果・D3D12/Vulkan差は未検証。
+- **次に確認:** Add Noise、Blur、Gaussian Blurについて、CPU/GPU双方で赤と青が異なる入力を比較する。
+
+## 2026-10-16: OpenCV effect helpers must name their returned channel order
+
+- **関連:** `ArtifactCore/src/ImageProcessing/OpenCV/Glow.cppm`。
+- **確認できた事実:** Vertical Glowの内部helperは後段でCV_32FC4をBGRAとしてsplitしlumaを作る一方、3-channel BGR入力を`COLOR_BGR2RGBA`で変換していた。R/Bが逆転する入力経路が残っていた。
+- **変更:** helper名をBGRAにし、BGR/gray入力をBGRAへ変換するよう修正した。4-channel inputは順序を変えずに扱う。
+- **価値／懸念:** OpenCV matrixのchannel countだけでRGBA/BGRAを推測する誤りを避ける。入力producerの4-channel順序は呼び出し契約に依存し、実行時確認は未実施。
+- **次に確認:** 8-bit/float BGRおよびBGRA入力でVertical Glowの出力色を比較する。
+
+## 2026-10-16: Color-specific effect parameters must use logical RGB indices
+
+- **関連:** `Artifact/src/Effect/ArtifactCreativeEffects.cppm`、`Artifact/src/Effects/Rasterizer/FilmDamageEffect.cppm`、`Artifact/src/Effects/Rasterizer/GlowEffect.cppm`、`Artifact/src/Effects/Glow/GlowEffect.cppm`。
+- **確認できた事実:** 輝度式が正しくても、Film burn tint、grain bias、chromatic separation、warmth tint、reflection tintがraw channel index 0/2を論理R/Bとしていた。Rasterizer GlowのGPU shaderはresident BGRA textureを`.rgb`として処理・保存し、CPU fallbackと意味が異なっていた。
+- **変更:** 色パラメータをlogical RGBへ対応させてBGRA indexへ戻し、Glow shaderはBGRA load/storeを明示した。
+- **価値／懸念:** CPU fallbackとresident GPU経路の赤青差、および色付きeffectの赤青反転を減らす。runtime parityは未検証。
+- **次に確認:** Film Damage、Film Grunge、Heatwave、Texturize Motion、Reflection Composer、Glowを赤青非対称画素でCPU/GPU比較する。
+
+## 2026-10-16: Raw float processor overloads need an explicit BGRA contract
+
+- **関連:** `ArtifactCore/src/ImageProcessing/ColorTransform/Fill.cppm`、`ArtifactCore/src/ImageProcessing/ColorTransform/GradientRamp.cppm`。
+- **確認できた事実:** Fill / Gradient Rampのpixel APIは論理RGBA参照で正しいが、raw `float*` overloadがBGRA backingのindex 0を論理Rとして渡していた。Effect wrapperはtyped logical viewを使うため、この差は直接raw overloadを呼ぶ利用者にだけ残っていた。
+- **変更:** raw BGRA pixelのindex 2/1/0をlogical R/G/B参照へ接続した。
+- **価値／懸念:** 同じprocessorのtyped pixel APIとraw image APIが色付き入力で一貫する。現在のrepository内にこのraw overloadを呼び出す箇所は見つからず、挙動は未実行。
+- **次に確認:** 今後 `float*` image processor APIを追加・変更するとき、物理BGRAとlogical RGBAを関数境界で明記し、typed viewとの対応を確認する。
+
+## 2026-10-16: Image producers and CPU fallbacks must map logical colors to BGRA storage
+
+- **関連:** `Artifact/src/Layer/ArtifactNoiseLayer.cppm`、`Artifact/src/Layer/ArtifactPaintLayer.cppm`、`Artifact/src/Layer/ArtifactSandSim2DLayer.cppm`、`Artifact/src/Effects/LensDistortion/LensDistortionEffect.cppm`、`Artifact/src/Effects/Rasterizer/ScreenShakeEffect.cppm`。
+- **確認できた事実:** Noise Layerの色マッピング、Paint Layerの筆色ブレンド、Sand Simulation LayerのGPU readback後とCPU fallbackの描画、Lens Distortionのbilinear logical pixel出力、Screen Shakeのclamp/mirror custom samplerが、論理Rをraw index 0へ、論理Bをindex 2へ書いていた。Lens DistortionのGPU shaderは既にBGRA backingを保つ。
+- **変更:** raw index 0にlogical B、index 2にlogical Rを書き、CPU/GPU Lens Distortionの出力順を一致させた。
+- **価値／懸念:** 静止画effectだけでなくレイヤー生成・ペイントでも色設定の赤青を維持し、CPU/GPU fallback差を減らす。runtime画素比較は未実施。
+- **次に確認:** 色設定を使ってraw image backingへ書くproducerを継続走査し、CPU生成画像がpreview、cache、exportまでBGRA descriptorを保持することを確認する。
+
+## 2026-10-16: Explicit QImage order is required at software image boundaries
+
+- **関連:** `Artifact/src/Render/Software/ArtifactSoftwareImageCompositor.cppm`、`Artifact/src/Render/ArtifactCompositionViewDrawing.cppm`。
+- **確認できた事実:** software compositorは`Format_RGBA8888`をRGBA順のcv::Matへ変換していたが、`setFromCVMat()`のdescriptorなしoverloadはBGRAと解釈する。scene-light liftはcanonical BGRA imageをlogical RGBA Matへ変換後、同じBGRA前提overloadで戻していた。
+- **変更:** software compositorでRGBA input descriptorを明示した。scene-light liftは順序に依存しないためraw BGRA RGB成分をin-placeで更新し、全画面swizzleと一時Matを除いた。
+- **価値／懸念:** QImage↔canonical CPU image境界の色を保ち、software compositionでの赤青反転とscene-light段の不要なmemory passを解消する。実行時比較は未実施。
+- **次に確認:** software compositor出力とscene-light on/offを異なるR/B値の素材で比較し、GPU経路とlogical colorが一致することを確認する。
+
+## 2026-10-16: Color mattes in CPU effects must be written in BGRA order
+
+- **関連:** `Artifact/src/Effects/DropShadow/DropShadowEffect.cppm`、`Artifact/src/Effects/Satin/SatinEffect.cppm`、`Artifact/src/Effects/Stroke/StrokeEffect.cppm`。
+- **確認できた事実:** 3つのeffectが`QColor`のlogical R/G/B値を`cv::Vec4f`のcomponent 0/1/2へ直接書いていた。これらのmatteは後続でBGRA image backingと同じ順序として合成される。`InnerShadowEffect.cppm`は既に`(B,G,R,A)`として書いていた。
+- **変更:** CPU matteのcomponent 0/2を入れ替え、backingのBGRA契約を誤っていたコメントと見出しを修正した。
+- **価値／懸念:** 影・サテン・ストロークの色指定で発生する赤青入替を防ぎ、Inner ShadowおよびGPU BGRA経路と揃える。runtime画素比較は未実施。
+- **次に確認:** 非対称色（赤と青の異なる値）を使い、3 effectのCPU/GPU出力とeffect chain後のlogical colorを比較する。
+
+## 2026-10-17: Float image classes should enforce their BGRA backing invariant
+
+- **関連:** `ArtifactCore/src/Image/ImageF32x4_RGBA.cppm::setColorDescriptor()`、`ArtifactCore/include/Image/ImageF16x4.ixx`、`Artifact/src/Widgets/ArtifactFilmstripWidget.cppm`。
+- **確認できた事実:** Float32 pixel APIは常に物理BGRAを書き、Float16 conversionもBGRAへ正規化する一方、descriptor setterはRGBA labelへ変更できた。Filmstripはpixel APIで画像を構築した後descriptorだけRGBAへ変えており、`toQImage()`が順序を誤解釈する。
+- **変更:** Float32 descriptor setterはstorage/orderをFloat32/BGRAに固定し、Float16 constructor/setterもFloat16/BGRAを強制する。Filmstripはcolor-space metadataのみ継承する。
+- **価値／懸念:** 「BGRA backing」とdescriptorが食い違う状態を内部画像クラスで表現できなくし、FilmstripのR/B swapも防ぐ。既存descriptor互換テストや全callerは実行未確認。明示RGBA export helperは境界用途として残る。
+- **次に確認:** 全 `setColorDescriptor()` callerと既存画像契約テストを見直し、RGBA boundary bufferが内部Image objectとして流通していないことを確認する。
+
+## 2026-10-17: RGBA video frame display needs an explicit BGRA adapter
+
+- **関連:** `Artifact/src/Layer/ArtifactVideoLayer.cppm::cpuVideoFrameToQImage()`、`ArtifactCore/include/ImageProcessing/OpenCV/CvUtils.ixx::cvMatToQImage()`。
+- **確認できた事実:** `RGBA32F` video frameはproducer順がRGBAだが、`cvMatToQImage()`の4-channel変換はOpenCV標準BGRAとして扱い、little-endian `Format_ARGB32`へコピーする。
+- **変更:** QImage表示境界で`COLOR_RGBA2BGRA`を明示してから既存helperへ渡す。
+- **価値／懸念:** RGBA32F video frameの表示に残る赤青入替を防ぐ。境界で全フレームのR/B変換は必要だが、内部Float image/GPU processingでは発生させない。runtime比較は未実施。
+- **次に確認:** RGBA32F video producerからQImage表示とFloat32 image ingressまで同一非対称色で照合する。
+
+## 2026-10-17: GPU readback must carry the source channel order
+
+- **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm`、`Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`。
+- **確認できた事実:** CompositionはRGBA化shader成功時にはstraight RGBA textureを、失敗時にはBGRA accumulatorをreadback sourceとして選ぶ。readback APIが常にRGBA解釈するとfallback captureとaccumulator診断previewの赤青が入れ替わる。非同期RAM previewもbuffer descriptorはRGBAなので、BGRA sourceは境界で並べ替えが必要。
+- **変更:** rendererの同期・非同期readbackへsource channel order overloadを追加し、QImage/native buffer出力をRGBAへ正規化した。Composition capture、RAM preview、layer/accumulator診断previewでsource orderを明示。行stride不正時にnative buffer callbackへ失敗payloadを返すようにした。
+- **価値／懸念:** RGBA化fallbackが発生してもcapture/previewへ正しい色を渡せる。変更は静的確認のみで、module compile、D3D12/Vulkanのreadback挙動、RGBA/BGRAの実画素比較は未検証。
+- **次に確認:** 非対称赤青pixelをRGBA化成功/fallback双方、sync/async QImage、RAM preview buffer、RGBA8/16F/32F stagingで比較する。全ての未指定legacy overload callerが真にRGBA sourceであることも再確認する。
+
+## 2026-10-17: Float render readback must use the canonical BGRA image setter
+
+- **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::readbackToImageF32()`、`readbackToMultiChannelImage()`。
+- **確認できた事実:** app image-pipeline GPU float値をBGRAとする一方、高精度readbackはraw component順を変えずに`ImageF32x4_RGBA::setFromRGBA32F()`へ渡していた。このsetterは外部RGBA入力をcanonical BGRA backingへ変換するため、BGRA sourceを誤ってRGBAとして扱うとR/Bが交換される。multi-channel exportもbeauty/albedoをraw component 0/2からlogical Red/Blueとして抽出していた。
+- **変更:** F32 image readbackをBGRA setterへ接続し、multi-channel exportではbeauty/albedoだけR/Bをlogical RGBAへ正規化してから各channelを抽出する。QImage readbackにもsource order overloadを追加し、OffscreenCompositionRenderer、GPU Render Queue、Export PreRenderはBGRAを指定する。normal/vector/scalar AOVは成分の意味順を保持する。
+- **価値／懸念:** render queueとoffscreen F32経路で発生し得るreadback時の赤青反転を抑える。source GPU targetがBGRA image-pipeline値を保持するという契約に基づく変更であり、実際の各AOV producerおよび外部render targetとの一致は未検証。
+- **次に確認:** RGBA/BGRA各producerから高精度readback、MultiChannel export、最終画像出力まで非対称色fixtureで比較する。
+
+## 2026-10-17: Pixel order needs raw-byte and logical-color assertions together
+
+- **関連:** `tests/ArtifactCore/PixelChannelOrderStandaloneTest.cpp`、Float32/Float16 image backing、GPU upload descriptor。
+- **確認できた事実:** surface conversion tests already cover RGBA/BGRA conversion and alpha cases, but a direct invariant test should independently inspect raw canonical backing and logical pixel access across Float32, Float16, and GPU upload.
+- **変更:** Added a separately launchable `ArtifactCorePixelChannelOrderStandaloneTest` executable, linked only to ArtifactCore and the standard test harness. Its test uses exact binary fractions and distinct R/G/B/A to check raw BGRA float values, logical RGBA getters, exact IEEE-754 binary16 channel bits, Float16 round-trip, descriptor setter invariance, and BGRA zero-copy GPU upload/rejection of an RGBA target.
+- **価値／懸念:** Raw order regressions and API semantic regressions fail at separate assertions with the failing channel index. The standalone executable has not been configured, built, or run under the repository rule.
+- **次に確認:** Execute ArtifactCorePixelChannelOrderStandaloneTest when build/test execution is explicitly allowed; then add renderer GPU readback coverage using the same non-symmetric fixture and compare D3D12/Vulkan where available.

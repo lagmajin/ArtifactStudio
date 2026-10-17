@@ -70,6 +70,16 @@ if(ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST)
 endif()
 
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS)
+artifact_add_test(ArtifactLODManagerContractTest
+    SOURCES
+        LODManagerContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactLODManagerContractTest PROPERTIES
+    LABELS "render;lod;zoom;cpu;contract"
+)
+
 artifact_add_test(ArtifactExposureEffectContractTest
     SOURCES
         ExposureEffectContractTest.cpp
@@ -197,6 +207,7 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
             LayerSurfaceCacheParityContractTest.cpp
         LIBS
             ArtifactAppRuntime
+            ArtifactEffectsGlow
     )
     set_tests_properties(ArtifactLayerSurfaceCacheParityContractTest PROPERTIES
         LABELS "renderer;gpu;headless;surface-cache;image;contract"
@@ -211,6 +222,19 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         LIBS
             ArtifactRender
     )
+    if(WIN32)
+        find_package(Qt6QOffscreenIntegrationPlugin CONFIG REQUIRED
+            PATHS "${Qt6Gui_DIR}" NO_DEFAULT_PATH
+        )
+        add_custom_command(TARGET ArtifactClonerGpuRenderContractTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E make_directory
+                "$<TARGET_FILE_DIR:ArtifactClonerGpuRenderContractTest>/platforms"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "$<TARGET_FILE:Qt6::QOffscreenIntegrationPlugin>"
+                "$<TARGET_FILE_DIR:ArtifactClonerGpuRenderContractTest>/platforms/"
+            VERBATIM
+        )
+    endif()
     set_tests_properties(ArtifactClonerGpuRenderContractTest PROPERTIES
         LABELS "cloner;renderer;gpu;headless;image;integration;contract"
         TIMEOUT 180
@@ -218,11 +242,11 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
     )
     if(VULKAN_SUPPORTED)
         set_tests_properties(ArtifactClonerGpuRenderContractTest PROPERTIES
-            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;ARTIFACT_RENDER_BACKEND=vulkan"
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactClonerGpuRenderContractTest>/platforms;ARTIFACT_RENDER_BACKEND=vulkan"
         )
     elseif(D3D12_SUPPORTED)
         set_tests_properties(ArtifactClonerGpuRenderContractTest PROPERTIES
-            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;ARTIFACT_RENDER_BACKEND=d3d12"
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactClonerGpuRenderContractTest>/platforms;ARTIFACT_RENDER_BACKEND=d3d12"
         )
     endif()
 endif()
@@ -296,6 +320,22 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
     set_target_properties(ArtifactParticle3DRenderContractTest PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
     )
+    if(WIN32)
+        find_package(Qt6QOffscreenIntegrationPlugin CONFIG REQUIRED
+            PATHS "${Qt6Gui_DIR}" NO_DEFAULT_PATH
+        )
+        add_custom_command(TARGET ArtifactParticle3DRenderContractTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E make_directory
+                "$<TARGET_FILE_DIR:ArtifactParticle3DRenderContractTest>/platforms"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "$<TARGET_FILE:Qt6::QOffscreenIntegrationPlugin>"
+                "$<TARGET_FILE_DIR:ArtifactParticle3DRenderContractTest>/platforms/"
+            VERBATIM
+        )
+        set_tests_properties(ArtifactParticle3DRenderContractTest PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactParticle3DRenderContractTest>/platforms"
+        )
+    endif()
     set_tests_properties(ArtifactParticle3DRenderContractTest PROPERTIES
         LABELS "particle;renderer;gpu;headless;3d;contract"
         TIMEOUT 180

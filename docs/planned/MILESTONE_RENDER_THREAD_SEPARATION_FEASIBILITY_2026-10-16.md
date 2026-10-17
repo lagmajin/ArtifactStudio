@@ -1,0 +1,405 @@
+**最終更新:** 2026-10-17
+**ステータス:** In Progress — active packet-order paths, Particle deferred parity, and the narrow worker-recording image contract pass on Debug / D3D12 and Debug / Vulkan. The 16-packet image contract covers both the worker recording seam and production `submit()` deferred-selection path; Composition rendering remains synchronous.
+
+# Render Thread Separation — Phase 4 Feasibility & Design
+
+親計画: [`MILESTONE_EFFECT_PARAM_UI_PERFORMANCE_2026-10-16.md`](MILESTONE_EFFECT_PARAM_UI_PERFORMANCE_2026-10-16.md)
+の Phase 4（描画の GUI スレッド分離 / レンダラ・最大工事）。
+
+本ドキュメントはフィージビリティ評価・設計提案と、段階導入した変更の状態を記録する。
+Diligent/DX12 の severe 領域のため、AGENTS の指示どおり設計レビューを前提とし、本フェーズは
+Phase 0/1 の完了後に独立マイルストーンとして扱う。
+
+**設計判断:** `deferredContext` 化は一気に行わず、描画パス単位で段階的に進める価値がある。
+ただし deferred context は immediate context の置き換えではない。現在も
+`DiligentImmediateSubmitter` の一部経路で使われており、同じ呼び出しスレッド内で記録してから
+immediate context で実行している。そのため、まず記録可能なパスの境界と安全性を整え、必要な箇所だけ
+worker へ移す。GUI のブロックをなくす最終段階では、immediate context と present の所有スレッドも
+別途移す必要がある。
+
+**Worker recording の初段（2026-10-17、検証済み）:** `DiligentImmediateSubmitter` に
+Deferred command list の記録と `FinishFrame()` を分離する API を追加し、最初の対象を
+submitter 所有リソースだけで描ける 16 個以上の `SolidRectPkt` / `SolidRectXformPkt` /
+`LinePkt` / `QuadPkt` / `SolidTriPkt` buffer に限定した。
+別スレッドで record、immediate owner で execute、その後 recorder thread で FinishFrame
+する headless contract test を追加した。さらに同じ buffer を production `submit()` に通し、既存の
+16-packet threshold による deferred selection も同じ immediate baseline と比較する。record 中は Immediate Context を参照せず、execute 完了まで
+packet buffer を保持し、3 経路の readback image を比較する契約である。`ArtifactGpuFoundation` と
+`ArtifactRender`、テスト target の Debug ビルドに成功し、Vulkan は CTest suite 6/6、D3D12 は個別プロセス suite 6/6
+で pass した。新しい worker recording ケースも両 backend で pass し、coverage が一致し、最大 channel 差は
+`1.0e-4` 以下だった。immediate reference、worker-recorded frame、production `submit()` deferred frame は backend ごとの PNG
+(`build/tests/Artifact/Debug/cloner_gpu_render_captures/deferred_{worker,submit}_recorded_{d3d12,vulkan}.png` と
+`deferred_worker_immediate_{d3d12,vulkan}.png`) として保存し、出力画像を目視確認した。Windows の test binary には Qt offscreen integration plugin が必要なため、Cloner test target の
+隣へ plugin を配置し `QT_QPA_PLATFORM_PLUGIN_PATH` を設定した。確認対象は独立した headless renderer と
+この限定 packet mix であり、Composition snapshot、scene/resource ownership、frame queue、present の worker 移行や
+GUI 非ブロッキングは証明しない。production `submit()` の deferred selection は依然として同じ呼び出し thread で記録・実行する。
+既存の巨大な Visual Studio / CMake module build のため、以後の再 configure は長時間を要する。
+
+**初期進捗（2026-10-16〜2026-10-17、後続訂正あり）:** `BillboardPkt` は `PrimitiveRenderer3D` が保持する immediate context に直描画し、
+周囲の packet と順序が分かれる可能性があった。`PrimitiveRenderer3D::drawBillboardQuadWithContext()` を追加し、
+この packet は submitter の `recordCtx` と packet の RTV を明示して記録するようにしたため、deferred command list 内の順序を維持する。
+submitter から `PrimitiveRenderer3D` の RTV override を一時変更して `nullptr` に戻す操作も除き、active offscreen target を後続の即時 3D draw が失わないようにした。
+QImage overload も packet 作成時に texture を解決して retained SRV 付き `BillboardPkt` を append する。
+これにより通常経路の QImage 変換／resource 作成は記録 worker に移らず、context 記録だけを後段へ渡せる。
+この初期段階では手動生成などで残る `BillboardImagePkt` が submit 中に texture を作り、含まれる buffer
+全体を immediate fallback に残していた（2026-10-17 の後続修正で解消、下記参照）。さらに `LinePkt` /
+`QuadPkt` / `SolidTriPkt` / `AtlasSpritePkt` の保留バッチは、種類が
+切り替わる時に前のバッチを flush する。これにより末尾の固定 flush 順が interleaved packet の順序を
+入れ替える経路を塞いだ。Particle は `ParticleRenderer::updateBuffer(recordCtx, data)` に変え、upload / prepare / draw を同じ
+recording context に通すことで Particle packet を deferred 対象にした。Diligent の D3D12 / Vulkan 実装は
+`UpdateBuffer` の CPU 入力を context の upload allocation へ呼び出し中にコピーし、その context の command stream
+へ copy を記録する。Cloner placement も `ClonerGridDispatchPkt` 化した。producer は GPU parameter 値と output range を
+順序どおり予約して dispatch packet を draw packet より前に append し、submitter が parameter upload と compute dispatch を
+`recordCtx` に記録する。dispatch packet は PSO / SRB / parameter buffer / output buffer を保持し、後続の
+`ClonerSpriteXformPkt` は対応する packet index の記録結果を参照する。Map に失敗した場合は既存 CPU fallback を使う。
+そのため Cloner を含む buffer も packet 数などの通常条件を満たせば deferred recording に進める。この進捗記録時点で残る全体 fallback は、
+submit 中に texture 作成と保持 immediate context への描画を行う legacy `BillboardImagePkt`（後続修正で解消、下記参照）。
+3D gizmo は line と triangle を別 vector に溜め、末尾に line → triangle の固定順で描いていたため、面と輪郭線が交互に積まれると呼び出し順が崩れていた。頂点を一つの順序付き stream に保持し、同じ topology の連続区間だけを run としてまとめて、run 順に記録する形へ変更した。`DiligentImmediateSubmitter::submit()` は 2D packet の後にこの gizmo geometry を同じ `recordCtx` へ記録する。packet 数と gizmo 頂点数の合計が 16 以上で legacy `BillboardImagePkt` がなければ、既存 deferred command list に入る。これにより line / triangle の順を保ちながら、gizmo overlay の upload と draw も deferred 対象へ進めた。この進捗記録時点では小規模な仕事と `BillboardImagePkt` 含有 buffer が immediate context を使っていたが、後者は下記修正で deferred recording に移した。
+Bindless の Sprite 専用経路は pending gizmo の有無を見ず、Sprite packet だけを先に実行していた。gizmo が保留中なら通常 submitter に渡し、Sprite と gizmo を同じ記録経路で順に処理するようにした。これで bindless 有効時にも gizmo overlay が後続 present へ取り残されない。
+これらはソース確認までで、ビルド／実行での描画順と画像 parity は未確認。
+worker-owned deferred recorder へ進めるには、ParticleRenderer の可変 GPU resource state も recorder ごとに所有させる
+必要がある。加えて submitter は可変 PSO cache と batch 配列
+（`DiligentImmediateSubmitter.ixx:136,156-188`）、PrimitiveRenderer3D は可変 SRB / constant buffer / 定数値 / RTV
+ override（`PrimitiveRenderer3D.cppm:318,326-368`）を持つ。現在は同一スレッド内で直列記録するが、別 worker
+から context pointer だけを使い回すことはできず、mutable state と recording resource の worker ownership が要る。
+Bindless submitter は Sprite の形式・screen size・texture 数・batch 容量が変わると途中 flush するが、後続 packet
+の失敗時に buffer 全体を fallback へ再送して先行 draw を重ねる可能性があった。fallback 有効時は一回の batch に
+収まる条件を先に検査し、最終 flush の失敗は draw 完了前に fallback するようにした。制約を超える buffer は
+bindless draw を始める前に通常 submitter へ渡す。この単一 batch 成功経路は 16 packet 以上なら同じ deferred
+context で記録し、command list を即時 context で実行してから buffer を reset する。記録 worker はまだ導入せず、
+GUI / 呼び出し thread 上で同期実行する。
+
+**追加進捗（2026-10-17）:** Diligent の deferred context は immediate context の viewport / scissor を継承しない。
+`SetRenderTargets()` 後に D3D12 backend が viewport を target 全体へ設定するため、部分 viewport を使う Composition
+描画は packet 数が deferred threshold を超えた場合に領域外へ描く可能性があった。`RenderViewportState` を値として保持し、
+submitter と `PrimitiveRenderer3D` が target bind 後に viewport / scissor を再適用するようにした。viewport が変わる場合は
+その前の queued packet と gizmo を古い状態で submit してから次の状態へ移る。これで既存 deferred 経路の部分 viewport
+境界を維持する形になったが、D3D12 / Vulkan の実機 parity は未確認である。
+現行の `ArtifactIRenderer::Impl` が保持して submit に使うのは `DiligentImmediateSubmitter` であり、
+`DiligentBindlessSubmitter` は Artifact の描画経路に生成・呼び出し箇所が見つからなかった。そのため bindless
+submitter 側の safety 修正は現行 renderer の実行経路にはまだ反映されない。
+
+**追加進捗（2026-10-17、legacy image billboard）:** 直前まで唯一の全体 immediate fallback だった
+`BillboardImagePkt` が、PrimitiveRenderer3D の保持 immediate context へ描画していた。submitter の渡す
+`recordCtx` で描画する API を追加し、submit 時に解決した texture を packet に保持して command list 実行まで寿命を
+維持するようにした。これでこの packet も同じ順序付き recording context に入り、variant を含む buffer 全体を
+immediate に切り替える条件を除いた。QImage texture の生成自体は呼び出し thread 上に残し、worker へは移していない。
+ソース検索では現在の production caller は見つからなかったが、公開 packet variant としての順序経路は保った。
+
+**追加監査（2026-10-17、packet order）:** `DiligentImmediateSubmitter::submit()` はカテゴリ切替前に該当する保留 batch を
+flush し、同時に異なる primitive / sprite batch を複数 pending にしない。`RenderCommandBuffer::moveAppendBuffer()` は
+source 内 packet 順で append し、`RenderCommandBufferPool::tryMergeInto()` は worker slot 順に結合する。並列
+polyline / styled polyline / polygon は入力の連続範囲を worker index 順に割り当て、同期 `Parallel::For` の完了後に merge
+する。mesh、3D card、textured card、3D shape の即時 draw 前と render target override の切替前には queued packet を
+submit する経路がある。これらはソース上の順序根拠で、実機の描画順・画像 parity の証拠ではない。現在の
+`ArtifactIRenderer::Impl` は `DiligentImmediateSubmitter` を使い、`DiligentBindlessSubmitter` は現行経路から到達しない。
+この範囲（submitter batch / worker merge / 既知の直接 draw barrier）では追加逆転を確認しなかったが、後続監査で
+immediate clear / compute / copy 境界の抜けを確認した（次項）。deferred command list の実行・present は引き続き
+呼び出し thread 上で同期され、worker-owned recording と D3D12 / Vulkan runtime parity は未確認である。
+
+**追加監査（2026-10-17、容量不足時の順序）:** MPM surface packet は owner queue が満杯なら、先行 packet を
+`submitQueuedDraws()` で送ってから retry する。並列 polyline / styled polyline / polygon は worker lease または merge が
+失敗した場合、worker buffer を reset して owner queue へ通常 packet を順に記録するため、失敗した部分 buffer が後から
+混ざらない。GPU Cloner placement packet の追加失敗は当該 placement だけ通常 sprite packet にフォールバックする。
+確認範囲では capacity failure による即時描画や先行 packet の追い越しは見つからなかった。source 上の制御フロー確認であり、
+queue 容量上限時の runtime 表示確認は未実施。
+
+**追加修正（2026-10-17、reusable video texture 上書き順序）:** `textureForVideoFrame()` は layer ごとの cache slot を再利用し、
+異なる frame の `UpdateTexture()` を即時 context に出す。一方、同じ SRV を使う packet は owner queue に未 submit のまま残り得るため、
+次 frame の upload が前 frame の draw より先に実行される経路があった。`PrimitiveRenderer2D` は Sprite / Cloner Sprite / Atlas Sprite /
+textured triangle / local sprite / masked sprite の各 packet 追加時に、現在解決済みの video slot と一致すれば queue epoch を記録し、
+同じ slot の上書き前にだけ owner queue を submit する。packet 全件の走査や追加 resource 確保は行わない。
+Composition 側は texture を Cloner enumeration / dispatch より前に一度だけ解決し、overwrite barrier が現在の dispatch と sprite packet を
+分離しないようにした。source call order と epoch 更新点を確認したが、複数 sample の runtime 画像比較と D3D12 / Vulkan 確認は未実施。
+
+**追加修正（2026-10-17、GlyphAtlas full upload 順序）:** `GlyphAtlas` が容量上限に達すると atlas を clear して glyph を再配置し、
+`PrimitiveRenderer2D::uploadGlyphAtlasIfNeeded()` が同じ GPU texture 全体を即時更新する。旧 UV を持つ Atlas Sprite packet が queue に
+残っている場合に限り、texture 上書き前に owner queue を submit する callback を `ArtifactIRenderer` と独立 Timeline renderer の両方へ接続した。
+通常の新規 glyph は空き shelf への部分 upload のままであり、queue drain や texture 再生成を行わない。全消去時の順序境界は source で確認したが、
+atlas 飽和を含む runtime 表示は未確認である。
+
+**追加修正（2026-10-17、Map failure）:** `DiligentImmediateSubmitter` の packet draw は `mapWriteDiscard()` が失敗しても
+draw を発行する経路があり、直前 packet の内容が dynamic buffer に残っていると、その stale geometry を現在 packet の位置で
+描画する可能性があった。Diligent の共通 `MapBuffer()` は backend 確保前に map 状態を登録するため、失敗時も `UnmapBuffer()` を呼んで
+状態を戻す。batch と個別 packet の vertex / constant buffer Map 成功を draw 前に確認し、失敗した batch は
+保留 CPU data を破棄、個別 packet はその draw をスキップする。これで古い buffer 内容を再生する経路を防ぐ。複数 glyph の
+packet は途中で Map が失敗すると既に記録された glyph draw は残り、その packet の残りを中断する。failure injection と runtime
+表示確認は未実施である。
+
+**追加修正（2026-10-17、immediate operation の順序境界）:** `clearRenderTarget()` / `clearDepthRenderTarget()`、
+`drawEnvironmentSkybox()`、GPU `blendLayers()` / `clearTextureRegion()` / `convertLayerToFloat()` / `applyTrackMatte()` /
+`copyTextureOutsideRegion()` / viewport exposure / MSAA resolve、compute 用 color target unbind は、即時 context へ操作を出す前に
+queued packet を submit するようにした。先行 packet が同じ resource を更新する場合に、clear / draw / compute / copy が先に実行される
+順序逆転を防ぐ。swapchain resize も旧 backbuffer を参照する packet を復帰 bind なしで drain してから解除・再生成する。
+これらは現行 renderer の shared immediate context と既存 deferred recording の境界を守る変更で、worker-owned recorder への移行ではない。
+確認はソース上の呼び出し順までで、実機の clear/blend/readback/resize parity は未確認である。
+
+**追加修正（2026-10-17、shadow map と queued packet の順序）:** Composition controller は layer packet を積んだ状態で `renderShadowMapFrame()` を呼び、その後の `flush()` で packet を materialize していた。shadow pass は immediate context の target を shadow map に切り替えて clear / draw するため、先行 packet より先に GPU command が発行される。`renderShadowMapFrame()` の shadow target bind 前に queued packet と gizmo を submit し、呼び出し順を保つようにした。Composition controller からの呼び出し順と renderer 内の command 順を source で確認した。runtime の画像影響と D3D12 / Vulkan parity は未確認である。
+
+**追加修正（2026-10-17、async readback order）:** `readbackTextureViewToImageAsync()` は active render target を含む任意の texture view を source にできるが、staging への `CopyTexture()` 前に queued packet を submit していなかった。同期 readback には同じ境界があり、同 frame の active target を読み戻す場合に copy が packet draw を追い越す可能性があるため、copy 直前に `submitQueuedDraws(ctx)` を追加した。fence wait と CPU map は引き続き非同期のまま。確認はソース上の API 契約と呼び出し順までで、runtime readback parity は未確認である。
+
+**追加修正（2026-10-17、async readback context ownership）:** fence 後の worker が captured immediate context を map/unmap していたため、非同期 readback 専用の `QThreadPool` を最大1 thread・無期限維持にし、その thread だけが使う deferred context を初回 readback 時に作るようにした。Diligent `IDeviceContext` API は graphics context での staging map をサポートし、D3D12 / Vulkan の staging map 実装は resource の host mapping / cache invalidation を行い、deferred command recording を必要としない。device が再初期化された場合は worker 上で古い context を置き換える。pool は renderer の最終 data member とし、destruction 時に worker を join してから他の renderer state と deferred context を破棄する。Qt `QThreadPool` の destructor は実行中の runnable 完了まで block し、Diligent `IFence::Wait()` は timeout 引数を持たないため、renderer teardown は readback fence の完了を待つ可能性がある。通常完了時の待ち時間と device loss / hung GPU 時の挙動は runtime 未確認である。
+
+**追加監査（2026-10-17、Composition 側の raw immediate 呼び出し）:** 最終表示の BGRA accumulator 変換と channel display は、renderer packet を経由せず immediate context へ直接 dispatch する。ただし先行する accumulator 更新も immediate context 上で完了し、変換先の scratch texture は先行する viewport background packet の render target と別 resource である。後続の presentation sprite は変換後の SRV を読む。Composition-space cache の色変換も build path では cache 描画の `renderer_->flush()` 後に行い、cache-hit は既存 cache を読む。今回確認した呼び出し順では追加の queue drain を必要とする resource 依存は見つからなかった。raw `immediateContext()` 呼び出しを一律 drain するのではなく、packet が書く resource と即時操作が読む／書く resource の依存で境界を決める。runtime の resource transition / frame ordering は未確認である。
+
+---
+
+## 1. ゴール / 非ゴール
+
+### ゴール
+- ビューポートのコンポジション描画（`renderOneFrameImpl`）を GUI スレッドから
+  専用スレッドへ移し、GUI（Inspector / Timeline / 入力）が描画でブロックされないようにする。
+- swapchain / QWidget 依存を明示的な境界として切り分ける。
+- シーン状態を snapshot として受け渡し、スレッド間のデータ競合を排除する。
+
+### 非ゴール（本ドキュメント）
+- render worker への全面移行。ソフトレンダラの変更。動画デコード経路の変更。
+- 最終レンダリング（RenderFarm / export）経路の並列化。
+
+---
+
+## 2. 現状の実行モデル（根拠付き）
+
+| 要素 | 現状 | 根拠 |
+|------|------|------|
+| tick スレッド | `PreciseTicker` が worker thread を持つ | `ArtifactCore/src/Thread/PreciseTicker.cppm:21,113` |
+| tick → GUI | callback が `QMetaObject::invokeMethod(this, …, Qt::QueuedConnection)` で GUI へ marshal | `ArtifactCompositionRenderController.cppm:19486,19518,19737` |
+| フレーム本体 | `impl_->renderOneFrameImpl(this)` が GUI スレッドで全実行 | 呼び出し `:19723` / 定義 `:42329`–`:49391`（約 7,000 行） |
+| present | `renderer_->present()` をフレーム内で直接呼ぶ | `:42694`, `:14844` |
+| controller 型 | `CompositionRenderController` は `QObject`、host は `QPointer<QWidget>` | `:18785`, `:16772` |
+| swapchain | `QWidget*` から `DiligentDeviceManager` が生成/再生成 | `DiligentDeviceManager.ixx:144-150`; 実装 `DiligentDeviceManager.cppm:1612,1651`; `ArtifactIRenderer.ixx:189-190,228` |
+| 再入/多重防止 | `renderTickPosted_` / `renderDirty_` / `renderInProgress_` | `:19508`, `:19598`, `:19621` |
+| 非同期 readback | GPU copy + fence wait は worker 実行（既存） | `:48591`（コメントに「render thread」表記あり） |
+
+要点: **tick は既に別スレッドだが、フレーム全体は GUI スレッドで実行されている。**
+
+---
+
+## 3. なぜ「present 単独の非同期化」では不十分か
+
+- `present()` は `renderer_->present()`（`:14844`, `:42694`）に過ぎず、GUI をブロックしているのは
+  present 前の **コマンド記録と各パスの実行**（`renderOneFrameImpl` 全体）。
+- Diligent の契約上、**immediate context は単一スレッド専用**
+  （`DiligentDeviceManager.ixx:48-49`）。
+- deferred context は別スレッドでコマンドを記録し、`FinishCommandList()` で得た command list を
+  immediate context から実行するためのもの。これにより記録処理は段階的に分離できるが、即時実行と
+  present が GUI 上に残ればブロックも一部残る。
+- 「描画コマンド記録の分散」と「immediate context / present の所有スレッド移動」は別の移行軸として
+  計画する。前者は小さく始められ、後者が GUI ブロックを解消する最終境界になる。
+
+---
+
+## 4. 既存の土台（追い風）
+
+- **スレッド契約の明文化**: `// Contract: one immediate context is driven from exactly one thread;
+  extra threads must use device->CreateDeferredContext().`
+  （`Artifact/include/Render/DiligentDeviceManager.ixx:48-49`）。
+- **deferred context は既に限定利用中**: `DiligentDeviceManager` は deferred context を生成して
+  `deferredContext()` を公開する（`DiligentDeviceManager.cppm:1426,1511,1581,1604,1952`）。
+  `ArtifactIRenderer.cppm:2852,2947,4027` から `DiligentImmediateSubmitter` へ渡され、
+  packet 数など通常条件を満たす command buffer は deferred context で記録後、同じ呼び出し内で immediate
+  context へ実行される（`DiligentImmediateSubmitter.cppm:1008-1470`）。全 packet type は同じ記録 context を使う。
+  Cloner placement compute とその sprite draw も一つの順序付き packet stream に載せられるようにした。
+  これは既存の段階導入例だが、呼び出し元スレッドで同期実行するため GUI 非ブロック化ではない。
+- **共有 device**: `acquireSharedRenderDeviceForCurrentBackend(...)` / `SharedRenderDeviceLease`
+  （`DiligentDeviceManager.ixx:19-39`）。
+- **device 機能フラグ**: `MultithreadedResourceCreation = DEVICE_FEATURE_STATE_DISABLED`
+  （`:745,963,1104`）、`NumAsyncShaderCompilationThreads = 2`（`:201`）。
+- **worker の置き場**: `ArtifactCore::RenderWorker` は存在するが **空スタブ**
+  （`ArtifactCore/src/Render/RenderWorker.cppm:39-42` `run(){}`）。
+- **async readback API**: `readbackToImageAsync` / `readbackTextureViewToBufferAsync`
+  （`Artifact/include/Render/ArtifactIRenderer.ixx:270-280`）。
+
+---
+
+## 5. 主要ブロッカー / 依存
+
+1. **共有 immediate context の利用者が多い**
+   `acquireSharedRenderDeviceForCurrentBackend` は複数の GPU Effect
+   （`Artifact/src/Effects/**`, `Artifact/src/Effect/ArtifactCreativeEffects.cppm`）と
+   `ArtifactDiligentEngineRenderWindow` から呼ばれ、同じ shared immediate context を返す。
+   一方 `ArtifactDiligentTimelineRenderWindow` は `createIndependentRenderDevice()` を使うため、
+   この shared context の利用者として数えない。`ArtifactRenderQueueService` など renderer 経由の
+   利用者は呼び出し経路ごとに実 context とスレッドを追跡する必要がある。
+   → コンポジションだけを別スレッドに移す場合、shared immediate context を使う既存経路との所有権・
+   実行順を明確にしなければ競合しうる。**最大の制約。**
+2. **QWidget 依存**: host 可視判定 `hostWidget_->isVisible()`（`:42381`）、
+   `owner->recreateSwapChain(host)`（`:42548`）、`recreateSwapChain(QWidget*)`（`:20080`）。
+3. **シーン直読み**: `previewPipeline_.composition()`、layer / property、`ArtifactPlaybackService`、
+   `ArtifactEffectFrameSampler` をフレーム内で都度参照（`:42404`, `:19647`, `:19673`）。
+4. **遅延リソース生成**: `gpuTextureCacheManager_`、各 pass / pipeline、shader cache がフレーム内で
+   遅延生成される。生成スレッドを統一しないと affinity が崩れる。
+5. **RAM preview / readback が playback service と密結合**（`:48570-48630`）。
+6. **multi-viewport**: `CompositionRenderController` は複数インスタンス化されうる
+   （multi-viewport マイルストーン）。単一 render thread 前提を置かない。
+
+---
+
+## 6. 提案スレッド所有権モデル
+
+- **device**: 共有のまま維持（`acquireSharedRenderDeviceForCurrentBackend`）。
+- **immediate context + swapchain**: 単一の **render owner thread** が所有し、そこで
+  `renderOneFrameImpl` と `present()` を実行する。
+- **GUI thread**: GPU 資源・swapchain に一切触れない。swapchain の create / recreate と
+  resize 要求は「要求だけ」を GUI → render owner へ渡す。
+- **他サブシステム**: shared immediate context を使う処理は最初は render owner thread 上で直列化する。
+  deferred context へ移すのは、対象パスが worker 側で安全に記録でき、必要な resource を command list
+  実行まで保持できると確認できたものに限る。Effect の直接呼び出しには `Map/Update/Dispatch` に加えて
+  flush / wait / GPU readback を含むものがあり、context の差し替えだけでは移行できない。
+- **deferred recorder**: context と mutable な submitter は worker ごとに専有させる。完成した command list
+  を immediate owner に順序付きで渡し、実行まで参照 resource の寿命を保つ。bounded queue と frame
+  generation により古い結果を破棄できるようにする。
+- **scene**: GUI が snapshot を publish し、render owner が consume する（所有権は一方向）。
+
+### スレッド境界（要求 API のイメージ）
+- GUI → render: `requestResize(w,h)`, `requestSwapChainRecreate(hwnd)`, `requestFrame(snapshot)`, `requestStop()`。
+- render → GUI: 完了通知は既存の event bus / queued 通知を再利用（**新規 signal/slot は禁止**）。
+
+---
+
+## 7. 段階的実装案
+
+| Step | 内容 | リスク | 前提 |
+|------|------|--------|------|
+| S0 | Phase 0 の計測を流用し、GUI CPU prep / context record / execute / present を分けて測る。shared-context 利用者と各 pass の direct call を分類 | 低 | Phase 0 完了 |
+| S1 | M-IR-8 の renderer façade に沿って controller の direct context access を個別に減らす。thread ownership は変えない | 低〜中 | S0 |
+| S2 | 既存 `DiligentImmediateSubmitter` deferred 経路の packet eligibility・描画順・resource lifetime を監査し、安全な条件を固定 | 中 | S1 |
+| S3 | GUI で immutable な frame/command snapshot を作り、単一の packet-only pass を worker-owned deferred context で記録。bounded queue から immediate owner へ順序付きで渡す | 高 | S2 |
+| S4 | Effect / compute は候補を個別選定し、direct context・同期 readback を renderer 経由の記録可能な API に変えられるものだけ移行 | 高 | S0〜S3 の測定で効果が確認できること |
+| S5 | immediate context と present を render owner thread へ移す。GUI scene snapshot と HWND / swapchain lifecycle の境界を分離 | 最高 | S0〜S3 で所有権と受け渡し契約が確立 |
+
+各 Step は段階ごとの rollback 経路を維持し、Phase 0 計測で GUI block time と frame time を比較する。
+`MultithreadedResourceCreation` は deferred command recording と別の機能なので、必要性を計測・契約確認
+せずに有効化しない。`ArtifactCore::RenderWorker` は現在空スタブだが、実装時に子リポジトリ変更が必要なら
+その作業範囲を別途明示する。
+
+---
+
+## 8. scene snapshot 契約（提案 / 未確定）
+
+render thread がフレームに必要とする最小状態:
+- `compositionId`, frame position, temporal 情報（`:19673`）
+- viewport size（`hostWidth_`/`hostHeight_`）、zoom / pan（`:42400-42416`）
+- ROI / resolution scale / `RenderMode`（`:42421-42435`）
+- 描画対象 layer / effect / property の値スナップショット
+- playback 状態（playing / current frame / speed / loop）
+- RAM preview 要求とその generation
+
+契約方針: snapshot は GUI 側で生成し、**読み取り専用**で render thread へ move する。
+render thread から scene を直接書き換えない。
+
+---
+
+## 9. リスク / トレードオフ
+
+- Diligent/DX12 は severe 領域（AGENTS）。広く触らず、変更範囲を最小化する。
+- `docs/technical/HOT_PATH_RULES.md` に従い、ホットパスで大容量確保・readback・暗黙変換を増やさない。
+- GUI フォールバックを常に保持し、段階ごとにロールバック可能にする。
+- 入力の連続性（viewport interaction / gizmo / timeline scrub）と render 順序の整合を要検証。
+- device lost / resize 競合時の再生成を render thread 所有下で正しく直列化する必要がある。
+
+---
+
+## 10. 検証方法
+
+- Phase 0 の計測（effect param だけでなくフレーム全体の GUI ブロック時間）。
+- 既存 profiling フラグの流用（例: `ARTIFACT_VIDEO_PREVIEW_PROFILE_SETUP` 系、`interactionPerf`）。
+- pre/post で「GUI ブロック最大/平均 ms」「present 回数/ドロップ」「frame time」を比較。
+- build / GPU validation is recorded below. The narrow record/execute/finish seam can now be exercised from a worker thread; moving Composition frame ownership, queueing, and present off the GUI thread remains a separate implementation phase.
+- `ArtifactClonerGpuRenderContractTest` に 16 packet 以上の headless 描画ケースを追加し、Triangle → Quad の順が
+  Deferred submit 後の重なりピクセルに保たれることを確認する。テストは後描画 Quad の色を検査する。
+  Cloner compute + sprite 経路も、12 個の不可視 packet・dispatch・3 sprite packet で同じ閾値を越えて確認する。
+  `DeferredCommandListCanBeRecordedAndFinishedOnWorker` は worker thread で record と `FinishFrame()` を行い、
+  12 rectangle + line + quad + triangle + overlapping rectangle の即時経路との readback image を比較して描画順も検査する。
+  Debug / Vulkan は CTest suite 6/6、Debug / D3D12 は個別プロセス suite 6/6 pass。
+  Windows CTest target の隣へ Qt offscreen plugin を配置し plugin path を指定する。
+- `ClonerGpuRenderContractTest.DeferredSubmitPreservesPartialViewportAndScissor` は、部分 viewport 内の solid rect を即時経路と 15 個の不可視 packet + 1 draw の Deferred 経路で描画し、128×128 全画面の alpha coverage mask と viewport 外 scissor を比較する。Debug / D3D12 と Debug / Vulkan の双方で個別プロセス pass。
+- `ClonerGpuRenderContractTest.DeferredSubmitDrainsPacketsBeforeViewportSwitch` は、異なる部分 viewport の間で queue を切り替え、即時経路と Deferred 経路の全画面 alpha coverage を比較する。両領域の色と領域外 scissor も確認し、Debug / D3D12 と Debug / Vulkan で個別プロセス pass。
+- 2026-10-17: 対象 test target の依存ビルドで、既存 ArtifactCore 作業ツリーにあった bool 戻り値の型不一致と
+  Ninja 向け IFC 参照漏れを局所修正し、Artifact 側では const submit 経路から command-buffer submit 通知を
+  更新できるよう renderer subobject を mutable にした。Vulkan の Cloner compute shader が拒否されたため、
+  C++ / HLSL parameter block を 16-byte 境界に揃え、Cloner sprite の local origin を geometry scale から分離した。
+  また Cloner test は clear を dispatch より前に置き、dispatch + dependent sprites が同一 command list に入る
+  16-packet ケースへ拡張した。`ArtifactClonerGpuRenderContractTest` の 3 ケースは Debug / Vulkan と
+  Debug / D3D12 の両方で pass。GPU placement の画像契約と Deferred packet 順序をこの headless test 範囲で確認した。
+  さらに Cloner placement range に batch generation を持たせ、submit または renderer / placement GPU resource の
+  再初期化後の古い range は GPU draw 経路で拒否して caller の CPU fallback へ戻す。dispatch submit と sprite draw を分ける回帰ケースも追加し、Vulkan / D3D12 で
+  3 sprite の CPU fallback 画像を確認した。3 ケースは backend ごとに個別プロセスで実行し、Vulkan 物理 device と
+  D3D12 adapter のログも確認して両 backend で pass。同一プロセスで複数 headless Vulkan device を作ると Diligent
+  global function pointer 制約エラーが出るため、このテスト群は個別プロセス実行を検証条件とする。
+- 2026-10-17: `Particle3DRenderContractTest` に、不可視の solid-rect packet 15 個と Particle packet 1 個で Deferred 閾値を越え、即時経路と画素数・重心・coverage mask を比較するケースを追加した。実行時に `readbackTextureViewToFloatBuffer()` が RGBA texture の raw 順序を返す一方、`readbackToImageF32()` が BGRA 入力として扱っていたため赤粒子が青として解釈され、既存 Particle image contract も全て画素数 0 となる不整合を確認した。readback 境界を `setFromRGBA32F()` に修正した。Windows の実行 target には Qt offscreen integration plugin が配置されず `QGuiApplication` が初期化できなかったため、CTest target の隣へ plugin を copy し `QT_QPA_PLATFORM_PLUGIN_PATH` を設定するようにした。Debug の Particle contract suite 全体が CTest で pass、新しい Deferred ケースは D3D12 と Vulkan の個別プロセスで pass。depthTest / depthWrite がともに無効なら Particle packet に DSV を保持しないようにし、Particle PSO の DSVFormat と attachment を一致させた。CTest の suite と 7 ケース全体を Debug / D3D12、Debug / Vulkan で実行し、両 backend で pass。depth format mismatch warning も再実行で解消した。これは同期 Deferred submit の確認であり、worker thread 化の証明ではない。
+
+---
+
+## 11. 未確認事項
+
+1. Cloner placement range の batch generation は packet submit と renderer / placement GPU resource の再初期化で進む。
+   `dispatchClonerGridPlacement` の production callsite は共通 placement observer 1 箇所に集約され、observer の設定後は
+   indexed draw callback へ同期的に進む。Composition surface path は texture binding を observer dispatch より先に解決し、
+   image sprite path も source texture を先に解決する。Puppet 分岐は同じ stable image key の texture cache hit 後に
+   triangle packet を積む。確認した production 経路に dispatch と dependent draw の間の queue drain はない。
+   headless split-submit test は明示 flush 後の stale range 拒否と CPU fallback を検証する。残る未確認は generation counter の
+   64-bit wraparound と renderer device loss 中の再初期化である。
+2. GPU Effect の shared immediate context 利用が Composition の frame 内だけか、frame 外の編集・初期化からも
+   起きるか。renderer queue / cache 経由の context と thread も呼び出し単位で追う。
+3. deferred path の packet の context 経路と順序。`BillboardPkt`、Particle upload / prepare / draw、通常の QImage
+   overload、Cloner dispatch / draw は `recordCtx` を使う。`LinePkt` / `QuadPkt` / `SolidTriPkt` / `AtlasSpritePkt` は
+   種類の切替時に前の保留バッチを flush する。Particle の `UpdateBuffer` は D3D12 / Vulkan backend で context 内 upload
+   allocation への即時コピー後、同 context の command stream に記録される。Cloner は producer が output cursor の range を
+   順序どおり予約して `ClonerGridDispatchPkt` を draw packet より前に追加し、submitter が `recordCtx` で params を upload して
+   compute を dispatch する。後続 sprite は dispatch packet index を参照し、Map 失敗時は CPU fallback する。packet は PSO / SRB /
+   params buffer / output buffer を保持する。legacy `BillboardImagePkt` は submit 時に解決した texture を packet 内に保持し、
+   `recordCtx` で描画するようにしたため、現在の packet variant に buffer-wide immediate fallback は残らない。
+   QImage texture の生成は呼び出し thread 上に残り、worker へは移していない。Cloner は同じ deferred recorder の中で
+   compute → draw と buffer transition を記録できる形になったが、
+   16-packet Cloner placement + sprite case は Debug / Vulkan と Debug / D3D12 の両方で build/runtime pass。
+   この test では clear を dispatch より前に行っているため、dispatch submit と dependent sprite submit の間に
+   queue drain が入る呼び出しは未検証である。range cursor reservation と command buffer append は producer 側の直列操作のままで、
+   まだ worker から renderer を呼べない。worker 移行では submitter の mutable batch/PSO 状態、ParticleRenderer の GPU resource state と
+   PrimitiveRenderer3D の SRB / constant buffer 状態も recorder ごとに所有させる必要がある。Bindless submitter は
+   fallback 有効時に単一 batch 条件を事前検査し、
+   partial draw 後に buffer 全体を再送しない。条件を満たす 16 packet 以上は既存の deferred context へ同期記録し、
+   immediate context で実行する。`RenderCommandBuffer::moveAppendBuffer()` は source packet を順に append し、
+   `RenderCommandBufferPool::tryMergeInto()` は worker slot の添字順に buffer を結合する。並列 polyline / polygon
+   生成は worker index ごとに入力の連続範囲を担当させるため、worker の完了順による packet 順序の逆転はない。
+   Bindless Sprite 経路は pending gizmo がある batch を通常 submitter に渡し、overlay の submit が次回へ遅れないようにした。
+   `ArtifactIRenderer::submitQueuedDraws()` が呼ぶ submitter は queued 2D packet の後に ordered gizmo topology runs を
+   同じ recording context へ記録する。対象 batch は通常 packet 数だけでなく gizmo vertex 数も threshold に含めるため、
+   gizmo-only の大きい batch も deferred recording に入る。line / triangle の run 順、単一 upload、SRB/PSO 切替は source で
+   確認した。明示的な 3D card / shape barrier も queued 2D と gizmo を先に submit する。D3D12 / Vulkan の表示 parity、
+   deferred gizmo の Map/Unmap と resource state、offscreen target 上の Billboard 後に続く即時 3D draw の target 維持は
+   build/runtime で未確認。deferred context は immediate viewport / scissor を継承しないため、`RenderViewportState` の保持と
+   target bind 後の再適用、viewport 切替前の queued packet submit を追加した。単一 solid rect の部分 viewport / scissor parity と、queued packet 中の viewport 切替前 drain は
+   Debug / D3D12 と Debug / Vulkan で確認した。gizmo、Billboard / 3D target parity は未確認。
+   Artifact の描画経路で使用される submitter は `DiligentImmediateSubmitter` であり、`DiligentBindlessSubmitter` の
+   safety 修正は現行 renderer の経路からは到達しないことも source search で確認した。
+3. command list 実行までに保持すべき resource と command buffer の寿命、順序、frame generation の契約。
+4. swapchain `Present` のスレッド要件（D3D12 / Vulkan 別）と vsync block の所在。
+5. multi-viewport 時の controller / swapchain / deferred recorder の多重化と owner thread。
+6. `MultithreadedResourceCreation` を必要とする箇所があるか。deferred context 導入とは別に確認する。
+7. `readbackTextureViewToImageAsync()` は copy 前に packet を drain し、fence 後の `MapTextureSubresource()` / `UnmapTextureSubresource()` を readback worker 専用の deferred context へ移した。Diligent API と D3D12 / Vulkan staging map 実装のソース根拠は確認した。専用 `QThreadPool` の destruction は runnable 完了まで待つため、renderer teardown の待ち時間と device loss 時の fence wait 挙動を実機で確認する。
+8. Particle の Deferred 経路は 15 個の不可視 rectangle + 1 Particle の image contract で即時経路と画素数・重心・coverage mask が一致し、Debug / D3D12 と Debug / Vulkan で個別プロセス pass。`readbackToImageF32()` は RGBA texture から読み出した raw float を RGBA 入力として canonical BGRA image へ変換する。Windows CTest は実行 target 隣の Qt offscreen plugin を使う。Particle depth 無効時の DSV bind warning は解消済み。worker ownership は未解決。
+
+---
+
+## 12. 参考ファイル
+
+- `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`
+  （`:16772`, `:18785`, `:19486`, `:19518`, `:19598`, `:19621`, `:19723`, `:20080`,
+  `:42329-49391`, `:42400`, `:42548`, `:48570-48630`）
+- `ArtifactCore/src/Thread/PreciseTicker.cppm:21,113`
+- `ArtifactCore/src/Render/RenderWorker.cppm:39-42`（空スタブ）
+- `Artifact/include/Render/DiligentDeviceManager.ixx:19-64,144-155`
+- `Artifact/src/Render/DiligentDeviceManager.cppm:201,745,1426,1511,1581,1612,1651,1952`
+- `Artifact/include/Render/DiligentImmediateSubmitter.ixx` / `Artifact/src/Render/DiligentImmediateSubmitter.cppm:1008-1520`
+- `Artifact/include/Render/PrimitiveRenderer3D.ixx:138-145`
+- `Artifact/src/Render/PrimitiveRenderer3D.cppm:914-1162,1400-1450,1988-2010`
+- `Artifact/include/Render/RenderCommandBuffer.ixx:293-319,359-370,455-490`
+- `Artifact/src/Widgets/Timeline/ArtifactDiligentTimelineRenderWindow.cppm:181-218`（independent device）
+- `Artifact/include/Render/ArtifactIRenderer.ixx:189-190,228,270-280,753`
+- `docs/planned/MILESTONE_IMMEDIATE_CONTEXT_BOUNDARY_2026-04-21.md`
+- Diligent Engine: [D3D12 architecture](https://diligentgraphics.com/diligent-engine/architecture/d3d12/) — deferred recording and immediate execution.
+- Diligent Engine: [Managing Resource Lifetimes](https://diligentgraphics.com/diligent-engine/architecture/d3d12/managing-resource-lifetimes/) — keep resources alive until deferred command lists execute.
+- `docs/planned/MILESTONE_EFFECT_PARAM_UI_PERFORMANCE_2026-10-16.md`
+- `docs/technical/HOT_PATH_RULES.md`
+- `AGENTS.md`（Diligent severe 領域 / 最小差分 / 子リポジトリ境界 / flag 契約）
