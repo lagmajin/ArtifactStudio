@@ -1072,6 +1072,108 @@ TEST(ClonerGpuRenderContractTest,
 }
 
 TEST(ClonerGpuRenderContractTest,
+     ArtifactRendererDefersRetainedBillboardPacketWithCameraState)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 128)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    renderer.setCanvasSize(128.0f, 128.0f);
+    QMatrix4x4 view;
+    view.lookAt(QVector3D(0.0f, 0.0f, 5.0f), QVector3D(0.0f, 0.0f, 0.0f),
+                QVector3D(0.0f, 1.0f, 0.0f));
+    QMatrix4x4 projection;
+    projection.perspective(60.0f, 1.0f, 0.1f, 100.0f);
+    renderer.set3DCameraMatrices(view, projection);
+
+    const auto createWhiteTexture = [&]() {
+        constexpr std::array<std::uint8_t, 4> texel{255, 255, 255, 255};
+        Diligent::TextureDesc desc;
+        desc.Name = "ArtifactIRenderer deferred billboard contract";
+        desc.Type = Diligent::RESOURCE_DIM_TEX_2D;
+        desc.Width = 1;
+        desc.Height = 1;
+        desc.MipLevels = 1;
+        desc.Format = Diligent::TEX_FORMAT_RGBA8_UNORM;
+        desc.Usage = Diligent::USAGE_IMMUTABLE;
+        desc.BindFlags = Diligent::BIND_SHADER_RESOURCE;
+        Diligent::TextureSubResData subresource;
+        subresource.pData = texel.data();
+        subresource.Stride = texel.size();
+        Diligent::TextureData initialData;
+        initialData.pSubResources = &subresource;
+        initialData.NumSubresources = 1;
+        Diligent::RefCntAutoPtr<Diligent::ITexture> texture;
+        renderer.device()->CreateTexture(desc, &initialData, &texture);
+        return texture;
+    };
+    const auto drawBillboardBatch = [&](Diligent::ITextureView* textureView) {
+        const ArtifactCore::FloatColor invisible(1.0f, 1.0f, 1.0f, 1.0f);
+        for (int index = 0; index < 15; ++index) {
+            renderer.drawSolidRect(-48.0f - static_cast<float>(index) * 3.0f,
+                                   -48.0f, 2.0f, 2.0f, invisible);
+        }
+        renderer.draw3DBillboardQuad(
+            {0.0f, 0.0f, 0.0f}, {1.8f, 1.8f}, textureView,
+            ArtifactCore::FloatColor(0.95f, 0.25f, 0.05f, 1.0f));
+    };
+    const ArtifactCore::FloatColor clearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+    renderer.setClearColor(clearColor);
+    renderer.clear();
+    auto immediateTexture = createWhiteTexture();
+    ASSERT_NE(immediateTexture, nullptr);
+    drawBillboardBatch(immediateTexture->GetDefaultView(
+        Diligent::TEXTURE_VIEW_SHADER_RESOURCE));
+    renderer.flushAndWait();
+    const auto immediateImage = renderer.readbackToImageF32();
+
+    renderer.clear();
+    auto deferredTexture = createWhiteTexture();
+    ASSERT_NE(deferredTexture, nullptr);
+    drawBillboardBatch(deferredTexture->GetDefaultView(
+        Diligent::TEXTURE_VIEW_SHADER_RESOURCE));
+    deferredTexture = nullptr;
+    const quint64 workerSubmitCountBefore =
+        renderer.deferredWorkerSubmitCount();
+    ASSERT_TRUE(renderer.flushDeferredPacketsAsync())
+        << "the retained BillboardPkt should be accepted by the 3D worker recorder";
+    renderer.flushAndWait();
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore + 1);
+
+    const auto deferredImage = renderer.readbackToImageF32();
+    ASSERT_EQ(deferredImage.width(), immediateImage.width());
+    ASSERT_EQ(deferredImage.height(), immediateImage.height());
+    float maxChannelError = 0.0f;
+    for (int y = 0; y < deferredImage.height(); ++y) {
+        for (int x = 0; x < deferredImage.width(); ++x) {
+            const auto expected = immediateImage.getPixel(x, y);
+            const auto actual = deferredImage.getPixel(x, y);
+            maxChannelError = std::max({
+                maxChannelError,
+                std::abs(actual.r() - expected.r()),
+                std::abs(actual.g() - expected.g()),
+                std::abs(actual.b() - expected.b()),
+                std::abs(actual.a() - expected.a())});
+        }
+    }
+    EXPECT_LE(maxChannelError, 1.0e-4f);
+    const auto center = deferredImage.getPixel(64, 64);
+    EXPECT_GT(center.r(), 0.8f);
+    EXPECT_GT(center.a(), 0.9f);
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_deferred_billboard_%1.png").arg(backend));
+    ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
+        << capturePath.toStdString();
+}
+
+TEST(ClonerGpuRenderContractTest,
      ArtifactRendererDefersSingleLargeMpmSurfaceByBoundedWork)
 {
     ArtifactTest::HeadlessRenderer renderer;

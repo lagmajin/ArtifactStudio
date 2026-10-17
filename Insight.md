@@ -4597,3 +4597,10 @@
 - **確認できた事実:** `ParticleRenderer::updateBuffer()` issues one `UpdateBuffer()` whose payload grows with particle count. A 65,536 vertex packet (6 MiB) can be worker-selected by counting 4,096-vertex work units; one-particle packets remain on the owner path. Debug D3D12 and Vulkan rendered the worker frame and owner fallback frame with matching per-image hashes across backends.
 - **価値／懸念:** packet count alone hides large uploads, and payload-based eligibility produced a 6 MiB upload. Two worker frames on the same renderer retained the same heap high-water marks (D3D12 6/8 MiB, Vulkan 6/7 MiB); D3D12 logged one 8 MiB dynamic page creation for both frames. This suggests capacity reuse, but the logs do not count per-frame suballocations or prove that every Composition context follows the same pattern.
 - **次に確認:** Measure allocator calls directly if an existing profiler hook is available, then collect Composition-level particle packet distribution and GUI-thread wait. Keep the 100,000-particle cap and recheck high-water behavior if its capacity changes.
+
+## 2026-10-17: Deferred 3D packets need recorder-owned renderer state
+
+- **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::DeferredPacketRecordWorker`、`PrimitiveRenderer3D`、`BillboardPkt`。
+- **確認できた事実:** `BillboardPkt` の描画は viewport / camera constants buffer と SRB を更新するため、owner とworkerが同じ `PrimitiveRenderer3D` を並行使用すると状態を共有する。worker専用の `PrimitiveRenderer3D` を初期化し、camera / viewport stateをsnapshotとして渡すと、元texture参照解放後もD3D12 / Vulkan両方でdeferred frameが即時画像と一致した。Billboard PSOはdepthを無効化しているため DSV formatを `UNKNOWN` にでき、color-only targetとのbind警告も消えた。
+- **価値／懸念:** 3D packetをallow-listへ足すだけではなく、packetを記録するrenderer固有の可変GPU stateもrecorder単位で所有する必要がある。worker rendererはshader / bufferを別作成するため初期化コストがあり、今回の起動時間への影響は未計測。
+- **次に確認:** Gizmo / card系のstate snapshot要件を整理し、packetごとに必要な最小stateとtarget / DSVの契約を確認する。Compositionの実 workloadでBillboard頻度とworker初期化時間も計測する。
