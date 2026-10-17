@@ -386,7 +386,8 @@ Composition frame の worker 化、scene snapshot、GUI 非ブロッキングは
 
 **追加実装（2026-10-17、Composition host preflight の GUI 境界化）:**
 `CompositionRenderController::Impl::HostFrameSnapshot` を追加し、host の可視性・論理サイズ・DPR と診断用 HWND を
-GUI 側で値として取得するようにした。可視性判定、widget サイズと swapchain の同期、resize / swapchain 再生成は
+GUI 側で値として取得するようにした。line debug overlay の4種（DebugProbe / MaskPath / MaskHandle / Bounds）の可視性も
+GUI 側で値にし、frame body が `owner` の visibility API を呼ばないようにした。可視性判定、widget サイズと swapchain の同期、resize / swapchain 再生成は
 `prepareHostFrame()` にまとめ、`renderOneFrameImpl()` は snapshot を `const&` で受け取る。これにより frame 本体内の
 `QWidget` 直接参照を取り除いた。Artifact Debug アプリは現行 source で再コンパイル・リンクした。CMake は MSVC
 14.51 を検出した一方で v143 を期待する警告を継続して出し、windeployqt は Qt 翻訳カタログと
@@ -464,6 +465,26 @@ module scan / compile action を持つ。ArtifactCompositionRenderController.cpp
 Composition では CPU snapshot / packet preparation / GPU pass の境界を先に作るのがよい。新しい target は
 public module import と transitive IFC 閉包、link dependency を増やすため、次の切り出しは依存 DAG と warm
 incremental build action の両方で利得を確認してから行う。
+
+**コンパイル診断の分類と再検証（2026-10-17）:** `temp/core-text-build2.log` では最初に `Property.Types` の IFC が二つ候補として
+解決エラー (`C7684`) になり、その後 `Shape.Types` と `BezierSegment` の未解決エラーが連続している。ArtifactCore / Artifact の
+split-target 再構成中に実行した最初の Composition integration target build は 1,780 個の error 診断で失敗し、そのうち 82 件が
+`C7684`。例として `ObjectDetector.cppm` では同じ module に対して `CMakeFiles/ArtifactCoreAI.dir/*.ifc` と
+`ArtifactCoreAI.dir/Debug/*.ixx.ifc` が同時に候補となった。さらに `AssetMenuModel.cppm` のような `module X;` 実装単位が
+対応 interface の宣言を解決できず、後続の型・メンバー診断が連鎖した。これは当時の未コミット split-target CMake と module-source
+登録が生成した build graph の問題で、Composition controller のソース欠陥とは別だった。
+
+重複 IFC と実装単位の CompileAs 分類を修正した後、最後に残った `C7684` は `ArtifactBasicVideoPreviewWidget.ixx` の `import std;` で、
+同じ `std` に project-owned `artifact_std.ifc` と MSVC の `std.ixx.ifc` が候補となっていた。この interface は標準ライブラリ型を公開宣言に
+使っていなかったため不要な `import std;` を削除した。Debug の `ArtifactWidgets` と `ArtifactModel3DLightCompositionIntegrationTest`
+target がともに build 成功し、`ArtifactCompositionRenderController.cppm` の現行 snapshot / gizmo-validation 変更もコンパイルされた。
+続けて `Artifact` Debug target も `Artifact.exe` まで link 成功した。post-build の `windeployqt` は vcpkg Debug 側の
+`translations/catalogs.json` と `Qt6Widgetsd.dll` が見つからない警告を出したが、build 自体は成功した。
+GoogleTest の Point-light Composition case は Windows Qt platform plugin を使って Debug / D3D12 と Debug / Vulkan の両方で pass。
+それぞれ実際の 400×300 `composition_controller_point_light.png` を出力し、SHA-256 は
+`ABCBCE0B0225AA7BF5BFE985BF3157165416BBB342B9AAFC4F1A8B8FE383C3DB` で一致した。画像は
+`build/model3d_light_capture/deferred-separation/{d3d12,vulkan}/` に保存した。これは production Composition controller の GPU frame 出力と backend parity の確認であり、
+frame body の worker 化や GUI 非ブロッキングは証明しない。`LNK1104` / `LNK1168` は別のリンク段階問題として扱う。
 
 ## 11. 未確認事項
 
