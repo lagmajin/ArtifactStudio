@@ -1937,6 +1937,14 @@ TEST(ClonerGpuRenderContractTest,
     if (!renderer.initialize(192, 96)) {
         GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
     }
+    const auto requestedBackend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("d3d12")).toLower();
+    const auto expectedDeviceType = requestedBackend == QStringLiteral("vulkan")
+        ? Diligent::RENDER_DEVICE_TYPE_VULKAN
+        : Diligent::RENDER_DEVICE_TYPE_D3D12;
+    ASSERT_NE(renderer.device(), nullptr);
+    ASSERT_EQ(renderer.device()->GetDeviceInfo().Type, expectedDeviceType)
+        << "headless initialization must not silently test a fallback backend";
     renderer.setCanvasSize(192.0f, 96.0f);
     renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
     const ArtifactCore::FloatColor invisible(1.0f, 1.0f, 1.0f, 1.0f);
@@ -2129,6 +2137,106 @@ TEST(ClonerGpuRenderContractTest,
         "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
     const auto capturePath = QDir(captureDirectory).filePath(
         QStringLiteral("artifact_renderer_glyph_text_deferred_%1.png")
+            .arg(backend));
+    ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
+        << capturePath.toStdString();
+}
+
+TEST(ClonerGpuRenderContractTest,
+     ArtifactRendererFallsBackWhenGlyphPreparationEvictsAtlas)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(192, 96)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    const auto requestedBackend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("d3d12")).toLower();
+    const auto expectedDeviceType = requestedBackend == QStringLiteral("vulkan")
+        ? Diligent::RENDER_DEVICE_TYPE_VULKAN
+        : Diligent::RENDER_DEVICE_TYPE_D3D12;
+    ASSERT_NE(renderer.device(), nullptr);
+    ASSERT_EQ(renderer.device()->GetDeviceInfo().Type, expectedDeviceType)
+        << "headless initialization must not silently test a fallback backend";
+    renderer.setCanvasSize(192.0f, 96.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    const QDir testSourceDirectory(
+        QFileInfo(QString::fromLocal8Bit(__FILE__)).absolutePath());
+    const QString bundledFontPath = testSourceDirectory.filePath(
+        QStringLiteral("../../libs/openusd/pxr/usdImaging/usdviewq/fonts/Roboto/Roboto-Regular.ttf"));
+    const int bundledFontId = QFontDatabase::addApplicationFont(bundledFontPath);
+    ASSERT_NE(bundledFontId, -1) << bundledFontPath.toStdString();
+    const auto bundledFamilies =
+        QFontDatabase::applicationFontFamilies(bundledFontId);
+    ASSERT_FALSE(bundledFamilies.isEmpty());
+    const QFont font(bundledFamilies.front(), 384);
+    const ArtifactCore::FloatColor textColor(1.0f, 0.25f, 0.1f, 1.0f);
+
+    // Each packet adds one distinct, supported glyph. The large raster size
+    // makes the fixed 2048px atlas fill with this bounded ASCII fixture.
+    QString glyphs;
+    std::uint64_t paddedGlyphArea = 0;
+    const QRawFont rawFont = QRawFont::fromFont(font, QFontDatabase::Any);
+    for (uint codePoint = 33; codePoint <= 126; ++codePoint) {
+        const auto glyph = QString::fromUcs4(&codePoint, 1);
+        const auto indexes = rawFont.glyphIndexesForString(glyph);
+        if (indexes.isEmpty() || indexes.front() == 0) continue;
+        const QImage bitmap = rawFont.alphaMapForGlyph(
+            indexes.front(), QRawFont::PixelAntialiasing);
+        if (bitmap.isNull() || bitmap.width() <= 0 || bitmap.height() <= 0) continue;
+        glyphs.append(glyph);
+        paddedGlyphArea += static_cast<std::uint64_t>(bitmap.width() + 2) *
+                           static_cast<std::uint64_t>(bitmap.height() + 2);
+    }
+    ASSERT_GE(glyphs.size(), 48)
+        << "the bundled Roboto fixture must provide enough distinct glyphs";
+    ASSERT_GT(paddedGlyphArea, 2048ull * 2048ull)
+        << "the fixture's non-overlapping padded glyph area must exceed the atlas";
+
+    const auto drawAtlasFillingBatch = [&] {
+        for (int index = 0; index < 15; ++index) {
+            renderer.drawSolidRect(-40.0f - static_cast<float>(index) * 3.0f,
+                                   -40.0f, 2.0f, 2.0f,
+                                   ArtifactCore::FloatColor(1, 1, 1, 1));
+        }
+        for (int index = 0; index < glyphs.size(); ++index) {
+            QMatrix4x4 transform;
+            transform.translate(2.0f + static_cast<float>(index % 16) * 12.0f,
+                                1.0f + static_cast<float>(index / 16) * 16.0f,
+                                0.0f);
+            transform.scale(0.025f, 0.025f, 1.0f);
+            renderer.drawTextTransformed(QRectF(0.0, 0.0, 1024.0, 600.0),
+                                         glyphs.mid(index, 1), font, textColor,
+                                         transform);
+        }
+    };
+
+    const quint64 workerSubmitCountBefore = renderer.deferredWorkerSubmitCount();
+    drawAtlasFillingBatch();
+    EXPECT_FALSE(renderer.flushDeferredPacketsAsync())
+        << "full atlas replacement must reject worker recording";
+    renderer.flushAndWait();
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore);
+    const auto fallbackImage = renderer.readbackToImageF32();
+    std::size_t visibleTextPixels = 0;
+    for (int y = 0; y < fallbackImage.height(); ++y) {
+        for (int x = 0; x < fallbackImage.width(); ++x) {
+            const auto pixel = fallbackImage.getPixel(x, y);
+            if (pixel.a() > 0.5f && pixel.r() > 0.5f && pixel.r() > pixel.g()) {
+                ++visibleTextPixels;
+            }
+        }
+    }
+    EXPECT_GT(visibleTextPixels, 100u)
+        << "owner fallback must preserve visible glyph output after atlas eviction";
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_glyph_atlas_eviction_fallback_%1.png")
             .arg(backend));
     ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
         << capturePath.toStdString();

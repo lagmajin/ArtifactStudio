@@ -4629,9 +4629,9 @@
 ## 2026-10-18: Headless glyph parity needs a registered font fixture
 
 - **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp`、`GlyphTextPkt` / `GlyphTextXformPkt`、repository-bundled Roboto fixture。
-- **確認できた事実:** headless Qt で未登録の Arial を使うと `QRawFont` が文字列中の複数 codepoint を同じ glyph ID / silhouette に解決し、owner と worker の画像 parity が通っても capture は replacement-box glyphs になった。test が同梱 Roboto を `QFontDatabase::addApplicationFont()` で登録してからは、raw font の distinct glyph ID / mask と実 frame の複数 silhouette を検査する。cold owner fallback で `Seed` のみを atlas に入れ、その後の worker batch で初見 glyph を owner 側で追加・upload してから記録し、warm 後の同期 owner frame と全画素一致することを Debug / D3D12 / Vulkan で確認した。両backendのPNG hashも一致した。
-- **価値／懸念:** headless parity test が同期経路と同じ誤った fallback image を正解扱いする問題を避け、保存した frame で字形が実際に描かれたことを確認できる。これはテストfixtureの font registration を直したもので、production font fallback 全般や atlas 飽和時の eviction を検証したものではない。
-- **次に確認:** 実アプリの `FontManager` 初期化後に選択される system / user font を使う production-frame contractでも glyph ID と silhouette を確認し、実運用フォントの登録境界と、atlas が満杯になった時の clear / full upload 順序を検証する。
+- **確認できた事実:** headless Qt で未登録の Arial を使うと `QRawFont` が文字列中の複数 codepoint を同じ glyph ID / silhouette に解決し、owner と worker の画像 parity が通っても capture は replacement-box glyphs になった。test が同梱 Roboto を `QFontDatabase::addApplicationFont()` で登録してからは、raw font の distinct glyph ID / mask と実 frame の複数 silhouette を検査する。cold owner fallback で `Seed` のみを atlas に入れ、その後の worker batch で初見 glyph を owner 側で追加・upload してから記録し、warm 後の同期 owner frame と全画素一致することを Debug / D3D12 / Vulkan で確認した。別の bounded ASCII fixture では raw glyph bitmap と2px paddingの総面積が2048×2048 atlasを超えることを確認してから描画し、eviction を含むバッチが worker submit count を増やさず owner 経路で可視 glyph frame を出力することを両 backend の実デバイスで確認した。eviction frame PNG の SHA-256 は両 backend で `EAB84E5FF0CA9D0A6B7104BB44B8984EFE0AD59DC9DD55E1FF2FFDE4F16151E5` で一致した。
+- **価値／懸念:** headless parity test が同期経路と同じ誤った fallback image を正解扱いする問題を避け、保存した frame で字形が実際に描かれたことを確認できる。atlas容量超過もworkerへ渡さず owner fallback に残る境界を画像付きで固定した。production font fallback 全般や実アプリでのフォント登録状態は未検証。
+- **次に確認:** 実アプリの `FontManager` 初期化後に選択される system / user font を使う production-frame contractでも glyph ID と silhouette を確認し、実運用フォントの登録境界を検証する。
 
 ## 2026-10-18: Deferred 3D card recording needs an explicit target and projector snapshot
 
