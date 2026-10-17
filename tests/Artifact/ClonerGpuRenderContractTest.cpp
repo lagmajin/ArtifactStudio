@@ -13,6 +13,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 #include <vector>
 #include <future>
 #include <thread>
@@ -90,6 +91,34 @@ std::vector<Bounds> findVisibleComponents(
                   return a.left < b.left;
               });
     return components;
+}
+
+void appendMaximumMpmTestSurface(
+    ArtifactCore::ArtifactArray<Artifact::MpmSurfaceVertex>& vertices)
+{
+    // Mirror the production MPM grid's maximum (129 * 97 cells * 6 vertices).
+    // The submitter stages 4096 vertices, so the final triangle checks the
+    // repeated bounded flush path instead of only a single triangle upload.
+    constexpr std::size_t maximumVertices = 129u * 97u * 6u;
+    constexpr std::size_t maximumTriangles = maximumVertices / 3u;
+    constexpr std::size_t firstRunTriangles = 4096u / 3u;
+    vertices.reserve(maximumVertices);
+    for (std::size_t triangle = 0; triangle < maximumTriangles; ++triangle) {
+        if (triangle < firstRunTriangles) {
+            vertices.append({12.0f, 12.0f, 1.0f});
+            vertices.append({32.0f, 12.0f, 1.0f});
+            vertices.append({22.0f, 32.0f, 1.0f});
+        } else if (triangle + 1u == maximumTriangles) {
+            vertices.append({72.0f, 12.0f, 1.0f});
+            vertices.append({92.0f, 12.0f, 1.0f});
+            vertices.append({82.0f, 32.0f, 1.0f});
+        } else {
+            vertices.append({42.0f, 12.0f, 1.0f});
+            vertices.append({62.0f, 12.0f, 1.0f});
+            vertices.append({52.0f, 32.0f, 1.0f});
+        }
+    }
+    EXPECT_EQ(vertices.size(), maximumVertices);
 }
 
 } // namespace
@@ -412,7 +441,7 @@ TEST(ClonerGpuRenderContractTest,
     ASSERT_NE(spriteSRV, nullptr);
     const auto makeBuffer = [&] {
         Artifact::RenderCommandBuffer buffer;
-        buffer.reserve(26);
+        buffer.reserve(27);
         buffer.setTargetRTV(renderer.layerRenderTargetView());
         for (int index = 0; index < 16; ++index) {
             if (index < 12) {
@@ -557,6 +586,13 @@ TEST(ClonerGpuRenderContractTest,
         circle.radius = 9.0f;
         circle.color = {0.9f, 0.1f, 0.8f, 1.0f};
         buffer.append(circle);
+
+        Artifact::MpmSurfacePkt mpmSurface{};
+        mpmSurface.xform.scale = {1.0f, 1.0f};
+        mpmSurface.xform.screenSize = {128.0f, 128.0f};
+        mpmSurface.color = {0.1f, 0.9f, 0.25f, 1.0f};
+        appendMaximumMpmTestSurface(mpmSurface.vertices);
+        buffer.append(std::move(mpmSurface));
         return buffer;
     };
 
@@ -614,7 +650,7 @@ TEST(ClonerGpuRenderContractTest,
     worker.join();
     EXPECT_TRUE(recorded);
     EXPECT_NE(commandList, nullptr);
-    EXPECT_EQ(buffer.packets().size(), 26u);
+    EXPECT_EQ(buffer.packets().size(), 27u);
     renderer.flushAndWait();
     const auto workerImage = renderer.readbackToImageF32();
     ASSERT_EQ(immediateImage.width(), workerImage.width());
@@ -654,6 +690,15 @@ TEST(ClonerGpuRenderContractTest,
     EXPECT_GT(circleCenter.r(), 0.8f);
     EXPECT_LT(circleCenter.g(), 0.4f);
     EXPECT_GT(circleCenter.b(), 0.7f);
+    const auto mpmSurfaceCenter = workerImage.getPixel(22, 18);
+    EXPECT_GT(mpmSurfaceCenter.r(), 0.05f);
+    EXPECT_GT(mpmSurfaceCenter.g(), 0.75f);
+    EXPECT_GT(mpmSurfaceCenter.b(), 0.45f);
+    EXPECT_LT(mpmSurfaceCenter.b(), 0.65f);
+    for (const int x : {52, 82}) {
+        const auto spillTriangleCenter = workerImage.getPixel(x, 18);
+        EXPECT_GT(spillTriangleCenter.g(), 0.75f) << "x=" << x;
+    }
     const auto plainSpriteCenter = workerImage.getPixel(20, 90);
     EXPECT_GT(plainSpriteCenter.a(), 0.8f);
     EXPECT_GT(plainSpriteCenter.r(), 0.8f);
@@ -837,11 +882,16 @@ TEST(ClonerGpuRenderContractTest,
     particle.size = 0.35f;
     particle.lifetime = 1.0f;
     renderer.drawParticles(particleData);
+
+    ArtifactCore::ArtifactArray<Artifact::MpmSurfaceVertex> mpmVertices;
+    appendMaximumMpmTestSurface(mpmVertices);
+    ASSERT_TRUE(renderer.drawMpmSurface(
+        mpmVertices, ArtifactCore::FloatColor(0.1f, 0.9f, 0.25f, 1.0f)));
     texture = nullptr;
 
     renderer.flushAndWait();
     EXPECT_EQ(renderer.deferredWorkerSubmitCount(), 1u)
-        << "the production ArtifactIRenderer path should record cloner, sprite, and supported particle packets on its worker";
+        << "the production ArtifactIRenderer path should record cloner, sprite, particle, and MPM surface packets on its worker";
     const auto image = renderer.readbackToImageF32();
     ASSERT_EQ(image.width(), 128);
     ASSERT_EQ(image.height(), 128);
@@ -858,6 +908,16 @@ TEST(ClonerGpuRenderContractTest,
     EXPECT_GT(particleCenter.a(), 0.8f);
     EXPECT_GT(particleCenter.r(), 0.8f);
     EXPECT_LT(particleCenter.g(), 0.5f);
+    const auto mpmSurfaceCenter = image.getPixel(22, 18);
+    EXPECT_GT(mpmSurfaceCenter.a(), 0.8f);
+    EXPECT_GT(mpmSurfaceCenter.g(), 0.75f);
+    EXPECT_GT(mpmSurfaceCenter.b(), 0.45f);
+    EXPECT_LT(mpmSurfaceCenter.b(), 0.65f);
+    for (const int x : {52, 82}) {
+        const auto spillTriangleCenter = image.getPixel(x, 18);
+        EXPECT_GT(spillTriangleCenter.a(), 0.8f) << "x=" << x;
+        EXPECT_GT(spillTriangleCenter.g(), 0.75f) << "x=" << x;
+    }
 
     const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
                                       .filePath(QStringLiteral("cloner_gpu_render_captures"));
