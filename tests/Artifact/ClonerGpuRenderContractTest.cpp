@@ -441,7 +441,7 @@ TEST(ClonerGpuRenderContractTest,
     ASSERT_NE(spriteSRV, nullptr);
     const auto makeBuffer = [&] {
         Artifact::RenderCommandBuffer buffer;
-        buffer.reserve(28);
+        buffer.reserve(29);
         buffer.setTargetRTV(renderer.layerRenderTargetView());
         for (int index = 0; index < 16; ++index) {
             if (index < 12) {
@@ -522,6 +522,14 @@ TEST(ClonerGpuRenderContractTest,
         texturedTriangle.uv2 = {0.0f, 1.0f};
         texturedTriangle.pSRV = spriteSRV;
         buffer.append(texturedTriangle);
+
+        Artifact::MaskedSpritePkt maskedSprite{};
+        maskedSprite.xform.offset = {4.0f, 40.0f};
+        maskedSprite.xform.scale = {20.0f, 16.0f};
+        maskedSprite.xform.screenSize = {128.0f, 128.0f};
+        maskedSprite.sceneSRV = spriteSRV;
+        maskedSprite.maskSRV = spriteSRV;
+        buffer.append(maskedSprite);
 
         Artifact::AtlasSpritePkt atlasSprite{};
         atlasSprite.xform.offset = {40.0f, 80.0f};
@@ -664,7 +672,7 @@ TEST(ClonerGpuRenderContractTest,
     worker.join();
     EXPECT_TRUE(recorded);
     EXPECT_NE(commandList, nullptr);
-    EXPECT_EQ(buffer.packets().size(), 28u);
+    EXPECT_EQ(buffer.packets().size(), 29u);
     renderer.flushAndWait();
     const auto workerImage = renderer.readbackToImageF32();
     ASSERT_EQ(immediateImage.width(), workerImage.width());
@@ -708,6 +716,10 @@ TEST(ClonerGpuRenderContractTest,
     EXPECT_GT(texturedTrianglePixel.r(), 0.8f);
     EXPECT_GT(texturedTrianglePixel.g(), 0.8f);
     EXPECT_GT(texturedTrianglePixel.b(), 0.8f);
+    const auto maskedSpritePixel = workerImage.getPixel(10, 46);
+    EXPECT_GT(maskedSpritePixel.r(), 0.8f);
+    EXPECT_GT(maskedSpritePixel.g(), 0.8f);
+    EXPECT_GT(maskedSpritePixel.b(), 0.8f);
     const auto mpmSurfaceCenter = workerImage.getPixel(22, 18);
     EXPECT_GT(mpmSurfaceCenter.r(), 0.05f);
     EXPECT_GT(mpmSurfaceCenter.g(), 0.75f);
@@ -913,6 +925,10 @@ TEST(ClonerGpuRenderContractTest,
         Artifact::Detail::float2(1.0f, 0.0f),
         Artifact::Detail::float2(0.0f, 1.0f),
         triangleTransform, spriteSRV);
+    QImage maskImage(1, 1, QImage::Format_RGBA8888);
+    maskImage.fill(Qt::white);
+    renderer.drawMaskedTextureLocal(96.0f, 104.0f, 24.0f, 20.0f,
+                                    spriteSRV, maskImage);
 
     ArtifactCore::ArtifactArray<Artifact::MpmSurfaceVertex> mpmVertices;
     appendMaximumMpmTestSurface(mpmVertices);
@@ -935,6 +951,11 @@ TEST(ClonerGpuRenderContractTest,
     EXPECT_GT(texturedTrianglePixel.r(), 0.8f);
     EXPECT_GT(texturedTrianglePixel.g(), 0.8f);
     EXPECT_GT(texturedTrianglePixel.b(), 0.8f);
+    const auto maskedSpritePixel = image.getPixel(102, 110);
+    EXPECT_GT(maskedSpritePixel.a(), 0.8f);
+    EXPECT_GT(maskedSpritePixel.r(), 0.8f);
+    EXPECT_GT(maskedSpritePixel.g(), 0.8f);
+    EXPECT_GT(maskedSpritePixel.b(), 0.8f);
     for (const int x : {53, 70, 93}) {
         const auto clonerSpriteCenter = image.getPixel(x, 67);
         EXPECT_GT(clonerSpriteCenter.a(), 0.8f) << "x=" << x;
