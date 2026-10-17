@@ -1313,6 +1313,7 @@ TEST(ClonerGpuRenderContractTest,
     ASSERT_NE(texture, nullptr);
 
     const auto render = [&](bool requestDeferred) {
+        renderer.set3DCameraMatrices(view, projection);
         renderer.pushRenderTarget(colorTarget, depthTarget);
         const ArtifactCore::FloatColor transparent(0.0f, 0.0f, 0.0f, 0.0f);
         renderer.clearRenderTarget(transparent);
@@ -1354,6 +1355,7 @@ TEST(ClonerGpuRenderContractTest,
                 renderer.drawSolidRect(-48.0f - static_cast<float>(index) * 3.0f,
                                        -48.0f, 2.0f, 2.0f, invisible);
             }
+            renderer.reset3DCameraMatrices();
         }
         renderer.flushAndWait();
         if (requestDeferred && workerSelected) {
@@ -1362,6 +1364,7 @@ TEST(ClonerGpuRenderContractTest,
                 << "Billboard barrier and CardPkt batch should both record on worker";
         }
         const QImage image = renderer.readbackTextureViewToImage(colorTarget);
+        if (!requestDeferred) renderer.reset3DCameraMatrices();
         renderer.popRenderTarget();
         return image;
     };
@@ -1397,6 +1400,229 @@ TEST(ClonerGpuRenderContractTest,
     const auto capturePath = QDir(captureDirectory).filePath(
         QStringLiteral("artifact_renderer_deferred_billboard_offscreen_%1.png")
             .arg(backend));
+    ASSERT_TRUE(deferredImage.save(capturePath, "PNG"))
+        << capturePath.toStdString();
+    renderer.destroyOffscreenTexture(colorTarget);
+    renderer.destroyOffscreenTexture(depthTarget);
+}
+
+TEST(ClonerGpuRenderContractTest,
+     ProjectorCardFallsBackToOwnerAfterDeferredQueueBarrier)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 128)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    const auto requestedBackend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("d3d12")).toLower();
+    const auto expectedDeviceType = requestedBackend == QStringLiteral("vulkan")
+        ? Diligent::RENDER_DEVICE_TYPE_VULKAN
+        : Diligent::RENDER_DEVICE_TYPE_D3D12;
+    ASSERT_NE(renderer.device(), nullptr);
+    ASSERT_EQ(renderer.device()->GetDeviceInfo().Type, expectedDeviceType)
+        << "headless initialization must not silently test a fallback backend";
+
+    renderer.setCanvasSize(128.0f, 128.0f);
+    auto* colorTarget = static_cast<Diligent::ITextureView*>(
+        renderer.createOffscreenTexture(128, 128));
+    auto* depthTarget = static_cast<Diligent::ITextureView*>(
+        renderer.createOffscreenDepthTexture(128, 128));
+    ASSERT_NE(colorTarget, nullptr);
+    ASSERT_NE(depthTarget, nullptr);
+
+    constexpr std::array<std::uint8_t, 4> texel{255, 255, 255, 255};
+    Diligent::TextureDesc textureDesc;
+    textureDesc.Name = "Deferred projector fallback texture";
+    textureDesc.Type = Diligent::RESOURCE_DIM_TEX_2D;
+    textureDesc.Width = 1;
+    textureDesc.Height = 1;
+    textureDesc.MipLevels = 1;
+    textureDesc.Format = Diligent::TEX_FORMAT_RGBA8_UNORM;
+    textureDesc.Usage = Diligent::USAGE_IMMUTABLE;
+    textureDesc.BindFlags = Diligent::BIND_SHADER_RESOURCE;
+    Diligent::TextureSubResData subresource;
+    subresource.pData = texel.data();
+    subresource.Stride = static_cast<Diligent::Uint32>(texel.size());
+    Diligent::TextureData initialData;
+    initialData.pSubResources = &subresource;
+    initialData.NumSubresources = 1;
+    Diligent::RefCntAutoPtr<Diligent::ITexture> texture;
+    renderer.device()->CreateTexture(textureDesc, &initialData, &texture);
+    ASSERT_NE(texture, nullptr);
+
+    QMatrix4x4 view;
+    view.lookAt(QVector3D(0.0f, 0.0f, 5.0f), QVector3D(0.0f, 0.0f, 0.0f),
+                QVector3D(0.0f, 1.0f, 0.0f));
+    QMatrix4x4 projection;
+    projection.perspective(60.0f, 1.0f, 0.1f, 100.0f);
+    renderer.set3DCameraMatrices(view, projection);
+
+    renderer.pushRenderTarget(colorTarget, depthTarget);
+    renderer.clearRenderTarget(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    renderer.clearDepthRenderTarget(depthTarget, 1.0f);
+    const ArtifactCore::FloatColor invisible(1.0f, 1.0f, 1.0f, 1.0f);
+    for (int index = 0; index < 16; ++index) {
+        renderer.drawSolidRect(-48.0f - static_cast<float>(index) * 3.0f,
+                               -48.0f, 2.0f, 2.0f, invisible);
+    }
+
+    QMatrix4x4 projectorView;
+    QMatrix4x4 projectorProjection;
+    projectorProjection.setToIdentity();
+    renderer.setProjectorSource(
+        texture->GetDefaultView(Diligent::TEXTURE_VIEW_SHADER_RESOURCE));
+    renderer.setProjectorMatrices(projectorView, projectorProjection);
+    renderer.setProjectorEnabled(true);
+    const auto workerSubmitsBeforeCard = renderer.deferredWorkerSubmitCount();
+    QMatrix4x4 cardModel;
+    cardModel.translate(0.0f, 0.0f, -0.5f);
+    renderer.draw3DCard(QRectF(-0.7, -0.7, 1.4, 1.4), cardModel,
+                        ArtifactCore::FloatColor(0.05f, 0.15f, 0.95f, 1.0f),
+                        1.0f, true);
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitsBeforeCard + 1)
+        << "the preceding queue should be deferred; projector Card stays owner-side";
+    renderer.resetProjector();
+
+    for (int index = 0; index < 15; ++index) {
+        renderer.drawSolidRect(-48.0f - static_cast<float>(index) * 3.0f,
+                               -48.0f, 2.0f, 2.0f, invisible);
+    }
+    renderer.flushAndWait();
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitsBeforeCard + 1)
+        << "the projector Card must not be re-queued into the later packet batch";
+
+    const QImage image = renderer.readbackTextureViewToImage(colorTarget);
+    ASSERT_FALSE(image.isNull());
+    const QColor center = image.pixelColor(64, 64);
+    EXPECT_GT(center.blue(), 200);
+    EXPECT_LT(center.red(), 100);
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_projector_card_fallback_%1.png")
+            .arg(requestedBackend));
+    ASSERT_TRUE(image.save(capturePath, "PNG")) << capturePath.toStdString();
+    renderer.popRenderTarget();
+    renderer.destroyOffscreenTexture(colorTarget);
+    renderer.destroyOffscreenTexture(depthTarget);
+}
+
+TEST(ClonerGpuRenderContractTest,
+     DeferredTexturedCardRetainsTextureAndPreservesTwoPassImage)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 128)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    const auto requestedBackend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("d3d12")).toLower();
+    const auto expectedDeviceType = requestedBackend == QStringLiteral("vulkan")
+        ? Diligent::RENDER_DEVICE_TYPE_VULKAN
+        : Diligent::RENDER_DEVICE_TYPE_D3D12;
+    ASSERT_NE(renderer.device(), nullptr);
+    ASSERT_EQ(renderer.device()->GetDeviceInfo().Type, expectedDeviceType)
+        << "headless initialization must not silently test a fallback backend";
+
+    renderer.setCanvasSize(128.0f, 128.0f);
+    auto* colorTarget = static_cast<Diligent::ITextureView*>(
+        renderer.createOffscreenTexture(128, 128));
+    auto* depthTarget = static_cast<Diligent::ITextureView*>(
+        renderer.createOffscreenDepthTexture(128, 128));
+    ASSERT_NE(colorTarget, nullptr);
+    ASSERT_NE(depthTarget, nullptr);
+    QMatrix4x4 view;
+    view.lookAt(QVector3D(0.0f, 0.0f, 5.0f), QVector3D(0.0f, 0.0f, 0.0f),
+                QVector3D(0.0f, 1.0f, 0.0f));
+    QMatrix4x4 projection;
+    projection.perspective(60.0f, 1.0f, 0.1f, 100.0f);
+    renderer.set3DCameraMatrices(view, projection);
+
+    const auto render = [&](bool requestDeferred) {
+        renderer.set3DCameraMatrices(view, projection);
+        constexpr std::array<std::uint8_t, 4> texel{235, 58, 24, 255};
+        Diligent::TextureDesc textureDesc;
+        textureDesc.Name = "Deferred textured card retained texture";
+        textureDesc.Type = Diligent::RESOURCE_DIM_TEX_2D;
+        textureDesc.Width = 1;
+        textureDesc.Height = 1;
+        textureDesc.MipLevels = 1;
+        textureDesc.Format = Diligent::TEX_FORMAT_RGBA8_UNORM;
+        textureDesc.Usage = Diligent::USAGE_IMMUTABLE;
+        textureDesc.BindFlags = Diligent::BIND_SHADER_RESOURCE;
+        Diligent::TextureSubResData subresource;
+        subresource.pData = texel.data();
+        subresource.Stride = static_cast<Diligent::Uint32>(texel.size());
+        Diligent::TextureData initialData;
+        initialData.pSubResources = &subresource;
+        initialData.NumSubresources = 1;
+        Diligent::RefCntAutoPtr<Diligent::ITexture> texture;
+        renderer.device()->CreateTexture(textureDesc, &initialData, &texture);
+        EXPECT_NE(texture, nullptr);
+
+        renderer.pushRenderTarget(colorTarget, depthTarget);
+        renderer.clearRenderTarget(
+            ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+        renderer.clearDepthRenderTarget(depthTarget, 1.0f);
+        QMatrix4x4 cardModel;
+        cardModel.translate(0.0f, 0.0f, -0.5f);
+        renderer.draw3DTexturedCard(
+            QRectF(-0.7, -0.7, 1.4, 1.4), cardModel,
+            texture->GetDefaultView(Diligent::TEXTURE_VIEW_SHADER_RESOURCE),
+            1.0f);
+        // The packet must retain the SRV until both card passes execute.
+        texture = nullptr;
+        if (requestDeferred) {
+            const ArtifactCore::FloatColor invisible(1.0f, 1.0f, 1.0f, 1.0f);
+            for (int index = 0; index < 15; ++index) {
+                renderer.drawSolidRect(-48.0f - static_cast<float>(index) * 3.0f,
+                                       -48.0f, 2.0f, 2.0f, invisible);
+            }
+            // Mirror Scoped3DLayerCamera: its camera is reset before the later
+            // packet flush, so TexturedCardPkt must carry its own snapshot.
+            renderer.reset3DCameraMatrices();
+        }
+        const auto workerSubmitsBeforeFlush =
+            renderer.deferredWorkerSubmitCount();
+        renderer.flushAndWait();
+        EXPECT_EQ(renderer.deferredWorkerSubmitCount(),
+                  workerSubmitsBeforeFlush + (requestDeferred ? 1 : 0));
+        const QImage image = renderer.readbackTextureViewToImage(colorTarget);
+        if (!requestDeferred) renderer.reset3DCameraMatrices();
+        renderer.popRenderTarget();
+        return image;
+    };
+
+    const QImage ownerImage = render(false);
+    const QImage deferredImage = render(true);
+    ASSERT_FALSE(ownerImage.isNull());
+    ASSERT_FALSE(deferredImage.isNull());
+    ASSERT_EQ(deferredImage.size(), ownerImage.size());
+    int maxChannelError = 0;
+    for (int y = 0; y < ownerImage.height(); ++y) {
+        for (int x = 0; x < ownerImage.width(); ++x) {
+            const QColor expected = ownerImage.pixelColor(x, y);
+            const QColor actual = deferredImage.pixelColor(x, y);
+            maxChannelError = std::max({
+                maxChannelError,
+                std::abs(actual.red() - expected.red()),
+                std::abs(actual.green() - expected.green()),
+                std::abs(actual.blue() - expected.blue()),
+                std::abs(actual.alpha() - expected.alpha())});
+        }
+    }
+    EXPECT_LE(maxChannelError, 1);
+    const QColor center = deferredImage.pixelColor(64, 64);
+    EXPECT_GT(center.red(), 200);
+    EXPECT_LT(center.blue(), 100);
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_deferred_textured_card_%1.png")
+            .arg(requestedBackend));
     ASSERT_TRUE(deferredImage.save(capturePath, "PNG"))
         << capturePath.toStdString();
     renderer.destroyOffscreenTexture(colorTarget);
