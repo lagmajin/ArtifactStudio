@@ -4629,9 +4629,9 @@
 ## 2026-10-18: Headless glyph parity needs a registered font fixture
 
 - **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp`、`GlyphTextPkt` / `GlyphTextXformPkt`、repository-bundled Roboto fixture。
-- **確認できた事実:** headless Qt で未登録の Arial を使うと `QRawFont` が文字列中の複数 codepoint を同じ glyph ID / silhouette に解決し、owner と worker の画像 parity が通っても capture は replacement-box glyphs になった。test が同梱 Roboto を `QFontDatabase::addApplicationFont()` で登録してからは、raw font の distinct glyph ID / mask と実 frame の複数 silhouette を検査し、通常文字と transformed text を含む全画素 parity が Debug / D3D12 / Vulkan で pass した。両backendのPNG hashも一致した。
-- **価値／懸念:** headless parity test が同期経路と同じ誤った fallback image を正解扱いする問題を避け、保存した frame で字形が実際に描かれたことを確認できる。これはテストfixtureの font registration を直したもので、production font fallback 全般を検証したものではない。
-- **次に確認:** 実アプリの `FontManager` 初期化後に選択される system / user font を使う production-frame contractでも glyph ID と silhouette を確認し、DPI と atlas eviction 後の一致を追加検証する。
+- **確認できた事実:** headless Qt で未登録の Arial を使うと `QRawFont` が文字列中の複数 codepoint を同じ glyph ID / silhouette に解決し、owner と worker の画像 parity が通っても capture は replacement-box glyphs になった。test が同梱 Roboto を `QFontDatabase::addApplicationFont()` で登録してからは、raw font の distinct glyph ID / mask と実 frame の複数 silhouette を検査する。cold owner fallback で `Seed` のみを atlas に入れ、その後の worker batch で初見 glyph を owner 側で追加・upload してから記録し、warm 後の同期 owner frame と全画素一致することを Debug / D3D12 / Vulkan で確認した。両backendのPNG hashも一致した。
+- **価値／懸念:** headless parity test が同期経路と同じ誤った fallback image を正解扱いする問題を避け、保存した frame で字形が実際に描かれたことを確認できる。これはテストfixtureの font registration を直したもので、production font fallback 全般や atlas 飽和時の eviction を検証したものではない。
+- **次に確認:** 実アプリの `FontManager` 初期化後に選択される system / user font を使う production-frame contractでも glyph ID と silhouette を確認し、実運用フォントの登録境界と、atlas が満杯になった時の clear / full upload 順序を検証する。
 
 ## 2026-10-18: Deferred 3D card recording needs an explicit target and projector snapshot
 

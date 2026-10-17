@@ -2030,22 +2030,39 @@ TEST(ClonerGpuRenderContractTest,
             QRectF(8.0, 50.0, 176.0, 40.0), QStringLiteral("Transformed"),
             font, textColor, textTransform);
     };
+    const auto drawColdGlyphSeedBatch = [&] {
+        for (int index = 0; index < 15; ++index) {
+            renderer.drawSolidRect(-40.0f - static_cast<float>(index) * 3.0f,
+                                   -40.0f, 2.0f, 2.0f, invisible);
+        }
+        renderer.drawText(QRectF(8.0, 8.0, 112.0, 40.0),
+                          QStringLiteral("Seed"), font, textColor);
+    };
 
     const quint64 workerSubmitCountBefore = renderer.deferredWorkerSubmitCount();
     renderer.clear();
-    drawEligibleBatchWithText();
+    drawColdGlyphSeedBatch();
+    EXPECT_FALSE(renderer.flushDeferredPacketsAsync())
+        << "a cold glyph atlas must stay on the owner path";
     renderer.flushAndWait();
-    const auto immediateImage = renderer.readbackToImageF32();
     EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore);
 
     renderer.clear();
     drawEligibleBatchWithText();
     ASSERT_TRUE(renderer.flushDeferredPacketsAsync())
-        << "a warmed glyph atlas should be snapshotted before worker recording";
+        << "new glyphs must be rasterized and uploaded on the owner before worker recording";
     renderer.flushAndWait();
     EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore + 1);
 
-    const auto image = renderer.readbackToImageF32();
+    const auto deferredImage = renderer.readbackToImageF32();
+    renderer.clear();
+    drawEligibleBatchWithText();
+    renderer.flushAndWait();
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore + 1);
+    const auto ownerImage = renderer.readbackToImageF32();
+
+    const auto& image = deferredImage;
+    const auto& immediateImage = ownerImage;
     ASSERT_EQ(image.width(), immediateImage.width());
     ASSERT_EQ(image.height(), immediateImage.height());
     std::size_t greenTextPixels = 0;
