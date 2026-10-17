@@ -1530,6 +1530,122 @@ TEST(ClonerGpuRenderContractTest,
 }
 
 TEST(ClonerGpuRenderContractTest,
+     ArtifactRendererPreservesVideoAndShapeFallbackAtQueueCapacity)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 128)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    const auto requestedBackend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("d3d12")).toLower();
+    const auto expectedDeviceType = requestedBackend == QStringLiteral("vulkan")
+        ? Diligent::RENDER_DEVICE_TYPE_VULKAN
+        : Diligent::RENDER_DEVICE_TYPE_D3D12;
+    ASSERT_NE(renderer.device(), nullptr);
+    ASSERT_EQ(renderer.device()->GetDeviceInfo().Type, expectedDeviceType)
+        << "headless initialization must not silently test a fallback backend";
+
+    constexpr std::size_t queueCapacity = 16u * 512u * 2u;
+    ASSERT_EQ(queueCapacity, 16384u);
+    renderer.setCanvasSize(128.0f, 128.0f);
+    auto* colorTarget = static_cast<Diligent::ITextureView*>(
+        renderer.createOffscreenTexture(128, 128));
+    auto* depthTarget = static_cast<Diligent::ITextureView*>(
+        renderer.createOffscreenDepthTexture(128, 128));
+    ASSERT_NE(colorTarget, nullptr);
+    ASSERT_NE(depthTarget, nullptr);
+    renderer.pushRenderTarget(colorTarget, depthTarget);
+
+    ArtifactCore::ImageF32x4_RGBA redFrame;
+    redFrame.resize(4, 4);
+    redFrame.fill(ArtifactCore::FloatRGBA(0.95f, 0.05f, 0.05f, 1.0f));
+    ArtifactCore::ImageF32x4_RGBA blueFrame;
+    blueFrame.resize(4, 4);
+    blueFrame.fill(ArtifactCore::FloatRGBA(0.05f, 0.05f, 0.95f, 1.0f));
+    const QUuid videoLayerId = QUuid::createUuid();
+
+    renderer.clearRenderTarget(colorTarget,
+        ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    renderer.clearDepthRenderTarget(depthTarget, 1.0f);
+    auto* redTexture = renderer.textureForVideoFrame(
+        redFrame, videoLayerId, 1);
+    ASSERT_NE(redTexture, nullptr);
+    const ArtifactCore::FloatColor invisible(1.0f, 1.0f, 1.0f, 1.0f);
+    for (std::size_t index = 0; index + 1 < queueCapacity; ++index) {
+        renderer.drawSolidRect(
+            -40.0f - static_cast<float>(index % 128u) * 3.0f,
+            -40.0f, 2.0f, 2.0f, invisible);
+    }
+    renderer.drawSprite(16.0f, 16.0f, 40.0f, 40.0f, redTexture);
+    ASSERT_TRUE(renderer.flushDeferredPacketsAsync())
+        << "the full reserved packet queue should record asynchronously";
+
+    auto* blueTexture = renderer.textureForVideoFrame(
+        blueFrame, videoLayerId, 2);
+    ASSERT_NE(blueTexture, nullptr);
+    EXPECT_EQ(blueTexture, redTexture);
+    const QImage redImage = renderer.readbackTextureViewToImage(colorTarget);
+    ASSERT_FALSE(redImage.isNull());
+    const QColor redPixel = redImage.pixelColor(28, 28);
+    EXPECT_GT(redPixel.red(), 180);
+    EXPECT_LT(redPixel.blue(), 100);
+
+    renderer.clearRenderTarget(colorTarget,
+        ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    renderer.clearDepthRenderTarget(depthTarget, 1.0f);
+    renderer.drawSprite(72.0f, 16.0f, 40.0f, 40.0f, blueTexture);
+    for (std::size_t index = 0; index + 1 < queueCapacity; ++index) {
+        renderer.drawSolidRect(
+            -40.0f - static_cast<float>(index % 128u) * 3.0f,
+            -40.0f, 2.0f, 2.0f, invisible);
+    }
+
+    QMatrix4x4 view;
+    view.lookAt(QVector3D(0.0f, 0.0f, 5.0f), QVector3D(0.0f, 0.0f, 0.0f),
+                QVector3D(0.0f, 1.0f, 0.0f));
+    QMatrix4x4 projection;
+    projection.perspective(60.0f, 1.0f, 0.1f, 100.0f);
+    renderer.set3DCameraMatrices(view, projection);
+    QMatrix4x4 model;
+    model.translate(0.0f, 0.0f, -0.5f);
+    const std::vector<Artifact::Detail::float2> triangle{
+        {-0.8f, -0.8f}, {0.8f, -0.8f}, {0.0f, 0.8f}};
+    const auto workerSubmitsBeforeShape = renderer.deferredWorkerSubmitCount();
+    renderer.draw3DShape(
+        triangle, model, ArtifactCore::FloatColor(0.1f, 0.85f, 0.2f, 1.0f),
+        1.0f, true);
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitsBeforeShape + 1)
+        << "queue saturation must drain the full eligible batch before the owner fallback";
+    renderer.reset3DCameraMatrices();
+    renderer.flushAndWait();
+
+    const QImage blueImage = renderer.readbackTextureViewToImage(colorTarget);
+    ASSERT_FALSE(blueImage.isNull());
+    const QColor bluePixel = blueImage.pixelColor(92, 28);
+    EXPECT_GT(bluePixel.blue(), 180);
+    EXPECT_LT(bluePixel.red(), 100);
+    const QColor shapePixel = blueImage.pixelColor(64, 64);
+    EXPECT_GT(shapePixel.green(), 130);
+    EXPECT_LT(shapePixel.red(), 100);
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+    ASSERT_TRUE(redImage.save(QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_video_queue_capacity_first_%1.png")
+            .arg(backend)), "PNG"));
+    ASSERT_TRUE(blueImage.save(QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_video_queue_capacity_fallback_%1.png")
+            .arg(backend)), "PNG"));
+    renderer.reset3DCameraMatrices();
+    renderer.popRenderTarget();
+    renderer.destroyOffscreenTexture(colorTarget);
+    renderer.destroyOffscreenTexture(depthTarget);
+}
+
+TEST(ClonerGpuRenderContractTest,
      ArtifactRendererDefersRetainedBillboardPacketWithCameraState)
 {
     ArtifactTest::HeadlessRenderer renderer;
