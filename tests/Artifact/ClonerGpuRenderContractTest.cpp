@@ -1630,6 +1630,105 @@ TEST(ClonerGpuRenderContractTest,
 }
 
 TEST(ClonerGpuRenderContractTest,
+     DeferredShapeTrianglesRetainCameraAndPreserveOffscreenImage)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 128)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    const auto requestedBackend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("d3d12")).toLower();
+    const auto expectedDeviceType = requestedBackend == QStringLiteral("vulkan")
+        ? Diligent::RENDER_DEVICE_TYPE_VULKAN
+        : Diligent::RENDER_DEVICE_TYPE_D3D12;
+    ASSERT_NE(renderer.device(), nullptr);
+    ASSERT_EQ(renderer.device()->GetDeviceInfo().Type, expectedDeviceType)
+        << "headless initialization must not silently test a fallback backend";
+
+    renderer.setCanvasSize(128.0f, 128.0f);
+    auto* colorTarget = static_cast<Diligent::ITextureView*>(
+        renderer.createOffscreenTexture(128, 128));
+    auto* depthTarget = static_cast<Diligent::ITextureView*>(
+        renderer.createOffscreenDepthTexture(128, 128));
+    ASSERT_NE(colorTarget, nullptr);
+    ASSERT_NE(depthTarget, nullptr);
+    QMatrix4x4 view;
+    view.lookAt(QVector3D(0.0f, 0.0f, 5.0f), QVector3D(0.0f, 0.0f, 0.0f),
+                QVector3D(0.0f, 1.0f, 0.0f));
+    QMatrix4x4 projection;
+    projection.perspective(60.0f, 1.0f, 0.1f, 100.0f);
+    const std::vector<Artifact::Detail::float2> triangle{
+        {-0.8f, -0.8f}, {0.8f, -0.8f}, {0.0f, 0.8f}};
+    const auto render = [&](bool requestDeferred) {
+        renderer.set3DCameraMatrices(view, projection);
+        renderer.pushRenderTarget(colorTarget, depthTarget);
+        renderer.clearRenderTarget(
+            ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+        renderer.clearDepthRenderTarget(depthTarget, 1.0f);
+        if (requestDeferred) {
+            const ArtifactCore::FloatColor invisible(1.0f, 1.0f, 1.0f, 1.0f);
+            for (int index = 0; index < 15; ++index) {
+                renderer.drawSolidRect(-48.0f - static_cast<float>(index) * 3.0f,
+                                       -48.0f, 2.0f, 2.0f, invisible);
+            }
+        }
+        QMatrix4x4 model;
+        model.translate(0.0f, 0.0f, -0.5f);
+        renderer.draw3DShape(
+            triangle, model, ArtifactCore::FloatColor(0.1f, 0.25f, 0.95f, 1.0f),
+            1.0f, true);
+        if (requestDeferred) {
+            // Composition resets its scoped camera before the packet queue is
+            // flushed; ShapeTrianglesPkt must preserve the draw-time camera.
+            renderer.reset3DCameraMatrices();
+        }
+        const auto workerSubmitsBeforeFlush =
+            renderer.deferredWorkerSubmitCount();
+        renderer.flushAndWait();
+        EXPECT_EQ(renderer.deferredWorkerSubmitCount(),
+                  workerSubmitsBeforeFlush + (requestDeferred ? 1 : 0));
+        const QImage image = renderer.readbackTextureViewToImage(colorTarget);
+        if (!requestDeferred) renderer.reset3DCameraMatrices();
+        renderer.popRenderTarget();
+        return image;
+    };
+
+    const QImage ownerImage = render(false);
+    const QImage deferredImage = render(true);
+    ASSERT_FALSE(ownerImage.isNull());
+    ASSERT_FALSE(deferredImage.isNull());
+    ASSERT_EQ(deferredImage.size(), ownerImage.size());
+    int maxChannelError = 0;
+    for (int y = 0; y < ownerImage.height(); ++y) {
+        for (int x = 0; x < ownerImage.width(); ++x) {
+            const QColor expected = ownerImage.pixelColor(x, y);
+            const QColor actual = deferredImage.pixelColor(x, y);
+            maxChannelError = std::max({
+                maxChannelError,
+                std::abs(actual.red() - expected.red()),
+                std::abs(actual.green() - expected.green()),
+                std::abs(actual.blue() - expected.blue()),
+                std::abs(actual.alpha() - expected.alpha())});
+        }
+    }
+    EXPECT_LE(maxChannelError, 1);
+    const QColor center = deferredImage.pixelColor(64, 64);
+    EXPECT_GT(center.blue(), 200);
+    EXPECT_LT(center.red(), 100);
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_deferred_shape_triangles_%1.png")
+            .arg(requestedBackend));
+    ASSERT_TRUE(deferredImage.save(capturePath, "PNG"))
+        << capturePath.toStdString();
+    renderer.destroyOffscreenTexture(colorTarget);
+    renderer.destroyOffscreenTexture(depthTarget);
+}
+
+TEST(ClonerGpuRenderContractTest,
      ArtifactRendererDefersSingleLargeMpmSurfaceByBoundedWork)
 {
     ArtifactTest::HeadlessRenderer renderer;
