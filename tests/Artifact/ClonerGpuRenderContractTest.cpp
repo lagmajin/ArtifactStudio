@@ -375,6 +375,10 @@ TEST(ClonerGpuRenderContractTest,
     submitter.createBuffers(device, Artifact::RenderConfig::MainRTVFormat);
     submitter.setPSOs(shaders);
     Artifact::DiligentImmediateSubmitter workerSubmitter;
+    // This recorder has its own buffers and SRBs; prepare them before its
+    // thread starts and never share them with the immediate submitter.
+    workerSubmitter.createBuffers(device, Artifact::RenderConfig::MainRTVFormat);
+    workerSubmitter.setPSOs(workerShaders);
     const auto makeBuffer = [&] {
         Artifact::RenderCommandBuffer buffer;
         buffer.reserve(16);
@@ -460,8 +464,6 @@ TEST(ClonerGpuRenderContractTest,
     auto result = recordResult.get_future();
     auto execution = executeCompleted.get_future();
     std::thread worker([&] {
-        workerSubmitter.createBuffers(device, Artifact::RenderConfig::MainRTVFormat);
-        workerSubmitter.setPSOs(workerShaders);
         Diligent::RefCntAutoPtr<Diligent::IDeviceContext> workerDeferred;
         device->CreateDeferredContext(&workerDeferred);
         if (!workerDeferred) {

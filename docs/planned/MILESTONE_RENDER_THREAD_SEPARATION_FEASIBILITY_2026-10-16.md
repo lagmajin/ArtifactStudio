@@ -38,6 +38,15 @@ packet buffer を保持し、3 経路の readback image を比較する契約で
 GUI 非ブロッキングは証明しない。production `submit()` の deferred selection は依然として同じ呼び出し thread で記録・実行する。
 既存の巨大な Visual Studio / CMake module build のため、以後の再 configure は長時間を要する。
 
+**Recorder resource lifetime の追加検証（2026-10-17）:** worker 専用 submitter の buffer / PSO を worker 起動前に準備し、
+worker 内で deferred context を設定・record・`FinishFrame()` する形でも D3D12 / Vulkan の画像 contract が pass した。
+`setDeferredContext(empty)` を worker 終了時に呼ぶ変形は両 backend で access violation (`0xc0000005`) になった。
+この変形では worker-local `RefCntAutoPtr` が worker thread 上で context の最後の参照を解放するため、最後の参照を
+worker 外へ保持した場合との違いは context の解放 thread である。現段階では worker を join し、worker submitter が保持する
+deferred context の最終 release を worker 終了後に行うこと。worker 上での明示的な context reset は行わない。
+再確認で得た 4 枚の immediate / worker-recorded PNG はすべて SHA-256
+`AF60E824696AFA7C599F551A644CE6C0D285C108BCD947497C00F1A18416470A` で一致した。
+
 **初期進捗（2026-10-16〜2026-10-17、後続訂正あり）:** `BillboardPkt` は `PrimitiveRenderer3D` が保持する immediate context に直描画し、
 周囲の packet と順序が分かれる可能性があった。`PrimitiveRenderer3D::drawBillboardQuadWithContext()` を追加し、
 この packet は submitter の `recordCtx` と packet の RTV を明示して記録するようにしたため、deferred command list 内の順序を維持する。
