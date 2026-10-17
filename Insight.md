@@ -4567,3 +4567,11 @@
 - **気づき:** LOD は単一の値ではなく、生成品質、CPU/GPU選択、実描画、描画解像度、シミュレーション頻度という別々の契約を持つ。テストをこれらの境界ごとに分けると、未実装の領域と重複を見つけやすい。メッシュシェーダー経路は chooser の一致だけでは描画オフセット・dispatch 数を保証できないため、2対1のmeshlet dispatchを3つの領域に分けたreadbackで確認する受け入れテストを追加した。専用のVulkan fixtureに分けてRay Tracing機能との不要な依存も外した（未実行）。
 - **価値／懸念:** 今回はテスト起動が禁止されているため全ケースの実行結果は未確認。特に既存大規模GPU統合テストの追加ケースは実行環境依存性を含み、Focused run が必要。
 - **次に確認:** テスト実行が許可された後、登録済みLOD専用ターゲットを優先し、その後 GPU / Composition 統合テストを段階的に実行する。
+
+## 2026-10-17: Glyph Text needs a prepared packet before worker recording
+
+- **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm::submitGlyphText()` / `submitGlyphTextTransformed()`、`GlyphAtlas`、`ArtifactIRenderer::DeferredPacketRecordWorker`。
+- **確認できた事実:** Glyph submit 中に Qt/HarfBuzz shaping、font fallback、glyph atlas の QImage と map 更新を行う。worker submitter は独自 atlas を持ち、初回 upload では `CreateTexture()` が呼ばれる。既存の `canRecordDeferred()` は両 glyph packet を受け入れない。
+- **未検証の設計案:** producer thread で bounded glyph instance data を作り、atlas texture/SRV を保持した immutable packet を worker に渡せば、text preparation を caller 側に残しつつ GPU command recording を移せる可能性がある。atlas eviction / clear、texture upload の順序、複数 submitter 間での lifetime pinning はまだ設計・実機検証していない。
+- **価値／懸念:** allow-list だけの拡張は worker 内 allocation と lazy GPU resource creation を持ち込む。まず owner fallback の実画像 contract を固定し、その後に prepared packet の bounded capacity と frame lifetime を決める必要がある。
+- **次に確認:** GlyphAtlas が glyph rect を移動・無効化する条件を調べ、frame packet が使う atlas generation を保持または安定化できる契約を設計する。D3D12 / Vulkan の即時・worker 描画画像を比較してから eligibility を広げる。

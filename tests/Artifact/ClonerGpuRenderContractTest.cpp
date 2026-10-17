@@ -4,6 +4,7 @@
 #include <TextureView.h>
 #include <QCoreApplication>
 #include <QDir>
+#include <QFont>
 #include <QImage>
 #include <QMatrix4x4>
 #include <QVector3D>
@@ -1056,6 +1057,75 @@ TEST(ClonerGpuRenderContractTest,
         "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
     const auto capturePath = QDir(captureDirectory).filePath(
         QStringLiteral("artifact_renderer_async_recorded_overlay_%1.png").arg(backend));
+    ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
+        << capturePath.toStdString();
+}
+
+TEST(ClonerGpuRenderContractTest,
+     ArtifactRendererKeepsGlyphTextOnOwnerWhenDeferredBatchIsEligible)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 96)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    renderer.setCanvasSize(128.0f, 96.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    const ArtifactCore::FloatColor invisible(1.0f, 1.0f, 1.0f, 1.0f);
+    const auto drawEligibleBatchWithText = [&] {
+        for (int index = 0; index < 15; ++index) {
+            renderer.drawSolidRect(-40.0f - static_cast<float>(index) * 3.0f,
+                                   -40.0f, 2.0f, 2.0f, invisible);
+        }
+        renderer.drawText(QRectF(8.0, 8.0, 112.0, 40.0), QStringLiteral("Deferred"),
+                          QFont(QStringLiteral("Arial"), 24),
+                          ArtifactCore::FloatColor(0.1f, 1.0f, 0.2f, 1.0f));
+    };
+
+    const quint64 workerSubmitCountBefore = renderer.deferredWorkerSubmitCount();
+    renderer.clear();
+    drawEligibleBatchWithText();
+    renderer.flushAndWait();
+    const auto immediateImage = renderer.readbackToImageF32();
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore);
+
+    renderer.clear();
+    drawEligibleBatchWithText();
+    EXPECT_FALSE(renderer.flushDeferredPacketsAsync())
+        << "glyph shaping and atlas mutation must stay on the owner submit path";
+    renderer.flushAndWait();
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore);
+
+    const auto image = renderer.readbackToImageF32();
+    ASSERT_EQ(image.width(), immediateImage.width());
+    ASSERT_EQ(image.height(), immediateImage.height());
+    std::size_t greenTextPixels = 0;
+    float maxChannelError = 0.0f;
+    for (int y = 8; y < 48; ++y) {
+        for (int x = 8; x < 120; ++x) {
+            const auto pixel = image.getPixel(x, y);
+            if (pixel.a() > 0.5f && pixel.g() > 0.5f && pixel.g() > pixel.r()) {
+                ++greenTextPixels;
+            }
+            const auto expected = immediateImage.getPixel(x, y);
+            maxChannelError = std::max({
+                maxChannelError,
+                std::abs(pixel.r() - expected.r()),
+                std::abs(pixel.g() - expected.g()),
+                std::abs(pixel.b() - expected.b()),
+                std::abs(pixel.a() - expected.a())});
+        }
+    }
+    EXPECT_GT(greenTextPixels, 0u);
+    EXPECT_LE(maxChannelError, 1.0e-4f);
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_glyph_text_owner_fallback_%1.png")
+            .arg(backend));
     ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
         << capturePath.toStdString();
 }
