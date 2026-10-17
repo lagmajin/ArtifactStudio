@@ -516,6 +516,8 @@ frame body の worker 化や GUI 非ブロッキングは証明しない。`LNK1
 
 **Cloner stale range の split-submit fallback image contract（2026-10-18）:** `SubmittedPlacementRangeFallsBackAfterQueueDrain` は Cloner dispatch を submit した後、旧 batch generation の placement range が `drawSpriteTransformedClonerGrid()` に拒否されることを確認する。Composition の実 callsite と同じく、呼び出し元が通常の transformed sprite draw へ fallback した結果、3つの可視 clone が残る。Debug / D3D12 と Debug / Vulkan で pass し、実フレーム PNG `artifact_renderer_cloner_stale_range_fallback_{d3d12,vulkan}.png` を保存した。SHA-256 は両 backend で `5CFCE0311CB2DB4A2DC9B42080F7676BE635AB9A328611817D80853544E0CCB5` で一致した。これは submit barrier をまたいだ range rejection と画像 fallback の契約を示す。production observer と indexed draw callback の間に queue drain がある Composition 経路は、引き続き source 調査上見つかっていない。
 
+**Deferred barrier の owner wait 計測（2026-10-18）:** `ARTIFACT_VIDEO_PREVIEW_PROFILE_SETUP=1` のときだけ `DeferredPacketRecordWorker::executeAndRelease()` が `recordReady_` condition wait を `recordReadyWait` として出力する。Production Composition point-light integration を実 device 上で Debug / D3D12 と Debug / Vulkan で実行し、16 packet batch の wait は両 backend とも `0.000 ms`（表示精度 0.001 ms）、記録は D3D12 0.798 / 0.206 ms、Vulkan 0.224 ms、ExecuteCommandLists 呼び出しのCPU所要はそれぞれ 3.796 / 0.177 ms、0.547 ms だった。worker `FinishFrame()` は 0.009 / 0.013 ms、0.017 ms。point-light の 400×300 frame PNG は両 backend で SHA-256 `AC7C475B62E440744DFF4D9F7D69ED63C38BC71C0020E1A67BC11254AA18754` で一致した。この workload では barrier 到達前に worker recording が済んでいるが、単一 scene の測定で GUI latency 改善量や他の workload の待ち時間は示さない。profile 無効時は計測 timer を開始せず、出力もしない。
+
 ## 11. 未確認事項
 
 1. Cloner placement range の batch generation は packet submit と renderer / placement GPU resource の再初期化で進む。

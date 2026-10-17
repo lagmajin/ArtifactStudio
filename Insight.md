@@ -4654,6 +4654,13 @@
 - **価値／懸念:** deferred queue drain 後に stale GPU range を誤用せず、画面上の clone 描画を継続できる境界を実画像で固定した。Composition の現行 observer-to-draw path に同じ drain が実際に挿入される場面は確認していない。
 - **次に確認:** device loss / placement resource 再初期化中の generation invalidation と、Composition の複数 pass が dispatch / draw 間に barrier を挿入しないことを runtime evidence で確かめる。
 
+## 2026-10-18: Measure the owner wait at the deferred recording barrier
+
+- **関連:** `DeferredPacketRecordWorker::executeAndRelease()`、`ARTIFACT_VIDEO_PREVIEW_PROFILE_SETUP`、Composition point-light integration。
+- **確認できた事実:** owner-side wait on `recordReady_` had no measurable duration at 0.001 ms display precision for the tested 16-packet Composition batch on either D3D12 or Vulkan. D3D12 worker record took 0.798 ms / 0.206 ms across two frames; Vulkan took 0.224 ms. The captured point-light frame hashes matched across backends. First-frame setup and render-to-present totals were much larger and backend-dependent.
+- **価値／懸念:** The existing profile separated worker recording and execute, but did not expose whether the owner actually waited at the completion barrier. The new opt-in field closes that observability gap for this boundary. Zero at the current resolution does not imply zero latency in other scenes, and this single workload does not quantify the improvement over synchronous recording.
+- **次に確認:** Repeat with representative Composition packet mixes and a matched synchronous owner-record baseline before claiming GUI latency improvement or changing the bounded worker threshold.
+
 ## 2026-10-18: Deferred 3D card recording needs an explicit target and projector snapshot
 
 - **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::draw3DCard()` / `draw3DTexturedCard()`、`Artifact/src/Render/PrimitiveRenderer3D.cppm::drawCardPass()`、`DeferredPacketRecordWorker`。
