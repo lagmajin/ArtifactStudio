@@ -1928,7 +1928,7 @@ TEST(ClonerGpuRenderContractTest,
 }
 
 TEST(ClonerGpuRenderContractTest,
-     ArtifactRendererKeepsGlyphTextOnOwnerWhenDeferredBatchIsEligible)
+     ArtifactRendererDefersWarmGlyphTextWithPreparedAtlasData)
 {
     ArtifactTest::HeadlessRenderer renderer;
     if (!renderer.initialize(128, 96)) {
@@ -1956,10 +1956,10 @@ TEST(ClonerGpuRenderContractTest,
 
     renderer.clear();
     drawEligibleBatchWithText();
-    EXPECT_FALSE(renderer.flushDeferredPacketsAsync())
-        << "glyph shaping and atlas mutation must stay on the owner submit path";
+    ASSERT_TRUE(renderer.flushDeferredPacketsAsync())
+        << "a warmed glyph atlas should be snapshotted before worker recording";
     renderer.flushAndWait();
-    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore);
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore + 1);
 
     const auto image = renderer.readbackToImageF32();
     ASSERT_EQ(image.width(), immediateImage.width());
@@ -1990,7 +1990,7 @@ TEST(ClonerGpuRenderContractTest,
     const auto backend = qEnvironmentVariable(
         "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
     const auto capturePath = QDir(captureDirectory).filePath(
-        QStringLiteral("artifact_renderer_glyph_text_owner_fallback_%1.png")
+        QStringLiteral("artifact_renderer_glyph_text_deferred_%1.png")
             .arg(backend));
     ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
         << capturePath.toStdString();
