@@ -399,6 +399,8 @@ void exerciseCompositionLight(Artifact::LightType type,
         light->transform3D().setCurrentPositionZ(350.0f);
         light->transform3D().setCurrentRotationY(180.0f);
     }
+    std::array<decltype(ArtifactCore::makeShared<Artifact::ArtifactSolid2DLayer>()),
+               16> deferredPacketLayers{};
     if (verifyAsyncWorkerRecording) {
         // The production recorder intentionally keeps batches below its
         // 16-packet threshold on the immediate path. Add tiny black packets
@@ -409,6 +411,7 @@ void exerciseCompositionLight(Artifact::LightType type,
             auto packetLayer =
                 ArtifactCore::makeShared<Artifact::ArtifactSolid2DLayer>();
             ASSERT_TRUE(packetLayer);
+            deferredPacketLayers[static_cast<std::size_t>(index)] = packetLayer;
             packetLayer->setLayerName(
                 QStringLiteral("Deferred worker packet %1").arg(index));
             packetLayer->setSize(1, 1);
@@ -504,6 +507,45 @@ void exerciseCompositionLight(Artifact::LightType type,
             << rayTracingState.toStdString();
     }
     const QImage baselineImage = readPresentedFrame();
+    QImage deferredHiddenImage;
+    QImage deferredRestoredImage;
+    if (verifyAsyncWorkerRecording) {
+        for (const auto& packetLayer : deferredPacketLayers) {
+            packetLayer->setColor(
+                ArtifactCore::FloatColor(1.0f, 0.0f, 0.0f, 1.0f));
+        }
+        model->setVisible(false);
+        const quint64 hiddenFrame = renderDirtyFrame(baselineRenderedFrame);
+        if (hiddenFrame <= baselineRenderedFrame) {
+            controller.stop();
+            controller.destroy();
+            FAIL() << "The production renderer did not complete the hidden-model frame";
+            return;
+        }
+        deferredHiddenImage = readPresentedFrame();
+
+        for (const auto& packetLayer : deferredPacketLayers) {
+            packetLayer->setColor(
+                ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 1.0f));
+        }
+        model->setVisible(true);
+        const quint64 restoredFrame = renderDirtyFrame(hiddenFrame);
+        if (restoredFrame <= hiddenFrame) {
+            controller.stop();
+            controller.destroy();
+            FAIL() << "The production renderer did not complete the restored-model frame";
+            return;
+        }
+        deferredRestoredImage = readPresentedFrame();
+        EXPECT_FALSE(deferredHiddenImage.isNull())
+            << "The hidden-model Composition frame produced no readback image";
+        EXPECT_FALSE(deferredRestoredImage.isNull())
+            << "The restored-model Composition frame produced no readback image";
+        EXPECT_FALSE(baselineImage == deferredHiddenImage)
+            << "Hiding the model did not change the rendered frame image";
+        EXPECT_TRUE(baselineImage == deferredRestoredImage)
+            << "Restoring model visibility did not reproduce the baseline frame image";
+    }
     QImage unlitImage;
     QImage modelLightingDisabledImage;
     quint64 secondRenderedFrame = baselineRenderedFrame;
@@ -619,6 +661,14 @@ void exerciseCompositionLight(Artifact::LightType type,
         litImage.save(QDir(captureRoot).filePath(
             QStringLiteral("composition_controller_%1_light.png")
                 .arg(lightTypeName(type))));
+        if (!deferredHiddenImage.isNull()) {
+            deferredHiddenImage.save(QDir(captureRoot).filePath(
+                QStringLiteral("composition_controller_deferred_hidden.png")));
+        }
+        if (!deferredRestoredImage.isNull()) {
+            deferredRestoredImage.save(QDir(captureRoot).filePath(
+                QStringLiteral("composition_controller_deferred_restored.png")));
+        }
         if (!redChannelImage.isNull()) {
             redChannelImage.save(QDir(captureRoot).filePath(
                 QStringLiteral("composition_controller_red_channel.png")));
