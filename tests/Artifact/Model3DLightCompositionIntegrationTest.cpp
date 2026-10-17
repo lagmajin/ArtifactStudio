@@ -45,6 +45,7 @@ import Artifact.Composition.InitParams;
 import Composition3D;
 import Artifact.Layer.Light;
 import Artifact.Layers.Model3D;
+import Artifact.Layer.Solid2D;
 import Artifact.Widgets.CompositionRenderController;
 import Artifact.Render.IRenderer;
 import Color.Float;
@@ -326,7 +327,8 @@ void exerciseCompositionLight(Artifact::LightType type,
                               bool verifyVisibilityAndModelOptOut = false,
                               const QString& modelPath = {},
                               bool verifyRayTracingRegistration = false,
-                              bool verifyLightingDifference = false)
+                              bool verifyLightingDifference = false,
+                              bool verifyAsyncWorkerRecording = false)
 {
     auto& app = application();
     diligentErrorDetected.store(false, std::memory_order_relaxed);
@@ -396,10 +398,32 @@ void exerciseCompositionLight(Artifact::LightType type,
         light->transform3D().setCurrentPositionZ(350.0f);
         light->transform3D().setCurrentRotationY(180.0f);
     }
+    if (verifyAsyncWorkerRecording) {
+        // The production recorder intentionally keeps batches below its
+        // 16-packet threshold on the immediate path. Add tiny black packets
+        // beneath the model so this integration case exercises the real
+        // Composition base-to-overlay asynchronous recording seam without
+        // materially changing the captured lighting image.
+        for (int index = 0; index < 16; ++index) {
+            auto packetLayer =
+                ArtifactCore::makeShared<Artifact::ArtifactSolid2DLayer>();
+            ASSERT_TRUE(packetLayer);
+            packetLayer->setLayerName(
+                QStringLiteral("Deferred worker packet %1").arg(index));
+            packetLayer->setSize(1, 1);
+            packetLayer->setColor(
+                ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 1.0f));
+            packetLayer->transform2D().setPosition(
+                static_cast<float>(index), 0.0f);
+            ASSERT_TRUE(composition->appendLayerBottom(packetLayer).success);
+        }
+    }
     ASSERT_TRUE(composition->appendLayerBottom(model).success);
     ASSERT_TRUE(composition->appendLayerTop(light).success);
 
     controller.setComposition(composition);
+    const quint64 workerSubmitCountBeforeFrame =
+        controller.renderer()->deferredWorkerSubmitCount();
     controller.start();
     const auto waitForFrame = [&](quint64 afterSerial) {
         QEventLoop frameLoop;
@@ -428,11 +452,27 @@ void exerciseCompositionLight(Artifact::LightType type,
         return controller.currentFrameSerial() > afterSerial
             ? controller.currentFrameSerial() : quint64{0};
     };
+    const auto readPresentedFrame = [&] {
+        QImage image = controller.readbackPresentedFrameImage();
+        QElapsedTimer timeout;
+        timeout.start();
+        while (image.isNull() && timeout.elapsed() < 5000) {
+            app.processEvents(QEventLoop::AllEvents, 10);
+            image = controller.readbackPresentedFrameImage();
+        }
+        return image;
+    };
     const quint64 firstRenderedFrame = waitForFrame(0);
     if (firstRenderedFrame == 0) {
         controller.stop();
         controller.destroy();
         FAIL() << "The production render ticker did not render its dirty composition";
+    }
+    if (verifyAsyncWorkerRecording) {
+        EXPECT_GT(controller.renderer()->deferredWorkerSubmitCount(),
+                  workerSubmitCountBeforeFrame)
+            << "The production Composition frame did not submit its base batch "
+               "to the deferred recording worker";
     }
     const quint64 baselineRenderedFrame = renderDirtyFrame(firstRenderedFrame);
     if (baselineRenderedFrame <= firstRenderedFrame) {
@@ -462,7 +502,7 @@ void exerciseCompositionLight(Artifact::LightType type,
             << "The observed RT dispatch was not the known 1x1 warmup trace: "
             << rayTracingState.toStdString();
     }
-    const QImage baselineImage = controller.readbackPresentedFrameImage();
+    const QImage baselineImage = readPresentedFrame();
     QImage unlitImage;
     QImage modelLightingDisabledImage;
     quint64 secondRenderedFrame = baselineRenderedFrame;
@@ -474,7 +514,7 @@ void exerciseCompositionLight(Artifact::LightType type,
             controller.destroy();
             FAIL() << "The production render ticker did not complete the unlit FBX frame";
         }
-        unlitImage = controller.readbackPresentedFrameImage();
+        unlitImage = readPresentedFrame();
         light->setVisible(true);
     }
     if (verifyVisibilityAndModelOptOut) {
@@ -506,7 +546,7 @@ void exerciseCompositionLight(Artifact::LightType type,
     }
     quint64 lastRenderedFrame = secondRenderedFrame;
     if (verifyVisibilityAndModelOptOut) {
-        modelLightingDisabledImage = controller.readbackPresentedFrameImage();
+        modelLightingDisabledImage = readPresentedFrame();
         model->setAffectedByLights(true);
         lastRenderedFrame = renderDirtyFrame(secondRenderedFrame);
         if (lastRenderedFrame <= secondRenderedFrame) {
@@ -516,7 +556,7 @@ void exerciseCompositionLight(Artifact::LightType type,
         }
     }
     const QImage litImage = sceneWasUpdated
-        ? controller.readbackPresentedFrameImage() : baselineImage;
+        ? readPresentedFrame() : baselineImage;
     controller.stop();
     controller.destroy();
 
@@ -604,7 +644,8 @@ void exerciseCompositionLight(Artifact::LightType type,
 TEST(Model3DLightCompositionIntegrationTest,
      CompositionControllerAppliesPointLightLayer)
 {
-    exerciseCompositionLight(Artifact::LightType::Point);
+    exerciseCompositionLight(Artifact::LightType::Point, false, false, false,
+                             {}, false, false, true);
 }
 
 TEST(Model3DLightCompositionIntegrationTest,
