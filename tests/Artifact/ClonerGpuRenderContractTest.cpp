@@ -1101,6 +1101,27 @@ TEST(ClonerGpuRenderContractTest,
             .arg(backend));
     ASSERT_TRUE(renderer.readbackToImage().save(workerPath, "PNG"))
         << workerPath.toStdString();
+
+    renderer.clear();
+    ArtifactCore::ArtifactArray<Artifact::MpmSurfaceVertex> smallVertices;
+    smallVertices.reserve(3);
+    smallVertices.append({12.0f, 12.0f, 1.0f});
+    smallVertices.append({32.0f, 12.0f, 1.0f});
+    smallVertices.append({22.0f, 32.0f, 1.0f});
+    ASSERT_TRUE(renderer.drawMpmSurface(smallVertices, surfaceColor));
+    EXPECT_FALSE(renderer.flushDeferredPacketsAsync())
+        << "a single small MPM packet should stay on the owner path";
+    renderer.flushAndWait();
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore + 1);
+    const auto smallImage = renderer.readbackToImageF32();
+    const auto smallSurfacePixel = smallImage.getPixel(22, 18);
+    EXPECT_GT(smallSurfacePixel.a(), 0.8f);
+    EXPECT_GT(smallSurfacePixel.g(), 0.75f);
+    const auto smallPath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_mpm_single_packet_owner_%1.png")
+            .arg(backend));
+    ASSERT_TRUE(renderer.readbackToImage().save(smallPath, "PNG"))
+        << smallPath.toStdString();
 }
 
 TEST(ClonerGpuRenderContractTest,

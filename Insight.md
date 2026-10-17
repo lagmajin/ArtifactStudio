@@ -4580,6 +4580,6 @@
 
 - **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm::canRecordDeferred()`、`MpmSurfacePkt`。
 - **確認できた事実:** 16個の単位 packet 最小数では、最大75,078頂点の MPM surface 1個でも worker 選択を拒否した。submitter は最大4,096頂点ずつ bounded staging に積んで flush する。
-- **変更:** worker eligibility の work estimate に MPM staging chunk 数を加え、最大 surface packet 単独なら worker recording を選ぶようにした。15個の不可視 filler packet を使わない production `ArtifactIRenderer` test が worker selection と描画 pixel を検証し、Debug / D3D12 と Debug / Vulkan で pass。PNG hash は同一。
-- **価値／懸念:** packet 数 threshold は軽い packet 多数を表すには機能するが、単体の大きな geometry packet を過小評価する。今後別 packet の work estimate を加えるときは bounded cost と実測 recording time の相関を確認する。
+- **変更:** worker eligibility の work estimate に MPM staging chunk 数を加え、最大 surface packet 単独なら worker recording を選ぶようにした。15個の不可視 filler packet を使わない production `ArtifactIRenderer` test が worker selection と描画 pixel を検証し、3頂点の小 packet は owner path に残ることも確認した。Debug / D3D12 と Debug / Vulkan で両ケース pass。opt-in profile で最大 packet の worker record は D3D12 3.966ms、Vulkan 3.697ms。worker PNG hash は両 backend で同一。
+- **価値／懸念:** packet 数 threshold は軽い packet 多数を表すには機能するが、単体の大きな geometry packet を過小評価する。worker recording 時間は実測したが、同じ workload の owner recording との比較や GUI latency の改善量は未検証。
 - **次に確認:** 実 Composition で MPM surface の packet サイズ分布を計測し、16 chunk threshold が通常 workload の余計な command-list overhead を生まないか確認する。
