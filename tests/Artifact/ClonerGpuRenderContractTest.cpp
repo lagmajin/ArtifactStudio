@@ -937,8 +937,14 @@ TEST(ClonerGpuRenderContractTest,
         mpmVertices, ArtifactCore::FloatColor(0.1f, 0.9f, 0.25f, 1.0f)));
     texture = nullptr;
 
+    const quint64 workerSubmitCountBefore =
+        renderer.deferredWorkerSubmitCount();
+    ASSERT_TRUE(renderer.flushDeferredPacketsAsync())
+        << "ParticleRenderer state should be leased to the worker for this packet batch";
+    renderer.drawSolidRect(100.0f, 8.0f, 20.0f, 20.0f,
+                           ArtifactCore::FloatColor(0.1f, 0.2f, 0.95f, 1.0f));
     renderer.flushAndWait();
-    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), 1u)
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore + 1)
         << "the production ArtifactIRenderer path should record cloner, sprite, particle, and MPM surface packets on its worker";
     const auto image = renderer.readbackToImageF32();
     ASSERT_EQ(image.width(), 128);
@@ -971,6 +977,9 @@ TEST(ClonerGpuRenderContractTest,
     EXPECT_GT(mpmSurfaceCenter.g(), 0.75f);
     EXPECT_GT(mpmSurfaceCenter.b(), 0.45f);
     EXPECT_LT(mpmSurfaceCenter.b(), 0.65f);
+    const auto overlayCenter = image.getPixel(108, 16);
+    EXPECT_GT(overlayCenter.b(), 0.8f);
+    EXPECT_LT(overlayCenter.r(), 0.4f);
     for (const int x : {52, 82}) {
         const auto spillTriangleCenter = image.getPixel(x, 18);
         EXPECT_GT(spillTriangleCenter.a(), 0.8f) << "x=" << x;
@@ -983,7 +992,7 @@ TEST(ClonerGpuRenderContractTest,
     const auto backend = qEnvironmentVariable(
         "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
     const auto capturePath = QDir(captureDirectory).filePath(
-        QStringLiteral("artifact_renderer_deferred_cloner_sprites_particle_%1.png").arg(backend));
+        QStringLiteral("artifact_renderer_async_deferred_cloner_sprites_particle_%1.png").arg(backend));
     ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
         << capturePath.toStdString();
 }

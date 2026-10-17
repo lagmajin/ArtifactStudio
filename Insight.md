@@ -4583,3 +4583,10 @@
 - **変更:** worker eligibility の work estimate に MPM staging chunk 数を加え、最大 surface packet 単独なら worker recording を選ぶようにした。15個の不可視 filler packet を使わない production `ArtifactIRenderer` test が worker selection と描画 pixel を検証し、3頂点の小 packet は owner path に残ることも確認した。Debug / D3D12 と Debug / Vulkan で両ケース pass。opt-in profile で最大 packet の worker record は D3D12 3.966ms、Vulkan 3.697ms。worker PNG hash は両 backend で同一。
 - **価値／懸念:** packet 数 threshold は軽い packet 多数を表すには機能するが、単体の大きな geometry packet を過小評価する。worker recording 時間は実測したが、同じ workload の owner recording との比較や GUI latency の改善量は未検証。
 - **次に確認:** 実 Composition で MPM surface の packet サイズ分布を計測し、16 chunk threshold が通常 workload の余計な command-list overhead を生まないか確認する。
+
+## 2026-10-17: Particle worker preflight needs its renderer dependency first
+
+- **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::flushDeferredPacketsAsync()`、`DiligentImmediateSubmitter::canRecordDeferred()`、production worker image contract。
+- **確認できた事実:** `canRecordDeferred()` は `ParticlePkt` に対してsubmitter内の `ParticleRenderer*` を必要とする。非同期handoffはそのpreflight後にpointerを渡していたため、Particleを含むbatchは非同期経路へ進まなかった。pointer設定をpreflight前に移動すると、D3D12 / Vulkan のproduction renderer testでworker handoffと後続overlayの画像順がpassし、両PNGのhashが一致した。
+- **価値／懸念:** eligibility判定も実行時依存を要する場合、preflight準備の順序が実際のサポート可否を決める。ParticleRendererはmutableなので、handoff中の診断読み取りを避け、再利用前のjob完了待ちを保つ。
+- **次に確認:** CompositionのParticle workloadで通常blend以外のrender options頻度を計測し、非対応設定がowner fallbackに残る条件を確認する。GUI latencyへの影響量は未測定。
