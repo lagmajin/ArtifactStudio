@@ -328,7 +328,8 @@ void exerciseCompositionLight(Artifact::LightType type,
                               const QString& modelPath = {},
                               bool verifyRayTracingRegistration = false,
                               bool verifyLightingDifference = false,
-                              bool verifyAsyncWorkerRecording = false)
+                              bool verifyAsyncWorkerRecording = false,
+                              bool verifyRenderedChannel = false)
 {
     auto& app = application();
     diligentErrorDetected.store(false, std::memory_order_relaxed);
@@ -557,6 +558,19 @@ void exerciseCompositionLight(Artifact::LightType type,
     }
     const QImage litImage = sceneWasUpdated
         ? readPresentedFrame() : baselineImage;
+    QImage redChannelImage;
+    if (verifyRenderedChannel) {
+        controller.setViewportChannelDisplayMode(
+            Artifact::ViewportChannelDisplayMode::Red);
+        const quint64 redChannelFrame = renderDirtyFrame(secondRenderedFrame);
+        if (redChannelFrame <= secondRenderedFrame) {
+            controller.stop();
+            controller.destroy();
+            FAIL() << "The production render ticker did not render red-channel display";
+            return;
+        }
+        redChannelImage = controller.readbackViewportChannelDisplayImage();
+    }
     controller.stop();
     controller.destroy();
 
@@ -605,9 +619,22 @@ void exerciseCompositionLight(Artifact::LightType type,
         litImage.save(QDir(captureRoot).filePath(
             QStringLiteral("composition_controller_%1_light.png")
                 .arg(lightTypeName(type))));
+        if (!redChannelImage.isNull()) {
+            redChannelImage.save(QDir(captureRoot).filePath(
+                QStringLiteral("composition_controller_red_channel.png")));
+        }
     }
 
     ASSERT_FALSE(litImage.isNull()) << "The controller produced no frame image";
+    if (verifyRenderedChannel) {
+        ASSERT_FALSE(redChannelImage.isNull())
+            << "The controller produced no red-channel display frame";
+        const QVector3D redChannelColor = averageOpaqueColor(redChannelImage);
+        EXPECT_NEAR(redChannelColor.x(), redChannelColor.y(), 2.0f);
+        EXPECT_NEAR(redChannelColor.y(), redChannelColor.z(), 2.0f);
+        EXPECT_GT(findLitPixels(redChannelImage).count, 0)
+            << "The rendered red-channel view contained no visible model pixels";
+    }
     EXPECT_GT(litImage.width(), 0);
     const LitPixelBounds litPixels = findLitPixels(litImage);
     const int totalPixels = litImage.width() * litImage.height();
@@ -628,13 +655,15 @@ void exerciseCompositionLight(Artifact::LightType type,
             << baselineColor.z() << "; after RGB=" << litColor.x() << ", "
             << litColor.y() << ", " << litColor.z();
     }
-    EXPECT_GT(litColor.x(), 40.0f)
-        << "No lit model pixels were found in the viewport center";
-    EXPECT_GT(litColor.x(), litColor.y() * 1.4f)
-        << "The composition controller did not pass the red "
-        << lightTypeName(type).toStdString()
-        << " light layer to the model; RGB="
-        << litColor.x() << ", " << litColor.y() << ", " << litColor.z();
+    if (!verifyRenderedChannel) {
+        EXPECT_GT(litColor.x(), 40.0f)
+            << "No lit model pixels were found in the viewport center";
+        EXPECT_GT(litColor.x(), litColor.y() * 1.4f)
+            << "The composition controller did not pass the red "
+            << lightTypeName(type).toStdString()
+            << " light layer to the model; RGB="
+            << litColor.x() << ", " << litColor.y() << ", " << litColor.z();
+    }
 }
 
 
@@ -681,6 +710,20 @@ TEST(Model3DLightCompositionIntegrationTest,
         << "FBX integration fixture is missing: " << fixturePath.toStdString();
     exerciseCompositionLight(Artifact::LightType::Point, false, false, false,
                              fixturePath, true, true);
+#else
+    GTEST_SKIP() << "The FBX integration fixture was unavailable at configure time";
+#endif
+}
+
+TEST(Model3DLightCompositionIntegrationTest,
+     CompositionControllerRendersRedChannelInspectionFrame)
+{
+#ifdef ARTIFACT_TEST_FBX_PATH
+    const QString fixturePath = QString::fromUtf8(ARTIFACT_TEST_FBX_PATH);
+    ASSERT_TRUE(QFileInfo::exists(fixturePath))
+        << "FBX integration fixture is missing: " << fixturePath.toStdString();
+    exerciseCompositionLight(Artifact::LightType::Point, false, false, false,
+                             fixturePath, false, false, false, true);
 #else
     GTEST_SKIP() << "The FBX integration fixture was unavailable at configure time";
 #endif

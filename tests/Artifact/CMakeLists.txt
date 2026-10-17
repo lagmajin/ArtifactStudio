@@ -990,6 +990,17 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_LAYER_TEST)
             TIMEOUT 180
             RUN_SERIAL TRUE
         )
+        add_test(NAME ArtifactViewportChannelDisplayIntegrationTest
+            COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+                "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerRendersRedChannelInspectionFrame"
+        )
+        set_tests_properties(ArtifactViewportChannelDisplayIntegrationTest PROPERTIES
+            ENVIRONMENT
+                "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
+            LABELS "fbx;channel-display;renderer;gpu;composition;integration;contract"
+            TIMEOUT 180
+            RUN_SERIAL TRUE
+        )
         if(VULKAN_SUPPORTED AND D3D12_SUPPORTED)
             add_test(NAME ArtifactFbxLightRayTracingD3D12IntegrationTest
                 COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
@@ -999,6 +1010,17 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_LAYER_TEST)
                 ENVIRONMENT
                     "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=d3d12;ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/d3d12/$<CONFIG>"
                 LABELS "fbx;model3d;light;ray-tracing;renderer;gpu;composition;integration;contract;d3d12"
+                TIMEOUT 180
+                RUN_SERIAL TRUE
+            )
+            add_test(NAME ArtifactViewportChannelDisplayD3D12IntegrationTest
+                COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+                    "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerRendersRedChannelInspectionFrame"
+            )
+            set_tests_properties(ArtifactViewportChannelDisplayD3D12IntegrationTest PROPERTIES
+                ENVIRONMENT
+                    "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=d3d12;ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/d3d12/$<CONFIG>"
+                LABELS "fbx;channel-display;renderer;gpu;composition;integration;contract;d3d12"
                 TIMEOUT 180
                 RUN_SERIAL TRUE
             )
