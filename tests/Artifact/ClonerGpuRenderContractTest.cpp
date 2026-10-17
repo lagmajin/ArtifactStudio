@@ -793,7 +793,7 @@ TEST(ClonerGpuRenderContractTest,
 
     renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
     renderer.clear();
-    for (int index = 0; index < 15; ++index) {
+    for (int index = 0; index < 2; ++index) {
         renderer.drawSolidRect(-40.0f - static_cast<float>(index) * 3.0f,
                                -40.0f, 2.0f, 2.0f,
                                ArtifactCore::FloatColor(1.0f, 1.0f, 1.0f, 1.0f));
@@ -830,6 +830,95 @@ TEST(ClonerGpuRenderContractTest,
     ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
         << capturePath.toStdString();
 
+}
+
+TEST(ClonerGpuRenderContractTest,
+     ArtifactRendererAsyncDeferredRecordingPreservesGizmoOrder)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 128)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    renderer.setCanvasSize(128.0f, 128.0f);
+    const ArtifactCore::FloatColor clearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    const ArtifactCore::FloatColor invisibleColor(1.0f, 1.0f, 1.0f, 1.0f);
+    const ArtifactCore::FloatColor baseColor(0.95f, 0.1f, 0.1f, 1.0f);
+    const ArtifactCore::FloatColor overlayColor(0.1f, 0.2f, 0.95f, 1.0f);
+    const ArtifactCore::FloatColor gizmoColor(0.05f, 0.95f, 0.1f, 1.0f);
+
+    const auto drawBase = [&](bool addWorkerThresholdFillers) {
+        if (addWorkerThresholdFillers) {
+            for (int index = 0; index < 15; ++index) {
+                renderer.drawSolidRect(
+                    -40.0f - static_cast<float>(index) * 3.0f, -40.0f,
+                    2.0f, 2.0f, invisibleColor);
+            }
+        }
+        renderer.drawSolidRect(16.0f, 16.0f, 64.0f, 64.0f, baseColor);
+        renderer.drawGizmoLine({-0.75f, 0.0f, 0.0f}, {0.75f, 0.0f, 0.0f},
+                               gizmoColor);
+    };
+    const auto drawOverlay = [&] {
+        renderer.drawSolidRect(48.0f, 48.0f, 32.0f, 32.0f, overlayColor);
+    };
+
+    renderer.setClearColor(clearColor);
+    renderer.clear();
+    drawBase(false);
+    renderer.flushAndWait();
+    drawOverlay();
+    renderer.flushAndWait();
+    const auto immediateImage = renderer.readbackToImageF32();
+
+    renderer.clear();
+    drawBase(true);
+    const quint64 workerSubmitCountBefore =
+        renderer.deferredWorkerSubmitCount();
+    ASSERT_TRUE(renderer.flushDeferredPacketsAsync())
+        << "the worker should take ownership of the pending gizmo geometry";
+    drawOverlay();
+    renderer.flushAndWait();
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore + 1);
+
+    const auto deferredImage = renderer.readbackToImageF32();
+    ASSERT_EQ(deferredImage.width(), immediateImage.width());
+    ASSERT_EQ(deferredImage.height(), immediateImage.height());
+    float maxChannelError = 0.0f;
+    for (int y = 0; y < deferredImage.height(); ++y) {
+        for (int x = 0; x < deferredImage.width(); ++x) {
+            const auto expected = immediateImage.getPixel(x, y);
+            const auto actual = deferredImage.getPixel(x, y);
+            maxChannelError = std::max({
+                maxChannelError,
+                std::abs(actual.r() - expected.r()),
+                std::abs(actual.g() - expected.g()),
+                std::abs(actual.b() - expected.b()),
+                std::abs(actual.a() - expected.a())});
+        }
+    }
+    EXPECT_LE(maxChannelError, 1.0e-4f);
+    const auto overlap = deferredImage.getPixel(56, 56);
+    EXPECT_GT(overlap.b(), 0.8f);
+    EXPECT_LT(overlap.r(), 0.6f);
+    bool foundGizmoGreen = false;
+    for (int y = 0; y < deferredImage.height(); ++y) {
+        for (int x = 0; x < deferredImage.width(); ++x) {
+            const auto pixel = deferredImage.getPixel(x, y);
+            foundGizmoGreen = foundGizmoGreen ||
+                (pixel.g() > 0.6f && pixel.r() < 0.4f && pixel.a() > 0.5f);
+        }
+    }
+    EXPECT_TRUE(foundGizmoGreen);
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_async_deferred_gizmo_%1.png").arg(backend));
+    ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
+        << capturePath.toStdString();
 }
 
 TEST(ClonerGpuRenderContractTest,

@@ -4604,3 +4604,10 @@
 - **確認できた事実:** `BillboardPkt` の描画は viewport / camera constants buffer と SRB を更新するため、owner とworkerが同じ `PrimitiveRenderer3D` を並行使用すると状態を共有する。worker専用の `PrimitiveRenderer3D` を初期化し、camera / viewport stateをsnapshotとして渡すと、元texture参照解放後もD3D12 / Vulkan両方でdeferred frameが即時画像と一致した。Billboard PSOはdepthを無効化しているため DSV formatを `UNKNOWN` にでき、color-only targetとのbind警告も消えた。
 - **価値／懸念:** 3D packetをallow-listへ足すだけではなく、packetを記録するrenderer固有の可変GPU stateもrecorder単位で所有する必要がある。worker rendererはshader / bufferを別作成するため初期化コストがあり、今回の起動時間への影響は未計測。
 - **次に確認:** Gizmo / card系のstate snapshot要件を整理し、packetごとに必要な最小stateとtarget / DSVの契約を確認する。Compositionの実 workloadでBillboard頻度とworker初期化時間も計測する。
+
+## 2026-10-17: Gizmo worker recording needs queue and SRB ownership transfer
+
+- **関連:** `Artifact/src/Render/PrimitiveRenderer3D.cppm::pendingGizmoVerts_` / `pendingGizmoRuns_`、`ShaderManager` の Gizmo PSO、`ArtifactIRenderer::DeferredPacketRecordWorker`。
+- **確認できた事実:** Gizmoはowner rendererに順序付きvertex/run配列を蓄積し、ShaderManagerから得たSRBへ各描画でTransformCBを設定する。worker記録でowner SRBや同じqueueを触るとoverlay追加との競合になる。owner queueをworker queueへswapし、workerだけのSRBを作成すると、15 filler packet + base + Gizmo handoff後にowner overlayを描くframeが、同期基準とD3D12 / Vulkanの両方で全画素一致した。depth無効pipelineはDSVをbindしないようにした。
+- **価値／懸念:** 値のcopyではなくcapacityを含めたqueue ownership swapでframe中のgeometry copyを避けられる。workerのGPU vertex buffer容量拡張はdispatch前のcaller threadで行うため、初回の高watermark拡張自体はcallerを止める。Gizmo頂点生成もcallerに残る。
+- **次に確認:** CompositionでGizmo頂点数とworker buffer high-watermarkの分布を計測し、capacity増加が発生する頻度を調べる。Gizmo packetを独立packet化する場合は、現在の2D後 overlay orderingを保持できるframe command contractを確認する。
