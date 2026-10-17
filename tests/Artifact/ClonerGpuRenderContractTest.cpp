@@ -1204,6 +1204,43 @@ TEST(ClonerGpuRenderContractTest,
         << capturePath.toStdString();
 
     renderer.clear();
+    ArtifactCore::ParticleRenderData repeatedParticleData;
+    repeatedParticleData.options.blend =
+        ArtifactCore::ParticleBlendPolicy::Alpha;
+    repeatedParticleData.particles.reserve(kParticleCount);
+    for (std::size_t index = 0; index < kParticleCount; ++index) {
+        repeatedParticleData.particles.emplace_back();
+        auto& particle = repeatedParticleData.particles.back();
+        particle.px = 1000.0f;
+        particle.a = 0.0f;
+        particle.size = 0.0f;
+    }
+    auto& repeatedVisibleParticle = repeatedParticleData.particles.front();
+    repeatedVisibleParticle.px = 0.0f;
+    repeatedVisibleParticle.r = 1.0f;
+    repeatedVisibleParticle.g = 0.1f;
+    repeatedVisibleParticle.b = 0.05f;
+    repeatedVisibleParticle.a = 1.0f;
+    repeatedVisibleParticle.size = 0.35f;
+    repeatedVisibleParticle.lifetime = 1.0f;
+    const quint64 workerSubmitCountBeforeRepeat =
+        renderer.deferredWorkerSubmitCount();
+    renderer.drawParticles(std::move(repeatedParticleData));
+    ASSERT_TRUE(renderer.flushDeferredPacketsAsync())
+        << "a repeated 65,536-particle upload should reuse the worker path";
+    renderer.flushAndWait();
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(),
+              workerSubmitCountBeforeRepeat + 1);
+    const auto repeatedImage = renderer.readbackToImageF32();
+    EXPECT_GT(repeatedImage.getPixel(64, 64).a(), 0.8f);
+    EXPECT_GT(repeatedImage.getPixel(64, 64).r(), 0.7f);
+    const auto repeatedPath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_particle_payload_worker_repeat_%1.png")
+            .arg(backend));
+    ASSERT_TRUE(renderer.readbackToImage().save(repeatedPath, "PNG"))
+        << repeatedPath.toStdString();
+
+    renderer.clear();
     ArtifactCore::ParticleRenderData smallParticleData;
     smallParticleData.options.blend = ArtifactCore::ParticleBlendPolicy::Alpha;
     smallParticleData.particles.emplace_back();
