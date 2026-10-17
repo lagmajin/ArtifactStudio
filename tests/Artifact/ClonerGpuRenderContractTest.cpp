@@ -829,6 +829,7 @@ TEST(ClonerGpuRenderContractTest,
         QStringLiteral("artifact_renderer_pending_gizmo_%1.png").arg(backend));
     ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
         << capturePath.toStdString();
+
 }
 
 TEST(ClonerGpuRenderContractTest,
@@ -1131,6 +1132,105 @@ TEST(ClonerGpuRenderContractTest,
             .arg(backend));
     ASSERT_TRUE(renderer.readbackToImage().save(smallPath, "PNG"))
         << smallPath.toStdString();
+}
+
+TEST(ClonerGpuRenderContractTest,
+     ArtifactRendererDefersSingleLargeParticleUploadByBoundedWork)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 128)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    renderer.setCanvasSize(128.0f, 128.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    QMatrix4x4 view;
+    view.lookAt(QVector3D(0.0f, 0.0f, 5.0f), QVector3D(0.0f, 0.0f, 0.0f),
+                QVector3D(0.0f, 1.0f, 0.0f));
+    QMatrix4x4 projection;
+    projection.perspective(60.0f, 1.0f, 0.1f, 100.0f);
+    renderer.set3DCameraMatrices(view, projection);
+
+    constexpr std::size_t kParticleCount = 65'536;
+    ArtifactCore::ParticleRenderData particleData;
+    particleData.options.blend = ArtifactCore::ParticleBlendPolicy::Alpha;
+    particleData.particles.reserve(kParticleCount);
+    for (std::size_t index = 0; index < kParticleCount; ++index) {
+        particleData.particles.emplace_back();
+        auto& particle = particleData.particles.back();
+        particle.px = 1000.0f;
+        particle.a = 0.0f;
+        particle.size = 0.0f;
+    }
+    auto& visibleParticle = particleData.particles.front();
+    visibleParticle.px = 0.0f;
+    visibleParticle.r = 1.0f;
+    visibleParticle.g = 0.1f;
+    visibleParticle.b = 0.05f;
+    visibleParticle.a = 1.0f;
+    visibleParticle.size = 0.35f;
+    visibleParticle.lifetime = 1.0f;
+
+    renderer.clear();
+    const quint64 workerSubmitCountBefore = renderer.deferredWorkerSubmitCount();
+    renderer.drawParticles(std::move(particleData));
+    ASSERT_TRUE(renderer.flushDeferredPacketsAsync())
+        << "a 65,536-particle upload should meet the bounded worker workload threshold";
+    renderer.drawSolidRect(100.0f, 8.0f, 20.0f, 20.0f,
+                           ArtifactCore::FloatColor(0.1f, 0.2f, 0.95f, 1.0f));
+    renderer.flushAndWait();
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore + 1);
+
+    const auto image = renderer.readbackToImageF32();
+    ASSERT_EQ(image.width(), 128);
+    ASSERT_EQ(image.height(), 128);
+    const auto particlePixel = image.getPixel(64, 64);
+    EXPECT_GT(particlePixel.a(), 0.8f);
+    EXPECT_GT(particlePixel.r(), 0.7f);
+    EXPECT_LT(particlePixel.g(), 0.5f);
+    const auto overlayPixel = image.getPixel(108, 16);
+    EXPECT_GT(overlayPixel.b(), 0.8f);
+    EXPECT_LT(overlayPixel.r(), 0.4f);
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_particle_payload_worker_%1.png")
+            .arg(backend));
+    ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
+        << capturePath.toStdString();
+
+    renderer.clear();
+    ArtifactCore::ParticleRenderData smallParticleData;
+    smallParticleData.options.blend = ArtifactCore::ParticleBlendPolicy::Alpha;
+    smallParticleData.particles.emplace_back();
+    auto& smallParticle = smallParticleData.particles.back();
+    smallParticle.r = 1.0f;
+    smallParticle.g = 0.1f;
+    smallParticle.b = 0.05f;
+    smallParticle.a = 1.0f;
+    smallParticle.size = 0.35f;
+    smallParticle.lifetime = 1.0f;
+    const quint64 workerSubmitCountBeforeSmall =
+        renderer.deferredWorkerSubmitCount();
+    renderer.drawParticles(std::move(smallParticleData));
+    EXPECT_FALSE(renderer.flushDeferredPacketsAsync())
+        << "a single small Particle packet should stay on the owner path";
+    renderer.flushAndWait();
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBeforeSmall);
+
+    const auto smallImage = renderer.readbackToImageF32();
+    const auto smallParticlePixel = smallImage.getPixel(64, 64);
+    EXPECT_GT(smallParticlePixel.a(), 0.8f);
+    EXPECT_GT(smallParticlePixel.r(), 0.7f);
+    const auto ownerPath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_particle_payload_owner_%1.png")
+            .arg(backend));
+    ASSERT_TRUE(renderer.readbackToImage().save(ownerPath, "PNG"))
+        << ownerPath.toStdString();
 }
 
 TEST(ClonerGpuRenderContractTest,

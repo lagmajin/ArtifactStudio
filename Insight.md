@@ -4590,3 +4590,10 @@
 - **確認できた事実:** `canRecordDeferred()` は `ParticlePkt` に対してsubmitter内の `ParticleRenderer*` を必要とする。非同期handoffはそのpreflight後にpointerを渡していたため、Particleを含むbatchは非同期経路へ進まなかった。pointer設定をpreflight前に移動すると、D3D12 / Vulkan のproduction renderer testでworker handoffと後続overlayの画像順がpassし、両PNGのhashが一致した。
 - **価値／懸念:** eligibility判定も実行時依存を要する場合、preflight準備の順序が実際のサポート可否を決める。ParticleRendererはmutableなので、handoff中の診断読み取りを避け、再利用前のjob完了待ちを保つ。
 - **次に確認:** CompositionのParticle workloadで通常blend以外のrender options頻度を計測し、非対応設定がowner fallbackに残る条件を確認する。GUI latencyへの影響量は未測定。
+
+## 2026-10-17: Large Particle uploads should count toward deferred work
+
+- **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm::canRecordDeferred()`、`ParticlePkt`、production Particle frame image contract。
+- **確認できた事実:** `ParticleRenderer::updateBuffer()` issues one `UpdateBuffer()` whose payload grows with particle count. A 65,536 vertex packet (6 MiB) can be worker-selected by counting 4,096-vertex work units; one-particle packets remain on the owner path. Debug D3D12 and Vulkan rendered the worker frame and owner fallback frame with matching per-image hashes across backends.
+- **価値／懸念:** packet count alone hides large uploads, but payload-based eligibility makes the worker's Diligent upload heap grow on first use: the test reported 8 MiB D3D12 dynamic heap and 7 MiB Vulkan upload heap for a 6 MiB packet. This is bounded by the renderer's 100,000-particle buffer, but allocation timing and reuse are not yet verified.
+- **次に確認:** Run repeated same-size particle uploads while collecting allocator/high-water data to establish whether pages are reused after the first frame; reserve or warm capacity before broadening the threshold if subsequent frames allocate again. Measure Composition-level particle packet distribution and GUI-thread wait separately.
