@@ -441,7 +441,7 @@ TEST(ClonerGpuRenderContractTest,
     ASSERT_NE(spriteSRV, nullptr);
     const auto makeBuffer = [&] {
         Artifact::RenderCommandBuffer buffer;
-        buffer.reserve(27);
+        buffer.reserve(28);
         buffer.setTargetRTV(renderer.layerRenderTargetView());
         for (int index = 0; index < 16; ++index) {
             if (index < 12) {
@@ -508,6 +508,20 @@ TEST(ClonerGpuRenderContractTest,
         transformedSprite.mat.row3 = {0.0f, 0.0f, 0.0f, 1.0f};
         transformedSprite.pSRV = spriteSRV;
         buffer.append(transformedSprite);
+
+        Artifact::TexturedTriangleXformPkt texturedTriangle{};
+        texturedTriangle.mat.row0 = {0.375f, 0.0f, 0.0f, 0.5f};
+        texturedTriangle.mat.row1 = {0.0f, -0.375f, 0.0f, -0.25f};
+        texturedTriangle.mat.row2 = {0.0f, 0.0f, 1.0f, 0.0f};
+        texturedTriangle.mat.row3 = {0.0f, 0.0f, 0.0f, 1.0f};
+        texturedTriangle.p0 = {0.0f, 0.0f};
+        texturedTriangle.p1 = {1.0f, 0.0f};
+        texturedTriangle.p2 = {0.0f, 1.0f};
+        texturedTriangle.uv0 = {0.0f, 0.0f};
+        texturedTriangle.uv1 = {1.0f, 0.0f};
+        texturedTriangle.uv2 = {0.0f, 1.0f};
+        texturedTriangle.pSRV = spriteSRV;
+        buffer.append(texturedTriangle);
 
         Artifact::AtlasSpritePkt atlasSprite{};
         atlasSprite.xform.offset = {40.0f, 80.0f};
@@ -650,7 +664,7 @@ TEST(ClonerGpuRenderContractTest,
     worker.join();
     EXPECT_TRUE(recorded);
     EXPECT_NE(commandList, nullptr);
-    EXPECT_EQ(buffer.packets().size(), 27u);
+    EXPECT_EQ(buffer.packets().size(), 28u);
     renderer.flushAndWait();
     const auto workerImage = renderer.readbackToImageF32();
     ASSERT_EQ(immediateImage.width(), workerImage.width());
@@ -690,6 +704,10 @@ TEST(ClonerGpuRenderContractTest,
     EXPECT_GT(circleCenter.r(), 0.8f);
     EXPECT_LT(circleCenter.g(), 0.4f);
     EXPECT_GT(circleCenter.b(), 0.7f);
+    const auto texturedTrianglePixel = workerImage.getPixel(102, 86);
+    EXPECT_GT(texturedTrianglePixel.r(), 0.8f);
+    EXPECT_GT(texturedTrianglePixel.g(), 0.8f);
+    EXPECT_GT(texturedTrianglePixel.b(), 0.8f);
     const auto mpmSurfaceCenter = workerImage.getPixel(22, 18);
     EXPECT_GT(mpmSurfaceCenter.r(), 0.05f);
     EXPECT_GT(mpmSurfaceCenter.g(), 0.75f);
@@ -883,6 +901,19 @@ TEST(ClonerGpuRenderContractTest,
     particle.lifetime = 1.0f;
     renderer.drawParticles(particleData);
 
+    QMatrix4x4 triangleTransform;
+    triangleTransform.setToIdentity();
+    triangleTransform.translate(96.0f, 80.0f);
+    triangleTransform.scale(24.0f, 24.0f);
+    renderer.drawTexturedTriangleTransformed(
+        Artifact::Detail::float2(0.0f, 0.0f),
+        Artifact::Detail::float2(1.0f, 0.0f),
+        Artifact::Detail::float2(0.0f, 1.0f),
+        Artifact::Detail::float2(0.0f, 0.0f),
+        Artifact::Detail::float2(1.0f, 0.0f),
+        Artifact::Detail::float2(0.0f, 1.0f),
+        triangleTransform, spriteSRV);
+
     ArtifactCore::ArtifactArray<Artifact::MpmSurfaceVertex> mpmVertices;
     appendMaximumMpmTestSurface(mpmVertices);
     ASSERT_TRUE(renderer.drawMpmSurface(
@@ -899,6 +930,11 @@ TEST(ClonerGpuRenderContractTest,
     EXPECT_GT(image.getPixel(20, 90).r(), 0.8f);
     EXPECT_GT(image.getPixel(84, 84).a(), 0.8f);
     EXPECT_GT(image.getPixel(84, 84).r(), 0.8f);
+    const auto texturedTrianglePixel = image.getPixel(102, 86);
+    EXPECT_GT(texturedTrianglePixel.a(), 0.8f);
+    EXPECT_GT(texturedTrianglePixel.r(), 0.8f);
+    EXPECT_GT(texturedTrianglePixel.g(), 0.8f);
+    EXPECT_GT(texturedTrianglePixel.b(), 0.8f);
     for (const int x : {53, 70, 93}) {
         const auto clonerSpriteCenter = image.getPixel(x, 67);
         EXPECT_GT(clonerSpriteCenter.a(), 0.8f) << "x=" << x;
