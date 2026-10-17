@@ -4626,12 +4626,12 @@
 - **価値／懸念:** GPU render testは環境変数だけでbackendを証明せず、実際に選ばれたdevice typeをassertする必要がある。新しいoffscreen barrier caseにrequested backendとdevice typeの一致assertを加えた。一括テストのVulkan結果を証拠にしない。
 - **次に確認:** Deferred test helperのbackend identityを全testで共通にassertできる既存の公開面を確認し、共有test harness変更の影響範囲を評価する。
 
-## 2026-10-18: Transformed text can reuse the bounded prepared glyph snapshot
+## 2026-10-18: Headless glyph parity needs a registered font fixture
 
-- **関連:** `GlyphTextXformPkt`、`DiligentImmediateSubmitter::prepareDeferredGlyphPackets()` / `submitGlyphTextTransformed()`、`ClonerGpuRenderContractTest`。
-- **確認できた事実:** owner thread が shaping / fallback 解決 / atlas acquire を行い、prepared glyph rect と retained atlas SRV を worker に渡すと、通常文字と matrix 変換文字の offscreen frame が同期 owner image と D3D12 / Vulkan の双方で全画素一致した。device-pixel-ratio と transform を含む draw 処理は既存経路を維持する。capture では両 backend の画像が同一だが、この parity test は可視 glyph 形状の正しさを判定しない。
-- **価値／懸念:** transformed packet の record eligibility を広げても shaping や atlas mutation を worker に移さずに済む。capacity / cold atlas update / debug capture fallback は引き続き必要で、GUI thread から移ったのは glyph draw recording のみ。
-- **次に確認:** 実運用フォントで glyph 形状が期待どおり描画されることを別のレンダリング正当性契約で検証し、DPI 変更時の atlas / transform parity と warm transformed-text の発生頻度を確認する。
+- **関連:** `tests/Artifact/ClonerGpuRenderContractTest.cpp`、`GlyphTextPkt` / `GlyphTextXformPkt`、repository-bundled Roboto fixture。
+- **確認できた事実:** headless Qt で未登録の Arial を使うと `QRawFont` が文字列中の複数 codepoint を同じ glyph ID / silhouette に解決し、owner と worker の画像 parity が通っても capture は replacement-box glyphs になった。test が同梱 Roboto を `QFontDatabase::addApplicationFont()` で登録してからは、raw font の distinct glyph ID / mask と実 frame の複数 silhouette を検査し、通常文字と transformed text を含む全画素 parity が Debug / D3D12 / Vulkan で pass した。両backendのPNG hashも一致した。
+- **価値／懸念:** headless parity test が同期経路と同じ誤った fallback image を正解扱いする問題を避け、保存した frame で字形が実際に描かれたことを確認できる。これはテストfixtureの font registration を直したもので、production font fallback 全般を検証したものではない。
+- **次に確認:** 実アプリの `FontManager` 初期化後に選択される system / user font を使う production-frame contractでも glyph ID と silhouette を確認し、DPI と atlas eviction 後の一致を追加検証する。
 
 ## 2026-10-18: Deferred 3D card recording needs an explicit target and projector snapshot
 

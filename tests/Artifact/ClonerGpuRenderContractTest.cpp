@@ -6,8 +6,11 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFont>
+#include <QFontDatabase>
+#include <QFileInfo>
 #include <QImage>
 #include <QMatrix4x4>
+#include <QRawFont>
 #include <QVector3D>
 
 #include <algorithm>
@@ -1931,13 +1934,88 @@ TEST(ClonerGpuRenderContractTest,
      ArtifactRendererDefersWarmGlyphAndTransformedTextWithPreparedAtlasData)
 {
     ArtifactTest::HeadlessRenderer renderer;
-    if (!renderer.initialize(128, 96)) {
+    if (!renderer.initialize(192, 96)) {
         GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
     }
-    renderer.setCanvasSize(128.0f, 96.0f);
+    renderer.setCanvasSize(192.0f, 96.0f);
     renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
     const ArtifactCore::FloatColor invisible(1.0f, 1.0f, 1.0f, 1.0f);
-    const QFont font(QStringLiteral("Arial"), 24);
+    const QDir testSourceDirectory(
+        QFileInfo(QString::fromLocal8Bit(__FILE__)).absolutePath());
+    // Headless Qt can otherwise map every character to its replacement glyph.
+    const QString bundledFontPath = testSourceDirectory.filePath(
+        QStringLiteral("../../libs/openusd/pxr/usdImaging/usdviewq/fonts/Roboto/Roboto-Regular.ttf"));
+    const int bundledFontId = QFontDatabase::addApplicationFont(bundledFontPath);
+    ASSERT_NE(bundledFontId, -1) << bundledFontPath.toStdString();
+    const auto bundledFamilies =
+        QFontDatabase::applicationFontFamilies(bundledFontId);
+    ASSERT_FALSE(bundledFamilies.isEmpty());
+    const QFont font(bundledFamilies.front(), 24);
+    const auto distinctRawFontSilhouettes = [&font](const QString& text) {
+        const QRawFont rawFont = QRawFont::fromFont(font, QFontDatabase::Any);
+        if (!rawFont.isValid()) return std::pair<std::size_t, std::size_t>{0, 0};
+
+        std::array<std::uint64_t, 32> signatures{};
+        std::size_t signatureCount = 0;
+        std::array<quint32, 32> glyphIds{};
+        std::size_t glyphIdCount = 0;
+        for (const QChar character : text) {
+            const auto glyphIndices = rawFont.glyphIndexesForString(
+                QString(character));
+            if (glyphIndices.isEmpty() || glyphIndices.front() == 0) continue;
+            bool glyphAlreadySeen = false;
+            for (std::size_t index = 0; index < glyphIdCount; ++index) {
+                glyphAlreadySeen |= glyphIds[index] == glyphIndices.front();
+            }
+            if (!glyphAlreadySeen && glyphIdCount < glyphIds.size()) {
+                glyphIds[glyphIdCount++] = glyphIndices.front();
+            }
+            const QImage bitmap = rawFont.alphaMapForGlyph(
+                glyphIndices.front(), QRawFont::PixelAntialiasing);
+            if (bitmap.isNull() || bitmap.width() <= 0 ||
+                bitmap.height() <= 0) {
+                continue;
+            }
+
+            std::uint64_t signature = 1469598103934665603ull;
+            const auto mix = [&signature](std::uint64_t value) {
+                signature ^= value;
+                signature *= 1099511628211ull;
+            };
+            mix(static_cast<std::uint64_t>(bitmap.width()));
+            mix(static_cast<std::uint64_t>(bitmap.height()));
+            for (int y = 0; y < bitmap.height(); ++y) {
+                for (int x = 0; x < bitmap.width(); ++x) {
+                    const auto* row = bitmap.constScanLine(y);
+                    const int alpha = bitmap.format() == QImage::Format_Alpha8
+                                          ? row[x]
+                                          : qGray(bitmap.pixel(x, y));
+                    mix(alpha > 127 ? 1u : 0u);
+                }
+            }
+
+            bool alreadySeen = false;
+            for (std::size_t index = 0; index < signatureCount; ++index) {
+                alreadySeen |= signatures[index] == signature;
+            }
+            if (!alreadySeen && signatureCount < signatures.size()) {
+                signatures[signatureCount++] = signature;
+            }
+        }
+        return std::pair{signatureCount, glyphIdCount};
+    };
+    const auto ownerFontGlyphs = distinctRawFontSilhouettes(
+        QStringLiteral("Deferred"));
+    const auto transformedFontGlyphs = distinctRawFontSilhouettes(
+        QStringLiteral("Transformed"));
+    EXPECT_GE(ownerFontGlyphs.second, 4u)
+        << "Qt mapped too few distinct glyph IDs for the selected font";
+    EXPECT_GE(ownerFontGlyphs.first, 4u)
+        << "the selected Qt font must provide distinct glyph masks";
+    EXPECT_GE(transformedFontGlyphs.second, 4u)
+        << "Qt mapped too few distinct transformed glyph IDs";
+    EXPECT_GE(transformedFontGlyphs.first, 4u)
+        << "the selected Qt font must provide distinct transformed glyph masks";
     const ArtifactCore::FloatColor textColor(0.1f, 1.0f, 0.2f, 1.0f);
     QMatrix4x4 textTransform;
     textTransform.translate(6.0f, 0.0f, 0.0f);
@@ -1949,7 +2027,7 @@ TEST(ClonerGpuRenderContractTest,
         renderer.drawText(QRectF(8.0, 8.0, 112.0, 40.0),
                           QStringLiteral("Deferred"), font, textColor);
         renderer.drawTextTransformed(
-            QRectF(8.0, 50.0, 112.0, 40.0), QStringLiteral("Transformed"),
+            QRectF(8.0, 50.0, 176.0, 40.0), QStringLiteral("Transformed"),
             font, textColor, textTransform);
     };
 
@@ -1972,6 +2050,36 @@ TEST(ClonerGpuRenderContractTest,
     ASSERT_EQ(image.height(), immediateImage.height());
     std::size_t greenTextPixels = 0;
     std::size_t greenTransformedTextPixels = 0;
+    const auto distinctGlyphSilhouettes = [&image](int firstY, int lastY) {
+        const auto components = findVisibleComponents(image);
+        std::array<std::uint64_t, 32> signatures{};
+        std::size_t signatureCount = 0;
+        for (const auto& component : components) {
+            if (component.top < firstY || component.bottom >= lastY) continue;
+
+            std::uint64_t signature = 1469598103934665603ull;
+            const auto mix = [&signature](std::uint64_t value) {
+                signature ^= value;
+                signature *= 1099511628211ull;
+            };
+            mix(static_cast<std::uint64_t>(component.right - component.left + 1));
+            mix(static_cast<std::uint64_t>(component.bottom - component.top + 1));
+            for (int y = component.top; y <= component.bottom; ++y) {
+                for (int x = component.left; x <= component.right; ++x) {
+                    mix(image.getPixel(x, y).a() > 0.5f ? 1u : 0u);
+                }
+            }
+
+            bool alreadySeen = false;
+            for (std::size_t index = 0; index < signatureCount; ++index) {
+                alreadySeen |= signatures[index] == signature;
+            }
+            if (!alreadySeen && signatureCount < signatures.size()) {
+                signatures[signatureCount++] = signature;
+            }
+        }
+        return signatureCount;
+    };
     float maxChannelError = 0.0f;
     for (int y = 0; y < image.height(); ++y) {
         for (int x = 0; x < image.width(); ++x) {
@@ -1991,6 +2099,10 @@ TEST(ClonerGpuRenderContractTest,
     }
     EXPECT_GT(greenTextPixels, 0u);
     EXPECT_GT(greenTransformedTextPixels, 0u);
+    EXPECT_GE(distinctGlyphSilhouettes(8, 48), 4u)
+        << "the owner frame must contain distinct glyph silhouettes, not one repeated fallback box";
+    EXPECT_GE(distinctGlyphSilhouettes(50, 96), 4u)
+        << "transformed text must preserve distinct glyph silhouettes";
     EXPECT_LE(maxChannelError, 1.0e-4f);
 
     const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
