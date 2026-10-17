@@ -6,6 +6,7 @@
 #include <QDir>
 #include <QImage>
 #include <QMatrix4x4>
+#include <QVector3D>
 
 #include <algorithm>
 #include <array>
@@ -18,6 +19,7 @@
 
 #include "DiligentHeadlessRenderer.hpp"
 import Color.Float;
+import Graphics.ParticleData;
 import Image.ImageF32x4_RGBA;
 import Artifact.Render.DiligentImmediateSubmitter;
 import Artifact.Render.ShaderManager;
@@ -410,7 +412,7 @@ TEST(ClonerGpuRenderContractTest,
     ASSERT_NE(spriteSRV, nullptr);
     const auto makeBuffer = [&] {
         Artifact::RenderCommandBuffer buffer;
-        buffer.reserve(20);
+        buffer.reserve(26);
         buffer.setTargetRTV(renderer.layerRenderTargetView());
         for (int index = 0; index < 16; ++index) {
             if (index < 12) {
@@ -496,6 +498,65 @@ TEST(ClonerGpuRenderContractTest,
         transformedAtlasSprite.uvRect = {0.0f, 0.0f, 1.0f, 1.0f};
         transformedAtlasSprite.color = {1.0f, 1.0f, 1.0f, 1.0f};
         buffer.append(transformedAtlasSprite);
+
+        Artifact::GradientRectPkt gradient{};
+        gradient.mat.row0 = {0.375f, 0.0f, 0.0f, -0.75f};
+        gradient.mat.row1 = {0.0f, -0.375f, 0.0f, -0.625f};
+        gradient.mat.row2 = {0.0f, 0.0f, 1.0f, 0.0f};
+        gradient.mat.row3 = {0.0f, 0.0f, 0.0f, 1.0f};
+        gradient.params.startColor = {0.9f, 0.1f, 0.2f, 1.0f};
+        gradient.params.endColor = {0.1f, 0.2f, 0.9f, 1.0f};
+        gradient.params.mode = {1.0f, 0.0f, 0.0f, 1.0f};
+        gradient.params.colorContract = {1.0f, 0.0f, 0.0f, 0.0f};
+        gradient.opacity = 1.0f;
+        buffer.append(gradient);
+
+        Artifact::DotLinePkt dotLine{};
+        dotLine.xform.scale = {1.0f, 1.0f};
+        dotLine.xform.screenSize = {128.0f, 128.0f};
+        dotLine.verts[0] = {{100.0f, 108.0f}, {1.0f, 1.0f, 0.0f, 1.0f}, 0.0f, 0.0f};
+        dotLine.verts[1] = {{124.0f, 108.0f}, {1.0f, 1.0f, 0.0f, 1.0f}, 24.0f, 0.0f};
+        dotLine.verts[2] = {{100.0f, 112.0f}, {1.0f, 1.0f, 0.0f, 1.0f}, 0.0f, 0.0f};
+        dotLine.verts[3] = {{124.0f, 112.0f}, {1.0f, 1.0f, 0.0f, 1.0f}, 24.0f, 0.0f};
+        dotLine.thickness = 4.0f;
+        dotLine.spacing = 6.0f;
+        buffer.append(dotLine);
+
+        Artifact::CheckerboardPkt checkerboard{};
+        checkerboard.xform.offset = {4.0f, 104.0f};
+        checkerboard.xform.scale = {28.0f, 20.0f};
+        checkerboard.xform.screenSize = {128.0f, 128.0f};
+        checkerboard.helper.param0 = 4.0f;
+        checkerboard.helper.color1 = {0.0f, 1.0f, 1.0f, 1.0f};
+        checkerboard.helper.color2 = {0.0f, 0.2f, 0.2f, 1.0f};
+        checkerboard.baseColor = {0.05f, 0.05f, 0.05f, 1.0f};
+        buffer.append(checkerboard);
+
+        Artifact::GridPkt grid{};
+        grid.xform.offset = {36.0f, 104.0f};
+        grid.xform.scale = {28.0f, 20.0f};
+        grid.xform.screenSize = {128.0f, 128.0f};
+        grid.helper.param0 = 6.0f;
+        grid.helper.param1 = 1.0f;
+        grid.helper.color1 = {0.1f, 1.0f, 0.1f, 1.0f};
+        grid.baseColor = {0.1f, 0.1f, 0.1f, 1.0f};
+        buffer.append(grid);
+
+        Artifact::RectOutlinePkt outline{};
+        outline.xform.offset = {68.0f, 104.0f};
+        outline.xform.scale = {28.0f, 20.0f};
+        outline.xform.screenSize = {128.0f, 128.0f};
+        outline.color = {0.2f, 0.3f, 1.0f, 1.0f};
+        buffer.append(outline);
+
+        Artifact::SolidCirclePkt circle{};
+        circle.xform.scale = {1.0f, 1.0f};
+        circle.xform.screenSize = {128.0f, 128.0f};
+        circle.cx = 96.0f;
+        circle.cy = 64.0f;
+        circle.radius = 9.0f;
+        circle.color = {0.9f, 0.1f, 0.8f, 1.0f};
+        buffer.append(circle);
         return buffer;
     };
 
@@ -553,7 +614,7 @@ TEST(ClonerGpuRenderContractTest,
     worker.join();
     EXPECT_TRUE(recorded);
     EXPECT_NE(commandList, nullptr);
-    EXPECT_EQ(buffer.packets().size(), 20u);
+    EXPECT_EQ(buffer.packets().size(), 26u);
     renderer.flushAndWait();
     const auto workerImage = renderer.readbackToImageF32();
     ASSERT_EQ(immediateImage.width(), workerImage.width());
@@ -589,6 +650,10 @@ TEST(ClonerGpuRenderContractTest,
     EXPECT_LT(center.r(), 0.2f);
     EXPECT_GT(center.g(), 0.8f);
     EXPECT_LT(center.b(), 0.2f);
+    const auto circleCenter = workerImage.getPixel(96, 64);
+    EXPECT_GT(circleCenter.r(), 0.8f);
+    EXPECT_LT(circleCenter.g(), 0.4f);
+    EXPECT_GT(circleCenter.b(), 0.7f);
     const auto plainSpriteCenter = workerImage.getPixel(20, 90);
     EXPECT_GT(plainSpriteCenter.a(), 0.8f);
     EXPECT_GT(plainSpriteCenter.r(), 0.8f);
@@ -751,11 +816,32 @@ TEST(ClonerGpuRenderContractTest,
             64.0f, 64.0f, 12.0f, 8.0f, transform, transform, spriteSRV,
             1.0f, placementRange, placementRange.firstIndex + index));
     }
+
+    renderer.setCanvasSize(128.0f, 128.0f);
+    QMatrix4x4 view;
+    view.lookAt(QVector3D(0.0f, 0.0f, 5.0f), QVector3D(0.0f, 0.0f, 0.0f),
+                QVector3D(0.0f, 1.0f, 0.0f));
+    QMatrix4x4 projection;
+    projection.perspective(60.0f, 1.0f, 0.1f, 100.0f);
+    renderer.set3DCameraMatrices(view, projection);
+    ArtifactCore::ParticleRenderData particleData;
+    particleData.options.blend = ArtifactCore::ParticleBlendPolicy::Alpha;
+    particleData.options.billboard =
+        ArtifactCore::ParticleBillboardPolicy::ScreenAligned;
+    particleData.particles.emplace_back();
+    auto& particle = particleData.particles.back();
+    particle.r = 1.0f;
+    particle.g = 0.2f;
+    particle.b = 0.05f;
+    particle.a = 1.0f;
+    particle.size = 0.35f;
+    particle.lifetime = 1.0f;
+    renderer.drawParticles(particleData);
     texture = nullptr;
 
     renderer.flushAndWait();
     EXPECT_EQ(renderer.deferredWorkerSubmitCount(), 1u)
-        << "the production ArtifactIRenderer path should record the cloner and sprite batch on its worker";
+        << "the production ArtifactIRenderer path should record cloner, sprite, and supported particle packets on its worker";
     const auto image = renderer.readbackToImageF32();
     ASSERT_EQ(image.width(), 128);
     ASSERT_EQ(image.height(), 128);
@@ -768,6 +854,10 @@ TEST(ClonerGpuRenderContractTest,
         EXPECT_GT(clonerSpriteCenter.a(), 0.8f) << "x=" << x;
         EXPECT_GT(clonerSpriteCenter.r(), 0.8f) << "x=" << x;
     }
+    const auto particleCenter = image.getPixel(64, 64);
+    EXPECT_GT(particleCenter.a(), 0.8f);
+    EXPECT_GT(particleCenter.r(), 0.8f);
+    EXPECT_LT(particleCenter.g(), 0.5f);
 
     const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
                                       .filePath(QStringLiteral("cloner_gpu_render_captures"));
@@ -775,7 +865,80 @@ TEST(ClonerGpuRenderContractTest,
     const auto backend = qEnvironmentVariable(
         "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
     const auto capturePath = QDir(captureDirectory).filePath(
-        QStringLiteral("artifact_renderer_deferred_cloner_sprites_%1.png").arg(backend));
+        QStringLiteral("artifact_renderer_deferred_cloner_sprites_particle_%1.png").arg(backend));
+    ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
+        << capturePath.toStdString();
+}
+
+TEST(ClonerGpuRenderContractTest,
+     ArtifactRendererAsyncDeferredRecordingPreservesOverlayOrder)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 128)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    renderer.setCanvasSize(128.0f, 128.0f);
+    const ArtifactCore::FloatColor clearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    const ArtifactCore::FloatColor invisibleColor(1.0f, 1.0f, 1.0f, 1.0f);
+    const ArtifactCore::FloatColor baseColor(0.95f, 0.1f, 0.1f, 1.0f);
+    const ArtifactCore::FloatColor overlayColor(0.1f, 0.2f, 0.95f, 1.0f);
+
+    const auto drawBase = [&] {
+        for (int index = 0; index < 16; ++index) {
+            renderer.drawSolidRect(-40.0f - static_cast<float>(index) * 3.0f,
+                                   -40.0f, 2.0f, 2.0f, invisibleColor);
+        }
+        renderer.drawSolidRect(16.0f, 16.0f, 64.0f, 64.0f, baseColor);
+    };
+    const auto drawOverlay = [&] {
+        renderer.drawSolidRect(48.0f, 48.0f, 64.0f, 64.0f, overlayColor);
+    };
+
+    renderer.setClearColor(clearColor);
+    renderer.clear();
+    drawBase();
+    renderer.flush();
+    drawOverlay();
+    renderer.flushAndWait();
+    const auto immediateImage = renderer.readbackToImageF32();
+
+    const auto workerSubmitCountBeforeAsync =
+        renderer.deferredWorkerSubmitCount();
+    renderer.clear();
+    drawBase();
+    ASSERT_TRUE(renderer.flushDeferredPacketsAsync())
+        << "the supported base packet batch should be handed to the worker";
+    drawOverlay();
+    renderer.flushAndWait();
+    const auto asyncImage = renderer.readbackToImageF32();
+    ASSERT_EQ(asyncImage.width(), immediateImage.width());
+    ASSERT_EQ(asyncImage.height(), immediateImage.height());
+    float maxChannelError = 0.0f;
+    for (int y = 0; y < asyncImage.height(); ++y) {
+        for (int x = 0; x < asyncImage.width(); ++x) {
+            const auto expected = immediateImage.getPixel(x, y);
+            const auto actual = asyncImage.getPixel(x, y);
+            maxChannelError = std::max({
+                maxChannelError,
+                std::abs(actual.r() - expected.r()),
+                std::abs(actual.g() - expected.g()),
+                std::abs(actual.b() - expected.b()),
+                std::abs(actual.a() - expected.a())});
+        }
+    }
+    EXPECT_LE(maxChannelError, 1.0e-4f);
+    const auto overlap = asyncImage.getPixel(56, 56);
+    EXPECT_GT(overlap.a(), 0.9f);
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(),
+              workerSubmitCountBeforeAsync + 1);
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_async_recorded_overlay_%1.png").arg(backend));
     ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
         << capturePath.toStdString();
 }
