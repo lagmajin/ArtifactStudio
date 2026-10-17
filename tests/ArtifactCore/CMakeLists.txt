@@ -235,6 +235,16 @@ set_tests_properties(ArtifactCoreSurfacePixelConversionTest PROPERTIES
     LABELS "color;image;cpu;contract"
 )
 
+artifact_add_test(ArtifactCorePixelChannelOrderStandaloneTest
+    SOURCES
+        PixelChannelOrderStandaloneTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCorePixelChannelOrderStandaloneTest PROPERTIES
+    LABELS "color;image;pixel-order;standalone;contract"
+)
+
 artifact_add_test(ArtifactCoreImageSurfaceViewTest
     SOURCES
         ImageSurfaceViewTest.cpp

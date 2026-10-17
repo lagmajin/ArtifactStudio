@@ -1,4 +1,5 @@
 > **SUPERSEDED** — 2026-08-04: 統合先 [MILESTONE_COLOR_BACKEND_HARDENING_2026-07-21.md](MILESTONE_COLOR_BACKEND_HARDENING_2026-07-21.md)
+> **Channel-order direction updated:** 2026-10-16 user decision establishes BGRA as the CPU Float32/Float16 image backing order. Older true-RGBA CPU backing statements below are historical and superseded by [IMAGE_CHANNEL_ORDER_CONTRACT_2026-10-16.md](../technical/IMAGE_CHANNEL_ORDER_CONTRACT_2026-10-16.md). GPU texture component order remains an explicit RGBA boundary.
 
 # Milestone: Repository-Wide Color / Alpha Contract Unification
 

@@ -2,6 +2,84 @@
 
 # Insight Register
 
+## 2026-10-17: ProgressiveRenderer downsample settings have no callback consumer
+
+- **関連:** `Artifact/src/Render/ArtifactFrameCache.cppm::ProgressiveRenderer::requestUpgrade`、`ProgressiveRenderer::setDraftQuality`、`ProgressiveRenderer::setPreviewQuality`、`tests/Artifact/FrameCacheContractTest.cpp`。
+- **確認できた事実:** `requestUpgrade()` intentionally skips progressive passes when `Final` is requested; `ProgressiveRendererSkipsProgressivePassesWhenFinalQualityIsRequested` asserts this behavior. `draftDownsample_` and `previewDownsample_` appear only in their declarations and setters, and are not passed to the render callback.
+- **訂正:** The previous note incorrectly said the existing quality-sequence test expected Preview and Final callbacks for a Final request. That test requests `Preview`; `ProgressiveRendererIncludesCustomAsFinalRequestedStage` requests `Custom` and expects the Preview/Final/Custom sequence.
+- **価値／懸念:** The progressive stage sequencing has explicit coverage. The downsample setters still expose settings with no observable effect through this callback API; this is a potential missing feature, not evidence that the current stage contract is inconsistent.
+- **次に確認:** If progressive downsampling becomes an implementation target, define how a stage communicates its working resolution and add assertions at that renderer boundary. Runtime status remains unknown because tests were not run under repository instructions.
+
+## 2026-10-17: SoftBody self-collision stays disabled after leaving Minimal LOD
+
+- **関連:** `ArtifactCore/src/Physics/PhysicsSystem.cppm::PhysicsSystem::updateSoftBodies`、`SoftBodySolver::setSelfCollisionEnabled`、`tests/ArtifactCore/PhysicsLodSettingsContractTest.cpp`。
+- **確認できた事実:** `updateSoftBodies()` disables self-collision when `disableSoftBodySelfCollision` is true, but does not re-enable it when a later LOD no longer requests the override. `SoftBodySolver` exposes the current flag, so this transition is directly observable.
+- **変更:** Added a test that starts with authored self-collision enabled, enters Minimal, then returns to Full and expects the setting to be restored. The current update path appears not to satisfy the final assertion; tests were not run under repository instructions.
+- **価値／懸念:** A temporary performance LOD can permanently change the user's SoftBody behavior after the quality level rises again.
+- **次に確認:** Decide how PhysicsSystem should preserve and restore each solver's authored self-collision state across LOD overrides, then run the focused Physics LOD contract test.
+
+## 2026-10-17: MeshRenderer retains stale CPU LOD levels after an empty LOD upload
+
+- **関連:** `ArtifactCore/src/Graphics/MeshRenderer.cppm::MeshRenderer::updateMeshletGeometry`、`tests/ArtifactCore/RayTracingAcceptanceTest.cpp::MeshRendererSelectsMeshletLodAtProjectedSizeBoundaries`。
+- **確認できた事実:** `updateMeshletGeometry()` releases the previous GPU LOD buffer on every upload, but updates `pImpl_->meshletLods_` only when `lodCount > 0`. A subsequent upload with `lodCount == 0` therefore leaves the prior CPU selection table active while its GPU buffer has been released.
+- **変更:** Added a contract that expects an upload with no LOD levels to fall back to level zero after a previous non-empty upload. The current implementation appears inconsistent with that replacement contract; no test was run under the repository's no-test-without-request rule.
+- **価値／懸念:** Renderer selection can reference stale levels after geometry replacement, diverging CPU LOD choice from the available GPU resources.
+- **次に確認:** When the implementation is in scope, clear `meshletLods_` on every upload before conditionally assigning the new table, then run the targeted GPU acceptance case.
+
+## 2026-10-17: GI working resolution accepts non-finite LOD scales
+
+- **関連:** `ArtifactCore/include/Graphics/GIResources.ixx::GIFrameResources::scaledDimension`、`tests/ArtifactCore/RenderPipelineContractTest.cpp`。
+- **確認できた事実:** `scaledDimension()` rejects zero and negative scales but does not check finiteness before converting `value * scale` to `std::uint32_t`. NaN and positive infinity therefore reach a floating-point-to-integer conversion outside its representable range.
+- **変更:** Added a contract expecting NaN and ±Inf resolution scales to resolve to zero working dimensions. The tests are expected to expose a mismatch for NaN and positive infinity; they have not been executed under the repository's no-test-without-request rule.
+- **価値／懸念:** Malformed GI LOD settings can otherwise produce invalid or implementation-dependent resource dimensions before texture allocation.
+- **次に確認:** When ArtifactCore production changes are explicitly in scope, reject non-finite scales before conversion and run the targeted render pipeline contract suite.
+
+## 2026-10-17: RenderContext zoom accepts non-finite values
+
+- **関連:** `Artifact/include/Render/ArtifactRenderContext.ixx::setZoom`、`createRenderContextSnapshot`、`tests/Artifact/RenderContextLodContractTest.cpp`。
+- **確認できた事実:** `setZoom()` は `std::max(0.01f, newZoom)` のみで値を保持し、snapshot はその値をそのままコピーする。NaN は 0.01 に、正の無限大は無限大のまま保持されるため、有限な zoom 値を保証しない。
+- **変更:** NaN と ±Inf を Full 相当の 1.0 倍へ戻す LOD 契約テストを追加した。現状コードとの不一致が想定されるが、テスト実行は禁止されているため未検証。
+- **価値／懸念:** 不正な zoom が view ROI 計算や snapshot 復元へ伝播して描画座標を壊す可能性がある。
+- **次に確認:** 実装変更が許可された段階で、非有限値を 1.0 倍へ正規化し、zoom と resolutionScale の共通 clamp 方針を検討する。
+
+## 2026-10-17: Preview quality scaling can produce zero-sized non-empty previews
+
+- **関連:** `ArtifactCore/src/Preview/PreviewQuality.cppm::calculatePreviewSize`、`tests/ArtifactCore/PreviewSettingsLodContractTest.cpp`。
+- **確認できた事実:** `calculatePreviewSize()` multiplies source dimensions by the selected scale and truncates to `int` without a positive-dimension floor. For example, a 1-pixel dimension becomes 0 at Half, Quarter, Eighth, and Auto; a 7-pixel dimension becomes 0 at Eighth.
+- **変更:** Added tests that every positive source dimension remains at least one pixel while zero input axes remain zero across all quality scales.
+- **価値／懸念:** This makes the smallest preview-size behavior explicit and should catch zero-sized resource requests. The positive-dimension contract is inferred from the need to preserve valid output dimensions; no test execution was performed because repository instructions prohibit it without explicit user direction.
+- **次に確認:** Decide whether non-empty preview dimensions must be clamped to one pixel, then run the PreviewSettings LOD contract suite when test execution is authorized.
+
+## 2026-10-17: Preview TextureQuality has no consumer in the current tree
+
+- **関連:** `ArtifactCore/include/Preview/PreviewQuality.ixx`、`ArtifactCore/src/Preview/PreviewQuality.cppm`、texture resource creation and sampling paths.
+- **確認できた事実:** Repository-wide search finds `TextureQuality` only in the enum, stored field, getters/setters, and High/Medium/Low preset assignments. No texture creation, residency, filtering, or mip selection path reads this property. Existing Preview settings tests can only prove its value is stored.
+- **価値／懸念:** Presets advertise a texture-quality LOD dimension that currently has no verified downstream effect. An end-to-end test needs a consumer boundary first; a storage-only test would not prove texture LOD behavior.
+- **次に確認:** When implementation scope includes preview texture policy, define the mapping from TextureQuality to mip/residency/filtering and add an image-level or resource-selection contract at that seam.
+
+## 2026-10-17: Boids LOD transitions retain the previous skip counter
+
+- **関連:** `ArtifactCore/include/Crowd/BoidsSwarmSystem.ixx::update`、`tests/ArtifactCore/BoidsDistanceLodContractTest.cpp`。
+- **確認できた事実:** `update()` changes `agentLod_[i]` from camera distance and decrements `lodSkipCounter_[i]`, but does not reset the counter when the LOD changes. Existing coverage verifies initial entry into Far and periodic force refresh; a new contract also exercises Far→Near→Far after reversing the target direction and expects a fresh force on re-entry.
+- **価値／懸念:** A Far agent can hold a multi-frame skip counter while Near computes a new force; returning to Far before that counter expires may skip the first force update and retain stale acceleration. This is inferred from the inspected control flow; test execution is prohibited by the repository instructions, so runtime confirmation is pending.
+- **次に確認:** When implementation work is authorized, reset or refresh the skip state at distance-LOD transitions and run the targeted Boids contract suite.
+
+## 2026-10-17: Physics fluid resolution scale is configured but not applied
+
+- **関連:** `ArtifactCore/src/Physics/PhysicsSystem.cppm::PhysicsLODSettings`、`PhysicsSystem::update`、`FluidSolver2D::setResolution`、`tests/ArtifactCore/PhysicsLodSettingsContractTest.cpp`。
+- **確認できた事実:** `fluidResolutionScale` is assigned Reduced/Minimal defaults and clamped, but a repository-wide search finds no read of the field outside its declaration, preset assignment, and normalization. Registered fluid solvers are never passed to `setResolution()` by `PhysicsSystem`.
+- **変更:** Added a contract expecting a 32×24 fluid grid to move to 16×12 at Reduced, 8×6 at Minimal, and return to 32×24 at Full.
+- **価値／懸念:** The test exposes a mismatch between the configured Physics LOD budget and the solver resolution. It is expected to fail against the inspected implementation; no runtime result is available because repository instructions prohibit test/build execution without explicit user direction.
+- **次に確認:** When production implementation is authorized, define how live fluid fields are resampled on both downscale and restoration, then run the Physics LOD contract tests.
+
+## 2026-10-17: Particle render LOD target ratio differs from actual fixed-stride count
+
+- **関連:** `Artifact/src/Layer/ArtifactParticleLayer.cppm::applyParticleRenderLOD`、`tests/Artifact/Particle3DRenderContractTest.cpp`。
+- **確認できた事実:** For 1000 source particles at screen scale 0.60, the implementation computes an 800-particle target, then uses `ceil(1000 / 800) = 2` as a fixed sampling stride and queues 500 particles. The previous contract asserted an 80% queued ratio, which does not match that implementation. The test now expects a 50% ratio and checks repeated same-frame medium-scale draws return 500.
+- **追加確認:** At screen scale 0.10, 257 source particles produce a 64-particle target but a stride of 5, so the selected count is `ceil(257 / 5) = 52`. This falls below the apparent 64-particle minimum. Added `ParticleLodMinimumBudgetSurvivesOddPopulation` to cover this boundary; it is expected to expose the mismatch, but has not been run.
+- **価値／懸念:** Fixed-stride rounding makes the target ratio differ from retained density and can reduce output below the intended minimum. The new odd-population assertion is expected to fail against the inspected calculation; runtime confirmation was not performed because repository instructions prohibit test/build execution without explicit user direction.
+- **次に確認:** Decide whether fixed-stride sampling is the intended density policy. If an approximately proportional target is required, consider a bounded deterministic index-distribution scheme and add particle attribute/model-matrix preservation checks through a suitable test seam.
+
 ## 2026-10-17: Deferred command recording needs a strict first worker lane
 
 - **関連:** `Artifact/include/Render/DiligentImmediateSubmitter.ixx`、`Artifact/src/Render/DiligentImmediateSubmitter.cppm`、`tests/Artifact/ClonerGpuRenderContractTest.cpp`。
@@ -9,6 +87,8 @@
 - **変更:** Added a narrow record/execute/finish split for buffers containing at least 16 submitter-owned `SolidRectPkt`, `SolidRectXformPkt`, `LinePkt`, `QuadPkt`, and `SolidTriPkt` packets. Recording returns the command list without touching the Immediate Context or resetting the packet buffer; a worker-thread contract test records 12 invisible rectangles, a line, a quad, a red triangle, and an overlapping green rectangle, then returns `FinishFrame()` to the recording thread.
 - **価値／懸念:** The deferred record/execute/finish seam and the production `submit()` threshold-selected deferred path both pass the mixed-packet image contract on Debug / Vulkan and Debug / D3D12. The test compares 128×128 readbacks with identical alpha coverage, maximum channel difference at or below `1.0e-4`, and expected color samples; it saves immediate, worker-recorded, and production-submit frames as backend-specific PNGs beside the test binary. The generated Vulkan and D3D12 frames were visually inspected and match. CTest initially failed during global environment setup because the Cloner test lacked the Qt offscreen plugin staging used by the neighboring Particle test; its target now copies the plugin beside the binary and sets `QT_QPA_PLATFORM_PLUGIN_PATH`. This validates only these submitter-owned 2D packet types. The production submit path still records and executes synchronously on its caller. Composition snapshots, broader resource ownership, queueing, present, and GUI non-blocking remain unverified.
 - **次に確認:** Extend the worker lane only after defining immutable frame inputs and worker-owned mutable renderer resources; retain this parity test as the narrow baseline. The current API does not establish end-to-end asynchronous Composition rendering.
+
+- **追加確認 (2026-10-17):** `Model3DLightCompositionIntegrationTest` は frame serial の進行と GPU readback source の準備を同時とみなしており、point-light case で空画像を受け取ることがあった。テスト側で GPU readback を最大 5 秒待つようにし、Debug / D3D12 と Debug / Vulkan で Composition の実フレーム PNG が出力されることを確認した。両 PNG は SHA-256 が一致した。この確認は画像出力の安定化であり、worker frame ownership の証明ではない。
 
 ## 2026-10-17: Particle deferred image tests also validate readback channel order
 
@@ -4073,6 +4153,10 @@
 - **価値／懸念:** ディレクトリ単位の省略分岐は、個別IFC参照とBMI producer順序の設定まで無効化し、コンパイル時に多数の連鎖エラーを生む。
 - **確認結果:** Visual Studio同梱CMake 4.3.1で再生成し、`AnimatableTransform2D.cppm`、`AnimationDynamics.cppm`、`FloatRGBA.cppm` の3オブジェクトをMSVCでコンパイルできた。`AnimatableTransform2D` ではprimary interfaceと推移importのIFC参照、およびproducer objectの順序を確認した。
 - **次に確認:** ArtifactCoreテストターゲットを再ビルドし、同様の未参照IFCが別のディレクトリ／分割ターゲットに残っていないか確認する。
+- **再確認（2026-10-17）:** 現在の `out/build/x64-Debug-Agent` Ninja command は `AnimatableTransform2D.cppm` を `CXX_SCAN_FOR_MODULES=OFF` でコンパイルする一方、実際の `cl.exe` command に `Animation.Transform2D` / `Animation.Value` の `/reference` がなく、両 IFC が生成済みでも C2230 で失敗した。ArtifactCore の未コミット CMake 変更では「CMake が provider refs を付ける」とする分岐になっているが、この Ninja command には付いていない。試験的に Ninja 専用の2参照を加えるとこの2件を越え、次に `Container.NamedVector` の不足と、同様に参照がない `AnimationDynamics.cppm` / `Channel.cppm` が顕在化した。試験パッチは取り消し済みで、Core の既存変更は保持している。
+- **次に確認:** ArtifactCore CMake の現在の未コミット変更者と意図を確認し、unscanned unit ごとの provider IFC と producer dependency を整合させたうえで Ninja target を再ビルドする。今回の成果物検証を続けるにはこの依存 build blocker の解消が必要。
+- **追確認（2026-10-17）:** app target の実ビルドでは SceneNode の aggregate/split provider 重複、scanner-enabled source への手動 import 重複、VectorExport の split target ownership と export-import 閉包不足が別々に C7684/C2230 を起こした。consumer と provider の出力 directory を分離し、scanner-enabled translation unit は手動 import table から除外、分割先を module/interface owner から解決する必要がある。VectorExport の再公開 import は Shape.Layer → Shape.Group / Property.Types → Shape.Operator まで必要になった。修正後は Artifact と現在の worker image contract test target のビルドが完了し、worker image case は D3D12/Vulkan 両方で pass。別の非コンパイル blocker として、ビルド環境 PATH に Windows SDK rc.exe がなく test DLL の link で停止したため SDK x64 bin を加えて通した。
+- **未検証の仮説:** CMake configure 後も test target build が2,131 action の広い module graph を再構築した。target dependency の実体が広いのか、再configure後の dyndep invalidation が主要因なのかは未分離。次は warm Ninja build を同一 preset で比較し、aggregate Core に残る source 数と renderer source の依存閉包を計測してから追加分割候補を決める。
 
 ## 2026-10-16: Dialog confirm throttling belongs at the application event boundary
 
@@ -4293,3 +4377,193 @@
 - **変更:** Added a separately launchable `ArtifactCorePixelChannelOrderStandaloneTest` executable, linked only to ArtifactCore and the standard test harness. Its test uses exact binary fractions and distinct R/G/B/A to check raw BGRA float values, logical RGBA getters, exact IEEE-754 binary16 channel bits, Float16 round-trip, descriptor setter invariance, and BGRA zero-copy GPU upload/rejection of an RGBA target.
 - **価値／懸念:** Raw order regressions and API semantic regressions fail at separate assertions with the failing channel index. The standalone executable has not been configured, built, or run under the repository rule.
 - **次に確認:** Execute ArtifactCorePixelChannelOrderStandaloneTest when build/test execution is explicitly allowed; then add renderer GPU readback coverage using the same non-symmetric fixture and compare D3D12/Vulkan where available.
+
+## 2026-10-17: Boids formation initialization appears to omit LOD state
+
+- **関連:** `ArtifactCore/include/Crowd/BoidsSwarmSystem.ixx::initializeFormation()` and `update()`.
+- **確認できた事実:** `update()` indexes `agentLod_` and `lodSkipCounter_` once per agent. `addAgent()`, `initializeRandom()`, and `initializeWithTypes()` populate those arrays, while `initializeFormation()` clears agents and trails but does not clear or populate either LOD array.
+- **気づき:** Calling `update()` after formation initialization may index empty or stale LOD vectors. This was found while mapping distance-LOD test coverage; it is outside the current test-only change and remains unverified at runtime.
+- **価値／懸念:** A future targeted regression should cover `initializeFormation()` followed by `update()` and assert all agents remain finite. First decide whether formation should initialize LOD state alongside agent creation, then run under an address/undefined-behavior sanitizer if available.
+- **次に確認:** Reconcile the formation agent lifecycle with LOD arrays and add the regression in the ArtifactCore-owning change.
+
+## 2026-10-17: Imported 3D model drawing currently ignores viewport detail level
+
+- **関連:** `Artifact/src/Layer/Artifact3DModelLayer.cppm::drawLOD()` and `Artifact/src/Layer/ArtifactProcedural3DLayer.cppm::drawLOD()`.
+- **確認できた事実:** Procedural 3D maps Low/Medium/High to Draft/Preview/Full before resolving geometry. The imported 3D model override currently delegates to `draw(renderer)` for every detail level.
+- **気づき:** Composition zoom LOD therefore changes procedural geometry quality but does not change the imported model layer's own draw path. Meshlet selection may still independently reduce GPU mesh work, but that is a separate renderer-level mechanism and does not establish layer-level parity.
+- **価値／懸念:** A test asserting model LOD behavior would need a concrete observable contract (for example selected meshlet level or reduced submitted geometry) and GPU-backed evidence. No such behavior is currently specified by the layer override.
+- **次に確認:** Define whether imported models should consume `DetailLevel` directly or rely solely on meshlet LOD, then add a production-path test at the chosen boundary.
+
+## 2026-10-17: Physics target-rate LOD is bypassed by fixed timeline advancement
+
+- **関連:** `ArtifactCore/src/Physics/PhysicsSystem.cppm::advancePhysicsFrame()` and `update()`.
+- **確認できた事実:** Reduced and Minimal presets assign positive `targetHz` values. `advancePhysicsFrame()` sets `fixedTimelineMode_` before calling `update()`, while the `targetHz` accumulator branch in `update()` runs only when `!fixedTimelineMode_`.
+- **気づき:** Calls through the fixed-timeline entry point appear to ignore the preset target rate, even though solver-detail overrides such as soft-body grid scale still apply. This is a source-level finding; runtime behavior was not tested in this task.
+- **価値／懸念:** Tests should distinguish frame-clock fixed stepping from an intended lower simulation update frequency. Do not assert target-rate throttling until that contract is clarified; the current test addition verifies only Reduced/Full soft-body resolution transitions.
+- **次に確認:** Decide whether `targetHz` should subdivide or skip fixed timeline updates, then add a deterministic registered-solver test for the selected timing contract.
+
+## 2026-10-17: Layer drawLOD overrides have no caller in the current render sources
+
+- **関連:** `Artifact/src/Layer/ArtifactProcedural3DLayer.cppm::drawLOD()`、`Artifact/src/Layer/Artifact3DModelLayer.cppm::drawLOD()`、composition render paths.
+- **確認できた事実:** A repository search finds `drawLOD()` definitions for the abstract layer, procedural 3D layer, and imported 3D model layer, but no call site under `Artifact/src`. Composition rendering sets renderer detail level and then calls `layer->draw(renderer)` in its layer loops.
+- **気づき:** The layer-specific Draft/Preview/Full dispatch currently appears unreachable through the production composition paths. Meshlet selection and other renderer detail-level consumers are separate LOD routes.
+- **変更:** Added `ArtifactProcedural3DLayerLodContractTest` to call the layer override directly and verify Terrain, PathTube, and TextExtrude quality reporting, plus vertex-count growth for Terrain and PathTube and Low→High→Medium regeneration on the same frame. This is an override contract only; it does not establish viewport integration.
+- **価値／懸念:** A direct unit test of `drawLOD()` would prove only the override in isolation, not viewport integration. A meaningful regression needs a composition/render-path test that observes the selected quality after the layer loop.
+- **次に確認:** Select the intended production dispatch point and add an integration assertion for procedural 3D quality; keep imported model behavior separately specified because its current override delegates to ordinary drawing.
+
+## 2026-10-17: Physics fluid resolution scale has no observed application site
+
+- **関連:** `ArtifactCore/src/Physics/PhysicsSystem.cppm::PhysicsLODSettings` and its registered `FluidSolver2D` update loop.
+- **確認できた事実:** Full/Reduced/Minimal settings initialize and clamp `fluidResolutionScale`. A source search finds no read of that field after normalization; the registered fluid loop only applies `fluidSolverIterations` before calling `update()`.
+- **気づき:** The preset's advertised fluid resolution reduction is currently stored but does not appear to change `FluidSolver2D::width()` or `height()`. This is a source-level gap, not runtime-tested in this task.
+- **価値／懸念:** A future application test should register a solver, step under Reduced/Minimal, and assert a defined scaled grid plus restoration behavior. No such expectation is added here because resolution scaling semantics (rounding, minimum dimensions, and state resampling) are not established by current code.
+- **次に確認:** Define resolution scaling and state preservation, then implement and test its lifecycle from Full through reduced levels and back.
+
+## 2026-10-17: Full rigid-body LOD may skip collision restoration
+
+- **関連:** `ArtifactCore/src/Physics/PhysicsSystem.cppm` rigid-world update loop and `Physics2D::RigidBody2D::restoreCollisionMesh()`.
+- **確認できた事実:** `restoreCollisionMesh()` is called only inside a loop guarded by `applySleepPolicy || disableContinuousCollision`. Minimal enables both flags and can simplify polygon shapes. Full defaults both flags to false, so its update skips that loop entirely.
+- **気づき:** A shape simplified under Minimal may remain simplified after switching back to Full. Extended the physics LOD integration contract to assert the mass returns to its authored value after the Full step; based on the current source guard this is expected to expose the restoration gap. The test was not run.
+- **価値／懸念:** This identifies a likely transition bug in the parent/child-owned physics implementation. Avoid adding a passing expectation for restoration until the implementation is corrected or the intended lifecycle is clarified.
+- **次に確認:** Ensure every registered rigid body receives collision restoration on transition to a policy with `simplifyCollisionMesh == false`, then add a Minimal→Full mass/geometry round-trip contract.
+
+## 2026-10-17: Physics LOD solver budgets may remain reduced after returning to Full
+
+- **関連:** `ArtifactCore/src/Physics/PhysicsSystem.cppm::update()` and `tests/ArtifactCore/PhysicsLodSettingsContractTest.cpp`.
+- **確認できた事実:** Registered fluid, soft-body, cloth, and material solvers receive a setter only when the corresponding LOD budget is greater than zero. Full settings normalize these budgets to zero, so after Reduced/Minimal has set the solver object, a later Full update does not restore its constructor default. Material fracture enablement is set each update, but its max-substep budget has the same conditional setter gap.
+- **気づき:** Added Minimal/Reduced→Full assertions for fluid iterations, soft-body/cloth substeps, and material substeps to make the transition contract observable. Same-solver Reduced→Full soft-body and Cloth3D solve comparisons against fresh Full solvers now cover constraint-iteration restoration behavior too. Based on the current source path these assertions are expected to expose restoration gaps; no runtime execution was performed.
+- **価値／懸念:** A passing transition suite needs an explicit policy for restoring per-solver defaults (including custom pre-LOD settings), not merely clearing the global override to zero. The implementation belongs to the ArtifactCore child repository and was not changed in this parent test task.
+- **次に確認:** Define whether Full restores constructor defaults or each solver's pre-LOD value, implement that policy in the owning repository, then run the new round-trip tests.
+
+## 2026-10-17: Text extrusion quality presets do not currently change mesh density
+
+- **関連:** `Artifact/src/Layer/ArtifactProcedural3DLayer.cppm::Impl::regenerate()`, `ArtifactCore/src/Geometry/Procedural3DGenerators.cppm::makeTextExtrudePreset()` and `generateTextExtrude()`; `tests/ArtifactCore/Procedural3DQualityLodTest.cpp`; `tests/Artifact/Procedural3DLayerLodContractTest.cpp`.
+- **確認できた事実:** The Draft/Preview/Full preset stores the requested `quality`, but sets the same `bevelSegments` value for all three. `generateTextExtrude()` does not read `settings.quality`; it passes the unchanged bevel segment count into extrusion. The layer's regeneration path also passes `textExtrude` unchanged, unlike Terrain and PathTube which copy settings and apply `qualityOverride`. Generator and layer contracts require strictly growing geometry sizes and are expected to expose both gaps.
+- **価値／懸念:** Text extrusion can report three quality labels while generating identical tessellation, so a quality preset may not provide the intended preview cost reduction. This is a source-level finding; the ArtifactCore child implementation was not changed or runtime-tested.
+- **次に確認:** Define Draft/Preview/Full bevel or contour tessellation budgets while preserving text bounds and silhouette as much as possible, then make the new geometry-count test pass and validate representative glyphs including counters and narrow strokes.
+
+## 2026-10-17: LOD threshold validation accepts NaN values
+
+- **関連:** `Artifact/src/LOD/ArtifactLODManager.cppm::setThresholds()` and `tests/Artifact/LODManagerContractTest.cpp`.
+- **確認できた事実:** `setThresholds()` validates thresholds only with ordered comparisons. Comparisons with NaN are false, so either NaN argument passes all current guards and is stored; subsequent zoom classification or factor calculation can then behave inconsistently.
+- **気づき:** Added contract assertions that NaN low and medium thresholds leave the prior valid configuration unchanged. They are expected to fail against the current source; tests were not run.
+- **価値／懸念:** A NaN threshold can poison LOD classification for the lifetime of the manager. Fixing validation belongs to the Artifact child repository and is outside this parent test-only change.
+- **次に確認:** Reject non-finite thresholds before storing either value, then run the LOD manager contract test and verify selection/factor continuity remains intact.
+
+## 2026-10-17: Preview resolution scale can retain NaN
+
+- **関連:** `ArtifactCore/src/Preview/PreviewSettings.cppm::setResolutionScale()` and `tests/ArtifactCore/PreviewSettingsLodContractTest.cpp`.
+- **確認できた事実:** `setResolutionScale()` stores `std::clamp(scale, 0.125f, 1.0f)` directly. With NaN, both ordered comparisons used by clamp are false, so the non-finite value can be retained. Positive and negative infinity clamp to the upper and lower bounds respectively.
+- **気づき:** Added a contract for finite fallback on NaN and bound clamping for infinities. The NaN assertion is expected to fail against the current source; no tests were run.
+- **価値／懸念:** A non-finite preview scale can propagate into render-size calculations and invalidate previews. The implementation belongs to the ArtifactCore child repository and was not changed.
+- **次に確認:** Normalize non-finite scale input to the default full scale before clamping, then exercise preview render dimensions at the accepted scale bounds.
+
+## 2026-10-17: Render context cache keys round LOD scale to three decimals
+
+- **関連:** `Artifact/include/Render/ArtifactRenderContext.ixx::RenderContextRegistry::makeKey()` and `tests/Artifact/RenderContextLodContractTest.cpp`.
+- **確認できた事実:** Cache keys serialize `resolutionScale` with fixed three-decimal precision. Distinct scales such as 0.5000 and 0.5004 therefore map to the same key, while at a 4096-pixel base width they produce different truncated working dimensions. Scales 0.5000 and 0.5001 also collide at 1920 pixels (both truncate to 960), while Blur reads the scale itself for parameter scaling.
+- **気づき:** Added contracts requiring different keys both when scales imply different pixel dimensions and when dimensions match but the scale value differs, plus snapshot round-trip coverage. The collision assertions are expected to fail with the current precision; no runtime test was performed.
+- **価値／懸念:** A cache hit can return an image rendered at another LOD scale when callers use fine-grained custom resolution values. This RenderContext implementation belongs to the Artifact child repository and was not modified.
+- **次に確認:** Encode enough scale precision, or key by resolved pixel dimensions when available, then verify no collisions across supported widths and scale inputs.
+
+## 2026-10-17: Render context resolution scale accepts positive infinity
+
+- **関連:** `Artifact/include/Render/ArtifactRenderContext.ixx::RenderContext::setResolutionScale()` and `tests/Artifact/RenderContextLodContractTest.cpp`.
+- **確認できた事実:** The setter applies `std::max(0.01f, newResolutionScale)` without a finite-value check. Positive infinity remains infinite; NaN becomes the minimum value with the current argument order. The preview settings API has a separate finite-scale contract.
+- **変更:** Added a contract requiring NaN and either infinity to fall back to full resolution (1.0), while leaving finite custom scales available for export upscaling.
+- **価値／懸念:** A non-finite scale can propagate into cache keys and downstream size calculations. This is a source-level finding; the Artifact child implementation was not changed or tested at runtime.
+- **次に確認:** Normalize non-finite inputs to 1.0 before applying the positive floor, then verify snapshot restoration and cache-key generation remain finite.
+
+## 2026-10-17: GI working dimensions cast non-finite scales to unsigned integers
+
+- **関連:** `ArtifactCore/include/Graphics/GIResources.ixx::GIFrameResources::scaledDimension()` and the GI working-resolution tests in `tests/ArtifactCore/RenderPipelineContractTest.cpp`.
+- **確認できた事実:** The function rejects zero/negative scales but does not check finiteness before multiplying and converting to `std::uint32_t`. NaN and positive infinity pass the guard; converting an out-of-range or NaN floating value to an integer has undefined behavior.
+- **気づき:** Existing tests cover zero, negative, and tiny positive scales. No test invokes the unsafe non-finite case because that would exercise undefined behavior before the implementation is hardened.
+- **価値／懸念:** Invalid user or propagated preview settings could corrupt GI resource dimensions or trigger undefined behavior. The implementation belongs to ArtifactCore and was not modified in this test task.
+- **次に確認:** Reject non-finite scale values before the cast with a defined fallback, then add NaN and infinity dimension tests.
+
+## 2026-10-17: Viewport LOD zoom cutoffs differ from LODManager defaults
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm::detailLevelFromZoom()` and `Artifact/src/LOD/ArtifactLODManager.cppm::getDetailLevel()`.
+- **確認できた事実:** The composition render controller classifies zoom below 0.50 as Low, below 0.90 as Medium, and otherwise High. `LODManager` defaults classify below 0.25 as Low, below 0.75 as Medium, and otherwise High.
+- **気づき:** There are two different zoom-to-LOD policies in the same application. Whether this is intentional (viewport rendering vs manager contract) or causes UI/render detail drift is unverified; this task did not run the viewport.
+- **価値／懸念:** A controller-level regression test should cover its 0.50 and 0.90 boundaries and confirm the selected policy is applied consistently to effect surfaces, layer culling, and renderer material LOD. Avoid assuming the manager defaults are the intended controller thresholds until the design is clarified.
+- **次に確認:** Define whether the controller cutoffs are a separate policy or should be sourced from `LODManager`, then expose a stable controller-level contract test without broadening the public API unnecessarily.
+
+## 2026-10-17: Boids far-LOD skip counter can survive a near-detail interval
+
+- **関連:** `ArtifactCore/include/Crowd/BoidsSwarmSystem.ixx::BoidsSwarmSystem::update()` and `tests/ArtifactCore/BoidsDistanceLodContractTest.cpp`.
+- **確認できた事実:** `lodSkipCounter_` is decremented on every update, including while an agent is in LOD0, but is only reset when a reduced-LOD force computation runs. A `skipFrames` value is calculated from the current LOD but is not used in the counter update.
+- **気づき:** Added a transition contract that moves an agent LOD2 → LOD0 → LOD2 and expects its first force in the new LOD2 interval to be refreshed. The assertion is expected to expose stale counter carry-over based on source inspection; it has not been executed.
+- **価値／懸念:** A distant agent may skip its first force update after returning from near detail and temporarily keep a force derived from an earlier target or neighbor arrangement. Whether transition refresh is the intended policy remains unverified.
+- **次に確認:** Run the focused Boids LOD tests when testing is authorized, confirm the transition behavior, then decide whether the counter should reset on LOD changes or whether carrying the remaining interval is intentional.
+
+## 2026-10-17: Composition controller LOD enable API has no implementation
+
+- **関連:** `Artifact/include/Widgets/Render/ArtifactCompositionRenderController.ixx::setLODEnabled()` / `isLODEnabled()` and `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm::Impl::lodEnabled_`.
+- **確認できた事実:** The public header declares both methods and the implementation class has a `lodEnabled_` member, but repository-wide search finds no method definitions and no reads or writes of the member.
+- **気づき:** A test for disabling zoom-based LOD was considered but not added because it would reference an unimplemented API and could fail to link. Whether the API was intended to control layer culling, renderer detail selection, effect resolution, or all three is unverified.
+- **価値／懸念:** The declarations imply a control that currently has no observable behavior, while defining a test expectation requires clarifying its intended scope.
+- **次に確認:** Define the toggle's scope, implement it in the controller, then add a viewport regression test that checks the affected LOD decisions.
+
+## 2026-10-17: Interactive render region does not restore the prior preview LOD
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm::setInteractiveRenderRegion()` / `clearInteractiveRenderRegion()`、`setPreviewQualityPreset()`、`tests/Artifact/Model3DLightCompositionIntegrationTest.cpp`。
+- **確認できた事実:** `setInteractiveRenderRegion()` changes a Final preset to Preview and sets `irrForcedPreview_`. `setPreviewQualityPreset()` overwrites `previewQualityPreset_` with Preview; `clearInteractiveRenderRegion()` then passes that same Preview value back to the setter. The Final preset is therefore not retained by this path.
+- **追加確認:** `setInteractiveRenderRegionResolutionScale()` uses `std::clamp` without a finite-value check, so NaN remains NaN even though the API documents a `[0.25, 1.0]` range. Added low/high, representative, infinity, and NaN checks to the controller integration test; the NaN case is expected to expose this gap and has not been run.
+- **変更:** Added GPU blur LOD contracts for region-forced Preview, quality restoration after clear, and resolution-scale bounds. The restoration and NaN assertions are expected to expose the inspected state overwrites; tests were not run.
+- **価値／懸念:** An interactive render region can leave the viewport at reduced preview quality after it is cleared, while a NaN scale can reach HUD formatting despite the documented range. The intended restoration behavior is documented in the controller comments; runtime confirmation remains pending.
+- **次に確認:** Store the pre-region preset separately from the active forced preset, normalize non-finite resolution scales before clamping, then run the focused controller integration test when test execution is authorized.
+
+## 2026-10-17: Broad renderer module interface changes amplify rebuild and IFC risk
+
+- **関連:** `Artifact/include/Render/ArtifactIRenderer.ixx`, `Artifact/src/Render/ArtifactIRenderer.cppm`, `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm`, `ArtifactCore/CMakeLists.txt` split-target module tables.
+- **確認できた事実:** A small new renderer coordination API in the widely imported `Artifact.Render.IRenderer` interface caused broad module dependency reevaluation. In the current Debug build, MSBuild compiled the renderer and Composition controller and linked `Artifact.exe`; the Ninja/MSVC lane compiled `ArtifactIRenderer.cppm` but stopped in the separate `ArtifactCoreAnalyze` target with unresolved `ImageByteSurfaceView` / `SurfaceChannelOrder` diagnostics. MSBuild compiled that same Core target successfully.
+- **仮説（未検証）:** Keeping high-churn render coordination declarations in the broad renderer interface may unnecessarily expand IFC invalidation and make manual split-target provider tables more fragile. A narrow render-submission control interface or implementation-only adapter might reduce the rebuild closure, but introducing another module could also add dependency edges and worsen it.
+- **価値／懸念:** Compile diagnostics can become very large when an IFC/provider mismatch appears, and wide public interfaces increase the number of consumers rebuilt after a small change. A split that only adds module boundaries without reducing importer closure would add maintenance without improving iteration time.
+- **次に確認:** Capture warm incremental action counts for an implementation-only renderer change and a public interface change, then inspect the generated MSVC `/reference` map for `ArtifactCoreAnalyze` in Ninja versus MSBuild before choosing any interface split.
+
+## 2026-10-17: Composition async recording is workload-thresholded
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` base-to-overlay flush and `Artifact/src/Render/ArtifactIRenderer.cppm::flushDeferredPacketsAsync()`.
+- **確認できた事実:** A point-light Composition integration scene initially produced zero deferred-worker submissions. Adding sixteen 1×1 black Solid layers behind the model raised the supported packet workload, after which the production controller selected the async recorder on both D3D12 and Vulkan; captured frame hashes matched across backends.
+- **気づき:** Production worker reachability depends on the actual supported packet count and packet mix. The no-load frame correctly remains synchronous under the current 16-packet minimum, so exercising the worker in an integration test requires a deliberately eligible composition.
+- **価値／懸念:** A passing direct renderer contract alone could miss a controller integration that never submits eligible batches. The new test checks both worker selection and the produced Composition frame. It does not show that ordinary scenes gain latency benefit or that the whole frame is non-blocking.
+- **次に確認:** Measure representative Composition frames' eligible packet count and worker submit frequency before changing the 16-packet threshold or broadening accepted packet types.
+
+## 2026-10-17: Deferred frame cleanup can outlive immediate execution
+
+- **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::DeferredPacketRecordWorker` and Composition overlay submission.
+- **確認できた事実:** After the immediate owner executes a recorded command list, the worker still calls `FinishFrame()` on its own deferred context. The renderer can release the packet buffer and submit later immediate work while cleanup continues, then gate recorder reuse and teardown on completion. D3D12 and Vulkan overlay-order image contracts and the Composition worker-selection frame passed with this split.
+- **価値／懸念:** Waiting for deferred-context cleanup at the first immediate barrier shortens the available overlap window. Resource lifetime and deferred context reuse still require explicit completion tracking; visual parity alone does not measure a latency improvement.
+- **次に確認:** Measure cleanup overlap duration on representative frames and verify any other supported graphics backends before widening this completion policy.
+
+## 2026-10-17: Deferred packet eligibility needs an allocation and ownership audit
+
+- **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm::canRecordDeferred()` and `RenderCommandBuffer` packet visitors.
+- **確認できた事実:** Gradient rect, dot line, checkerboard, grid, and rect outline recording use packet values plus recorder-owned buffers and pipelines; their immediate and worker images matched on D3D12 and Vulkan. Solid circle currently creates a `std::vector` for every draw, so it remains on the owner path under the render hot-path allocation rule.
+- **気づき:** Packet type support should depend on both resource lifetime and the recording implementation's allocation behavior. A list of apparently value-only packets can still hide frame allocations or renderer-owned mutable state.
+- **次に確認:** Audit the bounded vertex capacity / growth behavior of `MpmSurfacePkt` and measure how often these newly supported packet types occur in production Composition batches.
+
+## 2026-10-17: Module build error counts can be dominated by IFC graph faults
+
+- **関連:** `ArtifactCore/CMakeLists.txt` scanner-disabled module reference tables, `ArtifactCoreAnalyze`, and split-target Ninja/MSVC builds.
+- **確認できた事実:** Earlier split-target diagnostics included duplicate IFC candidates (`C7684`) and missing provider references; these triggered cascades of unresolved type/member errors. The latest `ImageAnalyzer.cppm` failure was fixed by registering `Image.ImageSurfaceView`, `Graphics.SurfaceColorContract`, and the re-exported `Color.TransferFunction` IFCs plus provider object dependencies. Ninja/MSVC `ArtifactCoreAnalyze` then compiled and linked after about 1,520 actions.
+- **気づき:** A high diagnostic count does not directly measure the number of independent source defects. For modules, the first IFC/provider/target mapping error often explains a long cascade. Split targets also do not guarantee narrow rebuilds when aggregate dependencies and IFC closures remain broad.
+- **価値／懸念:** Sorting build failures by earliest module-resolution diagnostics can avoid repairing downstream symptoms. Conversely, lowering source line counts alone may increase module graph complexity and rebuild work.
+- **次に確認:** Capture warm incremental action counts for implementation-only and public-interface edits; compare Ninja and MSBuild provider-reference maps before selecting the next split.
+
+## 2026-10-17: Borrowed PSO pointers must not enter owning PSOAndSRB temporaries
+
+- **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm::cloneSubmitterPipeline()` and worker submitter teardown.
+- **確認できた事実:** The glyph pipeline adapter returns borrowed raw PSO/SRB pointers. Wrapping those pointers in a local owning `PSOAndSRB` caused its destructor to release the `ShaderManager` references. Visual Studio debugger triage observed the resulting access violation later in `DiligentImmediateSubmitter::destroy()` while releasing a glyph PSO whose vtable had already been cleared.
+- **価値／懸念:** Separate worker SRBs can safely share immutable PSOs only when each owner holds a balanced reference. Borrowed adapters must clone directly from raw pointers or explicitly acquire their own references before entering an owning wrapper.
+- **次に確認:** Keep the D3D12/Vulkan worker image contracts covering renderer teardown, and audit future adapter-to-owner conversions for accidental ownership transfer.
+
+## 2026-10-17: LOD contract test families now span generation, selection, and rendering
+
+- **関連:** `tests/ArtifactCore/MeshLodContractTest.cpp`、`PhysicsLodSettingsContractTest.cpp`、`PreviewSettingsLodContractTest.cpp`、`Procedural3DQualityLodTest.cpp`、Artifact 側の `LODManagerContractTest.cpp`、`Model3DLightCompositionIntegrationTest.cpp`、`LayerSurfaceCacheParityContractTest.cpp`。
+- **確認できた事実:** 追加されたテスト群は、CPU mesh / meshlet LOD生成とGPU選択、物理負荷段階、描画品質プリセット、ズーム・投影サイズ選択、レイヤー可視性・画像効果サンプリングまでを別レベルで扱っている。Ray Tracing の chooser も疎な段階・境界・バッファ更新／消去を受け入れテストで扱う。Composition Controllerでは、Gaussian Blurの3σオーバースキャンあり／なしの1pxレイヤーを対照し、Low LODのスキップ判定差を確認する統合ケースを追加した（未実行）。
+- **気づき:** LOD は単一の値ではなく、生成品質、CPU/GPU選択、実描画、描画解像度、シミュレーション頻度という別々の契約を持つ。テストをこれらの境界ごとに分けると、未実装の領域と重複を見つけやすい。メッシュシェーダー経路は chooser の一致だけでは描画オフセット・dispatch 数を保証できないため、2対1のmeshlet dispatchを3つの領域に分けたreadbackで確認する受け入れテストを追加した。専用のVulkan fixtureに分けてRay Tracing機能との不要な依存も外した（未実行）。
+- **価値／懸念:** 今回はテスト起動が禁止されているため全ケースの実行結果は未確認。特に既存大規模GPU統合テストの追加ケースは実行環境依存性を含み、Focused run が必要。
+- **次に確認:** テスト実行が許可された後、登録済みLOD専用ターゲットを優先し、その後 GPU / Composition 統合テストを段階的に実行する。

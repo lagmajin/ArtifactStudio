@@ -3,6 +3,10 @@
 **Date:** 2026-05-16  
 **Status:** Proposed canonical contract for internal composition rendering
 
+**最終更新:** 2026-10-16
+
+Channel orderの現行方針は [IMAGE_CHANNEL_ORDER_CONTRACT_2026-10-16.md](IMAGE_CHANNEL_ORDER_CONTRACT_2026-10-16.md) を参照する。
+
 ## Goal
 
 ArtifactStudio をプロ向けの合成系として安定させるため、内部 render path の
@@ -57,16 +61,22 @@ ArtifactStudio をプロ向けの合成系として安定させるため、内�
 5. mask / matte resolved surface
 6. effect chain intermediate
 
-### 2. Canonical Channel Order
+### 2. Canonical CPU Image Channel Order
 
-内部 canonical order は:
+内部CPU画像surface (`ImageF32x4_RGBA`, `ImageF16x4`) の物理配列順は:
 
-- `R, G, B, A`
+- `B, G, R, A` (BGRA)
 
-とする。
+とする。Float32/Float16で共通とし、descriptorにもBGRAを記録する。
 
-クラス名や API 名に `RGBA` を含むものは、原則として実メモリも RGBA を意味するべき。
-BGRA を内部 canonical として維持しない。
+`ImageF32x4_RGBA` の `RGBA` は論理色/API互換名であり、生ポインタの物理順序を意味しない。
+`rgba32fData()` / `rgba8Data()` はBGRA backingを返す。raw channel indexを論理RGBAとして扱わず、
+descriptor-aware viewを使う。
+
+Artifact image-pipelineのGPU float textureは、Diligentの`RGBA16_FLOAT` / `RGBA32_FLOAT` resourceを使いながら、
+各pixel値を`[B,G,R,A]`として扱う。floatのBGRA resource formatはDiligentにないため、resource format名と
+Artifact内の値順を区別する。BGRA CPU backingからは画素全体のR/B並べ替えをせずにuploadし、shaderも同じ値順を
+維持する。RGBAを要求する外部shader/APIや最終表示境界だけで明示的に変換する。
 
 ### 3. Canonical Alpha Model
 
@@ -131,10 +141,11 @@ BGRA を内部 canonical として維持しない。
 理想の composition path:
 
 1. source decode
-2. convert to canonical `RGBA32F linear premultiplied`
-3. layer-local mask/matte/effect
-4. blend into `accum`
-5. final presentation conversion only at screen/output boundary
+2. normalize CPU Float32/Float16 surfaces to `BGRA32F/16 linear premultiplied`
+3. preserve BGRA value order in Artifact image-pipeline GPU float textures
+4. layer-local mask/matte/effect
+5. blend into `accum`
+6. read back BGRA-native image textures directly to CPU BGRA; convert only at external RGBA/presentation boundaries
 
 ### GPU Resources
 
@@ -153,15 +164,13 @@ BGRA を内部 canonical として維持しない。
 
 ### CPU-side Image Type
 
-`ImageF32x4_RGBA` のような内部 float image は、
+`ImageF32x4_RGBA` / `ImageF16x4` の内部float imageは、
 
-1. 実データも RGBA order
+1. 実データは BGRA order
 2. linear
 3. premultiplied
 
-へ寄せる。
-
-現状の BGRA 依存は移行対象とする。
+へ統一する。
 
 ## Transition Plan
 
@@ -188,9 +197,9 @@ frame snapshot / harness で次を見えるようにする。
 
 ### Phase 4: CPU Image Contract Unification
 
-1. `ImageF32x4_RGBA` の実体を true RGBA に寄せる
-2. BGRA 前提の call site を削減
-3. upload boundary のみで必要な変換を行う
+1. `ImageF32x4_RGBA` と `ImageF16x4` のbackingをdescriptor付きBGRAへ統一する
+2. true-RGBA前提のCPU call siteをdescriptor-aware viewへ移す
+3. Artifact image-pipelineのGPU float textureもBGRA値順へ移行し、外部RGBA APIとの境界だけで変換する
 
 ### Phase 5: Boundary Cleanup
 
@@ -203,20 +212,21 @@ frame snapshot / harness で次を見えるようにする。
 新しい render code を足すときは、次を守る。
 
 1. 内部中間バッファに `RGBA8_sRGB` を増やさない
-2. canonical 以外の channel order を内部標準にしない
+2. CPU Float32/Float16 backingとArtifact image-pipeline GPU float値をBGRAへ統一する。resource format名はRGBAでも、値順はBGRAとする
 3. alpha model を call site ごとに変えない
 4. `QImage` を hot path の canonical container にしない
 5. BGRA/RGBA の再解釈で問題を局所修正し続けない
 
 ## Short Decision
 
-ArtifactStudio の内部合成は、最終的に
+ArtifactStudio のCPU内部画像は、最終的に
 
-- `RGBA32F`
+- `RGBA32F` / `RGBA16F`
+- `BGRA channel order`
 - `linear`
 - `premultiplied alpha`
-- `RGBA channel order`
 
-へ統一する。
+へ統一する。GPU float textureにはnative BGRA formatがないため、RGBA16F/32F resourceの値をBGRA順で扱う。
+RGBAを要求する外部APIと画面出力境界でだけ明示変換する。
 
-`QImage` / OpenCV / GPU backend ごとの差異は、内部標準ではなく boundary conversion の問題として扱う。
+OpenCVの4ch配列はproducer-definedだが、本アプリ所有のCPU image/OpenCV processing面はBGRAへ統一する。
