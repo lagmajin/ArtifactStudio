@@ -4575,3 +4575,11 @@
 - **未検証の設計案:** producer thread で bounded glyph instance data を作り、atlas texture/SRV を保持した immutable packet を worker に渡せば、text preparation を caller 側に残しつつ GPU command recording を移せる可能性がある。atlas eviction / clear、texture upload の順序、複数 submitter 間での lifetime pinning はまだ設計・実機検証していない。
 - **価値／懸念:** allow-list だけの拡張は worker 内 allocation と lazy GPU resource creation を持ち込む。まず owner fallback の実画像 contract を固定し、その後に prepared packet の bounded capacity と frame lifetime を決める必要がある。
 - **次に確認:** GlyphAtlas が glyph rect を移動・無効化する条件を調べ、frame packet が使う atlas generation を保持または安定化できる契約を設計する。D3D12 / Vulkan の即時・worker 描画画像を比較してから eligibility を広げる。
+
+## 2026-10-17: Deferred eligibility should account for packet work, not only count
+
+- **関連:** `Artifact/src/Render/DiligentImmediateSubmitter.cppm::canRecordDeferred()`、`MpmSurfacePkt`。
+- **確認できた事実:** 16個の単位 packet 最小数では、最大75,078頂点の MPM surface 1個でも worker 選択を拒否した。submitter は最大4,096頂点ずつ bounded staging に積んで flush する。
+- **変更:** worker eligibility の work estimate に MPM staging chunk 数を加え、最大 surface packet 単独なら worker recording を選ぶようにした。15個の不可視 filler packet を使わない production `ArtifactIRenderer` test が worker selection と描画 pixel を検証し、Debug / D3D12 と Debug / Vulkan で pass。PNG hash は同一。
+- **価値／懸念:** packet 数 threshold は軽い packet 多数を表すには機能するが、単体の大きな geometry packet を過小評価する。今後別 packet の work estimate を加えるときは bounded cost と実測 recording time の相関を確認する。
+- **次に確認:** 実 Composition で MPM surface の packet サイズ分布を計測し、16 chunk threshold が通常 workload の余計な command-list overhead を生まないか確認する。

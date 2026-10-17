@@ -1062,6 +1062,48 @@ TEST(ClonerGpuRenderContractTest,
 }
 
 TEST(ClonerGpuRenderContractTest,
+     ArtifactRendererDefersSingleLargeMpmSurfaceByBoundedWork)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 128)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    renderer.setCanvasSize(128.0f, 128.0f);
+    const ArtifactCore::FloatColor clearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    const ArtifactCore::FloatColor surfaceColor(0.1f, 0.9f, 0.25f, 1.0f);
+    const auto drawMaximumSurface = [&] {
+        ArtifactCore::ArtifactArray<Artifact::MpmSurfaceVertex> vertices;
+        appendMaximumMpmTestSurface(vertices);
+        EXPECT_TRUE(renderer.drawMpmSurface(vertices, surfaceColor));
+    };
+
+    renderer.setClearColor(clearColor);
+    renderer.clear();
+    drawMaximumSurface();
+    const quint64 workerSubmitCountBefore = renderer.deferredWorkerSubmitCount();
+    EXPECT_TRUE(renderer.flushDeferredPacketsAsync())
+        << "one maximum-size MPM packet should meet the bounded worker workload threshold";
+    renderer.flushAndWait();
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore + 1);
+
+    const auto workerImage = renderer.readbackToImageF32();
+    const auto surfacePixel = workerImage.getPixel(22, 18);
+    EXPECT_GT(surfacePixel.a(), 0.8f);
+    EXPECT_GT(surfacePixel.g(), 0.75f);
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+    const auto workerPath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_mpm_single_packet_worker_%1.png")
+            .arg(backend));
+    ASSERT_TRUE(renderer.readbackToImage().save(workerPath, "PNG"))
+        << workerPath.toStdString();
+}
+
+TEST(ClonerGpuRenderContractTest,
      ArtifactRendererKeepsGlyphTextOnOwnerWhenDeferredBatchIsEligible)
 {
     ArtifactTest::HeadlessRenderer renderer;
