@@ -510,6 +510,8 @@ void exerciseCompositionLight(Artifact::LightType type,
     QImage deferredHiddenImage;
     QImage deferredRestoredImage;
     if (verifyAsyncWorkerRecording) {
+        const quint64 workerSubmitCountBeforeVisibilityChanges =
+            controller.renderer()->deferredWorkerSubmitCount();
         for (const auto& packetLayer : deferredPacketLayers) {
             packetLayer->setColor(
                 ArtifactCore::FloatColor(1.0f, 0.0f, 0.0f, 1.0f));
@@ -537,6 +539,9 @@ void exerciseCompositionLight(Artifact::LightType type,
             return;
         }
         deferredRestoredImage = readPresentedFrame();
+        EXPECT_GT(controller.renderer()->deferredWorkerSubmitCount(),
+                  workerSubmitCountBeforeVisibilityChanges)
+            << "State-changing Composition frames did not return to async recording";
         EXPECT_FALSE(deferredHiddenImage.isNull())
             << "The hidden-model Composition frame produced no readback image";
         EXPECT_FALSE(deferredRestoredImage.isNull())
