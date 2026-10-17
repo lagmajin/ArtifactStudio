@@ -1928,7 +1928,7 @@ TEST(ClonerGpuRenderContractTest,
 }
 
 TEST(ClonerGpuRenderContractTest,
-     ArtifactRendererDefersWarmGlyphTextWithPreparedAtlasData)
+     ArtifactRendererDefersWarmGlyphAndTransformedTextWithPreparedAtlasData)
 {
     ArtifactTest::HeadlessRenderer renderer;
     if (!renderer.initialize(128, 96)) {
@@ -1937,14 +1937,20 @@ TEST(ClonerGpuRenderContractTest,
     renderer.setCanvasSize(128.0f, 96.0f);
     renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
     const ArtifactCore::FloatColor invisible(1.0f, 1.0f, 1.0f, 1.0f);
+    const QFont font(QStringLiteral("Arial"), 24);
+    const ArtifactCore::FloatColor textColor(0.1f, 1.0f, 0.2f, 1.0f);
+    QMatrix4x4 textTransform;
+    textTransform.translate(6.0f, 0.0f, 0.0f);
     const auto drawEligibleBatchWithText = [&] {
         for (int index = 0; index < 15; ++index) {
             renderer.drawSolidRect(-40.0f - static_cast<float>(index) * 3.0f,
                                    -40.0f, 2.0f, 2.0f, invisible);
         }
-        renderer.drawText(QRectF(8.0, 8.0, 112.0, 40.0), QStringLiteral("Deferred"),
-                          QFont(QStringLiteral("Arial"), 24),
-                          ArtifactCore::FloatColor(0.1f, 1.0f, 0.2f, 1.0f));
+        renderer.drawText(QRectF(8.0, 8.0, 112.0, 40.0),
+                          QStringLiteral("Deferred"), font, textColor);
+        renderer.drawTextTransformed(
+            QRectF(8.0, 50.0, 112.0, 40.0), QStringLiteral("Transformed"),
+            font, textColor, textTransform);
     };
 
     const quint64 workerSubmitCountBefore = renderer.deferredWorkerSubmitCount();
@@ -1965,12 +1971,14 @@ TEST(ClonerGpuRenderContractTest,
     ASSERT_EQ(image.width(), immediateImage.width());
     ASSERT_EQ(image.height(), immediateImage.height());
     std::size_t greenTextPixels = 0;
+    std::size_t greenTransformedTextPixels = 0;
     float maxChannelError = 0.0f;
-    for (int y = 8; y < 48; ++y) {
-        for (int x = 8; x < 120; ++x) {
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
             const auto pixel = image.getPixel(x, y);
             if (pixel.a() > 0.5f && pixel.g() > 0.5f && pixel.g() > pixel.r()) {
-                ++greenTextPixels;
+                if (y >= 8 && y < 48) ++greenTextPixels;
+                if (y >= 50 && y < 96) ++greenTransformedTextPixels;
             }
             const auto expected = immediateImage.getPixel(x, y);
             maxChannelError = std::max({
@@ -1982,6 +1990,7 @@ TEST(ClonerGpuRenderContractTest,
         }
     }
     EXPECT_GT(greenTextPixels, 0u);
+    EXPECT_GT(greenTransformedTextPixels, 0u);
     EXPECT_LE(maxChannelError, 1.0e-4f);
 
     const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())

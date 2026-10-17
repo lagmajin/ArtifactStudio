@@ -1,4 +1,4 @@
-**最終更新:** 2026-10-17
+**最終更新:** 2026-10-18
 
 # Insight Register
 
@@ -4625,6 +4625,13 @@
 - **確認できた事実:** Vulkan Deferred 10-case一括実行では2件目以降にDiligentの「global pointers to Vulkan functions」errorが出る。`initializeHeadless()` はVulkan作成に失敗するとD3D12へfallbackするため、GoogleTest全体がpassしても全ケースをVulkanで描いた保証にならない。各caseを個別プロセスで実行すると各起動でVulkan physical deviceの選択ログを確認でき、全10ケースがpassした。
 - **価値／懸念:** GPU render testは環境変数だけでbackendを証明せず、実際に選ばれたdevice typeをassertする必要がある。新しいoffscreen barrier caseにrequested backendとdevice typeの一致assertを加えた。一括テストのVulkan結果を証拠にしない。
 - **次に確認:** Deferred test helperのbackend identityを全testで共通にassertできる既存の公開面を確認し、共有test harness変更の影響範囲を評価する。
+
+## 2026-10-18: Transformed text can reuse the bounded prepared glyph snapshot
+
+- **関連:** `GlyphTextXformPkt`、`DiligentImmediateSubmitter::prepareDeferredGlyphPackets()` / `submitGlyphTextTransformed()`、`ClonerGpuRenderContractTest`。
+- **確認できた事実:** owner thread が shaping / fallback 解決 / atlas acquire を行い、prepared glyph rect と retained atlas SRV を worker に渡すと、通常文字と matrix 変換文字の offscreen frame が同期 owner image と D3D12 / Vulkan の双方で全画素一致した。device-pixel-ratio と transform を含む draw 処理は既存経路を維持する。capture では両 backend の画像が同一だが、この parity test は可視 glyph 形状の正しさを判定しない。
+- **価値／懸念:** transformed packet の record eligibility を広げても shaping や atlas mutation を worker に移さずに済む。capacity / cold atlas update / debug capture fallback は引き続き必要で、GUI thread から移ったのは glyph draw recording のみ。
+- **次に確認:** 実運用フォントで glyph 形状が期待どおり描画されることを別のレンダリング正当性契約で検証し、DPI 変更時の atlas / transform parity と warm transformed-text の発生頻度を確認する。
 
 ## 2026-10-18: Deferred 3D card recording needs an explicit target and projector snapshot
 
