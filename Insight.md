@@ -4625,3 +4625,11 @@
 - **確認できた事実:** Vulkan Deferred 10-case一括実行では2件目以降にDiligentの「global pointers to Vulkan functions」errorが出る。`initializeHeadless()` はVulkan作成に失敗するとD3D12へfallbackするため、GoogleTest全体がpassしても全ケースをVulkanで描いた保証にならない。各caseを個別プロセスで実行すると各起動でVulkan physical deviceの選択ログを確認でき、全10ケースがpassした。
 - **価値／懸念:** GPU render testは環境変数だけでbackendを証明せず、実際に選ばれたdevice typeをassertする必要がある。新しいoffscreen barrier caseにrequested backendとdevice typeの一致assertを加えた。一括テストのVulkan結果を証拠にしない。
 - **次に確認:** Deferred test helperのbackend identityを全testで共通にassertできる既存の公開面を確認し、共有test harness変更の影響範囲を評価する。
+
+## 2026-10-18: Deferred 3D card recording needs an explicit target and projector snapshot
+
+- **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::draw3DCard()` / `draw3DTexturedCard()`、`Artifact/src/Render/PrimitiveRenderer3D.cppm::drawCardPass()`、`DeferredPacketRecordWorker`。
+- **確認できた事実:** Public card draws previously drained queued packets, then `PrimitiveRenderer3D::drawCardPass()` recorded through its stored `ctx_`, current RTV/DSV, mutable projector texture/matrices, and renderer-owned SRB/constant buffer. The worker renderer already owns separate card PSO/SRB/constant-buffer state but does not receive projector state. Shape-card recording additionally builds a temporary `std::vector<ShapeCardVertex>` per draw. A `CardPkt` now retains the active DSV and records through worker-local card state when no projector is active; queue exhaustion and active-projector calls retain the owner immediate fallback.
+- **気づき:** Solid Card can join the ordered worker recording path without sharing owner SRB/constant-buffer state, provided its target DSV lifetime and the pre-card queue drain are preserved. Shape triangles should remain separate until their frame allocation is removed or bounded workspace is supplied.
+- **価値／懸念:** The offscreen image contract puts a worker-eligible Card batch after the Billboard barrier and checks worker submit counts, full pixel parity, and D3D12/Vulkan device identity. It does not yet exercise the projector-active fallback or textured Card.
+- **次に確認:** Add a projector-active image/fallback contract, then assess whether textured Card can use the same retained-resource path. Record ordinary Composition Card frequency before widening the work threshold policy.

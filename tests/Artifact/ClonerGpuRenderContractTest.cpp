@@ -1345,10 +1345,21 @@ TEST(ClonerGpuRenderContractTest,
         renderer.draw3DCard(QRectF(-0.7, -0.7, 1.4, 1.4), cardModel,
                             ArtifactCore::FloatColor(0.05f, 0.15f, 0.95f, 1.0f),
                             1.0f, true);
+        if (requestDeferred) {
+            // Keep the second batch eligible so CardPkt itself is recorded by
+            // the worker after the Billboard barrier. These packets are fully
+            // off-target and must not alter the captured frame.
+            const ArtifactCore::FloatColor invisible(1.0f, 1.0f, 1.0f, 1.0f);
+            for (int index = 0; index < 15; ++index) {
+                renderer.drawSolidRect(-48.0f - static_cast<float>(index) * 3.0f,
+                                       -48.0f, 2.0f, 2.0f, invisible);
+            }
+        }
         renderer.flushAndWait();
         if (requestDeferred && workerSelected) {
             EXPECT_EQ(renderer.deferredWorkerSubmitCount(),
-                      workerSubmitCountBefore + 1);
+                      workerSubmitCountBefore + 2)
+                << "Billboard barrier and CardPkt batch should both record on worker";
         }
         const QImage image = renderer.readbackTextureViewToImage(colorTarget);
         renderer.popRenderTarget();

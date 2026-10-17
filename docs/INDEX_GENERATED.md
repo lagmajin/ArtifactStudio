@@ -1,6 +1,6 @@
 # Document Inventory (Auto-Generated)
 
-> Generated: 2026-10-17 23:52
+> Generated: 2026-10-18 00:08
 > Total documents: 1464
 
 ---
@@ -1173,7 +1173,7 @@
 | 575 | `docs/planned/MILESTONE_RENDER_QUEUE_DESIGN_AUDIT_2026-07-04.md` | マイルストーン: レンダーキュー 機能監査 (2026-07-04) | 2026-08-04 | --- | 2026-08-06 | 3.3 KB | RENDER, QUEUE, DESIGN, AUDIT |
 | 576 | `docs/planned/MILESTONE_RENDER_QUEUE_ENCODING_2026-04-01.md` | Milestone: Render Queue Hardware Encoding Support (M-RQ-ENC-1) | 2026-08-04 | --- | 2026-08-06 | 6.2 KB | RENDER, QUEUE, ENCODING |
 | 577 | `docs/planned/MILESTONE_RENDER_QUEUE_GPU_BACKEND_2026-04-03.md` | マイルストーン: Render Queue GPU Backend Selection / Fallback | 2026-08-04 | --- | 2026-08-06 | 3.5 KB | RENDER, QUEUE, GPU, BACKEND |
-| 578 | `docs/planned/MILESTONE_RENDER_THREAD_SEPARATION_FEASIBILITY_2026-10-16.md` | Render Thread Separation — Phase 4 Feasibility & Design | 2026-10-17 | In Progress — active packet-order paths, Particle / retained Billboard / transferred Gizmo deferred parity, offscreen Billboard-to-immediate-3D target continuity, the bounded asynchronous base-to-overlay recording window, and Composition point-light frame image contracts pass on Debug / D3D12 and Debug / Vulkan. `ArtifactIRenderer` can retain one base batch while the owner records later packets into a second pre-reserved buffer; immediate-render barriers and present drain the earlier batch first. Opt-in profiling separates worker record / FinishCommandList, owner ExecuteCommandLists submission, worker FinishFrame, and Composition render-to-present timing. Composition's full frame body, immediate-context ownership, and `present` remain on the caller thread, so GUI rendering is not yet generally non-blocking. MSBuild also reached `Artifact.exe`; its post-build Qt deployment emitted missing translation-catalog / debug-DLL warnings. The repaired Ninja/MSVC `ArtifactCoreAnalyze` target compiles and links after its explicit module reference map was completed; the full Artifact Ninja app target has not completed. | 2026-10-17 | 85.7 KB | RENDER, THREAD, SEPARATION, FEASIBILITY |
+| 578 | `docs/planned/MILESTONE_RENDER_THREAD_SEPARATION_FEASIBILITY_2026-10-16.md` | Render Thread Separation — Phase 4 Feasibility & Design | 2026-10-18 | In Progress — active packet-order paths, Particle / retained Billboard / transferred Gizmo / solid 3D Card deferred parity, offscreen target continuity, the bounded asynchronous base-to-overlay recording window, and Composition point-light frame image contracts pass on Debug / D3D12 and Debug / Vulkan. `ArtifactIRenderer` can retain one base batch while the owner records later packets into a second pre-reserved buffer; immediate-render barriers and present drain the earlier batch first. Opt-in profiling separates worker record / FinishCommandList, owner ExecuteCommandLists submission, worker FinishFrame, and Composition render-to-present timing. Composition's full frame body, immediate-context ownership, and `present` remain on the caller thread, so GUI rendering is not yet generally non-blocking. MSBuild also reached `Artifact.exe`; its post-build Qt deployment emitted missing translation-catalog / debug-DLL warnings. The repaired Ninja/MSVC `ArtifactCoreAnalyze` target compiles and links after its explicit module reference map was completed; the full Artifact Ninja app target has not completed. | 2026-10-17 | 86.8 KB | RENDER, THREAD, SEPARATION, FEASIBILITY |
 | 579 | `docs/planned/MILESTONE_RENDERING_PERFORMANCE_2026-03-28.md` | レンダリング性能改善 Milestone | 2026-03-28 | 性能基盤は大部分実装済み、数値目標と実機受入れは未完了 | 2026-08-16 | 12.1 KB | RENDERING, PERFORMANCE |
 | 580 | `docs/planned/MILESTONE_RESPONSIVE_LAYOUT_COMPOSITION_2026-06-05.md` | MILESTONE Responsive Layout Composition | 2026-06-29 | --- | 2026-08-16 | 4.5 KB | RESPONSIVE, LAYOUT, COMPOSITION |
 | 581 | `docs/planned/MILESTONE_REVEAL_COVERAGE.md` | 共通 Reveal / Coverage 実装計画 | 2026-10-01 | In Progress | 2026-10-01 | 11.1 KB | REVEAL, COVERAGE |
@@ -1413,7 +1413,7 @@
 | 24 | `docs/IMPL_DOF.md` | DOF (被写界深度) 実装詳細参照書 | --- | --- | 2026-07-19 | 5.3 KB | IMPL, DOF |
 | 25 | `docs/IMPL_SSAO.md` | SSAO 実装詳細参照書 | --- | --- | 2026-07-19 | 3.8 KB | IMPL, SSAO |
 | 26 | `docs/IMPL_TONE_MAPPING.md` | トーンマッピング 実装詳細参照書 | --- | --- | 2026-07-19 | 2.6 KB | IMPL, TONE, MAPPING |
-| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-17 | --- | 2026-10-17 | 309.8 KB | INDEX, GENERATED |
+| 27 | `docs/INDEX_GENERATED.md` | Document Inventory (Auto-Generated) | 2026-10-17 | --- | 2026-10-17 | 310.6 KB | INDEX, GENERATED |
 | 28 | `docs/LAYER_COMPOSITE_TEST_WIDGET.md` | レイヤーコンポジットテストウィジェット | --- | --- | 2026-03-16 | 5.4 KB | LAYER, COMPOSITE, TEST, WIDGET |
 | 29 | `docs/M-CP-1_CAMERA_PROJECTION_LOG.md` | M-CP-1: Camera Projection Integration - 実装ログ | 2026-03-31 | --- | 2026-04-01 | 12.0 KB | CAMERA, PROJECTION |
 | 30 | `docs/MILESTONE_ANALYSIS_FINAL_2026-04-27.md` | Milestone Implementation Analysis - 2026-04-27 (Final) | 2026-04-27 | --- | 2026-04-27 | 2.7 KB | ANALYSIS, FINAL |
