@@ -2193,6 +2193,15 @@ TEST(ClonerGpuRenderContractTest,
     ASSERT_GT(paddedGlyphArea, 2048ull * 2048ull)
         << "the fixture's non-overlapping padded glyph area must exceed the atlas";
 
+    // Establish and upload a clean atlas texture first. This keeps the
+    // overflow assertion independent from the separate cold-atlas fallback.
+    QMatrix4x4 seedTransform;
+    seedTransform.scale(0.025f, 0.025f, 1.0f);
+    renderer.drawTextTransformed(QRectF(0.0, 0.0, 1024.0, 600.0),
+                                 glyphs.left(1), font, textColor, seedTransform);
+    renderer.flushAndWait();
+    renderer.clear();
+
     const auto drawAtlasFillingBatch = [&] {
         for (int index = 0; index < 15; ++index) {
             renderer.drawSolidRect(-40.0f - static_cast<float>(index) * 3.0f,
