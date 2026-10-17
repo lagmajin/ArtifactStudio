@@ -2,6 +2,7 @@
 
 #include <Texture.h>
 #include <TextureView.h>
+#include <QColor>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFont>
@@ -1260,6 +1261,135 @@ TEST(ClonerGpuRenderContractTest,
         QStringLiteral("artifact_renderer_deferred_billboard_%1.png").arg(backend));
     ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
         << capturePath.toStdString();
+}
+
+TEST(ClonerGpuRenderContractTest,
+     DeferredBillboardOffscreenTargetSurvivesImmediate3DCardBarrier)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 128)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    const auto requestedBackend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("d3d12")).toLower();
+    const auto expectedDeviceType = requestedBackend == QStringLiteral("vulkan")
+        ? Diligent::RENDER_DEVICE_TYPE_VULKAN
+        : Diligent::RENDER_DEVICE_TYPE_D3D12;
+    ASSERT_NE(renderer.device(), nullptr);
+    ASSERT_EQ(renderer.device()->GetDeviceInfo().Type, expectedDeviceType)
+        << "headless initialization must not silently test a fallback backend";
+    renderer.setCanvasSize(128.0f, 128.0f);
+    auto* colorTarget = static_cast<Diligent::ITextureView*>(
+        renderer.createOffscreenTexture(128, 128));
+    auto* depthTarget = static_cast<Diligent::ITextureView*>(
+        renderer.createOffscreenDepthTexture(128, 128));
+    ASSERT_NE(colorTarget, nullptr);
+    ASSERT_NE(depthTarget, nullptr);
+    QMatrix4x4 view;
+    view.lookAt(QVector3D(0.0f, 0.0f, 5.0f), QVector3D(0.0f, 0.0f, 0.0f),
+                QVector3D(0.0f, 1.0f, 0.0f));
+    QMatrix4x4 projection;
+    projection.perspective(60.0f, 1.0f, 0.1f, 100.0f);
+    renderer.set3DCameraMatrices(view, projection);
+
+    constexpr std::array<std::uint8_t, 4> texel{255, 255, 255, 255};
+    Diligent::TextureDesc textureDesc;
+    textureDesc.Name = "Deferred offscreen Billboard texture";
+    textureDesc.Type = Diligent::RESOURCE_DIM_TEX_2D;
+    textureDesc.Width = 1;
+    textureDesc.Height = 1;
+    textureDesc.MipLevels = 1;
+    textureDesc.Format = Diligent::TEX_FORMAT_RGBA8_UNORM;
+    textureDesc.Usage = Diligent::USAGE_IMMUTABLE;
+    textureDesc.BindFlags = Diligent::BIND_SHADER_RESOURCE;
+    Diligent::TextureSubResData subresource;
+    subresource.pData = texel.data();
+    subresource.Stride = static_cast<Diligent::Uint32>(texel.size());
+    Diligent::TextureData initialData;
+    initialData.pSubResources = &subresource;
+    initialData.NumSubresources = 1;
+    Diligent::RefCntAutoPtr<Diligent::ITexture> texture;
+    renderer.device()->CreateTexture(textureDesc, &initialData, &texture);
+    ASSERT_NE(texture, nullptr);
+
+    const auto render = [&](bool requestDeferred) {
+        renderer.pushRenderTarget(colorTarget, depthTarget);
+        const ArtifactCore::FloatColor transparent(0.0f, 0.0f, 0.0f, 0.0f);
+        renderer.clearRenderTarget(transparent);
+        renderer.clearDepthRenderTarget(depthTarget, 1.0f);
+        const ArtifactCore::FloatColor invisible(1.0f, 1.0f, 1.0f, 1.0f);
+        for (int index = 0; index < 15; ++index) {
+            renderer.drawSolidRect(-48.0f - static_cast<float>(index) * 3.0f,
+                                   -48.0f, 2.0f, 2.0f, invisible);
+        }
+        renderer.draw3DBillboardQuad(
+            {0.0f, 0.0f, 0.0f}, {1.8f, 1.8f},
+            texture->GetDefaultView(Diligent::TEXTURE_VIEW_SHADER_RESOURCE),
+            ArtifactCore::FloatColor(0.95f, 0.25f, 0.05f, 1.0f));
+
+        bool workerSelected = false;
+        quint64 workerSubmitCountBefore = 0;
+        if (requestDeferred) {
+            workerSubmitCountBefore = renderer.deferredWorkerSubmitCount();
+            workerSelected = renderer.flushDeferredPacketsAsync();
+            EXPECT_TRUE(workerSelected)
+                << "the offscreen Billboard batch should enter deferred recording";
+        } else {
+            renderer.flushAndWait();
+        }
+
+        // This depth-tested owner draw is an ordering barrier after the
+        // Billboard batch and must keep the active offscreen RTV/DSV bound.
+        QMatrix4x4 cardModel;
+        cardModel.translate(0.0f, 0.0f, -0.5f);
+        renderer.draw3DCard(QRectF(-0.7, -0.7, 1.4, 1.4), cardModel,
+                            ArtifactCore::FloatColor(0.05f, 0.15f, 0.95f, 1.0f),
+                            1.0f, true);
+        renderer.flushAndWait();
+        if (requestDeferred && workerSelected) {
+            EXPECT_EQ(renderer.deferredWorkerSubmitCount(),
+                      workerSubmitCountBefore + 1);
+        }
+        const QImage image = renderer.readbackTextureViewToImage(colorTarget);
+        renderer.popRenderTarget();
+        return image;
+    };
+
+    const QImage immediateImage = render(false);
+    const QImage deferredImage = render(true);
+    ASSERT_FALSE(immediateImage.isNull());
+    ASSERT_FALSE(deferredImage.isNull());
+    ASSERT_EQ(deferredImage.size(), immediateImage.size());
+    int maxChannelError = 0;
+    for (int y = 0; y < immediateImage.height(); ++y) {
+        for (int x = 0; x < immediateImage.width(); ++x) {
+            const QColor expected = immediateImage.pixelColor(x, y);
+            const QColor actual = deferredImage.pixelColor(x, y);
+            maxChannelError = std::max({
+                maxChannelError,
+                std::abs(actual.red() - expected.red()),
+                std::abs(actual.green() - expected.green()),
+                std::abs(actual.blue() - expected.blue()),
+                std::abs(actual.alpha() - expected.alpha())});
+        }
+    }
+    EXPECT_LE(maxChannelError, 1);
+    const QColor center = deferredImage.pixelColor(64, 64);
+    EXPECT_GT(center.blue(), 200);
+    EXPECT_LT(center.red(), 100);
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_deferred_billboard_offscreen_%1.png")
+            .arg(backend));
+    ASSERT_TRUE(deferredImage.save(capturePath, "PNG"))
+        << capturePath.toStdString();
+    renderer.destroyOffscreenTexture(colorTarget);
+    renderer.destroyOffscreenTexture(depthTarget);
 }
 
 TEST(ClonerGpuRenderContractTest,

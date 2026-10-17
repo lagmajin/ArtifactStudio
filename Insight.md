@@ -4611,3 +4611,17 @@
 - **確認できた事実:** Gizmoはowner rendererに順序付きvertex/run配列を蓄積し、ShaderManagerから得たSRBへ各描画でTransformCBを設定する。worker記録でowner SRBや同じqueueを触るとoverlay追加との競合になる。owner queueをworker queueへswapし、workerだけのSRBを作成すると、15 filler packet + base + Gizmo handoff後にowner overlayを描くframeが、同期基準とD3D12 / Vulkanの両方で全画素一致した。depth無効pipelineはDSVをbindしないようにした。
 - **価値／懸念:** 値のcopyではなくcapacityを含めたqueue ownership swapでframe中のgeometry copyを避けられる。workerのGPU vertex buffer容量拡張はdispatch前のcaller threadで行うため、初回の高watermark拡張自体はcallerを止める。Gizmo頂点生成もcallerに残る。
 - **次に確認:** CompositionでGizmo頂点数とworker buffer high-watermarkの分布を計測し、capacity増加が発生する頻度を調べる。Gizmo packetを独立packet化する場合は、現在の2D後 overlay orderingを保持できるframe command contractを確認する。
+
+## 2026-10-17: Deferred Billboard barriers must preserve offscreen color and depth targets
+
+- **関連:** `ArtifactIRenderer::flushDeferredPacketsAsync()` / `draw3DCard()`、`PrimitiveRenderer3D::drawBillboard()`、offscreen render-target stack。
+- **確認できた事実:** RGBA8 sRGB offscreen RTV と D32 DSV に対して、worker Billboard packet の後に深度付き immediate 3D card を描く production path が同期 owner frame と一致し、D3D12 / Vulkan 両方で全画素比較を通過した。worker submit counter は async recording の開始時ではなく、command list のexecute/release後に進む。
+- **価値／懸念:** 3D draw barrierは次のpacketだけでなく、active offscreen targetとdepth viewを再bindする責務を持つ。画像 parityはこの具体的RTV/DSV formatを確認するが、別formatやComposition内での出現頻度、GUI latencyは測っていない。
+- **次に確認:** target override の異なるcolor/depth formatと連続したtarget push/popでworker PSO format、resource state、順序が維持されるかを個別に検証する。
+
+## 2026-10-17: Vulkan headless tests need an actual-device assertion
+
+- **関連:** `DiligentDeviceManager::Impl::initializeHeadless()`、`tests/Artifact/DiligentHeadlessRenderer.hpp`、Deferred renderer image tests。
+- **確認できた事実:** Vulkan Deferred 10-case一括実行では2件目以降にDiligentの「global pointers to Vulkan functions」errorが出る。`initializeHeadless()` はVulkan作成に失敗するとD3D12へfallbackするため、GoogleTest全体がpassしても全ケースをVulkanで描いた保証にならない。各caseを個別プロセスで実行すると各起動でVulkan physical deviceの選択ログを確認でき、全10ケースがpassした。
+- **価値／懸念:** GPU render testは環境変数だけでbackendを証明せず、実際に選ばれたdevice typeをassertする必要がある。新しいoffscreen barrier caseにrequested backendとdevice typeの一致assertを加えた。一括テストのVulkan結果を証拠にしない。
+- **次に確認:** Deferred test helperのbackend identityを全testで共通にassertできる既存の公開面を確認し、共有test harness変更の影響範囲を評価する。
