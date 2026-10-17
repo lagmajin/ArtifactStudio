@@ -2520,4 +2520,15 @@ TEST(ClonerGpuRenderContractTest,
                     expectedCenterX[index], 1.5f);
         EXPECT_NEAR((component.top + component.bottom) * 0.5f, 67.0f, 1.5f);
     }
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_cloner_stale_range_fallback_%1.png")
+            .arg(backend));
+    ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
+        << capturePath.toStdString();
 }

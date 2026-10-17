@@ -4647,6 +4647,13 @@
 - **価値／懸念:** glyph-specific atlas upload と、worker base batch 後の owner overlay ordering を同じ image contract で確認できた。これは一つの bounded packet mix の順序であり、Composition 全体の非ブロッキングや queue backpressure の改善量は示さない。
 - **次に確認:** Composition 側の複数 pass / immediate barriers で base worker batch と owner-produced packet の境界が実 workload でも保たれるか、controller frame sequence の source/runtime evidence を集める。
 
+## 2026-10-18: Deferred Cloner ranges expire at the submit boundary
+
+- **関連:** `ClonerGridPlacementRange::batchGeneration`、`ArtifactIRenderer::flushAndWait()`、Composition の GPU placement draw fallback、`tests/Artifact/ClonerGpuRenderContractTest.cpp`。
+- **確認できた事実:** submit は Cloner batch generation を進めるため、以前に dispatch した range を後続 batch の GPU sprite draw に使えない。Production caller はその draw が失敗した場合、通常の transformed sprite draw へ移る。split-submit test でこの fallback を D3D12 / Vulkan の両 backend で実行し、3つの可視 clone を含む PNG を保存した。両画像の SHA-256 は `5CFCE0311CB2DB4A2DC9B42080F7676BE635AB9A328611817D80853544E0CCB5`。
+- **価値／懸念:** deferred queue drain 後に stale GPU range を誤用せず、画面上の clone 描画を継続できる境界を実画像で固定した。Composition の現行 observer-to-draw path に同じ drain が実際に挿入される場面は確認していない。
+- **次に確認:** device loss / placement resource 再初期化中の generation invalidation と、Composition の複数 pass が dispatch / draw 間に barrier を挿入しないことを runtime evidence で確かめる。
+
 ## 2026-10-18: Deferred 3D card recording needs an explicit target and projector snapshot
 
 - **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::draw3DCard()` / `draw3DTexturedCard()`、`Artifact/src/Render/PrimitiveRenderer3D.cppm::drawCardPass()`、`DeferredPacketRecordWorker`。
