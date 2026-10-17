@@ -2252,6 +2252,97 @@ TEST(ClonerGpuRenderContractTest,
 }
 
 TEST(ClonerGpuRenderContractTest,
+     ArtifactRendererFallsBackWhenPreparedGlyphSnapshotIsFull)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(192, 96)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    const auto requestedBackend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("d3d12")).toLower();
+    const auto expectedDeviceType = requestedBackend == QStringLiteral("vulkan")
+        ? Diligent::RENDER_DEVICE_TYPE_VULKAN
+        : Diligent::RENDER_DEVICE_TYPE_D3D12;
+    ASSERT_NE(renderer.device(), nullptr);
+    ASSERT_EQ(renderer.device()->GetDeviceInfo().Type, expectedDeviceType)
+        << "headless initialization must not silently test a fallback backend";
+    renderer.setCanvasSize(192.0f, 96.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    const QDir testSourceDirectory(
+        QFileInfo(QString::fromLocal8Bit(__FILE__)).absolutePath());
+    const QString bundledFontPath = testSourceDirectory.filePath(
+        QStringLiteral("../../libs/openusd/pxr/usdImaging/usdviewq/fonts/Roboto/Roboto-Regular.ttf"));
+    const int bundledFontId = QFontDatabase::addApplicationFont(bundledFontPath);
+    ASSERT_NE(bundledFontId, -1) << bundledFontPath.toStdString();
+    const auto bundledFamilies =
+        QFontDatabase::applicationFontFamilies(bundledFontId);
+    ASSERT_FALSE(bundledFamilies.isEmpty());
+    const QFont font(bundledFamilies.front(), 48);
+    const ArtifactCore::FloatColor textColor(1.0f, 0.25f, 0.1f, 1.0f);
+
+    // Warm the atlas so this case isolates the fixed 4,096-entry prepared
+    // sidecar bound instead of the cold-atlas creation fallback.
+    QMatrix4x4 seedTransform;
+    seedTransform.scale(0.25f, 0.25f, 1.0f);
+    renderer.drawTextTransformed(QRectF(0.0, 0.0, 1024.0, 256.0),
+                                 QStringLiteral("A"), font, textColor,
+                                 seedTransform);
+    renderer.flushAndWait();
+    renderer.clear();
+
+    for (int index = 0; index < 15; ++index) {
+        renderer.drawSolidRect(-40.0f - static_cast<float>(index) * 3.0f,
+                               -40.0f, 2.0f, 2.0f,
+                               ArtifactCore::FloatColor(1, 1, 1, 1));
+    }
+    const QString maxScratchText(2048, QChar(u'A'));
+    const QRawFont rawFont = QRawFont::fromFont(font, QFontDatabase::Any);
+    EXPECT_EQ(rawFont.glyphIndexesForString(maxScratchText).size(),
+              maxScratchText.size())
+        << "the bundled fixture must retain one glyph per repeated ASCII character";
+    QMatrix4x4 textTransform;
+    textTransform.translate(2.0f, 2.0f, 0.0f);
+    textTransform.scale(0.25f, 0.25f, 1.0f);
+    const QRectF longTextRect(0.0, 0.0, 200000.0, 256.0);
+    renderer.drawTextTransformed(longTextRect, maxScratchText, font,
+                                 textColor, textTransform);
+    renderer.drawTextTransformed(longTextRect, maxScratchText, font,
+                                 textColor, textTransform);
+    renderer.drawTextTransformed(longTextRect, QStringLiteral("A"), font,
+                                 textColor, textTransform);
+
+    const quint64 workerSubmitCountBefore = renderer.deferredWorkerSubmitCount();
+    EXPECT_FALSE(renderer.flushDeferredPacketsAsync())
+        << "the 4,097th prepared glyph must keep this batch on the owner path";
+    renderer.flushAndWait();
+    EXPECT_EQ(renderer.deferredWorkerSubmitCount(), workerSubmitCountBefore);
+    const auto image = renderer.readbackToImageF32();
+    std::size_t visibleTextPixels = 0;
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            const auto pixel = image.getPixel(x, y);
+            if (pixel.a() > 0.5f && pixel.r() > 0.5f && pixel.r() > pixel.g()) {
+                ++visibleTextPixels;
+            }
+        }
+    }
+    EXPECT_GT(visibleTextPixels, 100u)
+        << "owner fallback must preserve visible text after snapshot capacity overflow";
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_glyph_snapshot_capacity_fallback_%1.png")
+            .arg(backend));
+    ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
+        << capturePath.toStdString();
+}
+
+TEST(ClonerGpuRenderContractTest,
      SubmittedPlacementRangeFallsBackAfterQueueDrain)
 {
     ArtifactTest::HeadlessRenderer renderer;

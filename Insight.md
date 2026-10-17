@@ -4633,6 +4633,13 @@
 - **価値／懸念:** headless parity test が同期経路と同じ誤った fallback image を正解扱いする問題を避け、保存した frame で字形が実際に描かれたことを確認できる。atlas容量超過もworkerへ渡さず owner fallback に残る境界を画像付きで固定した。production font fallback 全般や実アプリでのフォント登録状態は未検証。
 - **次に確認:** 実アプリの `FontManager` 初期化後に選択される system / user font を使う production-frame contractでも glyph ID と silhouette を確認し、実運用フォントの登録境界を検証する。
 
+## 2026-10-18: Deferred glyph snapshot capacity stays on owner
+
+- **関連:** `Artifact/include/Render/RenderCommandBuffer.ixx::kPreparedGlyphCapacity`、`DiligentImmediateSubmitter::prepareDeferredGlyphPackets()`、`tests/Artifact/ClonerGpuRenderContractTest.cpp`。
+- **確認できた事実:** warm atlas 上で2つの2,048-glyph text packetと1 glyph packetを準備すると、4,097番目の prepared glyph で worker recording が拒否され、owner fallback が可視文字を含む frame を描いた。Debug / D3D12 と Debug / Vulkan の device type をテスト内で明示し、capture PNG の SHA-256 は両 backend で `28B2220508B23A29D4551B4B1D73E7D503BF719B66929576414E1CD0EE7F791E` で一致した。
+- **価値／懸念:** fixed sidecar capacity が超過した batch を worker に部分移譲せず、描画を owner に戻す境界を画像付きで記録できた。owner fallback では 4,097 glyph の shaping / draw work が依然として caller 側に残るため、大きな text payload の latency は未計測。
+- **次に確認:** 通常 Composition の glyph 数分布と 4,096 slot 超過頻度を測り、sidecar の固定容量を変える前に bounded owner preparation cost と worker recording cost を分けて評価する。
+
 ## 2026-10-18: Deferred 3D card recording needs an explicit target and projector snapshot
 
 - **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::draw3DCard()` / `draw3DTexturedCard()`、`Artifact/src/Render/PrimitiveRenderer3D.cppm::drawCardPass()`、`DeferredPacketRecordWorker`。
