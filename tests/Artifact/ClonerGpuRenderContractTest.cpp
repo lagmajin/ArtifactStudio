@@ -343,9 +343,14 @@ TEST(ClonerGpuRenderContractTest,
     ASSERT_TRUE(shaders.isInitialized());
     shaders.createShaders();
     shaders.createPSOs();
+    Artifact::ShaderManager workerShaders(device, Artifact::RenderConfig::MainRTVFormat);
+    ASSERT_TRUE(workerShaders.isInitialized());
+    workerShaders.createShaders();
+    workerShaders.createPSOs();
     Artifact::DiligentImmediateSubmitter submitter;
     submitter.createBuffers(device, Artifact::RenderConfig::MainRTVFormat);
     submitter.setPSOs(shaders);
+    Artifact::DiligentImmediateSubmitter workerSubmitter;
     const auto makeBuffer = [&] {
         Artifact::RenderCommandBuffer buffer;
         buffer.reserve(16);
@@ -431,12 +436,21 @@ TEST(ClonerGpuRenderContractTest,
     auto result = recordResult.get_future();
     auto execution = executeCompleted.get_future();
     std::thread worker([&] {
-        const bool recorded = submitter.recordDeferred(
+        workerSubmitter.createBuffers(device, Artifact::RenderConfig::MainRTVFormat);
+        workerSubmitter.setPSOs(workerShaders);
+        Diligent::RefCntAutoPtr<Diligent::IDeviceContext> workerDeferred;
+        device->CreateDeferredContext(&workerDeferred);
+        if (!workerDeferred) {
+            recordResult.set_value(false);
+            return;
+        }
+        workerSubmitter.setDeferredContext(workerDeferred);
+        const bool recorded = workerSubmitter.recordDeferred(
             buffer, immediateContextId, commandList);
         recordResult.set_value(recorded);
         if (recorded) {
             execution.wait();
-            submitter.finishDeferredFrame();
+            workerSubmitter.finishDeferredFrame();
         }
     });
 

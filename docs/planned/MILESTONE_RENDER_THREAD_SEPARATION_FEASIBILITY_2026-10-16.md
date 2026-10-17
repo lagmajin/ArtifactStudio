@@ -22,7 +22,10 @@ Deferred command list の記録と `FinishFrame()` を分離する API を追加
 submitter 所有リソースだけで描ける 16 個以上の `SolidRectPkt` / `SolidRectXformPkt` /
 `LinePkt` / `QuadPkt` / `SolidTriPkt` buffer に限定した。
 別スレッドで record、immediate owner で execute、その後 recorder thread で FinishFrame
-する headless contract test を追加した。さらに同じ buffer を production `submit()` に通し、既存の
+する headless contract test を追加した。worker lane は独立した `ShaderManager` /
+`DiligentImmediateSubmitter` と deferred context を所有し、mutable な SRB を immediate lane と共有しない。
+`FinishFrame()` は immediate owner が command list を実行し終えた後に worker lane で呼ぶ。
+さらに同じ buffer を production `submit()` に通し、既存の
 16-packet threshold による deferred selection も同じ immediate baseline と比較する。record 中は Immediate Context を参照せず、execute 完了まで
 packet buffer を保持し、3 経路の readback image を比較する契約である。`ArtifactGpuFoundation` と
 `ArtifactRender`、テスト target の Debug ビルドに成功し、Vulkan は CTest suite 6/6、D3D12 は個別プロセス suite 6/6
