@@ -334,6 +334,39 @@ render thread から scene を直接書き換えない。
 
 ---
 
+**追加検証（2026-10-17、Ninja/MSVC app build と worker image contract）:** ArtifactCore の分割実装は
+CXX_SCAN_FOR_MODULES=OFF の source が多く、MSVC/Ninja では CMake scanner が補う IFC reference を
+手動 table で渡す必要がある。split target の provider ownership と source table が一致しない場合、C2230
+（IFC 不足）または C7684（同名 IFC の重複解決）が起点となり、多数の後続型エラーに見える。今回の
+SceneNode.cppm は aggregate / split の二重参照、FFmpegThumbnailExtractor.cppm は scanner と手動表の二重参照、
+VectorExport.cppm は分割先と再公開 import の不足だった。provider / consumer target directory を分離し、scanner
+有効 source は手動 import table から除き、SceneNode と VectorExport の所有先・import 閉包を合わせた。
+その後 Artifact target は Debug / Ninja/MSVC で完了し、ArtifactCompositionRenderController.cppm を含む
+ArtifactAppRuntime もコンパイルした。テスト target 再ビルドでは、Windows SDK の rc.exe が PATH にないため
+ArtifactEffectContract.dll の resource compile が失敗したが、SDK x64 bin を PATH に加えると通過した。
+ArtifactClonerGpuRenderContractTest を最新ソースでビルドし、
+ClonerGpuRenderContractTest.DeferredCommandListCanBeRecordedAndFinishedOnWorker を D3D12 と Vulkan の別プロセスで
+実行して両方 pass。各 backend で immediate reference / worker-recorded / production deferred submit の6 PNG を
+out/build/x64-Debug-Agent/tests/Artifact/cloner_gpu_render_captures/ に出力し、worker image を目視比較した。
+Composition frame の worker 化、resource snapshot、frame queue、present の分離は未実施であり、この contract は
+限定 packet set だけを証明する。
+
+**追加検証（2026-10-17、ArtifactIRenderer 公開 API の画像契約）:** `ArtifactIRenderer` の公開描画 API から
+2 viewport を描き、viewport 切替前の submit barrier と 16 packet 以上の deferred 選択を通す headless ケースを拡張した。
+即時経路と deferred 経路を全画素・全 RGBA channel で比較し、Debug / D3D12 と Debug / Vulkan で個別プロセス pass。
+両経路の実描画 PNG を `out/build/x64-Debug-Agent/tests/Artifact/cloner_gpu_render_captures/` に保存し、backend ごとに
+immediate / deferred の SHA-256 が一致することを確認した。これは Artifact アプリが使用する renderer の同期 deferred
+経路を検証するが、worker-owned recorder や Composition frame の非同期化を証明するものではない。
+
+**再分割余地（確認値と評価）:** ArtifactCore には既に 51 個の domain static library がある一方、aggregate
+ArtifactCore target には今回の単独 build log 上で 396 action が残り、Artifact app build は依存込みで 3,162
+action を計画した。ArtifactCompositionRenderController.cppm は 40,248 行で、抽出候補として大きい。ただし
+同ファイルの Impl 状態と frame-local resource が結合しているため、機械的な source/target 分割は安全な単位を
+示さない。推論としては、Core では独立した provider ownership を持つ低結合 domain から split target 候補を測り、
+Composition では CPU snapshot / packet preparation / GPU pass の境界を先に作るのがよい。新しい target は
+public module import と transitive IFC 閉包、link dependency を増やすため、次の切り出しは依存 DAG と warm
+incremental build action の両方で利得を確認してから行う。
+
 ## 11. 未確認事項
 
 1. Cloner placement range の batch generation は packet submit と renderer / placement GPU resource の再初期化で進む。

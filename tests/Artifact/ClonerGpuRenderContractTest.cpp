@@ -246,14 +246,24 @@ TEST(ClonerGpuRenderContractTest,
     ASSERT_EQ(deferred.height(), 128);
 
     std::size_t coverageMismatches = 0;
+    float maxChannelDifference = 0.0f;
     for (int y = 0; y < 128; ++y) {
         for (int x = 0; x < 128; ++x) {
-            const bool immediateCovered = immediate.getPixel(x, y).a() > 0.5f;
-            const bool deferredCovered = deferred.getPixel(x, y).a() > 0.5f;
+            const auto immediatePixel = immediate.getPixel(x, y);
+            const auto deferredPixel = deferred.getPixel(x, y);
+            const bool immediateCovered = immediatePixel.a() > 0.5f;
+            const bool deferredCovered = deferredPixel.a() > 0.5f;
             coverageMismatches += immediateCovered != deferredCovered ? 1u : 0u;
+            maxChannelDifference = std::max({
+                maxChannelDifference,
+                std::abs(immediatePixel.r() - deferredPixel.r()),
+                std::abs(immediatePixel.g() - deferredPixel.g()),
+                std::abs(immediatePixel.b() - deferredPixel.b()),
+                std::abs(immediatePixel.a() - deferredPixel.a())});
         }
     }
     EXPECT_EQ(coverageMismatches, 0u);
+    EXPECT_LE(maxChannelDifference, 1.0e-4f);
     EXPECT_GT(deferred.getPixel(64, 64).r(), 0.7f);
     EXPECT_GT(deferred.getPixel(64, 64).a(), 0.9f);
     EXPECT_LT(deferred.getPixel(16, 16).a(), 0.1f);
@@ -268,6 +278,11 @@ TEST(ClonerGpuRenderContractTest,
         GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
     }
 
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
     const auto renderTwoViewports = [&](bool crossDeferredThreshold) {
         renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
         renderer.clear();
@@ -295,7 +310,15 @@ TEST(ClonerGpuRenderContractTest,
         renderer.drawSolidRect(0.0f, 0.0f, 48.0f, 48.0f,
                                ArtifactCore::FloatColor(0.05f, 0.1f, 0.9f, 1.0f));
         renderer.flushAndWait();
-        return renderer.readbackToImageF32();
+        const auto image = renderer.readbackToImageF32();
+        const auto capturePath = QDir(captureDirectory).filePath(
+            QStringLiteral("artifact_renderer_%1_%2.png")
+                .arg(crossDeferredThreshold ? QStringLiteral("deferred")
+                                            : QStringLiteral("immediate"),
+                     backend));
+        EXPECT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
+            << capturePath.toStdString();
+        return image;
     };
 
     const auto immediate = renderTwoViewports(false);
@@ -321,6 +344,7 @@ TEST(ClonerGpuRenderContractTest,
     EXPECT_GT(secondViewportCenter.b(), 0.7f);
     EXPECT_GT(secondViewportCenter.a(), 0.9f);
     EXPECT_LT(deferred.getPixel(40, 88).a(), 0.1f);
+
 }
 
 TEST(ClonerGpuRenderContractTest,
