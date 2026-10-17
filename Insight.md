@@ -4673,7 +4673,14 @@
 - **関連:** `flushDeferredPacketsAsync()`、`completeDeferredPacketRecording()`、`PrimitiveRenderer2D::textureForVideoFrame()`。
 - **確認できた事実:** The owner advanced the video texture queue epoch when it handed packets to the recording worker, before the resulting command list executed. A red frame queued on a reusable video texture and followed by a blue upload before owner execution rendered blue into the earlier frame on D3D12. Moving epoch advancement to deferred completion and allowing the overwrite callback to drain an in-flight worker batch made the first Deferred frame pixel-identical to its synchronous red baseline; the next frame rendered the blue update. D3D12 and Vulkan passed with matching first-frame hash `2C79384A22C014CC16AA2BE55C417108D63A879FE23DD4940FC370CB88B5ABE8` and second-frame hash `0C5D42EEBCA087A4D52A6318E551534CF4648170F1C07935A819B4C253FE1F94`.
 - **価値／懸念:** Queue handoff and GPU execution are different resource lifetime boundaries. This repair keeps the reusable texture immutable until all earlier deferred readers have been executed, without scanning all queued packets or allocating per frame.
-- **次に確認:** Verify the same overwrite boundary for cached video frames referenced by Cloner and masked sprites during real Composition frame sequencing, including queue saturation fallback.
+- **次に確認:** Verify how often Composition inserts the overwrite boundary in real frame sequencing and exercise bounded queue saturation fallback.
+
+## 2026-10-18: Deferred video texture reuse holds through Cloner and masked draws
+
+- **関連:** `PrimitiveRenderer2D::textureForVideoFrame()`、`drawSpriteTransformedClonerGrid()`、`drawMaskedTextureLocal()`、`tests/Artifact/ClonerGpuRenderContractTest.cpp`。
+- **確認できた事実:** Red frame を同期描画した baseline に対し、同じ reusable slot を参照する Cloner / masked Deferred batch を async handoff してから blue frame を同 slot に upload する。両 batch の first frame は baseline と全画素一致（最大 RGBA float error `1.0e-4` 以下）し、次の frame は blue に更新された。Debug / D3D12 と Debug / Vulkan の個別 test process で実 device を確認して pass。Cloner と masked の各 first / second frame PNG は backend 間で byte-identical だった（hashes: Cloner `74BA55BB60526FA817E87DE8FC837B3B93BD93D1FA158DA5BEB9A0F9F9F03982` / `BBE7EE1C5B71549A2366493074D35025A20142529577B0169F8789F223077398`; masked `FF0FEF7C917DBA84D1554283B8E2285978F2C1E71D3F27B7293195567C796572` / `1B6EAEF93115F273DB138C6E18FA52583FBD62BFCE392FCA6F9AAA56C343B12A`).
+- **価値／懸念:** Shared video texture reader lifetime is now covered for ordinary sprite packets, Cloner placement/sprites, and masked sprites. These are bounded renderer-level image contracts; they do not establish how often Composition inserts the overwrite boundary or how queue saturation behaves.
+- **次に確認:** Exercise the same boundary through a representative Composition frame and force bounded queue saturation to verify its owner fallback preserves frame order and visible output.
 
 ## 2026-10-18: Deferred 3D card recording needs an explicit target and projector snapshot
 

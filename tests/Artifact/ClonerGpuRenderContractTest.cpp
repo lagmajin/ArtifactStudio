@@ -129,6 +129,89 @@ void appendMaximumMpmTestSurface(
     EXPECT_EQ(vertices.size(), maximumVertices);
 }
 
+template <typename DrawFrame>
+void expectDeferredVideoTextureReuseOrder(
+    ArtifactTest::HeadlessRenderer& renderer, const QUuid& videoLayerId,
+    const QString& capturePrefix, int probeX, int probeY,
+    DrawFrame&& drawFrame)
+{
+    ArtifactCore::ImageF32x4_RGBA redFrame;
+    redFrame.resize(4, 4);
+    redFrame.fill(ArtifactCore::FloatRGBA(0.95f, 0.05f, 0.05f, 1.0f));
+    ArtifactCore::ImageF32x4_RGBA blueFrame;
+    blueFrame.resize(4, 4);
+    blueFrame.fill(ArtifactCore::FloatRGBA(0.05f, 0.05f, 0.95f, 1.0f));
+
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    renderer.clear();
+    auto* redTexture = renderer.textureForVideoFrame(
+        redFrame, videoLayerId, 1);
+    ASSERT_NE(redTexture, nullptr);
+    ASSERT_TRUE(drawFrame(redTexture));
+    renderer.flushAndWait();
+    const auto synchronousRedFrame = renderer.readbackToImageF32();
+
+    renderer.clear();
+    redTexture = renderer.textureForVideoFrame(redFrame, videoLayerId, 1);
+    ASSERT_NE(redTexture, nullptr);
+    ASSERT_TRUE(drawFrame(redTexture));
+    ASSERT_TRUE(renderer.flushDeferredPacketsAsync())
+        << "the selected packet mix should be recorded asynchronously";
+
+    // Reuse the same slot while the red command list is still pending on the
+    // owner. The overwrite callback must execute that list before blue upload.
+    auto* blueTexture = renderer.textureForVideoFrame(
+        blueFrame, videoLayerId, 2);
+    ASSERT_NE(blueTexture, nullptr);
+    EXPECT_EQ(blueTexture, redTexture);
+    renderer.flushAndWait();
+
+    const auto deferredRedFrame = renderer.readbackToImageF32();
+    float maxRedFrameError = 0.0f;
+    for (int y = 0; y < deferredRedFrame.height(); ++y) {
+        for (int x = 0; x < deferredRedFrame.width(); ++x) {
+            const auto expected = synchronousRedFrame.getPixel(x, y);
+            const auto actual = deferredRedFrame.getPixel(x, y);
+            maxRedFrameError = std::max({
+                maxRedFrameError,
+                std::abs(actual.r() - expected.r()),
+                std::abs(actual.g() - expected.g()),
+                std::abs(actual.b() - expected.b()),
+                std::abs(actual.a() - expected.a())});
+        }
+    }
+    EXPECT_LE(maxRedFrameError, 1.0e-4f)
+        << "the earlier packet must sample its red frame before slot reuse";
+
+    renderer.clear();
+    blueTexture = renderer.textureForVideoFrame(blueFrame, videoLayerId, 2);
+    ASSERT_NE(blueTexture, nullptr);
+    ASSERT_TRUE(drawFrame(blueTexture));
+    renderer.flushAndWait();
+    const auto deferredBlueFrame = renderer.readbackToImageF32();
+    const auto redCenter = synchronousRedFrame.getPixel(probeX, probeY);
+    const auto blueCenter = deferredBlueFrame.getPixel(probeX, probeY);
+    const float colorDifference = std::abs(blueCenter.r() - redCenter.r()) +
+        std::abs(blueCenter.g() - redCenter.g()) +
+        std::abs(blueCenter.b() - redCenter.b());
+    EXPECT_GT(colorDifference, 0.5f)
+        << "the following frame must sample the updated blue slot";
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+    ASSERT_TRUE(deferredRedFrame.toQImage().save(
+        QDir(captureDirectory).filePath(
+            QStringLiteral("%1_first_%2.png").arg(capturePrefix, backend)),
+        "PNG"));
+    ASSERT_TRUE(deferredBlueFrame.toQImage().save(
+        QDir(captureDirectory).filePath(
+            QStringLiteral("%1_second_%2.png").arg(capturePrefix, backend)),
+        "PNG"));
+}
+
 } // namespace
 
 TEST(ClonerGpuRenderContractTest,
@@ -1373,6 +1456,77 @@ TEST(ClonerGpuRenderContractTest,
         QDir(captureDirectory).filePath(
             QStringLiteral("artifact_renderer_deferred_video_reuse_second_%1.png")
                 .arg(backend)), "PNG"));
+}
+
+TEST(ClonerGpuRenderContractTest,
+     ArtifactRendererPreservesVideoTextureAcrossDeferredClonerDraw)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 128, true)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    if (!renderer.clonerGridPlacementGpuReady()) {
+        GTEST_SKIP() << "Diligent backend could not create the Cloner GPU pipelines";
+    }
+    renderer.setCanvasSize(128.0f, 128.0f);
+    const QUuid videoLayerId = QUuid::createUuid();
+    const auto drawClonerFrame = [&](Diligent::ITextureView* texture) {
+        const ArtifactCore::FloatColor invisible(1.0f, 1.0f, 1.0f, 1.0f);
+        for (int index = 0; index < 12; ++index) {
+            renderer.drawSolidRect(
+                -40.0f - static_cast<float>(index) * 3.0f,
+                -40.0f, 2.0f, 2.0f, invisible);
+        }
+        Artifact::ClonerGridPlacementRange range;
+        if (!renderer.dispatchClonerGridPlacement(
+                2, 1, 1, 40.0f, 0.0f, 0.0f, 0.0f,
+                0.0f, 0.0f, 0.0f, 0.0f, 1.5f, 0.75f, range) ||
+            range.count != 3u) {
+            return false;
+        }
+        QMatrix4x4 identity;
+        identity.setToIdentity();
+        for (std::uint32_t index = 0; index < range.count; ++index) {
+            if (!renderer.drawSpriteTransformedClonerGrid(
+                    64.0f, 64.0f, 12.0f, 8.0f, identity, identity,
+                    texture, 1.0f, range, range.firstIndex + index)) {
+                return false;
+            }
+        }
+        return true;
+    };
+    expectDeferredVideoTextureReuseOrder(
+        renderer, videoLayerId,
+        QStringLiteral("artifact_renderer_deferred_video_cloner"),
+        53, 67, drawClonerFrame);
+}
+
+TEST(ClonerGpuRenderContractTest,
+     ArtifactRendererPreservesVideoTextureAcrossDeferredMaskedDraw)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 128)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    renderer.setCanvasSize(128.0f, 128.0f);
+    const QUuid videoLayerId = QUuid::createUuid();
+    QImage mask(4, 4, QImage::Format_RGBA8888);
+    mask.fill(Qt::white);
+    const auto drawMaskedFrame = [&](Diligent::ITextureView* texture) {
+        const ArtifactCore::FloatColor invisible(1.0f, 1.0f, 1.0f, 1.0f);
+        for (int index = 0; index < 15; ++index) {
+            renderer.drawSolidRect(
+                -40.0f - static_cast<float>(index) * 3.0f,
+                -40.0f, 2.0f, 2.0f, invisible);
+        }
+        renderer.drawMaskedTextureLocal(
+            16.0f, 16.0f, 96.0f, 96.0f, texture, mask);
+        return true;
+    };
+    expectDeferredVideoTextureReuseOrder(
+        renderer, videoLayerId,
+        QStringLiteral("artifact_renderer_deferred_video_masked"),
+        64, 64, drawMaskedFrame);
 }
 
 TEST(ClonerGpuRenderContractTest,

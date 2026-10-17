@@ -576,6 +576,8 @@ frame body の worker 化や GUI 非ブロッキングは証明しない。`LNK1
 
 **Deferred frame async readback と renderer teardown（2026-10-18）:** renderer queue に15個の不可視 filler と可視 rect を積み、明示 flush 前に `readbackToImageAsync()` を呼ぶ。readback は packet drain 後に staging copy を発行する。callback から実 QImage を受け取った後の image を同期 owner rendering の frame と全画素比較し、renderer scope を callback の完了待ちより先に抜ける test を追加した。Debug / D3D12 と Debug / Vulkan で実 device を使って pass し、各 backend の PNG は SHA-256 `9F90B34416CF9A860F0CAEA56B54FCD361D363340593AF3BF6EDB5BA8286FACB` で一致した。通常完了の teardown が async pool の仕事を待ち、readback context / staging image の寿命を保つことを示す。GPU hang / device loss の無期限 fence wait は未検証。
 
+**Reusable video texture の Cloner / masked packet 順序（2026-10-18）:** 同一 video layer の reusable 4×4 texture slot に red frame を解決してから、15 packet 相当の Deferred workload を async handoff し、owner が同じ slot に blue frame を upload する。Cloner ケースは GPU dispatch と3つの可視 sprite、masked ケースは白 mask 付き texture draw を含む。どちらも red Deferred frame を同期 owner baseline と全画素比較（RGBA float の最大誤差 `1.0e-4`）し、slot 更新後の次 frame が blue に変わることを probe pixel で確認した。Debug / D3D12 と Debug / Vulkan の実 device で各 test を個別実行して pass。4組の first / second frame PNG は `build/tests/Artifact/Debug/cloner_gpu_render_captures/` に保存され、同一ケースの backend 間 SHA-256 が一致した。Cloner first / second は `74BA55BB60526FA817E87DE8FC837B3B93BD93D1FA158DA5BEB9A0F9F9F03982` / `BBE7EE1C5B71549A2366493074D35025A20142529577B0169F8789F223077398`、masked first / second は `FF0FEF7C917DBA84D1554283B8E2285978F2C1E71D3F27B7293195567C796572` / `1B6EAEF93115F273DB138C6E18FA52583FBD62BFCE392FCA6F9AAA56C343B12A` で一致した。実 PNG を目視し、Cloner の red sprites と masked blue frame を確認した。Composition の実 frame sequence への同じ boundary の挿入頻度と queue saturation fallback はまだ未検証。
+
 ---
 
 ## 12. 参考ファイル
