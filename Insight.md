@@ -4661,6 +4661,13 @@
 - **価値／懸念:** The existing profile separated worker recording and execute, but did not expose whether the owner actually waited at the completion barrier. The new opt-in field closes that observability gap for this boundary. Zero at the current resolution does not imply zero latency in other scenes, and this single workload does not quantify the improvement over synchronous recording.
 - **次に確認:** Repeat with representative Composition packet mixes and a matched synchronous owner-record baseline before claiming GUI latency improvement or changing the bounded worker threshold.
 
+## 2026-10-18: Async readback teardown joins the in-flight renderer worker
+
+- **関連:** `ArtifactIRenderer::readbackTextureViewToImageAsync()`、`m_asyncReadbackPool`、Deferred frame contract test。
+- **確認できた事実:** A 16-packet Deferred frame was submitted by `readbackToImageAsync()` before an explicit flush. The renderer was destroyed before the test waited for the callback; afterward, the callback image was available and pixel-identical to a synchronous owner-rendered frame. Debug / D3D12 and Debug / Vulkan both passed, with matching PNG hash `9F90B34416CF9A860F0CAEA56B54FCD361D363340593AF3BF6EDB5BA8286FACB`.
+- **価値／懸念:** This establishes the normal-completion lifetime and packet-before-copy ordering at the renderer teardown boundary. It does not establish recovery from device loss or a GPU fence that never signals.
+- **次に確認:** Exercise texture-size reinitialization while one readback slot is busy, then separately characterize the shutdown behavior when the device is lost or stalled.
+
 ## 2026-10-18: Deferred 3D card recording needs an explicit target and projector snapshot
 
 - **関連:** `Artifact/src/Render/ArtifactIRenderer.cppm::draw3DCard()` / `draw3DTexturedCard()`、`Artifact/src/Render/PrimitiveRenderer3D.cppm::drawCardPass()`、`DeferredPacketRecordWorker`。

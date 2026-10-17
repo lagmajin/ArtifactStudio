@@ -11,10 +11,12 @@
 #include <QImage>
 #include <QMatrix4x4>
 #include <QRawFont>
+#include <QSize>
 #include <QVector3D>
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -1162,6 +1164,110 @@ TEST(ClonerGpuRenderContractTest,
         QStringLiteral("artifact_renderer_async_recorded_overlay_%1.png").arg(backend));
     ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
         << capturePath.toStdString();
+}
+
+TEST(ClonerGpuRenderContractTest,
+     ArtifactRendererDeferredFrameAsyncReadbackCompletesDuringTeardown)
+{
+    std::promise<QImage> readbackPromise;
+    auto readbackFuture = readbackPromise.get_future();
+    std::promise<void> callbackEnteredPromise;
+    auto callbackEnteredFuture = callbackEnteredPromise.get_future();
+    std::promise<void> releaseCallbackPromise;
+    auto releaseCallbackFuture = releaseCallbackPromise.get_future().share();
+    std::thread releaseCallbackThread;
+    std::future_status callbackEnteredStatus = std::future_status::timeout;
+    QImage immediateFrame;
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+
+    {
+        ArtifactTest::HeadlessRenderer renderer;
+        if (!renderer.initialize(128, 128)) {
+            GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+        }
+        renderer.setCanvasSize(128.0f, 128.0f);
+        renderer.setClearColor(ArtifactCore::FloatColor(
+            0.0f, 0.0f, 0.0f, 0.0f));
+        const auto drawDeferredFrame = [&] {
+            renderer.clear();
+            const ArtifactCore::FloatColor invisible(
+                1.0f, 1.0f, 1.0f, 1.0f);
+            for (int index = 0; index < 15; ++index) {
+                renderer.drawSolidRect(
+                    -40.0f - static_cast<float>(index) * 3.0f,
+                    -40.0f, 2.0f, 2.0f, invisible);
+            }
+            renderer.drawSolidRect(
+                16.0f, 16.0f, 64.0f, 64.0f,
+                ArtifactCore::FloatColor(0.95f, 0.1f, 0.1f, 1.0f));
+        };
+
+        drawDeferredFrame();
+        renderer.flushAndWait();
+        immediateFrame = renderer.readbackToImage();
+        ASSERT_FALSE(immediateFrame.isNull());
+
+        drawDeferredFrame();
+
+        ASSERT_TRUE(renderer.readbackToImageAsync(
+            [&readbackPromise, &callbackEnteredPromise,
+             releaseCallbackFuture](const QImage& image) {
+                callbackEnteredPromise.set_value();
+                releaseCallbackFuture.wait();
+                readbackPromise.set_value(image.copy());
+            })) << "the bounded async readback ring should accept the cold slot";
+        callbackEnteredStatus = callbackEnteredFuture.wait_for(
+            std::chrono::seconds(5));
+        if (callbackEnteredStatus == std::future_status::ready) {
+            releaseCallbackThread = std::thread([&releaseCallbackPromise] {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                releaseCallbackPromise.set_value();
+            });
+        } else {
+            releaseCallbackPromise.set_value();
+        }
+        // Destroy the renderer before waiting for the callback. Its readback
+        // pool must join while the staging resources and device are still alive.
+    }
+
+    if (releaseCallbackThread.joinable()) releaseCallbackThread.join();
+    ASSERT_EQ(callbackEnteredStatus, std::future_status::ready)
+        << "readback worker should reach the callback before teardown";
+    ASSERT_EQ(readbackFuture.wait_for(std::chrono::seconds(0)),
+              std::future_status::ready)
+        << "renderer teardown should wait for the in-flight readback worker";
+    const QImage frame = readbackFuture.get();
+    ASSERT_FALSE(frame.isNull());
+    ASSERT_EQ(frame.size(), QSize(128, 128));
+    ASSERT_EQ(frame.size(), immediateFrame.size());
+    int maximumChannelError = 0;
+    for (int y = 0; y < frame.height(); ++y) {
+        for (int x = 0; x < frame.width(); ++x) {
+            const QColor expected = immediateFrame.pixelColor(x, y);
+            const QColor actual = frame.pixelColor(x, y);
+            maximumChannelError = std::max({
+                maximumChannelError,
+                std::abs(actual.red() - expected.red()),
+                std::abs(actual.green() - expected.green()),
+                std::abs(actual.blue() - expected.blue()),
+                std::abs(actual.alpha() - expected.alpha())});
+        }
+    }
+    EXPECT_LE(maximumChannelError, 1)
+        << "deferred async readback should preserve the synchronous frame";
+    const QColor center = frame.pixelColor(48, 48);
+    EXPECT_GT(center.red(), 220);
+    EXPECT_GT(center.red(), center.green());
+    EXPECT_GT(center.red(), center.blue());
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_deferred_async_readback_teardown_%1.png")
+            .arg(backend));
+    ASSERT_TRUE(frame.save(capturePath, "PNG")) << capturePath.toStdString();
 }
 
 TEST(ClonerGpuRenderContractTest,
