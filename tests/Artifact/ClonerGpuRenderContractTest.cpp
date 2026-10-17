@@ -691,11 +691,14 @@ TEST(ClonerGpuRenderContractTest,
 }
 
 TEST(ClonerGpuRenderContractTest,
-     ArtifactRendererWorkerDeferredRecordsSpritePackets)
+     ArtifactRendererWorkerDeferredRecordsClonerAndSpritePackets)
 {
     ArtifactTest::HeadlessRenderer renderer;
-    if (!renderer.initialize(128, 128)) {
+    if (!renderer.initialize(128, 128, true)) {
         GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    if (!renderer.clonerGridPlacementGpuReady()) {
+        GTEST_SKIP() << "Diligent backend could not create the Cloner GPU pipelines";
     }
 
     auto device = renderer.device();
@@ -725,7 +728,7 @@ TEST(ClonerGpuRenderContractTest,
 
     renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
     renderer.clear();
-    for (int index = 0; index < 14; ++index) {
+    for (int index = 0; index < 12; ++index) {
         renderer.drawSolidRect(-40.0f - static_cast<float>(index) * 3.0f,
                                -40.0f, 2.0f, 2.0f,
                                ArtifactCore::FloatColor(1.0f, 1.0f, 1.0f, 1.0f));
@@ -736,11 +739,23 @@ TEST(ClonerGpuRenderContractTest,
     renderer.drawSpriteTransformed(72.0f, 72.0f, 24.0f, 24.0f,
                                    transform, spriteSRV);
     EXPECT_EQ(renderer.deferredWorkerSubmitCount(), 0u);
+
+    Artifact::ClonerGridPlacementRange placementRange;
+    ASSERT_TRUE(renderer.dispatchClonerGridPlacement(
+        2, 1, 1, 40.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 0.0f, 1.5f, 0.75f,
+        placementRange));
+    ASSERT_EQ(placementRange.count, 3u);
+    for (std::uint32_t index = 0; index < placementRange.count; ++index) {
+        ASSERT_TRUE(renderer.drawSpriteTransformedClonerGrid(
+            64.0f, 64.0f, 12.0f, 8.0f, transform, transform, spriteSRV,
+            1.0f, placementRange, placementRange.firstIndex + index));
+    }
     texture = nullptr;
 
     renderer.flushAndWait();
     EXPECT_EQ(renderer.deferredWorkerSubmitCount(), 1u)
-        << "the production ArtifactIRenderer path should record the 16-packet sprite batch on its worker";
+        << "the production ArtifactIRenderer path should record the cloner and sprite batch on its worker";
     const auto image = renderer.readbackToImageF32();
     ASSERT_EQ(image.width(), 128);
     ASSERT_EQ(image.height(), 128);
@@ -748,6 +763,11 @@ TEST(ClonerGpuRenderContractTest,
     EXPECT_GT(image.getPixel(20, 90).r(), 0.8f);
     EXPECT_GT(image.getPixel(84, 84).a(), 0.8f);
     EXPECT_GT(image.getPixel(84, 84).r(), 0.8f);
+    for (const int x : {53, 70, 93}) {
+        const auto clonerSpriteCenter = image.getPixel(x, 67);
+        EXPECT_GT(clonerSpriteCenter.a(), 0.8f) << "x=" << x;
+        EXPECT_GT(clonerSpriteCenter.r(), 0.8f) << "x=" << x;
+    }
 
     const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
                                       .filePath(QStringLiteral("cloner_gpu_render_captures"));
@@ -755,7 +775,7 @@ TEST(ClonerGpuRenderContractTest,
     const auto backend = qEnvironmentVariable(
         "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
     const auto capturePath = QDir(captureDirectory).filePath(
-        QStringLiteral("artifact_renderer_deferred_sprites_%1.png").arg(backend));
+        QStringLiteral("artifact_renderer_deferred_cloner_sprites_%1.png").arg(backend));
     ASSERT_TRUE(renderer.readbackToImage().save(capturePath, "PNG"))
         << capturePath.toStdString();
 }

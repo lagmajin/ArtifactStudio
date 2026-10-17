@@ -449,10 +449,11 @@ packet append 時に SRV を retain し、submitterごとのpipeline/SRBと事�
 (`deferred_worker_{immediate,recorded}_{d3d12,vulkan}.png`) は SHA-256 `0C6D37072EC6034B8AF36F1A748117F74934775A166CBEE4590571B641CA8C28` で一致した。
 対象は独立 headless renderer の bounded packet mix であり、Composition がsprite packetを非同期に処理することや GUI 非ブロッキングを示すものではない。
 
-**production renderer経路（2026-10-17）:** `ArtifactRendererWorkerRecordsSpritePackets` は実際の `ArtifactIRenderer` に不可視14 packetと通常Sprite / 変換Spriteを各1 packet渡し、
-`flushAndWait()` 後に `deferredWorkerSubmitCount()` が1増えること、textureの元参照を解放した後も両Spriteが最終画像に残ることを確認する。
-Debug / D3D12 と Debug / Vulkan で pass し、`artifact_renderer_deferred_sprites_{d3d12,vulkan}.png` は SHA-256
-`9A87D4C9DB52C0D046CCB314AD464E641ED4CA4488E2744B54D0964037ABFE2F` で一致した。これはproduction `ArtifactIRenderer` がSprite packet bufferをworkerへ選ぶ証拠だが、
+**production renderer経路（2026-10-17）:** `ArtifactRendererWorkerDeferredRecordsClonerAndSpritePackets` は実際の `ArtifactIRenderer` に不可視12 packet、通常Sprite / 変換Sprite、
+Cloner grid dispatch 1 packetと配置sprite 3 packetを渡し、`flushAndWait()` 後に `deferredWorkerSubmitCount()` が1増えること、textureの元参照を解放した後も
+全spriteが最終画像に残ることを確認する。packet数は18で、dispatchとdependent drawsをworkerが同一command listに記録する。
+Debug / D3D12 と Debug / Vulkan で pass し、`artifact_renderer_deferred_cloner_sprites_{d3d12,vulkan}.png` は SHA-256
+`D5BEFAA7AF859FAAEAF4918CEF1245C846A945BDEA268861F9B52E10412691B5` で一致した。これはproduction `ArtifactIRenderer` がCloner/Sprite packet bufferをworkerへ選ぶ証拠だが、
 `flushAndWait()` は同期呼び出しであり、Composition GUI thread の非ブロッキングや present 所有権の移行を示すものではない。
 
 **再分割余地（確認値と評価）:** ArtifactCore には既に 51 個の domain static library がある一方、aggregate
