@@ -1711,40 +1711,21 @@ TEST(ClonerGpuRenderContractTest,
         renderer.readbackTextureViewToImage(pipeline.tempSRV());
     ASSERT_FALSE(immediateImage.isNull());
 
-    // Keep the deferred context alive until the immediate context consumes
-    // its command list; Diligent retains backend-owned recording state there.
-    Diligent::RefCntAutoPtr<Diligent::IDeviceContext> deferredContext;
-    Diligent::RefCntAutoPtr<Diligent::ICommandList> commandList;
-    std::promise<bool> recordResult;
-    auto recordedFuture = recordResult.get_future();
-    std::thread worker([&] {
-        device->CreateDeferredContext(&deferredContext);
-        if (!deferredContext) {
-            recordResult.set_value(false);
-            return;
-        }
-
-        deferredContext->Begin(immediate->GetDesc().ContextId);
-        const bool dispatched = pipeline.applyFastApproximateAntiAliasing(
-            deferredContext.RawPtr(), sourceSRV, pipeline.accumUAV());
-        if (!dispatched) {
-            Diligent::RefCntAutoPtr<Diligent::ICommandList> discarded;
-            deferredContext->FinishCommandList(&discarded);
-            recordResult.set_value(false);
-            return;
-        }
-        deferredContext->FinishCommandList(&commandList);
-        recordResult.set_value(commandList != nullptr);
-    });
-
-    const bool recorded = recordedFuture.get();
-    worker.join();
-    ASSERT_TRUE(recorded);
-    ASSERT_NE(commandList, nullptr);
-    auto* rawCommandList = commandList.RawPtr();
-    immediate->ExecuteCommandLists(1, &rawCommandList);
-    commandList.Release();
-    deferredContext.Release();
+    struct DeferredFxaaRequest {
+        Artifact::RenderPipeline* pipeline = nullptr;
+        Diligent::ITextureView* source = nullptr;
+        Diligent::ITextureView* destination = nullptr;
+    } request{&pipeline, sourceSRV, pipeline.accumUAV()};
+    const auto recordFxaa = +[](void* opaque,
+                                Diligent::IDeviceContext* deferredContext) {
+        auto* deferredRequest = static_cast<DeferredFxaaRequest*>(opaque);
+        return deferredRequest && deferredRequest->pipeline && deferredContext &&
+               deferredRequest->pipeline->applyFastApproximateAntiAliasing(
+                   deferredContext, deferredRequest->source,
+                   deferredRequest->destination);
+    };
+    ASSERT_TRUE(renderer.startDeferredContextWork(&request, recordFxaa));
+    ASSERT_TRUE(renderer.executeDeferredContextWork());
     renderer.flushAndWait();
     const QImage deferredImage =
         renderer.readbackTextureViewToImage(pipeline.accumSRV());

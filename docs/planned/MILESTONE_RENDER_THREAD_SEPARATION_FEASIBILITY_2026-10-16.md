@@ -1,5 +1,5 @@
 **最終更新:** 2026-10-18
-**ステータス:** In Progress — active packet-order paths, Particle / retained Billboard / transferred Gizmo / solid and textured 3D Card / bounded 3D shape triangle / warm-atlas ordinary and transformed GlyphText deferred parity with distinct-glyph and post-seed atlas-update image assertions, projector fallback, offscreen target continuity, the bounded asynchronous base-to-overlay recording window, Composition point-light and channel-inspection frame images, the Cloner async-dispatch → immediate-clear → CPU-fallback image contract, renderer-owned viewport color / channel-display passes, and a Vulkan/D3D12 FXAA Deferred Context image-parity test (production FXAA still uses the immediate context). `ArtifactIRenderer` can retain one base batch while the owner records later packets into a second pre-reserved buffer; immediate-render barriers and present drain the earlier batch first. Opt-in profiling separates worker record / FinishCommandList, owner ExecuteCommandLists submission, worker FinishFrame, and Composition render-to-present timing. Composition's full frame body, immediate-context ownership, and `present` remain on the caller thread, so GUI rendering is not yet generally non-blocking. Debug Ninja/MSVC `Artifact` and the Composition point-light integration test build and pass; the app post-build deployment still reports missing Qt translation-catalog / debug-DLL paths.
+**ステータス:** In Progress — active packet-order paths, Particle / retained Billboard / transferred Gizmo / solid and textured 3D Card / bounded 3D shape triangle / warm-atlas ordinary and transformed GlyphText deferred parity with distinct-glyph and post-seed atlas-update image assertions, projector fallback, offscreen target continuity, the bounded asynchronous base-to-overlay recording window, Composition point-light and channel-inspection frame images, the Cloner async-dispatch → immediate-clear → CPU-fallback image contract, renderer-owned viewport color / channel-display passes, and production Composition FXAA command recording on a dedicated Deferred Context with shadow-map overlap. Production Composition controller frames are saved as PNGs. D3D12/Vulkan Point and Spot integration cases pass; the Point cases also assert that deferred FXAA work completed. The Composition frame output and `present` still run on the caller thread, so GUI rendering is not yet generally non-blocking. The focused synthetic renderer-owned deferred-compute case passes on D3D12 and Vulkan and writes byte-identical PNGs; the full Cloner contract suite timed out when run without a filter.
 
 # Render Thread Separation — Phase 4 Feasibility & Design
 
@@ -16,6 +16,27 @@ Phase 0/1 の完了後に独立マイルストーンとして扱う。
 immediate context で実行している。そのため、まず記録可能なパスの境界と安全性を整え、必要な箇所だけ
 worker へ移す。GUI のブロックをなくす最終段階では、immediate context と present の所有スレッドも
 別途移す必要がある。
+
+**Production FXAA deferred recording（2026-10-18、画像 contract pass）:**
+`ArtifactIRenderer` の bounded worker に、owner が user payload の寿命を保証する関数ポインタ callback と
+専用 deferred context を使う固定 command-list job を追加した。pipeline は FXAA PSO / SRB を owner context
+で事前準備してから worker に dispatch を記録させる。Composition の visible-3D FXAA frame では、resolve 後に
+shadow-map prepass を immediate owner で実行している間に worker が記録し、その後 command list を immediate
+context で実行してから viewport finalization へ進む。worker/API が利用できない場合と frame capture 中は従来の
+immediate FXAA に fallback する。専用 deferred context と request の寿命は execute が返るまで保持し、worker
+実行中に renderer が teardown される場合は既存 shutdown join で回収する。
+
+`DeferredComputeFxaaMatchesImmediateRenderedFrame` は更新した production renderer API を使い、synthetic edge
+texture の immediate/deferred 出力を全 pixel 比較し、各 backend の PNG を
+`build/tests/Artifact/Debug/cloner_gpu_render_captures/deferred_fxaa_frame_{d3d12,vulkan}.png` に保存する。
+Debug runtime / test target build と D3D12 / Vulkan の個別実行が pass し、各画像は backend 内の immediate
+reference と完全一致、両 backend 間 SHA-256 も
+`CE744388E0A1B92145ABC13B7DB0071C2070E0A037F8893FC164FF05B0B226F8` で一致した。PNG を目視確認した。
+この standalone contract は worker API と render target 出力を検証し、Composition controller の Point / Spot
+integration test では実シーンの frame PNG を保存する。D3D12 / Vulkan の Point / Spot と deferred-work 完了 assertion
+が pass した。`currentFrameSerial` の更新は `present` 完了より先なので、state-change frame の readback 前に
+`presentSuccessCount` を待つようテストを修正し、Vulkan Point の image parity / readback も再確認した。GUI frame
+snapshot 化、Composition 全体の worker 移行、immediate context / present の所有権移行は未完了である。
 
 **Worker recording の初段（2026-10-17、検証済み）:** `DiligentImmediateSubmitter` に
 Deferred command list の記録と `FinishFrame()` を分離する API を追加し、最初の対象を

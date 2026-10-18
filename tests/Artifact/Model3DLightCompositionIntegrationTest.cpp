@@ -40,6 +40,7 @@
 #include <RenderDevice.h>
 
 import Graphics;
+import Application.AppSettings;
 
 import Artifact.Composition.InitParams;
 import Composition3D;
@@ -338,6 +339,23 @@ void exerciseCompositionLight(Artifact::LightType type,
     QCoreApplication::setApplicationName(
         QStringLiteral("Model3DLightCompositionIntegrationTest"));
     QStandardPaths::setTestModeEnabled(true);
+    struct AntiAliasingSettingRestore {
+        ArtifactCore::ArtifactAppSettings* settings = nullptr;
+        int previousMode = 1;
+        ~AntiAliasingSettingRestore()
+        {
+            if (settings) settings->setCompositionAntiAliasingMode(previousMode);
+        }
+    } antiAliasingSettingRestore;
+    if (verifyAsyncWorkerRecording) {
+        antiAliasingSettingRestore.settings =
+            ArtifactCore::ArtifactAppSettings::instance();
+        if (antiAliasingSettingRestore.settings) {
+            antiAliasingSettingRestore.previousMode =
+                antiAliasingSettingRestore.settings->compositionAntiAliasingMode();
+            antiAliasingSettingRestore.settings->setCompositionAntiAliasingMode(1);
+        }
+    }
 
     QWidget host;
     host.resize(kViewportSize);
@@ -428,6 +446,8 @@ void exerciseCompositionLight(Artifact::LightType type,
     controller.setComposition(composition);
     const quint64 workerSubmitCountBeforeFrame =
         controller.renderer()->deferredWorkerSubmitCount();
+    const quint64 deferredContextWorkCountBeforeFrame =
+        controller.renderer()->deferredContextWorkCount();
     controller.start();
     const auto waitForFrame = [&](quint64 afterSerial) {
         QEventLoop frameLoop;
@@ -450,7 +470,10 @@ void exerciseCompositionLight(Artifact::LightType type,
         pollTimer.stop();
         return controller.currentFrameSerial();
     };
+    quint64 presentCountBeforeRequestedFrame = 0;
     const auto renderDirtyFrame = [&](quint64 afterSerial) {
+        presentCountBeforeRequestedFrame =
+            controller.renderer()->presentSuccessCount();
         controller.markRenderDirty();
         controller.renderOneFrame();
         return controller.currentFrameSerial() > afterSerial
@@ -460,7 +483,10 @@ void exerciseCompositionLight(Artifact::LightType type,
         QImage image = controller.readbackPresentedFrameImage();
         QElapsedTimer timeout;
         timeout.start();
-        while (image.isNull() && timeout.elapsed() < 5000) {
+        while ((image.isNull() ||
+                controller.renderer()->presentSuccessCount() <=
+                    presentCountBeforeRequestedFrame) &&
+               timeout.elapsed() < 5000) {
             app.processEvents(QEventLoop::AllEvents, 10);
             image = controller.readbackPresentedFrameImage();
         }
@@ -478,11 +504,26 @@ void exerciseCompositionLight(Artifact::LightType type,
             << "The production Composition frame did not submit its base batch "
                "to the deferred recording worker";
     }
+    app.processEvents(QEventLoop::AllEvents, 10);
     const quint64 baselineRenderedFrame = renderDirtyFrame(firstRenderedFrame);
     if (baselineRenderedFrame <= firstRenderedFrame) {
         controller.stop();
         controller.destroy();
         FAIL() << "The production render ticker did not complete the baseline frame";
+    }
+    if (verifyAsyncWorkerRecording) {
+        QElapsedTimer deferredContextWorkWait;
+        deferredContextWorkWait.start();
+        while (controller.renderer()->deferredContextWorkCount() <=
+                   deferredContextWorkCountBeforeFrame &&
+               deferredContextWorkWait.elapsed() < 5000) {
+            app.processEvents(QEventLoop::AllEvents, 10);
+        }
+        EXPECT_GT(controller.renderer()->deferredContextWorkCount(),
+                  deferredContextWorkCountBeforeFrame)
+            << "The visible-3D Composition frame did not record FXAA on the "
+               "deferred context worker; state="
+            << controller.renderer()->deferredContextWorkDebugState().toStdString();
     }
     if (verifyRayTracingRegistration) {
         const QString rayTracingState = controller.renderer()->rayTracingDebugState();
