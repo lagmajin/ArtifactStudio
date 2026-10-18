@@ -33,6 +33,7 @@ import Image.ImageF32x4_RGBA;
 import Artifact.Render.DiligentImmediateSubmitter;
 import Artifact.Render.ShaderManager;
 import Artifact.Render.Config;
+import Artifact.Render.Pipeline;
 
 namespace {
 
@@ -1643,6 +1644,140 @@ TEST(ClonerGpuRenderContractTest,
     renderer.popRenderTarget();
     renderer.destroyOffscreenTexture(colorTarget);
     renderer.destroyOffscreenTexture(depthTarget);
+}
+
+TEST(ClonerGpuRenderContractTest,
+     DeferredComputeFxaaMatchesImmediateRenderedFrame)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(64, 64)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+
+    auto device = renderer.device();
+    auto immediate = renderer.immediateContext();
+    ASSERT_NE(device, nullptr);
+    ASSERT_NE(immediate, nullptr);
+
+    constexpr Diligent::Uint32 width = 64;
+    constexpr Diligent::Uint32 height = 64;
+    Artifact::RenderPipeline pipeline;
+    ASSERT_TRUE(pipeline.initialize(device.RawPtr(), width, height,
+                                    Artifact::RenderConfig::LinearColorFormat));
+
+    // High-contrast diagonal and horizontal edges make the FXAA dispatch do
+    // visible work while keeping all input resident on the GPU.
+    std::vector<float> pixels(static_cast<std::size_t>(width) * height * 4u);
+    for (Diligent::Uint32 y = 0; y < height; ++y) {
+        for (Diligent::Uint32 x = 0; x < width; ++x) {
+            const bool bright = x >= y || y >= 40;
+            const float value = bright ? 1.0f : 0.0f;
+            const auto offset =
+                (static_cast<std::size_t>(y) * width + x) * 4u;
+            pixels[offset + 0u] = value;
+            pixels[offset + 1u] = value * 0.35f;
+            pixels[offset + 2u] = 1.0f - value;
+            pixels[offset + 3u] = 1.0f;
+        }
+    }
+
+    Diligent::TextureDesc sourceDesc;
+    sourceDesc.Name = "Deferred FXAA parity source";
+    sourceDesc.Type = Diligent::RESOURCE_DIM_TEX_2D;
+    sourceDesc.Width = width;
+    sourceDesc.Height = height;
+    sourceDesc.MipLevels = 1;
+    sourceDesc.Format = Artifact::RenderConfig::LinearColorFormat;
+    sourceDesc.Usage = Diligent::USAGE_IMMUTABLE;
+    sourceDesc.BindFlags = Diligent::BIND_SHADER_RESOURCE;
+    Diligent::TextureSubResData sourceSubresource;
+    sourceSubresource.pData = pixels.data();
+    sourceSubresource.Stride = width * 4u * sizeof(float);
+    Diligent::TextureData sourceInitialData;
+    sourceInitialData.pSubResources = &sourceSubresource;
+    sourceInitialData.NumSubresources = 1;
+    Diligent::RefCntAutoPtr<Diligent::ITexture> sourceTexture;
+    device->CreateTexture(sourceDesc, &sourceInitialData, &sourceTexture);
+    ASSERT_NE(sourceTexture, nullptr);
+    auto* sourceSRV = sourceTexture->GetDefaultView(
+        Diligent::TEXTURE_VIEW_SHADER_RESOURCE);
+    ASSERT_NE(sourceSRV, nullptr);
+
+    // Build the FXAA PSO/SRB on the owner context before the worker records.
+    ASSERT_TRUE(pipeline.applyFastApproximateAntiAliasing(
+        immediate.RawPtr(), sourceSRV, pipeline.tempUAV()));
+    renderer.flushAndWait();
+    const QImage immediateImage =
+        renderer.readbackTextureViewToImage(pipeline.tempSRV());
+    ASSERT_FALSE(immediateImage.isNull());
+
+    // Keep the deferred context alive until the immediate context consumes
+    // its command list; Diligent retains backend-owned recording state there.
+    Diligent::RefCntAutoPtr<Diligent::IDeviceContext> deferredContext;
+    Diligent::RefCntAutoPtr<Diligent::ICommandList> commandList;
+    std::promise<bool> recordResult;
+    auto recordedFuture = recordResult.get_future();
+    std::thread worker([&] {
+        device->CreateDeferredContext(&deferredContext);
+        if (!deferredContext) {
+            recordResult.set_value(false);
+            return;
+        }
+
+        deferredContext->Begin(immediate->GetDesc().ContextId);
+        const bool dispatched = pipeline.applyFastApproximateAntiAliasing(
+            deferredContext.RawPtr(), sourceSRV, pipeline.accumUAV());
+        if (!dispatched) {
+            Diligent::RefCntAutoPtr<Diligent::ICommandList> discarded;
+            deferredContext->FinishCommandList(&discarded);
+            recordResult.set_value(false);
+            return;
+        }
+        deferredContext->FinishCommandList(&commandList);
+        recordResult.set_value(commandList != nullptr);
+    });
+
+    const bool recorded = recordedFuture.get();
+    worker.join();
+    ASSERT_TRUE(recorded);
+    ASSERT_NE(commandList, nullptr);
+    auto* rawCommandList = commandList.RawPtr();
+    immediate->ExecuteCommandLists(1, &rawCommandList);
+    commandList.Release();
+    deferredContext.Release();
+    renderer.flushAndWait();
+    const QImage deferredImage =
+        renderer.readbackTextureViewToImage(pipeline.accumSRV());
+    ASSERT_FALSE(deferredImage.isNull());
+    ASSERT_EQ(deferredImage.size(), immediateImage.size());
+
+    std::size_t differingPixels = 0;
+    int maximumChannelDifference = 0;
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const QColor immediatePixel = immediateImage.pixelColor(x, y);
+            const QColor deferredPixel = deferredImage.pixelColor(x, y);
+            const int channelDifference = std::max({
+                std::abs(immediatePixel.red() - deferredPixel.red()),
+                std::abs(immediatePixel.green() - deferredPixel.green()),
+                std::abs(immediatePixel.blue() - deferredPixel.blue()),
+                std::abs(immediatePixel.alpha() - deferredPixel.alpha())});
+            maximumChannelDifference =
+                std::max(maximumChannelDifference, channelDifference);
+            differingPixels += channelDifference != 0 ? 1u : 0u;
+        }
+    }
+    EXPECT_EQ(differingPixels, 0u)
+        << "maximum 8-bit channel difference=" << maximumChannelDifference;
+
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("deferred_fxaa_frame_%1.png").arg(backend));
+    ASSERT_TRUE(deferredImage.save(capturePath, "PNG")) << capturePath.toStdString();
 }
 
 TEST(ClonerGpuRenderContractTest,

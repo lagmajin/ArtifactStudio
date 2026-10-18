@@ -221,6 +221,7 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
             ClonerGpuRenderContractTest.cpp
         LIBS
             ArtifactRender
+            ArtifactAppRuntime
     )
     if(WIN32)
         find_package(Qt6QOffscreenIntegrationPlugin CONFIG REQUIRED
