@@ -38,6 +38,14 @@ integration test では実シーンの frame PNG を保存する。D3D12 / Vulka
 `presentSuccessCount` を待つようテストを修正し、Vulkan Point の image parity / readback も再確認した。GUI frame
 snapshot 化、Composition 全体の worker 移行、immediate context / present の所有権移行は未完了である。
 
+**Controller source split（2026-10-18）:** Onion Skin の最大5枚の履歴、世代管理、非同期 readback の完了処理、
+opacity を使った frame 描画を `Artifact.Widgets.CompositionOnionSkinHistory` module に移した。Controller には
+animation 判定、selected paint layer の専用 overlay 経路、表示設定を残し、履歴と readback 状態を持たせない。
+新 module と controller を含む `ArtifactAppRuntime`、Composition integration test target が Debug build を通過した。
+D3D12 / Vulkan の Point / Spot 実 Composition 画像 test は再実行で4/4 pass し、各 PNG を
+`build/model3d_light_capture/{Debug,d3d12/Debug}/composition_controller_{point,spot}_light.png` に出力した。
+この抽出は責務と module の境界を整理したもので、Composition frame body や GUI thread ownership の移行は行わない。
+
 **Worker recording の初段（2026-10-17、検証済み）:** `DiligentImmediateSubmitter` に
 Deferred command list の記録と `FinishFrame()` を分離する API を追加し、最初の対象を
 submitter 所有リソースだけで描ける 16 個以上の `SolidRectPkt` / `SolidRectXformPkt` /
