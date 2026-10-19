@@ -66,6 +66,9 @@ void expectSameSurfaceSnapshot(const LiquidSurfaceSnapshot2D& a,
         EXPECT_EQ(a.triangles[i].c.x, b.triangles[i].c.x);
         EXPECT_EQ(a.triangles[i].c.y, b.triangles[i].c.y);
         EXPECT_EQ(a.triangles[i].thickness, b.triangles[i].thickness);
+        EXPECT_EQ(a.triangles[i].coverageA, b.triangles[i].coverageA);
+        EXPECT_EQ(a.triangles[i].coverageB, b.triangles[i].coverageB);
+        EXPECT_EQ(a.triangles[i].coverageC, b.triangles[i].coverageC);
     }
     ASSERT_EQ(a.contourSegments.size(), b.contourSegments.size());
     for (std::size_t i = 0; i < a.contourSegments.size(); ++i) {
@@ -80,6 +83,8 @@ void expectSameSurfaceSnapshot(const LiquidSurfaceSnapshot2D& a,
         EXPECT_EQ(a.foamPoints[i].position.y, b.foamPoints[i].position.y);
         EXPECT_EQ(a.foamPoints[i].size, b.foamPoints[i].size);
         EXPECT_EQ(a.foamPoints[i].alpha, b.foamPoints[i].alpha);
+        EXPECT_EQ(a.foamPoints[i].vx, b.foamPoints[i].vx);
+        EXPECT_EQ(a.foamPoints[i].vy, b.foamPoints[i].vy);
     }
 }
 
@@ -210,6 +215,65 @@ TEST(FluidDeterminismTest, ZeroDeltaIsNoOpAndLargeDeltaStaysFinite)
     }
 }
 
+TEST(FluidSnapshotTest, RestoreReplaysDensityAndVelocityExactly)
+{
+    FluidSolver2D uninterrupted(24, 20);
+    FluidSolver2D restored(24, 20);
+
+    for (int step = 0; step < 18; ++step) {
+        uninterrupted.addDensity(8 + step % 3, 9, 0.75f);
+        uninterrupted.addVelocity(8 + step % 3, 9, 0.2f, -0.1f);
+        uninterrupted.update(1.0f / 30.0f);
+    }
+
+    const FluidSnapshot2D checkpoint = uninterrupted.snapshot();
+    ASSERT_TRUE(restored.canRestoreSnapshot(checkpoint));
+    ASSERT_TRUE(restored.restoreSnapshot(checkpoint));
+
+    for (int step = 0; step < 24; ++step) {
+        for (FluidSolver2D* solver : {&uninterrupted, &restored}) {
+            solver->addDensity(12, 5 + step % 4, 0.25f);
+            solver->addVelocity(12, 5 + step % 4, -0.15f, 0.3f);
+            solver->update(1.0f / 24.0f);
+        }
+    }
+
+    for (int y = 0; y < uninterrupted.height(); ++y) {
+        for (int x = 0; x < uninterrupted.width(); ++x) {
+            EXPECT_EQ(uninterrupted.getDensity(x, y),
+                      restored.getDensity(x, y));
+            float uninterruptedVx = 0.0f;
+            float uninterruptedVy = 0.0f;
+            float restoredVx = 0.0f;
+            float restoredVy = 0.0f;
+            uninterrupted.getVelocity(x, y, uninterruptedVx, uninterruptedVy);
+            restored.getVelocity(x, y, restoredVx, restoredVy);
+            EXPECT_EQ(uninterruptedVx, restoredVx);
+            EXPECT_EQ(uninterruptedVy, restoredVy);
+        }
+    }
+}
+
+TEST(FluidSnapshotTest, RejectsMismatchedResolutionWithoutMutation)
+{
+    FluidSolver2D solver(16, 12);
+    solver.addDensity(7, 5, 1.0f);
+    solver.addVelocity(7, 5, 0.5f, -0.25f);
+    const FluidSnapshot2D before = solver.snapshot();
+
+    FluidSolver2D otherResolution(12, 16);
+    FluidSnapshot2D incompatible = otherResolution.snapshot();
+
+    EXPECT_FALSE(solver.canRestoreSnapshot(incompatible));
+    EXPECT_FALSE(solver.restoreSnapshot(incompatible));
+    EXPECT_EQ(solver.getDensity(7, 5), before.density[7 + 5 * 16]);
+    float vx = 0.0f;
+    float vy = 0.0f;
+    solver.getVelocity(7, 5, vx, vy);
+    EXPECT_EQ(vx, before.velocityX[7 + 5 * 16]);
+    EXPECT_EQ(vy, before.velocityY[7 + 5 * 16]);
+}
+
 TEST(LiquidDeterminismTest, IdenticalInputsProduceIdenticalStates)
 {
     LiquidSolver2D a;
@@ -258,6 +322,27 @@ TEST(LiquidDeterminismTest, SnapshotRestoreReplaysExactly)
     expectSameLiquidState(uninterrupted.snapshot(), restored.snapshot());
 }
 
+TEST(LiquidDeterminismTest, VelocityUsesTheLastSubstepDisplacement)
+{
+    LiquidSolver2D solver;
+    solver.reset(0.0f, 0.1f);
+    solver.setGravity(0.0f, 10.0f);
+    solver.setViscosity(0.0f);
+    solver.setSurfaceTension(0.0f);
+    solver.setSubsteps(4);
+    solver.setSolverIterations(1);
+    LiquidSnapshot2D initial;
+    initial.particles.assign({{0.5f, 0.5f, 0.0f, 0.0f}});
+    ASSERT_TRUE(solver.restore(initial));
+
+    solver.update(0.04f);
+
+    ASSERT_EQ(solver.particles().size(), 1u);
+    EXPECT_NEAR(solver.particles()[0].vy, 0.4f, 1.0e-5f)
+        << "velocity should be reconstructed from the final substep, not the "
+           "position at the beginning of the frame";
+}
+
 TEST(LiquidDeterminismTest, InvalidSnapshotIsRejectedWithoutMutation)
 {
     LiquidSolver2D solver;
@@ -300,6 +385,54 @@ TEST(LiquidSurfaceTensionTest, PullsNearbySeparatedParticlesTogether)
                           particles[1].y - particles[0].y);
     };
     EXPECT_LT(distance(withTension), distance(withoutTension));
+}
+
+TEST(LiquidDensityConstraintTest, RelaxesOverCompressedParticleCluster)
+{
+    LiquidSnapshot2D initial;
+    initial.particles.assign({
+        {0.485f, 0.485f, 0.0f, 0.0f},
+        {0.500f, 0.485f, 0.0f, 0.0f},
+        {0.515f, 0.485f, 0.0f, 0.0f},
+        {0.485f, 0.500f, 0.0f, 0.0f},
+        {0.500f, 0.500f, 0.0f, 0.0f},
+        {0.515f, 0.500f, 0.0f, 0.0f},
+        {0.485f, 0.515f, 0.0f, 0.0f},
+        {0.500f, 0.515f, 0.0f, 0.0f},
+        {0.515f, 0.515f, 0.0f, 0.0f}});
+
+    LiquidSolver2D solver;
+    solver.reset(0.0f, 0.1f);
+    solver.setGravity(0.0f, 0.0f);
+    solver.setViscosity(0.0f);
+    solver.setSurfaceTension(0.0f);
+    solver.setSubsteps(1);
+    solver.setSolverIterations(1);
+    ASSERT_TRUE(solver.restore(initial));
+
+    const auto meanSquaredPairDistance = [](const LiquidSolver2D& value) {
+        const auto& particles = value.particles();
+        double sum = 0.0;
+        std::size_t pairCount = 0;
+        for (std::size_t i = 0; i < particles.size(); ++i) {
+            for (std::size_t j = i + 1; j < particles.size(); ++j) {
+                const double dx = particles[i].x - particles[j].x;
+                const double dy = particles[i].y - particles[j].y;
+                sum += dx * dx + dy * dy;
+                ++pairCount;
+            }
+        }
+        return pairCount == 0 ? 0.0 : sum / static_cast<double>(pairCount);
+    };
+    const double before = meanSquaredPairDistance(solver);
+
+    solver.update(1.0f / 30.0f);
+
+    EXPECT_GT(meanSquaredPairDistance(solver), before);
+    for (const auto& particle : solver.particles()) {
+        EXPECT_TRUE(std::isfinite(particle.x));
+        EXPECT_TRUE(std::isfinite(particle.y));
+    }
 }
 
 TEST(LiquidInflowTest, OccupiedOpeningRejectsOverlappingParticles)
@@ -467,7 +600,91 @@ TEST(LiquidSurfaceTest, ExtractionIsDeterministicAndProducesAllLanes)
     expectSameSurfaceSnapshot(a, b);
 }
 
-TEST(LiquidSurfaceTest, LargeInputLodSamplingMatchesExplicitlySampledInput)
+TEST(LiquidSurfaceTest, SnapshotIntoReusesOutputCapacityAndMatchesValueApi)
+{
+    NamedVector<LiquidSurfaceSample2D> samples{
+        ContainerName{"Test.ReusedLiquidSurfaceSamples"}};
+    for (int y = 0; y < 8; ++y) {
+        for (int x = 0; x < 12; ++x) {
+            LiquidSurfaceSample2D sample;
+            sample.x = 24.0f + static_cast<float>(x) * 6.0f;
+            sample.y = 48.0f + static_cast<float>(y) * 6.0f;
+            sample.size = 9.0f;
+            sample.vx = x == 5 ? 18.0f : 1.0f;
+            sample.foamBias = 0.7f;
+            samples.push_back(sample);
+        }
+    }
+
+    LiquidSurfaceSnapshot2D reused;
+    LiquidSurfaceWorkspace2D workspace;
+    LiquidSolver2D::buildSurfaceSnapshotInto(samples, reused, workspace);
+    ASSERT_FALSE(reused.triangles.empty());
+    ASSERT_FALSE(reused.contourSegments.empty());
+    const auto triangleCapacity = reused.triangles.capacity();
+    const auto contourCapacity = reused.contourSegments.capacity();
+    const auto foamCapacity = reused.foamPoints.capacity();
+    const auto validSampleCapacity = workspace.validSamples.capacity();
+    const auto expected = LiquidSolver2D::buildSurfaceSnapshot(samples);
+
+    LiquidSolver2D::buildSurfaceSnapshotInto(samples, reused, workspace);
+
+    expectSameSurfaceSnapshot(expected, reused);
+    EXPECT_EQ(reused.triangles.capacity(), triangleCapacity);
+    EXPECT_EQ(reused.contourSegments.capacity(), contourCapacity);
+    EXPECT_EQ(reused.foamPoints.capacity(), foamCapacity);
+    EXPECT_EQ(workspace.validSamples.capacity(), validSampleCapacity);
+}
+
+TEST(LiquidSurfaceTest, TriangleVerticesRetainDensityForDepthShading)
+{
+    LiquidSurfaceSample2D sample;
+    sample.x = 32.0f;
+    sample.y = 32.0f;
+    sample.size = 8.0f;
+    const auto snapshot = LiquidSolver2D::buildSurfaceSnapshot(
+        NamedVector<LiquidSurfaceSample2D>{
+            ContainerName{"Test.LiquidCoverageShadingSamples"}, {sample}});
+
+    ASSERT_FALSE(snapshot.triangles.empty());
+    float minimumCoverage = std::numeric_limits<float>::max();
+    float maximumCoverage = std::numeric_limits<float>::lowest();
+    for (const auto& triangle : snapshot.triangles) {
+        for (const float coverage : {triangle.coverageA, triangle.coverageB,
+                                     triangle.coverageC}) {
+            EXPECT_TRUE(std::isfinite(coverage));
+            EXPECT_GE(coverage, 0.34f);
+            minimumCoverage = std::min(minimumCoverage, coverage);
+            maximumCoverage = std::max(maximumCoverage, coverage);
+        }
+    }
+    EXPECT_NEAR(minimumCoverage, 0.34f, 1.0e-5f)
+        << "the reconstructed edge should retain the density threshold";
+    EXPECT_GT(maximumCoverage, minimumCoverage + 0.2f)
+        << "interior coverage should be available to the renderer as a smooth depth cue";
+}
+
+TEST(LiquidSurfaceTest, FoamPointsRetainVelocityForDirectionalRendering)
+{
+    NamedVector<LiquidSurfaceSample2D> samples{
+        ContainerName{"Test.DirectionalLiquidFoamSamples"}};
+    LiquidSurfaceSample2D sample;
+    sample.x = 12.0f;
+    sample.y = 24.0f;
+    sample.size = 8.0f;
+    sample.vx = 0.0f;
+    sample.vy = 40.0f;
+    sample.foamBias = 1.0f;
+    samples.push_back(sample);
+
+    const auto snapshot = LiquidSolver2D::buildSurfaceSnapshot(samples, 4096);
+
+    ASSERT_EQ(snapshot.foamPoints.size(), 1u);
+    EXPECT_FLOAT_EQ(snapshot.foamPoints[0].vx, 0.0f);
+    EXPECT_FLOAT_EQ(snapshot.foamPoints[0].vy, 40.0f);
+}
+
+TEST(LiquidSurfaceTest, LargeInputLodSamplingMatchesEquivalentSurfaceDensity)
 {
     NamedVector<LiquidSurfaceSample2D> denseSamples{
         ContainerName{"Test.LargeLiquidSurfaceSamples"}};
@@ -481,7 +698,13 @@ TEST(LiquidSurfaceTest, LargeInputLodSamplingMatchesExplicitlySampledInput)
         sample.vx = (i % 128) == 0 ? 40.0f : 0.0f;
         sample.foamBias = 0.5f;
         denseSamples.push_back(sample);
-        if ((i % 2) == 0) explicitlySampled.push_back(sample);
+        if ((i % 2) == 0) {
+            // The LOD path widens each retained sample by sqrt(stride) to
+            // preserve approximate 2D sample coverage. Model that same
+            // coverage in the explicit reference input.
+            sample.size *= std::sqrt(2.0f);
+            explicitlySampled.push_back(sample);
+        }
     }
 
     const auto lodSnapshot =
@@ -490,7 +713,31 @@ TEST(LiquidSurfaceTest, LargeInputLodSamplingMatchesExplicitlySampledInput)
         LiquidSolver2D::buildSurfaceSnapshot(explicitlySampled, 65536);
 
     EXPECT_FALSE(lodSnapshot.triangles.empty());
-    expectSameSurfaceSnapshot(lodSnapshot, explicitSnapshot);
+    ASSERT_EQ(lodSnapshot.triangles.size(), explicitSnapshot.triangles.size());
+    for (std::size_t i = 0; i < lodSnapshot.triangles.size(); ++i) {
+        const auto& actual = lodSnapshot.triangles[i];
+        const auto& expected = explicitSnapshot.triangles[i];
+        EXPECT_FLOAT_EQ(actual.a.x, expected.a.x);
+        EXPECT_FLOAT_EQ(actual.a.y, expected.a.y);
+        EXPECT_FLOAT_EQ(actual.b.x, expected.b.x);
+        EXPECT_FLOAT_EQ(actual.b.y, expected.b.y);
+        EXPECT_FLOAT_EQ(actual.c.x, expected.c.x);
+        EXPECT_FLOAT_EQ(actual.c.y, expected.c.y);
+        EXPECT_FLOAT_EQ(actual.thickness, expected.thickness);
+        EXPECT_FLOAT_EQ(actual.coverageA, expected.coverageA);
+        EXPECT_FLOAT_EQ(actual.coverageB, expected.coverageB);
+        EXPECT_FLOAT_EQ(actual.coverageC, expected.coverageC);
+    }
+    ASSERT_EQ(lodSnapshot.contourSegments.size(),
+              explicitSnapshot.contourSegments.size());
+    for (std::size_t i = 0; i < lodSnapshot.contourSegments.size(); ++i) {
+        const auto& actual = lodSnapshot.contourSegments[i];
+        const auto& expected = explicitSnapshot.contourSegments[i];
+        EXPECT_FLOAT_EQ(actual.a.x, expected.a.x);
+        EXPECT_FLOAT_EQ(actual.a.y, expected.a.y);
+        EXPECT_FLOAT_EQ(actual.b.x, expected.b.x);
+        EXPECT_FLOAT_EQ(actual.b.y, expected.b.y);
+    }
 }
 
 TEST(LiquidSurfaceTest, SamplingStrideIncreasesImmediatelyAboveInputBudget)
@@ -532,6 +779,9 @@ TEST(LiquidSurfaceTest, SamplingStrideIncreasesImmediatelyAboveInputBudget)
         EXPECT_NEAR(actual.c.x, expected.c.x, 1.0e-4f);
         EXPECT_NEAR(actual.c.y, expected.c.y, 1.0e-4f);
         EXPECT_NEAR(actual.thickness, expected.thickness, 1.0e-4f);
+        EXPECT_NEAR(actual.coverageA, expected.coverageA, 1.0e-4f);
+        EXPECT_NEAR(actual.coverageB, expected.coverageB, 1.0e-4f);
+        EXPECT_NEAR(actual.coverageC, expected.coverageC, 1.0e-4f);
     }
     ASSERT_EQ(lodSnapshot.contourSegments.size(),
               explicitSnapshot.contourSegments.size());
@@ -620,6 +870,48 @@ TEST(LiquidSurfaceTest, CollisionImpactCanCreateFoamAfterMotionSlows)
                 {impactSample}});
 
     EXPECT_FALSE(snapshot.foamPoints.empty());
+}
+
+TEST(LiquidSurfaceTest, FoamOffsetMovesFoamWithoutMovingLiquidSurface)
+{
+    LiquidSurfaceSample2D sample;
+    sample.x = 32.0f;
+    sample.y = 32.0f;
+    sample.size = 8.0f;
+    sample.vx = 40.0f;
+    sample.foamBias = 1.0f;
+    const auto sourceSnapshot = LiquidSolver2D::buildSurfaceSnapshot(
+        NamedVector<LiquidSurfaceSample2D>{
+            ContainerName{"Test.LiquidFoamProjectionSource"}, {sample}});
+
+    sample.foamOffsetY = 12.0f;
+    const auto projectedSnapshot = LiquidSolver2D::buildSurfaceSnapshot(
+        NamedVector<LiquidSurfaceSample2D>{
+            ContainerName{"Test.LiquidFoamProjectionTarget"}, {sample}});
+
+    ASSERT_FALSE(sourceSnapshot.foamPoints.empty());
+    ASSERT_EQ(sourceSnapshot.foamPoints.size(),
+              projectedSnapshot.foamPoints.size());
+    EXPECT_FLOAT_EQ(projectedSnapshot.foamPoints[0].position.x,
+                    sourceSnapshot.foamPoints[0].position.x);
+    EXPECT_FLOAT_EQ(projectedSnapshot.foamPoints[0].position.y,
+                    sourceSnapshot.foamPoints[0].position.y + 12.0f);
+    ASSERT_EQ(sourceSnapshot.triangles.size(),
+              projectedSnapshot.triangles.size());
+    for (std::size_t i = 0; i < sourceSnapshot.triangles.size(); ++i) {
+        EXPECT_FLOAT_EQ(sourceSnapshot.triangles[i].a.x,
+                        projectedSnapshot.triangles[i].a.x);
+        EXPECT_FLOAT_EQ(sourceSnapshot.triangles[i].a.y,
+                        projectedSnapshot.triangles[i].a.y);
+        EXPECT_FLOAT_EQ(sourceSnapshot.triangles[i].b.x,
+                        projectedSnapshot.triangles[i].b.x);
+        EXPECT_FLOAT_EQ(sourceSnapshot.triangles[i].b.y,
+                        projectedSnapshot.triangles[i].b.y);
+        EXPECT_FLOAT_EQ(sourceSnapshot.triangles[i].c.x,
+                        projectedSnapshot.triangles[i].c.x);
+        EXPECT_FLOAT_EQ(sourceSnapshot.triangles[i].c.y,
+                        projectedSnapshot.triangles[i].c.y);
+    }
 }
 
 TEST(SandSimDeterminismTest, DefaultSeedIsDeterministicAcrossInstances)

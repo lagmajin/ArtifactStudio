@@ -1,12 +1,24 @@
 #include <gtest/gtest.h>
 
+#include <QColor>
+#include <QDir>
+#include <QFileInfo>
+#include <QImage>
 #include <QString>
 
+#include <algorithm>
 #include <cmath>
 
+#include "DiligentHeadlessRenderer.hpp"
+
 import Artifact.Layer.PhysicsBridge;
+import Artifact.Layer.Shape;
+import Artifact.Render.CompositionViewDrawing;
+import Color.Float;
+import Property.Abstract;
+import Property.Group;
 import Physics.Fluid;
-import Physics.MpmSolver2D;
+import Physics.Mpm2D;
 import Physics.SoftBody;
 import Physics.System;
 import Utils.Id;
@@ -75,6 +87,415 @@ TEST(PhysicsLodBridgeContractTest, FractureScalesFollowPhysicsLodPreset)
     const auto restoredFullScale = Artifact::LayerPhysicsBridge::fractureLodScale();
     EXPECT_FLOAT_EQ(restoredFullScale.shards, 1.0f);
     EXPECT_FLOAT_EQ(restoredFullScale.debris, 1.0f);
+}
+
+TEST(PhysicsLodBridgeContractTest,
+     FluidAndLiquidSettingsAreExposedInTheComponentsSurface)
+{
+    Artifact::ArtifactShapeLayer layer;
+    const auto groups = layer.getComponentPropertyGroups();
+    const auto findGroup = [&groups](const QString& name)
+        -> const PropertyGroup* {
+        const auto it = std::find_if(
+            groups.begin(), groups.end(), [&name](const PropertyGroup& group) {
+                return group.name() == name;
+            });
+        return it == groups.end() ? nullptr : &*it;
+    };
+
+    const PropertyGroup* fluid = findGroup(QStringLiteral("Fluid"));
+    const PropertyGroup* liquid = findGroup(QStringLiteral("Liquid"));
+    ASSERT_NE(fluid, nullptr);
+    ASSERT_NE(liquid, nullptr);
+    EXPECT_EQ(fluid->propertyCount(), 8U);
+    EXPECT_EQ(liquid->propertyCount(), 18U);
+
+    const auto expectProperty = [](const PropertyGroup* group,
+                                   const QString& path,
+                                   const PropertyType expectedType) {
+        const auto property = group->findProperty(path);
+        ASSERT_TRUE(property) << path.toStdString();
+        EXPECT_EQ(property->getType(), expectedType);
+    };
+    expectProperty(fluid, QStringLiteral("component.fluid.mode"),
+                   PropertyType::Integer);
+    expectProperty(fluid, QStringLiteral("component.fluid.gridWidth"),
+                   PropertyType::Integer);
+    expectProperty(fluid, QStringLiteral("component.fluid.viscosity"),
+                   PropertyType::Float);
+    expectProperty(liquid,
+                   QStringLiteral("component.fluid.liquidFillAmount"),
+                   PropertyType::Float);
+    expectProperty(liquid,
+                   QStringLiteral("component.fluid.liquidSurfaceTension"),
+                   PropertyType::Float);
+    expectProperty(liquid, QStringLiteral("component.fluid.liquidColor"),
+                   PropertyType::Color);
+    expectProperty(liquid,
+                   QStringLiteral("component.fluid.liquidFoamColor"),
+                   PropertyType::Color);
+
+    const QColor coffeeColor(102, 61, 31, 255);
+    const QColor cremaColor(224, 194, 151, 220);
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.mode"), 1));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.liquidColor"), coffeeColor));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.liquidFoamColor"), cremaColor));
+    const auto updatedGroups = layer.getComponentPropertyGroups();
+    const auto liquidGroup = std::find_if(
+        updatedGroups.begin(), updatedGroups.end(), [](const PropertyGroup& group) {
+            return group.name() == QStringLiteral("Liquid");
+        });
+    ASSERT_NE(liquidGroup, updatedGroups.end());
+    const auto updatedMode = fluid->findProperty(
+        QStringLiteral("component.fluid.mode"));
+    ASSERT_TRUE(updatedMode);
+    EXPECT_EQ(updatedMode->getValue().toInt(), 1)
+        << "the cached Component property should refresh after editing";
+    const auto updatedLiquidColor = liquidGroup->findProperty(
+        QStringLiteral("component.fluid.liquidColor"));
+    ASSERT_TRUE(updatedLiquidColor);
+    EXPECT_EQ(updatedLiquidColor->getColorValue(), coffeeColor);
+
+    const auto updatedFluidGroup = std::find_if(
+        updatedGroups.begin(), updatedGroups.end(), [](const PropertyGroup& group) {
+            return group.name() == QStringLiteral("Fluid");
+        });
+    ASSERT_NE(updatedFluidGroup, updatedGroups.end());
+    const auto updatedModeValue = updatedFluidGroup->findProperty(
+        QStringLiteral("component.fluid.mode"));
+    ASSERT_TRUE(updatedModeValue);
+    EXPECT_EQ(updatedModeValue->getValue().toInt(), 1);
+}
+
+TEST(PhysicsLodBridgeContractTest,
+     LiquidLayerRendersAndWritesCoffeeColoredPngCapture)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(320, 320)) {
+        GTEST_SKIP() << "No supported Diligent headless device is available";
+    }
+    renderer.setCanvasSize(320.0f, 320.0f);
+    renderer.setViewportRect(320.0f, 320.0f);
+    renderer.setPan(0.0f, 0.0f);
+    renderer.setZoom(1.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(
+        0.035f, 0.045f, 0.060f, 1.0f));
+
+    Artifact::ArtifactShapeLayer layer;
+    layer.setSize(220, 220);
+    layer.setFillEnabled(false);
+    layer.setStrokeEnabled(false);
+    const QColor coffeeColor(102, 61, 31, 255);
+    const QColor cremaColor(224, 194, 151, 220);
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.mode"), 1));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.liquidFillAmount"), 0.62));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.liquidColor"), coffeeColor));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.liquidFoamColor"), cremaColor));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.liquidInflowRate"), 24.0));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.liquidInflowSpeed"), 1.2));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.liquidFoamAmount"), 0.35));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.liquidSurfaceOpacity"), 1.0));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.liquidEdgeOpacity"), 0.42));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.enabled"), true));
+
+    const auto captureFrame = [&](std::int64_t frame,
+                                  float rotationDegrees = 0.0f) {
+        layer.goToFrame(frame);
+        layer.transform3D().setPosition(
+            ArtifactCore::RationalTime(frame, 30), 50.0f, 50.0f);
+        layer.transform3D().setRotation(
+            ArtifactCore::RationalTime(frame, 30), rotationDegrees);
+        renderer.clear();
+        Artifact::drawLayerForCompositionView(&layer, &renderer);
+        renderer.flushAndWait();
+        return renderer.readbackToImage();
+    };
+    const QImage initialCapture = captureFrame(0);
+    ASSERT_FALSE(initialCapture.isNull());
+    const QImage capture = captureFrame(12);
+    ASSERT_FALSE(capture.isNull());
+    ASSERT_EQ(capture.size(), initialCapture.size());
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.liquidFoamAmount"), 0.0));
+    const QImage noFoamCapture = captureFrame(12);
+    ASSERT_FALSE(noFoamCapture.isNull());
+    ASSERT_EQ(noFoamCapture.size(), capture.size());
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.liquidFillAmount"), 0.35));
+    const QImage lowerFillCapture = captureFrame(12);
+    ASSERT_FALSE(lowerFillCapture.isNull());
+    ASSERT_EQ(lowerFillCapture.size(), capture.size());
+    const QImage rotatedLowerFillCapture = captureFrame(12, 25.0f);
+    ASSERT_FALSE(rotatedLowerFillCapture.isNull());
+    ASSERT_EQ(rotatedLowerFillCapture.size(), capture.size());
+    const QColor waterColor(36, 112, 166, 255);
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.liquidColor"), waterColor));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.liquidFoamColor"),
+        QColor(192, 224, 239, 220)));
+    ASSERT_TRUE(layer.setLayerPropertyValue(
+        QStringLiteral("component.fluid.liquidFillAmount"), 0.62));
+    const QImage waterCapture = captureFrame(12);
+    ASSERT_FALSE(waterCapture.isNull());
+    ASSERT_EQ(waterCapture.size(), capture.size());
+
+    int coffeePixels = 0;
+    int coffeeStreamPixels = 0;
+    int foamContributionPixels = 0;
+    int settledSurfaceFoamPixels = 0;
+    int foamMinimumX = capture.width();
+    int foamMaximumX = -1;
+    int foamMinimumY = capture.height();
+    int foamMaximumY = -1;
+    int coffeeCorePixels = 0;
+    int coffeeRedSum = 0;
+    int coffeeGreenSum = 0;
+    int coffeeBlueSum = 0;
+    int coffeeMinX = capture.width();
+    int coffeeMaxX = -1;
+    int coffeeMaxY = -1;
+    int outsideContainerPixels = 0;
+    int changedPixels = 0;
+    int darkestSurface = 255;
+    int brightestSurface = 0;
+    for (int y = 0; y < capture.height(); ++y) {
+        for (int x = 0; x < capture.width(); ++x) {
+            const QRgb pixel = capture.pixel(x, y);
+            if ((x < 48 || x > 271 || y > 272) && y >= 100) {
+                const QRgb background = capture.pixel(10, 160);
+                if (std::abs(qRed(pixel) - qRed(background)) > 12 ||
+                    std::abs(qGreen(pixel) - qGreen(background)) > 12 ||
+                    std::abs(qBlue(pixel) - qBlue(background)) > 12) {
+                    ++outsideContainerPixels;
+                }
+            }
+            if (qAlpha(pixel) > 16 && qRed(pixel) > qGreen(pixel) + 12 &&
+                qGreen(pixel) > qBlue(pixel) + 12) {
+                ++coffeePixels;
+                coffeeMinX = std::min(coffeeMinX, x);
+                coffeeMaxX = std::max(coffeeMaxX, x);
+                coffeeMaxY = std::max(coffeeMaxY, y);
+                if (y < 120 &&
+                    std::abs(x - capture.width() / 2) < 40) {
+                    ++coffeeStreamPixels;
+                }
+                if (qRed(pixel) < 145 && qGreen(pixel) < 110 &&
+                    qBlue(pixel) < 85) {
+                    ++coffeeCorePixels;
+                    coffeeRedSum += qRed(pixel);
+                    coffeeGreenSum += qGreen(pixel);
+                    coffeeBlueSum += qBlue(pixel);
+                }
+            }
+            if (qAlpha(pixel) > 16 && qRed(pixel) > qGreen(pixel) + 4 &&
+                qGreen(pixel) > qBlue(pixel) + 4) {
+                const int luminance =
+                    (qRed(pixel) * 3 + qGreen(pixel) * 6 + qBlue(pixel)) / 10;
+                darkestSurface = std::min(darkestSurface, luminance);
+                brightestSurface = std::max(brightestSurface, luminance);
+            }
+            const QRgb initialPixel = initialCapture.pixel(x, y);
+            if (std::abs(qRed(pixel) - qRed(initialPixel)) > 2 ||
+                std::abs(qGreen(pixel) - qGreen(initialPixel)) > 2 ||
+                std::abs(qBlue(pixel) - qBlue(initialPixel)) > 2 ||
+                std::abs(qAlpha(pixel) - qAlpha(initialPixel)) > 2) {
+                ++changedPixels;
+            }
+            const QRgb noFoamPixel = noFoamCapture.pixel(x, y);
+            if (std::abs(qRed(pixel) - qRed(noFoamPixel)) > 3 ||
+                std::abs(qGreen(pixel) - qGreen(noFoamPixel)) > 3 ||
+                std::abs(qBlue(pixel) - qBlue(noFoamPixel)) > 3) {
+                ++foamContributionPixels;
+                foamMinimumX = std::min(foamMinimumX, x);
+                foamMaximumX = std::max(foamMaximumX, x);
+                foamMinimumY = std::min(foamMinimumY, y);
+                foamMaximumY = std::max(foamMaximumY, y);
+                if (std::abs(y - capture.height() / 2) <
+                        capture.height() * 0.06 &&
+                    x > capture.width() / 5 &&
+                    x < capture.width() * 4 / 5) {
+                    ++settledSurfaceFoamPixels;
+                }
+            }
+        }
+    }
+    EXPECT_GT(coffeePixels, 0)
+        << "the rendered layer should contain pixels tinted by liquidColor";
+    EXPECT_GT(coffeeMinX, 20)
+        << "the liquid capture should leave a visible left margin";
+    EXPECT_LT(coffeeMaxX, capture.width() - 20)
+        << "the liquid capture should leave a visible right margin";
+    EXPECT_GE(coffeeMinX, 49)
+        << "the reconstructed liquid must stay inside the left container wall";
+    EXPECT_LE(coffeeMaxX, 270)
+        << "the reconstructed liquid must stay inside the right container wall";
+    EXPECT_LE(coffeeMaxY, 271)
+        << "the reconstructed liquid must stay above the closed container bottom";
+    EXPECT_LE(outsideContainerPixels, 4)
+        << "liquid surface and contour pixels must stay inside the container walls";
+    EXPECT_GT(coffeeStreamPixels, 100)
+        << "the configured inflow should render above the settled liquid surface";
+    EXPECT_GT(foamContributionPixels, 50)
+        << "the rendered foam should change pixels independently of surface shading";
+    EXPECT_GT(settledSurfaceFoamPixels, 30)
+        << "non-zero foam should leave a visible crema band on settled liquid";
+    EXPECT_GT(foamMaximumX - foamMinimumX, foamMaximumY - foamMinimumY)
+        << "foam over a downward stream should spread sideways along the liquid surface";
+    ASSERT_GT(coffeeCorePixels, 0)
+        << "the liquid color should remain visible beneath the highlights";
+    EXPECT_LT(std::abs(coffeeRedSum / coffeeCorePixels - coffeeColor.red()), 35);
+    EXPECT_LT(std::abs(coffeeGreenSum / coffeeCorePixels - coffeeColor.green()), 30);
+    EXPECT_LT(std::abs(coffeeBlueSum / coffeeCorePixels - coffeeColor.blue()), 25);
+    EXPECT_GT(brightestSurface - darkestSurface, 18)
+        << "the liquid surface should contain visible shading variation";
+    const auto luminance = [](QRgb pixel) {
+        return (qRed(pixel) * 3 + qGreen(pixel) * 6 + qBlue(pixel)) / 10;
+    };
+    const int contactReflectionLuminance = luminance(
+        noFoamCapture.pixel(noFoamCapture.width() / 2,
+                            noFoamCapture.height() / 2 + 10));
+    const int lateralPoolLuminance = luminance(
+        noFoamCapture.pixel(noFoamCapture.width() / 4,
+                            noFoamCapture.height() / 2 + 10));
+    EXPECT_GT(contactReflectionLuminance, lateralPoolLuminance + 6)
+        << "the liquid should keep a broad contact reflection when foam is disabled";
+    const auto poolSurfaceY = [](const QImage& image) {
+        const int x = image.width() / 3;
+        for (int y = image.height() / 4; y < image.height() * 3 / 4; ++y) {
+            const QRgb pixel = image.pixel(x, y);
+            if (qAlpha(pixel) > 16 && qRed(pixel) > qGreen(pixel) + 12 &&
+                qGreen(pixel) > qBlue(pixel) + 12) {
+                return y;
+            }
+        }
+        return -1;
+    };
+    const int fullFillSurfaceY = poolSurfaceY(noFoamCapture);
+    const int lowerFillSurfaceY = poolSurfaceY(lowerFillCapture);
+    ASSERT_GE(fullFillSurfaceY, 0)
+        << "the default fill should have a detectable liquid edge";
+    ASSERT_GE(lowerFillSurfaceY, 0)
+        << "the reduced fill should have a detectable liquid edge";
+    int waterSurfaceY = -1;
+    for (int y = waterCapture.height() / 4;
+         y < waterCapture.height() * 3 / 4; ++y) {
+        const QRgb pixel = waterCapture.pixel(waterCapture.width() / 3, y);
+        if (qAlpha(pixel) > 16 && qBlue(pixel) > qGreen(pixel) + 12 &&
+            qGreen(pixel) > qRed(pixel) + 12) {
+            waterSurfaceY = y;
+            break;
+        }
+    }
+    ASSERT_GE(waterSurfaceY, 0)
+        << "the water capture should have a detectable pool surface";
+    EXPECT_LT(std::abs(waterSurfaceY - fullFillSurfaceY), 15)
+        << "changing liquid color should preserve the configured fill height";
+    EXPECT_GT(lowerFillSurfaceY, fullFillSurfaceY + 20)
+        << "the rendered liquid surface should follow the configured fill amount";
+    const int lowerFillContactReflectionLuminance = luminance(
+        lowerFillCapture.pixel(lowerFillCapture.width() / 2,
+                               lowerFillSurfaceY + 10));
+    const int lowerFillLateralPoolLuminance = luminance(
+        lowerFillCapture.pixel(lowerFillCapture.width() / 4,
+                               lowerFillSurfaceY + 10));
+    EXPECT_GT(lowerFillContactReflectionLuminance,
+              lowerFillLateralPoolLuminance + 8)
+        << "the contact reflection should follow the reduced liquid surface";
+    int rotatedCoffeePixels = 0;
+    int rotatedDarkestSurface = 255;
+    int rotatedBrightestSurface = 0;
+    for (int y = 0; y < rotatedLowerFillCapture.height(); ++y) {
+        for (int x = 0; x < rotatedLowerFillCapture.width(); ++x) {
+            const QRgb pixel = rotatedLowerFillCapture.pixel(x, y);
+            if (qAlpha(pixel) > 16 && qRed(pixel) > qGreen(pixel) + 4 &&
+                qGreen(pixel) > qBlue(pixel) + 4) {
+                ++rotatedCoffeePixels;
+                const int pixelLuminance = luminance(pixel);
+                rotatedDarkestSurface =
+                    std::min(rotatedDarkestSurface, pixelLuminance);
+                rotatedBrightestSurface =
+                    std::max(rotatedBrightestSurface, pixelLuminance);
+            }
+        }
+    }
+    EXPECT_GT(rotatedCoffeePixels, 100)
+        << "rotating the liquid layer should preserve its rendered surface";
+    EXPECT_GT(rotatedBrightestSurface - rotatedDarkestSurface, 18)
+        << "rotated liquid shading should retain visible tonal variation";
+    int waterPixels = 0;
+    int waterRedSum = 0;
+    int waterGreenSum = 0;
+    int waterBlueSum = 0;
+    for (int y = 0; y < waterCapture.height(); ++y) {
+        for (int x = 0; x < waterCapture.width(); ++x) {
+            const QRgb pixel = waterCapture.pixel(x, y);
+            if (qAlpha(pixel) > 16 && qGreen(pixel) > qRed(pixel) + 12 &&
+                qBlue(pixel) > qGreen(pixel) + 12 && qBlue(pixel) < 220) {
+                ++waterPixels;
+                waterRedSum += qRed(pixel);
+                waterGreenSum += qGreen(pixel);
+                waterBlueSum += qBlue(pixel);
+            }
+        }
+    }
+    ASSERT_GT(waterPixels, 100)
+        << "the same liquid surface path should render water colors";
+    EXPECT_LT(std::abs(waterRedSum / waterPixels - waterColor.red()), 45);
+    EXPECT_LT(std::abs(waterGreenSum / waterPixels - waterColor.green()), 45);
+    EXPECT_LT(std::abs(waterBlueSum / waterPixels - waterColor.blue()), 45);
+    EXPECT_GT(changedPixels, 1000)
+        << "the liquid should visibly change between frame 0 and frame 12";
+
+    QString captureDirectory = qEnvironmentVariable(
+        "ARTIFACT_FLUID_CAPTURE_DIR");
+    if (captureDirectory.isEmpty()) {
+        captureDirectory = QDir::tempPath() +
+                           QStringLiteral("/ArtifactStudioFluidCapture");
+    }
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const QString initialCapturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("liquid-coffee-frame-00.png"));
+    ASSERT_TRUE(initialCapture.save(initialCapturePath, "PNG"))
+        << initialCapturePath.toStdString();
+    const QString capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("liquid-coffee-frame-12.png"));
+    ASSERT_TRUE(capture.save(capturePath, "PNG")) << capturePath.toStdString();
+    const QString noFoamCapturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("liquid-coffee-frame-12-no-foam.png"));
+    ASSERT_TRUE(noFoamCapture.save(noFoamCapturePath, "PNG"))
+        << noFoamCapturePath.toStdString();
+    const QString lowerFillCapturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("liquid-coffee-frame-12-lower-fill.png"));
+    ASSERT_TRUE(lowerFillCapture.save(lowerFillCapturePath, "PNG"))
+        << lowerFillCapturePath.toStdString();
+    const QString rotatedLowerFillCapturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("liquid-coffee-frame-12-lower-fill-rotated.png"));
+    ASSERT_TRUE(rotatedLowerFillCapture.save(rotatedLowerFillCapturePath, "PNG"))
+        << rotatedLowerFillCapturePath.toStdString();
+    const QString waterCapturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("liquid-water-frame-12.png"));
+    ASSERT_TRUE(waterCapture.save(waterCapturePath, "PNG"))
+        << waterCapturePath.toStdString();
+    EXPECT_GT(QFileInfo(capturePath).size(), 0);
+    SUCCEED() << "PNG capture: " << capturePath.toStdString()
+              << "; coffee-colored pixels: " << coffeePixels
+              << "; surface luminance span: "
+              << brightestSurface - darkestSurface
+              << "; pixels changed since frame 0: " << changedPixels;
 }
 
 TEST(PhysicsLodBridgeContractTest, ExplicitFractureScalesPassThroughTheBridge)

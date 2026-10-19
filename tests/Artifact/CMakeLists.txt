@@ -117,6 +117,8 @@ artifact_add_test(ArtifactPhysicsLodBridgeContractTest
         ArtifactAppRuntime
 )
 set_tests_properties(ArtifactPhysicsLodBridgeContractTest PROPERTIES
+    ENVIRONMENT_MODIFICATION
+        "PATH=path_list_prepend:${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
     LABELS "physics;lod;fracture;cpu;contract"
 )
 
