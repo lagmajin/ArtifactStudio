@@ -267,6 +267,11 @@ set(ARTIFACT_DEPLOY_DIR "" CACHE PATH "Optional output directory for copying Art
 option(ARTIFACT_USE_SCCACHE "Use sccache compiler launcher when available" ON)
 option(ARTIFACT_ENABLE_SYCL "Enable Intel oneAPI DPC++/SYCL build flags" OFF)
 option(ARTIFACT_BUILD_PR "Build the ArtifactPr NLE application" OFF)
+option(ARTIFACT_BUILD_PR_STANDALONE_TESTS
+    "Build standalone ArtifactPr workspace contract tests" OFF)
+if(ARTIFACT_BUILD_PR_STANDALONE_TESTS)
+    enable_testing()
+endif()
 
 if(ARTIFACT_USE_SCCACHE)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR
