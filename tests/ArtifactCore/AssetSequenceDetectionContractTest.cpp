@@ -20,6 +20,12 @@ using namespace ArtifactCore;
 
 namespace {
 
+bool writeFile(const QString& path, const QByteArray& contents)
+{
+    QFile file(path);
+    return file.open(QIODevice::WriteOnly) && file.write(contents) == contents.size();
+}
+
 std::vector<String> names(std::initializer_list<const char*> values)
 {
     std::vector<String> result;
@@ -117,10 +123,10 @@ TEST(AssetSequenceDetectionContractTest, SeparatesGroupsByPrefixSuffixAndPadding
         "a_01.exr", "a_02.exr", "b_01.png", "b_02.png"}));
 
     ASSERT_EQ(result.sequences.size(), 4u);
-    EXPECT_EQ(result.sequences[0].padding, 1);
+    EXPECT_EQ(result.sequences[0].padding, 2);
     EXPECT_EQ(toStdString(result.sequences[0].suffix), ".exr");
     EXPECT_EQ(toStdString(result.sequences[1].prefix), "a_");
-    EXPECT_EQ(result.sequences[1].padding, 1);
+    EXPECT_EQ(result.sequences[1].padding, 2);
     EXPECT_EQ(toStdString(result.sequences[1].suffix), ".png");
     EXPECT_EQ(result.sequences[2].padding, 3);
     EXPECT_EQ(result.sequences[3].prefix, String("b_"));

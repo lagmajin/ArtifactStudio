@@ -21,7 +21,7 @@ if(ARTIFACT_ENABLE_RAY_TRACING_TEST)
             DXCOMPILER_FOR_SPIRV YES)
     endif()
     set_tests_properties(ArtifactCoreRayTracingAcceptanceTest PROPERTIES
-        LABELS "renderer;gpu;ray-tracing;headless;acceptance;core"
+        LABELS "renderer;gpu;ray-tracing;headless;acceptance;lod;core"
         TIMEOUT 180
         RUN_SERIAL TRUE
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen;ARTIFACT_RENDER_BACKEND=vulkan;ARTIFACT_RT_FRAME_OUTPUT_DIR=${CMAKE_BINARY_DIR}/artifacts/ray-tracing-frames"
@@ -269,7 +269,7 @@ artifact_add_test(ArtifactCoreImageAnalyzerContractTest
     SOURCES
         ImageAnalyzerContractTest.cpp
     LIBS
-        ArtifactCore
+        ArtifactCoreAnalyze
 )
 set_tests_properties(ArtifactCoreImageAnalyzerContractTest PROPERTIES
     LABELS "image;analysis;cpu;contract"
@@ -367,7 +367,7 @@ artifact_add_test(ArtifactCoreAssetSequenceDetectionContractTest
     SOURCES
         AssetSequenceDetectionContractTest.cpp
     LIBS
-        ArtifactCore
+        ArtifactCoreAsset
 )
 set_tests_properties(ArtifactCoreAssetSequenceDetectionContractTest PROPERTIES
     LABELS "asset;sequence;cpu;contract"
@@ -461,7 +461,17 @@ artifact_add_test(ArtifactCorePhysicsDeterminismTest
         ArtifactCore
 )
 set_tests_properties(ArtifactCorePhysicsDeterminismTest PROPERTIES
-    LABELS "physics;cpu;contract"
+    LABELS "physics;cpu;contract;lod"
+)
+
+artifact_add_test(ArtifactCorePhysicsLodSettingsContractTest
+    SOURCES
+        PhysicsLodSettingsContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCorePhysicsLodSettingsContractTest PROPERTIES
+    LABELS "physics;lod;cpu;contract;core"
 )
 
 artifact_add_test(ArtifactCoreFracturePlaneImageTest
@@ -507,11 +517,39 @@ artifact_add_test(ArtifactCorePathTubeTrimTest
     LIBS
         ArtifactCore
 )
+artifact_add_test(ArtifactCoreProcedural3DQualityLodTest
+    SOURCES
+        Procedural3DQualityLodTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreProcedural3DQualityLodTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "procedural-3d;lod;mesh;cpu;contract;core"
+)
+artifact_add_test(ArtifactCorePreviewSettingsLodContractTest
+    SOURCES
+        PreviewSettingsLodContractTest.cpp
+    LIBS
+        ArtifactCorePreview
+)
+set_tests_properties(ArtifactCorePreviewSettingsLodContractTest PROPERTIES
+    LABELS "preview;lod;cpu;contract;core"
+)
 artifact_add_test(ArtifactCoreMeshGeometryTest
     SOURCES
         MeshGeometryTest.cpp
     LIBS
         ArtifactCore
+)
+artifact_add_test(ArtifactCoreMeshLodContractTest
+    SOURCES
+        MeshLodContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreMeshLodContractTest PROPERTIES
+    LABELS "mesh;lod;cpu;contract;core"
 )
 artifact_add_test(ArtifactCoreBezierArcLengthTest
     SOURCES
@@ -648,7 +686,7 @@ artifact_add_test(ArtifactCoreAcousticGenerationTest
 )
 set_tests_properties(ArtifactCoreAcousticGenerationTest PROPERTIES
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-    LABELS "audio;acoustic;cpu;generation"
+    LABELS "audio;acoustic;cpu;generation;lod"
 )
 
 artifact_add_test(ArtifactCoreProjectRoundTripTest
@@ -683,4 +721,24 @@ artifact_add_test(ArtifactCoreRenderGraphTest
 )
 set_tests_properties(ArtifactCoreRenderGraphTest PROPERTIES
     LABELS "graphics;render-graph;cpu;contract"
+)
+
+artifact_add_test(ArtifactCoreSoftBodyLodContractTest
+    SOURCES
+        SoftBodyLodContractTest.cpp
+    LIBS
+        ArtifactCore
+)
+set_tests_properties(ArtifactCoreSoftBodyLodContractTest PROPERTIES
+    LABELS "physics;soft-body;lod;cpu;contract;core"
+)
+
+artifact_add_test(ArtifactCoreBoidsDistanceLodContractTest
+    SOURCES
+        BoidsDistanceLodContractTest.cpp
+    LIBS
+        ArtifactCoreCrowd
+)
+set_tests_properties(ArtifactCoreBoidsDistanceLodContractTest PROPERTIES
+    LABELS "crowd;boids;lod;cpu;contract;core"
 )

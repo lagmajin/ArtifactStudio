@@ -28,7 +28,7 @@ import LevelsEffect;
 import Artifact.Effect.LiftGammaGain;
 import Math.Vec;
 import PhotoFilterEffect;
-import Render.PointwiseEffectFusion;
+import Artifact.Render.PointwiseEffectFusion;
 import SelectiveColorEffect;
 import ShadowHighlightEffect;
 import TritoneEffect;
@@ -56,6 +56,11 @@ void expectPixelNear(const ImageF32x4RGBAWithCache& surface, int x, int y,
     EXPECT_NEAR(actual.g(), expected.g(), tolerance);
     EXPECT_NEAR(actual.b(), expected.b(), tolerance);
     EXPECT_NEAR(actual.a(), expected.a(), tolerance);
+}
+
+FloatRGBA pixel(const ImageF32x4RGBAWithCache& surface, int x, int y)
+{
+    return surface.image().getPixel(x, y);
 }
 
 } // namespace
@@ -153,7 +158,7 @@ TEST(ColorCorrectionEffectContractTest, DisabledEffectsDeepCopyPixelsAndKeepColo
     EXPECT_EQ(colorBalanceOutput.image().colorDescriptor(), descriptor);
     EXPECT_EQ(levelsOutput.image().colorDescriptor(), descriptor);
 
-    vibranceOutput.image().setPixel(0, 0, FloatRGBA(0.0f, 0.0f, 0.0f, 0.0f));
+    invertOutput.image().setPixel(0, 0, FloatRGBA(0.0f, 0.0f, 0.0f, 0.0f));
     expectPixelNear(source, 0, 0, expected);
 }
 
@@ -210,9 +215,9 @@ TEST(ColorCorrectionEffectContractTest, CurvesInvertHandlesPremultipliedAndTrans
     const auto descriptor = SurfaceColorDescriptor::canonicalLinearPremultiplied();
     ImageF32x4_RGBA image;
     image.setFromRGBA32F(pixels, 2, 1, descriptor);
-    const ImageF32x4_RGBAWithCache source(image);
+    const ImageF32x4RGBAWithCache source(image);
     ImageF32x4RGBAWithCache output;
-    CurvesEffect effect;
+    Artifact::CurvesEffect effect;
     effect.setPreset(4);
 
     effect.applyCPUOnly(source, output);

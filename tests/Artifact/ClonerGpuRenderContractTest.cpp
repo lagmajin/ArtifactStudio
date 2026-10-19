@@ -30,6 +30,7 @@
 import Color.Float;
 import Graphics.ParticleData;
 import Image.ImageF32x4_RGBA;
+import Image.UploadConversion;
 import Artifact.Render.DiligentImmediateSubmitter;
 import Artifact.Render.ShaderManager;
 import Artifact.Render.Config;
@@ -1457,6 +1458,86 @@ TEST(ClonerGpuRenderContractTest,
         QDir(captureDirectory).filePath(
             QStringLiteral("artifact_renderer_deferred_video_reuse_second_%1.png")
                 .arg(backend)), "PNG"));
+}
+
+TEST(ClonerGpuRenderContractTest,
+     ArtifactRendererDrawsPinnedVideoUploadWithoutCpuImageReference)
+{
+    ArtifactTest::HeadlessRenderer renderer;
+    if (!renderer.initialize(128, 128)) {
+        GTEST_SKIP() << "Diligent headless renderer is unavailable on this host";
+    }
+    renderer.setCanvasSize(128.0f, 128.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+    const QUuid videoLayerId = QUuid::createUuid();
+
+    ArtifactCore::ImageF32x4_RGBA sourceFrame;
+    sourceFrame.resize(4, 4);
+    sourceFrame.fill(ArtifactCore::FloatRGBA(0.95f, 0.05f, 0.05f, 1.0f));
+    const auto preparedUpload = ArtifactCore::convertImageForUpload(
+        sourceFrame, ArtifactCore::ImageUploadTarget::Rgba8SrgbStraight);
+    ASSERT_TRUE(preparedUpload.isValid());
+
+    QMatrix4x4 identity;
+    identity.setToIdentity();
+    const auto drawTexture = [&](Diligent::ITextureView* texture) {
+        const ArtifactCore::FloatColor invisible(1.0f, 1.0f, 1.0f, 1.0f);
+        for (int index = 0; index < 15; ++index) {
+            renderer.drawSolidRect(
+                -40.0f - static_cast<float>(index) * 3.0f,
+                -40.0f, 2.0f, 2.0f, invisible);
+        }
+        renderer.drawSpriteTransformed(16.0f, 16.0f, 96.0f, 96.0f,
+                                       identity, texture, 1.0f);
+    };
+
+    renderer.clear();
+    auto* imageBackedTexture = renderer.textureForVideoFrame(
+        sourceFrame, videoLayerId, 1, &preparedUpload);
+    ASSERT_NE(imageBackedTexture, nullptr);
+    drawTexture(imageBackedTexture);
+    renderer.flushAndWait();
+    const auto imageBackedFrame = renderer.readbackToImageF32();
+
+    renderer.clear();
+    auto* pinnedUploadTexture = renderer.textureForVideoFrame(
+        preparedUpload.width, preparedUpload.height, videoLayerId, 1, 7,
+        preparedUpload, false);
+    ASSERT_NE(pinnedUploadTexture, nullptr);
+    drawTexture(pinnedUploadTexture);
+    ASSERT_TRUE(renderer.flushDeferredPacketsAsync())
+        << "the upload-only textured draw should record through Deferred";
+    renderer.flushAndWait();
+    const auto pinnedUploadFrame = renderer.readbackToImageF32();
+
+    ASSERT_EQ(pinnedUploadFrame.width(), imageBackedFrame.width());
+    ASSERT_EQ(pinnedUploadFrame.height(), imageBackedFrame.height());
+    float maximumChannelError = 0.0f;
+    for (int y = 0; y < pinnedUploadFrame.height(); ++y) {
+        for (int x = 0; x < pinnedUploadFrame.width(); ++x) {
+            const auto expected = imageBackedFrame.getPixel(x, y);
+            const auto actual = pinnedUploadFrame.getPixel(x, y);
+            maximumChannelError = std::max({
+                maximumChannelError,
+                std::abs(actual.r() - expected.r()),
+                std::abs(actual.g() - expected.g()),
+                std::abs(actual.b() - expected.b()),
+                std::abs(actual.a() - expected.a())});
+        }
+    }
+    EXPECT_LE(maximumChannelError, 1.0e-4f)
+        << "upload-only resolution must match the QObject-backed path";
+
+    const auto captureDirectory = QDir(QCoreApplication::applicationDirPath())
+                                      .filePath(QStringLiteral("cloner_gpu_render_captures"));
+    ASSERT_TRUE(QDir().mkpath(captureDirectory));
+    const auto backend = qEnvironmentVariable(
+        "ARTIFACT_RENDER_BACKEND", QStringLiteral("unknown"));
+    const auto capturePath = QDir(captureDirectory).filePath(
+        QStringLiteral("artifact_renderer_pinned_video_upload_%1.png")
+            .arg(backend));
+    ASSERT_TRUE(pinnedUploadFrame.toQImage().save(capturePath, "PNG"))
+        << capturePath.toStdString();
 }
 
 TEST(ClonerGpuRenderContractTest,

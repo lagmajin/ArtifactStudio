@@ -2,6 +2,8 @@
 #include <QMatrix4x4>
 #include <QVector2D>
 #include <QVector3D>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <cmath>
 #include <limits>
@@ -154,10 +156,10 @@ TEST(MathVecTest, PointConversionUsesQReal)
 
 TEST(MathVecTest, TaggedCompositionPointsAndVectorsRoundTripThroughQPointF)
 {
-    const CompositionPoint2 origin{12.5f, -3.25f};
-    const CompositionVector2 offset{2.0f, 4.5f};
-    const CompositionPoint2 translated = origin + offset;
-    const CompositionVector2 recovered = translated - origin;
+    const Coordinates::CompositionPoint2 origin{12.5f, -3.25f};
+    const Coordinates::CompositionVector2 offset{2.0f, 4.5f};
+    const Coordinates::CompositionPoint2 translated = origin + offset;
+    const Coordinates::CompositionVector2 recovered = translated - origin;
 
     EXPECT_FLOAT_EQ(translated.x, 14.5f);
     EXPECT_FLOAT_EQ(translated.y, 1.25f);
@@ -165,7 +167,8 @@ TEST(MathVecTest, TaggedCompositionPointsAndVectorsRoundTripThroughQPointF)
     EXPECT_FLOAT_EQ(recovered.y, offset.y);
 
     const QPointF qtPoint = toQPointF(translated);
-    const CompositionPoint2 roundTrip = compositionPointFromQPointF(qtPoint);
+    const Coordinates::CompositionPoint2 roundTrip =
+        Coordinates::compositionPointFromQPointF(qtPoint);
     EXPECT_FLOAT_EQ(roundTrip.x, translated.x);
     EXPECT_FLOAT_EQ(roundTrip.y, translated.y);
 }

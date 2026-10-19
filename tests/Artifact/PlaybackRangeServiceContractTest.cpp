@@ -386,3 +386,137 @@ TEST(PlaybackRangeServiceContractTest,
     EXPECT_FALSE(refreshedBitmap[2]);
     EXPECT_TRUE(refreshedBitmap[129]);
 }
+
+TEST(PlaybackRangeServiceContractTest,
+     CompositionPreviewCacheRecordsLODContractAndRejectsForeignComposition)
+{
+    Artifact::ArtifactPlaybackService playback;
+    PlaybackCleanup cleanup(playback);
+    playback.setRamPreviewEnabled(false);
+    playback.setDiskPreviewCacheEnabled(false);
+
+    Artifact::ArtifactCompositionInitParams params;
+    params.setDurationFrames(4);
+    const ArtifactCore::CompositionID compositionId(
+        QStringLiteral("preview-lod-contract"));
+    auto composition = ArtifactCore::makeShared<Artifact::ArtifactAbstractComposition>(
+        compositionId, params);
+    ASSERT_TRUE(composition);
+    composition->setFrameRange(ArtifactCore::FrameRange(0, 4));
+    playback.setCurrentComposition(composition);
+
+    ArtifactCore::ImageF32x4_RGBA image;
+    image.resize(1, 1);
+    image.setPixel(0, 0, ArtifactCore::FloatRGBA(0.2f, 0.4f, 0.8f, 1.0f));
+
+    EXPECT_FALSE(playback.storeCompositionPreviewFrameImage(
+        0, image, QStringLiteral("another-composition"),
+        4, 8, QStringLiteral("draft"), QStringLiteral("lod-contract"), false));
+    EXPECT_FALSE(playback.ramPreviewFrameState(0).imageAvailable);
+
+    ASSERT_TRUE(playback.storeCompositionPreviewFrameImage(
+        0, image, compositionId.toString(),
+        4, 8, QStringLiteral("draft"), QStringLiteral("lod-contract"), false));
+    const auto draftState = playback.ramPreviewFrameState(0);
+    EXPECT_TRUE(draftState.imageAvailable);
+    EXPECT_EQ(draftState.compositionId, compositionId.toString());
+    EXPECT_TRUE(draftState.reason.contains(QStringLiteral("previewDownsample=4")));
+    EXPECT_TRUE(draftState.reason.contains(QStringLiteral("effectiveDownsample=8")));
+    EXPECT_TRUE(draftState.reason.contains(QStringLiteral("path=draft")));
+
+    ASSERT_TRUE(playback.storeCompositionPreviewFrameImage(
+        1, image, compositionId.toString(),
+        1, 1, QStringLiteral("full"), QStringLiteral("lod-contract"), false));
+    EXPECT_FALSE(playback.ramPreviewFrameState(0).imageAvailable)
+        << "switching from Draft to Full must not leave the Draft frame reusable";
+    const auto fullState = playback.ramPreviewFrameState(1);
+    EXPECT_TRUE(fullState.imageAvailable);
+    EXPECT_TRUE(fullState.reason.contains(QStringLiteral("previewDownsample=1")));
+    EXPECT_TRUE(fullState.reason.contains(QStringLiteral("effectiveDownsample=1")));
+    EXPECT_TRUE(fullState.reason.contains(QStringLiteral("path=full")));
+
+    ASSERT_TRUE(playback.storeCompositionPreviewFrameImage(
+        2, image, compositionId.toString(),
+        4, 8, QStringLiteral("draft"), QStringLiteral("lod-contract"), false));
+    EXPECT_FALSE(playback.ramPreviewFrameState(1).imageAvailable)
+        << "switching from Full back to Draft must not leave the Full frame reusable";
+    const auto restoredDraftState = playback.ramPreviewFrameState(2);
+    EXPECT_TRUE(restoredDraftState.imageAvailable);
+    EXPECT_TRUE(restoredDraftState.reason.contains(QStringLiteral("path=draft")));
+
+    ArtifactCore::ImageF32x4_RGBA qualityImage;
+    qualityImage.resize(2, 1);
+    qualityImage.setPixel(0, 0,
+                          ArtifactCore::FloatRGBA(0.9f, 0.1f, 0.2f, 1.0f));
+    qualityImage.setPixel(1, 0,
+                          ArtifactCore::FloatRGBA(0.1f, 0.8f, 0.3f, 1.0f));
+    ASSERT_TRUE(playback.storeCompositionPreviewFrameImage(
+        3, qualityImage, compositionId.toString(),
+        4, 8, QStringLiteral("draft"), QStringLiteral("lod-pixel-contract"),
+        false));
+    ArtifactCore::ImageF32x4_RGBA draftPixels;
+    ASSERT_TRUE(playback.tryGetRamPreviewFrameImage(3, draftPixels));
+    ASSERT_FALSE(draftPixels.isEmpty());
+    EXPECT_EQ(draftPixels.width(), 2);
+    EXPECT_EQ(draftPixels.height(), 1);
+    EXPECT_FLOAT_EQ(draftPixels.getPixel(0, 0).r(), 0.9f);
+    EXPECT_FLOAT_EQ(draftPixels.getPixel(1, 0).g(), 0.8f);
+
+    ArtifactCore::ImageF32x4_RGBA finalQualityImage;
+    finalQualityImage.resize(4, 2);
+    finalQualityImage.setPixel(0, 0,
+                               ArtifactCore::FloatRGBA(0.2f, 0.3f, 0.9f, 1.0f));
+    ASSERT_TRUE(playback.storeCompositionPreviewFrameImage(
+        3, finalQualityImage, compositionId.toString(),
+        1, 1, QStringLiteral("full"), QStringLiteral("lod-pixel-contract"),
+        false));
+    ArtifactCore::ImageF32x4_RGBA finalPixels;
+    ASSERT_TRUE(playback.tryGetRamPreviewFrameImage(3, finalPixels));
+    ASSERT_FALSE(finalPixels.isEmpty());
+    EXPECT_EQ(finalPixels.width(), 4)
+        << "replacing a Draft frame with Final must store the new LOD dimensions";
+    EXPECT_EQ(finalPixels.height(), 2);
+    EXPECT_FLOAT_EQ(finalPixels.getPixel(0, 0).b(), 0.9f)
+        << "Final cache replacement must expose the new frame pixels";
+
+    ASSERT_TRUE(playback.storeCompositionPreviewFrameImage(
+        3, qualityImage, compositionId.toString(),
+        4, 8, QStringLiteral("draft"), QStringLiteral("lod-pixel-contract"),
+        false));
+    ArtifactCore::ImageF32x4_RGBA restoredDraftPixels;
+    ASSERT_TRUE(playback.tryGetRamPreviewFrameImage(3, restoredDraftPixels));
+    ASSERT_FALSE(restoredDraftPixels.isEmpty());
+    EXPECT_EQ(restoredDraftPixels.width(), 2)
+        << "returning to Draft must replace the cached Final frame";
+    EXPECT_EQ(restoredDraftPixels.height(), 1);
+    EXPECT_FLOAT_EQ(restoredDraftPixels.getPixel(0, 0).r(), 0.9f)
+        << "returning to Draft must restore its pixels, not only its dimensions";
+
+    ArtifactCore::ImageF32x4_RGBA neighboringFrame;
+    neighboringFrame.resize(1, 2);
+    neighboringFrame.setPixel(0, 0,
+                              ArtifactCore::FloatRGBA(0.7f, 0.2f, 0.1f, 1.0f));
+    neighboringFrame.setPixel(0, 1,
+                              ArtifactCore::FloatRGBA(0.3f, 0.6f, 0.9f, 1.0f));
+    ASSERT_TRUE(playback.storeCompositionPreviewFrameImage(
+        2, neighboringFrame, compositionId.toString(),
+        4, 8, QStringLiteral("draft"), QStringLiteral("lod-pixel-contract"),
+        false));
+    ArtifactCore::ImageF32x4_RGBA neighboringPixels;
+    ASSERT_TRUE(playback.tryGetRamPreviewFrameImage(2, neighboringPixels));
+    ASSERT_EQ(neighboringPixels.width(), 1);
+    ASSERT_EQ(neighboringPixels.height(), 2);
+    EXPECT_FLOAT_EQ(neighboringPixels.getPixel(0, 0).r(), 0.7f);
+    EXPECT_FLOAT_EQ(neighboringPixels.getPixel(0, 1).b(), 0.9f);
+
+    ASSERT_TRUE(playback.storeCompositionPreviewFrameImage(
+        3, finalQualityImage, compositionId.toString(),
+        1, 1, QStringLiteral("full"), QStringLiteral("lod-pixel-contract"),
+        false));
+    ArtifactCore::ImageF32x4_RGBA revisitedFinalPixels;
+    ASSERT_TRUE(playback.tryGetRamPreviewFrameImage(3, revisitedFinalPixels));
+    EXPECT_EQ(revisitedFinalPixels.width(), 4)
+        << "visiting another frame at Draft LOD must not contaminate frame 3";
+    EXPECT_EQ(revisitedFinalPixels.height(), 2);
+    EXPECT_FLOAT_EQ(revisitedFinalPixels.getPixel(0, 0).b(), 0.9f);
+}

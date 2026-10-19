@@ -646,5 +646,3 @@ TEST(ArtifactProjectRoundTripTest, ResaveAfterLoadIsStable)
               QStringLiteral("EditedAfterLoad"));
     EXPECT_EQ(reloaded->compositionNote(), QStringLiteral("edited-after-load"));
 }
-
-\n

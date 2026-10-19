@@ -153,7 +153,7 @@ TEST(PathContractTest, EmptyPathNormalizesSuccessfullyButIsNotSafeRelative)
 {
     const auto normalized = normalizePathSeparators("");
     ASSERT_TRUE(normalized);
-    EXPECT_TRUE(normalized.value().empty());
+    EXPECT_TRUE(normalized.value().isEmpty());
     EXPECT_FALSE(isSafeRelativePath(""));
 }
 

@@ -1,13 +1,17 @@
 #include <gtest/gtest.h>
 
 #include <stdexcept>
+#include <limits>
+#include <vector>
 
 #include <QString>
 #include <QStringList>
+#include <QObject>
 
 import Artifact.Render.FrameCache;
 import Frame.Position;
 import Memory.SharedPtr;
+import Render.Quality;
 
 namespace {
 
@@ -176,4 +180,472 @@ TEST(FrameCacheContractTest, GenerationBumpHidesOldEntriesUntilStaleEntriesAreRe
     EXPECT_EQ(cache.currentMemoryUsage(), 0u);
 }
 
-} // namespace
+TEST(FrameCacheContractTest, ProgressiveRendererUpgradesThroughRequestedQualities)
+{
+    Artifact::ProgressiveRenderer renderer;
+    renderer.setQuality(Artifact::RenderQuality::Preview);
+
+    std::vector<Artifact::RenderQuality> rendered;
+    renderer.setRenderCallback([&rendered](Artifact::RenderQuality quality) {
+        rendered.push_back(quality);
+        return true;
+    });
+
+    renderer.requestUpgrade();
+
+    ASSERT_EQ(rendered.size(), 1u);
+    EXPECT_EQ(rendered[0], Artifact::RenderQuality::Preview);
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Preview);
+    EXPECT_FLOAT_EQ(renderer.currentProgress(), 1.0f);
+    EXPECT_FALSE(renderer.isUpgrading());
+}
+
+TEST(FrameCacheContractTest,
+     ProgressiveRendererSkipsProgressivePassesWhenFinalQualityIsRequested)
+{
+    Artifact::ProgressiveRenderer renderer;
+    renderer.setQuality(Artifact::RenderQuality::Final);
+
+    int renderCount = 0;
+    renderer.setRenderCallback([&renderCount](Artifact::RenderQuality) {
+        ++renderCount;
+        return true;
+    });
+
+    renderer.requestUpgrade();
+
+    EXPECT_EQ(renderCount, 0);
+    EXPECT_EQ(renderer.quality(), Artifact::RenderQuality::Final);
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Draft);
+    EXPECT_FLOAT_EQ(renderer.currentProgress(), 0.0f);
+    EXPECT_FALSE(renderer.isUpgrading());
+}
+
+TEST(FrameCacheContractTest, ProgressiveRendererIncludesCustomAsFinalRequestedStage)
+{
+    Artifact::ProgressiveRenderer renderer;
+    renderer.setQuality(Artifact::RenderQuality::Custom);
+
+    std::vector<Artifact::RenderQuality> rendered;
+    renderer.setRenderCallback([&rendered](Artifact::RenderQuality quality) {
+        rendered.push_back(quality);
+        return true;
+    });
+
+    renderer.requestUpgrade();
+
+    ASSERT_EQ(rendered.size(), 3u);
+    EXPECT_EQ(rendered[0], Artifact::RenderQuality::Preview);
+    EXPECT_EQ(rendered[1], Artifact::RenderQuality::Final);
+    EXPECT_EQ(rendered[2], Artifact::RenderQuality::Custom);
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Custom);
+    EXPECT_FLOAT_EQ(renderer.currentProgress(), 1.0f);
+    EXPECT_FALSE(renderer.isUpgrading());
+}
+
+TEST(FrameCacheContractTest, ProgressiveRendererWithoutCallbackKeepsCurrentQuality)
+{
+    Artifact::ProgressiveRenderer renderer;
+    renderer.setQuality(Artifact::RenderQuality::Custom);
+
+    renderer.requestUpgrade();
+
+    EXPECT_EQ(renderer.quality(), Artifact::RenderQuality::Custom);
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Draft);
+    EXPECT_FLOAT_EQ(renderer.currentProgress(), 0.0f);
+    EXPECT_FALSE(renderer.isUpgrading());
+}
+
+TEST(FrameCacheContractTest, ProgressiveRendererDoesNotRepeatCompletedCustomPasses)
+{
+    Artifact::ProgressiveRenderer renderer;
+    renderer.setQuality(Artifact::RenderQuality::Custom);
+    int renderCount = 0;
+    renderer.setRenderCallback([&renderCount](Artifact::RenderQuality) {
+        ++renderCount;
+        return true;
+    });
+
+    renderer.requestUpgrade();
+    ASSERT_EQ(renderCount, 3);
+    ASSERT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Custom);
+    renderer.requestUpgrade();
+
+    EXPECT_EQ(renderCount, 3);
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Custom);
+    EXPECT_FLOAT_EQ(renderer.currentProgress(), 1.0f);
+    EXPECT_FALSE(renderer.isUpgrading());
+}
+
+TEST(FrameCacheContractTest, ForceFinalRenderAdvancesQualityWithoutRenderCallback)
+{
+    Artifact::ProgressiveRenderer renderer;
+    int renderCount = 0;
+    renderer.setRenderCallback([&renderCount](Artifact::RenderQuality) {
+        ++renderCount;
+        return true;
+    });
+
+    renderer.forceFinalRender();
+
+    EXPECT_EQ(renderCount, 0);
+    EXPECT_EQ(renderer.quality(), Artifact::RenderQuality::Final);
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Final);
+    EXPECT_FLOAT_EQ(renderer.currentProgress(), 1.0f);
+    EXPECT_FALSE(renderer.isUpgrading());
+}
+
+TEST(FrameCacheContractTest, ProgressiveRendererStopsWhenAQualityPassFails)
+{
+    Artifact::ProgressiveRenderer renderer;
+    renderer.setQuality(Artifact::RenderQuality::Custom);
+
+    int renderCount = 0;
+    renderer.setRenderCallback([&renderCount](Artifact::RenderQuality) {
+        ++renderCount;
+        return false;
+    });
+
+    renderer.requestUpgrade();
+
+    EXPECT_EQ(renderCount, 1);
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Draft);
+    EXPECT_FALSE(renderer.isUpgrading());
+}
+
+TEST(FrameCacheContractTest, ProgressiveRendererRetriesOnlyFailedAndLaterQualityPasses)
+{
+    Artifact::ProgressiveRenderer renderer;
+    renderer.setQuality(Artifact::RenderQuality::Custom);
+
+    std::vector<Artifact::RenderQuality> attempted;
+    bool failFinalOnce = true;
+    renderer.setRenderCallback([&](Artifact::RenderQuality quality) {
+        attempted.push_back(quality);
+        if (quality == Artifact::RenderQuality::Final && failFinalOnce) {
+            failFinalOnce = false;
+            return false;
+        }
+        return true;
+    });
+
+    renderer.requestUpgrade();
+    ASSERT_EQ(attempted.size(), 2u);
+    EXPECT_EQ(attempted[0], Artifact::RenderQuality::Preview);
+    EXPECT_EQ(attempted[1], Artifact::RenderQuality::Final);
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Preview);
+    EXPECT_FALSE(renderer.isUpgrading());
+
+    renderer.requestUpgrade();
+    ASSERT_EQ(attempted.size(), 4u);
+    EXPECT_EQ(attempted[2], Artifact::RenderQuality::Final);
+    EXPECT_EQ(attempted[3], Artifact::RenderQuality::Custom);
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Custom);
+    EXPECT_FLOAT_EQ(renderer.currentProgress(), 1.0f);
+    EXPECT_FALSE(renderer.isUpgrading());
+}
+
+TEST(FrameCacheContractTest, ProgressiveRendererCanResumeAfterCallbackCancelsUpgrade)
+{
+    Artifact::ProgressiveRenderer renderer;
+    renderer.setQuality(Artifact::RenderQuality::Custom);
+
+    std::vector<Artifact::RenderQuality> rendered;
+    renderer.setRenderCallback([&renderer, &rendered](Artifact::RenderQuality quality) {
+        rendered.push_back(quality);
+        if (quality == Artifact::RenderQuality::Preview) {
+            renderer.cancelUpgrade();
+        }
+        return true;
+    });
+
+    renderer.requestUpgrade();
+    ASSERT_EQ(rendered.size(), 1u);
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Preview);
+    EXPECT_FALSE(renderer.isUpgrading());
+
+    renderer.requestUpgrade();
+    ASSERT_EQ(rendered.size(), 3u);
+    EXPECT_EQ(rendered[1], Artifact::RenderQuality::Final);
+    EXPECT_EQ(rendered[2], Artifact::RenderQuality::Custom);
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Custom);
+    EXPECT_FLOAT_EQ(renderer.currentProgress(), 1.0f);
+}
+
+TEST(FrameCacheContractTest,
+     ProgressiveRendererCompletesWhenRequestedQualityIsAlreadyRendered)
+{
+    Artifact::ProgressiveRenderer renderer;
+    renderer.setQuality(Artifact::RenderQuality::Custom);
+
+    std::vector<Artifact::RenderQuality> rendered;
+    renderer.setRenderCallback([&renderer, &rendered](Artifact::RenderQuality quality) {
+        rendered.push_back(quality);
+        if (quality == Artifact::RenderQuality::Preview) {
+            renderer.cancelUpgrade();
+        }
+        return true;
+    });
+
+    renderer.requestUpgrade();
+    ASSERT_EQ(rendered.size(), 1u);
+    ASSERT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Preview);
+    ASSERT_FLOAT_EQ(renderer.currentProgress(), 1.0f / 3.0f);
+
+    renderer.setQuality(Artifact::RenderQuality::Preview);
+    renderer.requestUpgrade();
+
+    EXPECT_EQ(rendered.size(), 1u)
+        << "the already rendered requested quality should not be rendered again";
+    EXPECT_EQ(renderer.quality(), Artifact::RenderQuality::Preview);
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Preview);
+    EXPECT_FLOAT_EQ(renderer.currentProgress(), 1.0f)
+        << "a request already satisfied by the current frame should be complete";
+    EXPECT_FALSE(renderer.isUpgrading());
+}
+
+TEST(FrameCacheContractTest,
+     ProgressiveRendererTreatsDraftAsAlreadySatisfiedWithoutRendering)
+{
+    Artifact::ProgressiveRenderer renderer;
+    renderer.setQuality(Artifact::RenderQuality::Draft);
+
+    int renderCount = 0;
+    renderer.setRenderCallback([&renderCount](Artifact::RenderQuality) {
+        ++renderCount;
+        return true;
+    });
+
+    renderer.requestUpgrade();
+
+    EXPECT_EQ(renderCount, 0);
+    EXPECT_EQ(renderer.quality(), Artifact::RenderQuality::Draft);
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Draft);
+    EXPECT_FLOAT_EQ(renderer.currentProgress(), 1.0f)
+        << "the initial Draft output already satisfies a Draft request";
+    EXPECT_FALSE(renderer.isUpgrading());
+}
+
+TEST(FrameCacheContractTest,
+     ProgressiveRendererCompletesWhenCurrentOutputExceedsRequestedQuality)
+{
+    Artifact::ProgressiveRenderer renderer;
+    renderer.setQuality(Artifact::RenderQuality::Custom);
+
+    int renderCount = 0;
+    renderer.setRenderCallback([&renderCount](Artifact::RenderQuality) {
+        ++renderCount;
+        return true;
+    });
+
+    renderer.requestUpgrade();
+    ASSERT_EQ(renderCount, 3);
+    ASSERT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Custom);
+    ASSERT_FLOAT_EQ(renderer.currentProgress(), 1.0f);
+
+    renderer.setQuality(Artifact::RenderQuality::Preview);
+    renderer.requestUpgrade();
+
+    EXPECT_EQ(renderCount, 3)
+        << "an already available higher-quality image should satisfy a lower request";
+    EXPECT_EQ(renderer.quality(), Artifact::RenderQuality::Preview);
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Custom);
+    EXPECT_FLOAT_EQ(renderer.currentProgress(), 1.0f);
+    EXPECT_FALSE(renderer.isUpgrading());
+
+    renderer.setQuality(Artifact::RenderQuality::Custom);
+    renderer.requestUpgrade();
+
+    EXPECT_EQ(renderCount, 3)
+        << "returning to the already rendered quality should not repeat passes";
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Custom);
+    EXPECT_FLOAT_EQ(renderer.currentProgress(), 1.0f);
+    EXPECT_FALSE(renderer.isUpgrading());
+}
+
+TEST(FrameCacheContractTest, ProgressiveRendererClampsInvalidQualityEnumValues)
+{
+    Artifact::ProgressiveRenderer renderer;
+    std::vector<Artifact::RenderQuality> rendered;
+    renderer.setRenderCallback([&rendered](Artifact::RenderQuality quality) {
+        rendered.push_back(quality);
+        return true;
+    });
+
+    renderer.setQuality(static_cast<Artifact::RenderQuality>(-1));
+    EXPECT_EQ(renderer.quality(), Artifact::RenderQuality::Draft);
+    renderer.requestUpgrade();
+    EXPECT_TRUE(rendered.empty())
+        << "clamping to Draft should not schedule a higher quality pass";
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Draft);
+
+    renderer.setQuality(static_cast<Artifact::RenderQuality>(100));
+    EXPECT_EQ(renderer.quality(), Artifact::RenderQuality::Custom);
+    renderer.requestUpgrade();
+    ASSERT_EQ(rendered.size(), 3u);
+    EXPECT_EQ(rendered[0], Artifact::RenderQuality::Preview);
+    EXPECT_EQ(rendered[1], Artifact::RenderQuality::Final);
+    EXPECT_EQ(rendered[2], Artifact::RenderQuality::Custom);
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Custom);
+    EXPECT_FLOAT_EQ(renderer.currentProgress(), 1.0f);
+    EXPECT_FALSE(renderer.isUpgrading());
+}
+
+TEST(FrameCacheContractTest,
+     ProgressiveRendererNotifiesQualityTransitionsAndForcedFinal)
+{
+    Artifact::ProgressiveRenderer renderer;
+    std::vector<Artifact::RenderQuality> notifications;
+    QObject::connect(&renderer, &Artifact::ProgressiveRenderer::qualityChanged,
+                     [&notifications](Artifact::RenderQuality quality) {
+                         notifications.push_back(quality);
+                     });
+
+    renderer.setQuality(Artifact::RenderQuality::Draft);
+    renderer.setQuality(Artifact::RenderQuality::Preview);
+    renderer.setQuality(Artifact::RenderQuality::Custom);
+    renderer.forceFinalRender();
+
+    ASSERT_EQ(notifications.size(), 4u);
+    EXPECT_EQ(notifications[0], Artifact::RenderQuality::Draft);
+    EXPECT_EQ(notifications[1], Artifact::RenderQuality::Preview);
+    EXPECT_EQ(notifications[2], Artifact::RenderQuality::Custom);
+    EXPECT_EQ(notifications[3], Artifact::RenderQuality::Final);
+    EXPECT_EQ(renderer.quality(), Artifact::RenderQuality::Final);
+    EXPECT_EQ(renderer.currentRenderedQuality(), Artifact::RenderQuality::Final);
+    EXPECT_FLOAT_EQ(renderer.currentProgress(), 1.0f);
+    EXPECT_FALSE(renderer.isUpgrading());
+}
+
+TEST(FrameCacheContractTest, PerformanceMonitorTracksQualityCountsAndFrameTimeStatistics)
+{
+    Artifact::RenderPerformanceMonitor monitor;
+
+    monitor.recordFrameRender(10.0, Artifact::RenderQuality::Draft);
+    monitor.recordFrameRender(20.0, Artifact::RenderQuality::Preview);
+    monitor.recordFrameRender(30.0, Artifact::RenderQuality::Final);
+
+    const auto metrics = monitor.getMetrics();
+    EXPECT_EQ(metrics.framesRendered, 3);
+    EXPECT_EQ(metrics.draftFrames, 1);
+    EXPECT_EQ(metrics.previewFrames, 1);
+    EXPECT_EQ(metrics.finalFrames, 1);
+    EXPECT_DOUBLE_EQ(metrics.lastFrameTime, 30.0);
+    EXPECT_DOUBLE_EQ(metrics.averageFrameTime, 20.0);
+    EXPECT_DOUBLE_EQ(metrics.minFrameTime, 10.0);
+    EXPECT_DOUBLE_EQ(metrics.maxFrameTime, 30.0);
+    EXPECT_DOUBLE_EQ(monitor.averageFPS(), 50.0);
+    EXPECT_TRUE(monitor.isPerformanceAcceptable());
+}
+
+TEST(FrameCacheContractTest, PerformanceMonitorIgnoresInvalidFrameTimesWithoutChangingQualityCounts)
+{
+    Artifact::RenderPerformanceMonitor monitor;
+    monitor.recordFrameRender(12.0, Artifact::RenderQuality::Preview);
+    monitor.recordFrameRender(-1.0, Artifact::RenderQuality::Final);
+    monitor.recordFrameRender(std::numeric_limits<double>::infinity(), Artifact::RenderQuality::Draft);
+    monitor.recordFrameRender(std::numeric_limits<double>::quiet_NaN(), Artifact::RenderQuality::Draft);
+
+    const auto metrics = monitor.getMetrics();
+    EXPECT_EQ(metrics.framesRendered, 1);
+    EXPECT_EQ(metrics.previewFrames, 1);
+    EXPECT_EQ(metrics.finalFrames, 0);
+    EXPECT_EQ(metrics.draftFrames, 0);
+    EXPECT_DOUBLE_EQ(metrics.lastFrameTime, 12.0);
+    EXPECT_DOUBLE_EQ(metrics.averageFrameTime, 12.0);
+}
+
+TEST(FrameCacheContractTest, PerformanceMonitorResetClearsMeasurementsAndDropsButKeepsConfiguredBudget)
+{
+    Artifact::RenderPerformanceMonitor monitor;
+    monitor.setTargetFPS(60.0);
+    monitor.recordFrameRender(40.0, Artifact::RenderQuality::Final);
+    monitor.recordFrameDrop();
+    monitor.recordGPUAlloc(1024);
+    monitor.recordSystemAlloc(2048);
+
+    const auto populatedMetrics = monitor.getMetrics();
+    EXPECT_EQ(populatedMetrics.framesDropped, 1);
+    EXPECT_EQ(populatedMetrics.gpuMemoryUsed, 1024u);
+    EXPECT_EQ(populatedMetrics.systemMemoryUsed, 2048u);
+
+    monitor.reset();
+
+    const auto metrics = monitor.getMetrics();
+    EXPECT_EQ(metrics.framesRendered, 0);
+    EXPECT_EQ(metrics.framesDropped, 0);
+    EXPECT_EQ(metrics.finalFrames, 0);
+    EXPECT_EQ(metrics.gpuMemoryUsed, 0u);
+    EXPECT_EQ(metrics.systemMemoryUsed, 0u);
+    EXPECT_DOUBLE_EQ(metrics.averageFrameTime, 0.0);
+    EXPECT_DOUBLE_EQ(monitor.currentFPS(), 0.0);
+    EXPECT_DOUBLE_EQ(monitor.averageFPS(), 0.0);
+    EXPECT_FALSE(monitor.isPerformanceAcceptable());
+    EXPECT_DOUBLE_EQ(monitor.targetFPS(), 60.0);
+    EXPECT_NEAR(monitor.frameTimeBudget(), 1000.0 / 60.0, 1e-12);
+}
+
+TEST(FrameCacheContractTest, PerformanceMonitorRejectsInvalidBudgetsAndAcceptsZeroFrameBudget)
+{
+    Artifact::RenderPerformanceMonitor monitor;
+    monitor.setTargetFPS(0.0);
+    monitor.setTargetFPS(-30.0);
+    monitor.setTargetFPS(std::numeric_limits<double>::infinity());
+    monitor.setFrameTimeBudget(-1.0);
+    monitor.setFrameTimeBudget(std::numeric_limits<double>::quiet_NaN());
+
+    EXPECT_DOUBLE_EQ(monitor.targetFPS(), 30.0);
+    EXPECT_DOUBLE_EQ(monitor.frameTimeBudget(), 33.33);
+
+    monitor.setFrameTimeBudget(0.0);
+    EXPECT_DOUBLE_EQ(monitor.frameTimeBudget(), 0.0);
+    EXPECT_FALSE(monitor.isPerformanceAcceptable());
+    monitor.recordFrameRender(0.0, Artifact::RenderQuality::Draft);
+    EXPECT_TRUE(monitor.isPerformanceAcceptable());
+}
+
+TEST(FrameCacheContractTest, PerformanceMonitorKeepsOnlyTheLatestThreeHundredFrameTimes)
+{
+    Artifact::RenderPerformanceMonitor monitor;
+    for (int frame = 0; frame < 300; ++frame) {
+        monitor.recordFrameRender(1.0, Artifact::RenderQuality::Preview);
+    }
+    monitor.recordFrameRender(301.0, Artifact::RenderQuality::Final);
+
+    const auto metrics = monitor.getMetrics();
+    EXPECT_EQ(metrics.framesRendered, 301);
+    EXPECT_EQ(metrics.previewFrames, 300);
+    EXPECT_EQ(metrics.finalFrames, 1);
+    EXPECT_DOUBLE_EQ(metrics.lastFrameTime, 301.0);
+    EXPECT_DOUBLE_EQ(metrics.averageFrameTime, 2.0);
+    EXPECT_DOUBLE_EQ(metrics.minFrameTime, 1.0);
+    EXPECT_DOUBLE_EQ(metrics.maxFrameTime, 301.0);
+}
+
+TEST(FrameCacheContractTest, CustomQualityContributesToTotalFramesWithoutEnteringNamedBuckets)
+{
+    Artifact::RenderPerformanceMonitor monitor;
+
+    monitor.recordFrameRender(8.0, Artifact::RenderQuality::Custom);
+
+    const auto metrics = monitor.getMetrics();
+    EXPECT_EQ(metrics.framesRendered, 1);
+    EXPECT_EQ(metrics.draftFrames, 0);
+    EXPECT_EQ(metrics.previewFrames, 0);
+    EXPECT_EQ(metrics.finalFrames, 0);
+    EXPECT_DOUBLE_EQ(metrics.lastFrameTime, 8.0);
+}
+
+TEST(FrameCacheContractTest, PerformanceMonitorAcceptabilityUsesTheRollingAverageAtBudgetBoundary)
+{
+    Artifact::RenderPerformanceMonitor monitor;
+    monitor.setFrameTimeBudget(20.0);
+    monitor.recordFrameRender(20.0, Artifact::RenderQuality::Preview);
+    EXPECT_TRUE(monitor.isPerformanceAcceptable());
+
+    monitor.recordFrameRender(22.0, Artifact::RenderQuality::Preview);
+    EXPECT_FALSE(monitor.isPerformanceAcceptable());
+
+    monitor.recordFrameRender(18.0, Artifact::RenderQuality::Preview);
+    EXPECT_TRUE(monitor.isPerformanceAcceptable());
+}

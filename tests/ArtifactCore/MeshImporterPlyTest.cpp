@@ -70,6 +70,12 @@ TEST(MeshImporterPlyTest, VertexOnlyWithoutFaceElementLoads) {
 
     EXPECT_FLOAT_EQ(mesh->boundingBoxMin().x(), 0.0f);
     EXPECT_FLOAT_EQ(mesh->boundingBoxMax().y(), 2.0f);
+
+    const Mesh::MeshletLODData lod = mesh->generateMeshletLODData();
+    EXPECT_FALSE(lod.isValid());
+    EXPECT_TRUE(lod.levels.isEmpty())
+        << "an imported point cloud without faces must not invent mesh LODs";
+    EXPECT_EQ(Mesh::chooseMeshletLODLevel(lod, 0.0f), 0);
 }
 
 TEST(MeshImporterPlyTest, ZeroFaceElementLoads) {
@@ -146,6 +152,98 @@ TEST(MeshImporterPlyTest, PolygonMeshStillLoads) {
     ASSERT_NE(mesh, nullptr) << importer.lastError().toStdString();
     EXPECT_EQ(mesh->vertexCount(), 3);
     EXPECT_EQ(mesh->polygonCount(), 1);
+}
+
+TEST(MeshImporterPlyTest,
+     ImportedColoredTriangleFeedsMeshletLODWithoutBreakingColorMapping)
+{
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString path = writeTempPly(dir, QStringLiteral("colored_tri_lod.ply"),
+        QStringLiteral("ply\n"
+                       "format ascii 1.0\n"
+                       "element vertex 3\n"
+                       "property float x\n"
+                       "property float y\n"
+                       "property float z\n"
+                       "property uchar red\n"
+                       "property uchar green\n"
+                       "property uchar blue\n"
+                       "element face 1\n"
+                       "property list uchar int vertex_indices\n"
+                       "end_header\n"
+                       "0 0 0 255 0 0\n"
+                       "1 0 0 0 255 0\n"
+                       "0 1 0 0 0 255\n"
+                       "3 0 1 2\n"));
+
+    MeshImporter importer;
+    auto mesh = importPly(path, importer);
+    ASSERT_NE(mesh, nullptr) << importer.lastError().toStdString();
+    ASSERT_EQ(mesh->polygonCount(), 1);
+
+    const Mesh::MeshletLODData lod = mesh->generateMeshletLODData();
+
+    ASSERT_TRUE(lod.isValid());
+    ASSERT_EQ(lod.levels.size(), 1);
+    EXPECT_EQ(lod.levels.front().indexCount, 3u);
+    ASSERT_EQ(lod.renderData.positions.size(), lod.renderData.colors.size());
+    for (qsizetype index = 0; index < lod.renderData.positions.size(); ++index) {
+        const QVector3D position = lod.renderData.positions[index];
+        const QVector4D color = lod.renderData.colors[index];
+        if (position.x() == 0.0f && position.y() == 0.0f) {
+            EXPECT_EQ(color, QVector4D(1.0f, 0.0f, 0.0f, 1.0f));
+        } else if (position.x() == 1.0f && position.y() == 0.0f) {
+            EXPECT_EQ(color, QVector4D(0.0f, 1.0f, 0.0f, 1.0f));
+        } else if (position.x() == 0.0f && position.y() == 1.0f) {
+            EXPECT_EQ(color, QVector4D(0.0f, 0.0f, 1.0f, 1.0f));
+        } else {
+            ADD_FAILURE() << "LOD remapping produced an unexpected position";
+        }
+    }
+}
+
+TEST(MeshImporterPlyTest,
+     OversizedFaceMeshIsNotTreatedAsDecimatablePointCloud)
+{
+    constexpr int kVertexCount = 262145;
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("oversized_mesh.ply"));
+    QFile file(path);
+    ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+    file.write("ply\n"
+               "format binary_little_endian 1.0\n"
+               "element vertex 262145\n"
+               "property float x\n"
+               "property float y\n"
+               "property float z\n"
+               "element face 1\n"
+               "property list uchar int vertex_indices\n"
+               "end_header\n");
+    QDataStream out(&file);
+    out.setByteOrder(QDataStream::LittleEndian);
+    out.setFloatingPointPrecision(QDataStream::SinglePrecision);
+    for (int index = 0; index < kVertexCount; ++index) {
+        out << static_cast<float>(index % 640)
+            << static_cast<float>((index / 640) % 640)
+            << static_cast<float>(index / (640 * 640));
+    }
+    out << quint8(3) << qint32(0) << qint32(1) << qint32(2);
+    file.close();
+
+    MeshImporter importer;
+    auto mesh = importPly(path, importer);
+    ASSERT_NE(mesh, nullptr) << importer.lastError().toStdString();
+    EXPECT_EQ(mesh->vertexCount(), kVertexCount)
+        << "the point-cloud budget must not truncate face-bearing mesh vertices";
+    EXPECT_EQ(mesh->polygonCount(), 1);
+    const auto positions = mesh->vertexAttributes().get<QVector3D>("position");
+    ASSERT_NE(positions, nullptr);
+    EXPECT_EQ((*positions)[kVertexCount - 1],
+              QVector3D(static_cast<float>((kVertexCount - 1) % 640),
+                        static_cast<float>(((kVertexCount - 1) / 640) % 640),
+                        static_cast<float>((kVertexCount - 1) / (640 * 640))));
 }
 
 TEST(MeshImporterPlyTest, PolygonMeshGetsValidNormals) {
@@ -226,6 +324,23 @@ TEST(MeshImporterPlyTest, LargePointCloudIsDecimatedDeterministically) {
     auto secondMesh = importPly(path, secondImporter);
     ASSERT_NE(secondMesh, nullptr);
     EXPECT_EQ(secondMesh->vertexCount(), mesh->vertexCount());
+    const auto secondPositions =
+        secondMesh->vertexAttributes().get<QVector3D>("position");
+    const auto secondColors =
+        secondMesh->vertexAttributes().get<QVector4D>("color");
+    ASSERT_NE(secondPositions, nullptr);
+    ASSERT_NE(secondColors, nullptr);
+    ASSERT_EQ(secondPositions->data().size(), positions->data().size());
+    ASSERT_EQ(secondColors->data().size(), colors->data().size());
+    for (qsizetype index = 0; index < positions->data().size(); ++index) {
+        EXPECT_EQ((*secondPositions)[index], (*positions)[index])
+            << "point-cloud LOD decimation should retain the same positions";
+        EXPECT_EQ((*secondColors)[index], (*colors)[index])
+            << "point-cloud LOD decimation should keep each retained color "
+               "attached to its point";
+    }
+    EXPECT_TRUE(secondMesh->generateMeshletLODData().levels.isEmpty())
+        << "point-cloud decimation must not be mistaken for triangle mesh LOD";
 }
 TEST(MeshImporterPlyTest, MissingFileReturnsNull) {
     QTemporaryDir dir;

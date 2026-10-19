@@ -90,6 +90,68 @@ TEST(AudioBitCrusherStandaloneTest, LowBitDepthQuantizesSignal)
     EXPECT_TRUE(differs);
 }
 
+TEST(AudioBitCrusherStandaloneTest,
+     DownsampleHoldPeriodIsStableAcrossAudioSegmentBoundaries)
+{
+    AudioBitCrusher wholeBufferCrusher;
+    wholeBufferCrusher.setBits(16.0f);
+    wholeBufferCrusher.setDownsample(3.0f);
+    wholeBufferCrusher.setMix(1.0f);
+    auto wholeBuffer = makeMono(
+        48000, QVector<float>{0.1f, 0.3f, 0.6f, -0.2f, 0.4f, 0.8f});
+    wholeBufferCrusher.process(wholeBuffer);
+
+    AudioBitCrusher segmentedCrusher;
+    segmentedCrusher.setBits(16.0f);
+    segmentedCrusher.setDownsample(3.0f);
+    segmentedCrusher.setMix(1.0f);
+    auto firstSegment = makeMono(48000, QVector<float>{0.1f, 0.3f});
+    auto secondSegment = makeMono(48000, QVector<float>{0.6f, -0.2f, 0.4f, 0.8f});
+    segmentedCrusher.process(firstSegment);
+    segmentedCrusher.process(secondSegment);
+
+    QVector<float> segmentedOutput = firstSegment.channelData[0];
+    segmentedOutput += secondSegment.channelData[0];
+    ASSERT_EQ(segmentedOutput.size(), wholeBuffer.channelData[0].size());
+    EXPECT_EQ(segmentedOutput, wholeBuffer.channelData[0])
+        << "audio block boundaries must not restart the sample-hold LOD phase";
+    EXPECT_FLOAT_EQ(wholeBuffer.channelData[0][0],
+                    wholeBuffer.channelData[0][1]);
+    EXPECT_FLOAT_EQ(wholeBuffer.channelData[0][1],
+                    wholeBuffer.channelData[0][2]);
+    EXPECT_FLOAT_EQ(wholeBuffer.channelData[0][3],
+                    wholeBuffer.channelData[0][4]);
+    EXPECT_FLOAT_EQ(wholeBuffer.channelData[0][4],
+                    wholeBuffer.channelData[0][5]);
+    EXPECT_NE(wholeBuffer.channelData[0][2],
+              wholeBuffer.channelData[0][3]);
+}
+
+TEST(AudioBitCrusherStandaloneTest,
+     DownsampleHoldStateIsIndependentForStereoChannels)
+{
+    AudioBitCrusher crusher;
+    crusher.setBits(16.0f);
+    crusher.setDownsample(2.0f);
+    crusher.setMix(1.0f);
+
+    AudioSegment segment;
+    segment.sampleRate = 48000;
+    segment.layout = AudioChannelLayout::Stereo;
+    segment.channelData = {
+        QVector<float>{0.1f, 0.3f, 0.5f, 0.7f},
+        QVector<float>{-0.2f, -0.4f, -0.6f, -0.8f}};
+    crusher.process(segment);
+
+    ASSERT_EQ(segment.channelData.size(), 2);
+    EXPECT_FLOAT_EQ(segment.channelData[0][0], segment.channelData[0][1]);
+    EXPECT_FLOAT_EQ(segment.channelData[0][2], segment.channelData[0][3]);
+    EXPECT_FLOAT_EQ(segment.channelData[1][0], segment.channelData[1][1]);
+    EXPECT_FLOAT_EQ(segment.channelData[1][2], segment.channelData[1][3]);
+    EXPECT_NE(segment.channelData[0][0], segment.channelData[1][0]);
+    EXPECT_NE(segment.channelData[0][2], segment.channelData[1][2]);
+}
+
 TEST(AudioBitCrusherStandaloneTest, BypassPreservesInputSamples)
 {
     AudioBitCrusher crusher;

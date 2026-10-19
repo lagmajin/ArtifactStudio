@@ -6,6 +6,7 @@ import Core.ArtifactFoundation;
 import Core.ArtifactMath;
 import Core.ArtifactAlgorithms;
 import Core.ArtifactChrono;
+import Core.ArtifactDict;
 import Core.ArtifactRegex;
 import Core.ArtifactSet;
 import Core.ArtifactTuple;
@@ -31,8 +32,8 @@ TEST(ArtifactMathTest, MinMaxClampMatchExpectedSemantics)
 TEST(ArtifactMathTest, FloatPrimitivesDelegateCorrectly)
 {
     EXPECT_TRUE(artifactIsFinite(1.0f));
-    EXPECT_FALSE(artifactIsFinite(1.0f / 0.0f));
-    EXPECT_TRUE(artifactIsNaN(0.0f / 0.0f));
+    EXPECT_FALSE(artifactIsFinite(std::numeric_limits<float>::infinity()));
+    EXPECT_TRUE(artifactIsNaN(std::numeric_limits<float>::quiet_NaN()));
     EXPECT_EQ(artifactAbs(-4), 4);
     EXPECT_NEAR(artifactSqrt(4.0f), 2.0f, kEpsilon);
     EXPECT_NEAR(artifactPow(2.0f, 10.0f), 1024.0f, kEpsilon);
@@ -176,21 +177,21 @@ TEST(ArtifactStringTest, SmallStringStoresAndAppends)
 
 TEST(ArtifactDictTest, SetGetRemoveRoundTrip)
 {
-    Dict<QString, int> values;
+    ArtifactDict<int, int> values;
     EXPECT_TRUE(values.isEmpty());
 
-    values.set(QStringLiteral("alpha"), 1);
-    values.set(QStringLiteral("beta"), 2);
+    values.set(1, 1);
+    values.set(2, 2);
     EXPECT_EQ(values.size(), 2);
-    EXPECT_TRUE(values.contains(QStringLiteral("alpha")));
+    EXPECT_TRUE(values.contains(1));
 
-    const auto alpha = values.get(QStringLiteral("alpha"));
+    const auto alpha = values.get(1);
     ASSERT_TRUE(alpha.has_value());
     EXPECT_EQ(*alpha, 1);
-    EXPECT_EQ(values.getOr(QStringLiteral("gamma"), 99), 99);
+    EXPECT_EQ(values.getOr(3, 99), 99);
 
-    values.remove(QStringLiteral("alpha"));
-    EXPECT_FALSE(values.contains(QStringLiteral("alpha")));
+    values.remove(1);
+    EXPECT_FALSE(values.contains(1));
     values.removeAll();
     EXPECT_TRUE(values.isEmpty());
 }
@@ -330,7 +331,7 @@ TEST(ArtifactTupleTest, ElementAccessAndSize)
 {
     constexpr Tuple<int, float, char> triple(1, 2.5f, 'x');
 
-    EXPECT_EQ(tupleSizeV<Tuple<int, float, char>>, 3u);
+    EXPECT_EQ((tupleSizeV<Tuple<int, float, char>>), 3u);
     EXPECT_EQ(artifactGet<0>(triple), 1);
     EXPECT_NEAR(artifactGet<1>(triple), 2.5f, kEpsilon);
     EXPECT_EQ(artifactGet<2>(triple), 'x');
@@ -415,7 +416,7 @@ TEST(ArtifactChronoTest, SteadyClockIsMonotonicAndMeasures)
     const auto start = SteadyClock::now();
     // Busy-wait briefly; monotonicity is the contract under test.
     auto spin = SteadyClock::now();
-    while (SteadyClock::elapsed(start).toNanos() < 1'000'000LL) {
+    while (SteadyClock::elapsed(start).nanos() < 1'000'000LL) {
         spin = SteadyClock::now();
         EXPECT_GE(spin, start);
         if (spin > start) break;
@@ -435,14 +436,14 @@ TEST(ArtifactChronoTest, SteadyClockIsMonotonicAndMeasures)
 TEST(ArtifactRegexTest, LiteralsClassesAndQuantifiers)
 {
     RegexErrorCode error = RegexErrorCode::None;
-    ArtifactRegex regex(QStringLiteral("ab+c"), false, &error);
+    ArtifactRegex regex("ab+c", false, &error);
     ASSERT_EQ(error, RegexErrorCode::None);
     ASSERT_TRUE(regex.isValid());
 
-    EXPECT_FALSE(regex.matches(QStringLiteral("ac")));
-    EXPECT_TRUE(regex.matches(QStringLiteral("xabcz")));
+    EXPECT_FALSE(regex.matches("ac"));
+    EXPECT_TRUE(regex.matches("xabcz"));
 
-    const RegexMatch match = regex.search(QStringLiteral("--abbbc--"));
+    const RegexMatch match = regex.search("--abbbc--");
     ASSERT_TRUE(match.matched);
     EXPECT_EQ(match.groups[0].position, 2u);
     EXPECT_EQ(match.groups[0].length, 5u);
@@ -451,33 +452,32 @@ TEST(ArtifactRegexTest, LiteralsClassesAndQuantifiers)
 TEST(ArtifactRegexTest, GroupsAlternationAndAnchors)
 {
     RegexErrorCode error = RegexErrorCode::None;
-    ArtifactRegex regex(QStringLiteral("(\\w+)@(example|test)\\.com$"),
+    ArtifactRegex regex("(\\w+)@(example|test)\\.com$",
                         false, &error);
     ASSERT_EQ(error, RegexErrorCode::None);
 
     const RegexMatch match =
-        regex.search(QStringLiteral("contact: user@example.com"));
+        regex.search("contact: user@example.com");
     ASSERT_TRUE(match.matched);
     EXPECT_EQ(match.groups[0].position, 9u);
     EXPECT_EQ(match.groups[1].length, 4u);   // "user"
     EXPECT_EQ(match.groups[2].length, 7u);   // "example"
 
-    EXPECT_FALSE(regex.matches(QStringLiteral("user@example.org")));
-    EXPECT_TRUE(regex.matches(QStringLiteral("a@test.com")));
+    EXPECT_FALSE(regex.matches("user@example.org"));
+    EXPECT_TRUE(regex.matches("a@test.com"));
 }
 
 TEST(ArtifactRegexTest, ReplaceAllSubstitutesCaptures)
 {
     RegexErrorCode error = RegexErrorCode::None;
-    ArtifactRegex regex(QStringLiteral("(\\w+)=(\\w+)"), false, &error);
+    ArtifactRegex regex("(\\w+)=(\\w+)", false, &error);
     ASSERT_EQ(error, RegexErrorCode::None);
 
-    const QString replaced = regex.replaceAll(
-        QStringLiteral("width=10 height=20"), QStringLiteral("$2 x $1"));
-    EXPECT_EQ(replaced, QStringLiteral("10 x width 20 x height"));
+    const String replaced = regex.replaceAll("width=10 height=20", "$2 x $1");
+    EXPECT_EQ(replaced, String("10 x width 20 x height"));
 
     // Invalid pattern reports an error and stays invalid.
-    ArtifactRegex broken(QStringLiteral("(unclosed"), false, &error);
+    ArtifactRegex broken("(unclosed", false, &error);
     EXPECT_EQ(error, RegexErrorCode::MissingClosingParen);
     EXPECT_FALSE(broken.isValid());
 }
@@ -485,20 +485,20 @@ TEST(ArtifactRegexTest, ReplaceAllSubstitutesCaptures)
 TEST(ArtifactRegexTest, LookaheadAssertsWithoutConsuming)
 {
     RegexErrorCode error = RegexErrorCode::None;
-    ArtifactRegex positive(QStringLiteral("foo(?=123)"), false, &error);
+    ArtifactRegex positive("foo(?=123)", false, &error);
     ASSERT_EQ(error, RegexErrorCode::None);
 
-    const RegexMatch match = positive.search(QStringLiteral("foo123bar"));
+    const RegexMatch match = positive.search("foo123bar");
     ASSERT_TRUE(match.matched);
     // The lookahead text is NOT part of the match.
     EXPECT_EQ(match.groups[0].length, 3u);
     EXPECT_EQ(match.groups[0].position, 0u);
-    EXPECT_FALSE(positive.matches(QStringLiteral("foo456bar")));
+    EXPECT_FALSE(positive.matches("foo456bar"));
 
     // Negative lookahead: 'a' not followed by 'b'.
-    ArtifactRegex negative(QStringLiteral("a(?!b)"), false, &error);
+    ArtifactRegex negative("a(?!b)", false, &error);
     ASSERT_EQ(error, RegexErrorCode::None);
-    const Array<RegexMatch> hits = negative.findAll(QStringLiteral("ab ac ad"));
+    const Array<RegexMatch> hits = negative.findAll("ab ac ad");
     ASSERT_EQ(hits.size(), 2u);
     EXPECT_EQ(hits[0].groups[0].position, 3u); // "ac"
     EXPECT_EQ(hits[1].groups[0].position, 6u); // "ad"
@@ -507,18 +507,18 @@ TEST(ArtifactRegexTest, LookaheadAssertsWithoutConsuming)
 TEST(ArtifactRegexTest, BackreferencesMatchRepeatedText)
 {
     RegexErrorCode error = RegexErrorCode::None;
-    ArtifactRegex repeatedWord(QStringLiteral("(\\w+) \\1"), false, &error);
+    ArtifactRegex repeatedWord("(\\w+) \\1", false, &error);
     ASSERT_EQ(error, RegexErrorCode::None);
 
-    EXPECT_TRUE(repeatedWord.matches(QStringLiteral("hello hello world")));
-    EXPECT_FALSE(repeatedWord.matches(QStringLiteral("hello world")));
+    EXPECT_TRUE(repeatedWord.matches("hello hello world"));
+    EXPECT_FALSE(repeatedWord.matches("hello world"));
 
-    const RegexMatch match = repeatedWord.search(QStringLiteral("say bye bye now"));
+    const RegexMatch match = repeatedWord.search("say bye bye now");
     ASSERT_TRUE(match.matched);
     EXPECT_EQ(match.groups[1].length, 3u); // "bye"
 
     // Backreference to an unopened group is a compile error.
-    ArtifactRegex forward(QStringLiteral("\\1(ab)"), false, &error);
+    ArtifactRegex forward("\\1(ab)", false, &error);
     EXPECT_EQ(error, RegexErrorCode::InvalidEscape);
     EXPECT_FALSE(forward.isValid());
 }
@@ -565,7 +565,7 @@ TEST(ArtifactSetTest, StdCompatibleSpellingsAndCopySemantics)
 TEST(ArtifactHashMapTest, AtReturnsOptionalInsteadOfThrowing)
 {
     ArtifactHashMap<int, int> map;
-    map.insert(1, 100);
+    map.tryEmplace(1, 100);
 
     auto found = map.at(1);
     ASSERT_TRUE(found.has_value());

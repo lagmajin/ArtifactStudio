@@ -262,11 +262,23 @@ TEST(CollaborateOperationsTest, TypedBuildersProduceValidatableOperations)
     auto addOp = makeLayerAddOperation(
         QStringLiteral("local-1"), QStringLiteral("layer-3"),
         QStringLiteral("solid"), QStringLiteral("My Solid"), QJsonObject{}, kT0);
+    addOp.payload.insert(QStringLiteral("compositionId"), QStringLiteral("comp-1"));
+    addOp.payload.insert(QStringLiteral("index"), 0);
+    addOp.payload.insert(QStringLiteral("leftNeighborId"), QString());
+    addOp.payload.insert(QStringLiteral("rightNeighborId"), QString());
+    addOp.payload.insert(QStringLiteral("anchorLayerId"), QString());
+    addOp.payload.insert(QStringLiteral("layerJson"), QJsonObject{
+        {QStringLiteral("id"), QStringLiteral("layer-3")},
+        {QStringLiteral("layerType"), QStringLiteral("solid")}});
     EXPECT_TRUE(validateCollabOperation(addOp).isEmpty());
 
     auto removeOp = makeLayerRemoveOperation(
         QStringLiteral("local-1"), QStringLiteral("layer-3"), kT0);
-    removeOp.payload = QJsonObject{{QStringLiteral("unexpected"), true}};
+    removeOp.payload = QJsonObject{
+        {QStringLiteral("compositionId"), QStringLiteral("comp-1")},
+        {QStringLiteral("index"), 0},
+        {QStringLiteral("expectedLayerJson"), QJsonObject{
+            {QStringLiteral("id"), QStringLiteral("layer-3")}}}};
     EXPECT_TRUE(validateCollabOperation(removeOp).isEmpty());
 
     // Malformed payloads are caught by the validator.
@@ -306,7 +318,7 @@ TEST(CollaborateOperationsTest, ProposalValidationGatesAcceptance)
     ASSERT_FALSE(proposalId.isEmpty());
 
     const QString error = validateCollabProposal(review, proposalId);
-    EXPECT_NE(error.find(QStringLiteral("operation 1")), std::string::npos);
+    EXPECT_TRUE(error.contains(QStringLiteral("operation 1")));
 
     // Accept is gated: stays pending with no operations returned.
     const auto gated = acceptValidatedProposal(review, proposalId,
@@ -364,7 +376,7 @@ TEST(CollaborationSessionAdapterTest, InboundSignalsRouteIntoSessionModel)
     EXPECT_EQ(session.latestVersion(), 4);
 
     ws.userJoined(QStringLiteral("c2"), QStringLiteral("u2"),
-                  QStringLiteral("Bob"));
+                  QStringLiteral("Bob"), QStringLiteral("#ffffff"));
     EXPECT_TRUE(session.hasParticipant(QStringLiteral("c2")));
 
     ws.remoteLockGranted(QStringLiteral("layer-1"), QStringLiteral("c2"),

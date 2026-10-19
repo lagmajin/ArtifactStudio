@@ -9,7 +9,11 @@ set(ARTIFACT_CORE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../ArtifactCore")
 
 artifact_add_standalone_module_interface(AnimationDynamicsModuleInterfaces
     BASE_DIRS "${ARTIFACT_CORE_ROOT}/include"
+        "${ARTIFACT_CORE_ROOT}/src/Core"
     MODULES "${ARTIFACT_CORE_ROOT}/include/Animation/AnimationDynamics.ixx"
+        "${ARTIFACT_CORE_ROOT}/include/Core/ArtifactString.ixx"
+        "${ARTIFACT_CORE_ROOT}/include/Core/ArtifactArray.ixx"
+        "${ARTIFACT_CORE_ROOT}/src/Core/ArtifactOptional.cppm"
 )
 
 artifact_add_standalone_gtest(ArtifactCoreAnimationDynamicsStandaloneTest

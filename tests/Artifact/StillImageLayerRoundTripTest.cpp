@@ -48,6 +48,9 @@ import Geometry.DepthMeshGenerator;
 import Graphics.SurfaceColorContract;
 import Image.ImageF32x4_RGBA;
 import Image.ImageSurfaceView;
+import Color.Float;
+import FloatRGBA;
+using namespace ArtifactCore;
 import Memory.SharedPtr;
 import Mesh;
 import Utils.String.UniString;
@@ -1299,17 +1302,19 @@ TEST(StillImageLayerRoundTripTest,
     layer.setFromQImage(sourceImage);
     const auto* originalBuffer = &layer.currentFrameBuffer();
     ASSERT_FALSE(originalBuffer->isEmpty());
-    EXPECT_EQ(layer.resolveLayerSourceOverride(), originalBuffer);
+    EXPECT_EQ(&layer.currentFrameBuffer(), originalBuffer);
 
     const float replacementPixels[] = {0.2f, 0.4f, 0.6f, 1.0f};
     ArtifactCore::ImageF32x4_RGBA replacement;
     replacement.setFromRGBA32F(replacementPixels, 1, 1);
     layer.setTemporarySourceOverride(&replacement);
-    EXPECT_EQ(layer.resolveLayerSourceOverride(), &replacement);
+    EXPECT_TRUE(layer.hasTemporarySourceOverride());
+    EXPECT_EQ(&layer.currentFrameBuffer(), &replacement);
 
     const ArtifactCore::ImageF32x4_RGBA emptyOverride;
     layer.setTemporarySourceOverride(&emptyOverride);
-    EXPECT_EQ(layer.resolveLayerSourceOverride(), originalBuffer);
+    EXPECT_FALSE(layer.hasTemporarySourceOverride());
+    EXPECT_EQ(&layer.currentFrameBuffer(), originalBuffer);
 }
 
 TEST(StillImageLayerRoundTripTest, MissingSourceReplacesPreviousPixelsWithPlaceholder)
@@ -2681,8 +2686,7 @@ TEST(StillImageLayerRoundTripTest,
     source.resize(3, 2);
     const FloatRGBA fillColor(0.2f, 0.4f, 0.6f, 0.8f);
 
-    const auto mask = ArtifactCore::ImageF32x4_RGBA::createMaskLike(
-        source, fillColor);
+    const auto mask = source.createMaskLike(source, fillColor);
     ASSERT_EQ(mask.width(), 3);
     ASSERT_EQ(mask.height(), 2);
     const auto pixel = mask.getPixel(2, 1);
@@ -4233,8 +4237,3 @@ TEST(StillImageLayerRoundTripTest, RejectsDecodedPixelBudgetOverLimitBeforeDecod
     EXPECT_EQ(layer.toQImage().size(), QSize(256, 256));
     expectDimensionFallbackRecorded(imagePath);
 }
-\n
-\n
-\n
-\n
-\n

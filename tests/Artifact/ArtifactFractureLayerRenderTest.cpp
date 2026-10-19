@@ -29,6 +29,7 @@ import Artifact.Render.OffscreenComposition;
 import Layer.State;
 import Color.Float;
 import Frame.Position;
+import Physics.System;
 import Utils.Id;
 import Utils.String.UniString;
 
@@ -84,6 +85,26 @@ const bool fractureLayerRenderEnvironmentRegistered = [] {
     testing::AddGlobalTestEnvironment(fractureLayerRenderEnvironment);
     return true;
 }();
+
+class FracturePhysicsLodSettingsScope final {
+public:
+    FracturePhysicsLodSettingsScope()
+        : system_(ArtifactCore::PhysicsSystem::instance())
+        , previous_(system_.physicsLODSettings())
+    {
+    }
+
+    ~FracturePhysicsLodSettingsScope()
+    {
+        system_.setPhysicsLODSettings(previous_);
+    }
+
+    ArtifactCore::PhysicsSystem& system() const { return system_; }
+
+private:
+    ArtifactCore::PhysicsSystem& system_;
+    ArtifactCore::PhysicsLODSettings previous_;
+};
 
 QImage makeFourColorImage()
 {
@@ -294,6 +315,232 @@ TEST(ArtifactFractureLayerRenderTest, SolidPlaneLayerShattersAfterTriggerFrame)
     EXPECT_GT(changed, 2000)
         << "frame " << kLastFrame << " looks identical to pre-trigger frame "
         << kFirstFrame << " (trigger did not fire visibly)";
+}
+
+TEST(ArtifactFractureLayerRenderTest,
+     PhysicsLODScalesGeneratedShardAndDebrisCounts)
+{
+    if (!fractureLayerRenderEnvironment->renderer()) {
+        GTEST_SKIP() << "Diligent headless rendering is unavailable on this host";
+    }
+
+    FracturePhysicsLodSettingsScope lodScope;
+    struct FragmentCounts {
+        int shards = 0;
+        int debris = 0;
+    };
+    Artifact::ArtifactLayerFactory layerFactory;
+    const auto evaluateFracture = [&](const QString& fixtureName,
+                                      const ArtifactCore::PhysicsLODLevel level,
+                                      FragmentCounts* outCounts) {
+        if (!outCounts) return false;
+        ArtifactCore::PhysicsLODSettings lodSettings;
+        lodSettings.level = level;
+        lodScope.system().setPhysicsLODSettings(lodSettings);
+
+        Artifact::ArtifactAbstractComposition composition(
+            ArtifactCore::CompositionID(fixtureName),
+            makeCompositionParams(fixtureName));
+        Artifact::ArtifactSolidLayerInitParams solidParams(fixtureName);
+        solidParams.setWidth(kWidth);
+        solidParams.setHeight(kHeight);
+        solidParams.setColor(
+            ArtifactCore::FloatColor(0.95f, 0.45f, 0.10f, 1.0f));
+        const auto layerResult = layerFactory.createLayer(solidParams);
+        if (!layerResult.success || !layerResult.layer) return false;
+
+        auto* layer = layerResult.layer.get();
+        const std::pair<const char*, QVariant> properties[] = {
+            {"fracture.enabled", QVariant(true)},
+            {"fracture.preGenerate", QVariant(true)},
+            {"fracture.shardCount", QVariant(20)},
+        };
+        for (const auto& [path, value] : properties) {
+            if (!layer->setLayerPropertyValue(QString::fromLatin1(path), value)) {
+                return false;
+            }
+        }
+        if (!composition.appendLayerTop(layerResult.layer).success) {
+            return false;
+        }
+
+        composition.goToFrame(ArtifactCore::FramePosition(1));
+        composition.evaluateLayerComponentSimulation(
+            ArtifactCore::FramePosition(1), false);
+        const QImage image = fractureLayerRenderEnvironment->renderer()
+            ->renderLayerToQImage(ArtifactCore::FramePosition(1), layer);
+        if (image.isNull()) return false;
+
+        for (const auto& fragment : layer->layerEvaluationState().fragments) {
+            if (fragment.debris) {
+                ++outCounts->debris;
+            } else {
+                ++outCounts->shards;
+            }
+        }
+        return true;
+    };
+
+    FragmentCounts full;
+    FragmentCounts reduced;
+    FragmentCounts minimal;
+    ASSERT_TRUE(evaluateFracture(
+        QStringLiteral("fracture-lod-full"),
+        ArtifactCore::PhysicsLODLevel::Full, &full));
+    ASSERT_TRUE(evaluateFracture(
+        QStringLiteral("fracture-lod-reduced"),
+        ArtifactCore::PhysicsLODLevel::Reduced, &reduced));
+    ASSERT_TRUE(evaluateFracture(
+        QStringLiteral("fracture-lod-minimal"),
+        ArtifactCore::PhysicsLODLevel::Minimal, &minimal));
+
+    EXPECT_GT(full.shards, 0);
+    EXPECT_GT(full.debris, 0);
+    EXPECT_EQ(reduced.shards, full.shards)
+        << "the Reduced preset should retain the default fracture shard budget";
+    EXPECT_EQ(reduced.debris, full.debris)
+        << "the Reduced preset should retain the default fracture debris budget";
+    EXPECT_LT(minimal.shards, full.shards)
+        << "Minimal physics LOD should reduce generated fracture shards";
+    EXPECT_LT(minimal.debris, full.debris)
+        << "Minimal physics LOD should reduce generated fracture debris";
+
+    // Reuse one layer across quality changes so reduced pre-generation cannot
+    // leave a truncated shard budget behind after returning to Full.
+    const QString transitionName = QStringLiteral("fracture-lod-transition");
+    Artifact::ArtifactAbstractComposition transitionComposition(
+        ArtifactCore::CompositionID(transitionName),
+        makeCompositionParams(transitionName));
+    Artifact::ArtifactSolidLayerInitParams transitionParams(transitionName);
+    transitionParams.setWidth(kWidth);
+    transitionParams.setHeight(kHeight);
+    transitionParams.setColor(
+        ArtifactCore::FloatColor(0.95f, 0.45f, 0.10f, 1.0f));
+    const auto transitionResult = layerFactory.createLayer(transitionParams);
+    ASSERT_TRUE(transitionResult.success);
+    ASSERT_NE(transitionResult.layer.get(), nullptr);
+    auto* transitionLayer = transitionResult.layer.get();
+    const std::pair<const char*, QVariant> transitionProperties[] = {
+        {"fracture.enabled", QVariant(true)},
+        {"fracture.preGenerate", QVariant(true)},
+        {"fracture.shardCount", QVariant(20)},
+    };
+    for (const auto& [path, value] : transitionProperties) {
+        ASSERT_TRUE(transitionLayer->setLayerPropertyValue(
+            QString::fromLatin1(path), value)) << path;
+    }
+    ASSERT_TRUE(transitionComposition.appendLayerTop(transitionResult.layer).success);
+
+    const auto evaluateTransition = [&](const ArtifactCore::PhysicsLODLevel level) {
+        ArtifactCore::PhysicsLODSettings settings;
+        settings.level = level;
+        lodScope.system().setPhysicsLODSettings(settings);
+        transitionComposition.resetLayerComponentSimulation();
+        transitionComposition.goToFrame(ArtifactCore::FramePosition(1));
+        transitionComposition.evaluateLayerComponentSimulation(
+            ArtifactCore::FramePosition(1), false);
+        const QImage image = fractureLayerRenderEnvironment->renderer()
+            ->renderLayerToQImage(ArtifactCore::FramePosition(1), transitionLayer);
+        if (image.isNull()) return FragmentCounts{};
+        FragmentCounts counts;
+        for (const auto& fragment : transitionLayer->layerEvaluationState().fragments) {
+            if (fragment.debris) ++counts.debris;
+            else ++counts.shards;
+        }
+        return counts;
+    };
+    const auto evaluateCustomFractureScale = [&](const float shardScale,
+                                                  const float debrisScale) {
+        ArtifactCore::PhysicsLODSettings settings;
+        settings.level = ArtifactCore::PhysicsLODLevel::Full;
+        settings.fractureShardScale = shardScale;
+        settings.fractureDebrisScale = debrisScale;
+        lodScope.system().setPhysicsLODSettings(settings);
+        transitionComposition.resetLayerComponentSimulation();
+        transitionComposition.goToFrame(ArtifactCore::FramePosition(1));
+        transitionComposition.evaluateLayerComponentSimulation(
+            ArtifactCore::FramePosition(1), false);
+        const QImage image = fractureLayerRenderEnvironment->renderer()
+            ->renderLayerToQImage(ArtifactCore::FramePosition(1), transitionLayer);
+        if (image.isNull()) return FragmentCounts{};
+        FragmentCounts counts;
+        for (const auto& fragment : transitionLayer->layerEvaluationState().fragments) {
+            if (fragment.debris) ++counts.debris;
+            else ++counts.shards;
+        }
+        return counts;
+    };
+
+    const FragmentCounts transitionFull = evaluateTransition(
+        ArtifactCore::PhysicsLODLevel::Full);
+    const FragmentCounts transitionMinimal = evaluateTransition(
+        ArtifactCore::PhysicsLODLevel::Minimal);
+    const FragmentCounts restoredFull = evaluateTransition(
+        ArtifactCore::PhysicsLODLevel::Full);
+    const FragmentCounts transitionReduced = evaluateTransition(
+        ArtifactCore::PhysicsLODLevel::Reduced);
+    const FragmentCounts restoredMinimal = evaluateTransition(
+        ArtifactCore::PhysicsLODLevel::Minimal);
+    const FragmentCounts restoredReduced = evaluateTransition(
+        ArtifactCore::PhysicsLODLevel::Reduced);
+    const FragmentCounts restoredFullAgain = evaluateTransition(
+        ArtifactCore::PhysicsLODLevel::Full);
+    const FragmentCounts shardScaledOnly = evaluateCustomFractureScale(
+        0.25f, 1.0f);
+    const FragmentCounts debrisScaledOnly = evaluateCustomFractureScale(
+        1.0f, 0.25f);
+    const FragmentCounts minimumScaled = evaluateCustomFractureScale(
+        0.0f, 0.0f);
+    const FragmentCounts aboveMaximumScaled = evaluateCustomFractureScale(
+        2.0f, 2.0f);
+    const FragmentCounts restoredFullAfterCustomScale = evaluateTransition(
+        ArtifactCore::PhysicsLODLevel::Full);
+    EXPECT_EQ(transitionFull.shards, full.shards);
+    EXPECT_EQ(transitionFull.debris, full.debris);
+    EXPECT_LT(transitionMinimal.shards, transitionFull.shards);
+    EXPECT_LT(transitionMinimal.debris, transitionFull.debris);
+    EXPECT_EQ(restoredFull.shards, transitionFull.shards)
+        << "returning to Full should restore the original shard count";
+    EXPECT_EQ(restoredFull.debris, transitionFull.debris)
+        << "returning to Full should restore the original debris count";
+    EXPECT_EQ(transitionReduced.shards, transitionFull.shards)
+        << "Reduced should retain Full's configured shard budget";
+    EXPECT_EQ(transitionReduced.debris, transitionFull.debris)
+        << "Reduced should retain Full's configured debris budget";
+    EXPECT_EQ(restoredMinimal.shards, transitionMinimal.shards)
+        << "returning to Minimal should reproduce its prior shard budget";
+    EXPECT_EQ(restoredMinimal.debris, transitionMinimal.debris)
+        << "returning to Minimal should reproduce its prior debris budget";
+    EXPECT_EQ(restoredReduced.shards, transitionReduced.shards)
+        << "returning to Reduced should restore its prior shard budget";
+    EXPECT_EQ(restoredReduced.debris, transitionReduced.debris)
+        << "returning to Reduced should restore its prior debris budget";
+    EXPECT_EQ(restoredFullAgain.shards, transitionFull.shards)
+        << "repeated transitions should restore the Full shard budget";
+    EXPECT_EQ(restoredFullAgain.debris, transitionFull.debris)
+        << "repeated transitions should restore the Full debris budget";
+    EXPECT_LT(shardScaledOnly.shards, transitionFull.shards)
+        << "a custom shard scale should reduce only the shard budget";
+    EXPECT_EQ(shardScaledOnly.debris, transitionFull.debris)
+        << "a full debris scale should preserve the debris budget";
+    EXPECT_EQ(debrisScaledOnly.shards, transitionFull.shards)
+        << "a full shard scale should preserve the shard budget";
+    EXPECT_LT(debrisScaledOnly.debris, transitionFull.debris)
+        << "a custom debris scale should reduce only the debris budget";
+    EXPECT_GT(minimumScaled.shards, 0)
+        << "the minimum fracture LOD should retain at least one shard";
+    EXPECT_LT(minimumScaled.shards, transitionFull.shards)
+        << "the minimum fracture LOD should clamp shard generation down";
+    EXPECT_EQ(minimumScaled.debris, 0)
+        << "the minimum debris scale should allow the debris budget to reach zero";
+    EXPECT_EQ(aboveMaximumScaled.shards, transitionFull.shards)
+        << "scales above one should clamp to the Full shard budget";
+    EXPECT_EQ(aboveMaximumScaled.debris, transitionFull.debris)
+        << "scales above one should clamp to the Full debris budget";
+    EXPECT_EQ(restoredFullAfterCustomScale.shards, transitionFull.shards)
+        << "returning to Full should restore shards after a custom scale";
+    EXPECT_EQ(restoredFullAfterCustomScale.debris, transitionFull.debris)
+        << "returning to Full should restore debris after a custom scale";
 }
 
 TEST(ArtifactFractureLayerRenderTest, RewoundReplayReproducesSameShatter)

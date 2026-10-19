@@ -1,9 +1,14 @@
 #include <gtest/gtest.h>
 
+#include <cstdint>
+#include <limits>
+#include <string>
+
 import Graphics.RenderIndex;
 import Graphics.RenderPipelineFoundation;
 import Graphics.GIResources;
 import Graphics.SurfaceColorContract;
+import Graphics.TemporalHistory;
 
 using namespace ArtifactCore;
 
@@ -329,6 +334,82 @@ TEST(RenderPipelineContractTest, CacheKeyTracksFrameRateQualityAndColorContract)
     });
 }
 
+TEST(RenderPipelineContractTest,
+     TemporalHistorySeparatesPreviewAndFinalQualityAtTheSameResolution)
+{
+    const TemporalHistoryKey previewKey{
+        101, 7, "gi.diffuse", 960, 540,
+        static_cast<std::uint32_t>(RenderQuality::Preview)};
+    const TemporalHistoryKey finalKey{
+        101, 7, "gi.diffuse", 960, 540,
+        static_cast<std::uint32_t>(RenderQuality::Final)};
+    EXPECT_NE(previewKey, finalKey);
+
+    TemporalHistoryRegistry registry;
+    const auto& previewEntry = registry.store(previewKey, 401, 48);
+    ASSERT_TRUE(previewEntry.valid);
+    const auto& finalEntry = registry.store(finalKey, 902, 48);
+    ASSERT_TRUE(finalEntry.valid);
+
+    EXPECT_EQ(registry.size(), 2u);
+    ASSERT_NE(registry.find(previewKey), nullptr);
+    ASSERT_NE(registry.find(finalKey), nullptr);
+    EXPECT_EQ(registry.find(previewKey)->resourceToken, 401u);
+    EXPECT_EQ(registry.find(finalKey)->resourceToken, 902u);
+    EXPECT_TRUE(registry.isReusable(previewKey, 49));
+    EXPECT_TRUE(registry.isReusable(finalKey, 49));
+
+    EXPECT_TRUE(registry.invalidate(
+        previewKey, TemporalInvalidationReason::QualityChanged));
+    ASSERT_NE(registry.find(previewKey), nullptr);
+    EXPECT_FALSE(registry.find(previewKey)->valid);
+    EXPECT_EQ(registry.find(previewKey)->invalidationReason,
+              TemporalInvalidationReason::QualityChanged);
+    ASSERT_NE(registry.find(finalKey), nullptr);
+    EXPECT_TRUE(registry.find(finalKey)->valid)
+        << "invalidating Preview history must preserve the Final history";
+
+    const std::uint64_t previousRevision = registry.revision();
+    const auto& restoredPreview = registry.store(previewKey, 511, 49);
+    EXPECT_TRUE(restoredPreview.valid);
+    EXPECT_EQ(restoredPreview.resourceToken, 511u);
+    EXPECT_EQ(restoredPreview.invalidationReason,
+              TemporalInvalidationReason::None);
+    EXPECT_GT(registry.revision(), previousRevision);
+    EXPECT_TRUE(registry.isReusable(previewKey, 50));
+    EXPECT_EQ(registry.find(finalKey)->resourceToken, 902u)
+        << "restoring Preview history must not replace the Final resource";
+}
+
+TEST(RenderPipelineContractTest,
+     TemporalHistorySeparatesResolutionLevelsAtTheSameQuality)
+{
+    const std::uint32_t previewQuality =
+        static_cast<std::uint32_t>(RenderQuality::Preview);
+    const TemporalHistoryKey lowResolutionKey{
+        101, 7, "gi.diffuse", 480, 270, previewQuality};
+    const TemporalHistoryKey fullResolutionKey{
+        101, 7, "gi.diffuse", 1920, 1080, previewQuality};
+    EXPECT_NE(lowResolutionKey, fullResolutionKey);
+
+    TemporalHistoryRegistry registry;
+    registry.store(lowResolutionKey, 210, 80);
+    registry.store(fullResolutionKey, 840, 80);
+
+    EXPECT_EQ(registry.size(), 2u);
+    ASSERT_NE(registry.find(lowResolutionKey), nullptr);
+    ASSERT_NE(registry.find(fullResolutionKey), nullptr);
+    EXPECT_EQ(registry.find(lowResolutionKey)->resourceToken, 210u);
+    EXPECT_EQ(registry.find(fullResolutionKey)->resourceToken, 840u);
+    EXPECT_TRUE(registry.invalidate(
+        lowResolutionKey, TemporalInvalidationReason::ResolutionChanged));
+    EXPECT_FALSE(registry.find(lowResolutionKey)->valid);
+    EXPECT_EQ(registry.find(lowResolutionKey)->invalidationReason,
+              TemporalInvalidationReason::ResolutionChanged);
+    EXPECT_TRUE(registry.find(fullResolutionKey)->valid)
+        << "invalidating a low-resolution history must preserve full resolution";
+}
+
 TEST(RenderPipelineContractTest, CacheKeyTracksRemainingIdentityColorAndFeatureFields)
 {
     const auto snapshot = makeSnapshot();
@@ -484,6 +565,201 @@ TEST(RenderPipelineContractTest, GIFrameResourceResizeAdvancesResourceGeneration
     EXPECT_EQ(resources.generation(), 2u);
     EXPECT_EQ(resources.width(), 1280u);
     EXPECT_EQ(resources.height(), 720u);
+}
+
+TEST(RenderPipelineContractTest, GIWorkingResolutionFollowsQualityScale)
+{
+    GIFrameResources resources;
+    resources.resize(1919, 1079);
+
+    const auto fast = GISettings::fast();
+    EXPECT_EQ(resources.workingWidth(fast), 959u);
+    EXPECT_EQ(resources.workingHeight(fast), 539u);
+
+    const auto quality = GISettings::quality();
+    EXPECT_EQ(resources.workingWidth(quality), 1919u);
+    EXPECT_EQ(resources.workingHeight(quality), 1079u);
+}
+
+TEST(RenderPipelineContractTest, GIWorkingResolutionScalesOddDimensionsMonotonically)
+{
+    GIFrameResources resources;
+    resources.resize(1919, 1079);
+
+    GISettings low = GISettings::fast();
+    low.resolutionScale = 0.125f;
+    GISettings medium = low;
+    medium.resolutionScale = 0.75f;
+    const GISettings high = GISettings::quality();
+
+    const auto lowWidth = resources.workingWidth(low);
+    const auto mediumWidth = resources.workingWidth(medium);
+    const auto highWidth = resources.workingWidth(high);
+    const auto lowHeight = resources.workingHeight(low);
+    const auto mediumHeight = resources.workingHeight(medium);
+    const auto highHeight = resources.workingHeight(high);
+
+    EXPECT_EQ(lowWidth, 239u);
+    EXPECT_EQ(mediumWidth, 1439u);
+    EXPECT_EQ(highWidth, 1919u);
+    EXPECT_EQ(lowHeight, 134u);
+    EXPECT_EQ(mediumHeight, 809u);
+    EXPECT_EQ(highHeight, 1079u);
+    EXPECT_LT(lowWidth, mediumWidth);
+    EXPECT_LT(mediumWidth, highWidth);
+    EXPECT_LT(lowHeight, mediumHeight);
+    EXPECT_LT(mediumHeight, highHeight);
+}
+
+TEST(RenderPipelineContractTest, GIWorkingResolutionKeepsTinyValidImagesNonzero)
+{
+    GIFrameResources resources;
+    resources.resize(1, 2);
+
+    const auto fast = GISettings::fast();
+    EXPECT_EQ(resources.workingWidth(fast), 1u);
+    EXPECT_EQ(resources.workingHeight(fast), 1u);
+}
+
+TEST(RenderPipelineContractTest, GIWorkingResolutionSupportsScalesAboveOne)
+{
+    GIFrameResources resources;
+    resources.resize(5, 3);
+
+    GISettings supersampled = GISettings::quality();
+    supersampled.resolutionScale = 1.5f;
+
+    EXPECT_EQ(resources.workingWidth(supersampled), 7u);
+    EXPECT_EQ(resources.workingHeight(supersampled), 4u);
+}
+
+TEST(RenderPipelineContractTest, GIWorkingResolutionIsZeroForInvalidBaseOrScale)
+{
+    GIFrameResources resources;
+    GISettings settings = GISettings::quality();
+
+    EXPECT_EQ(resources.workingWidth(settings), 0u);
+    EXPECT_EQ(resources.workingHeight(settings), 0u);
+
+    resources.resize(640, 360);
+    settings.resolutionScale = 0.0f;
+    EXPECT_EQ(resources.workingWidth(settings), 0u);
+    EXPECT_EQ(resources.workingHeight(settings), 0u);
+
+    settings.resolutionScale = -0.5f;
+    EXPECT_EQ(resources.workingWidth(settings), 0u);
+    EXPECT_EQ(resources.workingHeight(settings), 0u);
+}
+
+TEST(RenderPipelineContractTest, GIWorkingResolutionRejectsNonFiniteScales)
+{
+    GIFrameResources resources;
+    resources.resize(640, 360);
+    GISettings settings = GISettings::quality();
+
+    for (const float invalidScale : {
+             std::numeric_limits<float>::quiet_NaN(),
+             std::numeric_limits<float>::infinity(),
+             -std::numeric_limits<float>::infinity()}) {
+        settings.resolutionScale = invalidScale;
+        EXPECT_EQ(resources.workingWidth(settings), 0u)
+            << "invalid resolution scale " << invalidScale;
+        EXPECT_EQ(resources.workingHeight(settings), 0u)
+            << "invalid resolution scale " << invalidScale;
+    }
+}
+
+TEST(RenderPipelineContractTest, ChangingGIResolutionScaleInvalidatesHistory)
+{
+    GIFrameContext context(GISettings::fast());
+    context.resize(1919, 1079);
+    EXPECT_EQ(context.workingWidth(), 959u);
+    EXPECT_EQ(context.workingHeight(), 539u);
+
+    context.beginFrame(1);
+    context.commitHistory();
+    ASSERT_TRUE(context.historyReady());
+    const auto generationBeforeQualityChange =
+        context.accumulation().generation();
+
+    context.configure(GISettings::quality());
+
+    EXPECT_EQ(context.workingWidth(), 1919u);
+    EXPECT_EQ(context.workingHeight(), 1079u);
+    EXPECT_FALSE(context.historyReady());
+    EXPECT_GT(context.accumulation().generation(),
+              generationBeforeQualityChange);
+
+    context.beginFrame(2);
+    context.commitHistory();
+    ASSERT_TRUE(context.historyReady());
+
+    const auto generationBeforeScaleDown =
+        context.accumulation().generation();
+    context.configure(GISettings::fast());
+    EXPECT_EQ(context.workingWidth(), 959u);
+    EXPECT_EQ(context.workingHeight(), 539u);
+    EXPECT_FALSE(context.historyReady());
+    EXPECT_GT(context.accumulation().generation(),
+              generationBeforeScaleDown);
+
+    context.beginFrame(3);
+    context.commitHistory();
+    ASSERT_TRUE(context.historyReady());
+    context.resize(1280, 720);
+    EXPECT_EQ(context.workingWidth(), 640u);
+    EXPECT_EQ(context.workingHeight(), 360u);
+    EXPECT_FALSE(context.historyReady());
+}
+
+TEST(RenderPipelineContractTest, GIQualityPresetsSelectExpectedPassBudgets)
+{
+    const GIExecutionPlan fast = GIExecutionPlan::forSettings(GISettings::fast());
+    EXPECT_FALSE(fast.empty());
+    EXPECT_EQ(fast.gatherSampleCount(), 4u);
+    EXPECT_FALSE(fast.contains(GIPassKind::DepthPyramid));
+    EXPECT_FALSE(fast.contains(GIPassKind::BilateralDenoise));
+    EXPECT_TRUE(fast.contains(GIPassKind::TemporalResolve));
+    EXPECT_TRUE(fast.requiresHistory());
+
+    const GIExecutionPlan quality =
+        GIExecutionPlan::forSettings(GISettings::quality());
+    EXPECT_EQ(quality.gatherSampleCount(), 24u);
+    EXPECT_TRUE(quality.contains(GIPassKind::DepthPyramid));
+    EXPECT_TRUE(quality.contains(GIPassKind::BilateralDenoise));
+    EXPECT_TRUE(quality.contains(GIPassKind::TemporalResolve));
+
+    const GIExecutionPlan disabled =
+        GIExecutionPlan::forSettings(GISettings::disabled());
+    EXPECT_TRUE(disabled.empty());
+    EXPECT_EQ(disabled.gatherSampleCount(), 0u);
+    EXPECT_FALSE(disabled.requiresHistory());
+}
+
+TEST(RenderPipelineContractTest, GIQualityTransitionsReplacePlanAndInvalidateHistory)
+{
+    GIFrameContext context(GISettings::fast());
+    context.resize(1280, 720);
+    context.beginFrame(1);
+    context.commitHistory();
+    ASSERT_TRUE(context.historyReady());
+
+    context.configure(GISettings::quality());
+    EXPECT_EQ(context.plan().gatherSampleCount(), 24u);
+    EXPECT_TRUE(context.plan().contains(GIPassKind::DepthPyramid));
+    EXPECT_FALSE(context.historyReady());
+
+    context.commitHistory();
+    ASSERT_TRUE(context.historyReady());
+    context.configure(GISettings::disabled());
+    EXPECT_TRUE(context.plan().empty());
+    EXPECT_FALSE(context.historyReady());
+
+    context.configure(GISettings::fast());
+    EXPECT_EQ(context.plan().gatherSampleCount(), 4u);
+    EXPECT_FALSE(context.plan().contains(GIPassKind::DepthPyramid));
+    EXPECT_FALSE(context.plan().contains(GIPassKind::BilateralDenoise));
+    EXPECT_FALSE(context.historyReady());
 }
 
 TEST(RenderPipelineContractTest, GIFrameResourceDescriptorsMatchEveryResourceLayout)

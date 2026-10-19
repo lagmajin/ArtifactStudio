@@ -726,25 +726,6 @@ set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 # opt-in consistently for local targets, including C++ module dependency scans.
 add_compile_definitions(GLM_ENABLE_EXPERIMENTAL)
 add_subdirectory(ArtifactCore)
-# Keep this parent-side until the child module-reference manifest can be
-# updated: ImageAnalyzer.cppm is compiled as an unscanned implementation unit,
-# so its Image.ImageSurfaceView import needs an explicit IFC reference.
-if(MSVC AND TARGET ArtifactCoreAnalyze)
-    set(_artifact_image_analyzer_source
-        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Analyze/ImageAnalyzer.cppm")
-    set_property(SOURCE "${_artifact_image_analyzer_source}"
-        TARGET_DIRECTORY ArtifactCoreAnalyze
-        APPEND PROPERTY COMPILE_OPTIONS
-            "/reference;Image.ImageSurfaceView=${CMAKE_CURRENT_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Image.ImageSurfaceView.ifc"
-            "/reference;Graphics.SurfaceColorContract=${CMAKE_CURRENT_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Graphics.SurfaceColorContract.ifc"
-            "/reference;Color.TransferFunction=${CMAKE_CURRENT_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Color.TransferFunction.ifc")
-    set_property(SOURCE "${_artifact_image_analyzer_source}"
-        TARGET_DIRECTORY ArtifactCoreAnalyze
-        APPEND PROPERTY OBJECT_DEPENDS
-            "${CMAKE_CURRENT_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/include/Image/ImageSurfaceView.ixx.obj"
-            "${CMAKE_CURRENT_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/include/Graphics/SurfaceColorContract.ixx.obj"
-            "${CMAKE_CURRENT_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/include/Color/ColorTransferFunction.ixx.obj")
-endif()
 # Artifact's standalone text GPU runtimes still link the historical
 # ArtifactCoreTextRuntime name. Keep that dependency mapped to the current
 # ArtifactCoreText module owner at the parent integration boundary.
@@ -885,6 +866,9 @@ option(ARTIFACT_BUILD_COMPOSITION_PLAYBACK_STRESS_TEST
 option(ARTIFACT_BUILD_COMPOSITION_LAYER_SURFACE_CACHE_TEST
     "Build the independent Composition layer surface cache test executable"
     OFF)
+option(ARTIFACT_BUILD_COMPOSITION_VIEWPORT_CHANNEL_TEST
+    "Build the independent Composition Viewport channel display test executable"
+    OFF)
 option(ARTIFACT_ENABLE_FBX_IMPORT_TEST
     "Build the FBX animation and embedded-texture importer test"
     OFF)
@@ -1012,6 +996,44 @@ if(ARTIFACT_BUILD_COMPOSITION_LAYER_SURFACE_CACHE_TEST)
     )
     if(ARTIFACT_FRONTEND_MSVC)
         target_compile_options(ArtifactCompositionLayerSurfaceCacheTest PRIVATE
+            /Zf /Zc:__cplusplus /utf-8 /EHsc
+        )
+    endif()
+endif()
+
+if(ARTIFACT_BUILD_COMPOSITION_VIEWPORT_CHANNEL_TEST)
+    if(NOT WIN32)
+        message(FATAL_ERROR
+            "ArtifactCompositionViewportChannelTest currently requires Windows window capture")
+    endif()
+    add_executable(ArtifactCompositionViewportChannelTest
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/Artifact/CompositionViewportChannelTestMain.cpp"
+    )
+    target_link_libraries(ArtifactCompositionViewportChannelTest PRIVATE ArtifactAppRuntime)
+    target_include_directories(ArtifactCompositionViewportChannelTest PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/verdigris/src"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests"
+    )
+    target_compile_definitions(ArtifactCompositionViewportChannelTest PRIVATE
+        ARTIFACT_CHANNEL_TEST_MODEL_OBJ_PATH="${CMAKE_SOURCE_DIR}/tests/models/light_composition_icosphere.obj"
+    )
+    artifact_add_cppwinrt_include(ArtifactCompositionViewportChannelTest)
+    set_target_properties(ArtifactCompositionViewportChannelTest PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    add_custom_command(TARGET ArtifactCompositionViewportChannelTest POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:ArtifactCompositionViewportChannelTest>
+            "$<TARGET_FILE_DIR:ArtifactCompositionViewportChannelTest>/"
+        COMMAND_EXPAND_LISTS
+        VERBATIM
+    )
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactCompositionViewportChannelTest PRIVATE
             /Zf /Zc:__cplusplus /utf-8 /EHsc
         )
     endif()

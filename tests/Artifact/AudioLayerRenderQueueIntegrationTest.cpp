@@ -20,6 +20,7 @@
 #include <cstdint>
 
 import Artifact.Audio.Waveform;
+import Artifact.Audio.Effects.Distortion;
 import Artifact.Composition.Abstract;
 import Artifact.Composition.InitParams;
 import Artifact.Composition.Result;
@@ -353,6 +354,54 @@ ArtifactCore::FloatRGBA canonicalPixel(
 }
 
 } // namespace
+
+TEST(AudioLayerRenderIntegrationTest,
+     DistortionBitcrushLODIsInvariantToAudioSegmentChunking)
+{
+    const auto configureCrusher = [](Artifact::DistortionEffect& effect) {
+        effect.setParameter("mode", 4.0f);
+        effect.setParameter("drive", 1.0f);
+        effect.setParameter("tone", 0.0f);
+        effect.setParameter("mix", 1.0f);
+        effect.setParameter("bit_depth", 16.0f);
+        effect.setParameter("downsample", 4.0f);
+    };
+    const auto makeSegment = [](QVector<float> samples) {
+        ArtifactCore::AudioSegment segment;
+        segment.sampleRate = 48000;
+        segment.layout = ArtifactCore::AudioChannelLayout::Mono;
+        segment.channelData.push_back(std::move(samples));
+        return segment;
+    };
+
+    Artifact::DistortionEffect wholeEffect;
+    configureCrusher(wholeEffect);
+    auto whole = makeSegment(
+        QVector<float>{0.1f, 0.2f, 0.3f, 0.4f, -0.1f, -0.2f, -0.3f, -0.4f});
+    wholeEffect.process(whole);
+
+    Artifact::DistortionEffect chunkedEffect;
+    configureCrusher(chunkedEffect);
+    auto firstChunk = makeSegment(QVector<float>{0.1f, 0.2f});
+    auto secondChunk = makeSegment(
+        QVector<float>{0.3f, 0.4f, -0.1f, -0.2f, -0.3f, -0.4f});
+    chunkedEffect.process(firstChunk);
+    chunkedEffect.process(secondChunk);
+
+    QVector<float> chunkedOutput = firstChunk.channelData[0];
+    chunkedOutput += secondChunk.channelData[0];
+    EXPECT_EQ(chunkedOutput, whole.channelData[0])
+        << "changing the audio segment size must not restart Bitcrush LOD phase";
+    EXPECT_FLOAT_EQ(whole.channelData[0][0], 0.0f)
+        << "the initial hold remains silent until the first downsample interval";
+    EXPECT_FLOAT_EQ(whole.channelData[0][1], whole.channelData[0][2]);
+    EXPECT_FLOAT_EQ(whole.channelData[0][2], 0.0f);
+    EXPECT_FLOAT_EQ(whole.channelData[0][3], whole.channelData[0][4]);
+    EXPECT_FLOAT_EQ(whole.channelData[0][4], whole.channelData[0][5]);
+    EXPECT_FLOAT_EQ(whole.channelData[0][5], whole.channelData[0][6]);
+    EXPECT_NE(whole.channelData[0][2], whole.channelData[0][3]);
+    EXPECT_NE(whole.channelData[0][6], whole.channelData[0][7]);
+}
 
 TEST(AudioLayerRenderIntegrationTest,
      AudioLayerWaveformAndVolumeArePreserved)

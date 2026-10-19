@@ -1,14 +1,19 @@
 **最終更新:** 2026-10-18
 
-**ステータス:** Phase 1-A 部分完了（CompositionChangeDetector、RenderPassExecutor、Layer Editor geometry、Composition controller の Gizmo / Rig / Motion Path / Layer / Edit / Text-Puppet Undo 群、Onion Skin history を分離。Tracker / Construction Undo と Composition controller の frame body、GPU cache 群の分離は未完了）
+**ステータス:** Phase 1-A 部分完了（CompositionChangeDetector、RenderPassExecutor、Layer Editor geometry、Composition controller の Gizmo / Rig / Motion Path / Layer / Edit / Text-Puppet / Tracker Session / Construction Undo 群、Onion Skin history を分離。Composition controller の frame body、GPU cache 群の分離は未完了）
 
 ## 2026-10-18 進捗
 
 - Composition controller から `Artifact.Widgets.CompositionOnionSkinHistory` を独立 module として抽出した。最大5枚の画像履歴、世代管理、非同期 readback 完了処理、opacity による履歴描画を移し、controller には animation 判定と selected paint-layer 専用経路を残した。
-- controller 内に残る Undo command class は `TrackerSessionUndoCommand` と `ConstructionItemUndoCommand`。Gizmo transform / group state、Rig、Motion Path、Layer、Edit、Text-Puppet の command 群は既存の専用 module にある。
-- `ArtifactCompositionRenderController.cppm` は今回の抽出後で約40,389行。2026-10-17 の約54,000行からの差には他の分割と実装変更も含まれ、この Onion Skin 抽出単独では約94行を外部化した。
+- `TrackerSessionUndoCommand` と tracker session manifest / geometry / source-layer persistence 関数を `Artifact.Widgets.CompositionTrackerSessionUndoCommands` module に抽出し、controller から import する構成にした。Composition 単位の source layer fallback の読み書きも同 module に集約し、CMake source manifest に登録済み。
+- `ConstructionItemUndoCommand` も `Artifact.Widgets.CompositionConstructionUndoCommand` module に抽出して CMake source manifest に登録した。Composition controller 内に Undo command class は残っていない。
+- Host widget の可視性・論理サイズ・DPR・HWND を保持する plain-value `CompositionHostFrameSnapshot` を小さな module に抽出した。Composition / layer の scene snapshot ではなく、worker rendering もまだ実装していない。
+- Composition-space presentation 用の offscreen color / post-process target とそのサイズ再生成・破棄を `CompositionSpaceGpuCache` module に抽出した。cache は引き続き controller の renderer owner lane で使い、worker thread へ移してはいない。
+- 現在の `ArtifactCompositionRenderController.cppm` は40,010行。以前記録した54,257行は誤りだったため訂正した。
 - 新 module と controller を含む `ArtifactAppRuntime` / Composition integration target の Debug build が通過し、Point / Spot の実 Composition 画像テストは Vulkan / D3D12 で4/4 pass。フレーム PNG は両 backend 間で同じ hash を出力した。
-- この分割は責務境界の整理であり、Composition frame body、scene snapshot、immediate context / present の thread ownership は引き続き未分離。
+- 新しい Construction module と controller を含む `ArtifactAppRuntime` Debug build が通過した。この分割は責務境界の整理であり、Composition frame body、scene snapshot、immediate context / present の thread ownership は引き続き未分離。
+- HostFrameSnapshot module と controller を含む `ArtifactAppRuntime` Debug build も通過した。分割後の controller は40,064行で、Undo / host metadata の抽出後も巨大な frame/render implementation が残っている。
+- CompositionSpaceGpuCache module と controller を含む `ArtifactAppRuntime` / `ArtifactModel3DLightCompositionIntegrationTest` Debug build が通過した。Composition Point / Spot の Vulkan / D3D12 実画像テストが4/4 passし、PNGを再生成した。controller は40,010行。
 
 ## 2026-10-17 進捗
 

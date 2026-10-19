@@ -99,7 +99,7 @@ if(ARTIFACT_ENABLE_FBX_IMPORT_TEST)
         )
     endif()
     set_tests_properties(ArtifactCoreMeshImporterFbxTest PROPERTIES
-        LABELS "fbx;animation;textures;import;core"
+        LABELS "fbx;animation;textures;import;lod;core"
         TIMEOUT 120
         ENVIRONMENT
             "ARTIFACT_FBX_ANIMATION_TEST_FILE=${_artifact_fbx_animation_fixture};ARTIFACT_FBX_BASE_COLOR_TEST_FILE=${_artifact_fbx_base_color_fixture};ARTIFACT_FBX_TEXTURE_TEST_FILE=${_artifact_fbx_texture_fixture};ARTIFACT_FBX_EXTERNAL_TEXTURE_TEST_FILE=${_artifact_fbx_external_texture_fixture}"

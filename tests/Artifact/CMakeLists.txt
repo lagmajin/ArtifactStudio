@@ -80,6 +80,93 @@ set_tests_properties(ArtifactLODManagerContractTest PROPERTIES
     LABELS "render;lod;zoom;cpu;contract"
 )
 
+artifact_add_test(ArtifactRenderContextLodContractTest
+    SOURCES
+        RenderContextLodContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactRenderContextLodContractTest PROPERTIES
+    LABELS "render;lod;resolution;cpu;contract"
+)
+
+artifact_add_test(ArtifactGlobalIlluminationLodContractTest
+    SOURCES
+        GlobalIlluminationLodContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactGlobalIlluminationLodContractTest PROPERTIES
+    LABELS "render;global-illumination;lod;resolution;cpu;contract"
+)
+
+artifact_add_test(ArtifactEffectParameterLodContractTest
+    SOURCES
+        EffectParameterLodContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactEffectParameterLodContractTest PROPERTIES
+    LABELS "effect;gpu-spatial;lod;resolution;cpu;contract"
+)
+
+artifact_add_test(ArtifactPhysicsLodBridgeContractTest
+    SOURCES
+        PhysicsLodBridgeContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactPhysicsLodBridgeContractTest PROPERTIES
+    LABELS "physics;lod;fracture;cpu;contract"
+)
+
+artifact_add_test(ArtifactMpmSandLodSurfaceContractTest
+    SOURCES
+        MpmSandLodSurfaceContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+        ArtifactEffectsGlow
+)
+set_tests_properties(ArtifactMpmSandLodSurfaceContractTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "physics;mpm;lod;resolution;cpu;gpu;headless;contract"
+    TIMEOUT 180
+    RUN_SERIAL TRUE
+)
+
+artifact_add_test(ArtifactVideoProxyQualityLodContractTest
+    SOURCES
+        VideoProxyQualityLodContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+
+artifact_add_test(ArtifactFxStudioPreviewQualityLodContractTest
+    SOURCES
+        FxStudioPreviewQualityLodContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactFxStudioPreviewQualityLodContractTest PROPERTIES
+    LABELS "fx-studio;preview;lod;serialization;cpu;contract"
+)
+
+artifact_add_test(ArtifactProcedural3DLayerLodContractTest
+    SOURCES
+        Procedural3DLayerLodContractTest.cpp
+    LIBS
+        ArtifactAppRuntime
+)
+set_tests_properties(ArtifactProcedural3DLayerLodContractTest PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    LABELS "procedural-3d;lod;cpu;contract"
+    TIMEOUT 60
+    RUN_SERIAL TRUE
+)
+set_tests_properties(ArtifactVideoProxyQualityLodContractTest PROPERTIES
+    LABELS "video;proxy;lod;cpu;contract"
+)
+
 artifact_add_test(ArtifactExposureEffectContractTest
     SOURCES
         ExposureEffectContractTest.cpp
@@ -210,7 +297,7 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
             ArtifactEffectsGlow
     )
     set_tests_properties(ArtifactLayerSurfaceCacheParityContractTest PROPERTIES
-        LABELS "renderer;gpu;headless;surface-cache;image;contract"
+        LABELS "renderer;gpu;headless;surface-cache;image;lod;contract"
         TIMEOUT 180
         RUN_SERIAL TRUE
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
@@ -295,7 +382,7 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
             ArtifactAppRuntime
     )
     set_tests_properties(ArtifactFractureLayerRenderTest PROPERTIES
-        LABELS "fracture;layer;renderer;gpu;headless;image;integration;contract"
+        LABELS "fracture;layer;renderer;gpu;headless;image;lod;integration;contract"
         TIMEOUT 300
         RUN_SERIAL TRUE
     )
@@ -316,7 +403,7 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         SOURCES
             Particle3DRenderContractTest.cpp
         LIBS
-            ArtifactRender
+            ArtifactAppRuntime
     )
     set_target_properties(ArtifactParticle3DRenderContractTest PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
@@ -338,7 +425,7 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST)
         )
     endif()
     set_tests_properties(ArtifactParticle3DRenderContractTest PROPERTIES
-        LABELS "particle;renderer;gpu;headless;3d;contract"
+        LABELS "particle;renderer;gpu;headless;3d;lod;contract"
         TIMEOUT 180
         RUN_SERIAL TRUE
     )
@@ -648,7 +735,7 @@ if(ARTIFACT_BUILD_TESTS)
             ArtifactAppRuntime
     )
     set_tests_properties(ArtifactPlaybackRangeServiceContractTest PROPERTIES
-        LABELS "playback;range;service;cpu;contract"
+        LABELS "playback;range;service;cpu;contract;lod"
         TIMEOUT 60
         RUN_SERIAL TRUE
     )
@@ -662,7 +749,7 @@ if(ARTIFACT_BUILD_TESTS)
             ArtifactRender
     )
     set_tests_properties(ArtifactFrameCacheContractTest PROPERTIES
-        LABELS "render-cache;cpu;contract"
+        LABELS "render-cache;render-quality;cpu;contract"
         TIMEOUT 60
         RUN_SERIAL TRUE
     )
@@ -688,7 +775,7 @@ if(ARTIFACT_BUILD_TESTS)
             ArtifactAppRuntime
     )
     set_tests_properties(ArtifactRasterizerMaskEffectIntegrationTest PROPERTIES
-        LABELS "mask;effect;rasterizer;cpu;integration"
+        LABELS "mask;effect;rasterizer;lod;cpu;integration"
         TIMEOUT 60
         RUN_SERIAL TRUE
     )
@@ -830,6 +917,7 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_LAYER_TEST)
             Model3DAndLightLayerImageTest.cpp
         LIBS
             ArtifactAppRuntime
+            ArtifactEffectsGlow
     )
     set_target_properties(ArtifactModel3DAndLightLayerImageTest PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/LayerTests/$<CONFIG>"
@@ -860,7 +948,7 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_LAYER_TEST)
     set_tests_properties(ArtifactModel3DAndLightLayerImageTest PROPERTIES
         ENVIRONMENT
             "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DAndLightLayerImageTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
-        LABELS "layer;model3d;light;renderer;gpu;headless;image;integration;contract"
+        LABELS "layer;model3d;light;renderer;gpu;headless;image;integration;contract;lod"
         TIMEOUT 180
         RUN_SERIAL TRUE
     )
@@ -979,6 +1067,50 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_LAYER_TEST)
         TIMEOUT 180
         RUN_SERIAL TRUE
     )
+    add_test(NAME ArtifactCompositionZoomLODVisibilityIntegrationTest
+        COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+            "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerUsesZoomLODForTinyLayerVisibility"
+    )
+    set_tests_properties(ArtifactCompositionZoomLODVisibilityIntegrationTest PROPERTIES
+        ENVIRONMENT
+            "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
+        LABELS "layer;lod;zoom;visibility;renderer;gpu;composition;integration;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactCompositionProjected3DLODIntegrationTest
+        COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+            "--gtest_filter=Model3DLightCompositionIntegrationTest.ActiveCameraProjectionChangesProjected3DLayerLODAndRestoresDecision"
+    )
+    set_tests_properties(ArtifactCompositionProjected3DLODIntegrationTest PROPERTIES
+        ENVIRONMENT
+            "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
+        LABELS "layer;lod;projected-size;model3d;visibility;renderer;gpu;composition;integration;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactCompositionProjected3DPixelSizeLODIntegrationTest
+        COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+            "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerUsesProjectedPixelSizeFor3DLayerLOD"
+    )
+    set_tests_properties(ArtifactCompositionProjected3DPixelSizeLODIntegrationTest PROPERTIES
+        ENVIRONMENT
+            "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
+        LABELS "layer;lod;projected-size;model3d;visibility;renderer;gpu;composition;integration;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
+    add_test(NAME ArtifactCompositionGpuEffectLODIntegrationTest
+        COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+            "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerScalesGpuBlurAcrossZoomLODAndRestoresHigh"
+    )
+    set_tests_properties(ArtifactCompositionGpuEffectLODIntegrationTest PROPERTIES
+        ENVIRONMENT
+            "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=${_artifact_model3d_light_backend};ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/$<CONFIG>"
+        LABELS "layer;lod;effect;blur;renderer;gpu;composition;integration;contract"
+        TIMEOUT 180
+        RUN_SERIAL TRUE
+    )
     if(EXISTS "${CMAKE_SOURCE_DIR}/tests/fixtures/fbx-materials/separate-pbr.fbx")
         add_test(NAME ArtifactFbxLightRayTracingIntegrationTest
             COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
@@ -1085,6 +1217,50 @@ if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_LAYER_TEST)
             ENVIRONMENT
                 "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=d3d12;ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/d3d12/$<CONFIG>"
             LABELS "layer;model3d;light;occlusion;depth;renderer;gpu;composition;integration;contract;d3d12"
+            TIMEOUT 180
+            RUN_SERIAL TRUE
+        )
+        add_test(NAME ArtifactCompositionZoomLODD3D12VisibilityIntegrationTest
+            COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+                "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerUsesZoomLODForTinyLayerVisibility"
+        )
+        set_tests_properties(ArtifactCompositionZoomLODD3D12VisibilityIntegrationTest PROPERTIES
+            ENVIRONMENT
+                "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=d3d12;ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/d3d12/$<CONFIG>"
+            LABELS "layer;lod;zoom;visibility;renderer;gpu;composition;integration;contract;d3d12"
+            TIMEOUT 180
+            RUN_SERIAL TRUE
+        )
+        add_test(NAME ArtifactCompositionProjected3DLODD3D12IntegrationTest
+            COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+                "--gtest_filter=Model3DLightCompositionIntegrationTest.ActiveCameraProjectionChangesProjected3DLayerLODAndRestoresDecision"
+        )
+        set_tests_properties(ArtifactCompositionProjected3DLODD3D12IntegrationTest PROPERTIES
+            ENVIRONMENT
+                "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=d3d12;ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/d3d12/$<CONFIG>"
+            LABELS "layer;lod;projected-size;model3d;visibility;renderer;gpu;composition;integration;contract;d3d12"
+            TIMEOUT 180
+            RUN_SERIAL TRUE
+        )
+        add_test(NAME ArtifactCompositionProjected3DPixelSizeLODD3D12IntegrationTest
+            COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+                "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerUsesProjectedPixelSizeFor3DLayerLOD"
+        )
+        set_tests_properties(ArtifactCompositionProjected3DPixelSizeLODD3D12IntegrationTest PROPERTIES
+            ENVIRONMENT
+                "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=d3d12;ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/d3d12/$<CONFIG>"
+            LABELS "layer;lod;projected-size;model3d;visibility;renderer;gpu;composition;integration;contract;d3d12"
+            TIMEOUT 180
+            RUN_SERIAL TRUE
+        )
+        add_test(NAME ArtifactCompositionGpuEffectLODD3D12IntegrationTest
+            COMMAND $<TARGET_FILE:ArtifactModel3DLightCompositionIntegrationTest>
+                "--gtest_filter=Model3DLightCompositionIntegrationTest.CompositionControllerScalesGpuBlurAcrossZoomLODAndRestoresHigh"
+        )
+        set_tests_properties(ArtifactCompositionGpuEffectLODD3D12IntegrationTest PROPERTIES
+            ENVIRONMENT
+                "QT_QPA_PLATFORM=${_artifact_model3d_light_qpa_platform};QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:ArtifactModel3DLightCompositionIntegrationTest>/platforms;ARTIFACT_RENDER_BACKEND=d3d12;ARTIFACT_MODEL3D_LIGHT_CAPTURE_DIR=${CMAKE_BINARY_DIR}/model3d_light_capture/d3d12/$<CONFIG>"
+            LABELS "layer;lod;effect;blur;renderer;gpu;composition;integration;contract;d3d12"
             TIMEOUT 180
             RUN_SERIAL TRUE
         )

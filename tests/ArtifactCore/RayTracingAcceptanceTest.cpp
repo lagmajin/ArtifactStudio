@@ -5,6 +5,7 @@
 #include <QColor>
 #include <QImage>
 #include <QString>
+#include <QVector3D>
 #include <RefCntAutoPtr.hpp>
 #include <Texture.h>
 #include <TopLevelAS.h>
@@ -29,6 +30,7 @@ import Graphics.GPUcomputeContext;
 import Graphics.MeshRenderer;
 import Core.Light;
 import IO.ImageImporter;
+import Mesh;
 import Utils.String.UniString;
 namespace {
 using namespace Diligent;
@@ -297,6 +299,35 @@ class RayTracingAcceptanceTest : public testing::Test {
     RefCntAutoPtr<IDeviceContext> context_;
     std::unique_ptr<ArtifactCore::IRayTracingManager> manager_;
 };
+
+class MeshShaderAcceptanceTest : public testing::Test {
+  protected:
+    void SetUp() override {
+        auto* factory = LoadAndGetEngineFactoryVk();
+        if (!factory) {
+            GTEST_SKIP() << "Diligent Vulkan backend is unavailable";
+        }
+        EngineVkCreateInfo createInfo{};
+        createInfo.Features.MultithreadedResourceCreation = DEVICE_FEATURE_STATE_DISABLED;
+        createInfo.Features.RayTracing = DEVICE_FEATURE_STATE_DISABLED;
+        factory->CreateDeviceAndContextsVk(createInfo, &device_, &context_);
+        if (!device_ || !context_) {
+            GTEST_SKIP() << "Could not create a headless Vulkan device";
+        }
+    }
+
+    void TearDown() override {
+        if (context_) {
+            context_->Flush();
+            context_->WaitForIdle();
+        }
+        context_.Release();
+        device_.Release();
+    }
+
+    RefCntAutoPtr<IRenderDevice> device_;
+    RefCntAutoPtr<IDeviceContext> context_;
+};
 TEST_F(RayTracingAcceptanceTest, AppliesClearcoatToDirectLighting) {
     constexpr std::array<float, 9> triangleVertices{
         -0.8f, -0.8f, 0.0f, 0.8f, -0.8f, 0.0f, 0.0f, 0.8f, 0.0f};
@@ -441,6 +472,86 @@ TEST_F(RayTracingAcceptanceTest, SamplesOcclusionTextureWithInterpolatedMeshUvs)
     EXPECT_GT(openPixel[0], occludedPixel[0] + 0.05f);
     std::error_code ignored;
     std::filesystem::remove(texturePath, ignored);
+}
+
+TEST_F(RayTracingAcceptanceTest,
+       SelectsMipLevelsForMinifiedOcclusionTextures) {
+    constexpr std::array<float, 12> vertices{
+        -0.2f, -0.2f, 0.0f, 0.2f, -0.2f, 0.0f,
+         0.2f,  0.2f, 0.0f, -0.2f, 0.2f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-minified-occlusion-mip", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-minified-occlusion-mip"),
+        vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
+
+    constexpr int textureSize = 128;
+    const auto tempDirectory = std::filesystem::temp_directory_path();
+    const auto checkerPath =
+        tempDirectory / "artifact-rt-occlusion-minified-checker.png";
+    const auto averagePath =
+        tempDirectory / "artifact-rt-occlusion-minified-average.png";
+    QImage checker(textureSize, textureSize, QImage::Format_Grayscale8);
+    QImage average(textureSize, textureSize, QImage::Format_Grayscale8);
+    ASSERT_FALSE(checker.isNull());
+    ASSERT_FALSE(average.isNull());
+    for (int y = 0; y < textureSize; ++y) {
+        auto* checkerRow = checker.scanLine(y);
+        auto* averageRow = average.scanLine(y);
+        for (int x = 0; x < textureSize; ++x) {
+            checkerRow[x] = ((x + y) & 1) != 0 ? 255 : 0;
+            averageRow[x] = 127;
+        }
+    }
+    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
+    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
+    material.occlusionStrength = 1.0f;
+    material.occlusionTexture = ArtifactCore::UniString(
+        QString::fromStdString(checkerPath.string()));
+    const auto traceAndSample = [&](const ArtifactCore::RTPbrMaterial& input,
+                                    const int x) {
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-minified-occlusion-mip"), input));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(x, 16)[0];
+    };
+    std::array<float, 5> checkerSamples{};
+    for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
+        checkerSamples[static_cast<std::size_t>(index)] =
+            traceAndSample(material, 14 + index);
+    }
+
+    material.occlusionTexture = ArtifactCore::UniString(
+        QString::fromStdString(averagePath.string()));
+    for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
+        EXPECT_NEAR(checkerSamples[static_cast<std::size_t>(index)],
+                    traceAndSample(material, 14 + index), 0.025f)
+            << "minified occlusion sample " << index
+            << " should match its linear mip average";
+    }
+
+    std::error_code ignored;
+    std::filesystem::remove(checkerPath, ignored);
+    std::filesystem::remove(averagePath, ignored);
 }
 
 TEST_F(RayTracingAcceptanceTest, SamplesBaseColorAndMetallicRoughnessMaps) {
@@ -603,6 +714,207 @@ TEST_F(RayTracingAcceptanceTest, SamplesSrgbEmissionTexture) {
     EXPECT_GT(rightEmission[1], rightEmission[0] + 0.2f);
     std::error_code ignored;
     std::filesystem::remove(texturePath, ignored);
+}
+
+TEST_F(RayTracingAcceptanceTest,
+       SelectsMipLevelsForMinifiedSheenColorAndRoughnessTextures) {
+    constexpr std::array<float, 12> vertices{
+        -0.2f, -0.2f, 0.0f, 0.2f, -0.2f, 0.0f,
+         0.2f,  0.2f, 0.0f, -0.2f, 0.2f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-minified-sheen-mips", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-minified-sheen-mips"),
+        vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
+
+    constexpr int textureSize = 128;
+    const auto tempDirectory = std::filesystem::temp_directory_path();
+    const auto checkerPath =
+        tempDirectory / "artifact-rt-sheen-minified-checker.png";
+    const auto colorAveragePath =
+        tempDirectory / "artifact-rt-sheen-color-minified-average.png";
+    const auto roughnessAveragePath =
+        tempDirectory / "artifact-rt-sheen-roughness-minified-average.png";
+    QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
+    QImage colorAverage(textureSize, textureSize, QImage::Format_RGBA8888);
+    QImage roughnessAverage(textureSize, textureSize, QImage::Format_RGBA8888);
+    ASSERT_FALSE(checker.isNull());
+    ASSERT_FALSE(colorAverage.isNull());
+    ASSERT_FALSE(roughnessAverage.isNull());
+    for (int y = 0; y < textureSize; ++y) {
+        auto* checkerRow = checker.scanLine(y);
+        auto* colorAverageRow = colorAverage.scanLine(y);
+        auto* roughnessAverageRow = roughnessAverage.scanLine(y);
+        for (int x = 0; x < textureSize; ++x) {
+            const uchar value = ((x + y) & 1) != 0 ? 255 : 0;
+            auto* checkerPixel = checkerRow + x * 4;
+            auto* colorPixel = colorAverageRow + x * 4;
+            auto* roughnessPixel = roughnessAverageRow + x * 4;
+            checkerPixel[0] = checkerPixel[1] = checkerPixel[2] = value;
+            colorPixel[0] = colorPixel[1] = colorPixel[2] = 188;
+            roughnessPixel[0] = roughnessPixel[1] = roughnessPixel[2] = 127;
+            checkerPixel[3] = colorPixel[3] = roughnessPixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
+    ASSERT_TRUE(colorAverage.save(
+        QString::fromStdString(colorAveragePath.string()), "PNG"));
+    ASSERT_TRUE(roughnessAverage.save(
+        QString::fromStdString(roughnessAveragePath.string()), "PNG"));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
+    material.sheen = 1.0f;
+    material.sheenRoughness = 0.5f;
+    material.sheenColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(checkerPath.string()));
+    const auto traceAndSample = [&](const ArtifactCore::RTPbrMaterial& input,
+                                    const int x) {
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-minified-sheen-mips"), input));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(x, 16)[0];
+    };
+    std::array<float, 5> checkerSamples{};
+    for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
+        checkerSamples[static_cast<std::size_t>(index)] =
+            traceAndSample(material, 14 + index);
+    }
+
+    material.sheenColorTexture = ArtifactCore::UniString(
+        QString::fromStdString(colorAveragePath.string()));
+    for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
+        EXPECT_NEAR(checkerSamples[static_cast<std::size_t>(index)],
+                    traceAndSample(material, 14 + index), 0.035f)
+            << "minified sheen-color sample " << index
+            << " should match its linear-light sRGB mip average";
+    }
+
+    material.sheenColorTexture = ArtifactCore::UniString();
+    material.sheenRoughnessTexture = ArtifactCore::UniString(
+        QString::fromStdString(checkerPath.string()));
+    for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
+        checkerSamples[static_cast<std::size_t>(index)] =
+            traceAndSample(material, 14 + index);
+    }
+    material.sheenRoughnessTexture = ArtifactCore::UniString(
+        QString::fromStdString(roughnessAveragePath.string()));
+    for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
+        EXPECT_NEAR(checkerSamples[static_cast<std::size_t>(index)],
+                    traceAndSample(material, 14 + index), 0.035f)
+            << "minified sheen-roughness sample " << index
+            << " should match its linear scalar mip average";
+    }
+
+    std::error_code ignored;
+    std::filesystem::remove(checkerPath, ignored);
+    std::filesystem::remove(colorAveragePath, ignored);
+    std::filesystem::remove(roughnessAveragePath, ignored);
+}
+
+TEST_F(RayTracingAcceptanceTest,
+       SelectsMipLevelsForMinifiedAnisotropyTextures) {
+    constexpr std::array<float, 12> vertices{
+        -0.2f, -0.2f, 0.0f, 0.2f, -0.2f, 0.0f,
+         0.2f,  0.2f, 0.0f, -0.2f, 0.2f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-minified-anisotropy-mip", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-minified-anisotropy-mip"),
+        vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
+
+    constexpr int textureSize = 128;
+    const auto tempDirectory = std::filesystem::temp_directory_path();
+    const auto checkerPath =
+        tempDirectory / "artifact-rt-anisotropy-minified-checker.png";
+    const auto averagePath =
+        tempDirectory / "artifact-rt-anisotropy-minified-average.png";
+    QImage checker(textureWidth, textureHeight, QImage::Format_RGBA8888);
+    QImage average(textureWidth, textureHeight, QImage::Format_RGBA8888);
+    ASSERT_FALSE(checker.isNull());
+    ASSERT_FALSE(average.isNull());
+    for (int y = 0; y < textureHeight; ++y) {
+        auto* checkerRow = checker.scanLine(y);
+        auto* averageRow = average.scanLine(y);
+        for (int x = 0; x < textureWidth; ++x) {
+            auto* checkerPixel = checkerRow + x * 4;
+            auto* averagePixel = averageRow + x * 4;
+            checkerPixel[0] = averagePixel[0] = 128;
+            checkerPixel[1] = averagePixel[1] = 128;
+            checkerPixel[2] = ((x + y) & 1) != 0 ? 255 : 0;
+            averagePixel[2] = 127;
+            checkerPixel[3] = averagePixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
+    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = 0.8f;
+    material.baseColor[1] = 0.5f;
+    material.baseColor[2] = 0.2f;
+    material.metallic = 1.0f;
+    material.roughness = 0.24f;
+    material.anisotropy = 1.0f;
+    material.anisotropyTexture = ArtifactCore::UniString(
+        QString::fromStdString(checkerPath.string()));
+    const auto traceAndSample = [&](const ArtifactCore::RTPbrMaterial& input,
+                                    const int x) {
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-minified-anisotropy-mip"), input));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(x, 16)[0];
+    };
+    std::array<float, 5> checkerSamples{};
+    for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
+        checkerSamples[static_cast<std::size_t>(index)] =
+            traceAndSample(material, 14 + index);
+    }
+
+    material.anisotropyTexture = ArtifactCore::UniString(
+        QString::fromStdString(averagePath.string()));
+    for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
+        EXPECT_NEAR(checkerSamples[static_cast<std::size_t>(index)],
+                    traceAndSample(material, 14 + index), 0.04f)
+            << "minified anisotropy sample " << index
+            << " should match its linear mip average";
+    }
+
+    std::error_code ignored;
+    std::filesystem::remove(checkerPath, ignored);
+    std::filesystem::remove(averagePath, ignored);
 }
 
 TEST_F(RayTracingAcceptanceTest, MaskedOpacityTextureContinuesRayToRearSurface) {
@@ -799,7 +1111,268 @@ TEST_F(RayTracingAcceptanceTest, MaskedOpacityTexturePassesShadowRay) {
     std::filesystem::remove(blackMapPath, ignored);
 }
 
-TEST_F(RayTracingAcceptanceTest, SelectsMipLevelsForMinifiedPbrTextures) {
+TEST_F(RayTracingAcceptanceTest,
+       SelectsLinearMipLevelsForMinifiedMetallicRoughnessTextures) {
+    constexpr std::array<float, 12> vertices{
+        -0.2f, -0.2f, 0.0f, 0.2f, -0.2f, 0.0f,
+         0.2f,  0.2f, 0.0f, -0.2f, 0.2f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-minified-metallic-roughness-mip", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-minified-metallic-roughness-mip"),
+        vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
+
+    constexpr int textureSize = 128;
+    const auto tempDirectory = std::filesystem::temp_directory_path();
+    const auto checkerPath =
+        tempDirectory / "artifact-rt-metallic-roughness-minified-checker.png";
+    const auto averagePath =
+        tempDirectory / "artifact-rt-metallic-roughness-minified-average.png";
+    QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
+    QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
+    ASSERT_FALSE(checker.isNull());
+    ASSERT_FALSE(average.isNull());
+    for (int y = 0; y < textureSize; ++y) {
+        auto* checkerRow = checker.scanLine(y);
+        auto* averageRow = average.scanLine(y);
+        for (int x = 0; x < textureSize; ++x) {
+            auto* checkerPixel = checkerRow + x * 4;
+            auto* averagePixel = averageRow + x * 4;
+            checkerPixel[0] = averagePixel[0] = 255;
+            checkerPixel[1] = averagePixel[1] = 128;
+            checkerPixel[2] = ((x + y) & 1) != 0 ? 255 : 0;
+            averagePixel[2] = 128;
+            checkerPixel[3] = averagePixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
+    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
+    material.metallic = 1.0f;
+    material.roughness = 0.8f;
+    material.metallicRoughnessTexture = ArtifactCore::UniString(
+        QString::fromStdString(checkerPath.string()));
+    const auto traceAndSample = [&](const ArtifactCore::RTPbrMaterial& input,
+                                    const int x) {
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-minified-metallic-roughness-mip"), input));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(x, 16)[0];
+    };
+    std::array<float, 5> checkerSamples{};
+    for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
+        checkerSamples[static_cast<std::size_t>(index)] =
+            traceAndSample(material, 14 + index);
+    }
+
+    material.metallicRoughnessTexture = ArtifactCore::UniString(
+        QString::fromStdString(averagePath.string()));
+    for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
+        const float reference = traceAndSample(material, 14 + index);
+        EXPECT_NEAR(checkerSamples[static_cast<std::size_t>(index)], reference,
+                    0.035f)
+            << "minified packed metallic-roughness sample " << index
+            << " should match the linear mip average";
+    }
+
+    std::error_code ignored;
+    std::filesystem::remove(checkerPath, ignored);
+    std::filesystem::remove(averagePath, ignored);
+}
+
+TEST_F(RayTracingAcceptanceTest,
+       SelectsLinearMipLevelsForMinifiedIndependentRoughnessTextures) {
+    constexpr std::array<float, 12> vertices{
+        -0.2f, -0.2f, 0.0f, 0.2f, -0.2f, 0.0f,
+         0.2f,  0.2f, 0.0f, -0.2f, 0.2f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-minified-roughness-mip", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-minified-roughness-mip"),
+        vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
+
+    constexpr int textureSize = 128;
+    const auto tempDirectory = std::filesystem::temp_directory_path();
+    const auto checkerPath =
+        tempDirectory / "artifact-rt-roughness-minified-checker.png";
+    const auto averagePath =
+        tempDirectory / "artifact-rt-roughness-minified-average.png";
+    QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
+    QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
+    ASSERT_FALSE(checker.isNull());
+    ASSERT_FALSE(average.isNull());
+    for (int y = 0; y < textureSize; ++y) {
+        auto* checkerRow = checker.scanLine(y);
+        auto* averageRow = average.scanLine(y);
+        for (int x = 0; x < textureSize; ++x) {
+            auto* checkerPixel = checkerRow + x * 4;
+            auto* averagePixel = averageRow + x * 4;
+            checkerPixel[0] = ((x + y) & 1) != 0 ? 255 : 0;
+            averagePixel[0] = 128;
+            checkerPixel[1] = averagePixel[1] = 255;
+            checkerPixel[2] = averagePixel[2] = 0;
+            checkerPixel[3] = averagePixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
+    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
+    material.roughness = 1.0f;
+    material.roughnessTexture = ArtifactCore::UniString(
+        QString::fromStdString(checkerPath.string()));
+    const auto traceAndSample = [&](const ArtifactCore::RTPbrMaterial& input,
+                                    const int x) {
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-minified-roughness-mip"), input));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(x, 16)[0];
+    };
+    std::array<float, 5> checkerSamples{};
+    for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
+        checkerSamples[static_cast<std::size_t>(index)] =
+            traceAndSample(material, 14 + index);
+    }
+
+    material.roughnessTexture = ArtifactCore::UniString(
+        QString::fromStdString(averagePath.string()));
+    for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
+        const float reference = traceAndSample(material, 14 + index);
+        EXPECT_NEAR(checkerSamples[static_cast<std::size_t>(index)], reference,
+                    0.035f)
+            << "minified independent roughness sample " << index
+            << " should match its linear mip average";
+    }
+
+    std::error_code ignored;
+    std::filesystem::remove(checkerPath, ignored);
+    std::filesystem::remove(averagePath, ignored);
+}
+
+TEST_F(RayTracingAcceptanceTest,
+       SelectsLinearMipLevelsForMinifiedIndependentMetallicTextures) {
+    constexpr std::array<float, 12> vertices{
+        -0.2f, -0.2f, 0.0f, 0.2f, -0.2f, 0.0f,
+         0.2f,  0.2f, 0.0f, -0.2f, 0.2f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-minified-metallic-mip", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-minified-metallic-mip"),
+        vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
+
+    constexpr int textureSize = 128;
+    const auto tempDirectory = std::filesystem::temp_directory_path();
+    const auto checkerPath =
+        tempDirectory / "artifact-rt-metallic-minified-checker.png";
+    const auto averagePath =
+        tempDirectory / "artifact-rt-metallic-minified-average.png";
+    QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
+    QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
+    ASSERT_FALSE(checker.isNull());
+    ASSERT_FALSE(average.isNull());
+    for (int y = 0; y < textureSize; ++y) {
+        auto* checkerRow = checker.scanLine(y);
+        auto* averageRow = average.scanLine(y);
+        for (int x = 0; x < textureSize; ++x) {
+            auto* checkerPixel = checkerRow + x * 4;
+            auto* averagePixel = averageRow + x * 4;
+            checkerPixel[0] = ((x + y) & 1) != 0 ? 255 : 0;
+            averagePixel[0] = 128;
+            checkerPixel[1] = averagePixel[1] = 255;
+            checkerPixel[2] = averagePixel[2] = 255;
+            checkerPixel[3] = averagePixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
+    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
+    material.metallic = 1.0f;
+    material.roughness = 0.5f;
+    material.metallicTexture = ArtifactCore::UniString(
+        QString::fromStdString(checkerPath.string()));
+    const auto traceAndSample = [&](const ArtifactCore::RTPbrMaterial& input,
+                                    const int x) {
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-minified-metallic-mip"), input));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(x, 16)[0];
+    };
+    std::array<float, 5> checkerSamples{};
+    for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
+        checkerSamples[static_cast<std::size_t>(index)] =
+            traceAndSample(material, 14 + index);
+    }
+
+    material.metallicTexture = ArtifactCore::UniString(
+        QString::fromStdString(averagePath.string()));
+    for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
+        const float reference = traceAndSample(material, 14 + index);
+        EXPECT_NEAR(checkerSamples[static_cast<std::size_t>(index)], reference,
+                    0.035f)
+            << "minified independent metallic sample " << index
+            << " should match its linear mip average";
+    }
+
+    std::error_code ignored;
+    std::filesystem::remove(checkerPath, ignored);
+    std::filesystem::remove(averagePath, ignored);
+}
+
+TEST_F(RayTracingAcceptanceTest,
+       SelectsMipLevelsForMinifiedNonPowerOfTwoPbrTextures) {
     constexpr std::array<float, 12> vertices{
         -0.2f, -0.2f, 0.0f, 0.2f, -0.2f, 0.0f,
          0.2f,  0.2f, 0.0f, -0.2f, 0.2f, 0.0f};
@@ -821,18 +1394,19 @@ TEST_F(RayTracingAcceptanceTest, SelectsMipLevelsForMinifiedPbrTextures) {
         ArtifactCore::UniString("pbr-minified-mip-selection"), vertices.data(),
         4, indices.data(), 6, nullptr, nullptr, uvs.data()));
 
-    constexpr int textureSize = 128;
+    constexpr int textureWidth = 127;
+    constexpr int textureHeight = 95;
     const auto tempDirectory = std::filesystem::temp_directory_path();
     const auto checkerPath = tempDirectory / "artifact-rt-pbr-minified-checker.png";
     const auto averagePath = tempDirectory / "artifact-rt-pbr-minified-average.png";
-    QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
-    QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
+    QImage checker(textureWidth, textureHeight, QImage::Format_RGBA8888);
+    QImage average(textureWidth, textureHeight, QImage::Format_RGBA8888);
     ASSERT_FALSE(checker.isNull());
     ASSERT_FALSE(average.isNull());
-    for (int y = 0; y < textureSize; ++y) {
+    for (int y = 0; y < textureHeight; ++y) {
         auto* checkerRow = checker.scanLine(y);
         auto* averageRow = average.scanLine(y);
-        for (int x = 0; x < textureSize; ++x) {
+        for (int x = 0; x < textureWidth; ++x) {
             const uchar checkerValue = ((x + y) & 1) != 0 ? 255 : 0;
             auto* checkerPixel = checkerRow + x * 4;
             auto* averagePixel = averageRow + x * 4;
@@ -882,6 +1456,734 @@ TEST_F(RayTracingAcceptanceTest, SelectsMipLevelsForMinifiedPbrTextures) {
     std::error_code ignored;
     std::filesystem::remove(checkerPath, ignored);
     std::filesystem::remove(averagePath, ignored);
+}
+
+TEST_F(RayTracingAcceptanceTest,
+       SelectsLinearLightMipLevelsForMinifiedEmissionTexturesAtMultipleUvScales) {
+    constexpr std::array<float, 12> vertices{
+        -0.2f, -0.2f, 0.0f, 0.2f, -0.2f, 0.0f,
+         0.2f,  0.2f, 0.0f, -0.2f, 0.2f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    constexpr std::array<float, 8> highDensityUvs1{
+        0.0f, 0.0f, 4.0f, 0.0f, 4.0f, 4.0f, 0.0f, 4.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-minified-emission-mip-selection", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-minified-emission-mip-selection"),
+        vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data(),
+        nullptr, highDensityUvs1.data()));
+
+    constexpr int textureSize = 128;
+    const auto tempDirectory = std::filesystem::temp_directory_path();
+    const auto checkerPath =
+        tempDirectory / "artifact-rt-emission-minified-checker.png";
+    const auto averagePath =
+        tempDirectory / "artifact-rt-emission-minified-average.png";
+    QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
+    QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
+    ASSERT_FALSE(checker.isNull());
+    ASSERT_FALSE(average.isNull());
+    for (int y = 0; y < textureSize; ++y) {
+        auto* checkerRow = checker.scanLine(y);
+        auto* averageRow = average.scanLine(y);
+        for (int x = 0; x < textureSize; ++x) {
+            const uchar checkerValue = ((x + y) & 1) != 0 ? 255 : 0;
+            auto* checkerPixel = checkerRow + x * 4;
+            auto* averagePixel = averageRow + x * 4;
+            checkerPixel[0] = checkerValue;
+            checkerPixel[1] = checkerValue;
+            checkerPixel[2] = checkerValue;
+            checkerPixel[3] = 255;
+            averagePixel[0] = 188;
+            averagePixel[1] = 188;
+            averagePixel[2] = 188;
+            averagePixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
+    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.0f;
+    material.specular = 0.0f;
+    material.ior = 1.0f;
+    material.emissionColor[0] = material.emissionColor[1] =
+        material.emissionColor[2] = 1.0f;
+    material.emissionStrength = 1.0f;
+    for (const float uvScale : {0.5f, 1.0f, 4.0f}) {
+        material.emissionTexture = ArtifactCore::UniString(
+            QString::fromStdString(checkerPath.string()));
+        material.emissionTextureUvScale = uvScale;
+        ASSERT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-minified-emission-mip-selection"), material));
+        ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        const std::array<float, 5> checkerSamples{
+            pixelAt(14, 16)[0], pixelAt(15, 16)[0], pixelAt(16, 16)[0],
+            pixelAt(17, 16)[0], pixelAt(18, 16)[0]};
+
+        material.emissionTexture = ArtifactCore::UniString(
+            QString::fromStdString(averagePath.string()));
+        ASSERT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-minified-emission-mip-selection"), material));
+        ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        for (Uint32 index = 0; index < checkerSamples.size(); ++index) {
+            EXPECT_NEAR(checkerSamples[index], pixelAt(14 + index, 16)[0], 0.025f)
+                << "minified emission checker sample " << index
+                << " should match its linear-light mip average at UV scale "
+                << uvScale;
+        }
+    }
+
+    material.emissionTextureUvSet = 1;
+    material.emissionTextureUvScale = 1.0f;
+    material.emissionTexture = ArtifactCore::UniString(
+        QString::fromStdString(checkerPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-minified-emission-mip-selection"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const std::array<float, 5> uv1CheckerSamples{
+        pixelAt(14, 16)[0], pixelAt(15, 16)[0], pixelAt(16, 16)[0],
+        pixelAt(17, 16)[0], pixelAt(18, 16)[0]};
+    material.emissionTexture = ArtifactCore::UniString(
+        QString::fromStdString(averagePath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-minified-emission-mip-selection"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    for (int index = 0; index < static_cast<int>(uv1CheckerSamples.size()); ++index) {
+        EXPECT_NEAR(uv1CheckerSamples[static_cast<std::size_t>(index)],
+                    pixelAt(14 + index, 16)[0], 0.035f)
+            << "high-density UV1 emission sample " << index
+            << " should select the linear-light mip average";
+    }
+
+    std::error_code ignored;
+    std::filesystem::remove(checkerPath, ignored);
+    std::filesystem::remove(averagePath, ignored);
+}
+
+TEST_F(RayTracingAcceptanceTest,
+       SelectsLinearMipLevelsForMinifiedClearcoatAndRoughnessTextures) {
+    constexpr std::array<float, 12> vertices{
+        -0.2f, -0.2f, 0.0f, 0.2f, -0.2f, 0.0f,
+         0.2f,  0.2f, 0.0f, -0.2f, 0.2f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-minified-clearcoat-roughness-mip", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-minified-clearcoat-roughness-mip"),
+        vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
+
+    constexpr int textureSize = 128;
+    const auto tempDirectory = std::filesystem::temp_directory_path();
+    const auto checkerPath = tempDirectory /
+        "artifact-rt-clearcoat-roughness-minified-checker.png";
+    const auto averagePath = tempDirectory /
+        "artifact-rt-clearcoat-roughness-minified-average.png";
+    QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
+    QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
+    ASSERT_FALSE(checker.isNull());
+    ASSERT_FALSE(average.isNull());
+    for (int y = 0; y < textureSize; ++y) {
+        auto* checkerRow = checker.scanLine(y);
+        auto* averageRow = average.scanLine(y);
+        for (int x = 0; x < textureSize; ++x) {
+            auto* checkerPixel = checkerRow + x * 4;
+            auto* averagePixel = averageRow + x * 4;
+            checkerPixel[0] = ((x + y) & 1) != 0 ? 255 : 0;
+            checkerPixel[1] = ((x + y) & 1) != 0 ? 255 : 0;
+            checkerPixel[2] = 0;
+            checkerPixel[3] = 255;
+            averagePixel[0] = 127;
+            averagePixel[1] = 128;
+            averagePixel[2] = 0;
+            averagePixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
+    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
+    material.roughness = 0.8f;
+    material.clearcoat = 1.0f;
+    material.clearcoatRoughness = 0.5f;
+    material.clearcoatTexture = ArtifactCore::UniString(
+        QString::fromStdString(checkerPath.string()));
+    material.clearcoatRoughnessTexture = ArtifactCore::UniString(
+        QString::fromStdString(checkerPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-minified-clearcoat-roughness-mip"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const std::array<float, 5> checkerSamples{
+        pixelAt(14, 16)[0], pixelAt(15, 16)[0], pixelAt(16, 16)[0],
+        pixelAt(17, 16)[0], pixelAt(18, 16)[0]};
+
+    material.clearcoatTexture = ArtifactCore::UniString(
+        QString::fromStdString(averagePath.string()));
+    material.clearcoatRoughnessTexture = ArtifactCore::UniString(
+        QString::fromStdString(averagePath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("pbr-minified-clearcoat-roughness-mip"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    for (Uint32 index = 0; index < checkerSamples.size(); ++index) {
+        EXPECT_NEAR(checkerSamples[index], pixelAt(14 + index, 16)[0], 0.025f)
+            << "minified clearcoat-roughness sample " << index
+            << " should match its linear mip average";
+    }
+
+    std::error_code ignored;
+    std::filesystem::remove(checkerPath, ignored);
+    std::filesystem::remove(averagePath, ignored);
+}
+
+TEST_F(RayTracingAcceptanceTest,
+       RenormalizesMinifiedNormalMipsAndAppliesNormalVarianceRoughness) {
+    constexpr std::array<float, 12> vertices{
+        -0.2f, -0.2f, 0.0f, 0.2f, -0.2f, 0.0f,
+         0.2f,  0.2f, 0.0f, -0.2f, 0.2f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("pbr-minified-normal-mip-selection", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("pbr-minified-normal-mip-selection"),
+        vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
+
+    constexpr int textureSize = 128;
+    const auto tempDirectory = std::filesystem::temp_directory_path();
+    const auto checkerPath =
+        tempDirectory / "artifact-rt-normal-minified-direction-checker.png";
+    const auto averageDirectionPath =
+        tempDirectory / "artifact-rt-normal-minified-average-direction.png";
+    QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
+    QImage averageDirection(textureSize, textureSize, QImage::Format_RGBA8888);
+    ASSERT_FALSE(checker.isNull());
+    ASSERT_FALSE(averageDirection.isNull());
+    for (int y = 0; y < textureSize; ++y) {
+        auto* checkerRow = checker.scanLine(y);
+        auto* averageRow = averageDirection.scanLine(y);
+        for (int x = 0; x < textureSize; ++x) {
+            auto* checkerPixel = checkerRow + x * 4;
+            auto* averagePixel = averageRow + x * 4;
+            // Alternating tangent normals are (+/-0.6, 0, 0.8). Their
+            // normalized mip direction is flat, with pre-normalization length 0.8.
+            checkerPixel[0] = ((x + y) & 1) != 0 ? 204 : 51;
+            checkerPixel[1] = 128;
+            checkerPixel[2] = 230;
+            checkerPixel[3] = 255;
+            averagePixel[0] = 128;
+            averagePixel[1] = 128;
+            averagePixel[2] = 255;
+            averagePixel[3] = 255;
+        }
+    }
+    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
+    ASSERT_TRUE(averageDirection.save(
+        QString::fromStdString(averageDirectionPath.string()), "PNG"));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.7f;
+    material.roughness = 0.5f;
+    material.normalStrength = 1.0f;
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(checkerPath.string()));
+    const auto traceAndSample = [&](const ArtifactCore::RTPbrMaterial& input,
+                                    const int x) {
+        EXPECT_TRUE(manager_->setInstancePbrMaterial(
+            ArtifactCore::UniString("pbr-minified-normal-mip-selection"), input));
+        EXPECT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+        EXPECT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+        EXPECT_TRUE(manager_->traceUnitQuad(context_.RawPtr(),
+                                            kRayTraceTestImageSize,
+                                            kRayTraceTestImageSize));
+        return pixelAt(x, 16)[0];
+    };
+    std::array<float, 5> checkerSamples{};
+    for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
+        checkerSamples[static_cast<std::size_t>(index)] =
+            traceAndSample(material, 14 + index);
+    }
+
+    // The mip chain stores the average normal length (205/255). The RT shader
+    // converts that variance into the equivalent roughness before shading.
+    constexpr float baseAlpha = 0.5f * 0.5f;
+    constexpr float averageNormalLength = 205.0f / 255.0f;
+    constexpr float normalVariance =
+        (1.0f - averageNormalLength) / averageNormalLength;
+    const float filteredRoughness = std::sqrt(std::sqrt(
+        baseAlpha * baseAlpha + std::min(2.0f * normalVariance, 0.2f)));
+    material.roughness = filteredRoughness;
+    material.normalTexture = ArtifactCore::UniString(
+        QString::fromStdString(averageDirectionPath.string()));
+    for (int index = 0; index < static_cast<int>(checkerSamples.size()); ++index) {
+        const float reference = traceAndSample(material, 14 + index);
+        EXPECT_NEAR(checkerSamples[static_cast<std::size_t>(index)], reference,
+                    0.035f)
+            << "minified normal mip sample " << index
+            << " should match its normalized direction and variance-adjusted roughness";
+    }
+
+    material.normalTexture = ArtifactCore::UniString();
+    material.normalStrength = 0.0f;
+    material.clearcoat = 1.0f;
+    material.clearcoatRoughness = 0.5f;
+    material.clearcoatNormalStrength = 1.0f;
+    material.clearcoatNormalTexture = ArtifactCore::UniString(
+        QString::fromStdString(checkerPath.string()));
+    std::array<float, 5> coatCheckerSamples{};
+    for (int index = 0; index < static_cast<int>(coatCheckerSamples.size()); ++index) {
+        coatCheckerSamples[static_cast<std::size_t>(index)] =
+            traceAndSample(material, 14 + index);
+    }
+    material.clearcoatRoughness = filteredRoughness;
+    material.clearcoatNormalTexture = ArtifactCore::UniString(
+        QString::fromStdString(averageDirectionPath.string()));
+    for (int index = 0; index < static_cast<int>(coatCheckerSamples.size()); ++index) {
+        EXPECT_NEAR(coatCheckerSamples[static_cast<std::size_t>(index)],
+                    traceAndSample(material, 14 + index), 0.04f)
+            << "minified clearcoat-normal sample " << index
+            << " should match its normalized direction and variance-filtered roughness";
+    }
+
+    std::error_code ignored;
+    std::filesystem::remove(checkerPath, ignored);
+    std::filesystem::remove(averageDirectionPath, ignored);
+}
+
+TEST_F(RayTracingAcceptanceTest, SelectsMipLevelsForMinifiedOpacityTextures) {
+    constexpr std::array<float, 12> vertices{
+        -0.2f, -0.2f, 0.0f, 0.2f, -0.2f, 0.0f,
+         0.2f,  0.2f, 0.0f, -0.2f, 0.2f, 0.0f};
+    constexpr std::array<std::uint32_t, 6> indices{0, 1, 2, 0, 2, 3};
+    constexpr std::array<float, 8> uvs{0.0f, 0.0f, 1.0f, 0.0f,
+                                       1.0f, 1.0f, 0.0f, 1.0f};
+    auto vertexBuffer = makeBuffer(
+        vertices.data(), sizeof(vertices), 3u * sizeof(float),
+        BIND_VERTEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    auto indexBuffer = makeBuffer(
+        indices.data(), sizeof(indices), sizeof(std::uint32_t),
+        BIND_INDEX_BUFFER | BIND_SHADER_RESOURCE, BUFFER_MODE_STRUCTURED);
+    ASSERT_NE(vertexBuffer, nullptr);
+    ASSERT_NE(indexBuffer, nullptr);
+    addGeometry("opacity-minified-mip-selection", vertexBuffer.RawPtr(), 4,
+                indexBuffer.RawPtr(), 6, float4x4::Identity(), 1, 1,
+                vertices.data(), indices.data());
+    ASSERT_TRUE(manager_->updateShadingGeometry(
+        ArtifactCore::UniString("opacity-minified-mip-selection"),
+        vertices.data(), 4, indices.data(), 6, nullptr, nullptr, uvs.data()));
+
+    constexpr int textureSize = 128;
+    const auto tempDirectory = std::filesystem::temp_directory_path();
+    const auto checkerPath =
+        tempDirectory / "artifact-rt-opacity-minified-checker.png";
+    const auto averagePath =
+        tempDirectory / "artifact-rt-opacity-minified-average.png";
+    QImage checker(textureSize, textureSize, QImage::Format_RGBA8888);
+    QImage average(textureSize, textureSize, QImage::Format_RGBA8888);
+    ASSERT_FALSE(checker.isNull());
+    ASSERT_FALSE(average.isNull());
+    for (int y = 0; y < textureSize; ++y) {
+        auto* checkerRow = checker.scanLine(y);
+        auto* averageRow = average.scanLine(y);
+        for (int x = 0; x < textureSize; ++x) {
+            const uchar alpha = ((x + y) & 1) != 0 ? 255 : 0;
+            auto* checkerPixel = checkerRow + x * 4;
+            auto* averagePixel = averageRow + x * 4;
+            checkerPixel[0] = checkerPixel[1] = checkerPixel[2] = 255;
+            checkerPixel[3] = alpha;
+            averagePixel[0] = averagePixel[1] = averagePixel[2] = 255;
+            averagePixel[3] = 128;
+        }
+    }
+    ASSERT_TRUE(checker.save(QString::fromStdString(checkerPath.string()), "PNG"));
+    ASSERT_TRUE(average.save(QString::fromStdString(averagePath.string()), "PNG"));
+
+    ArtifactCore::RTPbrMaterial material;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 1.0f;
+    material.emissionColor[0] = material.emissionColor[1] =
+        material.emissionColor[2] = 1.0f;
+    material.emissionStrength = 1.0f;
+    material.alphaMode = 1;
+    material.alphaCutoff = 0.4f;
+    material.opacityTexture = ArtifactCore::UniString(
+        QString::fromStdString(checkerPath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("opacity-minified-mip-selection"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    ASSERT_TRUE(saveOutputFrame("31-pbr-minified-opacity-mips.png"));
+    std::array<float, 5> checkerSamples{};
+    for (Uint32 i = 0; i < checkerSamples.size(); ++i) {
+        checkerSamples[i] = pixelAt(14 + i, 16)[0];
+    }
+
+    material.opacityTexture = ArtifactCore::UniString(
+        QString::fromStdString(averagePath.string()));
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("opacity-minified-mip-selection"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    for (Uint32 i = 0; i < checkerSamples.size(); ++i) {
+        const float averageSample = pixelAt(14 + i, 16)[0];
+        EXPECT_NEAR(checkerSamples[i], averageSample, 0.025f)
+            << "minified opacity checker sample " << i
+            << " should match its average-alpha mip";
+    }
+    std::error_code ignored;
+    std::filesystem::remove(checkerPath, ignored);
+    std::filesystem::remove(averagePath, ignored);
+}
+
+TEST_F(RayTracingAcceptanceTest, MeshRendererSelectsMeshletLodAtProjectedSizeBoundaries) {
+    ArtifactCore::GpuContext gpuContext(device_.RawPtr(), context_.RawPtr());
+    ArtifactCore::MeshRenderer renderer(gpuContext);
+    EXPECT_EQ(renderer.chooseMeshletLOD(0.0f), 0u)
+        << "Without uploaded levels, selection should fall back to level zero";
+
+    ArtifactCore::Mesh sourceMesh;
+    constexpr int cellsPerSide = 8;
+    constexpr int verticesPerSide = cellsPerSide + 1;
+    sourceMesh.setVertexCount(verticesPerSide * verticesPerSide);
+    auto positions = sourceMesh.vertexAttributes().add<QVector3D>("position");
+    for (int y = 0; y < verticesPerSide; ++y) {
+        for (int x = 0; x < verticesPerSide; ++x) {
+            const int index = y * verticesPerSide + x;
+            (*positions)[index] = QVector3D(static_cast<float>(x),
+                                            static_cast<float>(y), 0.0f);
+        }
+    }
+    for (int y = 0; y < cellsPerSide; ++y) {
+        for (int x = 0; x < cellsPerSide; ++x) {
+            const int topLeft = y * verticesPerSide + x;
+            sourceMesh.addPolygon({topLeft, topLeft + 1,
+                                   topLeft + verticesPerSide + 1,
+                                   topLeft + verticesPerSide});
+        }
+    }
+
+    ArtifactCore::Mesh::MeshletLODConfig lodConfig;
+    lodConfig.maxLODLevels = 4;
+    lodConfig.maxTrianglesPerMeshlet = 8;
+    lodConfig.lodSwitchPixels = 96.0f;
+    const ArtifactCore::Mesh::MeshletLODData cpuLodData =
+        sourceMesh.generateMeshletLODData(lodConfig);
+    ASSERT_TRUE(cpuLodData.isValid());
+    ASSERT_EQ(cpuLodData.levels.size(), 4);
+
+    std::vector<ArtifactCore::MeshRenderer::MeshletGpu> meshlets(
+        static_cast<std::size_t>(cpuLodData.meshlets.size()));
+    std::vector<std::uint32_t> indices(
+        static_cast<std::size_t>(cpuLodData.lodIndices.size()));
+    std::vector<ArtifactCore::MeshRenderer::MeshletLodGpu> lods;
+    lods.reserve(static_cast<std::size_t>(cpuLodData.levels.size()));
+    for (const ArtifactCore::Mesh::MeshletLODLevel& level : cpuLodData.levels) {
+        lods.push_back({static_cast<std::uint32_t>(level.meshletOffset),
+                        static_cast<std::uint32_t>(level.meshletCount),
+                        level.switchDistancePixels, 0});
+    }
+    renderer.updateMeshletGeometry(meshlets.data(), meshlets.size(),
+                                   indices.data(), indices.size(),
+                                   lods.data(), lods.size());
+
+    struct ProjectedSizeCase {
+        float radiusPixels;
+        std::size_t expectedLevel;
+    };
+    const std::array<ProjectedSizeCase, 16> cases{{
+        {std::numeric_limits<float>::infinity(), 0},
+        {96.0f, 0},
+        {std::nextafter(96.0f, std::numeric_limits<float>::infinity()), 0},
+        {48.0f, 1},
+        {std::nextafter(48.0f, 0.0f), 1},
+        {std::nextafter(48.0f, 96.0f), 0},
+        {24.0f, 2},
+        {std::nextafter(24.0f, 0.0f), 2},
+        {std::nextafter(24.0f, 48.0f), 1},
+        {12.0f, 3},
+        {std::nextafter(12.0f, 0.0f), 3},
+        {std::nextafter(12.0f, 24.0f), 2},
+        {0.0f, 3},
+        {-1.0f, 3},
+        {-std::numeric_limits<float>::infinity(), 3},
+        {std::numeric_limits<float>::quiet_NaN(), 0},
+    }};
+    for (const auto& testCase : cases) {
+        const std::size_t gpuLevel =
+            renderer.chooseMeshletLOD(testCase.radiusPixels);
+        const int cpuLevel = ArtifactCore::Mesh::chooseMeshletLODLevel(
+            cpuLodData, testCase.radiusPixels);
+        EXPECT_EQ(gpuLevel, testCase.expectedLevel)
+            << "projected radius " << testCase.radiusPixels;
+        EXPECT_EQ(cpuLevel, static_cast<int>(gpuLevel))
+            << "CPU/GPU LOD selection differs at projected radius "
+            << testCase.radiusPixels;
+    }
+
+    auto replacementLods = lods;
+    replacementLods.resize(2);
+    for (auto& level : replacementLods) {
+        level.switchPixels = 1000.0f;
+    }
+    renderer.updateMeshletGeometry(meshlets.data(), meshlets.size(),
+                                   indices.data(), indices.size(),
+                                   replacementLods.data(), replacementLods.size());
+    EXPECT_EQ(renderer.chooseMeshletLOD(0.0f), replacementLods.size() - 1)
+        << "uploading a shorter LOD table should discard the old trailing levels";
+
+    auto singleLevelLods = lods;
+    singleLevelLods.resize(1);
+    singleLevelLods[0].switchPixels = 24.0f;
+    renderer.updateMeshletGeometry(meshlets.data(), meshlets.size(),
+                                   indices.data(), indices.size(),
+                                   singleLevelLods.data(), singleLevelLods.size());
+    for (const float radiusPixels : {
+             -std::numeric_limits<float>::infinity(), 0.0f, 24.0f, 1000.0f,
+             std::numeric_limits<float>::infinity(),
+             std::numeric_limits<float>::quiet_NaN()}) {
+        EXPECT_EQ(renderer.chooseMeshletLOD(radiusPixels), 0u)
+            << "a one-level GPU LOD table must always select its only level";
+    }
+
+    renderer.updateMeshletGeometry(meshlets.data(), meshlets.size(),
+                                   indices.data(), indices.size(),
+                                   replacementLods.data(), replacementLods.size());
+    EXPECT_EQ(renderer.chooseMeshletLOD(0.0f), replacementLods.size() - 1)
+        << "restoring a multi-level table should restore its coarsest selection";
+    for (const auto& testCase : cases) {
+        const std::size_t gpuLevel =
+            renderer.chooseMeshletLOD(testCase.radiusPixels);
+        const int cpuLevel = ArtifactCore::Mesh::chooseMeshletLODLevel(
+            cpuLodData, testCase.radiusPixels);
+        EXPECT_EQ(gpuLevel, testCase.expectedLevel)
+            << "restored GPU LOD table selected the wrong level at projected radius "
+            << testCase.radiusPixels;
+        EXPECT_EQ(gpuLevel, static_cast<std::size_t>(cpuLevel))
+            << "restored GPU LOD table diverged from CPU selection at projected radius "
+            << testCase.radiusPixels;
+    }
+
+    renderer.updateMeshletGeometry(meshlets.data(), meshlets.size(),
+                                   indices.data(), indices.size(),
+                                   singleLevelLods.data(), 0);
+    EXPECT_EQ(renderer.chooseMeshletLOD(0.0f), 0u)
+        << "a zero LOD count must clear stale selections even with a non-null pointer";
+
+    renderer.updateMeshletGeometry(meshlets.data(), meshlets.size(),
+                                   indices.data(), indices.size(),
+                                   lods.data(), lods.size());
+    ASSERT_EQ(renderer.chooseMeshletLOD(0.0f), lods.size() - 1)
+        << "restoring the uploaded LOD table should reinstate the coarsest selection";
+
+    renderer.updateMeshletGeometry(meshlets.data(), meshlets.size(),
+                                   indices.data(), indices.size(),
+                                   nullptr, lods.size());
+    EXPECT_EQ(renderer.chooseMeshletLOD(0.0f), 0u)
+        << "a null LOD table must clear stale selections even when its count is nonzero";
+
+    renderer.updateMeshletGeometry(meshlets.data(), meshlets.size(),
+                                   indices.data(), indices.size(), nullptr, 0);
+    EXPECT_EQ(renderer.chooseMeshletLOD(0.0f), 0u)
+        << "replacing uploaded geometry without LOD levels should clear the old selection table";
+}
+
+TEST_F(MeshShaderAcceptanceTest, MeshRendererDrawsTheSelectedMeshletLod) {
+    ArtifactCore::GpuContext gpuContext(device_.RawPtr(), context_.RawPtr());
+    ArtifactCore::MeshRenderer renderer(gpuContext);
+    renderer.setRenderTargetFormat(TEX_FORMAT_RGBA32_FLOAT);
+    renderer.initialize(1, 9, 0);
+
+    // The fine LOD has two triangles in separate target bands; the coarse LOD
+    // has one in the right band. Readback verifies both the selected LOD's
+    // base offset and its meshlet draw count, beyond the CPU-side chooser.
+    constexpr std::array<float, 27> positions{
+        -0.95f, -0.8f, 0.0f, -0.65f, -0.8f, 0.0f, -0.80f, 0.8f, 0.0f,
+        -0.35f, -0.8f, 0.0f, -0.05f, -0.8f, 0.0f, -0.20f, 0.8f, 0.0f,
+         0.55f, -0.8f, 0.0f,  0.85f, -0.8f, 0.0f,  0.70f, 0.8f, 0.0f};
+    constexpr std::array<std::uint32_t, 9> meshletIndices{
+        0, 1, 2, 3, 4, 5, 6, 7, 8};
+    std::array<ArtifactCore::MeshRenderer::MeshletGpu, 3> meshlets{};
+    for (std::size_t index = 0; index < meshlets.size(); ++index) {
+        meshlets[index].indexOffset = static_cast<std::uint32_t>(index * 3);
+        meshlets[index].indexCount = 3;
+        meshlets[index].vertexOffset = static_cast<std::uint32_t>(index * 3);
+        meshlets[index].vertexCount = 3;
+        meshlets[index].boundsRadius = 1.0f;
+    }
+    constexpr std::array<ArtifactCore::MeshRenderer::MeshletLodGpu, 2> lods{{
+        {0, 2, 96.0f, 0},
+        {2, 1, 48.0f, 0},
+    }};
+    renderer.updateMeshGeometry(positions.data(), nullptr, nullptr, nullptr);
+    renderer.updateMeshletGeometry(meshlets.data(), meshlets.size(),
+                                   meshletIndices.data(), meshletIndices.size(),
+                                   lods.data(), lods.size());
+    if (!renderer.meshShaderReady()) {
+        GTEST_SKIP() << "The active Vulkan adapter does not provide a usable mesh-shader PSO";
+    }
+
+    constexpr std::array<float, 16> identity{
+        1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+    renderer.setMeshletMatrices(identity.data(), identity.data(), identity.data());
+
+    constexpr Uint32 width = 64;
+    constexpr Uint32 height = 64;
+    TextureDesc colorDesc;
+    colorDesc.Name = "MeshletLodDrawColorTarget";
+    colorDesc.Type = RESOURCE_DIM_TEX_2D;
+    colorDesc.Width = width;
+    colorDesc.Height = height;
+    colorDesc.MipLevels = 1;
+    colorDesc.Format = TEX_FORMAT_RGBA32_FLOAT;
+    colorDesc.Usage = USAGE_DEFAULT;
+    colorDesc.BindFlags = BIND_RENDER_TARGET;
+    RefCntAutoPtr<ITexture> colorTexture;
+    device_->CreateTexture(colorDesc, nullptr, &colorTexture);
+    ASSERT_NE(colorTexture, nullptr);
+    auto colorView = colorTexture->GetDefaultView(TEXTURE_VIEW_RENDER_TARGET);
+    ASSERT_NE(colorView, nullptr);
+
+    TextureDesc depthDesc;
+    depthDesc.Name = "MeshletLodDrawDepthTarget";
+    depthDesc.Type = RESOURCE_DIM_TEX_2D;
+    depthDesc.Width = width;
+    depthDesc.Height = height;
+    depthDesc.MipLevels = 1;
+    depthDesc.Format = TEX_FORMAT_D32_FLOAT;
+    depthDesc.Usage = USAGE_DEFAULT;
+    depthDesc.BindFlags = BIND_DEPTH_STENCIL;
+    RefCntAutoPtr<ITexture> depthTexture;
+    device_->CreateTexture(depthDesc, nullptr, &depthTexture);
+    ASSERT_NE(depthTexture, nullptr);
+    auto depthView = depthTexture->GetDefaultView(TEXTURE_VIEW_DEPTH_STENCIL);
+    ASSERT_NE(depthView, nullptr);
+
+    TextureDesc stagingDesc;
+    stagingDesc.Name = "MeshletLodDrawReadback";
+    stagingDesc.Type = RESOURCE_DIM_TEX_2D;
+    stagingDesc.Width = width;
+    stagingDesc.Height = height;
+    stagingDesc.MipLevels = 1;
+    stagingDesc.Format = TEX_FORMAT_RGBA32_FLOAT;
+    stagingDesc.Usage = USAGE_STAGING;
+    stagingDesc.CPUAccessFlags = CPU_ACCESS_READ;
+    RefCntAutoPtr<ITexture> stagingTexture;
+    device_->CreateTexture(stagingDesc, nullptr, &stagingTexture);
+    ASSERT_NE(stagingTexture, nullptr);
+
+    const auto countDrawnPixelsByBand = [&](float projectedRadiusPixels) {
+        const auto lodIndex = renderer.chooseMeshletLOD(projectedRadiusPixels);
+        const float clearColor[4]{0.0f, 0.0f, 0.0f, 0.0f};
+        context_->SetRenderTargets(1, &colorView, depthView,
+                                   RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        context_->ClearRenderTarget(colorView, clearColor,
+                                    RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        context_->ClearDepthStencil(depthView, CLEAR_DEPTH_FLAG, 1.0f, 0,
+                                    RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        const Viewport viewport{0.0f, 0.0f, static_cast<float>(width),
+                                static_cast<float>(height), 0.0f, 1.0f};
+        context_->SetViewports(1, &viewport, width, height);
+        renderer.prepareMeshShader(context_.RawPtr(), lodIndex);
+        renderer.drawMeshlets(context_.RawPtr(), lodIndex);
+        context_->SetRenderTargets(0, nullptr, nullptr,
+                                   RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        CopyTextureAttribs copy(colorTexture,
+                                RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+                                stagingTexture,
+                                RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        context_->CopyTexture(copy);
+        context_->Flush();
+        context_->WaitForIdle();
+        MappedTextureSubresource mapped{};
+        context_->MapTextureSubresource(stagingTexture, 0, 0, MAP_READ,
+                                        MAP_FLAG_NONE, nullptr, mapped);
+        EXPECT_NE(mapped.pData, nullptr);
+        std::array<Uint32, 3> pixelCounts{};
+        if (!mapped.pData) return pixelCounts;
+        const auto* bytes = static_cast<const std::uint8_t*>(mapped.pData);
+        for (Uint32 y = 0; y < height; ++y) {
+            const auto* row = bytes + y * mapped.Stride;
+            for (Uint32 x = 0; x < width; ++x) {
+                float alpha = 0.0f;
+                std::memcpy(&alpha, row + x * 4 * sizeof(float) + 3 * sizeof(float),
+                            sizeof(alpha));
+                if (alpha > 0.5f) {
+                    const std::size_t band = x < width / 4 ? 0
+                        : x < width / 2 ? 1 : 2;
+                    ++pixelCounts[band];
+                }
+            }
+        }
+        context_->UnmapTextureSubresource(stagingTexture, 0, 0);
+        return pixelCounts;
+    };
+
+    const auto fineLodPixels = countDrawnPixelsByBand(96.0f);
+    EXPECT_GT(fineLodPixels[0], 0u);
+    EXPECT_GT(fineLodPixels[1], 0u)
+        << "the fine LOD should dispatch both of its meshlet groups";
+    EXPECT_EQ(fineLodPixels[2], 0u)
+        << "the fine LOD should draw only its left-side meshlets";
+    const auto coarseLodPixels = countDrawnPixelsByBand(48.0f);
+    EXPECT_EQ(coarseLodPixels[0], 0u)
+        << "the coarse LOD should not draw the fine LOD meshlet";
+    EXPECT_EQ(coarseLodPixels[1], 0u)
+        << "the coarse LOD should not draw the second fine LOD meshlet";
+    EXPECT_GT(coarseLodPixels[2], 0u)
+        << "the coarse LOD should draw its right-side meshlet";
 }
 
 TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) {
@@ -963,7 +2265,8 @@ TEST_F(RayTracingAcceptanceTest, AppliesNormalTextureInPerTriangleTangentSpace) 
     std::filesystem::remove(normalPath, ignored);
 }
 
-TEST_F(RayTracingAcceptanceTest, ClearcoatRoughnessUsesMeshRendererEnvironmentPrefilter) {
+TEST_F(RayTracingAcceptanceTest,
+       BaseAndClearcoatRoughnessUseMeshRendererEnvironmentPrefilter) {
     constexpr std::array<float, 9> triangleVertices{
         -0.8f, -0.8f, 0.0f, 0.8f, -0.8f, 0.0f, 0.0f, 0.8f, 0.0f};
     constexpr std::array<std::uint32_t, 3> triangleIndices{0, 1, 2};
@@ -1047,6 +2350,51 @@ TEST_F(RayTracingAcceptanceTest, ClearcoatRoughnessUsesMeshRendererEnvironmentPr
     const auto roughCoatPixel = pixelAt(16, 16);
     EXPECT_GT(smoothCoatPixel[0], roughCoatPixel[0] + 0.05f);
     EXPECT_GT(roughCoatPixel[2], smoothCoatPixel[2] + 0.05f);
+
+    material.clearcoatRoughness = 0.5f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("clearcoat-environment"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto midRoughnessCoatPixel = pixelAt(16, 16);
+    EXPECT_LT(midRoughnessCoatPixel[0], smoothCoatPixel[0] - 0.02f)
+        << "intermediate clearcoat roughness should advance toward coarser "
+           "environment mips";
+    EXPECT_GT(midRoughnessCoatPixel[0], roughCoatPixel[0] + 0.02f)
+        << "intermediate clearcoat roughness should retain some sharp-mip "
+           "contribution";
+    EXPECT_GT(midRoughnessCoatPixel[2], smoothCoatPixel[2] + 0.02f)
+        << "intermediate clearcoat roughness should advance toward the "
+           "coarse-mip environment color";
+    EXPECT_LT(midRoughnessCoatPixel[2], roughCoatPixel[2] - 0.02f)
+        << "intermediate clearcoat roughness should retain some sharp-mip "
+           "contribution";
+
+    material.clearcoat = 0.0f;
+    material.baseColor[0] = material.baseColor[1] = material.baseColor[2] = 0.8f;
+    material.roughness = 0.04f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("clearcoat-environment"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto smoothBasePixel = pixelAt(16, 16);
+
+    material.roughness = 1.0f;
+    ASSERT_TRUE(manager_->setInstancePbrMaterial(
+        ArtifactCore::UniString("clearcoat-environment"), material));
+    ASSERT_TRUE(manager_->buildTLAS(context_.RawPtr()));
+    ASSERT_TRUE(manager_->ensurePipelineAndSBT(context_.RawPtr()));
+    ASSERT_TRUE(manager_->traceUnitQuad(context_.RawPtr(), kRayTraceTestImageSize,
+                                        kRayTraceTestImageSize));
+    const auto roughBasePixel = pixelAt(16, 16);
+    EXPECT_GT(smoothBasePixel[0], roughBasePixel[0] + 0.05f)
+        << "smooth base roughness should sample the sharp environment mip";
+    EXPECT_GT(roughBasePixel[2], smoothBasePixel[2] + 0.05f)
+        << "rough base material should sample the coarser environment mip";
 }
 
 TEST_F(RayTracingAcceptanceTest, MeshRendererUsesSplitSumFresnelAndDiffuseEnergy) {

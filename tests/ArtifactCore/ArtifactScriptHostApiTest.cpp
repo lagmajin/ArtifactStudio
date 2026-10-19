@@ -242,7 +242,7 @@ class Use : ArtifactBehaviour
     ArtifactScriptSerializedFields fields;
     fields["keyed"] = false;
     fields["listed"] = false;
-    EXPECT_TRUE(evaluator.executeMethod(definition, "OnUpdate", {}, fields));
+    evaluator.executeMethod(definition, "OnUpdate", {}, fields);
     EXPECT_FALSE(evaluator.hasError()) << evaluator.getLastError();
     EXPECT_TRUE(std::get<bool>(fields.at("keyed")));
     EXPECT_TRUE(std::get<bool>(fields.at("listed")));

@@ -4,17 +4,22 @@
 #include <QMatrix4x4>
 #include <QRectF>
 #include <QString>
+#include <QTransform>
 #include <QVector3D>
 #include <QVector4D>
 #include <QtCore/qglobal.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 #include "DiligentHeadlessRenderer.hpp"
 import Graphics.ParticleData;
 import Image.ImageF32x4_RGBA;
+import Artifact.Layer.Particle;
+import Artifact.Generator.Particle;
 
 namespace {
 
@@ -39,6 +44,7 @@ struct RenderedParticle {
     bool camera3D = false;
     int pixelCount = 0;
     double centerX = 0.0;
+    std::array<std::uint8_t, 96 * 96> coverage{};
 };
 
 struct RenderedParticleBounds {
@@ -54,7 +60,8 @@ struct RenderedParticleBounds {
 
 RenderedParticle renderSingleParticle(float modelX, float cameraX,
                                       float modelZ = 0.0f,
-                                      float particleSize = 0.35f)
+                                      float particleSize = 0.35f,
+                                      int deferredPaddingPackets = 0)
 {
     constexpr int width = 96;
     constexpr int height = 96;
@@ -81,6 +88,15 @@ RenderedParticle renderSingleParticle(float modelX, float cameraX,
             return projection;
         }());
     renderer.clear();
+
+    // The submitter switches to deferred recording at 16 packets. These
+    // offscreen rectangles exercise that packet-count path without changing
+    // the visible particle image.
+    for (int index = 0; index < deferredPaddingPackets; ++index) {
+        renderer.drawSolidRect(-40.0f - static_cast<float>(index) * 3.0f,
+                               -40.0f, 2.0f, 2.0f,
+                               ArtifactCore::FloatColor(1.0f, 1.0f, 1.0f, 1.0f));
+    }
 
     ArtifactCore::ParticleRenderData data;
     data.options.blend = ArtifactCore::ParticleBlendPolicy::Alpha;
@@ -125,6 +141,7 @@ RenderedParticle renderSingleParticle(float modelX, float cameraX,
                 pixel.r() > 0.5f && pixel.a() > 0.5f) {
                 ++result.pixelCount;
                 sumX += x;
+                result.coverage[static_cast<std::size_t>(y * width + x)] = 1;
             }
         }
     }
@@ -407,6 +424,25 @@ TEST(Particle3DRenderContractTest, CameraAndModelTransformRenderInThreeDimension
         << "the 3D view matrix change should move the particle on screen";
 }
 
+TEST(Particle3DRenderContractTest, DeferredSubmitPreservesParticleImage)
+{
+    const auto immediate = renderSingleParticle(0.0f, 0.0f);
+    const auto deferred = renderSingleParticle(0.0f, 0.0f, 0.0f, 0.35f, 15);
+    if (!immediate.rendererReady || !deferred.rendererReady) {
+        GTEST_SKIP() << "Diligent headless rendering is unavailable on this host";
+    }
+
+    ASSERT_TRUE(immediate.imageValid);
+    ASSERT_TRUE(deferred.imageValid);
+    EXPECT_TRUE(immediate.camera3D);
+    EXPECT_TRUE(deferred.camera3D);
+    EXPECT_GT(immediate.pixelCount, 0);
+    EXPECT_GT(deferred.pixelCount, 0);
+    EXPECT_EQ(deferred.pixelCount, immediate.pixelCount);
+    EXPECT_NEAR(deferred.centerX, immediate.centerX, 0.01);
+    EXPECT_EQ(deferred.coverage, immediate.coverage);
+}
+
 TEST(Particle3DRenderContractTest, DepthTranslationChangesPerspectiveFootprint)
 {
     constexpr float smallParticleSize = 0.08f;
@@ -428,6 +464,540 @@ TEST(Particle3DRenderContractTest, DepthTranslationChangesPerspectiveFootprint)
     EXPECT_TRUE(nearer.camera3D);
     EXPECT_GT(nearer.pixelCount, farther.pixelCount)
         << "moving the particle toward the perspective camera should enlarge its footprint";
+}
+
+TEST(Particle3DRenderContractTest, ParticleLayerSurfacePathAppliesScaleBasedLODSteps)
+{
+    if (!headlessRenderer->available()) {
+        GTEST_SKIP() << "Diligent headless rendering is unavailable on this host";
+    }
+
+    auto& renderer = headlessRenderer->renderer();
+    renderer.setCanvasSize(96.0f, 96.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    auto layer = Artifact::createParticleLayer();
+    ASSERT_NE(layer.get(), nullptr);
+    layer->clearEmitters();
+    Artifact::EmitterParams emitter;
+    emitter.rate = 18000.0f;
+    emitter.lifeMin = 10.0f;
+    emitter.lifeMax = 10.0f;
+    emitter.speedMin = 0.0f;
+    emitter.speedMax = 0.0f;
+    emitter.directionSpread = 0.0f;
+    emitter.maxParticles = 1000;
+    ASSERT_NE(layer->addEmitter(emitter), nullptr);
+
+    const auto queuedCount = [](const QString& state) {
+        constexpr char marker[] = "state=queued count=";
+        const int markerPosition = state.indexOf(QLatin1String(marker));
+        if (markerPosition < 0) return -1;
+        const int countStart = markerPosition + static_cast<int>(sizeof(marker) - 1);
+        const int countEnd = state.indexOf(QLatin1Char(' '), countStart);
+        return state.mid(countStart, countEnd - countStart).toInt();
+    };
+    const auto queuedCountAtScale = [&](double scaleX, double scaleY,
+                                        double rotationDegrees = 0.0) {
+        QTransform transform;
+        transform.rotate(rotationDegrees);
+        transform.scale(scaleX, scaleY);
+        renderer.clear();
+        if (!layer->drawSurfaceGPU(&renderer, transform, 1)) return -1;
+        return queuedCount(renderer.particleDebugState());
+    };
+
+    // Reuse frame 1 for every draw so the measured source population is identical.
+    const int highCount = queuedCountAtScale(1.0, 1.0);
+    const int thresholdCount = queuedCountAtScale(0.75, 0.75);
+    const int justAboveThresholdCount = queuedCountAtScale(
+        std::nextafter(0.75, 1.0), std::nextafter(0.75, 1.0));
+    const int adjacentBelowThresholdCount = queuedCountAtScale(
+        std::nextafter(0.75, 0.0), std::nextafter(0.75, 0.0));
+    const int justBelowThresholdCount = queuedCountAtScale(0.749, 0.749);
+    const int mediumCount = queuedCountAtScale(0.60, 0.60);
+    const int lowCount = queuedCountAtScale(0.375, 0.375);
+    const int rotatedLowCount = queuedCountAtScale(0.375, 0.375, 37.0);
+    const int rotatedMediumCount = queuedCountAtScale(0.60, 0.60, -53.0);
+    const int mirroredLowCount = queuedCountAtScale(-0.375, -0.375);
+    const int mirroredSingleAxisCount = queuedCountAtScale(-0.375, 0.375);
+    const int zeroScaleCount = queuedCountAtScale(0.0, 0.0);
+    const int tinyPositiveScaleCount = queuedCountAtScale(1.0e-30, 1.0e-30);
+    const int hugeFiniteScaleCount = queuedCountAtScale(1.0e20, 1.0e20);
+    const int anisotropicCount = queuedCountAtScale(0.375, 0.9);
+    const int swappedAnisotropicCount = queuedCountAtScale(0.9, 0.375);
+    const double nanScale = std::numeric_limits<double>::quiet_NaN();
+    const int nanScaleCount = queuedCountAtScale(nanScale, nanScale);
+    const int infiniteScaleCount = queuedCountAtScale(
+        std::numeric_limits<double>::infinity(),
+        std::numeric_limits<double>::infinity());
+    const int restoredHighCount = queuedCountAtScale(1.0, 1.0);
+    ASSERT_GT(highCount, 256);
+    EXPECT_EQ(thresholdCount, highCount);
+    EXPECT_EQ(justAboveThresholdCount, highCount)
+        << "the representable scale immediately above the threshold should keep all particles";
+    EXPECT_GE(static_cast<double>(adjacentBelowThresholdCount) / highCount, 0.98)
+        << "the first representable scale below the threshold should avoid an abrupt count drop";
+    EXPECT_GE(static_cast<double>(justBelowThresholdCount) / highCount, 0.98)
+        << "crossing just below the LOD threshold should not abruptly discard "
+           "about half of the particles";
+    // A nominal 80% target is sampled with a fixed stride. For 1000 source
+    // particles that produces 500 selected particles at this scale.
+    EXPECT_NEAR(static_cast<double>(mediumCount) / highCount, 0.5, 0.02);
+    EXPECT_NEAR(static_cast<double>(lowCount) / highCount, 0.5, 0.02);
+    EXPECT_GT(highCount, mediumCount);
+    EXPECT_GT(mediumCount, lowCount);
+    EXPECT_EQ(mirroredLowCount, lowCount);
+    EXPECT_EQ(rotatedLowCount, lowCount)
+        << "rotation should not change the effective uniform screen scale";
+    EXPECT_EQ(rotatedMediumCount, mediumCount)
+        << "rotation should preserve the medium-LOD particle budget";
+    EXPECT_EQ(mirroredSingleAxisCount, lowCount)
+        << "mirroring either axis should preserve the effective LOD scale";
+    EXPECT_EQ(zeroScaleCount, 64)
+        << "a fully collapsed surface should use the minimum particle budget";
+    EXPECT_EQ(tinyPositiveScaleCount, zeroScaleCount)
+        << "a tiny positive scale should hit the same minimum-scale LOD budget";
+    EXPECT_EQ(hugeFiniteScaleCount, highCount)
+        << "a huge but finite screen scale should retain every particle";
+    EXPECT_EQ(anisotropicCount, highCount)
+        << "the largest axis scale should control particle LOD";
+    EXPECT_EQ(swappedAnisotropicCount, anisotropicCount)
+        << "swapping anisotropic axes should preserve the selected particle count";
+    EXPECT_EQ(nanScaleCount, highCount)
+        << "non-finite surface scale should preserve the complete particle set";
+    EXPECT_EQ(infiniteScaleCount, highCount)
+        << "infinite surface scale should not reduce the particle set";
+    EXPECT_EQ(restoredHighCount, highCount)
+        << "returning to full scale after a reduced draw should restore every particle";
+
+    const auto firstParticleSampleAtScale = [&](double scale) {
+        QTransform transform;
+        transform.scale(scale, scale);
+        renderer.clear();
+        if (!layer->drawSurfaceGPU(&renderer, transform, 1)) return QString{};
+        const QString state = renderer.particleDebugState();
+        const int sampleStart = state.indexOf(QStringLiteral(" sampleRGBA="));
+        const int sampleEnd =
+            state.indexOf(QStringLiteral(" targetFormat="), sampleStart);
+        if (sampleStart < 0 || sampleEnd < 0) return QString{};
+        return state.mid(sampleStart, sampleEnd - sampleStart);
+    };
+    const QString highSample = firstParticleSampleAtScale(1.0);
+    const QString lowSample = firstParticleSampleAtScale(0.375);
+    const QString restoredLowSample = firstParticleSampleAtScale(0.375);
+    ASSERT_FALSE(highSample.isEmpty());
+    ASSERT_FALSE(lowSample.isEmpty());
+    ASSERT_FALSE(restoredLowSample.isEmpty());
+    EXPECT_EQ(lowSample, highSample)
+        << "LOD subsampling should retain the first source particle's color, "
+           "size, and age";
+    EXPECT_EQ(restoredLowSample, lowSample)
+        << "repeating the same reduced LOD should preserve the sampled particle attributes";
+}
+
+TEST(Particle3DRenderContractTest, ParticleLODMediumCountIsDeterministic)
+{
+    if (!headlessRenderer->available()) {
+        GTEST_SKIP() << "Diligent headless rendering is unavailable on this host";
+    }
+
+    auto& renderer = headlessRenderer->renderer();
+    renderer.setCanvasSize(96.0f, 96.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    auto layer = Artifact::createParticleLayer();
+    ASSERT_NE(layer.get(), nullptr);
+    layer->clearEmitters();
+    Artifact::EmitterParams emitter;
+    emitter.rate = 18000.0f;
+    emitter.lifeMin = 10.0f;
+    emitter.lifeMax = 10.0f;
+    emitter.speedMin = 0.0f;
+    emitter.speedMax = 0.0f;
+    emitter.directionSpread = 0.0f;
+    emitter.maxParticles = 1000;
+    ASSERT_NE(layer->addEmitter(emitter), nullptr);
+
+    const auto queuedCountAtMediumScale = [&] {
+        QTransform transform;
+        transform.scale(0.60, 0.60);
+        renderer.clear();
+        if (!layer->drawSurfaceGPU(&renderer, transform, 1)) return -1;
+        const QString state = renderer.particleDebugState();
+        constexpr char marker[] = "state=queued count=";
+        const int markerPosition = state.indexOf(QLatin1String(marker));
+        if (markerPosition < 0) return -1;
+        const int countStart = markerPosition + static_cast<int>(sizeof(marker) - 1);
+        const int countEnd = state.indexOf(QLatin1Char(' '), countStart);
+        return state.mid(countStart, countEnd - countStart).toInt();
+    };
+
+    const int firstCount = queuedCountAtMediumScale();
+    const int secondCount = queuedCountAtMediumScale();
+    ASSERT_GT(firstCount, 0);
+    EXPECT_EQ(secondCount, firstCount);
+    EXPECT_EQ(firstCount, 500);
+}
+
+TEST(Particle3DRenderContractTest,
+     ThreeDimensionalLayerDrawAppliesModelScaleLODAndRestoresFullCount)
+{
+    if (!headlessRenderer->available()) {
+        GTEST_SKIP() << "Diligent headless rendering is unavailable on this host";
+    }
+
+    auto& renderer = headlessRenderer->renderer();
+    renderer.setCanvasSize(96.0f, 96.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    auto layer = Artifact::createParticleLayer();
+    ASSERT_NE(layer.get(), nullptr);
+    layer->setIs3D(true);
+    layer->clearEmitters();
+    Artifact::EmitterParams emitter;
+    emitter.rate = 18000.0f;
+    emitter.lifeMin = 10.0f;
+    emitter.lifeMax = 10.0f;
+    emitter.speedMin = 0.0f;
+    emitter.speedMax = 0.0f;
+    emitter.directionSpread = 0.0f;
+    emitter.maxParticles = 1000;
+    ASSERT_NE(layer->addEmitter(emitter), nullptr);
+    QMatrix4x4 view;
+    view.lookAt(QVector3D(0.0f, 0.0f, 5.0f), QVector3D(),
+                QVector3D(0.0f, 1.0f, 0.0f));
+    QMatrix4x4 projection;
+    projection.perspective(45.0f, 1.0f, 0.1f, 100.0f);
+
+    const auto queuedCountAtModelScale = [&](const float scaleX,
+                                             const float scaleY) {
+        layer->transform3D().setCurrentScale(scaleX, scaleY);
+        renderer.clear();
+        renderer.set3DCameraMatrices(view, projection);
+        layer->draw(&renderer);
+        const QString state = renderer.particleDebugState();
+        constexpr char marker[] = "state=queued count=";
+        const int markerPosition = state.indexOf(QLatin1String(marker));
+        if (markerPosition < 0) return -1;
+        const int countStart = markerPosition + static_cast<int>(sizeof(marker) - 1);
+        const int countEnd = state.indexOf(QLatin1Char(' '), countStart);
+        return state.mid(countStart, countEnd - countStart).toInt();
+    };
+
+    const int fullCount = queuedCountAtModelScale(1.0f, 1.0f);
+    const int reducedCount = queuedCountAtModelScale(0.375f, 0.375f);
+    const int wideThinCount = queuedCountAtModelScale(1.0f, 0.1f);
+    const int narrowTallCount = queuedCountAtModelScale(0.1f, 1.0f);
+    const int restoredFullCount = queuedCountAtModelScale(1.0f, 1.0f);
+    renderer.reset3DCameraMatrices();
+    ASSERT_GE(fullCount, 256);
+    EXPECT_NEAR(static_cast<double>(reducedCount) / fullCount, 0.5, 0.02)
+        << "the 3D layer model scale should drive the shared particle LOD budget";
+    EXPECT_EQ(wideThinCount, fullCount)
+        << "a full horizontal model scale should preserve the particle budget";
+    EXPECT_EQ(narrowTallCount, fullCount)
+        << "a full vertical model scale should preserve the particle budget";
+    EXPECT_EQ(restoredFullCount, fullCount)
+        << "returning the 3D layer to full scale should restore every particle";
+}
+
+TEST(Particle3DRenderContractTest,
+     ParticleLODSubsamplingKeepsAlphaSortOrderAtEveryScale)
+{
+    if (!headlessRenderer->available()) {
+        GTEST_SKIP() << "Diligent headless rendering is unavailable on this host";
+    }
+
+    auto& renderer = headlessRenderer->renderer();
+    renderer.setCanvasSize(96.0f, 96.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    auto layer = Artifact::createParticleLayer();
+    ASSERT_NE(layer.get(), nullptr);
+    layer->setIs3D(true);
+    layer->clearEmitters();
+    Artifact::EmitterParams emitter;
+    emitter.rate = 18000.0f;
+    emitter.lifeMin = 10.0f;
+    emitter.lifeMax = 10.0f;
+    emitter.speedMin = 0.0f;
+    emitter.speedMax = 0.0f;
+    emitter.directionSpread = 0.0f;
+    emitter.maxParticles = 1000;
+    ASSERT_NE(layer->addEmitter(emitter), nullptr);
+    layer->particleSystem()->renderSettings().blendMode =
+        Artifact::ParticleBlendMode::Normal;
+    layer->particleSystem()->renderSettings().depthTest = false;
+    layer->particleSystem()->renderSettings().depthWrite = false;
+
+    QMatrix4x4 view;
+    view.lookAt(QVector3D(0.0f, 0.0f, 5.0f), QVector3D(),
+                QVector3D(0.0f, 1.0f, 0.0f));
+    QMatrix4x4 projection;
+    projection.perspective(45.0f, 1.0f, 0.1f, 100.0f);
+
+    struct SortSample {
+        int count = -1;
+        float firstAge = -1.0f;
+    };
+    const auto drawAtScale = [&](const float scale,
+                                 const Artifact::ParticleRenderSettings::SortMode sortMode) {
+        layer->transform3D().setCurrentScale(scale, scale);
+        layer->particleSystem()->renderSettings().sortMode = sortMode;
+        renderer.clear();
+        renderer.set3DCameraMatrices(view, projection);
+        layer->draw(&renderer);
+
+        const QString state = renderer.particleDebugState();
+        constexpr char countMarker[] = "state=queued count=";
+        constexpr char ageMarker[] = " sampleAge=";
+        const int countPosition = state.indexOf(QLatin1String(countMarker));
+        const int agePosition = state.indexOf(QLatin1String(ageMarker));
+        if (countPosition < 0 || agePosition < 0) return SortSample{};
+
+        const int countStart = countPosition +
+            static_cast<int>(sizeof(countMarker) - 1);
+        const int countEnd = state.indexOf(QLatin1Char(' '), countStart);
+        const int ageStart = agePosition +
+            static_cast<int>(sizeof(ageMarker) - 1);
+        const int ageEnd = state.indexOf(QLatin1Char('/'), ageStart);
+        bool countOk = false;
+        bool ageOk = false;
+        const int count = state.mid(countStart, countEnd - countStart)
+                              .toInt(&countOk);
+        const float age = state.mid(ageStart, ageEnd - ageStart)
+                              .toFloat(&ageOk);
+        return countOk && ageOk ? SortSample{count, age} : SortSample{};
+    };
+
+    const auto noneHigh = drawAtScale(
+        1.0f, Artifact::ParticleRenderSettings::SortMode::None);
+    const auto oldestHigh = drawAtScale(
+        1.0f, Artifact::ParticleRenderSettings::SortMode::OldestFirst);
+    const auto youngestHigh = drawAtScale(
+        1.0f, Artifact::ParticleRenderSettings::SortMode::YoungestFirst);
+    const auto oldestLow = drawAtScale(
+        0.375f, Artifact::ParticleRenderSettings::SortMode::OldestFirst);
+    const auto youngestLow = drawAtScale(
+        0.375f, Artifact::ParticleRenderSettings::SortMode::YoungestFirst);
+    renderer.reset3DCameraMatrices();
+
+    ASSERT_GT(noneHigh.count, 256);
+    ASSERT_EQ(oldestHigh.count, noneHigh.count);
+    ASSERT_EQ(youngestHigh.count, noneHigh.count);
+    ASSERT_GT(oldestLow.count, 64);
+    EXPECT_LT(oldestLow.count, oldestHigh.count)
+        << "Low LOD should reduce the particle population before sorting";
+    EXPECT_GT(oldestHigh.firstAge, youngestHigh.firstAge)
+        << "full-quality alpha sorting should order the oldest particle first "
+           "and the youngest particle first, respectively";
+    EXPECT_GT(oldestLow.firstAge, youngestLow.firstAge)
+        << "LOD subsampling must preserve OldestFirst and YoungestFirst order";
+}
+
+TEST(Particle3DRenderContractTest, SmallParticleSetsKeepAllParticlesAtLowScale)
+{
+    if (!headlessRenderer->available()) {
+        GTEST_SKIP() << "Diligent headless rendering is unavailable on this host";
+    }
+
+    auto& renderer = headlessRenderer->renderer();
+    renderer.setCanvasSize(96.0f, 96.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    auto layer = Artifact::createParticleLayer();
+    ASSERT_NE(layer.get(), nullptr);
+    layer->clearEmitters();
+    Artifact::EmitterParams emitter;
+    emitter.rate = 7650.0f; // Exactly 255 particles in the first 1/30 s step.
+    emitter.lifeMin = 10.0f;
+    emitter.lifeMax = 10.0f;
+    emitter.speedMin = 0.0f;
+    emitter.speedMax = 0.0f;
+    emitter.directionSpread = 0.0f;
+    emitter.maxParticles = 1000;
+    ASSERT_NE(layer->addEmitter(emitter), nullptr);
+
+    const auto queuedCountAtScale = [&](double scaleX, double scaleY) {
+        QTransform transform;
+        transform.scale(scaleX, scaleY);
+        renderer.clear();
+        if (!layer->drawSurfaceGPU(&renderer, transform, 1)) return -1;
+        const QString state = renderer.particleDebugState();
+        constexpr char marker[] = "state=queued count=";
+        const int markerPosition = state.indexOf(QLatin1String(marker));
+        if (markerPosition < 0) return -1;
+        const int countStart = markerPosition + static_cast<int>(sizeof(marker) - 1);
+        const int countEnd = state.indexOf(QLatin1Char(' '), countStart);
+        return state.mid(countStart, countEnd - countStart).toInt();
+    };
+
+    const int fullCount = queuedCountAtScale(1.0, 1.0);
+    const int lowCount = queuedCountAtScale(0.1, 0.1);
+    ASSERT_GT(fullCount, 0);
+    ASSERT_EQ(fullCount, 255);
+    EXPECT_EQ(lowCount, fullCount);
+}
+
+TEST(Particle3DRenderContractTest, ParticleLODStartsReducingAt256Particles)
+{
+    if (!headlessRenderer->available()) {
+        GTEST_SKIP() << "Diligent headless rendering is unavailable on this host";
+    }
+
+    auto& renderer = headlessRenderer->renderer();
+    renderer.setCanvasSize(96.0f, 96.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    auto layer = Artifact::createParticleLayer();
+    ASSERT_NE(layer.get(), nullptr);
+    layer->clearEmitters();
+    Artifact::EmitterParams emitter;
+    emitter.rate = 7680.0f; // Exactly 256 particles in the first 1/30 s step.
+    emitter.lifeMin = 10.0f;
+    emitter.lifeMax = 10.0f;
+    emitter.speedMin = 0.0f;
+    emitter.speedMax = 0.0f;
+    emitter.directionSpread = 0.0f;
+    emitter.maxParticles = 1000;
+    ASSERT_NE(layer->addEmitter(emitter), nullptr);
+
+    const auto queuedCountAtScale = [&](double scale) {
+        QTransform transform;
+        transform.scale(scale, scale);
+        renderer.clear();
+        if (!layer->drawSurfaceGPU(&renderer, transform, 1)) return -1;
+        const QString state = renderer.particleDebugState();
+        constexpr char marker[] = "state=queued count=";
+        const int markerPosition = state.indexOf(QLatin1String(marker));
+        if (markerPosition < 0) return -1;
+        const int countStart = markerPosition + static_cast<int>(sizeof(marker) - 1);
+        const int countEnd = state.indexOf(QLatin1Char(' '), countStart);
+        return state.mid(countStart, countEnd - countStart).toInt();
+    };
+
+    const int fullCount = queuedCountAtScale(1.0);
+    const int thresholdCount = queuedCountAtScale(0.75);
+    const int lowCount = queuedCountAtScale(0.1);
+    ASSERT_EQ(fullCount, 256);
+    EXPECT_EQ(thresholdCount, fullCount)
+        << "the 0.75 screen-scale threshold should retain all 256 particles";
+    EXPECT_EQ(lowCount, 64);
+}
+
+TEST(Particle3DRenderContractTest,
+     ParticleLODReclassifiesPopulationAcrossFramesAndRestoresEarlierFrame)
+{
+    if (!headlessRenderer->available()) {
+        GTEST_SKIP() << "Diligent headless rendering is unavailable on this host";
+    }
+
+    auto& renderer = headlessRenderer->renderer();
+    renderer.setCanvasSize(96.0f, 96.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    auto layer = Artifact::createParticleLayer();
+    ASSERT_NE(layer.get(), nullptr);
+    layer->clearEmitters();
+    Artifact::EmitterParams emitter;
+    emitter.rate = 3840.0f; // 128 particles per 1/30 s frame.
+    emitter.lifeMin = 10.0f;
+    emitter.lifeMax = 10.0f;
+    emitter.speedMin = 0.0f;
+    emitter.speedMax = 0.0f;
+    emitter.directionSpread = 0.0f;
+    emitter.maxParticles = 1000;
+    ASSERT_NE(layer->addEmitter(emitter), nullptr);
+
+    const auto queuedCountAtFrameAndScale = [&](const int frame,
+                                                 const double scale) {
+        QTransform transform;
+        transform.scale(scale, scale);
+        renderer.clear();
+        if (!layer->drawSurfaceGPU(&renderer, transform, frame)) return -1;
+        const QString state = renderer.particleDebugState();
+        constexpr char marker[] = "state=queued count=";
+        const int markerPosition = state.indexOf(QLatin1String(marker));
+        if (markerPosition < 0) return -1;
+        const int countStart = markerPosition + static_cast<int>(sizeof(marker) - 1);
+        const int countEnd = state.indexOf(QLatin1Char(' '), countStart);
+        return state.mid(countStart, countEnd - countStart).toInt();
+    };
+
+    const int firstFrameFull = queuedCountAtFrameAndScale(1, 1.0);
+    const int firstFrameLow = queuedCountAtFrameAndScale(1, 0.1);
+    const int thresholdFrameFull = queuedCountAtFrameAndScale(2, 1.0);
+    const int thresholdFrameLow = queuedCountAtFrameAndScale(2, 0.1);
+    const int restoredFrameLow = queuedCountAtFrameAndScale(1, 0.1);
+
+    EXPECT_EQ(firstFrameFull, 128);
+    EXPECT_EQ(firstFrameLow, firstFrameFull)
+        << "a population below the LOD threshold should remain complete";
+    EXPECT_EQ(thresholdFrameFull, 256);
+    EXPECT_EQ(thresholdFrameLow, 64)
+        << "crossing the threshold on the next frame should activate Low LOD";
+    EXPECT_EQ(restoredFrameLow, firstFrameLow)
+        << "returning to the smaller earlier population should disable "
+           "subsampling again";
+}
+
+TEST(Particle3DRenderContractTest, ParticleLodMinimumBudgetSurvivesOddPopulation)
+{
+    if (!headlessRenderer->available()) {
+        GTEST_SKIP() << "Diligent headless rendering is unavailable on this host";
+    }
+
+    auto& renderer = headlessRenderer->renderer();
+    renderer.setCanvasSize(96.0f, 96.0f);
+    renderer.setClearColor(ArtifactCore::FloatColor(0.0f, 0.0f, 0.0f, 0.0f));
+
+    auto layer = Artifact::createParticleLayer();
+    ASSERT_NE(layer.get(), nullptr);
+    layer->clearEmitters();
+    Artifact::EmitterParams emitter;
+    emitter.rate = 7710.0f; // Exactly 257 particles in the first 1/30 s step.
+    emitter.lifeMin = 10.0f;
+    emitter.lifeMax = 10.0f;
+    emitter.speedMin = 0.0f;
+    emitter.speedMax = 0.0f;
+    emitter.directionSpread = 0.0f;
+    emitter.maxParticles = 1000;
+    ASSERT_NE(layer->addEmitter(emitter), nullptr);
+
+    const auto queuedCountAtLowScale = [&] {
+        QTransform transform;
+        transform.scale(0.1, 0.1);
+        renderer.clear();
+        if (!layer->drawSurfaceGPU(&renderer, transform, 1)) return -1;
+        const QString state = renderer.particleDebugState();
+        constexpr char marker[] = "state=queued count=";
+        const int markerPosition = state.indexOf(QLatin1String(marker));
+        if (markerPosition < 0) return -1;
+        const int countStart = markerPosition + static_cast<int>(sizeof(marker) - 1);
+        const int countEnd = state.indexOf(QLatin1Char(' '), countStart);
+        return state.mid(countStart, countEnd - countStart).toInt();
+    };
+
+    QTransform fullScale;
+    renderer.clear();
+    ASSERT_TRUE(layer->drawSurfaceGPU(&renderer, fullScale, 1));
+    const QString fullState = renderer.particleDebugState();
+    constexpr char marker[] = "state=queued count=";
+    const int markerPosition = fullState.indexOf(QLatin1String(marker));
+    ASSERT_GE(markerPosition, 0);
+    const int countStart = markerPosition + static_cast<int>(sizeof(marker) - 1);
+    const int countEnd = fullState.indexOf(QLatin1Char(' '), countStart);
+    const int fullCount = fullState.mid(countStart, countEnd - countStart).toInt();
+    ASSERT_EQ(fullCount, 257);
+
+    const int firstLowCount = queuedCountAtLowScale();
+    const int secondLowCount = queuedCountAtLowScale();
+    EXPECT_EQ(firstLowCount, secondLowCount)
+        << "the low-LOD sample count should be deterministic";
+    EXPECT_GE(firstLowCount, 64)
+        << "stride rounding must not lower the configured minimum particle budget";
+    EXPECT_LT(firstLowCount, fullCount);
 }
 
 TEST(Particle3DRenderContractTest, VelocityAlignedBillboardFollowsViewSpaceVelocity)

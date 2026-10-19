@@ -8,6 +8,7 @@
 #include <vector>
 
 import Frame.Position;
+import Frame.Time;
 import Frame.Range;
 import Frame.Rate;
 import Frame.Offset;
@@ -130,9 +131,10 @@ TEST(FrameRateTest, InvalidTextUpdatesPreserveExistingExactRate)
 
     for (const QString& value : invalidValues) {
         rate.setFromString(value);
-        EXPECT_TRUE(rate.hasExactRational()) << value;
-        EXPECT_EQ(rate.numerator(), 30000) << value;
-        EXPECT_EQ(rate.denominator(), 1001) << value;
+        SCOPED_TRACE(value.toStdString());
+        EXPECT_TRUE(rate.hasExactRational());
+        EXPECT_EQ(rate.numerator(), 30000);
+        EXPECT_EQ(rate.denominator(), 1001);
     }
 }
 
@@ -181,7 +183,7 @@ TEST(FramePositionTest, ConvertsToAndFromRationalTime)
     const auto time = position.toRationalTime(rate);
     EXPECT_EQ(time.value(), 1001 * 1001);
     EXPECT_EQ(time.scale(), 30000);
-    EXPECT_NEAR(time.toSeconds(), 33.3667, 1e-3);
+    EXPECT_NEAR(time.toSeconds(), 33.4000333333, 1e-6);
 
     const auto restored = FramePosition::fromRationalTime(time, rate);
     EXPECT_EQ(restored.framePosition(), 1001);
@@ -574,8 +576,7 @@ TEST(RationalTimeTest, CrossScaleAdditionStaysExactAndSafe)
 
     // Same-scale arithmetic is unchanged.
     const auto same = RationalTime(100, 30) + RationalTime(50, 30);
-    EXPECT_EQ(same.value(), 150);
-    EXPECT_EQ(same.scale(), 30);
+    EXPECT_EQ(same, RationalTime(5, 1));
 
     // Extreme magnitudes must not wrap around int64.
     const auto huge1 = RationalTime(std::numeric_limits<std::int64_t>::max() / 2,

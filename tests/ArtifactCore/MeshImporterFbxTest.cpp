@@ -543,6 +543,404 @@ TEST(MeshImporterFbxTest, EvaluatesAnimatedSkinPoseAcrossClipTimes)
            "Use a fixture with vertices weighted to the animated skeleton.";
 }
 
+TEST(MeshImporterFbxTest,
+     GeneratesPoseConsistentMeshletLODWithoutMutatingAnimatedFbxPose)
+{
+    const QString path = fixturePath("ARTIFACT_FBX_ANIMATION_TEST_FILE");
+    ASSERT_FALSE(path.isEmpty())
+        << "Set ARTIFACT_FBX_ANIMATION_TEST_FILE to a skeletal FBX with at "
+           "least one non-static animation clip, or set ARTIFACT_FBX_TEST_FILE "
+           "for a shared fixture.";
+    ASSERT_TRUE(QFileInfo(path).isFile())
+        << "Animation FBX fixture does not exist: " << path.toStdString();
+
+    MeshImporter importer;
+    auto mesh = importer.importMeshFromFile(UniString(path));
+    ASSERT_NE(mesh, nullptr) << importer.lastError().toStdString();
+    ASSERT_EQ(importer.lastBackend(), MeshImporter::Backend::Ufbx);
+    ASSERT_GT(mesh->vertexCount(), 0);
+    ASSERT_GT(mesh->polygonCount(), 0);
+    ASSERT_GT(mesh->skinBones().size(), 0);
+    ASSERT_FALSE(mesh->skinAnimationClips().isEmpty());
+
+    const auto positionAttribute =
+        mesh->vertexAttributes().get<QVector3D>("position");
+    ASSERT_NE(positionAttribute, nullptr);
+    ASSERT_EQ(positionAttribute->size(), mesh->vertexCount());
+
+    Mesh::MeshletLODConfig config;
+    config.maxLODLevels = 4;
+    config.lodSwitchPixels = 96.0f;
+    const auto verifyLODAtTime = [&](const double time,
+                                     const int clipIndex,
+                                     QVector<QVector3D>* lodPositions,
+                                     QVector<unsigned int>* lodIndices,
+                                     QVector<Mesh::MeshletLODLevel>* lodLevels,
+                                     QVector<QVector2D>* lodUvs,
+                                     QVector<QVector2D>* lodUvs1) {
+        ASSERT_TRUE(importer.updateSkinPose(
+            UniString(path), time, clipIndex, *mesh))
+            << "Could not evaluate FBX animation for LOD generation: "
+            << importer.lastError().toStdString();
+        const QVector<QVector3D> positionsBefore = positionAttribute->data();
+        const Mesh::MeshletLODData lod = mesh->generateMeshletLODData(config);
+        ASSERT_TRUE(lod.isValid());
+        ASSERT_FALSE(lod.levels.isEmpty());
+        ASSERT_GT(lod.renderData.positions.size(), 0);
+        if (lodPositions) *lodPositions = lod.renderData.positions;
+        if (lodIndices) *lodIndices = lod.lodIndices;
+        if (lodLevels) *lodLevels = lod.levels;
+        if (lodUvs) *lodUvs = lod.renderData.uvs;
+        if (lodUvs1) *lodUvs1 = lod.renderData.uvs1;
+
+        float previousSwitchDistance =
+            std::numeric_limits<float>::infinity();
+        unsigned int previousIndexCount =
+            std::numeric_limits<unsigned int>::max();
+        int previousTriangleStride = 0;
+        for (qsizetype levelIndex = 0; levelIndex < lod.levels.size();
+             ++levelIndex) {
+            const Mesh::MeshletLODLevel& level = lod.levels[levelIndex];
+            ASSERT_GT(level.indexCount, 0u);
+            EXPECT_EQ(level.indexCount % 3u, 0u);
+            EXPECT_LE(level.indexCount, previousIndexCount)
+                << "coarser animated-mesh LODs must not add triangles";
+            EXPECT_GE(level.triangleStride, previousTriangleStride)
+                << "coarser animated-mesh LODs must not reduce triangle stride";
+            EXPECT_TRUE(std::isfinite(level.switchDistancePixels));
+            EXPECT_LE(level.firstIndex + level.indexCount,
+                      static_cast<unsigned int>(lod.lodIndices.size()));
+            EXPECT_GE(level.meshletOffset, 0);
+            EXPECT_LE(level.meshletOffset + level.meshletCount,
+                      lod.meshlets.size());
+            EXPECT_GE(level.switchDistancePixels, 0.0f);
+            EXPECT_LE(level.switchDistancePixels, previousSwitchDistance);
+            previousSwitchDistance = level.switchDistancePixels;
+            previousIndexCount = level.indexCount;
+            previousTriangleStride = level.triangleStride;
+            EXPECT_EQ(Mesh::chooseMeshletLODLevel(
+                          lod, level.switchDistancePixels), level.level);
+            if (levelIndex > 0) {
+                const float boundary = level.switchDistancePixels;
+                EXPECT_EQ(Mesh::chooseMeshletLODLevel(
+                              lod, std::nextafter(
+                                       boundary,
+                                       std::numeric_limits<float>::infinity())),
+                          lod.levels[levelIndex - 1].level)
+                    << "a radius immediately above this animated-mesh LOD "
+                       "boundary should select the adjacent finer level";
+                EXPECT_EQ(Mesh::chooseMeshletLODLevel(
+                              lod, std::nextafter(
+                                       boundary,
+                                       -std::numeric_limits<float>::infinity())),
+                          level.level)
+                    << "a radius immediately below this animated-mesh LOD "
+                       "boundary should remain at this level";
+            }
+
+            for (unsigned int offset = level.firstIndex;
+                 offset < level.firstIndex + level.indexCount; ++offset) {
+                EXPECT_LT(lod.lodIndices[offset],
+                          static_cast<unsigned int>(lod.renderData.positions.size()));
+            }
+
+            for (int meshletIndex = level.meshletOffset;
+                 meshletIndex < level.meshletOffset + level.meshletCount;
+                 ++meshletIndex) {
+                const Mesh::Meshlet& meshlet = lod.meshlets[meshletIndex];
+                ASSERT_GT(meshlet.indexCount, 0u);
+                ASSERT_EQ(meshlet.indexCount % 3u, 0u);
+                ASSERT_GE(meshlet.firstIndex, level.firstIndex);
+                ASSERT_LE(meshlet.firstIndex + meshlet.indexCount,
+                          level.firstIndex + level.indexCount);
+                EXPECT_TRUE(std::isfinite(meshlet.boundsRadius));
+                EXPECT_GE(meshlet.boundsRadius, 0.0f);
+
+                for (unsigned int offset = meshlet.firstIndex;
+                     offset < meshlet.firstIndex + meshlet.indexCount;
+                     ++offset) {
+                    const unsigned int vertexIndex = lod.lodIndices[offset];
+                    ASSERT_LT(vertexIndex,
+                              static_cast<unsigned int>(
+                                  lod.renderData.positions.size()));
+                    const QVector3D& position =
+                        lod.renderData.positions[static_cast<qsizetype>(
+                            vertexIndex)];
+                    EXPECT_GE(position.x(), meshlet.boundsMin.x() - 1.0e-6f);
+                    EXPECT_GE(position.y(), meshlet.boundsMin.y() - 1.0e-6f);
+                    EXPECT_GE(position.z(), meshlet.boundsMin.z() - 1.0e-6f);
+                    EXPECT_LE(position.x(), meshlet.boundsMax.x() + 1.0e-6f);
+                    EXPECT_LE(position.y(), meshlet.boundsMax.y() + 1.0e-6f);
+                    EXPECT_LE(position.z(), meshlet.boundsMax.z() + 1.0e-6f);
+                    EXPECT_LE((position - meshlet.boundsCenter).length(),
+                              meshlet.boundsRadius + 1.0e-5f);
+                }
+            }
+        }
+
+        EXPECT_FALSE(positionsDiffer(positionsBefore,
+                                     positionAttribute->data()))
+            << "Generating meshlet LOD must not mutate the animated FBX pose";
+    };
+
+    bool foundAnimatedClip = false;
+    int firstVisitedClipIndex = -1;
+    double firstVisitedClipStartTime = 0.0;
+    QVector<QVector3D> firstVisitedClipStartLodPositions;
+    QVector<unsigned int> firstVisitedClipStartLodIndices;
+    QVector<QVector2D> firstVisitedClipStartLodUvs;
+    QVector<QVector2D> firstVisitedClipStartLodUvs1;
+    for (qsizetype clipIndex = 0;
+         clipIndex < mesh->skinAnimationClips().size(); ++clipIndex) {
+        const Mesh::SkinAnimationClip& clip =
+            mesh->skinAnimationClips()[clipIndex];
+        const double duration = clip.timeEnd - clip.timeBegin;
+        if (!std::isfinite(duration) || duration <= 1.0e-4) continue;
+
+        const QVector<QVector3D> startPositions = [&] {
+            const bool updated = importer.updateSkinPose(
+                UniString(path), clip.timeBegin,
+                static_cast<int>(clipIndex), *mesh);
+            EXPECT_TRUE(updated) << importer.lastError().toStdString();
+            return positionAttribute->data();
+        }();
+        if (startPositions.isEmpty()) continue;
+        QVector<QVector3D> startLodPositions;
+        QVector<unsigned int> startLodIndices;
+        QVector<Mesh::MeshletLODLevel> startLodLevels;
+        QVector<QVector2D> startLodUvs;
+        QVector<QVector2D> startLodUvs1;
+        verifyLODAtTime(clip.timeBegin, static_cast<int>(clipIndex),
+                        &startLodPositions, &startLodIndices,
+                        &startLodLevels, &startLodUvs, &startLodUvs1);
+        if (firstVisitedClipIndex < 0) {
+            firstVisitedClipIndex = static_cast<int>(clipIndex);
+            firstVisitedClipStartTime = clip.timeBegin;
+            firstVisitedClipStartLodPositions = startLodPositions;
+            firstVisitedClipStartLodIndices = startLodIndices;
+            firstVisitedClipStartLodUvs = startLodUvs;
+            firstVisitedClipStartLodUvs1 = startLodUvs1;
+        }
+
+        const double middleTime = clip.timeBegin + duration * 0.5;
+        const bool middleUpdated = importer.updateSkinPose(
+            UniString(path), middleTime, static_cast<int>(clipIndex), *mesh);
+        ASSERT_TRUE(middleUpdated) << importer.lastError().toStdString();
+        if (!positionsDiffer(startPositions, positionAttribute->data())) continue;
+
+        QVector<QVector3D> middleLodPositions;
+        QVector<unsigned int> middleLodIndices;
+        QVector<Mesh::MeshletLODLevel> middleLodLevels;
+        QVector<QVector2D> middleLodUvs;
+        QVector<QVector2D> middleLodUvs1;
+        verifyLODAtTime(middleTime, static_cast<int>(clipIndex),
+                        &middleLodPositions, &middleLodIndices,
+                        &middleLodLevels, &middleLodUvs, &middleLodUvs1);
+        EXPECT_TRUE(positionsDiffer(startLodPositions, middleLodPositions))
+            << "Generated meshlet LOD positions should follow the animated skin pose";
+        EXPECT_EQ(middleLodIndices, startLodIndices)
+            << "Skin animation should not change the meshlet LOD topology";
+        EXPECT_EQ(middleLodUvs, startLodUvs)
+            << "skin animation should not change the generated LOD's UV0 mapping";
+        EXPECT_EQ(middleLodUvs1, startLodUvs1)
+            << "skin animation should not change the generated LOD's UV1 mapping";
+        ASSERT_EQ(middleLodLevels.size(), startLodLevels.size());
+        for (qsizetype levelIndex = 0;
+             levelIndex < startLodLevels.size(); ++levelIndex) {
+            const Mesh::MeshletLODLevel& startLevel =
+                startLodLevels[levelIndex];
+            const Mesh::MeshletLODLevel& middleLevel =
+                middleLodLevels[levelIndex];
+            EXPECT_EQ(middleLevel.level, startLevel.level);
+            EXPECT_EQ(middleLevel.meshletOffset, startLevel.meshletOffset);
+            EXPECT_EQ(middleLevel.meshletCount, startLevel.meshletCount);
+            EXPECT_EQ(middleLevel.firstIndex, startLevel.firstIndex);
+            EXPECT_EQ(middleLevel.indexCount, startLevel.indexCount);
+            EXPECT_EQ(middleLevel.triangleStride, startLevel.triangleStride);
+            EXPECT_FLOAT_EQ(middleLevel.switchDistancePixels,
+                            startLevel.switchDistancePixels)
+                << "animation pose should not change the LOD switch boundary";
+        }
+
+        QVector<QVector3D> endLodPositions;
+        QVector<unsigned int> endLodIndices;
+        QVector<Mesh::MeshletLODLevel> endLodLevels;
+        QVector<QVector2D> endLodUvs;
+        QVector<QVector2D> endLodUvs1;
+        verifyLODAtTime(clip.timeEnd, static_cast<int>(clipIndex),
+                        &endLodPositions, &endLodIndices, &endLodLevels,
+                        &endLodUvs, &endLodUvs1);
+        EXPECT_EQ(endLodIndices, startLodIndices)
+            << "the clip endpoint should preserve the generated LOD topology";
+        EXPECT_EQ(endLodUvs, startLodUvs)
+            << "the clip endpoint should preserve generated LOD UV0 mapping";
+        EXPECT_EQ(endLodUvs1, startLodUvs1)
+            << "the clip endpoint should preserve generated LOD UV1 mapping";
+        ASSERT_EQ(endLodLevels.size(), startLodLevels.size());
+        for (qsizetype levelIndex = 0;
+             levelIndex < startLodLevels.size(); ++levelIndex) {
+            const Mesh::MeshletLODLevel& startLevel =
+                startLodLevels[levelIndex];
+            const Mesh::MeshletLODLevel& endLevel =
+                endLodLevels[levelIndex];
+            EXPECT_EQ(endLevel.level, startLevel.level);
+            EXPECT_EQ(endLevel.firstIndex, startLevel.firstIndex);
+            EXPECT_EQ(endLevel.indexCount, startLevel.indexCount);
+            EXPECT_EQ(endLevel.triangleStride, startLevel.triangleStride);
+            EXPECT_FLOAT_EQ(endLevel.switchDistancePixels,
+                            startLevel.switchDistancePixels)
+                << "clip-end pose should keep the same LOD switch boundaries";
+        }
+
+        QVector<QVector3D> restoredLodPositions;
+        QVector<unsigned int> restoredLodIndices;
+        QVector<Mesh::MeshletLODLevel> restoredLodLevels;
+        QVector<QVector2D> restoredLodUvs;
+        QVector<QVector2D> restoredLodUvs1;
+        verifyLODAtTime(clip.timeBegin, static_cast<int>(clipIndex),
+                        &restoredLodPositions, &restoredLodIndices,
+                        &restoredLodLevels, &restoredLodUvs,
+                        &restoredLodUvs1);
+        EXPECT_FALSE(positionsDiffer(startLodPositions, restoredLodPositions))
+            << "Returning to the clip start should reproduce its meshlet LOD geometry";
+        EXPECT_EQ(restoredLodIndices, startLodIndices)
+            << "Regenerating the same pose should reproduce the LOD index table";
+        EXPECT_EQ(restoredLodUvs, startLodUvs);
+        EXPECT_EQ(restoredLodUvs1, startLodUvs1);
+        ASSERT_EQ(restoredLodLevels.size(), startLodLevels.size());
+        for (qsizetype levelIndex = 0;
+             levelIndex < startLodLevels.size(); ++levelIndex) {
+            const Mesh::MeshletLODLevel& startLevel =
+                startLodLevels[levelIndex];
+            const Mesh::MeshletLODLevel& restoredLevel =
+                restoredLodLevels[levelIndex];
+            EXPECT_EQ(restoredLevel.level, startLevel.level);
+            EXPECT_EQ(restoredLevel.meshletOffset, startLevel.meshletOffset);
+            EXPECT_EQ(restoredLevel.meshletCount, startLevel.meshletCount);
+            EXPECT_EQ(restoredLevel.firstIndex, startLevel.firstIndex);
+            EXPECT_EQ(restoredLevel.indexCount, startLevel.indexCount);
+            EXPECT_EQ(restoredLevel.triangleStride, startLevel.triangleStride);
+            EXPECT_FLOAT_EQ(restoredLevel.switchDistancePixels,
+                            startLevel.switchDistancePixels);
+        }
+        foundAnimatedClip = true;
+    }
+
+    EXPECT_TRUE(foundAnimatedClip)
+        << "The FBX fixture needs a clip that deforms skinned vertices so LOD "
+           "generation is checked at multiple poses.";
+    if (firstVisitedClipIndex >= 0) {
+        QVector<QVector3D> restoredFirstClipLodPositions;
+        QVector<unsigned int> restoredFirstClipLodIndices;
+        QVector<Mesh::MeshletLODLevel> restoredFirstClipLodLevels;
+        QVector<QVector2D> restoredFirstClipLodUvs;
+        QVector<QVector2D> restoredFirstClipLodUvs1;
+        verifyLODAtTime(firstVisitedClipStartTime,
+                        firstVisitedClipIndex,
+                        &restoredFirstClipLodPositions,
+                        &restoredFirstClipLodIndices,
+                        &restoredFirstClipLodLevels,
+                        &restoredFirstClipLodUvs,
+                        &restoredFirstClipLodUvs1);
+        EXPECT_FALSE(positionsDiffer(firstVisitedClipStartLodPositions,
+                                     restoredFirstClipLodPositions))
+            << "Returning to the first animated clip after visiting the other "
+               "clips should reproduce its LOD geometry";
+        EXPECT_EQ(restoredFirstClipLodIndices,
+                  firstVisitedClipStartLodIndices)
+            << "switching between clips should not leave stale LOD topology";
+        EXPECT_EQ(restoredFirstClipLodUvs, firstVisitedClipStartLodUvs);
+        EXPECT_EQ(restoredFirstClipLodUvs1, firstVisitedClipStartLodUvs1);
+    }
+}
+
+TEST(MeshImporterFbxTest,
+     GeneratesDeterministicMeshletLODFromImportedFbxPose)
+{
+    const QString path = fixturePath("ARTIFACT_FBX_ANIMATION_TEST_FILE");
+    ASSERT_FALSE(path.isEmpty())
+        << "Set ARTIFACT_FBX_ANIMATION_TEST_FILE to an importable FBX fixture.";
+    ASSERT_TRUE(QFileInfo(path).isFile())
+        << "FBX fixture does not exist: " << path.toStdString();
+
+    MeshImporter importer;
+    auto mesh = importer.importMeshFromFile(UniString(path));
+    ASSERT_NE(mesh, nullptr) << importer.lastError().toStdString();
+    ASSERT_EQ(importer.lastBackend(), MeshImporter::Backend::Ufbx);
+    ASSERT_GT(mesh->vertexCount(), 0);
+    ASSERT_GT(mesh->polygonCount(), 0);
+
+    const auto positions = mesh->vertexAttributes().get<QVector3D>("position");
+    ASSERT_NE(positions, nullptr);
+    const QVector<QVector3D> sourcePositions = positions->data();
+    ASSERT_EQ(sourcePositions.size(), mesh->vertexCount());
+    const Mesh::RenderData sourceRenderData = mesh->generateRenderData();
+    ASSERT_FALSE(sourceRenderData.positions.isEmpty());
+
+    Mesh::MeshletLODConfig config;
+    config.maxLODLevels = 4;
+    config.maxTrianglesPerMeshlet = 24;
+    const Mesh::MeshletLODData first = mesh->generateMeshletLODData(config);
+    const Mesh::MeshletLODData repeated = mesh->generateMeshletLODData(config);
+    ASSERT_TRUE(first.isValid());
+    ASSERT_FALSE(first.levels.isEmpty());
+    EXPECT_LE(first.levels.size(), static_cast<qsizetype>(config.maxLODLevels));
+    EXPECT_EQ(repeated.levels.size(), first.levels.size());
+    EXPECT_EQ(repeated.lodIndices, first.lodIndices);
+    EXPECT_EQ(repeated.renderData.positions, first.renderData.positions);
+    EXPECT_FALSE(positionsDiffer(sourcePositions, positions->data()))
+        << "generating imported-FBX meshlet LOD must not mutate the source pose";
+
+    const auto verifyAttributeAlignment = [&](const auto& sourceAttribute,
+                                              const auto& lodAttribute,
+                                              const char* attributeName) {
+        if (sourceAttribute.isEmpty()) {
+            EXPECT_TRUE(lodAttribute.isEmpty()) << attributeName;
+            return;
+        }
+        ASSERT_EQ(sourceAttribute.size(), sourceRenderData.positions.size())
+            << attributeName;
+        ASSERT_EQ(lodAttribute.size(), first.renderData.positions.size())
+            << attributeName;
+    };
+    verifyAttributeAlignment(sourceRenderData.normals, first.renderData.normals,
+                             "normal");
+    verifyAttributeAlignment(sourceRenderData.tangents, first.renderData.tangents,
+                             "tangent");
+    verifyAttributeAlignment(sourceRenderData.uvs, first.renderData.uvs, "uv");
+    verifyAttributeAlignment(sourceRenderData.uvs1, first.renderData.uvs1,
+                             "uv1");
+    if (sourceRenderData.colors.isEmpty()) {
+        ASSERT_EQ(first.renderData.colors.size(), first.renderData.positions.size());
+        for (const QVector4D& color : first.renderData.colors) {
+            EXPECT_EQ(color, QVector4D(1.0f, 1.0f, 1.0f, 1.0f));
+        }
+    } else {
+        verifyAttributeAlignment(sourceRenderData.colors, first.renderData.colors,
+                                 "color");
+    }
+
+    int previousTriangleStride = 0;
+    for (qsizetype levelIndex = 0; levelIndex < first.levels.size();
+         ++levelIndex) {
+        const Mesh::MeshletLODLevel& level = first.levels[levelIndex];
+        EXPECT_EQ(level.level, static_cast<int>(levelIndex));
+        EXPECT_GE(level.triangleStride, previousTriangleStride);
+        previousTriangleStride = level.triangleStride;
+        ASSERT_GT(level.indexCount, 0u);
+        EXPECT_EQ(level.indexCount % 3u, 0u);
+        EXPECT_LE(level.firstIndex + level.indexCount,
+                  static_cast<unsigned int>(first.lodIndices.size()));
+        EXPECT_EQ(Mesh::chooseMeshletLODLevel(
+                      first, level.switchDistancePixels), level.level);
+        for (unsigned int offset = level.firstIndex;
+             offset < level.firstIndex + level.indexCount; ++offset) {
+            EXPECT_LT(first.lodIndices[offset],
+                      static_cast<unsigned int>(first.renderData.positions.size()));
+        }
+    }
+}
+
 TEST(MeshImporterFbxTest, ResolvesEmbeddedBaseColorImageAndUv)
 {
     const QString path = fixturePath("ARTIFACT_FBX_BASE_COLOR_TEST_FILE");

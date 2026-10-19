@@ -79,6 +79,50 @@ executable and pass the server flag:
 Call tools using the dotted names for the C++ server (`debug.listLayers`) and
 the snake_case names for this one (`list_break_conditions`).
 
+## Using Microsoft's standalone DebugMCP CLI
+
+The standalone `debugmcp` CLI can launch an external DAP adapter and lets Codex
+set breakpoints, step, and inspect a native C++ process. It complements the
+ArtifactStudio MCP servers above; it does not replace their application-state
+and pseudo-breakpoint tools.
+
+Install and register the CLI with Codex:
+
+```powershell
+npm install --global debugmcp
+debugmcp configure --agent codex
+```
+
+For this Windows setup, the C/C++ extension supplies `vsdbg.exe`. Register it
+at user scope so the adapter path stays out of the repository:
+
+```powershell
+$adapter = Get-ChildItem "$env:USERPROFILE\.vscode\extensions\ms-vscode.cpptools-*-win32-x64\debugAdapters\vsdbg\bin\vsdbg.exe" |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
+
+debugmcp adapter add artifact-cpp --user --command $adapter.FullName `
+    --type cppvsdbg --extensions .cpp .cppm .ixx `
+    --args --interpreter=vscode `
+    --launch '{"program":"${workspaceFolder}/out/build/x64-Debug/bin/Debug/Artifact.exe","cwd":"${workspaceFolder}","stopAtEntry":false}'
+debugmcp adapter validate artifact-cpp
+```
+
+The configured launch path assumes the `x64-Debug` build output exists. Change
+`launch.program` to the executable being investigated when debugging another
+build or target. Restart Codex after registration so it loads the MCP server and
+the installed `debug-live` skill.
+
+**Windows/MSVC limitation:** The registration above was added, but a real
+`start_debugging` attempt with the installed `vsdbg.exe` is rejected by its
+Microsoft VS Code licensing check when launched from the standalone DebugMCP
+CLI. `adapter validate` only confirms the DAP initialization handshake; it
+does not prove that a debug session can launch. CodeLLDB's Windows package was
+also checked, but it uses a TCP DAP connection while the standalone DebugMCP
+CLI currently accepts stdio DAP adapters. So this setup exposes the DebugMCP
+tools after restarting Codex, but a usable standalone MSVC C++ debug session
+still needs a supported adapter or a TCP-to-stdio bridge.
+
 ## Native debugger (DAP)
 
 `dap_connect` connects to an adapter executable over stdio or to an existing

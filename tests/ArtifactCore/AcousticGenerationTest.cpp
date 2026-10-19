@@ -345,6 +345,204 @@ TEST(AcousticGenerationTest, WindGustsModulateFourOrderedNoiseBands)
     EXPECT_TRUE(observedGustChange);
 }
 
+TEST(AcousticGenerationTest, DebugSnapshotKeepsHighestPriorityTasksWithinLodBudget)
+{
+    using namespace Artifact::Acoustic;
+
+    AcousticSystem acoustic;
+    constexpr std::uint32_t modelCount = 5;
+    for (std::uint32_t index = 0; index < modelCount; ++index) {
+        acoustic.OnCollision(index + 1, "Steel",
+                             0.1f + static_cast<float>(index) * 0.1f, 0.0f);
+    }
+
+    const AcousticSnapshot snapshot = acoustic.FetchDebugSnapshot();
+
+    ASSERT_EQ(snapshot.activeTasks.size(), AudioTaskBlock::Capacity);
+    ASSERT_EQ(snapshot.culledTasks.size(), modelCount * 8 - AudioTaskBlock::Capacity);
+    EXPECT_EQ(snapshot.activeTasks.size() + snapshot.culledTasks.size(), modelCount * 8);
+
+    const auto priority = [](const AudioTaskDebug& task) {
+        return task.amp * task.attenuation;
+    };
+    for (std::size_t index = 1; index < snapshot.activeTasks.size(); ++index) {
+        EXPECT_GE(priority(snapshot.activeTasks[index - 1]),
+                  priority(snapshot.activeTasks[index]));
+    }
+    for (std::size_t index = 1; index < snapshot.culledTasks.size(); ++index) {
+        EXPECT_GE(priority(snapshot.culledTasks[index - 1]),
+                  priority(snapshot.culledTasks[index]));
+    }
+
+    const float lowestActivePriority = priority(snapshot.activeTasks.back());
+    const float highestCulledPriority = priority(snapshot.culledTasks.front());
+    EXPECT_GE(lowestActivePriority, highestCulledPriority)
+        << "The fixed task budget should retain the highest-priority acoustic work";
+
+    const AudioTaskBlock audioBlock = acoustic.FetchAudioTasks();
+    ASSERT_EQ(audioBlock.count, AudioTaskBlock::Capacity);
+    for (std::size_t index = 0; index < audioBlock.count; ++index) {
+        EXPECT_EQ(audioBlock.tasks[index].type, snapshot.activeTasks[index].type);
+        EXPECT_FLOAT_EQ(audioBlock.tasks[index].amplitude,
+                        snapshot.activeTasks[index].amp);
+        EXPECT_FLOAT_EQ(audioBlock.tasks[index].frequency,
+                        snapshot.activeTasks[index].freq);
+    }
+}
+
+TEST(AcousticGenerationTest,
+     SpatialAttenuationIsAppliedBeforeAcousticLodBudgetSelection)
+{
+    using namespace Artifact::Acoustic;
+
+    AcousticSystem acoustic;
+    acoustic.SetListener({0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f});
+    constexpr std::uint32_t farLayerId = 1;
+    acoustic.UpdateLayerSpatial(farLayerId, {100.0f, 0.0f, 0.0f},
+                                {0.0f, 0.0f, 0.0f});
+    acoustic.OnCollision(farLayerId, "Steel", 10.0f, 0.0f);
+
+    constexpr std::uint32_t nearLayerCount = 4;
+    for (std::uint32_t index = 0; index < nearLayerCount; ++index) {
+        const std::uint32_t layerId = index + 2;
+        acoustic.UpdateLayerSpatial(layerId, {1.0f, 0.0f, 0.0f},
+                                    {0.0f, 0.0f, 0.0f});
+        acoustic.OnCollision(layerId, "Steel", 0.2f, 0.0f);
+    }
+
+    const AcousticSnapshot snapshot = acoustic.FetchDebugSnapshot();
+    ASSERT_EQ(snapshot.activeTasks.size(), AudioTaskBlock::Capacity);
+    ASSERT_EQ(snapshot.culledTasks.size(), 8u);
+    for (const AudioTaskDebug& task : snapshot.activeTasks) {
+        EXPECT_NE(task.layerId, farLayerId)
+            << "the nearby sources should occupy the bounded active-task budget "
+               "after spatial attenuation";
+    }
+    for (const AudioTaskDebug& task : snapshot.culledTasks) {
+        EXPECT_EQ(task.layerId, farLayerId)
+            << "the strongly attenuated distant source should be culled first";
+    }
+
+    const AudioTaskBlock audioBlock = acoustic.FetchAudioTasks();
+    ASSERT_EQ(audioBlock.count, AudioTaskBlock::Capacity);
+    for (std::size_t index = 0; index < audioBlock.count; ++index) {
+        EXPECT_NEAR(audioBlock.tasks[index].attenuation,
+                    snapshot.activeTasks[index].attenuation, 1.0e-6f);
+    }
+}
+
+TEST(AcousticGenerationTest,
+     SpatialChangesReclassifyTasksAcrossTheAcousticLodBudget)
+{
+    using namespace Artifact::Acoustic;
+
+    AcousticSystem acoustic;
+    acoustic.SetListener({0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f});
+    constexpr std::uint32_t movingLayerId = 1;
+    acoustic.UpdateLayerSpatial(movingLayerId, {100.0f, 0.0f, 0.0f},
+                                {0.0f, 0.0f, 0.0f});
+    acoustic.OnCollision(movingLayerId, "Steel", 10.0f, 0.0f);
+
+    constexpr std::uint32_t nearbyLayerCount = 4;
+    for (std::uint32_t index = 0; index < nearbyLayerCount; ++index) {
+        const std::uint32_t layerId = index + 2;
+        acoustic.UpdateLayerSpatial(layerId, {1.0f, 0.0f, 0.0f},
+                                    {0.0f, 0.0f, 0.0f});
+        acoustic.OnCollision(layerId, "Steel", 0.2f, 0.0f);
+    }
+
+    const AcousticSnapshot whileFar = acoustic.FetchDebugSnapshot();
+    ASSERT_EQ(whileFar.activeTasks.size(), AudioTaskBlock::Capacity);
+    ASSERT_EQ(whileFar.culledTasks.size(), 8u);
+    for (const AudioTaskDebug& task : whileFar.culledTasks) {
+        EXPECT_EQ(task.layerId, movingLayerId);
+    }
+
+    acoustic.UpdateLayerSpatial(movingLayerId, {1.0f, 0.0f, 0.0f},
+                                {0.0f, 0.0f, 0.0f});
+    const AcousticSnapshot afterMovingNear = acoustic.FetchDebugSnapshot();
+    ASSERT_EQ(afterMovingNear.activeTasks.size(), AudioTaskBlock::Capacity);
+    ASSERT_EQ(afterMovingNear.culledTasks.size(), whileFar.culledTasks.size());
+    EXPECT_TRUE(std::all_of(afterMovingNear.activeTasks.begin(),
+                            afterMovingNear.activeTasks.end(),
+                            [movingLayerId](const AudioTaskDebug& task) {
+                                return task.layerId == movingLayerId;
+                            }))
+        << "the newly highest-priority source should replace lower-priority "
+           "tasks within the active LOD budget";
+    for (const AudioTaskDebug& task : afterMovingNear.culledTasks) {
+        EXPECT_NE(task.layerId, movingLayerId)
+            << "the moved-near source should no longer remain stale in the culled set";
+    }
+}
+
+TEST(AcousticGenerationTest, DebugSnapshotUsesFullBudgetWhenTaskCountFits)
+{
+    using namespace Artifact::Acoustic;
+
+    AcousticSystem acoustic;
+    acoustic.OnCollision(7, "Steel", 0.2f, 0.0f);
+
+    const AcousticSnapshot snapshot = acoustic.FetchDebugSnapshot();
+    EXPECT_EQ(snapshot.frameNumber, 0u);
+    EXPECT_EQ(snapshot.activeTasks.size(), 8u);
+    EXPECT_TRUE(snapshot.culledTasks.empty());
+
+    const AcousticSnapshot nextSnapshot = acoustic.FetchDebugSnapshot();
+    EXPECT_EQ(nextSnapshot.frameNumber, 1u);
+    EXPECT_EQ(nextSnapshot.activeTasks.size(), snapshot.activeTasks.size());
+    EXPECT_TRUE(nextSnapshot.culledTasks.empty());
+}
+
+TEST(AcousticGenerationTest, DebugSnapshotRetainsAllTasksAtExactLodBudget)
+{
+    using namespace Artifact::Acoustic;
+
+    AcousticSystem acoustic;
+    for (std::uint32_t index = 0; index < 4; ++index) {
+        acoustic.OnCollision(index + 1, "Steel", 0.1f, 0.0f);
+    }
+
+    const AcousticSnapshot snapshot = acoustic.FetchDebugSnapshot();
+    EXPECT_EQ(snapshot.activeTasks.size(), AudioTaskBlock::Capacity);
+    EXPECT_TRUE(snapshot.culledTasks.empty());
+}
+
+TEST(AcousticGenerationTest,
+     OverBudgetLODSelectionRemainsStableAcrossUnchangedSnapshots)
+{
+    using namespace Artifact::Acoustic;
+
+    AcousticSystem acoustic;
+    constexpr std::uint32_t modelCount = 5;
+    for (std::uint32_t index = 0; index < modelCount; ++index) {
+        acoustic.OnCollision(index + 1, "Steel",
+                             0.1f + static_cast<float>(index) * 0.1f, 0.0f);
+    }
+
+    const AcousticSnapshot first = acoustic.FetchDebugSnapshot();
+    const AcousticSnapshot repeated = acoustic.FetchDebugSnapshot();
+
+    ASSERT_EQ(first.activeTasks.size(), AudioTaskBlock::Capacity);
+    ASSERT_EQ(repeated.activeTasks.size(), first.activeTasks.size());
+    ASSERT_EQ(repeated.culledTasks.size(), first.culledTasks.size());
+    const auto expectSameTasks = [](const auto& expected, const auto& actual) {
+        ASSERT_EQ(actual.size(), expected.size());
+        for (std::size_t index = 0; index < expected.size(); ++index) {
+            EXPECT_EQ(actual[index].layerId, expected[index].layerId)
+                << "LOD budget selection should preserve task identity at index "
+                << index;
+            EXPECT_EQ(actual[index].type, expected[index].type);
+            EXPECT_FLOAT_EQ(actual[index].freq, expected[index].freq);
+            EXPECT_FLOAT_EQ(actual[index].amp, expected[index].amp);
+            EXPECT_FLOAT_EQ(actual[index].attenuation,
+                            expected[index].attenuation);
+        }
+    };
+    expectSameTasks(first.activeTasks, repeated.activeTasks);
+    expectSameTasks(first.culledTasks, repeated.culledTasks);
+}
+
 TEST(AcousticGenerationTest, OfflineRenderAcceptsUnevenBlocksAndWritesFullDuration)
 {
     using namespace Artifact::Acoustic;

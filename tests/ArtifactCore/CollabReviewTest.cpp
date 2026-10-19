@@ -69,9 +69,11 @@ TEST(CollabReviewTest, EditAndRemoveEnforceOwnership)
 
     // Non-authors cannot edit.
     EXPECT_FALSE(review.editComment(commentId, QStringLiteral("hacked"),
-                                    QStringLiteral("c2")));
+                                    QStringLiteral("c2"), QStringLiteral("Bob"),
+                                    kT0 + 1));
     EXPECT_TRUE(review.editComment(commentId, QStringLiteral("final text"),
-                                   QStringLiteral("c1")));
+                                   QStringLiteral("c1"), QStringLiteral("Alice"),
+                                   kT0 + 2));
     const auto comments =
         review.commentsFor(QStringLiteral("comp-1"), QString{}, true);
     ASSERT_EQ(comments.size(), 1);

@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -464,6 +465,116 @@ TEST(LiquidSurfaceTest, ExtractionIsDeterministicAndProducesAllLanes)
     EXPECT_FALSE(a.contourSegments.empty());
     EXPECT_FALSE(a.foamPoints.empty());
     expectSameSurfaceSnapshot(a, b);
+}
+
+TEST(LiquidSurfaceTest, LargeInputLodSamplingMatchesExplicitlySampledInput)
+{
+    NamedVector<LiquidSurfaceSample2D> denseSamples{
+        ContainerName{"Test.LargeLiquidSurfaceSamples"}};
+    NamedVector<LiquidSurfaceSample2D> explicitlySampled{
+        ContainerName{"Test.ExplicitlySampledLiquidSurfaceSamples"}};
+    for (int i = 0; i < 8192; ++i) {
+        LiquidSurfaceSample2D sample;
+        sample.x = static_cast<float>(i % 128) * 3.0f;
+        sample.y = static_cast<float>(i / 128) * 3.0f;
+        sample.size = 6.0f;
+        sample.vx = (i % 128) == 0 ? 40.0f : 0.0f;
+        sample.foamBias = 0.5f;
+        denseSamples.push_back(sample);
+        if ((i % 2) == 0) explicitlySampled.push_back(sample);
+    }
+
+    const auto lodSnapshot =
+        LiquidSolver2D::buildSurfaceSnapshot(denseSamples, 65536);
+    const auto explicitSnapshot =
+        LiquidSolver2D::buildSurfaceSnapshot(explicitlySampled, 65536);
+
+    EXPECT_FALSE(lodSnapshot.triangles.empty());
+    expectSameSurfaceSnapshot(lodSnapshot, explicitSnapshot);
+}
+
+TEST(LiquidSurfaceTest, SamplingStrideIncreasesImmediatelyAboveInputBudget)
+{
+    NamedVector<LiquidSurfaceSample2D> denseSamples{
+        ContainerName{"Test.LiquidSurfaceSamplesAtLodBoundary"}};
+    NamedVector<LiquidSurfaceSample2D> explicitlySampled{
+        ContainerName{"Test.LiquidSurfaceSamplesAtLodBoundaryExplicit"}};
+    for (int i = 0; i < 4097; ++i) {
+        LiquidSurfaceSample2D sample;
+        sample.x = 32.0f;
+        sample.y = 48.0f;
+        sample.size = 5.0f;
+        sample.vx = (i % 13) == 0 ? 24.0f : 0.0f;
+        sample.vy = (i % 17) == 0 ? -12.0f : 0.0f;
+        sample.foamBias = 0.75f;
+        sample.collisionImpact = (i % 19) == 0 ? 8.0f : 0.0f;
+        denseSamples.push_back(sample);
+        if ((i % 2) == 0) {
+            sample.size *= std::sqrt(2.0f);
+            explicitlySampled.push_back(sample);
+        }
+    }
+
+    const auto lodSnapshot =
+        LiquidSolver2D::buildSurfaceSnapshot(denseSamples, 4096);
+    const auto explicitSnapshot =
+        LiquidSolver2D::buildSurfaceSnapshot(explicitlySampled, 4096);
+
+    ASSERT_FALSE(lodSnapshot.triangles.empty());
+    ASSERT_EQ(lodSnapshot.triangles.size(), explicitSnapshot.triangles.size());
+    for (std::size_t i = 0; i < lodSnapshot.triangles.size(); ++i) {
+        const auto& actual = lodSnapshot.triangles[i];
+        const auto& expected = explicitSnapshot.triangles[i];
+        EXPECT_NEAR(actual.a.x, expected.a.x, 1.0e-4f);
+        EXPECT_NEAR(actual.a.y, expected.a.y, 1.0e-4f);
+        EXPECT_NEAR(actual.b.x, expected.b.x, 1.0e-4f);
+        EXPECT_NEAR(actual.b.y, expected.b.y, 1.0e-4f);
+        EXPECT_NEAR(actual.c.x, expected.c.x, 1.0e-4f);
+        EXPECT_NEAR(actual.c.y, expected.c.y, 1.0e-4f);
+        EXPECT_NEAR(actual.thickness, expected.thickness, 1.0e-4f);
+    }
+    ASSERT_EQ(lodSnapshot.contourSegments.size(),
+              explicitSnapshot.contourSegments.size());
+    for (std::size_t i = 0; i < lodSnapshot.contourSegments.size(); ++i) {
+        const auto& actual = lodSnapshot.contourSegments[i];
+        const auto& expected = explicitSnapshot.contourSegments[i];
+        EXPECT_NEAR(actual.a.x, expected.a.x, 1.0e-4f);
+        EXPECT_NEAR(actual.a.y, expected.a.y, 1.0e-4f);
+        EXPECT_NEAR(actual.b.x, expected.b.x, 1.0e-4f);
+        EXPECT_NEAR(actual.b.y, expected.b.y, 1.0e-4f);
+    }
+}
+
+TEST(LiquidSurfaceTest, KeepsTheLastSampleAtTheExactDensityBudget)
+{
+    constexpr int maximumDensitySamples = 4096;
+    NamedVector<LiquidSurfaceSample2D> samples{
+        ContainerName{"Test.LiquidSurfaceExactDensityBudget"}};
+    for (int i = 0; i < maximumDensitySamples; ++i) {
+        LiquidSurfaceSample2D sample;
+        sample.x = 0.0f;
+        sample.y = 0.0f;
+        sample.size = 8.0f;
+        if (i == maximumDensitySamples - 1) {
+            sample.x = 1000.0f;
+            sample.y = 500.0f;
+            sample.vx = 100.0f;
+            sample.foamBias = 1.0f;
+        }
+        samples.push_back(sample);
+    }
+
+    const auto snapshot = LiquidSolver2D::buildSurfaceSnapshot(samples, 4096);
+
+    const auto outlierFoam = std::find_if(
+        snapshot.foamPoints.begin(), snapshot.foamPoints.end(),
+        [](const LiquidFoamPoint2D& foam) {
+            return std::abs(foam.position.x - 1000.0f) < 1.0e-4f &&
+                   std::abs(foam.position.y - 500.0f) < 1.0e-4f;
+        });
+    ASSERT_NE(outlierFoam, snapshot.foamPoints.end())
+        << "An input at the exact LOD budget must not be stride-sampled away";
+    EXPECT_GT(outlierFoam->alpha, 0.08f);
 }
 
 TEST(LiquidSurfaceTest, InvalidSamplesDoNotReachRenderSnapshot)
