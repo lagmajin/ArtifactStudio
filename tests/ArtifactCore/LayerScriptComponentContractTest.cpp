@@ -1863,6 +1863,7 @@ class BenchmarkStringForeach : ArtifactBehaviour
     std::cout << "ArtifactScript foreach(257 long strings, read-only) benchmark: "
               << totalMicroseconds / (repetitions * iterations)
               << " us/hook (" << iterations * repetitions << " calls)\n";
+    std::size_t debugProbeIterations = 0;
 #if defined(_MSC_VER) && defined(_DEBUG)
     {
         ScriptAllocationCounter allocationCounter;
@@ -1873,6 +1874,7 @@ class BenchmarkStringForeach : ArtifactBehaviour
                 succeeded = false;
                 break;
             }
+            ++debugProbeIterations;
         }
         const auto allocations = allocationCounter.stop();
         EXPECT_TRUE(succeeded) << stringForeachInstance.lastError();
@@ -1882,10 +1884,13 @@ class BenchmarkStringForeach : ArtifactBehaviour
             << "bytes/hook=" << allocations.second / allocationIterations;
     }
 #endif
+    // The Debug-only allocation probe above runs additional hooks that also
+    // advance the script's "matches" counter, so they must be included here.
     EXPECT_DOUBLE_EQ(std::get<double>(
                          stringForeachInstance.fields().at("matches")),
                      static_cast<double>(
-                         (warmupIterations + repetitions * iterations) * 257));
+                         (warmupIterations + repetitions * iterations +
+                          debugProbeIterations) * 257));
 
     auto wideLocalsDefinition = parser.parse(R"(
 class BenchmarkWideLocals : ArtifactBehaviour

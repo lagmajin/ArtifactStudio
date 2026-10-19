@@ -1,7 +1,7 @@
 # マイルストーン: ArtifactScript Binding API 強化 & クラス対応（Phase 2/3 実走）
 
-**最終更新:** 2026-10-09
-**ステータス:** Phase A / C + プロパティ／キーフレーム API 拡充（スライス1〜3）実装済み、Phase B / D〜H 未着手。ビルド・テスト実行待ち
+**最終更新:** 2026-10-19
+**ステータス:** Phase A / C + プロパティ／キーフレーム API 拡充（スライス1〜3）実装済み、Phase B / D〜H 未着手。ArtifactScript 系 5 テストのビルドと ctest 実行済み（全緑、164 件 PASS）
 **優先度:** High
 **関連:**
 - `docs/planned/MILESTONE_ARTIFACTSCRIPT_LANGUAGE_EVOLUTION_2026-08-21.md`（全体計画。本書は Phase 2 残 / Phase 3 の具体的スライス）
@@ -13,6 +13,36 @@
 ## 目的
 
 既存 Phase 1（文法 C++/C# 寄せ）は 2026-08-22 時点で大半実装済み。残る **Phase 2（バインディング API 実用化）** と **Phase 3（ユーザークラス対応）** を、評価器を壊さずに段階的に実装する。**堅実路線**で、(1) 既存テストの回帰なし (2) 新規ユニットテスト追加 (3) スクリプト→C++ 単方向の最小実用 I/F の 3 つを各スライスで確認する。AGENTS.md 制約によりビルド・テスト実行はユーザー指示待ち。
+
+## Update 2026-10-19 — ビルド・テスト実行（ユーザー指示）
+
+`out/build/x64-Debug-Agent`（preset `x64-Debug-Agent`, Ninja, ARTIFACT_BUILD_TESTS=ON）で
+ArtifactScript 系 5 テストをビルドし、ctest で実行した。**ctest 100% passed (5/5)、計 164 件 PASS**。
+
+- `ArtifactCoreArtifactScriptTest` — 96 件 PASS
+- `ArtifactCoreLayerScriptComponentTest` — 46 件 PASS
+- `ArtifactCoreArtifactScriptObjectTest` — 12 件 PASS
+- `ArtifactCoreArtifactScriptHostMethodTest` — 5 件 PASS
+- `ArtifactCoreArtifactScriptHostApiTest` — 5 件 PASS
+
+ビルド手順メモ（再現用）:
+
+- リンクの RC pass は Windows SDK の `rc.exe` を必要とする。PATH に
+  `C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64` を追加しないと
+  `RC Pass 1: command "rc /fo ..." failed ... no such file or directory` で失敗する。
+- 実行時 DLL は `out/build/x64-Debug-Agent/bin/Debug`（188 DLL）と
+  `build/vcpkg_installed/x64-windows/debug/bin`、`build/vcpkg_installed/x64-windows/bin` を PATH へ。
+  これを欠くと exe は `0xC0000135`（DLL 未検出）で即終了する。
+- 参考: VS ジェネレータの `build/` は別プロセスがビルド中のことがあり、
+  `ArtifactCore.tlog` のファイルロック（MSB6003）で衝突しうる。独立した Ninja ディレクトリを使うと安全。
+
+発見・修正したテストバグ:
+
+- `tests/ArtifactCore/LayerScriptComponentContractTest.cpp` の `HookExecutionMicrobenchmark` は、
+  Debug 限定（`#if defined(_MSC_VER) && defined(_DEBUG)`）のアロケーション計測ブロックで
+  1000 回の追加 hook を実行するが、foreach の `matches` 期待値式がその 1000 回を計上していなかった
+  （Debug で必ず `16191000 != 15934000`、差 257000 = 1000×257 で失敗）。
+  `debugProbeIterations` を累積し期待値に加算するよう修正して緑化した。
 
 ## Update 2026-10-06 — プロパティ／キーフレーム API 拡充（スライス1〜3）
 
