@@ -4,6 +4,7 @@ set(ARTIFACT_PR_SOURCES
     include/ArtifactPrDemoData.ixx
     include/ArtifactPrMainWindow.ixx
     include/ArtifactPrEditorEngine.ixx
+    include/TimelinePanel.ixx
     include/VideoPlayerWidget.ixx
     include/TransportBarWidget.ixx
     include/ExportDialog.ixx
@@ -33,6 +34,7 @@ set(ARTIFACT_PR_SOURCES
     src/ArtifactPrMainWindow.cppm
     src/ArtifactPrDemoData.cppm
     src/ArtifactPrEditorEngine.cppm
+    src/TimelinePanel.cppm
     src/VideoPlayerWidget.cppm
     src/TransportBarWidget.cppm
     src/ExportDialog.cppm
@@ -150,3 +152,64 @@ find_package(Qt6 REQUIRED COMPONENTS Multimedia MultimediaWidgets)
 target_link_libraries(ArtifactPrCLI PRIVATE Qt6::Multimedia Qt6::MultimediaWidgets)
 
 target_link_libraries(ArtifactPr PRIVATE Qt6::Multimedia Qt6::MultimediaWidgets)
+
+if(ARTIFACT_BUILD_PR_STANDALONE_TESTS)
+    set(ARTIFACT_PR_STANDALONE_TEST_SOURCES ${ARTIFACT_PR_SOURCES})
+    list(REMOVE_ITEM ARTIFACT_PR_STANDALONE_TEST_SOURCES
+        src/main.cpp
+        src/ArtifactPrCLI.cppm
+        include/ArtifactPrCLI.ixx
+        src/ArtifactPrMainWindow.cppm
+        include/ArtifactPrMainWindow.ixx
+        src/VideoPlayerWidget.cppm
+        include/VideoPlayerWidget.ixx
+        src/VideoSurface.cppm
+        include/VideoSurface.ixx
+    )
+    list(APPEND ARTIFACT_PR_STANDALONE_TEST_SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/../tests/ArtifactPr/TimelinePanelStandaloneTest.cpp"
+    )
+    add_executable(ArtifactPrTimelinePanelStandaloneTest
+        ${ARTIFACT_PR_STANDALONE_TEST_SOURCES}
+    )
+    target_link_libraries(ArtifactPrTimelinePanelStandaloneTest PRIVATE
+        ArtifactCore ArtifactCoreCommand ArtifactCoreAudio ArtifactCoreVideo
+        ArtifactCoreNLE ArtifactWidgets ArtifactGpuFoundation ArtifactDockFoundation
+        Qt6::Multimedia Qt6::MultimediaWidgets
+    )
+    target_include_directories(ArtifactPrTimelinePanelStandaloneTest PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    )
+    set_target_properties(ArtifactPrTimelinePanelStandaloneTest PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    if(ARTIFACT_COMPILER_MSVC_CL)
+        target_compile_options(ArtifactPrTimelinePanelStandaloneTest PRIVATE
+            /Zf /Zc:__cplusplus /utf-8 /wd5050 /WX-
+        )
+        target_compile_definitions(ArtifactPrTimelinePanelStandaloneTest PRIVATE
+            PLATFORM_WIN32 _GUARDOVERFLOW_CRT_ALLOCATORS=1
+            _SILENCE_CXX23_ALIGNED_STORAGE_DEPRECATION_WARNING _WIN32_WINNT=0x0A00
+        )
+    elseif(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactPrTimelinePanelStandaloneTest PRIVATE
+            /Zc:__cplusplus /utf-8 /WX- /wd5050
+        )
+        target_compile_definitions(ArtifactPrTimelinePanelStandaloneTest PRIVATE
+            PLATFORM_WIN32 _GUARDOVERFLOW_CRT_ALLOCATORS=1
+            _SILENCE_CXX23_ALIGNED_STORAGE_DEPRECATION_WARNING _WIN32_WINNT=0x0A00
+        )
+    endif()
+    add_test(NAME ArtifactPrTimelinePanelStandaloneTest
+        COMMAND ArtifactPrTimelinePanelStandaloneTest
+    )
+    set_tests_properties(ArtifactPrTimelinePanelStandaloneTest PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        LABELS "artifactpr;timeline;ui;standalone;contract"
+        TIMEOUT 60
+        RUN_SERIAL TRUE
+    )
+endif()

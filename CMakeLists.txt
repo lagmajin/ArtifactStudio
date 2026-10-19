@@ -267,6 +267,11 @@ set(ARTIFACT_DEPLOY_DIR "" CACHE PATH "Optional output directory for copying Art
 option(ARTIFACT_USE_SCCACHE "Use sccache compiler launcher when available" ON)
 option(ARTIFACT_ENABLE_SYCL "Enable Intel oneAPI DPC++/SYCL build flags" OFF)
 option(ARTIFACT_BUILD_PR "Build the ArtifactPr NLE application" OFF)
+option(ARTIFACT_BUILD_PR_STANDALONE_TESTS
+    "Build standalone ArtifactPr workspace contract tests" OFF)
+if(ARTIFACT_BUILD_PR_STANDALONE_TESTS)
+    enable_testing()
+endif()
 
 if(ARTIFACT_USE_SCCACHE)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR
@@ -869,6 +874,11 @@ option(ARTIFACT_BUILD_COMPOSITION_LAYER_SURFACE_CACHE_TEST
 option(ARTIFACT_BUILD_COMPOSITION_VIEWPORT_CHANNEL_TEST
     "Build the independent Composition Viewport channel display test executable"
     OFF)
+
+option(ARTIFACT_BUILD_COMPOSITION_MOTION_PATH_TEST
+    "Build the independent Composition motion path and Transform integration test executable"
+    OFF)
+
 option(ARTIFACT_ENABLE_FBX_IMPORT_TEST
     "Build the FBX animation and embedded-texture importer test"
     OFF)
@@ -930,6 +940,154 @@ if(ARTIFACT_BUILD_PRECOMPOSE_VIEWER)
             $<TARGET_RUNTIME_DLLS:ArtifactPrecomposeViewer>
             "$<TARGET_FILE_DIR:ArtifactPrecomposeViewer>/"
         COMMAND_EXPAND_LISTS VERBATIM)
+endif()
+
+if(ARTIFACT_BUILD_COMPOSITION_MOTION_PATH_TEST AND ARTIFACT_FRONTEND_MSVC AND CMAKE_GENERATOR MATCHES "Ninja")
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/EnvironmentVariable/EnvironmentVariable.cppm"
+        TARGET_DIRECTORY ArtifactCoreEnvironment
+        APPEND PROPERTY COMPILE_OPTIONS
+        "/reference;EnvironmentVariable=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCoreEnvironment.dir/EnvironmentVariable.ifc")
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Animation/AnimatableTransform2D.cppm"
+        TARGET_DIRECTORY ArtifactCore
+        APPEND PROPERTY COMPILE_OPTIONS
+        "/reference;Animation.Transform2D=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Animation.Transform2D.ifc"
+        "/reference;Animation.Value=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Animation.Value.ifc"
+        "/reference;Frame.Position=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Frame.Position.ifc"
+        "/reference;Frame.Rate=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Frame.Rate.ifc"
+        "/reference;Math.Interpolate=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Math.Interpolate.ifc"
+        "/reference;Time.Rational=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Time.Rational.ifc")
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Animation/AnimatableTransform3D.cppm"
+        TARGET_DIRECTORY ArtifactCore
+        APPEND PROPERTY COMPILE_OPTIONS
+        "/reference;Animation.Transform3D=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Animation.Transform3D.ifc"
+        "/reference;Animation.Value=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Animation.Value.ifc"
+        "/reference;Frame.Position=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Frame.Position.ifc"
+        "/reference;Property.Types=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Property.Types.ifc"
+        "/reference;Math.Interpolate=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Math.Interpolate.ifc"
+        "/reference;Container.NamedVector=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Container.NamedVector.ifc"
+        "/reference;Memory.SharedPtr=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Memory.SharedPtr.ifc"
+        "/reference;Property.Abstract=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Property.Abstract.ifc"
+        "/reference;Time.Rational=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Time.Rational.ifc"
+        "/reference;Frame.Rate=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Frame.Rate.ifc"
+        "/reference;Container.Debug=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Container.Debug.ifc"
+        "/reference;Container.Debug.Registry=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Container.Debug.Registry.ifc"
+        "/reference;Core.ArtifactArray=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Core.ArtifactArray.ifc"
+        "/reference;Core.ArtifactOptional=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Core.ArtifactOptional.ifc"
+        "/reference;Script.Expression.Evaluator=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Script.Expression.Evaluator.ifc"
+        "/reference;Utils.String.UniString=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Utils.String.UniString.ifc")
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Animation/AnimationDynamics.cppm"
+        TARGET_DIRECTORY ArtifactCore
+        APPEND PROPERTY COMPILE_OPTIONS
+        "/reference;Animation.Dynamics=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Animation.Dynamics.ifc"
+        "/reference;Core.ArtifactString=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Core.ArtifactString.ifc")
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Image/ImageF32x4_With_Cache.cppm"
+        TARGET_DIRECTORY ArtifactCore
+        APPEND PROPERTY COMPILE_OPTIONS
+        "/reference;Image.GpuImageUpload=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Image.GpuImageUpload.ifc")
+    foreach(_artifact_motionpath_gpu_module IN ITEMS
+            "GPUAlgorithms|Graphics.GPUAlgorithms"
+            "GPUThreadPool|Graphics.GPUThreadPool"
+            "GPUCapabilities|Graphics.GPUCapabilities"
+            "GPUAppendConsume|Graphics.GPUAppendConsume")
+        string(REPLACE "|" ";" _artifact_motionpath_gpu_fields "${_artifact_motionpath_gpu_module}")
+        list(GET _artifact_motionpath_gpu_fields 0 _artifact_motionpath_gpu_name)
+        list(GET _artifact_motionpath_gpu_fields 1 _artifact_motionpath_gpu_logical)
+        set_property(SOURCE
+            "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Graphics/${_artifact_motionpath_gpu_name}.cppm"
+            TARGET_DIRECTORY ArtifactCore
+            PROPERTY COMPILE_OPTIONS
+            "/reference;${_artifact_motionpath_gpu_logical}=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/${_artifact_motionpath_gpu_logical}.ifc")
+    endforeach()
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/ImageProcessing/AbstractImageEffect.cppm"
+        TARGET_DIRECTORY ArtifactCore
+        APPEND PROPERTY COMPILE_OPTIONS
+        "/reference;Graphics.SurfaceColorContract=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Graphics.SurfaceColorContract.ifc"
+        "/reference;Color.TransferFunction=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Color.TransferFunction.ifc")
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Codec/GStreamerDecoder.cppm"
+        TARGET_DIRECTORY ArtifactCoreVideo
+        APPEND PROPERTY COMPILE_OPTIONS
+        "/reference;Video.GStreamerDecoder=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCoreVideo.dir/Video.GStreamerDecoder.ifc")
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Codec/EncoderSetting.cppm"
+        TARGET_DIRECTORY ArtifactCoreVideo
+        APPEND PROPERTY COMPILE_OPTIONS
+        "/reference;Codec.Encoder.Setting=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCoreVideo.dir/Codec.Encoder.Setting.ifc"
+        "/reference;Utils.String.UniString=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Utils.String.UniString.ifc")
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Animation/AnimatableTransform2D.cppm"
+        TARGET_DIRECTORY ArtifactCore
+        APPEND PROPERTY COMPILE_OPTIONS
+        "/reference;Container.NamedVector=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Container.NamedVector.ifc"
+        "/reference;Container.Debug=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Container.Debug.ifc"
+        "/reference;Container.Debug.Registry=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Container.Debug.Registry.ifc"
+        "/reference;Core.ArtifactArray=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Core.ArtifactArray.ifc"
+        "/reference;Core.ArtifactOptional=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Core.ArtifactOptional.ifc")
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Codec/MFFrameExtractor.cppm"
+        TARGET_DIRECTORY ArtifactCore
+        APPEND PROPERTY COMPILE_OPTIONS
+        "/reference;Container.Debug=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Container.Debug.ifc"
+        "/reference;Container.Debug.Registry=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Container.Debug.Registry.ifc")
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Codec/MFFrameExtractor.cppm"
+        TARGET_DIRECTORY ArtifactCore
+        APPEND PROPERTY COMPILE_OPTIONS
+        "/reference;Codec.MFFrameExtractor=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Codec.MFFrameExtractor.ifc"
+        "/reference;Core.Parallel=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Core.Parallel.ifc"
+        "/reference;Memory.TrackedPtr=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Memory.TrackedPtr.ifc")
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Channel/Channel.cppm"
+        TARGET_DIRECTORY ArtifactCore
+        APPEND PROPERTY COMPILE_OPTIONS
+        "/reference;Channel=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Channel.ifc"
+        "/reference;Core.ArtifactString=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Core.ArtifactString.ifc"
+        "/reference;Memory.SharedPtr=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Memory.SharedPtr.ifc")
+    set_property(SOURCE
+        "${CMAKE_CURRENT_SOURCE_DIR}/ArtifactCore/src/Codec/MFEncoder.cppm"
+        TARGET_DIRECTORY ArtifactCore
+        APPEND PROPERTY COMPILE_OPTIONS
+        "/reference;Codec.MFEncoder=${CMAKE_BINARY_DIR}/ArtifactCore/CMakeFiles/ArtifactCore.dir/Codec.MFEncoder.ifc")
+endif()
+if(ARTIFACT_BUILD_COMPOSITION_MOTION_PATH_TEST)
+    if(NOT WIN32)
+        message(FATAL_ERROR
+            "ArtifactCompositionMotionPathTest currently requires Windows window capture")
+    endif()
+    add_executable(ArtifactCompositionMotionPathTest
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/Artifact/CompositionMotionPathMain.cpp"
+    )
+    target_link_libraries(ArtifactCompositionMotionPathTest PRIVATE ArtifactAppRuntime)
+    target_include_directories(ArtifactCompositionMotionPathTest PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/verdigris/src"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests"
+    )
+    artifact_add_cppwinrt_include(ArtifactCompositionMotionPathTest)
+    set_target_properties(ArtifactCompositionMotionPathTest PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    add_custom_command(TARGET ArtifactCompositionMotionPathTest POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:ArtifactCompositionMotionPathTest>
+            "$<TARGET_FILE_DIR:ArtifactCompositionMotionPathTest>/"
+        COMMAND_EXPAND_LISTS
+        VERBATIM
+    )
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactCompositionMotionPathTest PRIVATE
+            /Zf /Zc:__cplusplus /utf-8 /EHsc
+        )
+    endif()
 endif()
 
 if(ARTIFACT_BUILD_COMPOSITION_PLAYBACK_STRESS_TEST)

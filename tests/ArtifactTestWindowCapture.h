@@ -49,7 +49,8 @@ using ArtifactNativeWindowHandle = void*;
 // artifact boundary; it does not participate in frame rendering.
 #ifdef _WIN32
 inline QImage artifactCaptureWindowOnWorker(HWND window, QString* error,
-                                            int timeoutMs)
+                                            int timeoutMs,
+                                            bool includeCursor)
 {
     using namespace winrt::Windows::Graphics::Capture;
     using namespace winrt::Windows::Graphics::DirectX;
@@ -107,6 +108,7 @@ inline QImage artifactCaptureWindowOnWorker(HWND window, QString* error,
         auto framePool = Direct3D11CaptureFramePool::CreateFreeThreaded(
             captureDevice, DirectXPixelFormat::B8G8R8A8UIntNormalized, 1, size);
         auto session = framePool.CreateCaptureSession(item);
+        session.IsCursorCaptureEnabled(includeCursor);
         auto frameSignal = std::make_shared<std::promise<bool>>();
         auto signaled = std::make_shared<std::atomic_bool>(false);
         auto frameReady = frameSignal->get_future();
@@ -213,7 +215,8 @@ inline QImage artifactCaptureWindowOnWorker(HWND window, QString* error,
 
 inline QImage artifactCaptureWindow(ArtifactNativeWindowHandle window,
                                     QString* error = nullptr,
-                                    int timeoutMs = 3000)
+                                    int timeoutMs = 3000,
+                                    bool includeCursor = true)
 {
 #ifdef _WIN32
     if (timeoutMs <= 0) {
@@ -228,7 +231,7 @@ inline QImage artifactCaptureWindow(ArtifactNativeWindowHandle window,
         const auto deadline = std::chrono::steady_clock::now() +
             std::chrono::milliseconds(timeoutMs);
         auto future = std::async(std::launch::async,
-            [window, timeoutMs, resizeError, deadline] {
+            [window, timeoutMs, includeCursor, resizeError, deadline] {
             Result result;
             for (int attempt = 0; attempt < 2; ++attempt) {
                 const auto remaining = std::chrono::duration_cast<
@@ -241,7 +244,8 @@ inline QImage artifactCaptureWindow(ArtifactNativeWindowHandle window,
                 }
                 result = {};
                 result.image = artifactCaptureWindowOnWorker(
-                    window, &result.error, static_cast<int>(remaining));
+                    window, &result.error, static_cast<int>(remaining),
+                    includeCursor);
                 if (!result.image.isNull() || result.error != resizeError)
                     break;
             }

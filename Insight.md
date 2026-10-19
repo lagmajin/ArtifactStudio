@@ -1,6 +1,27 @@
-**最終更新:** 2026-10-18
+**最終更新:** 2026-10-19
 
 # Insight Register
+
+## 2026-10-19: 独立Motion Path統合テストはVS2026/Ninjaで成立した
+
+- **関連:** `CMakeLists.txt` (`ARTIFACT_BUILD_COMPOSITION_MOTION_PATH_TEST`)、`tests/Artifact/CompositionMotionPathMain.cpp`、`out/build/x64-Debug-Agent`
+- **確認できた事実:** Visual Studio 2026 / Visual Studio 18 / MSVC 19.51.36246でopt-in独立GUI targetをビルドし、MCPのstate、Transform回帰、overlay画像取得を通過させた。root CMake側の親targetにArtifactCore IFC参照補完が必要だった。ArtifactCore child repoは変更していない。MSVC 19.51の `_Fill_vbool` link名不一致にはテストexe内shim/alternatenameで対応している。
+- **価値／懸念:** VS2026がこの独立GUIテストの実用コンパイラであることを実ビルド・実行で確認できた。CMake/NinjaやMSVC更新時は親側IFC補完とshimが不要になるか再検証が要る。
+- **次に確認:** 同じtoolchainを更新したとき、IFC参照補完と `_Fill_vbool` workaroundの必要性を個別に再確認する。
+
+## 2026-10-19: 状態差分の画像artifactをVP overlay認識へ適用できた
+
+- **関連:** `tests/ArtifactTestImageArtifacts.h`、`tests/ArtifactTestWindowCapture.h`、`tests/Artifact/CompositionMotionPathMain.cpp`
+- **確認できた事実:** Motion Path OFF/ONのViewport画像と差分maskを独立artifactとして生成し、実画像でBezier軌跡・接線の領域が差分に現れることを目視した。Windows Graphics Captureはテストウィンドウを撮り、CompositionViewport領域をcropする。capture cursorを無効化し、OS desktop全体の画像や他ウィンドウの重なりを避ける。実行は3 MCPステップ全てpassした。
+- **価値／懸念:** 全画面画像に頼らず、対状態の差分から特定表示のpixel maskを得られる。maskは画素差であってキーフレーム等の意味データではなく、他widget/backendへの再利用は未検証。
+- **次に確認:** paired-state切替が安全な別GUIテストでhelperを適用し、capture領域、DPI、backendごとの安定性を確認する。
+
+## 2026-10-19: 過去Motion Pathキーを編集しても現在フレームを維持する
+
+- **関連:** `Artifact/src/Widgets/Render/ArtifactCompositionRenderController.cppm` のMotion Path hit処理、`tests/Artifact/CompositionMotionPathMain.cpp`
+- **確認できた事実:** 当初、Motion Path sample/key hit処理が `ArtifactPlaybackService::setCurrentFrame(hitSample.framePosition)` を呼んでいた。ユーザーから過去点を触ると現在オブジェクトが移動すると報告され、ユーザー指定の「編集時は現在フレームを維持」に合わせてseekを削除した。独立GUI回帰はframe 45でframe 0 keyをdragし、frame 45の再生位置・Transform評価を保ち、キー変更とUndo復元を確認する。VS2026ビルドと3 MCPステップがpassした。
+- **価値／懸念:** 過去keyの編集対象frameとPlaybackの現在frameが分離され、現在のプレビュー位置を保ってキーを修正できる。
+- **次に確認:** 通常アプリ上でも選択・ドラッグ時の編集感を確認する。回帰は独立GUI fixtureのWindows / VS2026実行であり、他backend・OSは未検証。
 
 ## 2026-10-17: ProgressiveRenderer downsample settings have no callback consumer
 
@@ -4858,3 +4879,9 @@
 - **仮説・未検証:** Qt declarations added to a large module purview may be colliding with Qt specializations exposed through imported IFCs. A small dedicated module with a forward-declaration-only interface and implementation-local Qt includes may isolate the dependency set, but this has not been tested.
 - **価値／懸念:** AppMain gained hundreds of lines for test-only control and the build error now blocks fresh render integration verification. Moving the code into another already-large module does not solve that boundary and can create a second IFC failure.
 - **次に確認:** Trace the exact `QMetaType::fromType<Qt::CheckState>` trigger, then place the endpoint in a narrowly scoped test-control module if the generated-project path can be verified without CMake regeneration.
+## 2026-10-19: ArtifactPr workbench polish should track module boundaries
+
+- **関連:** `ArtifactPr/src/ArtifactPrMainWindow.cppm`、`ArtifactPr/src/ArtifactPrEditorEngine.cppm`、`ArtifactPr/src/TimelinePanel.cppm`、`tests/ArtifactPr/TimelinePanelStandaloneTest.cpp`。
+- **確認できた事実:** ArtifactPr は独立した NLE モデルと共有 ArtifactCore を持つ。MainWindow と EditorEngine には依然広い責務が残る。今回 Timeline の clip / ruler / transition / panel UI を `ArtifactPr.TimelinePanel` に切り出し、MainWindow から独立して起動する widget contract test を追加した。
+- **価値／懸念:** NLE 所有境界を保ちつつ、UI 変更単位と検証単位を一つ分離できた。独立テストはまだビルド・実行されておらず、残る MainWindow / EditorEngine の結合も未解消。構造改善による開発速度への効果は未検証。
+- **次に確認:** 明示的に許可されたビルド・runtime 検証の後、Monitor / Inspector 群と EditorEngine の責務を依存関係から分けて段階的に切り出す。
