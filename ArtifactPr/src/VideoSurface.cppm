@@ -7,9 +7,7 @@ module;
 #include <QMutexLocker>
 #include <QVideoFrame>
 
-export module ArtifactPr.VideoSurface;
-
-import ArtifactPr.VideoSurface;
+module ArtifactPr.VideoSurface;
 
 namespace ArtifactPr {
 

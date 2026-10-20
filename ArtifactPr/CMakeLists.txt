@@ -1,61 +1,79 @@
 cmake_minimum_required(VERSION 3.30)
 
-set(ARTIFACT_PR_SOURCES
-    include/ArtifactPrDemoData.ixx
-    include/ArtifactPrMainWindow.ixx
-    include/ArtifactPrEditorEngine.ixx
-    include/TimelinePanel.ixx
-    include/VideoPlayerWidget.ixx
-    include/TransportBarWidget.ixx
-    include/ExportDialog.ixx
-    include/MediaPanel.ixx
-    include/ProjectPanel.ixx
+# ArtifactPr is split into a static library plus two thin entry points:
+#
+#   ArtifactPrApp (STATIC)  -- every ArtifactPr.* module unit
+#      +-- ArtifactPr     (WIN32)     src/main.cpp
+#      +-- ArtifactPrCLI             src/main_cli.cpp
+#      +-- tests/ArtifactPr/*Test    contract tests
+#
+# Tests link ArtifactPrApp instead of re-compiling the module set, so the
+# module interfaces are exported as a PUBLIC CXX_MODULES file set and the MSVC
+# module scan runs once per configure instead of once per test target.
+#
+# Module declaration convention (same as ArtifactCore):
+#   include/*.ixx   -> module interface unit      ("export module ArtifactPr.X;")
+#   src/*.cppm      -> module implementation unit ("module ArtifactPr.X;")
+# A .cppm must not redeclare its module as an interface, and must not import
+# the module it implements (self-import breaks Ninja dyndep).
+set(ARTIFACT_PR_MODULE_SOURCES
     include/AppTheme.ixx
-    include/MediaThumbnailer.ixx
-    include/MediaFrameDecoder.ixx
-    include/SequenceCompositor.ixx
-    include/SequenceExporter.ixx
-    include/SequenceAudioRenderer.ixx
-    include/ClipEffects.ixx
+    include/ArtifactPrCLI.ixx
+    include/ArtifactPrDemoData.ixx
+    include/ArtifactPrEditorEngine.ixx
+    include/ArtifactPrMainWindow.ixx
     include/AudioPreviewMixer.ixx
-    include/VideoSurface.ixx
+    include/ClipEffects.ixx
     include/EditCommand.ixx
+    include/ExportDialog.ixx
+    include/GpuProgramMonitor.ixx
+    include/MarkerEditDialog.ixx
+    include/MediaFrameDecoder.ixx
+    include/MediaPanel.ixx
+    include/MediaThumbnailer.ixx
+    include/PrColorPickerDialog.ixx
+    include/ProjectPanel.ixx
     include/PrShortcut.ixx
     include/PrStatusNotifier.ixx
+    include/SequenceAudioRenderer.ixx
+    include/SequenceCompositor.ixx
+    include/SequenceExporter.ixx
     include/ShortcutHelpDialog.ixx
     include/TimecodeOverlayWidget.ixx
-    include/MarkerEditDialog.ixx
-    include/PrColorPickerDialog.ixx
-    include/GpuProgramMonitor.ixx
-    include/ArtifactPrCLI.ixx
+    include/TimelinePanel.ixx
+    include/TransportBarWidget.ixx
+    include/VideoPlayerWidget.ixx
+    include/VideoSurface.ixx
+)
+
+set(ARTIFACT_PR_IMPL_SOURCES
+    src/AppTheme.cppm
     src/ArtifactPrCLI.cppm
-    src/GpuProgramMonitor.cppm
-    src/main.cpp
-    src/ArtifactPrMainWindow.cppm
     src/ArtifactPrDemoData.cppm
     src/ArtifactPrEditorEngine.cppm
-    src/TimelinePanel.cppm
-    src/VideoPlayerWidget.cppm
-    src/TransportBarWidget.cppm
-    src/ExportDialog.cppm
-    src/MediaPanel.cppm
-    src/ProjectPanel.cppm
-    src/AppTheme.cppm
-    src/MediaThumbnailer.cppm
-    src/MediaFrameDecoder.cppm
-    src/SequenceCompositor.cppm
-    src/SequenceExporter.cppm
-    src/SequenceAudioRenderer.cppm
-    src/ClipEffects.cppm
+    src/ArtifactPrMainWindow.cppm
     src/AudioPreviewMixer.cppm
-    src/VideoSurface.cppm
+    src/ClipEffects.cppm
     src/EditCommand.cppm
+    src/ExportDialog.cppm
+    src/GpuProgramMonitor.cppm
+    src/MarkerEditDialog.cppm
+    src/MediaFrameDecoder.cppm
+    src/MediaPanel.cppm
+    src/MediaThumbnailer.cppm
+    src/PrColorPickerDialog.cppm
+    src/ProjectPanel.cppm
     src/PrShortcut.cppm
     src/PrStatusNotifier.cppm
+    src/SequenceAudioRenderer.cppm
+    src/SequenceCompositor.cppm
+    src/SequenceExporter.cppm
     src/ShortcutHelpDialog.cppm
     src/TimecodeOverlayWidget.cppm
-    src/MarkerEditDialog.cppm
-    src/PrColorPickerDialog.cppm
+    src/TimelinePanel.cppm
+    src/TransportBarWidget.cppm
+    src/VideoPlayerWidget.cppm
+    src/VideoSurface.cppm
 )
 
 # MOC disabled - causes issues with drive paths
@@ -69,147 +87,73 @@ set(ARTIFACT_PR_SOURCES
 # The "qt-advanced-docking-system" vcpkg dependency remains only for the
 # opt-in ARTIFACT_QADS_COMPAT_* backends in the Artifact target.
 
-
-# Console-only entry point. The existing WIN32 GUI target remains unchanged.
-set(ARTIFACT_PR_CLI_SOURCES
-    ${ARTIFACT_PR_SOURCES}
-    src/main_cli.cpp
-)
-list(REMOVE_ITEM ARTIFACT_PR_CLI_SOURCES src/main.cpp)
-add_executable(ArtifactPrCLI ${ARTIFACT_PR_CLI_SOURCES})
-
-set_target_properties(ArtifactPrCLI PROPERTIES
-    CXX_STANDARD 23
-    CXX_STANDARD_REQUIRED ON
-    CXX_EXTENSIONS OFF
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
-    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
-)
-
-target_link_libraries(ArtifactPrCLI PRIVATE ArtifactCore ArtifactCoreCommand ArtifactCoreAudio ArtifactCoreVideo ArtifactCoreNLE ArtifactWidgets ArtifactGpuFoundation ArtifactDockFoundation Qt6::Multimedia)
-target_include_directories(ArtifactPrCLI PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
-)
-
-if(ARTIFACT_COMPILER_MSVC_CL)
-    target_compile_options(ArtifactPrCLI PRIVATE /Zf /Zc:__cplusplus /utf-8 /wd5050 /WX-)
-    target_compile_definitions(ArtifactPrCLI PRIVATE
-        PLATFORM_WIN32
-        _GUARDOVERFLOW_CRT_ALLOCATORS=1
-        _SILENCE_CXX23_ALIGNED_STORAGE_DEPRECATION_WARNING
-        _WIN32_WINNT=0x0A00
-    )
-elseif(ARTIFACT_FRONTEND_MSVC)
-    target_compile_options(ArtifactPrCLI PRIVATE /Zc:__cplusplus /utf-8 /WX- /wd5050)
-    target_compile_definitions(ArtifactPrCLI PRIVATE
-        PLATFORM_WIN32
-        _GUARDOVERFLOW_CRT_ALLOCATORS=1
-        _SILENCE_CXX23_ALIGNED_STORAGE_DEPRECATION_WARNING
-        _WIN32_WINNT=0x0A00
-    )
-endif()
-
-add_executable(ArtifactPr WIN32 ${ARTIFACT_PR_SOURCES})
-
-set_target_properties(ArtifactPr PROPERTIES
-    CXX_STANDARD 23
-    CXX_STANDARD_REQUIRED ON
-    CXX_EXTENSIONS OFF
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
-    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
-)
-
-target_link_libraries(ArtifactPr PRIVATE ArtifactCore ArtifactCoreCommand ArtifactCoreAudio ArtifactCoreVideo ArtifactCoreNLE ArtifactWidgets ArtifactGpuFoundation ArtifactDockFoundation Qt6::Multimedia)
-
-target_include_directories(ArtifactPr PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
-)
-
-if(ARTIFACT_COMPILER_MSVC_CL)
-    target_compile_options(ArtifactPr PRIVATE /Zf /Zc:__cplusplus /utf-8 /wd5050)
-    target_compile_definitions(ArtifactPr PRIVATE
-        PLATFORM_WIN32
-        _GUARDOVERFLOW_CRT_ALLOCATORS=1
-        _SILENCE_CXX23_ALIGNED_STORAGE_DEPRECATION_WARNING
-        _WIN32_WINNT=0x0A00
-    )
-    target_compile_options(ArtifactPr PRIVATE /WX-)
-elseif(ARTIFACT_FRONTEND_MSVC)
-    target_compile_options(ArtifactPr PRIVATE /Zc:__cplusplus /utf-8 /WX- /wd5050)
-    target_compile_definitions(ArtifactPr PRIVATE
-        PLATFORM_WIN32
-        _GUARDOVERFLOW_CRT_ALLOCATORS=1
-        _SILENCE_CXX23_ALIGNED_STORAGE_DEPRECATION_WARNING
-        _WIN32_WINNT=0x0A00
-    )
-endif()
-
 find_package(Qt6 REQUIRED COMPONENTS Multimedia MultimediaWidgets)
-target_link_libraries(ArtifactPrCLI PRIVATE Qt6::Multimedia Qt6::MultimediaWidgets)
 
-target_link_libraries(ArtifactPr PRIVATE Qt6::Multimedia Qt6::MultimediaWidgets)
-
-if(ARTIFACT_BUILD_PR_STANDALONE_TESTS)
-    set(ARTIFACT_PR_STANDALONE_TEST_SOURCES ${ARTIFACT_PR_SOURCES})
-    list(REMOVE_ITEM ARTIFACT_PR_STANDALONE_TEST_SOURCES
-        src/main.cpp
-        src/ArtifactPrCLI.cppm
-        include/ArtifactPrCLI.ixx
-        src/ArtifactPrMainWindow.cppm
-        include/ArtifactPrMainWindow.ixx
-        src/VideoPlayerWidget.cppm
-        include/VideoPlayerWidget.ixx
-        src/VideoSurface.cppm
-        include/VideoSurface.ixx
-    )
-    list(APPEND ARTIFACT_PR_STANDALONE_TEST_SOURCES
-        "${CMAKE_CURRENT_SOURCE_DIR}/../tests/ArtifactPr/TimelinePanelStandaloneTest.cpp"
-    )
-    add_executable(ArtifactPrTimelinePanelStandaloneTest
-        ${ARTIFACT_PR_STANDALONE_TEST_SOURCES}
-    )
-    target_link_libraries(ArtifactPrTimelinePanelStandaloneTest PRIVATE
-        ArtifactCore ArtifactCoreCommand ArtifactCoreAudio ArtifactCoreVideo
-        ArtifactCoreNLE ArtifactWidgets ArtifactGpuFoundation ArtifactDockFoundation
-        Qt6::Multimedia Qt6::MultimediaWidgets
-    )
-    target_include_directories(ArtifactPrTimelinePanelStandaloneTest PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    )
-    set_target_properties(ArtifactPrTimelinePanelStandaloneTest PROPERTIES
+function(artifact_pr_configure_target target)
+    set_target_properties(${target} PROPERTIES
         CXX_STANDARD 23
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS OFF
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    target_include_directories(${target} PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
     )
     if(ARTIFACT_COMPILER_MSVC_CL)
-        target_compile_options(ArtifactPrTimelinePanelStandaloneTest PRIVATE
-            /Zf /Zc:__cplusplus /utf-8 /wd5050 /WX-
-        )
-        target_compile_definitions(ArtifactPrTimelinePanelStandaloneTest PRIVATE
-            PLATFORM_WIN32 _GUARDOVERFLOW_CRT_ALLOCATORS=1
-            _SILENCE_CXX23_ALIGNED_STORAGE_DEPRECATION_WARNING _WIN32_WINNT=0x0A00
+        target_compile_options(${target} PRIVATE /Zf /Zc:__cplusplus /utf-8 /wd5050 /WX-)
+        target_compile_definitions(${target} PRIVATE
+            PLATFORM_WIN32
+            _GUARDOVERFLOW_CRT_ALLOCATORS=1
+            _SILENCE_CXX23_ALIGNED_STORAGE_DEPRECATION_WARNING
+            _WIN32_WINNT=0x0A00
         )
     elseif(ARTIFACT_FRONTEND_MSVC)
-        target_compile_options(ArtifactPrTimelinePanelStandaloneTest PRIVATE
-            /Zc:__cplusplus /utf-8 /WX- /wd5050
-        )
-        target_compile_definitions(ArtifactPrTimelinePanelStandaloneTest PRIVATE
-            PLATFORM_WIN32 _GUARDOVERFLOW_CRT_ALLOCATORS=1
-            _SILENCE_CXX23_ALIGNED_STORAGE_DEPRECATION_WARNING _WIN32_WINNT=0x0A00
+        target_compile_options(${target} PRIVATE /Zc:__cplusplus /utf-8 /WX- /wd5050)
+        target_compile_definitions(${target} PRIVATE
+            PLATFORM_WIN32
+            _GUARDOVERFLOW_CRT_ALLOCATORS=1
+            _SILENCE_CXX23_ALIGNED_STORAGE_DEPRECATION_WARNING
+            _WIN32_WINNT=0x0A00
         )
     endif()
-    add_test(NAME ArtifactPrTimelinePanelStandaloneTest
-        COMMAND ArtifactPrTimelinePanelStandaloneTest
-    )
-    set_tests_properties(ArtifactPrTimelinePanelStandaloneTest PROPERTIES
-        ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
-        LABELS "artifactpr;timeline;ui;standalone;contract"
-        TIMEOUT 60
-        RUN_SERIAL TRUE
-    )
-endif()
+endfunction()
+
+add_library(ArtifactPrApp STATIC)
+target_sources(ArtifactPrApp
+    PRIVATE ${ARTIFACT_PR_IMPL_SOURCES}
+    PUBLIC FILE_SET CXX_MODULES FILES ${ARTIFACT_PR_MODULE_SOURCES}
+)
+target_link_libraries(ArtifactPrApp PUBLIC
+    ArtifactCore
+    ArtifactCoreCommand
+    ArtifactCoreAudio
+    ArtifactCoreVideo
+    ArtifactCoreNLE
+    ArtifactWidgets
+    ArtifactGpuFoundation
+    ArtifactDockFoundation
+    Qt6::Multimedia
+    Qt6::MultimediaWidgets
+)
+artifact_pr_configure_target(ArtifactPrApp)
+set_target_properties(ArtifactPrApp PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+)
+
+# GUI entry point. The shared --cli switch inside main.cpp keeps the console
+# path on the same EditorEngine document/undo/render owner as the GUI.
+add_executable(ArtifactPr WIN32 src/main.cpp)
+target_link_libraries(ArtifactPr PRIVATE ArtifactPrApp)
+artifact_pr_configure_target(ArtifactPr)
+set_target_properties(ArtifactPr PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+)
+
+# Console-only entry point.
+add_executable(ArtifactPrCLI src/main_cli.cpp)
+target_link_libraries(ArtifactPrCLI PRIVATE ArtifactPrApp)
+artifact_pr_configure_target(ArtifactPrCLI)
+set_target_properties(ArtifactPrCLI PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+)

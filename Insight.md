@@ -1,6 +1,13 @@
-**最終更新:** 2026-10-19
+**最終更新:** 2026-10-20
 
 # Insight Register
+
+## 2026-10-19: レイヤー流体の動作確認はタイムラインフレームを進めてキャプチャする
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cppm`、`Artifact/src/Layer/ArtifactLayerTimelineSupport.cppm`、`tests/Artifact/PhysicsLodBridgeContractTest.cpp`
+- **確認できた事実:** Liquid レイヤー描画は `currentTimelineFrame()` を見てフレーム間の solver update を行う。composition 未接続なら layer current frame が使われる。単一フレームの描画キャプチャは色と形状しか検証せず、時間変化を示さない。D3D12 headless で frame 0 / 12 の readback を比較するテストは成功し、泡の縮小・減光と厚み由来の方向光／局所ハイライトを加えた。
+- **価値／懸念:** アニメーションを含むレイヤーシミュレーションのGPUテストは、同一条件で異なるフレーム画像を比較するとシミュレーション進行と描画の両方を確認できる。GPU/ドライバ差を考慮し、完全一致ではなく意味のある画素差を判定する必要がある。層ごとの定数色描画であり、屈折や環境反射を含む本格的な流体シェーダーではない。
+- **次に確認:** 明暗幅を含む更新後テストを通し、実アプリでフレーム移動・再生・シーク時の表示を MCP capture または UI テストで確認する。
 
 ## 2026-10-19: 独立Motion Path統合テストはVS2026/Ninjaで成立した
 
@@ -2636,6 +2643,14 @@
 - **次に確認:** MPM layerのsave/load・duplicate・Undo/Redoでscalar値とanimationが揃い、Composition replay結果が一致することをruntime確認する。
 
 \n
+## 2026-10-20: Rectangular liquid surface overhang was a render artifact
+
+- **関連:** `Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cppm`, `tests/Artifact/PhysicsLodBridgeContractTest.cpp`, `Artifact/cmake/RunWindeployqt.cmake`。
+- **確認できた事実:** コーヒーの外にはみ出して見えた薄茶色の部分は別の液体や泡ではなく、再構成した液面メッシュと縁線が容器の矩形境界を越えて描画されたものだった。液面三角形と輪郭線を容器内でクリップし、D3D12 capture の境界画素契約が成功。最終 frame12 capture でも壁・底の外への液体画素は見られない。
+- **変更・価値:** 表面の深さによる色変化、広い反射、泡量に応じたクレマ線を調整し、はみ出し描画を除去した。境界クリップは固定長のスタック領域を使い、フレーム中の動的確保を増やさない。Debug の Qt DLL 配置については `windeployqt` が Debug Qt の bin を参照するよう別途修正した。
+- **未確認:** 通常サイズのアプリ viewport での見え方、矩形以外の容器の境界、屈折を含む写実的な水表現。実際にユーザーが見た DLL エラー文言と deployment path 修正の完全な因果関係も未確認。
+- **次に確認:** 通常 viewport でコーヒーと水の両方を確認し、必要なら容器形状に応じた境界処理を設計する。
+
 ### 2026-10-12 — MPM material reset後の通常再生は現在frameへ追いつかせる
 
 - **関連:** `ArtifactCore/src/Physics/PhysicsSystem.cppm::setGranularMaterialSolver()` / `GranularMaterialWorldClock`、`Artifact/src/Composition/ArtifactAbstractComposition.cppm::setFramePosition()` / `replayGranularMaterialToFrame()`。
@@ -4885,3 +4900,59 @@
 - **確認できた事実:** ArtifactPr は独立した NLE モデルと共有 ArtifactCore を持つ。MainWindow と EditorEngine には依然広い責務が残る。今回 Timeline の clip / ruler / transition / panel UI を `ArtifactPr.TimelinePanel` に切り出し、MainWindow から独立して起動する widget contract test を追加した。
 - **価値／懸念:** NLE 所有境界を保ちつつ、UI 変更単位と検証単位を一つ分離できた。独立テストはまだビルド・実行されておらず、残る MainWindow / EditorEngine の結合も未解消。構造改善による開発速度への効果は未検証。
 - **次に確認:** 明示的に許可されたビルド・runtime 検証の後、Monitor / Inspector 群と EditorEngine の責務を依存関係から分けて段階的に切り出す。
+- **追記 (2026-10-19):** この項目が参照する `tests/ArtifactPr/TimelinePanelStandaloneTest.cpp` は削除し、内容は `tests/ArtifactPr/ArtifactPrTimelinePanelTest.cpp` (gtest) へ移植した。下の「ArtifactPr module set could not have compiled」も参照。
+
+## 2026-10-19: Composition Viewport grid alpha blending corrected
+
+- **関連:** `Artifact/src/Render/ShaderManager.cppm` の Grid PSO、`tools/CompositionViewportGridTest/main.cpp`、`temp/composition-viewport-all-fixed.png`
+- **変更・確認:** Grid PSO に既存 SolidRect と同じ straight-alpha blend state を設定した。D3D12 の独立テスト target を再ビルドし、修正後キャプチャでグリッドの透明度が反映され、合成画像でセーフエリア／ガイドがグリッドより前面に読めることを目視した。ビューポート全体に表示する範囲は維持した。
+- **価値／懸念:** 透明度を使う Composition Viewport overlay がグリッドに隠されにくくなる。`AppMain.cppm` には実際の利用がない `Artifact.Widgets.UndoHistoryWidget` import があり、削除後に C1116 が解消して Artifact.exe の再リンクが完了した。`ArtifactUndoHistoryWidget.ixx` に QMetaType を追加する試行は C1116 を解消しなかったため戻した。アプリ本体の実ウィンドウ確認と Vulkan backend は未確認。
+- **次に確認:** アプリ起動後に Composition Viewport 上で同じ表示を確認する。必要なら Vulkan の同じ独立テスト capture も行う。
+
+## 2026-10-19: Liquid frame changes pass, but coffee appearance remains weak
+
+- **関連:** `ArtifactCore/src/Physics/FluidSolver2D.cppm` の `buildSurfaceSnapshot()`、`Artifact/src/Layer/ArtifactAbstractLayerFractureRuntime.cppm`、`drawGradientTriangleLocal()`、`PhysicsLodBridgeContractTest.LiquidLayerRendersAndWritesCoffeeColoredPngCapture`。
+- **確認できた事実:** D3D12 headless GPU capture test passes and writes frame 0/12 PNGs; visible pixels change between frames. Per-vertex color interpolation removes the obvious cell-shading seams. `RenderConfig::MainRTVFormat` is `TEX_FORMAT_RGBA8_UNORM_SRGB`, while layer QColor values cross `ColorBridge::toFloatColor()` as normalized sRGB values. Passing those values directly to liquid draw packets produced a tan capture (dominant surface RGB around 161,127,93 for QColor 102,61,31).
+- **変更・確認:** Liquid fill, contour, spill and foam draw colors are converted with `FloatColor::toLinear()` at the render boundary. With contour enabled, the same D3D12 capture test passes and dominant coffee pixels are around 96,58,32. Test now checks mean dark coffee pixels remain close to the configured QColor, as well as frame variation and luminance span.
+- **Core テスト:** 17件の Liquid テストを実行。初回に表面間引き比較テストが失敗した。LOD 側は `sqrt(stride)` で粒子半径を補正する設計だが、explicit reference 側は未補正だったため、参照の有効粒子径を揃え、幾何（triangles/contours）だけを比較するテストへ修正。foam は独立テストで確認し、再実行では17/17 pass。
+- **追加の画面確認:** fixture を 320×320 内に中央配置し、frame0/12 の双方で Transform3D を設定。最初に流入/foam の setter を誤って隣接の property contract test に置いていたため、capture 画像は設定を反映していなかった。設定を capture fixture に移した後は中央の注ぎ流れが見え、液面上方の coffee pixel が783個。foamAmount 1.0 は大きなリング状の泡で画面が汚れ、既定相当の0.35では流れが読みやすく泡の縁取りが控えめ。foamAmount=0 と同じ frame12 を比較すると1494画素が変化し、差分は stream 周辺 (x=138..181, y=55..97) に限定された。GPU test は中央上部 stream pixel >100 と泡差分 pixel >50 を要求し、pass。
+- **泡位置の分離（2026-10-20）:** foamBias を nominal fill surface より上でゼロにする試作は泡A/B差分0となり失敗。Core sample に `foamOffsetY` を追加し、密度場/triangle は元位置、foam exposure も元位置、泡描画位置のみ offset 後を使う。矩形 container の falling stream から surface 内へ泡を投影するとA/B差分1788画素、範囲 x=136..183, y=110..156 となり、前回の上方リングから液面接触域へ移った。Core test は泡位置だけ動き triangles が同一であることを検証、Liquid 18件と D3D12 GPU capture pass。
+- **液面上縁の反射:** contour segment のうち上側かつ横向きの区間だけに細い液色/Crema混色の sheen を重ねた。コンテナの全周線はそのままに、frame12 GPU capture で液面の浅い波形が暖色の細い縁として読み取りやすくなった。D3D12 GPU capture test pass。通常アプリ表示とVulkanは未確認。
+- **GPU backend parity:** 最新の泡・階調調整を含む headless Composition-view capture を D3D12 / Vulkan で再実行。両方で NVIDIA GeForce RTX 4070 Ti を使い、frame12 PNG SHA-256 は `5D352ED5E9BD4F53E4273EF65BD6174C7D0E967C4D12F173012AE7BCDC639FC6` で一致。GUI viewportの通常操作は未確認。
+- **仮説・未検証:** The image still shows a broad, angular, nearly flat pool, with weak foam detail. Surface reconstruction/edge geometry and fixture framing limit appearance in addition to shading and foam intensity. App viewport behavior and color appearance at normal UI scale are unverified.
+- **価値／懸念:** A passing color-pixel assertion and luminance spread do not guarantee a convincing liquid surface. Keep image review as a separate acceptance check from simulation determinism and pixel-change tests.
+- **次に確認:** Refine the stream-side foam from projected points into a softer crema patch, improve the surface boundary/meniscus, and inspect the app viewport at normal display scale. Keep the current result labeled as stylized fluid shading.
+- **2026-10-20 の追加確認:** 同じ frame12 で foam 有効/無効を見比べると、大きな明るいハローは陰影ではなく foam particle の画面占有が原因だった。泡の描画サイズを 0.68→0.42、不透明度係数を 0.72→0.48 に下げ、液体本体は白い specular を外して上下方向の色勾配に切り替えた。D3D12 capture test は通過し、ハローは縮小したが、通常アプリの画面サイズでの見え方と水らしい屈折表現は未検証。
+- **速度方向に沿った泡表現（2026-10-20）:** `LiquidFoamPoint2D` にCore sampleの速度を保持し、アプリ側のfoam billboardをVelocityAlignedにして横ストレッチを加えた。GPU captureの泡有効/無効差分bboxで「落下流に対して横長」を確認する契約を追加。Core physics suite 30/30成功、D3D12/Vulkan capture両方成功、frame12 PNG SHA-256 は `4D5E80264E4DE6B57EBA2B8649248F24D5C8C07DAA57F29E3C5464B891621A10` で一致。見た目は接触点のクレマが改善したが、プールの平坦さは泡ではなく水面形状・照明表現にも依存する。
+- **現状の仮説・未検証:** 水らしさを上げる次の主因は泡量だけではなく、液面境界の曲率/メニスカスと視点依存のハイライトまたは屈折近似。GPU capture上では未実装で、通常アプリviewportと実時間性能も未確認。次ループではまず描画パスを確認し、 bounded なGPU表現と画像契約から水面シェーディングを追加できるか調べる。
+- **2026-10-20 密度シェーディング試作:** Core surface triangleへ閾値クリップ後の頂点密度を保持し、描画色に厚み係数を適用。縁の過度な明るさを減らすため輪郭線も細く・暗くした。試した法線方向照明は三角形ごとの法線変化が斑点状に出たため、D3D12 captureを目視して撤回。現行画像は以前より縁が控えめだが、依然として平坦で、屈折・反射・水面曲率を表現できていない。Core physics 31/31、Fluid/Liquid app contract 3/3 pass。D3D12/Vulkan frame12 SHA-256 `D0D34E9A8F73FDFFBCA2512FEEE7BBF47351C430C2A5BE796AE1900FAD8483BA` 一致。次の確認は、粒子由来の三角形パターンを露出させずに上面の広い反射を作る手段と通常viewportの見え方。
+- **接触反射帯の試作（2026-10-20）:** 法線ハイライトを使わず、mesh vertex座標から y=.45・surface center を中心とした滑らかな low-amplitude cream bandを頂点色へ重ねた。foamAmount=0 の同一フレームでも接触位置の中心画素が横方向の液面画素より明るい契約を追加し、D3D12/Vulkan captureで合格。両frame12 PNG SHA-256 `4200A72CF5B4430B540992D9DCCA77FD7D3E9A7D731B87B35FB5E2BD784CE050` で一致。画像は接触部のクレマ風ハイライトを識別できるようになったが、座標依存のstylized shadingであり、実時間viewport、視点/背景に応じた反射・屈折、液面曲率は未検証。
+- **充填率追従の描画契約（2026-10-20）:** `PhysicsLodBridgeContractTest` で fill amount を0.62から0.35に変更し、フレーム12の泡なしGPU readbackから pool edge の位置を比較する assertion を追加。`LiquidLayerRendersAndWritesCoffeeColoredPngCapture` はD3D12/Vulkan双方で成功し、低い充填率のエッジが高い充填率より20px超下に現れた。通常充填frame12は両backend SHA-256 `D7C3453DC39C002EAB6…`、低充填frame12は `A34E4F950D99F103138F372BD8373B1B0BB6E004A9858FEDF2B5BD2B3598E21D` で一致。画像目視でもsurface上端と流入の接触位置が低くなる。反射中心そのものの画素位置と通常アプリviewport、実時間性能は未計測。
+- **充填面アンカーによる反射追従（2026-10-20）:** 画像解析でfill .35時のpool edgeが全surface bounds基準の相対高さ .25.. .58 から外れ、反射帯が設定面からずれる懸念を特定。矩形容器では `1-liquidFillAmount` を `baseTransform` で描画座標へ写し、上下方向にboundedな許容幅を設けてその近傍の水平輪郭から反射中心を計算するよう変更した。泡なし低充填キャプチャで液面直下の中央輝度が側方より24階調高いことを確認し、契約テストは+8以上を要求。D3D12/Vulkanの通常・no-foam・lower-fill各画像はSHA-256一致。コンター候補が許容幅に無いケースは従来のbounds中心へfallbackする。回転レイヤー、非矩形容器、通常アプリviewport、実時間性能は未検証。
+- **回転レイヤーの輪郭シェーディング（2026-10-20）:** 25度回転したLiquid captureを追加し、画面のx/yではなくbaseTransform由来のlayer X/Y単位軸へ点・線分を投影して、水平輪郭の判定、reflection center、幅・高さ、surface color gradientを求めるよう変更。回転lower-fill captureは液体色画素と明暗差の条件を満たし、D3D12/Vulkan SHA-256 `9AA5018F58128BD2F318439241640947763FEA5A81950661C972021E9CCF7CA1` で一致。通常・no-foam・lower-fill画像も両backendでそれぞれ一致。テストは回転時の描画と色調差を確認するが、回転境界の角度・物理的な液面傾斜は定量化していない。通常アプリviewportと実時間性能は未確認。
+- **Liquid surface clipの固定作業領域化（2026-10-20）:** `LiquidSolver2D::buildSurfaceSnapshot()` が1セル4三角形をdensity thresholdでclipするたび、input/output/intersectionsの一時`std::vector`を3つ生成しreserveしていた。triangle clipの最大出力4頂点・交点2個を固定 `std::array` に置換し、この内側ループから最大3回/三角形のheap allocationを除去。Core PhysicsDeterminism 31/31 pass。Artifact GPU captureもD3D12/Vulkanでpassし、通常・foam off・lower fill・25度rotatedの4画像は各backend一致、さらにCore変更前の保存済み画像とも一致。実時間profileは未取得。surface construction全体のdensity `std::map`、cell `std::set`、spill neighbor map/vectorは依然動的確保を行うため、snapshot全体をallocation-freeとは扱わない。
+- **関連する契約修正:** 登録 FluidSolver2D の LOD 反復数が明示値100をそのまま通し、期待上限12を超えていたため PhysicsSystem の LOD適用箇所で1..12に clamp。`ReducedAndMinimalLODApplyFluidIterationBudgetsToRegisteredSolver` と liquid GPU capture は再ビルド後に pass。
+- **2026-10-20 のアプリ反映:** `cmake --build build --config Debug --target Artifact` が成功し、`build/bin/Debug/Artifact.exe` のリンク・配布ステップを完了。Node kernel asset のパスエラーが続き、GUI viewportのcaptureはまだ得られていない。
+- **Core hot-path 修正（2026-10-20）:** `LiquidSolver2D::update()` のフレーム内ローカル位置 `std::vector` を Solver 所有の `NamedVector<LiquidContainerPoint2D>` 作業領域へ移した。粒子数が同じフレームでは `resize()` を呼ばず、粒子数の増加時だけ既存NamedVector容量に応じて拡張する。最終サブステップの位置差分から速度が再構成される契約テストを追加し、`ArtifactCorePhysicsDeterminismTest` 全29件（Liquid19件含む）pass。Artifact.exe と GPU capture/LOD contract target も再ビルド。D3D12 capture contract pass。
+- **残る確認候補（未計測）:** `forEachLiquidNeighborPair()` は呼び出しごとに `std::map<Cell, std::vector<size_t>>`、粒子cell/valid配列、候補配列を作り、距離constraintの各反復と粘性適用で再構築する。ここは今回変更しておらず、profile/allocation count未取得。なお粒子数の増加時にNamedVectorが容量拡張する経路も、通常再生で発生頻度を計測していない。
+- **次に確認:** HOT_PATH_RULESに沿って上限粒子数・代表粒子数で `LiquidSolver2D::update()` のCPU時間とallocation回数を計測し、spatial-neighbor workspaceの再利用を設計する。std::mapを単純に置き換えず、決定論的なpair visitation順、複数solver同時所有、粒子数増加時のbounded capacityを先に契約化する。
+- **液面クレマの追加（2026-10-20）:** 静止poolでは速度・衝突起点のfoamPointsがほぼなくなるため、矩形容器の上側・横向きcontour segmentからクレマ粒子を追加。最初の大粒子版は表面に広いハローを作り、foamが画面を汚すと判明した。泡を間引き、サイズを再調整して細かい粒列にし、GPU capture testに静止液面帯の差分assertを追加した。D3D12の個別capture testは直接実行でpassし、`build/fluid-capture-d3d12-crema-refined2/liquid-coffee-frame-12.png` で液面上縁に小さな点状の泡を確認。CTest全体は DLL 検索パス不足で起動しなかったが、原因はテストexeの隣にない `build/bin/Debug` 内Artifact DLLだった。対象CTestに同ディレクトリをPATH先頭へ加える `ENVIRONMENT_MODIFICATION` を設定し、再実行でDLL起動問題は解消した。12件中8件pass、残る4件は既存のPhysics LOD simulation / SoftBodyGrid LOD契約失敗で、液体描画capture自体はpass。通常viewport・Vulkan parityは未確認。
+- **クレマ粒の均一さ（2026-10-20）:** 前回のcaptureでは液面に等間隔の小点が並び、泡というより破線に見えた。区間座標から整数ハッシュを作り、採用密度・粒径・不透明度に決定論的なばらつきを入れた。D3D12 GPU capture testはpassし、captureで規則的な点列は崩れたが、一部が塊状に集まって見える。これは見た目調整であり、粒子状態やCore solverには影響しない。クレマの説得力はまだ不十分で、液面形状も概ね平坦。通常viewportでの表示スケール、Vulkan parity、粒配置の追加調整を続ける。
+- **接触反射とアプリリンク（2026-10-20）:** 液面中心に限った反射寄与を0.16から0.21へ上げ、GPU capture testの明暗差条件を3から6へ強めた。D3D12 capture testはpassし、上部の反射帯が少し広がることを画像で確認。`ArtifactCorePhysicsDeterminismTest --gtest_filter='Liquid*.*'` は21/21件pass。`Artifact` targetもリンク成功し、runtime deploymentでQt/vcpkg等のDLLが `build/bin/Debug` に配置された。`windeployqt` は vcpkg の `bin/Qt6Widgetsd.dll` とtranslations catalogs.jsonがないという警告を出したが、最終配置先 `build/bin/Debug/Qt6Widgetsd.dll` は存在する。実アプリプロセスも8秒後にResponding=Trueで稼働を確認したが、画面取得はUI automation helperの初期化エラーで未確認。
+- **液面反射筋（2026-10-20）:** 頂点色補間に消される細い筋は前後captureで23画素しか変わらなかったため、周期波のピーク幅を0.07→0.30、上部マスクを0.30→0.45、強度を0.12→0.20へ広げた。D3D12 capture testはpassし、frame12の比較では1569画素が変化 (最大チャンネル差40)。三角形頂点ごとのfloor/arithmetic演算のみで追加確保はないが、ホットパスCPU費用は未計測。最新 `ArtifactPhysicsLodBridgeContractTest` のtarget buildは成功した一方、`Artifact.exe` は前のturnに起動したインスタンスがファイルをロックしてLNK1168。MainWindowTitleは `Artifact 0.9.0 | dev | local` でResponding=True、CloseMainWindowは終了要求を受け付けなかった。したがって最新反射筋を含むexeのリンク／画面確認は未完了。ユーザーが画面を使用中の可能性があるため強制終了しない。
+- **水色液体の描画契約（2026-10-20）:** コーヒーGPU capture契約に水色のframe12 captureを追加し、water pixel hue、mean channel tolerance、液面高さが液色変更で変化しないことを検証する。初回のwater captureは前ケースの低いfill 0.35を残したため形状比較に不適切と判明。fillを0.62に戻してから撮影するよう修正後、D3D12 GPU capture testはpass。mean blueは入力色より暗くなる (shading込み、許容差45)、画面上では水色の液面と反射筋を確認した。アプリexeは引き続き起動中プロセスにより最新コードへの再リンクが止まっている。
+- **液面サンプル workspace 再利用（2026-10-20）:** `ArtifactAbstractLayerFractureRuntime.cppm` は各描画呼び出しで `NamedVector<LiquidSurfaceSample2D>` を構築・reserveしていた。これを `LayerFluidRuntimeState` の所有workspaceへ移し、フレームごとにclear、容量が不足した時だけreserveするよう変更。最大render particle countに応じたcold growth後はframeごとのサンプル配列確保を避ける。Artifact GPU capture contract targetは再ビルドされ、水色/コーヒー描画テストpass。具体的なallocation回数とGPU/CPU frame timeは未計測。Artifact.exeは稼働中のためこの更新を含む最終リンクは依然未確認。
+- **Core surface snapshotの出力再利用（2026-10-20）:** `LiquidSolver2D::buildSurfaceSnapshot()` は三つの出力NamedVectorを新規作成していた。既存value-return APIは維持し、呼び出し側が `LiquidSurfaceSnapshot2D&` を渡す `buildSurfaceSnapshotInto()` を追加。Appの `LayerFluidRuntimeState` が保持するsnapshotへ直接出力し、triangle/contour/foam配列をclearして容量を再利用する。Core testはvalue-return版との全geometry比較と2回目呼び出し時のcapacity不変を確認し、Liquid 22/22件pass。D3D12コーヒー/水capture GPU testもpass。Core内のvalidSamples、density map、surface-cell setはまだ関数内一時領域で再確保されるため、allocation profilingとそのworkspace化が残る。
+- **実行確認（2026-10-20）:** 起動中の検証用Artifact.exeがDLLをロックしていたため、こちらが起動した同プロセス (PID 35100) を終了し、ArtifactPhysicsLodBridgeContractTest と `Artifact` target を再ビルドした。最新 `build/bin/Debug/Artifact.exe` のリンク・runtime deploymentが成功し、新プロセスPID 36196は8秒後にResponding=True、window title `Artifact 0.9.0 | dev | local`。`windeployqt` はtranslations catalogとその探索先のQt DLL不足警告を出すが、アプリプロセスは起動・維持できた。通常viewport内のfluid scene表示はまだ確認していない。
+- **Debug Qt deployment path（2026-10-20）:** `RunWindeployqt.cmake` は Debug 実行でも標準 `qtpaths.exe` を使っていた。この exe は `QT_INSTALL_BINS` を `vcpkg_installed/x64-windows/bin` と返す一方、Debug Qt6 DLL は `debug/bin` にあるため、windeployqt が `Qt6Widgetsd.dll` を誤った場所で探して warning / failure code を出していた。Debug 用 `qtpaths.debug.bat`（`qt.debug.conf` を読む）を `--qtpaths` に渡すよう修正。スクリプトを Artifact.exe に対して直接実行すると warning なく終了し、アプリプロセスも維持された。実際の不足 DLL ダイアログの文言は取得できていないため、この原因との完全な同一性は未確認。
+
+## 2026-10-19: ArtifactPr module set could not have compiled
+
+- **関連:** `ArtifactPr/src/{AppTheme,AudioPreviewMixer,GpuProgramMonitor,MediaFrameDecoder,MediaThumbnailer,SequenceCompositor,SequenceExporter,VideoSurface}.cppm`、`ArtifactPr/src/{MarkerEditDialog,PrColorPickerDialog,PrShortcut,PrStatusNotifier,TimecodeOverlayWidget}.cppm`、`ArtifactPr/CMakeLists.txt`、`tests/ArtifactPr/`、ルート `CMakeLists.txt:269`。
+- **確認できた事実:** 8 個の `.cppm` が `export module ArtifactPr.X;` を宣言し、同名の `include/X.ixx` も同じモジュールを `export module` していた。二重の module interface unit になり、どのビルドでも成立しない。加えて同じ 8 個と他 5 個の `.cppm` が `import ArtifactPr.X;` で自分のモジュールを自己 import していた (AGENTS.md が dyndep 破壊要因として禁止している形)。`ArtifactCore/src` の実装ユニットは `module X;` + 自己 import なしが正準であることを grep で確認した。この状態は、`ARTIFACT_BUILD_PR` が既定 OFF であること、ルート `CMakeLists.txt:265` の「ArtifactPr disabled in build」、`insights/2026/ISO-W39.md:103` の「configure が通るか未確認」と整合する。つまり ArtifactPr のモジュール集合は一度も configure 検証されていない。
+- **変更:** 8 個を `module ArtifactPr.X;` へ変え、13 個の自己 import を削除した。`ArtifactPr` は実行ファイル 2 本から `ArtifactPrApp` (STATIC) + 薄い `ArtifactPr` / `ArtifactPrCLI` へ分割し、module interface を `PUBLIC FILE_SET CXX_MODULES` で公開した。`tests/ArtifactPr/` に gtest 一式 (`ArtifactPrContractTest` / `ArtifactPrEditorEngineTest` / `ArtifactPrTimelinePanelTest`) を新設し、`ARTIFACT_BUILD_PR_STANDALONE_TESTS` を `ARTIFACT_BUILD_PR_TESTS` に置き換えた。旧 standalone test の実行ファイルは削除し、内容は gtest へ移植した。
+- **価値／懸念:** テスト 1 本あたりの費用が「モジュール集合の再コンパイル」から「.cpp 1 枚 + CMake 2 行」になった。ただし今回の suite は **未ビルド・未実行** であり、静的確認だけである。特に、`ArtifactCore` は一部コンシューマに `/reference;NLE.Core=...ifc` を明示している (`ArtifactCore/CMakeLists.txt:2914`) ため、`FILE_SET CXX_MODULES` の IFC 伝播だけで ArtifactPr のテスト target が import を解決できるかは未確認。
+- **仮説・未検証:** `MediaThumbnailer.cppm` が `QCoreApplication::processEvents` を `<QCoreApplication>` の直接 include なしで使っている点は、推移 include に依存している可能性がある (今回の変更対象外、未確認)。
+- **次に確認:** `cmake --preset <preset> -DARTIFACT_BUILD_PR=ON -DARTIFACT_BUILD_PR_TESTS=ON` で configure し、`ArtifactPrApp` / `ArtifactPr` / `ArtifactPrCLI` と 3 テスト target のビルド、続いて `ctest -L artifactpr` を実行する。IFC 伝播が不足する場合は明示 `/reference` を足す。あわせて EditorEngine の編集操作 (`moveClip` / `splitClipAtPlayhead` / `rippleDeleteClipAt` と undo/redo) と `ArtifactPrCLI` の別プロセス契約を次のバッチとして追加する。
+
+\n

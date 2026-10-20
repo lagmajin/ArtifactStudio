@@ -13,7 +13,6 @@ module;
 
 module ArtifactPr.Shortcut;
 
-import ArtifactPr.Shortcut;
 import UI.ShortcutBindings;
 
 namespace ArtifactPr {

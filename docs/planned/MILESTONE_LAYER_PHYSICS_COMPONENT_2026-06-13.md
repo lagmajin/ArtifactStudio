@@ -1,8 +1,8 @@
 # 実装案: M-LYR-PHYS Layer Physics Component
 
-**最終更新:** 2026-09-05
+**最終更新:** 2026-10-20
 
-**ステータス:** 部分完了（Collision 設定の Inspector/JSON、RigidBody/SoftBody bounds 同期、Circle collider 再構築、Polygon collider の Core〜UI 導線、component.joint レイヤー間ジョイント（Distance/Pin）を実装。ジョイントのアンカー編集・revolute角制限、Fracture/Fluid の共通 component 化、複数レイヤー接触の runtime parity、ビルド／ランタイム検証は未完了）
+**ステータス:** 部分完了（Collision 設定の Inspector/JSON、RigidBody/SoftBody bounds 同期、Circle collider 再構築、Polygon collider の Core〜UI 導線、component.joint レイヤー間ジョイント（Distance/Pin）、Fluid/Liquid の Components 専用編集項目を実装。Fluid/Liquid の Core・D3D12描画契約テストとD3D12/Vulkan headless parityを確認。通常アプリ画面でのruntime確認、ジョイントのアンカー編集・revolute角制限、Fracture/Fluid の共通 component 評価統合、複数レイヤー接触のruntime parityは未完了）
 
 ### 現行コード監査 (2026-08-15)
 
@@ -344,3 +344,37 @@ Impulse Force: [1000]
 - 個別の倍率・抵抗を編集すると profile は自動で `Custom` に戻る。profile選択時は関連プロパティのキャッシュも更新し、Inspector 再構築を待たずに数値を同期する。
 - 生の `physics.gravityY` は `World Gravity Y (Advanced)` として表示し、既存の Box2D world がある場合は共有 world の重力へ即時適用する。通常のレイヤー調整は `Fall Profile` / `Gravity Scale` を使う。
 - 未検証: ビルド・ランタイム（ユーザー指示待ち）。
+
+## 2026-10-19 進捗（2D Fluid / Liquid の編集導線）
+
+- Components 専用面に `Fluid` と `Liquid` の property group を追加。Stable Fluids の格子設定と、粒子液体の充填率・流入・重力・表面張力・描画色／泡色などを既存 setter の値域に合わせて編集できる。
+- Component property cache の routed metadata に Fluid / Liquid の全項目を追加し、`setLayerPropertyValue()` の component 経路で成功した編集を cache へ反映する。Inspector の値表示と Undo 比較に使う cached property が古いまま残る問題を防ぐ。
+- `PhysicsLodBridgeContractTest` に Components 面の公開項目、色型、編集後の cache 更新を確認する契約テストを追加。Core 側には `FluidSolver2D` snapshot 復元後の決定性と、解像度不一致 snapshot の拒否テストを追加。
+- `ArtifactPhysicsLodBridgeContractTest.LiquidLayerRendersAndWritesCoffeeColoredPngCapture` を Diligent D3D12 headless renderer で実行。フレーム0と12の GPU readback を比較し、コーヒー色画素と時間経過による画素変化を確認、両 PNG を `%TEMP%/ArtifactStudioFluidCapture/` に出力する。
+- キャプチャで泡が大きく目立ち表面が平板に見えたため、Fluid コンポーネントの泡量既定値を下げ、描画粒子を縮小・減光。Core 側の既存表面密度を使った陰影に方向光と局所ハイライトを加え、GPUキャプチャテストに明暗幅条件を追加した（最終確認中）。
+- キャプチャ単体テストは成功。テスト実行ファイル全体は既存 Physics LOD テスト5件で失敗しており、LOD設定の期待値と現行値のずれを別途確認する必要がある。実アプリ UI での操作確認は未実施。
+- 追加確認: 面の三角形ごとの頂点色を補間する `drawGradientTriangleLocal()` を既存 Diligent 描画経路へ追加し、格子三角形の境界を目立たせない陰影に変更。メッシュがある場合は容器内のぼかし粒子を隠し、輪郭と泡だけを残す。フレーム0/12の GPU capture と単体テストが成功し、時間変化と陰影を確認。
+- 色確認で `RenderConfig::MainRTVFormat` が sRGB target (`TEX_FORMAT_RGBA8_UNORM_SRGB`) と確認。Liquid/foam property は QColor の sRGB 値として保存されるため、描画直前に linear 化しないと coffee brown が薄い tan に見える。液体、輪郭、泡の描画入力を linear 化し、テストで描画色平均が property color に近いことを確認する assertion を追加。輪郭描画も capture で有効化。
+- キャプチャ fixture は 320×320 の中央に 220×220 レイヤーを置き、フレーム0/12の両方で Transform3D を設定。少量の開口流入 (24 particles/s, speed 1.2) を加え、既定の輪郭 opacity 0.42 で色・動き・描画範囲を確認する。画素差分は 1000 pixels 超、水平の余白を保つことも assertion にする。
+- 視覚確認: 初回は流入・foamAmount 設定を別の property contract test に誤って置いており、capture fixture に設定が届いていなかった。設定を GPU capture fixture へ移し、foamAmount 1.0 では大きな泡リングで画面が汚れること、既定相当の0.35では中央の注ぎ流れと液面接触部の泡が出ることを確認。frame12 の泡量あり／0 の GPU readback を比較し、ハイライトを固定した状態で1788画素が変化（泡差分範囲 x=136..183, y=110..156）。PNG を `liquid-coffee-frame-12.png` / `liquid-coffee-frame-12-no-foam.png` に出力し、テストでは差分50画素超を要求する。
+- Core に `foamOffsetY` を追加。密度場と液面三角形は元粒子位置から作り、泡の評価も元位置の露出を使いつつ、泡描画点だけを液面へ移動できる。レイヤーの矩形容器では充填面より上の stream particle のみを液面へ投影し、泡の detached halo を抑える。Core test は投影前後で foam point が12単位移動し、triangle geometry が不変であることを確認（Liquid系18件 pass）。
+- 同一フレームの泡あり／なし比較で、大きな明るいhaloは陰影ではなく泡particleの画面占有が主因と確認。泡描画を `size * 0.42` / `alpha * 0.48` へ縮小・減光し、差分が泡の局所だけに出ることをGPU capture testで再確認。
+- コーヒー色の面シェーディングは白いspecularを使わず、頂点ごとの上下方向linear color勾配（上部1.0、下部0.48相当）へ変更。320×320 capture の中心画素は上部 (89,53,29) から下部 (75,46,25) へ変化し、GPU capture testはpass。ただし画面全体では勾配がまだ弱く、液面は平板に見える。
+- `PhysicsSystem` から登録済み `FluidSolver2D` へ反映する明示LOD iteration budgetを1..12にclamp。`ReducedAndMinimalLODApplyFluidIterationBudgetsToRegisteredSolver` はpass。関連契約テスト全体は12件中8件passで、残る4件（Material 3件、SoftBody 1件）は今回の流体変更範囲外の失敗。
+- 液面輪郭の上向きに近い区間（横方向に長く、surface bounds の上側58%以内）へ、液体色と foam 色を混ぜた細いCrema反射を追加。D3D12 capture で中央の流れから液面へつながる暖色の縁取りを確認し、GPU capture test は成功。輪郭全体の色・幅と既存のコンテナ線は維持。
+- 最新の泡サイズ・不透明度と上下色勾配を含む `LiquidLayerRendersAndWritesCoffeeColoredPngCapture` を D3D12 / Vulkan で再実行。Vulkan log で NVIDIA GeForce RTX 4070 Ti を選択し、両 backend の frame12 PNG SHA-256 が `5D352ED5E9BD4F53E4273EF65BD6174C7D0E967C4D12F173012AE7BCDC639FC6` で一致。Diligent描画経路の最終調整後 parity を確認。
+- 泡の粒子サンプルから速度をCoreのsurface snapshotへ保持し、アプリ側では `VelocityAligned` billboard と軽い横ストレッチで描画。落下流の接触点に泡が横へ広がることをGPU captureで計測し、差分領域の幅が高さを上回る契約を追加。Core物理テストは30/30成功。D3D12/Vulkan capture testも両方成功し、frame12 PNG SHA-256 は `4D5E80264E4DE6B57EBA2B8649248F24D5C8C07DAA57F29E3C5464B891621A10` で一致。
+- 画面キャプチャでは接触点の泡が横長のクレマ状になり、以前の広いハローは抑制されている。一方、液体プールは依然として平坦で角張っており、水面の屈折・厚み・反射シェーディングは未実装。通常アプリのviewport表示は未確認。
+- 液体の頂点ごとに密度値をCore surface snapshotへ残し、GPU色補間に使って厚みの控えめな暗化を追加。輪郭線の幅・不透明度も下げた。密度勾配を使う方向性ハイライトも試したが、密度場の三角形分割が斑点として見えるため採用せず、現在は滑らかな上下色勾配へ戻している。Core physics 31/31、Fluid/Liquid app contract 3/3成功。D3D12/Vulkan frame12 PNG SHA-256 は `D0D34E9A8F73FDFFBCA2512FEEE7BBF47351C430C2A5BE796AE1900FAD8483BA` で一致。なお画像はまだ平坦で、通常viewportでの見え方は未確認。
+- 密度勾配法線は粒子由来の三角形斑点を出したため撤回を維持し、座標ベースの低振幅な contact reflection band を追加。frame12 no-foam capture の接触中心画素が同じ高さの横方向プール画素より明るいことを契約テスト化。D3D12/Vulkanで capture test pass、PNG SHA-256 `4200A72CF5B4430B540992D9DCCA77FD7D3E9A7D731B87B35FB5E2BD784CE050` で一致。画像上では流れの下に柔らかな crema 状ハイライトが出るが、実アプリviewportは未確認。
+- 固定bbox高さに置いていたcontact bandを、surface contourの横向き上縁セグメントの幅重み付き中心へ追従させた。追加処理は既存surface snapshotの最大20,000 contour segmentsを一度走査するだけで、確保はない。GPU契約3/3 pass、D3D12/Vulkanのframe12 PNG SHA-256 `D7C3453DC39C002EAB6137EC019BC48063332D171E3C5DFB5DC5C4D661529D5F` 一致。固定位置版に比べ、fill形状が変わった際もハイライト位置がsurface contourから決まる設計になったが、別fill値での位置追従試験と通常viewport確認は今後。
+- 最新 capture はコーヒー色に近づき、泡haloは縮小したが、液面は角張って平坦。D3D12/Vulkan headless parityは確認済み。通常アプリ UI の見え方、実アプリでの操作・保存再読込は引き続き未検証。
+- Core の Liquid テスト17件を実行。初回は `LargeInputLodSamplingMatchesExplicitlySampledInput` が、LOD の `sqrt(stride)` による粒子半径補正を explicit 側へ適用していない期待値の不整合で失敗。参照入力を同じ有効面積へ補正し、比較対象を表面三角形と輪郭に絞って修正後17/17 pass。foam behavior は独立した LiquidSurface テストで確認。
+- 2026-10-20 に Artifact.exe を Debug 構成で再ビルドし、液体描画コードを含む executable のリンク完了を確認。Computer Use の Node kernel は reset 後も「kernel assets のパスが見つからない」ため、通常アプリ画面の起動・目視検証は未実施。
+- `LiquidSolver2D::update()` の毎回生成される前サブステップ位置 `std::vector` を solver 所有の `NamedVector<LiquidContainerPoint2D>` 作業領域に置換し、最終サブステップ変位から速度を再構成するテストを追加。`ArtifactCorePhysicsDeterminismTest` 全29件（Liquid 19件を含む）が29/29 pass。Artifact.exe と `ArtifactPhysicsLodBridgeContractTest` を再ビルドし、Components設定・GPU描画・Fluid LOD上限の3契約も3/3 pass。
+- 今回は位置バッファ1個を再利用化したが、neighbor pair探索の `std::map` / `std::vector` は各距離反復内で再構築されるまま。allocation数・CPU時間の実測は未実施で、fluid solver全体をallocation-freeとは扱わない。
+- `LiquidLayerRendersAndWritesCoffeeColoredPngCapture` に泡なしの充填率差分キャプチャを追加。0.62から0.35へ変更したフレーム12のpool edge位置が20px超下がることをD3D12/Vulkan GPU readbackで確認し、両テスト成功。通常充填capture hash `D7C3453DC39C002EAB6137EC019BC48063332D171E3C5DFB5DC5C4D661529D5F` と低充填capture hash `A34E4F950D99F103138F372BD8373B1B0BB6E004A9858FEDF2B5BD2B3598E21D` がbackend間で一致。輪郭追従contact bandの入力輪郭が充填率変更に追従することを確認したが、contact band自身の中心画素位置は未計測。
+- Vulkan画像のx=width/3列を調べ、fill .62で液体色が始まるy=154、fill .35でy=203を確認（約49px低下）。液面位置は視覚・数値の両方で分離できる一方、泡なし低充填画像のcontact reflection自体は弱く、中心位置とコントラストの直接計測が次の課題。
+- 反射中心の候補選択を、矩形容器では `1-liquidFillAmount` から得る変換済み公称面の近傍へ変更。液体全体のboundsに注ぎ流れが含まれても、低いpool surfaceが候補帯から外れにくくした。GPUテストに低充填泡なし時の液面直下中央 vs 側方の輝度差8以上を追加しD3D12/Vulkanでpass。通常 / no-foam / lower-fill画像のbackend間ハッシュはそれぞれ `42153CA0E765CBB7F6829FDDA5115AC768B54B90DEFC11C146C2C3DBF8CBC3DE`, `C47EF2FD257542B0F22548C6A6373FB8146FE933B5AF6897A21433B7F921A9D5`, `711559CA4523724FCC994C009E83A86D06FA14CA7B5AC5580DE578C41383F798` で一致。回転・polygon容器と通常viewportは未確認。
+- 反射中心と頂点シェーディングの横／縦座標を、描画matrixから得るlayer X/Y軸への投影値へ統一。25度回転した低充填画像でコーヒー色画素数・明暗幅を確認するcapture assertionを追加。D3D12/Vulkanの回転画像hash `9AA5018F58128BD2F318439241640947763FEA5A81950661C972021E9CCF7CA1` が一致し、描画契約テストは両backendでpass。回転時の液面傾斜角・通常UI viewportは未検証。
+- Coreの `LiquidSolver2D::buildSurfaceSnapshot()` 内で三角形clipごとに構築していた3つの一時`std::vector`を、上限4出力頂点・2交点のstack `std::array`へ置換。Core PhysicsDeterminism 31/31 pass。Artifact描画契約もD3D12/Vulkanでpassし、通常 / no-foam / lower-fill / rotatedの4 PNGはbackend間で一致、かつ変更前の保存済み画像と同一で幾何・描画結果を維持。density map・surface cell set等の他のsnapshot確保と性能profileは未検証。

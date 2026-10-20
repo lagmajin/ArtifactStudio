@@ -267,9 +267,11 @@ set(ARTIFACT_DEPLOY_DIR "" CACHE PATH "Optional output directory for copying Art
 option(ARTIFACT_USE_SCCACHE "Use sccache compiler launcher when available" ON)
 option(ARTIFACT_ENABLE_SYCL "Enable Intel oneAPI DPC++/SYCL build flags" OFF)
 option(ARTIFACT_BUILD_PR "Build the ArtifactPr NLE application" OFF)
-option(ARTIFACT_BUILD_PR_STANDALONE_TESTS
-    "Build standalone ArtifactPr workspace contract tests" OFF)
-if(ARTIFACT_BUILD_PR_STANDALONE_TESTS)
+option(ARTIFACT_BUILD_PR_TESTS
+    "Build the ArtifactPr contract tests (requires ARTIFACT_BUILD_PR)" OFF)
+option(ARTIFACT_BUILD_FX_STUDIO_TEST
+    "Build the FxStudio FX animation MCP test host (ArtifactFxStudioMcpTest)" OFF)
+if(ARTIFACT_BUILD_PR_TESTS)
     enable_testing()
 endif()
 
@@ -859,6 +861,12 @@ option(ARTIFACT_ENABLE_KEYING_VIDEO_TEST
 option(ARTIFACT_BUILD_FBX_ANIMATION_VIEWER
     "Build the independent FBX animation preview executable"
     OFF)
+option(ARTIFACT_BUILD_LAYER_PERSISTENCE_ROUNDTRIP_TEST
+    "Build the independent layer project save/reload round-trip test"
+    OFF)
+option(ARTIFACT_BUILD_MPM_SAND_PERSISTENCE_REPLAY_TEST
+    "Build the independent MPM sand persistence and deterministic replay test"
+    OFF)
 option(ARTIFACT_BUILD_AUDIO_BUS_VIEWER
     "Build the independent audio bus routing and mixer test executable"
     OFF)
@@ -877,6 +885,9 @@ option(ARTIFACT_BUILD_COMPOSITION_VIEWPORT_CHANNEL_TEST
 
 option(ARTIFACT_BUILD_COMPOSITION_MOTION_PATH_TEST
     "Build the independent Composition motion path and Transform integration test executable"
+    OFF)
+option(ARTIFACT_BUILD_COMPOSITION_VIEWPORT_GRID_TEST
+    "Build the independent Composition Viewport grid and overlay capture test executable"
     OFF)
 
 option(ARTIFACT_ENABLE_FBX_IMPORT_TEST
@@ -1085,6 +1096,47 @@ if(ARTIFACT_BUILD_COMPOSITION_MOTION_PATH_TEST)
     )
     if(ARTIFACT_FRONTEND_MSVC)
         target_compile_options(ArtifactCompositionMotionPathTest PRIVATE
+            /Zf /Zc:__cplusplus /utf-8 /EHsc
+        )
+    endif()
+endif()
+
+# FxStudio FX animation test targets (ArtifactFxStudioRenderContractTest and,
+# with ARTIFACT_BUILD_FX_STUDIO_TEST=ON, ArtifactFxStudioMcpTest) are defined in
+# tests/Artifact/CMakeLists.txt. They compile the FxStudio module units directly
+# so their dependency boundary is ArtifactCore + Qt rather than
+# ArtifactAppRuntime.
+
+if(ARTIFACT_BUILD_COMPOSITION_VIEWPORT_GRID_TEST)
+    if(NOT WIN32)
+        message(FATAL_ERROR
+            "ArtifactCompositionViewportGridTest currently requires Windows window capture")
+    endif()
+    add_executable(ArtifactCompositionViewportGridTest
+        "${CMAKE_CURRENT_SOURCE_DIR}/tools/CompositionViewportGridTest/main.cpp"
+    )
+    target_link_libraries(ArtifactCompositionViewportGridTest PRIVATE ArtifactRender)
+    target_include_directories(ArtifactCompositionViewportGridTest PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/verdigris/src"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests"
+    )
+    artifact_add_cppwinrt_include(ArtifactCompositionViewportGridTest)
+    set_target_properties(ArtifactCompositionViewportGridTest PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    add_custom_command(TARGET ArtifactCompositionViewportGridTest POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:ArtifactCompositionViewportGridTest>
+            "$<TARGET_FILE_DIR:ArtifactCompositionViewportGridTest>/"
+        COMMAND_EXPAND_LISTS
+        VERBATIM
+    )
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactCompositionViewportGridTest PRIVATE
             /Zf /Zc:__cplusplus /utf-8 /EHsc
         )
     endif()
@@ -1302,6 +1354,78 @@ if(ARTIFACT_BUILD_FBX_ANIMATION_VIEWER)
     endif()
 endif()
 
+if(ARTIFACT_BUILD_LAYER_PERSISTENCE_ROUNDTRIP_TEST)
+    add_executable(ArtifactLayerPersistenceRoundTripTest
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/Artifact/ArtifactLayerPersistenceRoundTripMain.cpp"
+    )
+    target_link_libraries(ArtifactLayerPersistenceRoundTripTest PRIVATE ArtifactAppRuntime)
+    target_include_directories(ArtifactLayerPersistenceRoundTripTest PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/verdigris/src"
+    )
+    artifact_add_cppwinrt_include(ArtifactLayerPersistenceRoundTripTest)
+    set_target_properties(ArtifactLayerPersistenceRoundTripTest PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    if(WIN32)
+        add_custom_command(TARGET ArtifactLayerPersistenceRoundTripTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ArtifactLayerPersistenceRoundTripTest>
+                "$<TARGET_FILE_DIR:ArtifactLayerPersistenceRoundTripTest>/"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+    endif()
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactLayerPersistenceRoundTripTest PRIVATE
+            /Zf /Zc:__cplusplus /utf-8 /EHsc
+        )
+    endif()
+endif()
+
+if(ARTIFACT_BUILD_MPM_SAND_PERSISTENCE_REPLAY_TEST)
+    enable_testing()
+    add_executable(ArtifactMpmSandPersistenceReplayTest
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/Artifact/MpmSandPersistenceReplayMain.cpp"
+    )
+    target_link_libraries(ArtifactMpmSandPersistenceReplayTest PRIVATE ArtifactAppRuntime)
+    target_include_directories(ArtifactMpmSandPersistenceReplayTest PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/verdigris/src"
+    )
+    artifact_add_cppwinrt_include(ArtifactMpmSandPersistenceReplayTest)
+    set_target_properties(ArtifactMpmSandPersistenceReplayTest PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    if(WIN32)
+        add_custom_command(TARGET ArtifactMpmSandPersistenceReplayTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ArtifactMpmSandPersistenceReplayTest>
+                "$<TARGET_FILE_DIR:ArtifactMpmSandPersistenceReplayTest>/"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+    endif()
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactMpmSandPersistenceReplayTest PRIVATE
+            /Zf /Zc:__cplusplus /utf-8 /EHsc
+        )
+    endif()
+    add_test(NAME ArtifactMpmSandPersistenceReplayTest
+        COMMAND $<TARGET_FILE:ArtifactMpmSandPersistenceReplayTest>
+    )
+    set_tests_properties(ArtifactMpmSandPersistenceReplayTest PROPERTIES
+        LABELS "mpm;constitutive;determinism;persistence"
+        TIMEOUT 120
+    )
+endif()
+
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_TEXT_LAYER_ANIMATOR_TEST
    OR ARTIFACT_ENABLE_LAYER_TEST OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST
    OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS OR ARTIFACT_ENABLE_TRACKING_VIDEO_TEST
@@ -1377,14 +1501,16 @@ if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS
    OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST OR ARTIFACT_ENABLE_RAY_TRACING_TEST
    OR ARTIFACT_ENABLE_FBX_IMPORT_TEST OR ARTIFACT_ENABLE_LAYER_TEST
    OR ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST
-   OR ARTIFACT_ENABLE_IMAGE_IO_TEST)
+   OR ARTIFACT_ENABLE_IMAGE_IO_TEST OR ARTIFACT_BUILD_PR_TESTS
+   OR ARTIFACT_BUILD_FX_STUDIO_TEST)
     find_package(GTest CONFIG QUIET)
     if(GTest_FOUND)
         add_subdirectory(tests)
     elseif(ARTIFACT_ENABLE_FBX_IMPORT_TEST OR ARTIFACT_ENABLE_IMAGE_IO_TEST
-           OR ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST)
+           OR ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST
+           OR ARTIFACT_BUILD_PR_TESTS OR ARTIFACT_BUILD_FX_STUDIO_TEST)
         message(FATAL_ERROR
-            "An explicitly enabled standalone image/FBX/script-layer test requires GTest, but GTest was not found.")
+            "An explicitly enabled standalone image/FBX/script-layer/ArtifactPr/FxStudio test requires GTest, but GTest was not found.")
     else()
         message(WARNING "GTest was not found; skipping GTest-based tests.")
     endif()

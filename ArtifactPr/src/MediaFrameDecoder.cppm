@@ -15,9 +15,8 @@ module;
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 
-export module ArtifactPr.MediaFrameDecoder;
+module ArtifactPr.MediaFrameDecoder;
 
-import ArtifactPr.MediaFrameDecoder;
 import Image.ImageF32x4_RGBA;
 import Codec.FFmpegVideoDecoder;
 import Video.VideoFrame;

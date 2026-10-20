@@ -173,7 +173,8 @@ endif()
 
 if(ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_IMAGE_EFFECT_TESTS
    OR ARTIFACT_ENABLE_OFFLINE_RENDER_TEST OR ARTIFACT_ENABLE_LAYER_TEST
-   OR ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST)
+   OR ARTIFACT_ENABLE_SCRIPT_LAYER_INTEGRATION_TEST
+   OR ARTIFACT_BUILD_FX_STUDIO_TEST)
     add_subdirectory(Artifact)
 endif()
 
@@ -202,6 +203,17 @@ if(ARTIFACT_BUILD_TESTS)
     set_tests_properties(ArtifactMaskVisualTest PROPERTIES
         LABELS "mask;image;cpu;visual;contract"
     )
+endif()
+
+# ArtifactPr tests link the ArtifactPrApp static library, so they can only be
+# registered once the ArtifactPr application target is configured.
+if(ARTIFACT_BUILD_PR_TESTS AND NOT TARGET ArtifactPrApp)
+    message(FATAL_ERROR
+        "ARTIFACT_BUILD_PR_TESTS requires ARTIFACT_BUILD_PR=ON so that the "
+        "ArtifactPrApp target exists.")
+endif()
+if(TARGET ArtifactPrApp)
+    add_subdirectory(ArtifactPr)
 endif()
 
 # ArtifactWidgets tests (later)

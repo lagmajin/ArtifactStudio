@@ -6,8 +6,6 @@ module;
 
 module ArtifactPr.StatusNotifier;
 
-import ArtifactPr.StatusNotifier;
-
 namespace ArtifactPr {
 
 PrStatusNotifier::PrStatusNotifier(QObject* parent)

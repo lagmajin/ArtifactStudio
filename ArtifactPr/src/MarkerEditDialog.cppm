@@ -15,7 +15,6 @@ module;
 
 module ArtifactPr.MarkerEditDialog;
 
-import ArtifactPr.MarkerEditDialog;
 import ArtifactPr.EditorEngine;
 import ArtifactPr.AppTheme;
 

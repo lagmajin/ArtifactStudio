@@ -12,8 +12,6 @@ module;
 
 module ArtifactPr.ColorPickerDialog;
 
-import ArtifactPr.ColorPickerDialog;
-
 namespace ArtifactPr {
 
 namespace {

@@ -10,9 +10,8 @@ module;
 #include <cmath>
 #include <cstdint>
 
-export module ArtifactPr.SequenceCompositor;
+module ArtifactPr.SequenceCompositor;
 
-import ArtifactPr.SequenceCompositor;
 import Image.ImageF32x4_RGBA;
 import FloatRGBA;
 

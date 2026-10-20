@@ -11,8 +11,6 @@ module;
 
 module ArtifactPr.TimecodeOverlayWidget;
 
-import ArtifactPr.TimecodeOverlayWidget;
-
 TimecodeOverlayWidget::TimecodeOverlayWidget(QWidget* parent)
     : QWidget(parent)
 {

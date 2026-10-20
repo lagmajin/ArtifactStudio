@@ -1,6 +1,6 @@
 # ArtifactPr premium workbench and structure review
 
-**最終更新:** 2026-10-19
+**最終更新:** 2026-10-20
 
 **状態:** 検討用モック。未採用・未実装。
 
@@ -31,6 +31,6 @@ ArtifactPr の制作中ワークスペースを、既存の NLE 編集責務を�
 
 `TimelineClipWidget`、`TimelineRulerWidget`、`TransitionWidget`、`TimelinePanel` を `ArtifactPr.TimelinePanel` へ移し、MainWindow 側は dock 登録と他パネルとの接続を行う構成にした。NLE の sequence / track / clip モデルは ArtifactPr に残している。
 
-`tests/ArtifactPr/TimelinePanelStandaloneTest.cpp` は MainWindow を生成せず、独立 executable から Timeline module を起動し、ruler、track、clip、zoom control が widget tree に存在する契約を確認する。`ARTIFACT_BUILD_PR_STANDALONE_TESTS` は任意の CMake option。ビルド・テスト・実画面の検証は未実施。
+`tests/ArtifactPr/ArtifactPrTimelinePanelTest.cpp` (gtest) は MainWindow を生成せず、独立して Timeline module を起動し、ruler、track、clip、zoom control が widget tree に存在する契約と、`sequenceChanged` による再構築の契約を確認する。suite は `ArtifactPrApp` 静的ライブラリへリンクし、`ARTIFACT_BUILD_PR_TESTS` (要 `ARTIFACT_BUILD_PR`) で有効化する。旧 `tests/ArtifactPr/TimelinePanelStandaloneTest.cpp` と `ARTIFACT_BUILD_PR_STANDALONE_TESTS` は削除・置換した。ビルド・テスト・実画面の検証は未実施。
 
 この変更は UI の最初の切り出しであり、EditorEngine の責務分割や残る Monitor / Inspector panel のモジュール化は未完了。

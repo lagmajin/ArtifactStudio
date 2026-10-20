@@ -153,6 +153,107 @@ set_tests_properties(ArtifactFxStudioPreviewQualityLodContractTest PROPERTIES
     LABELS "fx-studio;preview;lod;serialization;cpu;contract"
 )
 
+# ---------------------------------------------------------------------------
+# FxStudio FX animation tests.
+#
+# Artifact::FxStudio only depends on ArtifactCore (Core.ArtifactString,
+# Container.NamedVector, Utils.Optional, Serialization.ISerializable) plus Qt,
+# so these targets compile the six FxStudio module units directly instead of
+# linking ArtifactAppRuntime. That keeps the dependency boundary at
+# ArtifactCore + Qt and lets the FX animation render path be tested and driven
+# without building the whole Artifact application.
+# ---------------------------------------------------------------------------
+set(ARTIFACT_FX_STUDIO_MODULE_SOURCES
+    "${PROJECT_SOURCE_DIR}/Artifact/include/FxStudio/ArtifactFxEventTrack.ixx"
+    "${PROJECT_SOURCE_DIR}/Artifact/include/FxStudio/ArtifactFxPresetCatalog.ixx"
+    "${PROJECT_SOURCE_DIR}/Artifact/include/FxStudio/ArtifactFxSequence.ixx"
+    "${PROJECT_SOURCE_DIR}/Artifact/include/FxStudio/ArtifactFxSerialization.ixx"
+    "${PROJECT_SOURCE_DIR}/Artifact/include/FxStudio/ArtifactFxStudioSession.ixx"
+    "${PROJECT_SOURCE_DIR}/Artifact/include/FxStudio/ArtifactFxViewportModel.ixx"
+)
+set(ARTIFACT_FX_STUDIO_IMPL_SOURCES
+    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxEventTrack.cppm"
+    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxPresetCatalog.cppm"
+    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxSequence.cppm"
+    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxSerialization.cppm"
+    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxStudioSession.cppm"
+    "${PROJECT_SOURCE_DIR}/Artifact/src/FxStudio/ArtifactFxViewportModel.cppm"
+)
+
+function(artifact_fx_studio_sources target)
+    # The FxStudio module units live in the Artifact subtree, so the file set
+    # needs an explicit base directory.
+    target_sources(${target}
+        PRIVATE ${ARTIFACT_FX_STUDIO_IMPL_SOURCES}
+        PUBLIC FILE_SET CXX_MODULES
+            BASE_DIRS "${PROJECT_SOURCE_DIR}/Artifact/include"
+            FILES ${ARTIFACT_FX_STUDIO_MODULE_SOURCES}
+    )
+    target_link_libraries(${target} PRIVATE ArtifactCore Qt6::Core Qt6::Gui Qt6::Widgets)
+    target_include_directories(${target} PRIVATE
+        "${PROJECT_SOURCE_DIR}/Artifact/include"
+        "${PROJECT_SOURCE_DIR}/tests"
+    )
+    set_target_properties(${target} PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+    )
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(${target} PRIVATE /Zf /Zc:__cplusplus /utf-8 /MP /WX-)
+    endif()
+endfunction()
+
+# FX animation render contract: turns FxStudio cue samples into images, checks
+# each cue kind as a pixel contract, and writes the preset frame sequences plus
+# contact sheets to ARTIFACT_FX_STUDIO_CAPTURE_DIR for visual debugging.
+add_executable(ArtifactFxStudioRenderContractTest
+    "${CMAKE_CURRENT_SOURCE_DIR}/FxStudioRenderContractTest.cpp"
+)
+artifact_fx_studio_sources(ArtifactFxStudioRenderContractTest)
+target_link_libraries(ArtifactFxStudioRenderContractTest PRIVATE
+    GTest::gtest GTest::gtest_main
+)
+add_test(NAME ArtifactFxStudioRenderContractTest
+    COMMAND ArtifactFxStudioRenderContractTest
+)
+set_tests_properties(ArtifactFxStudioRenderContractTest PROPERTIES
+    LABELS "fx-studio;effect;animation;image;cpu;standalone;contract"
+    TIMEOUT 180
+    RUN_SERIAL TRUE
+    ENVIRONMENT "ARTIFACT_FX_STUDIO_CAPTURE_DIR=${CMAKE_BINARY_DIR}/artifacts/fx-studio"
+)
+
+# MCP host: the same render path exposed as stdio MCP tools, so an FX animation
+# can be built, sampled, rendered, diffed and captured from a client.
+if(ARTIFACT_BUILD_FX_STUDIO_TEST)
+    add_executable(ArtifactFxStudioMcpTest
+        "${CMAKE_CURRENT_SOURCE_DIR}/FxStudioMcpMain.cpp"
+    )
+    artifact_fx_studio_sources(ArtifactFxStudioMcpTest)
+    set_target_properties(ArtifactFxStudioMcpTest PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    if(WIN32)
+        add_custom_command(TARGET ArtifactFxStudioMcpTest POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ArtifactFxStudioMcpTest>
+                "$<TARGET_FILE_DIR:ArtifactFxStudioMcpTest>/"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+    endif()
+    add_test(NAME ArtifactFxStudioMcpSelfCheck
+        COMMAND ArtifactFxStudioMcpTest --self-check
+    )
+    set_tests_properties(ArtifactFxStudioMcpSelfCheck PROPERTIES
+        LABELS "fx-studio;effect;animation;image;mcp;cpu;standalone;contract"
+        TIMEOUT 300
+        RUN_SERIAL TRUE
+        ENVIRONMENT "ARTIFACT_FX_STUDIO_CAPTURE_DIR=${CMAKE_BINARY_DIR}/artifacts/fx-studio/mcp"
+    )
+endif()
+
 artifact_add_test(ArtifactProcedural3DLayerLodContractTest
     SOURCES
         Procedural3DLayerLodContractTest.cpp

@@ -18,9 +18,7 @@ module;
 #include <algorithm>
 #include <utility>
 
-export module ArtifactPr.MediaThumbnailer;
-
-import ArtifactPr.MediaThumbnailer;
+module ArtifactPr.MediaThumbnailer;
 
 namespace ArtifactPr {
 

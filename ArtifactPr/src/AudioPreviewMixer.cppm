@@ -16,9 +16,8 @@ module;
 #include <limits>
 #include <memory>
 
-export module ArtifactPr.AudioPreviewMixer;
+module ArtifactPr.AudioPreviewMixer;
 
-import ArtifactPr.AudioPreviewMixer;
 import ArtifactPr.ClipEffects;
 import Audio.Segment;
 import Audio.Mixer;

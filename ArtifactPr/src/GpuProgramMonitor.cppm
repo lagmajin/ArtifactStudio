@@ -18,9 +18,7 @@ module;
 #include <QString>
 #include <QWidget>
 
-export module ArtifactPr.GpuProgramMonitor;
-
-import ArtifactPr.GpuProgramMonitor;
+module ArtifactPr.GpuProgramMonitor;
 
 import Artifact.Render.Config;
 import Artifact.Render.DiligentDeviceManager;

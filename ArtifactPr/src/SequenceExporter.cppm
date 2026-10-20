@@ -20,9 +20,8 @@ module;
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 
-export module ArtifactPr.SequenceExporter;
+module ArtifactPr.SequenceExporter;
 
-import ArtifactPr.SequenceExporter;
 import ArtifactPr.SequenceCompositor;
 import ArtifactPr.ClipEffects;
 import ArtifactPr.SequenceAudioRenderer;

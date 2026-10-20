@@ -24,4 +24,35 @@ in one application's editor modules.
 
 The NLE sequence / track / clip model remains owned by ArtifactPr. The Timeline widget implementation is separated into `ArtifactPr.TimelinePanel`; `ArtifactPr.MainWindow` owns dock assembly and connects the panel to the program-monitor waveform provider. The module boundary is an initial extraction, not a claim that the whole application shell and every panel have already been split into small modules.
 
-A standalone widget contract executable can be enabled with `ARTIFACT_BUILD_PR_STANDALONE_TESTS=ON` together with `ARTIFACT_BUILD_PR=ON`. It constructs the Timeline panel independently of `ArtifactPrMainWindow` and checks that a deterministic sequence, track, and clip are represented in the widget tree. Build and runtime verification are still pending.
+A standalone widget contract executable can be enabled with `ARTIFACT_BUILD_PR_TESTS=ON` together with `ARTIFACT_BUILD_PR=ON`.
+
+## Targets
+
+`ArtifactPr/CMakeLists.txt` builds one static library and two thin entry points:
+
+- `ArtifactPrApp` (STATIC) owns every `ArtifactPr.*` module unit.
+- `ArtifactPr` (WIN32) contains only `src/main.cpp`; the `--cli` switch inside it keeps the console path on the same `EditorEngine` document/undo/render owner as the GUI.
+- `ArtifactPrCLI` contains only `src/main_cli.cpp`.
+
+Module declaration convention, matching `ArtifactCore`: `include/*.ixx` is the module interface unit (`export module ArtifactPr.X;`) and `src/*.cppm` is the module implementation unit (`module ArtifactPr.X;`). A `.cppm` must not redeclare its module as an interface unit, and must not import the module it implements.
+
+## Tests
+
+The contract tests live in `tests/ArtifactPr/` and link `ArtifactPrApp` instead of re-compiling the module set, so one new test costs one source file. They are registered when `ARTIFACT_BUILD_PR=ON` and a GTest-based test option is on. The ArtifactPr suite alone:
+
+```sh
+cmake --preset <preset> -DARTIFACT_BUILD_PR=ON -DARTIFACT_BUILD_PR_TESTS=ON
+ctest -L artifactpr
+```
+
+| test | covers |
+| --- | --- |
+| `ArtifactPrContractTest` | clip effect math (`fx.*` reading, transition curves, EQ), CPU compositor, timecode formatting, shortcut registry, export format routing, `RenderPlan::isValid` |
+| `ArtifactPrEditorEngineTest` | new-project invariants, in/out clamping, render plan quality/range/audio mute-solo-fx filter, snapping, NLE snapshot and project save/load round trip |
+| `ArtifactPrTimelinePanelTest` | timeline ruler/track/clip/zoom object-name contract and refresh on `sequenceChanged` |
+
+Deliberately outside this suite: `GpuProgramMonitor` (needs a live Diligent device), real frame decoding (`MediaFrameDecoder`, `MediaThumbnailer`), and `exportSequence` / `renderSequenceAudio` beyond their argument validation.
+
+CMake configure, build and CTest have not been run for these targets; the suite is written and statically reviewed only.
+
+\n

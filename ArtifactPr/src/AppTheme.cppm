@@ -13,9 +13,8 @@ module;
 #include <QPainter>
 #include <QString>
 
-export module ArtifactPr.AppTheme;
+module ArtifactPr.AppTheme;
 
-import ArtifactPr.AppTheme;
 import Widgets.Utils.CSS;
 
 namespace ArtifactPr {
