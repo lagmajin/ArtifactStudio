@@ -562,3 +562,8 @@ Tracked source file を宣言行で分類した概数。`.cppm` の module 宣�
 - Artifact target の最初の pass は `Artifact/src/Widgets/ArtifactColorPaletteWidget.cppm` の `#ifndef Q_MOC_RUN` が閉じられず、`module Artifact.Widgets.ColorPaletteWidget;` が条件コンパイル下に入る Clang scanner error で停止した。標準ヘッダーの skip guard を module declaration 前で閉じる最小修正を加え、Artifact と親の `main` に push 済み。
 - 修正後の LLVM 23.1.4 build は OpenUSD 依存の再コンパイル中。Artifact target 完了、Artifact 全体 link、runtime は未確認であり、Clang 22.1.3 で確認した source-location 上限が LLVM 23.1.4 で解消するかも未判定。
 - 今回の LLVM 23.1.4 tree では `sccache` executable が見つからず、キャッシュなしで実行している。sccache cache-hit 検証は別途必要。
+### LLVM 23.1.4 isolated module / sccache smoke（2026-10-22）
+
+- `tools/clang-msvc-abi-smoke` を CMake 4.2.2 / Ninja / upstream clang++ 23.1.4 / `x86_64-pc-windows-msvc` で configure し、P1689 dependency scan、`.ixx` module interface、module importer/implementation、通常 `.cpp` translation units の compile と両 executable の link に成功した。
+- sccache 0.18.0 は WinGet install path から指定した。clean build 2回後の統計は15 compile requests、5 cache hits、10 misses、0 errors。通常 TU と module-related commandsを合わせた部分 hit が確認できた。これは smoke project の結果であり、Artifact 全体 build の cache rate ではない。
+- Artifact full target は依然 OpenUSD / Diligent third-party rebuild 中のため、LLVM 23.1.4 source-location 上限の解消可否と全体 sccache 統計は未確認。
