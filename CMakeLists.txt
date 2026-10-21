@@ -861,6 +861,9 @@ option(ARTIFACT_ENABLE_KEYING_VIDEO_TEST
 option(ARTIFACT_BUILD_FBX_ANIMATION_VIEWER
     "Build the independent FBX animation preview executable"
     OFF)
+option(ARTIFACT_BUILD_CAMERA_FRUSTUM_VIEWER
+    "Build the independent Composition Viewport camera frustum test executable"
+    OFF)
 option(ARTIFACT_BUILD_LAYER_PERSISTENCE_ROUNDTRIP_TEST
     "Build the independent layer project save/reload round-trip test"
     OFF)
@@ -1349,6 +1352,38 @@ if(ARTIFACT_BUILD_FBX_ANIMATION_VIEWER)
     endif()
     if(ARTIFACT_FRONTEND_MSVC)
         target_compile_options(ArtifactFbxAnimationViewer PRIVATE
+            /Zf /Zc:__cplusplus /utf-8 /EHsc
+        )
+    endif()
+endif()
+
+if(ARTIFACT_BUILD_CAMERA_FRUSTUM_VIEWER)
+    add_executable(ArtifactCameraFrustumViewer
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/Artifact/CameraFrustumViewerMain.cpp"
+    )
+    target_link_libraries(ArtifactCameraFrustumViewer PRIVATE ArtifactAppRuntime)
+    target_include_directories(ArtifactCameraFrustumViewer PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/Artifact/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/verdigris/src"
+    )
+    artifact_add_cppwinrt_include(ArtifactCameraFrustumViewer)
+    set_target_properties(ArtifactCameraFrustumViewer PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+    )
+    if(WIN32)
+        add_custom_command(TARGET ArtifactCameraFrustumViewer POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ArtifactCameraFrustumViewer>
+                "$<TARGET_FILE_DIR:ArtifactCameraFrustumViewer>/"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+    endif()
+    if(ARTIFACT_FRONTEND_MSVC)
+        target_compile_options(ArtifactCameraFrustumViewer PRIVATE
             /Zf /Zc:__cplusplus /utf-8 /EHsc
         )
     endif()
