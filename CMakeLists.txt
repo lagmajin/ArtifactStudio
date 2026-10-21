@@ -208,6 +208,14 @@ endif()
 # build module import graphs.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
    CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+    if(CMAKE_VERSION VERSION_LESS 4.4)
+        message(FATAL_ERROR
+            "clang-cl C++ modules require CMake 4.4 or newer; detected ${CMAKE_VERSION}.")
+    endif()
+    if(NOT CMAKE_GENERATOR MATCHES "^Ninja")
+        message(FATAL_ERROR
+            "clang-cl C++ modules currently require a Ninja generator in this project.")
+    endif()
     if(NOT CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS)
         find_program(ARTIFACT_CLANG_SCAN_DEPS
             NAMES clang-scan-deps.exe clang-scan-deps
@@ -229,6 +237,29 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
         endif()
     endif()
     set(CMAKE_CXX_SCAN_FOR_MODULES ON CACHE BOOL "Enable C++ modules scan for clang-cl" FORCE)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
+       CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "GNU" AND WIN32)
+    if(CMAKE_CXX_COMPILER_TARGET AND
+       NOT CMAKE_CXX_COMPILER_TARGET MATCHES "windows-msvc$")
+        message(FATAL_ERROR
+            "The Windows clang++ lane requires an MSVC ABI target; got '${CMAKE_CXX_COMPILER_TARGET}'.")
+    endif()
+    if(NOT CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS)
+        find_program(ARTIFACT_CLANG_SCAN_DEPS
+            NAMES clang-scan-deps.exe clang-scan-deps
+            HINTS "$ENV{VCToolsInstallDir}/../Llvm/x64/bin" "$ENV{ProgramFiles}/LLVM/bin")
+        if(ARTIFACT_CLANG_SCAN_DEPS)
+            set(CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS "${ARTIFACT_CLANG_SCAN_DEPS}"
+                CACHE FILEPATH "clang-scan-deps executable for C++ modules" FORCE)
+        else()
+            message(FATAL_ERROR "Windows upstream clang++ requires clang-scan-deps for C++ modules.")
+        endif()
+    endif()
+    # Clang 22's P1689 scanner misreports `module Name;` implementation
+    # attachments as ordinary imports, causing a Ninja dyndep cycle. Keep
+    # scanning enabled for module interfaces/importers, but disable it for
+    # module implementation units through the source manifest policy.
+    set(CMAKE_CXX_SCAN_FOR_MODULES ON CACHE BOOL "Enable upstream Clang P1689 module scanning" FORCE)
 endif()
 
 # ---------------------------------------------------------------------------
@@ -265,6 +296,9 @@ set(ARTIFACT_APP_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/Artifact"  CACHE PATH "Artifa
 # ARTIFACT_PR_APP_DIR removed - ArtifactPr disabled in build
 set(ARTIFACT_DEPLOY_DIR "" CACHE PATH "Optional output directory for copying Artifact exe and runtime dlls")
 option(ARTIFACT_USE_SCCACHE "Use sccache compiler launcher when available" ON)
+option(ARTIFACT_USE_SCCACHE_WITH_CLANG_CL
+    "Opt in to sccache for clang-cl; C++ module caching is partial and unsupported commands bypass the cache"
+    OFF)
 option(ARTIFACT_ENABLE_SYCL "Enable Intel oneAPI DPC++/SYCL build flags" OFF)
 option(ARTIFACT_BUILD_PR "Build the ArtifactPr NLE application" OFF)
 option(ARTIFACT_BUILD_PR_TESTS
@@ -276,12 +310,29 @@ if(ARTIFACT_BUILD_PR_TESTS)
 endif()
 
 if(ARTIFACT_USE_SCCACHE)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR
+    set(_artifact_sccache_allowed ON)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
+       CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "GNU" AND WIN32)
+        message(STATUS "sccache enabled for Windows upstream clang++; module command support is validated with cache statistics.")
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
        CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+        if(ARTIFACT_USE_SCCACHE_WITH_CLANG_CL)
+            message(STATUS "sccache opt-in enabled for clang-cl; unsupported module commands may bypass the cache.")
+        else()
+            set(_artifact_sccache_allowed OFF)
+            unset(CMAKE_C_COMPILER_LAUNCHER CACHE)
+            unset(CMAKE_CXX_COMPILER_LAUNCHER CACHE)
+            message(STATUS "sccache disabled for clang-cl; set ARTIFACT_USE_SCCACHE_WITH_CLANG_CL=ON to opt in.")
+        endif()
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR
+           CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+        set(_artifact_sccache_allowed OFF)
         unset(CMAKE_C_COMPILER_LAUNCHER CACHE)
         unset(CMAKE_CXX_COMPILER_LAUNCHER CACHE)
-        message(STATUS "sccache disabled for MSVC-style frontends to avoid module scan/PDB contention.")
-    else()
+        message(STATUS "sccache disabled for MSVC-style compilers without supported module caching.")
+    endif()
+
+    if(_artifact_sccache_allowed)
         find_program(SCCACHE_PROGRAM
             NAMES sccache sccache.exe
             HINTS
@@ -304,6 +355,7 @@ endif()
 # ---------------------------------------------------------------------------
 set(ARTIFACT_COMPILER_MSVC_CL OFF)
 set(ARTIFACT_COMPILER_CLANG_CL OFF)
+set(ARTIFACT_COMPILER_CLANG_GNU OFF)
 set(ARTIFACT_COMPILER_INTELLLVM_CL OFF)
 set(ARTIFACT_COMPILER_INTELLLVM_GNU OFF)
 set(ARTIFACT_FRONTEND_MSVC OFF)
@@ -321,12 +373,16 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM" AND
     set(ARTIFACT_FRONTEND_MSVC ON)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     set(ARTIFACT_COMPILER_INTELLLVM_GNU ON)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
+       CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "GNU" AND WIN32)
+    set(ARTIFACT_COMPILER_CLANG_GNU ON)
 endif()
 
 message(STATUS "Compiler ID: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "Compiler frontend variant: ${CMAKE_CXX_COMPILER_FRONTEND_VARIANT}")
 message(STATUS "ARTIFACT_COMPILER_MSVC_CL=${ARTIFACT_COMPILER_MSVC_CL}")
 message(STATUS "ARTIFACT_COMPILER_CLANG_CL=${ARTIFACT_COMPILER_CLANG_CL}")
+message(STATUS "ARTIFACT_COMPILER_CLANG_GNU=${ARTIFACT_COMPILER_CLANG_GNU}")
 message(STATUS "ARTIFACT_COMPILER_INTELLLVM_CL=${ARTIFACT_COMPILER_INTELLLVM_CL}")
 message(STATUS "ARTIFACT_COMPILER_INTELLLVM_GNU=${ARTIFACT_COMPILER_INTELLLVM_GNU}")
 
@@ -382,6 +438,9 @@ elseif(ARTIFACT_COMPILER_INTELLLVM_CL)
     add_compile_options(/Zc:__cplusplus /utf-8)
 elseif(ARTIFACT_COMPILER_INTELLLVM_GNU)
     # icx/icpx GNU-like frontend
+    add_compile_options(-fopenmp)
+elseif(ARTIFACT_COMPILER_CLANG_GNU)
+    # Windows upstream clang++ targets the MSVC ABI with Clang's GNU driver.
     add_compile_options(-fopenmp)
 endif()
 
@@ -712,7 +771,193 @@ set(PXR_BUILD_USD_TOOLS OFF CACHE BOOL "Disable OpenUSD command line tools" FORC
 set(PXR_BUILD_IMAGING OFF CACHE BOOL "Disable unused OpenUSD imaging components" FORCE)
 set(PXR_BUILD_USD_IMAGING OFF CACHE BOOL "Disable unused OpenUSD scene imaging" FORCE)
 set(PXR_BUILD_USDVIEW OFF CACHE BOOL "Disable unused OpenUSD viewer" FORCE)
-add_subdirectory(libs/openusd EXCLUDE_FROM_ALL)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32)
+    # OpenUSD's Clang compiler ID branch currently precedes its Windows OS
+    # branch in attributes.h. On Windows Clang this hides the Windows
+    # constructor-section declarations that attributes.cpp requires. Create a
+    # one-condition compatibility copy in the build tree; never patch the
+    # OpenUSD submodule itself.
+    set(_artifact_openusd_compat_include_dir
+        "${CMAKE_CURRENT_BINARY_DIR}/openusd-clang-compat")
+    set(_artifact_openusd_attributes_source
+        "${CMAKE_CURRENT_SOURCE_DIR}/libs/openusd/pxr/base/arch/attributes.h")
+    set(_artifact_openusd_attributes_compat
+        "${_artifact_openusd_compat_include_dir}/pxr/base/arch/attributes.h")
+    file(READ "${_artifact_openusd_attributes_source}"
+        _artifact_openusd_attributes_contents)
+    set(_artifact_openusd_clang_branch
+        "#elif defined(ARCH_COMPILER_GCC) || defined(ARCH_COMPILER_CLANG)")
+    string(FIND "${_artifact_openusd_attributes_contents}"
+        "${_artifact_openusd_clang_branch}" _artifact_openusd_clang_branch_pos)
+    string(FIND "${_artifact_openusd_attributes_contents}"
+        "${_artifact_openusd_clang_branch}" _artifact_openusd_constructor_branch_pos REVERSE)
+    if(_artifact_openusd_clang_branch_pos LESS 0 OR
+       _artifact_openusd_constructor_branch_pos EQUAL _artifact_openusd_clang_branch_pos)
+        message(FATAL_ERROR
+            "OpenUSD arch attributes.h no longer has the expected compiler and "
+            "constructor branches; "
+            "review the Windows Clang compatibility overlay.")
+    endif()
+    string(SUBSTRING "${_artifact_openusd_attributes_contents}"
+        0 ${_artifact_openusd_constructor_branch_pos}
+        _artifact_openusd_attributes_prefix)
+    string(SUBSTRING "${_artifact_openusd_attributes_contents}"
+        ${_artifact_openusd_constructor_branch_pos} -1
+        _artifact_openusd_attributes_suffix)
+    string(REPLACE "${_artifact_openusd_clang_branch}"
+        "#elif (defined(ARCH_COMPILER_GCC) || defined(ARCH_COMPILER_CLANG)) && !defined(ARCH_OS_WINDOWS)"
+        _artifact_openusd_attributes_suffix
+        "${_artifact_openusd_attributes_suffix}")
+    string(CONCAT _artifact_openusd_attributes_contents
+        "${_artifact_openusd_attributes_prefix}"
+        "${_artifact_openusd_attributes_suffix}")
+    file(MAKE_DIRECTORY "${_artifact_openusd_compat_include_dir}/pxr/base/arch")
+    set(_artifact_openusd_attributes_write TRUE)
+    if(EXISTS "${_artifact_openusd_attributes_compat}")
+        file(READ "${_artifact_openusd_attributes_compat}"
+            _artifact_openusd_attributes_existing)
+        if(_artifact_openusd_attributes_existing STREQUAL
+           _artifact_openusd_attributes_contents)
+            set(_artifact_openusd_attributes_write FALSE)
+        endif()
+    endif()
+    if(_artifact_openusd_attributes_write)
+        file(WRITE "${_artifact_openusd_attributes_compat}"
+            "${_artifact_openusd_attributes_contents}")
+    endif()
+
+    get_property(_artifact_openusd_parent_include_dirs DIRECTORY
+        PROPERTY INCLUDE_DIRECTORIES)
+    set_property(DIRECTORY PROPERTY INCLUDE_DIRECTORIES
+        "${_artifact_openusd_compat_include_dir};${_artifact_openusd_parent_include_dirs}")
+    get_property(_artifact_openusd_parent_compile_definitions DIRECTORY
+        PROPERTY COMPILE_DEFINITIONS)
+    set(_artifact_openusd_clang_compile_definitions
+        ${_artifact_openusd_parent_compile_definitions})
+    list(APPEND _artifact_openusd_clang_compile_definitions NOMINMAX)
+    set_property(DIRECTORY PROPERTY COMPILE_DEFINITIONS
+        "${_artifact_openusd_clang_compile_definitions}")
+
+    if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+        # OpenUSD's shared warning helper still sees MSVC=TRUE for clang-cl and
+        # emits `/wd<name>`, which clang-cl rejects. Override only that helper.
+        set(_artifact_openusd_module_path "${CMAKE_MODULE_PATH}")
+        list(PREPEND CMAKE_MODULE_PATH
+            "${CMAKE_CURRENT_SOURCE_DIR}/cmake/openusd-clangcl-compat")
+    endif()
+
+    add_subdirectory(libs/openusd EXCLUDE_FROM_ALL)
+
+    if(TARGET arch)
+        set(_artifact_openusd_arch_compat_source_dir
+            "${CMAKE_CURRENT_BINARY_DIR}/openusd-clang-compat-src/pxr/base/arch")
+        file(MAKE_DIRECTORY "${_artifact_openusd_arch_compat_source_dir}")
+
+        set(_artifact_openusd_demangle_source
+            "${CMAKE_CURRENT_SOURCE_DIR}/libs/openusd/pxr/base/arch/demangle.cpp")
+        set(_artifact_openusd_demangle_compat
+            "${_artifact_openusd_arch_compat_source_dir}/demangle.cpp")
+        file(READ "${_artifact_openusd_demangle_source}"
+            _artifact_openusd_demangle_contents)
+        set(_artifact_openusd_itanium_branch
+            "ARCH_COMPILER_GCC_MAJOR > 3 || defined(ARCH_COMPILER_CLANG)")
+        string(FIND "${_artifact_openusd_demangle_contents}"
+            "${_artifact_openusd_itanium_branch}" _artifact_openusd_itanium_branch_pos)
+        if(_artifact_openusd_itanium_branch_pos LESS 0)
+            message(FATAL_ERROR
+                "OpenUSD arch demangle.cpp no longer has the expected Clang branch; "
+                "review the Windows Clang compatibility overlay.")
+        endif()
+        string(REPLACE "${_artifact_openusd_itanium_branch}"
+            "ARCH_COMPILER_GCC_MAJOR > 3 || (defined(ARCH_COMPILER_CLANG) && !defined(ARCH_OS_WINDOWS))"
+            _artifact_openusd_demangle_contents
+            "${_artifact_openusd_demangle_contents}")
+        set(_artifact_openusd_demangle_write TRUE)
+        if(EXISTS "${_artifact_openusd_demangle_compat}")
+            file(READ "${_artifact_openusd_demangle_compat}"
+                _artifact_openusd_demangle_existing)
+            if(_artifact_openusd_demangle_existing STREQUAL
+               _artifact_openusd_demangle_contents)
+                set(_artifact_openusd_demangle_write FALSE)
+            endif()
+        endif()
+        if(_artifact_openusd_demangle_write)
+            file(WRITE "${_artifact_openusd_demangle_compat}"
+                "${_artifact_openusd_demangle_contents}")
+        endif()
+
+        set(_artifact_openusd_errno_source
+            "${CMAKE_CURRENT_SOURCE_DIR}/libs/openusd/pxr/base/arch/errno.cpp")
+        set(_artifact_openusd_errno_compat
+            "${_artifact_openusd_arch_compat_source_dir}/errno.cpp")
+        file(READ "${_artifact_openusd_errno_source}"
+            _artifact_openusd_errno_contents)
+        set(_artifact_openusd_errno_branch "#elif !defined(ARCH_COMPILER_MSVC)")
+        string(FIND "${_artifact_openusd_errno_contents}"
+            "${_artifact_openusd_errno_branch}" _artifact_openusd_errno_branch_pos)
+        if(_artifact_openusd_errno_branch_pos LESS 0)
+            message(FATAL_ERROR
+                "OpenUSD arch errno.cpp no longer has the expected compiler branch; "
+                "review the Windows Clang compatibility overlay.")
+        endif()
+        string(REPLACE "${_artifact_openusd_errno_branch}"
+            "#elif !defined(ARCH_COMPILER_MSVC) && !defined(ARCH_OS_WINDOWS)"
+            _artifact_openusd_errno_contents
+            "${_artifact_openusd_errno_contents}")
+        set(_artifact_openusd_errno_write TRUE)
+        if(EXISTS "${_artifact_openusd_errno_compat}")
+            file(READ "${_artifact_openusd_errno_compat}"
+                _artifact_openusd_errno_existing)
+            if(_artifact_openusd_errno_existing STREQUAL
+               _artifact_openusd_errno_contents)
+                set(_artifact_openusd_errno_write FALSE)
+            endif()
+        endif()
+        if(_artifact_openusd_errno_write)
+            file(WRITE "${_artifact_openusd_errno_compat}"
+                "${_artifact_openusd_errno_contents}")
+        endif()
+
+        get_target_property(_artifact_openusd_arch_sources arch SOURCES)
+        set(_artifact_openusd_arch_compat_sources)
+        set(_artifact_openusd_arch_source_replacements 0)
+        foreach(_artifact_openusd_arch_source IN LISTS _artifact_openusd_arch_sources)
+            get_filename_component(_artifact_openusd_arch_source_name
+                "${_artifact_openusd_arch_source}" NAME)
+            if(_artifact_openusd_arch_source_name STREQUAL "demangle.cpp")
+                list(APPEND _artifact_openusd_arch_compat_sources
+                    "${_artifact_openusd_demangle_compat}")
+                math(EXPR _artifact_openusd_arch_source_replacements
+                    "${_artifact_openusd_arch_source_replacements} + 1")
+            elseif(_artifact_openusd_arch_source_name STREQUAL "errno.cpp")
+                list(APPEND _artifact_openusd_arch_compat_sources
+                    "${_artifact_openusd_errno_compat}")
+                math(EXPR _artifact_openusd_arch_source_replacements
+                    "${_artifact_openusd_arch_source_replacements} + 1")
+            else()
+                list(APPEND _artifact_openusd_arch_compat_sources
+                    "${_artifact_openusd_arch_source}")
+            endif()
+        endforeach()
+        if(NOT _artifact_openusd_arch_source_replacements EQUAL 2)
+            message(FATAL_ERROR
+                "Expected to replace OpenUSD arch demangle.cpp and errno.cpp; "
+                "found ${_artifact_openusd_arch_source_replacements} sources.")
+        endif()
+        set_property(TARGET arch PROPERTY SOURCES
+            "${_artifact_openusd_arch_compat_sources}")
+    endif()
+
+    if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+        set(CMAKE_MODULE_PATH "${_artifact_openusd_module_path}")
+    endif()
+    set_property(DIRECTORY PROPERTY INCLUDE_DIRECTORIES
+        "${_artifact_openusd_parent_include_dirs}")
+    set_property(DIRECTORY PROPERTY COMPILE_DEFINITIONS
+        "${_artifact_openusd_parent_compile_definitions}")
+else()
+    add_subdirectory(libs/openusd EXCLUDE_FROM_ALL)
+endif()
 set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "${_artifact_import_std_gate_for_usd}" CACHE STRING "Restore import std gate" FORCE)
 set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "${_artifact_import_std_gate_for_usd}")
 set(CMAKE_CXX_MODULE_STD "${_artifact_cxx_module_std_for_usd}" CACHE BOOL "Restore import std setting" FORCE)
@@ -738,6 +983,20 @@ add_subdirectory(ArtifactCore)
 # ArtifactCoreText module owner at the parent integration boundary.
 if(TARGET ArtifactCoreText AND NOT TARGET ArtifactCoreTextRuntime)
     add_library(ArtifactCoreTextRuntime ALIAS ArtifactCoreText)
+endif()
+if(ARTIFACT_COMPILER_CLANG_GNU)
+    # ArtifactCore's module targets disable GNU language extensions. Preserve
+    # that setting for subsequent local subprojects so their BMIs can import
+    # ArtifactCore's BMIs without a C++ language-mode mismatch.
+    set(CMAKE_CXX_EXTENSIONS OFF)
+endif()
+if(ARTIFACT_COMPILER_CLANG_GNU AND WIN32)
+    # FindOpenMP may cache `-Xclang -fopenmp` for upstream Clang with the
+    # Windows MSVC ABI. CMake's P1689 scan rule appends `-x c++` after target
+    # flags, so the dangling `-Xclang` swallows that language flag. The GNU
+    # driver accepts `-fopenmp` directly and still links the discovered libomp.
+    set(OpenMP_C_FLAGS "-fopenmp" CACHE STRING "OpenMP C flags for upstream Clang" FORCE)
+    set(OpenMP_CXX_FLAGS "-fopenmp" CACHE STRING "OpenMP CXX flags for upstream Clang" FORCE)
 endif()
 add_subdirectory(ArtifactWidgets)
 add_subdirectory(Artifact)
