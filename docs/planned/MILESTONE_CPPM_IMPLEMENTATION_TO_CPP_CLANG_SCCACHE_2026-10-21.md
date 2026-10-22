@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 147 | 45 | 327 | 22 | 851 |
+| ArtifactCore | 148 | 45 | 326 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1362,4 +1362,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Audio/AudioAnalyzer.cppm` を `.cpp` に移行し、Audio split target、source manifest、module reference map を更新した。公開 `Audio.Analyze` interface は維持。
 - LipSyncTrack / FormantExtractor と Animation menu の明示的な音声分析から利用される。再生 callback 経路ではない。`.cpp` importer から `.cpp` provider を参照する module dependency の一例となる。実装本文は LF 改行への正規化以外変更なし。
 - ArtifactCore 集計は `.cpp` 147、実装形式 `.cppm` 327。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。
+### Application.AppSettings implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Application/ArtifactAppSettings.cppm` を `.cpp` に移行し、source manifest、module reference map、source-specific CMake compile configuration / dependency selector を更新した。公開 `Application.AppSettings` interface と既存 `W_OBJECT_IMPL` は維持。
+- 起動時設定と設定 UI の変更処理。描画・再生 hot path ではない。実装本文は LF 改行への正規化以外変更なし。
+- ArtifactCore 集計は `.cpp` 148、実装形式 `.cppm` 326。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
