@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 17 | 0 | 30 | 4 | 63 |
+| ArtifactWidgets | 18 | 0 | 29 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -632,3 +632,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Dialog/InterpretFootageDialog.cppm` は `Widgets.Dialog.InterpretFootage` implementation unit で、`Media.SourceInterpret` を import する。Artifact の Asset Browser がこの dialog を利用している。module import と既存 UI 実装を維持して `.cpp` へ移し、明示 implementation list を更新した。
 - 直接使う Qt dialog / widget / string headers と `<memory>` を global module fragment に置き、`.cpp` は LF。ビルド／依存スキャン／リンクはプロジェクト指示に従って今回は実行していない。
+
+### ArtifactWidgets.EditableLabel implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Common/EditableLabel.cppm` は `Widgets.EditableLabel` implementation unit で、`Common.ClikableLabel` を import する。Artifact の composition / plane dialogs と render queue panel から利用されている。既存の editing / animation implementation と module import を維持して `.cpp` へ移し、明示 implementation list を更新した。
+- 直接使う animation、layout、event、widget、string の Qt headers を global module fragment に追加し、`.cpp` は LF。ビルド／依存スキャン／リンクはプロジェクト指示に従って今回は実行していない。
