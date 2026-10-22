@@ -792,3 +792,5 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Asset/AssetConverter.cppm` は `AssetConverter` module の image conversion implementation unit で、`include/Asset/AssetConverter.ixx` の宣言を定義する。本文を `.cpp` に移し、`ArtifactCoreSources.cmake` / `ArtifactCoreModuleReferences.cmake` / Asset domain source list の自己 path を更新した。`AssetImporter` consumer mapping は public interface path を参照するため変更していない。
 - source が直接使う `<memory>` / `<utility>` / `QByteArray` / `QSize` / `QString` headers を global module fragment に明示した。変換処理と public API は変更していない。ビルド／依存スキャン／リンクは実行していない。
+
+- `ArtifactCore/src/Asset/AssetMetaFile.cppm` は `Asset` module の実装ユニットで、公開 `AssetMetaFile.ixx` の定義を含む。module 名、定義本文と API を保って `.cpp` に移し、source manifest、module reference map、Asset domain source list の自己 path を更新した。`AssetType` 依存と `AssetImporter` consumer は変更していない。ビルド／依存スキャン／リンクは未実行。
