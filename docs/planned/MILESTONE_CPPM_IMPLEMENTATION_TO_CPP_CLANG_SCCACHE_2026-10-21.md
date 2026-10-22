@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 132 | 45 | 342 | 22 | 851 |
+| ArtifactCore | 133 | 45 | 341 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1272,4 +1272,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Export/Lottie/LottieRigExporter.cppm` はユーザー実行の Lottie rig export 時に frame ごとの rig transform をサンプリングし keyframe を構成する。常時 playback / render frame path からは呼ばれず、既存処理を `.cpp` に移した。
 - Export source list、scanner exception list、provider / imported-module mappings、専用 IFC / object dependency paths を更新した。Clang の migrated `.cpp` scan で module dependencies を扱う。実装本文は LF 化以外同一。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### Core.AI.CloudAgent implementation migration（2026-10-22）
+
+- `ArtifactCore/src/AI/CloudAgent.cppm` は AI 機能から呼ばれる cloud provider request / response 処理と agent factory を実装する。ユーザー操作時の network path であり、描画 frame path には入らない。既存処理を `.cpp` に移した。
+- source manifest、provider / imported-module mappings と専用 MSVC `/reference` source selector を新 path に更新した。MSVC の明示 references は維持し、Clang lane では `.cpp` P1689 scan を使う。`/TP` は Clang finalization 時に除去される。実装本文は LF 化以外同一。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
