@@ -1887,3 +1887,9 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - 初回 build の直後に通常の incremental build を行う従来計測では、後者が compile action を実行しないため cache hit 検証にならなかった。Artifact.Timeline.KeyframeUndoCommand の隔離 module target で `sccache --zero-stats` → build → CMake clean → 同条件で再 build を実施した。
 - upstream clang++ 22.1.3 / Ninja / sccache 0.18.0 で 6 compile requests がすべて cache hit、cache miss / error / compilation failure は 0。clean 後も module provider の BMI/object を復元し、importer の compile と executable link が成功した。これは隔離 fixture の evidence であり、Artifact 全体の clean build を代替しない。
 - 以降の sccache 検証は cold build と clean rebuild を対にする。前節までの cold + incremental の miss 数は初回 build の miss であり、incremental build が hit しなかった意味ではない。
+
+### Artifact.Timeline.KeyframeApplyCommands source-only module migration（2026-10-22）
+
+- `Artifact/src/Widgets/Timeline/ArtifactTimelineKeyframeApplyCommands.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の module source path を更新。Keyframe interpolation / roving command と module declaration は変更せず、100% rename。
+- 実 provider を使い、Artifact / Property / Event / Undo API を最小 stub に置換した隔離 module smoke で upstream clang++ 22.1.3、clang-cl 22.1.3、MSVC 19.51.36257 / Visual Studio 18 の dependency scan、compile、static library / executable link が成功。実アプリの Qt / ArtifactCore integration と runtime は未確認、smoke executable は未実行。
+- upstream clang++ + sccache 0.18.0 cold build → clean → rebuild で20 compile requests 中10 hit、10 miss、0 failures。最初の10件は cold build、clean rebuild では同条件の10件を cache hit で再利用した。
