@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 126 | 45 | 348 | 22 | 851 |
+| ArtifactCore | 127 | 45 | 347 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1236,4 +1236,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Export/Lottie/LottieExporter.cppm` は Lottie JSON validation / serialization、keyframe compression と file output を実装するユーザー実行の export path である。既存処理を保って `.cpp` に移した。
 - Export target source list、scanner exception list、provider map、専用 IFC / object dependency paths を更新した。実装本文は LF 化以外同一。Clang final configuration は migrated `.cpp` の P1689 scan を有効化し、旧 MSVC-only module edges を除去する。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### Composition.TemplateSlot implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Composition/TemplateSlot.cppm` はテンプレート slot / variation / output variant の JSON serialization と schema registration を実装するコールドパスである。module declaration、serialization registration と既存処理を保って `.cpp` に移した。
+- Composition source manifest と provider / imported-module mappings を新 path に更新した。Clang の `.cpp` implementation scan が有効になる。実装本文は LF 化以外同一。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
