@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 27 | 0 | 20 | 4 | 63 |
+| ArtifactWidgets | 28 | 0 | 19 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -682,3 +682,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/AbstractWidget.cppm` は `AbstractWidget` module implementation unit で、scope widgets、video preview、image viewer の interface から参照される。`Widgets.Effects.GlowFrame` import と implementation body を保って `.cpp` へ移し、CMake の明示 implementation list に登録した。
 - `QFocusEvent` / `QResizeEvent` / `QWidget` の直接 headers を global module fragment に加え、LF 改行へ揃えた。公開 interface・挙動は変更せず、ビルド／依存スキャン／リンクは実行していない。
+
+### ArtifactWidgets.RenderQueueManagerWidget implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Render/RenderQueueManagerWidget.cppm` は `Widgets.Render.Queue` implementation unit で、Artifact `AppMain` が public module を import している。4 つの `W_OBJECT_IMPL`、既存 module imports と implementation body を維持して `.cpp` へ移し、CMake の明示 implementation list に登録した。
+- source が直接使う Qt model / view / image / object / string / geometry / style-option headers を global module fragment に追加し、LF 改行に揃えた。UI 接続や描画・queue 処理は変更していない。ビルド／依存スキャン／リンクは実行していない。
