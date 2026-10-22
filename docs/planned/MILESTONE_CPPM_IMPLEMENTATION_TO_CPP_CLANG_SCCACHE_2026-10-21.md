@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 95 | 45 | 379 | 22 | 851 |
+| ArtifactCore | 96 | 45 | 378 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1061,4 +1061,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Property/PropertyGroup.cppm` は `Property.Group` implementation unit で、public interface の PImpl lifecycle、property add / remove / lookup / sort API を実装する。module 宣言と実装を保って `.cpp` に移した。
 - ArtifactCore source manifest、provider module reference と MSVC の source-specific IFC reference path を更新した。PImpl ownership、container と PropertyGroup behavior は変更していない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Core.Diagnostics.ProjectDiagnostic implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Diagnostics/ProjectDiagnostic.cppm` は `Core.Diagnostics.ProjectDiagnostic` implementation unit で、diagnostic factory と result の集計・検索・merge API を実装する。診断内容・カテゴリ・severity の挙動を保って `.cpp` に移した。
+- ArtifactCore source manifest、provider / `Container.Debug.Registry` module references、MSVC の IFC reference / NamedVector interface object dependency と `DiagnosticEngineStandalone` source path を新 path に更新した。
 - ビルド、依存スキャン、テスト、CMake は実行していない。

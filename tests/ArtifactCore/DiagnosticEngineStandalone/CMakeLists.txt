@@ -25,7 +25,7 @@ artifact_add_standalone_module_interface(DiagnosticEngineModuleInterfaces
 
 artifact_add_standalone_module_implementation(DiagnosticEngineUnderTest
     SOURCES
-        "${ARTIFACT_CORE_ROOT}/src/Diagnostics/ProjectDiagnostic.cppm"
+        "${ARTIFACT_CORE_ROOT}/src/Diagnostics/ProjectDiagnostic.cpp"
         "${ARTIFACT_CORE_ROOT}/src/Diagnostics/DiagnosticEngine.cpp"
     LINK_LIBS DiagnosticEngineModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
