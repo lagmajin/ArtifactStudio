@@ -17,7 +17,7 @@ artifact_add_standalone_module_interface(Position2DModuleInterfaces
 )
 
 artifact_add_standalone_module_implementation(Position2DUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Core/Position2D.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Core/Position2D.cpp"
     LINK_LIBS Position2DModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )

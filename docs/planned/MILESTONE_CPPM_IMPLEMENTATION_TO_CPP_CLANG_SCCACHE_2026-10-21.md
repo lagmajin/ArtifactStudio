@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 99 | 45 | 375 | 22 | 851 |
+| ArtifactCore | 100 | 45 | 374 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1089,4 +1089,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/IO/asio_async_file_writer.cppm` は `asio_async_file_writer` implementation unit で、Boost.Asio thread pool 経由の非同期ファイル書き込み API を実装する。既存の worker / callback / atomic shutdown 挙動を含め、ソース内容を保って `.cpp` に移した。
 - ArtifactCore source manifest と provider module reference を新 path に更新した。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Core.Position2D implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Core/Position2D.cppm` は `Core.Position2D` implementation unit で、`Position2D` / `Position2DF` の PImpl lifecycle、copy / move と座標 getter / setter を実装する。公開 API と実装内容を保って `.cpp` に移した。
+- ArtifactCore source manifest、MSVC の source-specific IFC reference、provider module reference と `Position2DStandalone` source path を新 path に更新した。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
