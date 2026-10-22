@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 70 | 45 | 404 | 22 | 851 |
+| ArtifactCore | 71 | 45 | 403 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -883,4 +883,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Script/AngelScript/AngelScriptBehaviour.cppm` は `Script.AngelScript.Behaviour` implementation unit で、public interface の load / start / update / destroy API の定義が揃っている。module 宣言、直接 `<string>` include、AngelScript lifecycle 実装を保って `.cpp` に移した。
 - Core source manifest、provider module reference と MSVC IFC 条件の source path を更新した。script lifecycle behavior は変更していない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### Configuration.ConfigSchema implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Configuration/ConfigSchema.cppm` は `Configuration.ConfigSchema` implementation unit で、公開 API の schema registration / validation / lookup / defaults 定義が揃っている。module 宣言、既存 imports / headers、mutex と validation 実装を保って `.cpp` に移した。
+- Core source manifest、configuration split target source list、Container debug IFC options、provider / imported module reference rows を更新した。設定検証動作は変更していない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
