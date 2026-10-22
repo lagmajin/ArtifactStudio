@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 28 | 0 | 19 | 4 | 63 |
+| ArtifactWidgets | 29 | 0 | 18 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -687,3 +687,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Render/RenderQueueManagerWidget.cppm` は `Widgets.Render.Queue` implementation unit で、Artifact `AppMain` が public module を import している。4 つの `W_OBJECT_IMPL`、既存 module imports と implementation body を維持して `.cpp` へ移し、CMake の明示 implementation list に登録した。
 - source が直接使う Qt model / view / image / object / string / geometry / style-option headers を global module fragment に追加し、LF 改行に揃えた。UI 接続や描画・queue 処理は変更していない。ビルド／依存スキャン／リンクは実行していない。
+
+### ArtifactWidgets.SyntaxHighlighter implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Code/SyntaxHighlighter.cppm` は `Code.SyntaxHighlighter` implementation unit で、`CodeEditor.cppm` が module を import する。module name・public interface・既存 highlighter 実装を維持して `.cpp` に移し、CMake の明示 implementation list に登録した。
+- 直接使う QColor / QFont / QObject / QString headers を global module fragment に追加し、LF 改行へ揃えた。動作は変更していない。ビルド／依存スキャン／リンクは実行していない。
