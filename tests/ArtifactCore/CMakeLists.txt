@@ -29,6 +29,38 @@ if(ARTIFACT_ENABLE_RAY_TRACING_TEST)
 endif()
 
 
+# Mesh-shader meshlet LOD selection and draw contract. Kept in its own process
+# so it can run without ray tracing support or ray-tracing test state.
+if((ARTIFACT_BUILD_TESTS OR ARTIFACT_ENABLE_RAY_TRACING_TEST) AND VULKAN_SUPPORTED)
+    if(TARGET Diligent-GraphicsEngineVk-static)
+        set(_artifact_mesh_lod_test_backend Diligent-GraphicsEngineVk-static)
+    elseif(TARGET Diligent-GraphicsEngineVk-shared)
+        set(_artifact_mesh_lod_test_backend Diligent-GraphicsEngineVk-shared)
+    else()
+        set(_artifact_mesh_lod_test_backend "")
+    endif()
+    if(_artifact_mesh_lod_test_backend)
+        artifact_add_test(ArtifactCoreMeshShaderLodTest
+            SOURCES
+                MeshShaderLodTest.cpp
+            LIBS
+                ArtifactCore
+                ${_artifact_mesh_lod_test_backend}
+        )
+        if(PLATFORM_WIN32)
+            copy_shader_compiler_dlls(ArtifactCoreMeshShaderLodTest
+                DXCOMPILER_FOR_SPIRV YES)
+        endif()
+        set_tests_properties(ArtifactCoreMeshShaderLodTest PROPERTIES
+            LABELS "renderer;gpu;mesh-shader;meshlet;lod;headless;standalone;core"
+            TIMEOUT 180
+            RUN_SERIAL TRUE
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;ARTIFACT_RENDER_BACKEND=vulkan"
+        )
+    endif()
+endif()
+
+
 if(ARTIFACT_BUILD_TESTS)
     add_subdirectory(AnimationDynamicsStandalone)
 endif()
