@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 75 | 45 | 399 | 22 | 851 |
+| ArtifactCore | 76 | 45 | 398 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -914,4 +914,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/UI/LayoutState.cppm` は `UI.Layout.State` implementation unit で、JSON / QSettings / FastSettingsStore serialization API と schema registration の定義が公開 interface に対応している。module 宣言、imports、headers と実装本文を維持し `.cpp` に移した。
 - ArtifactCore source manifest、UI split target source path、MSVC IFC / OBJECT_DEPENDS 条件、provider と Serialization import の module reference rows を更新した。Clang frontend の最終設定では `.cpp` implementation scan と module map に移行する。保存・migration behavior は変更していない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### File.TypeDetector implementation migration（2026-10-22）
+
+- `ArtifactCore/src/File/FileTypeDetector.cppm` は `File.TypeDetector` implementation unit で、公開 interface の constructor / destructor / detect API と拡張子・magic 判定の定義が揃っている。直接使う Qt Core headers、module 宣言と実装本文を保って `.cpp` に移した。
+- ArtifactCore の File split target source list、明示 source manifest、provider module reference を更新した。Clang lane は `.cpp` を P1689 scan / module map に載せ、MSVC は既存の明示 IFC reference と interface object ordering を使う。file type 判定動作は変更していない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
