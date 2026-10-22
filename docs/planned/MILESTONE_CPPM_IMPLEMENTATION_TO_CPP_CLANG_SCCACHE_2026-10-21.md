@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 151 | 45 | 323 | 22 | 851 |
+| ArtifactCore | 152 | 45 | 322 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1386,4 +1386,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Image/PSDDocument.cppm` を `.cpp` に移行し、source manifest、module reference map、source-specific compile references を更新した。公開 `Image.PSDDocument` interface は維持。
 - PSD import/export の静止画経路で、Import PSD dialog、project service、image importer から利用される。実装本文は LF 改行への正規化以外変更なし。
 - ArtifactCore 集計は `.cpp` 151、実装形式 `.cppm` 323。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。
+### Image.Raw implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Image/RawImage.cppm` を `.cpp` に移行し、source manifest、module reference map、source-specific module dependency references を更新した。公開 `Image.Raw` interface は維持。
+- 広く import される基本画像型の型サイズ判定と validity check の実装。関数本体・データ表現は変更なし。本文は LF 改行への正規化以外同一。
+- ArtifactCore 集計は `.cpp` 152、実装形式 `.cppm` 322。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
