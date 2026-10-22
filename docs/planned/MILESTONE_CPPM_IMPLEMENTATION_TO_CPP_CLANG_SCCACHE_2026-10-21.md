@@ -1599,3 +1599,8 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 
 - `Artifact/src/Widgets/ArtifactClipBufferWidget.cppm` を `.cpp` に移行し、Artifact の明示 implementation source list を更新した。公開 `Artifact.Widgets.ClipBufferWidget` interface と model import は維持。
 - コピー履歴の表示、消去・貼り付け操作、既存の event bus 利用は変更していない。LF 改行を維持し、clang-cl / upstream clang の scan・compile・link は本ターンでは未実施。
+
+### Artifact.Widgets.ContextShortcutProvider implementation migration（2026-10-22）
+
+- `Artifact/src/Widgets/ArtifactContextShortcutProvider.cppm` を `.cpp` に移行し、Artifact の明示 implementation source list を更新した。公開 `Artifact.Widgets.ContextShortcutProvider` interface と `UI.ShortcutBindings` import は維持。
+- mode 別ショートカット一覧の構築・順序・説明文は変更していない。混在していた作業ツリー改行を LF に整え、Git の元 blob と一致することを確認。clang-cl / upstream clang の scan・compile・link は本ターンでは未実施。
