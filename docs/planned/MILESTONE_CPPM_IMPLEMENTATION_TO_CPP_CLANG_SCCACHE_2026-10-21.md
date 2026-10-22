@@ -1424,3 +1424,9 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - MSVC 用の明示 `/reference` と object ordering は保持した。Clang GNU frontend と clang-cl の `.cpp` scan 有効化経路では P1689 dependency map に切り替わる想定だが、この source の scan / compile / link は未確認。
 - ArtifactCore 集計は `.cpp` 157、実装形式 `.cppm` 317。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
+### Math.Bezier.Sampler implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Geometry/BezierPathSampler.cppm` を `.cpp` に移行し、明示 source manifest、module reference map、および source-specific `/reference` selector の参照先を更新した。`Math.Bezier.Sampler` interface と `Math.Bezier` import は維持。
+- Bezier path の標準・等距離・適応サンプリングと tangent sampling を実装する。関数の処理、戻り値、公開 API は変えず、本文は LF 正規化以外同一。
+- ArtifactCore 集計は `.cpp` 158、実装形式 `.cppm` 316。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。
