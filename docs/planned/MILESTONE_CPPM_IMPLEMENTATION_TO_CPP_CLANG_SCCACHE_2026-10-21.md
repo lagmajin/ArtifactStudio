@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 133 | 45 | 341 | 22 | 851 |
+| ArtifactCore | 134 | 45 | 340 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1278,4 +1278,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/AI/CloudAgent.cppm` は AI 機能から呼ばれる cloud provider request / response 処理と agent factory を実装する。ユーザー操作時の network path であり、描画 frame path には入らない。既存処理を `.cpp` に移した。
 - source manifest、provider / imported-module mappings と専用 MSVC `/reference` source selector を新 path に更新した。MSVC の明示 references は維持し、Clang lane では `.cpp` P1689 scan を使う。`/TP` は Clang finalization 時に除去される。実装本文は LF 化以外同一。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### Network.CollaborationWebSocket implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Network/CollaborationWebSocket.cppm` は協調編集 WebSocket の接続状態、heartbeat / reconnect、operation / lock / presence message の送受信を実装する。利用は collaboration session の通信時で、描画 frame path には入らない。既存処理（元ファイルは LF）をそのまま `.cpp` に移した。
+- source manifest、provider map と Network target source list を更新した。追加の import mapping や source-specific MSVC dependency edge はないため、Clang の `.cpp` P1689 scan に依存解決を任せる。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
