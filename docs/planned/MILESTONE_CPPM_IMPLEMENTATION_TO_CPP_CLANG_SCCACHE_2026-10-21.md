@@ -26,7 +26,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | リポジトリ | `.cpp` | `export module` のある `.cppm` | 実装形式の `.cppm` | module 宣言のない `.cppm` | `.ixx` |
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 327 | 0 | 27 | 0 | 29 |
-| Artifact | 8 | 55 | 628 | 6 | 700 |
+| Artifact | 9 | 55 | 627 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
 | ArtifactWidgets | 11 | 0 | 36 | 4 | 63 |
 
@@ -582,3 +582,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - 実 `ArtifactGuiManager.ixx` / `.cpp` を使う CMake 4.4.4 / Ninja smoke で、upstream clang++ 23.1.4（Windows MSVC ABI）、clang-cl 22.1.3、MSVC 19.51 の各 lane が P1689 または MSVC module scan、interface / implementation / importer compile、static library と executable link に成功し、3 executable の実行も成功した。Qt Core をリンクした。
 - upstream clang++ の clean build と clean rebuild は sccache 0.18.0 下で合計6 compile requests、3 misses / 3 hits、0 errors。build tree は隔離 smoke 用で、Artifact 全体の sccache 統計ではない。
 - 実 Artifact target の object-only Ninja build は source manifest の再構成後に6,622 actionsへ依存展開したため約180 actionsで中断した。したがって root target への統合 object build / Artifact 全体 link は今回未確認。`.cpp` と manifest は LF、`git diff --check` は成功。
+
+### Core.SystemStats implementation migration / three compiler lanes（2026-10-22）
+
+- `Artifact/src/Core/SystemStats.cppm` は Windows / POSIX の system metrics 実装を含む `module Core.SystemStats;` implementation unit で、外部 module import はない。`.cpp` に移し、`Artifact/cmake/ArtifactSources.cmake` の明示 implementation manifest を更新した。公開 interface と実装本文は維持し、移行後 source は LF。
+- 実 `SystemStats.ixx` / `.cpp` と importer を使う CMake 4.4.4 / Ninja smoke で、upstream clang++ 23.1.4（Windows MSVC ABI）、clang-cl 22.1.3、MSVC 19.51 の各 lane が P1689 または MSVC module scan、interface / implementation / importer compile、static library と executable link、executable runtime に成功した。
+- upstream clang++ の clean build と clean rebuild は sccache 0.18.0 下で合計6 compile requests、3 misses / 3 hits、0 errors。Artifact 全体の cache 統計ではない。
+- `git check-attr eol` は `.cppm` に `eol=lf` を示したが、移行前 worktree は CRLF だった。`.cpp` 化の際に LF へ揃え、Git の正規化後は元実装から100% renameとして判定された。Artifact 全体 target / link は引き続き未確認。
