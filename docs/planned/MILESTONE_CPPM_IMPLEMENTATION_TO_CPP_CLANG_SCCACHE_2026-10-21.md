@@ -1417,3 +1417,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - Artifact composition / render controller の preview quality 設定に使われる provider。renderer 本体・品質選択ロジックは変更せず、実装本文は LF 改行への正規化以外同一。
 - ArtifactCore 集計は `.cpp` 156、実装形式 `.cppm` 318。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
+### Procedural3DGenerators implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Geometry/Procedural3DGenerators.cppm` を `.cpp` に移行し、source manifest、module reference map、明示 `CORE_IMPL` 登録、source-specific compile option / object dependency selector を更新した。公開 `Procedural3DGenerators` interface は維持。
+- Procedural 3D generator provider から Mesh / ShapeExtrude / Math.Noise などを利用する。実装本文は LF 改行への正規化以外同一。
+- MSVC 用の明示 `/reference` と object ordering は保持した。Clang GNU frontend と clang-cl の `.cpp` scan 有効化経路では P1689 dependency map に切り替わる想定だが、この source の scan / compile / link は未確認。
+- ArtifactCore 集計は `.cpp` 157、実装形式 `.cppm` 317。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。
