@@ -1760,3 +1760,9 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - `Artifact/src/Localization/Localization.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` を更新した。実装 blob は BOM を含め 1636 bytes で完全一致し、作業ファイルは LF。
 - root CMake 4.2 / Visual Studio 18 configure・generate が成功し、`ArtifactAppRuntime.vcxproj` が `Localization.cpp` を登録することを確認。Artifact 実 target と locale runtime は未検証。
 - upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja smoke で、実 `Localization.ixx`・実 `.cpp`・`Utils.String.UniString` provider・importer の P1689 scan、compile、static library / executable link が成功。QString / UniString は隔離 smoke stub を使用。sccache 0.18 の初回 clean build は 4 misses、clean rebuild は 4 hits、cache errors / bypass は 0。warm cache の別 build tree では 8 requests が hit。
+
+
+### Artifact.Composition.Settings clang-cl lane follow-up（2026-10-22）
+
+- CMake 4.4.4 / Ninja / clang-cl 22.1.3 で、実 `CompositionSettings.ixx`・`.cpp`・importer の dependency scan、compile、static library / executable link が成功した。Qt 型と unused imported module providers は isolated smoke fixture を使用し、Artifact 実依存 link / runtime は未確認。
+- CMake が `-TP` unused argument warning を出したが build は成功。sccache 0.18.0 は 12 requests、うち4件を実行して2 misses / 2 hits、8 calls は `multiple input files` で非 cacheable、cache errors 0。
