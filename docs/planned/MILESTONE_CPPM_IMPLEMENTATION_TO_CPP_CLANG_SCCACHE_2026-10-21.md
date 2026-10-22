@@ -1899,3 +1899,9 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - `Artifact/src/Widgets/ArtifactProjectManagerControls.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の source-only module 登録を更新。ウィジェット helper 実装と module declaration は変更せず、100% rename。
 - 既存 Visual Studio 18 / MSVC 19.51.36257 の実プロジェクト build tree で CMake を再生成し、`ArtifactAppRuntime.vcxproj` に `.cpp` provider が登録されたことを確認。対象 provider の ClCompile と唯一の importer `ArtifactProjectManagerWidget.cppm` の ClCompile がともに成功し、`ArtifactProjectManagerControls.cpp.ifc` と importer object が生成された。provider source object は 2,040,903 bytes、IFC は 30,865,542 bytes。
 - `Artifact` 全体 target の試行は CMake 再構成後、OpenUSD / SPIRV-Tools / Diligent など大量の依存 project 再ビルドへ展開したため停止。全体 link は未確認。clang++ / clang-cl / sccache の本候補専用 smoke は未実施。
+
+### Artifact.Widgets.ProjectViewHoverPopup source-only module migration（2026-10-22）
+
+- `Artifact/src/Widgets/ArtifactProjectViewHoverPopup.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の source-only module 登録を更新。popup widget 実装と module declaration は変更せず、100% rename。
+- Visual Studio 18 / MSVC 19.51.36257 の実プロジェクトで CMake を再生成し、`ArtifactAppRuntime.vcxproj` の provider と唯一の importer `ArtifactProjectManagerWidget.cppm` を個別 ClCompile。両方成功し、`ArtifactProjectViewHoverPopup.cpp.ifc`、provider object、importer object が生成された。実 CMake/Ninja 別レーンと clang-cl では未確認。
+- `Artifact` 全体 target の link は未実施。前回と同じ build tree で、依存全体の再ビルドが走る全体 target を避け、module provider / importer の MSVC コンパイル境界を確認した。
