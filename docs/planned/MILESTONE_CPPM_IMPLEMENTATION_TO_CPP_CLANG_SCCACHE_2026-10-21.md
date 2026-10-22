@@ -1624,3 +1624,8 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 
 - `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorPath.cppm` を `.cpp` に移行し、Artifact の明示 implementation source list を更新した。同一 `Artifact.Widgets.PropertyEditor` module の他 implementation と公開 interface は維持。
 - path 入力・browse dialog・既存 signal 接続は変更していない。CRLF 混在を LF に整え、Git の元 blob と一致することを確認。clang-cl / upstream clang の scan・compile・link は本ターンでは未実施。
+
+### Artifact.Widgets.PropertyEditor.Abstract implementation migration（2026-10-22）
+
+- `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorAbstract.cppm` を `.cpp` に移行し、Artifact の明示 implementation source list を更新した。同一 `Artifact.Widgets.PropertyEditor` module の派生 implementation と公開 interface は維持。
+- commit / preview handler と scrub の既定動作は変更していない。CRLF 混在を LF に整え、Git の元 blob と一致することを確認。clang-cl / upstream clang の scan・compile・link は本ターンでは未実施。
