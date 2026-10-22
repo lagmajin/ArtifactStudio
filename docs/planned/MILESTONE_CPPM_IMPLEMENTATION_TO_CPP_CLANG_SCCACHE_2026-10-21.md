@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 84 | 45 | 390 | 22 | 851 |
+| ArtifactCore | 85 | 45 | 389 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -984,4 +984,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Layer/LayerStrip.cppm` は `Layer.LayerStrip` implementation unit で、public interface の PImpl lifecycle と frame range API の定義が揃っている。module 宣言、`<cstdint>` / `<utility>` headers、実装を保って `.cpp` に移した。
 - ArtifactCore source manifest と provider module reference を新 path に更新した。専用 split target / source-specific CMake 条件に旧 path はなく、追加変更は不要だった。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Script.Builtin.Manager implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Script/Engine/Func/BuiltinManager.cppm` は `Script.Builtin.Manager` implementation unit で、公開 interface の register / remove / call / list API を実装する。module 宣言、既存 headers と関数呼び出し・lookup behavior を保って `.cpp` に移した。
+- ArtifactCore source manifest と provider module reference を新 path に更新した。専用 split target / source-specific CMake 条件に旧 path はなく、Clang の `.cpp` implementation scan / P1689 module map に載る。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
