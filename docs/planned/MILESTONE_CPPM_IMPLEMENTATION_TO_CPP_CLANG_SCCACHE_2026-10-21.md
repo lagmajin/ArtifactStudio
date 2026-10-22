@@ -1713,3 +1713,9 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - `Artifact/src/Composition/ArtifactComposition2D.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` を更新。public module interface、PImpl の生成・破棄、copy 禁止境界はそのまま。
 - root MSVC / Visual Studio 18 の CMake configure / generate 後、`ArtifactAppRuntime.vcxproj` が `ArtifactComposition2D.cpp` を登録することを確認した。upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja の隔離 smoke では実 `.cpp` の P1689 scan、compile、static archive link に成功。最小 stub interface を使うため Artifact 実 target link は未確認。sccache 0.18 は初回2 misses、clean rebuild 2 hits、cache errors 0。
 - Clang は既存 public module 名 `Artifact.Composition._2D` の `_2D` に reserved module name 警告を出した。module 名はこの拡張子移行では変更していない。
+
+
+### ArtifactCore.Video.Transitions.CrossfadeTransition implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Video/Transitions/CrossfadeTransition.cppm` を `.cpp` に移行し、Video target list、`ArtifactCoreSources.cmake`、`ArtifactCoreModuleReferences.cmake` の source path を更新。静的 registrar と creator 登録処理は維持し、実装本文は末尾改行の追加以外変更していない。
+- root MSVC / Visual Studio 18 の CMake configure / generate 後、`ArtifactCoreVideo.vcxproj` が `CrossfadeTransition.cpp` を登録することを確認した。upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja の隔離 smoke で実 `.cpp` の P1689 scan、compile、static archive link に成功。依存 module は stub interface のため ArtifactCoreVideo 実 target link は未確認。sccache 0.18 は初回4 misses、clean rebuild 4 hits、cache errors 0。
