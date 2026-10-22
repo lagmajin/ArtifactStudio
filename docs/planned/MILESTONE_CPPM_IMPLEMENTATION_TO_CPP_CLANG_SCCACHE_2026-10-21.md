@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 140 | 45 | 334 | 22 | 851 |
+| ArtifactCore | 141 | 45 | 333 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1320,4 +1320,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Codec/EncoderSetting.cppm` を `EncoderSetting.cpp` に移行した。source manifest、module reference map、source-specific CMake configuration selector を更新し、`Codec.Encoder.Setting` interface は維持。
 - エンコード出力設定の保存・取得実装であり、フレーム処理本体ではない。実装本文は LF 改行への正規化以外変更なし。
 - ArtifactCore 集計は `.cpp` 140、実装形式 `.cppm` 334。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。
+### Color.Lab implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Color/LabColor.cppm` を `LabColor.cpp` に移行し、source manifest、module reference map、source-specific compile option selector を更新した。`Color.Lab` public interface は維持。
+- repo 内の利用箇所は `FloatColorPicker` の色変換。描画・合成 path ではない。実装本文は LF 改行への正規化以外変更なし。
+- ArtifactCore 集計は `.cpp` 141、実装形式 `.cppm` 333。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
