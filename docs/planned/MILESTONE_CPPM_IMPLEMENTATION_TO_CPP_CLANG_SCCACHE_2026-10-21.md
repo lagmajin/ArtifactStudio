@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 31 | 0 | 16 | 4 | 63 |
+| ArtifactWidgets | 32 | 0 | 15 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -702,3 +702,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Button/FloatColorPickerButton.cppm` は `FloatColorPickerButton` implementation unit で、`Color.Float` と `FloatColorPickerDialog` を import する。module imports、`W_OBJECT_IMPL`、picker 起動と色の反映処理を維持して `.cpp` に移し、CMake の明示 implementation list に登録した。
 - 直接使う QColor / QDialog / QPalette / QWidget headers を global module fragment に追加し、LF 改行に揃えた。既存 click connection と signal 経路は変更していない。ビルド／依存スキャン／リンクは実行していない。
+
+### ArtifactWidgets.AudioBusWidget implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Audio/AudioBusWidget.cppm` は `AudioBusWidget` implementation unit で、`Audio.Mixer` / `Audio.Bus` / `Core.ArtifactString` を import する。これらの import、`W_OBJECT_IMPL`、既存 mixer / bus UI 処理を維持して `.cpp` に移し、CMake の明示 implementation list に登録した。
+- 直接使う QPaintEvent / QString / Qt / QWidget / `std::shared_ptr` の headers を global module fragment に加え、LF 改行に揃えた。既存 UI connections と signal 経路は変更していない。ビルド／依存スキャン／リンクは実行していない。
