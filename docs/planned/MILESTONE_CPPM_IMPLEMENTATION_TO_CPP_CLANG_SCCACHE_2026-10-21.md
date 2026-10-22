@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 154 | 45 | 320 | 22 | 851 |
+| ArtifactCore | 155 | 45 | 319 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1405,3 +1405,9 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - Timeline / composition frame range 操作から広く利用される基盤 provider。実装本文は LF 改行への正規化以外変更なし。
 - ArtifactCore 集計は `.cpp` 154、実装形式 `.cppm` 320。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
+### MeshImporter implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Geometry/MeshImporter.cppm` を `.cpp` に移行し、source manifest、module reference map、source-specific module references / object dependency selector、OpenUSD 有効時の `CXX.dd` dependency source path を更新した。公開 `MeshImporter` interface は維持。
+- 3D model layer / viewer の明示的 asset import 経路で利用。importer ロジックと third-party dependencies は変更せず、実装本文は LF 改行への正規化以外同一。
+- ArtifactCore 集計は `.cpp` 155、実装形式 `.cppm` 319。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。OpenUSD 有効構成の compile は未確認。
