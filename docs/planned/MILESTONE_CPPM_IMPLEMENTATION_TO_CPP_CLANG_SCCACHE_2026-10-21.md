@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 109 | 45 | 365 | 22 | 851 |
+| ArtifactCore | 110 | 45 | 364 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1159,4 +1159,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/UI/ShortcutBindings.cppm` は `UI.ShortcutBindings` implementation unit で、shortcut ID serialization、key-event conversion と binding override API を実装する。既存の key mapping / override behavior を保って `.cpp` に移した。
 - 実装で直接使う `std::array` / `std::size_t` に `<array>` / `<cstddef>` を追加した。CMake source path、MSVC IFC reference / interface object dependency、manifest と provider map を更新し、この source の `CXX_SCAN_FOR_MODULES OFF` を解除して Clang implementation dependency scan を有効にした。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Asset.Manager implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Asset/AssetManager.cppm` は `Asset.Manager` implementation unit で、source reference count、decoded payload cache、version invalidation と registry snapshot restore を実装する。既存の asset lifecycle behavior を保って `.cpp` に移した。
+- Clang の直接 include を明確にするため `<QString>`、`<QUuid>`、`<cstdint>` を追加し、未使用の `QFileSystemWatcher` include を除去した。ArtifactCore source manifest、Asset split target、provider / imported module references と追跡済み Visual Studio backup project の source paths を新 path に更新した。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
