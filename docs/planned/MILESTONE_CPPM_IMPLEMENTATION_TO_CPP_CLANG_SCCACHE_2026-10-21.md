@@ -1863,3 +1863,9 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - `Artifact/src/Widgets/ArtifactProjectHealthSummary.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の登録を更新。summary 生成処理と module 宣言は変更せず、100% rename。
 - 隔離 smoke target で upstream clang++ 22.1.3、clang-cl 22.1.3、MSVC 19.51.36257 / Visual Studio 18 の Ninja / Visual Studio module scan、compile、static library / executable link が成功。QString は簡易 stub のため Qt 実依存・Artifact 全体の link/runtime は未確認、smoke executable は未実行。
 - upstream clang++ + sccache 0.18.0 の cold / incremental build が成功。2 compile requests、2 misses、0 failures。module BMI のキャッシュ効果は未確認。
+
+### Artifact.Menu.LayerTransformFieldUndoCommands implementation migration（2026-10-22）
+
+- `Artifact/src/Widgets/Menu/ArtifactLayerMenuTransformFieldUndoCommands.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` を更新。Undo command 実装と module declaration は変更せず、100% rename。
+- 実 provider と Composition / Undo の最小 stub provider を用いた隔離 module smoke で upstream clang++ 22.1.3、clang-cl 22.1.3、MSVC 19.51.36257 / Visual Studio 18 の scan、compile、static library / executable link が成功。Composition / Undo stub のため Artifact 実依存・runtime は未確認、executable は未実行。
+- upstream clang++ + sccache 0.18.0 の cold / incremental build が成功。4 compile requests、4 misses、0 failures。BMI 再利用は確認できていない。
