@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 72 | 45 | 402 | 22 | 851 |
+| ArtifactCore | 73 | 45 | 401 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -895,4 +895,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Configuration/LayeredConfigStore.cppm` は `Configuration.LayeredConfigStore` implementation unit で、層の load / save / resolve / import-export / reload API を実装する。module 宣言、既存 imports / Qt headers、FastSettingsStore integration と本文を維持して `.cpp` に移した。
 - Core source manifest、configuration split target の implementation list、provider / imported module reference rows を更新した。起動設定仕様と configuration milestone の実装パスも現行名へ直し、両文書の最終更新日を記録した。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### Script.AngelScript.Engine implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Script/AngelScript/AngelScriptEngine.cppm` は `Script.AngelScript.Engine` implementation unit で、singleton lifecycle / SDK initialization / module compile / function execution API を実装する。module 宣言、条件付き AngelScript SDK includes と実装本文を保って `.cpp` に移した。
+- Core source manifest と provider module reference を更新した。SDK headers は既存どおり global module fragment 内にあり、macro / script behavior は変更していない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
