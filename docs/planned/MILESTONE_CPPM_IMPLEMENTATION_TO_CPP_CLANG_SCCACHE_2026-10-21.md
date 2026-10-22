@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 142 | 45 | 332 | 22 | 851 |
+| ArtifactCore | 143 | 45 | 331 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1332,4 +1332,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Audio/LipSyncTrack.cppm` を `LipSyncTrack.cpp` に移行し、Audio split target、source manifest、module reference map を更新した。公開 `Audio.LipSyncTrack` interface は維持。
 - 明示操作で音声を解析して口形イベントを生成する経路。`Audio.SimpleWav` を import する既存 `.cppm` importer と移行済み `.cpp` provider の構成を追加した。実装本文は LF 改行への正規化以外変更なし。
 - ArtifactCore 集計は `.cpp` 142、実装形式 `.cppm` 332。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。
+### Analyze.ImageAnalyzer implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Analyze/ImageAnalyzer.cppm` を `ImageAnalyzer.cpp` に移行し、analyze split target、source manifest、module reference map、source-specific IFC/object dependency 条件を更新した。公開 `Analyze.Histogram` module interface は維持。
+- repo 内の外部利用は Color Science panel の pixel sample と spatial spectrum 操作。実装本文は LF 改行への正規化以外変更なし。clang GNU frontend の module scan は既存設定のまま有効。
+- ArtifactCore 集計は `.cpp` 143、実装形式 `.cppm` 331。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
