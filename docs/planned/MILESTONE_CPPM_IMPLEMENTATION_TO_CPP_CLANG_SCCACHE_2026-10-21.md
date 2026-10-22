@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 33 | 0 | 6 | 4 | 63 |
+| ArtifactWidgets | 33 | 0 | 5 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -752,3 +752,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Knob/VolumeSlider.cppm` は import-free `VolumeSlider` implementation unit で、`include/Audio/VolumeSlider.ixx` が対応する public interface を宣言する。既存 `W_OBJECT_IMPL` と class / method definitions を維持して `.cpp` に移し、明示 implementation source list に登録した。
 - source が直接使う `QWidget` header を global module fragment に追加した。repository source 内での利用元は見つからなかった。既存の空 method bodies や public API は変更していない。ビルド／依存スキャン／リンクは実行していない。
+
+### ArtifactWidgets.HeadPanel implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Common/HeadPanel.cppm` は `HeadPanel` module implementation unit で、`include/Dock/HeadPanel.ixx` が `HeaderPanel` public interface を宣言する。`W_OBJECT_IMPL`、layout / child widget construction、既存 context-menu style collapse connection を維持して `.cpp` へ移し、明示 implementation source list に登録した。
+- implementation に `Widgets.Utils.CSS` の symbol use がないことを確認し、不要な module import と `using namespace ArtifactCore` を除いて Clang module dependency を減らした。直接使う `QString` header を global module fragment に加えた。UI behavior と public interface は変更していない。ビルド／依存スキャン／リンクは実行していない。
