@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 76 | 45 | 398 | 22 | 851 |
+| ArtifactCore | 77 | 45 | 397 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -921,4 +921,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/File/FileTypeDetector.cppm` は `File.TypeDetector` implementation unit で、公開 interface の constructor / destructor / detect API と拡張子・magic 判定の定義が揃っている。直接使う Qt Core headers、module 宣言と実装本文を保って `.cpp` に移した。
 - ArtifactCore の File split target source list、明示 source manifest、provider module reference を更新した。Clang lane は `.cpp` を P1689 scan / module map に載せ、MSVC は既存の明示 IFC reference と interface object ordering を使う。file type 判定動作は変更していない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Asset.File implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Asset/AbstractAssetFile.cppm` は `Asset.File` implementation unit で、公開 interface の PImpl lifecycle、asset identity / metadata / dependency / load-state API を実装する。`W_OBJECT_IMPL`、既存 module imports、Qt / Verdigris headers と実装本文を維持して `.cpp` に移した。
+- Asset split target source list、明示 source manifest、MSVC の NamedVector / Container.Debug IFC options、provider / imported module reference rows を新 path へ更新した。Clang frontend は `.cpp` を module map scan に載せ、既存の MSVC 専用参照／object ordering を除去する。asset behavior は変更していない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。

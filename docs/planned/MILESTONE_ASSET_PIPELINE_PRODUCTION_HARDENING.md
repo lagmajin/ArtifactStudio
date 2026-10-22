@@ -1,7 +1,7 @@
 # MILESTONE: Asset Pipeline Production Hardening
 
 **日付**: 2026-08-04
-**最終更新**: 2026-08-15
+**最終更新:** 2026-10-22
 **現状**: AssetDatabase／AssetManager／AssetBrowser に加え、AssetConverter、AssetMetaFile、ImageAssetFile、AssetImportSettings、基本的な VectorImport、プロキシ生成の主要経路も実装済み。ただし本番品質の形式正規化・型付きベクター編集・統合検証は未完了。
 **目標**: 型付きアセットクラス、フォーマット正規化パイプライン、プロキシ生成、バッチ変換、ベクターインポートの実装。
 
@@ -30,7 +30,7 @@
 | AssetDatabase | `ArtifactCore/src/Asset/AssetDatabase.cppm` | 181 | ✅ 機能 |
 | AssetManager | `ArtifactCore/src/Asset/AssetManager.cppm` | 385 | ✅ 機能 |
 | AssetImporter | `ArtifactCore/src/Asset/AssetImporter.cppm` | 68 | ✅ 基本機能（単一ファイル） |
-| AbstractAssetFile | `ArtifactCore/src/Asset/AbstractAssetFile.cppm` | 237 | ✅ PIMPL 基底クラス |
+| AbstractAssetFile | `ArtifactCore/src/Asset/AbstractAssetFile.cpp` | 237 | ✅ PIMPL 基底クラス |
 | DataAssetFile | `ArtifactCore/include/Asset/DataAssetFile.ixx` | 100 | ✅ CSV のみ |
 | AssetSequence | `ArtifactCore/include/Asset/AssetSequence.ixx` | 250 | ✅ フレームトークン検出 |
 | AssetBrowser | `Artifact/src/Widgets/Asset/ArtifactAssetBrowser.cppm` | 3,500 | ✅ 全機能 |
@@ -510,3 +510,8 @@ private:
 | P4: AssetMetaFile | **P0** | 小 | タグ・プロキシ管理の基盤 |
 | P3: Vector Import | **P1** | 大 | SVG/PDF パーサ実装。Qt::Svg 活用で SVG は容易 |
 | P5: Batch Relink | **P1** | 中 | 参照グラフ構築が主 |
+
+
+## Update 2026-10-22
+
+`AbstractAssetFile` の implementation unit を `ArtifactCore/src/Asset/AbstractAssetFile.cpp` へ移行した。PImpl 基底クラスと Asset API の責務は変更していない。
