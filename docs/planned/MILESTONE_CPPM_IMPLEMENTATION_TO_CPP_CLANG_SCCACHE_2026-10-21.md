@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 154 | 45 | 322 | 20 | 851 |
+| ArtifactCore | 155 | 45 | 321 | 20 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1439,4 +1439,10 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 
 - module 宣言を持たない `ArtifactCore/src/Platform/Platform.cppm` を `.cpp` に移行し、source manifest と Platform target の明示 source path を更新した。`allocConsole` / `allocConsle` の定義は変更していない。
 - ArtifactCore 集計は `.cpp` 154、実装形式 `.cppm` 322、module 宣言のない `.cppm` は20。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。
+### Audio.Decibels implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Audio/AudioDecibels.cppm` を `.cpp` に移行し、Audio split target、source manifest、module provider / `Utils.String.UniString` import mapping の参照先を更新した。公開 `Audio.Decibels` interface は維持。
+- AudioVolume の linear/dB 変換 API から利用される値型。実装本文・数値処理・所有権挙動は変更せず、LF 正規化以外同一。
+- ArtifactCore 集計は `.cpp` 155、実装形式 `.cppm` 321、module 宣言のない `.cppm` は20。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
