@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 23 | 0 | 24 | 4 | 63 |
+| ArtifactWidgets | 24 | 0 | 23 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -662,3 +662,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Color/WaveformScopeWidget.cppm` は `WaveformScopeWidget` implementation unit で、`Core.ArtifactMath` を import する。Artifact の Color Science panel と Composition Editor から利用される。既存 QtConcurrent / QFutureWatcher の実装と module import を維持して `.cpp` へ移し、CMake の通常 implementation list に追加、専用 legacy list から旧 path を除いた。
 - 直接使う image pixel、color、font、paint/resize event、pen、rect、QString、QObject の headers を global module fragment に追加し、`.cpp` を LF に揃えた。async completion の動作は変更していない。ビルド／依存スキャン／リンクはプロジェクト指示に従って今回は実行していない。
+
+### ArtifactWidgets.HistgramWidget implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Color/HistgramWidget.cppm` は `HistgramWidget` module implementation unit で、Artifact の Color Science panel と Composition Editor から HistogramWidget として利用される。module 名・公開 interface・histogram / paint implementation を維持して `.cpp` に移し、CMake の通常 implementation list に追加した。これで専用 legacy scope implementation list は不要になったため削除した。
+- 直接使う QRgb、widget、color、font、pen、rect、QString headers を global module fragment に置き、`.cpp` を LF に揃えた。描画・集計動作は変更していない。ビルド／依存スキャン／リンクはプロジェクト指示に従って今回は実行していない。
