@@ -12,18 +12,24 @@
 #include <QImage>
 #include <QLabel>
 #include <QMainWindow>
+#include <QMatrix4x4>
+#include <QPoint>
 #include <QQuaternion>
 #include <QScreen>
 #include <QString>
 #include <QThread>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <QVector3D>
 #include <QWidget>
 #include <QJsonArray>
 #include <QJsonObject>
 
 #include <chrono>
 #include <cmath>
+#include <algorithm>
+#include <array>
+#include <cstddef>
 #include <future>
 #include <memory>
 #include <thread>
@@ -36,6 +42,7 @@ import Artifact.Application.Manager;
 import Artifact.Composition.Abstract;
 import Artifact.Composition.InitParams;
 import Artifact.Layer.Camera;
+import Artifact.Layers.Model3D;
 import Artifact.Render.IRenderer;
 import Artifact.Widgets.CompositionRenderController;
 import Animation.Transform3D;
@@ -60,7 +67,10 @@ public:
         layout->addWidget(new QLabel(
             QStringLiteral("Composition Viewport camera frustum overlay | "
                            "MCP: viewport.state / viewport.setOverlay / "
-                           "viewport.setProjection / viewport.setView / viewport.capture"),
+                           "viewport.setProjection / viewport.setView / "
+                           "viewport.verifyFrustum / viewport.measureOverlay / "
+                           "viewport.runChecks / viewport.cullingStats / "
+                           "viewport.testCulling / viewport.capture"),
             root));
         status_ = new QLabel(QStringLiteral("Preparing camera fixture…"), root);
         layout->addWidget(status_);
@@ -184,7 +194,7 @@ public:
         return state();
     }
 
-    QJsonObject capture()
+    QImage captureImage(QString* error) const
     {
 #ifdef _WIN32
         struct CaptureResult { QImage image; QString error; };
@@ -210,23 +220,384 @@ public:
         }
         auto captured = future.get();
         if (worker.joinable()) worker.join();
-        if (captured.image.isNull())
-            return {{QStringLiteral("error"), captured.error.isEmpty()
-                ? QStringLiteral("window capture failed") : captured.error}};
-        const QByteArray png = artifactEncodePng(captured.image);
+        if (error) *error = captured.error;
+        return captured.image;
+#else
+        if (error) *error = QStringLiteral("window capture is only available on Windows");
+        return {};
+#endif
+    }
+
+    QJsonObject capture()
+    {
+        QString captureError;
+        const QImage image = captureImage(&captureError);
+        if (image.isNull())
+            return {{QStringLiteral("error"), captureError.isEmpty()
+                ? QStringLiteral("window capture failed") : captureError}};
+        const QByteArray png = artifactEncodePng(image);
         if (png.isEmpty())
             return {{QStringLiteral("error"), QStringLiteral("PNG encoding failed")}};
         QJsonObject result = state();
-        result[QStringLiteral("captureWidth")] = captured.image.width();
-        result[QStringLiteral("captureHeight")] = captured.image.height();
+        result[QStringLiteral("captureWidth")] = image.width();
+        result[QStringLiteral("captureHeight")] = image.height();
         result[QStringLiteral("mcpContent")] = QJsonArray{QJsonObject{
             {QStringLiteral("type"), QStringLiteral("image")},
             {QStringLiteral("mimeType"), QStringLiteral("image/png")},
             {QStringLiteral("data"), QString::fromLatin1(png.toBase64())}}};
         return result;
-#else
-        return {{QStringLiteral("error"), QStringLiteral("window capture is only available on Windows")}};
-#endif
+    }
+
+    QJsonObject verifyFrustum() const
+    {
+        if (!controller_)
+            return {{QStringLiteral("error"), QStringLiteral("viewport is not initialized")}};
+
+        const auto visual = controller_->cameraFrustumVisual();
+        const bool cornersPresent = visual.valid &&
+            visual.nearPlaneCorners.size() == 4 && visual.farPlaneCorners.size() == 4;
+
+        const auto toVector = [](const ArtifactCore::Coordinates::WorldPoint3& point) {
+            return QVector3D(point.x, point.y, point.z);
+        };
+        const auto isFinite = [](const ArtifactCore::Coordinates::WorldPoint3& point) {
+            return std::isfinite(point.x) && std::isfinite(point.y) &&
+                   std::isfinite(point.z);
+        };
+
+        bool finite = cornersPresent;
+        if (finite) {
+            for (const auto& point : visual.nearPlaneCorners) finite &= isFinite(point);
+            for (const auto& point : visual.farPlaneCorners) finite &= isFinite(point);
+            finite &= isFinite(visual.cameraPosition);
+        }
+
+        bool invertible = false;
+        const QMatrix4x4 inverseView = visual.viewMatrix.inverted(&invertible);
+        QVector3D forward;
+        if (invertible)
+            forward = inverseView.mapVector(QVector3D(0.0f, 0.0f, -1.0f)).normalized();
+        const QVector3D cameraPosition = toVector(visual.cameraPosition);
+
+        const auto distanceStats =
+            [&](const QVector<ArtifactCore::Coordinates::WorldPoint3>& corners,
+                float& average, float& deviation) {
+                float total = 0.0f;
+                for (const auto& corner : corners)
+                    total += QVector3D::dotProduct(
+                        toVector(corner) - cameraPosition, forward);
+                average = total / static_cast<float>(corners.isEmpty() ? 1 : corners.size());
+                deviation = 0.0f;
+                for (const auto& corner : corners) {
+                    const float distance = QVector3D::dotProduct(
+                        toVector(corner) - cameraPosition, forward);
+                    deviation = std::max(deviation, std::abs(distance - average));
+                }
+            };
+
+        float nearAverage = 0.0f;
+        float nearDeviation = 0.0f;
+        float farAverage = 0.0f;
+        float farDeviation = 0.0f;
+        bool distancesOk = false;
+        const float nearClip = camera_ ? camera_->nearClipPlane().value : 0.0f;
+        const float farClip = camera_ ? camera_->farClipPlane().value : 0.0f;
+        if (cornersPresent && finite && invertible) {
+            distanceStats(visual.nearPlaneCorners, nearAverage, nearDeviation);
+            distanceStats(visual.farPlaneCorners, farAverage, farDeviation);
+            const float nearTolerance = std::max(0.5f, std::abs(nearClip) * 0.01f);
+            const float farTolerance = std::max(0.5f, std::abs(farClip) * 0.01f);
+            distancesOk = std::abs(nearAverage - nearClip) <= nearTolerance &&
+                          nearDeviation <= nearTolerance &&
+                          std::abs(farAverage - farClip) <= farTolerance &&
+                          farDeviation <= farTolerance;
+        }
+
+        float nearWidth = 0.0f;
+        float farWidth = 0.0f;
+        bool centersAligned = false;
+        float centerAlignment = 0.0f;
+        if (cornersPresent) {
+            nearWidth = (toVector(visual.nearPlaneCorners[1]) -
+                         toVector(visual.nearPlaneCorners[0])).length();
+            farWidth = (toVector(visual.farPlaneCorners[1]) -
+                        toVector(visual.farPlaneCorners[0])).length();
+
+            const QVector3D nearCenter =
+                (toVector(visual.nearPlaneCorners[0]) +
+                 toVector(visual.nearPlaneCorners[1]) +
+                 toVector(visual.nearPlaneCorners[2]) +
+                 toVector(visual.nearPlaneCorners[3])) * 0.25f;
+            const QVector3D farCenter =
+                (toVector(visual.farPlaneCorners[0]) +
+                 toVector(visual.farPlaneCorners[1]) +
+                 toVector(visual.farPlaneCorners[2]) +
+                 toVector(visual.farPlaneCorners[3])) * 0.25f;
+            const QVector3D axis = farCenter - nearCenter;
+            if (axis.lengthSquared() > 1e-6f && forward.lengthSquared() > 0.5f) {
+                centerAlignment = QVector3D::dotProduct(axis.normalized(), forward);
+                centersAligned = centerAlignment > 0.999f;
+            }
+        }
+
+        const bool orthographic = camera_ &&
+            camera_->projectionMode() == Artifact::ProjectionMode::Orthographic;
+        const float planeWidthDelta = std::abs(nearWidth - farWidth);
+        const float parityTolerance = std::max(0.5f, nearWidth * 0.002f);
+        const bool planeRelationshipOk = orthographic
+            ? planeWidthDelta <= parityTolerance
+            : farWidth > nearWidth * 1.5f;
+
+        const bool passed = cornersPresent && finite && invertible && distancesOk &&
+                            centersAligned && planeRelationshipOk;
+
+        return {
+            {QStringLiteral("passed"), passed},
+            {QStringLiteral("valid"), visual.valid},
+            {QStringLiteral("cornersPresent"), cornersPresent},
+            {QStringLiteral("finite"), finite},
+            {QStringLiteral("invertible"), invertible},
+            {QStringLiteral("distancesOk"), distancesOk},
+            {QStringLiteral("centersAligned"), centersAligned},
+            {QStringLiteral("planeRelationshipOk"), planeRelationshipOk},
+            {QStringLiteral("projection"), orthographic
+                ? QStringLiteral("orthographic") : QStringLiteral("perspective")},
+            {QStringLiteral("nearClip"), nearClip},
+            {QStringLiteral("farClip"), farClip},
+            {QStringLiteral("nearDistance"), nearAverage},
+            {QStringLiteral("farDistance"), farAverage},
+            {QStringLiteral("nearDistanceDeviation"), nearDeviation},
+            {QStringLiteral("farDistanceDeviation"), farDeviation},
+            {QStringLiteral("nearPlaneWidth"), nearWidth},
+            {QStringLiteral("farPlaneWidth"), farWidth},
+            {QStringLiteral("planeWidthDelta"), planeWidthDelta},
+            {QStringLiteral("centerAlignment"), centerAlignment}
+        };
+    }
+
+    QJsonObject measureOverlay()
+    {
+        if (!controller_ || !viewportHost_)
+            return {{QStringLiteral("error"), QStringLiteral("viewport is not initialized")}};
+
+        renderFrame();
+        const auto pumpEnd =
+            std::chrono::steady_clock::now() + std::chrono::milliseconds(120);
+        while (std::chrono::steady_clock::now() < pumpEnd) {
+            QCoreApplication::processEvents(
+                QEventLoop::AllEvents | QEventLoop::ExcludeUserInputEvents, 5);
+            QThread::msleep(5);
+        }
+
+        QString captureError;
+        const QImage image = captureImage(&captureError);
+        if (image.isNull())
+            return {{QStringLiteral("error"), captureError.isEmpty()
+                ? QStringLiteral("window capture failed") : captureError}};
+
+        const QPoint hostOrigin = viewportHost_->mapTo(this, QPoint(0, 0));
+        const double scaleX =
+            static_cast<double>(image.width()) / std::max(1, width());
+        const double scaleY =
+            static_cast<double>(image.height()) / std::max(1, height());
+        const int left = std::clamp(
+            static_cast<int>(std::floor(hostOrigin.x() * scaleX)),
+            0, image.width() - 1);
+        const int top = std::clamp(
+            static_cast<int>(std::floor(hostOrigin.y() * scaleY)),
+            0, image.height() - 1);
+        const int right = std::clamp(
+            static_cast<int>(std::ceil((hostOrigin.x() + viewportHost_->width()) * scaleX)),
+            left + 1, image.width());
+        const int bottom = std::clamp(
+            static_cast<int>(std::ceil((hostOrigin.y() + viewportHost_->height()) * scaleY)),
+            top + 1, image.height());
+
+        std::size_t greenPixels = 0;
+        std::size_t bluePixels = 0;
+        int minX = image.width();
+        int minY = image.height();
+        int maxX = -1;
+        int maxY = -1;
+        for (int y = top; y < bottom; ++y) {
+            const auto* row = reinterpret_cast<const QRgb*>(image.constScanLine(y));
+            for (int x = left; x < right; ++x) {
+                const QRgb pixel = row[x];
+                const int red = qRed(pixel);
+                const int green = qGreen(pixel);
+                const int blue = qBlue(pixel);
+                const bool overlayGreen =
+                    green >= 120 && green >= red + 40 && green >= blue + 25;
+                const bool overlayBlue =
+                    blue >= 150 && blue >= green + 30 && blue >= red + 60;
+                if (overlayGreen) {
+                    ++greenPixels;
+                } else if (overlayBlue) {
+                    ++bluePixels;
+                } else {
+                    continue;
+                }
+                minX = std::min(minX, x);
+                minY = std::min(minY, y);
+                maxX = std::max(maxX, x);
+                maxY = std::max(maxY, y);
+            }
+        }
+
+        const std::size_t viewportPixels =
+            static_cast<std::size_t>(right - left) * static_cast<std::size_t>(bottom - top);
+        const std::size_t overlayPixels = greenPixels + bluePixels;
+        const double coveragePercent = viewportPixels == 0
+            ? 0.0
+            : 100.0 * static_cast<double>(overlayPixels) /
+                  static_cast<double>(viewportPixels);
+
+        QJsonArray boundingBox;
+        if (maxX >= minX && maxY >= minY) {
+            boundingBox = QJsonArray{minX, minY, maxX - minX + 1, maxY - minY + 1};
+        }
+
+        return {
+            {QStringLiteral("overlayEnabled"), controller_->isShowCameraFrustumOverlay()},
+            {QStringLiteral("projection"), camera_ &&
+                camera_->projectionMode() == Artifact::ProjectionMode::Orthographic
+                    ? QStringLiteral("orthographic") : QStringLiteral("perspective")},
+            {QStringLiteral("captureWidth"), image.width()},
+            {QStringLiteral("captureHeight"), image.height()},
+            {QStringLiteral("viewportRect"), QJsonArray{left, top, right - left, bottom - top}},
+            {QStringLiteral("greenPixels"), static_cast<int>(greenPixels)},
+            {QStringLiteral("bluePixels"), static_cast<int>(bluePixels)},
+            {QStringLiteral("overlayPixels"), static_cast<int>(overlayPixels)},
+            {QStringLiteral("coveragePercent"), coveragePercent},
+            {QStringLiteral("boundingBox"), boundingBox}
+        };
+    }
+
+    QJsonObject runChecks()
+    {
+        if (!controller_ || !camera_)
+            return {{QStringLiteral("error"), QStringLiteral("viewport is not initialized")}};
+
+        const bool originalOverlay = controller_->isShowCameraFrustumOverlay();
+        const auto originalProjection = camera_->projectionMode();
+
+        const std::array<std::pair<const char*, Artifact::ProjectionMode>, 2> projections{{
+            {"perspective", Artifact::ProjectionMode::Perspective},
+            {"orthographic", Artifact::ProjectionMode::Orthographic}}};
+
+        QJsonArray cases;
+        bool allPassed = true;
+        for (const auto& [name, mode] : projections) {
+            camera_->setProjectionMode(mode);
+
+            controller_->setShowCameraFrustumOverlay(false);
+            const QJsonObject baseline = measureOverlay();
+            controller_->setShowCameraFrustumOverlay(true);
+            const QJsonObject overlayed = measureOverlay();
+            const QJsonObject geometry = verifyFrustum();
+
+            const int baselineGreen =
+                baseline.value(QStringLiteral("greenPixels")).toInt();
+            const int overlayGreen =
+                overlayed.value(QStringLiteral("greenPixels")).toInt();
+            const bool overlayDrawn = overlayGreen >= baselineGreen + 30;
+            const bool geometryPassed =
+                geometry.value(QStringLiteral("passed")).toBool();
+            const bool passed = overlayDrawn && geometryPassed;
+            allPassed &= passed;
+
+            cases.append(QJsonObject{
+                {QStringLiteral("name"), QString::fromLatin1(name)},
+                {QStringLiteral("passed"), passed},
+                {QStringLiteral("overlayDrawn"), overlayDrawn},
+                {QStringLiteral("baselineGreenPixels"), baselineGreen},
+                {QStringLiteral("overlayGreenPixels"), overlayGreen},
+                {QStringLiteral("coveragePercent"),
+                    overlayed.value(QStringLiteral("coveragePercent"))},
+                {QStringLiteral("geometryPassed"), geometryPassed},
+                {QStringLiteral("geometry"), geometry}
+            });
+        }
+
+        camera_->setProjectionMode(originalProjection);
+        controller_->setShowCameraFrustumOverlay(originalOverlay);
+        renderFrame();
+
+        return {
+            {QStringLiteral("passed"), allPassed},
+            {QStringLiteral("cases"), cases},
+            {QStringLiteral("restoredOverlay"), originalOverlay},
+            {QStringLiteral("restoredProjection"),
+                originalProjection == Artifact::ProjectionMode::Orthographic
+                    ? QStringLiteral("orthographic") : QStringLiteral("perspective")}
+        };
+    }
+
+    QJsonObject cullingStats()
+    {
+        if (!controller_)
+            return {{QStringLiteral("error"), QStringLiteral("viewport is not initialized")}};
+        renderFrame();
+        const auto pumpEnd =
+            std::chrono::steady_clock::now() + std::chrono::milliseconds(60);
+        while (std::chrono::steady_clock::now() < pumpEnd) {
+            QCoreApplication::processEvents(
+                QEventLoop::AllEvents | QEventLoop::ExcludeUserInputEvents, 5);
+            QThread::msleep(5);
+        }
+        const auto stats = controller_->viewportCullingStats();
+        return {
+            {QStringLiteral("tested3DLayers"), stats.tested3DLayers},
+            {QStringLiteral("culled3DLayers"), stats.culled3DLayers},
+            {QStringLiteral("drawn3DLayers"), stats.drawn3DLayers}
+        };
+    }
+
+    QJsonObject testCulling()
+    {
+        if (!controller_ || !probe_)
+            return {{QStringLiteral("error"), QStringLiteral("viewport or probe is unavailable")}};
+
+        const auto measureAt = [&](const float x, const float y, const float z) {
+            probe_->transform3D().setCurrentPosition(x, y);
+            probe_->transform3D().setCurrentPositionZ(z);
+            renderFrame();
+            const auto pumpEnd =
+                std::chrono::steady_clock::now() + std::chrono::milliseconds(80);
+            while (std::chrono::steady_clock::now() < pumpEnd) {
+                QCoreApplication::processEvents(
+                    QEventLoop::AllEvents | QEventLoop::ExcludeUserInputEvents, 5);
+                QThread::msleep(5);
+            }
+            const auto stats = controller_->viewportCullingStats();
+            return QJsonObject{
+                {QStringLiteral("tested3DLayers"), stats.tested3DLayers},
+                {QStringLiteral("culled3DLayers"), stats.culled3DLayers},
+                {QStringLiteral("drawn3DLayers"), stats.drawn3DLayers}
+            };
+        };
+
+        const QJsonObject inView = measureAt(480.0f, 270.0f, 0.0f);
+        const QJsonObject outOfView = measureAt(1000480.0f, 270.0f, 0.0f);
+
+        probe_->transform3D().setCurrentPosition(480.0f, 270.0f);
+        probe_->transform3D().setCurrentPositionZ(0.0f);
+        renderFrame();
+
+        const int inTested = inView.value(QStringLiteral("tested3DLayers")).toInt();
+        const int inCulled = inView.value(QStringLiteral("culled3DLayers")).toInt();
+        const int outTested = outOfView.value(QStringLiteral("tested3DLayers")).toInt();
+        const int outCulled = outOfView.value(QStringLiteral("culled3DLayers")).toInt();
+        const bool inViewPassed = inTested > 0 && inCulled == 0;
+        const bool outOfViewPassed = outTested > 0 && outCulled == outTested;
+
+        return {
+            {QStringLiteral("passed"), inViewPassed && outOfViewPassed},
+            {QStringLiteral("inView"), inView},
+            {QStringLiteral("outOfView"), outOfView},
+            {QStringLiteral("inViewPassed"), inViewPassed},
+            {QStringLiteral("outOfViewPassed"), outOfViewPassed}
+        };
     }
 
 private:
@@ -258,6 +629,13 @@ private:
         camera_->transform3D().setCurrentPosition(480.0f, 270.0f);
         camera_->transform3D().setCurrentPositionZ(1050.0f);
         composition_->appendLayerTop(camera_);
+
+        probe_ = ArtifactCore::makeShared<Artifact::Artifact3DLayer>(
+            Artifact::FixedGeometry3D::Cube);
+        probe_->setLayerName(QStringLiteral("Culling Probe Cube"));
+        probe_->transform3D().setCurrentPosition(480.0f, 270.0f);
+        probe_->transform3D().setCurrentPositionZ(0.0f);
+        composition_->appendLayerTop(probe_);
     }
 
     void renderFrame()
@@ -272,6 +650,7 @@ private:
     Artifact::CompositionRenderController* controller_ = nullptr;
     Artifact::ArtifactCompositionPtr composition_;
     ArtifactCore::SharedPtr<Artifact::ArtifactCameraLayer> camera_;
+    ArtifactCore::SharedPtr<Artifact::Artifact3DLayer> probe_;
     double viewYaw_ = -32.0;
     double viewPitch_ = 20.0;
     bool ready_ = false;
@@ -354,6 +733,21 @@ int main(int argc, char** argv)
         toolsReady &= mcpServer.registerTool(QStringLiteral("viewport.capture"),
             QStringLiteral("Capture the standalone camera frustum viewport window"),
             objectSchema, [&window](const QJsonObject&) { return window.capture(); });
+        toolsReady &= mcpServer.registerTool(QStringLiteral("viewport.verifyFrustum"),
+            QStringLiteral("Verify frustum corner geometry against camera clip planes"),
+            objectSchema, [&window](const QJsonObject&) { return window.verifyFrustum(); });
+        toolsReady &= mcpServer.registerTool(QStringLiteral("viewport.measureOverlay"),
+            QStringLiteral("Measure overlay-colored pixels inside the viewport"),
+            objectSchema, [&window](const QJsonObject&) { return window.measureOverlay(); });
+        toolsReady &= mcpServer.registerTool(QStringLiteral("viewport.runChecks"),
+            QStringLiteral("Run perspective and orthographic frustum drawing checks"),
+            objectSchema, [&window](const QJsonObject&) { return window.runChecks(); });
+        toolsReady &= mcpServer.registerTool(QStringLiteral("viewport.cullingStats"),
+            QStringLiteral("Read the latest view-frustum culling decision counts"),
+            objectSchema, [&window](const QJsonObject&) { return window.cullingStats(); });
+        toolsReady &= mcpServer.registerTool(QStringLiteral("viewport.testCulling"),
+            QStringLiteral("Move the probe cube in and out of view to verify frustum culling"),
+            objectSchema, [&window](const QJsonObject&) { return window.testCulling(); });
         window.setAttribute(Qt::WA_ShowWithoutActivating, true);
         if (!toolsReady || !mcpServer.start()) return 2;
     }
