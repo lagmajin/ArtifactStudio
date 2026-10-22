@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 87 | 45 | 387 | 22 | 851 |
+| ArtifactCore | 88 | 45 | 386 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1005,4 +1005,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Diagnostics/FallbackPolicy.cppm` は `Core.Diagnostics.FallbackPolicy` implementation unit で、fallback tracker の記録・検索・policy API を実装する。module 宣言、`Container.NamedVector` import、既存実装を保って `.cpp` に移した。
 - ArtifactCore source manifest と provider / imported module reference、CMake の MSVC IFC option と container registry object dependency の source-specific 条件を新 path に更新した。fallback event behavior は変更していない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Core.Diagnostics.DiagnosticEngine implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Diagnostics/DiagnosticEngine.cppm` は `Core.Diagnostics.DiagnosticEngine` implementation unit で、rule registry と validate-all / delta / cache API を実装する。module 宣言と validation behavior を保って `.cpp` に移し、`std::ptrdiff_t` / `QStringList` の直接利用に `<cstddef>` / `<QStringList>` を追加した。
+- ArtifactCore source manifest、provider / `Core.Diagnostics.ProjectDiagnostic` reference、MSVC IFC source condition と `DiagnosticEngineStandalone` の source path を更新した。診断キャッシュ・検証動作は変更していない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
