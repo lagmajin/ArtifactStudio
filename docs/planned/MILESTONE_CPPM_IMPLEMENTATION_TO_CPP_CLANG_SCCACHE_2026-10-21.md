@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 153 | 45 | 321 | 22 | 851 |
+| ArtifactCore | 154 | 45 | 320 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1398,4 +1398,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Image/DeepImageBuffer.cppm` を `.cpp` に移行し、source manifest、module reference map、source-specific module dependency references を更新した。公開 `Image.DeepImageBuffer` interface は維持。
 - Artifact render queue の multi-channel / deep export 用 provider。通常 frame rendering 経路ではない。実装本文とデータ表現は変更せず、LF 改行への正規化のみ。
 - ArtifactCore 集計は `.cpp` 153、実装形式 `.cppm` 321。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。
+### Frame.Range implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Frame/FrameRange.cppm` を `.cpp` に移行し、source manifest、module reference map、NLE OTIO の `/reference` 設定、FrameRange の source-specific object dependency 条件を更新した。公開 `Frame.Range` interface と serialization registration は維持。
+- Timeline / composition frame range 操作から広く利用される基盤 provider。実装本文は LF 改行への正規化以外変更なし。
+- ArtifactCore 集計は `.cpp` 154、実装形式 `.cppm` 320。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
