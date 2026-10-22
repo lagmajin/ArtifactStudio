@@ -26,7 +26,7 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 | リポジトリ | `.cpp` | `export module` のある `.cppm` | 実装形式の `.cppm` | module 宣言のない `.cppm` | `.ixx` |
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
-| Artifact | 26 | 55 | 610 | 6 | 700 |
+| Artifact | 27 | 55 | 609 | 6 | 700 |
 | ArtifactCore | 162 | 45 | 314 | 20 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
@@ -1528,6 +1528,12 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 
 - `Artifact/CMakeLists.txt` の implementation source 判定を `.cppm` に加えて、named module declaration を持つ `.cpp` に拡張した。clang-cl / upstream clang では両形式に `CXX_SCAN_FOR_MODULES` を設定し、`-x c++` は upstream clang の `.cppm` のみ、MSVC `CompileAsCpp` は `.cppm` のみへ適用する。
 - Artifact 子リポジトリの `.gitattributes` に `CMakeLists.txt text eol=lf` を追加し、編集対象の作業ツリー改行を LF に統一した。CMake configure / generate とビルドは未実施。
+
+### Artifact.Menu.Edit implementation migration（2026-10-22）
+
+- `Artifact/src/Widgets/Menu/ArtifactEditMenu.cppm` を `.cpp` に移行し、Artifact の明示 source manifest を更新した。公開 `Artifact.Menu.Edit` interface と imports は維持。
+- Undo / redo、selection、clipboard、layer 編集の既存 UI 操作は変更していない。LF 改行を維持し、Clang / MSVC の scan・compile・link は本ターンでは未実施。
+- Artifact 集計は `.cpp` 27、実装形式 `.cppm` 609、module 宣言のない `.cppm` は6。
 
 ### Artifact.Menu.Effect implementation migration（2026-10-22）
 
