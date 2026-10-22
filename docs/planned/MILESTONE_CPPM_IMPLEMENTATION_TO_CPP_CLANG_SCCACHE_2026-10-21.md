@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 50 | 45 | 424 | 22 | 851 |
+| ArtifactCore | 51 | 45 | 423 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -804,3 +804,5 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Time/TimeCode.cppm` を `Time.Code` module implementation unit のまま `.cpp` に移した。module 名、`Time.Rational` import と既存実装を維持し、Core の明示 source manifest、module reference map、MSVC 用 source-specific `/reference` 条件の path を更新した。実装が使う `std::max` / `int64_t` に `<algorithm>` / `<cstdint>` を直接追加した。ビルド／依存スキャン／リンクは未実行。
 
 - `ArtifactCore/src/Time/TimeCodeRange.cppm` を `TimeCodeRange` implementation unit のまま `.cpp` に移した。module 名と `Time.Rational` import、既存実装を維持し、明示 source manifest、module reference map、MSVC 用 source-specific `/reference` 条件の path を更新した。`int64_t` 用の `<cstdint>` を global module fragment に追加した。ビルド／依存スキャン／リンクは未実行。
+
+- `ArtifactCore/src/Frame/FrameOffset.cppm` を `Frame.Offset` implementation unit のまま `.cpp` に移した。module 宣言、既存 imports と arithmetic / time conversion 実装を保ち、Core source manifest、module reference map の provider・全 imported reference rows、および MSVC source-specific `/reference` 条件を更新した。既存の直接標準 header include は維持。ビルド／依存スキャン／リンクは未実行。
