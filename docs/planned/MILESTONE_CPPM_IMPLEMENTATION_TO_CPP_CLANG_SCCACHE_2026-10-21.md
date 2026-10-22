@@ -25,10 +25,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 | リポジトリ | `.cpp` | `export module` のある `.cppm` | 実装形式の `.cppm` | module 宣言のない `.cppm` | `.ixx` |
 |---|---:|---:|---:|---:|---:|
-| 親 ArtifactStudio | 327 | 0 | 27 | 0 | 29 |
+| 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 11 | 0 | 36 | 4 | 63 |
+| ArtifactWidgets | 12 | 0 | 35 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -602,3 +602,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `Artifact/src/Generator/AbstractGenerator.cppm` は module import のない implementation unit で、raw `Impl*` の生成と破棄だけを定義する。本文と `Artifact.Generator.Abstract` module name を維持して `.cpp` に移し、`Artifact/cmake/ArtifactSources.cmake` の explicit implementation manifest を更新した。
 - 実 `AbstractGenerator.ixx` / `.cpp` と importer を使う CMake 4.4.4 / Ninja smoke で、upstream clang++ 23.1.4（Windows MSVC ABI）、clang-cl 22.1.3、MSVC 19.51 の各 lane が module dependency scan、interface / implementation / importer compile、static library / executable link、executable runtime に成功した。clang-cl は unused `-TP` warning を出したが build と run は成功。
 - upstream clang++ + sccache 0.18.0 の clean build / clean rebuild は合計6 requests、3 misses / 3 hits、cache errors 0。`.cpp` と manifest は LF、rename は100%。Artifact 全体 target / link は未確認。
+
+### ArtifactWidgets.AbstractDialog implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Common/AbstractDialog.cppm` は `Widgets.Dialog.Abstract` の import-free implementation unit。公開 `AbstractDialog.ixx` と実装の挙動を維持して `.cpp` に移し、Clang のコンパイル境界を明確にするため直接使う Qt 型のヘッダーを global module fragment に追加し、`ArtifactWidgets/CMakeLists.txt` の明示 implementation list を更新した。
+- `.cpp` は LF、module declaration 前に必要な Qt ヘッダーを配置し、`git diff --check` は成功。ビルド／依存スキャン／リンクはプロジェクト指示に従って今回は実行していない。
