@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 120 | 45 | 354 | 22 | 851 |
+| ArtifactCore | 122 | 45 | 352 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1209,3 +1209,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Color/OCIOConfig.cppm` は OpenColorIO 設定の file / JSON load、組み込み preset と color space / display metadata を実装する。color conversion の per-pixel 経路ではなく、既存処理を保って `.cpp` に移した。
 - source manifest、provider mapping と MSVC source-specific IFC reference 条件を新 path に更新した。Qt / OpenColorIO の直接 include は既に global module fragment に揃っている。本文は LF 化以外同一。
 - Clang の `.cpp` module implementation scan 適用対象に含まれる。ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### StarfieldGenerator implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Generate/StarfieldGenerator.cppm` は恒星・星雲・惑星データを RGBA float buffer に生成する公開 utility である。現行 repo 内での呼び出し元は見つからず、既存実装を保って `.cpp` に移した。
+- core / Generate source lists、provider mapping と `Core.Parallel` / `Math.Random` の MSVC IFC reference source path を更新した。実装本文は LF 化以外同一。
+- Clang の `.cpp` module implementation scan 対象になる。ビルド、依存スキャン、テスト、CMake は実行していない。
