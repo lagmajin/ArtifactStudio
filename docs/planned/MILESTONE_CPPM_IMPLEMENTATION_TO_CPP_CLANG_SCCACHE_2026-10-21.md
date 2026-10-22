@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 33 | 0 | 12 | 4 | 63 |
+| ArtifactWidgets | 33 | 0 | 11 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -722,3 +722,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Common/WinTaskbarProgress.cppm` は Windows Shell Taskbar COM の import-free implementation unit で、対応する public `WinTaskbarProgress.ixx` と module 名が一致する。既存の progress state 実装を保って `.cpp` へ移し、明示 implementation source list に登録した。
 - 現行 Artifact / ArtifactWidgets source には呼び出し元が見つからなかった。public interface と実装は削除せず、直接使う Windows / QWidget headers を維持する。ビルド／依存スキャン／リンクは実行していない。
+
+### ArtifactWidgets.CommandAction implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Common/CommandAction.cppm` は `CommandAction` の import-free implementation unit で、`include/Common/CommandAction.ixx` が同名 module interface を宣言する。`W_OBJECT_IMPL`、PImpl ownership、既存 QAction connection、method bodies を変更せず `.cpp` に移し、明示 implementation source list に登録した。
+- implementation は既存どおり interface module から型宣言を得る。`.cpp` は LF。ビルド／依存スキャン／リンクは実行していない。別途確認候補の既存 `hasCommand()` 実装上の懸念は `Insight.md` に未検証として記録した。
