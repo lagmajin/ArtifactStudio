@@ -26,7 +26,7 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 | リポジトリ | `.cpp` | `export module` のある `.cppm` | 実装形式の `.cppm` | module 宣言のない `.cppm` | `.ixx` |
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
-| Artifact | 14 | 55 | 622 | 6 | 700 |
+| Artifact | 15 | 55 | 621 | 6 | 700 |
 | ArtifactCore | 162 | 45 | 314 | 20 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
@@ -1505,4 +1505,10 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - `Artifact/src/Widgets/LayerEditorModePresentation.cppm` を `.cpp` に移行し、Artifact の明示 source manifest を更新した。公開 `Artifact.Widgets.LayerEditor.ModePresentation` interface、`Artifact.Widgets.LayerEditor.ViewportChrome` / `Tool` imports は維持。
 - widget 初期化と edit/display mode 変更時に呼ばれる UI readout 更新の実装内容・呼出頻度は変更していない。LF 改行に統一し、Clang / MSVC の scan・compile・link は本ターンでは未実施。
 - Artifact 集計は `.cpp` 14、実装形式 `.cppm` 622、module 宣言のない `.cppm` は6。
+
+### Artifact.Project.Items implementation migration（2026-10-22）
+
+- `Artifact/src/Project/ArtifactProjectItems.cppm` を `.cpp` に移行し、Artifact の明示 source manifest を更新した。公開 `Artifact.Project.Items` interface と `Utils.Id` / `Utils.String.UniString` imports は維持。
+- folder child の作成実装は変更せず、LF 改行に統一した。Clang / MSVC の scan・compile・link は本ターンでは未実施。
+- Artifact 集計は `.cpp` 15、実装形式 `.cppm` 621、module 宣言のない `.cppm` は6。
 - Clang P1689 scan / compile、MSVC compile / link は未確認。ビルド・テスト・CMake configure/generate は実行していない。
