@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 43 | 45 | 431 | 22 | 851 |
+| ArtifactCore | 44 | 45 | 430 | 22 | 851 |
 | ArtifactWidgets | 35 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -787,3 +787,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Transform/Rotate.cppm` は `module Rotate;` implementation unit で、`include/Transform/Rotate.ixx` の非 inline method definitions を持つ。本文を `.cpp` に移し、明示 manifest `cmake/ArtifactCoreSources.cmake` の source path を更新した。
 - source は追加 module import / source-specific CMake reference / scan-disable rule を持たないため、既存 scanner classification を維持する。public interface と method behavior は変更していない。ビルド／依存スキャン／リンクは実行していない。
+
+### ArtifactCore.AssetConverter implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Asset/AssetConverter.cppm` は `AssetConverter` module の image conversion implementation unit で、`include/Asset/AssetConverter.ixx` の宣言を定義する。本文を `.cpp` に移し、`ArtifactCoreSources.cmake` / `ArtifactCoreModuleReferences.cmake` / Asset domain source list の自己 path を更新した。`AssetImporter` consumer mapping は public interface path を参照するため変更していない。
+- source が直接使う `<memory>` / `<utility>` / `QByteArray` / `QSize` / `QString` headers を global module fragment に明示した。変換処理と public API は変更していない。ビルド／依存スキャン／リンクは実行していない。
