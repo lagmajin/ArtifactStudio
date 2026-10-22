@@ -1664,3 +1664,8 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 
 - `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorShared.cppm` を `.cpp` に移行し、Artifact の明示 implementation source list を更新した。共有 helper 定義と同一 module の import 境界は維持。
 - 共有 property control の UI、既存 paint / event handling は変更していない。実装 blob の一致を確認。clang-cl / upstream clang の scan・compile・link は本ターンでは未実施。
+
+### Artifact.Widgets.PropertyEditor.TextAnimatorColor implementation migration（2026-10-22）
+
+- `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorTextAnimatorColor.cppm` を `.cpp` に移行し、Artifact の明示 implementation source list を更新した。公開 Property Editor module と承認済み `FloatColorPicker` imports は維持。
+- Text Animator color / gradient controls の操作・custom paint は変更していない。実装 blob の一致を確認。clang-cl / upstream clang の scan・compile・link は本ターンでは未実施。
