@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 156 | 45 | 318 | 22 | 851 |
+| ArtifactCore | 159 | 45 | 316 | 21 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1430,3 +1430,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - Bezier path の標準・等距離・適応サンプリングと tangent sampling を実装する。関数の処理、戻り値、公開 API は変えず、本文は LF 正規化以外同一。
 - ArtifactCore 集計は `.cpp` 158、実装形式 `.cppm` 316。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
+### STB image implementation translation unit migration（2026-10-22）
+
+- module 宣言を持たない `ArtifactCore/src/IO/Image/StbImageImplementation.cppm` を `.cpp` に移し、明示 source manifest のみ更新した。`STB_IMAGE_IMPLEMENTATION` と stb header include は維持。
+- `.cppm` の実装 module 数は変わらず316、module 宣言のない `.cppm` は22から21へ減少。`.cpp` は159。
+- Clang の P1689 scan / compile を含む実 target は未確認。ビルド・テスト・CMake configure/generate は未実施（指示により）。
