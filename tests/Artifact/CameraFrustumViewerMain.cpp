@@ -578,6 +578,7 @@ public:
         };
 
         const QJsonObject inView = measureAt(480.0f, 270.0f, 0.0f);
+        const QJsonObject inViewRepeat = measureAt(480.0f, 270.0f, 0.0f);
         const QJsonObject outOfView = measureAt(1000480.0f, 270.0f, 0.0f);
 
         probe_->transform3D().setCurrentPosition(480.0f, 270.0f);
@@ -586,17 +587,23 @@ public:
 
         const int inTested = inView.value(QStringLiteral("tested3DLayers")).toInt();
         const int inCulled = inView.value(QStringLiteral("culled3DLayers")).toInt();
+        const int repeatTested = inViewRepeat.value(QStringLiteral("tested3DLayers")).toInt();
+        const int repeatCulled = inViewRepeat.value(QStringLiteral("culled3DLayers")).toInt();
         const int outTested = outOfView.value(QStringLiteral("tested3DLayers")).toInt();
         const int outCulled = outOfView.value(QStringLiteral("culled3DLayers")).toInt();
         const bool inViewPassed = inTested > 0 && inCulled == 0;
         const bool outOfViewPassed = outTested > 0 && outCulled == outTested;
+        const bool stableAcrossFrames =
+            inTested == repeatTested && inCulled == repeatCulled;
 
         return {
-            {QStringLiteral("passed"), inViewPassed && outOfViewPassed},
+            {QStringLiteral("passed"), inViewPassed && outOfViewPassed && stableAcrossFrames},
             {QStringLiteral("inView"), inView},
+            {QStringLiteral("inViewRepeat"), inViewRepeat},
             {QStringLiteral("outOfView"), outOfView},
             {QStringLiteral("inViewPassed"), inViewPassed},
-            {QStringLiteral("outOfViewPassed"), outOfViewPassed}
+            {QStringLiteral("outOfViewPassed"), outOfViewPassed},
+            {QStringLiteral("stableAcrossFrames"), stableAcrossFrames}
         };
     }
 
