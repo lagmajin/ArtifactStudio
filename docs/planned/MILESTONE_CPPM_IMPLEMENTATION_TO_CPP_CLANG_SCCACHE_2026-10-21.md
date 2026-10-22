@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 64 | 45 | 410 | 22 | 851 |
+| ArtifactCore | 65 | 45 | 409 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -847,4 +847,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Composition/CompositionRegistry.cppm` は `Composition.Registry` implementation unit で、公開 interface の global / register / unregister / lookup / names / clear API を実装する。module 宣言、NameMap / Container.Debug imports、Qt headers と既存 registry behavior を保って `.cpp` に移した。
 - 専用 composition target の source path、Core source manifest と依存スキャンに関する CMake コメントを更新した。実装本文は変更していない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### Math.Bezier implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Geometry/BezierCalculator.cppm` は `Math.Bezier` implementation unit で、evaluateQuadratic / evaluateCubic / evaluatePath / getTangentAngle / evaluateTangent の定義が interface と一致する。module 宣言、Qt headers、標準 headers、実装本文を維持して `.cpp` に移した。
+- Core source manifest、provider module reference、MSVC source-specific IFC 条件、BezierPathSamplerStandalone の source path を更新した。幾何計算の挙動変更はない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
