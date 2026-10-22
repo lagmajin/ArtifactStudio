@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 32 | 0 | 15 | 4 | 63 |
+| ArtifactWidgets | 33 | 0 | 14 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -707,3 +707,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Audio/AudioBusWidget.cppm` は `AudioBusWidget` implementation unit で、`Audio.Mixer` / `Audio.Bus` / `Core.ArtifactString` を import する。これらの import、`W_OBJECT_IMPL`、既存 mixer / bus UI 処理を維持して `.cpp` に移し、CMake の明示 implementation list に登録した。
 - 直接使う QPaintEvent / QString / Qt / QWidget / `std::shared_ptr` の headers を global module fragment に加え、LF 改行に揃えた。既存 UI connections と signal 経路は変更していない。ビルド／依存スキャン／リンクは実行していない。
+
+### ArtifactWidgets.BasicImageViewWidget implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Image/BasicImageViewWidget.cppm` は `BasicImageViewWidget` implementation unit で、`Widgets.Effects.GlowFrame` を import する。module import、`W_OBJECT_IMPL`、既存 image view / file-drop loading implementation を維持して `.cpp` に移し、CMake の明示 implementation list に登録した。
+- 直接使う QDebug / QFocusEvent / QGraphicsPixmapItem / QImage / QObject / QPainter / QPixmap / QPoint / QRectF / QSize / QString / QUrl / QWheelEvent / QWidget / Qt headers を global module fragment に加え、LF 改行へ揃えた。既存 image loading connection と描画動作は変更していない。ビルド／依存スキャン／リンクは実行していない。
