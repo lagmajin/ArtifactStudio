@@ -1,7 +1,7 @@
 # MILESTONE_COLLAB_BACKEND_FOUNDATION_2026-07-21
 
 **Status:** ✅ Complete (4/4)
-**最終更新:** 2026-08-15
+**最終更新:** 2026-10-22
 **Goal:** コラボレーション機能のバックエンド（Qt クライアント側 I/O レイヤ、ロック管理、EditSession 連携）を実装し、既存 `tools/collaboration-server` に接続可能な状態にする。
 
 ## 背景
@@ -16,7 +16,7 @@
 |---|------|----------|------|
 | 1 | WebSocket クライアント `.ixx` | `ArtifactCore/include/Network/CollaborationWebSocket.ixx` | 公開 API: 接続/切断/再接続/送信/シグナル |
 | 2 | WebSocket クライアント `.cppm` | `ArtifactCore/src/Network/CollaborationWebSocket.cppm` | QWebSocket 実装、ハートビート、指数バックオフ再接続、メッセージ型 |
-| 3 | LayerLockManager `.ixx` + `.cppm` | `ArtifactCore/include/Command/LayerLockManager.ixx` + `ArtifactCore/src/Command/LayerLockManager.cppm` | レイヤーロック管理: acquire/release/purge/timeout |
+| 3 | LayerLockManager `.ixx` + `.cppm` | `ArtifactCore/include/Command/LayerLockManager.ixx` + `ArtifactCore/src/Command/LayerLockManager.cpp` | レイヤーロック管理: acquire/release/purge/timeout |
 | 4 | EditSession broadcast フック | `ArtifactCore/include/Command/EditSession.ixx` 拡張 | pushCommand にコールバック機構追加 |
 
 ## Non-goals
@@ -56,7 +56,7 @@ LayerLockManager (本 milestone)
 ## 2026-07-25 実装監査（履歴）
 
 - `ArtifactCore/include/Network/CollaborationWebSocket.ixx` と `ArtifactCore/src/Network/CollaborationWebSocket.cppm` に接続状態、送受信、ハートビート、指数バックオフ再接続の API／実装が存在する。
-- `ArtifactCore/include/Command/LayerLockManager.ixx` と `ArtifactCore/src/Command/LayerLockManager.cppm` に acquire/release、リモート状態反映、期限切れ purge が存在する。
+- `ArtifactCore/include/Command/LayerLockManager.ixx` と `ArtifactCore/src/Command/LayerLockManager.cpp` に acquire/release、リモート状態反映、期限切れ purge が存在する。
 - `ArtifactCore/include/Command/EditSession.ixx` の `pushCommand()` は JSON 履歴を作成し、登録済み `BroadcastCallback` を呼び出す。
 - UI 統合、競合解決、認証/TLS、依存設定変更は Non-goals のため、この監査では未実施でも完了判定を変更しない。
 
@@ -67,3 +67,8 @@ LayerLockManager (本 milestone)
 - `docs/planned/MILESTONE_COLLABORATION_FEATURES_2026-03-28.md` — 機能要件 (60-80h)
 - `plans/MILESTONE_COLLABORATIVE_REACTIVE_RULES_2026-06-07.md` — ReactiveRule 限定版
 - `tools/collaboration-server/server.js` — 接続先サーバー
+
+
+## Update 2026-10-22
+
+`LayerLockManager` implementation unit を `.cppm` から `.cpp` へ移行した。公開 API、ロック状態管理、Event.Bus 通知の挙動は変更していない。

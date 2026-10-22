@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 80 | 45 | 394 | 22 | 851 |
+| ArtifactCore | 81 | 45 | 393 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -956,4 +956,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Core/AspectRatio.cppm` は `Core.AspectRatio` implementation unit で、公開 interface の constructor / copy-move / ratio / string parse API を実装する。module 宣言、標準 / Qt headers、UniString import と実装本文を保って `.cpp` に移した。
 - Core source manifest、既存の MSVC module reference source condition、provider / UniString imported reference rows を新 path に更新した。decimal parsing のロジックと PImpl ownership は変更していない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Command.LayerLockManager implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Command/LayerLockManager.cppm` は `Command.LayerLockManager` implementation unit で、constructor / destructor、lock acquire / release、remote state、expiry purge API の定義が揃っている。`Event.Bus` import、`W_OBJECT_IMPL`、既存実装を保って `.cpp` に移した。
+- source manifest、Command split target source list、Event.Bus / Memory.SharedPtr の MSVC IFC options、provider module reference を新 path に更新した。実装で直接使う Qt Core の `QList` / `QObject` / `QString` を global module fragment に明示 include した。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
