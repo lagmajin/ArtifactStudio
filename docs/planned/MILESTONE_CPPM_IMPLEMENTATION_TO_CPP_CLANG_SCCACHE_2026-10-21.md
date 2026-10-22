@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 135 | 45 | 339 | 22 | 851 |
+| ArtifactCore | 136 | 45 | 338 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1290,4 +1290,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/AI/LlamaLocalAgent.cppm` はユーザー操作によるローカル LLM backend 初期化、model load / inference、streaming response を実装する。推論時に計算負荷はあるが playback/render frame path ではない。既存処理を `.cpp` に移した。
 - AI source list、provider / imported-module mappings と source-specific MSVC `/reference` selector を新 path に更新した。Clang lane では `.cpp` P1689 scan が有効になる。実装本文は LF 化以外同一。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### Core.AI.ObjectDetector implementation migration（2026-10-22）
+
+- `ArtifactCore/src/AI/ObjectDetector.cppm` は AI/tool から明示的に呼ばれる detection metadata、bounding box drawing と mask rasterization を実装する。現行 repo 内に playback/render frame path からの呼び出しはない。既存処理を `.cpp` に移した。
+- AI source list、provider / imported-module mappings、MSVC `/reference` / object dependencies、scanner exception と NamedVector compile option selector を新 path に更新した。Clang finalization は migrated `.cpp` を P1689 scan 対象にする。実装本文は LF 化以外同一。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
