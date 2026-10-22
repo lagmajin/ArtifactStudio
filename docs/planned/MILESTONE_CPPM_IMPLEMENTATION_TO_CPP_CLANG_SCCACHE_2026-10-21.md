@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 107 | 45 | 367 | 22 | 851 |
+| ArtifactCore | 108 | 45 | 366 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1145,4 +1145,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Simulation/OpenVDBVolumeReference.cppm` は volume metadata inspect、density grid snapshot load と Pyro field copy API を実装する。既存処理を `.cpp` に移し、`std::size_t` 使用に必要な `<cstddef>` を直接 include した。
 - ArtifactCore source manifest、split target source list、MSVC の source-specific IFC references と provider module reference を新 path に更新した。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Thread.Helper implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Thread/ThreadHelper.cppm` は `Thread.Helper` implementation unit で、shared background QThreadPool、thread snapshot / diagnostics と scoped thread naming API を実装する。pool 設定、同期、diagnostic behavior を変更せず `.cpp` に移した。
+- ArtifactCore source manifest、Thread split target、MSVC IFC reference / interface object dependency と provider module reference を新 path に更新した。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
