@@ -1845,3 +1845,9 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - `Artifact/src/Layer/ArtifactCompositionLayerResolver.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の source path を更新。ProjectService から composition weak reference を lock して返す実装は変更せず、Git rename detection で本文変更なし（100%）。
 - 実 interface と `.cpp`、importer を使った隔離 smoke で upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja、clang-cl 22.1.3 / Ninja、MSVC 19.51.36257 / Visual Studio 18 の module scan・compile・static library / executable link が成功。ProjectService / Composition / SharedPtr provider は最小 stub のため Artifact 実依存 link/runtime は未確認。smoke executable は未実行。
 - sccache 0.18.0 upstream clang++ clean rebuild は全 cacheable compile hit、bypass / errors 0。
+
+### Artifact.Audio.Effects.DCBlocker implementation migration（2026-10-22）
+
+- `Artifact/src/Audio/Effects/DCBlockerEffect.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` を更新。process / parameter adapter は変更せず、DSP 実処理は既存 `AudioDCBlocker` に委譲したまま。
+- 実 interface と `.cpp`、importer に対する隔離 smoke で upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja、clang-cl 22.1.3 / Ninja、MSVC 19.51.36257 / Visual Studio 18 の module scan・compile・static library / executable link が成功。AudioSegment / AudioEffect / DCBlocker / String provider は最小 stub のため ArtifactCore 実依存 link と音声処理 runtime は未確認。smoke executable は未実行。
+- sccache 0.18.0 upstream clang++ clean rebuild は cacheable compile requests が全 hit、bypass / errors 0。
