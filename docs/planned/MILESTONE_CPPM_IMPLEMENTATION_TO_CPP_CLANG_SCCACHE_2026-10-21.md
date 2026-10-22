@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 97 | 45 | 377 | 22 | 851 |
+| ArtifactCore | 98 | 45 | 376 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1074,5 +1074,12 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 ### Time.Rational implementation migration（2026-10-22）
 
 - `ArtifactCore/src/Time/RationalTime.cppm` は `Time.Rational` implementation unit で、有理時間値の算術・比較・scale 変換 API を実装する。既存の overflow fallback と丸め挙動を含め、ソース内容を保って `.cpp` に移した。
+- ArtifactCore source manifest と provider module reference を新 path に更新した。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Transform._2D implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Transform/StaticTransform2D.cppm` は `Transform._2D` implementation unit で、PImpl の lifecycle、copy / move、transform 値の getter / setter を実装する。公開 interface と所有権挙動を保ったまま `.cpp` に移した。
 - ArtifactCore source manifest と provider module reference を新 path に更新した。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
