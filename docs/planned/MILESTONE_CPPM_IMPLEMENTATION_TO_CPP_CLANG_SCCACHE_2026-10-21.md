@@ -1731,4 +1731,11 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 
 - `Artifact/src/Project/TreeFilterProxyModel.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の source manifest を更新。公開 interface とフィルター設定処理は変更していない。
 - upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja の隔離 smoke で、実 interface と実 `.cpp` の P1689 scan・compile・static archive link に成功した。Qt は最小 stub を用いたため Artifact 実 target の link/runtime は未確認。sccache 0.18 は初回2 misses、clean rebuild 2 hits、cache errors 0。
-- root の Visual Studio 18 configure / generate は確認中。
+- root CMake 4.2 / Visual Studio 18 configure・generate が成功し、`ArtifactAppRuntime.vcxproj` が `TreeFilterProxyModel.cpp` を登録することを確認した。Artifact 実 target は未ビルド。
+
+
+### Artifact.Layer.DefaultsSupport implementation migration（2026-10-22）
+
+- `Artifact/src/Layer/ArtifactLayerDefaultsSupport.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` を更新した。既定 layer behavior の実装 blob は 964 bytes で完全一致し、公開 interface と動作は変更していない。
+- root CMake 4.2 / Visual Studio 18 configure・generate が成功し、`ArtifactAppRuntime.vcxproj` が `ArtifactLayerDefaultsSupport.cpp` を登録することを確認。Artifact 実 target は未ビルド。
+- upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja の隔離 smoke で、実装 `.cpp` と対応 module stub の P1689 scan、compile、static archive link に成功。sccache 0.18 は初回 2 misses、clean rebuild 2 hits、cache errors 0。実 Artifact interface との compile/link/runtime は未確認。
