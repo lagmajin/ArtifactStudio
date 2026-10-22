@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 130 | 45 | 344 | 22 | 851 |
+| ArtifactCore | 131 | 45 | 343 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1260,4 +1260,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Composition/PreCompose.cppm` はユーザー操作による precompose / unprecompose、nesting map と project snapshot restore を実装する。常時描画 frame path からの呼び出しは確認されず、既存処理を `.cpp` に移した。
 - Composition source manifest、module provider / imported-module mappings、専用 MSVC `/reference` source path を新 path に更新した。移行後の `.cpp` は Clang P1689 scan 対象となり、Clang lane では旧手動 module edge が除去される。実装本文は LF 化以外同一。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### IO.ImageImporter implementation migration（2026-10-22）
+
+- `ArtifactCore/src/IO/Image/ImageImporter.cppm` は PSD/PSB と OpenImageIO / stb 経由の画像 file open / decode を実装する。呼び出しは明示的な asset metadata refresh / image read 時で、毎 frame の描画経路ではない。decode behavior を保って `.cpp` に移した。
+- source manifest、module provider map、MSVC source-specific `/reference` と PSD interface object dependency の path を更新した。Clang lane では migrated `.cpp` の P1689 scan が module dependencies を扱い、旧手動 edge を除去する。実装本文は LF 化以外同一。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
