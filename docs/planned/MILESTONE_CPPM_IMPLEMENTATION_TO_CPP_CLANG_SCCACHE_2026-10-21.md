@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 65 | 45 | 409 | 22 | 851 |
+| ArtifactCore | 66 | 45 | 408 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -853,4 +853,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Geometry/BezierCalculator.cppm` は `Math.Bezier` implementation unit で、evaluateQuadratic / evaluateCubic / evaluatePath / getTangentAngle / evaluateTangent の定義が interface と一致する。module 宣言、Qt headers、標準 headers、実装本文を維持して `.cpp` に移した。
 - Core source manifest、provider module reference、MSVC source-specific IFC 条件、BezierPathSamplerStandalone の source path を更新した。幾何計算の挙動変更はない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### Color.Swatch implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Color/ColorSwatch.cppm` は `Color.Swatch` implementation unit で、公開 interface の palette access / copy-move / GPL import-export API を実装する。module 宣言、Color.Float / ArtifactString / TrackedPtr imports、既存 implementation と file I/O を保って `.cpp` に移した。
+- Core source manifest、provider / imported module reference rows、2つの MSVC source-specific IFC / OBJECT_DEPENDS 条件、ColorSwatchStandalone の source path を更新した。palette behavior は変更していない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
