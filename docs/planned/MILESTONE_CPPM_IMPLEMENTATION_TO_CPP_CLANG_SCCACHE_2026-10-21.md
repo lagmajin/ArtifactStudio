@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 66 | 45 | 408 | 22 | 851 |
+| ArtifactCore | 67 | 45 | 407 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -859,4 +859,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Color/ColorSwatch.cppm` は `Color.Swatch` implementation unit で、公開 interface の palette access / copy-move / GPL import-export API を実装する。module 宣言、Color.Float / ArtifactString / TrackedPtr imports、既存 implementation と file I/O を保って `.cpp` に移した。
 - Core source manifest、provider / imported module reference rows、2つの MSVC source-specific IFC / OBJECT_DEPENDS 条件、ColorSwatchStandalone の source path を更新した。palette behavior は変更していない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### Frame.Rate implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Frame/FrameRate.cppm` は `Frame.Rate` implementation unit で、FrameRate の construction / copy-move / rational FPS / display / JSON serialization / operators を公開宣言に対応して実装する。module 宣言、Serialization / UniString imports、直接 Qt / standard headers と本文を維持して `.cpp` に移した。
+- Core source manifest、provider / imported module reference rows、2つの MSVC IFC / OBJECT_DEPENDS 条件、FrameRateStandalone の source path を更新した。FPS・serialization behavior は変更していない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
