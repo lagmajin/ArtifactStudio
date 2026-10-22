@@ -1869,3 +1869,9 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - `Artifact/src/Widgets/Menu/ArtifactLayerMenuTransformFieldUndoCommands.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` を更新。Undo command 実装と module declaration は変更せず、100% rename。
 - 実 provider と Composition / Undo の最小 stub provider を用いた隔離 module smoke で upstream clang++ 22.1.3、clang-cl 22.1.3、MSVC 19.51.36257 / Visual Studio 18 の scan、compile、static library / executable link が成功。Composition / Undo stub のため Artifact 実依存・runtime は未確認、executable は未実行。
 - upstream clang++ + sccache 0.18.0 の cold / incremental build が成功。4 compile requests、4 misses、0 failures。BMI 再利用は確認できていない。
+
+### Artifact.Widgets.LayerAlignmentPresets source-only module migration（2026-10-22）
+
+- `Artifact/src/Widgets/Timeline/ArtifactLayerAlignmentPresets.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の source-only module registration を更新。整列・分布処理と module 宣言は変更せず、100% rename。
+- 実 provider を使い、Composition / Layer / Geometry API を置換した隔離 module smoke で upstream clang++ 22.1.3、clang-cl 22.1.3、MSVC 19.51.36257 / Visual Studio 18 の scan、compile、static library / executable link が成功。stub API のため実依存 integration・runtime は未確認、executable は未実行。
+- upstream clang++ + sccache 0.18.0 の cold / incremental build が成功。7 compile requests、7 misses、0 failures。module BMI 再利用は確認できていない。
