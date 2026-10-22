@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 68 | 45 | 406 | 22 | 851 |
+| ArtifactCore | 69 | 45 | 405 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -871,4 +871,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Graphics/Effect/CreativeEffectManager.cppm` は `Graphics.Effect.Creative.Manager` implementation unit で、constructor / destructor、add / remove、effect stack の適用定義を持つ。module 宣言、既存 imports / headers / implementation を維持して `.cpp` に移した。
 - Core source manifest と provider module reference の path を更新した。個別 IFC 条件・standalone source path は見つからなかった。render/effect behavior は変更していない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### Property.LinkManager implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Property/PropertyLinkManager.cppm` は `Property.LinkManager` implementation unit で、instance / addLink / updateTargets / links / clear の公開 API 定義が揃っている。module 宣言、既存実装を維持して `.cpp` に移した。
+- Core source manifest、provider map、MSVC provider IFC 条件を更新した。実装が直接使う `QMetaType` を global module fragment に明示 include した。プロパティ更新動作は変更していない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
