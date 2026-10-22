@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 131 | 45 | 343 | 22 | 851 |
+| ArtifactCore | 132 | 45 | 342 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1266,4 +1266,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/IO/Image/ImageImporter.cppm` は PSD/PSB と OpenImageIO / stb 経由の画像 file open / decode を実装する。呼び出しは明示的な asset metadata refresh / image read 時で、毎 frame の描画経路ではない。decode behavior を保って `.cpp` に移した。
 - source manifest、module provider map、MSVC source-specific `/reference` と PSD interface object dependency の path を更新した。Clang lane では migrated `.cpp` の P1689 scan が module dependencies を扱い、旧手動 edge を除去する。実装本文は LF 化以外同一。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### Export.Lottie.RigExporter implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Export/Lottie/LottieRigExporter.cppm` はユーザー実行の Lottie rig export 時に frame ごとの rig transform をサンプリングし keyframe を構成する。常時 playback / render frame path からは呼ばれず、既存処理を `.cpp` に移した。
+- Export source list、scanner exception list、provider / imported-module mappings、専用 IFC / object dependency paths を更新した。Clang の migrated `.cpp` scan で module dependencies を扱う。実装本文は LF 化以外同一。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
