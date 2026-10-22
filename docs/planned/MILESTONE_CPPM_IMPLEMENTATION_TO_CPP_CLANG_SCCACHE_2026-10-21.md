@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 33 | 0 | 4 | 4 | 63 |
+| ArtifactWidgets | 33 | 0 | 3 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -762,3 +762,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Render/RayTracerWidget.cppm` は `ArtifactWidgets.Render.RayTracerWidget` implementation unit で、`include/Render/RayTracerWidget.ixx` が対応 interface を宣言する。`Render` module import、既存 ray tracing / image / paint / key handling implementation を保ったまま `.cpp` へ移し、明示 implementation source list に登録した。
 - source が直接使う `QString` / `QColor` / `QRect` headers を global module fragment に明示した。描画・計算経路は変更していない。ビルド／依存スキャン／リンクは実行していない。
+
+### ArtifactWidgets.PreviewControlWidget implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Preview/PreviewControlWidget.cppm` は `Preview.ControlWidget` implementation unit で、`include/Preview/PreviewControlWidget.ixx` が対応する public interface を宣言する。`W_OBJECT_IMPL`、Impl ownership、既存 method definitions を維持して `.cpp` へ移し、明示 implementation source list に登録した。
+- source の Qt dependencies は既に global module fragment に直接 include されている。現行 repository source 内に利用元は見つからなかった。空の既存 method bodies と public interface は変更していない。ビルド／依存スキャン／リンクは実行していない。
