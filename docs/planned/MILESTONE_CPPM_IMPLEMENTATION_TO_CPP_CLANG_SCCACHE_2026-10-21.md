@@ -568,3 +568,10 @@ Tracked source file を宣言行で分類した概数。`.cppm` の module 宣�
 - `tools/clang-msvc-abi-smoke` を CMake 4.2.2 / Ninja / upstream clang++ 23.1.4 / `x86_64-pc-windows-msvc` で configure し、P1689 dependency scan、`.ixx` module interface、module importer/implementation、通常 `.cpp` translation units の compile と両 executable の link に成功した。
 - sccache 0.18.0 は WinGet install path から指定した。clean build 2回後の統計は15 compile requests、5 cache hits、10 misses、0 errors。通常 TU と module-related commandsを合わせた部分 hit が確認できた。これは smoke project の結果であり、Artifact 全体 build の cache rate ではない。
 - Artifact full target は Clang 23.1.4 の source-location 上限で停止したため、Artifact 全体 link / runtime と全体 sccache 統計は未確認。
+
+### Artifact implementation `.cpp` attachment pilot（2026-10-22）
+
+- `Artifact/src/Composition/ArtifactCompositionSetting.cppm` は `module Artifact.Composition.Setting;` のみを持つ import-free implementation unit だったため、同じ module name の `.cpp` に移し、`Artifact/cmake/ArtifactSources.cmake` の `ARTIFACT_APP_IMPL_SOURCES` 登録を更新した。Artifact 側 `.gitattributes` に `.cpp` / `.cmake` の `eol=lf` を明示追加した。公開 `ArtifactCompositionSetting.ixx` と module API は維持した。`.cpp` と変更した manifest は LF。
+- upstream clang++ 23.1.4 の CMake 4.4.4 / Ninja 1.13.2 target で実ソースを P1689 scan し、`Artifact.Composition.Setting` provider attachment として認識することを確認。Artifact の既存 build tree にある同 module の実 BMI を指定した CMake 生成 compile command で object を生成した。sccache 0.18.0 で同じ command を2回実行し、2 compile requests / 2 cache hits / 0 errors。
+- clang-cl 22.1.3 と upstream clang++ 23.1.4 の両方で、CMake 4.4.4 の isolated executable に実 `.cpp` を登録し、同名 module の最小 stub interface と importer を用いて P1689 scan、compile、link、実行に成功した。これは拡張子・module attachment・scanner の pilot であり、Artifact の実 `ArtifactCompositionSetting.ixx` 依存を使う clang-cl 統合確認ではない。
+- 各 isolated CMake pilot は clean build を2回実行した。clang-cl は 6 compile requests のうち4 cacheable executions がすべて hit、0 miss / 0 cache errors（2 requests は multiple inputs で non-cacheable）。clang++ は6 requests、3 misses / 3 hits、0 cache errors。Artifact 全体の build / link / runtime は引き続き未確認。
