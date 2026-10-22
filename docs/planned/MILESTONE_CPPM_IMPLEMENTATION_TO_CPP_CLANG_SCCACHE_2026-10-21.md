@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 88 | 45 | 386 | 22 | 851 |
+| ArtifactCore | 89 | 45 | 385 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1012,4 +1012,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Diagnostics/DiagnosticEngine.cppm` は `Core.Diagnostics.DiagnosticEngine` implementation unit で、rule registry と validate-all / delta / cache API を実装する。module 宣言と validation behavior を保って `.cpp` に移し、`std::ptrdiff_t` / `QStringList` の直接利用に `<cstddef>` / `<QStringList>` を追加した。
 - ArtifactCore source manifest、provider / `Core.Diagnostics.ProjectDiagnostic` reference、MSVC IFC source condition と `DiagnosticEngineStandalone` の source path を更新した。診断キャッシュ・検証動作は変更していない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Light.IESProfile implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Light/IESProfile.cppm` は `Light.IESProfile` implementation unit で、IES parse / file load、candela sampling、LUT 構築 API を実装する。module 宣言、imports、既存実装を保って `.cpp` に移した。
+- source manifest、provider module reference、`ArtifactCoreLight` split source と MSVC IFC / object dependency の各 path を更新した。parse / sample / LUT behavior は変更していない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
