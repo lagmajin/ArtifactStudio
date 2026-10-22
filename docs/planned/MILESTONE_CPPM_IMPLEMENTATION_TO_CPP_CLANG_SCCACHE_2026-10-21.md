@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 16 | 0 | 31 | 4 | 63 |
+| ArtifactWidgets | 17 | 0 | 30 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -627,3 +627,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Common/DragSpinBox.cppm` は `DragSpinBox` module の実装で、`Core.ArtifactMath` を import する。Artifact の composition / plane creation dialogs が `DragSpinBox` / `DoubleDragSpinBox` を利用している。module import と操作実装を維持して `.cpp` へ移し、CMake の明示 implementation list を更新した。
 - 直接使う Qt の spin box、event、point、widget ヘッダーを global module fragment に置き、`.cpp` は LF に揃えた。ビルド／依存スキャン／リンクはプロジェクト指示に従って今回は実行していない。
+
+### ArtifactWidgets.InterpretFootageDialog implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Dialog/InterpretFootageDialog.cppm` は `Widgets.Dialog.InterpretFootage` implementation unit で、`Media.SourceInterpret` を import する。Artifact の Asset Browser がこの dialog を利用している。module import と既存 UI 実装を維持して `.cpp` へ移し、明示 implementation list を更新した。
+- 直接使う Qt dialog / widget / string headers と `<memory>` を global module fragment に置き、`.cpp` は LF。ビルド／依存スキャン／リンクはプロジェクト指示に従って今回は実行していない。
