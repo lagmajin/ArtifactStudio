@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 150 | 45 | 324 | 22 | 851 |
+| ArtifactCore | 151 | 45 | 323 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1380,4 +1380,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/IO/Image/ImageExporter.cppm` を `.cpp` に移行し、IO split target、source manifest、module reference map、source-specific IFC / object dependency 設定を更新した。公開 `IO.ImageExporter` interface と既存 `W_OBJECT_IMPL` は維持。
 - Artifact の offscreen renderer / render queue から静止画を出力する既存経路。実装本文は LF 改行への正規化以外変更なし。
 - ArtifactCore 集計は `.cpp` 150、実装形式 `.cppm` 324。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。
+### Image.PSDDocument implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Image/PSDDocument.cppm` を `.cpp` に移行し、source manifest、module reference map、source-specific compile references を更新した。公開 `Image.PSDDocument` interface は維持。
+- PSD import/export の静止画経路で、Import PSD dialog、project service、image importer から利用される。実装本文は LF 改行への正規化以外変更なし。
+- ArtifactCore 集計は `.cpp` 151、実装形式 `.cppm` 323。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
