@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 137 | 45 | 337 | 22 | 851 |
+| ArtifactCore | 138 | 45 | 336 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1302,4 +1302,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/ImageProcessing/NoiseImageGenerator.cppm` を `NoiseImageGenerator.cpp` に移行し、source manifest、module reference map、source-specific CMake dependency 条件を更新した。
 - 公開 interface は維持。実装本文は LF 改行へ正規化した以外に変更なし。リポジトリ内に直接の呼び出し元は見つからず、実行頻度は静的検索からは特定できない。
 - ArtifactCore 集計は `.cpp` 137、実装形式 `.cppm` 337。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。
+### Audio.SimpleWav implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Audio/SimpleWav.cppm` を `SimpleWav.cpp` に移行し、Audio split target、source manifest、module reference map の source path を更新した。公開 `Audio.SimpleWav` interface は維持。
+- WAV のファイル読み込み実装で、repo 内の利用箇所は音声レイヤー／Asset Browser 側。実装本文は LF 改行への正規化以外変更なし。
+- ArtifactCore 集計は `.cpp` 138、実装形式 `.cppm` 336。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
