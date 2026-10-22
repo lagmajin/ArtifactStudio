@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 22 | 0 | 25 | 4 | 63 |
+| ArtifactWidgets | 23 | 0 | 24 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -657,3 +657,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Color/VectorScopeWidget.cppm` は `VectorScopeWidget` implementation で、`Core.ArtifactMath` と `AbstractWidget` を import する。Artifact の Color Science panel と Composition Editor から利用される。module imports と既存 vectorscope 実装を維持して `.cpp` に移し、CMake の通常 implementation list に追加した。legacy scope list からは旧 `.cppm` entry を外し、同じ実装の重複登録を避けた。
 - 直接使う paint/resize event、pen、point、QString、QRgb と math headers を global module fragment に置いた。source は LF。ビルド／依存スキャン／リンクはプロジェクト指示に従って今回は実行していない。
+
+### ArtifactWidgets.WaveformScopeWidget implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Color/WaveformScopeWidget.cppm` は `WaveformScopeWidget` implementation unit で、`Core.ArtifactMath` を import する。Artifact の Color Science panel と Composition Editor から利用される。既存 QtConcurrent / QFutureWatcher の実装と module import を維持して `.cpp` へ移し、CMake の通常 implementation list に追加、専用 legacy list から旧 path を除いた。
+- 直接使う image pixel、color、font、paint/resize event、pen、rect、QString、QObject の headers を global module fragment に追加し、`.cpp` を LF に揃えた。async completion の動作は変更していない。ビルド／依存スキャン／リンクはプロジェクト指示に従って今回は実行していない。
