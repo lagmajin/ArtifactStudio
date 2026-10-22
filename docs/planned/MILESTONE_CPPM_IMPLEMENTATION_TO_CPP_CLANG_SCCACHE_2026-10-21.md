@@ -1719,3 +1719,9 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 
 - `ArtifactCore/src/Video/Transitions/CrossfadeTransition.cppm` を `.cpp` に移行し、Video target list、`ArtifactCoreSources.cmake`、`ArtifactCoreModuleReferences.cmake` の source path を更新。静的 registrar と creator 登録処理は維持し、実装本文は末尾改行の追加以外変更していない。
 - root MSVC / Visual Studio 18 の CMake configure / generate 後、`ArtifactCoreVideo.vcxproj` が `CrossfadeTransition.cpp` を登録することを確認した。upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja の隔離 smoke で実 `.cpp` の P1689 scan、compile、static archive link に成功。依存 module は stub interface のため ArtifactCoreVideo 実 target link は未確認。sccache 0.18 は初回4 misses、clean rebuild 4 hits、cache errors 0。
+
+
+### ArtifactCore.Graphics.PSO.Cache implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Graphics/PSOCache.cppm` を `.cpp` に移行。source manifest、module reference map、MSVC 用 explicit `/reference` と `OBJECT_DEPENDS` の source 条件を更新した。cache path sanitation、directory creation、public module interface は変更していない。
+- root MSVC / Visual Studio 18 の CMake configure / generate 後、`ArtifactCore.vcxproj` が `PSOCache.cpp` を登録することを確認した。upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja の隔離 smoke で実 `.cpp` の P1689 scan、compile、static archive link に成功。Qt / imported modules は最小 stub を使うため ArtifactCore 実 target link は未確認。sccache 0.18 は初回4 misses、clean rebuild 4 hits、cache errors 0。
