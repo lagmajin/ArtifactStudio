@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 48 | 45 | 426 | 22 | 851 |
+| ArtifactCore | 49 | 45 | 425 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -800,3 +800,5 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Asset/ImageAsset.cppm` は `ImageAsset` module の短い実装ユニットで、`ImageAsset.ixx` の定義を持つ。module 名、`IO.ImageImporter` / `Image.Raw` / `Utils.String.UniString` imports と本文を保って `.cpp` に移し、明示 source manifest、module reference map、Asset domain source list の自己 path を更新した。Tracked source の宣言行を再集計し、表の Core / Widgets 件数を現在値へ合わせた。ビルド／依存スキャン／リンクは未実行。
 
 - `ArtifactCore/src/Time/RealTime.cppm` は `Time.Real` module の PImpl 実装ユニットで、公開 interface の全 method 定義を持つ。module 名、状態更新ロジックと PImpl ownership を保って `.cpp` に移し、明示 source manifest と module reference map の自己 path を更新した。外部 module import はない。ビルド／依存スキャン／リンクは未実行。
+
+- `ArtifactCore/src/Time/TimeCode.cppm` を `Time.Code` module implementation unit のまま `.cpp` に移した。module 名、`Time.Rational` import と既存実装を維持し、Core の明示 source manifest、module reference map、MSVC 用 source-specific `/reference` 条件の path を更新した。実装が使う `std::max` / `int64_t` に `<algorithm>` / `<cstdint>` を直接追加した。ビルド／依存スキャン／リンクは未実行。
