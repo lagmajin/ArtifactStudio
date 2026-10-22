@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 152 | 45 | 322 | 22 | 851 |
+| ArtifactCore | 153 | 45 | 321 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1392,4 +1392,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Image/RawImage.cppm` を `.cpp` に移行し、source manifest、module reference map、source-specific module dependency references を更新した。公開 `Image.Raw` interface は維持。
 - 広く import される基本画像型の型サイズ判定と validity check の実装。関数本体・データ表現は変更なし。本文は LF 改行への正規化以外同一。
 - ArtifactCore 集計は `.cpp` 152、実装形式 `.cppm` 322。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。
+### Image.DeepImageBuffer implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Image/DeepImageBuffer.cppm` を `.cpp` に移行し、source manifest、module reference map、source-specific module dependency references を更新した。公開 `Image.DeepImageBuffer` interface は維持。
+- Artifact render queue の multi-channel / deep export 用 provider。通常 frame rendering 経路ではない。実装本文とデータ表現は変更せず、LF 改行への正規化のみ。
+- ArtifactCore 集計は `.cpp` 153、実装形式 `.cppm` 321。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
