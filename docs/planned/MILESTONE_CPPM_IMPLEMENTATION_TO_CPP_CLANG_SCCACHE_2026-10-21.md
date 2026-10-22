@@ -1589,3 +1589,8 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - widget のユーザー操作・初期化時に使われる memo model の実装内容は変更していない。LF 改行に統一し、Clang / MSVC の scan・compile・link は本ターンでは未実施。
 - Artifact 集計は `.cpp` 18、実装形式 `.cppm` 618、module 宣言のない `.cppm` は6。
 - Clang P1689 scan / compile、MSVC compile / link は未確認。ビルド・テスト・CMake configure/generate は実行していない。
+
+### Artifact.Widgets.ClipBufferModel implementation migration（2026-10-22）
+
+- `Artifact/src/Widgets/ArtifactClipBufferModel.cppm` を `.cpp` に移行し、Artifact の明示 implementation source list を更新した。公開 `Artifact.Widgets.ClipBufferModel` interface と model 操作は維持。
+- クリップ履歴の追加・削除・上限処理の実装内容は変更していない。LF 改行を維持し、clang-cl / upstream clang の scan・compile・link は本ターンでは未実施。
