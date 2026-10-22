@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 106 | 45 | 368 | 22 | 851 |
+| ArtifactCore | 107 | 45 | 367 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1138,4 +1138,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/VST3/VST3Loader.cppm` は `VST3.Interfaces` implementation unit で、VST3 TUID conversion、dynamic library entry loading と host / editor ABI adapter を実装する。既存 ABI / loader behavior を保って `.cpp` に移した。
 - ArtifactCore source manifest、VST3 source list、source compile property、provider map と CMake の実装説明コメントを新 path に更新した。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Core.Simulation.OpenVDBVolumeReference implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Simulation/OpenVDBVolumeReference.cppm` は volume metadata inspect、density grid snapshot load と Pyro field copy API を実装する。既存処理を `.cpp` に移し、`std::size_t` 使用に必要な `<cstddef>` を直接 include した。
+- ArtifactCore source manifest、split target source list、MSVC の source-specific IFC references と provider module reference を新 path に更新した。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
