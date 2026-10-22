@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 110 | 45 | 364 | 22 | 851 |
+| ArtifactCore | 111 | 45 | 363 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1166,4 +1166,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Asset/AssetManager.cppm` は `Asset.Manager` implementation unit で、source reference count、decoded payload cache、version invalidation と registry snapshot restore を実装する。既存の asset lifecycle behavior を保って `.cpp` に移した。
 - Clang の直接 include を明確にするため `<QString>`、`<QUuid>`、`<cstdint>` を追加し、未使用の `QFileSystemWatcher` include を除去した。ArtifactCore source manifest、Asset split target、provider / imported module references と追跡済み Visual Studio backup project の source paths を新 path に更新した。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Source.ISource implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Source/ISource.cppm` は file / generated source の metadata、read / reload / relink と source capability API を実装する。既存 source cache behavior を保って `.cpp` に移した。
+- 直接利用する Qt 型（`QByteArray` / `QDateTime` / `QSize` / `QString` / `qint64`）の include を明示し、ArtifactCore source manifest、provider / `Memory.SharedPtr` / `Utils.Id` references、MSVC IFC references を新 path に更新した。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
