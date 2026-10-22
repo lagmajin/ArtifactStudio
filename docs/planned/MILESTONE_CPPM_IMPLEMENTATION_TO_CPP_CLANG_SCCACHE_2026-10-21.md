@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 108 | 45 | 366 | 22 | 851 |
+| ArtifactCore | 109 | 45 | 365 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1152,4 +1152,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Thread/ThreadHelper.cppm` は `Thread.Helper` implementation unit で、shared background QThreadPool、thread snapshot / diagnostics と scoped thread naming API を実装する。pool 設定、同期、diagnostic behavior を変更せず `.cpp` に移した。
 - ArtifactCore source manifest、Thread split target、MSVC IFC reference / interface object dependency と provider module reference を新 path に更新した。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### UI.ShortcutBindings implementation migration（2026-10-22）
+
+- `ArtifactCore/src/UI/ShortcutBindings.cppm` は `UI.ShortcutBindings` implementation unit で、shortcut ID serialization、key-event conversion と binding override API を実装する。既存の key mapping / override behavior を保って `.cpp` に移した。
+- 実装で直接使う `std::array` / `std::size_t` に `<array>` / `<cstddef>` を追加した。CMake source path、MSVC IFC reference / interface object dependency、manifest と provider map を更新し、この source の `CXX_SCAN_FOR_MODULES OFF` を解除して Clang implementation dependency scan を有効にした。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
