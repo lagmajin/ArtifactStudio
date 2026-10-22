@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 103 | 45 | 371 | 22 | 851 |
+| ArtifactCore | 104 | 45 | 370 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1117,4 +1117,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Diagnostics/CrashHandler.cppm` は `Diagnostics.CrashHandler` implementation unit で、Windows unhandled exception filter、report path / content 生成と pending report ingestion を実装する。Windows API、report format、handler behavior を保って `.cpp` に移した。
 - ArtifactCore source manifest、provider module reference と MSVC の source-specific IFC reference を新 path に更新した。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Core.Localization implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Localization/Localization.cppm` は `Core.Localization` implementation unit で、locale selection、translation load / fallback、plural formatting と reload API を実装する。既存の言語決定・翻訳・Event.Bus 通知動作を保って `.cpp` に移した。
+- ArtifactCore source manifest、Localization split target source list / source property と provider module reference を新 path に更新した。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
