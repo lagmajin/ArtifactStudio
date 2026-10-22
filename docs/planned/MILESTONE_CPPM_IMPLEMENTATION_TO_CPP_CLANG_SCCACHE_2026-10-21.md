@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 123 | 45 | 351 | 22 | 851 |
+| ArtifactCore | 125 | 45 | 349 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1223,3 +1223,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Analyze/Histgram.cppm` は OpenCV image から channel histogram を計算する utility である。現行 app/widget に呼び出し元は見つからず、描画 frame path 外の一回計算として既存実装を `.cpp` に移した。
 - Analyze target / source manifest、provider mapping、Container IFC reference 条件、および追跡済み Visual Studio backup project の paths を更新した。本文は LF 化以外同一。
 - Clang の `.cpp` module implementation scan 対象に含まれる。ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Animation.KeyframeEditingTools implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Animation/KeyframeEditingTools.cppm` はキー編集操作（thin / easing / scale / smooth / quantize / mirror）と keyframe 変換 utility を実装する。現行 repo 内の呼び出し元は見つからず、既存挙動を保って `.cpp` に移した。
+- Audio split target の source list / source 条件 / object-order 条件、source manifest、provider と imported-module mappings を新 path に更新した。実装本文は LF 化以外同一。
+- Clang の `.cpp` module implementation scan 対象になる。ビルド、依存スキャン、テスト、CMake は実行していない。
