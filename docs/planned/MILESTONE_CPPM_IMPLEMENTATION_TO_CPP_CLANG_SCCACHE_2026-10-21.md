@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 54 | 45 | 420 | 22 | 851 |
+| ArtifactCore | 55 | 45 | 419 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -812,3 +812,5 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Graphics/Effect/CreativeEffect.cppm` を `Graphics.Effect.Creative` implementation unit のまま `.cpp` に移した。実装本文と標準 header 群を維持し、明示 source manifest と module reference map の provider path を更新した。CMake は Graphics Effect 群の共通 reference 分岐を使い、個別 source path 条件はないことを確認した。ビルド／依存スキャン／リンクは未実行。
 
 - `ArtifactCore/src/Image/PNGImage.cppm` を `Image.Png` implementation unit のまま `.cpp` に移した。module 宣言、PNG header parsing の本文と直接 header 群を保ち、source manifest、module reference map、MSVC 用 source-specific `Image.Png` reference 条件の path を更新した。ビルド／依存スキャン／リンクは未実行。
+
+- `ArtifactCore/src/Mask/DepthMask.cppm` を `Core.Mask.DepthMask` implementation unit のまま `.cpp` に移した。alpha 計算の本文を維持し、manifest・module reference map・Core source list の path を更新した。実装で使う `Q_UNUSED` / `QVector4D` に対応し `QtGlobal` / `QVector4D` を直接 include した。ビルド／依存スキャン／リンクは未実行。
