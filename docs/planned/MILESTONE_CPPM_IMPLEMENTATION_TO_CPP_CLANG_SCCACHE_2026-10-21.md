@@ -1753,3 +1753,10 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - `Artifact/src/Composition/CompositionSettings.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` を更新した。PImpl、コピー構築、settings accessor 実装は変更せず、旧実装 blob と新ファイルは 1205 bytes で完全一致。
 - root CMake 4.2 / Visual Studio 18 configure・generate が成功し、`ArtifactAppRuntime.vcxproj` が `CompositionSettings.cpp` を登録することを確認。Artifact 実 target は未ビルド。
 - upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja smoke で、実 `CompositionSettings.ixx`・実 `.cpp`・importer と P1689 scan、compile、static library / executable link に成功。未使用の imported modules と Qt 型は smoke provider / header を使用するため、Artifact 実依存 link/runtime は未確認。sccache 0.18 は初回 6 misses、clean rebuild 6 hits、bypass と cache errors は 0。
+
+
+### Artifact.Localization.Localization implementation migration（2026-10-22）
+
+- `Artifact/src/Localization/Localization.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` を更新した。実装 blob は BOM を含め 1636 bytes で完全一致し、作業ファイルは LF。
+- root CMake 4.2 / Visual Studio 18 configure・generate が成功し、`ArtifactAppRuntime.vcxproj` が `Localization.cpp` を登録することを確認。Artifact 実 target と locale runtime は未検証。
+- upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja smoke で、実 `Localization.ixx`・実 `.cpp`・`Utils.String.UniString` provider・importer の P1689 scan、compile、static library / executable link が成功。QString / UniString は隔離 smoke stub を使用。sccache 0.18 の初回 clean build は 4 misses、clean rebuild は 4 hits、cache errors / bypass は 0。warm cache の別 build tree では 8 requests が hit。
