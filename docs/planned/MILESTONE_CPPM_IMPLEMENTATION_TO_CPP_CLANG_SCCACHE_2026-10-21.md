@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 86 | 45 | 388 | 22 | 851 |
+| ArtifactCore | 87 | 45 | 387 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -998,4 +998,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Script/Engine/Enviroment/EnvironmentManager.cppm` は `Script.Enviroment` implementation unit で、公開 interface の constructor / destructor 定義を実装する。module 宣言、`Script.Engine.Value` import と既存 implementation を保って `.cpp` に移した。
 - ArtifactCore source manifest と provider module reference、CMake の MSVC IFC reference / interface object dependency の両 source-specific 条件を新 path に更新した。Clang lane は `.cpp` implementation scan / P1689 module map を使う。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Core.Diagnostics.FallbackPolicy implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Diagnostics/FallbackPolicy.cppm` は `Core.Diagnostics.FallbackPolicy` implementation unit で、fallback tracker の記録・検索・policy API を実装する。module 宣言、`Container.NamedVector` import、既存実装を保って `.cpp` に移した。
+- ArtifactCore source manifest と provider / imported module reference、CMake の MSVC IFC option と container registry object dependency の source-specific 条件を新 path に更新した。fallback event behavior は変更していない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
