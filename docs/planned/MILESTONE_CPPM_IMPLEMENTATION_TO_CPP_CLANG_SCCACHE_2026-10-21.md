@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 82 | 45 | 392 | 22 | 851 |
+| ArtifactCore | 83 | 45 | 391 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -970,4 +970,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Command/LambdaCommand.cppm` は `Command.Lambda` implementation unit で、公開 interface の constructor / destructor / undo / redo 定義が揃っている。module 宣言と command behavior を維持して `.cpp` に移した。
 - Command split target source list、明示 source manifest、provider module reference を新 path に更新した。未使用の `<QUndoStack>` を実際に使う `<QUndoCommand>` へ置き換え、`std::move` 用の `<utility>` を直接 include した。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Asset.Importer implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Asset/AssetImporter.cppm` は `Asset.Importer` implementation unit で、公開 interface の import / supported-extension / type-detection API と asset metadata 登録処理を実装する。module 宣言、imports、Qt headers と importer behavior を維持して `.cpp` に移した。
+- Core source manifest、明示 source registration、provider / imported module reference rows を新 path に更新した。Clang lane は `.cpp` implementation scan / P1689 module map を使い、MSVC は既存の explicit IFC references を継続する。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
