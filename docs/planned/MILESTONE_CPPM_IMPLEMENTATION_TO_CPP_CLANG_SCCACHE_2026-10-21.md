@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 30 | 0 | 17 | 4 | 63 |
+| ArtifactWidgets | 31 | 0 | 16 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -697,3 +697,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Code/CodeEditor.cppm` は `CodeEditor` implementation unit で、`Code.SyntaxHighlighter` を import する。module import、`W_OBJECT_IMPL`、既存 editor / line-number rendering implementation を維持して `.cpp` へ移し、CMake の明示 implementation list に登録した。
 - 直接使う QChar / QColor / QFont / QFrame / QPaintEvent / QPalette / QRect / QSize / QString / Qt headers を global module fragment に追加し、LF 改行に揃えた。既存 signal connections を含め動作は変更していない。ビルド／依存スキャン／リンクは実行していない。
+
+### ArtifactWidgets.FloatColorPickerButton implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Button/FloatColorPickerButton.cppm` は `FloatColorPickerButton` implementation unit で、`Color.Float` と `FloatColorPickerDialog` を import する。module imports、`W_OBJECT_IMPL`、picker 起動と色の反映処理を維持して `.cpp` に移し、CMake の明示 implementation list に登録した。
+- 直接使う QColor / QDialog / QPalette / QWidget headers を global module fragment に追加し、LF 改行に揃えた。既存 click connection と signal 経路は変更していない。ビルド／依存スキャン／リンクは実行していない。
