@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 69 | 45 | 405 | 22 | 851 |
+| ArtifactCore | 70 | 45 | 404 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -877,4 +877,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Property/PropertyLinkManager.cppm` は `Property.LinkManager` implementation unit で、instance / addLink / updateTargets / links / clear の公開 API 定義が揃っている。module 宣言、既存実装を維持して `.cpp` に移した。
 - Core source manifest、provider map、MSVC provider IFC 条件を更新した。実装が直接使う `QMetaType` を global module fragment に明示 include した。プロパティ更新動作は変更していない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### Script.AngelScript.Behaviour implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Script/AngelScript/AngelScriptBehaviour.cppm` は `Script.AngelScript.Behaviour` implementation unit で、public interface の load / start / update / destroy API の定義が揃っている。module 宣言、直接 `<string>` include、AngelScript lifecycle 実装を保って `.cpp` に移した。
+- Core source manifest、provider module reference と MSVC IFC 条件の source path を更新した。script lifecycle behavior は変更していない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
