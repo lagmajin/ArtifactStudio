@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 155 | 45 | 319 | 22 | 851 |
+| ArtifactCore | 156 | 45 | 318 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1411,3 +1411,9 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - 3D model layer / viewer の明示的 asset import 経路で利用。importer ロジックと third-party dependencies は変更せず、実装本文は LF 改行への正規化以外同一。
 - ArtifactCore 集計は `.cpp` 155、実装形式 `.cppm` 319。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。OpenUSD 有効構成の compile は未確認。
+### Preview.Quality implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Preview/PreviewQuality.cppm` を `.cpp` に移行し、source manifest と module reference map を更新した。公開 `Preview.Quality` interface は維持。
+- Artifact composition / render controller の preview quality 設定に使われる provider。renderer 本体・品質選択ロジックは変更せず、実装本文は LF 改行への正規化以外同一。
+- ArtifactCore 集計は `.cpp` 156、実装形式 `.cppm` 318。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。
