@@ -26,7 +26,7 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 | リポジトリ | `.cpp` | `export module` のある `.cppm` | 実装形式の `.cppm` | module 宣言のない `.cppm` | `.ixx` |
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
-| Artifact | 12 | 55 | 624 | 6 | 700 |
+| Artifact | 13 | 55 | 623 | 6 | 700 |
 | ArtifactCore | 162 | 45 | 314 | 20 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
@@ -1493,4 +1493,10 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - `Artifact/src/Layer/ArtifactCompositionLayerFactory.cppm` を `.cpp` に移行し、明示 source manifest を更新した。公開 factory interface と `Artifact.Layer.Composition` / `Memory.SharedPtr` imports は維持。
 - 実装ソースの内容は維持し、LF 改行に統一した。Artifact target の Clang/MSVC scan・compile・link は本ターンでは未実施。
 - Artifact 集計は `.cpp` 12、実装形式 `.cppm` 624、module 宣言のない `.cppm` は6。
+
+### Artifact.Project.HookBridge implementation migration（2026-10-22）
+
+- `Artifact/src/Project/ArtifactProjectHookBridge.cppm` を `.cpp` に移行し、Artifact の明示 source manifest を更新した。公開 `Artifact.Project.HookBridge` interface と `Artifact.Script.Hooks` import は維持。
+- project manager の lifecycle hook 呼び出しをつなぐ実装内容は維持し、LF 改行に統一した。Clang / MSVC の scan・compile・link は本ターンでは未実施。
+- Artifact 集計は `.cpp` 13、実装形式 `.cppm` 623、module 宣言のない `.cppm` は6。
 - Clang P1689 scan / compile、MSVC compile / link は未確認。ビルド・テスト・CMake configure/generate は実行していない。
