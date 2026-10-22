@@ -17,7 +17,7 @@ artifact_add_standalone_module_interface(FastSettingsStoreModuleInterface
 )
 
 artifact_add_standalone_module_implementation(FastSettingsStoreUnderTest
-    SOURCES "${ARTIFACT_CORE_ROOT}/src/Core/FastSettingsStore.cppm"
+    SOURCES "${ARTIFACT_CORE_ROOT}/src/Core/FastSettingsStore.cpp"
     LINK_LIBS FastSettingsStoreModuleInterface Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )
