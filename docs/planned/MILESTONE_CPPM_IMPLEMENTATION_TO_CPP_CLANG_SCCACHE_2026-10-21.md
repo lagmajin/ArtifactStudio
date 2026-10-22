@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 19 | 0 | 28 | 4 | 63 |
+| ArtifactWidgets | 20 | 0 | 27 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -642,3 +642,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Common/EnhancedSlider.cppm` は `EnhancedSlider` module implementation で、Float Color Picker が horizontal / vertical slider として利用する。`Core.ArtifactMath` import と custom painting / pointer interaction implementation を保ったまま `.cpp` へ移し、CMake の explicit implementation list を更新した。
 - 直接使う slider、widget、geometry、color、palette、pen、object の Qt headers を global module fragment に置いた。`.cpp` は LF。ビルド／依存スキャン／リンクはプロジェクト指示に従って今回は実行していない。
+
+### ArtifactWidgets.ColorWheel implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Color/ColorWheel.cppm` は `Widgets.ColorWheel` implementation unit で、`Core.ArtifactMath` と `Color.Float` を import する。Float Color Picker の色選択 UI から利用される。import、QImage の既存 wheel cache、色選択・paint implementation を保ったまま `.cpp` へ移し、CMake explicit implementation list を更新した。
+- 直接使う color、paint event、pen、point、rect、size の Qt headers を global module fragment に置き、既存 UTF-8 BOM を保持して `.cpp` を LF に揃えた。ビルド／依存スキャン／リンクはプロジェクト指示に従って今回は実行していない。
