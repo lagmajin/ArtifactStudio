@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 56 | 45 | 418 | 22 | 851 |
+| ArtifactCore | 57 | 45 | 417 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -816,3 +816,5 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Mask/DepthMask.cppm` を `Core.Mask.DepthMask` implementation unit のまま `.cpp` に移した。alpha 計算の本文を維持し、manifest・module reference map・Core source list の path を更新した。実装で使う `Q_UNUSED` / `QVector4D` に対応し `QtGlobal` / `QVector4D` を直接 include した。ビルド／依存スキャン／リンクは未実行。
 
 - `ArtifactCore/src/Image/ImageF32x4.cppm` を `ImageF32x4` implementation unit のまま `.cpp` に移した。OpenCV `cv::Mat` PImpl、constructor / destructor、dimension accessor を維持し、明示 source manifest・module reference map・MSVC 用 `/reference` と既存 `OBJECT_DEPENDS` 条件の path を更新した。ビルド／依存スキャン／リンクは未実行。
+
+- `ArtifactCore/src/Transform/StaticTransform3D.cppm` を `Transform._3D` implementation unit のまま `.cpp` に移した。PImpl・copy/move ownership と method definitions を維持し、明示 source manifest と module reference map の provider path を更新した。source-specific CMake 設定・外部 module import はない。ビルド／依存スキャン／リンクは未実行。
