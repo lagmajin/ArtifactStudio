@@ -1787,3 +1787,9 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 
 - `Artifact/src/Widgets/LayerEditorRenderScheduler.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の実装ソース登録を更新。公開 module interface と QTimer による既存の coalesce / cancel 動作は変更していない。実装は `<atomic>` と `<functional>` を直接 include するよう依存を明示した（移行前は interface の include に依存して clang++ が `std::memory_order` / `std::function` を解決できなかった）。この2 include 以外の本文は元 blob と同一。
 - 実 interface と実 `.cpp` を使った隔離 smoke で、upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja、clang-cl 22.1.3 / Ninja、MSVC 19.51.36257 / Visual Studio 18 がそれぞれ module scan・compile・static library link に成功。`QTimer` と `QWidget` は最小 stub のため Qt 実 link / runtime は未確認。sccache 0.18.0 の upstream clang++ は初回2 misses、clean rebuild 2 hits、bypass / errors 0。Artifact 実 target は未ビルド。
+
+### Artifact.Widgets.LayerEditor.ViewWheelController implementation migration（2026-10-22）
+
+- `Artifact/src/Widgets/LayerEditorViewWheelController.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の implementation source 登録を更新。公開 module interface と wheel delta の pan / zoom 判定は変更せず、移行後本文は元 blob と byte-for-byte 一致。
+- 実 interface と `.cpp` を使った隔離 smoke で upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja、clang-cl 22.1.3 / Ninja、MSVC 19.51.36257 / Visual Studio 18 の module scan・compile・static library link が成功。`QPoint` は最小 stub のため Qt 実 link / runtime は未確認。Artifact 実 target は未ビルド。
+- sccache 0.18.0 の upstream clang++ は cold build 2 misses、clean rebuild 2 hits、bypass / errors 0。
