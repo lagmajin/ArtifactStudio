@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 81 | 45 | 393 | 22 | 851 |
+| ArtifactCore | 82 | 45 | 392 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -963,4 +963,11 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Command/LayerLockManager.cppm` は `Command.LayerLockManager` implementation unit で、constructor / destructor、lock acquire / release、remote state、expiry purge API の定義が揃っている。`Event.Bus` import、`W_OBJECT_IMPL`、既存実装を保って `.cpp` に移した。
 - source manifest、Command split target source list、Event.Bus / Memory.SharedPtr の MSVC IFC options、provider module reference を新 path に更新した。実装で直接使う Qt Core の `QList` / `QObject` / `QString` を global module fragment に明示 include した。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+
+### Command.Lambda implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Command/LambdaCommand.cppm` は `Command.Lambda` implementation unit で、公開 interface の constructor / destructor / undo / redo 定義が揃っている。module 宣言と command behavior を維持して `.cpp` に移した。
+- Command split target source list、明示 source manifest、provider module reference を新 path に更新した。未使用の `<QUndoStack>` を実際に使う `<QUndoCommand>` へ置き換え、`std::move` 用の `<utility>` を直接 include した。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
