@@ -1649,3 +1649,8 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 
 - `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorRotation.cppm` を `.cpp` に移行し、Artifact の明示 implementation source list を更新した。同一 `Artifact.Widgets.PropertyEditor` module と scrub 対応 interface は維持。
 - rotation knob、numeric input、scrub の処理は変更していない。CRLF 混在を LF に整え、Git の元 blob と一致することを確認。clang-cl / upstream clang の scan・compile・link は本ターンでは未実施。
+
+### Artifact.Widgets.PropertyEditor.AnimatorCount implementation migration（2026-10-22）
+
+- `Artifact/src/Widgets/PropertyEditor/ArtifactPropertyEditorAnimatorCount.cppm` を `.cpp` に移行し、Artifact の明示 implementation source list を更新した。同一 `Artifact.Widgets.PropertyEditor` module と ArtifactPropertyWidget からの利用は維持。
+- animator count の表示、preset menu、property 追加操作は変更していない。実装 blob の一致を確認。clang-cl / upstream clang の scan・compile・link は本ターンでは未実施。
