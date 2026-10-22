@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 25 | 0 | 22 | 4 | 63 |
+| ArtifactWidgets | 26 | 0 | 21 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -672,3 +672,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Color/ParadeScopeWidget.cppm` は `ParadeScopeWidget` implementation unit で、Color Science panel、Composition Editor、Contents Viewer から利用される。module 名・公開 interface・非同期 scope 集計・描画処理を保って `.cpp` に移し、CMake の明示 implementation list に登録した。
 - 直接使う Qt の QObject / QRect / QString / Qt、color / font / paint event / pen / resize event / QRgb headers を global module fragment に追加し、LF 改行に揃えた。動作経路は変更していない。ビルド／依存スキャン／リンクは実行していない。
+
+### ArtifactWidgets.FloatColorPicker implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Dialog/FloatColorPicker.cppm` は `FloatColorPickerDialog` module implementation unit で、Color Palette、Property Editor、Composition Editor、複数の作成／設定 dialog から import される。module 名・公開 interface・color selection UI と既存処理を維持し、implementation source を `.cpp` に移して CMake の明示リストに登録した。
+- 直接使う QChar / QString / QOverload 定義 / QFont / QPalette / QAbstractSpinBox / QWidget headers を global module fragment に追加し、LF 改行へ揃えた。既存 UI 接続と signal 経路は変更していない。ビルド／依存スキャン／リンクは実行していない。
