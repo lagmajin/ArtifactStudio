@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 18 | 0 | 29 | 4 | 63 |
+| ArtifactWidgets | 19 | 0 | 28 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -637,3 +637,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Common/EditableLabel.cppm` は `Widgets.EditableLabel` implementation unit で、`Common.ClikableLabel` を import する。Artifact の composition / plane dialogs と render queue panel から利用されている。既存の editing / animation implementation と module import を維持して `.cpp` へ移し、明示 implementation list を更新した。
 - 直接使う animation、layout、event、widget、string の Qt headers を global module fragment に追加し、`.cpp` は LF。ビルド／依存スキャン／リンクはプロジェクト指示に従って今回は実行していない。
+
+### ArtifactWidgets.EnhancedSlider implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Common/EnhancedSlider.cppm` は `EnhancedSlider` module implementation で、Float Color Picker が horizontal / vertical slider として利用する。`Core.ArtifactMath` import と custom painting / pointer interaction implementation を保ったまま `.cpp` へ移し、CMake の explicit implementation list を更新した。
+- 直接使う slider、widget、geometry、color、palette、pen、object の Qt headers を global module fragment に置いた。`.cpp` は LF。ビルド／依存スキャン／リンクはプロジェクト指示に従って今回は実行していない。
