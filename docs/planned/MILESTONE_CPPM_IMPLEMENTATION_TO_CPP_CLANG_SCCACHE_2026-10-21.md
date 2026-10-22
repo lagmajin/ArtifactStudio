@@ -1809,3 +1809,8 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 
 - `Artifact/src/Widgets/LayerEditorFrameViewState.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の implementation source 登録を更新。既存の frame view begin / restore 処理は変更せず、実装が利用する `QWidget` / `QSize` を global module fragment から直接 include。
 - 実 interface と `.cpp` を使った隔離 smoke で upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja、clang-cl 22.1.3 / Ninja、MSVC 19.51.36257 / Visual Studio 18 の module scan・compile・static library link が成功。renderer、Core.ArtifactMath、Math.Vec、Qt は最小 provider/header stub のため Artifact 実依存 link/runtime は未確認。sccache 0.18.0 upstream clang++ の clean rebuild は全 compile hit、bypass / errors 0。Artifact 実 target は未ビルド。
+
+### Artifact.Render.Element implementation migration（2026-10-22）
+
+- `Artifact/src/Render/ArtifactRenderElement.cppm` を `.cpp` に移行し、`Artifact/cmake/ArtifactSources.cmake` の implementation source 登録を更新。PImpl の生成・破棄と public module interface は変更せず、実装本文は元 blob と byte-for-byte 一致。
+- 実 interface、実 `.cpp` と importer を使った隔離 smoke で upstream clang++ 22.1.3 / Windows MSVC ABI / Ninja、clang-cl 22.1.3 / Ninja、MSVC 19.51.36257 / Visual Studio 18 の module scan・compile・static library / executable link が成功。sccache 0.18.0 upstream clang++ の clean rebuild は全 compile hit、bypass / errors 0。smoke executable は未実行。
