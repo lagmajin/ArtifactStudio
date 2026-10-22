@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 63 | 45 | 411 | 22 | 851 |
+| ArtifactCore | 64 | 45 | 410 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -841,4 +841,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Color/ColorHarmonizer.cppm` は `Color.Harmonizer` implementation unit で、公開 interface の6つの調和色 API に対応する定義を持つ。module 宣言、Color.Float / Color.Conversion imports、QList / cmath headers と既存の色計算を維持して `.cpp` に移した。
 - Core source manifest、provider / imported module reference rows、MSVC source-specific IFC reference 条件、ColorSpaceStandalone の source path、および Qt header audit script の対象 path を更新した。色計算の挙動変更はない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### Composition.Registry implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Composition/CompositionRegistry.cppm` は `Composition.Registry` implementation unit で、公開 interface の global / register / unregister / lookup / names / clear API を実装する。module 宣言、NameMap / Container.Debug imports、Qt headers と既存 registry behavior を保って `.cpp` に移した。
+- 専用 composition target の source path、Core source manifest と依存スキャンに関する CMake コメントを更新した。実装本文は変更していない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。
