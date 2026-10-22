@@ -1,6 +1,6 @@
 # MILESTONE: Configuration Layering System
 
-**最終更新:** 2026-08-05
+**最終更新:** 2026-10-22
 **最終監査:** 2026-08-15
 **ステータス:** 基盤実装済み、QSettings 移行と hot reload は未完了
 **日付**: 2026-08-04
@@ -393,12 +393,12 @@ connect(resetButton, &QPushButton::clicked, [key = row.key]() {
 | Phase | ファイル | 変更内容 |
 |-------|---------|---------|
 | P1 | `ArtifactCore/include/Configuration/LayeredConfigStore.ixx` | 新規: 3層設定ストア |
-| P1 | `ArtifactCore/src/Configuration/LayeredConfigStore.cppm` | 新規: レイヤー解決・永続化 |
+| P1 | `ArtifactCore/src/Configuration/LayeredConfigStore.cpp` | 新規: レイヤー解決・永続化 |
 | P1 | `ArtifactCore/include/Configuration/ConfigLayer.ixx` | 新規: ConfigLayer enum |
 | P2 | `ArtifactCore/include/Configuration/ConfigSchema.ixx` | 新規: スキーマ定義・バリデーション |
 | P2 | `ArtifactCore/src/Configuration/ConfigSchema.cppm` | 新規: スキーマ登録・バリデーション実装 |
 | P2 | `ArtifactCore/src/Application/ArtifactAppSettings.cppm` | スキーマ登録呼出追加 |
-| P3 | `ArtifactCore/src/Configuration/LayeredConfigStore.cppm` | QFileSystemWatcher 追加 |
+| P3 | `ArtifactCore/src/Configuration/LayeredConfigStore.cpp` | QFileSystemWatcher 追加 |
 | P3 | `Artifact/src/Widgets/Layout/LayoutState.cppm` | QSettings → LayeredConfigStore |
 | P3 | `Artifact/src/Service/APIKeyManager.cppm` | QSettings → LayeredConfigStore |
 | P4 | `Artifact/src/Widgets/Dialog/ApplicationSettingDialog.cppm` | 検索バー、override 表示 |

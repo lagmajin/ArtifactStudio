@@ -1,6 +1,6 @@
 # 起動設定（ArtifactStartup.json）仕様
 
-**最終更新:** 2026-10-11
+**最終更新:** 2026-10-22
 
 ## 目的
 
@@ -111,7 +111,7 @@ IDE、Explorer、パッケージ済みの起動など、**環境変数を設定�
 ## 10. 参照
 
 - `ArtifactCore/include/Configuration/LayeredConfigStore.ixx`（`importSystemJson`）
-- `ArtifactCore/src/Configuration/LayeredConfigStore.cppm`（`importSystemJson` 実装、`System` writable 化）
+- `ArtifactCore/src/Configuration/LayeredConfigStore.cpp`（`importSystemJson` 実装、`System` writable 化）
 - `ArtifactCore/src/Application/ArtifactAppSettings.cppm`（`Render/SolidRect*` スキーマ登録）
 - `Artifact/src/AppMain.cppm`（起動時 JSON 読込）
 - `Artifact/src/Render/DiligentImmediateSubmitter.cppm`（`solidRectBatchDebugFlag`、JSON > env > 既定の解決）
