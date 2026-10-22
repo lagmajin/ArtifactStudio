@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 62 | 45 | 412 | 22 | 851 |
+| ArtifactCore | 63 | 45 | 411 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -835,4 +835,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactCore/src/Graphics/GPUAlgorithms.cppm` は独立した `Graphics.GPUAlgorithms` implementation unit で、`GPUAlgorithms.ixx` の `prefixSum` / `compaction` / `radixSort` と実装が対応する。module 宣言、関数本体、algorithm / limits / DLL export headers を維持して `.cpp` に移した。
 - Core source manifest と module reference map の provider path を更新した。個別 `/reference` 条件や standalone CMake source 参照は存在しないことを確認した。挙動変更はない。
+- ビルド、依存スキャン、テスト、CMake は実行していない。
+
+### Color.Harmonizer implementation migration（2026-10-22）
+
+- `ArtifactCore/src/Color/ColorHarmonizer.cppm` は `Color.Harmonizer` implementation unit で、公開 interface の6つの調和色 API に対応する定義を持つ。module 宣言、Color.Float / Color.Conversion imports、QList / cmath headers と既存の色計算を維持して `.cpp` に移した。
+- Core source manifest、provider / imported module reference rows、MSVC source-specific IFC reference 条件、ColorSpaceStandalone の source path、および Qt header audit script の対象 path を更新した。色計算の挙動変更はない。
 - ビルド、依存スキャン、テスト、CMake は実行していない。

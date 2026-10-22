@@ -5,7 +5,7 @@ files = [
   r'ArtifactCore\src\Color\LabColor.cppm',
   r'ArtifactCore\src\Color\FloatColor.cppm',
   r'ArtifactCore\src\Color\ColorLUT.cppm',
-  r'ArtifactCore\src\Color\ColorHarmonizer.cppm',
+  r'ArtifactCore\src\Color\ColorHarmonizer.cpp',
   r'ArtifactCore\src\Audio\WASAPIBackend.cppm',
   r'ArtifactCore\src\Audio\SimpleWav.cppm',
   r'ArtifactCore\src\Audio\QtAudioBackend.cppm',

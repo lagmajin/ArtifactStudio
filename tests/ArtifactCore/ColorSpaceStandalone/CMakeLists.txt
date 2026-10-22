@@ -269,7 +269,7 @@ artifact_add_standalone_module_implementation(ColorHarmonizerUnderTest
     SOURCES
         "${ARTIFACT_CORE_ROOT}/src/Color/FloatColor.cppm"
         "${ARTIFACT_CORE_ROOT}/src/Color/ColorConversion.cppm"
-        "${ARTIFACT_CORE_ROOT}/src/Color/ColorHarmonizer.cppm"
+        "${ARTIFACT_CORE_ROOT}/src/Color/ColorHarmonizer.cpp"
     LINK_LIBS ColorHarmonizerModuleInterfaces Qt6::Core
     INCLUDE_DIRS "${ARTIFACT_CORE_ROOT}/include"
 )
