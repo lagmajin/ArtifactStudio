@@ -1694,3 +1694,8 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 
 - `Artifact/src/Widgets/ArtifactProjectMemoWidget.cppm` を `.cpp` に移行し、Artifact の明示 implementation source list を更新した。公開 interface、migrated `ProjectMemoModel` import、唯一の `W_OBJECT_IMPL` は維持。
 - memo list の表示、追加・削除・編集操作は変更していない。実装 blob の一致を確認。clang-cl / upstream clang の scan・compile・link は本ターンでは未実施。
+
+### Artifact.NoiseEffect implementation migration（2026-10-22）
+
+- `Artifact/src/Effects/Glow/NoiseEffect.cppm` を `.cpp` に移行し、`Artifact/CMakeLists.txt` の全 Artifact implementation list と `Artifact/cmake/ArtifactSources.cmake` の manifest を更新した。公開 `NoiseEffect.ixx`、`Artifact.Effect.Abstract` / `Utils.String.UniString` imports、constructor / destructor 実装は維持。
+- 既存 `build` tree の MSVC / Visual Studio 18 で CMake 再構成が完了し、module dependency scan が開始した。ただし `ArtifactEffectsNoise` の対象 translation unit に到達する前に Diligent / OpenUSD / ArtifactCore など依存全体の再ビルドが始まったため中断。CMake 登録と configure は確認済み、`NoiseEffect.cpp` の compile / archive link は未確認。
