@@ -26,7 +26,7 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 | リポジトリ | `.cpp` | `export module` のある `.cppm` | 実装形式の `.cppm` | module 宣言のない `.cppm` | `.ixx` |
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
-| Artifact | 11 | 55 | 625 | 6 | 700 |
+| Artifact | 12 | 55 | 624 | 6 | 700 |
 | ArtifactCore | 162 | 45 | 314 | 20 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
@@ -1487,4 +1487,10 @@ Tracked source file を宣言行で分類した数。各移行ログの値は対
 - `ArtifactCore/src/Network/NetworkRPCServer.cppm` を `.cpp` に移行し、source manifest、`ArtifactCoreNetwork` / `ArtifactCore` 間の既存 source 振り分け、source-specific compile option、module reference map を更新した。公開 `NetworkRPCServer` interface と `Container.NamedVector` / `Container.Debug` provider 参照は維持。
 - 実装ソースの内容は維持し、LF 改行に統一した。Clang / MSVC の scan・compile・link は本ターンでは未実施。
 - ArtifactCore 集計は `.cpp` 162、実装形式 `.cppm` 314、module 宣言のない `.cppm` は20。
+
+### Artifact.Layer.Composition.Factory implementation migration（2026-10-22）
+
+- `Artifact/src/Layer/ArtifactCompositionLayerFactory.cppm` を `.cpp` に移行し、明示 source manifest を更新した。公開 factory interface と `Artifact.Layer.Composition` / `Memory.SharedPtr` imports は維持。
+- 実装ソースの内容は維持し、LF 改行に統一した。Artifact target の Clang/MSVC scan・compile・link は本ターンでは未実施。
+- Artifact 集計は `.cpp` 12、実装形式 `.cppm` 624、module 宣言のない `.cppm` は6。
 - Clang P1689 scan / compile、MSVC compile / link は未確認。ビルド・テスト・CMake configure/generate は実行していない。
