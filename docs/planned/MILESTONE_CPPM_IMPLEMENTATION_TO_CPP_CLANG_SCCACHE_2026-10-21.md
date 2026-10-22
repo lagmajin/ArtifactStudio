@@ -27,7 +27,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 |---|---:|---:|---:|---:|---:|
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
-| ArtifactCore | 138 | 45 | 336 | 22 | 851 |
+| ArtifactCore | 139 | 45 | 335 | 22 | 851 |
 | ArtifactWidgets | 47 | 0 | 0 | 4 | 63 |
 
 ### CMake の現行責務
@@ -1308,4 +1308,10 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 - `ArtifactCore/src/Audio/SimpleWav.cppm` を `SimpleWav.cpp` に移行し、Audio split target、source manifest、module reference map の source path を更新した。公開 `Audio.SimpleWav` interface は維持。
 - WAV のファイル読み込み実装で、repo 内の利用箇所は音声レイヤー／Asset Browser 側。実装本文は LF 改行への正規化以外変更なし。
 - ArtifactCore 集計は `.cpp` 138、実装形式 `.cppm` 336。
+- ビルド・テスト・CMake configure/generate は未実施（指示により）。
+### File.InfoImpl partition migration（2026-10-22）
+
+- `ArtifactCore/src/File/FileInfo.cppm` を `FileInfo.cpp` に移行した。`module File:InfoImpl` partition と `import :Info` はそのまま維持し、split File target の source lists、module reference map、partition IFC の source-specific compile option selector を更新した。
+- 現在の Core / Artifact ソースから `FileInfo` の呼び出し元は見つからず、実装は PImpl の生成・破棄のみ。実装本文は LF 改行への正規化以外変更なし。
+- ArtifactCore 集計は `.cpp` 139、実装形式 `.cppm` 335。
 - ビルド・テスト・CMake configure/generate は未実施（指示により）。
