@@ -28,7 +28,7 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 | 親 ArtifactStudio | 328 | 0 | 27 | 0 | 29 |
 | Artifact | 11 | 55 | 625 | 6 | 700 |
 | ArtifactCore | 42 | 45 | 432 | 22 | 851 |
-| ArtifactWidgets | 33 | 0 | 13 | 4 | 63 |
+| ArtifactWidgets | 33 | 0 | 12 | 4 | 63 |
 
 ### CMake の現行責務
 
@@ -717,3 +717,8 @@ Tracked source file を宣言行で分類した数。`.cpp` は拡張子で数�
 
 - `ArtifactWidgets/src/Common/WinJumpList.cppm` は Windows Shell COM を使う import-free `WinJumpList` implementation unit で、対応する public `WinJumpList.ixx` と module 名が一致する。実装と公開 API を維持して `.cpp` に移し、明示 implementation source list に登録した。
 - 既存 Windows 専用 include と Jump List 処理は変更していない。`.cpp` と `.cppm` の LF 属性を `ArtifactWidgets/.gitattributes` に明記した。ビルド／依存スキャン／リンクは実行していない。
+
+### ArtifactWidgets.WinTaskbarProgress implementation migration（2026-10-22）
+
+- `ArtifactWidgets/src/Common/WinTaskbarProgress.cppm` は Windows Shell Taskbar COM の import-free implementation unit で、対応する public `WinTaskbarProgress.ixx` と module 名が一致する。既存の progress state 実装を保って `.cpp` へ移し、明示 implementation source list に登録した。
+- 現行 Artifact / ArtifactWidgets source には呼び出し元が見つからなかった。public interface と実装は削除せず、直接使う Windows / QWidget headers を維持する。ビルド／依存スキャン／リンクは実行していない。
